@@ -1,5 +1,5 @@
 $FreeBSD$
-/* $NetBSD: pcmciadevs,v 1.186 2003/09/16 08:26:37 onoe Exp $ */
+/* $NetBSD: pcmciadevs,v 1.226 2008/06/19 18:20:33 imp Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
 
 /*-
@@ -17,13 +17,6 @@ $FreeBSD$
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -153,6 +146,7 @@ vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor BROMAX			0x0274	Bromax communications, Inc
 vendor IODATA2			0x028a	I-O DATA
+vendor NECINFORTIA		0x0288	NEC Inforntia
 vendor ASUS			0x02aa	ASUS
 vendor SIEMENS			0x02ac	Siemens
 vendor UNGERMANN		0x02c0	Ungermann Bass
@@ -217,12 +211,12 @@ product 3COM 3CCFEM556BI	0x0556 3Com/Megahertz 3CCFEM556BI Ethernet/Modem
 product 3COM 3C562		0x0562 3Com 3c562 33.6 Modem/10Mbps Ethernet
 product 3COM 3C589		0x0589 3Com 3c589 10Mbps Ethernet
 product 3COM 3C574		0x0574 3Com 3c574-TX 10/100Mbps Ethernet
-product	3COM 3CRWE777A		0x0777 3Com 3CRWE777A Airconnect
+product 3COM 3CRWE777A		0x0777 3Com 3CRWE777A Airconnect
 product 3COM 3C1		0x0cf1 3Com Megahertz 3C1 10Mbps LAN CF+ Card
 product 3COM 3CRWE62092A	0x2092 3Com 3CRWE62092A	Wireless LAN
 
 /* ACTIONTEC Products */
-product	ACTIONTEC PRISM		0x0101 PRISM Wireless LAN PC Card
+product ACTIONTEC PRISM		0x0101 PRISM Wireless LAN PC Card
 
 /* Adaptec Products */
 product ADAPTEC APA1460		0x0001 Adaptec APA-1460 SlimSCSI
@@ -244,24 +238,25 @@ product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 /* Anycom */
 product ANYCOM LSE041		0x0004 AnyCom BlueCard LSE041 R1B
 product ANYCOM LSE039		0x0008 Anycom Bluetooth CF Card LSE039
+product ANYCOM LSE139		0x000b Anycom Bluetooth CF Card LSE139
 
 /* Archos */
-product	ARCHOS ARC_ATAPI	0x0043 MiniCD
+product ARCHOS ARC_ATAPI	0x0043 MiniCD
 
 /* ARtem */
 product ARTEM ONAIR		0x0001 ARtem OnAir
 
 /* ASUS WL-100 */
-product	ASUS WL100		0x0002 ASUS SpaceLink WL-100 Wireless LAN
+product ASUS WL100		0x0002 ASUS SpaceLink WL-100 Wireless LAN
 
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
 product BAY SURFER_PRO		0x0806 AirSurfer Pro Wireless LAN
 product BAY STACK_660		0x0807 BayStack 660 Wireless LAN
-product	BAY EMOBILITY_11B	0x080a e-Mobility 11Mb Wireless LAN
+product BAY EMOBILITY_11B	0x080a e-Mobility 11Mb Wireless LAN
 
 /* Bondwell */
-product	BONDWELL B236		0x0000 Game Card Joystick
+product BONDWELL B236		0x0000 Game Card Joystick
 
 /* BreezeCOM */
 product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
@@ -275,12 +270,12 @@ product BROMAX WCF11		0x3301 Instant Wireless Network CF Card
 
 /* BUFFALO */
 product BUFFALO LPC2_CLT	0x0300	BUFFALO LPC2-CLT Ethernet
-product	BUFFALO	LPC3_CLX	0x0301	BUFFALO LPC3-CLX Ethernet Adapter
+product BUFFALO	LPC3_CLX	0x0301	BUFFALO LPC3-CLX Ethernet Adapter
 product BUFFALO LPC4_TX		0x0303	BUFFALO LPC4-TX Fast Ethernet
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
 product BUFFALO LPC_CF_CLT	0x0307	BUFFALO LPC-CF-CLT
 product BUFFALO LPC4_CLX	0x0309	BUFFALO LPC4-CLX
-product	BUFFALO	LPC3_CLT	0x030a	BUFFALO LPC3-CLT Ethernet Adapter
+product BUFFALO	LPC3_CLT	0x030a	BUFFALO LPC3-CLT Ethernet Adapter
 product BUFFALO WLI_CF_S11G	0x030b	BUFFALO AirStation 11Mbps CF WLAN
 
 /* Compaq Products */
@@ -296,7 +291,7 @@ product COMPEX AX88190		0xc1ab AX88190 Fast Ethernet
 
 /* Contec C-NET(PC) */
 product CONTEC CNETPC		0x0000 Contec C-NET(PC)C
-product	CONTEC FX_DS110_PCC	0x0008 Contec FLEXLAN/FX-DS110-PCC
+product CONTEC FX_DS110_PCC	0x0008 Contec FLEXLAN/FX-DS110-PCC
 
 /* Dayna Products */
 product DAYNA COMMUNICARD_E_1	0x002d Dayna CommuniCard E
@@ -313,7 +308,8 @@ product DSPSI XJACK		0x0103 Megahertz X-JACK Ethernet
 product DUAL NE2000		0x0100 Dual NE2000
 
 /* Edimax Products */
-product EDIMAX	EP4000A		0x0100 Edimax EP4000A
+product EDIMAX EP4000A		0x0100 Edimax EP4000A
+product EDIMAX EP4101		0x1090 Edimax EP4101
 
 /* ELSA Products */
 product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
@@ -428,6 +424,9 @@ product MOTOROLA POWER144	0x0105 Motorola Power 14.4 Modem
 product MOTOROLA PM100C		0x0302 Motorola Personal Messenger 100C CDPD Modem
 product MOTOROLA MARINER	0x0501 Motorola Mariner Ethernet/Modem
 product MOTOROLA MONTANA_336	0x0505 Motorola Montana 33.6
+
+/* NEC Inforntia Products */
+product NECINFRONTIA AX420N	0x1b01 NEC Infrontia AX420N AirH Modem
 
 /* New Media Products */
 product NEWMEDIA BASICS		0x0019 New Media BASICS Ethernet
@@ -544,7 +543,7 @@ product RELIA COMBO		0x2452 Reliable Combo-L/M-56K
 product ROLAND SCP55		0x0001 Roland SCP-55
 
 /* Samsung */
-product	SAMSUNG SWL_2000N	0x0002	Samsung MagicLAN SWL-2000N
+product SAMSUNG SWL_2000N	0x0002	Samsung MagicLAN SWL-2000N
 
 /* Sandisk Products */
 product SANDISK SDCFB		0x0401 Sandisk CompactFlash Card
@@ -580,18 +579,20 @@ product SOCKET ES_1000		0x000a Socket Communications Ethernet/RS-232
 product SOCKET LP_ETHER		0x000d Socket Communications LP-E
 product SOCKET DUAL_IO		0x0070 Socket Communications DUAL IO
 product SOCKET LP_ETHER_CF	0x0075 Socket Communications LP-E CF
+product SOCKET DUAL_RS232_A	0x00a1 Socket Communications Dual RS232_A
 product SOCKET LP_ETH_10_100_CF 0x0145 Socket Communications 10/100 Ethernet
 
 /* Symbol */
-product	SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
+product SYMBOL LA4100		0x0001	Symbol Spectrum24 LA4100 Series WLAN
 
 /* TDK Products */
 product TDK LAK_CD011WL		0x0000 TDK LAK-CD011WL
-product	TDK CFE_10		0x010a Xircom CompactCard CFE-10
+product TDK CFE_10		0x010a Xircom CompactCard CFE-10
 product TDK LAK_CD021BX		0x0200 TDK LAK-CD021BX Ethernet
 product TDK LAK_CF010		0x0900 TDK LAC-CF010
 product TDK DFL9610		0x0d0a TDK DFL9610 Ethernet & Digital Cellular
-product	TDK C6500012		0x410a TDK ELSA MicroLink MC all
+product TDK C6500012		0x410a TDK ELSA MicroLink MC all
+product TDK BLUETOOTH		0x4254 TDK Bluetooth PC Card
 product TDK GN3410		0x4815 TDK GlobalNetworker 3410
 product TDK LAK_CD031		0xc1ab TDK LAK-CD031 Ethernet
 product TDK DFL5610WS		0xea15 TDK DFL5610WS Ethernet/Modem
@@ -690,6 +691,8 @@ product COREGA ETHER_II_PCC_TD	{ "corega&spK.K.", "corega&spEtherII&spPCC-TD", N
 product COREGA FAST_ETHER_PCC_TX	{ "corega&spK.K.", "corega&spFastEther&spPCC-TX", NULL, NULL } Corega FastEther PCC-TX
 product COREGA FETHER_PCC_TXD	{ "corega&spK.K.", "corega&spFEther&spPCC-TXD", NULL, NULL } Corega FEther PCC-TXD
 product COREGA FETHER_PCC_TXF	{ "corega", "FEther&spPCC-TXF", NULL, NULL } Corega FEther PCC-TXF
+product COREGA FETHER_II_PCC_TXD	{ "corega&spK.K.", "corega&spFEtherII&spPCC-TXD", NULL, NULL } Corega FEtherII PCC-TXD
+product COREGA LAPCCTXD		{ "corega&spK.K.", "(CG-LAPCCTXD)", "(HardwareFirmwareVer.)", NULL } Corega LAPCCTXD
 product COREGA WIRELESS_LAN_PCC_11	{ "corega&spK.K.", "Wireless&spLAN&spPCC-11", NULL, NULL } Corega Wireless LAN PCC-11
 product COREGA WIRELESS_LAN_PCCA_11	{ "corega&spK.K.", "Wireless&spLAN&spPCCA-11", NULL, NULL } Corega Wireless LAN PCCA-11
 product COREGA WIRELESS_LAN_PCCB_11	{ "corega_K.K.", "Wireless_LAN_PCCB-11", NULL, NULL } Corega Wireless LAN PCCB-11
@@ -699,7 +702,7 @@ product DLINK DE650		{ "D-Link", "DE-650", NULL, NULL } D-Link DE-650
 product DLINK DE660		{ "D-Link", "DE-660", NULL, NULL } D-Link DE-660
 product DLINK DE660PLUS		{ "D-Link", "DE-660+", NULL, NULL } D-Link DE-660+
 product DLINK DWL650H		{ "D-Link&spCorporation", "D-Link&spDWL-650H&sp11Mbps&spWLAN&spAdapter", NULL, NULL } D-Link DWL-650H
-product	DYNALINK L10C		{ "DYNALINK", "L10C", NULL, NULL } Dynalink L10C
+product DYNALINK L10C		{ "DYNALINK", "L10C", NULL, NULL } Dynalink L10C
 /*
  * vendor ID of EPX_AA2000 is Fujitsu (0x0004) and product ID is 0x2000, but
  * it conflicts with Fujitsu Towa LA501 Ethernet.
@@ -727,7 +730,7 @@ product LINKSYS ECARD_2		{ "LINKSYS", "E-CARD", NULL, NULL } Linksys E-Card
 product MACNICA MPS100		{ "MACNICA", "MIRACLE&spSCSI", "mPS100", "D.0" } Macnica Miracle SCSI mPS100
 product MEGAHERTZ XJ2288 	{ "MEGAHERTZ", "MODEM&spXJ2288", NULL, NULL } Megahertz XJ2288 Modem
 product MELCO2 LPC2_TX		{ "MELCO", "LPC2-TX", NULL, NULL } Melco LPC2-TX
-product	MICRORESEARCH MR10TPC	{ "MICRO-RESEARCH-MR10TPC", "Ethernet", NULL, NULL } Micro Research MR10TPC
+product MICRORESEARCH MR10TPC	{ "MICRO-RESEARCH-MR10TPC", "Ethernet", NULL, NULL } Micro Research MR10TPC
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
@@ -759,7 +762,7 @@ product SMC 8020BTM		{ "SMC", "EtherEZ&spEthernet/Modem", "8020", NULL }
 product SVEC COMBOCARD		{ "Ethernet", "Adapter", NULL, NULL } SVEC/Hawking Tech. Combo Card
 product SVEC LANCARD		{ "SVEC", "FD605&spPCMCIA&spEtherNet&spCard", "V1-1", NULL } SVEC PCMCIA Lan Card
 product TAMARACK ETHERNET	{ "TAMARACK", "Ethernet", NULL, NULL } TAMARACK NE2000 PC Card
-product TEAC IDECARDII		{ NULL, "NinjaATA-", NULL, NULL } TEAC IDE Card/II
+product TEAC IDECARDII		{ "&sp", "NinjaATA-", NULL, NULL } TEAC IDE Card/II
 product TOSHIBA CBIDE2         { "LOOKMEET", "CBIDE2&sp&sp&sp&sp&sp&sp", NULL, NULL } TOSHIBA PA2673U CBIDE2/16-bit mode (IO-DATA OEM)
 product WORKBIT2 NINJA_SCSI3	{ "WBT", "NinjaSCSI-3", NULL, NULL } WORKBIT Ninja SCSI series
 product YEDATA EXTERNAL_FDD	{ "Y-E&spDATA", "External&spFDD", NULL, NULL } Y-E DATA External FDD
