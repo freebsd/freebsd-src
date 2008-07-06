@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080706: bsdlabel(8) removed on powerpc
+.if ${TARGET_ARCH} == "powerpc"
+OLD_FILES+=sbin/bsdlabel
+OLD_FILES+=usr/share/man/man8/bsdlabel.8.gz
+.endif
 # 20080704: sbsh(4) removed
 OLD_FILES+=usr/share/man/man4/if_sbsh.4.gz
 OLD_FILES+=usr/share/man/man4/sbsh.4.gz
