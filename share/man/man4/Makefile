@@ -138,6 +138,7 @@ MAN=	aac.4 \
 	iwi.4 \
 	ixgb.4 \
 	joy.4 \
+	k8temp.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
