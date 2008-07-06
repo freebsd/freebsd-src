@@ -234,9 +234,25 @@ ACL entry.
 .Pp
 Multiple ACL entries specified on the command line are
 separated by commas.
+.Pp
+It is possible for files and directories to inherit ACL entries from their
+parent directory.  This is accomplished through the use of the default ACL.
+It should be noted that before you can specify a default ACL, the mandatory
+ACL entries for user, group, other and mask must be set. For more details
+see the examples below. Default ACLs can be created by using
+.Fl d .
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
+.Dl setfacl -d -m u::rwx,g::rx,o::rx,mask::rwx dir
+.Dl setfacl -d -m g:admins:rwx dir
+.Pp
+The first command sets the mandatory elements of the default ACL. The second
+command specifies that users in group admins can have read, write, and execute
+permissions for directory named "dir". It should be noted that any files
+or directories created underneath "dir" will inherit these default ACLs upon
+creation.
+.Pp
 .Dl setfacl -m u::rwx,g:mail:rw file
 .Pp
 Sets read, write, and execute permissions for the
