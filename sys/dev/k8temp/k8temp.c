@@ -182,7 +182,7 @@ k8temp_attach(device_t dev)
 
 	/*
 	 * Setup intrhook function to create dev.cpu sysctl entries. This is
-	 * needed because the cpu driver may be loaded late on boot, before
+	 * needed because the cpu driver may be loaded late on boot, after
 	 * us.
 	 */
 	sc->sc_ich.ich_func = k8temp_intrhook;
