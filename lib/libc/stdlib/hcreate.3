@@ -111,8 +111,10 @@ is called.
 .Sh RETURN VALUES
 The
 .Fn hcreate
-function returns 0 if it cannot allocate sufficient space for the table;
-otherwise, it returns non-zero.
+function returns 0 if the table creation failed and the global variable
+.Va errno
+is set to indicate the error;
+otherwise, a non-zero value is returned.
 .Pp
 The
 .Fn hdestroy
@@ -199,6 +201,8 @@ functions may fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 Insufficient storage space is available.
+.It Bq Er EINVAL
+A table already exists.
 .El
 .Sh SEE ALSO
 .Xr bsearch 3 ,
