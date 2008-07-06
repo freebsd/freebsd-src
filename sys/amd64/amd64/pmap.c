@@ -440,16 +440,16 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Read-only from zero to physfree */
 	/* XXX not fully used, underneath 2M pages */
 	for (i = 0; (i << PAGE_SHIFT) < *firstaddr; i++) {
-		((pt_entry_t *)KPTphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
-		    PAGE_SIZE + i] = i << PAGE_SHIFT;
-		((pt_entry_t *)KPTphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
-		    PAGE_SIZE + i] |= PG_RW | PG_V | PG_G;
+		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
+		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V | PG_G;
 	}
 
 	/* Now map the page tables at their location within PTmap */
 	for (i = 0; i < NKPT; i++) {
-		((pd_entry_t *)KPDphys)[i] = KPTphys + (i << PAGE_SHIFT);
-		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V;
+		((pd_entry_t *)KPDphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    NBPDR + i] = KPTphys + (i << PAGE_SHIFT);
+		((pd_entry_t *)KPDphys)[(KERNBASE - VM_MIN_KERNEL_ADDRESS) /
+		    NBPDR + i] |= PG_RW | PG_V;
 	}
 
 	/* Map from zero to end of allocations under 2M pages */
@@ -647,15 +647,17 @@ pmap_init(void)
 	 * Initialize the vm page array entries for the kernel pmap's
 	 * page table pages.
 	 */ 
-	pd = pmap_pde(kernel_pmap, VM_MIN_KERNEL_ADDRESS);
+	pd = pmap_pde(kernel_pmap, KERNBASE);
 	for (i = 0; i < NKPT; i++) {
 		if ((pd[i] & (PG_PS | PG_V)) == (PG_PS | PG_V))
 			continue;
+		KASSERT((pd[i] & PG_V) != 0,
+		    ("pmap_init: page table page is missing"));
 		mpte = PHYS_TO_VM_PAGE(pd[i] & PG_FRAME);
 		KASSERT(mpte >= vm_page_array &&
 		    mpte < &vm_page_array[vm_page_array_size],
 		    ("pmap_init: page table page is out of range"));
-		mpte->pindex = pmap_pde_pindex(VM_MIN_KERNEL_ADDRESS) + i;
+		mpte->pindex = pmap_pde_pindex(KERNBASE) + i;
 		mpte->phys_addr = pd[i] & PG_FRAME;
 	}
 
