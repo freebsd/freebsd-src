@@ -113,7 +113,7 @@ _ping6=		ping6
 _rtsol=		rtsol
 .endif
 
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc"
 _bsdlabel=	bsdlabel
 .endif
 
