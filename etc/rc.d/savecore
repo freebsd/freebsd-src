@@ -57,7 +57,18 @@ savecore_prestart()
 
 savecore_start()
 {
-	if savecore -C >/dev/null; then
+	local dev
+
+	case "${dumpdev}" in
+	[Aa][Uu][Tt][Oo])
+		dev=
+		;;
+	*)
+		dev="${dumpdev}"
+		;;
+	esac
+
+	if savecore -C "${dumpdir}" "${dev}" >/dev/null; then
 		savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
 	else
 		[ -z "${rc_quiet}" ] && echo "No core dumps found"
