@@ -757,8 +757,6 @@
 
     &hwlist.ath;
 
-    &hwlist.cnw;
-
     <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI network
       adapter (&man.ipw.4; driver)</para>
 
@@ -801,13 +799,6 @@
     &hwlist.cp;
 
     &hwlist.ctau;
-
-    <para>[&arch.i386;] Granch SBNI12 point-to-point communications
-    adapters (&man.sbni.4; driver)
-    </para>
-
-    <para>[&arch.i386;] Granch SBNI16 SHDSL modems (&man.sbsh.4;
-      driver)</para>
 
     &hwlist.cm;
 
