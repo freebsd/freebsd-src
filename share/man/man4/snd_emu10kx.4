@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 15, 2007
+.Dd May 28, 2008
 .Dt SND_EMU10KX 4
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ devices (see
 .Sx MULTICHANNEL PLAYBACK
 for details), and MPU401-compatible MIDI I/O controller, which is accessible
 through the midi device.
-Wave table synthesizer is not supported.
+Wave table synthesizer support is not available.
 .Sh HARDWARE
 The
 .Nm
@@ -90,7 +90,7 @@ The
 .Nm
 driver does
 .Em not
-support the following sound cards (although they are named
+support the following sound cards (although they have names
 similar to some supported ones):
 .Pp
 .Bl -bullet -compact
@@ -110,25 +110,29 @@ All other Creative sound cards with -DAT chipsets.
 All Creative X-Fi series sound cards.
 .El
 .Sh MULTICHANNEL PLAYBACK
-By default driver is loaded with multichannel playback capabilities enabled.
+By default the
+.Nm
+driver is loaded with multichannel playback capabilities enabled.
 If you do not set the
 .Dv hint.emu10kx.0.multichannel_disabled
 option in your
 .Xr loader.conf 5
-configuration file you will get up to
-five DSP devices, one for each sound card output.
+configuration file you will get up to five DSP devices, one for each
+sound card output.
 You can use additional software (like 
 .Em audio/pulseaudio
 from
-.Em The Ports Collection
-) to do sound stream demultiplexing.
+.Em The Ports Collection )
+to do sound stream demultiplexing.
 Only
 .Dq FRONT
 output can play and record sound from external
 sources (like line or S/PDIF inputs).
 .Sh MULTICHANNEL RECORDING
 By default multichannel recording capabilities are not enabled when you load
-this driver.
+the
+.Nm
+driver.
 If you enable the
 .Dv hint.emu10kx.0.multichannel_recording
 option in
@@ -136,14 +140,14 @@ option in
 you will get one more DSP device that is rate-locked to 48kHz/16bit/mono.
 This is actually 48kHz/16bit/32 channels on SB Live! cards and
 48kHz/16bit/64channels on Audigy cards, but the current implementation of
-sound subsystem does not support such an amount of PCM channels.
+the sound subsystem does not support such an amount of PCM channels.
 This device can not be opened for read, thus confusing many applications.
 .Pp
-Within multichannel stream first half (0-15 or 0-31) is a copy of all DSP
-outputs, second half (15-30 or 32-63) is a copy of some DSP inputs.
-On Live! cards the last substream (31) is used as a sync stream and always
+Within a multichannel stream, the first half (0-15 or 0-31) is a copy of all DSP
+outputs, the second half (15-30 or 32-63) is a copy of some DSP inputs.
+On Live! cards the last substream (31) is used as a sync stream and is always
 set to 0xc0de.
-Audigy cards do not need such sync data, because stream always start with
+Audigy cards do not need such sync data, because a stream always starts with
 substream 0.
 .Ss SB Live! substream map (in byte offsets, each substream is 2 bytes LE)
 .Bl -tag -width ".Dv +0x00..+0x1E"
@@ -183,19 +187,20 @@ On newer cards the OSS mixer controls some parameters of the AC97 codec and
 some DSP-based mixer controls.
 .Bl -inset
 .It Qq vol
-mixer control is overall sound volume.
+mixer control for the overall sound volume.
 .It Qq pcm
-mixer control is PCM playback volume.
+mixer control for the PCM playback volume.
 It controls only front output
 volume in multichannel mode and all output volume in single channel mode.
 .It Qq rec
-mixer control acts very different on EMU10K1 and other cards.
+mixer control acts very differently on EMU10K1 and other cards.
 On EMU10K1 cards it controls the AC97 codec recording level.
-On non-EMU10K1 cards it controls the amount of AC97 "stereo mix" entering
-the DSP.
+On non-EMU10K1 cards it controls the amount of AC97
+.Dq stereo mix
+ entering the DSP.
 AC97 recording level and AC97 recording source are fixed on CA0100, CA0101,
 CA0102 and CA0108 cards.
-AC97 recording level are always set to maximum and recording source is always
+The AC97 recording levels are always set to maximum and recording source is always
 .Dq Li "stereo mix" .
 .It Qq dig1
 is a CD S/PDIF (on-card) volume control
@@ -210,26 +215,27 @@ is AudigyDrive "Line In 2" volume control
 is AudigyDrive "AUX In 2" volume control
 .El
 .Pp
-Other OSS mixer controls control inputs of AC97 codec.
+Other OSS mixer controls control the inputs of the AC97 codec.
 .Sh PRIVATE DEVICE CONTROLS
-You can control some of EMU10Kx operation and configuration parameters through
+You can control some of EMU10Kx's operation and configuration parameters through
 .Va dev.emu10kx. Ns Aq Ar X
 sysctls.
 These
 .Xr sysctl 8
-values are temporary and should not be relied
-upon.
+values are temporary and should not be relied upon.
 .Sh DRIVER CONFIGURATION
 Loader tunables are used to set driver configuration.
 Tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or they can be stored in
 .Pa /boot/loader.conf .
-These tunables can't be changed from a maching
+These tunables cannot be changed from a machine
 .Xr sysctl 8
 entry after boot, but you can change them using
 .Xr kenv 1
-while the driver is not loaded.
+before loading the
+.Nm
+driver.
 .Bl -tag -width indent
 .It Va hint.emu10kx. Ns Ao Ar X Ac Ns Va .disabled
 Disables loading a driver instance.
@@ -285,7 +291,7 @@ The driver does not detect lost S/PDIF signals and produces noise when
 S/PDIF is not connected and S/PDIF volume is not zero.
 .Pp
 The PCM driver cannot detect the presence of Live!Drive or AudigyDrive
-breakout boxes and tries to use them (and list their connectors in the 
+breakout boxes and tries to use them (and list their connectors in the
 mixer).
 .Pp
 The MIDI driver cannot detect the presence of Live!Drive or AudigyDrive
