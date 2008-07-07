@@ -1531,7 +1531,10 @@ ia64_invalidate_icache(vm_offset_t va, vm_offset_t sz)
 
 	lim = va + sz;
 	while (va < lim) {
-		__asm __volatile("fc.i %0" :: "r"(va));
+		ia64_fc_i(va);
 		va += 32;	/* XXX */
 	}
+
+	ia64_sync_i();
+	ia64_srlz_i();
 }

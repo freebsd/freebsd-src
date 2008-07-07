@@ -197,6 +197,12 @@ ia64_fc(u_int64_t va)
 	__asm __volatile("fc %0" :: "r"(va));
 }
 
+static __inline void
+ia64_fc_i(u_int64_t va)
+{
+	__asm __volatile("fc.i %0" :: "r"(va));
+}
+
 /*
  * Sync instruction stream.
  */
