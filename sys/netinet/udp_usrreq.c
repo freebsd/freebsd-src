@@ -841,10 +841,12 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 	if (src.sin_family == AF_INET || addr != NULL) {
 		INP_INFO_WLOCK(&udbinfo);
+		INP_WLOCK(inp);
 		unlock_udbinfo = 1;
-	} else
+	} else {
 		unlock_udbinfo = 0;
-	INP_WLOCK(inp);
+		INP_RLOCK(inp);
+	}
 
 #ifdef MAC
 	mac_inpcb_create_mbuf(inp, m);
@@ -975,13 +977,18 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		INP_INFO_WUNLOCK(&udbinfo);
 	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
-	INP_WUNLOCK(inp);
+	if (unlock_udbinfo)
+		INP_WUNLOCK(inp);
+	else
+		INP_RUNLOCK(inp);
 	return (error);
 
 release:
-	INP_WUNLOCK(inp);
-	if (unlock_udbinfo)
+	if (unlock_udbinfo) {
 		INP_INFO_WUNLOCK(&udbinfo);
+		INP_WUNLOCK(inp);
+	} else
+		INP_RUNLOCK(inp);
 	m_freem(m);
 	return (error);
 }
