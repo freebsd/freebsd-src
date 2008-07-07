@@ -2111,11 +2111,11 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	 *	[tlv] parameter set (FH/DS)
 	 *	[tlv] parameter set (IBSS)
 	 *	[tlv] country (optional)
-	 *	[tlv] RSN (optional)
 	 *	[3] power control (optional)
 	 *	[5] channel switch announcement (CSA) (optional)
 	 *	[tlv] extended rate phy (ERP)
 	 *	[tlv] extended supported rates
+	 *	[tlv] RSN (optional)
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
 	 *	[tlv] WPA (optional)
@@ -2134,11 +2134,11 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + 2 + IEEE80211_RATE_SIZE
 	       + 7	/* max(7,3) */
 	       + IEEE80211_COUNTRY_MAX_SIZE
-	       + sizeof(struct ieee80211_ie_wpa)
 	       + 3
 	       + sizeof(struct ieee80211_csa_ie)
 	       + 3
 	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
+	       + sizeof(struct ieee80211_ie_wpa)
 	       + sizeof(struct ieee80211_ie_htcap)
 	       + sizeof(struct ieee80211_ie_htinfo)
 	       + sizeof(struct ieee80211_ie_wpa)
@@ -2190,11 +2190,6 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if ((vap->iv_flags & IEEE80211_F_DOTH) ||
 	    (vap->iv_flags_ext & IEEE80211_FEXT_DOTD))
 		frm = ieee80211_add_countryie(frm, ic);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain? */
-	}
 	if (vap->iv_flags & IEEE80211_F_DOTH) {
 		if (IEEE80211_IS_CHAN_5GHZ(bss->ni_chan))
 			frm = ieee80211_add_powerconstraint(frm, vap);
@@ -2204,6 +2199,11 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
 		frm = ieee80211_add_erp(frm, ic);
 	frm = ieee80211_add_xrates(frm, rs);
+	if (vap->iv_flags & IEEE80211_F_WPA2) {
+		if (vap->iv_rsn_ie != NULL)
+			frm = add_ie(frm, vap->iv_rsn_ie);
+		/* XXX else complain? */
+	}
 	/*
 	 * NB: legacy 11b clients do not get certain ie's.
 	 *     The caller identifies such clients by passing
@@ -2410,11 +2410,11 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	 *	[8] CF parameter set (optional)
 	 *	[tlv] parameter set (IBSS/TIM)
 	 *	[tlv] country (optional)
-	 *	[tlv] RSN parameters
 	 *	[3] power control (optional)
 	 *	[5] channel switch announcement (CSA) (optional)
 	 *	[tlv] extended rate phy (ERP)
 	 *	[tlv] extended supported rates
+	 *	[tlv] RSN parameters
 	 *	[tlv] HT capabilities
 	 *	[tlv] HT information
 	 * XXX Vendor-specific OIDs (e.g. Atheros)
@@ -2474,11 +2474,6 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	if ((vap->iv_flags & IEEE80211_F_DOTH) ||
 	    (vap->iv_flags_ext & IEEE80211_FEXT_DOTD))
 		frm = ieee80211_add_countryie(frm, ic);
-	if (vap->iv_flags & IEEE80211_F_WPA2) {
-		if (vap->iv_rsn_ie != NULL)
-			frm = add_ie(frm, vap->iv_rsn_ie);
-		/* XXX else complain */
-	}
 	if (vap->iv_flags & IEEE80211_F_DOTH) {
 		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
 			frm = ieee80211_add_powerconstraint(frm, vap);
@@ -2492,6 +2487,11 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 		frm = ieee80211_add_erp(frm, ic);
 	}
 	frm = ieee80211_add_xrates(frm, rs);
+	if (vap->iv_flags & IEEE80211_F_WPA2) {
+		if (vap->iv_rsn_ie != NULL)
+			frm = add_ie(frm, vap->iv_rsn_ie);
+		/* XXX else complain */
+	}
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan)) {
 		frm = ieee80211_add_htcap(frm, ni);
 		bo->bo_htinfo = frm;
