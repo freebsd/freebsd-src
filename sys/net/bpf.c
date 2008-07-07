@@ -927,8 +927,9 @@ reset_d(struct bpf_d *d)
  *  FIONREAD		Check for read packet available.
  *  SIOCGIFADDR		Get interface address - convenient hook to driver.
  *  BIOCGBLEN		Get buffer len [for read()].
- *  BIOCSETF		Set ethernet read filter.
- *  BIOCSETWF		Set ethernet write filter.
+ *  BIOCSETF		Set read filter.
+ *  BIOCSETFNR		Set read filter without resetting descriptor.
+ *  BIOCSETWF		Set write filter.
  *  BIOCFLUSH		Flush read packet buffer.
  *  BIOCPROMISC		Put interface into promiscuous mode.
  *  BIOCGDLT		Get link layer type.
@@ -1047,6 +1048,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	 * Set link layer read filter.
 	 */
 	case BIOCSETF:
+	case BIOCSETFNR:
 	case BIOCSETWF:
 		error = bpf_setf(d, (struct bpf_program *)addr, cmd);
 		break;
@@ -1361,8 +1363,9 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #ifdef BPF_JITTER
 			d->bd_bfilter = NULL;
 #endif
+			if (cmd == BIOCSETF)
+				reset_d(d);
 		}
-		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
@@ -1388,8 +1391,9 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #ifdef BPF_JITTER
 			d->bd_bfilter = bpf_jitter(fcode, flen);
 #endif
+			if (cmd == BIOCSETF)
+				reset_d(d);
 		}
-		reset_d(d);
 		BPFD_UNLOCK(d);
 		if (old != NULL)
 			free((caddr_t)old, M_BPF);
