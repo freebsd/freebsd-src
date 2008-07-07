@@ -403,6 +403,7 @@ This is useful for programs like
 which must respond to messages in real time.
 The default for a new file is off.
 .It Dv BIOCSETF
+.It Dv BIOCSETFNR
 .Pq Li "struct bpf_program"
 Sets the read filter program used by the kernel to discard uninteresting
 packets.
@@ -422,12 +423,20 @@ field while its length in units of
 is given by the
 .Li bf_len
 field.
-Also, the actions of
-.Dv BIOCFLUSH
-are performed.
 See section
 .Sx "FILTER MACHINE"
 for an explanation of the filter language.
+The only difference between
+.Dv BIOCSETF
+and
+.Dv BIOCSETFNR
+is
+.Dv BIOCSETF
+performs the actions of
+.Dv BIOCFLUSH
+while
+.Dv BIOCSETFNR
+does not.
 .It Dv BIOCSETWF
 .Pq Li "struct bpf_program"
 Sets the write filter program used by the kernel to control what type of
