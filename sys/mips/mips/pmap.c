@@ -1239,7 +1239,7 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		req = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
+		req = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ;
 #ifdef VM_ALLOC_WIRED_TLB_PG_POOL
 		if (need_wired_tlb_page_pool)
 			req |= VM_ALLOC_WIRED_TLB_PG_POOL;
