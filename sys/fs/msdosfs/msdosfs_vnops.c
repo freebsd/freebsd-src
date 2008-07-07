@@ -985,7 +985,7 @@ msdosfs_rename(ap)
 	struct componentname *fcnp = ap->a_fcnp;
 	struct thread *td = fcnp->cn_thread;
 	struct denode *ip, *xp, *dp, *zp;
-	u_char toname[11], oldname[11];
+	u_char toname[12], oldname[11];
 	u_long from_diroffset, to_diroffset;
 	u_char to_count;
 	int doingdirectory = 0, newparent = 0;
