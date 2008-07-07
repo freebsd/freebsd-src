@@ -413,6 +413,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	   This does not affect those who are using "/dev/dsp".
 
 20061122:
+	geom(4)'s gmirror(8) class metadata structure has been
+	rev'd from v3 to v4. If you update across this point and
+	your metadata is converted for you, you will not be easily
+	able to downgrade since the /boot/kernel.old/geom_mirror.ko
+	kernel module will be unable to read the v4 metadata.  You
+	can resolve this by doing from the loader(8) prompt:
+
+		set vfs.root.mountfrom="ufs:/dev/XXX"
+
+	where XXX is the root slice of one of the disks that composed
+	the mirror (i.e.: /dev/ad0s1a). You can can than rebuild
+	the array the same way you built it originally.
+
+20061122:
 	The following binaries have been disconnected from the build:
 	mount_devfs, mount_ext2fs, mount_fdescfs, mount_procfs, mount_linprocfs,
 	and mount_std.  The functionality of these programs has been
