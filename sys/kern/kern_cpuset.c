@@ -115,6 +115,38 @@ cpuset_ref(struct cpuset *set)
 }
 
 /*
+ * Walks up the tree from 'set' to find the root.  Returns the root
+ * referenced.
+ */
+static struct cpuset *
+cpuset_refroot(struct cpuset *set)
+{
+
+	for (; set->cs_parent != NULL; set = set->cs_parent)
+		if (set->cs_flags & CPU_SET_ROOT)
+			break;
+	cpuset_ref(set);
+
+	return (set);
+}
+
+/*
+ * Find the first non-anonymous set starting from 'set'.  Returns this set
+ * referenced.  May return the passed in set with an extra ref if it is
+ * not anonymous. 
+ */
+static struct cpuset *
+cpuset_refbase(struct cpuset *set)
+{
+
+	if (set->cs_id == CPUSET_INVALID)
+		set = set->cs_parent;
+	cpuset_ref(set);
+
+	return (set);
+}
+
+/*
  * Release a reference in a context where it is safe to allocte.
  */
 void
@@ -312,38 +344,6 @@ out:
 	mtx_unlock_spin(&cpuset_lock);
 
 	return (error);
-}
-
-/*
- * Walks up the tree from 'set' to find the root.  Returns the root
- * referenced.
- */
-static struct cpuset *
-cpuset_refroot(struct cpuset *set)
-{
-
-	for (; set->cs_parent != NULL; set = set->cs_parent)
-		if (set->cs_flags & CPU_SET_ROOT)
-			break;
-	cpuset_ref(set);
-
-	return (set);
-}
-
-/*
- * Find the first non-anonymous set starting from 'set'.  Returns this set
- * referenced.  May return the passed in set with an extra ref if it is
- * not anonymous. 
- */
-static struct cpuset *
-cpuset_refbase(struct cpuset *set)
-{
-
-	if (set->cs_id == CPUSET_INVALID)
-		set = set->cs_parent;
-	cpuset_ref(set);
-
-	return (set);
 }
 
 /*
