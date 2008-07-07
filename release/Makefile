@@ -128,7 +128,7 @@ RELNOTES_LANG?=	en_US.ISO8859-1
 .if defined(NOPORTS) && !defined(NODOC)
 DOMINIMALDOCPORTS=	YES
 .include "Makefile.inc.docports"
-RELEASEPORTSMODULE=	${MINIMALDOCPORTS}
+RELEASEPORTSMODULE=	${MINIMALDOCPORTS} ports/sysutils/cdrtools
 .endif
 
 # Helper variable
