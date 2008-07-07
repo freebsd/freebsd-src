@@ -542,11 +542,13 @@ udp_input(struct mbuf *m, int off)
 	 * Check the minimum TTL for socket.
 	 */
 	INP_RLOCK(inp);
-	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl)
-		goto badheadlocked;
+	INP_INFO_RUNLOCK(&udbinfo);
+	if (inp->inp_ip_minttl && inp->inp_ip_minttl > ip->ip_ttl) {
+		INP_RUNLOCK(inp);
+		goto badunlocked;
+	}
 	udp_append(inp, ip, m, iphlen + sizeof(struct udphdr), &udp_in);
 	INP_RUNLOCK(inp);
-	INP_INFO_RUNLOCK(&udbinfo);
 	return;
 
 badheadlocked:
