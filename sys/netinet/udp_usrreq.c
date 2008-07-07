@@ -567,7 +567,13 @@ struct inpcb *
 udp_notify(struct inpcb *inp, int errno)
 {
 
-	INP_WLOCK_ASSERT(inp);
+	/*
+	 * While udp_ctlinput() always calls udp_notify() with a read lock
+	 * when invoking it directly, in_pcbnotifyall() currently uses write
+	 * locks due to sharing code with TCP.  For now, accept either a read
+	 * or a write lock, but a read lock is sufficient.
+	 */
+	INP_LOCK_ASSERT(inp);
 
 	inp->inp_socket->so_error = errno;
 	sorwakeup(inp->inp_socket);
@@ -609,11 +615,11 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		inp = in_pcblookup_hash(&udbinfo, faddr, uh->uh_dport,
 		    ip->ip_src, uh->uh_sport, 0, NULL);
 		if (inp != NULL) {
-			INP_WLOCK(inp);
+			INP_RLOCK(inp);
 			if (inp->inp_socket != NULL) {
 				udp_notify(inp, inetctlerrmap[cmd]);
 			}
-			INP_WUNLOCK(inp);
+			INP_RUNLOCK(inp);
 		}
 		INP_INFO_RUNLOCK(&udbinfo);
 	} else
