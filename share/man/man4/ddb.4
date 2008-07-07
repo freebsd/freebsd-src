@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2008
+.Dd July 7, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -582,6 +582,13 @@ header file.
 .Pp
 .It Ic show Cm cbstat
 Show brief information about the TTY subsystem.
+.\"
+.Pp
+.It Ic show Cm cpusets
+Print numbered root and assigned CPU affinity sets.
+See
+.Xr cpuset 2
+for more details.
 .\"
 .Pp
 .It Ic show Cm cyrixreg
