@@ -860,6 +860,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
 	if (src.sin_family == AF_INET) {
+		INP_INFO_LOCK_ASSERT(&udbinfo);
 		if ((lport == 0) ||
 		    (laddr.s_addr == INADDR_ANY &&
 		     src.sin_addr.s_addr == INADDR_ANY)) {
@@ -873,6 +874,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	if (addr) {
+		INP_INFO_LOCK_ASSERT(&udbinfo);
+		INP_LOCK_ASSERT(inp);
 		sin = (struct sockaddr_in *)addr;
 		if (jailed(td->td_ucred))
 			prison_remote_ip(td->td_ucred, 0,
@@ -889,6 +892,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		/* Commit the local port if newly assigned. */
 		if (inp->inp_laddr.s_addr == INADDR_ANY &&
 		    inp->inp_lport == 0) {
+			INP_INFO_WLOCK_ASSERT(&udbinfo);
+			INP_WLOCK_ASSERT(inp);
 			/*
 			 * Remember addr if jailed, to prevent rebinding.
 			 */
@@ -903,6 +908,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 			inp->inp_flags |= INP_ANONPORT;
 		}
 	} else {
+		INP_LOCK_ASSERT(inp);
 		faddr = inp->inp_faddr;
 		fport = inp->inp_fport;
 		if (faddr.s_addr == INADDR_ANY) {
