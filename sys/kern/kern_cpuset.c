@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -53,6 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 
 #include <vm/uma.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif /* DDB */
 
 /*
  * cpusets provide a mechanism for creating and manipulating sets of
@@ -975,3 +981,30 @@ out:
 	free(mask, M_TEMP);
 	return (error);
 }
+
+#ifdef DDB
+DB_SHOW_COMMAND(cpusets, db_show_cpusets)
+{
+	struct cpuset *set;
+	int cpu, once;
+
+	LIST_FOREACH(set, &cpuset_ids, cs_link) {
+		db_printf("set=%p id=%-6u ref=%-6d flags=0x%04x parent id=%d\n",
+		    set, set->cs_id, set->cs_ref, set->cs_flags,
+		    (set->cs_parent != NULL) ? set->cs_parent->cs_id : 0);
+		db_printf("  mask=");
+		for (once = 0, cpu = 0; cpu < CPU_SETSIZE; cpu++) {
+			if (CPU_ISSET(cpu, &set->cs_mask)) {
+				if (once == 0) {
+					db_printf("%d", cpu);
+					once = 1;
+				} else  
+					db_printf(",%d", cpu);
+			}
+		}
+		db_printf("\n");
+		if (db_pager_quit)
+			break;
+	}
+}
+#endif /* DDB */
