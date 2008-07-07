@@ -344,9 +344,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		return (IPPROTO_DONE);
 	}
 	INP_RLOCK(inp);
+	INP_INFO_RUNLOCK(&udbinfo);
 	udp6_append(inp, m, off, &fromsa);
 	INP_RUNLOCK(inp);
-	INP_INFO_RUNLOCK(&udbinfo);
 	return (IPPROTO_DONE);
 
 badheadlocked:
