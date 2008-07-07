@@ -142,6 +142,7 @@ struct bpf_zbuf {
 #define	BIOCGETZMAX	_IOR('B',127, size_t)
 #define	BIOCROTZBUF	_IOR('B',128, struct bpf_zbuf)
 #define	BIOCSETZBUF	_IOW('B',129, struct bpf_zbuf)
+#define	BIOCSETFNR	_IOW('B',130, struct bpf_program)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
