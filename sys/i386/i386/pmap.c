@@ -1806,13 +1806,15 @@ pmap_growkernel(vm_offset_t addr)
 		}
 
 		nkpg = vm_page_alloc(NULL, kernel_vm_end >> PDRSHIFT,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+		    VM_ALLOC_ZERO);
 		if (nkpg == NULL)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
 
-		pmap_zero_page(nkpg);
+		if ((nkpg->flags & PG_ZERO) == 0)
+			pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
 		pdir_pde(PTD, kernel_vm_end) = newpdir;
