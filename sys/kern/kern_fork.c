@@ -728,14 +728,12 @@ again:
 	 */
 	PROC_LOCK(p1);
 	_PRELE(p1);
+	PROC_UNLOCK(p1);
 
 	/*
 	 * Tell any interested parties about the new process.
 	 */
-	KNOTE_LOCKED(&p1->p_klist, NOTE_FORK | p2->p_pid);
-
-	PROC_UNLOCK(p1);
-
+	knote_fork(&p1->p_klist, p2->p_pid);
 	SDT_PROBE(proc, kernel, , create, p2, p1, flags, 0, 0);
 
 	/*
