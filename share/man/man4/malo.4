@@ -61,8 +61,7 @@ driver provides support for Marvell Libertas 88W8335 based PCI
 and Cardbus network adapters.
 .Nm
 supports
-.Cm station ,
-.Cm adhoc ,
+.Cm station
 and
 .Cm monitor
 mode operation.
@@ -95,29 +94,28 @@ U-Khan UW-2054i	88W8335	PCI	b/g
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
 .Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 inet 192.168.0.20 \e
+ifconfig wlan create wlandev malo0 inet 192.168.0.20 \e
     netmask 0xffffff00
 .Ed
 .Pp
 Join a specific BSS network with network name
 .Dq Li my_net :
 .Pp
-.Dl "ifconfig wlan create wlandev iwn0 ssid my_net up"
+.Dl "ifconfig wlan create wlandev malo0 ssid my_net up"
 .Pp
 Join a specific BSS network with 64-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 ssid my_net \e
+ifconfig wlan create wlandev malo0 ssid my_net \e
 	wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
 .Pp
 Join a specific BSS network with 128-bit WEP encryption:
 .Bd -literal -offset indent
-ifconfig wlan create wlandev iwn0 wlanmode adhoc ssid my_net \e
+ifconfig wlan create wlandev malo0 wlanmode adhoc ssid my_net \e
     wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh SEE ALSO
 .Xr cardbus 4 ,
-.Xr malofw 4 ,
 .Xr pci 4 ,
 .Xr wlan 4 ,
 .Xr wlan_ccmp 4 ,
