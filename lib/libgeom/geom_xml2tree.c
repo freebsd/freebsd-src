@@ -84,6 +84,11 @@ StartElement(void *userData, const char *name, const char **attr)
 	}
 	if (!strcmp(name, "class") && mt->class == NULL) {
 		mt->class = calloc(1, sizeof *mt->class);
+		if (mt->class == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		mt->class->lg_id = id;
 		LIST_INSERT_HEAD(&mt->mesh->lg_class, mt->class, lg_class);
 		LIST_INIT(&mt->class->lg_geom);
@@ -92,6 +97,11 @@ StartElement(void *userData, const char *name, const char **attr)
 	}
 	if (!strcmp(name, "geom") && mt->geom == NULL) {
 		mt->geom = calloc(1, sizeof *mt->geom);
+		if (mt->geom == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		mt->geom->lg_id = id;
 		LIST_INSERT_HEAD(&mt->class->lg_geom, mt->geom, lg_geom);
 		LIST_INIT(&mt->geom->lg_provider);
@@ -105,6 +115,11 @@ StartElement(void *userData, const char *name, const char **attr)
 	}
 	if (!strcmp(name, "consumer") && mt->consumer == NULL) {
 		mt->consumer = calloc(1, sizeof *mt->consumer);
+		if (mt->consumer == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		mt->consumer->lg_id = id;
 		LIST_INSERT_HEAD(&mt->geom->lg_consumer, mt->consumer,
 		    lg_consumer);
@@ -121,6 +136,11 @@ StartElement(void *userData, const char *name, const char **attr)
 	}
 	if (!strcmp(name, "provider") && mt->provider == NULL) {
 		mt->provider = calloc(1, sizeof *mt->provider);
+		if (mt->provider == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		mt->provider->lg_id = id;
 		LIST_INSERT_HEAD(&mt->geom->lg_provider, mt->provider,
 		    lg_provider);
@@ -162,6 +182,11 @@ EndElement(void *userData, const char *name)
 	mt = userData;
 	sbuf_finish(mt->sbuf[mt->level]);
 	p = strdup(sbuf_data(mt->sbuf[mt->level]));
+	if (p == NULL) {
+		warn("Cannot allocate memory during processing of '%s' "
+		    "element", name);
+		return;
+	}
 	sbuf_delete(mt->sbuf[mt->level]);
 	mt->sbuf[mt->level] = NULL;
 	mt->level--;
@@ -212,8 +237,18 @@ EndElement(void *userData, const char *name)
 	}
 
 	if (mt->config != NULL) {
-		gc = calloc(sizeof *gc, 1);
+		gc = calloc(1, sizeof *gc);
+		if (gc == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		gc->lg_name = strdup(name);
+		if (gc->lg_name == NULL) {
+			warn("Cannot allocate memory during processing of '%s' "
+			    "element", name);
+			return;
+		}
 		gc->lg_val = p;
 		LIST_INSERT_HEAD(mt->config, gc, lg_config);
 		return;
