@@ -115,7 +115,7 @@
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
-#define NKPDPE		6		/* number of kernel PDP slots */
+#define NKPDPE		howmany(NKPT, NPDEPG)/* number of kernel PDP slots */
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
@@ -131,7 +131,7 @@
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
 #define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
 
-#define	KPDPI		(NPDPEPG-7)	/* kernel map starts at -7GB */
+#define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
 /*
  * XXX doesn't really belong here I guess...
