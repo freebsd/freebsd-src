@@ -216,6 +216,7 @@ struct bridge_softc {
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
 	struct bstp_state	sc_stp;		/* STP state */
 	uint32_t		sc_brtexceeded;	/* # of cache drops */
+	u_char			sc_defaddr[6];	/* Default MAC address */
 };
 
 static struct mtx 	bridge_list_mtx;
@@ -546,7 +547,6 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct bridge_softc *sc, *sc2;
 	struct ifnet *bifp, *ifp;
-	u_char eaddr[6];
 	int retry;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
@@ -588,21 +588,22 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 * this hardware address isn't already in use on another bridge.
 	 */
 	for (retry = 1; retry != 0;) {
-		arc4rand(eaddr, ETHER_ADDR_LEN, 1);
-		eaddr[0] &= ~1;		/* clear multicast bit */
-		eaddr[0] |= 2;		/* set the LAA bit */
+		arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
+		sc->sc_defaddr[0] &= ~1;	/* clear multicast bit */
+		sc->sc_defaddr[0] |= 2;		/* set the LAA bit */
 		retry = 0;
 		mtx_lock(&bridge_list_mtx);
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
-			if (memcmp(eaddr, IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
+			if (memcmp(sc->sc_defaddr,
+			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
 				retry = 1;
 		}
 		mtx_unlock(&bridge_list_mtx);
 	}
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(ifp, sc->sc_defaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
@@ -857,6 +858,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
     int gone)
 {
 	struct ifnet *ifs = bif->bif_ifp;
+	struct ifnet *fif = NULL;
 
 	BRIDGE_LOCK_ASSERT(sc);
 
@@ -889,6 +891,22 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	BRIDGE_XLOCK(sc);
 	LIST_REMOVE(bif, bif_next);
 	BRIDGE_XDROP(sc);
+
+	/*
+	 * If removing the interface that gave the bridge its mac address, set
+	 * the mac address of the bridge to the address of the next member, or
+	 * to its default address if no members are left.
+	 */
+	if (!memcmp(IF_LLADDR(sc->sc_ifp), IF_LLADDR(ifs), ETHER_ADDR_LEN)) {
+		if (LIST_EMPTY(&sc->sc_iflist))
+			bcopy(sc->sc_defaddr,
+			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+		else {
+			fif = LIST_FIRST(&sc->sc_iflist)->bif_ifp;
+			bcopy(IF_LLADDR(fif),
+			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+		}
+	}
 
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 	KASSERT(bif->bif_addrcnt == 0,
@@ -978,6 +996,15 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = EINVAL;
 		goto out;
 	}
+
+	/*
+	 * Assign the interface's MAC address to the bridge if it's the first
+	 * member and the MAC address of the bridge has not been changed from
+	 * the default randomly generated one.
+	 */
+	if (LIST_EMPTY(&sc->sc_iflist) &&
+	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN))
+		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 
 	ifs->if_bridge = sc;
 	bstp_create(&sc->sc_stp, &bif->bif_stp, bif->bif_ifp);
