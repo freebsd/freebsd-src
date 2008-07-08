@@ -755,7 +755,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	/* First chunk of an mbuf contains good junk */
 	if (harvest.point_to_point)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
-	netisr_queue(isr, m);
+	netisr_dispatch(isr, m);
 	return (0);
 }
 
