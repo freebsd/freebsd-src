@@ -120,7 +120,7 @@ ngipi_rcvdata(hook_p hook, item_p item)
 
 	NGI_GET_M(item, m);
 	NG_FREE_ITEM(item);
-	netisr_queue(NETISR_IP, m);
+	netisr_dispatch(NETISR_IP, m);
 	return 0;
 }
 
