@@ -317,8 +317,9 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	 * Is it the intended behavior?
 	 */
 	*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
-				      inp->in6p_moptions, NULL,
-				      &inp->in6p_laddr, &ifp, &error);
+				      inp, NULL,
+				      inp->inp_socket->so_cred,
+				      &ifp, &error);
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {
 		return(error);
