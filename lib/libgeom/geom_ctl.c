@@ -45,6 +45,12 @@
 #define GCTL_TABLE 1
 #include <libgeom.h>
 
+/* 
+ * Global pointer to a string that is used to avoid an errorneous free in
+ * gctl_free.
+ */
+static char nomemmsg[] = "Could not allocate memory";
+
 void
 gctl_dump(struct gctl_req *req, FILE *f)
 {
@@ -105,11 +111,12 @@ gctl_set_error(struct gctl_req *req, const char *error, ...)
 static void
 gctl_check_alloc(struct gctl_req *req, void *ptr)
 {
+
 	if (ptr != NULL)
 		return;
-	gctl_set_error(req, "Could not allocate memory");
+	gctl_set_error(req, nomemmsg);
 	if (req->error == NULL)
-		req->error = "Could not allocate memory";
+		req->error = nomemmsg;
 }
 
 /*
@@ -134,7 +141,7 @@ gctl_new_arg(struct gctl_req *req)
 	struct gctl_req_arg *ap;
 
 	req->narg++;
-	req->arg = realloc(req->arg, sizeof *ap * req->narg);
+	req->arg = reallocf(req->arg, sizeof *ap * req->narg);
 	gctl_check_alloc(req, req->arg);
 	if (req->arg == NULL) {
 		req->narg = 0;
@@ -157,6 +164,8 @@ gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value
 		return;
 	ap->name = strdup(name);
 	gctl_check_alloc(req, ap->name);
+	if (ap->name == NULL)
+		return;
 	ap->nlen = strlen(ap->name) + 1;
 	ap->value = __DECONST(void *, value);
 	ap->flag = GCTL_PARAM_RD;
@@ -180,6 +189,8 @@ gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
 		return;
 	ap->name = strdup(name);
 	gctl_check_alloc(req, ap->name);
+	if (ap->name == NULL)
+		return;
 	ap->nlen = strlen(ap->name) + 1;
 	ap->value = value;
 	ap->flag = GCTL_PARAM_RW;
@@ -201,12 +212,11 @@ gctl_issue(struct gctl_req *req)
 
 	req->version = GCTL_VERSION;
 	req->lerror = BUFSIZ;		/* XXX: arbitrary number */
-	req->error = malloc(req->lerror);
+	req->error = calloc(1, req->lerror);
 	if (req->error == NULL) {
 		gctl_check_alloc(req, req->error);
 		return (req->error);
 	}
-	memset(req->error, 0, req->lerror);
 	req->lerror--;
 	fd = open(_PATH_DEV PATH_GEOM_CTL, O_RDONLY);
 	if (fd < 0)
@@ -232,7 +242,7 @@ gctl_free(struct gctl_req *req)
 			free(req->arg[i].name);
 	}
 	free(req->arg);
-	if (req->error != NULL)
+	if (req->error != NULL && req->error != nomemmsg)
 		free(req->error);
 	free(req);
 }
