@@ -108,12 +108,6 @@ Join a specific BSS network with 64-bit WEP encryption:
 ifconfig wlan create wlandev malo0 ssid my_net \e
 	wepmode on wepkey 0x1234567890 weptxkey 1 up
 .Ed
-.Pp
-Join a specific BSS network with 128-bit WEP encryption:
-.Bd -literal -offset indent
-ifconfig wlan create wlandev malo0 wlanmode adhoc ssid my_net \e
-    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
-.Ed
 .Sh SEE ALSO
 .Xr cardbus 4 ,
 .Xr pci 4 ,
