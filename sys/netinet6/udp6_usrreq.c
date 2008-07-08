@@ -580,8 +580,8 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		}
 
 		if (!IN6_IS_ADDR_V4MAPPED(faddr)) {
-			laddr = in6_selectsrc(sin6, optp, inp->in6p_moptions,
-			    NULL, &inp->in6p_laddr, &oifp, &error);
+			laddr = in6_selectsrc(sin6, optp, inp, NULL,
+			    td->td_ucred, &oifp, &error);
 			if (oifp && scope_ambiguous &&
 			    (error = in6_setscope(&sin6->sin6_addr,
 			    oifp, NULL))) {

@@ -170,8 +170,8 @@ static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
 struct in6_addr *
 in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct ip6_moptions *mopts, struct route_in6 *ro,
-    struct in6_addr *laddr, struct ifnet **ifpp, int *errorp)
+    struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
+    struct ifnet **ifpp, int *errorp)
 {
 	struct in6_addr dst;
 	struct ifnet *ifp = NULL;
@@ -181,11 +181,17 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	struct in6_addrpolicy *dst_policy = NULL, *best_policy = NULL;
 	u_int32_t odstzone;
 	int prefer_tempaddr;
+	struct ip6_moptions *mopts;
 
 	dst = dstsock->sin6_addr; /* make a copy for local operation */
 	*errorp = 0;
 	if (ifpp)
 		*ifpp = NULL;
+
+	if (inp != NULL)
+		mopts = inp->in6p_moptions;
+	else
+		mopts = NULL;
 
 	/*
 	 * If the source address is explicitly specified by the caller,
@@ -236,8 +242,9 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	/*
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
-	if (laddr && !IN6_IS_ADDR_UNSPECIFIED(laddr))
-		return (laddr);
+	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+		return (&inp->in6p_laddr);
+	}
 
 	/*
 	 * If the address is not specified, choose the best one based on

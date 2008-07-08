@@ -387,8 +387,8 @@ rip6_output(m, va_alist)
 	/*
 	 * Source address selection.
 	 */
-	if ((in6a = in6_selectsrc(dstsock, optp, in6p->in6p_moptions, NULL,
-	    &in6p->in6p_laddr, &oifp, &error)) == NULL) {
+	if ((in6a = in6_selectsrc(dstsock, optp, in6p, NULL, so->so_cred,
+	    &oifp, &error)) == NULL) {
 		if (error == 0)
 			error = EADDRNOTAVAIL;
 		goto bad;
@@ -712,8 +712,8 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
-			     inp->in6p_moptions, NULL,
-			     &inp->in6p_laddr, &ifp, &error);
+			     inp, NULL, so->so_cred,
+			     &ifp, &error);
 	if (in6a == NULL) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&ripcbinfo);
