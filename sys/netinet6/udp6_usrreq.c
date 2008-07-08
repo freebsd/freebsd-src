@@ -1015,6 +1015,8 @@ struct pr_usrreqs udp6_usrreqs = {
 	.pru_send =		udp6_send,
 	.pru_shutdown =		udp_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
+	.pru_soreceive =	soreceive_dgram,
+	.pru_sosend =		sosend_dgram,
 	.pru_sosetlabel =	in_pcbsosetlabel,
 	.pru_close =		udp6_close
 };
