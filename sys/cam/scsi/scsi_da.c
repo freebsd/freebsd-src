@@ -536,6 +536,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
+		/*
+		 * Samsung YP-U3 mp3-player
+		 * PR: 125398
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Samsung", "YP-U3",
+		 "*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Netac", "OnlyDisk*",
 		 "2000"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	}
