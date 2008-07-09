@@ -1240,7 +1240,8 @@ re_attach(dev)
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
-		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
+		    RL_FLAG_PHYWAKE;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
