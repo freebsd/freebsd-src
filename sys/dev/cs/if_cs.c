@@ -202,7 +202,7 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 	else
 		self_control &= ~HCB1;
 	cs_writereg(sc, PP_SelfCTL, self_control);
-	DELAY(500000);
+	DELAY(500000);	/* Bad! */
 }
 
 
@@ -332,9 +332,9 @@ cs_cs89x0_probe(device_t dev)
 	} else if (get_eeprom_cksum(START_EEPROM_DATA,CHKSUM_LEN, eeprom_buff)<0) {
 		device_printf(dev, "EEPROM cheksum bad, assuming defaults.\n");
 	} else {
-		sc->auto_neg_cnf = eeprom_buff[AUTO_NEG_CNF_OFFSET/2];
-		sc->adapter_cnf = eeprom_buff[ADAPTER_CNF_OFFSET/2];
-		sc->isa_config = eeprom_buff[ISA_CNF_OFFSET/2];
+		sc->auto_neg_cnf = eeprom_buff[AUTO_NEG_CNF_OFFSET];
+		sc->adapter_cnf = eeprom_buff[ADAPTER_CNF_OFFSET];
+		sc->isa_config = eeprom_buff[ISA_CNF_OFFSET];
 		for (i=0; i<ETHER_ADDR_LEN/2; i++) {
 			sc->enaddr[i*2] = eeprom_buff[i];
 			sc->enaddr[i*2+1] = eeprom_buff[i] >> 8;
@@ -1226,10 +1226,10 @@ cs_mediaset(struct cs_softc *sc, int media)
 			error = cs_duplex_auto(sc);
 		break;
 	case IFM_10_2:
-		error = enable_bnc(sc);
+		enable_bnc(sc);
 		break;
 	case IFM_10_5:
-		error = enable_aui(sc);
+		enable_aui(sc);
 		break;
 	}
 
