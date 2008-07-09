@@ -408,28 +408,43 @@
 #define BIOS_LAST_OFFSET	0x0fc00
 
 /*
- *  Byte offsets into the EEPROM configuration buffer
+ *  Word offsets into the EEPROM configuration buffer
  */
-#define ISA_CNF_OFFSET		0x6
-#define TX_CTL_OFFSET		(ISA_CNF_OFFSET + 8)	/*  8900 eeprom */
-#define AUTO_NEG_CNF_OFFSET	(ISA_CNF_OFFSET + 8)	/*  8920 eeprom */
+#define ISA_CNF_OFFSET		0x3
+#define		INT_NO_MASK		0x000F
+#define		DMA_NO_MASK		0x0070
+#define		USE_SA			0x0080
+#define		IOCHRDY_ENABLE		0x0100
+#define		ISA_DMA_SIZE		0x0200	/* 0 16k 1 64k */
+#define		ISA_AUTO_RxDMA		0x0400
+#define		ISA_RxDMA		0x0800
+#define		DMA_BURST		0x1000
+#define		STREAM_TRANSFER		0x2000
+#define		ANY_ISA_DMA		(ISA_AUTO_RxDMA | ISA_RxDMA)
+#define		BOOT_PROM_FLAG		0x4000
+#define		MEMORY_MODE		0x8000
 
-/*
- *  the assumption here is that the bits in the eeprom are generally 
- *  in the same position as those in the autonegctl register. 
- *  Of course the IMM bit is not in that register so it must be 
- *  masked out
- */
-#define EE_FORCE_FDX		0x8000
-#define EE_NLP_ENABLE		0x0200
-#define EE_AUTO_NEG_ENABLE	0x0100
-#define EE_ALLOW_FDX		0x0080
-#define EE_AUTO_NEG_CNF_MASK	(EE_FORCE_FDX | EE_NLP_ENABLE | 	\
+#define	PACKET_PAGE_BASE	(ISA_CNF_OFFSET + 1)
+#define	BOOT_ROM_BASE		(ISA_CNF_OFFSET + 2)
+#define	BOOT_PROM_MASK		(ISA_CNF_OFFSET + 3)
+
+#define TX_CTL_OFFSET		(ISA_CNF_OFFSET + 4)	/*  8900 eeprom */
+#define AUTO_NEG_CNF_OFFSET	(ISA_CNF_OFFSET + 4)	/*  8920 eeprom */
+	/*
+	 *  the assumption here is that the bits in the eeprom are generally 
+	 *  in the same position as those in the autonegctl register. 
+	 *  Of course the IMM bit is not in that register so it must be 
+	 *  masked out
+	 */
+#define		EE_FORCE_FDX		0x8000
+#define		EE_NLP_ENABLE		0x0200
+#define		EE_AUTO_NEG_ENABLE	0x0100
+#define		EE_ALLOW_FDX		0x0080
+#define		EE_AUTO_NEG_CNF_MASK	(EE_FORCE_FDX | EE_NLP_ENABLE | \
 				 EE_AUTO_NEG_ENABLE | EE_ALLOW_FDX)
+#define		IMM_BIT			0x0040	/*  ignore missing media */
 
-#define IMM_BIT			0x0040	/*  ignore missing media	 */
-
-#define ADAPTER_CNF_OFFSET	(AUTO_NEG_CNF_OFFSET + 2)
+#define ADAPTER_CNF_OFFSET	(ISA_CNF_OFFSET + 5)
 #define A_CNF_MEDIA             0x0007
 #define A_CNF_10B_T		0x0001
 #define A_CNF_AUI		0x0002
@@ -440,23 +455,17 @@
 #define A_CNF_MEDIA_AUI		0x0040
 #define A_CNF_MEDIA_10B_2	0x0060
 #define A_CNF_DC_DC_POLARITY	0x0080
+#define A_CNF_WAKE_ENABLED	0x0100
+#define A_CNF_WAKE_CFG		0x0200
+#define A_CNF_CAN_WAKE		0x0400
+#define A_CNF_OPT_FLAGS		0x1800	/* 00 server, 01 DOS 10 multi-user */
 #define A_CNF_NO_AUTO_POLARITY	0x2000
 #define A_CNF_LOW_RX_SQUELCH	0x4000
 #define A_CNF_EXTND_10B_2	0x8000
 
-#define PACKET_PAGE_OFFSET	0x8
+#define MFG_DATE_OFFSET		(ISA_CNF_OFFSET + 8)
 
-/*
- *  Bit definitions for the ISA configuration word from the EEPROM
- */
-#define INT_NO_MASK		0x000F
-#define DMA_NO_MASK		0x0070
-#define ISA_DMA_SIZE		0x0200
-#define ISA_AUTO_RxDMA		0x0400
-#define ISA_RxDMA		0x0800
-#define DMA_BURST		0x1000
-#define STREAM_TRANSFER		0x2000
-#define ANY_ISA_DMA		(ISA_AUTO_RxDMA | ISA_RxDMA)
+#define PACKET_PAGE_OFFSET	0x8
 
 /*  DMA controller registers */
 #define DMA_BASE		0x00   /* DMA controller base */
