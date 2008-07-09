@@ -3510,7 +3510,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			tos_value = inp->ip_inp.inp.inp_ip_tos;
 		}
 		if ((nofragment_flag) && (port == 0)) {
-#if defined(WITH_CONVERT_IP_OFF) || defined(__FreeBSD__) || defined(__APPLE__)
+#if defined(WITH_CONVERT_IP_OFF) || defined(__FreeBSD__) || defined(__APPLE__) || defined(__Userspace__)
 			ip->ip_off = IP_DF;
 #else
 			ip->ip_off = htons(IP_DF);
@@ -3826,7 +3826,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		sin6 = &tmp;
 
 		/* KAME hack: embed scopeid */
-		if (sa6_embedscope(sin6, ip6_use_defzone) != 0) {
+		if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
 			SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 			return (EINVAL);
 		}
@@ -3880,7 +3880,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			if (net->src_addr_selected == 0) {
 				sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 				/* KAME hack: embed scopeid */
-				if (sa6_embedscope(sin6, ip6_use_defzone) != 0) {
+				if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
 					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 					return (EINVAL);
 				}
@@ -3903,7 +3903,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		} else {
 			sin6 = (struct sockaddr_in6 *)&ro->ro_dst;
 			/* KAME hack: embed scopeid */
-			if (sa6_embedscope(sin6, ip6_use_defzone) != 0) {
+			if (sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone)) != 0) {
 				SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
 				return (EINVAL);
 			}
@@ -5096,7 +5096,7 @@ do_a_abort:
 					 */
 					(void)sa6_recoverscope(sin6);
 					stc.scope_id = sin6->sin6_scope_id;
-					sa6_embedscope(sin6, ip6_use_defzone);
+					sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
 					stc.loopback_scope = 1;
 					stc.local_scope = 0;
 					stc.site_scope = 1;
@@ -5132,7 +5132,7 @@ do_a_abort:
 					 */
 					(void)sa6_recoverscope(sin6);
 					stc.scope_id = sin6->sin6_scope_id;
-					sa6_embedscope(sin6, ip6_use_defzone);
+					sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
 				} else if (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr)) {
 					/*
 					 * If the new destination is
@@ -5761,6 +5761,10 @@ sctp_set_prsctp_policy(struct sctp_tcb *stcb,
 				(void)SCTP_GETTIME_TIMEVAL(&sp->ts);
 				tv.tv_sec = sp->timetolive / 1000;
 				tv.tv_usec = (sp->timetolive * 1000) % 1000000;
+				/*
+				 * TODO sctp_constants.h needs alternative
+				 * time macros when _KERNEL is undefined.
+				 */
 				timevaladd(&sp->ts, &tv);
 			}
 			break;
@@ -10260,7 +10264,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 
 		/* Fill in the IPv6 header for the ABORT */
 		ip6_out->ip6_flow = ip6->ip6_flow;
-		ip6_out->ip6_hlim = ip6_defhlim;
+		ip6_out->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
 		if (port) {
 			ip6_out->ip6_nxt = IPPROTO_UDP;
 		} else {
@@ -10277,7 +10281,7 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		comp_cp = (struct sctp_shutdown_complete_msg *)(
 		    (caddr_t)ip6_out + offset_out);
 		break;
-#endif
+#endif				/* INET6 */
 	default:
 		/* Currently not supported. */
 		return;
@@ -11225,7 +11229,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 
 		/* Fill in the IP6 header for the ABORT */
 		ip6_out->ip6_flow = ip6->ip6_flow;
-		ip6_out->ip6_hlim = ip6_defhlim;
+		ip6_out->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
 		if (port) {
 			ip6_out->ip6_nxt = IPPROTO_UDP;
 		} else {
@@ -11237,7 +11241,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 		iphlen_out = sizeof(*ip6_out);
 		abm = (struct sctp_abort_msg *)((caddr_t)ip6_out + iphlen_out);
 		break;
-#endif
+#endif				/* INET6 */
 	default:
 		/* Currently not supported */
 		if (err_cause)
@@ -11517,7 +11521,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 			in6 = mtod(m, struct ip6_hdr *);
 			out6 = mtod(mout, struct ip6_hdr *);
 			out6->ip6_flow = in6->ip6_flow;
-			out6->ip6_hlim = ip6_defhlim;
+			out6->ip6_hlim = MODULE_GLOBAL(MOD_INET6, ip6_defhlim);
 			if (port) {
 				out6->ip6_nxt = IPPROTO_UDP;
 			} else {
@@ -11568,7 +11572,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 				RTFREE(ro.ro_rt);
 			break;
 		}
-#endif
+#endif				/* INET6 */
 	default:
 		/* TSNH */
 		break;
@@ -13162,7 +13166,7 @@ sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro)
 		return (0);
 
 	/* get prefix entry of address */
-	LIST_FOREACH(pfx, &nd_prefix, ndpr_entry) {
+	LIST_FOREACH(pfx, &MODULE_GLOBAL(MOD_INET6, nd_prefix), ndpr_entry) {
 		if (pfx->ndpr_stateflags & NDPRF_DETACHED)
 			continue;
 		if (IN6_ARE_MASKED_ADDR_EQUAL(&pfx->ndpr_prefix.sin6_addr,

@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_ASCONF_H_
 #define _NETINET_SCTP_ASCONF_H_
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 /*
  * function prototypes
