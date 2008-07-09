@@ -1721,7 +1721,7 @@ pmap_growkernel(vm_offset_t addr)
 	if (KERNBASE < addr && addr <= KERNBASE + NKPT * NBPDR)
 		return;
 
-	addr = roundup2(addr, PAGE_SIZE * NPTEPG);
+	addr = roundup2(addr, NBPDR);
 	if (addr - 1 >= kernel_map->max_offset)
 		addr = kernel_map->max_offset;
 	while (kernel_vm_end < addr) {
@@ -1742,7 +1742,7 @@ pmap_growkernel(vm_offset_t addr)
 		}
 		pde = pmap_pdpe_to_pde(pdpe, kernel_vm_end);
 		if ((*pde & PG_V) != 0) {
-			kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+			kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 			if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 				kernel_vm_end = kernel_map->max_offset;
 				break;                       
@@ -1761,7 +1761,7 @@ pmap_growkernel(vm_offset_t addr)
 		newpdir = (pd_entry_t) (paddr | PG_V | PG_RW | PG_A | PG_M);
 		pde_store(pde, newpdir);
 
-		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
+		kernel_vm_end = (kernel_vm_end + NBPDR) & ~PDRMASK;
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
 			break;                       
