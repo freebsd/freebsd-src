@@ -1662,6 +1662,17 @@ init(int signo)
 			prog[i] = 0;
 			continue;
 		}
+		for (p = cline + 1; *p != '\0'; p++) {
+			if (*p != '#')
+				continue;
+			if (*(p - 1) == '\\') {
+				strcpy(p - 1, p);
+				p--;
+				continue;
+			}
+			*p = '\0';
+			break;
+		}
 		for (i = strlen(cline) - 1; i >= 0 && isspace(cline[i]); i--)
 			cline[i] = '\0';
 		f = (struct filed *)calloc(1, sizeof(*f));
