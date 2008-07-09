@@ -26,7 +26,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2005
+.Dd July 9, 2008
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -640,11 +640,8 @@ DO NOT use function calls in initializers.
 	four = myfunction();
 .Ed
 .Pp
-Do not declare functions inside other functions; ANSI C says that
-such declarations have file scope regardless of the nesting of the
-declaration.
-Hiding file declarations in what appears to be a local
-scope is undesirable and will elicit complaints from a good compiler.
+Do not declare functions inside other functions; nested functions are
+a GCC extension and are not permitted by ANSI C.
 .Pp
 Casts and
 .Ic sizeof Ns 's
