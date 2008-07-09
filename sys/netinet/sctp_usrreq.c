@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
 #if defined(INET6)
-#include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
@@ -63,7 +62,6 @@ sctp_init(void)
 
 	/* Initialize and modify the sysctled variables */
 	sctp_init_sysctls();
-
 	if ((nmbclusters / 8) > SCTP_ASOC_MAX_CHUNKS_ON_QUEUE)
 		SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue) = (nmbclusters / 8);
 	/*
@@ -532,7 +530,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	inp->sctp_flags &= ~SCTP_PCB_FLAGS_BOUND_V6;	/* I'm not v6! */
 	ip_inp = &inp->ip_inp.inp;
 	ip_inp->inp_vflag |= INP_IPV4;
-	ip_inp->inp_ip_ttl = ip_defttl;
+	ip_inp->inp_ip_ttl = MODULE_GLOBAL(MOD_INET, ip_defttl);
 #ifdef IPSEC
 	error = ipsec_init_policy(so, &ip_inp->inp_sp);
 #ifdef SCTP_LOG_CLOSING
@@ -3985,7 +3983,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	}			/* end switch (opt) */
 	return (error);
 }
-
 
 int
 sctp_ctloutput(struct socket *so, struct sockopt *sopt)

@@ -60,6 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
+#if defined(__FreeBSD__) && __FreeBSD_version > 800000 && defined(VIMAGE)
+#include <sys/vimage.h>
+#endif
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -138,6 +141,26 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
 #define SCTP_BASE_SYSCTL(__m) system_base_info.sctpsysctl.__m
 #define SCTP_BASE_VAR(__m) system_base_info.__m
 
+/*
+ * Macros to expand out globals defined by various modules
+ * to either a real global or a virtualized instance of one,
+ * depending on whether VIMAGE is defined in opt_vimage.h
+ * XXX opt_vimage.h not yet present,  more framework to come.
+ * XXX so will always evaluate to the global for now (VIMAGE not defined)
+ */
+/* first define modules that supply us information */
+#define MOD_NET net
+#define MOD_INET inet
+#define MOD_INET6 inet6
+#define MOD_IPSEC ipsec
+
+/* then define the macro(s) that hook into the vimage macros */
+#if defined(__FreeBSD__) && __FreeBSD_version > 800000 && defined(VIMAGE)
+#define VSYMNAME(__MODULE) vnet_ ## __MODULE
+#define MODULE_GLOBAL(__MODULE, __SYMBOL) VSYM(VSYMNAME(__MODULE), __SYMBOL)
+#else
+#define MODULE_GLOBAL(__MODULE, __SYMBOL) (__SYMBOL)
+#endif
 /*
  *
  */

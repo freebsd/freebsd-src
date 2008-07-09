@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/* TODO __Userspace__ IPv6 stuff... */
 #if defined(_KERNEL)
 
 SYSCTL_DECL(_net_inet6_sctp6);

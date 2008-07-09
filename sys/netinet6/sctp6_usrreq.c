@@ -210,7 +210,7 @@ sctp_skip_csum:
 	 */
 	if (in6p_ip && (ipsec6_in_reject(m, in6p_ip))) {
 /* XXX */
-		ipsec6stat.in_polvio++;
+		MODULE_GLOBAL(MOD_IPSEC, ipsec6stat).in_polvio++;
 		goto bad;
 	}
 #endif				/* IPSEC */
@@ -679,7 +679,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 	 * socket as well, because the socket may be bound to an IPv6
 	 * wildcard address, which may match an IPv4-mapped IPv6 address.
 	 */
-	inp6->inp_ip_ttl = ip_defttl;
+	inp6->inp_ip_ttl = MODULE_GLOBAL(MOD_INET, ip_defttl);
 #endif
 	/*
 	 * Hmm what about the IPSEC stuff that is missing here but in
@@ -843,7 +843,7 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-		if (!ip6_v6only) {
+		if (!MODULE_GLOBAL(MOD_INET6, ip6_v6only)) {
 			struct sockaddr_in sin;
 
 			/* convert v4-mapped into v4 addr and send */
@@ -974,7 +974,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		}
 	}
 	if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-		if (!ip6_v6only) {
+		if (!MODULE_GLOBAL(MOD_INET6, ip6_v6only)) {
 			/* convert v4-mapped into v4 addr */
 			in6_sin6_2_sin((struct sockaddr_in *)&ss, sin6);
 			addr = (struct sockaddr *)&ss;
