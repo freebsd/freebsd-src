@@ -43,8 +43,6 @@
 struct rawcb {
 	LIST_ENTRY(rawcb) list;
 	struct	socket *rcb_socket;	/* back pointer to socket */
-	struct	sockaddr *rcb_faddr;	/* destination address */
-	struct	sockaddr *rcb_laddr;	/* socket's address */
 	struct	sockproto rcb_proto;	/* protocol family, protocol */
 };
 
@@ -72,9 +70,7 @@ pr_init_t	raw_init;
  */
 int	 raw_attach(struct socket *, int);
 void	 raw_detach(struct rawcb *);
-void	 raw_disconnect(struct rawcb *);
-void	 raw_input(struct mbuf *, struct sockproto *, struct sockaddr *,
-	    struct sockaddr *);
+void	 raw_input(struct mbuf *, struct sockproto *, struct sockaddr *);
 
 /*
  * Generic pr_usrreqs entries for raw socket protocols, usually wrapped so
