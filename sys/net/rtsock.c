@@ -61,7 +61,6 @@ extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
 /* NB: these are not modified */
-static struct	sockaddr route_dst = { 2, PF_ROUTE, };
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
 
@@ -137,7 +136,7 @@ rts_input(struct mbuf *m)
 	} else
 		route_proto.sp_protocol = 0;
 
-	raw_input(m, &route_proto, &route_src, &route_dst);
+	raw_input(m, &route_proto, &route_src);
 }
 
 /*
@@ -203,7 +202,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 		route_cb.ipx_count++;
 		break;
 	}
-	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
 	RTSOCK_UNLOCK();
 	soisconnected(so);
