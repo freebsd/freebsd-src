@@ -98,6 +98,8 @@ extern pt_entry_t *KPTphys;
 /* SMP page table page */
 extern pt_entry_t *SMPpt;
 
+extern int  _udatasel;
+
 struct pcb stoppcbs[MAXCPU];
 
 /* Variables needed for SMP tlb shootdown. */
@@ -564,7 +566,9 @@ init_secondary(void)
 	 */
 
 	load_cr4(rcr4() | CR4_PGE);
-
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_udatasel);
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
