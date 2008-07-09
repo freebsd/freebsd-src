@@ -101,42 +101,5 @@ raw_detach(struct rawcb *rp)
 	mtx_lock(&rawcb_mtx);
 	LIST_REMOVE(rp, list);
 	mtx_unlock(&rawcb_mtx);
-#ifdef notdef
-	if (rp->rcb_laddr)
-		m_freem(dtom(rp->rcb_laddr));
-	rp->rcb_laddr = 0;
-#endif
 	free((caddr_t)(rp), M_PCB);
 }
-
-/*
- * Disconnect raw socket.
- */
-void
-raw_disconnect(struct rawcb *rp)
-{
-
-#ifdef notdef
-	if (rp->rcb_faddr)
-		m_freem(dtom(rp->rcb_faddr));
-	rp->rcb_faddr = 0;
-#endif
-}
-
-#ifdef notdef
-#include <sys/mbuf.h>
-
-int
-raw_bind(struct socket *so, struct mbuf *nam)
-{
-	struct sockaddr *addr = mtod(nam, struct sockaddr *);
-	struct rawcb *rp;
-
-	if (ifnet == 0)
-		return (EADDRNOTAVAIL);
-	rp = sotorawcb(so);
-	nam = m_copym(nam, 0, M_COPYALL, M_WAIT);
-	rp->rcb_laddr = mtod(nam, struct sockaddr *);
-	return (0);
-}
-#endif
