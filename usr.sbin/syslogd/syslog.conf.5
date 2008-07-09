@@ -406,6 +406,20 @@ normally the superuser.
 Blank lines and lines whose first non-blank character is a hash
 .Pq Dq #
 character are ignored.
+If
+.Ql #
+is placed in the middle of the line, the
+.Ql #
+character and the rest of the line after it is ignored.
+To prevent special meaning, the
+.Ql #
+character may be escaped with
+.Ql \e ;
+in this case preceding
+.Ql \e
+is removed and
+.Ql #
+is treated as an ordinary character.
 .Sh IMPLEMENTATION NOTES
 The
 .Dq kern
