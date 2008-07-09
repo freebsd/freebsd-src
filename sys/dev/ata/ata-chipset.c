@@ -4989,12 +4989,15 @@ ata_sii_chipinit(device_t dev)
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
-						    &ctlr->r_rid2, RF_ACTIVE)))
-	    return ENXIO;
+						    &ctlr->r_rid2, RF_ACTIVE))) {
+	    if (ctlr->chip->chipid != ATA_SII0680 ||
+			    (pci_read_config(dev, 0x8a, 1) & 1))
+		return ENXIO;
+	}
 
 	if (ctlr->chip->cfg2 & SIISETCLK) {
 	    if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
-		pci_write_config(dev, 0x8a, 
+		pci_write_config(dev, 0x8a,
 				 (pci_read_config(dev, 0x8a, 1) & 0xcf)|0x10,1);
 	    if ((pci_read_config(dev, 0x8a, 1) & 0x30) != 0x10)
 		device_printf(dev, "%s could not set ATA133 clock\n",
@@ -5014,7 +5017,9 @@ ata_sii_chipinit(device_t dev)
 	/* enable PCI interrupt as BIOS might not */
 	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
-	ctlr->allocate = ata_sii_allocate;
+	if (ctlr->r_res2)
+	    ctlr->allocate = ata_sii_allocate;
+
 	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->reset = ata_sii_reset;
 	    ctlr->setmode = ata_sata_setmode;
