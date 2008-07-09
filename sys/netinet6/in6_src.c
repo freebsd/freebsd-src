@@ -188,10 +188,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	if (ifpp)
 		*ifpp = NULL;
 
-	if (inp != NULL)
+	if (inp != NULL) {
+		INP_LOCK_ASSERT(inp);
 		mopts = inp->in6p_moptions;
-	else
+	} else {
 		mopts = NULL;
+	}
 
 	/*
 	 * If the source address is explicitly specified by the caller,
