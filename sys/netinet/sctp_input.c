@@ -2299,6 +2299,10 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* Expire time is in Ticks, so we convert to seconds */
 	time_expires.tv_sec = cookie->time_entered.tv_sec + TICKS_TO_SEC(cookie->cookie_life);
 	time_expires.tv_usec = cookie->time_entered.tv_usec;
+	/*
+	 * TODO sctp_constants.h needs alternative time macros when _KERNEL
+	 * is undefined.
+	 */
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */
 		struct mbuf *op_err;
@@ -5371,7 +5375,7 @@ sctp_skip_csum_4:
 		goto bad;
 	}
 	/* validate mbuf chain length with IP payload length */
-	if (mlen < (ip->ip_len - iphlen)) {
+	if (mlen < (SCTP_GET_IPV4_LENGTH(ip) - iphlen)) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}
@@ -5434,7 +5438,7 @@ sctp_skip_csum_4:
 	 * idea, so I will leave it in place.
 	 */
 	if (inp && ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-		ipsec4stat.in_polvio++;
+		MODULE_GLOBAL(MOD_IPSEC, ipsec4stat).in_polvio++;
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
 	}

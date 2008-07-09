@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #ifndef SCTP_USE_ADLER32
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 uint32_t update_crc32(uint32_t, unsigned char *, unsigned int);
 
 uint32_t old_update_crc32(uint32_t, unsigned char *, unsigned int);
