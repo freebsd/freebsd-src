@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_uio.h>
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 extern struct pr_usrreqs sctp_usrreqs;
 
