@@ -1,3 +1,387 @@
+2007-06-08  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* configure.ac, NEWS: Version number 2.8
+	* bootstrap.conf: Update
+
+2007-06-07  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* NEWS: Update
+	* configure.ac: Raise version to 2.7.90
+	* doc/cpio.texi: Update
+	* src/extern.h (set_perms, set_file_times): Take file descriptor
+	as the first argument.
+	* src/util.c (set_perms): Take file descriptor
+	as the first argument and use fchmod/fchown if available.  Fixes
+	CAN-2005-1111.
+	* src/copyin.c, src/copyout.c, src/copypass.c: Update calls to
+	set_perms.
+	* src/makepath.c: Remove useless includes.
+	
+	* src/util.c (set_perms, stat_to_cpio): Use CPIO_UID and CPIO_GID
+	macros to set uid and gid
+	* src/main.c (process_args): Allow to use --owner in copy-out mode.
+	* THANKS: Add Mike Frysinger
+	
+2007-05-18  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* bootstrap: Update from tar repository
+	* doc/cpio.texi: Fix typo
+	* src/copyin.c (from_ascii): Bugfix: allow for empty fields
+	* src/copyout.c (process_copy_out): Fix memory leaks on
+	orig_file_name.
+	* src/copypass.c (process_copy_pass): symlink_error takes two
+	arguments.
+	* src/extern.h: Add missing includes.
+
+2006-12-18  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* README-cvs: New file
+	* lib/Makefile.tmpl, lib/bcopy.c, lib/mkdir.c, lib/strdup.c,
+	lib/strerror.c, lib/.cvsignore, po/.cvsignore,
+	po/Makevars: Removed
+	* lib/Makefile.am: New file
+	* po/POTFILES.in: Update
+	* bootstrap: Synch with tar.
+	* configure.ac: Update
+	* gnulib.modules: Add lchown, strerror
+	* src/Makefile.am: Update
+	* src/main.c, src/mt.c: Include rmt-command.h instead of localedir.h
+	* .cvsignore, doc/.cvsignore: Sort
+	
+	* src/util.c (sparse_write): Static.  Provide a forward
+	declaration. Define enum sparse_write_states inside the function.
+
+	* src/copyin.c (long_format): Use PRIuMAX for printing file size
+	* src/copyout.c (write_out_binary_header): Fix size conversion
+	* src/extern.h (tape_toss_input, warn_if_file_changed): Last
+	argument is off_t
+	* src/util.c (tape_toss_input, warn_if_file_changed): Last
+	argument is off_t
+	(warn_if_file_changed): Use ngettext
+
+2006-11-15  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* src/copypass.c: Fix setting output file permissions
+
+2006-11-13  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* doc/cpio.texi: Consistently use @option{} for displaying command
+	line options.
+	Fix formatting in "Invoking `cpio'" section
+	* src/main.c (process_args): Fix usage error diagnostics in
+	copy-pass mode.
+
+2006-10-24  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* src/copyout.c (process_copy_out): Add terminating zero to the
+	link_name.
+
+	* tests/symlink.at: New testcase
+	* tests/Makefile.am: New test symlink.at
+	* tests/inout.at: Add keywords
+	* tests/testsuite.at (AT_SKIP_TEST): New macro
+	New test symlink.at
+
+2006-10-21  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* configure.ac, NEWS: Version 2.7
+	* gnulib.modules: Add stdint
+	* src/util.c: Use STRINGIFY_BIGINT to display num_bytes
+
+2006-09-27  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* TODO: Update
+	* README-alpha: Update
+	* bootstrap: Imported from tar
+	* configure.ac: Require autoconf 2.59 and gettext 1.15
+	* gnulib.modules: add inttypes
+	* doc/cpio.texi: Minor fixes
+	* po/Makevars: Remove automatically generated file
+	* po/.cvsignore: Add Makevars
+	* lib/.cvsignore: Update
+	* src/copyin.c, src/copyout.c, src/copypass.c, src/cpio.h,
+	src/cpiohdr.h, src/defer.c, src/defer.h, src/extern.h,
+	src/global.c, src/main.c, src/makepath.c, src/tar.c,
+	src/util.c: Update copyright year. 
+
+2006-07-04  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* bootstrap (update_po): Fix single translation update
+	* lib/Makefile.tmpl: Initialize AM_CPPFLAGS
+	(noinst_HEADERS): Add system-ioctl.h
+
+	Start rewriting using a better suited internal representation for
+	the file meta-data.
+	
+	* src/cpiohdr.h (struct old_cpio_header): Remove unused fields
+	c_mtime, c_filesize and c_name.
+	(struct old_ascii_header): New data type
+	(struct new_ascii_header): New data type. Describes the header
+	structure, not its internal representation.
+	(struct cpio_file_stat): New data type. Describes internal
+	representation of a file metadata
+
+	* src/copyin.c (from_ascii): New function
+	Use cpio_file_stat for internal header representation.
+	* src/copyout.c: Use cpio_file_stat for internal header
+	representation. Among other things this fixes bug reported by
+	Peter Vrabec on Mar 2, 2006
+	(http://lists.gnu.org/archive/html/bug-cpio/2006-03/msg00000.html)
+	* src/copypass.c: Use cpio_file_stat for internal header
+	representation.
+	* src/tar.c: Likewise
+	* src/util.c: Likewise
+	* src/defer.c: Likewise
+	* src/defer.h: Likewise
+	* src/extern.h: Likewise
+	(from_ascii): New prototype
+	(LG_8,LG_16,FROM_OCTAL,FROM_HEX): New defines
+	* src/main.c: New command line option --HANG (hidden)
+
+2006-03-12  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* tests/Makefile.am (AM_CPPFLAGS): Define LOCALEDIR
+
+2006-02-18  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* gnulib.modules: Add stpcpy. Thanks Benigno B. Junior for
+	reporting.
+	* THANKS: Add Benigno B. Junior
+	* src/makepath.c: Fix indentation.
+
+2005-11-16  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* src/copyout.c (process_copy_out): Fix typo.
+
+2005-11-12  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* bootstrap: Minor fix
+	* src/copyout.c (write_out_header): Rewritten using separate
+	functions for each file format. Use to_ascii to convert numbers to
+	ascii representation. Check for overflows and report them if
+	appropriate. Return 0 if it is OK to proceed with archiving this
+	file, 1 otherwise. All callers updated.
+	* src/extern.h (write_out_header): Return int.
+
+2005-10-28  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* src/util.c: Include paxlib.
+	* bootstrap: If file `.bootstrap' exists in the cwd and is
+        readable, prepend its contents to the command line.
+
+	Fix Debian bug 335580:
+	
+	* src/copyout.c (read_for_checksum,write_out_header): CRC is a
+	32-bit unsigned value. Patch proposed by Jim Castleberry and
+	Peter Vrabec. 
+	* src/extern.h (crc): Change declaration
+	* src/global.c: Likewise
+	* src/tar.c (tar_checksum): Return unsigned int
+
+	* THANKS: Add Jim Castleberry
+	* NEWS: Updated
+	
+2005-09-30  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* src/copyout.c (process_copy_out): Discern between original and
+	(eventually fixed) file name (in tar terminology, `file name'
+	vs. `member name'.
+
+2005-09-08  Sergey Poznyakoff  <gray@gnu.org.ua>
+
+	* gnulib.modules: Add utimens
+	* src/util.c (cpio_safer_name_suffix): Preserve ./ no matter what
+	the value of strip_leading_dots is.
+	(set_file_times): New function
+	* src/extern.h (set_file_times): New function
+	* src/copyin.c: Use set_file_times() to update file atime/mtime
+	* src/copyout.c: Likewise.
+	* src/copypass.c: Likewise.
+
+2005-05-25  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/copyin.c: Use cpio_safer_name_suffix() and CPIO_TRAILER_NAME
+	define instead of hardcoding the trailer file name.
+	* src/copyout.c: Likewise.
+	* src/cpio.h (CPIO_TRAILER_NAME): New define
+	* src/extern.h (cpio_safer_name_suffix): New proto
+	* src/tar.c: Use CPIO_TRAILER_NAME define instead of hardcoding
+	the trailer file name.
+	* src/util.c (cpio_safer_name_suffix): New function
+	(add_cdf_double_slashes): Add FIXME warning.
+	
+	* lib/fatal.c: New file
+	* lib/Makefile.tmpl (libcpio_a_SOURCES): Add fatal.c
+	* src/copyout.c: Use error reporting functions from paxlib
+	* src/makepath.c: Likewise
+	* src/mt.c: Likewise
+	* src/main.c (fatal_exit): Moved to lib/fatal.c
+
+2005-05-24  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/copyin.c (process_copy_in): Use safer_name_suffix no matter
+	what the value of no_abs_paths_flag. The function knows better
+	what to do in any case.
+	* src/copyout.c (process_copy_out): Honor no_abs_paths_flag.
+	* src/main.c (options): Minor fixes.
+
+2005-05-23  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* bootstrap (copy_files): Create destination directory if it does
+	not exist.
+	Preserve longlong.m4 as longlong_gl.m4 
+	* src/main.c: Include paxlib.h
+	
+2005-05-22  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* lib/.cvsignore: Updated
+	* gnulib.modules: Add hash
+	* doc/cpio.texi (Reports): New chapter
+	* lib/Makefile.tmpl: Add new paxutils files.
+	* po/POTFILES.in: Likewise
+	* src/copyin.c [!HAVE_LCHOWN] (lchown): Define to 0 to avoid
+	changing ownership of the target file.
+	(process_copy_in): Use safer_name_suffix()
+	* src/main.c (parse_opt): Handle new --absolute-filenames option.
+	(process_args): Updated
+	* src/util.c: Rewrite inode lookup/insertion functions using hash
+	module. 
+
+u2005-05-20  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Raised version number to 2.6.90
+	* NEWS: Updated
+	* src/copyin.c: Use set_perms.
+	* src/copypass.c: Likewise.
+	* src/copyout.c (process_copy_out): Use stat_to_cpio() to convert
+	struct stat to struct new_cpio_header.
+	* src/defer.h: Remove legacy P_() stuff.
+	* src/dstring.c: Likewise
+	* src/extern.h: Likewise
+	* src/util.c (stat_to_cpio,set_perms): New functions
+	* doc/.cvsignore: Updated
+	* lib/.cvsignore: Updated
+	* tests/.cvsignore: Updated
+	* .cvsignore: Updated
+	* COPYING: Added to the repository
+
+2005-05-19  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* po/POTFILES.in: Add paxerror.c paxexit.c paxconvert.c
+
+	* bootstrap (copy_files): Accept optional third argument: a prefix
+	to be appended to destination file names.
+	Import paxutils/paxlib files.
+	* lib/Makefile.tmpl (libcpio_a_SOURCES): Add paxerror.c paxexit.c
+	paxconvert.c
+	* src/copyin.c: Use paxutils error reporting functions
+	* src/copyout.c: Likewise
+	* src/copypass.c: Likewise
+	* src/util.c: Likewise. Add missing includes
+	* src/main.c (USAGE_ERROR): Removed
+	(CHECK_USAGE,parse_opt,process_args): Use error() instead of USAGE_ERROR
+	(fatal_exit): New function
+	* src/tar.c (is_tar_filename_too_long): Removed unused variable
+
+	* Makefile.am, configure.ac, doc/Makefile.am,
+	doc/cpio.texi, doc/gendocs_template, headers/Makefile.am,
+	headers/fnmatch.h, lib/Makefile.tmpl, lib/mkdir.c,
+	lib/strdup.c, lib/strerror.c, src/Makefile.am,
+	src/copyin.c, src/copyout.c, src/copypass.c, src/cpio.h,
+	src/cpiohdr.h, src/defer.c, src/defer.h, src/dstring.c,
+	src/dstring.h, src/extern.h, src/filemode.c,
+	src/filetypes.h, src/global.c, src/idcache.c,
+	src/main.c, src/makepath.c, src/mt.c, src/tar.c,
+	src/tar.h, src/tarhdr.h, src/userspec.c, src/util.c,
+	tests/Makefile.am, tests/inout.at, tests/testsuite.at,
+	tests/version.at: Updated FSF postal mail address.
+
+	* bootstrap: Port recent changes from tar bootstrap.
+	* gnulib.modules: New file
+	* tests/Makefile.am (genfile_SOURCES,LDADD): Updated
+
+	* THANKS: Updated
+	* configure.ac: Remove check for gethostname, it is never used.
+	Remove check for setsockopt, it is provided by paxutils.
+
+	Fix LFS support issues. Proposed by Peter Vrabec and Dmitry V. Levin
+
+	* src/extern.h (copy_files_tape_to_disk, copy_files_disk_to_tape,
+	copy_files_disk_to_disk): Change num_bytes argument type from
+	long to off_t.
+	* src/util.c (copy_files_tape_to_disk, copy_files_disk_to_tape,
+	copy_files_disk_to_disk, disk_fill_input_buffer,
+	write_nuls_to_file): Likewise.
+	(write_nuls_to_file, copy_files_disk_to_tape,
+	copy_files_disk_to_disk): Handle `off_t num_bytes' properly.
+
+	* src/util.c (find_inode_file): Fix typos causing function to
+	occasionally miss inodes and, therefore, to copy out the same
+	(hard-linked) file several times to archive. Proposed by Brian
+	Mays.
+
+2005-03-24  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (process_args): Fixed discrepancy I have been
+	overlooking so far: cpio still does not handle --sparse option
+	the same way tar is handling it. --sparse is allowed in copy-in
+	and copy-pass modes, just as docs say it. Thanks Dmitry Levin.
+	* THANKS: Updated
+
+2005-03-21  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/util.c (disk_buffered_write): Fix typo introduced
+	2005-01-11.
+	* src/main.c (process_args): Fixed error message
+
+2005-01-31  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (main): Remove umask(0). Fixes CAN-1999-1572.
+	[__TURBOC__,__EMX__]: Removed
+	* src/copypass.c (process_copy_pass): Set umask 0
+	* src/copyin.c (process_copy_in): Likewise
+	* src/util.c (open_archive): Use MODE_RW.
+	
+2005-01-11  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* doc/gendocs_template: Template file for gendocs.sh.
+	* doc/Makefile.am: Use gendocs.sh to generate webdocs.
+	* doc/cpio.texi: Updated.
+
+	* src/copyin.c: Use memset instead of bzero, memmove
+	(or memcpy, if appropriate), instead of bcopy, and
+	strchr/strrchr instead of index/rindex.
+	* src/copypass.c: Likewise.
+	* src/main.c: Likewise.
+	* src/makepath.c: Likewise.
+	* src/tar.c: Likewise.
+	* src/util.c: Likewise.
+	(write_nuls_to_file): Made extern. All callers updated
+	
+	* src/copyout.c: Likewise. Use write_nuls_to_file instead
+	of explicitely accessing zeros_512
+	* src/userspec.c: Likewise.
+	Rename isnumber to isnumber_p. Proposed by
+	Albert Chin
+	* src/extern.h (zeros_512): Removed
+	(write_nuls_to_file): New function
+	* src/global.c (zeros_512): Removed
+	
+2005-01-06  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* bootstrap: Add 'fileblocks' gnulib module
+	Create paxutils.m4
+	* configure.ac: Call cpio_PAXUTILS
+	* src/main.c: Remove ifdef around setlocale
+	* src/mt.c: Likewise
+
+2004-12-21  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: New option --enable-mt
+	Check for locale.h
+	* doc/cpio.info: Removed
+	* src/mt.c (main): Use argmatch_invalid()
+
 2004-12-20  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
 
 	Released version 2.6. Sources up to this point are tagged

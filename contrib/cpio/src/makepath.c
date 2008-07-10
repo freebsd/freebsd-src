@@ -1,5 +1,5 @@
 /* makepath.c -- Ensure that a directory path exists.
-   Copyright (C) 1990 Free Software Foundation, Inc.
+   Copyright (C) 1990, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +11,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu> and
    Jim Meyering <meyering@cs.utexas.edu>.  */
@@ -23,46 +24,11 @@
    come together again in the future.  */
 
 #include <system.h>
-
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else
-#ifdef HAVE_ALLOCA_H
-#include <alloca.h>
-#else
-#ifdef _AIX
- #pragma alloca
-#else
-char *alloca ();
-#endif
-#endif
-#endif
+#include <paxlib.h>
 
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#if !defined(S_ISDIR) && defined(S_IFDIR)
-#define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-#endif
-
-#include <errno.h>
-#ifdef STDC_HEADERS
-#include <stdlib.h>
-#else
-extern int errno;
-#endif
-
-#if defined(STDC_HEADERS) || defined(HAVE_STRING_H)
-#include <string.h>
-#ifndef index
-#define index strchr
-#endif
-#else
-#include <strings.h>
-#endif
 
 /* Ensure that the directory ARGPATH exists.
    Remove any trailing slashes from ARGPATH before calling this function.
@@ -126,7 +92,7 @@ make_path (char *argpath,
       slash = dirpath;
       while (*slash == '/')
 	slash++;
-      while ((slash = index (slash, '/')))
+      while ((slash = strchr (slash, '/')))
 	{
 #ifdef HPUX_CDF
 	  int	iscdf;
@@ -164,7 +130,7 @@ make_path (char *argpath,
 #endif
 		      )
 		    {
-		      error (0, errno, "%s", dirpath);
+		      chown_error_details (dirpath, owner, group);
 		      retval = 1;
 		    }
 		  if (re_protect)
@@ -231,23 +197,23 @@ make_path (char *argpath,
 #endif
 	      )
 	    {
-	      error (0, errno, "%s", dirpath);
+	      chown_error_details (dirpath, owner, group);
 	      retval = 1;
 	    }
 	}
-	  /* chown may have turned off some permission bits we wanted.  */
-	  if ((mode & 07000) != 0 && chmod (dirpath, mode))
-	    {
-	      error (0, errno, "%s", dirpath);
-	      retval = 1;
-	    }
+      /* chown may have turned off some permission bits we wanted.  */
+      if ((mode & 07000) != 0 && chmod (dirpath, mode))
+	{
+	  chmod_error_details (dirpath, mode);
+	  retval = 1;
+	}
 
       /* If the mode for leading directories didn't include owner "wx"
 	 privileges, we have to reset their protections to the correct
 	 value.  */
       for (p = leading_dirs; p != NULL; p = p->next)
 	{
-	  *(p->dirname_end) = '\0';
+	  *p->dirname_end = '\0';
 #if 0
 	  /* cpio always calls make_path with parent mode 0700, so
 	     we don't have to do this.  If we ever do have to do this,
@@ -255,7 +221,7 @@ make_path (char *argpath,
 	     bit so we don't break HP CDF's.  */
 	  if (chmod (dirpath, parent_mode))
 	    {
-	      error (0, errno, "%s", dirpath);
+	      chmod_error_details (dirpath, parent_mode);
 	      retval = 1;
 	    }
 #endif
@@ -286,12 +252,12 @@ make_path (char *argpath,
 #endif
 	  )
 	{
-	  error (0, errno, "%s", dirpath);
+	  chown_error_details (dirpath, owner, group);
 	  retval = 1;
 	}
       if (chmod (dirpath, mode))
 	{
-	  error (0, errno, "%s", dirpath);
+	  chmod_error_details (dirpath, mode);
 	  retval = 1;
 	}
     }

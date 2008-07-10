@@ -1,5 +1,5 @@
 /* Word-wrapping and line-truncating streams.
-   Copyright (C) 1997 Free Software Foundation, Inc.
+   Copyright (C) 1997, 2006 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Written by Miles Bader <miles@gnu.ai.mit.edu>.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 /* This package emulates glibc `line_wrap_stream' semantics for systems that
    don't have that.  If the system does have it, it is just a wrapper for
@@ -24,10 +24,6 @@
 
 #ifndef _ARGP_FMTSTREAM_H
 #define _ARGP_FMTSTREAM_H
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -93,10 +89,6 @@ typedef FILE *argp_fmtstream_t;
 
 #else /* !ARGP_FMTSTREAM_USE_LINEWRAP */
 /* Guess we have to define our own version.  */
-
-#ifndef __const
-#define __const const
-#endif
 
 struct argp_fmtstream
 {
@@ -137,22 +129,22 @@ extern void __argp_fmtstream_free (argp_fmtstream_t __fs);
 extern void argp_fmtstream_free (argp_fmtstream_t __fs);
 
 extern ssize_t __argp_fmtstream_printf (argp_fmtstream_t __fs,
-				       __const char *__fmt, ...)
+					const char *__fmt, ...)
      __attribute__ ((__format__ (printf, 2, 3)));
 extern ssize_t argp_fmtstream_printf (argp_fmtstream_t __fs,
-				      __const char *__fmt, ...)
+				      const char *__fmt, ...)
      __attribute__ ((__format__ (printf, 2, 3)));
 
 extern int __argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch);
 extern int argp_fmtstream_putc (argp_fmtstream_t __fs, int __ch);
 
-extern int __argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str);
-extern int argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str);
+extern int __argp_fmtstream_puts (argp_fmtstream_t __fs, const char *__str);
+extern int argp_fmtstream_puts (argp_fmtstream_t __fs, const char *__str);
 
 extern size_t __argp_fmtstream_write (argp_fmtstream_t __fs,
-				      __const char *__str, size_t __len);
+				      const char *__str, size_t __len);
 extern size_t argp_fmtstream_write (argp_fmtstream_t __fs,
-				    __const char *__str, size_t __len);
+				    const char *__str, size_t __len);
 
 /* Access macros for various bits of state.  */
 #define argp_fmtstream_lmargin(__fs) ((__fs)->lmargin)
@@ -211,7 +203,7 @@ extern int __argp_fmtstream_ensure (argp_fmtstream_t __fs, size_t __amount);
 
 ARGP_FS_EI size_t
 __argp_fmtstream_write (argp_fmtstream_t __fs,
-			__const char *__str, size_t __len)
+			const char *__str, size_t __len)
 {
   if (__fs->p + __len <= __fs->end || __argp_fmtstream_ensure (__fs, __len))
     {
@@ -224,7 +216,7 @@ __argp_fmtstream_write (argp_fmtstream_t __fs,
 }
 
 ARGP_FS_EI int
-__argp_fmtstream_puts (argp_fmtstream_t __fs, __const char *__str)
+__argp_fmtstream_puts (argp_fmtstream_t __fs, const char *__str)
 {
   size_t __len = strlen (__str);
   if (__len)

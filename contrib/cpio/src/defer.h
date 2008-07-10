@@ -1,5 +1,5 @@
 /* defer.h
-   Copyright (C) 1993, 2001, 2004 Free Software Foundation, Inc.
+   Copyright (C) 1993, 2001, 2004, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,15 +11,16 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 struct deferment
   {
     struct deferment *next;
-    struct new_cpio_header header;
+    struct cpio_file_stat header;
   };
 
-struct deferment *create_deferment P_((struct new_cpio_header *file_hdr));
-void free_deferment P_((struct deferment *d));
+struct deferment *create_deferment (struct cpio_file_stat *file_hdr);
+void free_deferment (struct deferment *d);
