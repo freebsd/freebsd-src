@@ -1,5 +1,5 @@
 /* Hierarchial argument parsing, layered over getopt.
-   Copyright (C) 1995-1999,2003,2004 Free Software Foundation, Inc.
+   Copyright (C) 1995-1999,2003-2007 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Written by Miles Bader <miles@gnu.ai.mit.edu>.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License along
    with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ARGP_H
 #define _ARGP_H
@@ -23,13 +23,10 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
 
 #define __need_error_t
 #include <errno.h>
-
-#ifndef __const
-# define __const const
-#endif
 
 #ifndef __THROW
 # define __THROW
@@ -52,10 +49,12 @@
 #endif
 
 /* GCC 2.95 and later have "__restrict"; C99 compilers have
-   "restrict", and "configure" may have defined "restrict".  */
+   "restrict", and "configure" may have defined "restrict".
+   Other compilers use __restrict, __restrict__, and _Restrict, and
+   'configure' might #define 'restrict' to those words.  */
 #ifndef __restrict
 # if ! (2 < __GNUC__ || (2 == __GNUC__ && 95 <= __GNUC_MINOR__))
-#  if defined restrict || 199901L <= __STDC_VERSION__
+#  if 199901L <= __STDC_VERSION__
 #   define __restrict restrict
 #  else
 #   define __restrict
@@ -81,7 +80,7 @@ struct argp_option
 {
   /* The long option name.  For more than one name for the same option, you
      can use following options with the OPTION_ALIAS flag set.  */
-  __const char *name;
+  const char *name;
 
   /* What key is returned for this option.  If > 0 and printable, then it's
      also accepted as a short option.  */
@@ -89,7 +88,7 @@ struct argp_option
 
   /* If non-NULL, this is the name of the argument associated with this
      option, which is required unless the OPTION_ARG_OPTIONAL flag is set. */
-  __const char *arg;
+  const char *arg;
 
   /* OPTION_ flags.  */
   int flags;
@@ -97,8 +96,11 @@ struct argp_option
   /* The doc string for this option.  If both NAME and KEY are 0, This string
      will be printed outdented from the normal option column, making it
      useful as a group header (it will be the first thing printed in its
-     group); in this usage, it's conventional to end the string with a `:'.  */
-  __const char *doc;
+     group); in this usage, it's conventional to end the string with a `:'.
+
+     Write the initial value as N_("TEXT") if you want xgettext to collect
+     it into a POT file.  */
+  const char *doc;
 
   /* The group this option is in.  In a long help message, options are sorted
      alphabetically within each group, and the groups presented in the order
@@ -226,7 +228,7 @@ struct argp
 {
   /* An array of argp_option structures, terminated by an entry with both
      NAME and KEY having a value of 0.  */
-  __const struct argp_option *options;
+  const struct argp_option *options;
 
   /* What to do with an option from this structure.  KEY is the key
      associated with the option, and ARG is any associated argument (NULL if
@@ -242,12 +244,14 @@ struct argp
      contains newlines, the strings separated by them are considered
      alternative usage patterns, and printed on separate lines (lines after
      the first are prefix by `  or: ' instead of `Usage:').  */
-  __const char *args_doc;
+  const char *args_doc;
 
   /* If non-NULL, a string containing extra text to be printed before and
      after the options in a long help message (separated by a vertical tab
-     `\v' character).  */
-  __const char *doc;
+     `\v' character).
+     Write the initial value as N_("BEFORE-TEXT") "\v" N_("AFTER-TEXT") if
+     you want xgettext to collect the two pieces of text into a POT file.  */
+  const char *doc;
 
   /* A vector of argp_children structures, terminated by a member with a 0
      argp field, pointing to child argps should be parsed with this one.  Any
@@ -255,7 +259,7 @@ struct argp
      CHILDREN list.  This field is useful if you use libraries that supply
      their own argp structure, which you want to use in conjunction with your
      own.  */
-  __const struct argp_child *children;
+  const struct argp_child *children;
 
   /* If non-zero, this should be a function to filter the output of help
      messages.  KEY is either a key from an option, in which case TEXT is
@@ -267,7 +271,7 @@ struct argp
      has been done, so if any of the replacement text also needs translation,
      that should be done by the filter function.  INPUT is either the input
      supplied to argp_parse, or NULL, if argp_help was called directly.  */
-  char *(*help_filter) (int __key, __const char *__text, void *__input);
+  char *(*help_filter) (int __key, const char *__text, void *__input);
 
   /* If non-zero the strings used in the argp library are translated using
      the domain described by this string.  Otherwise the currently installed
@@ -291,7 +295,7 @@ struct argp
 struct argp_child
 {
   /* The child parser.  */
-  __const struct argp *argp;
+  const struct argp *argp;
 
   /* Flags for this child.  */
   int flags;
@@ -300,7 +304,7 @@ struct argp_child
      child options.  As a side-effect, a non-zero value forces the child
      options to be grouped together; to achieve this effect without actually
      printing a header string, use a value of "".  */
-  __const char *header;
+  const char *header;
 
   /* Where to group the child options relative to the other (`consolidated')
      options in the parent argp; the values are the same as the GROUP field
@@ -316,7 +320,7 @@ struct argp_child
 struct argp_state
 {
   /* The top level ARGP being parsed.  */
-  __const struct argp *root_argp;
+  const struct argp *root_argp;
 
   /* The argument vector being parsed.  May be modified.  */
   int argc;
@@ -410,22 +414,36 @@ struct argp_state
    routine returned a non-zero value, it is returned; otherwise 0 is
    returned.  This function may also call exit unless the ARGP_NO_HELP flag
    is set.  INPUT is a pointer to a value to be passed in to the parser.  */
-extern error_t argp_parse (__const struct argp *__restrict __argp,
-			   int __argc, char **__restrict __argv,
+extern error_t argp_parse (const struct argp *__restrict __argp,
+			   int /*argc*/, char **__restrict /*argv*/,
 			   unsigned __flags, int *__restrict __arg_index,
 			   void *__restrict __input);
-extern error_t __argp_parse (__const struct argp *__restrict __argp,
-			     int __argc, char **__restrict __argv,
+extern error_t __argp_parse (const struct argp *__restrict __argp,
+			     int /*argc*/, char **__restrict /*argv*/,
 			     unsigned __flags, int *__restrict __arg_index,
 			     void *__restrict __input);
 
 /* Global variables.  */
 
+/* GNULIB makes sure both program_invocation_name and
+   program_invocation_short_name are available */
+#ifdef GNULIB_PROGRAM_INVOCATION_NAME
+extern char *program_invocation_name;
+# undef HAVE_DECL_PROGRAM_INVOCATION_NAME
+# define HAVE_DECL_PROGRAM_INVOCATION_NAME 1
+#endif
+
+#ifdef GNULIB_PROGRAM_INVOCATION_SHORT_NAME
+extern char *program_invocation_short_name;
+# undef HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME
+# define HAVE_DECL_PROGRAM_INVOCATION_SHORT_NAME 1
+#endif
+
 /* If defined or set by the user program to a non-zero value, then a default
    option --version is added (unless the ARGP_NO_HELP flag is used), which
    will print this string followed by a newline and exit (unless the
    ARGP_NO_EXIT flag is used).  Overridden by ARGP_PROGRAM_VERSION_HOOK.  */
-extern __const char *argp_program_version;
+extern const char *argp_program_version;
 
 /* If defined or set by the user program to a non-zero value, then a default
    option --version is added (unless the ARGP_NO_HELP flag is used), which
@@ -441,7 +459,7 @@ extern void (*argp_program_version_hook) (FILE *__restrict __stream,
    argp_help if the ARGP_HELP_BUG_ADDR flag is set (as it is by various
    standard help messages), embedded in a sentence that says something like
    `Report bugs to ADDR.'.  */
-extern __const char *argp_program_bug_address;
+extern const char *argp_program_bug_address;
 
 /* The exit status that argp will use when exiting due to a parsing error.
    If not defined or set by the user program, this defaults to EX_USAGE from
@@ -479,10 +497,10 @@ extern error_t argp_err_exit_status;
 
 /* Output a usage message for ARGP to STREAM.  FLAGS are from the set
    ARGP_HELP_*.  */
-extern void argp_help (__const struct argp *__restrict __argp,
+extern void argp_help (const struct argp *__restrict __argp,
 		       FILE *__restrict __stream,
 		       unsigned __flags, char *__restrict __name);
-extern void __argp_help (__const struct argp *__restrict __argp,
+extern void __argp_help (const struct argp *__restrict __argp,
 			 FILE *__restrict __stream, unsigned __flags,
 			 char *__name);
 
@@ -496,25 +514,25 @@ extern void __argp_help (__const struct argp *__restrict __argp,
 
 /* Output, if appropriate, a usage message for STATE to STREAM.  FLAGS are
    from the set ARGP_HELP_*.  */
-extern void argp_state_help (__const struct argp_state *__restrict __state,
+extern void argp_state_help (const struct argp_state *__restrict __state,
 			     FILE *__restrict __stream,
 			     unsigned int __flags);
-extern void __argp_state_help (__const struct argp_state *__restrict __state,
+extern void __argp_state_help (const struct argp_state *__restrict __state,
 			       FILE *__restrict __stream,
 			       unsigned int __flags);
 
 /* Possibly output the standard usage message for ARGP to stderr and exit.  */
-extern void argp_usage (__const struct argp_state *__state);
-extern void __argp_usage (__const struct argp_state *__state);
+extern void argp_usage (const struct argp_state *__state);
+extern void __argp_usage (const struct argp_state *__state);
 
 /* If appropriate, print the printf string FMT and following args, preceded
    by the program name and `:', to stderr, and followed by a `Try ... --help'
    message, then exit (1).  */
-extern void argp_error (__const struct argp_state *__restrict __state,
-			__const char *__restrict __fmt, ...)
+extern void argp_error (const struct argp_state *__restrict __state,
+			const char *__restrict __fmt, ...)
      __attribute__ ((__format__ (__printf__, 2, 3)));
-extern void __argp_error (__const struct argp_state *__restrict __state,
-			  __const char *__restrict __fmt, ...)
+extern void __argp_error (const struct argp_state *__restrict __state,
+			  const char *__restrict __fmt, ...)
      __attribute__ ((__format__ (__printf__, 2, 3)));
 
 /* Similar to the standard gnu error-reporting function error(), but will
@@ -525,31 +543,31 @@ extern void __argp_error (__const struct argp_state *__restrict __state,
    difference between this function and argp_error is that the latter is for
    *parsing errors*, and the former is for other problems that occur during
    parsing but don't reflect a (syntactic) problem with the input.  */
-extern void argp_failure (__const struct argp_state *__restrict __state,
+extern void argp_failure (const struct argp_state *__restrict __state,
 			  int __status, int __errnum,
-			  __const char *__restrict __fmt, ...)
+			  const char *__restrict __fmt, ...)
      __attribute__ ((__format__ (__printf__, 4, 5)));
-extern void __argp_failure (__const struct argp_state *__restrict __state,
+extern void __argp_failure (const struct argp_state *__restrict __state,
 			    int __status, int __errnum,
-			    __const char *__restrict __fmt, ...)
+			    const char *__restrict __fmt, ...)
      __attribute__ ((__format__ (__printf__, 4, 5)));
 
 /* Returns true if the option OPT is a valid short option.  */
-extern int _option_is_short (__const struct argp_option *__opt) __THROW;
-extern int __option_is_short (__const struct argp_option *__opt) __THROW;
+extern int _option_is_short (const struct argp_option *__opt) __THROW;
+extern int __option_is_short (const struct argp_option *__opt) __THROW;
 
 /* Returns true if the option OPT is in fact the last (unused) entry in an
    options array.  */
-extern int _option_is_end (__const struct argp_option *__opt) __THROW;
-extern int __option_is_end (__const struct argp_option *__opt) __THROW;
+extern int _option_is_end (const struct argp_option *__opt) __THROW;
+extern int __option_is_end (const struct argp_option *__opt) __THROW;
 
 /* Return the input field for ARGP in the parser corresponding to STATE; used
    by the help routines.  */
-extern void *_argp_input (__const struct argp *__restrict __argp,
-			  __const struct argp_state *__restrict __state)
+extern void *_argp_input (const struct argp *__restrict __argp,
+			  const struct argp_state *__restrict __state)
      __THROW;
-extern void *__argp_input (__const struct argp *__restrict __argp,
-			   __const struct argp_state *__restrict __state)
+extern void *__argp_input (const struct argp *__restrict __argp,
+			   const struct argp_state *__restrict __state)
      __THROW;
 
 #ifdef __USE_EXTERN_INLINES
@@ -566,25 +584,25 @@ extern void *__argp_input (__const struct argp *__restrict __argp,
 # endif
 
 ARGP_EI void
-__NTH (__argp_usage (__const struct argp_state *__state))
+__argp_usage (const struct argp_state *__state)
 {
   __argp_state_help (__state, stderr, ARGP_HELP_STD_USAGE);
 }
 
 ARGP_EI int
-__NTH (__option_is_short (__const struct argp_option *__opt))
+__NTH (__option_is_short (const struct argp_option *__opt))
 {
   if (__opt->flags & OPTION_DOC)
     return 0;
   else
     {
       int __key = __opt->key;
-      return __key > 0 && isprint (__key);
+      return __key > 0 && __key <= UCHAR_MAX && isprint (__key);
     }
 }
 
 ARGP_EI int
-__NTH (__option_is_end (__const struct argp_option *__opt))
+__NTH (__option_is_end (const struct argp_option *__opt))
 {
   return !__opt->key && !__opt->name && !__opt->doc && !__opt->group;
 }

@@ -1,5 +1,5 @@
 /* global.c - global variables and initial values for cpio.
-   Copyright (C) 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1991, 1992, 2001, 2006 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,9 +11,10 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License along
-   with this program; if not, write to the Free Software Foundation, Inc.,
-   59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public
+   License along with this program; if not, write to the Free
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301 USA.  */
 
 #include <system.h>
 
@@ -139,7 +140,7 @@ char *archive_name = NULL;
 char *rsh_command_option = NULL;
 
 /* CRC checksum.  */
-unsigned long crc;
+unsigned int crc;
 
 /* Input and output buffers.  */
 char *input_buffer, *output_buffer;
@@ -164,9 +165,6 @@ long long input_bytes, output_bytes;
 #else
 long input_bytes, output_bytes;
 #endif
-
-/* 512 bytes of 0; used for various padding operations.  */
-char zeros_512[512];
 
 /* Saving of argument values for later reference.  */
 char *directory_name = NULL;
