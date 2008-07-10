@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.
+ * Copyright (c) 2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -875,17 +876,37 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 			goto release;
 	}
 
+	/*
+	 * If a UDP socket has been connected, then a local address/port will
+	 * have been selected and bound.
+	 *
+	 * If a UDP socket has not been connect to, then an explicit
+	 * destination address must be used, in which case a local
+	 * address/port may not have been selected and bound.
+	 */
 	if (addr) {
 		INP_INFO_LOCK_ASSERT(&udbinfo);
 		INP_LOCK_ASSERT(inp);
-		sin = (struct sockaddr_in *)addr;
-		if (jailed(td->td_ucred))
-			prison_remote_ip(td->td_ucred, 0,
-			    &sin->sin_addr.s_addr);
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
 			goto release;
 		}
+
+		/*
+		 * Jail may rewrite the destination address, so let it do
+		 * that before we use it.
+		 */
+		sin = (struct sockaddr_in *)addr;
+		if (jailed(td->td_ucred))
+			prison_remote_ip(td->td_ucred, 0,
+			    &sin->sin_addr.s_addr);
+
+		/*
+		 * If a local address or port hasn't yet been selected, do
+		 * that now.  Once a port is selected, we commit the binding
+		 * back to the socket; we also commit the binding of the
+		 * address if in jail.
+		 */
 		error = in_pcbconnect_setup(inp, addr, &laddr.s_addr, &lport,
 		    &faddr.s_addr, &fport, NULL, td->td_ucred);
 		if (error)
