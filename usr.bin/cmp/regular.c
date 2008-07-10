@@ -170,7 +170,7 @@ remmap(u_char *mem, int fd, off_t offset)
 }
 
 static void
-segv_handler(int sig) {
+segv_handler(int sig __unused) {
 	static const char msg[] = "cmp: Input/output error (caught SIGSEGV)\n";
 
 	write(STDERR_FILENO, msg, sizeof(msg));
