@@ -57,6 +57,12 @@ option displays a verbose listing of the dynamic linking headers
 encoded in the executable.
 See the source code and include
 files for the definitive meaning of all the fields.
+.Sh BUGS
+On 64 bit architectures, dlopen() cannot open 32 bit dynamic libraries,
+so
+.Nm
+will show the error
+.Qq "unsupported file layout" .
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr nm 1 ,
