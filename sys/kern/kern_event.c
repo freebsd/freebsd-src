@@ -1221,12 +1221,11 @@ start:
 
 		if ((kn->kn_status == KN_MARKER && kn != marker) ||
 		    (kn->kn_status & KN_INFLUX) == KN_INFLUX) {
-			kq->kq_state |= KQ_FLUXWAIT;
 			if (influx) {
 				influx = 0;
 				KQ_FLUX_WAKEUP(kq);
 			}
-
+			kq->kq_state |= KQ_FLUXWAIT;
 			error = msleep(kq, &kq->kq_lock, PSOCK,
 			    "kqflxwt", 0);
 			continue;
