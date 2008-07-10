@@ -854,10 +854,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		INP_RLOCK(inp);
 	}
 
-#ifdef MAC
-	mac_inpcb_create_mbuf(inp, m);
-#endif
-
 	/*
 	 * If the IP_SENDSRCADDR control message was specified, override the
 	 * source address for this datagram.  Its use is invalidated if the
@@ -967,6 +963,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		ipflags |= IP_ALLOWBROADCAST;
 	if (inp->inp_flags & INP_ONESBCAST)
 		ipflags |= IP_SENDONES;
+
+#ifdef MAC
+	mac_inpcb_create_mbuf(inp, m);
+#endif
 
 	/*
 	 * Set up checksum and output datagram.
