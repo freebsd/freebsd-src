@@ -391,8 +391,11 @@ main(int argc, char *argv[])
 				opflags |= OF_NOINET4;
 			if (altflags & ALTF_NOINET6)
 				opflags |= OF_NOINET6;
-			if (altflags & ALTF_MNTUDP)
+			if (altflags & ALTF_MNTUDP) {
 				mnttcp_ok = 0;
+				nfsargsp->sotype = SOCK_DGRAM;
+				nfsproto = IPPROTO_UDP;
+			}
 			if (altflags & ALTF_TCP) {
 				nfsargsp->sotype = SOCK_STREAM;
 				nfsproto = IPPROTO_TCP;
