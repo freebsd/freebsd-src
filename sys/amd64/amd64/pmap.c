@@ -226,6 +226,7 @@ static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
+static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
@@ -2197,13 +2198,27 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 }
 
 /*
+ * Fills a page table page with mappings to consecutive physical pages.
+ */
+static void
+pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte)
+{
+	pt_entry_t *pte;
+
+	for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
+		*pte = newpte;
+		newpte += PAGE_SIZE;
+	}
+}
+
+/*
  * Tries to demote a 2MB page mapping.
  */
 static boolean_t
 pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde, oldpde;
-	pt_entry_t *firstpte, newpte, *pte;
+	pt_entry_t *firstpte, newpte;
 	vm_paddr_t mptepa;
 	vm_page_t free, mpte;
 
@@ -2211,7 +2226,8 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	mpte = pmap_lookup_pt_page(pmap, va);
 	if (mpte != NULL)
 		pmap_remove_pt_page(pmap, mpte);
-	else {
+	else if ((mpte = vm_page_alloc(NULL, pmap_pde_pindex(va),
+	    VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL | VM_ALLOC_WIRED)) == NULL) {
 		KASSERT((*pde & PG_W) == 0,
 		    ("pmap_demote_pde: page table page for a wired mapping"
 		    " is missing"));
@@ -2238,17 +2254,22 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		newpte ^= PG_PDE_PAT | PG_PTE_PAT;
 
 	/*
-	 * If the mapping has changed attributes, update the page table
-	 * entries.
+	 * If the page table page is new, initialize it.
 	 */
+	if (mpte->wire_count == 1) {
+		mpte->wire_count = NPTEPG;
+		pmap_fill_ptp(firstpte, newpte);
+	}
 	KASSERT((*firstpte & PG_FRAME) == (newpte & PG_FRAME),
 	    ("pmap_demote_pde: firstpte and newpte map different physical"
 	    " addresses"));
+
+	/*
+	 * If the mapping has changed attributes, update the page table
+	 * entries.
+	 */
 	if ((*firstpte & PG_PTE_PROMOTE) != (newpte & PG_PTE_PROMOTE))
-		for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
-			*pte = newpte;
-			newpte += PAGE_SIZE;
-		}
+		pmap_fill_ptp(firstpte, newpte);
 
 	/*
 	 * Demote the mapping.  This pmap is locked.  The old PDE has
