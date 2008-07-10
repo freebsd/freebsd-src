@@ -426,6 +426,7 @@ dev/advansys/adw_pci.c		optional adw pci
 dev/advansys/adwcam.c		optional adw
 dev/advansys/adwlib.c		optional adw
 dev/advansys/adwmcode.c		optional adw
+dev/age/if_age.c		optional age pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
