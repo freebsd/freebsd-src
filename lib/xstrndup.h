@@ -1,4 +1,5 @@
-/* Searching in a string.
+/* Duplicate a bounded initial segment of a string, with out-of-memory
+   checking.
    Copyright (C) 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -13,16 +14,11 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#if HAVE_STRCHRNUL
+#include <stddef.h>
 
-/* Get strchrnul() declaration.  */
-#include <string.h>
-
-#else
-
-/* Find the first occurrence of C in S or the final NUL byte.  */
-extern char *strchrnul (const char *s, int c_in);
-
-#endif
+/* Return a newly allocated copy of at most N bytes of STRING.
+   In other words, return a copy of the initial segment of length N of
+   STRING.  */
+extern char *xstrndup (const char *string, size_t n);
