@@ -132,7 +132,7 @@ static int	acpi_set_powerstate_method(device_t bus, device_t child,
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 		    struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
-static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
+static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 		    void *context, void **status);
 static BOOLEAN	acpi_MatchHid(ACPI_HANDLE h, const char *hid);
@@ -1527,21 +1527,19 @@ acpi_probe_children(device_t bus)
 }
 
 /*
- * Determine the probe order for a given device and return non-zero if it
- * should be attached immediately.
+ * Determine the probe order for a given device.
  */
-static int
+static void
 acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
     ACPI_OBJECT_TYPE type;
-    u_int addr;
 
     /*
      * 1. I/O port and memory system resource holders
      * 2. Embedded controllers (to handle early accesses)
      * 3. PCI Link Devices
-     * 11 - 266. Host-PCI bridges sorted by _ADR
-     * 280. CPUs
+     * ACPI_DEV_BASE_ORDER. Host-PCI bridges
+     * ACPI_DEV_BASE_ORDER + 10. CPUs
      */
     AcpiGetType(handle, &type);
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
@@ -1550,15 +1548,10 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 	*order = 2;
     else if (acpi_MatchHid(handle, "PNP0C0F"))
 	*order = 3;
-    else if (acpi_MatchHid(handle, "PNP0A03")) {
-	if (ACPI_SUCCESS(acpi_GetInteger(handle, "_ADR", &addr)))
-	    *order = 11 + ACPI_ADR_PCI_SLOT(addr) * (PCI_FUNCMAX + 1) +
-	       ACPI_ADR_PCI_FUNC(addr);
-	else
-	    *order = 11;
-    } else if (type == ACPI_TYPE_PROCESSOR)
-	*order = 280;
-    return (0);
+    else if (acpi_MatchHid(handle, "PNP0A03"))
+	*order = ACPI_DEV_BASE_ORDER;
+    else if (type == ACPI_TYPE_PROCESSOR)
+	*order = ACPI_DEV_BASE_ORDER + 10;
 }
 
 /*
@@ -1608,13 +1601,13 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * placeholder so that the probe/attach passes will run
 	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
 	     * are reserved for special objects (i.e., system
-	     * resources).  Orders between ACPI_DEV_BASE_ORDER and 300
+	     * resources).  Orders between ACPI_DEV_BASE_ORDER and 100
 	     * are used for Host-PCI bridges (and effectively all
 	     * their children) and CPUs.  Larger values are used for
 	     * all other devices.
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
-	    order = level * 10 + 300;
+	    order = level * 10 + 100;
 	    acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
