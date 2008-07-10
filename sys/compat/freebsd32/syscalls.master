@@ -799,16 +799,22 @@
 				    mode_t mode); }
 483	AUE_SHMUNLINK	NOPROTO	{ int shm_unlink(const char *path); }
 484	AUE_NULL	NOPROTO	{ int cpuset(cpusetid_t *setid); }
-485	AUE_NULL	NOPROTO	{ int cpuset_setid(cpuwhich_t which, id_t id, \
+485	AUE_NULL	STD	{ int freebsd32_cpuset_setid(cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
 				    cpusetid_t setid); }
-486	AUE_NULL	NOPROTO	{ int cpuset_getid(cpulevel_t level, \
-				    cpuwhich_t which, id_t id, \
+486	AUE_NULL	STD	{ int freebsd32_cpuset_getid(cpulevel_t level, \
+				    cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
 				    cpusetid_t *setid); }
-487	AUE_NULL	NOPROTO	{ int cpuset_getaffinity(cpulevel_t level, \
-				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+487	AUE_NULL	STD	{ int freebsd32_cpuset_getaffinity( \
+				    cpulevel_t level, cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    size_t cpusetsize, \
 				    cpuset_t *mask); }
-488	AUE_NULL	NOPROTO	{ int cpuset_setaffinity(cpulevel_t level, \
-				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+488	AUE_NULL	STD	{ int freebsd32_cpuset_setaffinity( \
+				    cpulevel_t level, cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    size_t cpusetsize, \
 				    const cpuset_t *mask); }
 489	AUE_FACCESSAT	NOPROTO	{ int faccessat(int fd, char *path, int mode, \
 				    int flag); }
