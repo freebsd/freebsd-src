@@ -52,6 +52,7 @@ SYSCTL_DECL(_net_bluetooth);
 SYSCTL_DECL(_net_bluetooth_hci);
 SYSCTL_DECL(_net_bluetooth_l2cap);
 SYSCTL_DECL(_net_bluetooth_rfcomm);
+SYSCTL_DECL(_net_bluetooth_sco);
 #endif /* SYSCTL_DECL */
 
 /*
@@ -221,6 +222,7 @@ u_int32_t	bluetooth_hci_connect_timeout	(void);
 u_int32_t	bluetooth_hci_max_neighbor_age	(void);
 u_int32_t	bluetooth_l2cap_rtx_timeout	(void);
 u_int32_t	bluetooth_l2cap_ertx_timeout	(void);
+u_int32_t      bluetooth_sco_rtx_timeout       (void);
 
 #endif /* _NETGRAPH_BLUETOOTH_H_ */
 
