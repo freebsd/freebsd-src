@@ -2505,7 +2505,7 @@ freebsd32_cpuset_setid(struct thread *td,
 	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
 	ap.setid = uap->setid;
 
-	return cpuset_setid(td, &ap);
+	return (cpuset_setid(td, &ap));
 }
 
 int
@@ -2519,7 +2519,7 @@ freebsd32_cpuset_getid(struct thread *td,
 	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
 	ap.setid = uap->setid;
 
-	return cpuset_getid(td, &ap);
+	return (cpuset_getid(td, &ap));
 }
 
 int
@@ -2534,7 +2534,7 @@ freebsd32_cpuset_getaffinity(struct thread *td,
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
-	return cpuset_getaffinity(td, &ap);
+	return (cpuset_getaffinity(td, &ap));
 }
 
 int
@@ -2549,7 +2549,7 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 	ap.cpusetsize = uap->cpusetsize;
 	ap.mask = uap->mask;
 
-	return cpuset_setaffinity(td, &ap);
+	return (cpuset_setaffinity(td, &ap));
 }
 
 #if 0
