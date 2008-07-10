@@ -1,7 +1,7 @@
-/* Copyright (C) 1996, 1997, 1998, 2000, 2003 Free Software Foundation, Inc.
+/* A replacement function, for systems that lack strndup.
 
-   NOTE: The canonical source of this file is maintained with the GNU C Library.
-   Bugs can be reported to bug-glibc@prep.ai.mit.edu.
+   Copyright (C) 1996, 1997, 1998, 2001, 2002, 2003, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU General Public License as published by the
@@ -15,31 +15,16 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
+#include <config.h>
 
-#include <stdlib.h>
 #include <string.h>
 
-#ifndef HAVE_DECL_STRNLEN
-"this configure-time declaration test was not run"
-#endif
-#if !HAVE_DECL_STRNLEN
-size_t strnlen ();
-#endif
-
-#undef __strndup
-#undef strndup
-
-#ifndef weak_alias
-# define __strndup strndup
-#endif
+#include <stdlib.h>
 
 char *
-__strndup (const char *s, size_t n)
+strndup (char const *s, size_t n)
 {
   size_t len = strnlen (s, n);
   char *new = malloc (len + 1);
@@ -50,6 +35,3 @@ __strndup (const char *s, size_t n)
   new[len] = '\0';
   return memcpy (new, s, len);
 }
-#ifdef weak_alias
-weak_alias (__strndup, strndup)
-#endif
