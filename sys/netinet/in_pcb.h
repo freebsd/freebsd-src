@@ -452,7 +452,7 @@ void	in_pcbfree(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
 struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
-	    struct in_addr, u_int, int);
+	    struct in_addr, u_short, int);
 struct inpcb *
 	in_pcblookup_hash(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);
