@@ -674,11 +674,10 @@ in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
  */
 struct inpcb *
 in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
-    u_int lport_arg, int wild_okay)
+    u_short lport, int wild_okay)
 {
 	register struct inpcb *inp;
 	int matchwild = 3, wildcard;
-	u_short lport = lport_arg;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 
