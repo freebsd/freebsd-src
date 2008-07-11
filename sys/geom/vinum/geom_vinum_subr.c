@@ -491,8 +491,9 @@ gv_update_plex_config(struct gv_plex *p)
 			s->state = GV_SD_STALE;
 		p->flags &= ~GV_PLEX_ADDED;
 		p->flags &= ~GV_PLEX_NEWBORN;
-		p->state = GV_PLEX_DOWN;
+		state = GV_PLEX_DOWN;
 	}
+	p->state = state;
 }
 
 /*
