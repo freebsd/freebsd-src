@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_ubt_var.h,v 1.2 2003/03/22 23:44:36 max Exp $
+ * $Id: ng_ubt_var.h,v 1.5 2005/10/31 17:57:44 max Exp $
  * $FreeBSD$
  */
 
@@ -54,11 +54,24 @@
 #define UBT_HCI_REQUEST		0x20
 #define UBT_DEFAULT_QLEN	12
 
+/* Isoc transfers */
+#define NG_UBT_NXFERS		3	/* max xfers to queue */
+#define NG_UBT_NFRAMES		10	/* frames per xfer */
+
+struct ubt_isoc_xfer {
+	usbd_xfer_handle	 xfer;		/* isoc xfer */
+	void			*buffer;	/* isoc buffer */
+ 	uint16_t		*frlen;		/* isoc frame length */
+	int			 active;	/* is xfer active */
+};
+typedef struct ubt_isoc_xfer	ubt_isoc_xfer_t;
+typedef struct ubt_isoc_xfer *	ubt_isoc_xfer_p;
+
 /* USB device softc structure */
 struct ubt_softc {
 	/* State */
 	ng_ubt_node_debug_ep	 sc_debug;	/* debug level */
-	u_int32_t		 sc_flags;	/* device flags */
+	uint32_t		 sc_flags;	/* device flags */
 #define UBT_NEED_FRAME_TYPE	(1 << 0)	/* device required frame type */
 #define UBT_HAVE_FRAME_TYPE UBT_NEED_FRAME_TYPE
 #define UBT_CMD_XMIT		(1 << 1)	/* CMD xmit in progress */
@@ -67,10 +80,6 @@ struct ubt_softc {
 #define UBT_EVT_RECV		(1 << 4)	/* EVN recv in progress */
 #define UBT_ACL_RECV		(1 << 5)	/* ACL recv in progress */
 #define UBT_SCO_RECV		(1 << 6)	/* SCO recv in progress */
-#define UBT_CTRL_DEV		(1 << 7)	/* ctrl device is open */
-#define UBT_INTR_DEV		(1 << 8)	/* intr device is open */
-#define UBT_BULK_DEV		(1 << 9)	/* bulk device is open */
-#define UBT_ANY_DEV		(UBT_CTRL_DEV|UBT_INTR_DEV|UBT_BULK_DEV)
 
 	ng_ubt_node_stat_ep	 sc_stat;	/* statistic */
 #define NG_UBT_STAT_PCKTS_SENT(s)	(s).pckts_sent ++
@@ -117,22 +126,18 @@ struct ubt_softc {
 		MCLBYTES /* XXX should be big enough to hold one frame */
 
 	/* Isoc. in pipe (SCO data) */
+	struct mbuf		*sc_isoc_in_buffer;
 	int			 sc_isoc_in_ep; /* isoc-in endpoint */
 	usbd_pipe_handle	 sc_isoc_in_pipe; /* isoc-in pipe */
-	usbd_xfer_handle	 sc_isoc_in_xfer; /* isoc-in xfer */
-	void			*sc_isoc_in_buffer; /* isoc-in buffer */
-	u_int16_t		*sc_isoc_in_frlen; /* isoc-in. frame length */
+	ubt_isoc_xfer_t		 sc_isoc_in[NG_UBT_NXFERS]; /* isoc-in xfers */
 
-	/* Isoc. out pipe (ACL data) */
+	/* Isoc. out pipe (SCO data) */
 	int			 sc_isoc_out_ep; /* isoc-out endpoint */
 	usbd_pipe_handle	 sc_isoc_out_pipe; /* isoc-out pipe */
-	usbd_xfer_handle	 sc_isoc_out_xfer; /* isoc-out xfer */
-	void			*sc_isoc_out_buffer; /* isoc-in buffer */
-	u_int16_t		*sc_isoc_out_frlen; /* isoc-out. frame length */
+	ubt_isoc_xfer_t		 sc_isoc_out[NG_UBT_NXFERS]; /* isoc-out xfers */
 	struct ng_bt_mbufq	 sc_scoq;	/* SCO data queue */
 
 	int			 sc_isoc_size; /* max. size of isoc. packet */
-	u_int32_t		 sc_isoc_nframes; /* num. isoc. frames */
 #define UBT_ISOC_BUFFER_SIZE \
 		(sizeof(ng_hci_scodata_pkt_t) + NG_HCI_SCO_PKT_SIZE)
 	
