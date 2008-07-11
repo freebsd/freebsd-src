@@ -93,7 +93,7 @@ hcreate(size_t nel)
 	size_t idx;
 	unsigned int p2;
 
-	/* Make sure this this isn't called when a table already exists. */
+	/* Make sure this is not called when a table already exists. */
 	if (htable != NULL) {
 		errno = EINVAL;
 		return 0;
@@ -103,11 +103,11 @@ hcreate(size_t nel)
 	if (nel < MIN_BUCKETS)
 		nel = MIN_BUCKETS;
 
-	/* If it's too large, cap it. */
+	/* If it is too large, cap it. */
 	if (nel > MAX_BUCKETS)
 		nel = MAX_BUCKETS;
 
-	/* If it's is not a power of two in size, round up. */
+	/* If it is not a power of two in size, round up. */
 	if ((nel & (nel - 1)) != 0) {
 		for (p2 = 0; nel != 0; p2++)
 			nel >>= 1;
