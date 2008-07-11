@@ -30,6 +30,8 @@
  * CISS adapter driver datastructures
  */
 
+typedef STAILQ_HEAD(, ciss_request)	cr_qhead_t;
+
 /************************************************************************
  * Tunable parameters
  */
@@ -61,7 +63,7 @@
  *
  * If the delay is set to 0, interrupts are delivered immediately.
  */
-#define CISS_INTERRUPT_COALESCE_DELAY	1000
+#define CISS_INTERRUPT_COALESCE_DELAY	0
 #define CISS_INTERRUPT_COALESCE_COUNT	16
 
 /*
@@ -80,22 +82,6 @@ typedef struct proc	d_thread_t;
 #endif
 
 /************************************************************************
- * Command queue statistics
- */
-
-#define CISSQ_FREE	0
-#define CISSQ_BUSY	1
-#define CISSQ_COMPLETE	2
-#define CISSQ_NOTIFY	3
-#define CISSQ_COUNT	4
-
-struct ciss_qstat
-{
-    u_int32_t	q_length;
-    u_int32_t	q_max;
-};
-
-/************************************************************************
  * Driver version.  Only really significant to the ACU interface.
  */
 #define CISS_DRIVER_VERSION	20011201
@@ -110,7 +96,7 @@ struct ciss_qstat
  */
 struct ciss_request
 {
-    TAILQ_ENTRY(ciss_request)	cr_link;
+    STAILQ_ENTRY(ciss_request)	cr_link;
     int				cr_onq;		/* which queue we are on */
 
     struct ciss_softc		*cr_sc;		/* controller softc */
@@ -124,9 +110,19 @@ struct ciss_request
 #define CISS_REQ_POLL		(1<<2)		/* submitter polling */
 #define CISS_REQ_DATAOUT	(1<<3)		/* data host->adapter */
 #define CISS_REQ_DATAIN		(1<<4)		/* data adapter->host */
+#define CISS_REQ_BUSY		(1<<5)		/* controller has req */
 
     void			(* cr_complete)(struct ciss_request *);
     void			*cr_private;
+    int				cr_sg_tag;
+#define CISS_SG_MAX		((CISS_SG_FETCH_MAX << 1) | 0x1)
+#define CISS_SG_1		((CISS_SG_FETCH_1 << 1) | 0x01)
+#define CISS_SG_2		((CISS_SG_FETCH_2 << 1) | 0x01)
+#define CISS_SG_4		((CISS_SG_FETCH_4 << 1) | 0x01)
+#define CISS_SG_8		((CISS_SG_FETCH_8 << 1) | 0x01)
+#define CISS_SG_16		((CISS_SG_FETCH_16 << 1) | 0x01)
+#define CISS_SG_32		((CISS_SG_FETCH_32 << 1) | 0x01)
+#define CISS_SG_NONE		((CISS_SG_FETCH_NONE << 1) | 0x01)
 };
 
 /*
@@ -199,12 +195,14 @@ struct ciss_softc
     struct resource		*ciss_cfg_resource;	/* config struct interface window */
     int				ciss_cfg_rid;		/* resource ID */
     struct ciss_config_table	*ciss_cfg;		/* config table in adapter memory */
+    struct ciss_perf_config	*ciss_perf;		/* config table for the performant */
     struct ciss_bmic_id_table	*ciss_id;		/* ID table in host memory */
     u_int32_t			ciss_heartbeat;		/* last heartbeat value */
     int				ciss_heart_attack;	/* number of times we have seen this value */
 
+    int				ciss_msi;
     struct resource		*ciss_irq_resource;	/* interrupt */
-    int				ciss_irq_rid;		/* resource ID */
+    int				ciss_irq_rid[CISS_MSI_COUNT];		/* resource ID */
     void			*ciss_intr;		/* interrupt handle */
 
     bus_dma_tag_t		ciss_parent_dmat;	/* parent DMA tag */
@@ -212,16 +210,21 @@ struct ciss_softc
 
     u_int32_t			ciss_interrupt_mask;	/* controller interrupt mask bits */
 
+    uint64_t			*ciss_reply;
+    int				ciss_cycle;
+    int				ciss_rqidx;
+    bus_dma_tag_t		ciss_reply_dmat;
+    bus_dmamap_t		ciss_reply_map;
+    uint32_t			ciss_reply_phys;
+
     int				ciss_max_requests;
     struct ciss_request		ciss_request[CISS_MAX_REQUESTS];	/* requests */
     void			*ciss_command;		/* command structures */
     bus_dma_tag_t		ciss_command_dmat;	/* command DMA tag */
     bus_dmamap_t		ciss_command_map;	/* command DMA map */
     u_int32_t			ciss_command_phys;	/* command array base address */
-    TAILQ_HEAD(,ciss_request)	ciss_free;		/* requests available for reuse */
-    TAILQ_HEAD(,ciss_request)	ciss_busy;		/* requests in the adapter */
-    TAILQ_HEAD(,ciss_request)	ciss_complete;		/* requests which have been returned by the adapter */
-    TAILQ_HEAD(,ciss_request)	ciss_notify;		/* requests which are defered for processing */
+    cr_qhead_t			ciss_free;		/* requests available for reuse */
+    cr_qhead_t			ciss_notify;		/* requests which are defered for processing */
     struct proc			*ciss_notify_thread;
 
     struct callout		ciss_periodic;		/* periodic event handling */
@@ -329,70 +332,58 @@ struct ciss_softc
 static __inline void							\
 ciss_initq_ ## name (struct ciss_softc *sc)				\
 {									\
-    TAILQ_INIT(&sc->ciss_ ## name);					\
+    STAILQ_INIT(&sc->ciss_ ## name);					\
     CISSQ_INIT(sc, index);						\
 }									\
 static __inline void							\
 ciss_enqueue_ ## name (struct ciss_request *cr)				\
 {									\
-    int		s;							\
 									\
-    s = splcam();							\
-    TAILQ_INSERT_TAIL(&cr->cr_sc->ciss_ ## name, cr, cr_link);		\
+    STAILQ_INSERT_TAIL(&cr->cr_sc->ciss_ ## name, cr, cr_link);		\
     CISSQ_ADD(cr->cr_sc, index);					\
     cr->cr_onq = index;							\
-    splx(s);								\
 }									\
 static __inline void							\
 ciss_requeue_ ## name (struct ciss_request *cr)				\
 {									\
-    int		s;							\
 									\
-    s = splcam();							\
-    TAILQ_INSERT_HEAD(&cr->cr_sc->ciss_ ## name, cr, cr_link);		\
+    STAILQ_INSERT_HEAD(&cr->cr_sc->ciss_ ## name, cr, cr_link);		\
     CISSQ_ADD(cr->cr_sc, index);					\
     cr->cr_onq = index;							\
-    splx(s);								\
 }									\
 static __inline struct ciss_request *					\
 ciss_dequeue_ ## name (struct ciss_softc *sc)				\
 {									\
     struct ciss_request	*cr;						\
-    int			s;						\
 									\
-    s = splcam();							\
-    if ((cr = TAILQ_FIRST(&sc->ciss_ ## name)) != NULL) {		\
-	TAILQ_REMOVE(&sc->ciss_ ## name, cr, cr_link);			\
+    if ((cr = STAILQ_FIRST(&sc->ciss_ ## name)) != NULL) {		\
+	STAILQ_REMOVE_HEAD(&sc->ciss_ ## name, cr_link);		\
 	CISSQ_REMOVE(sc, index);					\
 	cr->cr_onq = -1;						\
     }									\
-    splx(s);								\
     return(cr);								\
-}									\
-static __inline int							\
-ciss_remove_ ## name (struct ciss_request *cr)				\
-{									\
-    int			s, error;					\
-									\
-    s = splcam();							\
-    if (cr->cr_onq != index) {						\
-	printf("request on queue %d (expected %d)\n", cr->cr_onq, index);\
-	error = 1;							\
-    } else {								\
-	TAILQ_REMOVE(&cr->cr_sc->ciss_ ## name, cr, cr_link);		\
-	CISSQ_REMOVE(cr->cr_sc, index);					\
-	cr->cr_onq = -1;						\
-	error = 0;							\
-    }									\
-    splx(s);								\
-    return(error);							\
 }									\
 struct hack
 
 CISSQ_REQUEST_QUEUE(free, CISSQ_FREE);
-CISSQ_REQUEST_QUEUE(busy, CISSQ_BUSY);
-CISSQ_REQUEST_QUEUE(complete, CISSQ_COMPLETE);
 CISSQ_REQUEST_QUEUE(notify, CISSQ_NOTIFY);
+
+static __inline void
+ciss_enqueue_complete(struct ciss_request *ac, cr_qhead_t *head)
+{
+
+    STAILQ_INSERT_TAIL(head, ac, cr_link);
+}
+
+static __inline struct ciss_request *
+ciss_dequeue_complete(struct ciss_softc *sc, cr_qhead_t *head)
+{
+    struct ciss_request  *ac;
+
+    if ((ac = STAILQ_FIRST(head)) != NULL)
+        STAILQ_REMOVE_HEAD(head, cr_link);
+    return(ac);
+}
 
 /********************************************************************************
  * space-fill a character string
@@ -408,3 +399,6 @@ padstr(char *targ, const char *src, int len)
 	}
     }
 }
+
+#define ciss_report_request(a, b, c)	\
+	_ciss_report_request(a, b, c, __FUNCTION__)
