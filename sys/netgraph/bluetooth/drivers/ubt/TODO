@@ -6,6 +6,8 @@ $FreeBSD$
 	The code makes use of ng_send_fn() whenever possible. Just
 	need to verify and make sure i did it right
 
+	** DONE. Seems to work **
+
 2) Review USB ATTACH function
 
 	It is a bit ugly now. Probably need a better way to discover
@@ -25,6 +27,10 @@ $FreeBSD$
 	both directions and switch them on the fly. Just to ensure
 	there at least one transfer at any time ready to run.
 
+	** DONE. Needs more testings **
+
 4) Currently interrupt transfers are done as bulk-in transfers
 
 	Need to check if that is allowed.
+
+	** DONE. Seems to work **
