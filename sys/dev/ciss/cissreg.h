@@ -399,6 +399,7 @@ struct ciss_config_table
     u_int32_t	supported_methods;
 #define CISS_TRANSPORT_METHOD_READY	(1<<0)
 #define CISS_TRANSPORT_METHOD_SIMPLE	(1<<1)
+#define CISS_TRANSPORT_METHOD_PERF	(1<<2)
     u_int32_t	active_method;
     u_int32_t	requested_method;
     u_int32_t	command_physlimit;
@@ -424,6 +425,30 @@ struct ciss_config_table
 #define CISS_DRIVER_DAUGHTER_ATTACHED		(1<<8)
 #define CISS_DRIVER_SCSI_PREFETCH		(1<<9)
     u_int32_t	max_sg_length;		/* 31 in older firmware */
+} __packed;
+
+/*
+ * Configuration table for the Performant transport.  Only 4 request queues
+ * are mentioned in this table, though apparently up to 256 can exist.
+ */
+struct ciss_perf_config {
+    uint32_t	fetch_count[8];
+#define CISS_SG_FETCH_MAX	0
+#define CISS_SG_FETCH_1		1
+#define CISS_SG_FETCH_2		2
+#define CISS_SG_FETCH_4		3
+#define CISS_SG_FETCH_8		4
+#define CISS_SG_FETCH_16	5
+#define CISS_SG_FETCH_32	6
+#define CISS_SG_FETCH_NONE	7
+    uint32_t	rq_size;
+    uint32_t	rq_count;
+    uint32_t	rq_bank_lo;
+    uint32_t	rq_bank_hi;
+    struct {
+	uint32_t	rq_addr_lo;
+	uint32_t	rq_addr_hi;
+    } __packed rq[4];
 } __packed;
 
 /*
@@ -685,6 +710,10 @@ struct ciss_bmic_flush_cache {
 #define CISS_TL_SIMPLE_OPQ	0x44	/* outbound post queue */
 #define CISS_TL_SIMPLE_OPQ_EMPTY	(~(u_int32_t)0)
 
+#define CISS_TL_SIMPLE_OSR	0x9c	/* outbound status register */
+#define CISS_TL_SIMPLE_ODC	0xa0	/* outbound doorbell clear register */
+#define CISS_TL_SIMPLE_ODC_CLEAR	(0x1)
+
 #define CISS_TL_SIMPLE_CFG_BAR	0xb4	/* should be 0x14 */
 #define CISS_TL_SIMPLE_CFG_OFF	0xb8	/* offset in BAR at which config table is located */
 
@@ -698,6 +727,13 @@ struct ciss_bmic_flush_cache {
 
 #define CISS_TL_SIMPLE_POST_CMD(sc, phys)	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, phys)
 #define CISS_TL_SIMPLE_FETCH_CMD(sc)		CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_OPQ)
+
+#define CISS_TL_PERF_POST_CMD(sc, cr)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, CISS_FIND_COMMANDPHYS(cr) | (cr)->cr_sg_tag)
+#define CISS_TL_PERF_FLUSH_INT(sc)		CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_OSR)
+#define CISS_TL_PERF_CLEAR_INT(sc)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_ODC, CISS_TL_SIMPLE_ODC_CLEAR)
+#define CISS_CYCLE_MASK		0x00000001
+
+#define CISS_MSI_COUNT	4
 
 /*
  * XXX documentation conflicts with the Linux driver as to whether setting or clearing
