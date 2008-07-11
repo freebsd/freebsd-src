@@ -780,6 +780,7 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_list ap;
 	int i;
 
+	KASSERT(pdev != NULL, ("NULL pdev"));
 	dev = devfs_alloc();
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
@@ -793,9 +794,9 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	va_end(ap);
 
 	devfs_create(dev);
+	dev_dependsl(pdev, dev);
 	clean_unrhdrl(devfs_inos);
 	dev_unlock();
-	dev_depends(pdev, dev);
 
 	notify_create(dev);
 
