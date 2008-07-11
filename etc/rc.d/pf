@@ -25,7 +25,7 @@ required_modules="pf"
 
 pf_start()
 {
-	echo "Enabling pf."
+	[ -z "${rc_quiet}" ] && echo "Enabling pf."
 	$pf_program -F all > /dev/null 2>&1
 	$pf_program -f "$pf_rules" $pf_flags
 	if ! $pf_program -s info | grep -q "Enabled" ; then
@@ -36,7 +36,7 @@ pf_start()
 pf_stop()
 {
 	if $pf_program -s info | grep -q "Enabled" ; then
-		echo "Disabling pf."
+		[ -z "${rc_quiet}" ] && echo "Disabling pf."
 		$pf_program -d
 	fi
 }
