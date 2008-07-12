@@ -63,8 +63,8 @@
 #define ETH_SQEE	0x84		/* SQE Test Error Register */
 		/*	0x88		   reserved */
 		/*	0x8c		   reserved */
-#define ETH_HSH		0x90		/* EMAC Hash Address High [63:32] */
-#define ETH_HSL		0x94		/* EMAC Hash Address Low [31:0] */
+#define ETH_HSL		0x90		/* EMAC Hash Address Low [31:0] */
+#define ETH_HSH		0x94		/* EMAC Hash Address High [63:32] */
 #define ETH_SA1L	0x98		/* EMAC Specific Address 1 Low */
 #define ETH_SA1H	0x9c		/* EMAC Specific Address 1 High */
 #define ETH_SA2L	0xa0		/* EMAC Specific Address 2 Low */
