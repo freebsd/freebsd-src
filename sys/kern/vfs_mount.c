@@ -133,7 +133,6 @@ static const char *global_opts[] = {
 	"rw",
 	"nosuid",
 	"noexec",
-	"update",
 	NULL
 };
 
@@ -586,7 +585,7 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	struct vfsopt *opt, *noro_opt;
+	struct vfsopt *opt, *noro_opt, *tmp_opt;
 	char *fstype, *fspath, *errmsg;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 	int has_rw, has_noro;
@@ -632,9 +631,11 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	 * logic based on MNT_UPDATE.  This is very important
 	 * when we want to update the root filesystem.
 	 */
-	TAILQ_FOREACH(opt, optlist, link) {
-		if (strcmp(opt->name, "update") == 0)
+	TAILQ_FOREACH_SAFE(opt, optlist, link, tmp_opt) {
+		if (strcmp(opt->name, "update") == 0) {
 			fsflags |= MNT_UPDATE;
+			vfs_freeopt(optlist, opt);
+		}
 		else if (strcmp(opt->name, "async") == 0)
 			fsflags |= MNT_ASYNC;
 		else if (strcmp(opt->name, "force") == 0)
