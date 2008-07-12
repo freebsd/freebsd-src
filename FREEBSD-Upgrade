@@ -1,49 +1,60 @@
 
-
 	    FreeBSD maintainer's guide to updating BIND 9
 	    =============================================
 
 1) Obtain the latest source distribution from the ISC's FTP server
    (ftp://ftp.isc.org/isc/bind9/)
 
-2) Unpack the tarball in a suitable directory, and cd into the new
-   source directory.
+2) Check out the head of the subversion "vendor branch"
 
-3) Remove unwanted files and directories:
+	svn co $REPO/vendor/bind9/dist
 
-	$ while read pattern ; do rm -rf $pattern ; done \
-		</usr/src/contrib/bind9/FREEBSD-Xlist
+3) Unpack the tarball in a suitable directory:
 
-   Make sure that took care of everything, and if it didn't, make sure
-   to update FREEBSD-Xlist so you won't miss it the next time.  A good
-   way to do this is to run a test import and see if any new files
-   show up:
+	tar zxvf bind-9.<x.y>.tar.gz -X dist/FREEBSD-Xlist
 
-	$ cvs -q -n import src/contrib/bind9 ISC x | grep \^N
+4) Copy new files over the old ones:
 
-4) Import the sources:
+	cp -Rp bind-9.<x.y>/* dist/
 
-	$ cvs import -m "Vendor import of BIND 9.X.Y" \
-		src/contrib/bind9 ISC BIND_9_X_Y
+5) Check to see if any files have been added or deleted using 'svn status'
+   and 'diff -ur bind-9.<x.y> dist -x \.svn | grep 'Only in'
 
-5) Resolve conflicts.
+6) Use 'svn add' and 'svn rm' to bring dist up to date for files found above.
+   Update FREEBSD-Xlist as needed.
+   The files in vendor/bind9/dist should now look exactly like those in the
+      ISC sources, minus the files/directories in FREEBSD-Xlist above.
+   Carefully check the output of 'svn status' and 'svn diff'
+      It's not if you're paranoid, it's if you are paranoid enough
 
-   As of 2 June 2007, we have no local patches against BIND 9; thus
-   there are no conflicts to merge.  This may change at a later date.
+7) Commit the update to the vendor files:
 
-5a) Remove any files that are no longer in the tarball from the vendor branch.
+	cd dist ; svn ci -m "Vendor import of BIND 9.X.Y"
+	svn cp $REPO/vendor/bind9/dist $REPO/vendor/bind9/${version}
+	   (this is a server-side operation, you dont have to check it out)
 
-6) Remove any references to the {bin,lib}/tests and docutil
+8) Update the files in src/contrib/bind9:
+
+	cd head/contrib/bind9
+
+	Make sure you are up to date:
+	svn update ; svn status
+
+	svn merge $REPO/vendor/bind9/dist .
+	Resolve conflicts (if any)
+	Carefully check the output of 'svn status' and 'svn diff'
+	Test build the updated files with a clean /usr/obj and empty src.conf
+	Commit
+
+9) Remove any references to the {bin,lib}/tests and docutil
    directories from the configure and Makefile templates:
 
 	$ sed -i.orig -e '/\/tests/d; /docutil/d; /\/xsl/d;' \
 		configure.in Makefile.in */Makefile.in
 
-   Please do not commit this change, as it would unnecessarily take
-   files off the vendor branch.  You only need this to generate
-   config.h.
+   Please do not commit this change. You only need this to generate config.h.
 
-7) Generate and run configure:
+10) Generate and run configure:
 
 	$ aclocal
 	$ autoheader
@@ -58,7 +69,7 @@
    command line; src/lib/bind/config.mk will re-enable it at compile
    time if WITHOUT_INET6 is not defined.
 
-8) Copy the following generated files to src/lib/bind and commit them:
+11) Copy the following generated files to src/lib/bind and commit them:
 
 	Path in src/contrib/bind9		Path in src/lib/bind
 	------------------------------------------------------------
@@ -74,7 +85,7 @@
    Do not commit any other file that was modified or created in
    steps 6) or 7).
 
-9) cd src/lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
+12) cd src/lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
    Commit the new versions of the files generated.
 
    The following directories contain Makefiles for bits and pieces of
