@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2008
+.Dd January 22, 2008
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -111,11 +111,6 @@ Configure
 .Va OPTIONS
 for this port using
 .Xr dialog 1 .
-.It Cm config-recursive
-Configure
-.Va OPTIONS
-for this port and all its dependencies using
-.Xr dialog 1 .
 .It Cm fetch
 Fetch all of the files needed to build this port from the sites
 listed in
@@ -189,6 +184,11 @@ config for this port and all its dependencies.
 Skip the ports which have already had their
 .Va OPTIONS
 configured.
+.It Cm config-recursive
+Configure
+.Va OPTIONS
+for this port and all its dependencies using
+.Xr dialog 1 .
 .It Cm fetch-list
 Show list of files to be fetched in order to build the port.
 .It Cm fetch-recursive
@@ -196,6 +196,8 @@ Fetch the distfiles of the port and all its dependencies.
 .It Cm fetch-recursive-list
 Show list of files that would be retrieved by
 .Cm fetch-recursive .
+.It Cm all-depends-list
+Print a list of all dependencies for the port.
 .It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
