@@ -2213,7 +2213,8 @@ pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte)
 }
 
 /*
- * Tries to demote a 2MB page mapping.
+ * Tries to demote a 2MB page mapping.  If demotion fails, the 2MB page
+ * mapping is invalidated.
  */
 static boolean_t
 pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
@@ -2224,32 +2225,41 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	vm_page_t free, mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	oldpde = *pde;
+	KASSERT((oldpde & (PG_PS | PG_V)) == (PG_PS | PG_V),
+	    ("pmap_demote_pde: oldpde is missing PG_PS and/or PG_V"));
 	mpte = pmap_lookup_pt_page(pmap, va);
 	if (mpte != NULL)
 		pmap_remove_pt_page(pmap, mpte);
-	else if ((mpte = vm_page_alloc(NULL, pmap_pde_pindex(va),
-	    VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL | VM_ALLOC_WIRED)) == NULL) {
-		KASSERT((*pde & PG_W) == 0,
+	else {
+		KASSERT((oldpde & PG_W) == 0,
 		    ("pmap_demote_pde: page table page for a wired mapping"
 		    " is missing"));
-		free = NULL;
-		pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free);
-		pmap_invalidate_page(pmap, trunc_2mpage(va));
-		pmap_free_zero_pages(free);
-		CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx"
-		    " in pmap %p", va, pmap);
-		return (FALSE);
+
+		/*
+		 * Invalidate the 2MB page mapping and return "failure" if the
+		 * mapping was never accessed or the allocation of the new
+		 * page table page fails.
+		 */
+		if ((oldpde & PG_A) == 0 || (mpte = vm_page_alloc(NULL,
+		    pmap_pde_pindex(va), VM_ALLOC_NOOBJ | VM_ALLOC_NORMAL |
+		    VM_ALLOC_WIRED)) == NULL) {
+			free = NULL;
+			pmap_remove_pde(pmap, pde, trunc_2mpage(va), &free);
+			pmap_invalidate_page(pmap, trunc_2mpage(va));
+			pmap_free_zero_pages(free);
+			CTR2(KTR_PMAP, "pmap_demote_pde: failure for va %#lx"
+			    " in pmap %p", va, pmap);
+			return (FALSE);
+		}
 	}
 	mptepa = VM_PAGE_TO_PHYS(mpte);
 	firstpte = (pt_entry_t *)PHYS_TO_DMAP(mptepa);
-	oldpde = *pde;
 	newpde = mptepa | PG_M | PG_A | (oldpde & PG_U) | PG_RW | PG_V;
-	KASSERT((oldpde & (PG_A | PG_V)) == (PG_A | PG_V),
-	    ("pmap_demote_pde: oldpde is missing PG_A and/or PG_V"));
+	KASSERT((oldpde & PG_A) != 0,
+	    ("pmap_demote_pde: oldpde is missing PG_A"));
 	KASSERT((oldpde & (PG_M | PG_RW)) != PG_RW,
 	    ("pmap_demote_pde: oldpde is missing PG_M"));
-	KASSERT((oldpde & PG_PS) != 0,
-	    ("pmap_demote_pde: oldpde is missing PG_PS"));
 	newpte = oldpde & ~PG_PS;
 	if ((newpte & PG_PDE_PAT) != 0)
 		newpte ^= PG_PDE_PAT | PG_PTE_PAT;
