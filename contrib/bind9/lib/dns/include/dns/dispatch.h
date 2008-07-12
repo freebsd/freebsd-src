@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.45.2.2.4.5 2007/08/28 07:19:14 tbox Exp $ */
+/* $Id: dispatch.h,v 1.45.2.2.4.5.4.1 2008/05/22 21:11:16 each Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -112,6 +112,9 @@ struct dns_dispatchevent {
  * _MAKEQUERY
  *	The dispatcher can be used to issue queries to other servers, and
  *	accept replies from them.
+ *
+ * _RANDOMPORT
+ *	Allocate UDP port randomly.
  */
 #define DNS_DISPATCHATTR_PRIVATE	0x00000001U
 #define DNS_DISPATCHATTR_TCP		0x00000002U
@@ -121,6 +124,7 @@ struct dns_dispatchevent {
 #define DNS_DISPATCHATTR_NOLISTEN	0x00000020U
 #define DNS_DISPATCHATTR_MAKEQUERY	0x00000040U
 #define DNS_DISPATCHATTR_CONNECTED	0x00000080U
+#define DNS_DISPATCHATTR_RANDOMPORT	0x00000100U
 
 isc_result_t
 dns_dispatchmgr_create(isc_mem_t *mctx, isc_entropy_t *entropy,
@@ -435,13 +439,6 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event);
  * Requires:
  * 	disp is valid, and the attribute DNS_DISPATCHATTR_NOLISTEN is set.
  * 	event != NULL
- */
-
-void
-dns_dispatch_hash(void *data, size_t len);
-/*%<
- * Feed 'data' to the dispatch query id generator where 'len' is the size
- * of 'data'.
  */
 
 ISC_LANG_ENDDECLS

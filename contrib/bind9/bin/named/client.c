@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.13.4.38 2007/08/28 07:19:08 tbox Exp $ */
+/* $Id: client.c,v 1.176.2.13.4.38.4.1 2008/05/22 21:11:13 each Exp $ */
 
 #include <config.h>
 
@@ -1347,14 +1347,6 @@ client_request(isc_task_t *task, isc_event_t *event) {
 			goto cleanup;
 		}
 	}
-
-	/*
-	 * Hash the incoming request here as it is after
-	 * dns_dispatch_importrecv().
-	 */
-	dns_dispatch_hash(&client->now, sizeof(client->now));
-	dns_dispatch_hash(isc_buffer_base(buffer),
-			  isc_buffer_usedlength(buffer));
 
 	/*
 	 * It's a request.  Parse it.

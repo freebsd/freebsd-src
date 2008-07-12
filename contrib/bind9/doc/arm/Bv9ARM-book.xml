@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.88 2008/01/18 23:45:32 tbox Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.155.2.27.2.88.2.1 2008/05/22 21:11:14 each Exp $ -->
 
 <book>
 <title>BIND 9 Administrator Reference Manual</title>
@@ -3732,7 +3732,15 @@ IPv6, there is a separate <command>query-source-v6</command> option.
 If <command>address</command> is <command>*</command> (asterisk) or is omitted,
 a wildcard IP address (<command>INADDR_ANY</command>) will be used.
 If <command>port</command> is <command>*</command> or is omitted,
-a random unprivileged port will be used. The <command>avoid-v4-udp-ports</command>
+a random unprivileged port number is picked up and will be
+used for each query.
+It is generally strongly discouraged to
+specify a particular port for the
+<command>query-source</command> or
+<command>query-source-v6</command> options;
+it implicitly disables the use of randomized port numbers
+and leads to insecure operation.
+The <command>avoid-v4-udp-ports</command>
 and <command>avoid-v6-udp-ports</command> options can be used to prevent named
 from selecting certain ports. The defaults are:</para>
 <programlisting>query-source address * port *;
