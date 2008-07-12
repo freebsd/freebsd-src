@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch06.html,v 1.56.2.12.2.54 2008/01/19 01:52:14 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch06.html,v 1.56.2.12.2.54.2.1 2008/05/27 22:09:04 each Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -1892,7 +1892,15 @@ IPv6, there is a separate <span><strong class="command">query-source-v6</strong>
 If <span><strong class="command">address</strong></span> is <span><strong class="command">*</strong></span> (asterisk) or is omitted,
 a wildcard IP address (<span><strong class="command">INADDR_ANY</strong></span>) will be used.
 If <span><strong class="command">port</strong></span> is <span><strong class="command">*</strong></span> or is omitted,
-a random unprivileged port will be used. The <span><strong class="command">avoid-v4-udp-ports</strong></span>
+a random unprivileged port number is picked up and will be
+used for each query.
+It is generally strongly discouraged to
+specify a particular port for the
+<span><strong class="command">query-source</strong></span> or
+<span><strong class="command">query-source-v6</strong></span> options;
+it implicitly disables the use of randomized port numbers
+and leads to insecure operation.
+The <span><strong class="command">avoid-v4-udp-ports</strong></span>
 and <span><strong class="command">avoid-v6-udp-ports</strong></span> options can be used to prevent named
 from selecting certain ports. The defaults are:</p>
 <pre class="programlisting">query-source address * port *;
