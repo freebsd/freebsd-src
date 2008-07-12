@@ -466,11 +466,12 @@ create_pagetables(vm_paddr_t *firstaddr)
 	}
 
 	/* Now set up the direct map space using either 2MB or 1GB pages */
+	/* Preset PG_M and PG_A because demotion expects it */
 	if ((amd_feature & AMDID_PAGE1GB) == 0) {
 		for (i = 0; i < NPDEPG * ndmpdp; i++) {
 			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
 			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
-			    PG_G;
+			    PG_G | PG_M | PG_A;
 		}
 		/* And the direct map space's PDP */
 		for (i = 0; i < ndmpdp; i++) {
@@ -483,7 +484,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 			((pdp_entry_t *)DMPDPphys)[i] =
 			    (vm_paddr_t)i << PDPSHIFT;
 			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS |
-			    PG_G;
+			    PG_G | PG_M | PG_A;
 		}
 	}
 
