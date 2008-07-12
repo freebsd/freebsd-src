@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.419.18.57 2007/08/28 07:20:01 tbox Exp $ */
+/* $Id: server.c,v 1.419.18.57.10.1 2008/05/22 21:28:04 each Exp $ */
 
 /*! \file */
 
@@ -540,6 +540,14 @@ get_view_querysource_dispatch(const cfg_obj_t **maps,
 		attrs |= DNS_DISPATCHATTR_IPV6;
 		break;
 	}
+
+	if (isc_sockaddr_getport(&sa) != 0) {
+		INSIST(obj != NULL);
+		cfg_obj_log(obj, ns_g_lctx, ISC_LOG_INFO,
+			    "using specific query-source port suppresses port "
+			    "randomization and can be insecure.");
+	}
+
 	attrmask = 0;
 	attrmask |= DNS_DISPATCHATTR_UDP;
 	attrmask |= DNS_DISPATCHATTR_TCP;
@@ -549,7 +557,7 @@ get_view_querysource_dispatch(const cfg_obj_t **maps,
 	disp = NULL;
 	result = dns_dispatch_getudp(ns_g_dispatchmgr, ns_g_socketmgr,
 				     ns_g_taskmgr, &sa, 4096,
-				     1000, 32768, 16411, 16433,
+				     1024, 32768, 16411, 16433,
 				     attrs, attrmask, &disp);
 	if (result != ISC_R_SUCCESS) {
 		isc_sockaddr_t any;
@@ -2369,7 +2377,9 @@ scan_interfaces(ns_server_t *server, isc_boolean_t verbose) {
 }
 
 static isc_result_t
-add_listenelt(isc_mem_t *mctx, ns_listenlist_t *list, isc_sockaddr_t *addr) {
+add_listenelt(isc_mem_t *mctx, ns_listenlist_t *list, isc_sockaddr_t *addr,
+	      isc_boolean_t wcardport_ok)
+{
 	ns_listenelt_t *lelt = NULL;
 	dns_acl_t *src_acl = NULL;
 	dns_aclelement_t aelt;
@@ -2379,7 +2389,8 @@ add_listenelt(isc_mem_t *mctx, ns_listenlist_t *list, isc_sockaddr_t *addr) {
 	REQUIRE(isc_sockaddr_pf(addr) == AF_INET6);
 
 	isc_sockaddr_any6(&any_sa6);
-	if (!isc_sockaddr_equal(&any_sa6, addr)) {
+	if (!isc_sockaddr_equal(&any_sa6, addr) &&
+	    (wcardport_ok || isc_sockaddr_getport(addr) != 0)) {
 		aelt.type = dns_aclelementtype_ipprefix;
 		aelt.negative = ISC_FALSE;
 		aelt.u.ip_prefix.prefixlen = 128;
@@ -2438,7 +2449,16 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 		result = dns_dispatch_getlocaladdress(dispatch6, &addr);
 		if (result != ISC_R_SUCCESS)
 			goto fail;
-		result = add_listenelt(mctx, list, &addr);
+
+		/*
+		 * We always add non-wildcard address regardless of whether
+		 * the port is 'any' (the fourth arg is TRUE): if the port is
+		 * specific, we need to add it since it may conflict with a
+		 * listening interface; if it's zero, we'll dynamically open
+		 * query ports, and some of them may override an existing
+		 * wildcard IPv6 port.
+		 */
+		result = add_listenelt(mctx, list, &addr, ISC_TRUE);
 		if (result != ISC_R_SUCCESS)
 			goto fail;
 	}
@@ -2468,12 +2488,12 @@ adjust_interfaces(ns_server_t *server, isc_mem_t *mctx) {
 			continue;
 
 		addrp = dns_zone_getnotifysrc6(zone);
-		result = add_listenelt(mctx, list, addrp);
+		result = add_listenelt(mctx, list, addrp, ISC_FALSE);
 		if (result != ISC_R_SUCCESS)
 			goto fail;
 
 		addrp = dns_zone_getxfrsource6(zone);
-		result = add_listenelt(mctx, list, addrp);
+		result = add_listenelt(mctx, list, addrp, ISC_FALSE);
 		if (result != ISC_R_SUCCESS)
 			goto fail;
 	}
