@@ -1,3 +1,7 @@
+	--- 9.4.2-P1 released ---
+
+2375.   [security]      Fully randomize UDP query ports to improve
+			forgery resilience. [RT #17949]
 
 	--- 9.4.2 released ---
 	--- 9.4.2rc2 released ---
