@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
+ * Copyright (c) 1999-2001, 2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -138,7 +138,7 @@ _posix1e_acl_check(acl_t acl)
 {
 	struct acl *acl_int;
 	struct acl_entry	*entry; 	/* current entry */
-	uid_t	obj_uid=-1, obj_gid=-1, highest_uid=0, highest_gid=0;
+	uid_t	highest_uid=0, highest_gid=0;
 	int	stage = ACL_USER_OBJ;
 	int	i = 0;
 	int	count_user_obj=0, count_user=0, count_group_obj=0,
@@ -162,7 +162,6 @@ _posix1e_acl_check(acl_t acl)
 				return (EINVAL);
 			stage = ACL_USER;
 			count_user_obj++;
-			obj_uid = entry->ae_id;
 			break;
 	
 		case ACL_USER:
@@ -170,8 +169,6 @@ _posix1e_acl_check(acl_t acl)
 			if (stage > ACL_USER)
 				return (EINVAL);
 			stage = ACL_USER;
-			if (entry->ae_id == obj_uid)
-				return (EINVAL);
 			if (count_user && (entry->ae_id <= highest_uid))
 				return (EINVAL);
 			highest_uid = entry->ae_id;
@@ -185,7 +182,6 @@ _posix1e_acl_check(acl_t acl)
 				return (EINVAL);
 			stage = ACL_GROUP;
 			count_group_obj++;
-			obj_gid = entry->ae_id;
 			break;
 	
 		case ACL_GROUP:
@@ -193,8 +189,6 @@ _posix1e_acl_check(acl_t acl)
 			if (stage > ACL_GROUP)
 				return (EINVAL);
 			stage = ACL_GROUP;
-			if (entry->ae_id == obj_gid)
-				return (EINVAL);
 			if (count_group && (entry->ae_id <= highest_gid))
 				return (EINVAL);
 			highest_gid = entry->ae_id;
