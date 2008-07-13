@@ -797,6 +797,7 @@ struct rl_softc {
 /*
  * RealTek chip device IDs.
  */
+#define RT_DEVICEID_8139D			0x8039
 #define	RT_DEVICEID_8129			0x8129
 #define RT_DEVICEID_8101E			0x8136
 #define	RT_DEVICEID_8138			0x8138
