@@ -295,7 +295,7 @@ portupgrade.
 		set vfs.root.mountfrom="ufs:/dev/XXX"
 
 	where XXX is the root slice of one of the disks that composed
-	the mirror (i.e.: /dev/ad0s1a). You can can than rebuild
+	the mirror (i.e.: /dev/ad0s1a). You can then rebuild
 	the array the same way you built it originally.
 
 20061122:
