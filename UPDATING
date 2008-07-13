@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080713:	p3	FreeBSD-SA-08:06.bind
+	Improve randomization in BIND to prevent response spoofing.
+
 20080619:	p2	FreeBSD-EN-08:02.tcp
 	Fix errors in the padding of TCP options.
 

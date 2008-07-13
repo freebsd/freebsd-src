@@ -1159,18 +1159,52 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 			if (result != ISC_R_SUCCESS)
 				goto cleanup_query;
 		} else {
+			isc_sockaddr_t localaddr;
+			unsigned int attrs, attrmask;
+			dns_dispatch_t *disp_base;
+
+			attrs = 0;
+			attrs |= DNS_DISPATCHATTR_UDP;
+			attrs |= DNS_DISPATCHATTR_RANDOMPORT;
+
+			attrmask = 0;
+			attrmask |= DNS_DISPATCHATTR_UDP;
+			attrmask |= DNS_DISPATCHATTR_TCP;
+			attrmask |= DNS_DISPATCHATTR_IPV4;
+			attrmask |= DNS_DISPATCHATTR_IPV6;
+
 			switch (isc_sockaddr_pf(&addrinfo->sockaddr)) {
-			case PF_INET:
-				dns_dispatch_attach(res->dispatchv4,
-						    &query->dispatch);
+			case AF_INET:
+				disp_base = res->dispatchv4;
+				attrs |= DNS_DISPATCHATTR_IPV4;
 				break;
-			case PF_INET6:
-				dns_dispatch_attach(res->dispatchv6,
-						    &query->dispatch);
+			case AF_INET6:
+				disp_base = res->dispatchv6;
+				attrs |= DNS_DISPATCHATTR_IPV6;
 				break;
 			default:
 				result = ISC_R_NOTIMPLEMENTED;
 				goto cleanup_query;
+			}
+
+			result = dns_dispatch_getlocaladdress(disp_base,
+							      &localaddr);
+			if (result != ISC_R_SUCCESS)
+				goto cleanup_query;
+			if (isc_sockaddr_getport(&localaddr) == 0) {
+				result = dns_dispatch_getudp(res->dispatchmgr,
+							     res->socketmgr,
+							     res->taskmgr,
+							     &localaddr,
+							     4096, 1000, 32768,
+							     16411, 16433,
+							     attrs, attrmask,
+							     &query->dispatch);
+				if (result != ISC_R_SUCCESS)
+					goto cleanup_query;
+			} else {
+				dns_dispatch_attach(disp_base,
+						    &query->dispatch);
 			}
 		}
 		/*
