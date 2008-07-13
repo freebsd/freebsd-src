@@ -184,7 +184,6 @@ device		pccard		# PC Card (16-bit) bus
 device		cardbus		# CardBus (32-bit) bus
 
 # Serial (COM) ports
-device		sio		# 8250, 16[45]50 based serial ports
 device		uart		# Generic UART driver
 
 # Parallel port
