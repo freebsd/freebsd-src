@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080713:	p3	FreeBSD-SA-08:06.bind
+	Improve randomization in BIND to prevent response spoofing.
+
 20080416:	p2	FreeBSD-SA-08:05.openssh,
 			FreeBSD-EN-08:01.libpthread
 	Fix logic error in sshd(8) concerning the handling of failed
