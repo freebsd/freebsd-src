@@ -57,6 +57,10 @@ OLD_FILES+=usr/share/man/man8/fdisk.8.gz
 # 20080701: wpa_supplicant.conf moved to share/examples/etc/
 OLD_FILES+=usr/share/examples/wpa_supplicant/wpa_supplicant.conf
 OLD_DIRS+=usr/share/examples/wpa_supplicant
+# 20080614: pecoff image activator removed
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/pecoff_machdep.h
+.endif
 # 20080614: sgtty removed
 OLD_FILES+=usr/include/sys/ttychars.h
 OLD_FILES+=usr/include/sys/ttydev.h
