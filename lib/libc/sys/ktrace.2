@@ -28,7 +28,7 @@
 .\"     @(#)ktrace.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd July 13, 2008
 .Dt KTRACE 2
 .Os
 .Sh NAME
@@ -101,7 +101,7 @@ struct ktr_header {
 	pid_t	ktr_pid;		/* process id */
 	char	ktr_comm[MAXCOMLEN+1];	/* command name */
 	struct	timeval ktr_time;	/* timestamp */
-	caddr_t	ktr_buf;
+        intptr_t	ktr_tid;	/* was ktr_buffer */
 };
 .Ed
 .Pp
@@ -120,8 +120,8 @@ The
 field gives the time (with microsecond resolution)
 that the record was generated.
 The
-.Va ktr_buf
-is an internal kernel pointer and is not useful.
+.Va ktr_tid
+field holds a threadid.
 .Pp
 The generic header is followed by
 .Va ktr_len
