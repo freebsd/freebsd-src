@@ -21,7 +21,6 @@ options		SC_OFWFB		# OFW frame buffer
 device		pci
 
 device		zs		# Zilog 8350 based serial ports
-device		gem		# Sun GEM/Sun ERI/Apple GMAC
 device		ofwd		# Open Firmware disks
 
 
