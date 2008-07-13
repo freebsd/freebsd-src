@@ -1041,17 +1041,25 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	pd_entry_t *pde;
+	pd_entry_t pde;
 	vm_paddr_t pa;
 
 	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS) {
 		pa = DMAP_TO_PHYS(va);
 	} else {
-		pde = vtopde(va);
-		if (*pde & PG_PS) {
-			pa = (*pde & PG_PS_FRAME) | (va & PDRMASK);
+		pde = *vtopde(va);
+		if (pde & PG_PS) {
+			pa = (pde & PG_PS_FRAME) | (va & PDRMASK);
 		} else {
-			pa = *vtopte(va);
+			/*
+			 * Beware of a concurrent promotion that changes the
+			 * PDE at this point!  For example, vtopte() must not
+			 * be used to access the PTE because it would use the
+			 * new PDE.  It is, however, safe to use the old PDE
+			 * because the page table page is preserved by the
+			 * promotion.
+			 */
+			pa = *pmap_pde_to_pte(&pde, va);
 			pa = (pa & PG_FRAME) | (va & PAGE_MASK);
 		}
 	}
