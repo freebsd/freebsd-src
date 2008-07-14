@@ -443,13 +443,19 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	if (len - hlen > ifp->if_mtu)
 		return (EMSGSIZE);
 
-	if ((unsigned)len > MCLBYTES)
+	if ((unsigned)len > MJUM16BYTES)
 		return (EIO);
 
-	if (len > MHLEN)
+	if (len <= MHLEN)
+		MGETHDR(m, M_WAIT, MT_DATA);
+	else if (len <= MCLBYTES)
 		m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
 	else
-		MGETHDR(m, M_WAIT, MT_DATA);
+		m = m_getjcl(M_WAIT, MT_DATA, M_PKTHDR,
+#if (MJUMPAGESIZE > MCLBYTES)
+		    len <= MJUMPAGESIZE ? MJUMPAGESIZE :
+#endif
+		    (len <= MJUM9BYTES ? MJUM9BYTES : MJUM16BYTES));
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = NULL;
 	*mp = m;
