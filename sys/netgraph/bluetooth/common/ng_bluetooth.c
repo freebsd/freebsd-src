@@ -57,7 +57,7 @@ static u_int32_t	bluetooth_sco_rtx_timeout_value      = 60;  /* sec */
 
 SYSCTL_NODE(_net, OID_AUTO, bluetooth, CTLFLAG_RW, 0, "Bluetooth family");
 SYSCTL_INT(_net_bluetooth, OID_AUTO, version,
-	CTLFLAG_RD, 0, NG_BLUETOOTH_VERSION, "");
+	CTLFLAG_RD, 0, NG_BLUETOOTH_VERSION, "Version of the stack");
 
 /* 
  * HCI
