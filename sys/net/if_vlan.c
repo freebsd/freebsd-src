@@ -1062,6 +1062,8 @@ exists:
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 done:
 	TRUNK_UNLOCK(trunk);
+	if (error == 0)
+		EVENTHANDLER_INVOKE(vlan_config, p, ifv->ifv_tag);
 	VLAN_UNLOCK();
 
 	return (error);
@@ -1084,12 +1086,14 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
+	struct ifnet  *parent;
 	int error;
 
 	VLAN_LOCK_ASSERT();
 
 	ifv = ifp->if_softc;
 	trunk = ifv->ifv_trunk;
+	parent = PARENT(ifv);
 
 	if (trunk) {
 		struct sockaddr_dl sdl;
@@ -1152,6 +1156,8 @@ vlan_unconfig_locked(struct ifnet *ifp)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_link_state = LINK_STATE_UNKNOWN;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+
+	EVENTHANDLER_INVOKE(vlan_unconfig, parent, ifv->ifv_tag);
 
 	return (0);
 }
