@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2002
+.Dd June 27, 2008
 .Dt CDCONTROL 1
 .Os
 .Sh NAME
@@ -130,6 +130,14 @@ Stop the disc.
 Eject the disc.
 .It Ic close
 Inject the disc.
+.It Ic volume
+Same as 
+.Em status volume
+command.
+.It Ic volume Ar level
+Set the volume of both channels to
+.Ar level .
+Allowed values are in the range 0-255.
 .It Ic volume Ar left_channel right_channel
 Set the volume of left channel to
 .Ar left_channel
