@@ -215,9 +215,12 @@ Elf_Addr link_elf_get_gp(linker_file_t);
 extern struct _dynamic _DYNAMIC;
 
 static void
-link_elf_error(const char *s)
+link_elf_error(const char *filename, const char *s)
 {
-    printf("kldload: %s\n", s);
+	if (filename == NULL)
+		printf("kldload: %s\n", s);
+	else
+		printf("kldload: %s: %s\n", filename, s);
 }
 
 /*
@@ -607,23 +610,23 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
     if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS
       || hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
-	link_elf_error("Unsupported file layout");
+	link_elf_error(filename, "Unsupported file layout");
 	error = ENOEXEC;
 	goto out;
     }
     if (hdr->e_ident[EI_VERSION] != EV_CURRENT
       || hdr->e_version != EV_CURRENT) {
-	link_elf_error("Unsupported file version");
+	link_elf_error(filename, "Unsupported file version");
 	error = ENOEXEC;
 	goto out;
     }
     if (hdr->e_type != ET_EXEC && hdr->e_type != ET_DYN) {
-	link_elf_error("Unsupported file type");
+	link_elf_error(filename, "Unsupported file type");
 	error = ENOEXEC;
 	goto out;
     }
     if (hdr->e_machine != ELF_TARG_MACH) {
-	link_elf_error("Unsupported machine");
+	link_elf_error(filename, "Unsupported machine");
 	error = ENOEXEC;
 	goto out;
     }
@@ -636,7 +639,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
     if (!((hdr->e_phentsize == sizeof(Elf_Phdr)) &&
 	  (hdr->e_phoff + hdr->e_phnum*sizeof(Elf_Phdr) <= PAGE_SIZE) &&
 	  (hdr->e_phoff + hdr->e_phnum*sizeof(Elf_Phdr) <= nbytes)))
-	link_elf_error("Unreadable program headers");
+	link_elf_error(filename, "Unreadable program headers");
 
     /*
      * Scan the program header entries, and save key information.
@@ -654,7 +657,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 
 	case PT_LOAD:
 	    if (nsegs == MAXSEGS) {
-		link_elf_error("Too many sections");
+		link_elf_error(filename, "Too many sections");
 		error = ENOEXEC;
 		goto out;
 	    }
@@ -674,7 +677,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	    break;
 
 	case PT_INTERP:
-	    link_elf_error("Unsupported file type");
+	    link_elf_error(filename, "Unsupported file type");
 	    error = ENOEXEC;
 	    goto out;
 	}
@@ -682,12 +685,12 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	++phdr;
     }
     if (phdyn == NULL) {
-	link_elf_error("Object is not dynamically-linked");
+	link_elf_error(filename, "Object is not dynamically-linked");
 	error = ENOEXEC;
 	goto out;
     }
     if (nsegs == 0) {
-	link_elf_error("No sections");
+	link_elf_error(filename, "No sections");
 	error = ENOEXEC;
 	goto out;
     }
