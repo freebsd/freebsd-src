@@ -846,14 +846,42 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		return (error);
 	}
 
-	if (src.sin_family == AF_INET || addr != NULL) {
+	/*
+	 * Depending on whether or not the application has bound or connected
+	 * the application, we may have to do varying levels of work.  The
+	 * optimal case is for a connected UDP socket, as a global lock isn't
+	 * required.
+	 *
+	 * In order to decide which we need, we require stability of the
+	 * inpcb binding, which we ensure by acquiring a read lock on the
+	 * inpcb.  This doesn't strictly follow the lock order, so we play
+	 * the trylock and retry game; note that we may end up with more
+	 * conservative locks than required the second time around, so later
+	 * assertions have to accept that.  Further analysis of the number of
+	 * misses under contention is required.
+	 */
+	sin = (struct sockaddr_in *)addr;
+	INP_RLOCK(inp);
+	if (sin != NULL &&
+	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
+		INP_RUNLOCK(inp);
 		INP_INFO_WLOCK(&udbinfo);
 		INP_WLOCK(inp);
+		unlock_udbinfo = 2;
+	} else if ((sin != NULL && (
+	    (sin->sin_addr.s_addr == INADDR_ANY) ||
+	    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+	    (inp->inp_laddr.s_addr == INADDR_ANY) ||
+	    (inp->inp_lport == 0))) ||
+	    (src.sin_family == AF_INET)) {
+		if (!INP_INFO_TRY_RLOCK(&udbinfo)) {
+			INP_RUNLOCK(inp);
+			INP_INFO_RLOCK(&udbinfo);
+			INP_RLOCK(inp);
+		}
 		unlock_udbinfo = 1;
-	} else {
+	} else
 		unlock_udbinfo = 0;
-		INP_RLOCK(inp);
-	}
 
 	/*
 	 * If the IP_SENDSRCADDR control message was specified, override the
@@ -880,12 +908,11 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * If a UDP socket has been connected, then a local address/port will
 	 * have been selected and bound.
 	 *
-	 * If a UDP socket has not been connect to, then an explicit
+	 * If a UDP socket has not been connected to, then an explicit
 	 * destination address must be used, in which case a local
 	 * address/port may not have been selected and bound.
 	 */
-	if (addr) {
-		INP_INFO_LOCK_ASSERT(&udbinfo);
+	if (sin != NULL) {
 		INP_LOCK_ASSERT(inp);
 		if (inp->inp_faddr.s_addr != INADDR_ANY) {
 			error = EISCONN;
@@ -896,39 +923,58 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * Jail may rewrite the destination address, so let it do
 		 * that before we use it.
 		 */
-		sin = (struct sockaddr_in *)addr;
 		if (jailed(td->td_ucred))
 			prison_remote_ip(td->td_ucred, 0,
 			    &sin->sin_addr.s_addr);
 
 		/*
-		 * If a local address or port hasn't yet been selected, do
-		 * that now.  Once a port is selected, we commit the binding
-		 * back to the socket; we also commit the binding of the
-		 * address if in jail.
+		 * If a local address or port hasn't yet been selected, or if
+		 * the destination address needs to be rewritten due to using
+		 * a special INADDR_ constant, invoke in_pcbconnect_setup()
+		 * to do the heavy lifting.  Once a port is selected, we
+		 * commit the binding back to the socket; we also commit the
+		 * binding of the address if in jail.
+		 *
+		 * If we already have a valid binding and we're not
+		 * requesting a destination address rewrite, use a fast path.
 		 */
-		error = in_pcbconnect_setup(inp, addr, &laddr.s_addr, &lport,
-		    &faddr.s_addr, &fport, NULL, td->td_ucred);
-		if (error)
-			goto release;
-
-		/* Commit the local port if newly assigned. */
-		if (inp->inp_laddr.s_addr == INADDR_ANY &&
-		    inp->inp_lport == 0) {
-			INP_INFO_WLOCK_ASSERT(&udbinfo);
-			INP_WLOCK_ASSERT(inp);
-			/*
-			 * Remember addr if jailed, to prevent rebinding.
-			 */
-			if (jailed(td->td_ucred))
-				inp->inp_laddr = laddr;
-			inp->inp_lport = lport;
-			if (in_pcbinshash(inp) != 0) {
-				inp->inp_lport = 0;
-				error = EAGAIN;
+		if (inp->inp_laddr.s_addr == INADDR_ANY ||
+		    inp->inp_lport == 0 ||
+		    sin->sin_addr.s_addr == INADDR_ANY ||
+		    sin->sin_addr.s_addr == INADDR_BROADCAST) {
+			INP_INFO_LOCK_ASSERT(&udbinfo);
+			error = in_pcbconnect_setup(inp, addr, &laddr.s_addr,
+			    &lport, &faddr.s_addr, &fport, NULL,
+			    td->td_ucred);
+			if (error)
 				goto release;
+
+			/*
+			 * XXXRW: Why not commit the port if the address is
+			 * !INADDR_ANY?
+			 */
+			/* Commit the local port if newly assigned. */
+			if (inp->inp_laddr.s_addr == INADDR_ANY &&
+			    inp->inp_lport == 0) {
+				INP_INFO_WLOCK_ASSERT(&udbinfo);
+				INP_WLOCK_ASSERT(inp);
+				/*
+				 * Remember addr if jailed, to prevent
+				 * rebinding.
+				 */
+				if (jailed(td->td_ucred))
+					inp->inp_laddr = laddr;
+				inp->inp_lport = lport;
+				if (in_pcbinshash(inp) != 0) {
+					inp->inp_lport = 0;
+					error = EAGAIN;
+					goto release;
+				}
+				inp->inp_flags |= INP_ANONPORT;
 			}
-			inp->inp_flags |= INP_ANONPORT;
+		} else {
+			faddr = sin->sin_addr;
+			fport = sin->sin_port;
 		}
 	} else {
 		INP_LOCK_ASSERT(inp);
@@ -1006,20 +1052,25 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
 	udpstat.udps_opackets++;
 
-	if (unlock_udbinfo)
+	if (unlock_udbinfo == 2)
 		INP_INFO_WUNLOCK(&udbinfo);
+	else if (unlock_udbinfo == 1)
+		INP_INFO_RUNLOCK(&udbinfo);
 	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
-	if (unlock_udbinfo)
+	if (unlock_udbinfo == 2)
 		INP_WUNLOCK(inp);
 	else
 		INP_RUNLOCK(inp);
 	return (error);
 
 release:
-	if (unlock_udbinfo) {
-		INP_INFO_WUNLOCK(&udbinfo);
+	if (unlock_udbinfo == 2) {
 		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&udbinfo);
+	} else if (unlock_udbinfo == 1) {
+		INP_RUNLOCK(inp);
+		INP_INFO_RUNLOCK(&udbinfo);
 	} else
 		INP_RUNLOCK(inp);
 	m_freem(m);
