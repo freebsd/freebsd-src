@@ -170,7 +170,7 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8139, 0,
 	    "RealTek 8139C+ 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
-	    "RealTek 8101E PCIe 10/100baseTX" },
+	    "RealTek 8101E/8102E/8102EL PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
 	    "RealTek 8168/8168B/8168C/8168CP/8111B/8111C/8111CP PCIe "
 	    "Gigabit Ethernet" },
@@ -206,6 +206,8 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
+	{ RL_HWREV_8102E, RL_8169, "8102E"},
+	{ RL_HWREV_8102EL, RL_8169, "8102EL"},
 	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
 	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
@@ -1242,6 +1244,11 @@ re_attach(dev)
 	case RL_HWREV_8101E:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
 		    RL_FLAG_PHYWAKE;
+		break;
+	case RL_HWREV_8102E:
+	case RL_HWREV_8102EL:
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
+		    RL_FLAG_PHYWAKE | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
