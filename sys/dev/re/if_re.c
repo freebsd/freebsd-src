@@ -1176,7 +1176,7 @@ re_attach(dev)
 				cfg = CSR_READ_1(sc, RL_CFG2);
 				cfg |= RL_CFG2_MSI;
 				CSR_WRITE_1(sc, RL_CFG2, cfg);
-				CSR_WRITE_1(sc, RL_EECMD, 0);
+				CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 			} else
 				pci_release_msi(dev);
 		}
@@ -2933,7 +2933,7 @@ re_setwol(sc)
 	CSR_WRITE_1(sc, RL_CFG3, v);
 
 	/* Config register write done. */
-	CSR_WRITE_1(sc, RL_EECMD, 0);
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	v = CSR_READ_1(sc, RL_CFG5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
@@ -2980,7 +2980,7 @@ re_clrwol(sc)
 	CSR_WRITE_1(sc, RL_CFG3, v);
 
 	/* Config register write done. */
-	CSR_WRITE_1(sc, RL_EECMD, 0);
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	v = CSR_READ_1(sc, RL_CFG5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
