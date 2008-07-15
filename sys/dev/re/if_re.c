@@ -172,7 +172,8 @@ static struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 8101E PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8168B/8111B PCIe Gigabit Ethernet" },
+	    "RealTek 8168/8168B/8168C/8168CP/8111B/8111C/8111CP PCIe "
+	    "Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB/8110S/8110SB Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -206,6 +207,9 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8101E, RL_8169, "8101E"},
 	{ RL_HWREV_8168_SPIN2, RL_8169, "8168"},
 	{ RL_HWREV_8168_SPIN3, RL_8169, "8168"},
+	{ RL_HWREV_8168C, RL_8169, "8168C/8111C"},
+	{ RL_HWREV_8168C_SPIN2, RL_8169, "8168C/8111C"},
+	{ RL_HWREV_8168CP, RL_8169, "8168CP/8111CP"},
 	{ 0, 0, NULL }
 };
 
@@ -1240,7 +1244,25 @@ re_attach(dev)
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
 	case RL_HWREV_8168_SPIN3:
-		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE;
+		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
+		    RL_FLAG_MACSTAT;
+		break;
+	case RL_HWREV_8168C:
+	case RL_HWREV_8168C_SPIN2:
+	case RL_HWREV_8168CP:
+		sc->rl_flags |= RL_FLAG_INVMAR | RL_FLAG_PHYWAKE |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT;
+		/*
+		 * These controllers support jumbo frame but it seems
+		 * that enabling it requires touching additional magic
+		 * registers. Depending on MAC revisions some
+		 * controllers need to disable checksum offload. So
+		 * disable jumbo frame until I have better idea what
+		 * it really requires to make it support.
+		 * RTL8168C/CP : supports up to 6KB jumbo frame.
+		 * RTL8111C/CP : supports up to 9KB jumbo frame.
+		 */
+		sc->rl_flags |= RL_FLAG_NOJUMBO;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SC:
@@ -1250,18 +1272,37 @@ re_attach(dev)
 		break;
 	}
 
-	sc->rl_eewidth = RL_9356_ADDR_LEN;
-	re_read_eeprom(sc, (caddr_t)&re_did, 0, 1);
-	if (re_did != 0x8129)
-	        sc->rl_eewidth = RL_9346_ADDR_LEN;
+	/* Enable PME. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
+	cfg = CSR_READ_1(sc, RL_CFG1);
+	cfg |= RL_CFG1_PME;
+	CSR_WRITE_1(sc, RL_CFG1, cfg);
+	cfg = CSR_READ_1(sc, RL_CFG5);
+	cfg &= RL_CFG5_PME_STS;
+	CSR_WRITE_1(sc, RL_CFG5, cfg);
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	/*
-	 * Get station address from the EEPROM.
-	 */
-	re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3);
-	for (i = 0; i < ETHER_ADDR_LEN / 2; i++)
-		as[i] = le16toh(as[i]);
-	bcopy(as, eaddr, sizeof(eaddr));
+	if ((sc->rl_flags & RL_FLAG_PAR) != 0) {
+		/*
+		 * XXX Should have a better way to extract station
+		 * address from EEPROM.
+		 */
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			eaddr[i] = CSR_READ_1(sc, RL_IDR0 + i);
+	} else {
+		sc->rl_eewidth = RL_9356_ADDR_LEN;
+		re_read_eeprom(sc, (caddr_t)&re_did, 0, 1);
+		if (re_did != 0x8129)
+			sc->rl_eewidth = RL_9346_ADDR_LEN;
+
+		/*
+		 * Get station address from the EEPROM.
+		 */
+		re_read_eeprom(sc, (caddr_t)as, RL_EE_EADDR, 3);
+		for (i = 0; i < ETHER_ADDR_LEN / 2; i++)
+			as[i] = le16toh(as[i]);
+		bcopy(as, eaddr, sizeof(eaddr));
+	}
 
 	if (sc->rl_type == RL_8169) {
 		/* Set RX length mask and number of descriptors. */
@@ -1307,8 +1348,8 @@ re_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
-	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
+	ifp->if_hwassist = RE_CSUM_FEATURES;
+	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
@@ -1317,6 +1358,16 @@ re_attach(dev)
 
 	TASK_INIT(&sc->rl_txtask, 1, re_tx_task, ifp);
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
+
+	/*
+	 * XXX
+	 * Still have no idea how to make TSO work on 8168C, 8168CP,
+	 * 8111C and 8111CP.
+	 */
+	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
+		ifp->if_hwassist |= CSUM_TSO;
+		ifp->if_capabilities |= IFCAP_TSO4;
+	}
 
 	/*
 	 * Call MI attach routine.
@@ -1838,21 +1889,44 @@ re_rxeof(sc)
 		/* Do RX checksumming if enabled */
 
 		if (ifp->if_capenable & IFCAP_RXCSUM) {
+			if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
+				/* Check IP header checksum */
+				if (rxstat & RL_RDESC_STAT_PROTOID)
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_CHECKED;
+				if (!(rxstat & RL_RDESC_STAT_IPSUMBAD))
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_VALID;
 
-			/* Check IP header checksum */
-			if (rxstat & RL_RDESC_STAT_PROTOID)
-				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
-			if (!(rxstat & RL_RDESC_STAT_IPSUMBAD))
-				m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
-
-			/* Check TCP/UDP checksum */
-			if ((RL_TCPPKT(rxstat) &&
-			    !(rxstat & RL_RDESC_STAT_TCPSUMBAD)) ||
-			    (RL_UDPPKT(rxstat) &&
-			    !(rxstat & RL_RDESC_STAT_UDPSUMBAD))) {
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
-				m->m_pkthdr.csum_data = 0xffff;
+				/* Check TCP/UDP checksum */
+				if ((RL_TCPPKT(rxstat) &&
+				    !(rxstat & RL_RDESC_STAT_TCPSUMBAD)) ||
+				    (RL_UDPPKT(rxstat) &&
+				     !(rxstat & RL_RDESC_STAT_UDPSUMBAD))) {
+					m->m_pkthdr.csum_flags |=
+						CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+					m->m_pkthdr.csum_data = 0xffff;
+				}
+			} else {
+				/*
+				 * RTL8168C/RTL816CP/RTL8111C/RTL8111CP
+				 */
+				if ((rxstat & RL_RDESC_STAT_PROTOID) &&
+				    (rxvlan & RL_RDESC_IPV4))
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_CHECKED;
+				if (!(rxstat & RL_RDESC_STAT_IPSUMBAD) &&
+				    (rxvlan & RL_RDESC_IPV4))
+					m->m_pkthdr.csum_flags |=
+					    CSUM_IP_VALID;
+				if (((rxstat & RL_RDESC_STAT_TCP) &&
+				    !(rxstat & RL_RDESC_STAT_TCPSUMBAD)) ||
+				    ((rxstat & RL_RDESC_STAT_UDP) &&
+				    !(rxstat & RL_RDESC_STAT_UDPSUMBAD))) {
+					m->m_pkthdr.csum_flags |=
+						CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+					m->m_pkthdr.csum_data = 0xffff;
+				}
 			}
 		}
 		maxpkt--;
@@ -2154,7 +2228,8 @@ re_encap(sc, m_head)
 	 * offload is enabled, we always manually pad short frames out
 	 * to the minimum ethernet frame size.
 	 */
-	if ((*m_head)->m_pkthdr.len < RL_IP4CSUMTX_PADLEN &&
+	if ((sc->rl_flags & RL_FLAG_DESCV2) == 0 &&
+	    (*m_head)->m_pkthdr.len < RL_IP4CSUMTX_PADLEN &&
 	    ((*m_head)->m_pkthdr.csum_flags & CSUM_IP) != 0) {
 		padlen = RL_MIN_FRAMELEN - (*m_head)->m_pkthdr.len;
 		if (M_WRITABLE(*m_head) == 0) {
@@ -2230,6 +2305,7 @@ re_encap(sc, m_head)
 	 * attempt. This is according to testing done with an 8169
 	 * chip. This is a requirement.
 	 */
+	vlanctl = 0;
 	csum_flags = 0;
 	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0)
 		csum_flags = RL_TDESC_CMD_LGSEND |
@@ -2242,11 +2318,23 @@ re_encap(sc, m_head)
 		 * does't make effects.
 		 */
 		if (((*m_head)->m_pkthdr.csum_flags & RE_CSUM_FEATURES) != 0) {
-			csum_flags |= RL_TDESC_CMD_IPCSUM;
-			if (((*m_head)->m_pkthdr.csum_flags & CSUM_TCP) != 0)
-				csum_flags |= RL_TDESC_CMD_TCPCSUM;
-			if (((*m_head)->m_pkthdr.csum_flags & CSUM_UDP) != 0)
-				csum_flags |= RL_TDESC_CMD_UDPCSUM;
+			if ((sc->rl_flags & RL_FLAG_DESCV2) == 0) {
+				csum_flags |= RL_TDESC_CMD_IPCSUM;
+				if (((*m_head)->m_pkthdr.csum_flags &
+				    CSUM_TCP) != 0)
+					csum_flags |= RL_TDESC_CMD_TCPCSUM;
+				if (((*m_head)->m_pkthdr.csum_flags &
+				    CSUM_UDP) != 0)
+					csum_flags |= RL_TDESC_CMD_UDPCSUM;
+			} else {
+				vlanctl |= RL_TDESC_CMD_IPCSUMV2;
+				if (((*m_head)->m_pkthdr.csum_flags &
+				    CSUM_TCP) != 0)
+					vlanctl |= RL_TDESC_CMD_TCPCSUMV2;
+				if (((*m_head)->m_pkthdr.csum_flags &
+				    CSUM_UDP) != 0)
+					vlanctl |= RL_TDESC_CMD_UDPCSUMV2;
+			}
 		}
 	}
 
@@ -2255,16 +2343,14 @@ re_encap(sc, m_head)
 	 * appear in all descriptors of a multi-descriptor
 	 * transmission attempt.
 	 */
-	vlanctl = 0;
 	if ((*m_head)->m_flags & M_VLANTAG)
-		vlanctl =
-		    htole32(htons((*m_head)->m_pkthdr.ether_vtag) |
-		    RL_TDESC_VLANCTL_TAG);
+		vlanctl |= htons((*m_head)->m_pkthdr.ether_vtag) |
+		    RL_TDESC_VLANCTL_TAG;
 
 	si = prod;
 	for (i = 0; i < nsegs; i++, prod = RL_TX_DESC_NXT(sc, prod)) {
 		desc = &sc->rl_ldata.rl_tx_list[prod];
-		desc->rl_vlanctl = vlanctl;
+		desc->rl_vlanctl = htole32(vlanctl);
 		desc->rl_bufaddr_lo = htole32(RL_ADDR_LO(segs[i].ds_addr));
 		desc->rl_bufaddr_hi = htole32(RL_ADDR_HI(segs[i].ds_addr));
 		cmdstat = segs[i].ds_len;
@@ -2440,8 +2526,13 @@ re_init_locked(sc)
 		cfg |= RL_CPLUSCMD_RXCSUM_ENB;
 	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 		cfg |= RL_CPLUSCMD_VLANSTRIP;
-	CSR_WRITE_2(sc, RL_CPLUS_CMD,
-	    cfg | RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB);
+	if ((sc->rl_flags & RL_FLAG_MACSTAT) != 0) {
+		cfg |= RL_CPLUSCMD_MACSTAT_DIS;
+		/* XXX magic. */
+		cfg |= 0x0001;
+	} else
+		cfg |= RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB;
+	CSR_WRITE_2(sc, RL_CPLUS_CMD, cfg);
 
 	/*
 	 * Init our MAC address.  Even though the chipset
