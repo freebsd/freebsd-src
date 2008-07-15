@@ -151,9 +151,12 @@ static struct linker_class link_elf_class = {
 static int	relocate_file(elf_file_t ef);
 
 static void
-link_elf_error(const char *s)
+link_elf_error(const char *filename, const char *s)
 {
-	printf("kldload: %s\n", s);
+	if (filename == NULL)
+		printf("kldload: %s\n", s);
+	else
+		printf("kldload: %s: %s\n", filename, s);
 }
 
 static void
@@ -437,23 +440,23 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 
 	if (hdr->e_ident[EI_CLASS] != ELF_TARG_CLASS
 	    || hdr->e_ident[EI_DATA] != ELF_TARG_DATA) {
-		link_elf_error("Unsupported file layout");
+		link_elf_error(filename, "Unsupported file layout");
 		error = ENOEXEC;
 		goto out;
 	}
 	if (hdr->e_ident[EI_VERSION] != EV_CURRENT
 	    || hdr->e_version != EV_CURRENT) {
-		link_elf_error("Unsupported file version");
+		link_elf_error(filename, "Unsupported file version");
 		error = ENOEXEC;
 		goto out;
 	}
 	if (hdr->e_type != ET_REL) {
-		link_elf_error("Unsupported file type");
+		link_elf_error(filename, "Unsupported file type");
 		error = ENOEXEC;
 		goto out;
 	}
 	if (hdr->e_machine != ELF_TARG_MACH) {
-		link_elf_error("Unsupported machine");
+		link_elf_error(filename, "Unsupported machine");
 		error = ENOEXEC;
 		goto out;
 	}
@@ -517,19 +520,19 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		}
 	}
 	if (ef->nprogtab == 0) {
-		link_elf_error("file has no contents");
+		link_elf_error(filename, "file has no contents");
 		error = ENOEXEC;
 		goto out;
 	}
 	if (nsym != 1) {
 		/* Only allow one symbol table for now */
-		link_elf_error("file has no valid symbol table");
+		link_elf_error(filename, "file has no valid symbol table");
 		error = ENOEXEC;
 		goto out;
 	}
 	if (symstrindex < 0 || symstrindex > hdr->e_shnum ||
 	    shdr[symstrindex].sh_type != SHT_STRTAB) {
-		link_elf_error("file has invalid symbol strings");
+		link_elf_error(filename, "file has invalid symbol strings");
 		error = ENOEXEC;
 		goto out;
 	}
