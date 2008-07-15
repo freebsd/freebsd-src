@@ -480,8 +480,6 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		mflags = M_NOWAIT;
 	else
 		mflags = M_WAITOK;
-	if (flags & BUS_DMA_ZERO)
-		mflags |= M_ZERO;
 
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = NULL;
@@ -489,13 +487,15 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
 		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
-		    M_NOWAIT);
+		    mflags);
 		if (dmat->segments == NULL) {
 			CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 			    __func__, dmat, dmat->flags, ENOMEM);
 			return (ENOMEM);
 		}
 	}
+	if (flags & BUS_DMA_ZERO)
+		mflags |= M_ZERO;
 
 	/* 
 	 * XXX:
@@ -531,7 +531,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		pmap_change_attr((vm_offset_t)*vaddr, dmat->maxsize,
 		    PAT_UNCACHEABLE);
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
-	    __func__, dmat, dmat->flags, ENOMEM);
+	    __func__, dmat, dmat->flags, 0);
 	return (0);
 }
 
