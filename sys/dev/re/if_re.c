@@ -175,7 +175,7 @@ static struct rl_type re_devs[] = {
 	    "RealTek 8168/8168B/8168C/8168CP/8111B/8111C/8111CP PCIe "
 	    "Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
-	    "RealTek 8169/8169S/8169SB/8110S/8110SB Gigabit Ethernet" },
+	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
 	    "RealTek 8169SC/8110SC Single-chip Gigabit Ethernet" },
 	{ COREGA_VENDORID, COREGA_DEVICEID_CGLAPCIGT, 0,
@@ -201,6 +201,7 @@ static struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8110S, RL_8169, "8110S"},
 	{ RL_HWREV_8169_8110SB, RL_8169, "8169SB"},
 	{ RL_HWREV_8169_8110SC, RL_8169, "8169SC"},
+	{ RL_HWREV_8169_8110SBL, RL_8169, "8169SBL"},
 	{ RL_HWREV_8100, RL_8139, "8100"},
 	{ RL_HWREV_8101, RL_8139, "8101"},
 	{ RL_HWREV_8100E, RL_8169, "8100E"},
@@ -1266,6 +1267,7 @@ re_attach(dev)
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SC:
+	case RL_HWREV_8169_8110SBL:
 		sc->rl_flags |= RL_FLAG_PHYWAKE;
 		break;
 	default:
