@@ -155,11 +155,6 @@ MODULE_DEPEND(re, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-/*
- * Default to using PIO access for this driver.
- */
-#define RE_USEIOSPACE
-
 /* Tunables. */
 static int msi_disable = 1;
 TUNABLE_INT("hw.re.msi_disable", &msi_disable);
@@ -270,14 +265,6 @@ static void re_clrwol		(struct rl_softc *);
 
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
-#endif
-
-#ifdef RE_USEIOSPACE
-#define RL_RES			SYS_RES_IOPORT
-#define RL_RID			RL_PCI_LOIO
-#else
-#define RL_RES			SYS_RES_MEMORY
-#define RL_RID			RL_PCI_LOMEM
 #endif
 
 static device_method_t re_methods[] = {
@@ -1129,7 +1116,7 @@ re_attach(dev)
 	struct ifnet		*ifp;
 	struct rl_hwrev		*hw_rev;
 	int			hwrev;
-	u_int16_t		re_did = 0;
+	u_int16_t		devid, re_did = 0;
 	int			error = 0, rid, i;
 	int			msic, reg;
 	uint8_t			cfg;
@@ -1146,14 +1133,26 @@ re_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = RL_RID;
-	sc->rl_res = bus_alloc_resource_any(dev, RL_RES, &rid,
-	    RF_ACTIVE);
+	devid = pci_get_device(dev);
+	/* Prefer memory space register mapping over IO space. */
+	sc->rl_res_id = PCIR_BAR(1);
+	sc->rl_res_type = SYS_RES_MEMORY;
+	/* RTL8168/8101E seems to use different BARs. */
+	if (devid == RT_DEVICEID_8168 || devid == RT_DEVICEID_8101E)
+		sc->rl_res_id = PCIR_BAR(2);
+	sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
+	    &sc->rl_res_id, RF_ACTIVE);
 
 	if (sc->rl_res == NULL) {
-		device_printf(dev, "couldn't map ports/memory\n");
-		error = ENXIO;
-		goto fail;
+		sc->rl_res_id = PCIR_BAR(0);
+		sc->rl_res_type = SYS_RES_IOPORT;
+		sc->rl_res = bus_alloc_resource_any(dev, sc->rl_res_type,
+		    &sc->rl_res_id, RF_ACTIVE);
+		if (sc->rl_res == NULL) {
+			device_printf(dev, "couldn't map ports/memory\n");
+			error = ENXIO;
+			goto fail;
+		}
 	}
 
 	sc->rl_btag = rman_get_bustag(sc->rl_res);
@@ -1463,7 +1462,8 @@ re_detach(dev)
 		pci_release_msi(dev);
 	}
 	if (sc->rl_res)
-		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		bus_release_resource(dev, sc->rl_res_type, sc->rl_res_id,
+		    sc->rl_res);
 
 	/* Unload and free the RX DMA ring memory and map */
 
