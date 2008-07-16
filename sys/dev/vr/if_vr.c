@@ -186,7 +186,8 @@ static int vr_miibus_writereg(device_t, int, int, int);
 static void vr_miibus_statchg(device_t);
 
 static void vr_link_task(void *, int);
-static int vr_setperf(struct vr_softc *, int, uint8_t *);
+static void vr_cam_mask(struct vr_softc *, uint32_t, int);
+static int vr_cam_data(struct vr_softc *, int, int, uint8_t *);
 static void vr_set_filter(struct vr_softc *);
 static void vr_reset(const struct vr_softc *);
 static int vr_tx_ring_init(struct vr_softc *);
@@ -394,27 +395,44 @@ vr_link_task(void *arg, int pending)
 	VR_UNLOCK(sc);
 }
 
-/*
- * Copy the address 'mac' into the perfect RX filter entry at
- * offset 'idx.' The perfect filter only has 32 entries so do
- * some sanity tests.
- */
+
+static void
+vr_cam_mask(struct vr_softc *sc, uint32_t mask, int type)
+{
+
+	if (type == VR_MCAST_CAM)
+		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_MCAST);
+	else
+		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_VLAN);
+	CSR_WRITE_4(sc, VR_CAMMASK, mask);
+	CSR_WRITE_1(sc, VR_CAMCTL, 0);
+}
+
 static int
-vr_setperf(struct vr_softc *sc, int idx, uint8_t *mac)
+vr_cam_data(struct vr_softc *sc, int type, int idx, uint8_t *mac)
 {
 	int	i;
 
-	if (idx < 0 || idx >= VR_CAM_MCAST_CNT || mac == NULL)
-		return (EINVAL);
+	if (type == VR_MCAST_CAM) {
+		if (idx < 0 || idx >= VR_CAM_MCAST_CNT || mac == NULL)
+			return (EINVAL);
+		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_MCAST);
+	} else
+		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_VLAN);
 
 	/* Set CAM entry address. */
 	CSR_WRITE_1(sc, VR_CAMADDR, idx);
 	/* Set CAM entry data. */
-	for (i = 0; i < ETHER_ADDR_LEN; i++)
-		CSR_WRITE_1(sc, VR_MAR0 + i, mac[i]);
+	if (type == VR_MCAST_CAM) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
+			CSR_WRITE_1(sc, VR_MCAM0 + i, mac[i]);
+	} else {
+		CSR_WRITE_1(sc, VR_VCAM0, mac[0]);
+		CSR_WRITE_1(sc, VR_VCAM1, mac[1]);
+	}
+	DELAY(10);
 	/* Write CAM and wait for self-clear of VR_CAMCTL_WRITE bit. */
-	CSR_WRITE_1(sc, VR_CAMCTL,
-	    VR_CAMCTL_ENA | VR_CAMCTL_MCAST | VR_CAMCTL_WRITE);
+	CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_WRITE);
 	for (i = 0; i < VR_TIMEOUT; i++) {
 		DELAY(1);
 		if ((CSR_READ_1(sc, VR_CAMCTL) & VR_CAMCTL_WRITE) == 0)
@@ -424,6 +442,7 @@ vr_setperf(struct vr_softc *sc, int idx, uint8_t *mac)
 	if (i == VR_TIMEOUT)
 		device_printf(sc->vr_dev, "%s: setting CAM filter timeout!\n",
 		    __func__);
+	CSR_WRITE_1(sc, VR_CAMCTL, 0);
 
 	return (i == VR_TIMEOUT ? ETIMEDOUT : 0);
 }
@@ -461,6 +480,7 @@ vr_set_filter(struct vr_softc *sc)
 
 	/* Now program new ones. */
 	error = 0;
+	mcnt = 0;
 	IF_ADDR_LOCK(ifp);
 	if ((sc->vr_quirks & VR_Q_CAM) != 0) {
 		/*
@@ -468,12 +488,10 @@ vr_set_filter(struct vr_softc *sc)
 		 * 32 entries multicast perfect filter.
 		 */
 		cam_mask = 0;
-		mcnt = 0;
-		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_MCAST);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-			error = vr_setperf(sc, mcnt,
+			error = vr_cam_data(sc, VR_MCAST_CAM, mcnt,
 			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 			if (error != 0) {
 				cam_mask = 0;
@@ -482,19 +500,16 @@ vr_set_filter(struct vr_softc *sc)
 			cam_mask |= 1 << mcnt;
 			mcnt++;
 		}
-		/* Enable multicast CAM entries depending on mask. */
-		CSR_WRITE_1(sc, VR_CAMMASK, cam_mask);
-		/* Accessing CAM done. */
-		CSR_WRITE_1(sc, VR_CAMCTL, 0);
+		vr_cam_mask(sc, VR_MCAST_CAM, cam_mask);
 	}
 
-	mcnt = 0;
 	if ((sc->vr_quirks & VR_Q_CAM) == 0 || error != 0) {
 		/*
 		 * If there are too many multicast addresses or
 		 * setting multicast CAM filter failed, use hash
 		 * table based filtering.
 		 */
+		mcnt = 0;
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
@@ -2031,11 +2046,19 @@ vr_init_locked(struct vr_softc *sc)
 	/* Init tx descriptors. */
 	vr_tx_ring_init(sc);
 
-	/* Disable all VLAN CAM entries. */
 	if ((sc->vr_quirks & VR_Q_CAM) != 0) {
-		CSR_WRITE_1(sc, VR_CAMCTL, VR_CAMCTL_ENA | VR_CAMCTL_VLAN);
-		CSR_WRITE_1(sc, VR_CAMMASK, 0);
-		CSR_WRITE_1(sc, VR_CAMCTL, 0);
+		uint8_t vcam[2] = { 0, 0 };
+
+		/* Disable VLAN hardware tag insertion/stripping. */
+		VR_CLRBIT(sc, VR_TXCFG, VR_TXCFG_TXTAGEN | VR_TXCFG_RXTAGCTL);
+		/* Disable VLAN hardware filtering. */
+		VR_CLRBIT(sc, VR_BCR1, VR_BCR1_VLANFILT_ENB);
+		/* Disable all CAM entries. */
+		vr_cam_mask(sc, VR_MCAST_CAM, 0);
+		vr_cam_mask(sc, VR_VLAN_CAM, 0);
+		/* Enable the first VLAN CAM. */
+		vr_cam_data(sc, VR_VLAN_CAM, 0, vcam);
+		vr_cam_mask(sc, VR_VLAN_CAM, 1);
 	}
 
 	/*
