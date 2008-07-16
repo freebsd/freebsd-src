@@ -61,8 +61,6 @@ struct ltchars {
 /*
  * Structure for TIOCGETP and TIOCSETP ioctls.
  */
-#ifndef _SGTTYB_
-#define	_SGTTYB_
 struct sgttyb {
 	char	sg_ispeed;		/* input speed */
 	char	sg_ospeed;		/* output speed */
@@ -70,7 +68,6 @@ struct sgttyb {
 	char	sg_kill;		/* kill character */
 	short	sg_flags;		/* mode flags */
 };
-#endif
 
 #define	OTIOCGETD	_IOR('t', 0, int)	/* get line discipline */
 #define	OTIOCSETD	_IOW('t', 1, int)	/* set line discipline */
@@ -151,10 +148,5 @@ struct sgttyb {
 #define OTIOCCONS	_IO('t', 98)	/* for hp300 -- sans int arg */
 
 #endif /* _KERNEL */
-
-/* XXX publish these so stty(1) can still report them */
-#define	OTTYDISC	0
-#define	NETLDISC	1
-#define	NTTYDISC	2
 
 #endif /* !_SYS_IOCTL_COMPAT_H_ */
