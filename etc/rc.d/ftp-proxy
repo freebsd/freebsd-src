@@ -5,6 +5,7 @@
 
 # PROVIDE: ftp-proxy
 # REQUIRE: DAEMON pf
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
