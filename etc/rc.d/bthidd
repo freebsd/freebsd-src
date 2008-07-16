@@ -6,7 +6,7 @@
 # PROVIDE: bthidd
 # REQUIRE: DAEMON hcsecd
 # BEFORE: LOGIN
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

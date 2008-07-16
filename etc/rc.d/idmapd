@@ -5,7 +5,7 @@
 
 # PROVIDE: idmapd
 # REQUIRE: rpcbind
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

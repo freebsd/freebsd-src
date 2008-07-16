@@ -4,7 +4,7 @@
 
 # PROVIDE: ugidfw
 # BEFORE: LOGIN
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

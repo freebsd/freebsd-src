@@ -5,7 +5,7 @@
 
 # PROVIDE: mountd
 # REQUIRE: NETWORKING nfsserver rpcbind quota
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 

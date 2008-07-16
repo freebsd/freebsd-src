@@ -6,7 +6,7 @@
 # PROVIDE: ntpd
 # REQUIRE: DAEMON ntpdate cleanvar devfs
 # BEFORE:  LOGIN
-# KEYWORD: nojail
+# KEYWORD: nojail shutdown
 
 . /etc/rc.subr
 
