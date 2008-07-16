@@ -6,6 +6,7 @@
 # PROVIDE: ypbind
 # REQUIRE: ypserv
 # BEFORE:  DAEMON
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 

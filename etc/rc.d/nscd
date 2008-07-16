@@ -6,6 +6,7 @@
 # PROVIDE: nscd
 # REQUIRE: DAEMON
 # BEFORE: LOGIN
+# KEYWORD: shutdown
 
 #
 # Add the following lines to /etc/rc.conf to enable nscd:

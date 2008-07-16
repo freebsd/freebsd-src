@@ -5,6 +5,7 @@
 
 # PROVIDE: sshd
 # REQUIRE: LOGIN cleanvar
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
