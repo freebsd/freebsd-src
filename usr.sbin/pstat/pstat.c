@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/stdint.h>
 #include <sys/ioctl.h>
-#include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
 #include <sys/blist.h>
 
@@ -366,9 +365,6 @@ ttyprt(struct xtty *xt)
 	switch (xt->xt_line) {
 	case TTYDISC:
 		(void)printf("term\n");
-		break;
-	case NTTYDISC:
-		(void)printf("ntty\n");
 		break;
 	case SLIPDISC:
 		(void)printf("slip\n");
