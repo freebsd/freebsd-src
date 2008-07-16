@@ -2053,8 +2053,10 @@ jme_link_task(void *arg, int pending)
 	 * might have updated JME_TXNDA/JME_RXNDA registers
 	 * during the stop operation.
 	 */
+#ifdef notyet
 	/* Block execution of task. */
 	taskqueue_block(sc->jme_tq);
+#endif
 	/* Disable interrupts and stop driver. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_CLR, JME_INTRS);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -2132,8 +2134,10 @@ jme_link_task(void *arg, int pending)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->jme_tick_ch, hz, jme_tick, sc);
+#ifdef notyet
 	/* Unblock execution of task. */
 	taskqueue_unblock(sc->jme_tq);
+#endif
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_SET, JME_INTRS);
 
