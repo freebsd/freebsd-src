@@ -1780,6 +1780,7 @@ device		miibus
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
 # hme:  Sun HME (Happy Meal Ethernet)
+# jme:  JMicron JMC260 Fast Ethernet/JMC250 Gigabit Ethernet based adapters.
 # le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
