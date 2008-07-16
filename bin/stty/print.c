@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "stty.h"
 #include "extern.h"
 
-#include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
-
 static void  binit(const char *);
 static void  bput(const char *);
 static const char *ccval(struct cchar *, int);
@@ -64,9 +62,6 @@ print(struct termios *tp, struct winsize *wp, int ldisc, enum FMT fmt)
 	/* Line discipline. */
 	if (ldisc != TTYDISC) {
 		switch(ldisc) {
-		case NTTYDISC:
-			cnt += printf("new tty disc; ");
-			break;
 		case SLIPDISC:
 			cnt += printf("slip disc; ");
 			break;
