@@ -119,6 +119,7 @@ static struct _devname {
     NETWORK("hme",	"Sun HME (Happy Meal Ethernet) Ethernet adapter"),
     NETWORK("ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"),
     NETWORK("ixgb",	"Intel(R) PRO/10Gb Ethernet card"),
+    NETWORK("jme",	"JMicron JMC250 Gigabit/JMC260 Fast Ethernet"),
     NETWORK("kue",	"Kawasaki LSI USB Ethernet adapter"),
     NETWORK("le",	"AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"),
     NETWORK("lge",	"Level 1 LXT1001 Gigabit Ethernet card"),
