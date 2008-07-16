@@ -848,9 +848,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 
 	/*
 	 * Depending on whether or not the application has bound or connected
-	 * the application, we may have to do varying levels of work.  The
-	 * optimal case is for a connected UDP socket, as a global lock isn't
-	 * required.
+	 * the socket, we may have to do varying levels of work.  The optimal
+	 * case is for a connected UDP socket, as a global lock isn't
+	 * required at all.
 	 *
 	 * In order to decide which we need, we require stability of the
 	 * inpcb binding, which we ensure by acquiring a read lock on the
