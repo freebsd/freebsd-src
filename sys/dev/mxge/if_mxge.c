@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h> /* XXX for pci_cfg_restore */
 
 #include <vm/vm.h>		/* for pmap_mapdev() */
 #include <vm/pmap.h>
@@ -1348,11 +1349,8 @@ mxge_change_lro_locked(mxge_softc_t *sc, int lro_cnt)
 		ifp->if_capenable |= IFCAP_LRO;
 	sc->lro_cnt = lro_cnt;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		callout_stop(&sc->co_hdl);
 		mxge_close(sc);
 		err = mxge_open(sc);
-		if (err == 0)
-			callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	}
 	return err;
 }
@@ -3319,6 +3317,7 @@ mxge_open(mxge_softc_t *sc)
 	}
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 
 	return 0;
 
@@ -3335,6 +3334,7 @@ mxge_close(mxge_softc_t *sc)
 	mxge_cmd_t cmd;
 	int err, old_down_cnt;
 
+	callout_stop(&sc->co_hdl);
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	old_down_cnt = sc->down_cnt;
 	mb();
@@ -3399,9 +3399,10 @@ mxge_read_reboot(mxge_softc_t *sc)
 	return (pci_read_config(dev, vs + 0x14, 4));
 }
 
-static void
+static int
 mxge_watchdog_reset(mxge_softc_t *sc)
 {
+	struct pci_devinfo *dinfo;
 	int err;
 	uint32_t reboot;
 	uint16_t cmd;
@@ -3428,7 +3429,7 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
 		if (cmd == 0xffff) {
 			device_printf(sc->dev, "NIC disappeared!\n");
-			goto abort;
+			return (err);
 		}
 	}
 	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
@@ -3437,9 +3438,8 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 		device_printf(sc->dev, "NIC rebooted, status = 0x%x\n",
 			      reboot);
 		/* restore PCI configuration space */
-
-		/* XXXX waiting for pci_cfg_restore() to be exported */
-		goto abort; /* just abort for now */
+		dinfo = device_get_ivars(sc->dev);
+		pci_cfg_restore(sc->dev, dinfo);
 
 		/* and redo any changes we made to our config space */
 		mxge_setup_cfg_space(sc);
@@ -3457,22 +3457,15 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 			      be32toh(sc->ss->fw_stats->send_done_count));
 		device_printf(sc->dev, "not resetting\n");
 	}
-
-abort:
-	/* 
-	 * stop the watchdog if the nic is dead, to avoid spamming the
-	 * console
-	 */
-	if (err != 0) {
-		callout_stop(&sc->co_hdl);
-	}
+	return (err);
 }
 
-static void
+static int
 mxge_watchdog(mxge_softc_t *sc)
 {
 	mxge_tx_ring_t *tx = &sc->ss->tx;
 	uint32_t rx_pause = be32toh(sc->ss->fw_stats->dropped_pause);
+	int err = 0;
 
 	/* see if we have outstanding transmits, which
 	   have been pending for more than mxge_ticks */
@@ -3481,7 +3474,7 @@ mxge_watchdog(mxge_softc_t *sc)
 	    tx->done == tx->watchdog_done) {
 		/* check for pause blocking before resetting */
 		if (tx->watchdog_rx_pause == rx_pause)
-			mxge_watchdog_reset(sc);
+			err = mxge_watchdog_reset(sc);
 		else
 			device_printf(sc->dev, "Flow control blocking "
 				      "xmits, check link partner\n");
@@ -3493,6 +3486,7 @@ mxge_watchdog(mxge_softc_t *sc)
 
 	if (sc->need_media_probe)
 		mxge_media_probe(sc);
+	return (err);
 }
 
 static void
@@ -3513,24 +3507,18 @@ static void
 mxge_tick(void *arg)
 {
 	mxge_softc_t *sc = arg;
-
-
-	/* Synchronize with possible callout reset/stop. */
-	if (callout_pending(&sc->co_hdl) ||
-	    !callout_active(&sc->co_hdl)) {
-		mtx_unlock(&sc->driver_mtx);
-		return;
-	}
+	int err = 0;
 
 	/* aggregate stats from different slices */
 	mxge_update_stats(sc);
-
-	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	if (!sc->watchdog_countdown) {
-		mxge_watchdog(sc);
+		err = mxge_watchdog(sc);
 		sc->watchdog_countdown = 4;
 	}
 	sc->watchdog_countdown--;
+	if (err == 0)
+		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+
 }
 
 static int
@@ -3554,7 +3542,6 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	old_mtu = ifp->if_mtu;
 	ifp->if_mtu = mtu;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		callout_stop(&sc->co_hdl);
 		mxge_close(sc);
 		err = mxge_open(sc);
 		if (err != 0) {
@@ -3562,7 +3549,6 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 			mxge_close(sc);
 			(void) mxge_open(sc);
 		}
-		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	}
 	mtx_unlock(&sc->driver_mtx);
 	return err;
@@ -3605,8 +3591,6 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				err = mxge_open(sc);
-				callout_reset(&sc->co_hdl, mxge_ticks,
-					      mxge_tick, sc);
 			} else {
 				/* take care of promis can allmulti
 				   flag chages */
@@ -3616,7 +3600,6 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				callout_stop(&sc->co_hdl);
 				mxge_close(sc);
 			}
 		}
@@ -4313,11 +4296,11 @@ mxge_detach(device_t dev)
 		return EBUSY;
 	}
 	mtx_lock(&sc->driver_mtx);
-	callout_stop(&sc->co_hdl);
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
 	mtx_unlock(&sc->driver_mtx);
 	ether_ifdetach(sc->ifp);
+	callout_drain(&sc->co_hdl);
 	ifmedia_removeall(&sc->media);
 	mxge_dummy_rdma(sc, 0);
 	mxge_rem_sysctls(sc);
