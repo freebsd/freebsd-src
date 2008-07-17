@@ -58,6 +58,7 @@ struct image_params {
 	unsigned long entry_addr; /* entry address of target executable */
 	char vmspace_destroyed;	/* flag - we've blown away original vm space */
 	char interpreted;	/* flag - this executable is interpreted */
+	char opened;		/* flag - we have opened executable vnode */
 	char *interpreter_name;	/* name of the interpreter */
 	void *auxargs;		/* ELF Auxinfo structure pointer */
 	struct sf_buf *firstpage;	/* first page that we mapped */
