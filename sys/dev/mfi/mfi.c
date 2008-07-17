@@ -86,7 +86,7 @@ static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
 		    struct mfi_evt_log_state **);
-static int	mfi_get_entry(struct mfi_softc *, int);
+static int	mfi_parse_entries(struct mfi_softc *, int, int);
 static int	mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
 		    uint32_t, void **, size_t);
 static void	mfi_data_cb(void *, bus_dma_segment_t *, int, int);
@@ -785,12 +785,14 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 				free(log_state, M_MFIBUF);
 			return (error);
 		}
-		/* The message log is a circular buffer */
-		for (seq = log_state->shutdown_seq_num;
-		     seq != log_state->newest_seq_num; seq++) {
-			mfi_get_entry(sc, seq);
-		}
-		mfi_get_entry(sc, seq);
+
+		/*
+		 * Walk through any events that fired since the last
+		 * shutdown.
+		 */
+		mfi_parse_entries(sc, log_state->shutdown_seq_num,
+		    log_state->newest_seq_num);
+		seq = log_state->newest_seq_num;
 	} else
 		seq = seq_start;
 	mfi_aen_register(sc, seq, class_locale.word);
@@ -1384,9 +1386,7 @@ mfi_aen_complete(struct mfi_command *cm)
 		 * XXX If this function is too expensive or is recursive, then
 		 * events should be put onto a queue and processed later.
 		 */
-		mtx_unlock(&sc->mfi_io_lock);
 		mfi_decode_evt(sc, detail);
-		mtx_lock(&sc->mfi_io_lock);
 		seq = detail->seq + 1;
 		TAILQ_FOREACH_SAFE(mfi_aen_entry, &sc->mfi_aen_pids, aen_link, tmp) {
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
@@ -1409,66 +1409,91 @@ mfi_aen_complete(struct mfi_command *cm)
 	}
 }
 
-/* Only do one event for now so we can easily iterate through them */
-#define MAX_EVENTS 1
+#define MAX_EVENTS 15
+
 static int
-mfi_get_entry(struct mfi_softc *sc, int seq)
+mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 {
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd;
 	struct mfi_evt_list *el;
-	int error;
-	int i;
-	int size;
+	union mfi_evt class_locale;
+	int error, i, seq, size;
 
-	if ((cm = mfi_dequeue_free(sc)) == NULL) {
-		return (EBUSY);
-	}
+	class_locale.members.reserved = 0;
+	class_locale.members.locale = mfi_event_locale;
+	class_locale.members.class  = mfi_event_class;
 
 	size = sizeof(struct mfi_evt_list) + sizeof(struct mfi_evt_detail)
 		* (MAX_EVENTS - 1);
 	el = malloc(size, M_MFIBUF, M_NOWAIT | M_ZERO);
-	if (el == NULL) {
-		mfi_release_command(cm);
+	if (el == NULL)
 		return (ENOMEM);
-	}
 
-	dcmd = &cm->cm_frame->dcmd;
-	bzero(dcmd->mbox, MFI_MBOX_SIZE);
-	dcmd->header.cmd = MFI_CMD_DCMD;
-	dcmd->header.timeout = 0;
-	dcmd->header.data_len = size;
-	dcmd->opcode = MFI_DCMD_CTRL_EVENT_GET;
-	((uint32_t *)&dcmd->mbox)[0] = seq;
-	((uint32_t *)&dcmd->mbox)[1] = MFI_EVT_LOCALE_ALL;
-	cm->cm_sg = &dcmd->sgl;
-	cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
-	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
-	cm->cm_data = el;
-	cm->cm_len = size;
-
-	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
-		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
-		    MFI_SECTOR_LEN;
-		free(el, M_MFIBUF);
-		mfi_release_command(cm);
-		return (0);
-	}
-
-	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
-	    BUS_DMASYNC_POSTREAD);
-	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
-
-	if (dcmd->header.cmd_status != MFI_STAT_NOT_FOUND) {
-		for (i = 0; i < el->count; i++) {
-			if (seq + i == el->event[i].seq)
-				mfi_decode_evt(sc, &el->event[i]);
+	for (seq = start_seq;;) {
+		if ((cm = mfi_dequeue_free(sc)) == NULL) {
+			free(el, M_MFIBUF);
+			return (EBUSY);
 		}
+
+		dcmd = &cm->cm_frame->dcmd;
+		bzero(dcmd->mbox, MFI_MBOX_SIZE);
+		dcmd->header.cmd = MFI_CMD_DCMD;
+		dcmd->header.timeout = 0;
+		dcmd->header.data_len = size;
+		dcmd->opcode = MFI_DCMD_CTRL_EVENT_GET;
+		((uint32_t *)&dcmd->mbox)[0] = seq;
+		((uint32_t *)&dcmd->mbox)[1] = class_locale.word;
+		cm->cm_sg = &dcmd->sgl;
+		cm->cm_total_frame_size = MFI_DCMD_FRAME_SIZE;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
+		cm->cm_data = el;
+		cm->cm_len = size;
+
+		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Failed to get controller entries\n");
+			mfi_release_command(cm);
+			break;
+		}
+
+		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
+
+		if (dcmd->header.cmd_status == MFI_STAT_NOT_FOUND) {
+			mfi_release_command(cm);
+			break;
+		}
+		if (dcmd->header.cmd_status != MFI_STAT_OK) {
+			device_printf(sc->mfi_dev,
+			    "Error %d fetching controller entries\n",
+			    dcmd->header.cmd_status);
+			mfi_release_command(cm);
+			break;
+		}
+		mfi_release_command(cm);
+
+		for (i = 0; i < el->count; i++) {
+			/*
+			 * If this event is newer than 'stop_seq' then
+			 * break out of the loop.  Note that the log
+			 * is a circular buffer so we have to handle
+			 * the case that our stop point is earlier in
+			 * the buffer than our start point.
+			 */
+			if (el->event[i].seq >= stop_seq) {
+				if (start_seq <= stop_seq)
+					break;
+				else if (el->event[i].seq < start_seq)
+					break;
+			}
+			mfi_decode_evt(sc, &el->event[i]);
+		}
+		seq = el->event[el->count - 1].seq + 1;
 	}
 
-	free(cm->cm_data, M_MFIBUF);
-	mfi_release_command(cm);
+	free(el, M_MFIBUF);
 	return (0);
 }
 
