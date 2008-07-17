@@ -1021,292 +1021,57 @@ out:
 	return;
 }
 
+/*
+ * The timestamp is the number of seconds since 00:00 Jan 1, 2000.  If
+ * the bits in 24-31 are all set, then it is the number of seconds since
+ * boot.
+ */
+static const char *
+format_timestamp(uint32_t timestamp)
+{
+	static char buffer[32];
+
+	if ((timestamp & 0xff000000) == 0xff000000)
+		snprintf(buffer, sizeof(buffer), "boot + %us", timestamp &
+		    0x00ffffff);
+	else
+		snprintf(buffer, sizeof(buffer), "%us", timestamp);
+	return (buffer);
+}
+
+static const char *
+format_class(int8_t class)
+{
+	static char buffer[6];
+
+	switch (class) {
+	case MFI_EVT_CLASS_DEBUG:
+		return ("debug");
+	case MFI_EVT_CLASS_PROGRESS:
+		return ("progress");
+	case MFI_EVT_CLASS_INFO:
+		return ("info");
+	case MFI_EVT_CLASS_WARNING:
+		return ("WARN");
+	case MFI_EVT_CLASS_CRITICAL:
+		return ("CRIT");
+	case MFI_EVT_CLASS_FATAL:
+		return ("FATAL");
+	case MFI_EVT_CLASS_DEAD:
+		return ("DEAD");
+	default:
+		snprintf(buffer, sizeof(buffer), "%d", class);
+		return (buffer);
+	}
+}
+
 static void
 mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 {
-	switch (detail->arg_type) {
-	case MR_EVT_ARGS_NONE:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_CDB_SENSE:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) CDB %*D"
-		    "Sense %*D\n: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.cdb_sense.pd.device_id,
-		    detail->args.cdb_sense.pd.enclosure_index,
-		    detail->args.cdb_sense.pd.slot_number,
-		    detail->args.cdb_sense.cdb_len,
-		    detail->args.cdb_sense.cdb,
-		    ":",
-		    detail->args.cdb_sense.sense_len,
-		    detail->args.cdb_sense.sense,
-		    ":",
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "event: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld.ld_index,
-		    detail->args.ld.target_id,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_COUNT:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "count %lld: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_count.ld.ld_index,
-		    detail->args.ld_count.ld.target_id,
-		    (long long)detail->args.ld_count.count,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_LBA:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "lba %lld: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_lba.ld.ld_index,
-		    detail->args.ld_lba.ld.target_id,
-		    (long long)detail->args.ld_lba.lba,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_OWNER:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "owner changed: prior %d, new %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_owner.ld.ld_index,
-		    detail->args.ld_owner.ld.target_id,
-		    detail->args.ld_owner.pre_owner,
-		    detail->args.ld_owner.new_owner,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_LBA_PD_LBA:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "lba %lld, physical drive PD %02d(e%d/s%d) lba %lld: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_lba_pd_lba.ld.ld_index,
-		    detail->args.ld_lba_pd_lba.ld.target_id,
-		    (long long)detail->args.ld_lba_pd_lba.ld_lba,
-		    detail->args.ld_lba_pd_lba.pd.device_id,
-		    detail->args.ld_lba_pd_lba.pd.enclosure_index,
-		    detail->args.ld_lba_pd_lba.pd.slot_number,
-		    (long long)detail->args.ld_lba_pd_lba.pd_lba,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_PROG:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "progress %d%% in %ds: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_prog.ld.ld_index,
-		    detail->args.ld_prog.ld.target_id,
-		    detail->args.ld_prog.prog.progress/655,
-		    detail->args.ld_prog.prog.elapsed_seconds,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_STATE:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "state prior %d new %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_state.ld.ld_index,
-		    detail->args.ld_state.ld.target_id,
-		    detail->args.ld_state.prev_state,
-		    detail->args.ld_state.new_state,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_LD_STRIP:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - VD %02d/%d "
-		    "strip %lld: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ld_strip.ld.ld_index,
-		    detail->args.ld_strip.ld.target_id,
-		    (long long)detail->args.ld_strip.strip,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "event: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd.device_id,
-		    detail->args.pd.enclosure_index,
-		    detail->args.pd.slot_number,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD_ERR:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "err %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd_err.pd.device_id,
-		    detail->args.pd_err.pd.enclosure_index,
-		    detail->args.pd_err.pd.slot_number,
-		    detail->args.pd_err.err,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD_LBA:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "lba %lld: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd_lba.pd.device_id,
-		    detail->args.pd_lba.pd.enclosure_index,
-		    detail->args.pd_lba.pd.slot_number,
-		    (long long)detail->args.pd_lba.lba,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD_LBA_LD:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "lba %lld VD %02d/%d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd_lba_ld.pd.device_id,
-		    detail->args.pd_lba_ld.pd.enclosure_index,
-		    detail->args.pd_lba_ld.pd.slot_number,
-		    (long long)detail->args.pd_lba.lba,
-		    detail->args.pd_lba_ld.ld.ld_index,
-		    detail->args.pd_lba_ld.ld.target_id,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD_PROG:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "progress %d%% seconds %ds: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd_prog.pd.device_id,
-		    detail->args.pd_prog.pd.enclosure_index,
-		    detail->args.pd_prog.pd.slot_number,
-		    detail->args.pd_prog.prog.progress/655,
-		    detail->args.pd_prog.prog.elapsed_seconds,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PD_STATE:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PD %02d(e%d/s%d) "
-		    "state prior %d new %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pd_prog.pd.device_id,
-		    detail->args.pd_prog.pd.enclosure_index,
-		    detail->args.pd_prog.pd.slot_number,
-		    detail->args.pd_state.prev_state,
-		    detail->args.pd_state.new_state,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_PCI:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - PCI 0x04%x 0x04%x "
-		    "0x04%x 0x04%x: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.pci.venderId,
-		    detail->args.pci.deviceId,
-		    detail->args.pci.subVenderId,
-		    detail->args.pci.subDeviceId,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_RATE:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Rebuild rate %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.rate,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_TIME:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Adapter ticks %d "
-		    "elapsed %ds: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.time.rtc,
-		    detail->args.time.elapsedSeconds,
-		    detail->description
-		    );
-		break;
-	case MR_EVT_ARGS_ECC:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Adapter ECC %x,%x: %s: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->args.ecc.ecar,
-		    detail->args.ecc.elog,
-		    detail->args.ecc.str,
-		    detail->description
-		    );
-		break;
-	default:
-		device_printf(sc->mfi_dev, "%d (%us/0x%04x/%d) - Type %d: %s\n",
-		    detail->seq,
-		    detail->time,
-		    detail->class.members.locale,
-		    detail->class.members.class,
-		    detail->arg_type, detail->description
-		    );
-	}
+
+	device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n", detail->seq,
+	    format_timestamp(detail->time), detail->class.members.locale,
+	    format_class(detail->class.members.class), detail->description);
 }
 
 static int
