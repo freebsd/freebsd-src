@@ -181,10 +181,12 @@ func() remains installed after a signal has been delivered.
 For some system calls, if a signal is caught while the call is
 executing and the call is prematurely terminated,
 the call is automatically restarted.
-(The handler is installed using the
+Any handler installed with
+.Xr signal 3
+will have the
 .Dv SA_RESTART
-flag with
-.Xr sigaction 2 . )
+flag set, meaning that any restartable system call will not return on
+receipt of a signal.
 The affected system calls include
 .Xr read 2 ,
 .Xr write 2 ,
