@@ -815,20 +815,19 @@ static usbd_status
 ohci_controller_init(ohci_softc_t *sc)
 {
 	int i;
-	u_int32_t s, ctl, ival, hcr, fm, per, desca;
+	u_int32_t ctl, ival, hcr, fm, per, desca;
 
 	/* Determine in what context we are running. */
 	ctl = OREAD4(sc, OHCI_CONTROL);
 	if (ctl & OHCI_IR) {
 		/* SMM active, request change */
 		DPRINTF(("ohci_init: SMM active, request owner change\n"));
-		s = OREAD4(sc, OHCI_COMMAND_STATUS);
-		OWRITE4(sc, OHCI_COMMAND_STATUS, s | OHCI_OCR);
+		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
 		for (i = 0; i < 100 && (ctl & OHCI_IR); i++) {
 			usb_delay_ms(&sc->sc_bus, 1);
 			ctl = OREAD4(sc, OHCI_CONTROL);
 		}
-		if ((ctl & OHCI_IR) == 0) {
+		if (ctl & OHCI_IR) {
 			printf("%s: SMM does not respond, resetting\n",
 			       device_get_nameunit(sc->sc_bus.bdev));
 			OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
