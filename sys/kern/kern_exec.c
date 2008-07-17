@@ -369,6 +369,7 @@ do_execve(td, args, mac_p)
 	imgp->entry_addr = 0;
 	imgp->vmspace_destroyed = 0;
 	imgp->interpreted = 0;
+	imgp->opened = 0;
 	imgp->interpreter_name = args->buf + PATH_MAX + ARG_MAX;
 	imgp->auxargs = NULL;
 	imgp->vp = NULL;
@@ -496,6 +497,10 @@ interpret:
 		interplabel = mac_vnode_label_alloc();
 		mac_vnode_copy_label(binvp->v_label, interplabel);
 #endif
+		if (imgp->opened) {
+			VOP_CLOSE(binvp, FREAD, td->td_ucred, td);
+			imgp->opened = 0;
+		}
 		vput(binvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
@@ -845,6 +850,8 @@ exec_fail_dealloc:
 	if (imgp->vp != NULL) {
 		if (args->fname)
 			NDFREE(ndp, NDF_ONLY_PNBUF);
+		if (imgp->opened)
+			VOP_CLOSE(imgp->vp, FREAD, td->td_ucred, td);
 		vput(imgp->vp);
 	}
 
@@ -1326,6 +1333,8 @@ exec_check_permissions(imgp)
 	 * general case).
 	 */
 	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
+	if (error == 0)
+		imgp->opened = 1;
 	return (error);
 }
 
