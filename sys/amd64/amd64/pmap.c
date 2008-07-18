@@ -4389,7 +4389,7 @@ pmap_change_attr(va, size, mode)
 			}
 			return (EINVAL);
 		}
-		pte = vtopte(va);
+		pte = vtopte(tmpva);
 		if (*pte == 0)
 			return (EINVAL);
 		tmpva += PAGE_SIZE;
