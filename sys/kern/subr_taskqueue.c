@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
-#include <sys/ktr.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -49,8 +48,6 @@ static void	*taskqueue_ih;
 static STAILQ_HEAD(taskqueue_list, taskqueue) taskqueue_queues;
 static struct mtx taskqueue_queues_mutex;
 
-STAILQ_HEAD(task_head, task);
-					      
 struct taskqueue {
 	STAILQ_ENTRY(taskqueue)	tq_link;
 	STAILQ_HEAD(, task)	tq_queue;
@@ -61,35 +58,31 @@ struct taskqueue {
 	struct mtx		tq_mutex;
 	struct thread		**tq_threads;
 	int			tq_tcount;
+	int			tq_spin;
 	int			tq_flags;
 };
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
 #define	TQ_FLAGS_PENDING	(1 << 2)
-#define TQ_FLAGS_SPIN           (1 << 3)
-#define TQ_FLAGS_NOWAKEUP       (1 << 4)
-#define TQ_FLAGS_RUNNING        (1 << 5)
 
-#define TQ_LOCK(tq)                             \
-do {                                            \
-                                                \
-        if (tq->tq_flags & TQ_FLAGS_SPIN)       \
-                mtx_lock_spin(&tq->tq_mutex);   \
-        else                                    \
-                mtx_lock(&tq->tq_mutex);        \
-} while (0)
+static __inline void
+TQ_LOCK(struct taskqueue *tq)
+{
+	if (tq->tq_spin)
+		mtx_lock_spin(&tq->tq_mutex);
+	else
+		mtx_lock(&tq->tq_mutex);
+}
 
-
-#define TQ_UNLOCK(tq)                           \
-do {                                            \
-                                                \
-        if (tq->tq_flags & TQ_FLAGS_SPIN)       \
-                mtx_unlock_spin(&tq->tq_mutex); \
-        else                                    \
-                mtx_unlock(&tq->tq_mutex);      \
-} while (0)
-
+static __inline void
+TQ_UNLOCK(struct taskqueue *tq)
+{
+	if (tq->tq_spin)
+		mtx_unlock_spin(&tq->tq_mutex);
+	else
+		mtx_unlock(&tq->tq_mutex);
+}
 
 static void	init_taskqueue_list(void *data);
 
@@ -97,7 +90,7 @@ static __inline int
 TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
     int t)
 {
-	if (tq->tq_flags & TQ_FLAGS_SPIN)
+	if (tq->tq_spin)
 		return (msleep_spin(p, m, wm, t));
 	return (msleep(p, m, pri, wm, t));
 }
@@ -118,18 +111,17 @@ _taskqueue_create(const char *name, int mflags,
 		 int mtxflags, const char *mtxname)
 {
 	struct taskqueue *queue;
-	int spin;
-	
-	
+
 	queue = malloc(sizeof(struct taskqueue), M_TASKQUEUE, mflags | M_ZERO);
 	if (!queue)
 		return 0;
-	spin = ((mtxflags & MTX_SPIN) ? TQ_FLAGS_SPIN : 0);
+
 	STAILQ_INIT(&queue->tq_queue);
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
-	queue->tq_flags |= TQ_FLAGS_ACTIVE | spin;
+	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;
+	queue->tq_flags |= TQ_FLAGS_ACTIVE;
 	mtx_init(&queue->tq_mutex, mtxname, NULL, mtxflags);
 
 	mtx_lock(&taskqueue_queues_mutex);
@@ -208,14 +200,8 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	/*
 	 * Count multiple enqueues.
 	 */
-	if (task->ta_pending || (task->ta_flags & TA_REFERENCED)) {
+	if (task->ta_pending) {
 		task->ta_pending++;
-                /*
-                 * overflow
-                 */
-                if (task->ta_pending == 0)
-                        task->ta_pending--;
-
 		TQ_UNLOCK(queue);
 		return 0;
 	}
@@ -240,9 +226,9 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
-	if ((queue->tq_flags & (TQ_FLAGS_BLOCKED|TQ_FLAGS_RUNNING)) == 0)
+	if ((queue->tq_flags & TQ_FLAGS_BLOCKED) == 0)
 		queue->tq_enqueue(queue->tq_context);
-	else if (queue->tq_flags & TQ_FLAGS_BLOCKED)
+	else
 		queue->tq_flags |= TQ_FLAGS_PENDING;
 
 	TQ_UNLOCK(queue);
@@ -311,7 +297,7 @@ taskqueue_run(struct taskqueue *queue)
 void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
-	if (queue->tq_flags & TQ_FLAGS_SPIN) {		/* XXX */
+	if (queue->tq_spin) {		/* XXX */
 		mtx_lock_spin(&queue->tq_mutex);
 		while (task->ta_pending != 0 || task == queue->tq_running)
 			msleep_spin(task, &queue->tq_mutex, "-", 0);
@@ -479,138 +465,3 @@ taskqueue_fast_run(void *dummy)
 TASKQUEUE_FAST_DEFINE(fast, taskqueue_fast_enqueue, 0,
 	swi_add(NULL, "Fast task queue", taskqueue_fast_run, NULL,
 	SWI_TQ_FAST, INTR_MPSAFE, &taskqueue_fast_ih));
-
-static void
-taskqueue_run_drv(void *arg)
-{
-        struct task *task, *tmp;
-        struct task_head current;
-        int restarts = 0;
-        struct taskqueue *queue = (struct taskqueue *) arg;
-
-        STAILQ_INIT(&current);
-        /*
-         * First we move all of the tasks off of the taskqueue's list
-         * on to current on the stack to avoided repeated serialization
-         */
-        mtx_lock_spin(&queue->tq_mutex);
-        queue->tq_flags |= TQ_FLAGS_RUNNING;
-restart:
-        STAILQ_CONCAT(&current, &queue->tq_queue);
-        STAILQ_FOREACH(task, &current, ta_link) {
-                /*
-                 * to let taskqueue_enqueue_fast know that this task
-                 * has been dequeued but is referenced
-                 * clear pending so that if pending is later set we know that it
-                 * it needs to be re-enqueued even if the task doesn't return
-                 * TA_NO_DEQUEUE
-                 */
-                task->ta_ppending = task->ta_pending;
-                task->ta_pending = 0;
-                task->ta_flags |= TA_REFERENCED;
-        }
-        mtx_unlock_spin(&queue->tq_mutex);
-        STAILQ_FOREACH(task, &current, ta_link) {
-                task->ta_rc = task->ta_drv_func(task->ta_context, task->ta_ppending);
-
-        }
-        /*
-         * We've gotten here so we know that we've run the tasks that were
-         * on the taskqueue list on the first pass
-         */
-        mtx_lock_spin(&queue->tq_mutex);
-        STAILQ_FOREACH_SAFE(task, &current, ta_link, tmp) {
-                if (task->ta_rc != TA_NO_DEQUEUE && task->ta_pending == 0) {
-                        STAILQ_REMOVE(&current, task, task, ta_link);
-                        task->ta_flags &= ~TA_REFERENCED;
-                }
-                task->ta_ppending = 0;
-                task->ta_rc = 0;
-        }
-        /*
-         * restart if there are any tasks in the list
-         */
-        if (STAILQ_FIRST(&current) || STAILQ_FIRST(&queue->tq_queue)) {
-                restarts++;
-                goto restart;
-        }
-        queue->tq_flags &= ~TQ_FLAGS_RUNNING;
-        mtx_unlock_spin(&queue->tq_mutex);
-        CTR2(KTR_INTR, "queue=%s returning from taskqueue_run_drv after %d restarts",  queue->tq_name, restarts);
-}
-
-static void
-taskqueue_drv_schedule(void *context)
-{
-        swi_sched(context, 0);
-}
-
-struct taskqueue *
-taskqueue_define_drv(void *arg, const char *name)
-{
-        struct taskqueue *tq;
-        struct thread *td;
-
-        tq = malloc(sizeof(struct taskqueue), M_TASKQUEUE,
-            M_NOWAIT | M_ZERO);
-        if (!tq) {
-                printf("%s: Unable to allocate fast drv task queue!\n",
-                    __func__);
-                return (NULL);
-        }
-
-        STAILQ_INIT(&tq->tq_queue);
-        tq->tq_name = name;
-        tq->tq_enqueue = taskqueue_drv_schedule;
-        tq->tq_flags = (TQ_FLAGS_ACTIVE | TQ_FLAGS_SPIN | TQ_FLAGS_NOWAKEUP);
-        mtx_init(&tq->tq_mutex, name, NULL, MTX_SPIN);
-
-        mtx_lock(&taskqueue_queues_mutex);
-        STAILQ_INSERT_TAIL(&taskqueue_queues, tq, tq_link);
-        mtx_unlock(&taskqueue_queues_mutex);
-
-        swi_add(NULL, name, taskqueue_run_drv,
-                tq, SWI_NET, INTR_MPSAFE, &tq->tq_context);
-        td = intr_handler_thread((struct intr_handler *) tq->tq_context);
-        return (tq);
-}
-
-struct intr_handler *
-taskqueue_drv_handler(struct taskqueue *tq)
-{
-        return ((struct intr_handler *) tq->tq_context);
-}
-
-struct thread *
-taskqueue_drv_thread(void *context)
-{
-        struct taskqueue *tq = (struct taskqueue *) context;
-
-        return (intr_handler_thread((struct intr_handler *) tq->tq_context));
-}
-
-/*
- * Caller must make sure that there must not be any new tasks getting queued
- * before calling this.
- */
-void
-taskqueue_free_drv(struct taskqueue *queue)
-{
-        struct intr_thread *ithd;
-        struct intr_event *ie;
-
-        mtx_lock(&taskqueue_queues_mutex);
-        STAILQ_REMOVE(&taskqueue_queues, queue, taskqueue, tq_link);
-        mtx_unlock(&taskqueue_queues_mutex);
-
-        ie = ((struct intr_handler *)(queue->tq_context))->ih_event;
-        ithd = ie->ie_thread;
-        swi_remove(queue->tq_context);
-        intr_event_destroy(ie);
-
-        mtx_lock_spin(&queue->tq_mutex);
-        taskqueue_run(queue);
-        mtx_destroy(&queue->tq_mutex);
-        free(queue, M_TASKQUEUE);
-}
-
