@@ -1733,3 +1733,9 @@ DB_SHOW_COMMAND(intrcnt, db_show_intrcnt)
 	}
 }
 #endif
+
+struct thread *
+intr_handler_thread(struct intr_handler *ih)
+{
+        return (ih->ih_event->ie_thread->it_thread);
+}

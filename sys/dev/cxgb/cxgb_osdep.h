@@ -55,6 +55,12 @@ $FreeBSD$
 typedef struct adapter adapter_t;
 struct sge_rspq;
 
+enum {
+	TP_TMR_RES = 200,	/* TP timer resolution in usec */
+	MAX_NPORTS = 4,		/* max # of ports */
+	TP_SRAM_OFFSET = 4096,	/* TP SRAM content offset in eeprom */
+	TP_SRAM_LEN = 2112,	/* TP SRAM content offset in eeprom */
+};
 
 struct t3_mbuf_hdr {
 	struct mbuf *mh_head;
@@ -387,6 +393,9 @@ static const int debug_flags = DBG_RX;
 #define ADVERTISE_1000XFULL	ANAR_X_FD
 #define ADVERTISE_1000XPSE_ASYM	ANAR_X_PAUSE_ASYM
 #define ADVERTISE_1000XPAUSE	ANAR_X_PAUSE_SYM
+
+#define ADVERTISE_CSMA		ANAR_CSMA
+#define ADVERTISE_NPAGE		ANAR_NP
 
 
 /* Standard PCI Extended Capaibilities definitions */
