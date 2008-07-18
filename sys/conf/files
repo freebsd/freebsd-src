@@ -1902,6 +1902,7 @@ netgraph/ng_tee.c		optional netgraph_tee
 netgraph/ng_tty.c		optional netgraph_tty
 netgraph/ng_vjc.c		optional netgraph_vjc
 netinet/accf_data.c		optional accept_filter_data
+netinet/accf_dns.c		optional accept_filter_dns
 netinet/accf_http.c		optional accept_filter_http
 netinet/if_atm.c		optional atm
 netinet/if_ether.c		optional ether

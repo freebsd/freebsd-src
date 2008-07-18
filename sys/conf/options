@@ -342,6 +342,7 @@ ATA_NOPCI		opt_ata.h
 
 # Net stuff.
 ACCEPT_FILTER_DATA
+ACCEPT_FILTER_DNS
 ACCEPT_FILTER_HTTP
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
