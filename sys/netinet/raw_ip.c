@@ -153,10 +153,9 @@ rip_init(void)
 	    EVENTHANDLER_PRI_ANY);
 }
 
-static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };
-
 static int
-rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
+rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
+    struct sockaddr_in *ripsrc)
 {
 	int policyfail = 0;
 
@@ -185,7 +184,7 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 			ip_savecontrol(last, &opts, ip, n);
 		SOCKBUF_LOCK(&so->so_rcv);
 		if (sbappendaddr_locked(&so->so_rcv,
-		    (struct sockaddr *)&ripsrc, n, opts) == 0) {
+		    (struct sockaddr *)ripsrc, n, opts) == 0) {
 			/* should notify about lost packet */
 			m_freem(n);
 			if (opts)
@@ -208,10 +207,14 @@ rip_input(struct mbuf *m, int off)
 	struct ip *ip = mtod(m, struct ip *);
 	int proto = ip->ip_p;
 	struct inpcb *inp, *last;
+	struct sockaddr_in ripsrc;
 
-	INP_INFO_RLOCK(&ripcbinfo);
+	bzero(&ripsrc, sizeof(ripsrc));
+	ripsrc.sin_len = sizeof(ripsrc);
+	ripsrc.sin_family = AF_INET;
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
+	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(inp, &ripcb, inp_list) {
 		INP_RLOCK(inp);
 		if (inp->inp_ip_p && inp->inp_ip_p != proto) {
@@ -238,14 +241,14 @@ rip_input(struct mbuf *m, int off)
 
 			n = m_copy(m, 0, (int)M_COPYALL);
 			if (n != NULL)
-				(void) rip_append(last, ip, n);
+				(void) rip_append(last, ip, n, &ripsrc);
 			/* XXX count dropped packet */
 			INP_RUNLOCK(last);
 		}
 		last = inp;
 	}
 	if (last != NULL) {
-		if (rip_append(last, ip, m) != 0)
+		if (rip_append(last, ip, m, &ripsrc) != 0)
 			ipstat.ips_delivered--;
 		INP_RUNLOCK(last);
 	} else {
