@@ -2,6 +2,7 @@
 
 MAN=	accept_filter.9 \
 	accf_data.9 \
+	accf_dns.9 \
 	accf_http.9 \
 	acl.9 \
 	alloc_unr.9 \
