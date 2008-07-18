@@ -2031,7 +2031,7 @@ jme_link_task(void *arg, int pending)
 			sc->jme_flags |= JME_FLAG_LINK;
 			break;
 		case IFM_1000_T:
-			if ((sc->jme_flags & JME_FLAG_FASTETH) == 0)
+			if ((sc->jme_flags & JME_FLAG_FASTETH) != 0)
 				break;
 			sc->jme_flags |= JME_FLAG_LINK;
 			break;
