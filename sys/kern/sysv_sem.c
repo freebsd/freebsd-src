@@ -1193,6 +1193,13 @@ semop(td, uap)
 		}
 
 		/*
+		 * Renew the semaphore's pointer after wakeup since
+		 * during msleep sem_base may have been modified and semptr
+		 * is not valid any more
+		 */
+		semptr = &semakptr->u.sem_base[sopptr->sem_num];
+
+		/*
 		 * The semaphore is still alive.  Readjust the count of
 		 * waiting processes.
 		 */
