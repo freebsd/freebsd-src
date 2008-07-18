@@ -45,6 +45,7 @@ enum {
 	VSC8211_EXT_CTRL      = 23,
 	VSC8211_INTR_ENABLE   = 25,
 	VSC8211_INTR_STATUS   = 26,
+	VSC8211_LED_CTRL      = 27,
 	VSC8211_AUX_CTRL_STAT = 28,
 	VSC8211_EXT_PAGE_AXS  = 31,
 };
@@ -393,8 +394,10 @@ int t3_vsc8211_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 	err = mdio_read(phy, 0, VSC8211_EXT_CTRL, &val);
 	if (err)
 		return err;
-	if (val & VSC_CTRL_MEDIA_MODE_HI)
-		return 0;   /* copper interface, done */
+	if (val & VSC_CTRL_MEDIA_MODE_HI) {
+		/* copper interface, just need to configure the LEDs */
+		return mdio_write(phy, 0, VSC8211_LED_CTRL, 0x100);
+	}
 
 	phy->caps = SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
 		    SUPPORTED_MII | SUPPORTED_FIBRE | SUPPORTED_IRQ;

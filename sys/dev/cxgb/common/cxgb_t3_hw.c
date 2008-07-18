@@ -461,32 +461,57 @@ int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex)
 	return mdio_write(phy, 0, MII_BMCR, ctl);
 }
 
+int t3_phy_lasi_intr_enable(struct cphy *phy)
+{
+	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 1);
+}
+
+int t3_phy_lasi_intr_disable(struct cphy *phy)
+{
+	return mdio_write(phy, MDIO_DEV_PMA_PMD, LASI_CTRL, 0);
+}
+
+int t3_phy_lasi_intr_clear(struct cphy *phy)
+{
+	u32 val;
+
+	return mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &val);
+}
+
+int t3_phy_lasi_intr_handler(struct cphy *phy)
+{
+	unsigned int status;
+	int err = mdio_read(phy, MDIO_DEV_PMA_PMD, LASI_STAT, &status);
+
+	if (err)
+		return err;
+	return (status & 1) ?  cphy_cause_link_change : 0;
+}
+
 static struct adapter_info t3_adap_info[] = {
 	{ 1, 1, 0, 0, 0,
 	  F_GPIO2_OEN | F_GPIO4_OEN |
-	  F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
-	  0,
+	  F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	  &mi1_mdio_ops, "Chelsio PE9000" },
 	{ 1, 1, 0, 0, 0,
 	  F_GPIO2_OEN | F_GPIO4_OEN |
-	  F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, F_GPIO3 | F_GPIO5,
-	  0,
+	  F_GPIO2_OUT_VAL | F_GPIO4_OUT_VAL, { S_GPIO3, S_GPIO5 }, 0,
 	  &mi1_mdio_ops, "Chelsio T302" },
 	{ 1, 0, 0, 0, 0,
 	  F_GPIO1_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO10_OEN |
 	  F_GPIO11_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
-	  0, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	  { 0 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	  &mi1_mdio_ext_ops, "Chelsio T310" },
 	{ 1, 1, 0, 0, 0,
 	  F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO5_OEN | F_GPIO6_OEN |
 	  F_GPIO7_OEN | F_GPIO10_OEN | F_GPIO11_OEN | F_GPIO1_OUT_VAL |
-	  F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL, 0,
-	  SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	  F_GPIO5_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
+	  { S_GPIO9, S_GPIO3 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
 	  &mi1_mdio_ext_ops, "Chelsio T320" },
 	{ 4, 0, 0, 0, 0,
 	  F_GPIO5_OEN | F_GPIO6_OEN | F_GPIO7_OEN | F_GPIO5_OUT_VAL |
 	  F_GPIO6_OUT_VAL | F_GPIO7_OUT_VAL,
-	  F_GPIO1 | F_GPIO2 | F_GPIO3 | F_GPIO4, SUPPORTED_AUI,
+	  { S_GPIO1, S_GPIO2, S_GPIO3, S_GPIO4 }, SUPPORTED_AUI,
 	  &mi1_mdio_ops, "Chelsio T304" },
 };
 
@@ -505,10 +530,10 @@ static struct port_type_info port_types[] = {
 	{ t3_vsc8211_phy_prep },
 	{ t3_mv88e1xxx_phy_prep },
 	{ t3_xaui_direct_phy_prep },
-	{ NULL },
+	{ t3_ael2005_phy_prep },
 	{ t3_qt2045_phy_prep },
 	{ t3_ael1006_phy_prep },
-	{ NULL },
+	{ t3_tn1010_phy_prep },
 };
 
 #define VPD_ENTRY(name, len) \
@@ -1232,6 +1257,15 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 
 	phy->ops->get_link_status(phy, &link_ok, &speed, &duplex, &fc);
 
+	if (lc->requested_fc & PAUSE_AUTONEG)
+		fc &= lc->requested_fc;
+	else
+		fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
+
+	if (link_ok == lc->link_ok && speed == lc->speed &&
+	    duplex == lc->duplex && fc == lc->fc)
+		return;                            /* nothing changed */
+
 	if (link_ok != lc->link_ok && adapter->params.rev > 0 &&
 	    uses_xaui(adapter)) {
 		if (link_ok)
@@ -1242,10 +1276,6 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 	lc->link_ok = (unsigned char)link_ok;
 	lc->speed = speed < 0 ? SPEED_INVALID : speed;
 	lc->duplex = duplex < 0 ? DUPLEX_INVALID : duplex;
-	if (lc->requested_fc & PAUSE_AUTONEG)
-		fc &= lc->requested_fc;
-	else
-		fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
 
 	if (link_ok && speed >= 0 && lc->autoneg == AUTONEG_ENABLE) {
 		/* Set MAC speed, duplex, and flow control to match PHY. */
@@ -1783,19 +1813,15 @@ static int mac_intr_handler(adapter_t *adap, unsigned int idx)
  */
 int t3_phy_intr_handler(adapter_t *adapter)
 {
-	u32 mask, gpi = adapter_info(adapter)->gpio_intr;
 	u32 i, cause = t3_read_reg(adapter, A_T3DBG_INT_CAUSE);
 
 	for_each_port(adapter, i) {
 		struct port_info *p = adap2pinfo(adapter, i);
 
-		mask = gpi - (gpi & (gpi - 1));
-		gpi -= mask;
-
 		if (!(p->phy.caps & SUPPORTED_IRQ))
 			continue;
 
-		if (cause & mask) {
+		if (cause & (1 << adapter_info(adapter)->gpio_intr[i])) {
 			int phy_cause = p->phy.ops->intr_handler(&p->phy);
 
 			if (phy_cause & cphy_cause_link_change)
@@ -1869,6 +1895,17 @@ int t3_slow_intr_handler(adapter_t *adapter)
 	return 1;
 }
 
+static unsigned int calc_gpio_intr(adapter_t *adap)
+{
+	unsigned int i, gpi_intr = 0;
+
+	for_each_port(adap, i)
+		if ((adap2pinfo(adap, i)->phy.caps & SUPPORTED_IRQ) &&
+		    adapter_info(adap)->gpio_intr[i])
+			gpi_intr |= 1 << adapter_info(adap)->gpio_intr[i];
+	return gpi_intr;
+}
+
 /**
  *	t3_intr_enable - enable interrupts
  *	@adapter: the adapter whose interrupts should be enabled
@@ -1911,10 +1948,8 @@ void t3_intr_enable(adapter_t *adapter)
 		t3_write_reg(adapter, A_ULPTX_INT_ENABLE, ULPTX_INTR_MASK);
 	}
 
-	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW,
-		     adapter_info(adapter)->gpio_intr);
-	t3_write_reg(adapter, A_T3DBG_INT_ENABLE,
-		     adapter_info(adapter)->gpio_intr);
+	t3_write_reg(adapter, A_T3DBG_INT_ENABLE, calc_gpio_intr(adapter));
+
 	if (is_pcie(adapter))
 		t3_write_reg(adapter, A_PCIE_INT_ENABLE, PCIE_INTR_MASK);
 	else
@@ -2560,6 +2595,20 @@ static void tp_wr_bits_indirect(adapter_t *adap, unsigned int addr,
 }
 
 /**
+ *	t3_enable_filters - enable the HW filters
+ *	@adap: the adapter
+ *
+ *	Enables the HW filters for NIC traffic.
+ */
+void t3_enable_filters(adapter_t *adap)
+{
+	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_NICMODE, 0);
+	t3_set_reg_field(adap, A_MC5_DB_CONFIG, 0, F_FILTEREN);
+	t3_set_reg_field(adap, A_TP_GLOBAL_CONFIG, 0, V_FIVETUPLELOOKUP(3));
+	tp_wr_bits_indirect(adap, A_TP_INGRESS_CONFIG, 0, F_LOOKUPEVERYPKT);
+}
+
+/**
  *	pm_num_pages - calculate the number of pages of the payload memory
  *	@mem_size: the size of the payload memory
  *	@pg_size: the size of each payload memory page
@@ -2659,10 +2708,10 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 		     F_TCPCHECKSUMOFFLOAD | V_IPTTL(64));
 	t3_write_reg(adap, A_TP_TCP_OPTIONS, V_MTUDEFAULT(576) |
 		     F_MTUENABLE | V_WINDOWSCALEMODE(1) |
-		     V_TIMESTAMPSMODE(0) | V_SACKMODE(1) | V_SACKRX(1));
+		     V_TIMESTAMPSMODE(1) | V_SACKMODE(1) | V_SACKRX(1));
 	t3_write_reg(adap, A_TP_DACK_CONFIG, V_AUTOSTATE3(1) |
 		     V_AUTOSTATE2(1) | V_AUTOSTATE1(0) |
-		     V_BYTETHRESHOLD(16384) | V_MSSTHRESHOLD(2) |
+		     V_BYTETHRESHOLD(26880) | V_MSSTHRESHOLD(2) |
 		     F_AUTOCAREFUL | F_AUTOENABLE | V_DACK_MODE(1));
 	t3_set_reg_field(adap, A_TP_IN_CONFIG, F_RXFBARBPRIO | F_TXFBARBPRIO,
 			 F_IPV6ENABLE | F_NICMODE);
@@ -2704,7 +2753,8 @@ static void tp_config(adapter_t *adap, const struct tp_params *p)
 
 	if (adap->params.nports > 2) {
 		t3_set_reg_field(adap, A_TP_PC_CONFIG2, 0,
-				 F_ENABLETXPORTFROMDA | F_ENABLERXPORTFROMADDR);
+				 F_ENABLETXPORTFROMDA2 | F_ENABLETXPORTFROMDA |
+				 F_ENABLERXPORTFROMADDR);
 		tp_wr_bits_indirect(adap, A_TP_QOS_RX_MAP_MODE,
 				    V_RXMAPMODE(M_RXMAPMODE), 0);
 		tp_wr_indirect(adap, A_TP_INGRESS_CONFIG, V_BITPOS0(48) |
@@ -3618,6 +3668,8 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params)
 	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	chan_init_hw(adapter, adapter->params.chan_map);
 	t3_sge_init(adapter, &adapter->params.sge);
+
+	t3_write_reg(adapter, A_T3DBG_GPIO_ACT_LOW, calc_gpio_intr(adapter));
 
 	t3_write_reg(adapter, A_CIM_HOST_ACC_DATA, vpd->uclk | fw_params);
 	t3_write_reg(adapter, A_CIM_BOOT_CFG,
