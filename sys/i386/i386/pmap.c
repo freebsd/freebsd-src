@@ -4447,7 +4447,7 @@ pmap_change_attr(va, size, mode)
 			return (EINVAL);
 		if (*pde == 0)
 			return (EINVAL);
-		pte = vtopte(va);
+		pte = vtopte(tmpva);
 		if (*pte == 0)
 			return (EINVAL);
 	}
