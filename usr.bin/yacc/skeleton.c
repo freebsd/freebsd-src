@@ -335,7 +335,7 @@ const char *body[] =
     "    if (yym)",
     "        yyval = yyvsp[1-yym];",
     "    else",
-    "    memset(&yyval, 0, sizeof yyval);",
+    "        memset(&yyval, 0, sizeof yyval);",
     "    switch (yyn)",
     "    {",
     0
