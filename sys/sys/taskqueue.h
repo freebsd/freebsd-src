@@ -75,8 +75,6 @@ void	taskqueue_thread_enqueue(void *context);
 	(task)->ta_priority = (priority);		\
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
-        (task)->ta_ppending = 0;                        \
-        (task)->ta_rc = 0;                              \
 } while (0)
 
 /*
@@ -159,11 +157,5 @@ int	taskqueue_enqueue_fast(struct taskqueue *queue, struct task *task);
 struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
 				    taskqueue_enqueue_fn enqueue,
 				    void *context);
-
-struct  taskqueue *taskqueue_define_drv(void *arg, const char *name);
-struct thread   *taskqueue_drv_thread(void *context);
-struct intr_handler *taskqueue_drv_handler(struct taskqueue *);
-void taskqueue_free_drv(struct taskqueue *queue);
-
 
 #endif /* !_SYS_TASKQUEUE_H_ */

@@ -167,6 +167,5 @@ int	swi_add(struct intr_event **eventp, const char *name,
 	    void **cookiep);
 void	swi_sched(void *cookie, int flags);
 int	swi_remove(void *cookie);
-struct  thread *intr_handler_thread(struct intr_handler *ih);
 
 #endif
