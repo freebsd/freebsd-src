@@ -38,31 +38,13 @@
  * times the task was enqueued before the call to taskqueue_run().
  */
 typedef void task_fn_t(void *context, int pending);
-typedef int task_drv_fn_t(void *context, int pending);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* link for queue */
-	u_short	 ta_pending;		/* count times queued */
-	u_short	 ta_priority;		/* Priority */
-        uint16_t ta_ppending;		/* previous pending value */
-        uint8_t  ta_rc;			/* last return code */
-        uint8_t  ta_flags;		/* flag state */
-        union {
-	   task_fn_t *_ta_func;		/* task handler */
-	   task_drv_fn_t *_ta_drv_func;	/* task handler */
-	} u;
-	
+	u_short	ta_pending;		/* count times queued */
+	u_short	ta_priority;		/* Priority */
+	task_fn_t *ta_func;		/* task handler */
 	void	*ta_context;		/* argument for handler */
 };
-
-#define ta_func		u._ta_func
-#define ta_drv_func	u._ta_drv_func
-
-
-#define TA_COMPLETE     0x0
-#define TA_NO_DEQUEUE   0x1
-
-#define TA_REFERENCED   (1 << 0)
-
 
 #endif /* !_SYS__TASK_H_ */
