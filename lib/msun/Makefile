@@ -20,9 +20,7 @@ ARCH_SUBDIR= ${MACHINE_ARCH}
 
 .include "${ARCH_SUBDIR}/Makefile.inc"
 
-.PATH:	${.CURDIR}/bsdsrc
-.PATH:	${.CURDIR}/man
-.PATH:	${.CURDIR}/src
+.PATH:	${.CURDIR}/${ARCH_SUBDIR}
 
 # long double format
 .if ${LDBL_PREC} == 64
@@ -30,6 +28,10 @@ ARCH_SUBDIR= ${MACHINE_ARCH}
 .elif ${LDBL_PREC} == 113
 .PATH:  ${.CURDIR}/ld128
 .endif
+
+.PATH:	${.CURDIR}/bsdsrc
+.PATH:	${.CURDIR}/src
+.PATH:	${.CURDIR}/man
 
 LIB=	m
 SHLIBDIR?= /lib
@@ -95,7 +97,6 @@ COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
 
 # Exclude the generic versions of what we provide in the MD area.
-.PATH:	${.CURDIR}/${ARCH_SUBDIR}
 .if defined(ARCH_SRCS)
 .for i in ${ARCH_SRCS}
 COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
