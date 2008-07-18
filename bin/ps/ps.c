@@ -213,7 +213,7 @@ main(int argc, char *argv[])
 	init_list(&uidlist, addelem_uid, sizeof(uid_t), "user");
 	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv, PS_ARGS)) != -1)
-		switch ((char)ch) {
+		switch (ch) {
 		case 'A':
 			/*
 			 * Exactly the same as `-ax'.   This has been
