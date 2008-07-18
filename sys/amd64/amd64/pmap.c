@@ -986,13 +986,12 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	if (pdep != NULL) {
 		pde = *pdep;
 		if (pde) {
-			if ((pde & PG_PS) != 0) {
+			if ((pde & PG_PS) != 0)
 				rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
-				PMAP_UNLOCK(pmap);
-				return rtval;
+			else {
+				pte = pmap_pde_to_pte(pdep, va);
+				rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 			}
-			pte = pmap_pde_to_pte(pdep, va);
-			rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
 		}
 	}
 	PMAP_UNLOCK(pmap);
