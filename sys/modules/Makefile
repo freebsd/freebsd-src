@@ -6,6 +6,7 @@ SUBDIR=	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
 	accf_data \
+	accf_dns \
 	accf_http \
 	${_acpi} \
 	age \
