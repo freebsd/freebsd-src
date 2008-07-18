@@ -326,9 +326,16 @@ static void mc5_dbgi_mode_disable(const struct mc5 *mc5)
 			 V_PRTYEN(mc5->parity_enabled) | F_MBUSEN);
 }
 
-/*
- * Initialization that requires the OS and protocol layers to already
- * be intialized goes here.
+/**
+ *	t3_mc5_init - initialize MC5 and the TCAM
+ *	@mc5: the MC5 handle
+ *	@nservers: desired number the TCP servers (listening ports)
+ *	@nfilters: desired number of HW filters (classifiers)
+ *	@nroutes: desired number of routes
+ *
+ *	Initialize MC5 and the TCAM and partition the TCAM for the requested
+ *	number of servers, filters, and routes.  The number of routes is
+ *	typically 0 except for specialized uses of the T3 adapters.
  */
 int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 		unsigned int nroutes)
@@ -344,7 +351,7 @@ int t3_mc5_init(struct mc5 *mc5, unsigned int nservers, unsigned int nfilters,
 	if (nroutes > MAX_ROUTES || nroutes + nservers + nfilters > tcam_size)
 		return -EINVAL;
 
-	if (nfilters && adap->params.rev < T3_REV_C)
+	if (nfilters)
 		mc5->parity_enabled = 0;
 
 	/* Reset the TCAM */
@@ -420,7 +427,7 @@ int t3_read_mc5_range(const struct mc5 *mc5, unsigned int start,
 	}
 
 	mc5_dbgi_mode_disable(mc5);
-	return 0;
+	return err;
 }
 
 #define MC5_INT_FATAL (F_PARITYERR | F_REQQPARERR | F_DISPQPARERR)
@@ -464,7 +471,6 @@ void t3_mc5_intr_handler(struct mc5 *mc5)
 
 	t3_write_reg(adap, A_MC5_DB_INT_CAUSE, cause);
 }
-
 
 /**
  *	t3_mc5_prep - initialize the SW state for MC5

@@ -1674,12 +1674,17 @@ t3_tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (sopt->sopt_name != TCP_CONGESTION &&
 	    sopt->sopt_name != TCP_NODELAY)
 		return (EOPNOTSUPP);
-	
+
 	if (sopt->sopt_name == TCP_CONGESTION) {
 		char name[TCP_CA_NAME_MAX];
 		int optlen = sopt->sopt_valsize;
 		struct tcpcb *tp;
 		
+		if (sopt->sopt_dir == SOPT_GET) {
+			KASSERT(0, ("unimplemented"));
+			return (EOPNOTSUPP);
+		}
+
 		if (optlen < 1)
 			return (EINVAL);
 		
@@ -1705,6 +1710,9 @@ t3_tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		struct inpcb *inp;
 		struct tcpcb *tp;
 
+		if (sopt->sopt_dir == SOPT_GET)
+			return (EOPNOTSUPP);
+	
 		err = sooptcopyin(sopt, &optval, sizeof optval,
 		    sizeof optval);
 
