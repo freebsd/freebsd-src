@@ -151,12 +151,12 @@ terminal() {
 # $1 is the device identifier, and the remainder of the line
 # lists the device numbers.
 
-# Initialize assorted 8250-16550 (sio) ports.
-# maybe    d  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
-# mouse    d      2
-# modem    d    1
-# terminal d  0
-# 3wire    d  0
+# Initialize assorted 8250-16550 (uart) ports.
+# maybe    u  0 1 2 3 4 5 6 7 8 9 a b c d e f g h i j k l m n o p q r s t u v
+# mouse    u      2
+# modem    u    1
+# terminal u  0
+# 3wire    u  0
 
 # Initialize all ports on a Cyclades-8yo.
 # modem    c  00 01 02 03 04 05 06 07
