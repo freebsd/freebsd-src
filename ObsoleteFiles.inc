@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080719: sade(8) removed on all but amd64, i386 and sparc64
+.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
+    ${TARGET_ARCH} != "sparc64"
+OLD_FILES+=usr/sbin/sade
+OLD_FILES+=usr/share/man/man8/sade.8.gz
+.endif
 # 20080706: bsdlabel(8) removed on powerpc
 .if ${TARGET_ARCH} == "powerpc"
 OLD_FILES+=sbin/bsdlabel
