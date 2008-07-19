@@ -154,7 +154,7 @@ SUBDIR=	ac \
 	${_rtsold} \
 	rwhod \
 	sa \
-	sade \
+	${_sade} \
 	${_sendmail} \
 	setfib \
 	setfmac \
@@ -309,6 +309,7 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pnpinfo=	pnpinfo
+_sade=		sade
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -341,6 +342,7 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
+_sade=		sade
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -364,6 +366,7 @@ _ofwdump=	ofwdump
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
+_sade=		sade
 .endif
 
 .include <bsd.subdir.mk>
