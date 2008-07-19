@@ -1303,7 +1303,6 @@ ffs_vget(mp, ino, flags, vpp)
 	struct vnode *vp;
 	struct cdev *dev;
 	int error;
-	struct thread *td;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
@@ -1368,7 +1367,6 @@ ffs_vget(mp, ino, flags, vpp)
 	}
 #endif
 
-	td = curthread;
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(vp, mp);
 	if (error != 0) {
@@ -1376,7 +1374,7 @@ ffs_vget(mp, ino, flags, vpp)
 		*vpp = NULL;
 		return (error);
 	}
-	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
+	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
