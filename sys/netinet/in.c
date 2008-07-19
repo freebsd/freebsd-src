@@ -715,6 +715,14 @@ in_ifinit(ifp, ia, sin, scrub)
 			if (ia->ia_addr.sin_family == AF_INET)
 				LIST_INSERT_HEAD(INADDR_HASH(
 				    ia->ia_addr.sin_addr.s_addr), ia, ia_hash);
+			else 
+				/* 
+				 * If oldaddr family is not AF_INET (e.g. 
+				 * interface has been just created) in_control 
+				 * does not call LIST_REMOVE, and we end up 
+				 * with bogus ia entries in hash
+				 */
+				LIST_REMOVE(ia, ia_hash);
 			return (error);
 		}
 	}
