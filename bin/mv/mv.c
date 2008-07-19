@@ -70,10 +70,10 @@ __FBSDID("$FreeBSD$");
 
 int fflg, iflg, nflg, vflg;
 
-int	copy(char *, char *);
-int	do_move(char *, char *);
-int	fastcopy(char *, char *, struct stat *);
-void	usage(void);
+static int	copy(const char *, const char *);
+static int	do_move(const char *, const char *);
+static int	fastcopy(const char *, const char *, struct stat *);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -154,8 +154,8 @@ main(int argc, char *argv[])
 	exit(rval);
 }
 
-int
-do_move(char *from, char *to)
+static int
+do_move(const char *from, const char *to)
 {
 	struct stat sb;
 	int ask, ch, first;
@@ -254,8 +254,8 @@ do_move(char *from, char *to)
 	    fastcopy(from, to, &sb) : copy(from, to));
 }
 
-int
-fastcopy(char *from, char *to, struct stat *sbp)
+static int
+fastcopy(const char *from, const char *to, struct stat *sbp)
 {
 	struct timeval tval[2];
 	static u_int blen;
@@ -360,8 +360,8 @@ err:		if (unlink(to))
 	return (0);
 }
 
-int
-copy(char *from, char *to)
+static int
+copy(const char *from, const char *to)
 {
 	struct stat sb;
 	int pid, status;
@@ -438,7 +438,7 @@ copy(char *from, char *to)
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 
