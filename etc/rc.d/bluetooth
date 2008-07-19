@@ -234,19 +234,19 @@ bluetooth_start()
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
-	# sioX - serial/UART Bluetooth device
-	sio*)
+	# uartX - serial/UART Bluetooth device
+	uart*)
 		load_kld ng_h4 || return 1
 
 		hook="hook"
 
 		# Obtain unit number from device.
-		unit=`expr ${dev} : 'sio\([0-9]\{1,\}\)'`
+		unit=`expr ${dev} : 'uart\([0-9]\{1,\}\)'`
 		if [ -z "${unit}" ]; then
-			err 1 "Unable to get sio unit number: ${dev}"
+			err 1 "Unable to get uart unit number: ${dev}"
 		fi
 
-		${hcseriald} -f /dev/cuad${unit} -n ${dev}
+		${hcseriald} -f /dev/cuau${unit} -n ${dev}
 		sleep 1 # wait a little bit
 
 		if [ ! -f "/var/run/hcseriald.${dev}.pid" ]; then
@@ -326,8 +326,8 @@ bluetooth_stop()
 
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
-	# sioX - serial/UART Bluetooth device
-	sio*)
+	# uartX - serial/UART Bluetooth device
+	uart*)
 		if [ -f "/var/run/hcseriald.${dev}.pid" ]; then
 			kill `cat /var/run/hcseriald.${dev}.pid`
 			sleep 1 # wait a little bit
