@@ -222,19 +222,24 @@ SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL)
 void
 callout_tick(void)
 {
-	int need_softclock = 0;
 	struct callout_cpu *cc;
+	int need_softclock;
+	int bucket;
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
+	need_softclock = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	if (!TAILQ_EMPTY(&cc->cc_callwheel[ticks & callwheelmask])) {
-		need_softclock = 1;
-	} else if (cc->cc_softticks + 1 == ticks)
-		++cc->cc_softticks;
+	for (; cc->cc_softticks < ticks; cc->cc_softticks++) {
+		bucket = cc->cc_softticks & callwheelmask;
+		if (!TAILQ_EMPTY(&cc->cc_callwheel[bucket])) {
+			need_softclock = 1;
+			break;
+		}
+	}
 	mtx_unlock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	/*
 	 * swi_sched acquires the thread lock, so we don't want to call it
@@ -308,12 +313,12 @@ softclock(void *arg)
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
 	while (cc->cc_softticks != ticks) {
-		cc->cc_softticks++;
 		/*
 		 * cc_softticks may be modified by hard clock, so cache
 		 * it while we work on a given bucket.
 		 */
 		curticks = cc->cc_softticks;
+		cc->cc_softticks++;
 		bucket = &cc->cc_callwheel[curticks & callwheelmask];
 		c = TAILQ_FIRST(bucket);
 		while (c) {
