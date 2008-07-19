@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/systm.h>
@@ -60,11 +61,36 @@ MTX_SYSINIT(intr_config_hook, &intr_config_hook_lock, "intr config", MTX_DEF);
 /* ARGSUSED */
 static void run_interrupt_driven_config_hooks(void *dummy);
 
+/*
+ * If we wait too long for an interrupt-driven config hook to return, print
+ * a diagnostic.
+ */
+#define	WARNING_INTERVAL_SECS	60
+static void
+run_interrupt_driven_config_hooks_warning(int warned)
+{
+	struct intr_config_hook *hook_entry;
+	char namebuf[64];
+	long offset;
+
+	printf("run_interrupt_driven_hooks: still waiting after %d seconds "
+	    "for", warned * WARNING_INTERVAL_SECS);
+	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
+		if (linker_search_symbol_name((caddr_t)hook_entry->ich_func,
+		    namebuf, sizeof(namebuf), &offset) == 0)
+			printf(" %s", namebuf);
+		else
+			printf(" %p", hook_entry->ich_func);
+	}
+	printf("\n");
+}
+
 static void
 run_interrupt_driven_config_hooks(dummy)
 	void *dummy;
 {
 	struct intr_config_hook *hook_entry, *next_entry;
+	int warned;
 
 	mtx_lock(&intr_config_hook_lock);
 	TAILQ_FOREACH_SAFE(hook_entry, &intr_config_hook_list, ich_links,
@@ -74,9 +100,16 @@ run_interrupt_driven_config_hooks(dummy)
 		mtx_lock(&intr_config_hook_lock);
 	}
 
+	warned = 0;
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
-		msleep(&intr_config_hook_list, &intr_config_hook_lock, PCONFIG,
-		    "conifhk", 0);
+		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
+		    PCONFIG, "conifhk", WARNING_INTERVAL_SECS * hz) ==
+		    EWOULDBLOCK && warned < 5) {
+			mtx_unlock(&intr_config_hook_lock);
+			warned++;
+			run_interrupt_driven_config_hooks_warning(warned);
+			mtx_lock(&intr_config_hook_lock);
+		}
 	}
 	mtx_unlock(&intr_config_hook_lock);
 }
@@ -135,7 +168,6 @@ config_intrhook_disestablish(hook)
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#include <sys/linker.h>
 
 DB_SHOW_COMMAND(conifhk, db_show_conifhk)
 {
