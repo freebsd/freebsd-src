@@ -816,6 +816,7 @@ witness_display_list(void(*prnt)(const char *fmt, ...),
 		witness_displaydescendants(prnt, w, 0);
 	}
 }
+#endif /* DDB */
 	
 static void
 witness_addgraph(struct sbuf *sb, struct witness *parent)
@@ -836,6 +837,7 @@ witness_addgraph(struct sbuf *sb, struct witness *parent)
 		}
 }
 
+#ifdef DDB
 static void
 witness_display(void(*prnt)(const char *fmt, ...))
 {
