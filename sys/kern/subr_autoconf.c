@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -130,3 +132,28 @@ config_intrhook_disestablish(hook)
 	wakeup(&intr_config_hook_list);
 	mtx_unlock(&intr_config_hook_lock);
 }
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#include <sys/linker.h>
+
+DB_SHOW_COMMAND(conifhk, db_show_conifhk)
+{
+	struct intr_config_hook *hook_entry;
+	char namebuf[64];
+	long offset;
+
+	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
+		if (linker_ddb_search_symbol_name(
+		    (caddr_t)hook_entry->ich_func, namebuf, sizeof(namebuf),
+		    &offset) == 0) {
+			db_printf("hook: %p at %s+%#lx arg: %p\n",
+			    hook_entry->ich_func, namebuf, offset,
+			    hook_entry->ich_arg);
+		} else {
+			db_printf("hook: %p at ??+?? arg %p\n",
+			    hook_entry->ich_func, hook_entry->ich_arg);
+		}
+	}
+}
+#endif /* DDB */
