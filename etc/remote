@@ -52,17 +52,17 @@ dial28800|28800 Baud Hayes attributes:\
 dial14400|14400 Baud Hayes attributes:\
 	br#57600:tc=dial:
 dial|Generic dialing parameters:\
-	:dv=/dev/cuad0:cu=/dev/cuad0:at=hayes:du:pa=none:
+	:dv=/dev/cuau0:cu=/dev/cuau0:at=hayes:du:pa=none:
 
 # Hardwired line
-cuad0c|cua0c:dv=/dev/cuad0:br#9600:pa=none:
+cuau0c|cua0c:dv=/dev/cuau0:br#9600:pa=none:
 
 # Finger friendly shortcuts
-sio0|com1:dv=/dev/cuad0:br#9600:pa=none:
-sio1|com2:dv=/dev/cuad1:br#9600:pa=none:
-sio2|com3:dv=/dev/cuad2:br#9600:pa=none:
-sio3|com4:dv=/dev/cuad3:br#9600:pa=none:
-sio4|com5:dv=/dev/cuad4:br#9600:pa=none:
-sio5|com6:dv=/dev/cuad5:br#9600:pa=none:
-sio6|com7:dv=/dev/cuad6:br#9600:pa=none:
-sio7|com8:dv=/dev/cuad7:br#9600:pa=none:
+uart0|sio0|com1:dv=/dev/cuau0:br#9600:pa=none:
+uart1|sio1|com2:dv=/dev/cuau1:br#9600:pa=none:
+uart2|sio2|com3:dv=/dev/cuau2:br#9600:pa=none:
+uart3|sio3|com4:dv=/dev/cuau3:br#9600:pa=none:
+uart4|sio4|com5:dv=/dev/cuau4:br#9600:pa=none:
+uart5|sio5|com6:dv=/dev/cuau5:br#9600:pa=none:
+uart6|sio6|com7:dv=/dev/cuau6:br#9600:pa=none:
+uart7|sio7|com8:dv=/dev/cuau7:br#9600:pa=none:
