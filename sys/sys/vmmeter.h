@@ -89,7 +89,7 @@ struct vmmeter {
 	u_int v_active_count;	/* (q) pages active */
 	u_int v_inactive_target; /* (c) pages desired inactive */
 	u_int v_inactive_count;	/* (q) pages inactive */
-	u_int v_cache_count;	/* (f) pages on buffer cache queue */
+	u_int v_cache_count;	/* (f) pages on cache queue */
 	u_int v_cache_min;	/* (c) min pages desired on cache queue */
 	u_int v_cache_max;	/* (c) max pages in cached obj */
 	u_int v_pageout_free_min;   /* (c) min pages reserved for kernel */
@@ -110,17 +110,6 @@ struct vmmeter {
 #ifdef _KERNEL
 
 extern struct vmmeter cnt;
-
-/*
- * Return TRUE if we are under our reserved low-free-pages threshold
- */
-
-static __inline 
-int
-vm_page_count_reserved(void)
-{
-    return (cnt.v_free_reserved > (cnt.v_free_count + cnt.v_cache_count));
-}
 
 /*
  * Return TRUE if we are under our severe low-free-pages threshold
