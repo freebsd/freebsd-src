@@ -45,7 +45,7 @@ echo $$ 2> /dev/null > /var/run/rc.suspend.pid
 
 # If you have troubles on suspending with PC-CARD modem, try this.
 # See also contrib/pccardq.c (Only for PAO users).
-# pccardq | awk -F '~' '$5 == "filled" && $4 ~ /sio/ \
+# pccardq | awk -F '~' '$5 == "filled" && $4 ~ /uart/ \
 #	{ printf("pccardc power %d 0", $1); }' | sh
 
 # If a device driver has problems suspending, try unloading it before
