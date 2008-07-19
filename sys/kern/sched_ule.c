@@ -2163,6 +2163,12 @@ sched_tick(void)
 	struct td_sched *ts;
 
 	ts = curthread->td_sched;
+	/*
+	 * Ticks is updated asynchronously on a single cpu.  Check here to
+	 * avoid incrementing ts_ticks multiple times in a single tick.
+	 */
+	if (ts->ts_ltick == ticks)
+		return;
 	/* Adjust ticks for pctcpu */
 	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
