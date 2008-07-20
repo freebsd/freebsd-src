@@ -96,10 +96,10 @@ __FBSDID("$FreeBSD$");
 
 static int ipxsendspace = IPXSNDQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxsendspace, CTLFLAG_RW,
-            &ipxsendspace, 0, "");
+            &ipxsendspace, 0, "ipx send buffer space");
 static int ipxrecvspace = IPXRCVQ;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxrecvspace, CTLFLAG_RW,
-            &ipxrecvspace, 0, "");
+            &ipxrecvspace, 0, "ipx receive buffer space");
 
 static	void ipx_usr_abort(struct socket *so);
 static	int ipx_attach(struct socket *so, int proto, struct thread *td);
