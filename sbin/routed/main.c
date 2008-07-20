@@ -47,8 +47,8 @@ __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
 #else
-__RCSID("$Revision: 2.27 $");
-#ident "$Revision: 2.27 $"
+__RCSID("$Revision: 2.31 $");
+#ident "$Revision: 2.31 $"
 #endif
 
 pid_t	mypid;
@@ -133,7 +133,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmpAtvT:F:P:")) != -1) {
+	while ((n = getopt(argc, argv, "sqdghmAtvT:F:P:")) != -1) {
 		switch (n) {
 		case 's':
 			supplier = 1;
@@ -219,7 +219,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.25");
+			msglog("version 2.31");
 			break;
 
 		default:
@@ -237,7 +237,7 @@ main(int argc,
 		goto usage;
 	if (argc != 0) {
 usage:
-		logbad(0, "usage: routed [-sqdghmpAtv] [-T tracefile]"
+		logbad(0, "usage: routed [-sqdghmAtv] [-T tracefile]"
 		       " [-F net[,metric]] [-P parms]");
 	}
 	if (geteuid() != 0) {
@@ -863,14 +863,15 @@ msglog(const char *p, ...)
 
 	va_start(args, p);
 	vsyslog(LOG_ERR, p, args);
-
+	va_end(args);
 	if (ftrace != 0) {
 		if (ftrace == stdout)
 			(void)fputs("routed: ", ftrace);
+		va_start(args, p);
 		(void)vfprintf(ftrace, p, args);
+		va_end(args);
 		(void)fputc('\n', ftrace);
 	}
-	va_end(args);
 }
 
 
@@ -888,8 +889,6 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 	int i;
 	struct msg_sub *ms1, *ms;
 	const char *p1;
-
-	va_start(args, p);
 
 	/* look for the oldest slot in the table
 	 * or the slot for the bad router.
@@ -925,15 +924,18 @@ msglim(struct msg_limit *lim, naddr addr, const char *p, ...)
 		trace_flush();
 		for (p1 = p; *p1 == ' '; p1++)
 			continue;
+		va_start(args, p);
 		vsyslog(LOG_ERR, p1, args);
+		va_end(args);
 	}
 
 	/* always display the message if tracing */
 	if (ftrace != 0) {
+		va_start(args, p);
 		(void)vfprintf(ftrace, p, args);
+		va_end(args);
 		(void)fputc('\n', ftrace);
 	}
-	va_end(args);
 }
 
 
@@ -946,12 +948,13 @@ logbad(int dump, const char *p, ...)
 
 	va_start(args, p);
 	vsyslog(LOG_ERR, p, args);
-
+	va_end(args);
 	(void)fputs("routed: ", stderr);
+	va_start(args, p);
 	(void)vfprintf(stderr, p, args);
+	va_end(args);
 	(void)fputs("; giving up\n",stderr);
 	(void)fflush(stderr);
-	va_end(args);
 
 	if (dump)
 		abort();
