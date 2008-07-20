@@ -66,15 +66,15 @@ __FBSDID("$FreeBSD$");
 
 int	tcp_keepinit;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINIT, keepinit, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_keepinit, 0, sysctl_msec_to_ticks, "I", "");
+    &tcp_keepinit, 0, sysctl_msec_to_ticks, "I", "time to establish connection");
 
 int	tcp_keepidle;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_keepidle, 0, sysctl_msec_to_ticks, "I", "");
+    &tcp_keepidle, 0, sysctl_msec_to_ticks, "I", "time before keepalive probes begin");
 
 int	tcp_keepintvl;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I", "");
+    &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I", "time between keepalive probes");
 
 int	tcp_delacktime;
 SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime, CTLTYPE_INT|CTLFLAG_RW,
