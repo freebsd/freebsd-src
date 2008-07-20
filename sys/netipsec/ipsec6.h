@@ -47,7 +47,6 @@ extern int ip6_esp_net_deflev;
 extern int ip6_ah_trans_deflev;
 extern int ip6_ah_net_deflev;
 extern int ip6_ipsec_ecn;
-extern int ip6_esp_randpad;
 
 struct inpcb;
 
