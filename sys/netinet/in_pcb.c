@@ -598,7 +598,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		ia = (struct in_ifaddr *)0;
+		ia = NULL;
 		/*
 		 * If route is known our src addr is taken from the i/f,
 		 * else punt.
@@ -615,16 +615,16 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * network and try to find a corresponding interface to take
 		 * the source address from.
 		 */
-		if (ia == 0) {
+		if (ia == NULL) {
 			bzero(&sa, sizeof(sa));
 			sa.sin_addr = faddr;
 			sa.sin_len = sizeof(sa);
 			sa.sin_family = AF_INET;
 
 			ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sa)));
-			if (ia == 0)
+			if (ia == NULL)
 				ia = ifatoia(ifa_ifwithnet(sintosa(&sa)));
-			if (ia == 0)
+			if (ia == NULL)
 				return (ENETUNREACH);
 		}
 		/*
@@ -643,7 +643,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
-				if (ia == 0)
+				if (ia == NULL)
 					return (EADDRNOTAVAIL);
 			}
 		}
