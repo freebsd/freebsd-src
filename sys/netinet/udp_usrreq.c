@@ -102,7 +102,7 @@ __FBSDID("$FreeBSD$");
  */
 static int	udp_cksum = 1;
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW, &udp_cksum,
-    0, "");
+    0, "compute udp checksum");
 
 int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
