@@ -8,13 +8,13 @@ SUBDIR=	boot
 .endif
 
 # Directories to include in cscope name file and TAGS.
-CSCOPEDIRS=	boot bsm cam compat conf contrib crypto ddb dev fs gdb geom \
-		gnu isa kern libkern modules net net80211 netatalk \
+CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
+		geom gnu isa kern libkern modules net net80211 netatalk \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
-		netsmb nfs nfs4client nfsclient nfsserver opencrypto pccard \
-		pci rpc security sys ufs vm ${CSCOPE_ARCHDIR}
+		netsmb nfs nfs4client nfsclient nfsserver nlm opencrypto \
+		pccard pci rpc security sys ufs vm xdr ${CSCOPE_ARCHDIR}
 .if defined(ALL_ARCH)
-CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips powerpc sparc64
+CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
 .else
 CSCOPE_ARCHDIR ?= ${MACHINE}
 .endif
