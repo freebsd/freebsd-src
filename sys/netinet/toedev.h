@@ -78,15 +78,35 @@ struct toedev {
 	struct ifnet 	*tod_lldev;   		/* first interface */
 	const struct tom_info *tod_offload_mod; /* TCP offload module */
 
-	int	(*tod_open)(struct toedev *dev);
-	int	(*tod_close)(struct toedev *dev);
+	/*
+	 * This TOE device is capable of offloading the connection for socket so
+	 */
 	int	(*tod_can_offload)(struct toedev *dev, struct socket *so);
+
+	/*
+	 * Establish a connection to nam using the TOE device dev
+	 */
 	int	(*tod_connect)(struct toedev *dev, struct socket *so,
 	        struct rtentry *rt, struct sockaddr *nam);
+	/*
+	 * Send an mbuf down to the toe device 
+	 */
 	int	(*tod_send)(struct toedev *dev, struct mbuf *m);
+	/*
+	 * Receive an array of mbufs from the TOE device dev 
+	 */
 	int	(*tod_recv)(struct toedev *dev, struct mbuf **m, int n);
+	/*
+	 * Device specific ioctl interface
+	 */
 	int	(*tod_ctl)(struct toedev *dev, unsigned int req, void *data);
+	/*
+	 * Update L2 entry in toedev 
+	 */
 	void	(*tod_arp_update)(struct toedev *dev, struct rtentry *neigh);
+	/*
+	 * Failover from one toe device to another
+	 */
 	void	(*tod_failover)(struct toedev *dev, struct ifnet *bond_ifp,
 			 struct ifnet *ndev, int event);
 	void	*tod_priv;			/* driver private data */
