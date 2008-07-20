@@ -250,6 +250,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	u_int16_t etype = 0;
 	struct mobile_h mob_h;
 	u_int32_t af;
+	int extra = 0;
 
 	/*
 	 * gre may cause infinite recursion calls when misconfigured.
@@ -365,7 +366,12 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			ip = mtod(m, struct ip *);
 			gre_ip_tos = ip->ip_tos;
 			gre_ip_id = ip->ip_id;
-			etype = ETHERTYPE_IP;
+			if (sc->wccp_ver == WCCP_V2) {
+				extra = sizeof(uint32_t);
+				etype =  WCCP_PROTOCOL_TYPE;
+			} else {
+				etype = ETHERTYPE_IP;
+			}
 			break;
 #ifdef INET6
 		case AF_INET6:
@@ -386,7 +392,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		}
 			
 		/* Reserve space for GRE header + optional GRE key */
-		int hdrlen = sizeof(struct greip);
+		int hdrlen = sizeof(struct greip) + extra;
 		if (sc->key)
 			hdrlen += sizeof(uint32_t);
 		M_PREPEND(m, hdrlen, M_DONTWAIT);
@@ -409,7 +415,7 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	if (sc->g_proto == IPPROTO_GRE) {
 		uint32_t *options = gh->gi_options;
 
-		memset((void *)gh, 0, sizeof(struct greip));
+		memset((void *)gh, 0, sizeof(struct greip) + extra);
 		gh->gi_ptype = htons(etype);
 		gh->gi_flags = 0;
 
