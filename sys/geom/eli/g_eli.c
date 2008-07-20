@@ -952,11 +952,13 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			    sizeof(md.md_salt));
 			g_eli_crypto_hmac_update(&ctx, passphrase,
 			    strlen(passphrase));
+			bzero(passphrase, sizeof(passphrase));
 		} else if (md.md_iterations > 0) {
 			u_char dkey[G_ELI_USERKEYLEN];
 
 			pkcs5v2_genkey(dkey, sizeof(dkey), md.md_salt,
 			    sizeof(md.md_salt), passphrase, md.md_iterations);
+			bzero(passphrase, sizeof(passphrase));
 			g_eli_crypto_hmac_update(&ctx, dkey, sizeof(dkey));
 			bzero(dkey, sizeof(dkey));
 		}
