@@ -3209,3 +3209,142 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
 	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
 	xso->so_uid = so->so_cred->cr_uid;
 }
+
+
+/*
+ * Socket accessor functions to provide external consumers with
+ * a safe interface to socket state
+ *
+ */
+
+void
+so_listeners_apply_all(struct socket *so, void (*func)(struct socket *, void *), void *arg)
+{
+	
+	TAILQ_FOREACH(so, &so->so_comp, so_list)
+		func(so, arg);
+}
+
+struct sockbuf *
+so_sockbuf_rcv(struct socket *so)
+{
+
+	return (&so->so_rcv);
+}
+
+struct sockbuf *
+so_sockbuf_snd(struct socket *so)
+{
+
+	return (&so->so_snd);
+}
+
+int
+so_state_get(const struct socket *so)
+{
+
+	return (so->so_state);
+}
+
+void
+so_state_set(struct socket *so, int val)
+{
+
+	so->so_state = val;
+}
+
+int
+so_options_get(const struct socket *so)
+{
+
+	return (so->so_options);
+}
+
+void
+so_options_set(struct socket *so, int val)
+{
+
+	so->so_options = val;
+}
+
+int
+so_error_get(const struct socket *so)
+{
+
+	return (so->so_error);
+}
+
+void
+so_error_set(struct socket *so, int val)
+{
+
+	so->so_error = val;
+}
+
+int
+so_linger_get(const struct socket *so)
+{
+
+	return (so->so_linger);
+}
+
+void
+so_linger_set(struct socket *so, int val)
+{
+
+	so->so_linger = val;
+}
+
+struct protosw *
+so_protosw_get(const struct socket *so)
+{
+
+	return (so->so_proto);
+}
+
+void
+so_protosw_set(struct socket *so, struct protosw *val)
+{
+
+	so->so_proto = val;
+}
+
+void
+so_sorwakeup(struct socket *so)
+{
+
+	sorwakeup(so);
+}
+
+void
+so_sowwakeup(struct socket *so)
+{
+
+	sowwakeup(so);
+}
+
+void
+so_sorwakeup_locked(struct socket *so)
+{
+
+	sorwakeup_locked(so);
+}
+
+void
+so_sowwakeup_locked(struct socket *so)
+{
+
+	sowwakeup_locked(so);
+}
+
+void
+so_lock(struct socket *so)
+{
+	SOCK_LOCK(so);
+}
+
+void
+so_unlock(struct socket *so)
+{
+	SOCK_UNLOCK(so);
+}
