@@ -50,7 +50,7 @@ fi
 
 # If a device driver has problems resuming, try unloading it before
 # suspend and reloading it on resume.  Example:
-# kldunload usb
+# kldload usb
 
 # wpa_supplicant(8) doesn't seem to reassociate during resume.  Uncomment
 # the following to signal it to reassociate.
