@@ -414,13 +414,18 @@ t3_push_frames(struct socket *so, int req_completion)
 		snd->sb_sndptroff += bytes;
 		total_bytes += bytes;
 		toep->tp_write_seq += bytes;
-		CTR6(KTR_TOM, "t3_push_frames: wr_avail=%d mbuf_wrs[%d]=%d tail=%p sndptr=%p sndptroff=%d",
-		    toep->tp_wr_avail, count, mbuf_wrs[count], tail, snd->sb_sndptr, snd->sb_sndptroff);	
+		CTR6(KTR_TOM, "t3_push_frames: wr_avail=%d mbuf_wrs[%d]=%d"
+		    " tail=%p sndptr=%p sndptroff=%d",
+		    toep->tp_wr_avail, count, mbuf_wrs[count],
+		    tail, snd->sb_sndptr, snd->sb_sndptroff);	
 		if (tail)
-			CTR4(KTR_TOM, "t3_push_frames: total_bytes=%d tp_m_last=%p tailbuf=%p snd_una=0x%08x",
-			    total_bytes, toep->tp_m_last, tail->m_data, tp->snd_una);
+			CTR4(KTR_TOM, "t3_push_frames: total_bytes=%d"
+			    " tp_m_last=%p tailbuf=%p snd_una=0x%08x",
+			    total_bytes, toep->tp_m_last, tail->m_data,
+			    tp->snd_una);
 		else
-			CTR3(KTR_TOM, "t3_push_frames: total_bytes=%d tp_m_last=%p snd_una=0x%08x",
+			CTR3(KTR_TOM, "t3_push_frames: total_bytes=%d"
+			    " tp_m_last=%p snd_una=0x%08x",
 			    total_bytes, toep->tp_m_last, tp->snd_una);
 
 
@@ -432,14 +437,18 @@ t3_push_frames(struct socket *so, int req_completion)
 		while (i < count && m_get_sgllen(m0)) {
 			if ((count - i) >= 3) {
 				CTR6(KTR_TOM,
-				    "t3_push_frames: pa=0x%zx len=%d pa=0x%zx len=%d pa=0x%zx len=%d",
-				    segs[i].ds_addr, segs[i].ds_len, segs[i + 1].ds_addr, segs[i + 1].ds_len,
+				    "t3_push_frames: pa=0x%zx len=%d pa=0x%zx"
+				    " len=%d pa=0x%zx len=%d",
+				    segs[i].ds_addr, segs[i].ds_len,
+				    segs[i + 1].ds_addr, segs[i + 1].ds_len,
 				    segs[i + 2].ds_addr, segs[i + 2].ds_len);
 				    i += 3;
 			} else if ((count - i) == 2) {
 				CTR4(KTR_TOM, 
-				    "t3_push_frames: pa=0x%zx len=%d pa=0x%zx len=%d",
-				    segs[i].ds_addr, segs[i].ds_len, segs[i + 1].ds_addr, segs[i + 1].ds_len);
+				    "t3_push_frames: pa=0x%zx len=%d pa=0x%zx"
+				    " len=%d",
+				    segs[i].ds_addr, segs[i].ds_len,
+				    segs[i + 1].ds_addr, segs[i + 1].ds_len);
 				    i += 2;
 			} else {
 				CTR2(KTR_TOM, "t3_push_frames: pa=0x%zx len=%d",
