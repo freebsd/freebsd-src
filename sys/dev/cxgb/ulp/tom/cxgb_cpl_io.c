@@ -2431,25 +2431,6 @@ enter_timewait(struct tcpcb *tp)
 	tcp_offload_twstart(tp);
 }
 
-static void
-enter_timewait_disconnect(struct tcpcb *tp)
-{
-	/*
-	 * Bump rcv_nxt for the peer FIN.  We don't do this at the time we
-	 * process peer_close because we don't want to carry the peer FIN in
-	 * the socket's receive queue and if we increment rcv_nxt without
-	 * having the FIN in the receive queue we'll confuse facilities such
-	 * as SIOCINQ.
-	 */
-	inp_wlock(tp->t_inpcb);	
-	tp->rcv_nxt++;
-
-	tp->ts_recent_age = 0;	     /* defeat recycling */
-	tp->t_srtt = 0;                        /* defeat tcp_update_metrics */
-	inp_wunlock(tp->t_inpcb);
-	tcp_offload_twstart_disconnect(tp);
-}
-
 /*
  * For TCP DDP a PEER_CLOSE may also be an implicit RX_DDP_COMPLETE.  This
  * function deals with the data that may be reported along with the FIN.
@@ -2717,7 +2698,7 @@ process_close_con_rpl(struct toepcb *toep, struct mbuf *m)
 
 
 	if (action == TCP_TIMEWAIT) {
-		enter_timewait_disconnect(tp);
+		enter_timewait(tp);
 	} else if (action == TCP_DROP) {
 		tcp_offload_drop(tp, 0);		
 	} else if (action == TCP_CLOSE) {
