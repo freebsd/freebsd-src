@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #include <netinet/toedev.h>
 
-
 int
 tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 {
@@ -92,3 +91,62 @@ fail:
 	RTFREE(rt);
 	return (error);
 }
+
+
+/*
+ * This file contains code as a short-term staging area before it is moved in 
+ * to sys/netinet/tcp_offload.c
+ */
+
+void
+tcp_offload_twstart(struct tcpcb *tp)
+{
+
+	INP_INFO_WLOCK(&tcbinfo);
+	inp_wlock(tp->t_inpcb);
+	tcp_twstart(tp);
+	INP_INFO_WUNLOCK(&tcbinfo);
+}
+
+void
+tcp_offload_twstart_disconnect(struct tcpcb *tp)
+{
+	struct socket *so;
+	
+	INP_INFO_WLOCK(&tcbinfo);
+	inp_wlock(tp->t_inpcb);
+	so = tp->t_inpcb->inp_socket;	
+	tcp_twstart(tp);
+	if (so)
+		soisdisconnected(so);	
+	INP_INFO_WUNLOCK(&tcbinfo);
+}
+
+struct tcpcb *
+tcp_offload_close(struct tcpcb *tp)
+{
+	
+	INP_INFO_WLOCK(&tcbinfo);
+	INP_WLOCK(tp->t_inpcb);
+	tp = tcp_close(tp);
+	INP_INFO_WUNLOCK(&tcbinfo);
+	if (tp)
+		INP_WUNLOCK(tp->t_inpcb);
+
+	return (tp);
+}
+
+struct tcpcb *
+tcp_offload_drop(struct tcpcb *tp, int error)
+{
+	
+	INP_INFO_WLOCK(&tcbinfo);
+	INP_WLOCK(tp->t_inpcb);
+	tp = tcp_drop(tp, error);
+	INP_INFO_WUNLOCK(&tcbinfo);
+	if (tp)
+		INP_WUNLOCK(tp->t_inpcb);
+
+	return (tp);
+}
+
