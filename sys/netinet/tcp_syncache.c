@@ -959,6 +959,19 @@ failed:
 	return (0);
 }
 
+int
+tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
+    struct tcphdr *th, struct socket **lsop, struct mbuf *m)
+{
+	int rc;
+	
+	INP_INFO_WLOCK(&tcbinfo);
+	rc = syncache_expand(inc, to, th, lsop, m);
+	INP_INFO_WUNLOCK(&tcbinfo);
+
+	return (rc);
+}
+
 /*
  * Given a LISTEN socket and an inbound SYN request, add
  * this to the syn cache, and send back a segment:
@@ -1426,7 +1439,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 }
 
 void
-syncache_offload_add(struct in_conninfo *inc, struct tcpopt *to,
+tcp_offload_syncache_add(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct inpcb *inp, struct socket **lsop,
     struct toe_usrreqs *tu, void *toepcb)
 {
