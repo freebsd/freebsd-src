@@ -103,22 +103,8 @@ tcp_offload_twstart(struct tcpcb *tp)
 {
 
 	INP_INFO_WLOCK(&tcbinfo);
-	inp_wlock(tp->t_inpcb);
+	INP_WLOCK(tp->t_inpcb);
 	tcp_twstart(tp);
-	INP_INFO_WUNLOCK(&tcbinfo);
-}
-
-void
-tcp_offload_twstart_disconnect(struct tcpcb *tp)
-{
-	struct socket *so;
-	
-	INP_INFO_WLOCK(&tcbinfo);
-	inp_wlock(tp->t_inpcb);
-	so = tp->t_inpcb->inp_socket;	
-	tcp_twstart(tp);
-	if (so)
-		soisdisconnected(so);	
 	INP_INFO_WUNLOCK(&tcbinfo);
 }
 
