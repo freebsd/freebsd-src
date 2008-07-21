@@ -35,6 +35,7 @@
 .Os
 .Sh NAME
 .Nm arc4random ,
+.Nm arc4random_buf ,
 .Nm arc4random_stir ,
 .Nm arc4random_addrandom
 .Nd arc4 random number generator
@@ -44,6 +45,8 @@
 .In stdlib.h
 .Ft u_int32_t
 .Fn arc4random "void"
+.Ft void
+.Fn arc4random_buf "void *buf" "size_t nbytes"
 .Ft void
 .Fn arc4random_stir "void"
 .Ft void
@@ -68,6 +71,13 @@ and therefore has twice the range of
 and
 .Xr random 3 .
 .Pp
+.Fn arc4random_buf
+function fills the region
+.Fa buf
+of length
+.Fa nbytes
+with ARC4-derived random data.
+.Pp
 The
 .Fn arc4random_stir
 function reads data from
@@ -78,10 +88,9 @@ and uses it to permute the S-Boxes via
 There is no need to call
 .Fn arc4random_stir
 before using
-.Fn arc4random ,
-since
 .Fn arc4random
-automatically initializes itself.
+functions family, since
+they automatically initialize themselves.
 .Sh EXAMPLES
 The following produces a drop-in replacement for the traditional
 .Fn rand
