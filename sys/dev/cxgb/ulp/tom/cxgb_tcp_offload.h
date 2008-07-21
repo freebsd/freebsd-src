@@ -3,7 +3,6 @@
 #ifndef CXGB_TCP_OFFLOAD_H_
 #define CXGB_TCP_OFFLOAD_H_
 
-struct tcpcb;
 struct socket;
 struct sockbuf;
 
@@ -12,8 +11,6 @@ void sockbuf_lock_assert(struct sockbuf *);
 void sockbuf_unlock(struct sockbuf *);
 int  sockbuf_sbspace(struct sockbuf *);
 
-struct tcphdr;
-struct tcpopt;
 
 #ifndef _SYS_SOCKETVAR_H_
 #include <sys/selinfo.h>
