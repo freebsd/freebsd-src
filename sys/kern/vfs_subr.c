@@ -2038,6 +2038,8 @@ vget(struct vnode *vp, int flags, struct thread *td)
 
 	error = 0;
 	VFS_ASSERT_GIANT(vp->v_mount);
+	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
+	    ("vget: invalid lock operation"));
 	if ((flags & LK_INTERLOCK) == 0)
 		VI_LOCK(vp);
 	vholdl(vp);
