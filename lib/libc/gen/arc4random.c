@@ -106,34 +106,41 @@ arc4_addrandom(u_char *dat, int datlen)
 static void
 arc4_stir(void)
 {
-	int     fd, n;
+	int	fd, n, done;
 	struct {
 		struct timeval tv;
 		pid_t pid;
 		u_int8_t rnd[128 - sizeof(struct timeval) - sizeof(pid_t)];
-	}       rdat;
+	} __packed rdat;
 
-	gettimeofday(&rdat.tv, NULL);
-	rdat.pid = getpid();
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
+	done = 0;
 	if (fd >= 0) {
-		(void)_read(fd, rdat.rnd, sizeof(rdat.rnd));
+		if (_read(fd, &rdat, sizeof(rdat)) == sizeof(rdat))
+			done = 1;
 		(void)_close(fd);
 	} 
-	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
+	/* !done?  Ah, what the heck. We'll just take whatever was on the
 	 * stack... */
+	if (!done) {
+		gettimeofday(&rdat.tv, NULL);
+		rdat.pid = getpid();
+	}
 
 	arc4_addrandom((u_char *)&rdat, sizeof(rdat));
 
 	/*
 	 * Throw away the first N bytes of output, as suggested in the
 	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
-	 * by Fluher, Mantin, and Shamir.  N=1024 is based on
+	 * by Fluher, Mantin, and Shamir.  N=512 is based on
 	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
 	 * by Ilya Mironov.
 	 */
-	for (n = 0; n < 1024; n++)
-		(void)arc4_getbyte();
+	if (rs_initialized != 1) {
+		for (n = 0; n < 512; n++)
+			(void)arc4_getbyte();
+		rs_initialized = 1;
+	}
 	arc4_count = 1600000;
 }
 
@@ -170,7 +177,7 @@ arc4_check_init(void)
 {
 	if (!rs_initialized) {
 		arc4_init();
-		rs_initialized = 1;
+		rs_initialized = 2;
 	}
 }
 
