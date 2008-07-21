@@ -329,6 +329,7 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	arc4random_buf;
 	fdopendir;
 	fts_open;
 	fts_close;
