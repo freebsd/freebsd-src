@@ -73,16 +73,21 @@ run_interrupt_driven_config_hooks_warning(int warned)
 	char namebuf[64];
 	long offset;
 
-	printf("run_interrupt_driven_hooks: still waiting after %d seconds "
-	    "for", warned * WARNING_INTERVAL_SECS);
-	TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
-		if (linker_search_symbol_name((caddr_t)hook_entry->ich_func,
-		    namebuf, sizeof(namebuf), &offset) == 0)
-			printf(" %s", namebuf);
-		else
-			printf(" %p", hook_entry->ich_func);
+	if (warned < 6) {
+		printf("run_interrupt_driven_hooks: still waiting after %d "
+		    "seconds for", warned * WARNING_INTERVAL_SECS);
+		TAILQ_FOREACH(hook_entry, &intr_config_hook_list, ich_links) {
+			if (linker_search_symbol_name(
+			    (caddr_t)hook_entry->ich_func, namebuf,
+			    sizeof(namebuf), &offset) == 0)
+				printf(" %s", namebuf);
+			else
+				printf(" %p", hook_entry->ich_func);
+		}
+		printf("\n");
 	}
-	printf("\n");
+	KASSERT(warned < 6,
+	    ("run_interrupt_driven_config_hooks: waited too long"));
 }
 
 static void
@@ -104,7 +109,7 @@ run_interrupt_driven_config_hooks(dummy)
 	while (!TAILQ_EMPTY(&intr_config_hook_list)) {
 		if (msleep(&intr_config_hook_list, &intr_config_hook_lock,
 		    PCONFIG, "conifhk", WARNING_INTERVAL_SECS * hz) ==
-		    EWOULDBLOCK && warned < 5) {
+		    EWOULDBLOCK) {
 			mtx_unlock(&intr_config_hook_lock);
 			warned++;
 			run_interrupt_driven_config_hooks_warning(warned);
