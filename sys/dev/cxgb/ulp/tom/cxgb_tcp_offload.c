@@ -145,15 +145,3 @@ sockbuf_sbspace(struct sockbuf *sb)
 	return (sbspace(sb));
 }
 
-int
-syncache_offload_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
-    struct socket **lsop, struct mbuf *m)
-{
-	int rc;
-	
-	INP_INFO_WLOCK(&tcbinfo);
-	rc = syncache_expand(inc, to, th, lsop, m);
-	INP_INFO_WUNLOCK(&tcbinfo);
-
-	return (rc);
-}
