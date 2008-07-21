@@ -401,30 +401,82 @@ filt_proc(struct knote *kn, long hint)
 		return (1);
 	}
 
-	/*
-	 * process forked, and user wants to track the new process,
-	 * so attach a new knote to it, and immediately report an
-	 * event with the parent's pid.
-	 */
-	if ((event == NOTE_FORK) && (kn->kn_sfflags & NOTE_TRACK)) {
-		struct kevent kev;
-		int error;
+	return (kn->kn_fflags != 0);
+}
+
+/*
+ * Called when the process forked. It mostly does the same as the
+ * knote(), activating all knotes registered to be activated when the
+ * process forked. Additionally, for each knote attached to the
+ * parent, check whether user wants to track the new process. If so
+ * attach a new knote to it, and immediately report an event with the
+ * child's pid.
+ */
+void
+knote_fork(struct knlist *list, int pid)
+{
+	struct kqueue *kq;
+	struct knote *kn;
+	struct kevent kev;
+	int error;
+
+	if (list == NULL)
+		return;
+	list->kl_lock(list->kl_lockarg);
+
+	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
+		if ((kn->kn_status & KN_INFLUX) == KN_INFLUX)
+			continue;
+		kq = kn->kn_kq;
+		KQ_LOCK(kq);
+		if ((kn->kn_status & KN_INFLUX) == KN_INFLUX) {
+			KQ_UNLOCK(kq);
+			continue;
+		}
 
 		/*
-		 * register knote with new process.
+		 * The same as knote(), activate the event.
 		 */
-		kev.ident = hint & NOTE_PDATAMASK;	/* pid */
+		if ((kn->kn_sfflags & NOTE_TRACK) == 0) {
+			kn->kn_status |= KN_HASKQLOCK;
+			if (kn->kn_fop->f_event(kn, NOTE_FORK | pid))
+				KNOTE_ACTIVATE(kn, 1);
+			kn->kn_status &= ~KN_HASKQLOCK;
+			KQ_UNLOCK(kq);
+			continue;
+		}
+
+		/*
+		 * The NOTE_TRACK case. In addition to the activation
+		 * of the event, we need to register new event to
+		 * track the child. Drop the locks in preparation for
+		 * the call to kqueue_register().
+		 */
+		kn->kn_status |= KN_INFLUX;
+		KQ_UNLOCK(kq);
+		list->kl_unlock(list->kl_lockarg);
+
+		/*
+		 * Activate existing knote and register a knote with
+		 * new process.
+		 */
+		kev.ident = pid;
 		kev.filter = kn->kn_filter;
 		kev.flags = kn->kn_flags | EV_ADD | EV_ENABLE | EV_FLAG1;
 		kev.fflags = kn->kn_sfflags;
-		kev.data = kn->kn_id;			/* parent */
-		kev.udata = kn->kn_kevent.udata;	/* preserve udata */
-		error = kqueue_register(kn->kn_kq, &kev, NULL, 0);
+		kev.data = kn->kn_id;		/* parent */
+		kev.udata = kn->kn_kevent.udata;/* preserve udata */
+		error = kqueue_register(kq, &kev, NULL, 0);
+		if (kn->kn_fop->f_event(kn, NOTE_FORK | pid))
+			KNOTE_ACTIVATE(kn, 0);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
+		KQ_LOCK(kq);
+		kn->kn_status &= ~KN_INFLUX;
+		KQ_UNLOCK_FLUX(kq);
+		list->kl_lock(list->kl_lockarg);
 	}
-
-	return (kn->kn_fflags != 0);
+	list->kl_unlock(list->kl_lockarg);
 }
 
 static int
