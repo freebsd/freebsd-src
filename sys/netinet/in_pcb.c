@@ -1254,6 +1254,60 @@ inp_unlock_assert(struct inpcb *inp)
 }
 #endif
 
+void
+inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
+{
+	struct inpcb *inp;
+
+	INP_INFO_RLOCK(&tcbinfo);
+	LIST_FOREACH(inp, tcbinfo.ipi_listhead, inp_list) {
+		INP_WLOCK(inp);
+		func(inp, arg);
+		INP_WUNLOCK(inp);
+	}
+	INP_INFO_RUNLOCK(&tcbinfo);
+}
+
+struct socket *
+inp_inpcbtosocket(struct inpcb *inp)
+{
+
+	INP_WLOCK_ASSERT(inp);
+	return (inp->inp_socket);
+}
+
+struct tcpcb *
+inp_inpcbtotcpcb(struct inpcb *inp)
+{
+
+	INP_WLOCK_ASSERT(inp);
+	return ((struct tcpcb *)inp->inp_ppcb);
+}
+
+int
+inp_ip_tos_get(const struct inpcb *inp)
+{
+
+	return (inp->inp_ip_tos);
+}
+
+void
+inp_ip_tos_set(struct inpcb *inp, int val)
+{
+
+	inp->inp_ip_tos = val;
+}
+
+void
+inp_4tuple_get(const struct inpcb *inp, uint32_t *laddr, uint16_t *lp, uint32_t *faddr, uint16_t *fp)
+{
+	memcpy(laddr, &inp->inp_laddr, 4);
+	memcpy(faddr, &inp->inp_faddr, 4);
+
+	*lp = inp->inp_lport;
+	*fp = inp->inp_fport;
+}
+
 #ifdef DDB
 static void
 db_print_indent(int indent)
