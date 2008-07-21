@@ -1299,11 +1299,13 @@ inp_ip_tos_set(struct inpcb *inp, int val)
 }
 
 void
-inp_4tuple_get(const struct inpcb *inp, uint32_t *laddr, uint16_t *lp, uint32_t *faddr, uint16_t *fp)
+inp_4tuple_get(const struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
+    uint32_t *faddr, uint16_t *fp)
 {
-	memcpy(laddr, &inp->inp_laddr, 4);
-	memcpy(faddr, &inp->inp_faddr, 4);
 
+	INP_LOCK_ASSERT(inp);
+	*laddr = inp->inp_laddr;
+	*faddr = inp->inp_faddr;
 	*lp = inp->inp_lport;
 	*fp = inp->inp_fport;
 }
