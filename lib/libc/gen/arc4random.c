@@ -1,14 +1,23 @@
 /*
- * Arc4 random number generator for OpenBSD.
- * Copyright 1996 David Mazieres <dm@lcs.mit.edu>.
+ * Copyright (c) 1996, David Mazieres <dm@uun.org>
+ * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
  *
- * Modification and redistribution in source and binary forms is
- * permitted provided that due credit is given to the author and the
- * OpenBSD project (for instance by leaving this copyright notice
- * intact).
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /*
+ * Arc4 random number generator for OpenBSD.
+ *
  * This code is derived from section 17.1 of Applied Cryptography,
  * second edition, which describes a stream cipher allegedly
  * compatible with RSA Labs "RC4" cipher (the actual description of
@@ -63,38 +72,39 @@ static int rs_initialized;
 static int rs_stired;
 static int arc4_count;
 
-static inline u_int8_t arc4_getbyte(struct arc4_stream *);
-static void arc4_stir(struct arc4_stream *);
+static inline u_int8_t arc4_getbyte(void);
+static void arc4_stir(void);
 
 static inline void
-arc4_init(struct arc4_stream *as)
+arc4_init(void)
 {
 	int     n;
 
 	for (n = 0; n < 256; n++)
-		as->s[n] = n;
-	as->i = 0;
-	as->j = 0;
+		rs.s[n] = n;
+	rs.i = 0;
+	rs.j = 0;
 }
 
 static inline void
-arc4_addrandom(struct arc4_stream *as, u_char *dat, int datlen)
+arc4_addrandom(u_char *dat, int datlen)
 {
 	int     n;
 	u_int8_t si;
 
-	as->i--;
+	rs.i--;
 	for (n = 0; n < 256; n++) {
-		as->i = (as->i + 1);
-		si = as->s[as->i];
-		as->j = (as->j + si + dat[n % datlen]);
-		as->s[as->i] = as->s[as->j];
-		as->s[as->j] = si;
+		rs.i = (rs.i + 1);
+		si = rs.s[rs.i];
+		rs.j = (rs.j + si + dat[n % datlen]);
+		rs.s[rs.i] = rs.s[rs.j];
+		rs.s[rs.j] = si;
 	}
+	rs.j = rs.i;
 }
 
 static void
-arc4_stir(struct arc4_stream *as)
+arc4_stir(void)
 {
 	int     fd, n;
 	struct {
@@ -107,13 +117,13 @@ arc4_stir(struct arc4_stream *as)
 	rdat.pid = getpid();
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
 	if (fd >= 0) {
-		(void) _read(fd, rdat.rnd, sizeof(rdat.rnd));
-		_close(fd);
+		(void)_read(fd, rdat.rnd, sizeof(rdat.rnd));
+		(void)_close(fd);
 	} 
 	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
 	 * stack... */
 
-	arc4_addrandom(as, (void *) &rdat, sizeof(rdat));
+	arc4_addrandom((u_char *)&rdat, sizeof(rdat));
 
 	/*
 	 * Throw away the first N bytes of output, as suggested in the
@@ -123,34 +133,34 @@ arc4_stir(struct arc4_stream *as)
 	 * by Ilya Mironov.
 	 */
 	for (n = 0; n < 1024; n++)
-		(void) arc4_getbyte(as);
+		(void)arc4_getbyte();
 	arc4_count = 1600000;
 }
 
 static inline u_int8_t
-arc4_getbyte(struct arc4_stream *as)
+arc4_getbyte(void)
 {
 	u_int8_t si, sj;
 
-	as->i = (as->i + 1);
-	si = as->s[as->i];
-	as->j = (as->j + si);
-	sj = as->s[as->j];
-	as->s[as->i] = sj;
-	as->s[as->j] = si;
+	rs.i = (rs.i + 1);
+	si = rs.s[rs.i];
+	rs.j = (rs.j + si);
+	sj = rs.s[rs.j];
+	rs.s[rs.i] = sj;
+	rs.s[rs.j] = si;
 
-	return (as->s[(si + sj) & 0xff]);
+	return (rs.s[(si + sj) & 0xff]);
 }
 
 static inline u_int32_t
-arc4_getword(struct arc4_stream *as)
+arc4_getword(void)
 {
 	u_int32_t val;
 
-	val = arc4_getbyte(as) << 24;
-	val |= arc4_getbyte(as) << 16;
-	val |= arc4_getbyte(as) << 8;
-	val |= arc4_getbyte(as);
+	val = arc4_getbyte() << 24;
+	val |= arc4_getbyte() << 16;
+	val |= arc4_getbyte() << 8;
+	val |= arc4_getbyte();
 
 	return (val);
 }
@@ -159,7 +169,7 @@ static void
 arc4_check_init(void)
 {
 	if (!rs_initialized) {
-		arc4_init(&rs);
+		arc4_init();
 		rs_initialized = 1;
 	}
 }
@@ -168,7 +178,7 @@ static inline void
 arc4_check_stir(void)
 {
 	if (!rs_stired || arc4_count <= 0) {
-		arc4_stir(&rs);
+		arc4_stir();
 		rs_stired = 1;
 	}
 }
@@ -178,7 +188,7 @@ arc4random_stir(void)
 {
 	THREAD_LOCK();
 	arc4_check_init();
-	arc4_stir(&rs);
+	arc4_stir();
 	rs_stired = 1;
 	THREAD_UNLOCK();
 }
@@ -189,7 +199,7 @@ arc4random_addrandom(u_char *dat, int datlen)
 	THREAD_LOCK();
 	arc4_check_init();
 	arc4_check_stir();
-	arc4_addrandom(&rs, dat, datlen);
+	arc4_addrandom(dat, datlen);
 	THREAD_UNLOCK();
 }
 
@@ -201,7 +211,7 @@ arc4random(void)
 	THREAD_LOCK();
 	arc4_check_init();
 	arc4_check_stir();
-	rnd = arc4_getword(&rs);
+	rnd = arc4_getword();
 	arc4_count -= 4;
 	THREAD_UNLOCK();
 
@@ -217,7 +227,7 @@ arc4random_buf(void *_buf, size_t n)
 	arc4_check_init();
 	while (n--) {
 		arc4_check_stir();
-		buf[n] = arc4_getbyte(&rs);
+		buf[n] = arc4_getbyte();
 		arc4_count--;
 	}
 	THREAD_UNLOCK();
