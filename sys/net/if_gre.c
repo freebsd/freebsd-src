@@ -742,7 +742,6 @@ static int
 gre_compute_route(struct gre_softc *sc)
 {
 	struct route *ro;
-	u_int32_t a, b, c;
 
 	ro = &sc->route;
 
@@ -755,16 +754,10 @@ gre_compute_route(struct gre_softc *sc)
 	 * toggle last bit, so our interface is not found, but a less
 	 * specific route. I'd rather like to specify a shorter mask,
 	 * but this is not possible. Should work though. XXX
-	 * there is a simpler way ...
 	 */
 	if ((GRE2IFP(sc)->if_flags & IFF_LINK1) == 0) {
-		a = ntohl(sc->g_dst.s_addr);
-		b = a & 0x01;
-		c = a & 0xfffffffe;
-		b = b ^ 0x01;
-		a = b | c;
-		((struct sockaddr_in *)&ro->ro_dst)->sin_addr.s_addr
-		    = htonl(a);
+		((struct sockaddr_in *)&ro->ro_dst)->sin_addr.s_addr ^=
+		    htonl(0x01);
 	}
 
 #ifdef DIAGNOSTIC
