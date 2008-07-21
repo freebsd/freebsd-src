@@ -1464,7 +1464,11 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 			carp_set_state(sc, INIT);
 		if (sc->sc_naddrs)
 			SC2IFP(sc)->if_flags |= IFF_UP;
+		if (sc->sc_carpdev)
+			CARP_SCLOCK(sc);
 		carp_setrun(sc, 0);
+		if (sc->sc_carpdev)
+			CARP_SCUNLOCK(sc);
 		return (0);
 	}
 
@@ -1625,7 +1629,11 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 			carp_set_state(sc, INIT);
 		if (sc->sc_naddrs6)
 			SC2IFP(sc)->if_flags |= IFF_UP;
+		if (sc->sc_carpdev)
+			CARP_SCLOCK(sc);
 		carp_setrun(sc, 0);
+		if (sc->sc_carpdev)
+			CARP_SCUNLOCK(sc);
 		return (0);
 	}
 
