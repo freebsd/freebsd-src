@@ -333,4 +333,10 @@ tcp_offload_listen_close(struct tcpcb *tp)
 #undef SO_OFFLOADABLE
 #endif /* _SYS_SOCKETVAR_H_ */
 #undef tp_offload
+
+void tcp_offload_twstart(struct tcpcb *tp);
+void tcp_offload_twstart_disconnect(struct tcpcb *tp);
+struct tcpcb *tcp_offload_close(struct tcpcb *tp);
+struct tcpcb *tcp_offload_drop(struct tcpcb *tp, int error);
+
 #endif /* _NETINET_TCP_OFFLOAD_H_ */
