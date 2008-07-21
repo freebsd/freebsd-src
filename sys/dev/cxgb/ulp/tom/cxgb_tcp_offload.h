@@ -7,11 +7,6 @@ struct tcpcb;
 struct socket;
 struct sockbuf;
 
-void tcp_offload_twstart(struct tcpcb *tp);
-void tcp_offload_twstart_disconnect(struct tcpcb *tp);
-struct tcpcb *tcp_offload_close(struct tcpcb *tp);
-struct tcpcb *tcp_offload_drop(struct tcpcb *tp, int error);
-
 void sockbuf_lock(struct sockbuf *);
 void sockbuf_lock_assert(struct sockbuf *);
 void sockbuf_unlock(struct sockbuf *);
