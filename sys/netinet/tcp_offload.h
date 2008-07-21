@@ -335,7 +335,6 @@ tcp_offload_listen_close(struct tcpcb *tp)
 #undef tp_offload
 
 void tcp_offload_twstart(struct tcpcb *tp);
-void tcp_offload_twstart_disconnect(struct tcpcb *tp);
 struct tcpcb *tcp_offload_close(struct tcpcb *tp);
 struct tcpcb *tcp_offload_drop(struct tcpcb *tp, int error);
 
