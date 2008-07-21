@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2008
+.Dd July 21, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -582,6 +582,11 @@ header file.
 .Pp
 .It Ic show Cm cbstat
 Show brief information about the TTY subsystem.
+.\"
+.Pp
+.It Ic show Cm conifhk
+Lists hooks currently waiting for completion in
+run_interrupt_driven_config_hooks().
 .\"
 .Pp
 .It Ic show Cm cpusets
