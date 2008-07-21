@@ -3290,7 +3290,7 @@ syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, str
 	to.to_mss = mss;
 	to.to_wscale = wsf;
 	to.to_flags = (mss ? TOF_MSS : 0) | (wsf ? TOF_SCALE : 0) | (ts ? TOF_TS : 0) | (sack ? TOF_SACKPERM : 0);
-	syncache_offload_add(&inc, &to, &th, inp, &lso, &cxgb_toe_usrreqs, toep);
+	tcp_offload_syncache_add(&inc, &to, &th, inp, &lso, &cxgb_toe_usrreqs, toep);
 }
 
 
@@ -3633,7 +3633,7 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	    ntohl(req->local_ip), ntohs(req->local_port),
 	    ntohl(req->peer_ip), ntohs(req->peer_port),
 	    mss, wsf, ts, sack);
-	return syncache_offload_expand(&inc, &to, &th, so, m);
+	return tcp_offload_syncache_expand(&inc, &to, &th, so, m);
 }
 
 
