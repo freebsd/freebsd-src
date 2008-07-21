@@ -164,7 +164,7 @@ arc4_check_init(void)
 	}
 }
 
-static void
+static inline void
 arc4_check_stir(void)
 {
 	if (!rs_stired || arc4_count <= 0) {
@@ -206,6 +206,21 @@ arc4random(void)
 	THREAD_UNLOCK();
 
 	return (rnd);
+}
+
+void
+arc4random_buf(void *_buf, size_t n)
+{
+	u_char *buf = (u_char *)_buf;
+
+	THREAD_LOCK();
+	arc4_check_init();
+	while (n--) {
+		arc4_check_stir();
+		buf[n] = arc4_getbyte(&rs);
+		arc4_count--;
+	}
+	THREAD_UNLOCK();
 }
 
 #if 0
