@@ -100,7 +100,7 @@ vfs_clearmntopt(vfs_t *vfsp, const char *name)
 int
 vfs_optionisset(const vfs_t *vfsp, const char *opt, char **argp)
 {
-	struct vfsoptlist *opts = vfsp->mnt_opt;
+	struct vfsoptlist *opts = vfsp->mnt_optnew;
 	int error;
 
 	if (opts == NULL)
