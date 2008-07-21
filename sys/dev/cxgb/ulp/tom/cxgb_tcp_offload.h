@@ -12,46 +12,6 @@ void tcp_offload_twstart_disconnect(struct tcpcb *tp);
 struct tcpcb *tcp_offload_close(struct tcpcb *tp);
 struct tcpcb *tcp_offload_drop(struct tcpcb *tp, int error);
 
-void inp_apply_all(void (*func)(struct inpcb *, void *), void *arg);
-struct socket *inp_inpcbtosocket(struct inpcb *inp);
-struct tcpcb *inp_inpcbtotcpcb(struct inpcb *inp);
-
-int  inp_ip_tos_get(const struct inpcb *);
-void inp_ip_tos_set(struct inpcb *, int);
-void inp_4tuple_get(const struct inpcb *inp, uint32_t *, uint16_t *, uint32_t *, uint16_t *);
-
-struct tcpcb *so_sototcpcb(struct socket *so);
-struct inpcb *so_sotoinpcb(struct socket *so);
-struct sockbuf *so_sockbuf_snd(struct socket *);
-struct sockbuf *so_sockbuf_rcv(struct socket *);
-
-int so_state_get(const struct socket *);
-void so_state_set(struct socket *, int);
-
-int so_options_get(const struct socket *);
-void so_options_set(struct socket *, int);
-
-int so_error_get(const struct socket *);
-void so_error_set(struct socket *, int);
-
-int so_linger_get(const struct socket *);
-void so_linger_set(struct socket *, int);
-
-struct protosw *so_protosw_get(const struct socket *);
-void so_protosw_set(struct socket *, struct protosw *);
-
-void so_sorwakeup_locked(struct socket *so);
-void so_sowwakeup_locked(struct socket *so);
-
-void so_sorwakeup(struct socket *so);
-void so_sowwakeup(struct socket *so);
-
-void so_lock(struct socket *so);
-void so_unlock(struct socket *so);
-
-void so_listeners_apply_all(struct socket *so, void (*func)(struct socket *, void *), void *arg);
-
-
 void sockbuf_lock(struct sockbuf *);
 void sockbuf_lock_assert(struct sockbuf *);
 void sockbuf_unlock(struct sockbuf *);
