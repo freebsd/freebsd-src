@@ -167,7 +167,7 @@ arc4_check_init(void)
 static void
 arc4_check_stir(void)
 {
-	if (!rs_stired || --arc4_count == 0) {
+	if (!rs_stired || arc4_count <= 0) {
 		arc4_stir(&rs);
 		rs_stired = 1;
 	}
@@ -202,6 +202,7 @@ arc4random(void)
 	arc4_check_init();
 	arc4_check_stir();
 	rnd = arc4_getword(&rs);
+	arc4_count -= 4;
 	THREAD_UNLOCK();
 
 	return (rnd);
