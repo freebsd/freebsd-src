@@ -104,13 +104,18 @@ vn_get(
 
 	vp = vmap->v_vp;
 
-	error = vget(vp, 0, curthread);
-	if (error) {
-		vdrop(vp);
-		return (NULL);
-	}
-
+	error = vget(vp, LK_EXCLUSIVE, curthread);
 	vdrop(vp);
+	if (error)
+		return (NULL);
+
+	/*
+	 * Drop the vnode returned by vget here.
+	 * VOP_RECLAIM(9) should block on internal XFS locks so that
+	 * the reclaiming scheme still remains consistent even if the
+	 * vp is not locked.
+	 */
+	VOP_UNLOCK(vp, 0);
 	if (vp->v_data != xfs_vp) {
 		vput(vp);
 		return (NULL);
