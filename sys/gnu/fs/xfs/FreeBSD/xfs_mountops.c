@@ -199,6 +199,8 @@ _xfs_mount(struct mount		*mp,
 
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (0);
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		return (EPERM);
 
         xmp = xfsmount_allocate(mp);
         if (xmp == NULL)
