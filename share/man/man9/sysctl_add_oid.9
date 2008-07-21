@@ -147,6 +147,16 @@
 .Fa "const char *descr"
 .Fc
 .Ft struct sysctl_oid *
+.Fo SYSCTL_ADD_QUAD
+.Fa "struct sysctl_ctx_list *ctx"
+.Fa "struct sysctl_oid_list *parent"
+.Fa "int number"
+.Fa "const char *name"
+.Fa "int access"
+.Fa "int64_t *arg"
+.Fa "const char *descr"
+.Fc
+.Ft struct sysctl_oid *
 .Fo SYSCTL_ADD_OPAQUE
 .Fa "struct sysctl_ctx_list *ctx"
 .Fa "struct sysctl_oid_list *parent"
@@ -429,6 +439,10 @@ variable.
 .It Fn SYSCTL_ADD_ULONG
 creates an oid that handles an
 .Li unsigned long
+variable.
+.It Fn SYSCTL_ADD_QUAD
+creates an oid that handles an
+.Li int64_t
 variable.
 .It Fn SYSCTL_ADD_OPAQUE
 creates an oid that handles any chunk of opaque data

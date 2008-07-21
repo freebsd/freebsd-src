@@ -40,7 +40,8 @@
 .Nm SYSCTL_UINT ,
 .Nm SYSCTL_ULONG ,
 .Nm SYSCTL_XINT ,
-.Nm SYSCTL_XLONG
+.Nm SYSCTL_XLONG ,
+.Nm SYSCTL_QUAD
 .Nd Static sysctl declaration functions
 .Sh SYNOPSIS
 .In sys/types.h
@@ -57,6 +58,7 @@
 .Fn SYSCTL_ULONG parent nbr name access ptr val descr
 .Fn SYSCTL_XINT parent nbr name access ptr val descr
 .Fn SYSCTL_XLONG parent nbr name access ptr val descr
+.Fn SYSCTL_QUAD parent nbr name access ptr val descr
 .Sh DESCRIPTION
 The
 .Nm SYSCTL
@@ -83,8 +85,9 @@ New nodes are declared using one of
 .Fn SYSCTL_UINT ,
 .Fn SYSCTL_ULONG ,
 .Fn SYSCTL_XINT ,
+.Fn SYSCTL_XLONG ,
 and
-.Fn SYSCTL_XLONG .
+.Fn SYSCTL_QUAD .
 Each macro accepts a parent name, as declared using
 .Fn SYSCTL_DECL ,
 an OID number, typically
