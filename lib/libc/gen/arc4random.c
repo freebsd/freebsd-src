@@ -124,7 +124,7 @@ arc4_stir(struct arc4_stream *as)
 	 */
 	for (n = 0; n < 1024; n++)
 		(void) arc4_getbyte(as);
-	arc4_count = 400000;
+	arc4_count = 1600000;
 }
 
 static inline u_int8_t
@@ -179,6 +179,7 @@ arc4random_stir(void)
 	THREAD_LOCK();
 	arc4_check_init();
 	arc4_stir(&rs);
+	rs_stired = 1;
 	THREAD_UNLOCK();
 }
 
