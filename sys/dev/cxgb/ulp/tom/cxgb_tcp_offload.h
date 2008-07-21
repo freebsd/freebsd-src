@@ -20,9 +20,6 @@ int  sockbuf_sbspace(struct sockbuf *);
 struct tcphdr;
 struct tcpopt;
 
-int	syncache_offload_expand(struct in_conninfo *, struct tcpopt *,
-    struct tcphdr *, struct socket **, struct mbuf *);
-
 #ifndef _SYS_SOCKETVAR_H_
 #include <sys/selinfo.h>
 #include <sys/sx.h>
