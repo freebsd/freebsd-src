@@ -235,7 +235,8 @@ void	*alloca(size_t);
 
 __uint32_t
 	 arc4random(void);
-void	 arc4random_addrandom(unsigned char *dat, int datlen);
+void	 arc4random_addrandom(unsigned char *, int);
+void	 arc4random_buf(void *, size_t);
 void	 arc4random_stir(void);
 char	*getbsize(int *, long *);
 					/* getcap(3) functions */
