@@ -298,7 +298,7 @@ nfs4_request_mnt(struct nfsmount *nmp, struct mbuf *mrest, int procnum,
 			error = 0;
 			waituntil = time_second + trylater_delay;
 			while (time_second < waituntil)
-				(void) tsleep(&lbolt, PSOCK, "nqnfstry", 0);
+				(void) tsleep(&fake_wchan, PSOCK, "nqnfstry", hz);
 			trylater_delay *= nfs_backoff[trylater_cnt];
 			if (trylater_cnt < NFS_NBACKOFF - 1)
 				trylater_cnt++;
