@@ -256,7 +256,11 @@ arc4random_uniform(u_int32_t upper_bound)
 	u_int32_t r, min;
 
 	if (upper_bound < 2)
-		return 0;
+		return (0);
+
+	/* Detect simple power of two case */
+	if ((upper_bound & -upper_bound) == upper_bound)
+		return (arc4random() % upper_bound);
 
 #if (ULONG_MAX > 0xffffffffUL)
 	min = 0x100000000UL % upper_bound;
