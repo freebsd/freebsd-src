@@ -233,7 +233,7 @@ audit_arg_suid(uid_t suid)
 void
 audit_arg_groupset(gid_t *gidset, u_int gidset_size)
 {
-	int i;
+	u_int i;
 	struct kaudit_record *ar;
 
 	ar = currecord();
