@@ -73,7 +73,7 @@ kau_init(void)
  * This call reserves memory for the audit record.  Memory must be guaranteed
  * before any auditable event can be generated.  The au_record structure
  * maintains a reference to the memory allocated above and also the list of
- * tokens associated with this record
+ * tokens associated with this record.
  */
 static struct au_record *
 kau_open(void)
