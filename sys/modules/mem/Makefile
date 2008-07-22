@@ -17,4 +17,13 @@ SRCS+=	amd64_mem.c
 .endif
 SRCS+=	bus_if.h device_if.h
 
+.if ${MACHINE} == "sun4v"
+SRCS+=		opt_global.h
+CFLAGS+=	-include opt_global.h
+MKDEP=		-include opt_global.h
+
+opt_global.h:
+	echo "#define SUN4V 1" > ${.TARGET}
+.endif
+
 .include <bsd.kmod.mk>
