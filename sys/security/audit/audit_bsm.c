@@ -200,7 +200,7 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)
 
-#define	FD_VNODE1_TOKENS	do {					\
+#define	FD_VNODE1_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		if (ARG_IS_VALID(kar, ARG_FD)) {			\
 			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);	\
@@ -232,7 +232,7 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)								\
 
-#define	EXTATTR_TOKENS	do {						\
+#define	EXTATTR_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_VALUE)) {				\
 		switch (ar->ar_arg_value) {				\
 		case EXTATTR_NAMESPACE_USER:				\
