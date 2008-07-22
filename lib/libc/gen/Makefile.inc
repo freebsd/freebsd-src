@@ -69,7 +69,7 @@ MAN+=	alarm.3 arc4random.3 \
 	unvis.3 usleep.3 utime.3 valloc.3 vis.3 wordexp.3
 
 MLINKS+=arc4random.3 arc4random_addrandom.3 arc4random.3 arc4random_stir.3 \
-	arc4random.3 arc4random_buf.3
+	arc4random.3 arc4random_buf.3 arc4random.3 arc4random_uniform.3
 MLINKS+=ctermid.3 ctermid_r.3
 MLINKS+=devname.3 devname_r.3
 MLINKS+=directory.3 closedir.3 directory.3 dirfd.3 directory.3 opendir.3 \
