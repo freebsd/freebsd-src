@@ -267,7 +267,7 @@ init_device_poll(void)
 	netisr_register(NETISR_POLLMORE, (netisr_t *)netisr_pollmore, NULL,
 	    NETISR_MPSAFE);
 }
-SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL)
+SYSINIT(device_poll, SI_SUB_CLOCKS, SI_ORDER_MIDDLE, init_device_poll, NULL);
 
 
 /*
@@ -593,4 +593,5 @@ static struct kproc_desc idlepoll_kp = {
 	 poll_idle,
 	 &idlepoll
 };
-SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start, &idlepoll_kp)
+SYSINIT(idlepoll, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, kproc_start,
+    &idlepoll_kp);

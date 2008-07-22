@@ -245,7 +245,7 @@ sm_attach_mouse(void *unused)
 	/* sysmouse doesn't have scr_stat */
 }
 
-SYSINIT(sysmouse, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sm_attach_mouse, NULL)
+SYSINIT(sysmouse, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, sm_attach_mouse, NULL);
 
 int
 sysmouse_event(mouse_info_t *info)

@@ -428,4 +428,4 @@ aclinit(void *dummy __unused)
 	acl_zone = uma_zcreate("ACL UMA zone", sizeof(struct acl),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
-SYSINIT(acls, SI_SUB_ACL, SI_ORDER_FIRST, aclinit, NULL)
+SYSINIT(acls, SI_SUB_ACL, SI_ORDER_FIRST, aclinit, NULL);

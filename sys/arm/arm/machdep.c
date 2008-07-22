@@ -308,7 +308,7 @@ cpu_startup(void *dummy)
 #endif
 }
 
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 /* Get current clock frequency for the given cpu id. */
 int

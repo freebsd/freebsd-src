@@ -97,7 +97,7 @@ taskqueue_define_##name(void *arg)					\
 }									\
 									\
 SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
-	taskqueue_define_##name, NULL)					\
+	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
 #define TASKQUEUE_DEFINE_THREAD(name)					\
@@ -122,7 +122,7 @@ taskqueue_define_##name(void *arg)					\
 }									\
 									\
 SYSINIT(taskqueue_##name, SI_SUB_CONFIGURE, SI_ORDER_SECOND,		\
-	taskqueue_define_##name, NULL)					\
+	taskqueue_define_##name, NULL);					\
 									\
 struct __hack
 #define TASKQUEUE_FAST_DEFINE_THREAD(name)				\

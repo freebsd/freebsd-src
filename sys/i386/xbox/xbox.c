@@ -82,4 +82,4 @@ xbox_init(void)
  * This must be called before the drivers, as the if_nve(4) driver will fail
  * if we do not do this in advance.
  */
-SYSINIT(xbox, SI_SUB_DRIVERS, SI_ORDER_FIRST, xbox_init, NULL)
+SYSINIT(xbox, SI_SUB_DRIVERS, SI_ORDER_FIRST, xbox_init, NULL);

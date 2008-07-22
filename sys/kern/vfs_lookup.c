@@ -86,7 +86,7 @@ nameiinit(void *dummy __unused)
 		panic("nameiinit: getnewvnode");
 	vp_crossmp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 }
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
 #ifdef LOOKUP_SHARED
 static int lookup_shared = 1;

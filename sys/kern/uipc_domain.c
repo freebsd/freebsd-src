@@ -58,11 +58,11 @@ __FBSDID("$FreeBSD$");
  */
 
 static void domaininit(void *);
-SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL)
+SYSINIT(domain, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, domaininit, NULL);
 
 static void domainfinalize(void *);
 SYSINIT(domainfin, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, domainfinalize,
-    NULL)
+    NULL);
 
 static struct callout pffast_callout;
 static struct callout pfslow_callout;
