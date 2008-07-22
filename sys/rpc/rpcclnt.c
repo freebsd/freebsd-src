@@ -183,6 +183,7 @@ static u_int32_t rpcclnt_xid = 0;
 static u_int32_t rpcclnt_xid_touched = 0;
 struct rpcstats rpcstats;
 int      rpcclnt_ticks;
+static int fake_wchan;
 
 SYSCTL_NODE(_kern, OID_AUTO, rpc, CTLFLAG_RD, 0, "RPC Subsystem");
 
@@ -597,7 +598,7 @@ rpcclnt_reconnect(rep, td)
 	while ((error = rpcclnt_connect(rpc, td)) != 0) {
 		if (error == EINTR || error == ERESTART)
 			RPC_RETURN(EINTR);
-		tsleep(&lbolt, PSOCK, "rpccon", 0);
+		tsleep(&fake_wchan, PSOCK, "rpccon", hz);
 	}
 
 	/*
@@ -2003,7 +2004,7 @@ rpcclnt_cancelreqs(rpc)
 		splx(s);
 		if (task == NULL)
 			return (0);
-		tsleep(&lbolt, PSOCK, "nfscancel", 0);
+		tsleep(&fake_wchan, PSOCK, "nfscancel", hz);
 	}
 	return (EBUSY);
 }

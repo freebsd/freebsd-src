@@ -81,8 +81,9 @@ static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
-static int     nfs3_jukebox_delay = 10;
-static int     nfs_skip_wcc_data_onerr = 1;
+static int	nfs3_jukebox_delay = 10;
+static int	nfs_skip_wcc_data_onerr = 1;
+static int	fake_wchan;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -546,7 +547,7 @@ nfs_reconnect(struct nfsreq *rep)
 			mtx_lock(&nmp->nm_mtx);
 			goto unlock_exit;
 		}
-		(void) tsleep(&lbolt, PSOCK, "nfscon", 0);
+		(void) tsleep(&fake_wchan, PSOCK, "nfscon", hz);
 	}
 
   	/*
@@ -1346,7 +1347,7 @@ wait_for_pinned_req:
 				error = 0;
 				waituntil = time_second + nfs3_jukebox_delay;
 				while (time_second < waituntil) {
-					(void) tsleep(&lbolt, PSOCK, "nqnfstry", 0);
+					(void) tsleep(&fake_wchan, PSOCK, "nqnfstry", hz);
 				}
 				rep->r_xid = *xidp = txdr_unsigned(nfs_xid_gen());
 				goto tryagain;
@@ -1610,7 +1611,7 @@ nfs_nmcancelreqs(nmp)
 		mtx_unlock(&nfs_reqq_mtx);
 		if (req == NULL)
 			return (0);
-		tsleep(&lbolt, PSOCK, "nfscancel", 0);
+		tsleep(&fake_wchan, PSOCK, "nfscancel", hz);
 	}
 	return (EBUSY);
 }

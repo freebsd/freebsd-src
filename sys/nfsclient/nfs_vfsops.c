@@ -117,6 +117,8 @@ static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
 
+static int	fake_wchan;
+
 /*
  * nfs vfs operations.
  */
@@ -700,7 +702,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 		if (nmp->nm_sotype == SOCK_DGRAM)
 			while (nfs_connect(nmp, NULL)) {
 				printf("nfs_args: retrying connect\n");
-				(void) tsleep((caddr_t)&lbolt, PSOCK, "nfscon", 0);
+				(void) tsleep(&fake_wchan, PSOCK, "nfscon", hz);
 			}
 	}
 
