@@ -54,7 +54,7 @@ struct arc4_stream {
 
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-#define	RANDOMDEV	"/dev/urandom"
+#define	RANDOMDEV	"/dev/random"
 #define	THREAD_LOCK()						\
 	do {							\
 		if (__isthreaded)				\
