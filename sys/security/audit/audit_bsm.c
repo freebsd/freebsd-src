@@ -385,7 +385,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	ar = &kar->k_ar;
 	rec = kau_open();
 
-	/* Create the subject token */
+	/*
+	 * Create the subject token.
+	 */
 	switch (ar->ar_subj_term_addr.at_type) {
 	case AU_IPv4:
 		tid.port = ar->ar_subj_term_addr.at_port;
@@ -817,7 +819,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 
 	case AUE_FCNTL:
 		if (ar->ar_arg_cmd == F_GETLK || ar->ar_arg_cmd == F_SETLK ||
-			ar->ar_arg_cmd == F_SETLKW) {
+		    ar->ar_arg_cmd == F_SETLKW) {
 			if (ARG_IS_VALID(kar, ARG_CMD)) {
 				tok = au_to_arg32(2, "cmd", ar->ar_arg_cmd);
 				kau_write(rec, tok);
@@ -1315,8 +1317,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_POSIX_IPC_PERM)) {
-		/* Create an ipc_perm token */
 			struct ipc_perm perm;
+
 			perm.uid = ar->ar_arg_pipc_perm.pipc_uid;
 			perm.gid = ar->ar_arg_pipc_perm.pipc_gid;
 			perm.cuid = ar->ar_arg_pipc_perm.pipc_uid;
@@ -1350,8 +1352,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_POSIX_IPC_PERM)) {
-		/* Create an ipc_perm token */
 			struct ipc_perm perm;
+
 			perm.uid = ar->ar_arg_pipc_perm.pipc_uid;
 			perm.gid = ar->ar_arg_pipc_perm.pipc_gid;
 			perm.cuid = ar->ar_arg_pipc_perm.pipc_uid;
@@ -1417,7 +1419,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	default:
 		printf("BSM conversion requested for unknown event %d\n",
 		    ar->ar_event);
-		/* Write the subject token so it is properly freed here. */
+
+		/*
+		 * Write the subject token so it is properly freed here.
+		 */
 		kau_write(rec, subj_tok);
 		kau_free(rec);
 		return (BSM_NOAUDIT);
