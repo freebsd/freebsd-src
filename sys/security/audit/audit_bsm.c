@@ -157,7 +157,7 @@ kau_free(struct au_record *rec)
 
 /*
  * XXX: May want turn some (or all) of these macros into functions in order
- * to reduce the generated code sized.
+ * to reduce the generated code size.
  *
  * XXXAUDIT: These macros assume that 'kar', 'ar', 'rec', and 'tok' in the
  * caller are OK with this.
