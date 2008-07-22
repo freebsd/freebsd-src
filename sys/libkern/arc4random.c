@@ -69,18 +69,21 @@ arc4_randomstir (void)
 		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
 		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
 	}
+	arc4_i = arc4_j = 0;
 
 	/* Reset for next reseed cycle. */
 	arc4_t_reseed = tv_now.tv_sec + ARC4_RESEED_SECONDS;
 	arc4_numruns = 0;
 
 	/*
-	 * Throw away the first N words of output, as suggested in the
+	 * Throw away the first N bytes of output, as suggested in the
 	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
-	 * by Fluher, Mantin, and Shamir.  (N = 256 in our case.)
+	 * by Fluher, Mantin, and Shamir.  N=768 is based on
+	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
+	 * by Ilya Mironov.
 	 */
-	for (n = 0; n < 256*4; n++)
-		arc4_randbyte();
+	for (n = 0; n < 768; n++)
+		(void)arc4_randbyte();
 	mtx_unlock(&arc4_mtx);
 }
 
