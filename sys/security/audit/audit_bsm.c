@@ -177,24 +177,24 @@ kau_free(struct au_record *rec)
 } while (0)
 
 #define	VNODE1_TOKENS do {						\
-	if (ARG_IS_VALID(kar, ARG_VNODE1)) {  				\
+	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
 #define	UPATH1_VNODE1_TOKENS do {					\
-	if (ARG_IS_VALID(kar, ARG_UPATH1)) {  				\
+	if (ARG_IS_VALID(kar, ARG_UPATH1)) {				\
 		UPATH1_TOKENS;						\
 	}								\
-	if (ARG_IS_VALID(kar, ARG_VNODE1)) {  				\
+	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
 #define	VNODE2_TOKENS do {						\
-	if (ARG_IS_VALID(kar, ARG_VNODE2)) {  				\
+	if (ARG_IS_VALID(kar, ARG_VNODE2)) {				\
 		tok = au_to_attr32(&ar->ar_arg_vnode2);			\
 		kau_write(rec, tok);					\
 	}								\
@@ -393,8 +393,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		subj_tok = au_to_subject32(ar->ar_subj_auid,  /* audit ID */
 		    ar->ar_subj_cred.cr_uid, /* eff uid */
 		    ar->ar_subj_egid,	/* eff group id */
-		    ar->ar_subj_ruid, 	/* real uid */
-		    ar->ar_subj_rgid, 	/* real group id */
+		    ar->ar_subj_ruid,	/* real uid */
+		    ar->ar_subj_rgid,	/* real group id */
 		    ar->ar_subj_pid,	/* process id */
 		    ar->ar_subj_asid,	/* session ID */
 		    &tid);
@@ -876,7 +876,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 				if (ARG_IS_VALID(kar, ARG_FD)) {
 					tok = au_to_arg32(1, "fd",
 					    ar->ar_arg_fd);
-			    		kau_write(rec, tok);
+					kau_write(rec, tok);
 				}
 			}
 		}
