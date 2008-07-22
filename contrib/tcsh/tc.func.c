@@ -632,7 +632,7 @@ xgetpass(const char *prm)
     }
     strbuf_terminate(&pass);
 
-    cleanup_until(&sa);
+    cleanup_until(&osa);
 
     return pass.s;
 }
