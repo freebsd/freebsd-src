@@ -127,6 +127,8 @@ static vfs_root_t nfs4_root;
 static vfs_statfs_t nfs4_statfs;
 static vfs_sync_t nfs4_sync;
 
+static int	fake_wchan;
+
 /*
  * nfs vfs operations.
  */
@@ -374,7 +376,7 @@ nfs4_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
 		if (nmp->nm_sotype == SOCK_DGRAM) {
 			while (nfs4_connect(nmp)) {
 				printf("nfs4_decode_args: retrying connect\n");
-				(void)tsleep(&lbolt, PSOCK, "nfscon", 0);
+				(void)tsleep(&fake_wchan, PSOCK, "nfscon", hz);
 			}
 		}
 	}
