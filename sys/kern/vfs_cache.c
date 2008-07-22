@@ -563,7 +563,7 @@ nchinit(void *dummy __unused)
 
 	nchashtbl = hashinit(desiredvnodes * 2, M_VFSCACHE, &nchash);
 }
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL)
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
 
 /*

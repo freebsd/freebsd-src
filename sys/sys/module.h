@@ -116,7 +116,7 @@ struct mod_metadata {
 
 #define	DECLARE_MODULE(name, data, sub, order)				\
 	MODULE_METADATA(_md_##name, MDT_MODULE, &data, #name);		\
-	SYSINIT(name##module, sub, order, module_register_init, &data)	\
+	SYSINIT(name##module, sub, order, module_register_init, &data);	\
 	struct __hack
 
 #define	MODULE_VERSION(module, version)					\

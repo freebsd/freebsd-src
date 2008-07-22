@@ -386,7 +386,7 @@ mptable_register(void *dummy __unused)
 	apic_register_enumerator(&mptable_enumerator);
 }
 SYSINIT(mptable_register, SI_SUB_CPU - 1, SI_ORDER_FIRST, mptable_register,
-    NULL)
+    NULL);
 
 /*
  * Call the handler routine for each entry in the MP config table.

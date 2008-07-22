@@ -141,7 +141,7 @@ extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 static void cpu_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
 struct msgbuf *msgbufp=0;
 

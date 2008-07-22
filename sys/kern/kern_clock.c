@@ -79,7 +79,7 @@ extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
 
 static void initclocks(void *dummy);
-SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
+SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
 
 /* Spin-lock protecting profiling statistics. */
 static struct mtx time_lock;

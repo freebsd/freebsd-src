@@ -288,7 +288,7 @@ printf_caddr_t(void *data)
 static char preempt_warning[] =
     "WARNING: Kernel preemption is disabled, expect reduced performance.\n";
 SYSINIT(preempt_warning, SI_SUB_COPYRIGHT, SI_ORDER_ANY, printf_caddr_t,
-    preempt_warning)
+    preempt_warning);
 #endif
 #endif
 

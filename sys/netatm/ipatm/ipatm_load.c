@@ -780,7 +780,7 @@ ipatm_mod(lkmtp, cmd, ver)
  */
 static void	ipatm_doload(void *);
 
-SYSINIT(atmipatm, SI_SUB_PROTO_END, SI_ORDER_ANY, ipatm_doload, NULL)
+SYSINIT(atmipatm, SI_SUB_PROTO_END, SI_ORDER_ANY, ipatm_doload, NULL);
 
 /*
  * Kernel initialization

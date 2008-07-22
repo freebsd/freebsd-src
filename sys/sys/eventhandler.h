@@ -112,7 +112,7 @@ struct __hack
 		    priority);						\
 	}								\
 	SYSINIT(name ## _evh_init, SI_SUB_CONFIGURE, SI_ORDER_ANY,	\
-	    name ## _evh_init, arg)					\
+	    name ## _evh_init, arg);					\
 	struct __hack
 
 #define EVENTHANDLER_INVOKE(name, ...)					\

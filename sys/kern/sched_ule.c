@@ -313,10 +313,11 @@ static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
 #endif
 
 static void sched_setup(void *dummy);
-SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
+SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
 
 static void sched_initticks(void *dummy);
-SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL)
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
+    NULL);
 
 /*
  * Print the threads waiting on a run-queue.

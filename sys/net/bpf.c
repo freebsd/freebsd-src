@@ -1823,7 +1823,7 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL)
+SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL);
 
 #else /* !DEV_BPF && !NETGRAPH_BPF */
 /*

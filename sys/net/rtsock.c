@@ -117,7 +117,7 @@ rts_init(void)
 	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, NETISR_MPSAFE);
 }
-SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0)
+SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
 
 static void
 rts_input(struct mbuf *m)

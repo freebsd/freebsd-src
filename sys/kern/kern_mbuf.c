@@ -234,7 +234,7 @@ CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 /*
  * Initialize FreeBSD Network buffer allocation.
  */
-SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL)
+SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbuf_init, NULL);
 static void
 mbuf_init(void *dummy)
 {
