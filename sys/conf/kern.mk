@@ -110,6 +110,7 @@ CFLAGS+=	-restrict
 #
 # GCC SSP support.
 #
-.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64"
+.if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
+	${MACHINE_ARCH} != "arm"
 CFLAGS+=	-fstack-protector
 .endif
