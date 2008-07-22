@@ -323,6 +323,7 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		return (ENOSPC);
 
 	/* Check that there's a Driver Descriptor Record (DDR). */
+	/* XXX Tivo APM drives do not have a DDR */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
