@@ -142,6 +142,7 @@ gv_rename_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, c
 	}
 
 	strncpy(d->name, newname, GV_MAXDRIVENAME);
+	strncpy(d->hdr->label.name, newname, GV_MAXDRIVENAME);
 
 	/* XXX can we rename providers here? */
 
