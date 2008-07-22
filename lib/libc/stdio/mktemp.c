@@ -125,7 +125,7 @@ _gettemp(path, doopen, domkdir, slen)
 
 	/* Fill space with random characters */
 	while (trv >= path && *trv == 'X') {
-		rand = arc4random() % (sizeof(padchar) - 1);
+		rand = arc4random_uniform(sizeof(padchar) - 1);
 		*trv-- = padchar[rand];
 	}
 	start = trv + 1;
