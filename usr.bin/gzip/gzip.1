@@ -27,7 +27,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd June 6, 2007
+.Dd June 30, 2008
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -72,10 +72,22 @@ When in compression mode, each
 will be replaced with another file with the suffix, set by the
 .Fl S Ar suffix
 option, added, if possible.
+.Pp
 In decompression mode, each
 .Ar file
 will be checked for existence, as will the file with the suffix
 added.
+Each
+.Ar file
+argument must contain a separate complete archive;
+when multiple
+.Ar files
+are indicated, each is decompressed in turn.
+.Pp
+In the case of
+.Nm gzcat
+the resulting data is then concatenated in the manner of
+.Xr cat 1 .
 .Pp
 If invoked as
 .Nm gunzip
