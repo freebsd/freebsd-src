@@ -123,7 +123,7 @@ arc4_stir(void)
 	/* !done?  Ah, what the heck. We'll just take whatever was on the
 	 * stack... */
 	if (!done) {
-		gettimeofday(&rdat.tv, NULL);
+		(void)gettimeofday(&rdat.tv, NULL);
 		rdat.pid = getpid();
 	}
 
@@ -132,12 +132,12 @@ arc4_stir(void)
 	/*
 	 * Throw away the first N bytes of output, as suggested in the
 	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
-	 * by Fluher, Mantin, and Shamir.  N=512 is based on
+	 * by Fluher, Mantin, and Shamir.  N=768 is based on
 	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
 	 * by Ilya Mironov.
 	 */
 	if (rs_initialized != 1) {
-		for (n = 0; n < 512; n++)
+		for (n = 0; n < 768; n++)
 			(void)arc4_getbyte();
 		rs_initialized = 1;
 	}
