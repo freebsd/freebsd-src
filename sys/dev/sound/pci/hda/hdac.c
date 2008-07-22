@@ -81,7 +81,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20071129_0050"
+#define HDA_DRV_TEST_REV	"20080420_0052"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -101,6 +101,12 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
 #define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)
 #define hdac_lockowned(sc)	mtx_owned((sc)->lock)
+
+#undef HDAC_MSI_ENABLED
+#if __FreeBSD_version >= 700026 ||					\
+    (__FreeBSD_version < 700000 && __FreeBSD_version >= 602106)
+#define HDAC_MSI_ENABLED	1
+#endif
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
 #define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
@@ -187,7 +193,9 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Dell */
 #define DELL_VENDORID		0x1028
+#define DELL_D630_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01f9)
 #define DELL_D820_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01cc)
+#define DELL_V1500_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x0228)
 #define DELL_I1300_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01c9)
 #define DELL_XPSM1210_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01d7)
 #define DELL_OPLX745_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01da)
@@ -208,19 +216,20 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Asus */
 #define ASUS_VENDORID		0x1043
-#define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
+#define ASUS_A8X_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1153)
 #define ASUS_U5F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
-#define ASUS_A8JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1153)
-#define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
-#define ASUS_A7M_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1323)
-#define ASUS_A7T_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x13c2)
 #define ASUS_W6F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
-#define ASUS_W2J_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1971)
+#define ASUS_A7M_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1323)
 #define ASUS_F3JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1338)
-#define ASUS_M2V_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81e7)
-#define ASUS_M2N_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x8234)
+#define ASUS_G2K_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1339)
+#define ASUS_A7T_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x13c2)
+#define ASUS_W2J_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1971)
+#define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
+#define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_M2NPVMX_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
+#define ASUS_M2V_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81e7)
 #define ASUS_P5BWD_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81ec)
+#define ASUS_M2N_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x8234)
 #define ASUS_A8NVMCSM_SUBVENDOR	HDA_MODEL_CONSTRUCT(NVIDIA, 0xcb84)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
@@ -548,6 +557,8 @@ static const struct {
 #define HDA_CODEC_STAC922XD	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7681)
 #define HDA_CODEC_STAC9227	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7618)
 #define HDA_CODEC_STAC9271D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7627)
+#define HDA_CODEC_STAC9205	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a0)
+#define HDA_CODEC_STAC9872AK	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7662)
 #define HDA_CODEC_STACXXXX	HDA_CODEC_CONSTRUCT(SIGMATEL, 0xffff)
 
 /*
@@ -610,6 +621,8 @@ static const struct {
 	{ HDA_CODEC_STAC922XD, "Sigmatel STAC9220D/9223D" },
 	{ HDA_CODEC_STAC9227,  "Sigmatel STAC9227" },
 	{ HDA_CODEC_STAC9271D, "Sigmatel STAC9271D" },
+	{ HDA_CODEC_STAC9205,  "Sigmatel STAC9205" },
+	{ HDA_CODEC_STAC9872AK,"Sigmatel STAC9872AK" },
 	{ HDA_CODEC_CXVENICE,  "Conexant Venice" },
 	{ HDA_CODEC_CXWAIKIKI, "Conexant Waikiki" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
@@ -676,6 +689,10 @@ static const struct {
 	    0, 0, -1, 13, { 14, -1 }, -1 },
 	{ DELL_OPLX745_SUBVENDOR, HDA_CODEC_AD1983, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 6, { 5, 7, -1 }, -1 },
+	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205, HDAC_HP_SWITCH_CTRL,
+	    0, 0, -1, 10, { 13, -1 }, -1 },
+	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205, HDAC_HP_SWITCH_CTRL,
+	    0, 0, -1, 10, { 13, -1 }, -1 },
 	{ APPLE_MB3_SUBVENDOR, HDA_CODEC_ALC885, HDAC_HP_SWITCH_CTL,
 	    0, 0, -1, 21, { 20, 22, -1 }, -1 },
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDAC_HP_SWITCH_CTRL,
@@ -1560,7 +1577,7 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	irq = &sc->irq;
 	irq->irq_rid = 0x0;
 
-#if __FreeBSD_version >= 602106
+#ifdef HDAC_MSI_ENABLED
 	if ((sc->flags & HDAC_F_MSI) &&
 	    (result = pci_msi_count(sc->dev)) == 1 &&
 	    pci_alloc_msi(sc->dev, &result) == 0)
@@ -1609,7 +1626,7 @@ hdac_irq_free(struct hdac_softc *sc)
 	if (irq->irq_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
 		    irq->irq_res);
-#if __FreeBSD_version >= 602106
+#ifdef HDAC_MSI_ENABLED
 	if ((sc->flags & HDAC_F_MSI) && irq->irq_rid == 0x1)
 		pci_release_msi(sc->dev);
 #endif
@@ -2131,6 +2148,16 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
 			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
 			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_OUT |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		case 12:
+		case 14:
+		case 16:
+		case 31:
+		case 32:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
 			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
 			break;
 		case 15:
@@ -3811,7 +3838,7 @@ hdac_attach(device_t dev)
 		);
 	}
 
-#if __FreeBSD_version >= 602106
+#ifdef HDAC_MSI_ENABLED
 	if (resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "msi", &i) == 0 && i != 0 &&
 	    pci_msi_count(dev) == 1)
@@ -4201,6 +4228,8 @@ static const struct {
 	    HDA_QUIRK_FORCESTEREO | HDA_QUIRK_IVREF, 0 },
 	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
 	    HDA_QUIRK_GPIO0, 0 },
+	{ ASUS_G2K_SUBVENDOR, HDA_CODEC_ALC660,
+	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
 	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_A7M_SUBVENDOR, HDA_CODEC_ALC880,
@@ -4211,11 +4240,9 @@ static const struct {
 	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
-	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
+	{ ASUS_A8X_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ ASUS_F3JC_SUBVENDOR, HDA_CODEC_ALC861,
-	    HDA_QUIRK_OVREF, 0 },
-	{ ASUS_W6F_SUBVENDOR, HDA_CODEC_ALC861,
 	    HDA_QUIRK_OVREF, 0 },
 	{ UNIWILL_9075_SUBVENDOR, HDA_CODEC_ALC861,
 	    HDA_QUIRK_OVREF, 0 },
@@ -4231,6 +4258,10 @@ static const struct {
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_OVREF50, 0},
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
+	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205,
+	    HDA_QUIRK_GPIO0, 0 },
+	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205,
+	    HDA_QUIRK_GPIO0, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
 	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988B,
@@ -4432,6 +4463,20 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			w = hdac_widget_get(devinfo, 16);
 			if (w != NULL)
 				w->selconn = 1;
+		} else if (subvendor == ASUS_A8X_SUBVENDOR) {
+			/*
+			 * This is just plain ridiculous.. There
+			 * are several A8 series that share the same
+			 * pci id but works differently (EAPD).
+			 */
+			w = hdac_widget_get(devinfo, 26);
+			if (w != NULL && w->type ==
+			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+			    (w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) !=
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE)
+				devinfo->function.audio.quirks &=
+				    ~HDA_QUIRK_EAPDINV;
 		}
 		break;
 	case HDA_CODEC_AD1988:
@@ -4485,6 +4530,17 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		if (ctl != NULL) {
 			ctl->ossmask = SOUND_MASK_SPEAKER | SOUND_MASK_VOLUME;
 			ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+		}
+		break;
+	case HDA_CODEC_STAC9205:
+		if ((subvendor == DELL_V1500_SUBVENDOR) ||
+		    (subvendor == DELL_D630_SUBVENDOR)) {
+			w = hdac_widget_get(devinfo, 29);
+			if (w != NULL)
+				w->selconn = 1;
+			w = hdac_widget_get(devinfo, 30);
+			if (w != NULL)
+				w->selconn = 1;
 		}
 		break;
 	case HDA_CODEC_STAC9221:
