@@ -358,7 +358,7 @@ struct socket *
 	inp_inpcbtosocket(struct inpcb *inp);
 struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
-void 	inp_4tuple_get(const struct inpcb *inp, uint32_t *laddr, uint16_t *lp, 
+void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp, 
 		uint32_t *faddr, uint16_t *fp);
 
 #endif /* _KERNEL */
