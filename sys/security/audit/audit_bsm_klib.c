@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  * Hash table functions for the audit event number to event class mask
  * mapping.
  */
-#define EVCLASSMAP_HASH_TABLE_SIZE 251
+#define	EVCLASSMAP_HASH_TABLE_SIZE 251
 struct evclass_elem {
 	au_event_t event;
 	au_class_t class;

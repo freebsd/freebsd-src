@@ -162,28 +162,28 @@ kau_free(struct au_record *rec)
  * XXXAUDIT: These macros assume that 'kar', 'ar', 'rec', and 'tok' in the
  * caller are OK with this.
  */
-#define UPATH1_TOKENS do {						\
+#define	UPATH1_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_UPATH1)) {				\
 		tok = au_to_path(ar->ar_arg_upath1);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
-#define UPATH2_TOKENS do {						\
+#define	UPATH2_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_UPATH2)) {				\
 		tok = au_to_path(ar->ar_arg_upath2);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
-#define VNODE1_TOKENS do {						\
+#define	VNODE1_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {  				\
 		tok = au_to_attr32(&ar->ar_arg_vnode1);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
-#define UPATH1_VNODE1_TOKENS do {					\
+#define	UPATH1_VNODE1_TOKENS do {					\
 	if (ARG_IS_VALID(kar, ARG_UPATH1)) {  				\
 		UPATH1_TOKENS;						\
 	}								\
@@ -193,14 +193,14 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)
 
-#define VNODE2_TOKENS do {						\
+#define	VNODE2_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_VNODE2)) {  				\
 		tok = au_to_attr32(&ar->ar_arg_vnode2);			\
 		kau_write(rec, tok);					\
 	}								\
 } while (0)
 
-#define FD_VNODE1_TOKENS	do {					\
+#define	FD_VNODE1_TOKENS	do {					\
 	if (ARG_IS_VALID(kar, ARG_VNODE1)) {				\
 		if (ARG_IS_VALID(kar, ARG_FD)) {			\
 			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);	\
@@ -217,7 +217,7 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)
 
-#define PROCESS_PID_TOKENS(argn) do {					\
+#define	PROCESS_PID_TOKENS(argn) do {					\
 	if ((ar->ar_arg_pid > 0) /* Reference a single process */	\
 	    && (ARG_IS_VALID(kar, ARG_PROCESS))) {			\
 		tok = au_to_process32_ex(ar->ar_arg_auid,		\
@@ -232,7 +232,7 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)								\
 
-#define EXTATTR_TOKENS	do {						\
+#define	EXTATTR_TOKENS	do {						\
 	if (ARG_IS_VALID(kar, ARG_VALUE)) {				\
 		switch (ar->ar_arg_value) {				\
 		case EXTATTR_NAMESPACE_USER:				\
