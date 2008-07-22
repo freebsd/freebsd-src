@@ -230,7 +230,7 @@ kau_free(struct au_record *rec)
 		tok = au_to_arg32(argn, "process", ar->ar_arg_pid);	\
 		kau_write(rec, tok);					\
 	}								\
-} while (0)								\
+} while (0)
 
 #define	EXTATTR_TOKENS do {						\
 	if (ARG_IS_VALID(kar, ARG_VALUE)) {				\
