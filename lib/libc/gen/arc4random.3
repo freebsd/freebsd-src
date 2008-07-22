@@ -36,6 +36,7 @@
 .Sh NAME
 .Nm arc4random ,
 .Nm arc4random_buf ,
+.Nm arc4random_uniform ,
 .Nm arc4random_stir ,
 .Nm arc4random_addrandom
 .Nd arc4 random number generator
@@ -47,6 +48,8 @@
 .Fn arc4random "void"
 .Ft void
 .Fn arc4random_buf "void *buf" "size_t nbytes"
+.Ft u_int32_t
+.Fn arc4random_uniform "u_int32_t upper_bound"
 .Ft void
 .Fn arc4random_stir "void"
 .Ft void
@@ -77,6 +80,14 @@ function fills the region
 of length
 .Fa nbytes
 with ARC4-derived random data.
+.Pp
+.Fn arc4random_uniform
+will return a uniformly distributed random number less than
+.Fa upper_bound .
+.Fn arc4random_uniform
+is recommended over constructions like
+.Dq Li arc4random() % upper_bound
+as it avoids "modulo bias" when the upper bound is not a power of two.
 .Pp
 The
 .Fn arc4random_stir
