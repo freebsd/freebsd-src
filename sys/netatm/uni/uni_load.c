@@ -344,7 +344,7 @@ uni_mod(lkmtp, cmd, ver)
  */
 static void	uni_doload(void *);
 
-SYSINIT(atmuni, SI_SUB_PROTO_END, SI_ORDER_ANY, uni_doload, NULL)
+SYSINIT(atmuni, SI_SUB_PROTO_END, SI_ORDER_ANY, uni_doload, NULL);
 
 /*
  * Kernel initialization

@@ -709,7 +709,8 @@ static struct kproc_desc softdep_kp = {
 	softdep_flush,
 	&softdepproc
 };
-SYSINIT(sdproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start, &softdep_kp)
+SYSINIT(sdproc, SI_SUB_KTHREAD_UPDATE, SI_ORDER_ANY, kproc_start,
+    &softdep_kp);
 
 static void
 softdep_flush(void)

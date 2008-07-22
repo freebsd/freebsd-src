@@ -150,7 +150,7 @@ shutdown_conf(void *unused)
 	    SHUTDOWN_PRI_LAST + 200);
 }
 
-SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
+SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL);
 
 /*
  * The system call that results in a reboot.

@@ -321,7 +321,7 @@ vntblinit(void *dummy __unused)
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
 }
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL)
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
 
 /*
@@ -780,7 +780,8 @@ static struct kproc_desc vnlru_kp = {
 	vnlru_proc,
 	&vnlruproc
 };
-SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
+SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
+    &vnlru_kp);
 
 /*
  * Routines having to do with the management of the vnode table.
@@ -1608,7 +1609,7 @@ static struct kproc_desc up_kp = {
 	sched_sync,
 	&updateproc
 };
-SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
+SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp);
 
 static int
 sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)

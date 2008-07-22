@@ -918,4 +918,4 @@ pty_drvinit(void *unused)
 	EVENTHANDLER_REGISTER(dev_clone, pty_clone, 0, 1000);
 }
 
-SYSINIT(ptydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,pty_drvinit,NULL)
+SYSINIT(ptydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,pty_drvinit,NULL);

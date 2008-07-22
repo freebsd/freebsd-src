@@ -409,7 +409,7 @@ madt_register(void *dummy __unused)
 	apic_register_enumerator(&madt_enumerator);
 }
 SYSINIT(madt_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST,
-    madt_register, NULL)
+    madt_register, NULL);
 
 /*
  * Call the handler routine for each entry in the MADT table.
@@ -779,4 +779,4 @@ madt_set_ids(void *dummy)
 			    la->la_acpi_id);
 	}
 }
-SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_ANY, madt_set_ids, NULL)
+SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_ANY, madt_set_ids, NULL);

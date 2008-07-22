@@ -510,7 +510,7 @@ intr_init(void *dummy __unused)
 	sx_init(&intr_table_lock, "intr sources");
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
-SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL)
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
 
 #ifndef DEV_ATPIC
 /* Initialize the two 8259A's to a known-good shutdown state. */
@@ -642,5 +642,6 @@ intr_shuffle_irqs(void *arg __unused)
 	}
 	sx_xunlock(&intr_table_lock);
 }
-SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs, NULL)
+SYSINIT(intr_shuffle_irqs, SI_SUB_SMP, SI_ORDER_SECOND, intr_shuffle_irqs,
+    NULL);
 #endif

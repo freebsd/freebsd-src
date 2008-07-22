@@ -263,7 +263,7 @@ audit_init(void)
 	audit_worker_init();
 }
 
-SYSINIT(audit_init, SI_SUB_AUDIT, SI_ORDER_FIRST, audit_init, NULL)
+SYSINIT(audit_init, SI_SUB_AUDIT, SI_ORDER_FIRST, audit_init, NULL);
 
 /*
  * Drain the audit queue and close the log at shutdown.  Note that this can

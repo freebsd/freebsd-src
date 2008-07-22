@@ -266,4 +266,4 @@ start_netisr(void *dummy)
 	if (swi_add(NULL, "net", swi_net, NULL, SWI_NET, INTR_MPSAFE, &net_ih))
 		panic("start_netisr");
 }
-SYSINIT(start_netisr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_netisr, NULL)
+SYSINIT(start_netisr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_netisr, NULL);

@@ -123,7 +123,8 @@ static struct kproc_desc page_kp = {
 	vm_pageout,
 	&pageproc
 };
-SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
+SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start,
+    &page_kp);
 
 #if !defined(NO_SWAPPING)
 /* the kernel process "vm_daemon"*/
@@ -135,7 +136,7 @@ static struct kproc_desc vm_kp = {
 	vm_daemon,
 	&vmproc
 };
-SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
+SYSINIT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp);
 #endif
 
 

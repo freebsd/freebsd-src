@@ -65,7 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 static void synch_setup(void *dummy);
-SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL)
+SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
+    NULL);
 
 int	hogticks;
 int	lbolt;

@@ -855,7 +855,7 @@ sigpvc_mod(lkmtp, cmd, ver)
  */
 static void	sigpvc_doload(void *);
 
-SYSINIT(atmsigpvc, SI_SUB_PROTO_END, SI_ORDER_ANY, sigpvc_doload, NULL)
+SYSINIT(atmsigpvc, SI_SUB_PROTO_END, SI_ORDER_ANY, sigpvc_doload, NULL);
 
 /*
  * Kernel initialization

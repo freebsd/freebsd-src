@@ -79,7 +79,7 @@ run_interrupt_driven_config_hooks(dummy)
 	mtx_unlock(&intr_config_hook_lock);
 }
 SYSINIT(intr_config_hooks, SI_SUB_INT_CONFIG_HOOKS, SI_ORDER_FIRST,
-	run_interrupt_driven_config_hooks, NULL)
+	run_interrupt_driven_config_hooks, NULL);
 
 /*
  * Register a hook that will be called after "cold"
