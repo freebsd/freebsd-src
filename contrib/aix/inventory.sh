@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # inventory.sh
-# $Id$
+# $Id: inventory.sh 180740 2008-07-23 09:15:38Z des $
 #
 # Originally written by Ben Lindstrom, modified by Darren Tucker to use perl
 # This file is placed into the public domain.
