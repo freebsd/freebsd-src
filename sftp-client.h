@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.h,v 1.14 2005/04/26 12:59:02 jmc Exp $ */
+/* $OpenBSD: sftp-client.h,v 1.15 2008/01/11 07:22:28 chl Exp $ */
 
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
@@ -61,9 +61,6 @@ Attrib *do_stat(struct sftp_conn *, char *, int);
 /* Get file attributes of 'path' (does not follow symlinks) */
 Attrib *do_lstat(struct sftp_conn *, char *, int);
 
-/* Get file attributes of open file 'handle' */
-Attrib *do_fstat(struct sftp_conn *, char *, u_int, int);
-
 /* Set file attributes of 'path' */
 int do_setstat(struct sftp_conn *, char *, Attrib *);
 
@@ -78,9 +75,6 @@ int do_rename(struct sftp_conn *, char *, char *);
 
 /* Rename 'oldpath' to 'newpath' */
 int do_symlink(struct sftp_conn *, char *, char *);
-
-/* Return target of symlink 'path' - caller must free result */
-char *do_readlink(struct sftp_conn *, char *);
 
 /* XXX: add callbacks to do_download/do_upload so we can do progress meter */
 

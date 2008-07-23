@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.237 2007/06/07 19:37:34 pvalchev Exp $
-.Dd $Mdocdate: August 16 2007 $
+.\" $OpenBSD: sshd.8,v 1.240 2008/03/26 21:28:14 djm Exp $
+.Dd $Mdocdate: March 27 2008 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -531,6 +531,9 @@ This might be used, e.g. in connection with the
 option.
 .It Cm no-pty
 Prevents tty allocation (a request to allocate a pty will fail).
+.It Cm no-user-rc
+Disables execution of 
+.Pa ~/.ssh/rc .
 .It Cm no-X11-forwarding
 Forbids X11 forwarding when this key is used for authentication.
 Any X11 forward requests by the client will return an error.
@@ -681,6 +684,13 @@ This file is used in exactly the same way as
 .Pa .rhosts ,
 but allows host-based authentication without permitting login with
 rlogin/rsh.
+.Pp
+.It ~/.ssh/
+This directory is the default location for all user-specific configuration
+and authentication information.
+There is no general requirement to keep the entire contents of this directory
+secret, but the recommended permissions are read/write/execute for the user,
+and not accessible by others.
 .Pp
 .It ~/.ssh/authorized_keys
 Lists the public keys (RSA/DSA) that can be used for logging in as this user.

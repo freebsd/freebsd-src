@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.10 2007/06/14 13:47:31 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.12 2008/02/28 08:22:04 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -18,6 +18,11 @@
 
 #include "includes.h"
 #include <openssl/evp.h>
+
+/* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
+#if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
+# define OPENSSL_free(x) Free(x)
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x00906000L
 # define SSH_OLD_EVP
@@ -79,8 +84,8 @@ extern const EVP_CIPHER *evp_acss(void);
 #  ifdef SSLeay_add_all_algorithms
 #   undef SSLeay_add_all_algorithms
 #  endif
-#  define SSLeay_add_all_algorithms()	ssh_SSLeay_add_all_algorithms()
-#endif
+#  define SSLeay_add_all_algorithms()  ssh_SSLeay_add_all_algorithms()
+# endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);

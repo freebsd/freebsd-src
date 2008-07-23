@@ -1,7 +1,6 @@
-/* $Id: port-linux.h,v 1.2 2008/03/26 20:27:21 dtucker Exp $ */
-
+/* $OpenBSD: sftp-server-main.c,v 1.3 2008/03/26 23:44:41 djm Exp $ */
 /*
- * Copyright (c) 2006 Damien Miller <djm@openbsd.org>
+ * Copyright (c) 2008 Markus Friedl.  All rights reserved.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,13 +15,36 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _PORT_LINUX_H
-#define _PORT_LINUX_H
+#include "includes.h"
 
-#ifdef WITH_SELINUX
-int ssh_selinux_enabled(void);
-void ssh_selinux_setup_pty(char *, const char *);
-void ssh_selinux_setup_exec_context(char *);
-#endif
+#include <sys/types.h>
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <unistd.h>
 
-#endif /* ! _PORT_LINUX_H */
+#include "log.h"
+#include "sftp.h"
+#include "misc.h"
+
+void
+cleanup_exit(int i)
+{
+	sftp_server_cleanup_exit(i);
+}
+
+int
+main(int argc, char **argv)
+{
+	struct passwd *user_pw;
+
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
+	if ((user_pw = getpwuid(getuid())) == NULL) {
+		fprintf(stderr, "No user found for uid %lu", (u_long)getuid());
+		return 1;
+	}
+
+	return (sftp_server_main(argc, argv, user_pw));
+}

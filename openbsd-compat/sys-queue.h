@@ -1,4 +1,4 @@
-/*	$OpenBSD: queue.h,v 1.25 2004/04/08 16:08:21 henning Exp $	*/
+/*	$OpenBSD: queue.h,v 1.32 2007/04/30 18:42:34 pedro Exp $	*/
 /*	$NetBSD: queue.h,v 1.11 1996/05/16 05:17:14 mycroft Exp $	*/
 
 /*
@@ -167,6 +167,12 @@
  * For details on the use of these macros, see the queue(3) manual page.
  */
 
+#if defined(QUEUE_MACRO_DEBUG) || (defined(_KERNEL) && defined(DIAGNOSTIC))
+#define _Q_INVALIDATE(a) (a) = ((void *)-1)
+#else
+#define _Q_INVALIDATE(a)
+#endif
+
 /*
  * Singly-linked List definitions.
  */
@@ -229,13 +235,14 @@ struct {								\
 #define SLIST_REMOVE(head, elm, type, field) do {			\
 	if ((head)->slh_first == (elm)) {				\
 		SLIST_REMOVE_HEAD((head), field);			\
-	}								\
-	else {								\
+	} else {							\
 		struct type *curelm = (head)->slh_first;		\
-		while( curelm->field.sle_next != (elm) )		\
+									\
+		while (curelm->field.sle_next != (elm))			\
 			curelm = curelm->field.sle_next;		\
 		curelm->field.sle_next =				\
 		    curelm->field.sle_next->field.sle_next;		\
+		_Q_INVALIDATE((elm)->field.sle_next);			\
 	}								\
 } while (0)
 
@@ -303,6 +310,8 @@ struct {								\
 		(elm)->field.le_next->field.le_prev =			\
 		    (elm)->field.le_prev;				\
 	*(elm)->field.le_prev = (elm)->field.le_next;			\
+	_Q_INVALIDATE((elm)->field.le_prev);				\
+	_Q_INVALIDATE((elm)->field.le_next);				\
 } while (0)
 
 #define LIST_REPLACE(elm, elm2, field) do {				\
@@ -311,6 +320,8 @@ struct {								\
 		    &(elm2)->field.le_next;				\
 	(elm2)->field.le_prev = (elm)->field.le_prev;			\
 	*(elm2)->field.le_prev = (elm2);				\
+	_Q_INVALIDATE((elm)->field.le_prev);				\
+	_Q_INVALIDATE((elm)->field.le_next);				\
 } while (0)
 
 /*
@@ -369,8 +380,8 @@ struct {								\
 	(listelm)->field.sqe_next = (elm);				\
 } while (0)
 
-#define SIMPLEQ_REMOVE_HEAD(head, elm, field) do {			\
-	if (((head)->sqh_first = (elm)->field.sqe_next) == NULL)	\
+#define SIMPLEQ_REMOVE_HEAD(head, field) do {			\
+	if (((head)->sqh_first = (head)->sqh_first->field.sqe_next) == NULL) \
 		(head)->sqh_last = &(head)->sqh_first;			\
 } while (0)
 
@@ -465,6 +476,8 @@ struct {								\
 	else								\
 		(head)->tqh_last = (elm)->field.tqe_prev;		\
 	*(elm)->field.tqe_prev = (elm)->field.tqe_next;			\
+	_Q_INVALIDATE((elm)->field.tqe_prev);				\
+	_Q_INVALIDATE((elm)->field.tqe_next);				\
 } while (0)
 
 #define TAILQ_REPLACE(head, elm, elm2, field) do {			\
@@ -475,6 +488,8 @@ struct {								\
 		(head)->tqh_last = &(elm2)->field.tqe_next;		\
 	(elm2)->field.tqe_prev = (elm)->field.tqe_prev;			\
 	*(elm2)->field.tqe_prev = (elm2);				\
+	_Q_INVALIDATE((elm)->field.tqe_prev);				\
+	_Q_INVALIDATE((elm)->field.tqe_next);				\
 } while (0)
 
 /*
@@ -575,6 +590,8 @@ struct {								\
 	else								\
 		(elm)->field.cqe_prev->field.cqe_next =			\
 		    (elm)->field.cqe_next;				\
+	_Q_INVALIDATE((elm)->field.cqe_prev);				\
+	_Q_INVALIDATE((elm)->field.cqe_next);				\
 } while (0)
 
 #define CIRCLEQ_REPLACE(head, elm, elm2, field) do {			\
@@ -588,6 +605,8 @@ struct {								\
 		(head).cqh_first = (elm2);				\
 	else								\
 		(elm2)->field.cqe_prev->field.cqe_next = (elm2);	\
+	_Q_INVALIDATE((elm)->field.cqe_prev);				\
+	_Q_INVALIDATE((elm)->field.cqe_next);				\
 } while (0)
 
 #endif	/* !_FAKE_QUEUE_H_ */

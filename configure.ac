@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.383 2007/08/10 04:36:12 dtucker Exp $
+# $Id: configure.ac,v 1.397 2008/03/27 01:33:07 djm Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.383 $)
+AC_REVISION($Revision: 1.397 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -90,6 +90,13 @@ AC_C_INLINE
 
 AC_CHECK_DECL(LLONG_MAX, have_llong_max=1, , [#include <limits.h>])
 
+use_stack_protector=1
+AC_ARG_WITH(stackprotect,
+    [  --without-stackprotect  Don't use compiler's stack protection], [
+    if test "x$withval" = "xno"; then
+	use_stack_protector=0
+    fi ])
+
 if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
 	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
@@ -104,6 +111,44 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 		4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
 		*) ;;
 	esac
+
+	# -fstack-protector-all doesn't always work for some GCC versions
+	# and/or platforms, so we test if we can.  If it's not supported
+	# on a give platform gcc will emit a warning so we use -Werror.
+	if test "x$use_stack_protector" = "x1"; then
+	    for t in -fstack-protector-all -fstack-protector; do
+		AC_MSG_CHECKING(if $CC supports $t)
+		saved_CFLAGS="$CFLAGS"
+		saved_LDFLAGS="$LDFLAGS"
+		CFLAGS="$CFLAGS $t -Werror"
+		LDFLAGS="$LDFLAGS $t -Werror"
+		AC_LINK_IFELSE(
+			[AC_LANG_SOURCE([
+#include <stdlib.h>
+int main(void){return 0;}
+			 ])],
+		    [ AC_MSG_RESULT(yes)
+		      CFLAGS="$saved_CFLAGS $t"
+		      LDFLAGS="$saved_LDFLAGS $t"
+		      AC_MSG_CHECKING(if $t works)
+		      AC_RUN_IFELSE(
+			[AC_LANG_SOURCE([
+#include <stdlib.h>
+int main(void){exit(0);}
+			])],
+			[ AC_MSG_RESULT(yes)
+			  break ],
+			[ AC_MSG_RESULT(no) ],
+			[ AC_MSG_WARN([cross compiling: cannot test])
+			  break ]
+		      )
+		    ],
+		    [ AC_MSG_RESULT(no) ]
+		)
+		CFLAGS="$saved_CFLAGS"
+		LDFLAGS="$saved_LDFLAGS"
+	    done
+	fi
 
 	if test -z "$have_llong_max"; then
 		# retry LLONG_MAX with -std=gnu99, needed on some Linuxes
@@ -223,6 +268,7 @@ AC_CHECK_HEADERS( \
 	sys/dir.h \
 	sys/mman.h \
 	sys/ndir.h \
+	sys/poll.h \
 	sys/prctl.h \
 	sys/pstat.h \
 	sys/select.h \
@@ -343,7 +389,7 @@ int main(void) { exit(0); }
 		[],
 		[#include <usersec.h>]
 	)
-	AC_CHECK_FUNCS(setauthdb)
+	AC_CHECK_FUNCS(getgrset setauthdb)
 	AC_CHECK_DECL(F_CLOSEM,
 	    AC_DEFINE(HAVE_FCNTL_CLOSEM, 1, [Use F_CLOSEM fcntl for closefrom]),
 	    [],
@@ -405,6 +451,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
+	AC_DEFINE(BROKEN_GLOB, 1, [OS X glob does not do what we expect])
 	AC_DEFINE_UNQUOTED(BIND_8_COMPAT, 1,
 		[Define if your resolver libs need this for getrrsetbyname])
 	AC_DEFINE(SSH_TUN_FREEBSD, 1, [Open tunnel devices the FreeBSD way])
@@ -412,6 +459,11 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	    [Use tunnel device compatibility to OpenBSD])
 	AC_DEFINE(SSH_TUN_PREPEND_AF, 1,
 	    [Prepend the address family to IP tunnel traffic])
+	m4_pattern_allow(AU_IPv)
+	AC_CHECK_DECL(AU_IPv4, [], 
+	    AC_DEFINE(AU_IPv4, 0, [System only supports IPv4 audit records])
+	    [#include <bsm/audit.h>]
+	)
 	;;
 *-*-dragonfly*)
 	SSHDLIBS="$SSHDLIBS -lcrypt"
@@ -549,6 +601,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(SSH_TUN_FREEBSD, 1, [Open tunnel devices the FreeBSD way])
 	AC_CHECK_HEADER([net/if_tap.h], ,
 	    AC_DEFINE(SSH_TUN_NO_L2, 1, [No layer 2 tunnel support]))
+	AC_DEFINE(BROKEN_GLOB, 1, [FreeBSD glob does not do what we need])
 	;;
 *-*-bsdi*)
 	AC_DEFINE(SETEUID_BREAKS_SETUID)
@@ -785,6 +838,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(MISSING_FD_MASK, 1, [Define on *nto-qnx systems])
 	AC_DEFINE(DISABLE_LASTLOG)
 	AC_DEFINE(SSHD_ACQUIRES_CTTY)
+	AC_DEFINE(BROKEN_SHADOW_EXPIRE, 1, [QNX shadow support is broken])
 	enable_etc_default_login=no	# has incompatible /etc/default/login
 	case "$host" in
 	*-*-nto-qnx6*)
@@ -1214,7 +1268,7 @@ AC_ARG_WITH(audit,
 		AC_CHECK_FUNCS(getaudit, [],
 		    [AC_MSG_ERROR(BSM enabled and required function not found)])
 		# These are optional
-		AC_CHECK_FUNCS(getaudit_addr)
+		AC_CHECK_FUNCS(getaudit_addr aug_get_machine)
 		AC_DEFINE(USE_BSM_AUDIT, 1, [Use BSM audit module])
 		;;
 	  debug)
@@ -2004,7 +2058,10 @@ AC_CHECK_FUNCS(SHA256_Update EVP_sha256)
 saved_LIBS="$LIBS"
 AC_CHECK_LIB(iaf, ia_openinfo, [
 	LIBS="$LIBS -liaf"
-	AC_CHECK_FUNCS(set_id, [SSHDLIBS="$SSHDLIBS -liaf"])
+	AC_CHECK_FUNCS(set_id, [SSHDLIBS="$SSHDLIBS -liaf"
+				AC_DEFINE(HAVE_LIBIAF, 1,
+        		[Define if system has libiaf that supports set_id])
+				])
 ])
 LIBS="$saved_LIBS"
 
@@ -3201,7 +3258,7 @@ int main() { return 0; }
 SELINUX_MSG="no"
 LIBSELINUX=""
 AC_ARG_WITH(selinux,
-	[  --with-selinux   Enable SELinux support],
+	[  --with-selinux          Enable SELinux support],
 	[ if test "x$withval" != "xno" ; then
 		save_LIBS="$LIBS"
 		AC_DEFINE(WITH_SELINUX,1,[Define if you want SELinux support.])

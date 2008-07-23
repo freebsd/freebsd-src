@@ -1,11 +1,11 @@
-#	$OpenBSD: agent-getpeereid.sh,v 1.3 2006/07/06 12:01:53 grunk Exp $
+#	$OpenBSD: agent-getpeereid.sh,v 1.4 2007/11/25 15:35:09 jmc Exp $
 #	Placed in the Public Domain.
 
 tid="disallow agent attach from other uid"
 
 UNPRIV=nobody
 ASOCK=${OBJ}/agent
-SSH_AUTH_SOCK=/nonexistant
+SSH_AUTH_SOCK=/nonexistent
 
 if grep "#undef.*HAVE_GETPEEREID" ${BUILDDIR}/config.h >/dev/null 2>&1 && \
 	grep "#undef.*HAVE_GETPEERUCRED" ${BUILDDIR}/config.h >/dev/null && \

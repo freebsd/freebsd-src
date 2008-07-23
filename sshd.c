@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.351 2007/05/22 10:18:52 djm Exp $ */
+/* $OpenBSD: sshd.c,v 1.355 2008/02/14 13:10:31 mbalmer Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -75,6 +75,8 @@
 #include <openssl/bn.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
+#include "openbsd-compat/openssl-compat.h"
+
 #ifdef HAVE_SECUREWARE
 #include <sys/security.h>
 #include <prot.h>
@@ -120,8 +122,8 @@
 #ifdef LIBWRAP
 #include <tcpd.h>
 #include <syslog.h>
-int allow_severity = LOG_INFO;
-int deny_severity = LOG_WARNING;
+int allow_severity;
+int deny_severity;
 #endif /* LIBWRAP */
 
 #ifndef O_NOCTTY
@@ -583,11 +585,12 @@ privsep_preauth_child(void)
 {
 	u_int32_t rnd[256];
 	gid_t gidset[1];
-	int i;
+	u_int i;
 
 	/* Enable challenge-response authentication for privilege separation */
 	privsep_challenge_enable();
 
+	arc4random_stir();
 	for (i = 0; i < 256; i++)
 		rnd[i] = arc4random();
 	RAND_seed(rnd, sizeof(rnd));
@@ -662,6 +665,9 @@ privsep_preauth(Authctxt *authctxt)
 static void
 privsep_postauth(Authctxt *authctxt)
 {
+	u_int32_t rnd[256];
+	u_int i;
+
 #ifdef DISABLE_FD_PASSING
 	if (1) {
 #else
@@ -692,6 +698,11 @@ privsep_postauth(Authctxt *authctxt)
 
 	/* Demote the private keys to public keys. */
 	demote_sensitive_data();
+
+	arc4random_stir();
+	for (i = 0; i < 256; i++)
+		rnd[i] = arc4random();
+	RAND_seed(rnd, sizeof(rnd));
 
 	/* Drop privileges */
 	do_setusercontext(authctxt->pw);
@@ -953,8 +964,7 @@ server_listen(void)
 		    ntop, sizeof(ntop), strport, sizeof(strport),
 		    NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
 			error("getnameinfo failed: %.100s",
-			    (ret != EAI_SYSTEM) ? gai_strerror(ret) :
-			    strerror(errno));
+			    ssh_gai_strerror(ret));
 			continue;
 		}
 		/* Create socket for listening. */
@@ -976,6 +986,16 @@ server_listen(void)
 		if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR,
 		    &on, sizeof(on)) == -1)
 			error("setsockopt SO_REUSEADDR: %s", strerror(errno));
+
+#ifdef IPV6_V6ONLY
+		/* Only communicate in IPv6 over AF_INET6 sockets. */
+		if (ai->ai_family == AF_INET6) {
+			if (setsockopt(listen_sock, IPPROTO_IPV6, IPV6_V6ONLY,
+			    &on, sizeof(on)) == -1)
+				error("setsockopt IPV6_V6ONLY: %s",
+				    strerror(errno));
+		}
+#endif
 
 		debug("Bind to port %s on %s.", strport, ntop);
 
@@ -1367,7 +1387,7 @@ main(int ac, char **av)
 	}
 	if (rexeced_flag || inetd_flag)
 		rexec_flag = 0;
-	if (rexec_flag && (av[0] == NULL || *av[0] != '/'))
+	if (!test_flag && (rexec_flag && (av[0] == NULL || *av[0] != '/')))
 		fatal("sshd re-exec requires execution with an absolute path");
 	if (rexeced_flag)
 		closefrom(REEXEC_MIN_FREE_FD);
@@ -1600,10 +1620,6 @@ main(int ac, char **av)
 	/* Get a connection, either from inetd or a listening TCP socket */
 	if (inetd_flag) {
 		server_accept_inetd(&sock_in, &sock_out);
-
-		if ((options.protocol & SSH_PROTO_1) &&
-		    sensitive_data.server_key == NULL)
-			generate_ephemeral_server_key();
 	} else {
 		server_listen();
 
@@ -1740,6 +1756,8 @@ main(int ac, char **av)
 	audit_connection_from(remote_ip, remote_port);
 #endif
 #ifdef LIBWRAP
+	allow_severity = options.log_facility|LOG_INFO;
+	deny_severity = options.log_facility|LOG_WARNING;
 	/* Check whether logins are denied from this host. */
 	if (packet_connection_is_on_socket()) {
 		struct request_info req;
@@ -1772,6 +1790,10 @@ main(int ac, char **av)
 		alarm(options.login_grace_time);
 
 	sshd_exchange_identification(sock_in, sock_out);
+
+	/* In inetd mode, generate ephemeral key only for proto 1 connections */
+	if (!compat20 && inetd_flag && sensitive_data.server_key == NULL)
+		generate_ephemeral_server_key();
 
 	packet_set_nonblocking();
 
@@ -1823,6 +1845,20 @@ main(int ac, char **av)
 
 #ifdef SSH_AUDIT_EVENTS
 	audit_event(SSH_AUTH_SUCCESS);
+#endif
+
+#ifdef GSSAPI
+	if (options.gss_authentication) {
+		temporarily_use_uid(authctxt->pw);
+		ssh_gssapi_storecreds();
+		restore_uid();
+	}
+#endif
+#ifdef USE_PAM
+	if (options.use_pam) {
+		do_pam_setcred(1);
+		do_pam_session();
+	}
 #endif
 
 	/*

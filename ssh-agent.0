@@ -4,7 +4,7 @@ NAME
      ssh-agent - authentication agent
 
 SYNOPSIS
-     ssh-agent [-a bind_address] [-c | -s] [-t life] [-d] [command [args ...]]
+     ssh-agent [-c | -s] [-d] [-a bind_address] [-t life] [command [arg ...]]
      ssh-agent [-c | -s] -k
 
 DESCRIPTION
@@ -24,11 +24,14 @@ DESCRIPTION
      -c      Generate C-shell commands on stdout.  This is the default if
              SHELL looks like it's a csh style of shell.
 
-     -s      Generate Bourne shell commands on stdout.  This is the default if
-             SHELL does not look like it's a csh style of shell.
+     -d      Debug mode.  When this option is specified ssh-agent will not
+             fork.
 
      -k      Kill the current agent (given by the SSH_AGENT_PID environment
              variable).
+
+     -s      Generate Bourne shell commands on stdout.  This is the default if
+             SHELL does not look like it's a csh style of shell.
 
      -t life
              Set a default value for the maximum lifetime of identities added
@@ -36,9 +39,6 @@ DESCRIPTION
              time format specified in sshd_config(5).  A lifetime specified
              for an identity with ssh-add(1) overrides this value.  Without
              this option the default maximum lifetime is forever.
-
-     -d      Debug mode.  When this option is specified ssh-agent will not
-             fork.
 
      If a commandline is given, this is executed as a subprocess of the agent.
      When the command dies, so does the agent.
@@ -114,4 +114,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.2                      June 5, 2007                                2
+OpenBSD 4.3                   September 17, 2007                             2

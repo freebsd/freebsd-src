@@ -598,15 +598,17 @@ static struct pam_conv store_conv = { sshpam_store_conv, NULL };
 void
 sshpam_cleanup(void)
 {
-	debug("PAM: cleanup");
-	if (sshpam_handle == NULL)
+	if (sshpam_handle == NULL || (use_privsep && !mm_is_monitor()))
 		return;
+	debug("PAM: cleanup");
 	pam_set_item(sshpam_handle, PAM_CONV, (const void *)&null_conv);
 	if (sshpam_cred_established) {
+		debug("PAM: deleting credentials");
 		pam_setcred(sshpam_handle, PAM_DELETE_CRED);
 		sshpam_cred_established = 0;
 	}
 	if (sshpam_session_open) {
+		debug("PAM: closing session");
 		pam_close_session(sshpam_handle, PAM_SILENT);
 		sshpam_session_open = 0;
 	}

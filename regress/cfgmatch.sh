@@ -1,4 +1,4 @@
-#	$OpenBSD: cfgmatch.sh,v 1.2 2006/07/22 01:50:00 dtucker Exp $
+#	$OpenBSD: cfgmatch.sh,v 1.4 2006/12/13 08:36:36 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="sshd_config match"
@@ -35,7 +35,7 @@ for p in 1 2; do
 	rm -f $pidfile
 	trace "match permitopen localhost proto $p"
 	${SSH} -$p $fwd -F $OBJ/ssh_config -f somehost \
-	    "echo \$\$ > $pidfile; exec sleep 100" >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
 	    fail "match permitopen proto $p sshd failed"
 	sleep 1;
 	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true || \
@@ -48,7 +48,7 @@ for p in 1 2; do
 	rm -f $pidfile
 	trace "match permitopen proxy proto $p"
 	${SSH} -q -$p $fwd -F $OBJ/ssh_proxy -f somehost \
-	    "echo \$\$ > $pidfile; exec sleep 100" >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
 	    fail "match permitopen proxy proto $p sshd failed"
 	sleep 1;
 	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true && \
@@ -65,7 +65,7 @@ for p in 1 2; do
 	rm -f $pidfile
 	trace "match permitopen proxy w/key opts proto $p"
 	${SSH} -q -$p $fwd -F $OBJ/ssh_proxy -f somehost \
-	    "echo \$\$ > $pidfile; exec sleep 100" >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
 	    fail "match permitopen w/key opt proto $p sshd failed"
 	sleep 1;
 	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true && \
@@ -79,7 +79,7 @@ for p in 1 2; do
 	rm -f $pidfile
 	trace "match permitopen localhost proto $p"
 	${SSH} -$p $fwd -F $OBJ/ssh_config -f somehost \
-	    "echo \$\$ > $pidfile; exec sleep 100" >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
 	    fail "match permitopen proto $p sshd failed"
 	sleep 1;
 	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true || \
@@ -97,10 +97,29 @@ for p in 1 2; do
 	rm -f $pidfile
 	trace "match permitopen proxy w/key opts proto $p"
 	${SSH} -q -$p $fwd -F $OBJ/ssh_proxy -f somehost \
-	    "echo \$\$ > $pidfile; exec sleep 100" >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
 	    fail "match override permitopen proto $p sshd failed"
 	sleep 1;
 	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true && \
 	    fail "match override permitopen proto $p"
+	stop_client
+done
+
+cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+echo "PermitOpen 127.0.0.1:1 127.0.0.1:$PORT 127.0.0.2:2" >>$OBJ/sshd_proxy
+echo "Match User NoSuchUser" >>$OBJ/sshd_proxy
+echo "PermitOpen 127.0.0.1:1 127.0.0.1:2" >>$OBJ/sshd_proxy
+
+# Test that a rule that doesn't match doesn't override, plus test a
+# PermitOpen entry that's not at the start of the list
+for p in 1 2; do
+	rm -f $pidfile
+	trace "nomatch permitopen proxy w/key opts proto $p"
+	${SSH} -q -$p $fwd -F $OBJ/ssh_proxy -f somehost \
+	    exec sh -c \'"echo \$\$ > $pidfile; exec sleep 100"\' >>$TEST_SSH_LOGFILE 2>&1 ||\
+	    fail "nomatch override permitopen proto $p sshd failed"
+	sleep 1;
+	${SSH} -q -$p -p $fwdport -F $OBJ/ssh_config somehost true || \
+	    fail "nomatch override permitopen proto $p"
 	stop_client
 done

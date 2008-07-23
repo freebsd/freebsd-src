@@ -1,6 +1,6 @@
 /* This file has be substantially modified from the original OpenBSD source */
 
-/*	$OpenBSD: bindresvport.c,v 1.16 2005/04/01 07:44:03 otto Exp $	*/
+/*	$OpenBSD: bindresvport.c,v 1.17 2005/12/21 01:40:22 millert Exp $	*/
 
 /*
  * Copyright 1996, Jason Downs.  All rights reserved.

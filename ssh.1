@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.270 2007/06/12 13:43:55 jmc Exp $
-.Dd $Mdocdate: June 12 2007 $
+.\" $OpenBSD: ssh.1,v 1.273 2008/02/11 07:58:28 jmc Exp $
+.Dd $Mdocdate: March 26 2008 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -506,7 +506,7 @@ This can be specified on a
 per-host basis in the configuration file.
 .It Fl q
 Quiet mode.
-Causes all warning and diagnostic messages to be suppressed.
+Causes most warning and diagnostic messages to be suppressed.
 .It Fl R Xo
 .Sm off
 .Oo Ar bind_address : Oc
@@ -1244,6 +1244,13 @@ This file is used in exactly the same way as
 .Pa .rhosts ,
 but allows host-based authentication without permitting login with
 rlogin/rsh.
+.Pp
+.It ~/.ssh/
+This directory is the default location for all user-specific configuration
+and authentication information.
+There is no general requirement to keep the entire contents of this directory
+secret, but the recommended permissions are read/write/execute for the user,
+and not accessible by others.
 .Pp
 .It ~/.ssh/authorized_keys
 Lists the public keys (RSA/DSA) that can be used for logging in as this user.

@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.28 2005/05/20 23:14:15 djm Exp $
+#	$OpenBSD: test-exec.sh,v 1.31 2007/12/21 04:13:53 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -69,6 +69,10 @@ SFTP=sftp
 SFTPSERVER=/usr/libexec/openssh/sftp-server
 SCP=scp
 
+# Interop testing
+PLINK=/usr/local/bin/plink
+PUTTYGEN=/usr/local/bin/puttygen
+
 if [ "x$TEST_SSH_SSH" != "x" ]; then
 	SSH="${TEST_SSH_SSH}"
 fi
@@ -95,6 +99,20 @@ if [ "x$TEST_SSH_SFTPSERVER" != "x" ]; then
 fi
 if [ "x$TEST_SSH_SCP" != "x" ]; then
 	SCP="${TEST_SSH_SCP}"
+fi
+if [ "x$TEST_SSH_PLINK" != "x" ]; then
+	# Find real binary, if it exists
+	case "${TEST_SSH_PLINK}" in
+	/*) PLINK="${TEST_SSH_PLINK}" ;;
+	*) PLINK=`which ${TEST_SSH_PLINK} 2>/dev/null` ;;
+	esac
+fi
+if [ "x$TEST_SSH_PUTTYGEN" != "x" ]; then
+	# Find real binary, if it exists
+	case "${TEST_SSH_PUTTYGEN}" in
+	/*) PUTTYGEN="${TEST_SSH_PUTTYGEN}" ;;
+	*) PUTTYGEN=`which ${TEST_SSH_PUTTYGEN} 2>/dev/null` ;;
+	esac
 fi
 
 # Path to sshd must be absolute for rexec
@@ -269,6 +287,34 @@ for t in rsa rsa1; do
 done
 chmod 644 $OBJ/authorized_keys_$USER
 
+# If PuTTY is present, prepare keys and configuration
+REGRESS_INTEROP_PUTTY=no
+if test -x "$PUTTYGEN" -a -x "$PLINK" ; then
+	mkdir -p ${OBJ}/.putty
+
+	# Add a PuTTY key to authorized_keys
+	rm -f ${OBJ}/putty.rsa2
+	puttygen -t rsa -o ${OBJ}/putty.rsa2 < /dev/null > /dev/null
+	puttygen -O public-openssh ${OBJ}/putty.rsa2 \
+	    >> $OBJ/authorized_keys_$USER
+
+	# Convert rsa2 host key to PuTTY format
+	${SRC}/ssh2putty.sh 127.0.0.1 $PORT $OBJ/rsa > \
+	    ${OBJ}/.putty/sshhostkeys
+	${SRC}/ssh2putty.sh 127.0.0.1 22 $OBJ/rsa >> \
+	    ${OBJ}/.putty/sshhostkeys
+
+	# Setup proxied session
+	mkdir -p ${OBJ}/.putty/sessions
+	rm -f ${OBJ}/.putty/sessions/localhost_proxy
+	echo "Hostname=127.0.0.1" >> ${OBJ}/.putty/sessions/localhost_proxy
+	echo "PortNumber=$PORT" >> ${OBJ}/.putty/sessions/localhost_proxy
+	echo "ProxyMethod=5" >> ${OBJ}/.putty/sessions/localhost_proxy
+	echo "ProxyTelnetCommand=sh ${SRC}/sshd-log-wrapper.sh ${SSHD} ${TEST_SSH_LOGFILE} -i -f $OBJ/sshd_proxy" >> ${OBJ}/.putty/sessions/localhost_proxy 
+
+	REGRESS_INTEROP_PUTTY=yes
+fi
+
 # create a proxy version of the client config
 (
 	cat $OBJ/ssh_config
@@ -281,8 +327,8 @@ ${SSHD} -t -f $OBJ/sshd_proxy	|| fatal "sshd_proxy broken"
 start_sshd ()
 {
 	# start sshd
-	$SUDO ${SSHD} -f $OBJ/sshd_config -t	|| fatal "sshd_config broken"
-	$SUDO ${SSHD} -f $OBJ/sshd_config -e >>$TEST_SSH_LOGFILE 2>&1
+	$SUDO ${SSHD} -f $OBJ/sshd_config "$@" -t || fatal "sshd_config broken"
+	$SUDO ${SSHD} -f $OBJ/sshd_config -e "$@" >>$TEST_SSH_LOGFILE 2>&1
 
 	trace "wait for sshd"
 	i=0;
