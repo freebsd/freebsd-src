@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.71 2007/01/03 07:22:36 stevesk Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.73 2007/05/17 07:55:29 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -319,7 +319,8 @@ handle_log_close(int handle, char *emsg)
 		logit("%s%sclose \"%s\" bytes read %llu written %llu",
 		    emsg == NULL ? "" : emsg, emsg == NULL ? "" : " ",
 		    handle_to_name(handle),
-		    handle_bytes_read(handle), handle_bytes_write(handle));
+		    (unsigned long long)handle_bytes_read(handle),
+		    (unsigned long long)handle_bytes_write(handle));
 	} else {
 		logit("%s%sclosedir \"%s\"",
 		    emsg == NULL ? "" : emsg, emsg == NULL ? "" : " ",
@@ -702,7 +703,8 @@ process_setstat(void)
 	a = get_attrib();
 	debug("request %u: setstat name \"%s\"", id, name);
 	if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
-		logit("set \"%s\" size %llu", name, a->size);
+		logit("set \"%s\" size %llu",
+		    name, (unsigned long long)a->size);
 		ret = truncate(name, a->size);
 		if (ret == -1)
 			status = errno_to_portable(errno);
@@ -754,7 +756,8 @@ process_fsetstat(void)
 		char *name = handle_to_name(handle);
 
 		if (a->flags & SSH2_FILEXFER_ATTR_SIZE) {
-			logit("set \"%s\" size %llu", name, a->size);
+			logit("set \"%s\" size %llu",
+			    name, (unsigned long long)a->size);
 			ret = ftruncate(fd, a->size);
 			if (ret == -1)
 				status = errno_to_portable(errno);
@@ -1211,7 +1214,7 @@ main(int argc, char **argv)
 	int in, out, max, ch, skipargs = 0, log_stderr = 0;
 	ssize_t len, olen, set_size;
 	SyslogFacility log_facility = SYSLOG_FACILITY_AUTH;
-	char *cp;
+	char *cp, buf[4*4096];
 
 	extern char *optarg;
 	extern char *__progname;
@@ -1295,7 +1298,15 @@ main(int argc, char **argv)
 		memset(rset, 0, set_size);
 		memset(wset, 0, set_size);
 
-		FD_SET(in, rset);
+		/*
+		 * Ensure that we can read a full buffer and handle
+		 * the worst-case length packet it can generate,
+		 * otherwise apply backpressure by stopping reads.
+		 */
+		if (buffer_check_alloc(&iqueue, sizeof(buf)) &&
+		    buffer_check_alloc(&oqueue, SFTP_MAX_MSG_LENGTH))
+			FD_SET(in, rset);
+
 		olen = buffer_len(&oqueue);
 		if (olen > 0)
 			FD_SET(out, wset);
@@ -1309,7 +1320,6 @@ main(int argc, char **argv)
 
 		/* copy stdin to iqueue */
 		if (FD_ISSET(in, rset)) {
-			char buf[4*4096];
 			len = read(in, buf, sizeof buf);
 			if (len == 0) {
 				debug("read eof");
@@ -1331,7 +1341,13 @@ main(int argc, char **argv)
 				buffer_consume(&oqueue, len);
 			}
 		}
-		/* process requests from client */
-		process();
+
+		/*
+		 * Process requests from client if we can fit the results
+		 * into the output buffer, otherwise stop processing input
+		 * and let the output queue drain.
+		 */
+		if (buffer_check_alloc(&oqueue, SFTP_MAX_MSG_LENGTH))
+			process();
 	}
 }

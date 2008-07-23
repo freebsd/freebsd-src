@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.234 2006/08/21 08:15:57 dtucker Exp $
-.Dd September 25, 1999
+.\" $OpenBSD: sshd.8,v 1.237 2007/06/07 19:37:34 pvalchev Exp $
+.Dd $Mdocdate: August 16 2007 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -58,8 +58,11 @@
 .Nm
 (OpenSSH Daemon) is the daemon program for
 .Xr ssh 1 .
-Together these programs replace rlogin and rsh, and
-provide secure encrypted communications between two untrusted hosts
+Together these programs replace
+.Xr rlogin 1
+and
+.Xr rsh 1 ,
+and provide secure encrypted communications between two untrusted hosts
 over an insecure network.
 .Pp
 .Nm
@@ -117,7 +120,7 @@ Maximum is 3.
 When this option is specified,
 .Nm
 will send the output to the standard error instead of the system log.
-.It Fl f Ar configuration_file
+.It Fl f Ar config_file
 Specifies the name of the configuration file.
 The default is
 .Pa /etc/ssh/sshd_config .
@@ -273,7 +276,7 @@ The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
 through a cryptographic message authentication code
-(hmac-sha1 or hmac-md5).
+(hmac-md5, hmac-sha1, umac-64 or hmac-ripemd160).
 .Pp
 Finally, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
@@ -299,8 +302,9 @@ on Tru64,
 a leading
 .Ql \&*LOCKED\&*
 on FreeBSD and a leading
-.Ql \&!!
-on Linux).  If there is a requirement to disable password authentication
+.Ql \&!
+on most Linuxes).
+If there is a requirement to disable password authentication
 for the account while allowing still public-key, then the passwd field
 should be set to something other than these values (eg
 .Ql NP
@@ -758,15 +762,6 @@ This file is used in exactly the same way as
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
-.It /etc/ssh/ssh_known_hosts
-Systemwide list of known host keys.
-This file should be prepared by the
-system administrator to contain the public host keys of all machines in the
-organization.
-The format of this file is described above.
-This file should be writable only by root/the owner and
-should be world-readable.
-.Pp
 .It /etc/ssh/ssh_host_key
 .It /etc/ssh/ssh_host_dsa_key
 .It /etc/ssh/ssh_host_rsa_key
@@ -789,6 +784,15 @@ really used for anything; they are provided for the convenience of
 the user so their contents can be copied to known hosts files.
 These files are created using
 .Xr ssh-keygen 1 .
+.Pp
+.It /etc/ssh/ssh_known_hosts
+Systemwide list of known host keys.
+This file should be prepared by the
+system administrator to contain the public host keys of all machines in the
+organization.
+The format of this file is described above.
+This file should be writable only by root/the owner and
+should be world-readable.
 .Pp
 .It /etc/ssh/sshd_config
 Contains configuration data for
@@ -826,6 +830,7 @@ The content of this file is not sensitive; it can be world-readable.
 .Xr ssh-add 1 ,
 .Xr ssh-agent 1 ,
 .Xr ssh-keygen 1 ,
+.Xr ssh-keyscan 1 ,
 .Xr chroot 2 ,
 .Xr hosts_access 5 ,
 .Xr login.conf 5 ,

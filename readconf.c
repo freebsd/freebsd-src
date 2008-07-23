@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.161 2007/01/21 01:45:35 stevesk Exp $ */
+/* $OpenBSD: readconf.c,v 1.162 2007/03/20 03:56:12 tedu Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1224,7 +1224,7 @@ parse_forward(Forward *fwd, const char *fwdspec)
 	cp = p = xstrdup(fwdspec);
 
 	/* skip leading spaces */
-	while (*cp && isspace(*cp))
+	while (isspace(*cp))
 		cp++;
 
 	for (i = 0; i < 4; ++i)

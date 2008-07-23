@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.22 2006/05/29 12:56:33 dtucker Exp $
+#	$OpenBSD: ssh_config,v 1.23 2007/06/08 04:40:40 pvalchev Exp $
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -38,6 +38,7 @@
 #   Protocol 2,1
 #   Cipher 3des
 #   Ciphers aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,aes192-cbc,aes256-cbc
+#   MACs hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160
 #   EscapeChar ~
 #   Tunnel no
 #   TunnelDevice any:any

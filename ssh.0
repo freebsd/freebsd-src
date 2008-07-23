@@ -4,7 +4,7 @@ NAME
      ssh - OpenSSH SSH client (remote login program)
 
 SYNOPSIS
-     ssh [-1246AaCfgkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]
+     ssh [-1246AaCfgKkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]
          [-D [bind_address:]port] [-e escape_char] [-F configfile]
          [-i identity_file] [-L [bind_address:]port:host:hostport]
          [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]
@@ -146,6 +146,9 @@ DESCRIPTION
              host basis in the configuration file.  It is possible to have
              multiple -i options (and multiple identities specified in config-
              uration files).
+
+     -K      Enables GSSAPI-based authentication and forwarding (delegation)
+             of GSSAPI credentials to the server.
 
      -k      Disables forwarding (delegation) of GSSAPI credentials to the
              server.
@@ -371,8 +374,8 @@ AUTHENTICATION
      protocols support similar authentication methods, but protocol 2 is pre-
      ferred since it provides additional mechanisms for confidentiality (the
      traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour) and
-     integrity (hmac-md5, hmac-sha1, hmac-ripemd160).  Protocol 1 lacks a
-     strong mechanism for ensuring the integrity of the connection.
+     integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).  Protocol 1
+     lacks a strong mechanism for ensuring the integrity of the connection.
 
      The methods available for authentication are: GSSAPI-based authentica-
      tion, host-based authentication, public key authentication, challenge-re-
@@ -829,4 +832,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.1                   September 25, 1999                            13
+OpenBSD 4.2                      June 12, 2007                              13

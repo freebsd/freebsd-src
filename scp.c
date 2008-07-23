@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.156 2007/01/22 13:06:21 djm Exp $ */
+/* $OpenBSD: scp.c,v 1.160 2007/08/06 19:16:06 sobrado Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -96,6 +96,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
+#include <vis.h>
+#endif
 
 #include "xmalloc.h"
 #include "atomicio.h"
@@ -582,7 +585,7 @@ source(int argc, char **argv)
 	off_t i, amt, statbytes;
 	size_t result;
 	int fd = -1, haderr, indx;
-	char *last, *name, buf[2048];
+	char *last, *name, buf[2048], encname[MAXPATHLEN];
 	int len;
 
 	for (indx = 0; indx < argc; ++indx) {
@@ -591,17 +594,17 @@ source(int argc, char **argv)
 		len = strlen(name);
 		while (len > 1 && name[len-1] == '/')
 			name[--len] = '\0';
-		if (strchr(name, '\n') != NULL) {
-			run_err("%s: skipping, filename contains a newline",
-			    name);
-			goto next;
-		}
-		if ((fd = open(name, O_RDONLY, 0)) < 0)
+		if ((fd = open(name, O_RDONLY|O_NONBLOCK, 0)) < 0)
 			goto syserr;
+		if (strchr(name, '\n') != NULL) {
+			strnvis(encname, name, sizeof(encname), VIS_NL);
+			name = encname;
+		}
 		if (fstat(fd, &stb) < 0) {
 syserr:			run_err("%s: %s", name, strerror(errno));
 			goto next;
 		}
+		unset_nonblock(fd);
 		switch (stb.st_mode & S_IFMT) {
 		case S_IFREG:
 			break;
@@ -1021,7 +1024,8 @@ bad:			run_err("%s: %s", np, strerror(errno));
 			wrerr = YES;
 			wrerrno = errno;
 		}
-		if (wrerr == NO && ftruncate(ofd, size) != 0) {
+		if (wrerr == NO && (!exists || S_ISREG(stb.st_mode)) &&
+		    ftruncate(ofd, size) != 0) {
 			run_err("%s: truncate: %s", np, strerror(errno));
 			wrerr = DISPLAYED;
 		}
@@ -1116,7 +1120,7 @@ usage(void)
 	(void) fprintf(stderr,
 	    "usage: scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
 	    "           [-l limit] [-o ssh_option] [-P port] [-S program]\n"
-	    "           [[user@]host1:]file1 [...] [[user@]host2:]file2\n");
+	    "           [[user@]host1:]file1 ... [[user@]host2:]file2\n");
 	exit(1);
 }
 

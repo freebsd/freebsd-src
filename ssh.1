@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.266 2006/12/11 21:25:46 markus Exp $
-.Dd September 25, 1999
+.\" $OpenBSD: ssh.1,v 1.270 2007/06/12 13:43:55 jmc Exp $
+.Dd $Mdocdate: June 12 2007 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Op Fl 1246AaCfgkMNnqsTtVvXxY
+.Op Fl 1246AaCfgKkMNnqsTtVvXxY
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Oo Fl D\ \&
@@ -315,6 +315,9 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+.It Fl K
+Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
+credentials to the server.
 .It Fl k
 Disables forwarding (delegation) of GSSAPI credentials to the server.
 .It Fl L Xo
@@ -674,7 +677,7 @@ Both protocols support similar authentication methods,
 but protocol 2 is preferred since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1, hmac-ripemd160).
+and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
 Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp
