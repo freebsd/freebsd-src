@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.176 2006/10/11 12:38:03 markus Exp $ */
+/* $OpenBSD: clientloop.c,v 1.178 2007/02/20 10:25:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -707,7 +707,7 @@ client_process_control(fd_set *readset)
 {
 	Buffer m;
 	Channel *c;
-	int client_fd, new_fd[3], ver, allowed;
+	int client_fd, new_fd[3], ver, allowed, window, packetmax;
 	socklen_t addrlen;
 	struct sockaddr_storage addr;
 	struct confirm_ctx *cctx;
@@ -900,9 +900,15 @@ client_process_control(fd_set *readset)
 
 	set_nonblock(client_fd);
 
+	window = CHAN_SES_WINDOW_DEFAULT;
+	packetmax = CHAN_SES_PACKET_DEFAULT;
+	if (cctx->want_tty) {
+		window >>= 1;
+		packetmax >>= 1;
+	}
+	
 	c = channel_new("session", SSH_CHANNEL_OPENING,
-	    new_fd[0], new_fd[1], new_fd[2],
-	    CHAN_SES_WINDOW_DEFAULT, CHAN_SES_PACKET_DEFAULT,
+	    new_fd[0], new_fd[1], new_fd[2], window, packetmax,
 	    CHAN_EXTENDED_WRITE, "client-session", /*nonblock*/0);
 
 	/* XXX */
@@ -1757,7 +1763,7 @@ client_request_agent(const char *request_type, int rchan)
 		error("Warning: this is probably a break-in attempt by a malicious server.");
 		return NULL;
 	}
-	sock =  ssh_get_authentication_socket();
+	sock = ssh_get_authentication_socket();
 	if (sock < 0)
 		return NULL;
 	c = channel_new("authentication agent connection",

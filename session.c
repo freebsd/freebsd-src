@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.220 2006/10/09 23:36:11 djm Exp $ */
+/* $OpenBSD: session.c,v 1.221 2007/01/21 01:41:54 stevesk Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -2027,7 +2027,7 @@ session_input_channel_req(Channel *c, const char *rtype)
 		} else if (strcmp(rtype, "exec") == 0) {
 			success = session_exec_req(s);
 		} else if (strcmp(rtype, "pty-req") == 0) {
-			success =  session_pty_req(s);
+			success = session_pty_req(s);
 		} else if (strcmp(rtype, "x11-req") == 0) {
 			success = session_x11_req(s);
 		} else if (strcmp(rtype, "auth-agent-req@openssh.com") == 0) {
@@ -2152,7 +2152,7 @@ session_close_single_x11(int id, void *arg)
 
 	debug3("session_close_single_x11: channel %d", id);
 	channel_cancel_cleanup(id);
-	if ((s  = session_by_x11_channel(id)) == NULL)
+	if ((s = session_by_x11_channel(id)) == NULL)
 		fatal("session_close_single_x11: no x11 channel %d", id);
 	for (i = 0; s->x11_chanids[i] != -1; i++) {
 		debug("session_close_single_x11: session %d: "

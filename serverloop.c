@@ -280,6 +280,7 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	struct timeval tv, *tvp;
 	int ret;
 	int client_alive_scheduled = 0;
+	int program_alive_scheduled = 0;
 
 	/*
 	 * if using client_alive, set the max timeout accordingly,
@@ -317,6 +318,7 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 		 * the client, try to get some more data from the program.
 		 */
 		if (packet_not_very_much_data_to_write()) {
+			program_alive_scheduled = child_terminated;
 			if (!fdout_eof)
 				FD_SET(fdout, *readsetp);
 			if (!fderr_eof)
@@ -362,8 +364,16 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 		memset(*writesetp, 0, *nallocp);
 		if (errno != EINTR)
 			error("select: %.100s", strerror(errno));
-	} else if (ret == 0 && client_alive_scheduled)
-		client_alive_check();
+	} else {
+		if (ret == 0 && client_alive_scheduled)
+			client_alive_check();
+		if (!compat20 && program_alive_scheduled && fdin_is_tty) {
+			if (!fdout_eof)
+				FD_SET(fdout, *readsetp);
+			if (!fderr_eof)
+				FD_SET(fderr, *readsetp);
+		}
+	}
 
 	notify_done(*readsetp);
 }
@@ -407,7 +417,8 @@ process_input(fd_set *readset)
 	if (!fdout_eof && FD_ISSET(fdout, readset)) {
 		errno = 0;
 		len = read(fdout, buf, sizeof(buf));
-		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
+		if (len < 0 && (errno == EINTR ||
+		    (errno == EAGAIN && !child_terminated))) {
 			/* do nothing */
 #ifndef PTY_ZEROREAD
 		} else if (len <= 0) {
@@ -425,7 +436,8 @@ process_input(fd_set *readset)
 	if (!fderr_eof && FD_ISSET(fderr, readset)) {
 		errno = 0;
 		len = read(fderr, buf, sizeof(buf));
-		if (len < 0 && (errno == EINTR || errno == EAGAIN)) {
+		if (len < 0 && (errno == EINTR ||
+		    (errno == EAGAIN && !child_terminated))) {
 			/* do nothing */
 #ifndef PTY_ZEROREAD
 		} else if (len <= 0) {

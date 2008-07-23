@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.70 2006/08/21 08:14:01 dtucker Exp $
+.\" $OpenBSD: sshd_config.5,v 1.74 2007/03/01 16:19:33 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -42,9 +42,7 @@
 .Nm sshd_config
 .Nd OpenSSH SSH daemon configuration file
 .Sh SYNOPSIS
-.Bl -tag -width Ds -compact
-.It Pa /etc/ssh/sshd_config
-.El
+.Nm /etc/ssh/sshd_config
 .Sh DESCRIPTION
 .Xr sshd 8
 reads configuration data from
@@ -514,9 +512,16 @@ Only a subset of keywords may be used on the lines following a
 keyword.
 Available keywords are
 .Cm AllowTcpForwarding ,
+.Cm Banner ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
+.Cm GSSApiAuthentication ,
+.Cm KbdInteractiveAuthentication ,
+.Cm KerberosAuthentication ,
+.Cm PasswordAuthentication ,
 .Cm PermitOpen ,
+.Cm RhostsRSAAuthentication ,
+.Cm RSAAuthentication ,
 .Cm X11DisplayOffset ,
 .Cm X11Forwarding ,
 and

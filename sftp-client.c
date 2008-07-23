@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.75 2006/10/22 02:25:50 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.76 2007/01/22 11:32:50 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -1140,6 +1140,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 				close(local_fd);
 				xfree(data);
 				xfree(ack);
+				status = -1;
 				goto done;
 			}
 			debug3("In write loop, ack for %u %u bytes at %llu",

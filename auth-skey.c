@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-skey.c,v 1.26 2006/08/05 08:28:24 dtucker Exp $ */
+/* $OpenBSD: auth-skey.c,v 1.27 2007/01/21 01:41:54 stevesk Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -59,8 +59,8 @@ skey_query(void *ctx, char **name, char **infotxt,
 	    sizeof(challenge)) == -1)
 		return -1;
 
-	*name  = xstrdup("");
-	*infotxt  = xstrdup("");
+	*name = xstrdup("");
+	*infotxt = xstrdup("");
 	*numprompts = 1;
 	*prompts = xcalloc(*numprompts, sizeof(char *));
 	*echo_on = xcalloc(*numprompts, sizeof(u_int));

@@ -1,3 +1,214 @@
+20070306
+ - (djm) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2007/03/01 16:19:33
+     [sshd_config.5]
+     sort the `match' keywords;
+   - djm@cvs.openbsd.org 2007/03/06 10:13:14
+     [version.h]
+     openssh-4.6; "please" deraadt@
+ - (djm) [contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] crank spec files for release
+ - (djm) [README] correct link to release notes
+ - (djm) Release 4.6p1
+
+20070304
+ - (djm) [configure.ac] add a --without-openssl-header-check option to
+   configure, as some platforms (OS X) ship OpenSSL headers whose version
+   does not match that of the shipping library. ok dtucker@
+ - (dtucker) [openbsd-compat/openssl-compat.h] Bug #1291: Work around a
+   bug in OpenSSL 0.9.8e that prevents aes256-ctr, aes192-ctr and arcfour256
+   ciphers from working correctly (disconnects with "Bad packet length"
+   errors) as found by Ben Harris.  ok djm@
+
+20070303
+ - (dtucker) [regress/agent-ptrace.sh] Make ttrace gdb error a little more
+   general to cover newer gdb versions on HP-UX.
+
+20070302
+ - (dtucker) [configure.ac] For Cygwin, read files in textmode (which allows
+   CRLF as well as LF lineendings) and write in binary mode.  Patch from
+   vinschen at redhat.com.
+ - (dtucker) [INSTALL] Update to autoconf-2.61.
+
+20070301
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2007/03/01 10:28:02
+     [auth2.c sshd_config.5 servconf.c]
+     Remove ChallengeResponseAuthentication support inside a Match
+     block as its interaction with KbdInteractive makes it difficult to
+     support.  Also, relocate the CR/kbdint option special-case code into
+     servconf.  "please commit" djm@, ok markus@ for the relocation.
+ - (tim) [buildpkg.sh.in openssh.xml.in] Clean up Solaris 10 smf(5) bits.
+   "Looks sane" dtucker@
+
+20070228
+ - (dtucker) OpenBSD CVS Sync
+   - dtucker@cvs.openbsd.org 2007/02/28 00:55:30
+     [ssh-agent.c]
+     Remove expired keys periodically so they don't remain in memory when
+     the agent is entirely idle, as noted by David R. Piegdon.  This is the
+     simple fix, a more efficient one will be done later.  With markus,
+     deraadt, with & ok djm.
+
+20070225
+ - (dtucker) OpenBSD CVS Sync
+   - djm@cvs.openbsd.org 2007/02/20 10:25:14
+     [clientloop.c]
+     set maximum packet and window sizes the same for multiplexed clients
+     as normal connections; ok markus@
+   - dtucker@cvs.openbsd.org 2007/02/21 11:00:05
+     [sshd.c]
+     Clear alarm() before restarting sshd on SIGHUP.  Without this, if there's
+     a SIGALRM pending (for SSH1 key regeneration) when sshd is SIGHUP'ed, the
+     newly exec'ed sshd will get the SIGALRM and not have a handler for it,
+     and the default action will terminate the listening sshd.  Analysis and
+     patch from andrew at gaul.org.
+   - dtucker@cvs.openbsd.org 2007/02/22 12:58:40
+     [servconf.c]
+     Check activep so Match and GatewayPorts work together; ok markus@
+   - ray@cvs.openbsd.org 2007/02/24 03:30:11
+     [moduli.c]
+     - strlen returns size_t, not int.
+     - Pass full buffer size to fgets.
+     OK djm@, millert@, and moritz@.
+
+20070219
+  - (dtucker) OpenBSD CVS Sync
+   - jmc@cvs.openbsd.org 2007/01/10 13:23:22
+     [ssh_config.5]
+     do not use a list for SYNOPSIS;
+     this is actually part of a larger report sent by eric s. raymond
+     and forwarded by brad, but i only read half of it. spotted by brad.
+   - jmc@cvs.openbsd.org 2007/01/12 20:20:41
+     [ssh-keygen.1 ssh-keygen.c]
+     more secsh -> rfc 4716 updates;
+     spotted by wiz@netbsd
+     ok markus
+   - dtucker@cvs.openbsd.org 2007/01/17 23:22:52
+     [readconf.c]
+     Honour activep for times (eg ServerAliveInterval) while parsing
+     ssh_config and ~/.ssh/config so they work properly with Host directives.
+     From mario.lorenz@wincor-nixdorf.com via bz #1275.  ok markus@
+   - stevesk@cvs.openbsd.org 2007/01/21 01:41:54
+     [auth-skey.c kex.c ssh-keygen.c session.c clientloop.c]
+     spaces
+   - stevesk@cvs.openbsd.org 2007/01/21 01:45:35
+     [readconf.c]
+     spaces
+   - djm@cvs.openbsd.org 2007/01/22 11:32:50
+     [sftp-client.c]
+     return error from do_upload() when a write fails. fixes bz#1252: zero
+     exit status from sftp when uploading to a full device. report from
+     jirkat AT atlas.cz; ok dtucker@
+   - djm@cvs.openbsd.org 2007/01/22 13:06:21
+     [scp.c]
+     fix detection of whether we should show progress meter or not: scp
+     tested isatty(stderr) but wrote the progress meter to stdout. This patch
+     makes it test stdout. bz#1265 reported by junkmail AT bitsculpture.com;
+     of dtucker@
+   - stevesk@cvs.openbsd.org 2007/02/14 14:32:00
+     [bufbn.c]
+     typos in comments; ok jmc@
+   - dtucker@cvs.openbsd.org 2007/02/19 10:45:58
+     [monitor_wrap.c servconf.c servconf.h monitor.c sshd_config.5]
+     Teach Match how handle config directives that are used before
+     authentication.  This allows configurations such as permitting password
+     authentication from the local net only while requiring pubkey from
+     offsite.  ok djm@, man page bits ok jmc@
+ - (dtucker) [contrib/findssl.sh] Add "which" as a shell function since some
+   platforms don't have it.  Patch from dleonard at vintela.com.
+ - (dtucker) [openbsd-compat/getrrsetbyname.c] Don't attempt to calloc
+   an array for signatures when there are none since "calloc(0, n) returns
+   NULL on some platforms (eg Tru64), which is explicitly permitted by
+   POSIX.  Diagnosis and patch by svallet genoscope.cns.fr.
+
+20070128
+ - (djm) [channels.c serverloop.c] Fix so-called "hang on exit" (bz #52)
+   when closing a tty session when a background process still holds tty
+   fds open. Great detective work and patch by Marc Aurele La France,
+   slightly tweaked by me; ok dtucker@
+
+20070123
+ - (dtucker) [openbsd-compat/bsd-snprintf.c] Static declarations for public
+   library interfaces aren't very helpful. Fix up the DOPR_OUTCH macro
+   so it works properly and modify its callers so that they don't pre or
+   post decrement arguments that are conditionally evaluated. While there,
+   put SNPRINTF_CONST back as it prevents build failures in some
+   configurations.  ok djm@ (for most of it)
+
+20070122
+ - (djm) [ssh-rand-helper.8] manpage nits;
+   from dleonard AT vintela.com (bz#1529)
+
+20070117
+ - (dtucker) [packet.c] Re-remove in_systm.h since it's already in includes.h
+   and multiple including it causes problems on old IRIXes.  (It snuck back
+   in during a sync.)  Found (again) by Georg Schwarz.
+
+20070114
+ - (dtucker) [ssh-keygen.c] av -> argv to match earlier sync.
+ - (djm) [openbsd-compat/bsd-snprintf.c] Fix integer overflow in return
+   value of snprintf replacement, similar to bugs in various libc
+   implementations. This overflow is not exploitable in OpenSSH. 
+   While I'm fiddling with it, make it a fair bit faster by inlining the
+   append-char routine; ok dtucker@
+
+20070105
+ - (djm) OpenBSD CVS Sync
+   - deraadt@cvs.openbsd.org 2006/11/14 19:41:04
+     [ssh-keygen.c]
+     use argc and argv not some made up short form
+   - ray@cvs.openbsd.org 2006/11/23 01:35:11
+     [misc.c sftp.c]
+     Don't access buf[strlen(buf) - 1] for zero-length strings.
+     ``ok by me'' djm@.
+   - markus@cvs.openbsd.org 2006/12/11 21:25:46
+     [ssh-keygen.1 ssh.1]
+     add rfc 4716 (public key format); ok jmc
+   - djm@cvs.openbsd.org 2006/12/12 03:58:42
+     [channels.c compat.c compat.h]
+     bz #1019: some ssh.com versions apparently can't cope with the
+     remote port forwarding bind_address being a hostname, so send
+     them an address for cases where they are not explicitly
+     specified (wildcard or localhost bind).  reported by daveroth AT
+     acm.org; ok dtucker@ deraadt@
+   - dtucker@cvs.openbsd.org 2006/12/13 08:34:39
+     [servconf.c]
+     Make PermitOpen work with multiple values like the man pages says.
+     bz #1267 with details from peter at dmtz.com, with & ok djm@
+   - dtucker@cvs.openbsd.org 2006/12/14 10:01:14
+     [servconf.c]
+     Make "PermitOpen all" first-match within a block to match the way other
+     options work.  ok markus@ djm@
+   - jmc@cvs.openbsd.org 2007/01/02 09:57:25
+     [sshd_config.5]
+     do not use lists for SYNOPSIS;
+     from eric s. raymond via brad
+   - stevesk@cvs.openbsd.org 2007/01/03 00:53:38
+     [ssh-keygen.c]
+     remove small dead code; arnaud.lacombe.1@ulaval.ca via Coverity scan
+   - stevesk@cvs.openbsd.org 2007/01/03 03:01:40
+     [auth2-chall.c channels.c dns.c sftp.c ssh-keygen.c ssh.c]
+     spaces
+   - stevesk@cvs.openbsd.org 2007/01/03 04:09:15
+     [sftp.c]
+     ARGSUSED for lint
+   - stevesk@cvs.openbsd.org 2007/01/03 07:22:36
+     [sftp-server.c]
+     spaces
+
+20061205
+ - (djm) [auth.c] Fix NULL pointer dereference in fakepw().  Crash would
+   occur if the server did not have the privsep user and an invalid user
+   tried to login and both privsep and krb5 auth are disabled; ok dtucker@
+ - (djm) [bsd-asprintf.c] Better test for bad vsnprintf lengths; ok dtucker@
+
+20061108
+ - (dtucker) OpenBSD CVS Sync
+   - markus@cvs.openbsd.org 2006/11/07 13:02:07
+     [dh.c]
+     BN_hex2bn returns int; from dtucker@
+
 20061107
  - (dtucker) [sshd.c] Use privsep_pw if we have it, but only require it
    if we absolutely need it.  Pointed out by Corinna, ok djm@
@@ -13,7 +224,6 @@
      dtucker@
  - (dtucker) [README contrib/{caldera,redhat,contrib}/openssh.spec] Bump
    versions.
- - (dtucker) [dh.c] Type fix for BN_hex2bn; ok markus@
  - (dtucker) Release 4.5p1.
 
 20061105
@@ -2606,4 +2816,4 @@
    OpenServer 6 and add osr5bigcrypt support so when someone migrates
    passwords between UnixWare and OpenServer they will still work. OK dtucker@
 
-$Id: ChangeLog,v 1.4588.2.1 2006/11/07 13:02:59 dtucker Exp $
+$Id: ChangeLog,v 1.4635.2.1 2007/03/06 10:27:55 djm Exp $
