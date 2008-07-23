@@ -111,6 +111,6 @@ CFLAGS+=	-restrict
 # GCC SSP support.
 #
 .if ${MK_SSP} != "no" && ${CC} != "icc" && ${MACHINE_ARCH} != "ia64" && \
-	${MACHINE_ARCH} != "arm"
+	${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
