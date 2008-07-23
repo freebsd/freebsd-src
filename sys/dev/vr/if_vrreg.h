@@ -47,6 +47,14 @@
 #define VR_IMR			0x0E	/* interrupt mask register */
 #define VR_MAR0			0x10	/* multicast hash 0 */
 #define VR_MAR1			0x14	/* multicast hash 1 */
+#define VR_MCAM0		0x10
+#define VR_MCAM1		0x11
+#define VR_MCAM2		0x12
+#define VR_MCAM3		0x13
+#define VR_MCAM4		0x14
+#define VR_MCAM5		0x15
+#define VR_VCAM0		0x16
+#define VR_VCAM1		0x17
 #define VR_RXADDR		0x18	/* rx descriptor list start addr */
 #define VR_TXADDR		0x1C	/* tx descriptor list start addr */
 #define VR_CURRXDESC0		0x20
@@ -368,6 +376,7 @@
 #define VR_BCR1_TXTHRESH512BYTES 0x20
 #define VR_BCR1_TXTHRESH1024BYTES 0x28
 #define VR_BCR1_TXTHRESHSTORENFWD 0x38
+#define	VR_BCR1_VLANFILT_ENB	0x80	/* VT6105M */
 
 /*
  * CAMCTL register bits. (VT6105M only)
@@ -751,3 +760,6 @@ struct vr_softc {
 
 #define VR_SETBIT16(sc, reg, x) CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) | (x))
 #define VR_CLRBIT16(sc, reg, x) CSR_WRITE_2(sc, reg, CSR_READ_2(sc, reg) & ~(x))
+
+#define	VR_MCAST_CAM	0
+#define	VR_VLAN_CAM	1
