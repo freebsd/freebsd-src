@@ -23,6 +23,9 @@ SUBDIR+=		uboot
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.
-SUBDIR+=		${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
+ADIR=			${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
+.if exists(${.CURDIR}/${ADIR}/.)
+SUBDIR+=		${ADIR}
+.endif
 
 .include <bsd.subdir.mk>
