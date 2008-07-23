@@ -39,7 +39,8 @@
 
 #define INIT_SZ	128
 
-int vasprintf(char **str, const char *fmt, va_list ap)
+int
+vasprintf(char **str, const char *fmt, va_list ap)
 {
 	int ret = -1;
 	va_list ap2;
@@ -53,7 +54,7 @@ int vasprintf(char **str, const char *fmt, va_list ap)
 	ret = vsnprintf(string, INIT_SZ, fmt, ap2);
 	if (ret >= 0 && ret < INIT_SZ) { /* succeeded with initial alloc */
 		*str = string;
-	} else if (ret == INT_MAX) { /* shouldn't happen */
+	} else if (ret == INT_MAX || ret < 0) { /* Bad length */
 		goto fail;
 	} else {	/* bigger than initial, realloc allowing for nul */
 		len = (size_t)ret + 1;

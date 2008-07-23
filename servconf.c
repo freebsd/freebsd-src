@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.165 2006/08/14 12:40:25 dtucker Exp $ */
+/* $OpenBSD: servconf.c,v 1.170 2007/03/01 10:28:02 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -325,14 +325,14 @@ static struct {
 	{ "syslogfacility", sLogFacility, SSHCFG_GLOBAL },
 	{ "loglevel", sLogLevel, SSHCFG_GLOBAL },
 	{ "rhostsauthentication", sDeprecated, SSHCFG_GLOBAL },
-	{ "rhostsrsaauthentication", sRhostsRSAAuthentication, SSHCFG_GLOBAL },
-	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_GLOBAL },
+	{ "rhostsrsaauthentication", sRhostsRSAAuthentication, SSHCFG_ALL },
+	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_ALL },
 	{ "hostbasedusesnamefrompacketonly", sHostbasedUsesNameFromPacketOnly, SSHCFG_GLOBAL },
-	{ "rsaauthentication", sRSAAuthentication, SSHCFG_GLOBAL },
-	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL },
+	{ "rsaauthentication", sRSAAuthentication, SSHCFG_ALL },
+	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_ALL },
 	{ "dsaauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL },	/* alias */
 #ifdef KRB5
-	{ "kerberosauthentication", sKerberosAuthentication, SSHCFG_GLOBAL },
+	{ "kerberosauthentication", sKerberosAuthentication, SSHCFG_ALL },
 	{ "kerberosorlocalpasswd", sKerberosOrLocalPasswd, SSHCFG_GLOBAL },
 	{ "kerberosticketcleanup", sKerberosTicketCleanup, SSHCFG_GLOBAL },
 #ifdef USE_AFS
@@ -341,7 +341,7 @@ static struct {
 	{ "kerberosgetafstoken", sUnsupported, SSHCFG_GLOBAL },
 #endif
 #else
-	{ "kerberosauthentication", sUnsupported, SSHCFG_GLOBAL },
+	{ "kerberosauthentication", sUnsupported, SSHCFG_ALL },
 	{ "kerberosorlocalpasswd", sUnsupported, SSHCFG_GLOBAL },
 	{ "kerberosticketcleanup", sUnsupported, SSHCFG_GLOBAL },
 	{ "kerberosgetafstoken", sUnsupported, SSHCFG_GLOBAL },
@@ -349,14 +349,14 @@ static struct {
 	{ "kerberostgtpassing", sUnsupported, SSHCFG_GLOBAL },
 	{ "afstokenpassing", sUnsupported, SSHCFG_GLOBAL },
 #ifdef GSSAPI
-	{ "gssapiauthentication", sGssAuthentication, SSHCFG_GLOBAL },
+	{ "gssapiauthentication", sGssAuthentication, SSHCFG_ALL },
 	{ "gssapicleanupcredentials", sGssCleanupCreds, SSHCFG_GLOBAL },
 #else
-	{ "gssapiauthentication", sUnsupported, SSHCFG_GLOBAL },
+	{ "gssapiauthentication", sUnsupported, SSHCFG_ALL },
 	{ "gssapicleanupcredentials", sUnsupported, SSHCFG_GLOBAL },
 #endif
-	{ "passwordauthentication", sPasswordAuthentication, SSHCFG_GLOBAL },
-	{ "kbdinteractiveauthentication", sKbdInteractiveAuthentication, SSHCFG_GLOBAL },
+	{ "passwordauthentication", sPasswordAuthentication, SSHCFG_ALL },
+	{ "kbdinteractiveauthentication", sKbdInteractiveAuthentication, SSHCFG_ALL },
 	{ "challengeresponseauthentication", sChallengeResponseAuthentication, SSHCFG_GLOBAL },
 	{ "skeyauthentication", sChallengeResponseAuthentication, SSHCFG_GLOBAL }, /* alias */
 	{ "checkmail", sDeprecated, SSHCFG_GLOBAL },
@@ -389,7 +389,7 @@ static struct {
 	{ "subsystem", sSubsystem, SSHCFG_GLOBAL },
 	{ "maxstartups", sMaxStartups, SSHCFG_GLOBAL },
 	{ "maxauthtries", sMaxAuthTries, SSHCFG_GLOBAL },
-	{ "banner", sBanner, SSHCFG_GLOBAL },
+	{ "banner", sBanner, SSHCFG_ALL },
 	{ "usedns", sUseDNS, SSHCFG_GLOBAL },
 	{ "verifyreversemapping", sDeprecated, SSHCFG_GLOBAL },
 	{ "reversemappingcheck", sDeprecated, SSHCFG_GLOBAL },
@@ -968,7 +968,7 @@ parse_flag:
 		else
 			fatal("%s line %d: Bad yes/no/clientspecified "
 			    "argument: %s", filename, linenum, arg);
-		if (*intptr == -1)
+		if (*activep && *intptr == -1)
 			*intptr = value;
 		break;
 
@@ -1220,13 +1220,16 @@ parse_flag:
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: missing PermitOpen specification",
 			    filename, linenum);
+		n = options->num_permitted_opens;	/* modified later */
 		if (strcmp(arg, "any") == 0) {
-			if (*activep) {
+			if (*activep && n == -1) {
 				channel_clear_adm_permitted_opens();
 				options->num_permitted_opens = 0;
 			}
 			break;
 		}
+		if (*activep && n == -1)
+			channel_clear_adm_permitted_opens();
 		for (; arg != NULL && *arg != '\0'; arg = strdelim(&cp)) {
 			p = hpdelim(&arg);
 			if (p == NULL)
@@ -1236,11 +1239,9 @@ parse_flag:
 			if (arg == NULL || (port = a2port(arg)) == 0)
 				fatal("%s line %d: bad port number in "
 				    "PermitOpen", filename, linenum);
-			if (*activep && options->num_permitted_opens == -1) {
-				channel_clear_adm_permitted_opens();
+			if (*activep && n == -1)
 				options->num_permitted_opens =
 				    channel_add_adm_permitted_opens(p, port);
-			}
 		}
 		break;
 
@@ -1316,29 +1317,54 @@ parse_server_match_config(ServerOptions *options, const char *user,
 
 	initialize_server_options(&mo);
 	parse_server_config(&mo, "reprocess config", &cfg, user, host, address);
-	copy_set_server_options(options, &mo);
+	copy_set_server_options(options, &mo, 0);
 }
 
-/* Copy any (supported) values that are set */
+/* Helper macros */
+#define M_CP_INTOPT(n) do {\
+	if (src->n != -1) \
+		dst->n = src->n; \
+} while (0)
+#define M_CP_STROPT(n) do {\
+	if (src->n != NULL) { \
+		if (dst->n != NULL) \
+			xfree(dst->n); \
+		dst->n = src->n; \
+	} \
+} while(0)
+
+/*
+ * Copy any supported values that are set.
+ *
+ * If the preauth flag is set, we do not bother copying the the string or
+ * array values that are not used pre-authentication, because any that we
+ * do use must be explictly sent in mm_getpwnamallow().
+ */
 void
-copy_set_server_options(ServerOptions *dst, ServerOptions *src)
+copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 {
-	if (src->allow_tcp_forwarding != -1)
-		dst->allow_tcp_forwarding = src->allow_tcp_forwarding;
-	if (src->gateway_ports != -1)
-		dst->gateway_ports = src->gateway_ports;
-	if (src->adm_forced_command != NULL) {
-		if (dst->adm_forced_command != NULL)
-			xfree(dst->adm_forced_command);
-		dst->adm_forced_command = src->adm_forced_command;
-	}
-	if (src->x11_display_offset != -1)
-		dst->x11_display_offset = src->x11_display_offset;
-	if (src->x11_forwarding != -1)
-		dst->x11_forwarding = src->x11_forwarding;
-	if (src->x11_use_localhost != -1)
-		dst->x11_use_localhost = src->x11_use_localhost;
+	M_CP_INTOPT(password_authentication);
+	M_CP_INTOPT(gss_authentication);
+	M_CP_INTOPT(rsa_authentication);
+	M_CP_INTOPT(pubkey_authentication);
+	M_CP_INTOPT(kerberos_authentication);
+	M_CP_INTOPT(hostbased_authentication);
+	M_CP_INTOPT(kbd_interactive_authentication);
+
+	M_CP_INTOPT(allow_tcp_forwarding);
+	M_CP_INTOPT(gateway_ports);
+	M_CP_INTOPT(x11_display_offset);
+	M_CP_INTOPT(x11_forwarding);
+	M_CP_INTOPT(x11_use_localhost);
+
+	M_CP_STROPT(banner);
+	if (preauth)
+		return;
+	M_CP_STROPT(adm_forced_command);
 }
+
+#undef M_CP_INTOPT
+#undef M_CP_STROPT
 
 void
 parse_server_config(ServerOptions *options, const char *filename, Buffer *conf,
@@ -1361,4 +1387,8 @@ parse_server_config(ServerOptions *options, const char *filename, Buffer *conf,
 	if (bad_options > 0)
 		fatal("%s: terminating, %d bad configuration options",
 		    filename, bad_options);
+
+	/* challenge-response is implemented via keyboard interactive */
+	if (options->challenge_response_authentication == 1)
+		options->kbd_interactive_authentication = 1;
 }

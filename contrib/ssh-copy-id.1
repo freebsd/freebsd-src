@@ -1,0 +1,67 @@
+.ig \"  -*- nroff -*-
+Copyright (c) 1999 Philip Hands Computing <http://www.hands.com/>
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be included in
+translations approved by the Free Software Foundation instead of in
+the original English.
+..
+.TH SSH-COPY-ID 1 "14 November 1999" "OpenSSH"
+.SH NAME
+ssh-copy-id \- install your identity.pub in a remote machine's authorized_keys
+.SH SYNOPSIS
+.B ssh-copy-id [-i [identity_file]]
+.I "[user@]machine"
+.br
+.SH DESCRIPTION
+.BR ssh-copy-id
+is a script that uses ssh to log into a remote machine (presumably
+using a login password, so password authentication should be enabled,
+unless you've done some clever use of multiple identities)
+.PP
+It also changes the permissions of the remote user's home,
+.BR ~/.ssh ,
+and
+.B ~/.ssh/authorized_keys
+to remove group writability (which would otherwise prevent you from logging in, if the remote
+.B sshd
+has
+.B StrictModes
+set in its configuration).
+.PP
+If the
+.B -i
+option is given then the identity file (defaults to
+.BR ~/.ssh/identity.pub )
+is used, regardless of whether there are any keys in your
+.BR ssh-agent .
+Otherwise, if this:
+.PP
+.B "      ssh-add -L"
+.PP
+provides any output, it uses that in preference to the identity file.
+.PP
+If the
+.B -i
+option is used, or the
+.B ssh-add
+produced no output, then it uses the contents of the identity
+file.  Once it has one or more fingerprints (by whatever means) it
+uses ssh to append them to
+.B ~/.ssh/authorized_keys
+on the remote machine (creating the file, and directory, if necessary)
+
+.SH "SEE ALSO"
+.BR ssh (1),
+.BR ssh-agent (1),
+.BR sshd (8)

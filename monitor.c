@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.89 2006/11/07 10:31:31 markus Exp $ */
+/* $OpenBSD: monitor.c,v 1.90 2007/02/19 10:45:58 dtucker Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -642,6 +642,9 @@ mm_answer_pwnamallow(int sock, Buffer *m)
 #endif
 	buffer_put_cstring(m, pwent->pw_dir);
 	buffer_put_cstring(m, pwent->pw_shell);
+	buffer_put_string(m, &options, sizeof(options));
+	if (options.banner != NULL)
+		buffer_put_cstring(m, options.banner);
 
  out:
 	debug3("%s: sending MONITOR_ANS_PWNAM: %d", __func__, allowed);

@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.266 2006/08/29 10:40:18 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.268 2007/01/03 03:01:40 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1052,7 +1052,7 @@ channel_decode_socks5(Channel *c, fd_set *readset, fd_set *writeset)
 		if (have < nmethods + 2)
 			return 0;
 		/* look for method: "NO AUTHENTICATION REQUIRED" */
-		for (found = 0, i = 2 ; i < nmethods + 2; i++) {
+		for (found = 0, i = 2; i < nmethods + 2; i++) {
 			if (p[i] == SSH_SOCKS5_NOAUTH) {
 				found = 1;
 				break;
@@ -1449,10 +1449,11 @@ channel_handle_rfd(Channel *c, fd_set *readset, fd_set *writeset)
 	int len;
 
 	if (c->rfd != -1 &&
-	    FD_ISSET(c->rfd, readset)) {
+	    (c->detach_close || FD_ISSET(c->rfd, readset))) {
 		errno = 0;
 		len = read(c->rfd, buf, sizeof(buf));
-		if (len < 0 && (errno == EINTR || errno == EAGAIN))
+		if (len < 0 && (errno == EINTR ||
+		    (errno == EAGAIN && !(c->isatty && c->detach_close))))
 			return 1;
 #ifndef PTY_ZEROREAD
 		if (len <= 0) {
@@ -1604,11 +1605,12 @@ channel_handle_efd(Channel *c, fd_set *readset, fd_set *writeset)
 				c->local_consumed += len;
 			}
 		} else if (c->extended_usage == CHAN_EXTENDED_READ &&
-		    FD_ISSET(c->efd, readset)) {
+		    (c->detach_close || FD_ISSET(c->efd, readset))) {
 			len = read(c->efd, buf, sizeof(buf));
 			debug2("channel %d: read %d from efd %d",
 			    c->self, len, c->efd);
-			if (len < 0 && (errno == EINTR || errno == EAGAIN))
+			if (len < 0 && (errno == EINTR ||
+			    (errno == EAGAIN && !c->detach_close)))
 				return 1;
 			if (len <= 0) {
 				debug2("channel %d: closing read-efd %d",
@@ -2525,11 +2527,18 @@ channel_request_remote_forwarding(const char *listen_host, u_short listen_port,
 	/* Send the forward request to the remote side. */
 	if (compat20) {
 		const char *address_to_bind;
-		if (listen_host == NULL)
-			address_to_bind = "localhost";
-		else if (*listen_host == '\0' || strcmp(listen_host, "*") == 0)
-			address_to_bind = "";
-		else
+		if (listen_host == NULL) {
+			if (datafellows & SSH_BUG_RFWD_ADDR)
+				address_to_bind = "127.0.0.1";
+			else
+				address_to_bind = "localhost";
+		} else if (*listen_host == '\0' ||
+			   strcmp(listen_host, "*") == 0) {
+			if (datafellows & SSH_BUG_RFWD_ADDR)
+				address_to_bind = "0.0.0.0";
+			else
+				address_to_bind = "";
+		} else
 			address_to_bind = listen_host;
 
 		packet_start(SSH2_MSG_GLOBAL_REQUEST);
