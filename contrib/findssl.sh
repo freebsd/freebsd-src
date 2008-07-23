@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: findssl.sh 180740 2008-07-23 09:15:38Z des $
+# $Id: findssl.sh,v 1.4 2007/02/19 11:44:25 dtucker Exp $
 #
 # findssl.sh
 #	Search for all instances of OpenSSL headers and libraries

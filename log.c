@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.39 2006/08/18 09:13:25 deraadt Exp $ */
+/* $OpenBSD: log.c,v 1.40 2007/05/17 07:50:31 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -44,6 +44,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <unistd.h>
+#include <errno.h>
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
 # include <vis.h>
 #endif
@@ -313,6 +314,7 @@ do_log(LogLevel level, const char *fmt, va_list args)
 	char fmtbuf[MSGBUFSIZ];
 	char *txt = NULL;
 	int pri = LOG_INFO;
+	int saved_errno = errno;
 
 	if (level > log_level)
 		return;
@@ -373,4 +375,5 @@ do_log(LogLevel level, const char *fmt, va_list args)
 		closelog();
 #endif
 	}
+	errno = saved_errno;
 }

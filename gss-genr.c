@@ -1,7 +1,7 @@
-/* $OpenBSD: gss-genr.c,v 1.17 2006/08/29 12:02:30 dtucker Exp $ */
+/* $OpenBSD: gss-genr.c,v 1.19 2007/06/12 11:56:15 dtucker Exp $ */
 
 /*
- * Copyright (c) 2001-2006 Simon Wilkinson. All rights reserved.
+ * Copyright (c) 2001-2007 Simon Wilkinson. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -107,7 +107,7 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	/* The GSSAPI error */
 	do {
 		gss_display_status(&lmin, ctxt->major,
-		    GSS_C_GSS_CODE, GSS_C_NULL_OID, &ctx, &msg);
+		    GSS_C_GSS_CODE, ctxt->oid, &ctx, &msg);
 
 		buffer_append(&b, msg.value, msg.length);
 		buffer_put_char(&b, '\n');
@@ -118,7 +118,7 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	/* The mechanism specific error */
 	do {
 		gss_display_status(&lmin, ctxt->minor,
-		    GSS_C_MECH_CODE, GSS_C_NULL_OID, &ctx, &msg);
+		    GSS_C_MECH_CODE, ctxt->oid, &ctx, &msg);
 
 		buffer_append(&b, msg.value, msg.length);
 		buffer_put_char(&b, '\n');
@@ -226,39 +226,6 @@ ssh_gssapi_import_name(Gssctxt *ctx, const char *host)
 	return (ctx->major);
 }
 
-/* Acquire credentials for a server running on the current host.
- * Requires that the context structure contains a valid OID
- */
-
-/* Returns a GSSAPI error code */
-OM_uint32
-ssh_gssapi_acquire_cred(Gssctxt *ctx)
-{
-	OM_uint32 status;
-	char lname[MAXHOSTNAMELEN];
-	gss_OID_set oidset;
-
-	gss_create_empty_oid_set(&status, &oidset);
-	gss_add_oid_set_member(&status, ctx->oid, &oidset);
-
-	if (gethostname(lname, MAXHOSTNAMELEN)) {
-		gss_release_oid_set(&status, &oidset);
-		return (-1);
-	}
-
-	if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
-		gss_release_oid_set(&status, &oidset);
-		return (ctx->major);
-	}
-
-	if ((ctx->major = gss_acquire_cred(&ctx->minor,
-	    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds, NULL, NULL)))
-		ssh_gssapi_error(ctx);
-
-	gss_release_oid_set(&status, &oidset);
-	return (ctx->major);
-}
-
 OM_uint32
 ssh_gssapi_sign(Gssctxt *ctx, gss_buffer_t buffer, gss_buffer_t hash)
 {
@@ -279,16 +246,6 @@ ssh_gssapi_buildmic(Buffer *b, const char *user, const char *service,
 	buffer_put_cstring(b, user);
 	buffer_put_cstring(b, service);
 	buffer_put_cstring(b, context);
-}
-
-OM_uint32
-ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
-{
-	if (*ctx)
-		ssh_gssapi_delete_ctx(ctx);
-	ssh_gssapi_build_ctx(ctx);
-	ssh_gssapi_set_oid(*ctx, oid);
-	return (ssh_gssapi_acquire_cred(*ctx));
 }
 
 int

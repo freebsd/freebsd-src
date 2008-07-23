@@ -38,7 +38,7 @@ main(void)
 	char buf[512];
 
 	for (i = 0; i < NUM_OPENS; i++)
-		if ((fds[i] = open("/dev/null", "r")) == -1)
+		if ((fds[i] = open("/dev/null", O_RDONLY)) == -1)
 			exit(0);	/* can't test */
 	max = i - 1;
 

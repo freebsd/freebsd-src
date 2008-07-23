@@ -49,7 +49,7 @@
 #ifdef HAVE_NEXT
 # include <libc.h>
 #endif
-#ifdef HAVE_PATHS
+#ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
 

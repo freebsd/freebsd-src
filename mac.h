@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.h,v 1.4 2006/03/25 22:22:43 djm Exp $ */
+/* $OpenBSD: mac.h,v 1.6 2007/06/07 19:37:34 pvalchev Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -24,5 +24,7 @@
  */
 
 int	 mac_valid(const char *);
-int	 mac_init(Mac *, char *);
+int	 mac_setup(Mac *, char *);
+int	 mac_init(Mac *);
 u_char	*mac_compute(Mac *, u_int32_t, u_char *, int);
+void	 mac_clear(Mac *);

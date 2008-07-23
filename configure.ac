@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.372 2007/03/05 00:51:27 djm Exp $
+# $Id: configure.ac,v 1.383 2007/08/10 04:36:12 dtucker Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.372 $)
+AC_REVISION($Revision: 1.383 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -94,9 +94,12 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 	CFLAGS="$CFLAGS -Wall -Wpointer-arith -Wuninitialized"
 	GCC_VER=`$CC -v 2>&1 | $AWK '/gcc version /{print $3}'`
 	case $GCC_VER in
-		1.*) ;;
-		2.8* | 2.9*) CFLAGS="$CFLAGS -Wsign-compare" ;;
-		2.*) ;;
+		1.*) no_attrib_nonnull=1 ;;
+		2.8* | 2.9*)
+		     CFLAGS="$CFLAGS -Wsign-compare"
+		     no_attrib_nonnull=1
+		     ;;
+		2.*) no_attrib_nonnull=1 ;;
 		3.*) CFLAGS="$CFLAGS -Wsign-compare" ;;
 		4.*) CFLAGS="$CFLAGS -Wsign-compare -Wno-pointer-sign" ;;
 		*) ;;
@@ -113,6 +116,10 @@ if test "$GCC" = "yes" || test "$GCC" = "egcs"; then
 		    [#include <limits.h>]
 		)
 	fi
+fi
+
+if test "x$no_attrib_nonnull" != "x1" ; then
+	AC_DEFINE(HAVE_ATTRIBUTE__NONNULL__, 1, [Have attribute nonnull])
 fi
 
 AC_ARG_WITH(rpath,
@@ -198,6 +205,7 @@ AC_CHECK_HEADERS( \
 	netgroup.h \
 	pam/pam_appl.h \
 	paths.h \
+	poll.h \
 	pty.h \
 	readpassphrase.h \
 	rpc/types.h \
@@ -229,6 +237,7 @@ AC_CHECK_HEADERS( \
 	time.h \
 	tmpdir.h \
 	ttyent.h \
+	ucred.h \
 	unistd.h \
 	usersec.h \
 	util.h \
@@ -777,6 +786,11 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(DISABLE_LASTLOG)
 	AC_DEFINE(SSHD_ACQUIRES_CTTY)
 	enable_etc_default_login=no	# has incompatible /etc/default/login
+	case "$host" in
+	*-*-nto-qnx6*)
+		AC_DEFINE(DISABLE_FD_PASSING)
+		;;
+	esac
 	;;
 
 *-*-ultrix*)
@@ -1109,8 +1123,7 @@ AC_ARG_WITH(tcp-wrappers,
 					CPPFLAGS="-I${withval} ${CPPFLAGS}"
 				fi
 			fi
-			LIBWRAP="-lwrap"
-			LIBS="$LIBWRAP $LIBS"
+			LIBS="-lwrap $LIBS"
 			AC_MSG_CHECKING(for libwrap)
 			AC_TRY_LINK(
 				[
@@ -1126,7 +1139,7 @@ AC_ARG_WITH(tcp-wrappers,
 					AC_DEFINE(LIBWRAP, 1,
 						[Define if you want
 						TCP Wrappers support])
-					AC_SUBST(LIBWRAP)
+					SSHDLIBS="$SSHDLIBS -lwrap"
 					TCPW_MSG="yes"
 				],
 				[
@@ -1241,6 +1254,7 @@ AC_CHECK_FUNCS( \
 	getnameinfo \
 	getopt \
 	getpeereid \
+	getpeerucred \
 	_getpty \
 	getrlimit \
 	getttyent \
@@ -1259,6 +1273,7 @@ AC_CHECK_FUNCS( \
 	ogetaddrinfo \
 	openlog_r \
 	openpty \
+	poll \
 	prctl \
 	pstat \
 	readpassphrase \
@@ -1292,6 +1307,7 @@ AC_CHECK_FUNCS( \
 	strtonum \
 	strtoll \
 	strtoul \
+	swap32 \
 	sysconf \
 	tcgetpgrp \
 	truncate \
@@ -1362,6 +1378,14 @@ AC_CHECK_DECLS(writev, , , [
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
+	])
+
+AC_CHECK_DECLS(MAXSYMLINKS, , , [
+#include <sys/param.h>
+	])
+
+AC_CHECK_DECLS(offsetof, , , [
+#include <stddef.h>
 	])
 
 AC_CHECK_FUNCS(setresuid, [
@@ -1489,7 +1513,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[#include <stdio.h>
 
 # Check for missing getpeereid (or equiv) support
 NO_PEERCHECK=""
-if test "x$ac_cv_func_getpeereid" != "xyes" ; then
+if test "x$ac_cv_func_getpeereid" != "xyes" -a "x$ac_cv_func_getpeerucred" != "xyes"; then
 	AC_MSG_CHECKING([whether system supports SO_PEERCRED getsockopt])
 	AC_TRY_COMPILE(
 		[#include <sys/types.h>
@@ -1977,7 +2001,12 @@ fi
 # Search for SHA256 support in libc and/or OpenSSL
 AC_CHECK_FUNCS(SHA256_Update EVP_sha256)
 
-AC_CHECK_LIB(iaf, ia_openinfo)
+saved_LIBS="$LIBS"
+AC_CHECK_LIB(iaf, ia_openinfo, [
+	LIBS="$LIBS -liaf"
+	AC_CHECK_FUNCS(set_id, [SSHDLIBS="$SSHDLIBS -liaf"])
+])
+LIBS="$saved_LIBS"
 
 ### Configure cryptographic random number support
 
@@ -2027,7 +2056,7 @@ AC_ARG_WITH(pam,
 
 			PAM_MSG="yes"
 
-			LIBPAM="-lpam"
+			SSHDLIBS="$SSHDLIBS -lpam"
 			AC_DEFINE(USE_PAM, 1,
 				[Define if you want to enable PAM support])
 
@@ -2037,11 +2066,10 @@ AC_ARG_WITH(pam,
 					# libdl already in LIBS
 					;;
 				*)
-					LIBPAM="$LIBPAM -ldl"
+					SSHDLIBS="$SSHDLIBS -ldl"
 					;;
 				esac
 			fi
-			AC_SUBST(LIBPAM)
 		fi
 	]
 )
@@ -3150,25 +3178,43 @@ int main()
 			[#include <arpa/nameser.h>])
 	])
 
+AC_MSG_CHECKING(if struct __res_state _res is an extern)
+AC_LINK_IFELSE([
+#include <stdio.h>
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>
+extern struct __res_state _res;
+int main() { return 0; }
+		],
+		[AC_MSG_RESULT(yes)
+		 AC_DEFINE(HAVE__RES_EXTERN, 1,
+		    [Define if you have struct __res_state _res as an extern])
+		],
+		[ AC_MSG_RESULT(no) ]
+)
+
 # Check whether user wants SELinux support
 SELINUX_MSG="no"
 LIBSELINUX=""
 AC_ARG_WITH(selinux,
 	[  --with-selinux   Enable SELinux support],
 	[ if test "x$withval" != "xno" ; then
+		save_LIBS="$LIBS"
 		AC_DEFINE(WITH_SELINUX,1,[Define if you want SELinux support.])
 		SELINUX_MSG="yes"
 		AC_CHECK_HEADER([selinux/selinux.h], ,
 		    AC_MSG_ERROR(SELinux support requires selinux.h header))
 		AC_CHECK_LIB(selinux, setexeccon, [ LIBSELINUX="-lselinux" ],
 		    AC_MSG_ERROR(SELinux support requires libselinux library))
-		save_LIBS="$LIBS"
-		LIBS="$LIBS $LIBSELINUX"
+		SSHDLIBS="$SSHDLIBS $LIBSELINUX"
 		AC_CHECK_FUNCS(getseuserbyname get_default_context_with_level)
 		LIBS="$save_LIBS"
 	fi ]
 )
-AC_SUBST(LIBSELINUX)
 
 # Check whether user wants Kerberos 5 support
 KRB5_MSG="no"
@@ -4004,7 +4050,10 @@ echo "          Compiler: ${CC}"
 echo "    Compiler flags: ${CFLAGS}"
 echo "Preprocessor flags: ${CPPFLAGS}"
 echo "      Linker flags: ${LDFLAGS}"
-echo "         Libraries: ${LIBWRAP} ${LIBPAM} ${LIBS}"
+echo "         Libraries: ${LIBS}"
+if test ! -z "${SSHDLIBS}"; then
+echo "         +for sshd: ${SSHDLIBS}"
+fi
 
 echo ""
 
@@ -4030,12 +4079,12 @@ if test ! -z "$RAND_HELPER_CMDHASH" ; then
 fi
 
 if test ! -z "$NO_PEERCHECK" ; then
-	echo "WARNING: the operating system that you are using does not "
-	echo "appear to support either the getpeereid() API nor the "
-	echo "SO_PEERCRED getsockopt() option. These facilities are used to "
-	echo "enforce security checks to prevent unauthorised connections to "
-	echo "ssh-agent. Their absence increases the risk that a malicious "
-	echo "user can connect to your agent. "
+	echo "WARNING: the operating system that you are using does not"
+	echo "appear to support getpeereid(), getpeerucred() or the"
+	echo "SO_PEERCRED getsockopt() option. These facilities are used to"
+	echo "enforce security checks to prevent unauthorised connections to"
+	echo "ssh-agent. Their absence increases the risk that a malicious"
+	echo "user can connect to your agent."
 	echo ""
 fi
 
