@@ -142,6 +142,7 @@ trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2004/07/06"]
 thierry [label="Thierry Thomas\nthierry@FreeBSD.org\n2004/03/15"]
 tmclaugh [label="Tom McLaughlin\ntmclaugh@FreeBSD.org\n2005/09/15"]
 vd [label="Vasil Dimov\nvd@FreeBSD.org\n2006/01/19"]
+wxs [label="Wesley Shields\nwxs@FreeBSD.org\n2008/01/03"]
 xride [label="Soeren Straarup\nxride@FreeBSD.org\n2006/09/27"]
 znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 
@@ -209,6 +210,7 @@ garga -> acm
 garga -> alepulver
 garga -> mm
 garga -> vd
+garga -> wxs
 garga -> xride
 
 glewis -> hq
