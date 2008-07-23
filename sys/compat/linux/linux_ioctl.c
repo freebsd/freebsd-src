@@ -893,7 +893,10 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		break;
 	}
 
-	/* LINUX_TIOCPKT */
+	case LINUX_TIOCPKT:
+		args->cmd = TIOCPKT;
+		error = (ioctl(td, (struct ioctl_args *)args));
+		break;
 
 	case LINUX_FIONBIO:
 		args->cmd = FIONBIO;
@@ -993,6 +996,10 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 			    sizeof(int));
 		break;
 	}
+	case LINUX_TIOCSPTLCK:
+		/* Our unlockpt() does nothing. */
+		error = 0;
+		break;
 	default:
 		error = ENOIOCTL;
 		break;
