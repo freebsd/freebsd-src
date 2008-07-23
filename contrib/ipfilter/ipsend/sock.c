@@ -33,15 +33,23 @@ typedef int     boolean_t;
 # ifdef __NetBSD__ 
 #  include <machine/lock.h>
 # endif
-# define _KERNEL
-# define	KERNEL
+# ifdef __FreeBSD__
+#  define _WANT_FILE
+# else
+#  define _KERNEL
+#  define	KERNEL
+# endif
 # ifdef	ultrix
 #  undef	LOCORE
 #  include <sys/smp_lock.h>
 # endif
 # include <sys/file.h>
-# undef  _KERNEL
-# undef  KERNEL
+# ifdef __FreeBSD__
+#  undef _WANT_FILE
+# else
+#  undef  _KERNEL
+#  undef  KERNEL
+# endif
 #endif
 #include <nlist.h>
 #include <sys/user.h>
