@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
+#include <sys/refcount.h>
 #include <sys/sx.h>
 #include <sys/ucred.h>
 
@@ -86,7 +87,7 @@ static struct auth_ops authunix_ops = {
 struct audata {
 	TAILQ_ENTRY(audata)	au_link;
 	TAILQ_ENTRY(audata)	au_alllink;
-	int			au_refs;
+	volatile u_int		au_refs;
 	struct xucred		au_xcred;
 	struct opaque_auth	au_origcred;	/* original credentials */
 	struct opaque_auth	au_shcred;	/* short hand cred */
@@ -157,6 +158,7 @@ again:
 	sx_slock(&auth_unix_lock);
 	TAILQ_FOREACH(au, &auth_unix_cache[h], au_link) {
 		if (!memcmp(&xcr, &au->au_xcred, sizeof(xcr))) {
+			refcount_acquire(&au->au_refs);
 			if (sx_try_upgrade(&auth_unix_lock)) {
 				/*
 				 * Keep auth_unix_all LRU sorted.
@@ -164,15 +166,15 @@ again:
 				TAILQ_REMOVE(&auth_unix_all, au, au_alllink);
 				TAILQ_INSERT_TAIL(&auth_unix_all, au,
 				    au_alllink);
-				au->au_refs++;
 				sx_xunlock(&auth_unix_lock);
-				return (au->au_auth);
 			} else {
 				sx_sunlock(&auth_unix_lock);
-				goto again;
 			}
+			return (au->au_auth);
 		}
 	}
+
+	sx_sunlock(&auth_unix_lock);
 
 	/*
 	 * Allocate and set up auth handle
@@ -183,7 +185,7 @@ again:
 	auth->ah_ops = &authunix_ops;
 	auth->ah_private = (caddr_t)au;
 	auth->ah_verf = au->au_shcred = _null_auth;
-	au->au_refs = 1;
+	refcount_init(&au->au_refs, 1);
 	au->au_xcred = xcr;
 	au->au_shfaults = 0;
 	au->au_origcred.oa_base = NULL;
@@ -210,18 +212,26 @@ again:
 	auth->ah_cred = au->au_origcred;
 	marshal_new_auth(auth);
 
-	if (sx_try_upgrade(&auth_unix_lock)) {
-		auth_unix_count++;
-		TAILQ_INSERT_TAIL(&auth_unix_cache[h], au, au_link);
-		TAILQ_INSERT_TAIL(&auth_unix_all, au, au_alllink);
-		au->au_refs++;	/* one for the cache, one for user */
-		sx_xunlock(&auth_unix_lock);
-		return (auth);
-	} else {
-		sx_sunlock(&auth_unix_lock);
-		AUTH_DESTROY(auth);
-		goto again;
+	sx_xlock(&auth_unix_lock);
+	TAILQ_FOREACH(tau, &auth_unix_cache[h], au_link) {
+		if (!memcmp(&xcr, &tau->au_xcred, sizeof(xcr))) {
+			/*
+			 * We lost a race to create the AUTH that
+			 * matches this cred.
+			 */
+			sx_xunlock(&auth_unix_lock);
+			AUTH_DESTROY(auth);
+			goto again;
+		}
 	}
+
+	auth_unix_count++;
+	TAILQ_INSERT_TAIL(&auth_unix_cache[h], au, au_link);
+	TAILQ_INSERT_TAIL(&auth_unix_all, au, au_alllink);
+	refcount_acquire(&au->au_refs);	/* one for the cache, one for user */
+	sx_xunlock(&auth_unix_lock);
+
+	return (auth);
 }
 
 /*
@@ -316,16 +326,10 @@ static void
 authunix_destroy(AUTH *auth)
 {
 	struct audata *au;
-	int refs;
 
 	au = AUTH_PRIVATE(auth);
 
-	sx_xlock(&auth_unix_lock);
-	au->au_refs--;
-	refs = au->au_refs;
-	sx_xunlock(&auth_unix_lock);
-
-	if (refs > 0)
+	if (!refcount_release(&au->au_refs))
 		return;
 
 	mem_free(au->au_origcred.oa_base, au->au_origcred.oa_length);
