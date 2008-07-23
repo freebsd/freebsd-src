@@ -43,8 +43,8 @@ DESCRIPTION
              batchfile of `-' may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
              rename, ln, rm, mkdir, chdir, ls, lchdir, chmod, chown, chgrp,
-             lpwd and lmkdir.  Termination on error can be suppressed on a
-             command by command basis by prefixing the command with a `-'
+             lpwd, df, and lmkdir.  Termination on error can be suppressed on
+             a command by command basis by prefixing the command with a `-'
              character (for example, -rm /tmp/blah*).
 
      -C      Enables compression (via ssh's -C flag).
@@ -117,7 +117,7 @@ DESCRIPTION
      -R num_requests
              Specify how many requests may be outstanding at any one time.
              Increasing this may slightly improve file transfer speed but will
-             increase memory usage.  The default is 16 outstanding requests.
+             increase memory usage.  The default is 64 outstanding requests.
 
      -S program
              Name of the program to use for the encrypted connection.  The
@@ -154,6 +154,14 @@ INTERACTIVE COMMANDS
      chown own path
              Change owner of file path to own.  path may contain glob(3) char-
              acters and may match multiple files.  own must be a numeric UID.
+
+     df [-hi] [path]
+             Display usage information for the filesystem holding the current
+             directory (or path if specified).  If the -h flag is specified,
+             the capacity information will be displayed using "human-readable"
+             suffixes.  The -i flag requests display of inode information in
+             addition to capacity information.  This command is only supported
+             on servers that implement the ``statvfs@openssh.com'' extension.
 
      exit    Quit sftp.
 
@@ -263,4 +271,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 4.3                      June 5, 2007                                4
+OpenBSD 4.4                      July 15, 2008                               5

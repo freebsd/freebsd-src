@@ -1,4 +1,4 @@
-/* $Id: bsd-poll.c,v 1.2 2008/02/29 02:57:47 dtucker Exp $ */
+/* $Id: bsd-poll.c,v 1.3 2008/04/04 05:16:36 djm Exp $ */
 
 /*
  * Copyright (c) 2004, 2005, 2007 Darren Tucker (dtucker at zip com au).
@@ -23,6 +23,7 @@
 # include <sys/select.h>
 #endif
 
+#include <stdlib.h>
 #include <errno.h>
 #include "bsd-poll.h"
 

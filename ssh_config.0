@@ -40,10 +40,12 @@ DESCRIPTION
 
      Host    Restricts the following declarations (up to the next Host key-
              word) to be only for those hosts that match one of the patterns
-             given after the keyword.  A single `*' as a pattern can be used
-             to provide global defaults for all hosts.  The host is the
-             hostname argument given on the command line (i.e. the name is not
-             converted to a canonicalized host name before matching).
+             given after the keyword.  If more than one pattern is provided,
+             they should be separated by whitepsace.  A single `*' as a pat-
+             tern can be used to provide global defaults for all hosts.  The
+             host is the hostname argument given on the command line (i.e. the
+             name is not converted to a canonicalized host name before match-
+             ing).
 
              See PATTERNS for more information on patterns.
 
@@ -341,8 +343,12 @@ DESCRIPTION
              Specifies a command to execute on the local machine after suc-
              cessfully connecting to the server.  The command string extends
              to the end of the line, and is executed with the user's shell.
-             This directive is ignored unless PermitLocalCommand has been en-
-             abled.
+             The following escape character substitutions will be performed:
+             `%d' (local user's home directory), `%h' (remote host name), `%l'
+             (local host name), `%n' (host name as provided on the command
+             line), `%p' (remote port), `%r' (remote user name) or `%u' (local
+             user name).  This directive is ignored unless PermitLocalCommand
+             has been enabled.
 
      LocalForward
              Specifies that a TCP port on the local machine be forwarded over
@@ -601,6 +607,12 @@ DESCRIPTION
 
              See also VERIFYING HOST KEYS in ssh(1).
 
+     VisualHostKey
+             If this flag is set to ``yes'', an ASCII art representation of
+             the remote host key fingerprint is printed additionally to the
+             hex fingerprint string.  If this flag is set to ``no'', only the
+             hex fingerprint string will be printed.  The default is ``no''.
+
      XAuthLocation
              Specifies the full pathname of the xauth(1) program.  The default
              is /usr/X11R6/bin/xauth.
@@ -650,4 +662,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.3                    December 2, 2007                             10
+OpenBSD 4.4                      June 26, 2008                              11

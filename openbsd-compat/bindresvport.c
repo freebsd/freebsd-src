@@ -54,8 +54,8 @@ bindresvport_sa(int sd, struct sockaddr *sa)
 {
 	int error, af;
 	struct sockaddr_storage myaddr;
-	struct sockaddr_in *sin;
-	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *in;
+	struct sockaddr_in6 *in6;
 	u_int16_t *portp;
 	u_int16_t port;
 	socklen_t salen;
@@ -74,13 +74,13 @@ bindresvport_sa(int sd, struct sockaddr *sa)
 		af = sa->sa_family;
 
 	if (af == AF_INET) {
-		sin = (struct sockaddr_in *)sa;
+		in = (struct sockaddr_in *)sa;
 		salen = sizeof(struct sockaddr_in);
-		portp = &sin->sin_port;
+		portp = &in->sin_port;
 	} else if (af == AF_INET6) {
-		sin6 = (struct sockaddr_in6 *)sa;
+		in6 = (struct sockaddr_in6 *)sa;
 		salen = sizeof(struct sockaddr_in6);
-		portp = &sin6->sin6_port;
+		portp = &in6->sin6_port;
 	} else {
 		errno = EPFNOSUPPORT;
 		return (-1);

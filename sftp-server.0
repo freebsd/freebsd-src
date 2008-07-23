@@ -31,6 +31,10 @@ DESCRIPTION
              are equivalent.  DEBUG2 and DEBUG3 each specify higher levels of
              debugging output.  The default is ERROR.
 
+     For logging to work, sftp-server must be able to access /dev/log.  Use of
+     sftp-server in a chroot configuation therefore requires that syslogd(8)
+     establish a logging socket inside the chroot directory.
+
 SEE ALSO
      sftp(1), ssh(1), sshd_config(5), sshd(8)
 
@@ -43,4 +47,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 4.3                      June 5, 2007                                1
+OpenBSD 4.4                      July 18, 2008                               1

@@ -13,7 +13,7 @@
 
 Summary:	OpenSSH, a free Secure Shell (SSH) protocol implementation
 Name:		openssh
-Version:	5.0p1
+Version:	5.1p1
 URL:		http://www.openssh.com/
 Release:	1
 Source0:	openssh-%{version}.tar.gz
@@ -201,7 +201,7 @@ fi
 %files
 %defattr(-,root,root)
 %doc ChangeLog OVERVIEW README*
-%doc RFC.nroff TODO CREDITS LICENCE
+%doc TODO CREDITS LICENCE
 %attr(0755,root,root) %dir %{_sysconfdir}/ssh
 %attr(0644,root,root) %config(noreplace) %{_sysconfdir}/ssh/ssh_config
 %attr(0600,root,root) %config(noreplace) %{_sysconfdir}/ssh/sshd_config
@@ -228,6 +228,7 @@ fi
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh-agent.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh-keygen.1*
 %attr(0644,root,root) %doc %{_mandir}/man1/ssh-keyscan.1*
+%attr(0644,root,root) %doc %{_mandir}/man5/moduli.5*
 %attr(0644,root,root) %doc %{_mandir}/man5/ssh_config.5*
 %attr(0644,root,root) %doc %{_mandir}/man5/sshd_config.5*
 %attr(0644,root,root) %doc %{_mandir}/man8/sftp-server.8*

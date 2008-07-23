@@ -1,4 +1,4 @@
-.\"	$OpenBSD: nchan2.ms,v 1.3 2003/11/21 11:57:03 djm Exp $
+.\"	$OpenBSD: nchan2.ms,v 1.4 2008/05/15 23:52:24 djm Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -44,7 +44,7 @@ arrow from S1.e to S4.n
 box invis "rcvd CLOSE/" "shutdown_read" with .sw at last arrow.c
 arrow "ibuf_empty ||" "rcvd CLOSE/" "send EOF" "" from S2.e to S4.w
 arrow from S1.s to S2.n
-box invis "read_failed/" "shutdown_read" with .e at last arrow.c
+box invis "read_failed ||" "rcvd EOW/" "shutdown_read" with .e at last arrow.c
 ellipse wid .9*ellipsewid ht .9*ellipseht at S4
 arrow "start" "" from S1.w+(-0.5,0) to S1.w
 .PE
@@ -59,7 +59,7 @@ S4: ellipse "OUTPUT" "CLOSED"
 move down l from 1st ellipse.s
 S2: ellipse "OUTPUT" "WAIT" "DRAIN"
 arrow from S1.e to S4.n
-box invis "write_failed/" "shutdown_write" with .sw at last arrow.c
+box invis "write_failed/" "shutdown_write" "send EOW" with .sw at last arrow.c
 arrow "obuf_empty ||" "write_failed/" "shutdown_write" "" from S2.e to S4.w
 arrow from S1.s to S2.n
 box invis "rcvd EOF ||" "rcvd CLOSE/" "-" with .e at last arrow.c

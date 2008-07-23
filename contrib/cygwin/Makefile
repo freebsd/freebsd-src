@@ -8,6 +8,7 @@ sshdocdir=$(docdir)/openssh
 cygdocdir=$(docdir)/Cygwin
 sysconfdir=/etc
 defaultsdir=$(sysconfdir)/defaults/etc
+inetdefdir=$(defaultsdir)/inetd.d
 PRIVSEP_PATH=/var/empty
 INSTALL=/usr/bin/install -c
 
@@ -26,6 +27,10 @@ move-config-files: $(DESTDIR)$(sysconfdir)/ssh_config $(DESTDIR)$(sysconfdir)/ss
 
 remove-empty-dir:
 	rm -rf $(DESTDIR)$(PRIVSEP_PATH)
+
+install-inetd-config:
+	$(srcdir)/mkinstalldirs $(DESTDIR)$(inetdefdir)
+	$(INSTALL) -m 644 sshd-inetd  $(DESTDIR)$(inetdefdir)/sshd-inetd
 
 install-sshdoc:
 	$(srcdir)/mkinstalldirs $(DESTDIR)$(sshdocdir)
@@ -52,5 +57,5 @@ install-scripts: ssh-host-config ssh-user-config
 	$(INSTALL) -m 755 ssh-host-config $(DESTDIR)$(bindir)/ssh-host-config
 	$(INSTALL) -m 755 ssh-user-config $(DESTDIR)$(bindir)/ssh-user-config
 
-cygwin-postinstall: move-config-files remove-empty-dir install-doc install-scripts
+cygwin-postinstall: move-config-files remove-empty-dir install-inetd-config install-doc install-scripts
 	@echo "Cygwin specific configuration finished."

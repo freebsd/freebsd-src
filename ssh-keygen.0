@@ -130,7 +130,9 @@ DESCRIPTION
 
      -l      Show fingerprint of specified public key file.  Private RSA1 keys
              are also supported.  For RSA and DSA keys ssh-keygen tries to
-             find the matching public key file and prints its fingerprint.
+             find the matching public key file and prints its fingerprint.  If
+             combined with -v, an ASCII art representation of the key is sup-
+             plied with the fingerprint.
 
      -M memory
              Specify the amount of memory to use (in megabytes) when generat-
@@ -284,4 +286,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.3                      June 5, 2007                                5
+OpenBSD 4.4                      June 12, 2008                               5

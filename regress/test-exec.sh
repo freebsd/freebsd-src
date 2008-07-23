@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.31 2007/12/21 04:13:53 djm Exp $
+#	$OpenBSD: test-exec.sh,v 1.35 2008/06/28 13:57:25 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -70,8 +70,9 @@ SFTPSERVER=/usr/libexec/openssh/sftp-server
 SCP=scp
 
 # Interop testing
-PLINK=/usr/local/bin/plink
-PUTTYGEN=/usr/local/bin/puttygen
+PLINK=plink
+PUTTYGEN=puttygen
+CONCH=conch
 
 if [ "x$TEST_SSH_SSH" != "x" ]; then
 	SSH="${TEST_SSH_SSH}"
@@ -112,6 +113,13 @@ if [ "x$TEST_SSH_PUTTYGEN" != "x" ]; then
 	case "${TEST_SSH_PUTTYGEN}" in
 	/*) PUTTYGEN="${TEST_SSH_PUTTYGEN}" ;;
 	*) PUTTYGEN=`which ${TEST_SSH_PUTTYGEN} 2>/dev/null` ;;
+	esac
+fi
+if [ "x$TEST_SSH_CONCH" != "x" ]; then
+	# Find real binary, if it exists
+	case "${TEST_SSH_CONCH}" in
+	/*) CONCH="${TEST_SSH_CONCH}" ;;
+	*) CONCH=`which ${TEST_SSH_CONCH} 2>/dev/null` ;;
 	esac
 fi
 
@@ -287,9 +295,24 @@ for t in rsa rsa1; do
 done
 chmod 644 $OBJ/authorized_keys_$USER
 
-# If PuTTY is present, prepare keys and configuration
+# Activate Twisted Conch tests if the binary is present
+REGRESS_INTEROP_CONCH=no
+if test -x "$CONCH" ; then
+	REGRESS_INTEROP_CONCH=yes
+fi
+
+# If PuTTY is present and we are running a PuTTY test, prepare keys and
+# configuration
 REGRESS_INTEROP_PUTTY=no
 if test -x "$PUTTYGEN" -a -x "$PLINK" ; then
+	REGRESS_INTEROP_PUTTY=yes
+fi
+case "$SCRIPT" in
+*putty*)	;;
+*)		REGRESS_INTEROP_PUTTY=no ;;
+esac
+
+if test "$REGRESS_INTEROP_PUTTY" = "yes" ; then
 	mkdir -p ${OBJ}/.putty
 
 	# Add a PuTTY key to authorized_keys

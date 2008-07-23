@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.43 2007/06/25 12:15:13 dtucker Exp $ */
+/* $Id: openbsd-compat.h,v 1.46 2008/06/08 17:32:29 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -101,6 +101,11 @@ int daemon(int nochdir, int noclose);
 char *dirname(const char *path);
 #endif
 
+#ifndef HAVE_FMT_SCALED
+#define	FMT_SCALED_STRSIZE	7
+int	fmt_scaled(long long number, char *result);
+#endif
+
 #if defined(BROKEN_INET_NTOA) || !defined(HAVE_INET_NTOA)
 char *inet_ntoa(struct in_addr in);
 #endif
@@ -139,6 +144,7 @@ int writev(int, struct iovec *, int);
 
 /* Home grown routines */
 #include "bsd-misc.h"
+#include "bsd-statvfs.h"
 #include "bsd-waitpid.h"
 #include "bsd-poll.h"
 
@@ -150,6 +156,14 @@ int getpeereid(int , uid_t *, gid_t *);
 unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
+
+#ifndef HAVE_ARC4RANDOM_BUF
+void arc4random_buf(void *, size_t);
+#endif
+
+#ifndef HAVE_ARC4RANDOM_UNIFORM
+u_int32_t arc4random_uniform(u_int32_t);
+#endif
 
 #ifndef HAVE_ASPRINTF
 int asprintf(char **, const char *, ...);

@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.h,v 1.17 2007/08/07 07:32:53 djm Exp $ */
+/* $OpenBSD: clientloop.h,v 1.22 2008/06/12 15:19:17 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -43,11 +43,20 @@ void	 client_x11_get_proto(const char *, const char *, u_int,
 	    char **, char **);
 void	 client_global_request_reply_fwd(int, u_int32_t, void *);
 void	 client_session2_setup(int, int, int, const char *, struct termios *,
-	    int, Buffer *, char **, dispatch_fn *);
+	    int, Buffer *, char **);
 int	 client_request_tun_fwd(int, int, int);
 
+/* Escape filter for protocol 2 sessions */
+void	*client_new_escape_filter_ctx(int);
+void	 client_filter_cleanup(int, void *);
+int	 client_simple_escape_filter(Channel *, char *, int);
+
+/* Global request confirmation callbacks */
+typedef void global_confirm_cb(int, u_int32_t seq, void *);
+void	 client_register_global_confirm(global_confirm_cb *, void *);
+
 /* Multiplexing protocol version */
-#define SSHMUX_VER			1
+#define SSHMUX_VER			2
 
 /* Multiplexing control protocol flags */
 #define SSHMUX_COMMAND_OPEN		1	/* Open new connection */
@@ -58,3 +67,7 @@ int	 client_request_tun_fwd(int, int, int);
 #define SSHMUX_FLAG_SUBSYS		(1<<1)	/* Subsystem request on open */
 #define SSHMUX_FLAG_X11_FWD		(1<<2)	/* Request X11 forwarding */
 #define SSHMUX_FLAG_AGENT_FWD		(1<<3)	/* Request agent forwarding */
+
+void	muxserver_listen(void);
+int	muxserver_accept_control(void);
+void	muxclient(const char *);

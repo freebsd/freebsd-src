@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.116 2007/09/29 00:25:51 dtucker Exp $ */
+/* $OpenBSD: auth2.c,v 1.119 2008/07/04 23:30:16 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -26,12 +26,17 @@
 #include "includes.h"
 
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/uio.h>
 
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
+#include "atomicio.h"
 #include "ssh2.h"
 #include "packet.h"
 #include "log.h"
@@ -88,10 +93,74 @@ static void input_userauth_request(int, u_int32_t, void *);
 static Authmethod *authmethod_lookup(const char *);
 static char *authmethods_get(void);
 
+char *
+auth2_read_banner(void)
+{
+	struct stat st;
+	char *banner = NULL;
+	size_t len, n;
+	int fd;
+
+	if ((fd = open(options.banner, O_RDONLY)) == -1)
+		return (NULL);
+	if (fstat(fd, &st) == -1) {
+		close(fd);
+		return (NULL);
+	}
+	if (st.st_size > 1*1024*1024) {
+		close(fd);
+		return (NULL);
+	}
+
+	len = (size_t)st.st_size;		/* truncate */
+	banner = xmalloc(len + 1);
+	n = atomicio(read, fd, banner, len);
+	close(fd);
+
+	if (n != len) {
+		xfree(banner);
+		return (NULL);
+	}
+	banner[n] = '\0';
+
+	return (banner);
+}
+
+void
+userauth_send_banner(const char *msg)
+{
+	if (datafellows & SSH_BUG_BANNER)
+		return;
+
+	packet_start(SSH2_MSG_USERAUTH_BANNER);
+	packet_put_cstring(msg);
+	packet_put_cstring("");		/* language, unused */
+	packet_send();
+	debug("%s: sent", __func__);
+}
+
+static void
+userauth_banner(void)
+{
+	char *banner = NULL;
+
+	if (options.banner == NULL ||
+	    strcasecmp(options.banner, "none") == 0 ||
+	    (datafellows & SSH_BUG_BANNER) != 0)
+		return;
+
+	if ((banner = PRIVSEP(auth2_read_banner())) == NULL)
+		goto done;
+	userauth_send_banner(banner);
+
+done:
+	if (banner)
+		xfree(banner);
+}
+
 /*
  * loop until authctxt->success == TRUE
  */
-
 void
 do_authentication2(Authctxt *authctxt)
 {
@@ -179,6 +248,7 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		authctxt->style = style ? xstrdup(style) : NULL;
 		if (use_privsep)
 			mm_inform_authserv(service, style);
+		userauth_banner();
 	} else if (strcmp(user, authctxt->user) != 0 ||
 	    strcmp(service, authctxt->service) != 0) {
 		packet_disconnect("Change of username or service not allowed: "
@@ -197,7 +267,7 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 
 	/* try to authenticate user */
 	m = authmethod_lookup(method);
-	if (m != NULL) {
+	if (m != NULL && authctxt->failures < options.max_authtries) {
 		debug2("input_userauth_request: try method %s", method);
 		authenticated =	m->userauth(authctxt);
 	}
@@ -264,7 +334,11 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > options.max_authtries) {
+
+		/* Allow initial try of "none" auth without failure penalty */
+		if (authctxt->attempt > 1 || strcmp(method, "none") != 0)
+			authctxt->failures++;
+		if (authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
 #endif
@@ -320,3 +394,4 @@ authmethod_lookup(const char *name)
 	    name ? name : "NULL");
 	return NULL;
 }
+
