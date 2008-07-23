@@ -6,7 +6,7 @@ NAME
 SYNOPSIS
      scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
          [-l limit] [-o ssh_option] [-P port] [-S program]
-         [[user@]host1:]file1 [...] [[user@]host2:]file2
+         [[user@]host1:]file1 ...  [[user@]host2:]file2
 
 DESCRIPTION
      scp copies files between hosts on a network.  It uses ssh(1) for data
@@ -141,4 +141,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 4.1                   September 25, 1999                             3
+OpenBSD 4.2                     August 8, 2007                               3

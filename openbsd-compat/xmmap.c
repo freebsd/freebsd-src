@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $Id: xmmap.c,v 1.12 2006/08/24 09:58:36 dtucker Exp $ */
+/* $Id: xmmap.c,v 1.14 2007/06/11 02:52:24 djm Exp $ */
 
 #include "includes.h"
 
@@ -38,12 +38,14 @@
 #endif
 #include <errno.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "log.h"
 
-void *xmmap(size_t size)
+void *
+xmmap(size_t size)
 {
 #ifdef HAVE_MMAP
 	void *address;

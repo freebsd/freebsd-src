@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.74 2006/07/19 13:07:10 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.75 2007/03/19 01:01:29 djm Exp $
 
 # This is the sshd server system-wide configuration file.  See
 # sshd_config(5) for more information.
@@ -11,10 +11,14 @@
 # default value.
 
 #Port 22
-#Protocol 2,1
 #AddressFamily any
 #ListenAddress 0.0.0.0
 #ListenAddress ::
+
+# Disable legacy (protocol version 1) support in the server for new
+# installations. In future the default will change to require explicit
+# activation of protocol 1
+Protocol 2
 
 # HostKey for protocol version 1
 #HostKey /etc/ssh/ssh_host_key

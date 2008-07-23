@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.268 2007/01/03 03:01:40 stevesk Exp $ */
+/* $OpenBSD: channels.c,v 1.270 2007/06/25 08:20:03 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1446,14 +1446,13 @@ static int
 channel_handle_rfd(Channel *c, fd_set *readset, fd_set *writeset)
 {
 	char buf[CHAN_RBUF];
-	int len;
+	int len, force;
 
-	if (c->rfd != -1 &&
-	    (c->detach_close || FD_ISSET(c->rfd, readset))) {
+	force = c->isatty && c->detach_close && c->istate != CHAN_INPUT_CLOSED;
+	if (c->rfd != -1 && (force || FD_ISSET(c->rfd, readset))) {
 		errno = 0;
 		len = read(c->rfd, buf, sizeof(buf));
-		if (len < 0 && (errno == EINTR ||
-		    (errno == EAGAIN && !(c->isatty && c->detach_close))))
+		if (len < 0 && (errno == EINTR || (errno == EAGAIN && !force)))
 			return 1;
 #ifndef PTY_ZEROREAD
 		if (len <= 0) {
@@ -1658,7 +1657,9 @@ channel_check_window(Channel *c)
 {
 	if (c->type == SSH_CHANNEL_OPEN &&
 	    !(c->flags & (CHAN_CLOSE_SENT|CHAN_CLOSE_RCVD)) &&
-	    c->local_window < c->local_window_max/2 &&
+	    ((c->local_window_max - c->local_window >
+	    c->local_maxpacket*3) ||
+	    c->local_window < c->local_window_max/2) &&
 	    c->local_consumed > 0) {
 		packet_start(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 		packet_put_int(c->remote_id);

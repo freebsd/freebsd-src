@@ -35,9 +35,7 @@
 #include "xmalloc.h"
 #include "log.h"
 
-#if OPENSSL_VERSION_NUMBER < 0x00906000L
-#define SSH_OLD_EVP
-#endif
+#include "openbsd-compat/openssl-compat.h"
 
 /*
  * This is used by SSH1:

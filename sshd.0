@@ -9,8 +9,8 @@ SYNOPSIS
 
 DESCRIPTION
      sshd (OpenSSH Daemon) is the daemon program for ssh(1).  Together these
-     programs replace rlogin and rsh, and provide secure encrypted communica-
-     tions between two untrusted hosts over an insecure network.
+     programs replace rlogin(1) and rsh(1), and provide secure encrypted com-
+     munications between two untrusted hosts over an insecure network.
 
      sshd listens for connections from clients.  It is normally started at
      boot from /etc/rc.  It forks a new daemon for each incoming connection.
@@ -45,7 +45,7 @@ DESCRIPTION
      -e      When this option is specified, sshd will send the output to the
              standard error instead of the system log.
 
-     -f configuration_file
+     -f config_file
              Specifies the name of the configuration file.  The default is
              /etc/ssh/sshd_config.  sshd refuses to start if there is no con-
              figuration file.
@@ -143,7 +143,8 @@ AUTHENTICATION
      AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.  The
      client selects the encryption algorithm to use from those offered by the
      server.  Additionally, session integrity is provided through a crypto-
-     graphic message authentication code (hmac-sha1 or hmac-md5).
+     graphic message authentication code (hmac-md5, hmac-sha1, umac-64 or
+     hmac-ripemd160).
 
      Finally, the server and the client enter an authentication dialog.  The
      client tries to authenticate itself using host-based authentication, pub-
@@ -156,10 +157,10 @@ AUTHENTICATION
      tion of a locked account is system dependant. Some platforms have their
      own account database (eg AIX) and some modify the passwd field ( `*LK*'
      on Solaris and UnixWare, `*' on HP-UX, containing `Nologin' on Tru64, a
-     leading `*LOCKED*' on FreeBSD and a leading `!!' on Linux).  If there is
-     a requirement to disable password authentication for the account while
-     allowing still public-key, then the passwd field should be set to some-
-     thing other than these values (eg `NP' or `*NP*' ).
+     leading `*LOCKED*' on FreeBSD and a leading `!' on most Linuxes).  If
+     there is a requirement to disable password authentication for the account
+     while allowing still public-key, then the passwd field should be set to
+     something other than these values (eg `NP' or `*NP*' ).
 
      If the client successfully authenticates itself, a dialog for preparing
      the session is entered.  At this time the client may request things like
@@ -477,13 +478,6 @@ FILES
              lows host-based authentication without permitting login with
              rlogin/rsh.
 
-     /etc/ssh/ssh_known_hosts
-             Systemwide list of known host keys.  This file should be prepared
-             by the system administrator to contain the public host keys of
-             all machines in the organization.  The format of this file is de-
-             scribed above.  This file should be writable only by root/the
-             owner and should be world-readable.
-
      /etc/ssh/ssh_host_key
      /etc/ssh/ssh_host_dsa_key
      /etc/ssh/ssh_host_rsa_key
@@ -501,6 +495,13 @@ FILES
              files are not really used for anything; they are provided for the
              convenience of the user so their contents can be copied to known
              hosts files.  These files are created using ssh-keygen(1).
+
+     /etc/ssh/ssh_known_hosts
+             Systemwide list of known host keys.  This file should be prepared
+             by the system administrator to contain the public host keys of
+             all machines in the organization.  The format of this file is de-
+             scribed above.  This file should be writable only by root/the
+             owner and should be world-readable.
 
      /etc/ssh/sshd_config
              Contains configuration data for sshd.  The file format and con-
@@ -526,8 +527,8 @@ FILES
 
 SEE ALSO
      scp(1), sftp(1), ssh(1), ssh-add(1), ssh-agent(1), ssh-keygen(1),
-     chroot(2), hosts_access(5), login.conf(5), moduli(5), sshd_config(5),
-     inetd(8), sftp-server(8)
+     ssh-keyscan(1), chroot(2), hosts_access(5), login.conf(5), moduli(5),
+     sshd_config(5), inetd(8), sftp-server(8)
 
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
@@ -541,4 +542,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are dis-
      abled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.1                   September 25, 1999                             9
+OpenBSD 4.2                     August 16, 2007                              9

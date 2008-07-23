@@ -200,9 +200,9 @@ DESCRIPTION
 
      ExitOnForwardFailure
              Specifies whether ssh(1) should terminate the connection if it
-             cannot set up all requested dynamic, local, and remote port for-
-             wardings.  The argument must be ``yes'' or ``no''.  The default
-             is ``no''.
+             cannot set up all requested dynamic, tunnel, local, and remote
+             port forwardings.  The argument must be ``yes'' or ``no''.  The
+             default is ``no''.
 
      ForwardAgent
              Specifies whether the connection to the authentication agent (if
@@ -365,8 +365,10 @@ DESCRIPTION
      MACs    Specifies the MAC (message authentication code) algorithms in or-
              der of preference.  The MAC algorithm is used in protocol version
              2 for data integrity protection.  Multiple algorithms must be
-             comma-separated.  The default is: ``hmac-md5,hmac-sha1,hmac-
-             ripemd160,hmac-sha1-96,hmac-md5-96''.
+             comma-separated.  The default is:
+
+                   hmac-md5,hmac-sha1,umac-64@openssh.com,
+                   hmac-ripemd160,hmac-sha1-96,hmac-md5-96
 
      NoHostAuthenticationForLocalhost
              This option can be used if the home directory is shared across
@@ -642,4 +644,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.1                   September 25, 1999                            10
+OpenBSD 4.2                     August 15, 2007                             10

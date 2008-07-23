@@ -161,9 +161,9 @@ sshpam_sigchld_handler(int sig)
 	    WTERMSIG(sshpam_thread_status) == SIGTERM)
 		return;	/* terminated by pthread_cancel */
 	if (!WIFEXITED(sshpam_thread_status))
-		fatal("PAM: authentication thread exited unexpectedly");
+		sigdie("PAM: authentication thread exited unexpectedly");
 	if (WEXITSTATUS(sshpam_thread_status) != 0)
-		fatal("PAM: authentication thread exited uncleanly");
+		sigdie("PAM: authentication thread exited uncleanly");
 }
 
 /* ARGSUSED */
@@ -686,8 +686,7 @@ sshpam_init_ctx(Authctxt *authctxt)
 		return (NULL);
 	}
 
-	ctxt = xmalloc(sizeof *ctxt);
-	memset(ctxt, 0, sizeof(*ctxt));
+	ctxt = xcalloc(1, sizeof *ctxt);
 
 	/* Start the authentication thread */
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, socks) == -1) {
@@ -985,7 +984,8 @@ sshpam_tty_conv(int n, sshpam_const struct pam_message **msg,
 			break;
 		case PAM_PROMPT_ECHO_ON:
 			fprintf(stderr, "%s\n", PAM_MSG_MEMBER(msg, i, msg));
-			fgets(input, sizeof input, stdin);
+			if (fgets(input, sizeof input, stdin) == NULL)
+				input[0] = '\0';
 			if ((reply[i].resp = strdup(input)) == NULL)
 				goto fail;
 			reply[i].resp_retcode = PAM_SUCCESS;
@@ -1130,9 +1130,8 @@ sshpam_passwd_conv(int n, sshpam_const struct pam_message **msg,
 	if (n <= 0 || n > PAM_MAX_NUM_MSG)
 		return (PAM_CONV_ERR);
 
-	if ((reply = malloc(n * sizeof(*reply))) == NULL)
+	if ((reply = calloc(n, sizeof(*reply))) == NULL)
 		return (PAM_CONV_ERR);
-	memset(reply, 0, n * sizeof(*reply));
 
 	for (i = 0; i < n; ++i) {
 		switch (PAM_MSG_MEMBER(msg, i, msg_style)) {

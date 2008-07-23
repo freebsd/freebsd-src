@@ -240,7 +240,7 @@ sys_auth_allowed_user(struct passwd *pw, Buffer *loginmsg)
 
 	/*
 	 * Don't perform checks for root account (PermitRootLogin controls
-	 * logins via * ssh) or if running as non-root user (since
+	 * logins via ssh) or if running as non-root user (since
 	 * loginrestrictions will always fail due to insufficient privilege).
 	 */
 	if (pw->pw_uid == 0 || geteuid() != 0) {

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.295 2007/01/03 03:01:40 stevesk Exp $ */
+/* $OpenBSD: ssh.c,v 1.301 2007/08/07 07:32:53 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -185,7 +185,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-"usage: ssh [-1246AaCfgkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]\n"
+"usage: ssh [-1246AaCfgKkMNnqsTtVvXxY] [-b bind_address] [-c cipher_spec]\n"
 "           [-D [bind_address:]port] [-e escape_char] [-F configfile]\n"
 "           [-i identity_file] [-L [bind_address:]port:host:hostport]\n"
 "           [-l login_name] [-m mac_spec] [-O ctl_cmd] [-o option] [-p port]\n"
@@ -272,7 +272,7 @@ main(int ac, char **av)
 
  again:
 	while ((opt = getopt(ac, av,
-	    "1246ab:c:e:fgi:kl:m:no:p:qstvxACD:F:I:L:MNO:PR:S:TVw:XY")) != -1) {
+	    "1246ab:c:e:fgi:kl:m:no:p:qstvxACD:F:I:KL:MNO:PR:S:TVw:XY")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -325,6 +325,10 @@ main(int ac, char **av)
 			break;
 		case 'k':
 			options.gss_deleg_creds = 0;
+			break;
+		case 'K':
+			options.gss_authentication = 1;
+			options.gss_deleg_creds = 1;
 			break;
 		case 'i':
 			if (stat(optarg, &st) < 0) {
@@ -853,6 +857,17 @@ ssh_init_forwarding(void)
 				    "forwarding.");
 		}
 	}
+
+	/* Initiate tunnel forwarding. */
+	if (options.tun_open != SSH_TUNMODE_NO) {
+		if (client_request_tun_fwd(options.tun_open,
+		    options.tun_local, options.tun_remote) == -1) {
+			if (options.exit_on_forward_failure)
+				fatal("Could not request tunnel forwarding.");
+			else
+				error("Could not request tunnel forwarding.");
+		}
+	}			
 }
 
 static void
@@ -1115,33 +1130,6 @@ ssh_session2_setup(int id, void *arg)
 		packet_send();
 	}
 
-	if (options.tun_open != SSH_TUNMODE_NO) {
-		Channel *c;
-		int fd;
-
-		debug("Requesting tun.");
-		if ((fd = tun_open(options.tun_local,
-		    options.tun_open)) >= 0) {
-			c = channel_new("tun", SSH_CHANNEL_OPENING, fd, fd, -1,
-			    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
-			    0, "tun", 1);
-			c->datagram = 1;
-#if defined(SSH_TUN_FILTER)
-			if (options.tun_open == SSH_TUNMODE_POINTOPOINT)
-				channel_register_filter(c->self, sys_tun_infilter,
-				    sys_tun_outfilter);
-#endif
-			packet_start(SSH2_MSG_CHANNEL_OPEN);
-			packet_put_cstring("tun@openssh.com");
-			packet_put_int(c->self);
-			packet_put_int(c->local_window_max);
-			packet_put_int(c->local_maxpacket);
-			packet_put_int(options.tun_open);
-			packet_put_int(options.tun_remote);
-			packet_send();
-		}
-	}
-
 	client_session2_setup(id, tty_flag, subsystem_flag, getenv("TERM"),
 	    NULL, fileno(stdin), &command, environ, &ssh_subsystem_reply);
 
@@ -1201,7 +1189,6 @@ ssh_session2(void)
 
 	/* XXX should be pre-session */
 	ssh_init_forwarding();
-	ssh_control_listener();
 
 	if (!no_shell_flag || (datafellows & SSH_BUG_DUMMYCHAN))
 		id = ssh_session2_open();
@@ -1210,6 +1197,9 @@ ssh_session2(void)
 	if (options.local_command != NULL &&
 	    options.permit_local_command)
 		ssh_local_cmd(options.local_command);
+
+	/* Start listening for multiplex clients */
+	ssh_control_listener();
 
 	/* If requested, let ssh continue in the background. */
 	if (fork_after_authentication_flag)
@@ -1307,7 +1297,7 @@ static void
 control_client(const char *path)
 {
 	struct sockaddr_un addr;
-	int i, r, fd, sock, exitval, num_env, addr_len;
+	int i, r, fd, sock, exitval[2], num_env, addr_len;
 	Buffer m;
 	char *term;
 	extern char **environ;
@@ -1456,29 +1446,44 @@ control_client(const char *path)
 	if (tty_flag)
 		enter_raw_mode();
 
-	/* Stick around until the controlee closes the client_fd */
-	exitval = 0;
-	for (;!control_client_terminate;) {
-		r = read(sock, &exitval, sizeof(exitval));
+	/*
+	 * Stick around until the controlee closes the client_fd.
+	 * Before it does, it is expected to write this process' exit
+	 * value (one int). This process must read the value and wait for
+	 * the closure of the client_fd; if this one closes early, the 
+	 * multiplex master will terminate early too (possibly losing data).
+	 */
+	exitval[0] = 0;
+	for (i = 0; !control_client_terminate && i < (int)sizeof(exitval);) {
+		r = read(sock, (char *)exitval + i, sizeof(exitval) - i);
 		if (r == 0) {
 			debug2("Received EOF from master");
 			break;
 		}
-		if (r > 0)
-			debug2("Received exit status from master %d", exitval);
-		if (r == -1 && errno != EINTR)
+		if (r == -1) {
+			if (errno == EINTR)
+				continue;
 			fatal("%s: read %s", __func__, strerror(errno));
+		}
+		i += r;
 	}
 
-	if (control_client_terminate)
-		debug2("Exiting on signal %d", control_client_terminate);
-
 	close(sock);
-
 	leave_raw_mode();
+	if (i > (int)sizeof(int))
+		fatal("%s: master returned too much data (%d > %lu)",
+		    __func__, i, sizeof(int));
+	if (control_client_terminate) {
+		debug2("Exiting on signal %d", control_client_terminate);
+		exitval[0] = 255;
+	} else if (i < (int)sizeof(int)) {
+		debug2("Control master terminated unexpectedly");
+		exitval[0] = 255;
+	} else
+		debug2("Received exit status from master %d", exitval[0]);
 
 	if (tty_flag && options.log_level != SYSLOG_LEVEL_QUIET)
-		fprintf(stderr, "Connection to master closed.\r\n");
+		fprintf(stderr, "Shared connection to %s closed.\r\n", host);
 
-	exit(exitval);
+	exit(exitval[0]);
 }

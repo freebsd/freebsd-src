@@ -1310,7 +1310,7 @@ do_setusercontext(struct passwd *pw)
 # ifdef USE_PAM
 		if (options.use_pam) {
 			do_pam_session();
-			do_pam_setcred(0);
+			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 		if (setusercontext(lc, pw, pw->pw_uid,
@@ -1352,7 +1352,7 @@ do_setusercontext(struct passwd *pw)
 		 */
 		if (options.use_pam) {
 			do_pam_session();
-			do_pam_setcred(0);
+			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 # if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
@@ -1361,11 +1361,11 @@ do_setusercontext(struct passwd *pw)
 # ifdef _AIX
 		aix_usrinfo(pw);
 # endif /* _AIX */
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 		if (set_id(pw->pw_name) != 0) {
 			exit(1);
 		}
-#endif /* HAVE_LIBIAF  && !BROKEN_LIBIAF */
+#endif /* USE_LIBIAF */
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
 #endif
@@ -2478,8 +2478,19 @@ do_cleanup(Authctxt *authctxt)
 		return;
 	called = 1;
 
-	if (authctxt == NULL || !authctxt->authenticated)
+	if (authctxt == NULL)
 		return;
+
+#ifdef USE_PAM
+	if (options.use_pam) {
+		sshpam_cleanup();
+		sshpam_thread_cleanup();
+	}
+#endif
+
+	if (!authctxt->authenticated)
+		return;
+
 #ifdef KRB5
 	if (options.kerberos_ticket_cleanup &&
 	    authctxt->krb5_ctx)
@@ -2489,13 +2500,6 @@ do_cleanup(Authctxt *authctxt)
 #ifdef GSSAPI
 	if (compat20 && options.gss_cleanup_creds)
 		ssh_gssapi_cleanup_creds();
-#endif
-
-#ifdef USE_PAM
-	if (options.use_pam) {
-		sshpam_cleanup();
-		sshpam_thread_cleanup();
-	}
 #endif
 
 	/* remove agent socket */

@@ -155,6 +155,9 @@
 /* OpenBSD's gcc has bounded */
 #undef HAVE_ATTRIBUTE__BOUNDED__
 
+/* Have attribute nonnull */
+#undef HAVE_ATTRIBUTE__NONNULL__
+
 /* OpenBSD's gcc has sentinel */
 #undef HAVE_ATTRIBUTE__SENTINEL__
 
@@ -229,6 +232,14 @@
 /* Define to 1 if you have the declaration of `loginsuccess', and to 0 if you
    don't. */
 #undef HAVE_DECL_LOGINSUCCESS
+
+/* Define to 1 if you have the declaration of `MAXSYMLINKS', and to 0 if you
+   don't. */
+#undef HAVE_DECL_MAXSYMLINKS
+
+/* Define to 1 if you have the declaration of `offsetof', and to 0 if you
+   don't. */
+#undef HAVE_DECL_OFFSETOF
 
 /* Define to 1 if you have the declaration of `O_NONBLOCK', and to 0 if you
    don't. */
@@ -353,6 +364,9 @@
 
 /* Define to 1 if you have the `getpeereid' function. */
 #undef HAVE_GETPEEREID
+
+/* Define to 1 if you have the `getpeerucred' function. */
+#undef HAVE_GETPEERUCRED
 
 /* Define to 1 if you have the `getpwanam' function. */
 #undef HAVE_GETPWANAM
@@ -479,9 +493,6 @@
 
 /* Define to 1 if you have the <libgen.h> header file. */
 #undef HAVE_LIBGEN_H
-
-/* Define to 1 if you have the `iaf' library (-liaf). */
-#undef HAVE_LIBIAF
 
 /* Define to 1 if you have the `nsl' library (-lnsl). */
 #undef HAVE_LIBNSL
@@ -619,6 +630,12 @@
 /* define if you have pid_t data type */
 #undef HAVE_PID_T
 
+/* Define to 1 if you have the `poll' function. */
+#undef HAVE_POLL
+
+/* Define to 1 if you have the <poll.h> header file. */
+#undef HAVE_POLL_H
+
 /* Define to 1 if you have the `prctl' function. */
 #undef HAVE_PRCTL
 
@@ -736,6 +753,9 @@
 /* Define to 1 if you have the `setvbuf' function. */
 #undef HAVE_SETVBUF
 
+/* Define to 1 if you have the `set_id' function. */
+#undef HAVE_SET_ID
+
 /* Define to 1 if you have the `SHA256_Update' function. */
 #undef HAVE_SHA256_UPDATE
 
@@ -843,6 +863,9 @@
 
 /* define if you have struct timeval */
 #undef HAVE_STRUCT_TIMEVAL
+
+/* Define to 1 if you have the `swap32' function. */
+#undef HAVE_SWAP32
 
 /* Define to 1 if you have the `sysconf' function. */
 #undef HAVE_SYSCONF
@@ -958,6 +981,9 @@
 /* Define if you have ut_type in utmpx.h */
 #undef HAVE_TYPE_IN_UTMPX
 
+/* Define to 1 if you have the <ucred.h> header file. */
+#undef HAVE_UCRED_H
+
 /* define if you have uintxx_t data type */
 #undef HAVE_UINTXX_T
 
@@ -1038,6 +1064,9 @@
 
 /* Define to 1 if you have the `_getshort' function. */
 #undef HAVE__GETSHORT
+
+/* Define if you have struct __res_state _res as an extern */
+#undef HAVE__RES_EXTERN
 
 /* Define to 1 if you have the `__b64_ntop' function. */
 #undef HAVE___B64_NTOP

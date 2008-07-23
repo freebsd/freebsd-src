@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # buildbff.sh: Create AIX SMIT-installable OpenSSH packages
-# $Id: buildbff.sh 180740 2008-07-23 09:15:38Z des $
+# $Id: buildbff.sh,v 1.10 2006/09/10 03:24:19 dtucker Exp $
 #
 # Author: Darren Tucker (dtucker at zip dot com dot au)
 # This file is placed in the public domain and comes with absolutely

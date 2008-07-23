@@ -1,5 +1,8 @@
+/*	$OpenBSD: poll.h,v 1.11 2003/12/10 23:10:08 millert Exp $ */
+
 /*
- * Copyright (c) 2005 Tim Rice.  All rights reserved.
+ * Copyright (c) 1996 Theo de Raadt
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,9 +25,37 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "includes.h"
+/* OPENBSD ORIGINAL: sys/sys/poll.h */
 
-#ifdef USE_LIBIAF
-char * get_iaf_password(struct passwd *pw);
+#if !defined(HAVE_POLL) && !defined(HAVE_POLL_H)
+#ifndef	_COMPAT_POLL_H_
+#define	_COMPAT_POLL_H_
+
+typedef struct pollfd {
+	int 	fd;
+	short	events;
+	short	revents;
+} pollfd_t;
+
+typedef unsigned int	nfds_t;
+
+#define	POLLIN		0x0001
+#define	POLLOUT		0x0004
+#define	POLLERR		0x0008
+#if 0
+/* the following are currently not implemented */
+#define	POLLPRI		0x0002
+#define	POLLHUP		0x0010
+#define	POLLNVAL	0x0020
+#define	POLLRDNORM	0x0040
+#define POLLNORM	POLLRDNORM
+#define POLLWRNORM      POLLOUT
+#define	POLLRDBAND	0x0080
+#define	POLLWRBAND	0x0100
 #endif
 
+#define INFTIM		(-1)	/* not standard */
+
+int   poll(struct pollfd *, nfds_t, int);
+#endif /* !_COMPAT_POLL_H_ */
+#endif /* !HAVE_POLL_H */

@@ -30,8 +30,12 @@ DESCRIPTION
 
      -D      Deletes all identities from the agent.
 
-     -d      Instead of adding the identity, removes the identity from the
-             agent.
+     -d      Instead of adding identities, removes identities from the agent.
+             If ssh-add has been run without arguments, the keys for the de-
+             fault identities will be removed.  Otherwise, the argument list
+             will be interpreted as a list of paths to public key files and
+             matching keys will be removed from the agent.  If no public key
+             is found at a given path, ssh-add will append .pub and retry.
 
      -e reader
              Remove key in smartcard reader.
@@ -99,4 +103,4 @@ AUTHORS
      ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.1                   September 25, 1999                             2
+OpenBSD 4.2                      June 12, 2007                               2
