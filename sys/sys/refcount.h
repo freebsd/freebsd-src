@@ -32,6 +32,12 @@
 #ifndef __SYS_REFCOUNT_H__
 #define __SYS_REFCOUNT_H__
 
+#ifdef _KERNEL
+#include <sys/systm.h>
+#else
+#include <assert.h>
+#define	KASSERT(exp, msg)	assert(exp)
+#endif
 #include <machine/atomic.h>
 
 static __inline void
@@ -51,9 +57,12 @@ refcount_acquire(volatile u_int *count)
 static __inline int
 refcount_release(volatile u_int *count)
 {
+	u_int old;
 
 	/* XXX: Should this have a rel membar? */
-	return (atomic_fetchadd_int(count, -1) == 1);
+	old = atomic_fetchadd_int(count, -1);
+	KASSERT(old > 0, ("negative refcount %p", count));
+	return (old == 1);
 }
 
 #endif	/* ! __SYS_REFCOUNT_H__ */
