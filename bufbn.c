@@ -1,4 +1,4 @@
-/* $OpenBSD: bufbn.c,v 1.4 2006/11/06 21:25:28 markus Exp $*/
+/* $OpenBSD: bufbn.c,v 1.5 2007/02/14 14:32:00 stevesk Exp $*/
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -93,7 +93,7 @@ buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
 }
 
 /*
- * Retrieves an BIGNUM from the buffer.
+ * Retrieves a BIGNUM from the buffer.
  */
 int
 buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
@@ -101,7 +101,7 @@ buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
 	u_int bits, bytes;
 	u_char buf[2], *bin;
 
-	/* Get the number for bits. */
+	/* Get the number of bits. */
 	if (buffer_get_ret(buffer, (char *) buf, 2) == -1) {
 		error("buffer_get_bignum_ret: invalid length");
 		return (-1);
@@ -137,7 +137,7 @@ buffer_get_bignum(Buffer *buffer, BIGNUM *value)
 }
 
 /*
- * Stores an BIGNUM in the buffer in SSH2 format.
+ * Stores a BIGNUM in the buffer in SSH2 format.
  */
 int
 buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)

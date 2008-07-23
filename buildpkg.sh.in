@@ -48,7 +48,7 @@ PKG_REQUEST_LOCAL=../pkg-request.local
 #
 OPENSSHD=opensshd.init
 OPENSSH_MANIFEST=openssh.xml
-OPENSSH_FMRI=svc:/site/openssh:default
+OPENSSH_FMRI=svc:/site/${SYSVINIT_NAME}:default
 
 PATH_GROUPADD_PROG=@PATH_GROUPADD_PROG@
 PATH_USERADD_PROG=@PATH_USERADD_PROG@
@@ -202,8 +202,9 @@ then
 	cp ${OPENSSHD} $FAKE_ROOT${TEST_DIR}/lib/svc/method/site/${SYSVINIT_NAME}
 	chmod 744 $FAKE_ROOT${TEST_DIR}/lib/svc/method/site/${SYSVINIT_NAME}
 
-	cp ${OPENSSH_MANIFEST} $FAKE_ROOT${TEST_DIR}/var/svc/manifest/site
-	chmod 644 $FAKE_ROOT${TEST_DIR}/var/svc/manifest/site/${OPENSSH_MANIFEST}
+	cat ${OPENSSH_MANIFEST} | sed "s|__SYSVINIT_NAME__|${SYSVINIT_NAME}|" \
+	    > $FAKE_ROOT${TEST_DIR}/var/svc/manifest/site/${SYSVINIT_NAME}.xml
+	chmod 644 $FAKE_ROOT${TEST_DIR}/var/svc/manifest/site/${SYSVINIT_NAME}.xml
 else
 	mkdir -p $FAKE_ROOT${TEST_DIR}/etc/init.d
 
@@ -334,9 +335,8 @@ then
 	then
 		svccfg delete -f $OPENSSH_FMRI
 	fi
-	# NOTE, if manifest enables sshd by default, this will actually
-	# start the daemon, which may not be what the user wants.
-	svccfg import ${TEST_DIR}/var/svc/manifest/site/$OPENSSH_MANIFEST
+	# NOTE, The manifest disables sshd by default.
+	svccfg import ${TEST_DIR}/var/svc/manifest/site/${SYSVINIT_NAME}.xml
 else
 	if [ "\${USE_SYM_LINKS}" = yes ]
 	then
@@ -428,8 +428,6 @@ if [ "\${POST_INS_START}" = "yes" ]
 then
 	if [ $DO_SMF -eq 1 ]
 	then
-		# See svccfg import note above.  The service may already
-		# be started.
 		svcadm enable $OPENSSH_FMRI
 	else
 		${TEST_DIR}/etc/init.d/${SYSVINIT_NAME} start
@@ -544,7 +542,7 @@ PRE_INS_STOP=no
 POST_INS_START=no
 # determine if should restart the daemon
 if [ -s ${piddir}/sshd.pid  ] && \
-    /usr/bin/svcs $OPENSSH_FMRI 2>&1 | egrep "^online" > /dev/null 2>&1
+    /usr/bin/svcs -H $OPENSSH_FMRI 2>&1 | egrep "^online" > /dev/null 2>&1
 then
 	ans=\`ckyorn -d n \
 -p "Should the running sshd daemon be restarted? ${DEF_MSG}"\` || exit \$?

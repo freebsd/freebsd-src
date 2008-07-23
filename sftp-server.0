@@ -1,0 +1,46 @@
+SFTP-SERVER(8)          OpenBSD System Manager's Manual         SFTP-SERVER(8)
+
+NAME
+     sftp-server - SFTP server subsystem
+
+SYNOPSIS
+     sftp-server [-f log_facility] [-l log_level]
+
+DESCRIPTION
+     sftp-server is a program that speaks the server side of SFTP protocol to
+     stdout and expects client requests from stdin.  sftp-server is not in-
+     tended to be called directly, but from sshd(8) using the Subsystem op-
+     tion.
+
+     Command-line flags to sftp-server should be specified in the Subsystem
+     declaration.  See sshd_config(5) for more information.
+
+     Valid options are:
+
+     -f log_facility
+             Specifies the facility code that is used when logging messages
+             from sftp-server.  The possible values are: DAEMON, USER, AUTH,
+             LOCAL0, LOCAL1, LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.
+             The default is AUTH.
+
+     -l log_level
+             Specifies which messages will be logged by sftp-server.  The pos-
+             sible values are: QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DE-
+             BUG1, DEBUG2, and DEBUG3.  INFO and VERBOSE log transactions that
+             sftp-server performs on behalf of the client.  DEBUG and DEBUG1
+             are equivalent.  DEBUG2 and DEBUG3 each specify higher levels of
+             debugging output.  The default is ERROR.
+
+SEE ALSO
+     sftp(1), ssh(1), sshd_config(5), sshd(8)
+
+     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
+     filexfer-00.txt, January 2001, work in progress material.
+
+HISTORY
+     sftp-server first appeared in OpenBSD 2.8.
+
+AUTHORS
+     Markus Friedl <markus@openbsd.org>
+
+OpenBSD 4.1                     August 30, 2000                              1

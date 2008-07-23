@@ -23,6 +23,9 @@
         type='service'
         version='1'>
 
+<!--
+	We default to disabled so administrator can decide to enable or not.
+-->
         <create_default_instance enabled='false'/>
 
         <single_instance/>
@@ -53,7 +56,7 @@
         <exec_method
             name='start'
             type='method'
-            exec='/lib/svc/method/site/opensshd start'
+            exec='/lib/svc/method/site/__SYSVINIT_NAME__ start'
             timeout_seconds='60'>
             <method_context/>
         </exec_method>

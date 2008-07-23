@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.19 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: moduli.c,v 1.20 2007/02/24 03:30:11 ray Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -490,11 +490,9 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 
 	res = 0;
 	lp = xmalloc(QLINESIZE + 1);
-	while (fgets(lp, QLINESIZE, in) != NULL) {
-		int ll = strlen(lp);
-
+	while (fgets(lp, QLINESIZE + 1, in) != NULL) {
 		count_in++;
-		if (ll < 14 || *lp == '!' || *lp == '#') {
+		if (strlen(lp) < 14 || *lp == '!' || *lp == '#') {
 			debug2("%10u: comment or short line", count_in);
 			continue;
 		}

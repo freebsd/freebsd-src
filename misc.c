@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.64 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: misc.c,v 1.65 2006/11/23 01:35:11 ray Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -616,6 +616,8 @@ read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
    u_long *lineno)
 {
 	while (fgets(buf, bufsz, f) != NULL) {
+		if (buf[0] == '\0')
+			continue;
 		(*lineno)++;
 		if (buf[strlen(buf) - 1] == '\n' || feof(f)) {
 			return 0;

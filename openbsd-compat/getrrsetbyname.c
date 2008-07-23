@@ -303,10 +303,12 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 	}
 
 	/* allocate memory for signatures */
-	rrset->rri_sigs = calloc(rrset->rri_nsigs, sizeof(struct rdatainfo));
-	if (rrset->rri_sigs == NULL) {
-		result = ERRSET_NOMEMORY;
-		goto fail;
+	if (rrset->rri_nsigs > 0) {
+		rrset->rri_sigs = calloc(rrset->rri_nsigs, sizeof(struct rdatainfo));
+		if (rrset->rri_sigs == NULL) {
+			result = ERRSET_NOMEMORY;
+			goto fail;
+		}
 	}
 
 	/* copy answers & signatures */
