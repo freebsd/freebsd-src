@@ -170,17 +170,20 @@ int
 linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
+	u_int secs;
 	int error;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
 		printf(ARGS(alarm, "%u"), args->secs);
 #endif
+	
+	secs = args->secs;
 
-	if (args->secs > 100000000)
-		return (EINVAL);
+	if (secs > INT_MAX)
+		secs = INT_MAX;
 
-	it.it_value.tv_sec = (long)args->secs;
+	it.it_value.tv_sec = (long) secs;
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
