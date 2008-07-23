@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.36 2006/08/18 10:27:16 djm Exp $ */
+/* $OpenBSD: misc.h,v 1.37 2007/12/27 14:22:08 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -35,6 +35,7 @@ char	*tohex(const void *, size_t);
 void	 sanitise_stdfd(void);
 
 struct passwd *pwcopy(struct passwd *);
+const char *ssh_gai_strerror(int);
 
 typedef struct arglist arglist;
 struct arglist {

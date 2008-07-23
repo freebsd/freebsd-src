@@ -14,9 +14,11 @@ DESCRIPTION
      as ssh(1).  Unlike rcp(1), scp will ask for passwords or passphrases if
      they are needed for authentication.
 
-     Any file name may contain a host and user specification to indicate that
-     the file is to be copied to/from that host.  Copies between two remote
-     hosts are permitted.
+     File names may contain a user and host specification to indicate that the
+     file is to be copied to/from that host.  Local file names can be made ex-
+     plicit using absolute or relative pathnames to avoid scp treating file
+     names containing `:' as host specifiers.  Copies between two remote hosts
+     are also permitted.
 
      The options are as follows:
 
@@ -115,7 +117,8 @@ DESCRIPTION
      -p      Preserves modification times, access times, and modes from the
              original file.
 
-     -q      Disables the progress meter.
+     -q      Quiet mode: disables the progress meter as well as warning and
+             diagnostic messages from ssh(1).
 
      -r      Recursively copy entire directories.
 
@@ -141,4 +144,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 4.2                     August 8, 2007                               3
+OpenBSD 4.3                    February 10, 2008                             3

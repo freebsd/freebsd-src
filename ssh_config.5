@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.102 2007/08/15 12:13:41 stevesk Exp $
-.Dd $Mdocdate: August 15 2007 $
+.\" $OpenBSD: ssh_config.5,v 1.105 2007/10/29 07:48:19 jmc Exp $
+.Dd $Mdocdate: December 2 2007 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -576,6 +576,14 @@ escape characters:
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+.It Cm KbdInteractiveAuthentication
+Specifies whether to use keyboard-interactive authentication.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq yes .
 .It Cm KbdInteractiveDevices
 Specifies the list of methods to use in keyboard-interactive authentication.
 Multiple method names must be comma-separated.
@@ -591,7 +599,7 @@ and
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
 The command string extends to the end of the line, and is executed with
-.Pa /bin/sh .
+the user's shell.
 This directive is ignored unless
 .Cm PermitLocalCommand
 has been enabled.
@@ -715,7 +723,7 @@ if version 2 is not available.
 Specifies the command to use to connect to the server.
 The command
 string extends to the end of the line, and is executed with
-.Pa /bin/sh .
+the user's shell.
 In the command string,
 .Ql %h
 will be substituted by the host name to

@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.181 2007/08/15 08:14:46 markus Exp $ */
+/* $OpenBSD: clientloop.c,v 1.188 2008/02/22 20:44:02 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -157,7 +157,6 @@ static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
 static int session_closed = 0;	/* In SSH2: login session closed. */
-static int server_alive_timeouts = 0;
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
@@ -467,14 +466,14 @@ client_check_window_change(void)
 static void
 client_global_request_reply(int type, u_int32_t seq, void *ctxt)
 {
-	server_alive_timeouts = 0;
+	keep_alive_timeouts = 0;
 	client_global_request_reply_fwd(type, seq, ctxt);
 }
 
 static void
 server_alive_check(void)
 {
-	if (++server_alive_timeouts > options.server_alive_count_max) {
+	if (++keep_alive_timeouts > options.server_alive_count_max) {
 		logit("Timeout, server not responding.");
 		cleanup_exit(255);
 	}
@@ -722,7 +721,7 @@ client_process_control(fd_set *readset)
 	struct sockaddr_storage addr;
 	struct confirm_ctx *cctx;
 	char *cmd;
-	u_int i, len, env_len, command, flags;
+	u_int i, j, len, env_len, command, flags;
 	uid_t euid;
 	gid_t egid;
 
@@ -870,9 +869,23 @@ client_process_control(fd_set *readset)
 	xfree(cmd);
 
 	/* Gather fds from client */
-	new_fd[0] = mm_receive_fd(client_fd);
-	new_fd[1] = mm_receive_fd(client_fd);
-	new_fd[2] = mm_receive_fd(client_fd);
+	for(i = 0; i < 3; i++) {
+		if ((new_fd[i] = mm_receive_fd(client_fd)) == -1) {
+			error("%s: failed to receive fd %d from slave",
+			    __func__, i);
+			for (j = 0; j < i; j++)
+				close(new_fd[j]);
+			for (j = 0; j < env_len; j++)
+				xfree(cctx->env[j]);
+			if (env_len > 0)
+				xfree(cctx->env);
+			xfree(cctx->term);
+			buffer_free(&cctx->cmd);
+			close(client_fd);
+			xfree(cctx);
+			return;
+		}
+	}
 
 	debug2("%s: got fds stdin %d, stdout %d, stderr %d", __func__,
 	    new_fd[0], new_fd[1], new_fd[2]);
@@ -939,6 +952,9 @@ process_cmdline(void)
 	int local = 0;
 	u_short cancel_port;
 	Forward fwd;
+
+	bzero(&fwd, sizeof(fwd));
+	fwd.listen_host = fwd.connect_host = NULL;
 
 	leave_raw_mode();
 	handler = signal(SIGINT, SIG_IGN);
@@ -1039,6 +1055,10 @@ out:
 	enter_raw_mode();
 	if (cmd)
 		xfree(cmd);
+	if (fwd.listen_host != NULL)
+		xfree(fwd.listen_host);
+	if (fwd.connect_host != NULL)
+		xfree(fwd.connect_host);
 }
 
 /* process the characters one by one */
@@ -1719,7 +1739,7 @@ client_request_forwarded_tcpip(const char *request_type, int rchan)
 	}
 	c = channel_new("forwarded-tcpip",
 	    SSH_CHANNEL_CONNECTING, sock, sock, -1,
-	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_WINDOW_DEFAULT, 0,
+	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0,
 	    originator_address, 1);
 	xfree(originator_address);
 	xfree(listen_address);
@@ -1777,7 +1797,7 @@ client_request_agent(const char *request_type, int rchan)
 		return NULL;
 	c = channel_new("authentication agent connection",
 	    SSH_CHANNEL_OPEN, sock, sock, -1,
-	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_WINDOW_DEFAULT, 0,
+	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0,
 	    "authentication agent connection", 1);
 	c->force_drain = 1;
 	return c;

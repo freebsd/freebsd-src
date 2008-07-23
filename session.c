@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.221 2007/01/21 01:41:54 stevesk Exp $ */
+/* $OpenBSD: session.c,v 1.233 2008/03/26 21:28:14 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -84,9 +84,11 @@
 #include "sshlogin.h"
 #include "serverloop.h"
 #include "canohost.h"
+#include "misc.h"
 #include "session.h"
 #include "kex.h"
 #include "monitor_wrap.h"
+#include "sftp.h"
 
 #if defined(KRB5) && defined(USE_AFS)
 #include <kafs.h>
@@ -129,8 +131,12 @@ extern Buffer loginmsg;
 const char *original_command = NULL;
 
 /* data */
-#define MAX_SESSIONS 10
+#define MAX_SESSIONS 20
 Session	sessions[MAX_SESSIONS];
+
+#define SUBSYSTEM_NONE		0
+#define SUBSYSTEM_EXT		1
+#define SUBSYSTEM_INT_SFTP	2
 
 #ifdef HAVE_LOGIN_CAP
 login_cap_t *lc;
@@ -422,11 +428,6 @@ do_exec_no_pty(Session *s, const char *command)
 
 	session_proctitle(s);
 
-#if defined(USE_PAM)
-	if (options.use_pam && !use_privsep)
-		do_pam_setcred(1);
-#endif /* USE_PAM */
-
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
 		is_child = 1;
@@ -557,14 +558,6 @@ do_exec_pty(Session *s, const char *command)
 	ptyfd = s->ptyfd;
 	ttyfd = s->ttyfd;
 
-#if defined(USE_PAM)
-	if (options.use_pam) {
-		do_pam_set_tty(s->tty);
-		if (!use_privsep)
-			do_pam_setcred(1);
-	}
-#endif
-
 	/* Fork the child. */
 	if ((pid = fork()) == 0) {
 		is_child = 1;
@@ -683,10 +676,18 @@ do_exec(Session *s, const char *command)
 	if (options.adm_forced_command) {
 		original_command = command;
 		command = options.adm_forced_command;
+		if (strcmp(INTERNAL_SFTP_NAME, command) == 0)
+			s->is_subsystem = SUBSYSTEM_INT_SFTP;
+		else if (s->is_subsystem)
+			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (config) '%.900s'", command);
 	} else if (forced_command) {
 		original_command = command;
 		command = forced_command;
+		if (strcmp(INTERNAL_SFTP_NAME, command) == 0)
+			s->is_subsystem = SUBSYSTEM_INT_SFTP;
+		else if (s->is_subsystem)
+			s->is_subsystem = SUBSYSTEM_EXT;
 		debug("Forced command (key option) '%.900s'", command);
 	}
 
@@ -701,7 +702,6 @@ do_exec(Session *s, const char *command)
 		PRIVSEP(audit_run_command(shell));
 	}
 #endif
-
 	if (s->ttyfd != -1)
 		do_exec_pty(s, command);
 	else
@@ -897,8 +897,9 @@ read_environment_file(char ***env, u_int *envsize,
 			;
 		if (!*cp || *cp == '#' || *cp == '\n')
 			continue;
-		if (strchr(cp, '\n'))
-			*strchr(cp, '\n') = '\0';
+
+		cp[strcspn(cp, "\n")] = '\0';
+
 		value = strchr(cp, '=');
 		if (value == NULL) {
 			fprintf(stderr, "Bad line %u in %.100s\n", lineno,
@@ -1201,8 +1202,9 @@ do_rc_files(Session *s, const char *shell)
 	do_xauth =
 	    s->display != NULL && s->auth_proto != NULL && s->auth_data != NULL;
 
-	/* ignore _PATH_SSH_USER_RC for subsystems */
-	if (!s->is_subsystem && (stat(_PATH_SSH_USER_RC, &st) >= 0)) {
+	/* ignore _PATH_SSH_USER_RC for subsystems and admin forced commands */
+	if (!s->is_subsystem && options.adm_forced_command == NULL &&
+	    !no_user_rc &&  (stat(_PATH_SSH_USER_RC, &st) >= 0)) {
 		snprintf(cmd, sizeof cmd, "%s -c '%s %s'",
 		    shell, _PATH_BSHELL, _PATH_SSH_USER_RC);
 		if (debug_flag)
@@ -1283,10 +1285,72 @@ do_nologin(struct passwd *pw)
 	}
 }
 
+/*
+ * Chroot into a directory after checking it for safety: all path components
+ * must be root-owned directories with strict permissions.
+ */
+static void
+safely_chroot(const char *path, uid_t uid)
+{
+	const char *cp;
+	char component[MAXPATHLEN];
+	struct stat st;
+
+	if (*path != '/')
+		fatal("chroot path does not begin at root");
+	if (strlen(path) >= sizeof(component))
+		fatal("chroot path too long");
+
+	/*
+	 * Descend the path, checking that each component is a
+	 * root-owned directory with strict permissions.
+	 */
+	for (cp = path; cp != NULL;) {
+		if ((cp = strchr(cp, '/')) == NULL)
+			strlcpy(component, path, sizeof(component));
+		else {
+			cp++;
+			memcpy(component, path, cp - path);
+			component[cp - path] = '\0';
+		}
+	
+		debug3("%s: checking '%s'", __func__, component);
+
+		if (stat(component, &st) != 0)
+			fatal("%s: stat(\"%s\"): %s", __func__,
+			    component, strerror(errno));
+		if (st.st_uid != 0 || (st.st_mode & 022) != 0)
+			fatal("bad ownership or modes for chroot "
+			    "directory %s\"%s\"", 
+			    cp == NULL ? "" : "component ", component);
+		if (!S_ISDIR(st.st_mode))
+			fatal("chroot path %s\"%s\" is not a directory",
+			    cp == NULL ? "" : "component ", component);
+
+	}
+
+	if (chdir(path) == -1)
+		fatal("Unable to chdir to chroot path \"%s\": "
+		    "%s", path, strerror(errno));
+	if (chroot(path) == -1)
+		fatal("chroot(\"%s\"): %s", path, strerror(errno));
+	if (chdir("/") == -1)
+		fatal("%s: chdir(/) after chroot: %s",
+		    __func__, strerror(errno));
+	verbose("Changed root directory to \"%s\"", path);
+}
+
 /* Set login name, uid, gid, and groups. */
 void
 do_setusercontext(struct passwd *pw)
 {
+	char *chroot_path, *tmp;
+
+#ifdef WITH_SELINUX
+	/* Cache selinux status for later use */
+	(void)ssh_selinux_enabled();
+#endif
+
 #ifndef HAVE_CYGWIN
 	if (getuid() == 0 || geteuid() == 0)
 #endif /* HAVE_CYGWIN */
@@ -1300,21 +1364,13 @@ do_setusercontext(struct passwd *pw)
 # ifdef __bsdi__
 		setpgid(0, 0);
 # endif
-#ifdef GSSAPI
-		if (options.gss_authentication) {
-			temporarily_use_uid(pw);
-			ssh_gssapi_storecreds();
-			restore_uid();
-		}
-#endif
 # ifdef USE_PAM
 		if (options.use_pam) {
-			do_pam_session();
 			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 		if (setusercontext(lc, pw, pw->pw_uid,
-		    (LOGIN_SETALL & ~LOGIN_SETPATH)) < 0) {
+		    (LOGIN_SETALL & ~(LOGIN_SETPATH|LOGIN_SETUSER))) < 0) {
 			perror("unable to set user context");
 			exit(1);
 		}
@@ -1337,13 +1393,6 @@ do_setusercontext(struct passwd *pw)
 			exit(1);
 		}
 		endgrent();
-#ifdef GSSAPI
-		if (options.gss_authentication) {
-			temporarily_use_uid(pw);
-			ssh_gssapi_storecreds();
-			restore_uid();
-		}
-#endif
 # ifdef USE_PAM
 		/*
 		 * PAM credentials may take the form of supplementary groups.
@@ -1351,21 +1400,39 @@ do_setusercontext(struct passwd *pw)
 		 * Reestablish them here.
 		 */
 		if (options.use_pam) {
-			do_pam_session();
 			do_pam_setcred(use_privsep);
 		}
 # endif /* USE_PAM */
 # if defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY)
 		irix_setusercontext(pw);
-#  endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
+# endif /* defined(WITH_IRIX_PROJECT) || defined(WITH_IRIX_JOBS) || defined(WITH_IRIX_ARRAY) */
 # ifdef _AIX
 		aix_usrinfo(pw);
 # endif /* _AIX */
-#ifdef USE_LIBIAF
+# ifdef USE_LIBIAF
 		if (set_id(pw->pw_name) != 0) {
 			exit(1);
 		}
-#endif /* USE_LIBIAF */
+# endif /* USE_LIBIAF */
+#endif
+
+		if (options.chroot_directory != NULL &&
+		    strcasecmp(options.chroot_directory, "none") != 0) {
+                        tmp = tilde_expand_filename(options.chroot_directory,
+			    pw->pw_uid);
+			chroot_path = percent_expand(tmp, "h", pw->pw_dir,
+			    "u", pw->pw_name, (char *)NULL);
+			safely_chroot(chroot_path, pw->pw_uid);
+			free(tmp);
+			free(chroot_path);
+		}
+
+#ifdef HAVE_LOGIN_CAP
+		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETUSER) < 0) {
+			perror("unable to set user context (setuser)");
+			exit(1);
+		}
+#else
 		/* Permanently switch to the desired uid. */
 		permanently_set_uid(pw);
 #endif
@@ -1464,12 +1531,13 @@ child_close_fds(void)
  * environment, closing extra file descriptors, setting the user and group
  * ids, and executing the command or shell.
  */
+#define ARGV_MAX 10
 void
 do_child(Session *s, const char *command)
 {
 	extern char **environ;
 	char **env;
-	char *argv[10];
+	char *argv[ARGV_MAX];
 	const char *shell, *shell0, *hostname = NULL;
 	struct passwd *pw = s->pw;
 
@@ -1595,11 +1663,29 @@ do_child(Session *s, const char *command)
 #endif
 	}
 
+	closefrom(STDERR_FILENO + 1);
+
 	if (!options.use_login)
 		do_rc_files(s, shell);
 
 	/* restore SIGPIPE for child */
 	signal(SIGPIPE, SIG_DFL);
+
+	if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
+		extern int optind, optreset;
+		int i;
+		char *p, *args;
+
+		setproctitle("%s@internal-sftp-server", s->pw->pw_name);
+		args = strdup(command ? command : "sftp-server");
+		for (i = 0, (p = strtok(args, " ")); p; (p = strtok(NULL, " ")))
+			if (i < ARGV_MAX - 1)
+				argv[i++] = p;
+		argv[i] = NULL;
+		optind = optreset = 1;
+		__progname = argv[0];
+		exit(sftp_server_main(i, argv, s->pw));
+	}
 
 	if (options.use_login) {
 		launch_login(pw, hostname);
@@ -1873,13 +1959,16 @@ session_subsystem_req(Session *s)
 		if (strcmp(subsys, options.subsystem_name[i]) == 0) {
 			prog = options.subsystem_command[i];
 			cmd = options.subsystem_args[i];
-			if (stat(prog, &st) < 0) {
+			if (!strcmp(INTERNAL_SFTP_NAME, prog)) {
+				s->is_subsystem = SUBSYSTEM_INT_SFTP;
+			} else if (stat(prog, &st) < 0) {
 				error("subsystem: cannot stat %s: %s", prog,
 				    strerror(errno));
 				break;
+			} else {
+				s->is_subsystem = SUBSYSTEM_EXT;
 			}
 			debug("subsystem: exec() %s", cmd);
-			s->is_subsystem = 1;
 			do_exec(s, cmd);
 			success = 1;
 			break;
@@ -2203,7 +2292,7 @@ session_exit_message(Session *s, int status)
 		channel_request_start(s->chanid, "exit-signal", 0);
 		packet_put_cstring(sig2name(WTERMSIG(status)));
 #ifdef WCOREDUMP
-		packet_put_char(WCOREDUMP(status));
+		packet_put_char(WCOREDUMP(status)? 1 : 0);
 #else /* WCOREDUMP */
 		packet_put_char(0);
 #endif /* WCOREDUMP */

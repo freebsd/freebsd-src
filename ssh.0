@@ -280,7 +280,7 @@ DESCRIPTION
              Port to connect to on the remote host.  This can be specified on
              a per-host basis in the configuration file.
 
-     -q      Quiet mode.  Causes all warning and diagnostic messages to be
+     -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
 
      -R [bind_address:]port:host:hostport
@@ -714,6 +714,13 @@ FILES
              host-based authentication without permitting login with
              rlogin/rsh.
 
+     ~/.ssh/
+             This directory is the default location for all user-specific con-
+             figuration and authentication information.  There is no general
+             requirement to keep the entire contents of this directory secret,
+             but the recommended permissions are read/write/execute for the
+             user, and not accessible by others.
+
      ~/.ssh/authorized_keys
              Lists the public keys (RSA/DSA) that can be used for logging in
              as this user.  The format of this file is described in the
@@ -832,4 +839,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.2                      June 12, 2007                              13
+OpenBSD 4.3                     March 26, 2008                              13

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.76 2007/01/22 11:32:50 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.81 2008/03/23 12:54:01 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -65,6 +65,8 @@ struct sftp_conn {
 	u_int num_requests;
 	u_int version;
 	u_int msg_id;
+#define SFTP_EXT_POSIX_RENAME	1
+	u_int exts;
 };
 
 static void
@@ -239,7 +241,7 @@ get_decode_stat(int fd, u_int expected_id, int quiet)
 struct sftp_conn *
 do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests)
 {
-	u_int type;
+	u_int type, exts = 0;
 	int version;
 	Buffer msg;
 	struct sftp_conn *ret;
@@ -270,6 +272,8 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests)
 		char *value = buffer_get_string(&msg, NULL);
 
 		debug2("Init extension: \"%s\"", name);
+		if (strcmp(name, "posix-rename@openssh.com") == 0)
+			exts |= SFTP_EXT_POSIX_RENAME;
 		xfree(name);
 		xfree(value);
 	}
@@ -283,6 +287,7 @@ do_init(int fd_in, int fd_out, u_int transfer_buflen, u_int num_requests)
 	ret->num_requests = num_requests;
 	ret->version = version;
 	ret->msg_id = 1;
+	ret->exts = exts;
 
 	/* Some filexfer v.0 servers don't support large packets */
 	if (version == 0)
@@ -534,6 +539,7 @@ do_lstat(struct sftp_conn *conn, char *path, int quiet)
 	return(get_decode_stat(conn->fd_in, id, quiet));
 }
 
+#ifdef notyet
 Attrib *
 do_fstat(struct sftp_conn *conn, char *handle, u_int handle_len, int quiet)
 {
@@ -545,6 +551,7 @@ do_fstat(struct sftp_conn *conn, char *handle, u_int handle_len, int quiet)
 
 	return(get_decode_stat(conn->fd_in, id, quiet));
 }
+#endif
 
 int
 do_setstat(struct sftp_conn *conn, char *path, Attrib *a)
@@ -637,13 +644,20 @@ do_rename(struct sftp_conn *conn, char *oldpath, char *newpath)
 
 	/* Send rename request */
 	id = conn->msg_id++;
-	buffer_put_char(&msg, SSH2_FXP_RENAME);
-	buffer_put_int(&msg, id);
+	if ((conn->exts & SFTP_EXT_POSIX_RENAME)) {
+		buffer_put_char(&msg, SSH2_FXP_EXTENDED);
+		buffer_put_int(&msg, id);
+		buffer_put_cstring(&msg, "posix-rename@openssh.com");
+	} else {
+		buffer_put_char(&msg, SSH2_FXP_RENAME);
+		buffer_put_int(&msg, id);
+	}
 	buffer_put_cstring(&msg, oldpath);
 	buffer_put_cstring(&msg, newpath);
 	send_msg(conn->fd_out, &msg);
-	debug3("Sent message SSH2_FXP_RENAME \"%s\" -> \"%s\"", oldpath,
-	    newpath);
+	debug3("Sent message %s \"%s\" -> \"%s\"",
+	    (conn->exts & SFTP_EXT_POSIX_RENAME) ? "posix-rename@openssh.com" :
+	    "SSH2_FXP_RENAME", oldpath, newpath);
 	buffer_free(&msg);
 
 	status = get_status(conn->fd_in, id);
@@ -686,6 +700,7 @@ do_symlink(struct sftp_conn *conn, char *oldpath, char *newpath)
 	return(status);
 }
 
+#ifdef notyet
 char *
 do_readlink(struct sftp_conn *conn, char *path)
 {
@@ -732,6 +747,7 @@ do_readlink(struct sftp_conn *conn, char *path)
 
 	return(filename);
 }
+#endif
 
 static void
 send_read_request(int fd_out, u_int id, u_int64_t offset, u_int len,
@@ -819,6 +835,7 @@ do_download(struct sftp_conn *conn, char *remote_path, char *local_path,
 	if (local_fd == -1) {
 		error("Couldn't open local file \"%s\" for writing: %s",
 		    local_path, strerror(errno));
+		do_close(conn, handle, handle_len);
 		buffer_free(&msg);
 		xfree(handle);
 		return(-1);
@@ -992,9 +1009,10 @@ int
 do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
     int pflag)
 {
-	int local_fd, status;
+	int local_fd;
+	int status = SSH2_FX_OK;
 	u_int handle_len, id, type;
-	u_int64_t offset;
+	off_t offset;
 	char *handle, *data;
 	Buffer msg;
 	struct stat sb;
@@ -1004,7 +1022,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	struct outstanding_ack {
 		u_int id;
 		u_int len;
-		u_int64_t offset;
+		off_t offset;
 		TAILQ_ENTRY(outstanding_ack) tq;
 	};
 	TAILQ_HEAD(ackhead, outstanding_ack) acks;
@@ -1054,7 +1072,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 	if (handle == NULL) {
 		close(local_fd);
 		buffer_free(&msg);
-		return(-1);
+		return -1;
 	}
 
 	startid = ackid = id + 1;
@@ -1074,7 +1092,7 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 		 * Simulate an EOF on interrupt, allowing ACKs from the
 		 * server to drain.
 		 */
-		if (interrupted)
+		if (interrupted || status != SSH2_FX_OK)
 			len = 0;
 		else do
 			len = read(local_fd, data, conn->transfer_buflen);
@@ -1130,46 +1148,40 @@ do_upload(struct sftp_conn *conn, char *local_path, char *remote_path,
 			if (ack == NULL)
 				fatal("Can't find request for ID %u", r_id);
 			TAILQ_REMOVE(&acks, ack, tq);
-
-			if (status != SSH2_FX_OK) {
-				error("Couldn't write to remote file \"%s\": %s",
-				    remote_path, fx2txt(status));
-				if (showprogress)
-					stop_progress_meter();
-				do_close(conn, handle, handle_len);
-				close(local_fd);
-				xfree(data);
-				xfree(ack);
-				status = -1;
-				goto done;
-			}
-			debug3("In write loop, ack for %u %u bytes at %llu",
-			    ack->id, ack->len, (unsigned long long)ack->offset);
+			debug3("In write loop, ack for %u %u bytes at %lld",
+			    ack->id, ack->len, (long long)ack->offset);
 			++ackid;
 			xfree(ack);
 		}
 		offset += len;
+		if (offset < 0)
+			fatal("%s: offset < 0", __func__);
 	}
+	buffer_free(&msg);
+
 	if (showprogress)
 		stop_progress_meter();
 	xfree(data);
 
+	if (status != SSH2_FX_OK) {
+		error("Couldn't write to remote file \"%s\": %s",
+		    remote_path, fx2txt(status));
+		status = -1;
+	}
+
 	if (close(local_fd) == -1) {
 		error("Couldn't close local file \"%s\": %s", local_path,
 		    strerror(errno));
-		do_close(conn, handle, handle_len);
 		status = -1;
-		goto done;
 	}
 
 	/* Override umask and utimes if asked */
 	if (pflag)
 		do_fsetstat(conn, handle, handle_len, &a);
 
-	status = do_close(conn, handle, handle_len);
-
-done:
+	if (do_close(conn, handle, handle_len) != SSH2_FX_OK)
+		status = -1;
 	xfree(handle);
-	buffer_free(&msg);
-	return(status);
+
+	return status;
 }

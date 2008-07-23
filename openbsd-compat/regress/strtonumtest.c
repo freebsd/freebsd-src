@@ -21,6 +21,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* LLONG_MAX is known as LONGLONG_MAX on AIX */
+#if defined(LONGLONG_MAX) && !defined(LLONG_MAX)
+# define LLONG_MAX LONGLONG_MAX
+# define LLONG_MIN LONGLONG_MIN
+#endif
+
+/* LLONG_MAX is known as LONG_LONG_MAX on HP-UX */
+#if defined(LONG_LONG_MAX) && !defined(LLONG_MAX)
+# define LLONG_MAX LONG_LONG_MAX
+# define LLONG_MIN LONG_LONG_MIN
+#endif
+
+long long strtonum(const char *, long long, long long, const char **);
+
 int fail;
 
 void

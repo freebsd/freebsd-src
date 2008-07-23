@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.77 2007/06/08 07:48:09 jmc Exp $
-.Dd $Mdocdate: June 11 2007 $
+.\" $OpenBSD: sshd_config.5,v 1.84 2008/03/25 11:58:02 djm Exp $
+.Dd $Mdocdate: March 27 2008 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -159,10 +159,11 @@ directory.
 The default is
 .Dq .ssh/authorized_keys .
 .It Cm Banner
-In some jurisdictions, sending a warning message before authentication
-may be relevant for getting legal protection.
 The contents of the specified file are sent to the remote user before
 authentication is allowed.
+If the argument is
+.Dq none
+then no banner is displayed.
 This option is only available for protocol version 2.
 By default, no banner is displayed.
 .It Cm ChallengeResponseAuthentication
@@ -172,6 +173,45 @@ All authentication styles from
 are supported.
 The default is
 .Dq yes .
+.It Cm ChrootDirectory
+Specifies a path to
+.Xr chroot 2
+to after authentication.
+This path, and all its components, must be root-owned directories that are
+not writable by any other user or group.
+.Pp
+The path may contain the following tokens that are expanded at runtime once
+the connecting user has been authenticated: %% is replaced by a literal '%',
+%h is replaced by the home directory of the user being authenticated, and
+%u is replaced by the username of that user.
+.Pp
+The
+.Cm ChrootDirectory
+must contain the necessary files and directories to support the
+users' session.
+For an interactive session this requires at least a shell, typically
+.Xr sh 1 ,
+and basic
+.Pa /dev
+nodes such as
+.Xr null 4 ,
+.Xr zero 4 ,
+.Xr stdin 4 ,
+.Xr stdout 4 ,
+.Xr stderr 4 ,
+.Xr arandom 4
+and
+.Xr tty 4
+devices.
+For file transfer sessions using
+.Dq sftp ,
+no additional configuration of the environment is necessary if the
+in-process sftp server is used (see
+.Cm Subsystem
+for details).
+.Pp
+The default is not to
+.Xr chroot 2 .
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
@@ -284,7 +324,9 @@ for more information on patterns.
 .It Cm ForceCommand
 Forces the execution of the command specified by
 .Cm ForceCommand ,
-ignoring any command supplied by the client.
+ignoring any command supplied by the client and
+.Pa ~/.ssh/rc
+if present.
 The command is invoked by using the user's login shell with the -c option.
 This applies to shell, command, or subsystem execution.
 It is most useful inside a
@@ -293,6 +335,11 @@ block.
 The command originally supplied by the client is available in the
 .Ev SSH_ORIGINAL_COMMAND
 environment variable.
+Specifying a command of
+.Dq internal-sftp
+will force the use of an in-process sftp server that requires no support
+files when used with
+.Cm ChrootDirectory .
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to ports
 forwarded for the client.
@@ -523,6 +570,7 @@ Available keywords are
 .Cm KerberosAuthentication ,
 .Cm PasswordAuthentication ,
 .Cm PermitOpen ,
+.Cm PermitRootLogin ,
 .Cm RhostsRSAAuthentication ,
 .Cm RSAAuthentication ,
 .Cm X11DisplayOffset ,
@@ -738,11 +786,22 @@ The default is
 Configures an external subsystem (e.g. file transfer daemon).
 Arguments should be a subsystem name and a command (with optional arguments)
 to execute upon subsystem request.
+.Pp
 The command
 .Xr sftp-server 8
 implements the
 .Dq sftp
 file transfer subsystem.
+.Pp
+Alternately the name
+.Dq internal-sftp
+implements an in-process
+.Dq sftp
+server.
+This may simplify configurations using
+.Cm ChrootDirectory
+to force a different filesystem root on clients.
+.Pp
 By default no subsystems are defined.
 Note that this option applies to protocol version 2 only.
 .It Cm SyslogFacility

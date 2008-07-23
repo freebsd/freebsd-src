@@ -313,6 +313,9 @@ AUTHORIZED_KEYS FILE FORMAT
 
      no-pty  Prevents tty allocation (a request to allocate a pty will fail).
 
+     no-user-rc
+             Disables execution of ~/.ssh/rc.
+
      no-X11-forwarding
              Forbids X11 forwarding when this key is used for authentication.
              Any X11 forward requests by the client will return an error.
@@ -416,6 +419,13 @@ FILES
              This file is used in exactly the same way as .rhosts, but allows
              host-based authentication without permitting login with
              rlogin/rsh.
+
+     ~/.ssh/
+             This directory is the default location for all user-specific con-
+             figuration and authentication information.  There is no general
+             requirement to keep the entire contents of this directory secret,
+             but the recommended permissions are read/write/execute for the
+             user, and not accessible by others.
 
      ~/.ssh/authorized_keys
              Lists the public keys (RSA/DSA) that can be used for logging in
@@ -542,4 +552,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are dis-
      abled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.2                     August 16, 2007                              9
+OpenBSD 4.3                     March 27, 2008                               9

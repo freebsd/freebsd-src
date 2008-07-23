@@ -55,6 +55,7 @@ vasprintf(char **str, const char *fmt, va_list ap)
 	if (ret >= 0 && ret < INIT_SZ) { /* succeeded with initial alloc */
 		*str = string;
 	} else if (ret == INT_MAX || ret < 0) { /* Bad length */
+		free(string);
 		goto fail;
 	} else {	/* bigger than initial, realloc allowing for nul */
 		len = (size_t)ret + 1;

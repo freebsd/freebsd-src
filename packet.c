@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.148 2007/06/07 19:37:34 pvalchev Exp $ */
+/* $OpenBSD: packet.c,v 1.151 2008/02/22 20:44:02 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -135,6 +135,8 @@ static int server_side = 0;
 
 /* Set to true if we are authenticated. */
 static int after_authentication = 0;
+
+int keep_alive_timeouts = 0;
 
 /* Session key information for Encryption and MAC */
 Newkeys *newkeys[MODE_MAX];
@@ -1192,10 +1194,12 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 	for (;;) {
 		if (compat20) {
 			type = packet_read_poll2(seqnr_p);
+			keep_alive_timeouts = 0;
 			if (type)
 				DBG(debug("received packet type %d", type));
 			switch (type) {
 			case SSH2_MSG_IGNORE:
+				debug3("Received SSH2_MSG_IGNORE");
 				break;
 			case SSH2_MSG_DEBUG:
 				packet_get_char();

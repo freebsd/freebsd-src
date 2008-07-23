@@ -131,7 +131,7 @@ fi
 if [ -e "${SYSCONFDIR}" -a ! -d "${SYSCONFDIR}" ]
 then
   echo
-  echo "${SYSCONFDIR} is existant but not a directory."
+  echo "${SYSCONFDIR} exists but is not a directory."
   echo "Cannot create global configuration files."
   echo
   exit 1
@@ -156,7 +156,7 @@ fi
 if [ -e ${LOCALSTATEDIR}/log -a ! -d ${LOCALSTATEDIR}/log ]
 then
   echo
-  echo "${LOCALSTATEDIR}/log is existant but not a directory."
+  echo "${LOCALSTATEDIR}/log exists but is not a directory."
   echo "Cannot create ssh host configuration."
   echo
   exit 1
@@ -181,11 +181,23 @@ then
 fi
 
 # Create /var/empty file used as chroot jail for privilege separation
-if [ -f ${LOCALSTATEDIR}/empty ]
+if [ -e ${LOCALSTATEDIR}/empty -a ! -d ${LOCALSTATEDIR}/empty ]
 then
-  echo "Creating ${LOCALSTATEDIR}/empty failed!"
-else
-  mkdir -p ${LOCALSTATEDIR}/empty
+  echo
+  echo "${LOCALSTATEDIR}/empty exists but is not a directory."
+  echo "Cannot create ssh host configuration."
+  echo
+  exit 1
+if [ ! -e ${LOCALSTATEDIR}/empty ]
+then
+  if ! mkdir -p ${LOCALSTATEDIR}/empty
+  then
+    echo
+    echo "Creating ${LOCALSTATEDIR}/empty directory failed."
+    echo "Cannot create ssh host configuration."
+    echo
+    exit 1
+  fi
   if [ ${_nt} -gt 0 ]
   then
     chmod 755 ${LOCALSTATEDIR}/empty
