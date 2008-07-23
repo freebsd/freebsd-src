@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.272 2008/01/19 23:02:40 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.273 2008/04/02 21:36:51 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -2905,9 +2905,6 @@ x11_create_display_inet(int x11_display_offset, int x11_use_localhost,
 			if (bind(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
 				debug2("bind port %d: %.100s", port, strerror(errno));
 				close(sock);
-
-				if (ai->ai_next)
-					continue;
 
 				for (n = 0; n < num_socks; n++) {
 					close(socks[n]);
