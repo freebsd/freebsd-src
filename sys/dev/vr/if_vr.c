@@ -1324,8 +1324,8 @@ vr_rxeof(struct vr_softc *sc)
 		 * We don't support SG in Rx path yet, so discard
 		 * partial frame.
 		 */
-		if ((rxstat & (VR_RXSTAT_RXERR | VR_RXSTAT_FIRSTFRAG |
-		    VR_RXSTAT_LASTFRAG)) !=
+		if ((rxstat & VR_RXSTAT_RX_OK) == 0 ||
+		    (rxstat & (VR_RXSTAT_FIRSTFRAG | VR_RXSTAT_LASTFRAG)) !=
 		    (VR_RXSTAT_FIRSTFRAG | VR_RXSTAT_LASTFRAG)) {
 			ifp->if_ierrors++;
 			sc->vr_stat.rx_errors++;
