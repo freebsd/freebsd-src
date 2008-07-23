@@ -35,7 +35,6 @@
 #include <machine/atomic.h>
 
 #ifdef _KERNEL
-#warning _KERNEL defined
 #include <sys/systm.h>
 #else
 #define	KASSERT(exp, msg)	/* */
