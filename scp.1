@@ -9,9 +9,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.42 2007/08/06 19:16:06 sobrado Exp $
+.\" $OpenBSD: scp.1,v 1.44 2008/01/31 20:06:50 jmc Exp $
 .\"
-.Dd $Mdocdate: August 8 2007 $
+.Dd $Mdocdate: February 10 2008 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -56,9 +56,15 @@ Unlike
 will ask for passwords or passphrases if they are needed for
 authentication.
 .Pp
-Any file name may contain a host and user specification to indicate
+File names may contain a user and host specification to indicate
 that the file is to be copied to/from that host.
-Copies between two remote hosts are permitted.
+Local file names can be made explicit using absolute or relative pathnames
+to avoid
+.Nm
+treating file names containing
+.Sq :\&
+as host specifiers.
+Copies between two remote hosts are also permitted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -178,7 +184,9 @@ is already reserved for preserving the times and modes of the file in
 Preserves modification times, access times, and modes from the
 original file.
 .It Fl q
-Disables the progress meter.
+Quiet mode: disables the progress meter as well as warning and diagnostic
+messages from
+.Xr ssh 1 .
 .It Fl r
 Recursively copy entire directories.
 .It Fl S Ar program

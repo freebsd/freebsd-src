@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.143 2007/08/09 04:37:52 dtucker Exp $ */
+/* $Id: defines.h,v 1.146 2008/02/28 08:22:04 dtucker Exp $ */
 
 
 /* Constants */
@@ -540,6 +540,10 @@ struct winsize {
 # undef HAVE_UPDWTMPX
 #endif
 
+#if defined(BROKEN_SHADOW_EXPIRE) && defined(HAS_SHADOW_EXPIRE)
+# undef HAS_SHADOW_EXPIRE
+#endif
+
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT) && \
     defined(SYSLOG_R_SAFE_IN_SIGHAND)
 # define DO_LOG_SAFE_IN_SIGHAND
@@ -561,11 +565,6 @@ struct winsize {
 #ifdef USE_BSM_AUDIT
 # define SSH_AUDIT_EVENTS
 # define CUSTOM_SSH_AUDIT_EVENTS
-#endif
-
-/* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
-#if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
-# define OPENSSL_free(x) Free(x)
 #endif
 
 #if !defined(HAVE___func__) && defined(HAVE___FUNCTION__)
@@ -694,9 +693,11 @@ struct winsize {
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
+#if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID)
+# define CUSTOM_SYS_AUTH_PASSWD 1
+#endif
 #if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID) && !defined(BROKEN_LIBIAF)
 # define USE_LIBIAF
-# define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
 /* HP-UX 11.11 */

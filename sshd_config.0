@@ -76,16 +76,37 @@ DESCRIPTION
              path or one relative to the user's home directory.  The default
              is ``.ssh/authorized_keys''.
 
-     Banner  In some jurisdictions, sending a warning message before authenti-
-             cation may be relevant for getting legal protection.  The con-
-             tents of the specified file are sent to the remote user before
-             authentication is allowed.  This option is only available for
+     Banner  The contents of the specified file are sent to the remote user
+             before authentication is allowed.  If the argument is ``none''
+             then no banner is displayed.  This option is only available for
              protocol version 2.  By default, no banner is displayed.
 
      ChallengeResponseAuthentication
              Specifies whether challenge-response authentication is allowed.
              All authentication styles from login.conf(5) are supported.  The
              default is ``yes''.
+
+     ChrootDirectory
+             Specifies a path to chroot(2) to after authentication.  This
+             path, and all its components, must be root-owned directories that
+             are not writable by any other user or group.
+
+             The path may contain the following tokens that are expanded at
+             runtime once the connecting user has been authenticated: %% is
+             replaced by a literal '%', %h is replaced by the home directory
+             of the user being authenticated, and %u is replaced by the user-
+             name of that user.
+
+             The ChrootDirectory must contain the necessary files and directo-
+             ries to support the users' session.  For an interactive session
+             this requires at least a shell, typically sh(1), and basic /dev
+             nodes such as null(4), zero(4), stdin(4), stdout(4), stderr(4),
+             arandom(4) and tty(4) devices.  For file transfer sessions using
+             ``sftp'', no additional configuration of the environment is nec-
+             essary if the in-process sftp server is used (see Subsystem for
+             details).
+
+             The default is not to chroot(2).
 
      Ciphers
              Specifies the ciphers allowed for protocol version 2.  Multiple
@@ -156,12 +177,15 @@ DESCRIPTION
 
      ForceCommand
              Forces the execution of the command specified by ForceCommand,
-             ignoring any command supplied by the client.  The command is in-
-             voked by using the user's login shell with the -c option.  This
-             applies to shell, command, or subsystem execution.  It is most
-             useful inside a Match block.  The command originally supplied by
-             the client is available in the SSH_ORIGINAL_COMMAND environment
-             variable.
+             ignoring any command supplied by the client and ~/.ssh/rc if pre-
+             sent.  The command is invoked by using the user's login shell
+             with the -c option.  This applies to shell, command, or subsystem
+             execution.  It is most useful inside a Match block.  The command
+             originally supplied by the client is available in the
+             SSH_ORIGINAL_COMMAND environment variable.  Specifying a command
+             of ``internal-sftp'' will force the use of an in-process sftp
+             server that requires no support files when used with
+             ChrootDirectory.
 
      GatewayPorts
              Specifies whether remote hosts are allowed to connect to ports
@@ -297,9 +321,9 @@ DESCRIPTION
              keyword.  Available keywords are AllowTcpForwarding, Banner,
              ForceCommand, GatewayPorts, GSSApiAuthentication,
              KbdInteractiveAuthentication, KerberosAuthentication,
-             PasswordAuthentication, PermitOpen, RhostsRSAAuthentication,
-             RSAAuthentication, X11DisplayOffset, X11Forwarding, and
-             X11UseLocalHost.
+             PasswordAuthentication, PermitOpen, PermitRootLogin,
+             RhostsRSAAuthentication, RSAAuthentication, X11DisplayOffset,
+             X11Forwarding, and X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -428,8 +452,15 @@ DESCRIPTION
      Subsystem
              Configures an external subsystem (e.g. file transfer daemon).
              Arguments should be a subsystem name and a command (with optional
-             arguments) to execute upon subsystem request.  The command
-             sftp-server(8) implements the ``sftp'' file transfer subsystem.
+             arguments) to execute upon subsystem request.
+
+             The command sftp-server(8) implements the ``sftp'' file transfer
+             subsystem.
+
+             Alternately the name ``internal-sftp'' implements an in-process
+             ``sftp'' server.  This may simplify configurations using
+             ChrootDirectory to force a different filesystem root on clients.
+
              By default no subsystems are defined.  Note that this option ap-
              plies to protocol version 2 only.
 
@@ -572,4 +603,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.2                      June 11, 2007                               9
+OpenBSD 4.3                     March 27, 2008                              10

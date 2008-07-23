@@ -1,4 +1,4 @@
-/* $Id: bsd-poll.c,v 1.1 2007/06/25 12:15:13 dtucker Exp $ */
+/* $Id: bsd-poll.c,v 1.2 2008/02/29 02:57:47 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004, 2005, 2007 Darren Tucker (dtucker at zip com au).
@@ -17,7 +17,7 @@
  */
 
 #include "includes.h"
-#if !defined(HAVE_POLL) && defined(HAVE_SELECT)
+#if !defined(HAVE_POLL)
 
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>

@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-chall.c,v 1.32 2007/01/03 03:01:40 stevesk Exp $ */
+/* $OpenBSD: auth2-chall.c,v 1.33 2007/09/21 08:15:29 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Per Allansson.  All rights reserved.

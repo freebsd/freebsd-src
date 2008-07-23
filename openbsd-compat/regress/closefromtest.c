@@ -57,4 +57,5 @@ main(void)
 	for (i = 0; i < NUM_OPENS; i++)
 		if (close(fds[i]) != -1)
 			fail("failed to close from lowest fd");
+	return 0;
 }

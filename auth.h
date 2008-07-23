@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.58 2006/08/18 09:15:20 markus Exp $ */
+/* $OpenBSD: auth.h,v 1.60 2007/09/21 08:15:29 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.

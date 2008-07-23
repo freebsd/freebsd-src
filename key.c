@@ -38,6 +38,7 @@
 #include <sys/types.h>
 
 #include <openssl/evp.h>
+#include <openbsd-compat/openssl-compat.h>
 
 #include <stdarg.h>
 #include <stdio.h>

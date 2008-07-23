@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (c) 2001 Gert Doering.  All rights reserved.
- * Copyright (c) 2003,2004,2005 Darren Tucker.  All rights reserved.
+ * Copyright (c) 2003,2004,2005,2006 Darren Tucker.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -393,5 +393,48 @@ sshaix_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	return getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
 }
 # endif /* AIX_GETNAMEINFO_HACK */
+
+# if defined(USE_GETGRSET)
+#  include <stdlib.h>
+int
+getgrouplist(const char *user, gid_t pgid, gid_t *groups, int *grpcnt)
+{
+	char *cp, *grplist, *grp;
+	gid_t gid;
+	int ret = 0, ngroups = 0, maxgroups;
+	long l;
+
+	maxgroups = *grpcnt;
+
+	if ((cp = grplist = getgrset(user)) == NULL)
+		return -1;
+
+	/* handle zero-length case */
+	if (maxgroups <= 0) {
+		*grpcnt = 0;
+		return -1;
+	}
+
+	/* copy primary group */
+	groups[ngroups++] = pgid;
+
+	/* copy each entry from getgrset into group list */
+	while ((grp = strsep(&grplist, ",")) != NULL) {
+		l = strtol(grp, NULL, 10);
+		if (ngroups >= maxgroups || l == LONG_MIN || l == LONG_MAX) {
+			ret = -1;
+			goto out;
+		}
+		gid = (gid_t)l;
+		if (gid == pgid)
+			continue;	/* we have already added primary gid */
+		groups[ngroups++] = gid;
+	}
+out:
+	free(cp);
+	*grpcnt = ngroups;
+	return ret;
+}
+# endif	/* USE_GETGRSET */
 
 #endif /* _AIX */

@@ -1,4 +1,4 @@
-/* $Id: fake-rfc2553.h,v 1.13 2006/07/24 03:51:52 djm Exp $ */
+/* $Id: fake-rfc2553.h,v 1.14 2008/02/25 09:21:20 dtucker Exp $ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
@@ -152,7 +152,7 @@ int getaddrinfo(const char *, const char *,
 #endif /* !HAVE_GETADDRINFO */
 
 #if !defined(HAVE_GAI_STRERROR) && !defined(HAVE_CONST_GAI_STRERROR_PROTO)
-#define gai_strerror(a)		(ssh_gai_strerror(a))
+#define gai_strerror(a)		(_ssh_compat_gai_strerror(a))
 char *gai_strerror(int);
 #endif /* !HAVE_GAI_STRERROR */
 

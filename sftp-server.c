@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.73 2007/05/17 07:55:29 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.78 2008/02/27 20:21:15 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -169,6 +169,7 @@ struct Handle {
 	int fd;
 	char *name;
 	u_int64_t bytes_read, bytes_write;
+	int next_unused;
 };
 
 enum {
@@ -177,40 +178,46 @@ enum {
 	HANDLE_FILE
 };
 
-Handle	handles[100];
+Handle *handles = NULL;
+u_int num_handles = 0;
+int first_unused_handle = -1;
 
-static void
-handle_init(void)
+static void handle_unused(int i)
 {
-	u_int i;
-
-	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
-		handles[i].use = HANDLE_UNUSED;
+	handles[i].use = HANDLE_UNUSED;
+	handles[i].next_unused = first_unused_handle;
+	first_unused_handle = i;
 }
 
 static int
 handle_new(int use, const char *name, int fd, DIR *dirp)
 {
-	u_int i;
+	int i;
 
-	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++) {
-		if (handles[i].use == HANDLE_UNUSED) {
-			handles[i].use = use;
-			handles[i].dirp = dirp;
-			handles[i].fd = fd;
-			handles[i].name = xstrdup(name);
-			handles[i].bytes_read = handles[i].bytes_write = 0;
-			return i;
-		}
+	if (first_unused_handle == -1) {
+		if (num_handles + 1 <= num_handles)
+			return -1;
+		num_handles++;
+		handles = xrealloc(handles, num_handles, sizeof(Handle));
+		handle_unused(num_handles - 1);
 	}
-	return -1;
+
+	i = first_unused_handle;
+	first_unused_handle = handles[i].next_unused;
+
+	handles[i].use = use;
+	handles[i].dirp = dirp;
+	handles[i].fd = fd;
+	handles[i].name = xstrdup(name);
+	handles[i].bytes_read = handles[i].bytes_write = 0;
+
+	return i;
 }
 
 static int
 handle_is_ok(int i, int type)
 {
-	return i >= 0 && (u_int)i < sizeof(handles)/sizeof(Handle) &&
-	    handles[i].use == type;
+	return i >= 0 && (u_int)i < num_handles && handles[i].use == type;
 }
 
 static int
@@ -300,12 +307,12 @@ handle_close(int handle)
 
 	if (handle_is_ok(handle, HANDLE_FILE)) {
 		ret = close(handles[handle].fd);
-		handles[handle].use = HANDLE_UNUSED;
 		xfree(handles[handle].name);
+		handle_unused(handle);
 	} else if (handle_is_ok(handle, HANDLE_DIR)) {
 		ret = closedir(handles[handle].dirp);
-		handles[handle].use = HANDLE_UNUSED;
 		xfree(handles[handle].name);
+		handle_unused(handle);
 	} else {
 		errno = ENOENT;
 	}
@@ -333,7 +340,7 @@ handle_log_exit(void)
 {
 	u_int i;
 
-	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
+	for (i = 0; i < num_handles; i++)
 		if (handles[i].use != HANDLE_UNUSED)
 			handle_log_close(i, "forced");
 }
@@ -480,6 +487,9 @@ process_init(void)
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_VERSION);
 	buffer_put_int(&msg, SSH2_FILEXFER_VERSION);
+	/* POSIX rename extension */
+	buffer_put_cstring(&msg, "posix-rename@openssh.com");
+	buffer_put_cstring(&msg, "1"); /* version */
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -1073,6 +1083,23 @@ process_symlink(void)
 }
 
 static void
+process_extended_posix_rename(u_int32_t id)
+{
+	char *oldpath, *newpath;
+
+	oldpath = get_string(NULL);
+	newpath = get_string(NULL);
+	debug3("request %u: posix-rename", id);
+	logit("posix-rename old \"%s\" new \"%s\"", oldpath, newpath);
+	if (rename(oldpath, newpath) == -1)
+		send_status(id, errno_to_portable(errno));
+	else
+		send_status(id, SSH2_FX_OK);
+	xfree(oldpath);
+	xfree(newpath);
+}
+
+static void
 process_extended(void)
 {
 	u_int32_t id;
@@ -1080,7 +1107,10 @@ process_extended(void)
 
 	id = get_int();
 	request = get_string(NULL);
-	send_status(id, SSH2_FX_OP_UNSUPPORTED);		/* MUST */
+	if (strcmp(request, "posix-rename@openssh.com") == 0)
+		process_extended_posix_rename(id);
+	else
+		send_status(id, SSH2_FX_OP_UNSUPPORTED);	/* MUST */
 	xfree(request);
 }
 
@@ -1103,7 +1133,7 @@ process(void)
 	if (msg_len > SFTP_MAX_MSG_LENGTH) {
 		error("bad message from %s local user %s",
 		    client_addr, pw->pw_name);
-		cleanup_exit(11);
+		sftp_server_cleanup_exit(11);
 	}
 	if (buf_len < msg_len + 4)
 		return;
@@ -1176,18 +1206,22 @@ process(void)
 		break;
 	}
 	/* discard the remaining bytes from the current packet */
-	if (buf_len < buffer_len(&iqueue))
-		fatal("iqueue grew unexpectedly");
+	if (buf_len < buffer_len(&iqueue)) {
+		error("iqueue grew unexpectedly");
+		sftp_server_cleanup_exit(255);
+	}
 	consumed = buf_len - buffer_len(&iqueue);
-	if (msg_len < consumed)
-		fatal("msg_len %d < consumed %d", msg_len, consumed);
+	if (msg_len < consumed) {
+		error("msg_len %d < consumed %d", msg_len, consumed);
+		sftp_server_cleanup_exit(255);
+	}
 	if (msg_len > consumed)
 		buffer_consume(&iqueue, msg_len - consumed);
 }
 
 /* Cleanup handler that logs active handles upon normal exit */
 void
-cleanup_exit(int i)
+sftp_server_cleanup_exit(int i)
 {
 	if (pw != NULL && client_addr != NULL) {
 		handle_log_exit();
@@ -1198,7 +1232,7 @@ cleanup_exit(int i)
 }
 
 static void
-usage(void)
+sftp_server_usage(void)
 {
 	extern char *__progname;
 
@@ -1208,7 +1242,7 @@ usage(void)
 }
 
 int
-main(int argc, char **argv)
+sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 {
 	fd_set *rset, *wset;
 	int in, out, max, ch, skipargs = 0, log_stderr = 0;
@@ -1218,9 +1252,6 @@ main(int argc, char **argv)
 
 	extern char *optarg;
 	extern char *__progname;
-
-	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
-	sanitise_stdfd();
 
 	__progname = ssh_get_progname(argv[0]);
 	log_init(__progname, log_level, log_facility, log_stderr);
@@ -1244,12 +1275,12 @@ main(int argc, char **argv)
 			break;
 		case 'f':
 			log_facility = log_facility_number(optarg);
-			if (log_level == SYSLOG_FACILITY_NOT_SET)
+			if (log_facility == SYSLOG_FACILITY_NOT_SET)
 				error("Invalid log facility \"%s\"", optarg);
 			break;
 		case 'h':
 		default:
-			usage();
+			sftp_server_usage();
 		}
 	}
 
@@ -1257,21 +1288,19 @@ main(int argc, char **argv)
 
 	if ((cp = getenv("SSH_CONNECTION")) != NULL) {
 		client_addr = xstrdup(cp);
-		if ((cp = strchr(client_addr, ' ')) == NULL)
-			fatal("Malformed SSH_CONNECTION variable: \"%s\"",
+		if ((cp = strchr(client_addr, ' ')) == NULL) {
+			error("Malformed SSH_CONNECTION variable: \"%s\"",
 			    getenv("SSH_CONNECTION"));
+			sftp_server_cleanup_exit(255);
+		}
 		*cp = '\0';
 	} else
 		client_addr = xstrdup("UNKNOWN");
 
-	if ((pw = getpwuid(getuid())) == NULL)
-		fatal("No user found for uid %lu", (u_long)getuid());
-	pw = pwcopy(pw);
+	pw = pwcopy(user_pw);
 
 	logit("session opened for local user %s from [%s]",
 	    pw->pw_name, client_addr);
-
-	handle_init();
 
 	in = dup(STDIN_FILENO);
 	out = dup(STDOUT_FILENO);
@@ -1315,7 +1344,7 @@ main(int argc, char **argv)
 			if (errno == EINTR)
 				continue;
 			error("select: %s", strerror(errno));
-			cleanup_exit(2);
+			sftp_server_cleanup_exit(2);
 		}
 
 		/* copy stdin to iqueue */
@@ -1323,10 +1352,10 @@ main(int argc, char **argv)
 			len = read(in, buf, sizeof buf);
 			if (len == 0) {
 				debug("read eof");
-				cleanup_exit(0);
+				sftp_server_cleanup_exit(0);
 			} else if (len < 0) {
 				error("read: %s", strerror(errno));
-				cleanup_exit(1);
+				sftp_server_cleanup_exit(1);
 			} else {
 				buffer_append(&iqueue, buf, len);
 			}
@@ -1336,7 +1365,7 @@ main(int argc, char **argv)
 			len = write(out, buffer_ptr(&oqueue), olen);
 			if (len < 0) {
 				error("write: %s", strerror(errno));
-				cleanup_exit(1);
+				sftp_server_cleanup_exit(1);
 			} else {
 				buffer_consume(&oqueue, len);
 			}

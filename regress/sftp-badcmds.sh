@@ -1,4 +1,4 @@
-#	$OpenBSD: sftp-badcmds.sh,v 1.2 2003/05/15 04:07:12 mouring Exp $
+#	$OpenBSD: sftp-badcmds.sh,v 1.3 2008/03/24 21:46:54 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sftp invalid commands"
@@ -44,17 +44,6 @@ verbose "$tid: rename nonexistent"
 echo "rename $NONEXIST ${COPY}.1" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
 	|| fail "rename nonexist failed"
 test -f ${COPY}.1 && fail "file exists after rename nonexistent"
-
-rm -f ${COPY} ${COPY}.1
-cp $DATA $COPY
-cp $DATA2 ${COPY}.1
-verbose "$tid: rename target exists"
-echo "rename $COPY ${COPY}.1" | ${SFTP} -P ${SFTPSERVER} >/dev/null 2>&1 \
-	|| fail "rename target exists failed"
-test -f ${COPY} || fail "oldname missing after rename target exists"
-test -f ${COPY}.1 || fail "newname missing after rename target exists"
-cmp $DATA ${COPY} >/dev/null 2>&1 || fail "corrupted oldname after rename target exists"
-cmp $DATA2 ${COPY}.1 >/dev/null 2>&1 || fail "corrupted newname after rename target exists"
 
 rm -rf ${COPY} ${COPY}.dd
 cp $DATA $COPY
