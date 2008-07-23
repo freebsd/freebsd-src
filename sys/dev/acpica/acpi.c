@@ -1531,8 +1531,7 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
      * 1. I/O port and memory system resource holders
      * 2. Embedded controllers (to handle early accesses)
      * 3. PCI Link Devices
-     * ACPI_DEV_BASE_ORDER. Host-PCI bridges
-     * ACPI_DEV_BASE_ORDER + 10. CPUs
+     * 100000. CPUs
      */
     AcpiGetType(handle, &type);
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02"))
@@ -1541,10 +1540,8 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 	*order = 2;
     else if (acpi_MatchHid(handle, "PNP0C0F"))
 	*order = 3;
-    else if (acpi_MatchHid(handle, "PNP0A03"))
-	*order = ACPI_DEV_BASE_ORDER;
     else if (type == ACPI_TYPE_PROCESSOR)
-	*order = ACPI_DEV_BASE_ORDER + 10;
+	*order = 100000;
 }
 
 /*
@@ -1594,10 +1591,8 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * placeholder so that the probe/attach passes will run
 	     * breadth-first.  Orders less than ACPI_DEV_BASE_ORDER
 	     * are reserved for special objects (i.e., system
-	     * resources).  Orders between ACPI_DEV_BASE_ORDER and 100
-	     * are used for Host-PCI bridges (and effectively all
-	     * their children) and CPUs.  Larger values are used for
-	     * all other devices.
+	     * resources).  CPU devices have a very high order to
+	     * ensure they are probed after other devices.
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", handle_str));
 	    order = level * 10 + 100;
