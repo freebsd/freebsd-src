@@ -115,6 +115,13 @@ struct pcicfg_msix {
     struct resource *msix_pba_res;	/* Resource containing PBA. */
 };
 
+/* Interesting values for HyperTransport */
+struct pcicfg_ht {
+    uint8_t	ht_msimap;	/* Offset of MSI mapping cap registers. */
+    uint16_t	ht_msictrl;	/* MSI mapping control */
+    uint64_t	ht_msiaddr;	/* MSI mapping base address */
+};
+
 /* config header information common to all header types */
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
@@ -156,6 +163,7 @@ typedef struct pcicfg {
     struct pcicfg_vpd vpd;	/* pci vital product data */
     struct pcicfg_msi msi;	/* pci msi */
     struct pcicfg_msix msix;	/* pci msi-x */
+    struct pcicfg_ht ht;	/* HyperTransport */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -454,6 +462,8 @@ int	pci_remap_msi_irq(device_t dev, u_int irq);
 int	pci_pending_msix(device_t dev, u_int index);
 
 int	pci_msi_device_blacklisted(device_t dev);
+
+void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 #endif	/* _SYS_BUS_H_ */
 
