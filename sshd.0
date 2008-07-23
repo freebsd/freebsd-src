@@ -552,4 +552,4 @@ CAVEATS
      System security is not improved unless rshd, rlogind, and rexecd are dis-
      abled (thus completely disabling rlogin and rsh into the machine).
 
-OpenBSD 4.3                     March 27, 2008                               9
+OpenBSD 4.3                      April 3, 2008                               9

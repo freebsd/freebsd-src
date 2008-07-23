@@ -1,3 +1,29 @@
+20080403
+ - (djm) OpenBSD CVS sync:
+   - markus@cvs.openbsd.org 2008/04/02 15:36:51
+     [channels.c]
+     avoid possible hijacking of x11-forwarded connections (back out 1.183)
+     CVE-2008-1483; ok djm@
+   - jmc@cvs.openbsd.org 2008/03/27 22:37:57
+     [sshd.8]
+     remove trailing whitespace;
+   - djm@cvs.openbsd.org 2008/04/03 09:50:14
+     [version.h]
+     openssh-5.0
+ - (djm) [contrib/caldera/openssh.spec contrib/redhat/openssh.spec]
+   [contrib/suse/openssh.spec] Crank version numbers in RPM spec files
+ - (djm) [README] Update link to release notes
+ - (djm) Release 5.0p1
+
+20080315
+ - (djm) [regress/test-exec.sh] Quote putty-related variables in case they are
+   empty; report and patch from Peter Stuge
+ - (djm) [regress/test-exec.sh] Silence noise from detection of putty
+   commands; report from Peter Stuge
+ - (djm) [session.c] Relocate incorrectly-placed closefrom() that was causing
+   crashes when used with ChrootDirectory
+
+
 20080327
  - (dtucker) Cache selinux status earlier so we know if it's enabled after a
    chroot.  Allows ChrootDirectory to work with selinux support compiled in
@@ -3825,4 +3851,4 @@
    OpenServer 6 and add osr5bigcrypt support so when someone migrates
    passwords between UnixWare and OpenServer they will still work. OK dtucker@
 
-$Id: ChangeLog,v 1.4896.2.1 2008/03/27 06:53:20 djm Exp $
+$Id: ChangeLog,v 1.4903 2008/04/03 09:57:05 djm Exp $
