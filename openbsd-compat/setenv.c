@@ -47,7 +47,7 @@ extern char **environ;
  *	Explicitly removes '=' in argument name.
  */
 static char *
-__findenv(const char *name, int *offset)
+__findenv(const char *name, size_t *offset)
 {
 	extern char **environ;
 	int len, i;
@@ -82,7 +82,7 @@ setenv(const char *name, const char *value, int rewrite)
 {
 	static char **lastenv;			/* last value of environ */
 	char *C;
-	int l_value, offset;
+	size_t l_value, offset;
 
 	if (*value == '=')			/* no `=' in value */
 		++value;
@@ -133,7 +133,7 @@ void
 unsetenv(const char *name)
 {
 	char **P;
-	int offset;
+	size_t offset;
 
 	while (__findenv(name, &offset))	/* if set multiple times */
 		for (P = &environ[offset];; ++P)

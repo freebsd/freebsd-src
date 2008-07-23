@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.75 2007/05/31 19:20:16 jmc Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.78 2008/06/12 19:10:09 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -37,7 +37,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 5 2007 $
+.Dd $Mdocdate: June 12 2008 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -262,6 +262,9 @@ Private RSA1 keys are also supported.
 For RSA and DSA keys
 .Nm
 tries to find the matching public key file and prints its fingerprint.
+If combined with
+.Fl v ,
+an ASCII art representation of the key is supplied with the fingerprint.
 .It Fl M Ar memory
 Specify the amount of memory to use (in megabytes) when generating
 candidate moduli for DH-GEX.

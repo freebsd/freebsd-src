@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.64 2007/05/31 19:20:16 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.67 2008/07/15 02:23:14 djm Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 5 2007 $
+.Dd $Mdocdate: July 15 2008 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -112,7 +112,8 @@ will abort if any of the following
 commands fail:
 .Ic get , put , rename , ln ,
 .Ic rm , mkdir , chdir , ls ,
-.Ic lchdir , chmod , chown , chgrp , lpwd
+.Ic lchdir , chmod , chown ,
+.Ic chgrp , lpwd , df ,
 and
 .Ic lmkdir .
 Termination on error can be suppressed on a command by command basis by
@@ -203,7 +204,7 @@ This option may be useful in debugging the client and server.
 Specify how many requests may be outstanding at any one time.
 Increasing this may slightly improve file transfer speed
 but will increase memory usage.
-The default is 16 outstanding requests.
+The default is 64 outstanding requests.
 .It Fl S Ar program
 Name of the
 .Ar program
@@ -272,6 +273,24 @@ may contain
 characters and may match multiple files.
 .Ar own
 must be a numeric UID.
+.It Xo Ic df
+.Op Fl hi
+.Op Ar path
+.Xc
+Display usage information for the filesystem holding the current directory
+(or
+.Ar path
+if specified).
+If the
+.Fl h
+flag is specified, the capacity information will be displayed using
+"human-readable" suffixes.
+The
+.Fl i
+flag requests display of inode information in addition to capacity information.
+This command is only supported on servers that implement the
+.Dq statvfs@openssh.com
+extension.
 .It Ic exit
 Quit
 .Nm sftp .

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.203 2007/12/27 14:22:08 dtucker Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.211 2008/07/01 07:24:22 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -76,23 +76,6 @@ extern pid_t proxy_command_pid;
 
 static int show_other_keys(const char *, Key *);
 static void warn_changed_key(Key *);
-
-static void
-ms_subtract_diff(struct timeval *start, int *ms)
-{
-	struct timeval diff, finish;
-
-	gettimeofday(&finish, NULL);
-	timersub(&finish, start, &diff);	
-	*ms -= (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
-}
-
-static void
-ms_to_timeval(struct timeval *tv, int ms)
-{
-	tv->tv_sec = ms / 1000;
-	tv->tv_usec = (ms % 1000) * 1000;
-}
 
 /*
  * Connect to the given ssh server using a proxy command.
@@ -178,6 +161,8 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 
 	/* Set the connection file descriptors. */
 	packet_set_connection(pout[0], pin[1]);
+	packet_set_timeout(options.server_alive_interval,
+	    options.server_alive_count_max);
 
 	/* Indicate OK return */
 	return 0;
@@ -221,7 +206,7 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 	hints.ai_socktype = ai->ai_socktype;
 	hints.ai_protocol = ai->ai_protocol;
 	hints.ai_flags = AI_PASSIVE;
-	gaierr = getaddrinfo(options.bind_address, "0", &hints, &res);
+	gaierr = getaddrinfo(options.bind_address, NULL, &hints, &res);
 	if (gaierr) {
 		error("getaddrinfo: %s: %s", options.bind_address,
 		    ssh_gai_strerror(gaierr));
@@ -422,6 +407,8 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 
 	/* Set the connection. */
 	packet_set_connection(sock, sock);
+	packet_set_timeout(options.server_alive_interval,
+	    options.server_alive_count_max);
 
 	return 0;
 }
@@ -550,10 +537,10 @@ ssh_exchange_identification(int timeout_ms)
 		    (options.protocol & SSH_PROTO_2) ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 		    remote_major);
 	/* Send our own protocol version identification. */
-	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s\n",
+	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s",
 	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 	    compat20 ? PROTOCOL_MINOR_2 : minor1,
-	    SSH_VERSION);
+	    SSH_VERSION, compat20 ? "\r\n" : "\n");
 	if (atomicio(vwrite, connection_out, buf, strlen(buf)) != strlen(buf))
 		fatal("write: %.100s", strerror(errno));
 	client_version_string = xstrdup(buf);
@@ -602,14 +589,14 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	Key *file_key;
 	const char *type = key_type(host_key);
 	char *ip = NULL, *host = NULL;
-	char hostline[1000], *hostp, *fp;
+	char hostline[1000], *hostp, *fp, *ra;
 	HostStatus host_status;
 	HostStatus ip_status;
 	int r, local = 0, host_ip_differ = 0;
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
-	int len, host_line, ip_line;
+	int len, host_line, ip_line, cancelled_forwarding = 0;
 	const char *host_file = NULL, *ip_file = NULL;
 
 	/*
@@ -656,6 +643,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	} else {
 		ip = xstrdup("<no hostip for proxy command>");
 	}
+
 	/*
 	 * Turn off check_host_ip if the connection is to localhost, via proxy
 	 * command or if we don't have a hostname to compare with
@@ -740,6 +728,13 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				logit("Warning: Permanently added the %s host "
 				    "key for IP address '%.128s' to the list "
 				    "of known hosts.", type, ip);
+		} else if (options.visual_host_key) {
+			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+			ra = key_fingerprint(host_key, SSH_FP_MD5,
+			    SSH_FP_RANDOMART);
+			logit("Host key fingerprint is %s\n%s\n", fp, ra);
+			xfree(ra);
+			xfree(fp);
 		}
 		break;
 	case HOST_NEW:
@@ -775,6 +770,8 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				snprintf(msg1, sizeof(msg1), ".");
 			/* The default */
 			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+			ra = key_fingerprint(host_key, SSH_FP_MD5,
+			    SSH_FP_RANDOMART);
 			msg2[0] = '\0';
 			if (options.verify_host_key_dns) {
 				if (matching_host_key_dns)
@@ -789,10 +786,14 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			snprintf(msg, sizeof(msg),
 			    "The authenticity of host '%.200s (%s)' can't be "
 			    "established%s\n"
-			    "%s key fingerprint is %s.\n%s"
+			    "%s key fingerprint is %s.%s%s\n%s"
 			    "Are you sure you want to continue connecting "
 			    "(yes/no)? ",
-			    host, ip, msg1, type, fp, msg2);
+			    host, ip, msg1, type, fp,
+			    options.visual_host_key ? "\n" : "",
+			    options.visual_host_key ? ra : "",
+			    msg2);
+			xfree(ra);
 			xfree(fp);
 			if (!confirm(msg))
 				goto fail;
@@ -845,7 +846,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			error("@       WARNING: POSSIBLE DNS SPOOFING DETECTED!          @");
 			error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 			error("The %s host key for %s has changed,", type, host);
-			error("and the key for the according IP address %s", ip);
+			error("and the key for the corresponding IP address %s", ip);
 			error("%s. This could either mean that", key_msg);
 			error("DNS SPOOFING is happening or the IP address for the host");
 			error("and its host key have changed at the same time.");
@@ -877,27 +878,32 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			error("Password authentication is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.password_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.kbd_interactive_authentication) {
 			error("Keyboard-interactive authentication is disabled"
 			    " to avoid man-in-the-middle attacks.");
 			options.kbd_interactive_authentication = 0;
 			options.challenge_response_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.challenge_response_authentication) {
 			error("Challenge/response authentication is disabled"
 			    " to avoid man-in-the-middle attacks.");
 			options.challenge_response_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.forward_agent) {
 			error("Agent forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.forward_agent = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.forward_x11) {
 			error("X11 forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.forward_x11 = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.num_local_forwards > 0 ||
 		    options.num_remote_forwards > 0) {
@@ -905,12 +911,18 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			    "man-in-the-middle attacks.");
 			options.num_local_forwards =
 			    options.num_remote_forwards = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.tun_open != SSH_TUNMODE_NO) {
 			error("Tunnel forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.tun_open = SSH_TUNMODE_NO;
+			cancelled_forwarding = 1;
 		}
+		if (options.exit_on_forward_failure && cancelled_forwarding)
+			fatal("Error: forwarding disabled due to host key "
+			    "check failure");
+		
 		/*
 		 * XXX Should permit the user to change to use the new id.
 		 * This could be done by converting the host key to an
@@ -1063,18 +1075,20 @@ static int
 show_key_from_file(const char *file, const char *host, int keytype)
 {
 	Key *found;
-	char *fp;
+	char *fp, *ra;
 	int line, ret;
 
 	found = key_new(keytype);
 	if ((ret = lookup_key_in_hostfile_by_type(file, host,
 	    keytype, found, &line))) {
 		fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
+		ra = key_fingerprint(found, SSH_FP_MD5, SSH_FP_RANDOMART);
 		logit("WARNING: %s key found for host %s\n"
 		    "in %s:%d\n"
-		    "%s key fingerprint %s.",
+		    "%s key fingerprint %s.\n%s\n",
 		    key_type(found), host, file, line,
-		    key_type(found), fp);
+		    key_type(found), fp, ra);
+		xfree(ra);
 		xfree(fp);
 	}
 	key_free(found);

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.165 2008/01/19 23:09:49 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.166 2008/07/17 08:48:00 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -38,6 +38,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
+#include <vis.h>
+#endif
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -374,14 +377,21 @@ input_userauth_error(int type, u_int32_t seq, void *ctxt)
 void
 input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 {
-	char *msg, *lang;
+	char *msg, *raw, *lang;
+	u_int len;
 
 	debug3("input_userauth_banner");
-	msg = packet_get_string(NULL);
+	raw = packet_get_string(&len);
 	lang = packet_get_string(NULL);
-	if (options.log_level >= SYSLOG_LEVEL_INFO)
+	if (options.log_level >= SYSLOG_LEVEL_INFO) {
+		if (len > 65536)
+			len = 65536;
+		msg = xmalloc(len * 4); /* max expansion from strnvis() */
+		strnvis(msg, raw, len * 4, VIS_SAFE|VIS_OCTAL);
 		fprintf(stderr, "%s", msg);
-	xfree(msg);
+		xfree(msg);
+	}
+	xfree(raw);
 	xfree(lang);
 }
 

@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.46 2008/02/22 20:44:02 dtucker Exp $ */
+/* $OpenBSD: packet.h,v 1.49 2008/07/10 18:08:11 markus Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -21,6 +21,7 @@
 #include <openssl/bn.h>
 
 void     packet_set_connection(int, int);
+void     packet_set_timeout(int, int);
 void     packet_set_nonblocking(void);
 int      packet_get_connection_in(void);
 int      packet_get_connection_out(void);
@@ -58,6 +59,7 @@ void     packet_get_bignum(BIGNUM * value);
 void     packet_get_bignum2(BIGNUM * value);
 void	*packet_get_raw(u_int *length_ptr);
 void	*packet_get_string(u_int *length_ptr);
+void	*packet_get_string_ptr(u_int *length_ptr);
 void     packet_disconnect(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 void     packet_send_debug(const char *fmt,...) __attribute__((format(printf, 1, 2)));
 
@@ -66,8 +68,8 @@ int	 packet_get_keyiv_len(int);
 void	 packet_get_keyiv(int, u_char *, u_int);
 int	 packet_get_keycontext(int, u_char *);
 void	 packet_set_keycontext(int, u_char *);
-void	 packet_get_state(int, u_int32_t *, u_int64_t *, u_int32_t *);
-void	 packet_set_state(int, u_int32_t, u_int64_t, u_int32_t);
+void	 packet_get_state(int, u_int32_t *, u_int64_t *, u_int32_t *, u_int64_t *);
+void	 packet_set_state(int, u_int32_t, u_int64_t, u_int32_t, u_int64_t);
 int	 packet_get_ssh1_cipher(void);
 void	 packet_set_iv(int, u_char *);
 

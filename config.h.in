@@ -38,6 +38,9 @@
    */
 #undef BROKEN_ONE_BYTE_DIRENT_D_NAME
 
+/* Can't do comparisons on readv */
+#undef BROKEN_READV_COMPARISON
+
 /* Define if you have a broken realpath. */
 #undef BROKEN_REALPATH
 
@@ -116,11 +119,11 @@
 /* Define if you don't want to use wtmpx */
 #undef DISABLE_WTMPX
 
-/* Workaround more Linux IPv6 quirks */
-#undef DONT_TRY_OTHER_AF
-
 /* Builtin PRNG command timeout */
 #undef ENTROPY_TIMEOUT_MSEC
+
+/* f_fsid has members */
+#undef FSID_HAS_VAL
 
 /* Define to 1 if the `getpgrp' function requires zero arguments. */
 #undef GETPGRP_VOID
@@ -157,6 +160,12 @@
 
 /* Define to 1 if you have the `arc4random' function. */
 #undef HAVE_ARC4RANDOM
+
+/* Define to 1 if you have the `arc4random_buf' function. */
+#undef HAVE_ARC4RANDOM_BUF
+
+/* Define to 1 if you have the `arc4random_uniform' function. */
+#undef HAVE_ARC4RANDOM_UNIFORM
 
 /* Define to 1 if you have the `asprintf' function. */
 #undef HAVE_ASPRINTF
@@ -332,8 +341,20 @@
 /* Define to 1 if you have the <floatingpoint.h> header file. */
 #undef HAVE_FLOATINGPOINT_H
 
+/* Define to 1 if you have the `fmt_scaled' function. */
+#undef HAVE_FMT_SCALED
+
 /* Define to 1 if you have the `freeaddrinfo' function. */
 #undef HAVE_FREEADDRINFO
+
+/* Define to 1 if the system has the type `fsblkcnt_t'. */
+#undef HAVE_FSBLKCNT_T
+
+/* Define to 1 if the system has the type `fsfilcnt_t'. */
+#undef HAVE_FSFILCNT_T
+
+/* Define to 1 if you have the `fstatvfs' function. */
+#undef HAVE_FSTATVFS
 
 /* Define to 1 if you have the `futimes' function. */
 #undef HAVE_FUTIMES
@@ -810,6 +831,12 @@
 /* Fields in struct sockaddr_storage */
 #undef HAVE_SS_FAMILY_IN_SS
 
+/* Define to 1 if you have the `statfs' function. */
+#undef HAVE_STATFS
+
+/* Define to 1 if you have the `statvfs' function. */
+#undef HAVE_STATVFS
+
 /* Define to 1 if you have the <stddef.h> header file. */
 #undef HAVE_STDDEF_H
 
@@ -912,6 +939,9 @@
 /* Define to 1 if you have the <sys/mman.h> header file. */
 #undef HAVE_SYS_MMAN_H
 
+/* Define to 1 if you have the <sys/mount.h> header file. */
+#undef HAVE_SYS_MOUNT_H
+
 /* Define to 1 if you have the <sys/ndir.h> header file. */
 #undef HAVE_SYS_NDIR_H
 
@@ -932,6 +962,9 @@
 
 /* Define to 1 if you have the <sys/select.h> header file. */
 #undef HAVE_SYS_SELECT_H
+
+/* Define to 1 if you have the <sys/statvfs.h> header file. */
+#undef HAVE_SYS_STATVFS_H
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
