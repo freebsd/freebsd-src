@@ -130,6 +130,11 @@ DESCRIPTION
              The recommended way to start X11 programs at a remote site is
              with something like ssh -f host xterm.
 
+             If the ExitOnForwardFailure configuration option is set to
+             ``yes'', then a client started with -f will wait for all remote
+             port forwards to be successfully established before placing it-
+             self in the background.
+
      -g      Allows remote hosts to connect to local forwarded ports.
 
      -I smartcard_device
@@ -274,6 +279,7 @@ DESCRIPTION
                    User
                    UserKnownHostsFile
                    VerifyHostKeyDNS
+                   VisualHostKey
                    XAuthLocation
 
      -p port
@@ -571,12 +577,27 @@ VERIFYING HOST KEYS
 
            $ ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key
 
-     If the fingerprint is already known, it can be matched and verified, and
-     the key can be accepted.  If the fingerprint is unknown, an alternative
-     method of verification is available: SSH fingerprints verified by DNS.
-     An additional resource record (RR), SSHFP, is added to a zonefile and the
-     connecting client is able to match the fingerprint with that of the key
-     presented.
+     If the fingerprint is already known, it can be matched and the key can be
+     accepted or rejected.  Because of the difficulty of comparing host keys
+     just by looking at hex strings, there is also support to compare host
+     keys visually, using random art.  By setting the VisualHostKey option to
+     ``yes'', a small ASCII graphic gets displayed on every login to a server,
+     no matter if the session itself is interactive or not.  By learning the
+     pattern a known server produces, a user can easily find out that the host
+     key has changed when a completely different pattern is displayed.  Be-
+     cause these patterns are not unambiguous however, a pattern that looks
+     similar to the pattern remembered only gives a good probability that the
+     host key is the same, not guaranteed proof.
+
+     To get a listing of the fingerprints along with their random art for all
+     known hosts, the following command line can be used:
+
+           $ ssh-keygen -lv -f ~/.ssh/known_hosts
+
+     If the fingerprint is unknown, an alternative method of verification is
+     available: SSH fingerprints verified by DNS.  An additional resource
+     record (RR), SSHFP, is added to a zonefile and the connecting client is
+     able to match the fingerprint with that of the key presented.
 
      In this example, we are connecting a client to a server,
      ``host.example.com''.  The SSHFP resource records should first be added
@@ -832,6 +853,10 @@ SEE ALSO
 
      The Secure Shell (SSH) Public Key File Format, RFC 4716, 2006.
 
+     A. Perrig and D. Song, Hash Visualization: a New Technique to improve
+     Real-World Security, 1999, International Workshop on Cryptographic
+     Techniques and E-Commerce (CrypTEC '99).
+
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
      Tatu Ylonen.  Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo
@@ -839,4 +864,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.3                     March 26, 2008                              13
+OpenBSD 4.4                      July 2, 2008                               14

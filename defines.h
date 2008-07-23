@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.146 2008/02/28 08:22:04 dtucker Exp $ */
+/* $Id: defines.h,v 1.151 2008/07/04 13:10:49 djm Exp $ */
 
 
 /* Constants */
@@ -431,10 +431,6 @@ struct winsize {
 # define __attribute__(x)
 #endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
 
-#ifndef __dead
-# define __dead	__attribute__((noreturn))
-#endif
-
 #if !defined(HAVE_ATTRIBUTE__SENTINEL__) && !defined(__sentinel__)
 # define __sentinel__
 #endif
@@ -590,6 +586,15 @@ struct winsize {
 # define SSH_SYSFDMAX 10000
 #endif
 
+#ifdef FSID_HAS_VAL
+/* encode f_fsid into a 64 bit value  */
+#define FSID_TO_ULONG(f) \
+	((((u_int64_t)(f).val[0] & 0xffffffffUL) << 32) | \
+	    ((f).val[1] & 0xffffffffUL))
+#else
+# define FSID_TO_ULONG(f) ((f))
+#endif
+
 #if defined(__Lynx__)
  /*
   * LynxOS defines these in param.h which we do not want to include since
@@ -727,6 +732,10 @@ struct winsize {
 # else
 #  define	IOV_MAX		16
 # endif
+#endif
+
+#ifndef EWOULDBLOCK
+# define EWOULDBLOCK EAGAIN
 #endif
 
 #endif /* _DEFINES_H */

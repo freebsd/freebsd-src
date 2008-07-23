@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp-server.8,v 1.12 2007/05/31 19:20:16 jmc Exp $
+.\" $OpenBSD: sftp-server.8,v 1.14 2008/07/18 22:51:01 jmc Exp $
 .\"
 .\" Copyright (c) 2000 Markus Friedl.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: June 5 2007 $
+.Dd $Mdocdate: July 18 2008 $
 .Dt SFTP-SERVER 8
 .Os
 .Sh NAME
@@ -72,6 +72,16 @@ DEBUG and DEBUG1 are equivalent.
 DEBUG2 and DEBUG3 each specify higher levels of debugging output.
 The default is ERROR.
 .El
+.Pp
+For logging to work,
+.Nm
+must be able to access
+.Pa /dev/log .
+Use of
+.Nm
+in a chroot configuation therefore requires that
+.Xr syslogd 8
+establish a logging socket inside the chroot directory.
 .Sh SEE ALSO
 .Xr sftp 1 ,
 .Xr ssh 1 ,

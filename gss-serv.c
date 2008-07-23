@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.21 2007/06/12 08:20:00 djm Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.22 2008/05/08 12:02:23 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
 #include "buffer.h"
 #include "key.h"

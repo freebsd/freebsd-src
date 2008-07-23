@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.78 2008/02/27 20:21:15 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.84 2008/06/26 06:10:09 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -22,6 +22,12 @@
 #include <sys/stat.h>
 #ifdef HAVE_SYS_TIME_H
 # include <sys/time.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
 #endif
 
 #include <dirent.h>
@@ -97,6 +103,9 @@ errno_to_portable(int unixerrno)
 	case ENAMETOOLONG:
 	case EINVAL:
 		ret = SSH2_FX_BAD_MESSAGE;
+		break;
+	case ENOSYS:
+		ret = SSH2_FX_OP_UNSUPPORTED;
 		break;
 	default:
 		ret = SSH2_FX_FAILURE;
@@ -475,6 +484,33 @@ send_attrib(u_int32_t id, const Attrib *a)
 	buffer_free(&msg);
 }
 
+static void
+send_statvfs(u_int32_t id, struct statvfs *st)
+{
+	Buffer msg;
+	u_int64_t flag;
+
+	flag = (st->f_flag & ST_RDONLY) ? SSH2_FXE_STATVFS_ST_RDONLY : 0;
+	flag |= (st->f_flag & ST_NOSUID) ? SSH2_FXE_STATVFS_ST_NOSUID : 0;
+
+	buffer_init(&msg);
+	buffer_put_char(&msg, SSH2_FXP_EXTENDED_REPLY);
+	buffer_put_int(&msg, id);
+	buffer_put_int64(&msg, st->f_bsize);
+	buffer_put_int64(&msg, st->f_frsize);
+	buffer_put_int64(&msg, st->f_blocks);
+	buffer_put_int64(&msg, st->f_bfree);
+	buffer_put_int64(&msg, st->f_bavail);
+	buffer_put_int64(&msg, st->f_files);
+	buffer_put_int64(&msg, st->f_ffree);
+	buffer_put_int64(&msg, st->f_favail);
+	buffer_put_int64(&msg, FSID_TO_ULONG(st->f_fsid));
+	buffer_put_int64(&msg, flag);
+	buffer_put_int64(&msg, st->f_namemax);
+	send_msg(&msg);
+	buffer_free(&msg);
+}
+
 /* parse incoming */
 
 static void
@@ -490,6 +526,12 @@ process_init(void)
 	/* POSIX rename extension */
 	buffer_put_cstring(&msg, "posix-rename@openssh.com");
 	buffer_put_cstring(&msg, "1"); /* version */
+	/* statvfs extension */
+	buffer_put_cstring(&msg, "statvfs@openssh.com");
+	buffer_put_cstring(&msg, "2"); /* version */
+	/* fstatvfs extension */
+	buffer_put_cstring(&msg, "fstatvfs@openssh.com");
+	buffer_put_cstring(&msg, "2"); /* version */
 	send_msg(&msg);
 	buffer_free(&msg);
 }
@@ -721,7 +763,7 @@ process_setstat(void)
 	}
 	if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
 		logit("set \"%s\" mode %04o", name, a->perm);
-		ret = chmod(name, a->perm & 0777);
+		ret = chmod(name, a->perm & 07777);
 		if (ret == -1)
 			status = errno_to_portable(errno);
 	}
@@ -775,9 +817,9 @@ process_fsetstat(void)
 		if (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) {
 			logit("set \"%s\" mode %04o", name, a->perm);
 #ifdef HAVE_FCHMOD
-			ret = fchmod(fd, a->perm & 0777);
+			ret = fchmod(fd, a->perm & 07777);
 #else
-			ret = chmod(name, a->perm & 0777);
+			ret = chmod(name, a->perm & 07777);
 #endif
 			if (ret == -1)
 				status = errno_to_portable(errno);
@@ -928,7 +970,7 @@ process_mkdir(void)
 	name = get_string(NULL);
 	a = get_attrib();
 	mode = (a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS) ?
-	    a->perm & 0777 : 0777;
+	    a->perm & 07777 : 0777;
 	debug3("request %u: mkdir", id);
 	logit("mkdir name \"%s\" mode 0%o", name, mode);
 	ret = mkdir(name, mode);
@@ -1000,6 +1042,9 @@ process_rename(void)
 		/* Race-free rename of regular files */
 		if (link(oldpath, newpath) == -1) {
 			if (errno == EOPNOTSUPP
+#ifdef EXDEV
+			    || errno == EXDEV
+#endif
 #ifdef LINK_OPNOTSUPP_ERRNO
 			    || errno == LINK_OPNOTSUPP_ERRNO
 #endif
@@ -1100,6 +1145,42 @@ process_extended_posix_rename(u_int32_t id)
 }
 
 static void
+process_extended_statvfs(u_int32_t id)
+{
+	char *path;
+	struct statvfs st;
+
+	path = get_string(NULL);
+	debug3("request %u: statfs", id);
+	logit("statfs \"%s\"", path);
+
+	if (statvfs(path, &st) != 0)
+		send_status(id, errno_to_portable(errno));
+	else
+		send_statvfs(id, &st);
+        xfree(path);
+}
+
+static void
+process_extended_fstatvfs(u_int32_t id)
+{
+	int handle, fd;
+	struct statvfs st;
+
+	handle = get_handle();
+	debug("request %u: fstatvfs \"%s\" (handle %u)",
+	    id, handle_to_name(handle), handle);
+	if ((fd = handle_to_fd(handle)) < 0) {
+		send_status(id, SSH2_FX_FAILURE);
+		return;
+	}
+	if (fstatvfs(fd, &st) != 0)
+		send_status(id, errno_to_portable(errno));
+	else
+		send_statvfs(id, &st);
+}
+
+static void
 process_extended(void)
 {
 	u_int32_t id;
@@ -1109,6 +1190,10 @@ process_extended(void)
 	request = get_string(NULL);
 	if (strcmp(request, "posix-rename@openssh.com") == 0)
 		process_extended_posix_rename(id);
+	else if (strcmp(request, "statvfs@openssh.com") == 0)
+		process_extended_statvfs(id);
+	else if (strcmp(request, "fstatvfs@openssh.com") == 0)
+		process_extended_fstatvfs(id);
 	else
 		send_status(id, SSH2_FX_OP_UNSUPPORTED);	/* MUST */
 	xfree(request);

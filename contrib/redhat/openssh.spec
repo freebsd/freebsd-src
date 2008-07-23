@@ -1,4 +1,4 @@
-%define ver 5.0p1
+%define ver 5.1p1
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -376,6 +376,7 @@ fi
 %attr(0755,root,root) %{_sbindir}/sshd
 %attr(0755,root,root) %{_libexecdir}/openssh/sftp-server
 %attr(0644,root,root) %{_mandir}/man8/sshd.8*
+%attr(0644,root,root) %{_mandir}/man5/moduli.5*
 %attr(0644,root,root) %{_mandir}/man5/sshd_config.5*
 %attr(0644,root,root) %{_mandir}/man8/sftp-server.8*
 %attr(0755,root,root) %dir %{_sysconfdir}/ssh

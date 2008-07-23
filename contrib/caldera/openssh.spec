@@ -17,11 +17,11 @@
 #old cvs stuff.  please update before use.  may be deprecated.
 %define use_stable	1
 %if %{use_stable}
-  %define version 	5.0p1
+  %define version 	5.1p1
   %define cvs		%{nil}
   %define release 	1
 %else
-  %define version 	5.0p1
+  %define version 	5.1p1
   %define cvs		cvs20050315
   %define release 	0r1
 %endif
@@ -342,6 +342,7 @@ fi
 %config %{SVIcdir}/sshd
 %{_libexecdir}/sftp-server
 %{_sbindir}/sshd
+%{_mandir}/man5/moduli.5.gz
 %{_mandir}/man5/sshd_config.5.gz
 %{_mandir}/man8/sftp-server.8.gz
 %{_mandir}/man8/sshd.8.gz
@@ -357,4 +358,4 @@ fi
 * Mon Jan 01 1998 ...
 Template Version: 1.31
 
-$Id: openssh.spec,v 1.63 2008/04/03 09:55:46 djm Exp $
+$Id: openssh.spec,v 1.65 2008/07/21 08:21:53 djm Exp $

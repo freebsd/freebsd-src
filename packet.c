@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.151 2008/02/22 20:44:02 dtucker Exp $ */
+/* $OpenBSD: packet.c,v 1.157 2008/07/10 18:08:11 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -138,12 +138,16 @@ static int after_authentication = 0;
 
 int keep_alive_timeouts = 0;
 
+/* Set to the maximum time that we will wait to send or receive a packet */
+static int packet_timeout_ms = -1;
+
 /* Session key information for Encryption and MAC */
 Newkeys *newkeys[MODE_MAX];
 static struct packet_state {
 	u_int32_t seqnr;
 	u_int32_t packets;
 	u_int64_t blocks;
+	u_int64_t bytes;
 } p_read, p_send;
 
 static u_int64_t max_blocks_in, max_blocks_out;
@@ -188,7 +192,21 @@ packet_set_connection(int fd_in, int fd_out)
 		buffer_init(&outgoing_packet);
 		buffer_init(&incoming_packet);
 		TAILQ_INIT(&outgoing);
+		p_send.packets = p_read.packets = 0;
 	}
+}
+
+void
+packet_set_timeout(int timeout, int count)
+{
+	if (timeout == 0 || count == 0) {
+		packet_timeout_ms = -1;
+		return;
+	}
+	if ((INT_MAX / 1000) / count < timeout)
+		packet_timeout_ms = INT_MAX;
+	else
+		packet_timeout_ms = timeout * count * 1000;
 }
 
 /* Returns 1 if remote host is connected via socket, 0 if not. */
@@ -295,18 +313,25 @@ packet_get_ssh1_cipher(void)
 }
 
 void
-packet_get_state(int mode, u_int32_t *seqnr, u_int64_t *blocks, u_int32_t *packets)
+packet_get_state(int mode, u_int32_t *seqnr, u_int64_t *blocks, u_int32_t *packets,
+    u_int64_t *bytes)
 {
 	struct packet_state *state;
 
 	state = (mode == MODE_IN) ? &p_read : &p_send;
-	*seqnr = state->seqnr;
-	*blocks = state->blocks;
-	*packets = state->packets;
+	if (seqnr)
+		*seqnr = state->seqnr;
+	if (blocks)
+		*blocks = state->blocks;
+	if (packets)
+		*packets = state->packets;
+	if (bytes)
+		*bytes = state->bytes;
 }
 
 void
-packet_set_state(int mode, u_int32_t seqnr, u_int64_t blocks, u_int32_t packets)
+packet_set_state(int mode, u_int32_t seqnr, u_int64_t blocks, u_int32_t packets,
+    u_int64_t bytes)
 {
 	struct packet_state *state;
 
@@ -314,6 +339,7 @@ packet_set_state(int mode, u_int32_t seqnr, u_int64_t blocks, u_int32_t packets)
 	state->seqnr = seqnr;
 	state->blocks = blocks;
 	state->packets = packets;
+	state->bytes = bytes;
 }
 
 /* returns 1 if connection is via ipv4 */
@@ -592,7 +618,8 @@ packet_send1(void)
 	fprintf(stderr, "encrypted: ");
 	buffer_dump(&output);
 #endif
-
+	p_send.packets++;
+	p_send.bytes += len + buffer_len(&outgoing_packet);
 	buffer_clear(&outgoing_packet);
 
 	/*
@@ -818,6 +845,7 @@ packet_send2_wrapped(void)
 		if (!(datafellows & SSH_BUG_NOREKEY))
 			fatal("XXX too many packets with same key");
 	p_send.blocks += (packet_length + 4) / block_size;
+	p_send.bytes += packet_length + 4;
 	buffer_clear(&outgoing_packet);
 
 	if (type == SSH2_MSG_NEWKEYS)
@@ -891,9 +919,11 @@ packet_send(void)
 int
 packet_read_seqnr(u_int32_t *seqnr_p)
 {
-	int type, len;
+	int type, len, ret, ms_remain;
 	fd_set *setp;
 	char buf[8192];
+	struct timeval timeout, start, *timeoutp = NULL;
+
 	DBG(debug("packet_read()"));
 
 	setp = (fd_set *)xcalloc(howmany(connection_in+1, NFDBITS),
@@ -925,11 +955,35 @@ packet_read_seqnr(u_int32_t *seqnr_p)
 		    sizeof(fd_mask));
 		FD_SET(connection_in, setp);
 
+		if (packet_timeout_ms > 0) {
+			ms_remain = packet_timeout_ms;
+			timeoutp = &timeout;
+		}
 		/* Wait for some data to arrive. */
-		while (select(connection_in + 1, setp, NULL, NULL, NULL) == -1 &&
-		    (errno == EAGAIN || errno == EINTR))
-			;
-
+		for (;;) {
+			if (packet_timeout_ms != -1) {
+				ms_to_timeval(&timeout, ms_remain);
+				gettimeofday(&start, NULL);
+			}
+			if ((ret = select(connection_in + 1, setp, NULL,
+			    NULL, timeoutp)) >= 0)
+				break;
+		   	if (errno != EAGAIN && errno != EINTR &&
+			    errno != EWOULDBLOCK)
+				break;
+			if (packet_timeout_ms == -1)
+				continue;
+			ms_subtract_diff(&start, &ms_remain);
+			if (ms_remain <= 0) {
+				ret = 0;
+				break;
+			}
+		}
+		if (ret == 0) {
+			logit("Connection to %.200s timed out while "
+			    "waiting to read", get_remote_ipaddr());
+			cleanup_exit(255);
+		}
 		/* Read data from the socket. */
 		len = read(connection_in, buf, sizeof(buf));
 		if (len == 0) {
@@ -1054,6 +1108,8 @@ packet_read_poll1(void)
 		buffer_append(&incoming_packet, buffer_ptr(&compression_buffer),
 		    buffer_len(&compression_buffer));
 	}
+	p_read.packets++;
+	p_read.bytes += padded_len + 4;
 	type = buffer_get_char(&incoming_packet);
 	if (type < SSH_MSG_MIN || type > SSH_MSG_MAX)
 		packet_disconnect("Invalid ssh1 packet type: %d", type);
@@ -1142,6 +1198,7 @@ packet_read_poll2(u_int32_t *seqnr_p)
 		if (!(datafellows & SSH_BUG_NOREKEY))
 			fatal("XXX too many packets with same key");
 	p_read.blocks += (packet_length + 4) / block_size;
+	p_read.bytes += packet_length + 4;
 
 	/* get padlen */
 	cp = buffer_ptr(&incoming_packet);
@@ -1194,9 +1251,10 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 	for (;;) {
 		if (compat20) {
 			type = packet_read_poll2(seqnr_p);
-			keep_alive_timeouts = 0;
-			if (type)
+			if (type) {
+				keep_alive_timeouts = 0;
 				DBG(debug("received packet type %d", type));
+			}
 			switch (type) {
 			case SSH2_MSG_IGNORE:
 				debug3("Received SSH2_MSG_IGNORE");
@@ -1332,6 +1390,12 @@ packet_get_string(u_int *length_ptr)
 	return buffer_get_string(&incoming_packet, length_ptr);
 }
 
+void *
+packet_get_string_ptr(u_int *length_ptr)
+{
+	return buffer_get_string_ptr(&incoming_packet, length_ptr);
+}
+
 /*
  * Sends a diagnostic message from the server to the client.  This message
  * can be sent at any time (but not while constructing another message). The
@@ -1426,15 +1490,18 @@ packet_write_poll(void)
 
 	if (len > 0) {
 		len = write(connection_out, buffer_ptr(&output), len);
-		if (len <= 0) {
-			if (errno == EAGAIN)
+		if (len == -1) {
+			if (errno == EINTR || errno == EAGAIN ||
+			    errno == EWOULDBLOCK)
 				return;
-			else
-				fatal("Write failed: %.100s", strerror(errno));
+			fatal("Write failed: %.100s", strerror(errno));
 		}
+		if (len == 0)
+			fatal("Write connection closed");
 		buffer_consume(&output, len);
 	}
 }
+
 
 /*
  * Calls packet_write_poll repeatedly until all pending output data has been
@@ -1445,6 +1512,8 @@ void
 packet_write_wait(void)
 {
 	fd_set *setp;
+	int ret, ms_remain;
+	struct timeval start, timeout, *timeoutp = NULL;
 
 	setp = (fd_set *)xcalloc(howmany(connection_out + 1, NFDBITS),
 	    sizeof(fd_mask));
@@ -1453,9 +1522,35 @@ packet_write_wait(void)
 		memset(setp, 0, howmany(connection_out + 1, NFDBITS) *
 		    sizeof(fd_mask));
 		FD_SET(connection_out, setp);
-		while (select(connection_out + 1, NULL, setp, NULL, NULL) == -1 &&
-		    (errno == EAGAIN || errno == EINTR))
-			;
+
+		if (packet_timeout_ms > 0) {
+			ms_remain = packet_timeout_ms;
+			timeoutp = &timeout;
+		}
+		for (;;) {
+			if (packet_timeout_ms != -1) {
+				ms_to_timeval(&timeout, ms_remain);
+				gettimeofday(&start, NULL);
+			}
+			if ((ret = select(connection_out + 1, NULL, setp,
+			    NULL, timeoutp)) >= 0)
+				break;
+		   	if (errno != EAGAIN && errno != EINTR &&
+			    errno != EWOULDBLOCK)
+				break;
+			if (packet_timeout_ms == -1)
+				continue;
+			ms_subtract_diff(&start, &ms_remain);
+			if (ms_remain <= 0) {
+				ret = 0;
+				break;
+			}
+		}
+		if (ret == 0) {
+			logit("Connection to %.200s timed out while "
+			    "waiting to write", get_remote_ipaddr());
+			cleanup_exit(255);
+		}
 		packet_write_poll();
 	}
 	xfree(setp);

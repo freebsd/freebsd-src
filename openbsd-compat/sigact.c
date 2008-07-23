@@ -36,6 +36,7 @@
 /* OPENBSD ORIGINAL: lib/libcurses/base/sigaction.c */
 
 #include "includes.h"
+#include <errno.h>
 #include <signal.h>
 #include "sigact.h"
 
@@ -47,28 +48,39 @@
 int
 sigaction(int sig, struct sigaction *sigact, struct sigaction *osigact)
 {
-	return sigvec(sig, &(sigact->sv), &(osigact->sv));
+	return sigvec(sig, sigact ? &sigact->sv : NULL,
+	    osigact ? &osigact->sv : NULL);
 }
 
 int
-sigemptyset (sigset_t * mask)
+sigemptyset (sigset_t *mask)
 {
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 	*mask = 0;
 	return 0;
 }
 
 int
-sigprocmask (int mode, sigset_t * mask, sigset_t * omask)
+sigprocmask (int mode, sigset_t *mask, sigset_t *omask)
 {
 	sigset_t current = sigsetmask(0);
 
-	if (omask) *omask = current;
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 
-	if (mode==SIG_BLOCK)
+	if (omask)
+		*omask = current;
+
+	if (mode == SIG_BLOCK)
 		current |= *mask;
-	else if (mode==SIG_UNBLOCK)
+	else if (mode == SIG_UNBLOCK)
 		current &= ~*mask;
-	else if (mode==SIG_SETMASK)
+	else if (mode == SIG_SETMASK)
 	current = *mask;
 
 	sigsetmask(current);
@@ -76,28 +88,44 @@ sigprocmask (int mode, sigset_t * mask, sigset_t * omask)
 }
 
 int
-sigsuspend (sigset_t * mask)
+sigsuspend (sigset_t *mask)
 {
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 	return sigpause(*mask);
 }
 
 int
-sigdelset (sigset_t * mask, int sig)
+sigdelset (sigset_t *mask, int sig)
 {
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 	*mask &= ~sigmask(sig);
 	return 0;
 }
 
 int
-sigaddset (sigset_t * mask, int sig)
+sigaddset (sigset_t *mask, int sig)
 {
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 	*mask |= sigmask(sig);
 	return 0;
 }
 
 int
-sigismember (sigset_t * mask, int sig)
+sigismember (sigset_t *mask, int sig)
 {
+	if (!mask) {
+		errno = EINVAL;
+		return -1;
+	}
 	return (*mask & sigmask(sig)) != 0;
 }
 

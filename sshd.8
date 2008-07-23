@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.241 2008/03/27 22:37:57 jmc Exp $
-.Dd $Mdocdate: April 3 2008 $
+.\" $OpenBSD: sshd.8,v 1.246 2008/07/02 02:24:18 djm Exp $
+.Dd $Mdocdate: July 2 2008 $
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -44,8 +44,9 @@
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
-.Op Fl 46Ddeiqt
+.Op Fl 46DdeiqTt
 .Op Fl b Ar bits
+.Op Fl C Ar connection_spec
 .Op Fl f Ar config_file
 .Op Fl g Ar login_grace_time
 .Op Fl h Ar host_key_file
@@ -99,7 +100,25 @@ Forces
 to use IPv6 addresses only.
 .It Fl b Ar bits
 Specifies the number of bits in the ephemeral protocol version 1
-server key (default 768).
+server key (default 1024).
+.It Fl C Ar connection_spec
+Specify the connection parameters to use for the
+.Fl T
+extended test mode.
+If provided, any
+.Cm Match
+directives in the configuration file
+that would apply to the specified user, host, and address will be set before
+the configuration is written to standard output.
+The connection parameters are supplied as keyword=value pairs.
+The keywords are
+.Dq user ,
+.Dq host ,
+and
+.Dq addr .
+All are required and may be supplied in any order, either with multiple
+.Fl C
+options or as a comma-separated list.
 .It Fl D
 When this option is specified,
 .Nm
@@ -191,6 +210,15 @@ Quiet mode.
 Nothing is sent to the system log.
 Normally the beginning,
 authentication, and termination of each connection is logged.
+.It Fl T
+Extended test mode.
+Check the validity of the configuration file, output the effective configuration
+to stdout and then exit.
+Optionally,
+.Cm Match
+rules may be applied by specifying the connection parameters using one or more
+.Fl C
+options.
 .It Fl t
 Test mode.
 Only check the validity of the configuration file and sanity of the keys.
@@ -503,23 +531,27 @@ This option is automatically disabled if
 .Cm UseLogin
 is enabled.
 .It Cm from="pattern-list"
-Specifies that in addition to public key authentication, the canonical name
-of the remote host must be present in the comma-separated list of
-patterns.
-The purpose
-of this option is to optionally increase security: public key authentication
-by itself does not trust the network or name servers or anything (but
-the key); however, if somebody somehow steals the key, the key
-permits an intruder to log in from anywhere in the world.
-This additional option makes using a stolen key more difficult (name
-servers and/or routers would have to be compromised in addition to
-just the key).
-.Pp
+Specifies that in addition to public key authentication, either the canonical
+name of the remote host or its IP address must be present in the
+comma-separated list of patterns.
 See
 .Sx PATTERNS
 in
 .Xr ssh_config 5
 for more information on patterns.
+.Pp
+In addition to the wildcard matching that may be applied to hostnames or
+addresses, a
+.Cm from
+stanza may match IP addressess using CIDR address/masklen notation.
+.Pp
+The purpose of this option is to optionally increase security: public key
+authentication by itself does not trust the network or name servers or
+anything (but the key); however, if somebody somehow steals the key, the key
+permits an intruder to log in from anywhere in the world.
+This additional option makes using a stolen key more difficult (name
+servers and/or routers would have to be compromised in addition to
+just the key).
 .It Cm no-agent-forwarding
 Forbids authentication agent forwarding when this key is used for
 authentication.

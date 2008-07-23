@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.273 2008/02/11 07:58:28 jmc Exp $
-.Dd $Mdocdate: March 26 2008 $
+.\" $OpenBSD: ssh.1,v 1.277 2008/07/02 13:47:39 djm Exp $
+.Dd $Mdocdate: July 2 2008 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -290,6 +290,15 @@ This implies
 The recommended way to start X11 programs at a remote site is with
 something like
 .Ic ssh -f host xterm .
+.Pp
+If the
+.Cm ExitOnForwardFailure
+configuration option is set to
+.Dq yes ,
+then a client started with
+.Fl f
+will wait for all remote port forwards to be successfully established
+before placing itself in the background.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
 .It Fl I Ar smartcard_device
@@ -498,6 +507,7 @@ For full details of the options listed below, and their possible values, see
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
+.It VisualHostKey
 .It XAuthLocation
 .El
 .It Fl p Ar port
@@ -1027,9 +1037,31 @@ Fingerprints can be determined using
 .Pp
 .Dl $ ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key
 .Pp
-If the fingerprint is already known,
-it can be matched and verified,
-and the key can be accepted.
+If the fingerprint is already known, it can be matched
+and the key can be accepted or rejected.
+Because of the difficulty of comparing host keys
+just by looking at hex strings,
+there is also support to compare host keys visually,
+using
+.Em random art .
+By setting the
+.Cm VisualHostKey
+option to
+.Dq yes ,
+a small ASCII graphic gets displayed on every login to a server, no matter
+if the session itself is interactive or not.
+By learning the pattern a known server produces, a user can easily
+find out that the host key has changed when a completely different pattern
+is displayed.
+Because these patterns are not unambiguous however, a pattern that looks
+similar to the pattern remembered only gives a good probability that the
+host key is the same, not guaranteed proof.
+.Pp
+To get a listing of the fingerprints along with their random art for
+all known hosts, the following command line can be used:
+.Pp
+.Dl $ ssh-keygen -lv -f ~/.ssh/known_hosts
+.Pp
 If the fingerprint is unknown,
 an alternative method of verification is available:
 SSH fingerprints verified by DNS.
@@ -1432,6 +1464,13 @@ manual page for more information.
 .%R RFC 4716
 .%T "The Secure Shell (SSH) Public Key File Format"
 .%D 2006
+.Re
+.Rs
+.%T "Hash Visualization: a New Technique to improve Real-World Security"
+.%A A. Perrig
+.%A D. Song
+.%D 1999
+.%O "International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)"
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free
