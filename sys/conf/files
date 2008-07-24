@@ -746,6 +746,8 @@ dev/mii/inphy.c			optional miibus
 dev/mii/inphy.c			optional inphy
 dev/mii/ip1000phy.c		optional miibus
 dev/mii/ip1000phy.c		optional ip1000phy
+dev/mii/jmphy.c			optional miibus
+dev/mii/jmphy.c			optional jmphy
 dev/mii/lxtphy.c		optional miibus
 dev/mii/lxtphy.c		optional lxtphy
 dev/mii/mii.c			optional miibus
