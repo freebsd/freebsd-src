@@ -158,6 +158,7 @@ SUBDIR=	ac \
 	sa \
 	sade \
 	${_sendmail} \
+	setfib \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
