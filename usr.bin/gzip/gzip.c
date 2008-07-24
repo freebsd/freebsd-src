@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.89 2006/11/13 21:57:59 mrg Exp $	*/
+/*	$NetBSD: gzip.c,v 1.92 2008/07/21 14:19:22 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -12,8 +12,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -31,8 +29,8 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green\n\
-     All rights reserved.\n");
+__COPYRIGHT("@(#) Copyright (c) 1997, 1998, 2003, 2004, 2006\
+ Matthew R. Green.  All rights reserved.");
 __RCSID("$FreeBSD$");
 #endif /* not lint */
 
@@ -160,8 +158,6 @@ static	const char	gzip_copyright[] = \
 "   2. Redistributions in binary form must reproduce the above copyright\n"
 "      notice, this list of conditions and the following disclaimer in the\n"
 "      documentation and/or other materials provided with the distribution.\n"
-"   3. The name of the author may not be used to endorse or promote products\n"
-"      derived from this software without specific prior written permission.\n"
 "\n"
 "   THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR\n"
 "   IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES\n"
