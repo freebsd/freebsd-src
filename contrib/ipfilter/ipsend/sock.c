@@ -32,6 +32,7 @@ typedef int     boolean_t;
 #if !defined(__osf__)
 # ifdef __NetBSD__ 
 #  include <machine/lock.h>
+#  include <machine/mutex.h>
 # endif
 # ifdef __FreeBSD__
 #  define _WANT_FILE
