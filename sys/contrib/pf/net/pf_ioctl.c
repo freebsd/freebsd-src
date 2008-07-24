@@ -1532,7 +1532,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		}
 
 #ifdef __FreeBSD__ /* ROUTEING */
-		if (rule->rtableid > 0 && rule->rtableid < rt_numfibs)
+		if (rule->rtableid > 0 && rule->rtableid > rt_numfibs)
 #else
 		if (rule->rtableid > 0 && !rtable_exists(rule->rtableid))
 #endif
@@ -1795,7 +1795,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 			if (newrule->rtableid > 0 &&
 #ifdef __FreeBSD__ /* ROUTING */
-			    newrule->rtableid < rt_numfibs)
+			    newrule->rtableid > rt_numfibs)
 #else
 			    !rtable_exists(newrule->rtableid))
 #endif
