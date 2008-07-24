@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 		usage();
 
 	errno = 0;
-	if (syscall(175, (int)fib))
+	if (setfib((int)fib))
 		warn("setfib");
 	execvp(*argv, argv);
 	err(errno == ENOENT ? 127 : 126, "%s", *argv);
