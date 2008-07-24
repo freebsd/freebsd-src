@@ -158,7 +158,8 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			 * check route
 			 */
 			if (rt0 != NULL) {
-				error = rt_check(&rt, &rt0, dst);
+				error = rt_check_fib(&rt, &rt0,
+				    dst, rt0->rt_fibnum);
 				if (error)
 					goto bad;
 				RT_UNLOCK(rt);

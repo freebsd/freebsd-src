@@ -659,6 +659,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 
 	inp = sotoinpcb(so);
+	inp->inp_inc.inc_fibnum = sc->sc_inc.inc_fibnum;
+	so->so_fibnum = sc->sc_inc.inc_fibnum;
 	INP_LOCK(inp);
 
 	/* Insert new socket into PCB hash list. */
@@ -943,6 +945,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	else
 		tcpstat.tcps_sc_completed++;
 
+/* how do we find the inp for the new socket? */
 	if (sc != &scs)
 		syncache_free(sc);
 	return (1);
@@ -1123,6 +1126,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sc->sc_label = maclabel;
 #endif
 	sc->sc_ipopts = ipopts;
+	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
 	if (!inc->inc_isipv6)

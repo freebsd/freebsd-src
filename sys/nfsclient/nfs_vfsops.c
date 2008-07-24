@@ -477,6 +477,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		sin = mask;
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
+                /* XXX MRT use table 0 for this sort of thing */
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,

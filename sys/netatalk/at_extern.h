@@ -55,6 +55,7 @@ u_short		 at_cksum(struct mbuf *m, int skip);
 int		 at_control(struct socket *so, u_long cmd, caddr_t data,
 		    struct ifnet *ifp, struct thread *td);
 struct at_ifaddr	*at_ifawithnet(struct sockaddr_at *);
+int		 at_inithead(void**, int);
 void		 ddp_init(void);
 int		 ddp_output(struct mbuf *m, struct socket *so); 
 int		 ddp_route(struct mbuf *m, struct route *ro);

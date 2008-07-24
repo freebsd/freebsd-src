@@ -233,7 +233,8 @@ dropit:
 			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == NULL)
 				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
 			} else
-				ia = ip_rtaddr(ipaddr.sin_addr);
+/* XXX MRT 0 for routing */
+				ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m));
 			if (ia == NULL) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_SRCFAIL;
@@ -276,7 +277,7 @@ dropit:
 			 * same).
 			 */
 			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == NULL &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr)) == NULL) {
+			    (ia = ip_rtaddr(ipaddr.sin_addr, M_GETFIB(m))) == NULL) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;

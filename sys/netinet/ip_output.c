@@ -225,7 +225,8 @@ again:
 		 * operation (as it is for ARP).
 		 */
 		if (ro->ro_rt == NULL)
-			rtalloc_ign(ro, 0);
+			in_rtalloc_ign(ro, 0,
+			    inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 		if (ro->ro_rt == NULL) {
 			ipstat.ips_noroute++;
 			error = EHOSTUNREACH;

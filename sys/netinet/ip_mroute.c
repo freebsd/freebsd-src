@@ -303,7 +303,7 @@ static int	X_ip_mrouter_done(void);
 static int	X_ip_mrouter_get(struct socket *so, struct sockopt *m);
 static int	X_ip_mrouter_set(struct socket *so, struct sockopt *m);
 static int	X_legal_vif_num(int vif);
-static int	X_mrt_ioctl(int cmd, caddr_t data);
+static int	X_mrt_ioctl(int cmd, caddr_t data, int fibnum);
 
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);
@@ -552,7 +552,7 @@ X_ip_mrouter_get(struct socket *so, struct sockopt *sopt)
  * Handle ioctl commands to obtain information from the cache
  */
 static int
-X_mrt_ioctl(int cmd, caddr_t data)
+X_mrt_ioctl(int cmd, caddr_t data, int fibnum)
 {
     int error = 0;
 

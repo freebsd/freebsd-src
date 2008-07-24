@@ -568,6 +568,7 @@ struct proc {
 	struct pargs	*p_args;	/* (c) Process arguments. */
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
 	signed char	p_nice;		/* (c + j) Process "nice" value. */
+	int		p_fibnum;	/* in this routing domain XXX MRT */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
