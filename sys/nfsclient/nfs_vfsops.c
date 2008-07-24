@@ -105,7 +105,7 @@ SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
-		    struct nfs_args *argp);
+		    struct nfs_args *argp, const char *hostname);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred);
@@ -540,7 +540,8 @@ nfs_mountdiskless(char *path,
 }
 
 static void
-nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
+nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
+	const char *hostname)
 {
 	int s;
 	int adjsock;
@@ -706,10 +707,13 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp)
 			}
 	}
 
-	strlcpy(nmp->nm_hostname, argp->hostname, sizeof(nmp->nm_hostname));
-	p = strchr(nmp->nm_hostname, ':');
-	if (p)
-		*p = '\0';
+	if (hostname) {
+		strlcpy(nmp->nm_hostname, argp->hostname,
+		    sizeof(nmp->nm_hostname));
+		p = strchr(nmp->nm_hostname, ':');
+		if (p)
+			*p = '\0';
+	}
 }
 
 static const char *nfs_opts[] = { "from", "nfs_args",
@@ -799,7 +803,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 		    ~(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/)) |
 		    (nmp->nm_flag &
 			(NFSMNT_NFSV3 | NFSMNT_NOLOCKD /*|NFSMNT_XLATECOOKIE*/));
-		nfs_decode_args(mp, nmp, &args);
+		nfs_decode_args(mp, nmp, &args, NULL);
 		goto out;
 	}
 
@@ -937,7 +941,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	nmp->nm_soproto = argp->proto;
 	nmp->nm_rpcops = &nfs_rpcops;
 
-	nfs_decode_args(mp, nmp, argp);
+	nfs_decode_args(mp, nmp, argp, hst);
 
 	/*
 	 * For Connection based sockets (TCP,...) defer the connect until
