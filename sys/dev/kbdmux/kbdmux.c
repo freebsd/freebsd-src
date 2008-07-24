@@ -36,6 +36,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/clist.h>
 #include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fcntl.h>
@@ -52,7 +53,6 @@
 #include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
-#include <sys/tty.h>
 #include <sys/uio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/kbdtables.h>
