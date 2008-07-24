@@ -708,7 +708,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	}
 
 	if (hostname) {
-		strlcpy(nmp->nm_hostname, argp->hostname,
+		strlcpy(nmp->nm_hostname, hostname,
 		    sizeof(nmp->nm_hostname));
 		p = strchr(nmp->nm_hostname, ':');
 		if (p)
