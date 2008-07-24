@@ -87,6 +87,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/protosw.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <machine/cpu.h>
 
@@ -136,6 +137,7 @@ struct stf_softc {
 		struct route_in6 __sc_ro6; /* just for safety */
 	} __sc_ro46;
 #define sc_ro	__sc_ro46.__sc_ro4
+	u_int	sc_fibnum;
 	const struct encaptab *encap_cookie;
 };
 #define STF2IFP(sc)	((sc)->sc_ifp)
@@ -219,6 +221,7 @@ stf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		return (ENOSPC);
 	}
 	ifp->if_softc = sc;
+	sc->sc_fibnum = curthread->td_proc->p_fibnum;
 
 	/*
 	 * Set the name manually rather then using if_initname because
@@ -521,7 +524,7 @@ stf_output(ifp, m, dst, rt)
 	}
 
 	if (sc->sc_ro.ro_rt == NULL) {
-		rtalloc(&sc->sc_ro);
+		rtalloc_fib(&sc->sc_ro, sc->sc_fibnum);
 		if (sc->sc_ro.ro_rt == NULL) {
 			m_freem(m);
 			ifp->if_oerrors++;
@@ -529,6 +532,7 @@ stf_output(ifp, m, dst, rt)
 		}
 	}
 
+	M_SETFIB(m, sc->sc_fibnum);
 	ifp->if_opackets++;
 	return ip_output(m, NULL, &sc->sc_ro, 0, NULL, NULL);
 }
@@ -599,7 +603,8 @@ stf_checkaddr4(sc, in, inifp)
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_addr = *in;
-		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
+		rt = rtalloc1_fib((struct sockaddr *)&sin, 0,
+		    0UL, sc->sc_fibnum);
 		if (!rt || rt->rt_ifp != inifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from 0x%x dropped "

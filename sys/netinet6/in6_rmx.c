@@ -447,17 +447,21 @@ in6_rtqdrain(void)
 
 /*
  * Initialize our routing tree.
+ * XXX MRT When off == 0, we are being called from vfs_export.c
+ * so just set up their table and leave. (we know what the correct
+ * value should be so just use that).. FIX AFTER RELENG_7 is MFC'd
+ * see also comments in in_inithead() vfs_export.c and domain.h
  */
 int
 in6_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
 
-	if (!rn_inithead(head, off))
-		return 0;
+	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))
+		return 0;		/* See above */
 
-	if (head != (void **)&rt_tables[AF_INET6]) /* BOGUS! */
-		return 1;	/* only do this for the real routing table */
+	if (off == 0)		/* See above */
+		return 1;	/* only do the rest for the real thing */
 
 	rnh = *head;
 	rnh->rnh_addaddr = in6_addroute;

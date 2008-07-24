@@ -161,6 +161,9 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_TAG,   		/* arg1=tag number */
 	O_TAGGED,		/* arg1=tag number */
 
+	O_SETFIB,		/* arg1=FIB number */
+	O_FIB,			/* arg1=FIB desired fib number */
+
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
 
@@ -465,6 +468,7 @@ struct ipfw_flow_id {
 	u_int32_t	src_ip;
 	u_int16_t	dst_port;
 	u_int16_t	src_port;
+	u_int8_t	fib;
 	u_int8_t	proto;
 	u_int8_t	flags;	/* protocol-specific flags */
 	uint8_t		addr_type; /* 4 = ipv4, 6 = ipv6, 1=ether ? */

@@ -136,6 +136,7 @@ typedef	__uid_t		uid_t;
 #define	SO_LISTENQLIMIT	0x1011		/* socket's backlog limit */
 #define	SO_LISTENQLEN	0x1012		/* socket's complete queue length */
 #define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
+#define	SO_SETFIB	0x1014		/* use this FIB to route */
 #endif
 
 /*

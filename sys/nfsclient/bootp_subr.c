@@ -1137,11 +1137,12 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	if (ifctx->gotgw != 0 || gctx->gotgw == 0) {
 		clear_sinaddr(&defdst);
 		clear_sinaddr(&defmask);
-		error = rtrequest(RTM_ADD,
+		/* XXX MRT just table 0 */
+		error = rtrequest_fib(RTM_ADD,
 				  (struct sockaddr *) &defdst,
 				  (struct sockaddr *) gw,
 				  (struct sockaddr *) &defmask,
-				  (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL);
+				  (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, 0);
 		if (error != 0) {
 			printf("bootpc_adjust_interface: "
 			       "add net route, error=%d\n", error);

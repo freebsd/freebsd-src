@@ -191,6 +191,8 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 	}
 	bcopy(&iphdr, mtod(m, struct ip *), sizeof(struct ip));
 
+	M_SETFIB(m, sc->gif_fibnum);
+
 	if (dst->sin_family != sin_dst->sin_family ||
 	    dst->sin_addr.s_addr != sin_dst->sin_addr.s_addr) {
 		/* cache route doesn't match */
@@ -208,7 +210,7 @@ in_gif_output(struct ifnet *ifp, int family, struct mbuf *m)
 	}
 
 	if (sc->gif_ro.ro_rt == NULL) {
-		rtalloc_ign(&sc->gif_ro, 0);
+		in_rtalloc_ign(&sc->gif_ro, 0, sc->gif_fibnum);
 		if (sc->gif_ro.ro_rt == NULL) {
 			m_freem(m);
 			return ENETUNREACH;
@@ -368,7 +370,9 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(struct sockaddr_in);
 		sin.sin_addr = ip->ip_src;
-		rt = rtalloc1((struct sockaddr *)&sin, 0, 0UL);
+		/* XXX MRT  check for the interface we would use on output */
+		rt = in_rtalloc1((struct sockaddr *)&sin, 0,
+		    0UL, sc->gif_fibnum);
 		if (!rt || rt->rt_ifp != ifp) {
 #if 0
 			log(LOG_WARNING, "%s: packet from 0x%x dropped "

@@ -56,7 +56,7 @@ static struct domain	atalkdomain = {
 	.dom_name =		"appletalk",
 	.dom_protosw =		atalksw,
 	.dom_protoswNPROTOSW =	&atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
-	.dom_rtattach =		rn_inithead,
+	.dom_rtattach =		at_inithead,
 	.dom_rtoffset =		offsetof(struct sockaddr_at, sat_addr) << 3,
 	.dom_maxrtkey =		sizeof(struct sockaddr_at),
 };

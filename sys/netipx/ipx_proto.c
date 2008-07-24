@@ -131,15 +131,25 @@ static struct protosw ipxsw[] = {
 },
 };
 
+extern int ipx_inithead(void **, int);
+
 static struct	domain ipxdomain = {
 	.dom_family =		AF_IPX,
 	.dom_name =		"network systems",
 	.dom_protosw =		ipxsw,
 	.dom_protoswNPROTOSW =	&ipxsw[sizeof(ipxsw)/sizeof(ipxsw[0])],
-	.dom_rtattach =		rn_inithead,
+	.dom_rtattach =		ipx_inithead,
 	.dom_rtoffset =		16,
 	.dom_maxrtkey =		sizeof(struct sockaddr_ipx)
 };
+
+
+/* shim to adapt arguments */
+int
+ipx_inithead(void **head, int offset)
+{
+	return rn_inithead(head, offset);
+}
 
 DOMAIN_SET(ipx);
 SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,

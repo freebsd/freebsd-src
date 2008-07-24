@@ -492,7 +492,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
  * multicast, or broadcast.
  */
 static int
-verify_path(struct in_addr src, struct ifnet *ifp)
+verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
 	struct route ro;
 	struct sockaddr_in *dst;
@@ -503,7 +503,7 @@ verify_path(struct in_addr src, struct ifnet *ifp)
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
 	dst->sin_addr = src;
-	rtalloc_ign(&ro, RTF_CLONING);
+	in_rtalloc_ign(&ro, RTF_CLONING, fib);
 
 	if (ro.ro_rt == NULL)
 		return 0;
@@ -593,6 +593,7 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	dst->sin6_family = AF_INET6;
 	dst->sin6_len = sizeof(*dst);
 	dst->sin6_addr = *src;
+	/* XXX MRT 0 for ipv6 at this time */
 	rtalloc_ign((struct route *)&ro, RTF_CLONING);
 
 	if (ro.ro_rt == NULL)
@@ -826,6 +827,10 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			break;
 		case O_TEE:
 			snprintf(SNPARGS(action2, 0), "Tee %d",
+				cmd->arg1);
+			break;
+		case O_SETFIB:
+			snprintf(SNPARGS(action2, 0), "SetFib %d",
 				cmd->arg1);
 			break;
 		case O_SKIPTO:
@@ -1500,6 +1505,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 		id.dst_ip = id.src_ip = id.dst_port = id.src_port = 0;
 		id.proto = args->f_id.proto;
 		id.addr_type = args->f_id.addr_type;
+		id.fib = M_GETFIB(args->m);
 
 		if (IS_IP6_FLOW_ID (&(args->f_id))) {
 			if (limit_mask & DYN_SRC_ADDR)
@@ -1601,6 +1607,7 @@ send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 		return (NULL);
 	m->m_pkthdr.rcvif = (struct ifnet *)0;
 
+	M_SETFIB(m, id->fib);
 #ifdef MAC
 	if (replyto != NULL)
 		mac_create_mbuf_netlayer(replyto, m);
@@ -2200,6 +2207,7 @@ ipfw_chk(struct ip_fw_args *args)
 		return (IP_FW_PASS);	/* accept */
 
 	pktlen = m->m_pkthdr.len;
+	args->f_id.fib = M_GETFIB(m); /* note mbuf not altered) */
 	proto = args->f_id.proto = 0;	/* mark f_id invalid */
 		/* XXX 0 is a valid proto: IP/IPv6 Hop-by-Hop Option */
 
@@ -2911,7 +2919,8 @@ check_body:
 					verify_path6(&(args->f_id.src_ip6),
 					    m->m_pkthdr.rcvif) :
 #endif
-				    verify_path(src_ip, m->m_pkthdr.rcvif)));
+				    verify_path(src_ip, m->m_pkthdr.rcvif,
+				        args->f_id.fib)));
 				break;
 
 			case O_VERSRCREACH:
@@ -2922,7 +2931,7 @@ check_body:
 				        verify_path6(&(args->f_id.src_ip6),
 				            NULL) :
 #endif
-				    verify_path(src_ip, NULL)));
+				    verify_path(src_ip, NULL, args->f_id.fib)));
 				break;
 
 			case O_ANTISPOOF:
@@ -2941,7 +2950,8 @@ check_body:
 					        m->m_pkthdr.rcvif) :
 #endif
 					    verify_path(src_ip,
-					        m->m_pkthdr.rcvif);
+					    	m->m_pkthdr.rcvif,
+					        args->f_id.fib);
 				else
 					match = 1;
 				break;
@@ -3042,6 +3052,11 @@ check_body:
 				match = (cmd->len & F_NOT) ? 0: 1;
 				break;
 			}
+
+			case O_FIB: /* try match the specified fib */
+				if (args->f_id.fib == cmd->arg1)
+					match = 1;
+				break;
 
 			case O_TAGGED: {
 				uint32_t tag = (cmd->arg1 == IP_FW_TABLEARG) ?
@@ -3282,6 +3297,14 @@ check_body:
 				retval = (cmd->opcode == O_NETGRAPH) ?
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				goto done;
+
+			case O_SETFIB:
+				f->pcnt++;	/* update stats */
+				f->bcnt += pktlen;
+				f->timestamp = time_uptime;
+				M_SETFIB(m, cmd->arg1);
+				args->f_id.fib = cmd->arg1;
+				goto next_rule;
 
 			case O_NAT: {
 				struct cfg_nat *t;
@@ -3792,6 +3815,26 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 			break;
+
+		case O_FIB:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn))
+				goto bad_size;
+			if (cmd->arg1 >= rt_numfibs) {
+				printf("ipfw: invalid fib number %d\n",
+					cmd->arg1);
+				return EINVAL;
+			}
+			break;
+
+		case O_SETFIB:
+			if (cmdlen != F_INSN_SIZE(ipfw_insn))
+				goto bad_size;
+			if (cmd->arg1 >= rt_numfibs) {
+				printf("ipfw: invalid fib number %d\n",
+					cmd->arg1);
+				return EINVAL;
+			}
+			goto check_action;
 
 		case O_UID:
 		case O_GID:
