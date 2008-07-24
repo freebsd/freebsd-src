@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/clist.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -67,11 +68,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/ioccom.h>
 #include <sys/conf.h>
-#include <sys/tty.h>
 #include <sys/selinfo.h>
 #include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/sysctl.h>
+#include <sys/ttycom.h>
 #include <sys/uio.h>
 
 #include <dev/usb/usb.h>
