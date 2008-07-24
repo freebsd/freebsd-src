@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080724:
+	I have MFC'd in code to support multiple routing tables.
+	see the man pages setfib(1) and setfib(2).
+	This is a backwards compatible version,
+	but to make use of it you need to compile your kernel
+	with options ROUTETABLES=2 (or more up to 16).
+
 20080226:
 	FreeBSD 7.0-RELEASE
 

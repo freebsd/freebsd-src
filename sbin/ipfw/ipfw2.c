@@ -4878,6 +4878,7 @@ add(int ac, char *av[])
 		action->opcode = O_NAT;
 		action->len = F_INSN_SIZE(ipfw_insn_nat);
 		goto chkarg;
+
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
 		goto chkarg;
@@ -4960,6 +4961,21 @@ chkarg:
 		ac++; av--;	/* go back... */
 		break;
 
+	case TOK_SETFIB:
+	    {
+		int numfibs;
+
+		action->opcode = O_SETFIB;
+ 		NEED1("missing fib number");
+ 	        action->arg1 = strtoul(*av, NULL, 10);
+		if (sysctlbyname("net.fibs", &numfibs, &i, NULL, 0) == -1)
+			errx(EX_DATAERR, "fibs not suported.\n");
+		if (action->arg1 >= numfibs)  /* Temporary */
+			errx(EX_DATAERR, "fib too large.\n");
+ 		ac--; av++;
+ 		break;
+	    }
+		
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
