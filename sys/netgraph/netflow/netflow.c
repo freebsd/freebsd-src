@@ -270,7 +270,8 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
 	sin->sin_addr = fle->f.r.r_dst;
-	rtalloc_ign(&ro, RTF_CLONING);
+	/* XXX MRT 0 as a default.. need the m here to get fib */
+	rtalloc_ign_fib(&ro, RTF_CLONING, 0);
 	if (ro.ro_rt != NULL) {
 		struct rtentry *rt = ro.ro_rt;
 
@@ -298,7 +299,7 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 	sin->sin_len = sizeof(*sin);
 	sin->sin_family = AF_INET;
 	sin->sin_addr = fle->f.r.r_src;
-	rtalloc_ign(&ro, RTF_CLONING);
+	rtalloc_ign_fib(&ro, RTF_CLONING, 0); /* XXX MRT */
 	if (ro.ro_rt != NULL) {
 		struct rtentry *rt = ro.ro_rt;
 

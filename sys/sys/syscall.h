@@ -171,6 +171,7 @@
 #define	SYS_shmsys	171
 #define	SYS_freebsd6_pread	173
 #define	SYS_freebsd6_pwrite	174
+#define	SYS_setfib	175
 #define	SYS_ntp_adjtime	176
 #define	SYS_setgid	181
 #define	SYS_setegid	182

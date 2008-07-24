@@ -191,6 +191,11 @@ struct mbuf {
 #define	M_PROTO6	0x00080000 /* protocol-specific */
 #define	M_PROTO7	0x00100000 /* protocol-specific */
 #define	M_PROTO8	0x00200000 /* protocol-specific */
+/*
+ * For RELENG_{6,7} steal these flags for limited multiple routing table
+ * support. In RELENG_8 and beyond, use just one flag and a tag.
+ */
+#define	M_FIB		0xF0000000 /* steal some bits to store fib number. */
 
 #define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
 
@@ -205,7 +210,7 @@ struct mbuf {
  */
 #define	M_COPYFLAGS \
     (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC)
+     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_FIB)
 
 /*
  * External buffer types: identify ext_buf type.
@@ -276,7 +281,7 @@ struct mbstat {
 	u_long	m_mlen;		/* length of data in an mbuf */
 	u_long	m_mhlen;	/* length of data in a header mbuf */
 
-	/* Number of mbtypes (gives # elems in mbtypes[] array: */
+	/* Number of mbtypes (gives # elems in mbtypes[] array) */
 	short	m_numtypes;
 
 	/* XXX: Sendfile stats should eventually move to their own struct */
@@ -952,6 +957,19 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
 }
+
+/* XXX temporary FIB methods probably eventually use tags.*/
+#define M_FIBSHIFT    28
+#define M_FIBMASK	0x0F
+
+/* get the fib from an mbuf and if it is not set, return the default */
+#define M_GETFIB(_m) \
+    ((((_m)->m_flags & M_FIB) >> M_FIBSHIFT) & M_FIBMASK)
+
+#define M_SETFIB(_m, _fib) do {						\
+	_m->m_flags &= ~M_FIB;					   	\
+	_m->m_flags |= (((_fib) << M_FIBSHIFT) & M_FIB);  \
+} while (0) 
 
 #endif /* _KERNEL */
 

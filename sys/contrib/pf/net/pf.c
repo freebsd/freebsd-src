@@ -1839,7 +1839,14 @@ pf_send_tcp(const struct pf_rule *r, sa_family_t af,
 	pf_mtag->tag = rtag;
 
 	if (r != NULL && r->rtableid >= 0)
+#ifdef __FreeBSD__
+	{
+		M_SETFIB(m, r->rtableid);
+#endif
 		pf_mtag->rtableid = r->rtableid;
+#ifdef __FreeBSD__
+	}
+#endif
 #ifdef ALTQ
 	if (r != NULL && r->qid) {
 		pf_mtag->qid = r->qid;
@@ -2004,7 +2011,14 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 #endif
 
 	if (r->rtableid >= 0)
+#ifdef __FreeBSD__
+	{
+		M_SETFIB(m0, r->rtableid);
+#endif
 		pf_mtag->rtableid = r->rtableid;
+#ifdef __FreeBSD__
+	}
+#endif
 
 #ifdef ALTQ
 	if (r->qid) {
@@ -2195,7 +2209,14 @@ pf_tag_packet(struct mbuf *m, struct pf_mtag *pf_mtag, int tag, int rtableid)
 	if (tag > 0)
 		pf_mtag->tag = tag;
 	if (rtableid >= 0)
+#ifdef __FreeBSD__
+	{
+		M_SETFIB(m, rtableid);
+#endif
 		pf_mtag->rtableid = rtableid;
+#ifdef __FreeBSD__
+	}
+#endif
 
 	return (0);
 }
@@ -3142,7 +3163,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, u_int16_t offer)
 #ifdef RTF_PRCLONING
 		rtalloc_ign(&ro, (RTF_CLONING | RTF_PRCLONING));
 #else /* !RTF_PRCLONING */
-		rtalloc_ign(&ro, RTF_CLONING);
+		in_rtalloc_ign(&ro, RTF_CLONING, 0);
 #endif
 #else /* ! __FreeBSD__ */
 		rtalloc_noclone(&ro, NO_CLONING);
@@ -5947,7 +5968,11 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif)
 		goto out;
 
 #ifdef __FreeBSD__
-	rtalloc_ign((struct route *)&ro, RTF_CLONING);
+/* XXX MRT not always INET */ /* stick with table 0 though */
+	if (af == AF_INET)
+		in_rtalloc_ign((struct route *)&ro, RTF_CLONING, 0);
+	else
+		rtalloc_ign((struct route *)&ro, RTF_CLONING);
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
 #endif
@@ -6026,7 +6051,10 @@ pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw)
 # ifdef RTF_PRCLONING
 	rtalloc_ign((struct route *)&ro, (RTF_CLONING|RTF_PRCLONING));
 # else /* !RTF_PRCLONING */
-	rtalloc_ign((struct route *)&ro, RTF_CLONING);
+	if (af == AF_INET)
+		in_rtalloc_ign((struct route *)&ro, RTF_CLONING, 0);
+	else
+		rtalloc_ign((struct route *)&ro, RTF_CLONING);
 # endif
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
@@ -6106,7 +6134,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst->sin_addr = ip->ip_dst;
 
 	if (r->rt == PF_FASTROUTE) {
-		rtalloc(ro);
+		in_rtalloc(ro, 0);
 		if (ro->ro_rt == 0) {
 			ipstat.ips_noroute++;
 			goto bad;

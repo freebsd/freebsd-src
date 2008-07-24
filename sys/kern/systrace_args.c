@@ -959,6 +959,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* setfib */
+	case 175: {
+		struct setfib_args *p = params;
+		iarg[0] = p->fibnum; /* int */
+		*n_args = 1;
+		break;
+	}
 	/* ntp_adjtime */
 	case 176: {
 		struct ntp_adjtime_args *p = params;

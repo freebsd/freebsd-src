@@ -479,6 +479,9 @@ When the packet can be associated with a local socket.
 .It Divert status
 Whether a packet came from a divert socket (e.g.,
 .Xr natd 8 ) .
+.It Fib annotation state
+Whether a packet has been tagged for using a specific FIB (routing table)
+in future forwarding decisions.
 .El
 .Pp
 Note that some of the above information, e.g.\& source MAC or IP addresses and
@@ -842,6 +845,12 @@ for more information on
 and
 .Cm ngtee
 actions.
+.It Cm setfib Ar fibnum
+The packet is tagged so as to use the FIB (routing table)
+.Ar fibnum
+in any subsequent forwarding decisions. Initially this is
+limited to the values  0 through 15. See 
+.Xr setfib 8
 .El
 .Ss RULE BODY
 The body of a rule contains zero or more patterns (such as
@@ -1144,6 +1153,9 @@ IPSec authentication headers
 .Pq Cm ah ,
 and IPSec encapsulated security payload headers
 .Pq Cm esp .
+.It Cm fib Ar fibnum
+Matches a packet that has been tagged to use
+the given FIB (routing table) number.
 .It Cm flow-id Ar labels
 Matches IPv6 packets containing any of the flow labels given in
 .Ar labels .

@@ -363,6 +363,7 @@ ETHER_II		opt_ef.h
 ETHER_8023		opt_ef.h
 ETHER_8022		opt_ef.h
 ETHER_SNAP		opt_ef.h
+ROUTETABLES		opt_route.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
 INET6			opt_inet6.h

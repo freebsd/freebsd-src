@@ -67,6 +67,7 @@ struct gif_softc {
 #endif
 	} gifsc_gifscr;
 	int		gif_flags;
+	u_int		gif_fibnum;
 	const struct encaptab *encap_cookie4;
 	const struct encaptab *encap_cookie6;
 	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */

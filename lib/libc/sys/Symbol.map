@@ -255,6 +255,7 @@ FBSD_1.0 {
 	setcontext;
 	setegid;
 	seteuid;
+	setfib;
 	setgid;
 	setgroups;
 	setitimer;

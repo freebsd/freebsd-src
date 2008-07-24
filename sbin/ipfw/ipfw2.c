@@ -341,6 +341,9 @@ enum tokens {
 	TOK_IPV4,
 	TOK_UNREACH6,
 	TOK_RESET6,
+
+	TOK_FIB,
+	TOK_SETFIB,
 };
 
 struct _s_x dummynet_params[] = {
@@ -413,6 +416,7 @@ struct _s_x rule_actions[] = {
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
 	{ "nat",                TOK_NAT },
+	{ "setfib",		TOK_SETFIB },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -443,6 +447,7 @@ struct _s_x rule_options[] = {
 	{ "via",		TOK_VIA },
 	{ "fragment",		TOK_FRAG },
 	{ "frag",		TOK_FRAG },
+	{ "fib",		TOK_FIB },
 	{ "ipoptions",		TOK_IPOPTS },
 	{ "ipopts",		TOK_IPOPTS },
 	{ "iplen",		TOK_IPLEN },
@@ -1615,6 +1620,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
  			PRINT_UINT_ARG("nat ", cmd->arg1);
  			break;
 			
+		case O_SETFIB:
+			PRINT_UINT_ARG("setfib ", cmd->arg1);
+ 			break;
+			
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -1815,6 +1824,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_FRAG:
 				printf(" frag");
+				break;
+
+			case O_FIB:
+				printf(" fib %u", cmd->arg1 );
 				break;
 
 			case O_IN:
@@ -2712,7 +2725,7 @@ help(void)
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
 "               skipto N | {divert|tee} PORT | forward ADDR |\n"
-"               pipe N | queue N | nat N\n"
+"               pipe N | queue N | nat N | setfib FIB\n"
 "PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
@@ -2728,7 +2741,7 @@ help(void)
 "	estab | frag | {gid|uid} N | icmptypes LIST | in | out | ipid LIST |\n"
 "	iplen LIST | ipoptions SPEC | ipprecedence | ipsec | iptos SPEC |\n"
 "	ipttl LIST | ipversion VER | keep-state | layer2 | limit ... |\n"
-"	icmp6types LIST | ext6hdr LIST | flow-id N[,N] |\n"
+"	icmp6types LIST | ext6hdr LIST | flow-id N[,N] | fib FIB |\n"
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
 "	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
@@ -5623,6 +5636,12 @@ read_options:
 				    rule_options);
 				fill_cmd(cmd, O_TAGGED, 0, tag);
 			}
+			ac--; av++;
+			break;
+
+		case TOK_FIB:
+			NEED1("fib requires fib number");
+			fill_cmd(cmd, O_FIB, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
 			break;
 

@@ -58,6 +58,7 @@
 #include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -201,6 +202,7 @@ gre_clone_create(ifc, unit, params)
 	GRE2IFP(sc)->if_flags |= IFF_LINK0;
 	sc->encap = NULL;
 	sc->called = 0;
+	sc->gre_fibnum = curthread->td_proc->p_fibnum;
 	sc->wccp_ver = WCCP_V1;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
@@ -394,6 +396,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		error = ENOBUFS;
 		goto end;
 	}
+
+	M_SETFIB(m, sc->gre_fibnum); /* The envelope may use a different FIB */
 
 	gh = mtod(m, struct greip *);
 	if (sc->g_proto == IPPROTO_GRE) {
@@ -765,7 +769,7 @@ gre_compute_route(struct gre_softc *sc)
 	    inet_ntoa(((struct sockaddr_in *)&ro->ro_dst)->sin_addr));
 #endif
 
-	rtalloc(ro);
+	rtalloc_fib(ro, sc->gre_fibnum);
 
 	/*
 	 * check if this returned a route at all and this route is no
