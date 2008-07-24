@@ -95,7 +95,7 @@ static	void	setnatproto __P((int));
 %token	IPNY_MAP IPNY_BIMAP IPNY_FROM IPNY_TO IPNY_MASK IPNY_PORTMAP IPNY_ANY
 %token	IPNY_ROUNDROBIN IPNY_FRAG IPNY_AGE IPNY_ICMPIDMAP IPNY_PROXY
 %token	IPNY_TCP IPNY_UDP IPNY_TCPUDP IPNY_STICKY IPNY_MSSCLAMP IPNY_TAG
-%token	IPNY_TLATE
+%token	IPNY_TLATE IPNY_SEQUENTIAL
 %type	<port> portspec
 %type	<num> hexnumber compare range proto
 %type	<ipa> hostname ipv4
@@ -422,11 +422,11 @@ otherifname:
 	;
 
 mapport:
-	IPNY_PORTMAP tcpudp portspec ':' portspec
+	IPNY_PORTMAP tcpudp portspec ':' portspec randport
 			{ nat->in_pmin = htons($3);
 			  nat->in_pmax = htons($5);
 			}
-	| IPNY_PORTMAP tcpudp IPNY_AUTO
+	| IPNY_PORTMAP tcpudp IPNY_AUTO randport
 			{ nat->in_flags |= IPN_AUTOPORTMAP;
 			  nat->in_pmin = htons(1024);
 			  nat->in_pmax = htons(65535);
@@ -444,6 +444,10 @@ mapport:
 			  nat->in_pmin = htons($3);
 			  nat->in_pmax = htons($5);
 			}
+	;
+
+randport:
+	| IPNY_SEQUENTIAL	{ nat->in_flags |= IPN_SEQUENTIAL; }
 	;
 
 sobject:
@@ -519,6 +523,7 @@ rdroptions:
 nattag:	| IPNY_TAG YY_STR		{ strncpy(nat->in_tag.ipt_tag, $2,
 						  sizeof(nat->in_tag.ipt_tag));
 					}
+
 rr:	| IPNY_ROUNDROBIN		{ nat->in_flags |= IPN_ROUNDR; }
 	;
 
@@ -647,6 +652,7 @@ static	wordtab_t	yywords[] = {
 	{ "range",	IPNY_RANGE },
 	{ "rdr",	IPNY_RDR },
 	{ "round-robin",IPNY_ROUNDROBIN },
+	{ "sequential",	IPNY_SEQUENTIAL },
 	{ "sticky",	IPNY_STICKY },
 	{ "tag",	IPNY_TAG },
 	{ "tcp",	IPNY_TCP },

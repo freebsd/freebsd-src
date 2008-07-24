@@ -1678,6 +1678,9 @@ int logtype;
 
 	if (logtype != 0 && nat_logging != 0)
 		nat_log(nat, logtype);
+#if defined(NEED_LOCAL_RAND) && defined(_KERNEL)
+	ipf_rand_push(nat, sizeof(*nat));
+#endif
 
 	/*
 	 * Take it as a general indication that all the pointers are set if
@@ -2029,7 +2032,13 @@ natinfo_t *ni;
 			/*
 			 * Standard port translation.  Select next port.
 			 */
-			port = htons(np->in_pnext++);
+			if (np->in_flags & IPN_SEQUENTIAL) {
+				port = htons(np->in_pnext);
+			} else {
+				port = ipf_random() % (ntohs(np->in_pmax) -
+						       ntohs(np->in_pmin));
+			}
+			np->in_pnext++;
 
 			if (np->in_pnext > ntohs(np->in_pmax)) {
 				np->in_pnext = ntohs(np->in_pmin);
@@ -3793,7 +3802,7 @@ u_32_t *passp;
 
 	READ_ENTER(&ipf_nat);
 
-	if ((fin->fin_p == IPPROTO_ICMP) && !(nflags & IPN_ICMPQUERY) &&
+	if (((fin->fin_flx & FI_ICMPERR) != 0) &&
 	    (nat = nat_icmperror(fin, &nflags, NAT_OUTBOUND)))
 		/*EMPTY*/;
 	else if ((fin->fin_flx & FI_FRAG) && (nat = fr_nat_knownfrag(fin)))
@@ -4088,7 +4097,7 @@ u_32_t *passp;
 
 	READ_ENTER(&ipf_nat);
 
-	if ((fin->fin_p == IPPROTO_ICMP) && !(nflags & IPN_ICMPQUERY) &&
+	if (((fin->fin_flx & FI_ICMPERR) != 0) &&
 	    (nat = nat_icmperror(fin, &nflags, NAT_INBOUND)))
 		/*EMPTY*/;
 	else if ((fin->fin_flx & FI_FRAG) && (nat = fr_nat_knownfrag(fin)))

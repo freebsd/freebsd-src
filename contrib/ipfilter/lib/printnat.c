@@ -217,6 +217,8 @@ int opts;
 			putchar(' ');
 			printproto(pr, np->in_p, np);
 		}
+		if (np->in_flags & IPN_SEQUENTIAL)
+			printf(" sequential");
 		printf("\n");
 		if (opts & OPT_DEBUG) {
 			struct in_addr nip;
