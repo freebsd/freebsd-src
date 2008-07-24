@@ -1531,7 +1531,7 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			pfi_kif_ref(rule->kif, PFI_KIF_REF_RULE);
 		}
 
-#ifdef __FreeBSD__ /* ROUTEING */
+#ifdef __FreeBSD__ /* ROUTING */
 		if (rule->rtableid > 0 && rule->rtableid > rt_numfibs)
 #else
 		if (rule->rtableid > 0 && !rtable_exists(rule->rtableid))
