@@ -492,9 +492,9 @@ age_phy_reset(struct age_softc *sc)
 
 	/* Reset PHY. */
 	CSR_WRITE_4(sc, AGE_GPHY_CTRL, GPHY_CTRL_RST);
-	pause("agephy", hz / 1000);
+	DELAY(1000);
 	CSR_WRITE_4(sc, AGE_GPHY_CTRL, GPHY_CTRL_CLR);
-	pause("agephy", hz / 1000);
+	DELAY(1000);
 }
 
 static int
