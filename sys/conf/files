@@ -697,6 +697,7 @@ dev/igb/if_igb.c		optional igb \
 dev/igb/e1000_82575.c		optional igb | em \
 	compile-with "${NORMAL_C} -I$S/dev/igb"
 dev/iicbus/ad7418.c		optional ad7418
+dev/iicbus/ds1339.c		optional ds1339
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
