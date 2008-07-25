@@ -2442,6 +2442,63 @@ freebsd32_sigwaitinfo(struct thread *td, struct freebsd32_sigwaitinfo_args *uap)
 	return (error);
 }
 
+int
+freebsd32_cpuset_setid(struct thread *td,
+    struct freebsd32_cpuset_setid_args *uap)
+{
+	struct cpuset_setid_args ap;
+
+	ap.which = uap->which;
+	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.setid = uap->setid;
+
+	return cpuset_setid(td, &ap);
+}
+
+int
+freebsd32_cpuset_getid(struct thread *td,
+    struct freebsd32_cpuset_getid_args *uap)
+{
+	struct cpuset_getid_args ap;
+
+	ap.level = uap->level;
+	ap.which = uap->which;
+	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.setid = uap->setid;
+
+	return cpuset_getid(td, &ap);
+}
+
+int
+freebsd32_cpuset_getaffinity(struct thread *td,
+    struct freebsd32_cpuset_getaffinity_args *uap)
+{
+	struct cpuset_getaffinity_args ap;
+
+	ap.level = uap->level;
+	ap.which = uap->which;
+	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.cpusetsize = uap->cpusetsize;
+	ap.mask = uap->mask;
+
+	return cpuset_getaffinity(td, &ap);
+}
+
+int
+freebsd32_cpuset_setaffinity(struct thread *td,
+    struct freebsd32_cpuset_setaffinity_args *uap)
+{
+	struct cpuset_setaffinity_args ap;
+
+	ap.level = uap->level;
+	ap.which = uap->which;
+	ap.id = (uap->idlo | ((id_t)uap->idhi << 32));
+	ap.cpusetsize = uap->cpusetsize;
+	ap.mask = uap->mask;
+
+	return cpuset_setaffinity(td, &ap);
+}
+
 #if 0
 
 int

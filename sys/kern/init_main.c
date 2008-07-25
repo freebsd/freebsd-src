@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
+#include <sys/cpuset.h>
 
 #include <machine/cpu.h>
 
@@ -431,6 +432,7 @@ proc0_init(void *dummy __unused)
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
 	td->td_flags = TDF_INMEM;
+	td->td_cpuset = cpuset_thread0();
 	p->p_peers = 0;
 	p->p_leader = p;
 

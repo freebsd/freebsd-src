@@ -124,6 +124,10 @@ typedef	__blksize_t	blksize_t;
 #define	_BLKSIZE_T_DECLARED
 #endif
 
+typedef	__cpuwhich_t	cpuwhich_t;
+typedef	__cpulevel_t	cpulevel_t;
+typedef	__cpusetid_t	cpusetid_t;
+
 #ifndef _BLKCNT_T_DECLARED
 typedef	__blkcnt_t	blkcnt_t;
 #define	_BLKCNT_T_DECLARED
