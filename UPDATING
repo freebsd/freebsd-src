@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	The sio(4) driver has been removed from the i386 and amd64
 	kernel configuration files. This means uart(4) is now the
 	default serial port driver on those platforms as well.
-	
+
 	To prevent collisions with the sio(4) driver, the uart(4) driver
 	uses different names for its device nodes. This means the
 	onboard serial port will now most likely be called "ttyu0"
@@ -40,7 +40,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 20080603:
 	The version that Linuxulator emulates was changed from 2.4.2
 	to 2.6.16. If you experience any problems with Linux binaries
-	please try to set sysctl compat.linux.osrelease to 2.4.2 and 
+	please try to set sysctl compat.linux.osrelease to 2.4.2 and
 	if it fixes the problem contact emulation mailing list.
 
 20080525:
@@ -343,9 +343,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	replace it as a more portable (and re-entrant) API.
 
 20070224:
-	To support interrupt filtering a modification to the newbus API 
+	To support interrupt filtering a modification to the newbus API
 	has occurred, ABI was broken and __FreeBSD_version was bumped
-	to 700031. Please make sure that your kernel and modules are in 
+	to 700031. Please make sure that your kernel and modules are in
 	sync. For more info:
 	http://docs.freebsd.org/cgi/mid.cgi?20070221233124.GA13941
 
@@ -404,8 +404,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	'hw.pci.enable_msix' tunables to 0 in the loader.
 
 20061205:
-	The removal of several facets of the experimental Threading 
-	system from the kernel means that the proc and thread structures 
+	The removal of several facets of the experimental Threading
+	system from the kernel means that the proc and thread structures
 	have changed quite a bit. I suggest all kernel modules that might
 	reference these structures be recompiled.. Especially the
 	linux module.
@@ -457,7 +457,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	The MUTEX_PROFILING option has been renamed to LOCK_PROFILING.
 	The lockmgr object layout has been changed as a result of having
 	a lock_object embedded in it. As a consequence all file system
-	kernel modules must be re-compiled. The mutex profiling man page 
+	kernel modules must be re-compiled. The mutex profiling man page
 	has not yet been updated to reflect this change.
 
 20061026:
@@ -506,7 +506,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
  	after updating the kernel sources and compiling a new kernel,
  	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
  	be rebuilt, and vice versa.
- 
+
 20060627:
 	The XBOX kernel now defaults to the nfe(4) driver instead of
 	the nve(4) driver. Please update your configuration
@@ -588,7 +588,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 20060201:
 	The kernel ABI to file system modules was changed on i386.
 	Please make sure that your kernel and modules are in sync.
-	
+
 20060118:
 	This actually occured some time ago, but installing the kernel
 	now also installs a bunch of symbol files for the kernel modules.
