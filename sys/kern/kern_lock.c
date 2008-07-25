@@ -392,12 +392,12 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    &contested, &waittime);
 
 			/*
-			 * If the lock is alredy held by curthread in
+			 * If the lock is already held by curthread in
 			 * exclusive way avoid a deadlock.
 			 */
 			if (LK_HOLDER(x) == tid) {
 				LOCK_LOG2(lk,
-				    "%s: %p alredy held in exclusive mode",
+				    "%s: %p already held in exclusive mode",
 				    __func__, lk);
 				error = EDEADLK;
 				break;
@@ -504,7 +504,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    LOP_EXCLUSIVE, file, line);
 
 		/*
-		 * If curthread alredy holds the lock and this one is
+		 * If curthread already holds the lock and this one is
 		 * allowed to recurse, simply recurse on it.
 		 */
 		if (lockmgr_xlocked(lk)) {
@@ -722,7 +722,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    LOP_EXCLUSIVE, file, line);
 
 		/*
-		 * Trying to drain a lock we alredy own will result in a
+		 * Trying to drain a lock we already own will result in a
 		 * deadlock.
 		 */
 		if (lockmgr_xlocked(lk)) {
@@ -863,7 +863,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
 
 	/*
-	 * If the owner is alredy LK_KERNPROC just skip the whole operation.
+	 * If the owner is already LK_KERNPROC just skip the whole operation.
 	 */
 	if (LK_HOLDER(lk->lk_lock) != tid)
 		return;
