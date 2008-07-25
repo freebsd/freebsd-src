@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080725: sgtty.h removed
+OLD_FILES+=usr/include/sgtty.h
 # 20080719: sade(8) removed on all but amd64, i386 and sparc64
 .if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "i386" && \
     ${TARGET_ARCH} != "sparc64"
