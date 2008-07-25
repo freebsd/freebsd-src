@@ -86,19 +86,19 @@ __FBSDID("$FreeBSD$");
 
 int	ipxcksum = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, checksum, CTLFLAG_RW,
-	   &ipxcksum, 0, "compute ipx checksum");
+	   &ipxcksum, 0, "Compute ipx checksum");
 
 static int	ipxprintfs = 0;		/* printing forwarding information */
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxprintfs, CTLFLAG_RW,
-	   &ipxprintfs, 0, "printing forwarding information");
+	   &ipxprintfs, 0, "Printing forwarding information");
 
 static int	ipxforwarding = 0;
 SYSCTL_INT(_net_ipx_ipx, OID_AUTO, ipxforwarding, CTLFLAG_RW,
-	    &ipxforwarding, 0, "do ipx forwarding");
+	    &ipxforwarding, 0, "Enable ipx forwarding");
 
 static int	ipxnetbios = 0;
 SYSCTL_INT(_net_ipx, OID_AUTO, ipxnetbios, CTLFLAG_RW,
-	   &ipxnetbios, 0, "propagate netbios over ipx");
+	   &ipxnetbios, 0, "Propagate netbios over ipx");
 
 const union	ipx_net ipx_zeronet;
 const union	ipx_host ipx_zerohost;
