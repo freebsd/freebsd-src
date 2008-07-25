@@ -337,6 +337,11 @@ FBSD_1.0 {
 };
 
 FBSD_1.1 {
+	cpuset;
+	cpuset_getid;
+	cpuset_setid;
+	cpuset_getaffinity;
+	cpuset_setaffinity;
 	setfib;
 };
 
@@ -455,6 +460,16 @@ FBSDprivate_1.0 {
 	__sys_close;
 	_connect;
 	__sys_connect;
+	_cpuset;
+	__sys_cpuset;
+	_cpuset_getid;
+	__sys_cpuset_getid;
+	_cpuset_setid;
+	__sys_cpuset_setid;
+	_cpuset_getaffinity;
+	__sys_cpuset_getaffinity;
+	_cpuset_setaffinity;
+	__sys_cpuset_setaffinity;
 	_dup;
 	__sys_dup;
 	_dup2;

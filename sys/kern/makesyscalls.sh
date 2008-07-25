@@ -132,6 +132,7 @@ s/\$//g
 		printf "#define\t%s\n\n", sysproto_h > sysarg
 		printf "#include <sys/signal.h>\n" > sysarg
 		printf "#include <sys/acl.h>\n" > sysarg
+		printf "#include <sys/cpuset.h>\n" > sysarg
 		printf "#include <sys/_semaphore.h>\n" > sysarg
 		printf "#include <sys/ucontext.h>\n\n" > sysarg
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
@@ -488,7 +489,6 @@ s/\$//g
 
 		if (ncompat != 0 || ncompat4 != 0 || ncompat6 != 0)
 			printf "#include \"opt_compat.h\"\n\n" > syssw
-		printf "#include \<bsm/audit_kevents.h\>\n" > syssw
 
 		if (ncompat != 0) {
 			printf "\n#ifdef %s\n", compat > sysinc

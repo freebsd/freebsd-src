@@ -848,5 +848,20 @@
 479	AUE_TRUNCATE	STD	{ int truncate(char *path, off_t length); }
 480	AUE_FTRUNCATE	STD	{ int ftruncate(int fd, off_t length); }
 481	AUE_KILL	STD	{ int thr_kill2(pid_t pid, long id, int sig); }
+482	AUE_NULL	UNIMPL	shm_open
+483	AUE_NULL	UNIMPL	shm_unlink
+484	AUE_NULL	STD	{ int cpuset(cpusetid_t *setid); }
+485	AUE_NULL	STD	{ int cpuset_setid(cpuwhich_t which, id_t id, \
+				    cpusetid_t setid); }
+486	AUE_NULL	STD	{ int cpuset_getid(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, \
+				    cpusetid_t *setid); }
+487	AUE_NULL	STD	{ int cpuset_getaffinity(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+				    cpuset_t *mask); }
+488	AUE_NULL	STD	{ int cpuset_setaffinity(cpulevel_t level, \
+				    cpuwhich_t which, id_t id, size_t cpusetsize, \
+				    const cpuset_t *mask); }
+
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
