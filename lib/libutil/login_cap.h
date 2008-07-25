@@ -48,7 +48,8 @@
 #define LOGIN_SETUSER		0x0040		/* set user (via setuid) */
 #define LOGIN_SETENV		0x0080		/* set user environment */
 #define LOGIN_SETMAC		0x0100		/* set user default MAC label */
-#define LOGIN_SETALL		0x01ff		/* set everything */
+#define LOGIN_SETCPUMASK	0x0200		/* set user cpumask */
+#define LOGIN_SETALL		0x03ff		/* set everything */
 
 #define BI_AUTH		"authorize"		/* accepted authentication */
 #define BI_REJECT	"reject"		/* rejected authentication */
