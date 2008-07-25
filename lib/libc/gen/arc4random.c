@@ -54,8 +54,7 @@ struct arc4_stream {
 
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-#define	RANDOMDEV	"/dev/random"
-#define KEYSIZE		128
+#define	RANDOMDEV	"/dev/urandom"
 #define	THREAD_LOCK()						\
 	do {							\
 		if (__isthreaded)				\
@@ -107,40 +106,34 @@ arc4_addrandom(u_char *dat, int datlen)
 static void
 arc4_stir(void)
 {
-	int done, fd, n;
+	int     fd, n;
 	struct {
-		struct timeval	tv;
-		pid_t 		pid;
-		u_int8_t 	rnd[KEYSIZE];
-	} rdat;
+		struct timeval tv;
+		pid_t pid;
+		u_int8_t rnd[128 - sizeof(struct timeval) - sizeof(pid_t)];
+	}       rdat;
 
+	gettimeofday(&rdat.tv, NULL);
+	rdat.pid = getpid();
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
-	done = 0;
 	if (fd >= 0) {
-		if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
-			done = 1;
-		(void)_close(fd);
+		(void) _read(fd, rdat.rnd, sizeof(rdat.rnd));
+		_close(fd);
 	} 
-	if (!done) {
-		(void)gettimeofday(&rdat.tv, NULL);
-		rdat.pid = getpid();
-		/* We'll just take whatever was on the stack too... */
-	}
+	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
+	 * stack... */
 
-	arc4_addrandom((u_char *)&rdat, KEYSIZE);
+	arc4_addrandom((void *) &rdat, sizeof(rdat));
 
 	/*
 	 * Throw away the first N bytes of output, as suggested in the
 	 * paper "Weaknesses in the Key Scheduling Algorithm of RC4"
-	 * by Fluher, Mantin, and Shamir.  N=768 is based on
+	 * by Fluher, Mantin, and Shamir.  N=1024 is based on
 	 * suggestions in the paper "(Not So) Random Shuffles of RC4"
 	 * by Ilya Mironov.
 	 */
-	if (rs_initialized != 1) {
-		for (n = 0; n < 768; n++)
-			(void)arc4_getbyte();
-		rs_initialized = 1;
-	}
+	for (n = 0; n < 1024; n++)
+		(void) arc4_getbyte();
 	arc4_count = 1600000;
 }
 
@@ -177,7 +170,7 @@ arc4_check_init(void)
 {
 	if (!rs_initialized) {
 		arc4_init();
-		rs_initialized = 2;
+		rs_initialized = 1;
 	}
 }
 
@@ -196,7 +189,6 @@ arc4random_stir(void)
 	THREAD_LOCK();
 	arc4_check_init();
 	arc4_stir();
-	rs_stired = 1;
 	THREAD_UNLOCK();
 }
 
@@ -257,10 +249,6 @@ arc4random_uniform(u_int32_t upper_bound)
 
 	if (upper_bound < 2)
 		return (0);
-
-	/* Detect simple power of two case */
-	if ((upper_bound & -upper_bound) == upper_bound)
-		return (arc4random() % upper_bound);
 
 #if (ULONG_MAX > 0xffffffffUL)
 	min = 0x100000000UL % upper_bound;
