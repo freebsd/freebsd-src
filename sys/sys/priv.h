@@ -187,6 +187,7 @@
 #define	PRIV_SCHED_SETPOLICY	203	/* Can set scheduler policy. */
 #define	PRIV_SCHED_SET		204	/* Can set thread scheduler. */
 #define	PRIV_SCHED_SETPARAM	205	/* Can set thread scheduler params. */
+#define	PRIV_SCHED_CPUSET	206	/* Can manipulate cpusets. */
 
 /*
  * POSIX semaphore privileges.

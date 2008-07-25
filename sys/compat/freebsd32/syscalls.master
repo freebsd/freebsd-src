@@ -797,3 +797,23 @@
 480	AUE_FTRUNCATE	STD	{ int freebsd32_ftruncate(int fd, \
 				    u_int32_t lengthlo, u_int32_t lengthhi); }
 481	AUE_KILL	NOPROTO	{ int thr_kill2(pid_t pid, long id, int sig); }
+482	AUE_NULL	UNIMPL	shm_open
+483	AUE_NULL	UNIMPL	shm_unlink
+484	AUE_NULL	NOPROTO	{ int cpuset(cpusetid_t *setid); }
+485	AUE_NULL	STD	{ int freebsd32_cpuset_setid(cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    cpusetid_t setid); }
+486	AUE_NULL	STD	{ int freebsd32_cpuset_getid(cpulevel_t level, \
+				    cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    cpusetid_t *setid); }
+487	AUE_NULL	STD	{ int freebsd32_cpuset_getaffinity( \
+				    cpulevel_t level, cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    size_t cpusetsize, \
+				    cpuset_t *mask); }
+488	AUE_NULL	STD	{ int freebsd32_cpuset_setaffinity( \
+				    cpulevel_t level, cpuwhich_t which, \
+				    uint32_t idlo, uint32_t idhi, \
+				    size_t cpusetsize, \
+				    const cpuset_t *mask); }

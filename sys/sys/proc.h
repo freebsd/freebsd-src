@@ -163,6 +163,7 @@ struct thread;
 struct trapframe;
 struct turnstile;
 struct mqueue_notifier;
+struct cpuset;
 
 /*
  * Here we define the two structures used for process information.
@@ -208,7 +209,6 @@ struct thread {
 	/* The two queues below should someday be merged. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
-
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
 	struct turnstile *td_turnstile;	/* (k) Associated turnstile. */
@@ -299,6 +299,7 @@ struct thread {
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
 	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
+	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
 };
 
 struct mtx *thread_lock_block(struct thread *);

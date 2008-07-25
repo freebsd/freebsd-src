@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -647,6 +648,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 {
 	childtd->td_estcpu = td->td_estcpu;
 	childtd->td_lock = &sched_lock;
+	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
 	sched_newthread(childtd);
 }
 
@@ -1401,6 +1403,11 @@ sched_fork_exit(struct thread *td)
 	td->td_oncpu = PCPU_GET(cpuid);
 	sched_lock.mtx_lock = (uintptr_t)td;
 	THREAD_LOCK_ASSERT(td, MA_OWNED | MA_NOTRECURSED);
+}
+
+void
+sched_affinity(struct thread *td)
+{
 }
 
 #define KERN_SWITCH_INCLUDE 1
