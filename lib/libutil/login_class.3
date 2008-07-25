@@ -155,6 +155,18 @@ capability "setenv=var1 val1,var2 val2..,varN valN".
 Set the MAC label for the current process to the label specified
 in system login class database.
 .Pp
+.It LOGIN_SETCPUMASK
+Create a new
+.Xr cpuset 2
+and set the cpu affinity to the specified mask.
+The string may contain a comma separated list of numbers and/or number
+ranges as handled by the
+.Xr cpuset 1
+utility or the case-insensitive string 
+.Ql default .
+If the string is
+.Ql default
+no action will be taken.
 .It LOGIN_SETALL
 Enables all of the above settings.
 .El
@@ -186,6 +198,8 @@ or resources, a message is reported to
 .Xr syslog 3 ,
 with LOG_ERR priority and directed to the currently active facility.
 .Sh SEE ALSO
+.Xr cpuset 1 ,
+.Xr cpuset 2 ,
 .Xr setgid 2 ,
 .Xr setlogin 2 ,
 .Xr setuid 2 ,

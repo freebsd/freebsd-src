@@ -26,9 +26,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/cpuset.h>
 #include <sys/mac.h>
 #include <sys/rtprio.h>
 #include <errno.h>
@@ -239,6 +241,108 @@ setclassenvironment(login_cap_t *lc, const struct passwd * pwd, int paths)
 }
 
 
+static int
+list2cpuset(const char *list, cpuset_t *mask)
+{
+	enum { NONE, NUM, DASH } state;
+	int lastnum;
+	int curnum;
+	const char *l;
+
+	state = NONE;
+	curnum = lastnum = 0;
+	for (l = list; *l != '\0';) {
+		if (isdigit(*l)) {
+			curnum = atoi(l);
+			if (curnum > CPU_SETSIZE)
+				errx(EXIT_FAILURE,
+				    "Only %d cpus supported", CPU_SETSIZE);
+			while (isdigit(*l))
+				l++;
+			switch (state) {
+			case NONE:
+				lastnum = curnum;
+				state = NUM;
+				break;
+			case DASH:
+				for (; lastnum <= curnum; lastnum++)
+					CPU_SET(lastnum, mask);
+				state = NONE;
+				break;
+			case NUM:
+			default:
+				return (0);
+			}
+			continue;
+		}
+		switch (*l) {
+		case ',':
+			switch (state) {
+			case NONE:
+				break;
+			case NUM:
+				CPU_SET(curnum, mask);
+				state = NONE;
+				break;
+			case DASH:
+				return (0);
+				break;
+			}
+			break;
+		case '-':
+			if (state != NUM)
+				return (0);
+			state = DASH;
+			break;
+		default:
+			return (0);
+		}
+		l++;
+	}
+	switch (state) {
+		case NONE:
+			break;
+		case NUM:
+			CPU_SET(curnum, mask);
+			break;
+		case DASH:
+			return (0);
+	}
+	return 1;
+}
+
+
+void
+setclasscpumask(login_cap_t *lc)
+{
+	const char *maskstr;
+	cpuset_t maskset;
+	cpusetid_t setid;
+
+	maskstr = login_getcapstr(lc, "cpumask", NULL, NULL);
+	CPU_ZERO(&maskset);
+	if (maskstr == NULL)
+		return;
+	if (strcasecmp("default", maskstr) == 0)
+		return;
+	if (!list2cpuset(maskstr, &maskset)) {
+		syslog(LOG_WARNING,
+		    "list2cpuset(%s) invalid mask specification", maskstr);
+		return;
+	}
+
+	if (cpuset(&setid) != 0) {
+		syslog(LOG_ERR, "cpuset(): %s", strerror(errno));
+		return;
+	}
+
+	if (cpuset_setaffinity(CPU_LEVEL_CPUSET, CPU_WHICH_PID, -1,
+	    sizeof(maskset), &maskset) != 0)
+		syslog(LOG_ERR, "cpuset_setaffinity(%s): %s", maskstr,
+		    strerror(errno));
+}
+
+
 /*
  * setclasscontext()
  *
@@ -289,6 +393,9 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd,
 	/* Set environment */
 	if (flags & LOGIN_SETENV)
 	    setclassenvironment(lc, pwd, 0);
+	/* Set cpu affinity */
+	if (flags & LOGIN_SETCPUMASK)
+	    setclasscpumask(lc);
     }
     return mymask;
 }
