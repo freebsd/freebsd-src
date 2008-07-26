@@ -242,12 +242,19 @@ g_part_pc98_dumpconf(struct g_part_table *table,
 {
 	struct g_part_pc98_entry *entry;
 	u_int type;
-	if (indent != NULL)
-		return (0);
 
 	entry = (struct g_part_pc98_entry *)baseentry;
-	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-	sbuf_printf(sb, " xs PC98 xt %u", type);
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
+		sbuf_printf(sb, " xs PC98 xt %u", type);
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent, type);
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 

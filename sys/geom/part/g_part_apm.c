@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006, 2007 Marcel Moolenaar
+ * Copyright (c) 2006-2008 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -235,13 +235,27 @@ static int
 g_part_apm_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
+	union {
+		char name[APM_ENT_NAMELEN + 1];
+		char type[APM_ENT_TYPELEN + 1];
+	} u;
 	struct g_part_apm_entry *entry;
 
-	if (indent != NULL)
-		return (0);
-
 	entry = (struct g_part_apm_entry *)baseentry;
-	sbuf_printf(sb, " xs APPLE xt %s", entry->ent.ent_type);
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		sbuf_printf(sb, " xs APPLE xt %s", entry->ent.ent_type);
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		strncpy(u.name, entry->ent.ent_name, APM_ENT_NAMELEN);
+		u.name[APM_ENT_NAMELEN] = '\0';
+		sbuf_printf(sb, "%s<label>%s</label>\n", indent, u.name);
+		strncpy(u.type, entry->ent.ent_type, APM_ENT_TYPELEN);
+		u.type[APM_ENT_TYPELEN] = '\0';
+		sbuf_printf(sb, "%s<rawtype>%s</rawtype>\n", indent, u.type);
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 

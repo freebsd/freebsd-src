@@ -437,13 +437,21 @@ g_part_gpt_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
     struct sbuf *sb, const char *indent)
 {
 	struct g_part_gpt_entry *entry;
-
-	if (indent != NULL)
-		return (0);
-
+ 
 	entry = (struct g_part_gpt_entry *)baseentry;
-	sbuf_printf(sb, " xs GPT xt ");
-	sbuf_printf_uuid(sb, &entry->ent.ent_type);
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		sbuf_printf(sb, " xs GPT xt ");
+		sbuf_printf_uuid(sb, &entry->ent.ent_type);
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		// sbuf_printf(sb, "%s<label>%s</label>\n", indent, NULL);
+		sbuf_printf(sb, "%s<rawtype>", indent);
+		sbuf_printf_uuid(sb, &entry->ent.ent_type);
+		sbuf_printf(sb, "</rawtype>\n");
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 
