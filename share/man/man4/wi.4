@@ -347,6 +347,24 @@ older versions of station firmware.
 .Pp
 Lucent cards prior to firmware version 6.0.6 do not implement IBSS
 mode and are not supported.
+.Pp
+Prior versions of
+.Nm 
+supported Symbol firmware.
+That support has been removed due to persistent problems with this
+firmware as well as getting proper documentation on this firmware.
+.Pp
+Hermes 2 and Hermes 3 chips are not supported by this driver.
+.Pp
+Here's the above requirements in the form of a table
+.Pp
+.Bl -column -compact "Prims II/2.5" "xxxxxxxx" "xxxxxxxx" "xxxxxxxx" "xxxxxxxx"
+.Em "Firmware	Minimum	WPA	Host AP	Adhoc/IBSS"
+Prism II/2.5	0.8.0	1.7.0	1.3.4	1.3.1
+Prism 3	0.8.0	1.7.0	1.4.9	1.3.1
+Hermes	6.0.6	none	none	6.0.6
+Symbol	none	none	none	none
+.El
 .Sh BUGS
 Not all the new messages are documented here, and many of them are
 indications of transient errors that are not indications of serious
