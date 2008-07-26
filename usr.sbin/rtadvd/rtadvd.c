@@ -894,7 +894,7 @@ set_short_delay(rai)
 	 * already-scheduled time. RFC-2461 6.2.6
 	 */
 #ifdef HAVE_ARC4RANDOM
-	delay = arc4random() % MAX_RA_DELAY_TIME;
+	delay = arc4random_uniform(MAX_RA_DELAY_TIME);
 #else
 	delay = random() % MAX_RA_DELAY_TIME;
 #endif
@@ -1661,7 +1661,7 @@ ra_timer_update(void *data, struct timeval *tm)
 	 */
 	interval = rai->mininterval; 
 #ifdef HAVE_ARC4RANDOM
-	interval += arc4random() % (rai->maxinterval - rai->mininterval);
+	interval += arc4random_uniform(rai->maxinterval - rai->mininterval);
 #else
 	interval += random() % (rai->maxinterval - rai->mininterval);
 #endif
