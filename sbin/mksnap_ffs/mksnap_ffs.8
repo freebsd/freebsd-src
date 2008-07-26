@@ -68,6 +68,9 @@ group.
 .Xr chmod 2 ,
 .Xr chown 8 ,
 .Xr mount 8
+.Sh CAVEATS
+The disk full situation is not handled gracefully and may
+lead to a system panic when no free blocks are found.
 .Sh HISTORY
 The
 .Nm
