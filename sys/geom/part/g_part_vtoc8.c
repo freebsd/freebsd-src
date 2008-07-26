@@ -244,13 +244,19 @@ g_part_vtoc8_dumpconf(struct g_part_table *basetable,
 {
 	struct g_part_vtoc8_table *table;
 
-	if (indent != NULL)
-		return (0);
-
 	table = (struct g_part_vtoc8_table *)basetable;
-	sbuf_printf(sb, " xs SUN sc %u hd %u alt %u",
-	    be16dec(&table->vtoc.nsecs), be16dec(&table->vtoc.nheads),
-	    be16dec(&table->vtoc.altcyls));
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		sbuf_printf(sb, " xs SUN sc %u hd %u alt %u",
+		    be16dec(&table->vtoc.nsecs), be16dec(&table->vtoc.nheads),
+		    be16dec(&table->vtoc.altcyls));
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
+		    be16dec(&table->vtoc.part[entry->gpe_index - 1].tag));
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 
