@@ -246,28 +246,27 @@ rip_input(struct mbuf *m, int off)
 	ripsrc.sin_family = AF_INET;
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
-	INP_INFO_RLOCK(&ripcbinfo);
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, ripcbinfo.ipi_hashmask);
+	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(inp, &ripcbinfo.ipi_hashbase[hash], inp_hash) {
+		if (inp->inp_ip_p != proto)
+			continue;
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == 0)
+			continue;
+#endif
+		if (inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+			continue;
+		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+			continue;
 		INP_RLOCK(inp);
-		if (inp->inp_ip_p != proto) {
-	docontinue1:
+		if (jailed(inp->inp_socket->so_cred) &&
+		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+		    ip->ip_dst.s_addr)) {
 			INP_RUNLOCK(inp);
 			continue;
 		}
-#ifdef INET6
-		if ((inp->inp_vflag & INP_IPV4) == 0)
-			goto docontinue1;
-#endif
-		if (inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
-			goto docontinue1;
-		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
-			goto docontinue1;
-		if (jailed(inp->inp_socket->so_cred) &&
-		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
-			ip->ip_dst.s_addr))
-				goto docontinue1;
 		if (last) {
 			struct mbuf *n;
 
@@ -280,26 +279,25 @@ rip_input(struct mbuf *m, int off)
 		last = inp;
 	}
 	LIST_FOREACH(inp, &ripcbinfo.ipi_hashbase[0], inp_hash) {
-		INP_RLOCK(inp);
-		if (inp->inp_ip_p && inp->inp_ip_p != proto) {
-	docontinue:
-			INP_RUNLOCK(inp);
+		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
-		}
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0)
-			goto docontinue;
+			continue;
 #endif
 		if (inp->inp_laddr.s_addr &&
 		    inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
-			goto docontinue;
+			continue;
 		if (inp->inp_faddr.s_addr &&
 		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
-			goto docontinue;
-		if (jailed(inp->inp_socket->so_cred))
-			if (htonl(prison_getip(inp->inp_socket->so_cred)) !=
-			    ip->ip_dst.s_addr)
-				goto docontinue;
+			continue;
+		INP_RLOCK(inp);
+		if (jailed(inp->inp_socket->so_cred) &&
+		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+		    ip->ip_dst.s_addr)) {
+			INP_RUNLOCK(inp);
+			continue;
+		}
 		if (last) {
 			struct mbuf *n;
 
@@ -311,6 +309,7 @@ rip_input(struct mbuf *m, int off)
 		}
 		last = inp;
 	}
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	if (last != NULL) {
 		if (rip_append(last, ip, m, &ripsrc) != 0)
 			ipstat.ips_delivered--;
@@ -320,7 +319,6 @@ rip_input(struct mbuf *m, int off)
 		ipstat.ips_noproto++;
 		ipstat.ips_delivered--;
 	}
-	INP_INFO_RUNLOCK(&ripcbinfo);
 }
 
 /*
