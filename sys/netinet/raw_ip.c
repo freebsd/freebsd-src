@@ -109,6 +109,41 @@ int (*ip_rsvp_vif)(struct socket *, struct sockopt *);
 void (*ip_rsvp_force_done)(struct socket *);
 
 /*
+ * Hash functions
+ */
+
+#define INP_PCBHASH_RAW_SIZE	256
+#define INP_PCBHASH_RAW(proto, laddr, faddr, mask) \
+        (((proto) + (laddr) + (faddr)) % (mask) + 1)
+
+static void
+rip_inshash(struct inpcb *inp)
+{
+	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
+	struct inpcbhead *pcbhash;
+	int hash;
+
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_WLOCK_ASSERT(inp);
+	
+	if (inp->inp_ip_p && inp->inp_laddr.s_addr && inp->inp_faddr.s_addr) {
+		hash = INP_PCBHASH_RAW(inp->inp_ip_p, inp->inp_laddr.s_addr,
+		    inp->inp_faddr.s_addr, pcbinfo->ipi_hashmask);
+	} else {
+		hash = 0;
+	}
+	pcbhash = &pcbinfo->ipi_hashbase[hash];
+	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
+}
+
+static void
+rip_delhash(struct inpcb *inp)
+{
+	INP_WLOCK_ASSERT(inp);
+	LIST_REMOVE(inp, inp_hash);
+}
+
+/*
  * Raw interface to IP protocol.
  */
 
@@ -138,12 +173,8 @@ rip_init(void)
 	INP_INFO_LOCK_INIT(&ripcbinfo, "rip");
 	LIST_INIT(&ripcb);
 	ripcbinfo.ipi_listhead = &ripcb;
-	/*
-	 * XXX We don't use the hash list for raw IP, but it's easier to
-	 * allocate a one entry hash list than it is to check all over the
-	 * place for hashbase == NULL.
-	 */
-	ripcbinfo.ipi_hashbase = hashinit(1, M_PCB, &ripcbinfo.ipi_hashmask);
+	ripcbinfo.ipi_hashbase = hashinit(INP_PCBHASH_RAW_SIZE, M_PCB,
+	    &ripcbinfo.ipi_hashmask);
 	ripcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
 	    &ripcbinfo.ipi_porthashmask);
 	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
@@ -208,6 +239,7 @@ rip_input(struct mbuf *m, int off)
 	int proto = ip->ip_p;
 	struct inpcb *inp, *last;
 	struct sockaddr_in ripsrc;
+	int hash;
 
 	bzero(&ripsrc, sizeof(ripsrc));
 	ripsrc.sin_len = sizeof(ripsrc);
@@ -215,7 +247,39 @@ rip_input(struct mbuf *m, int off)
 	ripsrc.sin_addr = ip->ip_src;
 	last = NULL;
 	INP_INFO_RLOCK(&ripcbinfo);
-	LIST_FOREACH(inp, &ripcb, inp_list) {
+	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
+	    ip->ip_dst.s_addr, ripcbinfo.ipi_hashmask);
+	LIST_FOREACH(inp, &ripcbinfo.ipi_hashbase[hash], inp_hash) {
+		INP_RLOCK(inp);
+		if (inp->inp_ip_p != proto) {
+	docontinue1:
+			INP_RUNLOCK(inp);
+			continue;
+		}
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == 0)
+			goto docontinue1;
+#endif
+		if (inp->inp_laddr.s_addr != ip->ip_dst.s_addr)
+			goto docontinue1;
+		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
+			goto docontinue1;
+		if (jailed(inp->inp_socket->so_cred) &&
+		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+			ip->ip_dst.s_addr))
+				goto docontinue1;
+		if (last) {
+			struct mbuf *n;
+
+			n = m_copy(m, 0, (int)M_COPYALL);
+			if (n != NULL)
+		    	    (void) rip_append(last, ip, n, &ripsrc);
+			/* XXX count dropped packet */
+			INP_RUNLOCK(last);
+		}
+		last = inp;
+	}
+	LIST_FOREACH(inp, &ripcbinfo.ipi_hashbase[0], inp_hash) {
 		INP_RLOCK(inp);
 		if (inp->inp_ip_p && inp->inp_ip_p != proto) {
 	docontinue:
@@ -610,10 +674,11 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&ripcbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_p = proto;
 	inp->inp_ip_ttl = ip_defttl;
+	rip_inshash(inp);
+	INP_INFO_WUNLOCK(&ripcbinfo);
 	INP_WUNLOCK(inp);
 	return (0);
 }
@@ -630,6 +695,7 @@ rip_detach(struct socket *so)
 
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_WLOCK(inp);
+	rip_delhash(inp);
 	if (so == ip_mrouter && ip_mrouter_done)
 		ip_mrouter_done();
 	if (ip_rsvp_force_done)
@@ -644,10 +710,11 @@ rip_detach(struct socket *so)
 static void
 rip_dodisconnect(struct socket *so, struct inpcb *inp)
 {
-
 	INP_WLOCK_ASSERT(inp);
 
+	rip_delhash(inp);
 	inp->inp_faddr.s_addr = INADDR_ANY;
+	rip_inshash(inp);
 	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;
 	SOCK_UNLOCK(so);
@@ -730,7 +797,9 @@ rip_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_WLOCK(inp);
+	rip_delhash(inp);
 	inp->inp_laddr = addr->sin_addr;
+	rip_inshash(inp);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
 	return (0);
@@ -754,7 +823,9 @@ rip_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_WLOCK(inp);
+	rip_delhash(inp);
 	inp->inp_faddr = addr->sin_addr;
+	rip_inshash(inp);
 	soisconnected(so);
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&ripcbinfo);
