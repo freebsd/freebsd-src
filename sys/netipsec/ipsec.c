@@ -126,31 +126,35 @@ SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY,
-	def_policy, CTLFLAG_RW,	&ip4_def_policy.policy,	0, "IPsec default policy.");
+    def_policy, CTLFLAG_RW, &ip4_def_policy.policy, 0,
+    "IPsec default policy.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
-	CTLFLAG_RW, &ip4_esp_trans_deflev,	0, "Default ESP transport mode level");
+    CTLFLAG_RW, &ip4_esp_trans_deflev, 0, "Default ESP transport mode level");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
-	CTLFLAG_RW, &ip4_esp_net_deflev,	0, "Default ESP tunnel mode level.");
+    CTLFLAG_RW, &ip4_esp_net_deflev, 0, "Default ESP tunnel mode level.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
-	CTLFLAG_RW, &ip4_ah_trans_deflev,	0, "AH transfer mode default level.");
+    CTLFLAG_RW, &ip4_ah_trans_deflev, 0, "AH transfer mode default level.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
-	CTLFLAG_RW, &ip4_ah_net_deflev,	0, "AH tunnel mode default level.");
+    CTLFLAG_RW, &ip4_ah_net_deflev, 0, "AH tunnel mode default level.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_CLEARTOS,
-	ah_cleartos, CTLFLAG_RW,	&ah_cleartos,	0,
-	"If set clear type-of-service field when doing AH computation.");
+    ah_cleartos, CTLFLAG_RW, &ah_cleartos, 0,
+    "If set clear type-of-service field when doing AH computation.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_AH_OFFSETMASK,
-	ah_offsetmask, CTLFLAG_RW,	&ip4_ah_offsetmask,	0,
-	"If not set clear offset field mask when doing AH computation.");
+    ah_offsetmask, CTLFLAG_RW, &ip4_ah_offsetmask, 0,
+    "If not set clear offset field mask when doing AH computation.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DFBIT,
-	dfbit, CTLFLAG_RW,	&ip4_ipsec_dfbit,	0, "Do not fragment bit on encap.");
+    dfbit, CTLFLAG_RW, &ip4_ipsec_dfbit, 0, "Do not fragment bit on encap.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_ECN,
-	ecn, CTLFLAG_RW,	&ip4_ipsec_ecn,	0, "Explicit Congestion Notification handling.");
+    ecn, CTLFLAG_RW, &ip4_ipsec_ecn, 0,
+    "Explicit Congestion Notification handling.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEBUG,
-	debug, CTLFLAG_RW,	&ipsec_debug,	0, "Enable IPsec debugging output when set.");
+    debug, CTLFLAG_RW, &ipsec_debug, 0,
+    "Enable IPsec debugging output when set.");
 SYSCTL_INT(_net_inet_ipsec, OID_AUTO,
-	crypto_support,	CTLFLAG_RW,	&crypto_support,0, "Crypto driver selection.");
+    crypto_support, CTLFLAG_RW, &crypto_support, 0,
+    "Crypto driver selection.");
 SYSCTL_STRUCT(_net_inet_ipsec, OID_AUTO,
-	ipsecstats,	CTLFLAG_RD,	&ipsec4stat, ipsecstat, "IPsec IPv4 statistics.");
+    ipsecstats, CTLFLAG_RD, &ipsec4stat, ipsecstat, "IPsec IPv4 statistics.");
 
 #ifdef REGRESSION
 /*
@@ -182,25 +186,26 @@ SYSCTL_DECL(_net_inet6_ipsec6);
 /* net.inet6.ipsec6 */
 #ifdef COMPAT_KAME
 SYSCTL_OID(_net_inet6_ipsec6, IPSECCTL_STATS, stats, CTLFLAG_RD,
-	0,0, compat_ipsecstats_sysctl, "S", "IPsec IPv6 statistics.");
+    0, 0, compat_ipsecstats_sysctl, "S", "IPsec IPv6 statistics.");
 #endif /* COMPAT_KAME */
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY,
-	def_policy, CTLFLAG_RW,	&ip4_def_policy.policy,	0, "IPsec default policy.");
+    def_policy, CTLFLAG_RW, &ip4_def_policy.policy, 0, "IPsec default policy.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
-	CTLFLAG_RW, &ip6_esp_trans_deflev,	0, "Default ESP transport mode level.");
+    CTLFLAG_RW, &ip6_esp_trans_deflev, 0, "Default ESP transport mode level.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_NETLEV, esp_net_deflev,
-	CTLFLAG_RW, &ip6_esp_net_deflev,	0, "Default ESP tunnel mode level.");
+    CTLFLAG_RW, &ip6_esp_net_deflev, 0, "Default ESP tunnel mode level.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_TRANSLEV, ah_trans_deflev,
-	CTLFLAG_RW, &ip6_ah_trans_deflev,	0, "AH transfer mode default level.");
+    CTLFLAG_RW, &ip6_ah_trans_deflev, 0, "AH transfer mode default level.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_AH_NETLEV, ah_net_deflev,
-	CTLFLAG_RW, &ip6_ah_net_deflev,	0, "AH tunnel mode default level.");
+    CTLFLAG_RW, &ip6_ah_net_deflev, 0, "AH tunnel mode default level.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_ECN,
-	ecn, CTLFLAG_RW,	&ip6_ipsec_ecn,	0,
-	"Explicit Congestion Notification handling.");
+    ecn, CTLFLAG_RW, &ip6_ipsec_ecn, 0,
+    "Explicit Congestion Notification handling.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEBUG,
-	debug, CTLFLAG_RW,	&ipsec_debug,	0, "Enable IPsec debugging output when set.");
+    debug, CTLFLAG_RW, &ipsec_debug, 0,
+    "Enable IPsec debugging output when set.");
 SYSCTL_STRUCT(_net_inet6_ipsec6, IPSECCTL_STATS,
-	ipsecstats, CTLFLAG_RD, &ipsec6stat, ipsecstat, "IPsec IPv6 statistics.");
+    ipsecstats, CTLFLAG_RD, &ipsec6stat, ipsecstat, "IPsec IPv6 statistics.");
 #endif /* INET6 */
 
 static int ipsec4_setspidx_inpcb __P((struct mbuf *, struct inpcb *pcb));
