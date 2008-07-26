@@ -341,7 +341,8 @@ thread_alloc(void)
 void
 thread_free(struct thread *td)
 {
-	cpuset_rel(td->td_cpuset);
+	if (td->td_cpuset)
+		cpuset_rel(td->td_cpuset);
 	td->td_cpuset = NULL;
 	cpu_thread_free(td);
 	if (td->td_altkstack != 0)
