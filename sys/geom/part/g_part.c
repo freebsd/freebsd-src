@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2005, 2006, 2007 Marcel Moolenaar
+ * Copyright (c) 2002, 2005-2008 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,7 +121,9 @@ enum g_part_ctl {
 	G_PART_CTL_MOVE,
 	G_PART_CTL_RECOVER,
 	G_PART_CTL_RESIZE,
-	G_PART_CTL_UNDO
+	G_PART_CTL_SET,
+	G_PART_CTL_UNDO,
+	G_PART_CTL_UNSET
 };
 
 /*
@@ -954,6 +956,53 @@ g_part_ctl_resize(struct gctl_req *req, struct g_part_parms *gpp)
 } 
 
 static int
+g_part_ctl_setunset(struct gctl_req *req, struct g_part_parms *gpp,
+    unsigned int set)
+{
+	char buf[32];
+	struct g_geom *gp;
+	struct g_part_entry *entry;
+	struct g_part_table *table;
+	struct sbuf *sb;
+	int error;
+
+	gp = gpp->gpp_geom;
+	G_PART_TRACE((G_T_TOPOLOGY, "%s(%s)", __func__, gp->name));
+	g_topology_assert();
+
+	table = gp->softc;
+
+	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
+		if (entry->gpe_deleted || entry->gpe_internal)
+			continue;
+		if (entry->gpe_index == gpp->gpp_index)
+			break;
+	}
+	if (entry == NULL) {
+		gctl_error(req, "%d index '%d'", ENOENT, gpp->gpp_index);
+		return (ENOENT);
+	}
+
+	error = G_PART_SETUNSET(table, entry, gpp->gpp_attrib, set);
+	if (error) {
+		gctl_error(req, "%d attrib '%s'", error, gpp->gpp_attrib);
+		return (error);
+	}
+
+	/* Provide feedback if so requested. */
+	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
+		sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+		sbuf_printf(sb, "%s%s has %s %sset\n", gp->name,
+		    G_PART_NAME(table, entry, buf, sizeof(buf)),
+		    gpp->gpp_attrib, (set) ? "" : "un");
+		sbuf_finish(sb);
+		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
+		sbuf_delete(sb);
+	}
+	return (0);
+}
+
+static int
 g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 {
 	struct g_consumer *cp;
@@ -1129,11 +1178,22 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_INDEX;
 		}
 		break;
+	case 's':
+		if (!strcmp(verb, "set")) {
+			ctlreq = G_PART_CTL_SET;
+			mparms |= G_PART_PARM_ATTRIB | G_PART_PARM_GEOM |
+			    G_PART_PARM_INDEX;
+		}
+		break;
 	case 'u':
 		if (!strcmp(verb, "undo")) {
 			ctlreq = G_PART_CTL_UNDO;
 			mparms |= G_PART_PARM_GEOM;
 			modifies = 0;
+		} else if (!strcmp(verb, "unset")) {
+			ctlreq = G_PART_CTL_UNSET;
+			mparms |= G_PART_PARM_ATTRIB | G_PART_PARM_GEOM |
+			    G_PART_PARM_INDEX;
 		}
 		break;
 	}
@@ -1147,6 +1207,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		ap = &req->arg[i];
 		parm = 0;
 		switch (ap->name[0]) {
+		case 'a':
+			if (!strcmp(ap->name, "attrib"))
+				parm = G_PART_PARM_ATTRIB;
+			break;
 		case 'b':
 			if (!strcmp(ap->name, "bootcode"))
 				parm = G_PART_PARM_BOOTCODE;
@@ -1215,6 +1279,9 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			return;
 		}
 		switch (parm) {
+		case G_PART_PARM_ATTRIB:
+			error = g_part_parm_str(p, &gpp.gpp_attrib);
+			break;
 		case G_PART_PARM_BOOTCODE:
 			gpp.gpp_codeptr = p;
 			gpp.gpp_codesize = len;
@@ -1328,8 +1395,14 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 	case G_PART_CTL_RESIZE:
 		error = g_part_ctl_resize(req, &gpp);
 		break;
+	case G_PART_CTL_SET:
+		error = g_part_ctl_setunset(req, &gpp, 1);
+		break;
 	case G_PART_CTL_UNDO:
 		error = g_part_ctl_undo(req, &gpp);
+		break;
+	case G_PART_CTL_UNSET:
+		error = g_part_ctl_setunset(req, &gpp, 0);
 		break;
 	}
 
