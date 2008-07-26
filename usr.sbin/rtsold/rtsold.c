@@ -683,7 +683,7 @@ rtsol_timer_update(struct ifinfo *ifinfo)
 #ifndef HAVE_ARC4RANDOM
 		interval = random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
 #else
-		interval = arc4random() % (MAX_RTR_SOLICITATION_DELAY * MILLION);
+		interval = arc4random_uniform(MAX_RTR_SOLICITATION_DELAY * MILLION);
 #endif
 		ifinfo->timer.tv_sec = interval / MILLION;
 		ifinfo->timer.tv_usec = interval % MILLION;
