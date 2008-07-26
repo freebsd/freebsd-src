@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Marcel Moolenaar
+ * Copyright (c) 2007, 2008 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,8 +108,27 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "show", 0, gpart_show, G_NULL_OPTS, NULL, "[geom ...]" },
+	{ "set", 0, NULL, {
+		{ 'a', "attrib", NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
+	},
+	{ "show", 0, gpart_show, {
+		{ 'l', "show_label", NULL, G_TYPE_BOOL },
+		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL },
+	  NULL, "[-lr] [geom ...]"
+	},
 	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
+	{ "unset", 0, NULL, {
+		{ 'a', "attrib", NULL, G_TYPE_STRING },
+		{ 'i', index_param, NULL, G_TYPE_STRING },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	  "geom", NULL
+        },
 	G_CMD_SENTINEL
 };
 
@@ -201,8 +220,21 @@ fmtsize(long double rawsz)
 	return (buf);
 }
 
+static const char *
+fmtattrib(struct gprovider *pp)
+{
+	static char buf[64];
+	const char *val;
+
+	val = find_provcfg(pp, "attrib");
+	if (val == NULL)
+		return ("");
+	snprintf(buf, sizeof(buf), " [%s] ", val);
+	return (buf);
+}
+
 static void
-gpart_show_geom(struct ggeom *gp)
+gpart_show_geom(struct ggeom *gp, const char *element)
 {
 	struct gprovider *pp;
 	const char *s, *scheme;
@@ -239,10 +271,10 @@ gpart_show_geom(struct ggeom *gp)
 			    wname, "",
 			    fmtsize((sector - first) * secsz));
 		}
-		printf("  %*llu  %*llu  %*d  %s  (%s)\n",
+		printf("  %*llu  %*llu  %*d  %s %s (%s)\n",
 		    wblocks, sector, wblocks, end - sector,
-		    wname, idx,
-		    find_provcfg(pp, "type"), fmtsize(pp->lg_mediasize));
+		    wname, idx, find_provcfg(pp, element),
+		    fmtattrib(pp), fmtsize(pp->lg_mediasize));
 		first = end;
 	}
 	if (first <= last) {
@@ -254,14 +286,35 @@ gpart_show_geom(struct ggeom *gp)
 	printf("\n");
 }
 
+static int
+gpart_show_hasopt(struct gctl_req *req, const char *opt, const char *elt)
+{
+
+	if (!gctl_get_int(req, opt))
+		return (0);
+
+	if (elt != NULL)
+		errx(EXIT_FAILURE, "-l and -r are mutually exclusive");
+
+	return (1);
+}
+
 static void
 gpart_show(struct gctl_req *req, unsigned int fl __unused)
 {
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct ggeom *gp;
-	const char *name;
+	const char *element, *name;
 	int error, i, nargs;
+
+	element = NULL;
+	if (gpart_show_hasopt(req, "show_label", element))
+		element = "label";
+	if (gpart_show_hasopt(req, "show_rawtype", element))
+		element = "rawtype";
+	if (element == NULL)
+		element = "type";
 
 	name = gctl_get_ascii(req, "class");
 	if (name == NULL)
@@ -280,13 +333,13 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 			name = gctl_get_ascii(req, "arg%d", i);
 			gp = find_geom(classp, name);
 			if (gp != NULL)
-				gpart_show_geom(gp);
+				gpart_show_geom(gp, element);
 			else
 				errx(EXIT_FAILURE, "No such geom: %s.", name);
 		}
 	} else {
 		LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
-			gpart_show_geom(gp);
+			gpart_show_geom(gp, element);
 		}
 	}
 	geom_deletetree(&mesh);
