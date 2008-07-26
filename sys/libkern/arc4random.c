@@ -69,6 +69,7 @@ arc4_randomstir (void)
 		arc4_j = (arc4_j + arc4_sbox[n] + key[n]) % 256;
 		arc4_swap(&arc4_sbox[n], &arc4_sbox[arc4_j]);
 	}
+	arc4_i = arc4_j = 0;
 
 	/* Reset for next reseed cycle. */
 	arc4_t_reseed = tv_now.tv_sec + ARC4_RESEED_SECONDS;
