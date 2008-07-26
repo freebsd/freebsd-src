@@ -222,11 +222,17 @@ g_part_bsd_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 {
 	struct g_part_bsd_entry *entry;
 
-	if (indent != NULL)
-		return (0);
-
 	entry = (struct g_part_bsd_entry *)baseentry;
-	sbuf_printf(sb, " xs BSD xt %u", entry->part.p_fstype);
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		sbuf_printf(sb, " xs BSD xt %u", entry->part.p_fstype);
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
+		    entry->part.p_fstype);
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 

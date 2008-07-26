@@ -254,11 +254,17 @@ g_part_mbr_dumpconf(struct g_part_table *table, struct g_part_entry *baseentry,
 {
 	struct g_part_mbr_entry *entry;
  
-	if (indent != NULL)
-		return (0);
- 
 	entry = (struct g_part_mbr_entry *)baseentry;
-	sbuf_printf(sb, " xs MBR xt %u", entry->ent.dp_typ);
+	if (indent == NULL) {
+		/* conftxt: libdisk compatibility */
+		sbuf_printf(sb, " xs MBR xt %u", entry->ent.dp_typ);
+	} else if (entry != NULL) {
+		/* confxml: partition entry information */
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent,
+		    entry->ent.dp_typ);
+	} else {
+		/* confxml: scheme information */
+	}
 	return (0);
 }
 
