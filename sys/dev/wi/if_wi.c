@@ -250,19 +250,6 @@ wi_attach(device_t dev)
 	}
 	ic = ifp->if_l2com;
 
-	/*
-	 * NB: no locking is needed here; don't put it here
-	 *     unless you can prove it!
-	 */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, wi_intr, sc, &sc->wi_intrhand);
-
-	if (error) {
-		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
-		wi_free(dev);
-		return error;
-	}
-
 	sc->sc_firmware_type = WI_NOTYPE;
 	sc->wi_cmd_count = 500;
 	/* Reset the NIC. */
@@ -472,6 +459,17 @@ wi_attach(device_t dev)
 
 	if (bootverbose)
 		ieee80211_announce(ic);
+
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
+	    NULL, wi_intr, sc, &sc->wi_intrhand);
+	if (error) {
+		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
+		bpfdetach(ifp);
+		ieee80211_ifdetach(ic);
+		if_free(sc->sc_ifp);
+		wi_free(dev);
+		return error;
+	}
 
 	return (0);
 }
