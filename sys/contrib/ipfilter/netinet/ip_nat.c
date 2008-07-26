@@ -2033,11 +2033,13 @@ natinfo_t *ni;
 			 * Standard port translation.  Select next port.
 			 */
 			if (np->in_flags & IPN_SEQUENTIAL) {
-				port = htons(np->in_pnext);
+				port = np->in_pnext;
 			} else {
 				port = ipf_random() % (ntohs(np->in_pmax) -
 						       ntohs(np->in_pmin));
+				port += ntohs(np->in_pmin);
 			}
+			port = htons(port);
 			np->in_pnext++;
 
 			if (np->in_pnext > ntohs(np->in_pmax)) {
