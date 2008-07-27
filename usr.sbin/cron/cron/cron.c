@@ -53,7 +53,7 @@ usage() {
     char **dflags;
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
-			"[-s] [-o] [-x debugflag[,...]]\n");
+			"[-m mailto] [-s] [-o] [-x debugflag[,...]]\n");
 	fprintf(stderr, "\ndebugflags: ");
 
         for(dflags = DebugFlagNames; *dflags; dflags++) {
@@ -443,7 +443,7 @@ parse_args(argc, argv)
 	int	argch;
 	char	*endp;
 
-	while ((argch = getopt(argc, argv, "j:J:osx:")) != -1) {
+	while ((argch = getopt(argc, argv, "j:J:m:osx:")) != -1) {
 		switch (argch) {
 		case 'j':
 			Jitter = strtoul(optarg, &endp, 10);
@@ -456,6 +456,9 @@ parse_args(argc, argv)
 			if (*optarg == '\0' || *endp != '\0' || RootJitter > 60)
 				errx(ERROR_EXIT,
 				     "bad value for root jitter: %s", optarg);
+			break;
+		case 'm':
+			defmailto = optarg;
 			break;
 		case 'o':
 			dst_enabled = 0;
