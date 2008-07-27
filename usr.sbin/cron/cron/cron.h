@@ -267,7 +267,8 @@ char	*DowNames[] = {
 		NULL
 	};
 
-char	*ProgramName;
+char	*ProgramName,
+	*defmailto;
 int	LineNumber;
 unsigned Jitter,
 	RootJitter;
@@ -284,7 +285,8 @@ char	*DebugFlagNames[] = {	/* sync with #defines */
 extern	char	*copyright[],
 		*MonthNames[],
 		*DowNames[],
-		*ProgramName;
+		*ProgramName,
+		*defmailto;
 extern	int	LineNumber;
 extern unsigned	Jitter,
 		RootJitter;
