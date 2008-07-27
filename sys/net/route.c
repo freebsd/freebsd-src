@@ -84,8 +84,24 @@
 
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_INT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
-/* Eventually this will be a tunable */
+/*
+ * Allow the boot code to allow LESS than RT_MAXFIBS to be used.
+ * We can't do more because storage is statically allocated for now.
+ * (for compatibility reasons.. this will change).
+ */
 TUNABLE_INT("net.fibs", &rt_numfibs);
+
+/*
+ * By default add routes to all fibs for new interfaces.
+ * Once this is set to 0 then only allocate routes on interface
+ * changes for the FIB of the caller when adding a new set of addresses
+ * to an interface.  XXX this is a shotgun aproach to a problem that needs
+ * a more fine grained solution.. that will come.
+ */
+u_int rt_add_addr_allfibs = 1;
+SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
+    &rt_add_addr_allfibs, 0, "");
+TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
 static struct rtstat rtstat;
 
@@ -1453,8 +1469,12 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	if ( dst->sa_family != AF_INET)
 		fibnum = 0;
 	if (fibnum == -1) {
-		startfib = 0;
-		endfib = rt_numfibs - 1;
+		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
+			startfib = endfib = curthread->td_proc->p_fibnum;
+		} else {
+			startfib = 0;
+			endfib = rt_numfibs - 1;
+		}
 	} else {
 		KASSERT((fibnum < rt_numfibs), ("rtinit1: bad fibnum"));
 		startfib = fibnum;
