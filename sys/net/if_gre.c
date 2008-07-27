@@ -244,8 +244,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;
 	struct ip *ip;
-	u_short ip_id = 0;
-	uint8_t ip_tos = 0;
+	u_short gre_ip_id = 0;
+	uint8_t gre_ip_tos = 0;
 	u_int16_t etype = 0;
 	struct mobile_h mob_h;
 	u_int32_t af;
@@ -362,13 +362,13 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		switch (dst->sa_family) {
 		case AF_INET:
 			ip = mtod(m, struct ip *);
-			ip_tos = ip->ip_tos;
-			ip_id = ip->ip_id;
+			gre_ip_tos = ip->ip_tos;
+			gre_ip_id = ip->ip_id;
 			etype = ETHERTYPE_IP;
 			break;
 #ifdef INET6
 		case AF_INET6:
-			ip_id = ip_newid();
+			gre_ip_id = ip_newid();
 			etype = ETHERTYPE_IPV6;
 			break;
 #endif
@@ -413,8 +413,8 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		((struct ip*)gh)->ip_v = IPPROTO_IPV4;
 		((struct ip*)gh)->ip_hl = (sizeof(struct ip)) >> 2;
 		((struct ip*)gh)->ip_ttl = GRE_TTL;
-		((struct ip*)gh)->ip_tos = ip_tos;
-		((struct ip*)gh)->ip_id = ip_id;
+		((struct ip*)gh)->ip_tos = gre_ip_tos;
+		((struct ip*)gh)->ip_id = gre_ip_id;
 		gh->gi_len = m->m_pkthdr.len;
 	}
 
