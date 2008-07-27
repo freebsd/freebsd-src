@@ -152,6 +152,7 @@ struct lock_prof {
 	const char	*name;
 	int		line;
 	int		ticks;
+	uintmax_t	cnt_wait_max;
 	uintmax_t	cnt_max;
 	uintmax_t	cnt_tot;
 	uintmax_t	cnt_wait;
@@ -267,8 +268,8 @@ lock_prof_output(struct lock_prof *lp, struct sbuf *sb)
 
 	for (p = lp->file; p != NULL && strncmp(p, "../", 3) == 0; p += 3);
 	sbuf_printf(sb,
-	    "%6ju %12ju %12ju %11ju %5ju %5ju %12ju %12ju %s:%d (%s:%s)\n",
-	    lp->cnt_max / 1000, lp->cnt_tot / 1000,
+	    "%8ju %9ju %11ju %11ju %11ju %6ju %6ju %2ju %6ju %s:%d (%s:%s)\n",
+	    lp->cnt_max / 1000, lp->cnt_wait_max / 1000, lp->cnt_tot / 1000,
 	    lp->cnt_wait / 1000, lp->cnt_cur,
 	    lp->cnt_cur == 0 ? (uintmax_t)0 :
 	    lp->cnt_tot / (lp->cnt_cur * 1000),
@@ -304,6 +305,8 @@ lock_prof_sum(struct lock_prof *match, struct lock_prof *dst, int hash,
 			l->ticks = t;
 			if (l->cnt_max > dst->cnt_max)
 				dst->cnt_max = l->cnt_max;
+			if (l->cnt_wait_max > dst->cnt_wait_max)
+				dst->cnt_wait_max = l->cnt_wait_max;
 			dst->cnt_tot += l->cnt_tot;
 			dst->cnt_wait += l->cnt_wait;
 			dst->cnt_cur += l->cnt_cur;
@@ -344,8 +347,8 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 
 retry_sbufops:
 	sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
-	sbuf_printf(sb, "\n%6s %12s %12s %11s %5s %5s %12s %12s %s\n",
-	    "max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
+	sbuf_printf(sb, "\n%8s %9s %11s %11s %11s %6s %6s %2s %6s %s\n",
+	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
 	pause("lpreset", hz / 10);
@@ -542,6 +545,8 @@ lock_profile_release_lock(struct lock_object *lo)
 	 */
 	if (holdtime > lp->cnt_max)
 		lp->cnt_max = holdtime;
+	if (l->lpo_waittime > lp->cnt_wait_max)
+		lp->cnt_wait_max = l->lpo_waittime;
 	lp->cnt_tot += holdtime;
 	lp->cnt_wait += l->lpo_waittime;
 	lp->cnt_contest_locking += l->lpo_contest_locking;
