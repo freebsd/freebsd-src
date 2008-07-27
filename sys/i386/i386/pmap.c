@@ -3415,9 +3415,8 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
  * are taken, but the code works.
  */
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
-		    vm_object_t object, vm_pindex_t pindex,
-		    vm_size_t size)
+pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
+    vm_pindex_t pindex, vm_size_t size)
 {
 	vm_page_t p;
 
@@ -3545,7 +3544,7 @@ out:
 
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
-	  vm_offset_t src_addr)
+    vm_offset_t src_addr)
 {
 	vm_page_t   free;
 	vm_offset_t addr;
@@ -4422,10 +4421,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 }
 
 int
-pmap_change_attr(va, size, mode)
-	vm_offset_t va;
-	vm_size_t size;
-	int mode;
+pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
 	pt_entry_t *pte;
