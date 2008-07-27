@@ -3581,7 +3581,8 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
  * This only exists to supress warnings from unlocked specfs accesses.  It is
  * no longer ok to have an unlocked VFS.
  */
-#define	IGNORE_LOCK(vp) ((vp)->v_type == VCHR || (vp)->v_type == VBAD)
+#define	IGNORE_LOCK(vp) (panicstr != NULL || (vp) == NULL ||		\
+	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
 SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0, "");
@@ -3631,7 +3632,7 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
+	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
@@ -3639,8 +3640,7 @@ void
 assert_vop_unlocked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
+	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == LK_EXCLUSIVE)
 		vfs_badlock("is locked but should not be", str, vp);
 }
 
@@ -3648,8 +3648,7 @@ void
 assert_vop_elocked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
 		vfs_badlock("is not exclusive locked but should be", str, vp);
 }
 
@@ -3658,8 +3657,7 @@ void
 assert_vop_elocked_other(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp) != LK_EXCLOTHER)
+	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_EXCLOTHER)
 		vfs_badlock("is not exclusive locked by another thread",
 		    str, vp);
 }
@@ -3668,8 +3666,7 @@ void
 assert_vop_slocked(struct vnode *vp, const char *str)
 {
 
-	if (vp && !IGNORE_LOCK(vp) &&
-	    VOP_ISLOCKED(vp) != LK_SHARED)
+	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) != LK_SHARED)
 		vfs_badlock("is not locked shared but should be", str, vp);
 }
 #endif /* 0 */
