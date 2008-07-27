@@ -2282,7 +2282,7 @@ static void
 vinactive(struct vnode *vp, struct thread *td)
 {
 
-	ASSERT_VOP_LOCKED(vp, "vinactive");
+	ASSERT_VOP_ELOCKED(vp, "vinactive");
 	ASSERT_VI_LOCKED(vp, "vinactive");
 	VNASSERT((vp->v_iflag & VI_DOINGINACT) == 0, vp,
 	    ("vinactive: recursed on VI_DOINGINACT"));
@@ -2439,7 +2439,7 @@ vrecycle(struct vnode *vp, struct thread *td)
 {
 	int recycled;
 
-	ASSERT_VOP_LOCKED(vp, "vrecycle");
+	ASSERT_VOP_ELOCKED(vp, "vrecycle");
 	recycled = 0;
 	VI_LOCK(vp);
 	if (vp->v_usecount == 0) {
@@ -2474,7 +2474,7 @@ vgonel(struct vnode *vp)
 	struct mount *mp;
 
 	CTR1(KTR_VFS, "vgonel: vp %p", vp);
-	ASSERT_VOP_LOCKED(vp, "vgonel");
+	ASSERT_VOP_ELOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
 	VNASSERT(vp->v_holdcnt, vp,
 	    ("vgonel: vp %p has no reference.", vp));
