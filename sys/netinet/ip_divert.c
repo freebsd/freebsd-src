@@ -268,9 +268,9 @@ divert_packet(struct mbuf *m, int incoming)
 	nport = htons((u_int16_t)divert_info(mtag));
 	INP_INFO_RLOCK(&divcbinfo);
 	LIST_FOREACH(inp, &divcb, inp_list) {
-		INP_RLOCK(inp);
 		/* XXX why does only one socket match? */
 		if (inp->inp_lport == nport) {
+			INP_RLOCK(inp);
 			sa = inp->inp_socket;
 			SOCKBUF_LOCK(&sa->so_rcv);
 			if (sbappendaddr_locked(&sa->so_rcv,
@@ -283,7 +283,6 @@ divert_packet(struct mbuf *m, int incoming)
 			INP_RUNLOCK(inp);
 			break;
 		}
-		INP_RUNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
 	if (sa == NULL) {
