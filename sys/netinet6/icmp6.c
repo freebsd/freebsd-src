@@ -1897,24 +1897,20 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 
 	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		INP_RLOCK(in6p);
-		if ((in6p->inp_vflag & INP_IPV6) == 0) {
-	docontinue:
-			INP_RUNLOCK(in6p);
+		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
-		}
 		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
-			goto docontinue;
+			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
-			goto docontinue;
+			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
-			goto docontinue;
+			continue;
 		if (in6p->in6p_icmp6filt
 		    && ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
 				 in6p->in6p_icmp6filt))
-			goto docontinue;
+			continue;
 		if (last) {
 			struct	mbuf *n = NULL;
 
@@ -1974,7 +1970,9 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			INP_RUNLOCK(last);
 		}
 		last = in6p;
+		INP_RLOCK(last);
 	}
+	INP_INFO_RUNLOCK(&ripcbinfo);
 	if (last) {
 		if (last->in6p_flags & IN6P_CONTROLOPTS)
 			ip6_savecontrol(last, m, &opts);
@@ -2014,7 +2012,6 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		m_freem(m);
 		ip6stat.ip6s_delivered--;
 	}
-	INP_INFO_RUNLOCK(&ripcbinfo);
 	return IPPROTO_DONE;
 }
 

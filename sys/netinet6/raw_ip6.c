@@ -154,27 +154,23 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		INP_RLOCK(in6p);
-		if ((in6p->in6p_vflag & INP_IPV6) == 0) {
-docontinue:
-			INP_RUNLOCK(in6p);
+		if ((in6p->in6p_vflag & INP_IPV6) == 0)
 			continue;
-		}
 		if (in6p->in6p_ip6_nxt &&
 		    in6p->in6p_ip6_nxt != proto)
-			goto docontinue;
+			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_laddr, &ip6->ip6_dst))
-			goto docontinue;
+			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
-			goto docontinue;
+			continue;
 		if (in6p->in6p_cksum != -1) {
 			rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				rip6stat.rip6s_badsum++;
-				goto docontinue;
+				continue;
 			}
 		}
 		if (last) {
@@ -210,7 +206,9 @@ docontinue:
 			INP_RUNLOCK(last);
 		}
 		last = in6p;
+		INP_RLOCK(last);
 	}
+	INP_INFO_RUNLOCK(&ripcbinfo);
 #ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
@@ -252,7 +250,6 @@ docontinue:
 		}
 		ip6stat.ip6s_delivered--;
 	}
-	INP_INFO_RUNLOCK(&ripcbinfo);
 	return (IPPROTO_DONE);
 }
 
