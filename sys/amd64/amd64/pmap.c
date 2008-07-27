@@ -4373,27 +4373,40 @@ pmap_change_attr(va, size, mode)
 		return (EINVAL);
 
 	/*
-	 * XXX: We have to support tearing 2MB pages down into 4k pages if
-	 * needed here.
+	 * Pages that aren't mapped aren't supported.  Also break down 2MB pages
+	 * into 4KB pages if required.
 	 */
-	/* Pages that aren't mapped aren't supported. */
-	for (tmpva = base; tmpva < (base + size); ) {
+	PMAP_LOCK(kernel_pmap);
+	for (tmpva = base; tmpva < base + size; ) {
 		pde = pmap_pde(kernel_pmap, tmpva);
-		if (*pde == 0)
+		if (*pde == 0) {
+			PMAP_UNLOCK(kernel_pmap);
 			return (EINVAL);
+		}
 		if (*pde & PG_PS) {
-			/* Handle 2MB pages that are completely contained. */
-			if (size >= NBPDR) {
+			/*
+			 * If the current offset aligns with a 2MB page frame
+			 * and there is at least 2MB left within the range, then
+			 * we need not break down this page into 4KB pages.
+			 */
+			if ((tmpva & PDRMASK) == 0 &&
+			    tmpva + PDRMASK < base + size) {
 				tmpva += NBPDR;
 				continue;
 			}
-			return (EINVAL);
+			if (!pmap_demote_pde(kernel_pmap, pde, tmpva)) {
+				PMAP_UNLOCK(kernel_pmap);
+				return (ENOMEM);
+			}
 		}
 		pte = vtopte(tmpva);
-		if (*pte == 0)
+		if (*pte == 0) {
+			PMAP_UNLOCK(kernel_pmap);
 			return (EINVAL);
+		}
 		tmpva += PAGE_SIZE;
 	}
+	PMAP_UNLOCK(kernel_pmap);
 
 	/*
 	 * Ok, all the pages exist, so run through them updating their
