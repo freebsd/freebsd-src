@@ -23,6 +23,8 @@ LOCALES=	bg_BG.CP1251 \
 		la_LN.ISO8859-2 \
 		la_LN.ISO8859-4 \
 		la_LN.US-ASCII \
+		no_NO.ISO8859-1 \
+		no_NO.ISO8859-15 \
 		lt_LT.ISO8859-4 \
 		lt_LT.ISO8859-13 \
 		pl_PL.ISO8859-2 \
@@ -65,9 +67,11 @@ ISO8859-1_Big5=	is_IS:zh_TW
 ISO8859-1_ISO8859-1= ${ISO8859-15_ISO8859-15} pt_PT:pt_BR
 
 LATIN1LINKS=	af_ZA da_DK en_AU en_CA en_GB en_NZ en_US eu_ES fi_FI \
-		fr_BE fr_CA fr_CH fr_FR it_CH it_IT nb_NO nl_BE nl_NL \
-		nn_NO no_NO pt_PT
-ISO8859-15_ISO8859-15= de_DE:de_AT de_DE:de_CH ${LATIN1LINKS:C/^/la_LN:/}
+		fr_BE fr_CA fr_CH fr_FR it_CH it_IT nl_BE nl_NL pt_PT
+ISO8859-15_ISO8859-15= \
+	de_DE:de_AT de_DE:de_CH \
+	no_NO:nb_NO no_NO:nn_NO \
+	${LATIN1LINKS:C/^/la_LN:/}
 
 LATIN2LINKS=    hr_HR hu_HU ro_RO sr_YU
 ISO8859-2_ISO8859-2= ${LATIN2LINKS:C/^/la_LN:/} cs_CZ:sk_SK
