@@ -4357,6 +4357,7 @@ int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
+	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 
@@ -4374,7 +4375,12 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	PMAP_LOCK(kernel_pmap);
 	for (tmpva = base; tmpva < base + size; ) {
-		pde = pmap_pde(kernel_pmap, tmpva);
+		pdpe = pmap_pdpe(kernel_pmap, tmpva);
+		if (*pdpe == 0 || (*pdpe & PG_PS)) {
+			PMAP_UNLOCK(kernel_pmap);
+			return (EINVAL);
+		}
+		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde == 0) {
 			PMAP_UNLOCK(kernel_pmap);
 			return (EINVAL);
