@@ -36,17 +36,13 @@ $FreeBSD$
 #ifdef CONFIG_DEFINED
 #include <common/cxgb_version.h>
 #include <cxgb_config.h>
-#ifdef TOE_ENABLED
 #include <ulp/tom/cxgb_l2t.h>
-#endif
 #include <common/cxgb_tcb.h>
 #include <t3cdev.h>
 #else
 #include <dev/cxgb/common/cxgb_version.h>
 #include <dev/cxgb/cxgb_config.h>
-#ifdef TOE_ENABLED
 #include <dev/cxgb/ulp/tom/cxgb_l2t.h>
-#endif
 #include <dev/cxgb/common/cxgb_tcb.h>
 #include <dev/cxgb/t3cdev.h>
 #endif
@@ -83,7 +79,6 @@ void cxgb_remove_clients(struct t3cdev *tdev);
 typedef int (*cxgb_cpl_handler_func)(struct t3cdev *dev,
 				      struct mbuf *m, void *ctx);
 
-#ifdef TOE_ENABLED
 struct cxgb_client {
 	char 			*name;
 	void 			(*add) (struct t3cdev *);
@@ -102,7 +97,6 @@ int cxgb_alloc_atid(struct t3cdev *dev, struct cxgb_client *client,
 		     void *ctx);
 int cxgb_alloc_stid(struct t3cdev *dev, struct cxgb_client *client,
 		     void *ctx);
-#endif
 void *cxgb_free_atid(struct t3cdev *dev, int atid);
 void cxgb_free_stid(struct t3cdev *dev, int stid);
 void *cxgb_get_lctx(struct t3cdev *tdev, int stid);

@@ -394,12 +394,12 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 		struct qset_params *q = p->qset + i;
 
 		if (adap->params.nports > 2) {
-			q->coalesce_nsecs = 50000;
+			q->coalesce_usecs = 50;
 		} else {
 #ifdef INVARIANTS			
-			q->coalesce_nsecs = 10000;
+			q->coalesce_usecs = 10;
 #else
-			q->coalesce_nsecs = 5000;
+			q->coalesce_usecs = 5;
 #endif			
 		}
 		q->polling = adap->params.rev > 0;
@@ -490,7 +490,7 @@ void
 t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p)
 {
 
-	qs->rspq.holdoff_tmr = max(p->coalesce_nsecs/100, 1U);
+	qs->rspq.holdoff_tmr = max(p->coalesce_usecs * 10, 1U);
 	qs->rspq.polling = 0 /* p->polling */;
 }
 
@@ -1314,6 +1314,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 			cntrl = V_TXPKT_INTF(pi->txpkt_intf);
 			GET_VTAG_MI(cntrl, batchmi);
 			cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
+			if (__predict_false(!(m0->m_pkthdr.csum_flags & CSUM_IP)))
+				cntrl |= F_TXPKT_IPCSUM_DIS;
+			if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))))
+				cntrl |= F_TXPKT_L4CSUM_DIS;
 			cbe->cntrl = htonl(cntrl);
 			cbe->len = htonl(batchmi->mi_len | 0x80000000);
 			cbe->addr = htobe64(segs[i].ds_addr);
@@ -1343,7 +1347,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		tmpmi = mv->mv_vec;
 		
 		txd->flit[2] = 0;
-		GET_VTAG_MI(cntrl, mi);
+		GET_VTAG(cntrl, m0);
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
 		hdr->cntrl = htonl(cntrl);
 		mlen = m0->m_pkthdr.len;
@@ -1356,7 +1360,10 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 
 		if (__predict_false(undersized)) {
 			pkthdr = tmp;
-			dump_mi(mi);
+			if (mi)
+				dump_mi(mi);
+			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
+			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
 			panic("discontig packet - fixxorz");
 		} else 
 			pkthdr = m0->m_data;
@@ -1376,12 +1383,39 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 			    V_LSO_IPHDR_WORDS(ip->ip_hl) |
 			    V_LSO_TCPHDR_WORDS(tcp->th_off);
 		hdr->lso_info = htonl(tso_info);
+
+		if (__predict_false(mlen <= PIO_LEN)) {
+			/* pkt not undersized but fits in PIO_LEN
+			 * Indicates a TSO bug at the higher levels.
+			 */
+			DPRINTF("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
+			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
+			txq_prod(txq, 1, &txqs);
+			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[3]);
+			m_freem(m0);
+			m0 = NULL;
+			flits = (mlen + 7) / 8 + 3;
+			hdr->wr.wr_hi = htonl(V_WR_BCNTLFLT(mlen & 7) |
+					  V_WR_OP(FW_WROPCODE_TUNNEL_TX_PKT) |
+					  F_WR_SOP | F_WR_EOP | txqs.compl);
+			wmb();
+			hdr->wr.wr_lo = htonl(V_WR_LEN(flits) |
+			    V_WR_GEN(txqs.gen) | V_WR_TID(txq->token));
+
+			wr_gen2(txd, txqs.gen);
+			check_ring_tx_db(sc, txq);
+			return (0);
+		}
 		flits = 3;	
 	} else {
 		struct cpl_tx_pkt *cpl = (struct cpl_tx_pkt *)txd;
 
 		GET_VTAG(cntrl, m0);
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
+		if (__predict_false(!(m0->m_pkthdr.csum_flags & CSUM_IP)))
+			cntrl |= F_TXPKT_IPCSUM_DIS;
+		if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))))
+			cntrl |= F_TXPKT_L4CSUM_DIS;
 		cpl->cntrl = htonl(cntrl);
 		mlen = m0->m_pkthdr.len;
 		cpl->len = htonl(mlen | 0x80000000);
@@ -3223,11 +3257,11 @@ t3_lro_enable(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-t3_set_coalesce_nsecs(SYSCTL_HANDLER_ARGS)
+t3_set_coalesce_usecs(SYSCTL_HANDLER_ARGS)
 {
 	adapter_t *sc = arg1;
 	struct qset_params *qsp = &sc->params.sge.qset[0]; 
-	int coalesce_nsecs;	
+	int coalesce_usecs;	
 	struct sge_qset *qs;
 	int i, j, err, nqsets = 0;
 	struct mtx *lock;
@@ -3235,25 +3269,25 @@ t3_set_coalesce_nsecs(SYSCTL_HANDLER_ARGS)
 	if ((sc->flags & FULL_INIT_DONE) == 0)
 		return (ENXIO);
 		
-	coalesce_nsecs = qsp->coalesce_nsecs;
-        err = sysctl_handle_int(oidp, &coalesce_nsecs, arg2, req);
+	coalesce_usecs = qsp->coalesce_usecs;
+        err = sysctl_handle_int(oidp, &coalesce_usecs, arg2, req);
 
 	if (err != 0) {
 		return (err);
 	}
-	if (coalesce_nsecs == qsp->coalesce_nsecs)
+	if (coalesce_usecs == qsp->coalesce_usecs)
 		return (0);
 
 	for (i = 0; i < sc->params.nports; i++) 
 		for (j = 0; j < sc->port[i].nqsets; j++)
 			nqsets++;
 
-	coalesce_nsecs = max(100, coalesce_nsecs);
+	coalesce_usecs = max(1, coalesce_usecs);
 
 	for (i = 0; i < nqsets; i++) {
 		qs = &sc->sge.qs[i];
 		qsp = &sc->params.sge.qset[i];
-		qsp->coalesce_nsecs = coalesce_nsecs;
+		qsp->coalesce_usecs = coalesce_usecs;
 		
 		lock = (sc->flags & USING_MSIX) ? &qs->rspq.lock :
 			    &sc->sge.qs[0].rspq.lock;
@@ -3356,8 +3390,8 @@ t3_add_configured_sysctls(adapter_t *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
 	    "intr_coal",
 	    CTLTYPE_INT|CTLFLAG_RW, sc,
-	    0, t3_set_coalesce_nsecs,
-	    "I", "interrupt coalescing timer (ns)");
+	    0, t3_set_coalesce_usecs,
+	    "I", "interrupt coalescing timer (us)");
 
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];

@@ -299,7 +299,7 @@ static struct cphy_ops mv88e1xxx_ops = {
 #endif
 
 int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			   const struct mdio_ops *mdio_ops)
+			  const struct mdio_ops *mdio_ops)
 {
 	int err;
 
@@ -310,9 +310,9 @@ int t3_mv88e1xxx_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 
 	/* Configure copper PHY transmitter as class A to reduce EMI. */
 	err = mdio_write(phy, 0, MV88E1XXX_EXTENDED_ADDR, 0xb);
-
 	if (!err)
 		err = mdio_write(phy, 0, MV88E1XXX_EXTENDED_DATA, 0x8004);
+
 	if (!err)
 		err = mv88e1xxx_downshift_set(phy, 1);   /* Enable downshift */
 	return err;
