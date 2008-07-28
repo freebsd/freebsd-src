@@ -956,11 +956,12 @@ ether_crc32_le(const uint8_t *buf, size_t len)
 	crc = 0xffffffff;	/* initial value */
 
 	for (i = 0; i < len; i++) {
-		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1)
+		for (data = *buf++, bit = 0; bit < 8; bit++, data >>= 1) {
 			carry = (crc ^ data) & 1;
 			crc >>= 1;
 			if (carry)
 				crc = (crc ^ ETHER_CRC_POLY_LE);
+		}
 	}
 
 	return (crc);
