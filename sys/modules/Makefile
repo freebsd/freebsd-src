@@ -134,6 +134,7 @@ SUBDIR=	${_3dfx} \
 	ispfw \
 	${_iwi} \
 	${_ixgb} \
+	jme \
 	joy \
 	kbdmux \
 	krpc \
