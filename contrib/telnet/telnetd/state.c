@@ -553,8 +553,10 @@ willoption(int option)
 
 #ifdef	AUTHENTICATION
 		case TELOPT_AUTHENTICATION:
-			func = auth_request;
-			changeok++;
+			if (auth_level >= 0) {
+				func = auth_request;
+				changeok++;
+			}
 			break;
 #endif
 
