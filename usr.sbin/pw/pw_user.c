@@ -1029,22 +1029,24 @@ pw_shellpolicy(struct userconf * cnf, struct cargs * args, char *newshell)
 	return shell_path(cnf->shelldir, cnf->shells, sh ? sh : cnf->shell_default);
 }
 
-static char const chars[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.";
+#define	SALTSIZE	32
+
+static char const chars[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ./";
 
 char           *
 pw_pwcrypt(char *password)
 {
 	int             i;
-	char            salt[12];
+	char            salt[SALTSIZE + 1];
 
 	static char     buf[256];
 
 	/*
 	 * Calculate a salt value
 	 */
-	for (i = 0; i < 8; i++)
-		salt[i] = chars[arc4random() % 63];
-	salt[i] = '\0';
+	for (i = 0; i < SALTSIZE; i++)
+		salt[i] = chars[arc4random() % (sizeof(chars) - 1)];
+	salt[SALTSIZE] = '\0';
 
 	return strcpy(buf, crypt(password, salt));
 }
