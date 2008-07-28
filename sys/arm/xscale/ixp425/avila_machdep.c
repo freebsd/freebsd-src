@@ -256,7 +256,7 @@ void *
 initarm(void *arg, void *arg2)
 {
 	struct pv_addr  kernel_l1pt;
-	int loop;
+	int loop, i;
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t freemem_pt;
@@ -266,7 +266,7 @@ initarm(void *arg, void *arg2)
 	uint32_t memsize;
 
 	set_cpufuncs();
-	lastaddr = fake_reload_metadata();
+	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
