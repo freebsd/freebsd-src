@@ -4432,8 +4432,10 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
-	/* Only supported on kernel virtual addresses. */
-	if (base <= VM_MIN_KERNEL_ADDRESS)
+	/*
+	 * Only supported on kernel virtual addresses above the recursive map.
+	 */
+	if (base < VM_MIN_KERNEL_ADDRESS)
 		return (EINVAL);
 
 	/* 4MB pages and pages that aren't mapped aren't supported. */
