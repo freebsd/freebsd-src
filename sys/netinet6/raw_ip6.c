@@ -165,10 +165,12 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
+		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
 			rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
+				INP_RUNLOCK(in6p);
 				rip6stat.rip6s_badsum++;
 				continue;
 			}
@@ -206,7 +208,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			INP_RUNLOCK(last);
 		}
 		last = in6p;
-		INP_RLOCK(last);
 	}
 	INP_INFO_RUNLOCK(&ripcbinfo);
 #ifdef IPSEC
