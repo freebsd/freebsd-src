@@ -622,7 +622,7 @@ cs4231_power_reset(struct cs4231_softc *sc, int how)
 	/* turn on cs4231 mode */
 	cs4231_write(sc, CS_MISC_INFO,
 	    cs4231_read(sc, CS_MISC_INFO) | CS_MODE2);
-	/* enable interupts & clear CSR */
+	/* enable interrupts & clear CSR */
         cs4231_write(sc, CS_PIN_CONTROL,
             cs4231_read(sc, CS_PIN_CONTROL) | INTERRUPT_ENABLE);
 	CS_WRITE(sc, CS4231_STATUS, 0);

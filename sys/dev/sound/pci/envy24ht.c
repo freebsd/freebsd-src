@@ -2416,7 +2416,7 @@ envy24ht_alloc_resource(struct sc_info *sc)
 	    pci_read_config(sc->dev, PCIR_MT, 4));
 #endif
 
-	/* allocate interupt resource */
+	/* allocate interrupt resource */
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irqid,
 				 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
