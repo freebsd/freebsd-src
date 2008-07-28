@@ -950,7 +950,7 @@ emu_intr_unregister(struct emu_sc_info *sc, int hnumber)
 	sc->ihandler[hnumber].softc = NULL;
 	sc->ihandler[hnumber].irq_func = NULL;
 
-	/* other interupt handlers may use this INTE value */
+	/* other interrupt handlers may use this INTE value */
 	for (i = 0; i < EMU_MAX_IRQ_CONSUMERS; i++)
 		if (sc->ihandler[i].inte_mask != 0)
 			x |= sc->ihandler[i].inte_mask;

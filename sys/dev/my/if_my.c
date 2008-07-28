@@ -1441,7 +1441,7 @@ my_start_locked(struct ifnet * ifp)
 	/*
 	 * Place the request for the upload interrupt in the last descriptor
 	 * in the chain. This way, if we're chaining several packets at once,
-	 * we'll only get an interupt once for the whole chain rather than
+	 * we'll only get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
 	MY_TXCTL(cur_tx) |= MY_TXIC;

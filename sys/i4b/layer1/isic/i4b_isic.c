@@ -88,7 +88,7 @@ struct i4b_l1mux_func isic_l1mux_func = {
 void
 isicintr(struct l1_softc *sc)
 {
-	if(sc->sc_ipac == 0)	/* HSCX/ISAC interupt routine */
+	if(sc->sc_ipac == 0)	/* HSCX/ISAC interrupt routine */
 	{
 		u_char was_hscx_irq = 0;
 		u_char was_isac_irq = 0;
@@ -455,7 +455,7 @@ isic_detach_common(device_t dev)
 	
 	if(sc->sc_resources.irq)
 	{
-		/* tear down interupt handler */
+		/* tear down interrupt handler */
 		bus_teardown_intr(dev, sc->sc_resources.irq,
 					(void(*)(void *))isicintr);
 

@@ -251,7 +251,7 @@ isic_probe_avma1(device_t dev)
 	/* get the irq number */
 	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
 
-	/* register interupt routine */
+	/* register interrupt routine */
 	if (bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL,
 			(void(*)(void *))(isicintr), sc, &ih) != 0)
 	{
