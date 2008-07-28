@@ -126,12 +126,13 @@ rip_inshash(struct inpcb *inp)
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 	
-	if (inp->inp_ip_p && inp->inp_laddr.s_addr && inp->inp_faddr.s_addr) {
+	if (inp->inp_ip_p != 0 &&
+	    inp->inp_laddr.s_addr != INADDR_ANY &&
+	    inp->inp_faddr.s_addr != INADDR_ANY) {
 		hash = INP_PCBHASH_RAW(inp->inp_ip_p, inp->inp_laddr.s_addr,
 		    inp->inp_faddr.s_addr, pcbinfo->ipi_hashmask);
-	} else {
+	} else
 		hash = 0;
-	}
 	pcbhash = &pcbinfo->ipi_hashbase[hash];
 	LIST_INSERT_HEAD(pcbhash, inp, inp_hash);
 }
@@ -139,7 +140,10 @@ rip_inshash(struct inpcb *inp)
 static void
 rip_delhash(struct inpcb *inp)
 {
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
+
 	LIST_REMOVE(inp, inp_hash);
 }
 
@@ -708,6 +712,8 @@ rip_detach(struct socket *so)
 static void
 rip_dodisconnect(struct socket *so, struct inpcb *inp)
 {
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
 	rip_delhash(inp);
