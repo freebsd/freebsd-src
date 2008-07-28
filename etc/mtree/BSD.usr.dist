@@ -297,8 +297,6 @@
             ..
             tcsh
             ..
-            wpa_supplicant
-            ..
         ..
         games
             fortune
