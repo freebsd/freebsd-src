@@ -4365,8 +4365,11 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 
-	/* Only supported on kernel virtual addresses. */
-	if (base <= VM_MAXUSER_ADDRESS)
+	/*
+	 * Only supported on kernel virtual addresses, including the direct
+	 * map but excluding the recursive map.
+	 */
+	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
 
 	/*
