@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.s"
 
-#ifndef __XSCALE__
+#ifndef _ARM_ARCH_5E
 
 /* #define BIG_LOOPS */
 
@@ -179,10 +179,10 @@ ENTRY(bzero_page)
 
 	ldmfd	sp!, {r4-r8, pc}
 
-#else	/* __XSCALE__ */
+#else	/* _ARM_ARCH_5E */
 
 /*
- * XSCALE version of bcopy_page
+ * armv5e version of bcopy_page
  */
 ENTRY(bcopy_page)
 	pld	[r0]
@@ -248,7 +248,7 @@ ENTRY(bcopy_page)
 	RET
 
 /*
- * XSCALE version of bzero_page
+ * armv5e version of bzero_page
  */
 ENTRY(bzero_page)
 	mov	r1, #PAGE_SIZE
@@ -273,4 +273,4 @@ ENTRY(bzero_page)
 	subs	r1, r1, #128
 	bne	1b
 	RET
-#endif	/* __XSCALE__ */
+#endif	/* _ARM_ARCH_5E */
