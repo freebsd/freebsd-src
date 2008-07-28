@@ -653,6 +653,20 @@ ehci_pcd_enable(void *v_sc)
 	ehci_pcd_able(sc, 1);
 }
 
+/*
+ * XXX write back xfer data for architectures with a write-back
+ *     data cache; this is a hack because usb is mis-architected
+ *     in blindly mixing bus_dma w/ PIO.
+ */
+static __inline void
+hacksync(usbd_xfer_handle xfer)
+{
+	usbd_pipe_handle pipe = xfer->pipe;
+	bus_dma_tag_t tag = pipe->device->bus->buffer_dmatag;
+	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+}
+
 void
 ehci_pcd(ehci_softc_t *sc, usbd_xfer_handle xfer)
 {
@@ -679,6 +693,7 @@ ehci_pcd(ehci_softc_t *sc, usbd_xfer_handle xfer)
 	xfer->actlen = xfer->length;
 	xfer->status = USBD_NORMAL_COMPLETION;
 
+	hacksync(xfer);	/* XXX to compensate for usb_transfer_complete */
 	usb_transfer_complete(xfer);
 }
 
@@ -2072,6 +2087,7 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
  ret:
 	xfer->status = err;
 	s = splusb();
+	hacksync(xfer);	/* XXX to compensate for usb_transfer_complete */
 	usb_transfer_complete(xfer);
 	splx(s);
 	return (USBD_IN_PROGRESS);
