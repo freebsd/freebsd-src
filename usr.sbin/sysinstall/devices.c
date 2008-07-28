@@ -109,6 +109,7 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"hme",		"Sun HME (Happy Meal Ethernet) Ethernet adapter"		},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"			},
     { DEVICE_TYPE_NETWORK,	"ixgb",		"Intel(R) PRO/10Gb Ethernet card"			},
+    { DEVICE_TYPE_NETWORK,	"jme",		"JMicron JMC250 Gigabit/JMC260 Fast Ethernet"			},
     { DEVICE_TYPE_NETWORK,	"kue",		"Kawasaki LSI USB Ethernet adapter"				},
     { DEVICE_TYPE_NETWORK,	"le",		"AMD Am7900 LANCE or Am79C9xx PCnet Ethernet adapter"		},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) Ethernet"		},
