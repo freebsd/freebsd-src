@@ -103,6 +103,7 @@ enum CPL_opcode {
 	CPL_RDMA_TERMINATE    = 0xA2,
 	CPL_TRACE_PKT         = 0xA3,
 	CPL_RDMA_EC_STATUS    = 0xA5,
+	CPL_SGE_EC_CR_RETURN  = 0xA6,
 
 	NUM_CPL_CMDS    /* must be last and previous entries must be sorted */
 };
@@ -148,7 +149,8 @@ enum {
 
 enum {
 	CPL_PASS_OPEN_ACCEPT,
-	CPL_PASS_OPEN_REJECT
+	CPL_PASS_OPEN_REJECT,
+	CPL_PASS_OPEN_ACCEPT_TNL
 };
 
 enum {
@@ -907,6 +909,14 @@ struct cpl_wr_ack {
 	__be32 snd_una;
 };
 
+struct cpl_sge_ec_cr_return {
+	RSS_HDR
+	union opcode_tid ot;
+	__be16 sge_ec_id;
+	__u8 cr;
+	__u8 rsvd;
+};
+
 struct cpl_rdma_ec_status {
 	RSS_HDR
 	union opcode_tid ot;
@@ -959,9 +969,11 @@ struct cpl_rx_data {
 	__u8  dack_mode:2;
 	__u8  psh:1;
 	__u8  heartbeat:1;
-	__u8  :4;
+	__u8  ddp_off:1;
+	__u8  :3;
 #else
-	__u8  :4;
+	__u8  :3;
+	__u8  ddp_off:1;
 	__u8  heartbeat:1;
 	__u8  psh:1;
 	__u8  dack_mode:2;
@@ -1129,6 +1141,17 @@ struct cpl_tx_pkt {
 	__be32 len;
 };
 
+struct cpl_tx_pkt_coalesce {
+	__be32 cntrl;
+	__be32 len;
+	__be64 addr;
+};
+
+struct tx_pkt_coalesce_wr {
+	WR_HDR;
+	struct cpl_tx_pkt_coalesce cpl[0];
+};
+
 struct cpl_tx_pkt_lso {
 	WR_HDR;
 	__be32 cntrl;
@@ -1265,7 +1288,8 @@ struct cpl_l2t_write_req {
 	WR_HDR;
 	union opcode_tid ot;
 	__be32 params;
-	__u8  rsvd[2];
+	__u8  rsvd;
+	__u8  port_idx;
 	__u8  dst_mac[6];
 };
 

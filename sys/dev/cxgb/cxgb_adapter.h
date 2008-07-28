@@ -166,7 +166,7 @@ enum { TXQ_ETH = 0,
  * work request size in bytes
  */
 #define WR_LEN (WR_FLITS * 8)
-#define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt))
+#define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt_lso))
 
 
 /* careful, the following are set on priv_flags and must not collide with

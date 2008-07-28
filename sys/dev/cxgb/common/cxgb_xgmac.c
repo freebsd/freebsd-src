@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
  * # of exact address filters.  The first one is used for the station address,
  * the rest are available for multicast addresses.
  */
-#define EXACT_ADDR_FILTERS 8
 
 static inline int macidx(const struct cmac *mac)
 {
@@ -159,16 +158,18 @@ int t3_mac_reset(struct cmac *mac)
 		t3_write_reg(adap, A_XGM_TX_CTRL + oft, F_TXEN);
 		t3_write_reg(adap, A_XGM_RX_CTRL + oft, F_RXEN);
 	}
+
 	t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + oft,
 			 V_RXMAXFRAMERSIZE(M_RXMAXFRAMERSIZE),
 			 V_RXMAXFRAMERSIZE(MAX_FRAME_SIZE) | F_RXENFRAMER);
+
 	val = F_MAC_RESET_ | F_XGMAC_STOP_EN;
-	if (is_10G(adap) || mac->multiport)
+	if (!mac->multiport)
+		val |= F_XG2G_RESET_;
+	if (uses_xaui(adap))
 		val |= F_PCS_RESET_;
-	else if (uses_xaui(adap))
-		val |= F_PCS_RESET_ | F_XG2G_RESET_;
 	else
-		val |= F_RGMII_RESET_ | F_XG2G_RESET_;
+		val |= F_RGMII_RESET_;
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, val);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);  /* flush */
 	if ((val & F_PCS_RESET_) && adap->params.rev) {
@@ -188,10 +189,10 @@ static int t3b2_mac_reset(struct cmac *mac)
 
 
 	/* Stop egress traffic to xgm*/
-	if (!macidx(mac)) 
-		t3_set_reg_field(adap, A_MPS_CFG, F_PORT0ACTIVE, 0); 
+	if (!macidx(mac))
+		t3_set_reg_field(adap, A_MPS_CFG, F_PORT0ACTIVE, 0);
 	else
-		t3_set_reg_field(adap, A_MPS_CFG, F_PORT1ACTIVE, 0); 
+		t3_set_reg_field(adap, A_MPS_CFG, F_PORT1ACTIVE, 0);
 
 	/* PCS in reset */
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, F_MAC_RESET_);
@@ -223,15 +224,15 @@ static int t3b2_mac_reset(struct cmac *mac)
 		msleep(1);
 		t3b_pcs_reset(mac);
 	}
-	t3_write_reg(adap, A_XGM_RX_CFG + oft, 
+	t3_write_reg(adap, A_XGM_RX_CFG + oft,
 		 F_DISPAUSEFRAMES | F_EN1536BFRAMES |
 		                F_RMFCS | F_ENJUMBO | F_ENHASHMCAST );
 
 	/*Resume egress traffic to xgm*/
-	if (!macidx(mac)) 
-		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT0ACTIVE); 
+	if (!macidx(mac))
+		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT0ACTIVE);
 	else
-		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT1ACTIVE); 
+		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT1ACTIVE);
 
 	return 0;
 }
@@ -279,6 +280,9 @@ int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6])
  *	Specify the number of exact address filters that should be reserved for
  *	unicast addresses.  Caller should reload the unicast and multicast
  *	addresses after calling this.
+ *
+ *	Generally, this is 1 with the first one used for the station address,
+ *	and the rest are available for multicast addresses.
  */
 int t3_mac_set_num_ucast(struct cmac *mac, unsigned char n)
 {
@@ -385,7 +389,7 @@ static int rx_fifo_hwm(int mtu)
  *
  *	Sets the MAC MTU and adjusts the FIFO PAUSE watermarks accordingly.
  */
-int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu) 
+int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 {
 	int hwm, lwm, divisor;
 	int ipg;
@@ -413,7 +417,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 
 		reg = adap->params.rev == T3_REV_B2 ?
 			A_XGM_RX_MAX_PKT_SIZE_ERR_CNT : A_XGM_RXFIFO_CFG;
-	
+
 		/* drain RX FIFO */
 		if (t3_wait_op_done(adap, reg + mac->offset,
 				    F_RXFIFO_EMPTY, 1, 20, 5)) {
@@ -428,9 +432,8 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 		enable_exact_filters(mac);
 	} else
 		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
-		                 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
-		                 V_RXMAXPKTSIZE(mtu));
-	
+				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
+				 V_RXMAXPKTSIZE(mtu));
 	/*
 	 * Adjust the PAUSE frame watermarks.  We always set the LWM, and the
 	 * HWM only if flow-control is enabled.
@@ -462,10 +465,10 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	 */
 	if (adap->params.rev > 0) {
 		divisor = (adap->params.rev == T3_REV_C) ? 64 : 8;
-		t3_write_reg(adap, A_XGM_PAUSE_TIMER + mac->offset, 
-		    (hwm - lwm) * 4 / divisor);
+		t3_write_reg(adap, A_XGM_PAUSE_TIMER + mac->offset,
+			     (hwm - lwm) * 4 / divisor);
 	}
-	t3_write_reg(adap, A_XGM_TX_PAUSE_QUANTA + mac->offset, 
+	t3_write_reg(adap, A_XGM_TX_PAUSE_QUANTA + mac->offset,
 		     MAC_RXFIFO_SIZE * 4 * 8 / 512);
 	return 0;
 }
@@ -489,7 +492,7 @@ int t3_mac_set_speed_duplex_fc(struct cmac *mac, int speed, int duplex, int fc)
 
 	if (duplex >= 0 && duplex != DUPLEX_FULL)
 		return -EINVAL;
-	if (mac->multiport) {	
+	if (mac->multiport) {
 		val = t3_read_reg(adap, A_XGM_RXFIFO_CFG + oft);
 		val &= ~V_RXFIFOPAUSEHWM(M_RXFIFOPAUSEHWM);
 		val |= V_RXFIFOPAUSEHWM(rx_fifo_hwm(t3_read_reg(adap,
@@ -575,7 +578,7 @@ int t3_mac_enable(struct cmac *mac, int which)
 		mac->txen = F_TXEN;
 		mac->toggle_cnt = 0;
 	}
-	if (which & MAC_DIRECTION_RX) 
+	if (which & MAC_DIRECTION_RX)
 		t3_write_reg(adap, A_XGM_RX_CTRL + oft, F_RXEN);
 	return 0;
 }
@@ -673,10 +676,10 @@ rxcheck:
 	if (rx_mcnt != mac->rx_mcnt) {
 		rx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_RX_SPI4_SOP_EOP_CNT +
-						mac->offset))) + 
+						mac->offset))) +
 						(s->rx_fifo_ovfl - mac->rx_ocnt);
 		mac->rx_ocnt = s->rx_fifo_ovfl;
-	} else 
+	} else
 		goto out;
 
 	if (mac->rx_mcnt != s->rx_frames && rx_xcnt == 0 && mac->rx_xcnt == 0) {
@@ -684,8 +687,8 @@ rxcheck:
 		  status = 2;
 		goto out;
 	}
-	
-out:	
+
+out:
 	mac->tx_tcnt = tx_tcnt;
 	mac->tx_xcnt = tx_xcnt;
 	mac->tx_mcnt = s->tx_frames;

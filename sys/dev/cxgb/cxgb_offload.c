@@ -1,7 +1,6 @@
-
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -104,7 +103,7 @@ unregister_tdev(struct t3cdev *tdev)
 	mtx_unlock(&cxgb_db_lock);	
 }
 
-#ifdef TOE_ENABLED
+#ifndef TCP_OFFLOAD_DISABLE
 /**
  *	cxgb_register_client - register an offload client
  *	@client: the client
