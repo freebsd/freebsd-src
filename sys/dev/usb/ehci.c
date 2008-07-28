@@ -661,9 +661,13 @@ ehci_pcd_enable(void *v_sc)
 static __inline void
 hacksync(usbd_xfer_handle xfer)
 {
-	usbd_pipe_handle pipe = xfer->pipe;
-	bus_dma_tag_t tag = pipe->device->bus->buffer_dmatag;
-	struct usb_dma_mapping *dmap = &xfer->dmamap;
+	bus_dma_tag_t tag;
+	struct usb_dma_mapping *dmap;
+
+	if (xfer->length == 0)
+		return;
+	tag = xfer->pipe->device->bus->buffer_dmatag;
+	dmap = &xfer->dmamap;
 	bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
 }
 
