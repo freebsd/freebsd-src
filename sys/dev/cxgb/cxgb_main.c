@@ -9,7 +9,7 @@ modification, are permitted provided that the following conditions are met:
  1. Redistributions of source code must retain the above copyright notice,
     this list of conditions and the following disclaimer.
 
-2. Neither the name of the Chelsio Corporation nor the names of its
+ 2. Neither the name of the Chelsio Corporation nor the names of its
     contributors may be used to endorse or promote products derived from
     this software without specific prior written permission.
 
@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -724,10 +725,9 @@ cxgb_free(struct adapter *sc)
 	} else
 		printf("not offloading set\n");	
 #ifdef notyet
-	/* XXX need to handle unload in TOM */
 	if (sc->flags & CXGB_OFLD_INIT)
 		cxgb_offload_deactivate(sc);
-#endif	
+#endif
 	free(sc->filters, M_DEVBUF);
 	t3_sge_free(sc);
 	
@@ -979,7 +979,7 @@ cxgb_port_attach(device_t dev)
 	 * Only default to jumbo frames on 10GigE
 	 */
 	if (p->adapter->params.nports <= 2)
-		ifp->if_mtu = 9000;
+		ifp->if_mtu = ETHERMTU_JUMBO;
 	if ((err = cxgb_makedev(p)) != 0) {
 		printf("makedev failed %d\n", err);
 		return (err);
@@ -1255,13 +1255,23 @@ cxgb_link_start(struct port_info *p)
 	struct ifnet *ifp;
 	struct t3_rx_mode rm;
 	struct cmac *mac = &p->mac;
+	int mtu, hwtagging;
 
 	ifp = p->ifp;
+
+	bcopy(IF_LLADDR(ifp), p->hw_addr, ETHER_ADDR_LEN);
+
+	mtu = ifp->if_mtu;
+	if (ifp->if_capenable & IFCAP_VLAN_MTU)
+		mtu += ETHER_VLAN_ENCAP_LEN;
+
+	hwtagging = (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0;
 
 	t3_init_rx_mode(&rm, p);
 	if (!mac->multiport) 
 		t3_mac_reset(mac);
-	t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	t3_mac_set_mtu(mac, mtu);
+	t3_set_vlan_accel(p->adapter, 1 << p->tx_chan, hwtagging);
 	t3_mac_set_address(mac, 0, p->hw_addr);
 	t3_mac_set_rx_mode(mac, &rm);
 	t3_link_start(&p->phy, mac, &p->link_config);
@@ -1751,10 +1761,9 @@ offload_open(struct port_info *pi)
 		     adapter->params.rev == 0 ?
 		       adapter->port[0].ifp->if_mtu : 0xffff);
 	init_smt(adapter);
-#ifdef TOE_ENABLED
 	/* Call back all registered clients */
 	cxgb_add_clients(tdev);
-#endif
+
 	/* restore them in case the offload module has changed them */
 	if (err) {
 		t3_tp_set_offload_mode(adapter, 0);
@@ -1771,10 +1780,10 @@ offload_close(struct t3cdev *tdev)
 
 	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT))
 		return (0);
-#ifdef TOE_ENABLED	
+
 	/* Call back all registered clients */
 	cxgb_remove_clients(tdev);
-#endif
+
 	tdev->lldev = NULL;
 	cxgb_set_dummy_ops(tdev);
 	t3_tp_set_offload_mode(adapter, 0);
@@ -1904,7 +1913,7 @@ cxgb_set_mtu(struct port_info *p, int mtu)
 	struct ifnet *ifp = p->ifp;
 	int error = 0;
 	
-	if ((mtu < ETHERMIN) || (mtu > ETHER_MAX_LEN_JUMBO))
+	if ((mtu < ETHERMIN) || (mtu > ETHERMTU_JUMBO))
 		error = EINVAL;
 	else if (ifp->if_mtu != mtu) {
 		PORT_LOCK(p);
@@ -1924,7 +1933,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 	struct port_info *p = ifp->if_softc;
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
-	int flags, error = 0;
+	int flags, error = 0, reinit = 0;
 	uint32_t mask;
 
 	/* 
@@ -1979,17 +1988,15 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
 				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
 				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP
-				    | CSUM_TSO);
+				    | CSUM_IP | CSUM_TSO);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
-				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
+				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP
+				    | CSUM_IP);
 			}
-		} else if (mask & IFCAP_RXCSUM) {
-			if (IFCAP_RXCSUM & ifp->if_capenable) {
-				ifp->if_capenable &= ~IFCAP_RXCSUM;
-			} else {
-				ifp->if_capenable |= IFCAP_RXCSUM;
-			}
+		}
+		if (mask & IFCAP_RXCSUM) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 		}
 		if (mask & IFCAP_TSO4) {
 			if (IFCAP_TSO4 & ifp->if_capenable) {
@@ -2005,7 +2012,26 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 				error = EINVAL;
 			}
 		}
+		if (mask & IFCAP_VLAN_HWTAGGING) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			reinit = ifp->if_drv_flags & IFF_DRV_RUNNING;
+		}
+		if (mask & IFCAP_VLAN_MTU) {
+			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			reinit = ifp->if_drv_flags & IFF_DRV_RUNNING;
+		}
+		if (mask & IFCAP_VLAN_HWCSUM) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		}
+		if (reinit) {
+			cxgb_stop_locked(p);
+			cxgb_init_locked(p);
+		}
 		PORT_UNLOCK(p);
+
+#ifdef VLAN_CAPABILITIES
+		VLAN_CAPABILITIES(ifp);
+#endif
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -2126,9 +2152,11 @@ check_t3b2_mac(struct adapter *adapter)
 			p->mac.stats.num_toggled++;
 		else if (status == 2) {
 			struct cmac *mac = &p->mac;
+			int mtu = ifp->if_mtu;
 
-			t3_mac_set_mtu(mac, ifp->if_mtu + ETHER_HDR_LEN
-			    + ETHER_VLAN_ENCAP_LEN);
+			if (ifp->if_capenable & IFCAP_VLAN_MTU)
+				mtu += ETHER_VLAN_ENCAP_LEN;
+			t3_mac_set_mtu(mac, mtu);
 			t3_mac_set_address(mac, 0, p->hw_addr);
 			cxgb_set_rxmode(p);
 			t3_link_start(&p->phy, mac, &p->link_config);
@@ -2434,7 +2462,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		if (t->intr_lat >= 0) {
 			struct sge_qset *qs = &sc->sge.qs[t->qset_idx];
 
-			q->coalesce_nsecs = t->intr_lat*1000;
+			q->coalesce_usecs = t->intr_lat;
 			t3_update_qset_coalesce(qs, q);
 		}
 		break;
@@ -2454,7 +2482,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		t->fl_size[0]  = q->fl_size;
 		t->fl_size[1]  = q->jumbo_size;
 		t->polling     = q->polling;
-		t->intr_lat    = q->coalesce_nsecs / 1000;
+		t->intr_lat    = q->coalesce_usecs;
 		t->cong_thres  = q->cong_thres;
 		break;
 	}

@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright (c) 2007, Chelsio Inc.
@@ -26,25 +25,16 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
+
 $FreeBSD$
 
 ***************************************************************************/
+#ifndef CXGB_VM_H_
+#define CXGB_VM_H_
 
-#ifndef _CXGB_TOEDEV_H_
-#define _CXGB_TOEDEV_H_
-#ifdef notyet
-#include <netinet/toedev.h>
-#endif
+#define VM_HOLD_WRITEABLE	0x1
 
-/* offload type ids */
-enum {
-	TOE_ID_CHELSIO_T1 = 1,
-	TOE_ID_CHELSIO_T1C,
-	TOE_ID_CHELSIO_T2,
-	TOE_ID_CHELSIO_T3,
-	TOE_ID_CHELSIO_T3B,
-	TOE_ID_CHELSIO_T3C,
-}
-	;
+int vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags);
+void vm_fault_unhold_pages(vm_page_t *mp, int count);
 
 #endif
