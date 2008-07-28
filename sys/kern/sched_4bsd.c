@@ -91,6 +91,7 @@ struct td_sched {
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	int		ts_cpticks;	/* (j) Ticks of cpu time. */
 	int		ts_slptime;	/* (j) Seconds !RUNNING. */
+	int		ts_flags;
 	struct runq	*ts_runq;	/* runq the thread is currently on */
 };
 
@@ -98,8 +99,14 @@ struct td_sched {
 #define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
 #define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
 
+/* flags kept in ts_flags */
+#define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
+
 #define SKE_RUNQ_PCPU(ts)						\
     ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
+
+#define	THREAD_CAN_SCHED(td, cpu)	\
+    CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
 
 static struct td_sched td_sched0;
 struct mtx sched_lock;
@@ -118,6 +125,7 @@ static void	updatepri(struct thread *td);
 static void	resetpriority(struct thread *td);
 static void	resetpriority_thread(struct thread *td);
 #ifdef SMP
+static int	sched_pickcpu(struct thread *td);
 static int	forward_wakeup(int cpunum);
 static void	kick_other_cpu(int pri, int cpuid);
 #endif
@@ -141,6 +149,7 @@ static struct runq runq;
  * Per-CPU run queues
  */
 static struct runq runq_pcpu[MAXCPU];
+long runq_length[MAXCPU];
 #endif
 
 static void
@@ -733,6 +742,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	childtd->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts = childtd->td_sched;
 	bzero(ts, sizeof(*ts));
+	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
 }
 
 void
@@ -1149,6 +1159,32 @@ kick_other_cpu(int pri, int cpuid)
 }
 #endif /* SMP */
 
+#ifdef SMP
+static int
+sched_pickcpu(struct thread *td)
+{
+	int best, cpu;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	best = NOCPU;
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		if (!THREAD_CAN_SCHED(td, cpu))
+			continue;
+	
+		if (best == NOCPU)
+			best = cpu;
+		else if (runq_length[cpu] < runq_length[best])
+			best = cpu;
+	}
+	KASSERT(best != NOCPU, ("no valid CPUs"));
+
+	return (best);
+}
+#endif
+
 void
 sched_add(struct thread *td, int flags)
 #ifdef SMP
@@ -1196,6 +1232,14 @@ sched_add(struct thread *td, int flags)
 		CTR3(KTR_RUNQ,
 		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
 		    cpu);
+	} else if (ts->ts_flags & TSF_AFFINITY) {
+		/* Find a valid CPU for our cpuset */
+		cpu = sched_pickcpu(td);
+		ts->ts_runq = &runq_pcpu[cpu];
+		single_cpu = 1;
+		CTR3(KTR_RUNQ,
+		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td,
+		    cpu);
 	} else {
 		CTR2(KTR_RUNQ,
 		    "sched_add: adding td_sched:%p (td:%p) to gbl runq", ts,
@@ -1227,10 +1271,13 @@ sched_add(struct thread *td, int flags)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, td, flags);
+	if (cpu != NOCPU)
+		runq_length[cpu]++;
 }
 #else /* SMP */
 {
 	struct td_sched *ts;
+
 	ts = td->td_sched;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
@@ -1292,6 +1339,10 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
+#ifdef SMP
+	if (ts->ts_runq != &runq)
+		runq_length[ts->ts_runq - runq_pcpu]--;
+#endif
 	runq_remove(ts->ts_runq, td);
 	TD_SET_CAN_RUN(td);
 }
@@ -1331,6 +1382,10 @@ sched_choose(void)
 #endif
 
 	if (td) {
+#ifdef SMP
+		if (td == tdcpu)
+			runq_length[PCPU_GET(cpuid)]--;
+#endif
 		runq_remove(rq, td);
 		td->td_flags |= TDF_DIDRUN;
 
@@ -1515,4 +1570,65 @@ sched_fork_exit(struct thread *td)
 void
 sched_affinity(struct thread *td)
 {
+#ifdef SMP
+	struct td_sched *ts;
+	int cpu;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);	
+
+	/*
+	 * Set the TSF_AFFINITY flag if there is at least one CPU this
+	 * thread can't run on.
+	 */
+	ts = td->td_sched;
+	ts->ts_flags &= ~TSF_AFFINITY;
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		if (!THREAD_CAN_SCHED(td, cpu)) {
+			ts->ts_flags |= TSF_AFFINITY;
+			break;
+		}
+	}
+
+	/*
+	 * If this thread can run on all CPUs, nothing else to do.
+	 */
+	if (!(ts->ts_flags & TSF_AFFINITY))
+		return;
+
+	/* Pinned threads and bound threads should be left alone. */
+	if (td->td_pinned != 0 || td->td_flags & TDF_BOUND)
+		return;
+
+	switch (td->td_state) {
+	case TDS_RUNQ:
+		/*
+		 * If we are on a per-CPU runqueue that is in the set,
+		 * then nothing needs to be done.
+		 */
+		if (ts->ts_runq != &runq &&
+		    THREAD_CAN_SCHED(td, ts->ts_runq - runq_pcpu))
+			return;
+
+		/* Put this thread on a valid per-CPU runqueue. */
+		sched_rem(td);
+		sched_add(td, SRQ_BORING);
+		break;
+	case TDS_RUNNING:
+		/*
+		 * See if our current CPU is in the set.  If not, force a
+		 * context switch.
+		 */
+		if (THREAD_CAN_SCHED(td, td->td_oncpu))
+			return;
+
+		td->td_flags |= TDF_NEEDRESCHED;
+		if (td != curthread)
+			ipi_selected(1 << cpu, IPI_AST);
+		break;
+	default:
+		break;
+	}
+#endif
 }
