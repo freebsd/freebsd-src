@@ -1,3 +1,265 @@
+2008-03-10  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo (config): Document the IgnoreUnknownConfigKeys
+	option.
+
+2008-01-27  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo: Document use of --with-ssh flag to configure and
+	how :extssh: uses the CVS_SSH environment variable or "ssh".
+	* stamp-vti, version.texi: Regenerated.
+	
+	* cvs.texinfo: Update copyright for 2008.
+
+2008-01-24  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo (log options): Document the new cvs log -n
+	switch to reverse the -N switch.
+	* cvs.texinfo (annotate & rannotate): Document "blame" as a
+	synonym for the "annotate" command.
+	(Patch suggested by "David O'Brien" <obrien@FreeBSD.org>)
+
+	* cvs.1, stamp-1, stamp-vti, version-client.texi, version.texi:
+	Regenerated.
+
+2007-05-07  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.text: Remove references to remote `init' command.
+
+2006-08-25  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.texi (Requests, Responses): Remove reference to the
+	obsolete checkin & update programs.
+
+2006-08-21  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (man page nodes): Tweak grammar, especially refs.
+	(Original patch from Kevin R. Bulgrien <kbulgrien@att.net>.)
+
+	* mkman.pl (do_keyword): Process ref and p?xref differently.
+	(Original patch from Kevin R. Bulgrien <kbulgrien@att.net>.)
+
+2006-08-11  Mark D. Baushke  <mdb@gnu.org>
+
+	* cvs.texinfo, cvsclient.texi: Fix some typos.
+	(inspired by Ralf Wildenhues <Ralf.Wildenhues@gmx.de>)
+
+2006-07-16  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (File permissions): Correct punctuation.
+
+2006-07-11  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (log options): -b is a revision selection option, not
+	a header field option.
+
+2006-06-22  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (user-defined logging, Informing others): Remove
+	references to the obsolete -i module option.
+
+2006-06-08  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.texi (Requests): Add Empty-conflicts.
+
+2006-03-20  Mark D. Baushke  <mdb@gnu.org>
+
+	[patch #4965]
+	* cvs.texinfo (Sticky tags, Merging and keywords)
+	(checkout options, update options): The -A switch
+	does not reset sticky -k options on modified files.
+	* cvs.1, stamp-1, stamp-vti, version.texi: Regenerated.
+
+2006-02-28  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Editing administrative files): Import changes from Wiki.
+
+2005-12-09  Derek Price  <derek@ximbiot.com>
+
+	[patch #4634]
+	* cvsclient.texi (Root request): Clarify.
+
+2005-11-10  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (Common options): -n no longer applies to commit.
+	(commit): Remove reference to the defunct -n option.
+	* cvs.1, stamp-vti, version.texi: Regenerated
+
+2005-10-12  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Remove text that created unintentional cross-references
+	in generated info files.
+
+2005-10-04  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: s/visa versa/vice versa/.  (From Wiki.)
+
+2005-09-26  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (cvs-paper.ps, cvs-paper.pdf): Remove implicit sources.
+	Add comments about why implicit rules won't work for these targets.
+	Make sure the distributed cvs-paper.pdf is created in $(srcdir).  Make
+	cvs-paper.pdf directly from cvs-paper.ms to avoid building it just
+	because cvs-paper.ps is missing.
+
+	* Makefile.am (EXTRA_DIST): Restore PDFs.
+	* cvs-paper.ps: Removed.
+	* texinfo.tex: Update from GNULIB.
+
+2005-09-25  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (doc): Finish removing PSs.
+
+	* Makefile.am (EXTRA_DIST): Remove PDFs too until errors go away.
+
+	* Makefile.am (EXTRA_DIST): Dist PDFs rather than PSs.
+
+2005-09-22  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (rdiff options): Document -k.
+	* cvs.1, stamp-vti, version.texi: Regenerated.
+
+2005-09-20  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo: Move summary and detail contents to the front
+	where they belong.
+
+2005-09-14  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: s#cvs.1#$(srcdir)/cvs.1#.
+
+2005-09-11  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (Common options): Note that -r branch for a revision
+	means the head of the branch.
+
+2005-09-10  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (Error messages): Add suggested messages.
+
+2005-09-09  Larry Jones  <lawrence.jones@ugs.com>
+
+	* cvs.texinfo (Error messages): Add signal 11 message.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* cvs.man.footer: Update links.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Update links and email addresses.
+
+2005-08-29  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (From scratch): Add checkout to import example, from
+	wiki.
+
+2005-08-29  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Removing directories): Correct grammar, from wiki.
+
+2005-08-29  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (From scratch): Clarify note on `cvs add', inspired from
+	wiki.
+
+2005-08-22  Derek Price  <derek@ximbiot.com>
+
+	Address bug #13882, submitted by Fred Maranhao.
+	* cvs.texinfo (log options, admin options, Invoking CVS): Add cross
+	references for clarity about possible states.
+
+2005-08-22  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Updating a file): Add note about update -d, inspired by
+	wiki.
+
+2005-08-12  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (What is CVS?): Rephrase for clarity, imported from
+	Wiki.
+
+2005-08-02  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (What is CVS?, BUGS): s/cvshome/nongnu/.  Remove
+	obsolete Pascal Molli link.
+
+2005-06-22  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Builds): Update Gunnar Tornblom's email at his request.
+
+2005-05-03  Derek Price  <derek@ximbiot.com>
+
+	* cvsclient.texi (Goals): Remove typo.  Resolves cvshome issue #236.
+
+2005-05-03  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Creating a repository):  Provide xref to the remote
+	repositries section.  Resolves issue #203 on cvshome.org.
+
+2005-05-03  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Moving directories):  Clarify instructions on renaming a
+	directory.  Partially resolves issue #246 on cvshome.org.
+
+2005-05-03  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (update output): Use "working directory" in place of
+	"source" for clarity.  Closes issue #245 on cvshome.org.
+
+2005-04-28  Derek Price  <derek@ximbiot.com>
+
+	* mkman.pl: Minor changes to accomodate Perl 5.8.4.  Improve
+	commenting.
+	($nk, $ret, $debug): New globals.
+	(debug_print): New function.
+
+2005-04-14  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Administrative files): Add "Trigger Scripts" node to
+	the menu.
+	(Trigger Scripts, Trigger Script Security): New nodes.
+	(syntax): Move under Trigger scripts node.
+	(commit files, taginfo): Rewrite to reference Trigger Script node.  
+
+2005-04-06  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (MAINTAINERCLEANFILES): Add cvs.1.
+	(cvs.1): Create intermediate file so that the original isn't emptied on
+	error.
+
+2005-01-31  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am, cvs.man.header, cvs.texinfo: Update copyright notices.
+
+2005-01-29  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (log options): Note quirky interaction of log options.
+	(Suggestion from Dan Peterson <dbpete@aol.com>.)
+
+2004-10-29  Mark D. Baushke  <mdb@cvshome.org>
+
+	* cvs.texinfo (Common options): The -r TAG option works with
+	the cvs annotate command.
+	(Original patch from Ville Skytta <scop@cvshome.org>.)
+
+2004-09-25  Derek Price  <derek@ximbiot.com>
+
+	* mkman.in: Move to...
+	* mkman.pl: ...here.
+	* Makefile.am (cvs.1): mkman is in build dir, not src dir.
+
+2004-07-17  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (Update imports, import): Add notes on requirement that
+	release tags be unique.
+	(Original patch from Ilya N. Golubev <gin@mo.msk.ru>.)
+
+2004-06-10  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo (commit files): Remove reference to the obsolete -i
+	module option.
+
 2004-05-28  Derek Price  <derek@ximbiot.com>
 
 	* cvs.texinfo (Global options): Remove reference to global -l option.

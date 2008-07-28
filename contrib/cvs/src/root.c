@@ -1,6 +1,10 @@
 /*
- * Copyright (c) 1992, Mark D. Baushke
- * Copyright (c) 2002, Derek R. Price
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Poritons Copyright (c) 1992, Mark D. Baushke
  *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -11,6 +15,7 @@
  */
 
 #include "cvs.h"
+#include <assert.h>
 #include "getline.h"
 
 /* Printable names for things in the current_parsed_root->method enum variable.
@@ -18,18 +23,19 @@
 
 const char method_names[][16] = {
     "undefined", "local", "server (rsh)", "pserver",
-    "kserver", "gserver", "ext", "fork"
+    "kserver", "gserver", "ext", "extssh", "fork"
 };
 
 #ifndef DEBUG
 
-char *
+cvsroot_t *
 Name_Root (dir, update_dir)
-    char *dir;
-    char *update_dir;
+    const char *dir;
+    const char *update_dir;
 {
     FILE *fpin;
-    char *ret, *xupdate_dir;
+    cvsroot_t *ret;
+    const char *xupdate_dir;
     char *root = NULL;
     size_t root_allocated = 0;
     char *tmp;
@@ -87,7 +93,7 @@ Name_Root (dir, update_dir)
 	goto out;
     }
     fclose (fpin);
-    cp = root + (len - 1);
+    cp = root + len - 1;
     if (*cp == '\n')
 	*cp = '\0';			/* strip the newline */
 
@@ -96,43 +102,34 @@ Name_Root (dir, update_dir)
      * absolute pathname or specify a remote server.
      */
 
-    if (
-#ifdef CLIENT_SUPPORT
-	(strchr (root, ':') == NULL) &&
-#endif
-    	! isabsolute (root))
+    ret = parse_cvsroot (root);
+    if (ret == NULL)
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (0, 0,
-	       "ignoring %s because it does not contain an absolute pathname.",
+	       "ignoring %s because it does not contain a valid root.",
 	       CVSADM_ROOT);
-	ret = NULL;
 	goto out;
     }
 
-#ifdef CLIENT_SUPPORT
-    if ((strchr (root, ':') == NULL) && !isdir (root))
-#else /* ! CLIENT_SUPPORT */
-    if (!isdir (root))
-#endif /* CLIENT_SUPPORT */
+    if (!ret->isremote && !isdir (ret->directory))
     {
 	error (0, 0, "in directory %s:", xupdate_dir);
 	error (0, 0,
 	       "ignoring %s because it specifies a non-existent repository %s",
 	       CVSADM_ROOT, root);
+	free_cvsroot_t (ret);
 	ret = NULL;
 	goto out;
     }
 
-    /* allocate space to return and fill it in */
-    strip_trailing_slashes (root);
-    ret = xstrdup (root);
+
  out:
     free (cvsadm);
     free (tmp);
     if (root != NULL)
 	free (root);
-    return (ret);
+    return ret;
 }
 
 
@@ -184,6 +181,12 @@ Create_Root (dir, rootdir)
 static int root_allow_count;
 static char **root_allow_vector;
 static int root_allow_size;
+
+int
+root_allow_used ()
+{
+    return root_allow_count;
+}
 
 void
 root_allow_add (arg)
@@ -293,6 +296,7 @@ new_cvsroot_t ()
 
     newroot->original = NULL;
     newroot->method = null_method;
+    newroot->isremote = 0;
 #ifdef CLIENT_SUPPORT
     newroot->username = NULL;
     newroot->password = NULL;
@@ -301,7 +305,6 @@ new_cvsroot_t ()
     newroot->directory = NULL;
     newroot->proxy_hostname = NULL;
     newroot->proxy_port = 0;
-    newroot->isremote = 0;
 #endif /* CLIENT_SUPPORT */
 
     return newroot;
@@ -376,6 +379,8 @@ parse_cvsroot (root_in)
     int check_hostname, no_port, no_password;
 #endif /* CLIENT_SUPPORT */
 
+    assert (root_in);
+
     /* allocate some space */
     newroot = new_cvsroot_t();
 
@@ -411,7 +416,7 @@ parse_cvsroot (root_in)
 	 * We don't handle these, but we like to try and warn the user that
 	 * they are being ignored.
 	 */
-	if (p = strchr (method, ';'))	
+	if ((p = strchr (method, ';')) != NULL)
 	{
 	    *p++ = '\0';
 	    if (!really_quiet)
@@ -439,6 +444,8 @@ parse_cvsroot (root_in)
 	    newroot->method = server_method;
 	else if (strcmp (method, "ext") == 0)
 	    newroot->method = ext_method;
+	else if (strcmp (method, "extssh") == 0)
+	    newroot->method = extssh_method;
 	else if (strcmp (method, "fork") == 0)
 	    newroot->method = fork_method;
 	else
@@ -457,10 +464,7 @@ parse_cvsroot (root_in)
 			  : local_method);
     }
 
-#ifdef CLIENT_SUPPORT
     newroot->isremote = (newroot->method != local_method);
-#endif /* CLIENT_SUPPORT */
-
 
     if ((newroot->method != local_method)
 	&& (newroot->method != fork_method))
@@ -671,6 +675,7 @@ parse_cvsroot (root_in)
 # endif
     case server_method:
     case ext_method:
+    case extssh_method:
 	no_port = 1;
 	/* no_password already set */
 	check_hostname = 1;
@@ -742,6 +747,8 @@ normalize_cvsroot (root)
     char *cvsroot_canonical;
     char *p, *hostname, *username;
     char port_s[64];
+
+    assert (root && root->hostname && root->directory);
 
     /* get the appropriate port string */
     sprintf (port_s, "%d", get_cvs_port_number (root));

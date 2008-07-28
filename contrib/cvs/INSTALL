@@ -1,4 +1,24 @@
-First, read the README file.  If you're still happy...
+-------------------------------------------------------------------------------
+
+CVS is Copyright (C) 1986-2006 The Free Software Foundation, Inc.
+
+CVS is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 1, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+-------------------------------------------------------------------------------
+
+Now back to our regularly scheduled program:
+
+Please read the README file before reading this INSTALL file.  Then, to
+install CVS:
+
 
 First you need to obtain and install the CVS executables.  If you got
 a distribution which contains executables, consult the installation
@@ -95,7 +115,7 @@ Tested platforms
 CVS has been tested on the following platforms.  The most recent
 version of CVS reported to have been tested is indicated, but more
 recent versions of CVS probably will work too.  Please send updates to
-this list to bug-cvs@gnu.org (doing so in the form of a diff
+this list to bug-cvs@nongnu.org (doing so in the form of a diff
 to this file, or at least exact suggested text, is encouraged).
 "tested" means, at a minimum, that CVS compiles and appears to work on
 simple (manual) testing.  In many cases it also means "make check"
@@ -182,7 +202,8 @@ PowerPC or RS/6000:
 	IBM RS/6000 running AIX 4.3 (1.10.7)
 	Lynx 2.3.1 120495 (1.6.86) (footnote 9)
 	Lynx 2.5 (1.9) (footnote 10)
-	MkLinux DR3 GENERIC #6 (1.10.5.1) (presumably LinuxPPC too)
+	Linux DR3 GENERIC #6 (1.10.5.1) (presumably LinuxPPC too)
+	Mac OS X ALL (footnote 14)
 	Mac OS X Darwin 6.6 Darwin Kernel Version 6.6 (1.11.1p1)
 	Mac OS X Darwin 5.5 Darwin Kernel Version 5.5 (1.11.6) (footnote 12)
 	Mac OS X Darwin 5.5 Darwin Kernel Version 5.5 (1.12.1) (footnote 12)
@@ -252,6 +273,17 @@ VAX:
 (footnote 13)
     A build under HP PA-RISC 2.0 will probably not run under PA-RISC 1.1
     unless "+DAportable" is added to the HP ANSI cc compiler flags.
+
+(footnote 14)
+    Because of the case-insensitive file system on Mac OS X, you cannot build
+    CVS directly from a checkout from CVS.  The name of the built executable,
+    `cvs', conflicts with name of the CVS administration directory, `CVS'.
+    The work-around is to build the executable from a build directory separate
+    from the source directory.  i.e.:
+
+	cvs co ccvs; cd ccvs
+	mkdir build; cd build
+	../configure && make
 
 -------------------------------------------------------------------------------
 

@@ -1,3 +1,62 @@
+2006-06-23  Larry Jones  <lawrence.jones@ugs.com>
+
+	* xsize.h: Avoid SGI problem with <stdint.h> being unusable in C89
+	mode.
+
+2005-11-14  Mark D. Baushke  <mdb@gnu.org>
+
+	* system.h (FOLD_FN_CHAR): Distinguish OSX_ and VMS_ variations
+	based on USE_VMS_FILENAME macro.
+
+2005-11-09  Mark D. Baushke  <mdb@gnu.org>
+
+	* system.h (FOLD_FN_CHAR): Create a VMS alternative of this macro
+	(patch suggested by Piet Schuermans <pschuermans@mac.com>).
+	
+2005-07-11  Mark D. Baushke  <mdb@cvshome.org>
+
+	* getpass.c (getpass): Add a K&R style function definition.
+
+2005-04-15  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (EXTRA_DIST): Add test-getdate.sh.
+
+2005-03-23  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am (TESTS, MOSTLYCLEANFILES, check_PROGRAMS, EXTRA_DIST,
+	getdate_SOURCES, getdate_CPPFLAGS): Add getdate testing cruft.
+	* test-getdate.sh: New file.
+	* .cvsignore: Ignore getdate executable.
+
+2005-03-23  Larry Jones  <lawrence.jones@ugs.com>
+
+	* getdate.c: Remove absolute paths from #line directives.
+
+2005-03-04  Jim Hyslop  <jhyslop@ieee.org>
+
+	* xtime.h: added include guards to fix compile errors on IRIX 5.3
+	(Patch from Georg Schwarz <georg.scwarz@freenet.de>.)
+
+2005-02-08  Derek Price  <derek@ximbiot.com>
+
+	* fncase.c (OSX_filename_classes): Mac OSX doesn't need \ mapped to /.
+	* system.h (FOLD_FN_CASE): Clarify comment.
+
+2005-01-31  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notices.
+
+2004-10-05  Derek Price  <derek@ximbiot.com>
+
+	* regex.c: Back out my change from 2004-04-07 as possibly suppressing
+	useful warnings.
+
+2004-10-05  Mark D. Baushke  <mdb@cvshome.org>
+
+	* regex.c (re_comp): Cast gettext return value to char * to
+	avoid warning in !ENABLE_NLS case. Patch imported from GNULIB.
+	(Problem report from Martin Neitzel <neitzel@sco.gaertner.de>.)
+
 2004-05-28  Derek Price  <derek@ximbiot.com>
 
 	* xsize.h: New file from GNULIB.

@@ -93,9 +93,7 @@ void wrap_setup()
     else
         wrap_setup_already_done = 1;
 
-#ifdef CLIENT_SUPPORT
     if (!current_parsed_root->isremote)
-#endif
     {
 	char *file;
 
@@ -240,6 +238,7 @@ wrap_unparse_rcs_options (line, first_call_p)
  * Remove fmt str specifier other than %% or %s. And allow
  * only max_s %s specifiers
  */
+void
 wrap_clean_fmt_str(char *fmt, int max_s)
 {
     while (*fmt) {
@@ -257,7 +256,6 @@ wrap_clean_fmt_str(char *fmt, int max_s)
 	}
 	fmt++;
     }
-    return;
 }
 
 /*
@@ -418,7 +416,8 @@ wrap_add (line, isTemp)
 	switch(opt){
 	case 'f':
 	    /* Before this is reenabled, need to address the problem in
-	       commit.c (see http://www.cvshome.org/docs/infowrapper.html).  */
+	       commit.c (see
+	       http://ximbiot.com/cvs/cvshome/docs/infowrapper.html).  */
 	    error (1, 0,
 		   "-t/-f wrappers not supported by this version of CVS");
 
@@ -432,7 +431,8 @@ wrap_add (line, isTemp)
 	    break;
 	case 't':
 	    /* Before this is reenabled, need to address the problem in
-	       commit.c (see http://www.cvshome.org/docs/infowrapper.html).  */
+	       commit.c (see
+	       http://ximbiot.com/cvs/cvshome/docs/infowrapper.html).  */
 	    error (1, 0,
 		   "-t/-f wrappers not supported by this version of CVS");
 

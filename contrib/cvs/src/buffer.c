@@ -1,3 +1,17 @@
+/*
+ * Copyright (C) 1996-2005 The Free Software Foundation, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 /* Code for the buffer data structure.  */
 
 /* $FreeBSD$ */
@@ -112,11 +126,13 @@ allocate_buffer_datas ()
     /* Allocate buffer_data structures in blocks of 16.  */
 #define ALLOC_COUNT (16)
 
-    alc = ((struct buffer_data *)
-	   xmalloc (ALLOC_COUNT * sizeof (struct buffer_data)));
+    alc = xmalloc (ALLOC_COUNT * sizeof (struct buffer_data));
     space = (char *) valloc (ALLOC_COUNT * BUFFER_DATA_SIZE);
-    if (alc == NULL || space == NULL)
+    if (!space)
+    {
+	free (alc);
 	return;
+    }
     for (i = 0; i < ALLOC_COUNT; i++, alc++, space += BUFFER_DATA_SIZE)
     {
 	alc->next = free_buffer_data;
@@ -1408,10 +1424,16 @@ stdio_buffer_shutdown (buf)
 {
     struct stdio_buffer_closure *bc = buf->closure;
     struct stat s;
-    int closefp = 1;
+    int closefp, statted;
 
-    /* Must be a pipe or a socket.  What could go wrong? */
-    assert (fstat (fileno (bc->fp), &s) != -1);
+    /* Must be a pipe or a socket. What could go wrong?
+     * Well, apparently for disconnected clients under AIX, the
+     * fstat() will return -1 on the server if the client has gone
+     * away.
+     */
+    if (fstat(fileno(bc->fp), &s) == -1) statted = 0;
+    else statted = 1;
+    closefp = statted;
 
     /* Flush the buffer if we can */
     if (buf->flush)
@@ -1434,7 +1456,7 @@ stdio_buffer_shutdown (buf)
 # ifndef NO_SOCKET_TO_FD
 	{
 	    /* shutdown() sockets */
-	    if (S_ISSOCK (s.st_mode))
+	    if (statted && S_ISSOCK (s.st_mode))
 		shutdown (fileno (bc->fp), 0);
 	}
 # endif /* NO_SOCKET_TO_FD */
@@ -1442,7 +1464,7 @@ stdio_buffer_shutdown (buf)
 	/* Can't be set with SHUTDOWN_SERVER defined */
 	else if (pclose (bc->fp) == EOF)
 	{
-	    error (1, errno, "closing connection to %s",
+	    error (0, errno, "closing connection to %s",
 		   current_parsed_root->hostname);
 	    closefp = 0;
 	}
@@ -1462,7 +1484,7 @@ stdio_buffer_shutdown (buf)
 # endif
 # ifndef NO_SOCKET_TO_FD
 	/* shutdown() sockets */
-	if (S_ISSOCK (s.st_mode))
+	if (statted && S_ISSOCK (s.st_mode))
 	    shutdown (fileno (bc->fp), 1);
 # else
 	{
@@ -1475,19 +1497,19 @@ stdio_buffer_shutdown (buf)
 	buf->output = NULL;
     }
 
-    if (closefp && fclose (bc->fp) == EOF)
+    if (statted && closefp && fclose (bc->fp) == EOF)
     {
-	if (0
-# ifdef SERVER_SUPPORT
-	    || server_active
-# endif /* SERVER_SUPPORT */
-           )
+	if (server_active)
 	{
             /* Syslog this? */
 	}
 # ifdef CLIENT_SUPPORT
+	/* We are already closing the connection.
+	 * On error, print a warning and try to
+	 * continue to avoid infinte loops.
+	 */
 	else
-            error (1, errno,
+            error (0, errno,
                    "closing down connection to %s",
                    current_parsed_root->hostname);
 # endif /* CLIENT_SUPPORT */
@@ -1501,8 +1523,13 @@ stdio_buffer_shutdown (buf)
 	do
 	    w = waitpid (bc->child_pid, (int *) 0, 0);
 	while (w == -1 && errno == EINTR);
+
+	/* We are already closing the connection.
+	 * On error, print a warning and try to
+	 * continue to avoid infinte loops.
+	 */
 	if (w == -1)
-	    error (1, errno, "waiting for process %d", bc->child_pid);
+	    error (0, errno, "waiting for process %d", bc->child_pid);
     }
     return 0;
 }
@@ -1835,7 +1862,7 @@ packetizing_buffer_output (closure, data, have, wrote)
     struct packetizing_buffer *pb = (struct packetizing_buffer *) closure;
     char inbuf[BUFFER_DATA_SIZE + 2];
     char stack_outbuf[BUFFER_DATA_SIZE + PACKET_SLOP + 4];
-    struct buffer_data *outdata;
+    struct buffer_data *outdata = NULL;
     char *outbuf;
     int size, status, translated;
 
@@ -1890,6 +1917,11 @@ packetizing_buffer_output (closure, data, have, wrote)
 	buf_output (pb->buf, outbuf, translated + 2);
     else
     {
+	/* if ((have + PACKET_SLOP + 4) > BUFFER_DATA_SIZE), then
+	   outdata may be NULL. */
+	if (outdata == NULL)
+	    abort ();
+
 	outdata->size = translated + 2;
 	buf_append_data (pb->buf, outdata, outdata);
     }

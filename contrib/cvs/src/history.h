@@ -1,6 +1,8 @@
 /*
- *    Copyright (c) 2003, Derek Price, Ximbiot <http://ximbiot.com>,
- *                        and the Free Software Foundation
+ * Copyright (C) 2003-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 2003-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
  *
  *    You may distribute under the terms of the GNU General Public License
  *    as specified in the README file that comes with the CVS source

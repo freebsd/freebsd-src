@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -87,8 +92,17 @@ struct lock {
        case of writelocks, it is just a pointer to the storage allocated
        for the ->key field.  */
     char *repository;
-    /* Do we have a lock named CVSLCK?  */
-    int have_lckdir;
+
+    /* The name of the master lock dir.  Usually CVSLCK.  */
+    const char *lockdirname;
+
+    /* The full path to the lock dir, if we are currently holding it.
+     *
+     * This will be LOCKDIRNAME catted onto REPOSITORY.  We waste a little
+     * space by storing it, but save a later malloc/free.
+     */
+    char *lockdir;
+
     /* Note there is no way of knowing whether the readlock and writelock
        exist.  The code which sets the locks doesn't use SIG_beginCrSect
        to set a flag like we do for CVSLCK.  */
@@ -117,7 +131,6 @@ static char *readlock;
 static char *writelock;
 /* Malloc'd array specifying the name of a CVSLCK file (absolute pathname).
    Will always be non-NULL in the cases where it is used.  */
-static char *masterlock;
 static List *locklist;
 
 #define L_OK		0		/* success */
@@ -126,7 +139,10 @@ static List *locklist;
 
 /* This is the (single) readlock which is set by Reader_Lock.  The
    repository field is NULL if there is no such lock.  */
-static struct lock global_readlock;
+static struct lock global_readlock = {NULL, CVSLCK, NULL};
+
+static struct lock global_history_lock = {NULL, CVSHISTORYLCK, NULL};
+static struct lock global_val_tags_lock = {NULL, CVSVALTAGSLCK, NULL};
 
 /* List of locks set by lock_tree_for_write.  This is redundant
    with locklist, sort of.  */
@@ -142,7 +158,7 @@ static List *locked_list;
 /* LockDir from CVSROOT/config.  */
 char *lock_dir;
 
-static char *lock_name PROTO ((char *repository, char *name));
+static char *lock_name PROTO ((const char *repository, const char *name));
 
 /* Return a newly malloc'd string containing the name of the lock for the
    repository REPOSITORY and the lock file name within that directory
@@ -152,14 +168,14 @@ static char *lock_name PROTO ((char *repository, char *name));
    things simple).  */
 static char *
 lock_name (repository, name)
-    char *repository;
-    char *name;
+    const char *repository;
+    const char *name;
 {
     char *retval;
-    char *p;
+    const char *p;
     char *q;
-    char *short_repos;
-    mode_t save_umask;
+    const char *short_repos;
+    mode_t save_umask = 0;
     int saved_umask = 0;
 
     if (lock_dir == NULL)
@@ -313,6 +329,10 @@ Lock_Cleanup ()
 	locked_dir = NULL;
 	locked_list = NULL;
     }
+
+    if (global_history_lock.repository) clear_history_lock ();
+    if (global_val_tags_lock.repository) clear_val_tags_lock ();
+
     in_lock_cleanup = 0;
 }
 
@@ -349,6 +369,8 @@ unlock_proc (p, closure)
     return (0);
 }
 
+
+
 /* Remove the lock files.  */
 static void
 lock_simple_remove (lock)
@@ -363,7 +385,7 @@ lock_simple_remove (lock)
     if (readlock != NULL)
     {
 	tmp = lock_name (lock->repository, readlock);
-	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
+	if (CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
 	free (tmp);
     }
@@ -375,21 +397,12 @@ lock_simple_remove (lock)
     if (writelock != NULL)
     {
 	tmp = lock_name (lock->repository, writelock);
-	if ( CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
+	if (CVS_UNLINK (tmp) < 0 && ! existence_error (errno))
 	    error (0, errno, "failed to remove lock %s", tmp);
 	free (tmp);
     }
 
-    if (lock->have_lckdir)
-    {
-	tmp = lock_name (lock->repository, CVSLCK);
-	SIG_beginCrSect ();
-	if (CVS_RMDIR (tmp) < 0)
-	    error (0, errno, "failed to remove lock dir %s", tmp);
-	lock->have_lckdir = 0;
-	SIG_endCrSect ();
-	free (tmp);
-    }
+    clear_lock (lock);
 }
 
 
@@ -662,6 +675,9 @@ readers_exist (repository)
 #endif
 
     lockdir = lock_name (repository, "");
+
+    assert (lockdir != NULL);
+
     lockdir[strlen (lockdir) - 1] = '\0';   /* remove trailing slash */
 
     do {
@@ -768,13 +784,13 @@ set_lock (lock, will_wait)
     long us;
     struct stat sb;
     mode_t omask;
+    char *masterlock;
+    int status;
 #ifdef CVS_FUDGELOCKS
     time_t now;
 #endif
 
-    if (masterlock != NULL)
-	free (masterlock);
-    masterlock = lock_name (lock->repository, CVSLCK);
+    masterlock = lock_name (lock->repository, lock->lockdirname);
 
     /*
      * Note that it is up to the callers of set_lock() to arrange for signal
@@ -783,33 +799,33 @@ set_lock (lock, will_wait)
      */
     waited = 0;
     us = 1;
-    lock->have_lckdir = 0;
     for (;;)
     {
-	int status = -1;
+	status = -1;
 	omask = umask (cvsumask);
 	SIG_beginCrSect ();
 	if (CVS_MKDIR (masterlock, 0777) == 0)
 	{
-	    lock->have_lckdir = 1;
+	    lock->lockdir = masterlock;
 	    SIG_endCrSect ();
 	    status = L_OK;
 	    if (waited)
 	        lock_obtained (lock->repository);
-	    goto out;
+	    goto after_sig_unblock;
 	}
 	SIG_endCrSect ();
-      out:
+    after_sig_unblock:
 	(void) umask (omask);
 	if (status != -1)
-	    return status;
+	    goto done;
 
 	if (errno != EEXIST)
 	{
 	    error (0, errno,
 		   "failed to create lock directory for `%s' (%s)",
 		   lock->repository, masterlock);
-	    return (L_ERROR);
+	    status = L_ERROR;
+	    goto done;
 	}
 
 	/* Find out who owns the lock.  If the lock directory is
@@ -821,7 +837,8 @@ set_lock (lock, will_wait)
 		continue;
 
 	    error (0, errno, "couldn't stat lock directory `%s'", masterlock);
-	    return (L_ERROR);
+	    status = L_ERROR;
+	    goto done;
 	}
 
 #ifdef CVS_FUDGELOCKS
@@ -843,7 +860,10 @@ set_lock (lock, will_wait)
 
 	/* if he wasn't willing to wait, return an error */
 	if (!will_wait)
-	    return (L_LOCKED);
+	{
+	    status = L_LOCKED;
+	    goto done;
+	}
 
 	/* if possible, try a very short sleep without a message */
 	if (!waited && us < 1000)
@@ -874,22 +894,44 @@ set_lock (lock, will_wait)
 	lock_wait (lock->repository);
 	waited = 1;
     }
+done:
+    if (!lock->lockdir) free (masterlock);
+    return status;
 }
 
+
+
 /*
- * Clear master lock.  We don't have to recompute the lock name since
- * clear_lock is never called except after a successful set_lock().
+ * Clear master lock.
+ *
+ * INPUTS
+ *   lock	The lock information.
+ *
+ * OUTPUTS
+ *   Sets LOCK->lockdir to NULL after removing the directory it names and
+ *   freeing the storage.
+ *
+ * ASSUMPTIONS
+ *   If we own the master lock directory, its name is stored in LOCK->lockdir.
+ *   We may free LOCK->lockdir.
+ *
  */
 static void
 clear_lock (lock)
     struct lock *lock;
 {
     SIG_beginCrSect ();
-    if (CVS_RMDIR (masterlock) < 0)
-	error (0, errno, "failed to remove lock dir `%s'", masterlock);
-    lock->have_lckdir = 0;
+    if (lock->lockdir)
+    {
+	if (CVS_RMDIR (lock->lockdir) < 0)
+	    error (0, errno, "failed to remove lock dir `%s'", lock->lockdir);
+	free (lock->lockdir);
+	lock->lockdir = NULL;
+    }
     SIG_endCrSect ();
 }
+
+
 
 /*
  * Print out a message that the lock is still held, then sleep a while.
@@ -965,7 +1007,8 @@ lock_filesdoneproc (callerdat, err, repository, update_dir, entries)
     p->key = xstrdup (repository);
     p->data = xmalloc (sizeof (struct lock));
     ((struct lock *)p->data)->repository = p->key;
-    ((struct lock *)p->data)->have_lckdir = 0;
+    ((struct lock *)p->data)->lockdirname = CVSLCK;
+    ((struct lock *)p->data)->lockdir = NULL;
 
     /* FIXME-KRP: this error condition should not simply be passed by. */
     if (p->key == NULL || addnode (lock_tree_list, p) != 0)
@@ -1018,9 +1061,106 @@ lock_dir_for_write (repository)
 	node->key = xstrdup (repository);
 	node->data = xmalloc (sizeof (struct lock));
 	((struct lock *)node->data)->repository = node->key;
-	((struct lock *)node->data)->have_lckdir = 0;
+	((struct lock *)node->data)->lockdirname = CVSLCK;
+	((struct lock *)node->data)->lockdir = NULL;
 
 	(void) addnode (locked_list, node);
 	Writer_Lock (locked_list);
     }
+}
+
+
+
+/* This is the internal implementation behind history_lock & val_tags_lock.  It
+ * gets a write lock for the history or val-tags file.
+ *
+ * RETURNS
+ *   true, on success
+ *   false, on error
+ */
+static int internal_lock PROTO ((struct lock *lock, const char *xrepository));
+static int
+internal_lock (lock, xrepository)
+    struct lock *lock;
+    const char *xrepository;
+{
+    /* remember what we're locking (for Lock_Cleanup) */
+    assert (!lock->repository);
+    lock->repository = xmalloc (strlen (xrepository) + sizeof (CVSROOTADM) + 2);
+    sprintf (lock->repository, "%s/%s", xrepository, CVSROOTADM);
+
+    /* get the lock dir for our own */
+    if (set_lock (lock, 1) != L_OK)
+    {
+	if (!really_quiet)
+	    error (0, 0, "failed to obtain history lock in repository `%s'",
+		   xrepository);
+
+	return 0;
+    }
+
+    return 1;
+}
+
+
+
+/* This is the internal implementation behind history_lock & val_tags_lock.  It
+ * removes the write lock for the history or val-tags file, when it exists.
+ */
+static void internal_clear_lock PROTO((struct lock *lock));
+static void
+internal_clear_lock (lock)
+    struct lock *lock;
+{
+    SIG_beginCrSect ();
+    if (lock->repository)
+    {
+	free (lock->repository);
+	lock->repository = NULL;
+    }
+    SIG_endCrSect ();
+
+    clear_lock (lock);
+}
+
+
+
+/* Lock the CVSROOT/history file for write.
+ */
+int
+history_lock (xrepository)
+    const char *xrepository;
+{
+    return internal_lock (&global_history_lock, xrepository);
+}
+
+
+
+/* Remove the CVSROOT/history lock, if it exists.
+ */
+void
+clear_history_lock ()
+{
+    internal_clear_lock (&global_history_lock);
+}
+
+
+
+/* Lock the CVSROOT/val-tags file for write.
+ */
+int
+val_tags_lock (xrepository)
+    const char *xrepository;
+{
+    return internal_lock (&global_val_tags_lock, xrepository);
+}
+
+
+
+/* Remove the CVSROOT/val-tags lock, if it exists.
+ */
+void
+clear_val_tags_lock ()
+{
+    internal_clear_lock (&global_val_tags_lock);
 }

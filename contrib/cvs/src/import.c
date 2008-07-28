@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -14,8 +19,6 @@
  *	VendorReleTag	Tag for this particular release
  *
  * Additional arguments specify more Vendor Release Tags.
- *
- * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -86,17 +89,14 @@ import (argc, argv)
 	{
 	    case 'Q':
 	    case 'q':
-#ifdef SERVER_SUPPORT
 		/* The CVS 1.5 client sends these options (in addition to
 		   Global_option requests), so we must ignore them.  */
 		if (!server_active)
-#endif
 		    error (1, 0,
 			   "-q or -Q must be specified before \"%s\"",
 			   cvs_cmd_name);
 		break;
 	    case 'd':
-#ifdef SERVER_SUPPORT
 		if (server_active)
 		{
 		    /* CVS 1.10 and older clients will send this, but it
@@ -106,7 +106,6 @@ import (argc, argv)
 			   "warning: not setting the time of import from the file");
 		    error (0, 0, "due to client limitations");
 		}
-#endif
 		use_file_modtime = 1;
 		break;
 	    case 'b':
@@ -119,6 +118,7 @@ import (argc, argv)
 #else
 		use_editor = 0;
 #endif
+		if (message) free (message);
 		message = xstrdup(optarg);
 		break;
 	    case 'I':
@@ -145,7 +145,6 @@ import (argc, argv)
     if (argc < 3)
 	usage (import_usage);
 
-#ifdef SERVER_SUPPORT
     /* This is for handling the Checkin-time request.  It might seem a
        bit odd to enable the use_file_modtime code even in the case
        where Checkin-time was not sent for a particular file.  The
@@ -157,21 +156,27 @@ import (argc, argv)
 
     if (server_active)
 	use_file_modtime = 1;
-#endif
 
     /* Don't allow "CVS" as any directory in module path.
      *
      * Could abstract this to valid_module_path, but I don't think we'll need
      * to call it from anywhere else.
      */
-    if ((cp = strstr(argv[0], "CVS")) &&   /* path contains "CVS" AND ... */
-        ((cp == argv[0]) || ISDIRSEP(*(cp-1))) && /* /^CVS/ OR m#/CVS# AND ... */
-        ((*(cp+3) == '\0') || ISDIRSEP(*(cp+3))) /* /CVS$/ OR m#CVS/# */
-       )
+    /* for each "CVS" in path... */
+    cp = argv[0];
+    while ((cp = strstr(cp, "CVS")) != NULL)
     {
-        error (0, 0,
-               "The word `CVS' is reserved by CVS and may not be used");
-        error (1, 0, "as a directory in a path or as a file name.");
+	if ( /* /^CVS/ OR m#/CVS#... */
+	    (cp == argv[0] || ISDIRSEP(*(cp-1)))
+	    /* ...AND /CVS$/ OR m#CVS/# */
+	    && (*(cp+3) == '\0' || ISDIRSEP(*(cp+3)))
+	   )
+	{
+	    error (0, 0,
+		   "The word `CVS' is reserved by CVS and may not be used");
+	    error (1, 0, "as a directory in a path or as a file name.");
+	}
+	cp += 3;
     }
 
     for (i = 1; i < argc; i++)		/* check the tags for validity */
@@ -214,11 +219,22 @@ import (argc, argv)
      * support branching to a single level, so the specified vendor branch
      * must only have two dots in it (like "1.1.1").
      */
-    for (cp = vbranch; *cp != '\0'; cp++)
-	if (!isdigit ((unsigned char) *cp) && *cp != '.')
-	    error (1, 0, "%s is not a numeric branch", vbranch);
-    if (numdots (vbranch) != 2)
-	error (1, 0, "Only branches with two dots are supported: %s", vbranch);
+    {
+	regex_t pat;
+	int ret = regcomp (&pat, "^[1-9][0-9]*\\.[1-9][0-9]*\\.[1-9][0-9]*$",
+			   REG_EXTENDED);
+	assert (!ret);
+	if (regexec (&pat, vbranch, 0, NULL, 0))
+	{
+	    error (1, 0,
+"Only numeric branch specifications with two dots are\n"
+"supported by import, not `%s'.  For example: `1.1.1'.",
+		   vbranch);
+	}
+	regfree (&pat);
+    }
+
+    /* Set vhead to the branch's parent.  */
     vhead = xstrdup (vbranch);
     cp = strrchr (vhead, '.');
     *cp = '\0';
@@ -232,17 +248,10 @@ import (argc, argv)
     }
 #endif
 
-    if (
-#ifdef SERVER_SUPPORT
-        !server_active &&
-#endif
-        use_editor)
+    if (!server_active && use_editor)
     {
 	do_editor ((char *) NULL, &message,
-#ifdef CLIENT_SUPPORT
-		   current_parsed_root->isremote ? (char *) NULL :
-#endif
-			repository,
+		   current_parsed_root->isremote ? (char *) NULL : repository,
 		   (List *) NULL);
     }
     do_verify (&message, repository);
@@ -315,7 +324,8 @@ import (argc, argv)
 
     /* Create the logfile that will be logged upon completion */
     if ((logfp = cvs_temp_file (&tmpfile)) == NULL)
-	error (1, errno, "cannot create temporary file `%s'", tmpfile);
+	error (1, errno, "cannot create temporary file `%s'",
+	       tmpfile ? tmpfile : "(null)");
     /* On systems where we can unlink an open file, do so, so it will go
        away no matter how we exit.  FIXME-maybe: Should be checking for
        errors but I'm not sure which error(s) we get if we are on a system
@@ -436,6 +446,9 @@ import_descend (message, vtag, targc, targv)
     ign_add_file (CVSDOTIGNORE, 1);
     wrap_add_file (CVSDOTWRAPPER, 1);
 
+    if (!current_parsed_root->isremote)
+	lock_dir_for_write (repository);
+
     if ((dirp = CVS_OPENDIR (".")) == NULL)
     {
 	error (0, errno, "cannot open directory");
@@ -448,13 +461,13 @@ import_descend (message, vtag, targc, targv)
 	{
 	    if (strcmp (dp->d_name, ".") == 0 || strcmp (dp->d_name, "..") == 0)
 		goto one_more_time_boys;
-#ifdef SERVER_SUPPORT
+
 	    /* CVS directories are created in the temp directory by
 	       server.c because it doesn't special-case import.  So
 	       don't print a message about them, regardless of -I!.  */
 	    if (server_active && strcmp (dp->d_name, CVSADM) == 0)
 		goto one_more_time_boys;
-#endif
+
 	    if (ign_name (dp->d_name))
 	    {
 		add_log ('I', dp->d_name);
@@ -517,6 +530,9 @@ import_descend (message, vtag, targc, targv)
 	}
 	(void) CVS_CLOSEDIR (dirp);
     }
+
+    if (!current_parsed_root->isremote)
+	Lock_Cleanup ();
 
     if (dirlist != NULL)
     {
@@ -750,7 +766,7 @@ add_rev (message, rcs, vfile, vers)
     tocvsPath = wrap_tocvs_process_file (vfile);
 
     status = RCS_checkin (rcs, tocvsPath == NULL ? vfile : tocvsPath,
-			  message, vbranch,
+			  message, vbranch, 0,
 			  (RCS_FLAGS_QUIET | RCS_FLAGS_KEEPFILE
 			   | (use_file_modtime ? RCS_FLAGS_MODTIME : 0)));
     ierrno = errno;
@@ -1586,26 +1602,18 @@ import_descend_dir (message, dir, vtag, targc, targv)
 	repository = new;
     }
 
-#ifdef CLIENT_SUPPORT
     if (!quiet && !current_parsed_root->isremote)
-#else
-    if (!quiet)
-#endif
 	error (0, 0, "Importing %s", repository);
 
     if ( CVS_CHDIR (dir) < 0)
     {
 	ierrno = errno;
-	fperrmsg (logfp, 0, ierrno, "ERROR: cannot chdir to %s", repository);
-	error (0, ierrno, "ERROR: cannot chdir to %s", repository);
+	fperrmsg (logfp, 0, ierrno, "ERROR: cannot chdir to %s", dir);
+	error (0, ierrno, "ERROR: cannot chdir to %s", dir);
 	err = 1;
 	goto out;
     }
-#ifdef CLIENT_SUPPORT
     if (!current_parsed_root->isremote && !isdir (repository))
-#else
-    if (!isdir (repository))
-#endif
     {
 	rcs = xmalloc (strlen (repository) + sizeof (RCSEXT) + 5);
 	(void) sprintf (rcs, "%s%s", repository, RCSEXT);

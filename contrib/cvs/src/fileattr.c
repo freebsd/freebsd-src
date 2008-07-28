@@ -139,6 +139,7 @@ fileattr_read ()
 		       "file attribute database corruption: tab missing in %s",
 		       fname);
 	    ++p;
+	    if (fileattr_default_attrs) free (fileattr_default_attrs);
 	    fileattr_default_attrs = xstrdup (p);
 	}
 	else
@@ -589,6 +590,7 @@ fileattr_write ()
 	    {
 		error (0, errno, "cannot make directory %s", repname);
 		(void) umask (omask);
+		free (fname);
 		free (repname);
 		return;
 	    }
@@ -600,6 +602,7 @@ fileattr_write ()
 	{
 	    error (0, errno, "cannot write %s", fname);
 	    (void) umask (omask);
+	    free (fname);
 	    return;
 	}
     }

@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  *
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS kit.
@@ -209,6 +214,8 @@ extern int errno;
 #define	CVSATTIC	"Attic"
 
 #define	CVSLCK		"#cvs.lock"
+#define	CVSHISTORYLCK	"#cvs.history.lock"
+#define	CVSVALTAGSLCK	"#cvs.val-tags.lock"
 #define	CVSRFL		"#cvs.rfl"
 #define	CVSWFL		"#cvs.wfl"
 #define CVSRFLPAT	"#cvs.rfl.*"	/* wildcard expr to match read locks */
@@ -274,7 +281,10 @@ extern int errno;
 #define	EDITOR3_ENV	"EDITOR"	/* which editor to use */
 
 #define	CVSROOT_ENV	"CVSROOT"	/* source directory root */
-#define	CVSROOT_DFLT	NULL		/* No dflt; must set for checkout */
+/* Define CVSROOT_DFLT to a fallback value for CVSROOT.
+ *
+#undef	CVSROOT_DFL
+ */
 
 #define	IGNORE_ENV	"CVSIGNORE"	/* More files to ignore */
 #define WRAPPER_ENV     "CVSWRAPPERS"   /* name of the wrapper file */
@@ -426,15 +436,18 @@ int RCS_merge PROTO((RCSNode *, const char *, const char *, const char *,
 #define RCS_FLAGS_QUIET 4
 #define RCS_FLAGS_MODTIME 8
 #define RCS_FLAGS_KEEPFILE 16
+#define RCS_FLAGS_USETIME 32
 
-extern int RCS_exec_rcsdiff PROTO ((RCSNode *rcsfile,
-				    const char *opts, const char *options,
+extern int RCS_exec_rcsdiff PROTO ((RCSNode *rcsfile, int diff_argc,
+				    char *const *diff_argv,
+				    const char *options,
 				    const char *rev1, const char *rev1_cache,
                                     const char *rev2, const char *label1,
                                     const char *label2, const char *workfile));
 extern int diff_exec PROTO ((const char *file1, const char *file2,
 			     const char *label1, const char *label2,
-			     const char *options, const char *out));
+			     int diff_argc, char *const *diff_argv,
+			     const char *out));
 
 
 #include "error.h"
@@ -457,15 +470,6 @@ void tm_to_internet PROTO ((char *, const struct tm *));
 char *Name_Repository PROTO((const char *dir, const char *update_dir));
 const char *Short_Repository PROTO((const char *repository));
 void Sanitize_Repository_Name PROTO((char *repository));
-
-char *Name_Root PROTO((char *dir, char *update_dir));
-void free_cvsroot_t PROTO((cvsroot_t *root_in));
-cvsroot_t *parse_cvsroot PROTO((const char *root));
-cvsroot_t *local_cvsroot PROTO((const char *dir));
-void Create_Root PROTO((const char *dir, const char *rootdir));
-void root_allow_add PROTO ((char *));
-void root_allow_free PROTO ((void));
-int root_allow_ok PROTO ((char *));
 
 char *previous_rev PROTO ((RCSNode *rcs, const char *rev));
 char *gca PROTO ((const char *rev1, const char *rev2));
@@ -576,6 +580,14 @@ void lock_tree_for_write PROTO ((int argc, char **argv, int local, int which,
 /* See lock.c for description.  */
 extern void lock_dir_for_write PROTO ((char *));
 
+/* Get a write lock for the history file.  */
+int history_lock PROTO ((const char *));
+void clear_history_lock PROTO ((void));
+
+/* Get a write lock for the val-tags file.  */
+int val_tags_lock PROTO ((const char *));
+void clear_val_tags_lock PROTO ((void));
+
 /* LockDir setting from CVSROOT/config.  */
 extern char *lock_dir;
 
@@ -676,8 +688,6 @@ int SIG_inCrSect PROTO((void));
 void read_cvsrc PROTO((int *argc, char ***argv, const char *cmdname));
 
 char *make_message_rcslegal PROTO((const char *message));
-extern int file_has_conflict PROTO ((const struct file_info *,
-				     const char *ts_conflict));
 extern int file_has_markers PROTO ((const struct file_info *));
 extern void get_file PROTO ((const char *, const char *, const char *,
 			     char **, size_t *, size_t *));
@@ -695,6 +705,8 @@ void sleep_past PROTO ((time_t desttime));
 #define	RUN_SIGIGNORE         0x0010    /* ignore interrupts for command */
 #define	RUN_TTY               (char *)0 /* for the benefit of lint */
 
+void run_add_arg_p PROTO ((int *, size_t *, char ***, const char *s));
+void run_arg_free_p PROTO ((int, char **));
 void run_arg PROTO((const char *s));
 void run_print PROTO((FILE * fp));
 void run_setup PROTO ((const char *prog));
@@ -703,7 +715,7 @@ int run_exec PROTO((const char *stin, const char *stout, const char *sterr,
 
 /* other similar-minded stuff from run.c.  */
 FILE *run_popen PROTO((const char *, const char *));
-int piped_child PROTO((const char **, int *, int *));
+int piped_child PROTO((const char **, int *, int *, int));
 void close_on_exec PROTO((int));
 
 pid_t waitpid PROTO((pid_t, int *, int));
@@ -913,6 +925,7 @@ char *descramble PROTO ((char *str));
 
 #ifdef AUTH_CLIENT_SUPPORT
 char *get_cvs_password PROTO((void));
+void free_cvs_password PROTO((char *str));
 int get_cvs_port_number PROTO((const cvsroot_t *root));
 char *normalize_cvsroot PROTO((const cvsroot_t *root));
 #endif /* AUTH_CLIENT_SUPPORT */

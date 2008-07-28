@@ -1,20 +1,5 @@
 The "TODO" file!                              -*-Indented-Text-*-
 
-22. Catch signals for cleanup when "add"ing files.
-
-24. Insist on a log message.
-    (If done, this should be configurable via commitinfo or some new
-    config file -kingdon, Jun 1995).
-
-30. Add "rdiff" & "rtag" program options to the modules database.  These
-    commands seem hard to use since these commands deal directly with the
-    RCS ,v files.  (perhaps should think a little harder about what this is
-    trying to accomplish and what the best way is -kingdon, Jul 1997).
-
-31. Think hard about ^C recovery.
-    One particular issue: RCS removes the ,foo.c, file on ^C and CVS
-    doesn't.
-
 38. Think hard about using RCS state information to allow one to checkin
     a new vendor release without having it be accessed until it has been
     integrated into the local changes.
@@ -26,11 +11,6 @@ The "TODO" file!                              -*-Indented-Text-*-
     track of what has been merged is a pain.  Take a look at PRCS 1.2.
     PRCS 1.0 was particularly bad the way it handled the "invisible
     state", but 1.2 is significantly better.
-
-49. cvs xxx commands should be able to deal with files in other
-    directories.  I want to do a cvs add foo/bar.c.
-    [[ most commands now use the generic recursion processor, but not all;
-    this note is left here to remind me to fix the others ]]
 
 52. SCCS has a feature that I would *love* to see in CVS, as it is very
     useful.  One may make a private copy of SCCS suid to a particular user,
@@ -72,13 +52,6 @@ The "TODO" file!                              -*-Indented-Text-*-
     Perhaps use one of the tag fields in the RCS file?  Note that we
     can only support symlinks that are relative and within the scope of
     the sources being controlled.
-
-92. Look into this:
-	After a bit of soul searching via dbx, I realized my sin was that I'd
-	specified "echo" as the program to call from loginfo. The commit
-	procedure worked fine till it hit my echo, then silently aborted
-	leaving the lockfiles intact. Since I needn't use the loginfo
-	facility, I simply removed those commands and it all works.
 
 93. Need to think hard about release and development environments.  Think
     about execsets as well.
@@ -130,9 +103,6 @@ The "TODO" file!                              -*-Indented-Text-*-
      but I do not understand how I could fool it into getting an
      error.  I think a later cvs get sys seemed to work so perhaps
      something is amiss in handling multiple arguments to cvs get?
-
-113. The "cvs update" command should tee its output to a log file in ".".
-     (why?  What is wrong with piping stdout to "tee"? -kingdon, Jun 1995)
 
 119. When importing a directory tree that is under SCCS/RCS control,
      consider an option to have import checkout the SCCS/RCS files if
@@ -845,9 +815,6 @@ glibc version.
 	  where this makes sense?  Would it be simpler?  It seems to me the
 	  major operational differences lie in the file list construction.
 
-216.  Avoid command-line keyword expansion modes overriding binary mode
-(or make binary mode completely separate from keyword expansion mode).
-
 218.  Fix "checkout -d ." in client/server mode.
 
 221.  Handle spaces in file/directory names.  (Most, if not all, of the
@@ -888,3 +855,8 @@ wait interval.
 
 230.  Support for options like compression as part of the CVSROOT might be
 nice.  This should be fairly easy to implement now using the method options.
+
+234.  Noop commands should be logged in the history file.  Information can
+still be obtained with noop commands, for instance via `cvs -n up -p', and
+paranoid admins might appreciate this.  Similarly, perhaps diff operations
+should be logged.
