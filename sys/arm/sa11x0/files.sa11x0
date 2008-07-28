@@ -1,4 +1,5 @@
 # $FreeBSD$
+arm/arm/bus_space_generic.c	standard
 arm/arm/cpufunc_asm_sa1.S 	standard
 arm/arm/cpufunc_asm_sa11x0.S 	standard
 arm/sa11x0/assabet_machdep.c	optional	assabet

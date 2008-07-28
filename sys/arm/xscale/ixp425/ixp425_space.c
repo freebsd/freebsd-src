@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425var.h>
 
 /* Proto types for all the bus_space structure functions */
-bs_protos(ixp425);
 bs_protos(generic);
 bs_protos(generic_armv4);
 
@@ -67,16 +66,16 @@ struct bus_space ixp425_bs_tag = {
 	.bs_cookie	= (void *) 0,
 
 	/* mapping/unmapping */
-	.bs_map		= ixp425_bs_map,
-	.bs_unmap	= ixp425_bs_unmap,
-	.bs_subregion	= ixp425_bs_subregion,
+	.bs_map		= generic_bs_map,
+	.bs_unmap	= generic_bs_unmap,
+	.bs_subregion	= generic_bs_subregion,
 
 	/* allocation/deallocation */
-	.bs_alloc	= ixp425_bs_alloc,
-	.bs_free	= ixp425_bs_free,
+	.bs_alloc	= generic_bs_alloc,
+	.bs_free	= generic_bs_free,
 
 	/* barrier */
-	.bs_barrier	= ixp425_bs_barrier,
+	.bs_barrier	= generic_bs_barrier,
 
 	/* read (single) */
 	.bs_r_1		= generic_bs_r_1,
@@ -129,87 +128,3 @@ struct bus_space ixp425_bs_tag = {
 	.bs_c_4		= NULL,
 	.bs_c_8		= NULL,
 };
-
-int
-ixp425_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
-	      int cacheable, bus_space_handle_t *bshp)
-{
-	const struct pmap_devmap *pd;
-	vm_paddr_t startpa, endpa, pa, offset;
-	vm_offset_t va;
-	pt_entry_t *pte;
-
-	if ((pd = pmap_devmap_find_pa(bpa, size)) != NULL) {
-		/* Device was statically mapped. */
-		*bshp = pd->pd_va + (bpa - pd->pd_pa);
-		return (0);
-	}
-
-	endpa = round_page(bpa + size);
-	offset = bpa & PAGE_MASK;
-	startpa = trunc_page(bpa);
-
-	va = kmem_alloc(kernel_map, endpa - startpa);
-	if (va == 0)
-		return (ENOMEM);
-
-	*bshp = va + offset;
-
-	for (pa = startpa; pa < endpa; pa += PAGE_SIZE, va += PAGE_SIZE) {
-		pmap_kenter(va, pa);
-		pte = vtopte(va);
-		*pte &= ~L2_S_CACHE_MASK;
-		PTE_SYNC(pte);
-	}
-
-	return (0);
-}
-
-void
-ixp425_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
-{
-	vm_offset_t va, endva;
-
-	if (pmap_devmap_find_va((vm_offset_t)t, size) != NULL) {
-		/* Device was statically mapped; nothing to do. */
-		return;
-	}
-
-	endva = round_page((vm_offset_t)t + size);
-	va = trunc_page((vm_offset_t)t);
-
-	while (va < endva) {
-		pmap_kremove(va);
-		va += PAGE_SIZE;
-	}
-	kmem_free(kernel_map, va, endva - va);
-}
-
-int
-ixp425_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
-	bus_size_t size, bus_size_t alignment, bus_size_t boundary, int cacheable,
-	bus_addr_t *bpap, bus_space_handle_t *bshp)
-{
-	panic("ixp425_bs_alloc(): not implemented");
-}
-
-void    
-ixp425_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
-{
-	panic("ixp425_bs_free(): not implemented");
-}
-
-int
-ixp425_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
-	bus_size_t size, bus_space_handle_t *nbshp)
-{
-	*nbshp = bsh + offset;
-	return (0);
-}
-
-void
-ixp425_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
-    bus_size_t len, int flags)
-{
-	/* Nothing to do. */
-}	
