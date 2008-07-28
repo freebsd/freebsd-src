@@ -699,6 +699,7 @@ dev/iwi/if_iwi.c		optional iwi
 dev/ixgb/if_ixgb.c		optional ixgb
 dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
+dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
 dev/joy/joy_pccard.c		optional joy pccard
