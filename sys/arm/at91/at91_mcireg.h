@@ -25,8 +25,8 @@
 
 /* $FreeBSD$ */
 
-#ifndef ARM_AT91_AT91QDMMCREG_H
-#define ARM_AT91_AT91QDMMCREG_H
+#ifndef ARM_AT91_AT91_MCIREG_H
+#define ARM_AT91_AT91_MCIREG_H
 
 #define MMC_MAX		30
 
@@ -125,4 +125,4 @@
 #define AT91C_BUS_WIDTH_1BIT		0x00
 #define AT91C_BUS_WIDTH_4BITS		0x02
 
-#endif /* ARM_AT91_AT91QDMMCREG_H */
+#endif /* ARM_AT91_AT91_MCIREG_H */
