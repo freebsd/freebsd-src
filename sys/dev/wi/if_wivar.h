@@ -87,6 +87,8 @@ struct wi_softc	{
 #define	WI_SYMBOL	3
 	int			sc_pri_firmware_ver;	/* Primary firmware */
 	int			sc_sta_firmware_ver;	/* Station firmware */
+	unsigned int		sc_nic_id;		/* Type of NIC */
+	char *			sc_nic_name;
 
 	int			wi_bus_type;	/* Bus attachment type */
 	struct resource *	local;
