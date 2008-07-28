@@ -1,6 +1,36 @@
-#! @PERL@
+#! @PERL@ -T
 # -*-Perl-*-
+
+# Copyright (C) 1994-2005 The Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
 #
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+###############################################################################
+###############################################################################
+###############################################################################
+#
+# THIS SCRIPT IS PROBABLY BROKEN.  REMOVING THE -T SWITCH ON THE #! LINE ABOVE
+# WOULD FIX IT, BUT THIS IS INSECURE.  WE RECOMMEND FIXING THE ERRORS WHICH THE
+# -T SWITCH WILL CAUSE PERL TO REPORT BEFORE RUNNING THIS SCRIPT FROM A CVS
+# SERVER TRIGGER.  PLEASE SEND PATCHES CONTAINING THE CHANGES YOU FIND
+# NECESSARY TO RUN THIS SCRIPT WITH THE TAINT-CHECKING ENABLED BACK TO THE
+# <@PACKAGE_BUGREPORT@> MAILING LIST.
+#
+# For more on general Perl security and taint-checking, please try running the
+# `perldoc perlsec' command.
+#
+###############################################################################
+###############################################################################
+###############################################################################
+
 # Perl filter to handle pre-commit checking of files.  This program
 # records the last directory where commits will be taking place for
 # use by the log_accum.pl script.

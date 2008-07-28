@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (c) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -37,8 +42,9 @@ static int build_entry PROTO((const char *repository, const char *user,
 static const char *const add_usage[] =
 {
     "Usage: %s %s [-k rcs-kflag] [-m message] files...\n",
-    "\t-k\tUse \"rcs-kflag\" to add the file with the specified kflag.\n",
-    "\t-m\tUse \"message\" for the creation log.\n",
+    "\t-k rcs-kflag\tUse \"rcs-kflag\" to add the file with the specified\n",
+    "\t\t\tkflag.\n",
+    "\t-m message\tUse \"message\" for the creation log.\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
@@ -75,12 +81,12 @@ add (argc, argv)
 	switch (c)
 	{
 	    case 'k':
-		if (options)
-		    free (options);
+		if (options) free (options);
 		options = RCS_check_kflag (optarg);
 		break;
 
 	    case 'm':
+		if (message) free (message);
 		message = xstrdup (optarg);
 		break;
 	    case '?':
@@ -111,7 +117,7 @@ add (argc, argv)
 	strip_trailing_slashes (argv[i]);
 	if (strcmp (argv[i], ".") == 0
 	    || strcmp (argv[i], "..") == 0
-	    || fncmp (argv[i], CVSADM) == 0)
+	    || fncmp (last_component(argv[i]), CVSADM) == 0)
 	{
 	    if (!quiet)
 		error (0, 0, "cannot add special file `%s'; skipping", argv[i]);
@@ -155,11 +161,17 @@ add (argc, argv)
 	int j;
 
 	if (argc == 0)
+	{
 	    /* We snipped out all the arguments in the above sanity
 	       check.  We can just forget the whole thing (and we
 	       better, because if we fired up the server and passed it
 	       nothing, it would spit back a usage message).  */
+	    if (options)
+		free (options);
+	    if (message)
+		free (message);
 	    return err;
+	}
 
 	start_server ();
 	ign_setup ();
@@ -469,7 +481,25 @@ same name already exists in the repository.");
 			    char *prev = previous_rev (vers->srcfile,
 			                               vers->vn_rcs);
 			    int status;
-			    assert (prev != NULL);
+			    if (prev == NULL)
+			    {
+				/* There is no previous revision.  Either:
+				 *
+				 *  * Revision 1.1 was dead, as when a file was
+				 *    inititially added on a branch, 
+				 *
+				 * or
+				 *
+				 *  * All previous revisions have been deleted.
+				 *    For instance, via `admin -o'.
+				 */
+				if (!really_quiet)
+				    error (0, 0,
+"File `%s' has no previous revision to resurrect.",
+			                   finfo.fullname);
+				free (prev);
+				goto skip_this_file;
+			    }
 			    if (!quiet)
 				error (0, 0,
 "Resurrecting file `%s' from revision %s.",
@@ -665,6 +695,8 @@ cannot resurrect %s; RCS file removed by second party", finfo.fullname);
 		server_checked_in (finfo.file, finfo.update_dir, repository);
 #endif
 	}
+
+skip_this_file:
 	free (repository);
 	Entries_Close (entries);
 
@@ -745,11 +777,7 @@ add_directory (finfo)
 	error (0, errno, "cannot chdir to %s", finfo->fullname);
 	return 1;
     }
-#ifdef SERVER_SUPPORT
     if (!server_active && isfile (CVSADM))
-#else
-    if (isfile (CVSADM))
-#endif
     {
 	error (0, 0, "%s/%s already exists", finfo->fullname, CVSADM);
 	goto out;
@@ -818,7 +846,10 @@ add_directory (finfo)
 	fileattr_write ();
 	fileattr_free ();
 	if (attrs != NULL)
+	{
 	    free (attrs);
+	    attrs = NULL;
+	}
 
 	/*
 	 * Set up an update list with a single title node for Update_Logfile
@@ -838,9 +869,7 @@ add_directory (finfo)
 	dellist (&ulist);
     }
 
-#ifdef SERVER_SUPPORT
     if (!server_active)
-#endif
         Create_Admin (".", finfo->fullname, rcsdir, tag, date, nonbranch, 0, 1);
     if (tag)
 	free (tag);
@@ -858,6 +887,8 @@ add_directory (finfo)
 
     free (rcsdir);
     free (message);
+    if (attrs != NULL)
+	free (attrs);
 
     return 0;
 
@@ -865,6 +896,7 @@ out:
     if (restore_cwd (&cwd, NULL))
 	error_exit ();
     free_cwd (&cwd);
+    if (message) free (message);
     if (rcsdir != NULL)
 	free (rcsdir);
     return 0;

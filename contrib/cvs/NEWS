@@ -1,5 +1,269 @@
-Changes since 1.11.16:
+Changes since 1.11.22:
 **********************
+
+NEW FEATURES
+
+* A new log option -n reverts the -N option which may be in a .cvsrc
+  file.
+
+* The `cvs blame' command is now a synonym for the `cvs annotate' command.
+
+* The :extssh: method will use $CVS_SSH if set, or fall back on "ssh"
+  by default (but may be explicitly set using the --with-ssh flag to
+  configure).
+
+* There is a new IgnoreUnknownConfigKeys option available for
+  CVSROOT/config to aid in the transition to newer versions of CVS.
+
+BUG FIXES
+
+* Merges of file removals using -j options are a little smarter.
+
+* `cvs add' checks more thoroughly for `CVS' directories in the argument list.
+
+* `cvs server' now accepts `--allow-root=PATH' options.
+
+* `cvs import' no longer attempts to send CVS metadata to the server.
+
+* `cvs import' makes more of an effort not to import paths containing files
+  and directories named `CVS'.
+
+* The CVS server will no longer allow clients to run `cvs init'.
+
+* Applying diffs when checking out very old revisions has been reduced from an
+  O(n^2) operation to an O(n) thanks to a patch from Michael J. Smith
+  <msmith@ideorlando.org> and additional touch-up work from the CVS team.
+
+* Thanks to report from Paul Eggert <eggert@CS.UCLA.EDU>, an assertion failure
+  that could occur when "." was in the path (e.g. `cvs co /cvsroot/./module')
+  has been removed.
+
+* Thanks to a report from Peter Toft <pto@linuxbog.dk>, CVS server now sends
+  correct patch files more often when the RCS `Name' keyword is present in
+  a working file (bug #17302).
+
+* Thanks to a report from Dan Peterson <dbpete@aol.com>, clients now send the
+  right set of commands to the server when asked to update directories with
+  trailing slashes on their name.
+
+* Thanks to a report and patch from <mbarabas@redhat.com>, potential stack
+  corruption during pserver login is avoided (bug #16961).
+
+* The :extssh: method is now properly recognized as an alias for :ext:.
+
+DEVELOPER ISSUES
+
+* We've standardized on Autoconf version 2.61 to get a bug fix that notes
+  that the AIX C compiler's default mode isn't quite C89 and sets the
+  correct mode instead.
+
+* We've standardized on Autoconf version 1.10 because it lets us simplify our
+  sources.
+
+Changes from 1.11.21 to 1.11.22:
+********************************
+
+BUG FIXES
+
+* The CVS client again correctly reports files with conflicts when using
+  servers running CVS 1.11.20/1.12.12, or earlier (and maybe 3rd party
+  servers).
+
+* The GSSAPI server should now build under HP-UX.
+
+* `cvs rtag' now correctly tags files that have been removed from the trunk.
+
+* Code efficiency has been improved slightly.
+
+* A rare race condition that could leave a lock on the val-tags file has been
+  avoided.
+
+* A potential buffer overflow in the history command has been fixed.
+
+* Thanks to a report and patch from Garrett Rooney <grooney@collab.net>, paused
+  trigger processes no longer cause the CVS server to consume 100% CPU.
+
+* Thanks to a suggestion from Joseph P. Skudlarek <Jskud@Jskud.com>, an
+  :extssh: has been added as a synonym of the :ext: access method, as a
+  kindness to users of old version of Eclipse.
+
+* Misc documentation updates and minor bug fixes.
+
+Changes from 1.11.20 to 1.11.21:
+********************************
+
+BUG FIXES
+
+* Thanks to Serguei E. Leontiev <lse@CryptoPro.ru>, CVS with Kerberos 5 GSSAPI
+  should automatically link on FreeBSD 5.x. (bug #14639).
+
+* Thanks to Rahul Bhargava <rahul@wandisco.com>, heavily loaded systems
+  suffering from a disk crash or power failure will not lose data they claimed
+  to have committed.
+
+* CVS server now handles conflict markers in Entry requests as documented.
+
+* CVS now remembers that binary file merge conflicts occurred until the
+  timestamp of the updated binary file changes.
+
+* CVS client now saves some bandwidth by not sending the contents of files
+  with conflicts to the server when it isn't needed.
+
+* CVS now does correct locking during import.
+
+* A problem where the server could block indefinitely waiting for an EOF from
+  the client when compression was enabled has been fixed.
+
+* `cvs diff' no longer splits its arguments on spaces.
+
+* Thanks to an old report and patch from Stewart Brodie <stewart@eh.org>, a
+  potential crash in response to a corrupt RCS file has been fixed.
+
+* CVS now locks the history and val-tags files before writing to them.
+  Especially with large repositories, users should no longer see new warnings
+  about corrupt history records when using the `cvs history' command.  Existing
+  corrupt history records will still need to be removed manually.  val-tags
+  corruption should have had less obvious effects, but removing the
+  CVSROOT/val-tags file and allowing a 1.11.21 or later version of CVS to
+  regenerate it may eliminate a few odd behaviors and possibly cause a slight
+  speed up of read transactions in large repositories over time.
+
+BUILD ISSUES
+
+* The RPM spec file works again with the most modern versions of `rpm'.
+
+DEVELOPER ISSUES
+
+* We've standardized on Automake 1.9.6 to get some at new features that make
+  our jobs easier.  See the HACKING file for more on using the autotools with
+  CVS.
+
+Changes from 1.11.19 to 1.11.20:
+********************************
+
+SERVER SECURITY FIXES
+
+* Thanks to a report from Alen Zukich <alen.zukich@klocwork.com>, several minor
+  security issues have been addressed.  One was a buffer overflow that is
+  potentially serious but which may not be exploitable, assigned CAN-2005-0753
+  by the Common Vulnerabilities and Exposures Project
+  <http://www.cve.mitre.org>.  Other fixes resulting from Alen's report include
+  repair of an arbitrary free with no known exploit and several plugged memory
+  leaks and potentially freed NULL pointers which may have been exploitable for
+  a denial of service attack.
+
+* Thanks to a report from Craig Monson <craig@malachiarts.com>, minor
+  potential vulnerabilities in the contributed Perl scripts have been fixed.
+  The confirmed vulnerability could allow the execution of arbitrary code on
+  the CVS server, but only if a user already had commit access and if one of
+  the contrib scripts was installed improperly, a condition which should have
+  been quickly visible to any administrator.  The complete description of the
+  problem is here: <https://ccvs.cvshome.org/issues/show_bug.cgi?id=224>.  If
+  you were making use of any of the contributed trigger scripts on a CVS
+  server, you should probably still replace them with the new versions, to be
+  on the safe side.
+
+  Unfortunately, our fix is incomplete.  Taint-checking has been enabled in all
+  the contributed Perl scripts intended to be run as trigger scripts, but no
+  attempt has been made to ensure that they still run in taint mode.  You will
+  most likely have to tweak the scripts in some way to make them run.  Please
+  send any patches you find necessary back to <bug-cvs@nongnu.org> so that we
+  may again ship fully enabled scripts in the future.
+
+  You should also make sure that any home-grown Perl scripts that you might
+  have installed as CVS triggers also have taint-checking enabled.  This can be
+  done by adding `-T' on the scripts' #! lines.  Please try running
+  `perldoc perlsec' if you would like more information on general Perl security
+  and taint-checking.
+
+BUG FIXES
+
+* Thanks to a report and a patch from Georg Scwharz <georg.scwarz@freenet.de>
+  CVS now builds without error on IRIX 5.3
+
+DEVELOPER ISSUES
+
+* We've standardized on Automake 1.9.5 to get some at new features that make
+  our jobs easier.  See the HACKING file for more on using the autotools with
+  CVS.
+
+Changes from 1.11.18 to 1.11.19:
+********************************
+
+BUG FIXES
+
+* Thanks to a patch from Jim Hyslop <jhyslop@ieee.org>, issuing
+  'cvs watch on' or 'cvs watch off' in an empty directory no longer
+  clears any watchers in that directory.
+
+* An intermittant assertion failure in checkout has been fixed.
+
+* Thanks to a report from Chris Bohn <cbohn@rrinc.com>, all the source files
+  needed for the Windows "red file" fix are actually included in the
+  distribution.
+
+* Misc bug and documentation fixes.
+
+Changes from 1.11.17 to 1.11.18:
+********************************
+
+BUG FIXES
+
+* Thanks to a report from Gottfried Ganssauge <gotti@cvshome.org>, CVS no
+  longer exits when it encounters links pointing to paths containing more
+  than 128 characters.
+
+* Thanks to a report from Dan Peterson <dbpete@aol.com>, error messages from
+  GSSAPI servers are no longer truncated.
+
+* Thanks to a report from Dan Peterson <dbpete@aol.com>, attempts to resurrect
+  a file on the trunk that was added on a branch no longer causes an assertion
+  failure.
+
+* Thanks to a report from Dan Peterson <dbpete@aol.com>, imports to branches
+  like "1.1." no longer create corrupt RCS archives.
+
+* Thanks to a report from Chris Bohn <cbohn@rrinc.com>, links from J.C. Hamlin
+  <jchamlin@ibsys.com>, and code posted by Jonathan Gilligan, we think we have
+  finally corrected the Windows "red-file" (daylight savings time) bug once and
+  for all.
+
+* Thanks to a patch from Jeroen Ruigrok/asmodai <asmodai@wxs.nl>, the
+  log_accum.pl script should no longer elicit warnings from Perl 5.8.5.
+
+* The r* commands (rlog, rls, etc.) can once again handle requests to run
+  against the entire repository (e.g. `cvs rlog .').  Thanks go to Dan Peterson
+  <dbpete@aol.com> for the report.
+
+* A problem where the attempted access of files via tags beginning with spaces
+  could cause the CVS server to hang has been fixed.  This was a particular
+  problem with WinCVS clients because users would sometimes accidentally
+  include spaces in tags pasted into a dialog box.  This fix also altered some
+  of the error messages generated by the use of invalid tags.  Thanks go to Dan
+  Peterson <dbpete@aol.com> for the report.
+
+* Thanks to James E Wilson <wilson@specifixinc.com> for a bug fix to
+  modules processing "gcc-core -a !gcc/f gcc" will no longer exclude
+  gcc/fortran by mistake.
+
+* Thanks to Conrad Pino <conrad@pino.com>, the Windows build works once again.
+
+* Misc updates to the manual.
+
+DEVELOPER ISSUES
+
+* We've standardized on Automake 1.9.3 to get some at new features that make
+  our jobs easier.  See the note below on the Autoconf upgrade for more
+  details.
+
+* We've standardized on Autoconf version 2.59 to get presumed bug fixes and
+  features, but nothing specific.  Mostly, once we decide to upgrade one of the
+  autotools we just figure it'll save time later to grab the most current
+  versions of the others too.  See the HACKING file for more on using the
+  autotools with CVS.
+
+Changes from 1.11.16 to 1.11.17:
+********************************
 
 SERVER SECURITY FIXES
 

@@ -402,6 +402,10 @@
 /* Define as the return type of signal handlers (`int' or `void'). */
 #undef RETSIGTYPE
 
+/* The default remote shell to use, if one does not specify the CVS_RSH
+   environment variable. */
+#undef RSH_DFLT
+
 /* If you are working with a large remote repository and a 'cvs checkout' is
    swamping your network and memory, define these to enable flow control. You
    will end up with even less probability of a consistent checkout (see
@@ -428,6 +432,10 @@
 /* Define as the maximum value of type 'size_t', if the system doesn't define
    it. */
 #undef SIZE_MAX
+
+/* The default remote shell to use, if one does not specify the CVS_SSH
+   environment variable. */
+#undef SSH_DFLT
 
 /* Define to 1 if the `S_IS*' macros in <sys/stat.h> do not work properly. */
 #undef STAT_MACROS_BROKEN
@@ -502,7 +510,7 @@
 /* Define to `int' if <sys/types.h> does not define. */
 #undef pid_t
 
-/* Define to `unsigned' if <sys/types.h> does not define. */
+/* Define to `unsigned int' if <sys/types.h> does not define. */
 #undef size_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */

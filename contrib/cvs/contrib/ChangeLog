@@ -1,8 +1,59 @@
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* cvs_acls.html, cvs_acls.in, log_accum.in: Update links.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* commit_prep.in, cvs_acls.in, log.in, log_accum.in, mfpipe.in,
+	pvcs2rcs.in, rcslock.in: Update links and email addresses.
+
+2005-07-12  Derek Price  <derek@ximbiot.com>
+
+	* clmerge.in, cln_hist.in, commit_prep.in, cvs2vendor.sh, cvs_acls.in,
+	cvscheck.sh, debug_check_log.sh, descend.sh, log.in, log_accum.in,
+	mfpipe.in, rcs-to-cvs.sh, rcs2log.sh, rcs2sccs.sh, rcslock.in,
+	sccs2rcs.in: Add copyright notices.
+
+2005-07-11  Derek Price  <derek@ximbiot.com>
+
+	* clmerge.in, cln_hist.in, commit_prep.in, cvs2vendor.sh, cvs_acls.in,
+	cvscheck.sh, debug_check_log.sh, descend.sh, log.in, log_accum.in,
+	mfpipe.in, rcs-to-cvs.sh, rcs2log.sh, rcs2sccs.sh, rcslock.in,
+	sccs2rcs.in: Update license notices.
+
+2005-04-14  Derek Price  <derek@ximbiot.com>
+
+	* commit_prep.in, cvs_acls.in, log.in, log_accum.in, mfpipe.in,
+	rcslock.in: Enable taint checking and comment.  This closes cvshome.org
+	Issue #224.
+
+2005-04-08  Derek Price  <derek@ximbiot.com>
+
+	* README: Correct my email address.
+
+2005-01-31  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notices.
+
+2005-01-25  Mark D. Baushke  <mdb@cvshome.org>
+
+	* cvs_acls.in: New version from
+	"Peter Connolly" <Peter.Connolly@cnet.com>.
+	* cvs_acls.html: New file from
+	"Peter Connolly" <Peter.Connolly@cnet.com>.
+	* Makefile.am (EXTRA_DIST): Add cvs_acls.html
+	* Makefile.in: Regenerated.
+
+2004-08-30  Derek Price  <derek@ximbiot.com>
+
+	* log_accum.in: Changes to supress warnings under Perl 5.8.5.
+	(Patch from Jeroen Ruigrok/asmodai <asmodai@wxs.nl>.)
+
 2004-01-30  Derek Price  <derek@ximbiot.com>
 
 	Close issue #155.
 	* log_accum.in: Remove unused variables.
-	(Patch from (Ville Skyttä <scop@cvshome.org>.)
+	(Patch from Ville Skyttä <scop@cvshome.org>.)
 
 2003-10-14  Derek Price  <derek@ximbiot.com>
 

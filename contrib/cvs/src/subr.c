@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -319,7 +324,6 @@ increment_revnum (rev)
     const char *rev;
 {
     char *newrev, *p;
-    int lastfield;
     size_t len = strlen (rev);
 
     newrev = xmalloc (len + 2);
@@ -641,59 +645,6 @@ make_message_rcslegal (message)
     }
 
     return dst;
-}
-
-
-
-/*
- * file_has_conflict
- *
- * This function compares the timestamp of a file with ts_conflict set
- * to the timestamp on the actual file and returns TRUE or FALSE based
- * on the results.
- *
- * This function does not check for actual markers in the file and
- * file_has_markers() function should be called when that is interesting.
- *
- * ASSUMPTIONS
- *  The ts_conflict field is not NULL.
- *
- * RETURNS
- *  TRUE	ts_conflict matches the current timestamp.
- *  FALSE	The ts_conflict field does not match the file's
- *		timestamp.
- */
-int
-file_has_conflict (finfo, ts_conflict)
-    const struct file_info *finfo;
-    const char *ts_conflict;
-{
-    char *filestamp;
-    int retcode;
-
-    /* If ts_conflict is NULL, there was no merge since the last
-     * commit and there can be no conflict.
-     */
-    assert (ts_conflict);
-
-    /*
-     * If the timestamp has changed and no
-     * conflict indicators are found, it isn't a
-     * conflict any more.
-     */
-
-#ifdef SERVER_SUPPORT
-    if (server_active)
-	retcode = ts_conflict[0] == '=';
-    else 
-#endif /* SERVER_SUPPORT */
-    {
-	filestamp = time_stamp (finfo->file);
-	retcode = !strcmp (ts_conflict, filestamp);
-	free (filestamp);
-    }
-
-    return retcode;
 }
 
 

@@ -1,12 +1,13 @@
 				CVS Kit
 
-		Copyright (c) 1993-1994 Brian Berliner
-	   Copyright (c) 1992 Brian Berliner and Jeff Polk
-	       Copyright (c) 1989-1992, Brian Berliner
-	       Copyright (c) 1998-2004 Free Software Foundation,
-	                               Derek Price,
-	                               & Ximbiot <http://ximbiot.com>
-			 All Rights Reserved
+	   Copyright (C) 1986-2006 Free Software Foundation, Inc.
+
+	   Portions Copyright (C) 1998-2006 Derek Price,
+	                                    & Ximbiot <http://ximbiot.com>.
+	   Portions Copyright (C) 1993-1994 Brian Berliner.
+	   Portions Copyright (C) 1992 Brian Berliner and Jeff Polk.
+	   Portions Copyright (C) 1989-1992 Brian Berliner.
+	   All Rights Reserved
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -74,6 +75,20 @@ compatibility problems with CVS 1.5 or later.
 
 -------------------------------------------------------------------------------
 
+Verifying the Integrity of Downloads:
+
+The official CVS source and binary releases are signed by the CVS maintainer
+who generated them.  This does not imply any sort of warranty, but it does mean
+that you can verify that the file you downloaded did, in fact, come from a CVS
+maintainer.
+
+The OpenPGP keys of the CVS maintainers who have submitted them are in the KEYS
+file of the CVS distribution and are also available from many OpenPGP key
+servers.  It is recommended that you verify the key fingerprints against an
+external source, however you obtain the key.
+
+-------------------------------------------------------------------------------
+
 Installation:
 
 Please read the INSTALL file for installation instructions.  Brief summary:
@@ -98,19 +113,31 @@ cvs.texinfo and re-generate cvs.ps using TeX.
 * How do I get up-to-date information and information about other
 versions of CVS?
 
-On the web, http://www.loria.fr/~molli/cvs-index.html.
-
 See also 
-	http://www.cvshome.org
+	http://cvs.nongnu.org
+	http://www.cvsnt.org
 
-The mailing list for CVS is info-cvs@gnu.org.  Send
-subscription and removal requests for that list to
-info-cvs-request@gnu.org.
+Anyone can add themselves to the following mailing lists:
+
+    bug-cvs:  This is the list which users are requested to send bug reports
+      to.  General CVS development and design discussions also tend to take
+      place on this list.
+    info-cvs:  This list is intended for user questions, including general
+      help requests.
+    cvs-announce:  CVS release announcements and other major
+      announcements about the project are sent to this list.
+    cvs-announce-binaries:  Announcements are made to this list
+      when binaries for various platforms are built and initially
+      posted for download.
+
+To subscribe to any of these lists, send mail to <list>-request@nongnu.org
+or visit http://savannah.nongnu.org/mail/?group=cvs and follow the instructions
+for the list you wish to subscribe to.
 
 The newsgroup for CVS (and other configuration management systems) is
-comp.software.config-mgmt.  There is not yet a CVS-specific newsgroup,
-but perhaps if comp.software.config-mgmt gets enough CVS discussion,
-then it will be possible to create one.
+comp.software.config-mgmt.  The gnu.cvs.help newsgroup is a 2-way mirror
+of the info-cvs@nongnu.org mailing list and gnu.cvs.bug is similarly a 2-way
+mirror of bug-cvs@nongnu.org.
 
 -------------------------------------------------------------------------------
 

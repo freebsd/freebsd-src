@@ -5,7 +5,6 @@ Pcl-cvs is an Emacs interface to CVS.
 If you are looking for pcl-cvs, we'd suggest pcl-cvs version 2.x, at:
     ftp://ftp.weird.com/pub/local/
 
-Both of the following CVS sites have a page about pcl-cvs:
-    http://www.loria.fr/~molli/cvs-index.html
-    http://cvshome.org/
-They also have much information about CVS tools more generally.
+The following CVS site has a page about pcl-cvs:
+    http://ximbiot.com
+It also has much information about CVS tools more generally.

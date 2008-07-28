@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -35,6 +40,7 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
     Vers_TS *vers_ts;
     struct stickydirtag *sdtp;
     Entnode *entdata;
+    char *rcsexpand = NULL;
 
 #ifdef UTIME_EXPECTS_WRITABLE
     int change_it_back = 0;
@@ -106,30 +112,39 @@ Version_TS (finfo, options, tag, date, force_tag_match, set_time)
 	}
     }
 
+    /* Always look up the RCS keyword mode when we have an RCS archive.  It
+     * will either be needed as a default or to avoid allowing the -k options
+     * specified on the command line from overriding binary mode (-kb).
+     */
+    if (finfo->rcs != NULL)
+	rcsexpand = RCS_getexpand (finfo->rcs);
+
     /*
      * -k options specified on the command line override (and overwrite)
-     * options stored in the entries file
+     * options stored in the entries file and default options from the RCS
+     * archive, except for binary mode (-kb).
      */
     if (options && *options != '\0')
-	vers_ts->options = xstrdup (options);
-    else if (!vers_ts->options || *vers_ts->options == '\0')
     {
-	if (finfo->rcs != NULL)
-	{
-	    /* If no keyword expansion was specified on command line,
-	       use whatever was in the rcs file (if there is one).  This
-	       is how we, if we are the server, tell the client whether
-	       a file is binary.  */
-	    char *rcsexpand = RCS_getexpand (finfo->rcs);
-	    if (rcsexpand != NULL)
-	    {
-		if (vers_ts->options != NULL)
-		    free (vers_ts->options);
-		vers_ts->options = xmalloc (strlen (rcsexpand) + 3);
-		strcpy (vers_ts->options, "-k");
-		strcat (vers_ts->options, rcsexpand);
-	    }
-	}
+	if (vers_ts->options != NULL)
+	    free (vers_ts->options);
+	if (rcsexpand != NULL && strcmp (rcsexpand, "b") == 0)
+	    vers_ts->options = xstrdup ("-kb");
+	else
+	    vers_ts->options = xstrdup (options);
+    }
+    else if ((!vers_ts->options || *vers_ts->options == '\0')
+             && rcsexpand != NULL)
+    {
+	/* If no keyword expansion was specified on command line,
+	   use whatever was in the rcs file (if there is one).  This
+	   is how we, if we are the server, tell the client whether
+	   a file is binary.  */
+	if (vers_ts->options != NULL)
+	    free (vers_ts->options);
+	vers_ts->options = xmalloc (strlen (rcsexpand) + 3);
+	strcpy (vers_ts->options, "-k");
+	strcat (vers_ts->options, rcsexpand);
     }
     if (!vers_ts->options)
 	vers_ts->options = xstrdup ("");
@@ -287,6 +302,13 @@ time_stamp_server (file, vers_ts, entdata)
 	else if (entdata->timestamp
 		 && entdata->timestamp[0] == '=')
 	    mark_unchanged (vers_ts);
+	else if (entdata->conflict
+		 && entdata->conflict[0] == '=')
+	{
+	    /* These just need matching content.  Might as well minimize it.  */
+	    vers_ts->ts_user = xstrdup ("");
+	    vers_ts->ts_conflict = xstrdup ("");
+	}
 	else if (entdata->timestamp
 		 && (entdata->timestamp[0] == 'M'
 		     || entdata->timestamp[0] == 'D')
@@ -339,6 +361,9 @@ time_stamp (file)
     {
 	mtime = sb.st_mtime;
     }
+    else if (! existence_error (errno))
+	error (0, errno, "cannot lstat %s", file);
+
     /* If it's a symlink, return whichever is the newest mtime of
        the link and its target, for safety.
     */
@@ -347,6 +372,9 @@ time_stamp (file)
         if (mtime < sb.st_mtime)
 	    mtime = sb.st_mtime;
     }
+    else if (! existence_error (errno))
+	error (0, errno, "cannot stat %s", file);
+
     if (mtime)
     {
 	struct tm *tm_p;

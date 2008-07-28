@@ -88,22 +88,6 @@ an incorrect value, though this does not explain why symptoms have only been
 noticed under BSDI.
 
 
-* Spaces in arguments to `cvs diff' are currently split on spaces and tabs
-before being passed to diff.  This can often cause diff to abort since it can
-no longer interpret its options string and if it can, coincidentally,
-interpret its option string, then the problem may be output in unexpected
-formats.
-
-
-* `release' of a project subdir does not remove the `subdir' entry from
-  `./CVS/Entries'.
-
-
-* Most of the remote commands are encountering assertion failures when listing
-  the toplevel of the repository (e.g. `cvs rlog .').  This appears to be
-  related to the symlinked CVS root fix.
-
-
 * Status
 
                              /*-------.

@@ -361,18 +361,10 @@ compress_buffer_shutdown_input (buf)
     struct compress_buffer *cb = (struct compress_buffer *) buf->closure;
     int zstatus;
 
-    /* Pick up any trailing data, such as the checksum.  */
-    while (1)
-    {
-	int status, nread;
-	char buf[100];
-
-	status = compress_buffer_input (cb, buf, 0, sizeof buf, &nread);
-	if (status == -1)
-	    break;
-	if (status != 0)
-	    return status;
-    }
+    /* Don't make any attempt to pick up trailing data since we are shutting
+     * down.  If the client doesn't know we are shutting down, we might not
+     * see the EOF we are expecting.
+     */
 
     zstatus = inflateEnd (&cb->zstr);
     if (zstatus != Z_OK)

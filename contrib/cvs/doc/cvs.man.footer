@@ -42,9 +42,7 @@ to CVS, development of CVS, and more, see:
 .SP
 .PD 0
 .IP "" 4
-.B http://cvshome.org
-.IP "" 4
-.B http://www.loria.fr/~molli/cvs-index.html
+.B http://cvs.nongnu.org
 .in -1i
 .SP
 .BR ci ( 1 ),

@@ -11,6 +11,8 @@
 /* This file simply performs the include magic necessary for using time
  * functions
  */
+#ifndef XTIME_HEADER_INCLUDED
+#define XTIME_HEADER_INCLUDED
 
 #ifdef vms
 # include <time.h>
@@ -55,3 +57,5 @@ extern long timezone;
 # endif /* !defined(HAVE_FTIME) && !defined(HAVE_TIMEZONE) */
 
 #endif /* !vms */
+
+#endif /* !XTIME_HEADER_INCLUDED */
