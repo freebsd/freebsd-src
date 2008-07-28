@@ -1167,7 +1167,10 @@ sched_pickcpu(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	best = NOCPU;
+	if (THREAD_CAN_SCHED(td, td->td_lastcpu))
+		best = td->td_lastcpu;
+	else
+		best = NOCPU;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (CPU_ABSENT(cpu))
 			continue;
