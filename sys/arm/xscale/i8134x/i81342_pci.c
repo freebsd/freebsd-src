@@ -185,7 +185,7 @@ i81342_pci_attach(device_t dev)
 		IOP34X_PCIE_OIOBAR_VADDR,
 		(sc->sc_is_atux ? IOP34X_PCIX_OIOBAR_VADDR :
 		IOP34X_PCIE_OIOBAR_VADDR) + IOP34X_OIOBAR_SIZE) != 0) {
-		panic("i80321_pci_probe: failed to set up I/O rman");
+		panic("i81342_pci_probe: failed to set up I/O rman");
 	}
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "I81342 PCI Memory";
