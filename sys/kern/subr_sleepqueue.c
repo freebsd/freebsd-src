@@ -1131,8 +1131,8 @@ found:
 				      td_slpq) {
 				db_printf("\t%p (tid %d, pid %d, \"%s\")\n", td,
 					  td->td_tid, td->td_proc->p_pid,
-					  td->td_name[i] != '\0' ? td->td_name :
-					  td->td_name);
+					  td->td_name[0] != '\0' ? td->td_name :
+					  td->td_proc->p_comm);
 			}
 	}
 }
