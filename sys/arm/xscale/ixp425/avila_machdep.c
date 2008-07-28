@@ -288,10 +288,10 @@ initarm(void *arg, void *arg2)
 	i += 2;
 	fake_preload[i++] = MODINFO_ADDR;
 	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE + 0x00200000;
+	fake_preload[i++] = KERNVIRTADDR;
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE - 0x00200000;
+	fake_preload[i++] = (uint32_t)&end - KERNVIRTADDR;
 #ifdef DDB
 	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
 		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
@@ -317,7 +317,6 @@ initarm(void *arg, void *arg2)
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
-#define KERNEL_TEXT_BASE (KERNBASE + 0x00200000)
 	freemempos = 0x10200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
