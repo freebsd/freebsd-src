@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -11,6 +16,7 @@
 #include "cvs.h"
 #include "getline.h"
 #include <assert.h>
+#include "history.h"
 
 extern char *logHistory;
 
@@ -41,6 +47,8 @@ Parse_Info (infofile, repository, callproc, all)
     char *cp, *exp, *value;
     const char *srepos;
     const char *regex_err;
+
+    assert (repository);
 
     if (current_parsed_root == NULL)
     {
@@ -239,6 +247,7 @@ parse_config (cvsroot)
     /* FIXME-reentrancy: If we do a multi-threaded server, this would need
        to go to the per-connection data structures.  */
     static int parsed = 0;
+    int ignore_unknown_config_keys = 0;
 
     /* Authentication code and serve_root might both want to call us.
        Let this happen smoothly.  */
@@ -272,8 +281,7 @@ parse_config (cvsroot)
 	       value, currently at least.  */
 	    error (0, errno, "cannot open %s", infopath);
 	}
-	free (infopath);
-	return 0;
+	goto set_defaults_and_return;
     }
 
     while (getline (&line, &line_allocated, fp_info) >= 0)
@@ -416,8 +424,8 @@ warning: this CVS does not support PreservePermissions");
 	{
 	    if (strcmp (p, "all") != 0)
 	    {
-		logHistory=xmalloc(strlen (p) + 1);
-		strcpy (logHistory, p);
+		if (logHistory) free (logHistory);
+		logHistory = xstrdup (p);
 	    }
 	}
 	else if (strcmp (line, "RereadLogAfterVerify") == 0)
@@ -439,6 +447,23 @@ warning: this CVS does not support PreservePermissions");
 	    /* Recognize cvs-1.12-style keyword control rather than erroring out. */
 	    RCS_setincexc(p);
 	}
+	else if (strcmp (line, "IgnoreUnknownConfigKeys") == 0)
+	{
+	    if (strcmp (p, "no") == 0 || strcmp (p, "false") == 0
+		|| strcmp (p, "off") == 0 || strcmp (p, "0") == 0)
+		ignore_unknown_config_keys = 0;
+	    else if (strcmp (p, "yes") == 0 || strcmp (p, "true") == 0
+		     || strcmp (p, "on") == 0 || strcmp (p, "1") == 0)
+		ignore_unknown_config_keys = 1;
+	    else
+	    {
+		error (0, 0, "%s: unrecognized value '%s' for '%s'",
+		       infopath, p, line);
+		goto error_return;
+	    }
+	}
+	else if (ignore_unknown_config_keys)
+	    ;
 	else
 	{
 	    /* We may be dealing with a keyword which was added in a
@@ -467,12 +492,17 @@ warning: this CVS does not support PreservePermissions");
 	error (0, errno, "cannot close %s", infopath);
 	goto error_return;
     }
+set_defaults_and_return:
+    if (!logHistory)
+	logHistory = xstrdup (ALL_HISTORY_REC_TYPES);
     free (infopath);
     if (line != NULL)
 	free (line);
     return 0;
 
  error_return:
+    if (!logHistory)
+	logHistory = xstrdup (ALL_HISTORY_REC_TYPES);
     if (infopath != NULL)
 	free (infopath);
     if (line != NULL)

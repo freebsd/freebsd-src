@@ -1,13 +1,16 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS kit.
- *
- * $FreeBSD$
- */
+ * specified in the README file that comes with the CVS kit.  */
 
+#include <assert.h>
 #include "cvs.h"
 #include "getline.h"
 #include "history.h"
@@ -259,7 +262,6 @@ static const char *const modules_contents[] = {
     "#	key [options] directory files...\n",
     "#\n",
     "# Where \"options\" are composed of:\n",
-    "#	-i prog		Run \"prog\" on \"cvs commit\" from top-level of module.\n",
     "#	-o prog		Run \"prog\" on \"cvs checkout\" of module.\n",
     "#	-e prog		Run \"prog\" on \"cvs export\" of module.\n",
     "#	-t prog		Run \"prog\" on \"cvs rtag\" of module.\n",
@@ -284,7 +286,14 @@ static const char *const modules_contents[] = {
 
 static const char *const config_contents[] = {
     "# Set this to \"no\" if pserver shouldn't check system users/passwords\n",
-    "#SystemAuth=no\n",
+    "#SystemAuth=yes\n",
+    "\n",
+    "# Set `IgnoreUnknownConfigKeys' to `yes' to ignore unknown config\n",
+    "# keys which are supported in a future version of CVS.\n",
+    "# This option is intended to be useful as a transition for read-only\n",
+    "# mirror sites when sites may need to be updated later than the\n",
+    "# primary CVS repository.\n",
+    "#IgnoreUnknownConfigKeys=no\n",
     "\n",
     "# Put CVS lock files in this directory rather than directly in the repository.\n",
     "#LockDir=/var/lock/cvs\n",
@@ -305,7 +314,7 @@ static const char *const config_contents[] = {
     "#LogHistory=" ALL_HISTORY_REC_TYPES "\n",
     "\n",
     "# Set `RereadLogAfterVerify' to `always' (the default) to allow the verifymsg\n",
-    "# script to change the log message.  Set it to `stat' to force CVS to verify",
+    "# script to change the log message.  Set it to `stat' to force CVS to verify\n",
     "# that the file has changed before reading it (this can take up to an extra\n",
     "# second per directory being committed, so it is not recommended for large\n",
     "# repositories.  Set it to `never' (the previous CVS behavior) to prevent\n",
@@ -579,7 +588,17 @@ checkout_file (file, temp)
 	free (rcs);
 	return (1);
     }
+
     rcsnode = RCS_parsercsfile (rcs);
+    if (!rcsnode)
+    {
+	/* Probably not necessary (?); RCS_parsercsfile already printed a
+	   message.  */
+	error (0, 0, "Failed to parse `%s'.", rcs);
+	free (rcs);
+	return 1;
+    }
+
     retcode = RCS_checkout (rcsnode, NULL, NULL, NULL, NULL, temp,
 			    (RCSCHECKOUTPROC) NULL, (void *) NULL);
     if (retcode != 0)
@@ -834,6 +853,41 @@ rename_rcsfile (temp, real)
 
     free (bak);
 }
+
+/*
+ * Walk PATH backwards to the root directory looking for the root of a
+ * repository.
+ */
+static char *
+in_repository (const char *path)
+{
+    char *cp = xstrdup (path);
+
+    for (;;)
+    {
+	if (isdir (cp))
+	{
+	    int foundit;
+	    char *adm = xmalloc (strlen(cp) + strlen(CVSROOTADM) + 2);
+	    sprintf (adm, "%s/%s", cp, CVSROOTADM);
+	    foundit = isdir (adm);
+	    free (adm);
+	    if (foundit) return cp;
+	}
+
+	/* If last_component() returns the empty string, then cp either
+	 * points at the system root or is the empty string itself.
+	 */
+	if (!*last_component (cp) || !strcmp (cp, ".")
+	    || last_component(cp) == cp)
+	    break;
+
+	cp[strlen(cp) - strlen(last_component(cp)) - 1] = '\0';
+    }
+
+    return NULL;
+}
+
 
 const char *const init_usage[] = {
     "Usage: %s %s\n",
@@ -855,7 +909,10 @@ init (argc, argv)
     /* Exit status.  */
     int err = 0;
 
+    char *root_dir;
     const struct admin_file *fileptr;
+
+    assert (!server_active);
 
     umask (cvsumask);
 
@@ -872,6 +929,14 @@ init (argc, argv)
 	return get_responses_and_close ();
     }
 #endif /* CLIENT_SUPPORT */
+
+    root_dir = in_repository (current_parsed_root->directory);
+
+    if (root_dir && strcmp (root_dir, current_parsed_root->directory))
+	error (1, 0,
+	       "Cannot initialize repository under existing CVSROOT: `%s'",
+	       root_dir);
+    free (root_dir);
 
     /* Note: we do *not* create parent directories as needed like the
        old cvsinit.sh script did.  Few utilities do that, and a

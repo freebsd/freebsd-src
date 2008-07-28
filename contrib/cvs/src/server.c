@@ -20,6 +20,8 @@
 #include "getline.h"
 #include "buffer.h"
 
+int server_active = 0;
+
 #if defined(SERVER_SUPPORT) || defined(CLIENT_SUPPORT)
 # ifdef HAVE_GSSAPI
 /* This stuff isn't included solely with SERVER_SUPPORT since some of these
@@ -360,13 +362,20 @@ create_adm_p (base_dir, dir)
 
     dir_where_cvsadm_lives = xmalloc (strlen (base_dir) + strlen (dir) + 100);
     if (dir_where_cvsadm_lives == NULL)
+    {
+	free (p);
 	return ENOMEM;
+    }
 
     /* Allocate some space for the temporary string in which we will
        construct filenames. */
     tmp = xmalloc (strlen (base_dir) + strlen (dir) + 100);
     if (tmp == NULL)
+    {
+	free (p);
+	free (dir_where_cvsadm_lives);
 	return ENOMEM;
+    }
 
 
     /* We make several passes through this loop.  On the first pass,
@@ -751,6 +760,19 @@ serve_root (arg)
 	if (alloc_pending (80 + strlen (arg)))
 	    sprintf (pending_error_text,
 		     "E Protocol error: Duplicate Root request, for %s", arg);
+	return;
+    }
+
+    /* We need to check :ext: server here, :pserver: checks happen below. */
+    if (root_allow_used() && !root_allow_ok (arg)
+# ifdef AUTH_SERVER_SUPPORT
+	&& Pserver_Repos == NULL
+# endif
+	)
+    {
+	if (alloc_pending (80 + strlen (arg)))
+	    sprintf (pending_error_text,
+		     "E Bad root %s", arg);
 	return;
     }
 
@@ -1234,6 +1256,7 @@ serve_sticky (arg)
 	if (alloc_pending (80 + strlen (CVSADM_TAG)))
 	    sprintf (pending_error_text, "E cannot write to %s", CVSADM_TAG);
 	pending_error = save_errno;
+	(void) fclose (f);
 	return;
     }
     if (fclose (f) == EOF)
@@ -1682,7 +1705,9 @@ serve_unchanged (arg)
 	     * is allowed, but broken versions of WinCVS & TortoiseCVS rely on
 	     * this behavior.
 	     */
-	    *timefield = '=';
+	    if (*timefield != '+')
+		/* Skip this for entries with conflict markers.  */
+		*timefield = '=';
 	    break;
 	}
     }
@@ -1753,7 +1778,10 @@ serve_is_modified (arg)
 	     * is allowed, but broken versions of WinCVS & TortoiseCVS rely on
 	     * this behavior.
 	     */
-	    *timefield = 'M';
+	    if (*timefield != '+')
+		/* Skip this for entries with conflict markers.  */
+		*timefield = 'M';
+
 	    if (kopt != NULL)
 	    {
 		if (alloc_pending (strlen (name) + 80))
@@ -1840,6 +1868,7 @@ serve_entry (arg)
     cp = xmalloc (strlen (arg) + 2);
     if (cp == NULL)
     {
+	free (p);
 	pending_error = ENOMEM;
 	return;
     }
@@ -2703,6 +2732,25 @@ set_nonblock_fd (fd)
 
 
 
+/*
+ * Set buffer FD to blocking I/O.  Returns 0 for success or errno code.
+ */
+int
+set_block_fd (fd)
+     int fd;
+{
+    int flags;
+
+    flags = fcntl (fd, F_GETFL, 0);
+    if (flags < 0)
+	return errno;
+    if (fcntl (fd, F_SETFL, flags & ~O_NONBLOCK) < 0)
+	return errno;
+    return 0;
+}
+
+
+
 static void
 do_cvs_command (cmd_name, command)
     char *cmd_name;
@@ -2726,7 +2774,7 @@ do_cvs_command (cmd_name, command)
 
     int dev_null_fd = -1;
 
-    int errs;
+    int errs = 0;
 
     command_pid = -1;
     stdout_pipe[0] = -1;
@@ -2925,23 +2973,31 @@ error  \n");
 #ifdef SERVER_FLOWCONTROL
 	{
 	    char junk;
-	    ssize_t status;
-	    while ((status = read (flowcontrol_pipe[0], &junk, 1)) > 0
-	           || (status == -1 && errno == EAGAIN));
+	    set_block_fd (flowcontrol_pipe[0]);
+	    while (read (flowcontrol_pipe[0], &junk, 1) > 0);
 	}
 	/* FIXME: No point in printing an error message with error(),
 	 * as STDERR is already closed, but perhaps this could be syslogged?
 	 */
 #endif
 
+	rcs_cleanup ();
+	Lock_Cleanup ();
+	/* Don't call server_cleanup - the parent will handle that.  */
+#ifdef SYSTEM_CLEANUP
+	/* Hook for OS-specific behavior, for example socket subsystems on
+	   NT and OS2 or dealing with windows and arguments on Mac.  */
+	SYSTEM_CLEANUP ();
+#endif
 	exit (exitstatus);
     }
 
     /* OK, sit around getting all the input from the child.  */
     {
-	struct buffer *stdoutbuf;
-	struct buffer *stderrbuf;
-	struct buffer *protocol_inbuf;
+	struct buffer *stdoutbuf = NULL;
+	struct buffer *stderrbuf = NULL;
+	struct buffer *protocol_inbuf = NULL;
+	int err_exit = 0;
 	/* Number of file descriptors to check in select ().  */
 	int num_to_check;
 	int count_needed = 1;
@@ -2994,7 +3050,8 @@ error  \n");
 	{
 	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
-	    goto error_exit;
+	    err_exit = 1;
+	    goto child_finish;
 	}
 	stdout_pipe[1] = -1;
 
@@ -3002,7 +3059,8 @@ error  \n");
 	{
 	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
-	    goto error_exit;
+	    err_exit = 1;
+	    goto child_finish;
 	}
 	stderr_pipe[1] = -1;
 
@@ -3010,7 +3068,8 @@ error  \n");
 	{
 	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
-	    goto error_exit;
+	    err_exit = 1;
+	    goto child_finish;
 	}
 	protocol_pipe[1] = -1;
 
@@ -3019,7 +3078,8 @@ error  \n");
 	{
 	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
-	    goto error_exit;
+	    err_exit = 1;
+	    goto child_finish;
 	}
 	flowcontrol_pipe[0] = -1;
 #endif /* SERVER_FLOWCONTROL */
@@ -3028,7 +3088,9 @@ error  \n");
 	{
 	    buf_output0 (buf_to_net, "E close failed\n");
 	    print_error (errno);
-	    goto error_exit;
+	    dev_null_fd = -1;	/* Do not try to close it again. */
+	    err_exit = 1;
+	    goto child_finish;
 	}
 	dev_null_fd = -1;
 
@@ -3115,7 +3177,8 @@ error  \n");
 		{
 		    buf_output0 (buf_to_net, "E select failed\n");
 		    print_error (errno);
-		    goto error_exit;
+		    err_exit = 1;
+		    goto child_finish;
 		}
 	    } while (numfds < 0);
 
@@ -3148,7 +3211,8 @@ error  \n");
 		{
 		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
 		    print_error (status);
-		    goto error_exit;
+		    err_exit = 1;
+		    goto child_finish;
 		}
 
 		/*
@@ -3222,7 +3286,8 @@ error  \n");
 		{
 		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
 		    print_error (status);
-		    goto error_exit;
+		    err_exit = 1;
+		    goto child_finish;
 		}
 
 		/* What should we do with errors?  syslog() them?  */
@@ -3247,7 +3312,8 @@ error  \n");
 		{
 		    buf_output0 (buf_to_net, "E buf_input_data failed\n");
 		    print_error (status);
-		    goto error_exit;
+		    err_exit = 1;
+		    goto child_finish;
 		}
 
 		/* What should we do with errors?  syslog() them?  */
@@ -3327,21 +3393,33 @@ E CVS locks may need cleaning up.\n");
 		command_pid = -1;
 	}
 
+      child_finish:
 	/*
 	 * OK, we've waited for the child.  By now all CVS locks are free
 	 * and it's OK to block on the network.
 	 */
 	set_block (buf_to_net);
 	buf_flush (buf_to_net, 1);
-	buf_shutdown (protocol_inbuf);
-	buf_free (protocol_inbuf);
-	protocol_inbuf = NULL;
-	buf_shutdown (stderrbuf);
-	buf_free (stderrbuf);
-	stderrbuf = NULL;
-	buf_shutdown (stdoutbuf);
-	buf_free (stdoutbuf);
-	stdoutbuf = NULL;
+	if (protocol_inbuf)
+	{
+	    buf_shutdown (protocol_inbuf);
+	    buf_free (protocol_inbuf);
+	    protocol_inbuf = NULL;
+	}
+	if (stderrbuf)
+	{
+	    buf_shutdown (stderrbuf);
+	    buf_free (stderrbuf);
+	    stderrbuf = NULL;
+	}
+	if (stdoutbuf)
+	{
+	    buf_shutdown (stdoutbuf);
+	    buf_free (stdoutbuf);
+	    stdoutbuf = NULL;
+	}
+	if (err_exit)
+	    goto error_exit;
     }
 
     if (errs)
@@ -3365,7 +3443,8 @@ E CVS locks may need cleaning up.\n");
 	    command_pid = -1;
     }
 
-    close (dev_null_fd);
+    if (dev_null_fd >= 0)
+	close (dev_null_fd);
     close (protocol_pipe[0]);
     close (protocol_pipe[1]);
     close (stderr_pipe[0]);
@@ -3693,6 +3772,10 @@ server_checked_in (file, update_dir, repository)
     const char *update_dir;
     const char *repository;
 {
+    assert (file);
+    assert (update_dir);
+    assert (repository);
+
     if (noexec)
 	return;
     if (scratched_file != NULL && entries_line == NULL)
@@ -3923,38 +4006,11 @@ static void
 serve_init (arg)
     char *arg;
 {
-    cvsroot_t *saved_parsed_root;
-
-    if (!isabsolute (arg))
-    {
-	if (alloc_pending (80 + strlen (arg)))
-	    sprintf (pending_error_text,
-		     "E init %s must be an absolute pathname", arg);
-    }
-#ifdef AUTH_SERVER_SUPPORT
-    else if (Pserver_Repos != NULL)
-    {
-	if (strcmp (Pserver_Repos, arg) != 0)
-	{
-	    if (alloc_pending (80 + strlen (Pserver_Repos) + strlen (arg)))
-		/* The explicitness is to aid people who are writing clients.
-		   I don't see how this information could help an
-		   attacker.  */
-		sprintf (pending_error_text, "\
-E Protocol error: init says \"%s\" but pserver says \"%s\"",
-			 arg, Pserver_Repos);
-	}
-    }
-#endif
+    if (alloc_pending (80 + strlen (arg)))
+	sprintf (pending_error_text, "E init may not be run remotely");
 
     if (print_pending_error ())
 	return;
-
-    saved_parsed_root = current_parsed_root;
-    current_parsed_root = local_cvsroot (arg);
-    do_cvs_command ("init", init);
-    free_cvsroot_t (current_parsed_root);
-    current_parsed_root = saved_parsed_root;
 }
 
 static void serve_annotate PROTO ((char *));
@@ -4126,6 +4182,7 @@ server_updated (finfo, vers, updated, mode, checksum, filebuf)
 	    free (scratched_file);
 	    scratched_file = NULL;
 	}
+	buf_send_counted (protocol);
 	return;
     }
 
@@ -4204,7 +4261,6 @@ CVS server internal error: no mode in server_updated");
 	if (updated == SERVER_UPDATED)
 	{
 	    Node *node;
-	    Entnode *entnode;
 
 	    if (!(supported_response ("Created")
 		  && supported_response ("Update-existing")))
@@ -4222,9 +4278,13 @@ CVS server internal error: no mode in server_updated");
 	       in case we end up processing it again (e.g. modules3-6
 	       in the testsuite).  */
 	    node = findnode_fn (finfo->entries, finfo->file);
-	    entnode = node->data;
-	    free (entnode->timestamp);
-	    entnode->timestamp = xstrdup ("=");
+	    assert (node != NULL);
+	    if (node != NULL)
+	    {
+		Entnode *entnode = node->data;
+		free (entnode->timestamp);
+		entnode->timestamp = xstrdup ("=");
+	    }
 	}
 	else if (updated == SERVER_MERGED)
 	    buf_output0 (protocol, "Merged ");
@@ -4512,9 +4572,12 @@ struct template_proc_data
 static struct template_proc_data *tpd;
 
 static int
+template_proc PROTO((const char *repository, const char *template));
+
+static int
 template_proc (repository, template)
-    char *repository;
-    char *template;
+    const char *repository;
+    const char *template;
 {
     FILE *fp;
     char buf[1024];
@@ -4792,6 +4855,7 @@ struct request requests[] =
   REQ_LINE("Checkin-time", serve_checkin_time, 0),
   REQ_LINE("Modified", serve_modified, RQ_ESSENTIAL),
   REQ_LINE("Is-modified", serve_is_modified, 0),
+  REQ_LINE("Empty-conflicts", serve_noop, 0),
 
   /* The client must send this request to interoperate with CVS 1.5
      through 1.9 servers.  The server must support it (although it can
@@ -5045,8 +5109,6 @@ server_cleanup (sig)
 	error_use_protocol = 0;
     }
 }
-
-int server_active = 0;
 
 int
 server (argc, argv)
@@ -5479,6 +5541,7 @@ check_repository_password (username, password, repository, host_user_ptr)
     {
 	if (!existence_error (errno))
 	    error (0, errno, "cannot open %s", filename);
+	free (filename);
 	return 0;
     }
 
@@ -5911,6 +5974,8 @@ pserver_authenticate_connection ()
     {
 	printf ("I LOVE YOU\n");
 	fflush (stdout);
+
+	/* It's okay to skip rcs_cleanup() and Lock_Cleanup() here.  */
 
 #ifdef SYSTEM_CLEANUP
 	/* Hook for OS-specific behavior, for example socket subsystems on
@@ -6425,12 +6490,10 @@ cvs_output (str, len)
 	size_t to_write = len;
 	const char *p = str;
 
-	/* For symmetry with cvs_outerr we would call fflush (stderr)
-	   here.  I guess the assumption is that stderr will be
-	   unbuffered, so we don't need to.  That sounds like a sound
-	   assumption from the manpage I looked at, but if there was
-	   something fishy about it, my guess is that calling fflush
-	   would not produce a significant performance problem.  */
+	/* Local users that do 'cvs status 2>&1' on a local repository
+	   may see the informational messages out-of-order with the
+	   status messages unless we use the fflush (stderr) here. */
+	fflush (stderr);
 
 	while (to_write > 0)
 	{
@@ -6487,16 +6550,16 @@ this client does not support writing binary files to stdout");
 	size_t written;
 	size_t to_write = len;
 	const char *p = str;
-
-	/* For symmetry with cvs_outerr we would call fflush (stderr)
-	   here.  I guess the assumption is that stderr will be
-	   unbuffered, so we don't need to.  That sounds like a sound
-	   assumption from the manpage I looked at, but if there was
-	   something fishy about it, my guess is that calling fflush
-	   would not produce a significant performance problem.  */
 #ifdef USE_SETMODE_STDOUT
 	int oldmode;
+#endif
 
+	/* Local users that do 'cvs status 2>&1' on a local repository
+	   may see the informational messages out-of-order with the
+	   status messages unless we use the fflush (stderr) here. */
+	fflush (stderr);
+
+#ifdef USE_SETMODE_STDOUT
 	/* It is possible that this should be the same ifdef as
 	   USE_SETMODE_BINARY but at least for the moment we keep them
 	   separate.  Mostly this is just laziness and/or a question

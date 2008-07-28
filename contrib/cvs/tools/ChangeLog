@@ -1,3 +1,13 @@
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* README: Correct grammar.
+
+	* README: Update links.
+
+2005-01-31  Derek Price  <derek@ximbiot.com>
+
+	* Makefile.am: Update copyright notices.
+
 2003-05-21  Derek Price  <derek@ximbiot.com>
 
 	* Makefile.in: Regenerate with Automake version 1.7.5.

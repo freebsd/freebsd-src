@@ -1,3 +1,24 @@
+-------------------------------------------------------------------------------
+
+   CVS is Copyright (C) 1986-2006 The Free Software Foundation, Inc.
+
+   CVS is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 1, or (at your option)
+   any later version.
+
+   More details are available in the COPYING file but, in simplified
+   terms, this means that any distributed modifications you make to
+   this software must also be released under the GNU General Public
+   License.
+
+   CVS is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+-------------------------------------------------------------------------------
+
 This file contains a CVS FAQ.  Until 1995 it was maintained by David
 Grubbs.  It was out of date and not being maintained, but it had a
 certain following and in 1997 Pascal Molli decided to start
@@ -13,13 +34,14 @@ until someone can write some code to extract data from a FAQ-O-Matic
 and insert things like tables of contents).
 
 The answers which are dated "6/13/1997" below are really from the 1995
-FAQ, for the most part.  Many of them are out of date.  If you have
-some time, you are encouraged to double-check them against other
-sources like the Cederqvist manual and update the FAQ.  If you don't
-have such time, take them with a grain of salt or a few.
+FAQ, for the most part.  Many of them are out of date.  The current FAQ may
+be found at <http://ximbiot.com/cvs/wiki/index.php?title=CVS_FAQ>.  If you have
+some time, you are encouraged to export that FAQ as text and import it here.
+If you don't have such time, take the answers in this file with at least a few
+grains of salt.
 
-Since Feb. 2000 CVS is being maintained by OpenAvenue, Inc. and many of
-the existing resources have been centeralized on http://www.cvshome.org.
+Since August, 2005, many of the existing CVS resources have been centralized on
+<http://cvs.nongnu.org> & <http://ximbiot.com>.
 
   Category: /, all questions
   
@@ -1899,7 +1921,8 @@ You can branch a branch.
         GIC is no longer being maintained and tkCVS is recommended
         instead.
 
-        For more on tkCVS, see http://www.cvshome.org/dev/addontkcvs.html.
+        For more on tkCVS, see
+	<http://ximbiot.com/cvs/cvshome/dev/addontkcvs.html>.
 
         kingdon@cyclic.com
 

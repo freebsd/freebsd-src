@@ -1,16 +1,71 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
  * 
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "cvs.h"
 
 static void sticky_ck PROTO ((struct file_info *finfo, int aflag,
 			      Vers_TS * vers));
+
+
+
+static inline int keywords_may_change PROTO ((int aflag, Vers_TS * vers));
+static inline int
+keywords_may_change (aflag, vers)
+    int aflag;
+    Vers_TS * vers;
+{
+    int retval;
+
+    if (/* Options are different...  */
+	strcmp (vers->entdata->options, vers->options)
+	/* ...or...  */
+	|| (/* ...clearing stickies...  */
+	    aflag
+	    /* ...and...  */
+	    && (/* ...there used to be a tag which subs in Name keys...  */
+		(vers->entdata->tag && !isdigit (vers->entdata->tag[0])
+		    && vers->tag && !isdigit (vers->tag[0])
+		    && strcmp (vers->entdata->tag, vers->tag))
+		/* ...or there used to be a keyword mode which may be
+		 * changed by -A...
+		 */
+		|| (strlen (vers->entdata->options)
+		    && strcmp (vers->entdata->options, vers->options)
+		    && strcmp (vers->entdata->options, "-kkv")
+		    && strcmp (vers->entdata->options, "-kb"))))
+	/* ...or...  */
+	|| (/* ...this is not commit...  */
+	    strcmp (cvs_cmd_name, "commit")
+	    /* ...and...  */
+	    && (/* ...the tag is changing in a way that affects Name keys...  */
+		(vers->entdata->tag && vers->tag
+		 && strcmp (vers->entdata->tag, vers->tag)
+		 && !(isdigit (vers->entdata->tag[0])
+		      && isdigit (vers->entdata->tag[0])))
+		|| (!vers->entdata->tag && vers->tag
+		    && !isdigit (vers->tag[0])))))
+	retval = 1;
+    else
+	retval = 0;
+
+    return retval;
+}
+
+
 
 /*
  * Classify the state of a file
@@ -279,7 +334,9 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 			error (0, 0, "warning: %s was lost", finfo->fullname);
 		ret = T_CHECKOUT;
 	    }
-	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
+	    else if (!strcmp (vers->ts_user,
+			      vers->ts_conflict
+			      ? vers->ts_conflict : vers->ts_rcs))
 	    {
 
 		/*
@@ -290,13 +347,14 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		 */
 		/* TODO: decide whether we need to check file permissions
 		   for a mismatch, and return T_CONFLICT if so. */
-		if (vers->entdata->options &&
-		    strcmp (vers->entdata->options, vers->options) != 0)
-		    ret = T_CHECKOUT;
+		if (keywords_may_change (aflag, vers))
+		    ret = T_PATCH;
+		else if (vers->ts_conflict)
+		    ret = T_CONFLICT;
 		else
 		{
-		    sticky_ck (finfo, aflag, vers);
 		    ret = T_UPTODATE;
+		    sticky_ck (finfo, aflag, vers);
 		}
 	    }
 	    else if (No_Difference (finfo, vers))
@@ -313,6 +371,13 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		else
 		    ret = T_NEEDS_MERGE;
 #else
+		/* Files with conflict markers and new timestamps fall through
+		 * here, but they need to.  T_CONFLICT is an error in
+		 * commit_fileproc, whereas T_CONFLICT with conflict markers
+		 * is caught but only warned about.  Similarly, update_fileproc
+		 * currently reregisters a file that was conflicted but lost
+		 * its markers.
+		 */
 		ret = T_MODIFIED;
 		sticky_ck (finfo, aflag, vers);
 #endif
@@ -350,29 +415,14 @@ Classify_File (finfo, tag, date, options, force_tag_match, aflag, versp,
 		ret = T_CHECKOUT;
 	    }
 	    else if (strcmp (vers->ts_user, vers->ts_rcs) == 0)
-	    {
 
 		/*
 		 * The user file is still unmodified, so just get it as well
 		 */
-		if (strcmp (vers->entdata->options ?
-			    vers->entdata->options : "", vers->options) != 0
-		    || (vers->srcfile != NULL
-			&& (vers->srcfile->flags & INATTIC) != 0))
-		    ret = T_CHECKOUT;
-		else
-		    ret = T_PATCH;
-	    }
+		ret = T_PATCH;
 	    else if (No_Difference (finfo, vers))
 		/* really modified, needs to merge */
 		ret = T_NEEDS_MERGE;
-	    else if ((strcmp (vers->entdata->options ?
-			      vers->entdata->options : "", vers->options)
-		      != 0)
-		     || (vers->srcfile != NULL
-		         && (vers->srcfile->flags & INATTIC) != 0))
-		/* not really modified, check it out */
-		ret = T_CHECKOUT;
 	    else
 		ret = T_PATCH;
 	}

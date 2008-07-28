@@ -1,3 +1,4 @@
+\fBimport\fR.
 .\" $FreeBSD$
 .de Id
 .ds Rv \\$3
@@ -519,8 +520,8 @@ is available with these commands:
 Alter the default
 processing of keywords.
 The \fB\-k\fP option is available with the
-.BR add ", " checkout ", " diff ", " export ", "
-.BR rdiff ", and " update
+.BR add ", " checkout ", " diff ", " rdiff ", " export ", and "
+BR update
 commands.  Your \fIkflag\fP specification is ``sticky'' when you use
 it to create a private copy of a source file; that is, when you use
 this option with the \fBcheckout\fP or \fBupdate\fP commands,
@@ -550,7 +551,7 @@ run any
 program.  (A program can be specified to run on each of these
 activities, in the modules database; this option bypasses it.)
 Available with the
-.BR checkout ", " commit ", " export ", and "
+.BR checkout ", " export ", and "
 .B rtag
 commands.
 .I Warning:
@@ -621,6 +622,9 @@ continues to use it on future \fBupdate\fP commands, until you specify
 otherwise.
 .I tag
 can be either a symbolic or numeric tag.
+When a command expects a specific revision,
+the name of a branch is interpreted as the most recent
+revision on that branch.
 Specifying the
 .B \-q
 global option along with the
@@ -630,9 +634,9 @@ command option is often useful, to suppress the warning messages when the
 file does not contain the specified tag.
 .B \-r
 is available with the
-.BR checkout ", " commit ", " diff ", "
-.BR history ", " export ", "
-.BR rdiff ", " rtag ", and " update
+.BR annotate ", " checkout ", " 
+.BR commit ", " diff ", " history ", " export ", " rdiff ", "
+.BR rtag ", and " update
 commands.
 .I Warning:
 this is not the same
@@ -887,6 +891,9 @@ options.  (If you get a working file using one of the
 corresponding tag, date, or \fIkflag\fP and continues using it on
 future updates; use the \fB\-A\fP option to make \fBcvs\fP forget these
 specifications, and retrieve the ``head'' version of the file).
+Does not reset sticky
+.B \-k
+options on modified files.
 .SP
 The
 .BI \-j " branch"
@@ -945,7 +952,7 @@ the
 .B \-s
 option within the modules file. 
 .TP
-\fBcommit\fP [\fB\-lnR\fP] [\fB\-m\fP '\fIlog_message\fP' | \fB\-F\fP \fIfile\fP] [\fB\-r\fP \fIrevision\fP] [\fIfiles.\|.\|.\fP]
+\fBcommit\fP [\fB\-lR\fP] [\fB\-m\fP '\fIlog_message\fP' | \fB\-F\fP \fIfile\fP] [\fB\-r\fP \fIrevision\fP] [\fIfiles.\|.\|.\fP]
 .I Requires:
 working directory, repository.
 .br
@@ -1354,9 +1361,12 @@ identify the collection of source.  \fIvendortag\fP is a tag for the
 entire branch (e.g., for
 .` "1.1.1").
 You must also specify at
-least one \fIreleasetag\fP to identify the files at the leaves created
-each time you execute
+least one \fIreleasetag\fR to uniquely identify the files at
+the leaves created each time you execute
 .` "cvs import".
+The
+\fIreleasetag\fR should be new, not previously existing in the
+repository file, and uniquely identify the imported release.
 .SP
 One of the standard
 .B cvs
@@ -1762,8 +1772,8 @@ to indicate the status of the file:
 .TP 1i
 \fBU\fP \fIfile\fP
 The file was brought \fIup to date\fP with respect to the repository.
-This is done for any file that exists in the repository but not in
-your source, and for files that you haven't changed but are not the most
+This is done for any file that exists in the repository but not in your
+working directory, and for files that you haven't changed but are not the most
 recent versions available in the repository.
 .TP 1i
 \fBP\fP \fIfile\fP
@@ -2186,8 +2196,7 @@ command or it may be available as cvs.ps (postscript), cvs.texinfo
 For CVS updates, more information on documentation, software related
 to CVS, development of CVS, and more, see:
 .in +1i
-.B http://cvshome.org
-.B http://www.loria.fr/~molli/cvs-index.html
+.B http://cvs.nongnu.org
 .in -1i
 .SP
 .BR ci ( 1 ),

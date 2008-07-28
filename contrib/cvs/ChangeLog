@@ -1,3 +1,374 @@
+2008-03-10  Mark D. Baushke  <mdb@gnu.org>
+
+	* NEWS: Note new IgnoreUnknownConfigKeys CVSROOT/config option.
+
+2008-01-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note improved join of removals.
+
+2008-01-27  Mark D. Baushke  <mdb@gnu.org>
+
+	* configure.in: Look for lshc rather than lsh to avoid problems
+	under Debian GNU/Linux.
+	* configure: Regenerated.
+
+	* configure.in: Add support for --with-ssh and CVS_SSH.
+	* NEWS: Note that :extssh: looks to CVS_SSH rather tha CVS_RSH.
+	* Makefile.in, config.h.in, configure: Regenerated.
+
+2008-01-24  Mark D. Baushke  <mdb@gnu.org>
+
+	* NEWS: Note that :extssh: method was fixed. New `cvs blame' as an
+	alias for `cvs annotate' command. New `cvs log -n' switch to undo
+	a `log -N' entry in a .cvsrc file.
+
+2007-12-14  Larry Jones  <lawrence.jones@siemens.com>
+
+	* configure.in: Add --disable-mmap.
+	* configure: Regenerated.
+
+2007-10-19  Derek Price  <derek@ximbiot.com>
+
+	* cvs.texinfo: Update Ximbiot's address and Copyright dates.
+
+2007-08-22  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note `cvs server' accepts `--allow-root=PATH'.  Note further
+	`cvs add' stops for `CVS' dirs.
+
+	* HACKING, NEWS: Note new Autotool versions.
+
+2007-08-16  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note backport of `cvs --allow-root=PATH server'.
+
+2007-06-18  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note import now keeps metadata to itself.
+
+2007-06-15  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note `cvs import CVS-/CVS' fix.
+
+2007-05-07  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note removal of remote `cvs init'.
+
+2006-09-06  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note apply_rcs_diff speedup.
+
+2006-08-28  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note strstr ("/./") assertion fix.
+
+2006-08-25  Derek Price  <derek@ximbiot.com>
+
+	* TODO (216): Removed.
+
+2006-08-24  Derek Price  <derek@ximbiot.com>
+
+	[bug #17032]
+	* NEWS: Note patch w/Name keyword fix.
+
+2006-07-17  Derek Price  <derek@ximbiot.com>
+
+	* FAQ, INSTALL, README: Update Copyright notice.
+	* HACKING: Ditto. Update Savannah URLs.
+
+2006-06-29  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note trailing slash fix.
+
+2006-06-28  Larry Jones  <lawrence.jones@ugs.com>
+
+	* HACKING, NEWS: Note new Autoconf version.
+	* configure.in (AC_PREREQ): Require Autoconf 2.60.
+	* config.h.in, configure, **/Makefile.in: Regenerated.
+
+2006-06-28  Derek Price  <derek@ximbiot.com>
+
+	[bug #16961]
+	* NEWS: Note double-free fix.
+
+2006-06-09  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note client/server conflict fix.
+
+2006-05-25  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Accept --with-rsh argument to set RSH_DFLT in config.h.
+	Prefer `remsh' to `rsh' when autodetecting and comment rationale.
+
+2006-04-27  Derek Price  <derek@ximbiot.com>
+
+	* acinclude.m4 (ACX_WITH_GSSAPI): Detect libgss for HP-UX.
+	* NEWS: Note that GSSAPI builds under HP-UX.
+	(Report from Larry Jones <lawrence.jones@ugs.com>.)
+
+2006-03-07  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note rtag fixes.
+
+2006-02-26  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note CVSADM fix as an efficiency improvement.
+
+2006-02-01  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note unconditional val-tags lock removal.
+
+	* NEWS: Note history buffer overflow fix.
+
+2006-01-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note nonblocking flow control pipe fix.
+
+2005-12-09  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note misc doc & bug fixes.
+
+2005-12-07  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note recognition of :extssh:.
+
+2005-10-18  Derek Price  <derek@ximbiot.com>
+
+	* KEYS: New file, suggested by Antoine Lexy-Lambert <antoine@gmx.de>.
+	* README: Mention KEYS file.
+
+2005-09-26  Derek Price  <derek@ximbiot.com>
+
+	[bug #14639]
+	* acinclude.m4: Find the crypto library on FreeBSD 5.x.
+	Patch from Serguei E. Leontiev <lse@CryptoPro.ru>.
+
+	* NEWS: Note FreeBSD 5.x GSSAPI fix.
+
+	* NEWS: Note fsync'd commits.
+
+2005-09-24  Derek Price  <derek@ximbiot.com>
+
+	* NEWS, HACKING: Standardize on Automake 1.9.6.
+
+2005-09-22  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Mention conflict fixes.
+
+2005-09-13  Derek Price  <derek@ximbiot.com>
+
+	* TESTS: Mention new $username8 & $anyusername variables.
+
+2005-09-04  Larry Jones  <lawrence.jones@ugs.com>
+
+	* NEWS: s/bug-cvs@gnu.org/bug-cvs@nongnu.org/.
+	* configure.in: s/info-cvs@gnu.org/info-cvs@nongnu.org/.
+	* configure: Regenerated.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* AUTHORS, DEVEL-CVS, HACKING, README: Update links, email addresses,
+	& mailing list descriptions.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* FAQ: Update links.
+
+2005-09-01  Derek Price  <derek@ximbiot.com>
+
+	* HACKING, INSTALL, README, README.VMS, configure.in: Update links and
+	email addresses.
+
+2005-08-31  Derek Price  <derek@ximbiot.com>
+
+	* www/.htaccess: Remove this file.
+
+2005-08-31  Derek Price  <derek@ximbiot.com>
+
+	* cvs.spec.in: Note last spec file change in internal ChangeLog.
+
+2005-08-31  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note spec file repair.
+
+2005-08-31  Derek Price  <derek@ximbiot.com>
+
+	* cvs.spec.in: Update links to point to Savannah.  s/Copyright/License/
+	for RPM 4.mumble.
+
+2005-08-30  Larry Jones  <lawrence.jones@ugs.com>
+
+	* NEWS: Note import locking fix.
+
+2005-07-12  Derek Price  <derek@ximbiot.com>
+
+	* FAQ, HACKING, INSTALL: Add copyright notices.
+
+2005-07-11  Derek Price  <derek@ximbiot.com>
+
+	* FAQ, HACKING, INSTALL: Update license notices.
+
+2005-06-02  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note server compression hang fix.
+
+2005-06-01  Conrad T. Pino  <Conrad@Pino.com>
+
+	* makewin32.cmd: Add Windows NT command file to build CVS Project.
+	  Imported from revision 1.2 on feature branch.
+
+2005-05-27  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note diff space split fix.
+	* BUGS: Remove diff space split note.
+
+2005-05-03  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Add footnote about compiling a CVS checkout of CVS on a
+	case-insensitive UNIX file system like Mac OS X.
+
+2005-05-02  Derek Price  <derek@ximbiot.com>
+
+	* TODO (231): Renumber as...
+	(234): ...this to match numbering on 1.12.x.
+
+2005-05-02  Derek Price  <derek@ximbiot.com>
+
+	* TODO (231): New item.
+	(22, 30, 31): Remove completed items.
+
+2005-05-02  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note new val-tags locks.
+
+2005-04-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note new history locks.
+
+2005-04-20  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note log overflow fix.
+
+2005-04-15  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note Klocwork fixes.
+
+2005-04-14  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note contrib Perl taint vulnerability fix.
+
+2005-03-23  Derek Price  <derek@ximbiot.com>
+
+	* ylwrap: New file.
+
+2005-03-15  Derek Price  <derek@ximbiot.com>
+
+	* HACKING, NEWS: Note new Automake version.
+
+2005-03-04  Jim Hyslop  <jhyslop@ieee.org>
+
+	* NEWS: Note fix for compile errors on IRIX 5.3.
+
+2005-02-22  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note recent watch on/off fileattr fix.
+
+2005-01-31  Derek Price  <derek@ximbiot.com>
+
+	* AUTHORS: Add Conrad Pino.
+	* README: Update copyright notice.
+
+2005-01-29  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note some recent changes.
+
+2004-11-17  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note "red file" fix source inclusion.
+
+2004-11-05  Conrad T. Pino  <Conrad@Pino.com>
+
+	* cvsnt.dep: Regenerated after complete rebuild.
+	* cvsnt.mak: Regenerated after complete rebuild.
+
+2004-11-03  Derek Price  <derek@ximbiot.com>
+
+	* HACKING, NEWS: Note new Autoconf & Automake versions.
+
+2004-10-29  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note xreadlink fix.
+
+2004-10-26  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note GSSAPI error message fix.
+
+2004-10-19  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note resurrection fix.
+
+2004-10-14  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note new import branch verification.
+
+2004-09-25  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Use doc/mkman.pl as source for doc/mkman.
+
+2004-09-08  Conrad T. Pino <Conrad@Pino.com>
+
+	* cvsnt.dsp: Add "windows-NT/JmgStat.c" to project.  Add
+	"windows-NT/JmgStat.h" to project.  Add "lib/xsize.h" to project.
+	* cvsnt.dep: Regenerated for "cvsnt.dsp" change.
+	* cvsnt.mak: Regenerated for "cvsnt.dsp" change.
+
+2004-09-07  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note Windows DST fix.
+
+2004-09-03  Derek Price  <derek@ximbiot.com>
+
+	* HACKING: Codify backwards compatibility conventions.  Remove outdated
+	reference to very old MSVC++ releases.
+
+2004-08-30  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note compliance of log_accum.pl with Perl 5.8.5.
+
+2004-08-24  Derek Price  <derek@ximbiot.com>
+
+	* TODO (24, 49, 92, 113): Remove completed/obsolescent items.
+
+2004-08-24  Derek Price  <derek@ximbiot.com>
+
+	* BUGS: Remove release subdir note.  This was fixed with the commit on
+	2004-02-25, based on Matthew Ogilvie's patch.
+
+2004-08-24  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note r* . fix.
+	* BUGS: Remove r* . note.
+
+2004-08-24  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note invalid tag fix.
+
+2004-08-24  Mark D. Baushke  <mdb@cvshome.org>
+
+	* NEWS: Note that modules -a bugfix has a change in behavior.
+
+2004-06-22  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note Conrad's Windows fix.
+
+2004-06-21  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Ignore GPG signature files for distributions.
+
+2004-06-10  Derek Price  <derek@ximbiot.com>
+
+	* NEWS: Note manual update.
+
 2004-06-09  Derek Price  <derek@ximbiot.com>
 
 	* NEWS: Note Stefan & Sebastian's security fixes.

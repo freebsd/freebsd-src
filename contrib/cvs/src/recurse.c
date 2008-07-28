@@ -1,12 +1,17 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
+ * Copyright (C) 1986-2008 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
  * 
  * General recursion handler
  * 
- * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -135,6 +140,25 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
     frame.aflag = aflag;
     frame.locktype = locktype;
     frame.dosrcs = dosrcs;
+
+    /* If our repository_in has a trailing "/.", remove it before storing it
+     * for do_recursion().
+     *
+     * FIXME: This is somewhat of a hack in the sense that many of our callers
+     * painstakingly compute and add the trailing '.' we now remove.
+     */
+    while (repository_in && strlen (repository_in) >= 2
+           && repository_in[strlen (repository_in) - 2] == '/'
+           && repository_in[strlen (repository_in) - 1] == '.')
+    {
+	/* Beware the case where the string is exactly "/." or "//.".
+	 * Paths with a leading "//" are special on some early UNIXes.
+	 */
+	if (strlen (repository_in) == 2 || strlen (repository_in) == 3)
+	    repository_in[strlen (repository_in) - 1] = '\0';
+	else
+	    repository_in[strlen (repository_in) - 2] = '\0';
+    }
     frame.repository = repository_in;
 
     expand_wild (argc, argv, &argc, &argv);
@@ -172,21 +196,24 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 	    && CVSroot_cmdline == NULL
 	    && current_parsed_root->isremote)
 	{
-	    char *root = Name_Root (NULL, update_dir);
-	    if (root && strcmp (root, current_parsed_root->original) != 0)
-		/* We're skipping this directory because it is for
-		   a different root.  Therefore, we just want to
-		   do the subdirectories only.  Processing files would
-		   cause a working directory from one repository to be
-		   processed against a different repository, which could
-		   cause all kinds of spurious conflicts and such.
-
-		   Question: what about the case of "cvs update foo"
-		   where we process foo/bar and not foo itself?  That
-		   seems to be handled somewhere (else) but why should
-		   it be a separate case?  Needs investigation...  */
-		just_subdirs = 1;
-	    free (root);
+	    cvsroot_t *root = Name_Root (NULL, update_dir);
+	    if (root)
+	    {
+		if (strcmp (root->original, current_parsed_root->original))
+		    /* We're skipping this directory because it is for
+		     * a different root.  Therefore, we just want to
+		     * do the subdirectories only.  Processing files would
+		     * cause a working directory from one repository to be
+		     * processed against a different repository, which could
+		     * cause all kinds of spurious conflicts and such.
+		     *
+		     * Question: what about the case of "cvs update foo"
+		     * where we process foo/bar and not foo itself?  That
+		     * seems to be handled somewhere (else) but why should
+		     * it be a separate case?  Needs investigation...  */
+		    just_subdirs = 1;
+		free_cvsroot_t (root);
+	    }
 	}
 #endif
 
@@ -307,11 +334,8 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		addfile (&files_by_dir, dir, comp);
 	    else if (isdir (dir))
 	    {
-		if ((which & W_LOCAL) && isdir (CVSADM)
-#ifdef CLIENT_SUPPORT
-		    && !current_parsed_root->isremote
-#endif
-		    )
+		if ((which & W_LOCAL) && isdir (CVSADM) &&
+		    !current_parsed_root->isremote)
 		{
 		    /* otherwise, look for it in the repository. */
 		    char *tmp_update_dir;
@@ -567,7 +591,7 @@ do_recursion (frame)
      * generating data, to give the buffers a chance to drain to the
      * remote client.  We should not have locks active at this point,
      * but if there are writelocks around, we cannot pause here.  */
-    if (server_active && locktype != CVS_LOCK_NONE)
+    if (server_active && locktype != CVS_LOCK_WRITE)
 	server_pause_check();
 #endif
 
@@ -583,43 +607,41 @@ do_recursion (frame)
        directories, since we're guaranteed to have only one CVSROOT --
        our own.  */
 
-    if (
-	/* If -d was specified, it should override CVS/Root.
+    /* If -d was specified, it should override CVS/Root.
 
-	   In the single-repository case, it is long-standing CVS behavior
-	   and makes sense - the user might want another access method,
-	   another server (which mounts the same repository), &c.
+       In the single-repository case, it is long-standing CVS behavior
+       and makes sense - the user might want another access method,
+       another server (which mounts the same repository), &c.
 
-	   In the multiple-repository case, -d overrides all CVS/Root
-	   files.  That is the only plausible generalization I can
-	   think of.  */
-	CVSroot_cmdline == NULL
-
-#ifdef SERVER_SUPPORT
-	&& ! server_active
-#endif
-	)
+       In the multiple-repository case, -d overrides all CVS/Root
+       files.  That is the only plausible generalization I can
+       think of.  */
+    if (CVSroot_cmdline == NULL && !server_active)
     {
-	char *this_root = Name_Root ((char *) NULL, update_dir);
+	cvsroot_t *this_root = Name_Root ((char *) NULL, update_dir);
 	if (this_root != NULL)
 	{
-	    if (findnode (root_directories, this_root) == NULL)
+	    if (findnode (root_directories, this_root->original))
+	    {
+		process_this_directory = !strcmp (current_parsed_root->original,
+						  this_root->original);
+		free_cvsroot_t (this_root);
+	    }
+	    else
 	    {
 		/* Add it to our list. */
 
 		Node *n = getnode ();
 		n->type = NT_UNKNOWN;
-		n->key = xstrdup (this_root);
+		n->key = xstrdup (this_root->original);
+		n->data = this_root;
 
 		if (addnode (root_directories, n))
-		    error (1, 0, "cannot add new CVSROOT %s", this_root);
-	
-	    }
-	
-	    process_this_directory =
-		    (strcmp (current_parsed_root->original, this_root) == 0);
+		    error (1, 0, "cannot add new CVSROOT %s",
+			   this_root->original);
 
-	    free (this_root);
+		process_this_directory = 0;
+	    }
 	}
     }
 
@@ -640,7 +662,6 @@ do_recursion (frame)
     {
 	repository = frame->repository;
 	assert (repository != NULL);
-	assert (strstr (repository, "/./") == NULL);
     }
 
     fileattr_startdir (repository);
@@ -682,7 +703,8 @@ do_recursion (frame)
 	    if (repository == NULL)
 	    {
 		Name_Repository ((char *) NULL, update_dir);
-		assert (!"Not reached.  Please report this problem to <bug-cvs@gnu.org>");
+		assert (!"Not reached.  Please report this problem to <"
+			PACKAGE_BUGREPORT ">");
 	    }
 
 	    /* find the files and fill in entries if appropriate */
@@ -742,7 +764,7 @@ do_recursion (frame)
 	   have writelocks in place, and there is no way to get writelocks
 	   here.  */
 	if (current_parsed_root->isremote)
-	    notify_check (repository, update_dir);
+	    cvs_notify_check (repository, update_dir);
 #endif /* CLIENT_SUPPORT */
 
 	finfo_struct.repository = repository;
@@ -1031,42 +1053,41 @@ but CVS uses %s for its own purposes; skipping %s directory",
     /* Only process this directory if the root matches.  This nearly
        duplicates code in do_recursion. */
 
-    if (
-	/* If -d was specified, it should override CVS/Root.
+    /* If -d was specified, it should override CVS/Root.
 
-	   In the single-repository case, it is long-standing CVS behavior
-	   and makes sense - the user might want another access method,
-	   another server (which mounts the same repository), &c.
+       In the single-repository case, it is long-standing CVS behavior
+       and makes sense - the user might want another access method,
+       another server (which mounts the same repository), &c.
 
-	   In the multiple-repository case, -d overrides all CVS/Root
-	   files.  That is the only plausible generalization I can
-	   think of.  */
-	CVSroot_cmdline == NULL
-
-#ifdef SERVER_SUPPORT
-	&& ! server_active
-#endif
-	)
+       In the multiple-repository case, -d overrides all CVS/Root
+       files.  That is the only plausible generalization I can
+       think of.  */
+    if (CVSroot_cmdline == NULL && !server_active)
     {
-	char *this_root = Name_Root (dir, update_dir);
+	cvsroot_t *this_root = Name_Root (dir, update_dir);
 	if (this_root != NULL)
 	{
-	    if (findnode (root_directories, this_root) == NULL)
+	    if (findnode (root_directories, this_root->original))
+	    {
+		process_this_directory = !strcmp (current_parsed_root->original,
+						  this_root->original);
+		free_cvsroot_t (this_root);
+	    }
+	    else
 	    {
 		/* Add it to our list. */
 
 		Node *n = getnode ();
 		n->type = NT_UNKNOWN;
-		n->key = xstrdup (this_root);
+		n->key = xstrdup (this_root->original);
+		n->data = this_root;
 
 		if (addnode (root_directories, n))
-		    error (1, 0, "cannot add new CVSROOT %s", this_root);
+		    error (1, 0, "cannot add new CVSROOT %s",
+			   this_root->original);
 
+		process_this_directory = 0;
 	    }
-
-	    process_this_directory = (strcmp (current_parsed_root->original, this_root) == 0);
-
-	    free (this_root);
 	}
     }
 

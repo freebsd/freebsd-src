@@ -1,6 +1,11 @@
 /*
- * Copyright (c) 1992, Brian Berliner and Jeff Polk
- * Copyright (c) 1989-1992, Brian Berliner
+ * Copyright (C) 1986-2005 The Free Software Foundation, Inc.
+ *
+ * Portions Copyright (C) 1998-2005 Derek Price, Ximbiot <http://ximbiot.com>,
+ *                                  and others.
+ *
+ * Portions Copyright (C) 1992, Brian Berliner and Jeff Polk
+ * Portions Copyright (C) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
@@ -15,6 +20,7 @@
  */
 
 #include "cvs.h"
+#include <assert.h>
 
 int
 No_Difference (finfo, vers)
@@ -71,6 +77,7 @@ No_Difference (finfo, vers)
 
 	/* update the entdata pointer in the vers_ts structure */
 	p = findnode (finfo->entries, finfo->file);
+	assert (p);
 	vers->entdata = p->data;
 
 	ret = 0;
