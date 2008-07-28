@@ -128,7 +128,6 @@ struct pcpu *pcpup = &__pcpu;
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
-vm_offset_t clean_sva, clean_eva;
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
