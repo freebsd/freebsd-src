@@ -136,7 +136,6 @@ ohci_atmelarm_attach(device_t dev)
 	/*
 	 * turn on the clocks from the AT91's point of view.  Keep the unit in reset.
 	 */
-//	bus_space_write_4(sc->sc_ohci.iot, sc->sc_ohci.ioh, OHCI_CONTROL, 0);
 	at91_pmc_clock_enable(sc->iclk);
 	at91_pmc_clock_enable(sc->fclk);
 	bus_space_write_4(sc->sc_ohci.iot, sc->sc_ohci.ioh, OHCI_CONTROL, 0);
