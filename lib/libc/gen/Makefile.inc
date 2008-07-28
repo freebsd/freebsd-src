@@ -56,7 +56,13 @@ MAN+=	alarm.3 arc4random.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 \
 	glob.3 initgroups.3 isgreater.3 ldexp.3 lockf.3 makecontext.3 \
 	modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
-	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
+	nice.3 nlist.3 pause.3 popen.3 \
+	posix_spawn.3 posix_spawn_file_actions_addopen.3 \
+	posix_spawn_file_actions_init.3 posix_spawnattr_getflags.3 \
+	posix_spawnattr_getpgroup.3 posix_spawnattr_getschedparam.3 \
+	posix_spawnattr_getschedpolicy.3 posix_spawnattr_init.3 \
+	posix_spawnattr_getsigdefault.3 posix_spawnattr_getsigmask.3 \
+	pselect.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 sem_destroy.3 sem_getvalue.3 sem_init.3 \
 	sem_open.3 sem_post.3 sem_timedwait.3 sem_wait.3 \
@@ -124,6 +130,17 @@ MLINKS+=ldexp.3 ldexpf.3 ldexp.3 ldexpl.3
 MLINKS+=makecontext.3 swapcontext.3
 MLINKS+=modf.3 modff.3 modf.3 modfl.3
 MLINKS+=popen.3 pclose.3
+MLINKS+=posix_spawn.3 posix_spawnp.3 \
+	posix_spawn_file_actions_addopen.3 posix_spawn_file_actions_addclose.3 \
+	posix_spawn_file_actions_addopen.3 posix_spawn_file_actions_adddup2.3 \
+	posix_spawn_file_actions_init.3 posix_spawn_file_actions_destroy.3 \
+	posix_spawnattr_getflags.3 posix_spawnattr_setflags.3 \
+	posix_spawnattr_getpgroup.3 posix_spawnattr_setpgroup.3 \
+	posix_spawnattr_getschedparam.3 posix_spawnattr_setschedparam.3 \
+	posix_spawnattr_getschedpolicy.3 posix_spawnattr_setschedpolicy.3 \
+	posix_spawnattr_getsigdefault.3 posix_spawnattr_setsigdefault.3 \
+	posix_spawnattr_getsigmask.3 posix_spawnattr_setsigmask.3 \
+	posix_spawnattr_init.3 posix_spawnattr_destroy.3
 MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=pwcache.3 group_from_gid.3 pwcache.3 user_from_uid.3
 MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
