@@ -217,58 +217,25 @@ initarm(void *arg, void *arg2)
 	u_int l1pagetable;
 	vm_offset_t freemempos;
 	vm_offset_t lastalloced;
+	vm_offset_t lastaddr;
 	vm_size_t pt_size;
-	int i = 0;
-	uint32_t fake_preload[35];
 	uint32_t memsize = 32 * 1024 * 1024;
 	sa1110_uart_vaddr = SACOM1_VBASE;
 
 	boothowto = RB_VERBOSE | RB_SINGLE;
 	cninit();
 	set_cpufuncs();
-	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf kernel");
-	i += 2;
-	fake_preload[i++] = MODINFO_ADDR;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = KERNBASE;
-	fake_preload[i++] = MODINFO_SIZE;
-	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = (uint32_t)&end - KERNBASE;
-	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("md root") + 1;
-	strcpy((char*)&fake_preload[i++], "md root");
-	i += 1;
-	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("md_image") + 1;
-	strcpy((char*)&fake_preload[i++], "md_image");
-	i += 2;
-	fake_preload[i++] = MODINFO_ADDR;
-	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = MDROOT_ADDR;
-	fake_preload[i++] = MODINFO_SIZE;
-	fake_preload[i++] = sizeof(uint32_t);
-	fake_preload[i++] = MD_ROOT_SIZE * 1024;
-	fake_preload[i++] = 0;
-	fake_preload[i] = 0;
-	preload_metadata = (void *)fake_preload;
-
+	lastaddr = fake_reload_metadata();
 	physmem = memsize / PAGE_SIZE;
 	pc = &__pcpu;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 
 	physical_start = (vm_offset_t) KERNBASE;
-	physical_end =  (vm_offset_t) &end;
+	physical_end =  lastaddr;
 	physical_freestart = (((vm_offset_t)physical_end) + PAGE_MASK) & ~PAGE_MASK;
 	md_addr.pv_va = md_addr.pv_pa = MDROOT_ADDR;
-#define KERNEL_TEXT_BASE (KERNBASE + 0x00040000)
-	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNEL_TEXT_BASE;
+	kerneldatasize = (u_int32_t)&end - (u_int32_t)KERNVIRTADDR;
 	symbolsize = 0;
 	freemempos = (vm_offset_t)round_page(physical_freestart);
 	memset((void *)freemempos, 0, 256*1024);
@@ -348,7 +315,8 @@ initarm(void *arg, void *arg2)
 		pmap_link_l2pt(l1pagetable, KERNEL_VM_BASE + loop * 0x00100000,
 		    &kernel_pt_table[KERNEL_PT_VMDATA + loop]);
 	pmap_map_chunk(l1pagetable, KERNBASE, KERNBASE,
-	   ((uint32_t)&end - KERNBASE), VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	    ((uint32_t)lastaddr - KERNBASE), VM_PROT_READ|VM_PROT_WRITE,
+	    PTE_CACHE);
 	/* Map the stack pages */
 	pmap_map_chunk(l1pagetable, irqstack.pv_va, irqstack.pv_pa,
 	    IRQ_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
@@ -403,8 +371,6 @@ initarm(void *arg, void *arg2)
 	set_stackptr(PSR_UND32_MODE,
 	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
 
-
-
 	/*
 	 * We must now clean the cache again....
 	 * Cleaning may be done by reading new data to displace any
@@ -416,7 +382,6 @@ initarm(void *arg, void *arg2)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
-
 
 	bootverbose = 1;
 
@@ -443,8 +408,7 @@ initarm(void *arg, void *arg2)
 	dump_avail[3] = phys_avail[3] = 0;
 					
 	mutex_init();
-	pmap_bootstrap(freemempos, 
-	    0xd0000000, &kernel_l1pt);
+	pmap_bootstrap(freemempos, 0xd0000000, &kernel_l1pt);
 
 	/* Do basic tuning, hz etc */
 	init_param1();
