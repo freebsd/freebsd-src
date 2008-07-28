@@ -74,6 +74,26 @@ __FBSDID("$FreeBSD$");
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
+#ifndef	IFCAP_WOL
+#define	IFCAP_WOL		0
+#define	IFCAP_WOL_MAGIC		0
+#endif
+#ifndef	IFCAP_TSO4
+#define	IFCAP_TSO4		0
+#define	CSUM_TSO		0
+#endif
+#ifndef	IFCAP_VLAN_HWCSUM
+#define	IFCAP_VLAN_HWCSUM	0
+#endif
+#ifndef	VLAN_CAPABILITIES
+#define	VLAN_CAPABILITIES(x)
+#endif
+#if __FreeBSD_version < 700000
+#define	FILTER_STRAY
+#define	FILTER_HANDLED
+#define	m_collapse(x, y, z)	m_defrag(x, y)
+#endif
+
 /* Define the following to disable printing Rx errors. */
 #undef	JME_SHOW_ERRORS
 
@@ -131,7 +151,11 @@ static void jme_watchdog(struct jme_softc *);
 static int jme_ioctl(struct ifnet *, u_long, caddr_t);
 static void jme_mac_config(struct jme_softc *);
 static void jme_link_task(void *, int);
+#if __FreeBSD_version < 700000
+static void jme_intr(void *);
+#else
 static int jme_intr(void *);
+#endif
 static void jme_int_task(void *, int);
 static void jme_txeof(struct jme_softc *);
 static __inline void jme_discard_rxbuf(struct jme_softc *, int);
@@ -794,9 +818,15 @@ jme_attach(device_t dev)
 	else
 		msic = 1;
 	for (i = 0; i < msic; i++) {
+#if __FreeBSD_version > 700000
 		error = bus_setup_intr(dev, sc->jme_irq[i],
 		    INTR_TYPE_NET | INTR_MPSAFE, jme_intr, NULL, sc,
 		    &sc->jme_intrhand[i]);
+#else
+		error = bus_setup_intr(dev, sc->jme_irq[i],
+		    INTR_TYPE_NET | INTR_MPSAFE, jme_intr, sc,
+		    &sc->jme_intrhand[i]);
+#endif
 		if (error != 0)
 			break;
 	}
@@ -1417,9 +1447,13 @@ jme_setlinkspeed(struct jme_softc *sc)
 					break;
 				}
 			}
+#if __FreeBSD_version < 700000
+			msleep(sc, &sc->jme_mtx, PPAUSE, "jmelnk", hz);
+#else
 			JME_UNLOCK(sc);
 			pause("jmelnk", hz);
 			JME_LOCK(sc);
+#endif
 		}
 		if (i == MII_ANEGTICKS_GIGE)
 			device_printf(sc->jme_dev, "establishing link failed, "
@@ -1529,6 +1563,9 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 	struct jme_txdesc *txd;
 	struct jme_desc *desc;
 	struct mbuf *m;
+#if __FreeBSD_version < 700000
+	struct m_tag *mtag;
+#endif
 	bus_dma_segment_t txsegs[JME_MAXTXSEGS];
 	int error, i, nsegs, prod;
 	uint32_t cflags, tso_segsz;
@@ -1651,8 +1688,10 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 	tso_segsz = 0;
 	/* Configure checksum offload and TSO. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
+#if __FreeBSD_version >= 700000
 		tso_segsz = (uint32_t)m->m_pkthdr.tso_segsz <<
 		    JME_TD_MSS_SHIFT;
+#endif
 		cflags |= JME_TD_TSO;
 	} else {
 		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
@@ -1663,10 +1702,18 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 			cflags |= JME_TD_UDPCSUM;
 	}
 	/* Configure VLAN. */
+#if __FreeBSD_version < 700000
+	mtag = VLAN_OUTPUT_TAG(sc->jme_ifp, m);
+	if (mtag != NULL) {
+		cflags |= (VLAN_TAG_VALUE(mtag) & JME_TD_VLAN_MASK);
+		cflags |= JME_TD_VLAN_TAG;
+	}
+#else
 	if ((m->m_flags & M_VLANTAG) != 0) {
 		cflags |= (m->m_pkthdr.ether_vtag & JME_TD_VLAN_MASK);
 		cflags |= JME_TD_VLAN_TAG;
 	}
+#endif
 
 	desc = &sc->jme_rdata.jme_tx_ring[prod];
 	desc->flags = htole32(cflags);
@@ -2053,8 +2100,10 @@ jme_link_task(void *arg, int pending)
 	 * might have updated JME_TXNDA/JME_RXNDA registers
 	 * during the stop operation.
 	 */
+#ifdef notyet
 	/* Block execution of task. */
 	taskqueue_block(sc->jme_tq);
+#endif
 	/* Disable interrupts and stop driver. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_CLR, JME_INTRS);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -2132,15 +2181,21 @@ jme_link_task(void *arg, int pending)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	callout_reset(&sc->jme_tick_ch, hz, jme_tick, sc);
+#ifdef notyet
 	/* Unblock execution of task. */
 	taskqueue_unblock(sc->jme_tq);
+#endif
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_SET, JME_INTRS);
 
 	JME_UNLOCK(sc);
 }
 
+#if __FreeBSD_version < 700000
+static void
+#else
 static int
+#endif
 jme_intr(void *arg)
 {
 	struct jme_softc *sc;
@@ -2150,12 +2205,12 @@ jme_intr(void *arg)
 
 	status = CSR_READ_4(sc, JME_INTR_REQ_STATUS);
 	if (status == 0 || status == 0xFFFFFFFF)
-		return (FILTER_STRAY);
+		return FILTER_STRAY;
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, JME_INTR_MASK_CLR, JME_INTRS);
 	taskqueue_enqueue(sc->jme_tq, &sc->jme_int_task);
 
-	return (FILTER_HANDLED);
+	return FILTER_HANDLED;
 }
 
 static void
@@ -2419,9 +2474,14 @@ jme_rxeof(struct jme_softc *sc)
 			/* Check for VLAN tagged packets. */
 			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
 			    (flags & JME_RD_VLAN_TAG) != 0) {
+#if __FreeBSD_version < 700000
+				VLAN_INPUT_TAG_NEW(ifp, m,
+				    (flags & JME_RD_VLAN_MASK));
+#else
 				m->m_pkthdr.ether_vtag =
 				    flags & JME_RD_VLAN_MASK;
 				m->m_flags |= M_VLANTAG;
+#endif
 			}
 
 			ifp->if_ipackets++;
