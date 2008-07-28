@@ -358,7 +358,7 @@ static void cx_led_off (void *arg)
 }
 
 /*
- * Activate interupt handler from DDK.
+ * Activate interrupt handler from DDK.
  */
 static void cx_intr (void *arg)
 {

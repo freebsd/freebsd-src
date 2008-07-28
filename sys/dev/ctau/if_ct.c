@@ -272,7 +272,7 @@ static void ct_led_off (void *arg)
 }
 
 /*
- * Activate interupt handler from DDK.
+ * Activate interrupt handler from DDK.
  */
 static void ct_intr (void *arg)
 {

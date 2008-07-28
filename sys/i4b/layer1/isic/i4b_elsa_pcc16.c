@@ -354,7 +354,7 @@ isic_probe_Epcc16(device_t dev)
 			break;
 	}
 
-	/* register interupt routine */
+	/* register interrupt routine */
 	bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
 			NULL, (void(*)(void *))(isicintr),
 			sc,&ih);

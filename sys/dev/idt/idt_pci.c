@@ -219,7 +219,7 @@ idt_detach(device_t dev)
 	idt_device_stop(sc);	/* Stop the device */
 
 	/*
-	 * Lock out all device interupts.
+	 * Lock out all device interrupts.
 	 */
 	DEVICE_LOCK(&sc->iu_cmn);
 	idt_free(dev);
