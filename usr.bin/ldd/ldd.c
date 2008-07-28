@@ -49,15 +49,12 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 /*
- * Elf32_xhdr structures can only be used if sys/elf32.h is included, so
- * check for the existence of one of the macros defined in sys/elf32.h.
- *
- * The presense of the ELF32_R_TYPE macro via machine/elf.h has been verified
- * on amd64 6.3, ia64 7.0 and sparc64 7.0.  The absence of the macro has been
- * verified on alpha 6.2.
+ * 32-bit ELF data structures can only be used if the system header[s] declare
+ * them.  There is no official macro for determining whether they are declared,
+ * so check for the existence of one of the 32-macros defined in elf(5).
  */
-#if defined(ELF32_R_TYPE)
-#define ELF32_SUPPORTED
+#ifdef ELF32_R_TYPE
+#define	ELF32_SUPPORTED
 #endif
 
 static int	is_executable(const char *fname, int fd, int *is_shlib,
