@@ -225,6 +225,8 @@ struct wi_card_ident wi_card_ident[] = {
 	{ 0,	NULL,	0 },
 };
 
+static char *wi_firmware_names[] = { "none", "Hermes", "Intersil", "Symbol" };
+
 devclass_t wi_devclass;
 
 int
@@ -237,6 +239,8 @@ wi_attach(device_t dev)
 	u_int16_t val;
 	u_int8_t ratebuf[2 + IEEE80211_RATE_SIZE];
 	struct ieee80211_rateset *rs;
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
 	static const u_int8_t empty_macaddr[IEEE80211_ADDR_LEN] = {
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
@@ -277,6 +281,25 @@ wi_attach(device_t dev)
 		wi_free(dev);
 		return EOPNOTSUPP; 
 	}
+
+	/* Export info about the device via sysctl */
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_STRING(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
+	    "firmware_type", CTLFLAG_RD,
+	    wi_firmware_names[sc->sc_firmware_type], 0,
+	    "Firmware type string");
+	SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "sta_version",
+	    CTLFLAG_RD, &sc->sc_sta_firmware_ver, 0,
+	    "Station Firmware version");
+	if (sc->sc_firmware_type == WI_INTERSIL)
+		SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO,
+		    "pri_version", CTLFLAG_RD, &sc->sc_pri_firmware_ver, 0,
+		    "Primary Firmware version");
+	SYSCTL_ADD_XINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "nic_id",
+	    CTLFLAG_RD, &sc->sc_nic_id, 0, "NIC id");
+	SYSCTL_ADD_STRING(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "nic_name",
+	    CTLFLAG_RD, sc->sc_nic_name, 0, "NIC name");
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -1633,25 +1656,26 @@ wi_read_nicid(struct wi_softc *sc)
 	memset(ver, 0, sizeof(ver));
 	len = sizeof(ver);
 	wi_read_rid(sc, WI_RID_CARD_ID, ver, &len);
-	device_printf(sc->sc_dev, "using ");
 
 	sc->sc_firmware_type = WI_NOTYPE;
+	sc->sc_nic_id = le16toh(ver[0]);
 	for (id = wi_card_ident; id->card_name != NULL; id++) {
-		if (le16toh(ver[0]) == id->card_id) {
-			printf("%s", id->card_name);
+		if (sc->sc_nic_id == id->card_id) {
+			sc->sc_nic_name = id->card_name;
 			sc->sc_firmware_type = id->firm_type;
 			break;
 		}
 	}
 	if (sc->sc_firmware_type == WI_NOTYPE) {
-		if (le16toh(ver[0]) & 0x8000) {
-			printf("Unknown PRISM2 chip");
+		if (sc->sc_nic_id & 0x8000) {
 			sc->sc_firmware_type = WI_INTERSIL;
+			sc->sc_nic_name = "Unknown Prism chip";
 		} else {
-			printf("Unknown Lucent chip");
 			sc->sc_firmware_type = WI_LUCENT;
+			sc->sc_nic_name = "Unknown Lucent chip";
 		}
 	}
+	device_printf(sc->sc_dev, "using %s\n", sc->sc_nic_name);
 
 	/* get primary firmware version (Only Prism chips) */
 	if (sc->sc_firmware_type != WI_LUCENT) {
@@ -1684,19 +1708,19 @@ wi_read_nicid(struct wi_softc *sc)
 			    (p[6] - '0') * 10 + (p[7] - '0');
 		}
 	}
-	printf("\n");
-	device_printf(sc->sc_dev, "%s Firmware: ",
-	     sc->sc_firmware_type == WI_LUCENT ? "Lucent" :
-	    (sc->sc_firmware_type == WI_SYMBOL ? "Symbol" : "Intersil"));
-	if (sc->sc_firmware_type != WI_LUCENT)	/* XXX */
-		printf("Primary (%u.%u.%u), ",
-		    sc->sc_pri_firmware_ver / 10000,
-		    (sc->sc_pri_firmware_ver % 10000) / 100,
-		    sc->sc_pri_firmware_ver % 100);
-	printf("Station (%u.%u.%u)\n",
-	    sc->sc_sta_firmware_ver / 10000,
-	    (sc->sc_sta_firmware_ver % 10000) / 100,
-	    sc->sc_sta_firmware_ver % 100);
+	if (bootverbose) {
+		device_printf(sc->sc_dev, "%s Firmware: ",
+		    wi_firmware_names[sc->sc_firmware_type]);
+		if (sc->sc_firmware_type != WI_LUCENT)	/* XXX */
+			printf("Primary (%u.%u.%u), ",
+			    sc->sc_pri_firmware_ver / 10000,
+			    (sc->sc_pri_firmware_ver % 10000) / 100,
+			    sc->sc_pri_firmware_ver % 100);
+		printf("Station (%u.%u.%u)\n",
+		    sc->sc_sta_firmware_ver / 10000,
+		    (sc->sc_sta_firmware_ver % 10000) / 100,
+		    sc->sc_sta_firmware_ver % 100);
+	}
 }
 
 static int
