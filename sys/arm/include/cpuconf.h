@@ -50,12 +50,22 @@
 /*
  * Step 1: Count the number of CPU types configured into the kernel.
  */
-#define	CPU_NTYPES	2
+#define	CPU_NTYPES	(defined(CPU_ARM7TDMI) +			\
+			 defined(CPU_ARM8) + defined(CPU_ARM9) +	\
+			 defined(CPU_ARM9E) +				\
+			 defined(CPU_ARM10) +				\
+			 defined(CPU_ARM11) +				\
+			 defined(CPU_SA110) + defined(CPU_SA1100) +	\
+			 defined(CPU_SA1110) +				\
+			 defined(CPU_IXP12X0) +				\
+			 defined(CPU_XSCALE_80200) +			\
+			 defined(CPU_XSCALE_80321) +			\
+			 defined(__CPU_XSCALE_PXA2XX) +			\
+			 defined(CPU_XSCALE_IXP425))
 
 /*
  * Step 2: Determine which ARM architecture versions are configured.
  */
-
 #if (defined(CPU_ARM7TDMI) || defined(CPU_ARM8) || defined(CPU_ARM9) ||	\
      defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
     defined(CPU_IXP12X0) || defined(CPU_XSCALE_IXP425))
@@ -64,17 +74,32 @@
 #define	ARM_ARCH_4	0
 #endif
 
-#if (defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-     defined(CPU_XSCALE_PXA2X0)) || defined(CPU_ARM10)
+#if (defined(CPU_ARM9E) || defined(CPU_ARM10) ||			\
+     defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
+     defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) ||		\
+     defined(CPU_XSCALE_PXA2X0))
 #define	ARM_ARCH_5	1
 #else
 #define	ARM_ARCH_5	0
 #endif
 
-#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5)
+#if defined(CPU_ARM11)
+#define ARM_ARCH_6	1
+#else
+#define ARM_ARCH_6	0
+#endif
+
+#define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6)
 #if ARM_NARCH == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NARCH is 0
+#endif
+
+#if ARM_ARCH_5 || ARM_ARCH_6
+/*
+ * We could support Thumb code on v4T, but the lack of clean interworking
+ * makes that hard.
+ */
+#define THUMB_CODE
 #endif
 
 /*
@@ -99,7 +124,8 @@
 #endif
 
 #if (defined(CPU_ARM6) || defined(CPU_ARM7) || defined(CPU_ARM7TDMI) ||	\
-     defined(CPU_ARM8) || defined(CPU_ARM9) || defined(CPU_ARM10))
+     defined(CPU_ARM8) || defined(CPU_ARM9) || defined(CPU_ARM9E) ||	\
+     defined(CPU_ARM10) || defined(CPU_ARM11))
 #define	ARM_MMU_GENERIC		1
 #else
 #define	ARM_MMU_GENERIC		0

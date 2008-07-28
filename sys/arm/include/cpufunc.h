@@ -351,7 +351,7 @@ extern unsigned arm9_dcache_index_max;
 extern unsigned arm9_dcache_index_inc;
 #endif
 
-#ifdef CPU_ARM10
+#if defined(CPU_ARM9E) || defined(CPU_ARM10)
 void	arm10_setttb		(u_int);
 
 void	arm10_tlb_flushID_SE	(u_int);
@@ -378,8 +378,60 @@ extern unsigned arm10_dcache_index_max;
 extern unsigned arm10_dcache_index_inc;
 #endif
 
-#if defined(CPU_ARM9) || defined(CPU_ARM10) || defined(CPU_SA110) || \
-  defined(CPU_SA1100) || defined(CPU_SA1110) ||			     \
+#ifdef CPU_ARM11
+void	arm11_setttb		(u_int);
+
+void	arm11_tlb_flushID_SE	(u_int);
+void	arm11_tlb_flushI_SE	(u_int);
+
+void	arm11_context_switch	(void);
+
+void	arm11_setup		(char *string);
+void	arm11_tlb_flushID	(void);
+void	arm11_tlb_flushI	(void);
+void	arm11_tlb_flushD	(void);
+void	arm11_tlb_flushD_SE	(u_int va);
+
+void	arm11_drain_writebuf	(void);
+#endif
+
+#if defined(CPU_ARM9E) || defined (CPU_ARM10)
+void	armv5_ec_setttb(u_int);
+
+void	armv5_ec_icache_sync_all(void);
+void	armv5_ec_icache_sync_range(vm_offset_t, vm_size_t);
+
+void	armv5_ec_dcache_wbinv_all(void);
+void	armv5_ec_dcache_wbinv_range(vm_offset_t, vm_size_t);
+void	armv5_ec_dcache_inv_range(vm_offset_t, vm_size_t);
+void	armv5_ec_dcache_wb_range(vm_offset_t, vm_size_t);
+
+void	armv5_ec_idcache_wbinv_all(void);
+void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
+#endif
+
+#if defined (CPU_ARM10) || defined (CPU_ARM11)
+void	armv5_setttb(u_int);
+
+void	armv5_icache_sync_all(void);
+void	armv5_icache_sync_range(vm_offset_t, vm_size_t);
+
+void	armv5_dcache_wbinv_all(void);
+void	armv5_dcache_wbinv_range(vm_offset_t, vm_size_t);
+void	armv5_dcache_inv_range(vm_offset_t, vm_size_t);
+void	armv5_dcache_wb_range(vm_offset_t, vm_size_t);
+
+void	armv5_idcache_wbinv_all(void);
+void	armv5_idcache_wbinv_range(vm_offset_t, vm_size_t);
+
+extern unsigned armv5_dcache_sets_max;
+extern unsigned armv5_dcache_sets_inc;
+extern unsigned armv5_dcache_index_max;
+extern unsigned armv5_dcache_index_inc;
+#endif
+
+#if defined(CPU_ARM9) || defined(CPU_ARM9E) || defined(CPU_ARM10) || \
+  defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) || \
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	     \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	     \
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
