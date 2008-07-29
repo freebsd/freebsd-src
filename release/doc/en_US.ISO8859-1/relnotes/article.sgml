@@ -171,7 +171,7 @@
       Backwards compatibility for applications using KSE threading
       will be provided via &man.libmap.conf.5; for dynamically linked
       binaries.  The &os; Project greatly appreciates the work of
-      &a.julian; and &a.deischen; on KSE support.</para>
+      &a.julian;, &a.deischen;, and &a.davidxu; on KSE support.</para>
 
     <para>The &os; kernel now exports information about certain kernel
       features via the <varname>kern.features</varname> sysctl tree.
