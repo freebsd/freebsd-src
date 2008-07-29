@@ -524,7 +524,6 @@ struct bfe_softc
     int                     bfe_watchdog_timer;
     u_int8_t                bfe_phyaddr; /* Address of the card's PHY */
     u_int8_t                bfe_mdc_port;
-    u_int8_t                bfe_unit;   /* interface number */
     u_int8_t                bfe_core_unit;
     u_int8_t                bfe_up;
     u_char                  bfe_enaddr[6];
