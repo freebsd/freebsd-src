@@ -53,9 +53,10 @@
 #define	SBS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
 #define	SBS_RCVATMARK		0x0040	/* at mark on input */
 
-struct socket;
-struct sockaddr;
 struct mbuf;
+struct sockaddr;
+struct socket;
+struct thread;
 
 struct	xsockbuf {
 	u_int	sb_cc;
@@ -95,7 +96,8 @@ struct	sockbuf {
 	int	sb_timeo;	/* (c/d) timeout for read/write */
 	short	sb_flags;	/* (c/d) flags, see below */
 };
-		
+
+#ifdef _KERNEL
 #ifdef _KERNEL
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
@@ -196,6 +198,7 @@ void	sblastmbufchk(struct sockbuf *, const char *, int);
 #define	SBLASTRECORDCHK(sb)      /* nothing */
 #define	SBLASTMBUFCHK(sb)        /* nothing */
 #endif /* SOCKBUF_DEBUG */
+#endif
 
 #endif /* _KERNEL */
 
