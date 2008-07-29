@@ -118,9 +118,6 @@ main(int argc, char *argv[])
 	/*
 	 * ... And that we can read back the pass all rule again.
 	 */
-	/*
-	 * Confirm that we can still read a pass all filter.
-	 */
 	len = sizeof(ic6f);
 	if (getsockopt(s, IPPROTO_ICMPV6, ICMP6_FILTER, &ic6f, &len) < 0)
 		err(-1, "7: getsockopt(ICMP6_FILTER)");
