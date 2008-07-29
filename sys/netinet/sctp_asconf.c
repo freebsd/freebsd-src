@@ -937,18 +937,13 @@ sctp_asconf_addr_match(struct sctp_asconf_addr *aa, struct sockaddr *sa)
  */
 static uint32_t
 sctp_addr_match(
-#ifdef INET6
     struct sctp_ipv6addr_param *v6addr,
-#else
-    struct sctp_ipv4addr_param *v4addr,
-#endif
     struct sockaddr *sa)
 {
 	uint16_t param_type, param_length;
-
-#ifdef INET6
 	struct sctp_ipv4addr_param *v4addr = (struct sctp_ipv4addr_param *)v6addr;
 
+#ifdef INET6
 	if (sa->sa_family == AF_INET6) {
 		/* IPv6 sa address */
 		/* XXX scopeid */
@@ -963,8 +958,8 @@ sctp_addr_match(
 		    sizeof(struct in6_addr)) == 0)) {
 			return (1);
 		}
-	} else
-#endif				/* INET6 */
+	}
+#endif
 	if (sa->sa_family == AF_INET) {
 		/* IPv4 sa address */
 		struct sockaddr_in *sin = (struct sockaddr_in *)sa;
