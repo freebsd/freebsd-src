@@ -1375,17 +1375,13 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	int optlen;
 	struct thread *td;
 
-	if (sopt) {
-		level = sopt->sopt_level;
-		op = sopt->sopt_dir;
-		optname = sopt->sopt_name;
-		optlen = sopt->sopt_valsize;
-		td = sopt->sopt_td;
-	} else {
-		panic("ip6_ctloutput: arg soopt is NULL");
-	}
-	error = optval = 0;
-
+	level = sopt->sopt_level;
+	op = sopt->sopt_dir;
+	optname = sopt->sopt_name;
+	optlen = sopt->sopt_valsize;
+	td = sopt->sopt_td;
+	error = 0;
+	optval = 0;
 	uproto = (int)so->so_proto->pr_protocol;
 
 	if (level == IPPROTO_IPV6) {
@@ -2051,13 +2047,10 @@ ip6_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct in6pcb *in6p = sotoin6pcb(so);
 	int level, op, optname;
 
-	if (sopt) {
-		level = sopt->sopt_level;
-		op = sopt->sopt_dir;
-		optname = sopt->sopt_name;
-		optlen = sopt->sopt_valsize;
-	} else
-		panic("ip6_raw_ctloutput: arg soopt is NULL");
+	level = sopt->sopt_level;
+	op = sopt->sopt_dir;
+	optname = sopt->sopt_name;
+	optlen = sopt->sopt_valsize;
 
 	if (level != IPPROTO_IPV6) {
 		return (EINVAL);
