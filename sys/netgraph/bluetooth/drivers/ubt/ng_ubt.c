@@ -1570,7 +1570,7 @@ ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 	ubt_softc_p		 sc = (ubt_softc_p) NG_NODE_PRIVATE(node);
 	usbd_xfer_handle	 h = (usbd_xfer_handle) arg1;
 	usbd_status		 s = (usbd_status) arg2;
-	int			 i, idx, want, got, got_header;
+	int			 i, idx, want, got;
 	struct mbuf		*m;
 
 	if (sc == NULL)
@@ -1633,26 +1633,8 @@ ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * Re-assemble SCO HCI frame
 	 */
 
-	got_header = 0; /* shut up compiler */
-	got = 0;
-	want = 0;
-
 	m = sc->sc_isoc_in_buffer;
-	if (m != NULL) {
-		sc->sc_isoc_in_buffer = NULL;
-
-		got = m->m_pkthdr.len;
-
-		if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE))
-			want = sizeof(ng_hci_scodata_pkt_t) - 1;
-		else
-			want = sizeof(ng_hci_scodata_pkt_t);
-
-		if (got >= sizeof(ng_hci_scodata_pkt_t)) {
-			got_header = 1;
-			want += mtod(m, ng_hci_scodata_pkt_t *)->length;
-		}
-	}
+	sc->sc_isoc_in_buffer = NULL;
 
 	for (i = 0; i < NG_UBT_NFRAMES; i ++) {
 		uint8_t	*frame = (uint8_t *) sc->sc_isoc_in[idx].buffer +
@@ -1663,20 +1645,30 @@ ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 
 			if (m == NULL) {
 				MGETHDR(m, M_DONTWAIT, MT_DATA);
-				if (m == NULL)
+				if (m == NULL) {
 					goto done; /* XXX out of sync! */
+				}
 
-				got = 0;
-				got_header = 0;
+				MCLGET(m, M_DONTWAIT);
+				if (!(m->m_flags & M_EXT)) {
+					NG_FREE_M(m);
+					goto done; /* XXX out of sync! */
+				}
 
 				if (!(sc->sc_flags & UBT_HAVE_FRAME_TYPE)) {
 					*mtod(m, uint8_t *) = NG_HCI_SCO_DATA_PKT;
 					m->m_pkthdr.len = m->m_len = got = 1;
-					want = sizeof(ng_hci_scodata_pkt_t) - 1;
 				} else {
 					m->m_pkthdr.len = m->m_len = got = 0;
-					want = sizeof(ng_hci_scodata_pkt_t);
 				}
+
+				want = sizeof(ng_hci_scodata_pkt_t);
+			} else {
+				got = m->m_pkthdr.len;
+				want = sizeof(ng_hci_scodata_pkt_t);
+
+				if (got >= want)
+					want += mtod(m, ng_hci_scodata_pkt_t *)->length;
 			}
 
 			if (got + frlen > want)
@@ -1694,10 +1686,8 @@ ubt_isoc_in_complete2(node_p node, hook_p hook, void *arg1, int arg2)
 			if (got != want)
 				continue;
 
-			if (!got_header) {
-				got_header = 1;
+			if (want == sizeof(ng_hci_scodata_pkt_t))
 				want += mtod(m, ng_hci_scodata_pkt_t *)->length;
-			}
 
 			if (got != want)
 				continue;
