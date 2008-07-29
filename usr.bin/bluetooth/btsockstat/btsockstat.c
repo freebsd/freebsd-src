@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/callout.h>
 #include <sys/param.h>
+#include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
