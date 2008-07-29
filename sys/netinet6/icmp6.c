@@ -1908,9 +1908,8 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 		   !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
 		INP_RLOCK(in6p);
-		if (in6p->in6p_icmp6filt
-		    && ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
-				 in6p->in6p_icmp6filt)) {
+		if (ICMP6_FILTER_WILLBLOCK(icmp6->icmp6_type,
+		    in6p->in6p_icmp6filt)) {
 			INP_RUNLOCK(in6p);
 			continue;
 		}
@@ -2722,10 +2721,6 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			if (inp->in6p_icmp6filt == NULL) {
-				error = EINVAL;
-				break;
-			}
 			error = sooptcopyin(sopt, inp->in6p_icmp6filt, optlen,
 				optlen);
 			break;
@@ -2741,10 +2736,6 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (optname) {
 		case ICMP6_FILTER:
 		    {
-			if (inp->in6p_icmp6filt == NULL) {
-				error = EINVAL;
-				break;
-			}
 			error = sooptcopyout(sopt, inp->in6p_icmp6filt,
 				sizeof(struct icmp6_filter));
 			break;
