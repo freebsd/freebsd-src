@@ -91,6 +91,7 @@ static const struct option cpio_longopts[] = {
 	{ "link",		no_argument,	   NULL, 'l' },
 	{ "list",		no_argument,	   NULL, 't' },
 	{ "make-directories",	no_argument,	   NULL, 'd' },
+	{ "no-preserve-owner",	no_argument,  NULL, OPTION_NO_PRESERVE_OWNER },
 	{ "null",		no_argument,	   NULL, '0' },
 	{ "owner",		required_argument, NULL, 'R' },
 	{ "pass-through",	no_argument,	   NULL, 'p' },

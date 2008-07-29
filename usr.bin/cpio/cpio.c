@@ -175,6 +175,9 @@ main(int argc, char *argv[])
 		case 'm': /* POSIX 1997 */
 			cpio->extract_flags |= ARCHIVE_EXTRACT_TIME;
 			break;
+		case OPTION_NO_PRESERVE_OWNER: /* GNU cpio */
+			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
+			break;
 		case 'O': /* GNU cpio */
 			cpio->filename = optarg;
 			break;
