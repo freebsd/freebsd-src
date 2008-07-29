@@ -95,6 +95,9 @@ sctp_iterator_thread(void *v)
 		msleep(&SCTP_BASE_INFO(iterator_running),
 		    &SCTP_BASE_INFO(ipi_iterator_wq_mtx),
 		    0, "waiting_for_work", 0);
+		if (SCTP_BASE_INFO(threads_must_exit)) {
+			kthread_exit(0);
+		}
 		sctp_iterator_worker();
 	}
 }
