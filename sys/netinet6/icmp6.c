@@ -2715,14 +2715,18 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (optname) {
 		case ICMP6_FILTER:
 		    {
-			struct icmp6_filter *p;
+			struct icmp6_filter ic6f;
 
-			if (optlen != sizeof(*p)) {
+			if (optlen != sizeof(ic6f)) {
 				error = EMSGSIZE;
 				break;
 			}
-			error = sooptcopyin(sopt, inp->in6p_icmp6filt, optlen,
-				optlen);
+			error = sooptcopyin(sopt, &ic6f, optlen, optlen);
+			if (error == 0) {
+				INP_WLOCK(inp);
+				*inp->in6p_icmp6filt = ic6f;
+				INP_WUNLOCK(inp);
+			}
 			break;
 		    }
 
@@ -2736,8 +2740,12 @@ icmp6_ctloutput(struct socket *so, struct sockopt *sopt)
 		switch (optname) {
 		case ICMP6_FILTER:
 		    {
-			error = sooptcopyout(sopt, inp->in6p_icmp6filt,
-				sizeof(struct icmp6_filter));
+			struct icmp6_filter ic6f;
+
+			INP_RLOCK(inp);
+			ic6f = *inp->in6p_icmp6filt;
+			INP_RUNLOCK(inp);
+			error = sooptcopyout(sopt, &ic6f, sizeof(ic6f));
 			break;
 		    }
 
