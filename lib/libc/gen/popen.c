@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/wait.h>
 
 #include <signal.h>
@@ -53,11 +54,12 @@ __FBSDID("$FreeBSD$");
 
 extern char **environ;
 
-static struct pid {
-	struct pid *next;
+struct pid {
+	SLIST_ENTRY(pid) next;
 	FILE *fp;
 	pid_t pid;
-} *pidlist;
+};
+static SLIST_HEAD(, pid) pidlist = SLIST_HEAD_INITIALIZER(pidlist);
 static pthread_mutex_t pidlist_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define	THREAD_LOCK()	if (__isthreaded) _pthread_mutex_lock(&pidlist_mutex)
@@ -133,9 +135,8 @@ popen(command, type)
 			}
 			(void)_close(pdes[1]);
 		}
-		for (p = pidlist; p; p = p->next) {
+		SLIST_FOREACH(p, &pidlist, next)
 			(void)_close(fileno(p->fp));
-		}
 		_execve(_PATH_BSHELL, argv, environ);
 		_exit(127);
 		/* NOTREACHED */
@@ -155,8 +156,7 @@ popen(command, type)
 	cur->fp = iop;
 	cur->pid = pid;
 	THREAD_LOCK();
-	cur->next = pidlist;
-	pidlist = cur;
+	SLIST_INSERT_HEAD(&pidlist, cur, next);
 	THREAD_UNLOCK();
 
 	return (iop);
@@ -171,7 +171,7 @@ int
 pclose(iop)
 	FILE *iop;
 {
-	struct pid *cur, *last;
+	struct pid *cur, *last = NULL;
 	int pstat;
 	pid_t pid;
 
@@ -179,17 +179,19 @@ pclose(iop)
 	 * Find the appropriate file pointer and remove it from the list.
 	 */
 	THREAD_LOCK();
-	for (last = NULL, cur = pidlist; cur; last = cur, cur = cur->next)
+	SLIST_FOREACH(cur, &pidlist, next) {
 		if (cur->fp == iop)
 			break;
+		last = cur;
+	}
 	if (cur == NULL) {
 		THREAD_UNLOCK();
 		return (-1);
 	}
 	if (last == NULL)
-		pidlist = cur->next;
+		SLIST_REMOVE_HEAD(&pidlist, next);
 	else
-		last->next = cur->next;
+		SLIST_REMOVE_NEXT(&pidlist, last, next);
 	THREAD_UNLOCK();
 
 	(void)fclose(iop);
