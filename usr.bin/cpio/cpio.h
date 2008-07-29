@@ -94,6 +94,7 @@ int	owner_parse(const char *, int *, int *);
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
 	OPTION_INSECURE = 1,
+	OPTION_NO_PRESERVE_OWNER,
 	OPTION_QUIET,
 	OPTION_VERSION
 };
