@@ -98,7 +98,6 @@ struct	sockbuf {
 };
 
 #ifdef _KERNEL
-#ifdef _KERNEL
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
@@ -198,7 +197,6 @@ void	sblastmbufchk(struct sockbuf *, const char *, int);
 #define	SBLASTRECORDCHK(sb)      /* nothing */
 #define	SBLASTMBUFCHK(sb)        /* nothing */
 #endif /* SOCKBUF_DEBUG */
-#endif
 
 #endif /* _KERNEL */
 
