@@ -177,7 +177,7 @@ bfe_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 
-	while(t->bfe_name != NULL) {
+	while (t->bfe_name != NULL) {
 		if (vendor == t->bfe_vid && devid == t->bfe_did) {
 			device_set_desc_copy(dev, t->bfe_name);
 			return (BUS_PROBE_DEFAULT);
@@ -290,7 +290,7 @@ bfe_dma_alloc(device_t dev)
 	error = bus_dmamem_alloc(sc->bfe_rx_tag, (void *)&sc->bfe_rx_list,
 			BUS_DMA_NOWAIT, &sc->bfe_rx_map);
 
-	if(error)
+	if (error)
 		return (ENOMEM);
 
 	bzero(sc->bfe_rx_list, BFE_RX_LIST_SIZE);
@@ -298,7 +298,7 @@ bfe_dma_alloc(device_t dev)
 			sc->bfe_rx_list, sizeof(struct bfe_desc),
 			bfe_dma_map, &sc->bfe_rx_dma, BUS_DMA_NOWAIT);
 
-	if(error)
+	if (error)
 		return (ENOMEM);
 
 	bus_dmamap_sync(sc->bfe_rx_tag, sc->bfe_rx_map, BUS_DMASYNC_PREWRITE);
@@ -312,7 +312,7 @@ bfe_dma_alloc(device_t dev)
 	error = bus_dmamap_load(sc->bfe_tx_tag, sc->bfe_tx_map,
 			sc->bfe_tx_list, sizeof(struct bfe_desc),
 			bfe_dma_map, &sc->bfe_tx_dma, BUS_DMA_NOWAIT);
-	if(error)
+	if (error)
 		return (ENOMEM);
 
 	bzero(sc->bfe_tx_list, BFE_TX_LIST_SIZE);
@@ -451,7 +451,7 @@ bfe_detach(device_t dev)
 	bfe_chip_reset(sc);
 
 	bus_generic_detach(dev);
-	if(sc->bfe_miibus != NULL)
+	if (sc->bfe_miibus != NULL)
 		device_delete_child(dev, sc->bfe_miibus);
 
 	bfe_release_resources(sc);
@@ -519,7 +519,7 @@ bfe_miibus_readreg(device_t dev, int phy, int reg)
 	u_int32_t ret;
 
 	sc = device_get_softc(dev);
-	if(phy != sc->bfe_phyaddr)
+	if (phy != sc->bfe_phyaddr)
 		return (0);
 	bfe_readphy(sc, reg, &ret);
 
@@ -532,7 +532,7 @@ bfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	struct bfe_softc *sc;
 
 	sc = device_get_softc(dev);
-	if(phy != sc->bfe_phyaddr)
+	if (phy != sc->bfe_phyaddr)
 		return (0);
 	bfe_writephy(sc, reg, val);
 
@@ -586,7 +586,7 @@ bfe_tx_ring_free(struct bfe_softc *sc)
 	int i;
 
 	for(i = 0; i < BFE_TX_LIST_CNT; i++) {
-		if(sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
+		if (sc->bfe_tx_ring[i].bfe_mbuf != NULL) {
 			m_freem(sc->bfe_tx_ring[i].bfe_mbuf);
 			sc->bfe_tx_ring[i].bfe_mbuf = NULL;
 			bus_dmamap_unload(sc->bfe_tag,
@@ -620,7 +620,7 @@ bfe_list_rx_init(struct bfe_softc *sc)
 	int i;
 
 	for(i = 0; i < BFE_RX_LIST_CNT; i++) {
-		if(bfe_list_newbuf(sc, i, NULL) == ENOBUFS)
+		if (bfe_list_newbuf(sc, i, NULL) == ENOBUFS)
 			return (ENOBUFS);
 	}
 
@@ -645,9 +645,9 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 		return (EINVAL);
 
 	allocated = 0;
-	if(m == NULL) {
+	if (m == NULL) {
 		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		if(m == NULL)
+		if (m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
 		allocated++;
@@ -677,7 +677,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 
 	ctrl = ETHER_MAX_LEN + 32;
 
-	if(c == BFE_RX_LIST_CNT - 1)
+	if (c == BFE_RX_LIST_CNT - 1)
 		ctrl |= BFE_DESC_EOT;
 
 	d->bfe_ctrl = ctrl;
@@ -813,9 +813,9 @@ bfe_chip_reset(struct bfe_softc *sc)
 
 	/* Internal or external PHY? */
 	val = CSR_READ_4(sc, BFE_DEVCTRL);
-	if(!(val & BFE_IPP))
+	if (!(val & BFE_IPP))
 		CSR_WRITE_4(sc, BFE_ENET_CTRL, BFE_ENET_EPSEL);
-	else if(CSR_READ_4(sc, BFE_DEVCTRL) & BFE_EPR) {
+	else if (CSR_READ_4(sc, BFE_DEVCTRL) & BFE_EPR) {
 		BFE_AND(sc, BFE_DEVCTRL, ~BFE_EPR);
 		DELAY(100);
 	}
@@ -860,7 +860,7 @@ bfe_chip_reset(struct bfe_softc *sc)
 static void
 bfe_core_disable(struct bfe_softc *sc)
 {
-	if((CSR_READ_4(sc, BFE_SBTMSLOW)) & BFE_RESET)
+	if ((CSR_READ_4(sc, BFE_SBTMSLOW)) & BFE_RESET)
 		return;
 
 	/*
@@ -1016,7 +1016,7 @@ bfe_release_resources(struct bfe_softc *sc)
 	if (sc->bfe_ifp != NULL)
 		if_free(sc->bfe_ifp);
 
-	if(sc->bfe_tx_tag != NULL) {
+	if (sc->bfe_tx_tag != NULL) {
 		bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
 		bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list,
 		    sc->bfe_tx_map);
@@ -1024,7 +1024,7 @@ bfe_release_resources(struct bfe_softc *sc)
 		sc->bfe_tx_tag = NULL;
 	}
 
-	if(sc->bfe_rx_tag != NULL) {
+	if (sc->bfe_rx_tag != NULL) {
 		bus_dmamap_unload(sc->bfe_rx_tag, sc->bfe_rx_map);
 		bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list,
 		    sc->bfe_rx_map);
@@ -1032,7 +1032,7 @@ bfe_release_resources(struct bfe_softc *sc)
 		sc->bfe_rx_tag = NULL;
 	}
 
-	if(sc->bfe_tag != NULL) {
+	if (sc->bfe_tag != NULL) {
 		for(i = 0; i < BFE_TX_LIST_CNT; i++) {
 			bus_dmamap_destroy(sc->bfe_tag,
 			    sc->bfe_tx_ring[i].bfe_map);
@@ -1045,7 +1045,7 @@ bfe_release_resources(struct bfe_softc *sc)
 		sc->bfe_tag = NULL;
 	}
 
-	if(sc->bfe_parent_tag != NULL)
+	if (sc->bfe_parent_tag != NULL)
 		bus_dma_tag_destroy(sc->bfe_parent_tag);
 
 	return;
@@ -1172,9 +1172,9 @@ bfe_txeof(struct bfe_softc *sc)
 
 	i = sc->bfe_tx_cons;
 	/* Go through the mbufs and free those that have been transmitted */
-	while(i != chipidx) {
+	while (i != chipidx) {
 		struct bfe_data *r = &sc->bfe_tx_ring[i];
-		if(r->bfe_mbuf != NULL) {
+		if (r->bfe_mbuf != NULL) {
 			ifp->if_opackets++;
 			m_freem(r->bfe_mbuf);
 			r->bfe_mbuf = NULL;
@@ -1184,7 +1184,7 @@ bfe_txeof(struct bfe_softc *sc)
 		BFE_INC(i, BFE_TX_LIST_CNT);
 	}
 
-	if(i != sc->bfe_tx_cons) {
+	if (i != sc->bfe_tx_cons) {
 		/* we freed up some mbufs */
 		sc->bfe_tx_cons = i;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1212,7 +1212,7 @@ bfe_rxeof(struct bfe_softc *sc)
 
 	ifp = sc->bfe_ifp;
 
-	while(current != cons) {
+	while (current != cons) {
 		r = &sc->bfe_rx_ring[cons];
 		m = r->bfe_mbuf;
 		rxheader = mtod(m, struct bfe_rxheader*);
@@ -1281,12 +1281,12 @@ bfe_intr(void *xsc)
 	CSR_READ_4(sc, BFE_ISTAT);
 
 	/* not expecting this interrupt, disregard it */
-	if(istat == 0) {
+	if (istat == 0) {
 		BFE_UNLOCK(sc);
 		return;
 	}
 
-	if(istat & BFE_ISTAT_ERRORS) {
+	if (istat & BFE_ISTAT_ERRORS) {
 
 		if (istat & BFE_ISTAT_DSCE) {
 			device_printf(sc->bfe_dev, "Descriptor Error\n");
@@ -1304,11 +1304,11 @@ bfe_intr(void *xsc)
 		}
 		
 		flag = CSR_READ_4(sc, BFE_DMATX_STAT);
-		if(flag & BFE_STAT_EMASK)
+		if (flag & BFE_STAT_EMASK)
 			ifp->if_oerrors++;
 
 		flag = CSR_READ_4(sc, BFE_DMARX_STAT);
-		if(flag & BFE_RX_FLAG_ERRORS)
+		if (flag & BFE_RX_FLAG_ERRORS)
 			ifp->if_ierrors++;
 
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -1316,11 +1316,11 @@ bfe_intr(void *xsc)
 	}
 
 	/* A packet was received */
-	if(istat & BFE_ISTAT_RX)
+	if (istat & BFE_ISTAT_RX)
 		bfe_rxeof(sc);
 
 	/* A packet was sent */
-	if(istat & BFE_ISTAT_TX)
+	if (istat & BFE_ISTAT_TX)
 		bfe_txeof(sc);
 
 	/* We have packets pending, fire them out */
@@ -1341,7 +1341,7 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head, u_int32_t *txidx)
 	int chainlen = 0;
 	int error;
 
-	if(BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
+	if (BFE_TX_LIST_CNT - sc->bfe_tx_cnt < 2)
 		return (ENOBUFS);
 
 	/*
@@ -1371,8 +1371,8 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head, u_int32_t *txidx)
 	cnt = 0;
 
 	for(m = *m_head; m != NULL; m = m->m_next) {
-		if(m->m_len != 0) {
-			if((BFE_TX_LIST_CNT - (sc->bfe_tx_cnt + cnt)) < 2)
+		if (m->m_len != 0) {
+			if ((BFE_TX_LIST_CNT - (sc->bfe_tx_cnt + cnt)) < 2)
 				return (ENOBUFS);
 
 			d = &sc->bfe_tx_list[cur];
@@ -1380,10 +1380,10 @@ bfe_encap(struct bfe_softc *sc, struct mbuf **m_head, u_int32_t *txidx)
 			d->bfe_ctrl = BFE_DESC_LEN & m->m_len;
 			/* always intterupt on completion */
 			d->bfe_ctrl |= BFE_DESC_IOC;
-			if(cnt == 0)
+			if (cnt == 0)
 				/* Set start of frame */
 				d->bfe_ctrl |= BFE_DESC_SOF;
-			if(cur == BFE_TX_LIST_CNT - 1)
+			if (cur == BFE_TX_LIST_CNT - 1)
 				/*
 				 * Tell the chip to wrap to the start of
 				 * the descriptor list
@@ -1453,16 +1453,16 @@ bfe_start_locked(struct ifnet *ifp)
 	    IFF_DRV_RUNNING)
 		return;
 
-	while(sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
+	while (sc->bfe_tx_ring[idx].bfe_mbuf == NULL) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-		if(m_head == NULL)
+		if (m_head == NULL)
 			break;
 
 		/*
 		 * Pack the data into the tx ring.  If we dont have
 		 * enough room, let the chip drain the ring.
 		 */
-		if(bfe_encap(sc, &m_head, &idx)) {
+		if (bfe_encap(sc, &m_head, &idx)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -1590,34 +1590,33 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data *mii;
 	int error = 0;
 
-	switch(command) {
-		case SIOCSIFFLAGS:
-			BFE_LOCK(sc);
-			if(ifp->if_flags & IFF_UP)
-				if(ifp->if_drv_flags & IFF_DRV_RUNNING)
-					bfe_set_rx_mode(sc);
-				else
-					bfe_init_locked(sc);
-			else if(ifp->if_drv_flags & IFF_DRV_RUNNING)
-				bfe_stop(sc);
-			BFE_UNLOCK(sc);
-			break;
-		case SIOCADDMULTI:
-		case SIOCDELMULTI:
-			BFE_LOCK(sc);
-			if(ifp->if_drv_flags & IFF_DRV_RUNNING)
+	switch (command) {
+	case SIOCSIFFLAGS:
+		BFE_LOCK(sc);
+		if (ifp->if_flags & IFF_UP)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bfe_set_rx_mode(sc);
-			BFE_UNLOCK(sc);
-			break;
-		case SIOCGIFMEDIA:
-		case SIOCSIFMEDIA:
-			mii = device_get_softc(sc->bfe_miibus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
-			    command);
-			break;
-		default:
-			error = ether_ioctl(ifp, command, data);
-			break;
+			else
+				bfe_init_locked(sc);
+		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			bfe_stop(sc);
+		BFE_UNLOCK(sc);
+		break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		BFE_LOCK(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			bfe_set_rx_mode(sc);
+		BFE_UNLOCK(sc);
+		break;
+	case SIOCGIFMEDIA:
+	case SIOCSIFMEDIA:
+		mii = device_get_softc(sc->bfe_miibus);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		break;
+	default:
+		error = ether_ioctl(ifp, command, data);
+		break;
 	}
 
 	return (error);
