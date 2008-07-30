@@ -278,6 +278,8 @@ struct inpcbinfo {
 #define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
 #define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
 #define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
+#define INP_WLOCK(inp)		mtx_lock(&(inp)->inp_mtx)
+#define INP_WUNLOCK(inp)	mtx_unlock(&(inp)->inp_mtx)
 #define INP_LOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_OWNED)
 #define	INP_UNLOCK_ASSERT(inp)	mtx_assert(&(inp)->inp_mtx, MA_NOTOWNED)
 
