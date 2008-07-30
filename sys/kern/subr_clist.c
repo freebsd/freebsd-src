@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/tty.h>
 #include <sys/clist.h>
 
 static void clist_init(void *);
@@ -52,6 +51,8 @@ static int ctotcount;
 #ifndef INITIAL_CBLOCKS
 #define	INITIAL_CBLOCKS 50
 #endif
+
+#define	QUOTEMASK	0x100
 
 static struct cblock *cblock_alloc(void);
 static void cblock_alloc_cblocks(int number);
@@ -235,7 +236,7 @@ getc(clistp)
 		 * If this char is quoted, set the flag.
 		 */
 		if (isset(cblockp->c_quote, clistp->c_cf - (char *)cblockp->c_info))
-			chr |= TTY_QUOTE;
+			chr |= QUOTEMASK;
 
 		/*
 		 * Advance to next character.
@@ -407,7 +408,7 @@ putc(chr, clistp)
 	/*
 	 * If this character is quoted, set the quote bit, if not, clear it.
 	 */
-	if (chr & TTY_QUOTE) {
+	if (chr & QUOTEMASK) {
 		setbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
 		/*
 		 * Use one of the spare quote bits to record that something
@@ -581,7 +582,7 @@ nextc(clistp, cp, dst)
 		 * Get the character. Set the quote flag if this character
 		 * is quoted.
 		 */
-		*dst = (u_char)*cp | (isset(cblockp->c_quote, cp - (char *)cblockp->c_info) ? TTY_QUOTE : 0);
+		*dst = (u_char)*cp | (isset(cblockp->c_quote, cp - (char *)cblockp->c_info) ? QUOTEMASK : 0);
 
 		return (cp);
 	}
@@ -615,7 +616,7 @@ unputc(clistp)
 		 * Set quote flag if this character was quoted.
 		 */
 		if (isset(cblockp->c_quote, (u_char *)clistp->c_cl - cblockp->c_info))
-			chr |= TTY_QUOTE;
+			chr |= QUOTEMASK;
 
 		/*
 		 * If all of the characters have been unput in this
