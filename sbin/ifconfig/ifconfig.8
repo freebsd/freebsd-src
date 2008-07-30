@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2008
+.Dd July 30, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -848,13 +848,11 @@ Channels range from 1 to 255, but the exact selection available
 depends on the region your adaptor was manufactured for.
 Setting
 the channel to
-.Li 0 ,
-.Cm any ,
+.Li any ,
 or
 .Cm -
-will give you the default for your adaptor.
-Some
-adapters ignore this setting unless you are in ad-hoc mode.
+will clear any desired channel and, if the device is marked up,
+force a scan for a channel to operate on.
 Alternatively the frequency, in megahertz, may be specified
 instead of the channel number.
 .Pp
