@@ -214,14 +214,9 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	if (inp->inp_flags & INP_CONTROLOPTS ||
 	    inp->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
 #ifdef INET6
-		if (inp->inp_vflag & INP_IPV6) {
-			int savedflags;
-
-			savedflags = inp->inp_flags;
-			inp->inp_flags &= ~INP_UNMAPPABLEOPTS;
-			ip6_savecontrol(inp, n, &opts);
-			inp->inp_flags = savedflags;
-		} else
+		if (inp->inp_vflag & INP_IPV6)
+			ip6_savecontrol_v4(inp, n, &opts);
+		else
 #endif
 			ip_savecontrol(inp, &opts, ip, n);
 	}
