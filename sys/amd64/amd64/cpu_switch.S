@@ -113,8 +113,8 @@ ENTRY(cpu_switch)
 	movq	PCB_GSBASE(%r8),%r10
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jnz	store_gs			/* static predict not taken */
-done_store_gs:
+	jnz	store_seg
+done_store_seg:
 
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	store_dr			/* static predict not taken */
@@ -176,6 +176,10 @@ sw1:
 	testl	$TDP_KTHREAD,TD_PFLAGS(%rsi)
 	jnz	do_kthread
 
+	testl	$PCB_32BIT,PCB_FLAGS(%r8)
+	jnz	load_seg
+done_load_seg:
+
 	cmpq	PCB_FSBASE(%r8),%r9
 	jz	1f
 	/* Restore userland %fs */
@@ -184,7 +188,6 @@ sw1:
 	movl	PCB_FSBASE+4(%r8),%edx
 	wrmsr
 1:
-
 	cmpq	PCB_GSBASE(%r8),%r10
 	jz	2f
 	/* Restore userland %gs */
@@ -193,8 +196,8 @@ sw1:
 	movl	PCB_GSBASE+4(%r8),%edx
 	wrmsr
 2:
-do_tss:
 
+do_tss:
 	/* Update the TSS_RSP0 pointer for the next interrupt */
 	movq	PCPU(TSSP), %rax
 	movq	%r8, PCPU(RSP0)
@@ -207,10 +210,6 @@ do_tss:
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
 	jnz	load_dr				/* static predict not taken */
 done_load_dr:
-
-	testl	$PCB_32BIT,PCB_FLAGS(%r8)
-	jnz	load_gs				/* static predict not taken */
-done_load_gs:
 
 	/* Restore context. */
 	movq	PCB_R15(%r8),%r15
@@ -243,23 +242,35 @@ do_kthread:
 	movq	%r10,PCB_GSBASE(%r8)
 	jmp	do_tss
 
-store_gs:
+store_seg:
 	movl	%gs,PCB_GS(%r8)
-	movq	PCB_GS32P(%r8),%rax
+	testl	$PCB_GS32BIT,PCB_FLAGS(%r8)
+	jnz	2f
+1:	movl	%ds,PCB_DS(%r8)
+	movl	%es,PCB_ES(%r8)
+	movl	%fs,PCB_FS(%r8)
+	jmp	done_store_seg
+2:	movq	PCB_GS32P(%r8),%rax
 	movq	(%rax),%rax
 	movq	%rax,PCB_GS32SD(%r8)
-	jmp	done_store_gs
+	jmp	1b
 
-load_gs:
-	/* Restore userland %gs while preserving kernel gsbase */
-	movq	PCB_GS32P(%r8),%rax
-	movq	PCB_GS32SD(%r8),%rcx
-	movq	%rcx,(%rax)
-	movl	$MSR_GSBASE,%ecx
+load_seg:
+	testl	$PCB_GS32BIT,PCB_FLAGS(%r8)
+	jnz	2f
+1:	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movl	PCB_GS(%r8),%gs
 	wrmsr
-	jmp	done_load_gs
+	movl	PCB_DS(%r8),%ds
+	movl	PCB_ES(%r8),%es
+	movl	PCB_FS(%r8),%fs
+	jmp	done_load_seg
+	/* Restore userland %gs while preserving kernel gsbase */
+2:	movq	PCB_GS32P(%r8),%rax
+	movq	PCB_GS32SD(%r8),%rcx
+	movq	%rcx,(%rax)
+	jmp	1b
 
 store_dr:
 	movq	%dr7,%rax			/* yes, do the save */
