@@ -127,6 +127,7 @@ pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
+rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
@@ -211,6 +212,7 @@ gabor -> lippe
 garga -> acm
 garga -> alepulver
 garga -> mm
+garga -> rnoland
 garga -> vd
 garga -> wxs
 garga -> xride
