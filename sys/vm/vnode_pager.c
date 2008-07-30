@@ -1179,6 +1179,7 @@ vnode_pager_lock(vm_object_t first_object)
 {
 	struct vnode *vp;
 	vm_object_t backing_object, object;
+	int locked, lockf;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
 	for (object = first_object; object != NULL; object = backing_object) {
@@ -1196,13 +1197,19 @@ vnode_pager_lock(vm_object_t first_object)
 			return NULL;
 		}
 		vp = object->handle;
+		locked = VOP_ISLOCKED(vp);
 		VI_LOCK(vp);
 		VM_OBJECT_UNLOCK(object);
 		if (first_object != object)
 			VM_OBJECT_UNLOCK(first_object);
 		VFS_ASSERT_GIANT(vp->v_mount);
-		if (vget(vp, LK_CANRECURSE | LK_INTERLOCK |
-		    LK_RETRY | LK_SHARED, curthread)) {
+		if (locked == LK_EXCLUSIVE)
+			lockf = LK_CANRECURSE | LK_INTERLOCK | LK_RETRY |
+			    LK_EXCLUSIVE;
+		else
+			lockf = LK_CANRECURSE | LK_INTERLOCK | LK_RETRY |
+			    LK_SHARED;
+		if (vget(vp, lockf, curthread)) {
 			VM_OBJECT_LOCK(first_object);
 			if (object != first_object)
 				VM_OBJECT_LOCK(object);
