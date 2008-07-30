@@ -175,7 +175,6 @@ ufs_lookup(ap)
 	 * in VFS_VGET but we could end up creating objects
 	 * that are never used.
 	 */
-
 	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
 
 	/*
