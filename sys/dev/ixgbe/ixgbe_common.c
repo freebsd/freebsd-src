@@ -99,14 +99,17 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 
 	/* RAR, Multicast, VLAN */
 	mac->ops.set_rar = &ixgbe_set_rar_generic;
+	mac->ops.clear_rar = &ixgbe_clear_rar_generic;
 	mac->ops.set_vmdq = NULL;
+	mac->ops.clear_vmdq = NULL;
 	mac->ops.init_rx_addrs = &ixgbe_init_rx_addrs_generic;
 	mac->ops.update_uc_addr_list = &ixgbe_update_uc_addr_list_generic;
 	mac->ops.update_mc_addr_list = &ixgbe_update_mc_addr_list_generic;
 	mac->ops.enable_mc = &ixgbe_enable_mc_generic;
 	mac->ops.disable_mc = &ixgbe_disable_mc_generic;
-	mac->ops.clear_vfta = &ixgbe_clear_vfta_generic;
-	mac->ops.set_vfta = &ixgbe_set_vfta_generic;
+	mac->ops.clear_vfta = NULL;
+	mac->ops.set_vfta = NULL;
+	mac->ops.init_uta_tables = NULL;
 
 	/* Flow Control */
 	mac->ops.setup_fc = NULL;
@@ -480,6 +483,9 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 
 	if (eeprom->type == ixgbe_eeprom_uninitialized) {
 		eeprom->type = ixgbe_eeprom_none;
+		/* Set default semaphore delay to 10ms which is a well
+		 * tested value */
+		eeprom->semaphore_delay = 10;
 
 		/*
 		 * Check for EEPROM present first.
@@ -569,8 +575,7 @@ s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data)
 		ixgbe_shift_out_eeprom_bits(hw, data, 16);
 		ixgbe_standby_eeprom(hw);
 
-		msec_delay(10);
-
+		msec_delay(hw->eeprom.semaphore_delay);
 		/* Done with writing - release the EEPROM */
 		ixgbe_release_eeprom(hw);
 	}
@@ -1230,8 +1235,42 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
 		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 	} else {
-		DEBUGOUT("Current RAR index is out of range.");
+		DEBUGOUT1("RAR index %d is out of range.\n", index);
 	}
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_clear_rar_generic - Remove Rx address register
+ *  @hw: pointer to hardware structure
+ *  @index: Receive address register to write
+ *
+ *  Clears an ethernet address from a receive address register.
+ **/
+s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index)
+{
+	u32 rar_high;
+	u32 rar_entries = hw->mac.num_rar_entries;
+
+	/* Make sure we are using a valid rar index range */
+	if (index < rar_entries) {
+		/*
+		 * Some parts put the VMDq setting in the extra RAH bits,
+		 * so save everything except the lower 16 bits that hold part
+		 * of the address and the address valid bit.
+		 */
+		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(index));
+		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
+
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
+	} else {
+		DEBUGOUT1("RAR index %d is out of range.\n", index);
+	}
+
+	/* clear VMDq pool/queue selection for this RAR */
+	hw->mac.ops.clear_vmdq(hw, index, IXGBE_CLEAR_VMDQ_ALL);
 
 	return IXGBE_SUCCESS;
 }
@@ -1326,6 +1365,8 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 	DEBUGOUT(" Clearing MTA\n");
 	for (i = 0; i < hw->mac.mcft_size; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
+
+	ixgbe_init_uta_tables(hw);
 
 	return IXGBE_SUCCESS;
 }
@@ -1644,73 +1685,6 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_clear_vfta_generic - Clear VLAN filter table
- *  @hw: pointer to hardware structure
- *
- *  Clears the VLAN filer table, and the VMDq index associated with the filter
- **/
-s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
-{
-	u32 offset;
-	u32 vlanbyte;
-
-	for (offset = 0; offset < hw->mac.vft_size; offset++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFTA(offset), 0);
-
-	for (vlanbyte = 0; vlanbyte < 4; vlanbyte++)
-		for (offset = 0; offset < hw->mac.vft_size; offset++)
-			IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vlanbyte, offset),
-			                0);
-
-	return IXGBE_SUCCESS;
-}
-
-/**
- *  ixgbe_set_vfta_generic - Set VLAN filter table
- *  @hw: pointer to hardware structure
- *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VFTA
- *  @vlan_on: boolean flag to turn on/off VLAN in VFTA
- *
- *  Turn on/off specified VLAN in the VLAN filter table.
- **/
-s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-                           bool vlan_on)
-{
-	u32 VftaIndex;
-	u32 BitOffset;
-	u32 VftaReg;
-	u32 VftaByte;
-
-	/* Determine 32-bit word position in array */
-	VftaIndex = (vlan >> 5) & 0x7F;   /* upper seven bits */
-
-	/* Determine the location of the (VMD) queue index */
-	VftaByte =  ((vlan >> 3) & 0x03); /* bits (4:3) indicating byte array */
-	BitOffset = (vlan & 0x7) << 2;    /* lower 3 bits indicate nibble */
-
-	/* Set the nibble for VMD queue index */
-	VftaReg = IXGBE_READ_REG(hw, IXGBE_VFTAVIND(VftaByte, VftaIndex));
-	VftaReg &= (~(0x0F << BitOffset));
-	VftaReg |= (vind << BitOffset);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(VftaByte, VftaIndex), VftaReg);
-
-	/* Determine the location of the bit for this VLAN id */
-	BitOffset = vlan & 0x1F;   /* lower five bits */
-
-	VftaReg = IXGBE_READ_REG(hw, IXGBE_VFTA(VftaIndex));
-	if (vlan_on)
-		/* Turn on this VLAN id */
-		VftaReg |= (1 << BitOffset);
-	else
-		/* Turn off this VLAN id */
-		VftaReg &= ~(1 << BitOffset);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTA(VftaIndex), VftaReg);
-
-	return IXGBE_SUCCESS;
-}
-
-/**
  *  ixgbe_disable_pcie_master - Disable PCI-express master access
  *  @hw: pointer to hardware structure
  *
@@ -1721,13 +1695,24 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
  **/
 s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw)
 {
-	u32 ctrl;
-	s32 i;
+	u32 i;
+	u32 reg_val;
+	u32 number_of_queues;
 	s32 status = IXGBE_ERR_MASTER_REQUESTS_PENDING;
 
-	ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
-	ctrl |= IXGBE_CTRL_GIO_DIS;
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
+	/* Disable the receive unit by stopping each queue */
+	number_of_queues = hw->mac.max_rx_queues;
+	for (i = 0; i < number_of_queues; i++) {
+		reg_val = IXGBE_READ_REG(hw, IXGBE_RXDCTL(i));
+		if (reg_val & IXGBE_RXDCTL_ENABLE) {
+			reg_val &= ~IXGBE_RXDCTL_ENABLE;
+			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(i), reg_val);
+		}
+	}
+
+	reg_val = IXGBE_READ_REG(hw, IXGBE_CTRL);
+	reg_val |= IXGBE_CTRL_GIO_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_CTRL, reg_val);
 
 	for (i = 0; i < IXGBE_PCI_MASTER_DISABLE_TIMEOUT; i++) {
 		if (!(IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_GIO)) {

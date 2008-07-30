@@ -36,6 +36,9 @@
 #include "opt_device_polling.h"
 #endif
 
+/* Undefine this if not using CURRENT */
+#define IXGBE_VLAN_EVENTS
+
 #include "ixgbe.h"
 
 /*********************************************************************
@@ -46,7 +49,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "1.4.4";
+char ixgbe_driver_version[] = "1.4.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -133,7 +136,6 @@ static void     ixgbe_print_hw_stats(struct adapter *);
 static void	ixgbe_print_debug_info(struct adapter *);
 static void     ixgbe_update_link_status(struct adapter *);
 static int	ixgbe_get_buf(struct rx_ring *, int);
-static void     ixgbe_enable_hw_vlans(struct adapter * adapter);
 static int      ixgbe_xmit(struct tx_ring *, struct mbuf **);
 static int      ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS);
@@ -149,6 +151,11 @@ static void	ixgbe_set_ivar(struct adapter *, u16, u8);
 static void	ixgbe_configure_ivars(struct adapter *);
 static u8 *	ixgbe_mc_array_itr(struct ixgbe_hw *, u8 **, u32 *);
 
+#ifdef IXGBE_VLAN_EVENTS
+static void	ixgbe_register_vlan(void *, struct ifnet *, u16);
+static void	ixgbe_unregister_vlan(void *, struct ifnet *, u16);
+#endif
+
 /* Legacy (single vector interrupt handler */
 static void	ixgbe_legacy_irq(void *);
 
@@ -157,9 +164,9 @@ static void	ixgbe_msix_tx(void *);
 static void	ixgbe_msix_rx(void *);
 static void	ixgbe_msix_link(void *);
 
+/* Legacy interrupts use deferred handlers */
 static void	ixgbe_handle_tx(void *context, int pending);
 static void	ixgbe_handle_rx(void *context, int pending);
-static void	ixgbe_handle_link(void *context, int pending);
 
 #ifndef NO_82598_A0_SUPPORT
 static void	desc_flip(void *);
@@ -206,7 +213,7 @@ TUNABLE_INT("hw.ixgbe.flow_control", &ixgbe_flow_control);
  *  interface must be reset (down/up) for it
  *  to take effect.  
  */
-static int ixgbe_enable_lro = 1;
+static int ixgbe_enable_lro = 0;
 TUNABLE_INT("hw.ixgbe.enable_lro", &ixgbe_enable_lro);
 
 /*
@@ -222,7 +229,7 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
  */
 static int ixgbe_tx_queues = 1;
 TUNABLE_INT("hw.ixgbe.tx_queues", &ixgbe_tx_queues);
-static int ixgbe_rx_queues = 1;
+static int ixgbe_rx_queues = 4;
 TUNABLE_INT("hw.ixgbe.rx_queues", &ixgbe_rx_queues);
 
 /* Number of TX descriptors per ring */
@@ -257,7 +264,7 @@ ixgbe_probe(device_t dev)
 	u_int16_t       pci_device_id = 0;
 	u_int16_t       pci_subvendor_id = 0;
 	u_int16_t       pci_subdevice_id = 0;
-	char            adapter_name[60];
+	char            adapter_name[128];
 
 	INIT_DEBUGOUT("ixgbe_probe: begin");
 
@@ -452,6 +459,14 @@ ixgbe_attach(device_t dev)
 	/* Initialize statistics */
 	ixgbe_update_stats_counters(adapter);
 
+#ifdef IXGBE_VLAN_EVENTS
+	/* Register for VLAN events */
+	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
+	    ixgbe_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
+	    ixgbe_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST);
+#endif
+
 	/* let hardware know driver is loaded */
 	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_DRV_LOAD;
@@ -503,17 +518,28 @@ ixgbe_detach(device_t dev)
 	IXGBE_CORE_UNLOCK(adapter);
 
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
-		taskqueue_drain(txr->tq, &txr->tx_task);
-		taskqueue_free(txr->tq);
-		txr->tq = NULL;
+		if (txr->tq) {
+			taskqueue_drain(txr->tq, &txr->tx_task);
+			taskqueue_free(txr->tq);
+			txr->tq = NULL;
+		}
 	}
 
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
-		taskqueue_drain(rxr->tq, &rxr->rx_task);
-		taskqueue_free(rxr->tq);
-		rxr->tq = NULL;
+		if (rxr->tq) {
+			taskqueue_drain(rxr->tq, &rxr->rx_task);
+			taskqueue_free(rxr->tq);
+			rxr->tq = NULL;
+		}
 	}
-	taskqueue_drain(taskqueue_fast, &adapter->link_task);
+
+#ifdef IXGBE_VLAN_EVENTS
+	/* Unregister VLAN events */
+	if (adapter->vlan_attach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_config, adapter->vlan_attach);
+	if (adapter->vlan_detach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach);
+#endif
 
 	/* let hardware know driver is unloading */
 	ctrl_ext = IXGBE_READ_REG(&adapter->hw, IXGBE_CTRL_EXT);
@@ -745,7 +771,7 @@ ixgbe_watchdog(struct adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	bool		tx_hang = FALSE;
 
-	mtx_assert(&adapter->core_mtx, MA_OWNED);
+	IXGBE_CORE_LOCK_ASSERT(adapter);
 
         /*
          * The timer is set to 5 every time ixgbe_start() queues a packet.
@@ -755,10 +781,22 @@ ixgbe_watchdog(struct adapter *adapter)
          * set to 0.
          */
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
-        	if (txr->watchdog_timer == 0 || --txr->watchdog_timer)
+		u32 head, tail;
+
+		IXGBE_TX_LOCK(txr);
+        	if (txr->watchdog_timer == 0 || --txr->watchdog_timer) {
+			IXGBE_TX_UNLOCK(txr);
                 	continue;
-		else {
+		} else {
+			head = IXGBE_READ_REG(hw, IXGBE_TDH(i));
+			tail = IXGBE_READ_REG(hw, IXGBE_TDT(i));
+			if (head == tail) { /* last minute check */
+				IXGBE_TX_UNLOCK(txr);
+				continue;
+			}
+			/* Well, seems something is really hung */
 			tx_hang = TRUE;
+			IXGBE_TX_UNLOCK(txr);
 			break;
 		}
 	}
@@ -770,8 +808,12 @@ ixgbe_watchdog(struct adapter *adapter)
 	 * reset the hardware.
 	 */
 	if (IXGBE_READ_REG(hw, IXGBE_TFCS) & IXGBE_TFCS_TXOFF) {
-		for (int i = 0; i < adapter->num_tx_queues; i++, txr++)
+		txr = adapter->tx_rings;	/* reset pointer */
+		for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+			IXGBE_TX_LOCK(txr);
 			txr->watchdog_timer = IXGBE_TX_TIMEOUT;
+			IXGBE_TX_UNLOCK(txr);
+		}
 		return;
 	}
 
@@ -781,14 +823,14 @@ ixgbe_watchdog(struct adapter *adapter)
 		device_printf(dev,"Queue(%d) tdh = %d, hw tdt = %d\n", i,
 		    IXGBE_READ_REG(hw, IXGBE_TDH(i)),
 		    IXGBE_READ_REG(hw, IXGBE_TDT(i)));
-		device_printf(dev,"TX(%d) desc avail = %d, Next TX to Clean = %d\n",
+		device_printf(dev,"TX(%d) desc avail = %d,"
+		    "Next TX to Clean = %d\n",
 		    i, txr->tx_avail, txr->next_tx_to_clean);
 	}
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
 
 	ixgbe_init_locked(adapter);
-
 }
 
 /*********************************************************************
@@ -830,8 +872,16 @@ ixgbe_init_locked(struct adapter *adapter)
 		return;
 	}
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-		ixgbe_enable_hw_vlans(adapter);
+#ifndef IXGBE_VLAN_EVENTS
+	/* With events this is done when a vlan registers */
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+		u32 ctrl;
+		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
+		ctrl |= IXGBE_VLNCTRL_VME;
+		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+	}
+#endif
 
 	/* Prepare transmit descriptors and buffers */
 	if (ixgbe_setup_transmit_structures(adapter)) {
@@ -934,39 +984,19 @@ ixgbe_init(void *arg)
 
 
 /*
-** Deferred Interrupt Handlers
+** Legacy Deferred Interrupt Handlers
 */
-
-static void
-ixgbe_handle_link(void *context, int pending)
-{
-        struct adapter  *adapter = context;
-        struct ifnet *ifp = adapter->ifp;
-
-	IXGBE_CORE_LOCK(adapter);
-        if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-		goto out;
-
-        callout_stop(&adapter->timer);
-        ixgbe_update_link_status(adapter);
-        callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
-out:
-	IXGBE_CORE_UNLOCK(adapter);
-	return;
-}
 
 static void
 ixgbe_handle_rx(void *context, int pending)
 {
 	struct rx_ring  *rxr = context;
 	struct adapter  *adapter = rxr->adapter;
-	struct ifnet    *ifp = adapter->ifp;
+	u32 loop = 0;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		if (ixgbe_rxeof(rxr, adapter->rx_process_limit) != 0)
-			/* More to clean, schedule another task */
-			taskqueue_enqueue(rxr->tq, &rxr->rx_task);
-
+	while (loop++ < MAX_INTR)
+		if (ixgbe_rxeof(rxr, adapter->rx_process_limit) == 0)
+			break;
 }
 
 static void
@@ -975,15 +1005,15 @@ ixgbe_handle_tx(void *context, int pending)
 	struct tx_ring  *txr = context;
 	struct adapter  *adapter = txr->adapter;
 	struct ifnet    *ifp = adapter->ifp;
+	u32		loop = 0;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		IXGBE_TX_LOCK(txr);
-		if (ixgbe_txeof(txr) != 0)
-        		taskqueue_enqueue(txr->tq, &txr->tx_task);
+		while (loop++ < MAX_INTR)
+			if (ixgbe_txeof(txr) == 0)
+				break;
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			ixgbe_start_locked(txr, ifp);
 		IXGBE_TX_UNLOCK(txr);
-	}
 }
 
 
@@ -1022,7 +1052,7 @@ ixgbe_legacy_irq(void *arg)
 	}
 	/* Link status change */
 	if (reg_eicr & IXGBE_EICR_LSC)
-        	taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+        	ixgbe_update_link_status(adapter);
 
 	return;
 }
@@ -1039,15 +1069,14 @@ ixgbe_msix_tx(void *arg)
 {
 	struct tx_ring *txr = arg;
 	struct adapter *adapter = txr->adapter;
-	struct ifnet   *ifp = adapter->ifp;
+	u32		loop = 0;
 
 	++txr->tx_irq;
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		IXGBE_TX_LOCK(txr);
-		if (ixgbe_txeof(txr) != 0)
-        		taskqueue_enqueue(txr->tq, &txr->tx_task);
-		IXGBE_TX_UNLOCK(txr);
-	}
+	IXGBE_TX_LOCK(txr);
+	while (loop++ < MAX_INTR)
+		if (ixgbe_txeof(txr) == 0)
+			break;
+	IXGBE_TX_UNLOCK(txr);
 	/* Reenable this interrupt */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, txr->eims);
 
@@ -1065,12 +1094,12 @@ ixgbe_msix_rx(void *arg)
 {
 	struct rx_ring	*rxr = arg;
 	struct adapter	*adapter = rxr->adapter;
-	struct ifnet	*ifp = adapter->ifp;
+	u32		loop = 0;
 
 	++rxr->rx_irq;
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		if (ixgbe_rxeof(rxr, adapter->rx_process_limit) != 0)
-			taskqueue_enqueue(rxr->tq, &rxr->rx_task);
+	while (loop++ < MAX_INTR)
+		if (ixgbe_rxeof(rxr, adapter->rx_process_limit) == 0)
+			break;
         /* Reenable this interrupt */
         IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, rxr->eims);
 	return;
@@ -1088,7 +1117,7 @@ ixgbe_msix_link(void *arg)
 	reg_eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
 
 	if (reg_eicr & IXGBE_EICR_LSC)
-		taskqueue_enqueue(taskqueue_fast, &adapter->link_task);
+        	ixgbe_update_link_status(adapter);
 
 	/* Check for fan failure */
 	if ((hw->phy.media_type == ixgbe_media_type_copper) &&
@@ -1097,6 +1126,7 @@ ixgbe_msix_link(void *arg)
 		    "REPLACE IMMEDIATELY!!\n");
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EICR_GPI_SDP1);
 	}
+
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, IXGBE_EIMS_OTHER);
 	return;
 }
@@ -1612,7 +1642,6 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 */
 	TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
 	TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
-	TASK_INIT(&adapter->link_task, 0, ixgbe_handle_link, adapter);
 	txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
             taskqueue_thread_enqueue, &txr->tq);
 	rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
@@ -1672,12 +1701,6 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		}
 		txr->msix = vector;
 		txr->eims = IXGBE_IVAR_TX_QUEUE(vector);
-		/* Make tasklet for deferred handling - one per queue */
-		TASK_INIT(&txr->tx_task, 0, ixgbe_handle_tx, txr);
-		txr->tq = taskqueue_create_fast("ixgbe_txq", M_NOWAIT,
-		    taskqueue_thread_enqueue, &txr->tq);
-		taskqueue_start_threads(&txr->tq, 1, PI_NET, "%s rxq",
-		    device_get_nameunit(adapter->dev));
 	}
 
 	/* RX setup */
@@ -1702,11 +1725,6 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		}
 		rxr->msix = vector;
 		rxr->eims = IXGBE_IVAR_RX_QUEUE(vector);
-		TASK_INIT(&rxr->rx_task, 0, ixgbe_handle_rx, rxr);
-		rxr->tq = taskqueue_create_fast("ixgbe_rxq", M_NOWAIT,
-		    taskqueue_thread_enqueue, &rxr->tq);
-		taskqueue_start_threads(&rxr->tq, 1, PI_NET, "%s rxq",
-		    device_get_nameunit(adapter->dev));
 	}
 
 	/* Now for Link changes */
@@ -1727,7 +1745,6 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		return (error);
 	}
 	adapter->linkvec = vector;
-	TASK_INIT(&adapter->link_task, 0, ixgbe_handle_link, adapter);
 
 	return (0);
 }
@@ -2319,9 +2336,8 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 	/* Setup the Base and Length of the Tx Descriptor Ring */
 
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
-		u64	tdba = txr->txdma.dma_paddr;
+		u64	txhwb = 0, tdba = txr->txdma.dma_paddr;
 		u32	txctrl;
-		vm_paddr_t	txhwb = 0;
 
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAL(i),
 		       (tdba & 0x00000000ffffffffULL));
@@ -2330,7 +2346,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		    adapter->num_tx_desc * sizeof(struct ixgbe_legacy_tx_desc));
 
 		/* Setup for Head WriteBack */
-		txhwb = vtophys(&txr->tx_hwb);
+		txhwb = (u64)vtophys(&txr->tx_hwb);
 		txhwb |= IXGBE_TDWBAL_HEAD_WB_ENABLE;
 		IXGBE_WRITE_REG(hw, IXGBE_TDWBAL(i),
 		    (txhwb & 0x00000000ffffffffULL));
@@ -2670,7 +2686,8 @@ ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter * adapter = txr->adapter;
 	struct ifnet	*ifp = adapter->ifp;
-	int	first, last, done, num_avail;
+	u32	first, last, done, num_avail;
+	u32	cleaned = 0;
 	struct ixgbe_tx_buf *tx_buffer;
 	struct ixgbe_legacy_tx_desc *tx_desc;
 
@@ -2699,7 +2716,7 @@ ixgbe_txeof(struct tx_ring *txr)
 			tx_desc->upper.data = 0;
 			tx_desc->lower.data = 0;
 			tx_desc->buffer_addr = 0;
-			num_avail++;
+			num_avail++; cleaned++;
 
 			if (tx_buffer->m_head) {
 				ifp->if_opackets++;
@@ -2746,11 +2763,11 @@ ixgbe_txeof(struct tx_ring *txr)
 			txr->tx_avail = num_avail;
 			return FALSE;
 		}
-		/* Some were cleaned, so reset timer */
-		else if (num_avail != txr->tx_avail)
-			txr->watchdog_timer = IXGBE_TX_TIMEOUT;
 	}
 
+	/* Some were cleaned, so reset timer */
+	if (cleaned)
+		txr->watchdog_timer = IXGBE_TX_TIMEOUT;
 	txr->tx_avail = num_avail;
 	return TRUE;
 }
@@ -3065,8 +3082,13 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	struct	rx_ring	*rxr = adapter->rx_rings;
 	struct ifnet   *ifp = adapter->ifp;
 	u32		rxctrl, fctrl, srrctl, rxcsum;
-	u32		reta, mrqc, hlreg, linkvec;
+	u32		mrqc, hlreg, linkvec;
 	u32		random[10];
+	int		i,j;
+	union {
+		u8	c[128];
+		u32	i[32];
+	} reta;
 
 
 	/*
@@ -3100,7 +3122,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(0), srrctl);
 
 	/* Set Queue moderation rate */
-	for (int i = 0; i < IXGBE_MSGS; i++)
+	for (i = 0; i < IXGBE_MSGS; i++)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(i), DEFAULT_ITR);
 
 	/* Set Link moderation lower */
@@ -3127,27 +3149,16 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	if (adapter->num_rx_queues > 1) {
 		/* set up random bits */
 		arc4rand(&random, sizeof(random), 0);
-		switch (adapter->num_rx_queues) {
-			case 8:
-			case 4:
-				reta = 0x00010203;
-				break;
-			case 2:
-				reta = 0x00010001;
-				break;
-			default:
-				reta = 0x00000000;
-		}
+
+		/* Create reta data */
+		for (i = 0; i < 128; )
+			for (j = 0; j < adapter->num_rx_queues && 
+			    i < 128; j++, i++)
+				reta.c[i] = j;
 
 		/* Set up the redirection table */
-		for (int i = 0; i < 32; i++) {
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_RETA(i), reta);
-			if (adapter->num_rx_queues > 4) {
-				++i;
-				IXGBE_WRITE_REG(&adapter->hw,
-				    IXGBE_RETA(i), 0x04050607);
-			}
-		}
+		for (i = 0; i < 32; i++)
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_RETA(i), reta.i[i]);
 
 		/* Now fill our hash function seeds */
 		for (int i = 0; i < 10; i++)
@@ -3459,22 +3470,50 @@ ixgbe_rx_checksum(struct adapter *adapter,
 	return;
 }
 
-
+#ifdef IXGBE_VLAN_EVENTS
+/*
+ * This routine is run via an vlan
+ * config EVENT
+ */
 static void
-ixgbe_enable_hw_vlans(struct adapter *adapter)
+ixgbe_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
-	u32        ctrl;
+	struct adapter	*adapter = ifp->if_softc;
+	u32		ctrl;
 
-	ixgbe_disable_intr(adapter);
 	ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-	ctrl |= IXGBE_VLNCTRL_VME;
+	ctrl |= IXGBE_VLNCTRL_VME | IXGBE_VLNCTRL_VFE;
 	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
-	ixgbe_enable_intr(adapter);
 
-	return;
+	/* Make entry in the hardware filter table */
+	ixgbe_set_vfta(&adapter->hw, vtag, 0, TRUE);
 }
 
+/*
+ * This routine is run via an vlan
+ * unconfig EVENT
+ */
+static void
+ixgbe_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+{
+	struct adapter	*adapter = ifp->if_softc;
+
+	/* Remove entry in the hardware filter table */
+	ixgbe_set_vfta(&adapter->hw, vtag, 0, FALSE);
+
+	/* Have all vlans unregistered? */
+	if (adapter->ifp->if_vlantrunk == NULL) {
+		u32 ctrl;
+		/* Turn off the filter table */
+		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
+		ctrl &= ~IXGBE_VLNCTRL_VME;
+		ctrl &=  ~IXGBE_VLNCTRL_VFE;
+		ctrl |= IXGBE_VLNCTRL_CFIEN;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+	}
+}
+#endif /* IXGBE_VLAN_EVENTS */
 
 static void
 ixgbe_enable_intr(struct adapter *adapter)
@@ -3738,7 +3777,7 @@ ixgbe_print_debug_info(struct adapter *adapter)
 		    IXGBE_READ_REG(hw, IXGBE_TDH(i)),
 		    IXGBE_READ_REG(hw, IXGBE_TDT(i)));
 		device_printf(dev,"TX(%d) Packets Sent: %lu\n",
-		    txr->me, (long)txr->tx_irq);
+		    txr->me, (long)txr->tx_packets);
 		device_printf(dev,"TX(%d) IRQ Handled: %lu\n",
 		    txr->me, (long)txr->tx_irq);
 		device_printf(dev,"TX(%d) NO Desc Avail: %lu\n",
