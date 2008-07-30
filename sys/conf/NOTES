@@ -1774,7 +1774,6 @@ device		miibus
 #	88E8055, 88E8056 and D-Link 560T/550SX.
 # lmc:	Support for the LMC/SBE wide-area network interface cards.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
-# nfe:	NVIDIA nForce MCP(Media and Communications Processors) Ethernet
 # nge:	Support for PCI gigabit ethernet adapters based on the National
 #	Semiconductor DP83820 and DP83821 chipset. This includes the
 #	SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante FriendlyNet
@@ -1885,7 +1884,6 @@ device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
 device		lge		# Level 1 LXT1001 gigabit Ethernet
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		my		# Myson Fast Ethernet (MTD80X, MTD89X)
-device		nfe		# nVidia nForce MCP on-board Ethernet
 device		nge		# NatSemi DP83820 gigabit Ethernet
 device		re		# RealTek 8139C+/8169/8169S/8110S
 device		rl		# RealTek 8129/8139
