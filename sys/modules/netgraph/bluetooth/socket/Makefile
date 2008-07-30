@@ -10,6 +10,7 @@ SRCS=		ng_btsocket.c \
 		ng_btsocket_hci_raw.c \
 		ng_btsocket_l2cap_raw.c \
 		ng_btsocket_l2cap.c \
-		ng_btsocket_rfcomm.c
+		ng_btsocket_rfcomm.c \
+		ng_btsocket_sco.c
 
 .include <bsd.kmod.mk>
