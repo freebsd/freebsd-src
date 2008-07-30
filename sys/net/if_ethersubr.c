@@ -908,8 +908,6 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 			break; 
 	if (i != ifp->if_addrlen)
 		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
-	if (ifp->if_flags & IFF_NEEDSGIANT)
-		if_printf(ifp, "if_start running deferred for Giant\n");
 }
 
 /*
