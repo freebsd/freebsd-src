@@ -713,25 +713,23 @@ rip_off(void)
 static void
 rip_mcast_on(struct interface *ifp)
 {
-	struct ip_mreq m;
+	struct group_req gr;
+	struct sockaddr_in *sin;
 
 	if (!IS_RIP_IN_OFF(ifp->int_state)
 	    && (ifp->int_if_flags & IFF_MULTICAST)
-#ifdef MCAST_PPP_BUG
-	    && !(ifp->int_if_flags & IFF_POINTOPOINT)
-#endif
 	    && !(ifp->int_state & IS_ALIAS)) {
-		m.imr_multiaddr.s_addr = htonl(INADDR_RIP_GROUP);
-#ifdef MCAST_IFINDEX
-		m.imr_interface.s_addr = htonl(ifp->int_index);
-#else
-		m.imr_interface.s_addr = ((ifp->int_if_flags & IFF_POINTOPOINT)
-					  ? ifp->int_dstaddr
-					  : ifp->int_addr);
+		memset(&gr, 0, sizeof(gr));
+		gr.gr_interface = ifp->int_index;
+		sin = (struct sockaddr_in *)&gr.gr_group;
+		sin->sin_family = AF_INET;
+#ifdef _HAVE_SIN_LEN
+		sin->sin_len = sizeof(struct sockaddr_in);
 #endif
-		if (setsockopt(rip_sock,IPPROTO_IP, IP_ADD_MEMBERSHIP,
-			       &m, sizeof(m)) < 0)
-			LOGERR("setsockopt(IP_ADD_MEMBERSHIP RIP)");
+		sin->sin_addr.s_addr = htonl(INADDR_RIP_GROUP);
+		if (setsockopt(rip_sock, IPPROTO_IP, MCAST_JOIN_GROUP,
+			       &gr, sizeof(gr)) < 0)
+			LOGERR("setsockopt(MCAST_JOIN_GROUP RIP)");
 	}
 }
 
