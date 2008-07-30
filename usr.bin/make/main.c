@@ -133,6 +133,7 @@ int		jobLimit;	/* -j argument */
 Boolean		jobsRunning;	/* TRUE if the jobs might be running */
 Boolean		keepgoing;	/* -k flag */
 Boolean		noExecute;	/* -n flag */
+Boolean		printGraphOnly;	/* -p flag */
 Boolean		queryFlag;	/* -q flag */
 Boolean		touchFlag;	/* -t flag */
 Boolean		usePipes;	/* !-P flag */
@@ -150,7 +151,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: make [-BPSXeiknqrstv] [-C directory] [-D variable]\n"
+	    "usage: make [-BPSXeiknpqrstv] [-C directory] [-D variable]\n"
 	    "\t[-d flags] [-E variable] [-f makefile] [-I directory]\n"
 	    "\t[-j max_jobs] [-m directory] [-V variable]\n"
 	    "\t[variable=value] [target ...]\n");
@@ -368,7 +369,7 @@ MainParseArgs(int argc, char **argv)
 rearg:
 	optind = 1;	/* since we're called more than once */
 	optreset = 1;
-#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstvx:"
+#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:npqrstvx:"
 	for (;;) {
 		if ((optind < argc) && strcmp(argv[optind], "--") == 0) {
 			found_dd = TRUE;
@@ -509,6 +510,10 @@ rearg:
 		case 'n':
 			noExecute = TRUE;
 			MFLAGS_append("-n", NULL);
+			break;
+		case 'p':
+			printGraphOnly = TRUE;
+			debug |= DEBUG_GRAPH1;
 			break;
 		case 'q':
 			queryFlag = TRUE;
@@ -903,6 +908,7 @@ main(int argc, char **argv)
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
+	printGraphOnly = FALSE;		/* Don't stop after printing graph */
 	keepgoing = FALSE;		/* Stop on error */
 	allPrecious = FALSE;		/* Remove targets when interrupted */
 	queryFlag = FALSE;		/* This is not just a check-run */
@@ -1242,7 +1248,7 @@ main(int argc, char **argv)
 		Targ_PrintGraph(1);
 
 	/* print the values of any variables requested by the user */
-	if (Lst_IsEmpty(&variables)) {
+	if (Lst_IsEmpty(&variables) && !printGraphOnly) {
 		/*
 		 * Since the user has not requested that any variables
 		 * be printed, we can build targets.
