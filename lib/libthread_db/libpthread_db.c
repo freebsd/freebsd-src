@@ -240,8 +240,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 		 * mapped to user thread.
 		 */
 		while (pt != 0) {
-			ret = ps_pread(ta->ph,
-			        pt + ta->thread_off_tcb,
+			ret = ps_pread(ta->ph, pt + ta->thread_off_tcb,
 			        &tcb_addr, sizeof(tcb_addr));
 			if (ret != 0)
 				return (P2T(ret));
@@ -1075,16 +1074,15 @@ pt_validate(const td_thrhandle_t *th)
 }
 
 td_err_e
-pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
-		    void **address)
+pt_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t _linkmap, size_t offset,
+    psaddr_t *address)
 {
-	char *obj_entry;
 	const td_thragent_t *ta = th->th_ta;
-	psaddr_t tcb_addr, *dtv_addr;
+	psaddr_t dtv_addr, obj_entry, tcb_addr;
 	int tls_index, ret;
 
 	/* linkmap is a member of Obj_Entry */
-	obj_entry = (char *)_linkmap - ta->thread_off_linkmap;
+	obj_entry = _linkmap - ta->thread_off_linkmap;
 
 	/* get tlsindex of the object file */
 	ret = ps_pread(ta->ph,
@@ -1106,8 +1104,8 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 	if (ret != 0)
 		return (P2T(ret));
 	/* now get the object's tls block base address */
-	ret = ps_pread(ta->ph, &dtv_addr[tls_index+1], address,
-		sizeof(*address));
+	ret = ps_pread(ta->ph, dtv_addr + sizeof(void *) * (tls_index + 1),
+	    address, sizeof(*address));
 	if (ret != 0)
 		return (P2T(ret));
 
