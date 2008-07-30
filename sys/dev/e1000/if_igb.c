@@ -75,13 +75,13 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include "tcp_lro.h"
 #include "e1000_api.h"
 #include "e1000_82575.h"
 #include "if_igb.h"
