@@ -216,7 +216,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 		return (P2T(ret));
 	/* Iterate through thread list to find pthread */
 	pt = (psaddr_t)thread_list.tqh_first;
-	while (pt != NULL) {
+	while (pt != 0) {
 		ret = ps_pread(ta->ph, pt + ta->thread_off_tid,
 			       &lwp, sizeof(lwp));
 		if (ret != 0)
@@ -230,7 +230,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 		if (ret != 0)
 			return (P2T(ret));
 	}
-	if (pt == NULL)
+	if (pt == 0)
 		return (TD_NOTHR);
 	th->th_ta = ta;
 	th->th_tid = id;
@@ -389,13 +389,13 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 	ret = ps_pread(ta->ph, ta->thread_last_event_addr, &pt, sizeof(pt));
 	if (ret != 0)
 		return (P2T(ret));
-	if (pt == NULL)
+	if (pt == 0)
 		return (TD_NOMSG);
 	/*
 	 * Take the event pointer, at the time, libthr only reports event
 	 * once a time, so it is not a link list.
 	 */
-	pt_temp = NULL;
+	pt_temp = 0;
 	ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
 
 	/* Read event info */
@@ -684,7 +684,7 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	 * once a time, so it is not a link list.
 	 */
 	if (pt == pt_temp) {
-		pt_temp = NULL;
+		pt_temp = 0;
 		ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
 	}
 	/* Clear event */
@@ -714,22 +714,21 @@ static int
 pt_validate(const td_thrhandle_t *th)
 {
 
-	if (th->th_tid == 0 || th->th_thread == NULL)
+	if (th->th_tid == 0 || th->th_thread == 0)
 		return (TD_ERR);
 	return (TD_OK);
 }
 
 static td_err_e
-pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
-		    void **address)
+pt_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t _linkmap, size_t offset,
+    psaddr_t *address)
 {
-	char *obj_entry;
 	const td_thragent_t *ta = th->th_ta;
-	psaddr_t tcb_addr, *dtv_addr;
+	psaddr_t dtv_addr, obj_entry, tcb_addr;
 	int tls_index, ret;
 
 	/* linkmap is a member of Obj_Entry */
-	obj_entry = (char *)_linkmap - ta->thread_off_linkmap;
+	obj_entry = _linkmap - ta->thread_off_linkmap;
 
 	/* get tlsindex of the object file */
 	ret = ps_pread(ta->ph,
@@ -750,8 +749,8 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 	if (ret != 0)
 		return (P2T(ret));
 	/* now get the object's tls block base address */
-	ret = ps_pread(ta->ph, &dtv_addr[tls_index+1], address,
-		sizeof(*address));
+	ret = ps_pread(ta->ph, dtv_addr + sizeof(void *) * (tls_index+1),
+	    address, sizeof(*address));
 	if (ret != 0)
 		return (P2T(ret));
 
