@@ -612,7 +612,6 @@ vm_object_destroy(vm_object_t object)
 	 * Free the space for the object.
 	 */
 	uma_zfree(obj_zone, object);
-
 }
 
 
