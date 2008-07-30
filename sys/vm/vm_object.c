@@ -585,6 +585,27 @@ doterm:
 }
 
 /*
+ *	vm_object_destroy removes the object from the global object list
+ *      and frees the space for the object.
+ */
+void
+vm_object_destroy(vm_object_t object)
+{
+
+	/*
+	 * Remove the object from the global object list.
+	 */
+	mtx_lock(&vm_object_list_mtx);
+	TAILQ_REMOVE(&vm_object_list, object, object_list);
+	mtx_unlock(&vm_object_list_mtx);
+
+	/*
+	 * Free the space for the object.
+	 */
+	uma_zfree(obj_zone, object);
+}
+
+/*
  *	vm_object_terminate actually destroys the specified object, freeing
  *	up all previously used resources.
  *
@@ -661,17 +682,7 @@ vm_object_terminate(vm_object_t object)
 	vm_pager_deallocate(object);
 	VM_OBJECT_UNLOCK(object);
 
-	/*
-	 * Remove the object from the global object list.
-	 */
-	mtx_lock(&vm_object_list_mtx);
-	TAILQ_REMOVE(&vm_object_list, object, object_list);
-	mtx_unlock(&vm_object_list_mtx);
-
-	/*
-	 * Free the space for the object.
-	 */
-	uma_zfree(obj_zone, object);
+	vm_object_destroy(object);
 }
 
 /*
