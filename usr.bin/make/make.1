@@ -40,7 +40,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm
-.Op Fl ABPSXeiknqrstv
+.Op Fl ABPSXeiknpqrstv
 .Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -249,6 +249,15 @@ instead of mixing the output of parallel jobs together.
 This option has no effect unless
 .Fl j
 is used too.
+.It Fl p
+Only print the input graph, not executing any commands.
+The output is the same as
+.Fl d Ar g1 .
+When combined with
+.Fl f Pa /dev/null ,
+only the builtin rules of
+.Nm
+are displayed.
 .It Fl q
 Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
