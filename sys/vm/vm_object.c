@@ -614,8 +614,6 @@ vm_object_destroy(vm_object_t object)
 	uma_zfree(obj_zone, object);
 }
 
-
-
 /*
  *	vm_object_terminate actually destroys the specified object, freeing
  *	up all previously used resources.
