@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
+#include <sys/sockbuf.h>
+#include <sys/sockstate.h>
+#include <sys/sockopt.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/uio.h>
@@ -1000,7 +1003,6 @@ cxgb_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 struct protosw cxgb_protosw;
 struct pr_usrreqs cxgb_tcp_usrreqs;
-
 
 void
 t3_install_socket_ops(struct socket *so)
