@@ -67,11 +67,11 @@ struct nlist symbols[] = {
 	{NULL}
 };
 
-#define	SHMINFO_XVEC	X(shmmax, sizeof(u_long))			\
-			X(shmmin, sizeof(u_long))			\
-			X(shmmni, sizeof(u_long))			\
-			X(shmseg, sizeof(u_long))			\
-			X(shmall, sizeof(u_long))
+#define	SHMINFO_XVEC	X(shmmax, sizeof(int))				\
+			X(shmmin, sizeof(int))				\
+			X(shmmni, sizeof(int))				\
+			X(shmseg, sizeof(int))				\
+			X(shmall, sizeof(int))
 
 #define	SEMINFO_XVEC	X(semmap, sizeof(int))				\
 			X(semmni, sizeof(int))				\
