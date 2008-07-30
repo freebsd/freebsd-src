@@ -560,6 +560,10 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 * Move data from hold buffer into user space.
 	 * We know the entire buffer is transferred since
 	 * we checked above that the read buffer is bpf_bufsize bytes.
+	 *
+	 * XXXRW: More synchronization needed here: what if a second thread
+	 * issues a read on the same fd at the same time?  Don't want this
+	 * getting invalidated.
 	 */
 	error = uiomove(d->bd_hbuf, d->bd_hlen, uio);
 
@@ -571,7 +575,6 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 
 	return (error);
 }
-
 
 /*
  * If there are processes sleeping on this descriptor, wake them up.
