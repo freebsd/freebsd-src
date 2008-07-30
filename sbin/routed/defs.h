@@ -121,21 +121,6 @@
 #define _HAVE_SIN_LEN
 #endif
 
-/* Turn on if IP_{ADD,DROP}_MEMBERSHIP and IP_MULTICAST_IF considers address
- * within 0.0.0.0/8 as interface index.
- */
-#ifdef __FreeBSD__
-#define MCAST_IFINDEX
-#endif
-
-/* Turn on if IP_DROP_MEMBERSHIP and IP_ADD_MEMBERSHIP do not look at
- * the dstaddr of point-to-point interfaces.
- * #define MCAST_PPP_BUG
- */
-#ifdef MCAST_IFINDEX
-#undef MCAST_PPP_BUG
-#endif
-
 #define DAY (24*60*60)
 #define NEVER DAY			/* a long time */
 #define EPOCH NEVER			/* bias time by this to avoid <0 */
