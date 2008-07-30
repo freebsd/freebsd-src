@@ -726,7 +726,7 @@ rum_alloc_rx_list(struct rum_softc *sc)
 
 	return 0;
 
-fail:	rum_free_tx_list(sc);
+fail:	rum_free_rx_list(sc);
 	return error;
 }
 

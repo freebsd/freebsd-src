@@ -711,7 +711,7 @@ ural_alloc_rx_list(struct ural_softc *sc)
 
 	return 0;
 
-fail:	ural_free_tx_list(sc);
+fail:	ural_free_rx_list(sc);
 	return error;
 }
 
