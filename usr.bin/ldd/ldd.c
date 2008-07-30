@@ -48,6 +48,15 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
+/*
+ * 32-bit ELF data structures can only be used if the system header[s] declare
+ * them.  There is no official macro for determining whether they are declared,
+ * so check for the existence of one of the 32-macros defined in elf(5).
+ */
+#ifdef ELF32_R_TYPE
+#define	ELF32_SUPPORTED
+#endif
+
 static int	is_executable(const char *fname, int fd, int *is_shlib,
 		    int *type);
 static void	usage(void);
@@ -55,7 +64,7 @@ static void	usage(void);
 #define	TYPE_UNKNOWN	0
 #define	TYPE_AOUT	1
 #define	TYPE_ELF	2	/* Architecture default */
-#if __ELF_WORD_SIZE > 32
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 #define	TYPE_ELF32	3	/* Explicit 32 bits on architectures >32 bits */
 #endif
 
@@ -73,7 +82,7 @@ const char	*envdef[ENV_LAST] = {
 	"LD_TRACE_LOADED_OBJECTS_PROGNAME",
 	"LD_TRACE_LOADED_OBJECTS_ALL",
 };
-#if __ELF_WORD_SIZE > 32
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 const char	*env32[ENV_LAST] = {
 	"LD_32_TRACE_LOADED_OBJECTS",
 	"LD_32_TRACE_LOADED_OBJECTS_FMT1",
@@ -154,7 +163,7 @@ main(int argc, char *argv[])
 		case TYPE_AOUT:
 			env = envdef;
 			break;
-#if __ELF_WORD_SIZE > 32
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 		case TYPE_ELF32:
 			env = env32;
 			break;
@@ -229,7 +238,9 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 {
 	union {
 		struct exec aout;
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 		Elf32_Ehdr elf32;
+#endif
 		Elf_Ehdr elf;
 	} hdr;
 	int n;
@@ -256,7 +267,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 		return (1);
 	}
 
-#if __ELF_WORD_SIZE > 32
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&
 	    hdr.elf32.e_ident[EI_CLASS] == ELFCLASS32) {
 		/* Handle 32 bit ELF objects */
