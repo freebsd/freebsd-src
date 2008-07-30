@@ -205,7 +205,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 retry:
 	while ((object = vp->v_object) != NULL) {
 		VM_OBJECT_LOCK(object);
-		if ((object->flags & OBJ_DEAD) == 0) 
+		if ((object->flags & OBJ_DEAD) == 0)
 			break;
 		vm_object_set_flag(object, OBJ_DISCONNECTWNT);
 		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vadead", 0);
