@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/event.h>
@@ -236,6 +237,7 @@ static struct synclist *syncer_workitem_pending[2];
  *	rushjob
  */
 static struct mtx sync_mtx;
+static struct cv sync_wakeup;
 
 #define SYNCER_MAXDELAY		32
 static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
@@ -326,6 +328,7 @@ vntblinit(void *dummy __unused)
 	    &syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
+	cv_init(&sync_wakeup, "syncer");
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
@@ -1677,7 +1680,6 @@ sched_sync(void)
 	struct bufobj *bo;
 	long starttime;
 	struct thread *td = curthread;
-	static int dummychan;
 	int last_work_seen;
 	int net_worklist_len;
 	int syncer_final_iter;
@@ -1804,10 +1806,10 @@ sched_sync(void)
 		 * filesystem activity.
 		 */
 		if (syncer_state != SYNCER_RUNNING)
-			msleep(&dummychan, &sync_mtx, PPAUSE, "syncfnl",
+			cv_timedwait(&sync_wakeup, &sync_mtx,
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);
 		else if (time_uptime == starttime)
-			msleep(&lbolt, &sync_mtx, PPAUSE, "syncer", 0);
+			cv_timedwait(&sync_wakeup, &sync_mtx, hz);
 	}
 }
 
@@ -1819,10 +1821,8 @@ sched_sync(void)
 int
 speedup_syncer(void)
 {
-	struct thread *td;
 	int ret = 0;
 
-	td = FIRST_THREAD_IN_PROC(updateproc);
 	mtx_lock(&sync_mtx);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
@@ -1830,7 +1830,7 @@ speedup_syncer(void)
 		ret = 1;
 	}
 	mtx_unlock(&sync_mtx);
-	sleepq_remove(td, &lbolt);
+	cv_broadcast(&sync_wakeup);
 	return (ret);
 }
 
@@ -1841,16 +1841,14 @@ speedup_syncer(void)
 static void
 syncer_shutdown(void *arg, int howto)
 {
-	struct thread *td;
 
 	if (howto & RB_NOSYNC)
 		return;
-	td = FIRST_THREAD_IN_PROC(updateproc);
 	mtx_lock(&sync_mtx);
 	syncer_state = SYNCER_SHUTTING_DOWN;
 	rushjob = 0;
 	mtx_unlock(&sync_mtx);
-	sleepq_remove(td, &lbolt);
+	cv_broadcast(&sync_wakeup);
 	kproc_shutdown(arg, howto);
 }
 
