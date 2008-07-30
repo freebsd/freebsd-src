@@ -549,7 +549,8 @@ static void
 ehci_pci_takecontroller(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
-	u_int32_t cparams, eec, legsup;
+	u_int32_t cparams, eec;
+	uint8_t bios_sem;
 	int eecp, i;
 
 	cparams = EREAD4(sc, EHCI_HCCPARAMS);
@@ -560,19 +561,20 @@ ehci_pci_takecontroller(device_t self)
 		eec = pci_read_config(self, eecp, 4);
 		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
 			continue;
-		legsup = eec;
-		if (legsup & EHCI_LEGSUP_BIOSOWNED) {
-			pci_write_config(self, eecp,
-			    legsup | EHCI_LEGSUP_OSOWNED, 4);
+		bios_sem = pci_read_config(self, eecp + EHCI_LEGSUP_BIOS_SEM,
+		    1);
+		if (bios_sem) {
+			pci_write_config(self, eecp + EHCI_LEGSUP_OS_SEM, 1, 1);
 			printf("%s: waiting for BIOS to give up control\n",
 			    device_get_nameunit(sc->sc_bus.bdev));
 			for (i = 0; i < 5000; i++) {
-				legsup = pci_read_config(self, eecp, 4);
-				if ((legsup & EHCI_LEGSUP_BIOSOWNED) == 0)
+				bios_sem = pci_read_config(self, eecp +
+				    EHCI_LEGSUP_BIOS_SEM, 1);
+				if (bios_sem == 0)
 					break;
 				DELAY(1000);
 			}
-			if (legsup & EHCI_LEGSUP_BIOSOWNED)
+			if (bios_sem)
 				printf("%s: timed out waiting for BIOS\n",
 				    device_get_nameunit(sc->sc_bus.bdev));
 		}
@@ -584,7 +586,7 @@ ehci_pci_givecontroller(device_t self)
 {
 #if 0
 	ehci_softc_t *sc = device_get_softc(self);
-	u_int32_t cparams, eec, legsup;
+	u_int32_t cparams, eec;
 	int eecp;
 
 	cparams = EREAD4(sc, EHCI_HCCPARAMS);
@@ -593,8 +595,7 @@ ehci_pci_givecontroller(device_t self)
 		eec = pci_read_config(self, eecp, 4);
 		if (EHCI_EECP_ID(eec) != EHCI_EC_LEGSUP)
 			continue;
-		legsup = eec;
-		pci_write_config(self, eecp, legsup & ~EHCI_LEGSUP_OSOWNED, 4);
+		pci_write_config(self, eecp + EHCI_LEGSUP_OS_SEM, 0, 1);
 	}
 #endif
 }
