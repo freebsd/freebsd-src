@@ -118,11 +118,8 @@ sleepinit(void)
  * flag the lock is not re-locked before returning.
  */
 int
-_sleep(ident, lock, priority, wmesg, timo)
-	void *ident;
-	struct lock_object *lock;
-	int priority, timo;
-	const char *wmesg;
+_sleep(void *ident, struct lock_object *lock, int priority,
+    const char *wmesg, int timo)
 {
 	struct thread *td;
 	struct proc *p;
@@ -242,11 +239,7 @@ _sleep(ident, lock, priority, wmesg, timo)
 }
 
 int
-msleep_spin(ident, mtx, wmesg, timo)
-	void *ident;
-	struct mtx *mtx;
-	const char *wmesg;
-	int timo;
+msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 {
 	struct thread *td;
 	struct proc *p;
@@ -330,9 +323,7 @@ msleep_spin(ident, mtx, wmesg, timo)
  * implemented using a dummy wait channel.
  */
 int
-pause(wmesg, timo)
-	const char *wmesg;
-	int timo;
+pause(const char *wmesg, int timo)
 {
 
 	KASSERT(timo != 0, ("pause: timeout required"));
@@ -343,8 +334,7 @@ pause(wmesg, timo)
  * Make all threads sleeping on the specified identifier runnable.
  */
 void
-wakeup(ident)
-	register void *ident;
+wakeup(void *ident)
 {
 
 	sleepq_lock(ident);
@@ -357,8 +347,7 @@ wakeup(ident)
  * swapped out.
  */
 void
-wakeup_one(ident)
-	register void *ident;
+wakeup_one(void *ident)
 {
 
 	sleepq_lock(ident);
@@ -539,8 +528,7 @@ lboltcb(void *arg)
 
 /* ARGSUSED */
 static void
-synch_setup(dummy)
-	void *dummy;
+synch_setup(void *dummy)
 {
 	callout_init(&loadav_callout, CALLOUT_MPSAFE);
 	callout_init(&lbolt_callout, CALLOUT_MPSAFE);
