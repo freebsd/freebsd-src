@@ -2015,8 +2015,7 @@ sis_initl(struct sis_softc *sc)
 			device_printf(sc->sis_dev,
 			    "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
-			reg = CSR_READ_4(sc, NS_PHY_DSPCFG);
-			SIS_SETBIT(sc, NS_PHY_DSPCFG, reg | 0x20);
+			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
 		}
 		CSR_WRITE_4(sc, NS_PHY_PAGE, 0);
 	}
