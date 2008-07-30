@@ -423,6 +423,7 @@ again:
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
+	pargs_hold(p2->p_args);
 	PROC_UNLOCK(p1);
 
 	bzero(&p2->p_startzero,
@@ -502,7 +503,6 @@ again:
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
 	td2->td_ucred = crhold(p2->p_ucred);
-	pargs_hold(p2->p_args);
 
 	if (flags & RFSIGSHARE) {
 		p2->p_sigacts = sigacts_hold(p1->p_sigacts);
