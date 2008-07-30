@@ -1712,7 +1712,7 @@ retry:
 			mtx_unlock(&swhash_mtx);
 			VM_OBJECT_UNLOCK(object);
 			if (uma_zone_exhausted(swap_zone))
-				printf("swap zone exhausted, increase kern.maxswzone\n");
+				panic("swap zone exhausted, increase kern.maxswzone\n");
 			VM_WAIT;
 			VM_OBJECT_LOCK(object);
 			goto retry;
