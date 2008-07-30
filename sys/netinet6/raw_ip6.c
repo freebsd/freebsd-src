@@ -756,12 +756,10 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_send: inp == NULL"));
 
-	INP_INFO_WLOCK(&ripcbinfo);
 	/* Always copy sockaddr to avoid overwrites. */
 	/* Unlocked read. */
 	if (so->so_state & SS_ISCONNECTED) {
 		if (nam) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return (EISCONN);
 		}
@@ -769,17 +767,17 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		bzero(&tmp, sizeof(tmp));
 		tmp.sin6_family = AF_INET6;
 		tmp.sin6_len = sizeof(struct sockaddr_in6);
+		INP_RLOCK(inp);
 		bcopy(&inp->in6p_faddr, &tmp.sin6_addr,
-		      sizeof(struct in6_addr));
+		    sizeof(struct in6_addr));
+		INP_RUNLOCK(inp);
 		dst = &tmp;
 	} else {
 		if (nam == NULL) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return (ENOTCONN);
 		}
 		if (nam->sa_len != sizeof(struct sockaddr_in6)) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return (EINVAL);
 		}
@@ -796,13 +794,11 @@ rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			    "unspec. Assume AF_INET6\n");
 			dst->sin6_family = AF_INET6;
 		} else if (dst->sin6_family != AF_INET6) {
-			INP_INFO_WUNLOCK(&ripcbinfo);
 			m_freem(m);
 			return(EAFNOSUPPORT);
 		}
 	}
 	ret = rip6_output(m, so, dst, control);
-	INP_INFO_WUNLOCK(&ripcbinfo);
 	return (ret);
 }
 
