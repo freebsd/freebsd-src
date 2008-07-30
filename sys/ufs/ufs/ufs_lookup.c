@@ -166,6 +166,15 @@ ufs_lookup(ap)
 
 	vdp = ap->a_dvp;
 	dp = VTOI(vdp);
+
+	/*
+	 * Create a vm object if vmiodirenable is enabled.
+	 * Alternatively we could call vnode_create_vobject
+	 * in VFS_VGET but we could end up creating objects
+	 * that are never used.
+	 */
+	vnode_create_vobject(vdp, DIP(dp, i_size), cnp->cn_thread);
+
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 *
