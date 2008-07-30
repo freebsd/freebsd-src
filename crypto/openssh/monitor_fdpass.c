@@ -49,7 +49,10 @@ mm_send_fd(int sock, int fd)
 	char ch = '\0';
 	ssize_t n;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
-	char tmp[CMSG_SPACE(sizeof(int))];
+	union {
+		struct cmsghdr hdr;
+		char buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
 
@@ -58,8 +61,8 @@ mm_send_fd(int sock, int fd)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
-	msg.msg_control = (caddr_t)tmp;
-	msg.msg_controllen = CMSG_LEN(sizeof(int));
+	msg.msg_control = (caddr_t)&cmsgbuf.buf;
+	msg.msg_controllen = sizeof(cmsgbuf.buf);
 	cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 	cmsg->cmsg_level = SOL_SOCKET;
@@ -94,7 +97,10 @@ mm_receive_fd(int sock)
 	char ch;
 	int fd;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
-	char tmp[CMSG_SPACE(sizeof(int))];
+	union {
+		struct cmsghdr hdr;
+		char buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
 
@@ -107,8 +113,8 @@ mm_receive_fd(int sock)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
-	msg.msg_control = tmp;
-	msg.msg_controllen = sizeof(tmp);
+	msg.msg_control = &cmsgbuf.buf;
+	msg.msg_controllen = sizeof(cmsgbuf.buf);
 #endif
 
 	if ((n = recvmsg(sock, &msg, 0)) == -1)
