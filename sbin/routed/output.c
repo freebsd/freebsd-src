@@ -104,7 +104,6 @@ output(enum output_type type,
 	int flags;
 	const char *msg;
 	int res;
-	naddr tgt_mcast;
 	int soc;
 	int serrno;
 
@@ -150,31 +149,17 @@ output(enum output_type type,
 		} else {
 			msg = "Send mcast";
 			if (rip_sock_mcast != ifp) {
-#ifdef MCAST_IFINDEX
-				/* specify ifindex */
-				tgt_mcast = htonl(ifp->int_index);
-#else
-#ifdef MCAST_PPP_BUG
-				/* Do not specify the primary interface
-				 * explicitly if we have the multicast
-				 * point-to-point kernel bug, since the
-				 * kernel will do the wrong thing if the
-				 * local address of a point-to-point link
-				 * is the same as the address of an ordinary
-				 * interface.
-				 */
-				if (ifp->int_addr == myaddr) {
-					tgt_mcast = 0;
-				} else
-#endif
-				tgt_mcast = ifp->int_addr;
-#endif
+				struct ip_mreqn mreqn;
+
+				memset(&mreqn, 0, sizeof(struct ip_mreqn));
+				mreqn.imr_ifindex = ifp->int_index;
 				if (0 > setsockopt(rip_sock,
-						   IPPROTO_IP, IP_MULTICAST_IF,
-						   &tgt_mcast,
-						   sizeof(tgt_mcast))) {
+						   IPPROTO_IP,
+						   IP_MULTICAST_IF,
+						   &mreqn,
+						   sizeof(mreqn))) {
 					serrno = errno;
-					LOGERR("setsockopt(rip_sock,"
+					LOGERR("setsockopt(rip_sock, "
 					       "IP_MULTICAST_IF)");
 					errno = serrno;
 					ifp = 0;
