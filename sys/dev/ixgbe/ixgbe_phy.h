@@ -60,5 +60,4 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
 s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
                                        u16 *firmware_version);
 
-s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw);
 #endif /* _IXGBE_PHY_H_ */

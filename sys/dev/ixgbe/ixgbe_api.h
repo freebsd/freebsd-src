@@ -87,7 +87,9 @@ s32 ixgbe_update_eeprom_checksum(struct ixgbe_hw *hw);
 
 s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
                   u32 enable_addr);
+s32 ixgbe_clear_rar(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_set_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+s32 ixgbe_clear_vmdq(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
 s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw);
 u32 ixgbe_get_num_rx_addrs(struct ixgbe_hw *hw);
 s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
@@ -107,5 +109,6 @@ s32 ixgbe_get_phy_firmware_version(struct ixgbe_hw *hw,
                                    u16 *firmware_version);
 s32 ixgbe_read_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val);
+s32 ixgbe_init_uta_tables(struct ixgbe_hw *hw);
 
 #endif /* _IXGBE_API_H_ */

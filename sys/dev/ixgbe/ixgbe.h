@@ -351,6 +351,9 @@ struct adapter {
 	int		num_rx_queues;
 	u32		rx_process_limit;
 
+	eventhandler_tag	vlan_attach;
+	eventhandler_tag	vlan_detach;
+
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
 	unsigned long   mbuf_alloc_failed;
