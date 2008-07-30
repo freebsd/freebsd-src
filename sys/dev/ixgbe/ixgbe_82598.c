@@ -66,6 +66,10 @@ s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw);
 s32 ixgbe_configure_fiber_serdes_fc_82598(struct ixgbe_hw *hw);
 s32 ixgbe_setup_fiber_serdes_link_82598(struct ixgbe_hw *hw);
 s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan,
+	                          u32 vind, bool vlan_on);
+s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw);
 s32 ixgbe_blink_led_stop_82598(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_blink_led_start_82598(struct ixgbe_hw *hw, u32 index);
 
@@ -102,6 +106,9 @@ s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw)
 
 	/* RAR, Multicast, VLAN */
 	mac->ops.set_vmdq = &ixgbe_set_vmdq_82598;
+	mac->ops.clear_vmdq = &ixgbe_clear_vmdq_82598;
+	mac->ops.set_vfta = &ixgbe_set_vfta_82598;
+	mac->ops.clear_vfta = &ixgbe_clear_vfta_82598;
 
 	/* Flow Control */
 	mac->ops.setup_fc = &ixgbe_setup_fc_82598;
@@ -115,9 +122,6 @@ s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw)
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.get_firmware_version =
 		             &ixgbe_get_phy_firmware_version_tnx;
-		break;
-	case ixgbe_phy_nl:
-		phy->ops.reset = &ixgbe_reset_phy_nl;
 		break;
 	default:
 		break;
@@ -253,8 +257,6 @@ enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
 	case IXGBE_DEV_ID_82598EB_CX4:
 	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
-	case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
-	case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
 	case IXGBE_DEV_ID_82598EB_XF_LR:
 		media_type = ixgbe_media_type_fiber;
 		break;
@@ -477,40 +479,6 @@ s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 {
 	u32 links_reg;
 	u32 i;
-	u16 link_reg, adapt_comp_reg;
-
-	if (hw->phy.type == ixgbe_phy_nl) {
-		hw->phy.ops.read_reg(hw, 1, IXGBE_TWINAX_DEV, &link_reg);
-		hw->phy.ops.read_reg(hw, 1, IXGBE_TWINAX_DEV, &link_reg);
-		hw->phy.ops.read_reg(hw, 0xC00C, IXGBE_TWINAX_DEV,
-		                     &adapt_comp_reg);
-		if (link_up_wait_to_complete) {
-			for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
-				if ((link_reg & (1 << 2)) &&
-				    ((adapt_comp_reg & 1) == 0)) {
-					*link_up = TRUE;
-					break;
-				} else {
-					*link_up = FALSE;
-				}
-				msec_delay(100);
-				hw->phy.ops.read_reg(hw, 1, IXGBE_TWINAX_DEV,
-				                     &link_reg);
-				hw->phy.ops.read_reg(hw, 0xC00C,
-				                     IXGBE_TWINAX_DEV,
-				                     &adapt_comp_reg);
-			}
-		} else {
-			if ((link_reg & (1 << 2)) &&
-			    ((adapt_comp_reg & 1) == 0))
-				*link_up = TRUE;
-			else
-				*link_up = FALSE;
-		}
-
-		if (*link_up == FALSE)
-			goto out;
-	}
 
 	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
 	if (link_up_wait_to_complete) {
@@ -536,7 +504,6 @@ s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-out:
 	return IXGBE_SUCCESS;
 }
 
@@ -1059,6 +1026,102 @@ s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	rar_high &= ~IXGBE_RAH_VIND_MASK;
 	rar_high |= ((vmdq << IXGBE_RAH_VIND_SHIFT) & IXGBE_RAH_VIND_MASK);
 	IXGBE_WRITE_REG(hw, IXGBE_RAH(rar), rar_high);
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_clear_vmdq_82598 - Disassociate a VMDq set index from an rx address
+ *  @hw: pointer to hardware struct
+ *  @rar: receive address register index to associate with a VMDq index
+ *  @vmdq: VMDq clear index (not used in 82598, but elsewhere)
+ **/
+s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
+{
+	u32 rar_high;
+	u32 rar_entries = hw->mac.num_rar_entries;
+
+    UNREFERENCED_PARAMETER(vmdq);
+
+	if (rar < rar_entries) {
+		rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(rar));
+		if (rar_high & IXGBE_RAH_VIND_MASK) {
+			rar_high &= ~IXGBE_RAH_VIND_MASK;
+			IXGBE_WRITE_REG(hw, IXGBE_RAH(rar), rar_high);
+		}
+	} else {
+		DEBUGOUT1("RAR index %d is out of range.\n", rar);
+	}
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_set_vfta_82598 - Set VLAN filter table
+ *  @hw: pointer to hardware structure
+ *  @vlan: VLAN id to write to VLAN filter
+ *  @vind: VMDq output index that maps queue to VLAN id in VFTA
+ *  @vlan_on: boolean flag to turn on/off VLAN in VFTA
+ *
+ *  Turn on/off specified VLAN in the VLAN filter table.
+ **/
+s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
+	                                              bool vlan_on)
+{
+	u32 regindex;
+	u32 bitindex;
+	u32 bits;
+	u32 vftabyte;
+
+	if (vlan < 1 || vlan > 4095)
+		return IXGBE_ERR_PARAM;
+
+	/* Determine 32-bit word position in array */
+	regindex = (vlan >> 5) & 0x7F;   /* upper seven bits */
+
+	/* Determine the location of the (VMD) queue index */
+	vftabyte =  ((vlan >> 3) & 0x03); /* bits (4:3) indicating byte array */
+	bitindex = (vlan & 0x7) << 2;    /* lower 3 bits indicate nibble */
+
+	/* Set the nibble for VMD queue index */
+	bits = IXGBE_READ_REG(hw, IXGBE_VFTAVIND(vftabyte, regindex));
+	bits &= (~(0x0F << bitindex));
+	bits |= (vind << bitindex);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vftabyte, regindex), bits);
+
+	/* Determine the location of the bit for this VLAN id */
+	bitindex = vlan & 0x1F;   /* lower five bits */
+
+	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
+	if (vlan_on)
+		/* Turn on this VLAN id */
+		bits |= (1 << bitindex);
+	else
+		/* Turn off this VLAN id */
+		bits &= ~(1 << bitindex);
+	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
+
+	return IXGBE_SUCCESS;
+}
+
+/**
+ *  ixgbe_clear_vfta_82598 - Clear VLAN filter table
+ *  @hw: pointer to hardware structure
+ *
+ *  Clears the VLAN filer table, and the VMDq index associated with the filter
+ **/
+s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
+{
+	u32 offset;
+	u32 vlanbyte;
+
+	for (offset = 0; offset < hw->mac.vft_size; offset++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(offset), 0);
+
+	for (vlanbyte = 0; vlanbyte < 4; vlanbyte++)
+		for (offset = 0; offset < hw->mac.vft_size; offset++)
+			IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vlanbyte, offset),
+			                                                  0);
+
 	return IXGBE_SUCCESS;
 }
 
