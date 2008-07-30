@@ -244,8 +244,8 @@ td_thr_validate(const td_thrhandle_t *th)
 }
 
 td_err_e
-td_thr_tls_get_addr(const td_thrhandle_t *th, void *linkmap, size_t offset,
-		    void **address)
+td_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t linkmap, size_t offset,
+    psaddr_t *address)
 {
 	const td_thragent_t *ta = th->th_ta;
 	return (ta->ta_ops->to_thr_tls_get_addr(th, linkmap, offset, address));
