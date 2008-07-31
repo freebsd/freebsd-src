@@ -80,4 +80,5 @@ pt_reg_sstep(struct reg *reg, int step)
 {
 
 	/* XXX */
+	return (0);
 }
