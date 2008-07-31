@@ -70,7 +70,7 @@ ps2td(int c)
 }
 
 static long
-pt_map_thread(const td_thragent_t *const_ta, psaddr_t pt, int type)
+pt_map_thread(const td_thragent_t *const_ta, psaddr_t pt, enum pt_type type)
 {
 	td_thragent_t *ta = __DECONST(td_thragent_t *, const_ta);
 	struct pt_map *new;
@@ -1073,7 +1073,7 @@ pt_validate(const td_thrhandle_t *th)
 	return (TD_OK);
 }
 
-td_err_e
+static td_err_e
 pt_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t _linkmap, size_t offset,
     psaddr_t *address)
 {
