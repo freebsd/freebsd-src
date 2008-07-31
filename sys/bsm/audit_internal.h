@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 Apple Computer, Inc.
+ * Copyright (c) 2005 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *

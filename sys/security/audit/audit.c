@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999-2005 Apple Inc.
  * Copyright (c) 2006-2007 Robert N. M. Watson
  * All rights reserved.
