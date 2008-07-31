@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+#include <float.h>
 
 #include "math.h"
 #include "math_private.h"
@@ -110,3 +111,7 @@ __ieee754_asin(double x)
 	}    
 	if(hx>0) return t; else return -t;    
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(asin, asinl);
+#endif
