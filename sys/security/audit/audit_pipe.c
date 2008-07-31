@@ -497,7 +497,6 @@ audit_pipe_submit_user(void *record, u_int record_len)
 	cv_broadcastpri(&audit_pipe_cv, PSOCK);
 }
 
-
 /*
  * Pop the next record off of an audit pipe.
  */
