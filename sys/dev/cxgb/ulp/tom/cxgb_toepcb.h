@@ -97,7 +97,7 @@ enqueue_wr(struct toepcb *toep, struct mbuf *m)
 }
 
 static inline struct mbuf *
-peek_wr(const struct toepcb *toep)
+peek_wr(struct toepcb *toep)
 {
 
 	return (mbufq_peek(&toep->wr_list));
