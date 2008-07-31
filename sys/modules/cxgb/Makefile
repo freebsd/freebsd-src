@@ -1,7 +1,7 @@
 # $FreeBSD$
 SUBDIR= cxgb
-#SUBDIR+= toecore
-#SUBDIR+= tom
+SUBDIR+= toecore
+SUBDIR+= tom
 #SUBDIR+= ${_iw_cxgb}
 SUBDIR+= cxgb_t3fw
 
