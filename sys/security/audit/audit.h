@@ -201,7 +201,7 @@ void	 audit_thread_free(struct thread *td);
  * possible that an audit record was begun before auditing was turned off.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
-	if (audit_enabled | (td->td_ar != NULL))			\
+	if (audit_enabled || (td->td_ar != NULL))			\
 		audit_syscall_exit(error, td);				\
 } while (0)
 
