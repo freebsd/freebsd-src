@@ -93,4 +93,14 @@ struct ta_ops {
 #define TDBG_FUNC()
 #endif
 
+struct td_thragent;
+
+int thr_pread_int(struct td_thragent *, psaddr_t, uint32_t *);
+int thr_pread_long(struct td_thragent *, psaddr_t, uint64_t *);
+int thr_pread_ptr(struct td_thragent *, psaddr_t, uint64_t *);
+
+int thr_pwrite_int(struct td_thragent *, psaddr_t, uint32_t);
+int thr_pwrite_long(struct td_thragent *, psaddr_t, uint64_t);
+int thr_pwrite_ptr(struct td_thragent *, psaddr_t, uint64_t);
+
 #endif /* _THREAD_DB_INT_H_ */
