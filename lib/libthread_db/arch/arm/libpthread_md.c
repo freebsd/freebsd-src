@@ -97,7 +97,6 @@ pt_fpreg_to_ucontext(const struct fpreg *r, ucontext_t *uc)
 void
 pt_ucontext_to_fpreg(const ucontext_t *uc, struct fpreg *r)
 {
-	const mcontext_t *mc = &uc->uc_mcontext;
 
 	/* XXX */
 	memset(r, 0, sizeof(*r));
@@ -113,4 +112,5 @@ pt_reg_sstep(struct reg *reg, int step)
 {
 
 	/* XXX */
+	return (0);
 }
