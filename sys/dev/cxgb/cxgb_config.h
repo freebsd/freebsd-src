@@ -31,7 +31,6 @@ $FreeBSD$
 ***************************************************************************/
 #ifndef _CXGB_CONFIG_H_
 #define _CXGB_CONFIG_H_
-#define VM_FAULT_HOLD_DEFINED
 #ifndef CONFIG_DEFINED
 #define CONFIG_CHELSIO_T3_CORE
 #endif
