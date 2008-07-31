@@ -50,7 +50,6 @@ td_init(void)
 {
 	td_err_e ret, tmp;
 	struct ta_ops *ops_p, **ops_pp;
-	size_t i;
 
 	ret = 0;
 	SET_FOREACH(ops_pp, __ta_ops) {
@@ -104,7 +103,6 @@ td_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid, td_thrhandle_t *th)
 td_err_e
 td_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 {
-	size_t i;
 	struct ta_ops *ops_p, **ops_pp;
 
 	SET_FOREACH(ops_pp, __ta_ops) {
