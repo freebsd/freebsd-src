@@ -2,7 +2,7 @@
 SUBDIR= cxgb
 SUBDIR+= toecore
 SUBDIR+= tom
-#SUBDIR+= ${_iw_cxgb}
+SUBDIR+= ${_iw_cxgb}
 SUBDIR+= cxgb_t3fw
 
 .if ${MACHINE_ARCH} == "i386"
