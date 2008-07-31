@@ -75,6 +75,10 @@
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
+/* Page level cache control fields used to determine the PAT type */
+#define PG_PDE_CACHE	(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
+#define PG_PTE_CACHE	(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
+
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
  * (PTE) page mappings have identical settings for the following fields:

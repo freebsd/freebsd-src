@@ -230,9 +230,11 @@ static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
+static void pmap_pde_attr(pd_entry_t *pde, int cache_bits);
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_protect_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t sva,
     vm_prot_t prot);
+static void pmap_pte_attr(pt_entry_t *pte, int cache_bits);
 static int pmap_remove_pde(pmap_t pmap, pd_entry_t *pdq, vm_offset_t sva,
 		vm_page_t *free);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq,
@@ -4250,12 +4252,9 @@ pmap_clear_reference(vm_page_t m)
 
 /* Adjust the cache mode for a 4KB page mapped via a PTE. */
 static __inline void
-pmap_pte_attr(vm_offset_t va, int mode)
+pmap_pte_attr(pt_entry_t *pte, int cache_bits)
 {
-	pt_entry_t *pte;
 	u_int opte, npte;
-
-	pte = vtopte(va);
 
 	/*
 	 * The cache mode bits are all in the low 32-bits of the
@@ -4263,14 +4262,14 @@ pmap_pte_attr(vm_offset_t va, int mode)
 	 */
 	do {
 		opte = *(u_int *)pte;
-		npte = opte & ~(PG_PTE_PAT | PG_NC_PCD | PG_NC_PWT);
-		npte |= pmap_cache_bits(mode, 0);
+		npte = opte & ~PG_PTE_CACHE;
+		npte |= cache_bits;
 	} while (npte != opte && !atomic_cmpset_int((u_int *)pte, opte, npte));
 }
 
 /* Adjust the cache mode for a 2MB page mapped via a PDE. */
 static __inline void
-pmap_pde_attr(pd_entry_t *pde, int mode)
+pmap_pde_attr(pd_entry_t *pde, int cache_bits)
 {
 	u_int opde, npde;
 
@@ -4280,8 +4279,8 @@ pmap_pde_attr(pd_entry_t *pde, int mode)
 	 */
 	do {
 		opde = *(u_int *)pde;
-		npde = opde & ~(PG_PDE_PAT | PG_NC_PCD | PG_NC_PWT);
-		npde |= pmap_cache_bits(mode, 1);
+		npde = opde & ~PG_PDE_CACHE;
+		npde |= cache_bits;
 	} while (npde != opde && !atomic_cmpset_int((u_int *)pde, opde, npde));
 }
 
@@ -4357,6 +4356,8 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
+	int cache_bits_pte, cache_bits_pde;
+	boolean_t changed;
 
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
@@ -4368,6 +4369,9 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 */
 	if (base < DMAP_MIN_ADDRESS)
 		return (EINVAL);
+
+	cache_bits_pde = cache_bits_pte = -1;
+	changed = FALSE;
 
 	/*
 	 * Pages that aren't mapped aren't supported.  Also break down 2MB pages
@@ -4386,6 +4390,18 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 			return (EINVAL);
 		}
 		if (*pde & PG_PS) {
+			/*
+			 * If the current 2MB page already has the required
+			 * memory type, then we need not demote this page. Just
+			 * increment tmpva to the next 2MB page frame.
+			 */
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
+			if ((*pde & PG_PDE_CACHE) == cache_bits_pde) {
+				tmpva = trunc_2mpage(tmpva) + NBPDR;
+				continue;
+			}
+
 			/*
 			 * If the current offset aligns with a 2MB page frame
 			 * and there is at least 2MB left within the range, then
@@ -4412,27 +4428,40 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 
 	/*
 	 * Ok, all the pages exist, so run through them updating their
-	 * cache mode.
+	 * cache mode if required.
 	 */
-	for (tmpva = base; size > 0; ) {
+	for (tmpva = base; tmpva < base + size; ) {
 		pde = pmap_pde(kernel_pmap, tmpva);
 		if (*pde & PG_PS) {
-			pmap_pde_attr(pde, mode);
-			tmpva += NBPDR;
-			size -= NBPDR;
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
+			if ((*pde & PG_PDE_CACHE) != cache_bits_pde) {
+				pmap_pde_attr(pde, cache_bits_pde);
+				if (!changed)
+					changed = TRUE;
+			}
+			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
-			pmap_pte_attr(tmpva, mode);
+			if (cache_bits_pte < 0)
+				cache_bits_pte = pmap_cache_bits(mode, 0);
+			pte = vtopte(tmpva);
+			if ((*pte & PG_PTE_CACHE) != cache_bits_pte) {
+				pmap_pte_attr(pte, cache_bits_pte);
+				if (!changed)
+					changed = TRUE;
+			}
 			tmpva += PAGE_SIZE;
-			size -= PAGE_SIZE;
 		}
 	}
 
 	/*
-	 * Flush CPU caches to make sure any data isn't cached that shouldn't
-	 * be, etc.
-	 */    
-	pmap_invalidate_range(kernel_pmap, base, tmpva);
-	pmap_invalidate_cache();
+	 * Flush CPU caches if required to make sure any data isn't cached that
+	 * shouldn't be, etc.
+	 */
+	if (changed) {
+		pmap_invalidate_range(kernel_pmap, base, tmpva);
+		pmap_invalidate_cache();
+	}
 	return (0);
 }
 
