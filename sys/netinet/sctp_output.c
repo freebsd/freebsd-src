@@ -11718,6 +11718,12 @@ sctp_sosend(struct socket *so,
 	struct sctp_inpcb *inp;
 	int error, use_rcvinfo = 0;
 	struct sctp_sndrcvinfo srcv;
+	struct sockaddr *addr_to_use;
+
+#ifdef INET6
+	struct sockaddr_in sin;
+
+#endif
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (control) {
@@ -11728,7 +11734,19 @@ sctp_sosend(struct socket *so,
 			use_rcvinfo = 1;
 		}
 	}
-	error = sctp_lower_sosend(so, addr, uio, top,
+	addr_to_use = addr;
+#ifdef INET6
+	if ((addr) && (addr->sa_family == AF_INET6)) {
+		struct sockaddr_in6 *sin6;
+
+		sin6 = (struct sockaddr_in6 *)addr;
+		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+			in6_sin6_2_sin(&sin, sin6);
+			addr_to_use = (struct sockaddr *)&sin;
+		}
+	}
+#endif
+	error = sctp_lower_sosend(so, addr_to_use, uio, top,
 	    control,
 	    flags,
 	    use_rcvinfo, &srcv
