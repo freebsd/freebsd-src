@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 TESTS=	test-csqrt test-exponential test-fenv test-fma \
-	test-fmaxmin test-ilogb test-lrint \
+	test-fmaxmin test-ilogb test-invtrig test-lrint \
 	test-lround test-nan test-next test-rem test-trig
 CFLAGS+= -O0 -lm
 
