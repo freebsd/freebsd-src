@@ -32,6 +32,10 @@
  */
 #ifndef _SYS_SOCKBUF_H_
 #define _SYS_SOCKBUF_H_
+#include <sys/selinfo.h>		/* for struct selinfo */
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_sx.h>
 
 #define	SB_MAX		(256*1024)	/* default for max chars in sockbuf */
 
@@ -98,6 +102,20 @@ struct	sockbuf {
 };
 
 #ifdef _KERNEL
+
+/*
+ * Per-socket buffer mutex used to protect most fields in the socket
+ * buffer.
+ */
+#define	SOCKBUF_MTX(_sb)		(&(_sb)->sb_mtx)
+#define	SOCKBUF_LOCK_INIT(_sb, _name) \
+	mtx_init(SOCKBUF_MTX(_sb), _name, NULL, MTX_DEF)
+#define	SOCKBUF_LOCK_DESTROY(_sb)	mtx_destroy(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_LOCK(_sb)		mtx_lock(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_OWNED(_sb)		mtx_owned(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_UNLOCK(_sb)		mtx_unlock(SOCKBUF_MTX(_sb))
+#define	SOCKBUF_LOCK_ASSERT(_sb)	mtx_assert(SOCKBUF_MTX(_sb), MA_OWNED)
+#define	SOCKBUF_UNLOCK_ASSERT(_sb)	mtx_assert(SOCKBUF_MTX(_sb), MA_NOTOWNED)
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
