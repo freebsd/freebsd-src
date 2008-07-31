@@ -39,10 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+
+#include <sys/sockopt.h>
+#include <sys/sockstate.h>
+#include <sys/sockbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+
 #include <sys/syslog.h>
-#include <sys/socketvar.h>
 
 #include <net/if.h>
 #include <net/route.h>
