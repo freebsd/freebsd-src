@@ -128,6 +128,14 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
+int	tcp_do_ecn = 0;
+int	tcp_ecn_maxretries = 1;
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
+SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
+    &tcp_do_ecn, 0, "TCP ECN support");
+SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
+    &tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
+
 static int tcp_insecure_rst = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &tcp_insecure_rst, 0,
@@ -152,13 +160,31 @@ struct inpcbinfo tcbinfo;
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
-		     struct socket *, struct tcpcb *, int, int);
+		     struct socket *, struct tcpcb *, int, int, uint8_t);
 static void	 tcp_dropwithreset(struct mbuf *, struct tcphdr *,
 		     struct tcpcb *, int, int);
 static void	 tcp_pulloutofband(struct socket *,
 		     struct tcphdr *, struct mbuf *, int);
 static void	 tcp_xmit_timer(struct tcpcb *, int);
 static void	 tcp_newreno_partial_ack(struct tcpcb *, struct tcphdr *);
+static void inline
+		 tcp_congestion_exp(struct tcpcb *);
+
+static void inline
+tcp_congestion_exp(struct tcpcb *tp)
+{
+	u_int win;
+	
+	win = min(tp->snd_wnd, tp->snd_cwnd) /
+	    2 / tp->t_maxseg;
+	if (win < 2)
+		win = 2;
+	tp->snd_ssthresh = win * tp->t_maxseg;
+	ENTER_FASTRECOVERY(tp);
+	tp->snd_recover = tp->snd_max;
+	if (tp->t_flags & TF_ECN_PERMIT)
+		tp->t_flags |= TF_ECN_SND_CWR;
+}
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -238,6 +264,7 @@ tcp_input(struct mbuf *m, int off0)
 	int drop_hdrlen;
 	int thflags;
 	int rstreason = 0;	/* For badport_bandlim accounting purposes */
+	uint8_t iptos;
 #ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
 #endif
@@ -346,6 +373,13 @@ tcp_input(struct mbuf *m, int off0)
 		/* Re-initialization for later version check */
 		ip->ip_v = IPVERSION;
 	}
+
+#ifdef INET6
+	if (isipv6)
+		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+	else
+#endif
+		iptos = ip->ip_tos;
 
 	/*
 	 * Check that TCP offset makes sense,
@@ -643,7 +677,8 @@ findpcb:
 			 * contains.  tcp_do_segment() consumes
 			 * the mbuf chain and unlocks the inpcb.
 			 */
-			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen);
+			tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen,
+			    iptos);
 			INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 			return;
 		}
@@ -843,7 +878,7 @@ findpcb:
 	 * state.  tcp_do_segment() always consumes the mbuf chain, unlocks
 	 * the inpcb, and unlocks pcbinfo.
 	 */
-	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen);
+	tcp_do_segment(m, th, so, tp, drop_hdrlen, tlen, iptos);
 	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
 	return;
 
@@ -867,7 +902,7 @@ drop:
 
 static void
 tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
-    struct tcpcb *tp, int drop_hdrlen, int tlen)
+    struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
 {
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int headlocked = 1;
@@ -908,6 +943,37 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * For the SYN_SENT state the scale is zero.
 	 */
 	tiwin = th->th_win << tp->snd_scale;
+
+	/*
+	 * TCP ECN processing.
+	 */
+	if (tp->t_flags & TF_ECN_PERMIT) {
+		switch (iptos & IPTOS_ECN_MASK) {
+		case IPTOS_ECN_CE:
+			tp->t_flags |= TF_ECN_SND_ECE;
+			tcpstat.tcps_ecn_ce++;
+			break;
+		case IPTOS_ECN_ECT0:
+			tcpstat.tcps_ecn_ect0++;
+			break;
+		case IPTOS_ECN_ECT1:
+			tcpstat.tcps_ecn_ect1++;
+			break;
+		}
+
+		if (thflags & TH_CWR)
+			tp->t_flags &= ~TF_ECN_SND_ECE;
+
+		/*
+		 * Congestion experienced.
+		 * Ignore if we are already trying to recover.
+		 */
+		if ((thflags & TH_ECE) &&
+		    SEQ_LEQ(th->th_ack, tp->snd_recover)) {
+			tcpstat.tcps_ecn_rcwnd++;
+			tcp_congestion_exp(tp);
+		}
+	}
 
 	/*
 	 * Parse options on any incoming segment.
@@ -1254,6 +1320,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * Otherwise this is an acceptable SYN segment
 	 *	initialize tp->rcv_nxt and tp->irs
 	 *	if seg contains ack then advance tp->snd_una
+	 *	if seg contains an ECE and ECN support is enabled, the stream
+	 *	    is ECN capable.
 	 *	if SYN has been acked change to ESTABLISHED else SYN_RCVD state
 	 *	arrange for segment to be acked (eventually)
 	 *	continue processing rest of data/controls, beginning with URG
@@ -1298,6 +1366,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    tcp_delacktime);
 			else
 				tp->t_flags |= TF_ACKNOW;
+
+			if ((thflags & TH_ECE) && tcp_do_ecn) {
+				tp->t_flags |= TF_ECN_PERMIT;
+				tcpstat.tcps_ecn_shs++;
+			}
+			
 			/*
 			 * Received <SYN,ACK> in SYN_SENT[*] state.
 			 * Transitions:
@@ -1759,6 +1833,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 * so bump cwnd by the amount in the receiver
 				 * to keep a constant cwnd packets in the
 				 * network.
+				 *
+				 * When using TCP ECN, notify the peer that
+				 * we reduced the cwnd.
 				 */
 				if (!tcp_timer_active(tp, TT_REXMT) ||
 				    th->th_ack != tp->snd_una)
@@ -1790,7 +1867,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					goto drop;
 				} else if (tp->t_dupacks == tcprexmtthresh) {
 					tcp_seq onxt = tp->snd_nxt;
-					u_int win;
 
 					/*
 					 * If we're doing sack, check to
@@ -1804,20 +1880,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							tp->t_dupacks = 0;
 							break;
 						}
-					} else if (tcp_do_newreno) {
+					} else if (tcp_do_newreno ||
+					    tcp_do_ecn) {
 						if (SEQ_LEQ(th->th_ack,
 						    tp->snd_recover)) {
 							tp->t_dupacks = 0;
 							break;
 						}
 					}
-					win = min(tp->snd_wnd, tp->snd_cwnd) /
-					    2 / tp->t_maxseg;
-					if (win < 2)
-						win = 2;
-					tp->snd_ssthresh = win * tp->t_maxseg;
-					ENTER_FASTRECOVERY(tp);
-					tp->snd_recover = tp->snd_max;
+					tcp_congestion_exp(tp);
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (tp->t_flags & TF_SACK_PERMIT) {

@@ -877,6 +877,49 @@ send:
 	    tp->snd_nxt == tp->snd_max)
 		tp->snd_nxt--;
 	/*
+	 * If we are starting a connection, send ECN setup
+	 * SYN packet. If we are on a retransmit, we may
+	 * resend those bits a number of times as per
+	 * RFC 3168.
+	 */
+	if (tp->t_state == TCPS_SYN_SENT && tcp_do_ecn) {
+		if (tp->t_rxtshift >= 1) {
+			if (tp->t_rxtshift <= tcp_ecn_maxretries)
+				flags |= TH_ECE|TH_CWR;
+		} else
+			flags |= TH_ECE|TH_CWR;
+	}
+	
+	if (tp->t_state == TCPS_ESTABLISHED &&
+	    (tp->t_flags & TF_ECN_PERMIT)) {
+		/*
+		 * If the peer has ECN, mark data packets with
+		 * ECN capable transmission (ECT).
+		 * Ignore pure ack packets, retransmissions and window probes.
+		 */
+		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    !((tp->t_flags & TF_FORCEDATA) && len == 1)) {
+#ifdef INET6
+			if (isipv6)
+				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
+			else
+#endif
+				ip->ip_tos |= IPTOS_ECN_ECT0;
+			tcpstat.tcps_ecn_ect0++;
+		}
+		
+		/*
+		 * Reply with proper ECN notifications.
+		 */
+		if (tp->t_flags & TF_ECN_SND_CWR) {
+			flags |= TH_CWR;
+			tp->t_flags &= ~TF_ECN_SND_CWR;
+		} 
+		if (tp->t_flags & TF_ECN_SND_ECE)
+			flags |= TH_ECE;
+	}
+	
+	/*
 	 * If we are doing retransmissions, then snd_nxt will
 	 * not reflect the first unsent octet.  For ACK only
 	 * packets, we do not want the sequence number of the
