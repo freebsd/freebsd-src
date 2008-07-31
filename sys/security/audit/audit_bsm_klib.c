@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/sem.h>
+#include <sys/sbuf.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -476,73 +477,110 @@ auditon_command_event(int cmd)
  * directory is NULL, we could use 'rootvnode' to obtain the root directory,
  * but this results in a volfs name written to the audit log. So we will
  * leave the filename starting with '/' in the audit log in this case.
- *
- * XXXRW: Since we combine two paths here, ideally a buffer of size
- * MAXPATHLEN * 2 would be passed in.
  */
 void
 audit_canon_path(struct thread *td, char *path, char *cpath)
 {
-	char *bufp;
-	char *retbuf, *freebuf;
-	struct vnode *vnp;
+	struct vnode *cvnp, *rvnp;
+	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
-	int cisr, error, vfslocked;
+	struct sbuf sbf;
+	int error, cwir, locked;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "audit_canon_path() at %s:%d", __FILE__, __LINE__);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
+	    __func__,  __FILE__, __LINE__);
 
+	copy = path;
+	rvnp = cvnp = NULL;
 	fdp = td->td_proc->p_fd;
-	bufp = path;
-	cisr = 0;
 	FILEDESC_SLOCK(fdp);
-	if (*(path) == '/') {
-		while (*(bufp) == '/')
-			bufp++;			/* Skip leading '/'s. */
-		/*
-		 * If no process root, or it is the same as the system root,
-		 * audit the path as passed in with a single '/'.
-		 */
-		if ((fdp->fd_rdir == NULL) ||
-		    (fdp->fd_rdir == rootvnode)) {
-			vnp = NULL;
-			bufp--;			/* Restore one '/'. */
-		} else {
-			vnp = fdp->fd_rdir;	/* Use process root. */
-			vref(vnp);
-		}
-	} else {
-		vnp = fdp->fd_cdir;	/* Prepend the current dir. */
-		cisr = (fdp->fd_rdir == fdp->fd_cdir);
-		vref(vnp);
-		bufp = path;
+	/*
+	 * Make sure that we handle the chroot(2) case.  If there is an
+	 * alternate root directory, prepend it to the audited pathname.
+	 */
+	if (fdp->fd_rdir != NULL && fdp->fd_rdir != rootvnode) {
+		rvnp = fdp->fd_rdir;
+		vhold(rvnp);
 	}
+	/*
+	 * If the supplied path is relative, make sure we capture the current
+	 * working directory so we can prepend it to the supplied relative
+	 * path.
+	 */
+	if (*path != '/') {
+		cvnp = fdp->fd_cdir;
+		vhold(cvnp);
+	}
+	cwir = (fdp->fd_rdir == fdp->fd_cdir);
 	FILEDESC_SUNLOCK(fdp);
-	if (vnp != NULL) {
+	/*
+	 * NB: We require that the supplied array be at least MAXPATHLEN bytes
+	 * long.  If this is not the case, then we can run into serious trouble.
+	 */
+	(void) sbuf_new(&sbf, cpath, MAXPATHLEN, SBUF_FIXEDLEN);
+	/*
+	 * Strip leading forward slashes.
+	 */
+	while (*copy == '/')
+		copy++;
+	/*
+	 * Make sure we handle chroot(2) and prepend the global path to these
+	 * environments.
+	 *
+	 * NB: vn_fullpath(9) on FreeBSD is less reliable than vn_getpath(9)
+	 * on Darwin.  As a result, this may need some additional attention
+	 * in the future.
+	 */
+	if (rvnp != NULL) {
 		/*
-		 * XXX: vn_fullpath() on FreeBSD is "less reliable" than
-		 * vn_getpath() on Darwin, so this will need more attention
-		 * in the future.  Also, the question and string bounding
-		 * here seems a bit questionable and will also require
-		 * attention.
+		 * Although unlikely, it is possible for filesystems to define
+		 * their own VOP_LOCK, so strictly speaking, we need to
+		 * conditionally pickup Giant around calls to vn_lock(9)
 		 */
-		vfslocked = VFS_LOCK_GIANT(vnp->v_mount);
-		vn_lock(vnp, LK_EXCLUSIVE | LK_RETRY);
-		error = vn_fullpath(td, vnp, &retbuf, &freebuf);
-		if (error == 0) {
-			/* Copy and free buffer allocated by vn_fullpath().
-			 * If the current working directory was the same as
-			 * the root directory, and the path was a relative
-			 * pathname, do not separate the two components with
-			 * the '/' character.
-			 */
-			snprintf(cpath, MAXPATHLEN, "%s%s%s", retbuf,
-			    cisr ? "" : "/", bufp);
-			free(freebuf, M_TEMP);
-		} else
+		locked = VFS_LOCK_GIANT(rvnp->v_mount);
+		vn_lock(rvnp, LK_EXCLUSIVE | LK_RETRY);
+		vdrop(rvnp);
+		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
+		VOP_UNLOCK(rvnp, 0);
+		VFS_UNLOCK_GIANT(locked);
+		if (error) {
 			cpath[0] = '\0';
-		vput(vnp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	} else
-		strlcpy(cpath, bufp, MAXPATHLEN);
+			if (cvnp != NULL)
+				vdrop(cvnp);
+			return;
+		}
+		(void) sbuf_cat(&sbf, rbuf);
+		free(fbuf, M_TEMP);
+	}
+	if (cvnp != NULL) {
+		locked = VFS_LOCK_GIANT(cvnp->v_mount);
+		vn_lock(cvnp, LK_EXCLUSIVE | LK_RETRY);
+		vdrop(cvnp);
+		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
+		VOP_UNLOCK(cvnp, 0);
+		VFS_UNLOCK_GIANT(locked);
+		if (error) {
+			cpath[0] = '\0';
+			return;
+		}
+		(void) sbuf_cat(&sbf, rbuf);
+		free(fbuf, M_TEMP);
+	}
+	if (cwir == 0 || (cwir != 0 && cvnp == NULL))
+		(void) sbuf_cat(&sbf, "/");
+	/*
+	 * Now that we have processed any alternate root and relative path
+	 * names, add the supplied pathname.
+	 */
+        (void) sbuf_cat(&sbf, copy);
+	/*
+	 * One or more of the previous sbuf operations could have resulted in
+	 * the supplied buffer being overflowed.  Check to see if this is the
+	 * case.
+	 */
+	if (sbuf_overflowed(&sbf) != 0) {
+		cpath[0] = '\0';
+		return;
+	}
+	sbuf_finish(&sbf);
 }
