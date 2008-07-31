@@ -2401,7 +2401,10 @@ jme_rxeof(struct jme_softc *sc)
 		if (jme_newbuf(sc, rxd) != 0) {
 			ifp->if_iqdrops++;
 			/* Reuse buffer. */
-			jme_discard_rxbuf(sc, sc->jme_cdata.jme_rx_cons);
+			for (; count < nsegs; count++) {
+				jme_discard_rxbuf(sc, cons);
+				JME_DESC_INC(cons, JME_RX_RING_CNT);
+			}
 			if (sc->jme_cdata.jme_rxhead != NULL) {
 				m_freem(sc->jme_cdata.jme_rxhead);
 				JME_RXCHAIN_RESET(sc);
