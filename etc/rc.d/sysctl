@@ -36,7 +36,9 @@ parse_file()
 					${val})
 						;;
 					*)
-						sysctl "${var}"
+						if ! sysctl "${var}" >/dev/null 2>&1; then
+							warn "unable to set ${var}"
+						fi
 						;;
 					esac
 				elif [ "$2" = "last" ]; then
