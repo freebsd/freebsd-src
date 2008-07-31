@@ -62,8 +62,8 @@ atanf(float x)
 	if(ix>=0x50800000) {	/* if |x| >= 2^34 */
 	    if(ix>0x7f800000)
 		return x+x;		/* NaN */
-	    if(hx>0) return  atanhi[3]+atanlo[3];
-	    else     return -atanhi[3]-atanlo[3];
+	    if(hx>0) return  atanhi[3]+*(volatile float *)&atanlo[3];
+	    else     return -atanhi[3]-*(volatile float *)&atanlo[3];
 	} if (ix < 0x3ee00000) {	/* |x| < 0.4375 */
 	    if (ix < 0x31000000) {	/* |x| < 2^-29 */
 		if(huge+x>one) return x;	/* raise inexact */
