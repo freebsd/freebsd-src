@@ -364,15 +364,18 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	int error;
 	int fibnum = 0;
 
-	if (m->m_flags & M_BCAST) {	/* broadcast */
-		(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
-		return (0);
+	if (m) {
+		
+		if (m->m_flags & M_BCAST) {	/* broadcast */
+			(void)memcpy(desten, ifp->if_broadcastaddr, ifp->if_addrlen);
+			return (0);
+		}
+		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
+			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
+			return (0);
+		}
+		fibnum = M_GETFIB(m);
 	}
-	if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {/* multicast */
-		ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
-		return (0);
-	}
-	fibnum = M_GETFIB(m);
 
 	if (rt0 != NULL) {
 		/* Look for a cached arp (ll) entry. */
@@ -457,10 +460,12 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * response yet.  Replace the held mbuf with this
 	 * latest one.
 	 */
-	if (la->la_hold)
-		m_freem(la->la_hold);
-	la->la_hold = m;
-
+	if (m) {
+		if (la->la_hold)
+			m_freem(la->la_hold);
+		la->la_hold = m;
+	}
+		
 	KASSERT(rt->rt_expire > 0, ("sending ARP request for static entry"));
 
 	/*
@@ -690,13 +695,11 @@ match:
 			continue;
 		
 		sdl = SDL(rt->rt_gateway);
-#if 0 /* -current */	/* Only call this once */
 		if (firstpass) {
 			sin.sin_addr.s_addr = isaddr.s_addr;
 			EVENTHANDLER_INVOKE(route_arp_update_event, rt,
 			    ar_sha(ah), (struct sockaddr *)&sin);
 		}
-#endif		
 		la = (struct llinfo_arp *)rt->rt_llinfo;
 		if (la == NULL) {
 			RT_UNLOCK(rt);
