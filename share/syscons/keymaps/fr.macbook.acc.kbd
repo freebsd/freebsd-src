@@ -52,7 +52,7 @@
   046   'c'    'C'    etx    etx    169    'C'    etx    etx     C
   047   'v'    'V'    syn    syn    'v'    'V'    syn    syn     C
   048   'b'    'B'    stx    stx    223    'B'    stx    stx     C
-  049   'n'    'N'    so     so     'n'    '~'    so     so      C
+  049   'n'    'N'    so     so     '~'    'N'    so     so      C
   050   ','    '?'    nop    nop    nop    nop    nop    nop     O
   051   ';'    '.'    nop    nop    ','    '<'    nop    nop     O
   052   ':'    '/'    nop    nop    '.'    '\'    nop    nop     O
