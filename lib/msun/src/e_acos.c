@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
  * Function needed: sqrt
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -103,3 +105,7 @@ __ieee754_acos(double x)
 	    return 2.0*(df+w);
 	}
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(acos, acosl);
+#endif
