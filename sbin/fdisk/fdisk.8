@@ -8,7 +8,7 @@
 .Nd PC slice table maintenance utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl BIaipstu
+.Op Fl BIaipqstu
 .Op Fl b Ar bootcode
 .Op Fl 1234
 .Op Ar disk
@@ -115,6 +115,9 @@ Print a slice table in
 configuration file format and exit; see
 .Sx CONFIGURATION FILE ,
 below.
+.It Fl q
+Be quiet.
+Benign warnings (such as "GEOM not found") are suppressed.
 .It Fl s
 Print summary information and exit.
 .It Fl t
