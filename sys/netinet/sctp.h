@@ -110,6 +110,7 @@ struct sctp_paramhdr {
 #define SCTP_CONTEXT                    0x0000001a	/* rw */
 /* explict EOR signalling */
 #define SCTP_EXPLICIT_EOR               0x0000001b
+#define SCTP_REUSE_PORT                 0x0000001c	/* rw */
 
 /*
  * read-only options
@@ -418,7 +419,6 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_BOUNDALL		0x00000004
 #define SCTP_PCB_FLAGS_ACCEPTING	0x00000008
 #define SCTP_PCB_FLAGS_UNBOUND		0x00000010
-#define SCTP_PCB_FLAGS_LISTENING	0x00000020
 #define SCTP_PCB_FLAGS_CLOSE_IP         0x00040000
 #define SCTP_PCB_FLAGS_WAS_CONNECTED    0x00080000
 #define SCTP_PCB_FLAGS_WAS_ABORTED      0x00100000
@@ -449,7 +449,6 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_DO_ASCONF	0x00000020
 #define SCTP_PCB_FLAGS_AUTO_ASCONF	0x00000040
 #define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE 0x00000080
-
 /* socket options */
 #define SCTP_PCB_FLAGS_NODELAY		0x00000100
 #define SCTP_PCB_FLAGS_AUTOCLOSE	0x00000200
@@ -467,7 +466,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_EXPLICIT_EOR     0x00400000
 #define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4	0x00800000
 #define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS	0x01000000
-
+#define SCTP_PCB_FLAGS_PORTREUSE        0x02000000
 /*-
  * mobility_features parameters (by micchie).Note
  * these features are applied against the

@@ -860,8 +860,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 	} else {
 		return NULL;
 	}
-	ephead = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR(
-	    (lport + rport), SCTP_BASE_INFO(hashtcpmark))];
+	ephead = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport), SCTP_BASE_INFO(hashtcpmark))];
 	/*
 	 * Ok now for each of the guys in this bucket we must look and see:
 	 * - Does the remote port match. - Does there single association's
@@ -1432,6 +1431,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 		/* unsupported family */
 		return (NULL);
 	}
+
 	if (head == NULL)
 		return (NULL);
 	LIST_FOREACH(inp, head, sctp_hash) {
@@ -1468,7 +1468,6 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 		}
 		SCTP_INP_RUNLOCK(inp);
 	}
-
 	if ((nam->sa_family == AF_INET) &&
 	    (sin->sin_addr.s_addr == INADDR_ANY)) {
 		/* Can't hunt for one that has no address specified */
@@ -1555,6 +1554,106 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 	return (NULL);
 }
 
+
+static struct sctp_inpcb *
+sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
+{
+	struct sctppcbhead *head;
+	struct sctp_inpcb *t_inp;
+	int fnd;
+
+	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(lport,
+	    SCTP_BASE_INFO(hashmark))];
+	LIST_FOREACH(t_inp, head, sctp_hash) {
+		if (t_inp->sctp_lport != lport) {
+			continue;
+		}
+		/* is it in the VRF in question */
+		fnd = 0;
+		if (t_inp->def_vrf_id == vrf_id)
+			fnd = 1;
+		if (!fnd)
+			continue;
+
+		/* This one is in use. */
+		/* check the v6/v4 binding issue */
+		if ((t_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+		    SCTP_IPV6_V6ONLY(t_inp)) {
+			if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+				/* collision in V6 space */
+				return (t_inp);
+			} else {
+				/* inp is BOUND_V4 no conflict */
+				continue;
+			}
+		} else if (t_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
+			/* t_inp is bound v4 and v6, conflict always */
+			return (t_inp);
+		} else {
+			/* t_inp is bound only V4 */
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
+			    SCTP_IPV6_V6ONLY(inp)) {
+				/* no conflict */
+				continue;
+			}
+			/* else fall through to conflict */
+		}
+		return (t_inp);
+	}
+	return (NULL);
+}
+
+
+int
+sctp_swap_inpcb_for_listen(struct sctp_inpcb *inp)
+{
+	/* For 1-2-1 with port reuse */
+	struct sctppcbhead *head;
+	struct sctp_inpcb *tinp;
+
+	if (sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE)) {
+		/* only works with port reuse on */
+		return (-1);
+	}
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) == 0) {
+		return (0);
+	}
+	SCTP_INP_RUNLOCK(inp);
+	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(inp->sctp_lport,
+	    SCTP_BASE_INFO(hashmark))];
+	/* Kick out all non-listeners to the TCP hash */
+	LIST_FOREACH(tinp, head, sctp_hash) {
+		if (tinp->sctp_lport != inp->sctp_lport) {
+			continue;
+		}
+		if (tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+			continue;
+		}
+		if (tinp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+			continue;
+		}
+		if (tinp->sctp_socket->so_qlimit) {
+			continue;
+		}
+		SCTP_INP_WLOCK(tinp);
+		LIST_REMOVE(tinp, sctp_hash);
+		head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR(tinp->sctp_lport, SCTP_BASE_INFO(hashtcpmark))];
+		tinp->sctp_flags |= SCTP_PCB_FLAGS_IN_TCPPOOL;
+		LIST_INSERT_HEAD(head, tinp, sctp_hash);
+		SCTP_INP_WUNLOCK(tinp);
+	}
+	SCTP_INP_WLOCK(inp);
+	/* Pull from where he was */
+	LIST_REMOVE(inp, sctp_hash);
+	inp->sctp_flags &= ~SCTP_PCB_FLAGS_IN_TCPPOOL;
+	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(inp->sctp_lport, SCTP_BASE_INFO(hashmark))];
+	LIST_INSERT_HEAD(head, inp, sctp_hash);
+	SCTP_INP_WUNLOCK(inp);
+	SCTP_INP_RLOCK(inp);
+	return (0);
+}
+
+
 struct sctp_inpcb *
 sctp_pcb_findep(struct sockaddr *nam, int find_tcp_pool, int have_lock,
     uint32_t vrf_id)
@@ -1600,24 +1699,8 @@ sctp_pcb_findep(struct sockaddr *nam, int find_tcp_pool, int have_lock,
 	 * further code to look at all TCP models.
 	 */
 	if (inp == NULL && find_tcp_pool) {
-		unsigned int i;
-
-		for (i = 0; i < SCTP_BASE_INFO(hashtblsize); i++) {
-			/*
-			 * This is real gross, but we do NOT have a remote
-			 * port at this point depending on who is calling.
-			 * We must therefore look for ANY one that matches
-			 * our local port :/
-			 */
-			head = &SCTP_BASE_INFO(sctp_tcpephash)[i];
-			if (LIST_FIRST(head)) {
-				inp = sctp_endpoint_probe(nam, head, lport, vrf_id);
-				if (inp) {
-					/* Found one */
-					break;
-				}
-			}
-		}
+		head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR(lport, SCTP_BASE_INFO(hashtcpmark))];
+		inp = sctp_endpoint_probe(nam, head, lport, vrf_id);
 	}
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
@@ -2383,7 +2466,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	LIST_REMOVE(stcb, sctp_tcblist);
 
 	/* Now insert the new_inp into the TCP connected hash */
-	head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport + rport),
+	head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport),
 	    SCTP_BASE_INFO(hashtcpmark))];
 
 	LIST_INSERT_HEAD(head, new_inp, sctp_hash);
@@ -2456,53 +2539,6 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	SCTP_INP_WUNLOCK(old_inp);
 }
 
-static int
-sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport, uint32_t vrf_id)
-{
-	struct sctppcbhead *head;
-	struct sctp_inpcb *t_inp;
-	int fnd;
-
-	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(lport,
-	    SCTP_BASE_INFO(hashmark))];
-	LIST_FOREACH(t_inp, head, sctp_hash) {
-		if (t_inp->sctp_lport != lport) {
-			continue;
-		}
-		/* is it in the VRF in question */
-		fnd = 0;
-		if (t_inp->def_vrf_id == vrf_id)
-			fnd = 1;
-		if (!fnd)
-			continue;
-
-		/* This one is in use. */
-		/* check the v6/v4 binding issue */
-		if ((t_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-		    SCTP_IPV6_V6ONLY(t_inp)) {
-			if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-				/* collision in V6 space */
-				return (1);
-			} else {
-				/* inp is BOUND_V4 no conflict */
-				continue;
-			}
-		} else if (t_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-			/* t_inp is bound v4 and v6, conflict always */
-			return (1);
-		} else {
-			/* t_inp is bound only V4 */
-			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    SCTP_IPV6_V6ONLY(inp)) {
-				/* no conflict */
-				continue;
-			}
-			/* else fall through to conflict */
-		}
-		return (1);
-	}
-	return (0);
-}
 
 
 
@@ -2515,6 +2551,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	struct sctppcbhead *head;
 	struct sctp_inpcb *inp, *inp_tmp;
 	struct inpcb *ip_inp;
+	int port_reuse_active = 0;
 	int bindall;
 	int prison = 0;
 	uint16_t lport;
@@ -2664,8 +2701,17 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 * so we must lower it.
 				 */
 				SCTP_INP_DECR_REF(inp_tmp);
-				SCTP_INP_DECR_REF(inp);
 				/* unlock info */
+				if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) &&
+				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
+					/*
+					 * Ok, must be one-2-one and
+					 * allowing port re-use
+					 */
+					port_reuse_active = 1;
+					goto continue_anyway;
+				}
+				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_INFO_WUNLOCK();
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
 				return (EADDRINUSE);
@@ -2681,23 +2727,40 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				 * so we must lower it.
 				 */
 				SCTP_INP_DECR_REF(inp_tmp);
-				SCTP_INP_DECR_REF(inp);
 				/* unlock info */
+				if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) &&
+				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
+					/*
+					 * Ok, must be one-2-one and
+					 * allowing port re-use
+					 */
+					port_reuse_active = 1;
+					goto continue_anyway;
+				}
+				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_INFO_WUNLOCK();
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
 				return (EADDRINUSE);
 			}
 		}
+continue_anyway:
 		SCTP_INP_WLOCK(inp);
 		if (bindall) {
 			/* verify that no lport is not used by a singleton */
-			if (sctp_isport_inuse(inp, lport, vrf_id)) {
+			if ((port_reuse_active == 0) &&
+			    (inp_tmp = sctp_isport_inuse(inp, lport, vrf_id))
+			    ) {
 				/* Sorry someone already has this one bound */
-				SCTP_INP_DECR_REF(inp);
-				SCTP_INP_WUNLOCK(inp);
-				SCTP_INP_INFO_WUNLOCK();
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
-				return (EADDRINUSE);
+				if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PORTREUSE)) &&
+				    (sctp_is_feature_on(inp_tmp, SCTP_PCB_FLAGS_PORTREUSE))) {
+					port_reuse_active = 1;
+				} else {
+					SCTP_INP_DECR_REF(inp);
+					SCTP_INP_WUNLOCK(inp);
+					SCTP_INP_INFO_WUNLOCK();
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EADDRINUSE);
+					return (EADDRINUSE);
+				}
 			}
 		}
 	} else {
@@ -2736,7 +2799,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 
 		done = 0;
 		while (!done) {
-			if (sctp_isport_inuse(inp, htons(candidate), inp->def_vrf_id) == 0) {
+			if (sctp_isport_inuse(inp, htons(candidate), inp->def_vrf_id) == NULL) {
 				done = 1;
 			}
 			if (!done) {
@@ -2884,12 +2947,19 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 		inp->laddr_count++;
 	}
 	/* find the bucket */
-	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(lport,
-	    SCTP_BASE_INFO(hashmark))];
+	if (port_reuse_active) {
+		/* Put it into tcp 1-2-1 hash */
+		head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport),
+		    SCTP_BASE_INFO(hashtcpmark))];
+		inp->sctp_flags |= SCTP_PCB_FLAGS_IN_TCPPOOL;
+	} else {
+		head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(lport,
+		    SCTP_BASE_INFO(hashmark))];
+	}
 	/* put it in the bucket */
 	LIST_INSERT_HEAD(head, inp, sctp_hash);
-	SCTPDBG(SCTP_DEBUG_PCB1, "Main hash to bind at head:%p, bound port:%d\n",
-	    head, ntohs(lport));
+	SCTPDBG(SCTP_DEBUG_PCB1, "Main hash to bind at head:%p, bound port:%d - in tcp_pool=%d\n",
+	    head, ntohs(lport), port_reuse_active);
 	/* set in the port */
 	inp->sctp_lport = lport;
 
@@ -3834,7 +3904,9 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		return (NULL);
 	}
 	SCTP_INP_RLOCK(inp);
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) {
+	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) &&
+	    ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE)) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {
 		/*
 		 * If its in the TCP pool, its NOT allowed to create an
 		 * association. The parent listener needs to call
@@ -5639,6 +5711,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * we must validate the state again
 					 * here
 					 */
+			add_it_now:
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-7);
@@ -5661,9 +5734,18 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * strange, address is in another
 					 * assoc? straighten out locks.
 					 */
-					if (stcb_tmp)
+					if (stcb_tmp) {
+						if (SCTP_GET_STATE(&stcb_tmp->asoc) & SCTP_STATE_COOKIE_WAIT) {
+							/*
+							 * in setup state we
+							 * abort this guy
+							 */
+							sctp_abort_an_association(stcb_tmp->sctp_ep,
+							    stcb_tmp, 1, NULL, 0);
+							goto add_it_now;
+						}
 						SCTP_TCB_UNLOCK(stcb_tmp);
-
+					}
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-12);
@@ -5708,6 +5790,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * we must validate the state again
 					 * here
 					 */
+			add_it_now6:
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
 						return (-16);
@@ -5739,7 +5822,16 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 					 * assoc? straighten out locks.
 					 */
 					if (stcb_tmp)
-						SCTP_TCB_UNLOCK(stcb_tmp);
+						if (SCTP_GET_STATE(&stcb_tmp->asoc) & SCTP_STATE_COOKIE_WAIT) {
+							/*
+							 * in setup state we
+							 * abort this guy
+							 */
+							sctp_abort_an_association(stcb_tmp->sctp_ep,
+							    stcb_tmp, 1, NULL, 0);
+							goto add_it_now6;
+						}
+					SCTP_TCB_UNLOCK(stcb_tmp);
 
 					if (stcb->asoc.state == 0) {
 						/* the assoc was freed? */
