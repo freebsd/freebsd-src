@@ -1277,6 +1277,20 @@ inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 	*fp = inp->inp_fport;
 }
 
+struct inpcb *
+so_sotoinpcb(struct socket *so)
+{
+
+	return (sotoinpcb(so));
+}
+
+struct tcpcb *
+so_sototcpcb(struct socket *so)
+{
+
+	return (sototcpcb(so));
+}
+
 #ifdef DDB
 static void
 db_print_indent(int indent)
