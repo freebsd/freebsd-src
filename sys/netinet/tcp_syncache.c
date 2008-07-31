@@ -129,7 +129,7 @@ struct syncache {
 	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
-	u_int8_t	sc_flags;
+	u_int16_t	sc_flags;
 #define SCF_NOOPT	0x01			/* no TCP options */
 #define SCF_WINSCALE	0x02			/* negotiated window scaling */
 #define SCF_TIMESTAMP	0x04			/* negotiated timestamps */
@@ -137,6 +137,7 @@ struct syncache {
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
+#define SCF_ECN		0x100			/* send ECN setup packet */
 #ifndef TCP_OFFLOAD_DISABLE
 	struct toe_usrreqs *sc_tu;		/* TOE operations */
 	void 		*sc_toepcb;		/* TOE protocol block */
@@ -807,6 +808,9 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 			tp->t_flags |= TF_SACK_PERMIT;
 	}
 
+	if (sc->sc_flags & SCF_ECN)
+		tp->t_flags |= TF_ECN_PERMIT;
+
 	/*
 	 * Set up MSS and get cached values from tcp_hostcache.
 	 * This might overwrite some of the defaults we just set.
@@ -1231,6 +1235,8 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		sc->sc_peer_mss = to->to_mss;	/* peer mss may be zero */
 	if (noopt)
 		sc->sc_flags |= SCF_NOOPT;
+	if ((th->th_flags & (TH_ECE|TH_CWR)) && tcp_do_ecn)
+		sc->sc_flags |= SCF_ECN;
 
 	if (tcp_syncookies) {
 		syncookie_generate(sch, sc, &flowtmp);
@@ -1368,6 +1374,11 @@ syncache_respond(struct syncache *sc)
 	th->th_flags = TH_SYN|TH_ACK;
 	th->th_win = htons(sc->sc_wnd);
 	th->th_urp = 0;
+
+	if (sc->sc_flags & SCF_ECN) {
+		th->th_flags |= TH_ECE;
+		tcpstat.tcps_ecn_shs++;
+	}
 
 	/* Tack on the TCP options. */
 	if ((sc->sc_flags & SCF_NOOPT) == 0) {
