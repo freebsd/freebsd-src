@@ -152,14 +152,15 @@ static MALLOC_DEFINE(M_SWAP, "SWAP", "Swap space");
  * blist_create() - create a blist capable of handling up to the specified
  *		    number of blocks
  *
- *	blocks must be greater then 0
+ *	blocks - must be greater then 0
+ * 	flags  - malloc flags
  *
  *	The smallest blist consists of a single leaf node capable of 
  *	managing BLIST_BMAP_RADIX blocks.
  */
 
 blist_t 
-blist_create(daddr_t blocks)
+blist_create(daddr_t blocks, int flags)
 {
 	blist_t bl;
 	int radix;
@@ -175,14 +176,14 @@ blist_create(daddr_t blocks)
 		skip = (skip + 1) * BLIST_META_RADIX;
 	}
 
-	bl = malloc(sizeof(struct blist), M_SWAP, M_WAITOK | M_ZERO);
+	bl = malloc(sizeof(struct blist), M_SWAP, flags | M_ZERO);
 
 	bl->bl_blocks = blocks;
 	bl->bl_radix = radix;
 	bl->bl_skip = skip;
 	bl->bl_rootblks = 1 +
 	    blst_radix_init(NULL, bl->bl_radix, bl->bl_skip, blocks);
-	bl->bl_root = malloc(sizeof(blmeta_t) * bl->bl_rootblks, M_SWAP, M_WAITOK);
+	bl->bl_root = malloc(sizeof(blmeta_t) * bl->bl_rootblks, M_SWAP, flags);
 
 #if defined(BLIST_DEBUG)
 	printf(
@@ -280,9 +281,9 @@ blist_fill(blist_t bl, daddr_t blkno, daddr_t count)
  */
 
 void
-blist_resize(blist_t *pbl, daddr_t count, int freenew)
+blist_resize(blist_t *pbl, daddr_t count, int freenew, int flags)
 {
-    blist_t newbl = blist_create(count);
+    blist_t newbl = blist_create(count, flags);
     blist_t save = *pbl;
 
     *pbl = newbl;
@@ -1014,7 +1015,7 @@ main(int ac, char **av)
 		fprintf(stderr, "Bad option: %s\n", ptr - 2);
 		exit(1);
 	}
-	bl = blist_create(size);
+	bl = blist_create(size, M_WAITOK);
 	blist_free(bl, 0, size);
 
 	for (;;) {
