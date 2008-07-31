@@ -22,8 +22,10 @@ __FBSDID("$FreeBSD$");
 static const float
 one =  1.0000000000e+00, /* 0x3F800000 */
 pi =  3.1415925026e+00, /* 0x40490fda */
-pio2_hi =  1.5707962513e+00, /* 0x3fc90fda */
-pio2_lo =  7.5497894159e-08, /* 0x33a22168 */
+pio2_hi =  1.5707962513e+00; /* 0x3fc90fda */
+static volatile float
+pio2_lo =  7.5497894159e-08; /* 0x33a22168 */
+static const float
 pS0 =  1.6666667163e-01, /* 0x3e2aaaab */
 pS1 = -3.2556581497e-01, /* 0xbea6b090 */
 pS2 =  2.0121252537e-01, /* 0x3e4e0aa8 */
