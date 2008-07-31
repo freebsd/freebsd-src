@@ -259,5 +259,5 @@ int process_rx(struct t3cdev *dev, struct mbuf **m, int n);
 int attach_t3cdev(struct t3cdev *dev);
 void detach_t3cdev(struct t3cdev *dev);
 
-#define UNIMPLEMENTED() panic("IMPLEMENT: %s:%s:%d", __FUNCTION__, __FILE__, __LINE__)
+#define CXGB_UNIMPLEMENTED() panic("IMPLEMENT: %s:%s:%d", __FUNCTION__, __FILE__, __LINE__)
 #endif

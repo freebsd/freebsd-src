@@ -32,9 +32,9 @@ $FreeBSD$
 
 #ifndef _CXGB_TOEDEV_H_
 #define _CXGB_TOEDEV_H_
-#ifdef notyet
+
 #include <netinet/toedev.h>
-#endif
+
 
 /* offload type ids */
 enum {

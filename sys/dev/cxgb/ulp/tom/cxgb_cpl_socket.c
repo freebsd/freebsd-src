@@ -333,9 +333,9 @@ copy_data(const struct mbuf *m, int offset, int len, struct uio *uio)
 static void
 cxgb_wait_dma_completion(struct toepcb *toep)
 {
-	struct rwlock *lock;
+	struct mtx *lock;
 	
-	lock = &toep->tp_tp->t_inpcb->inp_lock;
+	lock = &toep->tp_tp->t_inpcb->inp_mtx;
 	inp_wlock(toep->tp_tp->t_inpcb);
 	cv_wait_unlock(&toep->tp_cv, lock);
 }
@@ -365,8 +365,7 @@ cxgb_vm_page_to_miov(struct toepcb *toep, struct uio *uio, struct mbuf **m)
 	m0->m_flags = (M_EXT|M_NOFREE);
 	m0->m_ext.ext_type = EXT_EXTREF;
 	m0->m_ext.ext_free = cxgb_zero_copy_free;
-	m0->m_ext.ext_arg1 = NULL;	/* XXX: probably wrong /phk */
-	m0->m_ext.ext_arg2 = NULL;
+	m0->m_ext.ext_args = NULL;	/* XXX: probably wrong /phk */
     
 	mv = mtomv(m0);
 	mv->mv_count = seg_count;
