@@ -171,10 +171,15 @@ build_kernel ( ) (
 		cp ${NANO_KERNEL} ${NANO_SRC}/sys/${NANO_ARCH}/conf
 	fi
 
-	cd ${NANO_SRC}
+	(cd ${NANO_SRC};
+	# unset these just in case to avoid compiler complaints
+	# when cross-building
+	unset TARGET_CPUTYPE
+	unset TARGET_BIG_ENDIAN
 	${NANO_PMAKE} buildkernel \
 		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
 		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
+	)
 )
 
 clean_world ( ) (
