@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
  * to produce the hexadecimal values shown.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -123,3 +125,7 @@ __ieee754_atan2(double y, double x)
 	    	    return  (z-pi_lo)-pi;/* atan(-,-) */
 	}
 }
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(atan2, atan2l);
+#endif

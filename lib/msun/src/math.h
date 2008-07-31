@@ -394,12 +394,18 @@ float	significandf(float);
 #if __ISO_C_VISIBLE >= 1999
 #if 0
 long double	acoshl(long double);
+#endif
 long double	acosl(long double);
+#if 0
 long double	asinhl(long double);
+#endif
 long double	asinl(long double);
 long double	atan2l(long double, long double);
+#if 0
 long double	atanhl(long double);
+#endif
 long double	atanl(long double);
+#if 0
 long double	cbrtl(long double);
 #endif
 long double	ceill(long double);

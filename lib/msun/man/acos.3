@@ -28,12 +28,13 @@
 .\"     from: @(#)acos.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd July 31, 2008
 .Dt ACOS 3
 .Os
 .Sh NAME
 .Nm acos ,
-.Nm acosf
+.Nm acosf ,
+.Nm acosl
 .Nd arc cosine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,23 +44,18 @@
 .Fn acos "double x"
 .Ft float
 .Fn acosf "float x"
+.Ft long double
+.Fn acosl "long double x"
 .Sh DESCRIPTION
 The
-.Fn acos
-and the
-.Fn acosf
+.Fn acos ,
+.Fn acosf ,
+and
+.Fn acosl
 functions compute the principal value of the arc cosine of
 .Fa x .
-A domain error occurs for arguments not in the range
-.Bq -1 , +1 .
-For a discussion of error due to roundoff, see
-.Xr math 3 .
 .Sh RETURN VALUES
-The
-.Fn acos
-and the
-.Fn acosf
-functions return the arc cosine in the range
+These functions return the arc cosine in the range
 .Bq 0 , \*(Pi
 radians.
 If:
@@ -83,6 +79,9 @@ raises an invalid exception and returns an \*(Na.
 .Xr tanh 3
 .Sh STANDARDS
 The
-.Fn acos
-function conforms to
-.St -isoC .
+.Fn acos ,
+.Fn acosf ,
+and
+.Fn acosl
+functions conform to
+.St -isoC-99 .

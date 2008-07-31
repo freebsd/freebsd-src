@@ -25,8 +25,10 @@ ARCH_SUBDIR= ${MACHINE_ARCH}
 # long double format
 .if ${LDBL_PREC} == 64
 .PATH:  ${.CURDIR}/ld80
+CFLAGS+=	-I${.CURDIR}/ld80
 .elif ${LDBL_PREC} == 113
 .PATH:  ${.CURDIR}/ld128
+CFLAGS+=	-I${.CURDIR}/ld128
 .endif
 
 .PATH:	${.CURDIR}/bsdsrc
@@ -48,7 +50,7 @@ COMMON_SRCS= b_exp.c b_log.c b_tgamma.c \
 	e_sinh.c e_sinhf.c e_sqrt.c e_sqrtf.c fenv.c \
 	k_cos.c k_cosf.c k_rem_pio2.c k_sin.c k_sinf.c \
 	k_tan.c k_tanf.c \
-	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c \
+	s_asinh.c s_asinhf.c s_atan.c s_atanf.c s_carg.c s_cargf.c s_cargl.c \
 	s_cbrt.c s_cbrtf.c s_ceil.c s_ceilf.c \
 	s_copysign.c s_copysignf.c s_cos.c s_cosf.c \
 	s_csqrt.c s_csqrtf.c s_erf.c s_erff.c \
@@ -82,9 +84,10 @@ SYMBOL_MAPS=	${SYM_MAPS}
 COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
-COMMON_SRCS+=	e_fmodl.c e_hypotl.c e_remainderl.c e_sqrtl.c \
-	k_cosl.c k_sinl.c k_tanl.c \
-	s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
+COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
+	e_hypotl.c e_remainderl.c e_sqrtl.c \
+	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
+	s_atanl.c s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
 	s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
@@ -117,13 +120,14 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	nextafter.3 remainder.3 rint.3 \
 	round.3 scalbn.3 signbit.3 sin.3 sinh.3 sqrt.3 tan.3 tanh.3 trunc.3
 
-MLINKS+=acos.3 acosf.3
+MLINKS+=acos.3 acosf.3 acos.3 acosl.3
 MLINKS+=acosh.3 acoshf.3
-MLINKS+=asin.3 asinf.3
+MLINKS+=asin.3 asinf.3 asin.3 asinl.3
 MLINKS+=asinh.3 asinhf.3
-MLINKS+=atan.3 atanf.3
+MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3
-MLINKS+=atan2.3 atan2f.3 atan2.3 carg.3 atan2.3 cargf.3
+MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
+	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
