@@ -177,7 +177,6 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    close(pfd[1]);
 
 	    /* Prevent pkg_add from wanting to interact in bad ways */
-	    setenv("PACKAGE_BUILDING", "t", 1);
 	    setenv("BATCH", "t", 1);
 
 	    if (isDebug())
