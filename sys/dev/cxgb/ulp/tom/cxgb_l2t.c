@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <net/if.h>
 #include <net/ethernet.h>
 #include <net/if_vlan_var.h>

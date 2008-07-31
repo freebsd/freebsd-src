@@ -37,8 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+
+#include <sys/sockopt.h>
+#include <sys/sockstate.h>
+#include <sys/sockbuf.h>
+
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -235,7 +239,7 @@ t3_listen_start(struct toedev *dev, struct socket *so, struct t3cdev *cdev)
 	struct mbuf *m;
 	struct cpl_pass_open_req *req;
 	struct tom_data *d = TOM_DATA(dev);
-	struct inpcb *inp = sotoinpcb(so);
+	struct inpcb *inp = so_sotoinpcb(so);
 	struct listen_ctx *ctx;
 
 	if (!TOM_TUNABLE(dev, activated))
@@ -252,7 +256,7 @@ t3_listen_start(struct toedev *dev, struct socket *so, struct t3cdev *cdev)
 
 	ctx->tom_data = d;
 	ctx->lso = so;
-	ctx->ulp_mode = TOM_TUNABLE(dev, ddp) && !(so->so_options & SO_NO_DDP) ? ULP_MODE_TCPDDP : 0;
+	ctx->ulp_mode = TOM_TUNABLE(dev, ddp) && !(so_options_get(so) & SO_NO_DDP) ? ULP_MODE_TCPDDP : 0;
 	LIST_INIT(&ctx->synq_head);
 	
 	stid = cxgb_alloc_stid(d->cdev, d->client, ctx);
