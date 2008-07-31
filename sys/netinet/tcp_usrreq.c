@@ -1754,6 +1754,10 @@ db_print_tflags(u_int t_flags)
 		db_printf("%sTF_TSO", comma ? ", " : "");
 		comma = 1;
 	}
+	if (t_flags & TF_ECN_PERMIT) {
+		db_printf("%sTF_ECN_PERMIT", comma ? ", " : "");
+		comma = 1;
+	}
 }
 
 static void

@@ -124,6 +124,9 @@ struct tcpcb {
 #define	TF_FORCEDATA	0x800000	/* force out a byte */
 #define	TF_TSO		0x1000000	/* TSO enabled on this connection */
 #define	TF_TOE		0x2000000	/* this connection is offloaded */
+#define	TF_ECN_PERMIT	0x4000000	/* connection ECN-ready */
+#define	TF_ECN_SND_CWR	0x8000000	/* ECN CWR in queue */
+#define	TF_ECN_SND_ECE	0x10000000	/* ECN ECE in queue */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -433,6 +436,13 @@ struct	tcpstat {
 	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
 	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
 	u_long  tcps_sack_sboverflow; 	    /* times scoreboard overflowed */
+	
+	/* ECN related stats */
+	u_long	tcps_ecn_ce;		/* ECN Congestion Experienced */
+	u_long	tcps_ecn_ect0;		/* ECN Capable Transport */
+	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
+	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
+	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
 };
 
 /*
@@ -509,6 +519,8 @@ extern	int ss_fltsz_local;
 
 extern	int tcp_do_sack;		/* SACK enabled/disabled */
 extern	int tcp_sc_rst_sock_fail;	/* RST on sock alloc failure */
+extern	int tcp_do_ecn;			/* TCP ECN enabled/disabled */
+extern	int tcp_ecn_maxretries;
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
