@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
@@ -158,7 +158,7 @@ au_to_attr32(struct vnode_au_info *vni)
 	ADD_U_INT32(dptr, vni->vn_fsid);
 
 	/*
-	 * Some systems use 32-bit file ID's, other's use 64-bit file IDs.
+	 * Some systems use 32-bit file ID's, others use 64-bit file IDs.
 	 * Attempt to handle both, and let the compiler sort it out.  If we
 	 * could pick this out at compile-time, it would be better, so as to
 	 * avoid the else case below.
