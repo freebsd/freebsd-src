@@ -132,7 +132,7 @@ fmodl(long double x, long double y)
     /* convert back to floating value and restore the sign */
 	if((hx|lx)==0)			/* return sign(x)*0 */
 	    return Zero[sx];
-	while(hx<(1U<<HFRAC_BITS)) {	/* normalize x */
+	while(hx<(1ULL<<HFRAC_BITS)) {	/* normalize x */
 	    hx = hx+hx+(lx>>MANL_SHIFT); lx = lx+lx;
 	    iy -= 1;
 	}
