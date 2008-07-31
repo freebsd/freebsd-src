@@ -4270,12 +4270,9 @@ pmap_pte_attr(vm_offset_t va, int mode)
 
 /* Adjust the cache mode for a 2MB page mapped via a PDE. */
 static __inline void
-pmap_pde_attr(vm_offset_t va, int mode)
+pmap_pde_attr(pd_entry_t *pde, int mode)
 {
-	pd_entry_t *pde;
 	u_int opde, npde;
-
-	pde = pmap_pde(kernel_pmap, va);
 
 	/*
 	 * The cache mode bits are all in the low 32-bits of the
@@ -4420,7 +4417,7 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	for (tmpva = base; size > 0; ) {
 		pde = pmap_pde(kernel_pmap, tmpva);
 		if (*pde & PG_PS) {
-			pmap_pde_attr(tmpva, mode);
+			pmap_pde_attr(pde, mode);
 			tmpva += NBPDR;
 			size -= NBPDR;
 		} else {
