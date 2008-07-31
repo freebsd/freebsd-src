@@ -28,12 +28,13 @@
 .\"     from: @(#)asin.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd July 31, 2008
 .Dt ASIN 3
 .Os
 .Sh NAME
 .Nm asin ,
-.Nm asinf
+.Nm asinf ,
+.Nm asinl
 .Nd arc sine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,23 +44,18 @@
 .Fn asin "double x"
 .Ft float
 .Fn asinf "float x"
+.Ft long double
+.Fn asinl "long double x"
 .Sh DESCRIPTION
 The
-.Fn asin
-and the
-.Fn asinf
+.Fn asin ,
+.Fn asinf ,
+and
+.Fn asinl
 functions compute the principal value of the arc sine of
 .Fa x .
-A domain error occurs for arguments not in the range
-.Bq -1 , +1 .
-For a discussion of error due to roundoff, see
-.Xr math 3 .
 .Sh RETURN VALUES
-The
-.Fn asin
-and the
-.Fn asinf
-functions return the arc sine in the range
+These functions return the arc sine in the range
 .Bk -words
 .Bq -\*(Pi/2 , +\*(Pi/2
 .Ek
@@ -85,6 +81,9 @@ raises an invalid exception and returns an \*(Na.
 .Xr tanh 3
 .Sh STANDARDS
 The
-.Fn asin
-function conforms to
-.St -isoC .
+.Fn asin ,
+.Fn asinf ,
+and
+.Fn asinl
+functions conform to
+.St -isoC-99 .

@@ -209,4 +209,9 @@ FBSD_1.1 {
 	remquol;
 	remainderl;
 	fmodl;
+	acosl;
+	asinl;
+	atan2l;
+	atanl;
+	cargl;
 };

@@ -28,14 +28,16 @@
 .\"     from: @(#)atan2.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2007
+.Dd July 31, 2008
 .Dt ATAN2 3
 .Os
 .Sh NAME
 .Nm atan2 ,
 .Nm atan2f ,
+.Nm atan2l ,
 .Nm carg ,
-.Nm cargf
+.Nm cargf ,
+.Nm cargl
 .Nd arc tangent and complex phase angle functions
 .Sh LIBRARY
 .Lb libm
@@ -45,15 +47,21 @@
 .Fn atan2 "double y" "double x"
 .Ft float
 .Fn atan2f "float y" "float x"
+.Ft long double
+.Fn atan2l "long double y" "long double x"
+.In complex.h
 .Ft double
 .Fn carg "double complex z"
 .Ft float
 .Fn cargf "float complex z"
+.Ft long double
+.Fn cargl "long double complex z"
 .Sh DESCRIPTION
 The
-.Fn atan2
-and the
-.Fn atan2f
+.Fn atan2 ,
+.Fn atan2f ,
+and
+.Fn atan2l
 functions compute the principal value of the arc tangent of
 .Fa y/ Ns Ar x ,
 using the signs of both arguments to determine the quadrant of
@@ -66,9 +74,10 @@ the return value.
 .\}
 .Pp
 The
-.Fn carg
+.Fn carg ,
+.Fn cargf ,
 and
-.Fn cargf
+.Fn cargl
 functions compute the complex argument (or phase angle) of
 .Fa z .
 The complex argument is the number \*(Th such that
@@ -80,12 +89,15 @@ The call
 is equivalent to
 .Li atan2(cimag(z), creal(z)) ,
 and similarly for
-.Fn cargf .
+.Fn cargf
+and
+.Fn cargl .
 .Sh RETURN VALUES
 The
-.Fn atan2
-and the
-.Fn atan2f
+.Fn atan2 ,
+.Fn atan2f ,
+and
+.Fn atan2l
 functions, if successful,
 return the arc tangent of
 .Fa y/ Ns Ar x
@@ -210,8 +222,10 @@ r := \(sr(x\(**x+y\(**y);\0\0if r = 0 then x := copysign(1,x);
 The
 .Fn atan2 ,
 .Fn atan2f ,
+.Fn atan2l ,
 .Fn carg ,
+.Fn cargf ,
 and
-.Fn cargf
+.Fn cargl
 functions conform to
 .St -isoC-99 .
