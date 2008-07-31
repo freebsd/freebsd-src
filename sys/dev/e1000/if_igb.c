@@ -4468,8 +4468,8 @@ igb_print_debug_info(struct adapter *adapter)
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
 		    E1000_READ_REG(&adapter->hw, E1000_TDH(i)),
 		    E1000_READ_REG(&adapter->hw, E1000_TDT(i)));
-		device_printf(dev, "no descriptors avail event = %lu\n",
-		    txr->no_desc_avail);
+		device_printf(dev, "no descriptors avail event = %lld\n",
+		    (long long)txr->no_desc_avail);
 		device_printf(dev, "TX(%d) MSIX IRQ Handled = %lld\n", txr->me,
 		    (long long)txr->tx_irq);
 		device_printf(dev, "TX(%d) Packets sent = %lld\n", txr->me,
