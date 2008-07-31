@@ -387,6 +387,11 @@ int	 rtrequest_fib(int, struct sockaddr *,
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
 int	 rt_check_fib(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
 
+#include <sys/eventhandler.h>
+typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);
+typedef void (*rtevent_redirect_fn)(void *, struct rtentry *, struct rtentry *, struct sockaddr *);
+EVENTHANDLER_DECLARE(route_arp_update_event, rtevent_arp_update_fn);
+EVENTHANDLER_DECLARE(route_redirect_event, rtevent_redirect_fn);
 #endif
 
 #endif
