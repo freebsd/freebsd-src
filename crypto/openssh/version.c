@@ -26,6 +26,9 @@
  */
 
 #include "includes.h"
+
+#include <string.h>
+
 #include "version.h"
 #include "xmalloc.h"
 
