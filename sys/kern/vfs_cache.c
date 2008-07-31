@@ -754,6 +754,32 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 }
 
 /*
+ * This function is similar to vn_fullpath, but it attempts to lookup the
+ * pathname relative to the global root mount point.  This is required for the
+ * auditing sub-system, as audited pathnames must be absolute, relative to the
+ * global root mount point.
+ */
+int
+vn_fullpath_global(struct thread *td, struct vnode *vn,
+    char **retbuf, char **freebuf)
+{
+	char *buf;
+	int error;
+
+	if (disablefullpath)
+		return (ENODEV);
+	if (vn == NULL)
+		return (EINVAL);
+	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+	error = vn_fullpath1(td, vn, rootvnode, buf, retbuf, MAXPATHLEN);
+	if (!error)
+		*freebuf = buf;
+	else
+		free(buf, M_TEMP);
+	return (error);
+}
+
+/*
  * The magic behind kern___getcwd() and vn_fullpath().
  */
 static int
