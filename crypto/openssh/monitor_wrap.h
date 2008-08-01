@@ -1,5 +1,4 @@
 /* $OpenBSD: monitor_wrap.h,v 1.20 2006/08/03 03:34:42 deraadt Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
