@@ -754,7 +754,7 @@ start_all_aps(void)
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		apic_id = cpu_apic_ids[cpu];
 
-		/* allocate and set up an idle stack data page */
+		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] = (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
 
 		/* setup a vector to our boot code */
