@@ -103,6 +103,8 @@ static struct mtx				ng_btsocket_l2cap_sockets_mtx;
 static LIST_HEAD(, ng_btsocket_l2cap_rtentry)	ng_btsocket_l2cap_rt;
 static struct mtx				ng_btsocket_l2cap_rt_mtx;
 static struct task				ng_btsocket_l2cap_rt_task;
+static struct timeval				ng_btsocket_l2cap_lasttime;
+static int					ng_btsocket_l2cap_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_l2cap_sockets);
@@ -127,19 +129,23 @@ SYSCTL_INT(_net_bluetooth_l2cap_sockets_seq, OID_AUTO, queue_drops,
 
 /* Debug */
 #define NG_BTSOCKET_L2CAP_INFO \
-	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_INFO_LEVEL) \
+	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_INFO_LEVEL && \
+	    ppsratecheck(&ng_btsocket_l2cap_lasttime, &ng_btsocket_l2cap_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_L2CAP_WARN \
-	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_WARN_LEVEL) \
+	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_WARN_LEVEL && \
+	    ppsratecheck(&ng_btsocket_l2cap_lasttime, &ng_btsocket_l2cap_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_L2CAP_ERR \
-	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_ERR_LEVEL) \
+	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_ERR_LEVEL && \
+	    ppsratecheck(&ng_btsocket_l2cap_lasttime, &ng_btsocket_l2cap_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_L2CAP_ALERT \
-	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_ALERT_LEVEL) \
+	if (ng_btsocket_l2cap_debug_level >= NG_BTSOCKET_ALERT_LEVEL && \
+	    ppsratecheck(&ng_btsocket_l2cap_lasttime, &ng_btsocket_l2cap_curpps, 1)) \
 		printf
 
 /* 

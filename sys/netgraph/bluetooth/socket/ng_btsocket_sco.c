@@ -102,6 +102,8 @@ static LIST_HEAD(, ng_btsocket_sco_pcb)		ng_btsocket_sco_sockets;
 static LIST_HEAD(, ng_btsocket_sco_rtentry)	ng_btsocket_sco_rt;
 static struct mtx				ng_btsocket_sco_rt_mtx;
 static struct task				ng_btsocket_sco_rt_task;
+static struct timeval				ng_btsocket_sco_lasttime;
+static int					ng_btsocket_sco_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_sco_sockets);
@@ -126,19 +128,23 @@ SYSCTL_INT(_net_bluetooth_sco_sockets_seq, OID_AUTO, queue_drops,
 
 /* Debug */
 #define NG_BTSOCKET_SCO_INFO \
-	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_INFO_LEVEL) \
+	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_INFO_LEVEL && \
+	    ppsratecheck(&ng_btsocket_sco_lasttime, &ng_btsocket_sco_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_SCO_WARN \
-	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_WARN_LEVEL) \
+	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_WARN_LEVEL && \
+	    ppsratecheck(&ng_btsocket_sco_lasttime, &ng_btsocket_sco_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_SCO_ERR \
-	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_ERR_LEVEL) \
+	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_ERR_LEVEL && \
+	    ppsratecheck(&ng_btsocket_sco_lasttime, &ng_btsocket_sco_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_SCO_ALERT \
-	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_ALERT_LEVEL) \
+	if (ng_btsocket_sco_debug_level >= NG_BTSOCKET_ALERT_LEVEL && \
+	    ppsratecheck(&ng_btsocket_sco_lasttime, &ng_btsocket_sco_curpps, 1)) \
 		printf
 
 /* 
