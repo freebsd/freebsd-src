@@ -788,12 +788,17 @@ The search terminates.
 Discard packets that match this rule, and if the
 packet is a TCP packet, try to send a TCP reset (RST) notice.
 The search terminates.
-.It Cm skipto Ar number
+.It Cm skipto Ar number | tablearg
 Skip all subsequent rules numbered less than
 .Ar number .
 The search continues with the first rule numbered
 .Ar number
-or higher.
+or higher. It is possible to use the 
+.Cm tablearg
+keyword with a skipto for a 
+.Em computed
+skipto, but care should be used, as no destination caching
+is possible in this case so the rules are always walked to find it.
 .It Cm tee Ar port
 Send a copy of packets matching this rule to the
 .Xr divert 4
@@ -1619,10 +1624,12 @@ The
 feature provides the ability to use a value, looked up in the table, as
 the argument for a rule action, action parameter or rule option.
 This can significantly reduce number of rules in some configurations.
+If two tables are used in a rule, the result of the second (destination)
+is used.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd
+.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto
 action parameters:
 .Cm tag, untag,
 rule options:
@@ -1635,6 +1642,12 @@ that are in the form of IP addresses or hostnames.
 See the
 .Sx EXAMPLES
 Section for example usage of tables and the tablearg keyword.
+.Pp
+When used with the
+.Cm skipto
+action, the user should be aware that the code will walk the ruleset
+up to a rule equal to, or past, the given number, and should therefore try keep the
+ruleset compact between the skipto and the target rules. 
 .Sh SETS OF RULES
 Each rule belongs to one of 32 different
 .Em sets
