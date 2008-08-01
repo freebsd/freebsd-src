@@ -64,12 +64,6 @@ option.
 It will print a report of all ELF binaries in the current directory,
 which link against libc.so.6:
 .Dl "find . -type f | xargs -n1 file -F " " | grep ELF | cut -f1 -d' ' | xargs ldd -f '%A %o\en' | grep libc.so.6"
-.Sh BUGS
-On 64 bit architectures, dlopen() cannot open 32 bit dynamic libraries,
-so
-.Nm
-will show the error
-.Qq "unsupported file layout" .
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr nm 1 ,
