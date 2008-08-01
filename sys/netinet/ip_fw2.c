@@ -1738,10 +1738,11 @@ send_reject(struct ip_fw_args *args, int code, int ip_len, struct ip *ip)
  */
 
 static struct ip_fw *
-lookup_next_rule(struct ip_fw *me)
+lookup_next_rule(struct ip_fw *me, u_int32_t tablearg)
 {
 	struct ip_fw *rule = NULL;
 	ipfw_insn *cmd;
+	u_int16_t	rulenum;
 
 	/* look for action, in case it is a skipto */
 	cmd = ACTION_PTR(me);
@@ -1751,10 +1752,18 @@ lookup_next_rule(struct ip_fw *me)
 		cmd += F_LEN(cmd);
 	if (cmd->opcode == O_TAG)
 		cmd += F_LEN(cmd);
-	if ( cmd->opcode == O_SKIPTO )
-		for (rule = me->next; rule ; rule = rule->next)
-			if (rule->rulenum >= cmd->arg1)
+	if (cmd->opcode == O_SKIPTO ) {
+		if (tablearg != 0) {
+			rulenum = (u_int16_t)tablearg;
+		} else {
+			rulenum = cmd->arg1;
+		}
+		for (rule = me->next; rule ; rule = rule->next) {
+			if (rule->rulenum >= rulenum) {
 				break;
+			}
+		}
+	}
 	if (rule == NULL)			/* failure or not a skipto */
 		rule = me->next;
 	me->next_rule = rule;
@@ -2475,7 +2484,7 @@ do {									\
 
 		f = args->rule->next_rule;
 		if (f == NULL)
-			f = lookup_next_rule(args->rule);
+			f = lookup_next_rule(args->rule, 0);
 	} else {
 		/*
 		 * Find the starting rule. It can be either the first
@@ -3226,9 +3235,13 @@ check_body:
 				if (cmd->opcode == O_COUNT)
 					goto next_rule;
 				/* handle skipto */
-				if (f->next_rule == NULL)
-					lookup_next_rule(f);
-				f = f->next_rule;
+				if (cmd->arg1 == IP_FW_TABLEARG) {
+					f = lookup_next_rule(f, tablearg);
+				} else {
+					if (f->next_rule == NULL)
+						lookup_next_rule(f, 0);
+					f = f->next_rule;
+				}
 				goto again;
 
 			case O_REJECT:
