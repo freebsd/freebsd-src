@@ -72,16 +72,6 @@
 	.set	PTD,PTmap + (PTDPTDI * PAGE_SIZE)
 	.set	PTDpde,PTD + (PTDPTDI * PDESIZE)
 
-#ifdef SMP
-/*
- * Define layout of per-cpu address space.
- * This is "constructed" in locore.s on the BSP and in mp_machdep.c
- * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
- */
-	.globl	SMP_prvspace
-	.set	SMP_prvspace,(MPPTDI << PDRSHIFT)
-#endif /* SMP */
-
 /*
  * Compiled KERNBASE location and the kernel load address
  */
@@ -105,16 +95,6 @@ bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
 		.globl KERNend
 KERNend:	.long	0		/* phys addr end of kernel (just after bss) */
 physfree:	.long	0		/* phys addr of next free page */
-
-#ifdef SMP
-		.globl	cpu0prvpage
-cpu0pp:		.long	0		/* phys addr cpu0 private pg */
-cpu0prvpage:	.long	0		/* relocated version */
-
-		.globl	SMPpt
-SMPptpa:	.long	0		/* phys addr SMP page table */
-SMPpt:		.long	0		/* relocated version */
-#endif /* SMP */
 
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
@@ -763,20 +743,6 @@ no_kernend:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(vm86paddr)
 
-#ifdef SMP
-/* Allocate cpu0's private data page */
-	ALLOCPAGES(1)
-	movl	%esi,R(cpu0pp)
-	addl	$KERNBASE, %esi
-	movl	%esi, R(cpu0prvpage)	/* relocated to KVM space */
-
-/* Allocate SMP page table page */
-	ALLOCPAGES(1)
-	movl	%esi,R(SMPptpa)
-	addl	$KERNBASE, %esi
-	movl	%esi, R(SMPpt)		/* relocated to KVM space */
-#endif	/* SMP */
-
 /*
  * Enable PSE and PGE.
  */
@@ -853,37 +819,6 @@ no_kernend:
 	movl	$ISA_HOLE_START>>PAGE_SHIFT, %ebx
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkpt(R(vm86pa), $PG_RW|PG_U)
-
-#ifdef SMP
-/* Map cpu0's private page into global kmem (4K @ cpu0prvpage) */
-	movl	R(cpu0pp), %eax
-	movl	$1, %ecx
-	fillkptphys($PG_RW)
-
-/* Map SMP page table page into global kmem FWIW */
-	movl	R(SMPptpa), %eax
-	movl	$1, %ecx
-	fillkptphys($PG_RW)
-
-/* Map the private page into the SMP page table */
-	movl	R(cpu0pp), %eax
-	movl	$0, %ebx		/* pte offset = 0 */
-	movl	$1, %ecx		/* one private page coming right up */
-	fillkpt(R(SMPptpa), $PG_RW)
-
-/* ... and put the page table table in the pde. */
-	movl	R(SMPptpa), %eax
-	movl	$MPPTDI, %ebx
-	movl	$1, %ecx
-	fillkpt(R(IdlePTD), $PG_RW)
-
-/* Fakeup VA for the local apic to allow early traps. */
-	ALLOCPAGES(1)
-	movl	%esi, %eax
-	movl	$(NPTEPG-1), %ebx	/* pte offset = NTEPG-1 */
-	movl	$1, %ecx		/* one private pt coming right up */
-	fillkpt(R(SMPptpa), $PG_RW)
-#endif	/* SMP */
 
 /*
  * Create an identity mapping for low physical memory, including the kernel.
