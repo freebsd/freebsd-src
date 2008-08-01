@@ -1,9 +1,0 @@
-$FreeBSD$
-*.0
-*/.cvsignore
-*autom4te*
-*config.h.in
-*configure
-*contrib
-*regress/*.[0-9]
-*stamp-h.in
