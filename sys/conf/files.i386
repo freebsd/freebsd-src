@@ -235,6 +235,7 @@ dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 net/zlib.c			optional mxge
 dev/nve/if_nve.c		optional nve pci
+dev/nvram/nvram.c		optional nvram isa
 dev/ppc/ppc.c			optional ppc
 dev/ppc/ppc_puc.c		optional ppc puc pci
 dev/random/nehemiah.c		optional random

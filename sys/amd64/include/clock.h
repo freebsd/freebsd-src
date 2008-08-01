@@ -33,7 +33,8 @@ struct clockframe;
 
 int	acquire_timer2(int mode);
 int	release_timer2(void);
-int	rtcin(int val);
+int	rtcin(int reg);
+void	writertc(int reg, unsigned char val);
 int	sysbeep(int pitch, int period);
 void	init_TSC(void);
 void	init_TSC_tc(void);

@@ -52,12 +52,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timetc.h>
+#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/module.h>
@@ -432,8 +435,8 @@ rtcin(reg)
 	return (val);
 }
 
-static __inline void
-writertc(u_char reg, u_char val)
+void
+writertc(int reg, u_char val)
 {
 
 	RTC_LOCK;
@@ -926,4 +929,5 @@ static devclass_t attimer_devclass;
 
 DRIVER_MODULE(attimer, isa, attimer_driver, attimer_devclass, 0, 0);
 DRIVER_MODULE(attimer, acpi, attimer_driver, attimer_devclass, 0, 0);
+
 #endif /* DEV_ISA */

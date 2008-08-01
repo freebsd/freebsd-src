@@ -189,6 +189,7 @@ SUBDIR=	${_3dfx} \
 	ntfs_iconv \
 	nullfs \
 	${_nve} \
+	${_nvram} \
 	${_nwfs} \
 	${_oltr} \
 	${_osf1} \
@@ -379,6 +380,7 @@ _ncp=		ncp
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
+_nvram=		nvram
 _nwfs=		nwfs
 _oltr=		oltr
 _pccard=	pccard
@@ -490,6 +492,7 @@ _mly=		mly
 _mxge=		mxge
 _ndis=		ndis
 _nve=		nve
+_nvram=		nvram
 _ppc=		ppc
 _rr232x=	rr232x
 _safe=		safe
