@@ -108,7 +108,7 @@ struct bpf_d {
 
 #define BPFD_LOCK(bd)		mtx_lock(&(bd)->bd_mtx)
 #define BPFD_UNLOCK(bd)		mtx_unlock(&(bd)->bd_mtx)
-#define BPFD_LOCK_ASSERT(bd)	mtx_assert(&(bd)->bd_mtx, MA_OWNED);
+#define BPFD_LOCK_ASSERT(bd)	mtx_assert(&(bd)->bd_mtx, MA_OWNED)
 
 /*
  * External representation of the bpf descriptor
