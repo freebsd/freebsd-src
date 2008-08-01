@@ -44,9 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "extern.h"
+
+#ifdef COMPAT_32BIT
+#define	LD_	"LD_32_"
+#else
+#define	LD_	"LD_"
+#endif
 
 /*
  * 32-bit ELF data structures can only be used if the system header[s] declare
@@ -66,30 +73,60 @@ static void	usage(void);
 #define	TYPE_ELF	2	/* Architecture default */
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 #define	TYPE_ELF32	3	/* Explicit 32 bits on architectures >32 bits */
-#endif
 
-#define	ENV_OBJECTS		0
-#define	ENV_OBJECTS_FMT1	1
-#define	ENV_OBJECTS_FMT2	2
-#define	ENV_OBJECTS_PROGNAME	3
-#define	ENV_OBJECTS_ALL		4
-#define	ENV_LAST		5
+#define	_PATH_LDD32	"/usr/bin/ldd32"
 
-const char	*envdef[ENV_LAST] = {
-	"LD_TRACE_LOADED_OBJECTS",
-	"LD_TRACE_LOADED_OBJECTS_FMT1",
-	"LD_TRACE_LOADED_OBJECTS_FMT2",
-	"LD_TRACE_LOADED_OBJECTS_PROGNAME",
-	"LD_TRACE_LOADED_OBJECTS_ALL",
-};
-#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-const char	*env32[ENV_LAST] = {
-	"LD_32_TRACE_LOADED_OBJECTS",
-	"LD_32_TRACE_LOADED_OBJECTS_FMT1",
-	"LD_32_TRACE_LOADED_OBJECTS_FMT2",
-	"LD_32_TRACE_LOADED_OBJECTS_PROGNAME",
-	"LD_32_TRACE_LOADED_OBJECTS_ALL",
-};
+static int
+execldd32(char *file, char *fmt1, char *fmt2, int aflag, int vflag)
+{
+	char *argv[8];
+	int i, rval, status;
+
+	unsetenv(LD_ "TRACE_LOADED_OBJECTS");
+
+	rval = 0;
+	i = 0;
+	argv[i++] = strdup(_PATH_LDD32);
+	if (aflag)
+		argv[i++] = strdup("-a");
+	if (vflag)
+		argv[i++] = strdup("-v");
+	if (fmt1) {
+		argv[i++] = strdup("-f");
+		argv[i++] = strdup(fmt1);
+	}
+	if (fmt2) {
+		argv[i++] = strdup("-f");
+		argv[i++] = strdup(fmt2);
+	}
+
+	argv[i++] = strdup(file);
+	argv[i++] = NULL;
+
+	switch (fork()) {
+	case -1:
+		err(1, "fork");
+		break;
+	case 0:
+		execv(_PATH_LDD32, argv);
+		warn("%s", _PATH_LDD32);
+		_exit(1);
+		break;
+	default:
+		if (wait(&status) <= 0) {
+			rval = 1;
+		} else if (WIFSIGNALED(status)) {
+			rval = 1;
+		} else if (WIFEXITED(status) && WEXITSTATUS(status)) {
+			rval = 1;
+		}
+		break;
+	}
+	while (i--)
+		free(argv[i]);
+	setenv(LD_ "TRACE_LOADED_OBJECTS", "yes", 1);
+	return (rval);
+}
 #endif
 
 int
@@ -144,7 +181,6 @@ main(int argc, char *argv[])
 	rval = 0;
 	for (; argc > 0; argc--, argv++) {
 		int fd, status, is_shlib, rv, type;
-		const char **env;
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
@@ -161,12 +197,11 @@ main(int argc, char *argv[])
 		switch (type) {
 		case TYPE_ELF:
 		case TYPE_AOUT:
-			env = envdef;
 			break;
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
 		case TYPE_ELF32:
-			env = env32;
-			break;
+			rval |= execldd32(*argv, fmt1, fmt2, aflag, vflag);
+			continue;
 #endif
 		case TYPE_UNKNOWN:
 		default:
@@ -178,15 +213,15 @@ main(int argc, char *argv[])
 		}
 
 		/* ld.so magic */
-		setenv(env[ENV_OBJECTS], "yes", 1);
+		setenv(LD_ "TRACE_LOADED_OBJECTS", "yes", 1);
 		if (fmt1 != NULL)
-			setenv(env[ENV_OBJECTS_FMT1], fmt1, 1);
+			setenv(LD_ "TRACE_LOADED_OBJECTS_FMT1", fmt1, 1);
 		if (fmt2 != NULL)
-			setenv(env[ENV_OBJECTS_FMT2], fmt2, 1);
+			setenv(LD_ "TRACE_LOADED_OBJECTS_FMT2", fmt2, 1);
 
-		setenv(env[ENV_OBJECTS_PROGNAME], *argv, 1);
+		setenv(LD_ "TRACE_LOADED_OBJECTS_PROGNAME", *argv, 1);
 		if (aflag)
-			setenv(env[ENV_OBJECTS_ALL], "1", 1);
+			setenv(LD_ "TRACE_LOADED_OBJECTS_ALL", "1", 1);
 		else if (fmt1 == NULL && fmt2 == NULL)
 			/* Default formats */
 			printf("%s:\n", *argv);
