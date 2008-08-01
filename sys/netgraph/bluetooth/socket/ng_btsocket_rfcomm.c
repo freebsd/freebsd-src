@@ -71,19 +71,23 @@ MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
 
 /* Debug */
 #define NG_BTSOCKET_RFCOMM_INFO \
-	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_INFO_LEVEL) \
+	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_INFO_LEVEL && \
+	    ppsratecheck(&ng_btsocket_rfcomm_lasttime, &ng_btsocket_rfcomm_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_RFCOMM_WARN \
-	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_WARN_LEVEL) \
+	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_WARN_LEVEL && \
+	    ppsratecheck(&ng_btsocket_rfcomm_lasttime, &ng_btsocket_rfcomm_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_RFCOMM_ERR \
-	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_ERR_LEVEL) \
+	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_ERR_LEVEL && \
+	    ppsratecheck(&ng_btsocket_rfcomm_lasttime, &ng_btsocket_rfcomm_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_RFCOMM_ALERT \
-	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_ALERT_LEVEL) \
+	if (ng_btsocket_rfcomm_debug_level >= NG_BTSOCKET_ALERT_LEVEL && \
+	    ppsratecheck(&ng_btsocket_rfcomm_lasttime, &ng_btsocket_rfcomm_curpps, 1)) \
 		printf
 
 #define	ALOT	0x7fff
@@ -191,6 +195,8 @@ static LIST_HEAD(, ng_btsocket_rfcomm_session)	ng_btsocket_rfcomm_sessions;
 static struct mtx				ng_btsocket_rfcomm_sessions_mtx;
 static LIST_HEAD(, ng_btsocket_rfcomm_pcb)	ng_btsocket_rfcomm_sockets;
 static struct mtx				ng_btsocket_rfcomm_sockets_mtx;
+static struct timeval				ng_btsocket_rfcomm_lasttime;
+static int					ng_btsocket_rfcomm_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_rfcomm_sockets);
