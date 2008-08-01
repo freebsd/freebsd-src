@@ -26,16 +26,10 @@ pio2_hi =  1.5707962513e+00; /* 0x3fc90fda */
 static volatile float
 pio2_lo =  7.5497894159e-08; /* 0x33a22168 */
 static const float
-pS0 =  1.6666667163e-01, /* 0x3e2aaaab */
-pS1 = -3.2556581497e-01, /* 0xbea6b090 */
-pS2 =  2.0121252537e-01, /* 0x3e4e0aa8 */
-pS3 = -4.0055535734e-02, /* 0xbd241146 */
-pS4 =  7.9153501429e-04, /* 0x3a4f7f04 */
-pS5 =  3.4793309169e-05, /* 0x3811ef08 */
-qS1 = -2.4033949375e+00, /* 0xc019d139 */
-qS2 =  2.0209457874e+00, /* 0x4001572d */
-qS3 = -6.8828397989e-01, /* 0xbf303361 */
-qS4 =  7.7038154006e-02; /* 0x3d9dc62e */
+pS0 =  1.6666586697e-01,
+pS1 = -4.2743422091e-02,
+pS2 = -8.6563630030e-03,
+qS1 = -7.0662963390e-01;
 
 float
 __ieee754_acosf(float x)
@@ -51,16 +45,16 @@ __ieee754_acosf(float x)
 	    return (x-x)/(x-x);		/* acos(|x|>1) is NaN */
 	}
 	if(ix<0x3f000000) {	/* |x| < 0.5 */
-	    if(ix<=0x23000000) return pio2_hi+pio2_lo;/*if|x|<2**-57*/
+	    if(ix<=0x32800000) return pio2_hi+pio2_lo;/*if|x|<2**-26*/
 	    z = x*x;
-	    p = z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))));
-	    q = one+z*(qS1+z*(qS2+z*(qS3+z*qS4)));
+	    p = z*(pS0+z*(pS1+z*pS2));
+	    q = one+z*qS1;
 	    r = p/q;
 	    return pio2_hi - (x - (pio2_lo-x*r));
 	} else  if (hx<0) {		/* x < -0.5 */
 	    z = (one+x)*(float)0.5;
-	    p = z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))));
-	    q = one+z*(qS1+z*(qS2+z*(qS3+z*qS4)));
+	    p = z*(pS0+z*(pS1+z*pS2));
+	    q = one+z*qS1;
 	    s = __ieee754_sqrtf(z);
 	    r = p/q;
 	    w = r*s-pio2_lo;
@@ -73,8 +67,8 @@ __ieee754_acosf(float x)
 	    GET_FLOAT_WORD(idf,df);
 	    SET_FLOAT_WORD(df,idf&0xfffff000);
 	    c  = (z-df*df)/(s+df);
-	    p = z*(pS0+z*(pS1+z*(pS2+z*(pS3+z*(pS4+z*pS5)))));
-	    q = one+z*(qS1+z*(qS2+z*(qS3+z*qS4)));
+	    p = z*(pS0+z*(pS1+z*pS2));
+	    q = one+z*qS1;
 	    r = p/q;
 	    w = r*s+c;
 	    return (float)2.0*(df+w);
