@@ -1832,6 +1832,9 @@ ng_btsocket_sco_pcb_by_addr(bdaddr_p bdaddr)
 		mtx_unlock(&p->pcb_mtx);
 	}
 
+	if (p1 != NULL)
+		mtx_lock(&p1->pcb_mtx);
+
 	return (p1);
 } /* ng_btsocket_sco_pcb_by_addr */
 
