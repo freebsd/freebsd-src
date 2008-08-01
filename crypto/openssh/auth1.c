@@ -1,4 +1,4 @@
-/* $OpenBSD: auth1.c,v 1.70 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth1.c,v 1.73 2008/07/04 23:30:16 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <pwd.h>
 
+#include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
 #include "rsa.h"
 #include "ssh1.h"
@@ -283,6 +284,8 @@ do_authloop(Authctxt *authctxt)
 		    type != SSH_CMSG_AUTH_TIS_RESPONSE)
 			abandon_challenge_response(authctxt);
 
+		if (authctxt->failures >= options.max_authtries)
+			goto skip;
 		if ((meth = lookup_authmethod1(type)) == NULL) {
 			logit("Unknown message during authentication: "
 			    "type %d", type);
@@ -351,7 +354,7 @@ do_authloop(Authctxt *authctxt)
 					msg[len] = '\0';
 			else
 				msg = "Access denied.";
-			packet_disconnect(msg);
+			packet_disconnect("%s", msg);
 		}
 #endif
 
@@ -367,7 +370,7 @@ do_authloop(Authctxt *authctxt)
 		if (authenticated)
 			return;
 
-		if (authctxt->failures++ > options.max_authtries) {
+		if (++authctxt->failures >= options.max_authtries) {
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
 #endif

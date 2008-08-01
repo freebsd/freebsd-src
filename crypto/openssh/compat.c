@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.76 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: compat.c,v 1.77 2006/12/12 03:58:42 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -133,7 +133,8 @@ compat_datafellows(const char *version)
 		{ "2.3.*",		SSH_BUG_DEBUG|SSH_BUG_RSASIGMD5|
 					SSH_BUG_FIRSTKEX },
 		{ "2.4",		SSH_OLD_SESSIONID },	/* Van Dyke */
-		{ "2.*",		SSH_BUG_DEBUG|SSH_BUG_FIRSTKEX },
+		{ "2.*",		SSH_BUG_DEBUG|SSH_BUG_FIRSTKEX|
+					SSH_BUG_RFWD_ADDR },
 		{ "3.0.*",		SSH_BUG_DEBUG },
 		{ "3.0 SecureCRT*",	SSH_OLD_SESSIONID },
 		{ "1.7 SecureFX*",	SSH_OLD_SESSIONID },

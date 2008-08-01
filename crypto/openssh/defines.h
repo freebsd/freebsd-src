@@ -25,7 +25,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.138 2006/09/21 13:13:30 dtucker Exp $ */
+/* $Id: defines.h,v 1.151 2008/07/04 13:10:49 djm Exp $ */
 
 
 /* Constants */
@@ -68,7 +68,7 @@ enum
 # endif
 #endif
 
-#ifndef MAXSYMLINKS
+#if defined(HAVE_DECL_MAXSYMLINKS) && HAVE_DECL_MAXSYMLINKS == 0
 # define MAXSYMLINKS 5
 #endif
 
@@ -321,12 +321,6 @@ struct winsize {
 #ifndef _PATH_BSHELL
 # define _PATH_BSHELL "/bin/sh"
 #endif
-#ifndef _PATH_CSHELL
-# define _PATH_CSHELL "/bin/csh"
-#endif
-#ifndef _PATH_SHELLS
-# define _PATH_SHELLS "/etc/shells"
-#endif
 
 #ifdef USER_PATH
 # ifdef _PATH_STDPATH
@@ -437,16 +431,16 @@ struct winsize {
 # define __attribute__(x)
 #endif /* !defined(__GNUC__) || (__GNUC__ < 2) */
 
-#ifndef __dead
-# define __dead	__attribute__((noreturn))
-#endif
-
 #if !defined(HAVE_ATTRIBUTE__SENTINEL__) && !defined(__sentinel__)
 # define __sentinel__
 #endif
 
 #if !defined(HAVE_ATTRIBUTE__BOUNDED__) && !defined(__bounded__)
 # define __bounded__(x, y, z)
+#endif
+
+#if !defined(HAVE_ATTRIBUTE__NONNULL__) && !defined(__nonnull__)
+# define __nonnull__(x)
 #endif
 
 /* *-*-nto-qnx doesn't define this macro in the system headers */
@@ -487,7 +481,7 @@ struct winsize {
 	 (struct cmsghdr *)NULL)
 #endif /* CMSG_FIRSTHDR */
 
-#ifndef offsetof
+#if defined(HAVE_DECL_OFFSETOF) && HAVE_DECL_OFFSETOF == 0
 # define offsetof(type, member) ((size_t) &((type *)0)->member)
 #endif
 
@@ -542,6 +536,10 @@ struct winsize {
 # undef HAVE_UPDWTMPX
 #endif
 
+#if defined(BROKEN_SHADOW_EXPIRE) && defined(HAS_SHADOW_EXPIRE)
+# undef HAS_SHADOW_EXPIRE
+#endif
+
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT) && \
     defined(SYSLOG_R_SAFE_IN_SIGHAND)
 # define DO_LOG_SAFE_IN_SIGHAND
@@ -565,11 +563,6 @@ struct winsize {
 # define CUSTOM_SSH_AUDIT_EVENTS
 #endif
 
-/* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
-#if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
-# define OPENSSL_free(x) Free(x)
-#endif
-
 #if !defined(HAVE___func__) && defined(HAVE___FUNCTION__)
 #  define __func__ __FUNCTION__
 #elif !defined(HAVE___func__)
@@ -591,6 +584,15 @@ struct winsize {
 # define SSH_SYSFDMAX sysconf(_SC_OPEN_MAX)
 #else
 # define SSH_SYSFDMAX 10000
+#endif
+
+#ifdef FSID_HAS_VAL
+/* encode f_fsid into a 64 bit value  */
+#define FSID_TO_ULONG(f) \
+	((((u_int64_t)(f).val[0] & 0xffffffffUL) << 32) | \
+	    ((f).val[1] & 0xffffffffUL))
+#else
+# define FSID_TO_ULONG(f) ((f))
 #endif
 
 #if defined(__Lynx__)
@@ -696,8 +698,11 @@ struct winsize {
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
-#ifdef HAVE_LIBIAF
+#if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID)
 # define CUSTOM_SYS_AUTH_PASSWD 1
+#endif
+#if defined(HAVE_LIBIAF) && defined(HAVE_SET_ID) && !defined(BROKEN_LIBIAF)
+# define USE_LIBIAF
 #endif
 
 /* HP-UX 11.11 */
@@ -727,6 +732,10 @@ struct winsize {
 # else
 #  define	IOV_MAX		16
 # endif
+#endif
+
+#ifndef EWOULDBLOCK
+# define EWOULDBLOCK EAGAIN
 #endif
 
 #endif /* _DEFINES_H */

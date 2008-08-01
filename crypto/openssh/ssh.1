@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.265 2006/10/28 18:08:10 otto Exp $
+.\" $OpenBSD: ssh.1,v 1.277 2008/07/02 13:47:39 djm Exp $
 .\" $FreeBSD$
-.Dd September 25, 1999
+.Dd $Mdocdate: July 2 2008 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Op Fl 1246AaCfgkMNnqsTtVvXxY
+.Op Fl 1246AaCfgKkMNnqsTtVvXxY
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Oo Fl D\ \&
@@ -291,6 +291,15 @@ This implies
 The recommended way to start X11 programs at a remote site is with
 something like
 .Ic ssh -f host xterm .
+.Pp
+If the
+.Cm ExitOnForwardFailure
+configuration option is set to
+.Dq yes ,
+then a client started with
+.Fl f
+will wait for all remote port forwards to be successfully established
+before placing itself in the background.
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
 .It Fl I Ar smartcard_device
@@ -316,6 +325,9 @@ It is possible to have multiple
 .Fl i
 options (and multiple identities specified in
 configuration files).
+.It Fl K
+Enables GSSAPI-based authentication and forwarding (delegation) of GSSAPI
+credentials to the server.
 .It Fl k
 Disables forwarding (delegation) of GSSAPI credentials to the server.
 .It Fl L Xo
@@ -497,6 +509,7 @@ For full details of the options listed below, and their possible values, see
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
 .It VersionAddendum
+.It VisualHostKey
 .It XAuthLocation
 .El
 .It Fl p Ar port
@@ -505,7 +518,7 @@ This can be specified on a
 per-host basis in the configuration file.
 .It Fl q
 Quiet mode.
-Causes all warning and diagnostic messages to be suppressed.
+Causes most warning and diagnostic messages to be suppressed.
 .It Fl R Xo
 .Sm off
 .Oo Ar bind_address : Oc
@@ -676,7 +689,7 @@ Both protocols support similar authentication methods,
 but protocol 2 is preferred since
 it provides additional mechanisms for confidentiality
 (the traffic is encrypted using AES, 3DES, Blowfish, CAST128, or Arcfour)
-and integrity (hmac-md5, hmac-sha1, hmac-ripemd160).
+and integrity (hmac-md5, hmac-sha1, umac-64, hmac-ripemd160).
 Protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Pp
@@ -1026,9 +1039,31 @@ Fingerprints can be determined using
 .Pp
 .Dl $ ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key
 .Pp
-If the fingerprint is already known,
-it can be matched and verified,
-and the key can be accepted.
+If the fingerprint is already known, it can be matched
+and the key can be accepted or rejected.
+Because of the difficulty of comparing host keys
+just by looking at hex strings,
+there is also support to compare host keys visually,
+using
+.Em random art .
+By setting the
+.Cm VisualHostKey
+option to
+.Dq yes ,
+a small ASCII graphic gets displayed on every login to a server, no matter
+if the session itself is interactive or not.
+By learning the pattern a known server produces, a user can easily
+find out that the host key has changed when a completely different pattern
+is displayed.
+Because these patterns are not unambiguous however, a pattern that looks
+similar to the pattern remembered only gives a good probability that the
+host key is the same, not guaranteed proof.
+.Pp
+To get a listing of the fingerprints along with their random art for
+all known hosts, the following command line can be used:
+.Pp
+.Dl $ ssh-keygen -lv -f ~/.ssh/known_hosts
+.Pp
 If the fingerprint is unknown,
 an alternative method of verification is available:
 SSH fingerprints verified by DNS.
@@ -1244,6 +1279,13 @@ This file is used in exactly the same way as
 but allows host-based authentication without permitting login with
 rlogin/rsh.
 .Pp
+.It ~/.ssh/
+This directory is the default location for all user-specific configuration
+and authentication information.
+There is no general requirement to keep the entire contents of this directory
+secret, but the recommended permissions are read/write/execute for the user,
+and not accessible by others.
+.Pp
 .It ~/.ssh/authorized_keys
 Lists the public keys (RSA/DSA) that can be used for logging in as this user.
 The format of this file is described in the
@@ -1419,6 +1461,18 @@ manual page for more information.
 .%R RFC 4419
 .%T "Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol"
 .%D 2006
+.Re
+.Rs
+.%R RFC 4716
+.%T "The Secure Shell (SSH) Public Key File Format"
+.%D 2006
+.Re
+.Rs
+.%T "Hash Visualization: a New Technique to improve Real-World Security"
+.%A A. Perrig
+.%A D. Song
+.%D 1999
+.%O "International Workshop on Cryptographic Techniques and E-Commerce (CrypTEC '99)"
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free

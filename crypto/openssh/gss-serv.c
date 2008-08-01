@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.20 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.22 2008/05/08 12:02:23 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -29,11 +29,13 @@
 #ifdef GSSAPI
 
 #include <sys/types.h>
+#include <sys/param.h>
 
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
 #include "buffer.h"
 #include "key.h"
@@ -63,6 +65,53 @@ ssh_gssapi_mech* supported_mechs[]= {
 #endif
 	&gssapi_null_mech,
 };
+
+
+/*
+ * Acquire credentials for a server running on the current host.
+ * Requires that the context structure contains a valid OID
+ */
+
+/* Returns a GSSAPI error code */
+/* Privileged (called from ssh_gssapi_server_ctx) */
+static OM_uint32
+ssh_gssapi_acquire_cred(Gssctxt *ctx)
+{
+	OM_uint32 status;
+	char lname[MAXHOSTNAMELEN];
+	gss_OID_set oidset;
+
+	gss_create_empty_oid_set(&status, &oidset);
+	gss_add_oid_set_member(&status, ctx->oid, &oidset);
+
+	if (gethostname(lname, MAXHOSTNAMELEN)) {
+		gss_release_oid_set(&status, &oidset);
+		return (-1);
+	}
+
+	if (GSS_ERROR(ssh_gssapi_import_name(ctx, lname))) {
+		gss_release_oid_set(&status, &oidset);
+		return (ctx->major);
+	}
+
+	if ((ctx->major = gss_acquire_cred(&ctx->minor,
+	    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds, NULL, NULL)))
+		ssh_gssapi_error(ctx);
+
+	gss_release_oid_set(&status, &oidset);
+	return (ctx->major);
+}
+
+/* Privileged */
+OM_uint32
+ssh_gssapi_server_ctx(Gssctxt **ctx, gss_OID oid)
+{
+	if (*ctx)
+		ssh_gssapi_delete_ctx(ctx);
+	ssh_gssapi_build_ctx(ctx);
+	ssh_gssapi_set_oid(*ctx, oid);
+	return (ssh_gssapi_acquire_cred(*ctx));
+}
 
 /* Unprivileged */
 void

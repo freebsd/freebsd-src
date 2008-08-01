@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.159 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: readconf.c,v 1.167 2008/06/26 11:46:31 grunk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -131,6 +131,7 @@ typedef enum {
 	oServerAliveInterval, oServerAliveCountMax, oIdentitiesOnly,
 	oSendEnv, oControlPath, oControlMaster, oHashKnownHosts,
 	oTunnel, oTunnelDevice, oLocalCommand, oPermitLocalCommand,
+	oVisualHostKey,
 	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
@@ -228,6 +229,7 @@ static struct {
 	{ "tunneldevice", oTunnelDevice },
 	{ "localcommand", oLocalCommand },
 	{ "permitlocalcommand", oPermitLocalCommand },
+	{ "visualhostkey", oVisualHostKey },
 	{ "versionaddendum", oVersionAddendum },
 	{ NULL, oBadOption }
 };
@@ -329,6 +331,7 @@ process_config_line(Options *options, const char *host,
 {
 	char *s, **charptr, *endofnumber, *keyword, *arg, *arg2, fwdarg[256];
 	int opcode, *intptr, value, value2, scale;
+	LogLevel *log_level_ptr;
 	long long orig, val64;
 	size_t len;
 	Forward fwd;
@@ -367,7 +370,7 @@ parse_time:
 		if ((value = convtime(arg)) == -1)
 			fatal("%s line %d: invalid time value.",
 			    filename, linenum);
-		if (*intptr == -1)
+		if (*activep && *intptr == -1)
 			*intptr = value;
 		break;
 
@@ -501,7 +504,6 @@ parse_yesnoask:
 		goto parse_int;
 
 	case oRekeyLimit:
-		intptr = &options->rekey_limit;
 		arg = strdelim(&s);
 		if (!arg || *arg == '\0')
 			fatal("%.200s line %d: Missing argument.", filename, linenum);
@@ -529,14 +531,14 @@ parse_yesnoask:
 		}
 		val64 *= scale;
 		/* detect integer wrap and too-large limits */
-		if ((val64 / scale) != orig || val64 > INT_MAX)
+		if ((val64 / scale) != orig || val64 > UINT_MAX)
 			fatal("%.200s line %d: RekeyLimit too large",
 			    filename, linenum);
 		if (val64 < 16)
 			fatal("%.200s line %d: RekeyLimit too small",
 			    filename, linenum);
-		if (*activep && *intptr == -1)
-			*intptr = (int)val64;
+		if (*activep && options->rekey_limit == -1)
+			options->rekey_limit = (u_int32_t)val64;
 		break;
 
 	case oIdentityFile:
@@ -548,7 +550,7 @@ parse_yesnoask:
 			if (*intptr >= SSH_MAX_IDENTITY_FILES)
 				fatal("%.200s line %d: Too many identity files specified (max %d).",
 				    filename, linenum, SSH_MAX_IDENTITY_FILES);
-			charptr =  &options->identity_files[*intptr];
+			charptr = &options->identity_files[*intptr];
 			*charptr = xstrdup(arg);
 			*intptr = *intptr + 1;
 		}
@@ -695,14 +697,14 @@ parse_int:
 		break;
 
 	case oLogLevel:
-		intptr = (int *) &options->log_level;
+		log_level_ptr = &options->log_level;
 		arg = strdelim(&s);
 		value = log_level_number(arg);
 		if (value == SYSLOG_LEVEL_NOT_SET)
 			fatal("%.200s line %d: unsupported log level '%s'",
 			    filename, linenum, arg ? arg : "<NONE>");
-		if (*activep && (LogLevel) *intptr == SYSLOG_LEVEL_NOT_SET)
-			*intptr = (LogLevel) value;
+		if (*activep && *log_level_ptr == SYSLOG_LEVEL_NOT_SET)
+			*log_level_ptr = (LogLevel) value;
 		break;
 
 	case oLocalForward:
@@ -918,6 +920,10 @@ parse_int:
 		intptr = &options->permit_local_command;
 		goto parse_flag;
 
+	case oVisualHostKey:
+		intptr = &options->visual_host_key;
+		goto parse_flag;
+
 	case oVersionAddendum:
 		ssh_version_set_addendum(strtok(s, "\n"));
 		do {
@@ -1075,6 +1081,7 @@ initialize_options(Options * options)
 	options->tun_remote = -1;
 	options->local_command = NULL;
 	options->permit_local_command = -1;
+	options->visual_host_key = -1;
 }
 
 /*
@@ -1209,6 +1216,8 @@ fill_default_options(Options * options)
 		options->tun_remote = SSH_TUNID_ANY;
 	if (options->permit_local_command == -1)
 		options->permit_local_command = 0;
+	if (options->visual_host_key == -1)
+		options->visual_host_key = 0;
 	/* options->local_command should not be set by default */
 	/* options->proxy_command should not be set by default */
 	/* options->user will be set in the main program if appropriate */
@@ -1234,7 +1243,7 @@ parse_forward(Forward *fwd, const char *fwdspec)
 	cp = p = xstrdup(fwdspec);
 
 	/* skip leading spaces */
-	while (*cp && isspace(*cp))
+	while (isspace(*cp))
 		cp++;
 
 	for (i = 0; i < 4; ++i)
@@ -1265,7 +1274,7 @@ parse_forward(Forward *fwd, const char *fwdspec)
 
 	xfree(p);
 
-	if (fwd->listen_port == 0 && fwd->connect_port == 0)
+	if (fwd->listen_port == 0 || fwd->connect_port == 0)
 		goto fail_free;
 
 	if (fwd->connect_host != NULL &&

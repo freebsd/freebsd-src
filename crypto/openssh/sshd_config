@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.74 2006/07/19 13:07:10 dtucker Exp $
+#	$OpenBSD: sshd_config,v 1.80 2008/07/02 02:24:18 djm Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -14,7 +14,7 @@
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
 
-#VersionAddendum FreeBSD-20061110
+#VersionAddendum FreeBSD-20080801
 
 #Port 22
 #Protocol 2
@@ -22,14 +22,20 @@
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 
+# Disable legacy (protocol version 1) support in the server for new
+# installations. In future the default will change to require explicit
+# activation of protocol 1
+Protocol 2
+
 # HostKey for protocol version 1
 #HostKey /etc/ssh/ssh_host_key
 # HostKeys for protocol version 2
+#HostKey /etc/ssh/ssh_host_rsa_key
 #HostKey /etc/ssh/ssh_host_dsa_key
 
 # Lifetime and size of ephemeral version 1 server key
 #KeyRegenerationInterval 1h
-#ServerKeyBits 768
+#ServerKeyBits 1024
 
 # Logging
 # obsoletes QuietMode and FascistLogging
@@ -42,6 +48,7 @@
 #PermitRootLogin no
 #StrictModes yes
 #MaxAuthTries 6
+#MaxSessions 10
 
 #RSAAuthentication yes
 #PubkeyAuthentication yes
@@ -85,6 +92,7 @@
 # and ChallengeResponseAuthentication to 'no'.
 #UsePAM yes
 
+#AllowAgentForwarding yes
 #AllowTcpForwarding yes
 #GatewayPorts no
 #X11Forwarding yes
@@ -103,9 +111,10 @@
 #PidFile /var/run/sshd.pid
 #MaxStartups 10
 #PermitTunnel no
+#ChrootDirectory none
 
 # no default banner path
-#Banner /some/path
+#Banner none
 
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server

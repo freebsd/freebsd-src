@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.64 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: misc.c,v 1.69 2008/06/13 01:38:23 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -42,6 +42,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #ifdef HAVE_PATHS_H
 # include <paths.h>
 #include <pwd.h>
@@ -118,6 +119,14 @@ unset_nonblock(int fd)
 		return (-1);
 	}
 	return (0);
+}
+
+const char *
+ssh_gai_strerror(int gaierr)
+{
+	if (gaierr == EAI_SYSTEM)
+		return strerror(errno);
+	return gai_strerror(gaierr);
 }
 
 /* disable nagle on socket */
@@ -525,7 +534,7 @@ tilde_expand_filename(const char *filename, uid_t uid)
 		if ((pw = getpwnam(user)) == NULL)
 			fatal("tilde_expand_filename: No such user %s", user);
 	} else if ((pw = getpwuid(uid)) == NULL)	/* ~/path */
-		fatal("tilde_expand_filename: No such uid %d", uid);
+		fatal("tilde_expand_filename: No such uid %ld", (long)uid);
 
 	if (strlcpy(ret, pw->pw_dir, sizeof(ret)) >= sizeof(ret))
 		fatal("tilde_expand_filename: Path too long");
@@ -616,6 +625,8 @@ read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
    u_long *lineno)
 {
 	while (fgets(buf, bufsz, f) != NULL) {
+		if (buf[0] == '\0')
+			continue;
 		(*lineno)++;
 		if (buf[strlen(buf) - 1] == '\n' || feof(f)) {
 			return 0;
@@ -821,3 +832,23 @@ put_u16(void *vp, u_int16_t v)
 	p[0] = (u_char)(v >> 8) & 0xff;
 	p[1] = (u_char)v & 0xff;
 }
+
+void
+ms_subtract_diff(struct timeval *start, int *ms)
+{
+	struct timeval diff, finish;
+
+	gettimeofday(&finish, NULL);
+	timersub(&finish, start, &diff);	
+	*ms -= (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+}
+
+void
+ms_to_timeval(struct timeval *tv, int ms)
+{
+	if (ms < 0)
+		ms = 0;
+	tv->tv_sec = ms / 1000;
+	tv->tv_usec = (ms % 1000) * 1000;
+}
+

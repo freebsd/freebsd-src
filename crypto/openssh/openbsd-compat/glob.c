@@ -1,4 +1,4 @@
-/*	$OpenBSD: glob.c,v 1.25 2005/08/08 08:05:34 espie Exp $ */
+/*	$OpenBSD: glob.c,v 1.26 2005/11/28 17:50:12 deraadt Exp $ */
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -48,7 +48,8 @@
 
 #if !defined(HAVE_GLOB) || !defined(GLOB_HAS_ALTDIRFUNC) || \
     !defined(GLOB_HAS_GL_MATCHC) || \
-    !defined(HAVE_DECL_GLOB_NOMATCH) || HAVE_DECL_GLOB_NOMATCH == 0
+    !defined(HAVE_DECL_GLOB_NOMATCH) || HAVE_DECL_GLOB_NOMATCH == 0 || \
+    defined(BROKEN_GLOB)
 
 static long
 get_arg_max(void)
@@ -149,7 +150,7 @@ static int	 glob0(const Char *, glob_t *);
 static int	 glob1(Char *, Char *, glob_t *, size_t *);
 static int	 glob2(Char *, Char *, Char *, Char *, Char *, Char *,
 		    glob_t *, size_t *);
-static int	 glob3(Char *, Char *, Char *, Char *, Char *, Char *,
+static int	 glob3(Char *, Char *, Char *, Char *, Char *,
 		    Char *, Char *, glob_t *, size_t *);
 static int	 globextend(const Char *, glob_t *, size_t *);
 static const Char *
@@ -571,16 +572,16 @@ glob2(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
 		} else
 			/* Need expansion, recurse. */
 			return(glob3(pathbuf, pathbuf_last, pathend,
-			    pathend_last, pattern, pattern_last,
-			    p, pattern_last, pglob, limitp));
+			    pathend_last, pattern, p, pattern_last,
+			    pglob, limitp));
 	}
 	/* NOTREACHED */
 }
 
 static int
 glob3(Char *pathbuf, Char *pathbuf_last, Char *pathend, Char *pathend_last,
-    Char *pattern, Char *pattern_last, Char *restpattern,
-    Char *restpattern_last, glob_t *pglob, size_t *limitp)
+    Char *pattern, Char *restpattern, Char *restpattern_last, glob_t *pglob,
+    size_t *limitp)
 {
 	struct dirent *dp;
 	DIR *dirp;

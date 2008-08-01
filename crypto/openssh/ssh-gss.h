@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-gss.h,v 1.9 2006/08/18 14:40:34 djm Exp $ */
+/* $OpenBSD: ssh-gss.h,v 1.10 2007/06/12 08:20:00 djm Exp $ */
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
  *
@@ -105,7 +105,6 @@ void ssh_gssapi_supported_oids(gss_OID_set *);
 ssh_gssapi_mech *ssh_gssapi_get_ctype(Gssctxt *);
 
 OM_uint32 ssh_gssapi_import_name(Gssctxt *, const char *);
-OM_uint32 ssh_gssapi_acquire_cred(Gssctxt *);
 OM_uint32 ssh_gssapi_init_ctx(Gssctxt *, int,
     gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
 OM_uint32 ssh_gssapi_accept_ctx(Gssctxt *,
@@ -116,11 +115,11 @@ char *ssh_gssapi_last_error(Gssctxt *, OM_uint32 *, OM_uint32 *);
 void ssh_gssapi_build_ctx(Gssctxt **);
 void ssh_gssapi_delete_ctx(Gssctxt **);
 OM_uint32 ssh_gssapi_sign(Gssctxt *, gss_buffer_t, gss_buffer_t);
-OM_uint32 ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 void ssh_gssapi_buildmic(Buffer *, const char *, const char *, const char *);
 int ssh_gssapi_check_mechanism(Gssctxt **, gss_OID, const char *);
 
 /* In the server */
+OM_uint32 ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 int ssh_gssapi_userok(char *name);
 OM_uint32 ssh_gssapi_checkmic(Gssctxt *, gss_buffer_t, gss_buffer_t);
 void ssh_gssapi_do_child(char ***, u_int *);

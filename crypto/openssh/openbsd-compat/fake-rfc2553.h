@@ -1,4 +1,4 @@
-/* $Id: fake-rfc2553.h,v 1.13 2006/07/24 03:51:52 djm Exp $ */
+/* $Id: fake-rfc2553.h,v 1.16 2008/07/14 11:37:37 djm Exp $ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
@@ -77,6 +77,7 @@ struct sockaddr_in6 {
 	u_int16_t	sin6_port;
 	u_int32_t	sin6_flowinfo;
 	struct in6_addr	sin6_addr;
+	u_int32_t	sin6_scope_id;
 };
 #endif /* !HAVE_STRUCT_SOCKADDR_IN6 */
 
@@ -128,6 +129,9 @@ struct sockaddr_in6 {
 #ifndef EAI_SYSTEM
 # define EAI_SYSTEM	(INT_MAX - 4)
 #endif
+#ifndef EAI_FAMILY
+# define EAI_FAMILY	(INT_MAX - 5)
+#endif
 
 #ifndef HAVE_STRUCT_ADDRINFO
 struct addrinfo {
@@ -152,7 +156,7 @@ int getaddrinfo(const char *, const char *,
 #endif /* !HAVE_GETADDRINFO */
 
 #if !defined(HAVE_GAI_STRERROR) && !defined(HAVE_CONST_GAI_STRERROR_PROTO)
-#define gai_strerror(a)		(ssh_gai_strerror(a))
+#define gai_strerror(a)		(_ssh_compat_gai_strerror(a))
 char *gai_strerror(int);
 #endif /* !HAVE_GAI_STRERROR */
 
