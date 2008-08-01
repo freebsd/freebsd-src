@@ -237,7 +237,7 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		if (bpf_peers_present(loif->if_bpf)) {
 			if ((m->m_flags & M_MCAST) == 0 || loif == ifp) {
 				/* XXX beware sizeof(af) != 4 */
-				u_int32_t af1 = af;	
+				u_int32_t af1 = af;
 
 				/*
 				 * We need to prepend the address family.
