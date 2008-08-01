@@ -47,10 +47,10 @@ char **argv;
 	SVCXPRT *transp;
 	struct hostent *he;
 	struct stat buf;
-	char c;
+	int c;
 
 	while ((c = getopt(argc, argv,"dsr:f:")) != -1)
-	  switch (c) {
+	  switch ((char)c) {
 	  case 'd':
 	    debug = 1;
 	    break;
