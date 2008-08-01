@@ -222,6 +222,8 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 static int	pmap_pvh_wired_mappings(struct md_page *pvh, int count);
 
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
+static boolean_t pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
+    vm_offset_t va);
 static boolean_t pmap_enter_pde(pmap_t pmap, vm_offset_t va, vm_page_t m,
     vm_prot_t prot);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
@@ -740,6 +742,13 @@ SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, p_failures, CTLFLAG_RD,
 static u_long pmap_pde_promotions;
 SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_pde_promotions, 0, "2MB page promotions");
+
+SYSCTL_NODE(_vm_pmap, OID_AUTO, pdpe, CTLFLAG_RD, 0,
+    "1GB page mapping counters");
+
+static u_long pmap_pdpe_demotions;
+SYSCTL_ULONG(_vm_pmap_pdpe, OID_AUTO, demotions, CTLFLAG_RD,
+    &pmap_pdpe_demotions, 0, "1GB page demotions");
 
 
 /***************************************************
@@ -4349,6 +4358,60 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	kmem_free(kernel_map, base, size);
 }
 
+/*
+ * Tries to demote a 1GB page mapping.
+ */
+static boolean_t
+pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
+{
+	pdp_entry_t newpdpe, oldpdpe;
+	pd_entry_t *firstpde, newpde, *pde;
+	vm_paddr_t mpdepa;
+	vm_page_t mpde;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	oldpdpe = *pdpe;
+	KASSERT((oldpdpe & (PG_PS | PG_V)) == (PG_PS | PG_V),
+	    ("pmap_demote_pdpe: oldpdpe is missing PG_PS and/or PG_V"));
+	if ((mpde = vm_page_alloc(NULL, va >> PDPSHIFT, VM_ALLOC_INTERRUPT |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
+		CTR2(KTR_PMAP, "pmap_demote_pdpe: failure for va %#lx"
+		    " in pmap %p", va, pmap);
+		return (FALSE);
+	}
+	mpdepa = VM_PAGE_TO_PHYS(mpde);
+	firstpde = (pd_entry_t *)PHYS_TO_DMAP(mpdepa);
+	newpdpe = mpdepa | PG_M | PG_A | (oldpdpe & PG_U) | PG_RW | PG_V;
+	KASSERT((oldpdpe & PG_A) != 0,
+	    ("pmap_demote_pdpe: oldpdpe is missing PG_A"));
+	KASSERT((oldpdpe & (PG_M | PG_RW)) != PG_RW,
+	    ("pmap_demote_pdpe: oldpdpe is missing PG_M"));
+	newpde = oldpdpe;
+
+	/*
+	 * Initialize the page directory page.
+	 */
+	for (pde = firstpde; pde < firstpde + NPDEPG; pde++) {
+		*pde = newpde;
+		newpde += NBPDR;
+	}
+
+	/*
+	 * Demote the mapping.
+	 */
+	*pdpe = newpdpe;
+
+	/*
+	 * Invalidate a stale recursive mapping of the page directory page.
+	 */
+	pmap_invalidate_page(pmap, (vm_offset_t)vtopde(va));
+
+	pmap_pdpe_demotions++;
+	CTR2(KTR_PMAP, "pmap_demote_pdpe: success for va %#lx"
+	    " in pmap %p", va, pmap);
+	return (TRUE);
+}
+
 int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
@@ -4380,9 +4443,37 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	PMAP_LOCK(kernel_pmap);
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
-		if (*pdpe == 0 || (*pdpe & PG_PS)) {
+		if (*pdpe == 0) {
 			PMAP_UNLOCK(kernel_pmap);
 			return (EINVAL);
+		}
+		if (*pdpe & PG_PS) {
+			/*
+			 * If the current 1GB page already has the required
+			 * memory type, then we need not demote this page. Just
+			 * increment tmpva to the next 1GB page frame.
+			 */
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
+			if ((*pdpe & PG_PDE_CACHE) == cache_bits_pde) {
+				tmpva = trunc_1gpage(tmpva) + NBPDP;
+				continue;
+			}
+
+			/*
+			 * If the current offset aligns with a 1GB page frame
+			 * and there is at least 1GB left within the range, then
+			 * we need not break down this page into 2MB pages.
+			 */
+			if ((tmpva & PDPMASK) == 0 &&
+			    tmpva + PDPMASK < base + size) {
+				tmpva += NBPDP;
+				continue;
+			}
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva)) {
+				PMAP_UNLOCK(kernel_pmap);
+				return (ENOMEM);
+			}
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde == 0) {
@@ -4431,7 +4522,19 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 * cache mode if required.
 	 */
 	for (tmpva = base; tmpva < base + size; ) {
-		pde = pmap_pde(kernel_pmap, tmpva);
+		pdpe = pmap_pdpe(kernel_pmap, tmpva);
+		if (*pdpe & PG_PS) {
+			if (cache_bits_pde < 0)
+				cache_bits_pde = pmap_cache_bits(mode, 1);
+			if ((*pdpe & PG_PDE_CACHE) != cache_bits_pde) {
+				pmap_pde_attr(pdpe, cache_bits_pde);
+				if (!changed)
+					changed = TRUE;
+			}
+			tmpva = trunc_1gpage(tmpva) + NBPDP;
+			continue;
+		}
+		pde = pmap_pdpe_to_pde(pdpe, tmpva);
 		if (*pde & PG_PS) {
 			if (cache_bits_pde < 0)
 				cache_bits_pde = pmap_cache_bits(mode, 1);
