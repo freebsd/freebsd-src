@@ -92,6 +92,7 @@ static int proc_ctor(void *mem, int size, void *arg, int flags);
 static void proc_dtor(void *mem, int size, void *arg);
 static int proc_init(void *mem, int size, int flags);
 static void proc_fini(void *mem, int size);
+static void pargs_free(struct pargs *pa);
 
 /*
  * Other process lists
@@ -1147,7 +1148,7 @@ pargs_alloc(int len)
 	return (pa);
 }
 
-void
+static void
 pargs_free(struct pargs *pa)
 {
 
