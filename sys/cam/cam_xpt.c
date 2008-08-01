@@ -2958,7 +2958,7 @@ xpt_action_sasync_cb(void *context, int pending)
 		 * the currently existing busses.
 		 */
 		xpt_for_all_busses(xptsetasyncbusfunc, cur_entry);
-		}
+	}
 
 	free(task, M_CAMXPT);
 }
@@ -6185,7 +6185,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		xpt_schedule(periph, done_ccb->ccb_h.pinfo.priority);
 		return;
 	}
-			
+
 	case PROBE_SERIAL_NUM_1:
 	{
 		struct ccb_scsiio *csio;
