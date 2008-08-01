@@ -91,6 +91,7 @@ void		sl_chan_attn		(struct ie_softc *);
 
 void		ee16_reset_586		(struct ie_softc *);
 void		ee16_chan_attn		(struct ie_softc *);
+void		ee16_shutdown		(struct ie_softc *);
 
 void		sl_read_ether		(struct ie_softc *, unsigned char *);
 int		check_ie_present	(struct ie_softc *);

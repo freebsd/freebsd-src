@@ -78,6 +78,7 @@ static int		ie_3C507_port_check	(u_int32_t);
 static void		ie_isa_ee16_identify	(driver_t *, device_t);
 static int		ie_isa_ee16_probe	(device_t);
 static int		ie_isa_ee16_attach	(device_t);
+static int		ie_isa_ee16_shutdown	(device_t);
 static int		ie_ee16_port_check	(u_int32_t port);
 static u_int16_t	ie_ee16_hw_read_eeprom	(u_int32_t port, int loc);
 
@@ -560,6 +561,19 @@ bad:
 	return (error);
 }
 
+static int
+ie_isa_ee16_shutdown(device_t dev)
+{
+	struct ie_softc *	sc;
+
+	sc = device_get_softc(dev);
+	IE_LOCK(sc);
+	ee16_shutdown(sc);
+	IE_UNLOCK(sc);
+
+	return (0);
+}
+
 /*
  * If an EE16 is present, return 0
  * else, return 1.
@@ -816,6 +830,7 @@ static device_method_t ie_isa_ee16_methods[] = {
 	DEVMETHOD(device_identify,	ie_isa_ee16_identify),
 	DEVMETHOD(device_probe,		ie_isa_ee16_probe),
 	DEVMETHOD(device_attach,	ie_isa_ee16_attach),
+	DEVMETHOD(device_shutdown,	ie_isa_ee16_shutdown),
 	DEVMETHOD(device_detach,	ie_detach),
 	{ 0, 0 }
 };
