@@ -422,13 +422,15 @@ child_process(e, u)
 				else
 					mailto = usernm;
 			}
+			if (mailto && *mailto == '\0')
+				mailto = NULL;
 
 			/* if we are supposed to be mailing, MAILTO will
 			 * be non-NULL.  only in this case should we set
 			 * up the mail command and subjects and stuff...
 			 */
 
-			if (mailto && *mailto != '\0') {
+			if (mailto) {
 				register char	**env;
 				auto char	mailcmd[MAX_COMMAND];
 				auto char	hostname[MAXHOSTNAMELEN];
