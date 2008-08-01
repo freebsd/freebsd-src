@@ -52,14 +52,6 @@ void     log_init(char *, LogLevel, SyslogFacility, int);
 SyslogFacility	log_facility_number(char *);
 LogLevel log_level_number(char *);
 
-#define fatal	ssh_fatal
-#define error	ssh_error
-#define logit	ssh_logit
-#define verbose	ssh_verbose
-#define debug	ssh_debug
-#define debug2	ssh_debug2
-#define debug3	ssh_debug3
-
 void     fatal(const char *, ...) __dead __attribute__((format(printf, 1, 2)));
 void     error(const char *, ...) __attribute__((format(printf, 1, 2)));
 void     sigdie(const char *, ...) __attribute__((format(printf, 1, 2)));
