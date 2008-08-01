@@ -26,6 +26,7 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
 #include <string.h>
 
