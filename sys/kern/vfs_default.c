@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/lockf.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -75,7 +76,8 @@ struct vop_vector default_vnodeops = {
 	.vop_default =		NULL,
 	.vop_bypass =		VOP_EOPNOTSUPP,
 
-	.vop_advlock =		VOP_EINVAL,
+	.vop_advlock =		vop_stdadvlock,
+	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
@@ -198,6 +200,43 @@ vop_nostrategy (struct vop_strategy_args *ap)
 	ap->a_bp->b_error = EOPNOTSUPP;
 	bufdone(ap->a_bp);
 	return (EOPNOTSUPP);
+}
+
+/*
+ * Advisory record locking support
+ */
+int
+vop_stdadvlock(struct vop_advlock_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = curthread;
+	struct vattr vattr;
+	int error;
+
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
+	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	VOP_UNLOCK(vp, 0, td);
+	if (error)
+		return (error);
+
+	return (lf_advlock(ap, &(vp->v_lockf), vattr.va_size));
+}
+
+int
+vop_stdadvlockasync(struct vop_advlockasync_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct thread *td = curthread;
+	struct vattr vattr;
+	int error;
+
+	vn_lock(vp, LK_SHARED | LK_RETRY, td);
+	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	VOP_UNLOCK(vp, 0, td);
+	if (error)
+		return (error);
+
+	return (lf_advlockasync(ap, &(vp->v_lockf), vattr.va_size));
 }
 
 /*

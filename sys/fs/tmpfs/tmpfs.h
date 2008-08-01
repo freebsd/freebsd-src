@@ -219,9 +219,6 @@ struct tmpfs_node {
 	struct timespec		tn_birthtime;
 	unsigned long		tn_gen;
 
-	/* Head of byte-level lock list (used by tmpfs_advlock). */
-	struct lockf *		tn_lockf;
-
 	/* As there is a single vnode for each active file within the
 	 * system, care has to be taken to avoid allocating more than one
 	 * vnode per file.  In order to do this, a bidirectional association

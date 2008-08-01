@@ -66,7 +66,6 @@ struct smbnode {
 	u_char *		n_name;
 	struct smbfs_fctx *	n_dirseq;	/* ff context */
 	long			n_dirofs;	/* last ff offset */
-	struct lockf *		n_lockf;	/* Locking records of file */
 	LIST_ENTRY(smbnode)	n_hash;
 };
 
