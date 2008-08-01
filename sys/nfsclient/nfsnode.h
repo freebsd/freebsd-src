@@ -113,7 +113,6 @@ struct nfsnode {
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */
-	struct lockf		*n_lockf;	/* Locking record of file */
 	int			n_error;	/* Save write error value */
 	union {
 		struct timespec	nf_atim;	/* Special file times */
