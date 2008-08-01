@@ -80,8 +80,8 @@ __ieee754_atan2f(float y, float x)
 
     /* compute y/x */
 	k = (iy-ix)>>23;
-	if(k > 60) z=pi_o_2+(float)0.5*pi_lo; 	/* |y/x| >  2**60 */
-	else if(hx<0&&k<-60) z=0.0; 	/* |y|/x < -2**60 */
+	if(k > 26) z=pi_o_2+(float)0.5*pi_lo; 	/* |y/x| >  2**26 */
+	else if(hx<0&&k<-26) z=0.0; 	/* |y|/x < -2**26 */
 	else z=atanf(fabsf(y/x));	/* safe to do y/x */
 	switch (m) {
 	    case 0: return       z  ;	/* atan(+,+) */

@@ -34,20 +34,14 @@ static const float atanlo[] = {
 };
 
 static const float aT[] = {
-  3.3333334327e-01, /* 0x3eaaaaaa */
- -2.0000000298e-01, /* 0xbe4ccccd */
-  1.4285714924e-01, /* 0x3e124925 */
- -1.1111110449e-01, /* 0xbde38e38 */
-  9.0908870101e-02, /* 0x3dba2e6e */
- -7.6918758452e-02, /* 0xbd9d8795 */
-  6.6610731184e-02, /* 0x3d886b35 */
- -5.8335702866e-02, /* 0xbd6ef16b */
-  4.9768779427e-02, /* 0x3d4bda59 */
- -3.6531571299e-02, /* 0xbd15a221 */
-  1.6285819933e-02, /* 0x3c8569d7 */
+  3.3333328366e-01,
+ -1.9999158382e-01,
+  1.4253635705e-01,
+ -1.0648017377e-01,
+  6.1687607318e-02,
 };
 
-	static const float
+static const float
 one   = 1.0,
 huge   = 1.0e30;
 
@@ -59,13 +53,13 @@ atanf(float x)
 
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix>=0x50800000) {	/* if |x| >= 2^34 */
+	if(ix>=0x4c800000) {	/* if |x| >= 2**26 */
 	    if(ix>0x7f800000)
 		return x+x;		/* NaN */
 	    if(hx>0) return  atanhi[3]+*(volatile float *)&atanlo[3];
 	    else     return -atanhi[3]-*(volatile float *)&atanlo[3];
 	} if (ix < 0x3ee00000) {	/* |x| < 0.4375 */
-	    if (ix < 0x31000000) {	/* |x| < 2^-29 */
+	    if (ix < 0x39800000) {	/* |x| < 2**-12 */
 		if(huge+x>one) return x;	/* raise inexact */
 	    }
 	    id = -1;
@@ -80,7 +74,7 @@ atanf(float x)
 	} else {
 	    if (ix < 0x401c0000) {	/* |x| < 2.4375 */
 		id = 2; x  = (x-(float)1.5)/(one+(float)1.5*x);
-	    } else {			/* 2.4375 <= |x| < 2^66 */
+	    } else {			/* 2.4375 <= |x| < 2**26 */
 		id = 3; x  = -(float)1.0/x;
 	    }
 	}}
@@ -88,8 +82,8 @@ atanf(float x)
 	z = x*x;
 	w = z*z;
     /* break sum from i=0 to 10 aT[i]z**(i+1) into odd and even poly */
-	s1 = z*(aT[0]+w*(aT[2]+w*(aT[4]+w*(aT[6]+w*(aT[8]+w*aT[10])))));
-	s2 = w*(aT[1]+w*(aT[3]+w*(aT[5]+w*(aT[7]+w*aT[9]))));
+	s1 = z*(aT[0]+w*(aT[2]+w*aT[4]));
+	s2 = w*(aT[1]+w*aT[3]);
 	if (id<0) return x - x*(s1+s2);
 	else {
 	    z = atanhi[id] - ((x*(s1+s2) - atanlo[id]) - x);
