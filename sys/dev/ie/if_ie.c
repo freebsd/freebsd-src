@@ -173,7 +173,6 @@ static void	ee16_eeprom_outbits	(struct ie_softc *, int, int);
 static void	ee16_eeprom_clock	(struct ie_softc *, int);
 static u_short	ee16_read_eeprom	(struct ie_softc *, int);
 static int	ee16_eeprom_inbits	(struct ie_softc *);
-static void	ee16_shutdown		(void *, int);
 
 static __inline void
 		ie_ack			(struct ie_softc *, u_int);
@@ -245,10 +244,9 @@ static const char *ie_hardware_names[] = {
 #define MK_24(base, ptr) ((caddr_t)((uintptr_t)ptr - (uintptr_t)base))
 #define MK_16(base, ptr) ((u_short)(uintptr_t)MK_24(base, ptr))
 
-static void
-ee16_shutdown(void *xsc, int howto)
+void
+ee16_shutdown(struct ie_softc *sc)
 {
-	struct	ie_softc *sc = (struct ie_softc *)xsc;
 
 	ee16_reset_586(sc);
 	outb(PORT(sc) + IEE16_ECTRL, IEE16_RESET_ASIC);
@@ -321,10 +319,6 @@ ie_attach(device_t dev)
 	ifp->if_ioctl = ieioctl;
 	ifp->if_init = ieinit;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-
-	if (sc->hard_type == IE_EE16)
-		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
-				      sc, SHUTDOWN_PRI_DEFAULT);
 
 	ether_ifattach(ifp, sc->enaddr);
 
@@ -1802,7 +1796,7 @@ ie_detach (device_t dev)
 
 	IE_LOCK(sc);
 	if (sc->hard_type == IE_EE16)
-		ee16_shutdown(sc, 0);
+		ee16_shutdown(sc);
 
 	ie_stop(sc);
 	IE_UNLOCK(sc);
