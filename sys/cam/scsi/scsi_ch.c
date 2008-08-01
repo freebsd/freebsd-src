@@ -220,6 +220,8 @@ static struct cdevsw ch_cdevsw = {
 	.d_name =	"ch",
 };
 
+MALLOC_DEFINE(M_SCSICH, "scsi_ch", "scsi_ch buffers");
+
 static void
 chinit(void)
 {
@@ -515,7 +517,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 				  sizeof(struct scsi_mode_blk_desc) +
 				 sizeof(struct page_element_address_assignment);
 
-		mode_buffer = malloc(mode_buffer_len, M_TEMP, M_NOWAIT);
+		mode_buffer = malloc(mode_buffer_len, M_SCSICH, M_NOWAIT);
 
 		if (mode_buffer == NULL) {
 			printf("chstart: couldn't malloc mode sense data\n");
@@ -663,7 +665,7 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		if (announce_buf[0] != '\0')
 			xpt_announce_periph(periph, announce_buf);
 		softc->state = CH_STATE_NORMAL;
-		free(mode_header, M_TEMP);
+		free(mode_header, M_SCSICH);
 		/*
 		 * Since our peripheral may be invalidated by an error
 		 * above or an external event, we must release our CCB
@@ -1349,7 +1351,7 @@ chgetparams(struct cam_periph *periph)
 	 */
 	mode_buffer_len = sizeof(struct scsi_mode_sense_data);
 
-	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_NOWAIT);
+	mode_buffer = malloc(mode_buffer_len, M_SCSICH, M_NOWAIT);
 
 	if (mode_buffer == NULL) {
 		printf("chgetparams: couldn't malloc mode sense data\n");
@@ -1407,7 +1409,7 @@ chgetparams(struct cam_periph *periph)
 			printf("chgetparams: error getting element "
 			       "address page\n");
 			xpt_release_ccb(ccb);
-			free(mode_buffer, M_TEMP);
+			free(mode_buffer, M_SCSICH);
 			return(error);
 		}
 	}
@@ -1470,7 +1472,7 @@ chgetparams(struct cam_periph *periph)
 			printf("chgetparams: error getting device "
 			       "capabilities page\n");
 			xpt_release_ccb(ccb);
-			free(mode_buffer, M_TEMP);
+			free(mode_buffer, M_SCSICH);
 			return(error);
 		}
 	}
@@ -1489,7 +1491,7 @@ chgetparams(struct cam_periph *periph)
 		softc->sc_exchangemask[from] = exchanges[from];
 	}
 
-	free(mode_buffer, M_TEMP);
+	free(mode_buffer, M_SCSICH);
 
 	return(error);
 }

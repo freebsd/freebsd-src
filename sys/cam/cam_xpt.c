@@ -1518,7 +1518,7 @@ xpt_init(void *dummy)
 	 */
 	xpt_config_hook =
 	    (struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
-					      M_TEMP, M_NOWAIT | M_ZERO);
+					      M_CAMXPT, M_NOWAIT | M_ZERO);
 	if (xpt_config_hook == NULL) {
 		printf("xpt_init: Cannot malloc config hook "
 		       "- failing attach\n");
@@ -1527,7 +1527,7 @@ xpt_init(void *dummy)
 
 	xpt_config_hook->ich_func = xpt_config;
 	if (config_intrhook_establish(xpt_config_hook) != 0) {
-		free (xpt_config_hook, M_TEMP);
+		free (xpt_config_hook, M_CAMXPT);
 		printf("xpt_init: config_intrhook_establish failed "
 		       "- failing attach\n");
 	}
@@ -5420,7 +5420,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 		/* Save some state for use while we probe for devices */
 		scan_info = (xpt_scan_bus_info *)
-		    malloc(sizeof(xpt_scan_bus_info), M_TEMP, M_WAITOK);
+		    malloc(sizeof(xpt_scan_bus_info), M_CAMXPT, M_WAITOK);
 		scan_info->request_ccb = request_ccb;
 		scan_info->cpi = &work_ccb->cpi;
 
@@ -5454,7 +5454,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				printf("xpt_scan_bus: xpt_create_path failed"
 				       " with status %#x, bus scan halted\n",
 				       status);
-				free(scan_info, M_TEMP);
+				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = status;
 				xpt_free_ccb(work_ccb);
 				xpt_done(request_ccb);
@@ -5570,7 +5570,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
-				free(scan_info, M_TEMP);
+				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = CAM_REQ_CMP;
 				xpt_done(request_ccb);
 				break;
@@ -5589,7 +5589,7 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 				xpt_free_ccb(request_ccb);
 				xpt_free_ccb((union ccb *)scan_info->cpi);
 				request_ccb = scan_info->request_ccb;
-				free(scan_info, M_TEMP);
+				free(scan_info, M_CAMXPT);
 				request_ccb->ccb_h.status = status;
 				xpt_done(request_ccb);
 				break;
@@ -5688,19 +5688,19 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if (request_ccb == NULL) {
-		request_ccb = malloc(sizeof(union ccb), M_TEMP, M_NOWAIT);
+		request_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_NOWAIT);
 		if (request_ccb == NULL) {
 			xpt_print_path(path);
 			printf("xpt_scan_lun: can't allocate CCB, can't "
 			       "continue\n");
 			return;
 		}
-		new_path = malloc(sizeof(*new_path), M_TEMP, M_NOWAIT);
+		new_path = malloc(sizeof(*new_path), M_CAMXPT, M_NOWAIT);
 		if (new_path == NULL) {
 			xpt_print_path(path);
 			printf("xpt_scan_lun: can't allocate path, can't "
 			       "continue\n");
-			free(request_ccb, M_TEMP);
+			free(request_ccb, M_CAMXPT);
 			return;
 		}
 		status = xpt_compile_path(new_path, xpt_periph,
@@ -5712,8 +5712,8 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_print_path(path);
 			printf("xpt_scan_lun: can't compile path, can't "
 			       "continue\n");
-			free(request_ccb, M_TEMP);
-			free(new_path, M_TEMP);
+			free(request_ccb, M_CAMXPT);
+			free(new_path, M_CAMXPT);
 			return;
 		}
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, /*priority*/ 1);
@@ -5751,8 +5751,8 @@ static void
 xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	xpt_release_path(done_ccb->ccb_h.path);
-	free(done_ccb->ccb_h.path, M_TEMP);
-	free(done_ccb, M_TEMP);
+	free(done_ccb->ccb_h.path, M_CAMXPT);
+	free(done_ccb, M_CAMXPT);
 }
 
 static cam_status
@@ -5773,7 +5773,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (probe_softc *)malloc(sizeof(*softc), M_TEMP, M_NOWAIT);
+	softc = (probe_softc *)malloc(sizeof(*softc), M_CAMXPT, M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("proberegister: Unable to probe new device. "
@@ -5937,7 +5937,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		mode_buf_len = sizeof(struct scsi_mode_header_6)
 			     + sizeof(struct scsi_mode_blk_desc)
 			     + sizeof(struct scsi_control_page);
-		mode_buf = malloc(mode_buf_len, M_TEMP, M_NOWAIT);
+		mode_buf = malloc(mode_buf_len, M_CAMXPT, M_NOWAIT);
 		if (mode_buf != NULL) {
 	                scsi_mode_sense(csio,
 					/*retries*/4,
@@ -5969,7 +5969,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		if ((device->quirk->quirks & CAM_QUIRK_NOSERIAL) == 0)
 			serial_buf = (struct scsi_vpd_unit_serial_number *)
-				malloc(sizeof(*serial_buf), M_TEMP,
+				malloc(sizeof(*serial_buf), M_CAMXPT,
 					M_NOWAIT | M_ZERO);
 
 		if (serial_buf != NULL) {
@@ -6162,7 +6162,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 					 /*count*/1, /*run_queue*/TRUE);
 		}
 		xpt_release_ccb(done_ccb);
-		free(mode_hdr, M_TEMP);
+		free(mode_hdr, M_CAMXPT);
 		softc->action = PROBE_SERIAL_NUM;
 		xpt_schedule(periph, priority);
 		return;
@@ -6249,7 +6249,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				xpt_async(AC_LOST_DEVICE, path, NULL);
 		}
 		if (serial_buf != NULL)
-			free(serial_buf, M_TEMP);
+			free(serial_buf, M_CAMXPT);
 
 		if (changed != 0) {
 			/*
@@ -6311,7 +6311,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 static void
 probecleanup(struct cam_periph *periph)
 {
-	free(periph->softc, M_TEMP);
+	free(periph->softc, M_CAMXPT);
 }
 
 static void
@@ -7173,7 +7173,7 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 
 		/* Release our hook so that the boot can continue. */
 		config_intrhook_disestablish(xpt_config_hook);
-		free(xpt_config_hook, M_TEMP);
+		free(xpt_config_hook, M_CAMXPT);
 		xpt_config_hook = NULL;
 	}
 	if (done_ccb != NULL)
