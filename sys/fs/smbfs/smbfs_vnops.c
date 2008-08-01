@@ -1008,7 +1008,7 @@ smbfs_advlock(ap)
 		    default:
 			return EINVAL;
 		}
-		error = lf_advlock(ap, &np->n_lockf, size);
+		error = lf_advlock(ap, &vp->v_lockf, size);
 		if (error)
 			break;
 		lkop = SMB_LOCK_EXCL;
@@ -1017,16 +1017,16 @@ smbfs_advlock(ap)
 			int oldtype = fl->l_type;
 			fl->l_type = F_UNLCK;
 			ap->a_op = F_UNLCK;
-			lf_advlock(ap, &np->n_lockf, size);
+			lf_advlock(ap, &vp->v_lockf, size);
 			fl->l_type = oldtype;
 		}
 		break;
 	    case F_UNLCK:
-		lf_advlock(ap, &np->n_lockf, size);
+		lf_advlock(ap, &vp->v_lockf, size);
 		error = smbfs_smb_lock(np, SMB_LOCK_RELEASE, id, start, end, &scred);
 		break;
 	    case F_GETLK:
-		error = lf_advlock(ap, &np->n_lockf, size);
+		error = lf_advlock(ap, &vp->v_lockf, size);
 		break;
 	    default:
 		return EINVAL;

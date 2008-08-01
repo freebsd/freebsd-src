@@ -83,6 +83,11 @@ struct lockf_entry {
 LIST_HEAD(lockf_entry_list, lockf_entry);
 
 /*
+ * Extra lf_flags bits used by the implementation
+ */
+#define	F_INTR		0x8000	/* lock was interrupted by lf_purgelocks */
+
+/*
  * Filesystem private node structures should include space for a
  * pointer to a struct lockf_state. This pointer is used by the lock
  * manager to track the locking state for a file.
@@ -115,6 +120,7 @@ LIST_HEAD(lockf_list, lockf);
 
 int	 lf_advlock(struct vop_advlock_args *, struct lockf **, u_quad_t);
 int	 lf_advlockasync(struct vop_advlockasync_args *, struct lockf **, u_quad_t);
+void	 lf_purgelocks(struct vnode *vp, struct lockf **statep);
 int	 lf_countlocks(int sysid);
 void	 lf_clearremotesys(int sysid);
 

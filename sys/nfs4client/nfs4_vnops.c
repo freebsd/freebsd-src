@@ -2768,14 +2768,22 @@ done:
 static int
 nfs4_advlock(struct vop_advlock_args *ap)
 {
+	struct vnode *vp = ap->a_vp;
+	u_quad_t size;
+	int error;
+
 	return (EPERM);
 
-	if ((VFSTONFS(ap->a_vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
-		struct nfsnode *np = VTONFS(ap->a_vp);
-
-		return (lf_advlock(ap, &(np->n_lockf), np->n_size));
-	}
-	return (nfs_dolock(ap));
+	error = vn_lock(vp, LK_SHARED, curthread);
+	if (error)
+		return (error);
+	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		size = VTONFS(vp)->n_size;
+		VOP_UNLOCK(vp, 0, curthread);
+		error = lf_advlock(ap, &(vp->v_lockf), size);
+	} else
+		error = nfs_dolock(ap);
+	return (error);
 }
 
 /*
@@ -2784,14 +2792,24 @@ nfs4_advlock(struct vop_advlock_args *ap)
 static int
 nfs4_advlockasync(struct vop_advlockasync_args *ap)
 {
+	struct vnode *vp = ap->a_vp;
+	u_quad_t size;
+	int error;
+
 	return (EPERM);
 
-	if ((VFSTONFS(ap->a_vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
-		struct nfsnode *np = VTONFS(ap->a_vp);
-
-		return (lf_advlockasync(ap, &(np->n_lockf), np->n_size));
+	error = vn_lock(vp, LK_SHARED, curthread);
+	if (error)
+		return (error);
+	if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		size = VTONFS(vp)->n_size;
+		VOP_UNLOCK(vp, 0, curthread);
+		error = lf_advlockasync(ap, &(vp->v_lockf), size);
+	} else {
+		VOP_UNLOCK(vp, 0, curthread);
+		error = EOPNOTSUPP;
 	}
-	return (EOPNOTSUPP);
+	return (error);
 }
 
 /*
