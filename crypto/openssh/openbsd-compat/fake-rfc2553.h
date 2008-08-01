@@ -1,5 +1,4 @@
 /* $Id: fake-rfc2553.h,v 1.13 2006/07/24 03:51:52 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
