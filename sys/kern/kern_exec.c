@@ -753,10 +753,8 @@ done1:
 		crfree(tracecred);
 #endif
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (oldargs != NULL)
-		pargs_drop(oldargs);
-	if (newargs != NULL)
-		pargs_drop(newargs);
+	pargs_drop(oldargs);
+	pargs_drop(newargs);
 	if (oldsigacts != NULL)
 		sigacts_free(oldsigacts);
 

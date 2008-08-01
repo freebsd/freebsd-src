@@ -840,7 +840,6 @@ int	p_cansignal(struct thread *td, struct proc *p, int signum);
 int	p_canwait(struct thread *td, struct proc *p);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
-void	pargs_free(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
