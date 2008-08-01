@@ -1141,9 +1141,6 @@
 /* Define if you want OpenSSL's internally seeded PRNG only */
 #define OPENSSL_PRNG_ONLY 1
 
-/* Define if S/Key is actually OPIE */
-/* #undef OPIE */
-
 /* Define to the address where bug reports for this package should be sent. */
 #define PACKAGE_BUGREPORT "openssh-unix-dev@mindrot.org"
 

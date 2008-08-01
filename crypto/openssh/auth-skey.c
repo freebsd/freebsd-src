@@ -24,7 +24,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #ifdef SKEY
 
@@ -33,15 +32,7 @@ __RCSID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 
-#ifdef OPIE
-#include <opie.h>
-#define skey			opie
-#define skeychallenge(k, u, c)	opiechallenge((k), (u), (c))
-#define skey_haskey(u)		opie_haskey((u))
-#define skey_passcheck(u, r)	opie_passverify((u), (r))
-#else
 #include <skey.h>
-#endif
 
 #include "xmalloc.h"
 #include "key.h"
