@@ -32,6 +32,8 @@ stop_postcmd="named_poststop"
 #
 chroot_autoupdate()
 {
+	local file
+
 	# Create (or update) the chroot directory structure
 	#
 	if [ -r /etc/mtree/BIND.chroot.dist ]; then
@@ -64,12 +66,14 @@ chroot_autoupdate()
 	devfs -m ${named_chrootdir}/dev rule apply path null unhide
 	devfs -m ${named_chrootdir}/dev rule apply path random unhide
 
-	# Copy local timezone information if it is not up to date.
+	# Copy and/or update key files to the chroot /etc 
 	#
-	if [ -r /etc/localtime ]; then
-		cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" ||
-		    cp -p /etc/localtime "${named_chrootdir}/etc/localtime"
-	fi
+	for file in localtime protocols services; do
+		if [ -r /etc/$file ]; then
+			cmp -s /etc/$file "${named_chrootdir}/etc/$file" ||
+			    cp -p /etc/$file "${named_chrootdir}/etc/$file"
+		fi
+	done
 }
 
 # Make symlinks to the correct pid file
