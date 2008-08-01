@@ -162,6 +162,7 @@ __RCSID("$FreeBSD$");
 #include <pwd.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "xmalloc.h"

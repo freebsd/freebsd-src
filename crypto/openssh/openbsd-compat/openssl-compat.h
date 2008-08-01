@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.6 2006/02/22 11:24:47 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.12 2008/02/28 08:22:04 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -19,6 +19,11 @@
 #include "includes.h"
 #include <openssl/evp.h>
 
+/* OPENSSL_free() is Free() in versions before OpenSSL 0.9.6 */
+#if !defined(OPENSSL_VERSION_NUMBER) || (OPENSSL_VERSION_NUMBER < 0x0090600f)
+# define OPENSSL_free(x) Free(x)
+#endif
+
 #if OPENSSL_VERSION_NUMBER < 0x00906000L
 # define SSH_OLD_EVP
 # define EVP_CIPHER_CTX_get_app_data(e)		((e)->app_data)
@@ -29,6 +34,11 @@
 #endif
 
 #ifdef USE_BUILTIN_RIJNDAEL
+# include "rijndael.h"
+# define AES_KEY rijndael_ctx
+# define AES_BLOCK_SIZE 16
+# define AES_encrypt(a, b, c)		rijndael_encrypt(c, a, b)
+# define AES_set_encrypt_key(a, b, c)	rijndael_set_key(c, (char *)a, b, 1)
 # define EVP_aes_128_cbc evp_rijndael
 # define EVP_aes_192_cbc evp_rijndael
 # define EVP_aes_256_cbc evp_rijndael
@@ -44,6 +54,11 @@ extern const EVP_CIPHER *evp_acss(void);
 # else
 #  define EVP_acss NULL
 # endif
+#endif
+
+/* OpenSSL 0.9.8e returns cipher key len not context key len */
+#if (OPENSSL_VERSION_NUMBER == 0x0090805fL)
+# define EVP_CIPHER_CTX_key_length(c) ((c)->key_len)
 #endif
 
 /*
@@ -69,8 +84,8 @@ extern const EVP_CIPHER *evp_acss(void);
 #  ifdef SSLeay_add_all_algorithms
 #   undef SSLeay_add_all_algorithms
 #  endif
-#  define SSLeay_add_all_algorithms()	ssh_SSLeay_add_all_algorithms()
-#endif
+#  define SSLeay_add_all_algorithms()  ssh_SSLeay_add_all_algorithms()
+# endif
 
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);

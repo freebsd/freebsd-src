@@ -29,13 +29,7 @@
 /* compatibility with old or broken OpenSSL versions */
 #include "openbsd-compat/openssl-compat.h"
 
-#ifdef USE_BUILTIN_RIJNDAEL
-#include "rijndael.h"
-#define AES_KEY rijndael_ctx
-#define AES_BLOCK_SIZE 16
-#define AES_encrypt(a, b, c) rijndael_encrypt(c, a, b)
-#define AES_set_encrypt_key(a, b, c) rijndael_set_key(c, (char *)a, b, 1)
-#else
+#ifndef USE_BUILTIN_RIJNDAEL
 #include <openssl/aes.h>
 #endif
 
