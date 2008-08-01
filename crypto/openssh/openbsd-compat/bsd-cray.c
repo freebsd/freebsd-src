@@ -1,5 +1,5 @@
 /* 
- * $Id: bsd-cray.c,v 1.16 2006/09/01 05:38:41 djm Exp $
+ * $Id: bsd-cray.c,v 1.17 2007/08/15 09:17:43 dtucker Exp $
  *
  * bsd-cray.c
  *
@@ -750,8 +750,6 @@ cray_job_termination_handler(int sig)
 	int jid;
 	char *login = NULL;
 	struct jtab jtab;
-
-	debug("received signal %d",sig);
 
 	if ((jid = waitjob(&jtab)) == -1 ||
 	    (login = uid2nam(jtab.j_uid)) == NULL)

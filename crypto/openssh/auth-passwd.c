@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-passwd.c,v 1.40 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth-passwd.c,v 1.43 2007/09/21 08:15:29 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland

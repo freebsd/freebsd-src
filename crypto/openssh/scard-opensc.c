@@ -32,6 +32,7 @@
 #include <openssl/x509.h>
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <opensc/opensc.h>
 #include <opensc/pkcs15.h>

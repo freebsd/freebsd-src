@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.75 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth.c,v 1.79 2008/07/02 12:03:51 dtucker Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -33,6 +33,7 @@ __RCSID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
@@ -49,6 +50,7 @@ __RCSID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 #include "match.h"
@@ -114,15 +116,14 @@ allowed_user(struct passwd * pw)
 #endif /* USE_SHADOW */
 
 	/* grab passwd field for locked account check */
+	passwd = pw->pw_passwd;
 #ifdef USE_SHADOW
 	if (spw != NULL)
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 		passwd = get_iaf_password(pw);
 #else
 		passwd = spw->sp_pwdp;
-#endif /* HAVE_LIBIAF  && !BROKEN_LIBIAF */
-#else
-	passwd = pw->pw_passwd;
+#endif /* USE_LIBIAF */
 #endif
 
 	/* check for locked account */
@@ -142,9 +143,9 @@ allowed_user(struct passwd * pw)
 		if (strstr(passwd, LOCKED_PASSWD_SUBSTR))
 			locked = 1;
 #endif
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 		free(passwd);
-#endif /* HAVE_LIBIAF  && !BROKEN_LIBIAF */
+#endif /* USE_LIBIAF */
 		if (locked) {
 			logit("User %.100s not allowed because account is locked",
 			    pw->pw_name);
@@ -411,7 +412,7 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
  *
  * Returns 0 on success and -1 on failure
  */
-int
+static int
 secure_filename(FILE *f, const char *file, struct passwd *pw,
     char *err, size_t errlen)
 {
@@ -469,6 +470,46 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 			break;
 	}
 	return 0;
+}
+
+FILE *
+auth_openkeyfile(const char *file, struct passwd *pw, int strict_modes)
+{
+	char line[1024];
+	struct stat st;
+	int fd;
+	FILE *f;
+
+	/*
+	 * Open the file containing the authorized keys
+	 * Fail quietly if file does not exist
+	 */
+	if ((fd = open(file, O_RDONLY|O_NONBLOCK)) == -1)
+		return NULL;
+
+	if (fstat(fd, &st) < 0) {
+		close(fd);
+		return NULL;
+	}
+	if (!S_ISREG(st.st_mode)) {
+		logit("User %s authorized keys %s is not a regular file",
+		    pw->pw_name, file);
+		close(fd);
+		return NULL;
+	}
+	unset_nonblock(fd);
+	if ((f = fdopen(fd, "r")) == NULL) {
+		close(fd);
+		return NULL;
+	}
+	if (options.strict_modes &&
+	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
+		fclose(f);
+		logit("Authentication refused: %s", line);
+		return NULL;
+	}
+
+	return f;
 }
 
 struct passwd *
@@ -570,8 +611,8 @@ fakepw(void)
 	fake.pw_passwd =
 	    "$2a$06$r3.juUaHZDlIbQaO2dS9FuYxL1W9M81R1Tc92PoSNmzvpEqLkLGrK";
 	fake.pw_gecos = "NOUSER";
-	fake.pw_uid = privsep_pw->pw_uid;
-	fake.pw_gid = privsep_pw->pw_gid;
+	fake.pw_uid = privsep_pw == NULL ? (uid_t)-1 : privsep_pw->pw_uid;
+	fake.pw_gid = privsep_pw == NULL ? (gid_t)-1 : privsep_pw->pw_gid;
 #ifdef HAVE_PW_CLASS_IN_PASSWD
 	fake.pw_class = "";
 #endif

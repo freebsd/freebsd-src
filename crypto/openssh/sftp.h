@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.h,v 1.5 2006/03/25 22:22:43 djm Exp $ */
+/* $OpenBSD: sftp.h,v 1.9 2008/06/13 00:12:02 dtucker Exp $ */
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -79,6 +79,10 @@
 #define SSH2_FXF_TRUNC			0x00000010
 #define SSH2_FXF_EXCL			0x00000020
 
+/* statvfs@openssh.com f_flag flags */
+#define SSH2_FXE_STATVFS_ST_RDONLY	0x00000001
+#define SSH2_FXE_STATVFS_ST_NOSUID	0x00000002
+
 /* status messages */
 #define SSH2_FX_OK			0
 #define SSH2_FX_EOF			1
@@ -90,3 +94,8 @@
 #define SSH2_FX_CONNECTION_LOST		7
 #define SSH2_FX_OP_UNSUPPORTED		8
 #define SSH2_FX_MAX			8
+
+struct passwd;
+
+int	sftp_server_main(int, char **, struct passwd *);
+void	sftp_server_cleanup_exit(int) __attribute__((noreturn));

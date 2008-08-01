@@ -35,8 +35,9 @@
 # include <fcntl.h>
 #endif
 #include <stdarg.h>
-#include <unistd.h>
+#include <string.h>
 #include <signal.h>
+#include <unistd.h>
 
 #include <openssl/rand.h>
 #include <openssl/crypto.h>

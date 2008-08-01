@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-gss.c,v 1.15 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth2-gss.c,v 1.16 2007/10/29 00:52:45 dtucker Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.

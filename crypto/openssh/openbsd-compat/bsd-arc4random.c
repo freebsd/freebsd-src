@@ -19,6 +19,7 @@
 #include <sys/types.h>
 
 #include <string.h>
+#include <stdlib.h>
 #include <stdarg.h>
 
 #include "log.h"
@@ -82,3 +83,68 @@ arc4random_stir(void)
 	rc4_ready = REKEY_BYTES;
 }
 #endif /* !HAVE_ARC4RANDOM */
+
+#ifndef ARC4RANDOM_BUF
+void
+arc4random_buf(void *_buf, size_t n)
+{
+	size_t i;
+	u_int32_t r = 0;
+	char *buf = (char *)_buf;
+
+	for (i = 0; i < n; i++) {
+		if (i % 4 == 0)
+			r = arc4random();
+		buf[i] = r & 0xff;
+		r >>= 8;
+	}
+	i = r = 0;
+}
+#endif /* !HAVE_ARC4RANDOM_BUF */
+
+#ifndef ARC4RANDOM_UNIFORM
+/*
+ * Calculate a uniformly distributed random number less than upper_bound
+ * avoiding "modulo bias".
+ *
+ * Uniformity is achieved by generating new random numbers until the one
+ * returned is outside the range [0, 2**32 % upper_bound).  This
+ * guarantees the selected random number will be inside
+ * [2**32 % upper_bound, 2**32) which maps back to [0, upper_bound)
+ * after reduction modulo upper_bound.
+ */
+u_int32_t
+arc4random_uniform(u_int32_t upper_bound)
+{
+	u_int32_t r, min;
+
+	if (upper_bound < 2)
+		return 0;
+
+#if (ULONG_MAX > 0xffffffffUL)
+	min = 0x100000000UL % upper_bound;
+#else
+	/* Calculate (2**32 % upper_bound) avoiding 64-bit math */
+	if (upper_bound > 0x80000000)
+		min = 1 + ~upper_bound;		/* 2**32 - upper_bound */
+	else {
+		/* (2**32 - (x * 2)) % x == 2**32 % x when x <= 2**31 */
+		min = ((0xffffffff - (upper_bound * 2)) + 1) % upper_bound;
+	}
+#endif
+
+	/*
+	 * This could theoretically loop forever but each retry has
+	 * p > 0.5 (worst case, usually far better) of selecting a
+	 * number inside the range we need, so it should rarely need
+	 * to re-roll.
+	 */
+	for (;;) {
+		r = arc4random();
+		if (r >= min)
+			break;
+	}
+
+	return r % upper_bound;
+}
+#endif /* !HAVE_ARC4RANDOM_UNIFORM */
