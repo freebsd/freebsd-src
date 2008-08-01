@@ -26,7 +26,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -47,15 +46,7 @@ __RCSID("$FreeBSD$");
 #include <unistd.h>
 
 #ifdef SKEY
-#ifdef OPIE
-#include <opie.h>
-#define skey                    opie
-#define skeychallenge(k, u, c)  opiechallenge((k), (u), (c))
-#define skey_haskey(u)          opie_haskey((u))
-#define skey_passcheck(u, r)    opie_passverify((u), (r))
-#else
 #include <skey.h>
-#endif
 #endif
 
 #include <openssl/dh.h>
