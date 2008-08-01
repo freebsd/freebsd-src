@@ -793,12 +793,15 @@ Skip all subsequent rules numbered less than
 .Ar number .
 The search continues with the first rule numbered
 .Ar number
-or higher. It is possible to use the 
+or higher.
+It is possible to use the 
 .Cm tablearg
 keyword with a skipto for a 
 .Em computed
 skipto, but care should be used, as no destination caching
-is possible in this case so the rules are always walked to find it.
+is possible in this case so the rules are always walked to find it,
+starting from the 
+.Cm skipto .
 .It Cm tee Ar port
 Send a copy of packets matching this rule to the
 .Xr divert 4
