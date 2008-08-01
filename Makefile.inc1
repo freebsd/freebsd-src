@@ -482,6 +482,8 @@ build32:
 .for _t in obj depend all
 	cd ${.CURDIR}/libexec/rtld-elf; \
 	    PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/usr.bin/ldd; \
+	    PROG=ldd32 ${LIB32WMAKE} ${_t}
 .endfor
 
 distribute32 install32:
@@ -501,6 +503,7 @@ distribute32 install32:
 	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 
 
