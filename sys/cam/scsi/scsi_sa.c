@@ -1982,7 +1982,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		 * read a full record.
 		 */
 		rblim = (struct  scsi_read_block_limits_data *)
-		    malloc(8192, M_TEMP, M_WAITOK);
+		    malloc(8192, M_SCSISA, M_WAITOK);
 		if (rblim == NULL) {
 			xpt_print_path(periph->path);
 			printf("no memory for test read\n");
@@ -2303,7 +2303,7 @@ tryagain:
 		}
 exit:
 		if (rblim != NULL)
-			free(rblim, M_TEMP);
+			free(rblim, M_SCSISA);
 
 		if (error != 0) {
 			softc->dsreg = MTIO_DSREG_NIL;
@@ -2604,7 +2604,7 @@ retry:
 			mode_buffer_len += sizeof (sa_comp_t);
 	}
 
-	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK | M_ZERO);
+	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_WAITOK | M_ZERO);
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
 
@@ -2633,7 +2633,7 @@ retry:
 			goto retry;
 		}
 		softc->quirks |= SA_QUIRK_NOCOMP;
-		free(mode_buffer, M_TEMP);
+		free(mode_buffer, M_SCSISA);
 		goto retry;
 	} else if (status == CAM_SCSI_STATUS_ERROR) {
 		/* Tell the user about the fatal error. */
@@ -2742,7 +2742,7 @@ retry:
 sagetparamsexit:
 
 	xpt_release_ccb(ccb);
-	free(mode_buffer, M_TEMP);
+	free(mode_buffer, M_SCSISA);
 	return (error);
 }
 
@@ -2784,7 +2784,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 
 	softc = (struct sa_softc *)periph->softc;
 
-	ccomp = malloc(sizeof (sa_comp_t), M_TEMP, M_WAITOK);
+	ccomp = malloc(sizeof (sa_comp_t), M_SCSISA, M_WAITOK);
 
 	/*
 	 * Since it doesn't make sense to set the number of blocks, or
@@ -2799,7 +2799,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	    &current_calg, ccomp);
 
 	if (error != 0) {
-		free(ccomp, M_TEMP);
+		free(ccomp, M_SCSISA);
 		return (error);
 	}
 
@@ -2807,7 +2807,7 @@ sasetparams(struct cam_periph *periph, sa_params params_to_set,
 	if (params_to_set & SA_PARAM_COMPRESSION)
 		mode_buffer_len += sizeof (sa_comp_t);
 
-	mode_buffer = malloc(mode_buffer_len, M_TEMP, M_WAITOK | M_ZERO);
+	mode_buffer = malloc(mode_buffer_len, M_SCSISA, M_WAITOK | M_ZERO);
 
 	mode_hdr = (struct scsi_mode_header_6 *)mode_buffer;
 	mode_blk = (struct scsi_mode_blk_desc *)&mode_hdr[1];
@@ -2965,7 +2965,7 @@ retry:
 			 * 'operation not supported'.
 			 */
 			if (params_to_set == SA_PARAM_NONE) {
-				free(mode_buffer, M_TEMP);
+				free(mode_buffer, M_SCSISA);
 				xpt_release_ccb(ccb);
 				return (ENODEV);
 			}
@@ -3050,7 +3050,7 @@ retry:
 	xpt_release_ccb(ccb);
 
 	if (ccomp != NULL)
-		free(ccomp, M_TEMP);
+		free(ccomp, M_SCSISA);
 
 	if (params_to_set & SA_PARAM_COMPRESSION) {
 		if (error) {
@@ -3069,7 +3069,7 @@ retry:
 		}
 	}
 
-	free(mode_buffer, M_TEMP);
+	free(mode_buffer, M_SCSISA);
 	return (error);
 }
 
