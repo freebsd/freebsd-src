@@ -1,5 +1,4 @@
 /* $OpenBSD: log.h,v 1.15 2006/08/18 09:13:25 deraadt Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

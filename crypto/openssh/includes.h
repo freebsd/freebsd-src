@@ -1,5 +1,4 @@
 /* $OpenBSD: includes.h,v 1.54 2006/07/22 20:48:23 stevesk Exp $ */
-/* $FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
