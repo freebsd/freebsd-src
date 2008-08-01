@@ -1,4 +1,4 @@
-/* $Id: audit-bsm.c,v 1.5 2006/09/30 22:09:50 dtucker Exp $ */
+/* $Id: audit-bsm.c,v 1.6 2008/02/25 10:05:04 dtucker Exp $ */
 
 /*
  * TODO
@@ -40,7 +40,9 @@
 #include <sys/types.h>
 
 #include <errno.h>
+#include <netdb.h>
 #include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "ssh.h"
@@ -62,8 +64,6 @@
 #if defined(HAVE_GETAUDIT_ADDR)
 #define	AuditInfoStruct		auditinfo_addr
 #define AuditInfoTermID		au_tid_addr_t
-#define GetAuditFunc(a,b)	getaudit_addr((a),(b))
-#define GetAuditFuncText	"getaudit_addr"
 #define SetAuditFunc(a,b)	setaudit_addr((a),(b))
 #define SetAuditFuncText	"setaudit_addr"
 #define AUToSubjectFunc		au_to_subject_ex
@@ -71,18 +71,16 @@
 #else
 #define	AuditInfoStruct		auditinfo
 #define AuditInfoTermID		au_tid_t
-#define GetAuditFunc(a,b)	getaudit(a)
-#define GetAuditFuncText	"getaudit"
 #define SetAuditFunc(a,b)	setaudit(a)
 #define SetAuditFuncText	"setaudit"
 #define AUToSubjectFunc		au_to_subject
 #define AUToReturnFunc(a,b)	au_to_return((a), (u_int)(b))
 #endif
 
+#ifndef cannot_audit
 extern int	cannot_audit(int);
+#endif
 extern void	aug_init(void);
-extern dev_t	aug_get_port(void);
-extern int 	aug_get_machine(char *, u_int32_t *, u_int32_t *);
 extern void	aug_save_auid(au_id_t);
 extern void	aug_save_uid(uid_t);
 extern void	aug_save_euid(uid_t);
@@ -117,6 +115,51 @@ extern Authctxt *the_authctxt;
 static AuditInfoTermID ssh_bsm_tid;
 
 /* Below is the low-level BSM interface code */
+
+/*
+ * aug_get_machine is only required on IPv6 capable machines, we use a
+ * different mechanism in audit_connection_from() for IPv4-only machines.
+ * getaudit_addr() is only present on IPv6 capable machines.
+ */
+#if defined(HAVE_AUG_GET_MACHINE) || !defined(HAVE_GETAUDIT_ADDR)
+extern int 	aug_get_machine(char *, u_int32_t *, u_int32_t *);
+#else
+static int
+aug_get_machine(char *host, u_int32_t *addr, u_int32_t *type)
+{
+	struct addrinfo *ai; 
+	struct sockaddr_in *in4;
+	struct sockaddr_in6 *in6;
+	int ret = 0, r;
+
+	if ((r = getaddrinfo(host, NULL, NULL, &ai)) != 0) {
+		error("BSM audit: getaddrinfo failed for %.100s: %.100s", host,
+		    r == EAI_SYSTEM ? strerror(errno) : gai_strerror(r));
+		return -1;
+	}
+	
+	switch (ai->ai_family) {
+	case AF_INET:
+		in4 = (struct sockaddr_in *)ai->ai_addr;
+		*type = AU_IPv4;
+		memcpy(addr, &in4->sin_addr, sizeof(struct in_addr));
+		break;
+#ifdef AU_IPv6
+	case AF_INET6: 
+		in6 = (struct sockaddr_in6 *)ai->ai_addr;
+		*type = AU_IPv6;
+		memcpy(addr, &in6->sin6_addr, sizeof(struct in6_addr));
+		break;
+#endif
+	default:
+		error("BSM audit: unknown address family for %.100s: %d",
+		    host, ai->ai_family);
+		ret = -1;
+	}
+	freeaddrinfo(ai);
+	return ret;
+}
+#endif
 
 /*
  * Check if the specified event is selected (enabled) for auditing.

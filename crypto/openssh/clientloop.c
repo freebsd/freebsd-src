@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.176 2006/10/11 12:38:03 markus Exp $ */
+/* $OpenBSD: clientloop.c,v 1.201 2008/07/16 11:51:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -86,6 +86,7 @@
 #include <pwd.h>
 #include <unistd.h>
 
+#include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
 #include "ssh.h"
 #include "ssh1.h"
@@ -120,7 +121,7 @@ extern int stdin_null_flag;
 extern int no_shell_flag;
 
 /* Control socket */
-extern int control_fd;
+extern int muxserver_sock;
 
 /*
  * Name of the host we are connecting to.  This is the name given on the
@@ -143,35 +144,45 @@ static int in_non_blocking_mode = 0;
 
 /* Common data for the client loop code. */
 static volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
-static int escape_char;		/* Escape character. */
-static int escape_pending;	/* Last character was the escape character */
+static int escape_char1;	/* Escape character. (proto1 only) */
+static int escape_pending1;	/* Last character was an escape (proto1 only) */
 static int last_was_cr;		/* Last character was a newline. */
-static int exit_status;		/* Used to store the exit status of the command. */
-static int stdin_eof;		/* EOF has been encountered on standard error. */
+static int exit_status;		/* Used to store the command exit status. */
+static int stdin_eof;		/* EOF has been encountered on stderr. */
 static Buffer stdin_buffer;	/* Buffer for stdin data. */
 static Buffer stdout_buffer;	/* Buffer for stdout data. */
 static Buffer stderr_buffer;	/* Buffer for stderr data. */
-static u_long stdin_bytes, stdout_bytes, stderr_bytes;
 static u_int buffer_high;/* Soft max buffer size. */
 static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
 static int session_closed = 0;	/* In SSH2: login session closed. */
-static int server_alive_timeouts = 0;
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
 
-struct confirm_ctx {
-	int want_tty;
-	int want_subsys;
-	int want_x_fwd;
-	int want_agent_fwd;
-	Buffer cmd;
-	char *term;
-	struct termios tio;
-	char **env;
+/* Track escape per proto2 channel */
+struct escape_filter_ctx {
+	int escape_pending;
+	int escape_char;
 };
+
+/* Context for channel confirmation replies */
+struct channel_reply_ctx {
+	const char *request_type;
+	int id, do_close;
+};
+
+/* Global request success/failure callbacks */
+struct global_confirm {
+	TAILQ_ENTRY(global_confirm) entry;
+	global_confirm_cb *cb;
+	void *ctx;
+	int ref_count;
+};
+TAILQ_HEAD(global_confirms, global_confirm);
+static struct global_confirms global_confirms =
+    TAILQ_HEAD_INITIALIZER(global_confirms);
 
 /*XXX*/
 extern Kex *xxx_kex;
@@ -290,19 +301,29 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 					generated = 1;
 			}
 		}
-		snprintf(cmd, sizeof(cmd),
-		    "%s %s%s list %s 2>" _PATH_DEVNULL,
-		    xauth_path,
-		    generated ? "-f " : "" ,
-		    generated ? xauthfile : "",
-		    display);
-		debug2("x11_get_proto: %s", cmd);
-		f = popen(cmd, "r");
-		if (f && fgets(line, sizeof(line), f) &&
-		    sscanf(line, "%*s %511s %511s", proto, data) == 2)
-			got_data = 1;
-		if (f)
-			pclose(f);
+
+		/*
+		 * When in untrusted mode, we read the cookie only if it was
+		 * successfully generated as an untrusted one in the step
+		 * above.
+		 */
+		if (trusted || generated) {
+			snprintf(cmd, sizeof(cmd),
+			    "%s %s%s list %s 2>" _PATH_DEVNULL,
+			    xauth_path,
+			    generated ? "-f " : "" ,
+			    generated ? xauthfile : "",
+			    display);
+			debug2("x11_get_proto: %s", cmd);
+			f = popen(cmd, "r");
+			if (f && fgets(line, sizeof(line), f) &&
+			    sscanf(line, "%*s %511s %511s", proto, data) == 2)
+				got_data = 1;
+			if (f)
+				pclose(f);
+		} else
+			error("Warning: untrusted X11 forwarding setup failed: "
+			    "xauth key data not generated");
 	}
 
 	if (do_unlink) {
@@ -370,7 +391,10 @@ client_check_initial_eof_on_stdin(void)
 		/* Check for immediate EOF on stdin. */
 		len = read(fileno(stdin), buf, 1);
 		if (len == 0) {
-			/* EOF.  Record that we have seen it and send EOF to server. */
+			/*
+			 * EOF.  Record that we have seen it and send
+			 * EOF to server.
+			 */
 			debug("Sending eof.");
 			stdin_eof = 1;
 			packet_start(SSH_CMSG_EOF);
@@ -381,8 +405,8 @@ client_check_initial_eof_on_stdin(void)
 			 * and also process it as an escape character if
 			 * appropriate.
 			 */
-			if ((u_char) buf[0] == escape_char)
-				escape_pending = 1;
+			if ((u_char) buf[0] == escape_char1)
+				escape_pending1 = 1;
 			else
 				buffer_append(&stdin_buffer, buf, 1);
 		}
@@ -412,7 +436,6 @@ client_make_packets_from_stdin_data(void)
 		packet_put_string(buffer_ptr(&stdin_buffer), len);
 		packet_send();
 		buffer_consume(&stdin_buffer, len);
-		stdin_bytes += len;
 		/* If we have a pending EOF, send it now. */
 		if (stdin_eof && buffer_len(&stdin_buffer) == 0) {
 			packet_start(SSH_CMSG_EOF);
@@ -457,14 +480,25 @@ client_check_window_change(void)
 static void
 client_global_request_reply(int type, u_int32_t seq, void *ctxt)
 {
-	server_alive_timeouts = 0;
-	client_global_request_reply_fwd(type, seq, ctxt);
+	struct global_confirm *gc;
+
+	if ((gc = TAILQ_FIRST(&global_confirms)) == NULL)
+		return;
+	if (gc->cb != NULL)
+		gc->cb(type, seq, gc->ctx);
+	if (--gc->ref_count <= 0) {
+		TAILQ_REMOVE(&global_confirms, gc, entry);
+		bzero(gc, sizeof(*gc));
+		xfree(gc);
+	}
+
+	keep_alive_timeouts = 0;
 }
 
 static void
 server_alive_check(void)
 {
-	if (++server_alive_timeouts > options.server_alive_count_max) {
+	if (++keep_alive_timeouts > options.server_alive_count_max) {
 		logit("Timeout, server not responding.");
 		cleanup_exit(255);
 	}
@@ -472,6 +506,8 @@ server_alive_check(void)
 	packet_put_cstring("keepalive@openssh.com");
 	packet_put_char(1);     /* boolean: want reply */
 	packet_send();
+	/* Insert an empty placeholder to maintain ordering */
+	client_register_global_confirm(NULL, NULL);
 }
 
 /*
@@ -523,8 +559,8 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 	if (packet_have_data_to_write())
 		FD_SET(connection_out, *writesetp);
 
-	if (control_fd != -1)
-		FD_SET(control_fd, *readsetp);
+	if (muxserver_sock != -1)
+		FD_SET(muxserver_sock, *readsetp);
 
 	/*
 	 * Wait for something to happen.  This will suspend the process until
@@ -566,9 +602,11 @@ client_suspend_self(Buffer *bin, Buffer *bout, Buffer *berr)
 {
 	/* Flush stdout and stderr buffers. */
 	if (buffer_len(bout) > 0)
-		atomicio(vwrite, fileno(stdout), buffer_ptr(bout), buffer_len(bout));
+		atomicio(vwrite, fileno(stdout), buffer_ptr(bout),
+		    buffer_len(bout));
 	if (buffer_len(berr) > 0)
-		atomicio(vwrite, fileno(stderr), buffer_ptr(berr), buffer_len(berr));
+		atomicio(vwrite, fileno(stderr), buffer_ptr(berr),
+		    buffer_len(berr));
 
 	leave_raw_mode();
 
@@ -608,9 +646,13 @@ client_process_net_input(fd_set *readset)
 		/* Read as much as possible. */
 		len = read(connection_in, buf, sizeof(buf));
 		if (len == 0) {
-			/* Received EOF.  The remote host has closed the connection. */
-			snprintf(buf, sizeof buf, "Connection to %.300s closed by remote host.\r\n",
-				 host);
+			/*
+			 * Received EOF.  The remote host has closed the
+			 * connection.
+			 */
+			snprintf(buf, sizeof buf,
+			    "Connection to %.300s closed by remote host.\r\n",
+			    host);
 			buffer_append(&stderr_buffer, buf, strlen(buf));
 			quit_pending = 1;
 			return;
@@ -619,13 +661,18 @@ client_process_net_input(fd_set *readset)
 		 * There is a kernel bug on Solaris that causes select to
 		 * sometimes wake up even though there is no data available.
 		 */
-		if (len < 0 && (errno == EAGAIN || errno == EINTR))
+		if (len < 0 &&
+		    (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK))
 			len = 0;
 
 		if (len < 0) {
-			/* An error has encountered.  Perhaps there is a network problem. */
-			snprintf(buf, sizeof buf, "Read from remote host %.300s: %.100s\r\n",
-				 host, strerror(errno));
+			/*
+			 * An error has encountered.  Perhaps there is a
+			 * network problem.
+			 */
+			snprintf(buf, sizeof buf,
+			    "Read from remote host %.300s: %.100s\r\n",
+			    host, strerror(errno));
 			buffer_append(&stderr_buffer, buf, strlen(buf));
 			quit_pending = 1;
 			return;
@@ -635,283 +682,81 @@ client_process_net_input(fd_set *readset)
 }
 
 static void
-client_subsystem_reply(int type, u_int32_t seq, void *ctxt)
+client_status_confirm(int type, Channel *c, void *ctx)
 {
-	int id;
-	Channel *c;
+	struct channel_reply_ctx *cr = (struct channel_reply_ctx *)ctx;
+	char errmsg[256];
+	int tochan;
 
-	id = packet_get_int();
-	packet_check_eom();
+	/* XXX supress on mux _client_ quietmode */
+	tochan = options.log_level >= SYSLOG_LEVEL_ERROR &&
+	    c->ctl_fd != -1 && c->extended_usage == CHAN_EXTENDED_WRITE;
 
-	if ((c = channel_lookup(id)) == NULL) {
-		error("%s: no channel for id %d", __func__, id);
-		return;
+	if (type == SSH2_MSG_CHANNEL_SUCCESS) {
+		debug2("%s request accepted on channel %d",
+		    cr->request_type, c->self);
+	} else if (type == SSH2_MSG_CHANNEL_FAILURE) {
+		if (tochan) {
+			snprintf(errmsg, sizeof(errmsg),
+			    "%s request failed\r\n", cr->request_type);
+		} else {
+			snprintf(errmsg, sizeof(errmsg),
+			    "%s request failed on channel %d",
+			    cr->request_type, c->self);
+		}
+		/* If error occurred on primary session channel, then exit */
+		if (cr->do_close && c->self == session_ident)
+			fatal("%s", errmsg);
+		/* If error occurred on mux client, append to their stderr */
+		if (tochan)
+			buffer_append(&c->extended, errmsg, strlen(errmsg));
+		else
+			error("%s", errmsg);
+		if (cr->do_close) {
+			chan_read_failed(c);
+			chan_write_failed(c);
+		}
 	}
-
-	if (type == SSH2_MSG_CHANNEL_SUCCESS)
-		debug2("Request suceeded on channel %d", id);
-	else if (type == SSH2_MSG_CHANNEL_FAILURE) {
-		error("Request failed on channel %d", id);
-		channel_free(c);
-	}
+	xfree(cr);
 }
 
 static void
-client_extra_session2_setup(int id, void *arg)
+client_abandon_status_confirm(Channel *c, void *ctx)
 {
-	struct confirm_ctx *cctx = arg;
-	const char *display;
-	Channel *c;
-	int i;
-
-	if (cctx == NULL)
-		fatal("%s: cctx == NULL", __func__);
-	if ((c = channel_lookup(id)) == NULL)
-		fatal("%s: no channel for id %d", __func__, id);
-
-	display = getenv("DISPLAY");
-	if (cctx->want_x_fwd && options.forward_x11 && display != NULL) {
-		char *proto, *data;
-		/* Get reasonable local authentication information. */
-		client_x11_get_proto(display, options.xauth_location,
-		    options.forward_x11_trusted, &proto, &data);
-		/* Request forwarding with authentication spoofing. */
-		debug("Requesting X11 forwarding with authentication spoofing.");
-		x11_request_forwarding_with_spoofing(id, display, proto, data);
-		/* XXX wait for reply */
-	}
-
-	if (cctx->want_agent_fwd && options.forward_agent) {
-		debug("Requesting authentication agent forwarding.");
-		channel_request_start(id, "auth-agent-req@openssh.com", 0);
-		packet_send();
-	}
-
-	client_session2_setup(id, cctx->want_tty, cctx->want_subsys,
-	    cctx->term, &cctx->tio, c->rfd, &cctx->cmd, cctx->env,
-	    client_subsystem_reply);
-
-	c->confirm_ctx = NULL;
-	buffer_free(&cctx->cmd);
-	xfree(cctx->term);
-	if (cctx->env != NULL) {
-		for (i = 0; cctx->env[i] != NULL; i++)
-			xfree(cctx->env[i]);
-		xfree(cctx->env);
-	}
-	xfree(cctx);
+	xfree(ctx);
 }
 
 static void
-client_process_control(fd_set *readset)
+client_expect_confirm(int id, const char *request, int do_close)
 {
-	Buffer m;
-	Channel *c;
-	int client_fd, new_fd[3], ver, allowed;
-	socklen_t addrlen;
-	struct sockaddr_storage addr;
-	struct confirm_ctx *cctx;
-	char *cmd;
-	u_int i, len, env_len, command, flags;
-	uid_t euid;
-	gid_t egid;
+	struct channel_reply_ctx *cr = xmalloc(sizeof(*cr));
 
-	/*
-	 * Accept connection on control socket
-	 */
-	if (control_fd == -1 || !FD_ISSET(control_fd, readset))
-		return;
+	cr->request_type = request;
+	cr->do_close = do_close;
 
-	memset(&addr, 0, sizeof(addr));
-	addrlen = sizeof(addr);
-	if ((client_fd = accept(control_fd,
-	    (struct sockaddr*)&addr, &addrlen)) == -1) {
-		error("%s accept: %s", __func__, strerror(errno));
+	channel_register_status_confirm(id, client_status_confirm,
+	    client_abandon_status_confirm, cr);
+}
+
+void
+client_register_global_confirm(global_confirm_cb *cb, void *ctx)
+{
+	struct global_confirm *gc, *last_gc;
+
+	/* Coalesce identical callbacks */
+	last_gc = TAILQ_LAST(&global_confirms, global_confirms);
+	if (last_gc && last_gc->cb == cb && last_gc->ctx == ctx) {
+		if (++last_gc->ref_count >= INT_MAX)
+			fatal("%s: last_gc->ref_count = %d",
+			    __func__, last_gc->ref_count);
 		return;
 	}
 
-	if (getpeereid(client_fd, &euid, &egid) < 0) {
-		error("%s getpeereid failed: %s", __func__, strerror(errno));
-		close(client_fd);
-		return;
-	}
-	if ((euid != 0) && (getuid() != euid)) {
-		error("control mode uid mismatch: peer euid %u != uid %u",
-		    (u_int) euid, (u_int) getuid());
-		close(client_fd);
-		return;
-	}
-
-	unset_nonblock(client_fd);
-
-	/* Read command */
-	buffer_init(&m);
-	if (ssh_msg_recv(client_fd, &m) == -1) {
-		error("%s: client msg_recv failed", __func__);
-		close(client_fd);
-		buffer_free(&m);
-		return;
-	}
-	if ((ver = buffer_get_char(&m)) != SSHMUX_VER) {
-		error("%s: wrong client version %d", __func__, ver);
-		buffer_free(&m);
-		close(client_fd);
-		return;
-	}
-
-	allowed = 1;
-	command = buffer_get_int(&m);
-	flags = buffer_get_int(&m);
-
-	buffer_clear(&m);
-
-	switch (command) {
-	case SSHMUX_COMMAND_OPEN:
-		if (options.control_master == SSHCTL_MASTER_ASK ||
-		    options.control_master == SSHCTL_MASTER_AUTO_ASK)
-			allowed = ask_permission("Allow shared connection "
-			    "to %s? ", host);
-		/* continue below */
-		break;
-	case SSHMUX_COMMAND_TERMINATE:
-		if (options.control_master == SSHCTL_MASTER_ASK ||
-		    options.control_master == SSHCTL_MASTER_AUTO_ASK)
-			allowed = ask_permission("Terminate shared connection "
-			    "to %s? ", host);
-		if (allowed)
-			quit_pending = 1;
-		/* FALLTHROUGH */
-	case SSHMUX_COMMAND_ALIVE_CHECK:
-		/* Reply for SSHMUX_COMMAND_TERMINATE and ALIVE_CHECK */
-		buffer_clear(&m);
-		buffer_put_int(&m, allowed);
-		buffer_put_int(&m, getpid());
-		if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
-			error("%s: client msg_send failed", __func__);
-			close(client_fd);
-			buffer_free(&m);
-			return;
-		}
-		buffer_free(&m);
-		close(client_fd);
-		return;
-	default:
-		error("Unsupported command %d", command);
-		buffer_free(&m);
-		close(client_fd);
-		return;
-	}
-
-	/* Reply for SSHMUX_COMMAND_OPEN */
-	buffer_clear(&m);
-	buffer_put_int(&m, allowed);
-	buffer_put_int(&m, getpid());
-	if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
-		error("%s: client msg_send failed", __func__);
-		close(client_fd);
-		buffer_free(&m);
-		return;
-	}
-
-	if (!allowed) {
-		error("Refused control connection");
-		close(client_fd);
-		buffer_free(&m);
-		return;
-	}
-
-	buffer_clear(&m);
-	if (ssh_msg_recv(client_fd, &m) == -1) {
-		error("%s: client msg_recv failed", __func__);
-		close(client_fd);
-		buffer_free(&m);
-		return;
-	}
-	if ((ver = buffer_get_char(&m)) != SSHMUX_VER) {
-		error("%s: wrong client version %d", __func__, ver);
-		buffer_free(&m);
-		close(client_fd);
-		return;
-	}
-
-	cctx = xcalloc(1, sizeof(*cctx));
-	cctx->want_tty = (flags & SSHMUX_FLAG_TTY) != 0;
-	cctx->want_subsys = (flags & SSHMUX_FLAG_SUBSYS) != 0;
-	cctx->want_x_fwd = (flags & SSHMUX_FLAG_X11_FWD) != 0;
-	cctx->want_agent_fwd = (flags & SSHMUX_FLAG_AGENT_FWD) != 0;
-	cctx->term = buffer_get_string(&m, &len);
-
-	cmd = buffer_get_string(&m, &len);
-	buffer_init(&cctx->cmd);
-	buffer_append(&cctx->cmd, cmd, strlen(cmd));
-
-	env_len = buffer_get_int(&m);
-	env_len = MIN(env_len, 4096);
-	debug3("%s: receiving %d env vars", __func__, env_len);
-	if (env_len != 0) {
-		cctx->env = xcalloc(env_len + 1, sizeof(*cctx->env));
-		for (i = 0; i < env_len; i++)
-			cctx->env[i] = buffer_get_string(&m, &len);
-		cctx->env[i] = NULL;
-	}
-
-	debug2("%s: accepted tty %d, subsys %d, cmd %s", __func__,
-	    cctx->want_tty, cctx->want_subsys, cmd);
-	xfree(cmd);
-
-	/* Gather fds from client */
-	new_fd[0] = mm_receive_fd(client_fd);
-	new_fd[1] = mm_receive_fd(client_fd);
-	new_fd[2] = mm_receive_fd(client_fd);
-
-	debug2("%s: got fds stdin %d, stdout %d, stderr %d", __func__,
-	    new_fd[0], new_fd[1], new_fd[2]);
-
-	/* Try to pick up ttymodes from client before it goes raw */
-	if (cctx->want_tty && tcgetattr(new_fd[0], &cctx->tio) == -1)
-		error("%s: tcgetattr: %s", __func__, strerror(errno));
-
-	/* This roundtrip is just for synchronisation of ttymodes */
-	buffer_clear(&m);
-	if (ssh_msg_send(client_fd, SSHMUX_VER, &m) == -1) {
-		error("%s: client msg_send failed", __func__);
-		close(client_fd);
-		close(new_fd[0]);
-		close(new_fd[1]);
-		close(new_fd[2]);
-		buffer_free(&m);
-		xfree(cctx->term);
-		if (env_len != 0) {
-			for (i = 0; i < env_len; i++)
-				xfree(cctx->env[i]);
-			xfree(cctx->env);
-		}
-		return;
-	}
-	buffer_free(&m);
-
-	/* enable nonblocking unless tty */
-	if (!isatty(new_fd[0]))
-		set_nonblock(new_fd[0]);
-	if (!isatty(new_fd[1]))
-		set_nonblock(new_fd[1]);
-	if (!isatty(new_fd[2]))
-		set_nonblock(new_fd[2]);
-
-	set_nonblock(client_fd);
-
-	c = channel_new("session", SSH_CHANNEL_OPENING,
-	    new_fd[0], new_fd[1], new_fd[2],
-	    CHAN_SES_WINDOW_DEFAULT, CHAN_SES_PACKET_DEFAULT,
-	    CHAN_EXTENDED_WRITE, "client-session", /*nonblock*/0);
-
-	/* XXX */
-	c->ctl_fd = client_fd;
-
-	debug3("%s: channel_new: %d", __func__, c->self);
-
-	channel_send_open(c->self);
-	channel_register_confirm(c->self, client_extra_session2_setup, cctx);
+	gc = xmalloc(sizeof(*gc));
+	gc->cb = cb;
+	gc->ctx = ctx;
+	gc->ref_count = 1;
+	TAILQ_INSERT_TAIL(&global_confirms, gc, entry);
 }
 
 static void
@@ -924,12 +769,15 @@ process_cmdline(void)
 	u_short cancel_port;
 	Forward fwd;
 
+	bzero(&fwd, sizeof(fwd));
+	fwd.listen_host = fwd.connect_host = NULL;
+
 	leave_raw_mode();
 	handler = signal(SIGINT, SIG_IGN);
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
 		goto out;
-	while (*s && isspace(*s))
+	while (isspace(*s))
 		s++;
 	if (*s == '-')
 		s++;	/* Skip cmdline '-', if any */
@@ -976,9 +824,8 @@ process_cmdline(void)
 		goto out;
 	}
 
-	s++;
-	while (*s && isspace(*s))
-		s++;
+	while (isspace(*++s))
+		;
 
 	if (delete) {
 		cancel_port = 0;
@@ -1024,11 +871,18 @@ out:
 	enter_raw_mode();
 	if (cmd)
 		xfree(cmd);
+	if (fwd.listen_host != NULL)
+		xfree(fwd.listen_host);
+	if (fwd.connect_host != NULL)
+		xfree(fwd.connect_host);
 }
 
-/* process the characters one by one */
+/* 
+ * Process the characters one by one, call with c==NULL for proto1 case.
+ */
 static int
-process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
+process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
+    char *buf, int len)
 {
 	char string[1024];
 	pid_t pid;
@@ -1036,7 +890,20 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 	u_int i;
 	u_char ch;
 	char *s;
+	int *escape_pendingp, escape_char;
+	struct escape_filter_ctx *efc;
 
+	if (c == NULL) {
+		escape_pendingp = &escape_pending1;
+		escape_char = escape_char1;
+	} else {
+		if (c->filter_ctx == NULL)
+			return 0;
+		efc = (struct escape_filter_ctx *)c->filter_ctx;
+		escape_pendingp = &efc->escape_pending;
+		escape_char = efc->escape_char;
+	}
+	
 	if (len <= 0)
 		return (0);
 
@@ -1044,25 +911,42 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 		/* Get one character at a time. */
 		ch = buf[i];
 
-		if (escape_pending) {
+		if (*escape_pendingp) {
 			/* We have previously seen an escape character. */
 			/* Clear the flag now. */
-			escape_pending = 0;
+			*escape_pendingp = 0;
 
 			/* Process the escaped character. */
 			switch (ch) {
 			case '.':
 				/* Terminate the connection. */
-				snprintf(string, sizeof string, "%c.\r\n", escape_char);
+				snprintf(string, sizeof string, "%c.\r\n",
+				    escape_char);
 				buffer_append(berr, string, strlen(string));
 
-				quit_pending = 1;
+				if (c && c->ctl_fd != -1) {
+					chan_read_failed(c);
+					chan_write_failed(c);
+					return 0;
+				} else
+					quit_pending = 1;
 				return -1;
 
 			case 'Z' - 64:
-				/* Suspend the program. */
-				/* Print a message to that effect to the user. */
-				snprintf(string, sizeof string, "%c^Z [suspend ssh]\r\n", escape_char);
+				/* XXX support this for mux clients */
+				if (c && c->ctl_fd != -1) {
+ noescape:
+					snprintf(string, sizeof string,
+					    "%c%c escape not available to "
+					    "multiplexed sessions\r\n",
+					    escape_char, ch);
+					buffer_append(berr, string,
+					    strlen(string));
+					continue;
+				}
+				/* Suspend the program. Inform the user */
+				snprintf(string, sizeof string,
+				    "%c^Z [suspend ssh]\r\n", escape_char);
 				buffer_append(berr, string, strlen(string));
 
 				/* Restore terminal modes and suspend. */
@@ -1087,16 +971,20 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 			case 'R':
 				if (compat20) {
 					if (datafellows & SSH_BUG_NOREKEY)
-						logit("Server does not support re-keying");
+						logit("Server does not "
+						    "support re-keying");
 					else
 						need_rekeying = 1;
 				}
 				continue;
 
 			case '&':
+				if (c && c->ctl_fd != -1)
+					goto noescape;
 				/*
-				 * Detach the program (continue to serve connections,
-				 * but put in background and no more new connections).
+				 * Detach the program (continue to serve
+				 * connections, but put in background and no
+				 * more new connections).
 				 */
 				/* Restore tty modes. */
 				leave_raw_mode();
@@ -1125,9 +1013,9 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 					return -1;
 				} else if (!stdin_eof) {
 					/*
-					 * Sending SSH_CMSG_EOF alone does not always appear
-					 * to be enough.  So we try to send an EOF character
-					 * first.
+					 * Sending SSH_CMSG_EOF alone does not
+					 * always appear to be enough.  So we
+					 * try to send an EOF character first.
 					 */
 					packet_start(SSH_CMSG_STDIN_DATA);
 					packet_put_string("\004", 1);
@@ -1142,27 +1030,50 @@ process_escapes(Buffer *bin, Buffer *bout, Buffer *berr, char *buf, int len)
 				continue;
 
 			case '?':
-				snprintf(string, sizeof string,
+				if (c && c->ctl_fd != -1) {
+					snprintf(string, sizeof string,
 "%c?\r\n\
 Supported escape sequences:\r\n\
-%c.  - terminate connection\r\n\
-%cB  - send a BREAK to the remote system\r\n\
-%cC  - open a command line\r\n\
-%cR  - Request rekey (SSH protocol 2 only)\r\n\
-%c^Z - suspend ssh\r\n\
-%c#  - list forwarded connections\r\n\
-%c&  - background ssh (when waiting for connections to terminate)\r\n\
-%c?  - this message\r\n\
-%c%c  - send the escape character by typing it twice\r\n\
+  %c.  - terminate session\r\n\
+  %cB  - send a BREAK to the remote system\r\n\
+  %cC  - open a command line\r\n\
+  %cR  - Request rekey (SSH protocol 2 only)\r\n\
+  %c#  - list forwarded connections\r\n\
+  %c?  - this message\r\n\
+  %c%c  - send the escape character by typing it twice\r\n\
 (Note that escapes are only recognized immediately after newline.)\r\n",
-				    escape_char, escape_char, escape_char, escape_char,
-				    escape_char, escape_char, escape_char, escape_char,
-				    escape_char, escape_char, escape_char);
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char);
+				} else {
+					snprintf(string, sizeof string,
+"%c?\r\n\
+Supported escape sequences:\r\n\
+  %c.  - terminate connection (and any multiplexed sessions)\r\n\
+  %cB  - send a BREAK to the remote system\r\n\
+  %cC  - open a command line\r\n\
+  %cR  - Request rekey (SSH protocol 2 only)\r\n\
+  %c^Z - suspend ssh\r\n\
+  %c#  - list forwarded connections\r\n\
+  %c&  - background ssh (when waiting for connections to terminate)\r\n\
+  %c?  - this message\r\n\
+  %c%c  - send the escape character by typing it twice\r\n\
+(Note that escapes are only recognized immediately after newline.)\r\n",
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char, escape_char,
+					    escape_char);
+				}
 				buffer_append(berr, string, strlen(string));
 				continue;
 
 			case '#':
-				snprintf(string, sizeof string, "%c#\r\n", escape_char);
+				snprintf(string, sizeof string, "%c#\r\n",
+				    escape_char);
 				buffer_append(berr, string, strlen(string));
 				s = channel_open_message();
 				buffer_append(berr, s, strlen(s));
@@ -1183,12 +1094,15 @@ Supported escape sequences:\r\n\
 			}
 		} else {
 			/*
-			 * The previous character was not an escape char. Check if this
-			 * is an escape.
+			 * The previous character was not an escape char.
+			 * Check if this is an escape.
 			 */
 			if (last_was_cr && ch == escape_char) {
-				/* It is. Set the flag and continue to next character. */
-				escape_pending = 1;
+				/*
+				 * It is. Set the flag and continue to
+				 * next character.
+				 */
+				*escape_pendingp = 1;
 				continue;
 			}
 		}
@@ -1214,7 +1128,8 @@ client_process_input(fd_set *readset)
 	if (FD_ISSET(fileno(stdin), readset)) {
 		/* Read as much as possible. */
 		len = read(fileno(stdin), buf, sizeof(buf));
-		if (len < 0 && (errno == EAGAIN || errno == EINTR))
+		if (len < 0 &&
+		    (errno == EAGAIN || errno == EINTR || errno == EWOULDBLOCK))
 			return;		/* we'll try again later */
 		if (len <= 0) {
 			/*
@@ -1223,7 +1138,8 @@ client_process_input(fd_set *readset)
 			 * if it was an error condition.
 			 */
 			if (len < 0) {
-				snprintf(buf, sizeof buf, "read: %.100s\r\n", strerror(errno));
+				snprintf(buf, sizeof buf, "read: %.100s\r\n",
+				    strerror(errno));
 				buffer_append(&stderr_buffer, buf, strlen(buf));
 			}
 			/* Mark that we have seen EOF. */
@@ -1239,7 +1155,7 @@ client_process_input(fd_set *readset)
 				packet_start(SSH_CMSG_EOF);
 				packet_send();
 			}
-		} else if (escape_char == SSH_ESCAPECHAR_NONE) {
+		} else if (escape_char1 == SSH_ESCAPECHAR_NONE) {
 			/*
 			 * Normal successful read, and no escape character.
 			 * Just append the data to buffer.
@@ -1247,11 +1163,12 @@ client_process_input(fd_set *readset)
 			buffer_append(&stdin_buffer, buf, len);
 		} else {
 			/*
-			 * Normal, successful read.  But we have an escape character
-			 * and have to process the characters one by one.
+			 * Normal, successful read.  But we have an escape
+			 * character and have to process the characters one
+			 * by one.
 			 */
-			if (process_escapes(&stdin_buffer, &stdout_buffer,
-			    &stderr_buffer, buf, len) == -1)
+			if (process_escapes(NULL, &stdin_buffer,
+			    &stdout_buffer, &stderr_buffer, buf, len) == -1)
 				return;
 		}
 	}
@@ -1269,14 +1186,16 @@ client_process_output(fd_set *writeset)
 		len = write(fileno(stdout), buffer_ptr(&stdout_buffer),
 		    buffer_len(&stdout_buffer));
 		if (len <= 0) {
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EINTR || errno == EAGAIN ||
+			    errno == EWOULDBLOCK)
 				len = 0;
 			else {
 				/*
 				 * An error or EOF was encountered.  Put an
 				 * error message to stderr buffer.
 				 */
-				snprintf(buf, sizeof buf, "write stdout: %.50s\r\n", strerror(errno));
+				snprintf(buf, sizeof buf,
+				    "write stdout: %.50s\r\n", strerror(errno));
 				buffer_append(&stderr_buffer, buf, strlen(buf));
 				quit_pending = 1;
 				return;
@@ -1284,7 +1203,6 @@ client_process_output(fd_set *writeset)
 		}
 		/* Consume printed data from the buffer. */
 		buffer_consume(&stdout_buffer, len);
-		stdout_bytes += len;
 	}
 	/* Write buffered output to stderr. */
 	if (FD_ISSET(fileno(stderr), writeset)) {
@@ -1292,17 +1210,20 @@ client_process_output(fd_set *writeset)
 		len = write(fileno(stderr), buffer_ptr(&stderr_buffer),
 		    buffer_len(&stderr_buffer));
 		if (len <= 0) {
-			if (errno == EINTR || errno == EAGAIN)
+			if (errno == EINTR || errno == EAGAIN ||
+			    errno == EWOULDBLOCK)
 				len = 0;
 			else {
-				/* EOF or error, but can't even print error message. */
+				/*
+				 * EOF or error, but can't even print
+				 * error message.
+				 */
 				quit_pending = 1;
 				return;
 			}
 		}
 		/* Consume printed characters from the buffer. */
 		buffer_consume(&stderr_buffer, len);
-		stderr_bytes += len;
 	}
 }
 
@@ -1321,16 +1242,39 @@ client_process_output(fd_set *writeset)
 static void
 client_process_buffered_input_packets(void)
 {
-	dispatch_run(DISPATCH_NONBLOCK, &quit_pending, compat20 ? xxx_kex : NULL);
+	dispatch_run(DISPATCH_NONBLOCK, &quit_pending,
+	    compat20 ? xxx_kex : NULL);
 }
 
 /* scan buf[] for '~' before sending data to the peer */
 
-static int
-simple_escape_filter(Channel *c, char *buf, int len)
+/* Helper: allocate a new escape_filter_ctx and fill in its escape char */
+void *
+client_new_escape_filter_ctx(int escape_char)
 {
-	/* XXX we assume c->extended is writeable */
-	return process_escapes(&c->input, &c->output, &c->extended, buf, len);
+	struct escape_filter_ctx *ret;
+
+	ret = xmalloc(sizeof(*ret));
+	ret->escape_pending = 0;
+	ret->escape_char = escape_char;
+	return (void *)ret;
+}
+
+/* Free the escape filter context on channel free */
+void
+client_filter_cleanup(int cid, void *ctx)
+{
+	xfree(ctx);
+}
+
+int
+client_simple_escape_filter(Channel *c, char *buf, int len)
+{
+	if (c->extended_usage != CHAN_EXTENDED_WRITE)
+		return 0;
+
+	return process_escapes(c, &c->input, &c->output, &c->extended,
+	    buf, len);
 }
 
 static void
@@ -1354,6 +1298,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	fd_set *readset = NULL, *writeset = NULL;
 	double start_time, total_time;
 	int max_fd = 0, max_fd2 = 0, len, rekeying = 0;
+	u_int64_t ibytes, obytes;
 	u_int nalloc = 0;
 	char buf[100];
 
@@ -1362,7 +1307,7 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	start_time = get_current_time();
 
 	/* Initialize variables. */
-	escape_pending = 0;
+	escape_pending1 = 0;
 	last_was_cr = 1;
 	exit_status = -1;
 	stdin_eof = 0;
@@ -1370,8 +1315,8 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	connection_in = packet_get_connection_in();
 	connection_out = packet_get_connection_out();
 	max_fd = MAX(connection_in, connection_out);
-	if (control_fd != -1)
-		max_fd = MAX(max_fd, control_fd);
+	if (muxserver_sock != -1)
+		max_fd = MAX(max_fd, muxserver_sock);
 
 	if (!compat20) {
 		/* enable nonblocking unless tty */
@@ -1385,11 +1330,8 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		max_fd = MAX(max_fd, fileno(stdout));
 		max_fd = MAX(max_fd, fileno(stderr));
 	}
-	stdin_bytes = 0;
-	stdout_bytes = 0;
-	stderr_bytes = 0;
 	quit_pending = 0;
-	escape_char = escape_char_arg;
+	escape_char1 = escape_char_arg;
 
 	/* Initialize buffers. */
 	buffer_init(&stdin_buffer);
@@ -1417,9 +1359,11 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 
 	if (compat20) {
 		session_ident = ssh2_chan_id;
-		if (escape_char != SSH_ESCAPECHAR_NONE)
+		if (escape_char_arg != SSH_ESCAPECHAR_NONE)
 			channel_register_filter(session_ident,
-			    simple_escape_filter, NULL);
+			    client_simple_escape_filter, NULL,
+			    client_filter_cleanup,
+			    client_new_escape_filter_ctx(escape_char_arg));
 		if (session_ident != -1)
 			channel_register_cleanup(session_ident,
 			    client_channel_closed, 0);
@@ -1491,7 +1435,10 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		client_process_net_input(readset);
 
 		/* Accept control connections.  */
-		client_process_control(readset);
+		if (muxserver_sock != -1 &&FD_ISSET(muxserver_sock, readset)) {
+			if (muxserver_accept_control())
+				quit_pending = 1;
+		}
 
 		if (quit_pending)
 			break;
@@ -1506,7 +1453,10 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			client_process_output(writeset);
 		}
 
-		/* Send as much buffered packet data as possible to the sender. */
+		/*
+		 * Send as much buffered packet data as possible to the
+		 * sender.
+		 */
 		if (FD_ISSET(connection_out, writeset))
 			packet_write_poll();
 	}
@@ -1551,7 +1501,8 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 	 * that the connection has been closed.
 	 */
 	if (have_pty && options.log_level != SYSLOG_LEVEL_QUIET) {
-		snprintf(buf, sizeof buf, "Connection to %.64s closed.\r\n", host);
+		snprintf(buf, sizeof buf,
+		    "Connection to %.64s closed.\r\n", host);
 		buffer_append(&stderr_buffer, buf, strlen(buf));
 	}
 
@@ -1564,7 +1515,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			break;
 		}
 		buffer_consume(&stdout_buffer, len);
-		stdout_bytes += len;
 	}
 
 	/* Output any buffered data for stderr. */
@@ -1576,7 +1526,6 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 			break;
 		}
 		buffer_consume(&stderr_buffer, len);
-		stderr_bytes += len;
 	}
 
 	/* Clear and free any buffers. */
@@ -1587,13 +1536,13 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 
 	/* Report bytes transferred, and transfer rates. */
 	total_time = get_current_time() - start_time;
-	debug("Transferred: stdin %lu, stdout %lu, stderr %lu bytes in %.1f seconds",
-	    stdin_bytes, stdout_bytes, stderr_bytes, total_time);
+	packet_get_state(MODE_IN, NULL, NULL, NULL, &ibytes);
+	packet_get_state(MODE_OUT, NULL, NULL, NULL, &obytes);
+	verbose("Transferred: sent %llu, received %llu bytes, in %.1f seconds",
+	    obytes, ibytes, total_time);
 	if (total_time > 0)
-		debug("Bytes per second: stdin %.1f, stdout %.1f, stderr %.1f",
-		    stdin_bytes / total_time, stdout_bytes / total_time,
-		    stderr_bytes / total_time);
-
+		verbose("Bytes per second: sent %.1f, received %.1f",
+		    obytes / total_time, ibytes / total_time);
 	/* Return the exit status of the program. */
 	debug("Exit status %d", exit_status);
 	return exit_status;
@@ -1684,7 +1633,6 @@ client_request_forwarded_tcpip(const char *request_type, int rchan)
 	Channel *c = NULL;
 	char *listen_address, *originator_address;
 	int listen_port, originator_port;
-	int sock;
 
 	/* Get rest of the packet */
 	listen_address = packet_get_string(NULL);
@@ -1693,19 +1641,13 @@ client_request_forwarded_tcpip(const char *request_type, int rchan)
 	originator_port = packet_get_int();
 	packet_check_eom();
 
-	debug("client_request_forwarded_tcpip: listen %s port %d, originator %s port %d",
-	    listen_address, listen_port, originator_address, originator_port);
+	debug("client_request_forwarded_tcpip: listen %s port %d, "
+	    "originator %s port %d", listen_address, listen_port,
+	    originator_address, originator_port);
 
-	sock = channel_connect_by_listen_address(listen_port);
-	if (sock < 0) {
-		xfree(originator_address);
-		xfree(listen_address);
-		return NULL;
-	}
-	c = channel_new("forwarded-tcpip",
-	    SSH_CHANNEL_CONNECTING, sock, sock, -1,
-	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_WINDOW_DEFAULT, 0,
-	    originator_address, 1);
+	c = channel_connect_by_listen_address(listen_port,
+	    "forwarded-tcpip", originator_address);
+
 	xfree(originator_address);
 	xfree(listen_address);
 	return c;
@@ -1721,7 +1663,8 @@ client_request_x11(const char *request_type, int rchan)
 
 	if (!options.forward_x11) {
 		error("Warning: ssh server tried X11 forwarding.");
-		error("Warning: this is probably a break-in attempt by a malicious server.");
+		error("Warning: this is probably a break-in attempt by a "
+		    "malicious server.");
 		return NULL;
 	}
 	originator = packet_get_string(NULL);
@@ -1754,18 +1697,63 @@ client_request_agent(const char *request_type, int rchan)
 
 	if (!options.forward_agent) {
 		error("Warning: ssh server tried agent forwarding.");
-		error("Warning: this is probably a break-in attempt by a malicious server.");
+		error("Warning: this is probably a break-in attempt by a "
+		    "malicious server.");
 		return NULL;
 	}
-	sock =  ssh_get_authentication_socket();
+	sock = ssh_get_authentication_socket();
 	if (sock < 0)
 		return NULL;
 	c = channel_new("authentication agent connection",
 	    SSH_CHANNEL_OPEN, sock, sock, -1,
-	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_WINDOW_DEFAULT, 0,
+	    CHAN_X11_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0,
 	    "authentication agent connection", 1);
 	c->force_drain = 1;
 	return c;
+}
+
+int
+client_request_tun_fwd(int tun_mode, int local_tun, int remote_tun)
+{
+	Channel *c;
+	int fd;
+
+	if (tun_mode == SSH_TUNMODE_NO)
+		return 0;
+
+	if (!compat20) {
+		error("Tunnel forwarding is not support for protocol 1");
+		return -1;
+	}
+
+	debug("Requesting tun unit %d in mode %d", local_tun, tun_mode);
+
+	/* Open local tunnel device */
+	if ((fd = tun_open(local_tun, tun_mode)) == -1) {
+		error("Tunnel device open failed.");
+		return -1;
+	}
+
+	c = channel_new("tun", SSH_CHANNEL_OPENING, fd, fd, -1,
+	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT, 0, "tun", 1);
+	c->datagram = 1;
+
+#if defined(SSH_TUN_FILTER)
+	if (options.tun_open == SSH_TUNMODE_POINTOPOINT)
+		channel_register_filter(c->self, sys_tun_infilter,
+		    sys_tun_outfilter, NULL, NULL);
+#endif
+
+	packet_start(SSH2_MSG_CHANNEL_OPEN);
+	packet_put_cstring("tun@openssh.com");
+	packet_put_int(c->self);
+	packet_put_int(c->local_window_max);
+	packet_put_int(c->local_maxpacket);
+	packet_put_int(tun_mode);
+	packet_put_int(remote_tun);
+	packet_send();
+
+	return 0;
 }
 
 /* XXXX move to generic input handler */
@@ -1836,7 +1824,11 @@ client_input_channel_req(int type, u_int32_t seq, void *ctxt)
 	if (id == -1) {
 		error("client_input_channel_req: request for channel -1");
 	} else if ((c = channel_lookup(id)) == NULL) {
-		error("client_input_channel_req: channel %d: unknown channel", id);
+		error("client_input_channel_req: channel %d: "
+		    "unknown channel", id);
+	} else if (strcmp(rtype, "eow@openssh.com") == 0) {
+		packet_check_eom();
+		chan_rcvd_eow(c);
 	} else if (strcmp(rtype, "exit-status") == 0) {
 		exitval = packet_get_int();
 		if (id == session_ident) {
@@ -1881,8 +1873,7 @@ client_input_global_request(int type, u_int32_t seq, void *ctxt)
 
 void
 client_session2_setup(int id, int want_tty, int want_subsystem,
-    const char *term, struct termios *tiop, int in_fd, Buffer *cmd, char **env,
-    dispatch_fn *subsys_repl)
+    const char *term, struct termios *tiop, int in_fd, Buffer *cmd, char **env)
 {
 	int len;
 	Channel *c = NULL;
@@ -1894,20 +1885,21 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 
 	if (want_tty) {
 		struct winsize ws;
-		struct termios tio;
 
 		/* Store window size in the packet. */
 		if (ioctl(in_fd, TIOCGWINSZ, &ws) < 0)
 			memset(&ws, 0, sizeof(ws));
 
-		channel_request_start(id, "pty-req", 0);
+		channel_request_start(id, "pty-req", 1);
+		client_expect_confirm(id, "PTY allocation", 0);
 		packet_put_cstring(term != NULL ? term : "");
 		packet_put_int((u_int)ws.ws_col);
 		packet_put_int((u_int)ws.ws_row);
 		packet_put_int((u_int)ws.ws_xpixel);
 		packet_put_int((u_int)ws.ws_ypixel);
-		tio = get_saved_tio();
-		tty_make_modes(-1, tiop != NULL ? tiop : &tio);
+		if (tiop == NULL)
+			tiop = get_saved_tio();
+		tty_make_modes(-1, tiop);
 		packet_send();
 		/* XXX wait for reply */
 		c->client_tty = 1;
@@ -1955,22 +1947,21 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 		if (len > 900)
 			len = 900;
 		if (want_subsystem) {
-			debug("Sending subsystem: %.*s", len, (u_char*)buffer_ptr(cmd));
-			channel_request_start(id, "subsystem", subsys_repl != NULL);
-			if (subsys_repl != NULL) {
-				/* register callback for reply */
-				/* XXX we assume that client_loop has already been called */
-				dispatch_set(SSH2_MSG_CHANNEL_FAILURE, subsys_repl);
-				dispatch_set(SSH2_MSG_CHANNEL_SUCCESS, subsys_repl);
-			}
+			debug("Sending subsystem: %.*s",
+			    len, (u_char*)buffer_ptr(cmd));
+			channel_request_start(id, "subsystem", 1);
+			client_expect_confirm(id, "subsystem", 1);
 		} else {
-			debug("Sending command: %.*s", len, (u_char*)buffer_ptr(cmd));
-			channel_request_start(id, "exec", 0);
+			debug("Sending command: %.*s",
+			    len, (u_char*)buffer_ptr(cmd));
+			channel_request_start(id, "exec", 1);
+			client_expect_confirm(id, "exec", 1);
 		}
 		packet_put_string(buffer_ptr(cmd), buffer_len(cmd));
 		packet_send();
 	} else {
-		channel_request_start(id, "shell", 0);
+		channel_request_start(id, "shell", 1);
+		client_expect_confirm(id, "shell", 1);
 		packet_send();
 	}
 }
@@ -1989,6 +1980,8 @@ client_init_dispatch_20(void)
 	dispatch_set(SSH2_MSG_CHANNEL_OPEN_FAILURE, &channel_input_open_failure);
 	dispatch_set(SSH2_MSG_CHANNEL_REQUEST, &client_input_channel_req);
 	dispatch_set(SSH2_MSG_CHANNEL_WINDOW_ADJUST, &channel_input_window_adjust);
+	dispatch_set(SSH2_MSG_CHANNEL_SUCCESS, &channel_input_status_confirm);
+	dispatch_set(SSH2_MSG_CHANNEL_FAILURE, &channel_input_status_confirm);
 	dispatch_set(SSH2_MSG_GLOBAL_REQUEST, &client_input_global_request);
 
 	/* rekeying */
@@ -1998,6 +1991,7 @@ client_init_dispatch_20(void)
 	dispatch_set(SSH2_MSG_REQUEST_FAILURE, &client_global_request_reply);
 	dispatch_set(SSH2_MSG_REQUEST_SUCCESS, &client_global_request_reply);
 }
+
 static void
 client_init_dispatch_13(void)
 {
@@ -2017,6 +2011,7 @@ client_init_dispatch_13(void)
 	dispatch_set(SSH_SMSG_X11_OPEN, options.forward_x11 ?
 	    &x11_input_open : &deny_input_open);
 }
+
 static void
 client_init_dispatch_15(void)
 {
@@ -2024,6 +2019,7 @@ client_init_dispatch_15(void)
 	dispatch_set(SSH_MSG_CHANNEL_CLOSE, &channel_input_ieof);
 	dispatch_set(SSH_MSG_CHANNEL_CLOSE_CONFIRMATION, & channel_input_oclose);
 }
+
 static void
 client_init_dispatch(void)
 {
@@ -2041,7 +2037,7 @@ cleanup_exit(int i)
 {
 	leave_raw_mode();
 	leave_non_blocking();
-	if (options.control_path != NULL && control_fd != -1)
+	if (options.control_path != NULL && muxserver_sock != -1)
 		unlink(options.control_path);
 	_exit(i);
 }

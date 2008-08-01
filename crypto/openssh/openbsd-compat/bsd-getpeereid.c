@@ -37,6 +37,28 @@ getpeereid(int s, uid_t *euid, gid_t *gid)
 
 	return (0);
 }
+#elif defined(HAVE_GETPEERUCRED)
+
+#ifdef HAVE_UCRED_H
+# include <ucred.h>
+#endif
+
+int
+getpeereid(int s, uid_t *euid, gid_t *gid)
+{
+	ucred_t *ucred = NULL;
+
+	if (getpeerucred(s, &ucred) == -1)
+		return (-1);
+	if ((*euid = ucred_geteuid(ucred)) == -1)
+		return (-1);
+	if ((*gid = ucred_getrgid(ucred)) == -1)
+		return (-1);
+
+	ucred_free(ucred);
+
+	return (0);
+}
 #else
 int
 getpeereid(int s, uid_t *euid, gid_t *gid)

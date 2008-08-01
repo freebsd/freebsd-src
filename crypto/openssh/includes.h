@@ -49,7 +49,7 @@
 #ifdef HAVE_NEXT
 # include <libc.h>
 #endif
-#ifdef HAVE_PATHS
+#ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
 
@@ -148,6 +148,8 @@
 #if defined(HAVE_SYS_SYSLOG_H)
 # include <sys/syslog.h>
 #endif
+
+#include <errno.h>
 
 /*
  * On HP-UX 11.11, shadow.h and prot.h provide conflicting declarations

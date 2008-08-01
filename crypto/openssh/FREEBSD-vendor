@@ -1,8 +1,8 @@
 # $FreeBSD$
 Project:	Portable OpenSSH
 ProjectURL:	http://www.openssh.com/portable.html
-Version:	4.5p1
+Version:	5.1p1
 VendorTag:	OPENSSH
-VersionTag:	OpenSSH_4_5p1
+VersionTag:	OpenSSH_5_1p1
 License:	BSD
 Maintainer:	des

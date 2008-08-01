@@ -34,18 +34,16 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.70 2006/08/21 08:14:01 dtucker Exp $
+.\" $OpenBSD: sshd_config.5,v 1.96 2008/07/02 02:24:18 djm Exp $
 .\" $FreeBSD$
-.Dd September 25, 1999
+.Dd $Mdocdate: July 2 2008 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
 .Nm sshd_config
 .Nd OpenSSH SSH daemon configuration file
 .Sh SYNOPSIS
-.Bl -tag -width Ds -compact
-.It Pa /etc/ssh/sshd_config
-.El
+.Nm /etc/ssh/sshd_config
 .Sh DESCRIPTION
 .Xr sshd 8
 reads configuration data from
@@ -98,6 +96,15 @@ Valid arguments are
 (use IPv6 only).
 The default is
 .Dq any .
+.It Cm AllowAgentForwarding
+Specifies whether
+.Xr ssh-agent 1
+forwarding is permitted.
+The default is
+.Dq yes .
+Note that disabling agent forwarding does not improve security
+unless users are also denied shell access, as they can always install
+their own forwarders.
 .It Cm AllowGroups
 This keyword can be followed by a list of group name patterns, separated
 by spaces.
@@ -162,26 +169,58 @@ directory.
 The default is
 .Dq .ssh/authorized_keys .
 .It Cm Banner
-In some jurisdictions, sending a warning message before authentication
-may be relevant for getting legal protection.
 The contents of the specified file are sent to the remote user before
 authentication is allowed.
+If the argument is
+.Dq none
+then no banner is displayed.
 This option is only available for protocol version 2.
 By default, no banner is displayed.
 .It Cm ChallengeResponseAuthentication
 Specifies whether challenge-response authentication is allowed.
-Specifically, in
-.Fx ,
-this controls the use of PAM (see
-.Xr pam 3 )
-for authentication.
-Note that this affects the effectiveness of the
-.Cm PasswordAuthentication
-and
-.Cm PermitRootLogin
-variables.
+See also
+.Cm UsePAM .
 The default is
 .Dq yes .
+.It Cm ChrootDirectory
+Specifies a path to
+.Xr chroot 2
+to after authentication.
+This path, and all its components, must be root-owned directories that are
+not writable by any other user or group.
+.Pp
+The path may contain the following tokens that are expanded at runtime once
+the connecting user has been authenticated: %% is replaced by a literal '%',
+%h is replaced by the home directory of the user being authenticated, and
+%u is replaced by the username of that user.
+.Pp
+The
+.Cm ChrootDirectory
+must contain the necessary files and directories to support the
+users' session.
+For an interactive session this requires at least a shell, typically
+.Xr sh 1 ,
+and basic
+.Pa /dev
+nodes such as
+.Xr null 4 ,
+.Xr zero 4 ,
+.Xr stdin 4 ,
+.Xr stdout 4 ,
+.Xr stderr 4 ,
+.Xr arandom 4
+and
+.Xr tty 4
+devices.
+For file transfer sessions using
+.Dq sftp ,
+no additional configuration of the environment is necessary if the
+in-process sftp server is used (see
+.Cm Subsystem
+for details).
+.Pp
+The default is not to
+.Xr chroot 2 .
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
@@ -294,7 +333,9 @@ for more information on patterns.
 .It Cm ForceCommand
 Forces the execution of the command specified by
 .Cm ForceCommand ,
-ignoring any command supplied by the client.
+ignoring any command supplied by the client and
+.Pa ~/.ssh/rc
+if present.
 The command is invoked by using the user's login shell with the -c option.
 This applies to shell, command, or subsystem execution.
 It is most useful inside a
@@ -303,6 +344,11 @@ block.
 The command originally supplied by the client is available in the
 .Ev SSH_ORIGINAL_COMMAND
 environment variable.
+Specifying a command of
+.Dq internal-sftp
+will force the use of an in-process sftp server that requires no support
+files when used with
+.Cm ChrootDirectory .
 .It Cm GatewayPorts
 Specifies whether remote hosts are allowed to connect to ports
 forwarded for the client.
@@ -366,6 +412,8 @@ used by SSH.
 The default is
 .Pa /etc/ssh/ssh_host_key
 for protocol version 1, and
+.Pa /etc/ssh/ssh_host_rsa_key
+and
 .Pa /etc/ssh/ssh_host_dsa_key
 for protocol version 2.
 Note that
@@ -497,7 +545,10 @@ The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
 The default is:
-.Dq hmac-md5,hmac-sha1,hmac-ripemd160,hmac-sha1-96,hmac-md5-96 .
+.Bd -literal -offset indent
+hmac-md5,hmac-sha1,umac-64@openssh.com,
+hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+.Ed
 .It Cm Match
 Introduces a conditional block.
 If all of the criteria on the
@@ -506,6 +557,7 @@ line are satisfied, the keywords on the following lines override those
 set in the global section of the config file, until either another
 .Cm Match
 line or the end of the file.
+.Pp
 The arguments to
 .Cm Match
 are one or more criteria-pattern pairs.
@@ -515,14 +567,48 @@ The available criteria are
 .Cm Host ,
 and
 .Cm Address .
+The match patterns may consist of single entries or comma-separated
+lists and may use the wildcard and negation operators described in the
+.Sx PATTERNS
+section of
+.Xr ssh_config 5 .
+.Pp
+The patterns in an
+.Cm Address
+criteria may additionally contain addresses to match in CIDR
+address/masklen format, e.g.\&
+.Dq 192.0.2.0/24
+or
+.Dq 3ffe:ffff::/32 .
+Note that the mask length provided must be consistent with the address -
+it is an error to specify a mask length that is too long for the address
+or one with bits set in this host portion of the address.
+For example,
+.Dq 192.0.2.0/33
+and
+.Dq 192.0.2.0/8
+respectively.
+.Pp
 Only a subset of keywords may be used on the lines following a
 .Cm Match
 keyword.
 Available keywords are
 .Cm AllowTcpForwarding ,
+.Cm Banner ,
+.Cm ChrootDirectory ,
 .Cm ForceCommand ,
 .Cm GatewayPorts ,
+.Cm GSSAPIAuthentication ,
+.Cm HostbasedAuthentication ,
+.Cm KbdInteractiveAuthentication ,
+.Cm KerberosAuthentication ,
+.Cm MaxAuthTries ,
+.Cm MaxSessions ,
+.Cm PasswordAuthentication ,
 .Cm PermitOpen ,
+.Cm PermitRootLogin ,
+.Cm RhostsRSAAuthentication ,
+.Cm RSAAuthentication ,
 .Cm X11DisplayOffset ,
 .Cm X11Forwarding ,
 and
@@ -533,6 +619,9 @@ connection.
 Once the number of failures reaches half this value,
 additional failures are logged.
 The default is 6.
+.It Cm MaxSessions
+Specifies the maximum number of open sessions permitted per network connection.
+The default is 10.
 .It Cm MaxStartups
 Specifies the maximum number of concurrent unauthenticated connections to the
 SSH daemon.
@@ -559,23 +648,10 @@ are refused if the number of unauthenticated connections reaches
 (60).
 .It Cm PasswordAuthentication
 Specifies whether password authentication is allowed.
+See also
+.Cm UsePAM .
 The default is
-.Dq no ,
-unless
-.Nm sshd
-was built without PAM support, in which case the default is
-.Dq yes .
-Note that if
-.Cm ChallengeResponseAuthentication
-is
-.Dq yes ,
-and the PAM authentication policy for
-.Nm sshd
-includes
-.Xr pam_unix 8 ,
-password authentication will be allowed through the challenge-response
-mechanism regardless of the value of
-.Cm PasswordAuthentication .
+.Dq no .
 .It Cm PermitEmptyPasswords
 When password authentication is allowed, it specifies whether the
 server allows login to accounts with empty password strings.
@@ -746,7 +822,7 @@ The default is
 This option applies to protocol version 1 only.
 .It Cm ServerKeyBits
 Defines the number of bits in the ephemeral protocol version 1 server key.
-The minimum value is 512, and the default is 768.
+The minimum value is 512, and the default is 1024.
 .It Cm StrictModes
 Specifies whether
 .Xr sshd 8
@@ -760,11 +836,22 @@ The default is
 Configures an external subsystem (e.g. file transfer daemon).
 Arguments should be a subsystem name and a command (with optional arguments)
 to execute upon subsystem request.
+.Pp
 The command
 .Xr sftp-server 8
 implements the
 .Dq sftp
 file transfer subsystem.
+.Pp
+Alternately the name
+.Dq internal-sftp
+implements an in-process
+.Dq sftp
+server.
+This may simplify configurations using
+.Cm ChrootDirectory
+to force a different filesystem root on clients.
+.Pp
 By default no subsystems are defined.
 Note that this option applies to protocol version 2 only.
 .It Cm SyslogFacility
@@ -860,7 +947,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20061110 .
+.Dq FreeBSD-20080801 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Xr sshd 8 Ns 's

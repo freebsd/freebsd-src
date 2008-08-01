@@ -28,6 +28,7 @@
 #include <shadow.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "key.h"
 #include "hostfile.h"

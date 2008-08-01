@@ -1,4 +1,4 @@
-/* $OpenBSD: canohost.c,v 1.61 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: canohost.c,v 1.63 2008/06/12 00:03:49 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -32,6 +32,7 @@
 #include "packet.h"
 #include "log.h"
 #include "canohost.h"
+#include "misc.h"
 
 static void check_ip_options(int, char *);
 
@@ -88,7 +89,7 @@ get_remote_hostname(int sock, int use_dns)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
 	hints.ai_flags = AI_NUMERICHOST;
-	if (getaddrinfo(name, "0", &hints, &ai) == 0) {
+	if (getaddrinfo(name, NULL, &hints, &ai) == 0) {
 		logit("Nasty PTR record \"%s\" is set up for %s, ignoring",
 		    name, ntop);
 		freeaddrinfo(ai);
@@ -271,7 +272,7 @@ get_socket_address(int sock, int remote, int flags)
 	if ((r = getnameinfo((struct sockaddr *)&addr, addrlen, ntop,
 	    sizeof(ntop), NULL, 0, flags)) != 0) {
 		error("get_socket_address: getnameinfo %d failed: %s", flags,
-		    r == EAI_SYSTEM ? strerror(errno) : gai_strerror(r));
+		    ssh_gai_strerror(r));
 		return NULL;
 	}
 	return xstrdup(ntop);
@@ -372,7 +373,7 @@ get_sock_port(int sock, int local)
 	if ((r = getnameinfo((struct sockaddr *)&from, fromlen, NULL, 0,
 	    strport, sizeof(strport), NI_NUMERICSERV)) != 0)
 		fatal("get_sock_port: getnameinfo NI_NUMERICSERV failed: %s",
-		    r == EAI_SYSTEM ? strerror(errno) : gai_strerror(r));
+		    ssh_gai_strerror(r));
 	return atoi(strport);
 }
 

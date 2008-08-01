@@ -79,7 +79,7 @@ sys_auth_passwd(Authctxt *authctxt, const char *password)
 #endif /* UNIXWARE_LONG_PASSWORDS */
 		result = (strcmp(xcrypt(password, salt), pw_password) == 0);
 
-#if !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 	if (authctxt->valid)
 		free(pw_password);
 #endif
@@ -127,7 +127,7 @@ nischeck(char *namep)
 	functions that call shadow_pw() will need to free
  */
 
-#if !defined(BROKEN_LIBIAF)
+#ifdef USE_LIBIAF
 char *
 get_iaf_password(struct passwd *pw)
 {
@@ -144,6 +144,6 @@ get_iaf_password(struct passwd *pw)
 	else
 		fatal("ia_openinfo: Unable to open the shadow passwd file");
 }
-#endif /* !BROKEN_LIBIAF */
+#endif /* USE_LIBIAF */
 #endif /* HAVE_LIBIAF */
 

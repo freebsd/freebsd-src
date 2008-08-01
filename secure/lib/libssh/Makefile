@@ -9,18 +9,18 @@ SRCS=	acss.c authfd.c authfile.c bufaux.c bufbn.c buffer.c \
 	cipher-bf1.c cipher-ctr.c cipher-3des1.c cleanup.c \
 	compat.c compress.c crc32.c deattack.c fatal.c hostfile.c \
 	log.c match.c md-sha256.c moduli.c nchan.c packet.c \
-	readpass.c rsa.c ttymodes.c xmalloc.c \
+	readpass.c rsa.c ttymodes.c xmalloc.c addrmatch.c \
 	atomicio.c key.c dispatch.c kex.c mac.c uidswap.c uuencode.c misc.c \
 	monitor_fdpass.c rijndael.c ssh-dss.c ssh-rsa.c dh.c kexdh.c \
 	kexgex.c kexdhc.c kexgexc.c scard.c msg.c progressmeter.c dns.c \
-	entropy.c scard-opensc.c
+	entropy.c scard-opensc.c umac.c
 
 # gss-genr.c should be in $SRCS but causes linking problems, so it is
 # compiled directly into sshd instead.
 
 # Portability layer
-SRCS+=	bsd-closefrom.c bsd-misc.c getrrsetbyname.c \
-	port-tun.c strtonum.c vis.c xcrypt.c xmmap.c
+SRCS+=	bsd-closefrom.c bsd-misc.c fmt_scaled.c getrrsetbyname.c \
+	openssl-compat.c port-tun.c strtonum.c vis.c xcrypt.c xmmap.c
 # FreeBSD additions
 SRCS+=	version.c
 

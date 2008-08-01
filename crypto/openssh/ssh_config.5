@@ -34,19 +34,17 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.97 2006/07/27 08:00:50 jmc Exp $
+.\" $OpenBSD: ssh_config.5,v 1.111 2008/06/26 11:46:31 grunk Exp $
 .\" $FreeBSD$
-.Dd September 25, 1999
+.Dd $Mdocdate: June 26 2008 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
 .Nm ssh_config
 .Nd OpenSSH SSH client configuration files
 .Sh SYNOPSIS
-.Bl -tag -width Ds -compact
-.It Pa ~/.ssh/config
-.It Pa /etc/ssh/ssh_config
-.El
+.Nm ~/.ssh/config
+.Nm /etc/ssh/ssh_config
 .Sh DESCRIPTION
 .Xr ssh 1
 obtains configuration data from the following sources in
@@ -106,6 +104,7 @@ Restricts the following declarations (up to the next
 .Cm Host
 keyword) to be only for those hosts that match one of the patterns
 given after the keyword.
+If more than one pattern is provided, they should be separated by whitepsace.
 A single
 .Ql *
 as a pattern can be used to provide global
@@ -390,7 +389,7 @@ data).
 Specifies whether
 .Xr ssh 1
 should terminate the connection if it cannot set up all requested
-dynamic, local, and remote port forwardings.
+dynamic, tunnel, local, and remote port forwardings.
 The argument must be
 .Dq yes
 or
@@ -579,6 +578,14 @@ escape characters:
 It is possible to have
 multiple identity files specified in configuration files; all these
 identities will be tried in sequence.
+.It Cm KbdInteractiveAuthentication
+Specifies whether to use keyboard-interactive authentication.
+The argument to this keyword must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq yes .
 .It Cm KbdInteractiveDevices
 Specifies the list of methods to use in keyboard-interactive authentication.
 Multiple method names must be comma-separated.
@@ -594,7 +601,22 @@ and
 Specifies a command to execute on the local machine after successfully
 connecting to the server.
 The command string extends to the end of the line, and is executed with
-.Pa /bin/sh .
+the user's shell.
+The following escape character substitutions will be performed:
+.Ql %d
+(local user's home directory),
+.Ql %h
+(remote host name),
+.Ql %l
+(local host name),
+.Ql %n
+(host name as provided on the command line),
+.Ql %p
+(remote port),
+.Ql %r
+(remote user name) or
+.Ql %u
+(local user name).
 This directive is ignored unless
 .Cm PermitLocalCommand
 has been enabled.
@@ -644,7 +666,10 @@ The MAC algorithm is used in protocol version 2
 for data integrity protection.
 Multiple algorithms must be comma-separated.
 The default is:
-.Dq hmac-md5,hmac-sha1,hmac-ripemd160,hmac-sha1-96,hmac-md5-96 .
+.Bd -literal -offset indent
+hmac-md5,hmac-sha1,umac-64@openssh.com,
+hmac-ripemd160,hmac-sha1-96,hmac-md5-96
+.Ed
 .It Cm NoHostAuthenticationForLocalhost
 This option can be used if the home directory is shared across machines.
 In this case localhost will refer to a different machine on each of
@@ -715,7 +740,7 @@ if version 2 is not available.
 Specifies the command to use to connect to the server.
 The command
 string extends to the end of the line, and is executed with
-.Pa /bin/sh .
+the user's shell.
 In the command string,
 .Ql %h
 will be substituted by the host name to
@@ -1040,7 +1065,17 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20061110 .
+.Dq FreeBSD-20080801 .
+.It Cm VisualHostKey
+If this flag is set to
+.Dq yes ,
+an ASCII art representation of the remote host key fingerprint is
+printed additionally to the hex fingerprint string.
+If this flag is set to
+.Dq no ,
+only the hex fingerprint string will be printed.
+The default is
+.Dq no .
 .It Cm XAuthLocation
 Specifies the full pathname of the
 .Xr xauth 1

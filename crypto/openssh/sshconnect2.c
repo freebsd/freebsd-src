@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.162 2006/08/30 00:06:51 dtucker Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.166 2008/07/17 08:48:00 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -31,12 +31,16 @@
 #include <sys/stat.h>
 
 #include <errno.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H)
+#include <vis.h>
+#endif
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -129,7 +133,7 @@ ssh_kex2(char *host, struct sockaddr *hostaddr)
 		    options.hostkeyalgorithms;
 
 	if (options.rekey_limit)
-		packet_set_rekey_limit(options.rekey_limit);
+		packet_set_rekey_limit((u_int32_t)options.rekey_limit);
 
 	/* start key exchange */
 	kex = kex_setup(myproposal);
@@ -373,14 +377,21 @@ input_userauth_error(int type, u_int32_t seq, void *ctxt)
 void
 input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 {
-	char *msg, *lang;
+	char *msg, *raw, *lang;
+	u_int len;
 
 	debug3("input_userauth_banner");
-	msg = packet_get_string(NULL);
+	raw = packet_get_string(&len);
 	lang = packet_get_string(NULL);
-	if (options.log_level >= SYSLOG_LEVEL_INFO)
+	if (options.log_level >= SYSLOG_LEVEL_INFO) {
+		if (len > 65536)
+			len = 65536;
+		msg = xmalloc(len * 4); /* max expansion from strnvis() */
+		strnvis(msg, raw, len * 4, VIS_SAFE|VIS_OCTAL);
 		fprintf(stderr, "%s", msg);
-	xfree(msg);
+		xfree(msg);
+	}
+	xfree(raw);
 	xfree(lang);
 }
 
@@ -1307,7 +1318,7 @@ userauth_hostbased(Authctxt *authctxt)
 	Sensitive *sensitive = authctxt->sensitive;
 	Buffer b;
 	u_char *signature, *blob;
-	char *chost, *pkalg, *p;
+	char *chost, *pkalg, *p, myname[NI_MAXHOST];
 	const char *service;
 	u_int blen, slen;
 	int ok, i, len, found = 0;
@@ -1331,7 +1342,16 @@ userauth_hostbased(Authctxt *authctxt)
 		return 0;
 	}
 	/* figure out a name for the client host */
-	p = get_local_name(packet_get_connection_in());
+	p = NULL;
+	if (packet_connection_is_on_socket())
+		p = get_local_name(packet_get_connection_in());
+	if (p == NULL) {
+		if (gethostname(myname, sizeof(myname)) == -1) {
+			verbose("userauth_hostbased: gethostname: %s", 
+			    strerror(errno));
+		} else
+			p = xstrdup(myname);
+	}
 	if (p == NULL) {
 		error("userauth_hostbased: cannot get local ipaddr/name");
 		key_free(private);
