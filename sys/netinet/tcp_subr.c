@@ -385,17 +385,13 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 struct tcptemp *
 tcpip_maketemplate(struct inpcb *inp)
 {
-	struct mbuf *m;
-	struct tcptemp *n;
+	struct tcptemp *t;
 
-	m = m_get(M_DONTWAIT, MT_DATA);
-	if (m == NULL)
-		return (0);
-	m->m_len = sizeof(struct tcptemp);
-	n = mtod(m, struct tcptemp *);
-
-	tcpip_fillheaders(inp, (void *)&n->tt_ipgen, (void *)&n->tt_t);
-	return (n);
+	t = malloc(sizeof(*t), M_TEMP, M_NOWAIT);
+	if (t == NULL)
+		return (NULL);
+	tcpip_fillheaders(inp, (void *)&t->tt_ipgen, (void *)&t->tt_t);
+	return (t);
 }
 
 /*
