@@ -10,11 +10,5 @@ done
 cat tags |
 xargs perl -n -i.orig -e 'print; s/\$(Id|OpenBSD): [^\$]*/\$FreeBSD/ && print'
 
-# Shell code to reexpand FreeBSD tags
-cat tags | while read f ; do
-    id=$(cvs diff $f | grep '\$Fre[e]BSD:' |
-    sed 's/.*\(\$Fre[e]BSD:.*\$\).*/\1/') ;
-    if [ -n "$id" ] ; then
-        sed -i.orig -e "s@\\\$Fre[e]BSD\\\$@$id@" $f ;
-    fi ;
-done
+# Diff against vendor branch
+svn diff --no-diff-deleted --old=$FSVN/vendor-crypto/openssh/dist/ --new=.
