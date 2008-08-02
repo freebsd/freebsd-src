@@ -64,10 +64,21 @@
 #define	pio2_lo	atanlo[3]
 #define	pio4_hi	atanhi[1]
 
-extern const long double pS0, pS1, pS2, pS3, pS4, pS5, pS6;
-extern const long double qS1, qS2, qS3, qS4, qS5;
-extern const long double atanhi[], atanlo[], aT[];
-extern const long double pi_lo;
+#ifdef STRUCT_DECLS
+typedef struct longdouble {
+	uint64_t mant;
+	uint16_t expsign;
+} LONGDOUBLE;
+#else
+typedef long double LONGDOUBLE;
+#endif
+
+extern const LONGDOUBLE pS0, pS1, pS2, pS3, pS4, pS5, pS6;
+extern const LONGDOUBLE qS1, qS2, qS3, qS4, qS5;
+extern const LONGDOUBLE atanhi[], atanlo[], aT[];
+extern const LONGDOUBLE pi_lo;
+
+#ifndef STRUCT_DECLS
 
 static inline long double
 P(long double x)
@@ -99,3 +110,5 @@ T_odd(long double x)
 	return (aT[1] + x * (aT[3] + x * (aT[5] + x * (aT[7] + x * \
 		(aT[9] + x * aT[11])))));
 }
+
+#endif
