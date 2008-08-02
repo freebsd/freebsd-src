@@ -464,7 +464,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	{
 		/* I can't believe we need a quirk for DPT volumes. */
 		{ T_ANY, SIP_MEDIA_FIXED|SIP_MEDIA_REMOVABLE, "DPT", "*", "*" },
-		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS,
+		CAM_QUIRK_NOLUNS,
 		/*mintags*/0, /*maxtags*/255
 	},
 	{
@@ -495,7 +495,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "EXABYTE",
 			"EXB-8200*", "*"
 		},
-		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/*
@@ -506,7 +506,7 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "EXABYTE",
 			"IPL-6860*", "*"
 		},
-		CAM_QUIRK_NOSERIAL|CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/*
@@ -546,17 +546,6 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
 			" TDC 3600", "U07:"
-		},
-		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
-	},
-	{
-		/*
-		 * Maxtor Personal Storage 3000XT (Firewire)
-		 * hangs upon serial number probing.
-		 */
-		{
-			T_DIRECT, SIP_MEDIA_FIXED, "Maxtor",
-			"1394 storage", "*"
 		},
 		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
 	},
@@ -618,18 +607,6 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 	{
 		{ T_ENCLOSURE, SIP_MEDIA_FIXED, "DP", "BACKPLANE", "*" },
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
-	},
-	{
-		/*
-		 * Western Digital My Book 250GB (USB)
-		 * hangs upon serial number probing.
-		 * PR: 107495
-		 */
-		{
-			T_DIRECT, SIP_MEDIA_FIXED, "WD",
-			"2500JB External", "*"
-		},
-		CAM_QUIRK_NOSERIAL, /*mintags*/0, /*maxtags*/0
 	},
 	{
 		/* Default tagged queuing parameters for all devices */
@@ -5473,7 +5450,8 @@ typedef enum {
 	PROBE_INQUIRY,	/* this counts as DV0 for Basic Domain Validation */
 	PROBE_FULL_INQUIRY,
 	PROBE_MODE_SENSE,
-	PROBE_SERIAL_NUM,
+	PROBE_SERIAL_NUM_0,
+	PROBE_SERIAL_NUM_1,
 	PROBE_TUR_FOR_NEGOTIATION,
 	PROBE_INQUIRY_BASIC_DV1,
 	PROBE_INQUIRY_BASIC_DV2,
@@ -5816,10 +5794,42 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		}
 		xpt_print(periph->path, "Unable to mode sense control page - "
 		    "malloc failure\n");
-		softc->action = PROBE_SERIAL_NUM;
+		softc->action = PROBE_SERIAL_NUM_0;
 	}
 	/* FALLTHROUGH */
-	case PROBE_SERIAL_NUM:
+	case PROBE_SERIAL_NUM_0:
+	{
+		struct scsi_vpd_supported_page_list *vpd_list = NULL;
+		struct cam_ed *device;
+
+		device = periph->path->device;
+		if ((device->quirk->quirks & CAM_QUIRK_NOSERIAL) == 0) {
+			vpd_list = malloc(sizeof(*vpd_list), M_CAMXPT,
+			    M_NOWAIT | M_ZERO);
+		}
+
+		if (vpd_list != NULL) {
+			scsi_inquiry(csio,
+				     /*retries*/4,
+				     probedone,
+				     MSG_SIMPLE_Q_TAG,
+				     (u_int8_t *)vpd_list,
+				     sizeof(*vpd_list),
+				     /*evpd*/TRUE,
+				     SVPD_SUPPORTED_PAGE_LIST,
+				     SSD_MIN_SIZE,
+				     /*timeout*/60 * 1000);
+			break;
+		}
+		/*
+		 * We'll have to do without, let our probedone
+		 * routine finish up for us.
+		 */
+		start_ccb->csio.data_ptr = NULL;
+		probedone(periph, start_ccb);
+		return;
+	}
+	case PROBE_SERIAL_NUM_1:
 	{
 		struct scsi_vpd_unit_serial_number *serial_buf;
 		struct cam_ed* device;
@@ -5829,10 +5839,8 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		device->serial_num = NULL;
 		device->serial_num_len = 0;
 
-		if ((device->quirk->quirks & CAM_QUIRK_NOSERIAL) == 0)
-			serial_buf = (struct scsi_vpd_unit_serial_number *)
-				malloc(sizeof(*serial_buf), M_CAMXPT,
-					M_NOWAIT | M_ZERO);
+		serial_buf = (struct scsi_vpd_unit_serial_number *)
+			malloc(sizeof(*serial_buf), M_CAMXPT, M_NOWAIT|M_ZERO);
 
 		if (serial_buf != NULL) {
 			scsi_inquiry(csio,
@@ -6057,7 +6065,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 				if (INQ_DATA_TQ_ENABLED(inq_buf))
 					softc->action = PROBE_MODE_SENSE;
 				else
-					softc->action = PROBE_SERIAL_NUM;
+					softc->action = PROBE_SERIAL_NUM_0;
 
 				path->device->flags &= ~CAM_DEV_UNCONFIGURED;
 
@@ -6122,11 +6130,62 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		xpt_release_ccb(done_ccb);
 		free(mode_hdr, M_CAMXPT);
-		softc->action = PROBE_SERIAL_NUM;
+		softc->action = PROBE_SERIAL_NUM_0;
 		xpt_schedule(periph, priority);
 		return;
 	}
-	case PROBE_SERIAL_NUM:
+	case PROBE_SERIAL_NUM_0:
+	{
+		struct ccb_scsiio *csio;
+		struct scsi_vpd_supported_page_list *page_list;
+		int length, serialnum_supported, i;
+
+		serialnum_supported = 0;
+		csio = &done_ccb->csio;
+		page_list =
+		    (struct scsi_vpd_supported_page_list *)csio->data_ptr;
+
+		if (page_list == NULL) {
+			/*
+			 * Don't process the command as it was never sent
+			 */
+		} else if ((csio->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP
+		    && (page_list->length > 0)) {
+			length = min(page_list->length,
+			    SVPD_SUPPORTED_PAGES_SIZE);
+			for (i = 0; i < length; i++) {
+				if (page_list->list[i] ==
+				    SVPD_UNIT_SERIAL_NUMBER) {
+					serialnum_supported = 1;
+					break;
+				}
+			}
+		} else if (cam_periph_error(done_ccb, 0,
+					    SF_RETRY_UA|SF_NO_PRINT,
+					    &softc->saved_ccb) == ERESTART) {
+			return;
+		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+			/* Don't wedge the queue */
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
+					 /*run_queue*/TRUE);
+		}
+
+		if (page_list != NULL)
+			free(page_list, M_DEVBUF);
+
+		if (serialnum_supported) {
+			xpt_release_ccb(done_ccb);
+			softc->action = PROBE_SERIAL_NUM_1;
+			xpt_schedule(periph, priority);
+			return;
+		}
+		xpt_release_ccb(done_ccb);
+		softc->action = PROBE_TUR_FOR_NEGOTIATION;
+		xpt_schedule(periph, done_ccb->ccb_h.pinfo.priority);
+		return;
+	}
+			
+	case PROBE_SERIAL_NUM_1:
 	{
 		struct ccb_scsiio *csio;
 		struct scsi_vpd_unit_serial_number *serial_buf;
