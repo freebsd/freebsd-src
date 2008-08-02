@@ -111,58 +111,58 @@ main(int argc, char **argv)
 	/* The entire program is basically executed from this loop. */
 	while ((arg = getopt(argc, argv, "CDGS:Ucg:hp:rs:tu:")) != -1) {
 		switch (arg) {
-			case 'C':
-				environ = NULL;
-				break;
+		case 'C':
+			environ = NULL;
+			break;
 
-			case 'c':
-				environ = calloc(1, sizeof(*environ));
-				break;
+		case 'c':
+			environ = calloc(1, sizeof(*environ));
+			break;
 
-			case 'D':
-				dump_environ();
-				break;
+		case 'D':
+			dump_environ();
+			break;
 
-			case 'G':
-			case 'g':
-				value = getenv(arg == 'g' ? optarg : NULL);
-				printf("%s%s", value == NULL ? "*NULL*" : value, eol);
-				break;
+		case 'G':
+		case 'g':
+			value = getenv(arg == 'g' ? optarg : NULL);
+			printf("%s%s", value == NULL ? "*NULL*" : value, eol);
+			break;
 
-			case 'p':
-				print_rtrn_errno(putenv(optarg), eol);
-				break;
+		case 'p':
+			print_rtrn_errno(putenv(optarg), eol);
+			break;
 
-			case 'r':
-				environ = staticEnv;
-				break;
+		case 'r':
+			environ = staticEnv;
+			break;
 
-			case 'S':
-				print_rtrn_errno(setenv(NULL, optarg,
-				    atoi(argv[optind])), eol);
-				optind += 1;
-				break;
+		case 'S':
+			print_rtrn_errno(setenv(NULL, optarg,
+			    atoi(argv[optind])), eol);
+			optind += 1;
+			break;
 
-			case 's':
-				print_rtrn_errno(setenv(optarg, argv[optind],
-				    atoi(argv[optind + 1])), eol);
-				optind += 2;
-				break;
+		case 's':
+			print_rtrn_errno(setenv(optarg, argv[optind],
+			    atoi(argv[optind + 1])), eol);
+			optind += 2;
+			break;
 
-			case 't':
-				eol = " ";
-				break;
+		case 't':
+			eol = " ";
+			break;
 
-			case 'U':
-			case 'u':
-				print_rtrn_errno(unsetenv(arg == 'u' ? optarg :
-				    NULL), eol);
-				break;
+		case 'U':
+		case 'u':
+			print_rtrn_errno(unsetenv(arg == 'u' ? optarg : NULL),
+			    eol);
+			break;
 
-			case 'h':
-			default:
-				usage(argv[0]);
-				exit(EXIT_FAILURE);
+		case 'h':
+		default:
+			usage(argv[0]);
+			exit(EXIT_FAILURE);
 		}
 	}
 
