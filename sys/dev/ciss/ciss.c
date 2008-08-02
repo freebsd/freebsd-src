@@ -2028,10 +2028,6 @@ ciss_done(struct ciss_softc *sc, cr_qhead_t *qh)
      */
     for (;;) {
 
-	/* see if the OPQ contains anything */
-	if (!CISS_TL_SIMPLE_OPQ_INTERRUPT(sc))
-	    break;
-
 	tag = CISS_TL_SIMPLE_FETCH_CMD(sc);
 	if (tag == CISS_TL_SIMPLE_OPQ_EMPTY)
 	    break;
