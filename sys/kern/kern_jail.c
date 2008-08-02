@@ -208,6 +208,8 @@ e_dropprref:
 	}
 	sx_sunlock(&allprison_lock);
 e_dropvnref:
+	if (pr->pr_slots != NULL)
+		FREE(pr->pr_slots, M_PRISON);
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -338,6 +340,8 @@ prison_complete(void *context, int pending)
 		psrv->ps_destroy(psrv, pr);
 	}
 	sx_sunlock(&allprison_lock);
+	if (pr->pr_slots != NULL)
+		FREE(pr->pr_slots, M_PRISON);
 
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
