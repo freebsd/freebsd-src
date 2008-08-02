@@ -57,9 +57,9 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, seeotheruids, CTLFLAG_RW, 0,
     "TrustedBSD mac_seeotheruids policy controls");
 
-static int	mac_seeotheruids_enabled = 1;
+static int	seeotheruids_enabled = 1;
 SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_seeotheruids_enabled, 0, "Enforce seeotheruids policy");
+    &seeotheruids_enabled, 0, "Enforce seeotheruids policy");
 
 /*
  * Exception: allow credentials to be aware of other credentials with the
@@ -93,10 +93,10 @@ SYSCTL_INT(_security_mac_seeotheruids, OID_AUTO, specificgid, CTLFLAG_RW,
     &specificgid, 0, "Specific gid to be exempt from seeotheruids policy");
 
 static int
-mac_seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
+seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
 {
 
-	if (!mac_seeotheruids_enabled)
+	if (!seeotheruids_enabled)
 		return (0);
 
 	if (primarygroup_enabled) {
@@ -122,50 +122,50 @@ mac_seeotheruids_check(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-mac_seeotheruids_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+seeotheruids_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
-	return (mac_seeotheruids_check(cr1, cr2));
+	return (seeotheruids_check(cr1, cr2));
 }
 
 static int
-mac_seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
+seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 
-	return (mac_seeotheruids_check(cred, p->p_ucred));
+	return (seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_proc_sched(struct ucred *cred, struct proc *p)
+seeotheruids_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 
-	return (mac_seeotheruids_check(cred, p->p_ucred));
+	return (seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_proc_debug(struct ucred *cred, struct proc *p)
+seeotheruids_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 
-	return (mac_seeotheruids_check(cred, p->p_ucred));
+	return (seeotheruids_check(cred, p->p_ucred));
 }
 
 static int
-mac_seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
+seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
-	return (mac_seeotheruids_check(cred, so->so_cred));
+	return (seeotheruids_check(cred, so->so_cred));
 }
 
-static struct mac_policy_ops mac_seeotheruids_ops =
+static struct mac_policy_ops seeotheruids_ops =
 {
-	.mpo_check_cred_visible = mac_seeotheruids_check_cred_visible,
-	.mpo_check_proc_debug = mac_seeotheruids_check_proc_debug,
-	.mpo_check_proc_sched = mac_seeotheruids_check_proc_sched,
-	.mpo_check_proc_signal = mac_seeotheruids_check_proc_signal,
-	.mpo_check_socket_visible = mac_seeotheruids_check_socket_visible,
+	.mpo_check_cred_visible = seeotheruids_check_cred_visible,
+	.mpo_check_proc_debug = seeotheruids_check_proc_debug,
+	.mpo_check_proc_sched = seeotheruids_check_proc_sched,
+	.mpo_check_proc_signal = seeotheruids_check_proc_signal,
+	.mpo_check_socket_visible = seeotheruids_check_socket_visible,
 };
 
-MAC_POLICY_SET(&mac_seeotheruids_ops, mac_seeotheruids,
+MAC_POLICY_SET(&seeotheruids_ops, mac_seeotheruids,
     "TrustedBSD MAC/seeotheruids", MPC_LOADTIME_FLAG_UNLOADOK, NULL);

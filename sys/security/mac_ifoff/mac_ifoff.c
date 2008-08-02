@@ -36,6 +36,7 @@
 
 /*
  * Developed by the TrustedBSD Project.
+ *
  * Limit access to interfaces until they are specifically administratively
  * enabled.  Prevents protocol stack-driven packet leakage in unsafe
  * environments.
@@ -57,38 +58,38 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, ifoff, CTLFLAG_RW, 0,
     "TrustedBSD mac_ifoff policy controls");
 
-static int	mac_ifoff_enabled = 1;
+static int	ifoff_enabled = 1;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_ifoff_enabled, 0, "Enforce ifoff policy");
-TUNABLE_INT("security.mac.ifoff.enabled", &mac_ifoff_enabled);
+    &ifoff_enabled, 0, "Enforce ifoff policy");
+TUNABLE_INT("security.mac.ifoff.enabled", &ifoff_enabled);
 
-static int	mac_ifoff_lo_enabled = 1;
+static int	ifoff_lo_enabled = 1;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, lo_enabled, CTLFLAG_RW,
-    &mac_ifoff_lo_enabled, 0, "Enable loopback interfaces");
-TUNABLE_INT("security.mac.ifoff.lo_enabled", &mac_ifoff_lo_enabled);
+    &ifoff_lo_enabled, 0, "Enable loopback interfaces");
+TUNABLE_INT("security.mac.ifoff.lo_enabled", &ifoff_lo_enabled);
 
-static int	mac_ifoff_other_enabled = 0;
+static int	ifoff_other_enabled = 0;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, other_enabled, CTLFLAG_RW,
-    &mac_ifoff_other_enabled, 0, "Enable other interfaces");
-TUNABLE_INT("security.mac.ifoff.other_enabled", &mac_ifoff_other_enabled);
+    &ifoff_other_enabled, 0, "Enable other interfaces");
+TUNABLE_INT("security.mac.ifoff.other_enabled", &ifoff_other_enabled);
 
-static int	mac_ifoff_bpfrecv_enabled = 0;
+static int	ifoff_bpfrecv_enabled = 0;
 SYSCTL_INT(_security_mac_ifoff, OID_AUTO, bpfrecv_enabled, CTLFLAG_RW,
-    &mac_ifoff_bpfrecv_enabled, 0, "Enable BPF reception even when interface "
+    &ifoff_bpfrecv_enabled, 0, "Enable BPF reception even when interface "
     "is disabled");
-TUNABLE_INT("security.mac.ifoff.bpfrecv.enabled", &mac_ifoff_bpfrecv_enabled);
+TUNABLE_INT("security.mac.ifoff.bpfrecv.enabled", &ifoff_bpfrecv_enabled);
 
 static int
 check_ifnet_outgoing(struct ifnet *ifp)
 {
 
-	if (!mac_ifoff_enabled)
+	if (!ifoff_enabled)
 		return (0);
 
-	if (mac_ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
+	if (ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
 		return (0);
 
-	if (mac_ifoff_other_enabled && ifp->if_type != IFT_LOOP)
+	if (ifoff_other_enabled && ifp->if_type != IFT_LOOP)
 		return (0);
 
 	return (EPERM);
@@ -97,23 +98,23 @@ check_ifnet_outgoing(struct ifnet *ifp)
 static int
 check_ifnet_incoming(struct ifnet *ifp, int viabpf)
 {
-	if (!mac_ifoff_enabled)
+	if (!ifoff_enabled)
 		return (0);
 
-	if (mac_ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
+	if (ifoff_lo_enabled && ifp->if_type == IFT_LOOP)
 		return (0);
 
-	if (mac_ifoff_other_enabled && ifp->if_type != IFT_LOOP)
+	if (ifoff_other_enabled && ifp->if_type != IFT_LOOP)
 		return (0);
 
-	if (viabpf && mac_ifoff_bpfrecv_enabled)
+	if (viabpf && ifoff_bpfrecv_enabled)
 		return (0);
 
 	return (EPERM);
 }
 
 static int
-mac_ifoff_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+ifoff_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 
@@ -121,7 +122,7 @@ mac_ifoff_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
 }
 
 static int
-mac_ifoff_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+ifoff_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -129,7 +130,7 @@ mac_ifoff_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
 }
 
 static int
-mac_ifoff_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+ifoff_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -141,7 +142,7 @@ mac_ifoff_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
-mac_ifoff_check_socket_deliver(struct socket *so, struct label *solabel,
+ifoff_check_socket_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -152,13 +153,13 @@ mac_ifoff_check_socket_deliver(struct socket *so, struct label *solabel,
 	return (0);
 }
 
-static struct mac_policy_ops mac_ifoff_ops =
+static struct mac_policy_ops ifoff_ops =
 {
-	.mpo_check_bpfdesc_receive = mac_ifoff_check_bpfdesc_receive,
-	.mpo_check_ifnet_transmit = mac_ifoff_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_ifoff_check_inpcb_deliver,
-	.mpo_check_socket_deliver = mac_ifoff_check_socket_deliver,
+	.mpo_check_bpfdesc_receive = ifoff_check_bpfdesc_receive,
+	.mpo_check_ifnet_transmit = ifoff_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = ifoff_check_inpcb_deliver,
+	.mpo_check_socket_deliver = ifoff_check_socket_deliver,
 };
 
-MAC_POLICY_SET(&mac_ifoff_ops, mac_ifoff, "TrustedBSD MAC/ifoff",
+MAC_POLICY_SET(&ifoff_ops, mac_ifoff, "TrustedBSD MAC/ifoff",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);
