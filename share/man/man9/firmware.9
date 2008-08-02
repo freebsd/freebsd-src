@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2008
+.Dd August 2, 2008
 .Os
 .Dt FIRMWARE 9
 .Sh NAME
@@ -31,7 +31,6 @@
 .Nm firmware_unregister ,
 .Nm firmware_get ,
 .Nm firmware_put
-.Nm firmware_drain
 .Nd firmware image loading and management
 .Sh SYNOPSIS
 .In sys/param.h
@@ -60,8 +59,6 @@ struct firmware {
 .Fn firmware_get "const char *imagename"
 .Ft void
 .Fn firmware_put "const struct firmware *fp" "int flags"
-.Ft void
-.Fn firmware_drain "void"
 .Sh DESCRIPTION
 The
 .Nm firmware
@@ -164,17 +161,6 @@ By default a firmware image will be deferred to a
 .Xr taskqueue 9
 thread so the call may be done while holding a lock.
 In certain cases, such as on driver detach, this cannot be allowed.
-If the
-.Dv FIRMWARE_WAIT
-flag is or'd into
-.Fa flags
-then
-.Fn firmware_put
-will wait for the asynchronous operation to complete.
-This can also be accomplished by calling the
-.Fn firmware_drain
-routine after 
-.Fn firmware_put .
 .Sh FIRMWARE LOADING MECHANISMS
 As mentioned before, any component of the system can register
 firmware images at any time by simply calling
