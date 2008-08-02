@@ -104,7 +104,10 @@ atan2l(long double y, long double x)
 
     /* compute y/x */
 	k = expty-exptx;
-	if(k > LDBL_MANT_DIG+2) z=pio2_hi+pio2_lo;	/* |y/x| huge */
+	if(k > LDBL_MANT_DIG+2) {			/* |y/x| huge */
+	    z=pio2_hi+pio2_lo;
+	    m&=1;
+	}
 	else if(expsignx<0&&k<-LDBL_MANT_DIG-2) z=0.0; 	/* |y/x| tiny, x<0 */
 	else z=atanl(fabsl(y/x));		/* safe to do y/x */
 	switch (m) {
