@@ -453,7 +453,8 @@ build32:
 .if ${MK_KERBEROS} != "no"
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= ${_t}
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= \
+	    ${_t}
 .endfor
 .endif
 .for _t in obj includes
@@ -475,15 +476,14 @@ build32:
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= build-tools
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} -DWITHOUT_SSP DESTDIR= \
+	    build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32WMAKE} -f Makefile.inc1 libraries
 .for _t in obj depend all
-	cd ${.CURDIR}/libexec/rtld-elf; \
-	    PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
-	cd ${.CURDIR}/usr.bin/ldd; \
-	    PROG=ldd32 ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32WMAKE} ${_t}
 .endfor
 
 distribute32 install32:
@@ -502,10 +502,10 @@ distribute32 install32:
 .if ${MK_CRYPT} != "no"
 	cd ${.CURDIR}/secure/lib; ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
+	cd ${.CURDIR}/libexec/rtld-elf; \
+	    PROG=ld-elf32.so.1 ${LIB32IMAKE} ${.TARGET:S/32$//}
 	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
-
 
 WMAKE_TGTS=
 .if !defined(SUBDIR_OVERRIDE)
@@ -669,7 +669,8 @@ redistribute:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute
 .if ${TARGET_ARCH} == "amd64" && ${MK_LIB32} != "no"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 DISTRIBUTION=lib32
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
+	    DISTRIBUTION=lib32
 .endif
 
 distrib-dirs distribution:
