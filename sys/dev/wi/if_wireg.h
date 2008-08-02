@@ -51,7 +51,8 @@
 #define WI_LOCAL_INTEN		0x40
 #define WI_HFA384X_SWSUPPORT0_OFF	0x28
 #define WI_PRISM2STA_MAGIC		0x4A2D
-#define WI_HFA384X_PCICOR_OFF		0x26
+#define WI_PCICOR_OFF		0x26
+#define WI_PCICOR_RESET		0x0080
 
 /* Default port: 0 (only 0 exists on stations) */
 #define WI_DEFAULT_PORT	WI_PORT0
@@ -330,7 +331,7 @@
 #define WI_HCR_HOLD		0x000f
 #define WI_HCR_EEHOLD		0x00ce
 
-#define WI_COR_OFFSET	0x3e0	/* OK for PCI, must be bogus for pccard */
+#define WI_COR_OFFSET	0x3e0	/* OK for PCI, default COR for Prism PC Card */
 #define WI_COR_VALUE	0x41
 
 /*
@@ -429,6 +430,10 @@ struct wi_ver {
 #define	WI_NIC_P3_PCMCIA_ATL_ID		0x801C
 #define	WI_NIC_P3_PCMCIA_ATS_ID		0x801D
 #define	WI_NIC_P3_PCMCIA_STR		"RF:PRISM3(PCMCIA)"
+
+#define WI_NIC_P3_USB_AMD_ID		0x801E
+#define WI_NIC_P3_USB_SST_ID		0x801F
+#define	WI_NIC_P3_USB_ATL_ID		0x8020
 
 #define	WI_NIC_P3_MINI_AMD_ID		0x8021	/* Prism3 Mini-PCI */
 #define	WI_NIC_P3_MINI_SST_ID		0x8022
