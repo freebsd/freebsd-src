@@ -56,6 +56,7 @@ Commands:
   upgrade      -- Fetch upgrades to FreeBSD version specified via -r option
   install      -- Install downloaded updates or upgrades
   rollback     -- Uninstall most recently installed updates
+  IDS          -- Compare the system against an index of "known good" files.
 EOF
 	exit 0
 }
@@ -86,7 +87,8 @@ EOF
 
 CONFIGOPTIONS="KEYPRINT WORKDIR SERVERNAME MAILTO ALLOWADD ALLOWDELETE
     KEEPMODIFIEDMETADATA COMPONENTS IGNOREPATHS UPDATEIFUNMODIFIED
-    BASEDIR VERBOSELEVEL TARGETRELEASE STRICTCOMPONENTS MERGECHANGES"
+    BASEDIR VERBOSELEVEL TARGETRELEASE STRICTCOMPONENTS MERGECHANGES
+    IDSIGNOREPATHS"
 
 # Set all the configuration options to "".
 nullconfig () {
@@ -219,6 +221,13 @@ config_Components () {
 config_IgnorePaths () {
 	for C in $@; do
 		IGNOREPATHS="${IGNOREPATHS} ${C}"
+	done
+}
+
+# Add to the list of paths which IDS should ignore.
+config_IDSIgnorePaths () {
+	for C in $@; do
+		IDSIGNOREPATHS="${IDSIGNOREPATHS} ${C}"
 	done
 }
 
@@ -375,7 +384,7 @@ parse_cmdline () {
 			;;
 
 		# Commands
-		cron | fetch | upgrade | install | rollback)
+		cron | fetch | upgrade | install | rollback | IDS)
 			COMMANDS="${COMMANDS} $1"
 			;;
 
@@ -690,6 +699,91 @@ rollback_check_params () {
 		echo "Update manifest is corrupt -- this should never happen."
 		exit 1
 	fi
+}
+
+# Perform sanity checks and set some final parameters
+# in preparation for comparing the system against the
+# published index.  Figure out which index we should
+# compare against: If the user is running *-p[0-9]+,
+# strip off the last part; if the user is running
+# -SECURITY, call it -RELEASE.  Chdir into the working
+# directory.
+IDS_check_params () {
+	export HTTP_USER_AGENT="freebsd-update (${COMMAND}, `uname -r`)"
+
+	_SERVERNAME_z=\
+"SERVERNAME must be given via command line or configuration file."
+	_KEYPRINT_z="Key must be given via -k option or configuration file."
+	_KEYPRINT_bad="Invalid key fingerprint: "
+	_WORKDIR_bad="Directory does not exist or is not writable: "
+
+	if [ -z "${SERVERNAME}" ]; then
+		echo -n "`basename $0`: "
+		echo "${_SERVERNAME_z}"
+		exit 1
+	fi
+	if [ -z "${KEYPRINT}" ]; then
+		echo -n "`basename $0`: "
+		echo "${_KEYPRINT_z}"
+		exit 1
+	fi
+	if ! echo "${KEYPRINT}" | grep -qE "^[0-9a-f]{64}$"; then
+		echo -n "`basename $0`: "
+		echo -n "${_KEYPRINT_bad}"
+		echo ${KEYPRINT}
+		exit 1
+	fi
+	if ! [ -d "${WORKDIR}" -a -w "${WORKDIR}" ]; then
+		echo -n "`basename $0`: "
+		echo -n "${_WORKDIR_bad}"
+		echo ${WORKDIR}
+		exit 1
+	fi
+	cd ${WORKDIR} || exit 1
+
+	# Generate release number.  The s/SECURITY/RELEASE/ bit exists
+	# to provide an upgrade path for FreeBSD Update 1.x users, since
+	# the kernels provided by FreeBSD Update 1.x are always labelled
+	# as X.Y-SECURITY.
+	RELNUM=`uname -r |
+	    sed -E 's,-p[0-9]+,,' |
+	    sed -E 's,-SECURITY,-RELEASE,'`
+	ARCH=`uname -m`
+	FETCHDIR=${RELNUM}/${ARCH}
+	PATCHDIR=${RELNUM}/${ARCH}/bp
+
+	# Figure out what directory contains the running kernel
+	BOOTFILE=`sysctl -n kern.bootfile`
+	KERNELDIR=${BOOTFILE%/kernel}
+	if ! [ -d ${KERNELDIR} ]; then
+		echo "Cannot identify running kernel"
+		exit 1
+	fi
+
+	# Figure out what kernel configuration is running.  We start with
+	# the output of `uname -i`, and then make the following adjustments:
+	# 1. Replace "SMP-GENERIC" with "SMP".  Why the SMP kernel config
+	# file says "ident SMP-GENERIC", I don't know...
+	# 2. If the kernel claims to be GENERIC _and_ ${ARCH} is "amd64"
+	# _and_ `sysctl kern.version` contains a line which ends "/SMP", then
+	# we're running an SMP kernel.  This mis-identification is a bug
+	# which was fixed in 6.2-STABLE.
+	KERNCONF=`uname -i`
+	if [ ${KERNCONF} = "SMP-GENERIC" ]; then
+		KERNCONF=SMP
+	fi
+	if [ ${KERNCONF} = "GENERIC" ] && [ ${ARCH} = "amd64" ]; then
+		if sysctl kern.version | grep -qE '/SMP$'; then
+			KERNCONF=SMP
+		fi
+	fi
+
+	# Define some paths
+	SHA256=/sbin/sha256
+	PHTTPGET=/usr/libexec/phttpget
+
+	# Set up variables relating to VERBOSELEVEL
+	fetch_setup_verboselevel
 }
 
 #### Core functionality -- the actual work gets done here
@@ -2705,6 +2799,157 @@ rollback_run () {
 	echo " done."
 }
 
+# Compare INDEX-ALL and INDEX-PRESENT and print warnings about differences.
+IDS_compare () {
+	# Get all the non-matching lines.
+	sort -k 1,1 -t '|' < $1 > $1.sorted
+	comm -13 $1 $2 |
+	    fgrep -v '|-||||||' |
+	    sort -k 1,1 -t '|' |
+	    join -t '|' $1.sorted - > INDEX-NOTMATCHING
+
+	# Ignore files which match IDSIGNOREPATHS.
+	for X in ${IDSIGNOREPATHS}; do
+		grep -E "^${X}" INDEX-NOTMATCHING
+	done |
+	    sort -u |
+	    comm -13 - INDEX-NOTMATCHING > INDEX-NOTMATCHING.tmp
+	mv INDEX-NOTMATCHING.tmp INDEX-NOTMATCHING
+
+	# Go through the lines and print warnings.
+	while read LINE; do
+		FPATH=`echo "${LINE}" | cut -f 1 -d '|'`
+		TYPE=`echo "${LINE}" | cut -f 2 -d '|'`
+		OWNER=`echo "${LINE}" | cut -f 3 -d '|'`
+		GROUP=`echo "${LINE}" | cut -f 4 -d '|'`
+		PERM=`echo "${LINE}" | cut -f 5 -d '|'`
+		FLAGS=`echo "${LINE}" | cut -f 6 -d '|'`
+		HASH=`echo "${LINE}" | cut -f 7 -d '|'`
+		LINK=`echo "${LINE}" | cut -f 8 -d '|'`
+		P_TYPE=`echo "${LINE}" | cut -f 9 -d '|'`
+		P_OWNER=`echo "${LINE}" | cut -f 10 -d '|'`
+		P_GROUP=`echo "${LINE}" | cut -f 11 -d '|'`
+		P_PERM=`echo "${LINE}" | cut -f 12 -d '|'`
+		P_FLAGS=`echo "${LINE}" | cut -f 13 -d '|'`
+		P_HASH=`echo "${LINE}" | cut -f 14 -d '|'`
+		P_LINK=`echo "${LINE}" | cut -f 15 -d '|'`
+
+		# Warn about different object types.
+		if ! [ "${TYPE}" = "${P_TYPE}" ]; then
+			echo -n "${FPATH} is a "
+			case "${P_TYPE}" in
+			f)	echo -n "regular file, "
+				;;
+			d)	echo -n "directory, "
+				;;
+			L)	echo -n "symlink, "
+				;;
+			esac
+			echo -n "but should be a "
+			case "${TYPE}" in
+			f)	echo -n "regular file."
+				;;
+			d)	echo -n "directory."
+				;;
+			L)	echo -n "symlink."
+				;;
+			esac
+			echo
+
+			# Skip other tests, since they don't make sense if
+			# we're comparing different object types.
+			continue
+		fi
+
+		# Warn about different owners.
+		if ! [ "${OWNER}" = "${P_OWNER}" ]; then
+			echo -n "${FPATH} is owned by user id ${P_OWNER}, "
+			echo "but should be owned by user id ${OWNER}."
+		fi
+
+		# Warn about different groups.
+		if ! [ "${GROUP}" = "${P_GROUP}" ]; then
+			echo -n "${FPATH} is owned by group id ${P_GROUP}, "
+			echo "but should be owned by group id ${GROUP}."
+		fi
+
+		# Warn about different permissions.  We do not warn about
+		# different permissions on symlinks, since some archivers
+		# don't extract symlink permissions correctly and they are
+		# ignored anyway.
+		if ! [ "${PERM}" = "${P_PERM}" ] &&
+		    ! [ "${TYPE}" = "L" ]; then
+			echo -n "${FPATH} has ${P_PERM} permissions, "
+			echo "but should have ${PERM} permissions."
+		fi
+
+		# We don't warn about different file flags, since sysinstall
+		# doesn't seem to set these when it installs FreeBSD.
+
+		# Warn about different file hashes / symlink destinations.
+		if ! [ "${HASH}" = "${P_HASH}" ]; then
+			if [ "${TYPE}" = "L" ]; then
+				echo -n "${FPATH} is a symlink to ${P_HASH}, "
+				echo "but should be a symlink to ${HASH}."
+			fi
+			if [ "${TYPE}" = "f" ]; then
+				echo -n "${FPATH} has SHA256 hash ${P_HASH}, "
+				echo "but should have SHA256 hash ${HASH}."
+			fi
+		fi
+
+		# We don't warn about different hard links, since some
+		# some archivers break hard links, and as long as the
+		# underlying data is correct they really don't matter.
+	done < INDEX-NOTMATCHING
+
+	# Clean up
+	rm $1 $1.sorted $2 INDEX-NOTMATCHING
+}
+
+# Do the work involved in comparing the system to a "known good" index
+IDS_run () {
+	workdir_init || return 1
+
+	# Prepare the mirror list.
+	fetch_pick_server_init && fetch_pick_server
+
+	# Try to fetch the public key until we run out of servers.
+	while ! fetch_key; do
+		fetch_pick_server || return 1
+	done
+ 
+	# Try to fetch the metadata index signature ("tag") until we run
+	# out of available servers; and sanity check the downloaded tag.
+	while ! fetch_tag; do
+		fetch_pick_server || return 1
+	done
+	fetch_tagsanity || return 1
+
+	# Fetch INDEX-OLD and INDEX-ALL.
+	fetch_metadata INDEX-OLD INDEX-ALL || return 1
+
+	# Generate filtered INDEX-OLD and INDEX-ALL files containing only
+	# the components we want and without anything marked as "Ignore".
+	fetch_filter_metadata INDEX-OLD || return 1
+	fetch_filter_metadata INDEX-ALL || return 1
+
+	# Merge the INDEX-OLD and INDEX-ALL files into INDEX-ALL.
+	sort INDEX-OLD INDEX-ALL > INDEX-ALL.tmp
+	mv INDEX-ALL.tmp INDEX-ALL
+	rm INDEX-OLD
+
+	# Translate /boot/${KERNCONF} to ${KERNELDIR}
+	fetch_filter_kernel_names INDEX-ALL ${KERNCONF}
+
+	# Inspect the system and generate an INDEX-PRESENT file.
+	fetch_inspect_system INDEX-ALL INDEX-PRESENT /dev/null || return 1
+
+	# Compare INDEX-ALL and INDEX-PRESENT and print warnings about any
+	# differences.
+	IDS_compare INDEX-ALL INDEX-PRESENT
+}
+
 #### Main functions -- call parameter-handling and core functions
 
 # Using the command line, configuration file, and defaults,
@@ -2763,6 +3008,12 @@ cmd_install () {
 cmd_rollback () {
 	rollback_check_params
 	rollback_run || exit 1
+}
+
+# Compare system against a "known good" index.
+cmd_IDS () {
+	IDS_check_params
+	IDS_run || exit 1
 }
 
 #### Entry point
