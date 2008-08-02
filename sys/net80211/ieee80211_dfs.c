@@ -302,7 +302,7 @@ ieee80211_dfs_notify_radar(struct ieee80211com *ic, struct ieee80211_channel *ch
 		announce_radar(ic->ic_ifp, chan, dfs->newchan);
 
 		if (callout_pending(&dfs->cac_timer))
-			callout_reset(&dfs->nol_timer, 0, dfs_timeout, ic);
+			callout_schedule(&dfs->cac_timer, 0);
 		else if (dfs->newchan != NULL) {
 			/* XXX mode 1, switch count 2 */
 			/* XXX calculate switch count based on max
