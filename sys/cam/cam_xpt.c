@@ -1137,6 +1137,7 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 					    inccb->ccb_h.target_lun) !=
 					    CAM_REQ_CMP){
 				error = EINVAL;
+				CAM_SIM_UNLOCK(bus->sim);
 				break;
 			}
 			/* Ensure all of our fields are correct */
