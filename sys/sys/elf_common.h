@@ -648,6 +648,24 @@ typedef struct {
 #define	R_IA_64_DTPREL64LSB	0xb7	/* word64 LSB	@dtprel(S + A) */
 #define	R_IA_64_LTOFF_DTPREL22	0xba	/* imm22	@ltoff(@dtprel(S+A)) */
 
+#define	R_MIPS_NONE	0	/* No reloc */
+#define	R_MIPS_16	1	/* Direct 16 bit */
+#define	R_MIPS_32	2	/* Direct 32 bit */
+#define	R_MIPS_REL32	3	/* PC relative 32 bit */
+#define	R_MIPS_26	4	/* Direct 26 bit shifted */
+#define	R_MIPS_HI16	5	/* High 16 bit */
+#define	R_MIPS_LO16	6	/* Low 16 bit */
+#define	R_MIPS_GPREL16	7	/* GP relative 16 bit */
+#define	R_MIPS_LITERAL	8	/* 16 bit literal entry */
+#define	R_MIPS_GOT16	9	/* 16 bit GOT entry */
+#define	R_MIPS_PC16	10	/* PC relative 16 bit */
+#define	R_MIPS_CALL16	11	/* 16 bit GOT entry for function */
+#define	R_MIPS_GPREL32	12	/* GP relative 32 bit */
+#define	R_MIPS_GOTHI16	21	/* GOT HI 16 bit */
+#define	R_MIPS_GOTLO16	22	/* GOT LO 16 bit */
+#define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */
+#define	R_MIPS_CALLLO16 31	/* lower 16 bit GOT entry for function */
+
 #define	R_PPC_NONE		0	/* No relocation. */
 #define	R_PPC_ADDR32		1
 #define	R_PPC_ADDR24		2
