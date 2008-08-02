@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2007
+.Dd August 2, 2008
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
+.Nm callout_schedule ,
 .Nm callout_pending ,
 .Nm callout_active ,
 .Nm callout_deactivate
@@ -82,6 +83,8 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_drain "struct callout *c"
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Ft int
+.Fn callout_schedule "struct callout *c" "int ticks"
 .Ft int
 .Fn callout_pending "struct callout *c"
 .Ft int
@@ -191,9 +194,10 @@ The functions
 .Fn callout_init_mtx ,
 .Fn callout_init_rw ,
 .Fn callout_stop ,
-.Fn callout_drain
-and
+.Fn callout_drain ,
 .Fn callout_reset
+and
+.Fn callout_schedule
 are low-level routines for clients who wish to allocate their own
 callout structures.
 .Pp
@@ -201,9 +205,10 @@ The function
 .Fn callout_init
 initializes a callout so it can be passed to
 .Fn callout_stop ,
-.Fn callout_drain
+.Fn callout_drain ,
+.Fn callout_reset 
 or
-.Fn callout_reset
+.Fn callout_schedule 
 without any side effects.
 If the
 .Fa mpsafe
@@ -294,6 +299,17 @@ If there was already a pending callout and it was rescheduled, then
 will return a non-zero value.
 If the callout has an associated mutex, then that mutex must be
 held when this function is called.
+The function
+.Fn callout_schedule
+(re)schedules an existing callout for a new period of time;
+it is equivalent to calling
+.Fn callout_reset
+with the
+.Fa func
+and
+.Fa arg
+parameters extracted from the callout structure (though possibly with
+lower overhead).
 .Pp
 The macros
 .Fn callout_pending ,
