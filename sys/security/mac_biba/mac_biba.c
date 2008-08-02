@@ -121,8 +121,8 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, max_compartments, CTLFLAG_RD,
     &max_compartments, 0, "Maximum supported compartments");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW,
-    &ptys_equal, 0, "Label pty devices as biba/equal on create");
+SYSCTL_INT(_security_mac_biba, OID_AUTO, ptys_equal, CTLFLAG_RW, &ptys_equal,
+    0, "Label pty devices as biba/equal on create");
 TUNABLE_INT("security.mac.biba.ptys_equal", &ptys_equal);
 
 static int	interfaces_equal;
@@ -638,12 +638,10 @@ biba_parse_element(struct mac_biba_element *element, char *string)
 	char *compartment, *end, *grade;
 	int value;
 
-	if (strcmp(string, "high") == 0 ||
-	    strcmp(string, "hi") == 0) {
+	if (strcmp(string, "high") == 0 || strcmp(string, "hi") == 0) {
 		element->mbe_type = MAC_BIBA_TYPE_HIGH;
 		element->mbe_grade = MAC_BIBA_TYPE_UNDEF;
-	} else if (strcmp(string, "low") == 0 ||
-	    strcmp(string, "lo") == 0) {
+	} else if (strcmp(string, "low") == 0 || strcmp(string, "lo") == 0) {
 		element->mbe_type = MAC_BIBA_TYPE_LOW;
 		element->mbe_grade = MAC_BIBA_TYPE_UNDEF;
 	} else if (strcmp(string, "equal") == 0 ||
@@ -665,9 +663,8 @@ biba_parse_element(struct mac_biba_element *element, char *string)
 		element->mbe_grade = value;
 
 		/*
-		 * Optional compartment piece of the element.  If none
-		 * are included, we assume that the label has no
-		 * compartments.
+		 * Optional compartment piece of the element.  If none are
+		 * included, we assume that the label has no compartments.
 		 */
 		if (string == NULL)
 			return (0);
@@ -688,8 +685,8 @@ biba_parse_element(struct mac_biba_element *element, char *string)
 }
 
 /*
- * Note: destructively consumes the string, make a local copy before
- * calling if that's a problem.
+ * Note: destructively consumes the string, make a local copy before calling
+ * if that's a problem.
  */
 static int
 biba_parse(struct mac_biba *mb, char *string)

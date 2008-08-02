@@ -399,14 +399,12 @@ mls_set_range(struct mac_mls *mm, u_short typelow, u_short levellow,
 	mm->mm_rangelow.mme_type = typelow;
 	mm->mm_rangelow.mme_level = levellow;
 	if (compartmentslow != NULL)
-		memcpy(mm->mm_rangelow.mme_compartments,
-		    compartmentslow,
+		memcpy(mm->mm_rangelow.mme_compartments, compartmentslow,
 		    sizeof(mm->mm_rangelow.mme_compartments));
 	mm->mm_rangehigh.mme_type = typehigh;
 	mm->mm_rangehigh.mme_level = levelhigh;
 	if (compartmentshigh != NULL)
-		memcpy(mm->mm_rangehigh.mme_compartments,
-		    compartmentshigh,
+		memcpy(mm->mm_rangehigh.mme_compartments, compartmentshigh,
 		    sizeof(mm->mm_rangehigh.mme_compartments));
 	mm->mm_flags |= MAC_MLS_FLAG_RANGE;
 }
@@ -689,12 +687,10 @@ mls_parse(struct mac_mls *mm, char *string)
 	}
 
 	if (rangelow != NULL) {
-		error = mls_parse_element(&mm->mm_rangelow,
-		    rangelow);
+		error = mls_parse_element(&mm->mm_rangelow, rangelow);
 		if (error)
 			return (error);
-		error = mls_parse_element(&mm->mm_rangehigh,
-		    rangehigh);
+		error = mls_parse_element(&mm->mm_rangehigh, rangehigh);
 		if (error)
 			return (error);
 		mm->mm_flags |= MAC_MLS_FLAG_RANGE;
@@ -735,7 +731,6 @@ mls_copy_label(struct label *src, struct label *dest)
 
 	*SLOT(dest) = *SLOT(src);
 }
-
 
 /*
  * Object-specific entry point implementations are sorted alphabetically by
