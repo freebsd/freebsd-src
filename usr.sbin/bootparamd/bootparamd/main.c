@@ -50,7 +50,7 @@ char **argv;
 	int c;
 
 	while ((c = getopt(argc, argv,"dsr:f:")) != -1)
-	  switch ((char)c) {
+	  switch (c) {
 	  case 'd':
 	    debug = 1;
 	    break;
