@@ -4305,11 +4305,14 @@ pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, int mode)
 	vm_offset_t va, tmpva, offset;
 
 	/*
-	 * If this fits within the direct map window and use WB caching
-	 * mode, use the direct map.
+	 * If the specified range of physical addresses fits within the direct
+	 * map window, use the direct map. 
 	 */
-	if (pa < dmaplimit && (pa + size) < dmaplimit && mode == PAT_WRITE_BACK)
-		return ((void *)PHYS_TO_DMAP(pa));
+	if (pa < dmaplimit && pa + size < dmaplimit) {
+		va = PHYS_TO_DMAP(pa);
+		if (!pmap_change_attr(va, size, mode))
+			return ((void *)va);
+	}
 	offset = pa & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
 	va = kmem_alloc_nofault(kernel_map, size);
