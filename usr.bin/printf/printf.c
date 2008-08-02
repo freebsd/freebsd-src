@@ -408,7 +408,8 @@ escape(char *fmt, int percent, size_t *len)
 					/* octal constant */
 		case '0': case '1': case '2': case '3':
 		case '4': case '5': case '6': case '7':
-			for (c = *fmt == '0' ? 4 : 3, value = 0;
+			c = (!percent && *fmt == '0') ? 4 : 3;
+			for (value = 0;
 			    c-- && *fmt >= '0' && *fmt <= '7'; ++fmt) {
 				value <<= 3;
 				value += *fmt - '0';
