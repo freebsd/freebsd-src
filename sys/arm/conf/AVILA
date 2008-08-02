@@ -22,10 +22,10 @@ machine		arm
 ident		AVILA
 
 options 	PHYSADDR=0x10000000
-options		KERNPHYSADDR=0x10200000	
-options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
-options		FLASHADDR=0x50000000
-options		LOADERRAMADDR=0x00000000
+options 	KERNPHYSADDR=0x10200000	
+options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+options 	FLASHADDR=0x50000000
+options 	LOADERRAMADDR=0x00000000
 
 options STARTUP_PAGETABLE_ADDR=0x10000000
 include		"../xscale/ixp425/std.avila"
@@ -34,19 +34,19 @@ hints		"AVILA.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
-#options		HZ=1000
-options		HZ=100
-options		DEVICE_POLLING
+#options 	HZ=1000
+options 	HZ=100
+options 	DEVICE_POLLING
 
 # Debugging for use in -current
-options		KDB
-#options		GDB
+options 	KDB
+#options 	GDB
 options 	DDB			#Enable the kernel debugger
 #options 	INVARIANTS		#Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
-#options		DIAGNOSTIC
+#options 	DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -70,15 +70,15 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options		BOOTP
-options		BOOTP_NFSROOT
-options		BOOTP_NFSV3
-options		BOOTP_WIRED_TO=npe0
-#options		BOOTP_WIRED_TO=ath0
-#options		BOOTP_WIRED_TO=rl0
-options		BOOTP_COMPAT
-#options		PREEMPTION
-#options		VERBOSE_SYSINIT
+options 	BOOTP
+options 	BOOTP_NFSROOT
+options 	BOOTP_NFSV3
+options 	BOOTP_WIRED_TO=npe0
+#options 	BOOTP_WIRED_TO=ath0
+#options 	BOOTP_WIRED_TO=rl0
+options 	BOOTP_COMPAT
+#options 	PREEMPTION
+#options 	VERBOSE_SYSINIT
 
 device		mem			# Memory and kernel memory devices
 #device		saarm
@@ -118,11 +118,11 @@ device		if_bridge
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
-options		XSCALE_CACHE_READ_WRITE_ALLOCATE
+options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
 device		md
 device          random          # Entropy device
 
-#options		ARM_USE_SMALL_ALLOC
+#options 	ARM_USE_SMALL_ALLOC
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
@@ -133,7 +133,7 @@ device		wlan_xauth
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
 device		ath_rate_sample	# SampleRate tx rate control for ath
-options		ATH_DEBUG
+options 	ATH_DEBUG
 
 #device		crypto
 #device		cryptodev
