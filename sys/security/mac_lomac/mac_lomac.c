@@ -92,14 +92,14 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
     "TrustedBSD mac_lomac policy controls");
 
-static int	mac_lomac_label_size = sizeof(struct mac_lomac);
+static int	lomac_label_size = sizeof(struct mac_lomac);
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, label_size, CTLFLAG_RD,
-    &mac_lomac_label_size, 0, "Size of struct mac_lomac");
+    &lomac_label_size, 0, "Size of struct mac_lomac");
 
-static int	mac_lomac_enabled = 1;
+static int	lomac_enabled = 1;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_lomac_enabled, 0, "Enforce MAC/LOMAC policy");
-TUNABLE_INT("security.mac.lomac.enabled", &mac_lomac_enabled);
+    &lomac_enabled, 0, "Enforce MAC/LOMAC policy");
+TUNABLE_INT("security.mac.lomac.enabled", &lomac_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_lomac, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
@@ -126,46 +126,46 @@ SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RW,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
 TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
-static int	mac_lomac_slot;
-#define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), mac_lomac_slot))
-#define	SLOT_SET(l, val) mac_label_set((l), mac_lomac_slot, (uintptr_t)(val))
+static int	lomac_slot;
+#define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), lomac_slot))
+#define	SLOT_SET(l, val) mac_label_set((l), lomac_slot, (uintptr_t)(val))
 #define	PSLOT(l) ((struct mac_lomac_proc *)				\
-    mac_label_get((l), mac_lomac_slot))
-#define	PSLOT_SET(l, val) mac_label_set((l), mac_lomac_slot, (uintptr_t)(val))
+    mac_label_get((l), lomac_slot))
+#define	PSLOT_SET(l, val) mac_label_set((l), lomac_slot, (uintptr_t)(val))
 
-MALLOC_DEFINE(M_MACLOMAC, "mac_lomac_label", "MAC/LOMAC labels");
+MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 
 static struct mac_lomac *
 lomac_alloc(int flag)
 {
-	struct mac_lomac *mac_lomac;
+	struct mac_lomac *ml;
 
-	mac_lomac = malloc(sizeof(struct mac_lomac), M_MACLOMAC, M_ZERO | flag);
+	ml = malloc(sizeof(*ml), M_LOMAC, M_ZERO | flag);
 
-	return (mac_lomac);
+	return (ml);
 }
 
 static void
-lomac_free(struct mac_lomac *mac_lomac)
+lomac_free(struct mac_lomac *ml)
 {
 
-	if (mac_lomac != NULL)
-		free(mac_lomac, M_MACLOMAC);
+	if (ml != NULL)
+		free(ml, M_LOMAC);
 	else
 		atomic_add_int(&destroyed_not_inited, 1);
 }
 
 static int
-lomac_atmostflags(struct mac_lomac *mac_lomac, int flags)
+lomac_atmostflags(struct mac_lomac *ml, int flags)
 {
 
-	if ((mac_lomac->ml_flags & flags) != mac_lomac->ml_flags)
+	if ((ml->ml_flags & flags) != ml->ml_flags)
 		return (EINVAL);
 	return (0);
 }
 
 static int
-mac_lomac_dominate_element(struct mac_lomac_element *a,
+lomac_dominate_element(struct mac_lomac_element *a,
     struct mac_lomac_element *b)
 {
 
@@ -185,7 +185,7 @@ mac_lomac_dominate_element(struct mac_lomac_element *a,
 			return (1);
 
 		default:
-			panic("mac_lomac_dominate_element: b->mle_type invalid");
+			panic("lomac_dominate_element: b->mle_type invalid");
 		}
 
 	case MAC_LOMAC_TYPE_GRADE:
@@ -201,80 +201,78 @@ mac_lomac_dominate_element(struct mac_lomac_element *a,
 			return (a->mle_grade >= b->mle_grade);
 
 		default:
-			panic("mac_lomac_dominate_element: b->mle_type invalid");
+			panic("lomac_dominate_element: b->mle_type invalid");
 		}
 
 	default:
-		panic("mac_lomac_dominate_element: a->mle_type invalid");
+		panic("lomac_dominate_element: a->mle_type invalid");
 	}
 }
 
 static int
-mac_lomac_range_in_range(struct mac_lomac *rangea, struct mac_lomac *rangeb)
+lomac_range_in_range(struct mac_lomac *rangea, struct mac_lomac *rangeb)
 {
 
-	return (mac_lomac_dominate_element(&rangeb->ml_rangehigh,
+	return (lomac_dominate_element(&rangeb->ml_rangehigh,
 	    &rangea->ml_rangehigh) &&
-	    mac_lomac_dominate_element(&rangea->ml_rangelow,
+	    lomac_dominate_element(&rangea->ml_rangelow,
 	    &rangeb->ml_rangelow));
 }
 
 static int
-mac_lomac_single_in_range(struct mac_lomac *single, struct mac_lomac *range)
+lomac_single_in_range(struct mac_lomac *single, struct mac_lomac *range)
 {
 
 	KASSERT((single->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_single_in_range: a not single"));
+	    ("lomac_single_in_range: a not single"));
 	KASSERT((range->ml_flags & MAC_LOMAC_FLAG_RANGE) != 0,
-	    ("mac_lomac_single_in_range: b not range"));
+	    ("lomac_single_in_range: b not range"));
 
-	return (mac_lomac_dominate_element(&range->ml_rangehigh,
-	    &single->ml_single) &&
-	    mac_lomac_dominate_element(&single->ml_single,
+	return (lomac_dominate_element(&range->ml_rangehigh,
+	    &single->ml_single) && lomac_dominate_element(&single->ml_single,
 	    &range->ml_rangelow));
 }
 
 static int
-mac_lomac_auxsingle_in_range(struct mac_lomac *single, struct mac_lomac *range)
+lomac_auxsingle_in_range(struct mac_lomac *single, struct mac_lomac *range)
 {
 
 	KASSERT((single->ml_flags & MAC_LOMAC_FLAG_AUX) != 0,
-	    ("mac_lomac_single_in_range: a not auxsingle"));
+	    ("lomac_single_in_range: a not auxsingle"));
 	KASSERT((range->ml_flags & MAC_LOMAC_FLAG_RANGE) != 0,
-	    ("mac_lomac_single_in_range: b not range"));
+	    ("lomac_single_in_range: b not range"));
 
-	return (mac_lomac_dominate_element(&range->ml_rangehigh,
+	return (lomac_dominate_element(&range->ml_rangehigh,
 	    &single->ml_auxsingle) &&
-	    mac_lomac_dominate_element(&single->ml_auxsingle,
+	    lomac_dominate_element(&single->ml_auxsingle,
 	    &range->ml_rangelow));
 }
 
 static int
-mac_lomac_dominate_single(struct mac_lomac *a, struct mac_lomac *b)
+lomac_dominate_single(struct mac_lomac *a, struct mac_lomac *b)
 {
 	KASSERT((a->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_dominate_single: a not single"));
+	    ("lomac_dominate_single: a not single"));
 	KASSERT((b->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_dominate_single: b not single"));
+	    ("lomac_dominate_single: b not single"));
 
-	return (mac_lomac_dominate_element(&a->ml_single, &b->ml_single));
+	return (lomac_dominate_element(&a->ml_single, &b->ml_single));
 }
 
 static int
-mac_lomac_subject_dominate(struct mac_lomac *a, struct mac_lomac *b)
+lomac_subject_dominate(struct mac_lomac *a, struct mac_lomac *b)
 {
 	KASSERT((~a->ml_flags &
 	    (MAC_LOMAC_FLAG_SINGLE | MAC_LOMAC_FLAG_RANGE)) == 0,
-	    ("mac_lomac_dominate_single: a not subject"));
+	    ("lomac_dominate_single: a not subject"));
 	KASSERT((b->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_dominate_single: b not single"));
+	    ("lomac_dominate_single: b not single"));
 
-	return (mac_lomac_dominate_element(&a->ml_rangehigh,
-	    &b->ml_single));
+	return (lomac_dominate_element(&a->ml_rangehigh, &b->ml_single));
 }
 
 static int
-mac_lomac_equal_element(struct mac_lomac_element *a, struct mac_lomac_element *b)
+lomac_equal_element(struct mac_lomac_element *a, struct mac_lomac_element *b)
 {
 
 	if (a->mle_type == MAC_LOMAC_TYPE_EQUAL ||
@@ -285,32 +283,32 @@ mac_lomac_equal_element(struct mac_lomac_element *a, struct mac_lomac_element *b
 }
 
 static int
-mac_lomac_equal_single(struct mac_lomac *a, struct mac_lomac *b)
+lomac_equal_single(struct mac_lomac *a, struct mac_lomac *b)
 {
 
 	KASSERT((a->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_equal_single: a not single"));
+	    ("lomac_equal_single: a not single"));
 	KASSERT((b->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_equal_single: b not single"));
+	    ("lomac_equal_single: b not single"));
 
-	return (mac_lomac_equal_element(&a->ml_single, &b->ml_single));
+	return (lomac_equal_element(&a->ml_single, &b->ml_single));
 }
 
 static int
-mac_lomac_contains_equal(struct mac_lomac *mac_lomac)
+lomac_contains_equal(struct mac_lomac *ml)
 {
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE)
-		if (mac_lomac->ml_single.mle_type == MAC_LOMAC_TYPE_EQUAL)
+	if (ml->ml_flags & MAC_LOMAC_FLAG_SINGLE)
+		if (ml->ml_single.mle_type == MAC_LOMAC_TYPE_EQUAL)
 			return (1);
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_AUX)
-		if (mac_lomac->ml_auxsingle.mle_type == MAC_LOMAC_TYPE_EQUAL)
+	if (ml->ml_flags & MAC_LOMAC_FLAG_AUX)
+		if (ml->ml_auxsingle.mle_type == MAC_LOMAC_TYPE_EQUAL)
 			return (1);
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_RANGE) {
-		if (mac_lomac->ml_rangelow.mle_type == MAC_LOMAC_TYPE_EQUAL)
+	if (ml->ml_flags & MAC_LOMAC_FLAG_RANGE) {
+		if (ml->ml_rangelow.mle_type == MAC_LOMAC_TYPE_EQUAL)
 			return (1);
-		if (mac_lomac->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_EQUAL)
+		if (ml->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_EQUAL)
 			return (1);
 	}
 
@@ -318,25 +316,25 @@ mac_lomac_contains_equal(struct mac_lomac *mac_lomac)
 }
 
 static int
-mac_lomac_subject_privileged(struct mac_lomac *mac_lomac)
+lomac_subject_privileged(struct mac_lomac *ml)
 {
 
-	KASSERT((mac_lomac->ml_flags & MAC_LOMAC_FLAGS_BOTH) ==
+	KASSERT((ml->ml_flags & MAC_LOMAC_FLAGS_BOTH) ==
 	    MAC_LOMAC_FLAGS_BOTH,
-	    ("mac_lomac_subject_privileged: subject doesn't have both labels"));
+	    ("lomac_subject_privileged: subject doesn't have both labels"));
 
 	/* If the single is EQUAL, it's ok. */
-	if (mac_lomac->ml_single.mle_type == MAC_LOMAC_TYPE_EQUAL)
+	if (ml->ml_single.mle_type == MAC_LOMAC_TYPE_EQUAL)
 		return (0);
 
 	/* If either range endpoint is EQUAL, it's ok. */
-	if (mac_lomac->ml_rangelow.mle_type == MAC_LOMAC_TYPE_EQUAL ||
-	    mac_lomac->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_EQUAL)
+	if (ml->ml_rangelow.mle_type == MAC_LOMAC_TYPE_EQUAL ||
+	    ml->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_EQUAL)
 		return (0);
 
 	/* If the range is low-high, it's ok. */
-	if (mac_lomac->ml_rangelow.mle_type == MAC_LOMAC_TYPE_LOW &&
-	    mac_lomac->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_HIGH)
+	if (ml->ml_rangelow.mle_type == MAC_LOMAC_TYPE_LOW &&
+	    ml->ml_rangehigh.mle_type == MAC_LOMAC_TYPE_HIGH)
 		return (0);
 
 	/* It's not ok. */
@@ -344,21 +342,21 @@ mac_lomac_subject_privileged(struct mac_lomac *mac_lomac)
 }
 
 static int
-mac_lomac_high_single(struct mac_lomac *mac_lomac)
+lomac_high_single(struct mac_lomac *ml)
 {
 
-	KASSERT((mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_high_single: mac_lomac not single"));
+	KASSERT((ml->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
+	    ("lomac_high_single: mac_lomac not single"));
 
-	return (mac_lomac->ml_single.mle_type == MAC_LOMAC_TYPE_HIGH);
+	return (ml->ml_single.mle_type == MAC_LOMAC_TYPE_HIGH);
 }
 
 static int
-mac_lomac_valid(struct mac_lomac *mac_lomac)
+lomac_valid(struct mac_lomac *ml)
 {
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
-		switch (mac_lomac->ml_single.mle_type) {
+	if (ml->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
+		switch (ml->ml_single.mle_type) {
 		case MAC_LOMAC_TYPE_GRADE:
 		case MAC_LOMAC_TYPE_EQUAL:
 		case MAC_LOMAC_TYPE_HIGH:
@@ -369,12 +367,12 @@ mac_lomac_valid(struct mac_lomac *mac_lomac)
 			return (EINVAL);
 		}
 	} else {
-		if (mac_lomac->ml_single.mle_type != MAC_LOMAC_TYPE_UNDEF)
+		if (ml->ml_single.mle_type != MAC_LOMAC_TYPE_UNDEF)
 			return (EINVAL);
 	}
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_AUX) {
-		switch (mac_lomac->ml_auxsingle.mle_type) {
+	if (ml->ml_flags & MAC_LOMAC_FLAG_AUX) {
+		switch (ml->ml_auxsingle.mle_type) {
 		case MAC_LOMAC_TYPE_GRADE:
 		case MAC_LOMAC_TYPE_EQUAL:
 		case MAC_LOMAC_TYPE_HIGH:
@@ -385,12 +383,12 @@ mac_lomac_valid(struct mac_lomac *mac_lomac)
 			return (EINVAL);
 		}
 	} else {
-		if (mac_lomac->ml_auxsingle.mle_type != MAC_LOMAC_TYPE_UNDEF)
+		if (ml->ml_auxsingle.mle_type != MAC_LOMAC_TYPE_UNDEF)
 			return (EINVAL);
 	}
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_RANGE) {
-		switch (mac_lomac->ml_rangelow.mle_type) {
+	if (ml->ml_flags & MAC_LOMAC_FLAG_RANGE) {
+		switch (ml->ml_rangelow.mle_type) {
 		case MAC_LOMAC_TYPE_GRADE:
 		case MAC_LOMAC_TYPE_EQUAL:
 		case MAC_LOMAC_TYPE_HIGH:
@@ -401,7 +399,7 @@ mac_lomac_valid(struct mac_lomac *mac_lomac)
 			return (EINVAL);
 		}
 
-		switch (mac_lomac->ml_rangehigh.mle_type) {
+		switch (ml->ml_rangehigh.mle_type) {
 		case MAC_LOMAC_TYPE_GRADE:
 		case MAC_LOMAC_TYPE_EQUAL:
 		case MAC_LOMAC_TYPE_HIGH:
@@ -411,12 +409,12 @@ mac_lomac_valid(struct mac_lomac *mac_lomac)
 		default:
 			return (EINVAL);
 		}
-		if (!mac_lomac_dominate_element(&mac_lomac->ml_rangehigh,
-		    &mac_lomac->ml_rangelow))
+		if (!lomac_dominate_element(&ml->ml_rangehigh,
+		    &ml->ml_rangelow))
 			return (EINVAL);
 	} else {
-		if (mac_lomac->ml_rangelow.mle_type != MAC_LOMAC_TYPE_UNDEF ||
-		    mac_lomac->ml_rangehigh.mle_type != MAC_LOMAC_TYPE_UNDEF)
+		if (ml->ml_rangelow.mle_type != MAC_LOMAC_TYPE_UNDEF ||
+		    ml->ml_rangehigh.mle_type != MAC_LOMAC_TYPE_UNDEF)
 			return (EINVAL);
 	}
 
@@ -424,32 +422,32 @@ mac_lomac_valid(struct mac_lomac *mac_lomac)
 }
 
 static void
-mac_lomac_set_range(struct mac_lomac *mac_lomac, u_short typelow,
-    u_short gradelow, u_short typehigh, u_short gradehigh)
+lomac_set_range(struct mac_lomac *ml, u_short typelow, u_short gradelow,
+    u_short typehigh, u_short gradehigh)
 {
 
-	mac_lomac->ml_rangelow.mle_type = typelow;
-	mac_lomac->ml_rangelow.mle_grade = gradelow;
-	mac_lomac->ml_rangehigh.mle_type = typehigh;
-	mac_lomac->ml_rangehigh.mle_grade = gradehigh;
-	mac_lomac->ml_flags |= MAC_LOMAC_FLAG_RANGE;
+	ml->ml_rangelow.mle_type = typelow;
+	ml->ml_rangelow.mle_grade = gradelow;
+	ml->ml_rangehigh.mle_type = typehigh;
+	ml->ml_rangehigh.mle_grade = gradehigh;
+	ml->ml_flags |= MAC_LOMAC_FLAG_RANGE;
 }
 
 static void
-mac_lomac_set_single(struct mac_lomac *mac_lomac, u_short type, u_short grade)
+lomac_set_single(struct mac_lomac *ml, u_short type, u_short grade)
 {
 
-	mac_lomac->ml_single.mle_type = type;
-	mac_lomac->ml_single.mle_grade = grade;
-	mac_lomac->ml_flags |= MAC_LOMAC_FLAG_SINGLE;
+	ml->ml_single.mle_type = type;
+	ml->ml_single.mle_grade = grade;
+	ml->ml_flags |= MAC_LOMAC_FLAG_SINGLE;
 }
 
 static void
-mac_lomac_copy_range(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
+lomac_copy_range(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
 {
 
 	KASSERT((labelfrom->ml_flags & MAC_LOMAC_FLAG_RANGE) != 0,
-	    ("mac_lomac_copy_range: labelfrom not range"));
+	    ("lomac_copy_range: labelfrom not range"));
 
 	labelto->ml_rangelow = labelfrom->ml_rangelow;
 	labelto->ml_rangehigh = labelfrom->ml_rangehigh;
@@ -457,41 +455,40 @@ mac_lomac_copy_range(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
 }
 
 static void
-mac_lomac_copy_single(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
+lomac_copy_single(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
 {
 
 	KASSERT((labelfrom->ml_flags & MAC_LOMAC_FLAG_SINGLE) != 0,
-	    ("mac_lomac_copy_single: labelfrom not single"));
+	    ("lomac_copy_single: labelfrom not single"));
 
 	labelto->ml_single = labelfrom->ml_single;
 	labelto->ml_flags |= MAC_LOMAC_FLAG_SINGLE;
 }
 
 static void
-mac_lomac_copy_auxsingle(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
+lomac_copy_auxsingle(struct mac_lomac *labelfrom, struct mac_lomac *labelto)
 {
 
 	KASSERT((labelfrom->ml_flags & MAC_LOMAC_FLAG_AUX) != 0,
-	    ("mac_lomac_copy_auxsingle: labelfrom not auxsingle"));
+	    ("lomac_copy_auxsingle: labelfrom not auxsingle"));
 
 	labelto->ml_auxsingle = labelfrom->ml_auxsingle;
 	labelto->ml_flags |= MAC_LOMAC_FLAG_AUX;
 }
 
 static void
-mac_lomac_copy(struct mac_lomac *source, struct mac_lomac *dest)
+lomac_copy(struct mac_lomac *source, struct mac_lomac *dest)
 {
 
 	if (source->ml_flags & MAC_LOMAC_FLAG_SINGLE)
-		mac_lomac_copy_single(source, dest);
+		lomac_copy_single(source, dest);
 	if (source->ml_flags & MAC_LOMAC_FLAG_AUX)
-		mac_lomac_copy_auxsingle(source, dest);
+		lomac_copy_auxsingle(source, dest);
 	if (source->ml_flags & MAC_LOMAC_FLAG_RANGE)
-		mac_lomac_copy_range(source, dest);
+		lomac_copy_range(source, dest);
 }
 
-static int	mac_lomac_to_string(struct sbuf *sb,
-		    struct mac_lomac *mac_lomac);
+static int	lomac_to_string(struct sbuf *sb, struct mac_lomac *ml);
 
 static int
 maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
@@ -511,11 +508,11 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	mtx_lock(&subj->mtx);
         if (subj->mac_lomac.ml_flags & MAC_LOMAC_FLAG_UPDATE) {
 		/*
-		 * Check to see if the pending demotion would be more or
-		 * less severe than this one, and keep the more severe.
-		 * This can only happen for a multi-threaded application.
+		 * Check to see if the pending demotion would be more or less
+		 * severe than this one, and keep the more severe.  This can
+		 * only happen for a multi-threaded application.
 		 */
-		if (mac_lomac_dominate_single(objlabel, &subj->mac_lomac)) {
+		if (lomac_dominate_single(objlabel, &subj->mac_lomac)) {
 			mtx_unlock(&subj->mtx);
 			return (0);
 		}
@@ -524,14 +521,14 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	/*
 	 * Always demote the single label.
 	 */
-	mac_lomac_copy_single(objlabel, &subj->mac_lomac);
+	lomac_copy_single(objlabel, &subj->mac_lomac);
 	/*
-	 * Start with the original range, then minimize each side of
-	 * the range to the point of not dominating the object.  The
-	 * high side will always be demoted, of course.
+	 * Start with the original range, then minimize each side of the
+	 * range to the point of not dominating the object.  The high side
+	 * will always be demoted, of course.
 	 */
-	mac_lomac_copy_range(subjlabel, &subj->mac_lomac);
-	if (!mac_lomac_dominate_element(&objlabel->ml_single,
+	lomac_copy_range(subjlabel, &subj->mac_lomac);
+	if (!lomac_dominate_element(&objlabel->ml_single,
 	    &subj->mac_lomac.ml_rangelow))
 		subj->mac_lomac.ml_rangelow = objlabel->ml_single;
 	subj->mac_lomac.ml_rangehigh = objlabel->ml_single;
@@ -541,24 +538,23 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	thread_unlock(curthread);
 
 	/*
-	 * Avoid memory allocation while holding a mutex; cache the
-	 * label.
+	 * Avoid memory allocation while holding a mutex; cache the label.
 	 */
-	mac_lomac_copy_single(&subj->mac_lomac, &cached_subjlabel);
+	lomac_copy_single(&subj->mac_lomac, &cached_subjlabel);
 	mtx_unlock(&subj->mtx);
 
 	sbuf_new(&subjlabel_sb, NULL, 0, SBUF_AUTOEXTEND);
-	mac_lomac_to_string(&subjlabel_sb, subjlabel);
+	lomac_to_string(&subjlabel_sb, subjlabel);
 	sbuf_finish(&subjlabel_sb);
 	subjlabeltext = sbuf_data(&subjlabel_sb);
 
 	sbuf_new(&subjtext_sb, NULL, 0, SBUF_AUTOEXTEND);
-	mac_lomac_to_string(&subjtext_sb, &subj->mac_lomac);
+	lomac_to_string(&subjtext_sb, &subj->mac_lomac);
 	sbuf_finish(&subjtext_sb);
 	subjtext = sbuf_data(&subjtext_sb);
 
 	sbuf_new(&objlabel_sb, NULL, 0, SBUF_AUTOEXTEND);
-	mac_lomac_to_string(&objlabel_sb, objlabel);
+	lomac_to_string(&objlabel_sb, objlabel);
 	sbuf_finish(&objlabel_sb);
 	objlabeltext = sbuf_data(&objlabel_sb);
 
@@ -586,9 +582,9 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 }
 
 /*
- * Relabel "to" to "from" only if "from" is a valid label (contains
- * at least a single), as for a relabel operation which may or may
- * not involve a relevant label.
+ * Relabel "to" to "from" only if "from" is a valid label (contains at least
+ * a single), as for a relabel operation which may or may not involve a
+ * relevant label.
  */
 static void
 try_relabel(struct mac_lomac *from, struct mac_lomac *to)
@@ -596,7 +592,7 @@ try_relabel(struct mac_lomac *from, struct mac_lomac *to)
 
 	if (from->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
 		bzero(to, sizeof(*to));
-		mac_lomac_copy(from, to);
+		lomac_copy(from, to);
 	}
 }
 
@@ -604,7 +600,7 @@ try_relabel(struct mac_lomac *from, struct mac_lomac *to)
  * Policy module operations.
  */
 static void
-mac_lomac_init(struct mac_policy_conf *conf)
+lomac_init(struct mac_policy_conf *conf)
 {
 
 }
@@ -613,14 +609,14 @@ mac_lomac_init(struct mac_policy_conf *conf)
  * Label operations.
  */
 static void
-mac_lomac_init_label(struct label *label)
+lomac_init_label(struct label *label)
 {
 
 	SLOT_SET(label, lomac_alloc(M_WAITOK));
 }
 
 static int
-mac_lomac_init_label_waitcheck(struct label *label, int flag)
+lomac_init_label_waitcheck(struct label *label, int flag)
 {
 
 	SLOT_SET(label, lomac_alloc(flag));
@@ -631,16 +627,16 @@ mac_lomac_init_label_waitcheck(struct label *label, int flag)
 }
 
 static void
-mac_lomac_init_proc_label(struct label *label)
+lomac_init_proc_label(struct label *label)
 {
 
-	PSLOT_SET(label, malloc(sizeof(struct mac_lomac_proc), M_MACLOMAC,
+	PSLOT_SET(label, malloc(sizeof(struct mac_lomac_proc), M_LOMAC,
 	    M_ZERO | M_WAITOK));
 	mtx_init(&PSLOT(label)->mtx, "MAC/Lomac proc lock", NULL, MTX_DEF);
 }
 
 static void
-mac_lomac_destroy_label(struct label *label)
+lomac_destroy_label(struct label *label)
 {
 
 	lomac_free(SLOT(label));
@@ -648,16 +644,16 @@ mac_lomac_destroy_label(struct label *label)
 }
 
 static void
-mac_lomac_destroy_proc_label(struct label *label)
+lomac_destroy_proc_label(struct label *label)
 {
 
 	mtx_destroy(&PSLOT(label)->mtx);
-	FREE(PSLOT(label), M_MACLOMAC);
+	FREE(PSLOT(label), M_LOMAC);
 	PSLOT_SET(label, NULL);
 }
 
 static int
-mac_lomac_element_to_string(struct sbuf *sb, struct mac_lomac_element *element)
+lomac_element_to_string(struct sbuf *sb, struct mac_lomac_element *element)
 {
 
 	switch (element->mle_type) {
@@ -674,46 +670,42 @@ mac_lomac_element_to_string(struct sbuf *sb, struct mac_lomac_element *element)
 		return (sbuf_printf(sb, "%d", element->mle_grade));
 
 	default:
-		panic("mac_lomac_element_to_string: invalid type (%d)",
+		panic("lomac_element_to_string: invalid type (%d)",
 		    element->mle_type);
 	}
 }
 
 static int
-mac_lomac_to_string(struct sbuf *sb, struct mac_lomac *mac_lomac)
+lomac_to_string(struct sbuf *sb, struct mac_lomac *ml)
 {
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
-		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_single)
-		    == -1)
+	if (ml->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
+		if (lomac_element_to_string(sb, &ml->ml_single) == -1)
 			return (EINVAL);
 	}
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_AUX) {
+	if (ml->ml_flags & MAC_LOMAC_FLAG_AUX) {
 		if (sbuf_putc(sb, '[') == -1)
 			return (EINVAL);
 
-		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_auxsingle)
-		    == -1)
+		if (lomac_element_to_string(sb, &ml->ml_auxsingle) == -1)
 			return (EINVAL);
 
 		if (sbuf_putc(sb, ']') == -1)
 			return (EINVAL);
 	}
 
-	if (mac_lomac->ml_flags & MAC_LOMAC_FLAG_RANGE) {
+	if (ml->ml_flags & MAC_LOMAC_FLAG_RANGE) {
 		if (sbuf_putc(sb, '(') == -1)
 			return (EINVAL);
 
-		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_rangelow)
-		    == -1)
+		if (lomac_element_to_string(sb, &ml->ml_rangelow) == -1)
 			return (EINVAL);
 
 		if (sbuf_putc(sb, '-') == -1)
 			return (EINVAL);
 
-		if (mac_lomac_element_to_string(sb, &mac_lomac->ml_rangehigh)
-		    == -1)
+		if (lomac_element_to_string(sb, &ml->ml_rangehigh) == -1)
 			return (EINVAL);
 
 		if (sbuf_putc(sb, ')') == -1)
@@ -724,31 +716,29 @@ mac_lomac_to_string(struct sbuf *sb, struct mac_lomac *mac_lomac)
 }
 
 static int
-mac_lomac_externalize_label(struct label *label, char *element_name,
+lomac_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
 {
-	struct mac_lomac *mac_lomac;
+	struct mac_lomac *ml;
 
 	if (strcmp(MAC_LOMAC_LABEL_NAME, element_name) != 0)
 		return (0);
 
 	(*claimed)++;
 
-	mac_lomac = SLOT(label);
+	ml = SLOT(label);
 
-	return (mac_lomac_to_string(sb, mac_lomac));
+	return (lomac_to_string(sb, ml));
 }
 
 static int
-mac_lomac_parse_element(struct mac_lomac_element *element, char *string)
+lomac_parse_element(struct mac_lomac_element *element, char *string)
 {
 
-	if (strcmp(string, "high") == 0 ||
-	    strcmp(string, "hi") == 0) {
+	if (strcmp(string, "high") == 0 || strcmp(string, "hi") == 0) {
 		element->mle_type = MAC_LOMAC_TYPE_HIGH;
 		element->mle_grade = MAC_LOMAC_TYPE_UNDEF;
-	} else if (strcmp(string, "low") == 0 ||
-	    strcmp(string, "lo") == 0) {
+	} else if (strcmp(string, "low") == 0 || strcmp(string, "lo") == 0) {
 		element->mle_type = MAC_LOMAC_TYPE_LOW;
 		element->mle_grade = MAC_LOMAC_TYPE_UNDEF;
 	} else if (strcmp(string, "equal") == 0 ||
@@ -775,11 +765,11 @@ mac_lomac_parse_element(struct mac_lomac_element *element, char *string)
 }
 
 /*
- * Note: destructively consumes the string, make a local copy before
- * calling if that's a problem.
+ * Note: destructively consumes the string, make a local copy before calling
+ * if that's a problem.
  */
 static int
-mac_lomac_parse(struct mac_lomac *mac_lomac, char *string)
+lomac_parse(struct mac_lomac *ml, char *string)
 {
 	char *range, *rangeend, *rangehigh, *rangelow, *single, *auxsingle,
 	    *auxsingleend;
@@ -818,7 +808,7 @@ mac_lomac_parse(struct mac_lomac *mac_lomac, char *string)
 	}
 	KASSERT((rangelow != NULL && rangehigh != NULL) ||
 	    (rangelow == NULL && rangehigh == NULL),
-	    ("mac_lomac_internalize_label: range mismatch"));
+	    ("lomac_internalize_label: range mismatch"));
 	if (auxsingle != NULL) {
 		/* Nul terminate the end of the single string. */
 		*auxsingle = '\0';
@@ -832,35 +822,32 @@ mac_lomac_parse(struct mac_lomac *mac_lomac, char *string)
 		*auxsingleend = '\0';
 	}
 
-	bzero(mac_lomac, sizeof(*mac_lomac));
+	bzero(ml, sizeof(*ml));
 	if (single != NULL) {
-		error = mac_lomac_parse_element(&mac_lomac->ml_single, single);
+		error = lomac_parse_element(&ml->ml_single, single);
 		if (error)
 			return (error);
-		mac_lomac->ml_flags |= MAC_LOMAC_FLAG_SINGLE;
+		ml->ml_flags |= MAC_LOMAC_FLAG_SINGLE;
 	}
 
 	if (auxsingle != NULL) {
-		error = mac_lomac_parse_element(&mac_lomac->ml_auxsingle,
-		    auxsingle);
+		error = lomac_parse_element(&ml->ml_auxsingle, auxsingle);
 		if (error)
 			return (error);
-		mac_lomac->ml_flags |= MAC_LOMAC_FLAG_AUX;
+		ml->ml_flags |= MAC_LOMAC_FLAG_AUX;
 	}
 
 	if (rangelow != NULL) {
-		error = mac_lomac_parse_element(&mac_lomac->ml_rangelow,
-		    rangelow);
+		error = lomac_parse_element(&ml->ml_rangelow, rangelow);
 		if (error)
 			return (error);
-		error = mac_lomac_parse_element(&mac_lomac->ml_rangehigh,
-		    rangehigh);
+		error = lomac_parse_element(&ml->ml_rangehigh, rangehigh);
 		if (error)
 			return (error);
-		mac_lomac->ml_flags |= MAC_LOMAC_FLAG_RANGE;
+		ml->ml_flags |= MAC_LOMAC_FLAG_RANGE;
 	}
 
-	error = mac_lomac_valid(mac_lomac);
+	error = lomac_valid(ml);
 	if (error)
 		return (error);
 
@@ -868,10 +855,10 @@ mac_lomac_parse(struct mac_lomac *mac_lomac, char *string)
 }
 
 static int
-mac_lomac_internalize_label(struct label *label, char *element_name,
+lomac_internalize_label(struct label *label, char *element_name,
     char *element_data, int *claimed)
 {
-	struct mac_lomac *mac_lomac, mac_lomac_temp;
+	struct mac_lomac *ml, ml_temp;
 	int error;
 
 	if (strcmp(MAC_LOMAC_LABEL_NAME, element_name) != 0)
@@ -879,35 +866,35 @@ mac_lomac_internalize_label(struct label *label, char *element_name,
 
 	(*claimed)++;
 
-	error = mac_lomac_parse(&mac_lomac_temp, element_data);
+	error = lomac_parse(&ml_temp, element_data);
 	if (error)
 		return (error);
 
-	mac_lomac = SLOT(label);
-	*mac_lomac = mac_lomac_temp;
+	ml = SLOT(label);
+	*ml = ml_temp;
 
 	return (0);
 }
 
 static void
-mac_lomac_copy_label(struct label *src, struct label *dest)
+lomac_copy_label(struct label *src, struct label *dest)
 {
 
 	*SLOT(dest) = *SLOT(src);
 }
 
 /*
- * Labeling event operations: file system objects, and things that look
- * a lot like file system objects.
+ * Labeling event operations: file system objects, and things that look a lot
+ * like file system objects.
  */
 static void
-mac_lomac_create_devfs_device(struct ucred *cred, struct mount *mp,
+lomac_create_devfs_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
-	struct mac_lomac *mac_lomac;
+	struct mac_lomac *ml;
 	int lomac_type;
 
-	mac_lomac = SLOT(delabel);
+	ml = SLOT(delabel);
 	if (strcmp(dev->si_name, "null") == 0 ||
 	    strcmp(dev->si_name, "zero") == 0 ||
 	    strcmp(dev->si_name, "random") == 0 ||
@@ -920,21 +907,21 @@ mac_lomac_create_devfs_device(struct ucred *cred, struct mount *mp,
 		lomac_type = MAC_LOMAC_TYPE_EQUAL;
 	else
 		lomac_type = MAC_LOMAC_TYPE_HIGH;
-	mac_lomac_set_single(mac_lomac, lomac_type, 0);
+	lomac_set_single(ml, lomac_type, 0);
 }
 
 static void
-mac_lomac_create_devfs_directory(struct mount *mp, char *dirname,
+lomac_create_devfs_directory(struct mount *mp, char *dirname,
     int dirnamelen, struct devfs_dirent *de, struct label *delabel)
 {
-	struct mac_lomac *mac_lomac;
+	struct mac_lomac *ml;
 
-	mac_lomac = SLOT(delabel);
-	mac_lomac_set_single(mac_lomac, MAC_LOMAC_TYPE_HIGH, 0);
+	ml = SLOT(delabel);
+	lomac_set_single(ml, MAC_LOMAC_TYPE_HIGH, 0);
 }
 
 static void
-mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
     struct label *delabel)
 {
@@ -943,22 +930,22 @@ mac_lomac_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(delabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mount(struct ucred *cred, struct mount *mp,
+lomac_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(cred->cr_label);
 	dest = SLOT(mplabel);
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
+lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -970,7 +957,7 @@ mac_lomac_relabel_vnode(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
+lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
     struct label *delabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -978,11 +965,11 @@ mac_lomac_update_devfs(struct mount *mp, struct devfs_dirent *de,
 	source = SLOT(vplabel);
 	dest = SLOT(delabel);
 
-	mac_lomac_copy(source, dest);
+	lomac_copy(source, dest);
 }
 
 static void
-mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
+lomac_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vplabel)
 {
@@ -991,11 +978,11 @@ mac_lomac_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
 	source = SLOT(delabel);
 	dest = SLOT(vplabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static int
-mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
+lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac temp, *source, *dest;
@@ -1011,14 +998,14 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 	    MAC_LOMAC_EXTATTR_NAME, &buflen, (char *)&temp, curthread);
 	if (error == ENOATTR || error == EOPNOTSUPP) {
 		/* Fall back to the mntlabel. */
-		mac_lomac_copy_single(source, dest);
+		lomac_copy_single(source, dest);
 		return (0);
 	} else if (error)
 		return (error);
 
 	if (buflen != sizeof(temp)) {
 		if (buflen != sizeof(temp) - sizeof(temp.ml_auxsingle)) {
-			printf("mac_lomac_associate_vnode_extattr: bad size %d\n",
+			printf("lomac_associate_vnode_extattr: bad size %d\n",
 			    buflen);
 			return (EPERM);
 		}
@@ -1028,21 +1015,21 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 		    MAC_LOMAC_EXTATTR_NAMESPACE, MAC_LOMAC_EXTATTR_NAME,
 		    buflen, (char *)&temp, curthread);
 	}
-	if (mac_lomac_valid(&temp) != 0) {
-		printf("mac_lomac_associate_vnode_extattr: invalid\n");
+	if (lomac_valid(&temp) != 0) {
+		printf("lomac_associate_vnode_extattr: invalid\n");
 		return (EPERM);
 	}
 	if ((temp.ml_flags & MAC_LOMAC_FLAGS_BOTH) != MAC_LOMAC_FLAG_SINGLE) {
-		printf("mac_lomac_associate_vnode_extattr: not single\n");
+		printf("lomac_associate_vnode_extattr: not single\n");
 		return (EPERM);
 	}
 
-	mac_lomac_copy_single(&temp, dest);
+	lomac_copy_single(&temp, dest);
 	return (0);
 }
 
 static void
-mac_lomac_associate_vnode_singlelabel(struct mount *mp,
+lomac_associate_vnode_singlelabel(struct mount *mp,
     struct label *mplabel, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1050,11 +1037,11 @@ mac_lomac_associate_vnode_singlelabel(struct mount *mp,
 	source = SLOT(mplabel);
 	dest = SLOT(vplabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static int
-mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
     struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
     struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
@@ -1069,22 +1056,22 @@ mac_lomac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	dest = SLOT(vplabel);
 	dir = SLOT(dvplabel);
 	if (dir->ml_flags & MAC_LOMAC_FLAG_AUX) {
-		mac_lomac_copy_auxsingle(dir, &temp);
-		mac_lomac_set_single(&temp, dir->ml_auxsingle.mle_type,
+		lomac_copy_auxsingle(dir, &temp);
+		lomac_set_single(&temp, dir->ml_auxsingle.mle_type,
 		    dir->ml_auxsingle.mle_grade);
 	} else {
-		mac_lomac_copy_single(source, &temp);
+		lomac_copy_single(source, &temp);
 	}
 
 	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_LOMAC_EXTATTR_NAMESPACE,
 	    MAC_LOMAC_EXTATTR_NAME, buflen, (char *)&temp, curthread);
 	if (error == 0)
-		mac_lomac_copy(&temp, dest);
+		lomac_copy(&temp, dest);
 	return (error);
 }
 
 static int
-mac_lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *intlabel)
 {
 	struct mac_lomac *source, temp;
@@ -1098,7 +1085,7 @@ mac_lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	if ((source->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
 		return (0);
 
-	mac_lomac_copy_single(source, &temp);
+	lomac_copy_single(source, &temp);
 	error = vn_extattr_set(vp, IO_NODELOCKED, MAC_LOMAC_EXTATTR_NAMESPACE,
 	    MAC_LOMAC_EXTATTR_NAME, buflen, (char *)&temp, curthread);
 	return (error);
@@ -1108,7 +1095,7 @@ mac_lomac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
  * Labeling event operations: IPC object.
  */
 static void
-mac_lomac_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+lomac_create_inpcb_from_socket(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1116,11 +1103,11 @@ mac_lomac_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_from_socket(struct socket *so, struct label *solabel,
+lomac_create_mbuf_from_socket(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1128,11 +1115,11 @@ mac_lomac_create_mbuf_from_socket(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(mlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_socket(struct ucred *cred, struct socket *so,
+lomac_create_socket(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1140,11 +1127,11 @@ mac_lomac_create_socket(struct ucred *cred, struct socket *so,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(solabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
+lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1152,11 +1139,11 @@ mac_lomac_create_pipe(struct ucred *cred, struct pipepair *pp,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(pplabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_socket_from_socket(struct socket *oldso,
+lomac_create_socket_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso, struct label *newsolabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1164,11 +1151,11 @@ mac_lomac_create_socket_from_socket(struct socket *oldso,
 	source = SLOT(oldsolabel);
 	dest = SLOT(newsolabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_relabel_socket(struct ucred *cred, struct socket *so,
+lomac_relabel_socket(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1180,7 +1167,7 @@ mac_lomac_relabel_socket(struct ucred *cred, struct socket *so,
 }
 
 static void
-mac_lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1192,7 +1179,7 @@ mac_lomac_relabel_pipe(struct ucred *cred, struct pipepair *pp,
 }
 
 static void
-mac_lomac_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
+lomac_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
     struct socket *so, struct label *sopeerlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1200,14 +1187,14 @@ mac_lomac_set_socket_peer_from_mbuf(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(sopeerlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 /*
  * Labeling event operations: network objects.
  */
 static void
-mac_lomac_set_socket_peer_from_socket(struct socket *oldso,
+lomac_set_socket_peer_from_socket(struct socket *oldso,
     struct label *oldsolabel, struct socket *newso,
     struct label *newsopeerlabel)
 {
@@ -1216,11 +1203,11 @@ mac_lomac_set_socket_peer_from_socket(struct socket *oldso,
 	source = SLOT(oldsolabel);
 	dest = SLOT(newsopeerlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
+lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
     struct label *dlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1228,11 +1215,11 @@ mac_lomac_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
 	source = SLOT(cred->cr_label);
 	dest = SLOT(dlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
+lomac_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
 {
 	char tifname[IFNAMSIZ], *p, *q;
 	char tiflist[sizeof(trusted_interfaces)];
@@ -1285,12 +1272,12 @@ mac_lomac_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
 		}
 	}
 set:
-	mac_lomac_set_single(dest, grade, 0);
-	mac_lomac_set_range(dest, grade, 0, grade, 0);
+	lomac_set_single(dest, grade, 0);
+	lomac_set_range(dest, grade, 0, grade, 0);
 }
 
 static void
-mac_lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1298,11 +1285,11 @@ mac_lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 	source = SLOT(mlabel);
 	dest = SLOT(ipqlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1311,11 +1298,11 @@ mac_lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
 	dest = SLOT(mlabel);
 
 	/* Just use the head, since we require them all to match. */
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_fragment(struct mbuf *m, struct label *mlabel,
+lomac_create_fragment(struct mbuf *m, struct label *mlabel,
     struct mbuf *frag, struct label *fraglabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1323,11 +1310,11 @@ mac_lomac_create_fragment(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(fraglabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+lomac_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1335,22 +1322,22 @@ mac_lomac_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 	source = SLOT(inplabel);
 	dest = SLOT(mlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
+lomac_create_mbuf_linklayer(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
 
 	dest = SLOT(mlabel);
 
-	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 }
 
 static void
-mac_lomac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
+lomac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1358,11 +1345,11 @@ mac_lomac_create_mbuf_from_bpfdesc(struct bpf_d *d, struct label *dlabel,
 	source = SLOT(dlabel);
 	dest = SLOT(mlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
+lomac_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1370,11 +1357,11 @@ mac_lomac_create_mbuf_from_ifnet(struct ifnet *ifp, struct label *ifplabel,
 	source = SLOT(ifplabel);
 	dest = SLOT(mlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
+lomac_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
     struct ifnet *ifp, struct label *ifplabel, struct mbuf *mnew,
     struct label *mnewlabel)
 {
@@ -1383,11 +1370,11 @@ mac_lomac_create_mbuf_multicast_encap(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(mnewlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
+lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
     struct mbuf *mnew, struct label *mnewlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1395,11 +1382,11 @@ mac_lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
 	source = SLOT(mlabel);
 	dest = SLOT(mnewlabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static int
-mac_lomac_fragment_match(struct mbuf *m, struct label *mlabel,
+lomac_fragment_match(struct mbuf *m, struct label *mlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
 	struct mac_lomac *a, *b;
@@ -1407,11 +1394,11 @@ mac_lomac_fragment_match(struct mbuf *m, struct label *mlabel,
 	a = SLOT(ipqlabel);
 	b = SLOT(mlabel);
 
-	return (mac_lomac_equal_single(a, b));
+	return (lomac_equal_single(a, b));
 }
 
 static void
-mac_lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
+lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1423,7 +1410,7 @@ mac_lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-mac_lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
+lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
     struct label *ipqlabel)
 {
 
@@ -1431,7 +1418,7 @@ mac_lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
 }
 
 static void
-mac_lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 	struct mac_lomac *source, *dest;
@@ -1439,46 +1426,46 @@ mac_lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	source = SLOT(solabel);
 	dest = SLOT(inplabel);
 
-	mac_lomac_copy_single(source, dest);
+	lomac_copy_single(source, dest);
 }
 
 static void
-mac_lomac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+lomac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(inp->inp_label);
 	dest = SLOT(label);
-	mac_lomac_copy(source, dest);
+	lomac_copy(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+lomac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
     struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(sc_label);
 	dest = SLOT(mlabel);
-	mac_lomac_copy(source, dest);
+	lomac_copy(source, dest);
 }
 
 static void
-mac_lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
+lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *dest;
 
 	dest = SLOT(mlabel);
 
 	/* XXX: where is the label for the firewall really comming from? */
-	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
 }
 
 /*
  * Labeling event operations: processes.
  */
 static void
-mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
+lomac_execve_transition(struct ucred *old, struct ucred *new,
     struct vnode *vp, struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -1489,38 +1476,37 @@ mac_lomac_execve_transition(struct ucred *old, struct ucred *new,
 	obj = SLOT(vplabel);
 	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
 
-	mac_lomac_copy(source, dest);
+	lomac_copy(source, dest);
 	/*
-	 * If there's an auxiliary label on the real object, respect it
-	 * and assume that this level should be assumed immediately if
-	 * a higher level is currently in place.
+	 * If there's an auxiliary label on the real object, respect it and
+	 * assume that this level should be assumed immediately if a higher
+	 * level is currently in place.
 	 */
 	if (robj->ml_flags & MAC_LOMAC_FLAG_AUX &&
-	    !mac_lomac_dominate_element(&robj->ml_auxsingle, &dest->ml_single)
-	    && mac_lomac_auxsingle_in_range(robj, dest))
-		mac_lomac_set_single(dest, robj->ml_auxsingle.mle_type,
+	    !lomac_dominate_element(&robj->ml_auxsingle, &dest->ml_single)
+	    && lomac_auxsingle_in_range(robj, dest))
+		lomac_set_single(dest, robj->ml_auxsingle.mle_type,
 		    robj->ml_auxsingle.mle_grade);
 	/*
-	 * Restructuring to use the execve transitioning mechanism
-	 * instead of the normal demotion mechanism here would be
-	 * difficult, so just copy the label over and perform standard
-	 * demotion.  This is also non-optimal because it will result
-	 * in the intermediate label "new" being created and immediately
-	 * recycled.
+	 * Restructuring to use the execve transitioning mechanism instead of
+	 * the normal demotion mechanism here would be difficult, so just
+	 * copy the label over and perform standard demotion.  This is also
+	 * non-optimal because it will result in the intermediate label "new"
+	 * being created and immediately recycled.
 	 */
-	if (mac_lomac_enabled && revocation_enabled &&
-	    !mac_lomac_dominate_single(obj, source))
+	if (lomac_enabled && revocation_enabled &&
+	    !lomac_dominate_single(obj, source))
 		(void)maybe_demote(source, obj, "executing", "file", vp);
 }
 
 static int
-mac_lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
+lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct label *vplabel, struct label *interpvnodelabel,
     struct image_params *imgp, struct label *execlabel)
 {
 	struct mac_lomac *subj, *obj, *robj;
 
-	if (!mac_lomac_enabled || !revocation_enabled)
+	if (!lomac_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(old->cr_label);
@@ -1528,37 +1514,35 @@ mac_lomac_execve_will_transition(struct ucred *old, struct vnode *vp,
 	robj = interpvnodelabel != NULL ? SLOT(interpvnodelabel) : obj;
 
 	return ((robj->ml_flags & MAC_LOMAC_FLAG_AUX &&
-	    !mac_lomac_dominate_element(&robj->ml_auxsingle, &subj->ml_single)
-	    && mac_lomac_auxsingle_in_range(robj, subj)) ||
-	    !mac_lomac_dominate_single(obj, subj));
+	    !lomac_dominate_element(&robj->ml_auxsingle, &subj->ml_single)
+	    && lomac_auxsingle_in_range(robj, subj)) ||
+	    !lomac_dominate_single(obj, subj));
 }
 
 static void
-mac_lomac_create_proc0(struct ucred *cred)
+lomac_create_proc0(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
 	dest = SLOT(cred->cr_label);
 
-	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-	mac_lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH,
-	    0);
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
 }
 
 static void
-mac_lomac_create_proc1(struct ucred *cred)
+lomac_create_proc1(struct ucred *cred)
 {
 	struct mac_lomac *dest;
 
 	dest = SLOT(cred->cr_label);
 
-	mac_lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
-	mac_lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH,
-	    0);
+	lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
 }
 
 static void
-mac_lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
+lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_lomac *source, *dest;
 
@@ -1572,24 +1556,24 @@ mac_lomac_relabel_cred(struct ucred *cred, struct label *newlabel)
  * Access control checks.
  */
 static int
-mac_lomac_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
+lomac_check_bpfdesc_receive(struct bpf_d *d, struct label *dlabel,
     struct ifnet *ifp, struct label *ifplabel)
 {
 	struct mac_lomac *a, *b;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	a = SLOT(dlabel);
 	b = SLOT(ifplabel);
 
-	if (mac_lomac_equal_single(a, b))
+	if (lomac_equal_single(a, b))
 		return (0);
 	return (EACCES);
 }
 
 static int
-mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	struct mac_lomac *subj, *new;
 	int error;
@@ -1598,8 +1582,8 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 	new = SLOT(newlabel);
 
 	/*
-	 * If there is a LOMAC label update for the credential, it may
-	 * be an update of the single, range, or both.
+	 * If there is a LOMAC label update for the credential, it may be an
+	 * update of the single, range, or both.
 	 */
 	error = lomac_atmostflags(new, MAC_LOMAC_FLAGS_BOTH);
 	if (error)
@@ -1613,33 +1597,31 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 		 * Fill in the missing parts from the previous label.
 		 */
 		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
-			mac_lomac_copy_single(subj, new);
+			lomac_copy_single(subj, new);
 		if ((new->ml_flags & MAC_LOMAC_FLAG_RANGE) == 0)
-			mac_lomac_copy_range(subj, new);
+			lomac_copy_range(subj, new);
 
 		/*
-		 * To change the LOMAC range on a credential, the new
-		 * range label must be in the current range.
+		 * To change the LOMAC range on a credential, the new range
+		 * label must be in the current range.
 		 */
-		if (!mac_lomac_range_in_range(new, subj))
+		if (!lomac_range_in_range(new, subj))
 			return (EPERM);
 
 		/*
-		 * To change the LOMAC single label on a credential, the
-		 * new single label must be in the new range.  Implicitly
-		 * from the previous check, the new single is in the old
-		 * range.
+		 * To change the LOMAC single label on a credential, the new
+		 * single label must be in the new range.  Implicitly from
+		 * the previous check, the new single is in the old range.
 		 */
-		if (!mac_lomac_single_in_range(new, new))
+		if (!lomac_single_in_range(new, new))
 			return (EPERM);
 
 		/*
-		 * To have EQUAL in any component of the new credential
-		 * LOMAC label, the subject must already have EQUAL in
-		 * their label.
+		 * To have EQUAL in any component of the new credential LOMAC
+		 * label, the subject must already have EQUAL in their label.
 		 */
-		if (mac_lomac_contains_equal(new)) {
-			error = mac_lomac_subject_privileged(subj);
+		if (lomac_contains_equal(new)) {
+			error = lomac_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1655,25 +1637,25 @@ mac_lomac_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_lomac_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+lomac_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cr1->cr_label);
 	obj = SLOT(cr2->cr_label);
 
 	/* XXX: range */
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (ESRCH);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
+lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
     struct label *ifplabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *new;
@@ -1683,8 +1665,8 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 	new = SLOT(newlabel);
 
 	/*
-	 * If there is a LOMAC label update for the interface, it may
-	 * be an update of the single, range, or both.
+	 * If there is a LOMAC label update for the interface, it may be an
+	 * update of the single, range, or both.
 	 */
 	error = lomac_atmostflags(new, MAC_LOMAC_FLAGS_BOTH);
 	if (error)
@@ -1693,7 +1675,7 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 	/*
 	 * Relabling network interfaces requires LOMAC privilege.
 	 */
-	error = mac_lomac_subject_privileged(subj);
+	error = lomac_subject_privileged(subj);
 	if (error)
 		return (error);
 
@@ -1705,9 +1687,9 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 		 * Fill in the missing parts from the previous label.
 		 */
 		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
-			mac_lomac_copy_single(subj, new);
+			lomac_copy_single(subj, new);
 		if ((new->ml_flags & MAC_LOMAC_FLAG_RANGE) == 0)
-			mac_lomac_copy_range(subj, new);
+			lomac_copy_range(subj, new);
 
 		/*
 		 * Rely on the traditional superuser status for the LOMAC
@@ -1730,62 +1712,62 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifp,
 }
 
 static int
-mac_lomac_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
+lomac_check_ifnet_transmit(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *i;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	p = SLOT(mlabel);
 	i = SLOT(ifplabel);
 
-	return (mac_lomac_single_in_range(p, i) ? 0 : EACCES);
+	return (lomac_single_in_range(p, i) ? 0 : EACCES);
 }
 
 static int
-mac_lomac_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+lomac_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *i;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	p = SLOT(mlabel);
 	i = SLOT(inplabel);
 
-	return (mac_lomac_equal_single(p, i) ? 0 : EACCES);
+	return (lomac_equal_single(p, i) ? 0 : EACCES);
 }
 
 static int
-mac_lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
+lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (mac_lomac_subject_privileged(subj))
+	if (lomac_subject_privileged(subj))
 		return (EPERM);
 
-	if (!mac_lomac_high_single(obj))
+	if (!lomac_high_single(obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	/* XXX: This will be implemented soon... */
@@ -1794,25 +1776,25 @@ mac_lomac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_pipe_read(struct ucred *cred, struct pipepair *pp,
+lomac_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(pplabel);
 
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (maybe_demote(subj, obj, "reading", "pipe", NULL));
 
 	return (0);
 }
 
 static int
-mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *obj, *new;
@@ -1823,8 +1805,8 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 	obj = SLOT(pplabel);
 
 	/*
-	 * If there is a LOMAC label update for a pipe, it must be a
-	 * single update.
+	 * If there is a LOMAC label update for a pipe, it must be a single
+	 * update.
 	 */
 	error = lomac_atmostflags(new, MAC_LOMAC_FLAG_SINGLE);
 	if (error)
@@ -1834,7 +1816,7 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 	 * To perform a relabel of a pipe (LOMAC label or not), LOMAC must
 	 * authorize the relabel.
 	 */
-	if (!mac_lomac_single_in_range(obj, subj))
+	if (!lomac_single_in_range(obj, subj))
 		return (EPERM);
 
 	/*
@@ -1845,15 +1827,15 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 		 * To change the LOMAC label on a pipe, the new pipe label
 		 * must be in the subject range.
 		 */
-		if (!mac_lomac_single_in_range(new, subj))
+		if (!lomac_single_in_range(new, subj))
 			return (EPERM);
 
 		/*
 		 * To change the LOMAC label on a pipe to be EQUAL, the
 		 * subject must have appropriate privilege.
 		 */
-		if (mac_lomac_contains_equal(new)) {
-			error = mac_lomac_subject_privileged(subj);
+		if (lomac_contains_equal(new)) {
+			error = lomac_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -1863,100 +1845,100 @@ mac_lomac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 }
 
 static int
-mac_lomac_check_pipe_write(struct ucred *cred, struct pipepair *pp,
+lomac_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(pplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_proc_debug(struct ucred *cred, struct proc *p)
+lomac_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(p->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (ESRCH);
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_proc_sched(struct ucred *cred, struct proc *p)
+lomac_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(p->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (ESRCH);
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
+lomac_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(p->p_ucred->cr_label);
 
 	/* XXX: range checks */
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (ESRCH);
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_socket_deliver(struct socket *so, struct label *solabel,
+lomac_check_socket_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *p, *s;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	p = SLOT(mlabel);
 	s = SLOT(solabel);
 
-	return (mac_lomac_equal_single(p, s) ? 0 : EACCES);
+	return (lomac_equal_single(p, s) ? 0 : EACCES);
 }
 
 static int
-mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
+lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 	struct mac_lomac *subj, *obj, *new;
@@ -1967,8 +1949,8 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
 	obj = SLOT(solabel);
 
 	/*
-	 * If there is a LOMAC label update for the socket, it may be
-	 * an update of single.
+	 * If there is a LOMAC label update for the socket, it may be an
+	 * update of single.
 	 */
 	error = lomac_atmostflags(new, MAC_LOMAC_FLAG_SINGLE);
 	if (error)
@@ -1978,7 +1960,7 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
 	 * To relabel a socket, the old socket single must be in the subject
 	 * range.
 	 */
-	if (!mac_lomac_single_in_range(obj, subj))
+	if (!lomac_single_in_range(obj, subj))
 		return (EPERM);
 
 	/*
@@ -1986,18 +1968,18 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
 	 */
 	if (new->ml_flags & MAC_LOMAC_FLAG_SINGLE) {
 		/*
-		 * To relabel a socket, the new socket single must be in
-		 * the subject range.
+		 * To relabel a socket, the new socket single must be in the
+		 * subject range.
 		 */
-		if (!mac_lomac_single_in_range(new, subj))
+		if (!lomac_single_in_range(new, subj))
 			return (EPERM);
 
 		/*
 		 * To change the LOMAC label on the socket to contain EQUAL,
 		 * the subject must have appropriate privilege.
 		 */
-		if (mac_lomac_contains_equal(new)) {
-			error = mac_lomac_subject_privileged(subj);
+		if (lomac_contains_equal(new)) {
+			error = lomac_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -2007,18 +1989,18 @@ mac_lomac_check_socket_relabel(struct ucred *cred, struct socket *so,
 }
 
 static int
-mac_lomac_check_socket_visible(struct ucred *cred, struct socket *so,
+lomac_check_socket_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(solabel);
 
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (ENOENT);
 
 	return (0);
@@ -2030,12 +2012,12 @@ mac_lomac_check_socket_visible(struct ucred *cred, struct socket *so,
  * policy as they might otherwise allow bypassing of the integrity policy.
  */
 static int
-mac_lomac_priv_check(struct ucred *cred, int priv)
+lomac_priv_check(struct ucred *cred, int priv)
 {
 	struct mac_lomac *subj;
 	int error;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	/*
@@ -2206,7 +2188,7 @@ mac_lomac_priv_check(struct ucred *cred, int priv)
 	 */
 	default:
 		subj = SLOT(cred->cr_label);
-		error = mac_lomac_subject_privileged(subj);
+		error = lomac_subject_privileged(subj);
 		if (error)
 			return (error);
 	}
@@ -2215,107 +2197,107 @@ mac_lomac_priv_check(struct ucred *cred, int priv)
 
 
 static int
-mac_lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
+lomac_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (mac_lomac_subject_privileged(subj))
+	if (lomac_subject_privileged(subj))
 		return (EPERM);
 
-	if (!mac_lomac_high_single(obj))
+	if (!lomac_high_single(obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+lomac_check_system_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (mac_lomac_subject_privileged(subj))
+	if (lomac_subject_privileged(subj))
 		return (EPERM);
 
-	if (!mac_lomac_high_single(obj))
+	if (!lomac_high_single(obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+lomac_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 
-	if (mac_lomac_subject_privileged(subj))
+	if (lomac_subject_privileged(subj))
 		return (EPERM);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
+lomac_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (mac_lomac_subject_privileged(subj))
+	if (lomac_subject_privileged(subj))
 		return (EPERM);
 
-	if (!mac_lomac_high_single(obj))
+	if (!lomac_high_single(obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
 {
 	struct mac_lomac *subj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 
 	/*
-	 * Treat sysctl variables without CTLFLAG_ANYBODY flag as
-	 * lomac/high, but also require privilege to change them.
+	 * Treat sysctl variables without CTLFLAG_ANYBODY flag as lomac/high,
+	 * but also require privilege to change them.
 	 */
 	if (req->newptr != NULL && (oidp->oid_kind & CTLFLAG_ANYBODY) == 0) {
 #ifdef notdef
-		if (!mac_lomac_subject_dominate_high(subj))
+		if (!lomac_subject_dominate_high(subj))
 			return (EACCES);
 #endif
 
-		if (mac_lomac_subject_privileged(subj))
+		if (lomac_subject_privileged(subj))
 			return (EPERM);
 	}
 
@@ -2323,70 +2305,70 @@ mac_lomac_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 }
 
 static int
-mac_lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+lomac_check_vnode_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dvplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 	if (obj->ml_flags & MAC_LOMAC_FLAG_AUX &&
-	    !mac_lomac_dominate_element(&subj->ml_single, &obj->ml_auxsingle))
+	    !lomac_dominate_element(&subj->ml_single, &obj->ml_auxsingle))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+lomac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dvplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot, int flags)
 {
 	struct mac_lomac *subj, *obj;
@@ -2395,18 +2377,18 @@ mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 	 * Rely on the use of open()-time protections to handle
 	 * non-revocation cases.
 	 */
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
 	if (((prot & VM_PROT_WRITE) != 0) && ((flags & MAP_SHARED) != 0)) {
-		if (!mac_lomac_subject_dominate(subj, obj))
+		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}
 	if (prot & (VM_PROT_READ | VM_PROT_EXECUTE)) {
-		if (!mac_lomac_dominate_single(obj, subj))
+		if (!lomac_dominate_single(obj, subj))
 			return (maybe_demote(subj, obj, "mapping", "file", vp));
 	}
 
@@ -2414,7 +2396,7 @@ mac_lomac_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 }
 
 static void
-mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, /* XXX vm_prot_t */ int *prot)
 {
 	struct mac_lomac *subj, *obj;
@@ -2423,23 +2405,23 @@ mac_lomac_check_vnode_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 	 * Rely on the use of open()-time protections to handle
 	 * non-revocation cases.
 	 */
-	if (!mac_lomac_enabled || !revocation_enabled)
+	if (!lomac_enabled || !revocation_enabled)
 		return;
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		*prot &= ~VM_PROT_WRITE;
 }
 
 static int
-mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
@@ -2447,7 +2429,7 @@ mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 
 	/* XXX privilege override for admin? */
 	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
-		if (!mac_lomac_subject_dominate(subj, obj))
+		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}
 
@@ -2455,25 +2437,25 @@ mac_lomac_check_vnode_open(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+lomac_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled || !revocation_enabled)
+	if (!lomac_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_dominate_single(obj, subj))
+	if (!lomac_dominate_single(obj, subj))
 		return (maybe_demote(subj, obj, "reading", "file", vp));
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 	struct mac_lomac *old, *new, *subj;
@@ -2496,7 +2478,7 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	 * To perform a relabel of the vnode (LOMAC label or not), LOMAC must
 	 * authorize the relabel.
 	 */
-	if (!mac_lomac_single_in_range(old, subj))
+	if (!lomac_single_in_range(old, subj))
 		return (EPERM);
 
 	/*
@@ -2507,15 +2489,15 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 		 * To change the LOMAC label on a vnode, the new vnode label
 		 * must be in the subject range.
 		 */
-		if (!mac_lomac_single_in_range(new, subj))
+		if (!lomac_single_in_range(new, subj))
 			return (EPERM);
 
 		/*
 		 * To change the LOMAC label on the vnode to be EQUAL,
 		 * the subject must have appropriate privilege.
 		 */
-		if (mac_lomac_contains_equal(new)) {
-			error = mac_lomac_subject_privileged(subj);
+		if (lomac_contains_equal(new)) {
+			error = lomac_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -2525,21 +2507,21 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 		 * Fill in the missing parts from the previous label.
 		 */
 		if ((new->ml_flags & MAC_LOMAC_FLAG_SINGLE) == 0)
-			mac_lomac_copy_single(subj, new);
+			lomac_copy_single(subj, new);
 
 		/*
 		 * To change the auxiliary LOMAC label on a vnode, the new
 		 * vnode label must be in the subject range.
 		 */
-		if (!mac_lomac_auxsingle_in_range(new, subj))
+		if (!lomac_auxsingle_in_range(new, subj))
 			return (EPERM);
 
 		/*
 		 * To change the auxiliary LOMAC label on the vnode to be
 		 * EQUAL, the subject must have appropriate privilege.
 		 */
-		if (mac_lomac_contains_equal(new)) {
-			error = mac_lomac_subject_privileged(subj);
+		if (lomac_contains_equal(new)) {
+			error = lomac_subject_privileged(subj);
 			if (error)
 				return (error);
 		}
@@ -2549,49 +2531,49 @@ mac_lomac_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+lomac_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dvplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dvplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	if (vp != NULL) {
 		obj = SLOT(vplabel);
 
-		if (!mac_lomac_subject_dominate(subj, obj))
+		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}
 
@@ -2599,55 +2581,55 @@ mac_lomac_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 }
 
 static int
-mac_lomac_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	/* XXX: protect the MAC EA in a special way? */
@@ -2656,121 +2638,121 @@ mac_lomac_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 }
 
 static int
-mac_lomac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+lomac_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec mtime)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+lomac_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled)
+	if (!lomac_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(dvplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static int
-mac_lomac_check_vnode_write(struct ucred *active_cred,
+lomac_check_vnode_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 	struct mac_lomac *subj, *obj;
 
-	if (!mac_lomac_enabled || !revocation_enabled)
+	if (!lomac_enabled || !revocation_enabled)
 		return (0);
 
 	subj = SLOT(active_cred->cr_label);
 	obj = SLOT(vplabel);
 
-	if (!mac_lomac_subject_dominate(subj, obj))
+	if (!lomac_subject_dominate(subj, obj))
 		return (EACCES);
 
 	return (0);
 }
 
 static void
-mac_lomac_thread_userret(struct thread *td)
+lomac_thread_userret(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 	struct mac_lomac_proc *subj = PSLOT(p->p_label);
@@ -2800,7 +2782,7 @@ mac_lomac_thread_userret(struct thread *td)
 		oldcred = p->p_ucred;
 		crcopy(newcred, oldcred);
 		crhold(newcred);
-		mac_lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
+		lomac_copy(&subj->mac_lomac, SLOT(newcred->cr_label));
 		p->p_ucred = newcred;
 		crfree(oldcred);
 		dodrop = 1;
@@ -2815,146 +2797,142 @@ mac_lomac_thread_userret(struct thread *td)
 	}
 }
 
-static struct mac_policy_ops mac_lomac_ops =
+static struct mac_policy_ops lomac_ops =
 {
-	.mpo_init = mac_lomac_init,
-	.mpo_init_bpfdesc_label = mac_lomac_init_label,
-	.mpo_init_cred_label = mac_lomac_init_label,
-	.mpo_init_devfs_label = mac_lomac_init_label,
-	.mpo_init_ifnet_label = mac_lomac_init_label,
-	.mpo_init_syncache_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_inpcb_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_ipq_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_mbuf_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_mount_label = mac_lomac_init_label,
-	.mpo_init_pipe_label = mac_lomac_init_label,
-	.mpo_init_proc_label = mac_lomac_init_proc_label,
-	.mpo_init_socket_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_socket_peer_label = mac_lomac_init_label_waitcheck,
-	.mpo_init_vnode_label = mac_lomac_init_label,
-	.mpo_init_syncache_from_inpcb = mac_lomac_init_syncache_from_inpcb,
-	.mpo_destroy_bpfdesc_label = mac_lomac_destroy_label,
-	.mpo_destroy_cred_label = mac_lomac_destroy_label,
-	.mpo_destroy_devfs_label = mac_lomac_destroy_label,
-	.mpo_destroy_ifnet_label = mac_lomac_destroy_label,
-	.mpo_destroy_inpcb_label = mac_lomac_destroy_label,
-	.mpo_destroy_ipq_label = mac_lomac_destroy_label,
-	.mpo_destroy_mbuf_label = mac_lomac_destroy_label,
-	.mpo_destroy_mount_label = mac_lomac_destroy_label,
-	.mpo_destroy_pipe_label = mac_lomac_destroy_label,
-	.mpo_destroy_proc_label = mac_lomac_destroy_proc_label,
-	.mpo_destroy_syncache_label = mac_lomac_destroy_label,
-	.mpo_destroy_socket_label = mac_lomac_destroy_label,
-	.mpo_destroy_socket_peer_label = mac_lomac_destroy_label,
-	.mpo_destroy_vnode_label = mac_lomac_destroy_label,
-	.mpo_copy_cred_label = mac_lomac_copy_label,
-	.mpo_copy_ifnet_label = mac_lomac_copy_label,
-	.mpo_copy_mbuf_label = mac_lomac_copy_label,
-	.mpo_copy_pipe_label = mac_lomac_copy_label,
-	.mpo_copy_socket_label = mac_lomac_copy_label,
-	.mpo_copy_vnode_label = mac_lomac_copy_label,
-	.mpo_externalize_cred_label = mac_lomac_externalize_label,
-	.mpo_externalize_ifnet_label = mac_lomac_externalize_label,
-	.mpo_externalize_pipe_label = mac_lomac_externalize_label,
-	.mpo_externalize_socket_label = mac_lomac_externalize_label,
-	.mpo_externalize_socket_peer_label = mac_lomac_externalize_label,
-	.mpo_externalize_vnode_label = mac_lomac_externalize_label,
-	.mpo_internalize_cred_label = mac_lomac_internalize_label,
-	.mpo_internalize_ifnet_label = mac_lomac_internalize_label,
-	.mpo_internalize_pipe_label = mac_lomac_internalize_label,
-	.mpo_internalize_socket_label = mac_lomac_internalize_label,
-	.mpo_internalize_vnode_label = mac_lomac_internalize_label,
-	.mpo_create_devfs_device = mac_lomac_create_devfs_device,
-	.mpo_create_devfs_directory = mac_lomac_create_devfs_directory,
-	.mpo_create_devfs_symlink = mac_lomac_create_devfs_symlink,
-	.mpo_create_mount = mac_lomac_create_mount,
-	.mpo_relabel_vnode = mac_lomac_relabel_vnode,
-	.mpo_update_devfs = mac_lomac_update_devfs,
-	.mpo_associate_vnode_devfs = mac_lomac_associate_vnode_devfs,
-	.mpo_associate_vnode_extattr = mac_lomac_associate_vnode_extattr,
-	.mpo_associate_vnode_singlelabel =
-	    mac_lomac_associate_vnode_singlelabel,
-	.mpo_create_vnode_extattr = mac_lomac_create_vnode_extattr,
-	.mpo_setlabel_vnode_extattr = mac_lomac_setlabel_vnode_extattr,
-	.mpo_create_mbuf_from_socket = mac_lomac_create_mbuf_from_socket,
-	.mpo_create_mbuf_from_syncache = mac_lomac_create_mbuf_from_syncache,
-	.mpo_create_pipe = mac_lomac_create_pipe,
-	.mpo_create_socket = mac_lomac_create_socket,
-	.mpo_create_socket_from_socket = mac_lomac_create_socket_from_socket,
-	.mpo_relabel_pipe = mac_lomac_relabel_pipe,
-	.mpo_relabel_socket = mac_lomac_relabel_socket,
-	.mpo_set_socket_peer_from_mbuf = mac_lomac_set_socket_peer_from_mbuf,
-	.mpo_set_socket_peer_from_socket =
-	    mac_lomac_set_socket_peer_from_socket,
-	.mpo_create_bpfdesc = mac_lomac_create_bpfdesc,
-	.mpo_create_datagram_from_ipq = mac_lomac_create_datagram_from_ipq,
-	.mpo_create_fragment = mac_lomac_create_fragment,
-	.mpo_create_ifnet = mac_lomac_create_ifnet,
-	.mpo_create_inpcb_from_socket = mac_lomac_create_inpcb_from_socket,
-	.mpo_create_ipq = mac_lomac_create_ipq,
-	.mpo_create_mbuf_from_inpcb = mac_lomac_create_mbuf_from_inpcb,
-	.mpo_create_mbuf_linklayer = mac_lomac_create_mbuf_linklayer,
-	.mpo_create_mbuf_from_bpfdesc = mac_lomac_create_mbuf_from_bpfdesc,
-	.mpo_create_mbuf_from_ifnet = mac_lomac_create_mbuf_from_ifnet,
-	.mpo_create_mbuf_multicast_encap =
-	    mac_lomac_create_mbuf_multicast_encap,
-	.mpo_create_mbuf_netlayer = mac_lomac_create_mbuf_netlayer,
-	.mpo_fragment_match = mac_lomac_fragment_match,
-	.mpo_relabel_ifnet = mac_lomac_relabel_ifnet,
-	.mpo_update_ipq = mac_lomac_update_ipq,
-	.mpo_inpcb_sosetlabel = mac_lomac_inpcb_sosetlabel,
-	.mpo_execve_transition = mac_lomac_execve_transition,
-	.mpo_execve_will_transition = mac_lomac_execve_will_transition,
-	.mpo_create_proc0 = mac_lomac_create_proc0,
-	.mpo_create_proc1 = mac_lomac_create_proc1,
-	.mpo_relabel_cred = mac_lomac_relabel_cred,
-	.mpo_check_bpfdesc_receive = mac_lomac_check_bpfdesc_receive,
-	.mpo_check_cred_relabel = mac_lomac_check_cred_relabel,
-	.mpo_check_cred_visible = mac_lomac_check_cred_visible,
-	.mpo_check_ifnet_relabel = mac_lomac_check_ifnet_relabel,
-	.mpo_check_ifnet_transmit = mac_lomac_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_lomac_check_inpcb_deliver,
-	.mpo_check_kld_load = mac_lomac_check_kld_load,
-	.mpo_check_pipe_ioctl = mac_lomac_check_pipe_ioctl,
-	.mpo_check_pipe_read = mac_lomac_check_pipe_read,
-	.mpo_check_pipe_relabel = mac_lomac_check_pipe_relabel,
-	.mpo_check_pipe_write = mac_lomac_check_pipe_write,
-	.mpo_check_proc_debug = mac_lomac_check_proc_debug,
-	.mpo_check_proc_sched = mac_lomac_check_proc_sched,
-	.mpo_check_proc_signal = mac_lomac_check_proc_signal,
-	.mpo_check_socket_deliver = mac_lomac_check_socket_deliver,
-	.mpo_check_socket_relabel = mac_lomac_check_socket_relabel,
-	.mpo_check_socket_visible = mac_lomac_check_socket_visible,
-	.mpo_check_system_acct = mac_lomac_check_system_acct,
-	.mpo_check_system_auditctl = mac_lomac_check_system_auditctl,
-	.mpo_check_system_swapoff = mac_lomac_check_system_swapoff,
-	.mpo_check_system_swapon = mac_lomac_check_system_swapon,
-	.mpo_check_system_sysctl = mac_lomac_check_system_sysctl,
-	.mpo_check_vnode_access = mac_lomac_check_vnode_open,
-	.mpo_check_vnode_create = mac_lomac_check_vnode_create,
-	.mpo_check_vnode_deleteacl = mac_lomac_check_vnode_deleteacl,
-	.mpo_check_vnode_link = mac_lomac_check_vnode_link,
-	.mpo_check_vnode_mmap = mac_lomac_check_vnode_mmap,
-	.mpo_check_vnode_mmap_downgrade = mac_lomac_check_vnode_mmap_downgrade,
-	.mpo_check_vnode_open = mac_lomac_check_vnode_open,
-	.mpo_check_vnode_read = mac_lomac_check_vnode_read,
-	.mpo_check_vnode_relabel = mac_lomac_check_vnode_relabel,
-	.mpo_check_vnode_rename_from = mac_lomac_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_lomac_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_lomac_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_lomac_check_vnode_setacl,
-	.mpo_check_vnode_setextattr = mac_lomac_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_lomac_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_lomac_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_lomac_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_lomac_check_vnode_setutimes,
-	.mpo_check_vnode_unlink = mac_lomac_check_vnode_unlink,
-	.mpo_check_vnode_write = mac_lomac_check_vnode_write,
-	.mpo_thread_userret = mac_lomac_thread_userret,
-	.mpo_create_mbuf_from_firewall = mac_lomac_create_mbuf_from_firewall,
-	.mpo_priv_check = mac_lomac_priv_check,
+	.mpo_init = lomac_init,
+	.mpo_init_bpfdesc_label = lomac_init_label,
+	.mpo_init_cred_label = lomac_init_label,
+	.mpo_init_devfs_label = lomac_init_label,
+	.mpo_init_ifnet_label = lomac_init_label,
+	.mpo_init_syncache_label = lomac_init_label_waitcheck,
+	.mpo_init_inpcb_label = lomac_init_label_waitcheck,
+	.mpo_init_ipq_label = lomac_init_label_waitcheck,
+	.mpo_init_mbuf_label = lomac_init_label_waitcheck,
+	.mpo_init_mount_label = lomac_init_label,
+	.mpo_init_pipe_label = lomac_init_label,
+	.mpo_init_proc_label = lomac_init_proc_label,
+	.mpo_init_socket_label = lomac_init_label_waitcheck,
+	.mpo_init_socket_peer_label = lomac_init_label_waitcheck,
+	.mpo_init_vnode_label = lomac_init_label,
+	.mpo_init_syncache_from_inpcb = lomac_init_syncache_from_inpcb,
+	.mpo_destroy_bpfdesc_label = lomac_destroy_label,
+	.mpo_destroy_cred_label = lomac_destroy_label,
+	.mpo_destroy_devfs_label = lomac_destroy_label,
+	.mpo_destroy_ifnet_label = lomac_destroy_label,
+	.mpo_destroy_inpcb_label = lomac_destroy_label,
+	.mpo_destroy_ipq_label = lomac_destroy_label,
+	.mpo_destroy_mbuf_label = lomac_destroy_label,
+	.mpo_destroy_mount_label = lomac_destroy_label,
+	.mpo_destroy_pipe_label = lomac_destroy_label,
+	.mpo_destroy_proc_label = lomac_destroy_proc_label,
+	.mpo_destroy_syncache_label = lomac_destroy_label,
+	.mpo_destroy_socket_label = lomac_destroy_label,
+	.mpo_destroy_socket_peer_label = lomac_destroy_label,
+	.mpo_destroy_vnode_label = lomac_destroy_label,
+	.mpo_copy_cred_label = lomac_copy_label,
+	.mpo_copy_ifnet_label = lomac_copy_label,
+	.mpo_copy_mbuf_label = lomac_copy_label,
+	.mpo_copy_pipe_label = lomac_copy_label,
+	.mpo_copy_socket_label = lomac_copy_label,
+	.mpo_copy_vnode_label = lomac_copy_label,
+	.mpo_externalize_cred_label = lomac_externalize_label,
+	.mpo_externalize_ifnet_label = lomac_externalize_label,
+	.mpo_externalize_pipe_label = lomac_externalize_label,
+	.mpo_externalize_socket_label = lomac_externalize_label,
+	.mpo_externalize_socket_peer_label = lomac_externalize_label,
+	.mpo_externalize_vnode_label = lomac_externalize_label,
+	.mpo_internalize_cred_label = lomac_internalize_label,
+	.mpo_internalize_ifnet_label = lomac_internalize_label,
+	.mpo_internalize_pipe_label = lomac_internalize_label,
+	.mpo_internalize_socket_label = lomac_internalize_label,
+	.mpo_internalize_vnode_label = lomac_internalize_label,
+	.mpo_create_devfs_device = lomac_create_devfs_device,
+	.mpo_create_devfs_directory = lomac_create_devfs_directory,
+	.mpo_create_devfs_symlink = lomac_create_devfs_symlink,
+	.mpo_create_mount = lomac_create_mount,
+	.mpo_relabel_vnode = lomac_relabel_vnode,
+	.mpo_update_devfs = lomac_update_devfs,
+	.mpo_associate_vnode_devfs = lomac_associate_vnode_devfs,
+	.mpo_associate_vnode_extattr = lomac_associate_vnode_extattr,
+	.mpo_associate_vnode_singlelabel = lomac_associate_vnode_singlelabel,
+	.mpo_create_vnode_extattr = lomac_create_vnode_extattr,
+	.mpo_setlabel_vnode_extattr = lomac_setlabel_vnode_extattr,
+	.mpo_create_mbuf_from_socket = lomac_create_mbuf_from_socket,
+	.mpo_create_mbuf_from_syncache = lomac_create_mbuf_from_syncache,
+	.mpo_create_pipe = lomac_create_pipe,
+	.mpo_create_socket = lomac_create_socket,
+	.mpo_create_socket_from_socket = lomac_create_socket_from_socket,
+	.mpo_relabel_pipe = lomac_relabel_pipe,
+	.mpo_relabel_socket = lomac_relabel_socket,
+	.mpo_set_socket_peer_from_mbuf = lomac_set_socket_peer_from_mbuf,
+	.mpo_set_socket_peer_from_socket = lomac_set_socket_peer_from_socket,
+	.mpo_create_bpfdesc = lomac_create_bpfdesc,
+	.mpo_create_datagram_from_ipq = lomac_create_datagram_from_ipq,
+	.mpo_create_fragment = lomac_create_fragment,
+	.mpo_create_ifnet = lomac_create_ifnet,
+	.mpo_create_inpcb_from_socket = lomac_create_inpcb_from_socket,
+	.mpo_create_ipq = lomac_create_ipq,
+	.mpo_create_mbuf_from_inpcb = lomac_create_mbuf_from_inpcb,
+	.mpo_create_mbuf_linklayer = lomac_create_mbuf_linklayer,
+	.mpo_create_mbuf_from_bpfdesc = lomac_create_mbuf_from_bpfdesc,
+	.mpo_create_mbuf_from_ifnet = lomac_create_mbuf_from_ifnet,
+	.mpo_create_mbuf_multicast_encap = lomac_create_mbuf_multicast_encap,
+	.mpo_create_mbuf_netlayer = lomac_create_mbuf_netlayer,
+	.mpo_fragment_match = lomac_fragment_match,
+	.mpo_relabel_ifnet = lomac_relabel_ifnet,
+	.mpo_update_ipq = lomac_update_ipq,
+	.mpo_inpcb_sosetlabel = lomac_inpcb_sosetlabel,
+	.mpo_execve_transition = lomac_execve_transition,
+	.mpo_execve_will_transition = lomac_execve_will_transition,
+	.mpo_create_proc0 = lomac_create_proc0,
+	.mpo_create_proc1 = lomac_create_proc1,
+	.mpo_relabel_cred = lomac_relabel_cred,
+	.mpo_check_bpfdesc_receive = lomac_check_bpfdesc_receive,
+	.mpo_check_cred_relabel = lomac_check_cred_relabel,
+	.mpo_check_cred_visible = lomac_check_cred_visible,
+	.mpo_check_ifnet_relabel = lomac_check_ifnet_relabel,
+	.mpo_check_ifnet_transmit = lomac_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = lomac_check_inpcb_deliver,
+	.mpo_check_kld_load = lomac_check_kld_load,
+	.mpo_check_pipe_ioctl = lomac_check_pipe_ioctl,
+	.mpo_check_pipe_read = lomac_check_pipe_read,
+	.mpo_check_pipe_relabel = lomac_check_pipe_relabel,
+	.mpo_check_pipe_write = lomac_check_pipe_write,
+	.mpo_check_proc_debug = lomac_check_proc_debug,
+	.mpo_check_proc_sched = lomac_check_proc_sched,
+	.mpo_check_proc_signal = lomac_check_proc_signal,
+	.mpo_check_socket_deliver = lomac_check_socket_deliver,
+	.mpo_check_socket_relabel = lomac_check_socket_relabel,
+	.mpo_check_socket_visible = lomac_check_socket_visible,
+	.mpo_check_system_acct = lomac_check_system_acct,
+	.mpo_check_system_auditctl = lomac_check_system_auditctl,
+	.mpo_check_system_swapoff = lomac_check_system_swapoff,
+	.mpo_check_system_swapon = lomac_check_system_swapon,
+	.mpo_check_system_sysctl = lomac_check_system_sysctl,
+	.mpo_check_vnode_access = lomac_check_vnode_open,
+	.mpo_check_vnode_create = lomac_check_vnode_create,
+	.mpo_check_vnode_deleteacl = lomac_check_vnode_deleteacl,
+	.mpo_check_vnode_link = lomac_check_vnode_link,
+	.mpo_check_vnode_mmap = lomac_check_vnode_mmap,
+	.mpo_check_vnode_mmap_downgrade = lomac_check_vnode_mmap_downgrade,
+	.mpo_check_vnode_open = lomac_check_vnode_open,
+	.mpo_check_vnode_read = lomac_check_vnode_read,
+	.mpo_check_vnode_relabel = lomac_check_vnode_relabel,
+	.mpo_check_vnode_rename_from = lomac_check_vnode_rename_from,
+	.mpo_check_vnode_rename_to = lomac_check_vnode_rename_to,
+	.mpo_check_vnode_revoke = lomac_check_vnode_revoke,
+	.mpo_check_vnode_setacl = lomac_check_vnode_setacl,
+	.mpo_check_vnode_setextattr = lomac_check_vnode_setextattr,
+	.mpo_check_vnode_setflags = lomac_check_vnode_setflags,
+	.mpo_check_vnode_setmode = lomac_check_vnode_setmode,
+	.mpo_check_vnode_setowner = lomac_check_vnode_setowner,
+	.mpo_check_vnode_setutimes = lomac_check_vnode_setutimes,
+	.mpo_check_vnode_unlink = lomac_check_vnode_unlink,
+	.mpo_check_vnode_write = lomac_check_vnode_write,
+	.mpo_thread_userret = lomac_thread_userret,
+	.mpo_create_mbuf_from_firewall = lomac_create_mbuf_from_firewall,
+	.mpo_priv_check = lomac_priv_check,
 };
 
-MAC_POLICY_SET(&mac_lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",
-    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS,
-    &mac_lomac_slot);
+MAC_POLICY_SET(&lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",
+    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &lomac_slot);

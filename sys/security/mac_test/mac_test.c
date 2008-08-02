@@ -148,7 +148,7 @@ SYSCTL_NODE(_security_mac_test, OID_AUTO, counter, CTLFLAG_RW, 0,
  */
 COUNTER_DECL(init_bpfdesc_label);
 static void
-mac_test_init_bpfdesc_label(struct label *label)
+test_init_bpfdesc_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_BPF);
@@ -157,7 +157,7 @@ mac_test_init_bpfdesc_label(struct label *label)
 
 COUNTER_DECL(init_cred_label);
 static void
-mac_test_init_cred_label(struct label *label)
+test_init_cred_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_CRED);
@@ -166,7 +166,7 @@ mac_test_init_cred_label(struct label *label)
 
 COUNTER_DECL(init_devfs_label);
 static void
-mac_test_init_devfs_label(struct label *label)
+test_init_devfs_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_DEVFS);
@@ -175,7 +175,7 @@ mac_test_init_devfs_label(struct label *label)
 
 COUNTER_DECL(init_ifnet_label);
 static void
-mac_test_init_ifnet_label(struct label *label)
+test_init_ifnet_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_IFNET);
@@ -184,13 +184,12 @@ mac_test_init_ifnet_label(struct label *label)
 
 COUNTER_DECL(init_inpcb_label);
 static int
-mac_test_init_inpcb_label(struct label *label, int flag)
+test_init_inpcb_label(struct label *label, int flag)
 {
 
 	if (flag & M_WAITOK)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "mac_test_init_inpcb_label() at %s:%d", __FILE__,
-		    __LINE__);
+		    "test_init_inpcb_label() at %s:%d", __FILE__, __LINE__);
 
 	LABEL_INIT(label, MAGIC_INPCB);
 	COUNTER_INC(init_inpcb_label);
@@ -199,7 +198,7 @@ mac_test_init_inpcb_label(struct label *label, int flag)
 
 COUNTER_DECL(init_sysv_msg_label);
 static void
-mac_test_init_sysv_msgmsg_label(struct label *label)
+test_init_sysv_msgmsg_label(struct label *label)
 {
 	LABEL_INIT(label, MAGIC_SYSV_MSG);
 	COUNTER_INC(init_sysv_msg_label);
@@ -207,7 +206,7 @@ mac_test_init_sysv_msgmsg_label(struct label *label)
 
 COUNTER_DECL(init_sysv_msq_label);
 static void
-mac_test_init_sysv_msgqueue_label(struct label *label)
+test_init_sysv_msgqueue_label(struct label *label)
 {
 	LABEL_INIT(label, MAGIC_SYSV_MSQ);
 	COUNTER_INC(init_sysv_msq_label);
@@ -215,7 +214,7 @@ mac_test_init_sysv_msgqueue_label(struct label *label)
 
 COUNTER_DECL(init_sysv_sem_label);
 static void
-mac_test_init_sysv_sem_label(struct label *label)
+test_init_sysv_sem_label(struct label *label)
 {
 	LABEL_INIT(label, MAGIC_SYSV_SEM);
 	COUNTER_INC(init_sysv_sem_label);
@@ -223,7 +222,7 @@ mac_test_init_sysv_sem_label(struct label *label)
 
 COUNTER_DECL(init_sysv_shm_label);
 static void
-mac_test_init_sysv_shm_label(struct label *label)
+test_init_sysv_shm_label(struct label *label)
 {
 	LABEL_INIT(label, MAGIC_SYSV_SHM);
 	COUNTER_INC(init_sysv_shm_label);
@@ -231,13 +230,12 @@ mac_test_init_sysv_shm_label(struct label *label)
 
 COUNTER_DECL(init_ipq_label);
 static int
-mac_test_init_ipq_label(struct label *label, int flag)
+test_init_ipq_label(struct label *label, int flag)
 {
 
 	if (flag & M_WAITOK)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "mac_test_init_ipq_label() at %s:%d", __FILE__,
-		    __LINE__);
+		    "test_init_ipq_label() at %s:%d", __FILE__, __LINE__);
 
 	LABEL_INIT(label, MAGIC_IPQ);
 	COUNTER_INC(init_ipq_label);
@@ -246,13 +244,12 @@ mac_test_init_ipq_label(struct label *label, int flag)
 
 COUNTER_DECL(init_mbuf_label);
 static int
-mac_test_init_mbuf_label(struct label *label, int flag)
+test_init_mbuf_label(struct label *label, int flag)
 {
 
 	if (flag & M_WAITOK)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "mac_test_init_mbuf_label() at %s:%d", __FILE__,
-		    __LINE__);
+		    "test_init_mbuf_label() at %s:%d", __FILE__, __LINE__);
 
 	LABEL_INIT(label, MAGIC_MBUF);
 	COUNTER_INC(init_mbuf_label);
@@ -261,7 +258,7 @@ mac_test_init_mbuf_label(struct label *label, int flag)
 
 COUNTER_DECL(init_mount_label);
 static void
-mac_test_init_mount_label(struct label *label)
+test_init_mount_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_MOUNT);
@@ -270,13 +267,12 @@ mac_test_init_mount_label(struct label *label)
 
 COUNTER_DECL(init_socket_label);
 static int
-mac_test_init_socket_label(struct label *label, int flag)
+test_init_socket_label(struct label *label, int flag)
 {
 
 	if (flag & M_WAITOK)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "mac_test_init_socket_label() at %s:%d", __FILE__,
-		    __LINE__);
+		    "test_init_socket_label() at %s:%d", __FILE__, __LINE__);
 
 	LABEL_INIT(label, MAGIC_SOCKET);
 	COUNTER_INC(init_socket_label);
@@ -285,12 +281,12 @@ mac_test_init_socket_label(struct label *label, int flag)
 
 COUNTER_DECL(init_socket_peer_label);
 static int
-mac_test_init_socket_peer_label(struct label *label, int flag)
+test_init_socket_peer_label(struct label *label, int flag)
 {
 
 	if (flag & M_WAITOK)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "mac_test_init_socket_peer_label() at %s:%d", __FILE__,
+		    "test_init_socket_peer_label() at %s:%d", __FILE__,
 		    __LINE__);
 
 	LABEL_INIT(label, MAGIC_SOCKET);
@@ -300,7 +296,7 @@ mac_test_init_socket_peer_label(struct label *label, int flag)
 
 COUNTER_DECL(init_pipe_label);
 static void
-mac_test_init_pipe_label(struct label *label)
+test_init_pipe_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_PIPE);
@@ -309,7 +305,7 @@ mac_test_init_pipe_label(struct label *label)
 
 COUNTER_DECL(init_posix_sem_label);
 static void
-mac_test_init_posix_sem_label(struct label *label)
+test_init_posix_sem_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_POSIX_SEM);
@@ -318,7 +314,7 @@ mac_test_init_posix_sem_label(struct label *label)
 
 COUNTER_DECL(init_proc_label);
 static void
-mac_test_init_proc_label(struct label *label)
+test_init_proc_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_PROC);
@@ -327,7 +323,7 @@ mac_test_init_proc_label(struct label *label)
 
 COUNTER_DECL(init_vnode_label);
 static void
-mac_test_init_vnode_label(struct label *label)
+test_init_vnode_label(struct label *label)
 {
 
 	LABEL_INIT(label, MAGIC_VNODE);
@@ -336,7 +332,7 @@ mac_test_init_vnode_label(struct label *label)
 
 COUNTER_DECL(destroy_bpfdesc_label);
 static void
-mac_test_destroy_bpfdesc_label(struct label *label)
+test_destroy_bpfdesc_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_BPF);
@@ -345,7 +341,7 @@ mac_test_destroy_bpfdesc_label(struct label *label)
 
 COUNTER_DECL(destroy_cred_label);
 static void
-mac_test_destroy_cred_label(struct label *label)
+test_destroy_cred_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_CRED);
@@ -354,7 +350,7 @@ mac_test_destroy_cred_label(struct label *label)
 
 COUNTER_DECL(destroy_devfs_label);
 static void
-mac_test_destroy_devfs_label(struct label *label)
+test_destroy_devfs_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_DEVFS);
@@ -363,7 +359,7 @@ mac_test_destroy_devfs_label(struct label *label)
 
 COUNTER_DECL(destroy_ifnet_label);
 static void
-mac_test_destroy_ifnet_label(struct label *label)
+test_destroy_ifnet_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_IFNET);
@@ -372,7 +368,7 @@ mac_test_destroy_ifnet_label(struct label *label)
 
 COUNTER_DECL(destroy_inpcb_label);
 static void
-mac_test_destroy_inpcb_label(struct label *label)
+test_destroy_inpcb_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_INPCB);
@@ -381,7 +377,7 @@ mac_test_destroy_inpcb_label(struct label *label)
 
 COUNTER_DECL(destroy_sysv_msg_label);
 static void
-mac_test_destroy_sysv_msgmsg_label(struct label *label)
+test_destroy_sysv_msgmsg_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SYSV_MSG);
@@ -390,7 +386,7 @@ mac_test_destroy_sysv_msgmsg_label(struct label *label)
 
 COUNTER_DECL(destroy_sysv_msq_label);
 static void
-mac_test_destroy_sysv_msgqueue_label(struct label *label)
+test_destroy_sysv_msgqueue_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SYSV_MSQ);
@@ -399,7 +395,7 @@ mac_test_destroy_sysv_msgqueue_label(struct label *label)
 
 COUNTER_DECL(destroy_sysv_sem_label);
 static void
-mac_test_destroy_sysv_sem_label(struct label *label)
+test_destroy_sysv_sem_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SYSV_SEM);
@@ -408,7 +404,7 @@ mac_test_destroy_sysv_sem_label(struct label *label)
 
 COUNTER_DECL(destroy_sysv_shm_label);
 static void
-mac_test_destroy_sysv_shm_label(struct label *label)
+test_destroy_sysv_shm_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SYSV_SHM);
@@ -417,7 +413,7 @@ mac_test_destroy_sysv_shm_label(struct label *label)
 
 COUNTER_DECL(destroy_ipq_label);
 static void
-mac_test_destroy_ipq_label(struct label *label)
+test_destroy_ipq_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_IPQ);
@@ -426,7 +422,7 @@ mac_test_destroy_ipq_label(struct label *label)
 
 COUNTER_DECL(destroy_mbuf_label);
 static void
-mac_test_destroy_mbuf_label(struct label *label)
+test_destroy_mbuf_label(struct label *label)
 {
 
 	/*
@@ -443,7 +439,7 @@ mac_test_destroy_mbuf_label(struct label *label)
 
 COUNTER_DECL(destroy_mount_label);
 static void
-mac_test_destroy_mount_label(struct label *label)
+test_destroy_mount_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_MOUNT);
@@ -452,7 +448,7 @@ mac_test_destroy_mount_label(struct label *label)
 
 COUNTER_DECL(destroy_socket_label);
 static void
-mac_test_destroy_socket_label(struct label *label)
+test_destroy_socket_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SOCKET);
@@ -461,7 +457,7 @@ mac_test_destroy_socket_label(struct label *label)
 
 COUNTER_DECL(destroy_socket_peer_label);
 static void
-mac_test_destroy_socket_peer_label(struct label *label)
+test_destroy_socket_peer_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_SOCKET);
@@ -470,7 +466,7 @@ mac_test_destroy_socket_peer_label(struct label *label)
 
 COUNTER_DECL(destroy_pipe_label);
 static void
-mac_test_destroy_pipe_label(struct label *label)
+test_destroy_pipe_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_PIPE);
@@ -479,7 +475,7 @@ mac_test_destroy_pipe_label(struct label *label)
 
 COUNTER_DECL(destroy_posix_sem_label);
 static void
-mac_test_destroy_posix_sem_label(struct label *label)
+test_destroy_posix_sem_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_POSIX_SEM);
@@ -488,7 +484,7 @@ mac_test_destroy_posix_sem_label(struct label *label)
 
 COUNTER_DECL(destroy_proc_label);
 static void
-mac_test_destroy_proc_label(struct label *label)
+test_destroy_proc_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_PROC);
@@ -497,7 +493,7 @@ mac_test_destroy_proc_label(struct label *label)
 
 COUNTER_DECL(destroy_vnode_label);
 static void
-mac_test_destroy_vnode_label(struct label *label)
+test_destroy_vnode_label(struct label *label)
 {
 
 	LABEL_DESTROY(label, MAGIC_VNODE);
@@ -506,7 +502,7 @@ mac_test_destroy_vnode_label(struct label *label)
 
 COUNTER_DECL(copy_cred_label);
 static void
-mac_test_copy_cred_label(struct label *src, struct label *dest)
+test_copy_cred_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_CRED);
@@ -516,7 +512,7 @@ mac_test_copy_cred_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(copy_ifnet_label);
 static void
-mac_test_copy_ifnet_label(struct label *src, struct label *dest)
+test_copy_ifnet_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_IFNET);
@@ -526,7 +522,7 @@ mac_test_copy_ifnet_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(copy_mbuf_label);
 static void
-mac_test_copy_mbuf_label(struct label *src, struct label *dest)
+test_copy_mbuf_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_MBUF);
@@ -536,7 +532,7 @@ mac_test_copy_mbuf_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(copy_pipe_label);
 static void
-mac_test_copy_pipe_label(struct label *src, struct label *dest)
+test_copy_pipe_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_PIPE);
@@ -546,7 +542,7 @@ mac_test_copy_pipe_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(copy_socket_label);
 static void
-mac_test_copy_socket_label(struct label *src, struct label *dest)
+test_copy_socket_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_SOCKET);
@@ -556,7 +552,7 @@ mac_test_copy_socket_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(copy_vnode_label);
 static void
-mac_test_copy_vnode_label(struct label *src, struct label *dest)
+test_copy_vnode_label(struct label *src, struct label *dest)
 {
 
 	LABEL_CHECK(src, MAGIC_VNODE);
@@ -566,7 +562,7 @@ mac_test_copy_vnode_label(struct label *src, struct label *dest)
 
 COUNTER_DECL(externalize_label);
 static int
-mac_test_externalize_label(struct label *label, char *element_name,
+test_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
 {
 
@@ -578,7 +574,7 @@ mac_test_externalize_label(struct label *label, char *element_name,
 
 COUNTER_DECL(internalize_label);
 static int
-mac_test_internalize_label(struct label *label, char *element_name,
+test_internalize_label(struct label *label, char *element_name,
     char *element_data, int *claimed)
 {
 
@@ -589,12 +585,12 @@ mac_test_internalize_label(struct label *label, char *element_name,
 }
 
 /*
- * Labeling event operations: file system objects, and things that look
- * a lot like file system objects.
+ * Labeling event operations: file system objects, and things that look a lot
+ * like file system objects.
  */
 COUNTER_DECL(associate_vnode_devfs);
 static void
-mac_test_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
+test_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
     struct devfs_dirent *de, struct label *delabel, struct vnode *vp,
     struct label *vplabel)
 {
@@ -607,7 +603,7 @@ mac_test_associate_vnode_devfs(struct mount *mp, struct label *mplabel,
 
 COUNTER_DECL(associate_vnode_extattr);
 static int
-mac_test_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
+test_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -620,7 +616,7 @@ mac_test_associate_vnode_extattr(struct mount *mp, struct label *mplabel,
 
 COUNTER_DECL(associate_vnode_singlelabel);
 static void
-mac_test_associate_vnode_singlelabel(struct mount *mp, struct label *mplabel,
+test_associate_vnode_singlelabel(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -631,7 +627,7 @@ mac_test_associate_vnode_singlelabel(struct mount *mp, struct label *mplabel,
 
 COUNTER_DECL(create_devfs_device);
 static void
-mac_test_create_devfs_device(struct ucred *cred, struct mount *mp,
+test_create_devfs_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 
@@ -643,7 +639,7 @@ mac_test_create_devfs_device(struct ucred *cred, struct mount *mp,
 
 COUNTER_DECL(create_devfs_directory);
 static void
-mac_test_create_devfs_directory(struct mount *mp, char *dirname,
+test_create_devfs_directory(struct mount *mp, char *dirname,
     int dirnamelen, struct devfs_dirent *de, struct label *delabel)
 {
 
@@ -653,7 +649,7 @@ mac_test_create_devfs_directory(struct mount *mp, char *dirname,
 
 COUNTER_DECL(create_devfs_symlink);
 static void
-mac_test_create_devfs_symlink(struct ucred *cred, struct mount *mp,
+test_create_devfs_symlink(struct ucred *cred, struct mount *mp,
     struct devfs_dirent *dd, struct label *ddlabel, struct devfs_dirent *de,
     struct label *delabel)
 {
@@ -666,7 +662,7 @@ mac_test_create_devfs_symlink(struct ucred *cred, struct mount *mp,
 
 COUNTER_DECL(create_vnode_extattr);
 static int
-mac_test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
+test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
     struct label *mplabel, struct vnode *dvp, struct label *dvplabel,
     struct vnode *vp, struct label *vplabel, struct componentname *cnp)
 {
@@ -681,7 +677,7 @@ mac_test_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 
 COUNTER_DECL(create_mount);
 static void
-mac_test_create_mount(struct ucred *cred, struct mount *mp,
+test_create_mount(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 
@@ -692,7 +688,7 @@ mac_test_create_mount(struct ucred *cred, struct mount *mp,
 
 COUNTER_DECL(relabel_vnode);
 static void
-mac_test_relabel_vnode(struct ucred *cred, struct vnode *vp,
+test_relabel_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *label)
 {
 
@@ -704,7 +700,7 @@ mac_test_relabel_vnode(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(setlabel_vnode_extattr);
 static int
-mac_test_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
+test_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *intlabel)
 {
 
@@ -718,7 +714,7 @@ mac_test_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(update_devfs);
 static void
-mac_test_update_devfs(struct mount *mp, struct devfs_dirent *devfs_dirent,
+test_update_devfs(struct mount *mp, struct devfs_dirent *devfs_dirent,
     struct label *direntlabel, struct vnode *vp, struct label *vplabel)
 {
 
@@ -732,7 +728,7 @@ mac_test_update_devfs(struct mount *mp, struct devfs_dirent *devfs_dirent,
  */
 COUNTER_DECL(create_mbuf_from_socket);
 static void
-mac_test_create_mbuf_from_socket(struct socket *so, struct label *socketlabel,
+test_create_mbuf_from_socket(struct socket *so, struct label *socketlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
@@ -743,7 +739,7 @@ mac_test_create_mbuf_from_socket(struct socket *so, struct label *socketlabel,
 
 COUNTER_DECL(create_socket);
 static void
-mac_test_create_socket(struct ucred *cred, struct socket *socket,
+test_create_socket(struct ucred *cred, struct socket *socket,
    struct label *socketlabel)
 {
 
@@ -754,7 +750,7 @@ mac_test_create_socket(struct ucred *cred, struct socket *socket,
 
 COUNTER_DECL(create_pipe);
 static void
-mac_test_create_pipe(struct ucred *cred, struct pipepair *pp,
+test_create_pipe(struct ucred *cred, struct pipepair *pp,
    struct label *pipelabel)
 {
 
@@ -765,7 +761,7 @@ mac_test_create_pipe(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(create_posix_sem);
 static void
-mac_test_create_posix_sem(struct ucred *cred, struct ksem *ks,
+test_create_posix_sem(struct ucred *cred, struct ksem *ks,
    struct label *kslabel)
 {
 
@@ -776,7 +772,7 @@ mac_test_create_posix_sem(struct ucred *cred, struct ksem *ks,
 
 COUNTER_DECL(create_socket_from_socket);
 static void
-mac_test_create_socket_from_socket(struct socket *oldsocket,
+test_create_socket_from_socket(struct socket *oldsocket,
     struct label *oldsocketlabel, struct socket *newsocket,
     struct label *newsocketlabel)
 {
@@ -788,7 +784,7 @@ mac_test_create_socket_from_socket(struct socket *oldsocket,
 
 COUNTER_DECL(relabel_socket);
 static void
-mac_test_relabel_socket(struct ucred *cred, struct socket *socket,
+test_relabel_socket(struct ucred *cred, struct socket *socket,
     struct label *socketlabel, struct label *newlabel)
 {
 
@@ -799,7 +795,7 @@ mac_test_relabel_socket(struct ucred *cred, struct socket *socket,
 
 COUNTER_DECL(relabel_pipe);
 static void
-mac_test_relabel_pipe(struct ucred *cred, struct pipepair *pp,
+test_relabel_pipe(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 
@@ -811,7 +807,7 @@ mac_test_relabel_pipe(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(set_socket_peer_from_mbuf);
 static void
-mac_test_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
+test_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
     struct socket *socket, struct label *socketpeerlabel)
 {
 
@@ -825,7 +821,7 @@ mac_test_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
  */
 COUNTER_DECL(set_socket_peer_from_socket);
 static void
-mac_test_set_socket_peer_from_socket(struct socket *oldsocket,
+test_set_socket_peer_from_socket(struct socket *oldsocket,
     struct label *oldsocketlabel, struct socket *newsocket,
     struct label *newsocketpeerlabel)
 {
@@ -837,7 +833,7 @@ mac_test_set_socket_peer_from_socket(struct socket *oldsocket,
 
 COUNTER_DECL(create_bpfdesc);
 static void
-mac_test_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
+test_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
     struct label *bpflabel)
 {
 
@@ -848,7 +844,7 @@ mac_test_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 
 COUNTER_DECL(create_datagram_from_ipq);
 static void
-mac_test_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+test_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
     struct mbuf *datagram, struct label *datagramlabel)
 {
 
@@ -859,7 +855,7 @@ mac_test_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
 
 COUNTER_DECL(create_fragment);
 static void
-mac_test_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
+test_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
     struct mbuf *fragment, struct label *fragmentlabel)
 {
 
@@ -870,7 +866,7 @@ mac_test_create_fragment(struct mbuf *datagram, struct label *datagramlabel,
 
 COUNTER_DECL(create_ifnet);
 static void
-mac_test_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
+test_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 {
 
 	LABEL_CHECK(ifnetlabel, MAGIC_IFNET);
@@ -879,7 +875,7 @@ mac_test_create_ifnet(struct ifnet *ifnet, struct label *ifnetlabel)
 
 COUNTER_DECL(create_inpcb_from_socket);
 static void
-mac_test_create_inpcb_from_socket(struct socket *so, struct label *solabel,
+test_create_inpcb_from_socket(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
@@ -890,7 +886,7 @@ mac_test_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 
 COUNTER_DECL(create_sysv_msgmsg);
 static void
-mac_test_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+test_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
 {
 
@@ -901,8 +897,8 @@ mac_test_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 COUNTER_DECL(create_sysv_msgqueue);
 static void
-mac_test_create_sysv_msgqueue(struct ucred *cred,
-    struct msqid_kernel *msqkptr, struct label *msqlabel)
+test_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel)
 {
 
 	LABEL_CHECK(msqlabel, MAGIC_SYSV_MSQ);
@@ -911,7 +907,7 @@ mac_test_create_sysv_msgqueue(struct ucred *cred,
 
 COUNTER_DECL(create_sysv_sem);
 static void
-mac_test_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
+test_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semalabel)
 {
 
@@ -921,7 +917,7 @@ mac_test_create_sysv_sem(struct ucred *cred, struct semid_kernel *semakptr,
 
 COUNTER_DECL(create_sysv_shm);
 static void
-mac_test_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
+test_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmlabel)
 {
 
@@ -931,7 +927,7 @@ mac_test_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 COUNTER_DECL(create_ipq);
 static void
-mac_test_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
+test_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
 
@@ -942,7 +938,7 @@ mac_test_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 
 COUNTER_DECL(create_mbuf_from_inpcb);
 static void
-mac_test_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
+test_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -953,7 +949,7 @@ mac_test_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 
 COUNTER_DECL(create_mbuf_linklayer);
 static void
-mac_test_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
+test_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
 
@@ -964,7 +960,7 @@ mac_test_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
 
 COUNTER_DECL(create_mbuf_from_bpfdesc);
 static void
-mac_test_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct label *bpflabel,
+test_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct label *bpflabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
 
@@ -975,7 +971,7 @@ mac_test_create_mbuf_from_bpfdesc(struct bpf_d *bpf_d, struct label *bpflabel,
 
 COUNTER_DECL(create_mbuf_from_ifnet);
 static void
-mac_test_create_mbuf_from_ifnet(struct ifnet *ifnet, struct label *ifnetlabel,
+test_create_mbuf_from_ifnet(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
@@ -986,7 +982,7 @@ mac_test_create_mbuf_from_ifnet(struct ifnet *ifnet, struct label *ifnetlabel,
 
 COUNTER_DECL(create_mbuf_multicast_encap);
 static void
-mac_test_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
+test_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
     struct label *oldmbuflabel, struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *newmbuf, struct label *newmbuflabel)
 {
@@ -999,9 +995,8 @@ mac_test_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
 
 COUNTER_DECL(create_mbuf_netlayer);
 static void
-mac_test_create_mbuf_netlayer(struct mbuf *oldmbuf,
-    struct label *oldmbuflabel, struct mbuf *newmbuf,
-    struct label *newmbuflabel)
+test_create_mbuf_netlayer(struct mbuf *oldmbuf, struct label *oldmbuflabel,
+    struct mbuf *newmbuf, struct label *newmbuflabel)
 {
 
 	LABEL_CHECK(oldmbuflabel, MAGIC_MBUF);
@@ -1011,7 +1006,7 @@ mac_test_create_mbuf_netlayer(struct mbuf *oldmbuf,
 
 COUNTER_DECL(fragment_match);
 static int
-mac_test_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
+test_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
 
@@ -1024,7 +1019,7 @@ mac_test_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
 
 COUNTER_DECL(reflect_mbuf_icmp);
 static void
-mac_test_reflect_mbuf_icmp(struct mbuf *m, struct label *mlabel)
+test_reflect_mbuf_icmp(struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
@@ -1033,7 +1028,7 @@ mac_test_reflect_mbuf_icmp(struct mbuf *m, struct label *mlabel)
 
 COUNTER_DECL(reflect_mbuf_tcp);
 static void
-mac_test_reflect_mbuf_tcp(struct mbuf *m, struct label *mlabel)
+test_reflect_mbuf_tcp(struct mbuf *m, struct label *mlabel)
 {
 
 	LABEL_CHECK(mlabel, MAGIC_MBUF);
@@ -1042,7 +1037,7 @@ mac_test_reflect_mbuf_tcp(struct mbuf *m, struct label *mlabel)
 
 COUNTER_DECL(relabel_ifnet);
 static void
-mac_test_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
+test_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
 
@@ -1054,7 +1049,7 @@ mac_test_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
 
 COUNTER_DECL(update_ipq);
 static void
-mac_test_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
+test_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
     struct ipq *ipq, struct label *ipqlabel)
 {
 
@@ -1065,7 +1060,7 @@ mac_test_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
 
 COUNTER_DECL(inpcb_sosetlabel);
 static void
-mac_test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
+test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
 {
 
@@ -1079,10 +1074,9 @@ mac_test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
  */
 COUNTER_DECL(execve_transition);
 static void
-mac_test_execve_transition(struct ucred *old, struct ucred *new,
-    struct vnode *vp, struct label *filelabel,
-    struct label *interpvplabel, struct image_params *imgp,
-    struct label *execlabel)
+test_execve_transition(struct ucred *old, struct ucred *new,
+    struct vnode *vp, struct label *filelabel, struct label *interpvplabel,
+    struct image_params *imgp, struct label *execlabel)
 {
 
 	LABEL_CHECK(old->cr_label, MAGIC_CRED);
@@ -1095,7 +1089,7 @@ mac_test_execve_transition(struct ucred *old, struct ucred *new,
 
 COUNTER_DECL(execve_will_transition);
 static int
-mac_test_execve_will_transition(struct ucred *old, struct vnode *vp,
+test_execve_will_transition(struct ucred *old, struct vnode *vp,
     struct label *filelabel, struct label *interpvplabel,
     struct image_params *imgp, struct label *execlabel)
 {
@@ -1111,7 +1105,7 @@ mac_test_execve_will_transition(struct ucred *old, struct vnode *vp,
 
 COUNTER_DECL(create_proc0);
 static void
-mac_test_create_proc0(struct ucred *cred)
+test_create_proc0(struct ucred *cred)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1120,7 +1114,7 @@ mac_test_create_proc0(struct ucred *cred)
 
 COUNTER_DECL(create_proc1);
 static void
-mac_test_create_proc1(struct ucred *cred)
+test_create_proc1(struct ucred *cred)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1129,7 +1123,7 @@ mac_test_create_proc1(struct ucred *cred)
 
 COUNTER_DECL(relabel_cred);
 static void
-mac_test_relabel_cred(struct ucred *cred, struct label *newlabel)
+test_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1139,7 +1133,7 @@ mac_test_relabel_cred(struct ucred *cred, struct label *newlabel)
 
 COUNTER_DECL(thread_userret);
 static void
-mac_test_thread_userret(struct thread *td)
+test_thread_userret(struct thread *td)
 {
 
 	COUNTER_INC(thread_userret);
@@ -1150,7 +1144,7 @@ mac_test_thread_userret(struct thread *td)
  */
 COUNTER_DECL(cleanup_sysv_msgmsg);
 static void
-mac_test_cleanup_sysv_msgmsg(struct label *msglabel)
+test_cleanup_sysv_msgmsg(struct label *msglabel)
 {
 
 	LABEL_CHECK(msglabel, MAGIC_SYSV_MSG);
@@ -1159,7 +1153,7 @@ mac_test_cleanup_sysv_msgmsg(struct label *msglabel)
 
 COUNTER_DECL(cleanup_sysv_msgqueue);
 static void
-mac_test_cleanup_sysv_msgqueue(struct label *msqlabel)
+test_cleanup_sysv_msgqueue(struct label *msqlabel)
 {
 
 	LABEL_CHECK(msqlabel, MAGIC_SYSV_MSQ);
@@ -1168,7 +1162,7 @@ mac_test_cleanup_sysv_msgqueue(struct label *msqlabel)
 
 COUNTER_DECL(cleanup_sysv_sem);
 static void
-mac_test_cleanup_sysv_sem(struct label *semalabel)
+test_cleanup_sysv_sem(struct label *semalabel)
 {
 
 	LABEL_CHECK(semalabel, MAGIC_SYSV_SEM);
@@ -1177,7 +1171,7 @@ mac_test_cleanup_sysv_sem(struct label *semalabel)
 
 COUNTER_DECL(cleanup_sysv_shm);
 static void
-mac_test_cleanup_sysv_shm(struct label *shmlabel)
+test_cleanup_sysv_shm(struct label *shmlabel)
 {
 
 	LABEL_CHECK(shmlabel, MAGIC_SYSV_SHM);
@@ -1189,7 +1183,7 @@ mac_test_cleanup_sysv_shm(struct label *shmlabel)
  */
 COUNTER_DECL(check_bpfdesc_receive);
 static int
-mac_test_check_bpfdesc_receive(struct bpf_d *bpf_d, struct label *bpflabel,
+test_check_bpfdesc_receive(struct bpf_d *bpf_d, struct label *bpflabel,
     struct ifnet *ifnet, struct label *ifnetlabel)
 {
 
@@ -1202,7 +1196,7 @@ mac_test_check_bpfdesc_receive(struct bpf_d *bpf_d, struct label *bpflabel,
 
 COUNTER_DECL(check_cred_relabel);
 static int
-mac_test_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+test_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1214,7 +1208,7 @@ mac_test_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 
 COUNTER_DECL(check_cred_visible);
 static int
-mac_test_check_cred_visible(struct ucred *u1, struct ucred *u2)
+test_check_cred_visible(struct ucred *u1, struct ucred *u2)
 {
 
 	LABEL_CHECK(u1->cr_label, MAGIC_CRED);
@@ -1226,7 +1220,7 @@ mac_test_check_cred_visible(struct ucred *u1, struct ucred *u2)
 
 COUNTER_DECL(check_ifnet_relabel);
 static int
-mac_test_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
+test_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
     struct label *ifnetlabel, struct label *newlabel)
 {
 
@@ -1240,7 +1234,7 @@ mac_test_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 
 COUNTER_DECL(check_ifnet_transmit);
 static int
-mac_test_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
+test_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *m, struct label *mbuflabel)
 {
 
@@ -1253,7 +1247,7 @@ mac_test_check_ifnet_transmit(struct ifnet *ifnet, struct label *ifnetlabel,
 
 COUNTER_DECL(check_inpcb_deliver);
 static int
-mac_test_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
+test_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -1266,7 +1260,7 @@ mac_test_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 
 COUNTER_DECL(check_sysv_msgmsq);
 static int
-mac_test_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
+test_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
@@ -1281,7 +1275,7 @@ mac_test_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
 
 COUNTER_DECL(check_sysv_msgrcv);
 static int
-mac_test_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
+test_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 
@@ -1294,7 +1288,7 @@ mac_test_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
 
 COUNTER_DECL(check_sysv_msgrmid);
 static int
-mac_test_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
+test_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
 
@@ -1307,7 +1301,7 @@ mac_test_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
 
 COUNTER_DECL(check_sysv_msqget);
 static int
-mac_test_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
+test_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -1320,7 +1314,7 @@ mac_test_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 COUNTER_DECL(check_sysv_msqsnd);
 static int
-mac_test_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
+test_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -1333,7 +1327,7 @@ mac_test_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 COUNTER_DECL(check_sysv_msqrcv);
 static int
-mac_test_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
+test_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
 {
 
@@ -1346,7 +1340,7 @@ mac_test_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 COUNTER_DECL(check_sysv_msqctl);
 static int
-mac_test_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+test_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel, int cmd)
 {
 
@@ -1359,7 +1353,7 @@ mac_test_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 COUNTER_DECL(check_sysv_semctl);
 static int
-mac_test_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
+test_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel, int cmd)
 {
 
@@ -1372,7 +1366,7 @@ mac_test_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 
 COUNTER_DECL(check_sysv_semget);
 static int
-mac_test_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
+test_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel)
 {
 
@@ -1385,7 +1379,7 @@ mac_test_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
 
 COUNTER_DECL(check_sysv_semop);
 static int
-mac_test_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
+test_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
     struct label *semaklabel, size_t accesstype)
 {
 
@@ -1398,7 +1392,7 @@ mac_test_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
 
 COUNTER_DECL(check_sysv_shmat);
 static int
-mac_test_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+test_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int shmflg)
 {
 
@@ -1411,7 +1405,7 @@ mac_test_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 COUNTER_DECL(check_sysv_shmctl);
 static int
-mac_test_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+test_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int cmd)
 {
 
@@ -1424,7 +1418,7 @@ mac_test_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 COUNTER_DECL(check_sysv_shmdt);
 static int
-mac_test_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
+test_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel)
 {
 
@@ -1437,7 +1431,7 @@ mac_test_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 COUNTER_DECL(check_sysv_shmget);
 static int
-mac_test_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+test_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
     struct label *shmseglabel, int shmflg)
 {
 
@@ -1450,7 +1444,7 @@ mac_test_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 COUNTER_DECL(check_kenv_dump);
 static int
-mac_test_check_kenv_dump(struct ucred *cred)
+test_check_kenv_dump(struct ucred *cred)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1461,7 +1455,7 @@ mac_test_check_kenv_dump(struct ucred *cred)
 
 COUNTER_DECL(check_kenv_get);
 static int
-mac_test_check_kenv_get(struct ucred *cred, char *name)
+test_check_kenv_get(struct ucred *cred, char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1472,7 +1466,7 @@ mac_test_check_kenv_get(struct ucred *cred, char *name)
 
 COUNTER_DECL(check_kenv_set);
 static int
-mac_test_check_kenv_set(struct ucred *cred, char *name, char *value)
+test_check_kenv_set(struct ucred *cred, char *name, char *value)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1483,7 +1477,7 @@ mac_test_check_kenv_set(struct ucred *cred, char *name, char *value)
 
 COUNTER_DECL(check_kenv_unset);
 static int
-mac_test_check_kenv_unset(struct ucred *cred, char *name)
+test_check_kenv_unset(struct ucred *cred, char *name)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1494,7 +1488,7 @@ mac_test_check_kenv_unset(struct ucred *cred, char *name)
 
 COUNTER_DECL(check_kld_load);
 static int
-mac_test_check_kld_load(struct ucred *cred, struct vnode *vp,
+test_check_kld_load(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
 
@@ -1507,7 +1501,7 @@ mac_test_check_kld_load(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_kld_stat);
 static int
-mac_test_check_kld_stat(struct ucred *cred)
+test_check_kld_stat(struct ucred *cred)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1518,7 +1512,7 @@ mac_test_check_kld_stat(struct ucred *cred)
 
 COUNTER_DECL(check_mount_stat);
 static int
-mac_test_check_mount_stat(struct ucred *cred, struct mount *mp,
+test_check_mount_stat(struct ucred *cred, struct mount *mp,
     struct label *mplabel)
 {
 
@@ -1531,7 +1525,7 @@ mac_test_check_mount_stat(struct ucred *cred, struct mount *mp,
 
 COUNTER_DECL(check_pipe_ioctl);
 static int
-mac_test_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, unsigned long cmd, void /* caddr_t */ *data)
 {
 
@@ -1544,7 +1538,7 @@ mac_test_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_pipe_poll);
 static int
-mac_test_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -1557,7 +1551,7 @@ mac_test_check_pipe_poll(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_pipe_read);
 static int
-mac_test_check_pipe_read(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_read(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -1570,7 +1564,7 @@ mac_test_check_pipe_read(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_pipe_relabel);
 static int
-mac_test_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel, struct label *newlabel)
 {
 
@@ -1584,7 +1578,7 @@ mac_test_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_pipe_stat);
 static int
-mac_test_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -1597,7 +1591,7 @@ mac_test_check_pipe_stat(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_pipe_write);
 static int
-mac_test_check_pipe_write(struct ucred *cred, struct pipepair *pp,
+test_check_pipe_write(struct ucred *cred, struct pipepair *pp,
     struct label *pipelabel)
 {
 
@@ -1610,7 +1604,7 @@ mac_test_check_pipe_write(struct ucred *cred, struct pipepair *pp,
 
 COUNTER_DECL(check_posix_sem);
 static int
-mac_test_check_posix_sem(struct ucred *cred, struct ksem *ks,
+test_check_posix_sem(struct ucred *cred, struct ksem *ks,
     struct label *kslabel)
 {
 
@@ -1623,7 +1617,7 @@ mac_test_check_posix_sem(struct ucred *cred, struct ksem *ks,
 
 COUNTER_DECL(check_proc_debug);
 static int
-mac_test_check_proc_debug(struct ucred *cred, struct proc *p)
+test_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1635,7 +1629,7 @@ mac_test_check_proc_debug(struct ucred *cred, struct proc *p)
 
 COUNTER_DECL(check_proc_sched);
 static int
-mac_test_check_proc_sched(struct ucred *cred, struct proc *p)
+test_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1647,7 +1641,7 @@ mac_test_check_proc_sched(struct ucred *cred, struct proc *p)
 
 COUNTER_DECL(check_proc_signal);
 static int
-mac_test_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
+test_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1659,7 +1653,7 @@ mac_test_check_proc_signal(struct ucred *cred, struct proc *p, int signum)
 
 COUNTER_DECL(check_proc_setaudit);
 static int
-mac_test_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
+test_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1670,7 +1664,7 @@ mac_test_check_proc_setaudit(struct ucred *cred, struct auditinfo *ai)
 
 COUNTER_DECL(check_proc_setaudit_addr);
 static int
-mac_test_check_proc_setaudit_addr(struct ucred *cred,
+test_check_proc_setaudit_addr(struct ucred *cred,
     struct auditinfo_addr *aia)
 {
 
@@ -1682,7 +1676,7 @@ mac_test_check_proc_setaudit_addr(struct ucred *cred,
 
 COUNTER_DECL(check_proc_setauid);
 static int
-mac_test_check_proc_setauid(struct ucred *cred, uid_t auid)
+test_check_proc_setauid(struct ucred *cred, uid_t auid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1693,7 +1687,7 @@ mac_test_check_proc_setauid(struct ucred *cred, uid_t auid)
 
 COUNTER_DECL(check_proc_setuid);
 static int
-mac_test_check_proc_setuid(struct ucred *cred, uid_t uid)
+test_check_proc_setuid(struct ucred *cred, uid_t uid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1704,7 +1698,7 @@ mac_test_check_proc_setuid(struct ucred *cred, uid_t uid)
 
 COUNTER_DECL(check_proc_euid);
 static int
-mac_test_check_proc_seteuid(struct ucred *cred, uid_t euid)
+test_check_proc_seteuid(struct ucred *cred, uid_t euid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1715,7 +1709,7 @@ mac_test_check_proc_seteuid(struct ucred *cred, uid_t euid)
 
 COUNTER_DECL(check_proc_setgid);
 static int
-mac_test_check_proc_setgid(struct ucred *cred, gid_t gid)
+test_check_proc_setgid(struct ucred *cred, gid_t gid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1726,7 +1720,7 @@ mac_test_check_proc_setgid(struct ucred *cred, gid_t gid)
 
 COUNTER_DECL(check_proc_setegid);
 static int
-mac_test_check_proc_setegid(struct ucred *cred, gid_t egid)
+test_check_proc_setegid(struct ucred *cred, gid_t egid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1737,7 +1731,7 @@ mac_test_check_proc_setegid(struct ucred *cred, gid_t egid)
 
 COUNTER_DECL(check_proc_setgroups);
 static int
-mac_test_check_proc_setgroups(struct ucred *cred, int ngroups,
+test_check_proc_setgroups(struct ucred *cred, int ngroups,
 	gid_t *gidset)
 {
 
@@ -1749,7 +1743,7 @@ mac_test_check_proc_setgroups(struct ucred *cred, int ngroups,
 
 COUNTER_DECL(check_proc_setreuid);
 static int
-mac_test_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
+test_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1760,7 +1754,7 @@ mac_test_check_proc_setreuid(struct ucred *cred, uid_t ruid, uid_t euid)
 
 COUNTER_DECL(check_proc_setregid);
 static int
-mac_test_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
+test_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1771,7 +1765,7 @@ mac_test_check_proc_setregid(struct ucred *cred, gid_t rgid, gid_t egid)
 
 COUNTER_DECL(check_proc_setresuid);
 static int
-mac_test_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
+test_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
 	uid_t suid)
 {
 
@@ -1783,7 +1777,7 @@ mac_test_check_proc_setresuid(struct ucred *cred, uid_t ruid, uid_t euid,
 
 COUNTER_DECL(check_proc_setresgid);
 static int
-mac_test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
+test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 	gid_t sgid)
 {
 
@@ -1795,7 +1789,7 @@ mac_test_check_proc_setresgid(struct ucred *cred, gid_t rgid, gid_t egid,
 
 COUNTER_DECL(check_proc_wait);
 static int
-mac_test_check_proc_wait(struct ucred *cred, struct proc *p)
+test_check_proc_wait(struct ucred *cred, struct proc *p)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1807,7 +1801,7 @@ mac_test_check_proc_wait(struct ucred *cred, struct proc *p)
 
 COUNTER_DECL(check_socket_accept);
 static int
-mac_test_check_socket_accept(struct ucred *cred, struct socket *so,
+test_check_socket_accept(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1820,7 +1814,7 @@ mac_test_check_socket_accept(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_bind);
 static int
-mac_test_check_socket_bind(struct ucred *cred, struct socket *so,
+test_check_socket_bind(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
@@ -1833,7 +1827,7 @@ mac_test_check_socket_bind(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_connect);
 static int
-mac_test_check_socket_connect(struct ucred *cred, struct socket *so,
+test_check_socket_connect(struct ucred *cred, struct socket *so,
     struct label *solabel, struct sockaddr *sa)
 {
 
@@ -1846,7 +1840,7 @@ mac_test_check_socket_connect(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_deliver);
 static int
-mac_test_check_socket_deliver(struct socket *so, struct label *solabel,
+test_check_socket_deliver(struct socket *so, struct label *solabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -1859,7 +1853,7 @@ mac_test_check_socket_deliver(struct socket *so, struct label *solabel,
 
 COUNTER_DECL(check_socket_listen);
 static int
-mac_test_check_socket_listen(struct ucred *cred, struct socket *so,
+test_check_socket_listen(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1872,7 +1866,7 @@ mac_test_check_socket_listen(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_poll);
 static int
-mac_test_check_socket_poll(struct ucred *cred, struct socket *so,
+test_check_socket_poll(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1885,7 +1879,7 @@ mac_test_check_socket_poll(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_receive);
 static int
-mac_test_check_socket_receive(struct ucred *cred, struct socket *so,
+test_check_socket_receive(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1898,7 +1892,7 @@ mac_test_check_socket_receive(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_relabel);
 static int
-mac_test_check_socket_relabel(struct ucred *cred, struct socket *so,
+test_check_socket_relabel(struct ucred *cred, struct socket *so,
     struct label *solabel, struct label *newlabel)
 {
 
@@ -1912,7 +1906,7 @@ mac_test_check_socket_relabel(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_send);
 static int
-mac_test_check_socket_send(struct ucred *cred, struct socket *so,
+test_check_socket_send(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1925,7 +1919,7 @@ mac_test_check_socket_send(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_stat);
 static int
-mac_test_check_socket_stat(struct ucred *cred, struct socket *so,
+test_check_socket_stat(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1938,7 +1932,7 @@ mac_test_check_socket_stat(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_socket_visible);
 static int
-mac_test_check_socket_visible(struct ucred *cred, struct socket *so,
+test_check_socket_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 
@@ -1951,7 +1945,7 @@ mac_test_check_socket_visible(struct ucred *cred, struct socket *so,
 
 COUNTER_DECL(check_system_acct);
 static int
-mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
+test_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1964,7 +1958,7 @@ mac_test_check_system_acct(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_system_audit);
 static int
-mac_test_check_system_audit(struct ucred *cred, void *record, int length)
+test_check_system_audit(struct ucred *cred, void *record, int length)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1975,7 +1969,7 @@ mac_test_check_system_audit(struct ucred *cred, void *record, int length)
 
 COUNTER_DECL(check_system_auditctl);
 static int
-mac_test_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+test_check_system_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -1988,7 +1982,7 @@ mac_test_check_system_auditctl(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_system_auditon);
 static int
-mac_test_check_system_auditon(struct ucred *cred, int cmd)
+test_check_system_auditon(struct ucred *cred, int cmd)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -1999,7 +1993,7 @@ mac_test_check_system_auditon(struct ucred *cred, int cmd)
 
 COUNTER_DECL(check_system_reboot);
 static int
-mac_test_check_system_reboot(struct ucred *cred, int how)
+test_check_system_reboot(struct ucred *cred, int how)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -2010,7 +2004,7 @@ mac_test_check_system_reboot(struct ucred *cred, int how)
 
 COUNTER_DECL(check_system_swapoff);
 static int
-mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -2023,7 +2017,7 @@ mac_test_check_system_swapoff(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_system_swapon);
 static int
-mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
+test_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -2036,7 +2030,7 @@ mac_test_check_system_swapon(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_system_sysctl);
 static int
-mac_test_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
+test_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
 {
 
@@ -2048,7 +2042,7 @@ mac_test_check_system_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 
 COUNTER_DECL(check_vnode_access);
 static int
-mac_test_check_vnode_access(struct ucred *cred, struct vnode *vp,
+test_check_vnode_access(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -2061,7 +2055,7 @@ mac_test_check_vnode_access(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_chdir);
 static int
-mac_test_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -2074,7 +2068,7 @@ mac_test_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_chroot);
 static int
-mac_test_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -2087,7 +2081,7 @@ mac_test_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_create);
 static int
-mac_test_check_vnode_create(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_create(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 
@@ -2100,7 +2094,7 @@ mac_test_check_vnode_create(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_deleteacl);
 static int
-mac_test_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+test_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -2113,7 +2107,7 @@ mac_test_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_deleteextattr);
 static int
-mac_test_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+test_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name)
 {
 
@@ -2126,7 +2120,7 @@ mac_test_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_exec);
 static int
-mac_test_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+test_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -2141,7 +2135,7 @@ mac_test_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_getacl);
 static int
-mac_test_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+test_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
@@ -2154,7 +2148,7 @@ mac_test_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_getextattr);
 static int
-mac_test_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+test_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -2168,7 +2162,7 @@ mac_test_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_link);
 static int
-mac_test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2183,7 +2177,7 @@ mac_test_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_listextattr);
 static int
-mac_test_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+test_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace)
 {
 
@@ -2196,7 +2190,7 @@ mac_test_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_lookup);
 static int
-mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp)
 {
 
@@ -2209,7 +2203,7 @@ mac_test_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_mmap);
 static int
-mac_test_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+test_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int prot, int flags)
 {
 
@@ -2222,7 +2216,7 @@ mac_test_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_open);
 static int
-mac_test_check_vnode_open(struct ucred *cred, struct vnode *vp,
+test_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
@@ -2235,7 +2229,7 @@ mac_test_check_vnode_open(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_poll);
 static int
-mac_test_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
+test_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -2250,7 +2244,7 @@ mac_test_check_vnode_poll(struct ucred *active_cred, struct ucred *file_cred,
 
 COUNTER_DECL(check_vnode_read);
 static int
-mac_test_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
+test_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -2265,7 +2259,7 @@ mac_test_check_vnode_read(struct ucred *active_cred, struct ucred *file_cred,
 
 COUNTER_DECL(check_vnode_readdir);
 static int
-mac_test_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
@@ -2278,7 +2272,7 @@ mac_test_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_readlink);
 static int
-mac_test_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
+test_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -2291,7 +2285,7 @@ mac_test_check_vnode_readlink(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_relabel);
 static int
-mac_test_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
+test_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct label *newlabel)
 {
 
@@ -2305,7 +2299,7 @@ mac_test_check_vnode_relabel(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_rename_from);
 static int
-mac_test_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2320,7 +2314,7 @@ mac_test_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_rename_to);
 static int
-mac_test_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
@@ -2335,7 +2329,7 @@ mac_test_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_revoke);
 static int
-mac_test_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+test_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
@@ -2348,7 +2342,7 @@ mac_test_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setacl);
 static int
-mac_test_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 
@@ -2361,7 +2355,7 @@ mac_test_check_vnode_setacl(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setextattr);
 static int
-mac_test_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
@@ -2375,7 +2369,7 @@ mac_test_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setflags);
 static int
-mac_test_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 
@@ -2388,7 +2382,7 @@ mac_test_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setmode);
 static int
-mac_test_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 
@@ -2401,7 +2395,7 @@ mac_test_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setowner);
 static int
-mac_test_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 
@@ -2414,7 +2408,7 @@ mac_test_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_setutimes);
 static int
-mac_test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec mtime)
 {
 
@@ -2427,7 +2421,7 @@ mac_test_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
 
 COUNTER_DECL(check_vnode_stat);
 static int
-mac_test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
+test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp, struct label *vplabel)
 {
 
@@ -2442,7 +2436,7 @@ mac_test_check_vnode_stat(struct ucred *active_cred, struct ucred *file_cred,
 
 COUNTER_DECL(check_vnode_unlink);
 static int
-mac_test_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+test_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
@@ -2457,7 +2451,7 @@ mac_test_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
 
 COUNTER_DECL(check_vnode_write);
 static int
-mac_test_check_vnode_write(struct ucred *active_cred,
+test_check_vnode_write(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 
@@ -2470,220 +2464,219 @@ mac_test_check_vnode_write(struct ucred *active_cred,
 	return (0);
 }
 
-static struct mac_policy_ops mac_test_ops =
+static struct mac_policy_ops test_ops =
 {
-	.mpo_init_bpfdesc_label = mac_test_init_bpfdesc_label,
-	.mpo_init_cred_label = mac_test_init_cred_label,
-	.mpo_init_devfs_label = mac_test_init_devfs_label,
-	.mpo_init_ifnet_label = mac_test_init_ifnet_label,
-	.mpo_init_sysv_msgmsg_label = mac_test_init_sysv_msgmsg_label,
-	.mpo_init_sysv_msgqueue_label = mac_test_init_sysv_msgqueue_label,
-	.mpo_init_sysv_sem_label = mac_test_init_sysv_sem_label,
-	.mpo_init_sysv_shm_label = mac_test_init_sysv_shm_label,
-	.mpo_init_inpcb_label = mac_test_init_inpcb_label,
-	.mpo_init_ipq_label = mac_test_init_ipq_label,
-	.mpo_init_mbuf_label = mac_test_init_mbuf_label,
-	.mpo_init_mount_label = mac_test_init_mount_label,
-	.mpo_init_pipe_label = mac_test_init_pipe_label,
-	.mpo_init_posix_sem_label = mac_test_init_posix_sem_label,
-	.mpo_init_proc_label = mac_test_init_proc_label,
-	.mpo_init_socket_label = mac_test_init_socket_label,
-	.mpo_init_socket_peer_label = mac_test_init_socket_peer_label,
-	.mpo_init_vnode_label = mac_test_init_vnode_label,
-	.mpo_destroy_bpfdesc_label = mac_test_destroy_bpfdesc_label,
-	.mpo_destroy_cred_label = mac_test_destroy_cred_label,
-	.mpo_destroy_devfs_label = mac_test_destroy_devfs_label,
-	.mpo_destroy_ifnet_label = mac_test_destroy_ifnet_label,
-	.mpo_destroy_sysv_msgmsg_label = mac_test_destroy_sysv_msgmsg_label,
-	.mpo_destroy_sysv_msgqueue_label =
-	    mac_test_destroy_sysv_msgqueue_label,
-	.mpo_destroy_sysv_sem_label = mac_test_destroy_sysv_sem_label,
-	.mpo_destroy_sysv_shm_label = mac_test_destroy_sysv_shm_label,
-	.mpo_destroy_inpcb_label = mac_test_destroy_inpcb_label,
-	.mpo_destroy_ipq_label = mac_test_destroy_ipq_label,
-	.mpo_destroy_mbuf_label = mac_test_destroy_mbuf_label,
-	.mpo_destroy_mount_label = mac_test_destroy_mount_label,
-	.mpo_destroy_pipe_label = mac_test_destroy_pipe_label,
-	.mpo_destroy_posix_sem_label = mac_test_destroy_posix_sem_label,
-	.mpo_destroy_proc_label = mac_test_destroy_proc_label,
-	.mpo_destroy_socket_label = mac_test_destroy_socket_label,
-	.mpo_destroy_socket_peer_label = mac_test_destroy_socket_peer_label,
-	.mpo_destroy_vnode_label = mac_test_destroy_vnode_label,
-	.mpo_copy_cred_label = mac_test_copy_cred_label,
-	.mpo_copy_ifnet_label = mac_test_copy_ifnet_label,
-	.mpo_copy_mbuf_label = mac_test_copy_mbuf_label,
-	.mpo_copy_pipe_label = mac_test_copy_pipe_label,
-	.mpo_copy_socket_label = mac_test_copy_socket_label,
-	.mpo_copy_vnode_label = mac_test_copy_vnode_label,
-	.mpo_externalize_cred_label = mac_test_externalize_label,
-	.mpo_externalize_ifnet_label = mac_test_externalize_label,
-	.mpo_externalize_pipe_label = mac_test_externalize_label,
-	.mpo_externalize_socket_label = mac_test_externalize_label,
-	.mpo_externalize_socket_peer_label = mac_test_externalize_label,
-	.mpo_externalize_vnode_label = mac_test_externalize_label,
-	.mpo_internalize_cred_label = mac_test_internalize_label,
-	.mpo_internalize_ifnet_label = mac_test_internalize_label,
-	.mpo_internalize_pipe_label = mac_test_internalize_label,
-	.mpo_internalize_socket_label = mac_test_internalize_label,
-	.mpo_internalize_vnode_label = mac_test_internalize_label,
-	.mpo_associate_vnode_devfs = mac_test_associate_vnode_devfs,
-	.mpo_associate_vnode_extattr = mac_test_associate_vnode_extattr,
-	.mpo_associate_vnode_singlelabel = mac_test_associate_vnode_singlelabel,
-	.mpo_create_devfs_device = mac_test_create_devfs_device,
-	.mpo_create_devfs_directory = mac_test_create_devfs_directory,
-	.mpo_create_devfs_symlink = mac_test_create_devfs_symlink,
-	.mpo_create_vnode_extattr = mac_test_create_vnode_extattr,
-	.mpo_create_mount = mac_test_create_mount,
-	.mpo_relabel_vnode = mac_test_relabel_vnode,
-	.mpo_setlabel_vnode_extattr = mac_test_setlabel_vnode_extattr,
-	.mpo_update_devfs = mac_test_update_devfs,
-	.mpo_create_mbuf_from_socket = mac_test_create_mbuf_from_socket,
-	.mpo_create_pipe = mac_test_create_pipe,
-	.mpo_create_posix_sem = mac_test_create_posix_sem,
-	.mpo_create_socket = mac_test_create_socket,
-	.mpo_create_socket_from_socket = mac_test_create_socket_from_socket,
-	.mpo_relabel_pipe = mac_test_relabel_pipe,
-	.mpo_relabel_socket = mac_test_relabel_socket,
-	.mpo_set_socket_peer_from_mbuf = mac_test_set_socket_peer_from_mbuf,
-	.mpo_set_socket_peer_from_socket = mac_test_set_socket_peer_from_socket,
-	.mpo_create_bpfdesc = mac_test_create_bpfdesc,
-	.mpo_create_ifnet = mac_test_create_ifnet,
-	.mpo_create_inpcb_from_socket = mac_test_create_inpcb_from_socket,
-	.mpo_create_sysv_msgmsg = mac_test_create_sysv_msgmsg,
-	.mpo_create_sysv_msgqueue = mac_test_create_sysv_msgqueue,
-	.mpo_create_sysv_sem = mac_test_create_sysv_sem,
-	.mpo_create_sysv_shm = mac_test_create_sysv_shm,
-	.mpo_create_datagram_from_ipq = mac_test_create_datagram_from_ipq,
-	.mpo_create_fragment = mac_test_create_fragment,
-	.mpo_create_ipq = mac_test_create_ipq,
-	.mpo_create_mbuf_from_inpcb = mac_test_create_mbuf_from_inpcb,
-	.mpo_create_mbuf_linklayer = mac_test_create_mbuf_linklayer,
-	.mpo_create_mbuf_from_bpfdesc = mac_test_create_mbuf_from_bpfdesc,
-	.mpo_create_mbuf_from_ifnet = mac_test_create_mbuf_from_ifnet,
-	.mpo_create_mbuf_multicast_encap = mac_test_create_mbuf_multicast_encap,
-	.mpo_create_mbuf_netlayer = mac_test_create_mbuf_netlayer,
-	.mpo_fragment_match = mac_test_fragment_match,
-	.mpo_reflect_mbuf_icmp = mac_test_reflect_mbuf_icmp,
-	.mpo_reflect_mbuf_tcp = mac_test_reflect_mbuf_tcp,
-	.mpo_relabel_ifnet = mac_test_relabel_ifnet,
-	.mpo_update_ipq = mac_test_update_ipq,
-	.mpo_inpcb_sosetlabel = mac_test_inpcb_sosetlabel,
-	.mpo_execve_transition = mac_test_execve_transition,
-	.mpo_execve_will_transition = mac_test_execve_will_transition,
-	.mpo_create_proc0 = mac_test_create_proc0,
-	.mpo_create_proc1 = mac_test_create_proc1,
-	.mpo_relabel_cred = mac_test_relabel_cred,
-	.mpo_thread_userret = mac_test_thread_userret,
-	.mpo_cleanup_sysv_msgmsg = mac_test_cleanup_sysv_msgmsg,
-	.mpo_cleanup_sysv_msgqueue = mac_test_cleanup_sysv_msgqueue,
-	.mpo_cleanup_sysv_sem = mac_test_cleanup_sysv_sem,
-	.mpo_cleanup_sysv_shm = mac_test_cleanup_sysv_shm,
-	.mpo_check_bpfdesc_receive = mac_test_check_bpfdesc_receive,
-	.mpo_check_cred_relabel = mac_test_check_cred_relabel,
-	.mpo_check_cred_visible = mac_test_check_cred_visible,
-	.mpo_check_ifnet_relabel = mac_test_check_ifnet_relabel,
-	.mpo_check_ifnet_transmit = mac_test_check_ifnet_transmit,
-	.mpo_check_inpcb_deliver = mac_test_check_inpcb_deliver,
-	.mpo_check_sysv_msgmsq = mac_test_check_sysv_msgmsq,
-	.mpo_check_sysv_msgrcv = mac_test_check_sysv_msgrcv,
-	.mpo_check_sysv_msgrmid = mac_test_check_sysv_msgrmid,
-	.mpo_check_sysv_msqget = mac_test_check_sysv_msqget,
-	.mpo_check_sysv_msqsnd = mac_test_check_sysv_msqsnd,
-	.mpo_check_sysv_msqrcv = mac_test_check_sysv_msqrcv,
-	.mpo_check_sysv_msqctl = mac_test_check_sysv_msqctl,
-	.mpo_check_sysv_semctl = mac_test_check_sysv_semctl,
-	.mpo_check_sysv_semget = mac_test_check_sysv_semget,
-	.mpo_check_sysv_semop = mac_test_check_sysv_semop,
-	.mpo_check_sysv_shmat = mac_test_check_sysv_shmat,
-	.mpo_check_sysv_shmctl = mac_test_check_sysv_shmctl,
-	.mpo_check_sysv_shmdt = mac_test_check_sysv_shmdt,
-	.mpo_check_sysv_shmget = mac_test_check_sysv_shmget,
-	.mpo_check_kenv_dump = mac_test_check_kenv_dump,
-	.mpo_check_kenv_get = mac_test_check_kenv_get,
-	.mpo_check_kenv_set = mac_test_check_kenv_set,
-	.mpo_check_kenv_unset = mac_test_check_kenv_unset,
-	.mpo_check_kld_load = mac_test_check_kld_load,
-	.mpo_check_kld_stat = mac_test_check_kld_stat,
-	.mpo_check_mount_stat = mac_test_check_mount_stat,
-	.mpo_check_pipe_ioctl = mac_test_check_pipe_ioctl,
-	.mpo_check_pipe_poll = mac_test_check_pipe_poll,
-	.mpo_check_pipe_read = mac_test_check_pipe_read,
-	.mpo_check_pipe_relabel = mac_test_check_pipe_relabel,
-	.mpo_check_pipe_stat = mac_test_check_pipe_stat,
-	.mpo_check_pipe_write = mac_test_check_pipe_write,
-	.mpo_check_posix_sem_destroy = mac_test_check_posix_sem,
-	.mpo_check_posix_sem_getvalue = mac_test_check_posix_sem,
-	.mpo_check_posix_sem_open = mac_test_check_posix_sem,
-	.mpo_check_posix_sem_post = mac_test_check_posix_sem,
-	.mpo_check_posix_sem_unlink = mac_test_check_posix_sem,
-	.mpo_check_posix_sem_wait = mac_test_check_posix_sem,
-	.mpo_check_proc_debug = mac_test_check_proc_debug,
-	.mpo_check_proc_sched = mac_test_check_proc_sched,
-	.mpo_check_proc_setaudit = mac_test_check_proc_setaudit,
-	.mpo_check_proc_setaudit_addr = mac_test_check_proc_setaudit_addr,
-	.mpo_check_proc_setauid = mac_test_check_proc_setauid,
-	.mpo_check_proc_setuid = mac_test_check_proc_setuid,
-	.mpo_check_proc_seteuid = mac_test_check_proc_seteuid,
-	.mpo_check_proc_setgid = mac_test_check_proc_setgid,
-	.mpo_check_proc_setegid = mac_test_check_proc_setegid,
-	.mpo_check_proc_setgroups = mac_test_check_proc_setgroups,
-	.mpo_check_proc_setreuid = mac_test_check_proc_setreuid,
-	.mpo_check_proc_setregid = mac_test_check_proc_setregid,
-	.mpo_check_proc_setresuid = mac_test_check_proc_setresuid,
-	.mpo_check_proc_setresgid = mac_test_check_proc_setresgid,
-	.mpo_check_proc_signal = mac_test_check_proc_signal,
-	.mpo_check_proc_wait = mac_test_check_proc_wait,
-	.mpo_check_socket_accept = mac_test_check_socket_accept,
-	.mpo_check_socket_bind = mac_test_check_socket_bind,
-	.mpo_check_socket_connect = mac_test_check_socket_connect,
-	.mpo_check_socket_deliver = mac_test_check_socket_deliver,
-	.mpo_check_socket_listen = mac_test_check_socket_listen,
-	.mpo_check_socket_poll = mac_test_check_socket_poll,
-	.mpo_check_socket_receive = mac_test_check_socket_receive,
-	.mpo_check_socket_relabel = mac_test_check_socket_relabel,
-	.mpo_check_socket_send = mac_test_check_socket_send,
-	.mpo_check_socket_stat = mac_test_check_socket_stat,
-	.mpo_check_socket_visible = mac_test_check_socket_visible,
-	.mpo_check_system_acct = mac_test_check_system_acct,
-	.mpo_check_system_audit = mac_test_check_system_audit,
-	.mpo_check_system_auditctl = mac_test_check_system_auditctl,
-	.mpo_check_system_auditon = mac_test_check_system_auditon,
-	.mpo_check_system_reboot = mac_test_check_system_reboot,
-	.mpo_check_system_swapoff = mac_test_check_system_swapoff,
-	.mpo_check_system_swapon = mac_test_check_system_swapon,
-	.mpo_check_system_sysctl = mac_test_check_system_sysctl,
-	.mpo_check_vnode_access = mac_test_check_vnode_access,
-	.mpo_check_vnode_chdir = mac_test_check_vnode_chdir,
-	.mpo_check_vnode_chroot = mac_test_check_vnode_chroot,
-	.mpo_check_vnode_create = mac_test_check_vnode_create,
-	.mpo_check_vnode_deleteacl = mac_test_check_vnode_deleteacl,
-	.mpo_check_vnode_deleteextattr = mac_test_check_vnode_deleteextattr,
-	.mpo_check_vnode_exec = mac_test_check_vnode_exec,
-	.mpo_check_vnode_getacl = mac_test_check_vnode_getacl,
-	.mpo_check_vnode_getextattr = mac_test_check_vnode_getextattr,
-	.mpo_check_vnode_link = mac_test_check_vnode_link,
-	.mpo_check_vnode_listextattr = mac_test_check_vnode_listextattr,
-	.mpo_check_vnode_lookup = mac_test_check_vnode_lookup,
-	.mpo_check_vnode_mmap = mac_test_check_vnode_mmap,
-	.mpo_check_vnode_open = mac_test_check_vnode_open,
-	.mpo_check_vnode_poll = mac_test_check_vnode_poll,
-	.mpo_check_vnode_read = mac_test_check_vnode_read,
-	.mpo_check_vnode_readdir = mac_test_check_vnode_readdir,
-	.mpo_check_vnode_readlink = mac_test_check_vnode_readlink,
-	.mpo_check_vnode_relabel = mac_test_check_vnode_relabel,
-	.mpo_check_vnode_rename_from = mac_test_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_test_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_test_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_test_check_vnode_setacl,
-	.mpo_check_vnode_setextattr = mac_test_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_test_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_test_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_test_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_test_check_vnode_setutimes,
-	.mpo_check_vnode_stat = mac_test_check_vnode_stat,
-	.mpo_check_vnode_unlink = mac_test_check_vnode_unlink,
-	.mpo_check_vnode_write = mac_test_check_vnode_write,
+	.mpo_init_bpfdesc_label = test_init_bpfdesc_label,
+	.mpo_init_cred_label = test_init_cred_label,
+	.mpo_init_devfs_label = test_init_devfs_label,
+	.mpo_init_ifnet_label = test_init_ifnet_label,
+	.mpo_init_sysv_msgmsg_label = test_init_sysv_msgmsg_label,
+	.mpo_init_sysv_msgqueue_label = test_init_sysv_msgqueue_label,
+	.mpo_init_sysv_sem_label = test_init_sysv_sem_label,
+	.mpo_init_sysv_shm_label = test_init_sysv_shm_label,
+	.mpo_init_inpcb_label = test_init_inpcb_label,
+	.mpo_init_ipq_label = test_init_ipq_label,
+	.mpo_init_mbuf_label = test_init_mbuf_label,
+	.mpo_init_mount_label = test_init_mount_label,
+	.mpo_init_pipe_label = test_init_pipe_label,
+	.mpo_init_posix_sem_label = test_init_posix_sem_label,
+	.mpo_init_proc_label = test_init_proc_label,
+	.mpo_init_socket_label = test_init_socket_label,
+	.mpo_init_socket_peer_label = test_init_socket_peer_label,
+	.mpo_init_vnode_label = test_init_vnode_label,
+	.mpo_destroy_bpfdesc_label = test_destroy_bpfdesc_label,
+	.mpo_destroy_cred_label = test_destroy_cred_label,
+	.mpo_destroy_devfs_label = test_destroy_devfs_label,
+	.mpo_destroy_ifnet_label = test_destroy_ifnet_label,
+	.mpo_destroy_sysv_msgmsg_label = test_destroy_sysv_msgmsg_label,
+	.mpo_destroy_sysv_msgqueue_label = test_destroy_sysv_msgqueue_label,
+	.mpo_destroy_sysv_sem_label = test_destroy_sysv_sem_label,
+	.mpo_destroy_sysv_shm_label = test_destroy_sysv_shm_label,
+	.mpo_destroy_inpcb_label = test_destroy_inpcb_label,
+	.mpo_destroy_ipq_label = test_destroy_ipq_label,
+	.mpo_destroy_mbuf_label = test_destroy_mbuf_label,
+	.mpo_destroy_mount_label = test_destroy_mount_label,
+	.mpo_destroy_pipe_label = test_destroy_pipe_label,
+	.mpo_destroy_posix_sem_label = test_destroy_posix_sem_label,
+	.mpo_destroy_proc_label = test_destroy_proc_label,
+	.mpo_destroy_socket_label = test_destroy_socket_label,
+	.mpo_destroy_socket_peer_label = test_destroy_socket_peer_label,
+	.mpo_destroy_vnode_label = test_destroy_vnode_label,
+	.mpo_copy_cred_label = test_copy_cred_label,
+	.mpo_copy_ifnet_label = test_copy_ifnet_label,
+	.mpo_copy_mbuf_label = test_copy_mbuf_label,
+	.mpo_copy_pipe_label = test_copy_pipe_label,
+	.mpo_copy_socket_label = test_copy_socket_label,
+	.mpo_copy_vnode_label = test_copy_vnode_label,
+	.mpo_externalize_cred_label = test_externalize_label,
+	.mpo_externalize_ifnet_label = test_externalize_label,
+	.mpo_externalize_pipe_label = test_externalize_label,
+	.mpo_externalize_socket_label = test_externalize_label,
+	.mpo_externalize_socket_peer_label = test_externalize_label,
+	.mpo_externalize_vnode_label = test_externalize_label,
+	.mpo_internalize_cred_label = test_internalize_label,
+	.mpo_internalize_ifnet_label = test_internalize_label,
+	.mpo_internalize_pipe_label = test_internalize_label,
+	.mpo_internalize_socket_label = test_internalize_label,
+	.mpo_internalize_vnode_label = test_internalize_label,
+	.mpo_associate_vnode_devfs = test_associate_vnode_devfs,
+	.mpo_associate_vnode_extattr = test_associate_vnode_extattr,
+	.mpo_associate_vnode_singlelabel = test_associate_vnode_singlelabel,
+	.mpo_create_devfs_device = test_create_devfs_device,
+	.mpo_create_devfs_directory = test_create_devfs_directory,
+	.mpo_create_devfs_symlink = test_create_devfs_symlink,
+	.mpo_create_vnode_extattr = test_create_vnode_extattr,
+	.mpo_create_mount = test_create_mount,
+	.mpo_relabel_vnode = test_relabel_vnode,
+	.mpo_setlabel_vnode_extattr = test_setlabel_vnode_extattr,
+	.mpo_update_devfs = test_update_devfs,
+	.mpo_create_mbuf_from_socket = test_create_mbuf_from_socket,
+	.mpo_create_pipe = test_create_pipe,
+	.mpo_create_posix_sem = test_create_posix_sem,
+	.mpo_create_socket = test_create_socket,
+	.mpo_create_socket_from_socket = test_create_socket_from_socket,
+	.mpo_relabel_pipe = test_relabel_pipe,
+	.mpo_relabel_socket = test_relabel_socket,
+	.mpo_set_socket_peer_from_mbuf = test_set_socket_peer_from_mbuf,
+	.mpo_set_socket_peer_from_socket = test_set_socket_peer_from_socket,
+	.mpo_create_bpfdesc = test_create_bpfdesc,
+	.mpo_create_ifnet = test_create_ifnet,
+	.mpo_create_inpcb_from_socket = test_create_inpcb_from_socket,
+	.mpo_create_sysv_msgmsg = test_create_sysv_msgmsg,
+	.mpo_create_sysv_msgqueue = test_create_sysv_msgqueue,
+	.mpo_create_sysv_sem = test_create_sysv_sem,
+	.mpo_create_sysv_shm = test_create_sysv_shm,
+	.mpo_create_datagram_from_ipq = test_create_datagram_from_ipq,
+	.mpo_create_fragment = test_create_fragment,
+	.mpo_create_ipq = test_create_ipq,
+	.mpo_create_mbuf_from_inpcb = test_create_mbuf_from_inpcb,
+	.mpo_create_mbuf_linklayer = test_create_mbuf_linklayer,
+	.mpo_create_mbuf_from_bpfdesc = test_create_mbuf_from_bpfdesc,
+	.mpo_create_mbuf_from_ifnet = test_create_mbuf_from_ifnet,
+	.mpo_create_mbuf_multicast_encap = test_create_mbuf_multicast_encap,
+	.mpo_create_mbuf_netlayer = test_create_mbuf_netlayer,
+	.mpo_fragment_match = test_fragment_match,
+	.mpo_reflect_mbuf_icmp = test_reflect_mbuf_icmp,
+	.mpo_reflect_mbuf_tcp = test_reflect_mbuf_tcp,
+	.mpo_relabel_ifnet = test_relabel_ifnet,
+	.mpo_update_ipq = test_update_ipq,
+	.mpo_inpcb_sosetlabel = test_inpcb_sosetlabel,
+	.mpo_execve_transition = test_execve_transition,
+	.mpo_execve_will_transition = test_execve_will_transition,
+	.mpo_create_proc0 = test_create_proc0,
+	.mpo_create_proc1 = test_create_proc1,
+	.mpo_relabel_cred = test_relabel_cred,
+	.mpo_thread_userret = test_thread_userret,
+	.mpo_cleanup_sysv_msgmsg = test_cleanup_sysv_msgmsg,
+	.mpo_cleanup_sysv_msgqueue = test_cleanup_sysv_msgqueue,
+	.mpo_cleanup_sysv_sem = test_cleanup_sysv_sem,
+	.mpo_cleanup_sysv_shm = test_cleanup_sysv_shm,
+	.mpo_check_bpfdesc_receive = test_check_bpfdesc_receive,
+	.mpo_check_cred_relabel = test_check_cred_relabel,
+	.mpo_check_cred_visible = test_check_cred_visible,
+	.mpo_check_ifnet_relabel = test_check_ifnet_relabel,
+	.mpo_check_ifnet_transmit = test_check_ifnet_transmit,
+	.mpo_check_inpcb_deliver = test_check_inpcb_deliver,
+	.mpo_check_sysv_msgmsq = test_check_sysv_msgmsq,
+	.mpo_check_sysv_msgrcv = test_check_sysv_msgrcv,
+	.mpo_check_sysv_msgrmid = test_check_sysv_msgrmid,
+	.mpo_check_sysv_msqget = test_check_sysv_msqget,
+	.mpo_check_sysv_msqsnd = test_check_sysv_msqsnd,
+	.mpo_check_sysv_msqrcv = test_check_sysv_msqrcv,
+	.mpo_check_sysv_msqctl = test_check_sysv_msqctl,
+	.mpo_check_sysv_semctl = test_check_sysv_semctl,
+	.mpo_check_sysv_semget = test_check_sysv_semget,
+	.mpo_check_sysv_semop = test_check_sysv_semop,
+	.mpo_check_sysv_shmat = test_check_sysv_shmat,
+	.mpo_check_sysv_shmctl = test_check_sysv_shmctl,
+	.mpo_check_sysv_shmdt = test_check_sysv_shmdt,
+	.mpo_check_sysv_shmget = test_check_sysv_shmget,
+	.mpo_check_kenv_dump = test_check_kenv_dump,
+	.mpo_check_kenv_get = test_check_kenv_get,
+	.mpo_check_kenv_set = test_check_kenv_set,
+	.mpo_check_kenv_unset = test_check_kenv_unset,
+	.mpo_check_kld_load = test_check_kld_load,
+	.mpo_check_kld_stat = test_check_kld_stat,
+	.mpo_check_mount_stat = test_check_mount_stat,
+	.mpo_check_pipe_ioctl = test_check_pipe_ioctl,
+	.mpo_check_pipe_poll = test_check_pipe_poll,
+	.mpo_check_pipe_read = test_check_pipe_read,
+	.mpo_check_pipe_relabel = test_check_pipe_relabel,
+	.mpo_check_pipe_stat = test_check_pipe_stat,
+	.mpo_check_pipe_write = test_check_pipe_write,
+	.mpo_check_posix_sem_destroy = test_check_posix_sem,
+	.mpo_check_posix_sem_getvalue = test_check_posix_sem,
+	.mpo_check_posix_sem_open = test_check_posix_sem,
+	.mpo_check_posix_sem_post = test_check_posix_sem,
+	.mpo_check_posix_sem_unlink = test_check_posix_sem,
+	.mpo_check_posix_sem_wait = test_check_posix_sem,
+	.mpo_check_proc_debug = test_check_proc_debug,
+	.mpo_check_proc_sched = test_check_proc_sched,
+	.mpo_check_proc_setaudit = test_check_proc_setaudit,
+	.mpo_check_proc_setaudit_addr = test_check_proc_setaudit_addr,
+	.mpo_check_proc_setauid = test_check_proc_setauid,
+	.mpo_check_proc_setuid = test_check_proc_setuid,
+	.mpo_check_proc_seteuid = test_check_proc_seteuid,
+	.mpo_check_proc_setgid = test_check_proc_setgid,
+	.mpo_check_proc_setegid = test_check_proc_setegid,
+	.mpo_check_proc_setgroups = test_check_proc_setgroups,
+	.mpo_check_proc_setreuid = test_check_proc_setreuid,
+	.mpo_check_proc_setregid = test_check_proc_setregid,
+	.mpo_check_proc_setresuid = test_check_proc_setresuid,
+	.mpo_check_proc_setresgid = test_check_proc_setresgid,
+	.mpo_check_proc_signal = test_check_proc_signal,
+	.mpo_check_proc_wait = test_check_proc_wait,
+	.mpo_check_socket_accept = test_check_socket_accept,
+	.mpo_check_socket_bind = test_check_socket_bind,
+	.mpo_check_socket_connect = test_check_socket_connect,
+	.mpo_check_socket_deliver = test_check_socket_deliver,
+	.mpo_check_socket_listen = test_check_socket_listen,
+	.mpo_check_socket_poll = test_check_socket_poll,
+	.mpo_check_socket_receive = test_check_socket_receive,
+	.mpo_check_socket_relabel = test_check_socket_relabel,
+	.mpo_check_socket_send = test_check_socket_send,
+	.mpo_check_socket_stat = test_check_socket_stat,
+	.mpo_check_socket_visible = test_check_socket_visible,
+	.mpo_check_system_acct = test_check_system_acct,
+	.mpo_check_system_audit = test_check_system_audit,
+	.mpo_check_system_auditctl = test_check_system_auditctl,
+	.mpo_check_system_auditon = test_check_system_auditon,
+	.mpo_check_system_reboot = test_check_system_reboot,
+	.mpo_check_system_swapoff = test_check_system_swapoff,
+	.mpo_check_system_swapon = test_check_system_swapon,
+	.mpo_check_system_sysctl = test_check_system_sysctl,
+	.mpo_check_vnode_access = test_check_vnode_access,
+	.mpo_check_vnode_chdir = test_check_vnode_chdir,
+	.mpo_check_vnode_chroot = test_check_vnode_chroot,
+	.mpo_check_vnode_create = test_check_vnode_create,
+	.mpo_check_vnode_deleteacl = test_check_vnode_deleteacl,
+	.mpo_check_vnode_deleteextattr = test_check_vnode_deleteextattr,
+	.mpo_check_vnode_exec = test_check_vnode_exec,
+	.mpo_check_vnode_getacl = test_check_vnode_getacl,
+	.mpo_check_vnode_getextattr = test_check_vnode_getextattr,
+	.mpo_check_vnode_link = test_check_vnode_link,
+	.mpo_check_vnode_listextattr = test_check_vnode_listextattr,
+	.mpo_check_vnode_lookup = test_check_vnode_lookup,
+	.mpo_check_vnode_mmap = test_check_vnode_mmap,
+	.mpo_check_vnode_open = test_check_vnode_open,
+	.mpo_check_vnode_poll = test_check_vnode_poll,
+	.mpo_check_vnode_read = test_check_vnode_read,
+	.mpo_check_vnode_readdir = test_check_vnode_readdir,
+	.mpo_check_vnode_readlink = test_check_vnode_readlink,
+	.mpo_check_vnode_relabel = test_check_vnode_relabel,
+	.mpo_check_vnode_rename_from = test_check_vnode_rename_from,
+	.mpo_check_vnode_rename_to = test_check_vnode_rename_to,
+	.mpo_check_vnode_revoke = test_check_vnode_revoke,
+	.mpo_check_vnode_setacl = test_check_vnode_setacl,
+	.mpo_check_vnode_setextattr = test_check_vnode_setextattr,
+	.mpo_check_vnode_setflags = test_check_vnode_setflags,
+	.mpo_check_vnode_setmode = test_check_vnode_setmode,
+	.mpo_check_vnode_setowner = test_check_vnode_setowner,
+	.mpo_check_vnode_setutimes = test_check_vnode_setutimes,
+	.mpo_check_vnode_stat = test_check_vnode_stat,
+	.mpo_check_vnode_unlink = test_check_vnode_unlink,
+	.mpo_check_vnode_write = test_check_vnode_write,
 };
 
-MAC_POLICY_SET(&mac_test_ops, mac_test, "TrustedBSD MAC/Test",
+MAC_POLICY_SET(&test_ops, mac_test, "TrustedBSD MAC/Test",
     MPC_LOADTIME_FLAG_UNLOADOK | MPC_LOADTIME_FLAG_LABELMBUFS, &test_slot);

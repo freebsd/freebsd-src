@@ -36,6 +36,7 @@
 
 /*
  * Developed by the TrustedBSD Project.
+ *
  * Experiment with a partition-like model.
  */
 
@@ -56,37 +57,37 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, partition, CTLFLAG_RW, 0,
     "TrustedBSD mac_partition policy controls");
 
-static int	mac_partition_enabled = 1;
+static int	partition_enabled = 1;
 SYSCTL_INT(_security_mac_partition, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_partition_enabled, 0, "Enforce partition policy");
+    &partition_enabled, 0, "Enforce partition policy");
 
 static int	partition_slot;
 #define	SLOT(l)	mac_label_get((l), partition_slot)
 #define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
 static void
-mac_partition_init_label(struct label *label)
+partition_init_label(struct label *label)
 {
 
 	SLOT_SET(label, 0);
 }
 
 static void
-mac_partition_destroy_label(struct label *label)
+partition_destroy_label(struct label *label)
 {
 
 	SLOT_SET(label, 0);
 }
 
 static void
-mac_partition_copy_label(struct label *src, struct label *dest)
+partition_copy_label(struct label *src, struct label *dest)
 {
 
 	SLOT_SET(dest, SLOT(src));
 }
 
 static int
-mac_partition_externalize_label(struct label *label, char *element_name,
+partition_externalize_label(struct label *label, char *element_name,
     struct sbuf *sb, int *claimed)
 {
 
@@ -102,7 +103,7 @@ mac_partition_externalize_label(struct label *label, char *element_name,
 }
 
 static int
-mac_partition_internalize_label(struct label *label, char *element_name,
+partition_internalize_label(struct label *label, char *element_name,
     char *element_data, int *claimed)
 {
 
@@ -115,21 +116,21 @@ mac_partition_internalize_label(struct label *label, char *element_name,
 }
 
 static void
-mac_partition_create_proc0(struct ucred *cred)
+partition_create_proc0(struct ucred *cred)
 {
 
 	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
-mac_partition_create_proc1(struct ucred *cred)
+partition_create_proc1(struct ucred *cred)
 {
 
 	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
-mac_partition_relabel_cred(struct ucred *cred, struct label *newlabel)
+partition_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	if (SLOT(newlabel) != 0)
@@ -140,7 +141,7 @@ static int
 label_on_label(struct label *subject, struct label *object)
 {
 
-	if (mac_partition_enabled == 0)
+	if (partition_enabled == 0)
 		return (0);
 
 	if (SLOT(subject) == 0)
@@ -153,7 +154,7 @@ label_on_label(struct label *subject, struct label *object)
 }
 
 static int
-mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
+partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 	int error;
 
@@ -174,7 +175,7 @@ mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 }
 
 static int
-mac_partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
+partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
@@ -184,7 +185,7 @@ mac_partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
-mac_partition_check_proc_debug(struct ucred *cred, struct proc *p)
+partition_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
@@ -194,7 +195,7 @@ mac_partition_check_proc_debug(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_partition_check_proc_sched(struct ucred *cred, struct proc *p)
+partition_check_proc_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
@@ -204,7 +205,7 @@ mac_partition_check_proc_sched(struct ucred *cred, struct proc *p)
 }
 
 static int
-mac_partition_check_proc_signal(struct ucred *cred, struct proc *p,
+partition_check_proc_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
 	int error;
@@ -215,7 +216,7 @@ mac_partition_check_proc_signal(struct ucred *cred, struct proc *p,
 }
 
 static int
-mac_partition_check_socket_visible(struct ucred *cred, struct socket *so,
+partition_check_socket_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
 {
 	int error;
@@ -226,7 +227,7 @@ mac_partition_check_socket_visible(struct ucred *cred, struct socket *so,
 }
 
 static int
-mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
@@ -244,24 +245,24 @@ mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 	return (0);
 }
 
-static struct mac_policy_ops mac_partition_ops =
+static struct mac_policy_ops partition_ops =
 {
-	.mpo_init_cred_label = mac_partition_init_label,
-	.mpo_destroy_cred_label = mac_partition_destroy_label,
-	.mpo_copy_cred_label = mac_partition_copy_label,
-	.mpo_externalize_cred_label = mac_partition_externalize_label,
-	.mpo_internalize_cred_label = mac_partition_internalize_label,
-	.mpo_create_proc0 = mac_partition_create_proc0,
-	.mpo_create_proc1 = mac_partition_create_proc1,
-	.mpo_relabel_cred = mac_partition_relabel_cred,
-	.mpo_check_cred_relabel = mac_partition_check_cred_relabel,
-	.mpo_check_cred_visible = mac_partition_check_cred_visible,
-	.mpo_check_proc_debug = mac_partition_check_proc_debug,
-	.mpo_check_proc_sched = mac_partition_check_proc_sched,
-	.mpo_check_proc_signal = mac_partition_check_proc_signal,
-	.mpo_check_socket_visible = mac_partition_check_socket_visible,
-	.mpo_check_vnode_exec = mac_partition_check_vnode_exec,
+	.mpo_init_cred_label = partition_init_label,
+	.mpo_destroy_cred_label = partition_destroy_label,
+	.mpo_copy_cred_label = partition_copy_label,
+	.mpo_externalize_cred_label = partition_externalize_label,
+	.mpo_internalize_cred_label = partition_internalize_label,
+	.mpo_create_proc0 = partition_create_proc0,
+	.mpo_create_proc1 = partition_create_proc1,
+	.mpo_relabel_cred = partition_relabel_cred,
+	.mpo_check_cred_relabel = partition_check_cred_relabel,
+	.mpo_check_cred_visible = partition_check_cred_visible,
+	.mpo_check_proc_debug = partition_check_proc_debug,
+	.mpo_check_proc_sched = partition_check_proc_sched,
+	.mpo_check_proc_signal = partition_check_proc_signal,
+	.mpo_check_socket_visible = partition_check_socket_visible,
+	.mpo_check_vnode_exec = partition_check_vnode_exec,
 };
 
-MAC_POLICY_SET(&mac_partition_ops, mac_partition, "TrustedBSD MAC/Partition",
+MAC_POLICY_SET(&partition_ops, mac_partition, "TrustedBSD MAC/Partition",
     MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot);

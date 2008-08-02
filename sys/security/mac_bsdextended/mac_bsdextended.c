@@ -61,17 +61,17 @@
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
-static struct mtx mac_bsdextended_mtx;
+static struct mtx ugidfw_mtx;
 
 SYSCTL_DECL(_security_mac);
 
 SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
     "TrustedBSD extended BSD MAC policy controls");
 
-static int	mac_bsdextended_enabled = 1;
+static int	ugidfw_enabled = 1;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_bsdextended_enabled, 0, "Enforce extended BSD policy");
-TUNABLE_INT("security.mac.bsdextended.enabled", &mac_bsdextended_enabled);
+    &ugidfw_enabled, 0, "Enforce extended BSD policy");
+TUNABLE_INT("security.mac.bsdextended.enabled", &ugidfw_enabled);
 
 MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended", "BSD Extended MAC rule");
 
@@ -92,23 +92,22 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, rule_version, CTLFLAG_RD,
  * This is just used for logging purposes, eventually we would like to log
  * much more then failed requests.
  */
-static int mac_bsdextended_logging;
+static int ugidfw_logging;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, logging, CTLFLAG_RW,
-    &mac_bsdextended_logging, 0, "Log failed authorization requests");
+    &ugidfw_logging, 0, "Log failed authorization requests");
 
 /*
  * This tunable is here for compatibility.  It will allow the user to switch
  * between the new mode (first rule matches) and the old functionality (all
  * rules match).
  */
-static int
-mac_bsdextended_firstmatch_enabled;
+static int ugidfw_firstmatch_enabled;
 SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, firstmatch_enabled,
-    CTLFLAG_RW, &mac_bsdextended_firstmatch_enabled, 1,
+    CTLFLAG_RW, &ugidfw_firstmatch_enabled, 1,
     "Disable/enable match first rule functionality");
 
 static int
-mac_bsdextended_rule_valid(struct mac_bsdextended_rule *rule)
+ugidfw_rule_valid(struct mac_bsdextended_rule *rule)
 {
 
 	if ((rule->mbr_subject.mbs_flags | MBS_ALL_FLAGS) != MBS_ALL_FLAGS)
@@ -152,7 +151,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
 	}
 
-	mtx_lock(&mac_bsdextended_mtx);
+	mtx_lock(&ugidfw_mtx);
 	if (req->oldptr) {
 		if (index < 0 || index > rule_slots + 1) {
 			error = ENOENT;
@@ -174,7 +173,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		rule_count--;
 		rules[index] = NULL;
 	} else if (req->newptr) {
-		error = mac_bsdextended_rule_valid(&temprule);
+		error = ugidfw_rule_valid(&temprule);
 		if (error)
 			goto out;
 		if (rules[index] == NULL) {
@@ -188,7 +187,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 			*rules[index] = temprule;
 	}
 out:
-	mtx_unlock(&mac_bsdextended_mtx);
+	mtx_unlock(&ugidfw_mtx);
 	if (ruleptr != NULL)
 		FREE(ruleptr, M_MACBSDEXTENDED);
 	if (req->oldptr && error == 0)
@@ -200,21 +199,21 @@ SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules, CTLFLAG_RW,
     sysctl_rule, "BSD extended MAC rules");
 
 static void
-mac_bsdextended_init(struct mac_policy_conf *mpc)
+ugidfw_init(struct mac_policy_conf *mpc)
 {
 
-	mtx_init(&mac_bsdextended_mtx, "mac_bsdextended lock", NULL, MTX_DEF);
+	mtx_init(&ugidfw_mtx, "mac_bsdextended lock", NULL, MTX_DEF);
 }
 
 static void
-mac_bsdextended_destroy(struct mac_policy_conf *mpc)
+ugidfw_destroy(struct mac_policy_conf *mpc)
 {
 
-	mtx_destroy(&mac_bsdextended_mtx);
+	mtx_destroy(&ugidfw_mtx);
 }
 
 static int
-mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
+ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
     struct ucred *cred, struct vnode *vp, struct vattr *vap, int acc_mode)
 {
 	int match;
@@ -223,7 +222,7 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 	/*
 	 * Is there a subject match?
 	 */
-	mtx_assert(&mac_bsdextended_mtx, MA_OWNED);
+	mtx_assert(&ugidfw_mtx, MA_OWNED);
 	if (rule->mbr_subject.mbs_flags & MBS_UID_DEFINED) {
 		match =  ((cred->cr_uid <= rule->mbr_subject.mbs_uid_max &&
 		    cred->cr_uid >= rule->mbr_subject.mbs_uid_min) ||
@@ -371,7 +370,7 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 	 * Is the access permitted?
 	 */
 	if ((rule->mbr_mode & acc_mode) != acc_mode) {
-		if (mac_bsdextended_logging)
+		if (ugidfw_logging)
 			log(LOG_AUTHPRIV, "mac_bsdextended: %d:%d request %d"
 			    " on %d:%d failed. \n", cred->cr_ruid,
 			    cred->cr_rgid, acc_mode, vap->va_uid,
@@ -383,14 +382,14 @@ mac_bsdextended_rulecheck(struct mac_bsdextended_rule *rule,
 	 * If the rule matched, permits access, and first match is enabled,
 	 * return success.
 	 */
-	if (mac_bsdextended_firstmatch_enabled)
+	if (ugidfw_firstmatch_enabled)
 		return (EJUSTRETURN);
 	else
 		return (0);
 }
 
 static int
-mac_bsdextended_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
+ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
     int acc_mode)
 {
 	int error, i;
@@ -408,341 +407,341 @@ mac_bsdextended_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		acc_mode &= ~MBI_APPEND;
 		acc_mode |= MBI_WRITE;
 	}
-	mtx_lock(&mac_bsdextended_mtx);
+	mtx_lock(&ugidfw_mtx);
 	for (i = 0; i < rule_slots; i++) {
 		if (rules[i] == NULL)
 			continue;
-		error = mac_bsdextended_rulecheck(rules[i], cred,
+		error = ugidfw_rulecheck(rules[i], cred,
 		    vp, vap, acc_mode);
 		if (error == EJUSTRETURN)
 			break;
 		if (error) {
-			mtx_unlock(&mac_bsdextended_mtx);
+			mtx_unlock(&ugidfw_mtx);
 			return (error);
 		}
 	}
-	mtx_unlock(&mac_bsdextended_mtx);
+	mtx_unlock(&ugidfw_mtx);
 	return (0);
 }
 
 static int
-mac_bsdextended_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
+ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 {
 	int error;
 	struct vattr vap;
 
-	if (!mac_bsdextended_enabled)
+	if (!ugidfw_enabled)
 		return (0);
 	error = VOP_GETATTR(vp, &vap, cred, curthread);
 	if (error)
 		return (error);
-	return (mac_bsdextended_check(cred, vp, &vap, acc_mode));
+	return (ugidfw_check(cred, vp, &vap, acc_mode));
 }
 
 static int
-mac_bsdextended_check_system_acct(struct ucred *cred, struct vnode *vp,
+ugidfw_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_system_auditctl(struct ucred *cred, struct vnode *vp,
+ugidfw_check_system_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+ugidfw_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_system_swapon(struct ucred *cred, struct vnode *vp,
+ugidfw_check_system_swapon(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_vnode_access(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_access(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, acc_mode));
+	return (ugidfw_check_vp(cred, vp, acc_mode));
 }
 
 static int
-mac_bsdextended_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_chdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
+	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
 }
 
 static int
-mac_bsdextended_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_chroot(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
+	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
 }
 
 static int
-mac_bsdextended_check_create_vnode(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_create_vnode(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 
-	return (mac_bsdextended_check_vp(cred, dvp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, dvp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred,
+ugidfw_check_vnode_deleteextattr(struct ucred *cred,
     struct vnode *vp, struct label *vplabel, int attrnamespace,
     const char *name)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct image_params *imgp,
     struct label *execlabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_READ|MBI_EXEC));
+	return (ugidfw_check_vp(cred, vp, MBI_READ|MBI_EXEC));
 }
 
 static int
-mac_bsdextended_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_STAT));
+	return (ugidfw_check_vp(cred, vp, MBI_STAT));
 }
 
 static int
-mac_bsdextended_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
+	return (ugidfw_check_vp(cred, vp, MBI_READ));
 }
 
 static int
-mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_link(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *label,
     struct componentname *cnp)
 {
 	int error;
 
-	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
+	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
 	if (error)
 		return (error);
-	error = mac_bsdextended_check_vp(cred, vp, MBI_WRITE);
+	error = ugidfw_check_vp(cred, vp, MBI_WRITE);
 	if (error)
 		return (error);
 	return (0);
 }
 
 static int
-mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
+	return (ugidfw_check_vp(cred, vp, MBI_READ));
 }
 
 static int
-mac_bsdextended_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct componentname *cnp)
 {
 
-	return (mac_bsdextended_check_vp(cred, dvp, MBI_EXEC));
+	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
 }
 
 static int
-mac_bsdextended_check_vnode_open(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int acc_mode)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, acc_mode));
+	return (ugidfw_check_vp(cred, vp, acc_mode));
 }
 
 static int
-mac_bsdextended_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_readdir(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, dvp, MBI_READ));
+	return (ugidfw_check_vp(cred, dvp, MBI_READ));
 }
 
 static int
-mac_bsdextended_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_readdlink(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_READ));
+	return (ugidfw_check_vp(cred, vp, MBI_READ));
 }
 
 static int
-mac_bsdextended_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_rename_from(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	int error;
 
-	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
+	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
 	if (error)
 		return (error);
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_rename_to(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     int samedir, struct componentname *cnp)
 {
 	int error;
 
-	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
+	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
 	if (error)
 		return (error);
 	if (vp != NULL)
-		error = mac_bsdextended_check_vp(cred, vp, MBI_WRITE);
+		error = ugidfw_check_vp(cred, vp, MBI_WRITE);
 	return (error);
 }
 
 static int
-mac_bsdextended_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_revoke(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
+ugidfw_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type, struct acl *acl)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_setextattr(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, int attrnamespace, const char *name,
     struct uio *uio)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
 static int
-mac_bsdextended_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_setflags(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, u_long flags)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_setmode(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, mode_t mode)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_setowner(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, uid_t uid, gid_t gid)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
+ugidfw_check_vnode_setutimes(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, struct timespec atime, struct timespec utime)
 {
 
-	return (mac_bsdextended_check_vp(cred, vp, MBI_ADMIN));
+	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
 }
 
 static int
-mac_bsdextended_check_vnode_stat(struct ucred *active_cred,
+ugidfw_check_vnode_stat(struct ucred *active_cred,
     struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
 {
 
-	return (mac_bsdextended_check_vp(active_cred, vp, MBI_STAT));
+	return (ugidfw_check_vp(active_cred, vp, MBI_STAT));
 }
 
 static int
-mac_bsdextended_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
+ugidfw_check_vnode_unlink(struct ucred *cred, struct vnode *dvp,
     struct label *dvplabel, struct vnode *vp, struct label *vplabel,
     struct componentname *cnp)
 {
 	int error;
 
-	error = mac_bsdextended_check_vp(cred, dvp, MBI_WRITE);
+	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
 	if (error)
 		return (error);
-	return (mac_bsdextended_check_vp(cred, vp, MBI_WRITE));
+	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
 }
 
-static struct mac_policy_ops mac_bsdextended_ops =
+static struct mac_policy_ops ugidfw_ops =
 {
-	.mpo_destroy = mac_bsdextended_destroy,
-	.mpo_init = mac_bsdextended_init,
-	.mpo_check_system_acct = mac_bsdextended_check_system_acct,
-	.mpo_check_system_auditctl = mac_bsdextended_check_system_auditctl,
-	.mpo_check_system_swapoff = mac_bsdextended_check_system_swapoff,
-	.mpo_check_system_swapon = mac_bsdextended_check_system_swapon,
-	.mpo_check_vnode_access = mac_bsdextended_check_vnode_access,
-	.mpo_check_vnode_chdir = mac_bsdextended_check_vnode_chdir,
-	.mpo_check_vnode_chroot = mac_bsdextended_check_vnode_chroot,
-	.mpo_check_vnode_create = mac_bsdextended_check_create_vnode,
-	.mpo_check_vnode_deleteacl = mac_bsdextended_check_vnode_deleteacl,
-	.mpo_check_vnode_deleteextattr = mac_bsdextended_check_vnode_deleteextattr,
-	.mpo_check_vnode_exec = mac_bsdextended_check_vnode_exec,
-	.mpo_check_vnode_getacl = mac_bsdextended_check_vnode_getacl,
-	.mpo_check_vnode_getextattr = mac_bsdextended_check_vnode_getextattr,
-	.mpo_check_vnode_link = mac_bsdextended_check_vnode_link,
-	.mpo_check_vnode_listextattr = mac_bsdextended_check_vnode_listextattr,
-	.mpo_check_vnode_lookup = mac_bsdextended_check_vnode_lookup,
-	.mpo_check_vnode_open = mac_bsdextended_check_vnode_open,
-	.mpo_check_vnode_readdir = mac_bsdextended_check_vnode_readdir,
-	.mpo_check_vnode_readlink = mac_bsdextended_check_vnode_readdlink,
-	.mpo_check_vnode_rename_from = mac_bsdextended_check_vnode_rename_from,
-	.mpo_check_vnode_rename_to = mac_bsdextended_check_vnode_rename_to,
-	.mpo_check_vnode_revoke = mac_bsdextended_check_vnode_revoke,
-	.mpo_check_vnode_setacl = mac_bsdextended_check_setacl_vnode,
-	.mpo_check_vnode_setextattr = mac_bsdextended_check_vnode_setextattr,
-	.mpo_check_vnode_setflags = mac_bsdextended_check_vnode_setflags,
-	.mpo_check_vnode_setmode = mac_bsdextended_check_vnode_setmode,
-	.mpo_check_vnode_setowner = mac_bsdextended_check_vnode_setowner,
-	.mpo_check_vnode_setutimes = mac_bsdextended_check_vnode_setutimes,
-	.mpo_check_vnode_stat = mac_bsdextended_check_vnode_stat,
-	.mpo_check_vnode_unlink = mac_bsdextended_check_vnode_unlink,
+	.mpo_destroy = ugidfw_destroy,
+	.mpo_init = ugidfw_init,
+	.mpo_check_system_acct = ugidfw_check_system_acct,
+	.mpo_check_system_auditctl = ugidfw_check_system_auditctl,
+	.mpo_check_system_swapoff = ugidfw_check_system_swapoff,
+	.mpo_check_system_swapon = ugidfw_check_system_swapon,
+	.mpo_check_vnode_access = ugidfw_check_vnode_access,
+	.mpo_check_vnode_chdir = ugidfw_check_vnode_chdir,
+	.mpo_check_vnode_chroot = ugidfw_check_vnode_chroot,
+	.mpo_check_vnode_create = ugidfw_check_create_vnode,
+	.mpo_check_vnode_deleteacl = ugidfw_check_vnode_deleteacl,
+	.mpo_check_vnode_deleteextattr = ugidfw_check_vnode_deleteextattr,
+	.mpo_check_vnode_exec = ugidfw_check_vnode_exec,
+	.mpo_check_vnode_getacl = ugidfw_check_vnode_getacl,
+	.mpo_check_vnode_getextattr = ugidfw_check_vnode_getextattr,
+	.mpo_check_vnode_link = ugidfw_check_vnode_link,
+	.mpo_check_vnode_listextattr = ugidfw_check_vnode_listextattr,
+	.mpo_check_vnode_lookup = ugidfw_check_vnode_lookup,
+	.mpo_check_vnode_open = ugidfw_check_vnode_open,
+	.mpo_check_vnode_readdir = ugidfw_check_vnode_readdir,
+	.mpo_check_vnode_readlink = ugidfw_check_vnode_readdlink,
+	.mpo_check_vnode_rename_from = ugidfw_check_vnode_rename_from,
+	.mpo_check_vnode_rename_to = ugidfw_check_vnode_rename_to,
+	.mpo_check_vnode_revoke = ugidfw_check_vnode_revoke,
+	.mpo_check_vnode_setacl = ugidfw_check_setacl_vnode,
+	.mpo_check_vnode_setextattr = ugidfw_check_vnode_setextattr,
+	.mpo_check_vnode_setflags = ugidfw_check_vnode_setflags,
+	.mpo_check_vnode_setmode = ugidfw_check_vnode_setmode,
+	.mpo_check_vnode_setowner = ugidfw_check_vnode_setowner,
+	.mpo_check_vnode_setutimes = ugidfw_check_vnode_setutimes,
+	.mpo_check_vnode_stat = ugidfw_check_vnode_stat,
+	.mpo_check_vnode_unlink = ugidfw_check_vnode_unlink,
 };
 
-MAC_POLICY_SET(&mac_bsdextended_ops, mac_bsdextended,
-    "TrustedBSD MAC/BSD Extended", MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+MAC_POLICY_SET(&ugidfw_ops, mac_bsdextended, "TrustedBSD MAC/BSD Extended",
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
