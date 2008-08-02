@@ -812,7 +812,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 				*lastport = first;
 			lport = htons(*lastport);
 		} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
-					     lport, wild));
+		    lport, wild, cred));
 	} else {
 		/*
 			 * counting up
@@ -832,8 +832,8 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 			if (*lastport < first || *lastport > last)
 				*lastport = first;
 			lport = htons(*lastport);
-		} while (in6_pcblookup_local(pcbinfo,
-					     &inp->in6p_laddr, lport, wild));
+		} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
+		    lport, wild, cred));
 	}
 
 	inp->inp_lport = lport;

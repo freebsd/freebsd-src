@@ -81,7 +81,8 @@ int	in6_pcbladdr __P((struct inpcb *, struct sockaddr *,
 			  struct in6_addr **));
 struct	inpcb *
 	in6_pcblookup_local __P((struct inpcbinfo *,
-				 struct in6_addr *, u_short, int));
+				 struct in6_addr *, u_short, int,
+				 struct ucred *));
 struct	inpcb *
 	in6_pcblookup_hash __P((struct inpcbinfo *,
 				struct in6_addr *, u_int, struct in6_addr *,
