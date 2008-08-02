@@ -1803,6 +1803,7 @@ ata_intel_ident(device_t dev)
      { ATA_I82801HB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
      { ATA_I82801HB_AH4, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
      { ATA_I82801HB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
+     { ATA_I82801HBM,    0,    0, 0x00, ATA_UDMA5, "ICH8M" },
      { ATA_I82801HBM_S1, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
      { ATA_I82801HBM_S2, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
      { ATA_I82801IB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH9" },
