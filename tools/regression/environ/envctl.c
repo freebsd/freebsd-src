@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Sean C. Farley <scf@FreeBSD.org>
+ * Copyright (c) 2007-2008 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,15 +60,19 @@ dump_environ(void)
 static void
 usage(const char *program)
 {
-	fprintf(stderr, "Usage:  %s [-CDGUchrt] [-gu name] [-p name=value] "
-	    "[(-S|-s name) value overwrite]\n\n"
+	fprintf(stderr, "Usage:  %s [-DGUchrt] [-c 1|2|3|4] [-gu name] "
+	    "[-p name=value]\n"
+	    "\t[(-S|-s name) value overwrite]\n\n"
 	    "Options:\n"
-	    "  -C\t\t\t\tClear environ variable with NULL pointer\n"
 	    "  -D\t\t\t\tDump environ\n"
 	    "  -G name\t\t\tgetenv(NULL)\n"
 	    "  -S value overwrite\t\tsetenv(NULL, value, overwrite)\n"
 	    "  -U\t\t\t\tunsetenv(NULL)\n"
-	    "  -c\t\t\t\tClear environ variable with calloc()'d memory\n"
+	    "  -c 1|2|3|4\t\t\tClear environ variable using method:\n"
+	    "\t\t\t\t1 - set environ to NULL pointer\n"
+	    "\t\t\t\t2 - set environ[0] to NULL pointer\n"
+	    "\t\t\t\t3 - set environ to calloc()'d NULL-terminated array\n"
+	    "\t\t\t\t4 - set environ to static NULL-terminated array\n"
 	    "  -g name\t\t\tgetenv(name)\n"
 	    "  -h\t\t\t\tHelp\n"
 	    "  -p name=value\t\t\tputenv(name=value)\n"
@@ -98,10 +102,11 @@ print_rtrn_errno(int rtrnVal, const char *eol)
 int
 main(int argc, char **argv)
 {
-	char *staticEnv[] = { "FOO=bar", NULL };
 	char arg;
 	const char *eol = "\n";
 	const char *value;
+	static char *emptyEnv[] = { NULL };
+	static char *staticEnv[] = { "FOO=bar", NULL };
 
 	if (argc == 1) {
 		usage(argv[0]);
@@ -109,14 +114,26 @@ main(int argc, char **argv)
 	}
 
 	/* The entire program is basically executed from this loop. */
-	while ((arg = getopt(argc, argv, "CDGS:Ucg:hp:rs:tu:")) != -1) {
+	while ((arg = getopt(argc, argv, "DGS:Uc:g:hp:rs:tu:")) != -1) {
 		switch (arg) {
-		case 'C':
-			environ = NULL;
-			break;
-
 		case 'c':
-			environ = calloc(1, sizeof(*environ));
+			switch (atoi(optarg)) {
+			case 1:
+				environ = NULL;
+				break;
+
+			case 2:
+				environ[0] = NULL;
+				break;
+
+			case 3:
+				environ = calloc(1, sizeof(*environ));
+				break;
+
+			case 4:
+				environ = emptyEnv;
+				break;
+			}
 			break;
 
 		case 'D':

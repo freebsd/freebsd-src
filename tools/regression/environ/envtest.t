@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2007 Sean C. Farley <scf@FreeBSD.org>
+# Copyright (c) 2007-2008 Sean C. Farley <scf@FreeBSD.org>
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -81,17 +81,45 @@ export FOO=${BAR}
 run_test -g FOO
 check_result "${FOO}"
 
-run_test -c -g FOO
+run_test -c 3 -g FOO
 check_result "${NULL}"
 
 run_test -g FOOBAR
 check_result "${NULL}"
 
-run_test -c -g FOOBAR
+run_test -c 3 -g FOOBAR
 check_result "${NULL}"
 
 run_test -G
 check_result "${NULL}"
+
+
+# Clear environ.
+run_test -c 1 -g FOO
+check_result "${NULL}"
+
+run_test -c 2 -g FOO
+check_result "${NULL}"
+
+run_test -c 3 -g FOO
+check_result "${NULL}"
+
+run_test -c 4 -g FOO
+check_result "${NULL}"
+
+
+# Clear environ and verify values do not return after a set.
+run_test -c 1 -g FOO -s FOO2 ${NEWBAR} 1 -g FOO -g FOO2
+check_result "${NULL} 0 0 ${NULL} ${NEWBAR}"
+
+run_test -c 2 -g FOO -s FOO2 ${NEWBAR} 1 -g FOO -g FOO2
+check_result "${NULL} 0 0 ${NULL} ${NEWBAR}"
+
+run_test -c 3 -g FOO -s FOO2 ${NEWBAR} 1 -g FOO -g FOO2
+check_result "${NULL} 0 0 ${NULL} ${NEWBAR}"
+
+run_test -c 4 -g FOO -s FOO2 ${NEWBAR} 1 -g FOO -g FOO2
+check_result "${NULL} 0 0 ${NULL} ${NEWBAR}"
 
 
 # Sets.
@@ -101,10 +129,10 @@ check_result "0 0 ${BAR}"
 run_test -s FOO ${NEWBAR} 1 -g FOO
 check_result "0 0 ${NEWBAR}"
 
-run_test -c -s FOO ${NEWBAR} 0 -g FOO
+run_test -c 3 -s FOO ${NEWBAR} 0 -g FOO
 check_result "0 0 ${NEWBAR}"
 
-run_test -c -s FOO ${NEWBAR} 1 -g FOO
+run_test -c 3 -s FOO ${NEWBAR} 1 -g FOO
 check_result "0 0 ${NEWBAR}"
 
 run_test -s "FOO=" ${NEWBAR} 1 -g FOO
@@ -125,7 +153,7 @@ check_result "-1 22"
 run_test -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -g FOO
 check_result "0 0 0 0 ${BAR}"
 
-run_test -c -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -g FOO
+run_test -c 3 -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -g FOO
 check_result "0 0 0 0 ${BAR}"
 
 run_test -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -s FOO ${NEWBAR} 1 -g FOO
@@ -135,7 +163,7 @@ run_test -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1 -s FOO ${NEWBAR} 1 -s FOO ${BAR} 1\
 	-g FOO
 check_result "0 0 0 0 0 0 0 0 ${BAR}"
 
-run_test -c -s FOO ${BAR} 1 -g FOO -c -s FOO ${NEWBAR} 1 -g FOO
+run_test -c 3 -s FOO ${BAR} 1 -g FOO -c 3 -s FOO ${NEWBAR} 1 -g FOO
 check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
 
 
@@ -143,7 +171,7 @@ check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
 run_test -u FOO -g FOO
 check_result "0 0 ${NULL}"
 
-run_test -c -u FOO -g FOO
+run_test -c 3 -u FOO -g FOO
 check_result "0 0 ${NULL}"
 
 run_test -U
@@ -155,10 +183,10 @@ check_result "-1 22"
 run_test -u "=${BAR}"
 check_result "-1 22"
 
-run_test -c -s FOO ${NEWBAR} 1 -g FOO -u FOO -g FOO
+run_test -c 3 -s FOO ${NEWBAR} 1 -g FOO -u FOO -g FOO
 check_result "0 0 ${NEWBAR} 0 0 ${NULL}"
 
-run_test -c -u FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO -c -u FOO\
+run_test -c 3 -u FOO -s FOO ${BAR} 1 -g FOO -u FOO -g FOO -c 3 -u FOO\
 	-s FOO ${NEWBAR} 1 -g FOO
 check_result "0 0 0 0 ${BAR} 0 0 ${NULL} 0 0 0 0 ${NEWBAR}"
 
@@ -167,7 +195,7 @@ check_result "0 0 0 0 ${BAR} 0 0 ${NULL} 0 0 0 0 ${NEWBAR}"
 run_test -p FOO=${NEWBAR} -g FOO
 check_result "0 0 ${NEWBAR}"
 
-run_test -c -p FOO=${NEWBAR} -g FOO
+run_test -c 3 -p FOO=${NEWBAR} -g FOO
 check_result "0 0 ${NEWBAR}"
 
 run_test -p FOO -g FOO
@@ -191,10 +219,10 @@ check_result "0 0 0 0 0 0"
 run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -u FOO
 check_result "0 0 0 0 0 0"
 
-run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -c -g FOO -p FOO=${NEWBAR} -g FOO
+run_test -s FOO ${NEWBAR} 1 -p FOO=${BAR} -c 3 -g FOO -p FOO=${NEWBAR} -g FOO
 check_result "0 0 0 0 ${NULL} 0 0 ${NEWBAR}"
 
-run_test -c -p FOO=${BAR} -g FOO -c -p FOO=${NEWBAR} -g FOO
+run_test -c 3 -p FOO=${BAR} -g FOO -c 3 -p FOO=${NEWBAR} -g FOO
 check_result "0 0 ${BAR} 0 0 ${NEWBAR}"
 
 
