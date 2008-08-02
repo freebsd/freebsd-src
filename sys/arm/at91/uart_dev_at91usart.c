@@ -510,15 +510,18 @@ at91_rx_put(struct uart_softc *sc, int key)
 
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE) {
 		if ((kdb_brk = kdb_alt_break(key, &sc->sc_altbrk)) != 0) {
-		case KDB_REQ_DEBUGGER:
-			kdb_enter(KDB_WHY_BREAK, "Break sequence on console");
-			break;
-		case KDB_REQ_PANIC:
-			kdb_panic("Panic sequence on console");
-			break;
-		case KDB_REQ_REBOOT:
-			kdb_reboot();
-			break;
+			switch (kdb_brk) {
+			case KDB_REQ_DEBUGGER:
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on console");
+				break;
+			case KDB_REQ_PANIC:
+				kdb_panic("Panic sequence on console");
+				break;
+			case KDB_REQ_REBOOT:
+				kdb_reboot();
+				break;
+			}
 		}
 	}
 #endif
