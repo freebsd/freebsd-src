@@ -201,6 +201,21 @@ ieee80211_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	return SYSCTL_OUT(req, name, strlen(name));
 }
 
+static int
+ieee80211_sysctl_radar(SYSCTL_HANDLER_ARGS)
+{
+	struct ieee80211com *ic = arg1;
+	int t = 0, error;
+
+	error = sysctl_handle_int(oidp, &t, 0, req);
+	if (error || !req->newptr)
+		return error;
+	IEEE80211_LOCK(ic);
+	ieee80211_dfs_notify_radar(ic, ic->ic_curchan);
+	IEEE80211_UNLOCK(ic);
+	return 0;
+}
+
 void
 ieee80211_sysctl_attach(struct ieee80211com *ic)
 {
@@ -279,6 +294,11 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 			"ampdu_mintraffic_vi", CTLFLAG_RW,
 			&vap->iv_ampdu_mintraffic[WME_AC_VI], 0,
 			"VI traffic tx aggr threshold (pps)");
+	}
+	if (vap->iv_caps & IEEE80211_C_DFS) {
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			"radar", CTLTYPE_INT | CTLFLAG_RW, vap->iv_ic, 0,
+			ieee80211_sysctl_radar, "I", "simulare radar event");
 	}
 	vap->iv_sysctl = ctx;
 	vap->iv_oid = oid;
