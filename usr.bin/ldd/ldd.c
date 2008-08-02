@@ -83,7 +83,6 @@ execldd32(char *file, char *fmt1, char *fmt2, int aflag, int vflag)
 	int i, rval, status;
 
 	unsetenv(LD_ "TRACE_LOADED_OBJECTS");
-
 	rval = 0;
 	i = 0;
 	argv[i++] = strdup(_PATH_LDD32);
@@ -91,15 +90,14 @@ execldd32(char *file, char *fmt1, char *fmt2, int aflag, int vflag)
 		argv[i++] = strdup("-a");
 	if (vflag)
 		argv[i++] = strdup("-v");
-	if (fmt1) {
+	if (fmt1 != NULL) {
 		argv[i++] = strdup("-f");
 		argv[i++] = strdup(fmt1);
 	}
-	if (fmt2) {
+	if (fmt2 != NULL) {
 		argv[i++] = strdup("-f");
 		argv[i++] = strdup(fmt2);
 	}
-
 	argv[i++] = strdup(file);
 	argv[i++] = NULL;
 
@@ -110,16 +108,15 @@ execldd32(char *file, char *fmt1, char *fmt2, int aflag, int vflag)
 	case 0:
 		execv(_PATH_LDD32, argv);
 		warn("%s", _PATH_LDD32);
-		_exit(1);
+		_exit(127);
 		break;
 	default:
-		if (wait(&status) <= 0) {
+		if (wait(&status) < 0)
 			rval = 1;
-		} else if (WIFSIGNALED(status)) {
+		else if (WIFSIGNALED(status))
 			rval = 1;
-		} else if (WIFEXITED(status) && WEXITSTATUS(status)) {
+		else if (WIFEXITED(status) && WEXITSTATUS(status) != 0)
 			rval = 1;
-		}
 		break;
 	}
 	while (i--)
@@ -232,14 +229,15 @@ main(int argc, char *argv[])
 			err(1, "fork");
 			break;
 		default:
-			if (wait(&status) <= 0) {
+			if (wait(&status) < 0) {
 				warn("wait");
 				rval |= 1;
 			} else if (WIFSIGNALED(status)) {
 				fprintf(stderr, "%s: signal %d\n", *argv,
 				    WTERMSIG(status));
 				rval |= 1;
-			} else if (WIFEXITED(status) && WEXITSTATUS(status)) {
+			} else if (WIFEXITED(status) &&
+			    WEXITSTATUS(status) != 0) {
 				fprintf(stderr, "%s: exit status %d\n", *argv,
 				    WEXITSTATUS(status));
 				rval |= 1;
