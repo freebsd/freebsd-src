@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Sean C. Farley <scf@FreeBSD.org>
+ * Copyright (c) 2007-2008 Sean C. Farley <scf@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -431,11 +431,13 @@ getenv(const char *name)
 
 	/*
 	 * Find environment variable via environ if no changes have been made
-	 * via a *env() call or environ has been replaced by a running program,
-	 * otherwise, use the rebuilt environment.
+	 * via a *env() call or environ has been replaced or cleared by a
+	 * running program, otherwise, use the rebuilt environment.
 	 */
 	if (envVars == NULL || environ != intEnviron)
 		return (__findenv_environ(name, nameLen));
+	else if (environ[0] == NULL)
+		return (NULL);
 	else {
 		envNdx = envVarsTotal - 1;
 		return (__findenv(name, nameLen, &envNdx, true));
@@ -525,8 +527,8 @@ __setenv(const char *name, size_t nameLen, const char *value, int overwrite)
 
 /*
  * If the program attempts to replace the array of environment variables
- * (environ) environ, then deactivate all variables and merge in the new list
- * from environ.
+ * (environ) environ or sets the first varible to NULL, then deactivate all
+ * variables and merge in the new list from environ.
  */
 static int
 __merge_environ(void)
@@ -534,8 +536,11 @@ __merge_environ(void)
 	char **env;
 	char *equals;
 
-	/* environ has been replaced.  clean up everything. */
-	if (envVarsTotal > 0 && environ != intEnviron) {
+	/*
+	 * Internally-built environ has been replaced or cleared.  clean up
+	 * everything.
+	 */
+	if (envVarsTotal > 0 && (environ != intEnviron || environ[0] == NULL)) {
 		/* Deactivate all environment variables. */
 		if (envActive > 0) {
 			origEnviron = NULL;
