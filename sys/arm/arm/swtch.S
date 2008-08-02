@@ -257,6 +257,7 @@ ENTRY(cpu_switch)
 	strd	r10, [r2, #(PCB_R10)]
 	strd	r12, [r2, #(PCB_R12)]
 #endif
+	str	pc, [r2, #(PCB_PC)]
 									   
 	/*
 	 * NOTE: We can now use r8-r13 until it is time to restore
