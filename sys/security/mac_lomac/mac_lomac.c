@@ -727,8 +727,8 @@ lomac_parse_element(struct mac_lomac_element *element, char *string)
 	} else if (strcmp(string, "low") == 0 || strcmp(string, "lo") == 0) {
 		element->mle_type = MAC_LOMAC_TYPE_LOW;
 		element->mle_grade = MAC_LOMAC_TYPE_UNDEF;
-	} else if (strcmp(string, "equal") == 0 || strcmp(string, "eq") == 0)
-	    {
+	} else if (strcmp(string, "equal") == 0 ||
+	    strcmp(string, "eq") == 0) {
 		element->mle_type = MAC_LOMAC_TYPE_EQUAL;
 		element->mle_grade = MAC_LOMAC_TYPE_UNDEF;
 	} else {
@@ -817,8 +817,7 @@ lomac_parse(struct mac_lomac *ml, char *string)
 	}
 
 	if (auxsingle != NULL) {
-		error = lomac_parse_element(&ml->ml_auxsingle,
-		    auxsingle);
+		error = lomac_parse_element(&ml->ml_auxsingle, auxsingle);
 		if (error)
 			return (error);
 		ml->ml_flags |= MAC_LOMAC_FLAG_AUX;
