@@ -80,17 +80,15 @@ __ieee754_atan2f(float y, float x)
 
     /* compute y/x */
 	k = (iy-ix)>>23;
-	if(k > 26) z=pi_o_2+(float)0.5*pi_lo; 	/* |y/x| >  2**26 */
-	else if(hx<0&&k<-26) z=0.0; 	/* |y|/x < -2**26 */
+	if(k > 26) {			/* |y/x| >  2**26 */
+	    z=pi_o_2+(float)0.5*pi_lo;
+	    m&=1;
+	}
+	else if(hx<0&&k<-26) z=0.0; 	/* 0 > |y|/x > -2**-26 */
 	else z=atanf(fabsf(y/x));	/* safe to do y/x */
 	switch (m) {
 	    case 0: return       z  ;	/* atan(+,+) */
-	    case 1: {
-	    	      u_int32_t zh;
-		      GET_FLOAT_WORD(zh,z);
-		      SET_FLOAT_WORD(z,zh ^ 0x80000000);
-		    }
-		    return       z  ;	/* atan(-,+) */
+	    case 1: return      -z  ;	/* atan(-,+) */
 	    case 2: return  pi-(z-pi_lo);/* atan(+,-) */
 	    default: /* case 3 */
 	    	    return  (z-pi_lo)-pi;/* atan(-,-) */
