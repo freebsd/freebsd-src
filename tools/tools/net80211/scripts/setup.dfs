@@ -22,4 +22,5 @@ ifconfig $WIRED up
 wlandebug -i $WLAN state+scan+assoc+11n
 ifconfig $WLAN up
 
-sleep 5; sysctl dev.mwl.0.radar=1
+unit=`echo $WLAN | sed 's/wlan//'`
+sleep 5; sysctl net.wlan.$unit.radar=1
