@@ -239,7 +239,10 @@ ieee80211_decap(struct ieee80211vap *vap, struct mbuf *m, int hdrlen)
 	llc = (struct llc *)(mtod(m, caddr_t) + hdrlen);
 	if (llc->llc_dsap == LLC_SNAP_LSAP && llc->llc_ssap == LLC_SNAP_LSAP &&
 	    llc->llc_control == LLC_UI && llc->llc_snap.org_code[0] == 0 &&
-	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0) {
+	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0 &&
+	    /* NB: preserve AppleTalk frames that have a native SNAP hdr */
+	    !(llc->llc_snap.ether_type == htons(ETHERTYPE_AARP) ||
+	      llc->llc_snap.ether_type == htons(ETHERTYPE_IPX))) {
 		m_adj(m, hdrlen + sizeof(struct llc) - sizeof(*eh));
 		llc = NULL;
 	} else {
