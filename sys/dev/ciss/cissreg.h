@@ -736,17 +736,17 @@ struct ciss_bmic_flush_cache {
 #define CISS_MSI_COUNT	4
 
 /*
- * XXX documentation conflicts with the Linux driver as to whether setting or clearing
- *     bits masks interrupts
+ * XXX Here we effectively trust the BIOS to set the IMR correctly.  But if
+ * we don't trust it, will we get into trouble with wrongly assuming what it
+ * should be?
  */
-#define CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc) \
-	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
-			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) | (sc)->ciss_interrupt_mask)
-#define CISS_TL_SIMPLE_ENABLE_INTERRUPTS(sc) \
-	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
-			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) & ~(sc)->ciss_interrupt_mask)
-
-#define CISS_TL_SIMPLE_OPQ_INTERRUPT(sc) \
-	(CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_ISR) & (sc)->ciss_interrupt_mask)
+#define CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc)				\
+    do {								\
+	(sc)->ciss_interrupt_mask =					\
+	     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR);		\
+	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, ~0);		\
+    } while (0)
+#define CISS_TL_SIMPLE_ENABLE_INTERRUPTS(sc)				\
+	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, (sc)->ciss_interrupt_mask)
 
 #endif /* _KERNEL */
