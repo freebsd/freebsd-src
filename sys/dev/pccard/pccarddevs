@@ -553,6 +553,7 @@ product SHARP PALDIO611S	0x0000  PALDIO 611S PC CARD
 
 /* Siemens */
 product SIEMENS SS1021		0x0002 Siemens SpeedStream 1021
+product SIEMENS SS1021A		0x3021 Siemens SpeedStream SS1021
 
 /* Sierra */
 product SIERRA AC710		0x0710 AC710/AC750/AC850
