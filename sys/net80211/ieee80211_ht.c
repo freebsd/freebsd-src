@@ -1074,6 +1074,7 @@ ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
 	    OPMODE(protmode) == IEEE80211_HTINFO_OPMODE_PROTOPT)
 		return;
 
+	IEEE80211_LOCK(ic);
 	/* track non-HT station presence */
 	KASSERT(protmode & IEEE80211_HTINFO_NONHT_PRESENT,
 	    ("missing NONHT_PRESENT"));
@@ -1083,6 +1084,7 @@ ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
 	/* push beacon update */
 	ic->ic_curhtprotmode = protmode;
 	htinfo_notify(ic);
+	IEEE80211_UNLOCK(ic);
 #undef OPMODE
 }
 
