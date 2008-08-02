@@ -89,6 +89,10 @@ int	callout_reset_on(struct callout *, int, void (*)(void *), void *, int);
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
     callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
+int	callout_schedule(struct callout *, int);
+int	callout_schedule_on(struct callout *, int, int);
+#define	callout_schedule_curcpu(c, on_tick)				\
+    callout_schedule_on((c), (on_tick), PCPU_GET(cpuid))
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
 int	_callout_stop_safe(struct callout *, int);
 void	callout_tick(void);

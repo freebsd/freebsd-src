@@ -616,6 +616,21 @@ retry:
 	return (cancelled);
 }
 
+/*
+ * Common idioms that can be optimized in the future.
+ */
+int
+callout_schedule_on(struct callout *c, int to_ticks, int cpu)
+{
+	return callout_reset_on(c, to_ticks, c->c_func, c->c_arg, cpu);
+}
+
+int
+callout_schedule(struct callout *c, int to_ticks)
+{
+	return callout_reset_on(c, to_ticks, c->c_func, c->c_arg, c->c_cpu);
+}
+
 int
 _callout_stop_safe(c, safe)
 	struct	callout *c;
