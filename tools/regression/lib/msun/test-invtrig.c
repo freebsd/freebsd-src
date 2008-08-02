@@ -362,22 +362,15 @@ test_atan_huge(void)
 	test2(atan2, -0x1.0p1000, 0x1.0p-1000, (double)-pi / 2, FE_INEXACT);
 	test2(atan2l, -ldexpl(1.0, LDBL_MAX_EXP - 100),
 	      ldexpl(1.0, 100 - LDBL_MAX_EXP), -pi / 2, FE_INEXACT);
-	/*
-	 * XXX We ought to be able to insist that these are correctly rounded,
-	 *     but that isn't true in practice.
-	 */
-	test2_tol(atan2f, 0x1.0p100, -0x1.0p-100, (float)pi / 2,
-		  1, FE_INEXACT);
-	test2_tol(atan2, 0x1.0p1000, -0x1.0p-1000, (double)pi / 2,
-		  1, FE_INEXACT);
-	test2_tol(atan2l, ldexpl(1.0, LDBL_MAX_EXP - 100),
-		  -ldexpl(1.0, 100 - LDBL_MAX_EXP), pi / 2, 0, FE_INEXACT);
-	test2_tol(atan2f, -0x1.0p100, -0x1.0p-100, (float)-pi / 2,
-		  1, FE_INEXACT);
-	test2_tol(atan2, -0x1.0p1000, -0x1.0p-1000, (double)-pi / 2,
-		  1, FE_INEXACT);
-	test2_tol(atan2l, -ldexpl(1.0, LDBL_MAX_EXP - 100),
-		  -ldexpl(1.0, 100 - LDBL_MAX_EXP), -pi / 2, 1, FE_INEXACT);
+
+	test2(atan2f, 0x1.0p100, -0x1.0p-100, (float)pi / 2, FE_INEXACT);
+	test2(atan2, 0x1.0p1000, -0x1.0p-1000, (double)pi / 2, FE_INEXACT);
+	test2(atan2l, ldexpl(1.0, LDBL_MAX_EXP - 100),
+	      -ldexpl(1.0, 100 - LDBL_MAX_EXP), pi / 2, FE_INEXACT);
+	test2(atan2f, -0x1.0p100, -0x1.0p-100, (float)-pi / 2, FE_INEXACT);
+	test2(atan2, -0x1.0p1000, -0x1.0p-1000, (double)-pi / 2, FE_INEXACT);
+	test2(atan2l, -ldexpl(1.0, LDBL_MAX_EXP - 100),
+	      -ldexpl(1.0, 100 - LDBL_MAX_EXP), -pi / 2, FE_INEXACT);
 }
 
 /*
