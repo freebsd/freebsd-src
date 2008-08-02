@@ -269,7 +269,7 @@ db_set_single_step(void)
 	 *	at pc was not executed.
 	 */
 	inst = db_get_value(pc, sizeof(int), FALSE);
-	if (inst_branch(inst) || inst_call(inst)) {
+	if (inst_branch(inst) || inst_call(inst) || inst_return(inst)) {
 		brpc = branch_taken(inst, pc);
 		if (brpc != pc) {	/* self-branches are hopeless */
 			db_taken_bkpt = db_set_temp_breakpoint(brpc);
