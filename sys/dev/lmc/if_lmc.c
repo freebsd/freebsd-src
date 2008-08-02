@@ -2516,7 +2516,7 @@ netisr_dispatch(int isr, struct mbuf *mbuf)
 
 /* rxintr_cleanup calls this to give a newly arrived pkt to higher levels. */
 static void
-raw_input(struct ifnet *ifp, struct mbuf *mbuf)
+lmc_raw_input(struct ifnet *ifp, struct mbuf *mbuf)
   {
   softc_t *sc = IFP2SC(ifp);
 
@@ -2534,7 +2534,8 @@ raw_input(struct ifnet *ifp, struct mbuf *mbuf)
     m_freem(mbuf);
     sc->status.cntrs.idiscards++;
     if (DRIVER_DEBUG)
-      printf("%s: raw_input: rx pkt discarded: not IPv4 or IPv6\n", NAME_UNIT);
+      printf("%s: lmc_raw_input: rx pkt discarded: not IPv4 or IPv6\n",
+	NAME_UNIT);
     }
   }
 
@@ -2943,7 +2944,7 @@ rxintr_cleanup(softc_t *sc)
       }
 #endif /* NETGRAPH */
     if (sc->config.line_pkg == PKG_RAWIP)
-      raw_input(sc->ifp, first_mbuf);
+      lmc_raw_input(sc->ifp, first_mbuf);
     else
       {
 #if NSPPP
@@ -4459,7 +4460,7 @@ core_watchdog(softc_t *sc)
 
 /* Called from a syscall (user context; no spinlocks). */
 static int
-raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+lmc_raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
   {
   struct ifreq *ifr = (struct ifreq *) data;
   int error = 0;
@@ -4492,7 +4493,7 @@ raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 /* Called from a syscall (user context; no spinlocks). */
 static int
-ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+lmc_ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
   {
   softc_t *sc = IFP2SC(ifp);
 # ifdef __OpenBSD__
@@ -4542,7 +4543,7 @@ ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     /* Pass the rest to the line protocol. */
     default:
       if (sc->config.line_pkg == PKG_RAWIP)
-        error =  raw_ioctl(ifp, cmd, data);
+        error =  lmc_raw_ioctl(ifp, cmd, data);
       else
 # if NSPPP
         error = sppp_ioctl(ifp, cmd, data);
@@ -4555,7 +4556,7 @@ ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     }
 
   if (DRIVER_DEBUG && (error!=0))
-    printf("%s: ifnet_ioctl; cmd=0x%08lx error=%d\n",
+    printf("%s: lmc_ifnet_ioctl; cmd=0x%08lx error=%d\n",
      NAME_UNIT, cmd, error);
 
   return error;
@@ -4563,7 +4564,7 @@ ifnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 /* Called from a syscall (user context; no spinlocks). */
 static void
-ifnet_start(struct ifnet *ifp)
+lmc_ifnet_start(struct ifnet *ifp)
   {
   softc_t *sc = IFP2SC(ifp);
 
@@ -4575,7 +4576,7 @@ ifnet_start(struct ifnet *ifp)
 /* RAWIP mode is the only time this is used. */
 /* Called from a syscall (user context; no spinlocks). */
 static int
-raw_output(struct ifnet *ifp, struct mbuf *m,
+lmc_raw_output(struct ifnet *ifp, struct mbuf *m,
  struct sockaddr *dst, struct rtentry *rt)
   {
   softc_t *sc = IFP2SC(ifp);
@@ -4587,7 +4588,7 @@ raw_output(struct ifnet *ifp, struct mbuf *m,
     m_freem(m);
     sc->status.cntrs.odiscards++;
     if (DRIVER_DEBUG)
-      printf("%s: raw_output: tx pkt discarded: link down\n", NAME_UNIT);
+      printf("%s: lmc_raw_output: tx pkt discarded: link down\n", NAME_UNIT);
     return ENETDOWN;
     }
 
@@ -4598,12 +4599,13 @@ raw_output(struct ifnet *ifp, struct mbuf *m,
     m_freem(m);
     sc->status.cntrs.odiscards++;
     if (DRIVER_DEBUG)
-      printf("%s: raw_output: tx pkt discarded: netgraph active\n", NAME_UNIT);
+      printf("%s: lmc_raw_output: tx pkt discarded: netgraph active\n",
+	NAME_UNIT);
     return EBUSY;
     }
 # endif
 
-  /* raw_output() ENQUEUEs in a syscall or softirq. */
+  /* lmc_raw_output() ENQUEUEs in a syscall or softirq. */
   /* txintr_setup() DEQUEUEs in a hard interrupt. */
   /* Some BSD QUEUE routines are not interrupt-safe. */
   {
@@ -4623,7 +4625,7 @@ raw_output(struct ifnet *ifp, struct mbuf *m,
     m_freem(m);
     sc->status.cntrs.odiscards++;
     if (DRIVER_DEBUG)
-      printf("%s: raw_output: IFQ_ENQUEUE() failed; error %d\n",
+      printf("%s: lmc_raw_output: IFQ_ENQUEUE() failed; error %d\n",
        NAME_UNIT, error);
     }
 
@@ -4632,7 +4634,7 @@ raw_output(struct ifnet *ifp, struct mbuf *m,
 
 /* Called from a softirq once a second. */
 static void
-ifnet_watchdog(struct ifnet *ifp)
+lmc_ifnet_watchdog(struct ifnet *ifp)
   {
   softc_t *sc = IFP2SC(ifp);
   u_int8_t old_oper_status = sc->status.oper_status;
@@ -4808,11 +4810,11 @@ setup_ifnet(struct ifnet *ifp)
   /* Note similarity to linux's setup_netdev(). */
   ifp->if_flags    = IFF_POINTOPOINT;
   ifp->if_flags   |= IFF_RUNNING;
-  ifp->if_ioctl    = ifnet_ioctl;
-  ifp->if_start    = ifnet_start;	/* sppp changes this */
-  ifp->if_output   = raw_output;	/* sppp & p2p change this */
-  ifp->if_input    = raw_input;
-  ifp->if_watchdog = ifnet_watchdog;
+  ifp->if_ioctl    = lmc_ifnet_ioctl;
+  ifp->if_start    = lmc_ifnet_start;	/* sppp changes this */
+  ifp->if_output   = lmc_raw_output;	/* sppp & p2p change this */
+  ifp->if_input    = lmc_raw_input;
+  ifp->if_watchdog = lmc_ifnet_watchdog;
   ifp->if_timer    = 1;
   ifp->if_mtu      = MAX_DESC_LEN;	/* sppp & p2p change this */
   ifp->if_type     = IFT_PTPSERIAL;	/* p2p changes this */
@@ -4841,7 +4843,7 @@ setup_ifnet(struct ifnet *ifp)
   }
 
 static int
-ifnet_attach(softc_t *sc)
+lmc_ifnet_attach(softc_t *sc)
   {
 # if (__FreeBSD_version >= 600000)
   sc->ifp  = if_alloc(NSPPP ? IFT_PPP : IFT_OTHER);
@@ -4910,7 +4912,7 @@ ifnet_attach(softc_t *sc)
   }
 
 static void
-ifnet_detach(softc_t *sc)
+lmc_ifnet_detach(softc_t *sc)
   {
 # ifdef __OpenBSD__
   ifmedia_delete_instance(&sc->ifm, IFM_INST_ANY);
@@ -5115,7 +5117,7 @@ ng_connect(hook_p hook)
 
 /* Receive data in mbufs from another Netgraph node. */
 /* Transmit an mbuf-chain on the communication link. */
-/* This procedure is very similar to raw_output(). */
+/* This procedure is very similar to lmc_raw_output(). */
 /* Called from a syscall (user context; no spinlocks). */
 # if (__FreeBSD_version >= 500000)
 static int
@@ -5488,7 +5490,7 @@ attach_card(softc_t *sc, const char *intrstr)
   sc->flags |= FLAG_NETGRAPH;
 #endif
 #if IFNET
-  if ((error = ifnet_attach(sc))) return error;
+  if ((error = lmc_ifnet_attach(sc))) return error;
   sc->flags |= FLAG_IFNET;
 #endif
 
@@ -5561,7 +5563,7 @@ detach_card(softc_t *sc)
   if (sc->flags & FLAG_IFNET)
     {
     IFQ_PURGE(&sc->ifp->if_snd);
-    ifnet_detach(sc);
+    lmc_ifnet_detach(sc);
     sc->flags &= ~FLAG_IFNET;
     }
 #endif
@@ -6801,7 +6803,7 @@ static void
 setup_netdev(struct net_device *net_dev)
   {
   /* Initialize the generic network device. */
-  /* Note similarity to BSD's ifnet_attach(). */
+  /* Note similarity to BSD's lmc_ifnet_attach(). */
   net_dev->flags           = IFF_POINTOPOINT;
   net_dev->flags          |= IFF_RUNNING;
   net_dev->open            = linux_open;
