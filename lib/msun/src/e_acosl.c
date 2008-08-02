@@ -27,9 +27,19 @@ __FBSDID("$FreeBSD$");
 #include "math_private.h"
 
 static const long double
-one=  1.00000000000000000000e+00,
+one=  1.00000000000000000000e+00;
+
+#ifdef __i386__
+/* XXX Work around the fact that gcc truncates long double constants on i386 */
+static volatile double
+pi1 =  3.14159265358979311600e+00,	/*  0x1.921fb54442d18p+1  */
+pi2 =  1.22514845490862001043e-16;	/*  0x1.1a80000000000p-53 */
+#define	pi	((long double)pi1 + pi2)
+#else
+static const long double
 pi =  3.14159265358979323846264338327950280e+00L;
-      
+#endif
+
 long double
 acosl(long double x)
 {
