@@ -73,7 +73,8 @@ typedef int		db_expr_t;
 					    0000000f  register */
 
 #define	inst_branch(ins)	(((ins) & 0x0f000000) == 0x0a000000 || \
-				 ((ins) & 0x0fdffff0) == 0x079ff100)
+				 ((ins) & 0x0fdffff0) == 0x079ff100 || \
+				 ((ins) & 0x0ff0f000) == 0x0590f000)
 
 #define	inst_load(ins)		(0)
 #define	inst_store(ins)		(0)
