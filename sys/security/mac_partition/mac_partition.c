@@ -61,9 +61,9 @@ SYSCTL_DECL(_security_mac);
 SYSCTL_NODE(_security_mac, OID_AUTO, partition, CTLFLAG_RW, 0,
     "TrustedBSD mac_partition policy controls");
 
-static int	mac_partition_enabled = 1;
+static int	partition_enabled = 1;
 SYSCTL_INT(_security_mac_partition, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_partition_enabled, 0, "Enforce partition policy");
+    &partition_enabled, 0, "Enforce partition policy");
 
 static int	partition_slot;
 #define	SLOT(l)	mac_label_get((l), partition_slot)
@@ -73,7 +73,7 @@ static int
 label_on_label(struct label *subject, struct label *object)
 {
 
-	if (mac_partition_enabled == 0)
+	if (partition_enabled == 0)
 		return (0);
 
 	if (SLOT(subject) == 0)
