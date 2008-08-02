@@ -343,9 +343,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
 			    priv_check_cred(so->so_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
-				t = in_pcblookup_local(pcbinfo,
-				    sin->sin_addr, lport,
-				    prison ? 0 :  INPLOOKUP_WILDCARD);
+				t = in_pcblookup_local(pcbinfo, sin->sin_addr,
+				    lport, prison ? 0 : INPLOOKUP_WILDCARD,
+				    cred);
 	/*
 	 * XXX
 	 * This entire block sorely needs a rewrite.
@@ -365,7 +365,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
 				return (EADDRNOTAVAIL);
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, prison ? 0 : wild);
+			    lport, prison ? 0 : wild, cred);
 			if (t && (t->inp_vflag & INP_TIMEWAIT)) {
 				/*
 				 * XXXRW: If an incpb has had its timewait
@@ -462,7 +462,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 					*lastport = first;
 				lport = htons(*lastport);
 			} while (in_pcblookup_local(pcbinfo, laddr, lport,
-			    wild));
+			    wild, cred));
 		} else {
 			/*
 			 * counting up
@@ -480,7 +480,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 					*lastport = first;
 				lport = htons(*lastport);
 			} while (in_pcblookup_local(pcbinfo, laddr, lport,
-			    wild));
+			    wild, cred));
 		}
 	}
 	if (prison_ip(cred, 0, &laddr.s_addr))
@@ -891,7 +891,7 @@ in_pcbpurgeif0(struct inpcbinfo *pcbinfo, struct ifnet *ifp)
 #define INP_LOOKUP_MAPPED_PCB_COST	3
 struct inpcb *
 in_pcblookup_local(struct inpcbinfo *pcbinfo, struct in_addr laddr,
-    u_short lport, int wild_okay)
+    u_short lport, int wild_okay, struct ucred *cred)
 {
 	struct inpcb *inp;
 #ifdef INET6
