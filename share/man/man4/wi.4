@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"	$OpenBSD: wi.4tbl,v 1.14 2002/04/29 19:53:50 jsyn Exp $
 .\"
-.Dd April 13, 2008
+.Dd August 2, 2008
 .Dt WI 4
 .Os
 .Sh NAME
@@ -59,9 +59,12 @@ driver provides support for 802.11b wireless network adapters based around
 the Lucent Hermes, Intersil PRISM-II, Intersil PRISM-2.5, and Intersil
 Prism-3 chipsets.
 All chipsets provide a similar interface to the driver.
-Only the Intersil chipsets support access point operation.
-Functionality, such as WPA support, depends on the specific version
-of the firmware used.
+Only the Intersil chipsets support access point operation or WPA.
+Very old versions of firmware are not supported at all.
+Older versions of the firmware that are supported may severely limit
+the ability to use these cards in newer networks.
+Only relatively recent versions of Intersil firmware supports WPA.
+See CAVEATS for details.
 All host/device interaction is via programmed I/O, even on those cards
 that support a DMA interface.
 .Pp
