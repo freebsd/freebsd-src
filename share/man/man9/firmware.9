@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2006
+.Dd May 18, 2008
 .Os
 .Dt FIRMWARE 9
 .Sh NAME
@@ -31,6 +31,7 @@
 .Nm firmware_unregister ,
 .Nm firmware_get ,
 .Nm firmware_put
+.Nm firmware_drain
 .Nd firmware image loading and management
 .Sh SYNOPSIS
 .In sys/param.h
@@ -59,6 +60,8 @@ struct firmware {
 .Fn firmware_get "const char *imagename"
 .Ft void
 .Fn firmware_put "const struct firmware *fp" "int flags"
+.Ft void
+.Fn firmware_drain "void"
 .Sh DESCRIPTION
 The
 .Nm firmware
@@ -137,8 +140,11 @@ This involves the linker subsystem and disk access, so
 .Fn firmware_get
 must not be called with any locks (except for
 .Va Giant ) .
-The caller must also have a process context so filesystem state such as
-the root vnode is defined (e.g. you cannot load from a taskqueue thread).
+Note also that if the firmware image is loaded from a filesystem
+it must already be mounted.
+In particular this means that it may be necessary to defer requests
+from a driver attach method unless it is known the root filesystem is
+already mounted.
 .Pp
 On success,
 .Fn firmware_get
@@ -154,6 +160,21 @@ argument may be set to
 to indicate that
 firmware_put is free to reclaim resources associated with
 the firmware image if this is the last reference.
+By default a firmware image will be deferred to a 
+.Xr taskqueue 9
+thread so the call may be done while holding a lock.
+In certain cases, such as on driver detach, this cannot be allowed.
+If the
+.Dv FIRMWARE_WAIT
+flag is or'd into
+.Fa flags
+then
+.Fn firmware_put
+will wait for the asynchronous operation to complete.
+This can also be accomplished by calling the
+.Fn firmware_drain
+routine after 
+.Fn firmware_put .
 .Sh FIRMWARE LOADING MECHANISMS
 As mentioned before, any component of the system can register
 firmware images at any time by simply calling
@@ -238,11 +259,7 @@ IxNpeMicrocode.fwo  optional npe_fw					\\
         clean           "IxNpeMicrocode.fwo"
 IxNpeMicrocode.dat                      optional npe_fw                 \\
         dependency      ".PHONY"                                        \\
-        compile-with    "if [ -e $S/arm/xscale/ixp425/IxNpeMicrocode.dat ]; \\
-			then						\\
-			ln -sf $S/arm/xscale/ixp425/IxNpeMicrocode.dat .; \\
-			else echo 'WARNING, no IxNpeMicrocode.dat file; you must obtain this from the Intel web site'; false; \\
-			fi" \\
+        compile-with    "uudecode < $S/contrib/dev/npe/IxNpeMicrocode.dat.uu" \\
         no-obj no-implicit-rule                                         \\
         clean           "IxNpeMicrocode.dat"
 .Ed
