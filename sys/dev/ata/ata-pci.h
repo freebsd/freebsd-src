@@ -171,8 +171,9 @@ struct ata_connect_task {
 #define ATA_I82801HB_AH4        0x28248086
 #define ATA_I82801HB_S2         0x28258086
 #define ATA_I82801HBM           0x28508086
-#define ATA_I82801HBM_S1        0x28298086
-#define ATA_I82801HBM_S2        0x282a8086
+#define ATA_I82801HBM_S1        0x28288086
+#define ATA_I82801HBM_S2        0x28298086
+#define ATA_I82801HBM_S3        0x282a8086
 #define ATA_I82801IB_S1         0x29208086
 #define ATA_I82801IB_AH2        0x29218086
 #define ATA_I82801IB_AH6        0x29228086
