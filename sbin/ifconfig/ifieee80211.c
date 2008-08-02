@@ -185,7 +185,7 @@ getregdata(void)
 	if (rdp == NULL) {
 		rdp = lib80211_alloc_regdata();
 		if (rdp == NULL)
-			exit(-1);
+			errx(-1, "missing or corrupted regdomain database");
 	}
 	return rdp;
 }
