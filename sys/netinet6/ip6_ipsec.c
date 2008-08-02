@@ -68,6 +68,7 @@
 #endif /*IPSEC*/
 
 #include <netinet6/ip6_ipsec.h>
+#include <netinet6/ip6_var.h>
 
 extern	struct protosw inet6sw[];
 
@@ -126,7 +127,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 	KEY_FREESP(&sp);
 	splx(s);
 	if (error) {
-		ipstat.ips_cantforward++;
+		ip6stat.ip6s_cantforward++;
 		return 1;
 	}
 #endif /* IPSEC */
