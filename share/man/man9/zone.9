@@ -25,13 +25,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2006
+.Dd June 19, 2008
 .Dt ZONE 9
 .Os
 .Sh NAME
 .Nm uma_zcreate ,
 .Nm uma_zalloc ,
+.Nm uma_zalloc_arg ,
 .Nm uma_zfree ,
+.Nm uma_zfree_arg ,
 .Nm uma_zdestroy ,
 .Nm uma_zone_set_max
 .Nd zone allocator
@@ -47,8 +49,12 @@
 .Fc
 .Ft "void *"
 .Fn uma_zalloc "uma_zone_t zone" "int flags"
+.Ft "void *"
+.Fn uma_zalloc_arg "uma_zone_t zone" "void *arg" "int flags"
 .Ft void
 .Fn uma_zfree "uma_zone_t zone" "void *item"
+.Ft void
+.Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
 .Ft void
 .Fn uma_zdestroy "uma_zone_t zone"
 .Ft void
@@ -141,6 +147,17 @@ Items are released back to the zone from which they were allocated by
 calling
 .Fn uma_zfree
 with a pointer to the zone and a pointer to the item.
+.Pp
+The variations
+.Fn uma_zalloc_arg
+and
+.Fn uma_zfree_arg
+allow to
+specify an argument for the
+.Dv ctor
+and
+.Dv dtor
+functions, respectively.
 .Pp
 Created zones,
 which are empty,
