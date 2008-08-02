@@ -1675,7 +1675,8 @@ wi_read_nicid(struct wi_softc *sc)
 			sc->sc_nic_name = "Unknown Lucent chip";
 		}
 	}
-	device_printf(sc->sc_dev, "using %s\n", sc->sc_nic_name);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "using %s\n", sc->sc_nic_name);
 
 	/* get primary firmware version (Only Prism chips) */
 	if (sc->sc_firmware_type != WI_LUCENT) {
