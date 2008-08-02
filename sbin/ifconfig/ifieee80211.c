@@ -3114,48 +3114,63 @@ get80211wme(int s, int param, int ac, int *val)
 }
 
 static void
+list_wme_aci(int s, const char *tag, int ac)
+{
+	int val;
+
+	printf("\t%s", tag);
+
+	/* show WME BSS parameters */
+	if (get80211wme(s, IEEE80211_IOC_WME_CWMIN, ac, &val) != -1)
+		printf(" cwmin %2u", val);
+	if (get80211wme(s, IEEE80211_IOC_WME_CWMAX, ac, &val) != -1)
+		printf(" cwmax %2u", val);
+	if (get80211wme(s, IEEE80211_IOC_WME_AIFS, ac, &val) != -1)
+		printf(" aifs %2u", val);
+	if (get80211wme(s, IEEE80211_IOC_WME_TXOPLIMIT, ac, &val) != -1)
+		printf(" txopLimit %3u", val);
+	if (get80211wme(s, IEEE80211_IOC_WME_ACM, ac, &val) != -1) {
+		if (val)
+			printf(" acm");
+		else if (verbose)
+			printf(" -acm");
+	}
+	/* !BSS only */
+	if ((ac & IEEE80211_WMEPARAM_BSS) == 0) {
+		if (get80211wme(s, IEEE80211_IOC_WME_ACKPOLICY, ac, &val) != -1) {
+			if (!val)
+				printf(" -ack");
+			else if (verbose)
+				printf(" ack");
+		}
+	}
+	printf("\n");
+}
+
+static void
 list_wme(int s)
 {
 	static const char *acnames[] = { "AC_BE", "AC_BK", "AC_VI", "AC_VO" };
-	int ac, val;
+	int ac;
 
-	for (ac = WME_AC_BE; ac <= WME_AC_VO; ac++) {
-again:
-		if (ac & IEEE80211_WMEPARAM_BSS)
-			printf("\t%s", "     ");
-		else
-			printf("\t%s", acnames[ac]);
-
-		/* show WME BSS parameters */
-		if (get80211wme(s, IEEE80211_IOC_WME_CWMIN, ac, &val) != -1)
-			printf(" cwmin %2u", val);
-		if (get80211wme(s, IEEE80211_IOC_WME_CWMAX, ac, &val) != -1)
-			printf(" cwmax %2u", val);
-		if (get80211wme(s, IEEE80211_IOC_WME_AIFS, ac, &val) != -1)
-			printf(" aifs %2u", val);
-		if (get80211wme(s, IEEE80211_IOC_WME_TXOPLIMIT, ac, &val) != -1)
-			printf(" txopLimit %3u", val);
-		if (get80211wme(s, IEEE80211_IOC_WME_ACM, ac, &val) != -1) {
-			if (val)
-				printf(" acm");
-			else if (verbose)
-				printf(" -acm");
+	if (verbose) {
+		/* display both BSS and local settings */
+		for (ac = WME_AC_BE; ac <= WME_AC_VO; ac++) {
+	again:
+			if (ac & IEEE80211_WMEPARAM_BSS)
+				list_wme_aci(s, "     ", ac);
+			else
+				list_wme_aci(s, acnames[ac], ac);
+			if ((ac & IEEE80211_WMEPARAM_BSS) == 0) {
+				ac |= IEEE80211_WMEPARAM_BSS;
+				goto again;
+			} else
+				ac &= ~IEEE80211_WMEPARAM_BSS;
 		}
-		/* !BSS only */
-		if ((ac & IEEE80211_WMEPARAM_BSS) == 0) {
-			if (get80211wme(s, IEEE80211_IOC_WME_ACKPOLICY, ac, &val) != -1) {
-				if (!val)
-					printf(" -ack");
-				else if (verbose)
-					printf(" ack");
-			}
-		}
-		printf("\n");
-		if ((ac & IEEE80211_WMEPARAM_BSS) == 0) {
-			ac |= IEEE80211_WMEPARAM_BSS;
-			goto again;
-		} else
-			ac &= ~IEEE80211_WMEPARAM_BSS;
+	} else {
+		/* display only channel settings */
+		for (ac = WME_AC_BE; ac <= WME_AC_VO; ac++)
+			list_wme_aci(s, acnames[ac], ac);
 	}
 }
 
