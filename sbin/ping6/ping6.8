@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 1998
+.Dd May 27, 2008
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -407,7 +407,9 @@ option of
 The
 .Nm
 utility returns 0 on success (the host is alive),
-and non-zero if the arguments are incorrect or the host is not responding.
+2 if the transmission was successful but no responses were received,
+any other non-zero value if the arguments are incorrect or                                                            
+another error has occured.                                                                                            
 .Sh EXAMPLES
 Normally,
 .Nm
