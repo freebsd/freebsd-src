@@ -4,7 +4,7 @@ GENSRCS+= xm.h
 LIBSRCS+= armfbsd-nat.c
 LIBSRCS+= arm-tdep.c armfbsd-tdep.c solib.c solib-svr4.c
 .if !defined(GDB_CROSS_DEBUGGER)
-LIBSRC+= fbsd-threads.c
+LIBSRCS+= fbsd-threads.c
 .endif
 
 nm.h:
