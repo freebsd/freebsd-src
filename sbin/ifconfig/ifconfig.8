@@ -1300,7 +1300,11 @@ are displayed in a short form; the
 .Fl v
 flag causes this information to be displayed symbolicaly.
 .It Cm list wme
-Display the current parameters to use when operating in WME mode.
+Display the current channel parameters to use when operating in WME mode.
+If the
+.Fl v
+option is specified then both channel and BSS parameters are displayed
+for each AC (first channel, then BSS).
 When WME mode is enabled for an adaptor this information will be
 displayed with the regular status; this command is mostly useful
 for examining parameters when WME mode is disabled.
