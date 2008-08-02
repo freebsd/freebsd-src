@@ -343,7 +343,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
 			    priv_check_cred(so->so_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
-				t = in_pcblookup_local(inp->inp_pcbinfo,
+				t = in_pcblookup_local(pcbinfo,
 				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);
 	/*
