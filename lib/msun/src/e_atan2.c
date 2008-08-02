@@ -109,17 +109,15 @@ __ieee754_atan2(double y, double x)
 
     /* compute y/x */
 	k = (iy-ix)>>20;
-	if(k > 60) z=pi_o_2+0.5*pi_lo; 	/* |y/x| >  2**60 */
-	else if(hx<0&&k<-60) z=0.0; 	/* |y|/x < -2**60 */
+	if(k > 60) {		 	/* |y/x| >  2**60 */
+	    z=pi_o_2+0.5*pi_lo;
+	    m&=1;
+	}
+	else if(hx<0&&k<-60) z=0.0; 	/* 0 > |y|/x > -2**-60 */
 	else z=atan(fabs(y/x));		/* safe to do y/x */
 	switch (m) {
 	    case 0: return       z  ;	/* atan(+,+) */
-	    case 1: {
-	    	      u_int32_t zh;
-		      GET_HIGH_WORD(zh,z);
-		      SET_HIGH_WORD(z,zh ^ 0x80000000);
-		    }
-		    return       z  ;	/* atan(-,+) */
+	    case 1: return      -z  ;	/* atan(-,+) */
 	    case 2: return  pi-(z-pi_lo);/* atan(+,-) */
 	    default: /* case 3 */
 	    	    return  (z-pi_lo)-pi;/* atan(-,-) */
