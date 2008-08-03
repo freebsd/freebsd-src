@@ -55,6 +55,7 @@ struct arc4_stream {
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 #define	RANDOMDEV	"/dev/urandom"
+#define KEYSIZE		128
 #define	THREAD_LOCK()						\
 	do {							\
 		if (__isthreaded)				\
@@ -106,24 +107,27 @@ arc4_addrandom(u_char *dat, int datlen)
 static void
 arc4_stir(void)
 {
-	int     fd, n;
+	int done, fd, n;
 	struct {
-		struct timeval tv;
-		pid_t pid;
-		u_int8_t rnd[128 - sizeof(struct timeval) - sizeof(pid_t)];
-	}       rdat;
+		struct timeval	tv;
+		pid_t 		pid;
+		u_int8_t 	rnd[KEYSIZE];
+	} rdat;
 
-	gettimeofday(&rdat.tv, NULL);
-	rdat.pid = getpid();
 	fd = _open(RANDOMDEV, O_RDONLY, 0);
+	done = 0;
 	if (fd >= 0) {
-		(void) _read(fd, rdat.rnd, sizeof(rdat.rnd));
-		_close(fd);
+		if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
+			done = 1;
+		(void)_close(fd);
 	} 
-	/* fd < 0?  Ah, what the heck. We'll just take whatever was on the
-	 * stack... */
+	if (!done) {
+		(void)gettimeofday(&rdat.tv, NULL);
+		rdat.pid = getpid();
+		/* We'll just take whatever was on the stack too... */
+	}
 
-	arc4_addrandom((void *) &rdat, sizeof(rdat));
+	arc4_addrandom((u_char *)&rdat, KEYSIZE);
 
 	/*
 	 * Throw away the first N bytes of output, as suggested in the
