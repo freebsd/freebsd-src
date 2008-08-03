@@ -177,7 +177,9 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 			    &cur_lowspace_trigger, 1)) {
 				(void)audit_send_trigger(
 				    AUDIT_TRIGGER_LOW_SPACE);
-				printf("Warning: audit space low\n");
+				printf("Warning: disk space low (< %d%% free) "
+				    "on audit log file-system\n",
+				    audit_qctrl.aq_minfree);
 			}
 		}
 	}
