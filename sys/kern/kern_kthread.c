@@ -243,12 +243,10 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 {
 	va_list ap;
 	struct thread *newtd, *oldtd;
-	int error;
 
 	if (!proc0.p_stats)
 		panic("kthread_add called too soon");
 
-	error = 0;
 	/* If no process supplied, put it on proc0 */
 	if (p == NULL) {
 		p = &proc0;
