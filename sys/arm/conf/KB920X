@@ -117,7 +117,6 @@ device		udav
 device          ucom
 device          uark
 device          ubsa
-device          ubser
 device          uftdi
 device          uipaq
 device          uplcom
