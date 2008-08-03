@@ -47,12 +47,12 @@ asinl(long double x)
 	} else if (expt<BIAS-1) {	/* |x|<0.5 */
 	    if(expt<ASIN_LINEAR) {	/* if |x| is small, asinl(x)=x */
 		if(huge+x>one) return x;/* return x with inexact if x!=0*/
-	    } else 
-		t = x*x;
-	        p = P(t);
-	        q = Q(t);
-		w = p/q;
-		return x+x*w;
+	    }
+	    t = x*x;
+	    p = P(t);
+	    q = Q(t);
+	    w = p/q;
+	    return x+x*w;
 	}
 	/* 1> |x|>= 0.5 */
 	w = one-fabsl(x);
