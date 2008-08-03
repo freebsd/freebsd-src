@@ -161,9 +161,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * List of capabilities to mask on the member interface.
+ * List of capabilities to possibly mask on the member interface.
  */
 #define	BRIDGE_IFCAPS_MASK		IFCAP_TXCSUM
+/*
+ * List of capabilities to disable on the member interface.
+ */
+#define	BRIDGE_IFCAPS_STRIP		0	/* IFCAP_LRO */
 
 /*
  * Bridge interface list entry.
@@ -173,7 +177,7 @@ struct bridge_iflist {
 	struct ifnet		*bif_ifp;	/* member if */
 	struct bstp_port	bif_stp;	/* STP state */
 	uint32_t		bif_flags;	/* member if flags */
-	int			bif_mutecap;	/* member muted caps */
+	int			bif_savedcaps;	/* saved capabilities */
 };
 
 /*
@@ -209,6 +213,7 @@ struct bridge_softc {
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
 	struct bstp_state	sc_stp;		/* STP state */
 	uint32_t		sc_brtexceeded;	/* # of cache drops */
+	u_char			sc_defaddr[6];	/* Default MAC address */
 };
 
 static struct mtx 	bridge_list_mtx;
@@ -222,7 +227,9 @@ static int	bridge_clone_create(struct if_clone *, int);
 static void	bridge_clone_destroy(struct ifnet *);
 
 static int	bridge_ioctl(struct ifnet *, u_long, caddr_t);
-static void	bridge_mutecaps(struct bridge_iflist *, int);
+static void	bridge_mutecaps(struct bridge_softc *);
+static void	bridge_set_ifcap(struct bridge_softc *, struct bridge_iflist *,
+		    int);
 static void	bridge_ifdetach(void *arg __unused, struct ifnet *);
 static void	bridge_init(void *);
 static void	bridge_dummynet(struct mbuf *, struct ifnet *);
@@ -533,7 +540,6 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 {
 	struct bridge_softc *sc, *sc2;
 	struct ifnet *bifp, *ifp;
-	u_char eaddr[6];
 	int retry;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
@@ -575,21 +581,22 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	 * this hardware address isn't already in use on another bridge.
 	 */
 	for (retry = 1; retry != 0;) {
-		arc4rand(eaddr, ETHER_ADDR_LEN, 1);
-		eaddr[0] &= ~1;		/* clear multicast bit */
-		eaddr[0] |= 2;		/* set the LAA bit */
+		arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
+		sc->sc_defaddr[0] &= ~1;	/* clear multicast bit */
+		sc->sc_defaddr[0] |= 2;		/* set the LAA bit */
 		retry = 0;
 		mtx_lock(&bridge_list_mtx);
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
-			if (memcmp(eaddr, IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
+			if (memcmp(sc->sc_defaddr,
+			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
 				retry = 1;
 		}
 		mtx_unlock(&bridge_list_mtx);
 	}
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(ifp, sc->sc_defaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
 	ifp->if_type = IFT_BRIDGE;
@@ -763,32 +770,49 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  *	Clear or restore unwanted capabilities on the member interface
  */
 static void
-bridge_mutecaps(struct bridge_iflist *bif, int mute)
+bridge_mutecaps(struct bridge_softc *sc)
+{
+	struct bridge_iflist *bif;
+	int enabled, mask;
+
+	/* Initial bitmask of capabilities to test */
+	mask = BRIDGE_IFCAPS_MASK;
+
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		/* Every member must support it or its disabled */
+		mask &= bif->bif_savedcaps;
+	}
+
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		enabled = bif->bif_ifp->if_capenable;
+		enabled &= ~BRIDGE_IFCAPS_STRIP;
+		/* strip off mask bits and enable them again if allowed */
+		enabled &= ~BRIDGE_IFCAPS_MASK;
+		enabled |= mask;
+
+		bridge_set_ifcap(sc, bif, enabled);
+	}
+
+}
+
+static void
+bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 {
 	struct ifnet *ifp = bif->bif_ifp;
 	struct ifreq ifr;
 	int error;
 
-	if (ifp->if_ioctl == NULL)
-		return;
-
 	bzero(&ifr, sizeof(ifr));
-	ifr.ifr_reqcap = ifp->if_capenable;
+	ifr.ifr_reqcap = set;
 
-	if (mute) {
-		/* mask off and save capabilities */
-		bif->bif_mutecap = ifr.ifr_reqcap & BRIDGE_IFCAPS_MASK;
-		if (bif->bif_mutecap != 0)
-			ifr.ifr_reqcap &= ~BRIDGE_IFCAPS_MASK;
-	} else
-		/* restore muted capabilities */
-		ifr.ifr_reqcap |= bif->bif_mutecap;
-
-
-	if (bif->bif_mutecap != 0) {
+	if (ifp->if_capenable != set) {
 		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFCAP, (caddr_t)&ifr);
 		IFF_UNLOCKGIANT(ifp);
+		if (error)
+			if_printf(sc->sc_ifp,
+			    "error setting interface capabilities on %s\n",
+			    ifp->if_xname);
 	}
 }
 
@@ -844,6 +868,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
     int gone)
 {
 	struct ifnet *ifs = bif->bif_ifp;
+	struct ifnet *fif = NULL;
 
 	BRIDGE_LOCK_ASSERT(sc);
 
@@ -855,7 +880,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 			 * Take the interface out of promiscuous mode.
 			 */
 			(void) ifpromisc(ifs, 0);
-			bridge_mutecaps(bif, 0);
 			break;
 
 		case IFT_GIF:
@@ -867,6 +891,8 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 #endif
 			break;
 		}
+		/* reneable any interface capabilities */
+		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
 	}
 
 	if (bif->bif_flags & IFBIF_STP)
@@ -877,6 +903,23 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	LIST_REMOVE(bif, bif_next);
 	BRIDGE_XDROP(sc);
 
+	/*
+	 * If removing the interface that gave the bridge its mac address, set
+	 * the mac address of the bridge to the address of the next member, or
+	 * to its default address if no members are left.
+	 */
+	if (!memcmp(IF_LLADDR(sc->sc_ifp), IF_LLADDR(ifs), ETHER_ADDR_LEN)) {
+		if (LIST_EMPTY(&sc->sc_iflist))
+			bcopy(sc->sc_defaddr,
+			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+		else {
+			fif = LIST_FIRST(&sc->sc_iflist)->bif_ifp;
+			bcopy(IF_LLADDR(fif),
+			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+		}
+	}
+
+	bridge_mutecaps(sc);	/* recalcuate now this interface is removed */
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 
 	BRIDGE_UNLOCK(sc);
@@ -913,6 +956,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	ifs = ifunit(req->ifbr_ifsname);
 	if (ifs == NULL)
 		return (ENOENT);
+	if (ifs->if_ioctl == NULL)	/* must be supported */
+		return (EINVAL);
 
 	/* If it's in the span list, it can't be a member. */
 	LIST_FOREACH(bif, &sc->sc_spanlist, bif_next)
@@ -942,6 +987,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 
 	bif->bif_ifp = ifs;
 	bif->bif_flags = IFBIF_LEARNING | IFBIF_DISCOVER;
+	bif->bif_savedcaps = ifs->if_capenable;
 
 	switch (ifs->if_type) {
 	case IFT_ETHER:
@@ -952,8 +998,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		error = ifpromisc(ifs, 1);
 		if (error)
 			goto out;
-
-		bridge_mutecaps(bif, 1);
 		break;
 
 	case IFT_GIF:
@@ -964,6 +1008,15 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		goto out;
 	}
 
+	/*
+	 * Assign the interface's MAC address to the bridge if it's the first
+	 * member and the MAC address of the bridge has not been changed from
+	 * the default randomly generated one.
+	 */
+	if (LIST_EMPTY(&sc->sc_iflist) &&
+	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN))
+		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+
 	ifs->if_bridge = sc;
 	bstp_create(&sc->sc_stp, &bif->bif_stp, bif->bif_ifp);
 	/*
@@ -973,6 +1026,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 */
 	LIST_INSERT_HEAD(&sc->sc_iflist, bif, bif_next);
 
+	/* Set interface capabilities to the intersection set of all members */
+	bridge_mutecaps(sc);
 out:
 	if (error) {
 		if (bif != NULL)
