@@ -104,8 +104,8 @@ __FBSDID("$FreeBSD$");
  * msync / VM object flushing optimizations
  */
 static int msync_flush_flags = MSYNC_FLUSH_HARDSEQ | MSYNC_FLUSH_SOFTSEQ;
-SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags,
-        CTLFLAG_RW, &msync_flush_flags, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, msync_flush_flags, CTLFLAG_RW, &msync_flush_flags, 0,
+    "Enable sequential iteration optimization");
 
 static int old_msync;
 SYSCTL_INT(_vm, OID_AUTO, old_msync, CTLFLAG_RW, &old_msync, 0,
