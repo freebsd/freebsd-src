@@ -194,7 +194,6 @@ case ${firewall_type} in
 	${fwcmd} add deny tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass tcp from me to any 53 setup keep-state
 	${fwcmd} add pass udp from me to any 53 keep-state
 
 	# Allow NTP queries out in the world
@@ -295,7 +294,6 @@ case ${firewall_type} in
 	${fwcmd} add pass tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass tcp from ${oip} to any 53 setup keep-state
 	${fwcmd} add pass udp from ${oip} to any 53 keep-state
 
 	# Allow NTP queries out in the world
