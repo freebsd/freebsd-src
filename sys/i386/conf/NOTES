@@ -266,44 +266,6 @@ device		nvram		# Access to rtc cmos via /dev/nvram
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
 
-# 
-# sio: serial ports (see sio(4)), including support for various
-#      PC Card devices, such as Modem and NICs
-#
-device		sio
-hint.sio.0.at="isa"
-hint.sio.0.port="0x3F8"
-hint.sio.0.flags="0x10"
-hint.sio.0.irq="4"
-
-# `flags' specific to sio(4).
-#	0x10	enable console support for this unit.  Other console flags
-#		(if applicable) are ignored unless this is set.  Enabling
-#		console support does not make the unit the preferred console.
-#		Boot with -h or set boot_serial=YES in the loader.  For sio(4)
-#		specifically, the 0x20 flag can also be set (see above).
-#		Currently, at most one unit can have console support; the
-#		first one (in config file order) with this flag set is
-#		preferred.  Setting this flag for sio0 gives the old behaviour.
-#	0x20	force this unit to be the console (unless there is another
-#		higher priority console).  This replaces the COMCONSOLE option.
-#	0x40	reserve this unit for low level console operations.  Do not
-#		access the device in any normal way.
-#	0x80	use this port for serial line gdb support in ddb.  Also known
-#		as debug port.
-# PnP `flags'
-#	0x1	disable probing of this device.  Used to prevent your modem
-#		from being attached as a PnP modem.
-# Other flags for sio that aren't documented in the man page.
-#	0x20000	enable hardware RTS/CTS and larger FIFOs.  Only works for
-#		ST16650A-compatible UARTs.
-
-# Options for sio:
-options 	COM_ESP			# Code for Hayes ESP.
-options 	COM_MULTIPORT		# Code for some cards with shared IRQs.
-options 	CONSPEED=115200		# Speed for serial console
-					# (default 9600).
-
 device		speaker		#Play IBM BASIC-style noises out your speaker
 hint.speaker.0.at="isa"
 hint.speaker.0.port="0x61"
@@ -610,11 +572,6 @@ hint.ctau.0.at="isa"
 hint.ctau.0.port="0x240"
 hint.ctau.0.irq="15"
 hint.ctau.0.drq="7"
-device		cx
-hint.cx.0.at="isa"
-hint.cx.0.port="0x240"
-hint.cx.0.irq="15"
-hint.cx.0.drq="7"
 #options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
 device		ed
 options 	ED_3C503
@@ -741,8 +698,6 @@ options 	SAFE_RNDTEST	# enable rndtest support
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
 # vpd: Vital Product Data kernel interface
-# cy: Cyclades serial driver
-# digi: Digiboard driver
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
 
@@ -775,24 +730,6 @@ device		smapi
 device		smbios
 device		vpd
 device		pmtimer			# Adjust system timer at wakeup time
-device		cy
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-hint.cy.0.at="isa"
-hint.cy.0.irq="10"
-hint.cy.0.maddr="0xd4000"
-hint.cy.0.msize="0x2000"
-device		digi
-hint.digi.0.at="isa"
-hint.digi.0.port="0x104"
-hint.digi.0.maddr="0xd0000"
-# BIOS & FEP/OS components of device digi.
-device		digi_CX
-device		digi_CX_PCI
-device		digi_EPCX
-device		digi_EPCX_PCI
-device		digi_Xe
-device		digi_Xem
-device		digi_Xr
 # Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
 device		pbio
 hint.pbio.0.at="isa"

@@ -448,8 +448,6 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
-# cy: Cyclades serial driver
-# digi: Digiboard driver
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -459,17 +457,6 @@ device		apm
 hint.apm.0.flags="0x20"
 device		canbus
 device		canbepm
-device		cy
-options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-device		digi
-# BIOS & FEP/OS components of device digi.
-device		digi_CX
-device		digi_CX_PCI
-device		digi_EPCX
-device		digi_EPCX_PCI
-device		digi_Xe
-device		digi_Xem
-device		digi_Xr
 device		olpt
 hint.olpt.0.at="isa"
 hint.olpt.0.port="0x040"

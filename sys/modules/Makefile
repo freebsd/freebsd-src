@@ -65,14 +65,12 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	cue \
-	${_cx} \
 	cxgb \
 	${_cyclic} \
 	dc \
 	dcons \
 	dcons_crom \
 	de \
-	${_digi} \
 	${_dpt} \
 	${_drm} \
 	${_dtrace} \
@@ -116,8 +114,6 @@ SUBDIR=	${_3dfx} \
 	if_gre \
 	if_lagg \
 	${_if_ndis} \
-	if_ppp \
-	if_sl \
 	if_stf \
 	if_tap \
 	if_tun \
@@ -226,13 +222,11 @@ SUBDIR=	${_3dfx} \
 	ral \
 	${_random} \
 	${_ray} \
-	rc \
 	rc4 \
 	${_rdma} \
 	re \
 	reiserfs \
 	rl \
-	rp \
 	rue \
 	rum \
 	${_s3} \
@@ -242,13 +236,11 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sem \
 	sf \
-	${_sio} \
 	sis \
 	sk \
 	${_smbfs} \
 	sn \
 	${_snc} \
-	snp \
 	${_sound} \
 	${_speaker} \
 	${_splash} \
@@ -273,16 +265,13 @@ SUBDIR=	${_3dfx} \
 	uart \
 	ubsa \
 	ubsec \
-	ubser \
 	ucom \
-	ucycom \
 	udav \
 	udbp \
 	udf \
 	udf_iconv \
 	ufm \
 	${_ufs} \
-	ufoma \
 	uftdi \
 	ugen \
 	uhid \
@@ -384,7 +373,6 @@ _cs=		cs
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
-_digi=		digi
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
@@ -426,7 +414,6 @@ _ray=		ray
 _rdma=		rdma
 _safe=		safe
 _scsi_low=	scsi_low
-_sio=		sio
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -454,7 +441,6 @@ _cm=		cm
 _cmx=		cmx
 _coretemp=	coretemp
 _ctau=		ctau
-_cx=		cx
 _dpt=		dpt
 _ex=		ex
 _hptiop=	hptiop
@@ -516,7 +502,6 @@ _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
-_digi=		digi
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
