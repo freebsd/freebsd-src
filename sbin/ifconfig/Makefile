@@ -23,6 +23,7 @@ SRCS+=	ifclone.c		# clone device support
 SRCS+=	ifmac.c			# MAC support
 SRCS+=	ifmedia.c		# SIOC[GS]IFMEDIA support
 SRCS+=	ifvlan.c		# SIOC[GS]ETVLAN support
+SRCS+=	ifgre.c			# GRE keys etc
 
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
 DPADD+=	${LIBBSDXML} ${LIBSBUF}
