@@ -2,6 +2,7 @@
 
 /*
  * Copyright (c) 2005, 2006 Reyk Floeter <reyk@openbsd.org>
+ * Copyright (c) 2007 Andrew Thompson <thompsa@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -768,8 +769,12 @@ lagg_port2req(struct lagg_port *lp, struct lagg_reqport *rp)
 
 		case LAGG_PROTO_LACP:
 			/* LACP has a different definition of active */
-			if (lacp_port_isactive(lp))
+			if (lacp_isactive(lp))
 				rp->rp_flags |= LAGG_PORT_ACTIVE;
+			if (lacp_iscollecting(lp))
+				rp->rp_flags |= LAGG_PORT_COLLECTING;
+			if (lacp_isdistributing(lp))
+				rp->rp_flags |= LAGG_PORT_DISTRIBUTING;
 			break;
 	}
 
@@ -1178,7 +1183,7 @@ lagg_start(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 
-		BPF_MTAP(ifp, m);
+		ETHER_BPF_MTAP(ifp, m);
 
 		if (sc->sc_proto != LAGG_PROTO_NONE)
 			error = (*sc->sc_start)(sc, m);
@@ -1210,13 +1215,18 @@ lagg_input(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	LAGG_RLOCK(sc);
-	BPF_MTAP(scifp, m);
+	ETHER_BPF_MTAP(scifp, m);
 
 	m = (*sc->sc_input)(sc, lp, m);
 
 	if (m != NULL) {
 		scifp->if_ipackets++;
 		scifp->if_ibytes += m->m_pkthdr.len;
+
+		if (scifp->if_flags & IFF_MONITOR) {
+			m_freem(m);
+			m = NULL;
+		}
 	}
 
 	LAGG_RUNLOCK(sc);
@@ -1638,14 +1648,10 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_lb *lb = (struct lagg_lb *)sc->sc_psc;
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
-	int idx;
 
 	p = lagg_hashmbuf(m, lb->lb_key);
-	if ((idx = p % sc->sc_count) >= LAGG_MAX_PORTS) {
-		m_freem(m);
-		return (EINVAL);
-	}
-	lp = lb->lb_ports[idx];
+	p %= sc->sc_count;
+	lp = lb->lb_ports[p];
 
 	/*
 	 * Check the port's link state. This will return the next active
@@ -1761,16 +1767,16 @@ lagg_lacp_input(struct lagg_softc *sc, struct lagg_port *lp, struct mbuf *m)
 
 	/* Tap off LACP control messages */
 	if (etype == ETHERTYPE_SLOW) {
-		lacp_input(lp, m);
-		return (NULL);
+		m = lacp_input(lp, m);
+		if (m == NULL)
+			return (NULL);
 	}
 
 	/*
 	 * If the port is not collecting or not in the active aggregator then
 	 * free and return.
 	 */
-	if ((lp->lp_flags & LAGG_PORT_COLLECTING) == 0 ||
-	    lacp_port_isactive(lp) == 0) {
+	if (lacp_iscollecting(lp) == 0 || lacp_isactive(lp) == 0) {
 		m_freem(m);
 		return (NULL);
 	}
