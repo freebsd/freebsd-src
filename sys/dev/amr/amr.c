@@ -897,7 +897,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     }
     debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
     if (dp != NULL)
-	debug(2, "%16d", (int)dp);
+	debug(2, "%jd", (uintptr_t)dp);
     *au_statusp = ac->ac_status;
 
 out:
@@ -1752,7 +1752,7 @@ amr_setup_ccb64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	for (i = 0; i < nsegments; i++, sg++) {
 	    sg->sg_addr = segs[i].ds_addr;
 	    sg->sg_count = segs[i].ds_len;
-	    debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	    debug(3, " %d: 0x%lx/%d", i, (u_long)sg->sg_addr, sg->sg_count);
 	}
 	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
 	    aep->ap_no_sg_elements, aep->ap_data_transfer_address);
@@ -1767,7 +1767,7 @@ amr_setup_ccb64map(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	for (i = 0; i < nsegments; i++, sg++) {
 	    sg->sg_addr = segs[i].ds_addr;
 	    sg->sg_count = segs[i].ds_len;
-	    debug(3, " %d: 0x%x/%d", i, sg->sg_addr, sg->sg_count);
+	    debug(3, " %d: 0x%lx/%d", i, (u_long)sg->sg_addr, sg->sg_count);
 	}
 	debug(3, "slot %d  %d segments at 0x%x\n", ac->ac_slot,
 	    ap->ap_no_sg_elements, ap->ap_data_transfer_address);
