@@ -144,9 +144,9 @@ struct ses_softc {
 	encvec		ses_vec;	/* vector to handlers */
 	void *		ses_private;	/* per-type private data */
 	encobj *	ses_objmap;	/* objects */
-	u_int32_t	ses_nobjects;	/* number of objects */
+	uint32_t	ses_nobjects;	/* number of objects */
 	ses_encstat	ses_encstat;	/* overall status */
-	u_int8_t	ses_flags;
+	uint8_t	ses_flags;
 	union ccb	ses_saved_ccb;
 	struct cdev *ses_dev;
 	struct cam_periph *periph;
@@ -166,9 +166,9 @@ static	periph_oninv_t	sesoninvalidate;
 static  periph_dtor_t   sescleanup;
 static  periph_start_t  sesstart;
 
-static void sesasync(void *, u_int32_t, struct cam_path *, void *);
+static void sesasync(void *, uint32_t, struct cam_path *, void *);
 static void sesdone(struct cam_periph *, union ccb *);
-static int seserror(union ccb *, u_int32_t, u_int32_t);
+static int seserror(union ccb *, uint32_t, uint32_t);
 
 static struct periph_driver sesdriver = {
 	sesinit, "ses",
@@ -234,7 +234,7 @@ sescleanup(struct cam_periph *periph)
 }
 
 static void
-sesasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
+sesasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
 
@@ -303,7 +303,7 @@ sesregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	softc = malloc(sizeof (struct ses_softc), M_SCSISES, M_NOWAIT);
+	softc = SES_MALLOC(sizeof (struct ses_softc));
 	if (softc == NULL) {
 		printf("sesregister: Unable to probe new device. "
 		       "Unable to allocate softc\n");				
@@ -472,7 +472,7 @@ sesdone(struct cam_periph *periph, union ccb *dccb)
 }
 
 static int
-seserror(union ccb *ccb, u_int32_t cflags, u_int32_t sflags)
+seserror(union ccb *ccb, uint32_t cflags, uint32_t sflags)
 {
 	struct ses_softc *softc;
 	struct cam_periph *periph;
@@ -489,7 +489,7 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 	struct cam_periph *periph;
 	ses_encstat tmp;
 	ses_objstat objs;
-	ses_object obj, *uobj;
+	ses_object *uobj;
 	struct ses_softc *ssc;
 	void *addr;
 	int error, i;
@@ -511,12 +511,15 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 
 	/*
 	 * Now check to see whether we're initialized or not.
+	 * This actually should never fail as we're not supposed
+	 * to get past ses_open w/o successfully initializing
+	 * things.
 	 */
 	if ((ssc->ses_flags & SES_FLAG_INITIALIZED) == 0) {
 		cam_periph_unlock(periph);
 		return (ENXIO);
 	}
-	cam_periph_lock(periph);
+	cam_periph_unlock(periph);
 
 	error = 0;
 
@@ -526,6 +529,14 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 	/*
 	 * If this command can change the device's state,
 	 * we must have the device open for writing.
+	 *
+	 * For commands that get information about the
+	 * device- we don't need to lock the peripheral
+	 * if we aren't running a command. The number
+	 * of objects and the contents will stay stable
+	 * after the first open that does initialization.
+	 * The periph also can't go away while a user
+	 * process has it open.
 	 */
 	switch (cmd) {
 	case SESIOC_GETNOBJ:
@@ -546,23 +557,16 @@ sesioctl(struct cdev *dev, u_long cmd, caddr_t arg_addr, int flag, struct thread
 		break;
 		
 	case SESIOC_GETOBJMAP:
-		/*
-		 * XXX Dropping the lock while copying multiple segments is
-		 * bogus.
-		 */
-		cam_periph_lock(periph);
-		for (uobj = addr, i = 0; i != ssc->ses_nobjects; i++, uobj++) {
-			obj.obj_id = i;
-			obj.subencid = ssc->ses_objmap[i].subenclosure;
-			obj.object_type = ssc->ses_objmap[i].enctype;
-			cam_periph_lock(periph);
-			error = copyout(&obj, uobj, sizeof (ses_object));
-			cam_periph_lock(periph);
+		for (uobj = addr, i = 0; i != ssc->ses_nobjects; i++) {
+			ses_object kobj;
+			kobj.obj_id = i;
+			kobj.subencid = ssc->ses_objmap[i].subenclosure;
+			kobj.object_type = ssc->ses_objmap[i].enctype;
+			error = copyout(&kobj, &uobj[i], sizeof (ses_object));
 			if (error) {
 				break;
 			}
 		}
-		cam_periph_lock(periph);
 		break;
 
 	case SESIOC_GETENCSTAT:
