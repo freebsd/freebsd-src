@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2003
+.Dd August 3, 2008
 .Dt JAIL 2
 .Os
 .Sh NAME
@@ -111,6 +111,8 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The version number of the argument is not correct.
+.It Bq Er EAGAIN
+No free JID could be found.
 .El
 .Pp
 Further
