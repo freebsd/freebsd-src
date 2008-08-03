@@ -636,6 +636,7 @@ extern	struct mtx ifnet_lock;
     mtx_init(&ifnet_lock, "ifnet", NULL, MTX_DEF | MTX_RECURSE)
 #define	IFNET_WLOCK()		mtx_lock(&ifnet_lock)
 #define	IFNET_WUNLOCK()		mtx_unlock(&ifnet_lock)
+#define	IFNET_WLOCK_ASSERT()	mtx_assert(&ifnet_lock, MA_OWNED)
 #define	IFNET_RLOCK()		IFNET_WLOCK()
 #define	IFNET_RUNLOCK()		IFNET_WUNLOCK()
 
@@ -644,17 +645,16 @@ struct ifindex_entry {
 	struct cdev *ife_dev;
 };
 
-#define ifnet_byindex(idx)	ifindex_table[(idx)].ife_ifnet
+struct ifnet	*ifnet_byindex(u_short idx);
 /*
  * Given the index, ifaddr_byindex() returns the one and only
  * link-level ifaddr for the interface. You are not supposed to use
  * it to traverse the list of addresses associated to the interface.
  */
-#define ifaddr_byindex(idx)	ifnet_byindex(idx)->if_addr
-#define ifdev_byindex(idx)	ifindex_table[(idx)].ife_dev
+struct ifaddr	*ifaddr_byindex(u_short idx);
+struct cdev	*ifdev_byindex(u_short idx);
 
 extern	struct ifnethead ifnet;
-extern	struct ifindex_entry *ifindex_table;
 extern	int ifqmaxlen;
 extern	struct ifnet *loif;	/* first loopback interface */
 extern	int if_index;
