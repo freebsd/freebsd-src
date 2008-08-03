@@ -648,7 +648,6 @@ options 	NETGRAPH_ATMLLC
 options 	NETGRAPH_ATM_ATMPIF
 options 	NETGRAPH_BLUETOOTH		# ng_bluetooth(4)
 options 	NETGRAPH_BLUETOOTH_BT3C		# ng_bt3c(4)
-options 	NETGRAPH_BLUETOOTH_H4		# ng_h4(4)
 options 	NETGRAPH_BLUETOOTH_HCI		# ng_hci(4)
 options 	NETGRAPH_BLUETOOTH_L2CAP	# ng_l2cap(4)
 options 	NETGRAPH_BLUETOOTH_SOCKET	# ng_btsocket(4)
@@ -691,7 +690,6 @@ options 	NETGRAPH_SPPP
 options 	NETGRAPH_TAG
 options 	NETGRAPH_TCPMSS
 options 	NETGRAPH_TEE
-options 	NETGRAPH_TTY
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
 
@@ -788,7 +786,6 @@ device		disc			#Discard device based on loopback
 device		edsc			#Ethernet discard device
 device		tap			#Virtual Ethernet driver
 device		tun			#Tunnel driver (ppp(8), nos-tun(8))
-device		sl			#Serial Line IP
 device		gre			#IP over IP tunneling
 device		if_bridge		#Bridge interface
 device		pf			#PF OpenBSD packet-filter firewall
@@ -796,10 +793,6 @@ device		pflog			#logging support interface for PF
 device		pfsync			#synchronization interface for PF
 device		carp			#Common Address Redundancy Protocol
 device		enc			#IPsec interface
-device		ppp			#Point-to-point protocol
-options 	PPP_BSDCOMP		#PPP BSD-compress support
-options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
-options 	PPP_FILTER		#enable bpf filtering (needs bpf)
 device		lagg			#Link aggregation interface
 
 device		ef			# Multiple ethernet frames support
@@ -1289,7 +1282,6 @@ options 	SES_ENABLE_PASSTHROUGH
 device		pty		#Pseudo ttys
 device		nmdm		#back-to-back tty devices
 device		md		#Memory/malloc disk
-device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd		#Concatenated disk driver
 device		firmware	#firmware(9) support
 
@@ -2152,18 +2144,6 @@ hint.scd.0.port="0x230"
 device		joy			# PnP aware, hints for non-PnP only
 hint.joy.0.at="isa"
 hint.joy.0.port="0x201"
-device		rc
-hint.rc.0.at="isa"
-hint.rc.0.port="0x220"
-hint.rc.0.irq="12"
-device		rp
-hint.rp.0.at="isa"
-hint.rp.0.port="0x280"
-device		si
-options 	SI_DEBUG
-hint.si.0.at="isa"
-hint.si.0.maddr="0xd0000"
-hint.si.0.irq="12"
 device		cmx
 
 #
@@ -2436,8 +2416,6 @@ device		ucom
 device		uark
 # USB support for Belkin F5U103 and compatible serial adapters
 device		ubsa
-# USB support for BWCT console serial adapters
-device		ubser
 # USB support for serial adapters based on the FT8U100AX and FT8U232AM
 device		uftdi
 # USB support for some Windows CE based serial communication.
