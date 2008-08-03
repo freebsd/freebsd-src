@@ -84,12 +84,12 @@ __ieee754_asin(double x)
 	} else if (ix<0x3fe00000) {	/* |x|<0.5 */
 	    if(ix<0x3e400000) {		/* if |x| < 2**-27 */
 		if(huge+x>one) return x;/* return x with inexact if x!=0*/
-	    } else 
-		t = x*x;
-		p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
-		q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
-		w = p/q;
-		return x+x*w;
+	    }
+	    t = x*x;
+	    p = t*(pS0+t*(pS1+t*(pS2+t*(pS3+t*(pS4+t*pS5)))));
+	    q = one+t*(qS1+t*(qS2+t*(qS3+t*qS4)));
+	    w = p/q;
+	    return x+x*w;
 	}
 	/* 1> |x|>= 0.5 */
 	w = one-fabs(x);
