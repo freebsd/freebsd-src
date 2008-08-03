@@ -86,6 +86,7 @@ static void	amr_cam_action(struct cam_sim *sim, union ccb *ccb);
 static void	amr_cam_poll(struct cam_sim *sim);
 static void	amr_cam_complete(struct amr_command *ac);
 
+MALLOC_DEFINE(M_AMRCAM, "amrcam", "AMR CAM memory");
 
 /***********************************************************************
  * Enqueue/dequeue functions
@@ -406,7 +407,7 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 
 	/* construct passthrough */
 	if (sc->support_ext_cdb ) {
-		if ((aep = malloc(sizeof(*aep), M_DEVBUF, M_NOWAIT | M_ZERO))
+		if ((aep = malloc(sizeof(*aep), M_AMRCAM, M_NOWAIT | M_ZERO))
 		    == NULL) {
 			error = ENOMEM;
 			goto out;
@@ -436,7 +437,7 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 		    aep->ap_scsi_id, aep->ap_logical_drive_no);
 
 	} else {
-		if ((ap = malloc(sizeof(*ap), M_DEVBUF, M_NOWAIT | M_ZERO))
+		if ((ap = malloc(sizeof(*ap), M_AMRCAM, M_NOWAIT | M_ZERO))
 		    == NULL) {
 			error = ENOMEM;
 			goto out;
@@ -498,9 +499,9 @@ out:
 		if (ac != NULL)
 			amr_releasecmd(ac);
 		if (ap != NULL)
-			free(ap, M_DEVBUF);
+			free(ap, M_AMRCAM);
 		if (aep != NULL)
-			free(aep, M_DEVBUF);
+			free(aep, M_AMRCAM);
 		if (csio != NULL)
 			/* put it back and try again later */
 			amr_requeue_ccb(sc, (union ccb *)csio);
@@ -595,9 +596,9 @@ amr_cam_complete(struct amr_command *ac)
 
 out:
 	if (ac->ac_length == sizeof(*ap))
-		free(ap, M_DEVBUF);
+		free(ap, M_AMRCAM);
 	else
-		free(aep, M_DEVBUF);
+		free(aep, M_AMRCAM);
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 		debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr,
 		    " ");
