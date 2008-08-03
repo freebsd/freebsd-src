@@ -396,6 +396,7 @@ showrawquotas(type, id, qup)
 	u_long id;
 	struct quotause *qup;
 {
+	time_t tt;
 	printf("Raw %s quota information for id %lu on %s\n",
 	    type == USRQUOTA ? "user" : "group", id, qup->fsname);
 	printf("block hard limit:     %ju\n", (uintmax_t)qup->dqblk.dqb_bhardlimit);
@@ -405,14 +406,16 @@ showrawquotas(type, id, qup)
 	printf("i-node soft limit:    %ju\n", (uintmax_t)qup->dqblk.dqb_isoftlimit);
 	printf("current i-node count: %ju\n", (uintmax_t)qup->dqblk.dqb_curinodes);
 	printf("block grace time:     %jd", (intmax_t)qup->dqblk.dqb_btime);
-	if (qup->dqblk.dqb_btime != 0)
-		printf(" %s", ctime(&qup->dqblk.dqb_btime));
-	else
+	if (qup->dqblk.dqb_btime != 0) {
+		tt = qup->dqblk.dqb_btime;
+		printf(" %s", ctime(&tt));
+	} else
 		printf("\n");
 	printf("i-node grace time:    %jd", (intmax_t)qup->dqblk.dqb_itime);
-	if (qup->dqblk.dqb_itime != 0)
-		printf(" %s", ctime(&qup->dqblk.dqb_itime));
-	else
+	if (qup->dqblk.dqb_itime != 0) {
+		tt = qup->dqblk.dqb_itime;
+		printf(" %s", ctime(&tt));
+	} else
 		printf("\n");
 }
 
