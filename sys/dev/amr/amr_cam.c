@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 static void	amr_cam_action(struct cam_sim *sim, union ccb *ccb);
 static void	amr_cam_poll(struct cam_sim *sim);
 static void	amr_cam_complete(struct amr_command *ac);
-static void	amr_cam_complete_extcdb(struct amr_command *ac);
 
 
 /***********************************************************************
@@ -483,15 +482,14 @@ amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 		ac->ac_flags |= AMR_CMD_CCB_DATAOUT;
 
 	ac->ac_private = csio;
+	ac->ac_complete = amr_cam_complete;
 	if ( sc->support_ext_cdb ) {
 		ac->ac_data = aep;
 		ac->ac_length = sizeof(*aep);
-		ac->ac_complete = amr_cam_complete_extcdb;
 		ac->ac_mailbox.mb_command = AMR_CMD_EXTPASS;
 	} else {
 		ac->ac_data = ap;
 		ac->ac_length = sizeof(*ap);
-		ac->ac_complete = amr_cam_complete;
 		ac->ac_mailbox.mb_command = AMR_CMD_PASS;
 	}
 
@@ -528,81 +526,23 @@ static void
 amr_cam_complete(struct amr_command *ac)
 {
 	struct amr_passthrough		*ap;
-	struct ccb_scsiio		*csio;
-	struct scsi_inquiry_data	*inq;
-
-	ap = (struct amr_passthrough *)ac->ac_data;
-	csio = (struct ccb_scsiio *)ac->ac_private;
-	inq = (struct scsi_inquiry_data *)csio->data_ptr;
-
-	/* XXX note that we're ignoring ac->ac_status - good idea? */
-
-	debug(1, "status 0x%x  AP scsi_status 0x%x", ac->ac_status,
-	    ap->ap_scsi_status);
-
-	/*
-	 * Hide disks from CAM so that they're not picked up and treated as
-	 * 'normal' disks.
-	 *
-	 * If the configuration provides a mechanism to mark a disk a "not
-	 * managed", we could add handling for that to allow disks to be
-	 * selectively visible.
-	 */
-
-	/* handle passthrough SCSI status */
-	switch(ap->ap_scsi_status) {
-	case 0:	/* completed OK */
-		if ((ap->ap_cdb[0] == INQUIRY) && (SID_TYPE(inq) == T_DIRECT))
-			inq->device = (inq->device & 0xe0) | T_NODEVICE;
-		csio->ccb_h.status = CAM_REQ_CMP;
-		break;
-
-	case 0x02:
-		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-		csio->scsi_status = SCSI_STATUS_CHECK_COND;
-		bcopy(ap->ap_request_sense_area, &csio->sense_data,
-		    AMR_MAX_REQ_SENSE_LEN);
-		csio->sense_len = AMR_MAX_REQ_SENSE_LEN;
-		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
-		break;
-
-	case 0x08:
-		csio->ccb_h.status = CAM_SCSI_BUSY;
-		break;
-
-	case 0xf0:
-	case 0xf4:
-	default:
-		csio->ccb_h.status = CAM_REQ_CMP_ERR;
-		break;
-	}
-
-	free(ap, M_DEVBUF);
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
-		debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr,
-		    " ");
-	xpt_done((union ccb *)csio);
-	mtx_assert(&ac->ac_sc->amr_list_lock, MA_OWNED);
-	amr_releasecmd(ac);
-}
-
-/***********************************************************************
- * Handle completion of a command submitted via CAM.
- * Completion for extended cdb
- */
-static void
-amr_cam_complete_extcdb(struct amr_command *ac)
-{
 	struct amr_ext_passthrough	*aep;
 	struct ccb_scsiio		*csio;
 	struct scsi_inquiry_data	*inq;
+	int				scsi_status, cdb0;
 
+	ap = (struct amr_passthrough *)ac->ac_data;
 	aep = (struct amr_ext_passthrough *)ac->ac_data;
 	csio = (struct ccb_scsiio *)ac->ac_private;
 	inq = (struct scsi_inquiry_data *)csio->data_ptr;
 
-	debug(1, "status 0x%x  AEP scsi_status 0x%x", ac->ac_status,
-	    aep->ap_scsi_status);
+	if (ac->ac_length == sizeof(*ap))
+		scsi_status = ap->ap_scsi_status;
+	else
+		scsi_status = aep->ap_scsi_status;
+	debug(1, "status 0x%x  AP scsi_status 0x%x", ac->ac_status,
+	    scsi_status);
+
 	if (ac->ac_status != AMR_STATUS_SUCCESS) {
 		csio->ccb_h.status = CAM_REQ_CMP_ERR;
 		goto out;
@@ -618,9 +558,13 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 	 */
 
 	/* handle passthrough SCSI status */
-	switch(aep->ap_scsi_status) {
+	switch(scsi_status) {
 	case 0:	/* completed OK */
-		if ((aep->ap_cdb[0] == INQUIRY) && (SID_TYPE(inq) == T_DIRECT))
+		if (ac->ac_length == sizeof(*ap))
+			cdb0 = ap->ap_cdb[0];
+		else
+			cdb0 = aep->ap_cdb[0];
+		if ((cdb0 == INQUIRY) && (SID_TYPE(inq) == T_DIRECT))
 			inq->device = (inq->device & 0xe0) | T_NODEVICE;
 		csio->ccb_h.status = CAM_REQ_CMP;
 		break;
@@ -628,8 +572,12 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 	case 0x02:
 		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 		csio->scsi_status = SCSI_STATUS_CHECK_COND;
-		bcopy(aep->ap_request_sense_area, &csio->sense_data,
-		    AMR_MAX_REQ_SENSE_LEN);
+		if (ac->ac_length == sizeof(*ap))
+			bcopy(ap->ap_request_sense_area, &csio->sense_data,
+			    AMR_MAX_REQ_SENSE_LEN);
+		else
+			bcopy(aep->ap_request_sense_area, &csio->sense_data,
+			    AMR_MAX_REQ_SENSE_LEN);
 		csio->sense_len = AMR_MAX_REQ_SENSE_LEN;
 		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
 		break;
@@ -640,17 +588,22 @@ amr_cam_complete_extcdb(struct amr_command *ac)
 
 	case 0xf0:
 	case 0xf4:
-		default:
+	default:
 		csio->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}
 
 out:
-	free(aep, M_DEVBUF);
+	if (ac->ac_length == sizeof(*ap))
+		free(ap, M_DEVBUF);
+	else
+		free(aep, M_DEVBUF);
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
 		debug(2, "%*D\n", imin(csio->dxfer_len, 16), csio->data_ptr,
 		    " ");
+
+	mtx_unlock(&ac->ac_sc->amr_list_lock);
 	xpt_done((union ccb *)csio);
-	mtx_assert(&ac->ac_sc->amr_list_lock, MA_OWNED);
 	amr_releasecmd(ac);
+	mtx_unlock(&ac->ac_sc->amr_list_lock);
 }
