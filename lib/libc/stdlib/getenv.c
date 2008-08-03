@@ -190,10 +190,6 @@ __findenv_environ(const char *name, size_t nameLen)
 {
 	int envNdx;
 
-	/* Check for non-existant environment. */
-	if (environ == NULL)
-		return (NULL);
-
 	/* Find variable within environ. */
 	for (envNdx = 0; environ[envNdx] != NULL; envNdx++)
 		if (strncmpeq(environ[envNdx], name, nameLen))
@@ -430,14 +426,18 @@ getenv(const char *name)
 	}
 
 	/*
-	 * Find environment variable via environ if no changes have been made
-	 * via a *env() call or environ has been replaced or cleared by a
-	 * running program, otherwise, use the rebuilt environment.
+	 * An empty environment (environ or its first value) regardless if
+	 * environ has been copied before will return a NULL.
+	 *
+	 * If the environment is not empty, find an environment variable via
+	 * environ if environ has not been copied via an *env() call or been
+	 * replaced by a running program, otherwise, use the rebuilt
+	 * environment.
 	 */
-	if (envVars == NULL || environ != intEnviron)
-		return (__findenv_environ(name, nameLen));
-	else if (environ[0] == NULL)
+	if (environ == NULL || environ[0] == NULL)
 		return (NULL);
+	else if (envVars == NULL || environ != intEnviron)
+		return (__findenv_environ(name, nameLen));
 	else {
 		envNdx = envVarsTotal - 1;
 		return (__findenv(name, nameLen, &envNdx, true));
@@ -537,10 +537,12 @@ __merge_environ(void)
 	char *equals;
 
 	/*
-	 * Internally-built environ has been replaced or cleared.  clean up
-	 * everything.
+	 * Internally-built environ has been replaced or cleared (detected by
+	 * using the count of active variables against a NULL as the first value
+	 * in environ).  Clean up everything.
 	 */
-	if (envVarsTotal > 0 && (environ != intEnviron || environ[0] == NULL)) {
+	if (intEnviron != NULL && (environ != intEnviron || (envActive > 0 &&
+	    environ[0] == NULL))) {
 		/* Deactivate all environment variables. */
 		if (envActive > 0) {
 			origEnviron = NULL;
