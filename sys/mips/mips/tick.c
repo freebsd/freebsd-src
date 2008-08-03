@@ -186,7 +186,8 @@ sysctl_machdep_counter_freq(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, counter_freq, CTLTYPE_QUAD | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_machdep_counter_freq, "IU", "");
+    0, sizeof(u_int), sysctl_machdep_counter_freq, "IU",
+    "Timecounter frequency in Hz");
 
 static unsigned
 counter_get_timecount(struct timecounter *tc)
