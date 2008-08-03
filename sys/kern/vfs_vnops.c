@@ -736,11 +736,6 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 		break;
 	case VLNK:
 		mode |= S_IFLNK;
-		/* This is a cosmetic change, symlinks do not have a mode. */
-		if (vp->v_mount->mnt_flag & MNT_NOSYMFOLLOW)
-			sb->st_mode &= ~ACCESSPERMS;	/* 0000 */
-		else
-			sb->st_mode |= ACCESSPERMS;	/* 0777 */
 		break;
 	case VSOCK:
 		mode |= S_IFSOCK;
