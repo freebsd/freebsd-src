@@ -84,7 +84,7 @@ __ieee754_atan2f(float y, float x)
 	    z=pi_o_2+(float)0.5*pi_lo;
 	    m&=1;
 	}
-	else if(hx<0&&k<-26) z=0.0; 	/* 0 > |y|/x > -2**-26 */
+	else if(k<-26&&hx<0) z=0.0; 	/* 0 > |y|/x > -2**-26 */
 	else z=atanf(fabsf(y/x));	/* safe to do y/x */
 	switch (m) {
 	    case 0: return       z  ;	/* atan(+,+) */
