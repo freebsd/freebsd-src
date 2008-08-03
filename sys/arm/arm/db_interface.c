@@ -294,7 +294,7 @@ db_fetch_reg(int reg)
 u_int
 branch_taken(u_int insn, db_addr_t pc)
 {
-	u_int addr, nregs;
+	u_int addr, nregs, offset = 0;
 
 	switch ((insn >> 24) & 0xf) {
 	case 0xa:	/* b ... */
@@ -310,6 +310,17 @@ branch_taken(u_int insn, db_addr_t pc)
 		return (addr);
 	case 0x1:	/* mov pc, reg */
 		addr = db_fetch_reg(insn & 0xf);
+		return (addr);
+	case 0x5:	/* ldr pc, [reg] */
+		addr = db_fetch_reg((insn >> 16) & 0xf);
+		/* ldr pc, [reg, #offset] */
+		if (insn & (1 << 24))
+			offset = insn & 0xfff;
+		if (insn & 0x00800000)
+			addr += offset;
+		else
+			addr -= offset;
+		db_read_bytes(addr, 4, (char *)&addr);
 		return (addr);
 	case 0x8:	/* ldmxx reg, {..., pc} */
 	case 0x9:
