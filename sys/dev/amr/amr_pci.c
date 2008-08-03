@@ -86,10 +86,10 @@ static int              amr_pci_suspend(device_t dev);
 static int              amr_pci_resume(device_t dev);
 static void		amr_pci_intr(void *arg);
 static void		amr_pci_free(struct amr_softc *sc);
-static void		amr_sglist_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
+static void		amr_sglist_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
 static int		amr_sglist_map(struct amr_softc *sc);
-static void		amr_setup_mbox_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error);
 static int		amr_setup_mbox(struct amr_softc *sc);
+static int		amr_ccb_map(struct amr_softc *sc);
 
 static u_int amr_force_sg32 = 0;
 TUNABLE_INT("hw.amr.force_sg32", &amr_force_sg32);
@@ -303,7 +303,7 @@ amr_pci_attach(device_t dev)
 			   NULL, NULL,			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   MAXBSIZE,			/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */
 			   &sc->amr_buffer_dmat)) {
@@ -318,7 +318,7 @@ amr_pci_attach(device_t dev)
 			   NULL, NULL,			/* filter, filterarg */
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   MAXBSIZE,			/* maxsegsize */
-			   BUS_DMA_ALLOCNOW,		/* flags */
+			   0,		/* flags */
 			   busdma_lock_mutex,		/* lockfunc */
 			   &sc->amr_list_lock,		/* lockarg */
 			   &sc->amr_buffer64_dmat)) {
@@ -343,8 +343,12 @@ amr_pci_attach(device_t dev)
      */
     if (amr_sglist_map(sc))
 	goto out;
-
     debug(2, "s/g list mapped");
+
+    if (amr_ccb_map(sc))
+	goto out;
+    debug(2, "ccb mapped");
+
 
     /*
      * Do bus-independant initialisation, bring controller online.
@@ -469,7 +473,7 @@ amr_pci_intr(void *arg)
 {
     struct amr_softc	*sc = (struct amr_softc *)arg;
 
-    debug_called(2);
+    debug_called(3);
 
     /* collect finished commands, queue anything waiting */
     amr_done(sc);
@@ -494,6 +498,12 @@ amr_pci_free(struct amr_softc *sc)
 	bus_dma_tag_destroy(sc->amr_buffer_dmat);
     if (sc->amr_buffer64_dmat)
 	bus_dma_tag_destroy(sc->amr_buffer64_dmat);
+
+    /* free and destroy DMA memory and tag for passthrough pool */
+    if (sc->amr_ccb)
+	bus_dmamem_free(sc->amr_ccb_dmat, sc->amr_ccb, sc->amr_ccb_dmamap);
+    if (sc->amr_ccb_dmat)
+	bus_dma_tag_destroy(sc->amr_ccb_dmat);
 
     /* free and destroy DMA memory and tag for s/g lists */
     if (sc->amr_sgtable)
@@ -530,14 +540,14 @@ amr_pci_free(struct amr_softc *sc)
  * Allocate and map the scatter/gather table in bus space.
  */
 static void
-amr_sglist_map_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+amr_sglist_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-    struct amr_softc	*sc = (struct amr_softc *)arg;
+    uint32_t *addr;
 
     debug_called(1);
 
-    /* save base of s/g table's address in bus space */
-    sc->amr_sgbusaddr = segs->ds_addr;
+    addr = arg;
+    *addr = segs[0].ds_addr;
 }
 
 static int
@@ -562,7 +572,7 @@ amr_sglist_map(struct amr_softc *sc)
 	segsize = sizeof(struct amr_sgentry) * AMR_NSEG * AMR_MAXCMD;
 
     error = bus_dma_tag_create(sc->amr_parent_dmat, 	/* parent */
-			       1, 0, 			/* alignment,boundary */
+			       512, 0, 			/* alignment,boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR, 	/* highaddr */
 			       NULL, NULL, 		/* filter, filterarg */
@@ -597,7 +607,7 @@ retry:
 	device_printf(sc->amr_dev, "can't allocate s/g table\n");
 	return(ENOMEM);
     }
-    bus_dmamap_load(sc->amr_sg_dmat, sc->amr_sg_dmamap, p, segsize, amr_sglist_map_helper, sc, 0);
+    bus_dmamap_load(sc->amr_sg_dmat, sc->amr_sg_dmamap, p, segsize, amr_sglist_helper, &sc->amr_sgbusaddr, 0);
     if (sc->amr_sgbusaddr < 0x2000) {
 	debug(1, "s/g table too low (0x%x), reallocating\n", sc->amr_sgbusaddr);
 	goto retry;
@@ -613,25 +623,14 @@ retry:
 /********************************************************************************
  * Allocate and set up mailbox areas for the controller (sc)
  *
- * The basic mailbox structure should be 16-byte aligned.  This means that the
- * mailbox64 structure has 4 bytes hanging off the bottom.
+ * The basic mailbox structure should be 16-byte aligned.
  */
-static void
-amr_setup_mbox_helper(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-    struct amr_softc	*sc = (struct amr_softc *)arg;
-    
-    debug_called(1);
-
-    /* save phsyical base of the basic mailbox structure */
-    sc->amr_mailboxphys = segs->ds_addr + offsetof(struct amr_mailbox64, mb);
-}
-
 static int
 amr_setup_mbox(struct amr_softc *sc)
 {
     int		error;
     void	*p;
+    uint32_t	baddr;
     
     debug_called(1);
 
@@ -666,13 +665,55 @@ amr_setup_mbox(struct amr_softc *sc)
 	return(ENOMEM);
     }
     bus_dmamap_load(sc->amr_mailbox_dmat, sc->amr_mailbox_dmamap, p,
-		    sizeof(struct amr_mailbox64), amr_setup_mbox_helper, sc, 0);
+		    sizeof(struct amr_mailbox64), amr_sglist_helper, &baddr, 0);
     /*
      * Conventional mailbox is inside the mailbox64 region.
      */
+    /* save physical base of the basic mailbox structure */
+    sc->amr_mailboxphys = baddr + offsetof(struct amr_mailbox64, mb);
     bzero(p, sizeof(struct amr_mailbox64));
     sc->amr_mailbox64 = (struct amr_mailbox64 *)p;
     sc->amr_mailbox = &sc->amr_mailbox64->mb;
 
     return(0);
 }
+
+static int
+amr_ccb_map(struct amr_softc *sc)
+{
+    int		ccbsize, error;
+
+    /*
+     * Passthrough and Extended passthrough structures will share the same
+     * memory.
+     */
+    ccbsize = sizeof(union amr_ccb) * AMR_MAXCMD;
+    error = bus_dma_tag_create(sc->amr_parent_dmat,	/* parent */
+				128, 0,			/* alignment,boundary */
+				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
+				BUS_SPACE_MAXADDR,	/* highaddr */
+				NULL, NULL,		/* filter, filterarg */
+				ccbsize,		/* maxsize */
+				1,			/* nsegments */
+				ccbsize,		/* maxsegsize */
+				0,			/* flags */
+				NULL, NULL,		/* lockfunc, lockarg */
+				&sc->amr_ccb_dmat);
+    if (error != 0) {
+	device_printf(sc->amr_dev, "can't allocate ccb tag\n");
+	return (ENOMEM);
+    }
+
+    error = bus_dmamem_alloc(sc->amr_ccb_dmat, (void **)&sc->amr_ccb,
+			     BUS_DMA_NOWAIT, &sc->amr_ccb_dmamap);
+    if (error) {
+	device_printf(sc->amr_dev, "can't allocate ccb memory\n");
+	return (ENOMEM);
+    }
+    bus_dmamap_load(sc->amr_ccb_dmat, sc->amr_ccb_dmamap, sc->amr_ccb,
+		    ccbsize, amr_sglist_helper, &sc->amr_ccb_busaddr, 0);
+    bzero(sc->amr_ccb, ccbsize);
+
+    return (0);
+}
+
