@@ -183,9 +183,9 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_stats_interval,
 
 #if defined(NO_SWAPPING)
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
-	CTLFLAG_RD, &vm_swap_enabled, 0, "");
+	CTLFLAG_RD, &vm_swap_enabled, 0, "Enable entire process swapout");
 SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled,
-	CTLFLAG_RD, &vm_swap_idle_enabled, 0, "");
+	CTLFLAG_RD, &vm_swap_idle_enabled, 0, "Allow swapout on idle criteria");
 #else
 SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
 	CTLFLAG_RW, &vm_swap_enabled, 0, "Enable entire process swapout");

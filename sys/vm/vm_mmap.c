@@ -93,7 +93,8 @@ struct sbrk_args {
 #endif
 
 static int max_proc_mmap;
-SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0,
+    "Maximum number of memory-mapped files per process");
 
 /*
  * Set the maximum number of vm_map_entry structures per process.  Roughly
