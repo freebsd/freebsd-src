@@ -297,6 +297,41 @@ branch_taken(u_int insn, db_addr_t pc)
 	u_int addr, nregs, offset = 0;
 
 	switch ((insn >> 24) & 0xf) {
+	case 0x2:	/* add pc, reg1, #value */
+	case 0x0:	/* add pc, reg1, reg2, lsl #offset */
+		addr = db_fetch_reg((insn >> 16) & 0xf);
+		if (((insn >> 16) & 0xf) == 15)
+			addr += 8;
+		if (insn & 0x0200000) {
+			offset = (insn >> 7) & 0x1e;
+			offset = (insn & 0xff) << (32 - offset) |
+			    (insn & 0xff) >> offset;
+		} else {
+
+			offset = db_fetch_reg(insn & 0x0f);
+			if ((insn & 0x0000ff0) != 0x00000000) {
+				if (insn & 0x10)
+					nregs = db_fetch_reg((insn >> 8) & 0xf);
+				else
+					nregs = (insn >> 7) & 0x1f;
+				switch ((insn >> 5) & 3) {
+				case 0:
+					/* lsl */
+					offset = offset << nregs;
+					break;
+				case 1:
+					/* lsr */
+					offset = offset >> nregs;
+					break;
+				default:
+					break; /* XXX */
+				}	    
+					
+			}
+			return (addr + offset);
+				
+		}
+		
 	case 0xa:	/* b ... */
 	case 0xb:	/* bl ... */
 		addr = ((insn << 2) & 0x03ffffff);
@@ -311,6 +346,7 @@ branch_taken(u_int insn, db_addr_t pc)
 	case 0x1:	/* mov pc, reg */
 		addr = db_fetch_reg(insn & 0xf);
 		return (addr);
+	case 0x4:
 	case 0x5:	/* ldr pc, [reg] */
 		addr = db_fetch_reg((insn >> 16) & 0xf);
 		/* ldr pc, [reg, #offset] */
