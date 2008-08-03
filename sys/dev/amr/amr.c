@@ -2082,8 +2082,11 @@ amr_quartz_submit_command(struct amr_command *ac)
     int			i = 0;
   
     mtx_lock(&sc->amr_hw_lock);
-    while (sc->amr_mailbox->mb_busy && (i++ < 10))
+    while (sc->amr_mailbox->mb_busy && (i++ < 10)) {
         DELAY(1);
+	/* This is a no-op read that flushes pending mailbox updates */
+	AMR_QGET_ODB(sc);
+    }
     if (sc->amr_mailbox->mb_busy) {
 	mtx_unlock(&sc->amr_hw_lock);
 	if (ac->ac_retries++ > 1000) {
