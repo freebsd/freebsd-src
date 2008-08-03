@@ -63,6 +63,8 @@ struct taskqueue {
 };
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
+#define	TQ_FLAGS_BLOCKED	(1 << 1)
+#define	TQ_FLAGS_PENDING	(1 << 2)
 
 static __inline void
 TQ_LOCK(struct taskqueue *tq)
@@ -224,11 +226,36 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
-	queue->tq_enqueue(queue->tq_context);
+	if ((queue->tq_flags & TQ_FLAGS_BLOCKED) == 0)
+		queue->tq_enqueue(queue->tq_context);
+	else
+		queue->tq_flags |= TQ_FLAGS_PENDING;
 
 	TQ_UNLOCK(queue);
 
 	return 0;
+}
+
+void
+taskqueue_block(struct taskqueue *queue)
+{
+
+	TQ_LOCK(queue);
+	queue->tq_flags |= TQ_FLAGS_BLOCKED;
+	TQ_UNLOCK(queue);
+}
+
+void
+taskqueue_unblock(struct taskqueue *queue)
+{
+
+	TQ_LOCK(queue);
+	queue->tq_flags &= ~TQ_FLAGS_BLOCKED;
+	if (queue->tq_flags & TQ_FLAGS_PENDING) {
+		queue->tq_flags &= ~TQ_FLAGS_PENDING;
+		queue->tq_enqueue(queue->tq_context);
+	}
+	TQ_UNLOCK(queue);
 }
 
 void
