@@ -38,10 +38,11 @@ __ieee754_acosf(float x)
 	int32_t hx,ix;
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
-	if(ix==0x3f800000) {		/* |x|==1 */
-	    if(hx>0) return 0.0;	/* acos(1) = 0  */
-	    else return pi+(float)2.0*pio2_lo;	/* acos(-1)= pi */
-	} else if(ix>0x3f800000) {	/* |x| >= 1 */
+	if(ix>=0x3f800000) {		/* |x| >= 1 */
+	    if(ix==0x3f800000) {	/* |x| == 1 */
+		if(hx>0) return 0.0;	/* acos(1) = 0 */
+		else return pi+(float)2.0*pio2_lo;	/* acos(-1)= pi */
+	    }
 	    return (x-x)/(x-x);		/* acos(|x|>1) is NaN */
 	}
 	if(ix<0x3f000000) {	/* |x| < 0.5 */
@@ -55,14 +56,14 @@ __ieee754_acosf(float x)
 	    z = (one+x)*(float)0.5;
 	    p = z*(pS0+z*(pS1+z*pS2));
 	    q = one+z*qS1;
-	    s = __ieee754_sqrtf(z);
+	    s = sqrtf(z);
 	    r = p/q;
 	    w = r*s-pio2_lo;
 	    return pi - (float)2.0*(s+w);
 	} else {			/* x > 0.5 */
 	    int32_t idf;
 	    z = (one-x)*(float)0.5;
-	    s = __ieee754_sqrtf(z);
+	    s = sqrtf(z);
 	    df = s;
 	    GET_FLOAT_WORD(idf,df);
 	    SET_FLOAT_WORD(df,idf&0xfffff000);
