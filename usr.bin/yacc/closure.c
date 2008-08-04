@@ -142,7 +142,6 @@ set_first_derives()
 	    }
 	}
 
-	vrow += varsetsize;
 	rrow += rulesetsize;
     }
 
@@ -173,7 +172,6 @@ int n;
     int itemno;
 
     rulesetsize = WORDSIZE(nrules);
-    rsp = ruleset;
     rsend = ruleset + rulesetsize;
     for (rsp = ruleset; rsp < rsend; rsp++)
 	*rsp = 0;
