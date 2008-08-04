@@ -106,9 +106,11 @@ ixpiic_getscl(device_t dev)
 	struct ixpiic_softc *sc = ixpiic_sc;
 	uint32_t reg;
 
+	mtx_lock(&Giant);
 	GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
 
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR);
+	mtx_unlock(&Giant);
 	return (reg & GPIO_I2C_SCL_BIT);
 }
 
@@ -118,9 +120,11 @@ ixpiic_getsda(device_t dev)
 	struct ixpiic_softc *sc = ixpiic_sc;
 	uint32_t reg;
 
+	mtx_lock(&Giant);
 	GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
 
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR);
+	mtx_unlock(&Giant);
 	return (reg & GPIO_I2C_SDA_BIT);
 }
 
@@ -129,11 +133,13 @@ ixpiic_setsda(device_t dev, char val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
 
+	mtx_lock(&Giant);
 	GPIO_CONF_CLR(sc, IXP425_GPIO_GPOUTR, GPIO_I2C_SDA_BIT);
 	if (val)
 		GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
 	else
 		GPIO_CONF_CLR(sc, IXP425_GPIO_GPOER, GPIO_I2C_SDA_BIT);
+	mtx_unlock(&Giant);
 	DELAY(I2C_DELAY);
 }
 
@@ -142,11 +148,13 @@ ixpiic_setscl(device_t dev, char val)
 {
 	struct ixpiic_softc *sc = ixpiic_sc;
 
+	mtx_lock(&Giant);
 	GPIO_CONF_CLR(sc, IXP425_GPIO_GPOUTR, GPIO_I2C_SCL_BIT);
 	if (val)
 		GPIO_CONF_SET(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
 	else
 		GPIO_CONF_CLR(sc, IXP425_GPIO_GPOER, GPIO_I2C_SCL_BIT);
+	mtx_unlock(&Giant);
 	DELAY(I2C_DELAY);
 }
 
@@ -184,3 +192,4 @@ static driver_t ixpiic_driver = {
 static devclass_t ixpiic_devclass;
 
 DRIVER_MODULE(ixpiic, ixp, ixpiic_driver, ixpiic_devclass, 0, 0);
+DRIVER_MODULE(iicbb, ixpiic, iicbb_driver, iicbb_devclass, 0, 0);

@@ -356,6 +356,7 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	return (0);
 }
 
+DRIVER_MODULE(iicbb, bktr, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(smbus, bktr, smbus_driver, smbus_devclass, 0, 0);
 
 #endif /* defined(BKTR_USE_FREEBSD_SMBUS) */

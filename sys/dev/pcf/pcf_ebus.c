@@ -64,11 +64,13 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
+#include <sys/systm.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -142,7 +144,7 @@ pcf_ebus_attach(device_t dev)
 	uint64_t own_addr;
 
 	sc = DEVTOSOFTC(dev);
-	bzero(sc, sizeof(struct pcf_softc));
+	mtx_init(&sc->pcf_lock, device_get_nameunit(dev), "pcf", MTX_DEF);
 
 	/* get OFW node of the pcf */
 	if ((node = ofw_bus_get_node(dev)) <= 0) {
@@ -157,8 +159,6 @@ pcf_ebus_attach(device_t dev)
 		device_printf(dev, "cannot reserve I/O port range\n");
 		goto error;
 	}
-	sc->bt_ioport = rman_get_bustag(sc->res_ioport);
-	sc->bh_ioport = rman_get_bushandle(sc->res_ioport);
 
 	sc->pcf_flags = device_get_flags(dev);
 
@@ -219,6 +219,7 @@ error:
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 		    sc->res_ioport);
 	}
+	mtx_destroy(&sc->pcf_lock);
 	return (rv);
 }
 
@@ -245,6 +246,7 @@ pcf_ebus_detach(device_t dev)
 
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->rid_ioport,
 	    sc->res_ioport);
+	mtx_destroy(&sc->pcf_lock);
 
 	return (0);
 }

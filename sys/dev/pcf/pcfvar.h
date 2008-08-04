@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef __PCFVAR_H__
+#define	__PCFVAR_H__
+
 #define IO_PCFSIZE	2
 
 #define TIMEOUT	9999					/* XXX */
@@ -63,18 +66,21 @@ struct pcf_softc {
 	int	pcf_slave_mode;		/* receiver or transmitter */
 	int	pcf_started;		/* 1 if start condition sent */
 
+	struct mtx pcf_lock;
 	device_t iicbus;		/* the corresponding iicbus */
 
 	/* Resource handling stuff. */
 	struct resource		*res_ioport;
 	int			rid_ioport;
-	bus_space_tag_t		bt_ioport;
-	bus_space_handle_t	bh_ioport;
 	struct resource		*res_irq;
 	int			rid_irq;
 	void			*intr_cookie;
 };
 #define DEVTOSOFTC(dev) ((struct pcf_softc *)device_get_softc(dev))
+
+#define	PCF_LOCK(sc)		mtx_lock(&(sc)->pcf_lock)
+#define	PCF_UNLOCK(sc)		mtx_unlock(&(sc)->pcf_lock)
+#define	PCF_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->pcf_lock, MA_OWNED)
 
 /*
  * PCF8584 datasheet : when operate at 8 MHz or more, a minimun time of
@@ -92,7 +98,7 @@ static __inline void
 pcf_set_S0(struct pcf_softc *sc, int data)
 {
 
-	bus_space_write_1(sc->bt_ioport, sc->bh_ioport, 0, data);
+	bus_write_1(sc->res_ioport, 0, data);
 	pcf_nops();
 }
 
@@ -100,7 +106,7 @@ static __inline void
 pcf_set_S1(struct pcf_softc *sc, int data)
 {
 
-	bus_space_write_1(sc->bt_ioport, sc->bh_ioport, 1, data);
+	bus_write_1(sc->res_ioport, 1, data);
 	pcf_nops();
 }
 
@@ -109,7 +115,7 @@ pcf_get_S0(struct pcf_softc *sc)
 {
 	char data;
 
-	data = bus_space_read_1(sc->bt_ioport, sc->bh_ioport, 0);
+	data = bus_read_1(sc->res_ioport, 0);
 	pcf_nops();
 
 	return (data);
@@ -120,7 +126,7 @@ pcf_get_S1(struct pcf_softc *sc)
 {
 	char data;
 
-	data = bus_space_read_1(sc->bt_ioport, sc->bh_ioport, 1);
+	data = bus_read_1(sc->res_ioport, 1);
 	pcf_nops();
 
 	return (data);
@@ -138,3 +144,5 @@ extern driver_intr_t pcf_intr;
 #define PCF_MINVER	1
 #define PCF_MAXVER	1
 #define PCF_PREFVER	PCF_MODVER
+
+#endif /* !__PCFVAR_H__ */
