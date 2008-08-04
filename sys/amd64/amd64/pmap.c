@@ -231,6 +231,7 @@ static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
 static void pmap_fill_ptp(pt_entry_t *firstpte, pt_entry_t newpte);
 static void pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte);
 static boolean_t pmap_is_modified_pvh(struct md_page *pvh);
+static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 static vm_page_t pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va);
 static void pmap_pde_attr(pd_entry_t *pde, int cache_bits);
 static void pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
@@ -1093,7 +1094,7 @@ pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 	pte_store(pte, pa | PG_RW | PG_V | PG_G);
 }
 
-PMAP_INLINE void 
+static __inline void
 pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 {
 	pt_entry_t *pte;
