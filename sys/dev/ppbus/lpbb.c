@@ -36,10 +36,12 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 #include <sys/uio.h>
 
 
@@ -101,12 +103,16 @@ lpbb_callback(device_t dev, int index, caddr_t *data)
 	case IIC_REQUEST_BUS:
 		/* request the ppbus */
 		how = *(int *)data;
+		mtx_lock(&Giant);
 		error = ppb_request_bus(ppbus, dev, how);
+		mtx_unlock(&Giant);
 		break;
 
 	case IIC_RELEASE_BUS:
 		/* release the ppbus */
+		mtx_lock(&Giant);
 		error = ppb_release_bus(ppbus, dev);
+		mtx_unlock(&Giant);
 		break;
 
 	default:
@@ -123,37 +129,56 @@ lpbb_callback(device_t dev, int index, caddr_t *data)
 #define ALIM    0x20
 #define I2CKEY  0x50
 
-static int lpbb_getscl(device_t dev)
+static int
+lpbb_getscl(device_t dev)
 {
-	return ((ppb_rstr(device_get_parent(dev)) & SCL_in) == SCL_in);
+	int rval;
+
+	mtx_lock(&Giant);
+	rval = ((ppb_rstr(device_get_parent(dev)) & SCL_in) == SCL_in);
+	mtx_unlock(&Giant);
+	return (rval);
 }
 
-static int lpbb_getsda(device_t dev)
+static int
+lpbb_getsda(device_t dev)
 {
-	return ((ppb_rstr(device_get_parent(dev)) & SDA_in) == SDA_in);
+	int rval;
+
+	mtx_lock(&Giant);
+	rval = ((ppb_rstr(device_get_parent(dev)) & SDA_in) == SDA_in);
+	mtx_unlock(&Giant);
+	return (rval);
 }
 
-static void lpbb_setsda(device_t dev, char val)
+static void
+lpbb_setsda(device_t dev, char val)
 {
 	device_t ppbus = device_get_parent(dev);
 
-	if(val==0)
+	mtx_lock(&Giant);
+	if (val == 0)
 		ppb_wdtr(ppbus, (u_char)SDA_out);
 	else                            
 		ppb_wdtr(ppbus, (u_char)~SDA_out);
+	mtx_unlock(&Giant);
 }
 
-static void lpbb_setscl(device_t dev, unsigned char val)
+static void
+lpbb_setscl(device_t dev, unsigned char val)
 {
 	device_t ppbus = device_get_parent(dev);
 
-	if(val==0)
-		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus)&~SCL_out));
+	mtx_lock(&Giant);
+	if (val == 0)
+		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) & ~SCL_out));
 	else                                               
-		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus)|SCL_out)); 
+		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) | SCL_out)); 
+	mtx_unlock(&Giant);
 }
 
-static int lpbb_detect(device_t dev)
+static int
+lpbb_detect(device_t dev)
 {
 	device_t ppbus = device_get_parent(dev);
 
@@ -183,6 +208,7 @@ lpbb_reset(device_t dev, u_char speed, u_char addr, u_char * oldaddr)
 {
 	device_t ppbus = device_get_parent(dev);
 
+	mtx_lock(&Giant);
 	if (ppb_request_bus(ppbus, dev, PPB_DONTWAIT)) {
 		device_printf(dev, "can't allocate ppbus\n");
 		return (0);
@@ -193,6 +219,7 @@ lpbb_reset(device_t dev, u_char speed, u_char addr, u_char * oldaddr)
 	lpbb_setscl(dev, 1);
 
 	ppb_release_bus(ppbus, dev);
+	mtx_unlock(&Giant);
 
 	return (IIC_ENOADDR);
 }
@@ -226,6 +253,7 @@ static driver_t lpbb_driver = {
 };
 
 DRIVER_MODULE(lpbb, ppbus, lpbb_driver, lpbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, lpbb, iicbb_driver, iicbb_devclass, 0, 0);
 MODULE_DEPEND(lpbb, ppbus, 1, 1, 1);
 MODULE_DEPEND(lpbb, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_VERSION(lpbb, 1);

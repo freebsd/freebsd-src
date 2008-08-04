@@ -155,6 +155,8 @@ at91_twi_detach(device_t dev)
 	if (sc->iicbus && (rv = device_delete_child(dev, sc->iicbus)) != 0)
 		return (rv);
 
+	AT91_TWI_LOCK_DESTROY(sc);
+
 	return (0);
 }
 
@@ -211,6 +213,7 @@ at91_twi_intr(void *xsc)
 	status = RD4(sc, TWI_SR);
 	if (status == 0)
 		return;
+	AT91_TWI_LOCK(sc);
 	sc->flags |= status & (TWI_SR_OVRE | TWI_SR_UNRE | TWI_SR_NACK);
 	if (status & TWI_SR_RXRDY)
 		sc->flags |= TWI_SR_RXRDY;
@@ -220,6 +223,7 @@ at91_twi_intr(void *xsc)
 		sc->flags |= TWI_SR_TXCOMP;
 	WR4(sc, TWI_IDR, status);
 	wakeup(sc);
+	AT91_TWI_UNLOCK(sc);
 	return;
 }
 
@@ -230,6 +234,7 @@ at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 	int counter = 100000;
 	uint32_t sr;
 
+	AT91_TWI_ASSERT_LOCKED(sc);
 	while (!((sr = RD4(sc, TWI_SR)) & bit) && counter-- > 0 &&
 	    !(sr & TWI_SR_NACK))
 		continue;
@@ -247,6 +252,7 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	int clk;
 
 	sc = device_get_softc(dev);
+	AT91_TWI_LOCK(sc);
 	if (oldaddr)
 		*oldaddr = sc->twi_addr;
 	sc->twi_addr = addr;
@@ -275,6 +281,7 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
 	printf("setting cwgr to %#x\n", sc->cwgr);
+	AT91_TWI_UNLOCK(sc);
 
 	return 0;
 }

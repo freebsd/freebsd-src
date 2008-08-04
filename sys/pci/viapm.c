@@ -1009,6 +1009,7 @@ static driver_t viapropm_driver = {
 
 DRIVER_MODULE(viapm, pci, viapm_driver, viapm_devclass, 0, 0);
 DRIVER_MODULE(viapropm, pci, viapropm_driver, viapropm_devclass, 0, 0);
+DRIVER_MODULE(iicbb, viapm, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(smbus, viapropm, smbus_driver, smbus_devclass, 0, 0);
 
 MODULE_DEPEND(viapm, pci, 1, 1, 1);
