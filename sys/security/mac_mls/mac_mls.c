@@ -1133,24 +1133,24 @@ mls_create_ifnet(struct ifnet *ifp, struct label *ifplabel)
 }
 
 static void
-mls_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+mls_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_mls *source, *dest;
 
 	source = SLOT(mlabel);
-	dest = SLOT(ipqlabel);
+	dest = SLOT(qlabel);
 
 	mls_copy_effective(source, dest);
 }
 
 static void
-mls_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+mls_create_datagram_from_ipq(struct ipq *q, struct label *qlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_mls *source, *dest;
 
-	source = SLOT(ipqlabel);
+	source = SLOT(qlabel);
 	dest = SLOT(mlabel);
 
 	/* Just use the head, since we require them all to match. */
@@ -1242,12 +1242,12 @@ mls_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
 }
 
 static int
-mls_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+mls_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_mls *a, *b;
 
-	a = SLOT(ipqlabel);
+	a = SLOT(qlabel);
 	b = SLOT(mlabel);
 
 	return (mls_equal_effective(a, b));
@@ -1266,8 +1266,8 @@ mls_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-mls_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+mls_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	/* NOOP: we only accept matching labels, so no need to update */

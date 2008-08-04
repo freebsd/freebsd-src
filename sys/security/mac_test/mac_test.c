@@ -844,11 +844,11 @@ test_create_bpfdesc(struct ucred *cred, struct bpf_d *bpf_d,
 
 COUNTER_DECL(create_datagram_from_ipq);
 static void
-test_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+test_create_datagram_from_ipq(struct ipq *q, struct label *qlabel,
     struct mbuf *datagram, struct label *datagramlabel)
 {
 
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	LABEL_CHECK(datagramlabel, MAGIC_MBUF);
 	COUNTER_INC(create_datagram_from_ipq);
 }
@@ -928,11 +928,11 @@ test_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
 COUNTER_DECL(create_ipq);
 static void
 test_create_ipq(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+    struct ipq *q, struct label *qlabel)
 {
 
 	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(create_ipq);
 }
 
@@ -1007,11 +1007,11 @@ test_create_mbuf_netlayer(struct mbuf *oldmbuf, struct label *oldmbuflabel,
 COUNTER_DECL(fragment_match);
 static int
 test_fragment_match(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+    struct ipq *q, struct label *qlabel)
 {
 
 	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(fragment_match);
 
 	return (1);
@@ -1050,11 +1050,11 @@ test_relabel_ifnet(struct ucred *cred, struct ifnet *ifnet,
 COUNTER_DECL(update_ipq);
 static void
 test_update_ipq(struct mbuf *fragment, struct label *fragmentlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+    struct ipq *q, struct label *qlabel)
 {
 
 	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
-	LABEL_CHECK(ipqlabel, MAGIC_IPQ);
+	LABEL_CHECK(qlabel, MAGIC_IPQ);
 	COUNTER_INC(update_ipq);
 }
 
