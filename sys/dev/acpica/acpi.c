@@ -251,7 +251,7 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, suspend_bounce, CTLFLAG_RW,
 /*
  * ACPI can only be loaded as a module by the loader; activating it after
  * system bootstrap time is not useful, and can be fatal to the system.
- * It also cannot be unloaded, since the entire system bus heirarchy hangs
+ * It also cannot be unloaded, since the entire system bus hierarchy hangs
  * off it.
  */
 static int
