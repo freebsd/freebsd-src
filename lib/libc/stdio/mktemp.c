@@ -34,7 +34,7 @@ static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -102,13 +102,14 @@ _gettemp(path, doopen, domkdir, slen)
 	int domkdir;
 	int slen;
 {
-	char *start, *trv, *suffp;
+	char *start, *trv, *suffp, *carryp;
 	char *pad;
 	struct stat sbuf;
 	int rval;
 	uint32_t rand;
+	char carrybuf[MAXPATHLEN];
 
-	if (doopen != NULL && domkdir) {
+	if ((doopen != NULL && domkdir) || slen < 0) {
 		errno = EINVAL;
 		return (0);
 	}
@@ -118,7 +119,7 @@ _gettemp(path, doopen, domkdir, slen)
 	trv -= slen;
 	suffp = trv;
 	--trv;
-	if (trv < path) {
+	if (trv < path || NULL != strchr(suffp, '/')) {
 		errno = EINVAL;
 		return (0);
 	}
@@ -129,6 +130,9 @@ _gettemp(path, doopen, domkdir, slen)
 		*trv-- = padchar[rand];
 	}
 	start = trv + 1;
+
+	/* save first combination of random characters */
+	memcpy(carrybuf, start, suffp - start);
 
 	/*
 	 * check the target directory.
@@ -166,14 +170,25 @@ _gettemp(path, doopen, domkdir, slen)
 			return (errno == ENOENT);
 
 		/* If we have a collision, cycle through the space of filenames */
-		for (trv = start;;) {
-			if (*trv == '\0' || trv == suffp)
-				return (0);
+		for (trv = start, carryp = carrybuf;;) {
+			/* have we tried all possible permutations? */
+			if (trv == suffp)
+				return (0); /* yes - exit with EEXIST */
 			pad = strchr(padchar, *trv);
-			if (pad == NULL || *++pad == '\0')
-				*trv++ = padchar[0];
-			else {
-				*trv++ = *pad;
+			if (pad == NULL) {
+				/* this should never happen */
+				errno = EIO;
+				return (0);
+			}
+			/* increment character */
+			*trv = (*++pad == '\0') ? padchar[0] : *pad;
+			/* carry to next position? */
+			if (*trv == *carryp) {
+				/* increment position and loop */
+				++trv;
+				++carryp;
+			} else {
+				/* try with new name */
 				break;
 			}
 		}
