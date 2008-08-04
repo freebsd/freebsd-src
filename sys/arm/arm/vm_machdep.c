@@ -410,10 +410,9 @@ void *
 arm_remap_nocache(void *addr, vm_size_t size)
 {
 	int i, j;
-	
+
 	size = round_page(size);
-	for (i = 0; i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT),
-	    ARM_TP_ADDRESS); i++) {
+	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
 		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i % 
 		    BITS_PER_INT)))) {
 			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
@@ -424,8 +423,7 @@ arm_remap_nocache(void *addr, vm_size_t size)
 				break;
 		}
 	}
-	if (i < MIN(ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE * BITS_PER_INT), 
-	    ARM_TP_ADDRESS)) {
+	if (i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE) {
 		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
 		void *ret = (void *)tomap;
 		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
@@ -438,6 +436,7 @@ arm_remap_nocache(void *addr, vm_size_t size)
 		}
 		return (ret);
 	}
+
 	return (NULL);
 }
 
