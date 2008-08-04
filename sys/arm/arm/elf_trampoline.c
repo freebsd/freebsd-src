@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
 
-#include <stdlib.h>
-
 /*
  * Since we are compiled outside of the normal kernel build process, we
  * need to include opt_global.h manually.
