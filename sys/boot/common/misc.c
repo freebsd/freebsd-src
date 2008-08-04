@@ -42,7 +42,7 @@ unargv(int argc, char *argv[])
     int		i;
     char	*cp;
 
-    for (hlong = 0, i = 0, hlong = 0; i < argc; i++)
+    for (i = 0, hlong = 0; i < argc; i++)
 	hlong += strlen(argv[i]) + 2;
 
     if(hlong == 0)
