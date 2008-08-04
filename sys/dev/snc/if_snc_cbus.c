@@ -150,7 +150,7 @@ snc_isa_probe(dev)
 			bus_set_resource(dev, SYS_RES_IOPORT, rid,
 					 port, SNEC_NREGS);
 			res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
-						 0, ~0, SNEC_NREGS,
+						 0ul, ~0ul, SNEC_NREGS,
 						 0 /* !RF_ACTIVE */);
 			if (res) break;
 		}
@@ -181,7 +181,6 @@ snc_isa_attach(dev)
 	device_t dev;
 {
 	struct snc_softc *sc = device_get_softc(dev);
-	int error;
 	
 	bzero(sc, sizeof(struct snc_softc));
 
@@ -189,14 +188,6 @@ snc_isa_attach(dev)
 	snc_alloc_memory(dev, 0);
 	snc_alloc_irq(dev, 0, 0);
 		
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       NULL, sncintr, sc, &sc->irq_handle);
-	if (error) {
-		printf("snc_isa_attach: bus_setup_intr() failed\n");
-		snc_release_resources(dev);
-		return (error);
-	}	       
-
 	/* This interface is always enabled. */
 	sc->sc_enabled = 1;
 
