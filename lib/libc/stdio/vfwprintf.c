@@ -333,8 +333,10 @@ __mbsconv(char *mbsarg, int prec)
 		}
 		if (nconv == (size_t)-1 || nconv == (size_t)-2)
 			return (NULL);
-	} else
+	} else {
 		insize = strlen(mbsarg);
+		nconv = 0;
+	}
 
 	/*
 	 * Allocate buffer for the result and perform the conversion,
