@@ -106,7 +106,6 @@ static struct ng_type typestruct = {
 };
 
 /* Globals */
-extern int					ifqmaxlen;
 static u_int32_t				ng_btsocket_hci_raw_debug_level;
 static u_int32_t				ng_btsocket_hci_raw_ioctl_timeout;
 static node_p					ng_btsocket_hci_raw_node;
@@ -759,7 +758,7 @@ ng_btsocket_hci_raw_init(void)
 	}
 
 	/* Create input queue */
-	NG_BT_ITEMQ_INIT(&ng_btsocket_hci_raw_queue, ifqmaxlen);
+	NG_BT_ITEMQ_INIT(&ng_btsocket_hci_raw_queue, 300);
 	mtx_init(&ng_btsocket_hci_raw_queue_mtx,
 		"btsocks_hci_raw_queue_mtx", NULL, MTX_DEF);
 	TASK_INIT(&ng_btsocket_hci_raw_task, 0,
