@@ -2543,6 +2543,14 @@ re_init_locked(sc)
 	} else
 		cfg |= RL_CPLUSCMD_RXENB | RL_CPLUSCMD_TXENB;
 	CSR_WRITE_2(sc, RL_CPLUS_CMD, cfg);
+	/*
+	 * Disable TSO if interface MTU size is greater than MSS
+	 * allowed in controller.
+	 */
+	if (ifp->if_mtu > RL_TSO_MTU && (ifp->if_capenable & IFCAP_TSO4) != 0) {
+		ifp->if_capenable &= ~IFCAP_TSO4;
+		ifp->if_hwassist &= ~CSUM_TSO;
+	}
 
 	/*
 	 * Init our MAC address.  Even though the chipset
@@ -2754,6 +2762,11 @@ re_ioctl(ifp, command, data)
 		RL_LOCK(sc);
 		if (ifp->if_mtu != ifr->ifr_mtu)
 			ifp->if_mtu = ifr->ifr_mtu;
+		if (ifp->if_mtu > RL_TSO_MTU &&
+		    (ifp->if_capenable & IFCAP_TSO4) != 0) {
+			ifp->if_capenable &= ~IFCAP_TSO4;
+			ifp->if_hwassist &= ~CSUM_TSO;
+		}
 		RL_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
@@ -2829,6 +2842,11 @@ re_ioctl(ifp, command, data)
 				ifp->if_hwassist |= CSUM_TSO;
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
+			if (ifp->if_mtu > RL_TSO_MTU &&
+			    (ifp->if_capenable & IFCAP_TSO4) != 0) {
+				ifp->if_capenable &= ~IFCAP_TSO4;
+				ifp->if_hwassist &= ~CSUM_TSO;
+			}
 		}
 		if ((mask & IFCAP_WOL) != 0 &&
 		    (ifp->if_capabilities & IFCAP_WOL) != 0) {
