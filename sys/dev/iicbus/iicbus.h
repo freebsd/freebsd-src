@@ -29,6 +29,9 @@
 #ifndef __IICBUS_H
 #define __IICBUS_H
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+
 #define IICBUS_IVAR(d) (struct iicbus_ivar *) device_get_ivars(d)
 #define IICBUS_SOFTC(d) (struct iicbus_softc *) device_get_softc(d)
 
@@ -38,6 +41,7 @@ struct iicbus_softc
 	device_t owner;		/* iicbus owner device structure */
 	u_char started;		/* address of the 'started' slave
 				 * 0 if no start condition succeeded */
+	struct mtx lock;
 };
 
 struct iicbus_ivar
@@ -50,14 +54,13 @@ enum {
 };
 
 #define IICBUS_ACCESSOR(A, B, T)					\
-__inline static int							\
-iicbus_get_ ## A(device_t dev, T *t)					\
-{									\
-	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
-	    IICBUS_IVAR_ ## B, (uintptr_t *) t);			\
-}
+	__BUS_ACCESSOR(iicbus, A, IICBUS, B, T)
 	
 IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
+
+#define	IICBUS_LOCK(sc)			mtx_lock(&(sc)->lock)
+#define	IICBUS_UNLOCK(sc)      		mtx_unlock(&(sc)->lock)
+#define	IICBUS_ASSERT_LOCKED(sc)       	mtx_assert(&(sc)->lock, MA_OWNED)
 
 extern int iicbus_generic_intr(device_t dev, int event, char *buf);
 
