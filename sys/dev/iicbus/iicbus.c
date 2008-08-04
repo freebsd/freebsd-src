@@ -34,8 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h> 
 
 #include <dev/iicbus/iiconf.h>
@@ -90,6 +92,7 @@ iicbus_attach(device_t dev)
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 
 	sc->dev = dev;
+	mtx_init(&sc->lock, "iicbus", NULL, MTX_DEF);
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
 	/* device probing is meaningless since the bus is supposed to be
@@ -108,13 +111,8 @@ iicbus_attach(device_t dev)
 	}
 	printf("\n");
 #endif
-	/* Always attach the iicsmb children */
-	BUS_ADD_CHILD(dev, 0, "iicsmb", -1);
-	/* attach any known device */
-	BUS_ADD_CHILD(dev, 0, "iic", -1);
-	/* Attach the wired devices via hints */
+	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
-	/* Now probe and attach them */
 	bus_generic_attach(dev);
         return (0);
 }
@@ -122,9 +120,11 @@ iicbus_attach(device_t dev)
 static int
 iicbus_detach(device_t dev)
 {
+	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 	bus_generic_detach(dev);
+	mtx_destroy(&sc->lock);
 	return (0);
 }
   
@@ -265,6 +265,4 @@ driver_t iicbus_driver = {
 
 devclass_t iicbus_devclass;
 
-DRIVER_MODULE(iicbus, envctrl, iicbus_driver, iicbus_devclass, 0, 0);
-DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);
 MODULE_VERSION(iicbus, IICBUS_MODVER);
