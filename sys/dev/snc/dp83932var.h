@@ -200,7 +200,14 @@ typedef struct snc_softc {
 
 	void	*sc_sh;		/* shutdownhook cookie */
 	int	gone;
+	struct mtx	sc_lock;
+	struct callout	sc_timer;
+	int		sc_tx_timeout;
 } snc_softc_t;
+
+#define	SNC_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
+#define	SNC_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
+#define	SNC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 
 /*
  * Accessing SONIC data structures and registers as 32 bit values
@@ -274,6 +281,6 @@ typedef struct snc_softc {
 #define	CDA_ENABLE	64	/* mask enabling CAM entries */
 #define	CDA_SIZE(sc)	((4*16 + 1) * ((sc->bitmode) ? 4 : 2))
 
-void	sncconfig(struct snc_softc *, int *, int, int, u_int8_t *);
+int	sncconfig(struct snc_softc *, int *, int, int, u_int8_t *);
 void	sncintr(void *);
 void	sncshutdown(void *);

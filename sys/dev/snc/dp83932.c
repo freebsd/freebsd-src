@@ -63,6 +63,7 @@
 #include "opt_inet.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
@@ -85,11 +86,13 @@
 #include <dev/snc/dp83932reg.h>
 #include <dev/snc/dp83932var.h>
 
-static void	sncwatchdog(struct ifnet *);
+static void	sncwatchdog(void *);
 static void	sncinit(void *);
+static void	sncinit_locked(struct snc_softc *);
 static int	sncstop(struct snc_softc *sc);
 static int	sncioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	sncstart(struct ifnet *ifp);
+static void	sncstart_locked(struct ifnet *ifp);
 static void	sncreset(struct snc_softc *sc);
 
 static void	caminitialise(struct snc_softc *);
@@ -138,7 +141,7 @@ void	snc_mediastatus(struct ifnet *, struct ifmediareq *);
 int sncdebug = 0;
 
 
-void
+int
 sncconfig(sc, media, nmedia, defmedia, myea)
 	struct snc_softc *sc;
 	int *media, nmedia, defmedia;
@@ -154,9 +157,10 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 #endif
 
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n",
-		    device_get_nameunit(sc->sc_dev));
+	if (ifp == NULL) {
+		device_printf(sc->sc_dev, "can not if_alloc()\n");
+		return (ENOMEM);
+	}
 
 #ifdef SNCDEBUG
 	device_printf(sc->sc_dev,
@@ -170,12 +174,10 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	    device_get_unit(sc->sc_dev));
 	ifp->if_ioctl = sncioctl;
 	ifp->if_start = sncstart;
-	ifp->if_flags =
-	    IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_NEEDSGIANT;
-	ifp->if_watchdog = sncwatchdog;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_init = sncinit;
         ifp->if_mtu = ETHERMTU;
-        ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 
 	/* Initialize media goo. */
 	ifmedia_init(&sc->sc_media, 0, snc_mediachange,
@@ -190,14 +192,17 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	}
 
 	ether_ifattach(ifp, myea);
+	return (0);
 }
 
 void
 sncshutdown(arg)
 	void *arg;
 {
+	struct snc_softc *sc = arg;
 
-	sncstop((struct snc_softc *)arg);
+	SNC_ASSERT_LOCKED(sc);
+	sncstop(sc);
 }
 
 /*
@@ -208,10 +213,15 @@ snc_mediachange(ifp)
 	struct ifnet *ifp;
 {
 	struct snc_softc *sc = ifp->if_softc;
+	int error;
 
+	SNC_LOCK(sc);
 	if (sc->sc_mediachange)
-		return ((*sc->sc_mediachange)(sc));
-	return (EINVAL);
+		error = (*sc->sc_mediachange)(sc);
+	else
+		error = EINVAL;
+	SNC_UNLOCK(sc);
+	return (error);
 }
 
 /*
@@ -224,14 +234,17 @@ snc_mediastatus(ifp, ifmr)
 {
 	struct snc_softc *sc = ifp->if_softc;
 
+	SNC_LOCK(sc);
 	if (sc->sc_enabled == 0) {
 		ifmr->ifm_active = IFM_ETHER | IFM_NONE;
 		ifmr->ifm_status = 0;
+		SNC_UNLOCK(sc);
 		return;
 	}
 
 	if (sc->sc_mediastatus)
 		(*sc->sc_mediastatus)(sc, ifmr);
+	SNC_UNLOCK(sc);
 }
 
 
@@ -243,12 +256,12 @@ sncioctl(ifp, cmd, data)
 {
 	struct ifreq *ifr;
 	struct snc_softc *sc = ifp->if_softc;
-	int	s = splimp(), err = 0;
-	int	temp;
+	int	err = 0;
 
 	switch (cmd) {
 
 	case SIOCSIFFLAGS:
+		SNC_LOCK(sc);
 		if ((ifp->if_flags & IFF_UP) == 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 			/*
@@ -256,7 +269,6 @@ sncioctl(ifp, cmd, data)
 			 * then stop it.
 			 */
 			sncstop(sc);
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			snc_disable(sc);
 		} else if ((ifp->if_flags & IFF_UP) != 0 &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -266,28 +278,28 @@ sncioctl(ifp, cmd, data)
 			 */
 			if ((err = snc_enable(sc)) != 0)
 				break;
-			sncinit(sc);
+			sncinit_locked(sc);
 		} else if (sc->sc_enabled) {
 			/*
 			 * reset the interface to pick up any other changes
 			 * in flags
 			 */
-			temp = ifp->if_flags & IFF_UP;
 			sncreset(sc);
-			ifp->if_flags |= temp;
-			sncstart(ifp);
+			sncstart_locked(ifp);
 		}
+		SNC_UNLOCK(sc);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		SNC_LOCK(sc);
 		if (sc->sc_enabled == 0) {
 			err = EIO;
+			SNC_UNLOCK(sc);
 			break;
 		}
-		temp = ifp->if_flags & IFF_UP;
 		sncreset(sc);
-		ifp->if_flags |= temp;
+		SNC_UNLOCK(sc);
 		err = 0;
 		break;
 	case SIOCGIFMEDIA:
@@ -299,7 +311,6 @@ sncioctl(ifp, cmd, data)
 		err = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-	splx(s);
 	return (err);
 }
 
@@ -308,6 +319,17 @@ sncioctl(ifp, cmd, data)
  */
 static void
 sncstart(ifp)
+	struct ifnet *ifp;
+{
+	struct snc_softc	*sc = ifp->if_softc;
+
+	SNC_LOCK(sc);
+	sncstart_locked(ifp);
+	SNC_UNLOCK(sc);
+}
+
+static void
+sncstart_locked(ifp)
 	struct ifnet *ifp;
 {
 	struct snc_softc	*sc = ifp->if_softc;
@@ -373,7 +395,7 @@ sncreset(sc)
 	struct snc_softc *sc;
 {
 	sncstop(sc);
-	sncinit(sc);
+	sncinit_locked(sc);
 }
 
 static void
@@ -381,14 +403,20 @@ sncinit(xsc)
 	void *xsc;
 {
 	struct snc_softc *sc = xsc;
+
+	SNC_LOCK(sc);
+	sncinit_locked(sc);
+	SNC_UNLOCK(sc);
+}
+
+static void
+sncinit_locked(struct snc_softc *sc)
+{
 	u_long	s_rcr;
-	int	s;
 
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
 		/* already running */
 		return;
-
-	s = splimp();
 
 	NIC_PUT(sc, SNCR_CR, CR_RST);	/* DCR only accessable in reset mode! */
 
@@ -438,8 +466,8 @@ sncinit(xsc)
 	/* flag interface as "running" */
 	sc->sc_ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	callout_reset(&sc->sc_timer, hz, sncwatchdog, sc);
 
-	splx(s);
 	return;
 }
 
@@ -453,7 +481,8 @@ sncstop(sc)
 	struct snc_softc *sc;
 {
 	struct mtd *mtd;
-	int	s = splimp();
+
+	SNC_ASSERT_LOCKED(sc);
 
 	/* stick chip in reset */
 	NIC_PUT(sc, SNCR_CR, CR_RST);
@@ -469,11 +498,10 @@ sncstop(sc)
 		if (++sc->mtd_hw == NTDA) sc->mtd_hw = 0;
 	}
 
-	sc->sc_ifp->if_timer = 0;
-	sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_ifp->if_flags &= ~IFF_UP;
+	callout_stop(&sc->sc_timer);
+	sc->sc_tx_timeout = 0;
+	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	splx(s);
 	return (0);
 }
 
@@ -483,30 +511,30 @@ sncstop(sc)
  * will be handled by higher level protocol timeouts.
  */
 static void
-sncwatchdog(ifp)
-	struct ifnet *ifp;
+sncwatchdog(void *arg)
 {
-	struct snc_softc *sc = ifp->if_softc;
+	struct snc_softc *sc = arg;
 	struct mtd *mtd;
-	int	temp;
 
-	if (sc->mtd_hw != sc->mtd_free) {
-		/* something still pending for transmit */
-		mtd = &sc->mtda[sc->mtd_hw];
-		if (SRO(sc, mtd->mtd_vtxp, TXP_STATUS) == 0)
-			log(LOG_ERR, "%s: Tx - timeout\n",
-			    device_get_nameunit(sc->sc_dev));
-		else
-			log(LOG_ERR, "%s: Tx - lost interrupt\n",
-			    device_get_nameunit(sc->sc_dev));
-		temp = ifp->if_flags & IFF_UP;
-		sncreset(sc);
-		ifp->if_flags |= temp;
+	SNC_ASSERT_LOCKED(sc);
+	if (sc->sc_tx_timeout && --sc->sc_tx_timeout == 0) {
+		if (sc->mtd_hw != sc->mtd_free) {
+			/* something still pending for transmit */
+			mtd = &sc->mtda[sc->mtd_hw];
+			if (SRO(sc, mtd->mtd_vtxp, TXP_STATUS) == 0)
+				log(LOG_ERR, "%s: Tx - timeout\n",
+				    device_get_nameunit(sc->sc_dev));
+			else
+				log(LOG_ERR, "%s: Tx - lost interrupt\n",
+				    device_get_nameunit(sc->sc_dev));
+			sncreset(sc);
+		}
 	}
+	callout_reset(&sc->sc_timer, hz, sncwatchdog, sc);
 }
 
 /*
- * stuff packet into sonic (at splnet)
+ * stuff packet into sonic
  */
 static u_int
 sonicput(sc, m0, mtd_next)
@@ -587,7 +615,9 @@ sonicput(sc, m0, mtd_next)
 	wbflush();
 	NIC_PUT(sc, SNCR_CR, CR_TXP);
 	wbflush();
-	sc->sc_ifp->if_timer = 5;	/* 5 seconds to watch for failing to transmit */
+
+	/* 5 seconds to watch for failing to transmit */
+	sc->sc_tx_timeout = 5;
 
 	return (totlen);
 }
@@ -822,6 +852,7 @@ sncintr(arg)
 	if (sc->sc_enabled == 0)
 		return;
 
+	SNC_LOCK(sc);
 	while ((isr = (NIC_GET(sc, SNCR_ISR) & ISR_ALL)) != 0) {
 		/* scrub the interrupts that we are going to service */
 		NIC_PUT(sc, SNCR_ISR, isr);
@@ -872,8 +903,9 @@ sncintr(arg)
 				sc->sc_mptally++;
 #endif
 		}
-		sncstart(sc->sc_ifp);
+		sncstart_locked(sc->sc_ifp);
 	}
+	SNC_UNLOCK(sc);
 	return;
 }
 
@@ -920,6 +952,7 @@ sonictxint(sc)
 		}
 #endif /* SNCDEBUG */
 
+		sc->sc_tx_timeout = 0;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (mtd->mtd_mbuf != 0) {
@@ -1088,7 +1121,9 @@ sonic_read(sc, pkt, len)
 #endif /* SNCDEBUG */
 
 	/* Pass the packet up. */
+	SNC_UNLOCK(sc);
 	(*ifp->if_input)(ifp, m);
+	SNC_LOCK(sc);
 	return (1);
 }
 
