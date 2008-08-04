@@ -107,11 +107,9 @@ void
 arm_handler_execute(struct trapframe *frame, int irqnb)
 {
 	struct intr_event *event;
-	struct thread *td = curthread;
 	int i;
 
 	PCPU_INC(cnt.v_intr);
-	td->td_intr_nesting_level++;
 	while ((i = arm_get_next_irq()) != -1) {
 		intrcnt[intrcnt_tab[i]]++;
 		event = intr_events[i];
@@ -120,5 +118,4 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 			arm_mask_irq(i);
 		}
 	}
-	td->td_intr_nesting_level--;
 }
