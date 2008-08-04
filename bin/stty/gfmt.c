@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "stty.h"
 #include "extern.h"
 
-static void gerr(const char *s);
+static void gerr(const char *s) __dead2;
 
 static void
 gerr(const char *s)
