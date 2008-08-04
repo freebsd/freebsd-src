@@ -153,7 +153,6 @@ getfile(void)
 				p++;
 		}
 	ep = getptrs(elem);
-	p = curline;
 	do {
 		if (flags & ONEPERLINE) {
 			*ep = curline;
