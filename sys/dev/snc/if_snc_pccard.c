@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
-
 
 #include <dev/snc/dp83932var.h>
 #include <dev/snc/if_sncvar.h>
@@ -94,12 +94,15 @@ snc_pccard_detach(device_t dev)
 		device_printf(dev, "already unloaded\n");
 		return (0);
 	}
+	SNC_LOCK(sc);
 	sncshutdown(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	if_detach(ifp);
+	SNC_UNLOCK(sc);
+	callout_drain(&sc->sc_timer);
+	ether_ifdetach(ifp);
 	sc->gone = 1;
 	bus_teardown_intr(dev, sc->irq, sc->irq_handle);
 	snc_release_resources(dev);
+	mtx_destroy(&sc->sc_lock);
 	return (0);
 }
 
@@ -126,7 +129,6 @@ static int
 snc_pccard_attach(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
-	int error;
 	
 	bzero(sc, sizeof(struct snc_softc));
 
@@ -134,14 +136,6 @@ snc_pccard_attach(device_t dev)
 	snc_alloc_memory(dev, 0);
 	snc_alloc_irq(dev, 0, 0);
 		
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       NULL, sncintr, sc, &sc->irq_handle);
-	if (error) {
-		printf("snc_isa_attach: bus_setup_intr() failed\n");
-		snc_release_resources(dev);
-		return (error);
-	}	       
-
 	/* This interface is always enabled. */
 	sc->sc_enabled = 1;
 
