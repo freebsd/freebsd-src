@@ -83,6 +83,7 @@ getbsize(headerlenp, blocksizep)
 		default:
 fmterr:			warnx("%s: unknown blocksize", p);
 			n = 512;
+			max = MAXB;
 			mul = 1;
 			break;
 		}
