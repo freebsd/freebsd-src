@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/time.h>
 #include <sys/malloc.h>
@@ -71,10 +73,11 @@ __FBSDID("$FreeBSD$");
 
 struct ic_softc {
 	struct ifnet *ic_ifp;
+	device_t ic_dev;
 
 	u_char ic_addr;			/* peer I2C address */
 
-	int ic_sending;
+	int ic_flags;
 
 	char *ic_obuf;
 	char *ic_ifbuf;
@@ -83,7 +86,15 @@ struct ic_softc {
 	int ic_xfercnt;
 
 	int ic_iferrs;
+
+	struct mtx ic_lock;
 };
+
+#define	IC_SENDING		0x0001
+#define	IC_OBUF_BUSY		0x0002
+#define	IC_IFBUF_BUSY		0x0004
+#define	IC_BUFFERS_BUSY		(IC_OBUF_BUSY | IC_IFBUF_BUSY)
+#define	IC_BUFFER_WAITER	0x0004
 
 static devclass_t ic_devclass;
 
@@ -113,6 +124,29 @@ static driver_t ic_driver = {
 	sizeof(struct ic_softc),
 };
 
+static void
+ic_alloc_buffers(struct ic_softc *sc, int mtu)
+{
+	char *obuf, *ifbuf;
+
+	obuf = malloc(mtu + ICHDRLEN, M_DEVBUF, M_WAITOK);
+	ifbuf = malloc(mtu + ICHDRLEN, M_DEVBUF, M_WAITOK);
+
+	mtx_lock(&sc->ic_lock);
+	while (sc->ic_flags & IC_BUFFERS_BUSY) {
+		sc->ic_flags |= IC_BUFFER_WAITER;
+		mtx_sleep(sc, &sc->ic_lock, 0, "icalloc", 0);
+		sc->ic_flags &= ~IC_BUFFER_WAITER;
+	}
+
+	free(sc->ic_obuf, M_DEVBUF);
+	free(sc->ic_ifbuf, M_DEVBUF);
+	sc->ic_obuf = obuf;
+	sc->ic_ifbuf = ifbuf;
+	sc->ic_ifp->if_mtu = mtu;
+	mtx_unlock(&sc->ic_lock);
+}
+
 /*
  * icprobe()
  */
@@ -121,7 +155,7 @@ icprobe(device_t dev)
 {
 	return (0);
 }
-	
+
 /*
  * icattach()
  */
@@ -135,18 +169,21 @@ icattach(device_t dev)
 	if (ifp == NULL)
 		return (ENOSPC);
 
+	mtx_init(&sc->ic_lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
+	    MTX_DEF);
 	sc->ic_addr = PCF_MASTER_ADDRESS;	/* XXX only PCF masters */
+	sc->ic_dev = dev;
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ICMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST |
-	    IFF_NEEDSGIANT;
+	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_ioctl = icioctl;
 	ifp->if_output = icoutput;
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+
+	ic_alloc_buffers(sc, ICMTU);
 
 	if_attach(ifp);
 
@@ -161,14 +198,11 @@ icattach(device_t dev)
 static int
 icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	device_t icdev = devclass_get_device(ic_devclass, ifp->if_dunit);
+	struct ic_softc *sc = ifp->if_softc;
+	device_t icdev = sc->ic_dev;
 	device_t parent = device_get_parent(icdev);
-	struct ic_softc *sc = (struct ic_softc *)device_get_softc(icdev);
-
 	struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ifreq *ifr = (struct ifreq *)data;
-
-	u_char *iptr, *optr;
 	int error;
 
 	switch (cmd) {
@@ -178,14 +212,18 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			return (EAFNOSUPPORT);
+		mtx_lock(&sc->ic_lock);
 		ifp->if_flags |= IFF_UP;
-		/* FALLTHROUGH */
+		goto locked;
 	case SIOCSIFFLAGS:
+		mtx_lock(&sc->ic_lock);
+	locked:
 		if ((!(ifp->if_flags & IFF_UP)) &&
 		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
 			/* XXX disable PCF */
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			mtx_unlock(&sc->ic_lock);
 
 			/* IFF_UP is not set, try to release the bus anyway */
 			iicbus_release_bus(parent, icdev);
@@ -193,57 +231,25 @@ icioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		if (((ifp->if_flags & IFF_UP)) &&
 		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+			mtx_unlock(&sc->ic_lock);
 			if ((error = iicbus_request_bus(parent, icdev,
 			    IIC_WAIT | IIC_INTR)))
 				return (error);
-			sc->ic_obuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
-			    M_DEVBUF, M_WAITOK);
-			if (!sc->ic_obuf) {
-				iicbus_release_bus(parent, icdev);
-				return (ENOBUFS);
-			}
-			sc->ic_ifbuf = malloc(sc->ic_ifp->if_mtu + ICHDRLEN,
-			    M_DEVBUF, M_WAITOK);
-			if (!sc->ic_ifbuf) {
-				iicbus_release_bus(parent, icdev);
-				return (ENOBUFS);
-			}
+			mtx_lock(&sc->ic_lock);
 			iicbus_reset(parent, IIC_FASTEST, 0, NULL);
 			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		}
+		mtx_unlock(&sc->ic_lock);
 		break;
 
 	case SIOCSIFMTU:
-		/* save previous buffers */
-		iptr = sc->ic_ifbuf;
-		optr = sc->ic_obuf;
-
-		/* allocate input buffer */
-		sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
-		if (!sc->ic_ifbuf) {
-			sc->ic_ifbuf = iptr;
-			sc->ic_obuf = optr;
-			return (ENOBUFS);
-		}
-
-		/* allocate output buffer */
-		sc->ic_ifbuf = malloc(ifr->ifr_mtu+ICHDRLEN, M_DEVBUF, M_NOWAIT);
-		if (!sc->ic_obuf) {
-			free(sc->ic_ifbuf,M_DEVBUF);
-			sc->ic_ifbuf = iptr;
-			sc->ic_obuf = optr;
-			return (ENOBUFS);
-		}
-
-		if (iptr)
-			free(iptr,M_DEVBUF);
-		if (optr)
-			free(optr,M_DEVBUF);
-		sc->ic_ifp->if_mtu = ifr->ifr_mtu;
+		ic_alloc_buffers(sc, ifr->ifr_mtu);
 		break;
 
 	case SIOCGIFMTU:
+		mtx_lock(&sc->ic_lock);
 		ifr->ifr_mtu = sc->ic_ifp->if_mtu;
+		mtx_unlock(&sc->ic_lock);
 		break;
 
 	case SIOCADDMULTI:
@@ -270,11 +276,10 @@ static void
 icintr(device_t dev, int event, char *ptr)
 {
 	struct ic_softc *sc = (struct ic_softc *)device_get_softc(dev);
-	int unit = device_get_unit(dev);
-	int s, len;
 	struct mbuf *top;
-	
-	s = splhigh();
+	int len;
+
+	mtx_lock(&sc->ic_lock);
 
 	switch (event) {
 
@@ -282,12 +287,17 @@ icintr(device_t dev, int event, char *ptr)
 	case INTR_START:
 		sc->ic_cp = sc->ic_ifbuf;
 		sc->ic_xfercnt = 0;
+		sc->ic_flags |= IC_IFBUF_BUSY;
 		break;
 
 	case INTR_STOP:
 
 		/* if any error occured during transfert,
 		 * drop the packet */
+		sc->ic_flags &= ~IC_IFBUF_BUSY;
+		if ((sc->ic_flags & (IC_BUFFERS_BUSY | IC_BUFFER_WAITER)) ==
+		    IC_BUFFER_WAITER)
+			wakeup(&sc);
 		if (sc->ic_iferrs)
 			goto err;
 		if ((len = sc->ic_xfercnt) == 0)
@@ -299,17 +309,20 @@ icintr(device_t dev, int event, char *ptr)
 		sc->ic_ifp->if_ibytes += len;
 		BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
 		top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
-		if (top)
+		if (top) {
+			mtx_unlock(&sc->ic_lock);
 			netisr_dispatch(NETISR_IP, top);
+			mtx_lock(&sc->ic_lock);
+		}
 		break;
 	err:
-		printf("ic%d: errors (%d)!\n", unit, sc->ic_iferrs);
+		if_printf(sc->ic_ifp, "errors (%d)!\n", sc->ic_iferrs);
 		sc->ic_iferrs = 0;			/* reset error count */
 		sc->ic_ifp->if_ierrors++;
 		break;
 
 	case INTR_RECEIVE:
-		if (sc->ic_xfercnt >= sc->ic_ifp->if_mtu+ICHDRLEN) {
+		if (sc->ic_xfercnt >= sc->ic_ifp->if_mtu + ICHDRLEN) {
 			sc->ic_iferrs++;
 		} else {
 			*sc->ic_cp++ = *ptr;
@@ -332,7 +345,7 @@ icintr(device_t dev, int event, char *ptr)
 		panic("%s: unknown event (%d)!", __func__, event);
 	}
 
-	splx(s);
+	mtx_unlock(&sc->ic_lock);
 	return;
 }
 
@@ -343,11 +356,10 @@ static int
 icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct rtentry *rt)
 {
-	device_t icdev = devclass_get_device(ic_devclass, ifp->if_dunit);
+	struct ic_softc *sc = ifp->if_softc;
+	device_t icdev = sc->ic_dev;
 	device_t parent = device_get_parent(icdev);
-	struct ic_softc *sc = (struct ic_softc *)device_get_softc(icdev);
-
-	int s, len, sent;
+	int len, sent;
 	struct mbuf *mm;
 	u_char *cp;
 	u_int32_t hdr;
@@ -358,12 +370,11 @@ icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	else 
 		hdr = dst->sa_family;
 
+	mtx_lock(&sc->ic_lock);
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
-	s = splhigh();
-
 	/* already sending? */
-	if (sc->ic_sending) {
+	if (sc->ic_flags & IC_SENDING) {
 		ifp->if_oerrors++;
 		goto error;
 	}
@@ -376,7 +387,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	mm = m;
 	do {
 		if (len + mm->m_len > sc->ic_ifp->if_mtu) {
-			/* packet to large */
+			/* packet too large */
 			ifp->if_oerrors++;
 			goto error;
 		}
@@ -389,10 +400,10 @@ icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	BPF_MTAP2(ifp, &hdr, sizeof(hdr), m);
 
-	sc->ic_sending = 1;
+	sc->ic_flags |= (IC_SENDING | IC_OBUF_BUSY);
 
 	m_freem(m);
-	splx(s);
+	mtx_unlock(&sc->ic_lock);
 
 	/* send the packet */
 	if (iicbus_block_write(parent, sc->ic_addr, sc->ic_obuf,
@@ -402,15 +413,20 @@ icoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	else {
 		ifp->if_opackets++;
 		ifp->if_obytes += len;
-	}
+	}	
 
-	sc->ic_sending = 0;
+	mtx_lock(&sc->ic_lock);
+	sc->ic_flags &= ~(IC_SENDING | IC_OBUF_BUSY);
+	if ((sc->ic_flags & (IC_BUFFERS_BUSY | IC_BUFFER_WAITER)) ==
+	    IC_BUFFER_WAITER)
+		wakeup(&sc);
+	mtx_unlock(&sc->ic_lock);
 
 	return (0);
 
 error:
 	m_freem(m);
-	splx(s);
+	mtx_unlock(&sc->ic_lock);
 
 	return(0);
 }
