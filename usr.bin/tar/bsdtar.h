@@ -103,7 +103,7 @@ struct bsdtar {
 };
 
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
-	    const char *fmt, ...);
+	    const char *fmt, ...) __dead2;
 void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
