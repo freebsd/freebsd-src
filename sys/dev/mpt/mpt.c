@@ -218,8 +218,8 @@ static struct mpt_personality mpt_core_personality =
 {
 	.name		= "mpt_core",
 	.load		= mpt_core_load,
-	.attach		= mpt_core_attach,
-	.enable		= mpt_core_enable,
+//	.attach		= mpt_core_attach,
+//	.enable		= mpt_core_enable,
 	.event		= mpt_core_event,
 	.reset		= mpt_core_ioc_reset,
 	.shutdown	= mpt_core_shutdown,
@@ -2144,6 +2144,9 @@ mpt_attach(struct mpt_softc *mpt)
 	int i;
 	int error;
 
+	mpt_core_attach(mpt);
+	mpt_core_enable(mpt);
+
 	TAILQ_INSERT_TAIL(&mpt_tailq, mpt, links);
 	for (i = 0; i < MPT_MAX_PERSONALITIES; i++) {
 		pers = mpt_personalities[i];
@@ -2265,7 +2268,7 @@ mpt_core_attach(struct mpt_softc *mpt)
 	    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
 
 	MPT_LOCK(mpt);
-	error = mpt_configure_ioc(mpt, 0, 0);
+	error = mpt_configure_ioc(mpt, 0, 1);
 	MPT_UNLOCK(mpt);
 
 	return (error);
@@ -2683,7 +2686,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	/*
 	 * Enable the IOC
 	 */
-	if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
+	if (mpt_enable_ioc(mpt, 1) != MPT_OK) {
 		mpt_prt(mpt, "unable to initialize IOC\n");
 		return (ENXIO);
 	}
