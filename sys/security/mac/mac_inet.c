@@ -113,11 +113,11 @@ mac_ipq_label_alloc(int flag)
 }
 
 int
-mac_init_ipq(struct ipq *ipq, int flag)
+mac_init_ipq(struct ipq *q, int flag)
 {
 
-	ipq->ipq_label = mac_ipq_label_alloc(flag);
-	if (ipq->ipq_label == NULL)
+	q->ipq_label = mac_ipq_label_alloc(flag);
+	if (q->ipq_label == NULL)
 		return (ENOMEM);
 	return (0);
 }
@@ -147,11 +147,11 @@ mac_ipq_label_free(struct label *label)
 }
 
 void
-mac_destroy_ipq(struct ipq *ipq)
+mac_destroy_ipq(struct ipq *q)
 {
 
-	mac_ipq_label_free(ipq->ipq_label);
-	ipq->ipq_label = NULL;
+	mac_ipq_label_free(q->ipq_label);
+	q->ipq_label = NULL;
 }
 
 void
@@ -163,13 +163,13 @@ mac_create_inpcb_from_socket(struct socket *so, struct inpcb *inp)
 }
 
 void
-mac_create_datagram_from_ipq(struct ipq *ipq, struct mbuf *m)
+mac_create_datagram_from_ipq(struct ipq *q, struct mbuf *m)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_datagram_from_ipq, ipq, ipq->ipq_label, m, label);
+	MAC_PERFORM(create_datagram_from_ipq, q, q->ipq_label, m, label);
 }
 
 void
@@ -184,13 +184,13 @@ mac_create_fragment(struct mbuf *m, struct mbuf *frag)
 }
 
 void
-mac_create_ipq(struct mbuf *m, struct ipq *ipq)
+mac_create_ipq(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(create_ipq, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(create_ipq, m, label, q, q->ipq_label);
 }
 
 void
@@ -205,7 +205,7 @@ mac_create_mbuf_from_inpcb(struct inpcb *inp, struct mbuf *m)
 }
 
 int
-mac_fragment_match(struct mbuf *m, struct ipq *ipq)
+mac_fragment_match(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 	int result;
@@ -213,7 +213,7 @@ mac_fragment_match(struct mbuf *m, struct ipq *ipq)
 	label = mac_mbuf_to_label(m);
 
 	result = 1;
-	MAC_BOOLEAN(fragment_match, &&, m, label, ipq, ipq->ipq_label);
+	MAC_BOOLEAN(fragment_match, &&, m, label, q, q->ipq_label);
 
 	return (result);
 }
@@ -239,13 +239,13 @@ mac_reflect_mbuf_tcp(struct mbuf *m)
 }
 
 void
-mac_update_ipq(struct mbuf *m, struct ipq *ipq)
+mac_update_ipq(struct mbuf *m, struct ipq *q)
 {
 	struct label *label;
 
 	label = mac_mbuf_to_label(m);
 
-	MAC_PERFORM(update_ipq, m, label, ipq, ipq->ipq_label);
+	MAC_PERFORM(update_ipq, m, label, q, q->ipq_label);
 }
 
 int
