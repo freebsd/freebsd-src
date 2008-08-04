@@ -1392,6 +1392,13 @@ re_attach(dev)
 	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &reg) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
+	/*
+	 * Don't enable TSO by default. Under certain
+	 * circumtances the controller generated corrupted
+	 * packets in TSO size.
+	 */
+	ifp->if_hwassist &= ~CSUM_TSO;
+	ifp->if_capenable &= ~IFCAP_TSO4;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
