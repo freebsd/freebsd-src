@@ -27,14 +27,16 @@
  *
  */
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/uio.h>
 #include <sys/fcntl.h>
+#include <sys/lock.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
+#include <sys/uio.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -46,6 +48,7 @@
 
 struct iic_softc {
 
+	device_t sc_dev;
 	u_char sc_addr;			/* 7 bit address on iicbus */
 	int sc_count;			/* >0 if device opened */
 
@@ -53,13 +56,11 @@ struct iic_softc {
 	char sc_inbuf[BUFSIZE];		/* input buffer */
 
 	struct cdev *sc_devnode;
+	struct sx sc_lock;
 };
 
-#define IIC_SOFTC(unit) \
-	((struct iic_softc *)devclass_get_softc(iic_devclass, (unit)))
-
-#define IIC_DEVICE(unit) \
-	(devclass_get_device(iic_devclass, (unit)))
+#define	IIC_LOCK(sc)			sx_xlock(&(sc)->sc_lock)
+#define	IIC_UNLOCK(sc)			sx_xunlock(&(sc)->sc_lock)
 
 static int iic_probe(device_t);
 static int iic_attach(device_t);
@@ -95,7 +96,7 @@ static	d_ioctl_t	iicioctl;
 
 static struct cdevsw iic_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_TRACKCLOSE,
 	.d_open =	iicopen,
 	.d_close =	iicclose,
 	.d_read =	iicread,
@@ -107,7 +108,9 @@ static struct cdevsw iic_cdevsw = {
 static void
 iic_identify(driver_t *driver, device_t parent)
 {
-	BUS_ADD_CHILD(parent, 0, "iic", -1);
+
+	if (device_find_child(parent, "iic", -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, "iic", -1);
 }
 
 static int
@@ -122,9 +125,18 @@ iic_attach(device_t dev)
 {
 	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
 
+	sc->sc_dev = dev;
+	sx_init(&sc->sc_lock, "iic");
 	sc->sc_devnode = make_dev(&iic_cdevsw, device_get_unit(dev),
 			UID_ROOT, GID_WHEEL,
 			0600, "iic%d", device_get_unit(dev));
+	if (sc->sc_devnode == NULL) {
+		device_printf(dev, "failed to create character device\n");
+		sx_destroy(&sc->sc_lock);
+		return (ENXIO);
+	}
+	sc->sc_devnode->si_drv1 = sc;
+
 	return (0);
 }
 
@@ -135,6 +147,7 @@ iic_detach(device_t dev)
 
 	if (sc->sc_devnode)
 		destroy_dev(sc->sc_devnode);
+	sx_destroy(&sc->sc_lock);
 
 	return (0);
 }
@@ -142,15 +155,16 @@ iic_detach(device_t dev)
 static int
 iicopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct iic_softc *sc = IIC_SOFTC(minor(dev));
+	struct iic_softc *sc = dev->si_drv1;
 
-	if (!sc)
-		return (EINVAL);
-
-	if (sc->sc_count > 0)
+	IIC_LOCK(sc);
+	if (sc->sc_count > 0) {
+		IIC_UNLOCK(sc);
 		return (EBUSY);
+	}
 
 	sc->sc_count++;
+	IIC_UNLOCK(sc);
 
 	return (0);
 }
@@ -158,18 +172,20 @@ iicopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 iicclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	struct iic_softc *sc = IIC_SOFTC(minor(dev));
+	struct iic_softc *sc = dev->si_drv1;
 
-	if (!sc)
+	IIC_LOCK(sc);
+	if (!sc->sc_count) {
+		/* XXX: I don't think this can happen. */
+		IIC_UNLOCK(sc);
 		return (EINVAL);
-
-	if (!sc->sc_count)
-		return (EINVAL);
+	}
 
 	sc->sc_count--;
 
 	if (sc->sc_count < 0)
 		panic("%s: iic_count < 0!", __func__);
+	IIC_UNLOCK(sc);
 
 	return (0);
 }
@@ -177,18 +193,28 @@ iicclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 iicwrite(struct cdev *dev, struct uio * uio, int ioflag)
 {
-	device_t iicdev = IIC_DEVICE(minor(dev));
-	struct iic_softc *sc = IIC_SOFTC(minor(dev));
+	struct iic_softc *sc = dev->si_drv1;
+	device_t iicdev = sc->sc_dev;
 	int sent, error, count;
 
-	if (!sc || !iicdev || !sc->sc_addr)
+	IIC_LOCK(sc);
+	if (!sc->sc_addr) {
+		IIC_UNLOCK(sc);
 		return (EINVAL);
+	}
 
-	if (sc->sc_count == 0)
+	if (sc->sc_count == 0) {
+		/* XXX: I don't think this can happen. */
+		IIC_UNLOCK(sc);
 		return (EINVAL);
+	}
 
-	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev, IIC_DONTWAIT)))
+	error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
+	    IIC_DONTWAIT);
+	if (error) {
+		IIC_UNLOCK(sc);
 		return (error);
+	}
 
 	count = min(uio->uio_resid, BUFSIZE);
 	uiomove(sc->sc_buffer, count, uio);
@@ -197,47 +223,63 @@ iicwrite(struct cdev *dev, struct uio * uio, int ioflag)
 					sc->sc_buffer, count, &sent);
 
 	iicbus_release_bus(device_get_parent(iicdev), iicdev);
+	IIC_UNLOCK(sc);
 
-	return(error);
+	return (error);
 }
 
 static int
 iicread(struct cdev *dev, struct uio * uio, int ioflag)
 {
-	device_t iicdev = IIC_DEVICE(minor(dev));
-	struct iic_softc *sc = IIC_SOFTC(minor(dev));
+	struct iic_softc *sc = dev->si_drv1;
+	device_t iicdev = sc->sc_dev;
 	int len, error = 0;
 	int bufsize;
 
-	if (!sc || !iicdev || !sc->sc_addr)
+	IIC_LOCK(sc);
+	if (!sc->sc_addr) {
+		IIC_UNLOCK(sc);
 		return (EINVAL);
+	}
 
-	if (sc->sc_count == 0)
+	if (sc->sc_count == 0) {
+		/* XXX: I don't think this can happen. */
+		IIC_UNLOCK(sc);
 		return (EINVAL);
+	}
 
-	if ((error = iicbus_request_bus(device_get_parent(iicdev), iicdev, IIC_DONTWAIT)))
+	error = iicbus_request_bus(device_get_parent(iicdev), iicdev,
+	    IIC_DONTWAIT);
+	if (error) {
+		IIC_UNLOCK(sc);
 		return (error);
+	}
 
 	/* max amount of data to read */
 	len = min(uio->uio_resid, BUFSIZE);
 
-	if ((error = iicbus_block_read(device_get_parent(iicdev), sc->sc_addr,
-					sc->sc_inbuf, len, &bufsize)))
+	error = iicbus_block_read(device_get_parent(iicdev), sc->sc_addr,
+	    sc->sc_inbuf, len, &bufsize);
+	if (error) {
+		IIC_UNLOCK(sc);
 		return (error);
+	}
 
 	if (bufsize > uio->uio_resid)
 		panic("%s: too much data read!", __func__);
 
 	iicbus_release_bus(device_get_parent(iicdev), iicdev);
 
-	return (uiomove(sc->sc_inbuf, bufsize, uio));
+	error = uiomove(sc->sc_inbuf, bufsize, uio);
+	IIC_UNLOCK(sc);
+	return (error);
 }
 
 static int
 iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
-	device_t iicdev = IIC_DEVICE(minor(dev));
-	struct iic_softc *sc = IIC_SOFTC(minor(dev));
+	struct iic_softc *sc = dev->si_drv1;
+	device_t iicdev = sc->sc_dev;
 	device_t parent = device_get_parent(iicdev);
 	struct iiccmd *s = (struct iiccmd *)data;
 	struct iic_rdwr_data *d = (struct iic_rdwr_data *)data;
@@ -246,15 +288,13 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 	char *buf = NULL;
 	void **usrbufs = NULL;
 
-	if (!sc)
-		return (EINVAL);
-
 	if ((error = iicbus_request_bus(parent, iicdev,
 	    (flags & O_NONBLOCK) ? IIC_DONTWAIT : (IIC_WAIT | IIC_INTR))))
 		return (error);
 
 	switch (cmd) {
 	case I2CSTART:
+		IIC_LOCK(sc);
 		error = iicbus_start(parent, s->slave, 0);
 
 		/*
@@ -264,6 +304,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		 */
 		if (!error)
 			sc->sc_addr = s->slave;
+		IIC_UNLOCK(sc);
 
 		break;
 
