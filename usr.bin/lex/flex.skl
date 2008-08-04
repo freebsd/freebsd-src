@@ -9,6 +9,7 @@
 #include <sys/cdefs.h>
 #else
 #define __unused
+#define __dead2
 #endif
 
 #define FLEX_SCANNER
@@ -290,7 +291,7 @@ static void yy_flex_free YY_PROTO(( void * ));
 static yy_state_type yy_get_previous_state YY_PROTO(( void ));
 static yy_state_type yy_try_NUL_trans YY_PROTO(( yy_state_type current_state ));
 static int yy_get_next_buffer YY_PROTO(( void ));
-static void yy_fatal_error YY_PROTO(( yyconst char msg[] ));
+static void yy_fatal_error YY_PROTO(( yyconst char msg[] )) __dead2;
 %*
 
 /* Done after the current pattern has been matched and before the

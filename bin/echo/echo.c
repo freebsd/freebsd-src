@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * Report an error and exit.
  * Use it instead of err(3) to avoid linking-in stdio.
  */
-static void
+static __dead2 void
 errexit(const char *prog, const char *reason)
 {
 	char *errstr = strerror(errno);
