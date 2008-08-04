@@ -194,18 +194,16 @@ pty_new(void)
 	pt = LIST_FIRST(&pt_free_list);
 	if (pt) {
 		LIST_REMOVE(pt, pt_list);
-		LIST_INSERT_HEAD(&pt_list, pt, pt_list);
-		mtx_unlock(&pt_mtx);
 	} else {
 		nb = next_avail_nb++;
 		mtx_unlock(&pt_mtx);
 		pt = malloc(sizeof(*pt), M_PTY, M_WAITOK | M_ZERO);
+		pt->pt_tty = ttyalloc();
 		mtx_lock(&pt_mtx);
 		pt->pt_num = nb;
-		LIST_INSERT_HEAD(&pt_list, pt, pt_list);
-		mtx_unlock(&pt_mtx);
-		pt->pt_tty = ttyalloc();
 	}
+	LIST_INSERT_HEAD(&pt_list, pt, pt_list);
+	mtx_unlock(&pt_mtx);
 	return (pt);
 }
 
@@ -400,8 +398,16 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	 * we need to recreate it.
 	 */
 	if (pt->pt_tty == NULL) {
-		pt->pt_tty = ttyalloc();
-		dev->si_tty = pt->pt_tty;
+		tp = ttyalloc();
+		mtx_lock(&pt_mtx);
+		if (pt->pt_tty == NULL) {
+			pt->pt_tty = tp;
+			dev->si_tty = pt->pt_tty;
+			mtx_unlock(&pt_mtx);
+		} else {
+			mtx_unlock(&pt_mtx);
+			ttyrel(tp);
+		}
 	}
 	tp = dev->si_tty;
 	if (tp->t_oproc)
