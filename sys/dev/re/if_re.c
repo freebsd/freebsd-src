@@ -321,7 +321,7 @@ DRIVER_MODULE(miibus, re, miibus_driver, miibus_devclass, 0, 0);
 static void
 re_eeprom_putbyte(struct rl_softc *sc, int addr)
 {
-	register int		d, i;
+	int			d, i;
 
 	d = addr | (RL_9346_READ << sc->rl_eewidth);
 
@@ -351,7 +351,7 @@ re_eeprom_putbyte(struct rl_softc *sc, int addr)
 static void
 re_eeprom_getword(struct rl_softc *sc, int addr, u_int16_t *dest)
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/*
@@ -661,7 +661,7 @@ re_setmulti(struct rl_softc *sc)
 static void
 re_reset(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -2845,7 +2845,7 @@ re_watchdog(struct rl_softc *sc)
 static void
 re_stop(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 	struct rl_txdesc	*txd;
 	struct rl_rxdesc	*rxd;
