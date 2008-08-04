@@ -341,8 +341,6 @@ re_eeprom_putbyte(struct rl_softc *sc, int addr)
 		EE_CLR(RL_EE_CLK);
 		DELAY(100);
 	}
-
-	return;
 }
 
 /*
@@ -372,8 +370,6 @@ re_eeprom_getword(struct rl_softc *sc, int addr, u_int16_t *dest)
 	}
 
 	*dest = word;
-
-	return;
 }
 
 /*
@@ -398,8 +394,6 @@ re_read_eeprom(struct rl_softc *sc, caddr_t dest, int off, int cnt)
 	}
 
 	CSR_CLRBIT_1(sc, RL_EECMD, RL_EEMODE_PROGRAM);
-
-	return;
 }
 
 static int
@@ -1664,8 +1658,6 @@ re_fixup_rx(struct mbuf *m)
 		*dst++ = *src++;
 
 	m->m_data -= RE_ETHER_ALIGN - ETHER_ALIGN;
-
-	return;
 }
 #endif
 
@@ -2169,8 +2161,6 @@ re_int_task(void *arg, int npending)
 	}
 
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
-
-	return;
 }
 
 static int
@@ -2366,8 +2356,6 @@ re_tx_task(void *arg, int npending)
 
 	ifp = arg;
 	re_start(ifp);
-
-	return;
 }
 
 /*
@@ -2448,8 +2436,6 @@ re_start(struct ifnet *ifp)
 	sc->rl_watchdog_timer = 5;
 
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 static void
