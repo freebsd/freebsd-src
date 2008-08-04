@@ -282,7 +282,7 @@ showquotas(int type, u_long id, const char *name)
 	struct quotause *quplist;
 	const char *msgi, *msgb;
 	const char *nam;
-	char *bgrace, *igrace;
+	char *bgrace = NULL, *igrace = NULL;
 	int lines = 0, overquota = 0;
 	static time_t now;
 
@@ -391,10 +391,7 @@ showquotas(int type, u_long id, const char *name)
 }
 
 static void
-showrawquotas(type, id, qup)
-	int type;
-	u_long id;
-	struct quotause *qup;
+showrawquotas(int type, u_long id, struct quotause *qup)
 {
 	time_t tt;
 	printf("Raw %s quota information for id %lu on %s\n",
