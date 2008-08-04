@@ -337,7 +337,10 @@ opencal(void)
 		    if (!freopen(calendarFile, "r", stdin))
 		        return (NULL);
 		} else {
-		        chdir(getenv("HOME"));
+			char *home = getenv("HOME");
+			if (home == NULL || *home == '\0')
+				errx(1, "cannot get home directory");
+			chdir(home);
 			for (found = i = 0; i < sizeof(calendarHomes) /
 			    sizeof(calendarHomes[0]); i++)
 			    if (chdir(calendarHomes[i]) == 0 &&
@@ -346,7 +349,8 @@ opencal(void)
 				    break;
 			    }
 			if (!found)
-			    errx(1, "no calendar file: ``%s''", calendarFile);
+			    errx(1, "can't open calendar file \"%s\": %s (%d)",
+                                 calendarFile, strerror(errno), errno);
 		}
 	}
 	if (pipe(pdes) < 0)
