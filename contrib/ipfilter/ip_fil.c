@@ -803,6 +803,7 @@ int ipfsync()
 }
 
 
+#ifndef ipf_random
 u_32_t ipf_random()
 {
 	static int seeded = 0;
@@ -816,3 +817,4 @@ u_32_t ipf_random()
 	}
 	return rand();
 }
+#endif
