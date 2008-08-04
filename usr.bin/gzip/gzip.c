@@ -195,10 +195,10 @@ static	int	exit_value = 0;		/* exit value */
 
 static	char	*infile;		/* name of file coming in */
 
-static	void	maybe_err(const char *fmt, ...)
+static	void	maybe_err(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
 #ifndef NO_BZIP2_SUPPORT
-static	void	maybe_errx(const char *fmt, ...)
+static	void	maybe_errx(const char *fmt, ...) __dead2
     __attribute__((__format__(__printf__, 1, 2)));
 #endif
 static	void	maybe_warn(const char *fmt, ...)
