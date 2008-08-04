@@ -329,7 +329,7 @@ stub_create_bpfdesc(struct ucred *cred, struct bpf_d *d,
 }
 
 static void
-stub_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+stub_create_datagram_from_ipq(struct ipq *q, struct label *qlabel,
     struct mbuf *m, struct label *mlabel)
 {
 
@@ -390,8 +390,8 @@ stub_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
 }
 
 static void
-stub_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 }
@@ -453,8 +453,8 @@ stub_create_mbuf_from_firewall(struct mbuf *m, struct label *mlabel)
 }
 
 static int
-stub_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	return (1);
@@ -480,8 +480,8 @@ stub_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-stub_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+stub_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 }

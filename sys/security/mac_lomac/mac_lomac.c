@@ -1277,24 +1277,24 @@ set:
 }
 
 static void
-lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+lomac_create_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_lomac *source, *dest;
 
 	source = SLOT(mlabel);
-	dest = SLOT(ipqlabel);
+	dest = SLOT(qlabel);
 
 	lomac_copy_single(source, dest);
 }
 
 static void
-lomac_create_datagram_from_ipq(struct ipq *ipq, struct label *ipqlabel,
+lomac_create_datagram_from_ipq(struct ipq *q, struct label *qlabel,
     struct mbuf *m, struct label *mlabel)
 {
 	struct mac_lomac *source, *dest;
 
-	source = SLOT(ipqlabel);
+	source = SLOT(qlabel);
 	dest = SLOT(mlabel);
 
 	/* Just use the head, since we require them all to match. */
@@ -1386,12 +1386,12 @@ lomac_create_mbuf_netlayer(struct mbuf *m, struct label *mlabel,
 }
 
 static int
-lomac_fragment_match(struct mbuf *m, struct label *mlabel,
-    struct ipq *ipq, struct label *ipqlabel)
+lomac_fragment_match(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 	struct mac_lomac *a, *b;
 
-	a = SLOT(ipqlabel);
+	a = SLOT(qlabel);
 	b = SLOT(mlabel);
 
 	return (lomac_equal_single(a, b));
@@ -1410,8 +1410,8 @@ lomac_relabel_ifnet(struct ucred *cred, struct ifnet *ifp,
 }
 
 static void
-lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *ipq,
-    struct label *ipqlabel)
+lomac_update_ipq(struct mbuf *m, struct label *mlabel, struct ipq *q,
+    struct label *qlabel)
 {
 
 	/* NOOP: we only accept matching labels, so no need to update */
