@@ -91,10 +91,11 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	-g --strip-symbol '$$t' ${FULLKERNEL} ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
 	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
-	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
+	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker ldscript.$M.tramp \
 	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
 	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp
-	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
+	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker \
+	ldscript.$M.tramp.noheader \
 	tmphack.S $S/$M/$M/elf_trampoline.c $S/$M/$M/inckern.S \
 	${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader 
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
@@ -107,11 +108,12 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	gzip -9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
 	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
-	${CC} -O2 -DKZIP -I. -c $S/kern/inflate.c -o inflate-tramp.o
-	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp \
+	${CC} -O2 -DKZIP -I. -I$S -c $S/kern/inflate.c -o inflate-tramp.o
+	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker ldscript.$M.tramp \
 	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
 	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.gz.tramp
-	${CC} -O -nostdlib -I. -Xlinker -T -Xlinker ldscript.$M.tramp.noheader \
+	${CC} -O -nostdlib -I. -I$S -Xlinker -T -Xlinker \
+	ldscript.$M.tramp.noheader \
 	-DKZIP tmphack.S $S/$M/$M/elf_trampoline.c inflate-tramp.o \
 	$S/$M/$M/inckern.S ${FILES_CPU_FUNC} -o ${KERNEL_KO}.tramp.noheader
 	${OBJCOPY} -S -O binary ${KERNEL_KO}.tramp.noheader \
