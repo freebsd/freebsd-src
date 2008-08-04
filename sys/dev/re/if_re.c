@@ -2132,10 +2132,11 @@ re_int_task(void *arg, int npending)
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
 		rval = re_rxeof(sc);
 
+	if (status & (
 #ifdef RE_TX_MODERATION
-	if (status & (RL_ISR_TIMEOUT_EXPIRED|
+	    RL_ISR_TIMEOUT_EXPIRED|
 #else
-	if (status & (RL_ISR_TX_OK|
+	    RL_ISR_TX_OK|
 #endif
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
