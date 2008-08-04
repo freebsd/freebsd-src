@@ -29,10 +29,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -48,16 +50,18 @@ __FBSDID("$FreeBSD$");
 
 static int pcf_wait_byte(struct pcf_softc *pcf);
 static int pcf_noack(struct pcf_softc *pcf, int timeout);
+static void pcf_stop_locked(struct pcf_softc *pcf);
 
 /*
  * Polling mode for master operations wait for a new
- * byte incomming or outgoing
+ * byte incoming or outgoing
  */
-int
+static int
 pcf_wait_byte(struct pcf_softc *sc)
 {
 	int counter = TIMEOUT;
 
+	PCF_ASSERT_LOCKED(sc);
 	while (counter--) {
 
 		if ((pcf_get_S1(sc) & PIN) == 0)
@@ -71,11 +75,11 @@ pcf_wait_byte(struct pcf_softc *sc)
 	return (IIC_ETIMEOUT);
 }
 
-int
-pcf_stop(device_t dev)
+static void
+pcf_stop_locked(struct pcf_softc *sc)
 {
-	struct pcf_softc *sc = DEVTOSOFTC(dev);
 
+	PCF_ASSERT_LOCKED(sc);
 #ifdef PCFDEBUG
 	device_printf(dev, " >> stop\n");
 #endif
@@ -91,17 +95,15 @@ pcf_stop(device_t dev)
 
 		sc->pcf_started = 0;
 	}
-
-	return (0);
 }
 
-
-int
+static int
 pcf_noack(struct pcf_softc *sc, int timeout)
 {
 	int noack;
 	int k = timeout/10;
 
+	PCF_ASSERT_LOCKED(sc);
 	do {
 		noack = pcf_get_S1(sc) & LRB;
 		if (!noack)
@@ -118,6 +120,7 @@ pcf_repeated_start(device_t dev, u_char slave, int timeout)
 	struct pcf_softc *sc = DEVTOSOFTC(dev);
 	int error = 0;
 
+	PCF_LOCK(sc);
 #ifdef PCFDEBUG
 	device_printf(dev, " >> repeated start for slave %#x\n",
 		      (unsigned)slave);
@@ -142,10 +145,12 @@ pcf_repeated_start(device_t dev, u_char slave, int timeout)
 		goto error;
 	}
 
+	PCF_UNLOCK(sc);
 	return (0);
 
 error:
-	pcf_stop(dev);
+	pcf_stop_locked(sc);
+	PCF_UNLOCK(sc);
 	return (error);
 }
 
@@ -155,6 +160,7 @@ pcf_start(device_t dev, u_char slave, int timeout)
 	struct pcf_softc *sc = DEVTOSOFTC(dev);
 	int error = 0;
 
+	PCF_LOCK(sc);
 #ifdef PCFDEBUG
 	device_printf(dev, " >> start for slave %#x\n", (unsigned)slave);
 #endif
@@ -162,6 +168,7 @@ pcf_start(device_t dev, u_char slave, int timeout)
 #ifdef PCFDEBUG
 		printf("pcf: busy!\n");
 #endif
+		PCF_UNLOCK(sc);
 		return (IIC_EBUSBSY);
 	}
 
@@ -187,11 +194,28 @@ pcf_start(device_t dev, u_char slave, int timeout)
 		goto error;
 	}
 
+	PCF_UNLOCK(sc);
 	return (0);
 
 error:
-	pcf_stop(dev);
+	pcf_stop_locked(sc);
+	PCF_UNLOCK(sc);
 	return (error);
+}
+
+int
+pcf_stop(device_t dev)
+{
+	struct pcf_softc *sc = DEVTOSOFTC(dev);
+
+#ifdef PCFDEBUG
+	device_printf(dev, " >> stop\n");
+#endif
+	PCF_LOCK(sc);
+	pcf_stop_locked(sc);
+	PCF_UNLOCK(sc);
+
+	return (0);
 }
 
 void
@@ -201,6 +225,7 @@ pcf_intr(void *arg)
 	char data, status, addr;
 	char error = 0;
 
+	PCF_LOCK(sc);
 	status = pcf_get_S1(sc);
 
 	if (status & PIN) {
@@ -288,6 +313,7 @@ pcf_intr(void *arg)
 		    }
 
 	} while ((pcf_get_S1(sc) & PIN) == 0);
+	PCF_UNLOCK(sc);
 
 	return;
 
@@ -296,6 +322,7 @@ error:
 	pcf_set_S1(sc, PIN|ESO|ENI|ACK);
 
 	sc->pcf_slave_mode = SLAVE_RECEIVER;
+	PCF_UNLOCK(sc);
 
 	return;
 }
@@ -305,6 +332,7 @@ pcf_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct pcf_softc *sc = DEVTOSOFTC(dev);
 
+	PCF_LOCK(sc);
 	if (oldaddr)
 		*oldaddr = sc->pcf_addr;
 
@@ -343,6 +371,7 @@ pcf_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	pcf_set_S1(sc, PIN|ESO|ENI|ACK);
 
 	sc->pcf_slave_mode = SLAVE_RECEIVER;
+	PCF_UNLOCK(sc);
 
 	return (0);
 }
@@ -359,6 +388,7 @@ pcf_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */)
 #endif
 
 	bytes = 0;
+	PCF_LOCK(sc);
 	while (len) {
 
 		pcf_set_S0(sc, *buf++);
@@ -379,6 +409,7 @@ pcf_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */)
 
 error:
 	*sent = bytes;
+	PCF_UNLOCK(sc);
 
 #ifdef PCFDEBUG
 	device_printf(dev, " >> %d bytes written (%d)\n", bytes, error);
@@ -399,6 +430,7 @@ pcf_read(device_t dev, char *buf, int len, int *read, int last,
 	device_printf(dev, " << reading %d bytes\n", len);
 #endif
 
+	PCF_LOCK(sc);
 	/* trig the bus to get the first data byte in S0 */
 	if (len) {
 		if (len == 1 && last)
@@ -415,14 +447,14 @@ pcf_read(device_t dev, char *buf, int len, int *read, int last,
 
 		/* wait for trigged byte */
 		if ((error = pcf_wait_byte(sc))) {
-			pcf_stop(dev);
+			pcf_stop_locked(sc);
 			goto error;
 		}
 
 		if (len == 1 && last)
 			/* ok, last data byte already in S0, no I2C activity
 			 * on next pcf_get_S0() */
-			pcf_stop(dev);
+			pcf_stop_locked(sc);
 
 		else if (len == 2 && last)
 			/* next trigged byte with no ack */
@@ -437,6 +469,7 @@ pcf_read(device_t dev, char *buf, int len, int *read, int last,
 
 error:
 	*read = bytes;
+	PCF_UNLOCK(sc);
 
 #ifdef PCFDEBUG
 	device_printf(dev, " << %d bytes read (%d): %#x%s\n", bytes, error,
