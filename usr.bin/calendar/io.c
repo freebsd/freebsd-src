@@ -66,6 +66,23 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 #include "calendar.h"
 
+/*
+ * Event sorting related functions:
+ * - Use event_add() to create a new event
+ * - Use event_continue() to add more text to the last added event
+ * - Use event_print_all() to display them in time chronological order
+ */
+static struct event *event_add(struct event *, int, int, char *, int, char *);
+static void	event_continue(struct event *events, char *txt);
+static void	event_print_all(FILE *fp, struct event *events);
+struct event {
+	int	month;
+	int	day;
+	int	var;
+	char	*date;
+	char	*text;
+	struct event *next;
+};
 
 const char *calendarFile = "calendar";	/* default calendar file */
 const char *calendarHomes[] = {".calendar", _PATH_INCLUDE};	/* HOME */
@@ -170,7 +187,7 @@ cal(void)
 	closecal(fp);
 }
 
-struct event *
+static struct event *
 event_add(struct event *events, int month, int day,
     char *date, int var, char *txt)
 {
@@ -200,7 +217,7 @@ event_add(struct event *events, int month, int day,
 	return e;
 }
 
-void
+static void
 event_continue(struct event *e, char *txt)
 {
 	char *text;
@@ -228,7 +245,7 @@ event_continue(struct event *e, char *txt)
 	return;
 }
 
-void
+static void
 event_print_all(FILE *fp, struct event *events)
 {
 	struct event *e, *e_next;
