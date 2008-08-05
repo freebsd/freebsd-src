@@ -67,9 +67,7 @@ int f_dayBefore = 0; /* days before current date */
 int Friday = 5;	     /* day before weekend */
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int ch;
 
@@ -143,7 +141,7 @@ main(argc, argv)
 
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 	    "usage: calendar [-a] [-A days] [-B days] [-F friday] "
