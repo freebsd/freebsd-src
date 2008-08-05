@@ -177,6 +177,7 @@ void	 audit_cred_destroy(struct ucred *cred);
 void	 audit_cred_init(struct ucred *cred);
 void	 audit_cred_kproc0(struct ucred *cred);
 void	 audit_cred_proc1(struct ucred *cred);
+void	 audit_proc_coredump(struct thread *td, char *path, int errcode);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
