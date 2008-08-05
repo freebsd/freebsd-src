@@ -2404,26 +2404,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		 */
 		resource_list_delete(rl, type, reg);
 		start = 0;
-	} else {
+	} else
 		start = rman_get_start(res);
-		if ((u_long)start != start) {
-			/*
-			 * Wait a minute!  This platform can't do this
-			 * address.
-			 */
-			device_printf(bus,
-			    "pci%d:%d.%d.%x bar %#x start %#jx, too many bits.",
-			    pci_get_domain(dev), b, s, f, reg,
-			    (uintmax_t)start);
-
-			/*
-			 * Delete this resource and zero the BAR.
-			 */
-			resource_list_release(rl, bus, dev, type, reg, res);
-			resource_list_delete(rl, type, reg);
-			start = 0;
-		}
-	}
 	pci_write_config(dev, reg, start, 4);
 	if (ln2range == 64)
 		pci_write_config(dev, reg + 4, start >> 32, 4);
