@@ -111,7 +111,7 @@ _pthread_condattr_getpshared(const pthread_condattr_t *attr,
 	if (attr == NULL || *attr == NULL)
 		return (EINVAL);
 
-	pshared = PTHREAD_PROCESS_PRIVATE;
+	*pshared = PTHREAD_PROCESS_PRIVATE;
 	return (0);
 }
 
