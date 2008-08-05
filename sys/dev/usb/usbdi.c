@@ -384,7 +384,8 @@ usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			 */
 			bus_dmamap_sync(tag, dmap->map,
 			    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-		}
+		} else
+			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREREAD);
 	}
 	err = pipe->methods->transfer(xfer);
 	if (err != USBD_IN_PROGRESS && err) {
