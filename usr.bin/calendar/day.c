@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 struct tm *tp;
 static const struct tm tm0;
-int *cumdays, offset, yrdays;
+int *cumdays, yrdays;
 char dayname[10];
 
 
@@ -75,7 +75,8 @@ static struct fixs fnmonths[13];      /* full national months names */
 static struct fixs nmonths[13];       /* short national month names */
 
 
-void setnnames(void)
+void
+setnnames(void)
 {
 	char buf[80];
 	int i, l;
@@ -137,8 +138,7 @@ void setnnames(void)
 }
 
 void
-settime(now)
-    	time_t now;
+settime(time_t now)
 {
 	char *oldl, *lbufp;
 
@@ -151,7 +151,8 @@ settime(now)
 		cumdays = daytab[0];
 	}
 	/* Friday displays Monday's events */
-	offset = tp->tm_wday == Friday ? 3 : 1;
+	if (f_dayAfter == 0 && f_dayBefore == 0 && Friday != -1)
+		f_dayAfter = tp->tm_wday == Friday ? 3 : 1;
 	header[5].iov_base = dayname;
 
 	oldl = NULL;
@@ -170,8 +171,8 @@ settime(now)
 /* convert Day[/Month][/Year] into unix time (since 1970)
  * Day: two digits, Month: two digits, Year: digits
  */
-time_t Mktime (dp)
-    char *dp;
+time_t
+Mktime (char *dp)
 {
     time_t t;
     int d, m, y;
@@ -216,11 +217,7 @@ time_t Mktime (dp)
  * along with the matched line.
  */
 int
-isnow(endp, monthp, dayp, varp)
-	char *endp;
-	int	*monthp;
-	int	*dayp;
-	int	*varp;
+isnow(char *endp, int *monthp, int *dayp, int *varp)
 {
 	int day, flags, month = 0, v1, v2;
 
@@ -379,26 +376,36 @@ isnow(endp, monthp, dayp, varp)
 	}
 
 #ifdef DEBUG
-	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day, cumdays[month], tp->tm_yday);
+	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day,
+                cumdays[month], tp->tm_yday);
 #endif
-	/* if today or today + offset days */
+
+	/* When days before or days after is specified */
+	/* no year rollover */
 	if (day >= tp->tm_yday - f_dayBefore &&
-	    day <= tp->tm_yday + offset + f_dayAfter)
+	    day <= tp->tm_yday + f_dayAfter)
 		return (1);
 
-	/* if number of days left in this year + days to event in next year */
-	if (yrdays - tp->tm_yday + day <= offset + f_dayAfter ||
-	    /* a year backward, eg. 6 Jan and 10 days before -> 27. Dec */
-	    tp->tm_yday + day - f_dayBefore < 0
-	    )
-		return (1);
+	/* next year */
+	if (tp->tm_yday + f_dayAfter >= yrdays) {
+		int end = tp->tm_yday + f_dayAfter - yrdays;
+		if (day <= end)
+			return (1);
+	}
+
+	/* previous year */
+	if (tp->tm_yday - f_dayBefore < 0) {
+		int before = yrdays + (tp->tm_yday - f_dayBefore );
+		if (day >= before)
+			return (1);
+	}
+
 	return (0);
 }
 
 
 int
-getmonth(s)
-	char *s;
+getmonth(char *s)
 {
 	const char **p;
 	struct fixs *n;
@@ -417,8 +424,7 @@ getmonth(s)
 
 
 int
-getday(s)
-	char *s;
+getday(char *s)
 {
 	const char **p;
 	struct fixs *n;
@@ -441,8 +447,7 @@ getday(s)
  * ... etc ...
  */
 int
-getdayvar(s)
-	char *s;
+getdayvar(char *s)
 {
 	int offs;
 

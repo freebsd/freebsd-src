@@ -43,13 +43,11 @@ static int paskha (int);
 /* (old style result) */
 
 static int
-paskha (R)
-int R;  /*year*/
+paskha(int R) /*year*/
 {
 	int a, b, c, d, e;
 	static int x = 15;
 	static int y = 6;
-	extern int *cumdays;
 
 	a = R % 19;
 	b = R % 4;
@@ -62,12 +60,9 @@ int R;  /*year*/
 /* return year day for Orthodox Easter depending days */
 
 int
-getpaskha(s, year)
-	char *s;
-        int year;
+getpaskha(char *s, int year)
 {
 	int offset;
-	extern struct fixs npaskha;
 
 	if (strncasecmp(s, PASKHA, PASKHALEN) == 0)
 	    s += PASKHALEN;
