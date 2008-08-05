@@ -132,6 +132,15 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	struct sockaddr* sa;
 	int error;
 
+	if (so->so_state & SS_ISCONNECTED) {
+		error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
+		if (error)
+			return (NULL);
+		xprt = svc_vc_create_conn(pool, so, sa);
+		free(sa, M_SONAME);
+		return (xprt);
+	}
+
 	xprt = mem_alloc(sizeof(SVCXPRT));
 	mtx_init(&xprt->xp_lock, "xprt->xp_lock", NULL, MTX_DEF);
 	xprt->xp_pool = pool;
@@ -180,7 +189,31 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	SVCXPRT *xprt = NULL;
 	struct cf_conn *cd = NULL;
 	struct sockaddr* sa = NULL;
+	struct sockopt opt;
+	int one = 1;
 	int error;
+
+	bzero(&opt, sizeof(struct sockopt));
+	opt.sopt_dir = SOPT_SET;
+	opt.sopt_level = SOL_SOCKET;
+	opt.sopt_name = SO_KEEPALIVE;
+	opt.sopt_val = &one;
+	opt.sopt_valsize = sizeof(one);
+	error = sosetopt(so, &opt);
+	if (error)
+		return (NULL);
+
+	if (so->so_proto->pr_protocol == IPPROTO_TCP) {
+		bzero(&opt, sizeof(struct sockopt));
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_level = IPPROTO_TCP;
+		opt.sopt_name = TCP_NODELAY;
+		opt.sopt_val = &one;
+		opt.sopt_valsize = sizeof(one);
+		error = sosetopt(so, &opt);
+		if (error)
+			return (NULL);
+	}
 
 	cd = mem_alloc(sizeof(*cd));
 	cd->strm_stat = XPRT_IDLE;
@@ -306,8 +339,6 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 {
 	struct socket *so = NULL;
 	struct sockaddr *sa = NULL;
-	struct sockopt opt;
-	int one = 1;
 	int error;
 
 	/*
@@ -351,16 +382,6 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	sa = 0;
 	error = soaccept(so, &sa);
 
-	if (!error) {
-		bzero(&opt, sizeof(struct sockopt));
-		opt.sopt_dir = SOPT_SET;
-		opt.sopt_level = IPPROTO_TCP;
-		opt.sopt_name = TCP_NODELAY;
-		opt.sopt_val = &one;
-		opt.sopt_valsize = sizeof(one);
-		error = sosetopt(so, &opt);
-	}
-
 	if (error) {
 		/*
 		 * XXX not sure if I need to call sofree or soclose here.
@@ -374,7 +395,9 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg)
 	 * svc_vc_create_conn will call xprt_register - we don't need
 	 * to do anything with the new connection.
 	 */
-	svc_vc_create_conn(xprt->xp_pool, so, sa);
+	if (!svc_vc_create_conn(xprt->xp_pool, so, sa))
+		soclose(so);
+
 	free(sa, M_SONAME);
 
 	return (FALSE); /* there is never an rpc msg to be processed */
