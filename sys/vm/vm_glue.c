@@ -116,10 +116,6 @@ static int swapout(struct proc *);
 static void swapclear(struct proc *);
 #endif
 
-
-static volatile int proc0_rescan;
-
-
 /*
  * MPSAFE
  *
@@ -683,9 +679,6 @@ scheduler(dummy)
 loop:
 	if (vm_page_count_min()) {
 		VM_WAIT;
-		thread_lock(&thread0);
-		proc0_rescan = 0;
-		thread_unlock(&thread0);
 		goto loop;
 	}
 
@@ -732,13 +725,7 @@ loop:
 	 * Nothing to do, back to sleep.
 	 */
 	if ((p = pp) == NULL) {
-		thread_lock(&thread0);
-		if (!proc0_rescan) {
-			TD_SET_IWAIT(&thread0);
-			mi_switch(SW_VOL | SWT_IWAIT, NULL);
-		}
-		proc0_rescan = 0;
-		thread_unlock(&thread0);
+		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
 		goto loop;
 	}
 	PROC_LOCK(p);
@@ -750,9 +737,6 @@ loop:
 	 */
 	if (p->p_flag & (P_INMEM | P_SWAPPINGOUT | P_SWAPPINGIN)) {
 		PROC_UNLOCK(p);
-		thread_lock(&thread0);
-		proc0_rescan = 0;
-		thread_unlock(&thread0);
 		goto loop;
 	}
 
@@ -762,31 +746,15 @@ loop:
 	 */
 	faultin(p);
 	PROC_UNLOCK(p);
-	thread_lock(&thread0);
-	proc0_rescan = 0;
-	thread_unlock(&thread0);
 	goto loop;
 }
 
-void kick_proc0(void)
+void
+kick_proc0(void)
 {
-	struct thread *td = &thread0;
 
-	/* XXX This will probably cause a LOR in some cases */
-	thread_lock(td);
-	if (TD_AWAITING_INTR(td)) {
-		CTR2(KTR_INTR, "%s: sched_add %d", __func__, 0);
-		TD_CLR_IWAIT(td);
-		sched_add(td, SRQ_INTR);
-	} else {
-		proc0_rescan = 1;
-		CTR2(KTR_INTR, "%s: state %d",
-		    __func__, td->td_state);
-	}
-	thread_unlock(td);
-	
+	wakeup(&proc0);
 }
-
 
 #ifndef NO_SWAPPING
 
@@ -980,7 +948,16 @@ swapclear(p)
 		td->td_flags &= ~TDF_SWAPINREQ;
 		TD_CLR_SWAPPED(td);
 		if (TD_CAN_RUN(td))
-			setrunnable(td);
+			if (setrunnable(td)) {
+#ifdef INVARIANTS
+				/*
+				 * XXX: We just cleared TDI_SWAPPED
+				 * above and set TDF_INMEM, so this
+				 * should never happen.
+				 */
+				panic("not waking up swapper");
+#endif
+			}
 		thread_unlock(td);
 	}
 	p->p_flag &= ~(P_SWAPPINGIN|P_SWAPPINGOUT);

@@ -508,7 +508,7 @@ thread_single(int mode)
 	struct thread *td;
 	struct thread *td2;
 	struct proc *p;
-	int remaining;
+	int remaining, wakeup_swapper;
 
 	td = curthread;
 	p = td->td_proc;
@@ -545,6 +545,7 @@ thread_single(int mode)
 	while (remaining != 1) {
 		if (P_SHOULDSTOP(p) != P_STOPPED_SINGLE)
 			goto stopme;
+		wakeup_swapper = 0;
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
@@ -559,7 +560,8 @@ thread_single(int mode)
 						thread_unsuspend_one(td2);
 					if (TD_ON_SLEEPQ(td2) &&
 					    (td2->td_flags & TDF_SINTR))
-						sleepq_abort(td2, EINTR);
+						wakeup_swapper =
+						    sleepq_abort(td2, EINTR);
 					break;
 				case SINGLE_BOUNDARY:
 					break;
@@ -585,6 +587,8 @@ thread_single(int mode)
 #endif
 			thread_unlock(td2);
 		}
+		if (wakeup_swapper)
+			kick_proc0();
 		if (mode == SINGLE_EXIT)
 			remaining = p->p_numthreads;
 		else if (mode == SINGLE_BOUNDARY)
@@ -787,7 +791,11 @@ thread_unsuspend_one(struct thread *td)
 	KASSERT(TD_IS_SUSPENDED(td), ("Thread not suspended"));
 	TD_CLR_SUSPENDED(td);
 	p->p_suspcount--;
-	setrunnable(td);
+	if (setrunnable(td)) {
+#ifdef INVARIANTS
+		panic("not waking up swapper");
+#endif
+	}
 }
 
 /*
