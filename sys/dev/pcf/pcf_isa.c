@@ -209,5 +209,3 @@ pcf_isa_detach(device_t dev)
 }
 
 DRIVER_MODULE(pcf_isa, isa, pcf_isa_driver, pcf_isa_devclass, 0, 0);
-MODULE_DEPEND(pcf_isa, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
-MODULE_VERSION(pcf_isa, PCF_MODVER);

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
+#include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/pcf/pcfvar.h>
 #include "iicbus_if.h"
@@ -478,3 +479,7 @@ error:
 
 	return (error);
 }
+
+DRIVER_MODULE(iicbus, pcf, iicbus_driver, iicbus_devclass, 0, 0);
+MODULE_DEPEND(pcf, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
+MODULE_VERSION(pcf, PCF_MODVER);
