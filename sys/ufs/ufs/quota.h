@@ -123,9 +123,9 @@ struct dquot {
 	u_int16_t dq_type;		/* quota type of this dquot */
 	u_int32_t dq_cnt;		/* (h) count of active references */
 	u_int32_t dq_id;		/* identifier this applies to */
-	struct	ufsmount *dq_ump;	/* (h) filesystem that this is
+	struct ufsmount *dq_ump;	/* (h) filesystem that this is
 					   taken from */
-	struct	dqblk dq_dqb;		/* actual usage & quotas */
+	struct dqblk dq_dqb;		/* actual usage & quotas */
 };
 /*
  * Flag values.
