@@ -909,15 +909,14 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			    "rejected\n", s, __func__, th->th_ack, sc->sc_iss);
 		goto failed;
 	}
-	/*
-	 * The SEQ must fall in the window starting a the received initial receive 
-	 * sequence number + 1 (the SYN).
-	 */
 
+	/*
+	 * The SEQ must fall in the window starting at the received
+	 * initial receive sequence number + 1 (the SYN).
+	 */
 	if ((SEQ_LEQ(th->th_seq, sc->sc_irs) ||
-	    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd )) &&
-	    !TOEPCB_ISSET(sc))
-	{
+	    SEQ_GT(th->th_seq, sc->sc_irs + sc->sc_wnd)) &&
+	    !TOEPCB_ISSET(sc)) {
 		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
 			    "rejected\n", s, __func__, th->th_seq, sc->sc_irs);
