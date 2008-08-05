@@ -327,10 +327,13 @@ pause(const char *wmesg, int timo)
 void
 wakeup(void *ident)
 {
+	int wakeup_swapper;
 
 	sleepq_lock(ident);
-	sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
+	wakeup_swapper = sleepq_broadcast(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 /*
@@ -341,10 +344,13 @@ wakeup(void *ident)
 void
 wakeup_one(void *ident)
 {
+	int wakeup_swapper;
 
 	sleepq_lock(ident);
-	sleepq_signal(ident, SLEEPQ_SLEEP, 0, 0);
+	wakeup_swapper = sleepq_signal(ident, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(ident);
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 static void
@@ -440,11 +446,11 @@ mi_switch(int flags, struct thread *newtd)
 }
 
 /*
- * Change process state to be runnable,
- * placing it on the run queue if it is in memory,
- * and awakening the swapper if it isn't in memory.
+ * Change thread state to be runnable, placing it on the run queue if
+ * it is in memory.  If it is swapped out, return true so our caller
+ * will know to awaken the swapper.
  */
-void
+int
 setrunnable(struct thread *td)
 {
 
@@ -454,15 +460,15 @@ setrunnable(struct thread *td)
 	switch (td->td_state) {
 	case TDS_RUNNING:
 	case TDS_RUNQ:
-		return;
+		return (0);
 	case TDS_INHIBITED:
 		/*
 		 * If we are only inhibited because we are swapped out
 		 * then arange to swap in this process. Otherwise just return.
 		 */
 		if (td->td_inhibitors != TDI_SWAPPED)
-			return;
-		/* XXX: intentional fall-through ? */
+			return (0);
+		/* FALLTHROUGH */
 	case TDS_CAN_RUN:
 		break;
 	default:
@@ -472,15 +478,11 @@ setrunnable(struct thread *td)
 	if ((td->td_flags & TDF_INMEM) == 0) {
 		if ((td->td_flags & TDF_SWAPINREQ) == 0) {
 			td->td_flags |= TDF_SWAPINREQ;
-			/*
-			 * due to a LOR between the thread lock and
-			 * the sleepqueue chain locks, use
-			 * lower level scheduling functions.
-			 */
-			kick_proc0();
+			return (1);
 		}
 	} else
 		sched_wakeup(td);
+	return (0);
 }
 
 /*
