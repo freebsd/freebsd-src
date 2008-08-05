@@ -61,9 +61,9 @@ struct ufs_extattr_per_mount;
 /* This structure describes the UFS specific mount structure data. */
 struct ufsmount {
 	struct	mount *um_mountp;		/* filesystem vfs structure */
-	struct cdev *um_dev;			/* device mounted */
-	struct g_consumer *um_cp;
-	struct bufobj *um_bo;			/* Buffer cache object */
+	struct	cdev *um_dev;			/* device mounted */
+	struct	g_consumer *um_cp;
+	struct	bufobj *um_bo;			/* Buffer cache object */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 	u_long	um_fstype;			/* type of filesystem */
 	struct	fs *um_fs;			/* pointer to superblock */
@@ -73,8 +73,8 @@ struct ufsmount {
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
 	long	um_numindirdeps;		/* outstanding indirdeps */
-	struct workhead softdep_workitem_pending; /* softdep work queue */
-	struct worklist *softdep_worklist_tail;	/* Tail pointer for above */
+	struct	workhead softdep_workitem_pending; /* softdep work queue */
+	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */
 	int	softdep_on_worklist;		/* Items on the worklist */
 	int	softdep_on_worklist_inprogress;	/* Busy items on worklist */
 	int	softdep_deps;			/* Total dependency count */
