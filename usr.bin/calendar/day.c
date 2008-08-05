@@ -47,16 +47,16 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 #include "calendar.h"
 
-struct tm *tp;
-static const struct tm tm0;
-int *cumdays, yrdays;
-char dayname[10];
+struct tm		*tp;
+static const struct tm	tm0;
+int			*cumdays, yrdays;
+char			dayname[10];
 
 
 /* 1-based month, 0-based days, cumulative */
-int daytab[][14] = {
-	{ 0, -1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364 },
-	{ 0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
+int	daytab[][14] = {
+	{0, -1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364},
+	{0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
 };
 
 static char const *days[] = {
@@ -68,11 +68,11 @@ static const char *months[] = {
 	"jul", "aug", "sep", "oct", "nov", "dec", NULL,
 };
 
-static struct fixs fndays[8];         /* full national days names */
-static struct fixs ndays[8];          /* short national days names */
+static struct fixs fndays[8];		/* full national days names */
+static struct fixs ndays[8];		/* short national days names */
 
-static struct fixs fnmonths[13];      /* full national months names */
-static struct fixs nmonths[13];       /* short national month names */
+static struct fixs fnmonths[13];	/* full national months names */
+static struct fixs nmonths[13];		/* short national month names */
 
 
 void
@@ -143,7 +143,7 @@ settime(time_t now)
 	char *oldl, *lbufp;
 
 	tp = localtime(&now);
-	if ( isleap(tp->tm_year + 1900) ) {
+	if (isleap(tp->tm_year + 1900)) {
 		yrdays = 366;
 		cumdays = daytab[1];
 	} else {
@@ -159,9 +159,9 @@ settime(time_t now)
 	lbufp = setlocale(LC_TIME, NULL);
 	if (lbufp != NULL && (oldl = strdup(lbufp)) == NULL)
 		errx(1, "cannot allocate memory");
-	(void) setlocale(LC_TIME, "C");
+	(void)setlocale(LC_TIME, "C");
 	header[5].iov_len = strftime(dayname, sizeof(dayname), "%A", tp);
-	(void) setlocale(LC_TIME, (oldl != NULL ? oldl : ""));
+	(void)setlocale(LC_TIME, (oldl != NULL ? oldl : ""));
 	if (oldl != NULL)
 		free(oldl);
 
@@ -172,38 +172,38 @@ settime(time_t now)
  * Day: two digits, Month: two digits, Year: digits
  */
 time_t
-Mktime (char *dp)
+Mktime(char *dp)
 {
-    time_t t;
-    int d, m, y;
-    struct tm tm;
+	time_t t;
+	int d, m, y;
+	struct tm tm;
 
-    (void)time(&t);
-    tp = localtime(&t);
+	(void)time(&t);
+	tp = localtime(&t);
 
-    tm = tm0;
-    tm.tm_mday = tp->tm_mday;
-    tm.tm_mon = tp->tm_mon;
-    tm.tm_year = tp->tm_year;
+	tm = tm0;
+	tm.tm_mday = tp->tm_mday;
+	tm.tm_mon = tp->tm_mon;
+	tm.tm_year = tp->tm_year;
 
-    switch (sscanf(dp, "%d.%d.%d", &d, &m, &y)) {
-    case 3:
-	if (y > 1900)
-	    y -= 1900;
-	tm.tm_year = y;
-	/* FALLTHROUGH */
-    case 2:
-	tm.tm_mon = m - 1;
-	/* FALLTHROUGH */
-    case 1:
-	tm.tm_mday = d;
-    }
+	switch (sscanf(dp, "%d.%d.%d", &d, &m, &y)) {
+	case 3:
+		if (y > 1900)
+			y -= 1900;
+		tm.tm_year = y;
+		/* FALLTHROUGH */
+	case 2:
+		tm.tm_mon = m - 1;
+		/* FALLTHROUGH */
+	case 1:
+		tm.tm_mday = d;
+	}
 
 #ifdef DEBUG
-    fprintf(stderr, "Mktime: %d %d %s\n", (int)mktime(&tm), (int)t,
-	   asctime(&tm));
+	fprintf(stderr, "Mktime: %d %d %s\n",
+	    (int)mktime(&tm), (int)t, asctime(&tm));
 #endif
-    return(mktime(&tm));
+	return (mktime(&tm));
 }
 
 /*
@@ -240,7 +240,7 @@ isnow(char *endp, int *monthp, int *dayp, int *varp)
 
 	/* Easter or Easter depending days */
 	if (flags & F_EASTER)
-	    day = v1 - 1; /* days since January 1 [0-365] */
+		day = v1 - 1; /* days since January 1 [0-365] */
 
 	 /*
 	  * 1. {Weekday,Day} XYZ ...
@@ -299,85 +299,86 @@ isnow(char *endp, int *monthp, int *dayp, int *varp)
 	 */
 	if (flags & F_ISDAY) {
 #ifdef DEBUG
-	    fprintf(stderr, "\nday: %d %s month %d\n", day, endp, month);
+		fprintf(stderr, "\nday: %d %s month %d\n", day, endp, month);
 #endif
 
-	    *varp = 1;
-	    /* variable weekday, SundayLast, MondayFirst ... */
-	    if (day < 0 || day >= 10) {
-
-		/* negative offset; last, -4 .. -1 */
-		if (day < 0) {
-		    v1 = day/10 - 1;          /* offset -4 ... -1 */
-	            day = 10 + (day % 10);    /* day 1 ... 7 */
-
-		    /* day, eg '22nd' */
-		    v2 = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
-
-		    /* (month length - day) / 7 + 1 */
-		    if (cumdays[month+1] - cumdays[month] >= v2
-			&& ((int)((cumdays[month+1] -
-		               cumdays[month] - v2) / 7) + 1) == -v1)
-			/* bingo ! */
-			day = v2;
-
-		    /* set to yesterday */
-		    else {
-			day = tp->tm_mday - 1;
-			if (day == 0)
-			    return (0);
-		    }
-		}
-
-		/* first, second ... +1 ... +5 */
-		else {
-		    v1 = day/10;        /* offset: +1 (first Sunday) ... */
-		    day = day % 10;
-
-		    /* day, eg '22th' */
-		    v2 = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
-
-		    /* Hurrah! matched */
-		    if ( ((v2 - 1 + 7) / 7) == v1 )
-			day = v2;
-
-		    /* set to yesterday */
-		    else {
-			day = tp->tm_mday - 1;
-			if (day == 0)
-			    return (0);
-		    }
-		}
-	    }
-
-	    /* wired */
-	    else {
-		day = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
 		*varp = 1;
-	    }
+		/* variable weekday, SundayLast, MondayFirst ... */
+		if (day < 0 || day >= 10) {
+
+			/* negative offset; last, -4 .. -1 */
+			if (day < 0) {
+				v1 = day / 10 - 1;	/* offset -4 ... -1 */
+				day = 10 + (day % 10);	/* day 1 ... 7 */
+
+				/* day, eg '22nd' */
+				v2 = tp->tm_mday +
+				    (((day - 1) - tp->tm_wday + 7) % 7);
+
+				/* (month length - day)	/ 7 + 1 */
+				if (cumdays[month + 1] - cumdays[month] >= v2
+				    && ((int)((cumdays[month + 1] -
+				    cumdays[month] - v2) / 7) + 1) == -v1)
+					day = v2;	/* bingo ! */
+
+				/* set to yesterday */
+				else {
+					day = tp->tm_mday - 1;
+					if (day == 0)
+						return (0);
+				}
+			}
+
+			/* first, second ... +1 ... +5 */
+			else {
+				/* offset: +1 (first Sunday) ... */
+				v1 = day / 10;
+				day = day % 10;
+
+				/* day, eg '22th' */
+				v2 = tp->tm_mday +
+				    (((day - 1) - tp->tm_wday + 7) % 7);
+
+				/* Hurrah! matched */
+				if (((v2 - 1 + 7) / 7) == v1 )
+					day = v2;
+
+				else {
+					/* set to yesterday */
+					day = tp->tm_mday - 1;
+					if (day == 0)
+						return (0);
+				}
+			}
+		} else {
+			/* wired */
+			day = tp->tm_mday + (((day - 1) - tp->tm_wday + 7) % 7);
+			*varp = 1;
+		}
 	}
 
 	if (!(flags & F_EASTER)) {
-	    if (day + cumdays[month] > cumdays[month + 1]) {    /* off end of month */
-		day -= (cumdays[month + 1] - cumdays[month]);   /* adjust */
-		if (++month > 12)                               /* next year */
-		    month = 1;
-	    }
-	    *monthp = month;
-	    *dayp = day;
-	    day = cumdays[month] + day;
-	}
-	else {
-	    for (v1 = 0; day > cumdays[v1]; v1++)
-		;
-	    *monthp = v1 - 1;
-	    *dayp = day - cumdays[v1 - 1];
-	    *varp = 1;
+		if (day + cumdays[month] > cumdays[month + 1]) {
+			/* off end of month, adjust */
+			day -= (cumdays[month + 1] - cumdays[month]);
+			/* next year */
+			if (++month > 12)
+				month = 1;
+		}
+		*monthp = month;
+		*dayp = day;
+		day = cumdays[month] + day;
+	} else {
+		for (v1 = 0; day > cumdays[v1]; v1++)
+			;
+		*monthp = v1 - 1;
+		*dayp = day - cumdays[v1 - 1];
+		*varp = 1;
 	}
 
 #ifdef DEBUG
-	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n", *dayp, day,
-                cumdays[month], tp->tm_yday);
+	fprintf(stderr, "day2: day %d(%d-%d) yday %d\n",
+	    *dayp, day, cumdays[month], tp->tm_yday);
 #endif
 
 	/* When days before or days after is specified */
@@ -395,7 +396,7 @@ isnow(char *endp, int *monthp, int *dayp, int *varp)
 
 	/* previous year */
 	if (tp->tm_yday - f_dayBefore < 0) {
-		int before = yrdays + (tp->tm_yday - f_dayBefore );
+		int before = yrdays + (tp->tm_yday - f_dayBefore);
 		if (day >= before)
 			return (1);
 	}
@@ -451,21 +452,18 @@ getdayvar(char *s)
 {
 	int offs;
 
-
 	offs = strlen(s);
-
 
 	/* Sun+1 or Wednesday-2
 	 *    ^              ^   */
 
 	/* fprintf(stderr, "x: %s %s %d\n", s, s + offs - 2, offs); */
-	switch(*(s + offs - 2)) {
+	switch (*(s + offs - 2)) {
 	case '-':
-	    return(-(atoi(s + offs - 1)));
+		return (-(atoi(s + offs - 1)));
 	case '+':
-	    return(atoi(s + offs - 1));
+		return (atoi(s + offs - 1));
 	}
-
 
 	/*
 	 * some aliases: last, first, second, third, fourth
@@ -473,17 +471,16 @@ getdayvar(char *s)
 
 	/* last */
 	if      (offs > 4 && !strcasecmp(s + offs - 4, "last"))
-	    return(-1);
+		return (-1);
 	else if (offs > 5 && !strcasecmp(s + offs - 5, "first"))
-	    return(+1);
+		return (+1);
 	else if (offs > 6 && !strcasecmp(s + offs - 6, "second"))
-	    return(+2);
+		return (+2);
 	else if (offs > 5 && !strcasecmp(s + offs - 5, "third"))
-	    return(+3);
+		return (+3);
 	else if (offs > 6 && !strcasecmp(s + offs - 6, "fourth"))
-	    return(+4);
-
+		return (+4);
 
 	/* no offset detected */
-	return(0);
+	return (0);
 }

@@ -34,10 +34,10 @@ __FBSDID("$FreeBSD$");
 
 #include "calendar.h"
 
-#define PASKHA "paskha"
-#define PASKHALEN (sizeof(PASKHA) - 1)
+#define	PASKHA		"paskha"
+#define	PASKHALEN	(sizeof(PASKHA) - 1)
 
-static int paskha (int);
+static int paskha(int);
 
 /* return year day for Orthodox Easter using Gauss formula */
 /* (old style result) */
@@ -52,8 +52,8 @@ paskha(int R) /*year*/
 	a = R % 19;
 	b = R % 4;
 	c = R % 7;
-	d = (19*a + x) % 30;
-	e = (2*b + 4*c + 6*d + y) % 7;
+	d = (19 * a + x) % 30;
+	e = (2 * b + 4 * c + 6 * d + y) % 7;
 	return (((cumdays[3] + 1) + 22) + (d + e));
 }
 
@@ -65,29 +65,27 @@ getpaskha(char *s, int year)
 	int offset;
 
 	if (strncasecmp(s, PASKHA, PASKHALEN) == 0)
-	    s += PASKHALEN;
-	else if (   npaskha.name != NULL
-		 && strncasecmp(s, npaskha.name, npaskha.len) == 0
-		)
-	    s += npaskha.len;
+		s += PASKHALEN;
+	else if (npaskha.name != NULL
+	    && strncasecmp(s, npaskha.name, npaskha.len) == 0)
+		s += npaskha.len;
 	else
-	    return 0;
-
+		return 0;
 
 	/* Paskha+1  or Paskha-2
 	 *       ^            ^   */
 
-	switch(*s) {
+	switch (*s) {
 
 	case '-':
 	case '+':
-	    offset = atoi(s);
-	    break;
+		offset = atoi(s);
+		break;
 
 	default:
-	    offset = 0;
-	    break;
+		offset = 0;
+		break;
 	}
-	    
-	return (paskha(year) + offset + 13/* new style */);
+
+	return (paskha(year) + offset + 13 /* new style */);
 }
