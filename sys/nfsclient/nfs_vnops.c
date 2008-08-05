@@ -198,6 +198,8 @@ struct mtx 	nfs_iod_mtx;
 struct proc	*nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
+vop_advlock_t	*nfs_advlock_p = nfs_dolock;
+vop_reclaim_t	*nfs_reclaim_p = NULL;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
 SYSCTL_DECL(_vfs_nfs);
@@ -3054,8 +3056,13 @@ nfs_advlock(struct vop_advlock_args *ap)
 		size = VTONFS(vp)->n_size;
 		VOP_UNLOCK(vp, 0, curthread);
 		error = lf_advlock(ap, &(vp->v_lockf), size);
-	} else
-		error = nfs_dolock(ap);
+	} else {
+		if (nfs_advlock_p)
+			error = nfs_advlock_p(ap);
+		else
+			error = ENOLCK;
+	}
+
 	return (error);
 }
 

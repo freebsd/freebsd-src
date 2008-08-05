@@ -80,6 +80,7 @@ int		_rpcsvcdirty = 0;
 int grace_expired;
 int nsm_state;
 int kernel_lockd;
+int kernel_lockd_client;
 pid_t client_pid;
 struct mon mon_host;
 char **hosts, *svcport_str = NULL;
@@ -175,6 +176,7 @@ main(int argc, char **argv)
         }
 
 	kernel_lockd = FALSE;
+	kernel_lockd_client = FALSE;
 	if (modfind("nfslockd") < 0) {
 		if (kldload("nfslockd") < 0) {
 			fprintf(stderr, "Can't find or load kernel support for rpc.lockd - using non-kernel implementation\n");
@@ -183,6 +185,11 @@ main(int argc, char **argv)
 		}
 	} else {
 		kernel_lockd = TRUE;
+	}
+	if (kernel_lockd) {
+		int osrel = getosreldate();
+		if (osrel >= 800040 || (osrel < 800000 && osrel >= 700110))
+			kernel_lockd_client = TRUE;
 	}
 
 	(void)rpcb_unset(NLM_PROG, NLM_SM, NULL);
@@ -245,41 +252,42 @@ main(int argc, char **argv)
 	}
 
 	if (kernel_lockd) {
-		/*
-		 * For the kernel lockd case, we run a cut-down RPC
-		 * service on a local-domain socket. The kernel's RPC
-		 * server will pass what it can't handle (mainly
-		 * client replies) down to us. This can go away
-		 * entirely if/when we move the client side of NFS
-		 * locking into the kernel.
-		 */
-		struct sockaddr_un sun;
-		int fd, oldmask;
-		SVCXPRT *xprt;
+		if (!kernel_lockd_client) {
+			/*
+			 * For the case where we have a kernel lockd but it
+			 * doesn't provide client locking, we run a cut-down
+			 * RPC service on a local-domain socket. The kernel's
+			 * RPC server will pass what it can't handle (mainly
+			 * client replies) down to us.
+			 */
+			struct sockaddr_un sun;
+			int fd, oldmask;
+			SVCXPRT *xprt;
 
-		memset(&sun, 0, sizeof sun);
-		sun.sun_family = AF_LOCAL;
-		unlink(_PATH_RPCLOCKDSOCK);
-		strcpy(sun.sun_path, _PATH_RPCLOCKDSOCK);
-		sun.sun_len = SUN_LEN(&sun);
-		fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-		if (!fd) {
-			err(1, "Can't create local lockd socket");
-		}
-		oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
-		if (bind(fd, (struct sockaddr *) &sun, sun.sun_len) < 0) {
-			err(1, "Can't bind local lockd socket");
-		}
-		umask(oldmask);
-		if (listen(fd, SOMAXCONN) < 0) {
-			err(1, "Can't listen on local lockd socket");
-		}
-		xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
-		if (!xprt) {
-			err(1, "Can't create transport for local lockd socket");
-		}
-		if (!svc_reg(xprt, NLM_PROG, NLM_VERS4, nlm_prog_4, NULL)) {
-			err(1, "Can't register service for local lockd socket");
+			memset(&sun, 0, sizeof sun);
+			sun.sun_family = AF_LOCAL;
+			unlink(_PATH_RPCLOCKDSOCK);
+			strcpy(sun.sun_path, _PATH_RPCLOCKDSOCK);
+			sun.sun_len = SUN_LEN(&sun);
+			fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+			if (!fd) {
+				err(1, "Can't create local lockd socket");
+			}
+			oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
+			if (bind(fd, (struct sockaddr *) &sun, sun.sun_len) < 0) {
+				err(1, "Can't bind local lockd socket");
+			}
+			umask(oldmask);
+			if (listen(fd, SOMAXCONN) < 0) {
+				err(1, "Can't listen on local lockd socket");
+			}
+			xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
+			if (!xprt) {
+				err(1, "Can't create transport for local lockd socket");
+			}
+			if (!svc_reg(xprt, NLM_PROG, NLM_VERS4, nlm_prog_4, NULL)) {
+				err(1, "Can't register service for local lockd socket");
+			}
 		}
 
 		/*
@@ -342,17 +350,27 @@ main(int argc, char **argv)
 	}
 
 	if (kernel_lockd) {
-		init_nsm();
-		client_pid = client_request();
+		if (!kernel_lockd_client) {
+			init_nsm();
+			client_pid = client_request();
 
-		/*
-		 * Create a child process to enter the kernel and then
-		 * wait for RPCs on our local domain socket.
-		 */
-		if (!fork())
+			/*
+			 * Create a child process to enter the kernel and then
+			 * wait for RPCs on our local domain socket.
+			 */
+			if (!fork())
+				nlm_syscall(debug_level, grace_period,
+				    naddrs, addrs);
+			else
+				svc_run();
+		} else {
+			/*
+			 * The kernel lockd implementation provides
+			 * both client and server so we don't need to
+			 * do anything else.
+			 */
 			nlm_syscall(debug_level, grace_period, naddrs, addrs);
-		else
-			svc_run();
+		}
 	} else {
 		grace_expired = 0;
 		alarm(grace_period);

@@ -280,129 +280,129 @@ typedef struct nlm4_notify nlm4_notify;
 #define	NLM_SM ((unsigned long)(0))
 
 #define	NLM_SM_NOTIFY ((unsigned long)(1))
-extern  enum clnt_stat nlm_sm_notify_0(struct nlm_sm_status *, void *, CLIENT *);
+extern  enum clnt_stat nlm_sm_notify_0(struct nlm_sm_status *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_sm_notify_0_svc(struct nlm_sm_status *, void *, struct svc_req *);
 #define	NLM_VERS ((unsigned long)(1))
 
 #define	NLM_TEST ((unsigned long)(1))
-extern  enum clnt_stat nlm_test_1(struct nlm_testargs *, nlm_testres *, CLIENT *);
+extern  enum clnt_stat nlm_test_1(struct nlm_testargs *, nlm_testres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_test_1_svc(struct nlm_testargs *, nlm_testres *, struct svc_req *);
 #define	NLM_LOCK ((unsigned long)(2))
-extern  enum clnt_stat nlm_lock_1(struct nlm_lockargs *, nlm_res *, CLIENT *);
+extern  enum clnt_stat nlm_lock_1(struct nlm_lockargs *, nlm_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_lock_1_svc(struct nlm_lockargs *, nlm_res *, struct svc_req *);
 #define	NLM_CANCEL ((unsigned long)(3))
-extern  enum clnt_stat nlm_cancel_1(struct nlm_cancargs *, nlm_res *, CLIENT *);
+extern  enum clnt_stat nlm_cancel_1(struct nlm_cancargs *, nlm_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_cancel_1_svc(struct nlm_cancargs *, nlm_res *, struct svc_req *);
 #define	NLM_UNLOCK ((unsigned long)(4))
-extern  enum clnt_stat nlm_unlock_1(struct nlm_unlockargs *, nlm_res *, CLIENT *);
+extern  enum clnt_stat nlm_unlock_1(struct nlm_unlockargs *, nlm_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_unlock_1_svc(struct nlm_unlockargs *, nlm_res *, struct svc_req *);
 #define	NLM_GRANTED ((unsigned long)(5))
-extern  enum clnt_stat nlm_granted_1(struct nlm_testargs *, nlm_res *, CLIENT *);
+extern  enum clnt_stat nlm_granted_1(struct nlm_testargs *, nlm_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_granted_1_svc(struct nlm_testargs *, nlm_res *, struct svc_req *);
 #define	NLM_TEST_MSG ((unsigned long)(6))
-extern  enum clnt_stat nlm_test_msg_1(struct nlm_testargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm_test_msg_1(struct nlm_testargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_test_msg_1_svc(struct nlm_testargs *, void *, struct svc_req *);
 #define	NLM_LOCK_MSG ((unsigned long)(7))
-extern  enum clnt_stat nlm_lock_msg_1(struct nlm_lockargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm_lock_msg_1(struct nlm_lockargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_lock_msg_1_svc(struct nlm_lockargs *, void *, struct svc_req *);
 #define	NLM_CANCEL_MSG ((unsigned long)(8))
-extern  enum clnt_stat nlm_cancel_msg_1(struct nlm_cancargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm_cancel_msg_1(struct nlm_cancargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_cancel_msg_1_svc(struct nlm_cancargs *, void *, struct svc_req *);
 #define	NLM_UNLOCK_MSG ((unsigned long)(9))
-extern  enum clnt_stat nlm_unlock_msg_1(struct nlm_unlockargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm_unlock_msg_1(struct nlm_unlockargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_unlock_msg_1_svc(struct nlm_unlockargs *, void *, struct svc_req *);
 #define	NLM_GRANTED_MSG ((unsigned long)(10))
-extern  enum clnt_stat nlm_granted_msg_1(struct nlm_testargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm_granted_msg_1(struct nlm_testargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_granted_msg_1_svc(struct nlm_testargs *, void *, struct svc_req *);
 #define	NLM_TEST_RES ((unsigned long)(11))
-extern  enum clnt_stat nlm_test_res_1(nlm_testres *, void *, CLIENT *);
+extern  enum clnt_stat nlm_test_res_1(nlm_testres *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_test_res_1_svc(nlm_testres *, void *, struct svc_req *);
 #define	NLM_LOCK_RES ((unsigned long)(12))
-extern  enum clnt_stat nlm_lock_res_1(nlm_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm_lock_res_1(nlm_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_lock_res_1_svc(nlm_res *, void *, struct svc_req *);
 #define	NLM_CANCEL_RES ((unsigned long)(13))
-extern  enum clnt_stat nlm_cancel_res_1(nlm_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm_cancel_res_1(nlm_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_cancel_res_1_svc(nlm_res *, void *, struct svc_req *);
 #define	NLM_UNLOCK_RES ((unsigned long)(14))
-extern  enum clnt_stat nlm_unlock_res_1(nlm_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm_unlock_res_1(nlm_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_unlock_res_1_svc(nlm_res *, void *, struct svc_req *);
 #define	NLM_GRANTED_RES ((unsigned long)(15))
-extern  enum clnt_stat nlm_granted_res_1(nlm_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm_granted_res_1(nlm_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_granted_res_1_svc(nlm_res *, void *, struct svc_req *);
 extern int nlm_prog_1_freeresult(SVCXPRT *, xdrproc_t, caddr_t);
 #define	NLM_VERSX ((unsigned long)(3))
 
 #define	NLM_SHARE ((unsigned long)(20))
-extern  enum clnt_stat nlm_share_3(nlm_shareargs *, nlm_shareres *, CLIENT *);
+extern  enum clnt_stat nlm_share_3(nlm_shareargs *, nlm_shareres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_share_3_svc(nlm_shareargs *, nlm_shareres *, struct svc_req *);
 #define	NLM_UNSHARE ((unsigned long)(21))
-extern  enum clnt_stat nlm_unshare_3(nlm_shareargs *, nlm_shareres *, CLIENT *);
+extern  enum clnt_stat nlm_unshare_3(nlm_shareargs *, nlm_shareres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_unshare_3_svc(nlm_shareargs *, nlm_shareres *, struct svc_req *);
 #define	NLM_NM_LOCK ((unsigned long)(22))
-extern  enum clnt_stat nlm_nm_lock_3(nlm_lockargs *, nlm_res *, CLIENT *);
+extern  enum clnt_stat nlm_nm_lock_3(nlm_lockargs *, nlm_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_nm_lock_3_svc(nlm_lockargs *, nlm_res *, struct svc_req *);
 #define	NLM_FREE_ALL ((unsigned long)(23))
-extern  enum clnt_stat nlm_free_all_3(nlm_notify *, void *, CLIENT *);
+extern  enum clnt_stat nlm_free_all_3(nlm_notify *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm_free_all_3_svc(nlm_notify *, void *, struct svc_req *);
 extern int nlm_prog_3_freeresult(SVCXPRT *, xdrproc_t, caddr_t);
 #define	NLM_VERS4 ((unsigned long)(4))
 
 #define	NLM4_TEST ((unsigned long)(1))
-extern  enum clnt_stat nlm4_test_4(nlm4_testargs *, nlm4_testres *, CLIENT *);
+extern  enum clnt_stat nlm4_test_4(nlm4_testargs *, nlm4_testres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_test_4_svc(nlm4_testargs *, nlm4_testres *, struct svc_req *);
 #define	NLM4_LOCK ((unsigned long)(2))
-extern  enum clnt_stat nlm4_lock_4(nlm4_lockargs *, nlm4_res *, CLIENT *);
+extern  enum clnt_stat nlm4_lock_4(nlm4_lockargs *, nlm4_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_lock_4_svc(nlm4_lockargs *, nlm4_res *, struct svc_req *);
 #define	NLM4_CANCEL ((unsigned long)(3))
-extern  enum clnt_stat nlm4_cancel_4(nlm4_cancargs *, nlm4_res *, CLIENT *);
+extern  enum clnt_stat nlm4_cancel_4(nlm4_cancargs *, nlm4_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_cancel_4_svc(nlm4_cancargs *, nlm4_res *, struct svc_req *);
 #define	NLM4_UNLOCK ((unsigned long)(4))
-extern  enum clnt_stat nlm4_unlock_4(nlm4_unlockargs *, nlm4_res *, CLIENT *);
+extern  enum clnt_stat nlm4_unlock_4(nlm4_unlockargs *, nlm4_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_unlock_4_svc(nlm4_unlockargs *, nlm4_res *, struct svc_req *);
 #define	NLM4_GRANTED ((unsigned long)(5))
-extern  enum clnt_stat nlm4_granted_4(nlm4_testargs *, nlm4_res *, CLIENT *);
+extern  enum clnt_stat nlm4_granted_4(nlm4_testargs *, nlm4_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_granted_4_svc(nlm4_testargs *, nlm4_res *, struct svc_req *);
 #define	NLM4_TEST_MSG ((unsigned long)(6))
-extern  enum clnt_stat nlm4_test_msg_4(nlm4_testargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_test_msg_4(nlm4_testargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_test_msg_4_svc(nlm4_testargs *, void *, struct svc_req *);
 #define	NLM4_LOCK_MSG ((unsigned long)(7))
-extern  enum clnt_stat nlm4_lock_msg_4(nlm4_lockargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_lock_msg_4(nlm4_lockargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_lock_msg_4_svc(nlm4_lockargs *, void *, struct svc_req *);
 #define	NLM4_CANCEL_MSG ((unsigned long)(8))
-extern  enum clnt_stat nlm4_cancel_msg_4(nlm4_cancargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_cancel_msg_4(nlm4_cancargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_cancel_msg_4_svc(nlm4_cancargs *, void *, struct svc_req *);
 #define	NLM4_UNLOCK_MSG ((unsigned long)(9))
-extern  enum clnt_stat nlm4_unlock_msg_4(nlm4_unlockargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_unlock_msg_4(nlm4_unlockargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_unlock_msg_4_svc(nlm4_unlockargs *, void *, struct svc_req *);
 #define	NLM4_GRANTED_MSG ((unsigned long)(10))
-extern  enum clnt_stat nlm4_granted_msg_4(nlm4_testargs *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_granted_msg_4(nlm4_testargs *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_granted_msg_4_svc(nlm4_testargs *, void *, struct svc_req *);
 #define	NLM4_TEST_RES ((unsigned long)(11))
-extern  enum clnt_stat nlm4_test_res_4(nlm4_testres *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_test_res_4(nlm4_testres *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_test_res_4_svc(nlm4_testres *, void *, struct svc_req *);
 #define	NLM4_LOCK_RES ((unsigned long)(12))
-extern  enum clnt_stat nlm4_lock_res_4(nlm4_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_lock_res_4(nlm4_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_lock_res_4_svc(nlm4_res *, void *, struct svc_req *);
 #define	NLM4_CANCEL_RES ((unsigned long)(13))
-extern  enum clnt_stat nlm4_cancel_res_4(nlm4_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_cancel_res_4(nlm4_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_cancel_res_4_svc(nlm4_res *, void *, struct svc_req *);
 #define	NLM4_UNLOCK_RES ((unsigned long)(14))
-extern  enum clnt_stat nlm4_unlock_res_4(nlm4_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_unlock_res_4(nlm4_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_unlock_res_4_svc(nlm4_res *, void *, struct svc_req *);
 #define	NLM4_GRANTED_RES ((unsigned long)(15))
-extern  enum clnt_stat nlm4_granted_res_4(nlm4_res *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_granted_res_4(nlm4_res *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_granted_res_4_svc(nlm4_res *, void *, struct svc_req *);
 #define	NLM4_SHARE ((unsigned long)(20))
-extern  enum clnt_stat nlm4_share_4(nlm4_shareargs *, nlm4_shareres *, CLIENT *);
+extern  enum clnt_stat nlm4_share_4(nlm4_shareargs *, nlm4_shareres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_share_4_svc(nlm4_shareargs *, nlm4_shareres *, struct svc_req *);
 #define	NLM4_UNSHARE ((unsigned long)(21))
-extern  enum clnt_stat nlm4_unshare_4(nlm4_shareargs *, nlm4_shareres *, CLIENT *);
+extern  enum clnt_stat nlm4_unshare_4(nlm4_shareargs *, nlm4_shareres *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_unshare_4_svc(nlm4_shareargs *, nlm4_shareres *, struct svc_req *);
 #define	NLM4_NM_LOCK ((unsigned long)(22))
-extern  enum clnt_stat nlm4_nm_lock_4(nlm4_lockargs *, nlm4_res *, CLIENT *);
+extern  enum clnt_stat nlm4_nm_lock_4(nlm4_lockargs *, nlm4_res *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_nm_lock_4_svc(nlm4_lockargs *, nlm4_res *, struct svc_req *);
 #define	NLM4_FREE_ALL ((unsigned long)(23))
-extern  enum clnt_stat nlm4_free_all_4(nlm4_notify *, void *, CLIENT *);
+extern  enum clnt_stat nlm4_free_all_4(nlm4_notify *, void *, CLIENT *, struct rpc_callextra *, struct timeval);
 extern  bool_t nlm4_free_all_4_svc(nlm4_notify *, void *, struct svc_req *);
 extern int nlm_prog_4_freeresult(SVCXPRT *, xdrproc_t, caddr_t);
 

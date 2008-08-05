@@ -62,6 +62,7 @@
 #include <rpc/clnt_stat.h>
 #include <sys/cdefs.h>
 #ifdef _KERNEL
+#include <sys/refcount.h>
 #include <rpc/netconfig.h>
 #else
 #include <netconfig.h>
@@ -109,6 +110,23 @@ struct rpc_err {
 #define	re_lb		ru.RE_lb
 };
 
+#ifdef _KERNEL
+/*
+ * Functions of this type may be used to receive notification when RPC
+ * calls have to be re-transmitted etc.
+ */
+typedef void rpc_feedback(int cmd, int procnum, void *);
+
+/*
+ * A structure used with CLNT_CALL_EXT to pass extra information used
+ * while processing an RPC call.
+ */
+struct rpc_callextra {
+	AUTH		*rc_auth;	/* auth handle to use for this call */
+	rpc_feedback	*rc_feedback;	/* callback for retransmits etc. */
+	void		*rc_feedback_arg; /* argument for callback */
+};
+#endif
 
 /*
  * Client rpc handle.
@@ -116,12 +134,14 @@ struct rpc_err {
  * Client is responsible for initializing auth, see e.g. auth_none.c.
  */
 typedef struct __rpc_client {
+#ifdef _KERNEL
+	volatile u_int cl_refs;			/* reference count */
 	AUTH	*cl_auth;			/* authenticator */
 	struct clnt_ops {
 		/* call remote procedure */
 		enum clnt_stat	(*cl_call)(struct __rpc_client *,
-				    rpcproc_t, xdrproc_t, void *, xdrproc_t,
-				        void *, struct timeval);
+		    struct rpc_callextra *, rpcproc_t, xdrproc_t, void *,
+		    xdrproc_t, void *, struct timeval);
 		/* abort a call */
 		void		(*cl_abort)(struct __rpc_client *);
 		/* get specific error code */
@@ -136,11 +156,32 @@ typedef struct __rpc_client {
 		bool_t          (*cl_control)(struct __rpc_client *, u_int,
 				    void *);
 	} *cl_ops;
+#else
+	AUTH	*cl_auth;			/* authenticator */
+	struct clnt_ops {
+		/* call remote procedure */
+		enum clnt_stat	(*cl_call)(struct __rpc_client *,
+		    rpcproc_t, xdrproc_t, void *, xdrproc_t,
+		    void *, struct timeval);
+		/* abort a call */
+		void		(*cl_abort)(struct __rpc_client *);
+		/* get specific error code */
+		void		(*cl_geterr)(struct __rpc_client *,
+					struct rpc_err *);
+		/* frees results */
+		bool_t		(*cl_freeres)(struct __rpc_client *,
+					xdrproc_t, void *);
+		/* destroy this structure */
+		void		(*cl_destroy)(struct __rpc_client *);
+		/* the ioctl() of rpc */
+		bool_t          (*cl_control)(struct __rpc_client *, u_int,
+				    void *);
+	} *cl_ops;
+#endif
 	void 			*cl_private;	/* private stuff */
 	char			*cl_netid;	/* network token */
 	char			*cl_tp;		/* device name */
 } CLIENT;
-
 
 /*
  * Timers used for the pseudo-transport protocol when using datagrams
@@ -154,8 +195,10 @@ struct rpc_timers {
 /*      
  * Feedback values used for possible congestion and rate control
  */
-#define FEEDBACK_REXMIT1	1	/* first retransmit */
-#define FEEDBACK_OK		2	/* no retransmits */    
+#define FEEDBACK_OK		1	/* no retransmits */    
+#define FEEDBACK_REXMIT1	2	/* first retransmit */
+#define FEEDBACK_REXMIT2	3	/* second and subsequent retransmit */
+#define FEEDBACK_RECONNECT	4	/* client reconnect */
 
 /* Used to set version of portmapper used in broadcast */
   
@@ -171,6 +214,30 @@ struct rpc_timers {
  *
  */
 
+#ifdef _KERNEL
+#define CLNT_ACQUIRE(rh)			\
+	refcount_acquire(&(rh)->cl_refs)
+#define CLNT_RELEASE(rh)			\
+	if (refcount_release(&(rh)->cl_refs))	\
+		CLNT_DESTROY(rh)
+
+/*
+ * enum clnt_stat
+ * CLNT_CALL_EXT(rh, ext, proc, xargs, argsp, xres, resp, timeout)
+ * 	CLIENT *rh;
+ *	struct rpc_callextra *ext;
+ *	rpcproc_t proc;
+ *	xdrproc_t xargs;
+ *	void *argsp;
+ *	xdrproc_t xres;
+ *	void *resp;
+ *	struct timeval timeout;
+ */
+#define	CLNT_CALL_EXT(rh, ext, proc, xargs, argsp, xres, resp, secs)	\
+	((*(rh)->cl_ops->cl_call)(rh, ext, proc, xargs,		\
+		argsp, xres, resp, secs))
+#endif
+
 /*
  * enum clnt_stat
  * CLNT_CALL(rh, proc, xargs, argsp, xres, resp, timeout)
@@ -182,12 +249,21 @@ struct rpc_timers {
  *	void *resp;
  *	struct timeval timeout;
  */
-#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs) \
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, \
+#ifdef _KERNEL
+#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)		\
+	((*(rh)->cl_ops->cl_call)(rh, NULL, proc, xargs,	\
 		argsp, xres, resp, secs))
-#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs) \
-	((*(rh)->cl_ops->cl_call)(rh, proc, xargs, \
+#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)		\
+	((*(rh)->cl_ops->cl_call)(rh, NULL, proc, xargs,	\
 		argsp, xres, resp, secs))
+#else
+#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)		\
+	((*(rh)->cl_ops->cl_call)(rh, proc, xargs,	\
+		argsp, xres, resp, secs))
+#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)		\
+	((*(rh)->cl_ops->cl_call)(rh, proc, xargs,	\
+		argsp, xres, resp, secs))
+#endif
 
 /*
  * void
@@ -262,6 +338,8 @@ struct rpc_timers {
 #define CLGET_WAITCHAN		22	/* get string used in msleep call */
 #define CLSET_INTERRUPTIBLE	23	/* set interruptible flag */
 #define CLGET_INTERRUPTIBLE	24	/* set interruptible flag */
+#define CLSET_RETRIES		25	/* set retry count for reconnect */
+#define CLGET_RETRIES		26	/* get retry count for reconnect */
 #endif
 
 
@@ -534,6 +612,7 @@ __END_DECLS
 #define rpc_createerr		(*(__rpc_createerr()))
 #endif
 
+#ifndef _KERNEL
 /*
  * The simplified interface:
  * enum clnt_stat
@@ -612,7 +691,6 @@ extern enum clnt_stat rpc_broadcast_exp(const rpcprog_t, const rpcvers_t,
 					const int, const char *);
 __END_DECLS
 
-#ifndef _KERNEL
 /* For backward compatibility */
 #include <rpc/clnt_soc.h>
 #endif

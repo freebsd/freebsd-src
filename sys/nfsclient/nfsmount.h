@@ -91,6 +91,7 @@ struct	nfsmount {
 	int	nm_tprintf_initial_delay;	/* initial delay */
 	int	nm_tprintf_delay;		/* interval for messages */
 	struct nfs_tcp_mountstate nm_nfstcpstate;
+	char	nm_hostname[MNAMELEN];	 /* server's name */
 
 	/* NFSv4 */
 	uint64_t nm_clientid;
