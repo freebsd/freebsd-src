@@ -66,6 +66,8 @@ int	f_dayAfter = 0;		/* days after current date */
 int	f_dayBefore = 0;	/* days before current date */
 int	Friday = 5;		/* day before weekend */
 
+static void	usage(void) __dead2;
+
 int
 main(int argc, char *argv[])
 {
@@ -140,7 +142,7 @@ main(int argc, char *argv[])
 }
 
 
-void
+static void __dead2
 usage(void)
 {
 

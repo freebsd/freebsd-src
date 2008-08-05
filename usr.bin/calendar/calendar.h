@@ -58,7 +58,6 @@ int	isnow(char *, int *, int *, int *);
 FILE	*opencal(void);
 void	settime(time_t);
 time_t	Mktime(char *);
-void	usage(void);
 void	setnnames(void);
 
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
@@ -72,24 +71,6 @@ void	setnnames(void);
 extern int	f_dayAfter;	/* days after current date */
 extern int	f_dayBefore;	/* days before current date */
 extern int	Friday;		/* day before weekend */
-
-/*
- * Event sorting related functions:
- * - Use event_add() to create a new event
- * - Use event_continue() to add more text to the last added event
- * - Use event_print_all() to display them in time chronological order
- */
-struct event *event_add(struct event *, int, int, char *, int, char *);
-void	event_continue(struct event *events, char *txt);
-void	event_print_all(FILE *fp, struct event *events);
-struct event {
-	int	month;
-	int	day;
-	int	var;
-	char	*date;
-	char	*text;
-	struct event *next;
-};
 
 struct fixs {
 	char	*name;
