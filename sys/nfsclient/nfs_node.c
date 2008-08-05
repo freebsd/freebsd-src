@@ -234,6 +234,13 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 		vprint("nfs_reclaim: pushing active", vp);
 
 	/*
+	 * If the NLM is running, give it a chance to abort pending
+	 * locks.
+	 */
+	if (nfs_reclaim_p)
+		nfs_reclaim_p(ap);
+
+	/*
 	 * Destroy the vm object and flush associated pages.
 	 */
 	vnode_destroy_vobject(vp);

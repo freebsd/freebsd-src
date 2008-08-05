@@ -36,6 +36,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -78,8 +79,11 @@ HostInfo *find_host(char *hostname, int create)
   HostInfo *hp;
   HostInfo *spare_slot = NULL;
   HostInfo *result = NULL;
+  struct addrinfo *ai1, *ai2;
   int i;
 
+  if (getaddrinfo(hostname, NULL, NULL, &ai1) != 0)
+    ai1 = NULL;
   for (i = 0, hp = status_info->hosts; i < status_info->noOfHosts; i++, hp++)
   {
     if (!strncasecmp(hostname, hp->hostname, SM_MAXSTRLEN))
@@ -87,9 +91,35 @@ HostInfo *find_host(char *hostname, int create)
       result = hp;
       break;
     }
+    if (hp->hostname[0] && 
+	getaddrinfo(hp->hostname, NULL, NULL, &ai2) != 0)
+      ai2 = NULL;
+    if (ai1 && ai2)
+    {
+       struct addrinfo *p1, *p2;
+       for (p1 = ai1; !result && p1; p1 = p1->ai_next)
+       {
+	 for (p2 = ai2; !result && p2; p2 = p2->ai_next)
+	 {
+	   if (p1->ai_family == p2->ai_family
+	       && p1->ai_addrlen == p2->ai_addrlen
+	       && !memcmp(p1->ai_addr, p2->ai_addr, p1->ai_addrlen))
+	   {
+	     result = hp;
+	     break;
+	   }
+	 }
+       }
+       if (result)
+	 break;
+    }
+    if (ai2)
+      freeaddrinfo(ai2);
     if (!spare_slot && !hp->monList && !hp->notifyReqd)
       spare_slot = hp;
   }
+  if (ai1)
+    freeaddrinfo(ai1);
 
   /* Return if entry found, or if not asked to create one.		*/
   if (result || !create) return (result);

@@ -3,6 +3,7 @@
 .PATH: ${.CURDIR}/../../nlm ${.CURDIR}/../../rpc
 KMOD=	nfslockd
 SRCS=	vnode_if.h \
+	nlm_advlock.c \
 	nlm_prot_clnt.c \
 	nlm_prot_impl.c \
 	nlm_prot_server.c \
