@@ -97,7 +97,7 @@ icee_attach(device_t dev)
 	int dunit, err;
 
 	sc->sc_dev = dev;
-	iicbus_get_addr(dev, &sc->addr);
+	sc->addr = iicbus_get_addr(dev);
 	err = 0;
 	dname = device_get_name(dev);
 	dunit = device_get_unit(dev);
