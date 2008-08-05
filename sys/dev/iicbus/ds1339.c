@@ -76,7 +76,7 @@ ds1339_probe(device_t dev)
 	int addr;
 
 	sc = device_get_softc(dev);
-	iicbus_get_addr(dev, &addr);
+	addr = iicbus_get_addr(dev);
 	if (addr != DS1339_ADDR) {
 		if (bootverbose)
 			device_printf(dev, "fixed I2C slave address should "
