@@ -196,17 +196,18 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 	return (error);
 }
 
-static __inline void
+static __inline int
 wakeupshlk(struct lock *lk, const char *file, int line)
 {
 	uintptr_t v, x;
-	int queue;
+	int queue, wakeup_swapper;
 
 	TD_LOCKS_DEC(curthread);
 	TD_SLOCKS_DEC(curthread);
 	WITNESS_UNLOCK(&lk->lock_object, 0, file, line);
 	LOCK_LOG_LOCK("SUNLOCK", &lk->lock_object, 0, 0, file, line);
 
+	wakeup_swapper = 0;
 	for (;;) {
 		x = lk->lk_lock;
 
@@ -261,12 +262,14 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		LOCK_LOG3(lk, "%s: %p waking up threads on the %s queue",
 		    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
-		sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0, queue);
+		wakeup_swapper = sleepq_broadcast(&lk->lock_object, SLEEPQ_LK,
+		    0, queue);
 		sleepq_release(&lk->lock_object);
 		break;
 	}
 
 	lock_profile_release_lock(&lk->lock_object);
+	return (wakeup_swapper);
 }
 
 static void
@@ -335,7 +338,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	const char *iwmesg;
 	uintptr_t tid, v, x;
 	u_int op;
-	int contested, error, ipri, itimo, queue;
+	int contested, error, ipri, itimo, queue, wakeup_swapper;
 
 	contested = 0;
 	error = 0;
@@ -367,6 +370,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	if (op == LK_SHARED && (lk->lock_object.lo_flags & LK_NOSHARE))
 		op = LK_EXCLUSIVE;
 
+	wakeup_swapper = 0;
 	switch (op) {
 	case LK_SHARED:
 		if (LK_CAN_WITNESS(flags))
@@ -495,7 +499,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * We have been unable to succeed in upgrading, so just
 		 * give up the shared lock.
 		 */
-		wakeupshlk(lk, file, line);
+		wakeup_swapper += wakeupshlk(lk, file, line);
 
 		/* FALLTHROUGH */
 	case LK_EXCLUSIVE:
@@ -710,11 +714,12 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    __func__, lk, queue == SQ_SHARED_QUEUE ? "shared" :
 			    "exclusive");
 			atomic_store_rel_ptr(&lk->lk_lock, v);
-			sleepq_broadcast(&lk->lock_object, SLEEPQ_LK, 0, queue);
+			wakeup_swapper = sleepq_broadcast(&lk->lock_object,
+			    SLEEPQ_LK, 0, queue);
 			sleepq_release(&lk->lock_object);
 			break;
 		} else
-			wakeupshlk(lk, file, line);
+			wakeup_swapper = wakeupshlk(lk, file, line);
 		break;
 	case LK_DRAIN:
 		if (LK_CAN_WITNESS(flags))
@@ -782,8 +787,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				"%s: %p waking up all threads on the %s queue",
 				    __func__, lk, queue == SQ_SHARED_QUEUE ?
 				    "shared" : "exclusive");
-				sleepq_broadcast(&lk->lock_object, SLEEPQ_LK,
-				    0, queue);
+				wakeup_swapper += sleepq_broadcast(
+				    &lk->lock_object, SLEEPQ_LK, 0, queue);
 
 				/*
 				 * If shared waiters have been woken up we need
@@ -850,6 +855,8 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 
 	if (flags & LK_INTERLOCK)
 		class->lc_unlock(ilk);
+	if (wakeup_swapper)
+		kick_proc0();
 
 	return (error);
 }

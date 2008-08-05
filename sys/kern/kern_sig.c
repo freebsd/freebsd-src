@@ -1957,6 +1957,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	struct sigacts *ps;
 	int intrval;
 	int ret = 0;
+	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -2165,12 +2166,15 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 * the PROCESS runnable, leave it stopped.
 		 * It may run a bit until it hits a thread_suspend_check().
 		 */
+		wakeup_swapper = 0;
 		PROC_SLOCK(p);
 		thread_lock(td);
 		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
-			sleepq_abort(td, intrval);
+			wakeup_swapper = sleepq_abort(td, intrval);
 		thread_unlock(td);
 		PROC_SUNLOCK(p);
+		if (wakeup_swapper)
+			kick_proc0();
 		goto out;
 		/*
 		 * Mutexes are short lived. Threads waiting on them will
@@ -2237,7 +2241,9 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 {
 	struct proc *p = td->td_proc;
 	register int prop;
+	int wakeup_swapper;
 
+	wakeup_swapper = 0;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	prop = sigprop(sig);
 
@@ -2281,7 +2287,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		if (td->td_priority > PUSER)
 			sched_prio(td, PUSER);
 
-		sleepq_abort(td, intrval);
+		wakeup_swapper = sleepq_abort(td, intrval);
 	} else {
 		/*
 		 * Other states do nothing with the signal immediately,
@@ -2296,6 +2302,8 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 out:
 	PROC_SUNLOCK(p);
 	thread_unlock(td);
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 static void

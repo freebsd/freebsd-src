@@ -808,7 +808,7 @@ void	pstats_free(struct pstats *ps);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sessrele(struct session *);
-void	setrunnable(struct thread *);
+int	setrunnable(struct thread *);
 void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);
 void	sleepinit(void);
