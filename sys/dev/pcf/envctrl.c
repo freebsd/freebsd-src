@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
+#include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/pcf/pcfvar.h>
 #include "iicbus_if.h"
@@ -189,5 +190,3 @@ envctrl_detach(device_t dev)
 
 DRIVER_MODULE(envctrl, ebus, envctrl_driver, envctrl_devclass, 0, 0);
 DRIVER_MODULE(iicbus, envctrl, iicbus_driver, iicbus_devclass, 0, 0);
-MODULE_DEPEND(envctrl, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
-MODULE_VERSION(envctrl, PCF_MODVER);

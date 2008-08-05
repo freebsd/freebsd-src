@@ -252,5 +252,3 @@ pcf_ebus_detach(device_t dev)
 }
 
 DRIVER_MODULE(pcf_ebus, ebus, pcf_ebus_driver, pcf_ebus_devclass, 0, 0);
-MODULE_DEPEND(pcf_ebus, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
-MODULE_VERSION(pcf_ebus, PCF_MODVER);
