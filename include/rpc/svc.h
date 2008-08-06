@@ -127,6 +127,27 @@ typedef struct __rpc_svcxprt {
 } SVCXPRT;
 
 /*
+ * Interface to server-side authentication flavors.
+ */
+typedef struct __rpc_svcauth {
+	struct svc_auth_ops {
+		int   (*svc_ah_wrap)(struct __rpc_svcauth *, XDR *,
+		    xdrproc_t, caddr_t);
+		int   (*svc_ah_unwrap)(struct __rpc_svcauth *, XDR *,
+		    xdrproc_t, caddr_t);
+	} *svc_ah_ops;
+	void *svc_ah_private;
+} SVCAUTH;
+
+/*
+ * Server transport extensions (accessed via xp_p3).
+ */
+typedef struct __rpc_svcxprt_ext {
+	int		xp_flags;	/* versquiet */
+	SVCAUTH		xp_auth;	/* interface to auth methods */
+} SVCXPRT_EXT;
+
+/*
  * Service request
  */
 struct svc_req {
@@ -183,6 +204,20 @@ struct svc_req {
 
 #define SVC_CONTROL(xprt, rq, in)			\
 	(*(xprt)->xp_ops2->xp_control)((xprt), (rq), (in))
+
+#define SVC_EXT(xprt)					\
+	((SVCXPRT_EXT *) xprt->xp_p3)
+
+#define SVC_AUTH(xprt)					\
+	(SVC_EXT(xprt)->xp_auth)
+
+/*
+ * Operations defined on an SVCAUTH handle
+ */
+#define SVCAUTH_WRAP(auth, xdrs, xfunc, xwhere)		\
+	((auth)->svc_ah_ops->svc_ah_wrap(auth, xdrs, xfunc, xwhere))
+#define SVCAUTH_UNWRAP(auth, xdrs, xfunc, xwhere)	\
+	((auth)->svc_ah_ops->svc_ah_unwrap(auth, xdrs, xfunc, xwhere))
 
 /*
  * Service registration
@@ -298,6 +333,12 @@ extern int svc_fds;
 #endif /* def FD_SETSIZE */
 
 /*
+ * A set of null auth methods used by any authentication protocols
+ * that don't need to inspect or modify the message body.
+ */
+extern SVCAUTH _svc_auth_null;
+
+/*
  * a small program implemented by the svc_rpc implementation itself;
  * also see clnt.h for protocol numbers.
  */
@@ -306,6 +347,8 @@ extern void rpctest_service(void);
 __END_DECLS
 
 __BEGIN_DECLS
+extern SVCXPRT *svc_xprt_alloc(void);
+extern void	svc_xprt_free(SVCXPRT *);
 extern void	svc_getreq(int);
 extern void	svc_getreqset(fd_set *);
 extern void	svc_getreq_common(int);

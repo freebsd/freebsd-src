@@ -146,15 +146,12 @@ svc_vc_create(fd, sendsize, recvsize)
 	r->sendsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)sendsize);
 	r->recvsize = __rpc_get_t_size(si.si_af, si.si_proto, (int)recvsize);
 	r->maxrec = __svc_maxrec;
-	xprt = mem_alloc(sizeof(SVCXPRT));
+	xprt = svc_xprt_alloc();
 	if (xprt == NULL) {
 		warnx("svc_vc_create: out of memory");
 		goto cleanup_svc_vc_create;
 	}
-	xprt->xp_tp = NULL;
 	xprt->xp_p1 = r;
-	xprt->xp_p2 = NULL;
-	xprt->xp_p3 = NULL;
 	xprt->xp_verf = _null_auth;
 	svc_vc_rendezvous_ops(xprt);
 	xprt->xp_port = (u_short)-1;	/* It is the rendezvouser */
@@ -259,16 +256,15 @@ makefd_xprt(fd, sendsize, recvsize)
  
 	assert(fd != -1);
 
-	xprt = mem_alloc(sizeof(SVCXPRT));
+	xprt = svc_xprt_alloc();
 	if (xprt == NULL) {
 		warnx("svc_vc: makefd_xprt: out of memory");
 		goto done;
 	}
-	memset(xprt, 0, sizeof *xprt);
 	cd = mem_alloc(sizeof(struct cf_conn));
 	if (cd == NULL) {
 		warnx("svc_tcp: makefd_xprt: out of memory");
-		mem_free(xprt, sizeof(SVCXPRT));
+		svc_xprt_free(xprt);
 		xprt = NULL;
 		goto done;
 	}
@@ -417,7 +413,7 @@ __svc_vc_dodestroy(xprt)
 		free(xprt->xp_tp);
 	if (xprt->xp_netid)
 		free(xprt->xp_netid);
-	mem_free(xprt, sizeof(SVCXPRT));
+	svc_xprt_free(xprt);
 }
 
 /*ARGSUSED*/
@@ -623,11 +619,12 @@ svc_vc_getargs(xprt, xdr_args, args_ptr)
 	xdrproc_t xdr_args;
 	void *args_ptr;
 {
+	struct cf_conn *cd;
 
 	assert(xprt != NULL);
-	/* args_ptr may be NULL */
-	return ((*xdr_args)(&(((struct cf_conn *)(xprt->xp_p1))->xdrs),
-	    args_ptr));
+	cd = (struct cf_conn *)(xprt->xp_p1);
+	return (SVCAUTH_UNWRAP(&SVC_AUTH(xprt),
+		&cd->xdrs, xdr_args, args_ptr));
 }
 
 static bool_t
@@ -655,6 +652,9 @@ svc_vc_reply(xprt, msg)
 	struct cf_conn *cd;
 	XDR *xdrs;
 	bool_t rstat;
+	xdrproc_t xdr_proc;
+	caddr_t xdr_where;
+	u_int pos;
 
 	assert(xprt != NULL);
 	assert(msg != NULL);
@@ -664,8 +664,27 @@ svc_vc_reply(xprt, msg)
 
 	xdrs->x_op = XDR_ENCODE;
 	msg->rm_xid = cd->x_id;
-	rstat = xdr_replymsg(xdrs, msg);
-	(void)xdrrec_endofrecord(xdrs, TRUE);
+	rstat = TRUE;
+	if (msg->rm_reply.rp_stat == MSG_ACCEPTED &&
+	    msg->rm_reply.rp_acpt.ar_stat == SUCCESS) {
+		xdr_proc = msg->acpted_rply.ar_results.proc;
+		xdr_where = msg->acpted_rply.ar_results.where;
+		msg->acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
+		msg->acpted_rply.ar_results.where = NULL;
+
+		pos = XDR_GETPOS(xdrs);
+		if (!xdr_replymsg(xdrs, msg) ||
+		    !SVCAUTH_WRAP(&SVC_AUTH(xprt), xdrs, xdr_proc, xdr_where)) {
+			XDR_SETPOS(xdrs, pos);
+			rstat = FALSE;
+		}
+	} else {
+		rstat = xdr_replymsg(xdrs, msg);
+	}
+
+	if (rstat)
+		(void)xdrrec_endofrecord(xdrs, TRUE);
+
 	return (rstat);
 }
 

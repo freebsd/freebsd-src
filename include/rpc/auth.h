@@ -132,7 +132,7 @@ enum auth_stat {
 	 * failed locally
 	*/
 	AUTH_INVALIDRESP=6,		/* bogus response verifier */
-	AUTH_FAILED=7			/* some unknown reason */
+	AUTH_FAILED=7,			/* some unknown reason */
 #ifdef KERBEROS
 	/*
 	 * kerberos errors
@@ -142,8 +142,14 @@ enum auth_stat {
 	AUTH_TIMEEXPIRE = 9,		/* time of credential expired */
 	AUTH_TKT_FILE = 10,		/* something wrong with ticket file */
 	AUTH_DECODE = 11,			/* can't decode authenticator */
-	AUTH_NET_ADDR = 12		/* wrong net address in ticket */
+	AUTH_NET_ADDR = 12,		/* wrong net address in ticket */
 #endif /* KERBEROS */
+	/*
+	 * RPCSEC_GSS errors
+	 */
+	RPCSEC_GSS_CREDPROBLEM = 13,
+	RPCSEC_GSS_CTXPROBLEM = 14,
+	RPCSEC_GSS_NODISPATCH = 0x8000000
 };
 
 union des_block {
@@ -352,5 +358,13 @@ __END_DECLS
 #define AUTH_DH		3		/* for Diffie-Hellman mechanism */
 #define AUTH_DES	AUTH_DH		/* for backward compatibility */
 #define AUTH_KERB	4		/* kerberos style */
+#define RPCSEC_GSS	6		/* RPCSEC_GSS */
+
+/*
+ * Pseudo auth flavors for RPCSEC_GSS.
+ */
+#define	RPCSEC_GSS_KRB5		390003
+#define	RPCSEC_GSS_KRB5I	390004
+#define	RPCSEC_GSS_KRB5P	390005
 
 #endif /* !_RPC_AUTH_H */

@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #define	RQCRED_SIZE	400		/* this size is excessive */
 
 #define SVC_VERSQUIET 0x0001		/* keep quiet about vers mismatch */
-#define version_keepquiet(xp) ((u_long)(xp)->xp_p3 & SVC_VERSQUIET)
+#define version_keepquiet(xp) (SVC_EXT(xp)->xp_flags & SVC_VERSQUIET)
 
 #define max(a, b) (a > b ? a : b)
 
@@ -452,20 +452,16 @@ void
 __svc_versquiet_on(xprt)
 	SVCXPRT *xprt;
 {
-	u_long	tmp;
 
-	tmp = ((u_long) xprt->xp_p3) | SVC_VERSQUIET;
-	xprt->xp_p3 = tmp;
+	SVC_EXT(xprt)->xp_flags |= SVC_VERSQUIET;
 }
 
 void
 __svc_versquiet_off(xprt)
 	SVCXPRT *xprt;
 {
-	u_long	tmp;
 
-	tmp = ((u_long) xprt->xp_p3) & ~SVC_VERSQUIET;
-	xprt->xp_p3 = tmp;
+	SVC_EXT(xprt)->xp_flags &= ~SVC_VERSQUIET;
 }
 
 void
@@ -479,7 +475,8 @@ int
 __svc_versquiet_get(xprt)
 	SVCXPRT *xprt;
 {
-	return ((int) xprt->xp_p3) & SVC_VERSQUIET;
+
+	return (SVC_EXT(xprt)->xp_flags & SVC_VERSQUIET);
 }
 #endif
 
@@ -553,6 +550,39 @@ svcerr_progvers(xprt, low_vers, high_vers)
 	rply.acpted_rply.ar_vers.low = (u_int32_t)low_vers;
 	rply.acpted_rply.ar_vers.high = (u_int32_t)high_vers;
 	SVC_REPLY(xprt, &rply);
+}
+
+/*
+ * Allocate a new server transport structure. All fields are
+ * initialized to zero and xp_p3 is initialized to point at an
+ * extension structure to hold various flags and authentication
+ * parameters.
+ */
+SVCXPRT *
+svc_xprt_alloc()
+{
+	SVCXPRT *xprt;
+	SVCXPRT_EXT *ext;
+
+	xprt = mem_alloc(sizeof(SVCXPRT));
+	memset(xprt, 0, sizeof(SVCXPRT));
+	ext = mem_alloc(sizeof(SVCXPRT_EXT));
+	memset(ext, 0, sizeof(SVCXPRT_EXT));
+	xprt->xp_p3 = ext;
+
+	return (xprt);
+}
+
+/*
+ * Free a server transport structure.
+ */
+void
+svc_xprt_free(xprt)
+	SVCXPRT *xprt;
+{
+
+	mem_free(xprt->xp_p3, sizeof(SVCXPRT_EXT));
+	mem_free(xprt, sizeof(SVCXPRT));
 }
 
 /* ******************* SERVER INPUT STUFF ******************* */
@@ -643,7 +673,15 @@ svc_getreq_common(fd)
 			r.rq_cred = msg.rm_call.cb_cred;
 			/* first authenticate the message */
 			if ((why = _authenticate(&r, &msg)) != AUTH_OK) {
-				svcerr_auth(xprt, why);
+				/*
+				 * RPCSEC_GSS uses this return code
+				 * for requests that form part of its
+				 * context establishment protocol and
+				 * should not be dispatched to the
+				 * application.
+				 */
+				if (why != RPCSEC_GSS_NODISPATCH)
+					svcerr_auth(xprt, why);
 				goto call_done;
 			}
 			/* now match message with a registered service*/
@@ -670,7 +708,7 @@ svc_getreq_common(fd)
 			if (prog_found)
 				svcerr_progvers(xprt, low_vers, high_vers);
 			else
-				 svcerr_noprog(xprt);
+				svcerr_noprog(xprt);
 			/* Fall through to ... */
 		}
 		/*

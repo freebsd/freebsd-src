@@ -285,6 +285,7 @@ _gss_load_mech(void)
 		OPTSYM(set_sec_context_option);
 		OPTSYM(set_cred_option);
 		OPTSYM(pseudo_random);
+		OPTSYM(pname_to_uid);
 
 		SLIST_INSERT_HEAD(&_gss_mechs, m, gm_link);
 		count++;

@@ -837,6 +837,15 @@ OM_uint32 gss_pseudo_random
 	       gss_buffer_t		/* buffer for result */
 	      );
 
+#ifdef _UID_T_DECLARED
+OM_uint32 gss_pname_to_uid
+	      (OM_uint32 *,		/* minor status */
+	       const gss_name_t pname,	/* principal name */
+	       const gss_OID mech,	/* mechanism to query */
+	       uid_t *uidp		/* pointer to UID for result */
+	      );
+#endif
+
 __END_DECLS
 
 #endif /* _GSSAPI_GSSAPI_H_ */
