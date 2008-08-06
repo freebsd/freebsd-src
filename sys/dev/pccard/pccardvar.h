@@ -176,6 +176,9 @@ pccard_ccr_write_1(device_t dev, uint32_t offset, uint8_t val)
 	return (CARD_CCR_WRITE(device_get_parent(dev), dev, offset, val));
 }
 
+/* Hack */
+int pccard_select_cfe(device_t dev, int entry);
+
 /* ivar interface */
 enum {
 	PCCARD_IVAR_ETHADDR,	/* read ethernet address from CIS tupple */
