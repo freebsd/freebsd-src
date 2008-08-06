@@ -746,7 +746,7 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	gss_buffer_desc		 rpcbuf, checksum;
 	OM_uint32		 maj_stat, min_stat;
 	gss_qop_t		 qop_state;
-	u_char			 rpchdr[128];
+	int32_t			 rpchdr[128 / sizeof(int32_t)];
 	int32_t			*buf;
 
 	log_debug("in svc_rpc_gss_validate()");
@@ -754,7 +754,7 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 	memset(rpchdr, 0, sizeof(rpchdr));
 
 	/* Reconstruct RPC header for signing (from xdr_callmsg). */
-	buf = (int32_t *)rpchdr;
+	buf = rpchdr;
 	IXDR_PUT_LONG(buf, msg->rm_xid);
 	IXDR_PUT_ENUM(buf, msg->rm_direction);
 	IXDR_PUT_LONG(buf, msg->rm_call.cb_rpcvers);
@@ -769,7 +769,7 @@ svc_rpc_gss_validate(struct svc_rpc_gss_client *client, struct rpc_msg *msg,
 		buf += RNDUP(oa->oa_length) / sizeof(int32_t);
 	}
 	rpcbuf.value = rpchdr;
-	rpcbuf.length = (u_char *)buf - rpchdr;
+	rpcbuf.length = (u_char *)buf - (u_char *)rpchdr;
 
 	checksum.value = msg->rm_call.cb_verf.oa_base;
 	checksum.length = msg->rm_call.cb_verf.oa_length;
