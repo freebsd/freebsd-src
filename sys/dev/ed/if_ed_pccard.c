@@ -572,7 +572,7 @@ ed_pccard_attach(device_t dev)
 		ed_pccard_add_modem(dev);
 	return (0);
 bad:
-	ed_release_resources(dev);
+	ed_detach(dev);
 	return (error);
 }
 
