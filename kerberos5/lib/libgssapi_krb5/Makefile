@@ -46,6 +46,7 @@ SRCS=	8003.c \
 	inquire_mechs_for_name.c \
 	inquire_names_for_mech.c \
 	inquire_sec_context_by_oid.c \
+	pname_to_uid.c \
 	prefix.c \
 	prf.c \
 	process_context_token.c \
