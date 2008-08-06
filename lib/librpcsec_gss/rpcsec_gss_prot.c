@@ -100,6 +100,7 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	gss_buffer_desc	databuf, wrapbuf;
 	OM_uint32	maj_stat, min_stat;
 	int		start, end, conf_state;
+	u_int		len;
 	bool_t		xdr_stat;
 
 	/* Skip databody length. */
@@ -121,7 +122,8 @@ xdr_rpc_gss_wrap_data(XDR *xdrs, xdrproc_t xdr_func, caddr_t xdr_ptr,
 	if (svc == rpc_gss_svc_integrity) {
 		/* Marshal databody_integ length. */
 		XDR_SETPOS(xdrs, start);
-		if (!xdr_u_int(xdrs, &databuf.length))
+		len = databuf.length;
+		if (!xdr_u_int(xdrs, &len))
 			return (FALSE);
 		
 		/* Checksum rpc_gss_data_t. */
