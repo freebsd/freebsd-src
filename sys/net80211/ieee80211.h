@@ -773,6 +773,8 @@ struct ieee80211_ath_ie {
 #define	WPA_ASE_8021X_UNSPEC	0x01
 #define	WPA_ASE_8021X_PSK	0x02
 
+#define	WPS_OUI_TYPE		0x04
+
 #define	RSN_OUI			0xac0f00
 #define	RSN_VERSION		1		/* current supported version */
 
