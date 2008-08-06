@@ -26,6 +26,9 @@
  * $FreeBSD$
  */
 
+extern u_int vm_memguard_divisor;
+
 void	memguard_init(vm_map_t parent_map, unsigned long size);
 void 	*memguard_alloc(unsigned long size, int flags);
 void	memguard_free(void *addr);
+int	memguard_cmp(struct malloc_type *mtp);
