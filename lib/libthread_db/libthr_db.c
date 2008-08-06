@@ -245,11 +245,9 @@ pt_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwp, td_thrhandle_t *th)
 }
 
 static td_err_e
-pt_ta_thr_iter(const td_thragent_t *ta,
-               td_thr_iter_f *callback, void *cbdata_p,
-               td_thr_state_e state, int ti_pri,
-               sigset_t *ti_sigmask_p,
-               unsigned int ti_user_flags)
+pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
+    void *cbdata_p, td_thr_state_e state __unused, int ti_pri __unused,
+    sigset_t *ti_sigmask_p __unused, unsigned int ti_user_flags __unused)
 {
 	TAILQ_HEAD(, pthread) thread_list;
 	td_thrhandle_t th;
@@ -288,7 +286,7 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 static td_err_e
 pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 {
-	char *keytable;
+	void *keytable;
 	void *destructor;
 	int i, ret, allocated;
 
@@ -304,10 +302,10 @@ pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 		return (P2T(ret));
 	}
 	for (i = 0; i < ta->thread_max_keys; i++) {
-		allocated = *(int *)(keytable + i * ta->thread_size_key +
-			ta->thread_off_key_allocated);
-		destructor = *(void **)(keytable + i * ta->thread_size_key +
-			ta->thread_off_key_destructor);
+		allocated = *(int *)(void *)((uintptr_t)keytable +
+		    i * ta->thread_size_key + ta->thread_off_key_allocated);
+		destructor = *(void **)(void *)((uintptr_t)keytable +
+		    i * ta->thread_size_key + ta->thread_off_key_destructor);
 		if (allocated) {
 			ret = (ki)(i, destructor, arg);
 			if (ret != 0) {
@@ -422,7 +420,7 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 static td_err_e
 pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 {
-	td_thragent_t *ta = (td_thragent_t *)th->th_ta;
+	const td_thragent_t *ta = th->th_ta;
 	int ret;
 
 	TDBG_FUNC();
@@ -662,7 +660,7 @@ static td_err_e
 pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 {
 	static td_thrhandle_t handle;
-	td_thragent_t *ta = (td_thragent_t *)th->th_ta;
+	const td_thragent_t *ta = th->th_ta;
 	psaddr_t pt, pt_temp;
 	long lwp;
 	int ret;
@@ -703,7 +701,7 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 }
 
 static td_err_e
-pt_thr_sstep(const td_thrhandle_t *th, int step)
+pt_thr_sstep(const td_thrhandle_t *th, int step __unused)
 {
 	TDBG_FUNC();
 
