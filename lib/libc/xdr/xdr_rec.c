@@ -338,21 +338,22 @@ xdrrec_getpos(xdrs)
 	off_t pos;
 
 	pos = lseek((int)(u_long)rstrm->tcp_handle, (off_t)0, 1);
-	if (pos != -1)
-		switch (xdrs->x_op) {
+	if (pos == -1)
+		pos = 0;
+	switch (xdrs->x_op) {
 
-		case XDR_ENCODE:
-			pos += rstrm->out_finger - rstrm->out_base;
-			break;
+	case XDR_ENCODE:
+		pos += rstrm->out_finger - rstrm->out_base;
+		break;
 
-		case XDR_DECODE:
-			pos -= rstrm->in_boundry - rstrm->in_finger;
-			break;
+	case XDR_DECODE:
+		pos -= rstrm->in_boundry - rstrm->in_finger;
+		break;
 
-		default:
-			pos = (off_t) -1;
-			break;
-		}
+	default:
+		pos = (off_t) -1;
+		break;
+	}
 	return ((u_int) pos);
 }
 

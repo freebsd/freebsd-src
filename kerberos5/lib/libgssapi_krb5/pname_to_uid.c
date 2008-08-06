@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2005 Doug Rabson
- * All rights reserved.
+ * Copyright (c) 2008 Isilon Inc http://www.isilon.com/
+ * Authors: Doug Rabson <dfr@rabson.org>
+ * Developed with Red Inc: Alfred Perlstein <alfred@freebsd.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,14 +23,37 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+/* $FreeBSD$ */
 
-#define _gss_buffer_zero(buffer) \
-	do { (buffer)->value = NULL; (buffer)->length = 0; } while(0)
-extern int _gss_oid_equal(const gss_OID, const gss_OID);
-extern OM_uint32 _gss_copy_oid(OM_uint32 *, const gss_OID, gss_OID);
-extern OM_uint32 _gss_free_oid(OM_uint32 *, gss_OID);
-extern OM_uint32 _gss_copy_buffer(OM_uint32 *minor_status,
-    const gss_buffer_t from_buf, gss_buffer_t to_buf);
+#include <pwd.h>
+
+#include "krb5/gsskrb5_locl.h"
+
+OM_uint32
+_gsskrb5_pname_to_uid(OM_uint32 *minor_status, const gss_name_t pname,
+    const gss_OID mech, uid_t *uidp)
+{
+	krb5_context context;
+	krb5_const_principal name = (krb5_const_principal) pname;
+	krb5_error_code kret;
+	char lname[MAXLOGNAME + 1], buf[128];
+	struct passwd pwd, *pw;
+
+	GSSAPI_KRB5_INIT (&context);
+
+	kret = krb5_aname_to_localname(context, name, sizeof(lname), lname);
+	if (kret) {
+		*minor_status = kret;
+		return (GSS_S_FAILURE);
+	}
+
+	*minor_status = 0;
+	getpwnam_r(lname, &pwd, buf, sizeof(buf), &pw);
+	if (pw) {
+		*uidp = pw->pw_uid;
+		return (GSS_S_COMPLETE);
+	} else {
+		return (GSS_S_FAILURE);
+	}
+}

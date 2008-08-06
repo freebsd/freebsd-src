@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <rpc/rpc.h>
 #include <rpc/svc_dg.h>
+#include <assert.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -125,10 +126,9 @@ svc_dg_create(fd, sendsize, recvsize)
 		return (NULL);
 	}
 
-	xprt = mem_alloc(sizeof (SVCXPRT));
+	xprt = svc_xprt_alloc();
 	if (xprt == NULL)
 		goto freedata;
-	memset(xprt, 0, sizeof (SVCXPRT));
 
 	su = mem_alloc(sizeof (*su));
 	if (su == NULL)
@@ -160,7 +160,7 @@ freedata:
 	if (xprt) {
 		if (su)
 			(void) mem_free(su, sizeof (*su));
-		(void) mem_free(xprt, sizeof (SVCXPRT));
+		svc_xprt_free(xprt);
 	}
 	return (NULL);
 }
@@ -230,13 +230,28 @@ svc_dg_reply(xprt, msg)
 {
 	struct svc_dg_data *su = su_data(xprt);
 	XDR *xdrs = &(su->su_xdrs);
-	bool_t stat = FALSE;
+	bool_t stat = TRUE;
 	size_t slen;
+	xdrproc_t xdr_proc;
+	caddr_t xdr_where;
 
 	xdrs->x_op = XDR_ENCODE;
 	XDR_SETPOS(xdrs, 0);
 	msg->rm_xid = su->su_xid;
-	if (xdr_replymsg(xdrs, msg)) {
+	if (msg->rm_reply.rp_stat == MSG_ACCEPTED &&
+	    msg->rm_reply.rp_acpt.ar_stat == SUCCESS) {
+		xdr_proc = msg->acpted_rply.ar_results.proc;
+		xdr_where = msg->acpted_rply.ar_results.where;
+		msg->acpted_rply.ar_results.proc = (xdrproc_t) xdr_void;
+		msg->acpted_rply.ar_results.where = NULL;
+
+		if (!xdr_replymsg(xdrs, msg) ||
+		    !SVCAUTH_WRAP(&SVC_AUTH(xprt), xdrs, xdr_proc, xdr_where))
+			stat = FALSE;
+	} else {
+		stat = xdr_replymsg(xdrs, msg);
+	}
+	if (stat) {
 		slen = XDR_GETPOS(xdrs);
 		if (_sendto(xprt->xp_fd, rpc_buffer(xprt), slen, 0,
 		    (struct sockaddr *)xprt->xp_rtaddr.buf,
@@ -255,7 +270,12 @@ svc_dg_getargs(xprt, xdr_args, args_ptr)
 	xdrproc_t xdr_args;
 	void *args_ptr;
 {
-	return (*xdr_args)(&(su_data(xprt)->su_xdrs), args_ptr);
+	struct svc_dg_data *su;
+
+	assert(xprt != NULL);
+	su = su_data(xprt);
+	return (SVCAUTH_UNWRAP(&SVC_AUTH(xprt),
+		&su->su_xdrs, xdr_args, args_ptr));
 }
 
 static bool_t
@@ -288,7 +308,7 @@ svc_dg_destroy(xprt)
 		(void) mem_free(xprt->xp_ltaddr.buf, xprt->xp_ltaddr.maxlen);
 	if (xprt->xp_tp)
 		(void) free(xprt->xp_tp);
-	(void) mem_free(xprt, sizeof (SVCXPRT));
+	svc_xprt_free(xprt);
 }
 
 static bool_t

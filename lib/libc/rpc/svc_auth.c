@@ -75,6 +75,8 @@ struct authsvc {
 };
 static struct authsvc *Auths = NULL;
 
+static struct svc_auth_ops svc_auth_null_ops;
+
 /*
  * The call rpc message, msg has been obtained from the wire.  The msg contains
  * the raw form of credentials and verifiers.  authenticate returns AUTH_OK
@@ -105,6 +107,8 @@ _authenticate(rqst, msg)
 /* VARIABLES PROTECTED BY authsvc_lock: asp, Auths */
 
 	rqst->rq_cred = msg->rm_call.cb_cred;
+	SVC_AUTH(rqst->rq_xprt).svc_ah_ops = &svc_auth_null_ops;
+	SVC_AUTH(rqst->rq_xprt).svc_ah_private = NULL;
 	rqst->rq_xprt->xp_verf.oa_flavor = _null_auth.oa_flavor;
 	rqst->rq_xprt->xp_verf.oa_length = 0;
 	cred_flavor = rqst->rq_cred.oa_flavor;
@@ -142,6 +146,26 @@ _authenticate(rqst, msg)
 
 	return (AUTH_REJECTEDCRED);
 }
+
+/*
+ * A set of null auth methods used by any authentication protocols
+ * that don't need to inspect or modify the message body.
+ */
+static bool_t
+svcauth_null_wrap(auth, xdrs, xdr_func, xdr_ptr)
+	SVCAUTH *auth;
+	XDR *xdrs;
+	xdrproc_t xdr_func;
+	caddr_t xdr_ptr;
+{
+
+	return (xdr_func(xdrs, xdr_ptr));
+}
+
+static struct svc_auth_ops svc_auth_null_ops = {
+	svcauth_null_wrap,
+	svcauth_null_wrap,
+};
 
 /*ARGSUSED*/
 enum auth_stat

@@ -22,6 +22,7 @@
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
 # libypclnt must be built before libpam.
+# libgssapi must be built before librpcsec_gss
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
@@ -31,7 +32,7 @@ SUBDIR=	${_csu} libc libbsm libcom_err libcrypt libelf libkvm msun libmd \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libdwarf libedit libexpat libfetch libftpio libgeom ${_libgpib} \
-	${_libgssapi} libipsec \
+	${_libgssapi} ${_librpcsec_gss} libipsec \
 	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpcap \
 	libpmc libproc librt ${_libsdp} ${_libsm} ${_libsmb} \
@@ -62,6 +63,7 @@ _libsdp=	libsdp
 
 .if ${MK_GSSAPI} != "no"
 _libgssapi=	libgssapi
+_librpcsec_gss=	librpcsec_gss
 .endif
 
 .if ${MK_IPX} != "no"
