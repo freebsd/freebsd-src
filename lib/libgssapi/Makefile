@@ -40,6 +40,7 @@ SRCS+=		gss_inquire_sec_context_by_oid.c
 SRCS+=		gss_mech_switch.c
 SRCS+=		gss_names.c
 SRCS+=		gss_oid_to_str.c
+SRCS+=		gss_pname_to_uid.c
 SRCS+=		gss_process_context_token.c
 SRCS+=		gss_pseudo_random.c
 SRCS+=		gss_release_buffer.c

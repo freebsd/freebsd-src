@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
+#include <rpc/rpcsec_gss.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,6 +114,8 @@ static const char mem_err_clnt_dg[] = "clnt_dg_create: out of memory";
 
 /* VARIABLES PROTECTED BY clnt_fd_lock: dg_fd_locks, dg_cv */
 
+#define	MCALL_MSG_SIZE 24
+
 /*
  * Private data kept per client handle
  */
@@ -127,6 +130,7 @@ struct cu_data {
 	XDR			cu_outxdrs;
 	u_int			cu_xdrpos;
 	u_int			cu_sendsz;	/* send size */
+	char			cu_outhdr[MCALL_MSG_SIZE];
 	char			*cu_outbuf;
 	u_int			cu_recvsz;	/* recv size */
 	int			cu_async;
@@ -253,13 +257,16 @@ clnt_dg_create(fd, svcaddr, program, version, sendsz, recvsz)
 	call_msg.rm_xid = __RPC_GETXID(&now);
 	call_msg.rm_call.cb_prog = program;
 	call_msg.rm_call.cb_vers = version;
-	xdrmem_create(&(cu->cu_outxdrs), cu->cu_outbuf, sendsz, XDR_ENCODE);
-	if (! xdr_callhdr(&(cu->cu_outxdrs), &call_msg)) {
+	xdrmem_create(&(cu->cu_outxdrs), cu->cu_outhdr, MCALL_MSG_SIZE,
+	    XDR_ENCODE);
+	if (! xdr_callhdr(&cu->cu_outxdrs, &call_msg)) {
 		rpc_createerr.cf_stat = RPC_CANTENCODEARGS;  /* XXX */
 		rpc_createerr.cf_error.re_errno = 0;
 		goto err2;
 	}
 	cu->cu_xdrpos = XDR_GETPOS(&(cu->cu_outxdrs));
+	XDR_DESTROY(&cu->cu_outxdrs);
+	xdrmem_create(&cu->cu_outxdrs, cu->cu_outbuf, sendsz, XDR_ENCODE);
 
 	/* XXX fvdl - do we still want this? */
 #if 0
@@ -312,6 +319,7 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	XDR reply_xdrs;
 	bool_t ok;
 	int nrefreshes = 2;		/* number of times to refresh cred */
+	int nretries = 0;		/* number of times we retransmitted */
 	struct timeval timeout;
 	struct timeval retransmit_time;
 	struct timeval next_sendtime, starttime, time_waited, tv;
@@ -375,25 +383,37 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	kin_len = 1;
 
 call_again:
-	xdrs = &(cu->cu_outxdrs);
-	if (cu->cu_async == TRUE && xargs == NULL)
-		goto get_reply;
-	xdrs->x_op = XDR_ENCODE;
-	XDR_SETPOS(xdrs, cu->cu_xdrpos);
 	/*
 	 * the transaction is the first thing in the out buffer
 	 * XXX Yes, and it's in network byte order, so we should to
 	 * be careful when we increment it, shouldn't we.
 	 */
-	xid = ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf));
+	xid = ntohl(*(u_int32_t *)(void *)(cu->cu_outhdr));
 	xid++;
-	*(u_int32_t *)(void *)(cu->cu_outbuf) = htonl(xid);
+	*(u_int32_t *)(void *)(cu->cu_outhdr) = htonl(xid);
+call_again_same_xid:
+	xdrs = &(cu->cu_outxdrs);
+	if (cu->cu_async == TRUE && xargs == NULL)
+		goto get_reply;
+	xdrs->x_op = XDR_ENCODE;
+	XDR_SETPOS(xdrs, 0);
 
-	if ((! XDR_PUTINT32(xdrs, &proc)) ||
-	    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
-	    (! (*xargs)(xdrs, argsp))) {
-		cu->cu_error.re_status = RPC_CANTENCODEARGS;
-		goto out;
+	if (cl->cl_auth->ah_cred.oa_flavor != RPCSEC_GSS) {
+		if ((! XDR_PUTBYTES(xdrs, cu->cu_outhdr, cu->cu_xdrpos)) ||
+		    (! XDR_PUTINT32(xdrs, &proc)) ||
+		    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
+		    (! (*xargs)(xdrs, argsp))) {
+			cu->cu_error.re_status = RPC_CANTENCODEARGS;
+			goto out;
+		}
+	} else {
+		*(uint32_t *) &cu->cu_outhdr[cu->cu_xdrpos] = htonl(proc);
+		if (!__rpc_gss_wrap(cl->cl_auth, cu->cu_outhdr,
+			cu->cu_xdrpos + sizeof(uint32_t),
+			xdrs, xargs, argsp)) {
+			cu->cu_error.re_status = RPC_CANTENCODEARGS;
+			goto out;
+		}
 	}
 	outlen = (size_t)XDR_GETPOS(xdrs);
 
@@ -420,8 +440,13 @@ get_reply:
 	 * (We assume that this is actually only executed once.)
 	 */
 	reply_msg.acpted_rply.ar_verf = _null_auth;
-	reply_msg.acpted_rply.ar_results.where = resultsp;
-	reply_msg.acpted_rply.ar_results.proc = xresults;
+	if (cl->cl_auth->ah_cred.oa_flavor != RPCSEC_GSS) {
+		reply_msg.acpted_rply.ar_results.where = resultsp;
+		reply_msg.acpted_rply.ar_results.proc = xresults;
+	} else {
+		reply_msg.acpted_rply.ar_results.where = NULL;
+		reply_msg.acpted_rply.ar_results.proc = (xdrproc_t)xdr_void;
+	}
 
 	for (;;) {
 		/* Decide how long to wait. */
@@ -483,7 +508,17 @@ get_reply:
 				    &retransmit_time);
 			timeradd(&next_sendtime, &retransmit_time,
 			    &next_sendtime);
-			goto send_again;
+			nretries++;
+
+			/*
+			 * When retransmitting a RPCSEC_GSS message,
+			 * we must use a new sequence number (handled
+			 * by __rpc_gss_wrap above).
+			 */
+			if (cl->cl_auth->ah_cred.oa_flavor != RPCSEC_GSS)
+				goto send_again;
+			else
+				goto call_again_same_xid;
 		}
 	}
 	inlen = (socklen_t)recvlen;
@@ -505,8 +540,37 @@ get_reply:
 		if (cu->cu_error.re_status == RPC_SUCCESS) {
 			if (! AUTH_VALIDATE(cl->cl_auth,
 					    &reply_msg.acpted_rply.ar_verf)) {
+				if (nretries &&
+				    cl->cl_auth->ah_cred.oa_flavor
+				    == RPCSEC_GSS)
+					/*
+					 * If we retransmitted, its
+					 * possible that we will
+					 * receive a reply for one of
+					 * the earlier transmissions
+					 * (which will use an older
+					 * RPCSEC_GSS sequence
+					 * number). In this case, just
+					 * go back and listen for a
+					 * new reply. We could keep a
+					 * record of all the seq
+					 * numbers we have transmitted
+					 * so far so that we could
+					 * accept a reply for any of
+					 * them here.
+					 */
+					goto get_reply;
 				cu->cu_error.re_status = RPC_AUTHERROR;
 				cu->cu_error.re_why = AUTH_INVALIDRESP;
+			} else {
+				if (cl->cl_auth->ah_cred.oa_flavor
+				    == RPCSEC_GSS) {
+					if (!__rpc_gss_unwrap(cl->cl_auth,
+						&reply_xdrs, xresults,
+						resultsp))
+						cu->cu_error.re_status =
+							RPC_CANTDECODERES;
+				}
 			}
 			if (reply_msg.acpted_rply.ar_verf.oa_base != NULL) {
 				xdrs->x_op = XDR_FREE;
@@ -670,12 +734,12 @@ clnt_dg_control(cl, request, info)
 		 * This will get the xid of the PREVIOUS call
 		 */
 		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)cu->cu_outbuf);
+		    ntohl(*(u_int32_t *)(void *)cu->cu_outhdr);
 		break;
 
 	case CLSET_XID:
 		/* This will set the xid of the NEXT call */
-		*(u_int32_t *)(void *)cu->cu_outbuf =
+		*(u_int32_t *)(void *)cu->cu_outhdr =
 		    htonl(*(u_int32_t *)info - 1);
 		/* decrement by 1 as clnt_dg_call() increments once */
 		break;
@@ -688,12 +752,12 @@ clnt_dg_control(cl, request, info)
 		 * call_struct is changed
 		 */
 		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf +
+		    ntohl(*(u_int32_t *)(void *)(cu->cu_outhdr +
 		    4 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_VERS:
-		*(u_int32_t *)(void *)(cu->cu_outbuf + 4 * BYTES_PER_XDR_UNIT)
+		*(u_int32_t *)(void *)(cu->cu_outhdr + 4 * BYTES_PER_XDR_UNIT)
 			= htonl(*(u_int32_t *)info);
 		break;
 
@@ -705,12 +769,12 @@ clnt_dg_control(cl, request, info)
 		 * call_struct is changed
 		 */
 		*(u_int32_t *)info =
-		    ntohl(*(u_int32_t *)(void *)(cu->cu_outbuf +
+		    ntohl(*(u_int32_t *)(void *)(cu->cu_outhdr +
 		    3 * BYTES_PER_XDR_UNIT));
 		break;
 
 	case CLSET_PROG:
-		*(u_int32_t *)(void *)(cu->cu_outbuf + 3 * BYTES_PER_XDR_UNIT)
+		*(u_int32_t *)(void *)(cu->cu_outhdr + 3 * BYTES_PER_XDR_UNIT)
 			= htonl(*(u_int32_t *)info);
 		break;
 	case CLSET_ASYNC:

@@ -304,6 +304,13 @@ typedef OM_uint32 _gss_pseudo_random
 	       gss_buffer_t	       /* PRF output */
 	      );
 
+typedef OM_uint32 _gss_pname_to_uid
+	      (OM_uint32 *,		/* minor status */
+	       gss_name_t pname,	/* principal name */
+	       gss_OID mech,		/* mechanism to query */
+	       uid_t *uidp		/* pointer to UID for result */
+	      );
+
 struct _gss_mech_switch {
 	SLIST_ENTRY(_gss_mech_switch)	gm_link;
 	const char			*gm_name_prefix;
@@ -343,6 +350,7 @@ struct _gss_mech_switch {
 	_gss_set_sec_context_option	*gm_set_sec_context_option;
 	_gss_set_cred_option		*gm_set_cred_option;
 	_gss_pseudo_random		*gm_pseudo_random;
+	_gss_pname_to_uid		*gm_pname_to_uid;
 };
 SLIST_HEAD(_gss_mech_switch_list, _gss_mech_switch);
 extern struct _gss_mech_switch_list _gss_mechs;

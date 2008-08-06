@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Doug Rabson
+ * Copyright (c) 2008 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,10 +26,24 @@
  *	$FreeBSD$
  */
 
-#define _gss_buffer_zero(buffer) \
-	do { (buffer)->value = NULL; (buffer)->length = 0; } while(0)
-extern int _gss_oid_equal(const gss_OID, const gss_OID);
-extern OM_uint32 _gss_copy_oid(OM_uint32 *, const gss_OID, gss_OID);
-extern OM_uint32 _gss_free_oid(OM_uint32 *, gss_OID);
-extern OM_uint32 _gss_copy_buffer(OM_uint32 *minor_status,
-    const gss_buffer_t from_buf, gss_buffer_t to_buf);
+#include <rpc/rpc.h>
+#include <rpc/rpcsec_gss.h>
+
+#include "rpcsec_gss_int.h"
+
+static rpc_gss_error_t _rpc_gss_error;
+
+void
+_rpc_gss_set_error(int rpc_gss_error, int system_error)
+{
+
+	_rpc_gss_error.rpc_gss_error = rpc_gss_error;
+	_rpc_gss_error.system_error = system_error;
+}
+
+void
+rpc_gss_get_error(rpc_gss_error_t *error)
+{
+
+	*error = _rpc_gss_error;
+}

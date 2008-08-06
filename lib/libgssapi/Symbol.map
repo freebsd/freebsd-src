@@ -47,6 +47,7 @@ FBSD_1.1 {
 	gss_inquire_sec_context_by_oid;
 	gss_oid_equal;
 	gss_oid_to_str;
+	gss_pname_to_uid;
 	gss_process_context_token;
 	gss_pseudo_random;
 	gss_release_buffer;
@@ -66,4 +67,10 @@ FBSD_1.1 {
 	gss_verify_mic;
 	gss_wrap;
 	gss_wrap_size_limit;
+};
+
+FBSDprivate_1.0 {
+	_gss_copy_oid;
+	_gss_copy_buffer;
+	_gss_free_oid;
 };
