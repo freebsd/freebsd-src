@@ -169,7 +169,8 @@ ffs_mount(struct mount *mp, struct thread *td)
 		 * persist "snapshot" in the options list.
 		 */
 		vfs_deleteopt(mp->mnt_optnew, "snapshot");
-		vfs_deleteopt(mp->mnt_opt, "snapshot");
+		if (mp->mnt_opt != NULL)
+			vfs_deleteopt(mp->mnt_opt, "snapshot");
 	}
 
 	MNT_ILOCK(mp);
