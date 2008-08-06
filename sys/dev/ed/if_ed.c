@@ -380,13 +380,15 @@ ed_detach(device_t dev)
 	struct ifnet *ifp = sc->ifp;
 
 	ED_ASSERT_UNLOCKED(sc);
-	ED_LOCK(sc);
-	if (bus_child_present(dev))
-		ed_stop(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ED_UNLOCK(sc);
-	callout_drain(&sc->tick_ch);
-	ether_ifdetach(ifp);
+	if (ifp) {
+		ED_LOCK(sc);
+		if (bus_child_present(dev))
+			ed_stop(sc);
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		ED_UNLOCK(sc);
+		callout_drain(&sc->tick_ch);
+		ether_ifdetach(ifp);
+	}
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	ed_release_resources(dev);
 	ED_LOCK_DESTROY(sc);
