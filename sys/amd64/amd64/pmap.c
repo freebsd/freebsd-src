@@ -221,6 +221,7 @@ static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
 		    vm_offset_t va);
 static int	pmap_pvh_wired_mappings(struct md_page *pvh, int count);
 
+static int pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode);
 static boolean_t pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va);
 static boolean_t pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe,
     vm_offset_t va);
@@ -4419,6 +4420,17 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
+	int error;
+
+	PMAP_LOCK(kernel_pmap);
+	error = pmap_change_attr_locked(va, size, mode);
+	PMAP_UNLOCK(kernel_pmap);
+	return (error);
+}
+
+static int
+pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
+{
 	vm_offset_t base, offset, tmpva;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
@@ -4426,6 +4438,7 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	int cache_bits_pte, cache_bits_pde;
 	boolean_t changed;
 
+	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
@@ -4444,13 +4457,10 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 	 * Pages that aren't mapped aren't supported.  Also break down 2MB pages
 	 * into 4KB pages if required.
 	 */
-	PMAP_LOCK(kernel_pmap);
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
-		if (*pdpe == 0) {
-			PMAP_UNLOCK(kernel_pmap);
+		if (*pdpe == 0)
 			return (EINVAL);
-		}
 		if (*pdpe & PG_PS) {
 			/*
 			 * If the current 1GB page already has the required
@@ -4474,16 +4484,12 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 				tmpva += NBPDP;
 				continue;
 			}
-			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva)) {
-				PMAP_UNLOCK(kernel_pmap);
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, tmpva))
 				return (ENOMEM);
-			}
 		}
 		pde = pmap_pdpe_to_pde(pdpe, tmpva);
-		if (*pde == 0) {
-			PMAP_UNLOCK(kernel_pmap);
+		if (*pde == 0)
 			return (EINVAL);
-		}
 		if (*pde & PG_PS) {
 			/*
 			 * If the current 2MB page already has the required
@@ -4507,19 +4513,14 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 				tmpva += NBPDR;
 				continue;
 			}
-			if (!pmap_demote_pde(kernel_pmap, pde, tmpva)) {
-				PMAP_UNLOCK(kernel_pmap);
+			if (!pmap_demote_pde(kernel_pmap, pde, tmpva))
 				return (ENOMEM);
-			}
 		}
 		pte = vtopte(tmpva);
-		if (*pte == 0) {
-			PMAP_UNLOCK(kernel_pmap);
+		if (*pte == 0)
 			return (EINVAL);
-		}
 		tmpva += PAGE_SIZE;
 	}
-	PMAP_UNLOCK(kernel_pmap);
 
 	/*
 	 * Ok, all the pages exist, so run through them updating their
