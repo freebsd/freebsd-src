@@ -24,12 +24,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2004
+.Dd August 7, 2008
 .Dt CIMAG 3
 .Os
 .Sh NAME
 .Nm cimag , cimagf , cimagl ,
 .Nm conj , conjf , conjl ,
+.Nm cproj , cprojf , cprojl ,
 .Nm creal , crealf , creall
 .Nd "functions to manipulate complex numbers"
 .Sh LIBRARY
@@ -48,6 +49,12 @@
 .Fn conjf "float complex z"
 .Ft "long double complex"
 .Fn conjl "long double complex z"
+.Ft "double complex"
+.Fn cproj "double complex z"
+.Ft "float complex"
+.Fn cprojf "float complex z"
+.Ft "long double complex"
+.Fn cprojl "long double complex z"
 .Ft double
 .Fn creal "double complex z"
 .Ft float
@@ -63,6 +70,10 @@ denote the complex number
 .Fa z .
 .Pp
 The
+.Fn creal
+functions return the real part
+.Fa a ,
+and the
 .Fn cimag
 functions return the imaginary part
 .Fa b .
@@ -75,13 +86,23 @@ functions return the complex conjugate
 .Sm on
 .Pp
 The
-.Fn creal
-functions return the real part
-.Fa a .
+.Fn cproj
+functions return the projection onto the Riemann sphere.
+If
+.Fa z
+contains an infinite component, then the result is
+.Fa \*(If \*(Pm 0 Ns * Ns Em i ,
+where the (zero) imaginary part of the result has the same sign as
+.Fa b .
+Otherwise, the result is
+.Fa z .
+.Pp
+These functions do not signal any floating point exceptions.
 .Sh STANDARDS
 The
 .Fn cimag ,
-.Fn conj
+.Fn conj ,
+.Fn cproj ,
 and
 .Fn creal
 functions conform to
@@ -94,3 +115,7 @@ and
 .Fn creal
 functions first appeared in
 .Fx 5.3 .
+The
+.Fn cproj
+functions appeared in
+.Fx 8.0.
