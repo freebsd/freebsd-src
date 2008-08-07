@@ -100,6 +100,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	int lock_state;
 
 	td = curthread;
+	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
@@ -126,11 +127,13 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_release(cvp);
-	lock_state = class->lc_unlock(lock);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_lock(cvp);
+	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
+		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
+	}
 	sleepq_wait(cvp, 0);
 
 #ifdef KTRACE
@@ -138,8 +141,10 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	class->lc_lock(lock, lock_state);
-	WITNESS_RESTORE(lock, lock_witness);
+	if (lock != &Giant.lock_object) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
+	}
 }
 
 /*
@@ -160,6 +165,8 @@ _cv_wait_unlock(struct cv *cvp, struct lock_object *lock)
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
+	KASSERT(lock != &Giant.lock_object,
+	    ("cv_wait_unlock cannot be used with Giant"));
 	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
@@ -210,6 +217,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 
 	td = curthread;
 	p = td->td_proc;
+	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
@@ -237,11 +245,13 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_release(cvp);
-	lock_state = class->lc_unlock(lock);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_lock(cvp);
+	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
+		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
+	}
 	rval = sleepq_wait_sig(cvp, 0);
 
 #ifdef KTRACE
@@ -249,8 +259,10 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	class->lc_lock(lock, lock_state);
-	WITNESS_RESTORE(lock, lock_witness);
+	if (lock != &Giant.lock_object) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
+	}
 
 	return (rval);
 }
@@ -270,6 +282,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 
 	td = curthread;
 	rval = 0;
+	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
@@ -297,11 +310,13 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	sleepq_set_timeout(cvp, timo);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_release(cvp);
-	lock_state = class->lc_unlock(lock);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_lock(cvp);
+	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
+		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
+	}
 	rval = sleepq_timedwait(cvp, 0);
 
 #ifdef KTRACE
@@ -309,8 +324,10 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	class->lc_lock(lock, lock_state);
-	WITNESS_RESTORE(lock, lock_witness);
+	if (lock != &Giant.lock_object) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
+	}
 
 	return (rval);
 }
@@ -333,6 +350,7 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	td = curthread;
 	p = td->td_proc;
 	rval = 0;
+	lock_state = 0;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
@@ -361,11 +379,13 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
 	sleepq_set_timeout(cvp, timo);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_release(cvp);
-	lock_state = class->lc_unlock(lock);
-	if (class->lc_flags & LC_SLEEPABLE)
-		sleepq_lock(cvp);
+	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
+		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
+	}
 	rval = sleepq_timedwait_sig(cvp, 0);
 
 #ifdef KTRACE
@@ -373,8 +393,10 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	class->lc_lock(lock, lock_state);
-	WITNESS_RESTORE(lock, lock_witness);
+	if (lock != &Giant.lock_object) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
+	}
 
 	return (rval);
 }
