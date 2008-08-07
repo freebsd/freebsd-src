@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
  * might cause illegal aliases to be created for the locked kernel page(s), so
  * it is not implemented.
  */
-#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
