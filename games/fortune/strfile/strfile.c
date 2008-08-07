@@ -447,6 +447,10 @@ void randomize()
 	off_t	tmp;
 	off_t	*sp;
 
+#if __FreeBSD_version < 800041
+	srandomdev();
+#endif
+
 	Tbl.str_flags |= STR_RANDOM;
 	cnt = Tbl.str_numstr;
 
@@ -455,7 +459,11 @@ void randomize()
 	 */
 
 	for (sp = Seekpts; cnt > 0; cnt--, sp++) {
+#if __FreeBSD_version < 800041
+		i = random() % cnt;
+#else
 		i = arc4random_uniform(cnt);
+#endif
 		tmp = sp[0];
 		sp[0] = sp[i];
 		sp[i] = tmp;
