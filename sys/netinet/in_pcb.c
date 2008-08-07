@@ -280,8 +280,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	int dorandom;
 
 	/*
-	 * Because no actual state changes occur here, a write global write
-	 * lock on the pcbinfo isn't required.
+	 * Because no actual state changes occur here, a global write lock on
+	 * the pcbinfo isn't required.
 	 */
 	INP_INFO_LOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
