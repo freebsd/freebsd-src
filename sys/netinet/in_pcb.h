@@ -307,7 +307,7 @@ struct inpcbinfo {
 	 * vimage 1
 	 * general use 1
 	 */
-	void 			*ipi_pspare[2];	
+	void 			*ipi_pspare[2];
 };
 
 #define INP_LOCK_INIT(inp, d, t) \
@@ -326,7 +326,7 @@ struct inpcbinfo {
 
 #ifdef _KERNEL
 /*
- * These locking functions are for inpcb consumers outside of sys/netinet, 
+ * These locking functions are for inpcb consumers outside of sys/netinet,
  * more specifically, they were added for the benefit of TOE drivers. The
  * macros are reserved for use by the stack.
  */
@@ -358,11 +358,10 @@ struct socket *
 	inp_inpcbtosocket(struct inpcb *inp);
 struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
-void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp, 
+void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
 
 #endif /* _KERNEL */
-
 
 #define INP_INFO_LOCK_INIT(ipi, d) \
 	rw_init_flags(&(ipi)->ipi_lock, (d), RW_RECURSE)
