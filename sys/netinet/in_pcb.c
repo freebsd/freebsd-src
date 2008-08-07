@@ -221,7 +221,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
-	
+
 #if defined(IPSEC) || defined(MAC)
 out:
 	if (error != 0)
@@ -610,7 +610,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		/*
 		 * If we found a route, use the address corresponding to
 		 * the outgoing interface.
-		 * 
+		 *
 		 * Otherwise assume faddr is reachable on a directly connected
 		 * network and try to find a corresponding interface to take
 		 * the source address from.
@@ -718,7 +718,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
-	
+
 #ifdef MAC
 	mac_inpcb_destroy(inp);
 #endif
