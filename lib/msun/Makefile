@@ -87,7 +87,8 @@ COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_llrintl.c s_lrintl.c s_modfl.c
 COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 	e_hypotl.c e_remainderl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_atanl.c s_ceill.c s_cosl.c s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
+	s_atanl.c s_ceill.c s_cosl.c s_cprojl.c s_csqrtl.c s_exp2l.c \
+	s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
 	s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c
@@ -95,7 +96,7 @@ COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 
 # C99 complex functions
 COMMON_SRCS+=	s_cimag.c s_cimagf.c s_cimagl.c s_conj.c s_conjf.c s_conjl.c \
-	s_creal.c s_crealf.c s_creall.c
+	s_cproj.c s_cprojf.c s_creal.c s_crealf.c s_creall.c
 
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
@@ -131,6 +132,7 @@ MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 MLINKS+=ceil.3 ceilf.3 ceil.3 ceill.3
 MLINKS+=cimag.3 cimagf.3 cimag.3 cimagl.3 \
 	cimag.3 conj.3 cimag.3 conjf.3 cimag.3 conjl.3 \
+	cimag.3 cproj.3 cimag.3 cprojf.3 cimag.3 cprojl.3 \
 	cimag.3 creal.3 cimag.3 crealf.3 cimag.3 creall.3
 MLINKS+=copysign.3 copysignf.3 copysign.3 copysignl.3
 MLINKS+=cos.3 cosf.3 cos.3 cosl.3

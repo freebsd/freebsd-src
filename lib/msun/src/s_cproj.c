@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2008 The FreeBSD Project.
+ * Copyright (c) 2008 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,52 +22,26 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _COMPLEX_H
-#define	_COMPLEX_H
-
-#ifdef __GNUC__
-#if __STDC_VERSION__ < 199901
-#define	_Complex	__complex__
-#endif
-#define	_Complex_I	1.0fi
-#endif
-
-#define	complex		_Complex
-#define	I		_Complex_I
-
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-__BEGIN_DECLS
+#include <complex.h>
+#include <math.h>
 
-double		cabs(double complex);
-float		cabsf(float complex);
-long double	cabsl(long double complex);
-double		carg(double complex);
-float		cargf(float complex);
-long double	cargl(long double complex);
-double		cimag(double complex) __pure2;
-float		cimagf(float complex) __pure2;
-long double	cimagl(long double complex) __pure2;
-double complex	conj(double complex) __pure2;
-float complex	conjf(float complex) __pure2;
-long double complex
-		conjl(long double complex) __pure2;
-float complex	cprojf(float complex) __pure2;
-double complex	cproj(double complex) __pure2;
-long double complex
-		cprojl(long double complex) __pure2;
-double		creal(double complex) __pure2;
-float		crealf(float complex) __pure2;
-long double	creall(long double complex) __pure2;
-double complex	csqrt(double complex);
-float complex	csqrtf(float complex);
-long double complex
-		csqrtl(long double complex);
+#include "math_private.h"
 
-__END_DECLS
+double complex
+cproj(double complex z)
+{
 
-#endif /* _COMPLEX_H */
+	if (!isinf(creal(z)) && !isinf(cimag(z)))
+		return (z);
+	else
+		return (cpack(INFINITY, copysign(0.0, cimag(z))));
+}
+
+#if LDBL_MANT_DIG == 53
+__weak_reference(cproj, cprojl);
+#endif
