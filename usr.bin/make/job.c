@@ -411,7 +411,7 @@ mkfifotemp(char *template)
 	 * them with random characters until there are no more 'X'.
 	 */
 	while (ptr >= template && *ptr == 'X') {
-		uint32_t rand_num = arc4random() % (sizeof(padchar) - 1);
+		uint32_t rand_num = arc4random_uniform(sizeof(padchar) - 1);
 		*ptr-- = padchar[rand_num];
 	}
 	start = ptr + 1;
