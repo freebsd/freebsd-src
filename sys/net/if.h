@@ -374,7 +374,7 @@ struct	ifconf {
 #define	ifc_req	ifc_ifcu.ifcu_req	/* array of structures returned */
 };
 
-#if defined (__amd64__) || defined (COMPAT_32BIT)
+#if defined (__amd64__)
 struct ifconf32 {
 	int	ifc_len;		/* size of associated buffer */
 	union {
