@@ -64,7 +64,11 @@
  * sleep can be interrupted by calling sleepq_abort().  A thread can also
  * be removed from a specified sleep queue using the sleepq_remove()
  * function.  Note that the sleep queue chain must first be locked via
- * sleepq_lock() when calling sleepq_signal() and sleepq_broadcast().
+ * sleepq_lock() before calling sleepq_abort(), sleepq_broadcast(), or
+ * sleepq_signal().  These routines each return a boolean that will be true
+ * if at least one swapped-out thread was resumed.  In that case, the caller
+ * is responsible for waking up the swapper by calling kick_proc0() after
+ * releasing the sleep queeu chain lock.
  *
  * Each thread allocates a sleep queue at thread creation via sleepq_alloc()
  * and releases it at thread destruction via sleepq_free().  Note that
