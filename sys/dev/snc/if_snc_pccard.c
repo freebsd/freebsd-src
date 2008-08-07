@@ -55,6 +55,16 @@ __FBSDID("$FreeBSD$");
 #include <dev/snc/if_sncvar.h>
 #include <dev/snc/if_sncreg.h>
 
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccard_cis.h>
+#include "pccarddevs.h"
+
+static const struct pccard_product snc_pccard_products[] = {
+	PCMCIA_CARD(NEC, PC9801N_J02),
+	PCMCIA_CARD(NEC, PC9801N_J02R),
+	{ NULL }
+};
+
 /*
  *      PC Card (PCMCIA) specific code.
  */
@@ -112,34 +122,40 @@ snc_pccard_detach(device_t dev)
 static int
 snc_pccard_probe(device_t dev)
 {
-	int     error;
+	const struct pccard_product *pp;
 
-	error = snc_alloc_port(dev, 0);
-	error = max(error, snc_alloc_memory(dev, 0));
-	error = max(error, snc_alloc_irq(dev, 0, 0));
-
-	if (!error && !snc_probe(dev, SNEC_TYPE_PNP))
-		error = ENOENT;
-
-	snc_release_resources(dev);
-	return (error);
+	if ((pp = pccard_product_lookup(dev, snc_pccard_products,
+	    sizeof(snc_pccard_products[0]), NULL)) == NULL)
+		return (EIO);
+	if (pp->pp_name != NULL)
+		device_set_desc(dev, pp->pp_name);
+	return (0);
 }
 
 static int
 snc_pccard_attach(device_t dev)
 {
 	struct snc_softc *sc = device_get_softc(dev);
+	int error;
 	
-	bzero(sc, sizeof(struct snc_softc));
-
-	snc_alloc_port(dev, 0);
-	snc_alloc_memory(dev, 0);
-	snc_alloc_irq(dev, 0, 0);
-		
+	/*
+	 * Not sure that this belongs here or in snc_pccard_attach
+	 */
+	if ((error = snc_alloc_port(dev, 0)) != 0)
+		goto err;
+	if ((error = snc_alloc_memory(dev, 0)) != 0)
+		goto err;
+	if ((error = snc_alloc_irq(dev, 0, 0)) != 0)
+		goto err;
+	if ((error = snc_probe(dev, SNEC_TYPE_PNP)) != 0)
+		goto err;
 	/* This interface is always enabled. */
 	sc->sc_enabled = 1;
-
 	/* pccard_get_ether(dev, ether_addr); */
-
-	return snc_attach(dev);
+	if ((error = snc_attach(dev)) != 0)
+		goto err;
+	return 0;
+err:;
+	snc_release_resources(dev);
+	return error;
 } 
