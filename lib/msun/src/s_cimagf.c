@@ -31,5 +31,6 @@
 float
 cimagf(float complex z)
 {
-	return -z * I;
+
+	return (__imag__ z);
 }
