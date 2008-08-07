@@ -735,6 +735,8 @@ product MICRORESEARCH MR10TPC	{ "MICRO-RESEARCH-MR10TPC", "Ethernet", NULL, NULL
 product NANOSPEED PRISM2	{ "NANOSPEED", "HFA384x/IEEE", "Version&sp01.02", NULL } NANOSPEED ROOT-RZ2000 WLAN Card
 product NDC ND5100_E		{ "NDC", "Ethernet", "A", NULL } Sohoware ND5100E NE2000 Compatible Card
 product NEC CMZ_RT_WP		{ "NEC", "Wireless&spCard&spCMZ-RT-WP", "Version&sp01.01", NULL } NEC Wireless Card CMZ-RT-WP
+product NEC PC9801N_J02		{ "NEC", "\021\001\001PC-9801N-J02", NULL, NULL } NEC PC-9801N-J02
+product NEC PC9801N_J02R	{ "NEC", "PC-9801N-J02R", NULL, NULL } NEC PC-9801N-J02R
 product NEC PC9801N_J03R	{ "NEC", "PC-9801N-J03R", NULL, NULL } NEC PC-9801N-J03R
 product NEWMEDIA BASICS_SCSI	{ "BASICS&spby&spNew&spMedia&spCorporation", "SCSI&spSym53C500", NULL, NULL } New Media Corporation BASICS SCSI
 product NTT_ME WLAN		{ "NTT-ME", "11Mbps&spWireless&spLAN&spPC&spCard", NULL, NULL } NTT-ME 11Mbps Wireless LAN PC Card
