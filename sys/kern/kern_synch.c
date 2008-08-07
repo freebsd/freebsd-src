@@ -140,6 +140,9 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	    ident == &lbolt, ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+	if (priority & PDROP)
+		KASSERT(lock != NULL && lock != &Giant.lock_object,
+		    ("PDROP requires a non-Giant lock"));
 	if (lock != NULL)
 		class = LOCK_CLASS(lock);
 	else
@@ -182,7 +185,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
 
 	DROP_GIANT();
-	if (lock != NULL && !(class->lc_flags & LC_SLEEPABLE)) {
+	if (lock != NULL && lock != &Giant.lock_object &&
+	    !(class->lc_flags & LC_SLEEPABLE)) {
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 	} else
@@ -222,7 +226,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	if (lock != NULL && !(priority & PDROP)) {
+	if (lock != NULL && lock != &Giant.lock_object && !(priority & PDROP)) {
 		class->lc_lock(lock, lock_state);
 		WITNESS_RESTORE(lock, lock_witness);
 	}
