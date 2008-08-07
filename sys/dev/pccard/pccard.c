@@ -264,7 +264,7 @@ pccard_probe_and_attach_child(device_t dev, device_t child,
 	 * FreeBSD, all that's done automatically in the typical lazy
 	 * way we do device resoruce allocation (except we pick the
 	 * cfe up front).  This is the biggest depature from the
-	 * inherited NetBSD model.
+	 * inherited NetBSD model, apart from the FreeBSD resource code.
 	 *
 	 * This seems to work well in practice for most cards.
 	 * However, there are two cases that are problematic.  If a
