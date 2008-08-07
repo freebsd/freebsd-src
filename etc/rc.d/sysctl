@@ -16,12 +16,12 @@ reload_cmd="sysctl_start"
 lastload_cmd="sysctl_start last"
 extra_commands="reload lastload"
 
-sysctl_start()
+#
+# Read in a file containing sysctl settings and set things accordingly.
+#
+parse_file()
 {
-	#
-	# Read in /etc/sysctl.conf and set things accordingly
-	#
-	if [ -f /etc/sysctl.conf ]; then
+	if [ -f $1 ]; then
 		while read var comments
 		do
 			case ${var} in
@@ -39,13 +39,20 @@ sysctl_start()
 						sysctl "${var}"
 						;;
 					esac
-				elif [ "$1" = "last" ]; then
+				elif [ "$2" = "last" ]; then
 					warn "sysctl ${mib} does not exist."
 				fi
 				;;
 			esac
-		done < /etc/sysctl.conf
+		done < $1
 	fi
+}
+
+sysctl_start()
+{
+
+	parse_file /etc/sysctl.conf $1
+	parse_file /etc/sysctl.conf.local $1
 }
 
 load_rc_config $name
