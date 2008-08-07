@@ -157,6 +157,12 @@ mutex
 while the thread is suspended and will reacquire the
 .Va Giant
 mutex before the function returns.
+Note that the
+.Va Giant
+mutex may be specified as the lock to drop.
+In that case, however, the
+.Dv PDROP
+flag is not allowed.
 .Pp
 To avoid lost wakeups,
 either a lock should be used to protect against races,
