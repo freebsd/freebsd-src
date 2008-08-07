@@ -447,8 +447,6 @@ void randomize()
 	off_t	tmp;
 	off_t	*sp;
 
-	srandomdev();
-
 	Tbl.str_flags |= STR_RANDOM;
 	cnt = Tbl.str_numstr;
 
@@ -457,7 +455,7 @@ void randomize()
 	 */
 
 	for (sp = Seekpts; cnt > 0; cnt--, sp++) {
-		i = random() % cnt;
+		i = arc4random_uniform(cnt);
 		tmp = sp[0];
 		sp[0] = sp[i];
 		sp[i] = tmp;
