@@ -214,4 +214,7 @@ FBSD_1.1 {
 	atan2l;
 	atanl;
 	cargl;
+	cproj;
+	cprojf;
+	cprojl;
 };
