@@ -51,13 +51,13 @@
 .In sys/sleepqueue.h
 .Ft void
 .Fn init_sleepqueues "void"
-.Ft void
+.Ft int
 .Fn sleepq_abort "struct thread *td"
 .Ft void
 .Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags" "int queue"
 .Ft struct sleepqueue *
 .Fn sleepq_alloc "void"
-.Ft void
+.Ft int
 .Fn sleepq_broadcast "void *wchan" "int flags" "int pri" "int queue"
 .Ft int
 .Fn sleepq_calc_signal_retval "int sig"
@@ -73,7 +73,7 @@
 .Fn sleepq_release "void *wchan"
 .Ft void
 .Fn sleepq_remove "struct thread *td" "void *wchan"
-.Ft void
+.Ft int
 .Fn sleepq_signal "void *wchan" "int flags" "int pri" "int queue"
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
@@ -346,6 +346,21 @@ This function should only be used if one of the other functions above is not
 sufficient.
 One possible use is waking up a specific thread from a widely shared sleep
 channel.
+.Pp
+The
+.Fn sleepq_abort ,
+.Fn sleepq_broadcast ,
+and
+.Fn sleepq_signal
+functions all return a boolean value.
+If the return value is true,
+then at least one thread was resumed that is currently swapped out.
+The caller is responsible for awakening the scheduler process so that the
+resumed thread will be swapped back in.
+This is done by calling the
+.Fn kick_proc0
+function after releasing the sleep queue chain lock via a call to
+.Fn sleepq_release .
 .Pp
 The sleep queue interface is currently used to implement the
 .Xr sleep 9
