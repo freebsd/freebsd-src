@@ -654,18 +654,9 @@ pccard_function_enable(struct pccard_function *pf)
 		return (ENOMEM);
 	}
 
-	/*
-	 * Increase the reference count on the socket, enabling power, if
-	 * necessary. XXX: I don't see the enable power part here!
-	 */
-	pf->sc->sc_enabled_count++;
-
-	if (pf->pf_flags & PFF_ENABLED) {
-		/*
-		 * Don't do anything if we're already enabled.
-		 */
+	if (pf->pf_flags & PFF_ENABLED)
 		return (0);
-	}
+	pf->sc->sc_enabled_count++;
 
 	/*
 	 * it's possible for different functions' CCRs to be in the same
@@ -775,13 +766,8 @@ pccard_function_disable(struct pccard_function *pf)
 	if (pf->cfe == NULL)
 		panic("pccard_function_disable: function not initialized");
 
-	if ((pf->pf_flags & PFF_ENABLED) == 0) {
-		/*
-		 * Don't do anything if we're already disabled.
-		 */
+	if ((pf->pf_flags & PFF_ENABLED) == 0)
 		return;
-	}
-
 	if (pf->intr_handler != NULL) {
 		struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
 		struct resource_list_entry *rle =
