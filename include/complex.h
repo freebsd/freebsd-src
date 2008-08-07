@@ -48,16 +48,17 @@ float		cabsf(float complex);
 long double	cabsl(long double complex);
 double		carg(double complex);
 float		cargf(float complex);
-double		cimag(double complex);
-float		cimagf(float complex);
-long double	cimagl(long double complex);
-double complex	conj(double complex);
-float complex	conjf(float complex);
+long double	cargl(long double complex);
+double		cimag(double complex) __pure2;
+float		cimagf(float complex) __pure2;
+long double	cimagl(long double complex) __pure2;
+double complex	conj(double complex) __pure2;
+float complex	conjf(float complex) __pure2;
 long double complex
-		conjl(long double complex);
-double		creal(double complex);
-float		crealf(float complex);
-long double	creall(long double complex);
+		conjl(long double complex) __pure2;
+double		creal(double complex) __pure2;
+float		crealf(float complex) __pure2;
+long double	creall(long double complex) __pure2;
 double complex	csqrt(double complex);
 float complex	csqrtf(float complex);
 long double complex
