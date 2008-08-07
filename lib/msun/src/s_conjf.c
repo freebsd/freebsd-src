@@ -28,8 +28,11 @@
 
 #include <complex.h>
 
+#include "math_private.h"
+
 float complex
 conjf(float complex z)
 {
-	return crealf(z) - I * cimagf(z);
+
+	return (cpackf(crealf(z), -cimagf(z)));
 }

@@ -28,8 +28,11 @@
 
 #include <complex.h>
 
+#include "math_private.h"
+
 long double complex
 conjl(long double complex z)
 {
-	return creall(z) - I * cimagl(z);
+
+	return (cpackl(creall(z), -cimagl(z)));
 }
