@@ -31,5 +31,6 @@
 double
 cimag(double complex z)
 {
-	return -z * I;
+
+	return (__imag__ z);
 }

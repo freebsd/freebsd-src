@@ -28,8 +28,11 @@
 
 #include <complex.h>
 
+#include "math_private.h"
+
 double complex
 conj(double complex z)
 {
-	return creal(z) - I * cimag(z);
+
+	return (cpack(creal(z), -cimag(z)));
 }
