@@ -63,12 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include "randomize_fd.h"
 
-/*
- * The random() function is defined to return values between 0 and
- * 2^31 - 1 inclusive in random(3).
- */
-#define	RANDOM_MAX	0x7fffffffL
-
 static void usage(void);
 
 int
@@ -137,8 +131,8 @@ main(int argc, char *argv[])
 			err(1, "%s", *argv);
 		if (denom <= 0 || *ep != '\0')
 			errx(1, "denominator is not valid.");
-		if (random_exit && denom > 255)
-			errx(1, "denominator must be <= 255 for random exit.");
+		if (random_exit && denom > 256)
+			errx(1, "denominator must be <= 256 for random exit.");
 		break;
 	default:
 		usage();
@@ -168,7 +162,7 @@ main(int argc, char *argv[])
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
-		return (int)((denom * random()) / RANDOM_MAX);
+		return (int)(denom * random() / ((double)RAND_MAX + 1));
 
 	/*
 	 * Select whether to print the first line.  (Prime the pump.)
@@ -176,7 +170,7 @@ main(int argc, char *argv[])
 	 * 0 (which has a 1 / denom chance of being true), we select the
 	 * line.
 	 */
-	selected = (int)(denom * random() / RANDOM_MAX) == 0;
+	selected = (int)(denom * random() / ((double)RAND_MAX + 1)) == 0;
 	while ((ch = getchar()) != EOF) {
 		if (selected)
 			(void)putchar(ch);
@@ -186,7 +180,7 @@ main(int argc, char *argv[])
 				err(2, "stdout");
 
 			/* Now see if the next line is to be printed. */
-			selected = (int)(denom * random() / RANDOM_MAX) == 0;
+			selected = (int)(denom * random() / ((double)RAND_MAX + 1)) == 0;
 		}
 	}
 	if (ferror(stdin))
