@@ -2312,7 +2312,6 @@ static arena_chunk_t *
 arena_chunk_alloc(arena_t *arena)
 {
 	arena_chunk_t *chunk;
-	arena_run_t *run;
 	size_t i;
 
 	if (arena->spare != NULL) {
@@ -2337,8 +2336,6 @@ arena_chunk_alloc(arena_t *arena)
 		/*
 		 * Initialize the map to contain one maximal free untouched run.
 		 */
-		run = (arena_run_t *)((uintptr_t)chunk +
-		    (arena_chunk_header_npages << pagesize_2pow));
 		for (i = 0; i < arena_chunk_header_npages; i++)
 			chunk->map[i].bits = 0;
 		chunk->map[i].bits = arena_maxclass | CHUNK_MAP_ZEROED;
@@ -3536,7 +3533,7 @@ arena_new(arena_t *arena)
 {
 	unsigned i;
 	arena_bin_t *bin;
-	size_t pow2_size, prev_run_size;
+	size_t prev_run_size;
 
 	if (malloc_spin_init(&arena->lock))
 		return (true);
@@ -3583,7 +3580,6 @@ arena_new(arena_t *arena)
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
-		pow2_size = pow2_ceil(quantum * (i - ntbins + 1));
 		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
 #ifdef MALLOC_STATS
