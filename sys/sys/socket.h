@@ -640,6 +640,7 @@ ssize_t	sendto(int, const void *,
 ssize_t	sendmsg(int, const struct msghdr *, int);
 #if __BSD_VISIBLE
 int	sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+int	setfib(int);
 #endif
 int	setsockopt(int, int, int, const void *, socklen_t);
 int	shutdown(int, int);
