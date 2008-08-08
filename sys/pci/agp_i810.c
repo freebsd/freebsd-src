@@ -146,7 +146,7 @@ static const struct agp_i810_match {
 	    "Intel 82945G (945G GMCH) SVGA controller"},
 	{0x27A28086, CHIP_I915, 0x00020000,
 	    "Intel 82945GM (945GM GMCH) SVGA controller"},
-	{0x27A28086, CHIP_I915, 0x00020000,
+	{0x27AE8086, CHIP_I915, 0x00020000,
 	    "Intel 945GME SVGA controller"},
 	{0x29728086, CHIP_I965, 0x00020000,
 	    "Intel 946GZ SVGA controller"},
@@ -156,14 +156,12 @@ static const struct agp_i810_match {
 	    "Intel Q965 SVGA controller"},
 	{0x29a28086, CHIP_I965, 0x00020000,
 	    "Intel G965 SVGA controller"},
-/*
 	{0x29b28086, CHIP_G33, 0x00020000,
 	    "Intel Q35 SVGA controller"},
 	{0x29c28086, CHIP_G33, 0x00020000,
 	    "Intel G33 SVGA controller"},
 	{0x29d28086, CHIP_G33, 0x00020000,
 	    "Intel Q33 SVGA controller"},
-*/
 	{0x2a028086, CHIP_I965, 0x00020000,
 	    "Intel GM965 SVGA controller"},
 	{0x2a128086, CHIP_I965, 0x00020000,
