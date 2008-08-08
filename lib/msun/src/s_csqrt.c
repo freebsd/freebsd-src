@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  * gcc generates is acceptable, since the special cases have already been
  * handled.
  */
-#pragma	STDC CX_LIMITED_RANGE	on
+#pragma	STDC CX_LIMITED_RANGE	ON
 
 /* We risk spurious overflow for components >= DBL_MAX / (1 + sqrt(2)). */
 #define	THRESH	0x1.a827999fcef32p+1022
