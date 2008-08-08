@@ -67,7 +67,7 @@ EFIPART=efipart.sys
 # To create a bootable CD under EFI, the boot image should be an EFI
 # system partition.
 if [ $bootable = yes ]; then
-    EFISZ=32768
+    EFISZ=40960
     MNT=/mnt
     dd if=/dev/zero of=$BASE/$EFIPART count=$EFISZ
     md=`mdconfig -a -t vnode -f $BASE/$EFIPART`
