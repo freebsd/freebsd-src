@@ -59,6 +59,7 @@ SUBDIR=	${_3dfx} \
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
@@ -368,6 +369,7 @@ _cbb=		cbb
 _ce=		ce
 _coff=		coff
 _cp=		cp
+_cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
@@ -498,6 +500,7 @@ _cbb=		cbb
 _cmx=		cmx
 _ciss=		ciss
 _coretemp=	coretemp
+_cpuctl=	cpuctl
 _cpufreq=	cpufreq
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic

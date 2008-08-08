@@ -33,6 +33,7 @@ SUBDIR=	ac \
 	ckdist \
 	clear_locks \
 	config \
+	${_cpucontrol} \
 	crashinfo \
 	cron \
 	crunch \
@@ -300,6 +301,7 @@ _apm=		apm
 _apmd=		apmd
 _asf=		asf
 _btxld=		btxld
+_cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _kgzip=		kgzip
 _lptcontrol=	lptcontrol
@@ -335,6 +337,7 @@ _acpi=		acpi
 _asf=		asf
 _boot0cfg=	boot0cfg
 _btxld=		btxld
+_cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _lptcontrol=	lptcontrol
 .if ${MK_NCP} != "no"
