@@ -1,4 +1,4 @@
-# @(#)asia	8.18
+# @(#)asia	8.20
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -1376,6 +1376,42 @@ Zone	Indian/Maldives	4:54:00 -	LMT	1880	# Male
 # They decided not to adopt daylight-saving time....
 # http://www.mongolnews.mn/index.php?module=unuudur&sec=view&id=15742
 
+# From Deborah Goldsmith (2008-03-30):
+# We received a bug report claiming that the tz database UTC offset for
+# Asia/Choibalsan (GMT+09:00) is incorrect, and that it should be GMT
+# +08:00 instead. Different sources appear to disagree with the tz
+# database on this, e.g.:
+#
+# <a href="http://www.timeanddate.com/worldclock/city.html?n=1026">
+# http://www.timeanddate.com/worldclock/city.html?n=1026
+# </a>
+# <a href="http://www.worldtimeserver.com/current_time_in_MN.aspx">
+# http://www.worldtimeserver.com/current_time_in_MN.aspx
+# </a>
+#
+# both say GMT+08:00.
+
+# From Steffen Thorsen (2008-03-31):
+# eznis airways, which operates several domestic flights, has a flight
+# schedule here:
+# <a href="http://www.eznis.com/Container.jsp?id=112"
+# http://www.eznis.com/Container.jsp?id=112
+# </a>
+# (click the English flag for English)
+#
+# There it appears that flights between Choibalsan and Ulaanbatar arrive
+# about 1:35 - 1:50 hours later in local clock time, no matter the
+# direction, while Ulaanbaatar-Khvod takes 2 hours in the Eastern
+# direction and 3:35 back, which indicates that Ulaanbatar and Khvod are
+# in different time zones (like we know about), while Choibalsan and
+# Ulaanbatar are in the same time zone (correction needed).
+
+# From Arthur David Olson (2008-05-19):
+# Assume that Choibalsan is indeed offset by 8:00.
+# XXX--in the absence of better information, assume that transition
+# was at the start of 2008-03-31 (the day of Steffen Thorsen's report);
+# this is almost surely wrong.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mongol	1983	1984	-	Apr	1	0:00	1:00	S
 Rule	Mongol	1983	only	-	Oct	1	0:00	0	-
@@ -1411,7 +1447,8 @@ Zone	Asia/Ulaanbaatar 7:07:32 -	LMT	1905 Aug
 Zone	Asia/Choibalsan	7:38:00 -	LMT	1905 Aug
 			7:00	-	ULAT	1978
 			8:00	-	ULAT	1983 Apr
-			9:00	Mongol	CHO%sT	# Choibalsan Time
+			9:00	Mongol	CHO%sT	2008 Mar 31 # Choibalsan Time
+			8:00	Mongol	CHO%sT
 
 # Nepal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1461,10 +1498,32 @@ Zone	Asia/Muscat	3:54:20 -	LMT	1920
 # The minister told a news conference that the experiment had rather
 # shown 8 per cent higher consumption of electricity.
 
+# From Alex Krivenyshev (2008-05-15):
+# 
+# Here is an article that Pakistan plan to introduce Daylight Saving Time 
+# on June 1, 2008 for 3 months.
+# 
+# "... The federal cabinet on Wednesday announced a new conservation plan to help 
+# reduce load shedding by approving the closure of commercial centres at 9pm and 
+# moving clocks forward by one hour for the next three months. 
+# ...."
+# 
+# <a href="http://www.worldtimezone.net/dst_news/dst_news_pakistan01.html">
+# http://www.worldtimezone.net/dst_news/dst_news_pakistan01.html
+# </a>
+# OR
+# <a href="http://www.dailytimes.com.pk/default.asp?page=2008%5C05%5C15%5Cstory_15-5-2008_pg1_4">
+# http://www.dailytimes.com.pk/default.asp?page=2008%5C05%5C15%5Cstory_15-5-2008_pg1_4
+# </a>
+
+# From Arthur David Olson (2008-05-19):
+# XXX--midnight transitions is a guess; 2008 only is a guess.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Pakistan	2002	only	-	Apr	Sun>=2	0:01	1:00	S
 Rule Pakistan	2002	only	-	Oct	Sun>=2	0:01	0	-
+Rule Pakistan	2008	only	-	Jun	1	0:00	1:00	S
+Rule Pakistan	2008	only	-	Sep	1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	-	IST	1942 Sep
