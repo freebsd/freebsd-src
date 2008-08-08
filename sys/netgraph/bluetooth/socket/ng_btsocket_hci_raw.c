@@ -118,6 +118,8 @@ static struct mtx				ng_btsocket_hci_raw_sockets_mtx;
 static u_int32_t				ng_btsocket_hci_raw_token;
 static struct mtx				ng_btsocket_hci_raw_token_mtx;
 static struct ng_btsocket_hci_raw_sec_filter	*ng_btsocket_hci_raw_sec_filter;
+static struct timeval				ng_btsocket_hci_raw_lasttime;
+static int					ng_btsocket_hci_raw_curpps;
  
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_hci_sockets);
@@ -141,19 +143,23 @@ SYSCTL_INT(_net_bluetooth_hci_sockets_raw, OID_AUTO, queue_drops, CTLFLAG_RD,
 
 /* Debug */
 #define NG_BTSOCKET_HCI_RAW_INFO \
-	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_INFO_LEVEL) \
+	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_INFO_LEVEL && \
+	    ppsratecheck(&ng_btsocket_hci_raw_lasttime, &ng_btsocket_hci_raw_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_HCI_RAW_WARN \
-	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_WARN_LEVEL) \
+	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_WARN_LEVEL && \
+	    ppsratecheck(&ng_btsocket_hci_raw_lasttime, &ng_btsocket_hci_raw_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_HCI_RAW_ERR \
-	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_ERR_LEVEL) \
+	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_ERR_LEVEL && \
+	    ppsratecheck(&ng_btsocket_hci_raw_lasttime, &ng_btsocket_hci_raw_curpps, 1)) \
 		printf
 
 #define NG_BTSOCKET_HCI_RAW_ALERT \
-	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_ALERT_LEVEL) \
+	if (ng_btsocket_hci_raw_debug_level >= NG_BTSOCKET_ALERT_LEVEL && \
+	    ppsratecheck(&ng_btsocket_hci_raw_lasttime, &ng_btsocket_hci_raw_curpps, 1)) \
 		printf
 
 /****************************************************************************
