@@ -2801,10 +2801,15 @@ rollback_run () {
 
 # Compare INDEX-ALL and INDEX-PRESENT and print warnings about differences.
 IDS_compare () {
-	# Get all the non-matching lines.
-	sort -k 1,1 -t '|' < $1 > $1.sorted
-	comm -13 $1 $2 |
-	    fgrep -v '|-||||||' |
+	# Get all the lines which mismatch in something other than file
+	# flags.  We ignore file flags because sysinstall doesn't seem to
+	# set them when it installs FreeBSD; warning about these adds a
+	# very large amount of noise.
+	cut -f 1-5,7-8 -d '|' $1 > $1.noflags
+	sort -k 1,1 -t '|' $1.noflags > $1.sorted
+	cut -f 1-5,7-8 -d '|' $2 |
+	    comm -13 $1.noflags - |
+	    fgrep -v '|-|||||' |
 	    sort -k 1,1 -t '|' |
 	    join -t '|' $1.sorted - > INDEX-NOTMATCHING
 
@@ -2823,16 +2828,14 @@ IDS_compare () {
 		OWNER=`echo "${LINE}" | cut -f 3 -d '|'`
 		GROUP=`echo "${LINE}" | cut -f 4 -d '|'`
 		PERM=`echo "${LINE}" | cut -f 5 -d '|'`
-		FLAGS=`echo "${LINE}" | cut -f 6 -d '|'`
-		HASH=`echo "${LINE}" | cut -f 7 -d '|'`
-		LINK=`echo "${LINE}" | cut -f 8 -d '|'`
-		P_TYPE=`echo "${LINE}" | cut -f 9 -d '|'`
-		P_OWNER=`echo "${LINE}" | cut -f 10 -d '|'`
-		P_GROUP=`echo "${LINE}" | cut -f 11 -d '|'`
-		P_PERM=`echo "${LINE}" | cut -f 12 -d '|'`
-		P_FLAGS=`echo "${LINE}" | cut -f 13 -d '|'`
-		P_HASH=`echo "${LINE}" | cut -f 14 -d '|'`
-		P_LINK=`echo "${LINE}" | cut -f 15 -d '|'`
+		HASH=`echo "${LINE}" | cut -f 6 -d '|'`
+		LINK=`echo "${LINE}" | cut -f 7 -d '|'`
+		P_TYPE=`echo "${LINE}" | cut -f 8 -d '|'`
+		P_OWNER=`echo "${LINE}" | cut -f 9 -d '|'`
+		P_GROUP=`echo "${LINE}" | cut -f 10 -d '|'`
+		P_PERM=`echo "${LINE}" | cut -f 11 -d '|'`
+		P_HASH=`echo "${LINE}" | cut -f 12 -d '|'`
+		P_LINK=`echo "${LINE}" | cut -f 13 -d '|'`
 
 		# Warn about different object types.
 		if ! [ "${TYPE}" = "${P_TYPE}" ]; then
@@ -2883,9 +2886,6 @@ IDS_compare () {
 			echo "but should have ${PERM} permissions."
 		fi
 
-		# We don't warn about different file flags, since sysinstall
-		# doesn't seem to set these when it installs FreeBSD.
-
 		# Warn about different file hashes / symlink destinations.
 		if ! [ "${HASH}" = "${P_HASH}" ]; then
 			if [ "${TYPE}" = "L" ]; then
@@ -2904,7 +2904,7 @@ IDS_compare () {
 	done < INDEX-NOTMATCHING
 
 	# Clean up
-	rm $1 $1.sorted $2 INDEX-NOTMATCHING
+	rm $1 $1.noflags $1.sorted $2 INDEX-NOTMATCHING
 }
 
 # Do the work involved in comparing the system to a "known good" index
