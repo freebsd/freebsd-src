@@ -1,4 +1,4 @@
-# @(#)africa	8.11
+# @(#)africa	8.13
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -387,9 +387,33 @@ Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
 			 0:00	-	GMT
 
 # Mauritius
+
+# From Steffen Thorsen (2008-06-25):
+# Mauritius plans to observe DST from 2008-11-01 to 2009-03-31 on a trial
+# basis....
+# It seems that Mauritius observed daylight saving time from 1982-10-10 to 
+# 1983-03-20 as well, but that was not successful....
+# http://www.timeanddate.com/news/time/mauritius-daylight-saving-time.html
+#
+# From Alex Krivenyshev (2008-06-25):
+# http://economicdevelopment.gov.mu/portal/site/Mainhomepage/menuitem.a42b24128104d9845dabddd154508a0c/?content_id=0a7cee8b5d69a110VgnVCM1000000a04a8c0RCRD
+#
+# From Arthur David Olson (2008-06-30):
+# The www.timeanddate.com article cited by Steffen Thorsen notes that "A
+# final decision has yet to be made on the times that daylight saving
+# would begin and end on these dates." As a place holder, use midnight.
+#
+# From Paul Eggert (2008-06-30):
+# Follow Thorsen on DST in 1982/1983, instead of Shanks & Pottenger.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule Mauritius	1982	only	-	Oct	10	0:00	1:00	S
+Rule Mauritius	1983	only	-	Mar	21	0:00	0	-
+Rule Mauritius	2008	only	-	Nov	 1	0:00	1:00	S
+Rule Mauritius	2009	only	-	Apr	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Indian/Mauritius	3:50:00 -	LMT	1907		# Port Louis
-			4:00	-	MUT	# Mauritius Time
+			4:00 Mauritius	MU%sT	# Mauritius Time
 # Agalega Is, Rodriguez
 # no information; probably like Indian/Mauritius
 
