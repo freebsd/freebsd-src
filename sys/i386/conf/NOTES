@@ -778,6 +778,12 @@ device		ichwd
 device		coretemp
 
 #
+# CPU control pseudo-device. Provides access to MSRs, CPUID info and
+# microcode update feature.
+#
+device		cpuctl
+
+#
 # System Management Bus (SMB)
 #
 options 	ENABLE_ALART		# Control alarm on Intel intpm driver

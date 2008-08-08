@@ -52,6 +52,7 @@ MAN=	aac.4 \
 	cmx.4 \
 	coda.4 \
 	${_coretemp.4} \
+	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
 	cue.4 \
@@ -551,6 +552,7 @@ _acpi_dock.4=	acpi_dock.4
 _amdsmb.4=	amdsmb.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
+_cpuctl.4=	cpuctl.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
