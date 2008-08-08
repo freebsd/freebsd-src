@@ -166,6 +166,12 @@
 #define	AMDID_CMP_CORES		0x000000ff
 
 /*
+ * CPUID manufacturers identifiers
+ */
+#define	INTEL_VENDOR_ID	"GenuineIntel"
+#define	AMD_VENDOR_ID	"AuthenticAMD"
+
+/*
  * Model-specific registers for the i386 family
  */
 #define	MSR_P5_MC_ADDR		0x000
@@ -414,5 +420,6 @@
 #define	MSR_IORRMASK1	0xc0010019
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
+#define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 
 #endif /* !_MACHINE_SPECIALREG_H_ */

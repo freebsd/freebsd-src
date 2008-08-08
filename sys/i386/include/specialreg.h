@@ -157,6 +157,12 @@
 #define	AMDID_CMP_CORES		0x000000ff
 
 /*
+ * CPUID manufacturers identifiers
+ */
+#define	INTEL_VENDOR_ID	"GenuineIntel"
+#define	AMD_VENDOR_ID	"AuthenticAMD"
+
+/*
  * Model-specific registers for the i386 family
  */
 #define	MSR_P5_MC_ADDR		0x000
@@ -444,6 +450,7 @@
 
 /* AMD64 MSR's */
 #define	MSR_EFER	0xc0000080	/* extended features */
+#define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */

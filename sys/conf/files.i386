@@ -156,6 +156,7 @@ dev/cm/if_cm_isa.c		optional cm isa
 dev/coretemp/coretemp.c		optional coretemp
 dev/cp/cpddk.c			optional cp
 dev/cp/if_cp.c			optional cp
+dev/cpuctl/cpuctl.c		optional cpuctl
 dev/ctau/ctau.c			optional ctau
 dev/ctau/ctddk.c		optional ctau
 dev/ctau/if_ct.c		optional ctau
