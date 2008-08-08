@@ -202,7 +202,7 @@ randomize_fd(int fd, int type, int unique, double denom)
 	}
 
 	for (i = numnode; i > 0; i--) {
-		selected = ((int)denom * random())/(((double)RAND_MAX + 1) / numnode);
+		selected = ((int)denom * random())/(RANDOM_MAX / numnode);
 
 		for (j = 0, prev = n = rand_root; n != NULL; j++, prev = n, n = n->next) {
 			if (j == selected) {
