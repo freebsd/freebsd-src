@@ -3,27 +3,31 @@
 #
 # HOW TO UPDATE THE ZONEINFO DATA
 #
-# In a clean directory, unpack the distribution archive and run:
+# With the use of subversion, this is a little bit simpler than the CVS method.
 #
-# $ cvs -d :ext:ncvs.freebsd.org:/home/ncvs import -b 1.1.2 \
-#	src/share/zoneinfo ADO tzdataYYYYt
+# Import the new sources to the vendor branch:
 #
-# where YYYYt is the year and the version of the distribution, for
-# example 2004h.
+# $ cd ~/svn/vendor/tzdata/dist
+# $ tar zxvf /usr/ports/distfile/tzdata2008X.tar.gz
+#   (check with "svn stat" and "svn diff" if it all makes sense)
+# $ svn commit	# Commit message: "Vendor import of tzdata2008X (+details)" 
 #
-# Then go to the checked out source, and merge the changes from the
-# previous tag to the new tag in the HEAD:
+# Tag it
 #
-# $ cd ../src/share/zoneinfo
-# $ cvs update -jtzdataYYYYp -j tzdataYYYYt
+# $ cd ~/svn/vendor/tzdata
+# $ svn cp svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist \
+#	svn+ssh://svn.freebsd.org/base/vendor/tzdata/tzdata2008X
+# $ svn update
 #
-# Update it again:
-# 
-# $ cvs update
+# Merge-from-vendor
 #
-# And push it back into CVS:
-#
-# $ cvs ci
+# $ cd ~svn/head/share/zoneinfo
+# $ svn update
+# $ svn merge --accept=postpone \
+#	svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist .
+# $ svn diff --no-diff-deleted \
+#	--old=svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist --new=.
+# $ svn commit
 #
 
 CLEANFILES+=	yearistype
