@@ -35,7 +35,7 @@ float
 __ieee754_asinf(float x)
 {
 	double s;
-	float t,w,p,q,c,r;
+	float t,w,p,q;
 	int32_t hx,ix;
 	GET_FLOAT_WORD(hx,x);
 	ix = hx&0x7fffffff;
