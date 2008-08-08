@@ -52,7 +52,6 @@ static struct cdev *iodev;
 
 static struct cdevsw io_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	ioopen,
 	.d_close =	ioclose,
 	.d_name =	"io",
