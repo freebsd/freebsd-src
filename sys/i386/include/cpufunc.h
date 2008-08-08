@@ -748,4 +748,9 @@ void	wrmsr(u_int msr, uint64_t newval);
 
 void    reset_dbregs(void);
 
+#ifdef _KERNEL
+int	rdmsr_safe(u_int msr, uint64_t *val);
+int	wrmsr_safe(u_int msr, uint64_t newval);
+#endif
+
 #endif /* !_MACHINE_CPUFUNC_H_ */
