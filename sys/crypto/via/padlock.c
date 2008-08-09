@@ -272,6 +272,7 @@ padlock_freesession(device_t dev, uint64_t tid)
 	padlock_hash_free(ses);
 	bzero(ses, sizeof(*ses));
 	ses->ses_used = 0;
+	ses->ses_id = sid;
 	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
 	rw_wunlock(&sc->sc_sessions_lock);
 	return (0);
