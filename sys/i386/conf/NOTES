@@ -687,6 +687,12 @@ device		safe		# SafeNet 1141
 options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
 options 	SAFE_RNDTEST	# enable rndtest support
 
+#
+# glxsb is a driver for the Security Block in AMD Geode LX processors.
+# Requires 'device crypto'.
+#
+device		glxsb		# AMD Geode LX Security Block
+
 #####################################################################
 
 #
