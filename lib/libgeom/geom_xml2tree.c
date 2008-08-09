@@ -68,7 +68,7 @@ StartElement(void *userData, const char *name, const char **attr)
 
 	mt = userData;
 	mt->level++;
-	mt->sbuf[mt->level] = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	mt->sbuf[mt->level] = sbuf_new_auto();
 	id = NULL;
 	ref = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {

@@ -208,7 +208,7 @@ g_simdisk_xml_load(const char *file)
 	int fd, i;
 
 	sc = calloc(1, sizeof *sc);
-	sc->sbuf = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sc->sbuf = sbuf_new_auto();
 	LIST_INIT(&sc->sectors);
 	XML_SetUserData(parser, sc);
 	XML_SetElementHandler(parser, startElement, endElement);
