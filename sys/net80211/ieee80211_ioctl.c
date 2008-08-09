@@ -2448,6 +2448,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	uint8_t tmpbssid[IEEE80211_ADDR_LEN];
 	struct ieee80211_key *k;
 	u_int kid;
+	uint32_t flags;
 
 	error = 0;
 	switch (ireq->i_type) {
@@ -2656,18 +2657,26 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (ireq->i_val > 3)
 			return EINVAL;
 		/* XXX verify ciphers available */
-		vap->iv_flags &= ~IEEE80211_F_WPA;
+		flags = vap->iv_flags & ~IEEE80211_F_WPA;
 		switch (ireq->i_val) {
 		case 1:
-			vap->iv_flags |= IEEE80211_F_WPA1;
+			if (!(vap->iv_caps & IEEE80211_C_WPA1))
+				return EOPNOTSUPP;
+			flags |= IEEE80211_F_WPA1;
 			break;
 		case 2:
-			vap->iv_flags |= IEEE80211_F_WPA2;
+			if (!(vap->iv_caps & IEEE80211_C_WPA2))
+				return EOPNOTSUPP;
+			flags |= IEEE80211_F_WPA2;
 			break;
 		case 3:
-			vap->iv_flags |= IEEE80211_F_WPA1 | IEEE80211_F_WPA2;
+			if ((vap->iv_caps & IEEE80211_C_WPA) != IEEE80211_C_WPA)
+			flags |= IEEE80211_F_WPA1 | IEEE80211_F_WPA2;
 			break;
+		default:	/*  Can't set any -> error */
+			return EOPNOTSUPP;
 		}
+		vap->iv_flags = flags;
 		error = ERESTART;	/* NB: can change beacon frame */
 		break;
 	case IEEE80211_IOC_WME:
