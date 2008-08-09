@@ -933,10 +933,11 @@ cbb_cardbus_reset(device_t brdev)
 	int delay;
 
 	/*
-	 * 20ms is necessary for most bridges.  For some reason, the Ricoh
-	 * RF5C47x bridges need 400ms.
+	 * 100ms is necessary for most bridges.  For some reason, the Ricoh
+	 * RF5C47x bridges need 400ms.  The spec says 20ms, but even some
+	 * normally sane bridges need longer with some cards.
 	 */
-	delay = sc->chipset == CB_RF5C47X ? 400 : 20;
+	delay = sc->chipset == CB_RF5C47X ? 400 : 100;
 
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
 
