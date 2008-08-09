@@ -3116,6 +3116,16 @@ enable SysVR4 emulation at boot time.
 If set to
 .Dq Li YES ,
 load System V IPC primitives at boot time.
+.It Va kernel_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to symlink
+.Pa /boot/kernel
+to the directory that contains the kernel you booted from,
+unless
+.Pa /boot/kernel
+already exists and is not a symlink.
 .It Va clear_tmp_enable
 .Pq Vt bool
 Set to
@@ -3888,7 +3898,7 @@ Default
 .It Va bthidd_hids
 .Pq Vt str
 Path to a file, where
-.Xr bthidd 8 
+.Xr bthidd 8
 will store information about known HID devices.
 Default
 .Pa /var/db/bthidd.hids .
