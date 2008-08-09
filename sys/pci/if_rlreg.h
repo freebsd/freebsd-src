@@ -750,6 +750,14 @@ struct rl_stats {
 #define RL_ADDR_LO(y)		((uint64_t) (y) & 0xFFFFFFFF)
 #define RL_ADDR_HI(y)		((uint64_t) (y) >> 32)
 
+/*
+ * The number of bits reserved for MSS in RealTek controllers is
+ * 11bits. This limits the maximum interface MTU size in TSO case
+ * as upper stack should not generate TCP segments with MSS greater
+ * than the limit.
+ */
+#define	RL_TSO_MTU		(2047 - ETHER_HDR_LEN - ETHER_CRC_LEN)
+
 /* see comment in dev/re/if_re.c */
 #define RL_JUMBO_FRAMELEN	7440
 #define RL_JUMBO_MTU		(RL_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
