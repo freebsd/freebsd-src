@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 struct padlock_softc {
 	int32_t		sc_cid;
 	uint32_t	sc_sid;
-	TAILQ_HEAD(, padlock_session) sc_sessions;
+	TAILQ_HEAD(padlock_sessions_head, padlock_session) sc_sessions;
 	struct rwlock	sc_sessions_lock;
 };
 
@@ -259,7 +259,8 @@ padlock_freesession(device_t dev, uint64_t tid)
 	uint32_t sid = ((uint32_t)tid) & 0xffffffff;
 
 	rw_wlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
+	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, padlock_sessions_head,
+	    ses_next) {
 		if (ses->ses_id == sid)
 			break;
 	}
@@ -323,7 +324,8 @@ padlock_process(device_t dev, struct cryptop *crp, int hint __unused)
 	}
 
 	rw_rlock(&sc->sc_sessions_lock);
-	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
+	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, padlock_sessions_head,
+	    ses_next) {
 		if (ses->ses_id == (crp->crp_sid & 0xffffffff))
 			break;
 	}
