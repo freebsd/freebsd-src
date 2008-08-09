@@ -319,11 +319,9 @@ DRIVER_MODULE(miibus, re, miibus_driver, miibus_devclass, 0, 0);
  * Send a read command and address to the EEPROM, check for ACK.
  */
 static void
-re_eeprom_putbyte(sc, addr)
-	struct rl_softc		*sc;
-	int			addr;
+re_eeprom_putbyte(struct rl_softc *sc, int addr)
 {
-	register int		d, i;
+	int			d, i;
 
 	d = addr | (RL_9346_READ << sc->rl_eewidth);
 
@@ -343,20 +341,15 @@ re_eeprom_putbyte(sc, addr)
 		EE_CLR(RL_EE_CLK);
 		DELAY(100);
 	}
-
-	return;
 }
 
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
 static void
-re_eeprom_getword(sc, addr, dest)
-	struct rl_softc		*sc;
-	int			addr;
-	u_int16_t		*dest;
+re_eeprom_getword(struct rl_softc *sc, int addr, u_int16_t *dest)
 {
-	register int		i;
+	int			i;
 	u_int16_t		word = 0;
 
 	/*
@@ -377,19 +370,13 @@ re_eeprom_getword(sc, addr, dest)
 	}
 
 	*dest = word;
-
-	return;
 }
 
 /*
  * Read a sequence of words from the EEPROM.
  */
 static void
-re_read_eeprom(sc, dest, off, cnt)
-	struct rl_softc		*sc;
-	caddr_t			dest;
-	int			off;
-	int			cnt;
+re_read_eeprom(struct rl_softc *sc, caddr_t dest, int off, int cnt)
 {
 	int			i;
 	u_int16_t		word = 0, *ptr;
@@ -407,14 +394,10 @@ re_read_eeprom(sc, dest, off, cnt)
 	}
 
 	CSR_CLRBIT_1(sc, RL_EECMD, RL_EEMODE_PROGRAM);
-
-	return;
 }
 
 static int
-re_gmii_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+re_gmii_readreg(device_t dev, int phy, int reg)
 {
 	struct rl_softc		*sc;
 	u_int32_t		rval;
@@ -451,9 +434,7 @@ re_gmii_readreg(dev, phy, reg)
 }
 
 static int
-re_gmii_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+re_gmii_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rl_softc		*sc;
 	u_int32_t		rval;
@@ -481,9 +462,7 @@ re_gmii_writereg(dev, phy, reg, data)
 }
 
 static int
-re_miibus_readreg(dev, phy, reg)
-	device_t		dev;
-	int			phy, reg;
+re_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rl_softc		*sc;
 	u_int16_t		rval = 0;
@@ -541,9 +520,7 @@ re_miibus_readreg(dev, phy, reg)
 }
 
 static int
-re_miibus_writereg(dev, phy, reg, data)
-	device_t		dev;
-	int			phy, reg, data;
+re_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rl_softc		*sc;
 	u_int16_t		re8139_reg = 0;
@@ -593,8 +570,7 @@ re_miibus_writereg(dev, phy, reg, data)
 }
 
 static void
-re_miibus_statchg(dev)
-	device_t		dev;
+re_miibus_statchg(device_t dev)
 {
 
 }
@@ -603,8 +579,7 @@ re_miibus_statchg(dev)
  * Program the 64-bit multicast hash filter.
  */
 static void
-re_setmulti(sc)
-	struct rl_softc		*sc;
+re_setmulti(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
 	int			h = 0;
@@ -678,10 +653,9 @@ re_setmulti(sc)
 }
 
 static void
-re_reset(sc)
-	struct rl_softc		*sc;
+re_reset(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -721,8 +695,7 @@ re_reset(sc)
  */
 
 static int
-re_diag(sc)
-	struct rl_softc		*sc;
+re_diag(struct rl_softc *sc)
 {
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mbuf		*m0;
@@ -883,8 +856,7 @@ done:
  * IDs against our list and return a device name if we find a match.
  */
 static int
-re_probe(dev)
-	device_t		dev;
+re_probe(device_t dev)
 {
 	struct rl_type		*t;
 	uint16_t		devid, vendor;
@@ -929,11 +901,7 @@ re_probe(dev)
  */
 
 static void
-re_dma_map_addr(arg, segs, nseg, error)
-	void			*arg;
-	bus_dma_segment_t	*segs;
-	int			nseg;
-	int			error;
+re_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t		*addr;
 
@@ -946,9 +914,7 @@ re_dma_map_addr(arg, segs, nseg, error)
 }
 
 static int
-re_allocmem(dev, sc)
-	device_t		dev;
-	struct rl_softc		*sc;
+re_allocmem(device_t dev, struct rl_softc *sc)
 {
 	bus_size_t		rx_list_size, tx_list_size;
 	int			error;
@@ -1104,8 +1070,7 @@ re_allocmem(dev, sc)
  * setup and ethernet/BPF attach.
  */
 static int
-re_attach(dev)
-	device_t		dev;
+re_attach(device_t dev)
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int16_t		as[ETHER_ADDR_LEN / 2];
@@ -1462,8 +1427,7 @@ fail:
  * allocated.
  */
 static int
-re_detach(dev)
-	device_t		dev;
+re_detach(device_t dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
@@ -1601,9 +1565,7 @@ re_detach(dev)
 }
 
 static __inline void
-re_discard_rxbuf(sc, idx)
-	struct rl_softc		*sc;
-	int			idx;
+re_discard_rxbuf(struct rl_softc *sc, int idx)
 {
 	struct rl_desc		*desc;
 	struct rl_rxdesc	*rxd;
@@ -1619,9 +1581,7 @@ re_discard_rxbuf(sc, idx)
 }
 
 static int
-re_newbuf(sc, idx)
-	struct rl_softc		*sc;
-	int			idx;
+re_newbuf(struct rl_softc *sc, int idx)
 {
 	struct mbuf		*m;
 	struct rl_rxdesc	*rxd;
@@ -1686,8 +1646,7 @@ re_newbuf(sc, idx)
 
 #ifdef RE_FIXUP_RX
 static __inline void
-re_fixup_rx(m)
-	struct mbuf		*m;
+re_fixup_rx(struct mbuf *m)
 {
 	int                     i;
 	uint16_t                *src, *dst;
@@ -1699,14 +1658,11 @@ re_fixup_rx(m)
 		*dst++ = *src++;
 
 	m->m_data -= RE_ETHER_ALIGN - ETHER_ALIGN;
-
-	return;
 }
 #endif
 
 static int
-re_tx_list_init(sc)
-	struct rl_softc		*sc;
+re_tx_list_init(struct rl_softc *sc)
 {
 	struct rl_desc		*desc;
 	int			i;
@@ -1733,8 +1689,7 @@ re_tx_list_init(sc)
 }
 
 static int
-re_rx_list_init(sc)
-	struct rl_softc		*sc;
+re_rx_list_init(struct rl_softc *sc)
 {
 	int			error, i;
 
@@ -1764,8 +1719,7 @@ re_rx_list_init(sc)
  * across multiple 2K mbuf cluster buffers.
  */
 static int
-re_rxeof(sc)
-	struct rl_softc		*sc;
+re_rxeof(struct rl_softc *sc)
 {
 	struct mbuf		*m;
 	struct ifnet		*ifp;
@@ -1972,8 +1926,7 @@ re_rxeof(sc)
 }
 
 static void
-re_txeof(sc)
-	struct rl_softc		*sc;
+re_txeof(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
 	struct rl_txdesc	*txd;
@@ -2051,8 +2004,7 @@ re_txeof(sc)
 }
 
 static void
-re_tick(xsc)
-	void			*xsc;
+re_tick(void *xsc)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
@@ -2131,8 +2083,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 #endif /* DEVICE_POLLING */
 
 static int
-re_intr(arg)
-	void			*arg;
+re_intr(void *arg)
 {
 	struct rl_softc		*sc;
 	uint16_t		status;
@@ -2150,9 +2101,7 @@ re_intr(arg)
 }
 
 static void
-re_int_task(arg, npending)
-	void			*arg;
-	int			npending;
+re_int_task(void *arg, int npending)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
@@ -2183,10 +2132,11 @@ re_int_task(arg, npending)
 	if (status & (RL_ISR_RX_OK|RL_ISR_RX_ERR|RL_ISR_FIFO_OFLOW))
 		rval = re_rxeof(sc);
 
+	if (status & (
 #ifdef RE_TX_MODERATION
-	if (status & (RL_ISR_TIMEOUT_EXPIRED|
+	    RL_ISR_TIMEOUT_EXPIRED|
 #else
-	if (status & (RL_ISR_TX_OK|
+	    RL_ISR_TX_OK|
 #endif
 	    RL_ISR_TX_ERR|RL_ISR_TX_DESC_UNAVAIL))
 		re_txeof(sc);
@@ -2212,14 +2162,10 @@ re_int_task(arg, npending)
 	}
 
 	CSR_WRITE_2(sc, RL_IMR, RL_INTRS_CPLUS);
-
-	return;
 }
 
 static int
-re_encap(sc, m_head)
-	struct rl_softc		*sc;
-	struct mbuf		**m_head;
+re_encap(struct rl_softc *sc, struct mbuf **m_head)
 {
 	struct rl_txdesc	*txd, *txd_last;
 	bus_dma_segment_t	segs[RL_NTXSEGS];
@@ -2405,24 +2351,19 @@ re_encap(sc, m_head)
 }
 
 static void
-re_tx_task(arg, npending)
-	void			*arg;
-	int			npending;
+re_tx_task(void *arg, int npending)
 {
 	struct ifnet		*ifp;
 
 	ifp = arg;
 	re_start(ifp);
-
-	return;
 }
 
 /*
  * Main transmit routine for C+ and gigE NICs.
  */
 static void
-re_start(ifp)
-	struct ifnet		*ifp;
+re_start(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mbuf		*m_head;
@@ -2496,13 +2437,10 @@ re_start(ifp)
 	sc->rl_watchdog_timer = 5;
 
 	RL_UNLOCK(sc);
-
-	return;
 }
 
 static void
-re_init(xsc)
-	void			*xsc;
+re_init(void *xsc)
 {
 	struct rl_softc		*sc = xsc;
 
@@ -2512,8 +2450,7 @@ re_init(xsc)
 }
 
 static void
-re_init_locked(sc)
-	struct rl_softc		*sc;
+re_init_locked(struct rl_softc *sc)
 {
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
@@ -2708,8 +2645,7 @@ re_init_locked(sc)
  * Set media options.
  */
 static int
-re_ifmedia_upd(ifp)
-	struct ifnet		*ifp;
+re_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
@@ -2727,9 +2663,7 @@ re_ifmedia_upd(ifp)
  * Report current media status.
  */
 static void
-re_ifmedia_sts(ifp, ifmr)
-	struct ifnet		*ifp;
-	struct ifmediareq	*ifmr;
+re_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
@@ -2745,10 +2679,7 @@ re_ifmedia_sts(ifp, ifmr)
 }
 
 static int
-re_ioctl(ifp, command, data)
-	struct ifnet		*ifp;
-	u_long			command;
-	caddr_t			data;
+re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
@@ -2878,8 +2809,7 @@ re_ioctl(ifp, command, data)
 }
 
 static void
-re_watchdog(sc)
-	struct rl_softc		*sc;
+re_watchdog(struct rl_softc *sc)
 {
 
 	RL_LOCK_ASSERT(sc);
@@ -2900,10 +2830,9 @@ re_watchdog(sc)
  * RX and TX lists.
  */
 static void
-re_stop(sc)
-	struct rl_softc		*sc;
+re_stop(struct rl_softc *sc)
 {
-	register int		i;
+	int			i;
 	struct ifnet		*ifp;
 	struct rl_txdesc	*txd;
 	struct rl_rxdesc	*rxd;
@@ -2960,8 +2889,7 @@ re_stop(sc)
  * resume.
  */
 static int
-re_suspend(dev)
-	device_t		dev;
+re_suspend(device_t dev)
 {
 	struct rl_softc		*sc;
 
@@ -2982,8 +2910,7 @@ re_suspend(dev)
  * appropriate.
  */
 static int
-re_resume(dev)
-	device_t		dev;
+re_resume(device_t dev)
 {
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
@@ -3014,8 +2941,7 @@ re_resume(dev)
  * get confused by errant DMAs when rebooting.
  */
 static int
-re_shutdown(dev)
-	device_t		dev;
+re_shutdown(device_t dev)
 {
 	struct rl_softc		*sc;
 
@@ -3036,8 +2962,7 @@ re_shutdown(dev)
 }
 
 static void
-re_setwol(sc)
-	struct rl_softc		*sc;
+re_setwol(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
 	int			pmc;
@@ -3095,8 +3020,7 @@ re_setwol(sc)
 }
 
 static void
-re_clrwol(sc)
-	struct rl_softc		*sc;
+re_clrwol(struct rl_softc *sc)
 {
 	int			pmc;
 	uint8_t			v;
