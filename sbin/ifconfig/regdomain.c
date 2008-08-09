@@ -78,7 +78,7 @@ start_element(void *data, const char *name, const char **attr)
 		/* XXX force parser to abort */
 		return;
 	}
-	mt->sbuf[mt->level] = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	mt->sbuf[mt->level] = sbuf_new_auto();
 	id = ref = mode = NULL;
 	for (i = 0; attr[i] != NULL; i += 2) {
 		if (iseq(attr[i], "id")) {

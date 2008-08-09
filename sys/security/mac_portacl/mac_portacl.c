@@ -310,7 +310,7 @@ rules_to_string(void)
 	int needcomma;
 	char *temp;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	needcomma = 0;
 	mtx_lock(&rule_mtx);
 	for (rule = TAILQ_FIRST(&rule_head); rule != NULL;

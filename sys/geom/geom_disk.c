@@ -517,7 +517,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	int error;
 	struct sbuf *sb;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	g_waitfor_event(g_kern_disks, sb, M_WAITOK, NULL);
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);

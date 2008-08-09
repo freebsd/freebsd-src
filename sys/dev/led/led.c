@@ -142,7 +142,7 @@ led_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return(error);
 	}
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	if (sb == NULL) {
 		free(s2, M_DEVBUF);
 		return (ENOMEM);
