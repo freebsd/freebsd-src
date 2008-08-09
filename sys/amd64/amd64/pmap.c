@@ -4417,6 +4417,25 @@ pmap_demote_pdpe(pmap_t pmap, pdp_entry_t *pdpe, vm_offset_t va)
 	return (TRUE);
 }
 
+/*
+ * Changes the specified virtual address range's memory type to that given by
+ * the parameter "mode".  The specified virtual address range must be
+ * completely contained within either the direct map or the kernel map.  If
+ * the virtual address range is contained within the kernel map, then the
+ * memory type for each of the corresponding ranges of the direct map is also
+ * changed.  (The corresponding ranges of the direct map are those ranges that
+ * map the same physical pages as the specified virtual address range.)  These
+ * changes to the direct map are necessary because Intel describes the
+ * behavior of their processors as "undefined" if two or more mappings to the
+ * same physical page have different memory types.
+ *
+ * Returns zero if the change completed successfully, and either EINVAL or
+ * ENOMEM if the change failed.  Specifically, EINVAL is returned if some part
+ * of the virtual address range was not mapped, and ENOMEM is returned if
+ * there was insufficient memory available to complete the change.  In the
+ * latter case, the memory type may have been changed on some part of the
+ * virtual address range or the direct map.
+ */
 int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
@@ -4432,10 +4451,11 @@ static int
 pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 {
 	vm_offset_t base, offset, tmpva;
+	vm_paddr_t pa_start, pa_end;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
-	int cache_bits_pte, cache_bits_pde;
+	int cache_bits_pte, cache_bits_pde, error;
 	boolean_t changed;
 
 	PMAP_LOCK_ASSERT(kernel_pmap, MA_OWNED);
@@ -4521,11 +4541,13 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 			return (EINVAL);
 		tmpva += PAGE_SIZE;
 	}
+	error = 0;
 
 	/*
 	 * Ok, all the pages exist, so run through them updating their
 	 * cache mode if required.
 	 */
+	pa_start = pa_end = 0;
 	for (tmpva = base; tmpva < base + size; ) {
 		pdpe = pmap_pdpe(kernel_pmap, tmpva);
 		if (*pdpe & PG_PS) {
@@ -4535,6 +4557,25 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				pmap_pde_attr(pdpe, cache_bits_pde);
 				if (!changed)
 					changed = TRUE;
+			}
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+				if (pa_start == pa_end) {
+					/* Start physical address run. */
+					pa_start = *pdpe & PG_PS_FRAME;
+					pa_end = pa_start + NBPDP;
+				} else if (pa_end == (*pdpe & PG_PS_FRAME))
+					pa_end += NBPDP;
+				else {
+					/* Run ended, update direct map. */
+					error = pmap_change_attr_locked(
+					    PHYS_TO_DMAP(pa_start),
+					    pa_end - pa_start, mode);
+					if (error != 0)
+						break;
+					/* Start physical address run. */
+					pa_start = *pdpe & PG_PS_FRAME;
+					pa_end = pa_start + NBPDP;
+				}
 			}
 			tmpva = trunc_1gpage(tmpva) + NBPDP;
 			continue;
@@ -4548,6 +4589,25 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				if (!changed)
 					changed = TRUE;
 			}
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+				if (pa_start == pa_end) {
+					/* Start physical address run. */
+					pa_start = *pde & PG_PS_FRAME;
+					pa_end = pa_start + NBPDR;
+				} else if (pa_end == (*pde & PG_PS_FRAME))
+					pa_end += NBPDR;
+				else {
+					/* Run ended, update direct map. */
+					error = pmap_change_attr_locked(
+					    PHYS_TO_DMAP(pa_start),
+					    pa_end - pa_start, mode);
+					if (error != 0)
+						break;
+					/* Start physical address run. */
+					pa_start = *pde & PG_PS_FRAME;
+					pa_end = pa_start + NBPDR;
+				}
+			}
 			tmpva = trunc_2mpage(tmpva) + NBPDR;
 		} else {
 			if (cache_bits_pte < 0)
@@ -4558,9 +4618,31 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 				if (!changed)
 					changed = TRUE;
 			}
+			if (tmpva >= VM_MIN_KERNEL_ADDRESS) {
+				if (pa_start == pa_end) {
+					/* Start physical address run. */
+					pa_start = *pte & PG_FRAME;
+					pa_end = pa_start + PAGE_SIZE;
+				} else if (pa_end == (*pte & PG_FRAME))
+					pa_end += PAGE_SIZE;
+				else {
+					/* Run ended, update direct map. */
+					error = pmap_change_attr_locked(
+					    PHYS_TO_DMAP(pa_start),
+					    pa_end - pa_start, mode);
+					if (error != 0)
+						break;
+					/* Start physical address run. */
+					pa_start = *pte & PG_FRAME;
+					pa_end = pa_start + PAGE_SIZE;
+				}
+			}
 			tmpva += PAGE_SIZE;
 		}
 	}
+	if (error == 0 && pa_start != pa_end)
+		error = pmap_change_attr_locked(PHYS_TO_DMAP(pa_start),
+		    pa_end - pa_start, mode);
 
 	/*
 	 * Flush CPU caches if required to make sure any data isn't cached that
@@ -4570,7 +4652,7 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		pmap_invalidate_range(kernel_pmap, base, tmpva);
 		pmap_invalidate_cache();
 	}
-	return (0);
+	return (error);
 }
 
 /*
