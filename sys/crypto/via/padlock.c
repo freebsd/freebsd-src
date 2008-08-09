@@ -215,23 +215,18 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	 * allocate one.
 	 */
 	ses = TAILQ_FIRST(&sc->sc_sessions);
-	if (ses == NULL || ses->ses_used)
-		ses = NULL;
-	else {
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-		ses->ses_used = 1;
-		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-	}
-	if (ses == NULL) {
+	if (ses == NULL || ses->ses_used) {
 		ses = malloc(sizeof(*ses), M_PADLOCK, M_NOWAIT | M_ZERO);
 		if (ses == NULL) {
 			rw_wunlock(&sc->sc_sessions_lock);
 			return (ENOMEM);
 		}
-		ses->ses_used = 1;
 		ses->ses_id = sc->sc_sid++;
-		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
+	} else {
+		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 	}
+	ses->ses_used = 1;
+	TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
 	rw_wunlock(&sc->sc_sessions_lock);
 
 	error = padlock_cipher_setup(ses, encini);
