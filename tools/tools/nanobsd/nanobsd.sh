@@ -581,6 +581,7 @@ usage () {
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-k	suppress buildkernel"
 	echo "	-w	suppress buildworld"
+	echo "  -i	suppress disk image build"
 	echo "	-c	specify config file"
 	) 1>&2
 	exit 2
@@ -591,9 +592,10 @@ usage () {
 
 do_kernel=true
 do_world=true
+do_image=true
 
 set +e
-args=`getopt bc:hkw $*`
+args=`getopt bc:hkwi $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -622,6 +624,8 @@ do
 	-h)
 		usage
 		;;
+	-i)
+		do_image=false
 	-w)
 		shift;
 		do_world=false
@@ -713,7 +717,11 @@ install_kernel
 run_customize
 setup_nanobsd
 prune_usr
-create_${NANO_ARCH}_diskimage
+if $do_image ; then
+	create_${NANO_ARCH}_diskimage
+else
+	echo "## Skipping image build (as instructed)"
+fi
 last_orders
 
 echo "# NanoBSD image completed"
