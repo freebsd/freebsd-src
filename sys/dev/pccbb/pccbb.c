@@ -952,7 +952,7 @@ cbb_cardbus_reset(device_t brdev, int on)
 		 * PC Card Host System Specification says that when powering
 		 * up the card, the PCI Spec v2.1 must be followed.  In PCI
 		 * spec v2.2 Table 4-6, Trhfa (Reset High to first Config
-		 * Access) is at most 2^25 clocks, or just over 1s.  Secont
+		 * Access) is at most 2^25 clocks, or just over 1s.  Section
 		 * 2.2.1 states any card not ready to participate in bus
 		 * transactions must tristate its outputs.  Therefore, any
 		 * access to its configuration registers must be ignored.  In
