@@ -2441,6 +2441,79 @@ printrsnie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	}
 }
 
+/* XXX move to a public include file */
+#define IEEE80211_WPS_DEV_PASS_ID	0x1012
+#define IEEE80211_WPS_SELECTED_REG	0x1041
+#define IEEE80211_WPS_SETUP_STATE	0x1044
+#define IEEE80211_WPS_UUID_E		0x1047
+#define IEEE80211_WPS_VERSION		0x104a
+
+#define BE_READ_2(p)					\
+	((u_int16_t)					\
+	 ((((const u_int8_t *)(p))[1]      ) |		\
+	  (((const u_int8_t *)(p))[0] <<  8)))
+
+static void
+printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	u_int8_t len = ie[1];
+
+	printf("%s", tag);
+	if (verbose) {
+		static const char *dev_pass_id[] = {
+			"D",	/* Default (PIN) */
+			"U",	/* User-specified */
+			"M",	/* Machine-specified */
+			"K",	/* Rekey */
+			"P",	/* PushButton */
+			"R"	/* Registrar-specified */
+		};
+		int n;
+
+		ie +=6, len -= 4;		/* NB: len is payload only */
+
+		/* WPS IE in Beacon and Probe Resp frames have different fields */
+		printf("<");
+		while (len) {
+			uint16_t tlv_type = BE_READ_2(ie);
+			uint16_t tlv_len  = BE_READ_2(ie + 2);
+
+			ie += 4, len -= 4;
+
+			switch (tlv_type) {
+			case IEEE80211_WPS_VERSION:
+				printf("v:%d.%d", *ie >> 4, *ie & 0xf);
+				break;
+			case IEEE80211_WPS_SETUP_STATE:
+				/* Only 1 and 2 are valid */
+				if (*ie == 0 || *ie >= 3)
+					printf(" state:B");
+				else
+					printf(" st:%s", *ie == 1 ? "N" : "C");
+				break;
+			case IEEE80211_WPS_SELECTED_REG:
+				printf(" sel:%s", *ie ? "T" : "F");
+				break;
+			case IEEE80211_WPS_DEV_PASS_ID:
+				n = LE_READ_2(ie);
+				if (n < N(dev_pass_id))
+					printf(" dpi:%s", dev_pass_id[n]);
+				break;
+			case IEEE80211_WPS_UUID_E:
+				printf(" uuid-e:");
+				for (n = 0; n < (tlv_len - 1); n++)
+					printf("%02x-", ie[n]);
+				printf("%02x", ie[n]);
+				break;
+			}
+			ie += tlv_len, len -= tlv_len;
+		}
+		printf(">");
+	}
+#undef N
+}
+
 /*
  * Copy the ssid string contents into buf, truncating to fit.  If the
  * ssid is entirely printable then just copy intact.  Otherwise convert
@@ -2563,6 +2636,12 @@ isatherosoui(const u_int8_t *frm)
 	return frm[1] > 3 && LE_READ_4(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
 }
 
+static __inline int
+iswpsoui(const uint8_t *frm)
+{
+	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPS_OUI_TYPE<<24)|WPA_OUI);
+}
+
 static const char *
 iename(int elemid)
 {
@@ -2624,6 +2703,8 @@ printies(const u_int8_t *vp, int ielen, int maxcols)
 				printwmeparam(" WME", vp, 2+vp[1], maxcols);
 			else if (isatherosoui(vp))
 				printathie(" ATH", vp, 2+vp[1], maxcols);
+			else if (iswpsoui(vp))
+				printwpsie(" WPS", vp, 2+vp[1], maxcols);
 			else if (verbose)
 				printie(" VEN", vp, 2+vp[1], maxcols);
 			break;
