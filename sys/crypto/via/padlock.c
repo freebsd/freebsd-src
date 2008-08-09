@@ -152,8 +152,7 @@ padlock_detach(device_t dev)
 			return (EBUSY);
 		}
 	}
-	for (ses = TAILQ_FIRST(&sc->sc_sessions); ses != NULL;
-	    ses = TAILQ_FIRST(&sc->sc_sessions)) {
+	while ((ses = TAILQ_FIRST(&sc->sc_sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 		free(ses, M_PADLOCK);
 	}
