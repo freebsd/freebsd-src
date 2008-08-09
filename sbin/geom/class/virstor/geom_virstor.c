@@ -157,7 +157,6 @@ my_g_metadata_store(const char *name, u_char *md, size_t size)
 	off_t mediasize;
 	u_char *sector;
 	int error, fd;
-	ssize_t abc;
 
 	pathgen(name, path, sizeof(path));
 	sector = NULL;
@@ -183,7 +182,7 @@ my_g_metadata_store(const char *name, u_char *md, size_t size)
 		goto out;
 	}
 	bcopy(md, sector, size);
-	if ((abc = pwrite(fd, sector, sectorsize, mediasize - sectorsize)) !=
+	if (pwrite(fd, sector, sectorsize, mediasize - sectorsize) !=
 	    (ssize_t)sectorsize) {
 		error = errno;
 		goto out;
@@ -273,7 +272,7 @@ virstor_label(struct gctl_req *req)
 		    (size_t)(md.md_virsize/(1024 * 1024)));
 	}
 
-	msize = secsize = ssize = 0;
+	msize = secsize = 0;
 	for (i = 1; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_ascii(req, param);
@@ -289,6 +288,11 @@ virstor_label(struct gctl_req *req)
 			    (u_int)ssize, name, (u_int)secsize);
 			return;
 		}
+	}
+
+	if (secsize == 0) {
+		gctl_error(req, "Device not specified");
+		return;
 	}
 
 	if (md.md_chunk_size % secsize != 0) {
