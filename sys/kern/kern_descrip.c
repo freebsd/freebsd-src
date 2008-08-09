@@ -2972,7 +2972,6 @@ fdopen(struct cdev *dev, int mode, int type, struct thread *td)
 
 static struct cdevsw fildesc_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	fdopen,
 	.d_name =	"FD",
 };
