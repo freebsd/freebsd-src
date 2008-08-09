@@ -75,6 +75,9 @@ NANO_KERNEL=GENERIC
 # Customize commands.
 NANO_CUSTOMIZE=""
 
+# Late customize commands.
+NANO_LATE_CUSTOMIZE=""
+
 # Newfs paramters to use
 NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 
@@ -242,6 +245,18 @@ run_customize() (
 		echo "### log: ${MAKEOBJDIRPREFIX}/_.cust.$c"
 		echo "### `type $c`"
 		( $c ) > ${MAKEOBJDIRPREFIX}/_.cust.$c 2>&1
+	done
+)
+
+run_late_customize() (
+
+	echo "## run late customize scripts"
+	for c in $NANO_LATE_CUSTOMIZE
+	do
+		echo "## late customize \"$c\""
+		echo "### log: ${MAKEOBJDIRPREFIX}/_.late_cust.$c"
+		echo "### `type $c`"
+		( $c ) > ${MAKEOBJDIRPREFIX}/_.late_cust.$c 2>&1
 	done
 )
 
@@ -570,6 +585,15 @@ customize_cmd () {
 }
 
 #######################################################################
+# Convenience function:
+# 	Register $1 as late customize function to run just before
+#	image creation.
+
+late_customize_cmd () {
+	NANO_LATE_CUSTOMIZE="$NANO_LATE_CUSTOMIZE $1"
+}
+
+#######################################################################
 #
 # All set up to go...
 #
@@ -717,6 +741,7 @@ install_kernel
 run_customize
 setup_nanobsd
 prune_usr
+run_late_customize
 if $do_image ; then
 	create_${NANO_ARCH}_diskimage
 else
