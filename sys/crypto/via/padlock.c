@@ -221,17 +221,17 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		ses->ses_used = 1;
 		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
 	}
-	rw_wunlock(&sc->sc_sessions_lock);
 	if (ses == NULL) {
 		ses = malloc(sizeof(*ses), M_PADLOCK, M_NOWAIT | M_ZERO);
-		if (ses == NULL)
+		if (ses == NULL) {
+			rw_wunlock(&sc->sc_sessions_lock);
 			return (ENOMEM);
+		}
 		ses->ses_used = 1;
-		rw_wlock(&sc->sc_sessions_lock);
 		ses->ses_id = sc->sc_sid++;
 		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-		rw_wunlock(&sc->sc_sessions_lock);
 	}
+	rw_wunlock(&sc->sc_sessions_lock);
 
 	error = padlock_cipher_setup(ses, encini);
 	if (error != 0) {
