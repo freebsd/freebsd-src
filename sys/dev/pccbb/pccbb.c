@@ -158,7 +158,7 @@ SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
 static void	cbb_insert(struct cbb_softc *sc);
 static void	cbb_removal(struct cbb_softc *sc);
 static uint32_t	cbb_detect_voltage(device_t brdev);
-static void	cbb_cardbus_reset(device_t brdev);
+static void	cbb_cardbus_reset(device_t brdev, int on);
 static int	cbb_cardbus_io_open(device_t brdev, int win, uint32_t start,
 		    uint32_t end);
 static int	cbb_cardbus_mem_open(device_t brdev, int win,
@@ -927,27 +927,38 @@ cbb_do_power(device_t brdev)
 /************************************************************************/
 
 static void
-cbb_cardbus_reset(device_t brdev)
+cbb_cardbus_reset(device_t brdev, int on)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int delay;
+	uint32_t b;
+	int delay, count;
 
 	/*
-	 * 100ms is necessary for most bridges.  For some reason, the Ricoh
-	 * RF5C47x bridges need 400ms.  The spec says 20ms, but even some
-	 * normally sane bridges need longer with some cards.
+	 * 20ms is necessary for most bridges.  For some reason, the Ricoh
+	 * RF5C47x bridges need 400ms.
 	 */
-	delay = sc->chipset == CB_RF5C47X ? 400 : 100;
+	delay = sc->chipset == CB_RF5C47X ? 400 : 20;
 
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
 
 	pause("cbbP3", hz * delay / 1000);
 
-	/* If a card exists, unreset it! */
-	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
+	/* If a card exists and we're turning it on, unreset it! */
+	if (on && CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
-		pause("cbbP4", hz * delay / 1000);
+		/*
+		 * Wait up to .5s for the vendor of device 0.0 to become
+		 * != 0xffffffff
+		 */
+		b = pcib_get_bus(brdev);
+		count = 25;
+		do {
+			pause("cbbP4", hz * 2 / 100);
+		} while (PCIB_READ_CONFIG(brdev, b, 0, 0, PCIR_DEVVENDOR, 4) ==
+		    0xfffffffful && --count >= 0);
+		if (count < 0)
+			device_printf(brdev, "Timeout on reset\n");
 	}
 }
 
@@ -963,7 +974,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	err = cbb_do_power(brdev);
 	if (err)
 		return (err);
-	cbb_cardbus_reset(brdev);
+	cbb_cardbus_reset(brdev, 1);
 	return (0);
 }
 
@@ -971,7 +982,7 @@ static void
 cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 {
 	cbb_power(brdev, CARD_OFF);
-	cbb_cardbus_reset(brdev);
+	cbb_cardbus_reset(brdev, 0);
 }
 
 /************************************************************************/
