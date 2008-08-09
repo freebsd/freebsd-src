@@ -82,9 +82,9 @@ new_node(void)
 	struct node *np;
 
 	np = calloc(1, sizeof *np);
-	np->cont = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	np->cont = sbuf_new_auto();
 	sbuf_clear(np->cont);
-	np->key = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	np->key = sbuf_new_auto();
 	sbuf_clear(np->key);
 	LIST_INIT(&np->children);
 	return (np);

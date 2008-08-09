@@ -324,7 +324,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 
 	g_topology_assert();
 	G_VALID_CLASS(mp);
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
@@ -566,7 +566,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
 	    ("new provider on WITHERing geom(%s) (class %s)",
 	    gp->name, gp->class->name));
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);

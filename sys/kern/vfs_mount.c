@@ -2179,7 +2179,7 @@ mount_argf(struct mntarg *ma, const char *name, const char *fmt, ...)
 	ma->v[ma->len].iov_len = strlen(name) + 1;
 	ma->len++;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	sb = sbuf_new_auto();
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
