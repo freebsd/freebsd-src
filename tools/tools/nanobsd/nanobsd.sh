@@ -650,6 +650,7 @@ do
 		;;
 	-i)
 		do_image=false
+		;;
 	-w)
 		shift;
 		do_world=false
