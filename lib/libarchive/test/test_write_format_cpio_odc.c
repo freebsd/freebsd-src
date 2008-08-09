@@ -25,6 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+
 static int
 is_octal(const char *p, size_t l)
 {
