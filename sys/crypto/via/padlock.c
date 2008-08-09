@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,8 @@ struct padlock_softc {
 
 static int padlock_newsession(device_t, uint32_t *sidp, struct cryptoini *cri);
 static int padlock_freesession(device_t, uint64_t tid);
+static void padlock_freesession_one(struct padlock_softc *sc,
+    struct padlock_session *ses, int locked);
 static int padlock_process(device_t, struct cryptop *crp, int hint __unused);
 
 MALLOC_DEFINE(M_PADLOCK, "padlock_data", "PadLock Data");
@@ -234,20 +236,38 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 
 	error = padlock_cipher_setup(ses, encini);
 	if (error != 0) {
-		padlock_freesession(NULL, ses->ses_id);
+		padlock_freesession_one(sc, ses, 0);
 		return (error);
 	}
 
 	if (macini != NULL) {
 		error = padlock_hash_setup(ses, macini);
 		if (error != 0) {
-			padlock_freesession(NULL, ses->ses_id);
+			padlock_freesession_one(sc, ses, 0);
 			return (error);
 		}
 	}
 
 	*sidp = ses->ses_id;
 	return (0);
+}
+
+static void
+padlock_freesession_one(struct padlock_softc *sc, struct padlock_session *ses,
+    int locked)
+{
+	uint32_t sid = ses->ses_id;
+
+	if (!locked)
+		rw_wlock(&sc->sc_sessions_lock);
+	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
+	padlock_hash_free(ses);
+	bzero(ses, sizeof(*ses));
+	ses->ses_used = 0;
+	ses->ses_id = sid;
+	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
+	if (!locked)
+		rw_wunlock(&sc->sc_sessions_lock);
 }
 
 static int
@@ -267,12 +287,7 @@ padlock_freesession(device_t dev, uint64_t tid)
 		rw_wunlock(&sc->sc_sessions_lock);
 		return (EINVAL);
 	}
-	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-	padlock_hash_free(ses);
-	bzero(ses, sizeof(*ses));
-	ses->ses_used = 0;
-	ses->ses_id = sid;
-	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
+	padlock_freesession_one(sc, ses, 1);
 	rw_wunlock(&sc->sc_sessions_lock);
 	return (0);
 }
