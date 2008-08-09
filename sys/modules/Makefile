@@ -94,6 +94,7 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	gem \
 	geom \
+	${_glxsb} \
 	hatm \
 	hifn \
 	hme \
@@ -387,6 +388,7 @@ _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
+_glxsb=		glxsb
 _i2c=		i2c
 _ibcs2=		ibcs2
 _ie=		ie
