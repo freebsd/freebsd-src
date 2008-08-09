@@ -493,7 +493,7 @@ FlashDevice () {
 
 cust_comconsole () (
 	# Enable getty on console
-	sed -i "" -e /ttyd0/s/off/on/ ${NANO_WORLDDIR}/etc/ttys
+	sed -i "" -e /ttyu0/s/off/on/ ${NANO_WORLDDIR}/etc/ttys
 
 	# Disable getty on syscons devices
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
