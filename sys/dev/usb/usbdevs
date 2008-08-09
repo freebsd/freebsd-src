@@ -853,6 +853,8 @@ product APPLE IPOD_07		0x1207	iPod '07'
 product APPLE IPOD_08		0x1208	iPod '08'
 product APPLE IPODVIDEO		0x1209	iPod Video
 product APPLE IPODNANO		0x120a	iPod Nano
+product APPLE IPHONE		0x1290	iPhone
+product APPLE IPHONE_3G		0x1292	iPhone 3G
 product APPLE ETHERNET		0x1402	Ethernet A1277
 
 /* Arkmicro Technologies */
