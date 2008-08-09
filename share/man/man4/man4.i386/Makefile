@@ -22,6 +22,7 @@ MAN=	acpi_aiboost.4 \
 	ep.4 \
 	ex.4 \
 	fe.4 \
+	glxsb.4 \
 	ichwd.4 \
 	ie.4 \
 	io.4 \
