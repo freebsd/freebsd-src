@@ -466,7 +466,7 @@ struct ndis_wlan_bssid_ex {
 	uint32_t		nwbx_netinfra;
 	ndis_80211_rates_ex	nwbx_supportedrates;
 	uint32_t		nwbx_ielen;
-	uint32_t		nwbx_ies[1];
+	uint8_t			nwbx_ies[1];
 };
 
 typedef struct ndis_wlan_bssid_ex ndis_wlan_bssid_ex;
