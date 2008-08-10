@@ -162,7 +162,7 @@ main(int argc, char *argv[])
 
 	/* Compute a random exit status between 0 and denom - 1. */
 	if (random_exit)
-		return (int)(denom * random() / RANDOM_MAX);
+		return (int)(denom * random() / RANDOM_MAX_PLUS1);
 
 	/*
 	 * Select whether to print the first line.  (Prime the pump.)
@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 	 * 0 (which has a 1 / denom chance of being true), we select the
 	 * line.
 	 */
-	selected = (int)(denom * random() / RANDOM_MAX) == 0;
+	selected = (int)(denom * random() / RANDOM_MAX_PLUS1) == 0;
 	while ((ch = getchar()) != EOF) {
 		if (selected)
 			(void)putchar(ch);
@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 				err(2, "stdout");
 
 			/* Now see if the next line is to be printed. */
-			selected = (int)(denom * random() / RANDOM_MAX) == 0;
+			selected = (int)(denom * random() / RANDOM_MAX_PLUS1) == 0;
 		}
 	}
 	if (ferror(stdin))
