@@ -171,6 +171,8 @@ struct archive_write_disk {
 	int			 fd;
 	/* Current offset for writing data to the file. */
 	off_t			 offset;
+	/* Maximum size of file. */
+	off_t			 filesize;
 	/* Dir we were in before this restore; only for deep paths. */
 	int			 restore_pwd;
 	/* Mode we should use for this entry; affected by _PERM and umask. */
@@ -302,6 +304,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
+	a->filesize = archive_entry_size(a->entry);
 	archive_strcpy(&(a->_name_data), archive_entry_pathname(a->entry));
 	a->name = a->_name_data.s;
 	archive_clear_error(&a->archive);
@@ -425,8 +428,10 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	 * If it's not open, tell our client not to try writing.
 	 * In particular, dirs, links, etc, don't get written to.
 	 */
-	if (a->fd < 0)
+	if (a->fd < 0) {
 		archive_entry_set_size(entry, 0);
+		a->filesize = 0;
+	}
 done:
 	/* Restore the user's umask before returning. */
 	umask(a->user_umask);
@@ -451,6 +456,7 @@ _archive_write_data_block(struct archive *_a,
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t bytes_written = 0;
+	int r = ARCHIVE_OK;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
@@ -470,7 +476,13 @@ _archive_write_data_block(struct archive *_a,
 	}
 
 	/* Write the data. */
-	while (size > 0) {
+	while (size > 0 && a->offset < a->filesize) {
+		if ((off_t)(a->offset + size) > a->filesize) {
+			size = (size_t)(a->filesize - a->offset);
+			archive_set_error(&a->archive, errno,
+			    "Write request too large");
+			r = ARCHIVE_WARN;
+		}
 		bytes_written = write(a->fd, buff, size);
 		if (bytes_written < 0) {
 			archive_set_error(&a->archive, errno, "Write failed");
@@ -479,13 +491,14 @@ _archive_write_data_block(struct archive *_a,
 		size -= bytes_written;
 		a->offset += bytes_written;
 	}
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static ssize_t
 _archive_write_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	off_t offset;
 	int r;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -493,10 +506,11 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 	if (a->fd < 0)
 		return (ARCHIVE_OK);
 
+	offset = a->offset;
 	r = _archive_write_data_block(_a, buff, size, a->offset);
 	if (r < ARCHIVE_OK)
 		return (r);
-	return (size);
+	return (a->offset - offset);
 }
 
 static int
@@ -829,8 +843,20 @@ create_filesystem_object(struct archive_write_disk *a)
 	/* We identify hard/symlinks according to the link names. */
 	/* Since link(2) and symlink(2) don't handle modes, we're done here. */
 	linkname = archive_entry_hardlink(a->entry);
-	if (linkname != NULL)
-		return link(linkname, a->name) ? errno : 0;
+	if (linkname != NULL) {
+		r = link(linkname, a->name) ? errno : 0;
+		/*
+		 * New cpio and pax formats allow hardlink entries
+		 * to carry data, so we may have to open the file
+		 * for hardlink entries.
+		 */
+		if (r == 0 && a->filesize > 0) {
+			a->fd = open(a->name, O_WRONLY | O_TRUNC);
+			if (a->fd < 0)
+				r = errno;
+		}
+		return (r);
+	}
 	linkname = archive_entry_symlink(a->entry);
 	if (linkname != NULL)
 		return symlink(linkname, a->name) ? errno : 0;

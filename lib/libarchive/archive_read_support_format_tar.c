@@ -943,30 +943,46 @@ header_common(struct archive_read *a, struct tar *tar,
 		 * A tricky point: Traditionally, tar readers have
 		 * ignored the size field when reading hardlink
 		 * entries, and some writers put non-zero sizes even
-		 * though the body is empty.  POSIX.1-2001 broke with
-		 * this tradition by permitting hardlink entries to
-		 * store valid bodies in pax interchange format, but
-		 * not in ustar format.  Since there is no hard and
-		 * fast way to distinguish pax interchange from
-		 * earlier archives (the 'x' and 'g' entries are
-		 * optional, after all), we need a heuristic.  Here, I
-		 * use the bid function to test whether or not there's
-		 * a valid header following.  Of course, if we know
-		 * this is pax interchange format, then we must obey
-		 * the size.
-		 *
-		 * This heuristic will only fail for a pax interchange
-		 * archive that is storing hardlink bodies, no pax
-		 * extended attribute entries have yet occurred, and
-		 * we encounter a hardlink entry for a file that is
-		 * itself an uncompressed tar archive.
+		 * though the body is empty.  POSIX blessed this
+		 * convention in the 1988 standard, but broke with
+		 * this tradition in 2001 by permitting hardlink
+		 * entries to store valid bodies in pax interchange
+		 * format, but not in ustar format.  Since there is no
+		 * hard and fast way to distinguish pax interchange
+		 * from earlier archives (the 'x' and 'g' entries are
+		 * optional, after all), we need a heuristic.
 		 */
-		if (archive_entry_size(entry) > 0  &&
-		    a->archive.archive_format != ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE  &&
-		    archive_read_format_tar_bid(a) > 50) {
+		if (archive_entry_size(entry) == 0) {
+			/* If the size is already zero, we're done. */
+		}  else if (a->archive.archive_format
+		    == ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE) {
+			/* Definitely pax extended; must obey hardlink size. */
+		} else if (a->archive.archive_format == ARCHIVE_FORMAT_TAR
+		    || a->archive.archive_format == ARCHIVE_FORMAT_TAR_GNUTAR)
+		{
+			/* Old-style or GNU tar: we must ignore the size. */
+			archive_entry_set_size(entry, 0);
+			tar->entry_bytes_remaining = 0;
+		} else if (archive_read_format_tar_bid(a) > 50) {
+			/*
+			 * We don't know if it's pax: If the bid
+			 * function sees a valid ustar header
+			 * immediately following, then let's ignore
+			 * the hardlink size.
+			 */
 			archive_entry_set_size(entry, 0);
 			tar->entry_bytes_remaining = 0;
 		}
+		/*
+		 * TODO: There are still two cases I'd like to handle:
+		 *   = a ustar non-pax archive with a hardlink entry at
+		 *     end-of-archive.  (Look for block of nulls following?)
+		 *   = a pax archive that has not seen any pax headers
+		 *     and has an entry which is a hardlink entry storing
+		 *     a body containing an uncompressed tar archive.
+		 * The first is worth addressing; I don't see any reliable
+		 * way to deal with the second possibility.
+		 */
 		break;
 	case '2': /* Symlink */
 		archive_entry_set_filetype(entry, AE_IFLNK);
