@@ -189,6 +189,7 @@ static const struct option tar_longopts[] = {
 	{ "help",               no_argument,       NULL, OPTION_HELP },
 	{ "include",            required_argument, NULL, OPTION_INCLUDE },
 	{ "interactive",        no_argument,       NULL, 'w' },
+	{ "insecure",           no_argument,       NULL, 'P' },
 	{ "keep-old-files",     no_argument,       NULL, 'k' },
 	{ "list",               no_argument,       NULL, 't' },
 	{ "modification-time",  no_argument,       NULL, 'm' },
