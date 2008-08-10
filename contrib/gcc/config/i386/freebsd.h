@@ -86,11 +86,6 @@ Boston, MA 02110-1301, USA.  */
 
 #define TARGET_ELF	1
 
-/* This goes away when the math emulator is fixed.  */
-#undef  TARGET_SUBTARGET_DEFAULT
-#define TARGET_SUBTARGET_DEFAULT \
-  (MASK_80387 | MASK_IEEE_FP | MASK_FLOAT_RETURNS | MASK_NO_FANCY_MATH_387)
-
 /* Don't default to pcc-struct-return, we want to retain compatibility with
    older gcc versions AND pcc-struct-return is nonreentrant.
    (even though the SVR4 ABI for the i386 says that records and unions are
