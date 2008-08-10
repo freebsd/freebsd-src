@@ -50,6 +50,10 @@ __FBSDID("$FreeBSD$");
 #include "archive_read_private.h"
 #include "archive_string.h"
 
+#ifndef O_BINARY
+#define	O_BINARY 0
+#endif
+
 struct mtree_entry {
 	struct mtree_entry *next;
 	char *name;
@@ -371,7 +375,8 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 		 * the contents file on disk.)
 		 */
 		if (archive_strlen(&mtree->contents_name) > 0) {
-			mtree->fd = open(mtree->contents_name.s, O_RDONLY);
+			mtree->fd = open(mtree->contents_name.s,
+			    O_RDONLY | O_BINARY);
 			if (mtree->fd < 0) {
 				archive_set_error(&a->archive, errno,
 				    "Can't open content=\"%s\"",
@@ -380,7 +385,8 @@ read_header(struct archive_read *a, struct archive_entry *entry)
 			}
 		} else {
 			/* If the specified path opens, use it. */
-			mtree->fd = open(mtree->current_dir.s, O_RDONLY);
+			mtree->fd = open(mtree->current_dir.s,
+			    O_RDONLY | O_BINARY);
 			/* But don't fail if it's not there. */
 		}
 

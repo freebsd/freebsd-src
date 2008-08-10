@@ -47,6 +47,10 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 struct write_file_data {
 	int		fd;
 	char		filename[1];
@@ -95,7 +99,7 @@ file_open(struct archive *a, void *client_data)
 	struct stat st;
 
 	mine = (struct write_file_data *)client_data;
-	flags = O_WRONLY | O_CREAT | O_TRUNC;
+	flags = O_WRONLY | O_CREAT | O_TRUNC | O_BINARY;
 
 	/*
 	 * Open the file.
