@@ -56,6 +56,7 @@
 .\" #endif
 .Nm archive_read_data_into_fd ,
 .Nm archive_read_extract ,
+.Nm archive_read_extract2 ,
 .Nm archive_read_extract_set_progress_callback ,
 .Nm archive_read_close ,
 .Nm archive_read_finish
@@ -144,6 +145,12 @@
 .Fa "struct archive *"
 .Fa "struct archive_entry *"
 .Fa "int flags"
+.Fc
+.Ft int
+.Fo archive_read_extract2
+.Fa "struct archive *src"
+.Fa "struct archive_entry *"
+.Fa "struct archive *dest"
 .Fc
 .Ft void
 .Fo archive_read_extract_set_progress_callback
@@ -314,6 +321,22 @@ The
 .Va flags
 argument is passed unmodified to
 .Xr archive_write_disk_set_options 3 .
+.It Fn archive_read_extract2
+This is another version of
+.Fn archive_read_extract
+that allows you to provide your own restore object.
+In particular, this allows you to override the standard lookup functions
+using
+.Xr archive_write_disk_set_group_lookup 3 ,
+and
+.Xr archive_write_disk_set_user_lookup 3 .
+Note that
+.Fn archive_read_extract2
+does not accept a
+.Va flags
+argument; you should use
+.Fn archive_write_disk_set_options
+to set the restore options yourself.
 .It Fn archive_read_extract_set_progress_callback
 Sets a pointer to a user-defined callback that can be used
 for updating progress displays during extraction.

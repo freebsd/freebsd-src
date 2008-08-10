@@ -27,6 +27,25 @@
 
 __FBSDID("$FreeBSD$");
 
+/* This capability is only available on POSIX systems. */
+#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
+#include "archive.h"
+
+/*
+ * On non-Posix systems, allow the program to build, but choke if
+ * this function is actually invoked.
+ */
+int
+archive_write_set_compression_program(struct archive *_a, const char *cmd)
+{
+	archive_set_error(_a, -1,
+	    "External compression programs not supported on this platform");
+	return (ARCHIVE_FATAL);
+}
+
+#else
+
 #ifdef HAVE_SYS_WAIT_H
 #  include <sys/wait.h>
 #endif
@@ -162,6 +181,12 @@ restart_write:
 	}
 	if (ret == -1 && errno != EAGAIN)
 		return (-1);
+
+	if (state->child_stdout == -1) {
+		fcntl(state->child_stdin, F_SETFL, 0);
+		__archive_check_child(state->child_stdin, state->child_stdout);
+		goto restart_write;
+	}
 
 	do {
 		ret = read(state->child_stdout,
@@ -320,3 +345,5 @@ cleanup:
 	free(state);
 	return (ret);
 }
+
+#endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */

@@ -116,17 +116,29 @@ bid(const void *buff, size_t len)
 	if (buffer[3] < '1' || buffer[3] > '9')
 		return (0);
 	bits_checked += 5;
+	if (len < 5)
+		return (bits_checked);
 
-	/*
-	 * Research Question: Can we do any more to verify that this
-	 * really is BZip2 format??  For 99.9% of the time, the above
-	 * test is sufficient, but it would be nice to do a more
-	 * thorough check.  It's especially troubling that the BZip2
-	 * signature begins with all ASCII characters; a tar archive
-	 * whose first filename begins with 'BZh3' would potentially
-	 * fool this logic.  (It may also be possible to guard against
-	 * such anomalies in archive_read_support_compression_none.)
-	 */
+	/* After BZh[1-9], there must be either a data block
+	 * which begins with 0x314159265359 or an end-of-data
+	 * marker of 0x177245385090. */
+
+	if (buffer[4] == 0x31) {
+		/* Verify the data block signature. */
+		size_t s = len;
+		if (s > 10) s = 10;
+		if (memcmp(buffer + 4, "\x31\x41\x59\x26\x53\x59", s - 4) != 0)
+			return (0);
+		bits_checked += 8 * (s - 4);
+	} else if (buffer[4] == 0x17) {
+		/* Verify the end-of-data marker. */
+		size_t s = len;
+		if (s > 10) s = 10;
+		if (memcmp(buffer + 4, "\x17\x72\x45\x38\x50\x90", s - 4) != 0)
+			return (0);
+		bits_checked += 8 * (s - 4);
+	} else
+		return (0);
 
 	return (bits_checked);
 }

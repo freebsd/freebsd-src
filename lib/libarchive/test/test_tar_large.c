@@ -242,6 +242,11 @@ DEFINE_TEST(test_tar_large)
 		archive_entry_copy_pathname(ae, namebuff);
 		archive_entry_set_mode(ae, S_IFREG | 0755);
 		filesize = tests[i];
+
+		if (filesize < 0) {
+			skipping("32-bit off_t doesn't permit testing of very large files.");
+			return;
+		}
 		archive_entry_set_size(ae, filesize);
 
 		assertA(0 == archive_write_header(a, ae));

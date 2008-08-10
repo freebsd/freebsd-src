@@ -145,6 +145,8 @@ struct sparse_block {
 struct tar {
 	struct archive_string	 acl_text;
 	struct archive_string	 entry_pathname;
+	/* For "GNU.sparse.name" and other similar path extensions. */
+	struct archive_string	 entry_pathname_override;
 	struct archive_string	 entry_linkpath;
 	struct archive_string	 entry_uname;
 	struct archive_string	 entry_gname;
@@ -272,6 +274,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->acl_text);
 	archive_string_free(&tar->entry_pathname);
+	archive_string_free(&tar->entry_pathname_override);
 	archive_string_free(&tar->entry_linkpath);
 	archive_string_free(&tar->entry_uname);
 	archive_string_free(&tar->entry_gname);
@@ -1174,7 +1177,6 @@ pax_header(struct archive_read *a, struct tar *tar,
 	size_t attr_length, l, line_length;
 	char *line, *p;
 	char *key, *value;
-	wchar_t *wp;
 	int err, err2;
 
 	attr_length = strlen(attr);
@@ -1182,6 +1184,7 @@ pax_header(struct archive_read *a, struct tar *tar,
 	archive_string_empty(&(tar->entry_gname));
 	archive_string_empty(&(tar->entry_linkpath));
 	archive_string_empty(&(tar->entry_pathname));
+	archive_string_empty(&(tar->entry_pathname_override));
 	archive_string_empty(&(tar->entry_uname));
 	err = ARCHIVE_OK;
 	while (attr_length > 0) {
@@ -1257,13 +1260,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (tar->pax_hdrcharset_binary)
 			archive_entry_copy_gname(entry, value);
 		else {
-			wp = utf8_decode(tar, value, strlen(value));
-			if (wp == NULL) {
-				archive_entry_copy_gname(entry, value);
-				if (err > ARCHIVE_WARN)
-					err = ARCHIVE_WARN;
-			} else
-				archive_entry_copy_gname_w(entry, wp);
+			if (!archive_entry_update_gname_utf8(entry, value)) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Gname in pax header can't "
+				    "be converted to current locale.");
+			}
 		}
 	}
 	if (archive_strlen(&(tar->entry_linkpath)) > 0) {
@@ -1271,27 +1274,40 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (tar->pax_hdrcharset_binary)
 			archive_entry_copy_link(entry, value);
 		else {
-			wp = utf8_decode(tar, value, strlen(value));
-			if (wp == NULL) {
-				archive_entry_copy_link(entry, value);
-				if (err > ARCHIVE_WARN)
-					err = ARCHIVE_WARN;
-			} else
-				archive_entry_copy_link_w(entry, wp);
+			if (!archive_entry_update_link_utf8(entry, value)) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Linkname in pax header can't "
+				    "be converted to current locale.");
+			}
 		}
 	}
-	if (archive_strlen(&(tar->entry_pathname)) > 0) {
+	/*
+	 * Some extensions (such as the GNU sparse file extensions)
+	 * deliberately store a synthetic name under the regular 'path'
+	 * attribute and the real file name under a different attribute.
+	 * Since we're supposed to not care about the order, we
+	 * have no choice but to store all of the various filenames
+	 * we find and figure it all out afterwards.  This is the
+	 * figuring out part.
+	 */
+	value = NULL;
+	if (archive_strlen(&(tar->entry_pathname_override)) > 0)
+		value = tar->entry_pathname_override.s;
+	else if (archive_strlen(&(tar->entry_pathname)) > 0)
 		value = tar->entry_pathname.s;
+	if (value != NULL) {
 		if (tar->pax_hdrcharset_binary)
 			archive_entry_copy_pathname(entry, value);
 		else {
-			wp = utf8_decode(tar, value, strlen(value));
-			if (wp == NULL) {
-				archive_entry_copy_pathname(entry, value);
-				if (err > ARCHIVE_WARN)
-					err = ARCHIVE_WARN;
-			} else
-				archive_entry_copy_pathname_w(entry, wp);
+			if (!archive_entry_update_pathname_utf8(entry, value)) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Pathname in pax header can't be "
+				    "converted to current locale.");
+			}
 		}
 	}
 	if (archive_strlen(&(tar->entry_uname)) > 0) {
@@ -1299,13 +1315,13 @@ pax_header(struct archive_read *a, struct tar *tar,
 		if (tar->pax_hdrcharset_binary)
 			archive_entry_copy_uname(entry, value);
 		else {
-			wp = utf8_decode(tar, value, strlen(value));
-			if (wp == NULL) {
-				archive_entry_copy_uname(entry, value);
-				if (err > ARCHIVE_WARN)
-					err = ARCHIVE_WARN;
-			} else
-				archive_entry_copy_uname_w(entry, wp);
+			if (!archive_entry_update_uname_utf8(entry, value)) {
+				err = ARCHIVE_WARN;
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_FILE_FORMAT,
+				    "Uname in pax header can't "
+				    "be converted to current locale.");
+			}
 		}
 	}
 	return (err);
@@ -1415,11 +1431,13 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 			tar->sparse_gnu_pending = 1;
 		}
 		if (strcmp(key, "GNU.sparse.name") == 0) {
-			wp = utf8_decode(tar, value, strlen(value));
-			if (wp != NULL)
-				archive_entry_copy_pathname_w(entry, wp);
-			else
-				archive_entry_copy_pathname(entry, value);
+			/*
+			 * The real filename; when storing sparse
+			 * files, GNU tar puts a synthesized name into
+			 * the regular 'path' attribute in an attempt
+			 * to limit confusion. ;-)
+			 */
+			archive_strcpy(&(tar->entry_pathname_override), value);
 		}
 		if (strcmp(key, "GNU.sparse.realsize") == 0) {
 			tar->realsize = tar_atol10(value, strlen(value));
@@ -1455,9 +1473,7 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 			archive_entry_set_rdevminor(entry,
 			    tar_atol10(value, strlen(value)));
 		} else if (strcmp(key, "SCHILY.fflags")==0) {
-			wp = utf8_decode(tar, value, strlen(value));
-			/* TODO: if (wp == NULL) */
-			archive_entry_copy_fflags_text_w(entry, wp);
+			archive_entry_copy_fflags_text(entry, value);
 		} else if (strcmp(key, "SCHILY.dev")==0) {
 			archive_entry_set_dev(entry,
 			    tar_atol10(value, strlen(value)));
@@ -2287,7 +2303,7 @@ base64_decode(const char *s, size_t len, size_t *out_len)
 
 	/* Allocate enough space to hold the entire output. */
 	/* Note that we may not use all of this... */
-	out = (char *)malloc((len * 3 + 3) / 4);
+	out = (char *)malloc(len - len / 4 + 1);
 	if (out == NULL) {
 		*out_len = 0;
 		return (NULL);
@@ -2346,7 +2362,7 @@ url_decode(const char *in)
 	if (out == NULL)
 		return (NULL);
 	for (s = in, d = out; *s != '\0'; ) {
-		if (*s == '%') {
+		if (s[0] == '%' && s[1] != '\0' && s[2] != '\0') {
 			/* Try to convert % escape */
 			int digit1 = tohex(s[1]);
 			int digit2 = tohex(s[2]);

@@ -48,7 +48,11 @@ static void create(struct archive_entry *ae, const char *msg)
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
-	assert(st.st_mode == (archive_entry_mode(ae) & ~UMASK));
+	/* When verifying a dir, ignore the S_ISGID bit, as some systems set
+	 * that automatically. */
+	if (archive_entry_filetype(ae) == AE_IFDIR)
+		st.st_mode &= ~S_ISGID;
+	assertEqualInt(st.st_mode, archive_entry_mode(ae) & ~UMASK);
 }
 
 static void create_reg_file(struct archive_entry *ae, const char *msg)
