@@ -11,7 +11,7 @@ LDADD=	-lbz2 -lz
 #  Revision: Bumped on any notable change
 
 # The useful version number (one integer, easy to compare)
-LIBARCHIVE_VERSION= 1009004
+LIBARCHIVE_VERSION= 1009005
 # The pretty version string
 LIBARCHIVE_VERSION_STRING!= echo $$((${LIBARCHIVE_VERSION} / 1000000)).$$((${LIBARCHIVE_VERSION} / 1000 % 1000)).$$((${LIBARCHIVE_VERSION} % 1000))
 
