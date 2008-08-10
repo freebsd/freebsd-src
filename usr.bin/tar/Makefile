@@ -2,7 +2,7 @@
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING= 2.4.11
-SRCS=	bsdtar.c getdate.y matching.c read.c tree.c util.c write.c
+SRCS=	bsdtar.c getdate.y matching.c read.c siginfo.c tree.c util.c write.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
