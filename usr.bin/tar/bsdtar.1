@@ -159,7 +159,7 @@ specified pattern.
 Note that exclusions take precedence over patterns or filenames
 specified on the command line.
 .It Fl -format Ar format ( Fl W Cm format Ns = Ns Ar format )
-(c mode only)
+(c, r, u mode only)
 Use the specified format for the created archive.
 Supported formats include
 .Dq cpio ,
@@ -170,6 +170,8 @@ and
 Other formats may also be supported; see
 .Xr libarchive-formats 5
 for more information about currently-supported formats.
+In r and u modes, when extending an existing archive, the format specified
+here must be compatible with the format of the existing archive on disk.
 .It Fl f Ar file
 Read the archive from or write the archive to the specified file.
 The filename can be
@@ -279,7 +281,7 @@ being extracted to disk.
 In list (-t) mode, the file listing will be written to stderr rather than
 the usual stdout.
 .It Fl o
-(x mode only)
+(x mode)
 Use the user and group of the user running the program rather
 than those specified in the archive.
 Note that this has no significance unless
@@ -288,6 +290,10 @@ is specified, and the program is being run by the root user.
 In this case, the file modes and flags from
 the archive will be restored, but ACLs or owner information in
 the archive will be discarded.
+.Pp
+(c, r, u mode)
+A synonym for
+.Fl -format Ar ustar
 .It Fl -one-file-system ( Fl W Cm one-file-system )
 (c, r, and u modes)
 Do not cross mount points.
