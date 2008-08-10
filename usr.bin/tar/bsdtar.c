@@ -136,7 +136,7 @@ static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_CHECK_LINKS=1,
+	OPTION_CHECK_LINKS = 1,
 	OPTION_CHROOT,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
@@ -631,6 +631,7 @@ main(int argc, char **argv)
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
+	/* Check other parameters only permitted in certain modes. */
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
