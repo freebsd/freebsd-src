@@ -418,12 +418,15 @@ archive_write_pax_header(struct archive_write *a,
 			p = archive_entry_pathname(entry_original);
 			if (p[strlen(p) - 1] != '/') {
 				t = (char *)malloc(strlen(p) + 2);
-				if (t != NULL) {
-					strcpy(t, p);
-					strcat(t, "/");
-					archive_entry_copy_pathname(entry_original, t);
-					free(t);
+				if (t == NULL) {
+					archive_set_error(&a->archive, ENOMEM,
+					"Can't allocate pax data");
+					return(ARCHIVE_FATAL);
 				}
+				strcpy(t, p);
+				strcat(t, "/");
+				archive_entry_copy_pathname(entry_original, t);
+				free(t);
 			}
 			break;
 		default:

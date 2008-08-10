@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #if defined(HAVE_POLL)
 #  if defined(HAVE_POLL_H)
 #    include <poll.h>
+#  elif defined(HAVE_SYS_POLL_H)
+#    include <sys/poll.h>
 #  endif
 #elif defined(HAVE_SELECT)
 #  if defined(HAVE_SYS_SELECT_H)

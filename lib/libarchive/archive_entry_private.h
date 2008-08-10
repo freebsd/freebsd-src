@@ -149,6 +149,8 @@ struct archive_entry {
 
 	struct ae_xattr *xattr_head;
 	struct ae_xattr *xattr_p;
+
+	char		 strmode[11];
 };
 
 
