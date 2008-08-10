@@ -77,6 +77,7 @@ void
 tar_mode_t(struct bsdtar *bsdtar)
 {
 	read_archive(bsdtar, 't');
+	unmatched_inclusions_warn(bsdtar, "Not found in archive");
 }
 
 void
@@ -87,6 +88,7 @@ tar_mode_x(struct bsdtar *bsdtar)
 
 	read_archive(bsdtar, 'x');
 
+	unmatched_inclusions_warn(bsdtar, "Not found in archive");
 	/* Restore old SIGINFO + SIGUSR1 handlers. */
 	siginfo_done(bsdtar);
 }
@@ -169,6 +171,11 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		}
 		if (r == ARCHIVE_FATAL)
 			break;
+
+		if (bsdtar->option_numeric_owner) {
+			archive_entry_set_uname(entry, NULL);
+			archive_entry_set_gname(entry, NULL);
+		}
 
 		/*
 		 * Exclude entries that are too old.
@@ -381,7 +388,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = bsdtar->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
-		fmt = bsdtar->day_first ? "%e %b %R" : "%b %e %R";
+		fmt = bsdtar->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
 	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
