@@ -92,7 +92,7 @@ struct archive {
 void	__archive_check_magic(struct archive *, unsigned int magic,
 	    unsigned int state, const char *func);
 
-void	__archive_errx(int retvalue, const char *msg);
+void	__archive_errx(int retvalue, const char *msg) __dead2;
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
