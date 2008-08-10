@@ -33,7 +33,7 @@
  * The random() function is defined to return values between 0 and
  * 2^31 - 1 inclusive in random(3).
  */
-#define	RANDOM_MAX	0x80000000UL
+#define	RANDOM_MAX_PLUS1	0x80000000UL
 
 #define RANDOM_TYPE_UNSET 0
 #define RANDOM_TYPE_LINES 1
