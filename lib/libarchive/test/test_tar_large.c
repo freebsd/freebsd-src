@@ -179,7 +179,6 @@ memory_read_skip(struct archive *a, void *private, size_t skip)
 #else
 static off_t
 memory_read_skip(struct archive *a, void *_private, off_t skip)
-#endif
 {
 	struct memdata *private = _private;
 
@@ -198,6 +197,7 @@ memory_read_skip(struct archive *a, void *_private, off_t skip)
 	}
 	return (skip);
 }
+#endif
 
 DEFINE_TEST(test_tar_large)
 {
