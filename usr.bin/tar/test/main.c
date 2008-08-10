@@ -27,12 +27,12 @@
  * Various utility routines useful for test programs.
  * Each test program is linked against this file.
  */
+#include "test.h"
+
 #include <errno.h>
 #include <locale.h>
 #include <stdarg.h>
 #include <time.h>
-
-#include "test.h"
 
 /*
  * This same file is used pretty much verbatim for all test harnesses.
@@ -712,8 +712,11 @@ static int test_run(int i, const char *tmpdir)
 {
 	int failures_before = failures;
 
-	if (!quiet_flag)
+	if (!quiet_flag) {
 		printf("%d: %s\n", i, tests[i].name);
+		fflush(stdout);
+	}
+
 	/*
 	 * Always explicitly chdir() in case the last test moved us to
 	 * a strange place.
