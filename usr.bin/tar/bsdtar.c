@@ -78,6 +78,14 @@ struct option {
 
 #include "bsdtar.h"
 
+#if !HAVE_DECL_OPTARG
+extern int optarg;
+#endif
+
+#if !HAVE_DECL_OPTIND
+extern int optind;
+#endif
+
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
  * the default tape device for the system.  Pick something reasonable here.
@@ -784,7 +792,9 @@ usage(struct bsdtar *bsdtar)
 static void
 version(void)
 {
-	printf("bsdtar %s - %s\n", PACKAGE_VERSION, archive_version());
+	printf("bsdtar %s - %s\n",
+	    BSDTAR_VERSION_STRING,
+	    archive_version());
 	exit(1);
 }
 
