@@ -9,6 +9,7 @@ LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
 TESTFILES= \
 	test_compat_gtar_1.tgz					\
+	test_compat_tar_hardlink_1.tar				\
 	test_compat_zip_1.zip					\
 	test_read_format_gtar_sparse_1_13.tgz			\
 	test_read_format_gtar_sparse_1_17.tgz			\
@@ -23,6 +24,7 @@ TESTS= \
 	test_archive_api_feature.c		\
 	test_bad_fd.c				\
 	test_compat_gtar.c			\
+	test_compat_tar_hardlink.c		\
 	test_compat_zip.c			\
 	test_empty_write.c			\
 	test_entry.c				\
@@ -58,6 +60,7 @@ TESTS= \
 	test_tar_large.c			\
 	test_write_compress_program.c		\
 	test_write_disk.c			\
+	test_write_disk_hardlink.c		\
 	test_write_disk_perms.c			\
 	test_write_disk_secure.c		\
 	test_write_format_ar.c			\

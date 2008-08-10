@@ -60,6 +60,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
 	failure("%s", msg);
+	archive_entry_set_size(ae, sizeof(data));
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
@@ -92,6 +93,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
 	failure("%s", msg);
+	archive_entry_set_size(ae, datasize);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	for (i = 0; i < datasize - 999; i += 1000) {
 		assertEqualIntA(ad, ARCHIVE_OK,
