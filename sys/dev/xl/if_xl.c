@@ -96,9 +96,6 @@ __FBSDID("$FreeBSD$");
  * Since using bus master DMA is a big win, we use this driver to
  * support the PCI "boomerang" chips even though they work with the
  * "vortex" driver in order to obtain better performance.
- *
- * This driver is in the /sys/pci directory because it only supports
- * PCI-based NICs.
  */
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
@@ -142,7 +139,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#include <pci/if_xlreg.h>
+#include <dev/xl/if_xlreg.h>
 
 /*
  * TX Checksumming is disabled by default for two reasons:
