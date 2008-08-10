@@ -25,6 +25,10 @@
 
 #include "archive_platform.h"
 
+/* This capability is only available on POSIX systems. */
+#if defined(HAVE_PIPE) && defined(HAVE_FCNTL) && \
+    (defined(HAVE_FORK) || defined(HAVE_VFORK))
+
 __FBSDID("$FreeBSD$");
 
 #if defined(HAVE_POLL)
@@ -72,7 +76,11 @@ __archive_create_child(const char *path, int *child_stdin, int *child_stdout)
 		stdout_pipe[1] = tmp;
 	}
 
+#if HAVE_VFORK
 	switch ((child = vfork())) {
+#else
+	switch ((child = fork())) {
+#endif
 	case -1:
 		goto stdout_opened;
 	case 0:
@@ -115,25 +123,39 @@ __archive_check_child(int in, int out)
 {
 #if defined(HAVE_POLL)
 	struct pollfd fds[2];
+	int idx;
 
-	fds[0].fd = in;
-	fds[0].events = POLLOUT;
-	fds[1].fd = out;
-	fds[1].events = POLLIN;
+	idx = 0;
+	if (in != -1) {
+		fds[idx].fd = in;
+		fds[idx].events = POLLOUT;
+		++idx;
+	}
+	if (out != -1) {
+		fds[idx].fd = out;
+		fds[idx].events = POLLIN;
+		++idx;
+	}
 
-	poll(fds, 2, -1); /* -1 == INFTIM, wait forever */
+	poll(fds, idx, -1); /* -1 == INFTIM, wait forever */
 #elif defined(HAVE_SELECT)
 	fd_set fds_in, fds_out, fds_error;
 
 	FD_ZERO(&fds_in);
-	FD_SET(out, &fds_in);
 	FD_ZERO(&fds_out);
-	FD_SET(in, &fds_out);
 	FD_ZERO(&fds_error);
-	FD_SET(in, &fds_error);
-	FD_SET(out, &fds_error);
+	if (out != -1) {
+		FD_SET(out, &fds_in);
+		FD_SET(out, &fds_error);
+	}
+	if (in != -1) {
+		FD_SET(in, &fds_out);
+		FD_SET(in, &fds_error);
+	}
 	select(in < out ? out + 1 : in + 1, &fds_in, &fds_out, &fds_error, NULL);
 #else
 	sleep(1);
 #endif
 }
+
+#endif /* defined(HAVE_PIPE) && defined(HAVE_VFORK) && defined(HAVE_FCNTL) */
