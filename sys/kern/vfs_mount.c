@@ -192,6 +192,8 @@ vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 {
 	struct vfsopt *opt, *temp;
 
+	if (opts == NULL)
+		return;
 	TAILQ_FOREACH_SAFE(opt, opts, link, temp)  {
 		if (strcmp(opt->name, name) == 0)
 			vfs_freeopt(opts, opt);
