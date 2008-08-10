@@ -1100,6 +1100,7 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
 dev/smbus/smb.c			optional smb
 dev/smbus/smbconf.c		optional smbus
@@ -2085,7 +2086,6 @@ pci/amdsmb.c			optional amdsmb pci
 pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
-pci/if_sis.c			optional sis pci
 pci/if_ste.c			optional ste pci
 pci/if_tl.c			optional tl pci
 pci/if_wb.c			optional wb pci

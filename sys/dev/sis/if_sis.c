@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD$");
 
 #define SIS_USEIOSPACE
 
-#include <pci/if_sisreg.h>
+#include <dev/sis/if_sisreg.h>
 
 MODULE_DEPEND(sis, pci, 1, 1, 1);
 MODULE_DEPEND(sis, ether, 1, 1, 1);
