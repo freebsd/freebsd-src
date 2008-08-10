@@ -121,7 +121,7 @@ ahanextoutbox(struct aha_softc *aha)
 #define aha_a24tou(s3) \
 	(((s3)[0] << 16) | ((s3)[1] << 8) | (s3)[2])
 
-/* CCB Mangement functions */
+/* CCB Management functions */
 static __inline uint32_t		ahaccbvtop(struct aha_softc *aha,
 						  struct aha_ccb *accb);
 static __inline struct aha_ccb*		ahaccbptov(struct aha_softc *aha,
