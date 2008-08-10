@@ -139,7 +139,7 @@ static void		 write_entry(struct bsdtar *, struct archive *,
 static void		 write_entry_backend(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int);
 static int		 write_file_data(struct bsdtar *, struct archive *,
-			     int fd);
+			     struct archive_entry *, int fd);
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
 			     const char *);
 
@@ -835,7 +835,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 	 * that case, just skip the write.
 	 */
 	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0) {
-		if (write_file_data(bsdtar, a, fd))
+		if (write_file_data(bsdtar, a, entry, fd))
 			exit(1);
 		close(fd);
 	}
@@ -956,7 +956,8 @@ abort:
 
 /* Helper function to copy file to archive, with stack-allocated buffer. */
 static int
-write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
+write_file_data(struct bsdtar *bsdtar, struct archive *a,
+    struct archive_entry *entry, int fd)
 {
 	char	buff[64*1024];
 	ssize_t	bytes_read;
@@ -979,7 +980,8 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 		if (bytes_written < bytes_read) {
 			/* Write was truncated; warn but continue. */
 			bsdtar_warnc(bsdtar, 0,
-			    "Truncated write; file may have grown while being archived.");
+			    "%s: Truncated write; file may have grown while being archived.",
+			    archive_entry_pathname(entry));
 			return (0);
 		}
 		progress += bytes_written;
