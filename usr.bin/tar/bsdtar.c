@@ -624,11 +624,6 @@ main(int argc, char **argv)
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
-	/* Check other parameters only permitted in certain modes. */
-	if (bsdtar->create_compression == 'Z' && bsdtar->mode == 'c') {
-		bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
-		usage(bsdtar);
-	}
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
