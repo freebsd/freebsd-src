@@ -158,7 +158,7 @@ SYSCTL_ULONG(_hw_cbb, OID_AUTO, debug, CTLFLAG_RW, &cbb_debug, 0,
 static void	cbb_insert(struct cbb_softc *sc);
 static void	cbb_removal(struct cbb_softc *sc);
 static uint32_t	cbb_detect_voltage(device_t brdev);
-static void	cbb_cardbus_reset(device_t brdev, int on);
+static void	cbb_cardbus_reset(device_t brdev, device_t child, int on);
 static int	cbb_cardbus_io_open(device_t brdev, int win, uint32_t start,
 		    uint32_t end);
 static int	cbb_cardbus_mem_open(device_t brdev, int win,
@@ -927,7 +927,7 @@ cbb_do_power(device_t brdev)
 /************************************************************************/
 
 static void
-cbb_cardbus_reset(device_t brdev, int on)
+cbb_cardbus_reset(device_t brdev, device_t child, int on)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	uint32_t b;
@@ -964,7 +964,7 @@ cbb_cardbus_reset(device_t brdev, int on)
 		 */
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
-		b = pcib_get_bus(brdev);
+		b = pcib_get_bus(child);
 		count = 1100 / 20;
 		do {
 			pause("cbbP4", hz * 2 / 100);
@@ -987,7 +987,7 @@ cbb_cardbus_power_enable_socket(device_t brdev, device_t child)
 	err = cbb_do_power(brdev);
 	if (err)
 		return (err);
-	cbb_cardbus_reset(brdev, 1);
+	cbb_cardbus_reset(brdev, child, 1);
 	return (0);
 }
 
@@ -995,7 +995,7 @@ static void
 cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 {
 	cbb_power(brdev, CARD_OFF);
-	cbb_cardbus_reset(brdev, 0);
+	cbb_cardbus_reset(brdev, child, 0);
 }
 
 /************************************************************************/
