@@ -37,6 +37,7 @@
 
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
+#define	HAVE_CHOWN 1
 #define	HAVE_DECL_INT64_MAX 1
 #define	HAVE_DECL_INT64_MIN 1
 #define	HAVE_DECL_SIZE_MAX 1
@@ -53,6 +54,7 @@
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FSEEKO 1
 #define	HAVE_FUTIMES 1
+#define	HAVE_GETEUID 1
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
@@ -65,10 +67,12 @@
 #define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
+#define	HAVE_MKNOD 1
 #define	HAVE_POLL 1
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
 #define	HAVE_SELECT 1
+#define	HAVE_SETENV 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1
@@ -87,9 +91,12 @@
 #define	HAVE_SYS_STAT_H 1
 #define	HAVE_SYS_TIME_H 1
 #define	HAVE_SYS_TYPES_H 1
+#undef	HAVE_SYS_UTIME_H
 #define	HAVE_SYS_WAIT_H 1
 #define	HAVE_TIMEGM 1
+#define	HAVE_TZSET 1
 #define	HAVE_UNISTD_H 1
+#define	HAVE_UNSETENV 1
 #define	HAVE_UTIME 1
 #define	HAVE_UTIMES 1
 #define	HAVE_UTIME_H 1
