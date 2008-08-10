@@ -180,7 +180,8 @@ archive_read_format_zip_bid(struct archive_read *a)
 		if ((p[2] == '\001' && p[3] == '\002')
 		    || (p[2] == '\003' && p[3] == '\004')
 		    || (p[2] == '\005' && p[3] == '\006')
-		    || (p[2] == '\007' && p[3] == '\010'))
+		    || (p[2] == '\007' && p[3] == '\010')
+		    || (p[2] == '0' && p[3] == '0'))
 			return (30);
 	}
 	return (0);
@@ -212,6 +213,23 @@ archive_read_format_zip_read_header(struct archive_read *a,
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Bad ZIP file");
 		return (ARCHIVE_FATAL);
+	}
+
+	/*
+	 * "PK00" signature is used for "split" archives that
+	 * only have a single segment.  This means we can just
+	 * skip the PK00; the first real file header should follow.
+	 */
+	if (signature[2] == '0' && signature[3] == '0') {
+		(a->decompressor->consume)(a, 4);
+		if ((h = __archive_read_ahead(a, 4)) == NULL)
+			return (ARCHIVE_FATAL);
+		signature = (const char *)h;
+		if (signature[0] != 'P' || signature[1] != 'K') {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Bad ZIP file");
+			return (ARCHIVE_FATAL);
+		}
 	}
 
 	if (signature[2] == '\001' && signature[3] == '\002') {
