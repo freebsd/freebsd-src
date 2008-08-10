@@ -788,7 +788,7 @@ version(void)
 	printf("bsdtar %s - %s\n",
 	    BSDTAR_VERSION_STRING,
 	    archive_version());
-	exit(1);
+	exit(0);
 }
 
 static const char *long_help_msg =
