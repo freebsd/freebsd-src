@@ -137,6 +137,7 @@ static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
 	OPTION_CHECK_LINKS=1,
+	OPTION_CHROOT,
 	OPTION_EXCLUDE,
 	OPTION_FAST_READ,
 	OPTION_FORMAT,
@@ -171,6 +172,7 @@ static const struct option tar_longopts[] = {
 	{ "bzip2",              no_argument,       NULL, 'j' },
 	{ "cd",                 required_argument, NULL, 'C' },
 	{ "check-links",        no_argument,       NULL, OPTION_CHECK_LINKS },
+	{ "chroot",             no_argument,       NULL, OPTION_CHROOT },
 	{ "compress",           no_argument,       NULL, 'Z' },
 	{ "confirmation",       no_argument,       NULL, 'w' },
 	{ "create",             no_argument,       NULL, 'c' },
@@ -322,6 +324,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_CHECK_LINKS: /* GNU tar */
 			bsdtar->option_warn_links = 1;
+			break;
+		case OPTION_CHROOT: /* NetBSD */
+			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
 			if (exclude(bsdtar, optarg))
