@@ -774,7 +774,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	link_elf_reloc_local(lf);
 
 	/* Pull in dependencies */
+	VOP_UNLOCK(nd.ni_vp, 0, td);
 	error = linker_load_dependencies(lf);
+	vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (error)
 		goto out;
 

@@ -785,7 +785,9 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	goto out;
     link_elf_reloc_local(lf);
 
+    VOP_UNLOCK(nd.ni_vp, 0, td);
     error = linker_load_dependencies(lf);
+    vn_lock(nd.ni_vp, LK_EXCLUSIVE | LK_RETRY, td);
     if (error)
 	goto out;
 #if 0	/* this will be more trouble than it's worth for now */
