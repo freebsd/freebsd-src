@@ -151,11 +151,18 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
 		return (ARCHIVE_OK);
 	}
 
-	while ((remaining > 0) || (state->avail == 0)) {
-		/*
-		 * If we have a full output block, write it and reset the
-		 * output buffer.
-		 */
+	/* If the copy buffer isn't empty, try to fill it. */
+	if (state->avail < state->buffer_size) {
+		/* If buffer is not empty... */
+		/* ... copy data into buffer ... */
+		to_copy = (remaining > state->avail) ?
+		    state->avail : remaining;
+		memcpy(state->next, buff, to_copy);
+		state->next += to_copy;
+		state->avail -= to_copy;
+		buff += to_copy;
+		remaining -= to_copy;
+		/* ... if it's full, write it out. */
 		if (state->avail == 0) {
 			bytes_written = (a->client_writer)(&a->archive,
 			    a->client_data, state->buffer, state->buffer_size);
@@ -166,16 +173,26 @@ archive_compressor_none_write(struct archive_write *a, const void *vbuff,
 			state->next = state->buffer;
 			state->avail = state->buffer_size;
 		}
-
-		/* Now we have space in the buffer; copy new data into it. */
-		to_copy = (remaining > state->avail) ?
-		    state->avail : remaining;
-		memcpy(state->next, buff, to_copy);
-		state->next += to_copy;
-		state->avail -= to_copy;
-		buff += to_copy;
-		remaining -= to_copy;
 	}
+
+	while (remaining > state->buffer_size) {
+		/* Write out full blocks directly to client. */
+		bytes_written = (a->client_writer)(&a->archive,
+		    a->client_data, buff, state->buffer_size);
+		if (bytes_written <= 0)
+			return (ARCHIVE_FATAL);
+		a->archive.raw_position += bytes_written;
+		buff += bytes_written;
+		remaining -= bytes_written;
+	}
+
+	if (remaining > 0) {
+		/* Copy last bit into copy buffer. */
+		memcpy(state->next, buff, remaining);
+		state->next += remaining;
+		state->avail -= remaining;
+	}
+
 	a->archive.file_position += length;
 	return (ARCHIVE_OK);
 }

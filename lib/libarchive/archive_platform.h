@@ -57,7 +57,8 @@
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>  /* For __FBSDID */
 #else
-#define	__FBSDID(a)     /* null */
+/* Just leaving this macro replacement empty leads to a dangling semicolon. */
+#define	__FBSDID(a)     struct _undefined_hack
 #endif
 
 /* Try to get standard C99-style integer type definitions. */
@@ -122,4 +123,4 @@
 #define	ARCHIVE_ERRNO_MISC (-1)
 #endif
 
-#endif /* !ARCHIVE_H_INCLUDED */
+#endif /* !ARCHIVE_PLATFORM_H_INCLUDED */

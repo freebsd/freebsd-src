@@ -170,56 +170,45 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 		min = state->buffer_size;
 
 	/*
-	 * Try to satisfy the request directly from the client
-	 * buffer.  We can do this if all of the data in the copy
-	 * buffer was copied from the current client buffer.  This
-	 * also covers the case where the copy buffer is empty and
-	 * the client buffer has all the data we need.
+	 * Keep pulling more data until we can satisfy the request.
 	 */
-	if (state->client_total >= state->client_avail + state->avail
-	    && state->client_avail + state->avail >= min) {
-		state->client_avail += state->avail;
-		state->client_next -= state->avail;
-		state->avail = 0;
-		state->next = state->buffer;
-		*buff = state->client_next;
-		return (state->client_avail);
-	}
+	for (;;) {
 
-	/*
-	 * If we can't use client buffer, we'll have to use copy buffer.
-	 */
+		/*
+		 * If we can satisfy from the copy buffer, we're done.
+		 */
+		if (state->avail >= min) {
+			*buff = state->next;
+			return (state->avail);
+		}
 
-	/* Move data forward in copy buffer if necessary. */
-	if (state->next > state->buffer &&
-	    state->next + min > state->buffer + state->buffer_size) {
-		if (state->avail > 0)
-			memmove(state->buffer, state->next, state->avail);
-		state->next = state->buffer;
-	}
+		/*
+		 * We can satisfy directly from client buffer if everything
+		 * currently in the copy buffer is still in the client buffer.
+		 */
+		if (state->client_total >= state->client_avail + state->avail
+		    && state->client_avail + state->avail >= min) {
+			/* "Roll back" to client buffer. */
+			state->client_avail += state->avail;
+			state->client_next -= state->avail;
+			/* Copy buffer is now empty. */
+			state->avail = 0;
+			state->next = state->buffer;
+			/* Return data from client buffer. */
+			*buff = state->client_next;
+			return (state->client_avail);
+		}
 
-	/* Collect data in copy buffer to fulfill request. */
-	while (state->avail < min) {
-		/* Copy data from client buffer to our copy buffer. */
-		if (state->client_avail > 0) {
-			/* First estimate: copy to fill rest of buffer. */
-			size_t tocopy = (state->buffer + state->buffer_size)
-			    - (state->next + state->avail);
-			/* Don't copy more than is available. */
-			if (tocopy > state->client_avail)
-				tocopy = state->client_avail;
-			memcpy(state->next + state->avail, state->client_next,
-			    tocopy);
-			state->client_next += tocopy;
-			state->client_avail -= tocopy;
-			state->avail += tocopy;
-		} else {
-			/* There is no more client data: fetch more. */
-			/*
-			 * It seems to me that const void ** and const
-			 * char ** should be compatible, but they
-			 * aren't, hence the cast.
-			 */
+		/* Move data forward in copy buffer if necessary. */
+		if (state->next > state->buffer &&
+		    state->next + min > state->buffer + state->buffer_size) {
+			if (state->avail > 0)
+				memmove(state->buffer, state->next, state->avail);
+			state->next = state->buffer;
+		}
+
+		/* If we've used up the client data, get more. */
+		if (state->client_avail <= 0) {
 			bytes_read = (a->client_reader)(&a->archive,
 			    a->client_data, &state->client_buff);
 			if (bytes_read < 0) {		/* Read error. */
@@ -232,17 +221,33 @@ archive_decompressor_none_read_ahead(struct archive_read *a, const void **buff,
 				state->client_total = state->client_avail = 0;
 				state->client_next = state->client_buff = NULL;
 				state->end_of_file = 1;
-				break;
+				/* Return whatever we do have. */
+				*buff = state->next;
+				return (state->avail);
 			}
 			a->archive.raw_position += bytes_read;
 			state->client_total = bytes_read;
 			state->client_avail = state->client_total;
 			state->client_next = state->client_buff;
 		}
+		else
+		{
+			/* We can add client data to copy buffer. */
+			/* First estimate: copy to fill rest of buffer. */
+			size_t tocopy = (state->buffer + state->buffer_size)
+			    - (state->next + state->avail);
+			/* Don't copy more than is available. */
+			if (tocopy > state->client_avail)
+				tocopy = state->client_avail;
+			memcpy(state->next + state->avail, state->client_next,
+			    tocopy);
+			/* Remove this data from client buffer. */
+			state->client_next += tocopy;
+			state->client_avail -= tocopy;
+			/* add it to copy buffer. */
+			state->avail += tocopy;
+		}
 	}
-
-	*buff = state->next;
-	return (state->avail);
 }
 
 /*

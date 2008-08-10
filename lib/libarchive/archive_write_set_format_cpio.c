@@ -228,6 +228,7 @@ archive_write_cpio_finish(struct archive_write *a)
 
 	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
+	/* nlink = 1 here for GNU cpio compat. */
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
 	er = archive_write_cpio_header(a, trailer);

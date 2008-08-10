@@ -96,12 +96,9 @@ When opening the archive, it reads an initial block of data
 and offers it to each registered compression handler.
 The one with the highest bid is initialized with the first block.
 Similarly, the format handlers are polled to see which handler
-is the best for each header request.
-(Note that a single file can have entries handled by different
-format handlers;
-this allows a simple handler for a generic version of a format
-with more complex handlers implemented independently for
-extended sub-formats.)
+is the best for each archive.
+(Prior to 2.4.0, the format bidders were invoked for each
+entry, but this design hindered error recovery.)
 .Ss I/O Layer and Client Callbacks
 The read API goes to some lengths to be nice to clients.
 As a result, there are few restrictions on the behavior of
@@ -116,6 +113,8 @@ In particular, blocks may be of different sizes.
 The client skip callback returns the number of bytes actually
 skipped, which may be much smaller than the skip requested.
 The only requirement is that the skip not be larger.
+In particular, clients are allowed to return zero for any
+skip that they don't want to handle.
 The skip callback must never be invoked with a negative value.
 .Pp
 Keep in mind that not all clients are reading from disk:
@@ -242,21 +241,12 @@ decompression method but not calling the
 method.
 This allows each bidder to look ahead in the input stream.
 Bidders should not look further ahead than necessary, as long
-look aheads put pressure on the compression layer to buffer
+look aheads put pressure on the decompression layer to buffer
 lots of data.
 Most formats only require a few hundred bytes of look ahead;
 look aheads of a few kilobytes are reasonable.
 (The ISO9660 reader sometimes looks ahead by 48k, which
 should be considered an upper limit.)
-Note that the bidder is invoked for every entry.
-For many formats, this is inappropriate; if you can only bid at
-the beginning of the file, store your bid value and check that
-each time your bid function is called.
-For example, the ISO9660 reader initializes a
-.Va bid
-value to -1 at registration time;
-each time the bid function is called, the bid value is returned
-immediately if it is zero or larger.
 .It Read header
 The header read is usually the most complex part of any format.
 There are a few strategies worth mentioning:

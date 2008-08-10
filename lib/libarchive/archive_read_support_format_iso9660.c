@@ -181,6 +181,7 @@ struct file_info {
 	time_t		 mtime;	/* File last modified time. */
 	time_t		 atime;	/* File last accessed time. */
 	time_t		 ctime;	/* File creation time. */
+	uint64_t	 rdev; /* Device number */
 	mode_t		 mode;
 	uid_t		 uid;
 	gid_t		 gid;
@@ -194,7 +195,6 @@ struct file_info {
 struct iso9660 {
 	int	magic;
 #define ISO9660_MAGIC   0x96609660
-	int	bid; /* If non-zero, return this as our bid. */
 	struct archive_string pathname;
 	char	seenRockridge; /* Set true if RR extensions are used. */
 	unsigned char	suspOffset;
@@ -255,7 +255,6 @@ archive_read_support_format_iso9660(struct archive *_a)
 	}
 	memset(iso9660, 0, sizeof(*iso9660));
 	iso9660->magic = ISO9660_MAGIC;
-	iso9660->bid = -1; /* We haven't yet bid. */
 
 	r = __archive_read_register_format(a,
 	    iso9660,
@@ -280,11 +279,9 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	ssize_t bytes_read;
 	const void *h;
 	const unsigned char *p;
+	int bid;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
-
-	if (iso9660->bid >= 0)
-		return (iso9660->bid);
 
 	/*
 	 * Skip the first 32k (reserved area) and get the first
@@ -293,7 +290,7 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 */
 	bytes_read = (a->decompressor->read_ahead)(a, &h, 32768 + 8*2048);
 	if (bytes_read < 32768 + 8*2048)
-	    return (iso9660->bid = -1);
+	    return (-1);
 	p = (const unsigned char *)h;
 
 	/* Skip the reserved area. */
@@ -302,16 +299,15 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 
 	/* Check each volume descriptor to locate the PVD. */
 	for (; bytes_read > 2048; bytes_read -= 2048, p += 2048) {
-		iso9660->bid = isPVD(iso9660, p);
-		if (iso9660->bid > 0)
-			return (iso9660->bid);
+		bid = isPVD(iso9660, p);
+		if (bid > 0)
+			return (bid);
 		if (*p == '\177') /* End-of-volume-descriptor marker. */
 			break;
 	}
 
 	/* We didn't find a valid PVD; return a bid of zero. */
-	iso9660->bid = 0;
-	return (iso9660->bid);
+	return (0);
 }
 
 static int
@@ -365,6 +361,8 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 	archive_entry_set_mtime(entry, file->mtime, 0);
 	archive_entry_set_ctime(entry, file->ctime, 0);
 	archive_entry_set_atime(entry, file->atime, 0);
+	/* N.B.: Rock Ridge supports 64-bit device numbers. */
+	archive_entry_set_rdev(entry, (dev_t)file->rdev);
 	archive_entry_set_size(entry, iso9660->entry_bytes_remaining);
 	archive_string_empty(&iso9660->pathname);
 	archive_entry_set_pathname(entry,
@@ -678,6 +676,14 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 				 * PD extension is padding;
 				 * contents are always ignored.
 				 */
+				break;
+			}
+			if (p[0] == 'P' && p[1] == 'N' && version == 1) {
+				if (data_length == 16) {
+					file->rdev = toi(data,4);
+					file->rdev <<= 32;
+					file->rdev |= toi(data + 8, 4);
+				}
 				break;
 			}
 			if (p[0] == 'P' && p[1] == 'X' && version == 1) {
