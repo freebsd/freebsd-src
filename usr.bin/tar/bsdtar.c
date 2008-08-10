@@ -726,8 +726,8 @@ rewrite_argv(struct bsdtar *bsdtar, int *argc, char **src_argv,
 	const char *p;
 	char *src, *dest;
 
-	if (src_argv[0] == NULL ||
-	    src_argv[1] == NULL || src_argv[1][0] == '-')
+	if (src_argv[0] == NULL || src_argv[1] == NULL ||
+	    src_argv[1][0] == '-' || src_argv[1][0] == '\0')
 		return (src_argv);
 
 	*argc += strlen(src_argv[1]) - 1;
