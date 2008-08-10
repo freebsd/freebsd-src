@@ -52,6 +52,8 @@ DEFINE_TEST(test_entry)
 	const void *xval; /* For xattr tests. */
 	size_t xsize; /* For xattr tests. */
 	int c;
+	wchar_t wc;
+	long l;
 
 	assert((e = archive_entry_new()) != NULL);
 
@@ -146,7 +148,7 @@ DEFINE_TEST(test_entry)
 	archive_entry_copy_link_w(e, L"link3");
 	assertEqualString(archive_entry_hardlink(e), NULL);
 	assertEqualString(archive_entry_symlink(e), "link3");
-	/* Arbitrarily override hardlink if both hardlink and symlink set. */
+	/* Arbitrarily override symlink if both hardlink and symlink set. */
 	archive_entry_set_hardlink(e, "hardlink");
 	archive_entry_set_symlink(e, "symlink");
 	archive_entry_set_link(e, "link");
@@ -230,6 +232,11 @@ DEFINE_TEST(test_entry)
 	assertEqualString(archive_entry_fflags_text(e),
 	    "uappnd,nouchg,nodump,noopaque,uunlnk");
 	/* TODO: Test archive_entry_copy_fflags_text_w() */
+	/* Test archive_entry_copy_fflags_text() */
+	archive_entry_copy_fflags_text(e, "nouappnd, nouchg, dump,uunlnk");
+	archive_entry_fflags(e, &set, &clear);
+	assertEqualInt(16, set);
+	assertEqualInt(7, clear);
 #endif
 
 	/* See test_acl_basic.c for tests of ACL set/get consistency. */
@@ -726,8 +733,10 @@ DEFINE_TEST(test_entry)
 	/*
 	 * Exercise the character-conversion logic, if we can.
 	 */
-	failure("Can't exercise charset-conversion logic.");
-	if (assert(NULL != setlocale(LC_ALL, "de_DE.UTF-8"))) {
+	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
+		skipping("Can't exercise charset-conversion logic without"
+			" a suitable locale.");
+	} else {
 		/* A filename that cannot be converted to wide characters. */
 		archive_entry_copy_pathname(e, "abc\314\214mno\374xyz");
 		failure("Converting invalid chars to Unicode should fail.");
@@ -754,6 +763,26 @@ DEFINE_TEST(test_entry)
 		archive_entry_copy_symlink(e, "abc\314\214mno\374xyz");
 		failure("Converting invalid chars to Unicode should fail.");
 		assert(NULL == archive_entry_symlink_w(e));
+	}
+
+	l = 0x12345678L;
+	wc = (wchar_t)l; /* Wide character too big for UTF-8. */
+	if (NULL == setlocale(LC_ALL, "C") || (long)wc != l) {
+		skipping("Testing charset conversion failure requires 32-bit wchar_t and support for \"C\" locale.");
+	} else {
+		/*
+		 * Build the string L"xxx\U12345678yyy\u5678zzz" without
+		 * using C99 \u#### syntax, which isn't uniformly
+		 * supported.  (GCC 3.4.6, for instance, defaults to
+		 * "c89 plus GNU extensions.")
+		 */
+		wcscpy(wbuff, L"xxxAyyyBzzz");
+		wbuff[3] = 0x12345678;
+		wbuff[7] = 0x5678;
+		/* A wide filename that cannot be converted to narrow. */
+		archive_entry_copy_pathname_w(e, wbuff);
+		failure("Converting wide characters from Unicode should fail.");
+		assertEqualString(NULL, archive_entry_pathname(e));
 	}
 
 	/* Release the experimental entry. */

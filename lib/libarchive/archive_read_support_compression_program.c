@@ -26,6 +26,25 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+
+/* This capability is only available on POSIX systems. */
+#if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
+    !(defined(HAVE_FORK) || defined(HAVE_VFORK))
+
+/*
+ * On non-Posix systems, allow the program to build, but choke if
+ * this function is actually invoked.
+ */
+int
+archive_read_support_compression_program(struct archive *_a, const char *cmd)
+{
+	archive_set_error(_a, -1,
+	    "External compression programs not supported on this platform");
+	return (ARCHIVE_FATAL);
+}
+
+#else
+
 #ifdef HAVE_SYS_WAIT_H
 #  include <sys/wait.h>
 #endif
@@ -159,6 +178,12 @@ restart_read:
 		state->child_in_buf_avail = ret;
 	}
 
+	if (state->child_stdin == -1) {
+		fcntl(state->child_stdout, F_SETFL, 0);
+		__archive_check_child(state->child_stdin, state->child_stdout);
+		goto restart_read;
+	}
+
 	do {
 		ret = write(state->child_stdin, state->child_in_buf,
 		    state->child_in_buf_avail);
@@ -173,7 +198,7 @@ restart_read:
 		goto restart_read;
 	} else if (ret == 0 || (ret == -1 && errno == EPIPE)) {
 		close(state->child_stdin);
-		state->child_stdout = -1;
+		state->child_stdin = -1;
 		fcntl(state->child_stdout, F_SETFL, 0);
 		goto restart_read;
 	} else {
@@ -313,3 +338,5 @@ archive_decompressor_program_finish(struct archive_read *a)
 
 	return (ARCHIVE_OK);
 }
+
+#endif /* !defined(HAVE_PIPE) || !defined(HAVE_VFORK) || !defined(HAVE_FCNTL) */

@@ -25,48 +25,42 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-DEFINE_TEST(test_read_format_zip)
+/*
+ * Tar entries with empty filenames are unusual, but shouldn't crash us.
+ */
+DEFINE_TEST(test_read_format_tar_empty_filename)
 {
-	const char *refname = "test_read_format_zip.zip";
+	char name[] = "test_read_format_tar_empty_filename.tar";
 	struct archive_entry *ae;
 	struct archive *a;
-	char *buff[128];
-	const void *pv;
-	size_t s;
-	off_t o;
 
-	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_open_filename(a, refname, 10240));
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("dir/", archive_entry_pathname(ae));
-	assertEqualInt(1179604249, archive_entry_mtime(ae));
-	assertEqualInt(0, archive_entry_size(ae));
-	assertEqualIntA(a, ARCHIVE_EOF,
-	    archive_read_data_block(a, &pv, &s, &o));
-	assertEqualInt(s, 0);
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("file1", archive_entry_pathname(ae));
-	assertEqualInt(1179604289, archive_entry_mtime(ae));
-	assertEqualInt(18, archive_entry_size(ae));
-	assertEqualInt(18, archive_read_data(a, buff, 18));
-	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
-	assertA(0 == archive_read_next_header(a, &ae));
-	assertEqualString("file2", archive_entry_pathname(ae));
-	assertEqualInt(1179605932, archive_entry_mtime(ae));
-	assertEqualInt(18, archive_entry_size(ae));
-	assertEqualInt(18, archive_read_data(a, buff, 18));
-	assert(0 == memcmp(buff, "hello\nhello\nhello\n", 18));
-	assertA(archive_compression(a) == ARCHIVE_COMPRESSION_NONE);
-	assertA(archive_format(a) == ARCHIVE_FORMAT_ZIP);
-	assert(0 == archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
+
+	/* Read first entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("", archive_entry_pathname(ae));
+	assertEqualInt(1208628157, archive_entry_mtime(ae));
+	assertEqualInt(1000, archive_entry_uid(ae));
+	assertEqualString("tim", archive_entry_uname(ae));
+	assertEqualInt(0, archive_entry_gid(ae));
+	assertEqualString("wheel", archive_entry_gname(ae));
+	assertEqualInt(040775, archive_entry_mode(ae));
+
+	/* Verify the end-of-archive. */
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+
+	/* Verify that the format detection worked. */
+	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_NONE);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 #if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #else
 	archive_read_finish(a);
 #endif
 }
-
-

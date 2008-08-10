@@ -26,9 +26,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Exercise various lengths of filenames in tar archives,
- * especially around the magic sizes where ustar breaks
- * filenames into prefix/suffix.
+ * Exercise various lengths of filenames in ustar archives.
  */
 
 static void
@@ -40,28 +38,28 @@ test_filename(const char *prefix, int dlen, int flen)
 	struct archive_entry *ae;
 	struct archive *a;
 	size_t used;
-	char *p;
-	int i;
+	int separator = 0;
+	int i = 0;
 
-	p = filename;
-	if (prefix) {
+	if (prefix != NULL) {
 		strcpy(filename, prefix);
-		p += strlen(p);
+		i = strlen(prefix);
 	}
 	if (dlen > 0) {
-		for (i = 0; i < dlen; i++)
-			*p++ = 'a';
-		*p++ = '/';
+		for (; i < dlen; i++)
+			filename[i] = 'a';
+		filename[i++] = '/';
+		separator = 1;
 	}
-	for (i = 0; i < flen; i++)
-		*p++ = 'b';
-	*p = '\0';
+	for (; i < dlen + flen + separator; i++)
+		filename[i] = 'b';
+	filename[i++] = '\0';
 
 	strcpy(dirname, filename);
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_pax_restricted(a));
+	assertA(0 == archive_write_set_format_ustar(a));
 	assertA(0 == archive_write_set_compression_none(a));
 	assertA(0 == archive_write_set_bytes_per_block(a,0));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
@@ -72,8 +70,12 @@ test_filename(const char *prefix, int dlen, int flen)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, filename);
 	archive_entry_set_mode(ae, S_IFREG | 0755);
-	failure("Pathname %d/%d", dlen, flen);
-	assertA(0 == archive_write_header(a, ae));
+	failure("dlen=%d, flen=%d", dlen, flen);
+	if (flen > 100) {
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	} else {
+		assertEqualIntA(a, 0, archive_write_header(a, ae));
+	}
 	archive_entry_free(ae);
 
 	/*
@@ -82,8 +84,12 @@ test_filename(const char *prefix, int dlen, int flen)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, dirname);
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	failure("Dirname %d/%d", dlen, flen);
-	assertA(0 == archive_write_header(a, ae));
+	failure("dlen=%d, flen=%d", dlen, flen);
+	if (flen >= 100) {
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	} else {
+		assertEqualIntA(a, 0, archive_write_header(a, ae));
+	}
 	archive_entry_free(ae);
 
 	/* Tar adds a '/' to directory names. */
@@ -95,17 +101,17 @@ test_filename(const char *prefix, int dlen, int flen)
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, dirname);
 	archive_entry_set_mode(ae, S_IFDIR | 0755);
-	failure("Dirname %d/%d", dlen, flen);
-	assertA(0 == archive_write_header(a, ae));
+	failure("dlen=%d, flen=%d", dlen, flen);
+	if (flen >= 100) {
+		assertEqualIntA(a, ARCHIVE_FAILED, archive_write_header(a, ae));
+	} else {
+		assertEqualIntA(a, 0, archive_write_header(a, ae));
+	}
 	archive_entry_free(ae);
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
 	assertA(0 == archive_write_finish(a));
-#else
-	archive_write_finish(a);
-#endif
 
 	/*
 	 * Now, read the data back.
@@ -115,72 +121,63 @@ test_filename(const char *prefix, int dlen, int flen)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
-	/* Read the file and check the filename. */
-	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_STAMP < 1009000
-	skipping("Leading '/' preserved on long filenames");
-#else
-	assertEqualString(filename, archive_entry_pathname(ae));
-#endif
-	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
+	if (flen <= 100) {
+		/* Read the file and check the filename. */
+		assertA(0 == archive_read_next_header(a, &ae));
+		failure("dlen=%d, flen=%d", dlen, flen);
+		assertEqualString(filename, archive_entry_pathname(ae));
+		assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
+	}
 
 	/*
 	 * Read the two dirs and check the names.
 	 *
 	 * Both dirs should read back with the same name, since
 	 * tar should add a trailing '/' to any dir that doesn't
-	 * already have one.  We only report the first such failure
-	 * here.
+	 * already have one.
 	 */
-	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_STAMP < 1009000
-	skipping("Trailing '/' preserved on dirnames");
-#else
-	assertEqualString(dirname, archive_entry_pathname(ae));
-#endif
-	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
+	if (flen <= 99) {
+		assertA(0 == archive_read_next_header(a, &ae));
+		assert((S_IFDIR | 0755) == archive_entry_mode(ae));
+		failure("dlen=%d, flen=%d", dlen, flen);
+		assertEqualString(dirname, archive_entry_pathname(ae));
+	}
 
-	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_STAMP < 1009000
-	skipping("Trailing '/' added to dir names");
-#else
-	assertEqualString(dirname, archive_entry_pathname(ae));
-#endif
-	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
+	if (flen <= 99) {
+		assertA(0 == archive_read_next_header(a, &ae));
+		assert((S_IFDIR | 0755) == archive_entry_mode(ae));
+		assertEqualString(dirname, archive_entry_pathname(ae));
+	}
 
 	/* Verify the end of the archive. */
-	assert(1 == archive_read_next_header(a, &ae));
+	failure("This fails if entries were written that should not have been written.  dlen=%d, flen=%d", dlen, flen);
+	assertEqualInt(1, archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
 	assert(0 == archive_read_finish(a));
-#else
-	archive_read_finish(a);
-#endif
 }
 
-DEFINE_TEST(test_tar_filenames)
+DEFINE_TEST(test_ustar_filenames)
 {
 	int dlen, flen;
 
-	/* Repeat the following for a variety of dir/file lengths. */
-	for (dlen = 45; dlen < 55; dlen++) {
-		for (flen = 45; flen < 55; flen++) {
+	/* Try a bunch of different file/dir lengths that add up
+	 * to just a little less or a little more than 100 bytes.
+	 * This exercises the code that splits paths between ustar
+	 * filename and prefix fields.
+	 */
+	for (dlen = 5; dlen < 70; dlen += 5) {
+		for (flen = 100 - dlen - 5; flen < 100 - dlen + 5; flen++) {
 			test_filename(NULL, dlen, flen);
 			test_filename("/", dlen, flen);
 		}
 	}
 
-	for (dlen = 0; dlen < 140; dlen += 10) {
-		for (flen = 98; flen < 102; flen++) {
-			test_filename(NULL, dlen, flen);
-			test_filename("/", dlen, flen);
-		}
+	/* Probe the 100-char limit for paths with no '/'. */
+	for (flen = 90; flen < 110; flen++) {
+		test_filename(NULL, 0, flen);
+		test_filename("/", dlen, flen);
 	}
 
-	for (dlen = 140; dlen < 160; dlen++) {
-		for (flen = 95; flen < 105; flen++) {
-			test_filename(NULL, dlen, flen);
-			test_filename("/", dlen, flen);
-		}
-	}
+	/* XXXX TODO Probe the 100-char limit with a dir prefix. */
+	/* XXXX TODO Probe the 255-char total limit. */
 }
