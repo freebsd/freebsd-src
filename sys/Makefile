@@ -36,4 +36,11 @@ TAGS ${.CURDIR}/TAGS:	${.CURDIR}/cscopenamefile
 	rm -f ${.CURDIR}/TAGS
 	cd ${.CURDIR}; xargs etags -a < ${.CURDIR}/cscopenamefile
 
+# You need the textproc/glimpse ports for this.
+glimpse:
+	cd ${.CURDIR}; glimpseindex -H . -B -f -o .
+
+glimpse-clean:
+	cd ${.CURDIR}; rm -f .glimpse_*
+
 .include <bsd.subdir.mk>
