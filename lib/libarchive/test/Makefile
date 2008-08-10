@@ -72,7 +72,7 @@ TESTS= \
 # Build the test program using all libarchive sources + the test sources.
 SRCS= ${LA_SRCS}				\
 	${TESTS}				\
-	${.OBJDIR}/list.h			\
+	list.h					\
 	main.c					\
 	read_open_memory.c
 
@@ -84,19 +84,19 @@ DPADD=${LIBBZ2} ${LIBZ}
 CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
 LDADD= -lz -lbz2
 CFLAGS+= -static -g
-CFLAGS+= -I${LA_SRCDIR}
+CFLAGS+= -I${LA_SRCDIR} -I.
 
 # Uncomment to link against dmalloc
-LDADD+= -L/usr/local/lib -ldmalloc
-CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
-WARNS=6
+#LDADD+= -L/usr/local/lib -ldmalloc
+#CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
+#WARNS=6
 
 # Build libarchive_test and run it.
 check test: libarchive_test
 	./libarchive_test -v -r ${.CURDIR}
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
-${.OBJDIR}/list.h: ${TESTS} Makefile
+list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
 CLEANFILES += *.out *.o *.core *~ list.h
