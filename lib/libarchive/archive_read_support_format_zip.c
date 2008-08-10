@@ -166,18 +166,14 @@ archive_read_support_format_zip(struct archive *_a)
 static int
 archive_read_format_zip_bid(struct archive_read *a)
 {
-	int bytes_read;
 	int bid = 0;
-	const void *h;
 	const char *p;
 
 	if (a->archive.archive_format == ARCHIVE_FORMAT_ZIP)
 		bid += 1;
 
-	bytes_read = (a->decompressor->read_ahead)(a, &h, 4);
-	if (bytes_read < 4)
-	    return (-1);
-	p = (const char *)h;
+	if ((p = __archive_read_ahead(a, 4)) == NULL)
+		return (-1);
 
 	/*
 	 * Bid of 30 here is: 16 bits for "PK",
@@ -198,7 +194,6 @@ static int
 archive_read_format_zip_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	int bytes_read;
 	const void *h;
 	const char *signature;
 	struct zip *zip;
@@ -213,8 +208,7 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	zip->end_of_entry_cleanup = 0;
 	zip->entry_uncompressed_bytes_read = 0;
 	zip->entry_compressed_bytes_read = 0;
-	bytes_read = (a->decompressor->read_ahead)(a, &h, 4);
-	if (bytes_read < 4)
+	if ((h = __archive_read_ahead(a, 4)) == NULL)
 		return (ARCHIVE_FATAL);
 
 	signature = (const char *)h;
@@ -261,16 +255,12 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 {
 	const struct zip_file_header *p;
 	const void *h;
-	int bytes_read;
 
-	bytes_read =
-	    (a->decompressor->read_ahead)(a, &h, sizeof(struct zip_file_header));
-	if (bytes_read < (int)sizeof(struct zip_file_header)) {
+	if ((p = __archive_read_ahead(a, sizeof *p)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	p = (const struct zip_file_header *)h;
 
 	zip->version = p->version[0];
 	zip->system = p->version[1];
@@ -297,15 +287,14 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 
 
 	/* Read the filename. */
-	bytes_read = (a->decompressor->read_ahead)(a, &h, zip->filename_length);
-	if (bytes_read < zip->filename_length) {
+	if ((h = __archive_read_ahead(a, zip->filename_length)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
 	if (archive_string_ensure(&zip->pathname, zip->filename_length) == NULL)
 		__archive_errx(1, "Out of memory");
-	archive_strncpy(&zip->pathname, (const char *)h, zip->filename_length);
+	archive_strncpy(&zip->pathname, h, zip->filename_length);
 	(a->decompressor->consume)(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 
@@ -315,8 +304,7 @@ zip_read_file_header(struct archive_read *a, struct archive_entry *entry,
 		zip->mode = AE_IFREG | 0777;
 
 	/* Read the extra data. */
-	bytes_read = (a->decompressor->read_ahead)(a, &h, zip->extra_length);
-	if (bytes_read < zip->extra_length) {
+	if ((h = __archive_read_ahead(a, zip->extra_length)) == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
@@ -387,21 +375,18 @@ archive_read_format_zip_read_data(struct archive_read *a,
 	if (zip->end_of_entry) {
 		if (!zip->end_of_entry_cleanup) {
 			if (zip->flags & ZIP_LENGTH_AT_END) {
-				const void *h;
 				const char *p;
-				int bytes_read =
-				    (a->decompressor->read_ahead)(a, &h, 16);
-				if (bytes_read < 16) {
+
+				if ((p = __archive_read_ahead(a, 16)) == NULL) {
 					archive_set_error(&a->archive,
 					    ARCHIVE_ERRNO_FILE_FORMAT,
 					    "Truncated ZIP end-of-file record");
 					return (ARCHIVE_FATAL);
 				}
-				p = (const char *)h;
 				zip->crc32 = i4(p + 4);
 				zip->compressed_size = u4(p + 8);
 				zip->uncompressed_size = u4(p + 12);
-				bytes_read = (a->decompressor->consume)(a, 16);
+				(a->decompressor->consume)(a, 16);
 			}
 
 			/* Check file size, CRC against these values. */
