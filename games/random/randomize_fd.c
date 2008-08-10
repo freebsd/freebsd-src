@@ -48,13 +48,10 @@ rand_node_allocate(void)
 {
 	struct rand_node *n;
 
-	n = (struct rand_node *)malloc(sizeof(struct rand_node));
+	n = (struct rand_node *)calloc(1, sizeof(struct rand_node));
 	if (n == NULL)
-		err(1, "malloc");
+		err(1, "calloc");
 
-	n->len = 0;
-	n->cp = NULL;
-	n->next = NULL;
 	return(n);
 }
 
@@ -175,9 +172,9 @@ randomize_fd(int fd, int type, int unique, double denom)
 			    (type == RANDOM_TYPE_WORDS && isspace(buf[i])) ||
 			    (eof && i == buflen - 1)) {
 			make_token:
-				if (numnode == RANDOM_MAX) {
+				if (numnode == RANDOM_MAX_PLUS1) {
 					errno = EFBIG;
-					err(1, "too many lines");
+					err(1, "too many delimiters");
 				}
 				numnode++;
 				n = rand_node_allocate();
@@ -215,7 +212,7 @@ randomize_fd(int fd, int type, int unique, double denom)
 				if (n->cp == NULL)
 					break;
 
-				if ((int)(denom * random() / RANDOM_MAX) == 0) {
+				if ((int)(denom * random() / RANDOM_MAX_PLUS1) == 0) {
 					ret = printf("%.*s", (int)n->len - 1, n->cp);
 					if (ret < 0)
 						err(1, "printf");
