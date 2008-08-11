@@ -395,6 +395,7 @@ MAN=	aac.4 \
 	umodem.4 \
 	ums.4 \
 	unix.4 \
+	upgt.4 \
 	uplcom.4 \
 	ural.4 \
 	urio.4 \
