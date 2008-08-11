@@ -91,9 +91,8 @@ glxsb_authcompute(struct glxsb_session *ses, struct cryptodesc *crd,
 	bcopy(ses->ses_ictx, &ctx, axf->ctxsize);
 	error = crypto_apply(flags, buf, crd->crd_skip, crd->crd_len,
 	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
-	if (error != 0) {
+	if (error != 0)
 		return (error);
-	}
 	axf->Final(hash, &ctx);
 
 	bcopy(ses->ses_octx, &ctx, axf->ctxsize);
