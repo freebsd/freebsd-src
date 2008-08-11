@@ -435,6 +435,7 @@ vendor AUDIOTECHNICA	0x0909	Audio-Technica
 vendor TRUMPION		0x090a	Trumpion Microelectronics
 vendor FEIYA		0x090c	Feiya
 vendor ALATION		0x0910	Alation Systems
+vendor GLOBESPAN	0x0915	Globespan
 vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GARMIN		0x091e	Garmin International
 vendor GOHUBS		0x0921	GoHubs
@@ -497,6 +498,7 @@ vendor AMBIT		0x0bb2	Ambit Microsystems
 vendor HTC		0x0bb4	HTC
 vendor REALTEK		0x0bda	Realtek
 vendor ADDONICS2	0x0bf6	Addonics Technology
+vendor FSC		0x0bf8	Fujitsu Siemens Computers
 vendor AGATE		0x0c08	Agate Technologies
 vendor DMI		0x0c0b	DMI
 vendor MICRODIA		0x0c45	Chicony
@@ -700,6 +702,7 @@ product ACCTON USB320_EC	0x1046	USB320-EC Ethernet Adapter
 product ACCTON 2664W		0x3501	2664W
 product ACCTON 111		0x3503	T-Sinus 111 Wireless Adapter
 product ACCTON SMCWUSBG		0x4505	SMCWUSB-G
+product ACCTON PRISM_GT		0x4521	PrismGT USB 2.0 WLAN
 product ACCTON SS1001		0x5046	SpeedStream Ethernet Adapter
 product ACCTON ZD1211B		0xe501	ZD1211B
 
@@ -1030,6 +1033,7 @@ product COMPAQ IPAQLINUX	0x505a	iPAQ Linux
 product COMPOSITE USBPS2	0x0001	USB to PS2 Adaptor
 
 /* Conceptronic products */
+product CONCEPTRONIC PRISM_GT	0x3762	PrismGT USB 2.0 WLAN
 product CONCEPTRONIC C11U	0x7100	C11U
 product CONCEPTRONIC WL210	0x7110	WL-210
 product CONCEPTRONIC AR5523_1	0x7801	AR5523
@@ -1096,7 +1100,9 @@ product DALLAS J6502		0x4201	J-6502 speakers
 product DELL PORT		0x0058	Port Replicator
 product DELL AIO926		0x5115	Photo AIO Printer 926
 product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
+product DELL PRISM_GT_1		0x8102	PrismGT USB 2.0 WLAN
 product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
+product DELL PRISM_GT_2		0x8104	PrismGT USB 2.0 WLAN
 product DELL U740		0x8135	Dell U740 CDMA
 
 /* Delorme Paublishing products */
@@ -1247,6 +1253,9 @@ product FOSSIL WRISTPDA		0x0002	Wrist PDA
 /* Freecom products */
 product FREECOM DVD		0xfc01	DVD drive
 
+/* Fujitsu Siemens Computers products */
+product FSC E5400		0x1009	PrismGT USB 2.0 WLAN
+
 /* Future Technology Devices products */
 product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
 product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
@@ -1313,6 +1322,10 @@ product GLOBALSUN AR5523_1	0x7801	AR5523
 product GLOBALSUN AR5523_1_NF	0x7802	AR5523 (no firmware)
 product GLOBALSUN AR5523_2	0x7811	AR5523
 product GLOBALSUN AR5523_2_NF	0x7812	AR5523 (no firmware)
+
+/* Globespan products */
+product GLOBESPAN PRISM_GT_1	0x2000	PrismGT USB 2.0 WLAN
+product GLOBESPAN PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 
 /* G.Mate, Inc products */
 product GMATE YP3X00		0x1001	YP3X00 PDA
@@ -1440,6 +1453,7 @@ product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
 
 /* Intersil products */
+product INTERSIL PRISM_GT	0x1000	PrismGT USB 2.0 WLAN
 product INTERSIL PRISM_2X	0x3642	Prism2.x or Atmel WLAN
 
 /* Interpid Control Systems products */
@@ -1781,6 +1795,7 @@ product NETGEAR EA101		0x1001	Ethernet
 product NETGEAR EA101X		0x1002	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
+product NETGEAR WG111V2_2	0x4240	PrismGT USB 2.0 WLAN
 product NETGEAR WG111U		0x4300	WG111U
 product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
 product NETGEAR2 MA101		0x4100	MA101
@@ -2359,6 +2374,7 @@ product WINBOND UH104		0x5518	4-port USB Hub
 product WINMAXGROUP FLASH64MC	0x6660	USB Flash Disk 64M-C
 
 /* Wistron NeWeb products */
+product WISTRONNEWEB UR045G	0x0427	PrismGT USB 2.0 WLAN
 product WISTRONNEWEB UR055G	0x0711	UR055G
 product WISTRONNEWEB AR5523_1	0x0826	AR5523
 product WISTRONNEWEB AR5523_1_NF	0x0827	AR5523 (no firmware)
@@ -2370,6 +2386,10 @@ product XEROX WCM15		0xffef	WorkCenter M15
 
 /* Xirlink products */
 product XIRLINK PCCAM		0x8080	IBM PC Camera
+
+/* Xyratex products */
+product XYRATEX PRISM_GT_1	0x2000	PrismGT USB 2.0 WLAN
+product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
 
 /* Y-E Data products */
 product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
@@ -2390,6 +2410,7 @@ product YANO FW800HD		0x05fc	METALWEAR-HDD
 product ZCOM M4Y750		0x0001	M4Y-750
 product ZCOM XI725		0x0002	XI-725/726
 product ZCOM XI735		0x0005	XI-735
+product ZCOM XG703A		0x0008	PrismGT USB 2.0 WLAN
 product ZCOM ZD1211		0x0011	ZD1211
 product ZCOM AR5523		0x0012	AR5523
 product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
