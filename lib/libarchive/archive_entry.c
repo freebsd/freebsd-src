@@ -1179,7 +1179,7 @@ const wchar_t *
 archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 {
 	int count;
-	int length;
+	size_t length;
 	const wchar_t *wname;
 	const wchar_t *prefix;
 	wchar_t separator;
