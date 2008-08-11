@@ -363,7 +363,6 @@ rgephy_status(struct mii_softc *sc)
 			mii->mii_media_status |= IFM_ACTIVE;
 	}
 
-	PHY_READ(sc, RGEPHY_MII_BMSR);
 	bmsr = PHY_READ(sc, RGEPHY_MII_BMSR);
 
 	bmcr = PHY_READ(sc, RGEPHY_MII_BMCR);
