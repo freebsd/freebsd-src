@@ -163,6 +163,8 @@ void	archive_entry_copy_hardlink(struct archive_entry *, const char *);
 void	archive_entry_copy_hardlink_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_ino(struct archive_entry *, unsigned long);
 void	archive_entry_set_link(struct archive_entry *, const char *);
+void	archive_entry_copy_link(struct archive_entry *, const char *);
+void	archive_entry_copy_link_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_mode(struct archive_entry *, mode_t);
 void	archive_entry_set_mtime(struct archive_entry *, time_t, long);
 void	archive_entry_set_nlink(struct archive_entry *, unsigned int);

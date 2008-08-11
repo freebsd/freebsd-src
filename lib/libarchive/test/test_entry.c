@@ -120,8 +120,37 @@ DEFINE_TEST(test_entry)
 #else
 	skipping("archive_entry_ino()");
 #endif
+
 	/* link */
-	/* TODO: implement these tests. */
+	archive_entry_set_hardlink(e, "hardlinkname");
+	archive_entry_set_symlink(e, NULL);
+	archive_entry_set_link(e, "link");
+	assertEqualString(archive_entry_hardlink(e), "link");
+	assertEqualString(archive_entry_symlink(e), NULL);
+	archive_entry_copy_link(e, "link2");
+	assertEqualString(archive_entry_hardlink(e), "link2");
+	assertEqualString(archive_entry_symlink(e), NULL);
+	archive_entry_copy_link_w(e, L"link3");
+	assertEqualString(archive_entry_hardlink(e), "link3");
+	assertEqualString(archive_entry_symlink(e), NULL);
+	archive_entry_set_hardlink(e, NULL);
+	archive_entry_set_symlink(e, "symlink");
+	archive_entry_set_link(e, "link");
+	assertEqualString(archive_entry_hardlink(e), NULL);
+	assertEqualString(archive_entry_symlink(e), "link");
+	archive_entry_copy_link(e, "link2");
+	assertEqualString(archive_entry_hardlink(e), NULL);
+	assertEqualString(archive_entry_symlink(e), "link2");
+	archive_entry_copy_link_w(e, L"link3");
+	assertEqualString(archive_entry_hardlink(e), NULL);
+	assertEqualString(archive_entry_symlink(e), "link3");
+	/* Arbitrarily override hardlink if both hardlink and symlink set. */
+	archive_entry_set_hardlink(e, "hardlink");
+	archive_entry_set_symlink(e, "symlink");
+	archive_entry_set_link(e, "link");
+	assertEqualString(archive_entry_hardlink(e), "hardlink");
+	assertEqualString(archive_entry_symlink(e), "link");
+
 	/* mode */
 	archive_entry_set_mode(e, 0123456);
 	assertEqualInt(archive_entry_mode(e), 0123456);
