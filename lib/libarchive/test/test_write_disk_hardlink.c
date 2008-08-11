@@ -131,7 +131,11 @@ DEFINE_TEST(test_write_disk_hardlink)
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_write_finish(ad);
+#else
 	assertEqualInt(0, archive_write_finish(ad));
+#endif
 
 	/* Test the entries on disk. */
 	assert(0 == stat("link1a", &st));
