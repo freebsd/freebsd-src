@@ -41,10 +41,6 @@ struct archive_read {
 	dev_t		  skip_file_dev;
 	ino_t		  skip_file_ino;
 
-	/* Utility:  Pointer to a block of nulls. */
-	const unsigned char	*nulls;
-	size_t			 null_length;
-
 	/*
 	 * Used by archive_read_data() to track blocks and copy
 	 * data to client buffers, filling gaps with zero bytes.
@@ -58,29 +54,8 @@ struct archive_read {
 	archive_open_callback	*client_opener;
 	archive_read_callback	*client_reader;
 	archive_skip_callback	*client_skipper;
-	archive_write_callback	*client_writer;
 	archive_close_callback	*client_closer;
 	void			*client_data;
-
-	/*
-	 * Blocking information.  Note that bytes_in_last_block is
-	 * misleadingly named; I should find a better name.  These
-	 * control the final output from all compressors, including
-	 * compression_none.
-	 */
-	int		  bytes_per_block;
-	int		  bytes_in_last_block;
-
-	/*
-	 * These control whether data within a gzip/bzip2 compressed
-	 * stream gets padded or not.  If pad_uncompressed is set,
-	 * the data will be padded to a full block before being
-	 * compressed.  The pad_uncompressed_byte determines the value
-	 * that will be used for padding.  Note that these have no
-	 * effect on compression "none."
-	 */
-	int		  pad_uncompressed;
-	int		  pad_uncompressed_byte; /* TODO: Support this. */
 
 	/* File offset of beginning of most recently-read header. */
 	off_t		  header_position;
@@ -140,18 +115,6 @@ struct archive_read {
 		int	(*cleanup)(struct archive_read *);
 	}	formats[8];
 	struct archive_format_descriptor	*format; /* Active format. */
-
-	/*
-	 * Pointers to format-specific functions for writing.  They're
-	 * initialized by archive_write_set_format_XXX() calls.
-	 */
-	int	(*format_init)(struct archive *); /* Only used on write. */
-	int	(*format_finish)(struct archive *);
-	int	(*format_finish_entry)(struct archive *);
-	int 	(*format_write_header)(struct archive *,
-		    struct archive_entry *);
-	ssize_t	(*format_write_data)(struct archive *,
-		    const void *buff, size_t);
 
 	/*
 	 * Various information needed by archive_extract.
