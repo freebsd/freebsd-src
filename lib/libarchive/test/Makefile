@@ -109,7 +109,7 @@ archive.h: ${LA_SRCDIR}/archive.h.in ${LA_SRCDIR}/Makefile
 list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
-CLEANFILES += *.out *.o *.core *~ list.h archive.h ${TESTFILES}
+CLEANFILES += *.out *.o *.core *~ list.h archive.h
 
 cleantest:
 	-chmod -R +w /tmp/libarchive_test.*
