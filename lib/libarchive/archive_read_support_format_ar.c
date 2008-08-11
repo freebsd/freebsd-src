@@ -268,8 +268,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		/* This must come before any call to _read_ahead. */
 		ar_parse_common_header(ar, entry, h);
 		archive_entry_copy_pathname(entry, filename);
-		archive_entry_set_mode(entry,
-		    S_IFREG | (archive_entry_mode(entry) & 0777));
+		archive_entry_set_filetype(entry, AE_IFREG);
 		/* Get the size of the filename table. */
 		number = ar_atol10(h + AR_size_offset, AR_size_size);
 		if (number > SIZE_MAX) {
@@ -375,8 +374,7 @@ archive_read_format_ar_read_header(struct archive_read *a,
 		/* Parse the time, owner, mode, size fields. */
 		r = ar_parse_common_header(ar, entry, h);
 		/* Force the file type to a regular file. */
-		archive_entry_set_mode(entry,
-		    S_IFREG | (archive_entry_mode(entry) & 0777));
+		archive_entry_set_filetype(entry, AE_IFREG);
 		return (r);
 	}
 
