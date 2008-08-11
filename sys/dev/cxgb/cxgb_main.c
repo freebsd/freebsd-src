@@ -1194,6 +1194,33 @@ t3_os_link_changed(adapter_t *adapter, int port_id, int link_status, int speed,
 	}
 }
 
+/**
+ *	t3_os_phymod_changed - handle PHY module changes
+ *	@phy: the PHY reporting the module change
+ *	@mod_type: new module type
+ *
+ *	This is the OS-dependent handler for PHY module changes.  It is
+ *	invoked when a PHY module is removed or inserted for any OS-specific
+ *	processing.
+ */
+void t3_os_phymod_changed(struct adapter *adap, int port_id)
+{
+	static const char *mod_str[] = {
+		NULL, "SR", "LR", "LRM", "TWINAX", "TWINAX", "unknown"
+	};
+
+	struct port_info *pi = &adap->port[port_id];
+
+	if (pi->phy.modtype == phy_modtype_none)
+		device_printf(adap->dev, "PHY module unplugged\n");
+	else {
+		KASSERT(pi->phy.modtype < ARRAY_SIZE(mod_str),
+		    ("invalid PHY module type %d", pi->phy.modtype));
+		device_printf(adap->dev, "%s PHY module inserted\n",
+		    mod_str[pi->phy.modtype]);
+	}
+}
+
 /*
  * Interrupt-context handler for external (PHY) interrupts.
  */
