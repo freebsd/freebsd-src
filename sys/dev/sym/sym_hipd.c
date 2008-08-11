@@ -2753,6 +2753,8 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		tp->tinfo.user.spi_version  = tp->tinfo.current.spi_version = 2;
 #endif
 		tp->tinfo.user.period = np->minsync;
+		if (np->features & FE_ULTRA3)
+			tp->tinfo.user.period = np->minsync_dt;
 		tp->tinfo.user.offset = np->maxoffs;
 		tp->tinfo.user.width  = np->maxwide ? BUS_16_BIT : BUS_8_BIT;
 		tp->usrflags |= (SYM_DISC_ENABLED | SYM_TAGS_ENABLED);
