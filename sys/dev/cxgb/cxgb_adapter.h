@@ -560,6 +560,7 @@ int t3_os_pci_save_state(struct adapter *adapter);
 int t3_os_pci_restore_state(struct adapter *adapter);
 void t3_os_link_changed(adapter_t *adapter, int port_id, int link_status,
 			int speed, int duplex, int fc);
+void t3_os_phymod_changed(struct adapter *adap, int port_id);
 void t3_sge_err_intr_handler(adapter_t *adapter);
 int t3_offload_tx(struct t3cdev *, struct mbuf *);
 void t3_os_ext_intr_handler(adapter_t *adapter);

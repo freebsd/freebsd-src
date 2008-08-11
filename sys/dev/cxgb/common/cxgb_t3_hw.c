@@ -524,6 +524,11 @@ const struct adapter_info *t3_get_adapter_info(unsigned int id)
 	return id < ARRAY_SIZE(t3_adap_info) ? &t3_adap_info[id] : NULL;
 }
 
+struct port_type_info {
+	int (*phy_prep)(struct cphy *phy, adapter_t *adapter, int phy_addr,
+			const struct mdio_ops *ops);
+};
+
 static struct port_type_info port_types[] = {
 	{ NULL },
 	{ t3_ael1002_phy_prep },
@@ -568,7 +573,7 @@ struct t3_vpd {
 	u32 pad;                  /* for multiple-of-4 sizing and alignment */
 };
 
-#define EEPROM_MAX_POLL   4
+#define EEPROM_MAX_POLL   40
 #define EEPROM_STAT_ADDR  0x4000
 #define VPD_BASE          0xc00
 
@@ -1350,7 +1355,7 @@ struct intr_info {
 	unsigned int mask;       /* bits to check in interrupt status */
 	const char *msg;         /* message to print or NULL */
 	short stat_idx;          /* stat counter to increment or -1 */
-	unsigned short fatal:1;  /* whether the condition reported is fatal */
+	unsigned short fatal;    /* whether the condition reported is fatal */
 };
 
 /**
@@ -1828,6 +1833,8 @@ int t3_phy_intr_handler(adapter_t *adapter)
 				t3_link_changed(adapter, i);
 			if (phy_cause & cphy_cause_fifo_error)
 				p->phy.fifo_errors++;
+			if (phy_cause & cphy_cause_module_change)
+				t3_os_phymod_changed(adapter, i);
 		}
 	}
 
@@ -1917,7 +1924,6 @@ static unsigned int calc_gpio_intr(adapter_t *adap)
 void t3_intr_enable(adapter_t *adapter)
 {
 	static struct addr_val_pair intr_en_avp[] = {
-		{ A_SG_INT_ENABLE, SGE_INTR_MASK },
 		{ A_MC7_INT_ENABLE, MC7_INTR_MASK },
 		{ A_MC7_INT_ENABLE - MC7_PMRX_BASE_ADDR + MC7_PMTX_BASE_ADDR,
 			MC7_INTR_MASK },
@@ -1936,6 +1942,9 @@ void t3_intr_enable(adapter_t *adapter)
 	t3_write_regs(adapter, intr_en_avp, ARRAY_SIZE(intr_en_avp), 0);
 	t3_write_reg(adapter, A_TP_INT_ENABLE,
 		     adapter->params.rev >= T3_REV_C ? 0x2bfffff : 0x3bfffff);
+	t3_write_reg(adapter, A_SG_INT_ENABLE,
+		     adapter->params.rev >= T3_REV_C ?
+		     SGE_INTR_MASK | F_FLEMPTY : SGE_INTR_MASK);
 
 	if (adapter->params.rev > 0) {
 		t3_write_reg(adapter, A_CPL_INTR_ENABLE,
@@ -3878,7 +3887,7 @@ static int t3_reset_adapter(adapter_t *adapter)
 	return 0;
 }
 
-static int __devinit init_parity(adapter_t *adap)
+static int init_parity(adapter_t *adap)
 {
 	int i, err, addr;
 
@@ -4028,6 +4037,45 @@ int __devinit t3_prep_adapter(adapter_t *adapter,
 			adapter->params.linkpoll_period = 10;
 	}
 
+	return 0;
+}
+
+/**
+ *	t3_reinit_adapter - prepare HW for operation again
+ *	@adapter: the adapter
+ *
+ *	Put HW in the same state as @t3_prep_adapter without any changes to
+ *	SW state.  This is a cut down version of @t3_prep_adapter intended
+ *	to be used after events that wipe out HW state but preserve SW state,
+ *	e.g., EEH.  The device must be reset before calling this.
+ */
+int t3_reinit_adapter(adapter_t *adap)
+{
+	unsigned int i;
+	int ret, j = -1;
+
+	early_hw_init(adap, adap->params.info);
+	ret = init_parity(adap);
+	if (ret)
+		return ret;
+
+	if (adap->params.nports > 2 &&
+	    (ret = t3_vsc7323_init(adap, adap->params.nports)))
+		return ret;
+
+	for_each_port(adap, i) {
+		const struct port_type_info *pti;
+		struct port_info *p = adap2pinfo(adap, i);
+
+		while (!adap->params.vpd.port_type[++j])
+			;
+
+		pti = &port_types[adap->params.vpd.port_type[j]];
+		ret = pti->phy_prep(&p->phy, adap, p->phy.addr, NULL);
+		if (ret)
+			return ret;
+		p->phy.ops->power_down(&p->phy, 1);
+	}
 	return 0;
 }
 
