@@ -186,8 +186,8 @@ archive_write_set_format_ustar(struct archive *_a)
 	a->format_finish = archive_write_ustar_finish;
 	a->format_destroy = archive_write_ustar_destroy;
 	a->format_finish_entry = archive_write_ustar_finish_entry;
-	a->archive_format = ARCHIVE_FORMAT_TAR_USTAR;
-	a->archive_format_name = "POSIX ustar";
+	a->archive.archive_format = ARCHIVE_FORMAT_TAR_USTAR;
+	a->archive.archive_format_name = "POSIX ustar";
 	return (ARCHIVE_OK);
 }
 
