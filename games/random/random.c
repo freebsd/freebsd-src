@@ -180,7 +180,8 @@ main(int argc, char *argv[])
 				err(2, "stdout");
 
 			/* Now see if the next line is to be printed. */
-			selected = (int)(denom * random() / RANDOM_MAX_PLUS1) == 0;
+			selected = (int)(denom * random() /
+				RANDOM_MAX_PLUS1) == 0;
 		}
 	}
 	if (ferror(stdin))
