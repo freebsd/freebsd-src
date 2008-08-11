@@ -70,7 +70,10 @@
 .Ft int
 .Fn archive_write_set_compression_none "struct archive *"
 .Ft int
-.Fn archive_write_set_compression_program "struct archive *" "const char * cmd"
+.Fo archive_write_set_compression_program
+.Fa "struct archive *"
+.Fa "const char * cmd"
+.Fc
 .Ft int
 .Fn archive_write_set_format_cpio "struct archive *"
 .Ft int
@@ -84,7 +87,13 @@
 .Ft int
 .Fn archive_write_set_format_ustar "struct archive *"
 .Ft int
-.Fn archive_write_open "struct archive *" "void *client_data" "archive_open_callback *" "archive_write_callback *" "archive_close_callback *"
+.Fo archive_write_open
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_open_callback *"
+.Fa "archive_write_callback *"
+.Fa "archive_close_callback *"
+.Fc
 .Ft int
 .Fn archive_write_open_fd "struct archive *" "int fd"
 .Ft int
@@ -92,7 +101,12 @@
 .Ft int
 .Fn archive_write_open_filename "struct archive *" "const char *filename"
 .Ft int
-.Fn archive_write_open_memory "struct archive *" "void *buffer" "size_t bufferSize" "size_t *outUsed"
+.Fo archive_write_open_memory
+.Fa "struct archive *"
+.Fa "void *buffer"
+.Fa "size_t bufferSize"
+.Fa "size_t *outUsed"
+.Fc
 .Ft int
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft ssize_t
@@ -150,7 +164,14 @@ functions, this function can be called after the archive is opened.
 .It Fn archive_write_get_bytes_in_last_block
 Retrieve the currently-set value for last block size.
 A value of -1 here indicates that the library should use default values.
-.It Fn archive_write_set_format_cpio , Fn archive_write_set_format_pax , Fn archive_write_set_format_pax_restricted , Fn archive_write_set_format_shar , Fn archive_write_set_format_shar_binary , Fn archive_write_set_format_ustar
+.It Xo
+.Fn archive_write_set_format_cpio ,
+.Fn archive_write_set_format_pax ,
+.Fn archive_write_set_format_pax_restricted ,
+.Fn archive_write_set_format_shar ,
+.Fn archive_write_set_format_shar_binary ,
+.Fn archive_write_set_format_ustar
+.Xc
 Sets the format that will be used for the archive.
 The library can write
 POSIX octet-oriented cpio format archives,
@@ -174,7 +195,11 @@ filenames, linknames, uids, sizes, etc.
 is the library default; this is the same as pax format, but suppresses
 the pax extended header for most normal files.
 In most cases, this will result in ordinary ustar archives.
-.It Fn archive_write_set_compression_bzip2 , Fn archive_write_set_compression_gzip , Fn archive_write_set_compression_none
+.It Xo
+.Fn archive_write_set_compression_bzip2 ,
+.Fn archive_write_set_compression_gzip ,
+.Fn archive_write_set_compression_none
+.Xc
 The resulting archive will be compressed as specified.
 Note that the compressed output is always properly blocked.
 .It Fn archive_write_set_compression_program
@@ -310,7 +335,12 @@ to register an error code and message and return
 .Bl -item -offset indent
 .It
 .Ft typedef ssize_t
-.Fn archive_write_callback "struct archive *" "void *client_data" "void *buffer" "size_t length"
+.Fo archive_write_callback
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "void *buffer"
+.Fa "size_t length"
+.Fc
 .El
 .Pp
 The write callback is invoked whenever the library
