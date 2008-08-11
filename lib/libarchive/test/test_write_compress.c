@@ -96,4 +96,7 @@ DEFINE_TEST(test_write_compress)
 #else
 	archive_read_finish(a);
 #endif
+
+	free(data);
+	free(buff);
 }
