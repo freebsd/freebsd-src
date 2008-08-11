@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/rman.h>
+#include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
@@ -164,7 +165,7 @@ struct glxsb_dma_map {
 	bus_dma_segment_t	dma_seg;	/* segments */
 	int			dma_nsegs;	/* #segments */
 	int			dma_size;	/* size */
-	caddr_t 		dma_vaddr;	/* virtual address */
+	caddr_t			dma_vaddr;	/* virtual address */
 	bus_addr_t		dma_paddr;	/* physical address */
 };
 
@@ -187,7 +188,7 @@ struct glxsb_softc {
 	uint32_t		sc_sid;		/* session id */
 	TAILQ_HEAD(ses_head, glxsb_session)
 				sc_sessions;	/* crypto sessions */
-	struct mtx		sc_sessions_mtx;/* sessions mutex */
+	struct rwlock		sc_sessions_lock;/* sessions lock */
 	struct mtx		sc_task_mtx;	/* task mutex */
 	struct taskqueue	*sc_tq;		/* task queue */
 	struct task		sc_cryptotask;	/* task */
@@ -235,7 +236,7 @@ static device_method_t glxsb_methods[] = {
 static driver_t glxsb_driver = {
 	"glxsb",
 	glxsb_methods,
-	sizeof (struct glxsb_softc)
+	sizeof(struct glxsb_softc)
 };
 
 static devclass_t glxsb_devclass;
@@ -270,7 +271,7 @@ glxsb_attach(device_t dev)
 	if ((msr & 0xFFFF00) != 0x130400) {
 		device_printf(dev, "unknown ID 0x%x\n",
 		    (int)((msr & 0xFFFF00) >> 16));
-		goto fail0;
+		return (ENXIO);
 	}
 
 	pci_enable_busmaster(dev);
@@ -278,10 +279,10 @@ glxsb_attach(device_t dev)
 	/* Map in the security block configuration/control registers */
 	sc->sc_rid = PCIR_BAR(0);
 	sc->sc_sr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
-			RF_ACTIVE);
+	    RF_ACTIVE);
 	if (sc->sc_sr == NULL) {
 		device_printf(dev, "cannot map register space\n");
-		goto fail0;
+		return (ENXIO);
 	}
 
 	/*
@@ -305,25 +306,25 @@ glxsb_attach(device_t dev)
 
 	/* Allocate a contiguous DMA-able buffer to work in */
 	if (glxsb_dma_alloc(sc) != 0)
-		goto fail1;
+		goto fail0;
 
 	/* Initialize our task queue */
 	sc->sc_tq = taskqueue_create("glxsb_taskq", M_NOWAIT | M_ZERO,
-		taskqueue_thread_enqueue, &sc->sc_tq);
+	    taskqueue_thread_enqueue, &sc->sc_tq);
 	if (sc->sc_tq == NULL) {
 		device_printf(dev, "cannot create task queue\n");
-		goto fail1;
+		goto fail0;
 	}
 	if (taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
-			device_get_nameunit(dev)) != 0) {
+	    device_get_nameunit(dev)) != 0) {
 		device_printf(dev, "cannot start task queue\n");
-		goto fail2;
+		goto fail1;
 	}
 	TASK_INIT(&sc->sc_cryptotask, 0, glxsb_crypto_task, sc);
 
 	/* Initialize crypto */
 	if (glxsb_crypto_setup(sc) != 0)
-		goto fail2;
+		goto fail1;
 
 	/* Install a periodic collector for the "true" (AMD's word) RNG */
 	if (hz > 100)
@@ -335,11 +336,10 @@ glxsb_attach(device_t dev)
 
 	return (0);
 
-fail2:
-	taskqueue_free(sc->sc_tq);
 fail1:
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_sr);
+	taskqueue_free(sc->sc_tq);
 fail0:
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_sr);
 	return (ENXIO);
 }
 
@@ -349,23 +349,20 @@ glxsb_detach(device_t dev)
 	struct glxsb_softc *sc = device_get_softc(dev);
 	struct glxsb_session *ses;
 
-	mtx_lock(&sc->sc_sessions_mtx);
+	rw_wlock(&sc->sc_sessions_lock);
 	TAILQ_FOREACH(ses, &sc->sc_sessions, ses_next) {
-		if (ses->ses_used != 0) {
-			mtx_unlock(&sc->sc_sessions_mtx);
+		if (ses->ses_used) {
+			rw_wunlock(&sc->sc_sessions_lock);
 			device_printf(dev,
 				"cannot detach, sessions still active.\n");
 			return (EBUSY);
 		}
 	}
-	for (ses = TAILQ_FIRST(&sc->sc_sessions);
-		ses != NULL;
-		ses = TAILQ_FIRST(&sc->sc_sessions)) {
-
+	while ((ses = TAILQ_FIRST(&sc->sc_sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 		free(ses, M_GLXSB);
 	}
-	mtx_unlock(&sc->sc_sessions_mtx);
+	rw_wunlock(&sc->sc_sessions_lock);
 	crypto_unregister_all(sc->sc_cid);
 	callout_drain(&sc->sc_rngco);
 	taskqueue_drain(sc->sc_tq, &sc->sc_cryptotask);
@@ -373,7 +370,7 @@ glxsb_detach(device_t dev)
 	glxsb_dma_free(sc, &sc->sc_dma);
 	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid, sc->sc_sr);
 	taskqueue_free(sc->sc_tq);
-	mtx_destroy(&sc->sc_sessions_mtx);
+	rw_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_task_mtx);
 	return (0);
 }
@@ -413,37 +410,33 @@ glxsb_dma_alloc(struct glxsb_softc *sc)
 	if (rc != 0) {
 		device_printf(sc->sc_dev,
 		    "cannot allocate DMA tag (%d)\n", rc);
-
-		goto fail0;
+		return (rc);
 	}
 
-	rc = bus_dmamem_alloc(sc->sc_dmat,
-	    (void **)&dma->dma_vaddr, BUS_DMA_NOWAIT, &dma->dma_map);
+	rc = bus_dmamem_alloc(sc->sc_dmat, (void **)&dma->dma_vaddr,
+	    BUS_DMA_NOWAIT, &dma->dma_map);
 	if (rc != 0) {
 		device_printf(sc->sc_dev,
 		    "cannot allocate DMA memory of %d bytes (%d)\n",
 			dma->dma_size, rc);
-		goto fail1;
+		goto fail0;
 	}
 
-	rc = bus_dmamap_load(sc->sc_dmat,
-	    dma->dma_map, dma->dma_vaddr, dma->dma_size,
-	    glxsb_dmamap_cb, &dma->dma_paddr, BUS_DMA_NOWAIT);
+	rc = bus_dmamap_load(sc->sc_dmat, dma->dma_map, dma->dma_vaddr,
+	    dma->dma_size, glxsb_dmamap_cb, &dma->dma_paddr, BUS_DMA_NOWAIT);
 	if (rc != 0) {
 		device_printf(sc->sc_dev,
 		    "cannot load DMA memory for %d bytes (%d)\n",
 		   dma->dma_size, rc);
-
-		goto fail2;
+		goto fail1;
 	}
 
 	return (0);
 
-fail2:
-	bus_dmamem_free(sc->sc_dmat, dma->dma_vaddr, dma->dma_map);
 fail1:
-	bus_dma_tag_destroy(sc->sc_dmat);
+	bus_dmamem_free(sc->sc_dmat, dma->dma_vaddr, dma->dma_map);
 fail0:
+	bus_dma_tag_destroy(sc->sc_dmat);
 	return (rc);
 }
 
@@ -501,7 +494,7 @@ glxsb_crypto_setup(struct glxsb_softc *sc)
 
 	TAILQ_INIT(&sc->sc_sessions);
 	sc->sc_sid = 1;
-	mtx_init(&sc->sc_sessions_mtx, "glxsb_sessions_mtx", NULL, MTX_DEF);
+	rw_init(&sc->sc_sessions_lock, "glxsb_sessions_lock");
 	mtx_init(&sc->sc_task_mtx, "glxsb_crypto_mtx", NULL, MTX_DEF);
 
 	if (crypto_register(sc->sc_cid, CRYPTO_AES_CBC, 0, 0) != 0)
@@ -526,7 +519,7 @@ glxsb_crypto_setup(struct glxsb_softc *sc)
 crypto_fail:
 	device_printf(sc->sc_dev, "cannot register crypto\n");
 	crypto_unregister_all(sc->sc_cid);
-	mtx_destroy(&sc->sc_sessions_mtx);
+	rw_destroy(&sc->sc_sessions_lock);
 	mtx_destroy(&sc->sc_task_mtx);
 	return (ENOMEM);
 }
@@ -539,11 +532,11 @@ glxsb_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	struct cryptoini *encini, *macini;
 	int error;
 
-	if (sc == NULL || sidp == NULL || cri == NULL )
+	if (sc == NULL || sidp == NULL || cri == NULL)
 		return (EINVAL);
 
 	encini = macini = NULL;
-	for (; cri != NULL; cri = cri->cri_next ) {
+	for (; cri != NULL; cri = cri->cri_next) {
 		switch(cri->cri_alg) {
 		case CRYPTO_NULL_HMAC:
 		case CRYPTO_MD5_HMAC:
@@ -581,26 +574,21 @@ glxsb_crypto_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	 * allocate one.
 	 */
 
-	mtx_lock(&sc->sc_sessions_mtx);
+	rw_wlock(&sc->sc_sessions_lock);
 	ses = TAILQ_FIRST(&sc->sc_sessions);
-	if (ses == NULL || ses->ses_used)
-	 	ses = NULL;
-	else {
-		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
-		ses->ses_used = 1;
-		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-	}
-	mtx_unlock(&sc->sc_sessions_mtx);
-	if (ses == NULL) {
+	if (ses == NULL || ses->ses_used) {
 		ses = malloc(sizeof(*ses), M_GLXSB, M_NOWAIT | M_ZERO);
-		if (ses == NULL)
+		if (ses == NULL) {
+			rw_wunlock(&sc->sc_sessions_lock);
 			return (ENOMEM);
-		ses->ses_used = 1;
-		mtx_lock(&sc->sc_sessions_mtx);
+		}
 		ses->ses_id = sc->sc_sid++;
-		TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
-		mtx_unlock(&sc->sc_sessions_mtx);
+	} else {
+		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 	}
+	ses->ses_used = 1;
+	TAILQ_INSERT_TAIL(&sc->sc_sessions, ses, ses_next);
+	rw_wunlock(&sc->sc_sessions_lock);
 
 	if (encini->cri_alg == CRYPTO_AES_CBC) {
 		if (encini->cri_klen != 128) {
@@ -636,13 +624,13 @@ glxsb_crypto_freesession(device_t dev, uint64_t tid)
 	if (sc == NULL)
 		return (EINVAL);
 
-	mtx_lock(&sc->sc_sessions_mtx);
+	rw_wlock(&sc->sc_sessions_lock);
 	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, ses_head, ses_next) {
-		if (ses->ses_id == sid )
+		if (ses->ses_id == sid)
 			break;
 	}
 	if (ses == NULL) {
-		mtx_unlock(&sc->sc_sessions_mtx);
+		rw_wunlock(&sc->sc_sessions_lock);
 		return (EINVAL);
 	}
 	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
@@ -651,7 +639,7 @@ glxsb_crypto_freesession(device_t dev, uint64_t tid)
 	ses->ses_used = 0;
 	ses->ses_id = sid;
 	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
-	mtx_unlock(&sc->sc_sessions_mtx);
+	rw_wunlock(&sc->sc_sessions_lock);
 
 	return (0);
 }
@@ -716,7 +704,7 @@ glxsb_aes(struct glxsb_softc *sc, uint32_t control, uint32_t psrc,
 	for (i = 0; i < GLXSB_MAX_AES_LEN * 10; i++) {
 		status = bus_read_4(sc->sc_sr, SB_CTL_A);
 		if ((status & SB_CTL_ST) == 0)		/* Done */
-			return(0);
+			return (0);
 	}
 
 	device_printf(sc->sc_dev, "operation failed to complete\n");
@@ -730,15 +718,13 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 	char *op_src, *op_dst;
 	uint32_t op_psrc, op_pdst;
 	uint8_t op_iv[SB_AES_BLOCK_SIZE], *piv;
-	int err = 0;
+	int error;
 	int len, tlen, xlen;
 	int offset;
 	uint32_t control;
 
-	if (crd == NULL || (crd->crd_len % SB_AES_BLOCK_SIZE) != 0) {
-		err = EINVAL;
-		goto out;
-	}
+	if (crd == NULL || (crd->crd_len % SB_AES_BLOCK_SIZE) != 0)
+		return (EINVAL);
 
 	/* How much of our buffer will we need to use? */
 	xlen = crd->crd_len > GLXSB_MAX_AES_LEN ?
@@ -763,7 +749,7 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 
 		if ((crd->crd_flags & CRD_F_IV_PRESENT) == 0) {
 			crypto_copyback(crp->crp_flags, crp->crp_buf,
-				crd->crd_inject, sizeof(op_iv), op_iv);
+			    crd->crd_inject, sizeof(op_iv), op_iv);
 		}
 	} else {
 		control = SB_CTL_DEC;
@@ -771,7 +757,7 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 			bcopy(crd->crd_iv, op_iv, sizeof(op_iv));
 		else {
 			crypto_copydata(crp->crp_flags, crp->crp_buf,
-				crd->crd_inject, sizeof(op_iv), op_iv);
+			    crd->crd_inject, sizeof(op_iv), op_iv);
 		}
 	}
 
@@ -783,19 +769,19 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 	while (tlen > 0) {
 		len = (tlen > GLXSB_MAX_AES_LEN) ? GLXSB_MAX_AES_LEN : tlen;
 		crypto_copydata(crp->crp_flags, crp->crp_buf,
-			    crd->crd_skip + offset, len, op_src);
+		    crd->crd_skip + offset, len, op_src);
 
 		glxsb_dma_pre_op(sc, &sc->sc_dma);
 
-		err = glxsb_aes(sc, control, op_psrc, op_pdst, ses->ses_key,
+		error = glxsb_aes(sc, control, op_psrc, op_pdst, ses->ses_key,
 		    len, op_iv);
 
 		glxsb_dma_post_op(sc, &sc->sc_dma);
-		if (err != 0)
-			goto out;
+		if (error != 0)
+			return (error);
 
 		crypto_copyback(crp->crp_flags, crp->crp_buf,
-			crd->crd_skip + offset, len, op_dst);
+		    crd->crd_skip + offset, len, op_dst);
 
 		offset += len;
 		tlen -= len;
@@ -812,14 +798,13 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 		 * set to ses->ses_iv if we're going to exit the loop this
 		 * time.
 		 */
-		if (crd->crd_flags & CRD_F_ENCRYPT) {
-			bcopy(op_dst + len - sizeof(op_iv),
-			    piv, sizeof(op_iv));
-		} else {
+		if (crd->crd_flags & CRD_F_ENCRYPT)
+			bcopy(op_dst + len - sizeof(op_iv), piv, sizeof(op_iv));
+		else {
 			/* Decryption, only need this if another iteration */
 			if (tlen > 0) {
-				bcopy(op_src + len - sizeof(op_iv),
-				    piv, sizeof(op_iv));
+				bcopy(op_src + len - sizeof(op_iv), piv,
+				    sizeof(op_iv));
 			}
 		}
 	} /* while */
@@ -827,8 +812,7 @@ glxsb_crypto_encdec(struct cryptop *crp, struct cryptodesc *crd,
 	/* All AES processing has now been done. */
 	bzero(sc->sc_dma.dma_vaddr, xlen * 2);
 
-out:
-	return (err);
+	return (0);
 }
 
 static void
@@ -838,7 +822,7 @@ glxsb_crypto_task(void *arg, int pending)
 	struct glxsb_session *ses;
 	struct cryptop *crp;
 	struct cryptodesc *enccrd, *maccrd;
-	int error = 0;
+	int error;
 
 	maccrd = sc->sc_to.to_maccrd;
 	enccrd = sc->sc_to.to_enccrd;
@@ -923,14 +907,13 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 	}
 
 	sid = crp->crp_sid & 0xffffffff;
-	mtx_lock(&sc->sc_sessions_mtx);
+	rw_rlock(&sc->sc_sessions_lock);
 	TAILQ_FOREACH_REVERSE(ses, &sc->sc_sessions, ses_head, ses_next) {
 		if (ses->ses_id == sid)
 			break;
 	}
-
-	mtx_unlock(&sc->sc_sessions_mtx);
-	if ( ses == NULL || ses->ses_used == 0 ) {
+	rw_runlock(&sc->sc_sessions_lock);
+	if (ses == NULL || !ses->ses_used) {
 		error = EINVAL;
 		goto fail;
 	}
