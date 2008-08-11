@@ -87,8 +87,8 @@ archive_write_set_format_ar_bsd(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = archive_write_set_format_ar(a);
 	if (r == ARCHIVE_OK) {
-		a->archive_format = ARCHIVE_FORMAT_AR_BSD;
-		a->archive_format_name = "ar (BSD)";
+		a->archive.archive_format = ARCHIVE_FORMAT_AR_BSD;
+		a->archive.archive_format_name = "ar (BSD)";
 	}
 	return (r);
 }
@@ -99,8 +99,8 @@ archive_write_set_format_ar_svr4(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = archive_write_set_format_ar(a);
 	if (r == ARCHIVE_OK) {
-		a->archive_format = ARCHIVE_FORMAT_AR_GNU;
-		a->archive_format_name = "ar (GNU/SVR4)";
+		a->archive.archive_format = ARCHIVE_FORMAT_AR_GNU;
+		a->archive.archive_format_name = "ar (GNU/SVR4)";
 	}
 	return (r);
 }
@@ -204,7 +204,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_WARN);
 	}
 
-	if (a->archive_format == ARCHIVE_FORMAT_AR_GNU) {
+	if (a->archive.archive_format == ARCHIVE_FORMAT_AR_GNU) {
 		/*
 		 * SVR4/GNU variant use a "/" to mark then end of the filename,
 		 * make it possible to have embedded spaces in the filename.
@@ -261,7 +261,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 				return (ARCHIVE_WARN);
 			}
 		}
-	} else if (a->archive_format == ARCHIVE_FORMAT_AR_BSD) {
+	} else if (a->archive.archive_format == ARCHIVE_FORMAT_AR_BSD) {
 		/*
 		 * BSD variant: for any file name which is more than
 		 * 16 chars or contains one or more embedded space(s), the
