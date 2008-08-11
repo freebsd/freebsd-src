@@ -284,6 +284,7 @@ SUBDIR=	${_3dfx} \
 	umodem \
 	ums \
 	unionfs \
+	${_upgt} \
 	uplcom \
 	ural \
 	urio \
@@ -427,6 +428,7 @@ _sr=		sr
 _stg=		stg
 _streams=	streams
 _tmpfs=		tmpfs
+_upgt=		upgt
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -556,6 +558,7 @@ _speaker=	speaker
 _sppp=		sppp
 _tmpfs=		tmpfs
 _twa=		twa
+_upgt=		upgt
 _wi=		wi
 _wpi=		wpi
 _wpifw=		wpifw
@@ -611,6 +614,7 @@ _ath_rate_sample=ath_rate_sample
 _bm=		bm
 _nvram=		powermac_nvram
 _smbfs=		smbfs
+_upgt=		upgt
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
@@ -624,6 +628,7 @@ _em=		em
 _i2c=		i2c
 _igb=		igb
 _sound=		sound
+_upgt=		upgt
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
