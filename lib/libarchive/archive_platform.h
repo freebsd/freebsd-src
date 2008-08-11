@@ -36,7 +36,10 @@
 #ifndef ARCHIVE_PLATFORM_H_INCLUDED
 #define	ARCHIVE_PLATFORM_H_INCLUDED
 
-#if defined(PLATFORM_CONFIG_H)
+#ifdef _WIN32
+#include "config_windows.h"
+#include "archive_windows.h"
+#elif defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
 #elif defined(HAVE_CONFIG_H)
