@@ -407,6 +407,7 @@ int		 archive_write_get_bytes_in_last_block(struct archive *);
 int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 
 int		 archive_write_set_compression_bzip2(struct archive *);
+int		 archive_write_set_compression_compress(struct archive *);
 int		 archive_write_set_compression_gzip(struct archive *);
 int		 archive_write_set_compression_none(struct archive *);
 int		 archive_write_set_compression_program(struct archive *,
