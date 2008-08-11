@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2008 Stanislav Sedov <stas@FreeBSD.org>,
- *                    Rafal Jaworowski <raj@FreeBSD.org>.
+ *                    Rafal Jaworowski <raj@FreeBSD.org>,
+ *                    Piotr Ziecik <kosmo@semihalf.com>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 /*
- * Dallas Semiconductor DS1339 RTC sitting on the I2C bus.
+ * Dallas Semiconductor DS133X RTC sitting on the I2C bus.
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,101 +53,225 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 #include "clock_if.h"
 
-#define	DS1339_ADDR		0xd0	/* slave address */
-#define	DS1339_DATE_REG		0x0
-#define	DS1339_CTRL_REG		0x0e
-#define	DS1339_OSCD_FLAG	0x80
-#define	DS1339_OSF_FLAG		0x80
+#define	DS133X_ADDR		0xd0	/* slave address */
+#define	DS133X_DATE_REG		0x0
+#define	DS133X_CTRL_REG		0x0e
+#define	DS133X_OSCD_FLAG	0x80
+#define	DS133X_OSF_FLAG		0x80
 
-#define	DS1339_24H_FLAG		0x40	/* 24 hours mode. */
-#define	DS1339_PM_FLAG		0x20	/* AM/PM bit. */
-#define	DS1339_CENT_FLAG	0x80	/* Century selector. */
-#define	DS1339_CENT_SHIFT	7
+#define	DS133X_24H_FLAG		0x40	/* 24 hours mode. */
+#define	DS133X_PM_FLAG		0x20	/* AM/PM bit. */
+#define	DS133X_CENT_FLAG	0x80	/* Century selector. */
+#define	DS133X_CENT_SHIFT	7
 
-#define	HALFSEC	500000000	/* 1/2 of second. */
+#define	DS1338_REG_CLOCK_HALT	0x00
+#define	DS1338_REG_CONTROL	0x07
+#define	DS1338_CLOCK_HALT	(1 << 7)
+#define	DS1338_OSC_STOP		(1 << 5)
 
-struct ds1339_softc {
-	device_t		sc_dev;
+#define	DS1339_REG_CONTROL	0x0E
+#define	DS1339_REG_STATUS	0x0F
+#define	DS1339_OSC_STOP		(1 << 7)
+#define	DS1339_ENABLE_OSC	(1 << 7)
+#define	DS1339_BBSQI		(1 << 5)
+
+#define	HALFSEC			500000000	/* 1/2 of second. */
+
+#define MAX_IIC_DATA_SIZE	7
+
+enum {
+	DS1337,
+	DS1338,
+	DS1339,
+};
+
+struct ds133x_softc {
+	int		sc_type;
+	device_t	sc_dev;
 };
 
 static int
-ds1339_probe(device_t dev)
+ds133x_read(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 {
-	struct ds1339_softc *sc;
-	int addr;
+	struct iic_msg msg[] = {
+	    { DS133X_ADDR, IIC_M_WR, 1,	&address },
+	    { DS133X_ADDR, IIC_M_RD, size, data },
+	};
 
-	sc = device_get_softc(dev);
-	addr = iicbus_get_addr(dev);
-	if (addr != DS1339_ADDR) {
-		if (bootverbose)
-			device_printf(dev, "fixed I2C slave address should "
-			    "be 0x%.2x instead of 0x%.2x.\n", DS1339_ADDR,
-			    addr);
+	return (iicbus_transfer(dev, msg, 2));
+}
+
+static int
+ds133x_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
+{
+	uint8_t buffer[MAX_IIC_DATA_SIZE + 1];
+	struct iic_msg msg[] = {
+		{ DS133X_ADDR, IIC_M_WR, size + 1, buffer },
+	};
+
+	if (size > MAX_IIC_DATA_SIZE)
+		return (ENOMEM);
+
+	buffer[0] = address;
+	memcpy(buffer + 1, data, size);
+
+	return (iicbus_transfer(dev, msg, 1));
+}
+
+static int
+ds133x_detect(device_t dev, int *sc_type)
+{
+	int error;
+	uint8_t reg, orig;
+
+	/*
+	 * Check for DS1338. At address 0x0F this chip has RAM, however
+	 * DS1337 and DS1339 have status register. Bits 6-2 in status
+	 * register will be always read as 0.
+	 */
+
+	if ((error = ds133x_read(dev, DS1339_REG_STATUS, &reg, 1)))
+		return (error);
+
+	orig = reg;
+	reg |= 0x7C;
+
+	if ((error = ds133x_write(dev, DS1339_REG_STATUS, &reg, 1)))
+		return (error);
+
+	if ((error = ds133x_read(dev, DS1339_REG_STATUS, &reg, 1)))
+		return (error);
+
+	if ((reg & 0x7C) != 0) {
+		/* This is DS1338 */
+
+		if ((error = ds133x_write(dev, DS1339_REG_STATUS, &orig, 1)))
+			return (error);
+
+		*sc_type = DS1338;
+
+		return (0);
 	}
-	device_set_desc(dev, "Dallas Semiconductor DS1339 RTC");
+
+	/*
+	 * Now Check for DS1337. Bit 5 in control register of this chip will be
+	 * allways read as 0. In DS1339 changing of this bit is safe until
+	 * chip is powered up.
+	 */
+
+	if ((error = ds133x_read(dev, DS1339_REG_CONTROL, &reg, 1)))
+		return (error);
+
+	orig = reg;
+	reg |= DS1339_BBSQI;
+
+	if ((error = ds133x_write(dev, DS1339_REG_CONTROL, &reg, 1)))
+		return (error);
+
+	if ((error = ds133x_read(dev, DS1339_REG_CONTROL, &reg, 1)))
+		return (error);
+
+	if ((reg & DS1339_BBSQI) != 0) {
+		/* This is DS1339 */
+
+		if ((error = ds133x_write(dev, DS1339_REG_CONTROL, &orig, 1)))
+			return (error);
+
+		*sc_type = DS1339;
+		return (0);
+	}
+
+	/* This is DS1337 */
+	*sc_type = DS1337;
+
 	return (0);
 }
 
 static int
-ds1339_attach(device_t dev)
+ds133x_init(device_t dev, uint8_t cs_reg, uint8_t cs_bit, uint8_t osf_reg,
+    uint8_t osf_bit)
 {
-	struct ds1339_softc *sc = device_get_softc(dev);
 	int error;
+	uint8_t reg;
+
+	if ((error = ds133x_read(dev, cs_reg, &reg, 1)))
+		return (error);
+
+	if (reg & cs_bit) {	/* If clock is stopped - start it */
+		reg &= ~cs_bit;
+		if ((error = ds133x_write(dev, cs_reg, &reg, 1)))
+			return (error);
+	}
+
+	if ((error = ds133x_read(dev, osf_reg, &reg, 1)))
+		return (error);
+
+	if (reg & osf_bit) {	/* Clear oscillator stop flag */
+		device_printf(dev, "RTC oscillator was stopped. Check system"
+		    " time and RTC battery.\n");
+		reg &= ~osf_bit;
+		if ((error = ds133x_write(dev, osf_reg, &reg, 1)))
+			return (error);
+	}
+
+	return (0);
+}
+
+static int
+ds133x_probe(device_t dev)
+{
+	struct ds133x_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	if ((error = ds133x_detect(dev, &sc->sc_type)))
+		return (error);
+
+	switch (sc->sc_type) {
+	case DS1337:
+		device_set_desc(dev, "Dallas Semiconductor DS1337 RTC");
+		break;
+	case DS1338:
+		device_set_desc(dev, "Dallas Semiconductor DS1338 RTC");
+		break;
+	case DS1339:
+		device_set_desc(dev, "Dallas Semiconductor DS1339 RTC");
+		break;
+	default:
+		break;
+	}
+
+	return (0);
+}
+
+static int
+ds133x_attach(device_t dev)
+{
+	struct ds133x_softc *sc = device_get_softc(dev);
 
 	sc->sc_dev = dev;
 
-	uint8_t addr[1] = { DS1339_CTRL_REG };
-	uint8_t rdata[2];
-	uint8_t wrdata[3];
-	struct iic_msg rmsgs[2] = {
-	     { DS1339_ADDR, IIC_M_WR, 1, addr },
-	     { DS1339_ADDR, IIC_M_RD, 2, rdata },
-	};
-	struct iic_msg wrmsgs[1] = {
-	     { DS1339_ADDR, IIC_M_WR, 3, wrdata },
-	};
-
-	/* Read control and status registers. */
-	error = iicbus_transfer(dev, rmsgs, 2);
-	if (error != 0) {
-		device_printf(dev, "could not read control registers.\n");
-		return (ENXIO);
-	}
-
-	if ((rdata[0] & DS1339_OSCD_FLAG) != 0)
-		rdata[0] &= ~DS1339_OSCD_FLAG;	/* Enable oscillator
-						 * if disabled.
-						 */
-	if ((rdata[1] & DS1339_OSF_FLAG) != 0)
-		rdata[1] &= ~DS1339_OSF_FLAG;	/* Clear oscillator stop flag */
-
-	/* Write modified registers back. */
-	wrdata[0] = DS1339_CTRL_REG;
-	wrdata[1] = rdata[0];
-	wrdata[2] = rdata[1];
-
-	goto out;
-
-	error = iicbus_transfer(dev, wrmsgs, 1);
-	if (error != 0) {
-		device_printf(dev, "could not write control registers.\n");
-		return (ENXIO);
-	}
-
-out:
+	if (sc->sc_type == DS1338)
+		ds133x_init(dev, DS1338_REG_CLOCK_HALT, DS1338_CLOCK_HALT,
+		    DS1338_REG_CONTROL, DS1338_OSC_STOP);
+	else
+		ds133x_init(dev, DS1339_REG_CONTROL, DS1339_ENABLE_OSC,
+		    DS1339_REG_STATUS, DS1339_OSC_STOP);
 
 	clock_register(dev, 1000000);
+
 	return (0);
 }
 
 static uint8_t
-ds1339_get_hours(uint8_t val)
+ds133x_get_hours(uint8_t val)
 {
 	uint8_t ret;
 
-	if (!(val & DS1339_24H_FLAG))
+	if (!(val & DS133X_24H_FLAG))
 		ret = FROMBCD(val & 0x3f);
-	else if (!(val & DS1339_PM_FLAG))
+	else if (!(val & DS133X_PM_FLAG))
 		ret = FROMBCD(val & 0x1f);
 	else
 		ret = FROMBCD(val & 0x1f) + 12;
@@ -155,78 +280,79 @@ ds1339_get_hours(uint8_t val)
 }
 
 static int
-ds1339_gettime(device_t dev, struct timespec *ts)
+ds133x_gettime(device_t dev, struct timespec *ts)
 {
-	uint8_t addr[1] = { DS1339_DATE_REG };
-	uint8_t date[7];
-	struct iic_msg msgs[2] = {
-	     { DS1339_ADDR, IIC_M_WR, 1, addr },
-	     { DS1339_ADDR, IIC_M_RD, 7, date },
-	};
+	struct ds133x_softc *sc = device_get_softc(dev);
 	struct clocktime ct;
+	uint8_t date[7];
 	int error;
 
-	error = iicbus_transfer(dev, msgs, 2);
+	error = ds133x_read(dev, DS133X_DATE_REG, date, 7);
 	if (error == 0) {
 		ct.nsec = 0;
 		ct.sec = FROMBCD(date[0] & 0x7f);
 		ct.min = FROMBCD(date[1] & 0x7f);
-		ct.hour = ds1339_get_hours(date[2]);
+		ct.hour = ds133x_get_hours(date[2]);
 		ct.dow = FROMBCD(date[3] & 0x07) - 1;
 		ct.day = FROMBCD(date[4] & 0x3f);
 		ct.mon = FROMBCD(date[5] & 0x1f);
-		ct.year = 1900 + FROMBCD(date[6]) +
-		    ((date[5] & DS1339_CENT_FLAG) >> DS1339_CENT_SHIFT) * 100;
+
+		if (sc->sc_type == DS1338)
+			ct.year = 2000 + FROMBCD(date[6]);
+		else
+			ct.year = 1900 + FROMBCD(date[6]) +
+			    ((date[5] & DS133X_CENT_FLAG) >> DS133X_CENT_SHIFT) * 100;
 
 		error = clock_ct_to_ts(&ct, ts);
 	}
 
-	return error;
+	return (error);
 }
 
 static int
-ds1339_settime(device_t dev, struct timespec *ts)
+ds133x_settime(device_t dev, struct timespec *ts)
 {
-	uint8_t data[8] = { DS1339_DATE_REG };	/* Register address. */
-	struct iic_msg msgs[1] = {
-	     { DS1339_ADDR, IIC_M_WR, 8, data },
-	};
+	struct ds133x_softc *sc = device_get_softc(dev);
 	struct clocktime ct;
+	uint8_t date[7];
 
 	clock_ts_to_ct(ts, &ct);
 
-	data[1] = TOBCD(ct.nsec >= HALFSEC ? ct.sec + 1 : ct.sec) & 0x7f;
-	data[2] = TOBCD(ct.min) & 0x7f;
-	data[3] = TOBCD(ct.hour) & 0x3f;	/* We use 24-hours mode. */
-	data[4] = TOBCD(ct.dow + 1) & 0x07;
-	data[5] = TOBCD(ct.day) & 0x3f;
-	data[6] = TOBCD(ct.mon) & 0x1f;
-	if (ct.year >= 2000) {
-		data[6] |= DS1339_CENT_FLAG;
-		data[7] = TOBCD(ct.year - 2000);
+	date[0] = TOBCD(ct.nsec >= HALFSEC ? ct.sec + 1 : ct.sec) & 0x7f;
+	date[1] = TOBCD(ct.min) & 0x7f;
+	date[2] = TOBCD(ct.hour) & 0x3f;	/* We use 24-hours mode. */
+	date[3] = TOBCD(ct.dow + 1) & 0x07;
+	date[4] = TOBCD(ct.day) & 0x3f;
+	date[5] = TOBCD(ct.mon) & 0x1f;
+	if (sc->sc_type == DS1338)
+		date[6] = TOBCD(ct.year - 2000);
+	else if (ct.year >= 2000) {
+		date[5] |= DS133X_CENT_FLAG;
+		date[6] = TOBCD(ct.year - 2000);
 	} else
-		data[7] = TOBCD(ct.year - 1900);
+		date[6] = TOBCD(ct.year - 1900);
 
-	return iicbus_transfer(dev, msgs, 1);
+	return (ds133x_write(dev, DS133X_DATE_REG, date, 7));
 }
 
-static device_method_t ds1339_methods[] = {
-	DEVMETHOD(device_probe,		ds1339_probe),
-	DEVMETHOD(device_attach,	ds1339_attach),
+static device_method_t ds133x_methods[] = {
+	DEVMETHOD(device_probe,		ds133x_probe),
+	DEVMETHOD(device_attach,	ds133x_attach),
 
-	DEVMETHOD(clock_gettime,	ds1339_gettime),
-	DEVMETHOD(clock_settime,	ds1339_settime),
+	DEVMETHOD(clock_gettime,	ds133x_gettime),
+	DEVMETHOD(clock_settime,	ds133x_settime),
 
 	{0, 0},
 };
 
-static driver_t ds1339_driver = {
-	"ds1339",
-	ds1339_methods,
-	sizeof(struct ds1339_softc),
+static driver_t ds133x_driver = {
+	"rtc",
+	ds133x_methods,
+	sizeof(struct ds133x_softc),
 };
-static devclass_t ds1339_devclass;
 
-DRIVER_MODULE(ds1339, iicbus, ds1339_driver, ds1339_devclass, 0, 0);
-MODULE_VERSION(ds1339, 1);
-MODULE_DEPEND(ds1339, iicbus, 1, 1, 1);
+static devclass_t ds133x_devclass;
+
+DRIVER_MODULE(ds133x, iicbus, ds133x_driver, ds133x_devclass, 0, 0);
+MODULE_VERSION(ds133x, 1);
+MODULE_DEPEND(ds133x, iicbus, 1, 1, 1);
