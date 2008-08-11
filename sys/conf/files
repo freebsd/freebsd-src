@@ -1912,6 +1912,7 @@ netinet/sctputil.c		optional inet sctp
 netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet
 netinet/tcp_input.c		optional inet
+netinet/tcp_lro.c		optional inet
 netinet/tcp_output.c		optional inet
 netinet/tcp_offload.c		optional inet
 netinet/tcp_reass.c		optional inet
