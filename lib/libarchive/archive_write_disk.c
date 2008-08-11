@@ -1167,7 +1167,7 @@ check_symlinks(struct archive_write_disk *a)
 	struct stat st;
 
 	/*
-	 * Gaurd against symlink tricks.  Reject any archive entry whose
+	 * Guard against symlink tricks.  Reject any archive entry whose
 	 * destination would be altered by a symlink.
 	 */
 	/* Whatever we checked last time doesn't need to be re-checked. */
