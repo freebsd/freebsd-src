@@ -610,34 +610,38 @@ dev/ed/if_ed_pccard.c		optional ed pccard
 dev/ed/if_ed_pci.c		optional ed pci
 dev/eisa/eisa_if.m		standard
 dev/eisa/eisaconf.c		optional eisa
-dev/em/if_em.c			optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_80003es2lan.c	optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_82540.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_82541.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_82542.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_82543.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_82571.c		optional em \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_api.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_ich8lan.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_mac.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_manage.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_nvm.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_phy.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
-dev/em/e1000_osdep.c		optional em | igb \
-	compile-with "${NORMAL_C} -I$S/dev/em"
+dev/e1000/if_em.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/if_igb.c		optional igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_80003es2lan.c	optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82540.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82541.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82542.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82543.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82571.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_82575.c		optional em | igb \
+	 compile-with "${NORMAL_C} -I$S/dev/igb"
+dev/e1000/e1000_ich8lan.c	optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_api.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_mac.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_manage.c	optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_nvm.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_phy.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_osdep.c		optional em | igb \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/et/if_et.c			optional et
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
@@ -711,10 +715,6 @@ dev/ieee488/ibfoo.c		optional pcii | tnt4882
 dev/ieee488/pcii.c		optional pcii
 dev/ieee488/tnt4882.c		optional tnt4882
 dev/ieee488/upd7210.c		optional pcii | tnt4882
-dev/igb/if_igb.c		optional igb \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
-dev/igb/e1000_82575.c		optional igb | em \
-	compile-with "${NORMAL_C} -I$S/dev/igb"
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/icee.c		optional icee
