@@ -151,6 +151,7 @@ static struct _devname {
     NETWORK("txp",	"3Com 3cR990 Ethernet card"),
     NETWORK("ti",	"Alteon Networks PCI Gigabit Ethernet card"),
     NETWORK("tl",	"Texas Instruments ThunderLAN PCI Ethernet card"),
+    NETWORK("upgt",	"Conexant/Intersil PrismGT USB wireless adapter"),
     NETWORK("ural",	"Ralink Technology RT2500USB 802.11 wireless adapter"),
     NETWORK("vge",	"VIA VT612x PCI Gigabit Ethernet card"),
     NETWORK("vr",	"VIA VT3043/VT86C100A Rhine PCI Ethernet card"),
