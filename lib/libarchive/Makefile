@@ -82,6 +82,7 @@ SRCS=	archive.h					\
 	archive_write_open_filename.c			\
 	archive_write_open_memory.c			\
 	archive_write_set_compression_bzip2.c		\
+	archive_write_set_compression_compress.c	\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
 	archive_write_set_compression_program.c		\
