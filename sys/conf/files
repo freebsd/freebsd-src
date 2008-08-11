@@ -697,7 +697,7 @@ dev/ieee488/pcii.c		optional pcii
 dev/ieee488/tnt4882.c		optional tnt4882
 dev/ieee488/upd7210.c		optional pcii | tnt4882
 dev/iicbus/ad7418.c		optional ad7418
-dev/iicbus/ds1339.c		optional ds1339
+dev/iicbus/ds133x.c		optional ds133x
 dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/icee.c		optional icee
 dev/iicbus/if_ic.c		optional ic
