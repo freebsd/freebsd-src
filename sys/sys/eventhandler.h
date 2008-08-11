@@ -171,6 +171,13 @@ EVENTHANDLER_DECLARE(vm_lowmem, vm_lowmem_handler_t);
 typedef void (*vfs_lowvnodes_handler_t)(void *, int);
 EVENTHANDLER_DECLARE(vfs_lowvnodes, vfs_lowvnodes_handler_t);
 
+/* VLAN state change events */
+struct ifnet;
+typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
+typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
+EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
+EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
+
 /*
  * Process events
  * process_fork and exit handlers are called without Giant.
