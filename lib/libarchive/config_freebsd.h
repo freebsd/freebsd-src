@@ -55,6 +55,7 @@
 #define	HAVE_FSEEKO 1
 #define	HAVE_FUTIMES 1
 #define	HAVE_GETEUID 1
+#define	HAVE_GETPID 1
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
