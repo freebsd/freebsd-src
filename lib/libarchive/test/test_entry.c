@@ -213,10 +213,16 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(1, archive_entry_xattr_count(e));
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt(xsize, 0);
 	archive_entry_xattr_clear(e);
 	assertEqualInt(0, archive_entry_xattr_reset(e));
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt(xsize, 0);
 	archive_entry_xattr_add_entry(e, "xattr1", "xattrvalue1", 12);
 	assertEqualInt(1, archive_entry_xattr_reset(e));
 	archive_entry_xattr_add_entry(e, "xattr2", "xattrvalue2", 12);
@@ -225,6 +231,9 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(0, archive_entry_xattr_next(e, &xname, &xval, &xsize));
 	assertEqualInt(ARCHIVE_WARN,
 	    archive_entry_xattr_next(e, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt(xsize, 0);
 
 
 	/*
@@ -348,6 +357,11 @@ DEFINE_TEST(test_entry)
 	assertEqualString(xname, "xattr1");
 	assertEqualString(xval, "xattrvalue");
 	assertEqualInt(xsize, 11);
+	assertEqualInt(ARCHIVE_WARN,
+	    archive_entry_xattr_next(e2, &xname, &xval, &xsize));
+	assertEqualString(xname, NULL);
+	assertEqualString(xval, NULL);
+	assertEqualInt(xsize, 0);
 #endif
 
 	/* Change the original */
@@ -453,6 +467,14 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(tag, ARCHIVE_ENTRY_ACL_USER);
 	assertEqualInt(qual, 77);
 	assertEqualString(name, "user77");
+	assertEqualInt(1, archive_entry_acl_next(e2,
+			   ARCHIVE_ENTRY_ACL_TYPE_ACCESS,
+			   &type, &permset, &tag, &qual, &name));
+	assertEqualInt(type, 0);
+	assertEqualInt(permset, 0);
+	assertEqualInt(tag, 0);
+	assertEqualInt(qual, -1);
+	assertEqualString(name, NULL);
 #endif
 #if ARCHIVE_VERSION_STAMP < 1009000
 	skipping("xattr preserved in archive_entry copy");
