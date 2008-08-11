@@ -307,6 +307,8 @@ aes_copy_wcs_len(struct aes *aes, const wchar_t *wcs, size_t len)
 struct archive_entry *
 archive_entry_clear(struct archive_entry *entry)
 {
+	if (entry == NULL)
+		return (NULL);
 	aes_clean(&entry->ae_fflags_text);
 	aes_clean(&entry->ae_gname);
 	aes_clean(&entry->ae_hardlink);
