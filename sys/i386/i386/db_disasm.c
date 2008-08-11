@@ -213,6 +213,26 @@ static const struct inst db_inst_0f3x[] = {
 /*3f*/	{ "",	   FALSE, NONE,  0,	      0 },
 };
 
+static const struct inst db_inst_0f4x[] = {
+/*40*/	{ "cmovo",  TRUE, NONE,  op2(E, R),   0 },
+/*41*/	{ "cmovno", TRUE, NONE,  op2(E, R),   0 },
+/*42*/	{ "cmovb",  TRUE, NONE,  op2(E, R),   0 },
+/*43*/	{ "cmovnb", TRUE, NONE,  op2(E, R),   0 },
+/*44*/	{ "cmovz",  TRUE, NONE,  op2(E, R),   0 },
+/*45*/	{ "cmovnz", TRUE, NONE,  op2(E, R),   0 },
+/*46*/	{ "cmovbe", TRUE, NONE,  op2(E, R),   0 },
+/*47*/	{ "cmovnbe",TRUE, NONE,  op2(E, R),   0 },
+
+/*48*/	{ "cmovs",  TRUE, NONE,  op2(E, R),   0 },
+/*49*/	{ "cmovns", TRUE, NONE,  op2(E, R),   0 },
+/*4a*/	{ "cmovp",  TRUE, NONE,  op2(E, R),   0 },
+/*4b*/	{ "cmovnp", TRUE, NONE,  op2(E, R),   0 },
+/*4c*/	{ "cmovl",  TRUE, NONE,  op2(E, R),   0 },
+/*4d*/	{ "cmovnl", TRUE, NONE,  op2(E, R),   0 },
+/*4e*/	{ "cmovle", TRUE, NONE,  op2(E, R),   0 },
+/*4f*/	{ "cmovnle",TRUE, NONE,  op2(E, R),   0 },
+};
+
 static const struct inst db_inst_0f8x[] = {
 /*80*/	{ "jo",    FALSE, NONE,  op1(Dl),     0 },
 /*81*/	{ "jno",   FALSE, NONE,  op1(Dl),     0 },
@@ -317,7 +337,7 @@ static const struct inst * const db_inst_0f[] = {
 	0,
 	db_inst_0f2x,
 	db_inst_0f3x,
-	0,
+	db_inst_0f4x,
 	0,
 	0,
 	0,
