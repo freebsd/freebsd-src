@@ -37,7 +37,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 glxsb_load="YES"
 .Ed
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,7 +53,7 @@ driver for common usage.
 .Nm
 also supports acceleration of AES-128-CBC operations for
 .Xr crypto 4 .
-It also register itself to accelerate other HMAC algorithms, although
+It also registers itself to accelerate other HMAC algorithms, although
 there is no hardware acceleration for those algorithms.
 This is only needed so
 .Nm
@@ -64,9 +63,10 @@ can work with
 The
 .Xr crypto 9
 framework will fail to open the crypto session on the device if the AES
-key's length is != 128 bits. This prevents the use of the
+key's length is != 128 bits.
+This prevents the use of the
 .Nm
-device driver with AES key's length != 128 bits. 
+device driver with AES keys of length != 128 bits. 
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr intro 4 ,
@@ -81,7 +81,7 @@ device driver first appeared in
 .Ox 4.1 .
 The
 .Nm
-device driver was imported to
+device driver was imported into
 .Fx 8.0 .
 .Sh AUTHORS
 .An -nosplit
