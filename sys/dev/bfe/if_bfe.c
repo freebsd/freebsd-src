@@ -171,14 +171,12 @@ static int
 bfe_probe(device_t dev)
 {
 	struct bfe_type *t;
-	uint16_t vendor, devid;
 
 	t = bfe_devs;
-	vendor = pci_get_vendor(dev);
-	devid = pci_get_device(dev);
 
 	while (t->bfe_name != NULL) {
-		if (vendor == t->bfe_vid && devid == t->bfe_did) {
+		if (pci_get_vendor(dev) == t->bfe_vid &&
+		    pci_get_device(dev) == t->bfe_did) {
 			device_set_desc_copy(dev, t->bfe_name);
 			return (BUS_PROBE_DEFAULT);
 		}
