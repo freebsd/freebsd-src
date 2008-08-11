@@ -207,6 +207,8 @@ aes_get_mbs(struct aes *aes)
 static const wchar_t *
 aes_get_wcs(struct aes *aes)
 {
+	int r;
+
 	if (aes->aes_wcs == NULL && aes->aes_mbs == NULL)
 		return NULL;
 	if (aes->aes_wcs == NULL && aes->aes_mbs != NULL) {
@@ -221,8 +223,13 @@ aes_get_wcs(struct aes *aes)
 		aes->aes_wcs = aes->aes_wcs_alloc;
 		if (aes->aes_wcs == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
-		mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
+		r = mbstowcs(aes->aes_wcs_alloc, aes->aes_mbs, wcs_length);
 		aes->aes_wcs_alloc[wcs_length] = 0;
+		if (r == -1) {
+			/* Conversion failed, don't lie to our clients. */
+			free(aes->aes_wcs_alloc);
+			aes->aes_wcs = aes->aes_wcs_alloc = NULL;
+		}
 	}
 	return (aes->aes_wcs);
 }
