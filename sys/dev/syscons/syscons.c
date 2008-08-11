@@ -160,6 +160,7 @@ SYSCTL_INT(_machdep, OID_AUTO, enable_panic_key, CTLFLAG_RW, &enable_panic_key,
 
 #define SC_CONSOLECTL	255
 
+#define VTY_WCHAN(sc, vty) (&SC_DEV(sc, vty))
 #define VIRTUAL_TTY(sc, x) (SC_DEV((sc), (x)) != NULL ?	\
 	SC_DEV((sc), (x))->si_tty : NULL)
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
@@ -1065,17 +1066,9 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	i = (*(int *)data == 0) ? scp->index : (*(int *)data - 1);
 	if ((i < sc->first_vty) || (i >= sc->first_vty + sc->vtys))
 	    return EINVAL;
-	s = spltty();
-	error = sc_clean_up(sc->cur_scp);
-	splx(s);
-	if (error)
-	    return error;
-	scp = sc_get_stat(SC_DEV(sc, i));
-	if (scp == NULL)
-		return (ENXIO);
-	if (scp == scp->sc->cur_scp)
+	if (i == sc->cur_scp->index)
 	    return 0;
-	error = tsleep(&scp->smode, PZERO | PCATCH, "waitvt", 0);
+	error = tsleep(VTY_WCHAN(sc, i), (PZERO + 1) | PCATCH, "waitvt", 0);
 	return error;
 
     case VT_GETACTIVE:		/* get active vty # */
@@ -2335,7 +2328,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	 * be invoked at splhigh().
 	 */
 	if (debugger == 0)
-	    wakeup(&sc->new_scp->smode);
+	    wakeup(VTY_WCHAN(sc,next_scr));
 	splx(s);
 	DPRINTF(5, ("switch done (new == old)\n"));
 	return 0;
@@ -2358,7 +2351,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     /* wake up processes waiting for this vty */
     if (debugger == 0)
-	wakeup(&sc->cur_scp->smode);
+	wakeup(VTY_WCHAN(sc,next_scr));
 
     /* wait for the controlling process to acknowledge, if necessary */
     if (signal_vt_acq(sc->cur_scp)) {
@@ -2384,7 +2377,7 @@ do_switch_scr(sc_softc_t *sc, int s)
     exchange_scr(sc);
     s = spltty();
     /* sc->cur_scp == sc->new_scp */
-    wakeup(&sc->cur_scp->smode);
+    wakeup(VTY_WCHAN(sc,sc->cur_scp->index));
 
     /* wait for the controlling process to acknowledge, if necessary */
     if (!signal_vt_acq(sc->cur_scp)) {
