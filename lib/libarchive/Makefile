@@ -215,6 +215,7 @@ MLINKS+=	archive_util.3 archive_error_string.3
 MLINKS+=	archive_util.3 archive_format.3
 MLINKS+=	archive_util.3 archive_format_name.3
 MLINKS+=	archive_util.3 archive_set_error.3
+MLINKS+=	archive_write.3 archive_write_close.3
 MLINKS+=	archive_write.3 archive_write_data.3
 MLINKS+=	archive_write.3 archive_write_finish.3
 MLINKS+=	archive_write.3 archive_write_finish_entry.3
