@@ -82,6 +82,11 @@
 
 #include <machine/in_cksum.h>
 
+#ifdef DEV_ENC
+#include <net/if_enc.h>
+#endif
+
+
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 {
@@ -364,6 +369,9 @@ ipsec4_process_packet(
 	sav = isr->sav;
 
 #ifdef DEV_ENC
+	encif->if_opackets++;
+	encif->if_obytes += m->m_pkthdr.len;
+
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
 	/* pass the mbuf to enc0 for packet filtering */
@@ -724,6 +732,9 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 	}
 
 #ifdef DEV_ENC
+	encif->if_opackets++;
+	encif->if_obytes += m->m_pkthdr.len;
+
 	/* pass the mbuf to enc0 for bpf processing */
 	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);
 	/* pass the mbuf to enc0 for packet filtering */
