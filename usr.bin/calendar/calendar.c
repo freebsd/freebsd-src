@@ -58,22 +58,22 @@ __FBSDID("$FreeBSD$");
 #include "pathnames.h"
 #include "calendar.h"
 
-struct passwd *pw;
-int doall = 0;
-time_t f_time = 0;
+struct passwd	*pw;
+int		doall = 0;
+time_t		f_time = 0;
 
-int f_dayAfter = 0; /* days after current date */
-int f_dayBefore = 0; /* days before current date */
-int Friday = 5;	     /* day before weekend */
+int	f_dayAfter = 0;		/* days after current date */
+int	f_dayBefore = 0;	/* days before current date */
+int	Friday = 5;		/* day before weekend */
 
 int
 main(int argc, char *argv[])
 {
 	int ch;
 
-	(void) setlocale(LC_ALL, "");
+	(void)setlocale(LC_ALL, "");
 
-	while ((ch = getopt(argc, argv, "-af:t:A:B:F:W:")) != -1)
+	while ((ch = getopt(argc, argv, "-A:aB:F:f:t:W:")) != -1)
 		switch (ch) {
 		case '-':		/* backward contemptible */
 		case 'a':
@@ -84,25 +84,24 @@ main(int argc, char *argv[])
 			doall = 1;
 			break;
 
-			
 		case 'f': /* other calendar file */
-		        calendarFile = optarg;
+			calendarFile = optarg;
 			break;
 
 		case 't': /* other date, undocumented, for tests */
-			f_time = Mktime (optarg);
+			f_time = Mktime(optarg);
 			break;
 
 		case 'W': /* we don't need no steenking Fridays */
 			Friday = -1;
 
-			/* FALLTHROUGH */			
+			/* FALLTHROUGH */
 		case 'A': /* days after current date */
 			f_dayAfter = atoi(optarg);
 			break;
 
 		case 'B': /* days before current date */
-			f_dayBefore = atoi(optarg); 
+			f_dayBefore = atoi(optarg);
 			break;
 
 		case 'F':
@@ -113,6 +112,7 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+
 	argc -= optind;
 	argv += optind;
 
@@ -120,11 +120,11 @@ main(int argc, char *argv[])
 		usage();
 
 	/* use current time */
-	if (f_time <= 0) 
-	    (void)time(&f_time);
+	if (f_time <= 0)
+		(void)time(&f_time);
 
 	settime(f_time);
-	
+
 	if (doall)
 		while ((pw = getpwent()) != NULL) {
 			(void)setegid(pw->pw_gid);
@@ -143,11 +143,10 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n",
+
+	fprintf(stderr, "%s\n%s\n",
 	    "usage: calendar [-a] [-A days] [-B days] [-F friday] "
 	    "[-f calendarfile]",
 	    "                [-t dd[.mm[.year]]] [-W days]");
 	exit(1);
 }
-
-
