@@ -47,6 +47,7 @@ $FreeBSD$
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_dl.h>
+#include <netinet/tcp_lro.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -172,32 +173,9 @@ enum { TXQ_ETH = 0,
 #define WR_LEN (WR_FLITS * 8)
 #define PIO_LEN (WR_LEN - sizeof(struct cpl_tx_pkt_lso))
 
-
-/* careful, the following are set on priv_flags and must not collide with
- * IFF_ flags!
- */
-enum {
-	LRO_ACTIVE = (1 << 8),
-};
-
-/* Max concurrent LRO sessions per queue set */
-#define MAX_LRO_SES 8
-
-struct t3_lro_session {
-	struct mbuf *head;
-	struct mbuf *tail;
-	uint32_t seq;
-	uint16_t ip_len;
-	uint16_t mss;
-	uint16_t vtag;
-	uint8_t npkts;
-};
-
 struct lro_state {
 	unsigned short enabled;
-	unsigned short active_idx;
-	unsigned int nactive;
-	struct t3_lro_session sess[MAX_LRO_SES];
+	struct lro_ctrl ctrl;
 };
 
 #define RX_BUNDLE_SIZE 8
@@ -316,12 +294,9 @@ enum {
 	SGE_PSTAT_TX_CSUM,          /* # of TX checksum offloads */
 	SGE_PSTAT_VLANEX,           /* # of VLAN tag extractions */
 	SGE_PSTAT_VLANINS,          /* # of VLAN tag insertions */
-	SGE_PSTATS_LRO_QUEUED,	    /* # of LRO appended packets */
-	SGE_PSTATS_LRO_FLUSHED,	    /* # of LRO flushed packets */
-	SGE_PSTATS_LRO_X_STREAMS,   /* # of exceeded LRO contexts */
 };
 
-#define SGE_PSTAT_MAX (SGE_PSTATS_LRO_X_STREAMS+1)
+#define SGE_PSTAT_MAX (SGE_PSTAT_VLANINS+1)
 
 #define QS_EXITING              0x1
 #define QS_RUNNING              0x2
@@ -587,10 +562,7 @@ void t3_sge_deinit_sw(adapter_t *);
 void t3_free_tx_desc(struct sge_txq *q, int n);
 void t3_free_tx_desc_all(struct sge_txq *q);
 
-void t3_rx_eth_lro(adapter_t *adap, struct sge_rspq *rq, struct mbuf *m,
-    int ethpad, uint32_t rss_hash, uint32_t rss_csum, int lro);
 void t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad);
-void t3_lro_flush(adapter_t *adap, struct sge_qset *qs, struct lro_state *state);
 
 void t3_add_attach_sysctls(adapter_t *sc);
 void t3_add_configured_sysctls(adapter_t *sc);
