@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2002 - 2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (c) 2005 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
+ * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,13 +105,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 	/* Do not compile an empty filter. */
 	if (nins == 0)
-		return NULL;
+		return (NULL);
 
 	/* Allocate the reference table for the jumps */
 	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
 	    M_BPFJIT, M_NOWAIT);
 	if (stream.refs == NULL)
-		return NULL;
+		return (NULL);
 
 	/* Reset the reference table */
 	for (i = 0; i < nins + 1; i++)
@@ -141,7 +141,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			switch (ins->code) {
 			default:
-				return NULL;
+				return (NULL);
 
 			case BPF_RET|BPF_K:
 				MOVid(ins->k, EAX);
@@ -246,7 +246,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				RET();
 				ZEROrd(EDX);
 				MOVobb(RBX, RCX, DL);
-				ANDib(0xf, DL);
+				ANDib(0x0f, DL);
 				SHLib(2, EDX);
 				break;
 
@@ -464,7 +464,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL) {
 			free(stream.refs, M_BPFJIT);
-			return NULL;
+			return (NULL);
 		}
 
 		/*
@@ -488,5 +488,5 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 	 */
 	free(stream.refs, M_BPFJIT);
 
-	return (bpf_filter_func)stream.ibuf;
+	return ((bpf_filter_func)stream.ibuf);
 }
