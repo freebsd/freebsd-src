@@ -146,12 +146,12 @@ do_cpuid(const char *cmdarg, const char *dev)
 	args.level = level;
 	fd = open(dev, O_RDONLY);
 	if (fd < 0) {
-		WARNX(0, "error opening %s for reading", dev);
+		WARN(0, "error opening %s for reading", dev);
 		return (1);
 	}
 	error = ioctl(fd, CPUCTL_CPUID, &args);
 	if (error < 0) {
-		WARNX(0, "ioctl(%s, CPUCTL_CPUID)", dev);
+		WARN(0, "ioctl(%s, CPUCTL_CPUID)", dev);
 		close(fd);
 		return (error);
 	}
@@ -198,13 +198,13 @@ do_msr(const char *cmdarg, const char *dev)
 	args.msr = msr;
 	fd = open(dev, wr == 0 ? O_RDONLY : O_WRONLY);
 	if (fd < 0) {
-		WARNX(0, "error opening %s for %s", dev,
+		WARN(0, "error opening %s for %s", dev,
 		    wr == 0 ? "reading" : "writing");
 		return (1);
 	}
 	error = ioctl(fd, wr == 0 ? CPUCTL_RDMSR : CPUCTL_WRMSR, &args);
 	if (error < 0) {
-		WARNX(0, "ioctl(%s, %s)", dev,
+		WARN(0, "ioctl(%s, %s)", dev,
 		    wr == 0 ? "CPUCTL_RDMSR" : "CPUCTL_WRMSR");
 		close(fd);
 		return (1);
@@ -230,7 +230,7 @@ do_update(const char *dev)
 
 	fd = open(dev, O_RDONLY);
 	if (fd < 0) {
-		WARNX(0, "error opening %s for reading", dev);
+		WARN(0, "error opening %s for reading", dev);
 		return (1);
 	}
 
