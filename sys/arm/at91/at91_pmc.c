@@ -259,44 +259,44 @@ at91_pmc_pll_rate(int freq, uint32_t reg, int is_pllb)
 static uint32_t
 at91_pmc_pll_calc(uint32_t main_freq, uint32_t out_freq)
 {
-        uint32_t i, div = 0, mul = 0, diff = 1 << 30;
-        unsigned ret = (out_freq > PMC_PLL_FAST_THRESH) ? 0xbe00 : 0x3e00; 
+	uint32_t i, div = 0, mul = 0, diff = 1 << 30;
+	unsigned ret = (out_freq > PMC_PLL_FAST_THRESH) ? 0xbe00 : 0x3e00; 
 
-        if (out_freq > PMC_PLL_MAX_OUT_FREQ)
-                goto fail;
+	if (out_freq > PMC_PLL_MAX_OUT_FREQ)
+		goto fail;
 
-        for (i = 1; i < 256; i++) {
-                int32_t diff1;
-                uint32_t input, mul1;
+	for (i = 1; i < 256; i++) {
+		int32_t diff1;
+		uint32_t input, mul1;
 
-                input = main_freq / i;
-                if (input < PMC_PLL_MIN_IN_FREQ)
-                        break;
-                if (input > PMC_PLL_MAX_IN_FREQ)
-                        continue;
+		input = main_freq / i;
+		if (input < PMC_PLL_MIN_IN_FREQ)
+			break;
+		if (input > PMC_PLL_MAX_IN_FREQ)
+			continue;
 
-                mul1 = out_freq / input;
-                if (mul1 > PMC_PLL_MULT_MAX)
-                        continue;
-                if (mul1 < PMC_PLL_MULT_MIN)
-                        break;
+		mul1 = out_freq / input;
+		if (mul1 > PMC_PLL_MULT_MAX)
+			continue;
+		if (mul1 < PMC_PLL_MULT_MIN)
+			break;
 
-                diff1 = out_freq - input * mul1;
+		diff1 = out_freq - input * mul1;
 		if (diff1 < 0)
-                        diff1 = -diff1;
-                if (diff > diff1) {
-                        diff = diff1;
-                        div = i;
-                        mul = mul1;
-                        if (diff == 0)
-                                break;
-                }
-        }
-        if (diff > (out_freq >> PMC_PLL_SHIFT_TOL))
+			diff1 = -diff1;
+		if (diff > diff1) {
+			diff = diff1;
+			div = i;
+			mul = mul1;
+			if (diff == 0)
+				break;
+		}
+	}
+	if (diff > (out_freq >> PMC_PLL_SHIFT_TOL))
 		goto fail;
 	return ret | ((mul - 1) << 16) | div;
 fail:
-        return 0;
+	return 0;
 }
 
 static void
@@ -313,12 +313,12 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, int main_clock)
 	 * Initialize the usb clock.  This sets up pllb, but disables the
 	 * actual clock.
 	 */
-        sc->pllb_init = at91_pmc_pll_calc(main_clock, 48000000 * 2) |0x10000000;
-        pllb.hz = at91_pmc_pll_rate(main_clock, sc->pllb_init, 1);
-        WR4(sc, PMC_PCDR, (1 << AT91RM92_IRQ_UHP) | (1 << AT91RM92_IRQ_UDP));
-        WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
-        WR4(sc, CKGR_PLLBR, 0);
-        WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
+	sc->pllb_init = at91_pmc_pll_calc(main_clock, 48000000 * 2) |0x10000000;
+	pllb.hz = at91_pmc_pll_rate(main_clock, sc->pllb_init, 1);
+	WR4(sc, PMC_PCDR, (1 << AT91RM92_IRQ_UHP) | (1 << AT91RM92_IRQ_UDP));
+	WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
+	WR4(sc, CKGR_PLLBR, 0);
+	WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
 
 	/*
 	 * MCK and PCU derive from one of the primary clocks.  Initialize
