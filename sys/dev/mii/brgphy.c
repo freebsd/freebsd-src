@@ -372,16 +372,13 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			break;
 		}
 
-#if 0
-		/* Todo: Is this correct? */
 		/* Announce link loss right after it happens. */
 		if (sc->mii_ticks++ == 0)
 			break;
-#endif
 
 		/* Only retry autonegotiation every mii_anegticks seconds. */
 		if (sc->mii_ticks <= sc->mii_anegticks)
-			goto brgphy_service_exit;
+			break;
 
 
 		/* Retry autonegotiation */
