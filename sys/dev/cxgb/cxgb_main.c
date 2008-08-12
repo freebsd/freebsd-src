@@ -903,9 +903,9 @@ cxgb_makedev(struct port_info *pi)
 
 
 #ifdef TSO_SUPPORTED
-#define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU)
+#define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO)
 /* Don't enable TSO6 yet */
-#define CXGB_CAP_ENABLE (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO4 | IFCAP_JUMBO_MTU)
+#define CXGB_CAP_ENABLE (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO4 | IFCAP_JUMBO_MTU | IFCAP_LRO)
 #else
 #define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_JUMBO_MTU)
 /* Don't enable TSO6 yet */
@@ -1946,6 +1946,24 @@ cxgb_set_mtu(struct port_info *p, int mtu)
 	return (error);
 }
 
+/*
+ * Mark lro enabled or disabled in all qsets for this port
+ */
+static int
+cxgb_set_lro(struct port_info *p, int enabled)
+{
+	int i;
+	struct adapter *adp = p->adapter;
+	struct sge_qset *q;
+
+	PORT_LOCK_ASSERT_OWNED(p);
+	for (i = 0; i < p->nqsets; i++) {
+		q = &adp->sge.qs[p->first_qset + i];
+		q->lro.enabled = (enabled != 0);
+	}
+	return (0);
+}
+
 static int
 cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 {
@@ -2030,6 +2048,12 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 					    " be enabled to use TSO\n");
 				error = EINVAL;
 			}
+		}
+		if (mask & IFCAP_LRO) {
+			ifp->if_capenable ^= IFCAP_LRO;
+
+			/* Safe to do this even if cxgb_up not called yet */
+			cxgb_set_lro(p, ifp->if_capenable & IFCAP_LRO);
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
