@@ -67,9 +67,11 @@ __FBSDID("$FreeBSD$");
 #include "calendar.h"
 
 
-const char *calendarFile = "calendar";  /* default calendar file */
-const char *calendarHomes[] = { ".calendar", _PATH_INCLUDE }; /* HOME */
-const char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
+const char *calendarFile = "calendar";	/* default calendar file */
+const char *calendarHomes[] = {".calendar", _PATH_INCLUDE};	/* HOME */
+const char *calendarNoMail = "nomail";	/* don't sent mail if this file exist */
+
+char	path[MAXPATHLEN];
 
 struct fixs neaster, npaskha;
 
@@ -80,9 +82,8 @@ struct iovec header[] = {
 	{NULL, 0},
 	{"\nSubject: ", 10},
 	{NULL, 0},
-	{"'s Calendar\nPrecedence: bulk\n\n",  30},
+	{"'s Calendar\nPrecedence: bulk\n\n", 30},
 };
-
 
 void
 cal(void)
@@ -113,7 +114,7 @@ cal(void)
 		if (buf[0] == '\0')
 			continue;
 		if (strncmp(buf, "LANG=", 5) == 0) {
-			(void) setlocale(LC_ALL, buf + 5);
+			(void)setlocale(LC_ALL, buf + 5);
 			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 			setnnames();
 			continue;
@@ -145,36 +146,43 @@ cal(void)
 				char dbuf[80];
 
 				if (d_first < 0)
-					d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
-				tm.tm_sec = 0;  /* unused */
-				tm.tm_min = 0;  /* unused */
-				tm.tm_hour = 0; /* unused */
-				tm.tm_wday = 0; /* unused */
+					d_first =
+					    (*nl_langinfo(D_MD_ORDER) == 'd');
+				tm.tm_sec = 0;	/* unused */
+				tm.tm_min = 0;	/* unused */
+				tm.tm_hour = 0;	/* unused */
+				tm.tm_wday = 0;	/* unused */
 				tm.tm_mon = month - 1;
 				tm.tm_mday = day;
 				tm.tm_year = tp->tm_year; /* unused */
 				(void)strftime(dbuf, sizeof(dbuf),
-					       d_first ? "%e %b" : "%b %e",
-					       &tm);
-				events = event_add(events, month, day, dbuf, var, p);
+				    d_first ? "%e %b" : "%b %e", &tm);
+				events = event_add(events, month, day, dbuf,
+				    var, p);
 			}
+		} else {
+			if (printing)
+				event_continue(events, buf);
 		}
-		else if (printing)
-			event_continue(events, buf);
 	}
 
 	event_print_all(fp, events);
 	closecal(fp);
 }
 
-/*
- * Functions to handle buffered calendar events.
- */
 struct event *
-event_add(struct event *events, int month, int day, char *date, int var, char *txt)
+event_add(struct event *events, int month, int day,
+    char *date, int var, char *txt)
 {
 	struct event *e;
 
+	/*
+	 * Creating a new event:
+	 * - Create a new event
+	 * - Copy the machine readable day and month
+	 * - Copy the human readable and language specific date
+	 * - Copy the text of the event
+	 */
 	e = (struct event *)calloc(1, sizeof(struct event));
 	if (e == NULL)
 		errx(1, "event_add: cannot allocate memory");
@@ -197,6 +205,13 @@ event_continue(struct event *e, char *txt)
 {
 	char *text;
 
+	/*
+	 * Adding text to the event:
+	 * - Save a copy of the old text (unknown length, so strdup())
+	 * - Allocate enough space for old text + \n + new text + 0
+	 * - Store the old text + \n + new text
+	 * - Destroy the saved copy.
+	 */
 	text = strdup(e->text);
 	if (text == NULL)
 		errx(1, "event_continue: cannot allocate memory");
@@ -217,15 +232,30 @@ void
 event_print_all(FILE *fp, struct event *events)
 {
 	struct event *e, *e_next;
-	int daycount = f_dayAfter + f_dayBefore;
 	int daycounter;
 	int day, month;
 
-	for (daycounter = 0; daycounter <= daycount; daycounter++) {
+	/*
+	 * Print all events:
+	 * - We know the number of days to be counted (f_dayAfter + f_dayBefore)
+	 * - We know the current day of the year ("now" - f_dayBefore + counter)
+	 * - We know the number of days in the year (yrdays, set in settime())
+	 * - So we know the date on which the current daycounter is on the
+	 *   calendar in days and months.
+	 * - Go through the list of events, and print all matching dates
+	 */
+	for (daycounter = 0; daycounter <= f_dayAfter + f_dayBefore;
+	    daycounter++) {
 		day = tp->tm_yday - f_dayBefore + daycounter;
-		if (day < 0) day += yrdays;
-		if (day >= yrdays) day -= yrdays;
+		if (day < 0)
+			day += yrdays;
+		if (day >= yrdays)
+			day -= yrdays;
 
+		/*
+		 * When we know the day of the year, we can determine the day
+		 * of the month and the month.
+		 */
 		month = 1;
 		while (month <= 12) {
 			if (day <= cumdays[month])
@@ -236,10 +266,15 @@ event_print_all(FILE *fp, struct event *events)
 		day -= cumdays[month];
 
 #ifdef DEBUG
-		fprintf(stderr,"event_print_allmonth: %d, day: %d\n",month,day);
+		fprintf(stderr, "event_print_allmonth: %d, day: %d\n",
+		    month, day);
 #endif
 
-		for (e = events; e != NULL; e = e_next ) {
+		/*
+		 * Go through all events and print the text of the matching
+		 * dates
+		 */
+		for (e = events; e != NULL; e = e_next) {
 			e_next = e->next;
 
 			if (month != e->month || day != e->day)
@@ -258,10 +293,11 @@ getfield(char *p, char **endp, int *flags)
 	char *start, savech;
 
 	for (; !isdigit((unsigned char)*p) && !isalpha((unsigned char)*p)
-               && *p != '*'; ++p);
+               && *p != '*'; ++p)
+	       ;
 	if (*p == '*') {			/* `*' is current month */
 		*flags |= F_ISMONTH;
-		*endp = p+1;
+		*endp = p + 1;
 		return (tp->tm_mon + 1);
 	}
 	if (isdigit((unsigned char)*p)) {
@@ -275,7 +311,8 @@ getfield(char *p, char **endp, int *flags)
 
 	/* Sunday-1 */
 	if (*p == '+' || *p == '-')
-	    for(; isdigit((unsigned char)*++p););
+		for(; isdigit((unsigned char)*++p);)
+			;
 
 	savech = *p;
 	*p = '\0';
@@ -286,25 +323,25 @@ getfield(char *p, char **endp, int *flags)
 
 	/* Day */
 	else if ((val = getday(start)) != 0) {
-	    *flags |= F_ISDAY;
+		*flags |= F_ISDAY;
 
-	    /* variable weekday */
-	    if ((var = getdayvar(start)) != 0) {
-		if (var <=5 && var >= -4)
-		    val += var * 10;
+		/* variable weekday */
+		if ((var = getdayvar(start)) != 0) {
+			if (var <= 5 && var >= -4)
+				val += var * 10;
 #ifdef DEBUG
-		printf("var: %d\n", var);
+			printf("var: %d\n", var);
 #endif
-	    }
+		}
 	}
 
 	/* Easter */
 	else if ((val = geteaster(start, tp->tm_year + 1900)) != 0)
-	    *flags |= F_EASTER;
+		*flags |= F_EASTER;
 
 	/* Paskha */
 	else if ((val = getpaskha(start, tp->tm_year + 1900)) != 0)
-	    *flags |= F_EASTER;
+		*flags |= F_EASTER;
 
 	/* undefined rest */
 	else {
@@ -312,12 +349,11 @@ getfield(char *p, char **endp, int *flags)
 		return (0);
 	}
 	for (*p = savech; !isdigit((unsigned char)*p)
-               && !isalpha((unsigned char)*p) && *p != '*'; ++p);
+	   && !isalpha((unsigned char)*p) && *p != '*'; ++p)
+		;
 	*endp = p;
 	return (val);
 }
-
-char path[MAXPATHLEN];
 
 FILE *
 opencal(void)
@@ -330,12 +366,12 @@ opencal(void)
 	/* open up calendar file as stdin */
 	if (!freopen(calendarFile, "r", stdin)) {
 		if (doall) {
-		    if (chdir(calendarHomes[0]) != 0)
-			return (NULL);
-		    if (stat(calendarNoMail, &sbuf) == 0)
-		        return (NULL);
-		    if (!freopen(calendarFile, "r", stdin))
-		        return (NULL);
+			if (chdir(calendarHomes[0]) != 0)
+				return (NULL);
+			if (stat(calendarNoMail, &sbuf) == 0)
+				return (NULL);
+			if (!freopen(calendarFile, "r", stdin))
+				return (NULL);
 		} else {
 			char *home = getenv("HOME");
 			if (home == NULL || *home == '\0')
@@ -343,14 +379,15 @@ opencal(void)
 			chdir(home);
 			for (found = i = 0; i < sizeof(calendarHomes) /
 			    sizeof(calendarHomes[0]); i++)
-			    if (chdir(calendarHomes[i]) == 0 &&
-			          freopen(calendarFile, "r", stdin)) {
-				    found = 1;
-				    break;
-			    }
+				if (chdir(calendarHomes[i]) == 0 &&
+				    freopen(calendarFile, "r", stdin)) {
+					found = 1;
+					break;
+				}
 			if (!found)
-			    errx(1, "can't open calendar file \"%s\": %s (%d)",
-                                 calendarFile, strerror(errno), errno);
+				errx(1,
+				    "can't open calendar file \"%s\": %s (%d)",
+				    calendarFile, strerror(errno), errno);
 		}
 	}
 	if (pipe(pdes) < 0)
