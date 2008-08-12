@@ -183,13 +183,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* addl i32,r32 */
-#define ADDid(i32, r32) do {						\
-	emitm(&stream, 0x81, 1);					\
-	emitm(&stream, (24 << 3) | r32, 1);				\
-	emitm(&stream, i32, 4);						\
-} while (0)
-
 /* addl i8,r32 */
 #define ADDib(i8, r32) do {						\
 	emitm(&stream, 0x83, 1);					\
@@ -301,14 +294,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, (27 << 3) | (r32 & 0x7), 1);			\
 } while (0)
 
-/* cmpl off(sr32),dr32 */
-#define CMPodd(off, sr32, dr32) do {					\
-	emitm(&stream, 0x3b, 1);					\
-	emitm(&stream,							\
-	    (1 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
-	emitm(&stream, off, 1);						\
-} while (0)
-
 /* cmpl sr32,dr32 */
 #define CMPrd(sr32, dr32) do {						\
 	emitm(&stream, 0x39, 1);					\
@@ -337,12 +322,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /* je off32 */
 #define JE(off32) do {							\
 	emitm(&stream, 0x840f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jle off32 */
-#define JLE(off32) do {							\
-	emitm(&stream, 0x8e0f, 2);					\
 	emitm(&stream, off32, 4);					\
 } while (0)
 
