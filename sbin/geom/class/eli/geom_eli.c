@@ -82,7 +82,7 @@ static void eli_dump(struct gctl_req *req);
  * attach [-dprv] [-k keyfile] prov
  * detach [-fl] prov ...
  * stop - alias for 'detach'
- * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov ...
+ * onetime [-d] [-a aalgo] [-e ealgo] [-l keylen] prov
  * configure [-bB] prov ...
  * setkey [-pPv] [-n keyno] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
@@ -156,7 +156,7 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov ..."
+	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
 	},
 	{ "configure", G_FLAG_VERBOSE, eli_main,
 	    {
