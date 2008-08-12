@@ -195,7 +195,6 @@ static uint8_t flit_desc_map[] = {
 };
 
 
-static int lro_default = 0;
 int cxgb_debug = 0;
 
 static void sge_timer_cb(void *arg);
@@ -1769,6 +1768,8 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
+	tcp_lro_free(&q->lro.ctrl);
+
 	bzero(q, sizeof(*q));
 }
 
@@ -2381,7 +2382,18 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[1].zone = zone_jumbop;
 	q->fl[1].type = EXT_JUMBOP;
 #endif
-	q->lro.enabled = lro_default;
+
+	/*
+	 * We allocate and setup the lro_ctrl structure irrespective of whether
+	 * lro is available and/or enabled.
+	 */
+	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
+	ret = tcp_lro_init(&q->lro.ctrl);
+	if (ret) {
+		printf("error %d from tcp_lro_init\n", ret);
+		goto err;
+	}
+	q->lro.ctrl.ifp = pi->ifp;
 
 	mtx_lock_spin(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
@@ -2460,6 +2472,11 @@ err:
 	return (ret);
 }
 
+/*
+ * Remove CPL_RX_PKT headers from the mbuf and reduce it to a regular mbuf with
+ * ethernet data.  Hardware assistance with various checksums and any vlan tag
+ * will also be taken into account here.
+ */
 void
 t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 {
@@ -2497,8 +2514,6 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	m->m_pkthdr.len -= (sizeof(*cpl) + ethpad);
 	m->m_len -= (sizeof(*cpl) + ethpad);
 	m->m_data += (sizeof(*cpl) + ethpad);
-
-	(*ifp->if_input)(ifp, m);
 }
 
 static void
@@ -2784,7 +2799,8 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
-	int lro = qs->lro.enabled;
+	int lro_enabled = qs->lro.enabled;
+	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 #ifdef DEBUG	
@@ -2897,13 +2913,25 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			DPRINTF("received offload packet\n");
 			
 		} else if (eth && eop) {
-			prefetch(mtod(rspq->rspq_mh.mh_head, uint8_t *)); 
-			prefetch(mtod(rspq->rspq_mh.mh_head, uint8_t *) + L1_CACHE_BYTES);
+			struct mbuf *m = rspq->rspq_mh.mh_head;
+			prefetch(mtod(m, uint8_t *)); 
+			prefetch(mtod(m, uint8_t *) + L1_CACHE_BYTES);
 
-			t3_rx_eth_lro(adap, rspq, rspq->rspq_mh.mh_head, ethpad,
-			    rss_hash, rss_csum, lro);
+			t3_rx_eth(adap, rspq, m, ethpad);
+			if (lro_enabled && lro_ctrl->lro_cnt &&
+			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
+				/* successfully queue'd for LRO */
+			} else {
+				/*
+				 * LRO not enabled, packet unsuitable for LRO,
+				 * or unable to queue.  Pass it up right now in
+				 * either case.
+				 */
+				struct ifnet *ifp = m->m_pkthdr.rcvif;
+				(*ifp->if_input)(ifp, m);
+			}
 			DPRINTF("received tunnel packet\n");
-				rspq->rspq_mh.mh_head = NULL;
+			rspq->rspq_mh.mh_head = NULL;
 
 		}
 		__refill_fl_lt(adap, &qs->fl[0], 32);
@@ -2912,8 +2940,14 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	}
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
-	t3_lro_flush(adap, qs, &qs->lro);
-	
+
+	/* Flush LRO */
+	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
+		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
+		SLIST_REMOVE_HEAD(&lro_ctrl->lro_active, next);
+		tcp_lro_flush(lro_ctrl, queued);
+	}
+
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
 
@@ -3228,34 +3262,6 @@ retry_sbufops:
 }
 
 static int
-t3_lro_enable(SYSCTL_HANDLER_ARGS)
-{
-	adapter_t *sc;
-	int i, j, enabled, err, nqsets = 0;
-
-#ifndef LRO_WORKING
-	return (0);
-#endif	
-	sc = arg1;
-	enabled = sc->sge.qs[0].lro.enabled;
-        err = sysctl_handle_int(oidp, &enabled, arg2, req);
-
-	if (err != 0) 
-		return (err);
-	if (enabled == sc->sge.qs[0].lro.enabled)
-		return (0);
-
-	for (i = 0; i < sc->params.nports; i++) 
-		for (j = 0; j < sc->port[i].nqsets; j++)
-			nqsets++;
-	
-	for (i = 0; i < nqsets; i++) 
-		sc->sge.qs[i].lro.enabled = enabled;
-	
-	return (0);
-}
-
-static int
 t3_set_coalesce_usecs(SYSCTL_HANDLER_ARGS)
 {
 	adapter_t *sc = arg1;
@@ -3316,12 +3322,6 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "firmware_version",
 	    CTLFLAG_RD, &sc->fw_version,
 	    0, "firmware version");
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, 
-	    "enable_lro",
-	    CTLTYPE_INT|CTLFLAG_RW, sc,
-	    0, t3_lro_enable,
-	    "I", "enable large receive offload");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "hw_revision",
 	    CTLFLAG_RD, &sc->params.rev,
