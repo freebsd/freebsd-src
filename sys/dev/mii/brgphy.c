@@ -189,17 +189,17 @@ brgphy_attach(device_t dev)
 
 	/* Handle any special cases based on the PHY ID */
 	switch (bsc->mii_oui) {
-	case MII_OUI_BROADCOM: 
-	case MII_OUI_BROADCOM2: 
+	case MII_OUI_BROADCOM:
+	case MII_OUI_BROADCOM2:
 		break;
 	case MII_OUI_xxBROADCOM:
 		switch (bsc->mii_model) {
 			case MII_MODEL_xxBROADCOM_BCM5706:
-				/* 
+				/*
 				 * The 5464 PHY used in the 5706 supports both copper
 				 * and fiber interfaces over GMII.  Need to check the
-				 * shadow registers to see which mode is actually 
-				 * in effect, and therefore whether we have 5706C or 
+				 * shadow registers to see which mode is actually
+				 * in effect, and therefore whether we have 5706C or
 				 * 5706S.
 				 */
 				PHY_WRITE(sc, BRGPHY_MII_SHADOW_1C, 
@@ -595,13 +595,13 @@ brgphy_status(struct mii_softc *sc)
 			xstat = PHY_READ(sc, BRGPHY_5708S_PG0_1000X_STAT1);
 
 			switch (xstat & BRGPHY_5708S_PG0_1000X_STAT1_SPEED_MASK) {
-			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_10: 
+			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_10:
 				mii->mii_media_active |= IFM_10_FL; break;
-			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_100: 
+			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_100:
 				mii->mii_media_active |= IFM_100_FX; break;
-			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_1G: 
+			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_1G:
 				mii->mii_media_active |= IFM_1000_SX; break;
-			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_25G: 
+			case BRGPHY_5708S_PG0_1000X_STAT1_SPEED_25G:
 				mii->mii_media_active |= IFM_2500_SX; break;
 			}
 
@@ -900,7 +900,7 @@ brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
 		    val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
 
 		val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
-		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
+		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
 			val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
 	}
 }
