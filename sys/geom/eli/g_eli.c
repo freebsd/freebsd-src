@@ -663,13 +663,14 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		 */
 		if (LIST_EMPTY(&sc->sc_workers)) {
 			error = crypto_newsession(&wr->w_sid, &crie,
-					CRYPTOCAP_F_HARDWARE);
+			    CRYPTOCAP_F_HARDWARE);
 			if (error == 0)
 				sc->sc_crypto = G_ELI_CRYPTO_HW;
 		}
-		if (sc->sc_crypto == G_ELI_CRYPTO_SW)
+		if (sc->sc_crypto == G_ELI_CRYPTO_SW) {
 			error = crypto_newsession(&wr->w_sid, &crie,
-					CRYPTOCAP_F_SOFTWARE);
+			    CRYPTOCAP_F_SOFTWARE);
+		}
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
