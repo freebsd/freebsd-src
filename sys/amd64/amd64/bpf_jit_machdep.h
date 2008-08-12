@@ -45,6 +45,14 @@
 #define RBP	5
 #define RSI	6
 #define RDI	7
+#define R8	0
+#define R9	1
+#define R10	2
+#define R11	3
+#define R12	4
+#define R13	5
+#define R14	6
+#define R15	7
 
 #define EAX	0
 #define ECX	1
@@ -54,6 +62,14 @@
 #define EBP	5
 #define ESI	6
 #define EDI	7
+#define R8D	0
+#define R9D	1
+#define R10D	2
+#define R11D	3
+#define R12D	4
+#define R13D	5
+#define R14D	6
+#define R15D	7
 
 #define AX	0
 #define CX	1
@@ -125,6 +141,20 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
+/* movl sr32,dr32 (dr32 = %r8-15d) */
+#define MOVrd2(sr32, dr32) do {						\
+	emitm(&stream, 0x8941, 2);					\
+	emitm(&stream,							\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
+} while (0)
+
+/* movl sr32,dr32 (sr32 = %r8-15d) */
+#define MOVrd3(sr32, dr32) do {						\
+	emitm(&stream, 0x8944, 2);					\
+	emitm(&stream,							\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
+} while (0)
+
 /* movq sr64,dr64 */
 #define MOVrq(sr64, dr64) do {						\
 	emitm(&stream, 0x8948, 2);					\
@@ -132,20 +162,18 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	    (3 << 6) | ((sr64 & 0x7) << 3) | (dr64 & 0x7), 1);		\
 } while (0)
 
-/* movl off(sr64),dr32 */
-#define MOVoqd(off, sr64, dr32) do {					\
-	emitm(&stream, 0x8b, 1);					\
+/* movq sr64,dr64 (dr64 = %r8-15) */
+#define MOVrq2(sr64, dr64) do {						\
+	emitm(&stream, 0x8949, 2);					\
 	emitm(&stream,							\
-	    (1 << 6) | ((dr32 & 0x7) << 3) | (sr64 & 0x7), 1);		\
-	emitm(&stream, off, 1);						\
+	    (3 << 6) | ((sr64 & 0x7) << 3) | (dr64 & 0x7), 1);		\
 } while (0)
 
-/* movl sr32,off(dr64) */
-#define MOVdoq(sr32, off, dr64) do {					\
-	emitm(&stream, 0x89, 1);					\
+/* movq sr64,dr64 (sr64 = %r8-15) */
+#define MOVrq3(sr64, dr64) do {						\
+	emitm(&stream, 0x894c, 2);					\
 	emitm(&stream,							\
-	    (1 << 6) | ((sr32 & 0x7) << 3) | (dr64 & 0x7), 1);		\
-	emitm(&stream, off, 1);						\
+	    (3 << 6) | ((sr64 & 0x7) << 3) | (dr64 & 0x7), 1);		\
 } while (0)
 
 /* movl (sr64,or64,1),dr32 */
@@ -187,19 +215,9 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, 0xc486, 2);					\
 } while (0)
 
-/* pushq r64 */
-#define PUSH(r64) do {							\
-	emitm(&stream, (5 << 4) | (0 << 3) | (r64 & 0x7), 1);		\
-} while (0)
-
-/* popq r64 */
-#define POP(r64) do {							\
-	emitm(&stream, (5 << 4) | (1 << 3) | (r64 & 0x7), 1);		\
-} while (0)
-
-/* leaveq/retq */
-#define LEAVE_RET() do {						\
-	emitm(&stream, 0xc3c9, 2);					\
+/* ret */
+#define RET() do {						\
+	emitm(&stream, 0xc3, 1);					\
 } while (0)
 
 /* addl sr32,dr32 */
@@ -212,13 +230,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /* addl i32,%eax */
 #define ADD_EAXi(i32) do {						\
 	emitm(&stream, 0x05, 1);					\
-	emitm(&stream, i32, 4);						\
-} while (0)
-
-/* addl i32,r32 */
-#define ADDid(i32, r32) do {						\
-	emitm(&stream, 0x81, 1);					\
-	emitm(&stream, (24 << 3) | r32, 1);				\
 	emitm(&stream, i32, 4);						\
 } while (0)
 
@@ -333,14 +344,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, (27 << 3) | (r32 & 0x7), 1);			\
 } while (0)
 
-/* cmpl off(sr64),dr32 */
-#define CMPoqd(off, sr64, dr32) do {					\
-	emitm(&stream, 0x3b, 1);					\
-	emitm(&stream,							\
-	    (1 << 6) | ((dr32 & 0x7) << 3) | (sr64 & 0x7), 1);		\
-	emitm(&stream, off, 1);						\
-} while (0)
-
 /* cmpl sr32,dr32 */
 #define CMPrd(sr32, dr32) do {						\
 	emitm(&stream, 0x39, 1);					\
@@ -369,12 +372,6 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 /* je off32 */
 #define JE(off32) do {							\
 	emitm(&stream, 0x840f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jle off32 */
-#define JLE(off32) do {							\
-	emitm(&stream, 0x8e0f, 2);					\
 	emitm(&stream, off32, 4);					\
 } while (0)
 

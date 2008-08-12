@@ -131,12 +131,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		ins = prog;
 
 		/* create the procedure header */
-		PUSH(RBP);
-		MOVrq(RSP, RBP);
-		MOVdoq(ESI, -8, RBP);
-		MOVdoq(EDX, -12, RBP);
-		PUSH(RBX);
+		MOVrq2(RBX, R8);
 		MOVrq(RDI, RBX);
+		MOVrd2(ESI, R9D);
+		MOVrd(EDX, EDI);
 
 		for (i = 0; i < nins; i++) {
 			stream.bpf_pc++;
@@ -147,24 +145,24 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_RET|BPF_K:
 				MOVid(ins->k, EAX);
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				break;
 
 			case BPF_RET|BPF_A:
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				break;
 
 			case BPF_LD|BPF_W|BPF_ABS:
 				MOVid(ins->k, ECX);
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(int), ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(5);
+				CMPrd(EDI, ECX);
+				JLEb(6);
 				ZEROrd(EAX);
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobd(RBX, RSI, EAX);
 				BSWAP(EAX);
 				break;
@@ -174,10 +172,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVid(ins->k, ECX);
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(short), ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(3);
-				POP(RBX);
-				LEAVE_RET();
+				CMPrd(EDI, ECX);
+				JLEb(4);
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobw(RBX, RSI, AX);
 				SWAP_AX();
 				break;
@@ -185,19 +183,19 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 			case BPF_LD|BPF_B|BPF_ABS:
 				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(3);
-				POP(RBX);
-				LEAVE_RET();
+				CMPrd(EDI, ECX);
+				JLEb(4);
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobb(RBX, RCX, AL);
 				break;
 
 			case BPF_LD|BPF_W|BPF_LEN:
-				MOVoqd(-8, RBP, EAX);
+				MOVrd3(R9D, EAX);
 				break;
 
 			case BPF_LDX|BPF_W|BPF_LEN:
-				MOVoqd(-8, RBP, EDX);
+				MOVrd3(R9D, EDX);
 				break;
 
 			case BPF_LD|BPF_W|BPF_IND:
@@ -205,11 +203,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ADDrd(EDX, ECX);
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(int), ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(5);
+				CMPrd(EDI, ECX);
+				JLEb(6);
 				ZEROrd(EAX);
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobd(RBX, RSI, EAX);
 				BSWAP(EAX);
 				break;
@@ -220,10 +218,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ADDrd(EDX, ECX);
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(short), ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(3);
-				POP(RBX);
-				LEAVE_RET();
+				CMPrd(EDI, ECX);
+				JLEb(4);
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobw(RBX, RSI, AX);
 				SWAP_AX();
 				break;
@@ -232,20 +230,20 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(3);
-				POP(RBX);
-				LEAVE_RET();
+				CMPrd(EDI, ECX);
+				JLEb(4);
+				MOVrq3(R8, RBX);
+				RET();
 				MOVobb(RBX, RCX, AL);
 				break;
 
 			case BPF_LDX|BPF_MSH|BPF_B:
 				MOVid(ins->k, ECX);
-				CMPoqd(-12, RBP, ECX);
-				JLEb(5);
+				CMPrd(EDI, ECX);
+				JLEb(6);
 				ZEROrd(EAX);
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				ZEROrd(EDX);
 				MOVobb(RBX, RCX, DL);
 				ANDib(0xf, DL);
@@ -377,10 +375,10 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_ALU|BPF_DIV|BPF_X:
 				CMPid(0, EDX);
-				JNEb(5);
+				JNEb(6);
 				ZEROrd(EAX);
-				POP(RBX);
-				LEAVE_RET();
+				MOVrq3(R8, RBX);
+				RET();
 				MOVrd(EDX, ECX);
 				ZEROrd(EDX);
 				DIVrd(ECX);
