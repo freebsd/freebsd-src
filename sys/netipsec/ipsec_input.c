@@ -93,6 +93,11 @@
 #include <machine/in_cksum.h>
 #include <machine/stdarg.h>
 
+#ifdef DEV_ENC
+#include <net/if_enc.h>
+#endif
+
+
 #define IPSEC_ISTAT(p,x,y,z) ((p) == IPPROTO_ESP ? (x)++ : \
 			    (p) == IPPROTO_AH ? (y)++ : (z)++)
 
@@ -455,6 +460,9 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	key_sa_recordxfer(sav, m);		/* record data transfer */
 
 #ifdef DEV_ENC
+	encif->if_ipackets++;
+	encif->if_ibytes += m->m_pkthdr.len;
+
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
 	 * packet later after it has been decapsulated.
@@ -718,6 +726,9 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	key_sa_recordxfer(sav, m);
 
 #ifdef DEV_ENC
+	encif->if_ipackets++;
+	encif->if_ibytes += m->m_pkthdr.len;
+
 	/*
 	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
 	 * packet later after it has been decapsulated.

@@ -76,7 +76,7 @@ struct enchdr {
 	u_int32_t flags;
 };
 
-static struct ifnet	*encif;
+struct ifnet	*encif;
 static struct mtx	enc_mtx;
 
 struct enc_softc {
