@@ -202,9 +202,9 @@ brgphy_attach(device_t dev)
 				 * in effect, and therefore whether we have 5706C or
 				 * 5706S.
 				 */
-				PHY_WRITE(sc, BRGPHY_MII_SHADOW_1C, 
+				PHY_WRITE(sc, BRGPHY_MII_SHADOW_1C,
 					BRGPHY_SHADOW_1C_MODE_CTRL);
-				if (PHY_READ(sc, BRGPHY_MII_SHADOW_1C) & 
+				if (PHY_READ(sc, BRGPHY_MII_SHADOW_1C) &
 					BRGPHY_SHADOW_1C_ENA_1000X) {
 					bsc->serdes_flags |= BRGPHY_5706S;
 					sc->mii_flags |= MIIF_HAVEFIBER;
@@ -987,46 +987,46 @@ brgphy_reset(struct mii_softc *sc)
 
 			/* Store autoneg capabilities/results in digital block (Page 0) */
 			PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, BRGPHY_5708S_DIG3_PG2);
-			PHY_WRITE(sc, BRGPHY_5708S_PG2_DIGCTL_3_0, 
+			PHY_WRITE(sc, BRGPHY_5708S_PG2_DIGCTL_3_0,
 				BRGPHY_5708S_PG2_DIGCTL_3_0_USE_IEEE);
 			PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, BRGPHY_5708S_DIG_PG0);
 
 			/* Enable fiber mode and autodetection */
-			PHY_WRITE(sc, BRGPHY_5708S_PG0_1000X_CTL1, 
-				PHY_READ(sc, BRGPHY_5708S_PG0_1000X_CTL1) | 
-				BRGPHY_5708S_PG0_1000X_CTL1_AUTODET_EN | 
+			PHY_WRITE(sc, BRGPHY_5708S_PG0_1000X_CTL1,
+				PHY_READ(sc, BRGPHY_5708S_PG0_1000X_CTL1) |
+				BRGPHY_5708S_PG0_1000X_CTL1_AUTODET_EN |
 				BRGPHY_5708S_PG0_1000X_CTL1_FIBER_MODE);
 
 			/* Enable parallel detection */
-			PHY_WRITE(sc, BRGPHY_5708S_PG0_1000X_CTL2, 
-				PHY_READ(sc, BRGPHY_5708S_PG0_1000X_CTL2) | 
+			PHY_WRITE(sc, BRGPHY_5708S_PG0_1000X_CTL2,
+				PHY_READ(sc, BRGPHY_5708S_PG0_1000X_CTL2) |
 				BRGPHY_5708S_PG0_1000X_CTL2_PAR_DET_EN);
 
 			/* Advertise 2.5G support through next page during autoneg */
 			if (bce_sc->bce_phy_flags & BCE_PHY_2_5G_CAPABLE_FLAG)
-				PHY_WRITE(sc, BRGPHY_5708S_ANEG_NXT_PG_XMIT1, 
-					PHY_READ(sc, BRGPHY_5708S_ANEG_NXT_PG_XMIT1) | 
+				PHY_WRITE(sc, BRGPHY_5708S_ANEG_NXT_PG_XMIT1,
+					PHY_READ(sc, BRGPHY_5708S_ANEG_NXT_PG_XMIT1) |
 					BRGPHY_5708S_ANEG_NXT_PG_XMIT1_25G);
 
 			/* Increase TX signal amplitude */
 			if ((BCE_CHIP_ID(bce_sc) == BCE_CHIP_ID_5708_A0) ||
 			    (BCE_CHIP_ID(bce_sc) == BCE_CHIP_ID_5708_B0) ||
 			    (BCE_CHIP_ID(bce_sc) == BCE_CHIP_ID_5708_B1)) {
-				PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, 
+				PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR,
 					BRGPHY_5708S_TX_MISC_PG5);
-				PHY_WRITE(sc, BRGPHY_5708S_PG5_TXACTL1, 
+				PHY_WRITE(sc, BRGPHY_5708S_PG5_TXACTL1,
 					PHY_READ(sc, BRGPHY_5708S_PG5_TXACTL1) & ~0x30);
-				PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, 
+				PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR,
 					BRGPHY_5708S_DIG_PG0);
 			}
 
 			/* Backplanes use special driver/pre-driver/pre-emphasis values. */
 			if ((bce_sc->bce_shared_hw_cfg & BCE_SHARED_HW_CFG_PHY_BACKPLANE) &&
 				(bce_sc->bce_port_hw_cfg & BCE_PORT_HW_CFG_CFG_TXCTL3_MASK)) {
-					PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, 
+					PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR,
 						BRGPHY_5708S_TX_MISC_PG5);
-					PHY_WRITE(sc, BRGPHY_5708S_PG5_TXACTL3, 
-						bce_sc->bce_port_hw_cfg & 
+					PHY_WRITE(sc, BRGPHY_5708S_PG5_TXACTL3,
+						bce_sc->bce_port_hw_cfg &
 						BCE_PORT_HW_CFG_CFG_TXCTL3_MASK);
 					PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR,
 						BRGPHY_5708S_DIG_PG0);
