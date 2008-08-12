@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
+#ifdef KTRACE
+#include <sys/ktrace.h>
+#endif
 
 #include <security/audit/audit.h>
 
@@ -1196,6 +1200,10 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 
 	error = fo_stat(fp, sbp, td->td_ucred, td);
 	fdrop(fp, td);
+#ifdef KTRACE
+	if (error == 0 && KTRPOINT(td, KTR_STRUCT))
+		ktrstat(sbp);
+#endif
 	return (error);
 }
 
