@@ -32,7 +32,7 @@
 .\"	@(#)kdump.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2005
+.Dd February 23, 2008
 .Dt KDUMP 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Op Fl f Ar trfile
 .Op Fl m Ar maxdata
 .Op Fl p Ar pid
-.Op Fl t Op cnisuw
+.Op Fl t Op cnistuw
 .Sh DESCRIPTION
 The
 .Nm
@@ -96,11 +96,14 @@ This may be useful when there are multiple processes recorded in the
 same trace file.
 .It Fl R
 Display relative timestamps (time since previous entry).
+.It Fl r
+When decoding STRU records, display structure members such as UIDs,
+GIDs, dates etc. symbolically instead of numerically.
 .It Fl s
 Suppress display of I/O data.
 .It Fl T
 Display absolute timestamps for each entry (seconds since epoch).
-.It Fl t Ar cnisuw
+.It Fl t Ar cnistuw
 See the
 .Fl t
 option of
@@ -168,6 +171,7 @@ The possible operations are:
 .It Li SIG Ta signal Ta signal name, handler, mask, code
 .It Li CSW Ta context switch Ta stop/resume user/kernel
 .It Li USER Ta data from user process Ta the data
+.It Li STRU Ta various syscalls Ta structure
 .El
 .Sh SEE ALSO
 .Xr ktrace 1

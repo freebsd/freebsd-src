@@ -32,7 +32,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2006
+.Dd February 23, 2008
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -43,11 +43,11 @@
 .Op Fl aCcdi
 .Op Fl f Ar trfile
 .Op Fl g Ar pgrp | Fl p Ar pid
-.Op Fl t Ar trstr
+.Op Fl t Ar cnistuw
 .Nm
 .Op Fl adi
 .Op Fl f Ar trfile
-.Op Fl t Ar trstr
+.Op Fl t Ar cnistuw
 .Ar command
 .Sh DESCRIPTION
 The
@@ -105,7 +105,7 @@ processes.
 Enable (disable) tracing on the indicated process id (only one
 .Fl p
 flag is permitted).
-.It Fl t Ar trstr
+.It Fl t Ar cnistuw
 The string argument represents the kernel trace points, one per letter.
 The following table equates the letters with the tracepoints:
 .Pp
@@ -119,13 +119,15 @@ trace
 .Tn I/O
 .It Cm s
 trace signal processing
+.It Cm t
+trace various structures
 .It Cm u
 userland traces
 .It Cm w
 context switches
 .It Cm +
 trace the default set of trace points -
-.Cm c , n , i , s , u
+.Cm c , n , i , s , t , u
 .El
 .It Ar command
 Execute
