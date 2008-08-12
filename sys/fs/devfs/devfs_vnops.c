@@ -110,9 +110,7 @@ devfs_get_cdevpriv(void **datap)
 	fp = curthread->td_fpop;
 	if (fp == NULL)
 		return (EBADF);
-	mtx_lock(&cdevpriv_mtx);
 	p = fp->f_cdevpriv;
-	mtx_unlock(&cdevpriv_mtx);
 	if (p != NULL) {
 		error = 0;
 		*datap = p->cdpd_data;
