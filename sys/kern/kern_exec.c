@@ -514,6 +514,11 @@ interpret:
 	}
 
 	/*
+	 * NB: We unlock the vnode here because it is believed that none
+	 * of the sv_copyout_strings/sv_fixup operations require the vnode.
+	 */
+	VOP_UNLOCK(imgp->vp, 0);
+	/*
 	 * Copy out strings (args and env) and initialize stack base
 	 */
 	if (p->p_sysent->sv_copyout_strings)
@@ -550,7 +555,6 @@ interpret:
 	}
 
 	/* close files on exec */
-	VOP_UNLOCK(imgp->vp, 0);
 	fdcloseexec(td);
 	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
 
