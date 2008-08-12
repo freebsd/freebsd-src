@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2008
+.Dd June 20, 2008
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -61,6 +61,8 @@ Broadcom BCM570xx Gigabit Ethernet
 DEC/Intel 21143 and various workalikes
 .It Xr ed 4
 NE[12]000, SMC Ultra, 3c503, DS8390 cards
+.It Xr et 4
+Agere ET1310 Gigabit Ethernet
 .It Xr fxp 4
 Intel EtherExpress PRO/100B
 .It Xr gem 4
@@ -131,6 +133,7 @@ but as a result are not well behaved newbus device drivers.
 .Xr bge 4 ,
 .Xr dc 4 ,
 .Xr ed 4 ,
+.Xr et 4 ,
 .Xr fxp 4 ,
 .Xr gem 4 ,
 .Xr hme 4 ,
