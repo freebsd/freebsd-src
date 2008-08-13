@@ -68,6 +68,24 @@ static void test_linkify_tar(void)
 	assertEqualInt(0, archive_entry_size(entry));
 
 
+	/* Dirs should never be matched as hardlinks, regardless. */
+	archive_entry_set_pathname(entry, "test3");
+	archive_entry_set_nlink(entry, 2);
+	archive_entry_set_filetype(entry, AE_IFDIR);
+	archive_entry_set_ino(entry, 3);
+	archive_entry_set_hardlink(entry, NULL);
+	archive_entry_linkify(resolver, &entry, &e2);
+	/* Shouldn't be altered, since it wasn't seen before. */
+	assert(e2 == NULL);
+	assertEqualString("test3", archive_entry_pathname(entry));
+	assertEqualString(NULL, archive_entry_hardlink(entry));
+
+	/* Dir, so it shouldn't get matched. */
+	archive_entry_linkify(resolver, &entry, &e2);
+	assert(e2 == NULL);
+	assertEqualString("test3", archive_entry_pathname(entry));
+	assertEqualString(NULL, archive_entry_hardlink(entry));
+
 	archive_entry_free(entry);
 	archive_entry_linkresolver_free(resolver);
 }
