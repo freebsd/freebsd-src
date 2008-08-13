@@ -15,7 +15,7 @@
 /* #undef BDEBUG */
 
 /* define if you have a cloning BPF device */
-/* #undef HAVE_CLONING_BPF */
+#define HAVE_CLONING_BPF 1
 
 /* define if you have the DAG API */
 /* #undef HAVE_DAG_API */
