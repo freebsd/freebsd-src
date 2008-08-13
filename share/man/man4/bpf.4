@@ -65,9 +65,7 @@ All packets on the network, even those destined for other hosts,
 are accessible through this mechanism.
 .Pp
 The packet filter appears as a character special device,
-.Pa /dev/bpf0 ,
-.Pa /dev/bpf1 ,
-etc.
+.Pa /dev/bpf .
 After opening the device, the file descriptor must be bound to a
 specific network interface with the
 .Dv BIOCSETIF
@@ -881,8 +879,8 @@ array initializers:
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
 .Sh FILES
-.Bl -tag -compact -width /dev/bpfXXX
-.It Pa /dev/bpf Ns Sy n
+.Bl -tag -compact -width /dev/bpf
+.It Pa /dev/bpf
 the packet filter device
 .El
 .Sh EXAMPLES
