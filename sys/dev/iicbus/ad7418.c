@@ -120,7 +120,7 @@ ad7418_attach(device_t dev)
 	int conf;
 
 	sc->sc_dev = dev;
-	sx_init(&sc->sc_mtx, "ad7418");
+	sx_init(&sc->sc_lock, "ad7418");
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"temp", CTLTYPE_INT | CTLFLAG_RD, sc, 0,
