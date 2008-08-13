@@ -291,8 +291,11 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	struct timeval timo;
 	RPCB parms;
 	char *uaddr;
-	enum clnt_stat stat;
-	int rpcvers;
+	enum clnt_stat stat = RPC_SUCCESS;
+	int rpcvers = RPCBVERS4;
+	bool_t do_tcp = FALSE;
+	struct pmap mapping;
+	u_short port = 0;
 
 	/*
 	 * First we need to contact the remote RPCBIND service to find
@@ -322,13 +325,17 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	}
 
 	rpcb = clnt_dg_create(so, (struct sockaddr *)&ss,
-	    RPCBPROG, RPCBVERS4, 0, 0);
+	    RPCBPROG, rpcvers, 0, 0);
 	if (!rpcb)
 		return (NULL);
 
+try_tcp:
 	parms.r_prog = prog;
 	parms.r_vers = vers;
-	parms.r_netid = "udp";
+	if (do_tcp)
+		parms.r_netid = "tcp";
+	else
+		parms.r_netid = "udp";
 	parms.r_addr = "";
 	parms.r_owner = "";
 
@@ -338,55 +345,50 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	timo.tv_sec = 25;
 	timo.tv_usec = 0;
 again:
-	uaddr = NULL;
-	stat = CLNT_CALL(rpcb, (rpcprog_t) RPCBPROC_GETADDR,
-	    (xdrproc_t) xdr_rpcb, &parms,
-	    (xdrproc_t) xdr_wrapstring, &uaddr, timo);
-	if (stat == RPC_PROGVERSMISMATCH) {
+	switch (rpcvers) {
+	case RPCBVERS4:
+	case RPCBVERS:
 		/*
-		 * Try RPCBIND version 3 if we haven't already.
-		 *
-		 * XXX fall back to portmap?
+		 * Try RPCBIND 4 then 3.
 		 */
-		CLNT_CONTROL(rpcb, CLGET_VERS, &rpcvers);
-		if (rpcvers == RPCBVERS4) {
-			rpcvers = RPCBVERS;
+		uaddr = NULL;
+		stat = CLNT_CALL(rpcb, (rpcprog_t) RPCBPROC_GETADDR,
+		    (xdrproc_t) xdr_rpcb, &parms,
+		    (xdrproc_t) xdr_wrapstring, &uaddr, timo);
+		if (stat == RPC_PROGVERSMISMATCH) {
+			if (rpcvers == RPCBVERS4)
+				rpcvers = RPCBVERS;
+			else if (rpcvers == RPCBVERS)
+				rpcvers = PMAPVERS;
 			CLNT_CONTROL(rpcb, CLSET_VERS, &rpcvers);
 			goto again;
+		} else if (stat == RPC_SUCCESS) {
+			/*
+			 * We have a reply from the remote RPCBIND - turn it
+			 * into an appropriate address and make a new client
+			 * that can talk to the remote NLM.
+			 *
+			 * XXX fixup IPv6 scope ID.
+			 */
+			struct netbuf *a;
+			a = __rpc_uaddr2taddr_af(ss.ss_family, uaddr);
+			if (!a) {
+				CLNT_DESTROY(rpcb);
+				return (NULL);
+			}
+			memcpy(&ss, a->buf, a->len);
+			free(a->buf, M_RPC);
+			free(a, M_RPC);
+			xdr_free((xdrproc_t) xdr_wrapstring, &uaddr);
 		}
-	}
-
-	if (stat == RPC_SUCCESS) {
-		/*
-		 * We have a reply from the remote RPCBIND - turn it into an
-		 * appropriate address and make a new client that can talk to
-		 * the remote NLM.
-		 *
-		 * XXX fixup IPv6 scope ID.
-		 */
-		struct netbuf *a;
-		a = __rpc_uaddr2taddr_af(ss.ss_family, uaddr);
-		if (!a) {
-			CLNT_DESTROY(rpcb);
-			return (NULL);
-		}
-		memcpy(&ss, a->buf, a->len);
-		free(a->buf, M_RPC);
-		free(a, M_RPC);
-		xdr_free((xdrproc_t) xdr_wrapstring, &uaddr);
-	} else if (stat == RPC_PROGVERSMISMATCH) {
+		break;
+	case PMAPVERS:
 		/*
 		 * Try portmap.
 		 */
-		struct pmap mapping;
-		u_short port;
-
-		rpcvers = PMAPVERS;
-		CLNT_CONTROL(rpcb, CLSET_VERS, &rpcvers);
-
 		mapping.pm_prog = parms.r_prog;
 		mapping.pm_vers = parms.r_vers;
-		mapping.pm_prot = IPPROTO_UDP;
+		mapping.pm_prot = do_tcp ? IPPROTO_TCP : IPPROTO_UDP;
 		mapping.pm_port = 0;
 
 		stat = CLNT_CALL(rpcb, (rpcprog_t) PMAPPROC_GETPORT,
@@ -408,22 +410,81 @@ again:
 #endif
 			}
 		}
+		break;
+	default:
+		panic("invalid rpcvers %d", rpcvers);
 	}
-	if (stat != RPC_SUCCESS) {
-		printf("NLM: failed to contact remote rpcbind, stat = %d\n",
-		    (int) stat);
+	/*
+	 * We may have a positive response from the portmapper, but the NLM
+	 * service was not found. Make sure we received a valid port.
+	 */
+	switch (ss.ss_family) {
+	case AF_INET:
+		port = ((struct sockaddr_in *)&ss)->sin_port;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		port = ((struct sockaddr_in6 *)&ss)->sin6_port;
+		break;
+#endif
+	}
+	if (stat != RPC_SUCCESS || !port) {
+		/*
+		 * If we were able to talk to rpcbind or portmap, but the udp
+		 * variant wasn't available, ask about tcp.
+		 *
+		 * XXX - We could also check for a TCP portmapper, but
+		 * if the host is running a portmapper at all, we should be able
+		 * to hail it over UDP.
+		 */
+		if (stat == RPC_SUCCESS && !do_tcp) {
+			do_tcp = TRUE;
+			goto try_tcp;
+		}
+
+		/* Otherwise, bad news. */
+		printf("NLM: failed to contact remote rpcbind, "
+		    "stat = %d, port = %d\n",
+		    (int) stat, port);
 		CLNT_DESTROY(rpcb);
 		return (NULL);
 	}
 
-	/*
-	 * Re-use the client we used to speak to rpcbind.
-	 */
-	CLNT_CONTROL(rpcb, CLSET_SVC_ADDR, &ss);
-	CLNT_CONTROL(rpcb, CLSET_PROG, &prog);
-	CLNT_CONTROL(rpcb, CLSET_VERS, &vers);
-	CLNT_CONTROL(rpcb, CLSET_WAITCHAN, &wchan);
-	rpcb->cl_auth = nlm_auth;
+	if (do_tcp) {
+		/*
+		 * Destroy the UDP client we used to speak to rpcbind and
+		 * recreate as a TCP client.
+		 */
+		struct netconfig *nconf = NULL;
+
+		CLNT_DESTROY(rpcb);
+
+		switch (ss.ss_family) {
+		case AF_INET:
+			nconf = getnetconfigent("tcp");
+			break;
+#ifdef INET6
+		case AF_INET6:
+			nconf = getnetconfigent("tcp6");
+			break;
+#endif
+		}
+
+		rpcb = clnt_reconnect_create(nconf, (struct sockaddr *)&ss,
+		    prog, vers, 0, 0);
+		CLNT_CONTROL(rpcb, CLSET_WAITCHAN, &wchan);
+		rpcb->cl_auth = nlm_auth;
+		
+	} else {
+		/*
+		 * Re-use the client we used to speak to rpcbind.
+		 */
+		CLNT_CONTROL(rpcb, CLSET_SVC_ADDR, &ss);
+		CLNT_CONTROL(rpcb, CLSET_PROG, &prog);
+		CLNT_CONTROL(rpcb, CLSET_VERS, &vers);
+		CLNT_CONTROL(rpcb, CLSET_WAITCHAN, &wchan);
+		rpcb->cl_auth = nlm_auth;
+	}
 
 	return (rpcb);
 }
