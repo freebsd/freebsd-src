@@ -139,7 +139,6 @@ enum {
 	OPTION_CHECK_LINKS=1,
 	OPTION_CHROOT,
 	OPTION_EXCLUDE,
-	OPTION_FAST_READ,
 	OPTION_FORMAT,
 	OPTION_HELP,
 	OPTION_INCLUDE,
@@ -180,7 +179,7 @@ static const struct option tar_longopts[] = {
 	{ "exclude",            required_argument, NULL, OPTION_EXCLUDE },
 	{ "exclude-from",       required_argument, NULL, 'X' },
 	{ "extract",            no_argument,       NULL, 'x' },
-	{ "fast-read",          no_argument,       NULL, OPTION_FAST_READ },
+	{ "fast-read",          no_argument,       NULL, 'q' },
 	{ "file",               required_argument, NULL, 'f' },
 	{ "files-from",         required_argument, NULL, 'T' },
 	{ "format",             required_argument, NULL, OPTION_FORMAT },
@@ -189,6 +188,7 @@ static const struct option tar_longopts[] = {
 	{ "help",               no_argument,       NULL, OPTION_HELP },
 	{ "include",            required_argument, NULL, OPTION_INCLUDE },
 	{ "interactive",        no_argument,       NULL, 'w' },
+	{ "insecure",           no_argument,       NULL, 'P' },
 	{ "keep-old-files",     no_argument,       NULL, 'k' },
 	{ "list",               no_argument,       NULL, 't' },
 	{ "modification-time",  no_argument,       NULL, 'm' },
@@ -339,9 +339,6 @@ main(int argc, char **argv)
 			if (strcmp(bsdtar->filename, "-") == 0)
 				bsdtar->filename = NULL;
 			break;
-		case OPTION_FAST_READ: /* GNU tar */
-			bsdtar->option_fast_read = 1;
-			break;
 		case 'H': /* BSD convention */
 			bsdtar->symlink_mode = 'H';
 			break;
@@ -488,6 +485,9 @@ main(int argc, char **argv)
 			break;
 		case OPTION_POSIX: /* GNU tar */
 			bsdtar->create_format = "pax";
+			break;
+		case 'q': /* FreeBSD GNU tar --fast-read, NetBSD -q */
+			bsdtar->option_fast_read = 1;
 			break;
 		case 'r': /* SUSv2 */
 			set_mode(bsdtar, opt);
