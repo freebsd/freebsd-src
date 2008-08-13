@@ -26,6 +26,8 @@
  * DAMAGE.
  */
 
+#include "opt_witness.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -403,6 +405,9 @@ thread_exit(void)
 	ruxagg(&p->p_rux, td);
 	PROC_SUNLOCK(p);
 	td->td_state = TDS_INACTIVE;
+#ifdef WITNESS
+	witness_thread_exit(td);
+#endif
 	CTR1(KTR_PROC, "thread_exit: cpu_throw() thread %p", td);
 	sched_throw(td);
 	panic("I'm a teapot!");
