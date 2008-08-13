@@ -135,12 +135,18 @@ DEFINE_TEST(test_read_extract)
 #endif
 
 	/* Test the entries on disk. */
+	/* This first entry was extracted with ARCHIVE_EXTRACT_PERM,
+	 * so the permissions should have been restored exactly,
+	 * including resetting the gid bit on those platforms
+	 * where gid is inherited by subdirs. */
 	assert(0 == stat("dir_0775", &st));
 	failure("This was 0775 in archive, and should be 0775 on disk");
-	assert(st.st_mode == (S_IFDIR | 0775));
+	assertEqualInt(st.st_mode, S_IFDIR | 0775);
+	/* Everything else was extracted without ARCHIVE_EXTRACT_PERM,
+	 * so there may be some sloppiness about gid bits on directories. */
 	assert(0 == stat("file", &st));
 	failure("st.st_mode=%o should be %o", st.st_mode, S_IFREG | 0755);
-	assert(st.st_mode == (S_IFREG | 0755));
+	assertEqualInt(st.st_mode, S_IFREG | 0755);
 	failure("The file extracted to disk is the wrong size.");
 	assert(st.st_size == FILE_BUFF_SIZE);
 	fd = open("file", O_RDONLY);
@@ -153,23 +159,26 @@ DEFINE_TEST(test_read_extract)
 	assert(memcmp(buff, file_buff, FILE_BUFF_SIZE) == 0);
 	assert(0 == stat("dir", &st));
 	failure("This was 0777 in archive, but umask should make it 0755");
-	assert(st.st_mode == (S_IFDIR | 0755));
+	/* If EXTRACT_PERM wasn't used, be careful to ignore sgid bit
+	 * when checking dir modes, as some systems inherit sgid bit
+	 * from the parent dir. */
+	assertEqualInt(0755, st.st_mode & 0777);
 	assert(0 == stat("dir/file", &st));
 	assert(st.st_mode == (S_IFREG | 0700));
 	assert(0 == stat("dir2", &st));
-	assert(st.st_mode == (S_IFDIR | 0755));
+	assertEqualInt(0755, st.st_mode & 0777);
 	assert(0 == stat("dir2/file", &st));
 	assert(st.st_mode == (S_IFREG | 0000));
 	assert(0 == stat("dir3", &st));
-	assert(st.st_mode == (S_IFDIR | 0710));
+	assertEqualInt(0710, st.st_mode & 0777);
 	assert(0 == stat("dir4", &st));
-	assert(st.st_mode == (S_IFDIR | 0755));
+	assertEqualInt(0755, st.st_mode & 0777);
 	assert(0 == stat("dir4/a", &st));
-	assert(st.st_mode == (S_IFDIR | 0755));
+	assertEqualInt(0755, st.st_mode & 0777);
 	assert(0 == stat("dir4/b", &st));
-	assert(st.st_mode == (S_IFDIR | 0755));
+	assertEqualInt(0755, st.st_mode & 0777);
 	assert(0 == stat("dir4/c", &st));
-	assert(st.st_mode == (S_IFDIR | 0711));
+	assertEqualInt(0711, st.st_mode & 0777);
 	assert(0 == lstat("symlink", &st));
 	assert(S_ISLNK(st.st_mode));
 #if HAVE_LCHMOD
