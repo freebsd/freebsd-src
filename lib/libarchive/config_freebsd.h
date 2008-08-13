@@ -51,6 +51,7 @@
 #define	HAVE_FCHFLAGS 1
 #define	HAVE_FCHMOD 1
 #define	HAVE_FCHOWN 1
+#define	HAVE_FCNTL 1
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FSEEKO 1
 #define	HAVE_FSTAT 1
@@ -70,6 +71,7 @@
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
 #define	HAVE_MKNOD 1
+#define	HAVE_PIPE 1
 #define	HAVE_POLL 1
 #define	HAVE_POLL_H 1
 #define	HAVE_PWD_H 1
@@ -102,6 +104,7 @@
 #define	HAVE_UTIME 1
 #define	HAVE_UTIMES 1
 #define	HAVE_UTIME_H 1
+#define	HAVE_VFORK 1
 #define	HAVE_WCHAR_H 1
 #define	HAVE_WCSCPY 1
 #define	HAVE_WCSLEN 1

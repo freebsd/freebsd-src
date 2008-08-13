@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 char buff[4096];
 char buff2[64];
-static unsigned char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
+static char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o/\n";
 
 DEFINE_TEST(test_write_format_ar)
 {
@@ -164,6 +164,7 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_set_filetype(ae, AE_IFREG);
 	archive_entry_set_size(ae, 5);
 	assertA(0 == archive_write_header(a, ae));
+	assertA(5 == archive_entry_size(ae));
 	assertA(5 == archive_write_data(a, "12345", 7));
 	archive_entry_free(ae);
 
