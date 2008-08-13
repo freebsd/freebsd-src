@@ -216,6 +216,7 @@ void	witness_assert(struct lock_object *, int, const char *, int);
 void	witness_display_spinlock(struct lock_object *, struct thread *);
 int	witness_line(struct lock_object *);
 const char *witness_file(struct lock_object *);
+void	witness_thread_exit(struct thread *);
 
 #ifdef	WITNESS
 
