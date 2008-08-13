@@ -164,7 +164,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 			case BPF_LD|BPF_W|BPF_ABS:
 				MOVid(ins->k, ECX);
 				MOVrd(ECX, ESI);
-				ADDib(sizeof(int), ECX);
+				ADDib(sizeof(int32_t), ECX);
 				CMPrd(EDI, ECX);
 				JBEb(7);
 				ZEROrd(EAX);
@@ -180,7 +180,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				MOVrd(ECX, ESI);
-				ADDib(sizeof(short), ECX);
+				ADDib(sizeof(int16_t), ECX);
 				CMPrd(EDI, ECX);
 				JBEb(5);
 				POP(EBX);
@@ -215,7 +215,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
 				MOVrd(ECX, ESI);
-				ADDib(sizeof(int), ECX);
+				ADDib(sizeof(int32_t), ECX);
 				CMPrd(EDI, ECX);
 				JBEb(7);
 				ZEROrd(EAX);
@@ -232,7 +232,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
 				MOVrd(ECX, ESI);
-				ADDib(sizeof(short), ECX);
+				ADDib(sizeof(int16_t), ECX);
 				CMPrd(EDI, ECX);
 				JBEb(5);
 				POP(EBX);
