@@ -25,7 +25,7 @@
 .\" $Id: bluetooth.3,v 1.5 2003/05/20 23:04:30 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd May 7, 2003
+.Dd August 13, 2008
 .Dt BLUETOOTH 3
 .Os
 .Sh NAME
@@ -40,7 +40,10 @@
 .Nm bt_setprotoent ,
 .Nm bt_endprotoent ,
 .Nm bt_aton ,
-.Nm bt_ntoa
+.Nm bt_ntoa ,
+.Nm bdaddr_same ,
+.Nm bdaddr_any ,
+.Nm bdaddr_copy
 .Nd Bluetooth routines
 .Sh LIBRARY
 .Lb libbluetooth
@@ -70,6 +73,12 @@
 .Fn bt_aton "const char *str" "bdaddr_t *ba"
 .Ft const char *
 .Fn bt_ntoa "const bdaddr_t *ba" "char *str"
+.Ft int
+.Fn bdaddr_same "const bdaddr_t *a" "const bdaddr_t *b"
+.Ft int
+.Fn bdaddr_any "const bdaddr_t *a"
+.Ft int
+.Fn bdaddr_copy "const bdaddr_t *dst" "const bdaddr_t *src"
 .Sh DESCRIPTION
 The
 .Fn bt_gethostent ,
@@ -186,6 +195,28 @@ takes a Bluetooth address and places an
 string representing the address into the buffer provided.
 It is up to the caller to ensure that provided buffer has enough space.
 If no buffer was provided then internal static buffer will be used.
+.Pp
+The
+.Fn bdaddr_same ,
+.Fn bdaddr_any
+and
+.Fn bdaddr_copy
+are handy shorthand Bluetooth address utility functions.
+The
+.Fn bdaddr_same
+function will test if two provided BD_ADDRs are the same.
+The
+.Fn bdaddr_any
+function will test if provided BD_ADDR is
+.Dv ANY
+BD_ADDR.
+The
+.Fn bdaddr_copy
+function will copy provided
+.Fa src
+BD_ADDR into provided
+.Fa dst
+BD_ADDR.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/bluetooth/hosts" -compact
 .It Pa /etc/bluetooth/hosts
