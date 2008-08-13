@@ -385,6 +385,7 @@ clnt_reconnect_destroy(CLIENT *cl)
 
 	if (rc->rc_client)
 		CLNT_DESTROY(rc->rc_client);
+	mtx_destroy(&rc->rc_lock);
 	mem_free(rc, sizeof(*rc));
 	mem_free(cl, sizeof (CLIENT));
 }
