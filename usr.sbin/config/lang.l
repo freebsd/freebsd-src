@@ -95,6 +95,7 @@ int yyerror(const char *);
 
 %}
 ID	[A-Za-z_][-A-Za-z_0-9]*
+PATH	[./][-/.%^A-Za-z_0-9]+
 %START TOEOL
 %%
 {ID}		{
@@ -163,6 +164,11 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			if (tok != 0)
 				return tok;
 			/* otherwise continue scanning */
+		}
+{PATH}		{
+			BEGIN 0;
+			yylval.str = strdup(yytext);
+			return PATH;
 		}
 .		{	return yytext[0];		}
 
