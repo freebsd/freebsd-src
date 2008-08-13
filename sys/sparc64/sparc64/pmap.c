@@ -118,13 +118,13 @@ __FBSDID("$FreeBSD$");
 extern struct mtx sched_lock;
 
 /*
- * Virtual and physical address of message buffer.
+ * Virtual and physical address of message buffer
  */
 struct msgbuf *msgbufp;
 vm_paddr_t msgbuf_phys;
 
 /*
- * Map of physical memory reagions.
+ * Map of physical memory reagions
  */
 vm_paddr_t phys_avail[128];
 static struct ofw_mem_region mra[128];
@@ -138,7 +138,7 @@ static vm_offset_t pmap_temp_map_1;
 static vm_offset_t pmap_temp_map_2;
 
 /*
- * First and last available kernel virtual addresses.
+ * First and last available kernel virtual addresses
  */
 vm_offset_t virtual_avail;
 vm_offset_t virtual_end;
@@ -147,7 +147,7 @@ vm_offset_t kernel_vm_end;
 vm_offset_t vm_max_kernel_address;
 
 /*
- * Kernel pmap.
+ * Kernel pmap
  */
 struct pmap kernel_pmap_store;
 
@@ -237,7 +237,7 @@ PMAP_STATS_VAR(pmap_nnew_thread);
 PMAP_STATS_VAR(pmap_nnew_thread_oc);
 
 /*
- * Quick sort callout for comparing memory regions.
+ * Quick sort callout for comparing memory regions
  */
 static int mr_cmp(const void *a, const void *b);
 static int om_cmp(const void *a, const void *b);
@@ -285,14 +285,14 @@ pmap_bootstrap(vm_offset_t ekva)
 	vm_paddr_t pa;
 	vm_size_t physsz;
 	vm_size_t virtsz;
-	ihandle_t pmem;
-	ihandle_t vmem;
+	phandle_t pmem;
+	phandle_t vmem;
 	int sz;
 	int i;
 	int j;
 
 	/*
-	 * Find out what physical memory is available from the prom and
+	 * Find out what physical memory is available from the PROM and
 	 * initialize the phys_avail array.  This must be done before
 	 * pmap_bootstrap_alloc is called.
 	 */
@@ -333,7 +333,7 @@ pmap_bootstrap(vm_offset_t ekva)
 
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
-	 * for the kernel tsb.
+	 * for the kernel TSB.
 	 */
 	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
 	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
@@ -341,7 +341,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
 
 	/*
-	 * Allocate the kernel tsb and lock it in the tlb.
+	 * Allocate the kernel TSB and lock it in the TLB.
 	 */
 	pa = pmap_bootstrap_alloc(tsb_kernel_size);
 	if (pa & PAGE_MASK_4M)
@@ -404,8 +404,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Set the start and end of kva.  The kernel is loaded at the first
-	 * available 4 meg super page, so round up to the end of the page.
+	 * Set the start and end of KVA.  The kernel is loaded at the first
+	 * available 4MB super page, so round up to the end of the page.
 	 */
 	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
 	virtual_end = vm_max_kernel_address;
@@ -422,10 +422,10 @@ pmap_bootstrap(vm_offset_t ekva)
 	virtual_avail += PAGE_SIZE * DCACHE_COLORS;
 
 	/*
-	 * Allocate a kernel stack with guard page for thread0 and map it into
-	 * the kernel tsb.  We must ensure that the virtual address is coloured
-	 * properly, since we're allocating from phys_avail so the memory won't
-	 * have an associated vm_page_t.
+	 * Allocate a kernel stack with guard page for thread0 and map it
+	 * into the kernel TSB.  We must ensure that the virtual address is
+	 * coloured properly, since we're allocating from phys_avail so the
+	 * memory won't have an associated vm_page_t.
 	 */
 	pa = pmap_bootstrap_alloc(roundup(KSTACK_PAGES, DCACHE_COLORS) *
 	    PAGE_SIZE);
@@ -453,7 +453,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	Maxmem = sparc64_btop(phys_avail[i + 1]);
 
 	/*
-	 * Add the prom mappings to the kernel tsb.
+	 * Add the PROM mappings to the kernel TSB.
 	 */
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
 		panic("pmap_bootstrap: finddevice /virtual-memory");
@@ -489,8 +489,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 
 	/*
-	 * Get the available physical memory ranges from /memory/reg. These
-	 * are only used for kernel dumps, but it may not be wise to do prom
+	 * Get the available physical memory ranges from /memory/reg.  These
+	 * are only used for kernel dumps, but it may not be wise to do PROM
 	 * calls in that situation.
 	 */
 	if ((sz = OF_getproplen(pmem, "reg")) == -1)
@@ -525,13 +525,13 @@ pmap_map_tsb(void)
 	vm_offset_t va;
 	vm_paddr_t pa;
 	u_long data;
-	u_long s;
+	register_t s;
 	int i;
 
 	s = intr_disable();
 
 	/*
-	 * Map the 4mb tsb pages.
+	 * Map the 4MB TSB pages.
 	 */
 	for (i = 0; i < tsb_kernel_size; i += PAGE_SIZE_4M) {
 		va = (vm_offset_t)tsb_kernel + i;
@@ -546,7 +546,7 @@ pmap_map_tsb(void)
 
 	/*
 	 * Set the secondary context to be the kernel context (needed for
-	 * fp block operations in the kernel and the cache code).
+	 * FP block operations in the kernel).
 	 */
 	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
 	membar(Sync);
@@ -873,9 +873,9 @@ pmap_kenter(vm_offset_t va, vm_page_t m)
 }
 
 /*
- * Map a wired page into kernel virtual address space. This additionally
- * takes a flag argument wich is or'ed to the TTE data. This is used by
- * bus_space_map().
+ * Map a wired page into kernel virtual address space.  This additionally
+ * takes a flag argument wich is or'ed to the TTE data.  This is used by
+ * sparc64_bus_mem_map().
  * NOTE: if the mapping is non-cacheable, it's the caller's responsibility
  * to flush entries that might still be in the cache, if applicable.
  */
@@ -1021,7 +1021,7 @@ pmap_pinit(pmap_t pm)
 	PMAP_LOCK_INIT(pm);
 
 	/*
-	 * Allocate kva space for the tsb.
+	 * Allocate KVA space for the TSB.
 	 */
 	if (pm->pm_tsb == NULL) {
 		pm->pm_tsb = (struct tte *)kmem_alloc_nofault(kernel_map,
@@ -1069,7 +1069,7 @@ pmap_release(pmap_t pm)
 	struct pcpu *pc;
 
 	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
-	    pm->pm_context[PCPU_GET(cpuid)], pm->pm_tsb);
+	    pm->pm_context[curcpu], pm->pm_tsb);
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
@@ -1079,7 +1079,7 @@ pmap_release(pmap_t pm)
 	 * When switching, this might lead us to wrongly assume that we need
 	 * not switch contexts because old and new pmap pointer are equal.
 	 * Therefore, make sure that this pmap is not referenced by any PCPU
-	 * pointer any more. This could happen in two cases:
+	 * pointer any more.  This could happen in two cases:
 	 * - A process that referenced the pmap is currently exiting on a CPU.
 	 *   However, it is guaranteed to not switch in any more after setting
 	 *   its state to PRS_ZOMBIE.
@@ -1165,7 +1165,7 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 	vm_offset_t va;
 
 	CTR3(KTR_PMAP, "pmap_remove: ctx=%#lx start=%#lx end=%#lx",
-	    pm->pm_context[PCPU_GET(cpuid)], start, end);
+	    pm->pm_context[curcpu], start, end);
 	if (PMAP_REMOVE_DONE(pm))
 		return;
 	vm_page_lock_queues();
@@ -1247,7 +1247,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	struct tte *tp;
 
 	CTR4(KTR_PMAP, "pmap_protect: ctx=%#lx sva=%#lx eva=%#lx prot=%#lx",
-	    pm->pm_context[PCPU_GET(cpuid)], sva, eva, prot);
+	    pm->pm_context[curcpu], sva, eva, prot);
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pm, sva, eva);
@@ -1326,7 +1326,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	CTR6(KTR_PMAP,
 	    "pmap_enter: ctx=%p m=%p va=%#lx pa=%#lx prot=%#x wired=%d",
-	    pm->pm_context[PCPU_GET(cpuid)], m, va, pa, prot, wired);
+	    pm->pm_context[curcpu], m, va, pa, prot, wired);
 
 	/*
 	 * If there is an existing mapping, and the physical address has not
@@ -1785,6 +1785,7 @@ pmap_page_wired_mappings(vm_page_t m)
 void
 pmap_remove_pages(pmap_t pm)
 {
+
 }
 
 /*
@@ -1806,18 +1807,15 @@ pmap_page_is_mapped(vm_page_t m)
 }
 
 /*
- *	pmap_ts_referenced:
+ * Return a count of reference bits for a page, clearing those bits.
+ * It is not necessary for every reference bit to be cleared, but it
+ * is necessary that 0 only be returned when there are truly no
+ * reference bits set.
  *
- *	Return a count of reference bits for a page, clearing those bits.
- *	It is not necessary for every reference bit to be cleared, but it
- *	is necessary that 0 only be returned when there are truly no
- *	reference bits set.
- *
- *	XXX: The exact number of bits to check and clear is a matter that
- *	should be tested and standardized at some point in the future for
- *	optimal aging of shared pages.
+ * XXX: The exact number of bits to check and clear is a matter that
+ * should be tested and standardized at some point in the future for
+ * optimal aging of shared pages.
  */
-
 int
 pmap_ts_referenced(vm_page_t m)
 {
@@ -1966,7 +1964,7 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
-	pm->pm_context[PCPU_GET(cpuid)] = context;
+	pm->pm_context[curcpu] = context;
 	pm->pm_active |= PCPU_GET(cpumask);
 	PCPU_SET(pmap, pm);
 
@@ -1979,11 +1977,12 @@ pmap_activate(struct thread *td)
 }
 
 /*
- *	Increase the starting virtual address of the given mapping if a
- *	different alignment might result in more superpage mappings.
+ * Increase the starting virtual address of the given mapping if a
+ * different alignment might result in more superpage mappings.
  */
 void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
+
 }

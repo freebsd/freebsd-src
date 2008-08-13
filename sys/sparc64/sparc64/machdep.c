@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- * 	from: FreeBSD: src/sys/i386/i386/machdep.c,v 1.477 2001/08/27
+ *	from: FreeBSD: src/sys/i386/i386/machdep.c,v 1.477 2001/08/27
  */
 
 #include <sys/cdefs.h>
@@ -154,7 +154,7 @@ cpu_block_zero_t *cpu_block_zero;
 
 static timecounter_get_t tick_get_timecount;
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
-		  ofw_vec_t *vec);
+    ofw_vec_t *vec);
 void sparc64_shutdown_final(void *dummy, int howto);
 
 static void cpu_startup(void *);
@@ -271,20 +271,20 @@ tick_get_timecount(struct timecounter *tc)
 void
 sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
-	phandle_t child;
-	phandle_t root;
+	char type[8];
+	char *env;
 	struct pcpu *pc;
 	vm_offset_t end;
 	caddr_t kmdp;
+	phandle_t child;
+	phandle_t root;
 	u_int clock;
-	char *env;
-	char type[8];
 
 	end = 0;
 	kmdp = NULL;
 
 	/*
-	 * Find out what kind of cpu we have first, for anything that changes
+	 * Find out what kind of CPU we have first, for anything that changes
 	 * behaviour.
 	 */
 	cpu_impl = VER_IMPL(rdpr(ver));
@@ -340,7 +340,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	if (mdp == NULL || kmdp == NULL) {
 		printf("sparc64_init: no loader metadata.\n"
-		       "This probably means you are not using loader(8).\n");
+		    "This probably means you are not using loader(8).\n");
 		panic("sparc64_init");
 	}
 
@@ -349,7 +349,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	if (end == 0) {
 		printf("sparc64_init: warning, kernel end not specified.\n"
-		       "Attempting to continue anyway.\n");
+		    "Attempting to continue anyway.\n");
 		end = (vm_offset_t)_end;
 	}
 
@@ -455,6 +455,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 void
 set_openfirm_callback(ofw_vec_t *vec)
 {
+
 	ofw_tba = rdpr(tba);
 	ofw_vec = (u_long)vec;
 }
@@ -469,8 +470,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct thread *td;
 	struct frame *fp;
 	struct proc *p;
-	int oonstack;
 	u_long sp;
+	int oonstack;
 	int sig;
 
 	oonstack = 0;
@@ -503,8 +504,8 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	get_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = td->td_sigstk;
-	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK)
-	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	sf.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK) ?
+	    ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -699,7 +700,7 @@ cpu_shutdown(void *args)
 	openfirmware_exit(args);
 }
 
-/* Get current clock frequency for the given cpu id. */
+/* Get current clock frequency for the given CPU ID. */
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
@@ -752,7 +753,8 @@ sparc64_shutdown_final(void *dummy, int howto)
 void
 cpu_idle(int busy)
 {
-	/* Insert code to halt (until next interrupt) for the idle loop */
+
+	/* Insert code to halt (until next interrupt) for the idle loop. */
 }
 
 int
@@ -774,6 +776,7 @@ ptrace_set_pc(struct thread *td, u_long addr)
 int
 ptrace_single_step(struct thread *td)
 {
+
 	/* TODO; */
 	return (0);
 }
@@ -781,6 +784,7 @@ ptrace_single_step(struct thread *td)
 int
 ptrace_clear_single_step(struct thread *td)
 {
+
 	/* TODO; */
 	return (0);
 }
