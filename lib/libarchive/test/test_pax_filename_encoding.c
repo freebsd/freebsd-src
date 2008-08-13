@@ -34,24 +34,20 @@ __FBSDID("$FreeBSD$");
  * stored and restored correctly, regardless of the encodings.
  */
 
-DEFINE_TEST(test_pax_filename_encoding)
+/*
+ * Read a manually-created archive that has filenames that are
+ * stored in binary instead of UTF-8 and verify that we get
+ * the right filename returned and that we get a warning only
+ * if the header isn't marked as binary.
+ */
+DEFINE_TEST(test_pax_filename_encoding_1)
 {
 	static const char testname[] = "test_pax_filename_encoding.tar.gz";
-	char buff[65536];
 	/*
 	 * \314\214 is a valid 2-byte UTF-8 sequence.
 	 * \374 is invalid in UTF-8.
 	 */
 	char filename[] = "abc\314\214mno\374xyz";
-	char longname[] = "abc\314\214mno\374xyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
-	    ;
-	size_t used;
 	struct archive *a;
 	struct archive_entry *entry;
 
@@ -69,8 +65,7 @@ DEFINE_TEST(test_pax_filename_encoding)
 	 * in it, but the header is not marked as hdrcharset=BINARY, so that
 	 * requires a warning.
 	 */
-	failure("An invalid UTF8 pathname in a pax archive should be read\n"
-	    " without conversion but with a warning");
+	failure("Invalid UTF8 in a pax archive pathname should cause a warning");
 	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
 	assertEqualString(filename, archive_entry_pathname(entry));
 	/*
@@ -82,15 +77,39 @@ DEFINE_TEST(test_pax_filename_encoding)
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &entry));
 	assertEqualString(filename, archive_entry_pathname(entry));
 	archive_read_finish(a);
+}
+
+/*
+ * Set the locale and write a pathname containing invalid characters.
+ * This should work; the underlying implementation should automatically
+ * fall back to storing the pathname in binary.
+ */
+DEFINE_TEST(test_pax_filename_encoding_2)
+{
+	char filename[] = "abc\314\214mno\374xyz";
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[65536];
+	char longname[] = "abc\314\214mno\374xyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    "/abc\314\214mno\374xyz/abcdefghijklmnopqrstuvwxyz"
+	    ;
+	size_t used;
 
 	/*
 	 * We need a starting locale which has invalid sequences.
 	 * de_DE.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	failure("We need a suitable locale for the encoding tests.");
-	if (!assert(NULL != setlocale(LC_ALL, "de_DE.UTF-8")))
+	if (NULL == setlocale(LC_ALL, "de_DE.UTF-8")) {
+		skipping("invalid encoding tests require a suitable locale;"
+		    " de_DE.UTF-8 not available on this system");
 		return;
+	}
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, 0, archive_write_set_format_pax(a));
@@ -167,3 +186,120 @@ DEFINE_TEST(test_pax_filename_encoding)
 #endif
 }
 
+/*
+ * Create an entry starting from a wide-character Unicode pathname,
+ * read it back into "C" locale, which doesn't support the name.
+ * TODO: Figure out the "right" behavior here.
+ */
+DEFINE_TEST(test_pax_filename_encoding_3)
+{
+	wchar_t badname[] = L"xxxAyyyBzzz";
+	const char badname_utf8[] = "xxx\xE1\x88\xB4yyy\xE5\x99\xB8zzz";
+	struct archive *a;
+	struct archive_entry *entry;
+	char buff[65536];
+	size_t used;
+
+	badname[3] = 0x1234;
+	badname[7] = 0x5678;
+
+	/* If it doesn't exist, just warn and return. */
+	if (NULL == setlocale(LC_ALL, "C")) {
+		skipping("Can't set \"C\" locale, so can't exercise "
+		    "certain character-conversion failures");
+		return;
+	}
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, 0, archive_write_set_format_pax(a));
+	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
+	assertEqualIntA(a, 0, archive_write_set_bytes_per_block(a, 0));
+	assertEqualInt(0,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((entry = archive_entry_new()) != NULL);
+	/* Set pathname to non-convertible wide value. */
+	archive_entry_copy_pathname_w(entry, badname);
+	archive_entry_set_filetype(entry, AE_IFREG);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(entry, L"abc");
+	/* Set gname to non-convertible wide value. */
+	archive_entry_copy_gname_w(entry, badname);
+	archive_entry_set_filetype(entry, AE_IFREG);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(entry, L"abc");
+	/* Set uname to non-convertible wide value. */
+	archive_entry_copy_uname_w(entry, badname);
+	archive_entry_set_filetype(entry, AE_IFREG);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(entry, L"abc");
+	/* Set hardlink to non-convertible wide value. */
+	archive_entry_copy_hardlink_w(entry, badname);
+	archive_entry_set_filetype(entry, AE_IFREG);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(entry, L"abc");
+	/* Set symlink to non-convertible wide value. */
+	archive_entry_copy_symlink_w(entry, badname);
+	archive_entry_set_filetype(entry, AE_IFLNK);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+
+	assertEqualInt(0, archive_write_close(a));
+	assertEqualInt(0, archive_write_finish(a));
+
+	/*
+	 * Now read the entries back.
+	 */
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualInt(0, archive_read_support_format_tar(a));
+	assertEqualInt(0, archive_read_open_memory(a, buff, used));
+
+	failure("A non-convertible pathname should cause a warning.");
+	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
+	assertEqualWString(badname, archive_entry_pathname_w(entry));
+	failure("If native locale can't convert, we should get UTF-8 back.");
+	assertEqualString(badname_utf8, archive_entry_pathname(entry));
+
+	failure("A non-convertible gname should cause a warning.");
+	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
+	assertEqualWString(badname, archive_entry_gname_w(entry));
+	failure("If native locale can't convert, we should get UTF-8 back.");
+	assertEqualString(badname_utf8, archive_entry_gname(entry));
+
+	failure("A non-convertible uname should cause a warning.");
+	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
+	assertEqualWString(badname, archive_entry_uname_w(entry));
+	failure("If native locale can't convert, we should get UTF-8 back.");
+	assertEqualString(badname_utf8, archive_entry_uname(entry));
+
+	failure("A non-convertible hardlink should cause a warning.");
+	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
+	assertEqualWString(badname, archive_entry_hardlink_w(entry));
+	failure("If native locale can't convert, we should get UTF-8 back.");
+	assertEqualString(badname_utf8, archive_entry_hardlink(entry));
+
+	failure("A non-convertible symlink should cause a warning.");
+	assertEqualInt(ARCHIVE_WARN, archive_read_next_header(a, &entry));
+	assertEqualWString(badname, archive_entry_symlink_w(entry));
+	assertEqualWString(NULL, archive_entry_hardlink_w(entry));
+	failure("If native locale can't convert, we should get UTF-8 back.");
+	assertEqualString(badname_utf8, archive_entry_symlink(entry));
+
+	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &entry));
+
+	assertEqualInt(0, archive_read_close(a));
+	assertEqualInt(0, archive_read_finish(a));
+}

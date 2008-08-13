@@ -149,7 +149,7 @@ followed by the least-significant 16 bits.
 Each of the two 16 bit values are stored in machine-native byte order.
 .It Va namesize
 The number of bytes in the pathname that follows the header.
-This count includes the trailing NULL byte.
+This count includes the trailing NUL byte.
 .It Va filesize
 The size of the file.
 Note that this archive format is limited to
@@ -162,8 +162,8 @@ above for a description of the storage of four-byte integers.
 The pathname immediately follows the fixed header.
 If the
 .Cm namesize
-is odd, an additional NULL byte is added after the pathname.
-The file data is then appended, padded with NULL
+is odd, an additional NUL byte is added after the pathname.
+The file data is then appended, padded with NUL
 bytes to an even length.
 .Pp
 Hardlinked files are not given special treatment;
@@ -202,7 +202,7 @@ Unlike the old binary format, there is no additional padding
 after the pathname or file contents.
 If the files being archived are themselves entirely ASCII, then
 the resulting archive will be entirely ASCII, except for the
-NULL byte that terminates the name field.
+NUL byte that terminates the name field.
 .Ss New ASCII Format
 The "new" ASCII format uses 8-byte hexadecimal fields for
 all numbers and separates device numbers into separate fields
@@ -237,7 +237,7 @@ This field is always set to zero by writers and ignored by readers.
 See the next section for more details.
 .El
 .Pp
-The pathname is followed by NULL bytes so that the total size
+The pathname is followed by NUL bytes so that the total size
 of the fixed header plus pathname is a multiple of four.
 Likewise, the file data is padded to a multiple of four bytes.
 Note that this format supports only 4 gigabyte files (unlike the

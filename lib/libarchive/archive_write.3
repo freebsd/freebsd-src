@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2006
+.Dd May 11, 2008
 .Dt archive_write 3
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nm archive_write_set_bytes_per_block ,
 .Nm archive_write_set_bytes_in_last_block ,
 .Nm archive_write_set_compression_bzip2 ,
+.Nm archive_write_set_compression_compress ,
 .Nm archive_write_set_compression_gzip ,
 .Nm archive_write_set_compression_none ,
 .Nm archive_write_set_compression_program ,
@@ -65,6 +66,8 @@
 .Fn archive_write_set_bytes_in_last_block "struct archive *" "int"
 .Ft int
 .Fn archive_write_set_compression_bzip2 "struct archive *"
+.Ft int
+.Fn archive_write_set_compression_compress "struct archive *"
 .Ft int
 .Fn archive_write_set_compression_gzip "struct archive *"
 .Ft int
@@ -197,6 +200,7 @@ the pax extended header for most normal files.
 In most cases, this will result in ordinary ustar archives.
 .It Xo
 .Fn archive_write_set_compression_bzip2 ,
+.Fn archive_write_set_compression_compress ,
 .Fn archive_write_set_compression_gzip ,
 .Fn archive_write_set_compression_none
 .Xc

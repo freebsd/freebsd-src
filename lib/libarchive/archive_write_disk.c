@@ -187,6 +187,8 @@ struct archive_write_disk {
 	/* UID/GID to use in restoring this entry. */
 	uid_t			 uid;
 	gid_t			 gid;
+	/* Last offset written to disk. */
+	off_t			 last_offset;
 };
 
 /*
@@ -242,6 +244,31 @@ static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
 static ssize_t	_archive_write_data_block(struct archive *, const void *, size_t, off_t);
 
+static int
+_archive_write_disk_lazy_stat(struct archive_write_disk *a)
+{
+	if (a->pst != NULL) {
+		/* Already have stat() data available. */
+		return (ARCHIVE_OK);
+	}
+#ifdef HAVE_FSTAT
+	if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
+		a->pst = &a->st;
+		return (ARCHIVE_OK);
+	}
+#endif
+	/*
+	 * XXX At this point, symlinks should not be hit, otherwise
+	 * XXX a race occured.  Do we want to check explicitly for that?
+	 */
+	if (lstat(a->name, &a->st) == 0) {
+		a->pst = &a->st;
+		return (ARCHIVE_OK);
+	}
+	archive_set_error(&a->archive, errno, "Couldn't stat file");
+	return (ARCHIVE_WARN);
+}
+
 static struct archive_vtable *
 archive_write_disk_vtable(void)
 {
@@ -294,7 +321,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	archive_clear_error(&a->archive);
 	if (a->archive.state & ARCHIVE_STATE_DATA) {
 		r = _archive_write_finish_entry(&a->archive);
-		if (r != ARCHIVE_OK)
+		if (r == ARCHIVE_FATAL)
 			return (r);
 	}
 
@@ -308,6 +335,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	}
 	a->entry = archive_entry_clone(entry);
 	a->fd = -1;
+	a->last_offset = 0;
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
@@ -463,6 +491,7 @@ _archive_write_data_block(struct archive *_a,
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t bytes_written = 0;
+	ssize_t block_size, bytes_to_write;
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -473,31 +502,53 @@ _archive_write_data_block(struct archive *_a,
 	}
 	archive_clear_error(&a->archive);
 
-	/* Seek if necessary to the specified offset. */
-	if (offset != a->offset) {
-		if (lseek(a->fd, offset, SEEK_SET) < 0) {
-			archive_set_error(&a->archive, errno, "Seek failed");
-			return (ARCHIVE_WARN);
-		}
-		a->offset = offset;
+	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
+		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (r);
+		block_size = a->pst->st_blksize;
+	} else
+		block_size = -1;
+
+	if ((off_t)(offset + size) > a->filesize) {
+		size = (size_t)(a->filesize - a->offset);
+		archive_set_error(&a->archive, 0,
+		    "Write request too large");
+		r = ARCHIVE_WARN;
 	}
 
 	/* Write the data. */
-	while (size > 0 && a->offset < a->filesize) {
-		if ((off_t)(a->offset + size) > a->filesize) {
-			size = (size_t)(a->filesize - a->offset);
-			archive_set_error(&a->archive, errno,
-			    "Write request too large");
-			r = ARCHIVE_WARN;
-		}
+	while (size > 0) {
+		if (block_size != -1) {
+			const char *buf;
+
+			for (buf = buff; size; ++buf, --size, ++offset) {
+				if (*buf != '\0')
+					break;
+			}
+			if (size == 0)
+				break;
+			bytes_to_write = block_size - offset % block_size;
+			buff = buf;
+		} else
+			bytes_to_write = size;
+		/* Seek if necessary to the specified offset. */
+		if (offset != a->last_offset) {
+			if (lseek(a->fd, offset, SEEK_SET) < 0) {
+				archive_set_error(&a->archive, errno, "Seek failed");
+				return (ARCHIVE_FATAL);
+			}
+ 		}
 		bytes_written = write(a->fd, buff, size);
 		if (bytes_written < 0) {
 			archive_set_error(&a->archive, errno, "Write failed");
 			return (ARCHIVE_WARN);
 		}
+		buff = (const char *)buff + bytes_written;
 		size -= bytes_written;
-		a->offset += bytes_written;
+		offset += bytes_written;
+		a->last_offset = a->offset = offset;
 	}
+	a->offset = offset;
 	return (r);
 }
 
@@ -505,7 +556,6 @@ static ssize_t
 _archive_write_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	off_t offset;
 	int r;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
@@ -513,11 +563,10 @@ _archive_write_data(struct archive *_a, const void *buff, size_t size)
 	if (a->fd < 0)
 		return (ARCHIVE_OK);
 
-	offset = a->offset;
 	r = _archive_write_data_block(_a, buff, size, a->offset);
 	if (r < ARCHIVE_OK)
 		return (r);
-	return (a->offset - offset);
+	return size;
 }
 
 static int
@@ -532,6 +581,34 @@ _archive_write_finish_entry(struct archive *_a)
 	if (a->archive.state & ARCHIVE_STATE_HEADER)
 		return (ARCHIVE_OK);
 	archive_clear_error(&a->archive);
+
+	if (a->last_offset != a->filesize && a->fd >= 0) {
+		if (ftruncate(a->fd, a->filesize) == -1 &&
+		    a->filesize == 0) {
+			archive_set_error(&a->archive, errno,
+			    "File size could not be restored");
+			return (ARCHIVE_FAILED);
+		}
+		/*
+		 * Explicitly stat the file as some platforms might not
+		 * implement the XSI option to extend files via ftruncate.
+		 */
+		a->pst = NULL;
+		if ((ret = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (ret);
+		if (a->st.st_size != a->filesize) {
+			const char nul = '\0';
+			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
+				archive_set_error(&a->archive, errno, "Seek failed");
+				return (ARCHIVE_FATAL);
+			}
+			if (write(a->fd, &nul, 1) < 0) {
+				archive_set_error(&a->archive, errno,
+				    "Write to restore size failed");
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
 
 	/* Restore metadata. */
 
@@ -723,11 +800,13 @@ restore_entry(struct archive_write_disk *a)
 		 * object isn't a dir.
 		 */
 		if (unlink(a->name) == 0) {
-			/* We removed it, we're done. */
+			/* We removed it, reset cached stat. */
+			a->pst = NULL;
 		} else if (errno == ENOENT) {
 			/* File didn't exist, that's just as good. */
 		} else if (rmdir(a->name) == 0) {
 			/* It was a dir, but now it's gone. */
+			a->pst = NULL;
 		} else {
 			/* We tried, but couldn't get rid of it. */
 			archive_set_error(&a->archive, errno,
@@ -768,6 +847,7 @@ restore_entry(struct archive_write_disk *a)
 			    "Can't remove already-existing dir");
 			return (ARCHIVE_WARN);
 		}
+		a->pst = NULL;
 		/* Try again. */
 		en = create_filesystem_object(a);
 	} else if (en == EEXIST) {
@@ -807,6 +887,7 @@ restore_entry(struct archive_write_disk *a)
 				    "Can't unlink already-existing object");
 				return (ARCHIVE_WARN);
 			}
+			a->pst = NULL;
 			/* Try again. */
 			en = create_filesystem_object(a);
 		} else if (!S_ISDIR(a->mode)) {
@@ -866,8 +947,18 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * New cpio and pax formats allow hardlink entries
 		 * to carry data, so we may have to open the file
 		 * for hardlink entries.
+		 *
+		 * If the hardlink was successfully created and
+		 * the archive doesn't have carry data for it,
+		 * consider it to be non-authoritive for meta data.
+		 * This is consistent with GNU tar and BSD pax.
+		 * If the hardlink does carry data, let the last
+		 * archive entry decide ownership.
 		 */
-		if (r == 0 && a->filesize > 0) {
+		if (r == 0 && a->filesize == 0) {
+			a->todo = 0;
+			a->deferred = 0;
+		} if (r == 0 && a->filesize > 0) {
 			a->fd = open(a->name, O_WRONLY | O_TRUNC | O_BINARY);
 			if (a->fd < 0)
 				r = errno;
@@ -1203,6 +1294,7 @@ check_symlinks(struct archive_write_disk *a)
 					pn[0] = c;
 					return (ARCHIVE_WARN);
 				}
+				a->pst = NULL;
 				/*
 				 * Even if we did remove it, a warning
 				 * is in order.  The warning is silly,
@@ -1226,6 +1318,7 @@ check_symlinks(struct archive_write_disk *a)
 					pn[0] = c;
 					return (ARCHIVE_WARN);
 				}
+				a->pst = NULL;
 			} else {
 				archive_set_error(&a->archive, 0,
 				    "Cannot extract through symlink %s",
@@ -1608,19 +1701,8 @@ set_mode(struct archive_write_disk *a, int mode)
 		 * process, since systems sometimes set GID from
 		 * the enclosing dir or based on ACLs.
 		 */
-		if (a->pst != NULL) {
-			/* Already have stat() data available. */
-#ifdef HAVE_FSTAT
-		} else if (a->fd >= 0 && fstat(a->fd, &a->st) == 0) {
-			a->pst = &a->st;
-#endif
-		} else if (stat(a->name, &a->st) == 0) {
-			a->pst = &a->st;
-		} else {
-			archive_set_error(&a->archive, errno,
-			    "Couldn't stat file");
-			return (ARCHIVE_WARN);
-		}
+		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+			return (r);
 		if (a->pst->st_gid != a->gid) {
 			mode &= ~ S_ISGID;
 			if (a->flags & ARCHIVE_EXTRACT_OWNER) {
@@ -1783,6 +1865,8 @@ static int
 set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
     mode_t mode, unsigned long set, unsigned long clear)
 {
+	int r;
+
 	(void)mode; /* UNUSED */
 	if (set == 0  && clear == 0)
 		return (ARCHIVE_OK);
@@ -1793,15 +1877,8 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	 * about the correct approach if we're overwriting an existing
 	 * file that already has flags on it. XXX
 	 */
-	if (fd >= 0 && fstat(fd, &a->st) == 0)
-		a->pst = &a->st;
-	else if (lstat(name, &a->st) == 0)
-		a->pst = &a->st;
-	else {
-		archive_set_error(&a->archive, errno,
-		    "Couldn't stat file");
-		return (ARCHIVE_WARN);
-	}
+	if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
+		return (r);
 
 	a->st.st_flags &= ~clear;
 	a->st.st_flags |= set;
