@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1996
- * 	The President and Fellows of Harvard College. All rights reserved.
+ *	The President and Fellows of Harvard College. All rights reserved.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -43,7 +43,7 @@
  */
 
 #ifndef _MACHINE_CACHE_H_
-#define _MACHINE_CACHE_H_
+#define	_MACHINE_CACHE_H_
 
 #ifndef LOCORE
 #include <dev/ofw/openfirm.h>
@@ -77,21 +77,21 @@
 #ifndef LOCORE
 
 /*
- * Cache control information.
+ * Cache control information
  */
 struct cacheinfo {
 	u_int	c_enabled;		/* true => cache is enabled */
-	u_int 	ic_size;		/* instruction cache */
+	u_int	ic_size;		/* instruction cache */
 	u_int	ic_set;
 	u_int	ic_l2set;
-	u_int 	ic_assoc;
-	u_int 	ic_linesize;
-	u_int 	dc_size;		/* data cache */
+	u_int	ic_assoc;
+	u_int	ic_linesize;
+	u_int	dc_size;		/* data cache */
 	u_int	dc_l2size;
-	u_int 	dc_assoc;
-	u_int 	dc_linesize;
+	u_int	dc_assoc;
+	u_int	dc_linesize;
 	u_int	ec_size;		/* external cache info */
-	u_int 	ec_assoc;
+	u_int	ec_assoc;
 	u_int	ec_l2set;
 	u_int	ec_linesize;
 	u_int	ec_l2linesize;
