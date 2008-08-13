@@ -1200,6 +1200,9 @@ archive_write_pax_destroy(struct archive_write *a)
 	struct pax *pax;
 
 	pax = (struct pax *)a->format_data;
+	if (pax == NULL)
+		return (ARCHIVE_OK);
+
 	archive_string_free(&pax->pax_header);
 	free(pax);
 	a->format_data = NULL;
