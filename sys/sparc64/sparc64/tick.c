@@ -63,7 +63,7 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
     0, "total number of tick interrupts with adjustment");
 
-static void tick_hardclock(struct trapframe *);
+static void tick_hardclock(struct trapframe *tf);
 
 static uint64_t
 tick_cputicks(void)
@@ -80,11 +80,11 @@ cpu_initclocks(void)
 	tick_start();
 }
 
-static __inline void
+static inline void
 tick_process(struct trapframe *tf)
 {
 
-	if (PCPU_GET(cpuid) == 0)
+	if (curcpu == 0)
 		hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
 	else
 		hardclock_cpu(TRAPF_USERMODE(tf));
@@ -96,8 +96,9 @@ tick_process(struct trapframe *tf)
 static void
 tick_hardclock(struct trapframe *tf)
 {
-	u_long adj, s, tick, ref;
+	u_long adj, ref, tick;
 	long delta;
+	register_t s;
 	int count;
 
 	/*
@@ -165,7 +166,8 @@ tick_init(u_long clock)
 void
 tick_start(void)
 {
-	u_long base, s;
+	u_long base;
+	register_t s;
 
 	/*
 	 * Avoid stopping of hardclock in terms of a lost tick interrupt
@@ -179,7 +181,7 @@ tick_start(void)
 		panic("%s: HZ too high, decrease to at least %ld", __func__,
 		    tick_freq / TICK_GRACE);
 
-	if (PCPU_GET(cpuid) == 0)
+	if (curcpu == 0)
 		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
 
 	/*

@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 	.register %g2,#ignore
 
 	.globl	kernbase
-	.set	kernbase,KERNBASE
+	.set	kernbase, KERNBASE
 
 /*
  * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3,
- *	       u_long ofw_vec)
+ *     u_long ofw_vec)
  */
 ENTRY(btext)
 ENTRY(_start)
@@ -57,8 +57,8 @@ ENTRY(_start)
 	wrpr	%g0, 0, %tick
 
 	/*
-	 * Get onto our per-cpu panic stack, which precedes the struct pcpu in
-	 * the per-cpu page.
+	 * Get onto our per-CPU panic stack, which precedes the struct pcpu in
+	 * the per-CPU page.
 	 */
 	SET(pcpu0 + (PCPU_PAGES * PAGE_SIZE) - PC_SIZEOF, %l1, %l0)
 	sub	%l0, SPOFF + CCFSZ, %sp
@@ -100,37 +100,37 @@ ENTRY(cpu_setregs)
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	/*
-	 * Normal %g6 points to the current thread's pcb, and %g7 points to
-	 * the per-cpu data structure.
+	 * Normal %g6 points to the current thread's PCB, and %g7 points to
+	 * the per-CPU data structure.
 	 */
 	mov	%o1, PCB_REG
 	mov	%o0, PCPU_REG
 
 	/*
-	 * Alternate globals.
+	 * Switch to alternate globals.
 	 */
 	wrpr	%g0, PSTATE_ALT, %pstate
 
 	/*
-	 * Alternate %g5 points to a per-cpu panic stack, %g6 points to the
-	 * current thread's pcb, and %g7 points to the per-cpu data structure.
+	 * Alternate %g5 points to a per-CPU panic stack, %g6 points to the
+	 * current thread's PCB, and %g7 points to the per-CPU data structure.
 	 */
 	mov	%o0, ASP_REG
 	mov	%o1, PCB_REG
 	mov	%o0, PCPU_REG
 
 	/*
-	 * Interrupt globals.
+	 * Switch to interrupt globals.
 	 */
 	wrpr	%g0, PSTATE_INTR, %pstate
 
 	/*
-	 * Interrupt %g7 points to the per-cpu data structure.
+	 * Interrupt %g7 points to the per-CPU data structure.
 	 */
 	mov	%o0, PCPU_REG
 
 	/*
-	 * Normal globals again.
+	 * Switch to normal globals again.
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 

@@ -30,13 +30,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_pmap.h"
 
 #include <sys/param.h>
-#include <sys/linker_set.h>
-#include <sys/proc.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
-#include <sys/systm.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -73,8 +70,7 @@ cheetah_dcache_page_inval(vm_paddr_t spa)
 	vm_paddr_t pa;
 	void *cookie;
 
-	KASSERT((spa & PAGE_MASK) == 0,
-	    ("dcache_page_inval: pa not page aligned"));
+	KASSERT((spa & PAGE_MASK) == 0, ("%s: pa not page aligned", __func__));
 	cookie = ipi_dcache_page_inval(tl_ipi_cheetah_dcache_page_inval, spa);
 	for (pa = spa; pa < spa + PAGE_SIZE; pa += cache.dc_linesize)
 		stxa_sync(pa, ASI_DCACHE_INVALIDATE, 0);

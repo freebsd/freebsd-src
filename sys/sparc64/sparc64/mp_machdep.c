@@ -116,7 +116,7 @@ static int isjbus;
 static volatile u_int shutdown_cpus;
 
 static void cpu_mp_unleash(void *v);
-static void spitfire_ipi_send(u_int, u_long, u_long, u_long);
+static void spitfire_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 static void sun4u_startcpu(phandle_t cpu, void *func, u_long arg);
 static void sun4u_stopself(void);
 
@@ -249,8 +249,8 @@ cpu_mp_start(void)
 	register_t s;
 	vm_offset_t va;
 	phandle_t child;
-	u_int clock;
 	u_int mid;
+	u_int clock;
 	u_int cpuid;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
@@ -325,8 +325,8 @@ cpu_mp_unleash(void *v)
 	register_t s;
 	vm_offset_t va;
 	vm_paddr_t pa;
-	u_int ctx_min;
 	u_int ctx_inc;
+	u_int ctx_min;
 	int i;
 
 	ctx_min = TLB_CTX_USER_MIN;
