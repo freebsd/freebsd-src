@@ -31,6 +31,7 @@
 %type	<str>	Save_id
 %type	<str>	Opt_value
 %type	<str>	Dev
+%token	<str>	PATH
 
 %{
 
@@ -121,6 +122,12 @@ Spec:
 	Device_spec SEMICOLON
 		|
 	Config_spec SEMICOLON
+		|
+	INCLUDE PATH SEMICOLON
+	      = {
+		if (incignore == 0)
+			include($2, 0);
+		};
 		|
 	INCLUDE ID SEMICOLON
 	      = {
