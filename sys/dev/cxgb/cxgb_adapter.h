@@ -380,6 +380,8 @@ struct adapter {
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
 
+	unsigned int		check_task_cnt;
+
 	/* Register lock for use by the hardware layer */
 	struct mtx		mdio_lock;
 	struct mtx		elmer_lock;
@@ -569,6 +571,11 @@ void t3_add_configured_sysctls(adapter_t *sc);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
     unsigned char *data);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
+
+#define CXGB_TICKS(a) ((a)->params.linkpoll_period ? \
+    (hz * (a)->params.linkpoll_period) / 10 : \
+    (a)->params.stats_update_period * hz)
+
 /*
  * XXX figure out how we can return this to being private to sge
  */
