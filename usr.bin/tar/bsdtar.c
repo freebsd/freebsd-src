@@ -136,7 +136,7 @@ static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 
 /* Fake short equivalents for long options that otherwise lack them. */
 enum {
-	OPTION_CHECK_LINKS=1,
+	OPTION_CHECK_LINKS = 1,
 	OPTION_CHROOT,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
