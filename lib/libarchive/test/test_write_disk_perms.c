@@ -186,7 +186,7 @@ DEFINE_TEST(test_write_disk_perms)
 	/* Check original perms. */
 	assert(0 == stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
-	assert((st.st_mode & 07777) == 0744);
+	assert((st.st_mode & 0777) == 0744);
 	/* Overwrite shouldn't edit perms. */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "dir_overwrite_0744");
@@ -197,7 +197,7 @@ DEFINE_TEST(test_write_disk_perms)
 	/* Make sure they're unchanged. */
 	assert(0 == stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
-	assert((st.st_mode & 07777) == 0744);
+	assert((st.st_mode & 0777) == 0744);
 
 	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
 	assert((ae = archive_entry_new()) != NULL);
@@ -385,7 +385,7 @@ DEFINE_TEST(test_write_disk_perms)
 
 	assert(0 == stat("dir_overwrite_0744", &st));
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
-	assert((st.st_mode & 07777) == 0744);
+	assert((st.st_mode & 0777) == 0744);
 
 	assert(0 == stat("file_no_suid", &st));
 	failure("file_0755: st.st_mode=%o", st.st_mode);
