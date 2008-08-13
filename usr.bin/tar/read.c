@@ -354,7 +354,7 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 	if (abs(tim - now) > (365/2)*86400)
 		fmt = bsdtar->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
-		fmt = bsdtar->day_first ? "%e %b %R" : "%b %e %R";
+		fmt = bsdtar->day_first ? "%e %b %H:%M" : "%b %e %H:%M";
 	strftime(tmp, sizeof(tmp), fmt, localtime(&tim));
 	fprintf(out, " %s ", tmp);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
