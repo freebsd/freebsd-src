@@ -294,6 +294,24 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
+/* testl i32,r32 */
+#define TESTid(i32, r32) do {						\
+	if (r32 == EAX) {						\
+		emitm(&stream, 0xa9, 1);				\
+	} else {							\
+		emitm(&stream, 0xf7, 1);				\
+		emitm(&stream, (3 << 6) | r32, 1);			\
+	}								\
+	emitm(&stream, i32, 4);						\
+} while (0)
+
+/* testl sr32,dr32 */
+#define TESTrd(sr32, dr32) do {						\
+	emitm(&stream, 0x85, 1);					\
+	emitm(&stream,							\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
+} while (0)
+
 /* orl sr32,dr32 */
 #define ORrd(sr32, dr32) do {						\
 	emitm(&stream, 0x09, 1);					\
@@ -369,40 +387,10 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, off8, 1);					\
 } while (0)
 
-/* je off32 */
-#define JE(off32) do {							\
-	emitm(&stream, 0x840f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jle off8 */
-#define JLEb(off8) do {							\
-	emitm(&stream, 0x7e, 1);					\
+/* jbe off8 */
+#define JBEb(off8) do {							\
+	emitm(&stream, 0x76, 1);					\
 	emitm(&stream, off8, 1);					\
-} while (0)
-
-/* ja off32 */
-#define JA(off32) do {							\
-	emitm(&stream, 0x870f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jae off32 */
-#define JAE(off32) do {							\
-	emitm(&stream, 0x830f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jg off32 */
-#define JG(off32) do {							\
-	emitm(&stream, 0x8f0f, 2);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jge off32 */
-#define JGE(off32) do {							\
-	emitm(&stream, 0x8d0f, 2);					\
-	emitm(&stream, off32, 4);					\
 } while (0)
 
 /* jmp off32 */
@@ -415,6 +403,35 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 #define ZEROrd(r32) do {						\
 	emitm(&stream, 0x31, 1);					\
 	emitm(&stream, (3 << 6) | ((r32 & 0x7) << 3) | (r32 & 0x7), 1);	\
+} while (0)
+
+/*
+ * Conditional long jumps
+ */
+#define	JB	0x82
+#define	JAE	0x83
+#define	JE	0x84
+#define	JNE	0x85
+#define	JBE	0x86
+#define	JA	0x87
+
+#define	JCC(t, f) do {							\
+	if (ins->jt != 0 && ins->jf != 0) {				\
+		/* 5 is the size of the following jmp */		\
+		emitm(&stream, ((t) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jt] -	\
+		    stream.refs[stream.bpf_pc] + 5, 4);			\
+		JMP(stream.refs[stream.bpf_pc + ins->jf] -		\
+		    stream.refs[stream.bpf_pc]);			\
+	} else if (ins->jt != 0) {					\
+		emitm(&stream, ((t) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jt] -	\
+		    stream.refs[stream.bpf_pc], 4);			\
+	} else {							\
+		emitm(&stream, ((f) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jf] -	\
+		    stream.refs[stream.bpf_pc], 4);			\
+	}								\
 } while (0)
 
 #endif	/* _BPF_JIT_MACHDEP_H_ */
