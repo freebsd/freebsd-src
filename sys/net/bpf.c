@@ -117,7 +117,6 @@ static int	bpf_setdlt(struct bpf_d *, u_int);
 static void	filt_bpfdetach(struct knote *);
 static int	filt_bpfread(struct knote *, long);
 static void	bpf_drvinit(void *);
-static void	bpf_clone(void *, struct ucred *, char *, int, struct cdev **);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
@@ -131,7 +130,6 @@ SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
-static	d_close_t	bpfclose;
 static	d_read_t	bpfread;
 static	d_write_t	bpfwrite;
 static	d_ioctl_t	bpfioctl;
@@ -140,9 +138,7 @@ static	d_kqfilter_t	bpfkqfilter;
 
 static struct cdevsw bpf_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
 	.d_open =	bpfopen,
-	.d_close =	bpfclose,
 	.d_read =	bpfread,
 	.d_write =	bpfwrite,
 	.d_ioctl =	bpfioctl,
@@ -585,6 +581,34 @@ bpf_detachd(struct bpf_d *d)
 }
 
 /*
+ * Close the descriptor by detaching it from its interface,
+ * deallocating its buffers, and marking it free.
+ */
+static void
+bpf_dtor(void *data)
+{
+	struct bpf_d *d = data;
+
+	BPFD_LOCK(d);
+	if (d->bd_state == BPF_WAITING)
+		callout_stop(&d->bd_callout);
+	d->bd_state = BPF_IDLE;
+	BPFD_UNLOCK(d);
+	funsetown(&d->bd_sigio);
+	mtx_lock(&bpf_mtx);
+	if (d->bd_bif)
+		bpf_detachd(d);
+	mtx_unlock(&bpf_mtx);
+	selwakeuppri(&d->bd_sel, PRINET);
+#ifdef MAC
+	mac_bpfdesc_destroy(d);
+#endif /* MAC */
+	knlist_destroy(&d->bd_sel.si_note);
+	bpf_freed(d);
+	free(d, M_BPF);
+}
+
+/*
  * Open ethernet device.  Returns ENXIO for illegal minor device number,
  * EBUSY if file is open by another process.
  */
@@ -593,25 +617,14 @@ static	int
 bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct bpf_d *d;
+	int error;
 
-	mtx_lock(&bpf_mtx);
-	d = dev->si_drv1;
-	/*
-	 * Each minor can be opened by only one process.  If the requested
-	 * minor is in use, return EBUSY.
-	 */
-	if (d != NULL) {
-		mtx_unlock(&bpf_mtx);
-		return (EBUSY);
-	}
-	dev->si_drv1 = (struct bpf_d *)~0;	/* mark device in use */
-	mtx_unlock(&bpf_mtx);
-
-	if ((dev->si_flags & SI_NAMED) == 0)
-		make_dev(&bpf_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
-		    "bpf%d", dev2unit(dev));
 	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
-	dev->si_drv1 = d;
+	error = devfs_set_cdevpriv(d, bpf_dtor);
+	if (error != 0) {
+		free(d, M_BPF);
+		return (error);
+	}
 
 	/*
 	 * For historical reasons, perform a one-time initialization call to
@@ -635,46 +648,18 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 }
 
 /*
- * Close the descriptor by detaching it from its interface,
- * deallocating its buffers, and marking it free.
- */
-/* ARGSUSED */
-static	int
-bpfclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct bpf_d *d = dev->si_drv1;
-
-	BPFD_LOCK(d);
-	if (d->bd_state == BPF_WAITING)
-		callout_stop(&d->bd_callout);
-	d->bd_state = BPF_IDLE;
-	BPFD_UNLOCK(d);
-	funsetown(&d->bd_sigio);
-	mtx_lock(&bpf_mtx);
-	if (d->bd_bif)
-		bpf_detachd(d);
-	mtx_unlock(&bpf_mtx);
-	selwakeuppri(&d->bd_sel, PRINET);
-#ifdef MAC
-	mac_bpfdesc_destroy(d);
-#endif /* MAC */
-	knlist_destroy(&d->bd_sel.si_note);
-	bpf_freed(d);
-	dev->si_drv1 = NULL;
-	free(d, M_BPF);
-
-	return (0);
-}
-
-/*
  *  bpfread - read next chunk of packets from buffers
  */
 static	int
 bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct bpf_d *d = dev->si_drv1;
+	struct bpf_d *d;
 	int timed_out;
 	int error;
+
+	error = devfs_get_cdevpriv((void **)&d);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Restrict application to use a buffer the same size as
@@ -829,11 +814,15 @@ bpf_ready(struct bpf_d *d)
 static int
 bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct bpf_d *d = dev->si_drv1;
+	struct bpf_d *d;
 	struct ifnet *ifp;
 	struct mbuf *m, *mc;
 	struct sockaddr dst;
 	int error, hlen;
+
+	error = devfs_get_cdevpriv((void **)&d);
+	if (error != 0)
+		return (error);
 
 	d->bd_pid = curthread->td_proc->p_pid;
 	d->bd_wcount++;
@@ -963,8 +952,12 @@ static	int
 bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
     struct thread *td)
 {
-	struct bpf_d *d = dev->si_drv1;
-	int error = 0;
+	struct bpf_d *d;
+	int error;
+
+	error = devfs_get_cdevpriv((void **)&d);
+	if (error != 0)
+		return (error);
 
 	/*
 	 * Refresh PID associated with this descriptor.
@@ -1482,9 +1475,9 @@ bpfpoll(struct cdev *dev, int events, struct thread *td)
 	struct bpf_d *d;
 	int revents;
 
-	d = dev->si_drv1;
-	if (d->bd_bif == NULL)
-		return (ENXIO);
+	if (devfs_get_cdevpriv((void **)&d) != 0 || d->bd_bif == NULL)
+		return (events &
+		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 
 	/*
 	 * Refresh PID associated with this descriptor.
@@ -1516,9 +1509,10 @@ bpfpoll(struct cdev *dev, int events, struct thread *td)
 int
 bpfkqfilter(struct cdev *dev, struct knote *kn)
 {
-	struct bpf_d *d = (struct bpf_d *)dev->si_drv1;
+	struct bpf_d *d;
 
-	if (kn->kn_filter != EVFILT_READ)
+	if (devfs_get_cdevpriv((void **)&d) != 0 ||
+	    kn->kn_filter != EVFILT_READ)
 		return (1);
 
 	/*
@@ -2008,29 +2002,17 @@ bpf_setdlt(struct bpf_d *d, u_int dlt)
 }
 
 static void
-bpf_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
-{
-	int u;
-
-	if (*dev != NULL)
-		return;
-	if (dev_stdclone(name, NULL, "bpf", &u) != 1)
-		return;
-	*dev = make_dev(&bpf_cdevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
-	    "bpf%d", u);
-	dev_ref(*dev);
-	(*dev)->si_flags |= SI_CHEAPCLONE;
-	return;
-}
-
-static void
 bpf_drvinit(void *unused)
 {
+	struct cdev *dev;
 
 	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
 	LIST_INIT(&bpf_iflist);
-	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
+
+	dev = make_dev(&bpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "bpf");
+	/* For compatibility */
+	make_dev_alias(dev, "bpf0");
+
 }
 
 static void
