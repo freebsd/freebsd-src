@@ -3374,7 +3374,25 @@ static const char *txq_names[] =
 	"txq_eth",
 	"txq_ofld",
 	"txq_ctrl"	
-};		
+};
+
+static int
+sysctl_handle_macstat(SYSCTL_HANDLER_ARGS)
+{
+	struct port_info *p = arg1;
+	uint64_t *parg;
+
+	if (!p)
+		return (EINVAL);
+
+	parg = (uint64_t *) ((uint8_t *)&p->mac.stats + arg2);
+
+	PORT_LOCK(p);
+	t3_mac_update_stats(&p->mac);
+	PORT_UNLOCK(p);
+
+	return (sysctl_handle_quad(oidp, parg, 0, req));
+}
 
 void
 t3_add_configured_sysctls(adapter_t *sc)
@@ -3396,6 +3414,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 		struct port_info *pi = &sc->port[i];
 		struct sysctl_oid *poid;
 		struct sysctl_oid_list *poidlist;
+		struct mac_stats *mstats = &pi->mac.stats;
 		
 		snprintf(pi->namebuf, PORT_NAME_LEN, "port%d", i);
 		poid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, 
@@ -3404,11 +3423,11 @@ t3_add_configured_sysctls(adapter_t *sc)
 		SYSCTL_ADD_INT(ctx, poidlist, OID_AUTO, 
 		    "nqsets", CTLFLAG_RD, &pi->nqsets,
 		    0, "#queue sets");
-		
+
 		for (j = 0; j < pi->nqsets; j++) {
 			struct sge_qset *qs = &sc->sge.qs[pi->first_qset + j];
-			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid, *ctrlqpoid;
-			struct sysctl_oid_list *qspoidlist, *rspqpoidlist, *txqpoidlist, *ctrlqpoidlist;
+			struct sysctl_oid *qspoid, *rspqpoid, *txqpoid, *ctrlqpoid, *lropoid;
+			struct sysctl_oid_list *qspoidlist, *rspqpoidlist, *txqpoidlist, *ctrlqpoidlist, *lropoidlist;
 			struct sge_txq *txq = &qs->txq[TXQ_ETH];
 			
 			snprintf(qs->namebuf, QS_NAME_LEN, "qs%d", j);
@@ -3428,6 +3447,10 @@ t3_add_configured_sysctls(adapter_t *sc)
 			ctrlqpoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
 			    txq_names[2], CTLFLAG_RD, NULL, "ctrlq statistics");
 			ctrlqpoidlist = SYSCTL_CHILDREN(ctrlqpoid);
+
+			lropoid = SYSCTL_ADD_NODE(ctx, qspoidlist, OID_AUTO, 
+			    "lro_stats", CTLFLAG_RD, NULL, "LRO statistics");
+			lropoidlist = SYSCTL_CHILDREN(lropoid);
 
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "size",
 			    CTLFLAG_RD, &qs->rspq.size,
@@ -3520,11 +3543,95 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
-
-			
-
-			
+			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
+			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
+			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
+			    CTLFLAG_RD, &qs->lro.ctrl.lro_flushed, 0, NULL);
+			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_bad_csum",
+			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
+			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
+			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);
 		}
+
+		/* Now add a node for mac stats. */
+		poid = SYSCTL_ADD_NODE(ctx, poidlist, OID_AUTO, "mac_stats",
+		    CTLFLAG_RD, NULL, "MAC statistics");
+		poidlist = SYSCTL_CHILDREN(poid);
+
+		/*
+		 * We (ab)use the length argument (arg2) to pass on the offset
+		 * of the data that we are interested in.  This is only required
+		 * for the quad counters that are updated from the hardware (we
+		 * make sure that we return the latest value).
+		 * sysctl_handle_macstat first updates *all* the counters from
+		 * the hardware, and then returns the latest value of the
+		 * requested counter.  Best would be to update only the
+		 * requested counter from hardware, but t3_mac_update_stats()
+		 * hides all the register details and we don't want to dive into
+		 * all that here.
+		 */
+#define CXGB_SYSCTL_ADD_QUAD(a)	SYSCTL_ADD_OID(ctx, poidlist, OID_AUTO, #a, \
+    (CTLTYPE_QUAD | CTLFLAG_RD), pi, offsetof(struct mac_stats, a), \
+    sysctl_handle_macstat, "QU", 0)
+		CXGB_SYSCTL_ADD_QUAD(tx_octets);
+		CXGB_SYSCTL_ADD_QUAD(tx_octets_bad);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames);
+		CXGB_SYSCTL_ADD_QUAD(tx_mcast_frames);
+		CXGB_SYSCTL_ADD_QUAD(tx_bcast_frames);
+		CXGB_SYSCTL_ADD_QUAD(tx_pause);
+		CXGB_SYSCTL_ADD_QUAD(tx_deferred);
+		CXGB_SYSCTL_ADD_QUAD(tx_late_collisions);
+		CXGB_SYSCTL_ADD_QUAD(tx_total_collisions);
+		CXGB_SYSCTL_ADD_QUAD(tx_excess_collisions);
+		CXGB_SYSCTL_ADD_QUAD(tx_underrun);
+		CXGB_SYSCTL_ADD_QUAD(tx_len_errs);
+		CXGB_SYSCTL_ADD_QUAD(tx_mac_internal_errs);
+		CXGB_SYSCTL_ADD_QUAD(tx_excess_deferral);
+		CXGB_SYSCTL_ADD_QUAD(tx_fcs_errs);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_64);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_65_127);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_128_255);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_256_511);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_512_1023);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_1024_1518);
+		CXGB_SYSCTL_ADD_QUAD(tx_frames_1519_max);
+		CXGB_SYSCTL_ADD_QUAD(rx_octets);
+		CXGB_SYSCTL_ADD_QUAD(rx_octets_bad);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames);
+		CXGB_SYSCTL_ADD_QUAD(rx_mcast_frames);
+		CXGB_SYSCTL_ADD_QUAD(rx_bcast_frames);
+		CXGB_SYSCTL_ADD_QUAD(rx_pause);
+		CXGB_SYSCTL_ADD_QUAD(rx_align_errs);
+		CXGB_SYSCTL_ADD_QUAD(rx_symbol_errs);
+		CXGB_SYSCTL_ADD_QUAD(rx_data_errs);
+		CXGB_SYSCTL_ADD_QUAD(rx_sequence_errs);
+		CXGB_SYSCTL_ADD_QUAD(rx_runt);
+		CXGB_SYSCTL_ADD_QUAD(rx_jabber);
+		CXGB_SYSCTL_ADD_QUAD(rx_short);
+		CXGB_SYSCTL_ADD_QUAD(rx_too_long);
+		CXGB_SYSCTL_ADD_QUAD(rx_mac_internal_errs);
+		CXGB_SYSCTL_ADD_QUAD(rx_cong_drops);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_64);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_65_127);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_128_255);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_256_511);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_512_1023);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_1024_1518);
+		CXGB_SYSCTL_ADD_QUAD(rx_frames_1519_max);
+#undef CXGB_SYSCTL_ADD_QUAD
+
+#define CXGB_SYSCTL_ADD_ULONG(a) SYSCTL_ADD_ULONG(ctx, poidlist, OID_AUTO, #a, \
+    CTLFLAG_RD, &mstats->a, 0)
+		CXGB_SYSCTL_ADD_ULONG(tx_fifo_parity_err);
+		CXGB_SYSCTL_ADD_ULONG(rx_fifo_parity_err);
+		CXGB_SYSCTL_ADD_ULONG(tx_fifo_urun);
+		CXGB_SYSCTL_ADD_ULONG(rx_fifo_ovfl);
+		CXGB_SYSCTL_ADD_ULONG(serdes_signal_loss);
+		CXGB_SYSCTL_ADD_ULONG(xaui_pcs_ctc_err);
+		CXGB_SYSCTL_ADD_ULONG(xaui_pcs_align_change);
+		CXGB_SYSCTL_ADD_ULONG(num_toggled);
+		CXGB_SYSCTL_ADD_ULONG(num_resets);
+#undef CXGB_SYSCTL_ADD_ULONG
 	}
 }
 	
