@@ -382,6 +382,12 @@ will produce output similar to that of
 Additional
 .Fl v
 options will provide additional detail.
+.It Fl -version
+Print version of
+.Nm
+and
+.Nm libarchive ,
+and exit.
 .It Fl W Ar longopt=value
 Long options (preceded by
 .Fl - )
@@ -498,6 +504,17 @@ Finally, it will switch to the
 directory and add
 .Pa foo2
 to the output archive.
+.Pp
+An input file in
+.Xr mtree 5
+format can be used to create an output archive with arbitrary ownership,
+permissions, or names that differ from existing data on disk:
+.Pp
+.Dl $ cat input.mtree
+.Dl #mtree
+.Dl usr/bin uid=0 gid=0 mode=0755 type=dir
+.Dl usr/bin/ls uid=0 gid=0 mode=0755 type=file content=myls
+.Dl $ tar -cvf output.tar @input.mtree
 .Pp
 The
 .Fl -newer
