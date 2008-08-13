@@ -624,11 +624,6 @@ cxgb_controller_attach(device_t dev)
 	if ((error = bus_generic_attach(dev)) != 0)
 		goto out;
 
-	/*
-	 * XXX need to poll for link status
-	 */
-	sc->params.stats_update_period = 1;
-
 	/* initialize sge private state */
 	t3_sge_init_adapter(sc);
 
@@ -648,7 +643,7 @@ cxgb_controller_attach(device_t dev)
 	    G_FW_VERSION_MICRO(vers));
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
-	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 	t3_add_attach_sysctls(sc);
 out:
 	if (error)
@@ -2220,7 +2215,7 @@ cxgb_tick(void *arg)
 		return;
 
 	taskqueue_enqueue(sc->tq, &sc->tick_task);
-	callout_reset(&sc->cxgb_tick_ch, hz, cxgb_tick, sc);
+	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 }
 
 static void
@@ -2228,6 +2223,7 @@ cxgb_tick_handler(void *arg, int count)
 {
 	adapter_t *sc = (adapter_t *)arg;
 	const struct adapter_params *p = &sc->params;
+	int i;
 
 	if(sc->flags & CXGB_SHUTDOWN)
 		return;
@@ -2235,6 +2231,8 @@ cxgb_tick_handler(void *arg, int count)
 	ADAPTER_LOCK(sc);
 	if (p->linkpoll_period)
 		check_link_status(sc);
+
+	sc->check_task_cnt++;
 
 	/*
 	 * adapter lock can currently only be acquired after the
@@ -2244,6 +2242,19 @@ cxgb_tick_handler(void *arg, int count)
 
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
+
+	/* Update MAC stats if it's time to do so */
+	if (!p->linkpoll_period ||
+	    (sc->check_task_cnt * p->linkpoll_period) / 10 >=
+	    p->stats_update_period) {
+		for_each_port(sc, i) {
+			struct port_info *port = &sc->port[i];
+			PORT_LOCK(port);
+			t3_mac_update_stats(&port->mac);
+			PORT_UNLOCK(port);
+		}
+		sc->check_task_cnt = 0;
+	}
 }
 
 static void
