@@ -454,13 +454,11 @@ trap(struct trapframe *frame)
 #ifndef TIMER_FREQ
 #  define TIMER_FREQ 1193182
 #endif
-			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(880, hz);
 				lastalert = time_second;
 			}
-			mtx_unlock(&Giant);
 			goto userout;
 #else /* !POWERFAIL_NMI */
 			/* machine/parity/power fail/"kitchen sink" faults */
@@ -688,13 +686,11 @@ trap(struct trapframe *frame)
 #ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
-			mtx_lock(&Giant);
 			if (time_second - lastalert > 10) {
 				log(LOG_WARNING, "NMI: power fail\n");
 				sysbeep(880, hz);
 				lastalert = time_second;
 			}
-			mtx_unlock(&Giant);
 			goto out;
 #else /* !POWERFAIL_NMI */
 			/* XXX Giant */
