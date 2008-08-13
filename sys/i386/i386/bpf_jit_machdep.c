@@ -166,7 +166,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(int), ECX);
 				CMPrd(EDI, ECX);
-				JLEb(7);
+				JBEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
 				POP(ESI);
@@ -182,7 +182,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(short), ECX);
 				CMPrd(EDI, ECX);
-				JLEb(5);
+				JBEb(5);
 				POP(EBX);
 				POP(ESI);
 				POP(EDI);
@@ -195,7 +195,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				ZEROrd(EAX);
 				MOVid(ins->k, ECX);
 				CMPrd(EDI, ECX);
-				JLEb(5);
+				JBEb(5);
 				POP(EBX);
 				POP(ESI);
 				POP(EDI);
@@ -217,7 +217,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(int), ECX);
 				CMPrd(EDI, ECX);
-				JLEb(7);
+				JBEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
 				POP(ESI);
@@ -234,7 +234,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVrd(ECX, ESI);
 				ADDib(sizeof(short), ECX);
 				CMPrd(EDI, ECX);
-				JLEb(5);
+				JBEb(5);
 				POP(EBX);
 				POP(ESI);
 				POP(EDI);
@@ -248,7 +248,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				MOVid(ins->k, ECX);
 				ADDrd(EDX, ECX);
 				CMPrd(EDI, ECX);
-				JLEb(5);
+				JBEb(5);
 				POP(EBX);
 				POP(ESI);
 				POP(EDI);
@@ -259,7 +259,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 			case BPF_LDX|BPF_MSH|BPF_B:
 				MOVid(ins->k, ECX);
 				CMPrd(EDI, ECX);
-				JLEb(7);
+				JBEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
 				POP(ESI);
@@ -314,70 +314,59 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_JMP|BPF_JGT|BPF_K:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPid(ins->k, EAX);
-				/* 5 is the size of the following JMP */
-				JG(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5 );
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JA, JBE);
 				break;
 
 			case BPF_JMP|BPF_JGE|BPF_K:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPid(ins->k, EAX);
-				JGE(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JAE, JB);
 				break;
 
 			case BPF_JMP|BPF_JEQ|BPF_K:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPid(ins->k, EAX);
-				JE(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JE, JNE);
 				break;
 
 			case BPF_JMP|BPF_JSET|BPF_K:
-				MOVrd(EAX, ECX);
-				ANDid(ins->k, ECX);
-				JE(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc]);
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
+				TESTid(ins->k, EAX);
+				JCC(JNE, JE);
 				break;
 
 			case BPF_JMP|BPF_JGT|BPF_X:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPrd(EDX, EAX);
-				JA(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JA, JBE);
 				break;
 
 			case BPF_JMP|BPF_JGE|BPF_X:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPrd(EDX, EAX);
-				JAE(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JAE, JB);
 				break;
 
 			case BPF_JMP|BPF_JEQ|BPF_X:
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
 				CMPrd(EDX, EAX);
-				JE(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc]);
+				JCC(JE, JNE);
 				break;
 
 			case BPF_JMP|BPF_JSET|BPF_X:
-				MOVrd(EAX, ECX);
-				ANDrd(EDX, ECX);
-				JE(stream.refs[stream.bpf_pc + ins->jf] -
-				    stream.refs[stream.bpf_pc] + 5);
-				JMP(stream.refs[stream.bpf_pc + ins->jt] -
-				    stream.refs[stream.bpf_pc]);
+				if (ins->jt == 0 && ins->jf == 0)
+					break;
+				TESTrd(EDX, EAX);
+				JCC(JNE, JE);
 				break;
 
 			case BPF_ALU|BPF_ADD|BPF_X:
@@ -395,7 +384,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_ALU|BPF_DIV|BPF_X:
-				CMPid(0, EDX);
+				TESTrd(EDX, EDX);
 				JNEb(7);
 				ZEROrd(EAX);
 				POP(EBX);
