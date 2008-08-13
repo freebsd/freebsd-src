@@ -54,6 +54,8 @@ static u_long
 redzone_roundup(u_long n)
 {
 
+	if (n < REDZONE_HSIZE)
+		n = REDZONE_HSIZE;
 	if (n <= 128)
 		return (128);
 	else if (n <= 256)
