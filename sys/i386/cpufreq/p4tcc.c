@@ -131,7 +131,7 @@ p4tcc_identify(driver_t *driver, device_t parent)
 	 * of the IA32 Intel Architecture Software Developer's Manual,
 	 * Volume 3, for more info.
 	 */
-	if (BUS_ADD_CHILD(parent, 0, "p4tcc", -1) == NULL)
+	if (BUS_ADD_CHILD(parent, 10, "p4tcc", -1) == NULL)
 		device_printf(parent, "add p4tcc child failed\n");
 }
 
