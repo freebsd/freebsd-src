@@ -78,9 +78,6 @@ struct ex_types {
 	void (*enter_syscall)(struct trussinfo *, int);
 	long (*exit_syscall)(struct trussinfo *, int);
 } ex_types[] = {
-#ifdef __alpha__
-	{ "FreeBSD ELF", alpha_syscall_entry, alpha_syscall_exit },
-#endif
 #ifdef __amd64__
 	{ "FreeBSD ELF64", amd64_syscall_entry, amd64_syscall_exit },
 	{ "FreeBSD ELF32", amd64_fbsd32_syscall_entry, amd64_fbsd32_syscall_exit },
