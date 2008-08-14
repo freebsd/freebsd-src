@@ -2209,8 +2209,8 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 			 */
 			regind = diff / size;
 		}
-	} else if (size <= ((sizeof(size_invs) / sizeof(unsigned))
-	    << QUANTUM_2POW_MIN) + 2) {
+	} else if (size <= (((sizeof(size_invs) / sizeof(unsigned)) + 2)
+	    << QUANTUM_2POW_MIN)) {
 		regind = size_invs[(size >> QUANTUM_2POW_MIN) - 3] * diff;
 		regind >>= SIZE_INV_SHIFT;
 	} else {
