@@ -1224,6 +1224,7 @@ dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci
 dev/ti/if_ti.c			optional ti pci
+dev/tl/if_tl.c			optional tl pci
 dev/trm/trm.c			optional trm
 dev/twa/tw_cl_init.c		optional twa \
 	compile-with "${NORMAL_C} -I$S/dev/twa"
@@ -2086,7 +2087,6 @@ pci/if_mn.c			optional mn pci
 pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
 pci/if_ste.c			optional ste pci
-pci/if_tl.c			optional tl pci
 pci/if_wb.c			optional wb pci
 pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
