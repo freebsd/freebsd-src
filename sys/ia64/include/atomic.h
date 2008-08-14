@@ -350,6 +350,7 @@ atomic_readandclear_64(volatile uint64_t* p)
 
 #define	atomic_readandclear_int		atomic_readandclear_32
 #define	atomic_readandclear_long	atomic_readandclear_64
+#define	atomic_readandclear_ptr		atomic_readandclear_64
 
 /*
  * Atomically add the value of v to the integer pointed to by p and return
@@ -369,5 +370,16 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)
 }
 
 #define	atomic_fetchadd_int		atomic_fetchadd_32
+
+static __inline u_long
+atomic_fetchadd_long(volatile u_long *p, u_long v)
+{
+	u_long value;
+
+	do {
+		value = *p;
+	} while (!atomic_cmpset_64(p, value, value + v));
+	return (value);
+}
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
