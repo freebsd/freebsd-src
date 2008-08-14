@@ -977,6 +977,7 @@ dev/pci/pci_pci.c		optional pci
 dev/pci/pci_user.c		optional pci
 dev/pci/pcib_if.m		standard
 dev/pci/vga_pci.c		optional pci
+dev/pcn/if_pcn.c		optional pcn pci
 dev/pdq/if_fea.c		optional fea eisa
 dev/pdq/if_fpa.c		optional fpa pci
 dev/pdq/pdq.c			optional nowerror fea eisa | fpa pci
@@ -2085,7 +2086,6 @@ pci/alpm.c			optional alpm pci
 pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
 pci/if_mn.c			optional mn pci
-pci/if_pcn.c			optional pcn pci
 pci/if_rl.c			optional rl pci
 pci/if_wb.c			optional wb pci
 pci/intpm.c			optional intpm pci
