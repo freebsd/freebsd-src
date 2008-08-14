@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2005
+.Dd August 13, 2008
 .Dt UUID 3
 .Os
 .Sh NAME
@@ -52,6 +52,14 @@
 .Fn uuid_is_nil "const uuid_t *uuid" "uint32_t *status"
 .Ft void
 .Fn uuid_to_string "const uuid_t *uuid" "char **str" "uint32_t *status"
+.Ft void
+.Fn uuid_enc_le "void *buf" "const uuid_t *uuid"
+.Ft void
+.Fn uuid_dec_le "const void *buf" "uuid_t *"
+.Ft void
+.Fn uuid_enc_be "void *buf" "const uuid_t *uuid"
+.Ft void
+.Fn uuid_dec_be "const void *buf" "uuid_t *"
 .Sh DESCRIPTION
 The family of DCE 1.1 compliant UUID functions allow applications to operate
 on universally unique identifiers, or UUIDs.
@@ -74,6 +82,26 @@ or
 respectively.
 A 16-bit hash value can be obtained by calling
 .Fn uuid_hash .
+.Pp
+The
+.Fn uuid_enc_le
+and
+.Fn uuid_enc_be
+functions encode a binary representation of a UUID into an octet stream
+in little-endian and big-endian byte-order, respectively.
+The destination buffer must be pre-allocated by the caller, and must be
+large enough to hold the 16-octet binary UUID.
+These routines are not part of the DCE RPC API.
+They are provided for convenience.
+.Pp
+The
+.Fn uuid_dec_le
+and
+.Fn uuid_dec_be
+functions decode a UUID from an octet stream in little-endian and
+big-endian byte-order, respectively.
+These routines are not part of the DCE RPC API.
+They are provided for convenience.
 .Sh RETURN VALUES
 The successful or unsuccessful completion of the function is returned in
 the
