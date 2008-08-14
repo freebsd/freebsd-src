@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../pci
+.PATH: ${.CURDIR}/../../dev/wb
 
 KMOD=	if_wb
 SRCS=	if_wb.c device_if.h

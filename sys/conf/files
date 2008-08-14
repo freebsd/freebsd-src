@@ -1328,6 +1328,7 @@ dev/vx/if_vx.c			optional vx
 dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/watchdog/watchdog.c		standard
+dev/wb/if_wb.c			optional wb pci
 dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi
 dev/wi/if_wi_pccard.c		optional wi pccard
@@ -2087,7 +2088,6 @@ pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
 pci/if_mn.c			optional mn pci
 pci/if_rl.c			optional rl pci
-pci/if_wb.c			optional wb pci
 pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
