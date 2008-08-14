@@ -91,13 +91,7 @@ struct td_sched {
 
 /* flags kept in td_flags */
 #define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
-#define TDF_EXIT	TDF_SCHED1	/* thread is being killed. */
-#define TDF_BOUND	TDF_SCHED2
-
-#define ts_flags	ts_thread->td_flags
-#define TSF_DIDRUN	TDF_DIDRUN /* thread actually ran. */
-#define TSF_EXIT	TDF_EXIT /* thread is being killed. */
-#define TSF_BOUND	TDF_BOUND /* stuck to one CPU */
+#define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
 
 #define SKE_RUNQ_PCPU(ts)						\
     ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
@@ -373,13 +367,13 @@ schedcpu(void)
 			 */
 			if (TD_ON_RUNQ(td)) {
 				awake = 1;
-				ts->ts_flags &= ~TSF_DIDRUN;
+				td->td_flags &= ~TDF_DIDRUN;
 			} else if (TD_IS_RUNNING(td)) {
 				awake = 1;
-				/* Do not clear TSF_DIDRUN */
-			} else if (ts->ts_flags & TSF_DIDRUN) {
+				/* Do not clear TDF_DIDRUN */
+			} else if (td->td_flags & TDF_DIDRUN) {
 				awake = 1;
-				ts->ts_flags &= ~TSF_DIDRUN;
+				td->td_flags &= ~TDF_DIDRUN;
 			}
 
 			/*
@@ -868,7 +862,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 */
 		KASSERT((newtd->td_inhibitors == 0),
 			("trying to run inhibited thread"));
-		newtd->td_sched->ts_flags |= TSF_DIDRUN;
+		newtd->td_flags |= TDF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
 			sched_load_add();
@@ -1090,7 +1084,7 @@ sched_add(struct thread *td, int flags)
 		single_cpu = 1;
 		CTR3(KTR_RUNQ,
 		    "sched_add: Put td_sched:%p(td:%p) on cpu%d runq", ts, td, cpu);
-	} else if ((ts)->ts_flags & TSF_BOUND) {
+	} else if ((td)->td_flags & TDF_BOUND) {
 		/* Find CPU from bound runq */
 		KASSERT(SKE_RUNQ_PCPU(ts),("sched_add: bound td_sched not on cpu runq"));
 		cpu = ts->ts_runq - &runq_pcpu[0];
@@ -1234,7 +1228,7 @@ sched_choose(void)
 
 	if (ts) {
 		runq_remove(rq, ts);
-		ts->ts_flags |= TSF_DIDRUN;
+		ts->ts_thread->td_flags |= TDF_DIDRUN;
 
 		KASSERT(ts->ts_thread->td_flags & TDF_INMEM,
 		    ("sched_choose: thread swapped out"));
@@ -1276,7 +1270,7 @@ sched_bind(struct thread *td, int cpu)
 
 	ts = td->td_sched;
 
-	ts->ts_flags |= TSF_BOUND;
+	td->td_flags |= TDF_BOUND;
 #ifdef SMP
 	ts->ts_runq = &runq_pcpu[cpu];
 	if (PCPU_GET(cpuid) == cpu)
@@ -1290,14 +1284,14 @@ void
 sched_unbind(struct thread* td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_sched->ts_flags &= ~TSF_BOUND;
+	td->td_flags &= ~TDF_BOUND;
 }
 
 int
 sched_is_bound(struct thread *td)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	return (td->td_sched->ts_flags & TSF_BOUND);
+	return (td->td_flags & TDF_BOUND);
 }
 
 void
