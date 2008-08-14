@@ -25,7 +25,7 @@
  * Sigset -- a pointer to a sigset_t.  Prints the signals that are set.
  * Sigprocmask -- the first argument to sigprocmask().  Prints the name.
  * Kevent -- a pointer to an array of struct kevents.  Prints all elements.
- * Pathconf -- the 2nd argument of patchconf().
+ * Pathconf -- the 2nd argument of pathconf().
  *
  * In addition, the pointer types (String, Ptr) may have OUT masked in --
  * this means that the data is set on *return* from the system call -- or
