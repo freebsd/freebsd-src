@@ -8,6 +8,34 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080811:
+	Today STABLE got a reorganization of the Intel E1000
+	driver code. In order to better support our new adapters
+	there is a new driver, igb, that is now to be used for
+	either the 82575 or 82576 adapters. The source however,
+	is all now in sys/dev/e1000, both em and igb drivers are
+	built from that common directory if you configure them
+	in the kernel. Making loadable drivers still happens in
+	the same place: sys/modules/[em, igb].
+
+	The important thing to note is that the 82575 adapters
+	were supported in the em driver in 7.0, but now needed
+	to be moved into igb, so if you have the effected cards
+	be sure and make any script changes to follow the name
+	change.
+
+	There are only 3 PCI ID's effected in this change:
+		0x10A7, 0x10A9, and 0x10D6 
+	So you can know ahead of time if they will be effected,
+	these will now be supported in the igb driver. That
+	driver will also support the new 82576 followon.
+
+	The driver reorg in STABLE is inconvenient but it really
+	was necessary for Intel to do this, and I figured it was
+	better to have this small admin type issue than not to
+	have support for this new hardware for a whole release
+	cycle.
+
 20080724:
 	I have MFC'd in code to support multiple routing tables.
 	see the man pages setfib(1) and setfib(2).
