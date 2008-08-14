@@ -120,7 +120,7 @@ __FBSDID("$FreeBSD$");
 
 #define WB_USEIOSPACE
 
-#include <pci/if_wbreg.h>
+#include <dev/wb/if_wbreg.h>
 
 MODULE_DEPEND(wb, pci, 1, 1, 1);
 MODULE_DEPEND(wb, ether, 1, 1, 1);
