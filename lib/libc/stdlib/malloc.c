@@ -1012,10 +1012,11 @@ malloc_spin_lock(pthread_mutex_t *lock)
 
 			/* Exponentially back off. */
 			for (i = 1; i <= SPIN_LIMIT_2POW; i++) {
-				for (j = 0; j < (1U << i); j++)
+				for (j = 0; j < (1U << i); j++) {
 					ret++;
+					CPU_SPINWAIT;
+				}
 
-				CPU_SPINWAIT;
 				if (_pthread_mutex_trylock(lock) == 0)
 					return (ret);
 			}
