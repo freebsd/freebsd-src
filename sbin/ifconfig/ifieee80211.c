@@ -670,8 +670,10 @@ set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 
 		getchaninfo(s);
 		v = strtol(val, &ep, 10);
-		if (val[0] == '\0' || ep[0] != '\0' || errno == ERANGE)
-			errx(1, "invalid channel number");
+		if (val[0] == '\0' || val == ep || errno == ERANGE ||
+		    /* channel may be suffixed with nothing, :flag, or /width */
+		    (ep[0] != '\0' && ep[0] != ':' && ep[0] != '/'))
+			errx(1, "invalid channel specification");
 		flags = getchannelflags(val, v);
 		if (v > 255) {		/* treat as frequency */
 			mapfreq(&chan, v, flags);
