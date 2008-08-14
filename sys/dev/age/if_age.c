@@ -1427,7 +1427,7 @@ age_setwol(struct age_softc *sc)
 		    MII_BMCR, BMCR_RESET | BMCR_AUTOEN | BMCR_STARTNEG);
 		DELAY(1000);
 		if (aneg != 0) {
-			/* Poll link state until jme(4) get a 10/100 link. */
+			/* Poll link state until age(4) get a 10/100 link. */
 			for (i = 0; i < MII_ANEGTICKS_GIGE; i++) {
 				mii_pollstat(mii);
 				if ((mii->mii_media_status & IFM_AVALID) != 0) {
