@@ -31,7 +31,9 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
+#include <sys/sx.h>
 #include <sys/uio.h>
 #include <sys/module.h>
 
@@ -64,10 +66,10 @@ static d_read_t		nvram_read;
 static d_write_t	nvram_write;
 
 static struct cdev *nvram_dev;
+static struct sx nvram_lock;
 
 static struct cdevsw nvram_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	nvram_open,
 	.d_read =	nvram_read,
 	.d_write =	nvram_write,
@@ -114,18 +116,24 @@ nvram_write(struct cdev *dev, struct uio *uio, int flags)
 	int i;
 	uint16_t sum;
 
+	sx_xlock(&nvram_lock);
+
 	/* Assert that we understand the existing checksum first!  */
 	sum = rtcin(NVRAM_FIRST + CKSUM_MSB) << 8 |
 	      rtcin(NVRAM_FIRST + CKSUM_LSB);
 	for (i = CKSUM_FIRST; i <= CKSUM_LAST; i++)
 		sum -= rtcin(NVRAM_FIRST + i);
-	if (sum != 0)
+	if (sum != 0) {
+		sx_xunlock(&nvram_lock);
 		return (EIO);
+	}
 	/* Bring in user data and write */
 	while (uio->uio_resid > 0 && error == 0) {
 		nv_off = uio->uio_offset + NVRAM_FIRST;
-		if (nv_off < NVRAM_FIRST || nv_off >= NVRAM_LAST)
+		if (nv_off < NVRAM_FIRST || nv_off >= NVRAM_LAST) {
+			sx_xunlock(&nvram_lock);
 			return (0);	/* Signal EOF */
+		}
 		/* Single byte at a time */
 		error = uiomove(&v, 1, uio);
 		writertc(nv_off, v);
@@ -136,6 +144,7 @@ nvram_write(struct cdev *dev, struct uio *uio, int flags)
 		sum += rtcin(NVRAM_FIRST + i);
 	writertc(NVRAM_FIRST + CKSUM_MSB, sum >> 8);
 	writertc(NVRAM_FIRST + CKSUM_LSB, sum);
+	sx_xunlock(&nvram_lock);
 	return (error);
 }
 
@@ -144,12 +153,14 @@ nvram_modevent(module_t mod __unused, int type, void *data __unused)
 {
 	switch (type) {
 	case MOD_LOAD:
+		sx_init(&nvram_lock, "nvram");
 		nvram_dev = make_dev(&nvram_cdevsw, 0,
 		    UID_ROOT, GID_KMEM, 0640, "nvram");
 		break;
 	case MOD_UNLOAD:
 	case MOD_SHUTDOWN:
 		destroy_dev(nvram_dev);
+		sx_destroy(&nvram_lock);
 		break;
 	default:
 		return (EOPNOTSUPP);
