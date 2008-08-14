@@ -215,7 +215,7 @@ __FBSDID("$FreeBSD$");
  */
 #define TL_USEIOSPACE
 
-#include <pci/if_tlreg.h>
+#include <dev/tl/if_tlreg.h>
 
 MODULE_DEPEND(tl, pci, 1, 1, 1);
 MODULE_DEPEND(tl, ether, 1, 1, 1);
