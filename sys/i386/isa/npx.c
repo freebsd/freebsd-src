@@ -68,6 +68,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/ucontext.h>
 
 #include <machine/intr_machdep.h>
+#ifdef XEN
+#include <machine/xen/xen-os.h>
+#include <machine/xen/hypervisor.h>
+#endif
+
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
@@ -100,10 +105,14 @@ __FBSDID("$FreeBSD$");
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
 #define	ldmxcsr(__csr)		__asm __volatile("ldmxcsr %0" : : "m" (__csr))
 #endif
+#ifdef XEN
+#define start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
+#define stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
+#else
 #define	start_emulating()	__asm("smsw %%ax; orb %0,%%al; lmsw %%ax" \
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
-
+#endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
 void	fldcw(caddr_t addr);
