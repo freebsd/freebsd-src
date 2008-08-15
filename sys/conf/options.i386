@@ -111,3 +111,6 @@ STOP_NMI		opt_cpu.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
+
+NATIVE			opt_global.h
+XEN			opt_global.h
