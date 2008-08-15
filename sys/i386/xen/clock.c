@@ -110,6 +110,7 @@ __FBSDID("$FreeBSD$");
 #define	ACQUIRED	2
 #define	ACQUIRE_PENDING	3
 
+struct mtx clock_lock;
 #define	RTC_LOCK_INIT							\
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE)
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
@@ -126,12 +127,9 @@ static int independent_wallclock;
 static int xen_disable_rtc_set;
 static u_long cached_gtm;	/* cached quotient for TSC -> microseconds */
 static u_long cyc2ns_scale; 
-static u_char timer2_state = RELEASED;
 static struct timespec shadow_tv;
 static uint32_t shadow_tv_version;	/* XXX: lazy locking */
 static uint64_t processed_system_time;	/* stime (ns) at last processing. */
-static struct mtx clock_lock;
-static int rtc_reg;
 
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 
@@ -456,12 +454,6 @@ DELAY(int n)
 }
 
 
-int
-sysbeep(int pitch, int period)
-{
-	return (0);
-}
-
 /*
  * Restore all the timers non-atomically (XXX: should be atomically).
  *
@@ -529,21 +521,6 @@ startrtclock()
  * RTC support routines
  */
 
-int
-rtcin(reg)
-	int reg;
-{
-	u_char val;
-
-	RTC_LOCK;
-	outb(IO_RTC, reg);
-	inb(0x84);
-	val = inb(IO_RTC + 1);
-	inb(0x84);
-	RTC_UNLOCK;
-	return (val);
-}
-
 
 static __inline int
 readrtc(int port)
@@ -551,21 +528,6 @@ readrtc(int port)
 	return(bcd2bin(rtcin(port)));
 }
 
-void
-writertc(int reg, u_char val)
-{
-
-	RTC_LOCK;
-	if (rtc_reg != reg) {
-		inb(0x84);
-		outb(IO_RTC, reg);
-		rtc_reg = reg;
-		inb(0x84);
-	}
-	outb(IO_RTC + 1, val);
-	inb(0x84);
-	RTC_UNLOCK;
-}
 
 #ifdef XEN_PRIVILEGED_GUEST
 
@@ -718,7 +680,6 @@ inittodr(time_t base)
 }
 
 
-
 /*
  * Write system time back to RTC
  */
@@ -781,74 +742,7 @@ resettodr()
 	writertc(RTC_STATUSB, RTCSB_24HR);
 	rtcin(RTC_INTR);
 }
-#else
-/*
- * Initialize the time of day register, based on the time base which is, e.g.
- * from a filesystem.
- */
-void
-inittodr(time_t base)
-{
-	int		s, y;
-	struct timespec ts;
-
-	s = splclock();
-	if (base) {
-		ts.tv_sec = base;
-		ts.tv_nsec = 0;
-		tc_setclock(&ts);
-	}
-
-	y = time_second - shadow_tv.tv_sec;
-	if (y <= -2 || y >= 2) {
-		/* badly off, adjust it */
-		ts.tv_sec = shadow_tv.tv_sec;
-		ts.tv_nsec = shadow_tv.tv_nsec * 1000000000; /* :-/ */
-		tc_setclock(&ts);
-	}
-	splx(s);
-}
-
-/*
- * Write system time back to RTC.  Not supported for guest domains.
- */
-void
-resettodr()
-{
-}
 #endif
-
-
-int
-acquire_timer2(int mode)
-{
-
-	if (timer2_state != RELEASED)
-		return (-1);
-	timer2_state = ACQUIRED;
-
-	/*
-	 * This access to the timer registers is as atomic as possible
-	 * because it is a single instruction.  We could do better if we
-	 * knew the rate.  Use of splclock() limits glitches to 10-100us,
-	 * and this is probably good enough for timer2, so we aren't as
-	 * careful with it as with timer0.
-	 */
-	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
-
-	return (0);
-}
-
-int
-release_timer2()
-{
-
-	if (timer2_state != ACQUIRED)
-		return (-1);
-	timer2_state = RELEASED;
-	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
-	return (0);
-}
 
 static struct vcpu_set_periodic_timer xen_set_periodic_tick;
 
@@ -974,3 +868,27 @@ idle_block(void)
 	PANIC_IF(HYPERVISOR_set_timer_op(processed_system_time + NS_PER_TICK) != 0);
 	HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
+
+int
+timer_spkr_acquire(void)
+{
+
+	return (0);
+}
+
+int
+timer_spkr_release(void)
+{
+
+	return (0);
+}
+
+void
+timer_spkr_setfreq(int freq)
+{
+
+}
+
+
+	
+	

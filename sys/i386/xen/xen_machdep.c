@@ -69,6 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/privatespace.h>
 #endif
 
+#include <vm/vm_page.h>
+
+
 #define	IDTVEC(name)	__CONCAT(X,name)
 
 extern inthand_t
@@ -78,6 +81,7 @@ IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
 	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
+
 int xendebug_flags; 
 start_info_t *xen_start_info;
 shared_info_t *HYPERVISOR_shared_info;
@@ -85,7 +89,6 @@ xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
 int preemptable, init_first;
 extern unsigned int avail_space;
-extern int gdt_set;
 
 void ni_cli(void);
 void ni_sti(void);
@@ -183,6 +186,12 @@ printk(const char *fmt, ...)
 
 
 #define XPQUEUE_SIZE 128
+
+struct mmu_log {
+	char *file;
+	int line;
+};
+
 #ifdef SMP
 /* per-cpu queues and indices */
 static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
@@ -191,11 +200,10 @@ static int xpq_idx[MAX_VIRT_CPUS];
 #define XPQ_QUEUE xpq_queue[vcpu]
 #define XPQ_IDX xpq_idx[vcpu]
 #define SET_VCPU() int vcpu = smp_processor_id()
+static struct mmu_log xpq_queue_log[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+
+#define XPQ_QUEUE_LOG xpq_queue_log[vcpu]
 #else
-struct mmu_log {
-	char *file;
-	int line;
-};
 	
 static mmu_update_t xpq_queue[XPQUEUE_SIZE];
 static struct mmu_log xpq_queue_log[XPQUEUE_SIZE];
@@ -204,7 +212,8 @@ static int xpq_idx = 0;
 #define XPQ_QUEUE xpq_queue
 #define XPQ_IDX xpq_idx
 #define SET_VCPU()
-#endif
+#endif /* !SMP */
+
 #define XPQ_IDX_INC atomic_add_int(&XPQ_IDX, 1);
 
 #if 0
@@ -233,7 +242,7 @@ _xen_flush_queue(void)
 	int error, i;
 	/* window of vulnerability here? */
 
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 		critical_enter();
 	XPQ_IDX = 0;
 	/* Make sure index is cleared first to avoid double updates. */
@@ -241,7 +250,7 @@ _xen_flush_queue(void)
 				      _xpq_idx, NULL, DOMID_SELF);
     
 #if 0
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 	for (i = _xpq_idx; i > 0;) {
 		if (i >= 3) {
 			CTR6(KTR_PMAP, "mmu:val: %lx ptr: %lx val: %lx ptr: %lx val: %lx ptr: %lx",
@@ -261,7 +270,7 @@ _xen_flush_queue(void)
 		}
 	}
 #endif	
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 		critical_exit();
 	if (__predict_false(error < 0)) {
 		for (i = 0; i < _xpq_idx; i++)
@@ -291,6 +300,8 @@ xen_increment_idx(void)
 void
 xen_check_queue(void)
 {
+	SET_VCPU();
+	
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
 }
 
@@ -304,10 +315,11 @@ xen_invlpg(vm_offset_t va)
 }
 
 void
-xen_load_cr3(vm_paddr_t val)
+xen_load_cr3(u_int val)
 {
 	struct mmuext_op op;
-
+	SET_VCPU();
+	
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
 	op.cmd = MMUEXT_NEW_BASEPTR;
 	op.arg1.mfn = xpmap_ptom(val) >> PAGE_SHIFT;
@@ -315,41 +327,67 @@ xen_load_cr3(vm_paddr_t val)
 }
 
 void
-_xen_machphys_update(unsigned long mfn, unsigned long pfn, char *file, int line)
+xen_restore_flags(u_int eflags)
 {
 
-	if (__predict_true(gdt_set))
-		critical_enter();
+	__restore_flags(eflags);
+}
+
+void
+xen_save_and_cli(u_int *eflags)
+{
+
+	__save_and_cli((*eflags));
+}
+
+void
+xen_cli(void)
+{
+	__cli();
+}
+
+void
+xen_sti(void)
+{
+	__sti();
+}
+
+void
+_xen_machphys_update(unsigned long mfn, unsigned long pfn, char *file, int line)
+{
 	SET_VCPU();
+	
+	if (__predict_true(gdtset))
+		critical_enter();
 	XPQ_QUEUE[XPQ_IDX].ptr = (mfn << PAGE_SHIFT) | MMU_MACHPHYS_UPDATE;
 	XPQ_QUEUE[XPQ_IDX].val = pfn;
 #ifdef INVARIANTS
-	xpq_queue_log[XPQ_IDX].file = file;
-	xpq_queue_log[XPQ_IDX].line = line;	
+	XPQ_QUEUE_LOG[XPQ_IDX].file = file;
+	XPQ_QUEUE_LOG[XPQ_IDX].line = line;	
 #endif		
 	xen_increment_idx();
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 		critical_exit();
 }
 
 void
 _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 {
+	SET_VCPU();
 
-	if (__predict_true(gdt_set))	
+	if (__predict_true(gdtset))	
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 		critical_enter();
-	SET_VCPU();
 	XPQ_QUEUE[XPQ_IDX].ptr = ((uint64_t)ptr) | MMU_NORMAL_PT_UPDATE;
 	XPQ_QUEUE[XPQ_IDX].val = (uint64_t)val;
 #ifdef INVARIANTS
-	xpq_queue_log[XPQ_IDX].file = file;
-	xpq_queue_log[XPQ_IDX].line = line;	
+	XPQ_QUEUE_LOG[XPQ_IDX].file = file;
+	XPQ_QUEUE_LOG[XPQ_IDX].line = line;	
 #endif	
 	xen_increment_idx();
-	if (__predict_true(gdt_set))
+	if (__predict_true(gdtset))
 		critical_exit();
 }
 
@@ -742,7 +780,7 @@ shift_phys_machine(unsigned long *phys_machine, int nr_pages)
 	memset(phys_machine, INVALID_P2M_ENTRY, PAGE_SIZE);
 
 }
-#endif
+#endif /* ADD_ISA_HOLE */
 
 extern unsigned long physfree;
 void
@@ -880,7 +918,8 @@ initvalues(start_info_t *startinfo)
 	
 	PT_SET_MA(IdlePDPTnew, IdlePDPTnewma | PG_V);
 	xen_pt_unpin(IdlePDPTma);
-#endif  
+#endif  /* PAE */
+	
 #ifndef PAE
 	xen_queue_pt_update(IdlePTDma + PTDPTDI*sizeof(vm_paddr_t), 
 			    pdir_shadow_ma | PG_KERNEL);
@@ -995,7 +1034,7 @@ initvalues(start_info_t *startinfo)
 			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
 #endif	
 	xen_flush_queue();
-#endif	
+#endif /* 0 */	
 	cur_space += PAGE_SIZE;
 	printk("#6\n");
  
@@ -1127,7 +1166,8 @@ setup_shutdown_watcher(void *unused)
 }
 
 
-SYSINIT(shutdown, SI_SUB_PSEUDO, SI_ORDER_ANY, setup_shutdown_watcher, NULL)
+SYSINIT(shutdown, SI_SUB_PSEUDO, SI_ORDER_ANY, setup_shutdown_watcher, NULL);
+
 #ifdef notyet
 
 static void 
@@ -1182,7 +1222,7 @@ xen_suspend(void *ignore)
 			cpu_set(i, prev_online_cpus);
 		}
 	}
-#endif
+#endif /* CONFIG_SMP */
 
 	preempt_disable();
 
@@ -1264,7 +1304,7 @@ xen_suspend(void *ignore)
 	return err;
 }
 
-#endif
+#endif /* notyet */
 /********** CODE WORTH KEEPING ABOVE HERE *****************/ 
 
 void xen_failsafe_handler(void);

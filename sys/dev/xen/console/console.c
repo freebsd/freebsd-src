@@ -276,7 +276,6 @@ xc_attach(device_t dev)
 				   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
 		printf("xencons: shutdown event registration failed!\n");
 	
-	TRACE_EXIT;
 	return (0);
 }
 
@@ -368,7 +367,6 @@ xcopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	if (sc == NULL)
 		return (ENXIO);
     
-	TRACE_ENTER;
 	tp = dev->si_tty;
 	s = spltty();
 	if (!ISTTYOPEN(tp)) {
@@ -390,7 +388,6 @@ xcopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	xen_console_up = 1;
 
 	error =  (*linesw[tp->t_line]->l_open)(dev, tp);
-	TRACE_EXIT;
 	return error;
 }
 

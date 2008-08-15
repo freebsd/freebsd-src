@@ -184,6 +184,9 @@ __FBSDID("$FreeBSD$");
 #define PV_STAT(x)	do { } while (0)
 #endif
 
+#define	pa_index(pa)	((pa) >> PDRSHIFT)
+#define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
+
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
@@ -223,6 +226,7 @@ static uma_zone_t pdptzone;
  * Data for the pv entry allocation mechanism
  */
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
+static struct md_page *pv_table;
 static int shpgperproc = PMAP_SHPGPERPROC;
 
 struct pv_chunk *pv_chunkbase;		/* KVA block for pv_chunks */
@@ -270,6 +274,16 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
+SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static int pg_ps_enabled;
+SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RD, &pg_ps_enabled, 0,
+    "Are large page mappings enabled?");
+
+SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
+	"Max number of PV entries");
+SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD, &shpgperproc, 0,
+	"Page share factor per proc");
+
 static void	free_pv_entry(pmap_t pmap, pv_entry_t pv);
 static pv_entry_t get_pv_entry(pmap_t locked_pmap, int try);
 
@@ -294,6 +308,8 @@ static void pmap_pte_release(pt_entry_t *pte);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t *);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static boolean_t pmap_is_prefaultable_locked(pmap_t pmap, vm_offset_t addr);
+static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
+
 
 #if defined(PAE) && !defined(XEN)
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
@@ -671,8 +687,25 @@ pmap_ptelist_init(vm_offset_t *head, void *base, int npages)
 void
 pmap_init(void)
 {
+	vm_page_t mpte;
+	vm_size_t s;
+	int i, pv_npg;
+
 
 	/*
+	 * Initialize the vm page array entries for the kernel pmap's
+	 * page table pages.
+	 */ 
+	for (i = 0; i < nkpt; i++) {
+		mpte = PHYS_TO_VM_PAGE(PTD[i + KPTDI] & PG_FRAME);
+		KASSERT(mpte >= vm_page_array &&
+		    mpte < &vm_page_array[vm_page_array_size],
+		    ("pmap_init: page table page is out of range"));
+		mpte->pindex = i + KPTDI;
+		mpte->phys_addr = PTD[i + KPTDI] & PG_FRAME;
+	}
+
+        /*
 	 * Initialize the address space (zone) for the pv entries.  Set a
 	 * high water mark so that the system can recover from excessive
 	 * numbers of pv entries.
@@ -682,6 +715,26 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
+	/*
+	 * Are large page mappings enabled?
+	 */
+	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
+
+	/*
+	 * Calculate the size of the pv head table for superpages.
+	 */
+	for (i = 0; phys_avail[i + 1]; i += 2);
+	pv_npg = round_4mpage(phys_avail[(i - 2) + 1]) / NBPDR;
+
+	/*
+	 * Allocate memory for the pv head table for superpages.
+	 */
+	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
+	s = round_page(s);
+	pv_table = (struct md_page *)kmem_alloc(kernel_map, s);
+	for (i = 0; i < pv_npg; i++)
+		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
 	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
@@ -697,12 +750,6 @@ pmap_init(void)
 #endif
 }
 
-
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
-SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
-	"Max number of PV entries");
-SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD, &shpgperproc, 0,
-	"Page share factor per proc");
 
 /***************************************************
  * Low level helper routines.....
@@ -1171,13 +1218,13 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
  * Add a wired page to the kva.
  * Note: not SMP coherent.
  */
-PMAP_INLINE void 
+void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 	PT_SET_MA(va, xpmap_ptom(pa)| PG_RW | PG_V | pgeflag);
 }
 
-PMAP_INLINE void 
+void 
 pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 {
 	pt_entry_t *pte;
@@ -1187,7 +1234,7 @@ pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 }
 
 
-PMAP_INLINE void 
+static __inline void 
 pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 {
 	PT_SET_MA(va, pa | PG_RW | PG_V | pgeflag | pmap_cache_bits(mode, 0));
@@ -2859,6 +2906,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	PMAP_UNLOCK(pmap);
 }
 
+#ifdef notyet
 void
 pmap_enter_quick_range(pmap_t pmap, vm_offset_t *addrs, vm_page_t *pages, vm_prot_t *prots, int count)
 {
@@ -2886,6 +2934,7 @@ pmap_enter_quick_range(pmap_t pmap, vm_offset_t *addrs, vm_page_t *pages, vm_pro
 	
 	PMAP_UNLOCK(pmap);
 }
+#endif
 
 static vm_page_t
 pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_offset_t va, vm_page_t m,
@@ -3410,6 +3459,25 @@ pmap_page_wired_mappings(vm_page_t m)
 	}
 	sched_unpin();
 	return (count);
+}
+
+/*
+ * Returns TRUE if the given page is mapped individually or as part of
+ * a 4mpage.  Otherwise, returns FALSE.
+ */
+boolean_t
+pmap_page_is_mapped(vm_page_t m)
+{
+	struct md_page *pvh;
+
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return (FALSE);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (TAILQ_EMPTY(&m->md.pv_list)) {
+		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
+		return (!TAILQ_EMPTY(&pvh->pv_list));
+	} else
+		return (TRUE);
 }
 
 /*
@@ -4005,18 +4073,29 @@ pmap_activate(struct thread *td)
 	critical_exit();
 }
 
-vm_offset_t
-pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
+/*
+ *	Increase the starting virtual address of the given mapping if a
+ *	different alignment might result in more superpage mappings.
+ */
+void
+pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
+    vm_offset_t *addr, vm_size_t size)
 {
+	vm_offset_t superpage_offset;
 
-	if ((obj == NULL) || (size < NBPDR) || (obj->type != OBJT_DEVICE)) {
-		return addr;
-	}
-
-	addr = (addr + PDRMASK) & ~PDRMASK;
-	return addr;
+	if (size < NBPDR)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & PDRMASK;
+	if (size - ((NBPDR - superpage_offset) & PDRMASK) < NBPDR ||
+	    (*addr & PDRMASK) == superpage_offset)
+		return;
+	if ((*addr & PDRMASK) < superpage_offset)
+		*addr = (*addr & ~PDRMASK) + superpage_offset;
+	else
+		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
-
 
 #if defined(PMAP_DEBUG)
 pmap_pid_dump(int pid)
