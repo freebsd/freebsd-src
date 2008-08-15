@@ -75,6 +75,7 @@ uma_zone_t ata_request_zone;
 uma_zone_t ata_composite_zone;
 int ata_wc = 1;
 int ata_setmax = 0;
+int ata_dma_check_80pin = 1;
 
 /* local vars */
 static int ata_dma = 1;
@@ -85,6 +86,10 @@ SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
+TUNABLE_INT("hw.ata.ata_dma_check_80pin", &ata_dma_check_80pin);
+SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma_check_80pin,
+	   CTLFLAG_RDTUN, &ata_dma_check_80pin, 1,
+	   "Check for 80pin cable before setting ATA DMA mode");
 TUNABLE_INT("hw.ata.atapi_dma", &atapi_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, atapi_dma, CTLFLAG_RDTUN, &atapi_dma, 0,
 	   "ATAPI device DMA mode control");

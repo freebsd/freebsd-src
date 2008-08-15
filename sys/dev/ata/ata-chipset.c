@@ -6392,6 +6392,12 @@ ata_check_80pin(device_t dev, int mode)
 {
     struct ata_device *atadev = device_get_softc(dev);
 
+    if (!ata_dma_check_80pin) {
+	if (bootverbose)
+	    device_printf(dev, "Skipping 80pin cable check\n");
+	return mode;
+    }
+
     if (mode > ATA_UDMA2 && !(atadev->param.hwres & ATA_CABLE_ID)) {
 	ata_print_cable(dev, "device");
 	mode = ATA_UDMA2;
