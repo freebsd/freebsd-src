@@ -418,6 +418,10 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 				return (1);
 			}
 		}
+		while (*name == '/')
+			++name;
+		if (*name == '\0')
+			return (1);
 	}
 
 	/* Strip redundant leading '/' characters. */
