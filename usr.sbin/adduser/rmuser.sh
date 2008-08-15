@@ -33,6 +33,7 @@ MAILSPOOL="/var/mail"
 SIGKILL="-KILL"
 TEMPDIRS="/tmp /var/tmp"
 THISCMD=`/usr/bin/basename $0`
+PWCMD="${PWCMD:-/usr/sbin/pw}"
 
 # err msg
 #	Display $msg on stderr.
@@ -178,7 +179,7 @@ rm_user() {
 	}
 	! verbose && echo -n " passwd"
 	verbose && echo -n " from the system:"
-	pw userdel -n $login $pw_rswitch
+	${PWCMD} userdel -n $login $pw_rswitch
 	verbose && echo ' Done.'
 }
 
@@ -343,7 +344,7 @@ for _user in $userlist ; do
 	fi
 
 	# Disable any further attempts to log into this account
-	pw 2>/dev/null lock $_user
+	${PWCMD} 2>/dev/null lock $_user
 
 	# Remove crontab, mail spool, etc. Then obliterate the user from
 	# the passwd and group database.
