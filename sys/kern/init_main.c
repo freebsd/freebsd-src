@@ -592,6 +592,8 @@ static int init_shutdown_timeout = INIT_SHUTDOWN_TIMEOUT;
 SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
 	CTLFLAG_RW, &init_shutdown_timeout, 0, "");
 
+int scheduler_running = 0;
+
 /*
  * Start the initial user process; try exec'ing each pathname in init_path.
  * The program is invoked with one argument containing the boot flags.
@@ -607,6 +609,7 @@ start_init(void *dummy)
 	struct thread *td;
 	struct proc *p;
 
+	scheduler_running = 1;
 	mtx_lock(&Giant);
 
 	GIANT_REQUIRED;
