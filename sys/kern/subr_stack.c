@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stack.h>
 #include <sys/systm.h>
 
-MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
+static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 
 static void stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen,
 	    long *offset);
