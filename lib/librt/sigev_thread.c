@@ -51,7 +51,7 @@ LIST_HEAD(sigev_list_head, sigev_node);
 static struct sigev_list_head	sigev_hash[HASH_QUEUES];
 static struct sigev_list_head	sigev_all;
 static LIST_HEAD(,sigev_thread)	sigev_threads;
-static int			sigev_generation;
+static unsigned int		sigev_generation;
 static pthread_mutex_t		*sigev_list_mtx;
 static pthread_once_t		sigev_once = PTHREAD_ONCE_INIT;
 static pthread_once_t		sigev_once_default = PTHREAD_ONCE_INIT;
