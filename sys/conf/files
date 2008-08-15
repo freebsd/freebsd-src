@@ -1725,6 +1725,7 @@ libkern/strcasecmp.c		standard
 libkern/strcat.c		standard
 libkern/strcmp.c		standard
 libkern/strcpy.c		standard
+libkern/strcspn.c		standard
 libkern/strdup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
@@ -2339,3 +2340,18 @@ gnu/fs/xfs/xfs_iomap.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_behavior.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+
+xen/gnttab.c                   optional xen
+xen/features.c                 optional xen
+xen/evtchn/evtchn.c            optional xen
+xen/evtchn/evtchn_dev.c                optional xen
+xen/xenbus/xenbus_client.c     optional xen
+xen/xenbus/xenbus_comms.c      optional xen
+xen/xenbus/xenbus_dev.c                optional xen
+xen/xenbus/xenbus_probe.c      optional xen
+xen/xenbus/xenbus_probe_backend.c      optional xen
+xen/xenbus/xenbus_xs.c         optional xen
+dev/xen/console/console.c      optional xen
+dev/xen/console/xencons_ring.c optional xen
+dev/xen/blkfront/blkfront.c    optional xen
+dev/xen/netfront/netfront.c    optional xen
