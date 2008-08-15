@@ -34,6 +34,13 @@
 		.set PAG_SIZ,0x1000		# Page size
 		.set PAG_CNT,0x1000		# Pages to map
 /*
+ * Fields in %eflags.
+ */
+		.set PSL_T,0x00000100		# Trap flag
+		.set PSL_I,0x00000200		# Interrupt enable flag
+		.set PSL_VM,0x00020000		# Virtual 8086 mode flag
+		.set PSL_AC,0x00040000		# Alignment check flag
+/*
  * Segment selectors.
  */
 		.set SEL_SCODE,0x8		# Supervisor code
@@ -369,7 +376,7 @@ except.2:	pushl 0x50(%esp,1)		# Set ESP
 		je except.3			# Yes
 		cmpb $0x1,(%esp,1)		# Debug?
 		jne except.2a			# No
-		testl $0x100,0x10(%esp,1)	# Trap flag set?
+		testl $PSL_T,0x10(%esp,1)	# Trap flag set?
 		jnz except.3			# Yes
 except.2a:	jmp exit			# Exit
 except.3:	leal 0x8(%esp,1),%esp		# Discard err, int no
@@ -473,16 +480,13 @@ int_hw: 	cld				# String ops inc
 		movl (%ebx),%ebp		# btx_v86 pointer
 		addl %ebp,%edx			# Flatten btx_v86 ptr
 		movl %edx,MEM_ESPR-0x08		# Save btx_v86 ptr
-		movl -0x08(%esi),%ebx		# Pass user flags to
-		movw %bx,MEM_ESPR-0x12		#  real mode target
 		movl V86_ADDR(%edx),%eax	# Get int no/address
 		movl V86_CTL(%edx),%edx		# Get control flags
 		jmp intusr.3			# Skip hardware interrupt
 /*
  * Hardware interrupts store a NULL btx_v86 pointer and use the address
  * (interrupt number) from the stack with empty flags.  Also, we clear
- * the segment registers for the interrupt handler and ensure interrupts
- * are disabled when the interrupt handler is invoked.
+ * the segment registers for the interrupt handler.
  */
 intusr.2:	xorl %edx,%edx			# Control flags
 		movl %edx,MEM_ESPR-0x08		# NULL btx_v86 ptr
@@ -490,17 +494,22 @@ intusr.2:	xorl %edx,%edx			# Control flags
 		movl %edx,-0x3c(%esi)		# Real mode %fs of 0
 		movl %edx,-0x40(%esi)		# Real mode %ds of 0
 		movl %edx,-0x44(%esi)		# Real mode %es of 0
-		movl -0x08(%esi),%ebx		# Pass user flags with
-		andl $~0x200,%ebx		#  interrupts disabled
-		movw %bx,MEM_ESPR-0x12		#  to real mode target
 /*
  * %eax now holds either the interrupt number or segment:offset of function.
  * %edx now holds the V86F_* flags.
+ *
+ * For interrupt handler invocations (either hardware interrupts or VM86
+ * INTx requests) we also disable interrupts, tracing, and alignment checking
+ * while the handler runs.
  */
-intusr.3:	testl $V86F_ADDR,%edx		# Segment:offset?
+intusr.3:	movl -0x08(%esi),%ebx		# Save user flags in %ebx
+		testl $V86F_ADDR,%edx		# Segment:offset?
 		jnz intusr.4			# Yes
 		shll $0x2,%eax			# Scale
 		movl (%eax),%eax		# Load int vector
+		andl $~(PSL_I|PSL_T|PSL_AC),%ebx # Disable interrupts, tracing,
+						#  and alignment checking for
+						#  interrupt handler
 		jmp intusr.5			# Skip CALLF test
 intusr.4:	testl $V86F_CALLF,%edx		# Far call?
 		jnz intusr.5			# Ok
@@ -513,10 +522,12 @@ intusr.4:	testl $V86F_CALLF,%edx		# Far call?
 		popl %gs
 		popal				# Restore gp regs
 		jmp ex_noc			# Panic
+intusr.5:	movw %bx,MEM_ESPR-0x12		# Pass user flags to real mode
+						#  target
 /*
  * If this is a v86 call, copy the seg regs out of the btx_v86 structure.
  */
-intusr.5:	movl MEM_ESPR-0x08,%ecx		# Get btx_v86 ptr
+		movl MEM_ESPR-0x08,%ecx		# Get btx_v86 ptr
 		jecxz intusr.6			# Skip for hardware ints
 		leal -0x44(%esi),%edi		# %edi => kernel stack seg regs
 		pushl %esi			# Save
@@ -696,7 +707,7 @@ dump.1: 	testb $DMP_X32,%ch		# Dump long?
 dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 		jz dump.8			# No
 		pushl %ds			# Save
-		testb $0x2,0x52(%ebx)		# V86 mode?
+		testl $PSL_VM,0x50(%ebx)	# V86 mode?
 		jnz dump.3			# Yes
 		verr 0x4(%esi)	 		# Readable selector?
 		jnz dump.3			# No
