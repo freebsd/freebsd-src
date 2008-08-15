@@ -696,7 +696,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 			td2->td_pcb->pcb_gs32sd = sd;
 			td2->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
 			td2->td_pcb->pcb_gs = GSEL(GUGS32_SEL, SEL_UPL);
-			td2->td_pcb->pcb_flags |= PCB_32BIT;
+			td2->td_pcb->pcb_flags |= PCB_GS32BIT | PCB_32BIT;
 		}
 	}
 
