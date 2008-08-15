@@ -141,6 +141,25 @@ int arch_i386_is_xbox = 0;
 uint32_t arch_i386_xbox_memsize = 0;
 #endif
 
+#ifdef XEN
+/* XEN includes */
+#include <machine/xen/xen-os.h>
+#include <machine/xen/hypervisor.h>
+#include <machine/xen/xen-os.h>
+#include <machine/xen/xenvar.h>
+#include <machine/xen/xenfunc.h>
+#include <machine/xen/xen_intr.h>
+
+void Xhypervisor_callback(void);
+void failsafe_callback(void);
+
+extern trap_info_t trap_table[];
+struct proc_ldt default_proc_ldt;
+extern int init_first;
+int running_xen = 1;
+extern unsigned long physfree;
+#endif /* XEN */
+
 /* Sanity check for __curthread() */
 CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
 
@@ -287,8 +306,9 @@ cpu_startup(dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
+#ifndef XEN
 	cpu_setregs();
+#endif
 }
 
 /*
@@ -1118,6 +1138,24 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	return (0);
 }
 
+
+void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
+
+#ifdef XEN
+
+void
+cpu_halt(void)
+{
+	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+}
+
+static void
+cpu_idle_hlt(int busy)
+{
+	idle_block();
+}
+
+#else
 /*
  * Shutdown the CPU as much as possible
  */
@@ -1127,8 +1165,6 @@ cpu_halt(void)
 	for (;;)
 		__asm__ ("hlt");
 }
-
-void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
 
 static void
 cpu_idle_hlt(int busy)
@@ -1143,6 +1179,7 @@ cpu_idle_hlt(int busy)
 	else
 		__asm __volatile("sti; hlt");
 }
+#endif
 
 static void
 cpu_idle_acpi(int busy)
@@ -1437,10 +1474,16 @@ SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
  */
 
 int _default_ldt;
+
+#ifdef XEN
+union descriptor *gdt;
+union descriptor *ldt;
+#else
 union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
+union descriptor ldt[NLDT];		/* local descriptor table */
+#endif
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
-union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 struct mtx dt_lock;			/* lock for GDT and LDT */
 
@@ -1542,6 +1585,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
 	1  			/* limit granularity (byte/page units)*/ },
+#ifndef XEN
 /* GPROC0_SEL	9 Proc 0 Tss Descriptor */
 {
 	0x0,			/* segment base address */
@@ -1633,6 +1677,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
+#endif /* !XEN */
 };
 
 static struct soft_segment_descriptor ldt_segs[] = {
@@ -1870,7 +1915,16 @@ getmemsize(int first)
 		goto physmap_done;
 	}
 #endif
-
+#if defined(XEN)
+	has_smap = 0;
+	Maxmem = xen_start_info->nr_pages - init_first;
+	physmem = Maxmem;
+	basemem = 0;
+	physmap[0] = init_first << PAGE_SHIFT;
+	physmap[1] = ptoa(Maxmem) - round_page(MSGBUF_SIZE);
+	physmap_idx = 0;
+	goto physmap_done;
+#endif	
 	hasbrokenint12 = 0;
 	TUNABLE_INT_FETCH("hw.hasbrokenint12", &hasbrokenint12);
 	bzero(&vmf, sizeof(vmf));
@@ -2032,7 +2086,7 @@ int15e820:
 		vmf.vmf_ah = 0x88;
 		vm86_intcall(0x15, &vmf);
 		extmem = vmf.vmf_ax;
-#else
+#elif !defined(XEN)
 		/*
 		 * Prefer the RTC value for extended memory.
 		 */
@@ -2123,6 +2177,7 @@ physmap_done:
 	    getenv_quad("dcons.size", &dcons_size) == 0)
 		dcons_addr = 0;
 
+#ifndef XEN
 	/*
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
@@ -2240,7 +2295,11 @@ do_next:
 	}
 	*pte = 0;
 	invltlb();
-
+#else
+	phys_avail[0] = physfree;
+	phys_avail[1] = xen_start_info->nr_pages*PAGE_SIZE;
+#endif
+	
 	/*
 	 * XXX
 	 * The last chunk must contain at least one page plus the message
@@ -2265,6 +2324,246 @@ do_next:
 		    off);
 }
 
+#ifdef XEN
+#define MTOPSIZE (1<<(14 + PAGE_SHIFT))
+
+void
+init386(first)
+	int first;
+{
+	struct gate_descriptor *gdp;
+	unsigned long gdtmachpfn;
+	int error, gsel_tss, metadata_missing, x;
+	struct pcpu *pc;
+	struct callback_register event = {
+		.type = CALLBACKTYPE_event,
+		.address = {GSEL(GCODE_SEL, SEL_KPL), (unsigned long)Xhypervisor_callback },
+	};
+	struct callback_register failsafe = {
+		.type = CALLBACKTYPE_failsafe,
+		.address = {GSEL(GCODE_SEL, SEL_KPL), (unsigned long)failsafe_callback },
+	};
+
+	thread0.td_kstack = proc0kstack;
+	thread0.td_pcb = (struct pcb *)
+	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+
+	/*
+ 	 * This may be done better later if it gets more high level
+ 	 * components in it. If so just link td->td_proc here.
+	 */
+	proc_linkup0(&proc0, &thread0);
+
+	metadata_missing = 0;
+	if (xen_start_info->mod_start) {
+		preload_metadata = (caddr_t)xen_start_info->mod_start;
+		preload_bootstrap_relocate(KERNBASE);
+	} else {
+		metadata_missing = 1;
+	}
+	if (envmode == 1)
+		kern_envp = static_env;
+	else if (bootinfo.bi_envp)
+		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
+
+	/* Init basic tunables, hz etc */
+	init_param1();
+
+	/*
+	 * XEN occupies a portion of the upper virtual address space 
+	 * At its base it manages an array mapping machine page frames 
+	 * to physical page frames - hence we need to be able to 
+	 * access 4GB - (64MB  - 4MB + 64k) 
+	 */
+	gdt_segs[GPRIV_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GUFS_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GUGS_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GCODE_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GDATA_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GUCODE_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GUDATA_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
+	gdt_segs[GBIOSLOWMEM_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);	
+	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUCODE_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUDATA_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
+
+	pc = &__pcpu[0];
+	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
+	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
+
+	PT_SET_MA(gdt, xpmap_ptom(VTOP(gdt)) | PG_V | PG_RW);
+	bzero(gdt, PAGE_SIZE);
+	for (x = 0; x < NGDT; x++)
+		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+
+	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_SPIN);
+
+	gdtmachpfn = vtomach(gdt) >> PAGE_SHIFT;
+	PT_SET_MA(gdt, *vtopte((unsigned long)gdt) & ~(PG_RW|PG_M|PG_A));
+	PANIC_IF(HYPERVISOR_set_gdt(&gdtmachpfn, 512) != 0);	
+	lgdt(&r_gdt);
+	gdtset = 1;
+
+	if ((error = HYPERVISOR_set_trap_table(trap_table)) != 0) {
+		panic("set_trap_table failed - error %d\n", error);
+	}
+	
+	error = HYPERVISOR_callback_op(CALLBACKOP_register, &event);
+	if (error == 0)
+		error = HYPERVISOR_callback_op(CALLBACKOP_register, &failsafe);
+#if	CONFIG_XEN_COMPAT <= 0x030002
+	if (error == -ENOXENSYS)
+		HYPERVISOR_set_callbacks(GSEL(GCODE_SEL, SEL_KPL),
+		    (unsigned long)Xhypervisor_callback,
+		    GSEL(GCODE_SEL, SEL_KPL), (unsigned long)failsafe_callback);
+#endif
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	PCPU_SET(prvspace, pc);
+	PCPU_SET(curthread, &thread0);
+	PCPU_SET(curpcb, thread0.td_pcb);
+
+	/*
+	 * Initialize mutexes.
+	 *
+	 * icu_lock: in order to allow an interrupt to occur in a critical
+	 * 	     section, to set pcpu->ipending (etc...) properly, we
+	 *	     must be able to get the icu lock, so it can't be
+	 *	     under witness.
+	 */
+	mutex_init();
+	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS | MTX_NOPROFILE);
+
+	/* make ldt memory segments */
+	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
+	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
+	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
+		ssdtosd(&ldt_segs[x], &ldt[x].sd);
+
+	default_proc_ldt.ldt_base = (caddr_t)ldt;
+	default_proc_ldt.ldt_len = 6;
+	_default_ldt = (int)&default_proc_ldt;
+	PCPU_SET(currentldt, _default_ldt)
+	PT_SET_MA(ldt, *vtopte((unsigned long)ldt) & ~PG_RW);
+	xen_set_ldt((unsigned long) ldt, (sizeof ldt_segs / sizeof ldt_segs[0]));
+	
+#if defined(XEN_PRIVILEGED)
+	/*
+	 * Initialize the i8254 before the console so that console
+	 * initialization can use DELAY().
+	 */
+	i8254_init();
+#endif
+	
+	/*
+	 * Initialize the console before we print anything out.
+	 */
+	cninit();
+
+	if (metadata_missing)
+		printf("WARNING: loader(8) metadata is missing!\n");
+
+#ifdef DEV_ISA
+	elcr_probe();
+	atpic_startup();
+#endif
+
+#ifdef DDB
+	ksym_start = bootinfo.bi_symtab;
+	ksym_end = bootinfo.bi_esymtab;
+#endif
+
+	kdb_init();
+
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
+#endif
+
+	finishidentcpu();	/* Final stage of CPU initialization */
+	setidt(IDT_UD, &IDTVEC(ill),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	setidt(IDT_GP, &IDTVEC(prot),  SDT_SYS386TGT, SEL_KPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+	initializecpu();	/* Initialize CPU registers */
+
+	/* make an initial tss so cpu can get interrupt stack on syscall! */
+	/* Note: -16 is so we can grow the trapframe if we came from vm86 */
+	PCPU_SET(common_tss.tss_esp0, thread0.td_kstack +
+	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
+	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
+	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
+	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
+	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
+	ltr(gsel_tss);
+
+	/* pointer to selector slot for %fs/%gs */
+	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
+
+	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
+	    dblfault_tss.tss_esp2 = (int)&dblfault_stack[sizeof(dblfault_stack)];
+	dblfault_tss.tss_ss = dblfault_tss.tss_ss0 = dblfault_tss.tss_ss1 =
+	    dblfault_tss.tss_ss2 = GSEL(GDATA_SEL, SEL_KPL);
+#ifdef PAE
+	dblfault_tss.tss_cr3 = (int)IdlePDPT;
+#else
+	dblfault_tss.tss_cr3 = (int)IdlePTD;
+#endif
+	dblfault_tss.tss_eip = (int)dblfault_handler;
+	dblfault_tss.tss_eflags = PSL_KERNEL;
+	dblfault_tss.tss_ds = dblfault_tss.tss_es =
+	    dblfault_tss.tss_gs = GSEL(GDATA_SEL, SEL_KPL);
+	dblfault_tss.tss_fs = GSEL(GPRIV_SEL, SEL_KPL);
+	dblfault_tss.tss_cs = GSEL(GCODE_SEL, SEL_KPL);
+	dblfault_tss.tss_ldt = GSEL(GLDT_SEL, SEL_KPL);
+
+	vm86_initialize();
+	getmemsize(first);
+	init_param2(physmem);
+
+	/* now running on new page tables, configured,and u/iom is accessible */
+
+	msgbufinit(msgbufp, MSGBUF_SIZE);
+
+	/* make a call gate to reenter kernel with */
+	gdp = &ldt[LSYS5CALLS_SEL].gd;
+
+	x = (int) &IDTVEC(lcall_syscall);
+	gdp->gd_looffset = x;
+	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
+	gdp->gd_stkcpy = 1;
+	gdp->gd_type = SDT_SYS386CGT;
+	gdp->gd_dpl = SEL_UPL;
+	gdp->gd_p = 1;
+	gdp->gd_hioffset = x >> 16;
+
+	/* XXX does this work? */
+	/* XXX yes! */
+	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
+	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
+
+	/* transfer to user mode */
+
+	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
+	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
+
+	/* setup proc 0's pcb */
+	thread0.td_pcb->pcb_flags = 0;
+#ifdef PAE
+	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
+#else
+	thread0.td_pcb->pcb_cr3 = (int)IdlePTD;
+#endif
+	thread0.td_pcb->pcb_ext = 0;
+	thread0.td_frame = &proc0_tf;
+	thread0.td_pcb->pcb_fsd = PCPU_GET(fsgs_gdt)[0];
+	thread0.td_pcb->pcb_gsd = PCPU_GET(fsgs_gdt)[1];
+}
+
+#else
 void
 init386(first)
 	int first;
@@ -2527,6 +2826,7 @@ init386(first)
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
 }
+#endif
 
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)

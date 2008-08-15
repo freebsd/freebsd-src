@@ -123,6 +123,14 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 #endif
 
+#ifdef XEN
+#include <sys/syslog.h>
+#include <machine/xen/xenfunc.h>
+#include <machine/xen/hypervisor.h>
+#include <machine/xen/xenvar.h>
+#include <machine/xen/evtchn.h>
+#endif
+
 extern void trap(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
 
@@ -151,7 +159,11 @@ static char *trap_msg[] = {
 	"alignment fault",			/* 14 T_ALIGNFLT */
 	"",					/* 15 unused */
 	"",					/* 16 unused */
+#ifdef XEN
+	"hypervisor callback",			/* 17 T_HYPCALLBACK*/
+#else	
 	"",					/* 17 unused */
+#endif
 	"integer divide fault",			/* 18 T_DIVIDE */
 	"non-maskable interrupt trap",		/* 19 T_NMI */
 	"overflow trap",			/* 20 T_OFLOW */
@@ -258,6 +270,7 @@ trap(struct trapframe *frame)
 			goto out;
 #endif
 
+#ifndef XEN
 	if ((frame->tf_eflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
@@ -288,7 +301,7 @@ trap(struct trapframe *frame)
 				enable_intr();
 		}
 	}
-
+#endif /* !XEN */  
 	eva = 0;
 	code = frame->tf_err;
 	if (type == T_PAGEFLT) {

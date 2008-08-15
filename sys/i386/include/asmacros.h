@@ -176,6 +176,63 @@
 	movl	$KPSEL, %eax ;	/* reload with per-CPU data segment */	\
 	movl	%eax, %fs
 
+#ifdef XEN
+#define LOAD_CR3(reg)          \
+        movl    reg,PCPU(CR3); \
+        pushl   %ecx ;         \
+        pushl   %edx ;         \
+        pushl   %esi ;         \
+        pushl   reg ;          \
+        call    xen_load_cr3 ;     \
+        addl    $4,%esp ;      \
+        popl    %esi ;         \
+        popl    %edx ;         \
+        popl    %ecx ;         \
+ 
+#define READ_CR3(reg)   movl PCPU(CR3),reg;
+#define LLDT(arg)                 \
+        pushl   %edx ;                    \
+        pushl   %eax ;                    \
+        xorl    %eax,%eax ;               \
+        movl    %eax,%gs ;                \
+        call    i386_reset_ldt ;          \
+        popl    %eax ;                    \
+        popl    %edx 
+#define CLI             call ni_cli
+#else
+#define LOAD_CR3(reg)   movl reg,%cr3; 
+#define READ_CR3(reg)   movl %cr3,reg; 
+#define LLDT(arg)       lldt arg; 
+#define CLI             cli 
+#endif /* !XEN */ 
+
+
 #endif /* LOCORE */
+
+#ifdef __STDC__
+#define ELFNOTE(name, type, desctype, descdata...) \
+.pushsection .note.name                 ;       \
+  .align 4                              ;       \
+  .long 2f - 1f         /* namesz */    ;       \
+  .long 4f - 3f         /* descsz */    ;       \
+  .long type                            ;       \
+1:.asciz #name                          ;       \
+2:.align 4                              ;       \
+3:desctype descdata                     ;       \
+4:.align 4                              ;       \
+.popsection
+#else /* !__STDC__, i.e. -traditional */
+#define ELFNOTE(name, type, desctype, descdata) \
+.pushsection .note.name                 ;       \
+  .align 4                              ;       \
+  .long 2f - 1f         /* namesz */    ;       \
+  .long 4f - 3f         /* descsz */    ;       \
+  .long type                            ;       \
+1:.asciz "name"                         ;       \
+2:.align 4                              ;       \
+3:desctype descdata                     ;       \
+4:.align 4                              ;       \
+.popsection
+#endif /* __STDC__ */
 
 #endif /* !_MACHINE_ASMACROS_H_ */

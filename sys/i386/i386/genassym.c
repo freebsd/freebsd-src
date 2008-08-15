@@ -228,3 +228,9 @@ ASSYM(VM86_FRAMESIZE, sizeof(struct vm86frame));
 ASSYM(BUS_SPACE_HANDLE_BASE, offsetof(struct bus_space_handle, bsh_base));
 ASSYM(BUS_SPACE_HANDLE_IAT, offsetof(struct bus_space_handle, bsh_iat));
 #endif
+
+#ifdef XEN
+#include <machine/xen/hypervisor.h>
+ASSYM(PC_CR3, offsetof(struct pcpu, pc_cr3));
+ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
+#endif
