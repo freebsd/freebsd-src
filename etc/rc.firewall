@@ -169,14 +169,13 @@ case ${firewall_type} in
 	# set these to your network and netmask and ip
 	net="192.0.2.0"
 	mask="255.255.255.0"
-	ip="192.0.2.1"
 
 	# Allow limited broadcast traffic from my own net.
 	${fwcmd} add pass all from ${net}:${mask} to 255.255.255.255
 
 	# Allow any traffic to or from my own net.
-	${fwcmd} add pass all from ${ip} to ${net}:${mask}
-	${fwcmd} add pass all from ${net}:${mask} to ${ip}
+	${fwcmd} add pass all from me to ${net}:${mask}
+	${fwcmd} add pass all from ${net}:${mask} to me
 
 	# Allow TCP through if setup succeeded
 	${fwcmd} add pass tcp from any to any established
@@ -215,13 +214,11 @@ case ${firewall_type} in
 	oif="ed0"
 	onet="192.0.2.0"
 	omask="255.255.255.240"
-	oip="192.0.2.1"
 
 	# set these to your inside interface network and netmask and ip
 	iif="ed1"
 	inet="192.0.2.16"
 	imask="255.255.255.240"
-	iip="192.0.2.17"
 
 	# Stop spoofing
 	${fwcmd} add deny all from ${inet}:${imask} to any in via ${oif}
@@ -277,15 +274,15 @@ case ${firewall_type} in
 	${fwcmd} add pass all from any to any frag
 
 	# Allow setup of incoming email
-	${fwcmd} add pass tcp from any to ${oip} 25 setup
+	${fwcmd} add pass tcp from any to me 25 setup
 
 	# Allow access to our DNS
-	${fwcmd} add pass tcp from any to ${oip} 53 setup
-	${fwcmd} add pass udp from any to ${oip} 53
-	${fwcmd} add pass udp from ${oip} 53 to any
+	${fwcmd} add pass tcp from any to me 53 setup
+	${fwcmd} add pass udp from any to me 53
+	${fwcmd} add pass udp from me 53 to any
 
 	# Allow access to our WWW
-	${fwcmd} add pass tcp from any to ${oip} 80 setup
+	${fwcmd} add pass tcp from any to me 80 setup
 
 	# Reject&Log all setup of incoming connections from the outside
 	${fwcmd} add deny log tcp from any to any in via ${oif} setup
@@ -294,10 +291,10 @@ case ${firewall_type} in
 	${fwcmd} add pass tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass udp from ${oip} to any 53 keep-state
+	${fwcmd} add pass udp from me to any 53 keep-state
 
 	# Allow NTP queries out in the world
-	${fwcmd} add pass udp from ${oip} to any 123 keep-state
+	${fwcmd} add pass udp from me to any 123 keep-state
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
