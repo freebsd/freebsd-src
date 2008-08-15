@@ -27,8 +27,10 @@ ident		GENERIC
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
 
-options 	SCHED_ULE		# ULE scheduler
-options 	PREEMPTION		# Enable kernel thread preemption
+#options 	SCHED_ULE		# ULE scheduler
+#options 	PREEMPTION		# Enable kernel thread preemption
+options		SCHED_4BSD		 
+
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
 options 	SCTP			# Stream Control Transmission Protocol
