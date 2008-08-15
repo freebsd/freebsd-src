@@ -2341,7 +2341,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 
 	count = 1 << ln2size;
 	if (base == 0 || base == pci_mapbase(testval)) {
-		start = 0;	/* Let the parent deside */
+		start = 0;	/* Let the parent decide. */
 		end = ~0ULL;
 	} else {
 		start = base;
@@ -2350,22 +2350,24 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	resource_list_add(rl, type, reg, start, end, count);
 
 	/*
-	 * Not quite sure what to do on failure of allocating the resource
-	 * since I can postulate several right answers.
+	 * Try to allocate the resource for this BAR from our parent
+	 * so that this resource range is already reserved.  The
+	 * driver for this device will later inherit this resource in
+	 * pci_alloc_resource().
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
-	if (res == NULL)
-		return (barlen);
-	start = rman_get_start(res);
-	if ((u_long)start != start) {
-		/* Wait a minute!  this platform can't do this address. */
-		device_printf(bus,
-		    "pci%d:%d.%d.%x bar %#x start %#jx, too many bits.",
-		    pci_get_domain(dev), b, s, f, reg, (uintmax_t)start);
-		resource_list_release(rl, bus, dev, type, reg, res);
-		return (barlen);
-	}
+	if (res == NULL) {
+		/*
+		 * If the allocation fails, clear the BAR and delete
+		 * the resource list entry to force
+		 * pci_alloc_resource() to allocate resources from the
+		 * parent.
+		 */
+		resource_list_delete(rl, type, reg);
+		start = 0;
+	} else
+		start = rman_get_start(res);
 	pci_write_config(dev, reg, start, 4);
 	if (ln2range == 64)
 		pci_write_config(dev, reg + 4, start >> 32, 4);
