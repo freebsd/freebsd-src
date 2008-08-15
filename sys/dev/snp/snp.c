@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 static	l_close_t	snplclose;
 static	l_write_t	snplwrite;
 static	d_open_t	snpopen;
-static	d_close_t	snpclose;
 static	d_read_t	snpread;
 static	d_write_t	snpwrite;
 static	d_ioctl_t	snpioctl;
@@ -46,7 +45,6 @@ static struct cdevsw snp_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
 	.d_open =	snpopen,
-	.d_close =	snpclose,
 	.d_read =	snpread,
 	.d_write =	snpwrite,
 	.d_ioctl =	snpioctl,
@@ -70,7 +68,6 @@ static struct linesw snpdisc = {
  */
 struct snoop {
 	LIST_ENTRY(snoop)	snp_list;	/* List glue. */
-	int			snp_unit;	/* Device number. */
 	struct cdev *snp_target;	/* Target tty device. */
 	struct tty		*snp_tty;	/* Target tty pointer. */
 	u_long			 snp_len;	/* Possible length. */
@@ -111,13 +108,11 @@ static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
  * module load time.
  */
 static int snooplinedisc;
+static struct cdev *snoopdev;
 
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
-static struct clonedevs	  *snpclones;
 
 static struct tty	*snpdevtotty(struct cdev *dev);
-static void		snp_clone(void *arg, struct ucred *cred, char *name,
-			    int namelen, struct cdev **dev);
 static void		snp_detach(void *arg);
 static int		snp_down(struct snoop *snp);
 static int		snp_in(struct snoop *snp, char *buf, int n);
@@ -220,14 +215,17 @@ snpwrite(struct cdev *dev, struct uio *uio, int flag)
 	int error, i, len;
 	unsigned char c[SNP_INPUT_BUF];
 
-	snp = dev->si_drv1;
+	error = devfs_get_cdevpriv((void **)&snp);
+	if (error != 0)
+		return (error);
+
 	tp = snp->snp_tty;
 	if (tp == NULL)
 		return (EIO);
 	if ((tp->t_state & TS_SNOOP) && tp->t_line == snooplinedisc)
 		goto tty_input;
 
-	printf("snp%d: attempt to write to bad tty\n", snp->snp_unit);
+	printf("snp: attempt to write to bad tty\n");
 	return (EIO);
 
 tty_input:
@@ -255,7 +253,10 @@ snpread(struct cdev *dev, struct uio *uio, int flag)
 	caddr_t from;
 	char *nbuf;
 
-	snp = dev->si_drv1;
+	error = devfs_get_cdevpriv((void **)&snp);
+	if (error != 0)
+		return (error);
+
 	KASSERT(snp->snp_len + snp->snp_base <= snp->snp_blen,
 	    ("snoop buffer error"));
 
@@ -324,12 +325,12 @@ snp_in(struct snoop *snp, char *buf, int n)
 		return (0);
 
 	if (snp->snp_flags & SNOOP_DOWN) {
-		printf("snp%d: more data to down interface\n", snp->snp_unit);
+		printf("snp: more data to down interface\n");
 		return (0);
 	}
 
 	if (snp->snp_flags & SNOOP_OFLOW) {
-		printf("snp%d: buffer overflow\n", snp->snp_unit);
+		printf("snp: buffer overflow\n");
 		/*
 		 * On overflow we just repeat the standart close
 		 * procedure...yes , this is waste of space but.. Then next
@@ -387,18 +388,30 @@ snp_in(struct snoop *snp, char *buf, int n)
 	return (n);
 }
 
+static void
+snp_dtor(void *data)
+{
+	struct snoop *snp = data;
+
+	snp->snp_blen = 0;
+	LIST_REMOVE(snp, snp_list);
+	free(snp->snp_buf, M_SNP);
+	snp->snp_flags &= ~SNOOP_OPEN;
+	snp_detach(snp);
+}
+
 static int
 snpopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct snoop *snp;
+	int error;
 
-	if (dev->si_drv1 == NULL) {
-		dev->si_flags &= ~SI_CHEAPCLONE;
-		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
-		    M_WAITOK | M_ZERO);
-		snp->snp_unit = dev2unit(dev);
-	} else
-		return (EBUSY);
+	snp = malloc(sizeof(*snp), M_SNP, M_WAITOK | M_ZERO);
+	error = devfs_set_cdevpriv(snp, snp_dtor);
+	if (error != 0) {
+		free(snp, M_SNP);
+		return (error);
+	}
 
 	/*
 	 * We intentionally do not OR flags with SNOOP_OPEN, but set them so
@@ -444,7 +457,7 @@ snp_detach(void *arg)
 		tp->t_state &= ~TS_SNOOP;
 		tp->t_line = snp->snp_olddisc;
 	} else
-		printf("snp%d: bad attached tty data\n", snp->snp_unit);
+		printf("snp: bad attached tty data\n");
 
 	snp->snp_tty = NULL;
 	snp->snp_target = NULL;
@@ -453,23 +466,6 @@ detach_notty:
 	selwakeuppri(&snp->snp_sel, PZERO + 1);
 	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
 		free(snp, M_SNP);
-}
-
-static int
-snpclose(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	struct snoop *snp;
-
-	snp = dev->si_drv1;
-	snp->snp_blen = 0;
-	LIST_REMOVE(snp, snp_list);
-	free(snp->snp_buf, M_SNP);
-	snp->snp_flags &= ~SNOOP_OPEN;
-	dev->si_drv1 = NULL;
-	snp_detach(snp);
-	destroy_dev_sched(dev);
-
-	return (0);
 }
 
 static int
@@ -495,9 +491,12 @@ snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	struct tty *tp;
 	struct cdev *tdev;
 	struct file *fp;
-	int s;
+	int error, s;
 
-	snp = dev->si_drv1;
+	error = devfs_get_cdevpriv((void **)&snp);
+	if (error != 0)
+		return (error);
+
 	switch (cmd) {
 	case SNPSTTY:
 		s = *(int *)data;
@@ -587,7 +586,10 @@ snppoll(struct cdev *dev, int events, struct thread *td)
 	struct snoop *snp;
 	int revents;
 
-	snp = dev->si_drv1;
+	if (devfs_get_cdevpriv((void **)&snp) != 0)
+		return (events &
+		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
+
 	revents = 0;
 	/*
 	 * If snoop is down, we don't want to poll() forever so we return 1.
@@ -603,44 +605,22 @@ snppoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
-static void
-snp_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **dev)
-{
-	int u, i;
-
-	if (*dev != NULL)
-		return;
-	if (dev_stdclone(name, NULL, "snp", &u) != 1)
-		return;
-	i = clone_create(&snpclones, &snp_cdevsw, &u, dev, 0);
-	if (i)
-		*dev = make_dev_credf(MAKEDEV_REF, &snp_cdevsw, unit2minor(u),
-		     NULL, UID_ROOT, GID_WHEEL, 0600, "snp%d", u);
-	if (*dev != NULL) {
-		(*dev)->si_flags |= SI_CHEAPCLONE;
-	}
-}
-
 static int
 snp_modevent(module_t mod, int type, void *data)
 {
-	static eventhandler_tag eh_tag;
 
 	switch (type) {
 	case MOD_LOAD:
-		/* XXX error checking. */
-		clone_setup(&snpclones);
-		eh_tag = EVENTHANDLER_REGISTER(dev_clone, snp_clone, 0, 1000);
 		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
+		snoopdev = make_dev(&snp_cdevsw, 0, UID_ROOT, GID_WHEEL,
+		    0600, "snp");
+		/* For compatibility */
+		make_dev_alias(snoopdev, "snp0");
 		break;
 	case MOD_UNLOAD:
 		if (!LIST_EMPTY(&snp_sclist))
 			return (EBUSY);
-		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		drain_dev_clone_events();
-		clone_cleanup(&snpclones);
-		destroy_dev_drain(&snp_cdevsw);
+		destroy_dev(snoopdev);
 		ldisc_deregister(snooplinedisc);
 		break;
 	default:
