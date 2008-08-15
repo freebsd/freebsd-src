@@ -82,9 +82,11 @@ static struct mtx pcicfg_mtx;
 
 static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
+#ifndef XEN
 static int	pcireg_cfgopen(void);
 
 static int	pciereg_cfgopen(void);
+#endif
 static int	pciereg_cfgread(int bus, int slot, int func, int reg,
 				int bytes);
 static void	pciereg_cfgwrite(int bus, int slot, int func, int reg,
@@ -105,6 +107,7 @@ pci_i386_map_intline(int line)
 	return (line);
 }
 
+#ifndef XEN
 static u_int16_t
 pcibios_get_version(void)
 {
@@ -125,6 +128,7 @@ pcibios_get_version(void)
 	}
 	return (args.ebx & 0xffff);
 }
+#endif
 
 /* 
  * Initialise access to PCI configuration space 
@@ -132,6 +136,9 @@ pcibios_get_version(void)
 int
 pci_cfgregopen(void)
 {
+#ifdef XEN
+	return (0);
+#else
 	static int		opened = 0;
 	u_int16_t		vid, did;
 	u_int16_t		v;
@@ -175,6 +182,7 @@ pci_cfgregopen(void)
 	}
 
 	return(1);
+#endif
 }
 
 /* 
@@ -353,6 +361,7 @@ pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	mtx_unlock_spin(&pcicfg_mtx);
 }
 
+#ifndef XEN
 /* check whether the configuration mechanism has been correctly identified */
 static int
 pci_cfgcheck(int maxdev)
@@ -530,6 +539,7 @@ pciereg_cfgopen(void)
 	devmax = 32;
 	return (1);
 }
+#endif /* !XEN */
 
 #define PCIE_PADDR(bar, reg, bus, slot, func)	\
 	((bar)				|	\
