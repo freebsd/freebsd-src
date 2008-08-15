@@ -152,30 +152,21 @@ fatal(int error, const char *buf)
 static int
 open_snp(void)
 {
-	char		snp[] = {_PATH_DEV "snpXXX"};
-	int		f, mode, pos, c;
+	int		f, mode;
 
-	pos = strlen(snp) - 3;
 	if (opt_write)
 		mode = O_RDWR;
 	else
 		mode = O_RDONLY;
 
 	if (opt_snpdev == NULL)
-		for (c = 0; c <= 999; c++) {
-			snprintf(snp+pos, 4, "%d", c);
-			if ((f = open(snp, mode)) < 0) {
-				if (errno == EBUSY)
-					continue;
-				err(1, "open %s", snp);
-			}
-			return f;
-		}
+		f = open(_PATH_DEV "snp", mode);
 	else
-		if ((f = open(opt_snpdev, mode)) != -1)
-			return (f);
-	fatal(EX_OSFILE, "cannot open snoop device");
-	return (0);
+		f = open(opt_snpdev, mode);
+	if (f == -1)
+		fatal(EX_OSFILE, "cannot open snoop device");
+
+	return (f);
 }
 
 
