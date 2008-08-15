@@ -46,6 +46,10 @@ TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
 
 # You need the textproc/glimpse ports for this.
 glimpse:
+.if !exists(${.CURDIR}/.glimpse_exclude)
+	echo .svn > ${.CURDIR}/.glimpse_exclude
+	echo /compile/ >> ${.CURDIR}/.glimpse_exclude
+.endif
 	cd ${.CURDIR}; glimpseindex -H . -B -f -o .
 
 glimpse-clean:
