@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/sx.h>
 
+#include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/xenbus.h>
 #include <machine/xen/evtchn.h>

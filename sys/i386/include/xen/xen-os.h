@@ -7,23 +7,41 @@
 #ifndef _XEN_OS_H_
 #define _XEN_OS_H_
 #include <machine/param.h>
+
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
+
+#if defined(XEN) && !defined(__XEN_INTERFACE_VERSION__) 
+/* 
+ * Can update to a more recent version when we implement 
+ * the hypercall page 
+ */ 
+#define  __XEN_INTERFACE_VERSION__ 0x00030204 
+#endif 
 
 #include <xen/interface/xen.h>
 
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
 
+#define likely(x)  __builtin_expect((x),1)
+#define unlikely(x)  __builtin_expect((x),0)
+
+#ifndef vtophys
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#endif
+
 #ifdef SMP
 #include <sys/time.h> /* XXX for pcpu.h */
 #include <sys/pcpu.h> /* XXX for PCPU_GET */
-extern int gdt_set;
+extern int gdtset;
 static inline int 
 smp_processor_id(void)  
 {
-    if (likely(gdt_set))
+    if (likely(gdtset))
 	return PCPU_GET(cpuid);
     return 0;
 }
@@ -92,9 +110,6 @@ extern int preemptable;
  * the enable bit is set, there may be pending events to be handled.
  * We may therefore call into do_hypervisor_callback() directly.
  */
-#define likely(x)  __builtin_expect((x),1)
-#define unlikely(x)  __builtin_expect((x),0)
-
 
 
 #define __cli()                                                         \
