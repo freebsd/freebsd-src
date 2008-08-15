@@ -164,10 +164,13 @@ case ${firewall_type} in
 	############
 	# This is a prototype setup that will protect your system somewhat
 	# against people from outside your own network.
+	#
+	# Configuration:
+	#  firewall_client_net:		Network address of local network.
 	############
 
-	# set these to your network
-	net="192.0.2.0/24"
+	# set this to your local network
+	net="$firewall_client_net"
 
 	# Allow limited broadcast traffic from my own net.
 	${fwcmd} add pass all from ${net} to 255.255.255.255
@@ -207,15 +210,21 @@ case ${firewall_type} in
 	# This is a prototype setup for a simple firewall.  Configure this
 	# machine as a DNS and NTP server, and point all the machines
 	# on the inside at this machine for those services.
+	#
+	# Configuration:
+	#  firewall_simple_iif:		Inside network interface.
+	#  firewall_simple_inet:	Inside network address.
+	#  firewall_simple_oif:		Outside network interface.
+	#  firewall_simple_onet:	Outside network address.
 	############
 
 	# set these to your outside interface network
-	oif="ed0"
-	onet="192.0.2.0/28"
+	oif="$firewall_simple_oif"
+	onet="$firewall_simple_onet"
 
 	# set these to your inside interface network
-	iif="ed1"
-	inet="192.0.2.16/28"
+	iif="$firewall_simple_iif"
+	inet="$firewall_simple_inet"
 
 	# Stop spoofing
 	${fwcmd} add deny all from ${inet} to any in via ${oif}
