@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/malloc.h>
 #include <sys/libkern.h>
+
+#include <machine/xen/xen-os.h>
 #include <machine/xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <machine/xen/xenbus.h>

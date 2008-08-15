@@ -35,12 +35,9 @@
 
 #ifndef _XEN_XENPMAP_H_
 #define _XEN_XENPMAP_H_
-void xen_invlpg(vm_offset_t);
-void xen_load_cr3(vm_paddr_t);
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
 void xen_set_ldt(vm_paddr_t, unsigned long);
-void xen_tlb_flush(void);
 void xen_pgdpt_pin(vm_paddr_t);
 void xen_pgd_pin(vm_paddr_t);
 void xen_pgd_unpin(vm_paddr_t);

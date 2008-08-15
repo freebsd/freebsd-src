@@ -119,7 +119,6 @@ xencons_ring_init(void)
 					"xencons", xencons_handle_input, NULL,
 					INTR_TYPE_MISC | INTR_MPSAFE, NULL);
 	if (err) {
-		XENPRINTF("XEN console request irq failed %i\n", err);
 		return err;
 	}
 
