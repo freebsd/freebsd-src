@@ -671,14 +671,14 @@ Xunit			1.00206e-13 m
 k			1.38047e-16 erg/degC
 
 
-degC			K
+degC			1&+273.15 K
 kelvin			K
 brewster		1e-12 m2/newton
-degF			5|9 degC
-degreesrankine		degF
+degF			5|9&255.37222222222222222222 K
+degreesrankine		5|9 K
 degrankine		degreesrankine
-degreerankine		degF
-degreaumur		10|8 degC
+degreerankine		degreesrankine
+degreaumur		10|8&+273.15 K
 drachm			60 grain
 poncelet		100 kg m g / sec
 denier			.05|450 gram / m
