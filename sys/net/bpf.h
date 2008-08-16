@@ -116,6 +116,7 @@ struct bpf_version {
 #define	BIOCLOCK	_IO('B', 122)
 #define	BIOCSETWF	_IOW('B',123, struct bpf_program)
 #define	BIOCFEEDBACK	_IOW('B',124, u_int)
+#define	BIOCSETFNR	_IOW('B',130, struct bpf_program)
 
 /* Obsolete */
 #define	BIOCGSEESENT	BIOCGDIRECTION
