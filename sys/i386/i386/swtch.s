@@ -88,7 +88,7 @@ ENTRY(cpu_throw)
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
 	movl	PCB_CR3(%edx),%eax
-	movl	%eax,%cr3			/* new address space */
+	LOAD_CR3(%eax)
 	/* set bit in new pm_active */
 	movl	TD_PROC(%ecx),%eax
 	movl	P_VMSPACE(%eax), %ebx
@@ -181,10 +181,10 @@ ENTRY(cpu_switch)
 	cmpl	%eax,IdlePTD			/* Kernel address space? */
 #endif
 	je	sw0
-	movl	%cr3,%ebx			/* The same address space? */
+	READ_CR3(%ebx)				/* The same address space? */
 	cmpl	%ebx,%eax
 	je	sw0
-	movl	%eax,%cr3			/* new address space */
+	LOAD_CR3(%eax)				/* new address space */
 	movl	%esi,%eax
 	movl	PCPU(CPUID),%esi
 	SETOP	%eax,TD_LOCK(%edi)		/* Switchout td_lock */
@@ -211,6 +211,18 @@ sw0:
 	SETOP	%esi,TD_LOCK(%edi)		/* Switchout td_lock */
 sw1:
 	BLOCK_SPIN(%ecx)
+#ifdef XEN
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
+	call	xen_handle_thread_switch
+	popl	%edx
+	popl	%ecx
+	popl	%eax
+	/*
+	 * XXX set IOPL
+	 */
+#else		
 	/*
 	 * At this point, we've switched address spaces and are ready
 	 * to load up the rest of the next context.
@@ -259,7 +271,7 @@ sw1:
 	movl	12(%esi), %ebx
 	movl	%eax, 8(%edi)
 	movl	%ebx, 12(%edi)
-
+#endif
 	/* Restore context. */
 	movl	PCB_EBX(%edx),%ebx
 	movl	PCB_ESP(%edx),%esp
@@ -285,7 +297,7 @@ sw1:
 	movl	_default_ldt,%eax
 	cmpl	PCPU(CURRENTLDT),%eax
 	je	2f
-	lldt	_default_ldt
+	LLDT(_default_ldt)
 	movl	%eax,PCPU(CURRENTLDT)
 	jmp	2f
 1:
@@ -389,7 +401,7 @@ ENTRY(savectx)
 	 * parent's npx state for forks by forgetting to reload.
 	 */
 	pushfl
-	cli
+	CLI
 	movl	PCPU(FPCURTHREAD),%eax
 	testl	%eax,%eax
 	je	1f
