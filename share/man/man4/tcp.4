@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2007
+.Dd August 16, 2008
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -514,6 +514,14 @@ Timeout to use for fast recycling of
 .Dv FIN_WAIT_2
 connections.
 Defaults to 60 seconds.
+.It Va ecn.enable
+Enable support for TCP Explicit Congestion Notification (ECN).
+ECN allows a TCP sender to reduce the transmission rate in order to
+avoid packet drops.
+.It Va ecn.maxretries
+Number of retries (SYN or SYN/ACK retransmits) before disabling ECN on a
+specific connection. This is needed to help with connection establishment
+when a broken firewall is in the network path.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
@@ -567,6 +575,13 @@ address.
 .%A "A. Heffernan"
 .%T "Protection of BGP Sessions via the TCP MD5 Signature Option"
 .%O "RFC 2385"
+.Re
+.Rs
+.%A "K. Ramakrishnan"
+.%A "S. Floyd"
+.%A "D. Black"
+.%T "The Addition of Explicit Congestion Notification (ECN) to IP"
+.%O "RFC 3168"
 .Re
 .Sh HISTORY
 The
