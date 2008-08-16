@@ -464,7 +464,6 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			}
 		} else if (!ok) {
 			ok = 1;	/* subtractive bridge: always ok */
-#if 1
 			if (pcib_is_nonprefetch_open(sc)) {
 				if (start < sc->membase && end > sc->memlimit) {
 					start = sc->membase;
@@ -477,7 +476,6 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					end = sc->pmemlimit;
 				}
 			}
-#endif
 		}
 		if (end < start) {
 			device_printf(dev, "memory: end (%lx) < start (%lx)\n",
