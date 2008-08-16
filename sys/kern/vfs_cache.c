@@ -199,10 +199,12 @@ sysctl_debug_hashstat_rawnchash(SYSCTL_HANDLER_ARGS)
 
 	/* Scan hash tables for applicable entries */
 	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
+		CACHE_LOCK();
 		count = 0;
 		LIST_FOREACH(ncp, ncpp, nc_hash) {
 			count++;
 		}
+		CACHE_UNLOCK();
 		error = SYSCTL_OUT(req, &count, sizeof(count));
 		if (error)
 			return (error);
@@ -231,9 +233,11 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 	/* Scan hash tables for applicable entries */
 	for (ncpp = nchashtbl; n_nchash > 0; n_nchash--, ncpp++) {
 		count = 0;
+		CACHE_LOCK();
 		LIST_FOREACH(ncp, ncpp, nc_hash) {
 			count++;
 		}
+		CACHE_UNLOCK();
 		if (count)
 			used++;
 		if (maxlength < count)
