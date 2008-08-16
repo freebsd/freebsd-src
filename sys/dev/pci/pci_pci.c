@@ -139,6 +139,8 @@ pcib_attach_common(device_t dev)
 {
     struct pcib_softc	*sc;
     uint8_t		iolow;
+    struct sysctl_ctx_list *sctx;
+    struct sysctl_oid	*soid;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
@@ -148,11 +150,26 @@ pcib_attach_common(device_t dev)
      */
     sc->command   = pci_read_config(dev, PCIR_COMMAND, 1);
     sc->domain    = pci_get_domain(dev);
+    sc->pribus    = pci_read_config(dev, PCIR_PRIBUS_1, 1);
     sc->secbus    = pci_read_config(dev, PCIR_SECBUS_1, 1);
     sc->subbus    = pci_read_config(dev, PCIR_SUBBUS_1, 1);
     sc->secstat   = pci_read_config(dev, PCIR_SECSTAT_1, 2);
     sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
     sc->seclat    = pci_read_config(dev, PCIR_SECLAT_1, 1);
+
+    /*
+     * Setup sysctl reporting nodes
+     */
+    sctx = device_get_sysctl_ctx(dev);
+    soid = device_get_sysctl_tree(dev);
+    SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "domain",
+	CTLFLAG_RD, &sc->domain, 0, "Domain number");
+    SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
+	CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
+    SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
+	CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+    SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
+	CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
 
     /*
      * Determine current I/O decode.
