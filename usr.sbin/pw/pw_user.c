@@ -43,9 +43,6 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 #include <login_cap.h>
-#if defined(USE_MD5RAND)
-#include <md5.h>
-#endif
 #include "pw.h"
 #include "bitmap.h"
 
@@ -1045,74 +1042,24 @@ pw_pwcrypt(char *password)
 	 * Calculate a salt value
 	 */
 	for (i = 0; i < SALTSIZE; i++)
-		salt[i] = chars[arc4random() % (sizeof(chars) - 1)];
+		salt[i] = chars[arc4random_uniform(sizeof(chars) - 1)];
 	salt[SALTSIZE] = '\0';
 
 	return strcpy(buf, crypt(password, salt));
 }
 
-#if defined(USE_MD5RAND)
-u_char *
-pw_getrand(u_char *buf, int len)	/* cryptographically secure rng */
-{
-	int i;
-	for (i=0;i<len;i+=16) {
-		u_char ubuf[16];
-
-		MD5_CTX md5_ctx;
-		struct timeval tv, tvo;
-		struct rusage ru;
-		int n=0;
-		int t;
-
-		MD5Init (&md5_ctx);
-		t=getpid();
-		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
-		t=getppid();
-		MD5Update (&md5_ctx, (u_char*)&t, sizeof t);
-		gettimeofday (&tvo, NULL);
-		do {
-			getrusage (RUSAGE_SELF, &ru);
-			MD5Update (&md5_ctx, (u_char*)&ru, sizeof ru);
-			gettimeofday (&tv, NULL);
-			MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
-		} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
-		MD5Final (ubuf, &md5_ctx);
-		memcpy(buf+i, ubuf, MIN(16, len-i));
-	}
-	return buf;
-}
-
-#else	/* Portable version */
-
-static u_char *
-pw_getrand(u_char *buf, int len)
-{
-	int i;
-
-	for (i = 0; i < len; i++) {
-		unsigned long val = arc4random();
-		/* Use all bits in the random value */
-		buf[i]=(u_char)((val >> 24) ^ (val >> 16) ^ (val >> 8) ^ val);
-	}
-	return buf;
-}
-
-#endif
 
 static char    *
 pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 {
 	int             i, l;
 	char            pwbuf[32];
-	u_char		rndbuf[sizeof pwbuf];
 
 	switch (cnf->default_password) {
 	case -1:		/* Random password */
 		l = (arc4random() % 8 + 8);	/* 8 - 16 chars */
-		pw_getrand(rndbuf, l);
 		for (i = 0; i < l; i++)
-			pwbuf[i] = chars[rndbuf[i] % (sizeof(chars)-1)];
+			pwbuf[i] = chars[arc4random_uniform(sizeof(chars)-1)];
 		pwbuf[i] = '\0';
 
 		/*
