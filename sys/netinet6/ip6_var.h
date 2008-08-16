@@ -350,7 +350,8 @@ extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
 
 int	ip6_process_hopopts __P((struct mbuf *, u_int8_t *, int, u_int32_t *,
 				 u_int32_t *));
-int	ip6_savecontrol_v4(struct inpcb *, struct mbuf *, struct mbuf **);
+struct mbuf	**ip6_savecontrol_v4(struct inpcb *, struct mbuf *,
+	    struct mbuf **, int *);
 void	ip6_savecontrol __P((struct inpcb *, struct mbuf *, struct mbuf **));
 void	ip6_notify_pmtu __P((struct inpcb *, struct sockaddr_in6 *,
 			     u_int32_t *));
