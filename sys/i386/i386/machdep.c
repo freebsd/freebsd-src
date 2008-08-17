@@ -1508,7 +1508,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	0x0,			/* segment base address  */
 	0x0,			/* length */
 	0,			/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	0,			/* segment descriptor present */
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
@@ -1517,7 +1517,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
@@ -1544,7 +1544,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMERA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
@@ -1553,7 +1553,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	0x0,			/* segment base address  */
 	0xfffff,		/* length - all address space */
 	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
@@ -1580,7 +1580,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 {	0x400,			/* segment base address */
 	0xfffff,		/* length */
 	SDT_MEMRWA,		/* segment type */
-	0,			/* segment descriptor priority level */
+	SEL_KPL,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
@@ -2322,6 +2322,8 @@ do_next:
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
+
+	PT_UPDATES_FLUSH();
 }
 
 #ifdef XEN
@@ -2331,7 +2333,6 @@ void
 init386(first)
 	int first;
 {
-	struct gate_descriptor *gdp;
 	unsigned long gdtmachpfn;
 	int error, gsel_tss, metadata_missing, x;
 	struct pcpu *pc;
@@ -2366,6 +2367,8 @@ init386(first)
 	else if (bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 
+	boothowto |= xen_boothowto(kern_envp);
+	
 	/* Init basic tunables, hz etc */
 	init_param1();
 
@@ -2382,13 +2385,7 @@ init386(first)
 	gdt_segs[GDATA_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
 	gdt_segs[GUCODE_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
 	gdt_segs[GUDATA_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
-	gdt_segs[GBIOSLOWMEM_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);	
-	gdt_segs[GCODE_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GDATA_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUCODE_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUDATA_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUFS_SEL].ssd_limit = atop(0 - 1);
-	gdt_segs[GUGS_SEL].ssd_limit = atop(0 - 1);
+	gdt_segs[GBIOSLOWMEM_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
 
 	pc = &__pcpu[0];
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
@@ -2402,7 +2399,7 @@ init386(first)
 	mtx_init(&dt_lock, "descriptor tables", NULL, MTX_SPIN);
 
 	gdtmachpfn = vtomach(gdt) >> PAGE_SHIFT;
-	PT_SET_MA(gdt, *vtopte((unsigned long)gdt) & ~(PG_RW|PG_M|PG_A));
+	PT_SET_MA(gdt, xpmap_ptom(VTOP(gdt)) | PG_V);
 	PANIC_IF(HYPERVISOR_set_gdt(&gdtmachpfn, 512) != 0);	
 	lgdt(&r_gdt);
 	gdtset = 1;
@@ -2437,6 +2434,8 @@ init386(first)
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS | MTX_NOPROFILE);
 
 	/* make ldt memory segments */
+	PT_SET_MA(ldt, xpmap_ptom(VTOP(ldt)) | PG_V | PG_RW);
+	bzero(ldt, PAGE_SIZE);
 	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
 	ldt_segs[LUDATA_SEL].ssd_limit = atop(0 - 1);
 	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
@@ -2495,11 +2494,9 @@ init386(first)
 	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb) - 16);
 	PCPU_SET(common_tss.tss_ss0, GSEL(GDATA_SEL, SEL_KPL));
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
-	PCPU_SET(tss_gdt, &gdt[GPROC0_SEL].sd);
-	PCPU_SET(common_tssd, *PCPU_GET(tss_gdt));
-	PCPU_SET(common_tss.tss_ioopt, (sizeof (struct i386tss)) << 16);
-	ltr(gsel_tss);
-
+	HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL),
+	    PCPU_GET(common_tss.tss_esp0));
+	
 	/* pointer to selector slot for %fs/%gs */
 	PCPU_SET(fsgs_gdt, &gdt[GUFS_SEL].sd);
 
@@ -2527,24 +2524,6 @@ init386(first)
 	/* now running on new page tables, configured,and u/iom is accessible */
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
-
-	/* make a call gate to reenter kernel with */
-	gdp = &ldt[LSYS5CALLS_SEL].gd;
-
-	x = (int) &IDTVEC(lcall_syscall);
-	gdp->gd_looffset = x;
-	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
-	gdp->gd_stkcpy = 1;
-	gdp->gd_type = SDT_SYS386CGT;
-	gdp->gd_dpl = SEL_UPL;
-	gdp->gd_p = 1;
-	gdp->gd_hioffset = x >> 16;
-
-	/* XXX does this work? */
-	/* XXX yes! */
-	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];
-	ldt[LSOL26CALLS_SEL] = ldt[LSYS5CALLS_SEL];
-
 	/* transfer to user mode */
 
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
