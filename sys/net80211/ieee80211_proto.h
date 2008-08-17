@@ -71,8 +71,6 @@ void	ieee80211_deliver_data(struct ieee80211com *,
 struct mbuf *ieee80211_decap1(struct mbuf *, int *);
 int	ieee80211_setup_rates(struct ieee80211_node *ni,
 		const uint8_t *rates, const uint8_t *xrates, int flags);
-void	ieee80211_saveie(uint8_t **, const uint8_t *);
-void	ieee80211_saveath(struct ieee80211_node *, uint8_t *);
 void	ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
 		struct ieee80211_node *, int, int, int, uint32_t);
 int	ieee80211_mgmt_output(struct ieee80211com *, struct ieee80211_node *,

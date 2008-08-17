@@ -79,6 +79,25 @@ struct ieee80211_node_table;
 struct ieee80211com;
 
 /*
+ * Information element ``blob''.  We use this structure
+ * to capture management frame payloads that need to be
+ * retained.  Information elemnts within the payload that
+ * we need to consult have references recorded.
+ */
+struct ieee80211_ies {
+	/* the following are either NULL or point within data */
+	uint8_t	*wpa_ie;	/* captured WPA ie */
+	uint8_t	*rsn_ie;	/* captured RSN ie */
+	uint8_t	*wme_ie;	/* captured WME ie */
+	uint8_t	*ath_ie;	/* captured Atheros ie */
+	uint8_t	*htcap_ie;	/* captured HTCAP ie */
+	uint8_t	*htinfo_ie;	/* captured HTINFO ie */
+	/* NB: these must be the last members of this structure */
+	uint8_t	*data;		/* frame data > 802.11 header */
+	int	len;		/* data size in bytes */
+};
+
+/*
  * Node specific information.  Note that drivers are expected
  * to derive from this structure to add device-specific per-node
  * state.  This is done by overriding the ic_node_* methods in
@@ -119,10 +138,7 @@ struct ieee80211_node {
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint32_t		ni_jointime;	/* time of join (secs) */
 	uint32_t		*ni_challenge;	/* shared-key challenge */
-	uint8_t			*ni_wpa_ie;	/* captured WPA ie */
-	uint8_t			*ni_rsn_ie;	/* captured RSN ie */
-	uint8_t			*ni_wme_ie;	/* captured WME ie */
-	uint8_t			*ni_ath_ie;	/* captured Atheros ie */
+	struct ieee80211_ies	ni_ies;		/* captured ie's */
 						/* tx seq per-tid */
 	uint16_t		ni_txseqs[IEEE80211_TID_SIZE];
 						/* rx seq previous per-tid*/
@@ -160,7 +176,6 @@ struct ieee80211_node {
 	uint8_t			ni_dtim_count;	/* DTIM count for last bcn */
 
 	/* 11n state */
-	uint8_t			*ni_htcap_ie;	/* captured HTCAP ie */
 	uint16_t		ni_htcap;	/* HT capabilities */
 	uint8_t			ni_htparam;	/* HT params */
 	uint8_t			ni_htctlchan;	/* HT control channel */
@@ -231,6 +246,13 @@ struct ieee80211_scan_entry;
 int	ieee80211_sta_join(struct ieee80211com *,
 		const struct ieee80211_scan_entry *);
 void	ieee80211_sta_leave(struct ieee80211com *, struct ieee80211_node *);
+
+int	ieee80211_ies_init(struct ieee80211_ies *, const uint8_t *, int);
+void	ieee80211_ies_cleanup(struct ieee80211_ies *);
+void	ieee80211_ies_expand(struct ieee80211_ies *);
+#define	ieee80211_ies_setie(_ies, _ie, _off) do {		\
+	(_ies)._ie = (_ies).data + (_off);			\
+} while (0)
 
 /*
  * Table of ieee80211_node instances.  Each ieee80211com
