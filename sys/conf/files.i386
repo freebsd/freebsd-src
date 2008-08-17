@@ -276,7 +276,7 @@ i386/i386/intr_machdep.c	standard
 i386/i386/io.c			optional io
 i386/i386/io_apic.c		optional apic
 i386/i386/k6_mem.c		optional mem
-i386/i386/legacy.c		standard
+i386/i386/legacy.c		optional native
 i386/i386/local_apic.c		optional apic
 i386/i386/locore.s		optional native	no-obj
 i386/xen/locore.s		optional xen	no-obj
