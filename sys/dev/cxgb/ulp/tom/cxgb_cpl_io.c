@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/priv.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -293,8 +294,8 @@ make_tx_data_wr(struct socket *so, struct mbuf *m, int len, struct mbuf *tail)
  
 		/* Sendbuffer is in units of 32KB.
 		 */
-		if (tcp_do_autosndbuf && snd->sb_flags & SB_AUTOSIZE) 
-			req->param |= htonl(V_TX_SNDBUF(tcp_autosndbuf_max >> 15));
+		if (V_tcp_do_autosndbuf && snd->sb_flags & SB_AUTOSIZE) 
+			req->param |= htonl(V_TX_SNDBUF(V_tcp_autosndbuf_max >> 15));
 		else {
 			req->param |= htonl(V_TX_SNDBUF(snd->sb_hiwat >> 15));
 		}
@@ -1215,7 +1216,7 @@ select_rcv_wscale(int space)
 	if (space > MAX_RCV_WND)
 		space = MAX_RCV_WND;
 
-	if (tcp_do_rfc1323)
+	if (V_tcp_do_rfc1323)
 		for (; space > 65535 && wscale < 14; space >>= 1, ++wscale) ;
 
 	return (wscale);
@@ -1234,8 +1235,8 @@ select_rcv_wnd(struct toedev *dev, struct socket *so)
 
 	rcv = so_sockbuf_rcv(so);
 	
-	if (tcp_do_autorcvbuf)
-		wnd = tcp_autorcvbuf_max;
+	if (V_tcp_do_autorcvbuf)
+		wnd = V_tcp_autorcvbuf_max;
 	else
 		wnd = rcv->sb_hiwat;
 
@@ -3821,7 +3822,7 @@ socket_act_establish(struct socket *so, struct mbuf *m)
 #endif
 
 	toep->tp_state = tp->t_state;
-	tcpstat.tcps_connects++;
+	V_tcpstat.tcps_connects++;
 				
 }
 

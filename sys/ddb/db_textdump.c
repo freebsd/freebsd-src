@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_lex.h>
@@ -192,7 +193,7 @@ mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, hostname, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -155,7 +156,7 @@ icmp_error(struct mbuf *n, int type, int code, n_long dest, int mtu)
 		printf("icmp_error(%p, %x, %d)\n", oip, type, code);
 #endif
 	if (type != ICMP_REDIRECT)
-		icmpstat.icps_error++;
+		V_icmpstat.icps_error++;
 	/*
 	 * Don't send error:
 	 *  if the original packet was encrypted.
@@ -172,7 +173,7 @@ icmp_error(struct mbuf *n, int type, int code, n_long dest, int mtu)
 	if (oip->ip_p == IPPROTO_ICMP && type != ICMP_REDIRECT &&
 	  n->m_len >= oiphlen + ICMP_MINLEN &&
 	  !ICMP_INFOTYPE(((struct icmp *)((caddr_t)oip + oiphlen))->icmp_type)) {
-		icmpstat.icps_oldicmp++;
+		V_icmpstat.icps_oldicmp++;
 		goto freeit;
 	}
 	/* Drop if IP header plus 8 bytes is not contignous in first mbuf. */
@@ -232,7 +233,7 @@ stdreply:	icmpelen = max(8, min(icmp_quotelen, oip->ip_len - oiphlen));
 	 */
 	M_SETFIB(m, M_GETFIB(n));
 	icp = mtod(m, struct icmp *);
-	icmpstat.icps_outhist[type]++;
+	V_icmpstat.icps_outhist[type]++;
 	icp->icmp_type = type;
 	if (type == ICMP_REDIRECT)
 		icp->icmp_gwaddr.s_addr = dest;
@@ -314,12 +315,12 @@ icmp_input(struct mbuf *m, int off)
 	}
 #endif
 	if (icmplen < ICMP_MINLEN) {
-		icmpstat.icps_tooshort++;
+		V_icmpstat.icps_tooshort++;
 		goto freeit;
 	}
 	i = hlen + min(icmplen, ICMP_ADVLENMIN);
 	if (m->m_len < i && (m = m_pullup(m, i)) == 0)  {
-		icmpstat.icps_tooshort++;
+		V_icmpstat.icps_tooshort++;
 		return;
 	}
 	ip = mtod(m, struct ip *);
@@ -327,7 +328,7 @@ icmp_input(struct mbuf *m, int off)
 	m->m_data += hlen;
 	icp = mtod(m, struct icmp *);
 	if (in_cksum(m, icmplen)) {
-		icmpstat.icps_checksum++;
+		V_icmpstat.icps_checksum++;
 		goto freeit;
 	}
 	m->m_len += hlen;
@@ -369,7 +370,7 @@ icmp_input(struct mbuf *m, int off)
 	icmpgw.sin_len = sizeof(struct sockaddr_in);
 	icmpgw.sin_family = AF_INET;
 
-	icmpstat.icps_inhist[icp->icmp_type]++;
+	V_icmpstat.icps_inhist[icp->icmp_type]++;
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
 
@@ -434,7 +435,7 @@ icmp_input(struct mbuf *m, int off)
 		 */
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
 		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
-			icmpstat.icps_badlen++;
+			V_icmpstat.icps_badlen++;
 			goto freeit;
 		}
 		icp->icmp_ip.ip_len = ntohs(icp->icmp_ip.ip_len);
@@ -457,13 +458,13 @@ icmp_input(struct mbuf *m, int off)
 		break;
 
 	badcode:
-		icmpstat.icps_badcode++;
+		V_icmpstat.icps_badcode++;
 		break;
 
 	case ICMP_ECHO:
 		if (!icmpbmcastecho
 		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0) {
-			icmpstat.icps_bmcastecho++;
+			V_icmpstat.icps_bmcastecho++;
 			break;
 		}
 		icp->icmp_type = ICMP_ECHOREPLY;
@@ -475,11 +476,11 @@ icmp_input(struct mbuf *m, int off)
 	case ICMP_TSTAMP:
 		if (!icmpbmcastecho
 		    && (m->m_flags & (M_MCAST | M_BCAST)) != 0) {
-			icmpstat.icps_bmcasttstamp++;
+			V_icmpstat.icps_bmcasttstamp++;
 			break;
 		}
 		if (icmplen < ICMP_TSLEN) {
-			icmpstat.icps_badlen++;
+			V_icmpstat.icps_badlen++;
 			break;
 		}
 		icp->icmp_type = ICMP_TSTAMPREPLY;
@@ -528,8 +529,8 @@ icmp_input(struct mbuf *m, int off)
 		}
 reflect:
 		ip->ip_len += hlen;	/* since ip_input deducts this */
-		icmpstat.icps_reflect++;
-		icmpstat.icps_outhist[icp->icmp_type]++;
+		V_icmpstat.icps_reflect++;
+		V_icmpstat.icps_outhist[icp->icmp_type]++;
 		icmp_reflect(m);
 		return;
 
@@ -553,13 +554,13 @@ reflect:
 		 * RFC1812 says we must ignore ICMP redirects if we
 		 * are acting as router.
 		 */
-		if (drop_redirect || ipforwarding)
+		if (drop_redirect || V_ipforwarding)
 			break;
 		if (code > 3)
 			goto badcode;
 		if (icmplen < ICMP_ADVLENMIN || icmplen < ICMP_ADVLEN(icp) ||
 		    icp->icmp_ip.ip_hl < (sizeof(struct ip) >> 2)) {
-			icmpstat.icps_badlen++;
+			V_icmpstat.icps_badlen++;
 			break;
 		}
 		/*
@@ -633,7 +634,7 @@ icmp_reflect(struct mbuf *m)
 	    IN_EXPERIMENTAL(ntohl(ip->ip_src.s_addr)) ||
 	    IN_ZERONET(ntohl(ip->ip_src.s_addr)) ) {
 		m_freem(m);	/* Bad return address */
-		icmpstat.icps_badaddr++;
+		V_icmpstat.icps_badaddr++;
 		goto done;	/* Ip_output() will check for broadcast */
 	}
 
@@ -702,7 +703,7 @@ icmp_reflect(struct mbuf *m)
 	ia = ip_rtaddr(ip->ip_dst, M_GETFIB(m));
 	if (ia == NULL) {
 		m_freem(m);
-		icmpstat.icps_noroute++;
+		V_icmpstat.icps_noroute++;
 		goto done;
 	}
 match:
@@ -711,7 +712,7 @@ match:
 #endif
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
-	ip->ip_ttl = ip_defttl;
+	ip->ip_ttl = V_ip_defttl;
 
 	if (optlen > 0) {
 		register u_char *cp;

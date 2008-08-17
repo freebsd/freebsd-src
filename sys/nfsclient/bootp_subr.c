@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -374,9 +375,9 @@ bootpboot_p_rtlist(void)
 {
 
 	printf("Routing table:\n");
-	RADIX_NODE_LOCK(rt_tables[AF_INET]);	/* could sleep XXX */
-	bootpboot_p_tree(rt_tables[AF_INET]->rnh_treetop);
-	RADIX_NODE_UNLOCK(rt_tables[AF_INET]);
+	RADIX_NODE_LOCK(V_rt_tables[AF_INET]);	/* could sleep XXX */
+	bootpboot_p_tree(V_rt_tables[AF_INET]->rnh_treetop);
+	RADIX_NODE_UNLOCK(V_rt_tables[AF_INET]);
 }
 
 void
@@ -401,7 +402,7 @@ bootpboot_p_iflist(void)
 
 	printf("Interface list:\n");
 	IFNET_RLOCK(); /* could sleep, but okay for debugging XXX */
-	for (ifp = TAILQ_FIRST(&ifnet);
+	for (ifp = TAILQ_FIRST(&V_ifnet);
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
 		for (ifa = TAILQ_FIRST(&ifp->if_addrhead);
@@ -1570,8 +1571,8 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 		} else {
 			strcpy(nd->my_hostnam, p);
 			mtx_lock(&hostname_mtx);
-			strcpy(hostname, p);
-			printf("hostname %s ", hostname);
+			strcpy(G_hostname, p);
+			printf("hostname %s ", G_hostname);
 			mtx_unlock(&hostname_mtx);
 			gctx->sethostname = ifctx;
 		}
@@ -1644,7 +1645,7 @@ bootpc_init(void)
 	 * attaches and wins the race, it won't be eligible for bootp.
 	 */
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&ifnet), ifcnt = 0;
+	for (ifp = TAILQ_FIRST(&V_ifnet), ifcnt = 0;
 	     ifp != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
 		if ((ifp->if_flags &
@@ -1661,7 +1662,7 @@ bootpc_init(void)
 #endif
 
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&ifnet), ifctx = gctx->interfaces;
+	for (ifp = TAILQ_FIRST(&V_ifnet), ifctx = gctx->interfaces;
 	     ifp != NULL && ifctx != NULL;
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
 		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,

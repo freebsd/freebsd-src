@@ -77,6 +77,7 @@
 #include <sys/bus.h>
 #include <sys/cpu.h>
 #include <sys/eventhandler.h>
+#include <sys/vimage.h>
 #include <machine/clock.h>
 #endif
 #if defined(__i386__)
@@ -460,7 +461,7 @@ tbr_timeout(arg)
 #if defined(__FreeBSD__) && (__FreeBSD_version >= 500000)
 	IFNET_RLOCK();
 #endif
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		/* read from if_snd unlocked */
 		if (!TBR_IS_ENABLED(&ifp->if_snd))
 			continue;

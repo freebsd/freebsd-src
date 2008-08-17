@@ -33,6 +33,9 @@
 #  if (__FreeBSD_version == 400019)
 #   define CSUM_DELAY_DATA
 #  endif
+#  if (__FreeBSD_version >= 800044)
+#   include <sys/vimage.h>
+#  endif
 # endif
 # include <sys/filio.h>
 #else

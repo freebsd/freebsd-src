@@ -33,6 +33,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/vimage.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -70,7 +71,7 @@ mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver, uint64_t dumplen,
 	kdh->dumplength = htod64(dumplen);
 	kdh->dumptime = htod64(time_second);
 	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, hostname, sizeof(kdh->hostname));
+	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
 	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
 	if (panicstr != NULL)
 		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));

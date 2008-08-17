@@ -39,6 +39,7 @@
 #include <sys/syslog.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/vimage.h>
 
 #include <net/ethernet.h>
 #include <net/if_llc.h>
@@ -489,7 +490,7 @@ ef_load(void)
 	int error = 0, d;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER) continue;
 		EFDEBUG("Found interface %s\n", ifp->if_xname);
 		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 

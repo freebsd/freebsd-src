@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/tty.h>
 #include <sys/uio.h>
+#include <sys/vimage.h>
+
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -2054,7 +2056,7 @@ linux_ifname(struct ifnet *ifp, char *buffer, size_t buflen)
 	/* Determine the (relative) unit number for ethernet interfaces */
 	ethno = 0;
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifscan, &ifnet, if_link) {
+	TAILQ_FOREACH(ifscan, &V_ifnet, if_link) {
 		if (ifscan == ifp) {
 			IFNET_RUNLOCK();
 			return (snprintf(buffer, buflen, "eth%d", ethno));
@@ -2093,7 +2095,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 	index = 0;
 	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/*
 		 * Allow Linux programs to use FreeBSD names. Don't presume
 		 * we never have an interface named "eth", so don't make
@@ -2137,7 +2139,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	/* handle the 'request buffer size' case */
 	if (ifc.ifc_buf == PTROUT(NULL)) {
 		ifc.ifc_len = 0;
-		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				struct sockaddr *sa = ifa->ifa_addr;
 				if (sa->sa_family == AF_INET)
@@ -2164,7 +2166,7 @@ again:
 
 	/* Return all AF_INET addresses of all interfaces */
 	IFNET_RLOCK();		/* could sleep XXX */
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs = 0;
 
 		bzero(&ifr, sizeof(ifr));

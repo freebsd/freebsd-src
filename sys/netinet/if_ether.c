@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -249,7 +250,7 @@ arp_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		}
 #endif
 
-		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 			if (ia->ia_ifp == rt->rt_ifp &&
 			    SIN(rt_key(rt))->sin_addr.s_addr ==
 			    (IA_SIN(ia))->sin_addr.s_addr)
@@ -269,9 +270,9 @@ arp_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 			rt->rt_expire = 0;
 			bcopy(IF_LLADDR(rt->rt_ifp), LLADDR(SDL(gate)),
 			      SDL(gate)->sdl_alen = rt->rt_ifp->if_addrlen);
-			if (useloopback) {
-				rt->rt_ifp = loif;
-				rt->rt_rmx.rmx_mtu = loif->if_mtu;
+			if (V_useloopback) {
+				rt->rt_ifp = V_loif;
+				rt->rt_rmx.rmx_mtu = V_loif->if_mtu;
 			}
 
 		    /*
@@ -478,7 +479,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	 * if we have already sent arp_maxtries ARP requests. Retransmit the
 	 * ARP request, but not faster than one request per second.
 	 */
-	if (la->la_asked < arp_maxtries)
+	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
 		error = (rt == rt0) ? EHOSTDOWN : EHOSTUNREACH;
@@ -657,7 +658,7 @@ in_arpinput(struct mbuf *m)
 	/*
 	 * If bridging, fall back to using any inet address.
 	 */
-	if (!bridged || (ia = TAILQ_FIRST(&in_ifaddrhead)) == NULL)
+	if (!bridged || (ia = TAILQ_FIRST(&V_in_ifaddrhead)) == NULL)
 		goto drop;
 match:
 	if (!enaddr)
@@ -826,12 +827,12 @@ match:
 		}
 
 		if (rt->rt_expire) {
-			rt->rt_expire = time_uptime + arpt_keep;
-			callout_reset(&la->la_timer, hz * arpt_keep,
+			rt->rt_expire = time_uptime + V_arpt_keep;
+			callout_reset(&la->la_timer, hz * V_arpt_keep,
 			    arptimer, rt);
 		}
 		la->la_asked = 0;
-		la->la_preempt = arp_maxtries;
+		la->la_preempt = V_arp_maxtries;
 		hold = la->la_hold;
 		la->la_hold = NULL;
 		RT_UNLOCK(rt);
@@ -864,7 +865,7 @@ reply:
 			/* Nope, only intersted now if proxying everything. */
 			struct sockaddr_in sin;
 
-			if (!arp_proxyall)
+			if (!V_arp_proxyall)
 				goto drop;
 
 			bzero(&sin, sizeof sin);

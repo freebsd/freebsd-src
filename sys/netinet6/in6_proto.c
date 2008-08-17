@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/radix.h>
@@ -462,11 +463,11 @@ sysctl_ip6_temppltime(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
-	old = ip6_temp_preferred_lifetime;
+	old = V_ip6_temp_preferred_lifetime;
 	error = SYSCTL_IN(req, arg1, sizeof(int));
-	if (ip6_temp_preferred_lifetime <
-	    ip6_desync_factor + ip6_temp_regen_advance) {
-		ip6_temp_preferred_lifetime = old;
+	if (V_ip6_temp_preferred_lifetime <
+	    V_ip6_desync_factor + V_ip6_temp_regen_advance) {
+		V_ip6_temp_preferred_lifetime = old;
 		return (EINVAL);
 	}
 	return (error);
@@ -481,10 +482,10 @@ sysctl_ip6_tempvltime(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, arg1, sizeof(int));
 	if (error || !req->newptr)
 		return (error);
-	old = ip6_temp_valid_lifetime;
+	old = V_ip6_temp_valid_lifetime;
 	error = SYSCTL_IN(req, arg1, sizeof(int));
-	if (ip6_temp_valid_lifetime < ip6_temp_preferred_lifetime) {
-		ip6_temp_preferred_lifetime = old;
+	if (V_ip6_temp_valid_lifetime < V_ip6_temp_preferred_lifetime) {
+		V_ip6_temp_preferred_lifetime = old;
 		return (EINVAL);
 	}
 	return (error);

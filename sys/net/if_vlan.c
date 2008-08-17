@@ -55,6 +55,7 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/ethernet.h>
@@ -578,7 +579,7 @@ vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 
 	/* Check for <etherif>.<vlan> style interface names. */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
 			continue;
 		if (strncmp(ifp->if_xname, name, strlen(ifp->if_xname)) != 0)

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/uuid.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -93,7 +94,7 @@ uuid_node(uint16_t *node)
 	int i;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* Walk the address list */
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sdl = (struct sockaddr_dl*)ifa->ifa_addr;

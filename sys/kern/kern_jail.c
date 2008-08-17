@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
@@ -481,7 +482,7 @@ getcredhostname(struct ucred *cred, char *buf, size_t size)
 		mtx_unlock(&cred->cr_prison->pr_mtx);
 	} else {
 		mtx_lock(&hostname_mtx);
-		strlcpy(buf, hostname, size);
+		strlcpy(buf, V_hostname, size);
 		mtx_unlock(&hostname_mtx);
 	}
 }

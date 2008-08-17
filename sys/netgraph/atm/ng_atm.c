@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/ioccom.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -1401,7 +1402,7 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		ng_atm_event_p = ng_atm_event;
 
 		/* Create nodes for existing ATM interfaces */
-		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type == IFT_ATM)
 				ng_atm_attach(ifp);
 		}
@@ -1418,7 +1419,7 @@ ng_atm_mod_event(module_t mod, int event, void *data)
 		ng_atm_input_orphan_p = NULL;
 		ng_atm_event_p = NULL;
 
-		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type == IFT_ATM)
 				ng_atm_detach(ifp);
 		}

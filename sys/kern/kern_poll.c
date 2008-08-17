@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/kthread.h>
+#include <sys/vimage.h>
 
 static void netisr_poll(void);		/* the two netisr handlers      */
 static void netisr_pollmore(void);
@@ -537,7 +538,7 @@ poll_switch(SYSCTL_HANDLER_ARGS)
 	polling = val;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_capabilities & IFCAP_POLLING) {
 			struct ifreq ifr;
 

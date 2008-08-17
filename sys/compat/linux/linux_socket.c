@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/un.h>
+#include <sys/vimage.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -588,7 +589,7 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	     * XXX: Avoid undefined symbol error with an IPv4 only
 	     * kernel.
 	     */
-	    && ip6_v6only
+	    && V_ip6_v6only
 #endif
 	    ) {
 		int v6only;
