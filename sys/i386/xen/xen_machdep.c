@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 
 
+#include <machine/xen/xen-os.h>
+
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/segments.h>
@@ -53,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/asmacros.h>
-
 
 
 
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 #include <machine/privatespace.h>
 #endif
+
 
 #include <vm/vm_page.h>
 
@@ -353,7 +356,7 @@ xen_sti(void)
 }
 
 void
-_xen_machphys_update(unsigned long mfn, unsigned long pfn, char *file, int line)
+_xen_machphys_update(vm_paddr_t mfn, vm_paddr_t pfn, char *file, int line)
 {
 	SET_VCPU();
 	
@@ -746,8 +749,6 @@ xpmap_get_bootpte(vm_paddr_t va)
 #endif
 
 
-vm_paddr_t *pdir_shadow;
-
 #ifdef ADD_ISA_HOLE
 static void
 shift_phys_machine(unsigned long *phys_machine, int nr_pages)
@@ -796,7 +797,7 @@ initvalues(start_info_t *startinfo)
 	vm_paddr_t shinfo;
 #ifdef PAE
 	vm_paddr_t IdlePDPTma, IdlePDPTnewma;
-	vm_paddr_t pdir_shadow_ma[4], IdlePTDnewma[4];
+	vm_paddr_t IdlePTDnewma[4];
 	pd_entry_t *IdlePDPTnew, *IdlePTDnew;
 #else
 	vm_paddr_t pdir_shadow_ma;
@@ -873,63 +874,38 @@ initvalues(start_info_t *startinfo)
 	cur_space += (PAGE_SIZE * 3);
 
 #ifdef PAE
-	pdir_shadow = (vm_paddr_t *)cur_space; cur_space += 4*PAGE_SIZE;
-	bzero(pdir_shadow, 4*PAGE_SIZE);
-		/* initialize page directory shadow page */
-	for (i = 0; i < 4; i++)
-		pdir_shadow_ma[i] = xpmap_ptom((vm_paddr_t)
-		    VTOP((uint8_t *)pdir_shadow + i*PAGE_SIZE));
-#else
-	/* initialize page directory shadow page */
-	pdir_shadow = (vm_paddr_t *)cur_space; cur_space += PAGE_SIZE;
-	bzero(pdir_shadow, PAGE_SIZE);
-	pdir_shadow_ma = xpmap_ptom((vm_paddr_t)VTOP(pdir_shadow));
-#endif
-	
-#ifdef PAE
 	IdlePDPTnew = (pd_entry_t *)cur_space; cur_space += PAGE_SIZE;
 	bzero(IdlePDPTnew, PAGE_SIZE);
+
 	IdlePDPTnewma =  xpmap_ptom(VTOP(IdlePDPTnew));
-	
 	IdlePTDnew = (pd_entry_t *)cur_space; cur_space += 4*PAGE_SIZE;
 	bzero(IdlePTDnew, 4*PAGE_SIZE);
+
 	for (i = 0; i < 4; i++) 
-		IdlePTDnewma[i] =  xpmap_ptom(
-			VTOP((uint8_t *)IdlePTDnew + i*PAGE_SIZE));
-
-
+		IdlePTDnewma[i] =
+		    xpmap_ptom(VTOP((uint8_t *)IdlePTDnew + i*PAGE_SIZE));
 	/*
 	 * L3
+	 *
+	 * Copy the 4 machine addresses of the new PTDs in to the PDPT
+	 * 
 	 */
 	for (i = 0; i < 4; i++)
 		IdlePDPTnew[i] = IdlePTDnewma[i] | PG_V;
-	/*
-	 * L2
-	 */
-	for (i = 0; i < 4; i++)
-		IdlePTDnew[PTDPTDI + i] = pdir_shadow_ma[i] | PG_V;
 
+	__asm__("nop;");
 	/*
-	 *  Map IdlePTD at PTD
+	 *
+	 * re-map the new PDPT read-only
 	 */
-	for (i = 0; i < 4; i++)
-		pdir_shadow[PTDPTDI + i] = IdlePTDnewma[i] | PG_V;
-
-	
 	PT_SET_MA(IdlePDPTnew, IdlePDPTnewma | PG_V);
+	/*
+	 * 
+	 * Unpin the current PDPT
+	 */
 	xen_pt_unpin(IdlePDPTma);
 #endif  /* PAE */
 	
-#ifndef PAE
-	xen_queue_pt_update(IdlePTDma + PTDPTDI*sizeof(vm_paddr_t), 
-			    pdir_shadow_ma | PG_KERNEL);
-	xen_flush_queue();
-#endif
-#if 0	
-	xen_queue_pt_update(pdir_shadow_ma + (KPTDI + ISA_PDR_OFFSET)*sizeof(vm_paddr_t), 
-			    KPTphys | PG_V | PG_A);
-	xen_flush_queue();
-#endif
 	/* unmap remaining pages from initial 4MB chunk */
 	for (tmpva = cur_space; (tmpva & ((1<<22)-1)) != 0; tmpva += PAGE_SIZE) {
 		bzero((char *)tmpva, PAGE_SIZE);
@@ -941,6 +917,7 @@ initvalues(start_info_t *startinfo)
 #else	
 	offset = KPTDI;
 #endif	
+
 	/* allocate remainder of NKPT pages */
 	for (i = l1_pages; i < NKPT; i++, cur_space += PAGE_SIZE) {
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
@@ -949,25 +926,24 @@ initvalues(start_info_t *startinfo)
 	}
 	
 	PT_UPDATES_FLUSH();
-	/*
-	 * L1 - can't copy Xen's mappings
-	 */
-	for (i = 0; i < 256; i++) 
-		pdir_shadow[1536 + i] = IdlePTD[i] & ~(PG_RW|PG_A|PG_M);	
 	memcpy((uint8_t *)IdlePTDnew + 3*PAGE_SIZE, IdlePTD, PAGE_SIZE/2);
 	printk("do remapping\n");
 	for (i = 0; i < 4; i++) {
 		PT_SET_MA((uint8_t *)IdlePTDnew + i*PAGE_SIZE,
 		    IdlePTDnewma[i] | PG_V);
-		PT_SET_MA((uint8_t *)pdir_shadow + i*PAGE_SIZE,
-		    pdir_shadow_ma[i] | PG_V);
 	}
-
 	xen_load_cr3(VTOP(IdlePDPTnew));
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
 	for (i = 0; i < 4; i++) {
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[2] + (PTDPTDI - 1024 + i)*sizeof(vm_paddr_t)), 
 		    IdlePTDnewma[i] | PG_V);
+	}
+
+	/* copy	NKPT pages */
+	for (i = 0; i < NKPT; i++) {
+		xen_queue_pt_update(
+			(vm_paddr_t)(IdlePTDnewma[3] + (i)*sizeof(vm_paddr_t)), 
+			    IdlePTD[i]);
 	}
 	PT_UPDATES_FLUSH();
 	
@@ -996,11 +972,11 @@ initvalues(start_info_t *startinfo)
 	xen_store = (struct ringbuf_head *)cur_space;
 	cur_space += PAGE_SIZE;
 	
-	xen_store_ma = (xen_start_info->store_mfn << PAGE_SHIFT);
+	xen_store_ma = (((vm_paddr_t)xen_start_info->store_mfn) << PAGE_SHIFT);
 	PT_SET_MA(xen_store, xen_store_ma | PG_KERNEL);
 	console_page = (char *)cur_space;
 	cur_space += PAGE_SIZE;
-	console_page_ma = (xen_start_info->console.domU.mfn << PAGE_SHIFT);
+	console_page_ma = (((vm_paddr_t)xen_start_info->console.domU.mfn) << PAGE_SHIFT);
 	PT_SET_MA(console_page, console_page_ma | PG_KERNEL);
 
 	printk("#5\n");
@@ -1034,10 +1010,9 @@ initvalues(start_info_t *startinfo)
 			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
 #endif	
 	xen_flush_queue();
-#endif /* 0 */	
 	cur_space += PAGE_SIZE;
 	printk("#6\n");
- 
+#endif /* 0 */	
 #ifdef notyet
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		/* Map first megabyte */
