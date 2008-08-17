@@ -54,6 +54,7 @@
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/malloc.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -327,7 +328,7 @@ faithprefix(in6)
 	struct sockaddr_in6 sin6;
 	int ret;
 
-	if (ip6_keepfaith == 0)
+	if (V_ip6_keepfaith == 0)
 		return 0;
 
 	bzero(&sin6, sizeof(sin6));

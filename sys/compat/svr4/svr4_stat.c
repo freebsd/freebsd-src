@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/un.h>
+#include <sys/vimage.h>
 
 #include <vm/vm.h>
 
@@ -426,7 +427,7 @@ svr4_sys_systeminfo(td, uap)
 		break;
 
 	case SVR4_SI_HOSTNAME:
-		str = hostname;
+		str = V_hostname;
 		break;
 
 	case SVR4_SI_RELEASE:
@@ -455,7 +456,7 @@ svr4_sys_systeminfo(td, uap)
 
 	case SVR4_SI_SRPC_DOMAIN:
 		/* XXXRW: locking? */
-		str = domainname;
+		str = V_domainname;
 		break;
 
 	case SVR4_SI_PLATFORM:

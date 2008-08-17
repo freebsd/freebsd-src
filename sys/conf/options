@@ -766,3 +766,6 @@ IEEE80211_AMPDU_AGE	opt_wlan.h
 
 #Disable code to dispatch tcp offloading
 TCP_OFFLOAD_DISABLE	opt_inet.h
+
+# Virtualize the network stack
+VIMAGE

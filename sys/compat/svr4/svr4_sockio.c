@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/vimage.h>
 #include <net/if.h>
 
 
@@ -103,7 +104,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 			 * entry per physical interface?
 			 */
 			IFNET_RLOCK();
-			TAILQ_FOREACH(ifp, &ifnet, if_link)
+			TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 				if (TAILQ_EMPTY(&ifp->if_addrhead))
 					ifnum++;
 				else

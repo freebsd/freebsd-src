@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -382,7 +383,7 @@ X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 
 	switch (sopt->sopt_name) {
 		case MRT6_PIM:
-			error = sooptcopyout(sopt, &pim6, sizeof(pim6));
+			error = sooptcopyout(sopt, &V_pim6, sizeof(V_pim6));
 			break;
 	}
 	return (error);
@@ -454,7 +455,7 @@ set_pim6(int *i)
 	if ((*i != 1) && (*i != 0))
 		return (EINVAL);
 
-	pim6 = *i;
+	V_pim6 = *i;
 
 	return (0);
 }
@@ -466,7 +467,7 @@ static int
 ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
 #ifdef MRT6DEBUG
-	if (mrt6debug)
+	if (V_mrt6debug)
 		log(LOG_DEBUG,
 		    "ip6_mrouter_init: so_type = %d, pr_protocol = %d\n",
 		    so->so_type, so->so_proto->pr_protocol);
@@ -483,19 +484,19 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 		return (EADDRINUSE);
 
 	ip6_mrouter = so;
-	ip6_mrouter_ver = cmd;
+	V_ip6_mrouter_ver = cmd;
 
 	bzero((caddr_t)mf6ctable, sizeof(mf6ctable));
 	bzero((caddr_t)n6expire, sizeof(n6expire));
 
-	pim6 = 0;/* used for stubbing out/in pim stuff */
+	V_pim6 = 0;/* used for stubbing out/in pim stuff */
 
 	callout_init(&expire_upcalls_ch, 0);
 	callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT,
 	    expire_upcalls, NULL);
 
 #ifdef MRT6DEBUG
-	if (mrt6debug)
+	if (V_mrt6debug)
 		log(LOG_DEBUG, "ip6_mrouter_init\n");
 #endif
 
@@ -528,7 +529,7 @@ X_ip6_mrouter_done(void)
 	 * XXX: there may be an interface in which the IPv4 multicast
 	 * daemon is not interested...
 	 */
-	if (!ip_mrouter)
+	if (!V_ip_mrouter)
 #endif
 #endif
 	{
@@ -542,7 +543,7 @@ X_ip6_mrouter_done(void)
 	bzero((caddr_t)mif6table, sizeof(mif6table));
 	nummifs = 0;
 
-	pim6 = 0; /* used to stub out/in pim specific code */
+	V_pim6 = 0; /* used to stub out/in pim specific code */
 
 	callout_stop(&expire_upcalls_ch);
 
@@ -580,12 +581,12 @@ X_ip6_mrouter_done(void)
 	}
 
 	ip6_mrouter = NULL;
-	ip6_mrouter_ver = 0;
+	V_ip6_mrouter_ver = 0;
 
 	splx(s);
 
 #ifdef MRT6DEBUG
-	if (mrt6debug)
+	if (V_mrt6debug)
 		log(LOG_DEBUG, "ip6_mrouter_done\n");
 #endif
 
@@ -609,7 +610,7 @@ add_m6if(struct mif6ctl *mifcp)
 	mifp = mif6table + mifcp->mif6c_mifi;
 	if (mifp->m6_ifp)
 		return (EADDRINUSE); /* XXX: is it appropriate? */
-	if (mifcp->mif6c_pifi == 0 || mifcp->mif6c_pifi > if_index)
+	if (mifcp->mif6c_pifi == 0 || mifcp->mif6c_pifi > V_if_index)
 		return (ENXIO);
 	ifp = ifnet_byindex(mifcp->mif6c_pifi);
 
@@ -661,7 +662,7 @@ add_m6if(struct mif6ctl *mifcp)
 		nummifs = mifcp->mif6c_mifi + 1;
 
 #ifdef MRT6DEBUG
-	if (mrt6debug)
+	if (V_mrt6debug)
 		log(LOG_DEBUG,
 		    "add_mif #%d, phyint %s\n",
 		    mifcp->mif6c_mifi,
@@ -718,7 +719,7 @@ del_m6if(mifi_t *mifip)
 	splx(s);
 
 #ifdef MRT6DEBUG
-	if (mrt6debug)
+	if (V_mrt6debug)
 		log(LOG_DEBUG, "del_m6if %d, nummifs %d\n", *mifip, nummifs);
 #endif
 
@@ -744,7 +745,7 @@ add_m6fc(struct mf6cctl *mfccp)
 	/* If an entry already exists, just update the fields */
 	if (rt) {
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_MFC) {
+		if (V_mrt6debug & DEBUG_MFC) {
 		    log(LOG_DEBUG,
 			"add_m6fc no upcall h %d o %s g %s p %x\n",
 			ip6_sprintf(ip6bufo, &mfccp->mf6cc_origin.sin6_addr),
@@ -784,7 +785,7 @@ add_m6fc(struct mf6cctl *mfccp)
 				    mfccp->mf6cc_parent, rt->mf6c_stall);
 
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_MFC)
+			if (V_mrt6debug & DEBUG_MFC)
 				log(LOG_DEBUG,
 				    "add_m6fc o %s g %s p %x dbg %x\n",
 				    ip6_sprintf(ip6bufo,
@@ -826,7 +827,7 @@ add_m6fc(struct mf6cctl *mfccp)
 	 */
 	if (nstl == 0) {
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_MFC)
+		if (V_mrt6debug & DEBUG_MFC)
 		    log(LOG_DEBUG,
 			"add_mfc no upcall h %d o %s g %s p %x\n",
 			hash,
@@ -930,7 +931,7 @@ del_m6fc(struct mf6cctl *mfccp)
 	hash = MF6CHASH(origin.sin6_addr, mcastgrp.sin6_addr);
 
 #ifdef MRT6DEBUG
-	if (mrt6debug & DEBUG_MFC) {
+	if (V_mrt6debug & DEBUG_MFC) {
 		char ip6bufo[INET6_ADDRSTRLEN], ip6bufg[INET6_ADDRSTRLEN];
 		log(LOG_DEBUG,"del_m6fc orig %s mcastgrp %s\n",
 		    ip6_sprintf(ip6bufo, &origin.sin6_addr),
@@ -1009,7 +1010,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 #ifdef MRT6DEBUG
-	if (mrt6debug & DEBUG_FORWARD)
+	if (V_mrt6debug & DEBUG_FORWARD)
 		log(LOG_DEBUG, "ip6_mforward: src %s, dst %s, ifindex %d\n",
 		    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 		    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
@@ -1033,9 +1034,9 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 * (although such packets must normally set 1 to the hop limit field).
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
-		ip6stat.ip6s_cantforward++;
-		if (ip6_log_time + ip6_log_interval < time_second) {
-			ip6_log_time = time_second;
+		V_ip6stat.ip6s_cantforward++;
+		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
+			V_ip6_log_time = time_second;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
@@ -1076,7 +1077,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 
 		mrt6stat.mrt6s_no_route++;
 #ifdef MRT6DEBUG
-		if (mrt6debug & (DEBUG_FORWARD | DEBUG_MFC))
+		if (V_mrt6debug & (DEBUG_FORWARD | DEBUG_MFC))
 			log(LOG_DEBUG, "ip6_mforward: no rte s %s g %s\n",
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst));
@@ -1155,7 +1156,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 #ifdef MRT6_OINIT
 			oim = NULL;
 #endif
-			switch (ip6_mrouter_ver) {
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
 			case MRT6_OINIT:
 				oim = mtod(mm, struct omrt6msg *);
@@ -1177,7 +1178,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 			}
 
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_FORWARD)
+			if (V_mrt6debug & DEBUG_FORWARD)
 				log(LOG_DEBUG,
 				    "getting the iif info in the kernel\n");
 #endif
@@ -1187,7 +1188,7 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 			     mifp++, mifi++)
 				;
 
-			switch (ip6_mrouter_ver) {
+			switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
 			case MRT6_OINIT:
 				oim->im6_mif = mifi;
@@ -1287,7 +1288,7 @@ expire_upcalls(void *unused)
 			    mfc->mf6c_expire != 0 &&
 			    --mfc->mf6c_expire == 0) {
 #ifdef MRT6DEBUG
-				if (mrt6debug & DEBUG_EXPIRE) {
+				if (V_mrt6debug & DEBUG_EXPIRE) {
 					char ip6bufo[INET6_ADDRSTRLEN];
 					char ip6bufg[INET6_ADDRSTRLEN];
 					log(LOG_DEBUG, "expire_upcalls: expiring (%s %s)\n",
@@ -1355,7 +1356,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	if ((mifi >= nummifs) || (mif6table[mifi].m6_ifp != ifp)) {
 		/* came in the wrong interface */
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_FORWARD)
+		if (V_mrt6debug & DEBUG_FORWARD)
 			log(LOG_DEBUG,
 			    "wrong if: ifid %d mifi %d mififid %x\n",
 			    ifp->if_index, mifi,
@@ -1370,7 +1371,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 		 */
 		/* have to make sure this is a valid mif */
 		if (mifi < nummifs && mif6table[mifi].m6_ifp)
-			if (pim6 && (m->m_flags & M_LOOP) == 0) {
+			if (V_pim6 && (m->m_flags & M_LOOP) == 0) {
 				/*
 				 * Check the M_LOOP flag to avoid an
 				 * unnecessary PIM assert.
@@ -1397,7 +1398,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 				oim = NULL;
 #endif
 				im = NULL;
-				switch (ip6_mrouter_ver) {
+				switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
 				case MRT6_OINIT:
 					oim = mtod(mm, struct omrt6msg *);
@@ -1421,7 +1422,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 				     mifp++, iif++)
 					;
 
-				switch (ip6_mrouter_ver) {
+				switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
 				case MRT6_OINIT:
 					oim->im6_mif = iif;
@@ -1438,7 +1439,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 
 				if (socket_send(ip6_mrouter, mm, &sin6) < 0) {
 #ifdef MRT6DEBUG
-					if (mrt6debug)
+					if (V_mrt6debug)
 						log(LOG_WARNING, "mdq, ip6_mrouter socket queue full\n");
 #endif
 					++mrt6stat.mrt6s_upq_sockfull;
@@ -1468,7 +1469,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 	dst0 = ip6->ip6_dst;
 	if ((error = in6_setscope(&src0, ifp, &iszone)) != 0 ||
 	    (error = in6_setscope(&dst0, ifp, &idzone)) != 0) {
-		ip6stat.ip6s_badscope++;
+		V_ip6stat.ip6s_badscope++;
 		return (error);
 	}
 	for (mifp = mif6table, mifi = 0; mifi < nummifs; mifp++, mifi++) {
@@ -1488,7 +1489,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 				    &odzone) ||
 				    iszone != oszone ||
 				    idzone != odzone) {
-					ip6stat.ip6s_badscope++;
+					V_ip6stat.ip6s_badscope++;
 					continue;
 				}
 			}
@@ -1547,7 +1548,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 				   IPV6_FORWARDING, &im6o, NULL, NULL);
 
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_XMIT)
+		if (V_mrt6debug & DEBUG_XMIT)
 			log(LOG_DEBUG, "phyint_send on mif %d err %d\n",
 			    mifp - mif6table, error);
 #endif
@@ -1583,7 +1584,7 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		error = (*ifp->if_output)(ifp, mb_copy,
 		    (struct sockaddr *)&ro.ro_dst, NULL);
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_XMIT)
+		if (V_mrt6debug & DEBUG_XMIT)
 			log(LOG_DEBUG, "phyint_send on mif %d err %d\n",
 			    mifp - mif6table, error);
 #endif
@@ -1593,11 +1594,11 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		 * various router may notify pMTU in multicast, which can be
 		 * a DDoS to a router
 		 */
-		if (ip6_mcast_pmtu)
+		if (V_ip6_mcast_pmtu)
 			icmp6_error(mb_copy, ICMP6_PACKET_TOO_BIG, 0, linkmtu);
 		else {
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_XMIT) {
+			if (V_mrt6debug & DEBUG_XMIT) {
 				char ip6bufs[INET6_ADDRSTRLEN];
 				char ip6bufd[INET6_ADDRSTRLEN];
 				log(LOG_DEBUG,
@@ -1625,7 +1626,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 	struct mrt6msg *im6;
 
 #ifdef MRT6DEBUG
-	if (mrt6debug) {
+	if (V_mrt6debug) {
 		char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 		log(LOG_DEBUG, "** IPv6 register_send **\n src %s dst %s\n",
 		    ip6_sprintf(ip6bufs, &ip6->ip6_src),
@@ -1671,7 +1672,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 
 	if (socket_send(ip6_mrouter, mm, &sin6) < 0) {
 #ifdef MRT6DEBUG
-		if (mrt6debug)
+		if (V_mrt6debug)
 			log(LOG_WARNING,
 			    "register_send: ip6_mrouter socket queue full\n");
 #endif
@@ -1709,7 +1710,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 	if (pimlen < PIM_MINLEN) {
 		++pim6stat.pim6s_rcv_tooshort;
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_PIM)
+		if (V_mrt6debug & DEBUG_PIM)
 			log(LOG_DEBUG,"pim6_input: PIM packet too short\n");
 #endif
 		m_freem(m);
@@ -1762,7 +1763,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 		if (in6_cksum(m, IPPROTO_PIM, off, cksumlen)) {
 			++pim6stat.pim6s_rcv_badsum;
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_PIM)
+			if (V_mrt6debug & DEBUG_PIM)
 				log(LOG_DEBUG,
 				    "pim6_input: invalid checksum\n");
 #endif
@@ -1804,7 +1805,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 
 		if ((reg_mif_num >= nummifs) || (reg_mif_num == (mifi_t) -1)) {
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_PIM)
+			if (V_mrt6debug & DEBUG_PIM)
 				log(LOG_DEBUG,
 				    "pim6_input: register mif not set: %d\n",
 				    reg_mif_num);
@@ -1836,7 +1837,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 
 		eip6 = (struct ip6_hdr *) (reghdr + 1);
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_PIM)
+		if (V_mrt6debug & DEBUG_PIM)
 			log(LOG_DEBUG,
 			    "pim6_input[register], eip6: %s -> %s, "
 			    "eip6 plen %d\n",
@@ -1861,7 +1862,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_MULTICAST(&eip6->ip6_dst)) {
 			++pim6stat.pim6s_rcv_badregisters;
 #ifdef MRT6DEBUG
-			if (mrt6debug & DEBUG_PIM)
+			if (V_mrt6debug & DEBUG_PIM)
 				log(LOG_DEBUG,
 				    "pim6_input: inner packet of register "
 				    "is not multicast %s\n",
@@ -1890,7 +1891,7 @@ pim6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		m_adj(m, off + PIM_MINLEN);
 #ifdef MRT6DEBUG
-		if (mrt6debug & DEBUG_PIM) {
+		if (V_mrt6debug & DEBUG_PIM) {
 			log(LOG_DEBUG,
 			    "pim6_input: forwarding decapsulated register: "
 			    "src %s, dst %s, mif %d\n",

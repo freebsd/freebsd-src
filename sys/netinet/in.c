@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -88,12 +89,12 @@ in_localaddr(struct in_addr in)
 	register u_long i = ntohl(in.s_addr);
 	register struct in_ifaddr *ia;
 
-	if (subnetsarelocal) {
-		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
+	if (V_subnetsarelocal) {
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 			if ((i & ia->ia_netmask) == ia->ia_net)
 				return (1);
 	} else {
-		TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
+		TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 			if ((i & ia->ia_subnetmask) == ia->ia_subnet)
 				return (1);
 	}
@@ -328,7 +329,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			}
 			ia->ia_ifp = ifp;
 
-			TAILQ_INSERT_TAIL(&in_ifaddrhead, ia, ia_link);
+			TAILQ_INSERT_TAIL(&V_in_ifaddrhead, ia, ia_link);
 			splx(s);
 			iaIsNew = 1;
 		}
@@ -492,7 +493,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 */
 	s = splnet();
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
-	TAILQ_REMOVE(&in_ifaddrhead, ia, ia_link);
+	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	if (ia->ia_addr.sin_family == AF_INET) {
 		LIST_REMOVE(ia, ia_hash);
 		/*
@@ -822,7 +823,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		prefix.s_addr &= mask.s_addr;
 	}
 
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia)) {
 			p = ia->ia_addr.sin_addr;
 
@@ -843,7 +844,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
-			if (sameprefixcarponly &&
+			if (V_sameprefixcarponly &&
 			    target->ia_ifp->if_type != IFT_CARP &&
 			    ia->ia_ifp->if_type != IFT_CARP)
 				return (EEXIST);
@@ -884,7 +885,7 @@ in_scrubprefix(struct in_ifaddr *target)
 		prefix.s_addr &= mask.s_addr;
 	}
 
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if (rtinitflags(ia))
 			p = ia->ia_dstaddr.sin_addr;
 		else {
@@ -983,7 +984,7 @@ in_purgemaddrs(struct ifnet *ifp)
 #endif
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
-	LIST_FOREACH_SAFE(inm, &in_multihead, inm_link, oinm) {
+	LIST_FOREACH_SAFE(inm, &V_in_multihead, inm_link, oinm) {
 		if (inm->inm_ifp == ifp)
 			in_delmulti_locked(inm);
 	}
@@ -998,7 +999,7 @@ void
 in_ifdetach(struct ifnet *ifp)
 {
 
-	in_pcbpurgeif0(&ripcbinfo, ifp);
-	in_pcbpurgeif0(&udbinfo, ifp);
+	in_pcbpurgeif0(&V_ripcbinfo, ifp);
+	in_pcbpurgeif0(&V_udbinfo, ifp);
 	in_purgemaddrs(ifp);
 }

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/callout.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -190,9 +191,9 @@ in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	 * If rtq_reallyold is 0, just delete the route without
 	 * waiting for a timeout cycle to kill it.
 	 */
-	if (rtq_reallyold != 0) {
+	if (V_rtq_reallyold != 0) {
 		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_uptime + rtq_reallyold;
+		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold;
 	} else {
 		rtexpunge(rt);
 	}
@@ -238,9 +239,9 @@ in_rtqkill(struct radix_node *rn, void *rock)
 		} else {
 			if (ap->updating &&
 			    (rt->rt_rmx.rmx_expire - time_uptime >
-			     rtq_reallyold)) {
+			     V_rtq_reallyold)) {
 				rt->rt_rmx.rmx_expire =
-				    time_uptime + rtq_reallyold;
+				    time_uptime + V_rtq_reallyold;
 			}
 			ap->nextstop = lmin(ap->nextstop,
 					    rt->rt_rmx.rmx_expire);
@@ -263,15 +264,15 @@ in_rtqtimo(void *rock)
 	void *newrock;
 	struct timeval atv;
 
-	KASSERT((rock == (void *)rt_tables[0][AF_INET]),
+	KASSERT((rock == (void *)V_rt_tables[0][AF_INET]),
 			("in_rtqtimo: unexpected arg"));
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		if ((newrock = rt_tables[fibnum][AF_INET]) != NULL)
+		if ((newrock = V_rt_tables[fibnum][AF_INET]) != NULL)
 			in_rtqtimo_one(newrock);
 	}
 	atv.tv_usec = 0;
-	atv.tv_sec = rtq_timeout;
-	callout_reset(&rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
+	atv.tv_sec = V_rtq_timeout;
+	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
 }
 
 static void
@@ -283,7 +284,7 @@ in_rtqtimo_one(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time_uptime + rtq_timeout;
+	arg.nextstop = time_uptime + V_rtq_timeout;
 	arg.draining = arg.updating = 0;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
@@ -297,18 +298,18 @@ in_rtqtimo_one(void *rock)
 	 * than once in rtq_timeout seconds, to keep from cranking down too
 	 * hard.
 	 */
-	if ((arg.found - arg.killed > rtq_toomany) &&
-	    (time_uptime - last_adjusted_timeout >= rtq_timeout) &&
-	    rtq_reallyold > rtq_minreallyold) {
-		rtq_reallyold = 2 * rtq_reallyold / 3;
-		if (rtq_reallyold < rtq_minreallyold) {
-			rtq_reallyold = rtq_minreallyold;
+	if ((arg.found - arg.killed > V_rtq_toomany) &&
+	    (time_uptime - last_adjusted_timeout >= V_rtq_timeout) &&
+	    V_rtq_reallyold > V_rtq_minreallyold) {
+		V_rtq_reallyold = 2 * V_rtq_reallyold / 3;
+		if (V_rtq_reallyold < V_rtq_minreallyold) {
+			V_rtq_reallyold = V_rtq_minreallyold;
 		}
 
 		last_adjusted_timeout = time_uptime;
 #ifdef DIAGNOSTIC
 		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
-		    rtq_reallyold);
+		    V_rtq_reallyold);
 #endif
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
@@ -327,7 +328,7 @@ in_rtqdrain(void)
 	int 	fibnum;
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables[fibnum][AF_INET];
+		rnh = V_rt_tables[fibnum][AF_INET];
 		arg.found = arg.killed = 0;
 		arg.rnh = rnh;
 		arg.nextstop = 0;
@@ -367,7 +368,7 @@ in_inithead(void **head, int off)
 	rnh->rnh_matchaddr = in_matroute;
 	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
-		callout_init(&rtq_timer, CALLOUT_MPSAFE);
+		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
 		in_rtqtimo(rnh);	/* kick off timeout first time */
 		_in_rt_was_here = 1;
 	}
@@ -423,7 +424,7 @@ in_ifadown(struct ifaddr *ifa, int delete)
 		return 1;
 
 	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = rt_tables[fibnum][AF_INET];
+		rnh = V_rt_tables[fibnum][AF_INET];
 		arg.ifa = ifa;
 		arg.del = delete;
 		RADIX_NODE_HEAD_LOCK(rnh);

@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -142,7 +143,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *opts = NULL;
 	struct sockaddr_in6 fromsa;
 
-	rip6stat.rip6s_ipackets++;
+	V_rip6stat.rip6s_ipackets++;
 
 	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
 		/* XXX Send icmp6 host/port unreach? */
@@ -152,8 +153,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	init_sin6(&fromsa, m); /* general init */
 
-	INP_INFO_RLOCK(&ripcbinfo);
-	LIST_FOREACH(in6p, &ripcb, inp_list) {
+	INP_INFO_RLOCK(&V_ripcbinfo);
+	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
 		if ((in6p->in6p_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->in6p_ip6_nxt &&
@@ -167,11 +168,11 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			continue;
 		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
-			rip6stat.rip6s_isum++;
+			V_rip6stat.rip6s_isum++;
 			if (in6_cksum(m, proto, *offp,
 			    m->m_pkthdr.len - *offp)) {
 				INP_RUNLOCK(in6p);
-				rip6stat.rip6s_badsum++;
+				V_rip6stat.rip6s_badsum++;
 				continue;
 			}
 		}
@@ -184,7 +185,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			if (n && ipsec6_in_reject(n, last)) {
 				m_freem(n);
-				ipsec6stat.in_polvio++;
+				V_ipsec6stat.in_polvio++;
 				/* Do not inject data into pcb. */
 			} else
 #endif /* IPSEC */
@@ -200,7 +201,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 					m_freem(n);
 					if (opts)
 						m_freem(opts);
-					rip6stat.rip6s_fullsock++;
+					V_rip6stat.rip6s_fullsock++;
 				} else
 					sorwakeup(last->in6p_socket);
 				opts = NULL;
@@ -209,15 +210,15 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		}
 		last = in6p;
 	}
-	INP_INFO_RUNLOCK(&ripcbinfo);
+	INP_INFO_RUNLOCK(&V_ripcbinfo);
 #ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
 	if (last && ipsec6_in_reject(m, last)) {
 		m_freem(m);
-		ipsec6stat.in_polvio++;
-		ip6stat.ip6s_delivered--;
+		V_ipsec6stat.in_polvio++;
+		V_ip6stat.ip6s_delivered--;
 		/* Do not inject data into pcb. */
 		INP_RUNLOCK(last);
 	} else
@@ -233,14 +234,14 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			m_freem(m);
 			if (opts)
 				m_freem(opts);
-			rip6stat.rip6s_fullsock++;
+			V_rip6stat.rip6s_fullsock++;
 		} else
 			sorwakeup(last->in6p_socket);
 		INP_RUNLOCK(last);
 	} else {
-		rip6stat.rip6s_nosock++;
+		V_rip6stat.rip6s_nosock++;
 		if (m->m_flags & M_MCAST)
-			rip6stat.rip6s_nosockmcast++;
+			V_rip6stat.rip6s_nosockmcast++;
 		if (proto == IPPROTO_NONE)
 			m_freem(m);
 		else {
@@ -249,7 +250,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			    ICMP6_PARAMPROB_NEXTHEADER,
 			    prvnxtp - mtod(m, char *));
 		}
-		ip6stat.ip6s_delivered--;
+		V_ip6stat.ip6s_delivered--;
 	}
 	return (IPPROTO_DONE);
 }
@@ -295,7 +296,7 @@ rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		sa6_src = &sa6_any;
 	}
 
-	(void) in6_pcbnotify(&ripcbinfo, sa, 0,
+	(void) in6_pcbnotify(&V_ripcbinfo, sa, 0,
 	    (const struct sockaddr *)sa6_src, 0, cmd, cmdarg, notify);
 }
 
@@ -353,9 +354,9 @@ rip6_output(m, va_alist)
 	 * XXX: we may still need to determine the zone later.
 	 */
 	if (!(so->so_state & SS_ISCONNECTED)) {
-		if (dstsock->sin6_scope_id == 0 && !ip6_use_defzone)
+		if (dstsock->sin6_scope_id == 0 && !V_ip6_use_defzone)
 			scope_ambiguous = 1;
-		if ((error = sa6_embedscope(dstsock, ip6_use_defzone)) != 0)
+		if ((error = sa6_embedscope(dstsock, V_ip6_use_defzone)) != 0)
 			goto bad;
 	}
 
@@ -455,9 +456,9 @@ rip6_output(m, va_alist)
 	if (so->so_proto->pr_protocol == IPPROTO_ICMPV6) {
 		if (oifp)
 			icmp6_ifoutstat_inc(oifp, type, code);
-		icmp6stat.icp6s_outhist[type]++;
+		V_icmp6stat.icp6s_outhist[type]++;
 	} else
-		rip6stat.rip6s_opackets++;
+		V_rip6stat.rip6s_opackets++;
 
 	goto freectl;
 
@@ -560,15 +561,15 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
 	if (filter == NULL)
 		return (ENOMEM);
-	INP_INFO_WLOCK(&ripcbinfo);
-	error = in_pcballoc(so, &ripcbinfo);
+	INP_INFO_WLOCK(&V_ripcbinfo);
+	error = in_pcballoc(so, &V_ripcbinfo);
 	if (error) {
-		INP_INFO_WUNLOCK(&ripcbinfo);
+		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		FREE(filter, M_PCB);
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_INFO_WUNLOCK(&ripcbinfo);
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	inp->inp_vflag |= INP_IPV6;
 	inp->in6p_ip6_nxt = (long)proto;
 	inp->in6p_hops = -1;	/* use kernel default */
@@ -590,12 +591,12 @@ rip6_detach(struct socket *so)
 	if (so == ip6_mrouter && ip6_mrouter_done)
 		ip6_mrouter_done();
 	/* xxx: RSVP */
-	INP_INFO_WLOCK(&ripcbinfo);
+	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	FREE(inp->in6p_icmp6filt, M_PCB);
 	in6_pcbdetach(inp);
 	in6_pcbfree(inp);
-	INP_INFO_WUNLOCK(&ripcbinfo);
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
 /* XXXRW: This can't ever be called. */
@@ -649,9 +650,9 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
-	if (TAILQ_EMPTY(&ifnet) || addr->sin6_family != AF_INET6)
+	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
-	if ((error = sa6_embedscope(addr, ip6_use_defzone)) != 0)
+	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
@@ -663,11 +664,11 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
 		return (EADDRNOTAVAIL);
 	}
-	INP_INFO_WLOCK(&ripcbinfo);
+	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&ripcbinfo);
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	return (0);
 }
 
@@ -685,7 +686,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
-	if (TAILQ_EMPTY(&ifnet))
+	if (TAILQ_EMPTY(&V_ifnet))
 		return (EADDRNOTAVAIL);
 	if (addr->sin6_family != AF_INET6)
 		return (EAFNOSUPPORT);
@@ -698,12 +699,12 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * the outgoing interface.  If we can, determine the zone ID based on
 	 * the interface below.
 	 */
-	if (addr->sin6_scope_id == 0 && !ip6_use_defzone)
+	if (addr->sin6_scope_id == 0 && !V_ip6_use_defzone)
 		scope_ambiguous = 1;
-	if ((error = sa6_embedscope(addr, ip6_use_defzone)) != 0)
+	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
-	INP_INFO_WLOCK(&ripcbinfo);
+	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	/* Source address selection. XXX: need pcblookup? */
 	in6a = in6_selectsrc(addr, inp->in6p_outputopts,
@@ -711,7 +712,7 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 			     &ifp, &error);
 	if (in6a == NULL) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&ripcbinfo);
+		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		return (error ? error : EADDRNOTAVAIL);
 	}
 
@@ -719,14 +720,14 @@ rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&addr->sin6_addr, ifp, NULL)) != 0) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&ripcbinfo);
+		INP_INFO_WUNLOCK(&V_ripcbinfo);
 		return (error);
 	}
 	inp->in6p_faddr = addr->sin6_addr;
 	inp->in6p_laddr = *in6a;
 	soisconnected(so);
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&ripcbinfo);
+	INP_INFO_WUNLOCK(&V_ripcbinfo);
 	return (0);
 }
 

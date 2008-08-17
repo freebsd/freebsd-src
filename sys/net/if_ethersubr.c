@@ -49,6 +49,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -389,7 +390,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 #if defined(INET) || defined(INET6)
 	struct ip_fw *rule = ip_dn_claim_rule(m);
 
-	if (IPFW_LOADED && ether_ipfw != 0) {
+	if (IPFW_LOADED && V_ether_ipfw != 0) {
 		if (ether_ipfw_chk(&m, ifp, &rule, 0) == 0) {
 			if (m) {
 				m_freem(m);
@@ -424,7 +425,7 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	int i;
 	struct ip_fw_args args;
 
-	if (*rule != NULL && fw_one_pass)
+	if (*rule != NULL && V_fw_one_pass)
 		return 1; /* dummynet packet, already partially processed */
 
 	/*
@@ -714,7 +715,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	 * Allow dummynet and/or ipfw to claim the frame.
 	 * Do not do this for PROMISC frames in case we are re-entered.
 	 */
-	if (IPFW_LOADED && ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
+	if (IPFW_LOADED && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
 		struct ip_fw *rule = ip_dn_claim_rule(m);
 
 		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {

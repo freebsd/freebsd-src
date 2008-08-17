@@ -38,6 +38,7 @@
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -351,7 +352,7 @@ ng_eiface_constructor(node_p node)
 	ifp->if_softc = priv;
 
 	/* Get an interface unit number */
-	priv->unit = alloc_unr(ng_eiface_unit);
+	priv->unit = alloc_unr(V_ng_eiface_unit);
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -549,7 +550,7 @@ ng_eiface_rmnode(node_p node)
 
 	ether_ifdetach(ifp);
 	if_free(ifp);
-	free_unr(ng_eiface_unit, priv->unit);
+	free_unr(V_ng_eiface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -578,10 +579,10 @@ ng_eiface_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
+		V_ng_eiface_unit = new_unrhdr(0, 0xffff, NULL);
 		break;
 	case MOD_UNLOAD:
-		delete_unrhdr(ng_eiface_unit);
+		delete_unrhdr(V_ng_eiface_unit);
 		break;
 	default:
 		error = EOPNOTSUPP;

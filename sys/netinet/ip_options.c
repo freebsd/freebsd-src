@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -150,7 +151,7 @@ ip_dooptions(struct mbuf *m, int pass)
 		case IPOPT_LSRR:
 		case IPOPT_SSRR:
 #ifdef IPSTEALTH
-			if (ipstealth && pass > 0)
+			if (V_ipstealth && pass > 0)
 				break;
 #endif
 			if (optlen < IPOPT_OFFSET + sizeof(*cp)) {
@@ -189,11 +190,11 @@ ip_dooptions(struct mbuf *m, int pass)
 				break;
 			}
 #ifdef IPSTEALTH
-			if (ipstealth)
+			if (V_ipstealth)
 				goto dropit;
 #endif
 			if (!ip_dosourceroute) {
-				if (ipforwarding) {
+				if (V_ipforwarding) {
 					char buf[16]; /* aaa.bbb.ccc.ddd\0 */
 					/*
 					 * Acting as a router, so generate
@@ -215,7 +216,7 @@ nosourcerouting:
 #ifdef IPSTEALTH
 dropit:
 #endif
-					ipstat.ips_cantforward++;
+					V_ipstat.ips_cantforward++;
 					m_freem(m);
 					return (1);
 				}
@@ -252,7 +253,7 @@ dropit:
 
 		case IPOPT_RR:
 #ifdef IPSTEALTH
-			if (ipstealth && pass == 0)
+			if (V_ipstealth && pass == 0)
 				break;
 #endif
 			if (optlen < IPOPT_OFFSET + sizeof(*cp)) {
@@ -289,7 +290,7 @@ dropit:
 
 		case IPOPT_TS:
 #ifdef IPSTEALTH
-			if (ipstealth && pass == 0)
+			if (V_ipstealth && pass == 0)
 				break;
 #endif
 			code = cp - (u_char *)ip;
@@ -356,14 +357,14 @@ dropit:
 			cp[IPOPT_OFFSET] += sizeof(n_time);
 		}
 	}
-	if (forward && ipforwarding) {
+	if (forward && V_ipforwarding) {
 		ip_forward(m, 1);
 		return (1);
 	}
 	return (0);
 bad:
 	icmp_error(m, type, code, 0, 0);
-	ipstat.ips_badoptions++;
+	V_ipstat.ips_badoptions++;
 	return (1);
 }
 

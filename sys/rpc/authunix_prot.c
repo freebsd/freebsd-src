@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/vimage.h>
 
 #include <rpc/types.h>
 #include <rpc/xdr.h>
@@ -74,7 +75,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 		/*
 		 * Restrict name length to 255 according to RFC 1057.
 		 */
-		namelen = strlen(hostname);
+		namelen = strlen(V_hostname);
 		if (namelen > 255)
 			namelen = 255;
 	} else {
@@ -90,7 +91,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	 * Ignore the hostname on decode.
 	 */
 	if (xdrs->x_op == XDR_ENCODE) {
-		if (!xdr_opaque(xdrs, hostname, namelen))
+		if (!xdr_opaque(xdrs, V_hostname, namelen))
 			return (FALSE);
 	} else {
 		xdr_setpos(xdrs, xdr_getpos(xdrs) + RNDUP(namelen));

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 
 #include <sys/malloc.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -175,7 +176,7 @@ in6_gif_output(struct ifnet *ifp,
 	ip6->ip6_vfc	|= IPV6_VERSION;
 	ip6->ip6_plen	= htons((u_short)m->m_pkthdr.len);
 	ip6->ip6_nxt	= proto;
-	ip6->ip6_hlim	= ip6_gif_hlim;
+	ip6->ip6_hlim	= V_ip6_gif_hlim;
 	ip6->ip6_src	= sin6_src->sin6_addr;
 	/* bidirectional configured tunnel mode */
 	if (!IN6_IS_ADDR_UNSPECIFIED(&sin6_dst->sin6_addr))
@@ -258,14 +259,14 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 	sc = (struct gif_softc *)encap_getarg(m);
 	if (sc == NULL) {
 		m_freem(m);
-		ip6stat.ip6s_nogif++;
+		V_ip6stat.ip6s_nogif++;
 		return IPPROTO_DONE;
 	}
 
 	gifp = GIF2IFP(sc);
 	if (gifp == NULL || (gifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);
-		ip6stat.ip6s_nogif++;
+		V_ip6stat.ip6s_nogif++;
 		return IPPROTO_DONE;
 	}
 
@@ -320,7 +321,7 @@ in6_gif_input(struct mbuf **mp, int *offp, int proto)
 		break;
 
 	default:
-		ip6stat.ip6s_nogif++;
+		V_ip6stat.ip6s_nogif++;
 		m_freem(m);
 		return IPPROTO_DONE;
 	}

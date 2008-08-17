@@ -54,6 +54,7 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -752,7 +753,7 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 
 		/* Create nodes for any already-existing Ethernet interfaces */
 		IFNET_RLOCK();
-		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type == IFT_ETHER
 			    || ifp->if_type == IFT_L2VLAN)
 				ng_ether_attach(ifp);

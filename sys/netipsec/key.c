@@ -96,6 +96,7 @@
 
 /* randomness */
 #include <sys/random.h>
+#include <sys/vimage.h>
 
 #define FULLMASK	0xff
 #define	_BITS(bytes)	((bytes) << 3)
@@ -554,7 +555,7 @@ int
 key_havesp(u_int dir)
 {
 	return (dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND ?
-		LIST_FIRST(&sptree[dir]) != NULL : 1);
+		LIST_FIRST(&V_sptree[dir]) != NULL : 1);
 }
 
 /* %%% IPsec policy management */
@@ -582,7 +583,7 @@ key_allocsp(struct secpolicyindex *spidx, u_int dir, const char* where, int tag)
 		kdebug_secpolicyindex(spidx));
 
 	SPTREE_LOCK();
-	LIST_FOREACH(sp, &sptree[dir], chain) {
+	LIST_FOREACH(sp, &V_sptree[dir], chain) {
 		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
 			printf("*** in SPD\n");
 			kdebug_secpolicyindex(&sp->spidx));
@@ -639,7 +640,7 @@ key_allocsp2(u_int32_t spi,
 		kdebug_sockaddr(&dst->sa));
 
 	SPTREE_LOCK();
-	LIST_FOREACH(sp, &sptree[dir], chain) {
+	LIST_FOREACH(sp, &V_sptree[dir], chain) {
 		KEYDEBUG(KEYDEBUG_IPSEC_DATA,
 			printf("*** in SPD\n");
 			kdebug_secpolicyindex(&sp->spidx));
@@ -700,7 +701,7 @@ key_gettunnel(const struct sockaddr *osrc,
 	}
 
 	SPTREE_LOCK();
-	LIST_FOREACH(sp, &sptree[dir], chain) {
+	LIST_FOREACH(sp, &V_sptree[dir], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
 
@@ -859,11 +860,11 @@ key_allocsa_policy(const struct secasindex *saidx)
 	const u_int *state_valid;
 
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID)) {
-			if (key_preferred_oldsa) {
+			if (V_key_preferred_oldsa) {
 				state_valid = saorder_state_valid_prefer_old;
 				arraysize = N(saorder_state_valid_prefer_old);
 			} else {
@@ -928,7 +929,7 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		IPSEC_ASSERT(sav->lft_c != NULL, ("null sav lifetime"));
 
 		/* What the best method is to compare ? */
-		if (key_preferred_oldsa) {
+		if (V_key_preferred_oldsa) {
 			if (candidate->lft_c->addtime >
 					sav->lft_c->addtime) {
 				candidate = sav;
@@ -1062,14 +1063,14 @@ key_allocsa(
 	 * encrypted so we can't check internal IP header.
 	 */
 	SAHTREE_LOCK();
-	if (key_preferred_oldsa) {
+	if (V_key_preferred_oldsa) {
 		saorder_state_valid = saorder_state_valid_prefer_old;
 		arraysize = _ARRAYLEN(saorder_state_valid_prefer_old);
 	} else {
 		saorder_state_valid = saorder_state_valid_prefer_new;
 		arraysize = _ARRAYLEN(saorder_state_valid_prefer_new);
 	}
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		/* search valid state */
 		for (stateidx = 0; stateidx < arraysize; stateidx++) {
 			state = saorder_state_valid[stateidx];
@@ -1270,7 +1271,7 @@ key_getsp(struct secpolicyindex *spidx)
 	IPSEC_ASSERT(spidx != NULL, ("null spidx"));
 
 	SPTREE_LOCK();
-	LIST_FOREACH(sp, &sptree[spidx->dir], chain) {
+	LIST_FOREACH(sp, &V_sptree[spidx->dir], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
 		if (key_cmpspidx_exactly(spidx, &sp->spidx)) {
@@ -1294,7 +1295,7 @@ key_getspbyid(u_int32_t id)
 	struct secpolicy *sp;
 
 	SPTREE_LOCK();
-	LIST_FOREACH(sp, &sptree[IPSEC_DIR_INBOUND], chain) {
+	LIST_FOREACH(sp, &V_sptree[IPSEC_DIR_INBOUND], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
 		if (sp->id == id) {
@@ -1303,7 +1304,7 @@ key_getspbyid(u_int32_t id)
 		}
 	}
 
-	LIST_FOREACH(sp, &sptree[IPSEC_DIR_OUTBOUND], chain) {
+	LIST_FOREACH(sp, &V_sptree[IPSEC_DIR_OUTBOUND], chain) {
 		if (sp->state == IPSEC_SPSTATE_DEAD)
 			continue;
 		if (sp->id == id) {
@@ -1905,7 +1906,7 @@ key_spdadd(so, m, mhp)
 
 	newsp->refcnt = 1;	/* do not reclaim until I say I do */
 	newsp->state = IPSEC_SPSTATE_ALIVE;
-	LIST_INSERT_TAIL(&sptree[newsp->spidx.dir], newsp, secpolicy, chain);
+	LIST_INSERT_TAIL(&V_sptree[newsp->spidx.dir], newsp, secpolicy, chain);
 
 	/* delete the entry in spacqtree */
 	if (mhp->msg->sadb_msg_type == SADB_X_SPDUPDATE) {
@@ -1974,12 +1975,12 @@ static u_int32_t
 key_getnewspid()
 {
 	u_int32_t newid = 0;
-	int count = key_spi_trycnt;	/* XXX */
+	int count = V_key_spi_trycnt;	/* XXX */
 	struct secpolicy *sp;
 
 	/* when requesting to allocate spi ranged */
 	while (count--) {
-		newid = (policy_id = (policy_id == ~0 ? 1 : policy_id + 1));
+		newid = (V_policy_id = (V_policy_id == ~0 ? 1 : V_policy_id + 1));
 
 		if ((sp = key_getspbyid(newid)) == NULL)
 			break;
@@ -2266,7 +2267,7 @@ key_spdacquire(sp)
 	/* Get an entry to check whether sent message or not. */
 	newspacq = key_getspacq(&sp->spidx);
 	if (newspacq != NULL) {
-		if (key_blockacq_count < newspacq->count) {
+		if (V_key_blockacq_count < newspacq->count) {
 			/* reset counter and do send message. */
 			newspacq->count = 0;
 		} else {
@@ -2331,7 +2332,7 @@ key_spdflush(so, m, mhp)
 
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 		SPTREE_LOCK();
-		LIST_FOREACH(sp, &sptree[dir], chain)
+		LIST_FOREACH(sp, &V_sptree[dir], chain)
 			sp->state = IPSEC_SPSTATE_DEAD;
 		SPTREE_UNLOCK();
 	}
@@ -2382,7 +2383,7 @@ key_spddump(so, m, mhp)
 	/* search SPD entry and get buffer size. */
 	cnt = 0;
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-		LIST_FOREACH(sp, &sptree[dir], chain) {
+		LIST_FOREACH(sp, &V_sptree[dir], chain) {
 			cnt++;
 		}
 	}
@@ -2391,7 +2392,7 @@ key_spddump(so, m, mhp)
 		return key_senderror(so, m, ENOENT);
 
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
-		LIST_FOREACH(sp, &sptree[dir], chain) {
+		LIST_FOREACH(sp, &V_sptree[dir], chain) {
 			--cnt;
 			n = key_setdumpsp(sp, SADB_X_SPDDUMP, cnt,
 			    mhp->msg->sadb_msg_pid);
@@ -2646,7 +2647,7 @@ key_newsah(saidx)
 		newsah->state = SADB_SASTATE_MATURE;
 
 		SAHTREE_LOCK();
-		LIST_INSERT_HEAD(&sahtree, newsah, chain);
+		LIST_INSERT_HEAD(&V_sahtree, newsah, chain);
 		SAHTREE_UNLOCK();
 	}
 	return(newsah);
@@ -2668,9 +2669,9 @@ key_delsah(sah)
 
 	/* searching all SA registerd in the secindex. */
 	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_any);
+	     stateidx < _ARRAYLEN(V_saorder_state_any);
 	     stateidx++) {
-		u_int state = saorder_state_any[stateidx];
+		u_int state = V_saorder_state_any[stateidx];
 		LIST_FOREACH_SAFE(sav, &sah->savtree[state], chain, nextsav) {
 			if (sav->refcnt == 0) {
 				/* sanity check */
@@ -2738,7 +2739,7 @@ key_newsav(m, mhp, sah, errp, where, tag)
 		/* sync sequence number */
 		if (mhp->msg->sadb_msg_seq == 0)
 			newsav->seq =
-				(acq_seq = (acq_seq == ~0 ? 1 : ++acq_seq));
+				(V_acq_seq = (V_acq_seq == ~0 ? 1 : ++V_acq_seq));
 		else
 #endif
 			newsav->seq = mhp->msg->sadb_msg_seq;
@@ -2884,7 +2885,7 @@ key_getsah(saidx)
 	struct secashead *sah;
 
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, saidx, CMP_REQID))
@@ -2920,7 +2921,7 @@ key_checkspidup(saidx, spi)
 	sav = NULL;
 	/* check all SAD */
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (!key_ismyaddr((struct sockaddr *)&sah->saidx.dst))
 			continue;
 		sav = key_getsavbyspi(sah, spi);
@@ -2950,10 +2951,10 @@ key_getsavbyspi(sah, spi)
 	SAHTREE_LOCK_ASSERT();
 	/* search all status */
 	for (stateidx = 0;
-	     stateidx < _ARRAYLEN(saorder_state_alive);
+	     stateidx < _ARRAYLEN(V_saorder_state_alive);
 	     stateidx++) {
 
-		state = saorder_state_alive[stateidx];
+		state = V_saorder_state_alive[stateidx];
 		LIST_FOREACH(sav, &sah->savtree[state], chain) {
 
 			/* sanity check */
@@ -3716,7 +3717,7 @@ key_ismyaddr(sa)
 #ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
-		for (ia = in_ifaddrhead.tqh_first; ia;
+		for (ia = V_in_ifaddrhead.tqh_first; ia;
 		     ia = ia->ia_link.tqe_next)
 		{
 			if (sin->sin_family == ia->ia_addr.sin_family &&
@@ -3753,7 +3754,7 @@ key_ismyaddr6(sin6)
 	struct in6_ifaddr *ia;
 	struct in6_multi *in6m;
 
-	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (key_sockaddrcmp((struct sockaddr *)&sin6,
 		    (struct sockaddr *)&ia->ia_addr, 0) == 0)
 			return 1;
@@ -4080,7 +4081,7 @@ key_flush_spd(time_t now)
 	for (dir = 0; dir < IPSEC_DIR_MAX; dir++) {
 restart:
 		SPTREE_LOCK();
-		LIST_FOREACH(sp, &sptree[dir], chain) {
+		LIST_FOREACH(sp, &V_sptree[dir], chain) {
 			if (sp->scangen == gen)		/* previously handled */
 				continue;
 			sp->scangen = gen;
@@ -4113,7 +4114,7 @@ key_flush_sad(time_t now)
 
 	/* SAD */
 	SAHTREE_LOCK();
-	LIST_FOREACH_SAFE(sah, &sahtree, chain, nextsah) {
+	LIST_FOREACH_SAFE(sah, &V_sahtree, chain, nextsah) {
 		/* if sah has been dead, then delete it and process next sah. */
 		if (sah->state == SADB_SASTATE_DEAD) {
 			key_delsah(sah);
@@ -4122,7 +4123,7 @@ key_flush_sad(time_t now)
 
 		/* if LARVAL entry doesn't become MATURE, delete it. */
 		LIST_FOREACH_SAFE(sav, &sah->savtree[SADB_SASTATE_LARVAL], chain, nextsav) {
-			if (now - sav->created > key_larval_lifetime)
+			if (now - sav->created > V_key_larval_lifetime)
 				KEY_FREESAV(&sav);
 		}
 
@@ -4250,9 +4251,9 @@ key_flush_acq(time_t now)
 
 	/* ACQ tree */
 	ACQ_LOCK();
-	for (acq = LIST_FIRST(&acqtree); acq != NULL; acq = nextacq) {
+	for (acq = LIST_FIRST(&V_acqtree); acq != NULL; acq = nextacq) {
 		nextacq = LIST_NEXT(acq, chain);
-		if (now - acq->created > key_blockacq_lifetime
+		if (now - acq->created > V_key_blockacq_lifetime
 		 && __LIST_CHAINED(acq)) {
 			LIST_REMOVE(acq, chain);
 			free(acq, M_IPSEC_SAQ);
@@ -4268,9 +4269,9 @@ key_flush_spacq(time_t now)
 
 	/* SP ACQ tree */
 	SPACQ_LOCK();
-	for (acq = LIST_FIRST(&spacqtree); acq != NULL; acq = nextacq) {
+	for (acq = LIST_FIRST(&V_spacqtree); acq != NULL; acq = nextacq) {
 		nextacq = LIST_NEXT(acq, chain);
-		if (now - acq->created > key_blockacq_lifetime
+		if (now - acq->created > V_key_blockacq_lifetime
 		 && __LIST_CHAINED(acq)) {
 			LIST_REMOVE(acq, chain);
 			free(acq, M_IPSEC_SAQ);
@@ -4602,15 +4603,15 @@ key_do_getnewspi(spirange, saidx)
 {
 	u_int32_t newspi;
 	u_int32_t min, max;
-	int count = key_spi_trycnt;
+	int count = V_key_spi_trycnt;
 
 	/* set spi range to allocate */
 	if (spirange != NULL) {
 		min = spirange->sadb_spirange_min;
 		max = spirange->sadb_spirange_max;
 	} else {
-		min = key_spi_minval;
-		max = key_spi_maxval;
+		min = V_key_spi_minval;
+		max = V_key_spi_maxval;
 	}
 	/* IPCOMP needs 2-byte SPI */
 	if (saidx->proto == IPPROTO_IPCOMP) {
@@ -4657,7 +4658,7 @@ key_do_getnewspi(spirange, saidx)
 
 	/* statistics */
 	keystat.getspi_count =
-		(keystat.getspi_count + key_spi_trycnt - count) / 2;
+		(keystat.getspi_count + V_key_spi_trycnt - count) / 2;
 
 	return newspi;
 }
@@ -5180,7 +5181,7 @@ key_delete(so, m, mhp)
 
 	/* get a SA header */
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
@@ -5248,7 +5249,7 @@ key_delete_all(so, m, mhp, proto)
 	KEY_SETSECASIDX(proto, IPSEC_MODE_ANY, 0, src0 + 1, dst0 + 1, &saidx);
 
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
@@ -5256,9 +5257,9 @@ key_delete_all(so, m, mhp, proto)
 
 		/* Delete all non-LARVAL SAs. */
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_alive);
+		     stateidx < _ARRAYLEN(V_saorder_state_alive);
 		     stateidx++) {
-			state = saorder_state_alive[stateidx];
+			state = V_saorder_state_alive[stateidx];
 			if (state == SADB_SASTATE_LARVAL)
 				continue;
 			for (sav = LIST_FIRST(&sah->savtree[state]);
@@ -5363,7 +5364,7 @@ key_get(so, m, mhp)
 
 	/* get a SA header */
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_HEAD) == 0)
@@ -5440,14 +5441,14 @@ key_getcomb_esp()
 			continue;
 
 		/* discard algorithms with key size smaller than system min */
-		if (_BITS(algo->maxkey) < ipsec_esp_keymin)
+		if (_BITS(algo->maxkey) < V_ipsec_esp_keymin)
 			continue;
-		if (_BITS(algo->minkey) < ipsec_esp_keymin)
-			encmin = ipsec_esp_keymin;
+		if (_BITS(algo->minkey) < V_ipsec_esp_keymin)
+			encmin = V_ipsec_esp_keymin;
 		else
 			encmin = _BITS(algo->minkey);
 
-		if (ipsec_esp_auth)
+		if (V_ipsec_esp_auth)
 			m = key_getcomb_ah();
 		else {
 			IPSEC_ASSERT(l <= MLEN,
@@ -5546,7 +5547,7 @@ key_getcomb_ah()
 			continue;
 		key_getsizes_ah(algo, i, &minkeysize, &maxkeysize);
 		/* discard algorithms with key size smaller than system min */
-		if (_BITS(minkeysize) < ipsec_ah_keymin)
+		if (_BITS(minkeysize) < V_ipsec_ah_keymin)
 			continue;
 
 		if (!m) {
@@ -5705,7 +5706,7 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 	 */
 	/* Get an entry to check whether sending message or not. */
 	if ((newacq = key_getacq(saidx)) != NULL) {
-		if (key_blockacq_count < newacq->count) {
+		if (V_key_blockacq_count < newacq->count) {
 			/* reset counter and do send message. */
 			newacq->count = 0;
 		} else {
@@ -5863,13 +5864,13 @@ key_newacq(const struct secasindex *saidx)
 
 	/* copy secindex */
 	bcopy(saidx, &newacq->saidx, sizeof(newacq->saidx));
-	newacq->seq = (acq_seq == ~0 ? 1 : ++acq_seq);
+	newacq->seq = (V_acq_seq == ~0 ? 1 : ++V_acq_seq);
 	newacq->created = time_second;
 	newacq->count = 0;
 
 	/* add to acqtree */
 	ACQ_LOCK();
-	LIST_INSERT_HEAD(&acqtree, newacq, chain);
+	LIST_INSERT_HEAD(&V_acqtree, newacq, chain);
 	ACQ_UNLOCK();
 
 	return newacq;
@@ -5881,7 +5882,7 @@ key_getacq(const struct secasindex *saidx)
 	struct secacq *acq;
 
 	ACQ_LOCK();
-	LIST_FOREACH(acq, &acqtree, chain) {
+	LIST_FOREACH(acq, &V_acqtree, chain) {
 		if (key_cmpsaidx(saidx, &acq->saidx, CMP_EXACTLY))
 			break;
 	}
@@ -5897,7 +5898,7 @@ key_getacqbyseq(seq)
 	struct secacq *acq;
 
 	ACQ_LOCK();
-	LIST_FOREACH(acq, &acqtree, chain) {
+	LIST_FOREACH(acq, &V_acqtree, chain) {
 		if (acq->seq == seq)
 			break;
 	}
@@ -5926,7 +5927,7 @@ key_newspacq(spidx)
 
 	/* add to spacqtree */
 	SPACQ_LOCK();
-	LIST_INSERT_HEAD(&spacqtree, acq, chain);
+	LIST_INSERT_HEAD(&V_spacqtree, acq, chain);
 	SPACQ_UNLOCK();
 
 	return acq;
@@ -5939,7 +5940,7 @@ key_getspacq(spidx)
 	struct secspacq *acq;
 
 	SPACQ_LOCK();
-	LIST_FOREACH(acq, &spacqtree, chain) {
+	LIST_FOREACH(acq, &V_spacqtree, chain) {
 		if (key_cmpspidx_exactly(spidx, &acq->spidx)) {
 			/* NB: return holding spacq_lock */
 			return acq;
@@ -6050,7 +6051,7 @@ key_acquire2(so, m, mhp)
 
 	/* get a SA index */
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (sah->state == SADB_SASTATE_DEAD)
 			continue;
 		if (key_cmpsaidx(&sah->saidx, &saidx, CMP_MODE_REQID))
@@ -6099,7 +6100,7 @@ key_register(so, m, mhp)
 	IPSEC_ASSERT(mhp->msg != NULL, ("null msg"));
 
 	/* check for invalid register message */
-	if (mhp->msg->sadb_msg_satype >= sizeof(regtree)/sizeof(regtree[0]))
+	if (mhp->msg->sadb_msg_satype >= sizeof(V_regtree)/sizeof(V_regtree[0]))
 		return key_senderror(so, m, EINVAL);
 
 	/* When SATYPE_UNSPEC is specified, only return sabd_supported. */
@@ -6108,7 +6109,7 @@ key_register(so, m, mhp)
 
 	/* check whether existing or not */
 	REGTREE_LOCK();
-	LIST_FOREACH(reg, &regtree[mhp->msg->sadb_msg_satype], chain) {
+	LIST_FOREACH(reg, &V_regtree[mhp->msg->sadb_msg_satype], chain) {
 		if (reg->so == so) {
 			REGTREE_UNLOCK();
 			ipseclog((LOG_DEBUG, "%s: socket exists already.\n",
@@ -6129,7 +6130,7 @@ key_register(so, m, mhp)
 	((struct keycb *)sotorawcb(so))->kp_registered++;
 
 	/* add regnode to regtree. */
-	LIST_INSERT_HEAD(&regtree[mhp->msg->sadb_msg_satype], newreg, chain);
+	LIST_INSERT_HEAD(&V_regtree[mhp->msg->sadb_msg_satype], newreg, chain);
 	REGTREE_UNLOCK();
 
   setmsg:
@@ -6257,7 +6258,7 @@ key_freereg(struct socket *so)
 	 */
 	REGTREE_LOCK();
 	for (i = 0; i <= SADB_SATYPE_MAX; i++) {
-		LIST_FOREACH(reg, &regtree[i], chain) {
+		LIST_FOREACH(reg, &V_regtree[i], chain) {
 			if (reg->so == so && __LIST_CHAINED(reg)) {
 				LIST_REMOVE(reg, chain);
 				free(reg, M_IPSEC_SAR);
@@ -6436,7 +6437,7 @@ key_flush(so, m, mhp)
 
 	/* no SATYPE specified, i.e. flushing all SA. */
 	SAHTREE_LOCK();
-	for (sah = LIST_FIRST(&sahtree);
+	for (sah = LIST_FIRST(&V_sahtree);
 	     sah != NULL;
 	     sah = nextsah) {
 		nextsah = LIST_NEXT(sah, chain);
@@ -6446,9 +6447,9 @@ key_flush(so, m, mhp)
 			continue;
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_alive);
+		     stateidx < _ARRAYLEN(V_saorder_state_alive);
 		     stateidx++) {
-			state = saorder_state_any[stateidx];
+			state = V_saorder_state_any[stateidx];
 			for (sav = LIST_FIRST(&sah->savtree[state]);
 			     sav != NULL;
 			     sav = nextsav) {
@@ -6524,15 +6525,15 @@ key_dump(so, m, mhp)
 	/* count sav entries to be sent to the userland. */
 	cnt = 0;
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC
 		 && proto != sah->saidx.proto)
 			continue;
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_any);
+		     stateidx < _ARRAYLEN(V_saorder_state_any);
 		     stateidx++) {
-			state = saorder_state_any[stateidx];
+			state = V_saorder_state_any[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				cnt++;
 			}
@@ -6546,7 +6547,7 @@ key_dump(so, m, mhp)
 
 	/* send this to the userland, one at a time. */
 	newmsg = NULL;
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		if (mhp->msg->sadb_msg_satype != SADB_SATYPE_UNSPEC
 		 && proto != sah->saidx.proto)
 			continue;
@@ -6560,9 +6561,9 @@ key_dump(so, m, mhp)
 		}
 
 		for (stateidx = 0;
-		     stateidx < _ARRAYLEN(saorder_state_any);
+		     stateidx < _ARRAYLEN(V_saorder_state_any);
 		     stateidx++) {
-			state = saorder_state_any[stateidx];
+			state = V_saorder_state_any[stateidx];
 			LIST_FOREACH(sav, &sah->savtree[state], chain) {
 				n = key_setdumpsa(sav, SADB_DUMP, satype,
 				    --cnt, mhp->msg->sadb_msg_pid);
@@ -6706,7 +6707,7 @@ key_parse(m, so)
 	if ((m->m_flags & M_PKTHDR) == 0 ||
 	    m->m_pkthdr.len != m->m_pkthdr.len) {
 		ipseclog((LOG_DEBUG, "%s: invalid message length.\n",__func__));
-		pfkeystat.out_invlen++;
+		V_pfkeystat.out_invlen++;
 		error = EINVAL;
 		goto senderror;
 	}
@@ -6714,7 +6715,7 @@ key_parse(m, so)
 	if (msg->sadb_msg_version != PF_KEY_V2) {
 		ipseclog((LOG_DEBUG, "%s: PF_KEY version %u is mismatched.\n",
 		    __func__, msg->sadb_msg_version));
-		pfkeystat.out_invver++;
+		V_pfkeystat.out_invver++;
 		error = EINVAL;
 		goto senderror;
 	}
@@ -6722,7 +6723,7 @@ key_parse(m, so)
 	if (msg->sadb_msg_type > SADB_MAX) {
 		ipseclog((LOG_DEBUG, "%s: invalid type %u is passed.\n",
 		    __func__, msg->sadb_msg_type));
-		pfkeystat.out_invmsgtype++;
+		V_pfkeystat.out_invmsgtype++;
 		error = EINVAL;
 		goto senderror;
 	}
@@ -6775,7 +6776,7 @@ key_parse(m, so)
 			ipseclog((LOG_DEBUG, "%s: must specify satype "
 			    "when msg type=%u.\n", __func__,
 			    msg->sadb_msg_type));
-			pfkeystat.out_invsatype++;
+			V_pfkeystat.out_invsatype++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6795,7 +6796,7 @@ key_parse(m, so)
 		case SADB_X_SPDDELETE2:
 			ipseclog((LOG_DEBUG, "%s: illegal satype=%u\n",
 				__func__, msg->sadb_msg_type));
-			pfkeystat.out_invsatype++;
+			V_pfkeystat.out_invsatype++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6806,7 +6807,7 @@ key_parse(m, so)
 	case SADB_SATYPE_MIP:
 		ipseclog((LOG_DEBUG, "%s: type %u isn't supported.\n",
 			__func__, msg->sadb_msg_satype));
-		pfkeystat.out_invsatype++;
+		V_pfkeystat.out_invsatype++;
 		error = EOPNOTSUPP;
 		goto senderror;
 	case 1:	/* XXX: What does it do? */
@@ -6816,7 +6817,7 @@ key_parse(m, so)
 	default:
 		ipseclog((LOG_DEBUG, "%s: invalid type %u is passed.\n",
 			__func__, msg->sadb_msg_satype));
-		pfkeystat.out_invsatype++;
+		V_pfkeystat.out_invsatype++;
 		error = EINVAL;
 		goto senderror;
 	}
@@ -6834,7 +6835,7 @@ key_parse(m, so)
 		if (src0->sadb_address_proto != dst0->sadb_address_proto) {
 			ipseclog((LOG_DEBUG, "%s: upper layer protocol "
 				"mismatched.\n", __func__));
-			pfkeystat.out_invaddr++;
+			V_pfkeystat.out_invaddr++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6844,7 +6845,7 @@ key_parse(m, so)
 		    PFKEY_ADDR_SADDR(dst0)->sa_family) {
 			ipseclog((LOG_DEBUG, "%s: address family mismatched.\n",
 				__func__));
-			pfkeystat.out_invaddr++;
+			V_pfkeystat.out_invaddr++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6852,7 +6853,7 @@ key_parse(m, so)
 		    PFKEY_ADDR_SADDR(dst0)->sa_len) {
 			ipseclog((LOG_DEBUG, "%s: address struct size "
 				"mismatched.\n", __func__));
-			pfkeystat.out_invaddr++;
+			V_pfkeystat.out_invaddr++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6861,7 +6862,7 @@ key_parse(m, so)
 		case AF_INET:
 			if (PFKEY_ADDR_SADDR(src0)->sa_len !=
 			    sizeof(struct sockaddr_in)) {
-				pfkeystat.out_invaddr++;
+				V_pfkeystat.out_invaddr++;
 				error = EINVAL;
 				goto senderror;
 			}
@@ -6869,7 +6870,7 @@ key_parse(m, so)
 		case AF_INET6:
 			if (PFKEY_ADDR_SADDR(src0)->sa_len !=
 			    sizeof(struct sockaddr_in6)) {
-				pfkeystat.out_invaddr++;
+				V_pfkeystat.out_invaddr++;
 				error = EINVAL;
 				goto senderror;
 			}
@@ -6877,7 +6878,7 @@ key_parse(m, so)
 		default:
 			ipseclog((LOG_DEBUG, "%s: unsupported address family\n",
 				__func__));
-			pfkeystat.out_invaddr++;
+			V_pfkeystat.out_invaddr++;
 			error = EAFNOSUPPORT;
 			goto senderror;
 		}
@@ -6899,7 +6900,7 @@ key_parse(m, so)
 		    dst0->sadb_address_prefixlen > plen) {
 			ipseclog((LOG_DEBUG, "%s: illegal prefixlen.\n",
 				__func__));
-			pfkeystat.out_invaddr++;
+			V_pfkeystat.out_invaddr++;
 			error = EINVAL;
 			goto senderror;
 		}
@@ -6912,7 +6913,7 @@ key_parse(m, so)
 
 	if (msg->sadb_msg_type >= sizeof(key_typesw)/sizeof(key_typesw[0]) ||
 	    key_typesw[msg->sadb_msg_type] == NULL) {
-		pfkeystat.out_invmsgtype++;
+		V_pfkeystat.out_invmsgtype++;
 		error = EINVAL;
 		goto senderror;
 	}
@@ -7006,7 +7007,7 @@ key_align(m, mhp)
 				ipseclog((LOG_DEBUG, "%s: duplicate ext_type "
 					"%u\n", __func__, ext->sadb_ext_type));
 				m_freem(m);
-				pfkeystat.out_dupext++;
+				V_pfkeystat.out_dupext++;
 				return EINVAL;
 			}
 			break;
@@ -7014,7 +7015,7 @@ key_align(m, mhp)
 			ipseclog((LOG_DEBUG, "%s: invalid ext_type %u\n",
 				__func__, ext->sadb_ext_type));
 			m_freem(m);
-			pfkeystat.out_invexttype++;
+			V_pfkeystat.out_invexttype++;
 			return EINVAL;
 		}
 
@@ -7022,7 +7023,7 @@ key_align(m, mhp)
 
 		if (key_validate_ext(ext, extlen)) {
 			m_freem(m);
-			pfkeystat.out_invlen++;
+			V_pfkeystat.out_invlen++;
 			return EINVAL;
 		}
 
@@ -7040,7 +7041,7 @@ key_align(m, mhp)
 
 	if (off != end) {
 		m_freem(m);
-		pfkeystat.out_invlen++;
+		V_pfkeystat.out_invlen++;
 		return EINVAL;
 	}
 
@@ -7118,19 +7119,19 @@ key_init(void)
 	SPACQ_LOCK_INIT();
 
 	for (i = 0; i < IPSEC_DIR_MAX; i++)
-		LIST_INIT(&sptree[i]);
+		LIST_INIT(&V_sptree[i]);
 
-	LIST_INIT(&sahtree);
+	LIST_INIT(&V_sahtree);
 
 	for (i = 0; i <= SADB_SATYPE_MAX; i++)
-		LIST_INIT(&regtree[i]);
+		LIST_INIT(&V_regtree[i]);
 
-	LIST_INIT(&acqtree);
-	LIST_INIT(&spacqtree);
+	LIST_INIT(&V_acqtree);
+	LIST_INIT(&V_spacqtree);
 
 	/* system default */
-	ip4_def_policy.policy = IPSEC_POLICY_NONE;
-	ip4_def_policy.refcnt++;	/*never reclaim this*/
+	V_ip4_def_policy.policy = IPSEC_POLICY_NONE;
+	V_ip4_def_policy.refcnt++;	/*never reclaim this*/
 
 #ifndef IPSEC_DEBUG2
 	timeout((void *)key_timehandler, (void *)0, hz);
@@ -7218,7 +7219,7 @@ key_sa_routechange(dst)
 	struct route *ro;
 
 	SAHTREE_LOCK();
-	LIST_FOREACH(sah, &sahtree, chain) {
+	LIST_FOREACH(sah, &V_sahtree, chain) {
 		ro = &sah->sa_route;
 		if (ro->ro_rt && dst->sa_len == ro->ro_dst.sa_len
 		 && bcmp(dst, &ro->ro_dst, dst->sa_len) == 0) {

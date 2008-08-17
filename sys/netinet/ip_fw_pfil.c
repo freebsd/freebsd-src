@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -498,14 +499,14 @@ ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 	if (enable == *(int *)arg1)
 		return (0);
 
-	if (arg1 == &fw_enable) {
+	if (arg1 == &V_fw_enable) {
 		if (enable)
 			error = ipfw_hook();
 		else
 			error = ipfw_unhook();
 	}
 #ifdef INET6
-	if (arg1 == &fw6_enable) {
+	if (arg1 == &V_fw6_enable) {
 		if (enable)
 			error = ipfw6_hook();
 		else

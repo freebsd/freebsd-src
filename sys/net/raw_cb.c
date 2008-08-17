@@ -42,6 +42,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/raw_cb.h>
 
@@ -92,7 +93,7 @@ raw_attach(struct socket *so, int proto)
 	rp->rcb_proto.sp_family = so->so_proto->pr_domain->dom_family;
 	rp->rcb_proto.sp_protocol = proto;
 	mtx_lock(&rawcb_mtx);
-	LIST_INSERT_HEAD(&rawcb_list, rp, list);
+	LIST_INSERT_HEAD(&V_rawcb_list, rp, list);
 	mtx_unlock(&rawcb_mtx);
 	return (0);
 }

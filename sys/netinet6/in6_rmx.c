@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/callout.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -259,9 +260,9 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 	 * If rtq_reallyold is 0, just delete the route without
 	 * waiting for a timeout cycle to kill it.
 	 */
-	if (rtq_reallyold != 0) {
+	if (V_rtq_reallyold != 0) {
 		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_uptime + rtq_reallyold;
+		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold;
 	} else {
 		rtexpunge(rt);
 	}
@@ -308,9 +309,9 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 		} else {
 			if (ap->updating
 			   && (rt->rt_rmx.rmx_expire - time_uptime
-			       > rtq_reallyold)) {
+			       > V_rtq_reallyold)) {
 				rt->rt_rmx.rmx_expire = time_uptime
-					+ rtq_reallyold;
+					+ V_rtq_reallyold;
 			}
 			ap->nextstop = lmin(ap->nextstop,
 					    rt->rt_rmx.rmx_expire);
@@ -334,7 +335,7 @@ in6_rtqtimo(void *rock)
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
-	arg.nextstop = time_uptime + rtq_timeout6;
+	arg.nextstop = time_uptime + V_rtq_timeout6;
 	arg.draining = arg.updating = 0;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
@@ -348,18 +349,18 @@ in6_rtqtimo(void *rock)
 	 * than once in rtq_timeout6 seconds, to keep from cranking down too
 	 * hard.
 	 */
-	if ((arg.found - arg.killed > rtq_toomany)
-	   && (time_uptime - last_adjusted_timeout >= rtq_timeout6)
-	   && rtq_reallyold > rtq_minreallyold) {
-		rtq_reallyold = 2*rtq_reallyold / 3;
-		if (rtq_reallyold < rtq_minreallyold) {
-			rtq_reallyold = rtq_minreallyold;
+	if ((arg.found - arg.killed > V_rtq_toomany)
+	   && (time_uptime - last_adjusted_timeout >= V_rtq_timeout6)
+	   && V_rtq_reallyold > V_rtq_minreallyold) {
+		V_rtq_reallyold = 2*V_rtq_reallyold / 3;
+		if (V_rtq_reallyold < V_rtq_minreallyold) {
+			V_rtq_reallyold = V_rtq_minreallyold;
 		}
 
 		last_adjusted_timeout = time_uptime;
 #ifdef DIAGNOSTIC
 		log(LOG_DEBUG, "in6_rtqtimo: adjusted rtq_reallyold to %d",
-		    rtq_reallyold);
+		    V_rtq_reallyold);
 #endif
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
@@ -370,7 +371,7 @@ in6_rtqtimo(void *rock)
 
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop - time_uptime;
-	callout_reset(&rtq_timer6, tvtohz(&atv), in6_rtqtimo, rock);
+	callout_reset(&V_rtq_timer6, tvtohz(&atv), in6_rtqtimo, rock);
 }
 
 /*
@@ -426,14 +427,14 @@ in6_mtutimo(void *rock)
 		arg.nextstop = time_uptime + 30;	/* last resort */
 		atv.tv_sec = 30;
 	}
-	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
+	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 }
 
 #if 0
 void
 in6_rtqdrain(void)
 {
-	struct radix_node_head *rnh = rt_tables[AF_INET6];
+	struct radix_node_head *rnh = V_rt_tables[AF_INET6];
 	struct rtqk_arg arg;
 
 	arg.found = arg.killed = 0;
@@ -469,9 +470,9 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	rnh->rnh_close = in6_clsroute;
-	callout_init(&rtq_timer6, CALLOUT_MPSAFE);
+	callout_init(&V_rtq_timer6, CALLOUT_MPSAFE);
 	in6_rtqtimo(rnh);	/* kick off timeout first time */
-	callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
+	callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);
 	in6_mtutimo(rnh);	/* kick off timeout first time */
 	return 1;
 }

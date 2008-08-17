@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/queue.h>
 #include <sys/callout.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -119,7 +120,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_ns, struct nd_neighbor_solicit *, m, off, icmp6len);
 	if (nd_ns == NULL) {
-		icmp6stat.icp6s_tooshort++;
+		V_icmp6stat.icp6s_tooshort++;
 		return;
 	}
 #endif
@@ -315,7 +316,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			goto bad;
 		nd6_na_output(ifp, &in6_all, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-		    (ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
+		    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
 		    tlladdr, (struct sockaddr *)proxydl);
 		goto freeit;
 	}
@@ -325,7 +326,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	nd6_na_output(ifp, &saddr6, &taddr6,
 	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-	    (ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
+	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
 	    tlladdr, (struct sockaddr *)proxydl);
  freeit:
 	m_freem(m);
@@ -338,7 +339,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		ip6_sprintf(ip6bufs, &daddr6)));
 	nd6log((LOG_ERR, "nd6_ns_input: tgt=%s\n",
 		ip6_sprintf(ip6bufs, &taddr6)));
-	icmp6stat.icp6s_badns++;
+	V_icmp6stat.icp6s_badns++;
 	m_freem(m);
 }
 
@@ -535,7 +536,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	ip6_output(m, NULL, &ro, dad ? IPV6_UNSPECSRC : 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighborsolicit);
-	icmp6stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT]++;
+	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_SOLICIT]++;
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);
@@ -595,7 +596,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 #else
 	IP6_EXTHDR_GET(nd_na, struct nd_neighbor_advert *, m, off, icmp6len);
 	if (nd_na == NULL) {
-		icmp6stat.icp6s_tooshort++;
+		V_icmp6stat.icp6s_tooshort++;
 		return;
 	}
 #endif
@@ -700,7 +701,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			}
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE;
-			nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
+			nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
 		}
 		if ((ln->ln_router = is_router) != 0) {
 			/*
@@ -754,7 +755,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 */
 			if (ln->ln_state == ND6_LLINFO_REACHABLE) {
 				ln->ln_state = ND6_LLINFO_STALE;
-				nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
+				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
 			}
 			goto freeit;
 		} else if (is_override				   /* (2a) */
@@ -784,7 +785,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 				if (lladdr != NULL && llchange) {
 					ln->ln_state = ND6_LLINFO_STALE;
 					nd6_llinfo_settimer(ln,
-					    (long)nd6_gctimer * hz);
+					    (long)V_nd6_gctimer * hz);
 				}
 			}
 		}
@@ -811,7 +812,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			dr = defrouter_lookup(in6, ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (!ip6_forwarding) {
+			else if (!V_ip6_forwarding) {
 				/*
 				 * Even if the neighbor is not in the default
 				 * router list, the neighbor may be used
@@ -854,7 +855,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	return;
 
  bad:
-	icmp6stat.icp6s_badna++;
+	V_icmp6stat.icp6s_badna++;
 	m_freem(m);
 }
 
@@ -1021,7 +1022,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	ip6_output(m, NULL, &ro, 0, &im6o, NULL, NULL);
 	icmp6_ifstat_inc(ifp, ifs6_out_msg);
 	icmp6_ifstat_inc(ifp, ifs6_out_neighboradvert);
-	icmp6stat.icp6s_outhist[ND_NEIGHBOR_ADVERT]++;
+	V_icmp6stat.icp6s_outhist[ND_NEIGHBOR_ADVERT]++;
 
 	if (ro.ro_rt) {		/* we don't cache this route. */
 		RTFREE(ro.ro_rt);
@@ -1081,7 +1082,7 @@ nd6_dad_find(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
-	for (dp = dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
+	for (dp = V_dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
 		if (dp->dad_ifa == ifa)
 			return dp;
 	}
@@ -1113,9 +1114,9 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	if (!dad_init) {
-		TAILQ_INIT(&dadq);
-		dad_init++;
+	if (!V_dad_init) {
+		TAILQ_INIT(&V_dadq);
+		V_dad_init++;
 	}
 
 	/*
@@ -1136,7 +1137,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
-	if (!ip6_dad_count) {
+	if (!V_ip6_dad_count) {
 		ia->ia6_flags &= ~IN6_IFF_TENTATIVE;
 		return;
 	}
@@ -1173,7 +1174,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 */
 	dp->dad_ifa = ifa;
 	IFAREF(ifa);	/* just for safety */
-	dp->dad_count = ip6_dad_count;
+	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
 	if (delay == 0) {
@@ -1193,7 +1194,7 @@ nd6_dad_stop(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
-	if (!dad_init)
+	if (!V_dad_init)
 		return;
 	dp = nd6_dad_find(ifa);
 	if (!dp) {
@@ -1203,7 +1204,7 @@ nd6_dad_stop(struct ifaddr *ifa)
 
 	nd6_dad_stoptimer(dp);
 
-	TAILQ_REMOVE(&dadq, (struct dadq *)dp, dad_list);
+	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
 	IFAFREE(ifa);
@@ -1245,11 +1246,11 @@ nd6_dad_timer(struct ifaddr *ifa)
 	}
 
 	/* timeouted with IFF_{RUNNING,UP} check */
-	if (dp->dad_ns_tcount > dad_maxtry) {
+	if (dp->dad_ns_tcount > V_dad_maxtry) {
 		nd6log((LOG_INFO, "%s: could not run DAD, driver problem?\n",
 		    if_name(ifa->ifa_ifp)));
 
-		TAILQ_REMOVE(&dadq, (struct dadq *)dp, dad_list);
+		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 		free(dp, M_IP6NDP);
 		dp = NULL;
 		IFAFREE(ifa);
@@ -1302,7 +1303,7 @@ nd6_dad_timer(struct ifaddr *ifa)
 			    if_name(ifa->ifa_ifp),
 			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 
-			TAILQ_REMOVE(&dadq, (struct dadq *)dp, dad_list);
+			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 			free(dp, M_IP6NDP);
 			dp = NULL;
 			IFAFREE(ifa);
@@ -1378,7 +1379,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 		}
 	}
 
-	TAILQ_REMOVE(&dadq, (struct dadq *)dp, dad_list);
+	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
 	free(dp, M_IP6NDP);
 	dp = NULL;
 	IFAFREE(ifa);
@@ -1421,7 +1422,7 @@ nd6_dad_ns_input(struct ifaddr *ifa)
 	dp = nd6_dad_find(ifa);
 
 	/* Quickhack - completely ignore DAD NS packets */
-	if (dad_ignore_ns) {
+	if (V_dad_ignore_ns) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_INFO,
 		    "nd6_dad_ns_input: ignoring DAD NS packet for "

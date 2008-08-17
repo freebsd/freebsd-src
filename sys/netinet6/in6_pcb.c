@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -124,7 +125,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
-	if (!in6_ifaddr) /* XXX broken! */
+	if (!V_in6_ifaddr) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
 		return (EINVAL);
@@ -142,7 +143,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		if (nam->sa_family != AF_INET6)
 			return (EAFNOSUPPORT);
 
-		if ((error = sa6_embedscope(sin6, ip6_use_defzone)) != 0)
+		if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 			return(error);
 
 		lport = sin6->sin6_port;
@@ -179,8 +180,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			struct inpcb *t;
 
 			/* GROSS */
-			if (ntohs(lport) <= ipport_reservedhigh &&
-			    ntohs(lport) >= ipport_reservedlow &&
+			if (ntohs(lport) <= V_ipport_reservedhigh &&
+			    ntohs(lport) >= V_ipport_reservedlow &&
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 			    0))
 				return (EACCES);
@@ -297,12 +298,12 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	if (sin6->sin6_port == 0)
 		return (EADDRNOTAVAIL);
 
-	if (sin6->sin6_scope_id == 0 && !ip6_use_defzone)
+	if (sin6->sin6_scope_id == 0 && !V_ip6_use_defzone)
 		scope_ambiguous = 1;
-	if ((error = sa6_embedscope(sin6, ip6_use_defzone)) != 0)
+	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	if (in6_ifaddr) {
+	if (V_in6_ifaddr) {
 		/*
 		 * If the destination address is UNSPECIFIED addr,
 		 * use the loopback addr, e.g ::1.

@@ -46,6 +46,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -413,7 +414,7 @@ route_output(struct mbuf *m, struct socket *so)
 	case RTM_GET:
 	case RTM_CHANGE:
 	case RTM_LOCK:
-		rnh = rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
+		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
 		RADIX_NODE_HEAD_LOCK(rnh);
@@ -1144,7 +1145,7 @@ sysctl_iflist(int af, struct walkarg *w)
 
 	bzero((caddr_t)&info, sizeof(info));
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifp->if_addr;
@@ -1205,7 +1206,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 
 	bzero((caddr_t)&info, sizeof(info));
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifp->if_addr;
@@ -1280,7 +1281,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		} else				/* dump only one table */
 			i = lim = af;
 		for (error = 0; error == 0 && i <= lim; i++)
-			if ((rnh = rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
+			if ((rnh = V_rt_tables[curthread->td_proc->p_fibnum][i]) != NULL) {
 				RADIX_NODE_HEAD_LOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);

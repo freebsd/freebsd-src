@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/route.h>
 
@@ -125,9 +126,9 @@ tcp_slowtimo(void)
 {
 
 	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	(void) tcp_tw_2msl_scan(0);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
@@ -152,7 +153,7 @@ tcp_timer_delack(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
 	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
@@ -163,11 +164,11 @@ tcp_timer_delack(void *xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_RUNLOCK(&tcbinfo);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
 		return;
 	}
 	INP_WLOCK(inp);
-	INP_INFO_RUNLOCK(&tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
 	    || !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
@@ -176,7 +177,7 @@ tcp_timer_delack(void *xtp)
 	callout_deactivate(&tp->t_timers->tt_delack);
 
 	tp->t_flags |= TF_ACKNOW;
-	tcpstat.tcps_delack++;
+	V_tcpstat.tcps_delack++;
 	(void) tcp_output(tp);
 	INP_WUNLOCK(inp);
 }
@@ -194,7 +195,7 @@ tcp_timer_2msl(void *xtp)
 	/*
 	 * XXXRW: Does this actually happen?
 	 */
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
 	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
@@ -205,7 +206,7 @@ tcp_timer_2msl(void *xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	INP_WLOCK(inp);
@@ -213,7 +214,7 @@ tcp_timer_2msl(void *xtp)
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_2msl) ||
 	    !callout_active(&tp->t_timers->tt_2msl)) {
 		INP_WUNLOCK(tp->t_inpcb);
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_2msl);
@@ -230,7 +231,7 @@ tcp_timer_2msl(void *xtp)
 	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
 	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
 	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
-		tcpstat.tcps_finwait2_drops++;
+		V_tcpstat.tcps_finwait2_drops++;
 		tp = tcp_close(tp);             
 	} else {
 		if (tp->t_state != TCPS_TIME_WAIT &&
@@ -248,7 +249,7 @@ tcp_timer_2msl(void *xtp)
 #endif
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 void
@@ -262,7 +263,7 @@ tcp_timer_keep(void *xtp)
 
 	ostate = tp->t_state;
 #endif
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
 	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
@@ -273,14 +274,14 @@ tcp_timer_keep(void *xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	INP_WLOCK(inp);
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_keep)
 	    || !callout_active(&tp->t_timers->tt_keep)) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_keep);
@@ -288,7 +289,7 @@ tcp_timer_keep(void *xtp)
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
 	 */
-	tcpstat.tcps_keeptimeo++;
+	V_tcpstat.tcps_keeptimeo++;
 	if (tp->t_state < TCPS_ESTABLISHED)
 		goto dropit;
 	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
@@ -307,7 +308,7 @@ tcp_timer_keep(void *xtp)
 		 * by the protocol spec, this requires the
 		 * correspondent TCP to respond.
 		 */
-		tcpstat.tcps_keepprobe++;
+		V_tcpstat.tcps_keepprobe++;
 		t_template = tcpip_maketemplate(inp);
 		if (t_template) {
 			tcp_respond(tp, t_template->tt_ipgen,
@@ -325,11 +326,11 @@ tcp_timer_keep(void *xtp)
 			  PRU_SLOWTIMO);
 #endif
 	INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 	return;
 
 dropit:
-	tcpstat.tcps_keepdrops++;
+	V_tcpstat.tcps_keepdrops++;
 	tp = tcp_drop(tp, ETIMEDOUT);
 
 #ifdef TCPDEBUG
@@ -339,7 +340,7 @@ dropit:
 #endif
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 void
@@ -352,7 +353,7 @@ tcp_timer_persist(void *xtp)
 
 	ostate = tp->t_state;
 #endif
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
 	 * XXXRW: While this assert is in fact correct, bugs in the tcpcb
@@ -363,14 +364,14 @@ tcp_timer_persist(void *xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	INP_WLOCK(inp);
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_persist)
 	    || !callout_active(&tp->t_timers->tt_persist)) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_persist);
@@ -378,7 +379,7 @@ tcp_timer_persist(void *xtp)
 	 * Persistance timer into zero window.
 	 * Force a byte to be output, if possible.
 	 */
-	tcpstat.tcps_persisttimeo++;
+	V_tcpstat.tcps_persisttimeo++;
 	/*
 	 * Hack: if the peer is dead/unreachable, we do not
 	 * time out if the window is closed.  After a full
@@ -389,7 +390,7 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    ((ticks - tp->t_rcvtime) >= tcp_maxpersistidle ||
 	     (ticks - tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
-		tcpstat.tcps_persistdrop++;
+		V_tcpstat.tcps_persistdrop++;
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
 	}
@@ -405,7 +406,7 @@ out:
 #endif
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 void
@@ -420,7 +421,7 @@ tcp_timer_rexmt(void * xtp)
 
 	ostate = tp->t_state;
 #endif
-	INP_INFO_WLOCK(&tcbinfo);
+	INP_INFO_WLOCK(&V_tcbinfo);
 	headlocked = 1;
 	inp = tp->t_inpcb;
 	/*
@@ -432,14 +433,14 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (inp == NULL) {
 		tcp_timer_race++;
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	INP_WLOCK(inp);
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_rexmt)
 	    || !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_WUNLOCK(inp);
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_rexmt);
@@ -451,12 +452,12 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	if (++tp->t_rxtshift > TCP_MAXRXTSHIFT) {
 		tp->t_rxtshift = TCP_MAXRXTSHIFT;
-		tcpstat.tcps_timeoutdrop++;
+		V_tcpstat.tcps_timeoutdrop++;
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		goto out;
 	}
-	INP_INFO_WUNLOCK(&tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 	headlocked = 0;
 	if (tp->t_rxtshift == 1) {
 		/*
@@ -477,7 +478,7 @@ tcp_timer_rexmt(void * xtp)
 		  tp->t_flags &= ~TF_WASFRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
 	}
-	tcpstat.tcps_rexmttimeo++;
+	V_tcpstat.tcps_rexmttimeo++;
 	if (tp->t_state == TCPS_SYN_SENT)
 		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
 	else
@@ -562,7 +563,7 @@ out:
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	if (headlocked)
-		INP_INFO_WUNLOCK(&tcbinfo);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
 }
 
 void

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #include <sys/cpuset.h>
+#include <sys/vimage.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -765,7 +766,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 	strlcpy(utsname.machine, machine, LINUX_MAX_UTSNAME);
 #endif /* __i386__ */
 	mtx_lock(&hostname_mtx);
-	strlcpy(utsname.domainname, domainname, LINUX_MAX_UTSNAME);
+	strlcpy(utsname.domainname, V_domainname, LINUX_MAX_UTSNAME);
 	mtx_unlock(&hostname_mtx);
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));

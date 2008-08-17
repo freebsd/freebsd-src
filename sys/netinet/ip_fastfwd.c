@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/pfil.h>
 #include <net/if.h>
@@ -135,8 +136,8 @@ ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 		if (rt->rt_flags & RTF_GATEWAY)
 			dst = (struct sockaddr_in *)rt->rt_gateway;
 	} else {
-		ipstat.ips_noroute++;
-		ipstat.ips_cantforward++;
+		V_ipstat.ips_noroute++;
+		V_ipstat.ips_cantforward++;
 		if (rt)
 			RTFREE(rt);
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
@@ -171,7 +172,7 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Are we active and forwarding packets?
 	 */
-	if (!ipfastforward_active || !ipforwarding)
+	if (!V_ipfastforward_active || !V_ipforwarding)
 		return m;
 
 	M_ASSERTVALID(m);
@@ -187,7 +188,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is entire packet big enough?
 	 */
 	if (m->m_pkthdr.len < sizeof(struct ip)) {
-		ipstat.ips_tooshort++;
+		V_ipstat.ips_tooshort++;
 		goto drop;
 	}
 
@@ -196,7 +197,7 @@ ip_fastforward(struct mbuf *m)
 	 */
 	if (m->m_len < sizeof (struct ip) &&
 	   (m = m_pullup(m, sizeof (struct ip))) == NULL) {
-		ipstat.ips_toosmall++;
+		V_ipstat.ips_toosmall++;
 		return NULL;	/* mbuf already free'd */
 	}
 
@@ -206,7 +207,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is it IPv4?
 	 */
 	if (ip->ip_v != IPVERSION) {
-		ipstat.ips_badvers++;
+		V_ipstat.ips_badvers++;
 		goto drop;
 	}
 
@@ -215,12 +216,12 @@ ip_fastforward(struct mbuf *m)
 	 */
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) {	/* minimum header length */
-		ipstat.ips_badlen++;
+		V_ipstat.ips_badlen++;
 		goto drop;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == NULL) {
-			ipstat.ips_badhlen++;
+			V_ipstat.ips_badhlen++;
 			return NULL;	/* mbuf already free'd */
 		}
 		ip = mtod(m, struct ip *);
@@ -238,7 +239,7 @@ ip_fastforward(struct mbuf *m)
 			sum = in_cksum(m, hlen);
 	}
 	if (sum) {
-		ipstat.ips_badsum++;
+		V_ipstat.ips_badsum++;
 		goto drop;
 	}
 
@@ -253,7 +254,7 @@ ip_fastforward(struct mbuf *m)
 	 * Is IP length longer than packet we have got?
 	 */
 	if (m->m_pkthdr.len < ip_len) {
-		ipstat.ips_tooshort++;
+		V_ipstat.ips_tooshort++;
 		goto drop;
 	}
 
@@ -273,7 +274,7 @@ ip_fastforward(struct mbuf *m)
 	 */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
-		ipstat.ips_badaddr++;
+		V_ipstat.ips_badaddr++;
 		goto drop;
 	}
 
@@ -331,7 +332,7 @@ ip_fastforward(struct mbuf *m)
 	if (in_localip(ip->ip_dst))
 		return m;
 
-	ipstat.ips_total++;
+	V_ipstat.ips_total++;
 
 	/*
 	 * Step 3: incoming packet firewall processing
@@ -392,7 +393,7 @@ passin:
 	 * Check TTL
 	 */
 #ifdef IPSTEALTH
-	if (!ipstealth) {
+	if (!V_ipstealth) {
 #endif
 	if (ip->ip_ttl <= IPTTLDEC) {
 		icmp_error(m, ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS, 0, 0);
@@ -513,7 +514,7 @@ passout:
 	 */
 	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
 	    ifp->if_snd.ifq_maxlen) {
-		ipstat.ips_odropped++;
+		V_ipstat.ips_odropped++;
 		/* would send source quench here but that is depreciated */
 		goto drop;
 	}
@@ -552,7 +553,7 @@ passout:
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
 		 */
 		if (ip->ip_off & IP_DF) {
-			ipstat.ips_cantfrag++;
+			V_ipstat.ips_cantfrag++;
 			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_NEEDFRAG,
 				0, mtu);
 			goto consumed;
@@ -590,16 +591,16 @@ passout:
 					m_freem(m);
 				}
 			} else
-				ipstat.ips_fragmented++;
+				V_ipstat.ips_fragmented++;
 		}
 	}
 
 	if (error != 0)
-		ipstat.ips_odropped++;
+		V_ipstat.ips_odropped++;
 	else {
 		ro.ro_rt->rt_rmx.rmx_pksent++;
-		ipstat.ips_forward++;
-		ipstat.ips_fastforward++;
+		V_ipstat.ips_forward++;
+		V_ipstat.ips_fastforward++;
 	}
 consumed:
 	RTFREE(ro.ro_rt);

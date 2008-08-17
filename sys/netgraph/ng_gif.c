@@ -77,6 +77,7 @@
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -560,7 +561,7 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 
 		/* Create nodes for any already-existing gif interfaces */
 		IFNET_RLOCK();
-		TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 			if (ifp->if_type == IFT_GIF)
 				ng_gif_attach(ifp);
 		}

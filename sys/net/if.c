@@ -56,6 +56,7 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
+#include <sys/vimage.h>
 #include <machine/stdarg.h>
 
 #include <net/if.h>
@@ -170,7 +171,7 @@ ifnet_byindex(u_short idx)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
-	ifp = ifindex_table[idx].ife_ifnet;
+	ifp = V_ifindex_table[idx].ife_ifnet;
 	IFNET_RUNLOCK();
 	return (ifp);
 }
@@ -181,7 +182,7 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 
 	IFNET_WLOCK_ASSERT();
 
-	ifindex_table[idx].ife_ifnet = ifp;
+	V_ifindex_table[idx].ife_ifnet = ifp;
 }
 
 struct ifaddr *
@@ -201,7 +202,7 @@ ifdev_byindex(u_short idx)
 	struct cdev *cdev;
 
 	IFNET_RLOCK();
-	cdev = ifindex_table[idx].ife_dev;
+	cdev = V_ifindex_table[idx].ife_dev;
 	IFNET_RUNLOCK();
 	return (cdev);
 }
@@ -211,7 +212,7 @@ ifdev_setbyindex(u_short idx, struct cdev *cdev)
 {
 
 	IFNET_WLOCK();
-	ifindex_table[idx].ife_dev = cdev;
+	V_ifindex_table[idx].ife_dev = cdev;
 	IFNET_WUNLOCK();
 }
 
@@ -292,7 +293,7 @@ netkqfilter(struct cdev *dev, struct knote *kn)
 
 	idx = minor(dev);
 	if (idx == 0) {
-		klist = &ifklist;
+		klist = &V_ifklist;
 	} else {
 		ifp = ifnet_byindex(idx);
 		if (ifp == NULL)
@@ -349,9 +350,9 @@ if_init(void *dummy __unused)
 {
 
 	IFNET_LOCK_INIT();
-	TAILQ_INIT(&ifnet);
-	TAILQ_INIT(&ifg_head);
-	knlist_init(&ifklist, NULL, NULL, NULL, NULL);
+	TAILQ_INIT(&V_ifnet);
+	TAILQ_INIT(&V_ifg_head);
+	knlist_init(&V_ifklist, NULL, NULL, NULL, NULL);
 	if_grow();				/* create initial table */
 	ifdev_setbyindex(0, make_dev(&net_cdevsw, 0, UID_ROOT, GID_WHEEL,
 	    0600, "network"));
@@ -364,14 +365,14 @@ if_grow(void)
 	u_int n;
 	struct ifindex_entry *e;
 
-	if_indexlim <<= 1;
-	n = if_indexlim * sizeof(*e);
+	V_if_indexlim <<= 1;
+	n = V_if_indexlim * sizeof(*e);
 	e = malloc(n, M_IFNET, M_WAITOK | M_ZERO);
-	if (ifindex_table != NULL) {
-		memcpy((caddr_t)e, (caddr_t)ifindex_table, n/2);
-		free((caddr_t)ifindex_table, M_IFNET);
+	if (V_ifindex_table != NULL) {
+		memcpy((caddr_t)e, (caddr_t)V_ifindex_table, n/2);
+		free((caddr_t)V_ifindex_table, M_IFNET);
 	}
-	ifindex_table = e;
+	V_ifindex_table = e;
 }
 
 /*
@@ -392,7 +393,7 @@ if_alloc(u_char type)
 	 *
 	 * XXX: should be locked!
 	 */
-	for (ifp->if_index = 1; ifp->if_index <= if_index; ifp->if_index++) {
+	for (ifp->if_index = 1; ifp->if_index <= V_if_index; ifp->if_index++) {
 		if (ifnet_byindex(ifp->if_index) == NULL)
 			break;
 	}
@@ -401,9 +402,9 @@ if_alloc(u_char type)
 		free(ifp, M_IFNET);
 		return (NULL);
 	}
-	if (ifp->if_index > if_index)
-		if_index = ifp->if_index;
-	if (if_index >= if_indexlim)
+	if (ifp->if_index > V_if_index)
+		V_if_index = ifp->if_index;
+	if (V_if_index >= V_if_indexlim)
 		if_grow();
 
 	ifp->if_type = type;
@@ -455,8 +456,8 @@ if_free_type(struct ifnet *ifp, u_char type)
 	ifnet_setbyindex(ifp->if_index, NULL);
 
 	/* XXX: should be locked with if_findindex() */
-	while (if_index > 0 && ifnet_byindex(if_index) == NULL)
-		if_index--;
+	while (V_if_index > 0 && ifnet_byindex(V_if_index) == NULL)
+		V_if_index--;
 	IFNET_WUNLOCK();
 
 	if (if_com_free[type] != NULL)
@@ -571,7 +572,7 @@ if_attach(struct ifnet *ifp)
 	ifp->if_snd.altq_ifp  = ifp;
 
 	IFNET_WLOCK();
-	TAILQ_INSERT_TAIL(&ifnet, ifp, if_link);
+	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
 	IFNET_WUNLOCK();
 
 	if (domain_init_status >= 2)
@@ -598,7 +599,7 @@ if_attachdomain(void *dummy)
 	int s;
 
 	s = splnet();
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		if_attachdomain1(ifp);
 	splx(s);
 }
@@ -713,9 +714,9 @@ if_detach(struct ifnet *ifp)
  	int found = 0;
 
 	IFNET_WLOCK();
-	TAILQ_FOREACH(iter, &ifnet, if_link)
+	TAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
-			TAILQ_REMOVE(&ifnet, ifp, if_link);
+			TAILQ_REMOVE(&V_ifnet, ifp, if_link);
 			found = 1;
 			break;
 		}
@@ -781,7 +782,7 @@ if_detach(struct ifnet *ifp)
 	for (i = 1; i <= AF_MAX; i++) {
 	    int j;
 	    for (j = 0; j < rt_numfibs; j++) {
-		if ((rnh = rt_tables[j][i]) == NULL)
+		if ((rnh = V_rt_tables[j][i]) == NULL)
 			continue;
 		RADIX_NODE_HEAD_LOCK(rnh);
 		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
@@ -847,7 +848,7 @@ if_addgroup(struct ifnet *ifp, const char *groupname)
 		return (ENOMEM);
 	}
 
-	TAILQ_FOREACH(ifg, &ifg_head, ifg_next)
+	TAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
 		if (!strcmp(ifg->ifg_group, groupname))
 			break;
 
@@ -863,7 +864,7 @@ if_addgroup(struct ifnet *ifp, const char *groupname)
 		ifg->ifg_refcnt = 0;
 		TAILQ_INIT(&ifg->ifg_members);
 		EVENTHANDLER_INVOKE(group_attach_event, ifg);
-		TAILQ_INSERT_TAIL(&ifg_head, ifg, ifg_next);
+		TAILQ_INSERT_TAIL(&V_ifg_head, ifg, ifg_next);
 	}
 
 	ifg->ifg_refcnt++;
@@ -914,7 +915,7 @@ if_delgroup(struct ifnet *ifp, const char *groupname)
 	}
 
 	if (--ifgl->ifgl_group->ifg_refcnt == 0) {
-		TAILQ_REMOVE(&ifg_head, ifgl->ifgl_group, ifg_next);
+		TAILQ_REMOVE(&V_ifg_head, ifgl->ifgl_group, ifg_next);
 		EVENTHANDLER_INVOKE(group_detach_event, ifgl->ifgl_group);
 		free(ifgl->ifgl_group, M_TEMP);
 	}
@@ -984,7 +985,7 @@ if_getgroupmembers(struct ifgroupreq *data)
 	int			 len, error;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifg, &ifg_head, ifg_next)
+	TAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
 		if (!strcmp(ifg->ifg_group, ifgr->ifgr_name))
 			break;
 	if (ifg == NULL) {
@@ -1090,7 +1091,7 @@ ifa_ifwithaddr(struct sockaddr *addr)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
@@ -1120,7 +1121,7 @@ ifa_ifwithbroadaddr(struct sockaddr *addr)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
@@ -1147,7 +1148,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0)
 			continue;
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1183,7 +1184,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	 */
 	if (af == AF_LINK) {
 	    struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
-	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
+	    if (sdl->sdl_index && sdl->sdl_index <= V_if_index)
 		return (ifaddr_byindex(sdl->sdl_index));
 	}
 
@@ -1192,7 +1193,7 @@ ifa_ifwithnet(struct sockaddr *addr)
 	 * addresses in this address family.
 	 */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			char *cp, *cp2, *cp3;
 
@@ -1516,7 +1517,7 @@ if_slowtimo(void *arg)
 	int s = splimp();
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
@@ -1537,7 +1538,7 @@ ifunit(const char *name)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strncmp(name, ifp->if_xname, IFNAMSIZ) == 0)
 			break;
 	}
@@ -2141,7 +2142,7 @@ again:
 	valid_len = 0;
 
 	IFNET_RLOCK();		/* could sleep XXX */
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		int addrs;
 
 		/*
@@ -2467,7 +2468,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	struct ifnet *oifp;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(oifp, &ifnet, if_link)
+	TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 		if (ifp == oifp)
 			break;
 	if (ifp != oifp)
@@ -2520,7 +2521,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 		struct ifnet *oifp;
 
 		IFNET_RLOCK();
-		TAILQ_FOREACH(oifp, &ifnet, if_link)
+		TAILQ_FOREACH(oifp, &V_ifnet, if_link)
 			if (ifp == oifp)
 				break;
 		if (ifp != oifp) {

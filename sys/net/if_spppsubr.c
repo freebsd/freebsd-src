@@ -48,6 +48,7 @@
 #endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/vimage.h>
 
 #if defined (__OpenBSD__)
 #include <sys/md5k.h>
