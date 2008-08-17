@@ -118,8 +118,6 @@ add_pattern(struct bsdtar *bsdtar, struct match **list, const char *pattern)
 	match = malloc(sizeof(*match) + strlen(pattern) + 1);
 	if (match == NULL)
 		bsdtar_errc(bsdtar, 1, errno, "Out of memory");
-	if (pattern[0] == '/')
-		pattern++;
 	strcpy(match->pattern, pattern);
 	/* Both "foo/" and "foo" should match "foo/bar". */
 	if (match->pattern[strlen(match->pattern)-1] == '/')
