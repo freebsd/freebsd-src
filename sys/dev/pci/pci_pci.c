@@ -293,14 +293,16 @@ pcib_attach_common(device_t dev)
 
     /*
      * XXX If the secondary bus number is zero, we should assign a bus number
-     *     since the BIOS hasn't, then initialise the bridge.
-     */
-
-    /*
-     * XXX If the subordinate bus number is less than the secondary bus number,
+     *     since the BIOS hasn't, then initialise the bridge.  A simple
+     *     bus_alloc_resource with the a couple of busses seems like the right
+     *     approach, but we don't know what busses the BIOS might have already
+     *     assigned to other bridges on this bus that probe later than we do.
+     *
+     *     If the subordinate bus number is less than the secondary bus number,
      *     we should pick a better value.  One sensible alternative would be to
      *     pick 255; the only tradeoff here is that configuration transactions
-     *     would be more widely routed than absolutely necessary.
+     *     would be more widely routed than absolutely necessary.  We could
+     *     then do a walk of the tree later and fix it.
      */
 }
 
@@ -316,7 +318,7 @@ pcib_attach(device_t dev)
 	child = device_add_child(dev, "pci", sc->secbus);
 	if (child != NULL)
 	    return(bus_generic_attach(dev));
-    } 
+    }
 
     /* no secondary bus; we should have fixed this */
     return(0);
