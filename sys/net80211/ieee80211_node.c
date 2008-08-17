@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 
 #include <net/bpf.h>
 
@@ -79,6 +80,7 @@ static void ieee80211_node_table_cleanup(struct ieee80211_node_table *nt);
 static void ieee80211_erp_timeout(struct ieee80211com *);
 
 MALLOC_DEFINE(M_80211_NODE, "80211node", "802.11 node state");
+MALLOC_DEFINE(M_80211_NODE_IE, "80211nodeie", "802.11 node ie");
 
 void
 ieee80211_node_attach(struct ieee80211com *ic)
@@ -653,18 +655,16 @@ ieee80211_sta_join(struct ieee80211com *ic,
 	ni->ni_erp = se->se_erp;
 	ni->ni_rssi = se->se_rssi;
 	ni->ni_noise = se->se_noise;
-	if (se->se_htcap_ie != NULL) {
-		ieee80211_saveie(&ni->ni_htcap_ie, se->se_htcap_ie);
-		ieee80211_parse_htcap(ni, ni->ni_htcap_ie);
+
+	if (ieee80211_ies_init(&ni->ni_ies, se->se_ies.data, se->se_ies.len)) {
+		ieee80211_ies_expand(&ni->ni_ies);
+		if (ni->ni_ies.ath_ie != NULL)
+			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+		if (ni->ni_ies.htcap_ie != NULL)
+			ieee80211_parse_htcap(ni, ni->ni_ies.htcap_ie);
+		if (ni->ni_ies.htinfo_ie != NULL)
+			ieee80211_parse_htinfo(ni, ni->ni_ies.htinfo_ie);
 	}
-	if (se->se_wpa_ie != NULL)
-		ieee80211_saveie(&ni->ni_wpa_ie, se->se_wpa_ie);
-	if (se->se_rsn_ie != NULL)
-		ieee80211_saveie(&ni->ni_rsn_ie, se->se_rsn_ie);
-	if (se->se_wme_ie != NULL)
-		ieee80211_saveie(&ni->ni_wme_ie, se->se_wme_ie);
-	if (se->se_ath_ie != NULL)
-		ieee80211_saveath(ni, se->se_ath_ie);
 
 	ic->ic_dtim_period = se->se_dtimperiod;
 	ic->ic_dtim_count = 0;
@@ -695,6 +695,80 @@ node_alloc(struct ieee80211_node_table *nt)
 	MALLOC(ni, struct ieee80211_node *, sizeof(struct ieee80211_node),
 		M_80211_NODE, M_NOWAIT | M_ZERO);
 	return ni;
+}
+
+/*
+ * Initialize an ie blob with the specified data.  If previous
+ * data exists re-use the data block.  As a side effect we clear
+ * all references to specific ie's; the caller is required to
+ * recalculate them.
+ */
+int
+ieee80211_ies_init(struct ieee80211_ies *ies, const uint8_t *data, int len)
+{
+	/* NB: assumes data+len are the last fields */
+	memset(ies, 0, offsetof(struct ieee80211_ies, data));
+	if (ies->data != NULL && ies->len != len) {
+		/* data size changed */
+		FREE(ies->data, M_80211_NODE_IE);
+		ies->data = NULL;
+	}
+	if (ies->data == NULL) {
+		MALLOC(ies->data, uint8_t *, len, M_80211_NODE_IE, M_NOWAIT);
+		if (ies->data == NULL) {
+			ies->len = 0;
+			/* NB: pointers have already been zero'd above */
+			return 0;
+		}
+	}
+	memcpy(ies->data, data, len);
+	ies->len = len;
+	return 1;
+}
+
+/*
+ * Reclaim storage for an ie blob.
+ */
+void
+ieee80211_ies_cleanup(struct ieee80211_ies *ies)
+{
+	if (ies->data != NULL)
+		FREE(ies->data, M_80211_NODE_IE);
+}
+
+/*
+ * Expand an ie blob data contents and to fillin individual
+ * ie pointers.  The data blob is assumed to be well-formed;
+ * we don't do any validity checking of ie lengths.
+ */
+void
+ieee80211_ies_expand(struct ieee80211_ies *ies)
+{
+	uint8_t *ie;
+	int ielen;
+
+	ie = ies->data;
+	ielen = ies->len;
+	while (ielen > 0) {
+		switch (ie[0]) {
+		case IEEE80211_ELEMID_VENDOR:
+			if (iswpaoui(ie))
+				ies->wpa_ie = ie;
+			else if (iswmeoui(ie))
+				ies->wme_ie = ie;
+			else if (isatherosoui(ie))
+				ies->ath_ie = ie;
+			break;
+		case IEEE80211_ELEMID_RSN:
+			ies->rsn_ie = ie;
+			break;
+		case IEEE80211_ELEMID_HTCAP:
+			ies->htcap_ie = ie;
+			break;
+		}
+		ielen -= 2 + ie[1];
+		ie += 2 + ie[1];
+	}
 }
 
 /*
@@ -773,14 +847,7 @@ node_free(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 
 	ic->ic_node_cleanup(ni);
-	if (ni->ni_wpa_ie != NULL)
-		FREE(ni->ni_wpa_ie, M_80211_NODE);
-	if (ni->ni_rsn_ie != NULL)
-		FREE(ni->ni_rsn_ie, M_80211_NODE);
-	if (ni->ni_wme_ie != NULL)
-		FREE(ni->ni_wme_ie, M_80211_NODE);
-	if (ni->ni_ath_ie != NULL)
-		FREE(ni->ni_ath_ie, M_80211_NODE);
+	ieee80211_ies_cleanup(&ni->ni_ies);
 	IEEE80211_NODE_SAVEQ_DESTROY(ni);
 	FREE(ni, M_80211_NODE);
 }
@@ -1009,14 +1076,12 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 	ni->ni_fhindex = sp->fhindex;
 	ni->ni_erp = sp->erp;
 	ni->ni_timoff = sp->timoff;
-	if (sp->wme != NULL)
-		ieee80211_saveie(&ni->ni_wme_ie, sp->wme);
-	if (sp->wpa != NULL)
-		ieee80211_saveie(&ni->ni_wpa_ie, sp->wpa);
-	if (sp->rsn != NULL)
-		ieee80211_saveie(&ni->ni_rsn_ie, sp->rsn);
-	if (sp->ath != NULL)
-		ieee80211_saveath(ni, sp->ath);
+
+	if (ieee80211_ies_init(&ni->ni_ies, sp->ies, sp->ies_len)) {
+		ieee80211_ies_expand(&ni->ni_ies);
+		if (ni->ni_ies.ath_ie != NULL)
+			ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+	}
 
 	/* NB: must be after ni_chan is setup */
 	ieee80211_setup_rates(ni, sp->rates, sp->xrates,

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_input.h>
 
 #include <net/bpf.h>
 
@@ -1379,129 +1380,6 @@ bad:
 	}
 }
 
-/* Verify the existence and length of __elem or get out. */
-#define IEEE80211_VERIFY_ELEMENT(__elem, __maxlen) do {			\
-	if ((__elem) == NULL) {						\
-		IEEE80211_DISCARD(ic, IEEE80211_MSG_ELEMID,		\
-		    wh, ieee80211_mgt_subtype_name[subtype >>		\
-			IEEE80211_FC0_SUBTYPE_SHIFT],			\
-		    "%s", "no " #__elem );				\
-		ic->ic_stats.is_rx_elem_missing++;			\
-		return;							\
-	}								\
-	if ((__elem)[1] > (__maxlen)) {					\
-		IEEE80211_DISCARD(ic, IEEE80211_MSG_ELEMID,		\
-		    wh, ieee80211_mgt_subtype_name[subtype >>		\
-			IEEE80211_FC0_SUBTYPE_SHIFT],			\
-		    "bad " #__elem " len %d", (__elem)[1]);		\
-		ic->ic_stats.is_rx_elem_toobig++;			\
-		return;							\
-	}								\
-} while (0)
-
-#define	IEEE80211_VERIFY_LENGTH(_len, _minlen, _action) do {		\
-	if ((_len) < (_minlen)) {					\
-		IEEE80211_DISCARD(ic, IEEE80211_MSG_ELEMID,		\
-		    wh, ieee80211_mgt_subtype_name[subtype >>		\
-			IEEE80211_FC0_SUBTYPE_SHIFT],			\
-		    "ie too short, got %d, expected %d",		\
-		    (_len), (_minlen));					\
-		ic->ic_stats.is_rx_elem_toosmall++;			\
-		_action;						\
-	}								\
-} while (0)
-
-#ifdef IEEE80211_DEBUG
-static void
-ieee80211_ssid_mismatch(struct ieee80211com *ic, const char *tag,
-	uint8_t mac[IEEE80211_ADDR_LEN], uint8_t *ssid)
-{
-	printf("[%s] discard %s frame, ssid mismatch: ",
-		ether_sprintf(mac), tag);
-	ieee80211_print_essid(ssid + 2, ssid[1]);
-	printf("\n");
-}
-
-#define	IEEE80211_VERIFY_SSID(_ni, _ssid) do {				\
-	if ((_ssid)[1] != 0 &&						\
-	    ((_ssid)[1] != (_ni)->ni_esslen ||				\
-	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
-		if (ieee80211_msg_input(ic))				\
-			ieee80211_ssid_mismatch(ic, 			\
-			    ieee80211_mgt_subtype_name[subtype >>	\
-				IEEE80211_FC0_SUBTYPE_SHIFT],		\
-				wh->i_addr2, _ssid);			\
-		ic->ic_stats.is_rx_ssidmismatch++;			\
-		return;							\
-	}								\
-} while (0)
-#else /* !IEEE80211_DEBUG */
-#define	IEEE80211_VERIFY_SSID(_ni, _ssid) do {				\
-	if ((_ssid)[1] != 0 &&						\
-	    ((_ssid)[1] != (_ni)->ni_esslen ||				\
-	    memcmp((_ssid) + 2, (_ni)->ni_essid, (_ssid)[1]) != 0)) {	\
-		ic->ic_stats.is_rx_ssidmismatch++;			\
-		return;							\
-	}								\
-} while (0)
-#endif /* !IEEE80211_DEBUG */
-
-/* unalligned little endian access */     
-#define LE_READ_2(p)					\
-	((uint16_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8)))
-#define LE_READ_4(p)					\
-	((uint32_t)					\
-	 ((((const uint8_t *)(p))[0]      ) |		\
-	  (((const uint8_t *)(p))[1] <<  8) |		\
-	  (((const uint8_t *)(p))[2] << 16) |		\
-	  (((const uint8_t *)(p))[3] << 24)))
-
-static __inline int
-iswpaoui(const uint8_t *frm)
-{
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WPA_OUI_TYPE<<24)|WPA_OUI);
-}
-
-static __inline int
-iswmeoui(const uint8_t *frm)
-{
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI);
-}
-
-static __inline int
-iswmeparam(const uint8_t *frm)
-{
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
-		frm[6] == WME_PARAM_OUI_SUBTYPE;
-}
-
-static __inline int
-iswmeinfo(const uint8_t *frm)
-{
-	return frm[1] > 5 && LE_READ_4(frm+2) == ((WME_OUI_TYPE<<24)|WME_OUI) &&
-		frm[6] == WME_INFO_OUI_SUBTYPE;
-}
-
-static __inline int
-isatherosoui(const uint8_t *frm)
-{
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((ATH_OUI_TYPE<<24)|ATH_OUI);
-}
-
-static __inline int
-ishtcapoui(const uint8_t *frm)
-{
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTCAP<<24)|BCM_OUI);
-}
-
-static __inline int
-ishtinfooui(const uint8_t *frm)
-{
-	return frm[1] > 3 && LE_READ_4(frm+2) == ((BCM_OUI_HTINFO<<24)|BCM_OUI);
-}
-
 /*
  * Convert a WPA cipher selector OUI to an internal
  * cipher algorithm.  Where appropriate we also
@@ -1919,31 +1797,13 @@ ieee80211_parse_athparams(struct ieee80211_node *ni, uint8_t *frm,
 }
 
 void
-ieee80211_saveath(struct ieee80211_node *ni, uint8_t *ie)
+ieee80211_parse_ath(struct ieee80211_node *ni, uint8_t *ie)
 {
 	const struct ieee80211_ath_ie *ath =
 		(const struct ieee80211_ath_ie *) ie;
 
 	ni->ni_ath_flags = ath->ath_capability;
 	ni->ni_ath_defkeyix = LE_READ_2(&ath->ath_defkeyix);
-	ieee80211_saveie(&ni->ni_ath_ie, ie);
-}
-
-void
-ieee80211_saveie(uint8_t **iep, const uint8_t *ie)
-{
-	u_int ielen = ie[1]+2;
-	/*
-	 * Record information element for later use.
-	 */
-	if (*iep == NULL || (*iep)[1] != ie[1]) {
-		if (*iep != NULL)
-			FREE(*iep, M_80211_NODE);
-		MALLOC(*iep, void*, ielen, M_80211_NODE, M_NOWAIT);
-	}
-	if (*iep != NULL)
-		memcpy(*iep, ie, ielen);
-	/* XXX note failure */
 }
 
 /* XXX find a better place for definition */
@@ -2062,7 +1922,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 #define	ISPROBE(_st)	((_st) == IEEE80211_FC0_SUBTYPE_PROBE_RESP)
 #define	ISREASSOC(_st)	((_st) == IEEE80211_FC0_SUBTYPE_REASSOC_RESP)
 	struct ieee80211_frame *wh;
-	uint8_t *frm, *efrm;
+	uint8_t *frm, *efrm, *sfrm;
 	uint8_t *ssid, *rates, *xrates, *wpa, *rsn, *wme, *ath, *htcap, *htinfo;
 	int reassoc, resp, allocbs;
 	uint8_t rate;
@@ -2113,6 +1973,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		scan.capinfo = le16toh(*(uint16_t *)frm);	frm += 2;
 		scan.bchan = IEEE80211_CHAN2IEEE(ic->ic_curchan);
 		scan.curchan = ic->ic_curchan;
+		scan.ies = frm;
+		scan.ies_len = efrm - frm;
 
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
@@ -2454,9 +2316,8 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		 *	[tlv] ssid
 		 *	[tlv] supported rates
 		 *	[tlv] extended supported rates
-		 *	[tlv] Atheros capabilities
 		 */
-		ssid = rates = xrates = ath = NULL;
+		ssid = rates = xrates = NULL;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -2468,10 +2329,6 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 				break;
 			case IEEE80211_ELEMID_XRATES:
 				xrates = frm;
-				break;
-			case IEEE80211_ELEMID_VENDOR:
-				if (isatherosoui(frm))
-					ath = frm;
 				break;
 			}
 			frm += frm[1] + 2;
@@ -2531,8 +2388,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 			 * response, reclaim immediately.
 			 */
 			ieee80211_free_node(ni);
-		} else if (ath != NULL)
-			ieee80211_saveath(ni, ath);
+		}
 		break;
 
 	case IEEE80211_FC0_SUBTYPE_AUTH: {
@@ -2645,6 +2501,7 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		if (reassoc)
 			frm += 6;	/* ignore current AP info */
 		ssid = rates = xrates = wpa = rsn = wme = ath = htcap = NULL;
+		sfrm = frm;
 		while (efrm - frm > 1) {
 			IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1] + 2, return);
 			switch (*frm) {
@@ -2854,66 +2711,41 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		ni->ni_chan = ic->ic_bsschan;
 		ni->ni_fhdwell = ic->ic_bss->ni_fhdwell;
 		ni->ni_fhindex = ic->ic_bss->ni_fhindex;
-		if (wpa != NULL) {
-			/*
-			 * Record WPA parameters for station, mark
-			 * node as using WPA and record information element
-			 * for applications that require it.
-			 */
-			ni->ni_rsn = rsnparms;
-			ieee80211_saveie(&ni->ni_wpa_ie, wpa);
-		} else if (ni->ni_wpa_ie != NULL) {
-			/*
-			 * Flush any state from a previous association.
-			 */
-			FREE(ni->ni_wpa_ie, M_80211_NODE);
-			ni->ni_wpa_ie = NULL;
-		}
-		if (rsn != NULL) {
-			/*
-			 * Record RSN parameters for station, mark
-			 * node as using WPA and record information element
-			 * for applications that require it.
-			 */
-			ni->ni_rsn = rsnparms;
-			ieee80211_saveie(&ni->ni_rsn_ie, rsn);
-		} else if (ni->ni_rsn_ie != NULL) {
-			/*
-			 * Flush any state from a previous association.
-			 */
-			FREE(ni->ni_rsn_ie, M_80211_NODE);
-			ni->ni_rsn_ie = NULL;
-		}
-		if (wme != NULL) {
-			/*
-			 * Record WME parameters for station, mark node
-			 * as capable of QoS and record information
-			 * element for applications that require it.
-			 */
-			ieee80211_saveie(&ni->ni_wme_ie, wme);
-			ni->ni_flags |= IEEE80211_NODE_QOS;
-		} else if (ni->ni_wme_ie != NULL) {
-			/*
-			 * Flush any state from a previous association.
-			 */
-			FREE(ni->ni_wme_ie, M_80211_NODE);
-			ni->ni_wme_ie = NULL;
+		/*
+		 * Store the IEs.
+		 * XXX maybe better to just expand
+		 */
+		if (ieee80211_ies_init(&ni->ni_ies, sfrm, efrm - sfrm)) {
+#define	setie(_ie, _off)	ieee80211_ies_setie(ni->ni_ies, _ie, _off)
+			if (wpa != NULL) {
+				setie(wpa_ie, wpa - sfrm);
+				ni->ni_rsn = rsnparms;
+			}
+			if (rsn != NULL) {
+				setie(rsn_ie, rsn - sfrm);
+				ni->ni_rsn = rsnparms;
+			}
+			if (htcap != NULL)
+				setie(htcap_ie, htcap - sfrm);
+			if (wme != NULL) {
+				setie(wme_ie, wme - sfrm);
+				/*
+				 * Mark node as capable of QoS.
+				 */
+				ni->ni_flags |= IEEE80211_NODE_QOS;
+			} else
+				ni->ni_flags &= ~IEEE80211_NODE_QOS;
+			if (ath != NULL) {
+				setie(ath_ie, ath - sfrm);
+				/* 
+				 * Parse ATH station parameters.
+				 */
+				ieee80211_parse_ath(ni, ni->ni_ies.ath_ie);
+			} else
+				ni->ni_ath_flags = 0;
+#undef setie
+		} else {
 			ni->ni_flags &= ~IEEE80211_NODE_QOS;
-		}
-		if (ath != NULL) {
-			/* 
-			 * Record ATH parameters for station, mark
-			 * node with appropriate capabilities, and
-			 * record the information element for
-			 * applications that require it.
-			 */
-			ieee80211_saveath(ni, ath);
-		} else if (ni->ni_ath_ie != NULL) {
-			/*
-			 * Flush any state from a previous association.
-			 */
-			FREE(ni->ni_ath_ie, M_80211_NODE);
-			ni->ni_ath_ie = NULL;
 			ni->ni_ath_flags = 0;
 		}
 		ieee80211_node_join(ic, ni, resp);
@@ -3317,6 +3149,15 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 /*
  * Debugging support.
  */
+void
+ieee80211_ssid_mismatch(struct ieee80211com *ic, const char *tag,
+	uint8_t mac[IEEE80211_ADDR_LEN], uint8_t *ssid)
+{
+	printf("[%s] discard %s frame, ssid mismatch: ",
+		ether_sprintf(mac), tag);
+	ieee80211_print_essid(ssid + 2, ssid[1]);
+	printf("\n");
+}
 
 /*
  * Return the bssid of a frame.

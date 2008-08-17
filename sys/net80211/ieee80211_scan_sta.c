@@ -195,16 +195,6 @@ sta_flush_table(struct sta_table *st)
 	}
 }
 
-static void
-saveie(uint8_t **iep, const uint8_t *ie)
-{
-
-	if (ie == NULL)
-		*iep = NULL;
-	else
-		ieee80211_saveie(iep, ie);
-}
-
 /*
  * Process a beacon or probe response frame; create an
  * entry in the scan cache or update any previous entry.
@@ -307,12 +297,8 @@ found:
 		    (const struct ieee80211_tim_ie *) sp->tim;
 		ise->se_dtimperiod = tim->tim_period;
 	}
-	saveie(&ise->se_wme_ie, sp->wme);
-	saveie(&ise->se_wpa_ie, sp->wpa);
-	saveie(&ise->se_rsn_ie, sp->rsn);
-	saveie(&ise->se_ath_ie, sp->ath);
-	saveie(&ise->se_htcap_ie, sp->htcap);
-	saveie(&ise->se_htinfo_ie, sp->htinfo);
+	/* NB: no need to setup ie ptrs; they are not (currently) used */
+	(void) ieee80211_ies_init(&ise->se_ies, sp->ies, sp->ies_len);
 
 	/* clear failure count after STA_FAIL_AGE passes */
 	if (se->se_fails && (ticks - se->se_lastfail) > STA_FAILS_AGE*hz) {
