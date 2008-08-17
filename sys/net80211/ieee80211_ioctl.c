@@ -178,30 +178,30 @@ ieee80211_ioctl_getwpaie(struct ieee80211com *ic, struct ieee80211req *ireq, int
 	if (ni == NULL)
 		return ENOENT;		/* XXX */
 	memset(wpaie.wpa_ie, 0, sizeof(wpaie.wpa_ie));
-	if (ni->ni_wpa_ie != NULL) {
-		int ielen = ni->ni_wpa_ie[1] + 2;
+	if (ni->ni_ies.wpa_ie != NULL) {
+		int ielen = ni->ni_ies.wpa_ie[1] + 2;
 		if (ielen > sizeof(wpaie.wpa_ie))
 			ielen = sizeof(wpaie.wpa_ie);
-		memcpy(wpaie.wpa_ie, ni->ni_wpa_ie, ielen);
+		memcpy(wpaie.wpa_ie, ni->ni_ies.wpa_ie, ielen);
 	}
 	if (req == IEEE80211_IOC_WPAIE2) {
 		memset(wpaie.rsn_ie, 0, sizeof(wpaie.rsn_ie));
-		if (ni->ni_rsn_ie != NULL) {
-			int ielen = ni->ni_rsn_ie[1] + 2;
+		if (ni->ni_ies.rsn_ie != NULL) {
+			int ielen = ni->ni_ies.rsn_ie[1] + 2;
 			if (ielen > sizeof(wpaie.rsn_ie))
 				ielen = sizeof(wpaie.rsn_ie);
-			memcpy(wpaie.rsn_ie, ni->ni_rsn_ie, ielen);
+			memcpy(wpaie.rsn_ie, ni->ni_ies.rsn_ie, ielen);
 		}
 		if (ireq->i_len > sizeof(struct ieee80211req_wpaie2))
 			ireq->i_len = sizeof(struct ieee80211req_wpaie2);
 	} else {
 		/* compatibility op, may overwrite wpa ie */
 		/* XXX check ic_flags? */
-		if (ni->ni_rsn_ie != NULL) {
-			int ielen = ni->ni_rsn_ie[1] + 2;
+		if (ni->ni_ies.rsn_ie != NULL) {
+			int ielen = ni->ni_ies.rsn_ie[1] + 2;
 			if (ielen > sizeof(wpaie.wpa_ie))
 				ielen = sizeof(wpaie.wpa_ie);
-			memcpy(wpaie.wpa_ie, ni->ni_rsn_ie, ielen);
+			memcpy(wpaie.wpa_ie, ni->ni_ies.rsn_ie, ielen);
 		}
 		if (ireq->i_len > sizeof(struct ieee80211req_wpaie))
 			ireq->i_len = sizeof(struct ieee80211req_wpaie);
@@ -277,10 +277,10 @@ old_scan_space(const struct ieee80211_scan_entry *se, int *ielen)
 	size_t len;
 
 	*ielen = 0;
-	if (se->se_wpa_ie != NULL)
-		*ielen += 2+se->se_wpa_ie[1];
-	if (se->se_wme_ie != NULL)
-		*ielen += 2+se->se_wme_ie[1];
+	if (se->se_ies.wpa_ie != NULL)
+		*ielen += 2+se->se_ies.wpa_ie[1];
+	if (se->se_ies.wme_ie != NULL)
+		*ielen += 2+se->se_ies.wme_ie[1];
 	/*
 	 * NB: ie's can be no more than 255 bytes and the max 802.11
 	 * packet is <3Kbytes so we are sure this doesn't overflow
@@ -335,8 +335,8 @@ old_get_scan_result(void *arg, const struct ieee80211_scan_entry *se)
 	memcpy(cp, se->se_ssid+2, sr->isr_ssid_len);
 	cp += sr->isr_ssid_len;
 	if (sr->isr_ie_len) {
-		cp = copyie(cp, se->se_wpa_ie);
-		cp = copyie(cp, se->se_wme_ie);
+		cp = copyie(cp, se->se_ies.wpa_ie);
+		cp = copyie(cp, se->se_ies.wme_ie);
 	}
 
 	req->space -= len;
@@ -388,15 +388,7 @@ scan_space(const struct ieee80211_scan_entry *se, int *ielen)
 {
 	size_t len;
 
-	*ielen = 0;
-	if (se->se_wpa_ie != NULL)
-		*ielen += 2+se->se_wpa_ie[1];
-	if (se->se_rsn_ie != NULL)
-		*ielen += 2+se->se_rsn_ie[1];
-	if (se->se_wme_ie != NULL)
-		*ielen += 2+se->se_wme_ie[1];
-	if (se->se_ath_ie != NULL)
-		*ielen += 2+se->se_ath_ie[1];
+	*ielen = se->se_ies.len;
 	/*
 	 * NB: ie's can be no more than 255 bytes and the max 802.11
 	 * packet is <3Kbytes so we are sure this doesn't overflow
@@ -453,11 +445,7 @@ get_scan_result(void *arg, const struct ieee80211_scan_entry *se)
 
 	if (ielen) {
 		cp += sr->isr_ssid_len;
-		cp = copyie(cp, se->se_wpa_ie);
-		cp = copyie(cp, se->se_rsn_ie);
-		cp = copyie(cp, se->se_wme_ie);
-		cp = copyie(cp, se->se_ath_ie);
-		cp = copyie(cp, se->se_htcap_ie);
+		memcpy(cp, se->se_ies.data, ielen);
 	}
 
 	req->space -= len;
@@ -507,15 +495,7 @@ struct stainforeq {
 static size_t
 sta_space(const struct ieee80211_node *ni, size_t *ielen)
 {
-	*ielen = 0;
-	if (ni->ni_wpa_ie != NULL)
-		*ielen += 2+ni->ni_wpa_ie[1];
-	if (ni->ni_rsn_ie != NULL)
-		*ielen += 2+ni->ni_rsn_ie[1];
-	if (ni->ni_wme_ie != NULL)
-		*ielen += 2+ni->ni_wme_ie[1];
-	if (ni->ni_ath_ie != NULL)
-		*ielen += 2+ni->ni_ath_ie[1];
+	*ielen = ni->ni_ies.len;
 	return roundup(sizeof(struct ieee80211req_sta_info) + *ielen,
 		      sizeof(uint32_t));
 }
@@ -590,10 +570,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 
 	if (ielen) {
 		cp = ((uint8_t *)si) + si->isi_ie_off;
-		cp = copyie(cp, ni->ni_wpa_ie);
-		cp = copyie(cp, ni->ni_rsn_ie);
-		cp = copyie(cp, ni->ni_wme_ie);
-		cp = copyie(cp, ni->ni_ath_ie);
+		memcpy(cp, ni->ni_ies.data, ielen);
 	}
 
 	req->si = (struct ieee80211req_sta_info *)(((uint8_t *)si) + len);

@@ -2939,7 +2939,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 
 	memset(assoc, 0, sizeof *assoc);
 
-	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_wme_ie != NULL) {
+	if ((ic->ic_flags & IEEE80211_F_WME) && ni->ni_ies.wme_ie != NULL) {
 		/* NB: don't treat WME setup as failure */
 		if (iwi_wme_setparams(sc) == 0 && iwi_wme_setie(sc) == 0)
 			assoc->policy |= htole16(IWI_POLICY_WME);
