@@ -57,7 +57,7 @@ char *xen_setbootenv(char *cmd_line);
 
 int  xen_boothowto(char *envp);
 
-void _xen_machphys_update(unsigned long, unsigned long, char *file, int line);
+void _xen_machphys_update(vm_paddr_t, vm_paddr_t, char *file, int line);
 
 #ifdef INVARIANTS
 #define xen_machphys_update(a, b) _xen_machphys_update((a), (b), __FILE__, __LINE__)
