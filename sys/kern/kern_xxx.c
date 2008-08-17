@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/utsname.h>
+#include <sys/vimage.h>
 
 
 #if defined(COMPAT_43)
@@ -249,7 +250,7 @@ getdomainname(td, uap)
 	int domainnamelen;
 
 	mtx_lock(&hostname_mtx);
-	bcopy(domainname, tmpdomainname, sizeof(tmpdomainname));
+	bcopy(V_domainname, tmpdomainname, sizeof(tmpdomainname));
 	mtx_unlock(&hostname_mtx);
 
 	domainnamelen = strlen(tmpdomainname) + 1;
@@ -283,7 +284,7 @@ setdomainname(td, uap)
 	if (error == 0) {
 		tmpdomainname[domainnamelen] = 0;
 		mtx_lock(&hostname_mtx);
-		bcopy(tmpdomainname, domainname, sizeof(domainname));
+		bcopy(tmpdomainname, V_domainname, sizeof(domainname));
 		mtx_unlock(&hostname_mtx);
 	}
 	return (error);

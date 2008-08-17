@@ -100,6 +100,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/vimage.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -3035,7 +3036,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	if (IPFW_LOADED && pfil_ipfw != 0 && dir == PFIL_OUT && ifp != NULL) {
 		error = -1;
 		args.rule = ip_dn_claim_rule(*mp);
-		if (args.rule != NULL && fw_one_pass)
+		if (args.rule != NULL && V_fw_one_pass)
 			goto ipfwpass; /* packet already partially processed */
 
 		args.m = *mp;
@@ -3229,12 +3230,12 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip),
 			(max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			ipstat.ips_toosmall++;
+			V_ipstat.ips_toosmall++;
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof (struct ip))) {
 		if ((m = m_pullup(m, sizeof (struct ip))) == NULL) {
-			ipstat.ips_toosmall++;
+			V_ipstat.ips_toosmall++;
 			goto bad;
 		}
 	}
@@ -3242,17 +3243,17 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	if (ip == NULL) goto bad;
 
 	if (ip->ip_v != IPVERSION) {
-		ipstat.ips_badvers++;
+		V_ipstat.ips_badvers++;
 		goto bad;
 	}
 	hlen = ip->ip_hl << 2;
 	if (hlen < sizeof(struct ip)) { /* minimum header length */
-		ipstat.ips_badhlen++;
+		V_ipstat.ips_badhlen++;
 		goto bad;
 	}
 	if (hlen > m->m_len) {
 		if ((m = m_pullup(m, hlen)) == 0) {
-			ipstat.ips_badhlen++;
+			V_ipstat.ips_badhlen++;
 			goto bad;
 		}
 		ip = mtod(m, struct ip *);
@@ -3269,7 +3270,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 		}
 	}
 	if (sum) {
-		ipstat.ips_badsum++;
+		V_ipstat.ips_badsum++;
 		goto bad;
 	}
 
@@ -3280,7 +3281,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Check for additional length bogosity
 	 */
 	if (len < hlen) {
-		ipstat.ips_badlen++;
+		V_ipstat.ips_badlen++;
 		goto bad;
 	}
 
@@ -3290,7 +3291,7 @@ bridge_ip_checkbasic(struct mbuf **mp)
 	 * Drop packet if shorter than we expect.
 	 */
 	if (m->m_pkthdr.len < len) {
-		ipstat.ips_tooshort++;
+		V_ipstat.ips_tooshort++;
 		goto bad;
 	}
 
@@ -3326,14 +3327,14 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 		if ((m = m_copyup(m, sizeof(struct ip6_hdr),
 			    (max_linkhdr + 3) & ~3)) == NULL) {
 			/* XXXJRT new stat, please */
-			ip6stat.ip6s_toosmall++;
+			V_ip6stat.ip6s_toosmall++;
 			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
 			goto bad;
 		}
 	} else if (__predict_false(m->m_len < sizeof(struct ip6_hdr))) {
 		struct ifnet *inifp = m->m_pkthdr.rcvif;
 		if ((m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-			ip6stat.ip6s_toosmall++;
+			V_ip6stat.ip6s_toosmall++;
 			in6_ifstat_inc(inifp, ifs6_in_hdrerr);
 			goto bad;
 		}
@@ -3342,7 +3343,7 @@ bridge_ip6_checkbasic(struct mbuf **mp)
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
-		ip6stat.ip6s_badvers++;
+		V_ip6stat.ip6s_badvers++;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_hdrerr);
 		goto bad;
 	}
@@ -3403,7 +3404,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	}
 
 	if (error == 0)
-		ipstat.ips_fragmented++;
+		V_ipstat.ips_fragmented++;
 
 	return (error);
 

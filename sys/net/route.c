@@ -49,6 +49,7 @@
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -189,7 +190,7 @@ route_init(void)
 					 * which don't need it anyhow)
 					 */
 					dom->dom_rtattach(
-				    	    (void **)&rt_tables[table][fam],
+				    	    (void **)&V_rt_tables[table][fam],
 				    	    dom->dom_rtoffset);
 				} else {
 					break;
@@ -287,13 +288,13 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
 	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
 		fibnum = 0;
-	rnh = rt_tables[fibnum][dst->sa_family];
+	rnh = V_rt_tables[fibnum][dst->sa_family];
 	newrt = NULL;
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
 	if (rnh == NULL) {
-		rtstat.rts_unreach++;
+		V_rtstat.rts_unreach++;
 		goto miss2;
 	}
 	RADIX_NODE_HEAD_LOCK(rnh);
@@ -355,7 +356,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		 * Which basically means
 		 * "caint get there frm here"
 		 */
-		rtstat.rts_unreach++;
+		V_rtstat.rts_unreach++;
 	miss:
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 	miss2:	if (report) {
@@ -384,7 +385,7 @@ rtfree(struct rtentry *rt)
 	struct radix_node_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
-	rnh = rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
+	rnh = V_rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
 	KASSERT(rnh != NULL,("%s: NULL rnh", __func__));
 
 	RT_LOCK_ASSERT(rt);
@@ -423,7 +424,7 @@ rtfree(struct rtentry *rt)
 		 * the rtentry must have been removed from the routing table
 		 * so it is represented in rttrash.. remove that now.
 		 */
-		rttrash--;
+		V_rttrash--;
 #ifdef	DIAGNOSTIC
 		if (rt->rt_refcnt < 0) {
 			printf("rtfree: %p not freed (neg refs)\n", rt);
@@ -544,7 +545,7 @@ rtredirect_fib(struct sockaddr *dst,
 			if (rt0)
 				RTFREE_LOCKED(rt0);
 			
-			stat = &rtstat.rts_dynamic;
+			stat = &V_rtstat.rts_dynamic;
 		} else {
 			struct rtentry *gwrt;
 
@@ -554,7 +555,7 @@ rtredirect_fib(struct sockaddr *dst,
 			 */
 			rt->rt_flags |= RTF_MODIFIED;
 			flags |= RTF_MODIFIED;
-			stat = &rtstat.rts_newgateway;
+			stat = &V_rtstat.rts_newgateway;
 			/*
 			 * add the key and gateway (in one malloc'd chunk).
 			 */
@@ -570,7 +571,7 @@ done:
 		RTFREE_LOCKED(rt);
 out:
 	if (error)
-		rtstat.rts_badredirect++;
+		V_rtstat.rts_badredirect++;
 	else if (stat != NULL)
 		(*stat)++;
 	bzero((caddr_t)&info, sizeof(info));
@@ -804,7 +805,7 @@ rtexpunge(struct rtentry *rt)
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
-	rnh = rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
+	rnh = V_rt_tables[rt->rt_fibnum][rt_key(rt)->sa_family];
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
 
@@ -862,7 +863,7 @@ rtexpunge(struct rtentry *rt)
 	 * one more rtentry floating around that is not
 	 * linked to the routing table.
 	 */
-	rttrash++;
+	V_rttrash++;
 bad:
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	return (error);
@@ -892,7 +893,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
-	rnh = rt_tables[fibnum][dst->sa_family];
+	rnh = V_rt_tables[fibnum][dst->sa_family];
 	if (rnh == NULL)
 		return (EAFNOSUPPORT);
 	RADIX_NODE_HEAD_LOCK(rnh);
@@ -1015,7 +1016,7 @@ deldone:
 		 * linked to the routing table. rttrash will be decremented
 		 * when RTFREE(rt) is eventually called.
 		 */
-		rttrash++;
+		V_rttrash++;
 
 		/*
 		 * If the caller wants it, then it can have it,
@@ -1309,7 +1310,7 @@ int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
 	/* XXX dst may be overwritten, can we move this to below */
-	struct radix_node_head *rnh = rt_tables[rt->rt_fibnum][dst->sa_family];
+	struct radix_node_head *rnh = V_rt_tables[rt->rt_fibnum][dst->sa_family];
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 
 again:
@@ -1517,7 +1518,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * Look up an rtentry that is in the routing tree and
 			 * contains the correct info.
 			 */
-			if ((rnh = rt_tables[fibnum][dst->sa_family]) == NULL)
+			if ((rnh = V_rt_tables[fibnum][dst->sa_family]) == NULL)
 				/* this table doesn't exist but others might */
 				continue;
 			RADIX_NODE_HEAD_LOCK(rnh);

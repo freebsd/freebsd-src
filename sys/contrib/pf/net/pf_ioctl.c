@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 #else
 #include <sys/timeout.h>
 #include <sys/pool.h>
@@ -3713,7 +3714,7 @@ pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	 * order to support scoped addresses. In order to support stateful
 	 * filtering we have change this to lo0 as it is the case in IPv4.
 	 */
-	chk = pf_test6(PF_IN, (*m)->m_flags & M_LOOP ? &loif[0] : ifp, m,
+	chk = pf_test6(PF_IN, (*m)->m_flags & M_LOOP ? &V_loif[0] : ifp, m,
 	    NULL, inp);
 	if (chk && *m) {
 		m_freem(*m);

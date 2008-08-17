@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <netgraph/ng_message.h>
@@ -615,7 +616,7 @@ ng_source_store_output_ifp(sc_p sc, char *ifname)
 	ifp = ifunit(ifname);
 
 	if (ifp == NULL) {
-		printf("%s: can't find interface %d\n", __func__, if_index);
+		printf("%s: can't find interface %d\n", __func__, V_if_index);
 		return (EINVAL);
 	}
 	sc->output_ifp = ifp;

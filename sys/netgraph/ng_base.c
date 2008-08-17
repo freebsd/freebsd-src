@@ -61,6 +61,7 @@
 #include <sys/syslog.h>
 #include <sys/refcount.h>
 #include <sys/proc.h>
+#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
@@ -174,7 +175,7 @@ static struct mtx	ng_idhash_mtx;
 #define NG_IDHASH_FIND(ID, node)					\
 	do { 								\
 		mtx_assert(&ng_idhash_mtx, MA_OWNED);			\
-		LIST_FOREACH(node, &ng_ID_hash[NG_IDHASH_FN(ID)],	\
+		LIST_FOREACH(node, &V_ng_ID_hash[NG_IDHASH_FN(ID)],	\
 						nd_idnodes) {		\
 			if (NG_NODE_IS_VALID(node)			\
 			&& (NG_NODE_ID(node) == ID)) {			\
@@ -638,14 +639,14 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 
 	/* Link us into the name hash. */
 	mtx_lock(&ng_namehash_mtx);
-	LIST_INSERT_HEAD(&ng_name_hash[0], node, nd_nodes);
+	LIST_INSERT_HEAD(&V_ng_name_hash[0], node, nd_nodes);
 	mtx_unlock(&ng_namehash_mtx);
 
 	/* get an ID and put us in the hash chain */
 	mtx_lock(&ng_idhash_mtx);
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
-		node->nd_ID = nextID++; /* 137/second for 1 year before wrap */
+		node->nd_ID = V_nextID++; /* 137/second for 1 year before wrap */
 
 		/* Is there a problem with the new number? */
 		NG_IDHASH_FIND(node->nd_ID, node2); /* already taken? */
@@ -653,7 +654,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 			break;
 		}
 	}
-	LIST_INSERT_HEAD(&ng_ID_hash[NG_IDHASH_FN(node->nd_ID)],
+	LIST_INSERT_HEAD(&V_ng_ID_hash[NG_IDHASH_FN(node->nd_ID)],
 							node, nd_idnodes);
 	mtx_unlock(&ng_idhash_mtx);
 
@@ -848,7 +849,7 @@ ng_name_node(node_p node, const char *name)
 	NG_NAMEHASH(name, hash);
 	mtx_lock(&ng_namehash_mtx);
 	LIST_REMOVE(node, nd_nodes);
-	LIST_INSERT_HEAD(&ng_name_hash[hash], node, nd_nodes);
+	LIST_INSERT_HEAD(&V_ng_name_hash[hash], node, nd_nodes);
 	mtx_unlock(&ng_namehash_mtx);
 
 	return (0);
@@ -885,7 +886,7 @@ ng_name2noderef(node_p here, const char *name)
 	/* Find node by name */
 	NG_NAMEHASH(name, hash);
 	mtx_lock(&ng_namehash_mtx);
-	LIST_FOREACH(node, &ng_name_hash[hash], nd_nodes) {
+	LIST_FOREACH(node, &V_ng_name_hash[hash], nd_nodes) {
 		if (NG_NODE_IS_VALID(node) &&
 		    (strcmp(NG_NODE_NAME(node), name) == 0)) {
 			break;
@@ -2574,7 +2575,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		mtx_lock(&ng_namehash_mtx);
 		/* Count number of nodes */
 		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
-			LIST_FOREACH(node, &ng_name_hash[i], nd_nodes) {
+			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
 				if (NG_NODE_IS_VALID(node) &&
 				    (unnamed || NG_NODE_HAS_NAME(node))) {
 					num++;
@@ -2596,7 +2597,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		nl->numnames = 0;
 		mtx_lock(&ng_namehash_mtx);
 		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
-			LIST_FOREACH(node, &ng_name_hash[i], nd_nodes) {
+			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
 				struct nodeinfo *const np =
 				    &nl->nodeinfo[nl->numnames];
 

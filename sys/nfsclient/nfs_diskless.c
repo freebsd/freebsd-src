@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 
 #include <sys/socket.h>
+#include <sys/vimage.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
@@ -176,7 +177,7 @@ nfs_setup_diskless(void)
 	}
 	ifa = NULL;
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_LINK) {
 				sdl = (struct sockaddr_dl *)ifa->ifa_addr;

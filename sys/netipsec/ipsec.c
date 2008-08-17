@@ -53,6 +53,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -240,7 +241,7 @@ key_allocsp_default(const char* where, int tag)
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP key_allocsp_default from %s:%u\n", where, tag));
 
-	sp = &ip4_def_policy;
+	sp = &V_ip4_def_policy;
 	if (sp->policy != IPSEC_POLICY_DISCARD &&
 	    sp->policy != IPSEC_POLICY_NONE) {
 		ipseclog((LOG_INFO, "fixed system default policy: %d->%d\n",
@@ -458,7 +459,7 @@ ipsec4_checkpolicy(m, dir, flag, error, inp)
 		sp = ipsec_getpolicybysock(m, dir, inp, error);
 	if (sp == NULL) {
 		IPSEC_ASSERT(*error != 0, ("getpolicy failed w/o error"));
-		ipsec4stat.ips_out_inval++;
+		V_ipsec4stat.ips_out_inval++;
 		return NULL;
 	}
 	IPSEC_ASSERT(*error == 0, ("sp w/ error set to %u", *error));
@@ -468,7 +469,7 @@ ipsec4_checkpolicy(m, dir, flag, error, inp)
 		printf("%s: invalid policy %u\n", __func__, sp->policy);
 		/* fall thru... */
 	case IPSEC_POLICY_DISCARD:
-		ipsec4stat.ips_out_polvio++;
+		V_ipsec4stat.ips_out_polvio++;
 		*error = -EINVAL;	/* packet is discarded by caller */
 		break;
 	case IPSEC_POLICY_BYPASS:
@@ -1289,7 +1290,7 @@ ipsec_get_reqlevel(isr)
 #define IPSEC_CHECK_DEFAULT(lev) \
 	(((lev) != IPSEC_LEVEL_USE && (lev) != IPSEC_LEVEL_REQUIRE	      \
 			&& (lev) != IPSEC_LEVEL_UNIQUE)			      \
-		? (ipsec_debug						      \
+		? (V_ipsec_debug						      \
 			? log(LOG_INFO, "fixed system default level " #lev ":%d->%d\n",\
 				(lev), IPSEC_LEVEL_REQUIRE)		      \
 			: 0),						      \
@@ -1301,18 +1302,18 @@ ipsec_get_reqlevel(isr)
 	switch (((struct sockaddr *)&isr->sp->spidx.src)->sa_family) {
 #ifdef INET
 	case AF_INET:
-		esp_trans_deflev = IPSEC_CHECK_DEFAULT(ip4_esp_trans_deflev);
-		esp_net_deflev = IPSEC_CHECK_DEFAULT(ip4_esp_net_deflev);
-		ah_trans_deflev = IPSEC_CHECK_DEFAULT(ip4_ah_trans_deflev);
-		ah_net_deflev = IPSEC_CHECK_DEFAULT(ip4_ah_net_deflev);
+		esp_trans_deflev = IPSEC_CHECK_DEFAULT(V_ip4_esp_trans_deflev);
+		esp_net_deflev = IPSEC_CHECK_DEFAULT(V_ip4_esp_net_deflev);
+		ah_trans_deflev = IPSEC_CHECK_DEFAULT(V_ip4_ah_trans_deflev);
+		ah_net_deflev = IPSEC_CHECK_DEFAULT(V_ip4_ah_net_deflev);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		esp_trans_deflev = IPSEC_CHECK_DEFAULT(ip6_esp_trans_deflev);
-		esp_net_deflev = IPSEC_CHECK_DEFAULT(ip6_esp_net_deflev);
-		ah_trans_deflev = IPSEC_CHECK_DEFAULT(ip6_ah_trans_deflev);
-		ah_net_deflev = IPSEC_CHECK_DEFAULT(ip6_ah_net_deflev);
+		esp_trans_deflev = IPSEC_CHECK_DEFAULT(V_ip6_esp_trans_deflev);
+		esp_net_deflev = IPSEC_CHECK_DEFAULT(V_ip6_esp_net_deflev);
+		ah_trans_deflev = IPSEC_CHECK_DEFAULT(V_ip6_ah_trans_deflev);
+		ah_net_deflev = IPSEC_CHECK_DEFAULT(V_ip6_ah_net_deflev);
 		break;
 #endif /* INET6 */
 	default:
@@ -1472,7 +1473,7 @@ ipsec4_in_reject(m, inp)
 	if (sp != NULL) {
 		result = ipsec_in_reject(sp, m);
 		if (result)
-			ipsec4stat.ips_in_polvio++;
+			V_ipsec4stat.ips_in_polvio++;
 		KEY_FREESP(&sp);
 	} else {
 		result = 0;	/* XXX should be panic ?
@@ -1512,7 +1513,7 @@ ipsec6_in_reject(m, inp)
 	if (sp != NULL) {
 		result = ipsec_in_reject(sp, m);
 		if (result)
-			ipsec6stat.ips_in_polvio++;
+			V_ipsec6stat.ips_in_polvio++;
 		KEY_FREESP(&sp);
 	} else {
 		result = 0;
@@ -1936,7 +1937,7 @@ ipsec_dumpmbuf(m)
 static void
 ipsec_attach(void)
 {
-	SECPOLICY_LOCK_INIT(&ip4_def_policy);
+	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
 	ip4_def_policy.refcnt = 1;			/* NB: disallow free */
 }
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);

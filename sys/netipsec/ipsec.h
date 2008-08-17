@@ -351,9 +351,9 @@ extern int ip4_ipsec_ecn;
 extern int ip4_esp_randpad;
 extern int crypto_support;
 
-#define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
+#define ipseclog(x)	do { if (V_ipsec_debug) log x; } while (0)
 /* for openbsd compatibility */
-#define	DPRINTF(x)	do { if (ipsec_debug) printf x; } while (0)
+#define	DPRINTF(x)	do { if (V_ipsec_debug) printf x; } while (0)
 
 extern	struct ipsecrequest *ipsec_newisr(void);
 extern	void ipsec_delisr(struct ipsecrequest *);

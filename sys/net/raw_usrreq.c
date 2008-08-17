@@ -44,6 +44,7 @@
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <net/raw_cb.h>
 
@@ -56,7 +57,7 @@ void
 raw_init(void)
 {
 
-	LIST_INIT(&rawcb_list);
+	LIST_INIT(&V_rawcb_list);
 }
 
 /*
@@ -75,7 +76,7 @@ raw_input(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src)
 
 	last = 0;
 	mtx_lock(&rawcb_mtx);
-	LIST_FOREACH(rp, &rawcb_list, list) {
+	LIST_FOREACH(rp, &V_rawcb_list, list) {
 		if (rp->rcb_proto.sp_family != proto->sp_family)
 			continue;
 		if (rp->rcb_proto.sp_protocol  &&

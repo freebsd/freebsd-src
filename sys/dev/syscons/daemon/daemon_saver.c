@@ -36,6 +36,7 @@
 #include <sys/sysctl.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
+#include <sys/vimage.h>
 
 #include <machine/pc/display.h>
 
@@ -352,10 +353,10 @@ daemon_init(video_adapter_t *adp)
 {
 
 	/* XXXRW: Locking -- these can change! */
-	messagelen = strlen(hostname) + 3 + strlen(ostype) + 1 + 
+	messagelen = strlen(G_hostname) + 3 + strlen(ostype) + 1 + 
 	    strlen(osrelease);
 	message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);
-	sprintf(message, "%s - %s %s", hostname, ostype, osrelease);
+	sprintf(message, "%s - %s %s", G_hostname, ostype, osrelease);
 	blanked = 0;
 	switch (adp->va_mode) {
 	case M_PC98_80x25:

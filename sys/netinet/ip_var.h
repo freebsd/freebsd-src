@@ -34,6 +34,9 @@
 #define	_NETINET_IP_VAR_H_
 
 #include <sys/queue.h>
+#ifdef _KERNEL
+#include <sys/vimage.h>
+#endif
 
 /*
  * Overlay for ip header used by other protocols (tcp, udp).
@@ -237,7 +240,7 @@ extern int ip_do_randomid;
 static __inline uint16_t
 ip_newid(void)
 {
-	if (ip_do_randomid)
+	if (V_ip_do_randomid)
 		return ip_randomid();
 
 	return htons(ip_id++);

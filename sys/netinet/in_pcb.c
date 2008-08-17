@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -121,12 +122,12 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
 	if (error == 0) {
-		RANGECHK(ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
-		RANGECHK(ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
-		RANGECHK(ipport_firstauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(ipport_lastauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(ipport_hifirstauto, IPPORT_RESERVED, IPPORT_MAX);
-		RANGECHK(ipport_hilastauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
+		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
+		RANGECHK(V_ipport_firstauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(V_ipport_lastauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(V_ipport_hifirstauto, IPPORT_RESERVED, IPPORT_MAX);
+		RANGECHK(V_ipport_hilastauto, IPPORT_RESERVED, IPPORT_MAX);
 	}
 	return (error);
 }
@@ -208,7 +209,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #ifdef INET6
 	if (INP_SOCKAF(so) == AF_INET6) {
 		inp->inp_vflag |= INP_IPV6PROTO;
-		if (ip6_v6only)
+		if (V_ip6_v6only)
 			inp->inp_flags |= IN6P_IPV6_V6ONLY;
 	}
 #endif
@@ -216,7 +217,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	pcbinfo->ipi_count++;
 	so->so_pcb = (caddr_t)inp;
 #ifdef INET6
-	if (ip6_auto_flowlabel)
+	if (V_ip6_auto_flowlabel)
 		inp->inp_flags |= IN6P_AUTOFLOWLABEL;
 #endif
 	INP_WLOCK(inp);
@@ -286,7 +287,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 	INP_INFO_LOCK_ASSERT(pcbinfo);
 	INP_LOCK_ASSERT(inp);
 
-	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
+	if (TAILQ_EMPTY(&V_in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	laddr.s_addr = *laddrp;
 	if (nam != NULL && laddr.s_addr != INADDR_ANY)
@@ -337,8 +338,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			struct tcptw *tw;
 
 			/* GROSS */
-			if (ntohs(lport) <= ipport_reservedhigh &&
-			    ntohs(lport) >= ipport_reservedlow &&
+			if (ntohs(lport) <= V_ipport_reservedhigh &&
+			    ntohs(lport) >= V_ipport_reservedlow &&
 			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
 			    0))
 				return (EACCES);
@@ -406,20 +407,20 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				return (EINVAL);
 
 		if (inp->inp_flags & INP_HIGHPORT) {
-			first = ipport_hifirstauto;	/* sysctl */
-			last  = ipport_hilastauto;
+			first = V_ipport_hifirstauto;	/* sysctl */
+			last  = V_ipport_hilastauto;
 			lastport = &pcbinfo->ipi_lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
 			error = priv_check_cred(cred,
 			    PRIV_NETINET_RESERVEDPORT, 0);
 			if (error)
 				return error;
-			first = ipport_lowfirstauto;	/* 1023 */
-			last  = ipport_lowlastauto;	/* 600 */
+			first = V_ipport_lowfirstauto;	/* 1023 */
+			last  = V_ipport_lowlastauto;	/* 600 */
 			lastport = &pcbinfo->ipi_lastlow;
 		} else {
-			first = ipport_firstauto;	/* sysctl */
-			last  = ipport_lastauto;
+			first = V_ipport_firstauto;	/* sysctl */
+			last  = V_ipport_lastauto;
 			lastport = &pcbinfo->ipi_lastport;
 		}
 		/*
@@ -428,8 +429,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		 * use random port allocation only if the user allows it AND
 		 * ipport_tick() allows it.
 		 */
-		if (ipport_randomized &&
-			(!ipport_stoprandom || pcbinfo == &udbinfo))
+		if (V_ipport_randomized &&
+			(!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
 			dorandom = 1;
 		else
 			dorandom = 0;
@@ -440,8 +441,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (first == last)
 			dorandom = 0;
 		/* Make sure to not include UDP packets in the count. */
-		if (pcbinfo != &udbinfo)
-			ipport_tcpallocs++;
+		if (pcbinfo != &V_udbinfo)
+			V_ipport_tcpallocs++;
 		/*
 		 * Simple check to ensure all ports are not used up causing
 		 * a deadlock here.
@@ -581,7 +582,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		if (error)
 			return (error);
 	}
-	if (!TAILQ_EMPTY(&in_ifaddrhead)) {
+	if (!TAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
 		 * use the primary local address.
@@ -590,12 +591,12 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY)
-			faddr = IA_SIN(TAILQ_FIRST(&in_ifaddrhead))->sin_addr;
+			faddr = IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
 		else if (faddr.s_addr == (u_long)INADDR_BROADCAST &&
-		    (TAILQ_FIRST(&in_ifaddrhead)->ia_ifp->if_flags &
+		    (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 		    IFF_BROADCAST))
 			faddr = satosin(&TAILQ_FIRST(
-			    &in_ifaddrhead)->ia_broadaddr)->sin_addr;
+			    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
 		ia = NULL;
@@ -640,7 +641,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link)
+				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link)
 					if (ia->ia_ifp == ifp)
 						break;
 				if (ia == NULL)
@@ -1201,12 +1202,12 @@ void
 ipport_tick(void *xtp)
 {
 
-	if (ipport_tcpallocs <= ipport_tcplastcount + ipport_randomcps) {
-		if (ipport_stoprandom > 0)
-			ipport_stoprandom--;
+	if (V_ipport_tcpallocs <= V_ipport_tcplastcount + V_ipport_randomcps) {
+		if (V_ipport_stoprandom > 0)
+			V_ipport_stoprandom--;
 	} else
-		ipport_stoprandom = ipport_randomtime;
-	ipport_tcplastcount = ipport_tcpallocs;
+		V_ipport_stoprandom = V_ipport_randomtime;
+	V_ipport_tcplastcount = V_ipport_tcpallocs;
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
 
@@ -1259,13 +1260,13 @@ inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
 {
 	struct inpcb *inp;
 
-	INP_INFO_RLOCK(&tcbinfo);
+	INP_INFO_RLOCK(&V_tcbinfo);
 	LIST_FOREACH(inp, tcbinfo.ipi_listhead, inp_list) {
 		INP_WLOCK(inp);
 		func(inp, arg);
 		INP_WUNLOCK(inp);
 	}
-	INP_INFO_RUNLOCK(&tcbinfo);
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 }
 
 struct socket *
