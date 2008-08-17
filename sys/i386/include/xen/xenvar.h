@@ -69,8 +69,8 @@ extern xen_pfn_t *xen_machine_phys;
 #endif
 
 
-#define PFNTOMFN(i) (xen_phys_machine[((xen_pfn_t)i)])
-#define MFNTOPFN(i) (xen_machine_phys[((xen_pfn_t)i)])
+#define PFNTOMFN(i) (xen_phys_machine[(i)])
+#define MFNTOPFN(i) ((vm_paddr_t)xen_machine_phys[(i)])
 
 #define VTOP(x) ((uintptr_t)(((uint8_t *)(x)) - KERNBASE))
 #define PTOV(x) ((x) + KERNBASE)
@@ -81,8 +81,8 @@ extern xen_pfn_t *xen_machine_phys;
 #define VTOMFN(va) (vtomach(va) >> PAGE_SHIFT)
 #define PFN_UP(x)    (((x) + PAGE_SIZE-1) >> PAGE_SHIFT)
 
-#define phystomach(pa) (PFNTOMFN((pa) >> PAGE_SHIFT) << PAGE_SHIFT)
-#define machtophys(ma) (MFNTOPFN((ma) >> PAGE_SHIFT) << PAGE_SHIFT)
+#define phystomach(pa) (((vm_paddr_t)(PFNTOMFN((pa) >> PAGE_SHIFT))) << PAGE_SHIFT)
+#define machtophys(ma) (((vm_paddr_t)(MFNTOPFN((ma) >> PAGE_SHIFT))) << PAGE_SHIFT)
 
 
 void xpq_init(void);
