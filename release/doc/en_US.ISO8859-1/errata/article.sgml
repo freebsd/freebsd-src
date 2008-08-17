@@ -146,6 +146,12 @@
 	    <entry>17&nbsp;April&nbsp;2008</entry>
 	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
 	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+		>SA-08:06.bind</ulink></entry>
+	    <entry>13&nbsp;July&nbsp;2008</entry>
+	    <entry><para>DNS cache poisoning</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
