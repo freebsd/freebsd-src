@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 
@@ -1008,7 +1009,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	    "bytes    packets errs drop fifo frame compressed");
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
 			sbuf_printf(sb, "%6.6s:", ifname);
 		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",

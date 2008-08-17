@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <i386/ibcs2/ibcs2_socksys.h>
 #include <i386/ibcs2/ibcs2_util.h>
@@ -178,13 +179,13 @@ ibcs2_setipdomainname(td, uap)
 
 	/* W/out a hostname a domain-name is nonsense */
 	mtx_lock(&hostname_mtx);
-	if ( strlen(hostname) == 0 ) {
+	if ( strlen(V_hostname) == 0 ) {
 		mtx_unlock(&hostname_mtx);
 		return EINVAL;
 	}
 
 	/* Get the host's unqualified name (strip off the domain) */
-	snprintf(hname, sizeof(hname), "%s", hostname);
+	snprintf(hname, sizeof(hname), "%s", V_hostname);
 	mtx_unlock(&hostname_mtx);
 	ptr = index(hname, '.');
 	if ( ptr != NULL ) {

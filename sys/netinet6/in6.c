@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -249,7 +250,7 @@ in6_ifremloop(struct ifaddr *ifa)
 	 * (probably p2p) interfaces.
 	 * XXX: we should avoid such a configuration in IPv6...
 	 */
-	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (IN6_ARE_ADDR_EQUAL(IFA_IN6(ifa), &ia->ia_addr.sin6_addr)) {
 			ia_count++;
 			if (ia_count > 1)
@@ -733,7 +734,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			 * (when required).
 			 */
 			if ((ia->ia6_flags & IN6_IFF_AUTOCONF) &&
-			    ip6_use_tempaddr && pr->ndpr_refcnt == 1) {
+			    V_ip6_use_tempaddr && pr->ndpr_refcnt == 1) {
 				int e;
 				if ((e = in6_tmpifadd(ia, 1, 0)) != 0) {
 					log(LOG_NOTICE, "in6_control: failed "
@@ -939,12 +940,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
 
 		ia->ia_ifp = ifp;
-		if ((oia = in6_ifaddr) != NULL) {
+		if ((oia = V_in6_ifaddr) != NULL) {
 			for ( ; oia->ia_next; oia = oia->ia_next)
 				continue;
 			oia->ia_next = ia;
 		} else
-			in6_ifaddr = ia;
+			V_in6_ifaddr = ia;
 
 		ia->ia_ifa.ifa_refcnt = 1;
 		TAILQ_INSERT_TAIL(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
@@ -1149,7 +1150,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		/*
 		 * join node information group address
 		 */
-#define hostnamelen	strlen(hostname)
+#define hostnamelen	strlen(V_hostname)
 		delay = 0;
 		if ((flags & IN6_IFAUPDATE_DADDELAY)) {
 			/*
@@ -1160,8 +1161,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			    (MAX_RTR_SOLICITATION_DELAY * hz);
 		}
 		mtx_lock(&hostname_mtx);
-		if (in6_nigroup(ifp, hostname, hostnamelen, &mltaddr.sin6_addr)
-		    == 0) {
+		if (in6_nigroup(ifp, V_hostname, hostnamelen,
+		    &mltaddr.sin6_addr) == 0) {
 			mtx_unlock(&hostname_mtx);
 			imm = in6_joingroup(ifp, &mltaddr.sin6_addr, &error,
 			    delay); /* XXX jinmei */
@@ -1328,8 +1329,8 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 	TAILQ_REMOVE(&ifp->if_addrlist, &ia->ia_ifa, ifa_list);
 
 	oia = ia;
-	if (oia == (ia = in6_ifaddr))
-		in6_ifaddr = ia->ia_next;
+	if (oia == (ia = V_in6_ifaddr))
+		V_in6_ifaddr = ia->ia_next;
 	else {
 		while (ia->ia_next && (ia->ia_next != oia))
 			ia = ia->ia_next;
@@ -1894,7 +1895,7 @@ in6_localaddr(struct in6_addr *in6)
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
 		return 1;
 
-	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (IN6_ARE_MASKED_ADDR_EQUAL(in6, &ia->ia_addr.sin6_addr,
 		    &ia->ia_prefixmask.sin6_addr)) {
 			return 1;
@@ -1909,7 +1910,7 @@ in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
 	struct in6_ifaddr *ia;
 
-	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
 				       &sa6->sin6_addr) &&
 		    (ia->ia6_flags & IN6_IFF_DEPRECATED) != 0)
@@ -2022,7 +2023,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DETACHED)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
-			if (ip6_use_deprecated)
+			if (V_ip6_use_deprecated)
 				dep[0] = (struct in6_ifaddr *)ifa;
 			continue;
 		}
@@ -2056,7 +2057,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DETACHED)
 			continue;
 		if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DEPRECATED) {
-			if (ip6_use_deprecated)
+			if (V_ip6_use_deprecated)
 				dep[1] = (struct in6_ifaddr *)ifa;
 			continue;
 		}
@@ -2151,7 +2152,7 @@ in6_setmaxmtu(void)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
 		/* this function can be called during ifnet initialization */
 		if (!ifp->if_afdata[AF_INET6])
 			continue;
@@ -2161,7 +2162,7 @@ in6_setmaxmtu(void)
 	}
 	IFNET_RUNLOCK();
 	if (maxmtu)	     /* update only when maxmtu is positive */
-		in6_maxmtu = maxmtu;
+		V_in6_maxmtu = maxmtu;
 }
 
 /*

@@ -49,6 +49,7 @@
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/conf.h>
+#include <sys/vimage.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -187,7 +188,7 @@ gif_clone_create(ifc, unit, params)
 		(*ng_gif_attach_p)(GIF2IFP(sc));
 
 	mtx_lock(&gif_mtx);
-	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_list);
+	LIST_INSERT_HEAD(&V_gif_softc_list, sc, gif_list);
 	mtx_unlock(&gif_mtx);
 
 	return (0);
@@ -239,11 +240,11 @@ gifmodevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-		LIST_INIT(&gif_softc_list);
+		LIST_INIT(&V_gif_softc_list);
 		if_clone_attach(&gif_cloner);
 
 #ifdef INET6
-		ip6_gif_hlim = GIF_HLIM;
+		V_ip6_gif_hlim = GIF_HLIM;
 #endif
 
 		break;
@@ -251,7 +252,7 @@ gifmodevent(mod, type, data)
 		if_clone_detach(&gif_cloner);
 		mtx_destroy(&gif_mtx);
 #ifdef INET6
-		ip6_gif_hlim = 0;
+		V_ip6_gif_hlim = 0;
 #endif
 		break;
 	default:
@@ -398,7 +399,7 @@ gif_output(ifp, m, dst, rt)
 		mtag = m_tag_locate(m, MTAG_GIF, MTAG_GIF_CALLED, mtag);
 		gif_called++;
 	}
-	if (gif_called > max_gif_nesting) {
+	if (gif_called > V_max_gif_nesting) {
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
 		    gif_called);
@@ -859,7 +860,7 @@ gif_set_tunnel(ifp, src, dst)
 	int error = 0; 
 
 	mtx_lock(&gif_mtx);
-	LIST_FOREACH(sc2, &gif_softc_list, gif_list) {
+	LIST_FOREACH(sc2, &V_gif_softc_list, gif_list) {
 		if (sc2 == sc)
 			continue;
 		if (!sc2->gif_pdst || !sc2->gif_psrc)
@@ -874,7 +875,7 @@ gif_set_tunnel(ifp, src, dst)
 		 * Disallow parallel tunnels unless instructed
 		 * otherwise.
 		 */
-		if (!parallel_tunnels &&
+		if (!V_parallel_tunnels &&
 		    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
 		    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
 			error = EADDRNOTAVAIL;

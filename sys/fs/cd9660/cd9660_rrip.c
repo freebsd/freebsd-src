@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
+#include <sys/vimage.h>
 
 #include <fs/cd9660/iso.h>
 #include <fs/cd9660/cd9660_node.h>
@@ -172,8 +173,8 @@ cd9660_rrip_slink(p,ana)
 		case ISO_SUSP_CFLAG_HOST:
 			/* XXXRW: locking. */
 			/* Inserting hostname i.e. "kurt.tools.de" */
-			inbuf = hostname;
-			wlen = strlen(hostname);
+			inbuf = V_hostname;
+			wlen = strlen(V_hostname);
 			break;
 
 		case ISO_SUSP_CFLAG_CONTINUE:
@@ -245,8 +246,8 @@ cd9660_rrip_altname(p,ana)
 	case ISO_SUSP_CFLAG_HOST:
 		/* XXXRW: locking. */
 		/* Inserting hostname i.e. "kurt.tools.de" */
-		inbuf = hostname;
-		wlen = strlen(hostname);
+		inbuf = V_hostname;
+		wlen = strlen(V_hostname);
 		break;
 
 	case ISO_SUSP_CFLAG_CONTINUE:

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/smp.h>
 #include <sys/unistd.h>
+#include <sys/vimage.h>
 
 SYSCTL_NODE(, 0,	  sysctl, CTLFLAG_RW, 0,
 	"Sysctl internal magic");
@@ -249,13 +250,13 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 		}
 	} else {
 		mtx_lock(&hostname_mtx);
-		bcopy(hostname, tmphostname, MAXHOSTNAMELEN);
+		bcopy(V_hostname, tmphostname, MAXHOSTNAMELEN);
 		mtx_unlock(&hostname_mtx);
 		error = sysctl_handle_string(oidp, tmphostname,
 		    sizeof tmphostname, req);
 		if (req->newptr != NULL && error == 0) {
 			mtx_lock(&hostname_mtx);
-			bcopy(tmphostname, hostname, MAXHOSTNAMELEN);
+			bcopy(tmphostname, V_hostname, MAXHOSTNAMELEN);
 			mtx_unlock(&hostname_mtx);
 		}
 	}

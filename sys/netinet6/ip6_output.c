@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/ucred.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -460,7 +461,7 @@ skip_ipsec2:;
 			 sa.sin6_len = sizeof(sa);
 			 sa.sin6_addr = addr[0];
 			 if ((error = sa6_embedscope(&sa,
-			     ip6_use_defzone)) != 0) {
+			     V_ip6_use_defzone)) != 0) {
 				 goto bad;
 			 }
 			 ip6->ip6_dst = sa.sin6_addr;
@@ -480,16 +481,16 @@ skip_ipsec2:;
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src) &&
 	    (flags & IPV6_UNSPECSRC) == 0) {
 		error = EOPNOTSUPP;
-		ip6stat.ip6s_badscope++;
+		V_ip6stat.ip6s_badscope++;
 		goto bad;
 	}
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_src)) {
 		error = EOPNOTSUPP;
-		ip6stat.ip6s_badscope++;
+		V_ip6stat.ip6s_badscope++;
 		goto bad;
 	}
 
-	ip6stat.ip6s_localout++;
+	V_ip6stat.ip6s_localout++;
 
 	/*
 	 * Route packet.
@@ -527,7 +528,7 @@ again:
 		if (im6o != NULL)
 			ip6->ip6_hlim = im6o->im6o_multicast_hlim;
 		else
-			ip6->ip6_hlim = ip6_defmcasthlim;
+			ip6->ip6_hlim = V_ip6_defmcasthlim;
 	}
 
 #ifdef IPSEC
@@ -612,7 +613,7 @@ again:
 	    &ifp, &rt, 0)) != 0) {
 		switch (error) {
 		case EHOSTUNREACH:
-			ip6stat.ip6s_noroute++;
+			V_ip6stat.ip6s_noroute++;
 			break;
 		case EADDRNOTAVAIL:
 		default:
@@ -678,7 +679,7 @@ again:
 	goto routefound;
 
   badscope:
-	ip6stat.ip6s_badscope++;
+	V_ip6stat.ip6s_badscope++;
 	in6_ifstat_inc(origifp, ifs6_out_discard);
 	if (error == 0)
 		error = EHOSTUNREACH; /* XXX */
@@ -711,7 +712,7 @@ again:
 		 * Confirm that the outgoing interface supports multicast.
 		 */
 		if (!(ifp->if_flags & IFF_MULTICAST)) {
-			ip6stat.ip6s_noroute++;
+			V_ip6stat.ip6s_noroute++;
 			in6_ifstat_inc(ifp, ifs6_out_discard);
 			error = ENETUNREACH;
 			goto bad;
@@ -861,7 +862,7 @@ again:
 		/* If destination is now ourself drop to ip6_input(). */
 		if (in6_localaddr(&ip6->ip6_dst)) {
 			if (m->m_pkthdr.rcvif == NULL)
-				m->m_pkthdr.rcvif = loif;
+				m->m_pkthdr.rcvif = V_loif;
 			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 				m->m_pkthdr.csum_flags |=
 				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
@@ -991,7 +992,7 @@ passout:
 		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
 		    < tlen  /* - hlen */)) {
 			error = ENOBUFS;
-			ip6stat.ip6s_odropped++;
+			V_ip6stat.ip6s_odropped++;
 			goto bad;
 		}
 
@@ -1025,7 +1026,7 @@ passout:
 			MGETHDR(m, M_DONTWAIT, MT_HEADER);
 			if (!m) {
 				error = ENOBUFS;
-				ip6stat.ip6s_odropped++;
+				V_ip6stat.ip6s_odropped++;
 				goto sendorfree;
 			}
 			m->m_pkthdr.rcvif = NULL;
@@ -1038,7 +1039,7 @@ passout:
 			m->m_len = sizeof(*mhip6);
 			error = ip6_insertfraghdr(m0, m, hlen, &ip6f);
 			if (error) {
-				ip6stat.ip6s_odropped++;
+				V_ip6stat.ip6s_odropped++;
 				goto sendorfree;
 			}
 			ip6f->ip6f_offlg = htons((u_short)((off - hlen) & ~7));
@@ -1050,7 +1051,7 @@ passout:
 			    sizeof(*ip6f) - sizeof(struct ip6_hdr)));
 			if ((m_frgpart = m_copy(m0, off, len)) == 0) {
 				error = ENOBUFS;
-				ip6stat.ip6s_odropped++;
+				V_ip6stat.ip6s_odropped++;
 				goto sendorfree;
 			}
 			m_cat(m, m_frgpart);
@@ -1059,7 +1060,7 @@ passout:
 			ip6f->ip6f_reserved = 0;
 			ip6f->ip6f_ident = id;
 			ip6f->ip6f_nxt = nextproto;
-			ip6stat.ip6s_ofragments++;
+			V_ip6stat.ip6s_ofragments++;
 			in6_ifstat_inc(ifp, ifs6_out_fragcreat);
 		}
 
@@ -1088,7 +1089,7 @@ sendorfree:
 	}
 
 	if (error == 0)
-		ip6stat.ip6s_fragmented++;
+		V_ip6stat.ip6s_fragmented++;
 
 done:
 	if (ro == &ip6route && ro->ro_rt) { /* brace necessary for RTFREE */
@@ -2439,7 +2440,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 			return (ENOBUFS);
 		*im6op = im6o;
 		im6o->im6o_multicast_ifp = NULL;
-		im6o->im6o_multicast_hlim = ip6_defmcasthlim;
+		im6o->im6o_multicast_hlim = V_ip6_defmcasthlim;
 		im6o->im6o_multicast_loop = IPV6_DEFAULT_MULTICAST_LOOP;
 		LIST_INIT(&im6o->im6o_memberships);
 	}
@@ -2455,7 +2456,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 			break;
 		}
 		bcopy(mtod(m, u_int *), &ifindex, sizeof(ifindex));
-		if (ifindex < 0 || if_index < ifindex) {
+		if (ifindex < 0 || V_if_index < ifindex) {
 			error = ENXIO;	/* XXX EINVAL? */
 			break;
 		}
@@ -2481,7 +2482,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 		if (optval < -1 || optval >= 256)
 			error = EINVAL;
 		else if (optval == -1)
-			im6o->im6o_multicast_hlim = ip6_defmcasthlim;
+			im6o->im6o_multicast_hlim = V_ip6_defmcasthlim;
 		else
 			im6o->im6o_multicast_hlim = optval;
 		break;
@@ -2560,7 +2561,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 			 * If the interface is specified, validate it.
 			 */
 			if (mreq->ipv6mr_interface < 0 ||
-			    if_index < mreq->ipv6mr_interface) {
+			    V_if_index < mreq->ipv6mr_interface) {
 				error = ENXIO;	/* XXX EINVAL? */
 				break;
 			}
@@ -2624,7 +2625,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 		 * to its ifnet structure.
 		 */
 		if (mreq->ipv6mr_interface < 0 ||
-		    if_index < mreq->ipv6mr_interface) {
+		    V_if_index < mreq->ipv6mr_interface) {
 			error = ENXIO;	/* XXX EINVAL? */
 			break;
 		}
@@ -2665,7 +2666,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 			sa6_mc.sin6_family = AF_INET6;
 			sa6_mc.sin6_len = sizeof(sa6_mc);
 			sa6_mc.sin6_addr = mreq->ipv6mr_multiaddr;
-			error = sa6_embedscope(&sa6_mc, ip6_use_defzone);
+			error = sa6_embedscope(&sa6_mc, V_ip6_use_defzone);
 			if (error != 0)
 				break;
 			mreq->ipv6mr_multiaddr = sa6_mc.sin6_addr;
@@ -2704,7 +2705,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 	 * If all options have default values, no need to keep the mbuf.
 	 */
 	if (im6o->im6o_multicast_ifp == NULL &&
-	    im6o->im6o_multicast_hlim == ip6_defmcasthlim &&
+	    im6o->im6o_multicast_hlim == V_ip6_defmcasthlim &&
 	    im6o->im6o_multicast_loop == IPV6_DEFAULT_MULTICAST_LOOP &&
 	    im6o->im6o_memberships.lh_first == NULL) {
 		free(*im6op, M_IP6MOPTS);
@@ -2739,7 +2740,7 @@ ip6_getmoptions(int optname, struct ip6_moptions *im6o, struct mbuf **mp)
 		hlim = mtod(*mp, u_int *);
 		(*mp)->m_len = sizeof(u_int);
 		if (im6o == NULL)
-			*hlim = ip6_defmcasthlim;
+			*hlim = V_ip6_defmcasthlim;
 		else
 			*hlim = im6o->im6o_multicast_hlim;
 		return (0);
@@ -2748,7 +2749,7 @@ ip6_getmoptions(int optname, struct ip6_moptions *im6o, struct mbuf **mp)
 		loop = mtod(*mp, u_int *);
 		(*mp)->m_len = sizeof(u_int);
 		if (im6o == NULL)
-			*loop = ip6_defmcasthlim;
+			*loop = V_ip6_defmcasthlim;
 		else
 			*loop = im6o->im6o_multicast_loop;
 		return (0);
@@ -2924,7 +2925,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		}
 
 		/* validate the interface index if specified. */
-		if (pktinfo->ipi6_ifindex > if_index ||
+		if (pktinfo->ipi6_ifindex > V_if_index ||
 		    pktinfo->ipi6_ifindex < 0) {
 			 return (ENXIO);
 		}
@@ -3021,7 +3022,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 			    IN6_IS_ADDR_MULTICAST(&sa6->sin6_addr)) {
 				return (EINVAL);
 			}
-			if ((error = sa6_embedscope(sa6, ip6_use_defzone))
+			if ((error = sa6_embedscope(sa6, V_ip6_use_defzone))
 			    != 0) {
 				return (error);
 			}

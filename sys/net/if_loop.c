@@ -49,6 +49,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -104,7 +105,7 @@ lo_clone_destroy(struct ifnet *ifp)
 {
 
 	/* XXX: destroying lo0 will lead to panics. */
-	KASSERT(loif != ifp, ("%s: destroying lo0", __func__));
+	KASSERT(V_loif != ifp, ("%s: destroying lo0", __func__));
 
 	bpfdetach(ifp);
 	if_detach(ifp);
@@ -128,8 +129,8 @@ lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
-	if (loif == NULL)
-		loif = ifp;
+	if (V_loif == NULL)
+		V_loif = ifp;
 
 	return (0);
 }
@@ -234,15 +235,15 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 			bpf_mtap(ifp->if_bpf, m);
 		}
 	} else {
-		if (bpf_peers_present(loif->if_bpf)) {
-			if ((m->m_flags & M_MCAST) == 0 || loif == ifp) {
+		if (bpf_peers_present(V_loif->if_bpf)) {
+			if ((m->m_flags & M_MCAST) == 0 || V_loif == ifp) {
 				/* XXX beware sizeof(af) != 4 */
 				u_int32_t af1 = af;
 
 				/*
 				 * We need to prepend the address family.
 				 */
-				bpf_mtap2(loif->if_bpf, &af1, sizeof(af1), m);
+				bpf_mtap2(V_loif->if_bpf, &af1, sizeof(af1), m);
 			}
 		}
 	}

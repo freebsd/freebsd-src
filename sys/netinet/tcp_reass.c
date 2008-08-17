@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <vm/uma.h>
 
@@ -101,8 +102,8 @@ static void
 tcp_reass_zone_change(void *tag)
 {
 
-	tcp_reass_maxseg = nmbclusters / 16;
-	uma_zone_set_max(tcp_reass_zone, tcp_reass_maxseg);
+	V_tcp_reass_maxseg = nmbclusters / 16;
+	uma_zone_set_max(tcp_reass_zone, V_tcp_reass_maxseg);
 }
 
 uma_zone_t	tcp_reass_zone;
@@ -111,12 +112,12 @@ void
 tcp_reass_init(void)
 {
 
-	tcp_reass_maxseg = nmbclusters / 16;
+	V_tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
-	    &tcp_reass_maxseg);
+	    &V_tcp_reass_maxseg);
 	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(tcp_reass_zone, tcp_reass_maxseg);
+	uma_zone_set_max(tcp_reass_zone, V_tcp_reass_maxseg);
 	EVENTHANDLER_REGISTER(nmbclusters_change,
 	    tcp_reass_zone_change, NULL, EVENTHANDLER_PRI_ANY);
 }
@@ -154,10 +155,10 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 * process the missing segment.
 	 */
 	if (th->th_seq != tp->rcv_nxt &&
-	    (tcp_reass_qsize + 1 >= tcp_reass_maxseg ||
-	     tp->t_segqlen >= tcp_reass_maxqlen)) {
-		tcp_reass_overflows++;
-		tcpstat.tcps_rcvmemdrop++;
+	    (V_tcp_reass_qsize + 1 >= V_tcp_reass_maxseg ||
+	     tp->t_segqlen >= V_tcp_reass_maxqlen)) {
+		V_tcp_reass_overflows++;
+		V_tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
@@ -169,13 +170,13 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 	 */
 	te = uma_zalloc(tcp_reass_zone, M_NOWAIT);
 	if (te == NULL) {
-		tcpstat.tcps_rcvmemdrop++;
+		V_tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
 		*tlenp = 0;
 		return (0);
 	}
 	tp->t_segqlen++;
-	tcp_reass_qsize++;
+	V_tcp_reass_qsize++;
 
 	/*
 	 * Find a segment which begins after this one does.
@@ -197,12 +198,12 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		i = p->tqe_th->th_seq + p->tqe_len - th->th_seq;
 		if (i > 0) {
 			if (i >= *tlenp) {
-				tcpstat.tcps_rcvduppack++;
-				tcpstat.tcps_rcvdupbyte += *tlenp;
+				V_tcpstat.tcps_rcvduppack++;
+				V_tcpstat.tcps_rcvdupbyte += *tlenp;
 				m_freem(m);
 				uma_zfree(tcp_reass_zone, te);
 				tp->t_segqlen--;
-				tcp_reass_qsize--;
+				V_tcp_reass_qsize--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -216,8 +217,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 			th->th_seq += i;
 		}
 	}
-	tcpstat.tcps_rcvoopack++;
-	tcpstat.tcps_rcvoobyte += *tlenp;
+	V_tcpstat.tcps_rcvoopack++;
+	V_tcpstat.tcps_rcvoobyte += *tlenp;
 
 	/*
 	 * While we overlap succeeding segments trim them or,
@@ -239,7 +240,7 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		m_freem(q->tqe_m);
 		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
-		tcp_reass_qsize--;
+		V_tcp_reass_qsize--;
 		q = nq;
 	}
 
@@ -276,7 +277,7 @@ present:
 			sbappendstream_locked(&so->so_rcv, q->tqe_m);
 		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
-		tcp_reass_qsize--;
+		V_tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);

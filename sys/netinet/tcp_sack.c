@@ -89,6 +89,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
+#include <sys/vimage.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
@@ -254,9 +255,9 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 {
 	struct sackhole *hole;
 
-	if (tp->snd_numholes >= tcp_sack_maxholes ||
-	    tcp_sack_globalholes >= tcp_sack_globalmaxholes) {
-		tcpstat.tcps_sack_sboverflow++;
+	if (tp->snd_numholes >= V_tcp_sack_maxholes ||
+	    V_tcp_sack_globalholes >= V_tcp_sack_globalmaxholes) {
+		V_tcpstat.tcps_sack_sboverflow++;
 		return NULL;
 	}
 
@@ -269,7 +270,7 @@ tcp_sackhole_alloc(struct tcpcb *tp, tcp_seq start, tcp_seq end)
 	hole->rxmit = start;
 
 	tp->snd_numholes++;
-	tcp_sack_globalholes++;
+	V_tcp_sack_globalholes++;
 
 	return hole;
 }
@@ -284,10 +285,10 @@ tcp_sackhole_free(struct tcpcb *tp, struct sackhole *hole)
 	uma_zfree(sack_hole_zone, hole);
 
 	tp->snd_numholes--;
-	tcp_sack_globalholes--;
+	V_tcp_sack_globalholes--;
 
 	KASSERT(tp->snd_numholes >= 0, ("tp->snd_numholes >= 0"));
-	KASSERT(tcp_sack_globalholes >= 0, ("tcp_sack_globalholes >= 0"));
+	KASSERT(V_tcp_sack_globalholes >= 0, ("tcp_sack_globalholes >= 0"));
 }
 
 /*

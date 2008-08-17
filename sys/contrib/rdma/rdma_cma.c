@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/priv.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -1962,18 +1963,18 @@ retry:
 	if (ret)
 		goto err1;
 
-	if (port > ipport_lastauto) {
-		if (next_port != ipport_firstauto) {
+	if (port > V_ipport_lastauto) {
+		if (next_port != V_ipport_firstauto) {
 			kvl_delete(ps, port);
-			next_port = ipport_firstauto;
+			next_port = V_ipport_firstauto;
 			goto retry;
 		}
 		ret = EADDRNOTAVAIL;
 		goto err2;
 	}
 
-	if (port == ipport_lastauto)
-		next_port = ipport_firstauto;
+	if (port == V_ipport_lastauto)
+		next_port = V_ipport_firstauto;
 	else
 		next_port = port + 1;
 
@@ -1997,7 +1998,7 @@ static int cma_use_port(struct kvl *ps, struct rdma_id_private *id_priv)
 
 	sin = (struct sockaddr_in *) &id_priv->id.route.addr.src_addr;
 	snum = ntohs(sin->sin_port);
-	if (snum <= ipport_reservedhigh && snum >= ipport_reservedlow &&
+	if (snum <= V_ipport_reservedhigh && snum >= V_ipport_reservedlow &&
 	    priv_check(curthread, PRIV_NETINET_RESERVEDPORT))
 		return (EACCES);
 
@@ -2917,8 +2918,8 @@ static int cma_init(void)
 
 	arc4rand(&next_port, sizeof next_port, 0);
 	next_port = ((unsigned int) next_port %
-		    (ipport_lastauto - ipport_firstauto)) +
-		    ipport_firstauto;
+		    (V_ipport_lastauto - V_ipport_firstauto)) +
+		    V_ipport_firstauto;
 	cma_wq = taskqueue_create("rdma_cm", M_NOWAIT, taskqueue_thread_enqueue,
 		&cma_wq);
 

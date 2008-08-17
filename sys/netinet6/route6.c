@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 
@@ -74,7 +75,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	if (ip6a) {
 		/* XXX reject home-address option before rthdr */
 		if (ip6a->ip6a_flags & IP6A_SWAP) {
-			ip6stat.ip6s_badoptions++;
+			V_ip6stat.ip6s_badoptions++;
 			m_freem(m);
 			return IPPROTO_DONE;
 		}
@@ -88,7 +89,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	ip6 = mtod(m, struct ip6_hdr *);
 	IP6_EXTHDR_GET(rh, struct ip6_rthdr *, m, off, sizeof(*rh));
 	if (rh == NULL) {
-		ip6stat.ip6s_tooshort++;
+		V_ip6stat.ip6s_tooshort++;
 		return IPPROTO_DONE;
 	}
 #endif
@@ -115,7 +116,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 		 */
 		IP6_EXTHDR_GET(rh, struct ip6_rthdr *, m, off, rhlen);
 		if (rh == NULL) {
-			ip6stat.ip6s_tooshort++;
+			V_ip6stat.ip6s_tooshort++;
 			return IPPROTO_DONE;
 		}
 #endif
@@ -129,7 +130,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 			rhlen = (rh->ip6r_len + 1) << 3;
 			break;	/* Final dst. Just ignore the header. */
 		}
-		ip6stat.ip6s_badoptions++;
+		V_ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh->ip6r_type - (caddr_t)ip6);
 		return (IPPROTO_DONE);
@@ -166,14 +167,14 @@ ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 		 * RFC 2462: this limitation was removed since strict/loose
 		 * bitmap field was deleted.
 		 */
-		ip6stat.ip6s_badoptions++;
+		V_ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh0->ip6r0_len - (caddr_t)ip6);
 		return (-1);
 	}
 
 	if ((addrs = rh0->ip6r0_len / 2) < rh0->ip6r0_segleft) {
-		ip6stat.ip6s_badoptions++;
+		V_ip6stat.ip6s_badoptions++;
 		icmp6_error(m, ICMP6_PARAM_PROB, ICMP6_PARAMPROB_HEADER,
 			    (caddr_t)&rh0->ip6r0_segleft - (caddr_t)ip6);
 		return (-1);
@@ -192,7 +193,7 @@ ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 	    IN6_IS_ADDR_UNSPECIFIED(nextaddr) ||
 	    IN6_IS_ADDR_V4MAPPED(nextaddr) ||
 	    IN6_IS_ADDR_V4COMPAT(nextaddr)) {
-		ip6stat.ip6s_badoptions++;
+		V_ip6stat.ip6s_badoptions++;
 		m_freem(m);
 		return (-1);
 	}
@@ -200,7 +201,7 @@ ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 	    IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_V4MAPPED(&ip6->ip6_dst) ||
 	    IN6_IS_ADDR_V4COMPAT(&ip6->ip6_dst)) {
-		ip6stat.ip6s_badoptions++;
+		V_ip6stat.ip6s_badoptions++;
 		m_freem(m);
 		return (-1);
 	}
@@ -213,7 +214,7 @@ ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 	if ((ifa = ip6_getdstifaddr(m)) == NULL)
 		goto bad;
 	if (in6_setscope(nextaddr, ifa->ia_ifp, NULL) != 0) {
-		ip6stat.ip6s_badscope++;
+		V_ip6stat.ip6s_badscope++;
 		goto bad;
 	}
 

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/device.h>
 #endif
 #include <sys/time.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -141,9 +142,9 @@ pfi_initialize(void)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifg, &ifg_head, ifg_next)
+	TAILQ_FOREACH(ifg, &V_ifg_head, ifg_next)
 		pfi_attach_ifgroup(ifg);
-	TAILQ_FOREACH(ifp, &ifnet, if_link)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link)
 		pfi_attach_ifnet(ifp);
 	IFNET_RUNLOCK();
 

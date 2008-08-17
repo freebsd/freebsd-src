@@ -34,6 +34,7 @@
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_mib.h>
@@ -81,7 +82,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	if (namelen != 2)
 		return EINVAL;
 
-	if (name[0] <= 0 || name[0] > if_index ||
+	if (name[0] <= 0 || name[0] > V_if_index ||
 	    ifnet_byindex(name[0]) == NULL)
 		return ENOENT;
 

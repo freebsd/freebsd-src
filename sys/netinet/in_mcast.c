@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -371,7 +372,7 @@ in_addmulti(struct in_addr *ap, struct ifnet *ifp)
 		ninm->inm_ifma = ifma;
 		ninm->inm_refcount = 1;
 		ifma->ifma_protospec = ninm;
-		LIST_INSERT_HEAD(&in_multihead, ninm, inm_link);
+		LIST_INSERT_HEAD(&V_in_multihead, ninm, inm_link);
 
 		igmp_joingroup(ninm);
 
@@ -530,7 +531,7 @@ inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 		    ssa->sin.sin_len != sizeof(struct sockaddr_in))
 			return (EINVAL);
 
-		if (gsr.gsr_interface == 0 || if_index < gsr.gsr_interface)
+		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
 
 		ifp = ifnet_byindex(gsr.gsr_interface);
@@ -774,7 +775,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (msfr.msfr_ifindex == 0 || if_index < msfr.msfr_ifindex)
+	if (msfr.msfr_ifindex == 0 || V_if_index < msfr.msfr_ifindex)
 		return (EINVAL);
 
 	ifp = ifnet_byindex(msfr.msfr_ifindex);
@@ -1035,7 +1036,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			} else {
 				struct in_ifaddr *ia;
 				struct ifnet *mfp = NULL;
-				TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+				TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 					mfp = ia->ia_ifp;
 					if (!(mfp->if_flags & IFF_LOOPBACK) &&
 					     (mfp->if_flags & IFF_MULTICAST)) {
@@ -1088,7 +1089,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		/*
 		 * Obtain the ifp.
 		 */
-		if (gsr.gsr_interface == 0 || if_index < gsr.gsr_interface)
+		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
 		ifp = ifnet_byindex(gsr.gsr_interface);
 
@@ -1297,7 +1298,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 				return (EINVAL);
 		}
 
-		if (gsr.gsr_interface == 0 || if_index < gsr.gsr_interface)
+		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
 
 		ifp = ifnet_byindex(gsr.gsr_interface);
@@ -1414,7 +1415,7 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		if (error)
 			return (error);
 
-		if (mreqn.imr_ifindex < 0 || if_index < mreqn.imr_ifindex)
+		if (mreqn.imr_ifindex < 0 || V_if_index < mreqn.imr_ifindex)
 			return (EINVAL);
 
 		if (mreqn.imr_ifindex == 0) {
@@ -1495,7 +1496,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 
 	gsa->sin.sin_port = 0;	/* ignore port */
 
-	if (msfr.msfr_ifindex == 0 || if_index < msfr.msfr_ifindex)
+	if (msfr.msfr_ifindex == 0 || V_if_index < msfr.msfr_ifindex)
 		return (EADDRNOTAVAIL);
 
 	ifp = ifnet_byindex(msfr.msfr_ifindex);

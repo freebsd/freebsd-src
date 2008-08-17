@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/route.h>
 
@@ -170,15 +171,15 @@ tcp_output(struct tcpcb *tp)
 		 * Set the slow-start flight size depending on whether
 		 * this is a local network or not.
 		 */
-		int ss = ss_fltsz;
+		int ss = V_ss_fltsz;
 #ifdef INET6
 		if (isipv6) {
 			if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
-				ss = ss_fltsz_local;
+				ss = V_ss_fltsz_local;
 		} else
 #endif /* INET6 */
 		if (in_localaddr(tp->t_inpcb->inp_faddr))
-			ss = ss_fltsz_local;
+			ss = V_ss_fltsz_local;
 		tp->snd_cwnd = tp->t_maxseg * ss;
 	}
 	tp->t_flags &= ~TF_LASTIDLE;
@@ -252,8 +253,8 @@ again:
 		if (len > 0) {
 			sack_rxmit = 1;
 			sendalot = 1;
-			tcpstat.tcps_sack_rexmits++;
-			tcpstat.tcps_sack_rexmit_bytes +=
+			V_tcpstat.tcps_sack_rexmits++;
+			V_tcpstat.tcps_sack_rexmit_bytes +=
 			    min(len, tp->t_maxseg);
 		}
 	}
@@ -428,14 +429,14 @@ after_sack_rexmit:
 	 * with congestion window.  Requires another timer.  Has to
 	 * wait for upcoming tcp timer rewrite.
 	 */
-	if (tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
+	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
 		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat &&
 		    so->so_snd.sb_cc >= (so->so_snd.sb_hiwat / 8 * 7) &&
-		    so->so_snd.sb_cc < tcp_autosndbuf_max &&
+		    so->so_snd.sb_cc < V_tcp_autosndbuf_max &&
 		    sendwin >= (so->so_snd.sb_cc - (tp->snd_nxt - tp->snd_una))) {
 			if (!sbreserve_locked(&so->so_snd,
-			    min(so->so_snd.sb_hiwat + tcp_autosndbuf_inc,
-			     tcp_autosndbuf_max), so, curthread))
+			    min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
+			     V_tcp_autosndbuf_max), so, curthread))
 				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
 		}
 	}
@@ -464,7 +465,7 @@ after_sack_rexmit:
 	ipsec_optlen = ipsec_hdrsiz_tcp(tp);
 #endif
 	if (len > tp->t_maxseg) {
-		if ((tp->t_flags & TF_TSO) && tcp_do_tso &&
+		if ((tp->t_flags & TF_TSO) && V_tcp_do_tso &&
 		    ((tp->t_flags & TF_SIGNATURE) == 0) &&
 		    tp->rcv_numsacks == 0 && sack_rxmit == 0 &&
 		    tp->t_inpcb->inp_options == NULL &&
@@ -754,13 +755,13 @@ send:
 		u_int moff;
 
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
-			tcpstat.tcps_sndprobe++;
+			V_tcpstat.tcps_sndprobe++;
 		else if (SEQ_LT(tp->snd_nxt, tp->snd_max) || sack_rxmit) {
-			tcpstat.tcps_sndrexmitpack++;
-			tcpstat.tcps_sndrexmitbyte += len;
+			V_tcpstat.tcps_sndrexmitpack++;
+			V_tcpstat.tcps_sndrexmitbyte += len;
 		} else {
-			tcpstat.tcps_sndpack++;
-			tcpstat.tcps_sndbyte += len;
+			V_tcpstat.tcps_sndpack++;
+			V_tcpstat.tcps_sndbyte += len;
 		}
 #ifdef notyet
 		if ((m = m_copypack(so->so_snd.sb_mb, off,
@@ -827,13 +828,13 @@ send:
 	} else {
 		SOCKBUF_UNLOCK(&so->so_snd);
 		if (tp->t_flags & TF_ACKNOW)
-			tcpstat.tcps_sndacks++;
+			V_tcpstat.tcps_sndacks++;
 		else if (flags & (TH_SYN|TH_FIN|TH_RST))
-			tcpstat.tcps_sndctrl++;
+			V_tcpstat.tcps_sndctrl++;
 		else if (SEQ_GT(tp->snd_up, tp->snd_una))
-			tcpstat.tcps_sndurg++;
+			V_tcpstat.tcps_sndurg++;
 		else
-			tcpstat.tcps_sndwinup++;
+			V_tcpstat.tcps_sndwinup++;
 
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
@@ -882,9 +883,9 @@ send:
 	 * resend those bits a number of times as per
 	 * RFC 3168.
 	 */
-	if (tp->t_state == TCPS_SYN_SENT && tcp_do_ecn) {
+	if (tp->t_state == TCPS_SYN_SENT && V_tcp_do_ecn) {
 		if (tp->t_rxtshift >= 1) {
-			if (tp->t_rxtshift <= tcp_ecn_maxretries)
+			if (tp->t_rxtshift <= V_tcp_ecn_maxretries)
 				flags |= TH_ECE|TH_CWR;
 		} else
 			flags |= TH_ECE|TH_CWR;
@@ -905,7 +906,7 @@ send:
 			else
 #endif
 				ip->ip_tos |= IPTOS_ECN_ECT0;
-			tcpstat.tcps_ecn_ect0++;
+			V_tcpstat.tcps_ecn_ect0++;
 		}
 		
 		/*
@@ -1074,7 +1075,7 @@ send:
 			if (tp->t_rtttime == 0) {
 				tp->t_rtttime = ticks;
 				tp->t_rtseq = startseq;
-				tcpstat.tcps_segstimed++;
+				V_tcpstat.tcps_segstimed++;
 			}
 		}
 
@@ -1172,7 +1173,7 @@ timer:
 	 * Section 2. However the tcp hostcache migitates the problem
 	 * so it affects only the first tcp connection with a host.
 	 */
-	if (path_mtu_discovery)
+	if (V_path_mtu_discovery)
 		ip->ip_off |= IP_DF;
 
 	error = ip_output(m, tp->t_inpcb->inp_options, NULL,
@@ -1251,7 +1252,7 @@ out:
 			return (error);
 		}
 	}
-	tcpstat.tcps_sndtotal++;
+	V_tcpstat.tcps_sndtotal++;
 
 	/*
 	 * Data sent (as far as we can tell).
@@ -1272,7 +1273,7 @@ out:
 	 * on the transmitter effectively destroys the TCP window, forcing
 	 * it to four packets (1.5Kx4 = 6K window).
 	 */
-	if (sendalot && (!tcp_do_newreno || --maxburst))
+	if (sendalot && (!V_tcp_do_newreno || --maxburst))
 		goto again;
 #endif
 	if (sendalot)
@@ -1425,7 +1426,7 @@ tcp_addoptions(struct tcpopt *to, u_char *optp)
 				optlen += TCPOLEN_SACK;
 				sack++;
 			}
-			tcpstat.tcps_sack_send_blocks++;
+			V_tcpstat.tcps_sack_send_blocks++;
 			break;
 			}
 		default:

@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/pfil.h>
@@ -159,7 +160,7 @@ ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 	 * doing further processing.
 	 */
 	if (isr->next) {
-		ipsec4stat.ips_out_bundlesa++;
+		V_ipsec4stat.ips_out_bundlesa++;
 		return ipsec4_process_packet(m, isr->next, 0, 0);
 	}
 	key_sa_recordxfer(sav, m);		/* record data transfer */
@@ -284,7 +285,7 @@ again:
 		 * this packet because it is responsibility for
 		 * upper layer to retransmit the packet.
 		 */
-		ipsec4stat.ips_out_nosa++;
+		V_ipsec4stat.ips_out_nosa++;
 		goto bad;
 	}
 	sav = isr->sav;
@@ -308,13 +309,13 @@ again:
 	/*
 	 * Check system global policy controls.
 	 */
-	if ((isr->saidx.proto == IPPROTO_ESP && !esp_enable) ||
-	    (isr->saidx.proto == IPPROTO_AH && !ah_enable) ||
-	    (isr->saidx.proto == IPPROTO_IPCOMP && !ipcomp_enable)) {
+	if ((isr->saidx.proto == IPPROTO_ESP && !V_esp_enable) ||
+	    (isr->saidx.proto == IPPROTO_AH && !V_ah_enable) ||
+	    (isr->saidx.proto == IPPROTO_IPCOMP && !V_ipcomp_enable)) {
 		DPRINTF(("%s: IPsec outbound packet dropped due"
 			" to policy (check your sysctls)\n", __func__));
-		IPSEC_OSTAT(espstat.esps_pdrops, ahstat.ahs_pdrops,
-		    ipcompstat.ipcomps_pdrops);
+		IPSEC_OSTAT(V_espstat.esps_pdrops, V_ahstat.ahs_pdrops,
+		    V_ipcompstat.ipcomps_pdrops);
 		*error = EHOSTUNREACH;
 		goto bad;
 	}
@@ -325,8 +326,8 @@ again:
 	 */
 	if (sav->tdb_xform == NULL) {
 		DPRINTF(("%s: no transform for SA\n", __func__));
-		IPSEC_OSTAT(espstat.esps_noxform, ahstat.ahs_noxform,
-		    ipcompstat.ipcomps_noxform);
+		IPSEC_OSTAT(V_espstat.esps_noxform, V_ahstat.ahs_noxform,
+		    V_ipcompstat.ipcomps_noxform);
 		*error = EHOSTUNREACH;
 		goto bad;
 	}
@@ -394,10 +395,10 @@ ipsec4_process_packet(
 			}
 			ip = mtod(m, struct ip *);
 			/* Honor system-wide control of how to handle IP_DF */
-			switch (ip4_ipsec_dfbit) {
+			switch (V_ip4_ipsec_dfbit) {
 			case 0:			/* clear in outer header */
 			case 1:			/* set in outer header */
-				setdf = ip4_ipsec_dfbit;
+				setdf = V_ip4_ipsec_dfbit;
 				break;
 			default:		/* propagate to outer header */
 				setdf = ntohs(ip->ip_off & IP_DF);
@@ -676,7 +677,7 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 
 	/* construct new IPv6 header. see RFC 2401 5.1.2.2 */
 	/* ECN consideration. */
-	ip6_ecn_ingress(ip6_ipsec_ecn, &ip6->ip6_flow, &oip6->ip6_flow);
+	ip6_ecn_ingress(V_ip6_ipsec_ecn, &ip6->ip6_flow, &oip6->ip6_flow);
 	if (plen < IPV6_MAXPACKET - sizeof(struct ip6_hdr))
 		ip6->ip6_plen = htons(plen);
 	else {
@@ -755,14 +756,14 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 			ipseclog((LOG_ERR, "%s: family mismatched between "
 			    "inner and outer, spi=%u\n", __func__,
 			    ntohl(isr->sav->spi)));
-			ipsec6stat.ips_out_inval++;
+			V_ipsec6stat.ips_out_inval++;
 			error = EAFNOSUPPORT;
 			goto bad;
 		}
 
 		m = ipsec6_splithdr(m);
 		if (!m) {
-			ipsec6stat.ips_out_nomem++;
+			V_ipsec6stat.ips_out_nomem++;
 			error = ENOMEM;
 			goto bad;
 		}
@@ -790,8 +791,8 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 			rtalloc(state->ro);
 		}
 		if (state->ro->ro_rt == 0) {
-			ip6stat.ip6s_noroute++;
-			ipsec6stat.ips_out_noroute++;
+			V_ip6stat.ip6s_noroute++;
+			V_ipsec6stat.ips_out_noroute++;
 			error = EHOSTUNREACH;
 			goto bad;
 		}
@@ -805,7 +806,7 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 
 	m = ipsec6_splithdr(m);
 	if (!m) {
-		ipsec6stat.ips_out_nomem++;
+		V_ipsec6stat.ips_out_nomem++;
 		error = ENOMEM;
 		goto bad;
 	}

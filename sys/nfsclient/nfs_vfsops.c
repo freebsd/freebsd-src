@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
+#include <sys/vimage.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -509,10 +510,10 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * mount the right /var based upon its preset value.
 	 */
 	mtx_lock(&hostname_mtx);
-	bcopy(nd->my_hostnam, hostname, MAXHOSTNAMELEN);
-	hostname[MAXHOSTNAMELEN - 1] = '\0';
+	bcopy(nd->my_hostnam, V_hostname, MAXHOSTNAMELEN);
+	V_hostname[MAXHOSTNAMELEN - 1] = '\0';
 	for (i = 0; i < MAXHOSTNAMELEN; i++)
-		if (hostname[i] == '\0')
+		if (V_hostname[i] == '\0')
 			break;
 	mtx_unlock(&hostname_mtx);
 	inittodr(ntohl(nd->root_time));

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/socket.h>
 #include <sys/vnode.h>
+#include <sys/vimage.h>
 
 #include <machine/stdarg.h>
 
@@ -1474,7 +1475,7 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) {
+	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		/* and, yeah, we need a multicast-capable iface too */
 		if (ia->ia_ifp != SC2IFP(sc) &&
 		    (ia->ia_ifp->if_flags & IFF_MULTICAST) &&
@@ -1639,7 +1640,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 	/* we have to do it by hands to check we won't match on us */
 	ia_if = NULL; own = 0;
-	for (ia = in6_ifaddr; ia; ia = ia->ia_next) {
+	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
 		int i;
 
 		for (i = 0; i < 4; i++) {

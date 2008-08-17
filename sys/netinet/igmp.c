@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -138,7 +139,7 @@ igmp_init(void)
 	router_alert->m_len = sizeof(ra->ipopt_dst) + ra->ipopt_list[1];
 
 	mtx_init(&igmp_mtx, "igmp_mtx", NULL, MTX_DEF);
-	SLIST_INIT(&router_info_head);
+	SLIST_INIT(&V_router_info_head);
 }
 
 static struct router_info *
@@ -148,7 +149,7 @@ find_rti(struct ifnet *ifp)
 
 	mtx_assert(&igmp_mtx, MA_OWNED);
 	IGMP_PRINTF("[igmp.c, _find_rti] --> entering \n");
-	SLIST_FOREACH(rti, &router_info_head, rti_list) {
+	SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
 		if (rti->rti_ifp == ifp) {
 			IGMP_PRINTF(
 			    "[igmp.c, _find_rti] --> found old entry \n");
@@ -163,7 +164,7 @@ find_rti(struct ifnet *ifp)
 	rti->rti_ifp = ifp;
 	rti->rti_type = IGMP_V2_ROUTER;
 	rti->rti_time = 0;
-	SLIST_INSERT_HEAD(&router_info_head, rti, rti_list);
+	SLIST_INSERT_HEAD(&V_router_info_head, rti, rti_list);
 	IGMP_PRINTF("[igmp.c, _find_rti] --> created an entry \n");
 	return (rti);
 }
@@ -183,7 +184,7 @@ igmp_input(register struct mbuf *m, int off)
 	struct router_info *rti;
 	int timer; /** timer value in the igmp query header **/
 
-	++igmpstat.igps_rcv_total;
+	++V_igmpstat.igps_rcv_total;
 
 	ip = mtod(m, struct ip *);
 	igmplen = ip->ip_len;
@@ -192,14 +193,14 @@ igmp_input(register struct mbuf *m, int off)
 	 * Validate lengths.
 	 */
 	if (igmplen < IGMP_MINLEN) {
-		++igmpstat.igps_rcv_tooshort;
+		++V_igmpstat.igps_rcv_tooshort;
 		m_freem(m);
 		return;
 	}
 	minlen = iphlen + IGMP_MINLEN;
 	if ((m->m_flags & M_EXT || m->m_len < minlen) &&
 	    (m = m_pullup(m, minlen)) == 0) {
-		++igmpstat.igps_rcv_tooshort;
+		++V_igmpstat.igps_rcv_tooshort;
 		return;
 	}
 
@@ -210,7 +211,7 @@ igmp_input(register struct mbuf *m, int off)
 	m->m_len -= iphlen;
 	igmp = mtod(m, struct igmp *);
 	if (in_cksum(m, igmplen)) {
-		++igmpstat.igps_rcv_badsum;
+		++V_igmpstat.igps_rcv_badsum;
 		m_freem(m);
 		return;
 	}
@@ -235,7 +236,7 @@ igmp_input(register struct mbuf *m, int off)
 	 */
 	switch (igmp->igmp_type) {
 	case IGMP_MEMBERSHIP_QUERY:
-		++igmpstat.igps_rcv_queries;
+		++V_igmpstat.igps_rcv_queries;
 
 		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
@@ -262,7 +263,7 @@ igmp_input(register struct mbuf *m, int off)
 
 			if (ip->ip_dst.s_addr != igmp_all_hosts_group ||
 			    igmp->igmp_group.s_addr != 0) {
-				++igmpstat.igps_rcv_badqueries;
+				++V_igmpstat.igps_rcv_badqueries;
 				m_freem(m);
 				return;
 			}
@@ -273,7 +274,7 @@ igmp_input(register struct mbuf *m, int off)
 			
 			if (igmp->igmp_group.s_addr != 0 &&
 			    !IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
-				++igmpstat.igps_rcv_badqueries;
+				++V_igmpstat.igps_rcv_badqueries;
 				m_freem(m);
 				return;
 			}
@@ -321,13 +322,13 @@ igmp_input(register struct mbuf *m, int off)
 		    ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			break;
 
-		++igmpstat.igps_rcv_reports;
+		++V_igmpstat.igps_rcv_reports;
 
 		if (ifp->if_flags & IFF_LOOPBACK)
 			break;
 
 		if (!IN_MULTICAST(ntohl(igmp->igmp_group.s_addr))) {
-			++igmpstat.igps_rcv_badreports;
+			++V_igmpstat.igps_rcv_badreports;
 			m_freem(m);
 			return;
 		}
@@ -354,7 +355,7 @@ igmp_input(register struct mbuf *m, int off)
 		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
 		if (inm != NULL) {
 			inm->inm_timer = 0;
-			++igmpstat.igps_rcv_ourreports;
+			++V_igmpstat.igps_rcv_ourreports;
 			inm->inm_state = IGMP_OTHERMEMBER;
 		}
 		IN_MULTI_UNLOCK();
@@ -444,7 +445,7 @@ igmp_slowtimo(void)
 
 	IGMP_PRINTF("[igmp.c,_slowtimo] -- > entering \n");
 	mtx_lock(&igmp_mtx);
-	SLIST_FOREACH(rti, &router_info_head, rti_list) {
+	SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
 		if (rti->rti_type == IGMP_V1_ROUTER) {
 			rti->rti_time++;
 			if (rti->rti_time >= IGMP_AGE_THRESHOLD)
@@ -469,7 +470,7 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 	if (m == NULL)
 		return;
 
-	m->m_pkthdr.rcvif = loif;
+	m->m_pkthdr.rcvif = V_loif;
 #ifdef MAC
 	mac_netinet_igmp_send(inm->inm_ifp, m);
 #endif
@@ -501,12 +502,12 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 	 * Request loopback of the report if we are acting as a multicast
 	 * router, so that the process-level routing daemon can hear it.
 	 */
-	imo.imo_multicast_loop = (ip_mrouter != NULL);
+	imo.imo_multicast_loop = (V_ip_mrouter != NULL);
 
 	/*
 	 * XXX: Do we have to worry about reentrancy here?  Don't think so.
 	 */
 	ip_output(m, router_alert, &igmprt, 0, &imo, NULL);
 
-	++igmpstat.igps_snd_reports;
+	++V_igmpstat.igps_snd_reports;
 }

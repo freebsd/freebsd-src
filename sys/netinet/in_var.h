@@ -92,7 +92,7 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 #define INADDR_NHASH		(1 << INADDR_NHASH_LOG2)
 #define INADDR_HASHVAL(x)	fnv_32_buf((&(x)), sizeof(x), FNV1_32_INIT)
 #define INADDR_HASH(x) \
-	(&in_ifaddrhashtbl[INADDR_HASHVAL(x) & in_ifaddrhmask])
+	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
 /*
  * Macro for finding the internet address structure (in_ifaddr)
@@ -130,7 +130,7 @@ do { \
 	/* struct ifnet *ifp; */ \
 	/* struct in_ifaddr *ia; */ \
 { \
-	for ((ia) = TAILQ_FIRST(&in_ifaddrhead); \
+	for ((ia) = TAILQ_FIRST(&V_in_ifaddrhead); \
 	    (ia) != NULL && (ia)->ia_ifp != (ifp); \
 	    (ia) = TAILQ_NEXT((ia), ia_link)) \
 		continue; \
@@ -283,7 +283,7 @@ do { \
 	/* struct in_multi *inm; */ \
 do { \
 	IN_MULTI_LOCK_ASSERT(); \
-	(step).i_inm = LIST_FIRST(&in_multihead); \
+	(step).i_inm = LIST_FIRST(&V_in_multihead); \
 	IN_NEXT_MULTI((step), (inm)); \
 } while(0)
 

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/syslog.h>
+#include <sys/vimage.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -73,7 +74,7 @@ scope6_init(void)
 {
 
 	SCOPE6_LOCK_INIT();
-	bzero(&sid_default, sizeof(sid_default));
+	bzero(&V_sid_default, sizeof(V_sid_default));
 }
 
 struct scope6_id *
@@ -147,7 +148,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			}
 
 			if (i == IPV6_ADDR_SCOPE_LINKLOCAL &&
-			    idlist->s6id_list[i] > if_index) {
+			    idlist->s6id_list[i] > V_if_index) {
 				/*
 				 * XXX: theoretically, there should be no
 				 * relationship between link IDs and interface
@@ -271,13 +272,13 @@ scope6_setdefault(struct ifnet *ifp)
 	 */
 	SCOPE6_LOCK();
 	if (ifp) {
-		sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] =
+		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] =
 			ifp->if_index;
-		sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
+		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] =
 			ifp->if_index;
 	} else {
-		sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = 0;
-		sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
+		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL] = 0;
+		V_sid_default.s6id_list[IPV6_ADDR_SCOPE_LINKLOCAL] = 0;
 	}
 	SCOPE6_UNLOCK();
 }
@@ -287,7 +288,7 @@ scope6_get_default(struct scope6_id *idlist)
 {
 
 	SCOPE6_LOCK();
-	*idlist = sid_default;
+	*idlist = V_sid_default;
 	SCOPE6_UNLOCK();
 
 	return (0);
@@ -310,7 +311,7 @@ scope6_addr2default(struct in6_addr *addr)
 	 * not to lock here?
 	 */
 	SCOPE6_LOCK();
-	id = sid_default.s6id_list[in6_addrscope(addr)];
+	id = V_sid_default.s6id_list[in6_addrscope(addr)];
 	SCOPE6_UNLOCK();
 	return (id);
 }
@@ -341,7 +342,7 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 		 * zone IDs assuming a one-to-one mapping between interfaces
 		 * and links.
 		 */
-		if (if_index < zoneid)
+		if (V_if_index < zoneid)
 			return (ENXIO);
 		ifp = ifnet_byindex(zoneid);
 		if (ifp == NULL) /* XXX: this can happen for some OS */
@@ -379,7 +380,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 		zoneid = ntohs(sin6->sin6_addr.s6_addr16[1]);
 		if (zoneid) {
 			/* sanity check */
-			if (zoneid < 0 || if_index < zoneid)
+			if (zoneid < 0 || V_if_index < zoneid)
 				return (ENXIO);
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);

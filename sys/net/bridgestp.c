@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -2031,7 +2032,7 @@ bstp_reinit(struct bstp_state *bs)
 	 * value.
 	 */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
 			continue;
 

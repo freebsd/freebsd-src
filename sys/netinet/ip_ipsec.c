@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -121,7 +122,7 @@ ip_ipsec_fwd(struct mbuf *m)
 	KEY_FREESP(&sp);
 	splx(s);
 	if (error) {
-		ipstat.ips_cantforward++;
+		V_ipstat.ips_cantforward++;
 		return 1;
 	}
 #endif /* IPSEC */
