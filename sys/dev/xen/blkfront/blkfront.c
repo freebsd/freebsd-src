@@ -129,8 +129,8 @@ static void xb_strategy(struct bio *bp);
 
 static struct mtx blkif_io_lock;
 
-static unsigned long 
-pfn_to_mfn(unsigned long pfn)
+static vm_paddr_t
+pfn_to_mfn(vm_paddr_t pfn)
 {
 	return (phystomach(pfn << PAGE_SHIFT) >> PAGE_SHIFT);
 }
@@ -241,7 +241,8 @@ static int blkfront_probe(struct xenbus_device *dev,
 			   "virtual-device", "%i", &vdevice);
 	if (err != 1) {
 		xenbus_dev_fatal(dev, err, "reading virtual-device");
-		return err;
+		printf("couldn't find virtual device");
+		return (err);
 	}
 
 	info = malloc(sizeof(*info), M_DEVBUF, M_NOWAIT|M_ZERO);
@@ -660,10 +661,10 @@ blkif_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td
 static int blkif_queue_request(struct bio *bp)
 {
 	caddr_t alignbuf;
-	unsigned long  	buffer_ma;
+	vm_paddr_t buffer_ma;
 	blkif_request_t     *ring_req;
 	unsigned long id;
-	unsigned int fsect, lsect;
+	uint64_t fsect, lsect;
 	struct xb_softc *sc = (struct xb_softc *)bp->bio_disk->d_drv1;
 	struct blkfront_info *info = sc->xb_info;
 	int ref;
@@ -841,7 +842,7 @@ blkif_int(void *xsc)
 			}
 
 			if ( unlikely(bret->status != BLKIF_RSP_OKAY) ) {
-				XENPRINTF("Bad return from blkdev data request: %x\n", 
+					printf("Bad return from blkdev data request: %x\n", 
 					  bret->status);
 				bp->bio_flags |= BIO_ERROR;
 			}
