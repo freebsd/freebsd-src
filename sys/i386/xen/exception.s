@@ -135,14 +135,37 @@ IDTVEC(xmm)
 	pushl $0; TRAP(T_XMMFLT)
 
 IDTVEC(hypervisor_callback)
-	pushl %eax; TRAP(T_HYPCALLBACK)
+	pushl $0; 
+	pushl $0; 
+	pushal
+	pushl	%ds
+	pushl	%es
+	pushl	%fs
+upcall_with_regs_pushed:
+	SET_KERNEL_SREGS
+	FAKE_MCOUNT(TF_EIP(%esp))
+call_evtchn_upcall:
+	movl	TF_EIP(%esp),%eax
+	cmpl	$scrit,%eax
+	jb	10f
+	cmpl	$ecrit,%eax
+	jb	critical_region_fixup
+	
+10:	pushl	%esp
+	call	evtchn_do_upcall
+	addl	$4,%esp
 
+	/*
+	 * Return via doreti to handle ASTs.
+	 */
+	MEXITCOUNT
+	jmp	doreti
+
+	
 hypervisor_callback_pending:
 	movl	HYPERVISOR_shared_info,%esi
 	XEN_BLOCK_EVENTS(%esi)				/*	cli */	
-	movl	$T_HYPCALLBACK,TF_TRAPNO(%esp)
-	movl	$T_HYPCALLBACK,TF_ERR(%esp)
-	jmp	11f
+	jmp	10b
 
 	/*
 	 * alltraps entry point.  Interrupts are enabled if this was a trap
@@ -163,14 +186,9 @@ alltraps:
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
-calltrap:
-	movl	TF_EIP(%esp),%eax
-	cmpl	$scrit,%eax
-	jb	11f
-	cmpl	$ecrit,%eax
-	jb	critical_region_fixup
 
-11:	push	%esp
+calltrap:
+	push	%esp
 	call	trap
 	add	$4, %esp
 
@@ -442,8 +460,11 @@ critical_fixup_table:
 .byte   0x24	                        #pop    %ecx
 .byte   0x28	                        #pop    %eax
 .byte   0x2c,0x2c,0x2c                  #add    $0x8,%esp
-.byte   0x34	                        #iret   
-
+#if 0
+	.byte   0x34	                        #iret   
+#endif
+.byte   0x34,0x34,0x34,0x34,0x34        #HYPERVISOR_iret 
+	
 	
 /* # Hypervisor uses this for application faults while it executes.*/
 ENTRY(failsafe_callback)
