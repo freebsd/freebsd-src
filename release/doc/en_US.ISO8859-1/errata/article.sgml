@@ -154,6 +154,12 @@
 	    <entry>17&nbsp;April&nbsp;2008</entry>
 	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
 	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+		>SA-08:06.bind</ulink></entry>
+	    <entry>13&nbsp;July&nbsp;2008</entry>
+	    <entry><para>DNS cache poisoning</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
@@ -183,12 +189,12 @@
       (on HEAD) has solved their problems, or at least mitigated
       them.</para>
 
-    <para>[20080229] A change in the way that &os; sends TCP options
-      has been reported to cause odd interactions with some cable
-      modem routers.  While this issue is still under investigation,
-      a change has been committed to HEAD that returns the option
-      processing to that of &os; 6.  So far, this change has shown some promising
-      results.</para>
+    <para>[20080229, updated 20080817] A change in the way that &os; sends TCP options
+      has been reported to cause connectivity issues.
+      This problem has been corrected on
+      HEAD and the RELENG_7 and RELENG_7_0 branches..  Further
+      details are contained in errta notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>.</para>
 
     <para>[20080307] The &os; implementation of SCTP currently depends
       on having <literal>INET6</literal> support compiled into the
