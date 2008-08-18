@@ -11,7 +11,9 @@ struct bpf_insn pc[] = {
 };
 
 /* Packet */
-u_char	pkt[0xdeadc0de];
+u_char	pkt[] = {
+	0x00,
+};
 
 /* Packet length seen on wire */
 u_int	wirelen =	0xdeadc0de;
