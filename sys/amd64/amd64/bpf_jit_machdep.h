@@ -381,15 +381,27 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	}								\
 } while (0)
 
+/* jb off8 */
+#define JBb(off8) do {							\
+	emitm(&stream, 0x72, 1);					\
+	emitm(&stream, off8, 1);					\
+} while (0)
+
+/* jae off8 */
+#define JAEb(off8) do {							\
+	emitm(&stream, 0x73, 1);					\
+	emitm(&stream, off8, 1);					\
+} while (0)
+
 /* jne off8 */
 #define JNEb(off8) do {							\
 	emitm(&stream, 0x75, 1);					\
 	emitm(&stream, off8, 1);					\
 } while (0)
 
-/* jbe off8 */
-#define JBEb(off8) do {							\
-	emitm(&stream, 0x76, 1);					\
+/* ja off8 */
+#define JAb(off8) do {							\
+	emitm(&stream, 0x77, 1);					\
 	emitm(&stream, off8, 1);					\
 } while (0)
 
