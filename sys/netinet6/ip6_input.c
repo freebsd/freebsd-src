@@ -1042,8 +1042,9 @@ ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
  * ip6_savecontrol will directly call ip6_savecontrol_v4 to handle those
  * options and handle the v6-only ones itself.
  */
-int
-ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
+struct mbuf **
+ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp,
+    int *v4only)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 
@@ -1059,8 +1060,11 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 	}
 #endif
 
-	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION)
-		return (1);
+	if ((ip6->ip6_vfc & IPV6_VERSION_MASK) != IPV6_VERSION) {
+		if (v4only != NULL)
+			*v4only = 1;
+		return (mp);
+	}
 
 #define IS2292(inp, x, y)	(((inp)->inp_flags & IN6P_RFC2292) ? (x) : (y))
 	/* RFC 2292 sec. 5 */
@@ -1089,15 +1093,19 @@ ip6_savecontrol_v4(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 			mp = &(*mp)->m_next;
 	}
 
-	return (0);
+	if (v4only != NULL)
+		*v4only = 0;
+	return (mp);
 }
 
 void
 ip6_savecontrol(struct inpcb *in6p, struct mbuf *m, struct mbuf **mp)
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+	int v4only = 0;
 
-	if (ip6_savecontrol_v4(in6p, m, mp) != 0)
+	mp = ip6_savecontrol_v4(in6p, m, mp, &v4only);
+	if (v4only)
 		return;
 
 	if ((in6p->in6p_flags & IN6P_TCLASS) != 0) {
