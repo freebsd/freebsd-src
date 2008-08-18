@@ -101,7 +101,7 @@ struct pool     rpcclnt_pool;
 #define RPCTASKPOOL_LWM 10
 #define RPCTASKPOOL_HWM 40
 #else
-static          MALLOC_DEFINE(M_RPC, "rpcclnt", "rpc state");
+static          MALLOC_DEFINE(M_RPCCLNT, "rpcclnt", "rpc state");
 #endif
 
 #define RPC_RETURN(X) do { RPCDEBUG("returning %d", X); return X; }while(0)
@@ -1154,7 +1154,7 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 #ifdef __OpenBSD__
 	task = pool_get(&rpctask_pool, PR_WAITOK);
 #else
-	MALLOC(task, struct rpctask *, sizeof(struct rpctask), M_RPC, (M_WAITOK | M_ZERO));
+	MALLOC(task, struct rpctask *, sizeof(struct rpctask), M_RPCCLNT, (M_WAITOK | M_ZERO));
 #endif
 
 	task->r_rpcclnt = rpc;
@@ -1172,7 +1172,7 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 #ifdef __OpenBSD__
 		pool_put(&rpctask_pool, task);
 #else
-		FREE(task, M_RPC);
+		FREE(task, M_RPCCLNT);
 #endif
 		error = EPROTONOSUPPORT;
 		goto rpcmout;
@@ -1294,7 +1294,7 @@ rpcclnt_request(rpc, mrest, procnum, td, cred, reply)
 #ifdef __OpenBSD__
 	pool_put(&rpctask_pool, task);
 #else
-	FREE(task, M_RPC);
+	FREE(task, M_RPCCLNT);
 #endif
 
 	if (error)
@@ -2025,7 +2025,7 @@ rpcclnt_softterm(struct rpctask * task)
 void
 rpcclnt_create(struct rpcclnt ** rpc)
 {
-	MALLOC(*rpc, struct rpcclnt *, sizeof(struct rpcclnt), M_RPC, M_WAITOK | M_ZERO);
+	MALLOC(*rpc, struct rpcclnt *, sizeof(struct rpcclnt), M_RPCCLNT, M_WAITOK | M_ZERO);
 }
 
 /* called by rpcclnt_put() */
@@ -2033,7 +2033,7 @@ void
 rpcclnt_destroy(struct rpcclnt * rpc)
 {
 	if (rpc != NULL) {
-		FREE(rpc, M_RPC);
+		FREE(rpc, M_RPCCLNT);
 	} else {
 		RPCDEBUG("attempting to free a NULL rpcclnt (not dereferenced)");
 	}
