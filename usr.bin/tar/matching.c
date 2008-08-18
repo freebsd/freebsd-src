@@ -59,6 +59,7 @@ static int	bsdtar_fnmatch(const char *p, const char *s);
 static void	initialize_matching(struct bsdtar *);
 static int	match_exclusion(struct match *, const char *pathname);
 static int	match_inclusion(struct match *, const char *pathname);
+static int	pathmatch(const char *p, const char *s);
 
 /*
  * The matching logic here needs to be re-thought.  I started out to
@@ -193,12 +194,12 @@ match_exclusion(struct match *match, const char *pathname)
 	const char *p;
 
 	if (*match->pattern == '*' || *match->pattern == '/')
-		return (bsdtar_fnmatch(match->pattern, pathname) == 0);
+		return (pathmatch(match->pattern, pathname) == 0);
 
 	for (p = pathname; p != NULL; p = strchr(p, '/')) {
 		if (*p == '/')
 			p++;
-		if (bsdtar_fnmatch(match->pattern, p) == 0)
+		if (pathmatch(match->pattern, p) == 0)
 			return (1);
 	}
 	return (0);
@@ -211,7 +212,7 @@ match_exclusion(struct match *match, const char *pathname)
 int
 match_inclusion(struct match *match, const char *pathname)
 {
-	return (bsdtar_fnmatch(match->pattern, pathname) == 0);
+	return (pathmatch(match->pattern, pathname) == 0);
 }
 
 void
@@ -279,6 +280,41 @@ unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg)
 	return (matching->inclusions_unmatched_count);
 }
 
+/*
+ * TODO: Extend this so that the following matches work:
+ *     "foo//bar" == "foo/bar"
+ *     "foo/./bar" == "foo/bar"
+ *     "./foo" == "foo"
+ *
+ * The POSIX fnmatch() function doesn't handle any of these, but
+ * all are common situations that arise when paths are generated within
+ * large scripts.  E.g., the following is quite common:
+ *      MYPATH=foo/  TARGET=$MYPATH/bar
+ * It may be worthwhile to edit such paths at write time as well,
+ * especially when such editing may avoid the need for long pathname
+ * extensions.
+ */
+static int
+pathmatch(const char *pattern, const char *string)
+{
+	/*
+	 * Strip leading "./" or ".//" so that, e.g.,
+	 * "foo" matches "./foo".  In particular, this
+	 * opens up an optimization for the writer to
+	 * elide leading "./".
+	 */
+	if (pattern[0] == '.' && pattern[1] == '/') {
+		pattern += 2;
+		while (pattern[0] == '/')
+			++pattern;
+	}
+	if (string[0] == '.' && string[1] == '/') {
+		string += 2;
+		while (string[0] == '/')
+			++string;
+	}
+	return (bsdtar_fnmatch(pattern, string, FNM_LEADING_DIR));
+}
 
 
 #if defined(HAVE_FNMATCH) && defined(HAVE_FNM_LEADING_DIR)
