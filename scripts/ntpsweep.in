@@ -16,8 +16,7 @@
 # purpose. The name Origin B.V. must not be used to endorse or promote
 # products derived from this software without prior written permission.
 #
-# Hans Lambermont <Hans.Lambermont@nl.origin-it.com>/<H.Lambermont@chello.nl>
-# 14 Jan 2000
+# Hans Lambermont <ntpsweep@lambermont.dyndns.org>
 
 require 5.0;		# But actually tested on 5.004 ;)
 use Getopt::Long;       # GetOptions()

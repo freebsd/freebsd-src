@@ -1,8 +1,10 @@
-#AUTOMAKE_OPTIONS = ../ansi2knr #no-dependencies
-AUTOMAKE_OPTIONS = ../util/ansi2knr
-bin_PROGRAMS = @MAKE_ADJTIMED@
-EXTRA_PROGRAMS = adjtimed
-INCLUDES = -I$(top_srcdir)/include
-LDADD = ../libntp/libntp.a
-#EXTRA_DIST = TAGS
-ETAGS_ARGS = Makefile.am
+AUTOMAKE_OPTIONS=	../util/ansi2knr
+
+bindir=		${exec_prefix}/${BINSUBDIR}
+bin_PROGRAMS=	@MAKE_ADJTIMED@
+EXTRA_PROGRAMS=	adjtimed
+AM_CPPFLAGS=	-I$(top_srcdir)/include
+LDADD=		../libntp/libntp.a
+ETAGS_ARGS=	Makefile.am
+
+include ../bincheck.mf

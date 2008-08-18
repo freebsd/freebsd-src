@@ -1,4 +1,4 @@
-MSNTP (Simple Network Time Protocol Utility) - Version 1.6
+SNTP (Simple Network Time Protocol Utility) - Version 1.6
 ----------------------------------------------------------
 
 Please read the file Copyright first.  Also note that the file RFC2030.TXT is
@@ -16,13 +16,8 @@ WARNING: the text version of RFC 1305 is incomplete, and omits the tables that
 are in the Postscript version.  Unfortunately, these contain the only copy of
 some critical information.
 
-The canonical NTP code for Unix is the xntp suite, and is as complicated as
-would be expected from reading RFC 1305.  While its code is moderately clean by
-Unix and C standards, version 3-5.86 is over 80,000 lines and unavoidably
-system-dependent.  A worse problem is that it is so badly fouled up by its
-configuration mechanism that ab initio porting could be several weeks' work,
-even if the new system has all the necessary facilities and is bug free!
-
+draft-mills-sntp-v4-00.txt is the next proposed revision of RFC 2030,
+and the current goal is to have this code implement that specification.
 
 SNTP Servers - Some Little-Known Facts
 --------------------------------------
@@ -34,6 +29,13 @@ be for the very lowest level of server, exporting solely to local clients that
 do not themselves act as servers to ANY system (e.g. on a Netware server,
 exporting only to the PCs that it manages).
 
+[There is missing language in the previous paragraph.  SNTP is designed
+to be used in 2 cases: as a client at the lowest levels of the timing
+hierarchy, or as a server of last resort at stratum 1 when connected to
+a modem or radio clock.]
+
+[This is as far as I have updated this file as part of the upgrade.]
+
 If the NTP network were being run as a directed acyclic graph (i.e. using SNTP
 rather than full NTP), with a diameter of D links and a maximum error per link
 of E, the maximum synchronisation error would be D*E.  Reasonable figures for D
@@ -44,28 +46,28 @@ SNTP client/servers must NEVER be embedded WITHIN an NTP network.
 The other reason is that inserting SNTP client/servers at a low stratum (but
 not the root) of an NTP network could easily break NTP!  See RFC 1305 for why,
 but don't expect the answer to stand out at you.  It would be easy to extend
-MSNTP to a full-function client/server application, thus making it into a true
-alternative to xntp, but this incompatibility is why it MUST NOT be done.
+SNTP to a full-function client/server application, thus making it into a true
+alternative to ntp, but this incompatibility is why it MUST NOT be done.
 
 The above does not mean that the SNTP approach is unsatisfactory, but only that
 it is incompatible with full NTP.  The author would favour a complete SNTP
 network using the SNTP approach, and the statistical error reduction used in
-MSNTP, but it actually addresses a slightly different problem from that
+SNTP, but it actually addresses a slightly different problem from that
 addressed by NTP.  TANSTAAFL.
 
 FINAL WARNING: do NOT use this program to serve NTP requests from outside the
 systems that you manage.  If you do this, and manage to break the time
 synchronisation on other people's systems, you will be regarded very
 unfavourably.  Actually, this should be possible only if their NTP client is
-completely broken, because MSNTP does its damnedest to declare its packets as
+completely broken, because SNTP does its damnedest to declare its packets as
 the lowest form of NTP timestamp.
 
 
 
-MSNTP and its Assumptions
+SNTP and its Assumptions
 -------------------------
 
-MSNTP is intended to be a straightforward SNTP daemon/utility that is easy to
+SNTP is intended to be a straightforward SNTP daemon/utility that is easy to
 build on any reasonable Unix platform (and most near-Unix ones), whether or not
 it has ever been ported to them before.  It is intended to answer the following
 requirements, either by challenge and response or the less reliable broadcast
@@ -94,13 +96,12 @@ method:
     should work, unchanged, on any system with an ANSI/ISO C compiler.
 
 There are full tracing facilities and a lot of paranoia in the code to check
-for bad packets (more than in xntp) which may need relaxing in the light of
+for bad packets (more than in ntp) which may need relaxing in the light of
 experience.  Unfortunately, RFC 1305 does not include a precise description of
 the data protocol, despite its length, and there are some internal
-inconsistencies and differences between it and RFC 2030 and xntp3-5's
-behaviour.
+inconsistencies and differences between it and RFC 2030 and ntp's behaviour.
 
-WARNING: MSNTP has not been tested in conjunction with xntp broadcasts or xntp
+WARNING: SNTP has not been tested in conjunction with ntp broadcasts or ntp
 clients, as the ability to do so was not available to the author.  It is very
 unlikely that it won't work, but you should check.  Much of the paranoid code
 is only partially tested, too, because it is dealing with cases that are very
@@ -115,7 +116,7 @@ cross-check.
 
 Furthermore, it does not attempt to solve all of the problems addressed by the
 NTP protocol and you should NOT use it if any of those problems are likely to
-cause you serious trouble.  If they are, bite the bullet and implement xntp, or
+cause you serious trouble.  If they are, bite the bullet and implement ntp, or
 buy a fancy time-server.
 
 
@@ -134,7 +135,7 @@ main.c        -    most of the source (almost entirely portable)
 unix.c        -    just for isatty, sleep and locking
 internet.c    -    Internet host and service name lookup
 socket.c      -    the Berkeley socket code
-msntp.1       -    the man page
+sntp.1        -    the man page
 RFC2030.TXT   -    the SNTPv4 specification
 
 All you SHOULD need to do is to uncomment the settings in file Makefile for
@@ -279,7 +280,7 @@ commands, the installation is finished!
 
 You can use it as a simple unprivileged command to check the time, quite
 independently of whether it is running as a time-updating daemon or server, or
-whether you are running xntp.  You can run it in daemon mode without updating
+whether you are running ntp.  You can run it in daemon mode without updating
 the clock, to check for drift, but it may fail if the clock is changed under
 its feet.  Unfortunately, you cannot listen to broadcasts without privilege.
 
@@ -326,7 +327,7 @@ Simple Examples of Use
 ----------------------
 
 Many people use it solely to check the time of their system, especially as a
-cross-check on xntpd.  You do not need privilege and it will not cause trouble
+cross-check on ntpd.  You do not need privilege and it will not cause trouble
 to the local network, so you can use it on someone else's system!  You can
 specify one server or several.  For example:
 
@@ -334,10 +335,10 @@ specify one server or several.  For example:
 
 You can use it to check how your system is drifting, but it isn't very good at
 this if the system is drifting very badly (in which case use the previous
-technique and dc) or if you are running xntp.  You do not need privilege and it
+technique and dc) or if you are running ntp.  You do not need privilege and it
 will not cause trouble to the local network.  For example:
 
-    msntp -x 120 -f /tmp/msntp.state ntp.server.local
+    sntp -x 120 -f /tmp/msntp.state ntp.server.local
 
 More generally, it is used to synchronise the clock, in which case you DO need
 root privilege.  It can be used in many ways, but the author favours running it
@@ -346,15 +347,15 @@ with no attention, and send a mail message (if cron is configured to do that)
 when it fails badly.  For example, the author uses a root crontab entry on one
 system of:
 
-    15 0 * * * /bin/nice --10 /usr/local/bin/msntp -a -x 480 ntp.server.local
+    15 0 * * * /bin/nice --10 /usr/local/bin/sntp -a -x 480 ntp.server.local
 
 If you have a home computer, it can be set up to resynchronise each time you
-dial up.  For example, the author uses a /etc/ppp/ip-up.d/msntp file on his
+dial up.  For example, the author uses a /etc/ppp/ip-up.d/sntp file on his
 home Linux system of:
 
     #!/bin/sh
     sleep 60
-    /bin/nice --10 /usr/local/sbin/msntp -r -P 60 ntp.server.local
+    /bin/nice --10 /usr/local/sbin/sntp -r -P 60 ntp.server.local
 
 -a would be better, but adjtime is broken in Linux.
 

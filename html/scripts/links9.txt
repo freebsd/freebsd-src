@@ -2,6 +2,7 @@ document.write("<ul>\
 <li class='inline'><a href='authopt.html'>Authentication Options</a><br>\
 <li class='inline'><a href='manyopt.html'>Automatic NTP Configuration Options</a><br>\
 <li class='inline'><a href='confopt.html'>Server Options</a><br>\
+<li class='inline'><a href='groups.html'>Trusted Hosts and Groups</a><br>\
 <li class='inline'><a href='keygen.html'><tt>ntp-keygen</tt> - generate public and private keys</a>\
 <li class='inline'><a href='http://www.eecis.udel.edu/~mills/autokey.html'>Autonomous Authentication</a>\
 </ul>")

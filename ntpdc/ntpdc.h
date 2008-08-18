@@ -11,23 +11,26 @@
  * Maximum number of arguments
  */
 #define	MAXARGS	4
+#define	MOREARGS 10
 
 /*
  * Flags for forming descriptors.
  */
-#define	OPT	0x80		/* this argument is optional, or'd with type */
+#define	OPT		0x80	/* this argument is optional, or'd with type */
 
-#define	NO	0x0
-#define	NTP_STR	0x1		/* string argument */
-#define	UINT	0x2		/* unsigned integer */
-#define	INT	0x3		/* signed integer */
-#define	ADD	0x4		/* IP network address */
-#define IP_VERSION 0x5		/* IP version */
+#define	NO		0x0
+#define	NTP_STR		0x1	/* string argument */
+#define	NTP_UINT	0x2	/* unsigned integer */
+#define	NTP_INT		0x3	/* signed integer */
+#define	NTP_ADD		0x4	/* IP network address */
+#define IP_VERSION	0x5	/* IP version */
 
 /*
- * Arguments are returned in a union
+ * Arguments are returned in a struct - no
+ * union space saving is attempted. 
  */
-typedef union {
+typedef struct {
+	u_char type;
 	char *string;
 	long ival;
 	u_long uval;
@@ -39,7 +42,7 @@ typedef union {
  */
 struct parse {
 	char *keyword;
-	arg_v argval[MAXARGS];
+	arg_v argval[MAXARGS + MOREARGS];
 	int nargs;
 };
 

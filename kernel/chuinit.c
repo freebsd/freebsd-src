@@ -1,8 +1,6 @@
 /*
 **	dynamically loadable chu driver
 **
-**	/src/NTP/REPOSITORY/v3/kernel/chuinit.c,v 1.1.1.1 1994/07/11 07:56:25 kardel Exp
-**
 **	william robertson <rob@agate.berkeley.edu>  
 */
 

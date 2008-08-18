@@ -4,7 +4,7 @@
 
 /**********************************************************************/
 /*                                                                    */
-/*  Copyright (C) 2001, Takao Abe.  All rights reserved.              */
+/*  Copyright (C) 2001-2004, Takao Abe.  All rights reserved.         */
 /*                                                                    */
 /*  Permission to use, copy, modify, and distribute this software     */
 /*  and its documentation for any purpose is hereby granted           */
@@ -55,8 +55,24 @@
 /*    [Change] Log to clockstats even if bad reply                    */
 /*    [Fix]    PRECISION = (-3) (about 100 ms)                        */
 /*    [Add]    Support the C-DEX Co.Ltd. JJY receiver                 */
+/*                                                                    */
 /*  2001/12/04                                                        */
 /*    [Fix]    C-DEX JST2000 ( fukusima@goto.info.waseda.ac.jp )      */
+/*                                                                    */
+/*  2002/07/12                                                        */
+/*    [Fix]    Portability for FreeBSD ( patched by the user )        */
+/*                                                                    */
+/*  2004/10/31                                                        */
+/*    [Change] Command send timing for the Tristate Ltd. JJY receiver */
+/*             JJY-01 ( Firmware version 2.01 )                       */
+/*             Thanks to Andy Taki for testing under FreeBSD          */
+/*                                                                    */
+/*  2004/11/28                                                        */
+/*    [Add]    Support the Echo Keisokuki LT-2000 receiver            */
+/*                                                                    */
+/*  2006/11/04                                                        */
+/*    [Fix]    C-DEX JST2000                                          */
+/*             Thanks to Hideo Kuramatsu for the patch                */
 /*                                                                    */
 /**********************************************************************/
 
@@ -103,6 +119,18 @@
 /*  <ENQ>1J<ETX>   <STX>JYYMMDD HHMMSSS<ETX>                          */
 /*                                                                    */
 /**********************************************************************/
+/*                                                                    */
+/*  The Echo Keisokuki Co. Ltd. JJY receiver LT2000                   */
+/*                                                                    */
+/*  Command        Response                 Remarks                   */
+/*  ------------   ----------------------   ---------------------     */
+/*  #                                       Mode 1 (Request&Send)     */
+/*  T              YYMMDDWHHMMSS<BCC1><BCC2><CR>                      */
+/*  C                                       Mode 2 (Continuous)       */
+/*                 YYMMDDWHHMMSS<ST1><ST2><ST3><ST4><CR>              */
+/*                 <SUB>                    Second signal             */
+/*                                                                    */
+/**********************************************************************/
 
 /*
  * Interface definitions
@@ -117,7 +145,8 @@
  * JJY unit control structure
  */
 struct jjyunit {
-	char	unittype ;	/* UNITTYPE_XXXXXXXXXX */
+	char	unittype ;          /* UNITTYPE_XXXXXXXXXX */
+    short   operationmode ;     /* Echo Keisokuki LT-2000 : 1 or 2 */
 	short	version ;
 	short	linediscipline ;	/* LDISC_CLK or LDISC_RAW */
 	int 	linecount ;
@@ -134,6 +163,7 @@ struct jjyunit {
 
 #define	UNITTYPE_TRISTATE_JJY01	1
 #define	UNITTYPE_CDEX_JST2000  	2
+#define	UNITTYPE_ECHOKEISOKUKI_LT2000  	3
 
 /*
  * Function prototypes
@@ -143,9 +173,11 @@ static	void	jjy_shutdown                P((int, struct peer *));
 static	void	jjy_poll                    P((int, struct peer *));
 static	void	jjy_poll_tristate_jjy01     P((int, struct peer *));
 static	void	jjy_poll_cdex_jst2000       P((int, struct peer *));
+static	void	jjy_poll_echokeisokuki_lt2000    P((int, struct peer *));
 static	void	jjy_receive                 P((struct recvbuf *));
 static	int 	jjy_receive_tristate_jjy01  P((struct recvbuf *));
 static	int 	jjy_receive_cdex_jst2000    P((struct recvbuf *));
+static	int 	jjy_receive_echokeisokuki_lt2000 P((struct recvbuf *));
 
 /*
  * Transfer vector
@@ -208,6 +240,7 @@ jjy_start ( int unit, struct peer *peer )
 	case 0 :
 	case 1 : iDiscipline = LDISC_CLK ; break ;
 	case 2 : iDiscipline = LDISC_RAW ; break ;
+	case 3 : iDiscipline = LDISC_CLK ; break ;
 	default :
 		msyslog ( LOG_ERR, "JJY receiver [ %s mode %d ] : Unsupported mode",
 		          ntoa(&peer->srcadr), peer->ttl ) ;
@@ -252,6 +285,19 @@ jjy_start ( int unit, struct peer *peer )
 		up->unittype = UNITTYPE_CDEX_JST2000 ;
 		up->lineexpect = 1 ;
 		up->charexpect[0] = 15 ; /* <STX>JYYMMDD HHMMSSS<ETX> */
+		break ;
+	case 3 :
+		up->unittype = UNITTYPE_ECHOKEISOKUKI_LT2000 ;
+		up->operationmode = 2 ;  /* Mode 2 : Continuous mode */
+		up->lineexpect = 1 ;
+        switch ( up->operationmode ) {
+        case 1 :
+			up->charexpect[0] = 15 ; /* YYMMDDWHHMMSS<BCC1><BCC2><CR> */
+			break ;
+		case 2 :
+			up->charexpect[0] = 17 ; /* YYMMDDWHHMMSS<ST1><ST2><ST3><ST4><CR> */
+			break ;
+		}
 		break ;
 	default :
 		msyslog ( LOG_ERR, "JJY receiver [ %s mode %d ] : Unsupported mode",
@@ -384,6 +430,10 @@ jjy_receive ( struct recvbuf *rbufp )
 		rc = jjy_receive_cdex_jst2000 ( rbufp ) ;
 		break ;
 
+	case UNITTYPE_ECHOKEISOKUKI_LT2000 :
+		rc = jjy_receive_echokeisokuki_lt2000 ( rbufp ) ;
+		break ;
+
 	default :
 		rc = 0 ;
 		break ;
@@ -438,10 +488,10 @@ jjy_receive ( struct recvbuf *rbufp )
 	}
 #ifdef DEBUG
 	if ( debug ) {
-		printf ( "jjy_receive (refclock_jjy.c) : %04d/%02d/%02d %02d:%02d:%02d JST   ", 
-		          up->year, up->month, up->day, up->hour, up->minute, up->second ) ;
-		printf ( "( %04d/%03d %02d:%02d:%02d UTC )\n",
-		          pp->year, pp->day, pp->hour, pp->minute, pp->second ) ;
+		printf ( "jjy_receive (refclock_jjy.c) : %04d/%02d/%02d %02d:%02d:%02d.%1d JST   ", 
+		          up->year, up->month, up->day, up->hour, up->minute, up->second, up->msecond/100 ) ;
+		printf ( "( %04d/%03d %02d:%02d:%02d.%1d UTC )\n",
+		          pp->year, pp->day, pp->hour, pp->minute, pp->second, (int)(pp->nsec/100000000) ) ;
 	}
 #endif
 
@@ -449,19 +499,19 @@ jjy_receive ( struct recvbuf *rbufp )
 	 * Process the new sample in the median filter and determine the
 	 * timecode timestamp.
 	 */
+
+	sprintf ( sLogText, "%04d/%02d/%02d %02d:%02d:%02d.%1d JST",
+	          up->year, up->month, up->day, up->hour, up->minute, up->second, up->msecond/100 ) ;
+	record_clock_stats ( &peer->srcadr, sLogText ) ;
+
 	if ( ! refclock_process ( pp ) ) {
 		refclock_report(peer, CEVNT_BADTIME);
-		sprintf ( sLogText, "BAD TIME %04d/%02d/%02d %02d:%02d:%02d JST",
-		          up->year, up->month, up->day, up->hour, up->minute, up->second ) ;
-		record_clock_stats ( &peer->srcadr, sLogText ) ;
 		return ;
 	}
 
-	sprintf ( sLogText, "%04d/%02d/%02d %02d:%02d:%02d JST",
-	          up->year, up->month, up->day, up->hour, up->minute, up->second ) ;
 	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
-	record_clock_stats ( &peer->srcadr, sLogText ) ;
+
 }
 
 /**************************************************************************************************/
@@ -469,6 +519,8 @@ jjy_receive ( struct recvbuf *rbufp )
 static int
 jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 {
+
+	static	char	*sFunctionName = "jjy_receive_tristate_jjy01" ;
 
 	struct jjyunit      *up ;
 	struct refclockproc *pp ;
@@ -495,27 +547,82 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 
 	switch ( up->linecount ) {
 
-	case 1 : /* YYYY/MM/DD */
+	case 1 : /* YYYY/MM/DD WWW */
 
-		if ( iLen < 10 ) {
+		if ( iLen != 14 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Reply length error ( up->linecount=%d  iLen=%d )\n", sFunctionName, up->linecount, iLen ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
 		rc = sscanf ( pBuf, "%4d/%2d/%2d", &up->year, &up->month, &up->day ) ;
 		if ( rc != 3 || up->year < 2000 || up->month < 1 || up->month > 12 || up->day < 1 || up->day > 31 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Date error ( up->linecount=%d )\n", sFunctionName, up->linecount ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
+
+		/*** Start of modification on 2004/10/31 */
+		/*
+		 * Following codes are moved from the function jjy_poll_tristate_jjy01 in this source.
+		 * The Tristate JJY-01 ( Firmware version 1.01 ) accepts "time" and "stim" commands without any delay.
+		 * But the JJY-01 ( Firmware version 2.01 ) does not accept these commands continuously,
+		 * so this driver issues the second command "stim" after the reply of the first command "date".
+		 */
+
+		/*
+		 * Send "stim<CR><LF>" or "time<CR><LF>" command
+		 */
+		 
+
+		if ( up->version >= 100 ) {
+#ifdef DEBUG
+			if ( debug ) {
+				printf ( "%s (refclock_jjy.c) : send 'stim<CR><LF>'\n", sFunctionName ) ;
+			}
+#endif
+			if ( write ( pp->io.fd, "stim\r\n",6 ) != 6  ) {
+				refclock_report ( peer, CEVNT_FAULT ) ;
+			}
+		} else {
+#ifdef DEBUG
+			if ( debug ) {
+				printf ( "%s (refclock_jjy.c) : send 'time<CR><LF>'\n", sFunctionName ) ;
+			}
+#endif
+			if ( write ( pp->io.fd, "time\r\n",6 ) != 6  ) {
+				refclock_report ( peer, CEVNT_FAULT ) ;
+			}
+		}
+		/*** End of modification ***/
+
 		return 0 ;
 
 	case 2 : /* HH:MM:SS */
 
-		if ( iLen < 8 ) {
+		if ( iLen != 8 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Reply length error ( up->linecount=%d  iLen=%d )\n", sFunctionName, up->linecount, iLen ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
 		rc = sscanf ( pBuf, "%2d:%2d:%2d", &up->hour, &up->minute, &up->second ) ;
 		if ( rc != 3 || up->hour > 23 || up->minute > 59 || up->second > 60 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Time error ( up->linecount=%d )\n", sFunctionName, up->linecount ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
@@ -524,7 +631,7 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 			/*
 			 * The command "date" and "time" ( or "stim" ) were sent to the JJY receiver continuously.
 			 * But the JJY receiver replies a date and time separately.
-			 * Just after midnight transtions, we ignore this time.
+			 * Just after midnight transitions, we ignore this time.
 			 */
 			return 0 ;
 		}
@@ -546,6 +653,8 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 static int
 jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 {
+
+	static	char	*sFunctionName = "jjy_receive_cdex_jst2000" ;
 
 	struct jjyunit      *up ;
 	struct refclockproc *pp ;
@@ -574,7 +683,12 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 
 	case 1 : /* JYYMMDD HHMMSSS */
 
-		if ( iLen < 15 ) {
+		if ( iLen != 15 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Reply length error ( iLen=%d )\n", sFunctionName, iLen ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
@@ -582,6 +696,12 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 		              &up->year, &up->month, &up->day, &up->hour, &up->minute, &up->second, &up->msecond ) ;
 		if ( rc != 7 || up->month < 1 || up->month > 12 || up->day < 1 || up->day > 31
 		  || up->hour > 23 || up->minute > 59 || up->second > 60 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Time error (rc=%d) [ %02d %02d %02d * %02d %02d %02d.%1d ]\n", sFunctionName,
+						 rc, up->year, up->month, up->day, up->hour, up->minute, up->second, up->msecond ) ;
+	        }
+#endif
 			up->lineerror = 1 ;
 			break ;
 		}
@@ -590,6 +710,151 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 		break ;
 
 	default : /*  Unexpected reply */
+
+		up->lineerror = 1 ;
+		break ;
+
+	}
+
+	return 1 ;
+
+}
+
+/**************************************************************************************************/
+
+static int
+jjy_receive_echokeisokuki_lt2000 ( struct recvbuf *rbufp )
+{
+
+	static	char	*sFunctionName = "jjy_receive_echokeisokuki_lt2000" ;
+
+	struct jjyunit      *up ;
+	struct refclockproc *pp ;
+	struct peer         *peer;
+
+	char	*pBuf ;
+	int 	iLen ;
+	int 	rc ;
+    int     i, ibcc, ibcc1, ibcc2 ;
+
+	/*
+	 * Initialize pointers and read the timecode and timestamp
+	 */
+	peer = (struct peer *) rbufp->recv_srcclock ;
+	pp = peer->procptr ;
+	up = (struct jjyunit *) pp->unitptr ;
+
+	if ( up->linediscipline == LDISC_RAW ) {
+		pBuf = up->rawbuf ;
+		iLen = up->charcount ;
+	} else {
+	    pBuf = pp->a_lastcode ;
+	    iLen = pp->lencode ;
+	}
+
+	switch ( up->linecount ) {
+
+	case 1 : /* YYMMDDWHHMMSS<BCC1><BCC2> or YYMMDDWHHMMSS<ST1><ST2><ST3><ST4> */
+
+		if ( ( up->operationmode == 1 && iLen != 15 ) || ( up->operationmode == 2 && iLen != 17 ) ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Reply length error ( iLen=%d )\n", sFunctionName, iLen ) ;
+	        }
+#endif
+			if ( up->operationmode == 1 ) {
+#ifdef DEBUG
+				if ( debug ) {
+					printf ( "%s (refclock_jjy.c) : send '#'\n", sFunctionName ) ;
+				}
+#endif
+				if ( write ( pp->io.fd, "#",1 ) != 1  ) {
+					refclock_report ( peer, CEVNT_FAULT ) ;
+				}
+			}
+			up->lineerror = 1 ;
+			break ;
+		}
+
+		if ( up->operationmode == 1 ) {
+
+        	for ( i = ibcc = 0 ; i < 13 ; i ++ ) ibcc ^= pBuf[i] ;
+        	ibcc1 = 0x30 | ( ( ibcc >> 4 ) & 0xF ) ;
+        	ibcc2 = 0x30 | ( ( ibcc      ) & 0xF ) ;
+        	if ( pBuf[13] != ibcc1 || pBuf[14] != ibcc2 ) {
+#ifdef DEBUG
+	        	if ( debug >= 2 ) {
+		        	printf ( "%s (refclock_jjy.c) : BCC error ( Recv=%02X,%02X / Calc=%02X,%02X)\n", sFunctionName, pBuf[13]&0xFF, pBuf[14]&0xFF, ibcc1, ibcc2 ) ;
+	        	}
+#endif
+				up->lineerror = 1 ;
+				break ;
+			}
+
+        }
+
+		rc = sscanf ( pBuf, "%2d%2d%2d%*1d%2d%2d%2d",
+                      &up->year, &up->month, &up->day, &up->hour, &up->minute, &up->second ) ;
+		if ( rc != 6 || up->month < 1 || up->month > 12 || up->day < 1 || up->day > 31
+		  || up->hour > 23 || up->minute > 59 || up->second > 60 ) {
+#ifdef DEBUG
+	        if ( debug >= 2 ) {
+		        printf ( "%s (refclock_jjy.c) : Time error (rc=%d) [ %02d %02d %02d * %02d %02d %02d ]\n", sFunctionName,
+						 rc, up->year, up->month, up->day, up->hour, up->minute, up->second ) ;
+	        }
+#endif
+			up->lineerror = 1 ;
+			break ;
+		}
+
+		up->year += 2000 ;
+
+		if ( up->operationmode == 2 ) {
+
+			/* A time stamp comes on every 0.5 seccond in the mode 2 of the LT-2000. */
+			up->msecond = 500 ;
+			pp->second -- ;
+			if ( pp->second < 0 ) {
+				pp->second = 59 ;
+				pp->minute -- ;
+				if ( pp->minute < 0 ) {
+					pp->minute = 59 ;
+					pp->hour -- ;
+					if ( pp->hour < 0 ) {
+						pp->hour = 23 ;
+						pp->day -- ;
+						if ( pp->day < 1 ) {
+							pp->year -- ;
+							pp->day  = ymd2yd ( pp->year, 12, 31 ) ;
+						}
+					}
+				}
+			}
+
+			/* Switch from mode 2 to mode 1 in order to restraint of useless time stamp. */
+#ifdef DEBUG
+			if ( debug ) {
+				printf ( "%s (refclock_jjy.c) : send '#'\n", sFunctionName ) ;
+			}
+#endif
+			if ( write ( pp->io.fd, "#",1 ) != 1  ) {
+				refclock_report ( peer, CEVNT_FAULT ) ;
+			}
+
+		}
+
+		break ;
+
+	default : /*  Unexpected reply */
+
+#ifdef DEBUG
+		if ( debug ) {
+			printf ( "%s (refclock_jjy.c) : send '#'\n", sFunctionName ) ;
+		}
+#endif
+		if ( write ( pp->io.fd, "#",1 ) != 1  ) {
+			refclock_report ( peer, CEVNT_FAULT ) ;
+		}
 
 		up->lineerror = 1 ;
 		break ;
@@ -642,6 +907,10 @@ jjy_poll ( int unit, struct peer *peer )
 		jjy_poll_cdex_jst2000 ( unit, peer ) ;
 		break ;
 
+	case UNITTYPE_ECHOKEISOKUKI_LT2000 :
+		jjy_poll_echokeisokuki_lt2000 ( unit, peer ) ;
+		break ;
+
 	default :
 		break ;
 
@@ -655,32 +924,22 @@ static void
 jjy_poll_tristate_jjy01  ( int unit, struct peer *peer )
 {
 
-	struct jjyunit      *up;
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct jjyunit *) pp->unitptr ;
 
 	/*
 	 * Send "date<CR><LF>" command
 	 */
 
+#ifdef DEBUG
+	if ( debug ) {
+		printf ( "jjy_poll_tristate_jjy01 (refclock_jjy.c) : send 'date<CR><LF>'\n" ) ;
+	}
+#endif
+
 	if ( write ( pp->io.fd, "date\r\n",6 ) != 6  ) {
 		refclock_report ( peer, CEVNT_FAULT ) ;
-	}
-
-	/*
-	 * Send "stim<CR><LF>" or "time<CR><LF>" command
-	 */
-
-	if ( up->version >= 100 ) {
-		if ( write ( pp->io.fd, "stim\r\n",6 ) != 6  ) {
-			refclock_report ( peer, CEVNT_FAULT ) ;
-		}
-	} else {
-		if ( write ( pp->io.fd, "time\r\n",6 ) != 6  ) {
-			refclock_report ( peer, CEVNT_FAULT ) ;
-		}
 	}
 
 }
@@ -699,7 +958,49 @@ jjy_poll_cdex_jst2000 ( int unit, struct peer *peer )
 	 * Send "<ENQ>1J<ETX>" command
 	 */
 
+#ifdef DEBUG
+	if ( debug ) {
+		printf ( "jjy_poll_cdex_jst2000 (refclock_jjy.c) : send '<ENQ>1J<ETX>'\n" ) ;
+	}
+#endif
+
 	if ( write ( pp->io.fd, "\0051J\003", 4 ) != 4  ) {
+		refclock_report ( peer, CEVNT_FAULT ) ;
+	}
+
+}
+
+/**************************************************************************************************/
+
+static void
+jjy_poll_echokeisokuki_lt2000 ( int unit, struct peer *peer )
+{
+
+	struct jjyunit      *up;
+	struct refclockproc *pp;
+
+	char	sCmd[2] ;
+
+	pp = peer->procptr;
+	up = (struct jjyunit *) pp->unitptr ;
+
+	/*
+	 * Send "T" or "C" command
+	 */
+
+	switch ( up->operationmode ) {
+	case 1 : sCmd[0] = 'T' ; break ;
+	case 2 : sCmd[0] = 'C' ; break ;
+	}
+	sCmd[1] = 0 ;
+
+#ifdef DEBUG
+	if ( debug ) {
+		printf ( "jjy_poll_echokeisokuki_lt2000 (refclock_jjy.c) : send '%s'\n", sCmd ) ;
+	}
+#endif
+
+	if ( write ( pp->io.fd, sCmd, 1 ) != 1  ) {
 		refclock_report ( peer, CEVNT_FAULT ) ;
 	}
 
