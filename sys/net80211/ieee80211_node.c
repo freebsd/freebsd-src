@@ -1814,7 +1814,7 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 		if (aid >= ic->ic_max_aid) {
 			IEEE80211_UNLOCK(ic);
 			IEEE80211_SEND_MGMT(ic, ni, resp,
-			    IEEE80211_REASON_ASSOC_TOOMANY);
+			    IEEE80211_STATUS_TOOMANY);
 			ieee80211_node_leave(ic, ni);
 			return;
 		}
