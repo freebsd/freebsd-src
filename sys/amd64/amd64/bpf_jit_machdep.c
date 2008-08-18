@@ -167,11 +167,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_W|BPF_ABS:
-				MOVid(ins->k, ECX);
-				MOVrd(ECX, ESI);
-				ADDib(sizeof(int32_t), ECX);
-				CMPrd(EDI, ECX);
-				JBEb(6);
+				MOVid(ins->k, ESI);
+				CMPrd(EDI, ESI);
+				JAb(12);
+				MOVrd(EDI, ECX);
+				SUBrd(ESI, ECX);
+				CMPid(sizeof(int32_t), ECX);
+				JAEb(6);
 				ZEROrd(EAX);
 				MOVrq3(R8, RBX);
 				RET();
@@ -181,11 +183,13 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_LD|BPF_H|BPF_ABS:
 				ZEROrd(EAX);
-				MOVid(ins->k, ECX);
-				MOVrd(ECX, ESI);
-				ADDib(sizeof(int16_t), ECX);
-				CMPrd(EDI, ECX);
-				JBEb(4);
+				MOVid(ins->k, ESI);
+				CMPrd(EDI, ESI);
+				JAb(12);
+				MOVrd(EDI, ECX);
+				SUBrd(ESI, ECX);
+				CMPid(sizeof(int16_t), ECX);
+				JAEb(4);
 				MOVrq3(R8, RBX);
 				RET();
 				MOVobw(RBX, RSI, AX);
@@ -194,12 +198,12 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_LD|BPF_B|BPF_ABS:
 				ZEROrd(EAX);
-				MOVid(ins->k, ECX);
-				CMPrd(EDI, ECX);
-				JBEb(4);
+				MOVid(ins->k, ESI);
+				CMPrd(EDI, ESI);
+				JBb(4);
 				MOVrq3(R8, RBX);
 				RET();
-				MOVobb(RBX, RCX, AL);
+				MOVobb(RBX, RSI, AL);
 				break;
 
 			case BPF_LD|BPF_W|BPF_LEN:
@@ -211,12 +215,18 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 				break;
 
 			case BPF_LD|BPF_W|BPF_IND:
-				MOVid(ins->k, ECX);
-				ADDrd(EDX, ECX);
-				MOVrd(ECX, ESI);
-				ADDib(sizeof(int32_t), ECX);
-				CMPrd(EDI, ECX);
-				JBEb(6);
+				CMPrd(EDI, EDX);
+				JAb(27);
+				MOVid(ins->k, ESI);
+				MOVrd(EDI, ECX);
+				SUBrd(EDX, ECX);
+				CMPrd(ESI, ECX);
+				JBb(14);
+				ADDrd(EDX, ESI);
+				MOVrd(EDI, ECX);
+				SUBrd(ESI, ECX);
+				CMPid(sizeof(int32_t), ECX);
+				JAEb(6);
 				ZEROrd(EAX);
 				MOVrq3(R8, RBX);
 				RET();
@@ -226,12 +236,18 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_LD|BPF_H|BPF_IND:
 				ZEROrd(EAX);
-				MOVid(ins->k, ECX);
-				ADDrd(EDX, ECX);
-				MOVrd(ECX, ESI);
-				ADDib(sizeof(int16_t), ECX);
-				CMPrd(EDI, ECX);
-				JBEb(4);
+				CMPrd(EDI, EDX);
+				JAb(27);
+				MOVid(ins->k, ESI);
+				MOVrd(EDI, ECX);
+				SUBrd(EDX, ECX);
+				CMPrd(ESI, ECX);
+				JBb(14);
+				ADDrd(EDX, ESI);
+				MOVrd(EDI, ECX);
+				SUBrd(ESI, ECX);
+				CMPid(sizeof(int16_t), ECX);
+				JAEb(4);
 				MOVrq3(R8, RBX);
 				RET();
 				MOVobw(RBX, RSI, AX);
@@ -240,24 +256,28 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			case BPF_LD|BPF_B|BPF_IND:
 				ZEROrd(EAX);
-				MOVid(ins->k, ECX);
-				ADDrd(EDX, ECX);
-				CMPrd(EDI, ECX);
-				JBEb(4);
+				CMPrd(EDI, EDX);
+				JAEb(13);
+				MOVid(ins->k, ESI);
+				MOVrd(EDI, ECX);
+				SUBrd(EDX, ECX);
+				CMPrd(ESI, ECX);
+				JAb(4);
 				MOVrq3(R8, RBX);
 				RET();
-				MOVobb(RBX, RCX, AL);
+				ADDrd(EDX, ESI);
+				MOVobb(RBX, RSI, AL);
 				break;
 
 			case BPF_LDX|BPF_MSH|BPF_B:
-				MOVid(ins->k, ECX);
-				CMPrd(EDI, ECX);
-				JBEb(6);
+				MOVid(ins->k, ESI);
+				CMPrd(EDI, ESI);
+				JBb(6);
 				ZEROrd(EAX);
 				MOVrq3(R8, RBX);
 				RET();
 				ZEROrd(EDX);
-				MOVobb(RBX, RCX, DL);
+				MOVobb(RBX, RSI, DL);
 				ANDib(0x0f, DL);
 				SHLib(2, EDX);
 				break;
