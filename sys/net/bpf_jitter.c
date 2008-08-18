@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2002 - 2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (c) 2005 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
+ * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include "opt_bpf.h"
 
 #include <sys/param.h>
@@ -39,13 +40,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
+#else
+#include <stdlib.h>
+#include <sys/types.h>
+#endif
 
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
 
-MALLOC_DEFINE(M_BPFJIT, "BPF_JIT", "BPF JIT compiler");
-
 bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
+
+#ifdef _KERNEL
+MALLOC_DEFINE(M_BPFJIT, "BPF_JIT", "BPF JIT compiler");
 
 SYSCTL_NODE(_net, OID_AUTO, bpf_jitter, CTLFLAG_RW, 0, "BPF JIT compiler");
 int bpf_jitter_enable = 1;
@@ -58,27 +64,27 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	bpf_jit_filter *filter;
 
 	/* Allocate the filter structure */
-	filter = (struct bpf_jit_filter *)malloc(sizeof(struct bpf_jit_filter),
+	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter),
 	    M_BPFJIT, M_NOWAIT);
 	if (filter == NULL)
-		return NULL;
+		return (NULL);
 
 	/* Allocate the filter's memory */
 	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int),
 	    M_BPFJIT, M_NOWAIT);
 	if (filter->mem == NULL) {
 		free(filter, M_BPFJIT);
-		return NULL;
+		return (NULL);
 	}
 
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
 		free(filter->mem, M_BPFJIT);
 		free(filter, M_BPFJIT);
-		return NULL;
+		return (NULL);
 	}
 
-	return filter;
+	return (filter);
 }
 
 void
@@ -89,3 +95,40 @@ bpf_destroy_jit_filter(bpf_jit_filter *filter)
 	free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
+#else
+bpf_jit_filter *
+bpf_jitter(struct bpf_insn *fp, int nins)
+{
+	bpf_jit_filter *filter;
+
+	/* Allocate the filter structure */
+	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
+	if (filter == NULL)
+		return (NULL);
+
+	/* Allocate the filter's memory */
+	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int));
+	if (filter->mem == NULL) {
+		free(filter);
+		return (NULL);
+	}
+
+	/* Create the binary */
+	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
+		free(filter->mem);
+		free(filter);
+		return (NULL);
+	}
+
+	return (filter);
+}
+
+void
+bpf_destroy_jit_filter(bpf_jit_filter *filter)
+{
+
+	free(filter->mem);
+	free(filter->func);
+	free(filter);
+}
+#endif

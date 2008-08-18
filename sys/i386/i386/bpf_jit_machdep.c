@@ -32,16 +32,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include "opt_bpf.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/malloc.h>
-
 #include <net/if.h>
+#else
+#include <stdlib.h>
+#endif
+
+#include <sys/types.h>
+
 #include <net/bpf.h>
 #include <net/bpf_jitter.h>
 
@@ -53,7 +57,7 @@ bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
  * emit routine to update the jump table
  */
 static void
-emit_length(bpf_bin_stream *stream, u_int value, u_int len)
+emit_length(bpf_bin_stream *stream, __unused u_int value, u_int len)
 {
 
 	(stream->refs)[stream->bpf_pc] += len;
@@ -108,8 +112,12 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		return (NULL);
 
 	/* Allocate the reference table for the jumps */
+#ifdef _KERNEL
 	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int),
 	    M_BPFJIT, M_NOWAIT);
+#else
+	stream.refs = (u_int *)malloc((nins + 1) * sizeof(u_int));
+#endif
 	if (stream.refs == NULL)
 		return (NULL);
 
@@ -144,7 +152,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 
 			switch (ins->code) {
 			default:
+#ifdef _KERNEL
 				return (NULL);
+#else
+				abort();
+#endif
 
 			case BPF_RET|BPF_K:
 				MOVid(ins->k, EAX);
@@ -473,11 +485,19 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 		if (pass == 2)
 			break;
 
+#ifdef _KERNEL
 		stream.ibuf = (char *)malloc(stream.cur_ip, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL) {
 			free(stream.refs, M_BPFJIT);
 			return (NULL);
 		}
+#else
+		stream.ibuf = (char *)malloc(stream.cur_ip);
+		if (stream.ibuf == NULL) {
+			free(stream.refs);
+			return (NULL);
+		}
+#endif
 
 		/*
 		 * modify the reference table to contain the offsets and
@@ -498,7 +518,11 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, int *mem)
 	 * the reference table is needed only during compilation,
 	 * now we can free it
 	 */
+#ifdef _KERNEL
 	free(stream.refs, M_BPFJIT);
+#else
+	free(stream.refs);
+#endif
 
 	return ((bpf_filter_func)stream.ibuf);
 }
