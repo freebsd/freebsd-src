@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2007
+.Dd August 18, 2008
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -85,6 +85,8 @@ The following tunables are settable from the loader:
 .Bl -ohang
 .It Va hw.ata.ata_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
+.It Va hw.ata.ata_dma_check_80pin
+set to 0 to disable the 80pin cable check (default is 1, check the cable) 
 .It Va hw.ata.atapi_dma
 set to 1 for DMA access, 0 for PIO (default is DMA).
 .It Va hw.ata.wc
@@ -169,7 +171,9 @@ the
 driver has detected that the required 80 conductor cable is not present
 or could not be detected properly,
 or that one of the devices on the channel only accepts up
-to UDMA2/ATA33.
+to UDMA2/ATA33. The
+.Va hw.ata.ata_dma_check_80pin
+tunable can be set to 0 to disable this check.
 .Pp
 Unknown ATAPI devices are initialized to DMA mode if the
 .Va hw.ata.atapi_dma
