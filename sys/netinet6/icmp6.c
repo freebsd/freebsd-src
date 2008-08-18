@@ -1889,10 +1889,10 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 
 	INP_INFO_RLOCK(&ripcbinfo);
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
-		INP_LOCK(in6p);
+		INP_RLOCK(in6p);
 		if ((in6p->inp_vflag & INP_IPV6) == 0) {
 	docontinue:
-			INP_UNLOCK(in6p);
+			INP_RUNLOCK(in6p);
 			continue;
 		}
 		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
@@ -1963,7 +1963,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 					sorwakeup_locked(last->in6p_socket);
 				opts = NULL;
 			}
-			INP_UNLOCK(last);
+			INP_RUNLOCK(last);
 		}
 		last = in6p;
 	}
@@ -2001,7 +2001,7 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 			SOCKBUF_UNLOCK(&last->in6p_socket->so_rcv);
 		} else
 			sorwakeup_locked(last->in6p_socket);
-		INP_UNLOCK(last);
+		INP_RUNLOCK(last);
 	} else {
 		m_freem(m);
 		ip6stat.ip6s_delivered--;

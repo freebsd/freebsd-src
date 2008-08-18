@@ -477,7 +477,7 @@ findpcb:
 		rstreason = BANDLIM_RST_CLOSEDPORT;
 		goto dropwithreset;
 	}
-	INP_LOCK(inp);
+	INP_WLOCK(inp);
 
 #ifdef IPSEC
 #ifdef INET6
@@ -534,7 +534,7 @@ findpcb:
 	}
 
 #ifdef MAC
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	if (mac_check_inpcb_deliver(inp, m))
 		goto dropunlock;
 #endif
@@ -632,9 +632,9 @@ findpcb:
 			 * Unlock the listen socket, lock the newly
 			 * created socket and update the tp variable.
 			 */
-			INP_UNLOCK(inp);	/* listen socket */
+			INP_WUNLOCK(inp);	/* listen socket */
 			inp = sotoinpcb(so);
-			INP_LOCK(inp);		/* new connection */
+			INP_WLOCK(inp);		/* new connection */
 			tp = intotcpcb(inp);
 			KASSERT(tp->t_state == TCPS_SYN_RECEIVED,
 			    ("%s: ", __func__));
@@ -854,7 +854,7 @@ dropwithreset:
 dropunlock:
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	if (inp != NULL)
-		INP_UNLOCK(inp);
+		INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 drop:
 	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
@@ -887,7 +887,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	thflags = th->th_flags;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 	KASSERT(tp->t_state > TCPS_LISTEN, ("%s: TCPS_LISTEN",
 	    __func__));
 	KASSERT(tp->t_state != TCPS_TIME_WAIT, ("%s: TCPS_TIME_WAIT",
@@ -1331,7 +1331,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 
 		KASSERT(headlocked, ("%s: trimthenstep6: head not locked",
 		    __func__));
-		INP_LOCK_ASSERT(tp->t_inpcb);
+		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		/*
 		 * Advance th->th_seq to correspond to first data byte.
@@ -1939,7 +1939,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 process_ACK:
 		KASSERT(headlocked, ("%s: process_ACK: head not locked",
 		    __func__));
-		INP_LOCK_ASSERT(tp->t_inpcb);
+		INP_WLOCK_ASSERT(tp->t_inpcb);
 
 		acked = th->th_ack - tp->snd_una;
 		tcpstat.tcps_rcvackpack++;
@@ -2122,7 +2122,7 @@ process_ACK:
 
 step6:
 	KASSERT(headlocked, ("%s: step6: head not locked", __func__));
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * Update window information.
@@ -2208,7 +2208,7 @@ step6:
 	}
 dodata:							/* XXX */
 	KASSERT(headlocked, ("%s: dodata: head not locked", __func__));
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
 	 * Process the segment text, merging it into the TCP sequencing queue,
@@ -2351,12 +2351,12 @@ check_delack:
 	KASSERT(headlocked == 0, ("%s: check_delack: head locked",
 	    __func__));
 	INP_INFO_UNLOCK_ASSERT(&tcbinfo);
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 	if (tp->t_flags & TF_DELACK) {
 		tp->t_flags &= ~TF_DELACK;
 		tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
 	}
-	INP_UNLOCK(tp->t_inpcb);
+	INP_WUNLOCK(tp->t_inpcb);
 	return;
 
 dropafterack:
@@ -2391,7 +2391,7 @@ dropafterack:
 	INP_INFO_WUNLOCK(&tcbinfo);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
-	INP_UNLOCK(tp->t_inpcb);
+	INP_WUNLOCK(tp->t_inpcb);
 	m_freem(m);
 	return;
 
@@ -2401,7 +2401,7 @@ dropwithreset:
 	tcp_dropwithreset(m, th, tp, tlen, rstreason);
 
 	if (tp != NULL)
-		INP_UNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tp->t_inpcb);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
 	return;
@@ -2416,7 +2416,7 @@ drop:
 			  &tcp_savetcp, 0);
 #endif
 	if (tp != NULL)
-		INP_UNLOCK(tp->t_inpcb);
+		INP_WUNLOCK(tp->t_inpcb);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
@@ -2438,7 +2438,7 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 #endif
 
 	if (tp != NULL) {
-		INP_LOCK_ASSERT(tp->t_inpcb);
+		INP_WLOCK_ASSERT(tp->t_inpcb);
 	}
 
 	/* Don't bother if destination was broadcast/multicast. */
@@ -2590,7 +2590,7 @@ tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
 			char *cp = mtod(m, caddr_t) + cnt;
 			struct tcpcb *tp = sototcpcb(so);
 
-			INP_LOCK_ASSERT(tp->t_inpcb);
+			INP_WLOCK_ASSERT(tp->t_inpcb);
 
 			tp->t_iobc = *cp;
 			tp->t_oobflags |= TCPOOB_HAVEDATA;
@@ -2617,7 +2617,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 {
 	int delta;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	tcpstat.tcps_rttupdated++;
 	tp->t_rttupdated++;
@@ -2737,7 +2737,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	const size_t min_protoh = sizeof(struct tcpiphdr);
 #endif
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/* Initialize. */
 #ifdef INET6
@@ -3007,7 +3007,7 @@ tcp_newreno_partial_ack(struct tcpcb *tp, struct tcphdr *th)
 	tcp_seq onxt = tp->snd_nxt;
 	u_long  ocwnd = tp->snd_cwnd;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;

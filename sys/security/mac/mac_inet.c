@@ -267,7 +267,7 @@ void
 mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 {
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	SOCK_LOCK_ASSERT(so);
 	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
 }
@@ -326,7 +326,7 @@ void
 mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
 {
 
-	INP_LOCK_ASSERT(inp);
+	INP_WLOCK_ASSERT(inp);
 	MAC_PERFORM(init_syncache_from_inpcb, label, inp);
 }
 
