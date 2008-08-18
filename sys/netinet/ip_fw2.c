@@ -2015,12 +2015,12 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			INP_LOCK(pcb);
+			INP_RLOCK(pcb);
 			if (pcb->inp_socket != NULL) {
 				fill_ugid_cache(pcb, ugp);
 				*lookup = 1;
 			}
-			INP_UNLOCK(pcb);
+			INP_RUNLOCK(pcb);
 		}
 		INP_INFO_RUNLOCK(pi);
 		if (*lookup == 0) {
