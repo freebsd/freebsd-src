@@ -3107,8 +3107,14 @@ ieee80211_recv_pspoll(struct ieee80211com *ic,
 		    "aid mismatch: sta aid 0x%x poll aid 0x%x",
 		    ni->ni_associd, aid);
 		ic->ic_stats.is_ps_badaid++;
-		IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_DEAUTH,
-			IEEE80211_REASON_NOT_ASSOCED);
+		/*
+		 * NB: We used to deauth the station but it turns out
+		 * the Blackberry Curve 8230 (and perhaps other devices) 
+		 * sometimes send the wrong AID when WME is negotiated.
+		 * Being more lenient here seems ok as we already check
+		 * the station is associated and we only return frames
+		 * queued for the station (i.e. we don't use the AID).
+		 */
 		return;
 	}
 
