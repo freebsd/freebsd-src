@@ -313,7 +313,7 @@ pathmatch(const char *pattern, const char *string)
 		while (string[0] == '/')
 			++string;
 	}
-	return (bsdtar_fnmatch(pattern, string, FNM_LEADING_DIR));
+	return (bsdtar_fnmatch(pattern, string));
 }
 
 
