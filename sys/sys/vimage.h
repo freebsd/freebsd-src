@@ -271,13 +271,16 @@
 #define	V_rsvp_on rsvp_on
 #define	V_rt_tables rt_tables
 #define	V_rtq_minreallyold rtq_minreallyold
+#define	V_rtq_minreallyold6 rtq_minreallyold6
 #define	V_rtq_mtutimer rtq_mtutimer
 #define	V_rtq_reallyold rtq_reallyold
+#define	V_rtq_reallyold6 rtq_reallyold6
 #define	V_rtq_timeout rtq_timeout
 #define	V_rtq_timeout6 rtq_timeout6
 #define	V_rtq_timer rtq_timer
 #define	V_rtq_timer6 rtq_timer6
 #define	V_rtq_toomany rtq_toomany
+#define	V_rtq_toomany6 rtq_toomany6
 #define	V_rtstat rtstat
 #define	V_rttrash rttrash
 #define	V_sahtree sahtree
