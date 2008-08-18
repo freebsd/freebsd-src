@@ -216,7 +216,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	    inp->inp_socket->so_options & (SO_TIMESTAMP | SO_BINTIME)) {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6)
-			ip6_savecontrol_v4(inp, n, &opts);
+			(void)ip6_savecontrol_v4(inp, n, &opts, NULL);
 		else
 #endif
 			ip_savecontrol(inp, &opts, ip, n);
