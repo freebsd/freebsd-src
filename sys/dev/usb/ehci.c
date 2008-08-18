@@ -239,7 +239,7 @@ static void		ehci_dump_sqtds(ehci_soft_qtd_t *);
 static void		ehci_dump_sqtd(ehci_soft_qtd_t *);
 static void		ehci_dump_qtd(ehci_qtd_t *);
 static void		ehci_dump_sqh(ehci_soft_qh_t *);
-#if notyet
+#ifdef notyet
 static void		ehci_dump_sitd(struct ehci_soft_itd *);
 static void		ehci_dump_itd(struct ehci_soft_itd *);
 #endif
@@ -1474,7 +1474,7 @@ ehci_dump_sqh(ehci_soft_qh_t *sqh)
 	ehci_dump_qtd(&qh->qh_qtd);
 }
 
-#if notyet
+#ifdef notyet
 void
 ehci_dump_itd(struct ehci_soft_itd *itd)
 {
