@@ -1,8 +1,10 @@
 /*	$NetBSD: umodem.c,v 1.45 2002/09/23 05:51:23 simonb Exp $	*/
 
+#define UFOMA_HANDSFREE
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 /*-
  * Copyright (c) 2005, Takanori Watanabe
  * Copyright (c) 2003, M. Warner Losh <imp@freebsd.org>.
@@ -193,11 +195,13 @@ static void ufoma_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static char *ufoma_mode_to_str(int);
 static int ufoma_str_to_mode(char *);
 
-/*Pseudo ucom stuff*/
+#ifdef UFOMA_HANDSFREE
+/*Pseudo ucom stuff(for Handsfree interface)*/
 static int ufoma_init_pseudo_ucom(struct ufoma_softc *);
 static t_open_t ufomaopen;
 static t_close_t ufomaclose;
 static t_oproc_t ufomastart;
+#endif
 
 /*umodem like stuff*/
 static int ufoma_init_modem(struct ufoma_softc *, struct usb_attach_arg *);
@@ -291,8 +295,9 @@ ufoma_match(device_t self)
 		return (UMATCH_NONE);
 	}
 
-#if 0
-	if(mad->bType != UMCPC_ACM_TYPE_AB5){
+#ifndef UFOMA_HANDSFREE
+	if((mad->bType == UMCPC_ACM_TYPE_AB5)||
+	   (mad->bType == UMCPC_ACM_TYPE_AB6)){
 		return UMATCH_NONE;
 	}
 #endif
@@ -375,12 +380,17 @@ ufoma_attach(device_t self)
 		}
 	}
 	printf("\n");
-
 	if((mad->bType == UMCPC_ACM_TYPE_AB5)
 	   ||(mad->bType == UMCPC_ACM_TYPE_AB6)){
+#ifdef UFOMA_HANDSFREE
 		/*These does not have data interface*/
 		sc->sc_is_ucom = 0;
 		ufoma_init_pseudo_ucom(sc);
+#else
+		/*Should not happen*/
+		goto error;
+#endif
+
 	}else{
 		if(ufoma_init_modem(sc, uaa)){
 			goto error;
@@ -429,10 +439,15 @@ ufoma_detach(device_t self)
 	sc->sc_ucom.sc_dying = 1;
 	usbd_abort_pipe(sc->sc_notify_pipe);
 	usbd_close_pipe(sc->sc_notify_pipe);
-	if(sc->sc_is_ucom)
+	if(sc->sc_is_ucom){
 		ucom_detach(&sc->sc_ucom);
-	else
+	}
+#ifdef UFOMA_HANDSFREE
+	else{
 		ttyfree(sc->sc_ucom.sc_tty);
+	}
+
+#endif
 	free(sc->sc_modetable, M_USBDEV);
 	return rv;
 }
@@ -547,7 +562,7 @@ static int ufoma_activate_state(struct ufoma_softc *sc, int state)
 	return 0;
 }
 
-
+#ifdef UFOMA_HANDSFREE
 static inline void ufoma_setup_msg_req(struct ufoma_softc *sc, usb_device_request_t *req)
 {
 		req->bmRequestType = UT_READ_CLASS_INTERFACE;
@@ -583,15 +598,18 @@ static void ufoma_msg(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_stat
 	mtx_unlock(&sc->sc_mtx);
 
 }
-
+#endif
 static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct ufoma_softc *sc = priv;
 	unsigned int a;
 	struct ucom_softc *ucom =&sc->sc_ucom;
-	usb_device_request_t req;
-	ufoma_setup_msg_req(sc, &req);
 	u_char mstatus;
+#ifdef UFOMA_HANDSFREE
+	usb_device_request_t req;
+
+	ufoma_setup_msg_req(sc, &req);
+#endif
 
 	if (sc->sc_ucom.sc_dying)
 		return;
@@ -616,6 +634,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 		return;
 	}
 	switch(sc->sc_notify_buf.bNotification){
+#ifdef UFOMA_HANDSFREE
 	case UCDC_N_RESPONSE_AVAILABLE:
 		if(sc->sc_is_ucom){
 			printf("%s:wrong response request?\n", device_get_nameunit(ucom->sc_dev));
@@ -632,6 +651,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 		sc->sc_nummsg++;
 		mtx_unlock(&sc->sc_mtx);
 		break;
+#endif
 	case UCDC_N_SERIAL_STATE:
 		if(!sc->sc_is_ucom){
 			printf("%s:wrong sereal request?\n",device_get_nameunit(ucom->sc_dev));
@@ -670,6 +690,7 @@ static void ufoma_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_sta
 	}
 }
 
+#ifdef UFOMA_HANDSFREE
 static int ufoma_init_pseudo_ucom(struct ufoma_softc *sc)
 {
 	struct tty *tp;
@@ -737,6 +758,8 @@ static void ufomastart(struct tty *tp)
 	ttwwakeup(tp);
 	splx(x);
 }
+#endif
+
 
 static int ufoma_ucom_open(void *p, int portno)
 {
