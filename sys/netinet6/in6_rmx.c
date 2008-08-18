@@ -219,20 +219,20 @@ in6_matroute(void *v_arg, struct radix_node_head *head)
 
 SYSCTL_DECL(_net_inet6_ip6);
 
-static int rtq_reallyold = 60*60;
+static int rtq_reallyold6 = 60*60;
 	/* one hour is ``really old'' */
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire,
-	CTLFLAG_RW, &rtq_reallyold , 0, "");
+	CTLFLAG_RW, &rtq_reallyold6 , 0, "");
 
-static int rtq_minreallyold = 10;
+static int rtq_minreallyold6 = 10;
 	/* never automatically crank down to less */
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire,
-	CTLFLAG_RW, &rtq_minreallyold , 0, "");
+	CTLFLAG_RW, &rtq_minreallyold6 , 0, "");
 
-static int rtq_toomany = 128;
+static int rtq_toomany6 = 128;
 	/* 128 cached routes is ``too many'' */
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache,
-	CTLFLAG_RW, &rtq_toomany , 0, "");
+	CTLFLAG_RW, &rtq_toomany6 , 0, "");
 
 
 /*
@@ -257,12 +257,12 @@ in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 
 	/*
 	 * As requested by David Greenman:
-	 * If rtq_reallyold is 0, just delete the route without
+	 * If rtq_reallyold6 is 0, just delete the route without
 	 * waiting for a timeout cycle to kill it.
 	 */
-	if (V_rtq_reallyold != 0) {
+	if (V_rtq_reallyold6 != 0) {
 		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold;
+		rt->rt_rmx.rmx_expire = time_uptime + V_rtq_reallyold6;
 	} else {
 		rtexpunge(rt);
 	}
@@ -281,7 +281,7 @@ struct rtqk_arg {
 /*
  * Get rid of old routes.  When draining, this deletes everything, even when
  * the timeout is not expired yet.  When updating, this makes sure that
- * nothing has a timeout longer than the current value of rtq_reallyold.
+ * nothing has a timeout longer than the current value of rtq_reallyold6.
  */
 static int
 in6_rtqkill(struct radix_node *rn, void *rock)
@@ -309,9 +309,9 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 		} else {
 			if (ap->updating
 			   && (rt->rt_rmx.rmx_expire - time_uptime
-			       > V_rtq_reallyold)) {
+			       > V_rtq_reallyold6)) {
 				rt->rt_rmx.rmx_expire = time_uptime
-					+ V_rtq_reallyold;
+					+ V_rtq_reallyold6;
 			}
 			ap->nextstop = lmin(ap->nextstop,
 					    rt->rt_rmx.rmx_expire);
@@ -349,18 +349,18 @@ in6_rtqtimo(void *rock)
 	 * than once in rtq_timeout6 seconds, to keep from cranking down too
 	 * hard.
 	 */
-	if ((arg.found - arg.killed > V_rtq_toomany)
+	if ((arg.found - arg.killed > V_rtq_toomany6)
 	   && (time_uptime - last_adjusted_timeout >= V_rtq_timeout6)
-	   && V_rtq_reallyold > V_rtq_minreallyold) {
-		V_rtq_reallyold = 2*V_rtq_reallyold / 3;
-		if (V_rtq_reallyold < V_rtq_minreallyold) {
-			V_rtq_reallyold = V_rtq_minreallyold;
+	   && V_rtq_reallyold6 > V_rtq_minreallyold6) {
+		V_rtq_reallyold6 = 2*V_rtq_reallyold6 / 3;
+		if (V_rtq_reallyold6 < V_rtq_minreallyold6) {
+			V_rtq_reallyold6 = V_rtq_minreallyold6;
 		}
 
 		last_adjusted_timeout = time_uptime;
 #ifdef DIAGNOSTIC
-		log(LOG_DEBUG, "in6_rtqtimo: adjusted rtq_reallyold to %d",
-		    V_rtq_reallyold);
+		log(LOG_DEBUG, "in6_rtqtimo: adjusted rtq_reallyold6 to %d",
+		    V_rtq_reallyold6);
 #endif
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
