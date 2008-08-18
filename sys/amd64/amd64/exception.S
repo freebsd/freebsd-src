@@ -636,13 +636,10 @@ doreti_iret:
 	.globl	doreti_iret_fault
 doreti_iret_fault:
 	subq	$TF_RIP,%rsp		/* space including tf_err, tf_trapno */
-	testb	$SEL_RPL_MASK,TF_CS(%rsp) /* Did we come from kernel? */
-	jz	1f			/* already running with kernel GS.base */
-	swapgs
-1:	testl	$PSL_I,TF_RFLAGS(%rsp)
-	jz	2f
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
 	sti
-2:	movq	%rdi,TF_RDI(%rsp)
+1:	movq	%rdi,TF_RDI(%rsp)
 	movq	%rsi,TF_RSI(%rsp)
 	movq	%rdx,TF_RDX(%rsp)
 	movq	%rcx,TF_RCX(%rsp)
