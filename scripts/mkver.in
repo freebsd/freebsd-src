@@ -10,17 +10,14 @@ case "$CSET" in
  *) ConfStr="$ConfStr@$CSET" ;;
 esac
 
-case "@LIBRSAREF@" in
- '')
-    case "@AUTOKEY@" in
-     '') ;;
-     *) ConfStr="${ConfStr}-a" ;;
-    esac
-    ;;
- *)  ConfStr="${ConfStr}-r" ;;
+case "@LCRYPTO@" in
+ '') ;;
+ -lcrypto)
+    ConfStr="${ConfStr}-o" ;;
+ *) ConfStr="${ConfStr}-?" ;;
 esac
 
-ConfStr="$ConfStr `LC_TIME=C date`"
+ConfStr="$ConfStr `LC_TIME=C TZ= date`"
 
 if [ ! -f .version ]; then
   echo 0 > .version

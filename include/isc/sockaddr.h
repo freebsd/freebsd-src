@@ -174,6 +174,12 @@ isc_sockaddr_ismulticast(isc_sockaddr_t *sa);
  */
 
 isc_boolean_t
+isc_sockaddr_isexperimental(isc_sockaddr_t *sa);
+/*
+ * Returns ISC_TRUE if the address is a experimental (CLASS E) address.
+ */
+
+isc_boolean_t
 isc_sockaddr_islinklocal(isc_sockaddr_t *sa);
 /*
  * Returns ISC_TRUE if the address is a link local addresss.

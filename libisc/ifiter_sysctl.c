@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ifiter_sysctl.c,v 1.17 2002/05/30 01:24:12 marka Exp $ */
+/* $Id: ifiter_sysctl.c,v 1.14.12.7 2004/03/08 09:04:56 marka Exp $ */
 
 /*
  * Obtain the list of network interfaces using sysctl.
@@ -251,17 +251,23 @@ internal_current(isc_interfaceiter_t *iter) {
 
 		iter->current.af = family;
 
-		get_addr(family, &iter->current.address, addr_sa);
+		get_addr(family, &iter->current.address, addr_sa,
+			 iter->current.name);
 
 		if (mask_sa != NULL)
-			get_addr(family, &iter->current.netmask, mask_sa);
+			get_addr(family, &iter->current.netmask, mask_sa,
+				 iter->current.name);
 
 		if (dst_sa != NULL &&
 		    (iter->current.flags & INTERFACE_F_POINTTOPOINT) != 0)
-			get_addr(family, &iter->current.dstaddress, dst_sa);
+			get_addr(family, &iter->current.dstaddress, dst_sa,
+				 iter->current.name);
+
 		if (dst_sa != NULL &&
 		    (iter->current.flags & INTERFACE_F_BROADCAST) != 0)
-			get_addr(family, &iter->current.broadcast, dst_sa);
+			get_addr(family, &iter->current.broadcast, dst_sa,
+				 iter->current.name);
+
 
 		return (ISC_R_SUCCESS);
 	} else {
@@ -303,3 +309,7 @@ internal_destroy(isc_interfaceiter_t *iter) {
 	 */
 }
 
+static
+void internal_first(isc_interfaceiter_t *iter) {
+	iter->pos = 0;
+}

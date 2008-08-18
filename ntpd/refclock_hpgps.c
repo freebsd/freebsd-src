@@ -41,6 +41,13 @@
  * than 1 usec. The accuracy when operating in holdover is typically better
  * than 10 usec. per day.
  *
+ * The same driver also handles the HP Z3801A which is available surplus
+ * from the cell phone industry.  It's popular with hams.
+ * It needs a different line setup: 19200 baud, 7 data bits, odd parity
+ * That is selected by adding "mode 1" to the server line in ntp.conf
+ * HP Z3801A code from Jeff Mock added by Hal Murray, Sep 2005
+ *
+ *
  * The receiver should be operated with factory default settings.
  * Initial driver operation: expects the receiver to be already locked
  * to GPS, configured and able to output timecode format 2 messages.
@@ -85,6 +92,7 @@
  */
 #define	DEVICE		"/dev/hpgps%d" /* device name and unit */
 #define	SPEED232	B9600	/* uart speed (9600 baud) */
+#define	SPEED232Z	B19200	/* uart speed (19200 baud) */
 #define	PRECISION	(-10)	/* precision assumed (about 1 ms) */
 #define	REFID		"GPS\0"	/*  reference ID */
 #define	DESCRIPTION	"HP 58503A GPS Time and Frequency Reference Receiver" 
@@ -152,11 +160,18 @@ hpgps_start(
 
 	/*
 	 * Open serial port. Use CLK line discipline, if available.
+	 * Default is HP 58503A, mode arg selects HP Z3801A
 	 */
 	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
-		return (0);
-
+	/* mode parameter to server config line shares ttl slot */
+	if ((peer->ttl == 1)) {
+		if (!(fd = refclock_open(device, SPEED232Z,
+				LDISC_CLK | LDISC_7O1)))
+			return (0);
+	} else {
+		if (!(fd = refclock_open(device, SPEED232, LDISC_CLK)))
+			return (0);
+	}
 	/*
 	 * Allocate and initialize unit structure
 	 */

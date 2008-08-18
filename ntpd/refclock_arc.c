@@ -7,6 +7,7 @@
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_ARCRON_MSF)
+
 static const char arc_version[] = { "V1.3 2003/02/21" };
 
 /* define PRE_NTP420 for compatibility to previous versions of NTP (at least
@@ -32,6 +33,7 @@ Code by Derek Mulcahy, <derek@toybox.demon.co.uk>, 1997.
 Modifications by Damon Hart-Davis, <d@hd.org>, 1997.
 Modifications by Paul Alfille, <palfille@partners.org>, 2003.
 Modifications by Christopher Price, <cprice@cs-home.com>, 2003.
+Modifications by Nigel Roles <nigel@9fs.org>, 2003.
 
 
 THIS CODE IS SUPPLIED AS IS, WITH NO WARRANTY OF ANY KIND.  USE AT
@@ -44,6 +46,16 @@ Built against ntp3-5.90 on Solaris 2.5 using gcc 2.7.2.
 This code may be freely copied and used and incorporated in other
 systems providing the disclaimer and notice of authorship are
 reproduced.
+
+-------------------------------------------------------------------------------
+
+Nigel's notes:
+
+1) Called tcgetattr() before modifying, so that fields correctly initialised
+   for all operating systems
+
+2) Altered parsing of timestamp line so that it copes with fields which are
+   not always ASCII digits (e.g. status field when battery low)
 
 -------------------------------------------------------------------------------
 
@@ -656,6 +668,8 @@ arc_start(
 
 #ifdef HAVE_TERMIOS
 
+	tcgetattr(fd, &arg);
+
 	arg.c_iflag = IGNBRK | ISTRIP;
 	arg.c_oflag = 0;
 	arg.c_cflag = B300 | CS8 | CREAD | CLOCAL | CSTOPB;
@@ -804,11 +818,27 @@ send_slow(
 	}
 
 	/* Copy in the command to be sent. */
-	while(*s) { up->cmdqueue[CMDQUEUELEN - spaceleft--] = *s++; }
+	while(*s && spaceleft > 0) { up->cmdqueue[CMDQUEUELEN - spaceleft--] = *s++; }
 
 	return(1);
 }
 
+
+static int
+get2(char *p, int *val)
+{
+  if (!isdigit((int)p[0]) || !isdigit((int)p[1])) return 0;
+  *val = (p[0] - '0') * 10 + p[1] - '0';
+  return 1;
+}
+
+static int
+get1(char *p, int *val)
+{
+  if (!isdigit((int)p[0])) return 0;
+  *val = p[0] - '0';
+  return 1;
+}
 
 /* Macro indicating action we will take for different quality values. */
 #define quality_action(q) \
@@ -1115,12 +1145,15 @@ arc_receive(
 	/* We don't use the nano-second part... */
 	pp->nsec = 0;
 #endif	
-	n = sscanf(pp->a_lastcode, "o%2d%2d%2d%1d%2d%2d%2d%1d%1d",
-		   &pp->hour, &pp->minute, &pp->second,
-		   &wday, &pp->day, &month, &pp->year, &flags, &status);
-
 	/* Validate format and numbers. */
-	if(n != 9) {
+	if (pp->a_lastcode[0] != 'o'
+		|| !get2(pp->a_lastcode + 1, &pp->hour)
+		|| !get2(pp->a_lastcode + 3, &pp->minute)
+		|| !get2(pp->a_lastcode + 5, &pp->second)
+		|| !get1(pp->a_lastcode + 7, &wday)
+		|| !get2(pp->a_lastcode + 8, &pp->day)
+		|| !get2(pp->a_lastcode + 10, &month)
+		|| !get2(pp->a_lastcode + 12, &pp->year)) {
 #ifdef DEBUG
 		/* Would expect to have caught major problems already... */
 		if(debug) { printf("arc: badly formatted data.\n"); }
@@ -1129,6 +1162,13 @@ arc_receive(
 		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 	}
+	flags = pp->a_lastcode[14];
+	status = pp->a_lastcode[15];
+#ifdef DEBUG
+	if(debug) { printf("arc: status 0x%.2x flags 0x%.2x\n", flags, status); }
+#endif
+	n = 9;
+
 	/*
 	  Validate received values at least enough to prevent internal
 	  array-bounds problems, etc.

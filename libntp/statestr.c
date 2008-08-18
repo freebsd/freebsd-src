@@ -128,17 +128,19 @@ struct codestring crypto_codes[] = {
 	{ XEVNT_LEN & ~CRPT_EVENT,	"bad_field_format_or_length" },
 	{ XEVNT_TSP & ~CRPT_EVENT,	"bad_timestamp" },
 	{ XEVNT_FSP & ~CRPT_EVENT,	"bad_filestamp" },
-	{ XEVNT_PUB & ~CRPT_EVENT,	"bad_procedure_or_data" },
+	{ XEVNT_PUB & ~CRPT_EVENT,	"bad_or_missing_public_key" },
 	{ XEVNT_MD & ~CRPT_EVENT,	"unsupported_digest_type" },
 	{ XEVNT_KEY & ~CRPT_EVENT,	"unsupported_identity_type" },
 	{ XEVNT_SGL & ~CRPT_EVENT,	"bad_signature_length" },
 	{ XEVNT_SIG & ~CRPT_EVENT,	"signature_not_verified" },
-	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate not verified" },
-	{ XEVNT_PER & ~CRPT_EVENT,	"certificate_expired" },
+	{ XEVNT_VFY & ~CRPT_EVENT,	"certificate_not_verified" },
+	{ XEVNT_PER & ~CRPT_EVENT,	"host certificate_expired" },
 	{ XEVNT_CKY & ~CRPT_EVENT,	"bad_or_missing_cookie" },
 	{ XEVNT_DAT & ~CRPT_EVENT,	"bad_or_missing_leapsecond_table" },
 	{ XEVNT_CRT & ~CRPT_EVENT,	"bad_or_missing_certificate" },	
-	{ XEVNT_ID & ~CRPT_EVENT,	"bad or missing identification" },
+	{ XEVNT_ID & ~CRPT_EVENT,	"bad_or_missing_group_key" },
+	{ XEVNT_ERR & ~CRPT_EVENT,	"protocol_error" },
+	{ XEVNT_SRV & ~CRPT_EVENT,	"server certificate expired" },
 	{ -1,				"crypto" }
 };
 #endif /* OPENSSL */
