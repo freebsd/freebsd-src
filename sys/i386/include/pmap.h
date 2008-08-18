@@ -283,6 +283,8 @@ pmap_kextract(vm_offset_t va)
 	}
 	return pa;
 }
+
+#define PT_UPDATES_FLUSH()
 #endif
 
 #if defined(PAE) && !defined(XEN)
