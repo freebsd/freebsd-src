@@ -283,6 +283,9 @@ ums_attach(device_t self)
 	/* Try the wheel first as the Z activator since it's tradition. */
 	wheel = hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP,
 						  HUG_WHEEL),
+			    hid_input, &sc->sc_loc_z, &flags) ||
+		hid_locate(desc, size, HID_USAGE2(HUP_GENERIC_DESKTOP,
+						  HUG_TWHEEL),
 			    hid_input, &sc->sc_loc_z, &flags);
 
 	if (wheel) {
