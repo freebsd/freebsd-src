@@ -2,8 +2,11 @@
 #
 # $FreeBSD$
 
-NTP 4.2.0
-	originals can be found on ftp://ftp.udel.edu/pub/ntp/ntp4/
+NTP 4.2.4p5
+	originals can be found on http://www.ntp.org/downloads.html
+
+Import
+------
 
 For the import of NTP the following files were removed:
 
@@ -11,16 +14,18 @@ For the import of NTP the following files were removed:
 	html/pic/*			GIF files
 	ElectricFence/*			Support for the ElectricFence library
 					(only useful if you want to debug ntpd)
+	html/build/hints/solaris.xtra.4095849 Trigger merge conflict script
 
 The stripped down version was created using FREEBSD-Xlist during extraction:
 
-	tar -X FREEBSD-Xlist -xvzf ntp-4.2.0.tar.gz
-	mv ntp-4.2.0 ntp
+	tar -X FREEBSD-Xlist -xvzf ntp-4.2.4p5.tar.gz
+	mv ntp-4.2.4p5 4.2.4p5
 
 Imported by:
+	See procedure on http://wiki.freebsd.org/SubversionPrimer/VendorImports
 
-	cvs import -ko -m 'Virgin import of ntpd 4.2.0' \
-		src/contrib/ntp DMILLS v4_2_0
+Updating usr.sbin/ntp
+---------------------
 
 ./configure --disable-all-clocks --enable-NMEA --enable-ONCORE
 --enable-RAWDCF --with-crypto --disable-debugging
