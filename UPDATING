@@ -33,6 +33,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	instead of "ttyd0". You may need to reconfigure applications to
 	use the new device names.
 
+	When using the serial port as a boot console, be sure to update
+	/boot/device.hints and /etc/ttys before booting the new kernel.
+	If you forget to do so, you can still manually specify the hints
+	at the loader prompt:
+
+		set hint.uart.0.at="isa"
+		set hint.uart.0.port="0x3F8"
+		set hint.uart.0.flags="0x10"
+		set hint.uart.0.irq="4"
+		boot -s
+
 20080609:
 	The gpt(8) utility has been removed. Use gpart(8) to partition
 	disks instead.
