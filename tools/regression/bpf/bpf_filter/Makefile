@@ -18,7 +18,7 @@ TEST_CASES=	test0001 test0002 test0003 test0004	\
 		test0061 test0062 test0063 test0064	\
 		test0065 test0066 test0067 test0068	\
 		test0069 test0070 test0071 test0072	\
-		test0073
+		test0073 test0074
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
