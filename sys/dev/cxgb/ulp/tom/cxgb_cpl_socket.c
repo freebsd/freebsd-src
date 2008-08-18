@@ -336,9 +336,9 @@ copy_data(const struct mbuf *m, int offset, int len, struct uio *uio)
 static void
 cxgb_wait_dma_completion(struct toepcb *toep)
 {
-	struct mtx *lock;
+	struct rwlock *lock;
 	
-	lock = &toep->tp_tp->t_inpcb->inp_mtx;
+	lock = &toep->tp_tp->t_inpcb->inp_lock;
 	inp_wlock(toep->tp_tp->t_inpcb);
 	cv_wait_unlock(&toep->tp_cv, lock);
 }
