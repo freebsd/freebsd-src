@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/sockio.h>
 #include <sys/fcntl.h>
-#include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
