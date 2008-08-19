@@ -73,10 +73,14 @@ static struct fileops devfs_ops_f;
 
 #include <security/mac/mac_framework.h>
 
+static MALLOC_DEFINE(M_CDEVPDATA, "DEVFSP", "Metainfo for cdev-fp data");
+
 struct mtx	devfs_de_interlock;
 MTX_SYSINIT(devfs_de_interlock, &devfs_de_interlock, "devfs interlock", MTX_DEF);
 struct sx	clone_drain_lock;
 SX_SYSINIT(clone_drain_lock, &clone_drain_lock, "clone events drain lock");
+struct mtx	cdevpriv_mtx;
+MTX_SYSINIT(cdevpriv_mtx, &cdevpriv_mtx, "cdevpriv lock", MTX_DEF);
 
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
@@ -92,7 +96,93 @@ devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
 	    ("devfs: un-referenced struct cdev *(%s)", devtoname(*devp)));
 	if (*dswp == NULL)
 		return (ENXIO);
+	curthread->td_fpop = fp;
 	return (0);
+}
+
+int
+devfs_get_cdevpriv(void **datap)
+{
+	struct file *fp;
+	struct cdev_privdata *p;
+	int error;
+
+	fp = curthread->td_fpop;
+	if (fp == NULL)
+		return (EBADF);
+	p = fp->f_cdevpriv;
+	if (p != NULL) {
+		error = 0;
+		*datap = p->cdpd_data;
+	} else
+		error = ENOENT;
+	return (error);
+}
+
+int
+devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t priv_dtr)
+{
+	struct file *fp;
+	struct cdev_priv *cdp;
+	struct cdev_privdata *p;
+	int error;
+
+	fp = curthread->td_fpop;
+	if (fp == NULL)
+		return (ENOENT);
+	cdp = ((struct cdev *)fp->f_data)->si_priv;
+	p = malloc(sizeof(struct cdev_privdata), M_CDEVPDATA, M_WAITOK);
+	p->cdpd_data = priv;
+	p->cdpd_dtr = priv_dtr;
+	p->cdpd_fp = fp;
+	mtx_lock(&cdevpriv_mtx);
+	if (fp->f_cdevpriv == NULL) {
+		LIST_INSERT_HEAD(&cdp->cdp_fdpriv, p, cdpd_list);
+		fp->f_cdevpriv = p;
+		mtx_unlock(&cdevpriv_mtx);
+		error = 0;
+	} else {
+		mtx_unlock(&cdevpriv_mtx);
+		free(p, M_CDEVPDATA);
+		error = EBUSY;
+	}
+	return (error);
+}
+
+void
+devfs_destroy_cdevpriv(struct cdev_privdata *p)
+{
+
+	mtx_assert(&cdevpriv_mtx, MA_OWNED);
+	p->cdpd_fp->f_cdevpriv = NULL;
+	LIST_REMOVE(p, cdpd_list);
+	mtx_unlock(&cdevpriv_mtx);
+	(p->cdpd_dtr)(p->cdpd_data);
+	free(p, M_CDEVPDATA);
+}
+
+void
+devfs_fpdrop(struct file *fp)
+{
+	struct cdev_privdata *p;
+
+	mtx_lock(&cdevpriv_mtx);
+	if ((p = fp->f_cdevpriv) == NULL) {
+		mtx_unlock(&cdevpriv_mtx);
+		return;
+	}
+	devfs_destroy_cdevpriv(p);
+}
+
+void
+devfs_clear_cdevpriv(void)
+{
+	struct file *fp;
+
+	fp = curthread->td_fpop;
+	if (fp == NULL)
+		return;
+	devfs_fpdrop(fp);
 }
 
 /*
@@ -381,8 +471,12 @@ devfs_close(struct vop_close_args *ap)
 static int
 devfs_close_f(struct file *fp, struct thread *td)
 {
+	int error;
 
-	return (vnops.fo_close(fp, td));
+	curthread->td_fpop = fp;
+	error = vnops.fo_close(fp, td);
+	curthread->td_fpop = NULL;
+	return (error);
 }
 
 /* ARGSUSED */
@@ -479,6 +573,7 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 
 	if (com == FIODTYPE) {
 		*(int *)data = dsw->d_flags & D_TYPEMASK;
+		td->td_fpop = NULL;
 		dev_relthread(dev);
 		return (0);
 	} else if (com == FIODGNAME) {
@@ -489,10 +584,12 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 			error = EINVAL;
 		else
 			error = copyout(p, fgn->buf, i);
+		td->td_fpop = NULL;
 		dev_relthread(dev);
 		return (error);
 	}
 	error = dsw->d_ioctl(dev, com, data, fp->f_flag, td);
+	td->td_fpop = NULL;
 	dev_relthread(dev);
 	if (error == ENOIOCTL)
 		error = ENOTTY;
@@ -536,6 +633,7 @@ devfs_kqfilter_f(struct file *fp, struct knote *kn)
 	if (error)
 		return (error);
 	error = dsw->d_kqfilter(dev, kn);
+	curthread->td_fpop = NULL;
 	dev_relthread(dev);
 	return (error);
 }
@@ -773,6 +871,12 @@ devfs_open(struct vop_open_args *ap)
 
 	VOP_UNLOCK(vp, 0, td);
 
+	if (fp != NULL) {
+		FILE_LOCK(fp);
+		fp->f_data = dev;
+		FILE_UNLOCK(fp);
+		td->td_fpop = fp;
+	}
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)
@@ -786,6 +890,7 @@ devfs_open(struct vop_open_args *ap)
 		else
 			error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
 	}
+	td->td_fpop = NULL;
 
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
@@ -804,7 +909,6 @@ devfs_open(struct vop_open_args *ap)
 	FILE_LOCK(fp);
 	KASSERT(fp->f_ops == &badfileops,
 	     ("Could not vnode bypass device on fdops %p", fp->f_ops));
-	fp->f_data = dev;
 	fp->f_ops = &devfs_ops_f;
 	FILE_UNLOCK(fp);
 	return (error);
@@ -844,6 +948,7 @@ devfs_poll_f(struct file *fp, int events, struct ucred *cred, struct thread *td)
 	if (error)
 		return (error);
 	error = dsw->d_poll(dev, events, td);
+	curthread->td_fpop = NULL;
 	dev_relthread(dev);
 	return(error);
 }
@@ -881,6 +986,7 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 	error = dsw->d_read(dev, uio, ioflag);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
+	curthread->td_fpop = NULL;
 	dev_relthread(dev);
 
 	if ((flags & FOF_OFFSET) == 0)
@@ -1310,6 +1416,7 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 		vfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
 	}
+	curthread->td_fpop = NULL;
 	dev_relthread(dev);
 
 	if ((flags & FOF_OFFSET) == 0)
