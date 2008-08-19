@@ -30,8 +30,6 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
-
 #include <machine/asmacros.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -82,6 +80,9 @@ struct pmap;
 	 * be L2 cache aligned - they're surrounded by per-cpu data, so there is
 	 * no possibility of false sharing, but this might help in reducing misses
 	 */
+
+#ifdef _KERNEL
+
 struct pcpu;
 
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
