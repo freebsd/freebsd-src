@@ -197,7 +197,9 @@ struct mmu_log {
 
 #ifdef SMP
 /* per-cpu queues and indices */
+#ifdef INVARIANTS
 static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+#endif
 static int xpq_idx[MAX_VIRT_CPUS];  
 
 #define XPQ_QUEUE xpq_queue[vcpu]
@@ -303,9 +305,11 @@ xen_increment_idx(void)
 void
 xen_check_queue(void)
 {
+#ifdef INVARIANTS
 	SET_VCPU();
 	
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
+#endif
 }
 
 void
@@ -321,9 +325,11 @@ void
 xen_load_cr3(u_int val)
 {
 	struct mmuext_op op;
+#ifdef INVARIANTS
 	SET_VCPU();
 	
 	KASSERT(XPQ_IDX == 0, ("pending operations XPQ_IDX=%d", XPQ_IDX));
+#endif
 	op.cmd = MMUEXT_NEW_BASEPTR;
 	op.arg1.mfn = xpmap_ptom(val) >> PAGE_SHIFT;
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
