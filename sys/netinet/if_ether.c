@@ -594,10 +594,6 @@ in_arpinput(struct mbuf *m)
 #ifdef DEV_CARP
 	int carp_match = 0;
 #endif
-	struct sockaddr_in sin;
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = 0;
 
 	if (ifp->if_bridge)
 		bridged = 1;
@@ -696,6 +692,10 @@ match:
 		
 		sdl = SDL(rt->rt_gateway);
 		if (firstpass) {
+			struct sockaddr_in sin;
+
+			sin.sin_len = sizeof(struct sockaddr_in);
+			sin.sin_family = AF_INET;
 			sin.sin_addr.s_addr = isaddr.s_addr;
 			EVENTHANDLER_INVOKE(route_arp_update_event, rt,
 			    ar_sha(ah), (struct sockaddr *)&sin);
