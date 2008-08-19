@@ -291,7 +291,7 @@ static struct acpi_asus_model acpi_asus_models[] = {
 	},
 	{
 		.name		= "L8L"
-		/* Only has hotkeys, apparantly */
+		/* Only has hotkeys, apparently */
 	},
 	{
 		.name		= "M1A",
