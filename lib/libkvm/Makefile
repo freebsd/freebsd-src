@@ -9,15 +9,16 @@ CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 CFLAGS+=-DSUN4V
 .endif
 
-SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_file.c kvm_getloadavg.c \
+SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 SRCS+=	kvm_minidump_${MACHINE_ARCH}.c
 .endif
 INCS=	kvm.h
 
-MAN=	kvm.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 kvm_getpcpu.3 \
-	kvm_getprocs.3 kvm_getswapinfo.3 kvm_nlist.3 kvm_open.3
+MAN=	kvm.3 kvm_getcptime.3 kvm_geterr.3 kvm_getfiles.3 kvm_getloadavg.3 \
+	kvm_getpcpu.3 kvm_getprocs.3 kvm_getswapinfo.3 kvm_nlist.3 kvm_open.3 \
+	kvm_read.3
 
 MLINKS+=kvm_getpcpu.3 kvm_getmaxcpu.3
 MLINKS+=kvm_getprocs.3 kvm_getargv.3 kvm_getprocs.3 kvm_getenvv.3
