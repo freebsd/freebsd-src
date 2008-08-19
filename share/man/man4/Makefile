@@ -3,6 +3,7 @@
 
 MAN=	aac.4 \
 	acpi.4 \
+	${_acpi_asus.4} \
 	${_acpi_dock.4} \
 	acpi_thermal.4 \
 	acpi_video.4 \
@@ -549,6 +550,7 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
 _amdsmb.4=	amdsmb.4
 _asmc.4=	asmc.4
