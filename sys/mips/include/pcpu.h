@@ -31,9 +31,8 @@
 #ifndef _MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
-
 #include <machine/pte.h>
+
 #define	PCPU_MD_FIELDS							\
 	pd_entry_t	*pc_segbase;		/* curthread segbase */	\
 	struct	pmap	*pc_curpmap;		/* pmap of curthread */	\
@@ -41,6 +40,8 @@
 	u_int32_t	pc_asid_generation;	/* current ASID generation */ \
 	u_int		pc_pending_ipis;	/* the IPIs pending to this CPU */ \
 	void		*pc_boot_stack;
+
+#ifdef _KERNEL
 
 #ifdef SMP
 static __inline struct pcpu*

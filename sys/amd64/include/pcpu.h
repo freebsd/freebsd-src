@@ -33,8 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#ifdef _KERNEL
-
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -51,6 +49,8 @@
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
 	u_int	pc_apic_id;						\
 	u_int   pc_acpi_id		/* ACPI CPU id */
+
+#ifdef _KERNEL
 
 #ifdef lint
 

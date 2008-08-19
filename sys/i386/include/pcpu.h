@@ -33,8 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#ifdef _KERNEL
-
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -82,6 +80,9 @@
 	int	pc_private_tss		/* Flag indicating private tss */
 
 #endif
+
+#ifdef _KERNEL
+
 #ifdef lint
 
 extern struct pcpu *pcpup;

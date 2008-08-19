@@ -33,10 +33,6 @@
 #ifndef _SYS_PCPU_H_
 #define	_SYS_PCPU_H_
 
-#ifndef _KERNEL
-#error "no user-serviceable parts inside"
-#endif
-
 #ifdef LOCORE
 #error "no assembler-serviceable parts inside"
 #endif
@@ -106,6 +102,8 @@ struct pcpu {
 	PCPU_MD_FIELDS;
 };
 
+#ifdef _KERNEL
+
 SLIST_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
@@ -132,5 +130,7 @@ void	db_show_mdpcpu(struct pcpu *pcpu);
 void	pcpu_destroy(struct pcpu *pcpu);
 struct	pcpu *pcpu_find(u_int cpuid);
 void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
+
+#endif	/* _KERNEL */
 
 #endif /* !_SYS_PCPU_H_ */
