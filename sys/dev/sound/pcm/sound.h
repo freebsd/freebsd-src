@@ -41,7 +41,7 @@
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/fcntl.h>
-#include <sys/tty.h>
+#include <sys/selinfo.h>
 #include <sys/proc.h>
 #include <sys/kernel.h> /* for DATA_SET */
 #include <sys/module.h>
