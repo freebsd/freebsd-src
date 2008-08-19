@@ -128,7 +128,7 @@ static struct at91_pmc_clock udc_clk = {
 static struct at91_pmc_clock ohci_clk = {
 	.name = "ohci_clk",
 	.parent = &mck,
-	.pmc_mask = 1 << AT91RM92_IRQ_UDP,
+	.pmc_mask = 1 << AT91RM92_IRQ_UHP,
 	.set_mode = &at91_pmc_set_periph_mode
 };
 
