@@ -1149,6 +1149,7 @@ product DLINK DSB650		0xabc1	10/100 Ethernet
 product DLINK2 DWLG122C1	0x3c03	DWL-G122 c1
 product DLINK2 WUA1340		0x3c04	WUA-1340
 product DLINK2 DWA111		0x3c06	DWA-111
+product DLINK2 DWA110		0x3c07	DWA-110
 
 /* DMI products */
 product DMI CFSM_RW		0xa109	CF/SM Reader/Writer
