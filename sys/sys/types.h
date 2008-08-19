@@ -143,6 +143,7 @@ typedef	__clockid_t	clockid_t;
 #define	_CLOCKID_T_DECLARED
 #endif
 
+typedef	__cpumask_t	cpumask_t;
 typedef	__critical_t	critical_t;	/* Critical section value */
 typedef	__int64_t	daddr_t;	/* disk address */
 
@@ -278,7 +279,6 @@ typedef	__vm_size_t	vm_size_t;
 
 #ifdef _KERNEL
 typedef	int		boolean_t;
-typedef	__cpumask_t	cpumask_t;
 typedef	struct device	*device_t;
 typedef	__intfptr_t	intfptr_t;
 

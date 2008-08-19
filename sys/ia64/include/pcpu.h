@@ -30,8 +30,6 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
-
 #include <machine/pcb.h>
 
 #define	PCPU_MD_FIELDS							\
@@ -42,6 +40,8 @@
 	uint64_t	pc_clockadj;		/* Clock adjust. */	\
 	uint32_t	pc_awake:1;		/* CPU is awake? */	\
 	uint32_t	pc_acpi_id		/* ACPI CPU id. */
+
+#ifdef _KERNEL
 
 struct pcpu;
 
