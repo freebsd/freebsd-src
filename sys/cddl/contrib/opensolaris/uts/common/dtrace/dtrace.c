@@ -13616,7 +13616,9 @@ dtrace_state_destroy(dtrace_state_t *state)
 		cyclic_remove(state->dts_deadman);
 #else
 	callout_stop(&state->dts_cleaner);
+	callout_drain(&state->dts_cleaner);
 	callout_stop(&state->dts_deadman);
+	callout_drain(&state->dts_deadman);
 #endif
 
 	dtrace_dstate_fini(&vstate->dtvs_dynvars);
