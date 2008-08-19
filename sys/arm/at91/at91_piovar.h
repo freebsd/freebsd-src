@@ -35,5 +35,9 @@ void at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask,
 	int use_pullup);
 void at91_pio_gpio_set(uint32_t pio, uint32_t data_mask);
 void at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask);
+uint8_t at91_pio_gpio_get(uint32_t pio, uint32_t data_mask);
+void at91_pio_gpio_set_deglitch(uint32_t pio, uint32_t data_mask, int use_deglitch);
+void at91_pio_gpio_set_interrupt(uint32_t pio, uint32_t data_mask, int enable_interrupt);
+uint32_t at91_pio_gpio_clear_interrupt(uint32_t pio);
 
 #endif /* ARM_AT91_AT91_PIOVAR_H */
