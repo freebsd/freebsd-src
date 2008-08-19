@@ -304,7 +304,7 @@ struct cpu_devs at91rm9200_devs[] =
 	{
 		"at91_udp", 0,
 		AT91RM92_BASE + AT91RM92_UDP_BASE, AT91RM92_UDP_SIZE,
-		AT91RM92_IRQ_UDP
+		AT91RM92_IRQ_UDP, AT91RM92_IRQ_PIOB
 	},
 	{
 		"at91_mci", 0,
