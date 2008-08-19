@@ -3116,16 +3116,16 @@ enable SysVR4 emulation at boot time.
 If set to
 .Dq Li YES ,
 load System V IPC primitives at boot time.
-.It Va kernel_enable
+.It Va kernel_symlink_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
-to symlink
+to symbolicly link
 .Pa /boot/kernel
 to the directory that contains the kernel you booted from,
 unless
 .Pa /boot/kernel
-already exists and is not a symlink.
+already exists and is not a symbolic link.
 .It Va clear_tmp_enable
 .Pq Vt bool
 Set to
