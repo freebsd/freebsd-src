@@ -417,7 +417,7 @@ main(int argc, char **argv)
 	if ((wflag > 0) && (cflag == 0))
 		count = -1;
 
-	bzero(&cur.cp_time, sizeof(cur.cp_time));
+	bzero(cur.cp_time, sizeof(cur.cp_time));
 	cur.tk_nout = 0;
 	cur.tk_nin = 0;
 
