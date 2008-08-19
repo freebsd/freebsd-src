@@ -180,7 +180,6 @@ vptetomachpte(vm_paddr_t *pte)
 
 #endif
 
-#ifdef PAE
 #define PT_SET_MA(_va, _ma) 					\
 do { 								\
    PANIC_IF(HYPERVISOR_update_va_mapping(((unsigned long)(_va)),\
@@ -188,17 +187,6 @@ do { 								\
 	   UVMF_INVLPG| UVMF_LOCAL) < 0);			\
 } while (/*CONSTCOND*/0)	  
 
-#else
-
-#define PT_SET_MA(_va, _ma) 					\
-do { 								\
-   PANIC_IF(HYPERVISOR_update_va_mapping(((unsigned long)(_va)),\
-	   (_ma),						\
-	   UVMF_INVLPG| UVMF_LOCAL) < 0);			\
-} while (/*CONSTCOND*/0)
-
-#endif
-	  
 #define	PT_UPDATES_FLUSH() do {				        \
         xen_flush_queue();                                      \
 } while (/*CONSTCOND*/0)
