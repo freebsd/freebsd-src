@@ -340,7 +340,7 @@ static struct cdev *evtchn_dev;
 
 
 static int 
-evtchn_init(void *dummy __unused)
+evtchn_dev_init(void *dummy __unused)
 {
 	/* XXX I believe we don't need these leaving them here for now until we 
 	 * have some semblance of it working 
@@ -389,6 +389,6 @@ evtchn_init(void *dummy __unused)
 }
 
 
-SYSINIT(evtchn_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, evtchn_init, NULL);
+SYSINIT(evtchn_dev_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, evtchn_dev_init, NULL);
 
 
