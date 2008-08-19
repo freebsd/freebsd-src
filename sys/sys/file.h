@@ -101,6 +101,7 @@ struct fileops {
  *
  * (fl)	filelist_lock
  * (f)	f_mtx in struct file
+ * (d) cdevpriv_mtx
  * none	not locked
  */
 
@@ -140,6 +141,7 @@ struct file {
 				 * offset of next expected read or write
 				 */
 	void	*f_label;	/* Place-holder for struct label pointer. */
+	struct cdev_privdata *f_cdevpriv; /* (d) Private data for the cdev. */
 };
 
 #endif /* _KERNEL */

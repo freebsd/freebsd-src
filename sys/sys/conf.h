@@ -281,6 +281,12 @@ int	unit2minor(int _unit);
 u_int	minor2unit(u_int _minor);
 void	setconf(void);
 
+typedef	void (*cdevpriv_dtr_t)(void *data);
+int	devfs_get_cdevpriv(void **datap);
+int	devfs_set_cdevpriv(void *priv, cdevpriv_dtr_t dtr);
+void	devfs_clear_cdevpriv(void);
+void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
+
 #define		UID_ROOT	0
 #define		UID_BIN		3
 #define		UID_UUCP	66

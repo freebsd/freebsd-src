@@ -2255,6 +2255,13 @@ fdrop_locked(struct file *fp, struct thread *td)
 	LIST_REMOVE(fp, f_list);
 	openfiles--;
 	sx_xunlock(&filelist_lock);
+
+	/*
+	 * The f_cdevpriv cannot be assigned non-NULL value while we
+	 * are destroying the file.
+	 */
+	if (fp->f_cdevpriv != NULL)
+		devfs_fpdrop(fp);
 	crfree(fp->f_cred);
 	uma_zfree(file_zone, fp);
 

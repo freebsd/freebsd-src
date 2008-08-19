@@ -300,6 +300,7 @@ struct thread {
 	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
+	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 };
 
 struct mtx *thread_lock_block(struct thread *);
