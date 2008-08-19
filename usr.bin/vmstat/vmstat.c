@@ -81,29 +81,27 @@ __FBSDID("$FreeBSD$");
 static char da[] = "da";
 
 static struct nlist namelist[] = {
-#define	X_CPTIME	0
-	{ "_cp_time" },
-#define X_SUM		1
+#define X_SUM		0
 	{ "_cnt" },
-#define	X_BOOTTIME	2
+#define	X_BOOTTIME	1
 	{ "_boottime" },
-#define X_HZ		3
+#define X_HZ		2
 	{ "_hz" },
-#define X_STATHZ	4
+#define X_STATHZ	3
 	{ "_stathz" },
-#define X_NCHSTATS	5
+#define X_NCHSTATS	4
 	{ "_nchstats" },
-#define	X_INTRNAMES	6
+#define	X_INTRNAMES	5
 	{ "_intrnames" },
-#define	X_EINTRNAMES	7
+#define	X_EINTRNAMES	6
 	{ "_eintrnames" },
-#define	X_INTRCNT	8
+#define	X_INTRCNT	7
 	{ "_intrcnt" },
-#define	X_EINTRCNT	9
+#define	X_EINTRCNT	8
 	{ "_eintrcnt" },
-#define	X_KMEMSTATS	10
+#define	X_KMEMSTATS	9
 	{ "_kmemstatistics" },
-#define	X_KMEMZONES	11
+#define	X_KMEMZONES	10
 	{ "_kmemzones" },
 #ifdef notyet
 #define	X_DEFICIT	XXX
@@ -116,7 +114,7 @@ static struct nlist namelist[] = {
 	{ "_xstats" },
 #define X_END		XXX
 #else
-#define X_END		12
+#define X_END		11
 #endif
 	{ "" },
 };
@@ -610,7 +608,8 @@ dovmstat(unsigned int interval, int reps)
 		if (!--hdrcnt)
 			printhdr(ncpus, cpumask);
 		if (kd != NULL) {
-			kread(X_CPTIME, cur.cp_time, sizeof(cur.cp_time));
+			if (kvm_getcptime(kd, cur.cp_time) < 0)
+				errx(1, "kvm_getcptime: %s", kvm_geterr(kd));
 		} else {
 			size = sizeof(cur.cp_time);
 			mysysctl("kern.cp_time", &cur.cp_time, &size, NULL, 0);

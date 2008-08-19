@@ -124,11 +124,9 @@ struct nlist namelist[] = {
 	{ "_tk_nin" },
 #define X_TK_NOUT	1
 	{ "_tk_nout" },
-#define X_CP_TIME	2
-	{ "_cp_time" },
-#define X_BOOTTIME	3
+#define X_BOOTTIME	2
 	{ "_boottime" },
-#define X_END		3
+#define X_END		2
 	{ NULL },
 };
 
@@ -463,11 +461,19 @@ main(int argc, char **argv)
 		 }
 
 		if (Cflag > 0) {
-			if (readvar(kd, "kern.cp_time", X_CP_TIME,
-			    &cur.cp_time, sizeof(cur.cp_time)) != 0) {
-				Cflag = 0;
-				warnx("disabling CPU time statistics");
+			if (kd == NULL) {
+				if (readvar(kd, "kern.cp_time", 0,
+				    &cur.cp_time, sizeof(cur.cp_time)) != 0)
+					Cflag = 0;
+			} else {
+				if (kvm_getcptime(kd, cur.cp_time) < 0) {
+					warnx("kvm_getcptime: %s",
+					    kvm_geterr(kd));
+					Cflag = 0;
+				}
 			}
+			if (Cflag == 0)
+				warnx("disabling CPU time statistics");
 		}
 
 		if (!--headercount) {
