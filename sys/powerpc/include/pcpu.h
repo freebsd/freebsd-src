@@ -30,7 +30,6 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
 #include <machine/cpufunc.h>
 
 struct pmap;
@@ -116,6 +115,8 @@ struct pmap;
 #define	PCPU_MD_FIELDS							\
 	int		pc_md_placeholder
 #endif
+
+#ifdef _KERNEL
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
