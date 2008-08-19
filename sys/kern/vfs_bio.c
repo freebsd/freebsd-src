@@ -1353,7 +1353,7 @@ brelse(struct buf *bp)
 		if ((bp->b_flags & (B_DELWRI|B_NEEDSGIANT)) ==
 		    (B_DELWRI|B_NEEDSGIANT))
 			bp->b_qindex = QUEUE_DIRTY_GIANT;
-		if (bp->b_flags & B_DELWRI)
+		else if (bp->b_flags & B_DELWRI)
 			bp->b_qindex = QUEUE_DIRTY;
 		else
 			bp->b_qindex = QUEUE_CLEAN;
