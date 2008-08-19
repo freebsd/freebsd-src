@@ -198,14 +198,16 @@ struct mmu_log {
 #ifdef SMP
 /* per-cpu queues and indices */
 #ifdef INVARIANTS
-static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+static struct mmu_log xpq_queue_log[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 #endif
+
 static int xpq_idx[MAX_VIRT_CPUS];  
+static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 
 #define XPQ_QUEUE xpq_queue[vcpu]
 #define XPQ_IDX xpq_idx[vcpu]
 #define SET_VCPU() int vcpu = smp_processor_id()
-static struct mmu_log xpq_queue_log[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+
 
 #define XPQ_QUEUE_LOG xpq_queue_log[vcpu]
 #else
