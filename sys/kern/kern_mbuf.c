@@ -228,6 +228,8 @@ static void	mb_zfini_pack(void *, int);
 static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
 
+static MALLOC_DEFINE(M_JUMBOFRAME, "jumboframes", "mbuf jumbo frame buffers");
+
 /* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 
@@ -333,6 +335,34 @@ mbuf_init(void *dummy)
 	mbstat.sf_iocnt = 0;
 	mbstat.sf_allocwait = mbstat.sf_allocfail = 0;
 }
+
+#ifdef notyet
+/*
+ * UMA backend page allocator for the jumbo frame zones.
+ *
+ * Allocates kernel virtual memory that is backed by contiguous physical
+ * pages.
+ */
+static void *
+mbuf_jumbo_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+{
+
+	/* Inform UMA that this allocator uses kernel_map/object. */
+	*flags = UMA_SLAB_KERNEL;
+	return (contigmalloc(bytes, M_JUMBOFRAME, wait, (vm_paddr_t)0,
+	    ~(vm_paddr_t)0, 1, 0));
+}
+
+/*
+ * UMA backend page deallocator for the jumbo frame zones.
+ */
+static void
+mbuf_jumbo_free(void *mem, int size, u_int8_t flags)
+{
+
+	contigfree(mem, size, M_JUMBOFRAME);
+}
+#endif
 
 /*
  * Constructor for Mbuf master zone.
