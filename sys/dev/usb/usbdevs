@@ -2097,6 +2097,7 @@ product SIEMENS3 X75		0x0004	X75
 product SIERRA AIRCARD580	0x0112	Sierra Wireless AirCard 580
 product SIERRA MC5720		0x0218	MC5720 Wireless Modem
 product SIERRA AC875U		0x6812	AC875U HSDPA USB Modem
+product SIERRA MC8755_3		0x6813	MC8755 HSDPA
 
 /* Sigmatel products */
 product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
