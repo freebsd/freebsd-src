@@ -114,6 +114,7 @@ int xb_write(const void *tdata, unsigned len)
 		while (len != 0) {
 				void *dst;
 				unsigned int avail;
+
 				wait_event_interruptible(&xb_waitq,
 										 (intf->req_prod - intf->req_cons) !=
 										 XENSTORE_RING_SIZE);

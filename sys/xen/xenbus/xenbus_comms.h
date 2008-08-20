@@ -38,10 +38,14 @@ int xb_write(const void *data, unsigned len);
 int xb_read(void *data, unsigned len);
 int xs_input_avail(void);
 extern int xb_waitq;
+extern int xenbus_running;
 
 #define __wait_event_interruptible(wchan, condition, ret) 	\
 do {								\
         for (;;) {                                              \
+                if (xenbus_running == 0) {			\
+			break;					\
+		}                                               \
 		if (condition)					\
 			break;					\
 		if ((ret = !tsleep(wchan, PWAIT | PCATCH, "waitev", hz/10))) \
@@ -96,9 +100,6 @@ do {								\
 #define BUG_ON        PANIC_IF
 #define semaphore     sema
 #define rw_semaphore  sema
-typedef struct mtx    spinlock_t;
-#define spin_lock     mtx_lock
-#define spin_unlock   mtx_unlock
 #define DEFINE_SPINLOCK(lock) struct mtx lock
 #define DECLARE_MUTEX(lock) struct sema lock
 #define u32           uint32_t
