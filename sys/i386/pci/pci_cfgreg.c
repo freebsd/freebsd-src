@@ -169,15 +169,21 @@ pci_cfgregopen(void)
 	/* Check for supported chipsets */
 	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
 	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
-	if (vid == 0x8086) {
-		if (did == 0x3590 || did == 0x3592) {
+	switch (vid) {
+	case 0x8086:
+		switch (did) {
+		case 0x3590:
+		case 0x3592:
 			/* Intel 7520 or 7320 */
 			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
 			pciereg_cfgopen();
-		} else if (did == 0x2580 || did == 0x2584) {
+			break;
+		case 0x2580:
+		case 0x2584:
 			/* Intel 915 or 925 */
 			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
 			pciereg_cfgopen();
+			break;
 		}
 	}
 
