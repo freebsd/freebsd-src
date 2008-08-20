@@ -55,6 +55,21 @@ __FBSDID("$FreeBSD$");
 #define kfree(ptr) free(ptr, M_DEVBUF)
 #define BUG_ON PANIC_IF
 
+
+const char *xenbus_strstate(XenbusState state)
+{
+	static const char *const name[] = {
+		[ XenbusStateUnknown      ] = "Unknown",
+		[ XenbusStateInitialising ] = "Initialising",
+		[ XenbusStateInitWait     ] = "InitWait",
+		[ XenbusStateInitialised  ] = "Initialised",
+		[ XenbusStateConnected    ] = "Connected",
+		[ XenbusStateClosing      ] = "Closing",
+		[ XenbusStateClosed	  ] = "Closed",
+	};
+	return (state < (XenbusStateClosed + 1)) ? name[state] : "INVALID";
+}
+
 int 
 xenbus_watch_path(struct xenbus_device *dev, char *path,
 		  struct xenbus_watch *watch, 
