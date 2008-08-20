@@ -214,7 +214,7 @@ static const char fhdr64[] =
 /* c000000000000000 ------ RWAI 123 123 c000000000000000 1000000000000000 */
 
 static const char hdr[] =
-"  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
+"      LINE   INQ  CAN  LIN  LOW  OUTQ  USE  LOW   COL  SESS  PGID STATE\n";
 
 static void
 ttymode_kvm(void)
@@ -232,18 +232,18 @@ ttymode_kvm(void)
 	while (tp != NULL) {
 		if (kvm_read(kd, (u_long)tp, &tty, sizeof tty) != sizeof tty)
 			errx(1, "kvm_read(): %s", kvm_geterr(kd));
-		xt.xt_rawcc = tty.t_rawq.c_cc;
-		xt.xt_cancc = tty.t_canq.c_cc;
-		xt.xt_outcc = tty.t_outq.c_cc;
-#define XT_COPY(field) xt.xt_##field = tty.t_##field
-		XT_COPY(line);
-		XT_COPY(state);
-		XT_COPY(column);
-		XT_COPY(ihiwat);
-		XT_COPY(ilowat);
-		XT_COPY(ohiwat);
-		XT_COPY(olowat);
-#undef XT_COPY
+		xt.xt_insize = tty.t_inq.ti_nblocks * TTYINQ_DATASIZE;
+		xt.xt_incc = tty.t_inq.ti_linestart - tty.t_inq.ti_begin;
+		xt.xt_inlc = tty.t_inq.ti_end - tty.t_inq.ti_linestart;
+		xt.xt_inlow = tty.t_inlow;
+		xt.xt_outsize = tty.t_outq.to_nblocks * TTYOUTQ_DATASIZE;
+		xt.xt_outcc = tty.t_outq.to_end - tty.t_outq.to_begin;
+		xt.xt_outlow = tty.t_outlow;
+		xt.xt_column = tty.t_column;
+		/* xt.xt_pgid = ... */
+		/* xt.xt_sid = ... */
+		xt.xt_flags = tty.t_flags;
+		xt.xt_dev = NODEV;
 		ttyprt(&xt);
 		tp = TAILQ_NEXT(&tty, t_list);
 	}
@@ -287,95 +287,61 @@ static struct {
 	int flag;
 	char val;
 } ttystates[] = {
-#ifdef TS_WOPEN
-	{ TS_WOPEN,	'W'},
+#if 0
+	{ TF_NOPREFIX,	'N' },
 #endif
-	{ TS_ISOPEN,	'O'},
-	{ TS_CARR_ON,	'C'},
-#ifdef TS_CONNECTED
-	{ TS_CONNECTED,	'c'},
-#endif
-	{ TS_TIMEOUT,	'T'},
-	{ TS_FLUSH,	'F'},
-	{ TS_BUSY,	'B'},
-#ifdef TS_ASLEEP
-	{ TS_ASLEEP,	'A'},
-#endif
-#ifdef TS_SO_OLOWAT
-	{ TS_SO_OLOWAT,	'A'},
-#endif
-#ifdef TS_SO_OCOMPLETE
-	{ TS_SO_OCOMPLETE, 'a'},
-#endif
-	{ TS_XCLUDE,	'X'},
-	{ TS_TTSTOP,	'S'},
-#ifdef TS_CAR_OFLOW
-	{ TS_CAR_OFLOW,	'm'},
-#endif
-#ifdef TS_CTS_OFLOW
-	{ TS_CTS_OFLOW,	'o'},
-#endif
-#ifdef TS_DSR_OFLOW
-	{ TS_DSR_OFLOW,	'd'},
-#endif
-	{ TS_TBLOCK,	'K'},
-	{ TS_ASYNC,	'Y'},
-	{ TS_BKSL,	'D'},
-	{ TS_ERASE,	'E'},
-	{ TS_LNCH,	'L'},
-	{ TS_TYPEN,	'P'},
-	{ TS_CNTTB,	'N'},
-#ifdef TS_CAN_BYPASS_L_RINT
-	{ TS_CAN_BYPASS_L_RINT, 'l'},
-#endif
-#ifdef TS_SNOOP
-	{ TS_SNOOP,     's'},
-#endif
-#ifdef TS_ZOMBIE
-	{ TS_ZOMBIE,	'Z'},
-#endif
-	{ 0,	       '\0'},
+	{ TF_INITLOCK,	'I' },
+	{ TF_CALLOUT,	'C' },
+
+	/* Keep these together -> 'Oi' and 'Oo'. */
+	{ TF_OPENED,	'O' },
+	{ TF_OPENED_IN,	'i' },
+	{ TF_OPENED_OUT,'o' },
+
+	{ TF_GONE,	'G' },
+	{ TF_OPENCLOSE,	'B' },
+	{ TF_ASYNC,	'Y' },
+	{ TF_LITERAL,	'L' },
+
+	/* Keep these together -> 'Hi' and 'Ho'. */
+	{ TF_HIWAT,	'H' },
+	{ TF_HIWAT_IN,	'i' },
+	{ TF_HIWAT_OUT,	'o' },
+
+	{ TF_STOPPED,	'S' },
+	{ TF_EXCLUDE,	'X' },
+	{ TF_BYPASS,	'l' },
+	{ TF_ZOMBIE,	'Z' },
+
+	{ 0,	       '\0' },
 };
 
 static void
 ttyprt(struct xtty *xt)
 {
 	int i, j;
-	char *name, state[20];
+	char *name;
 
 	if (xt->xt_size != sizeof *xt)
 		errx(1, "struct xtty size mismatch");
 	if (usenumflag || xt->xt_dev == 0 ||
 	   (name = devname(xt->xt_dev, S_IFCHR)) == NULL)
-		printf("   %2d,%-2d", major(xt->xt_dev), minor(xt->xt_dev));
+		printf("%5d,%4d ", major(xt->xt_dev), minor(xt->xt_dev));
 	else
-		(void)printf("%7s ", name);
-	(void)printf("%2ld %3ld ", xt->xt_rawcc, xt->xt_cancc);
-	(void)printf("%3ld %5d %5d %4d %3d %7d ", xt->xt_outcc,
-		xt->xt_ihiwat, xt->xt_ilowat, xt->xt_ohiwat, xt->xt_olowat,
-		xt->xt_column);
+		printf("%10s ", name);
+	printf("%5zu %4zu %4zu %4zu %5zu %4zu %4zu %5u %5d %5d ",
+	    xt->xt_insize, xt->xt_incc, xt->xt_inlc,
+	    (xt->xt_insize - xt->xt_inlow), xt->xt_outsize,
+	    xt->xt_outcc, (xt->xt_outsize - xt->xt_outlow),
+	    xt->xt_column, xt->xt_sid, xt->xt_pgid);
 	for (i = j = 0; ttystates[i].flag; i++)
-		if (xt->xt_state & ttystates[i].flag)
-			state[j++] = ttystates[i].val;
+		if (xt->xt_flags & ttystates[i].flag) {
+			putchar(ttystates[i].val);
+			j++;
+		}
 	if (j == 0)
-		state[j++] = '-';
-	state[j] = '\0';
-	(void)printf("%-6s %8d", state, xt->xt_sid);
-	(void)printf("%6d ", xt->xt_pgid);
-	switch (xt->xt_line) {
-	case TTYDISC:
-		(void)printf("term\n");
-		break;
-	case SLIPDISC:
-		(void)printf("slip\n");
-		break;
-	case PPPDISC:
-		(void)printf("ppp\n");
-		break;
-	default:
-		(void)printf("%d\n", xt->xt_line);
-		break;
-	}
+		putchar('-');
+	putchar('\n');
 }
 
 static void

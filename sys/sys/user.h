@@ -250,6 +250,7 @@ struct user {
 #define	KF_TYPE_MQUEUE	7
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9
+#define	KF_TYPE_PTS	10
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0

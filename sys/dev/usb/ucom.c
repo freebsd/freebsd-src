@@ -116,22 +116,33 @@ SYSCTL_INT(_hw_usb_ucom, OID_AUTO, debug, CTLFLAG_RW,
 
 static int ucom_modevent(module_t, int, void *);
 static void ucom_cleanup(struct ucom_softc *);
-static int ucomparam(struct tty *, struct termios *);
-static void ucomstart(struct tty *);
-static void ucomstop(struct tty *, int);
 static void ucom_shutdown(struct ucom_softc *);
 static void ucom_dtr(struct ucom_softc *, int);
 static void ucom_rts(struct ucom_softc *, int);
-static void ucombreak(struct tty *, int);
+static void ucombreak(struct ucom_softc *, int);
 static usbd_status ucomstartread(struct ucom_softc *);
 static void ucomreadcb(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void ucomwritecb(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void ucomstopread(struct ucom_softc *);
 
-static t_open_t  ucomopen;
-static t_close_t ucomclose;
-static t_modem_t ucommodem;
-static t_ioctl_t ucomioctl;
+static tsw_open_t ucomtty_open;
+static tsw_close_t ucomtty_close;
+static tsw_outwakeup_t ucomtty_outwakeup;
+static tsw_ioctl_t ucomtty_ioctl;
+static tsw_param_t ucomtty_param;
+static tsw_modem_t ucomtty_modem;
+static tsw_free_t ucomtty_free;
+
+static struct ttydevsw ucomtty_class = {
+	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
+	.tsw_open	= ucomtty_open,
+	.tsw_close	= ucomtty_close,
+	.tsw_outwakeup	= ucomtty_outwakeup,
+	.tsw_ioctl	= ucomtty_ioctl,
+	.tsw_param	= ucomtty_param,
+	.tsw_modem	= ucomtty_modem,
+	.tsw_free	= ucomtty_free,
+};
 
 devclass_t ucom_devclass;
 
@@ -160,31 +171,20 @@ ucom_modevent(module_t mod, int type, void *data)
 	return (0);
 }
 
-int
-ucom_attach_tty(struct ucom_softc *sc, int flags, char* fmt, int unit)
+void
+ucom_attach_tty(struct ucom_softc *sc, char* fmt, int unit)
 {
 	struct tty *tp;
 
-	sc->sc_tty = tp = ttyalloc();
-	tp->t_sc = sc;
-	tp->t_oproc = ucomstart;
-	tp->t_param = ucomparam;
-	tp->t_stop = ucomstop;
-	tp->t_break = ucombreak;
-	tp->t_open = ucomopen;
-	tp->t_close = ucomclose;
-	tp->t_modem = ucommodem;
-	tp->t_ioctl = ucomioctl;
-
-	return ttycreate(tp, flags, fmt, unit);
+	sc->sc_tty = tp = tty_alloc(&ucomtty_class, sc, &Giant);
+	tty_makedev(tp, NULL, fmt, unit);
 }
 
 int
 ucom_attach(struct ucom_softc *sc)
 {
 
-	ucom_attach_tty(sc, TS_CALLOUT,
-	    "U%d", device_get_unit(sc->sc_dev));
+	ucom_attach_tty(sc, "U%d", device_get_unit(sc->sc_dev));
 
 	DPRINTF(("ucom_attach: ttycreate: tp = %p, %s\n",
 	    sc->sc_tty, sc->sc_tty->t_dev->si_name));
@@ -195,24 +195,17 @@ ucom_attach(struct ucom_softc *sc)
 int
 ucom_detach(struct ucom_softc *sc)
 {
-	int s;
-
 	DPRINTF(("ucom_detach: sc = %p, tp = %p\n", sc, sc->sc_tty));
 
+	tty_lock(sc->sc_tty);
 	sc->sc_dying = 1;
-	ttygone(sc->sc_tty);
-	if (sc->sc_tty->t_state & TS_ISOPEN)
-		ucomclose(sc->sc_tty);
 
 	if (sc->sc_bulkin_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkin_pipe);
 	if (sc->sc_bulkout_pipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkout_pipe);
 
-	ttyfree(sc->sc_tty);
-
-	s = splusb();
-	splx(s);
+	tty_rel_gone(sc->sc_tty);
 
 	return (0);
 }
@@ -227,30 +220,30 @@ ucom_shutdown(struct ucom_softc *sc)
 	 * Hang up if necessary.  Wait a bit, so the other side has time to
 	 * notice even if we immediately open the port again.
 	 */
-	if (ISSET(tp->t_cflag, HUPCL)) {
-		(void)ucommodem(tp, 0, SER_DTR);
+	if (tp->t_termios.c_cflag & HUPCL) {
+		(void)ucomtty_modem(tp, 0, SER_DTR);
+#if 0
 		(void)tsleep(sc, TTIPRI, "ucomsd", hz);
+#endif
 	}
 }
 
 static int
-ucomopen(struct tty *tp, struct cdev *dev)
+ucomtty_open(struct tty *tp)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 	usbd_status err;
 	int error;
-
-	sc = tp->t_sc;
 
 	if (sc->sc_dying)
 		return (ENXIO);
 
-	DPRINTF(("%s: ucomopen: tp = %p\n", device_get_nameunit(sc->sc_dev), tp));
+	DPRINTF(("%s: ucomtty_open: tp = %p\n", device_get_nameunit(sc->sc_dev), tp));
 
 	sc->sc_poll = 0;
 	sc->sc_lsr = sc->sc_msr = sc->sc_mcr = 0;
 
-	(void)ucommodem(tp, SER_DTR | SER_RTS, 0);
+	(void)ucomtty_modem(tp, SER_DTR | SER_RTS, 0);
 
 	/* Device specific open */
 	if (sc->sc_callback->ucom_open != NULL) {
@@ -262,7 +255,7 @@ ucomopen(struct tty *tp, struct cdev *dev)
 		}
 	}
 
-	DPRINTF(("ucomopen: open pipes in = %d out = %d\n",
+	DPRINTF(("ucomtty_open: open pipes in = %d out = %d\n",
 		 sc->sc_bulkin_no, sc->sc_bulkout_no));
 
 	/* Open the bulk pipes */
@@ -328,13 +321,11 @@ fail:
 }
 
 static void
-ucomclose(struct tty *tp)
+ucomtty_close(struct tty *tp)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 
-	sc = tp->t_sc;
-
-	DPRINTF(("%s: ucomclose \n", device_get_nameunit(sc->sc_dev)));
+	DPRINTF(("%s: ucomtty_close \n", device_get_nameunit(sc->sc_dev)));
 
 	ucom_cleanup(sc);
 
@@ -343,34 +334,40 @@ ucomclose(struct tty *tp)
 }
 
 static int
-ucomioctl(struct tty *tp, u_long cmd, void *data, int flag, struct thread *p)
+ucomtty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *p)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 
-	sc = tp->t_sc;;
 	if (sc->sc_dying)
 		return (EIO);
 
 	DPRINTF(("ucomioctl: cmd = 0x%08lx\n", cmd));
 
-	error = ENOTTY;
+	switch (cmd) {
+	case TIOCSBRK:
+		ucombreak(sc, 1);
+		return (0);
+	case TIOCCBRK:
+		ucombreak(sc, 0);
+		return (0);
+	}
+
+	error = ENOIOCTL;
 	if (sc->sc_callback->ucom_ioctl != NULL)
 		error = sc->sc_callback->ucom_ioctl(sc->sc_parent,
 						    sc->sc_portno,
-						    cmd, data, flag, p);
+						    cmd, data, p);
 	return (error);
 }
 
 static int
-ucommodem(struct tty *tp, int sigon, int sigoff)
+ucomtty_modem(struct tty *tp, int sigon, int sigoff)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 	int	mcr;
 	int	msr;
 	int	onoff;
-
-	sc = tp->t_sc;
 
 	if (sigon == 0 && sigoff == 0) {
 		mcr = sc->sc_mcr;
@@ -412,12 +409,10 @@ ucommodem(struct tty *tp, int sigon, int sigoff)
 }
 
 static void
-ucombreak(struct tty *tp, int onoff)
+ucombreak(struct ucom_softc *sc, int onoff)
 {
-	struct ucom_softc *sc;
-
-	sc = tp->t_sc;
 	DPRINTF(("ucombreak: onoff = %d\n", onoff));
+
 	if (sc->sc_callback->ucom_set == NULL)
 		return;
 	sc->sc_callback->ucom_set(sc->sc_parent, sc->sc_portno,
@@ -467,47 +462,32 @@ ucom_status_change(struct ucom_softc *sc)
 			return;
 		onoff = ISSET(sc->sc_msr, SER_DCD) ? 1 : 0;
 		DPRINTF(("ucom_status_change: DCD changed to %d\n", onoff));
-		ttyld_modem(tp, onoff);
+		ttydisc_modem(tp, onoff);
 	}
 }
 
 static int
-ucomparam(struct tty *tp, struct termios *t)
+ucomtty_param(struct tty *tp, struct termios *t)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 	int error;
 	usbd_status uerr;
-
-	sc = tp->t_sc;
 
 	if (sc->sc_dying)
 		return (EIO);
 
-	DPRINTF(("ucomparam: sc = %p\n", sc));
+	DPRINTF(("ucomtty_param: sc = %p\n", sc));
 
 	/* Check requested parameters. */
 	if (t->c_ospeed < 0) {
-		DPRINTF(("ucomparam: negative ospeed\n"));
+		DPRINTF(("ucomtty_param: negative ospeed\n"));
 		return (EINVAL);
 	}
 	if (t->c_ispeed && t->c_ispeed != t->c_ospeed) {
-		DPRINTF(("ucomparam: mismatch ispeed and ospeed\n"));
+		DPRINTF(("ucomtty_param: mismatch ispeed and ospeed\n"));
 		return (EINVAL);
 	}
-
-	/*
-	 * If there were no changes, don't do anything.  This avoids dropping
-	 * input and improves performance when all we did was frob things like
-	 * VMIN and VTIME.
-	 */
-	if (tp->t_ospeed == t->c_ospeed &&
-	    tp->t_cflag == t->c_cflag)
-		return (0);
-
-	/* And copy to tty. */
-	tp->t_ispeed = 0;
-	tp->t_ospeed = t->c_ospeed;
-	tp->t_cflag = t->c_cflag;
+	t->c_ispeed = t->c_ospeed;
 
 	if (sc->sc_callback->ucom_param == NULL)
 		return (0);
@@ -516,20 +496,24 @@ ucomparam(struct tty *tp, struct termios *t)
 
 	error = sc->sc_callback->ucom_param(sc->sc_parent, sc->sc_portno, t);
 	if (error) {
-		DPRINTF(("ucomparam: callback: error = %d\n", error));
+		DPRINTF(("ucomtty_param: callback: error = %d\n", error));
 		return (error);
 	}
 
+#if 0
 	ttsetwater(tp);
+#endif
 
 	if (t->c_cflag & CRTS_IFLOW) {
 		sc->sc_state |= UCS_RTS_IFLOW;
 	} else if (sc->sc_state & UCS_RTS_IFLOW) {
 		sc->sc_state &= ~UCS_RTS_IFLOW;
-		(void)ucommodem(tp, SER_RTS, 0);
+		(void)ucomtty_modem(tp, SER_RTS, 0);
 	}
 
+#if 0
 	ttyldoptim(tp);
+#endif
 
 	uerr = ucomstartread(sc);
 	if (uerr != USBD_NORMAL_COMPLETION)
@@ -539,17 +523,23 @@ ucomparam(struct tty *tp, struct termios *t)
 }
 
 static void
-ucomstart(struct tty *tp)
+ucomtty_free(void *sc)
 {
-	struct ucom_softc *sc;
-	struct cblock *cbp;
-	usbd_status err;
-	int s;
-	u_char *data;
-	int cnt;
+	/*
+	 * Our softc gets deallocated earlier on.
+	 * XXX: we should make sure the TTY device name doesn't get
+	 * recycled before we end up here!
+	 */
+}
 
-	sc = tp->t_sc;
-	DPRINTF(("ucomstart: sc = %p\n", sc));
+static void
+ucomtty_outwakeup(struct tty *tp)
+{
+	struct ucom_softc *sc = tty_softc(tp);
+	usbd_status err;
+	size_t cnt;
+
+	DPRINTF(("ucomtty_outwakeup: sc = %p\n", sc));
 
 	if (sc->sc_dying)
 		return;
@@ -564,89 +554,58 @@ ucomstart(struct tty *tp)
 	if (sc->sc_oxfer == NULL)
 		return;
 
-	s = spltty();
-
+	/* XXX: hardware flow control. We should use inwakeup here. */
+#if 0
 	if (tp->t_state & TS_TBLOCK) {
 		if (ISSET(sc->sc_mcr, SER_RTS) &&
 		    ISSET(sc->sc_state, UCS_RTS_IFLOW)) {
-			DPRINTF(("ucomstart: clear RTS\n"));
-			(void)ucommodem(tp, 0, SER_RTS);
+			DPRINTF(("ucomtty_outwakeup: clear RTS\n"));
+			(void)ucomtty_modem(tp, 0, SER_RTS);
 		}
 	} else {
 		if (!ISSET(sc->sc_mcr, SER_RTS) &&
 		    tp->t_rawq.c_cc <= tp->t_ilowat &&
 		    ISSET(sc->sc_state, UCS_RTS_IFLOW)) {
-			DPRINTF(("ucomstart: set RTS\n"));
-			(void)ucommodem(tp, SER_RTS, 0);
+			DPRINTF(("ucomtty_outwakeup: set RTS\n"));
+			(void)ucomtty_modem(tp, SER_RTS, 0);
 		}
 	}
+#endif
 
-	if (ISSET(tp->t_state, TS_BUSY | TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
-		DPRINTF(("ucomstart: stopped\n"));
-		goto out;
-	}
+	if (sc->sc_state & UCS_TXBUSY)
+		return;
 
-	if (tp->t_outq.c_cc <= tp->t_olowat) {
-		if (ISSET(tp->t_state, TS_SO_OLOWAT)) {
-			CLR(tp->t_state, TS_SO_OLOWAT);
-			wakeup(TSA_OLOWAT(tp));
-		}
-		selwakeuppri(&tp->t_wsel, TTIPRI);
-		if (tp->t_outq.c_cc == 0) {
-			if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==
-			    TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
-				CLR(tp->t_state, TS_SO_OCOMPLETE);
-				wakeup(TSA_OCOMPLETE(tp));
-			}
-			goto out;
-		}
-	}
-
-	/* Grab the first contiguous region of buffer space. */
-	data = tp->t_outq.c_cf;
-	cbp = (struct cblock *) ((intptr_t) tp->t_outq.c_cf & ~CROUND);
-	cnt = min((char *) (cbp+1) - tp->t_outq.c_cf, tp->t_outq.c_cc);
+	sc->sc_state |= UCS_TXBUSY;
+	if (sc->sc_callback->ucom_write != NULL)
+		cnt = sc->sc_callback->ucom_write(sc->sc_parent,
+		    sc->sc_portno, tp, sc->sc_obuf, sc->sc_obufsize);
+	else
+		cnt = ttydisc_getc(tp, sc->sc_obuf, sc->sc_obufsize);
 
 	if (cnt == 0) {
-		DPRINTF(("ucomstart: cnt == 0\n"));
-		goto out;
+		DPRINTF(("ucomtty_outwakeup: cnt == 0\n"));
+		sc->sc_state &= ~UCS_TXBUSY;
+		return;
 	}
 
-	SET(tp->t_state, TS_BUSY);
-
-	if (cnt > sc->sc_obufsize) {
-		DPRINTF(("ucomstart: big buffer %d chars\n", cnt));
-		cnt = sc->sc_obufsize;
-	}
-	if (sc->sc_callback->ucom_write != NULL)
-		sc->sc_callback->ucom_write(sc->sc_parent, sc->sc_portno,
-					    sc->sc_obuf, data, &cnt);
-	else
-		memcpy(sc->sc_obuf, data, cnt);
-
-	DPRINTF(("ucomstart: %d chars\n", cnt));
+	DPRINTF(("ucomtty_outwakeup: %zu chars\n", cnt));
 	usbd_setup_xfer(sc->sc_oxfer, sc->sc_bulkout_pipe,
 			(usbd_private_handle)sc, sc->sc_obuf, cnt,
 			USBD_NO_COPY, USBD_NO_TIMEOUT, ucomwritecb);
 	/* What can we do on error? */
 	err = usbd_transfer(sc->sc_oxfer);
-	if (err != USBD_IN_PROGRESS)
-		printf("ucomstart: err=%s\n", usbd_errstr(err));
-
-	ttwwakeup(tp);
-
-    out:
-	splx(s);
+	if (err != USBD_IN_PROGRESS) {
+		printf("ucomtty_outwakeup: err=%s\n", usbd_errstr(err));
+		sc->sc_state &= ~UCS_TXBUSY;
+	}
 }
 
+#if 0
 static void
 ucomstop(struct tty *tp, int flag)
 {
-	struct ucom_softc *sc;
+	struct ucom_softc *sc = tty_softc(tp);
 	int s;
-
-	sc = tp->t_sc;
 
 	DPRINTF(("ucomstop: %d\n", flag));
 
@@ -658,19 +617,18 @@ ucomstop(struct tty *tp, int flag)
 
 	if (flag & FWRITE) {
 		DPRINTF(("ucomstop: write\n"));
-		s = spltty();
 		if (ISSET(tp->t_state, TS_BUSY)) {
 			/* XXX do what? */
 			if (!ISSET(tp->t_state, TS_TTSTOP))
 				SET(tp->t_state, TS_FLUSH);
 		}
-		splx(s);
 	}
 
-	ucomstart(tp);
+	ucomtty_outwakeup(tp);
 
 	DPRINTF(("ucomstop: done\n"));
 }
+#endif
 
 static void
 ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
@@ -678,12 +636,11 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	struct ucom_softc *sc = (struct ucom_softc *)p;
 	struct tty *tp = sc->sc_tty;
 	u_int32_t cc;
-	int s;
 
 	DPRINTF(("ucomwritecb: status = %d\n", status));
 
 	if (status == USBD_CANCELLED || sc->sc_dying)
-		goto error;
+		return;
 
 	if (status != USBD_NORMAL_COMPLETION) {
 		printf("%s: ucomwritecb: %s\n",
@@ -691,7 +648,7 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall_async(sc->sc_bulkin_pipe);
 		/* XXX we should restart after some delay. */
-		goto error;
+		return;
 	}
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &cc, NULL);
@@ -699,28 +656,21 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	if (cc <= sc->sc_opkthdrlen) {
 		printf("%s: sent size too small, cc = %d\n",
 		       device_get_nameunit(sc->sc_dev), cc);
-		goto error;
+		return;
 	}
 
 	/* convert from USB bytes to tty bytes */
 	cc -= sc->sc_opkthdrlen;
 
-	s = spltty();
+	sc->sc_state &= ~UCS_TXBUSY;
+#if 0
 	CLR(tp->t_state, TS_BUSY);
 	if (ISSET(tp->t_state, TS_FLUSH))
 		CLR(tp->t_state, TS_FLUSH);
 	else
 		ndflush(&tp->t_outq, cc);
-	ttyld_start(tp);
-	splx(s);
-
-	return;
-
-  error:
-	s = spltty();
-	CLR(tp->t_state, TS_BUSY);
-	splx(s);
-	return;
+#endif
+	ucomtty_outwakeup(tp);
 }
 
 static usbd_status
@@ -758,8 +708,6 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	usbd_status err;
 	u_int32_t cc;
 	u_char *cp;
-	int lostcc;
-	int s;
 
 	DPRINTF(("ucomreadcb: status = %d\n", status));
 
@@ -791,42 +739,20 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 	}
 	if (cc < 1)
 		goto resubmit;
-
-	s = spltty();
-	if (tp->t_state & TS_CAN_BYPASS_L_RINT) {
-		if (tp->t_rawq.c_cc + cc > tp->t_ihiwat
-		    && (sc->sc_state & UCS_RTS_IFLOW
-			|| tp->t_iflag & IXOFF)
-		    && !(tp->t_state & TS_TBLOCK))
-			ttyblock(tp);
-		lostcc = b_to_q((char *)cp, cc, &tp->t_rawq);
-		tp->t_rawcc += cc;
-		ttwakeup(tp);
-		if (tp->t_state & TS_TTSTOP
-		    && (tp->t_iflag & IXANY
-			|| tp->t_cc[VSTART] == tp->t_cc[VSTOP])) {
-			tp->t_state &= ~TS_TTSTOP;
-			tp->t_lflag &= ~FLUSHO;
-			ucomstart(tp);
+	
+	/* Give characters to tty layer. */
+	while (cc > 0) {
+		DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
+		if (ttydisc_rint(tp, *cp, 0) == -1) {
+			/* XXX what should we do? */
+			printf("%s: lost %d chars\n",
+			       device_get_nameunit(sc->sc_dev), cc);
+			break;
 		}
-		if (lostcc > 0)
-			printf("%s: lost %d chars\n", device_get_nameunit(sc->sc_dev),
-			       lostcc);
-	} else {
-		/* Give characters to tty layer. */
-		while (cc > 0) {
-			DPRINTFN(7, ("ucomreadcb: char = 0x%02x\n", *cp));
-			if (ttyld_rint(tp, *cp) == -1) {
-				/* XXX what should we do? */
-				printf("%s: lost %d chars\n",
-				       device_get_nameunit(sc->sc_dev), cc);
-				break;
-			}
-			cc--;
-			cp++;
-		}
+		cc--;
+		cp++;
 	}
-	splx(s);
+	ttydisc_rint_done(tp);
 
     resubmit:
 	err = ucomstartread(sc);
@@ -835,9 +761,11 @@ ucomreadcb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 		/* XXX what should we dow now? */
 	}
 
+#if 0
 	if ((sc->sc_state & UCS_RTS_IFLOW) && !ISSET(sc->sc_mcr, SER_RTS)
 	    && !(tp->t_state & TS_TBLOCK))
-		ucommodem(tp, SER_RTS, 0);
+		ucomtty_modem(tp, SER_RTS, 0);
+#endif
 }
 
 static void

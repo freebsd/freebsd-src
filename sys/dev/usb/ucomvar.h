@@ -88,6 +88,7 @@
 
 #define UCOM_UNK_PORTNO		-1	/* XXX */
 
+struct tty;
 struct ucom_softc;
 
 struct ucom_callback {
@@ -97,11 +98,11 @@ struct ucom_callback {
 #define UCOM_SET_RTS 2
 #define UCOM_SET_BREAK 3
 	int (*ucom_param)(void *, int, struct termios *);
-	int (*ucom_ioctl)(void *, int, u_long, caddr_t, int, struct thread *);
+	int (*ucom_ioctl)(void *, int, u_long, caddr_t, struct thread *);
 	int (*ucom_open)(void *, int);
 	void (*ucom_close)(void *, int);
 	void (*ucom_read)(void *, int, u_char **, u_int32_t *);
-	void (*ucom_write)(void *, int, u_char *, u_char *, u_int32_t *);
+	size_t (*ucom_write)(void *, int, struct tty *, u_char *, u_int32_t);
 };
 
 /* line status register */
@@ -117,6 +118,7 @@ struct ucom_callback {
 
 /* ucom state declarations */
 #define UCS_RXSTOP	0x0001	/* Rx stopped */
+#define UCS_TXBUSY	0x0002	/* Tx busy */
 #define UCS_RTS_IFLOW	0x0008	/* use RTS input flow control */
 
 struct ucom_softc {
@@ -159,7 +161,7 @@ struct ucom_softc {
 
 extern devclass_t ucom_devclass;
 
-int ucom_attach_tty(struct ucom_softc *, int, char*, int);
+void ucom_attach_tty(struct ucom_softc *, char*, int);
 int ucom_attach(struct ucom_softc *);
 int ucom_detach(struct ucom_softc *);
 void ucom_status_change(struct ucom_softc *);

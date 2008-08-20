@@ -72,10 +72,10 @@
  * (c)		const until freeing
  */
 struct session {
-	int		s_count;	/* (m) Ref cnt; pgrps in session. */
+	u_int		s_count;	/* Ref cnt; pgrps in session - atomic. */
 	struct proc	*s_leader;	/* (m + e) Session leader. */
 	struct vnode	*s_ttyvp;	/* (m) Vnode of controlling tty. */
-	struct tty	*s_ttyp;	/* (m) Controlling tty. */
+	struct tty	*s_ttyp;	/* (e) Controlling tty. */
 	pid_t		s_sid;		/* (c) Session ID. */
 					/* (m) Setlogin() name: */
 	char		s_login[roundup(MAXLOGNAME, sizeof(long))];
@@ -644,8 +644,6 @@ MALLOC_DECLARE(M_ZOMBIE);
 #define	NO_PID		100000
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
-#define	SESSHOLD(s)	((s)->s_count++)
-#define	SESSRELE(s)	sessrele(s)
 
 
 #define	STOPEVENT(p, e, v) do {						\
@@ -807,7 +805,8 @@ void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
-void	sessrele(struct session *);
+void	sess_hold(struct session *);
+void	sess_release(struct session *);
 int	setrunnable(struct thread *);
 void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);

@@ -203,7 +203,7 @@ options		BPF_JITTER
 # sio: serial ports (see sio(4)), including support for various
 #      PC Card devices, such as Modem and NICs
 #
-device		sio
+#device		sio
 hint.sio.0.at="isa"
 hint.sio.0.port="0x3F8"
 hint.sio.0.flags="0x10"

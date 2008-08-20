@@ -548,6 +548,7 @@
 #define	AUE_MKNODAT		43150	/* FreeBSD. */
 #define	AUE_READLINKAT		43151	/* FreeBSD. */
 #define	AUE_SYMLINKAT		43152	/* FreeBSD. */
+#define	AUE_POSIXOPENPT		43153	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

@@ -91,6 +91,7 @@ struct uidinfo {
 	LIST_ENTRY(uidinfo) ui_hash;	/* (c) hash chain of uidinfos */
 	long	ui_sbsize;		/* (b) socket buffer space consumed */
 	long	ui_proccnt;		/* (b) number of processes */
+	long	ui_ptscnt;		/* (b) number of pseudo-terminals */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
 };
@@ -106,6 +107,7 @@ void	 calcru(struct proc *p, struct timeval *up, struct timeval *sp);
 int	 chgproccnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to,
 	    rlim_t maxval);
+int	 chgptscnt(struct uidinfo *uip, int diff, rlim_t maxval);
 int	 fuswintr(void *base);
 struct plimit
 	*lim_alloc(void);

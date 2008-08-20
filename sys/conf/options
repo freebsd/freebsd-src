@@ -175,7 +175,6 @@ SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
-TTYHOG		opt_tty.h
 VFS_AIO
 VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
@@ -658,6 +657,7 @@ ISAPNP			opt_isa.h
 DEV_BPF			opt_bpf.h
 DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
+DEV_PTY			opt_tty.h
 DEV_SPLASH		opt_splash.h
 
 # EISA support

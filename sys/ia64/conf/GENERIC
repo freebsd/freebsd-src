@@ -151,7 +151,7 @@ device		faith		# IPv6-to-IPv4 relaying (translation)
 device		gif		# IPv6 and IPv4 tunneling
 device		loop		# Network loopback
 device		md		# Memory "disks"
-device		pty		# Pseudo-ttys (telnet etc)
+device		pty		# BSD-style compatibility pseudo ttys
 device		puc		# Multi I/O cards and multi-channel UARTs
 device		random		# Entropy device
 device		tun		# Packet tunnel.

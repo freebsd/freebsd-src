@@ -98,7 +98,7 @@ struct dcons_softc {
         int brk_state;
 #define DC_GDB  1
         int flags;
-	void *dev;
+	void *tty;
 };
 
 int	dcons_checkc(struct dcons_softc *);

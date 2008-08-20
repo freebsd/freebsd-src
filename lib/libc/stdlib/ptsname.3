@@ -31,14 +31,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2002
+.Dd August 20, 2008
 .Os
-.Dt GRANTPT 3
+.Dt PTSNAME 3
 .Sh NAME
 .Nm grantpt ,
 .Nm ptsname ,
-.Nm unlockpt ,
-.Nm posix_openpt
+.Nm unlockpt
 .Nd pseudo-terminal access functions
 .Sh LIBRARY
 .Lb libc
@@ -50,21 +49,17 @@
 .Fn ptsname "int fildes"
 .Ft int
 .Fn unlockpt "int fildes"
-.In fcntl.h
-.Ft int
-.Fn posix_openpt "int mode"
 .Sh DESCRIPTION
 The
 .Fn grantpt ,
 .Fn ptsname ,
-.Fn unlockpt ,
 and
-.Fn posix_openpt
+.Fn unlockpt
 functions allow access to pseudo-terminal devices.
-The first three functions accept a file descriptor
-that references the master half of a pseudo-terminal pair.
+These three functions accept a file descriptor that references the
+master half of a pseudo-terminal pair.
 This file descriptor is created with
-.Fn posix_openpt .
+.Xr posix_openpt 2 .
 .Pp
 The
 .Fn grantpt
@@ -77,9 +72,7 @@ of the calling process, and the permissions are set to
 user readable-writable and group writable.
 The group owner of the slave device is also set to the
 group
-.Dq Li tty
-if it exists on the system; otherwise, it
-is left untouched.
+.Dq Li tty .
 .Pp
 The
 .Fn ptsname
@@ -88,7 +81,7 @@ counterpart to the master device specified with
 .Fa fildes .
 This value can be used
 to subsequently open the appropriate slave after
-.Fn posix_openpt
+.Xr posix_openpt 2
 and
 .Fn grantpt
 have been called.
@@ -98,22 +91,6 @@ The
 function clears the lock held on the pseudo-terminal pair
 for the master device specified with
 .Fa fildes .
-.Pp
-The
-.Fn posix_openpt
-function opens the first available master pseudo-terminal
-device and returns a descriptor to it.
-The
-.Fa mode
-argument
-specifies the flags used for opening the device:
-.Bl -tag -width ".Dv O_NOCTTY"
-.It Dv O_RDWR
-Open for reading and writing.
-.It Dv O_NOCTTY
-If set, do not allow the terminal to become
-the controlling terminal for the calling process.
-.El
 .Sh RETURN VALUES
 .Rv -std grantpt unlockpt
 .Pp
@@ -122,27 +99,19 @@ The
 function returns a pointer to the name
 of the slave device on success; otherwise a
 .Dv NULL
-pointer is returned and the global variable
-.Va errno
-is set to indicate the error.
-.Pp
-The
-.Fn posix_openpt
-function returns a file descriptor to the first
-available master pseudo-terminal device on success;
-otherwise \-1 is returned and the global variable
-.Va errno
-is set to indicate the error.
+pointer is returned.
 .Sh ERRORS
 The
-.Fn grantpt ,
-.Fn ptsname ,
+.Fn grantpt
 and
 .Fn unlockpt
 functions may fail and set
 .Va errno
 to:
 .Bl -tag -width Er
+.It Bq Er EBADF
+.Fa fildes
+is not a valid open file descriptor.
 .It Bq Er EINVAL
 .Fa fildes
 is not a master pseudo-terminal device.
@@ -157,69 +126,35 @@ to:
 .It Bq Er EACCES
 The slave pseudo-terminal device could not be accessed.
 .El
-.Pp
-The
-.Fn posix_openpt
-function may fail and set
-.Va errno
-to:
-.Bl -tag -width Er
-.It Bq Er EINVAL
-.Fa mode
-consists of an invalid mode bit.
-.It Bq Er EAGAIN
-The system has no available pseudo-terminal devices.
-.El
-.Pp
-The
-.Fn grantpt ,
-.Fn ptsname ,
-and
-.Fn unlockpt
-functions may also fail and set
-.Va errno
-for any of the errors specified for the
-.Xr fstat 2
-system call.
-.Pp
-The
-.Fn posix_openpt
-function may also fail and set
-.Va errno
-for any of the errors specified for the
-.Xr open 2
-system call.
 .Sh SEE ALSO
-.Xr open 2 ,
-.Xr pty 4 ,
+.Xr posix_openpt 2 ,
+.Xr pts 4 ,
 .Xr tty 4
 .Sh STANDARDS
 The
 .Fn grantpt ,
-.Fn ptsname ,
-.Fn unlockpt ,
+.Fn ptsname
 and
-.Fn posix_openpt
+.Fn unlockpt
 functions conform to
 .St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Fn grantpt ,
-.Fn ptsname ,
-.Fn unlockpt ,
+.Fn ptsname
 and
-.Fn posix_openpt
+.Fn unlockpt
 functions appeared in
 .Fx 5.0 .
 .Sh NOTES
 The purpose of the
+.Fn grantpt
+and
 .Fn unlockpt
-function has no meaning in
-.Fx .
-.Pp
-The flag
-.Dv O_NOCTTY
-is included for compatibility; in
+functions has no meaning in
 .Fx ,
-opening a terminal does not cause it to become
-a process's controlling terminal.
+because pseudo-terminals obtained by
+.Xr posix_openpt 2
+are created on demand.
+Because these devices are created with proper permissions in place, they
+are guaranteed to be unused by unprivileged processes.

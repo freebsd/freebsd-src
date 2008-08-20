@@ -352,14 +352,13 @@ enterpgrp(p, pgid, pgrp, sess)
 		 * new session
 		 */
 		mtx_init(&sess->s_mtx, "session", NULL, MTX_DEF);
-		mtx_lock(&Giant);       /* XXX TTY */
 		PROC_LOCK(p);
 		p->p_flag &= ~P_CONTROLT;
 		PROC_UNLOCK(p);
 		PGRP_LOCK(pgrp);
 		sess->s_leader = p;
 		sess->s_sid = p->p_pid;
-		sess->s_count = 1;
+		refcount_init(&sess->s_count, 1);
 		sess->s_ttyvp = NULL;
 		sess->s_ttyp = NULL;
 		bcopy(p->p_session->s_login, sess->s_login,
@@ -368,11 +367,8 @@ enterpgrp(p, pgid, pgrp, sess)
 		KASSERT(p == curproc,
 		    ("enterpgrp: mksession and p != curproc"));
 	} else {
-		mtx_lock(&Giant);       /* XXX TTY */
 		pgrp->pg_session = p->p_session;
-		SESS_LOCK(pgrp->pg_session);
-		pgrp->pg_session->s_count++;
-		SESS_UNLOCK(pgrp->pg_session);
+		sess_hold(pgrp->pg_session);
 		PGRP_LOCK(pgrp);
 	}
 	pgrp->pg_id = pgid;
@@ -386,7 +382,6 @@ enterpgrp(p, pgid, pgrp, sess)
 	pgrp->pg_jobc = 0;
 	SLIST_INIT(&pgrp->pg_sigiolst);
 	PGRP_UNLOCK(pgrp);
-	mtx_unlock(&Giant);       /* XXX TTY */
 
 	doenterpgrp(p, pgrp);
 
@@ -446,7 +441,6 @@ doenterpgrp(p, pgrp)
 	fixjobc(p, pgrp, 1);
 	fixjobc(p, p->p_pgrp, 0);
 
-	mtx_lock(&Giant);       /* XXX TTY */
 	PGRP_LOCK(pgrp);
 	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
@@ -456,7 +450,6 @@ doenterpgrp(p, pgrp)
 	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
 	PGRP_UNLOCK(savepgrp);
 	PGRP_UNLOCK(pgrp);
-	mtx_unlock(&Giant);     /* XXX TTY */
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
 }
@@ -472,14 +465,12 @@ leavepgrp(p)
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	savepgrp = p->p_pgrp;
-	mtx_lock(&Giant);	/* XXX TTY */
 	PGRP_LOCK(savepgrp);
 	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
 	p->p_pgrp = NULL;
 	PROC_UNLOCK(p);
 	PGRP_UNLOCK(savepgrp);
-	mtx_unlock(&Giant);	/* XXX TTY */
 	if (LIST_EMPTY(&savepgrp->pg_members))
 		pgdelete(savepgrp);
 	return (0);
@@ -493,6 +484,7 @@ pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
 	struct session *savesess;
+	struct tty *tp;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
@@ -504,18 +496,22 @@ pgdelete(pgrp)
 	 */
 	funsetownlst(&pgrp->pg_sigiolst);
 
-	mtx_lock(&Giant);       /* XXX TTY */
 	PGRP_LOCK(pgrp);
-	if (pgrp->pg_session->s_ttyp != NULL &&
-	    pgrp->pg_session->s_ttyp->t_pgrp == pgrp)
-		pgrp->pg_session->s_ttyp->t_pgrp = NULL;
+	tp = pgrp->pg_session->s_ttyp;
 	LIST_REMOVE(pgrp, pg_hash);
 	savesess = pgrp->pg_session;
-	SESSRELE(savesess);
 	PGRP_UNLOCK(pgrp);
+
+	/* Remove the reference to the pgrp before deallocating it. */
+	if (tp != NULL) {
+		tty_lock(tp);
+		tty_rel_pgrp(tp, pgrp);
+		tty_unlock(tp);
+	}
+
 	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
-	mtx_unlock(&Giant);     /* XXX TTY */
+	sess_release(savesess);
 }
 
 static void
@@ -618,16 +614,21 @@ orphanpg(pg)
 }
 
 void
-sessrele(struct session *s)
+sess_hold(struct session *s)
 {
-	int i;
 
-	SESS_LOCK(s);
-	i = --s->s_count;
-	SESS_UNLOCK(s);
-	if (i == 0) {
-		if (s->s_ttyp != NULL)
-			ttyrel(s->s_ttyp);
+	refcount_acquire(&s->s_count);
+}
+
+void
+sess_release(struct session *s)
+{
+
+	if (refcount_release(&s->s_count)) {
+		if (s->s_ttyp != NULL) {
+			tty_lock(s->s_ttyp);
+			tty_rel_sess(s->s_ttyp, s);
+		}
 		mtx_destroy(&s->s_mtx);
 		FREE(s, M_SESSION);
 	}
@@ -779,12 +780,13 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 				kp->ki_kiflag |= KI_CTTY;
 			if (SESS_LEADER(p))
 				kp->ki_kiflag |= KI_SLEADER;
+			/* XXX proctree_lock */
 			tp = sp->s_ttyp;
 			SESS_UNLOCK(sp);
 		}
 	}
 	if ((p->p_flag & P_CONTROLT) && tp != NULL) {
-		kp->ki_tdev = dev2udev(tp->t_dev);
+		kp->ki_tdev = tty_udev(tp);
 		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
 		if (tp->t_session)
 			kp->ki_tsid = tp->t_session->s_sid;
@@ -1122,9 +1124,10 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 					PROC_UNLOCK(p);
 					continue;
 				}
+				/* XXX proctree_lock */
 				SESS_LOCK(p->p_session);
 				if (p->p_session->s_ttyp == NULL ||
-				    dev2udev(p->p_session->s_ttyp->t_dev) != 
+				    tty_udev(p->p_session->s_ttyp) != 
 				    (dev_t)name[0]) {
 					SESS_UNLOCK(p->p_session);
 					PROC_UNLOCK(p);
