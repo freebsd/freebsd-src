@@ -249,8 +249,8 @@ tcp_hc_init(void)
 	 * Allocate the hostcache entries.
 	 */
 	V_tcp_hostcache.zone =
-		uma_zcreate("hostcache", sizeof(struct hc_metrics),
-			NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    uma_zcreate("hostcache", sizeof(struct hc_metrics),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_tcp_hostcache.zone, V_tcp_hostcache.cache_limit);
 
 	/*
@@ -670,8 +670,7 @@ tcp_hc_purge(void *arg)
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 		TAILQ_FOREACH_SAFE(hc_entry,
-		    &V_tcp_hostcache.hashbase[i].hch_bucket,
-		    rmx_q, hc_next) {
+		    &V_tcp_hostcache.hashbase[i].hch_bucket, rmx_q, hc_next) {
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&V_tcp_hostcache.hashbase[i].hch_bucket,
 					      hc_entry, rmx_q);
