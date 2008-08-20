@@ -482,7 +482,8 @@ connect(struct blkfront_info *info)
 	info->connected = BLKIF_STATE_CONNECTED;
 	kick_pending_request_queues(info);
 	mtx_unlock(&blkif_io_lock);
-
+	info->is_ready = 1;
+	
 #if 0
 	add_disk(info->gd);
 #endif
