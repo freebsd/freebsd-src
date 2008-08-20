@@ -188,7 +188,6 @@
 #define VAR_SERIAL_SPEED		"serialSpeed"
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
-#define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
 #define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_TRY_RTSOL			"tryRTSOL"
 #define VAR_SKIP_PCCARD			"skipPCCARD"
@@ -206,7 +205,6 @@
 #else
 #define DEFAULT_COUNTRY		"us"
 #endif
-#define DEFAULT_TAPE_BLOCKSIZE	"20"
 
 /* One MB worth of blocks */
 #define ONE_MEG				2048
@@ -848,7 +846,6 @@ extern void	systemCreateHoloshell(void);
 extern int	vsystem(char *fmt, ...) __printflike(1, 2);
 
 /* tape.c */
-extern char	*mediaTapeBlocksize(void);
 extern Boolean	mediaInitTape(Device *dev);
 extern FILE	*mediaGetTape(Device *dev, char *file, Boolean probe);
 extern void	mediaShutdownTape(Device *dev);
