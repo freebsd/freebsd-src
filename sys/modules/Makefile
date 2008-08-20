@@ -92,6 +92,7 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	gem \
 	geom \
+	${_glxsb} \
 	${_harp} \
 	hatm \
 	${_hfa} \
@@ -399,6 +400,7 @@ _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
+_glxsb=		glxsb
 # Disabled due to non-MPSAFEty in 7.0
 #_hfa=		hfa
 _i2c=		i2c
