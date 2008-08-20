@@ -148,7 +148,7 @@ static int xennet_get_responses(struct netfront_info *np,
  * not the other way around.  The size must track the free index arrays.
  */
 struct xn_chain_data {
-	struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
+		struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
         struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
@@ -1203,7 +1203,7 @@ xennet_get_responses(struct netfront_info *np,
 				mmu = np->rx_mmu + pages_flipped;
 
 				MULTI_update_va_mapping(mcl, (u_long)vaddr,
-				    (mfn << PAGE_SHIFT) | PG_RW |
+				    (((vm_paddr_t)mfn) << PAGE_SHIFT) | PG_RW |
 				    PG_V | PG_M | PG_A, 0);
 				pfn = (uint32_t)m->m_ext.ext_arg1;
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
