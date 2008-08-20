@@ -286,7 +286,8 @@ syncache_init(void)
 	    &V_tcp_syncache.hashsize);
 	TUNABLE_INT_FETCH("net.inet.tcp.syncache.bucketlimit",
 	    &V_tcp_syncache.bucket_limit);
-	if (!powerof2(V_tcp_syncache.hashsize) || V_tcp_syncache.hashsize == 0) {
+	if (!powerof2(V_tcp_syncache.hashsize) ||
+	    V_tcp_syncache.hashsize == 0) {
 		printf("WARNING: syncache hash size is not a power of 2.\n");
 		V_tcp_syncache.hashsize = TCP_SYNCACHE_HASHSIZE;
 	}
@@ -1569,7 +1570,8 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 	off = sc->sc_iss & 0x7;			/* iss was randomized before */
 
 	/* Maximum segment size calculation. */
-	pmss = max( min(sc->sc_peer_mss, tcp_mssopt(&sc->sc_inc)), V_tcp_minmss);
+	pmss =
+	    max( min(sc->sc_peer_mss, tcp_mssopt(&sc->sc_inc)),	V_tcp_minmss);
 	for (mss = sizeof(tcp_sc_msstab) / sizeof(int) - 1; mss > 0; mss--)
 		if (tcp_sc_msstab[mss] <= pmss)
 			break;

@@ -868,14 +868,14 @@ in6_tmpaddrtimer(void *ignored_arg)
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
 	struct ifnet *ifp;
-	int s = splnet();
 
 	callout_reset(&V_in6_tmpaddrtimer_ch,
 	    (V_ip6_temp_preferred_lifetime - V_ip6_desync_factor -
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, NULL);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
+	     ifp = TAILQ_NEXT(ifp, if_list)) {
 		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*
@@ -887,7 +887,6 @@ in6_tmpaddrtimer(void *ignored_arg)
 		}
 	}
 
-	splx(s);
 }
 
 static void

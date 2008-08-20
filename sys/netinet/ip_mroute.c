@@ -1891,7 +1891,7 @@ X_rsvp_input(struct mbuf *m, int off)
     struct ifnet *ifp;
 
     if (rsvpdebug)
-	printf("rsvp_input: rsvp_on %d\n",V_rsvp_on);
+	printf("rsvp_input: rsvp_on %d\n", V_rsvp_on);
 
     /* Can still get packets with rsvp_on = 0 if there is a local member
      * of the group to which the RSVP packet is addressed.  But in this
