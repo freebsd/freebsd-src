@@ -140,13 +140,13 @@ nd6_init(void)
 
 	/* initialization of the default router list */
 	TAILQ_INIT(&V_nd_defrouter);
-
-	nd6_init_done = 1;
-
 	/* start timer */
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, NULL);
+
+	nd6_init_done = 1;
+
 }
 
 struct nd_ifinfo *
@@ -1891,7 +1891,8 @@ nd6_slowtimo(void *ignored_arg)
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, NULL);
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
+	     ifp = TAILQ_NEXT(ifp, if_list)) {
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {

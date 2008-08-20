@@ -646,7 +646,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	mtx_lock(&ng_idhash_mtx);
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
-		node->nd_ID = V_nextID++; /* 137/second for 1 year before wrap */
+		node->nd_ID = V_nextID++; /* 137/sec for 1 year before wrap */
 
 		/* Is there a problem with the new number? */
 		NG_IDHASH_FIND(node->nd_ID, node2); /* already taken? */

@@ -176,7 +176,7 @@ ifnet_byindex(u_short idx)
 	return (ifp);
 }
 
-static void
+void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
 
