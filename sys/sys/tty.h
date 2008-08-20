@@ -26,391 +26,172 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tty.h	8.6 (Berkeley) 1/21/94
  * $FreeBSD$
  */
 
 #ifndef _SYS_TTY_H_
 #define	_SYS_TTY_H_
 
-#include <sys/clist.h>
-#include <sys/termios.h>
+#include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/condvar.h>
 #include <sys/selinfo.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
+#include <sys/termios.h>
+#include <sys/ttycom.h>
+#include <sys/ttyqueue.h>
 
-struct tty;
-struct pps_state;
 struct cdev;
-struct cdevsw;
-struct thread;
+struct file;
+struct pgrp;
+struct session;
+struct ucred;
 
-typedef int t_open_t(struct tty *, struct cdev *);
-typedef void t_close_t(struct tty *);
-typedef void t_oproc_t(struct tty *);
-typedef void t_purge_t(struct tty *);
-typedef void t_stop_t(struct tty *, int);
-typedef int t_param_t(struct tty *, struct termios *);
-typedef int t_modem_t(struct tty *, int, int);
-typedef void t_break_t(struct tty *, int);
-typedef int t_ioctl_t(struct tty *, u_long cmd, void * data,
-		      int fflag, struct thread *td);
-/* XXX: same as d_ioctl_t in sys/conf.h to avoid #include polution */
-typedef int __d_ioctl_t(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td);
-
-
+struct ttydevsw;
 
 /*
- * Per-tty structure.
+ * Per-TTY structure, containing buffers, etc.
  *
- * Should be split in two, into device and tty drivers.
- * Glue could be masks of what to echo and circular buffer
- * (low, high, timeout).
+ * List of locks
+ * (t)	locked by t_mtx
+ * (l)	locked by tty_list_sx
+ * (c)	const until freeing
  */
 struct tty {
-	struct	clist t_rawq;		/* Device raw input queue. */
-	long	t_rawcc;		/* Raw input queue statistics. */
-	struct	clist t_canq;		/* Device canonical queue. */
-	long	t_cancc;		/* Canonical queue statistics. */
-	struct	clist t_outq;		/* Device output queue. */
-	long	t_outcc;		/* Output queue statistics. */
-	int	t_line;			/* Interface to device drivers. */
-	struct cdev *t_dev;		/* Device. */
-	struct cdev *t_mdev;		/* Device. */
-	u_int	t_devunit;		/* Cdev unit number */
-	int	t_state;		/* Device and driver (TS*) state. */
-	int	t_flags;		/* Tty flags. */
-	int     t_timeout;              /* Timeout for ttywait() */
-	struct	pgrp *t_pgrp;		/* Foreground process group. */
-	struct	session *t_session;	/* Enclosing session. */
-	struct  sigio *t_sigio;		/* Information for async I/O. */
-	struct	selinfo t_rsel;		/* Tty read/oob select. */
-	struct	selinfo t_wsel;		/* Tty write select. */
-	struct	termios t_termios;	/* Termios state. */
-	struct	termios t_init_in;	/* ... init ingoing */
-	struct	termios t_init_out;	/* ... outgoing */
-	struct	termios t_lock_in;	/* ... lock ingoing */
-	struct	termios t_lock_out;	/* ... outgoing */
-	struct	winsize t_winsize;	/* Window size. */
-	void	*t_sc;			/* driver private softc pointer. */
-	void	*t_lsc;			/* linedisc private softc pointer. */
-	int	t_column;		/* Tty output column. */
-	int	t_rocount, t_rocol;	/* Tty. */
-	int	t_ififosize;		/* Total size of upstream fifos. */
-	int	t_ihiwat;		/* High water mark for input. */
-	int	t_ilowat;		/* Low water mark for input. */
-	speed_t	t_ispeedwat;		/* t_ispeed override for watermarks. */
-	int	t_ohiwat;		/* High water mark for output. */
-	int	t_olowat;		/* Low water mark for output. */
-	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
-	int	t_gen;			/* Generation number. */
-	TAILQ_ENTRY(tty) t_list;	/* Global chain of ttys for pstat(8) */
-	int	t_actout;		/* Outbound device open */
-	int	t_wopeners;		/* #threads waiting for DCD in open */
+	struct mtx	*t_mtx;		/* TTY lock. */
+	struct mtx	t_mtxobj;	/* Per-TTY lock (when not borrowing). */
+	TAILQ_ENTRY(tty) t_list;	/* (l) TTY list entry. */
+	unsigned int	t_flags;	/* (t) Terminal option flags. */
+#define	TF_NOPREFIX	0x0001	/* Don't prepend "tty" to device name. */
+#define	TF_INITLOCK	0x0002	/* Create init/lock state devices. */
+#define	TF_CALLOUT	0x0004	/* Create "cua" devices. */
+#define	TF_OPENED_IN	0x0008	/* "tty" node is in use. */
+#define	TF_OPENED_OUT	0x0010	/* "cua" node is in use. */
+#define	TF_OPENED	(TF_OPENED_IN|TF_OPENED_OUT)
+#define	TF_GONE		0x0020	/* Device node is gone. */
+#define	TF_OPENCLOSE	0x0040	/* Device is in open()/close(). */
+#define	TF_ASYNC	0x0080	/* Asynchronous I/O enabled. */
+#define	TF_LITERAL	0x0100	/* Accept the next character literally. */
+#define	TF_HIWAT_IN	0x0200	/* We've reached the input watermark. */
+#define	TF_HIWAT_OUT	0x0400	/* We've reached the output watermark. */
+#define	TF_HIWAT	(TF_HIWAT_IN|TF_HIWAT_OUT)
+#define	TF_STOPPED	0x0800	/* Output flow control - stopped. */
+#define	TF_EXCLUDE	0x1000	/* Exclusive access. */
+#define	TF_BYPASS	0x2000	/* Optimized input path. */
+#define	TF_ZOMBIE	0x4000	/* Modem disconnect received. */
+	unsigned int	t_revokecnt;	/* (t) revoke() count. */
 
-	struct mtx t_mtx;
-	int	t_refcnt;
-	int	t_hotchar;		/* linedisc preferred hot char */
-	int	t_dtr_wait;		/* Inter-session DTR holddown [hz] */
-	int	t_do_timestamp;		/* flag instead ? */
-	struct	timeval t_timestamp;	/* char timestamp */
-	struct	pps_state *t_pps;	/* PPS-API stuff */
+	/* Buffering mechanisms. */
+	struct ttyinq	t_inq;		/* (t) Input queue. */
+	size_t		t_inlow;	/* (t) Input low watermark. */
+	struct ttyoutq	t_outq;		/* (t) Output queue. */
+	size_t		t_outlow;	/* (t) Output low watermark. */
 
-	/* Driver supplied methods */
-	t_oproc_t *t_oproc;		/* Start output. */
-	t_stop_t *t_stop;		/* Stop output. */
-	t_param_t *t_param;		/* Set parameters. */
-	t_modem_t *t_modem;		/* Set modem state (optional). */
-	t_break_t *t_break;		/* Set break state (optional). */
-	t_ioctl_t *t_ioctl;		/* Set ioctl handling (optional). */
-	t_open_t *t_open;		/* First open */
-	t_purge_t *t_purge;		/* Purge threads */
-	t_close_t *t_close;		/* Last close */
-	__d_ioctl_t *t_cioctl;		/* Ioctl on control devices */
+	/* Sleeping mechanisms. */
+	struct cv	t_inwait;	/* (t) Input wait queue. */
+	struct cv	t_outwait;	/* (t) Output wait queue. */
+	struct cv	t_bgwait;	/* (t) Background wait queue. */
+	struct cv	t_dcdwait;	/* (t) Carrier Detect wait queue. */
+
+	/* Polling mechanisms. */
+	struct selinfo	t_inpoll;	/* (t) Input poll queue. */
+	struct selinfo	t_outpoll;	/* (t) Output poll queue. */
+	struct sigio	*t_sigio;	/* (t) Asynchronous I/O. */
+
+	struct termios	t_termios;	/* (t) I/O processing flags. */
+	struct winsize	t_winsize;	/* (t) Window size. */
+	unsigned int	t_column;	/* (t) Current cursor position. */
+	unsigned int	t_writepos;	/* (t) Where input was interrupted. */
+
+	/* Init/lock-state devices. */
+	struct termios	t_termios_init_in;	/* tty%s.init. */
+	struct termios	t_termios_lock_in;	/* tty%s.lock. */
+	struct termios	t_termios_init_out;	/* cua%s.init. */
+	struct termios	t_termios_lock_out;	/* cua%s.lock. */
+
+	struct ttydevsw	*t_devsw;	/* (c) Driver hooks. */
+
+	/* Process signal delivery. */
+	struct pgrp	*t_pgrp;	/* (t) Foreground process group. */
+	struct session	*t_session;	/* (t) Associated session. */
+	unsigned int	t_sessioncnt;	/* (t) Backpointing sessions. */
+
+	void		*t_softc;	/* (c) Soft config, for drivers. */
+	struct cdev	*t_dev;		/* (c) Primary character device. */
 };
 
-#define	t_cc		t_termios.c_cc
-#define	t_cflag		t_termios.c_cflag
-#define	t_iflag		t_termios.c_iflag
-#define	t_ispeed	t_termios.c_ispeed
-#define	t_lflag		t_termios.c_lflag
-#define	t_min		t_termios.c_min
-#define	t_oflag		t_termios.c_oflag
-#define	t_ospeed	t_termios.c_ospeed
-#define	t_time		t_termios.c_time
-
-#define	TTIPRI		(PSOCK + 1)	/* Sleep priority for tty reads. */
-#define	TTOPRI		(PSOCK + 2)	/* Sleep priority for tty writes. */
-
 /*
- * Userland version of struct tty, for sysctl.
+ * Userland version of struct tty, for sysctl kern.ttys
  */
 struct xtty {
-	size_t	xt_size;		/* Structure size. */
-	long	xt_rawcc;		/* Raw input queue statistics. */
-	long	xt_cancc;		/* Canonical queue statistics. */
-	long	xt_outcc;		/* Output queue statistics. */
-	int	xt_line;		/* Interface to device drivers. */
-	dev_t	xt_dev;			/* Userland (sysctl) instance. */
-	int	xt_state;		/* Device and driver (TS*) state. */
-	int	xt_flags;		/* Tty flags. */
-	int     xt_timeout;		/* Timeout for ttywait(). */
-	pid_t	xt_pgid;		/* Process group ID. */
-	pid_t	xt_sid;			/* Session ID. */
-	struct	termios xt_termios;	/* Termios state. */
-	struct	winsize xt_winsize;	/* Window size. */
-	int	xt_column;		/* Tty output column. */
-	int	xt_rocount, xt_rocol;	/* Tty. */
-	int	xt_ififosize;		/* Total size of upstream fifos. */
-	int	xt_ihiwat;		/* High water mark for input. */
-	int	xt_ilowat;		/* Low water mark for input. */
-	speed_t	xt_ispeedwat;		/* t_ispeed override for watermarks. */
-	int	xt_ohiwat;		/* High water mark for output. */
-	int	xt_olowat;		/* Low water mark for output. */
-	speed_t	xt_ospeedwat;		/* t_ospeed override for watermarks. */
+	size_t	xt_size;	/* Structure size. */
+	size_t	xt_insize;	/* Input queue size. */
+	size_t	xt_incc;	/* Canonicalized characters. */
+	size_t	xt_inlc;	/* Input line charaters. */
+	size_t	xt_inlow;	/* Input low watermark. */
+	size_t	xt_outsize;	/* Output queue size. */
+	size_t	xt_outcc;	/* Output queue usage. */
+	size_t	xt_outlow;	/* Output low watermark. */
+	unsigned int xt_column;	/* Current column position. */
+	pid_t	xt_pgid;	/* Foreground process group. */
+	pid_t	xt_sid;		/* Session. */
+	unsigned int xt_flags;	/* Terminal option flags. */
+	dev_t	xt_dev;		/* Userland device. */
 };
 
-/*
- * User data unfortunately has to be copied through buffers on the way to
- * and from clists.  The buffers are on the stack so their sizes must be
- * fairly small.
- */
-#define	IBUFSIZ	384			/* Should be >= max value of MIN. */
-#define	OBUFSIZ	100
-
-#ifndef TTYHOG
-#define	TTYHOG	8192
-#endif
-
 #ifdef _KERNEL
-#define	TTMAXHIWAT	roundup(2048, CBSIZE)
-#define	TTMINHIWAT	roundup(100, CBSIZE)
-#define	TTMAXLOWAT	256
-#define	TTMINLOWAT	32
-#endif
 
-/* These flags are kept in t_state. */
-#define	TS_SO_OLOWAT	0x00001		/* Wake up when output <= low water. */
-#define	TS_ASYNC	0x00002		/* Tty in async I/O mode. */
-#define	TS_BUSY		0x00004		/* Draining output. */
-#define	TS_CARR_ON	0x00008		/* Carrier is present. */
-#define	TS_FLUSH	0x00010		/* Outq has been flushed during DMA. */
-#define	TS_ISOPEN	0x00020		/* Open has completed. */
-#define	TS_TBLOCK	0x00040		/* Further input blocked. */
-#define	TS_TIMEOUT	0x00080		/* Wait for output char processing. */
-#define	TS_TTSTOP	0x00100		/* Output paused. */
-#ifdef notyet
-#define	TS_WOPEN	0x00200		/* Open in progress. */
-#endif
-#define	TS_XCLUDE	0x00400		/* Tty requires exclusivity. */
+/* Allocation and deallocation. */
+struct tty *tty_alloc(struct ttydevsw *, void *, struct mtx *);
+void	tty_rel_pgrp(struct tty *, struct pgrp *);
+void	tty_rel_sess(struct tty *, struct session *);
+void	tty_rel_gone(struct tty *);
 
-/* State for intra-line fancy editing work. */
-#define	TS_BKSL		0x00800		/* State for lowercase \ work. */
-#define	TS_CNTTB	0x01000		/* Counting tab width, ignore FLUSHO. */
-#define	TS_ERASE	0x02000		/* Within a \.../ for PRTRUB. */
-#define	TS_LNCH		0x04000		/* Next character is literal. */
-#define	TS_TYPEN	0x08000		/* Retyping suspended input (PENDIN). */
-#define	TS_LOCAL	(TS_BKSL | TS_CNTTB | TS_ERASE | TS_LNCH | TS_TYPEN)
+#define	tty_lock(tp)		mtx_lock((tp)->t_mtx)
+#define	tty_unlock(tp)		mtx_unlock((tp)->t_mtx)
+#define	tty_lock_assert(tp,ma)	mtx_assert((tp)->t_mtx, (ma))
 
-/* Extras. */
-#define	TS_CAN_BYPASS_L_RINT 0x010000	/* Device in "raw" mode. */
-#define	TS_CONNECTED	0x020000	/* Connection open. */
-#define	TS_SNOOP	0x040000	/* Device is being snooped on. */
-#define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
-#define	TS_ZOMBIE	0x100000	/* Connection lost. */
+/* Device node creation. */
+void	tty_makedev(struct tty *, struct ucred *, const char *, ...)
+    __printflike(3, 4);
+#define	tty_makealias(tp,fmt,...) \
+	make_dev_alias((tp)->t_dev, fmt, ## __VA_ARGS__)
 
-/* Hardware flow-control-invoked bits. */
-#define	TS_CAR_OFLOW	0x200000	/* For MDMBUF (XXX handle in driver). */
-#ifdef notyet
-#define	TS_CTS_OFLOW	0x400000	/* For CCTS_OFLOW. */
-#define	TS_DSR_OFLOW	0x800000	/* For CDSR_OFLOW. */
-#endif
+/* Signalling processes. */
+void	tty_signal_sessleader(struct tty *, int);
+void	tty_signal_pgrp(struct tty *, int);
+/* Waking up readers/writers. */
+int	tty_wait(struct tty *, struct cv *);
+int	tty_timedwait(struct tty *, struct cv *, int);
+void	tty_wakeup(struct tty *, int);
 
-#define TS_DTR_WAIT	0x1000000	/* DTR hold-down between sessions */
-#define TS_GONE		0x2000000	/* Hardware detached */
-#define TS_CALLOUT	0x4000000	/* Callout devices */
+/* System messages. */
+int	tty_checkoutq(struct tty *);
+int	tty_putchar(struct tty *, char);
 
-/* Character type information. */
-#define	ORDINARY	0
-#define	CONTROL		1
-#define	BACKSPACE	2
-#define	NEWLINE		3
-#define	TAB		4
-#define	VTAB		5
-#define	RETURN		6
+int	tty_ioctl(struct tty *, u_long, void *, struct thread *);
+int	tty_ioctl_compat(struct tty *, u_long, caddr_t, struct thread *);
+void	tty_init_console(struct tty *, speed_t);
+void	tty_flush(struct tty *, int);
+void	tty_hiwat_in_block(struct tty *);
+void	tty_hiwat_in_unblock(struct tty *);
+dev_t	tty_udev(struct tty *);
+#define	tty_opened(tp)		((tp)->t_flags & TF_OPENED)
+#define	tty_gone(tp)		((tp)->t_flags & TF_GONE)
+#define	tty_softc(tp)		((tp)->t_softc)
+#define	tty_devname(tp)		devtoname((tp)->t_dev)
 
-struct speedtab {
-	int sp_speed;			/* Speed. */
-	int sp_code;			/* Code. */
-};
+/* Status line printing. */
+void	tty_info(struct tty *);
 
-/* Modem control commands (driver). */
-#define	DMSET		0
-#define	DMBIS		1
-#define	DMBIC		2
-#define	DMGET		3
+/* Pseudo-terminal hooks. */
+int	pts_alloc_external(int, struct thread *, struct file *,
+    struct cdev *, const char *);
 
-/* Flags on a character passed to ttyinput. */
-#define	TTY_CHARMASK	0x000000ff	/* Character mask */
-#define	TTY_QUOTE	0x00000100	/* Character quoted */
-#define	TTY_ERRORMASK	0xff000000	/* Error mask */
-#define	TTY_FE		0x01000000	/* Framing error */
-#define	TTY_PE		0x02000000	/* Parity error */
-#define	TTY_OE		0x04000000	/* Overrun error */
-#define	TTY_BI		0x08000000	/* Break condition */
-
-/* Is tp controlling terminal for p? */
-#define	isctty(p, tp)							\
-	((p)->p_session == (tp)->t_session && (p)->p_flag & P_CONTROLT)
-
-/* Is p in background of tp? */
-#define	isbackground(p, tp)						\
-	(isctty((p), (tp)) && (p)->p_pgrp != (tp)->t_pgrp)
-
-/* Unique sleep addresses. */
-#define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
-#define	TSA_HUP_OR_INPUT(tp)	((void *)&(tp)->t_rawq.c_cf)
-#define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq.c_cl)
-#define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
-
-#ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_TTYS);
-#endif
-
-/* Minor number flag bits */
-#define	MINOR_CALLOUT	0x80000000
-#define	MINOR_INIT	0x40000000
-#define	MINOR_LOCK	0x20000000
-
-#define	ISCALLOUT(dev)	(minor(dev) & MINOR_CALLOUT)
-#define	ISINIT(dev)	(minor(dev) & MINOR_INIT)
-#define	ISLOCK(dev)	(minor(dev) & MINOR_LOCK)
-
-extern long tk_cancc;
-extern long tk_nin;
-extern long tk_nout;
-extern long tk_rawcc;
-
-void	 nottystop(struct tty *tp, int rw);
-void	 termioschars(struct termios *t);
-int	 tputchar(int c, struct tty *tp);
-int	 ttcompat(struct tty *tp, u_long com, caddr_t data, int flag);
-int	 ttioctl(struct tty *tp, u_long com, void *data, int flag);
-int	 ttread(struct tty *tp, struct uio *uio, int flag);
-void	 ttrstrt(void *tp);
-void	 ttsetwater(struct tty *tp);
-int	 ttspeedtab(int speed, struct speedtab *table);
-int	 ttstart(struct tty *tp);
-void	 ttwakeup(struct tty *tp);
-int	 ttwrite(struct tty *tp, struct uio *uio, int flag);
-void	 ttwwakeup(struct tty *tp);
-struct tty *ttyalloc(void);
-void	 ttyblock(struct tty *tp);
-void	 ttychars(struct tty *tp);
-int	 ttycheckoutq(struct tty *tp, int wait);
-void	 ttyconsolemode(struct tty *tp, int speed);
-int	 tty_close(struct tty *tp);
-int	 ttycreate(struct tty *tp, int flags, const char *fmt, ...) __printflike(3, 4);
-int	 ttydtrwaitsleep(struct tty *tp);
-void	 ttydtrwaitstart(struct tty *tp);
-void	 ttyflush(struct tty *tp, int rw);
-void	 ttyfree(struct tty *tp);
-void	 ttygone(struct tty *tp);
-void	 ttyinfo(struct tty *tp);
-void	 ttyinitmode(struct tty *tp, int echo, int speed);
-int	 ttyinput(int c, struct tty *tp);
-int	 ttylclose(struct tty *tp, int flag);
-void	 ttyldoptim(struct tty *tp);
-int	 ttymodem(struct tty *tp, int flag);
-int	 tty_open(struct cdev *device, struct tty *tp);
-int	 ttyref(struct tty *tp);
-int	 ttyrel(struct tty *tp);
-int	 ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo);
-int	 ttywait(struct tty *tp);
-
-static __inline int
-tt_open(struct tty *t, struct cdev *c)
-{
-
-	if (t->t_open == NULL)
-		return (0);
-	return (t->t_open(t, c));
-}
-
-static __inline void
-tt_close(struct tty *t)
-{
-
-	if (t->t_close != NULL)
-		return (t->t_close(t));
-}
-
-static __inline void
-tt_oproc(struct tty *t)
-{
-
-	if (t->t_oproc != NULL)			/* XXX: Kludge for pty. */
-		t->t_oproc(t);
-}
-
-static __inline void
-tt_purge(struct tty *t)
-{
-
-	if (t->t_purge != NULL)
-		t->t_purge(t);
-}
-
-static __inline void
-tt_stop(struct tty *t, int i)
-{
-
-	t->t_stop(t, i);
-}
-
-static __inline int
-tt_param(struct tty *t, struct termios *s)
-{
-
-	if (t->t_param == NULL)
-		return (0);
-	return (t->t_param(t, s));
-}
-
-static __inline int
-tt_modem(struct tty *t, int i, int j)
-{
-
-	if (t->t_modem == NULL)
-		return (0);
-	return (t->t_modem(t, i, j));
-}
-
-static __inline int
-tt_break(struct tty *t, int i)
-{
-
-	if (t->t_break == NULL)
-		return (ENOIOCTL);
-	t->t_break(t, i);
-	return (0);
-}
-
-static __inline int
-tt_ioctl(struct tty *t, u_long cmd, void *data,
-		      int fflag, struct thread *td)
-{
-
-	return (t->t_ioctl(t, cmd, data, fflag, td));
-}
-
-/*
- * XXX: temporary
- */
-#include <sys/linedisc.h>
-
+/* Drivers and line disciplines also need to call these. */
+#include <sys/ttydevsw.h>
+#include <sys/ttydisc.h>
 #endif /* _KERNEL */
 
 #endif /* !_SYS_TTY_H_ */
