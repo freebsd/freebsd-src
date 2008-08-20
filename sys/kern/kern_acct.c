@@ -402,12 +402,12 @@ acct_process(struct thread *td)
 	acct.ac_gid = p->p_ucred->cr_rgid;
 
 	/* (7) The terminal from which the process was started */
-	SESS_LOCK(p->p_session);
+	sx_slock(&proctree_lock);
 	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
-		acct.ac_tty = dev2udev(p->p_pgrp->pg_session->s_ttyp->t_dev);
+		acct.ac_tty = tty_udev(p->p_pgrp->pg_session->s_ttyp);
 	else
 		acct.ac_tty = NODEV;
-	SESS_UNLOCK(p->p_session);
+	sx_sunlock(&proctree_lock);
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
 	acct.ac_flagx = p->p_acflag;

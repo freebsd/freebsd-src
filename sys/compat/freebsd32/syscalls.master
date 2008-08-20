@@ -846,3 +846,4 @@
 				    char *path2); }
 503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, char *path, \
 				    int flag); }
+504	AUE_POSIXOPENPT	NOPROTO	{ int posix_openpt(int flags); }

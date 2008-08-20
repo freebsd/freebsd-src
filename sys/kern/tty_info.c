@@ -211,7 +211,7 @@ proc_compare(struct proc *p1, struct proc *p2)
  * Report on state of foreground process group.
  */
 void
-ttyinfo(struct tty *tp)
+tty_info(struct tty *tp)
 {
 	struct timeval utime, stime;
 	struct proc *p, *pick;
@@ -223,32 +223,27 @@ ttyinfo(struct tty *tp)
 	char comm[MAXCOMLEN + 1];
 	struct rusage ru;
 
-	if (ttycheckoutq(tp,0) == 0)
+	tty_lock_assert(tp, MA_OWNED);
+
+	if (tty_checkoutq(tp) == 0)
 		return;
 
 	/* Print load average. */
 	load = (averunnable.ldavg[0] * 100 + FSCALE / 2) >> FSHIFT;
 	ttyprintf(tp, "load: %d.%02d ", load / 100, load % 100);
 
-	/*
-	 * On return following a ttyprintf(), we set tp->t_rocount to 0 so
-	 * that pending input will be retyped on BS.
-	 */
 	if (tp->t_session == NULL) {
 		ttyprintf(tp, "not a controlling terminal\n");
-		tp->t_rocount = 0;
 		return;
 	}
 	if (tp->t_pgrp == NULL) {
 		ttyprintf(tp, "no foreground process group\n");
-		tp->t_rocount = 0;
 		return;
 	}
 	PGRP_LOCK(tp->t_pgrp);
 	if (LIST_EMPTY(&tp->t_pgrp->pg_members)) {
 		PGRP_UNLOCK(tp->t_pgrp);
 		ttyprintf(tp, "empty foreground process group\n");
-		tp->t_rocount = 0;
 		return;
 	}
 
@@ -313,5 +308,4 @@ ttyinfo(struct tty *tp)
 	    (long)utime.tv_sec, utime.tv_usec / 10000,
 	    (long)stime.tv_sec, stime.tv_usec / 10000,
 	    pctcpu / 100, rss);
-	tp->t_rocount = 0;
 }

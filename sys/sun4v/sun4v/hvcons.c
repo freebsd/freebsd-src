@@ -53,16 +53,14 @@ __FBSDID("$FreeBSD$");
 
 #define HVCN_POLL_FREQ 10
 
+static tsw_open_t	hvcn_open;
+static tsw_outwakeup_t	hvcn_outwakeup;
+static tsw_close_t	hvcn_close;
 
-static d_open_t  hvcn_open;
-static d_close_t hvcn_close;
-
-static struct cdevsw hvcn_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	hvcn_open,
-	.d_close =	hvcn_close,
-	.d_name =	"hvcn",
-	.d_flags =	D_TTY | D_NEEDGIANT,
+static struct ttydevsw hvcn_class = {
+	.tsw_open	= hvcn_open,
+	.tsw_outwakeup	= hvcn_outwakeup,
+	.tsw_close	= hvcn_close,
 };
 
 #define PCBURST 16
@@ -81,9 +79,6 @@ static struct callout_handle	hvcn_timeouthandle
 static int			alt_break_state;
 #endif
 
-static void	hvcn_tty_start(struct tty *);
-static int	hvcn_tty_param(struct tty *, struct termios *);
-static void	hvcn_tty_stop(struct tty *, int);
 static void     hvcn_timeout(void *);
 
 static cn_probe_t	hvcn_cnprobe;
@@ -113,67 +108,27 @@ hv_cnputs(char *p)
 }
 
 static int
-hvcn_open(struct cdev *dev, int flag, int mode, struct thread *td)
+hvcn_open(struct tty *tp)
 {
-	struct	tty *tp;
-	int	error, setuptimeout;
 
-	setuptimeout = 0;
+	/*
+	 * Set up timeout to trigger fake interrupts to transmit
+	 * trailing data.
+	 */
+	polltime = hz / HVCN_POLL_FREQ;
+	if (polltime < 1)
+		polltime = 1;
+	hvcn_timeouthandle = timeout(hvcn_timeout, tp, polltime);
 
-	if (dev->si_tty == NULL) {
-		hvcn_tp = ttyalloc();
-		dev->si_tty = hvcn_tp;
-		hvcn_tp->t_dev = dev;
-	}
-	tp = dev->si_tty;
-
-	tp->t_oproc = hvcn_tty_start;
-	tp->t_param = hvcn_tty_param;
-	tp->t_stop = hvcn_tty_stop;
-
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_CARR_ON;
-		ttyconsolemode(tp, 0);
-
-		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && priv_check(td,
-	     PRIV_TTY_EXCLUSIVE)) {
-		return (EBUSY);
-	}
-
-	error = ttyld_open(tp, dev);
-#if defined(SIMULATOR) || 1
-	if (error == 0 && setuptimeout) {
-		int polltime;
-
-		polltime = hz / HVCN_POLL_FREQ;
-		if (polltime < 1) {
-			polltime = 1;
-		}
-
-		hvcn_timeouthandle = timeout(hvcn_timeout, tp, polltime);
-	}
-#endif
-	return (error);
-}
- 
-static int
-hvcn_close(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	int	unit;
-	struct	tty *tp;
-
-	unit = minor(dev);
-	tp = dev->si_tty;
-
-	if (unit != 0) 
-		return (ENXIO);
-	
-	untimeout(hvcn_timeout, tp, hvcn_timeouthandle);
-	ttyld_close(tp, flag);
-	tty_close(tp);
+	buflen = 0;
 
 	return (0);
+}
+ 
+static void
+hvcn_close(struct tty *tp)
+{
+	untimeout(hvcn_timeout, tp, hvcn_timeouthandle);
 }
 
 static void
@@ -210,7 +165,8 @@ done:
 static void
 hvcn_cninit(struct consdev *cp)
 {
-	sprintf(cp->cn_name, "hvcn");
+
+	strcpy(cp->cn_name, "hvcn");
 }
 
 static int
@@ -295,64 +251,43 @@ hvcn_cnputc(struct consdev *cp, int c)
 	} while (error == H_EWOULDBLOCK);
 }
 
-static int
-hvcn_tty_param(struct tty *tp, struct termios *t)
-{
-        tp->t_ispeed = t->c_ispeed;
-        tp->t_ospeed = t->c_ospeed;
-        tp->t_cflag = t->c_cflag;
-
-	return (0);
-}
-
 static void
-hvcn_tty_start(struct tty *tp)
+hvcn_outwakeup(struct tty *tp)
 {
 
-        if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
-		tp->t_state |= TS_BUSY;
+	for (;;) {
+		/* Refill the input buffer. */
+		if (buflen == 0) {
+			buflen = ttydisc_getc(tp, buf, PCBURST);
+			bufindex = 0;
+		}
 
-		do {
-			if (buflen == 0) {
-				buflen = q_to_b(&tp->t_outq, buf, PCBURST);
-				bufindex = 0;
-			}
-			while (buflen) {
-				if (hv_cons_putchar(buf[bufindex]) == H_EWOULDBLOCK)
-					goto done;
-				bufindex++;
-				buflen--;
-			}
-		} while (tp->t_outq.c_cc != 0);
-	done:
-		tp->t_state &= ~TS_BUSY;
-		ttwwakeup(tp);
+		/* Transmit the input buffer. */
+		while (buflen) {
+			if (hv_cons_putchar(buf[bufindex]) == H_EWOULDBLOCK)
+				return;
+			bufindex++;
+			buflen--;
+		}
 	}
-}
-
-static void
-hvcn_tty_stop(struct tty *tp, int flag)
-{
-	if ((tp->t_state & TS_BUSY) && !(tp->t_state & TS_TTSTOP)) 
-		tp->t_state |= TS_FLUSH;
-		
-	
 }
 
 static void
 hvcn_intr(void *v)
 {
-	struct tty *tp;
+	struct tty *tp = v;
 	int c;
 
-	tp = (struct tty *)v;
+	tty_lock(tp);
 	
+	/* Receive data. */
 	while ((c = hvcn_cncheckc(NULL)) != -1) 
-		if (tp->t_state & TS_ISOPEN) 
-			ttyld_rint(tp, c);
+		ttydisc_rint(tp, c, 0);
+	ttydisc_rint_done(tp);
 
-	if (tp->t_outq.c_cc != 0 || buflen != 0) 
-		hvcn_tty_start(tp);
+	/* Transmit trailing data. */
+	hvcn_outwakeup(tp);
+	tty_unlock(tp);
 }
 
 static void
@@ -381,7 +316,7 @@ static int
 hvcn_dev_attach(device_t dev)
 {
       
-	struct cdev *cdev;
+	struct tty *tp;
 	int error, rid;
 
 	/* belongs in attach - but attach is getting called multiple times
@@ -392,8 +327,9 @@ hvcn_dev_attach(device_t dev)
 	    hvcn_consdev.cn_name[0] == '\0') 
 		return (ENXIO);
 
-	cdev = make_dev(&hvcn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", 1);
-	make_dev_alias(cdev, "hvcn");
+	tp = tty_alloc(&hvcn_class, NULL, NULL);
+	tty_makedev(tp, NULL, "v%r", 1);
+	tty_makealias(tp, "hvcn");
 	
 	rid = 0;
 

@@ -119,9 +119,8 @@ void
 exit1(struct thread *td, int rv)
 {
 	struct proc *p, *nq, *q;
-	struct tty *tp;
-	struct vnode *ttyvp;
 	struct vnode *vtmp;
+	struct vnode *ttyvp = NULL;
 #ifdef KTRACE
 	struct vnode *tracevp;
 	struct ucred *tracecred;
@@ -298,56 +297,48 @@ exit1(struct thread *td, int rv)
 
 	vmspace_exit(td);
 
-	mtx_lock(&Giant);	/* XXX TTY */
 	sx_xlock(&proctree_lock);
 	if (SESS_LEADER(p)) {
 		struct session *sp;
 
 		sp = p->p_session;
-		if (sp->s_ttyvp) {
+
+		SESS_LOCK(sp);
+		ttyvp = sp->s_ttyvp;
+		sp->s_ttyvp = NULL;
+		SESS_UNLOCK(sp);
+
+		if (ttyvp != NULL) {
 			/*
 			 * Controlling process.
-			 * Signal foreground pgrp,
-			 * drain controlling terminal
-			 * and revoke access to controlling terminal.
+			 * Signal foreground pgrp and revoke access to
+			 * controlling terminal.
+			 *
+			 * There is no need to drain the terminal here,
+			 * because this will be done on revocation.
 			 */
-			if (sp->s_ttyp && (sp->s_ttyp->t_session == sp)) {
-				tp = sp->s_ttyp;
-				if (sp->s_ttyp->t_pgrp) {
-					PGRP_LOCK(sp->s_ttyp->t_pgrp);
-					pgsignal(sp->s_ttyp->t_pgrp, SIGHUP, 1);
-					PGRP_UNLOCK(sp->s_ttyp->t_pgrp);
-				}
-				/* XXX tp should be locked. */
-				sx_xunlock(&proctree_lock);
-				(void) ttywait(tp);
-				sx_xlock(&proctree_lock);
+			if (sp->s_ttyp != NULL) {
+				struct tty *tp = sp->s_ttyp;
+
+				tty_lock(tp);
+				tty_signal_pgrp(tp, SIGHUP);
+				tty_unlock(tp);
+
 				/*
 				 * The tty could have been revoked
 				 * if we blocked.
 				 */
-				if (sp->s_ttyvp) {
-					ttyvp = sp->s_ttyvp;
-					SESS_LOCK(p->p_session);
-					sp->s_ttyvp = NULL;
-					SESS_UNLOCK(p->p_session);
+				if (ttyvp->v_type != VBAD) {
 					sx_xunlock(&proctree_lock);
 					VOP_LOCK(ttyvp, LK_EXCLUSIVE);
 					VOP_REVOKE(ttyvp, REVOKEALL);
-					vput(ttyvp);
+					VOP_UNLOCK(ttyvp, 0);
 					sx_xlock(&proctree_lock);
 				}
 			}
-			if (sp->s_ttyvp) {
-				ttyvp = sp->s_ttyvp;
-				SESS_LOCK(p->p_session);
-				sp->s_ttyvp = NULL;
-				SESS_UNLOCK(p->p_session);
-				vrele(ttyvp);
-			}
 			/*
-			 * s_ttyp is not zero'd; we use this to indicate
-			 * that the session once had a controlling terminal.
+			 * s_ttyp is not zero'd; we use this to indicate that
+			 * the session once had a controlling terminal.
 			 * (for logging and informational purposes)
 			 */
 		}
@@ -358,7 +349,10 @@ exit1(struct thread *td, int rv)
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
 	(void)acct_process(td);
-	mtx_unlock(&Giant);	
+
+	/* Release the TTY now we've unlocked everything. */
+	if (ttyvp != NULL)
+		vrele(ttyvp);
 #ifdef KTRACE
 	/*
 	 * Disable tracing, then drain any pending records and release

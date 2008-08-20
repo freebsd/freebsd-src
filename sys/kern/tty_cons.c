@@ -711,9 +711,18 @@ constty_timeout(void *arg)
 {
 	int c;
 
-	while (constty != NULL && (c = msgbuf_getchar(&consmsgbuf)) != -1) {
-		if (tputchar(c, constty) < 0)
-			constty = NULL;
+	if (constty != NULL) {
+		tty_lock(constty);
+		while ((c = msgbuf_getchar(&consmsgbuf)) != -1) {
+			if (tty_putchar(constty, c) < 0) {
+				tty_unlock(constty);
+				constty = NULL;
+				break;
+			}
+		}
+
+		if (constty != NULL)
+			tty_unlock(constty);
 	}
 	if (constty != NULL) {
 		callout_reset(&conscallout, hz / constty_wakeups_per_second,

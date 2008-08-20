@@ -35,7 +35,7 @@
 .\"     @(#)pstat.8	8.5 (Berkeley) 5/13/94
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2007
+.Dd August 20, 2008
 .Dt PSTAT 8
 .Os
 .Sh NAME
@@ -153,100 +153,63 @@ with these headings:
 .Bl -tag -width indent
 .It LINE
 Device name.
-.It RAW
-Number of characters in raw input queue.
+.It INQ
+Number of characters that can be stored in the input queue.
 .It CAN
-Number of characters in canonicalized input queue.
-.It OUT
-Number of characters in output queue.
-.It IHIWT
-High water mark for input.
-.It ILOWT
+Number of characters in the input queue which can be read.
+.It LIN
+Number of characters in the input queue which cannot be read yet.
+.It LOW
 Low water mark for input.
-.It OHWT
-High water mark for output.
-.It LWT
-Low water mark for output.
+.It OUTQ
+Number of characters that can be stored in the output queue.
+.It USE
+Number of bytes in the output queue.
+.It LOW
+Low water mark for input.
 .It COL
 Calculated column position of terminal.
-.It STATE
-Miscellaneous state variables encoded thus:
-.Pp
-.Bl -tag -width indent -compact
-.It T
-delay timeout in progress
-.It W
-waiting for open to complete
-.It O
-open
-.It F
-outq has been flushed during DMA
-.It C
-carrier is on
-.It c
-connection open
-.It B
-busy doing output
-.It A
-process is waiting for space in output queue
-.It a
-process is waiting for output to complete
-.It X
-open for exclusive use
-.It S
-output stopped (ixon flow control)
-.It m
-output stopped (carrier flow control)
-.It o
-output stopped (CTS flow control)
-.It d
-output stopped (DSR flow control)
-.It K
-input stopped
-.It Y
-send SIGIO for input events
-.It D
-state for lowercase
-.Ql \e
-work
-.It E
-within a
-.Ql \e.../
-for PRTRUB
-.It L
-next character is literal
-.It P
-retyping suspended input (PENDIN)
-.It N
-counting tab width, ignore FLUSHO
-.It l
-block mode input routine in use
-.It s
-i/o being snooped
-.It Z
-connection lost
-.El
 .It SESS
 Kernel address of the session structure.
 .It PGID
 Process group for which this is the controlling terminal.
-.It DISC
-Line discipline;
-.Ql term
-for
-TTYDISC
-or
-.Ql ntty
-for
-NTTYDISC
-or
-.Ql slip
-for
-SLIPDISC
-or
-.Ql ppp
-for
-PPPDISC.
+.It STATE
+Miscellaneous state variables encoded thus:
+.Pp
+.Bl -tag -width indent -compact
+.It I
+init/lock-state device nodes present
+.It C
+callout device nodes present
+.It O
+opened
+.It G
+gone
+.It B
+busy in
+.Xr open 2
+.It Y
+send SIGIO for input events
+.It L
+next character is literal
+.It H
+high watermark reached
+.It X
+open for exclusive use
+.It S
+output stopped (ixon flow control)
+.It l
+block mode input routine in use
+.It Z
+connection lost
+.El
+.Pp
+The
+.Ql i
+and
+.Ql o
+characters refer to the previous character, to differentiate between
+input and output.
 .El
 .It Fl M
 Extract values associated with the name list from the specified core.

@@ -355,4 +355,5 @@
 #define	FREEBSD32_SYS_renameat	501
 #define	FREEBSD32_SYS_symlinkat	502
 #define	FREEBSD32_SYS_unlinkat	503
-#define	FREEBSD32_SYS_MAXSYSCALL	504
+#define	FREEBSD32_SYS_posix_openpt	504
+#define	FREEBSD32_SYS_MAXSYSCALL	505

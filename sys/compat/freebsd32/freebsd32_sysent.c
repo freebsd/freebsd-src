@@ -542,4 +542,5 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(renameat_args), (sy_call_t *)renameat, AUE_RENAMEAT, NULL, 0, 0 },	/* 501 = renameat */
 	{ AS(symlinkat_args), (sy_call_t *)symlinkat, AUE_SYMLINKAT, NULL, 0, 0 },	/* 502 = symlinkat */
 	{ AS(unlinkat_args), (sy_call_t *)unlinkat, AUE_UNLINKAT, NULL, 0, 0 },	/* 503 = unlinkat */
+	{ AS(posix_openpt_args), (sy_call_t *)posix_openpt, AUE_POSIXOPENPT, NULL, 0, 0 },	/* 504 = posix_openpt */
 };

@@ -30,7 +30,6 @@ FBSD_1.0 {
 	suboptarg;
 	getsubopt;
 	grantpt;
-	posix_openpt;
 	ptsname;
 	unlockpt;
 	hcreate;

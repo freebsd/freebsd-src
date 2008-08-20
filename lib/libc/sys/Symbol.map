@@ -211,6 +211,7 @@ FBSD_1.0 {
 	pathconf;
 	pipe;
 	poll;
+	posix_openpt;
 	preadv;
 	profil;
 	ptrace;

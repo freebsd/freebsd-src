@@ -48,19 +48,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/fb/fbreg.h>
 #include <dev/syscons/syscons.h>
 
-static d_ioctl_t *prev_user_ioctl;
+static tsw_ioctl_t *prev_user_ioctl;
 
 static int
-vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 	scr_stat *scp;
-	struct tty *tp;
 	int mode;
 
-	tp = dev->si_tty;
-	if (!tp)
-		return ENXIO;
-	scp = SC_STAT(tp->t_dev);
+	scp = SC_STAT(tp);
 
 	switch (cmd) {
 
@@ -123,7 +119,7 @@ vesa_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *
 	}
 
 	if (prev_user_ioctl)
-		return (*prev_user_ioctl)(dev, cmd, data, flag, td);
+		return (*prev_user_ioctl)(tp, cmd, data, td);
 	else
 		return ENOIOCTL;
 }

@@ -83,10 +83,6 @@ typedef	__pid_t		pid_t;
 
 #define	_POSIX_VDISABLE	0xff
 
-#ifndef _POSIX_SOURCE
-#define	CCEQ(val, c)	((c) == (val) ? (val) != _POSIX_VDISABLE : 0)
-#endif
-
 /*
  * Input flags - software input processing
  */
@@ -112,7 +108,12 @@ typedef	__pid_t		pid_t;
 #define	OPOST		0x00000001	/* enable following output processing */
 #ifndef _POSIX_SOURCE
 #define ONLCR		0x00000002	/* map NL to CR-NL (ala CRMOD) */
-#define OXTABS		0x00000004	/* expand tabs to spaces */
+#define	TABDLY		0x00000004	/* tab delay mask */
+#define	    TAB0	    0x00000000	    /* no tab delay and expansion */
+#define	    TAB3	    0x00000004	    /* expand tabs to spaces */
+#ifndef _KERNEL
+#define	OXTABS		TAB3
+#endif /* !_KERNEL */
 #define ONOEOT		0x00000008	/* discard EOT's (^D) on output) */
 #define OCRNL		0x00000010	/* map CR to NL on output */
 #define ONOCR		0x00000020	/* no CR output at column 0 */
@@ -143,7 +144,9 @@ typedef	__pid_t		pid_t;
 #define	CDTR_IFLOW	0x00040000	/* DTR flow control of input */
 #define CDSR_OFLOW	0x00080000	/* DSR flow control of output */
 #define	CCAR_OFLOW	0x00100000	/* DCD flow control of output */
-#define	MDMBUF		0x00100000	/* old name for CCAR_OFLOW */
+#ifndef _KERNEL
+#define	MDMBUF		CCAR_OFLOW
+#endif /* !_KERNEL */
 #endif
 
 
@@ -229,6 +232,10 @@ struct termios {
 #endif  /* !_POSIX_SOURCE */
 
 #ifndef _KERNEL
+
+#ifndef _POSIX_SOURCE
+#define	CCEQ(val, c)	((c) != _POSIX_VDISABLE && (c) == (val))
+#endif
 
 /*
  * Commands passed to tcsetattr() for setting the termios structure.

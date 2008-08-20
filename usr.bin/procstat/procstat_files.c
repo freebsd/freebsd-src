@@ -222,6 +222,10 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 			str = "h";
 			break;
 
+		case KF_TYPE_PTS:
+			str = "t";
+			break;
+
 		case KF_TYPE_SEM:
 			str = "e";
 			break;
@@ -296,6 +300,7 @@ procstat_files(pid_t pid, struct kinfo_proc *kipp)
 		switch (kif->kf_type) {
 		case KF_TYPE_VNODE:
 		case KF_TYPE_FIFO:
+		case KF_TYPE_PTS:
 			printf("%-3s ", "-");
 			printf("%-18s", kif->kf_path);
 			break;

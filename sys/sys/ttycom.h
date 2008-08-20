@@ -73,7 +73,8 @@ struct winsize {
 						/* 23-25 obsolete or unused */
 #define	TIOCGETD	_IOR('t', 26, int)	/* get line discipline */
 #define	TIOCSETD	_IOW('t', 27, int)	/* set line discipline */
-						/* 28-69 free */
+#define	TIOCPTMASTER	 _IO('t', 28)		/* pts master validation */
+						/* 29-69 free */
 						/* 80-84 slip */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */

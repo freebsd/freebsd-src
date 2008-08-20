@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 #include <sys/unpcb.h>
 #include <sys/sysctl.h>
+#include <sys/tty.h>
 #include <sys/filedesc.h>
 #include <sys/queue.h>
 #define	_WANT_FILE
@@ -154,6 +155,7 @@ int  devfs_filestat(struct vnode *vp, struct filestat *fsp);
 char *getmnton(struct mount *m);
 void pipetrans(struct pipe *pi, int i, int flag);
 void socktrans(struct socket *sock, int i);
+void ptstrans(struct tty *tp, int i, int flag);
 void getinetproto(int number);
 int  getfname(const char *filename);
 void usage(void);
@@ -409,6 +411,12 @@ dofiles(struct kinfo_proc *kp)
 		else if (file.f_type == DTYPE_FIFO) {
 			if (checkfile == 0)
 				vtrans(file.f_vnode, i, file.f_flag);
+		}
+#endif
+#ifdef DTYPE_PTS
+		else if (file.f_type == DTYPE_PTS) {
+			if (checkfile == 0)
+				ptstrans(file.f_data, i, file.f_flag);
 		}
 #endif
 		else {
@@ -887,6 +895,50 @@ bad:
 	printf("* error\n");
 }
 
+void
+ptstrans(struct tty *tp, int i, int flag)
+{
+	struct tty tty;
+	char *name;
+	char rw[3];
+	dev_t rdev;
+
+	PREFIX(i);
+
+	/* Obtain struct tty. */
+	if (!KVM_READ(tp, &tty, sizeof(struct tty))) {
+		dprintf(stderr, "can't read tty at %p\n", (void *)tp);
+		goto bad;
+	}
+
+	/* Figure out the device name. */
+	name = kdevtoname(tty.t_dev);
+	if (name == NULL) {
+		dprintf(stderr, "can't determine tty name at %p\n", (void *)tp);
+		goto bad;
+	}
+
+	rw[0] = '\0';
+	if (flag & FREAD)
+		strcat(rw, "r");
+	if (flag & FWRITE)
+		strcat(rw, "w");
+
+	printf("* pseudo-terminal master ");
+	if (nflg || !name) {
+		rdev = dev2udev(tty.t_dev);
+		printf("%10d,%-2d", major(rdev), minor(rdev));
+	} else {
+		printf("%10s", name);
+	}
+	printf(" %2s\n", rw);
+
+	free(name);
+
+	return;
+bad:
+	printf("* error\n");
+}
 
 /*
  * Read the cdev structure in the kernel in order to work out the
