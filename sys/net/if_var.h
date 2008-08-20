@@ -646,6 +646,8 @@ struct ifindex_entry {
 };
 
 struct ifnet	*ifnet_byindex(u_short idx);
+void ifnet_setbyindex(u_short idx, struct ifnet *ifp);
+
 /*
  * Given the index, ifaddr_byindex() returns the one and only
  * link-level ifaddr for the interface. You are not supposed to use
