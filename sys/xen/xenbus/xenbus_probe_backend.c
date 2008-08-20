@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #define BUG_ON        PANIC_IF
 #define semaphore     sema
 #define rw_semaphore  sema
-#define spin_lock     mtx_lock
-#define spin_unlock   mtx_unlock
 #define DEFINE_SPINLOCK(lock) struct mtx lock
 #define DECLARE_MUTEX(lock) struct sema lock
 #define u32           uint32_t
@@ -76,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #define simple_strtoul strtoul
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 #define list_empty    TAILQ_EMPTY
-#define wake_up       wakeup
 
 extern struct xendev_list_head xenbus_device_backend_list;
 #if 0

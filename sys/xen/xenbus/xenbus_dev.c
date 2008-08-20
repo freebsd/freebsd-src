@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 #define BUG_ON        PANIC_IF
 #define semaphore     sema
 #define rw_semaphore  sema
-#define spin_lock     mtx_lock
-#define spin_unlock   mtx_unlock
 #define DEFINE_SPINLOCK(lock) struct mtx lock
 #define DECLARE_MUTEX(lock) struct sema lock
 #define u32           uint32_t
