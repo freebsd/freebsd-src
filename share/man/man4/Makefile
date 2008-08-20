@@ -142,7 +142,7 @@ MAN=	aac.4 \
 	ixgb.4 \
 	jme.4 \
 	joy.4 \
-	k8temp.4 \
+	${_k8temp.4} \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
@@ -564,6 +564,7 @@ _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
+_k8temp.4=	k8temp.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nve.4=		nve.4
