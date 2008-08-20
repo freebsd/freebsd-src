@@ -42,14 +42,6 @@
 
 static Boolean tapeInitted;
 
-char *
-mediaTapeBlocksize(void)
-{
-    char *cp = variable_get(VAR_TAPE_BLOCKSIZE);
-
-    return cp ? cp : DEFAULT_TAPE_BLOCKSIZE;
-}
-
 Boolean
 mediaInitTape(Device *dev)
 {
@@ -82,9 +74,9 @@ mediaGetTape(Device *dev, char *file, Boolean probe)
 	/* We know the tape is already in the drive, so go for it */
 	msgNotify("First extracting distributions from %s...", dev->description);
 	if (!strcmp(dev->name, "rft0"))
-	    i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
+	    i = vsystem("ft | cpio -idum %s", cpioVerbosity());
 	else
-	    i = vsystem("cpio -idum %s --block-size %s -I %s", cpioVerbosity(), mediaTapeBlocksize(), dev->devname);
+	    i = vsystem("cpio -idum %s -I %s", cpioVerbosity(), dev->devname);
 	if (!i) {
 	    tapeInitted = TRUE;
 	    msgDebug("Tape initialized successfully.\n");

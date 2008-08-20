@@ -664,9 +664,9 @@ mediaExtractDistBegin(char *dir, int *fd, int *zpid, int *cpid)
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
-	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), (char *)0);
+	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), (char *)0);
 	else
-	    i = execl(cpio, cpio, "-idum", "--block-size", mediaTapeBlocksize(), (char *)0);
+	    i = execl(cpio, cpio, "-idum", (char *)0);
 	if (isDebug())
 	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
@@ -752,9 +752,9 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
-	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), "--block-size", mediaTapeBlocksize(), (char *)0);
+	    i = execl(cpio, cpio, "-idum", cpioVerbosity(), (char *)0);
 	else
-	    i = execl(cpio, cpio, "-idum", "--block-size", mediaTapeBlocksize(), (char *)0);
+	    i = execl(cpio, cpio, "-idum", "--block-size", (char *)0);
 	if (isDebug())
 	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
