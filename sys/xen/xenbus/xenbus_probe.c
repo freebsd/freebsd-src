@@ -1048,8 +1048,9 @@ xenbus_probe_sysinit(void *unused)
 		/* Enumerate devices in xenstore. */
 		xenbus_probe_devices(&xenbus_frontend);
 		register_xenbus_watch(&fe_watch);
+#ifdef notyet
 		xenbus_backend_probe_and_watch();
-		
+#endif		
 		
 		/* Notify others that xenstore is up */
 		EVENTHANDLER_INVOKE(xenstore_event);
