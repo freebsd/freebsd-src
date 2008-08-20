@@ -1149,9 +1149,14 @@ cpu_halt(void)
 	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
 }
 
+int scheduler_running;
+
 static void
 cpu_idle_hlt(int busy)
 {
+
+	scheduler_running = 1;
+	enable_intr();
 	idle_block();
 }
 
@@ -1199,7 +1204,11 @@ cpu_idle_spin(int busy)
 	return;
 }
 
+#ifdef XEN
+void (*cpu_idle_fn)(int) = cpu_idle_hlt;
+#else
 void (*cpu_idle_fn)(int) = cpu_idle_acpi;
+#endif
 
 void
 cpu_idle(int busy)
