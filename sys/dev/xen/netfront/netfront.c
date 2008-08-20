@@ -1816,7 +1816,7 @@ netif_init(void *unused)
 	xenbus_register_frontend(&netfront);
 }
 
-SYSINIT(xennetif, SI_SUB_PSEUDO, SI_ORDER_ANY, netif_init, NULL)
+SYSINIT(xennetif, SI_SUB_PSEUDO, SI_ORDER_SECOND, netif_init, NULL)
 
 /*
  * Local variables:
