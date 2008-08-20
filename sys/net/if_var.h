@@ -646,7 +646,6 @@ struct ifindex_entry {
 };
 
 struct ifnet	*ifnet_byindex(u_short idx);
-void ifnet_setbyindex(u_short idx, struct ifnet *ifp);
 
 /*
  * Given the index, ifaddr_byindex() returns the one and only
