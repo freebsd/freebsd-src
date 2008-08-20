@@ -798,7 +798,8 @@ ip_reass(struct mbuf *m)
 			for (i = 0; i < IPREASS_NHASH; i++) {
 				struct ipq *r = TAILQ_LAST(&V_ipq[i], ipqhead);
 				if (r) {
-					V_ipstat.ips_fragtimeout += r->ipq_nfrags;
+					V_ipstat.ips_fragtimeout +=
+								r->ipq_nfrags;
 					ip_freef(&V_ipq[i], r);
 					break;
 				}

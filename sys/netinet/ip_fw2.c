@@ -4090,11 +4090,12 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 		if (bp + i <= ep) {
 			bcopy(rule, bp, i);
 			/*
-			 * XXX HACK. Store the disable mask in the "next" pointer
-			 * in a wild attempt to keep the ABI the same.
+			 * XXX HACK. Store the disable mask in the "next"
+			 * pointer in a wild attempt to keep the ABI the same.
 			 * Why do we do this on EVERY rule?
 			 */
-			bcopy(&V_set_disable, &(((struct ip_fw *)bp)->next_rule),
+			bcopy(&V_set_disable,
+			    &(((struct ip_fw *)bp)->next_rule),
 			    sizeof(V_set_disable));
 			if (((struct ip_fw *)bp)->timestamp)
 				((struct ip_fw *)bp)->timestamp += boot_seconds;
@@ -4483,7 +4484,8 @@ ipfw_tick(void * __unused unused)
 		ip_output(m, NULL, NULL, 0, NULL, NULL);
 	}
 done:
-	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period*hz, ipfw_tick, NULL);
+	callout_reset(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
+		      ipfw_tick, NULL);
 }
 
 int

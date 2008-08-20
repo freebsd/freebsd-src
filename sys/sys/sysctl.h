@@ -215,8 +215,8 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 /* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static struct sysctl_oid sysctl__##parent##_##name = {		 \
-		&sysctl_##parent##_children, { 0 },			 \
-		nbr, kind, a1, a2, #name, handler, fmt, 0, __DESCR(descr) }; \
+		&sysctl_##parent##_children, { 0 }, nbr, kind,		 \
+		a1, a2, #name, handler, fmt, 0, __DESCR(descr), 0, 0 };  \
 	DATA_SET(sysctl_set, sysctl__##parent##_##name)
 
 #define SYSCTL_ADD_OID(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
@@ -226,7 +226,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
 	struct sysctl_oid_list SYSCTL_NODE_CHILDREN(parent, name);	    \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|(access),		    \
-		   (void*)&SYSCTL_NODE_CHILDREN(parent, name), 0, handler, \
+		   (void*)&SYSCTL_NODE_CHILDREN(parent, name), 0, handler,  \
 		   "N", descr)
 
 #define SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
