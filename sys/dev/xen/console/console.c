@@ -376,12 +376,12 @@ xc_timeout(void *v)
 	tty_lock(tp);
 	while ((c = xccncheckc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
-	tty_unlock(tp);
 
 	if (xc_start_needed) {
 	    	xc_start_needed = FALSE;
 		xcoutwakeup(tp);
 	}
+	tty_unlock(tp);
 
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, tp);
 }
