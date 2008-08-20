@@ -344,11 +344,13 @@ xen_restore_flags(u_int eflags)
 	__restore_flags(eflags);
 }
 
-void
-xen_save_and_cli(u_int *eflags)
+int
+xen_save_and_cli(void)
 {
-
-	__save_and_cli((*eflags));
+	int eflags;
+	
+	__save_and_cli(eflags);
+	return (eflags);
 }
 
 void
@@ -1141,7 +1143,10 @@ static struct xenbus_watch shutdown_watch = {
 };
 
 
-static void
+void setup_shutdown_watcher(void *unused);
+
+
+void
 setup_shutdown_watcher(void *unused)
 {
 	if (register_xenbus_watch(&shutdown_watch))
@@ -1149,7 +1154,7 @@ setup_shutdown_watcher(void *unused)
 }
 
 
-SYSINIT(shutdown, SI_SUB_PSEUDO, SI_ORDER_ANY, setup_shutdown_watcher, NULL);
+SYSINIT(shutdown, SI_SUB_RUN_SCHEDULER, SI_ORDER_ANY, setup_shutdown_watcher, NULL);
 
 #ifdef notyet
 
