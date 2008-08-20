@@ -142,44 +142,67 @@ static int get_error(const char *errorstring)
 		return xsd_errors[i].errnum;
 }
 
-extern int scheduler_running;
+extern void idle_block(void);
+extern void kdb_backtrace(void);
 
 static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 {
 		struct xs_stored_msg *msg;
 		char *body;
-		int i;
-			 
-		if (scheduler_running == 0) {
+		int i, err;
+		enum xsd_sockmsg_type itype = *type;
+
+		printf("read_reply ");
+		if (xenbus_running == 0) {
 				/*
 				 * Give other domain time to run :-/
 				 */
-				for (i = 0; i < 100000; i++)
+				for (i = 0; i < 1000000 && (xenbus_running == 0); i++) {
+						err = xs_process_msg(type);
+						
+						if ((err == 0)
+							&& (*type != XS_WATCH_EVENT))
+								break;
+							 
 						HYPERVISOR_yield();
-				xs_process_msg();
+				}
+				
+				if (list_empty(&xs_state.reply_list)) {
+						printf("giving up and returning an error type=%d\n",
+								*type);
+						kdb_backtrace();
+ 						return (ERR_PTR(-1));
+				}
+				
+		}
+
+		mtx_lock(&xs_state.reply_lock);
+		if (xenbus_running) {
+				while (list_empty(&xs_state.reply_list)) {
+						mtx_unlock(&xs_state.reply_lock);
+						wait_event_interruptible(&xs_state.reply_waitq,
+												 !list_empty(&xs_state.reply_list));
+				
+						mtx_lock(&xs_state.reply_lock);
+				}
 		}
 		
-		spin_lock(&xs_state.reply_lock);
-
-		while (list_empty(&xs_state.reply_list)) {
-				spin_unlock(&xs_state.reply_lock);
-				wait_event_interruptible(&xs_state.reply_waitq,
-										 !list_empty(&xs_state.reply_list));
-				spin_lock(&xs_state.reply_lock);
-		}
-
 		msg = TAILQ_FIRST(&xs_state.reply_list);
 		list_del(&xs_state.reply_list, msg);
 
-		spin_unlock(&xs_state.reply_lock);
+		mtx_unlock(&xs_state.reply_lock);
 
+		printf("itype=%d htype=%d ", itype, msg->hdr.type);
 		*type = msg->hdr.type;
 		if (len)
 				*len = msg->hdr.len;
 		body = msg->u.reply.body;
 
 		kfree(msg);
-
+		if (len)
+				printf("len=%d\n", *len);
+		else
+				printf("len=NULL\n");
 		return body;
 }
 
