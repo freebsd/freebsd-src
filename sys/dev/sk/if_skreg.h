@@ -1358,34 +1358,12 @@ struct sk_tx_desc {
 #define SK_RX_RING_CNT		256
 #define SK_JUMBO_RX_RING_CNT	256
 #define SK_MAXTXSEGS		32
-#define SK_MAXRXSEGS		32
 
-/*
- * Jumbo buffer stuff. Note that we must allocate more jumbo
- * buffers than there are descriptors in the receive ring. This
- * is because we don't know how long it will take for a packet
- * to be released after we hand it off to the upper protocol
- * layers. To be safe, we allocate 1.5 times the number of
- * receive descriptors.
- */
 #define SK_JUMBO_FRAMELEN	9018
 #define SK_JUMBO_MTU		(SK_JUMBO_FRAMELEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define SK_MAX_FRAMELEN		\
 	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN)
 #define SK_MIN_FRAMELEN		(ETHER_MIN_LEN - ETHER_CRC_LEN)
-#define SK_JSLOTS		((SK_RX_RING_CNT * 3) / 2)
-
-#define SK_JRAWLEN (SK_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define SK_JLEN (SK_JRAWLEN + (sizeof(u_int64_t) - \
-	(SK_JRAWLEN % sizeof(u_int64_t))))
-#define SK_JPAGESZ PAGE_SIZE
-#define SK_RESID (SK_JPAGESZ - (SK_JLEN * SK_JSLOTS) % SK_JPAGESZ)
-#define SK_JMEM ((SK_JLEN * SK_JSLOTS) + SK_RESID)
-
-struct sk_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(sk_jpool_entry)	jpool_entries;
-};
 
 struct sk_txdesc {
 	struct mbuf		*tx_m;
@@ -1414,10 +1392,6 @@ struct sk_chain_data {
 	bus_dmamap_t		sk_rx_ring_map;
 	bus_dmamap_t		sk_rx_sparemap;
 	bus_dma_tag_t		sk_jumbo_rx_tag;
-	bus_dma_tag_t		sk_jumbo_tag;
-	bus_dmamap_t		sk_jumbo_map;
-	bus_dma_tag_t		sk_jumbo_mtag;
-	caddr_t			sk_jslots[SK_JSLOTS];
 	struct sk_rxdesc	sk_jumbo_rxdesc[SK_JUMBO_RX_RING_CNT];
 	bus_dma_tag_t		sk_jumbo_rx_ring_tag;
 	bus_dmamap_t		sk_jumbo_rx_ring_map;
@@ -1436,8 +1410,6 @@ struct sk_ring_data {
 	bus_addr_t		sk_rx_ring_paddr;
 	struct sk_rx_desc	*sk_jumbo_rx_ring;
 	bus_addr_t		sk_jumbo_rx_ring_paddr;
-	void			*sk_jumbo_buf;
-	bus_addr_t		sk_jumbo_buf_paddr;
 };
 
 #define SK_TX_RING_ADDR(sc, i)	\
@@ -1518,12 +1490,7 @@ struct sk_if_softc {
 	struct sk_softc		*sk_softc;	/* parent controller */
 	int			sk_tx_bmu;	/* TX BMU register */
 	int			sk_if_flags;
-	SLIST_HEAD(__sk_jfreehead, sk_jpool_entry)	sk_jfree_listhead;
-	SLIST_HEAD(__sk_jinusehead, sk_jpool_entry)	sk_jinuse_listhead;
-	struct mtx		sk_jlist_mtx;
+	int			sk_jumbo_disable;
 };
-
-#define	SK_JLIST_LOCK(_sc)	mtx_lock(&(_sc)->sk_jlist_mtx)
-#define	SK_JLIST_UNLOCK(_sc)	mtx_unlock(&(_sc)->sk_jlist_mtx)
 
 #define SK_TIMEOUT	1000
