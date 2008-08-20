@@ -180,6 +180,9 @@
 #define	PCIR_PMLIMITL_1	0x26
 #define	PCIR_PMBASEH_1	0x28
 #define	PCIR_PMLIMITH_1	0x2c
+#define	PCIM_BRPM_32		0x0
+#define	PCIM_BRPM_64		0x1
+#define	PCIM_BRPM_MASK		0xf
 
 #define	PCIR_BRIDGECTL_1 0x3e
 
