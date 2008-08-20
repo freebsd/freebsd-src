@@ -270,8 +270,11 @@ cpu_fork(td1, p2, td2, flags)
 	/*
 	 * XXX XEN need to check on PSL_USER is handled
 	 */
+#ifndef XEN
+	td2->td_md.md_saved_flags = 0;
+#else	
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
-
+#endif
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -439,7 +442,11 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
+#ifdef XEN	
+	td->td_md.md_saved_flags = 0;	
+#else
 	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+#endif
 }
 
 /*
