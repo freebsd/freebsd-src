@@ -956,10 +956,13 @@ static int xsd_port_read(char *page, char **start, off_t off,
 }
 
 #endif
+
+static int dom0 = 0;
+
 static int 
 xenbus_probe_sysinit(void *unused)
 {
-	int err = 0, dom0;
+	int err = 0;
 
 	DPRINTK("");
 
@@ -1031,6 +1034,13 @@ xenbus_probe_sysinit(void *unused)
 		return err; 
 	}
 
+	return 0;
+}
+
+
+static int 
+xenbus_probe_sysinit2(void *unused)
+{
 	if (!dom0) {
 		xenstored_ready = 1;
 #if 0
@@ -1048,18 +1058,18 @@ xenbus_probe_sysinit(void *unused)
 		/* Enumerate devices in xenstore. */
 		xenbus_probe_devices(&xenbus_frontend);
 		register_xenbus_watch(&fe_watch);
-#ifdef notyet
 		xenbus_backend_probe_and_watch();
-#endif		
 		
 		/* Notify others that xenstore is up */
 		EVENTHANDLER_INVOKE(xenstore_event);
 	}
-
-	return 0;
+	return (0);
 }
 
+		
 SYSINIT(xenbus_probe_sysinit, SI_SUB_PSEUDO, SI_ORDER_FIRST, xenbus_probe_sysinit, NULL);
+SYSINIT(xenbus_probe_sysinit2, SI_SUB_PSEUDO, SI_ORDER_ANY,
+		xenbus_probe_sysinit2, NULL);
 
 #if 0
 static device_method_t xenbus_methods[] = { 
