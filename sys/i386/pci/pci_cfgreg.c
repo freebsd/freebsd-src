@@ -75,7 +75,7 @@ enum {
 };
 
 static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
-static uint32_t pciebar;
+static uint64_t pciebar;
 static int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
@@ -180,10 +180,18 @@ pci_cfgregopen(void)
 			break;
 		case 0x2580:
 		case 0x2584:
-			/* Intel 915 or 925 */
+		case 0x2590:
+			/* Intel 915, 925, or 915GM */
 			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
 			pciereg_cfgopen();
 			break;
+		case 0x25d0:
+		case 0x25d4:
+		case 0x25d8:
+			/* Intel 5000Z/V/P */
+			pciebar = pci_cfgregread(0, 16, 0, 0x64, 4) << 16;
+			pciereg_cfgopen();
+			break;			
 		}
 	}
 
@@ -507,8 +515,20 @@ pciereg_cfgopen(void)
 	vm_offset_t va;
 	int i;
 
+#ifndef PAE
+	if (pciebar >= 0x100000000) {
+		if (bootverbose)
+			printf(
+	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
+			    (uintmax_t)pciebar);
+		pciebar = 0;
+		return (0);
+	}
+#endif
+		
 	if (bootverbose)
-		printf("Setting up PCIe mappings for BAR 0x%x\n", pciebar);
+		printf("Setting up PCIe mappings for BAR 0x%jx\n",
+		    (uintmax_t)pciebar);
 
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
