@@ -313,6 +313,8 @@ static void *xs_talkv(struct xenbus_transaction t,
 								wmsg->u.watch.handle,
 								(const char **)wmsg->u.watch.vec,
 								wmsg->u.watch.vec_size);
+						kfree(wmsg->u.watch.vec);
+						kfree(wmsg);
 				}
 		}
 		BUG_ON(msg.type != type);		
@@ -610,8 +612,12 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 {
 		va_list ap;
 		const char *name;
-		int ret = 0;
+		int i, ret = 0;
 
+		for (i = 0; i < 10000; i++)
+				HYPERVISOR_yield();
+		
+		printf("gather ");
 		va_start(ap, dir);
 		while (ret == 0 && (name = va_arg(ap, char *)) != NULL) {
 				const char *fmt = va_arg(ap, char *);
@@ -623,6 +629,7 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 						ret = PTR_ERR(p);
 						break;
 				}
+				printf(" %s ", p);
 				if (fmt) {
 						if (sscanf(p, fmt, result) == 0)
 								ret = -EINVAL;
@@ -631,6 +638,7 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 						*(char **)result = p;
 		}
 		va_end(ap);
+		printf("\n");
 		return ret;
 }
 EXPORT_SYMBOL(xenbus_gather);
@@ -772,12 +780,14 @@ static void xenwatch_thread(void *unused)
 {
 		struct xs_stored_msg *msg;
 
+		DELAY(10000);
 		xenwatch_running = 1;
 		for (;;) {
 
 				while (list_empty(&watch_events))
-						pause("xenwatch", hz/10);
-
+						tsleep(&watch_events_waitq,
+							   PWAIT | PCATCH, "waitev", hz/10);
+				
 				sx_xlock(&xenwatch_mutex);
 
 				mtx_lock(&watch_events_lock);
@@ -787,7 +797,7 @@ static void xenwatch_thread(void *unused)
 				mtx_unlock(&watch_events_lock);
 
 				if (msg != NULL) {
-
+						printf("handling watch\n");
 						msg->u.watch.handle->callback(
 								msg->u.watch.handle,
 								(const char **)msg->u.watch.vec,
@@ -845,8 +855,7 @@ static int xs_process_msg(enum xsd_sockmsg_type *type)
 				if (msg->u.watch.handle != NULL) {
 						mtx_lock(&watch_events_lock);
 						TAILQ_INSERT_TAIL(&watch_events, msg, list);
-						if (xenwatch_running)
-								wakeup(&watch_events_waitq);
+						wakeup(&watch_events_waitq);
 						mtx_unlock(&watch_events_lock);
 				} else {
 						kfree(msg->u.watch.vec);
@@ -858,9 +867,8 @@ static int xs_process_msg(enum xsd_sockmsg_type *type)
 				msg->u.reply.body = body;
 				mtx_lock(&xs_state.reply_lock);
 				TAILQ_INSERT_TAIL(&xs_state.reply_list, msg, list);
+				wakeup(&xs_state.reply_waitq);
 				mtx_unlock(&xs_state.reply_lock);
-				if (xenbus_running)
-						wakeup(&xs_state.reply_waitq);
 		}
 		if (*type == XS_WATCH_EVENT)
 				printf("\n");
@@ -873,6 +881,7 @@ static void xenbus_thread(void *unused)
 		int err;
 		enum xsd_sockmsg_type type;
 
+		DELAY(10000);
 		xenbus_running = 1;
 		pause("xenbus", hz/10);
 
