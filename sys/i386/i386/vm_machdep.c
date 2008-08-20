@@ -270,7 +270,7 @@ cpu_fork(td1, p2, td2, flags)
 	/*
 	 * XXX XEN need to check on PSL_USER is handled
 	 */
-#ifndef XEN
+#ifdef XEN
 	td2->td_md.md_saved_flags = 0;
 #else	
 	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
