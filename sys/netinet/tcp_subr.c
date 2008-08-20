@@ -942,7 +942,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 
 	INP_INFO_RLOCK(&V_tcbinfo);
 	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
-	     inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
+	    inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*

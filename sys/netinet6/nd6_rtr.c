@@ -847,7 +847,7 @@ nd6_prefix_lookup(struct nd_prefixctl *key)
 	struct nd_prefix *search;
 
 	for (search = V_nd_prefix.lh_first;
-	     search; search = search->ndpr_next) {
+	    search; search = search->ndpr_next) {
 		if (key->ndpr_ifp == search->ndpr_ifp &&
 		    key->ndpr_plen == search->ndpr_plen &&
 		    in6_are_prefix_equal(&key->ndpr_prefix.sin6_addr,
