@@ -1892,7 +1892,7 @@ nd6_slowtimo(void *ignored_arg)
 	    nd6_slowtimo, NULL);
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	     ifp = TAILQ_NEXT(ifp, if_list)) {
+	    ifp = TAILQ_NEXT(ifp, if_list)) {
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {

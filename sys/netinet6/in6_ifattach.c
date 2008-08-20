@@ -875,7 +875,7 @@ in6_tmpaddrtimer(void *ignored_arg)
 
 	bzero(nullbuf, sizeof(nullbuf));
 	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	     ifp = TAILQ_NEXT(ifp, if_list)) {
+	    ifp = TAILQ_NEXT(ifp, if_list)) {
 		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*

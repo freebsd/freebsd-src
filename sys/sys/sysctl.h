@@ -226,8 +226,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
 	struct sysctl_oid_list SYSCTL_NODE_CHILDREN(parent, name);	    \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|(access),		    \
-		   (void*)&SYSCTL_NODE_CHILDREN(parent, name), 0, handler,  \
-		   "N", descr)
+	    (void*)&SYSCTL_NODE_CHILDREN(parent, name), 0, handler, "N", descr)
 
 #define SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
 	sysctl_add_oid(ctx, parent, nbr, name, CTLTYPE_NODE|(access),	    \

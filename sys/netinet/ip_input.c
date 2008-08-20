@@ -799,7 +799,7 @@ ip_reass(struct mbuf *m)
 				struct ipq *r = TAILQ_LAST(&V_ipq[i], ipqhead);
 				if (r) {
 					V_ipstat.ips_fragtimeout +=
-								r->ipq_nfrags;
+					    r->ipq_nfrags;
 					ip_freef(&V_ipq[i], r);
 					break;
 				}
