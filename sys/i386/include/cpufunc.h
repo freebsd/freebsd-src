@@ -48,7 +48,7 @@ extern void xen_sti(void);
 extern void xen_load_cr3(u_int data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(u_int addr);
-extern void xen_save_and_cli(u_int *eflags);
+extern int xen_save_and_cli(void);
 extern void xen_restore_flags(u_int eflags);
 #endif
 
@@ -690,10 +690,10 @@ load_dr7(u_int dr7)
 static __inline register_t
 intr_disable(void)
 {
-	register_t eflags = 0;
+	register_t eflags;
 
 #ifdef XEN
-	xen_save_and_cli(&eflags);
+	eflags = xen_save_and_cli();
 #else 	
 	eflags = read_eflags();
 	disable_intr();

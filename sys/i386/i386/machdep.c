@@ -2373,8 +2373,8 @@ init386(first)
 	}
 	if (envmode == 1)
 		kern_envp = static_env;
-	else if (bootinfo.bi_envp)
-		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
+	else if ((caddr_t)xen_start_info->cmd_line)
+	        kern_envp = xen_setbootenv((caddr_t)xen_start_info->cmd_line);
 
 	boothowto |= xen_boothowto(kern_envp);
 	
