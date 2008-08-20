@@ -248,15 +248,17 @@ tcp_hc_init(void)
 	/*
 	 * Allocate the hostcache entries.
 	 */
-	V_tcp_hostcache.zone = uma_zcreate("hostcache", sizeof(struct hc_metrics),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_tcp_hostcache.zone =
+		uma_zcreate("hostcache", sizeof(struct hc_metrics),
+			NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_tcp_hostcache.zone, V_tcp_hostcache.cache_limit);
 
 	/*
 	 * Set up periodic cache cleanup.
 	 */
 	callout_init(&V_tcp_hc_callout, CALLOUT_MPSAFE);
-	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz, tcp_hc_purge, 0);
+	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
+	    tcp_hc_purge, 0);
 }
 
 /*
@@ -667,8 +669,9 @@ tcp_hc_purge(void *arg)
 
 	for (i = 0; i < V_tcp_hostcache.hashsize; i++) {
 		THC_LOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
-		TAILQ_FOREACH_SAFE(hc_entry, &V_tcp_hostcache.hashbase[i].hch_bucket,
-			      rmx_q, hc_next) {
+		TAILQ_FOREACH_SAFE(hc_entry,
+		    &V_tcp_hostcache.hashbase[i].hch_bucket,
+		    rmx_q, hc_next) {
 			if (all || hc_entry->rmx_expire <= 0) {
 				TAILQ_REMOVE(&V_tcp_hostcache.hashbase[i].hch_bucket,
 					      hc_entry, rmx_q);
@@ -680,5 +683,7 @@ tcp_hc_purge(void *arg)
 		}
 		THC_UNLOCK(&V_tcp_hostcache.hashbase[i].hch_mtx);
 	}
-	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz, tcp_hc_purge, 0);
+
+	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
+	    tcp_hc_purge, arg);
 }

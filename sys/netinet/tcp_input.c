@@ -212,7 +212,6 @@ do { \
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
-
 /*
  * TCP input handling is split into multiple parts:
  *   tcp6_input is a thin wrapper around tcp_input for the extended
@@ -654,8 +653,9 @@ findpcb:
 					log(LOG_DEBUG, "%s; %s: Listen socket: "
 					    "Socket allocation failed due to "
 					    "limits or memory shortage, %s\n",
-					    s, __func__, (V_tcp_sc_rst_sock_fail ?
-					    "sending RST" : "try again"));
+					    s, __func__,
+					    V_tcp_sc_rst_sock_fail ?
+					    "sending RST" : "try again");
 				if (V_tcp_sc_rst_sock_fail) {
 					rstreason = BANDLIM_UNLIMITED;
 					goto dropwithreset;

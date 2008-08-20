@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/syslog.h>
 #include <sys/protosw.h>
-
 #include <sys/malloc.h>
 #include <sys/vimage.h>
 

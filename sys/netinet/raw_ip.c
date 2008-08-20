@@ -178,10 +178,10 @@ rip_init(void)
 	INP_INFO_LOCK_INIT(&V_ripcbinfo, "rip");
 	LIST_INIT(&V_ripcb);
 	V_ripcbinfo.ipi_listhead = &V_ripcb;
-	V_ripcbinfo.ipi_hashbase = hashinit(INP_PCBHASH_RAW_SIZE, M_PCB,
-	    &V_ripcbinfo.ipi_hashmask);
-	V_ripcbinfo.ipi_porthashbase = hashinit(1, M_PCB,
-	    &V_ripcbinfo.ipi_porthashmask);
+	V_ripcbinfo.ipi_hashbase =
+	    hashinit(INP_PCBHASH_RAW_SIZE, M_PCB, &V_ripcbinfo.ipi_hashmask);
+	V_ripcbinfo.ipi_porthashbase =
+	    hashinit(1, M_PCB, &V_ripcbinfo.ipi_porthashmask);
 	V_ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
 	    NULL, NULL, rip_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_ripcbinfo.ipi_zone, maxsockets);

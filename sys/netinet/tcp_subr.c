@@ -941,8 +941,8 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 		return (ENOMEM);
 
 	INP_INFO_RLOCK(&V_tcbinfo);
-	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0; inp != NULL && i
-	    < n; inp = LIST_NEXT(inp, inp_list)) {
+	for (inp = LIST_FIRST(V_tcbinfo.ipi_listhead), i = 0;
+	     inp != NULL && i < n; inp = LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			/*
@@ -1037,8 +1037,8 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 	INP_INFO_RLOCK(&V_tcbinfo);
-	inp = in_pcblookup_hash(&V_tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
-	    addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
+	inp = in_pcblookup_hash(&V_tcbinfo, addrs[1].sin_addr,
+	    addrs[1].sin_port, addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
 	if (inp != NULL) {
 		INP_RLOCK(inp);
 		INP_INFO_RUNLOCK(&V_tcbinfo);
@@ -1209,7 +1209,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    if (!mtu)
 						mtu = ip_next_mtu(ip->ip_len,
 						 1);
-					    if (mtu < max(296, (V_tcp_minmss)
+					    if (mtu < max(296, V_tcp_minmss
 						 + sizeof(struct tcpiphdr)))
 						mtu = 0;
 					    if (!mtu)
@@ -1757,7 +1757,8 @@ tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 	 * If inflight_enable is disabled in the middle of a tcp connection,
 	 * make sure snd_bwnd is effectively disabled.
 	 */
-	if (V_tcp_inflight_enable == 0 || tp->t_rttlow < V_tcp_inflight_rttthresh) {
+	if (V_tcp_inflight_enable == 0 ||
+	    tp->t_rttlow < V_tcp_inflight_rttthresh) {
 		tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 		tp->snd_bandwidth = 0;
 		return;
@@ -2039,8 +2040,8 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 		break;
 #endif
 	case AF_INET:
-		inp = in_pcblookup_hash(&V_tcbinfo, fin->sin_addr, fin->sin_port,
-		    lin->sin_addr, lin->sin_port, 0, NULL);
+		inp = in_pcblookup_hash(&V_tcbinfo, fin->sin_addr,
+		    fin->sin_port, lin->sin_addr, lin->sin_port, 0, NULL);
 		break;
 	}
 	if (inp != NULL) {
