@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <machine/frame.h>
-
+#include <machine/vmparam.h>
 
 #include <sys/bus.h>
 #include <sys/rman.h>
@@ -1816,7 +1816,8 @@ netif_init(void *unused)
 	xenbus_register_frontend(&netfront);
 }
 
-SYSINIT(xennetif, SI_SUB_PSEUDO, SI_ORDER_SECOND, netif_init, NULL)
+SYSINIT(xennetif, SI_SUB_PSEUDO, SI_ORDER_SECOND, netif_init, NULL);
+
 
 /*
  * Local variables:
