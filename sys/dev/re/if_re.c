@@ -1903,7 +1903,7 @@ re_rxeof(struct rl_softc *sc)
 		maxpkt--;
 		if (rxvlan & RL_RDESC_VLANCTL_TAG) {
 			m->m_pkthdr.ether_vtag =
-			    ntohs((rxvlan & RL_RDESC_VLANCTL_DATA));
+			    bswap16((rxvlan & RL_RDESC_VLANCTL_DATA));
 			m->m_flags |= M_VLANTAG;
 		}
 		RL_UNLOCK(sc);
@@ -2307,7 +2307,7 @@ re_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 * transmission attempt.
 	 */
 	if ((*m_head)->m_flags & M_VLANTAG)
-		vlanctl |= htons((*m_head)->m_pkthdr.ether_vtag) |
+		vlanctl |= bswap16((*m_head)->m_pkthdr.ether_vtag) |
 		    RL_TDESC_VLANCTL_TAG;
 
 	si = prod;
