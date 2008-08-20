@@ -188,7 +188,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, mtx, wmesg, flags, 0);
+	sleepq_add(ident, &mtx->mtx_object, wmesg, flags, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
@@ -265,7 +265,7 @@ msleep_spin(ident, mtx, wmesg, timo)
 	/*
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
-	sleepq_add(ident, mtx, wmesg, SLEEPQ_MSLEEP, 0);
+	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_MSLEEP, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
