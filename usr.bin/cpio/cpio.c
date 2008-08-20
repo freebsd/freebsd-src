@@ -112,6 +112,8 @@ main(int argc, char *argv[])
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_SYMLINKS;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_SECURE_NODOTDOT;
 	cpio->extract_flags |= ARCHIVE_EXTRACT_PERM;
+	cpio->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
+	cpio->extract_flags |= ARCHIVE_EXTRACT_ACL;
 	if (geteuid() == 0)
 		cpio->extract_flags |= ARCHIVE_EXTRACT_OWNER;
 	cpio->bytes_per_block = 512;
