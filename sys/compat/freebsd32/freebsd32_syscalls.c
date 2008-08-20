@@ -511,4 +511,5 @@ const char *freebsd32_syscallnames[] = {
 	"renameat",			/* 501 = renameat */
 	"symlinkat",			/* 502 = symlinkat */
 	"unlinkat",			/* 503 = unlinkat */
+	"posix_openpt",			/* 504 = posix_openpt */
 };

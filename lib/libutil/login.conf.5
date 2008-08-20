@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2006
+.Dd August 20, 2008
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -176,7 +176,7 @@ The usual convention to interpolate capability entries using the special
 .Em tc=value
 notation may be used.
 .Sh RESOURCE LIMITS
-.Bl -column coredumpsize indent indent
+.Bl -column pseudoterminals indent indent
 .It Sy "Name	Type	Notes	Description
 .It "coredumpsize	size		Maximum coredump size limit.
 .It "cputime	time		CPU usage limit.
@@ -189,6 +189,7 @@ notation may be used.
 .It "sbsize	size		Maximum permitted socketbuffer size.
 .It "vmemoryuse	size		Maximum permitted total VM usage per process.
 .It "stacksize	size		Maximum stack size limit.
+.It "pseudoterminals	number		Maximum number of pseudo-terminals.
 .El
 .Pp
 These resource limit entries actually specify both the maximum

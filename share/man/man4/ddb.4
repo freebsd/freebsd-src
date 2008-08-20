@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2008
+.Dd August 20, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -940,6 +940,12 @@ Thread structure address
 .It Ic Third column
 Backtrace.
 .El
+.\"
+.Pp
+.It Ic show Cm ttys
+Show all TTY's within the system.
+Output is similar to
+.Xr pstat 8 .
 .\"
 .Pp
 .It Ic show Cm turnstile Ar addr

@@ -272,7 +272,7 @@ device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
+device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)

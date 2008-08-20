@@ -54,26 +54,22 @@
 
 #define	SSC_POLL_HZ	50
 
-static	d_open_t	ssc_open;
-static	d_close_t	ssc_close;
+static tsw_open_t	ssc_open;
+static tsw_outwakeup_t	ssc_outwakeup;
+static tsw_close_t	ssc_close;
 
-static struct cdevsw ssc_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ssc_open,
-	.d_close =	ssc_close,
-	.d_name =	"ssc",
-	.d_flags =	D_TTY | D_NEEDGIANT,
+static struct ttydevsw ssc_class = {
+	.tsw_flags	= TF_NOPREFIX,
+	.tsw_open	= ssc_open,
+	.tsw_outwakeup	= ssc_outwakeup,
+	.tsw_close	= ssc_close,
 };
 
-static struct tty *ssc_tp = NULL;
 static int polltime;
 static struct callout_handle ssc_timeouthandle
 	= CALLOUT_HANDLE_INITIALIZER(&ssc_timeouthandle);
 
-static void	ssc_start(struct tty *);
 static void	ssc_timeout(void *);
-static int	ssc_param(struct tty *, struct termios *);
-static void	ssc_stop(struct tty *, int);
 
 static u_int64_t
 ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
@@ -90,7 +86,8 @@ ssc(u_int64_t in0, u_int64_t in1, u_int64_t in2, u_int64_t in3, int which)
 static void
 ssc_cnprobe(struct consdev *cp)
 {
-	sprintf(cp->cn_name, "ssccons");
+
+	strcpy(cp->cn_name, "ssccons");
 	cp->cn_pri = CN_INTERNAL;
 }
 
@@ -107,8 +104,10 @@ ssc_cnterm(struct consdev *cp)
 static void
 ssc_cnattach(void *arg)
 {
-	make_dev(&ssc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ssccons");
-	ssc_tp = ttyalloc();
+	struct tty *tp;
+
+	tp = tty_alloc(&ssc_class, NULL, NULL);
+	tty_makedev(tp, NULL, "ssccons");
 }
 
 SYSINIT(ssc_cnattach, SI_SUB_DRIVERS, SI_ORDER_ANY, ssc_cnattach, 0);
@@ -130,100 +129,39 @@ ssc_cngetc(struct consdev *cp)
 }
 
 static int
-ssc_open(struct cdev *dev, int flag, int mode, struct thread *td)
+ssc_open(struct tty *tp)
 {
-	struct tty *tp;
-	int s;
-	int error = 0, setuptimeout = 0;
- 
-	tp = dev->si_tty = ssc_tp;
 
-	s = spltty();
-	tp->t_oproc = ssc_start;
-	tp->t_param = ssc_param;
-	tp->t_stop = ssc_stop;
-	tp->t_dev = dev;
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_CARR_ON;
-		ttyconsolemode(tp, 0);
+	polltime = hz / SSC_POLL_HZ;
+	if (polltime < 1)
+		polltime = 1;
+	ssc_timeouthandle = timeout(ssc_timeout, tp, polltime);
 
-		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) &&
-	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
-		splx(s);
-		return EBUSY;
-	}
-
-	splx(s);
-
-	error = ttyld_open(tp, dev);
-
-	if (error == 0 && setuptimeout) {
-		polltime = hz / SSC_POLL_HZ;
-		if (polltime < 1)
-			polltime = 1;
-		ssc_timeouthandle = timeout(ssc_timeout, tp, polltime);
-	}
-	return error;
+	return (0);
 }
  
-static int
-ssc_close(struct cdev *dev, int flag, int mode, struct thread *td)
+static void
+ssc_close(struct tty *tp)
 {
-	int unit = minor(dev);
-	struct tty *tp = ssc_tp;
-
-	if (unit != 0)
-		return ENXIO;
 
 	untimeout(ssc_timeout, tp, ssc_timeouthandle);
-	ttyld_close(tp, flag);
-	tty_close(tp);
-	return 0;
-}
- 
-static int
-ssc_param(struct tty *tp, struct termios *t)
-{
-
-	return 0;
 }
 
 static void
-ssc_start(struct tty *tp)
+ssc_outwakeup(struct tty *tp)
 {
-	int s;
+	char buf[128];
+	size_t len, c;
 
-	s = spltty();
+	for (;;) {
+		len = ttydisc_getc(tp, buf, sizeof buf);
+		if (len == 0)
+			break;
 
-	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
-		ttwwakeup(tp);
-		splx(s);
-		return;
+		c = 0;
+		while (len-- > 0)
+			ssc_cnputc(NULL, buf[c++]);
 	}
-
-	tp->t_state |= TS_BUSY;
-	while (tp->t_outq.c_cc != 0)
-		ssc_cnputc(NULL, getc(&tp->t_outq));
-	tp->t_state &= ~TS_BUSY;
-
-	ttwwakeup(tp);
-	splx(s);
-}
-
-/*
- * Stop output on a line.
- */
-static void
-ssc_stop(struct tty *tp, int flag)
-{
-	int s;
-
-	s = spltty();
-	if (tp->t_state & TS_BUSY)
-		if ((tp->t_state & TS_TTSTOP) == 0)
-			tp->t_state |= TS_FLUSH;
-	splx(s);
 }
 
 static void
@@ -232,10 +170,12 @@ ssc_timeout(void *v)
 	struct tty *tp = v;
 	int c;
 
-	while ((c = ssc_cngetc(NULL)) != -1) {
-		if (tp->t_state & TS_ISOPEN)
-			ttyld_rint(tp, c);
-	}
+	tty_lock(tp);
+	while ((c = ssc_cngetc(NULL)) != -1)
+		ttydisc_rint(tp, c, 0);
+	ttydisc_rint_done(tp);
+	tty_unlock(tp);
+
 	ssc_timeouthandle = timeout(ssc_timeout, tp, polltime);
 }
 

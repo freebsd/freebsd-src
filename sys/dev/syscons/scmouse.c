@@ -605,8 +605,7 @@ sc_mouse_paste(scr_stat *scp)
 #endif /* SC_NO_CUTPASTE */
 
 int
-sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
-	       struct thread *td)
+sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
     mouse_info_t *mouse;
     mouse_info_t buf;
@@ -616,7 +615,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
     int s;
     int f;
 
-    scp = SC_STAT(tp->t_dev);
+    scp = SC_STAT(tp);
 
     switch (cmd) {
 

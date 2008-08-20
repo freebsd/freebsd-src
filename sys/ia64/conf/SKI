@@ -53,7 +53,7 @@ device		pci		# PCI bus support
 device		ether		# Ethernet support
 device		loop		# Network loopback
 device		md		# Memory "disks"
-device		pty		# Pseudo-ttys (telnet etc)
+device		pty		# BSD-style compatibility pseudo ttys
 device		random		# Entropy device
 device		tun		# Packet tunnel.
 

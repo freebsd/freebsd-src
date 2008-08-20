@@ -1661,12 +1661,14 @@ kern/sysv_sem.c			optional sysvsem
 kern/sysv_shm.c			optional sysvshm
 kern/tty.c			standard
 kern/tty_compat.c		optional compat_43tty
-kern/tty_conf.c			standard
 kern/tty_cons.c			standard
 kern/tty_info.c			standard
-kern/tty_pts.c			optional pty
+kern/tty_inq.c			standard
+kern/tty_outq.c			standard
+kern/tty_pts.c			standard
 kern/tty_pty.c			optional pty
 kern/tty_tty.c			standard
+kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
 kern/uipc_cow.c			optional zero_copy_sockets
 kern/uipc_debug.c		optional ddb

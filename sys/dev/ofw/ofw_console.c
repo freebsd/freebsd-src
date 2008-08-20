@@ -49,15 +49,15 @@ __FBSDID("$FreeBSD$");
 #endif
 #define OFBURSTLEN	128	/* max number of bytes to write in one chunk */
 
-static d_open_t		ofw_dev_open;
-static d_close_t	ofw_dev_close;
+static tsw_open_t ofwtty_open;
+static tsw_close_t ofwtty_close;
+static tsw_outwakeup_t ofwtty_outwakeup;
 
-static struct cdevsw ofw_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	ofw_dev_open,
-	.d_close =	ofw_dev_close,
-	.d_name =	"ofw",
-	.d_flags =	D_TTY | D_NEEDGIANT,
+static struct ttydevsw ofw_ttydevsw = {
+	.tsw_flags	= TF_NOPREFIX,
+	.tsw_open	= ofwtty_open,
+	.tsw_close	= ofwtty_close,
+	.tsw_outwakeup	= ofwtty_outwakeup,
 };
 
 static struct tty		*ofw_tp = NULL;
@@ -69,9 +69,6 @@ static struct callout_handle	ofw_timeouthandle
 static int			alt_break_state;
 #endif
 
-static void	ofw_tty_start(struct tty *);
-static int	ofw_tty_param(struct tty *, struct termios *);
-static void	ofw_tty_stop(struct tty *, int);
 static void	ofw_timeout(void *);
 
 static cn_probe_t	ofw_cnprobe;
@@ -87,7 +84,7 @@ cn_drvinit(void *unused)
 {
 	phandle_t options;
 	char output[32];
-	struct cdev *dev;
+	struct tty *tp;
 
 	if (ofw_consdev.cn_pri != CN_DEAD &&
 	    ofw_consdev.cn_name[0] != '\0') {
@@ -99,9 +96,9 @@ cn_drvinit(void *unused)
 		 * XXX: This is a hack and it may result in two /dev/ttya
 		 * XXX: devices on platforms where the sab driver works.
 		 */
-		dev = make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
-		    output);
-		make_dev_alias(dev, "ofwcons");
+		tp = tty_alloc(&ofw_ttydevsw, NULL, NULL);
+		tty_makedev(tp, NULL, "%s", output);
+		tty_makealias(tp, "ofwcons");
 	}
 }
 
@@ -111,112 +108,36 @@ static int	stdin;
 static int	stdout;
 
 static int
-ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
+ofwtty_open(struct tty *tp)
 {
-	struct	tty *tp;
-	int	unit;
-	int	error, setuptimeout;
+	polltime = hz / OFWCONS_POLL_HZ;
+	if (polltime < 1)
+		polltime = 1;
 
-	error = 0;
-	setuptimeout = 0;
-	unit = minor(dev);
+	ofw_timeouthandle = timeout(ofw_timeout, tp, polltime);
 
-	/*
-	 * XXX: BAD, should happen at attach time
-	 */
-	if (dev->si_tty == NULL) {
-		ofw_tp = ttyalloc();
-		dev->si_tty = ofw_tp;
-		ofw_tp->t_dev = dev;
-	}
-	tp = dev->si_tty;
-
-	tp->t_oproc = ofw_tty_start;
-	tp->t_param = ofw_tty_param;
-	tp->t_stop = ofw_tty_stop;
-	tp->t_dev = dev;
-
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_CARR_ON;
-		ttyconsolemode(tp, 0);
-
-		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) &&
-	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
-		return (EBUSY);
-	}
-
-	error = ttyld_open(tp, dev);
-
-	if (error == 0 && setuptimeout) {
-		polltime = hz / OFWCONS_POLL_HZ;
-		if (polltime < 1) {
-			polltime = 1;
-		}
-
-		ofw_timeouthandle = timeout(ofw_timeout, tp, polltime);
-	}
-
-	return (error);
+	return (0);
 }
 
-static int
-ofw_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
+static void
+ofwtty_close(struct tty *tp)
 {
-	int	unit;
-	struct	tty *tp;
-
-	unit = minor(dev);
-	tp = dev->si_tty;
-
-	if (unit != 0) {
-		return (ENXIO);
-	}
 
 	/* XXX Should be replaced with callout_stop(9) */
 	untimeout(ofw_timeout, tp, ofw_timeouthandle);
-	ttyld_close(tp, flag);
-	tty_close(tp);
-
-	return (0);
-}
-
-
-static int
-ofw_tty_param(struct tty *tp, struct termios *t)
-{
-
-	return (0);
 }
 
 static void
-ofw_tty_start(struct tty *tp)
+ofwtty_outwakeup(struct tty *tp)
 {
-	struct clist *cl;
 	int len;
 	u_char buf[OFBURSTLEN];
 
-
-	if (tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))
-		return;
-
-	tp->t_state |= TS_BUSY;
-	cl = &tp->t_outq;
-	len = q_to_b(cl, buf, OFBURSTLEN);
-	OF_write(stdout, buf, len);
-	tp->t_state &= ~TS_BUSY;
-
-	ttwwakeup(tp);
-}
-
-static void
-ofw_tty_stop(struct tty *tp, int flag)
-{
-
-	if (tp->t_state & TS_BUSY) {
-		if ((tp->t_state & TS_TTSTOP) == 0) {
-			tp->t_state |= TS_FLUSH;
-		}
+	for (;;) {
+		len = ttydisc_getc(tp, buf, sizeof buf);
+		if (len == 0)
+			break;
+		OF_write(stdout, buf, len);
 	}
 }
 
@@ -228,11 +149,11 @@ ofw_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	while ((c = ofw_cngetc(NULL)) != -1) {
-		if (tp->t_state & TS_ISOPEN) {
-			ttyld_rint(tp, c);
-		}
-	}
+	tty_lock(tp);
+	while ((c = ofw_cngetc(NULL)) != -1)
+		ttydisc_rint(tp, c, 0);
+	ttydisc_rint_done(tp);
+	tty_unlock(tp);
 
 	ofw_timeouthandle = timeout(ofw_timeout, tp, polltime);
 }

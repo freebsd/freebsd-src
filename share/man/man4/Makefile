@@ -279,6 +279,7 @@ MAN=	aac.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
+	pts.4 \
 	pty.4 \
 	puc.4 \
 	ral.4 \

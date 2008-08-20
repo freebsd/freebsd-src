@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/sx.h>
 #include <sys/ctype.h>
-#include <sys/tty.h>
 #include <sys/ucred.h>
 #include <sys/taskqueue.h>
 #include <machine/stdarg.h>
@@ -611,14 +610,6 @@ prep_cdevsw(struct cdevsw *devsw)
 		devsw->d_kqfilter = dead_kqfilter;
 	}
 	
-	if (devsw->d_flags & D_TTY) {
-		if (devsw->d_ioctl == NULL)	devsw->d_ioctl = ttyioctl;
-		if (devsw->d_read == NULL)	devsw->d_read = ttyread;
-		if (devsw->d_write == NULL)	devsw->d_write = ttywrite;
-		if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = ttykqfilter;
-		if (devsw->d_poll == NULL)	devsw->d_poll = ttypoll;
-	}
-
 	if (devsw->d_flags & D_NEEDGIANT) {
 		if (devsw->d_gianttrick == NULL) {
 			memcpy(dsw2, devsw, sizeof *dsw2);
@@ -692,11 +683,9 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 	}
 		
 	dev->si_flags |= SI_NAMED;
-#ifdef MAC
 	if (cr != NULL)
 		dev->si_cred = crhold(cr);
 	else
-#endif
 		dev->si_cred = NULL;
 	dev->si_uid = uid;
 	dev->si_gid = gid;
