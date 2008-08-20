@@ -76,7 +76,7 @@
  * using this interface as well (death to TDI_IWAIT!)
  */
 
-struct mtx;
+struct lock_object;
 struct sleepqueue;
 struct thread;
 
@@ -90,7 +90,7 @@ struct thread;
 
 void	init_sleepqueues(void);
 void	sleepq_abort(struct thread *td, int intrval);
-void	sleepq_add(void *, struct mtx *, const char *, int, int);
+void	sleepq_add(void *, struct lock_object *, const char *, int, int);
 struct sleepqueue *sleepq_alloc(void);
 void	sleepq_broadcast(void *, int, int, int);
 void	sleepq_free(struct sleepqueue *);
