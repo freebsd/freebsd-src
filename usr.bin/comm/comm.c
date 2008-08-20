@@ -64,22 +64,31 @@ __FBSDID("$FreeBSD$");
 const wchar_t *tabs[] = { L"", L"\t", L"\t\t" };
 
 FILE   *file(const char *);
-void	show(FILE *, const char *, const wchar_t *, wchar_t *);
+wchar_t	*getline(wchar_t *, size_t *, FILE *);
+void	show(FILE *, const char *, const wchar_t *, wchar_t *, size_t *);
 int     wcsicoll(const wchar_t *, const wchar_t *);
 static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	int comp, file1done = 0, file2done = 0, read1, read2;
+	int comp, read1, read2;
 	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
 	const wchar_t *col1, *col2, *col3;
-	wchar_t line1[MAXLINELEN], line2[MAXLINELEN];
+	size_t line1len, line2len;
+	wchar_t *line1, *line2;
 	const wchar_t **p;
 
 	flag1 = flag2 = flag3 = 1;
 	iflag = 0;
+
+ 	line1len = MAXLINELEN;
+ 	line2len = MAXLINELEN;
+ 	line1 = malloc(line1len * sizeof(*line1));
+ 	line2 = malloc(line2len * sizeof(*line2));
+	if (line1 == NULL || line2 == NULL)
+		err(1, "malloc");
 
 	(void) setlocale(LC_ALL, "");
 
@@ -123,25 +132,25 @@ main(int argc, char *argv[])
 	for (read1 = read2 = 1;;) {
 		/* read next line, check for EOF */
 		if (read1) {
-			file1done = !fgetws(line1, MAXLINELEN, fp1);
-			if (file1done && ferror(fp1))
+			line1 = getline(line1, &line1len, fp1);
+			if (line1 == NULL && ferror(fp1))
 				err(1, "%s", argv[0]);
 		}
 		if (read2) {
-			file2done = !fgetws(line2, MAXLINELEN, fp2);
-			if (file2done && ferror(fp2))
+			line2 = getline(line2, &line2len, fp2);
+			if (line2 == NULL && ferror(fp2))
 				err(1, "%s", argv[1]);
 		}
 
 		/* if one file done, display the rest of the other file */
-		if (file1done) {
-			if (!file2done && col2)
-				show(fp2, argv[1], col2, line2);
+		if (line1 == NULL) {
+			if (line2 != NULL && col2 != NULL)
+				show(fp2, argv[1], col2, line2, &line2len);
 			break;
 		}
-		if (file2done) {
-			if (!file1done && col1)
-				show(fp1, argv[0], col1, line1);
+		if (line2 == NULL) {
+			if (line1 != NULL && col1 != NULL)
+				show(fp1, argv[0], col1, line1, &line1len);
 			break;
 		}
 
@@ -153,7 +162,7 @@ main(int argc, char *argv[])
 
 		if (!comp) {
 			read1 = read2 = 1;
-			if (col3)
+			if (col3 != NULL)
 				(void)printf("%ls%ls", col3, line1);
 			continue;
 		}
@@ -162,25 +171,49 @@ main(int argc, char *argv[])
 		if (comp < 0) {
 			read1 = 1;
 			read2 = 0;
-			if (col1)
+			if (col1 != NULL)
 				(void)printf("%ls%ls", col1, line1);
 		} else {
 			read1 = 0;
 			read2 = 1;
-			if (col2)
+			if (col2 != NULL)
 				(void)printf("%ls%ls", col2, line2);
 		}
 	}
 	exit(0);
 }
 
+wchar_t *
+getline(wchar_t *buf, size_t *buflen, FILE *fp)
+{
+	size_t bufpos;
+	wint_t ch;
+
+	bufpos = 0;
+	do {
+		if ((ch = getwc(fp)) != WEOF) {
+			if (bufpos + 2 >= *buflen) {
+				*buflen = *buflen * 2;
+				buf = reallocf(buf, *buflen * sizeof(*buf));
+				if (buf == NULL)
+					return (NULL);
+			}
+			buf[bufpos++] = ch;
+		}
+	} while (ch != WEOF && ch != '\n');
+	if (bufpos + 1 != *buflen)
+		buf[bufpos] = '\0';
+
+	return (bufpos != 0 || ch == '\n' ? buf : NULL);
+}
+
 void
-show(FILE *fp, const char *fn, const wchar_t *offset, wchar_t *buf)
+show(FILE *fp, const char *fn, const wchar_t *offset, wchar_t *buf, size_t *buflen)
 {
 
 	do {
 		(void)printf("%ls%ls", offset, buf);
-	} while (fgetws(buf, MAXLINELEN, fp));
+	} while ((buf = getline(buf, buflen, fp)) != NULL);
 	if (ferror(fp))
 		err(1, "%s", fn);
 }
@@ -205,16 +238,51 @@ usage(void)
 	exit(1);
 }
 
+static size_t wcsicoll_l1_buflen = 0, wcsicoll_l2_buflen = 0;
+static wchar_t *wcsicoll_l1_buf = NULL, *wcsicoll_l2_buf = NULL;
+
 int
 wcsicoll(const wchar_t *s1, const wchar_t *s2)
 {
-	wchar_t *p, line1[MAXLINELEN], line2[MAXLINELEN];
+	wchar_t *p;
+	size_t l1, l2;
+	size_t new_l1_buflen, new_l2_buflen;
 
-	for (p = line1; *s1; s1++)
+	l1 = wcslen(s1) + 1;
+	l2 = wcslen(s2) + 1;
+	new_l1_buflen = wcsicoll_l1_buflen;
+	new_l2_buflen = wcsicoll_l2_buflen;
+	while (new_l1_buflen < l1) {
+		if (new_l1_buflen == 0)
+			new_l1_buflen = MAXLINELEN;
+		else
+			new_l1_buflen *= 2;
+	}
+	while (new_l2_buflen < l2) {
+		if (new_l2_buflen == 0)
+			new_l2_buflen = MAXLINELEN;
+		else
+			new_l2_buflen *= 2;
+	}
+	if (new_l1_buflen > wcsicoll_l1_buflen) {
+		wcsicoll_l1_buf = reallocf(wcsicoll_l1_buf, new_l1_buflen * sizeof(*wcsicoll_l1_buf));
+		if (wcsicoll_l1_buf == NULL)
+                	err(1, "reallocf");
+		wcsicoll_l1_buflen = new_l1_buflen;
+	}
+	if (new_l2_buflen > wcsicoll_l2_buflen) {
+		wcsicoll_l2_buf = reallocf(wcsicoll_l2_buf, new_l2_buflen * sizeof(*wcsicoll_l2_buf));
+		if (wcsicoll_l2_buf == NULL)
+                	err(1, "reallocf");
+		wcsicoll_l2_buflen = new_l2_buflen;
+	}
+
+	for (p = wcsicoll_l1_buf; *s1; s1++)
 		*p++ = towlower(*s1);
 	*p = '\0';
-	for (p = line2; *s2; s2++)
+	for (p = wcsicoll_l2_buf; *s2; s2++)
 		*p++ = towlower(*s2);
 	*p = '\0';
-	return (wcscoll(line1, line2));
+
+	return (wcscoll(wcsicoll_l1_buf, wcsicoll_l2_buf));
 }
