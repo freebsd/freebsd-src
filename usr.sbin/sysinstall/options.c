@@ -97,7 +97,6 @@ mediaCheck(Option *opt)
     return "<not yet set>";
 }
 
-#define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
 #define NEWFS_PROMPT	"Please enter newfs(8) parameters:"
 #define RELNAME_PROMPT	"Please specify the release you wish to load or\n\"any\" for a generic release install:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
@@ -132,8 +131,6 @@ static Option Options[] = {
       OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",
       OPT_IS_VAR,	EDITOR_PROMPT,		VAR_EDITOR,		varCheck	},
-{ "Tape Blocksize",	"Tape media block size in 512 byte blocks",
-      OPT_IS_VAR,	TAPE_PROMPT,		VAR_TAPE_BLOCKSIZE,	varCheck	},
 { "Extract Detail",	"How verbosely to display file name information during extractions",
       OPT_IS_FUNC,	mediaSetCPIOVerbosity,	VAR_CPIO_VERBOSITY,	varCheck	},
 { "Release Name",	"Which release to attempt to load from installation media",
