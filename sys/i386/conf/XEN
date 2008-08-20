@@ -81,6 +81,7 @@ nooption	NATIVE
 option		XEN
 nodevice	atpic
 nodevice	isa
+options		MCLSHIFT=12
 
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
