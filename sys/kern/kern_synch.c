@@ -70,11 +70,9 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
 
 int	hogticks;
-int	lbolt;
 static int pause_wchan;
 
 static struct callout loadav_callout;
-static struct callout lbolt_callout;
 
 struct loadavg averunnable =
 	{ {0, 0, 0}, FSCALE };	/* load average, of runnable procs */
@@ -93,7 +91,6 @@ static int      fscale __unused = FSCALE;
 SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 
 static void	loadav(void *arg);
-static void	lboltcb(void *arg);
 
 void
 sleepinit(void)
@@ -136,8 +133,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL ||
-	    ident == &lbolt, ("sleeping without a lock"));
+	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL,
+	    ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 	if (priority & PDROP)
@@ -202,7 +199,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, ident == &lbolt ? NULL : lock, wmesg, flags, 0);
+	sleepq_add(ident, lock, wmesg, flags, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
@@ -515,23 +512,14 @@ loadav(void *arg)
 	    loadav, NULL);
 }
 
-static void
-lboltcb(void *arg)
-{
-	wakeup(&lbolt);
-	callout_reset(&lbolt_callout, hz, lboltcb, NULL);
-}
-
 /* ARGSUSED */
 static void
 synch_setup(void *dummy)
 {
 	callout_init(&loadav_callout, CALLOUT_MPSAFE);
-	callout_init(&lbolt_callout, CALLOUT_MPSAFE);
 
 	/* Kick off timeout driven events by calling first time. */
 	loadav(NULL);
-	lboltcb(NULL);
 }
 
 /*
