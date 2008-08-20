@@ -1194,7 +1194,6 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_RELNAME,			cp, 0);
     free(cp);
     variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
-    variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
     variable_set2(VAR_INSTALL_ROOT,		"/", 0);
     variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
     variable_set2(VAR_SKIP_PCCARD,		"NO", 0);
