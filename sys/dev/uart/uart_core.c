@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/termios.h>
-#include <sys/tty.h>
 #include <machine/resource.h>
 #include <machine/stdarg.h>
 
@@ -466,7 +465,7 @@ uart_bus_attach(device_t dev)
 		sc->sc_polled = 1;
 	}
 
-	sc->sc_rxbufsz = IBUFSIZ;
+	sc->sc_rxbufsz = 384;
 	sc->sc_rxbuf = malloc(sc->sc_rxbufsz * sizeof(*sc->sc_rxbuf),
 	    M_UART, M_WAITOK);
 	sc->sc_txbuf = malloc(sc->sc_txfifosz * sizeof(*sc->sc_txbuf),

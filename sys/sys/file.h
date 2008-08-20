@@ -62,6 +62,7 @@ struct socket;
 #define	DTYPE_MQUEUE	7	/* posix message queue */
 #define	DTYPE_SHM	8	/* swap-backed shared memory */
 #define	DTYPE_SEM	9	/* posix semaphore */
+#define	DTYPE_PTS	10	/* pseudo teletype master device */
 
 #ifdef _KERNEL
 

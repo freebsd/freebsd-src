@@ -1275,11 +1275,7 @@ options 	SES_ENABLE_PASSTHROUGH
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
 
-# The `pty' device usually turns out to be ``effectively mandatory'',
-# as it is required for `telnetd', `rlogind', `screen', `emacs', and
-# `xterm', among others.
-
-device		pty		#Pseudo ttys
+device		pty		#BSD-style compatibility pseudo ttys
 device		nmdm		#back-to-back tty devices
 device		md		#Memory/malloc disk
 device		ccd		#Concatenated disk driver
@@ -1290,9 +1286,6 @@ options 	LIBICONV
 
 # Size of the kernel message buffer.  Should be N * pagesize.
 options 	MSGBUF_SIZE=40960
-
-# Maximum size of a tty or pty input buffer.
-options 	TTYHOG=8193
 
 
 #####################################################################

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
 #include <sys/systm.h>
+#include <sys/tty.h>
 #include <sys/vnode.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -109,8 +110,17 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	if (fp->f_vnode != NULL &&
 	    fp->f_vnode->v_un.vu_cdev != NULL &&
 	    linux_driver_get_major_minor(fp->f_vnode->v_un.vu_cdev->si_name,
-					 &major, &minor) == 0)
+					 &major, &minor) == 0) {
 		buf->st_rdev = (major << 8 | minor);
+	} else if (fp->f_type == DTYPE_PTS) {
+		struct tty *tp = fp->f_data;
+
+		/* Convert the numbers for the slave device. */
+		if (linux_driver_get_major_minor(tp->t_dev->si_name,
+					 &major, &minor) == 0) {
+			buf->st_rdev = (major << 8 | minor);
+		}
+	}
 	fdrop(fp, td);
 }
 

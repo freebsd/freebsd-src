@@ -32,7 +32,7 @@
 .\"	@(#)termios.4	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2008
+.Dd August 20, 2008
 .Dt TERMIOS 4
 .Os
 .Sh NAME
@@ -1073,7 +1073,7 @@ Values of the
 field describe the basic terminal output control,
 and are composed of the following masks:
 .Pp
-.Bl -tag -width OXTABS -offset indent -compact
+.Bl -tag -width ONOEOT -offset indent -compact
 .It Dv OPOST
 /* enable following output processing */
 .It Dv ONLCR
@@ -1082,7 +1082,11 @@ and are composed of the following masks:
 */
 .It Dv OCRNL
 /* map CR to NL */
-.It Dv OXTABS
+.It Dv TABDLY
+/* tab delay mask */
+.It Dv TAB0
+/* no tab delay and expansion */
+.It Dv TAB3
 /* expand tabs to spaces */
 .It Dv ONOEOT
 /* discard
@@ -1108,8 +1112,20 @@ If
 .Dv OCRNL
 is set, carriage returns are translated to newlines.
 .Pp
+The
+.Dv TABDLY
+bits specify the tab delay.
+The
+.Fa c_oflag
+is masked with
+.Dv TABDLY
+and compared with the
+values
+.Dv TAB0
+or
+.Dv TAB3 .
 If
-.Dv OXTABS
+.Dv TAB3
 is set, tabs are expanded to the appropriate number of
 spaces (assuming 8 column tab stops).
 .Pp

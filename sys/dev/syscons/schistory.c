@@ -291,8 +291,7 @@ sc_hist_down_line(scr_stat *scp)
 }
 
 int
-sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
-	      struct thread *td)
+sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 	scr_stat *scp;
 	int error;
@@ -300,7 +299,7 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 	switch (cmd) {
 
 	case CONS_HISTORY:  	/* set history size */
-		scp = SC_STAT(tp->t_dev);
+		scp = SC_STAT(tp);
 		if (*(int *)data <= 0)
 			return EINVAL;
 		if (scp->status & BUFFER_SAVED)
@@ -315,7 +314,7 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		return error;
 
 	case CONS_CLRHIST:
-		scp = SC_STAT(tp->t_dev);
+		scp = SC_STAT(tp);
 		sc_vtb_clear(scp->history, scp->sc->scr_map[0x20],
 		    SC_NORM_ATTR << 8);
 		return 0;

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
+#include <sys/tty.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
 #include <sys/vnode.h>
@@ -2564,6 +2565,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 	struct vnode *vp;
 	struct file *fp;
 	struct proc *p;
+	struct tty *tp;
 	int vfslocked;
 
 	name = (int *)arg1;
@@ -2595,6 +2597,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 		kif->kf_structsize = sizeof(*kif);
 		vp = NULL;
 		so = NULL;
+		tp = NULL;
 		kif->kf_fd = i;
 		switch (fp->f_type) {
 		case DTYPE_VNODE:
@@ -2635,6 +2638,11 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 
 		case DTYPE_SEM:
 			kif->kf_type = KF_TYPE_SEM;
+			break;
+
+		case DTYPE_PTS:
+			kif->kf_type = KF_TYPE_PTS;
+			tp = fp->f_data;
 			break;
 
 		default:
@@ -2729,6 +2737,10 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			    so->so_proto->pr_domain->dom_family;
 			kif->kf_sock_type = so->so_type;
 			kif->kf_sock_protocol = so->so_proto->pr_protocol;
+		}
+		if (tp != NULL) {
+			strlcpy(kif->kf_path, tty_devname(tp),
+			    sizeof(kif->kf_path));
 		}
 		error = SYSCTL_OUT(req, kif, sizeof(*kif));
 		if (error)

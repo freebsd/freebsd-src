@@ -118,8 +118,8 @@ static void	uftdi_set(void *, int, int, int);
 static int	uftdi_param(void *, int, struct termios *);
 static int	uftdi_open(void *sc, int portno);
 static void	uftdi_read(void *sc, int portno, u_char **ptr,u_int32_t *count);
-static void	uftdi_write(void *sc, int portno, u_char *to, u_char *from,
-			    u_int32_t *count);
+static size_t	uftdi_write(void *sc, int portno, struct tty *,
+			    u_char *to, u_int32_t count);
 static void	uftdi_break(void *sc, int portno, int onoff);
 static int	uftdi_8u232am_getrate(speed_t speed, int *rate);
 
@@ -486,20 +486,25 @@ uftdi_read(void *vsc, int portno, u_char **ptr, u_int32_t *count)
 	*count -= 2;
 }
 
-static void
-uftdi_write(void *vsc, int portno, u_char *to, u_char *from, u_int32_t *count)
+static size_t
+uftdi_write(void *vsc, int portno, struct tty *tp, u_char *to, u_int32_t count)
 {
 	struct uftdi_softc *sc = vsc;
+	size_t l;
 
-	DPRINTFN(10,("uftdi_write: sc=%p, port=%d count=%u data[0]=0x%02x\n",
-		     vsc, portno, *count, from[0]));
+	DPRINTFN(10,("uftdi_write: sc=%p, port=%d tp=%p, count=%u\n",
+		     vsc, portno, tp, count));
 
-	/* Make length tag and copy data */
+	/* Leave space for the length tag. */
+	l = ttydisc_getc(tp, to + sc->sc_hdrlen, count - sc->sc_hdrlen);
+	if (l == 0)
+		return (0);
+
+	/* Make length tag. */
 	if (sc->sc_hdrlen > 0)
-		*to = FTDI_OUT_TAG(*count, portno);
-
-	memcpy(to + sc->sc_hdrlen, from, *count);
-	*count += sc->sc_hdrlen;
+		*to = FTDI_OUT_TAG(l, portno);
+	
+	return (l + sc->sc_hdrlen);
 }
 
 static void

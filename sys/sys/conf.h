@@ -46,7 +46,6 @@
 #include <sys/queue.h>
 #endif
 
-struct tty;
 struct snapdata;
 struct devfs_dirent;
 struct cdevsw;
@@ -85,13 +84,11 @@ struct cdev {
 	u_long		si_usecount;
 	u_long		si_threadcount;
 	union {
-		struct tty *__sit_tty;
 		struct snapdata *__sid_snapdata;
 	} __si_u;
 	char		__si_namebuf[SPECNAMELEN + 1];
 };
 
-#define si_tty		__si_u.__sit_tty
 #define si_snapdata	__si_u.__sid_snapdata
 
 #ifdef _KERNEL

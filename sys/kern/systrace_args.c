@@ -3054,6 +3054,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* posix_openpt */
+	case 504: {
+		struct posix_openpt_args *p = params;
+		iarg[0] = p->flags; /* int */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -4602,6 +4609,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 4:
 			p = "off_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* setfib */
+	case 175:
+		switch(ndx) {
+		case 0:
+			p = "int";
 			break;
 		default:
 			break;
@@ -8087,6 +8104,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "char *";
 			break;
 		case 2:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* posix_openpt */
+	case 504:
+		switch(ndx) {
+		case 0:
 			p = "int";
 			break;
 		default:

@@ -154,7 +154,7 @@ device		cardbus		# CardBus (32-bit) bus
 # Serial (COM) ports
 options 	COM_MULTIPORT
 #options 	COM_ESP		# ESP98
-device		sio		# 8250, 16[45]50, 8251 based serial ports
+#device		sio		# 8250, 16[45]50, 8251 based serial ports
 
 device		mse
 #device		joy
@@ -231,7 +231,7 @@ device		loop		# Network loopback
 device		random		# Entropy device
 device		ether		# Ethernet support
 device		tun		# Packet tunnel.
-device		pty		# Pseudo-ttys (telnet etc)
+device		pty		# BSD-style compatibility pseudo ttys
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)

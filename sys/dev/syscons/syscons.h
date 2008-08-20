@@ -102,9 +102,9 @@
  */
 #define SC_DRIVER_NAME	"syscons"
 #endif
-#define SC_VTY(dev)	minor(dev)
+#define SC_VTY(dev)	(((sc_ttysoftc *)tty_softc(tp))->st_index)
 #define SC_DEV(sc, vty)	((sc)->dev[(vty) - (sc)->first_vty])
-#define SC_STAT(dev)	(*((scr_stat **)&(dev)->si_drv1))
+#define SC_STAT(tp)	(*((scr_stat **)&((sc_ttysoftc *)tty_softc(tp))->st_stat))
 
 /* printable chars */
 #ifndef PRINTABLE
@@ -220,7 +220,7 @@ typedef struct sc_softc {
 
 	int		first_vty;
 	int		vtys;
-	struct cdev **dev;
+	struct tty **dev;
 	struct scr_stat	*cur_scp;
 	struct scr_stat	*new_scp;
 	struct scr_stat	*old_scp;
@@ -339,6 +339,12 @@ typedef struct scr_stat {
 #endif
 } scr_stat;
 
+/* TTY softc. */
+typedef struct sc_ttysoftc {
+	int		st_index;
+	scr_stat	*st_stat;
+} sc_ttysoftc;
+
 #ifndef SC_NORM_ATTR
 #define SC_NORM_ATTR		(FG_LIGHTGREY | BG_BLACK)
 #endif
@@ -364,7 +370,7 @@ typedef int	sc_term_init_t(scr_stat *scp, void **tcp, int code);
 typedef int	sc_term_term_t(scr_stat *scp, void **tcp);
 typedef void	sc_term_puts_t(scr_stat *scp, u_char *buf, int len);
 typedef int	sc_term_ioctl_t(scr_stat *scp, struct tty *tp, u_long cmd,
-				caddr_t data, int flag, struct thread *td);
+				caddr_t data, struct thread *td);
 typedef int	sc_term_reset_t(scr_stat *scp, int code);
 #define SC_TE_HARD_RESET 0
 #define SC_TE_SOFT_RESET 1
@@ -531,8 +537,8 @@ typedef struct {
 		} while(0)
 
 /* syscons.c */
-extern int 	(*sc_user_ioctl)(struct cdev *dev, u_long cmd, caddr_t data,
-				 int flag, struct thread *td);
+extern int 	(*sc_user_ioctl)(struct tty *tp, u_long cmd, caddr_t data,
+				 struct thread *td);
 
 int		sc_probe_unit(int unit, int flags);
 int		sc_attach_unit(int unit, int flags);
@@ -574,7 +580,7 @@ void		sc_hist_end(scr_stat *scp);
 int		sc_hist_up_line(scr_stat *scp);
 int		sc_hist_down_line(scr_stat *scp);
 int		sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data,
-			      int flag, struct thread *td);
+			      struct thread *td);
 #endif /* SC_NO_HISTORY */
 
 /* scmouse.c */
@@ -599,7 +605,7 @@ void		sc_mouse_paste(scr_stat *scp);
 #ifndef SC_NO_SYSMOUSE
 void		sc_mouse_move(scr_stat *scp, int x, int y);
 int		sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data,
-			       int flag, struct thread *td);
+			       struct thread *td);
 #endif /* SC_NO_SYSMOUSE */
 
 /* scvidctl.c */
@@ -609,7 +615,7 @@ int		sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode,
 int		sc_set_graphics_mode(scr_stat *scp, struct tty *tp, int mode);
 int		sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize,
 				  int ysize, int fontsize, int font_width);
-int		sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
+int		sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data,
 			     struct thread *td);
 
 int		sc_render_add(sc_renderer_t *rndr);

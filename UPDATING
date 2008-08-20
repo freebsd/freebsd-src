@@ -22,6 +22,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20080820:
+	The TTY subsystem of the kernel has been replaced by a new
+	implementation, which provides better scalability and an
+	improved driver model. Most common drivers have been migrated to
+	the new TTY subsystem, while others have not. The following
+	drivers have not yet been ported to the new TTY layer:
+
+	PCI/ISA:
+		cy, digi, rc, rp, si, sio
+
+	USB:
+		ubser, ucycom, ufoma
+
+	Line disciplines:
+		ng_h4, ng_tty, ppp, sl, snp
+
+	Adding these drivers to your kernel configuration file shall
+	cause compilation to fail.
+
 20080713:
 	The sio(4) driver has been removed from the i386 and amd64
 	kernel configuration files. This means uart(4) is now the

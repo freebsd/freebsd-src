@@ -415,7 +415,7 @@ proc0_init(void *dummy __unused)
 
 	pgrp0.pg_session = &session0;
 	mtx_init(&session0.s_mtx, "session", NULL, MTX_DEF);
-	session0.s_count = 1;
+	refcount_init(&session0.s_count, 1);
 	session0.s_leader = p;
 
 	p->p_sysent = &null_sysvec;

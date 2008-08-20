@@ -597,8 +597,6 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 			return (0);
 		}
 
-		mtx_lock(&Giant);	/* XXX TTY */
-
 		vpold = td->td_proc->p_session->s_ttyvp;
 		VREF(vp);
 		SESS_LOCK(td->td_proc->p_session);
@@ -610,7 +608,6 @@ devfs_ioctl_f(struct file *fp, u_long com, void *data, struct ucred *cred, struc
 		/* Get rid of reference to old control tty */
 		if (vpold)
 			vrele(vpold);
-		mtx_unlock(&Giant);	/* XXX TTY */
 	}
 	return (error);
 }

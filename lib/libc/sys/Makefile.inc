@@ -79,8 +79,8 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mlockall.2 mmap.2 modfind.2 modnext.2 modstat.2 mount.2 mprotect.2 \
 	mq_close.2 mq_getattr.2 mq_notify.2 mq_open.2 mq_receive.2 mq_send.2 \
 	mq_setattr.2 \
-	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 \
-	open.2 pathconf.2 pipe.2 poll.2 profil.2 ptrace.2 quotactl.2 \
+	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
+	pathconf.2 pipe.2 poll.2 posix_openpt.2 profil.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2
 .if !defined(NO_P1003_1B)

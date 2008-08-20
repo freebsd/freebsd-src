@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080820: MPSAFE TTY layer integrated
+OLD_FILES+=usr/include/sys/linedisc.h
+OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
 # 20080725: sgtty.h removed
 OLD_FILES+=usr/include/sgtty.h
 # 20080719: sade(8) removed on all but amd64, i386 and sparc64

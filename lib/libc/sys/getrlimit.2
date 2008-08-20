@@ -28,7 +28,7 @@
 .\"     @(#)getrlimit.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2004
+.Dd August 20, 2008
 .Dt GETRLIMIT 2
 .Os
 .Sh NAME
@@ -97,6 +97,8 @@ mbufs, that this user may hold at any time.
 The maximum size (in bytes) of the stack segment for a process;
 this defines how far a program's stack segment may be extended.
 Stack extension is performed automatically by the system.
+.It Dv RLIMIT_NPTS
+The maximum number of pseudo-terminals created by this user id.
 .El
 .Pp
 A resource limit is specified as a soft limit and a hard limit.

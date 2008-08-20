@@ -1329,3 +1329,28 @@ chgsbsize(uip, hiwat, to, max)
 	*hiwat = to;
 	return (1);
 }
+
+/*
+ * Change the count associated with number of pseudo-terminals
+ * a given user is using.  When 'max' is 0, don't enforce a limit
+ */
+int
+chgptscnt(uip, diff, max)
+	struct	uidinfo	*uip;
+	int	diff;
+	rlim_t	max;
+{
+
+	/* Don't allow them to exceed max, but allow subtraction. */
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(&uip->ui_ptscnt, (long)diff) + diff > max) {
+			atomic_subtract_long(&uip->ui_ptscnt, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_ptscnt, (long)diff);
+		if (uip->ui_ptscnt < 0)
+			printf("negative ptscnt for uid = %d\n", uip->ui_uid);
+	}
+	return (1);
+}

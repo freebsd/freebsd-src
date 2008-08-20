@@ -296,6 +296,11 @@ struct linux_winsize {
 	unsigned short ws_xpixel, ws_ypixel;
 };
 
+struct speedtab {
+	int sp_speed;			/* Speed. */
+	int sp_code;			/* Code. */
+};
+
 static struct speedtab sptab[] = {
 	{ B0, LINUX_B0 }, { B50, LINUX_B50 },
 	{ B75, LINUX_B75 }, { B110, LINUX_B110 },
@@ -395,7 +400,7 @@ bsd_to_linux_termios(struct termios *bios, struct linux_termios *lios)
 		lios->c_oflag |= LINUX_OPOST;
 	if (bios->c_oflag & ONLCR)
 		lios->c_oflag |= LINUX_ONLCR;
-	if (bios->c_oflag & OXTABS)
+	if (bios->c_oflag & TAB3)
 		lios->c_oflag |= LINUX_XTABS;
 
 	lios->c_cflag = bsd_to_linux_speed(bios->c_ispeed, sptab);
@@ -537,7 +542,7 @@ linux_to_bsd_termios(struct linux_termios *lios, struct termios *bios)
 	if (lios->c_oflag & LINUX_ONLCR)
 		bios->c_oflag |= ONLCR;
 	if (lios->c_oflag & LINUX_XTABS)
-		bios->c_oflag |= OXTABS;
+		bios->c_oflag |= TAB3;
 
 	bios->c_cflag = (lios->c_cflag & LINUX_CSIZE) << 4;
 	if (lios->c_cflag & LINUX_CSTOPB)
