@@ -2079,7 +2079,7 @@ sk_dma_alloc(sc_if)
 	for (i = 0; i < SK_TX_RING_CNT; i++) {
 		txd = &sc_if->sk_cdata.sk_txdesc[i];
 		txd->tx_m = NULL;
-		txd->tx_dmamap = 0;
+		txd->tx_dmamap = NULL;
 		error = bus_dmamap_create(sc_if->sk_cdata.sk_tx_tag, 0,
 		    &txd->tx_dmamap);
 		if (error != 0) {
@@ -2099,7 +2099,7 @@ sk_dma_alloc(sc_if)
 	for (i = 0; i < SK_RX_RING_CNT; i++) {
 		rxd = &sc_if->sk_cdata.sk_rxdesc[i];
 		rxd->rx_m = NULL;
-		rxd->rx_dmamap = 0;
+		rxd->rx_dmamap = NULL;
 		error = bus_dmamap_create(sc_if->sk_cdata.sk_rx_tag, 0,
 		    &rxd->rx_dmamap);
 		if (error != 0) {
@@ -2194,7 +2194,7 @@ sk_dma_jumbo_alloc(sc_if)
 	for (i = 0; i < SK_JUMBO_RX_RING_CNT; i++) {
 		jrxd = &sc_if->sk_cdata.sk_jumbo_rxdesc[i];
 		jrxd->rx_m = NULL;
-		jrxd->rx_dmamap = 0;
+		jrxd->rx_dmamap = NULL;
 		error = bus_dmamap_create(sc_if->sk_cdata.sk_jumbo_rx_tag, 0,
 		    &jrxd->rx_dmamap);
 		if (error != 0) {
@@ -2233,7 +2233,7 @@ sk_dma_free(sc_if)
 			    sc_if->sk_rdata.sk_tx_ring,
 			    sc_if->sk_cdata.sk_tx_ring_map);
 		sc_if->sk_rdata.sk_tx_ring = NULL;
-		sc_if->sk_cdata.sk_tx_ring_map = 0;
+		sc_if->sk_cdata.sk_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_tx_ring_tag);
 		sc_if->sk_cdata.sk_tx_ring_tag = NULL;
 	}
@@ -2248,7 +2248,7 @@ sk_dma_free(sc_if)
 			    sc_if->sk_rdata.sk_rx_ring,
 			    sc_if->sk_cdata.sk_rx_ring_map);
 		sc_if->sk_rdata.sk_rx_ring = NULL;
-		sc_if->sk_cdata.sk_rx_ring_map = 0;
+		sc_if->sk_cdata.sk_rx_ring_map = NULL;
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_rx_ring_tag);
 		sc_if->sk_cdata.sk_rx_ring_tag = NULL;
 	}
@@ -2259,7 +2259,7 @@ sk_dma_free(sc_if)
 			if (txd->tx_dmamap) {
 				bus_dmamap_destroy(sc_if->sk_cdata.sk_tx_tag,
 				    txd->tx_dmamap);
-				txd->tx_dmamap = 0;
+				txd->tx_dmamap = NULL;
 			}
 		}
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_tx_tag);
@@ -2272,13 +2272,13 @@ sk_dma_free(sc_if)
 			if (rxd->rx_dmamap) {
 				bus_dmamap_destroy(sc_if->sk_cdata.sk_rx_tag,
 				    rxd->rx_dmamap);
-				rxd->rx_dmamap = 0;
+				rxd->rx_dmamap = NULL;
 			}
 		}
 		if (sc_if->sk_cdata.sk_rx_sparemap) {
 			bus_dmamap_destroy(sc_if->sk_cdata.sk_rx_tag,
 			    sc_if->sk_cdata.sk_rx_sparemap);
-			sc_if->sk_cdata.sk_rx_sparemap = 0;
+			sc_if->sk_cdata.sk_rx_sparemap = NULL;
 		}
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_rx_tag);
 		sc_if->sk_cdata.sk_rx_tag = NULL;
@@ -2308,7 +2308,7 @@ sk_dma_jumbo_free(sc_if)
 			    sc_if->sk_rdata.sk_jumbo_rx_ring,
 			    sc_if->sk_cdata.sk_jumbo_rx_ring_map);
 		sc_if->sk_rdata.sk_jumbo_rx_ring = NULL;
-		sc_if->sk_cdata.sk_jumbo_rx_ring_map = 0;
+		sc_if->sk_cdata.sk_jumbo_rx_ring_map = NULL;
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_jumbo_rx_ring_tag);
 		sc_if->sk_cdata.sk_jumbo_rx_ring_tag = NULL;
 	}
@@ -2321,13 +2321,13 @@ sk_dma_jumbo_free(sc_if)
 				bus_dmamap_destroy(
 				    sc_if->sk_cdata.sk_jumbo_rx_tag,
 				    jrxd->rx_dmamap);
-				jrxd->rx_dmamap = 0;
+				jrxd->rx_dmamap = NULL;
 			}
 		}
 		if (sc_if->sk_cdata.sk_jumbo_rx_sparemap) {
 			bus_dmamap_destroy(sc_if->sk_cdata.sk_jumbo_rx_tag,
 			    sc_if->sk_cdata.sk_jumbo_rx_sparemap);
-			sc_if->sk_cdata.sk_jumbo_rx_sparemap = 0;
+			sc_if->sk_cdata.sk_jumbo_rx_sparemap = NULL;
 		}
 		bus_dma_tag_destroy(sc_if->sk_cdata.sk_jumbo_rx_tag);
 		sc_if->sk_cdata.sk_jumbo_rx_tag = NULL;
