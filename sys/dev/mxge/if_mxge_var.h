@@ -39,7 +39,8 @@ $FreeBSD$
 #define MXGE_EEPROM_STRINGS_SIZE 256
 #define MXGE_MAX_SEND_DESC 128
 
-#if (__FreeBSD_version < 800005)
+#if ((__FreeBSD_version > 800000 && __FreeBSD_version < 800005) \
+     || __FreeBSD_version < 700111)
 #define MXGE_VIRT_JUMBOS 1
 #else
 #define MXGE_VIRT_JUMBOS 0
