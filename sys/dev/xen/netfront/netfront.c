@@ -135,7 +135,7 @@ static void xn_free_rx_ring(struct netfront_info *);
 static void xn_free_tx_ring(struct netfront_info *);
 
 static int xennet_get_responses(struct netfront_info *np,
-	struct netfront_rx_info *rinfo, RING_IDX rp, struct mbuf_head *list,
+	struct netfront_rx_info *rinfo, RING_IDX rp, struct mbuf **list,
 	int *pages_flipped_p);
 
 #define virt_to_mfn(x) (vtomach(x) >> PAGE_SHIFT)
@@ -149,7 +149,7 @@ static int xennet_get_responses(struct netfront_info *np,
  */
 struct xn_chain_data {
 		struct mbuf		*xn_tx_chain[NET_TX_RING_SIZE+1];
-        struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
+		struct mbuf		*xn_rx_chain[NET_RX_RING_SIZE+1];
 };
 
 
@@ -405,7 +405,6 @@ netfront_probe(struct xenbus_device *dev, const struct xenbus_device_id *id)
 	info = ifp->if_softc;
 	dev->dev_driver_data = info;
 
-	
 	return 0;
 }
 
@@ -749,7 +748,7 @@ refill:
 			break;
 
 		m_new->m_ext.ext_arg1 = (vm_paddr_t *)(uintptr_t)(
-		    vtophys(m_new->m_ext.ext_buf) >> PAGE_SHIFT);
+				vtophys(m_new->m_ext.ext_buf) >> PAGE_SHIFT);
 
 		id = xennet_rxidx(req_prod + i);
 
@@ -853,14 +852,13 @@ xn_rxeof(struct netfront_info *np)
 	RING_IDX i, rp;
 	multicall_entry_t *mcl;
 	struct mbuf *m;
-	struct mbuf_head rxq, errq, tmpq;
+	struct mbuf_head rxq, errq;
 	int err, pages_flipped = 0;
 
 	XN_RX_LOCK_ASSERT(np);
 	if (!netfront_carrier_ok(np))
 		return;
 
-	mbufq_init(&tmpq);
 	mbufq_init(&errq);
 	mbufq_init(&rxq);
 
@@ -874,23 +872,19 @@ xn_rxeof(struct netfront_info *np)
 		memcpy(rx, RING_GET_RESPONSE(&np->rx, i), sizeof(*rx));
 		memset(extras, 0, sizeof(rinfo.extras));
 
-		err = xennet_get_responses(np, &rinfo, rp, &tmpq,
+		m = NULL;
+		err = xennet_get_responses(np, &rinfo, rp, &m,
 		    &pages_flipped);
 
 		if (unlikely(err)) {
-			while ((m = mbufq_dequeue(&tmpq)))
-				mbufq_tail(&errq, m);
+				if (m)
+						mbufq_tail(&errq, m);
 			np->stats.rx_errors++;
 			i = np->rx.rsp_cons;
 			continue;
 		}
 
-		m = mbufq_dequeue(&tmpq);
-
-		m->m_data += rx->offset;/* (rx->addr & PAGE_MASK); */
-		m->m_pkthdr.len = m->m_len = rx->status;
 		m->m_pkthdr.rcvif = ifp;
-
 		if ( rx->flags & NETRXF_data_validated ) {
 			/* Tell the stack the checksums are okay */
 			/*
@@ -905,7 +899,7 @@ xn_rxeof(struct netfront_info *np)
 		}
 
 		np->stats.rx_packets++;
-		np->stats.rx_bytes += rx->status;
+		np->stats.rx_bytes += m->m_pkthdr.len;
 
 		mbufq_tail(&rxq, m);
 		np->rx.rsp_cons = ++i;
@@ -1130,7 +1124,7 @@ xennet_get_extras(struct netfront_info *np,
 static int
 xennet_get_responses(struct netfront_info *np,
 	struct netfront_rx_info *rinfo, RING_IDX rp,
-	struct mbuf_head *list,
+	struct mbuf  **list,
 	int *pages_flipped_p)
 {
 	int pages_flipped = *pages_flipped_p;
@@ -1139,21 +1133,34 @@ xennet_get_responses(struct netfront_info *np,
 	struct netif_rx_response *rx = &rinfo->rx;
 	struct netif_extra_info *extras = rinfo->extras;
 	RING_IDX cons = np->rx.rsp_cons;
-	struct mbuf *m = xennet_get_rx_mbuf(np, cons);
+	struct mbuf *m, *m0, *m_prev;
 	grant_ref_t ref = xennet_get_rx_ref(np, cons);
-	int max = 24 /* MAX_SKB_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
+	int max = 5 /* MAX_SKB_FRAGS + (rx->status <= RX_COPY_THRESHOLD) */;
 	int frags = 1;
 	int err = 0;
 	u_long ret;
 
+	m0 = m = m_prev = xennet_get_rx_mbuf(np, cons);
+
+	
 	if (rx->flags & NETRXF_extra_info) {
 		err = xennet_get_extras(np, extras, rp);
 		cons = np->rx.rsp_cons;
 	}
 
+
+	if (m0 != NULL) {
+			m0->m_pkthdr.len = 0;
+			m0->m_next = NULL;
+	}
+	
 	for (;;) {
 		u_long mfn;
 
+#if 0		
+		printf("rx->status=%hd rx->offset=%hu frags=%u\n",
+			rx->status, rx->offset, frags);
+#endif
 		if (unlikely(rx->status < 0 ||
 			rx->offset + rx->status > PAGE_SIZE)) {
 #if 0						
@@ -1165,7 +1172,7 @@ xennet_get_responses(struct netfront_info *np,
 			err = -EINVAL;
 			goto next;
 		}
-
+		
 		/*
 		 * This definitely indicates a bug, either in this driver or in
 		 * the backend driver. In future this should flag the bad
@@ -1219,9 +1226,14 @@ xennet_get_responses(struct netfront_info *np,
 		}
 
 		gnttab_release_grant_reference(&np->gref_rx_head, ref);
-		mbufq_tail(list, m);
 
 next:
+		if (m != NULL) {
+				m->m_len = rx->status;
+				m->m_data += rx->offset;
+				m0->m_pkthdr.len += rx->status;
+		}
+		
 		if (!(rx->flags & NETRXF_more_data))
 			break;
 
@@ -1231,12 +1243,17 @@ next:
 			err = -ENOENT;
 				break;
 		}
-
+		m_prev = m;
+		
 		rx = RING_GET_RESPONSE(&np->rx, cons + frags);
 		m = xennet_get_rx_mbuf(np, cons + frags);
+
+		m_prev->m_next = m;
+		m->m_next = NULL;
 		ref = xennet_get_rx_ref(np, cons + frags);
 		frags++;
 	}
+	*list = m0;
 
 	if (unlikely(frags > max)) {
 		if (net_ratelimit())
