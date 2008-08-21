@@ -177,7 +177,6 @@ bfe_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct bfe_softc));
-	sc->bfe_unit = device_get_unit(dev);
 	sc->bfe_dev = dev;
 
 	while(t->bfe_name != NULL) {
@@ -330,16 +329,14 @@ bfe_attach(device_t dev)
 {
 	struct ifnet *ifp = NULL;
 	struct bfe_softc *sc;
-	int unit, error = 0, rid;
+	int error = 0, rid;
 
 	sc = device_get_softc(dev);
 	mtx_init(&sc->bfe_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 			MTX_DEF);
 	callout_init_mtx(&sc->bfe_stat_co, &sc->bfe_mtx, 0);
 
-	unit = device_get_unit(dev);
 	sc->bfe_dev = dev;
-	sc->bfe_unit = unit;
 
 	/*
 	 * Map control/status registers.
@@ -350,7 +347,7 @@ bfe_attach(device_t dev)
 	sc->bfe_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			RF_ACTIVE);
 	if (sc->bfe_res == NULL) {
-		printf ("bfe%d: couldn't map memory\n", unit);
+		device_printf(dev, "couldn't map memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -365,14 +362,13 @@ bfe_attach(device_t dev)
 	sc->bfe_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 			RF_SHAREABLE | RF_ACTIVE);
 	if (sc->bfe_irq == NULL) {
-		printf("bfe%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
 
 	if (bfe_dma_alloc(dev)) {
-		printf("bfe%d: failed to allocate DMA resources\n",
-		    sc->bfe_unit);
+		device_printf(dev, "failed to allocate DMA resources\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -380,7 +376,7 @@ bfe_attach(device_t dev)
 	/* Set up ifnet structure */
 	ifp = sc->bfe_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("bfe%d: failed to if_alloc()\n", sc->bfe_unit);
+		device_printf(dev, "failed to if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -404,7 +400,7 @@ bfe_attach(device_t dev)
 
 	if (mii_phy_probe(dev, &sc->bfe_miibus,
 				bfe_ifmedia_upd, bfe_ifmedia_sts)) {
-		printf("bfe%d: MII without any PHY!\n", sc->bfe_unit);
+		device_printf(dev, "MII without any PHY!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -425,7 +421,7 @@ bfe_attach(device_t dev)
 			NULL, bfe_intr, sc, &sc->bfe_intrhand);
 
 	if (error) {
-		printf("bfe%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		goto fail;
 	}
 fail:
@@ -676,8 +672,8 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 		if (allocated != 0)
 			m_free(m);
 		if (error != ENOMEM)
-			printf("bfe%d: failed to map RX buffer, error %d\n",
-			    sc->bfe_unit, error);
+			device_printf(sc->bfe_dev,
+			    "failed to map RX buffer, error %d\n", error);
 		return (ENOBUFS);
 	}
 	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
@@ -757,7 +753,7 @@ bfe_resetphy(struct bfe_softc *sc)
 	DELAY(100);
 	bfe_readphy(sc, 0, &val);
 	if (val & BMCR_RESET) {
-		printf("bfe%d: PHY Reset would not complete.\n", sc->bfe_unit);
+		device_printf(sc->bfe_dev, "PHY Reset would not complete.\n");
 		return (ENXIO);
 	}
 	return (0);
@@ -1084,9 +1080,9 @@ bfe_wait_bit(struct bfe_softc *sc, u_int32_t reg, u_int32_t bit,
 		DELAY(10);
 	}
 	if (i == timeout) {
-		printf("bfe%d: BUG!  Timeout waiting for bit %08x of register "
-				"%x to %s.\n", sc->bfe_unit, bit, reg,
-				(clear ? "clear" : "set"));
+		device_printf(sc->bfe_dev,
+		    "BUG!  Timeout waiting for bit %08x of register "
+		    "%x to %s.\n", bit, reg, (clear ? "clear" : "set"));
 		return (-1);
 	}
 	return (0);
@@ -1296,14 +1292,15 @@ bfe_intr(void *xsc)
 	if(istat & BFE_ISTAT_ERRORS) {
 
 		if (istat & BFE_ISTAT_DSCE) {
-			printf("if_bfe Descriptor Error\n");
+			device_printf(sc->bfe_dev, "Descriptor Error\n");
 			bfe_stop(sc);
 			BFE_UNLOCK(sc);
 			return;
 		}
 
 		if (istat & BFE_ISTAT_DPE) {
-			printf("if_bfe Descriptor Protocol Error\n");
+			device_printf(sc->bfe_dev,
+			    "Descriptor Protocol Error\n");
 			bfe_stop(sc);
 			BFE_UNLOCK(sc);
 			return;
@@ -1522,8 +1519,8 @@ bfe_init_locked(void *xsc)
 	bfe_chip_reset(sc);
 
 	if (bfe_list_rx_init(sc) == ENOBUFS) {
-		printf("bfe%d: bfe_init: Not enough memory for list buffers\n",
-		    sc->bfe_unit);
+		device_printf(sc->bfe_dev,
+		    "%s: Not enough memory for list buffers\n", __func__);
 		bfe_stop(sc);
 		return;
 	}
@@ -1641,7 +1638,7 @@ bfe_watchdog(struct bfe_softc *sc)
 
 	ifp = sc->bfe_ifp;
 
-	printf("bfe%d: watchdog timeout -- resetting\n", sc->bfe_unit);
+	device_printf(sc->bfe_dev, "watchdog timeout -- resetting\n");
 
 	ifp->if_oerrors++;
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
