@@ -108,11 +108,9 @@ mpt_user_attach(struct mpt_softc *mpt)
 	mpt_handler_t handler;
 	int error, unit;
 
-	MPT_LOCK(mpt);
 	handler.reply_handler = mpt_user_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
 				     &user_handler_id);
-	MPT_UNLOCK(mpt);
 	if (error != 0) {
 		mpt_prt(mpt, "Unable to register user handler!\n");
 		return (error);
