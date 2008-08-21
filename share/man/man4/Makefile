@@ -3,8 +3,15 @@
 
 MAN=	aac.4 \
 	acpi.4 \
+	${_acpi_aiboost.4} \
+	${_acpi_asus.4} \
 	${_acpi_dock.4} \
+	${_acpi_fujitsu.4} \
+	${_acpi_ibm.4} \
+	${_acpi_panasonic.4} \
+	${_acpi_sony.4} \
 	acpi_thermal.4 \
+	${_acpi_toshiba.4} \
 	acpi_video.4 \
 	adv.4 \
 	adw.4 \
@@ -127,6 +134,7 @@ MAN=	aac.4 \
 	inet6.4 \
 	intpm.4 \
 	intro.4 \
+	${_io.4} \
 	ip.4 \
 	ip6.4 \
 	ipfirewall.4 \
@@ -152,6 +160,7 @@ MAN=	aac.4 \
 	le.4 \
 	led.4 \
 	lge.4 \
+	${_linux.4} \
 	lmc.4 \
 	lo.4 \
 	lp.4 \
@@ -191,6 +200,7 @@ MAN=	aac.4 \
 	natmip.4 \
 	ncr.4 \
 	ncv.4 \
+	${_ndis.4} \
 	netgraph.4 \
 	netintro.4 \
 	${_nfe.4} \
@@ -492,6 +502,7 @@ MLINKS+=mem.4 kmem.4
 MLINKS+=mn.4 if_mn.4
 MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
+MLINKS+=${_ndis.4} ${_if_ndis.4}
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
 MLINKS+=${_nfe.4} ${_if_nfe.4}
@@ -550,7 +561,14 @@ MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+_acpi_aiboost.4=acpi_aiboost.4
+_acpi_asus.4=	acpi_asus.4
 _acpi_dock.4=	acpi_dock.4
+_acpi_fujitsu.4=acpi_fujitsu.4
+_acpi_ibm.4=	acpi_ibm.4
+_acpi_panasonic.4=acpi_panasonic.4
+_acpi_sony.4=	acpi_sony.4
+_acpi_toshiba.4=acpi_toshiba.4
 _amdsmb.4=	amdsmb.4
 _asmc.4=	asmc.4
 _coretemp.4=	coretemp.4
@@ -559,11 +577,15 @@ _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
 _ichwd.4=	ichwd.4
+_if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_wpi.4=	if_wpi.4
 _ipmi.4=	ipmi.4
+_io.4=		io.4
+_linux.4=	linux.4
+_ndis.4=	ndis.4
 _k8temp.4=	k8temp.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
