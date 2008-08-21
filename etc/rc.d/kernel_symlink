@@ -3,18 +3,18 @@
 # $FreeBSD$
 #
 
-# PROVIDE: kernel
+# PROVIDE: kernel_symlink
 # REQUIRE: mountcritremote
 # KEYWORD: nojail
 
 . /etc/rc.subr
 
-name="kernel"
+name="kernel_symlink"
 rcvar=`set_rcvar`
-start_cmd="kernel_start"
+start_cmd="kernel_symlink_start"
 stop_cmd=":"
 
-kernel_start()
+kernel_symlink_start()
 {
 	bootdir=$(dirname $(sysctl -n kern.bootfile))
 	if [ "$bootdir" != /boot/kernel ] ; then
