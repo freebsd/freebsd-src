@@ -151,7 +151,7 @@ main(int argc, char **argv)
 	signal(SIGTERM, killed);
 	if (waitpid(child, &status, 0) == -1)
 		err(EX_OSERR, "waitpid failed");
-	return (WIFEXITED(status) ? WEXITSTATUS(status) : 1);
+	return (WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE);
 }
 
 /*
