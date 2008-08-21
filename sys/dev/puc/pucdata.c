@@ -694,6 +694,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 4, 0,
 	},
 
+	{   0x14db, 0x2152, 0xffff, 0,
+	    "Avlab Low Profile PCI 4 Serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x10, 4, 0,
+	},
+
 	{   0x1592, 0x0781, 0xffff, 0,
 	    "Syba Tech Ltd. PCI-4S2P-550-ECP",
 	    DEFAULT_RCLK,
