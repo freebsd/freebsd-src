@@ -16,7 +16,6 @@ MAN=	aic.4 \
 	ex.4 \
 	fe.4 \
 	glxsb.4 \
-	ichwd.4 \
 	ie.4 \
 	longrun.4 \
 	mcd.4 \
