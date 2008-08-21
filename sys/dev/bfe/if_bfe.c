@@ -171,17 +171,12 @@ static int
 bfe_probe(device_t dev)
 {
 	struct bfe_type *t;
-	struct bfe_softc *sc;
 
 	t = bfe_devs;
 
-	sc = device_get_softc(dev);
-	bzero(sc, sizeof(struct bfe_softc));
-	sc->bfe_dev = dev;
-
 	while(t->bfe_name != NULL) {
-		if ((pci_get_vendor(dev) == t->bfe_vid) &&
-				(pci_get_device(dev) == t->bfe_did)) {
+		if (pci_get_vendor(dev) == t->bfe_vid &&
+		    pci_get_device(dev) == t->bfe_did) {
 			device_set_desc_copy(dev, t->bfe_name);
 			return (BUS_PROBE_DEFAULT);
 		}
