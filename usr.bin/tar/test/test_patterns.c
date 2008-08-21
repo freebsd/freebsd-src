@@ -29,8 +29,8 @@ DEFINE_TEST(test_patterns)
 {
 	int fd, r;
 	const char *reffile2 = "test_patterns_2.tgz";
-	const char *reffile2_out = "test_patterns_2.tgz.out";
 	const char *reffile3 = "test_patterns_3.tgz";
+	const char *p;
 
 	/*
 	 * Test basic command-line pattern handling.
@@ -55,12 +55,12 @@ DEFINE_TEST(test_patterns)
 	 * Test 2: Check basic matching of full paths that start with /
 	 */
 	extract_reference_file(reffile2);
-	extract_reference_file(reffile2_out);
 
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
-	assertEqualFile("tar2a.out", reffile2_out);
+	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
+	assertFileContents(p, strlen(p), "tar2a.out");
 	assertEmptyFile("tar2a.err");
 
 	/*
