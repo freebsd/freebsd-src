@@ -1910,13 +1910,15 @@ pmap_growkernel(vm_offset_t addr)
 		pmap_zero_page(nkpg);
 		ptppaddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (ptppaddr | PG_V | PG_RW | PG_A | PG_M);
+		vm_page_lock_queues();
 		PD_SET_VA(kernel_pmap, (kernel_vm_end >> PDRSHIFT), newpdir, TRUE);
-		
 		mtx_lock_spin(&allpmaps_lock);
 		LIST_FOREACH(pmap, &allpmaps, pm_list)
 			PD_SET_VA(pmap, (kernel_vm_end >> PDRSHIFT), newpdir, TRUE);
 
 		mtx_unlock_spin(&allpmaps_lock);
+		vm_page_unlock_queues();
+
 		kernel_vm_end = (kernel_vm_end + PAGE_SIZE * NPTEPG) & ~(PAGE_SIZE * NPTEPG - 1);
 		if (kernel_vm_end - 1 >= kernel_map->max_offset) {
 			kernel_vm_end = kernel_map->max_offset;
