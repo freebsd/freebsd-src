@@ -30,7 +30,6 @@ DEFINE_TEST(test_patterns)
 	int fd, r;
 	const char *reffile2 = "test_patterns_2.tgz";
 	const char *reffile2_out = "test_patterns_2.tgz.out";
-	const char *reffile2_err = "test_patterns_2.tgz.err";
 
 	/*
 	 * Test basic command-line pattern handling.
@@ -56,13 +55,12 @@ DEFINE_TEST(test_patterns)
 	 */
 	extract_reference_file(reffile2);
 	extract_reference_file(reffile2_out);
-	extract_reference_file(reffile2_err);
 
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
 	    testprog, reffile2);
 	assertEqualInt(r, 0);
 	assertEqualFile("tar2a.out", reffile2_out);
-	assertEqualFile("tar2a.err", reffile2_err);
+	assertEmptyFile("tar2a.err");
 
 	/*
 	 *
