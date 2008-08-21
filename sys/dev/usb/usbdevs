@@ -806,6 +806,7 @@ product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
+product ALCOR UMCR_9361		0x9361	USB Multimedia Card Reader
 product ALCOR SM_KBD		0x9410	MicroConnectors/StrongMan Keyboard
 product ALCOR NEC_KBD_HUB	0x9472	NEC Kbd Hub
 
