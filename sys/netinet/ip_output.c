@@ -1167,17 +1167,6 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(copym, hlen);
-		/*
-		 * NB:
-		 * It's not clear whether there are any lingering
-		 * reentrancy problems in other areas which might
-		 * be exposed by using ip_input directly (in
-		 * particular, everything which modifies the packet
-		 * in-place).  Yet another option is using the
-		 * protosw directly to deliver the looped back
-		 * packet.  For the moment, we'll err on the side
-		 * of safety by using if_simloop().
-		 */
 #if 1 /* XXX */
 		if (dst->sin_family != AF_INET) {
 			printf("ip_mloopback: bad address family %d\n",
@@ -1185,12 +1174,6 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 			dst->sin_family = AF_INET;
 		}
 #endif
-
-#ifdef notdef
-		copym->m_pkthdr.rcvif = ifp;
-		ip_input(copym);
-#else
 		if_simloop(ifp, copym, dst->sin_family, 0);
-#endif
 	}
 }
