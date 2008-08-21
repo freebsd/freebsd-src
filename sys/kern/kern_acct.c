@@ -366,16 +366,25 @@ acct_process(struct thread *td)
 	 * Get process accounting information.
 	 */
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
-	/* (1) The name of the command that ran */
+
+	/* (1) The terminal from which the process was started */
+	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
+		acct.ac_tty = tty_udev(p->p_pgrp->pg_session->s_ttyp);
+	else
+		acct.ac_tty = NODEV;
+	sx_sunlock(&proctree_lock);
+
+	/* (2) The name of the command that ran */
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
 
-	/* (2) The amount of user and system time that was used */
+	/* (3) The amount of user and system time that was used */
 	rufetchcalc(p, &ru, &ut, &st);
 	acct.ac_utime = encode_timeval(ut);
 	acct.ac_stime = encode_timeval(st);
 
-	/* (3) The elapsed time the command ran (and its starting time) */
+	/* (4) The elapsed time the command ran (and its starting time) */
 	tmp = boottime;
 	timevaladd(&tmp, &p->p_stats->p_start);
 	acct.ac_btime = tmp.tv_sec;
@@ -383,7 +392,7 @@ acct_process(struct thread *td)
 	timevalsub(&tmp, &p->p_stats->p_start);
 	acct.ac_etime = encode_timeval(tmp);
 
-	/* (4) The average amount of memory used */
+	/* (5) The average amount of memory used */
 	tmp = ut;
 	timevaladd(&tmp, &st);
 	/* Convert tmp (i.e. u + s) into hz units to match ru_i*. */
@@ -394,20 +403,12 @@ acct_process(struct thread *td)
 	else
 		acct.ac_mem = 0;
 
-	/* (5) The number of disk I/O operations done */
+	/* (6) The number of disk I/O operations done */
 	acct.ac_io = encode_long(ru.ru_inblock + ru.ru_oublock);
 
-	/* (6) The UID and GID of the process */
+	/* (7) The UID and GID of the process */
 	acct.ac_uid = p->p_ucred->cr_ruid;
 	acct.ac_gid = p->p_ucred->cr_rgid;
-
-	/* (7) The terminal from which the process was started */
-	sx_slock(&proctree_lock);
-	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
-		acct.ac_tty = tty_udev(p->p_pgrp->pg_session->s_ttyp);
-	else
-		acct.ac_tty = NODEV;
-	sx_sunlock(&proctree_lock);
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
 	acct.ac_flagx = p->p_acflag;
