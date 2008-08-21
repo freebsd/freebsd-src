@@ -71,6 +71,14 @@ If
 is not active, then
 .Dv NULL
 is returned instead.
+.Sh CACHING
+These functions cache the nlist values for various kernel variables which are
+reused in successive calls.
+You may call either function with
+.Fa kd
+set to
+.Dv NULL
+to clear this cache.
 .Sh RETURN VALUES
 On success, the
 .Fn kvm_getmaxcpu
