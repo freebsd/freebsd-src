@@ -166,6 +166,7 @@ syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
+trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
@@ -370,6 +371,7 @@ rwatson -> kmacy
 rwatson -> linimon
 rwatson -> shafeeq
 rwatson -> tmm
+rwatson -> trasz
 rwatson -> trhodes
 rwatson -> wsalamon
 
