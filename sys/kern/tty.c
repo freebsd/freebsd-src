@@ -1651,7 +1651,7 @@ void
 tty_hiwat_in_unblock(struct tty *tp)
 {
 
-	if ((tp->t_flags & TF_HIWAT_IN) == 0 &&
+	if (tp->t_flags & TF_HIWAT_IN &&
 	    tp->t_termios.c_iflag & IXOFF &&
 	    tp->t_termios.c_cc[VSTART] != _POSIX_VDISABLE) {
 		/*
