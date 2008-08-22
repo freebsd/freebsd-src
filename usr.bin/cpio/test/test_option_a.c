@@ -118,6 +118,7 @@ DEFINE_TEST(test_option_a)
 		/* Copy the file without -a; should change the atime. */
 		r = systemf("echo %s | %s -pd copy-no-a > copy-no-a.out 2>copy-no-a.err", files[1].name, testprog);
 		assertEqualInt(r, 0);
+		/* bsdcpio writes nothing to stderr in -p mode */
 		assertEmptyFile("copy-no-a.err");
 		assertEmptyFile("copy-no-a.out");
 		assertEqualInt(0, stat(files[1].name, &st));
