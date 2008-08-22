@@ -719,6 +719,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x1c, 0, 8,
 	},
 
+	{   0x6666, 0x0002, 0xffff, 0,
+	    "Decision Computer Inc, PCCOM 8-port serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_8S, 0x1c, 0, 8,
+	},
+
 	{   0x6666, 0x0004, 0xffff, 0,
 	    "PCCOM dual port RS232/422/485",
 	    DEFAULT_RCLK,
