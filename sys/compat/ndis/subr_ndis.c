@@ -282,6 +282,7 @@ static void NdisCopyFromPacketToPacket(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *);
 static void NdisCopyFromPacketToPacketSafe(ndis_packet *,
 	uint32_t, uint32_t, ndis_packet *, uint32_t, uint32_t *, uint32_t);
+static void NdisIMCopySendPerPacketInfo(ndis_packet *, ndis_packet *);
 static ndis_status NdisMRegisterDevice(ndis_handle,
 	unicode_string *, unicode_string *, driver_dispatch **,
 	void **, ndis_handle *);
@@ -1017,7 +1018,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	sc = device_get_softc(dev);
 	ifp = sc->ifp;
 
-	if (ifp->if_flags & IFF_DEBUG) {
+	if (ifp != NULL && ifp->if_flags & IFF_DEBUG) {
 		error = pe_get_message((vm_offset_t)drv->dro_driverstart,
 		    code, &str, &i, &flags);
 		if (error == 0) {
@@ -1035,7 +1036,7 @@ NdisWriteErrorLogEntry(ndis_handle adapter, ndis_error_code code,
 	device_printf (dev, "NDIS ERROR: %x (%s)\n", code,
 	    str == NULL ? "unknown error" : str);
 
-	if (ifp->if_flags & IFF_DEBUG) {
+	if (ifp != NULL && ifp->if_flags & IFF_DEBUG) {
 		device_printf (dev, "NDIS NUMERRORS: %x\n", numerrors);
 		va_start(ap, numerrors);
 		for (i = 0; i < numerrors; i++)
@@ -1359,6 +1360,10 @@ NdisReadNetworkAddress(status, addr, addrlen, adapter)
 
 	block = (ndis_miniport_block *)adapter;
 	sc = device_get_softc(block->nmb_physdeviceobj->do_devext);
+	if (sc->ifp == NULL) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
 
 #ifdef IFP2ENADDR
 	if (bcmp(IFP2ENADDR(sc->ifp), empty, ETHER_ADDR_LEN) == 0)
@@ -2661,20 +2666,11 @@ NdisMSynchronizeWithInterrupt(intr, syncfunc, syncctx)
 	return(KeSynchronizeExecution(intr->ni_introbj, syncfunc, syncctx));
 }
 
-/*
- * Return the number of 100 nanosecond intervals since
- * January 1, 1601. (?!?!)
- */
 static void
 NdisGetCurrentSystemTime(tval)
 	uint64_t		*tval;
 {
-	struct timespec		ts;
-
-	nanotime(&ts);
-	*tval = (uint64_t)ts.tv_nsec / 100 + (uint64_t)ts.tv_sec * 10000000 +
-	    11644473600;
-
+	ntoskrnl_time(tval);
 	return;
 }
 
@@ -3288,6 +3284,14 @@ NdisCopyFromPacketToPacketSafe(dpkt, doff, reqlen, spkt, soff, cpylen, prio)
 	return;
 }
 
+static void
+NdisIMCopySendPerPacketInfo(dpkt, spkt)
+	ndis_packet		*dpkt;
+	ndis_packet		*spkt;
+{
+	memcpy(&dpkt->np_ext, &spkt->np_ext, sizeof(ndis_packet_extension));
+}
+
 static ndis_status
 NdisMRegisterDevice(handle, devname, symname, majorfuncs, devobj, devhandle)
 	ndis_handle		handle;
@@ -3365,6 +3369,7 @@ dummy()
 image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisCopyFromPacketToPacket, 6),
 	IMPORT_SFUNC(NdisCopyFromPacketToPacketSafe, 7),
+	IMPORT_SFUNC(NdisIMCopySendPerPacketInfo, 2),
 	IMPORT_SFUNC(NdisScheduleWorkItem, 1),
 	IMPORT_SFUNC(NdisMIndicateStatusComplete, 1),
 	IMPORT_SFUNC(NdisMIndicateStatus, 4),
