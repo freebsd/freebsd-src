@@ -1309,6 +1309,7 @@ extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
 
 extern void ntoskrnl_intr(void *);
+extern void ntoskrnl_time(uint64_t *);
 
 extern uint16_t ExQueryDepthSList(slist_header *);
 extern slist_entry
