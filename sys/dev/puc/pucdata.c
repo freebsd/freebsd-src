@@ -626,6 +626,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_2S, 0x10, 4, 0,
 	},
 
+	{   0x14d2, 0x8010, 0xffff, 0,
+	    "VScom PCI-100L",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_1S, 0x14, 0, 0,
+	},
+
 	{   0x14d2, 0x8020, 0xffff, 0,
 	    "VScom PCI-200L",
 	    DEFAULT_RCLK * 8,
