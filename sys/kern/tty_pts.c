@@ -135,10 +135,8 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			break;
 
 		/* Maybe the device isn't used anyway. */
-		if (tty_opened(tp) == 0) {
-			error = ENXIO;
+		if (tty_opened(tp) == 0)
 			break;
-		}
 
 		/* Wait for more data. */
 		if (fp->f_flag & O_NONBLOCK) {
@@ -204,7 +202,7 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 			/* Maybe the device isn't used anyway. */
 			if (tty_opened(tp) == 0) {
-				error = ENXIO;
+				error = EIO;
 				goto done;
 			}
 
