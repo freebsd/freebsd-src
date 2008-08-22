@@ -479,25 +479,105 @@ struct bfe_rxheader {
     u_int16_t    pad[12];
 };
 
-struct bfe_hw_stats {
-    u_int32_t tx_good_octets, tx_good_pkts, tx_octets;
-    u_int32_t tx_pkts, tx_broadcast_pkts, tx_multicast_pkts;
-    u_int32_t tx_len_64, tx_len_65_to_127, tx_len_128_to_255;
-    u_int32_t tx_len_256_to_511, tx_len_512_to_1023, tx_len_1024_to_max;
-    u_int32_t tx_jabber_pkts, tx_oversize_pkts, tx_fragment_pkts;
-    u_int32_t tx_underruns, tx_total_cols, tx_single_cols;
-    u_int32_t tx_multiple_cols, tx_excessive_cols, tx_late_cols;
-    u_int32_t tx_defered, tx_carrier_lost, tx_pause_pkts;
-    u_int32_t __pad1[8];
+#define MIB_TX_GOOD_O		0
+#define MIB_TX_GOOD_P		1
+#define MIB_TX_O		2	
+#define MIB_TX_P		3
+#define MIB_TX_BCAST		4
+#define MIB_TX_MCAST		5
+#define MIB_TX_64		6
+#define MIB_TX_65_127		7
+#define MIB_TX_128_255		8
+#define MIB_TX_256_511		9
+#define MIB_TX_512_1023		10
+#define MIB_TX_1024_MAX		11
+#define MIB_TX_JABBER		12
+#define MIB_TX_OSIZE		13
+#define MIB_TX_FRAG		14
+#define MIB_TX_URUNS		15
+#define MIB_TX_TCOLS		16
+#define MIB_TX_SCOLS		17
+#define MIB_TX_MCOLS		18
+#define MIB_TX_ECOLS		19
+#define MIB_TX_LCOLS		20
+#define MIB_TX_DEFERED		21
+#define MIB_TX_CLOST		22
+#define MIB_TX_PAUSE		23
+#define MIB_RX_GOOD_O		24
+#define MIB_RX_GOOD_P		25
+#define MIB_RX_O		26
+#define MIB_RX_P		27
+#define MIB_RX_BCAST		28
+#define MIB_RX_MCAST		29
+#define MIB_RX_64		30
+#define MIB_RX_65_127		31
+#define MIB_RX_128_255		32
+#define MIB_RX_256_511		33
+#define MIB_RX_512_1023		34
+#define MIB_RX_1024_MAX		35
+#define MIB_RX_JABBER		36
+#define MIB_RX_OSIZE		37
+#define MIB_RX_FRAG		38
+#define MIB_RX_MISS		39
+#define MIB_RX_CRCA		40
+#define MIB_RX_USIZE		41
+#define MIB_RX_CRC		42
+#define MIB_RX_ALIGN		43
+#define MIB_RX_SYM		44
+#define MIB_RX_PAUSE		45
+#define MIB_RX_NPAUSE		46
 
-    u_int32_t rx_good_octets, rx_good_pkts, rx_octets;
-    u_int32_t rx_pkts, rx_broadcast_pkts, rx_multicast_pkts;
-    u_int32_t rx_len_64, rx_len_65_to_127, rx_len_128_to_255;
-    u_int32_t rx_len_256_to_511, rx_len_512_to_1023, rx_len_1024_to_max;
-    u_int32_t rx_jabber_pkts, rx_oversize_pkts, rx_fragment_pkts;
-    u_int32_t rx_missed_pkts, rx_crc_align_errs, rx_undersize;
-    u_int32_t rx_crc_errs, rx_align_errs, rx_symbol_errs;
-    u_int32_t rx_pause_pkts, rx_nonpause_pkts;
+#define	BFE_MIB_CNT		(MIB_RX_NPAUSE - MIB_TX_GOOD_O + 1)
+
+struct bfe_hw_stats {
+    uint64_t	tx_good_octets;
+    uint64_t	tx_good_frames;
+    uint64_t	tx_octets;
+    uint64_t	tx_frames;
+    uint64_t	tx_bcast_frames;
+    uint64_t	tx_mcast_frames;
+    uint64_t	tx_pkts_64;
+    uint64_t	tx_pkts_65_127;
+    uint64_t	tx_pkts_128_255;
+    uint64_t	tx_pkts_256_511;
+    uint64_t	tx_pkts_512_1023;
+    uint64_t	tx_pkts_1024_max;
+    uint32_t	tx_jabbers;
+    uint64_t	tx_oversize_frames;
+    uint64_t	tx_frag_frames;
+    uint32_t	tx_underruns;
+    uint32_t	tx_colls;
+    uint32_t	tx_single_colls;
+    uint32_t	tx_multi_colls;
+    uint32_t	tx_excess_colls;
+    uint32_t	tx_late_colls;
+    uint32_t	tx_deferrals;
+    uint32_t	tx_carrier_losts;
+    uint32_t	tx_pause_frames;
+
+    uint64_t	rx_good_octets;
+    uint64_t	rx_good_frames;
+    uint64_t	rx_octets;
+    uint64_t	rx_frames;
+    uint64_t	rx_bcast_frames;
+    uint64_t	rx_mcast_frames;
+    uint64_t	rx_pkts_64;
+    uint64_t	rx_pkts_65_127;
+    uint64_t	rx_pkts_128_255;
+    uint64_t	rx_pkts_256_511;
+    uint64_t	rx_pkts_512_1023;
+    uint64_t	rx_pkts_1024_max;
+    uint32_t	rx_jabbers;
+    uint64_t	rx_oversize_frames;
+    uint64_t	rx_frag_frames;
+    uint32_t	rx_missed_frames;
+    uint32_t	rx_crc_align_errs;
+    uint32_t	rx_runts;
+    uint32_t	rx_crc_errs;
+    uint32_t	rx_align_errs;
+    uint32_t	rx_symbol_errs;
+    uint32_t	rx_pause_frames;
+    uint32_t	rx_control_frames;
 };
 
 struct bfe_softc
@@ -515,7 +595,7 @@ struct bfe_softc
     struct resource         *bfe_irq;
     struct resource         *bfe_res;
     struct callout          bfe_stat_co;
-    struct bfe_hw_stats     bfe_hwstats;
+    struct bfe_hw_stats     bfe_stats;
     struct bfe_desc         *bfe_tx_list, *bfe_rx_list;
     struct bfe_tx_data      bfe_tx_ring[BFE_TX_LIST_CNT]; /* XXX */
     struct bfe_rx_data      bfe_rx_ring[BFE_RX_LIST_CNT]; /* XXX */
