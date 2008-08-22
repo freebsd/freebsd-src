@@ -147,7 +147,7 @@ ppbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
   	}
 
 	return (0);
-  }
+}
 
 #define PPB_PNP_PRINTER		0
 #define PPB_PNP_MODEM		1
