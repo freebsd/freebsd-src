@@ -141,7 +141,7 @@ passthrough(const char *target)
 	/*
 	 * Use cpio passthrough mode to copy files to another directory.
 	 */
-	r = systemf("%s -p -W quiet %s <filelist >%s/stdout 2>%s/stderr", 
+	r = systemf("%s -p %s <filelist >%s/stdout 2>%s/stderr",
 	    testprog, target, target, target);
 	failure("Error invoking %s -p", testprog);
 	assertEqualInt(r, 0);
@@ -151,7 +151,10 @@ passthrough(const char *target)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	assertEmptyFile("stderr");
+	/* gcpio 2.9 writes "1 block" to stderr */
+	/* assertFileContents("1 block\n", 8, "stderr"); */
+	/* bsdcpio writes nothing to stderr for passthrough mode */
+	assertFileContents("", 0, "stderr");
 
 	verify_files(target);
 	chdir("..");
@@ -196,6 +199,8 @@ DEFINE_TEST(test_basic)
 	basic_cpio("copy_odc", "--format=odc", "", "1 block\n");
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
 	basic_cpio("copy_cpio", "-H odc", "", "1 block\n");
+	/* For some reason, gcpio 2.9 writes 7 blocks but only reads 6? */
+	/* bsdcpio writes 7 blocks and reads 7 blocks. */
 	basic_cpio("copy_ustar", "-H ustar", "", "7 blocks\n");
 	/* Copy in one step using -p */
 	passthrough("passthrough");

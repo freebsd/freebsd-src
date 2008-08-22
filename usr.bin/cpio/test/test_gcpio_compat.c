@@ -48,6 +48,7 @@ unpack_test(const char *from, const char *options, const char *se)
 	assertEqualInt(r, 0);
 
 	/* Verify that nothing went to stderr. */
+	failure("Error invoking %s -i %s < %s", testprog, options, from);
 	assertFileContents(se, strlen(se), "unpack.err");
 
 	/*
@@ -121,6 +122,7 @@ DEFINE_TEST(test_gcpio_compat)
 	unpack_test("test_gcpio_compat_ref.bin", "", "1 block\n");
 	unpack_test("test_gcpio_compat_ref.crc", "", "2 blocks\n");
 	unpack_test("test_gcpio_compat_ref.newc", "", "2 blocks\n");
+	/* gcpio-2.9 only reads 6 blocks here */
 	unpack_test("test_gcpio_compat_ref.ustar", "", "7 blocks\n");
 
 	umask(oldumask);
