@@ -75,7 +75,8 @@ enum {
 };
 
 static TAILQ_HEAD(pcie_cfg_list, pcie_cfg_elem) pcie_list[MAXCPU];
-static uint64_t pciebar;
+static uint64_t pcie_base;
+static int pcie_minbus, pcie_maxbus;
 static int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
@@ -84,13 +85,11 @@ static int	pcireg_cfgread(int bus, int slot, int func, int reg, int bytes);
 static void	pcireg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes);
 #ifndef XEN
 static int	pcireg_cfgopen(void);
-
-static int	pciereg_cfgopen(void);
 #endif
-static int	pciereg_cfgread(int bus, int slot, int func, int reg,
-				int bytes);
-static void	pciereg_cfgwrite(int bus, int slot, int func, int reg,
-				 int data, int bytes);
+static int	pciereg_cfgread(int bus, unsigned slot, unsigned func,
+		    unsigned reg, unsigned bytes);
+static void	pciereg_cfgwrite(int bus, unsigned slot, unsigned func,
+		    unsigned reg, int data, unsigned bytes);
 
 /*
  * Some BIOS writers seem to want to ignore the spec and put
@@ -140,14 +139,15 @@ pci_cfgregopen(void)
 	return (0);
 #else
 	static int		opened = 0;
+	uint64_t		pciebar;
 	u_int16_t		vid, did;
 	u_int16_t		v;
 
 	if (opened)
-		return(1);
+		return (1);
 
-	if (pcireg_cfgopen() == 0)
-		return(0);
+	if (cfgmech == CFGMECH_NONE && pcireg_cfgopen() == 0)
+		return (0);
 
 	v = pcibios_get_version();
 	if (v > 0)
@@ -159,6 +159,9 @@ pci_cfgregopen(void)
 	/* $PIR requires PCI BIOS 2.10 or greater. */
 	if (v >= 0x0210)
 		pci_pir_open();
+
+	if (cfgmech == CFGMECH_PCIE)
+		return (1);	
 
 	/*
 	 * Grope around in the PCI config space to see if this is a
@@ -176,22 +179,15 @@ pci_cfgregopen(void)
 		case 0x3592:
 			/* Intel 7520 or 7320 */
 			pciebar = pci_cfgregread(0, 0, 0, 0xce, 2) << 16;
-			pciereg_cfgopen();
+			pcie_cfgregopen(pciebar, 0, 255);
 			break;
 		case 0x2580:
 		case 0x2584:
 		case 0x2590:
 			/* Intel 915, 925, or 915GM */
 			pciebar = pci_cfgregread(0, 0, 0, 0x48, 4);
-			pciereg_cfgopen();
+			pcie_cfgregopen(pciebar, 0, 255);
 			break;
-		case 0x25d0:
-		case 0x25d4:
-		case 0x25d8:
-			/* Intel 5000Z/V/P */
-			pciebar = pci_cfgregread(0, 16, 0, 0x64, 4) << 16;
-			pciereg_cfgopen();
-			break;			
 		}
 	}
 
@@ -504,8 +500,8 @@ pcireg_cfgopen(void)
 	return (cfgmech);
 }
 
-static int
-pciereg_cfgopen(void)
+int
+pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 {
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *pcie_array, *elem;
@@ -515,20 +511,22 @@ pciereg_cfgopen(void)
 	vm_offset_t va;
 	int i;
 
+	if (minbus != 0)
+		return (0);
+
 #ifndef PAE
-	if (pciebar >= 0x100000000) {
+	if (base >= 0x100000000) {
 		if (bootverbose)
 			printf(
 	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
-			    (uintmax_t)pciebar);
-		pciebar = 0;
+			    (uintmax_t)base);
 		return (0);
 	}
 #endif
 		
 	if (bootverbose)
-		printf("Setting up PCIe mappings for BAR 0x%jx\n",
-		    (uintmax_t)pciebar);
+		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
+		    (uintmax_t)base);
 
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu)
@@ -560,7 +558,9 @@ pciereg_cfgopen(void)
 		}
 	}
 
-	
+	pcie_base = base;
+	pcie_minbus = minbus;
+	pcie_maxbus = maxbus;
 	cfgmech = CFGMECH_PCIE;
 	devmax = 32;
 	return (1);
@@ -610,15 +610,20 @@ pciereg_findelem(vm_paddr_t papage)
 }
 
 static int
-pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
+pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
+    unsigned bytes)
 {
 	struct pcie_cfg_elem *elem;
 	volatile vm_offset_t va;
 	vm_paddr_t pa, papage;
-	int data;
+	int data = -1;
+
+	if (bus < pcie_minbus || bus > pcie_maxbus || slot >= 32 ||
+	    func > PCI_FUNCMAX || reg >= 0x1000 || bytes > 4 || bytes == 3)
+		return (-1);
 
 	critical_enter();
-	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
+	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
 	papage = pa & ~PAGE_MASK;
 	elem = pciereg_findelem(papage);
 	va = elem->vapage | (pa & PAGE_MASK);
@@ -633,8 +638,6 @@ pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
 	case 1:
 		data = *(volatile uint8_t *)(va);
 		break;
-	default:
-		panic("pciereg_cfgread: invalid width");
 	}
 
 	critical_exit();
@@ -642,14 +645,19 @@ pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
 }
 
 static void
-pciereg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
+pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
+    unsigned bytes)
 {
 	struct pcie_cfg_elem *elem;
 	volatile vm_offset_t va;
 	vm_paddr_t pa, papage;
 
+	if (bus < pcie_minbus || bus > pcie_maxbus || slot >= 32 ||
+	    func > PCI_FUNCMAX || reg >= 0x1000)
+		return;
+
 	critical_enter();
-	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
+	pa = PCIE_PADDR(pcie_base, reg, bus, slot, func);
 	papage = pa & ~PAGE_MASK;
 	elem = pciereg_findelem(papage);
 	va = elem->vapage | (pa & PAGE_MASK);
@@ -664,8 +672,6 @@ pciereg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	case 1:
 		*(volatile uint8_t *)(va) = data;
 		break;
-	default:
-		panic("pciereg_cfgwrite: invalid width");
 	}
 
 	critical_exit();
