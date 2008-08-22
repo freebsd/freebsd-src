@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/pci_cfgreg.h>
+#endif
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -152,6 +155,9 @@ static int	acpi_child_location_str_method(device_t acdev, device_t child,
 					       char *buf, size_t buflen);
 static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 					      char *buf, size_t buflen);
+#if defined(__i386__) || defined(__amd64__)
+static void	acpi_enable_pcie(void);
+#endif
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -447,6 +453,11 @@ acpi_attach(device_t dev)
 		      AcpiFormatException(status));
 	goto out;
     }
+
+#if defined(__i386__) || defined(__amd64__)
+    /* Handle MCFG table if present. */
+    acpi_enable_pcie();
+#endif
 
     /* Install the default address space handlers. */
     status = AcpiInstallAddressSpaceHandler(ACPI_ROOT_OBJECT,
@@ -1465,6 +1476,36 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 
     return_VALUE (result);
 }
+
+#if defined(__i386__) || defined(__amd64__)
+/*
+ * Look for a MCFG table.  If it is present, use the settings for
+ * domain (segment) 0 to setup PCI config space access via the memory
+ * map.
+ */
+static void
+acpi_enable_pcie(void)
+{
+	ACPI_TABLE_HEADER *hdr;
+	ACPI_MCFG_ALLOCATION *alloc, *end;
+	ACPI_STATUS status;
+
+	status = AcpiGetTable(ACPI_SIG_MCFG, 1, &hdr);
+	if (ACPI_FAILURE(status))
+		return;
+
+	end = (ACPI_MCFG_ALLOCATION *)((char *)hdr + hdr->Length);
+	alloc = (ACPI_MCFG_ALLOCATION *)((ACPI_TABLE_MCFG *)hdr + 1);
+	while (alloc < end) {
+		if (alloc->PciSegment == 0) {
+			pcie_cfgregopen(alloc->Address, alloc->StartBusNumber,
+			    alloc->EndBusNumber);
+			return;
+		}
+		alloc++;
+	}
+}
+#endif
 
 /*
  * Scan all of the ACPI namespace and attach child devices.
