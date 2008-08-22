@@ -29,6 +29,16 @@ DEFINE_TEST(test_option_q)
 {
 	int fd;
 
+	/*
+	 * Create an archive with several different versions of the
+	 * same files.  By default, the last version will overwrite
+	 * any earlier versions.  The -q/--fast-read option will
+	 * stop early, so we can verify -q/--fast-read by seeing
+	 * which version of each file actually ended up being
+	 * extracted.  This also exercises -r mode, since that's
+	 * what we use to build up the test archive.
+	 */
+
 	fd = open("foo", O_CREAT | O_WRONLY, 0644);
 	assert(fd >= 0);
 	assertEqualInt(4, write(fd, "foo1", 4));
@@ -63,6 +73,11 @@ DEFINE_TEST(test_option_q)
 	close(fd);
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
+
+	/*
+	 * Now, try extracting from the test archive with various
+	 * combinations of -q.
+	 */
 
 	/* Test 1: -q foo should only extract the first foo. */
 	assertEqualInt(0, mkdir("test1", 0755));
