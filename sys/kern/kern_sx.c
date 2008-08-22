@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/sx.h>
 #include <sys/systm.h>
@@ -842,6 +843,123 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		    SQ_EXCLUSIVE_QUEUE);
 		break;
 	}
+}
+
+/*
+ * Atomically drop an sx lock while going to sleep.  This is just a hack
+ * for 6.x.  In 7.0 and later this is done more cleanly.
+ */
+int
+sx_sleep(void *ident, struct sx *sx, int priority, const char *wmesg, int timo)
+{
+	struct thread *td;
+	struct proc *p;
+	int catch, rval, flags, xlocked;
+	WITNESS_SAVE_DECL(sx_witness);
+
+	td = curthread;
+	p = td->td_proc;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(1, 0);
+#endif
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "Sleeping on \"%s\"", wmesg);
+	KASSERT(sx != NULL, ("sx_sleep w/o an sx lock"));
+	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("sx_sleep"));
+
+	if (cold) {
+		/*
+		 * During autoconfiguration, just return;
+		 * don't run any other threads or panic below,
+		 * in case this is the idle thread and already asleep.
+		 * XXX: this used to do "s = splhigh(); splx(safepri);
+		 * splx(s);" to give interrupts a chance, but there is
+		 * no way to give interrupts a chance now.
+		 */
+		if (priority & PDROP)
+			sx_unlock(sx);
+		return (0);
+	}
+	catch = priority & PCATCH;
+	rval = 0;
+
+	/*
+	 * If we are already on a sleep queue, then remove us from that
+	 * sleep queue first.  We have to do this to handle recursive
+	 * sleeps.
+	 */
+	if (TD_ON_SLEEPQ(td))
+		sleepq_remove(td, td->td_wchan);
+
+	flags = SLEEPQ_MSLEEP;
+	if (catch)
+		flags |= SLEEPQ_INTERRUPTIBLE;
+
+	sleepq_lock(ident);
+	CTR5(KTR_PROC, "sx_sleep: thread %p (pid %ld, %s) on %s (%p)",
+	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
+
+	DROP_GIANT();
+
+	/*
+	 * We put ourselves on the sleep queue and start our timeout
+	 * before calling thread_suspend_check, as we could stop there,
+	 * and a wakeup or a SIGCONT (or both) could occur while we were
+	 * stopped without resuming us.  Thus, we must be ready for sleep
+	 * when cursig() is called.  If the wakeup happens while we're
+	 * stopped, then td will no longer be on a sleep queue upon
+	 * return from cursig().
+	 */
+	sleepq_add(ident, &sx->lock_object, wmesg, flags, 0);
+	if (timo)
+		sleepq_set_timeout(ident, timo);
+
+	/*
+	 * Now that we are on the queue, drop the sleepq lock so we
+	 * can safely unlock the sx lock.
+	 */
+	sleepq_release(ident);
+	WITNESS_SAVE(&sx->lock_object, sx_witness);
+	xlocked = sx_xlocked(sx);
+	if (xlocked)
+		sx_xunlock(sx);
+	else
+		sx_sunlock(sx);
+	sleepq_lock(ident);
+
+	/*
+	 * Adjust this thread's priority.
+	 */
+	if ((priority & PRIMASK) != 0) {
+		mtx_lock_spin(&sched_lock);
+		sched_prio(td, priority & PRIMASK);
+		mtx_unlock_spin(&sched_lock);
+	}
+
+	if (timo && catch)
+		rval = sleepq_timedwait_sig(ident);
+	else if (timo)
+		rval = sleepq_timedwait(ident);
+	else if (catch)
+		rval = sleepq_wait_sig(ident);
+	else {
+		sleepq_wait(ident);
+		rval = 0;
+	}
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0);
+#endif
+	PICKUP_GIANT();
+	if (!(priority & PDROP)) {
+		if (xlocked)
+			sx_xlock(sx);
+		else
+			sx_slock(sx);
+		WITNESS_RESTORE(&sx->lock_object, sx_witness);
+	}
+	return (rval);
 }
 
 #ifdef INVARIANT_SUPPORT

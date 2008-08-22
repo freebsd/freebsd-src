@@ -99,6 +99,8 @@ void	sx_sysinit(void *arg);
 void	sx_init(struct sx *sx, const char *description);
 void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
+int	sx_sleep(void *ident, struct sx *sx, int priority, const char *wmesg,
+	    int timo);
 int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_xlock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_try_slock(struct sx *sx, const char *file, int line);
@@ -254,9 +256,6 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 	else								\
 		sx_sunlock(sx);						\
 } while (0)
-
-#define	sx_sleep(chan, sx, pri, wmesg, timo)				\
-	_sleep((chan), &(sx)->lock_object, (pri), (wmesg), (timo))
 
 /*
  * Options passed to sx_init_flags().
