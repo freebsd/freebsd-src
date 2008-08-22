@@ -42,7 +42,7 @@
 
 /* a port of FreeBSD to the NEC PC98, Japan */
 #define COPYRIGHT_PC98 \
-	"Copyright (c) 1994-2008 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
+	"Copyright (c) 1994-2003 FreeBSD(98) porting team.\nCopyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
 
 #if defined(PC98)
 char copyright[] = COPYRIGHT_FreeBSD COPYRIGHT_PC98 COPYRIGHT_UCB;
