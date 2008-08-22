@@ -1005,6 +1005,7 @@ static struct apic_enumerator *best_enum;
 void
 apic_register_enumerator(struct apic_enumerator *enumerator)
 {
+#ifndef XEN
 #ifdef INVARIANTS
 	struct apic_enumerator *apic_enum;
 
@@ -1015,6 +1016,7 @@ apic_register_enumerator(struct apic_enumerator *enumerator)
 	}
 #endif
 	SLIST_INSERT_HEAD(&enumerators, enumerator, apic_next);
+#endif
 }
 
 /*
