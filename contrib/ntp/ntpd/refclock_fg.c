@@ -323,9 +323,6 @@ fg_receive(
                 printf ("fg: time is %04d/%03d %02d:%02d:%02d UTC\n",
                          pp->year, pp->day, pp->hour, pp->minute, pp->second);
 #endif
-
-        if (peer->stratum <= 1)
-                peer->refid = pp->refid;
         pp->disp =  (10e-6);
 	pp->lastrec = rbufp->recv_time; /* Is it better than get_systime()? */
 	/* pp->leap = LEAP_NOWARNING; */

@@ -48,14 +48,20 @@
 #define LEITCH_DESCRIPTION "Leitch: CSD 5300 Master Clock System Driver"
 #define LEITCH232 "/dev/leitch%d"	/* name of radio device */
 #define SPEED232 B300		/* uart speed (300 baud) */ 
+#ifdef DEBUG
 #define leitch_send(A,M) \
 if (debug) fprintf(stderr,"write leitch %s\n",M); \
 if ((write(A->leitchio.fd,M,sizeof(M)) < 0)) {\
-						      if (debug) \
-									 fprintf(stderr, "leitch_send: unit %d send failed\n", A->unit); \
-																		 else \
-																			      msyslog(LOG_ERR, "leitch_send: unit %d send failed %m",A->unit);}
-		
+	if (debug) \
+	    fprintf(stderr, "leitch_send: unit %d send failed\n", A->unit); \
+	else \
+	    msyslog(LOG_ERR, "leitch_send: unit %d send failed %m",A->unit);}
+#else
+#define leitch_send(A,M) \
+if ((write(A->leitchio.fd,M,sizeof(M)) < 0)) {\
+	msyslog(LOG_ERR, "leitch_send: unit %d send failed %m",A->unit);}
+#endif
+
 #define STATE_IDLE 0
 #define STATE_DATE 1
 #define STATE_TIME1 2
@@ -166,7 +172,7 @@ leitch_poll(
 	if (debug)
 	    fprintf(stderr, "leitch_poll()\n");
 #endif
-	if (unit > MAXUNITS) {
+	if (unit >= MAXUNITS) {
 		/* XXXX syslog it */
 		return;
 	}

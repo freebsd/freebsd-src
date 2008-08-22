@@ -76,10 +76,13 @@
  *	ee = hardware errors
  *
  * If flag4 is set, an additional line consisting of the receiver
- * latitude (LA), longitude (LO) and elevation (LH) (meters) is written
- * to this file. If channel B is enabled for deviation mode and connected
- * to a 1-PPS signal, the last two numbers on the line are the deviation
- * and standard deviation averaged over the last 15 seconds.
+ * latitude (LA), longitude (LO), elevation (LH) (meters), and data
+ * buffer (DB) is written to this file. If channel B is enabled for
+ * deviation mode and connected to a 1-PPS signal, the last two numbers
+ * on the line are the deviation and standard deviation averaged over
+ * the last 15 seconds.
+ *
+ * PPS calibration fudge time1 .001240
  */
 
 /*
@@ -88,12 +91,11 @@
 #define	DEVICE		"/dev/gps%d" /* device name and unit */
 #define	SPEED232	B9600	/* uart speed (9600 baud) */
 #define	PRECISION	(-20)	/* precision assumed (about 1 us) */
-#define	REFID		"GPS " /* reference ID */
+#define	REFID		"GPS "	/* reference ID */
 #define	DESCRIPTION	"Arbiter 1088A/B GPS Receiver" /* WRU */
-
 #define	LENARB		24	/* format B5 timecode length */
-#define MAXSTA		30	/* max length of status string */
-#define MAXPOS		70	/* max length of position string */
+#define MAXSTA		40	/* max length of status string */
+#define MAXPOS		80	/* max length of position string */
 
 /*
  * ARB unit control structure
@@ -212,7 +214,8 @@ arb_receive(
 	struct peer *peer;
 	l_fp trtmp;
 	int temp;
-	u_char	syncchar;	/* synchronization indicator */
+	u_char	syncchar;		/* synch indicator */
+	char	tbuf[BMAX];		/* temp buffer */
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp
@@ -220,7 +223,7 @@ arb_receive(
 	peer = (struct peer *)rbufp->recv_srcclock;
 	pp = peer->procptr;
 	up = (struct arbunit *)pp->unitptr;
-	temp = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
+	temp = refclock_gtlin(rbufp, tbuf, BMAX, &trtmp);
 
 	/*
 	 * Note we get a buffer and timestamp for both a <cr> and <lf>,
@@ -238,49 +241,64 @@ arb_receive(
 	 */
 	if (temp == 0)
 		return;
+
 	pp->lastrec = up->laststamp;
 	up->laststamp = trtmp;
 	if (temp < 3)
 		return;
+
 	if (up->tcswitch == 0) {
 
 		/*
 		 * Collect statistics. If nothing is recogized, just
 		 * ignore; sometimes the clock doesn't stop spewing
-		 * timecodes for awhile after the B0 commant.
+		 * timecodes for awhile after the B0 command.
+		 *
+		 * If flag4 is not set, send TQ, SR, B5. If flag4 is
+		 * sset, send TQ, SR, LA, LO, LH, DB, B5. When the
+		 * median filter is full, send B0.
 		 */
-		if (!strncmp(pp->a_lastcode, "TQ", 2)) {
-			up->qualchar = pp->a_lastcode[2];
+		if (!strncmp(tbuf, "TQ", 2)) {
+			up->qualchar = tbuf[2];
 			write(pp->io.fd, "SR", 2);
-		} else if (!strncmp(pp->a_lastcode, "SR", 2)) {
-			strcpy(up->status, pp->a_lastcode + 2);
+			return;
+
+		} else if (!strncmp(tbuf, "SR", 2)) {
+			strcpy(up->status, tbuf + 2);
 			if (pp->sloppyclockflag & CLK_FLAG4)
 				write(pp->io.fd, "LA", 2);
-			else {
+			else
 				write(pp->io.fd, "B5", 2);
-				up->tcswitch++;
-			}
-		} else if (!strncmp(pp->a_lastcode, "LA", 2)) {
-			strcpy(up->latlon, pp->a_lastcode + 2);
+			return;
+
+		} else if (!strncmp(tbuf, "LA", 2)) {
+			strcpy(up->latlon, tbuf + 2);
 			write(pp->io.fd, "LO", 2);
-		} else if (!strncmp(pp->a_lastcode, "LO", 2)) {
+			return;
+
+		} else if (!strncmp(tbuf, "LO", 2)) {
 			strcat(up->latlon, " ");
-			strcat(up->latlon, pp->a_lastcode + 2);
+			strcat(up->latlon, tbuf + 2);
 			write(pp->io.fd, "LH", 2);
-		} else if (!strncmp(pp->a_lastcode, "LH", 2)) {
+			return;
+
+		} else if (!strncmp(tbuf, "LH", 2)) {
 			strcat(up->latlon, " ");
-			strcat(up->latlon, pp->a_lastcode + 2);
+			strcat(up->latlon, tbuf + 2);
 			write(pp->io.fd, "DB", 2);
-		} else if (!strncmp(pp->a_lastcode, "DB", 2)) {
+			return;
+
+		} else if (!strncmp(tbuf, "DB", 2)) {
 			strcat(up->latlon, " ");
-			strcat(up->latlon, pp->a_lastcode + 2);
+			strcat(up->latlon, tbuf + 2);
 			record_clock_stats(&peer->srcadr, up->latlon);
+#ifdef DEBUG
+			if (debug)
+				printf("arbiter: %s\n", up->latlon);
+#endif
 			write(pp->io.fd, "B5", 2);
-			up->tcswitch++;
 		}
-		return;
 	}
-	pp->lencode = temp;
 
 	/*
 	 * We get down to business, check the timecode format and decode
@@ -291,25 +309,25 @@ arb_receive(
 	 * that the time quality character and receiver status string is
 	 * tacked on the end for clockstats display. 
 	 */
-	if (pp->lencode == LENARB) {
-		/*
-		 * Timecode format B5: "i yy ddd hh:mm:ss.000   "
-		 */
-		pp->a_lastcode[LENARB - 2] = up->qualchar;
-		strcat(pp->a_lastcode, up->status);
-		syncchar = ' ';
-		if (sscanf(pp->a_lastcode, "%c%2d %3d %2d:%2d:%2d",
-		    &syncchar, &pp->year, &pp->day, &pp->hour,
-		    &pp->minute, &pp->second) != 6) {
-			refclock_report(peer, CEVNT_BADREPLY);
-			write(pp->io.fd, "B0", 2);
-			return;
-		}
-	} else  {
+	up->tcswitch++;
+	if (up->tcswitch <= 1 || temp < LENARB)
+		return;
+
+	/*
+	 * Timecode format B5: "i yy ddd hh:mm:ss.000   "
+	 */
+	strncpy(pp->a_lastcode, tbuf, BMAX);
+	pp->a_lastcode[LENARB - 2] = up->qualchar;
+	strcat(pp->a_lastcode, up->status);
+	pp->lencode = strlen(pp->a_lastcode);
+	syncchar = ' ';
+	if (sscanf(pp->a_lastcode, "%c%2d %3d %2d:%2d:%2d",
+	    &syncchar, &pp->year, &pp->day, &pp->hour,
+	    &pp->minute, &pp->second) != 6) {
+		refclock_report(peer, CEVNT_BADREPLY);
 		write(pp->io.fd, "B0", 2);
 		return;
 	}
-	up->tcswitch++;
 
 	/*
 	 * We decode the clock dispersion from the time quality
@@ -319,6 +337,7 @@ arb_receive(
 
 	    case '0':		/* locked, max accuracy */
 		pp->disp = 1e-7;
+		pp->lastref = pp->lastrec;
 		break;
 
 	    case '4':		/* unlock accuracy < 1 us */
@@ -369,13 +388,6 @@ arb_receive(
 		pp->leap = LEAP_NOTINSYNC;
 	else
 		pp->leap = LEAP_NOWARNING;
-#ifdef DEBUG
-	if (debug)
-		printf("arbiter: timecode %d %s\n", pp->lencode,
-		    pp->a_lastcode);
-#endif
-	if (up->tcswitch >= NSTAGE)
-		write(pp->io.fd, "B0", 2);
 
 	/*
 	 * Process the new sample in the median filter and determine the
@@ -383,6 +395,12 @@ arb_receive(
 	 */
 	if (!refclock_process(pp))
 		refclock_report(peer, CEVNT_BADTIME);
+	else if (peer->disp > MAXDISTANCE)
+		refclock_receive(peer);
+
+	if (up->tcswitch >= MAXSTAGE) {
+		write(pp->io.fd, "B0", 2);
+	}
 }
 
 
@@ -404,24 +422,30 @@ arb_poll(
 	 * Transmission occurs once per second, unless turned off by a
 	 * "B0". Note there is no checking on state, since this may not
 	 * be the only customer reading the clock. Only one customer
-	 * need poll the clock; all others just listen in. If nothing is
-	 * heard from the clock for two polls, declare a timeout and
-	 * keep going.
+	 * need poll the clock; all others just listen in.
 	 */
 	pp = peer->procptr;
 	up = (struct arbunit *)pp->unitptr;
+	pp->polls++;
 	up->tcswitch = 0;
-	if (write(pp->io.fd, "TQ", 2) != 2) {
+	if (write(pp->io.fd, "TQ", 2) != 2)
 		refclock_report(peer, CEVNT_FAULT);
-	} else
-		pp->polls++;
+
+	/*
+	 * Process median filter samples. If none received, declare a
+	 * timeout and keep going.
+	 */
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
-	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+#ifdef DEBUG
+	if (debug)
+		printf("arbiter: timecode %d %s\n",
+		   pp->lencode, pp->a_lastcode);
+#endif
 }
 
 #else

@@ -238,9 +238,9 @@ audio_init(
 	audio_config_read(unit, &actl, &dname);
 	/* If we have values for cf_c_dev or cf_i_dev, use them. */
 	if (*cf_c_dev)
-		dname = cf_c_dev;
+		actl = cf_c_dev;
 	if (*cf_i_dev)
-		actl = cf_i_dev;
+		dname = cf_i_dev;
 #endif
 
 	/*
@@ -285,6 +285,15 @@ audio_init(
 		s_size.play_size, s_size.rec_size);
 # endif /* HAVE_STRUCT_SND_SIZE */
 
+# ifdef SNDCTL_DSP_SETFRAGMENT
+	{
+		int tmp = (16 << 16) + 6; /* 16 fragments, each 2^6 bytes */
+		if (ioctl(fd, SNDCTL_DSP_SETFRAGMENT, &tmp) == -1)
+		    printf("audio_init: SNDCTL_DSP_SETFRAGMENT: %s\n",
+			   strerror(errno));
+	}
+# endif /* SNDCTL_DSP_SETFRAGMENT */
+
 # ifdef AIOGFMT
 	if (ioctl(fd, AIOGFMT, &s_c_p) == -1)
 	    printf("audio_init: AIOGFMT: %s\n", strerror(errno));
@@ -304,7 +313,7 @@ audio_init(
 	if (*cf_agc) {
 		int i;
 
-		i = mixer_name(cf_agc, recmask);
+		i = mixer_name(cf_agc, devmask);
 		if (i >= 0)
 			agc = MIXER_WRITE(i);
 		else
@@ -372,11 +381,14 @@ audio_gain(
 	r = 0 ; /* setting to zero nicely mutes the channel */
 
 	l |= r << 8;
-	if (port == 2) {
-	  rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_LINE, &l);
-	} else {
-	  	rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_MIC, &l);
-	}
+        if ( cf_agc )
+          rval = ioctl(ctl_fd, agc, &l);
+        else
+	  if (port == 2) {
+	    rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_LINE, &l);
+	  } else {
+	    rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_MIC, &l);
+	  }
 	if (rval == -1) {
 		printf("audio_gain: agc write: %s\n", strerror(errno));
 		return (rval);
@@ -389,7 +401,10 @@ audio_gain(
 			printf("audio_gain: mongain %d/%d\n", mongain, l);
 # endif
 		l |= r << 8;
-		rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_VOLUME, &l);
+                if ( cf_monitor )
+                  rval = ioctl(ctl_fd, monitor, &l );
+                else 
+		  rval = ioctl(ctl_fd, SOUND_MIXER_WRITE_VOLUME, &l);
 		if (rval == -1) {
 			printf("audio_gain: mongain write: %s\n",
 			       strerror(errno));

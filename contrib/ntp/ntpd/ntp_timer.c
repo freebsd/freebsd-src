@@ -34,6 +34,8 @@
  * procedure to do cleanup and print a message.
  */
 
+volatile int interface_interval = 300;     /* update interface every 5 minutes as default */
+	  
 /*
  * Alarm flag.	The mainline code imports this.
  */
@@ -44,8 +46,9 @@ volatile int alarm_flag;
  */
 static	u_long adjust_timer;		/* second timer */
 static	u_long keys_timer;		/* minute timer */
-static	u_long hourly_timer;		/* hour timer */
+static	u_long stats_timer;		/* stats timer */
 static	u_long huffpuff_timer;		/* huff-n'-puff timer */
+static  u_long interface_timer;	        /* interface update timer */
 #ifdef OPENSSL
 static	u_long revoke_timer;		/* keys revoke timer */
 u_char	sys_revoke = KEY_REVOKE;	/* keys revoke timeout (log2 s) */
@@ -138,7 +141,7 @@ void
 init_timer(void)
 {
 # if defined SYS_WINNT & !defined(SYS_CYGWIN32)
-	HANDLE hToken;
+	HANDLE hToken = INVALID_HANDLE_VALUE;
 	TOKEN_PRIVILEGES tkp;
 # endif /* SYS_WINNT */
 
@@ -148,8 +151,9 @@ init_timer(void)
 	alarm_flag = 0;
 	alarm_overflow = 0;
 	adjust_timer = 1;
-	hourly_timer = HOUR;
+	stats_timer = 0;
 	huffpuff_timer = 0;
+	interface_timer = 0;
 	current_time = 0;
 	timer_overflows = 0;
 	timer_xmtcalls = 0;
@@ -269,6 +273,15 @@ timer(void)
 		adjust_timer += 1;
 		adj_host_clock();
 		kod_proto();
+#ifdef REFCLOCK
+		for (n = 0; n < NTP_HASH_SIZE; n++) {
+			for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
+				next_peer = peer->next;
+				if (peer->flags & FLAG_REFCLOCK)
+					refclock_timer(peer);
+			}
+		}
+#endif /* REFCLOCK */
 	}
 
 	/*
@@ -276,7 +289,7 @@ timer(void)
 	 * here, since the peer structure might go away as the result of
 	 * the call.
 	 */
-	for (n = 0; n < HASH_SIZE; n++) {
+	for (n = 0; n < NTP_HASH_SIZE; n++) {
 		for (peer = peer_hash[n]; peer != 0; peer = next_peer) {
 			next_peer = peer->next;
 			if (peer->action && peer->nextaction <= current_time)
@@ -327,11 +340,24 @@ timer(void)
 #endif /* OPENSSL */
 
 	/*
-	 * Finally, call the hourly routine.
+	 * interface update timer
 	 */
-	if (hourly_timer <= current_time) {
-		hourly_timer += HOUR;
-		hourly_stats();
+	if (interface_interval && interface_timer <= current_time) {
+		timer_interfacetimeout(current_time + interface_interval);
+#ifdef DEBUG
+	  if (debug)
+	    printf("timer: interface update\n");
+#endif
+	  interface_update(NULL, NULL);
+	}
+	
+	/*
+	 * Finally, periodically write stats.
+	 */
+	if (stats_timer <= current_time) {
+	     if (stats_timer != 0)
+		  write_stats();
+	     stats_timer += stats_write_period;
 	}
 }
 
@@ -362,6 +388,12 @@ alarming(
 #endif /* VMS */
 }
 #endif /* SYS_WINNT */
+
+void
+timer_interfacetimeout(u_long timeout)
+{
+	interface_timer = timeout;
+}
 
 
 /*

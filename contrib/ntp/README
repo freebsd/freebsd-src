@@ -1,7 +1,7 @@
 
 Submit patches, bug reports, and enhancement requests via
 
-			http://bugzilla.ntp.org
+			http://bugs.ntp.isc.org
 
 		  The ntp Distribution Base Directory
 
@@ -17,7 +17,7 @@ well as setting up an NTP subnet, is in the HTML pages in the ./html/
 directory. For more information on NTP and how to get a working setup,
 read WHERE-TO-START.
 
-For Windows/NT, visit html/hints/winnt .
+For Windows/NT, visit html/build/hints/winnt.html .
 
 The base directory ./ contains the autoconfiguration files, source
 directories and related stuff:
@@ -28,7 +28,7 @@ COPYRIGHT	Excerpt from the HTML file ./html/copyright.html. This file
 
 INSTALL		Generic installation instructions for autoconf-based programs.
 		Unless you really know what you are doing, you should read the
-		directions in the HTML pages, starting with ./html/index.htm.
+		directions in the HTML pages, starting with ./html/index.html.
 
 NEWS		What's new in this release.
 
@@ -78,7 +78,7 @@ config.h.in	Configuration file generated automatically from
 		configure.in. Do not edit.
 
 configure	Script used to configure the distribution. See the HTML pages
-		(./html/index.htm) for a complete description of the options
+		(./html/index.html) for a complete description of the options
 		available.
 
 configure.in	Master configuration template. Edit only if you have the

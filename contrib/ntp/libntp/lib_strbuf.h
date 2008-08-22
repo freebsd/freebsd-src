@@ -7,7 +7,7 @@
 /*
  * Sizes of things
  */
-#define	LIB_NUMBUFS	20
+#define	LIB_NUMBUFS	200
 #define	LIB_BUFLENGTH	80
 
 /*
@@ -20,6 +20,7 @@
 		buf = &lib_stringbuf[lib_nextbuf][0]; \
 		if (++lib_nextbuf >= LIB_NUMBUFS) \
 			lib_nextbuf = 0; \
+		memset(buf, 0, LIB_BUFLENGTH); \
 	} while (0)
 
 extern char lib_stringbuf[LIB_NUMBUFS][LIB_BUFLENGTH];

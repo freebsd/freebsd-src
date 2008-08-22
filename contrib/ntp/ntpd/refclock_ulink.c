@@ -1,6 +1,5 @@
 /*
  * refclock_ulink - clock driver for Ultralink  WWVB receiver
- * 
  */
 
 /***********************************************************************
@@ -32,11 +31,9 @@
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_refclock.h"
-#include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 
-/*
- * This driver supports ultralink Model 320,330,331,332 WWVB radios
+/* This driver supports ultralink Model 320,325,330,331,332 WWVB radios
  *
  * this driver was based on the refclock_wwvb.c driver
  * in the ntp distribution.
@@ -62,6 +59,8 @@
  *		01/02/21 s.l.smith	fixed 33x quality flag
  *					added more debugging stuff
  *					updated 33x time code explanation
+ *		04/01/23 frank migge	added support for 325 decoder
+ *                                      (tested with ULM325.F)
  *
  * Questions, bugs, ideas send to:
  *	Joseph C. Lang
@@ -70,10 +69,13 @@
  *	Dave Strout
  *	dstrout@linuxfoundry.com
  *
+ *      Frank Migge
+ *      frank.migge@oracle.com
+ *
  *
  * on the Ultralink model 33X decoder Dip switch 2 controls
  * polled or continous timecode 
- * set fudge flag1 if using polled (needed for model 320)
+ * set fudge flag1 if using polled (needed for model 320 and 325)
  * dont set fudge flag1 if dip switch 2 is set on model 33x decoder
 */
 
@@ -87,8 +89,11 @@
 #define	REFID		"WWVB"	/* reference ID */
 #define	DESCRIPTION	"Ultralink WWVB Receiver" /* WRU */
 
-#define	LEN33X		32	/* timecode length Model 325 & 33X */
+#define	LEN33X		32	/* timecode length Model 33X and 325 */
 #define LEN320		24	/* timecode length Model 320 */
+
+#define	SIGLCHAR33x	'S'	/* signal strength identifier char 325 */
+#define	SIGLCHAR325	'R'	/* signal strength identifier char 33x */
 
 /*
  *  unit control structure
@@ -210,6 +215,7 @@ ulink_receive(
 	char	syncchar;	/* synchronization indicator */
 	char	leapchar;	/* leap indicator */
 	char	modechar;	/* model 320 mode flag */
+        char	siglchar;	/* model difference between 33x/325 */
 	char	char_quality[2];	/* temp quality flag */
 
 	/*
@@ -247,77 +253,163 @@ ulink_receive(
 	 * its contents. If the timecode has invalid length or is not in
 	 * proper format, we declare bad format and exit.
 	 */
-	syncchar = leapchar = modechar = ' ';
+	syncchar = leapchar = modechar = siglchar = ' ';
 	switch (pp->lencode ) {
 		case LEN33X:
+
 		/*
-		 * Model 33X decoder:
-		 * Timecode format from January 29, 2001 datasheet is:
-		 *   <CR><LF>S9+D 00 YYYY+DDDUTCS HH:MM:SSL+5
-		 *   S      WWVB decoder sync indicator. S for in-sync(?)
-		 *          or N for noisy signal.
-		 *   9+     RF signal level in S-units, 0-9 followed by
-		 *          a space (0x20). The space turns to '+' if the
-		 *          level is over 9.
-		 *   D      Data bit 0, 1, 2 (position mark), or
-		 *          3 (unknown).
-		 *   space  Space character (0x20)
-		 *   00     Hours since last good WWVB frame sync. Will 
-		 *          be 00-23 hrs, or '1d' to '7d'. Will be 'Lk'
-                 *          if currently in sync. 
-		 *   space  Space character (0x20)
-		 *   YYYY   Current year, 1990-2089
-		 *   +      Leap year indicator. '+' if a leap year,
-		 *          a space (0x20) if not.
-		 *   DDD    Day of year, 001 - 366.
-		 *   UTC    Timezone (always 'UTC').
-		 *   S      Daylight savings indicator
-		 *             S - standard time (STD) in effect
-		 *             O - during STD to DST day 0000-2400
-		 *             D - daylight savings time (DST) in effect
-		 *             I - during DST to STD day 0000-2400
-		 *   space  Space character (0x20)
-		 *   HH     Hours 00-23
-		 *   :      This is the REAL in sync indicator (: = insync)	
-		 *   MM     Minutes 00-59
-		 *   :      : = in sync ? = NOT in sync
-		 *   SS     Seconds 00-59
-		 *   L      Leap second flag. Changes from space (0x20)
-		 *          to '+' or '-' during month preceding leap
-		 *          second adjustment.
-		 *   +5     UT1 correction (sign + digit ))
-		 */
+                 * First we check if the format is 33x or 325:
+		 *   <CR><LF>S9+D 00 YYYY+DDDUTCS HH:MM:SSL+5 (33x)
+		 *   <CR><LF>R5_1C00LYYYY+DDDUTCS HH:MM:SSL+5 (325)
+		 * simply by comparing if the signal level is 'S' or 'R'
+                 */
 
-		if (sscanf(pp->a_lastcode, 
-                    "%*4c %2c %4d%*c%3d%*4c %2d%c%2d:%2d%c%*2c",
-		    char_quality, &pp->year, &pp->day, 
-                    &pp->hour, &syncchar, &pp->minute, &pp->second, 
-                    &leapchar) == 8) { 
+                 if (sscanf(pp->a_lastcode, "%c%*31c",
+                            &siglchar) == 1) {
+
+                    if(siglchar == SIGLCHAR325) {
+
+       		   /*
+		    * decode for a Model 325 decoder.
+		    * Timecode format from January 23, 2004 datasheet is:
+                    *
+		    *   <CR><LF>R5_1C00LYYYY+DDDUTCS HH:MM:SSL+5
+                    *
+		    *   R      WWVB decodersignal readability R1 - R5
+		    *   5      R1 is unreadable, R5 is best
+		    *   space  a space (0x20)
+		    *   1      Data bit 0, 1, M (pos mark), or ? (unknown).
+		    *   C      Reception from either (C)olorado or (H)awaii 
+		    *   00     Hours since last good WWVB frame sync. Will 
+		    *          be 00-99
+		    *   space  Space char (0x20) or (0xa5) if locked to wwvb
+		    *   YYYY   Current year, 2000-2099
+		    *   +      Leap year indicator. '+' if a leap year,
+		    *          a space (0x20) if not.
+		    *   DDD    Day of year, 000 - 365.
+		    *   UTC    Timezone (always 'UTC').
+		    *   S      Daylight savings indicator
+		    *             S - standard time (STD) in effect
+		    *             O - during STD to DST day 0000-2400
+		    *             D - daylight savings time (DST) in effect
+		    *             I - during DST to STD day 0000-2400
+		    *   space  Space character (0x20)
+		    *   HH     Hours 00-23
+		    *   :      This is the REAL in sync indicator (: = insync)	
+		    *   MM     Minutes 00-59
+		    *   :      : = in sync ? = NOT in sync
+		    *   SS     Seconds 00-59
+		    *   L      Leap second flag. Changes from space (0x20)
+		    *          to 'I' or 'D' during month preceding leap
+		    *          second adjustment. (I)nsert or (D)elete
+		    *   +5     UT1 correction (sign + digit ))
+		    */
+
+   		       if (sscanf(pp->a_lastcode, 
+                          "%*2c %*2c%2c%*c%4d%*c%3d%*4c %2d%c%2d:%2d%c%*2c",
+   		          char_quality, &pp->year, &pp->day, 
+                          &pp->hour, &syncchar, &pp->minute, &pp->second, 
+                          &leapchar) == 8) { 
+   		
+   			  if (char_quality[0] == '0') {
+   				quality = 0;
+   			  } else if (char_quality[0] == '0') {
+   				quality = (char_quality[1] & 0x0f);
+   			  } else  {
+   				quality = 99;
+   			  }
+
+   		          if (leapchar == 'I' ) leapchar = '+';
+   		          if (leapchar == 'D' ) leapchar = '-';
+
+		          /*
+		          #ifdef DEBUG
+		          if (debug) {
+		             printf("ulink: char_quality %c %c\n", 
+                                    char_quality[0], char_quality[1]);
+			     printf("ulink: quality %d\n", quality);
+			     printf("ulink: syncchar %x\n", syncchar);
+			     printf("ulink: leapchar %x\n", leapchar);
+                          }
+                          #endif
+                          */
+
+                       }
 		
-			if (char_quality[0] == 'L') {
+                    } 
+                    if(siglchar == SIGLCHAR33x) {
+                
+		   /*
+		    * We got a Model 33X decoder.
+		    * Timecode format from January 29, 2001 datasheet is:
+		    *   <CR><LF>S9+D 00 YYYY+DDDUTCS HH:MM:SSL+5
+		    *   S      WWVB decoder sync indicator. S for in-sync(?)
+		    *          or N for noisy signal.
+		    *   9+     RF signal level in S-units, 0-9 followed by
+		    *          a space (0x20). The space turns to '+' if the
+		    *          level is over 9.
+		    *   D      Data bit 0, 1, 2 (position mark), or
+		    *          3 (unknown).
+		    *   space  Space character (0x20)
+		    *   00     Hours since last good WWVB frame sync. Will 
+		    *          be 00-23 hrs, or '1d' to '7d'. Will be 'Lk'
+                    *          if currently in sync. 
+		    *   space  Space character (0x20)
+		    *   YYYY   Current year, 1990-2089
+		    *   +      Leap year indicator. '+' if a leap year,
+		    *          a space (0x20) if not.
+		    *   DDD    Day of year, 001 - 366.
+		    *   UTC    Timezone (always 'UTC').
+		    *   S      Daylight savings indicator
+		    *             S - standard time (STD) in effect
+		    *             O - during STD to DST day 0000-2400
+		    *             D - daylight savings time (DST) in effect
+		    *             I - during DST to STD day 0000-2400
+		    *   space  Space character (0x20)
+		    *   HH     Hours 00-23
+		    *   :      This is the REAL in sync indicator (: = insync)	
+		    *   MM     Minutes 00-59
+		    *   :      : = in sync ? = NOT in sync
+		    *   SS     Seconds 00-59
+		    *   L      Leap second flag. Changes from space (0x20)
+		    *          to '+' or '-' during month preceding leap
+		    *          second adjustment.
+		    *   +5     UT1 correction (sign + digit ))
+		    */
+
+		       if (sscanf(pp->a_lastcode, 
+                           "%*4c %2c %4d%*c%3d%*4c %2d%c%2d:%2d%c%*2c",
+		           char_quality, &pp->year, &pp->day, 
+                           &pp->hour, &syncchar, &pp->minute, &pp->second, 
+                           &leapchar) == 8) { 
+		
+			   if (char_quality[0] == 'L') {
 				quality = 0;
-			} else if (char_quality[0] == '0') {
+			   } else if (char_quality[0] == '0') {
 				quality = (char_quality[1] & 0x0f);
-			} else  {
+			   } else  {
 				quality = 99;
-			}
+		           }
 	
-/*
-#ifdef DEBUG
-		if (debug) {
-			printf("ulink: char_quality %c %c\n", 
-                               char_quality[0], char_quality[1]);
-			printf("ulink: quality %d\n", quality);
-			printf("ulink: syncchar %x\n", syncchar);
-			printf("ulink: leapchar %x\n", leapchar);
-                }
-#endif
-*/
+                           /*
+                           #ifdef DEBUG
+         		   if (debug) {
+         			printf("ulink: char_quality %c %c\n", 
+                                        char_quality[0], char_quality[1]);
+         			printf("ulink: quality %d\n", quality);
+         			printf("ulink: syncchar %x\n", syncchar);
+         			printf("ulink: leapchar %x\n", leapchar);
+                           }
+                           #endif
+                           */
 
-			break;
+		        }
+                    }
+		    break;
 		}
-		
+
 		case LEN320:
+
 	        /*
 		 * Model 320 Decoder
 		 * The timecode format is:
@@ -345,6 +437,7 @@ ulink_receive(
 		 * T  = DST <-> STD transition indicators
 		 *
         	 */
+
 		if (sscanf(pp->a_lastcode, "%c%1d%c%4d%3d%*c%2d:%2d:%2d.%2ld%c",
 	               &syncchar, &quality, &modechar, &pp->year, &pp->day,
         	       &pp->hour, &pp->minute, &pp->second,
@@ -361,7 +454,6 @@ ulink_receive(
 		refclock_report(peer, CEVNT_BADREPLY);
 		return;
 	}
-
 
 	/*
 	 * Decode quality indicator
@@ -455,10 +547,10 @@ ulink_receive(
 
 }
 
-
 /*
  * ulink_poll - called by the transmit procedure
  */
+
 static void
 ulink_poll(
 	int unit,

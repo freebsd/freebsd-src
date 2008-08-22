@@ -36,6 +36,14 @@ dolfptoa(
 	memset((char *) cbuf, 0, sizeof(cbuf));
 
 	/*
+	 * safeguard against sign extensions and other mishaps on 64 bit platforms
+	 * the code following is designed for and only for 32-bit inputs and
+	 * only 32-bit worth of input are supplied.
+         */
+	fpi &= 0xffffffff;
+	fpv &= 0xffffffff;
+
+	/*
 	 * Work on the integral part.  This is biased by what I know
 	 * compiles fairly well for a 68000.
 	 */
@@ -49,6 +57,7 @@ dolfptoa(
 			ltmp = lwork;
 			lwork /= lten;
 			ltmp -= (lwork << 3) + (lwork << 1);
+			if (cp < cbuf) abort(); /* rather die a horrible death than trash the memory */
 			*--cp = (u_char)ltmp;
 		} while (lwork & 0xffff0000);
 	}
@@ -61,6 +70,7 @@ dolfptoa(
 			stmp = swork;
 			swork = (u_short) (swork/sten);
 			stmp = (u_short)(stmp - ((swork<<3) + (swork<<1)));
+		        if (cp < cbuf) abort(); /* rather die a horrible death than trash the memory */
 			*--cp = (u_char)stmp;
 		} while (swork != 0);
 	}
@@ -110,6 +120,7 @@ dolfptoa(
 			*cpend++ = (u_char)work.l_ui;
 			if (work.l_uf == 0)
 			    break;
+			if (cpend > (cbuf + sizeof(cbuf))) abort(); /* rather die a horrible death than trash the memory */
 		}
 
 		/*

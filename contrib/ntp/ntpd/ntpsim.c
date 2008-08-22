@@ -4,6 +4,7 @@
  */
 #include "ntpd.h"
 #include "ntpsim.h"
+#include "ntpdsim-opts.h"
 
 /*
  * Defines...
@@ -65,7 +66,6 @@ ntpsim(
         init_mon();
         init_timer();
         init_lib();
-        init_random();
         init_request();
         init_control();
         init_peer();
@@ -73,14 +73,23 @@ ntpsim(
         init_io();
         init_loopfilter();
         mon_start(MON_OFF);
+
+	{
+		int optct = optionProcess(&ntpdsimOptions, argc, argv);
+		argc -= optct;
+		argv += optct;
+	}
+
 	getconfig(argc, argv);
+
         initializing = 0;
+	loop_config(LOOP_DRIFTCOMP, old_drift / 1e6);
 
 	/*
 	 * Watch out here, we want the real time, not the silly stuff.
 	 */
 	gettimeofday(&seed, NULL);
-	srand48(seed.tv_usec);
+	ntp_srandom(seed.tv_usec);
 
 	/*
 	 * Push a beep and timer interrupt on the queue
@@ -202,11 +211,12 @@ ntptmr(
 
 	/*
 	 * Process buffers received. They had better be in order by
-	 * receive timestamp.
+	 * receive timestamp. Note that there are no additional buffers
+	 * in the current implementation of ntpsim.
 	 */
 	while (n->rbuflist != NULL) {
 		rbuf = n->rbuflist;
-		n->rbuflist = rbuf->next;
+		n->rbuflist = NULL;
 		(rbuf->receiver)(rbuf);
 		free(rbuf);
 	}
@@ -270,7 +280,6 @@ int srvr_rply(
         if ((rbuf.dstadr = malloc(sizeof(struct interface))) == NULL)
 		abortsim("server-malloc");
         memcpy(rbuf.dstadr, inter, sizeof(struct interface));
-        rbuf.next = NULL;
 
 	/*
 	 * Very carefully predict the time of arrival for the received
@@ -306,20 +315,14 @@ netpkt(
 	memcpy(rbuf, &e.rcv_buf, sizeof(struct recvbuf));
 	rbuf->receiver = receive;
 	DTOLFP(n->ntp_time, &rbuf->recv_time);
-	rbuf->next = NULL;
 	obuf = n->rbuflist;
 
 	/*
 	 * In the present incarnation, no more than one buffer can be on
-	 * the queue; however, we sniff the queue anyway as a hint for
-	 * further development.
+	 * the queue; 
 	 */
 	if (obuf == NULL) {
 		n->rbuflist = rbuf;
-	} else {
-		while (obuf->next != NULL)
-			obuf = obuf->next;
-		obuf->next = rbuf;
 	}
 }
 

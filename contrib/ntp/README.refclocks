@@ -27,8 +27,8 @@ WWV_HEATH	19	/* Heath GC1000 WWV/WWVH Receiver */
 GPS_NMEA	20	/* NMEA based GPS clock */
 GPS_VME		21	/* TrueTime GPS-VME Interface */
 ATOM_PPS	22	/* 1-PPS Clock Discipline */
-PTB_ACTS	23	/* PTB Auto Computer Time Service */
-USNO		24	/* Naval Observatory dialup */
+PTB_ACTS	NIST_ACTS
+USNO		NIST_ACTS
 GPS_HP		26	/* HP 58503A Time/Frequency Receiver */
 ARCRON_MSF	27	/* ARCRON MSF radio clock. */
 SHM		28	/* clock attached thru shared memory */
