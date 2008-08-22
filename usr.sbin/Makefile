@@ -111,7 +111,7 @@ SUBDIR=	ac \
 	nghook \
 	nologin \
 	${_nscd} \
-	ntp \
+	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
 	pccard \
