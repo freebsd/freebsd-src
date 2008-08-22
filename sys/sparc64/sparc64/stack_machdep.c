@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/proc.h>
 #include <sys/stack.h>
 #include <sys/systm.h>
@@ -45,13 +46,13 @@ __FBSDID("$FreeBSD$");
 static void
 stack_capture(struct stack *st, uint64_t addr)
 {
-	struct frame *fp;
 	vm_offset_t callpc;
 
 	stack_zero(st);
-	fp = (struct frame *)(addr + SPOFF);
 	while (1) {
-		callpc = fp->fr_pc;
+		addr += SPOFF;
+		callpc =
+		    be64dec((void *)(addr + offsetof(struct frame, fr_pc)));
 		if (!INKERNEL(callpc))
 			break;
 		/* Don't bother traversing trap frames. */
@@ -62,7 +63,8 @@ stack_capture(struct stack *st, uint64_t addr)
 			break;
 		if (stack_put(st, callpc) == -1)
 			break;
-		fp = (struct frame *)(fp->fr_fp + SPOFF);
+		addr =
+		    be64dec((void *)(addr + offsetof(struct frame, fr_fp)));
 	}
 }
 
