@@ -269,7 +269,8 @@ pst_receive(
 	 */
 	if (!refclock_process(pp))
 		refclock_report(peer, CEVNT_BADTIME);
-
+	else if (peer->disp > MAXDISTANCE)
+		refclock_receive(peer);
 }
 
 

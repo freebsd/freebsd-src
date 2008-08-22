@@ -2,10 +2,43 @@
 AC_INIT(main.c)
 AM_INIT_AUTOMAKE([msntp],[1.6])
 AC_CONFIG_SRCDIR([header.h])
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_HOST
+AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
 AC_PROG_CC
+
+# So far, the only shared library we might use is libopts.
+# It's a small library - we might as well use a static version of it.
+AC_DISABLE_SHARED
+
+AC_PROG_LIBTOOL
+
+# NTP has (so far) been relying on leading-edge autogen.
+# Therefore, by default:
+# - use the version we ship with
+# - do not install it
+# - build a static copy (AC_DISABLE_SHARED - done earlier)
+case "${enable_local_libopts+set}" in
+ set) ;;
+ *) enable_local_libopts=yes ;;
+esac
+case "${enable_libopts_install+set}" in
+ set) ;;
+ *) enable_libopts_install=no ;;
+esac
+LIBOPTS_CHECK
+
+AC_MSG_CHECKING([[if $CC can handle #warning]])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[#warning foo]])],[ac_cv_cpp_warning=yes],[ac_cv_cpp_warning=no])
+AC_MSG_RESULT([$ac_cv_cpp_warning])
+
+case "$ac_cv_cpp_warning" in
+ no)
+    AC_DEFINE([NO_OPTION_NAME_WARNINGS], [1], [Should we avoid #warning on option name collisions?])
+    AC_MSG_RESULT([[Enabling NO_OPTION_NAME_WARNINGS as #warning does not work]])
+    ;;
+esac
 
 # Checks for libraries.
 
@@ -31,9 +64,11 @@ AC_CACHE_CHECK([for ss_family field in struct sockaddr_storage],
 		[ ac_cv_have_ss_family_in_struct_ss="no" ],
 	)
 ])
-if test "x$ac_cv_have_ss_family_in_struct_ss" = "xyes" ; then
-	AC_DEFINE(HAVE_SS_FAMILY_IN_SS, 1, [Does struct sockaddr_storage have ss_family?])
-fi
+case "$ac_cv_have_ss_family_in_struct_ss" in
+ yes)
+    AC_DEFINE(HAVE_SS_FAMILY_IN_SS, 1, [Does struct sockaddr_storage have ss_family?])
+    ;;
+esac
 
 AC_CACHE_CHECK([for __ss_family field in struct sockaddr_storage],
 		ac_cv_have___ss_family_in_struct_ss, [
@@ -47,14 +82,16 @@ AC_CACHE_CHECK([for __ss_family field in struct sockaddr_storage],
 		[ ac_cv_have___ss_family_in_struct_ss="no" ]
 	)
 ])
-if test "x$ac_cv_have___ss_family_in_struct_ss" = "xyes" ; then
-	AC_DEFINE(HAVE___SS_FAMILY_IN_SS, 1, [Does struct sockaddr_storage have __ss_family?])
-fi
+case "$ac_cv_have___ss_family_in_struct_ss" in
+ yes)
+    AC_DEFINE(HAVE___SS_FAMILY_IN_SS, 1, [Does struct sockaddr_storage have __ss_family?])
+    ;;
+esac
 
 case "$ac_cv_have_ss_family_in_struct_ss$ac_cv_have___ss_family_in_struct_ss" in
  noyes)
-    AC_DEFINE_UNQUOTED(ss_family, __ss_family, [])
-    AC_DEFINE_UNQUOTED(ss_len, __ss_len, [])
+    AC_DEFINE_UNQUOTED([ss_family], [__ss_family], [normalize ss_family access])
+    AC_DEFINE_UNQUOTED([ss_len], [__ss_len], [normalize ss_len access])
     ;;
 esac
 
@@ -70,6 +107,14 @@ AC_CHECK_FUNCS(sqrt, , AC_CHECK_LIB(m, sqrt))
 AC_CHECK_FUNCS([strrchr])
 
 case "$host" in
+ *-*-hpux10.*)	# at least for hppa2.0-hp-hpux10.20
+    case "$GCC" in
+     yes)
+	;;
+     *) CFLAGS="$CFLAGS -Wp,-H18816"
+	;;
+    esac
+    ;;
  *-*-linux*)
     CFLAGS="$CFLAGS -DADJTIME_MISSING"
     ;;
@@ -77,6 +122,24 @@ case "$host" in
     CFLAGS="$CFLAGS -DNONBLOCK_BROKEN"
     ;;
 esac
+
+AC_MSG_CHECKING(for bin subdirectory)
+AC_ARG_WITH(binsubdir,
+	AC_HELP_STRING([--with-binsubdir], [bin ={bin,sbin}]),
+	use_binsubdir="$withval", use_binsubdir="bin")
+
+case "$use_binsubdir" in
+ bin)
+    ;;
+ sbin)
+    ;;
+ *)
+    AC_MSG_ERROR([<$use_binsubdir> is illegal - must be "bin" or "sbin"])
+    ;;
+esac
+AC_MSG_RESULT($use_binsubdir)
+BINSUBDIR=$use_binsubdir
+AC_SUBST(BINSUBDIR)
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

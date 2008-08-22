@@ -44,13 +44,9 @@
 #include "ntp_unixtime.h"
 #include "ntp_io.h"
 
-#ifdef HAVE_TIMEPPS_H
-# include <timepps.h>
-#else /* HAVE_TIMEPPS_H */
-# ifdef HAVE_SYS_TIMEPPS_H
-#  include <sys/timepps.h>
-# endif /* HAVE_SYS_TIMEPPS_H */
-#endif /* HAVE_TIMEPPS_H */
+#ifdef HAVE_PPSAPI
+# include "ppsapi_timepps.h"
+#endif
 
 /*
  * Definitions

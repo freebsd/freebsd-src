@@ -1,7 +1,7 @@
 /*
- * /src/NTP/ntp-4/libparse/clk_wharton.c,v 4.1 1999/02/28 15:27:24 kardel RELEASE_19990228_A
+ * /src/NTP/ntp4-dev/libparse/clk_wharton.c,v 4.2 2004/11/14 15:29:41 kardel RELEASE_20050508_A
  *  
- * clk_wharton.c,v 4.1 1999/02/28 15:27:24 kardel RELEASE_19990228_A
+ * clk_wharton.c,v 4.2 2004/11/14 15:29:41 kardel RELEASE_20050508_A
  *
  * From Philippe De Muyter <phdm@macqel.be>, 1999
  */

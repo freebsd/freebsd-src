@@ -28,7 +28,7 @@
 #define CONFIG_AUTHENTICATE	7
 #define CONFIG_KEYS		8
 #define CONFIG_REVOKE		9
-#define CONFIG_PPS		10
+#define CONFIG_CDELAY		10
 #define CONFIG_RESTRICT		11
 #define CONFIG_BDELAY		12
 #define CONFIG_TRUSTEDKEY	13
@@ -56,7 +56,7 @@
 #define CONFIG_TTL		35
 #define CONFIG_INCLUDEFILE      36
 #define CONFIG_KEYSDIR		37
-#define CONFIG_CDELAY		38
+#define CONFIG_END		38
 #ifdef OPENSSL
 #define CONFIG_CRYPTO		39
 #endif /* OPENSSL */
@@ -75,6 +75,9 @@
 #define CONF_MOD_TTL		9
 #define CONF_MOD_MODE		10
 #define CONF_MOD_NOSELECT 	11
+#define CONF_MOD_TRUE		12
+#define	CONF_MOD_PREEMPT	13
+#define CONF_MOD_DYNAMIC	14
 
 /*
  * "restrict" modifier keywords
@@ -122,13 +125,6 @@
 #define CONF_FGEN_FLAG_DISABLE	6
 
 /*
- * "pps" modifier keywords
- */
-#define CONF_PPS_ASSERT		1
-#define CONF_PPS_CLEAR		2
-#define CONF_PPS_HARDPPS	3
-
-/*
  * "discard" modifier keywords
  */
 #define CONF_DISCARD_AVERAGE	1
@@ -150,10 +146,16 @@
  * "tos" modifier keywords
  */
 #define CONF_TOS_MINCLOCK	1
-#define CONF_TOS_MINSANE	2
-#define CONF_TOS_FLOOR		3
-#define CONF_TOS_CEILING	4
-#define CONF_TOS_COHORT		5
+#define	CONF_TOS_MAXCLOCK	2
+#define CONF_TOS_MINSANE	3
+#define CONF_TOS_FLOOR		4
+#define CONF_TOS_CEILING	5
+#define CONF_TOS_COHORT		6
+#define CONF_TOS_MINDISP	7
+#define CONF_TOS_MAXDIST	8
+#define	CONF_TOS_MAXHOP		9
+#define	CONF_TOS_BEACON		10
+#define	CONF_TOS_ORPHAN		11
 
 #ifdef OPENSSL
 /*
@@ -165,10 +167,11 @@
 #define CONF_CRYPTO_CERT	4
 #define CONF_CRYPTO_RAND	5
 #define CONF_CRYPTO_KEYS	6
-#define	CONF_CRYPTO_IFFPAR	7
-#define CONF_CRYPTO_GQPAR	8
-#define CONF_CRYPTO_MVPAR	9
-#define CONF_CRYPTO_PW		10
+#define	CONF_CRYPTO_IDENT	7
+#define	CONF_CRYPTO_IFFPAR	8
+#define CONF_CRYPTO_GQPAR	9
+#define CONF_CRYPTO_MVPAR	10
+#define CONF_CRYPTO_PW		11
 #endif /* OPENSSL */
 
 /*
