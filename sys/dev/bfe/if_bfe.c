@@ -542,6 +542,7 @@ bfe_detach(device_t dev)
 
 	if (device_is_attached(dev)) {
 		BFE_LOCK(sc);
+		sc->bfe_flags |= BFE_FLAG_DETACH;
 		bfe_stop(sc);
 		BFE_UNLOCK(sc);
 		callout_drain(&sc->bfe_stat_co);
@@ -653,11 +654,18 @@ bfe_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->bfe_miibus);
 
-	if ((mii->mii_media_status & IFM_ACTIVE) != 0) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
-			sc->bfe_link = 1;
-	} else
-		sc->bfe_link = 0;
+	sc->bfe_flags &= ~BFE_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->bfe_flags |= BFE_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
 
 	/* XXX Should stop Rx/Tx engine prior to touching MAC. */
 	val = CSR_READ_4(sc, BFE_TX_CTRL);
@@ -1551,7 +1559,7 @@ bfe_start_locked(struct ifnet *ifp)
 	 * or we have nothing to send.
 	 */
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->bfe_link == 0)
+	    IFF_DRV_RUNNING || (sc->bfe_flags & BFE_FLAG_LINK) == 0)
 		return;
 
 	for (queued = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -1649,7 +1657,7 @@ bfe_init_locked(void *xsc)
 	CSR_WRITE_4(sc, BFE_IMASK, BFE_IMASK_DEF);
 
 	/* Clear link state and change media. */
-	sc->bfe_link = 0;
+	sc->bfe_flags &= ~BFE_FLAG_LINK;
 	mii_mediachg(mii);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -1712,12 +1720,12 @@ bfe_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		BFE_LOCK(sc);
-		if (ifp->if_flags & IFF_UP)
+		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				bfe_set_rx_mode(sc);
-			else
+			else if ((sc->bfe_flags & BFE_FLAG_DETACH) == 0)
 				bfe_init_locked(sc);
-		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 			bfe_stop(sc);
 		BFE_UNLOCK(sc);
 		break;
@@ -1791,7 +1799,7 @@ bfe_stop(struct bfe_softc *sc)
 
 	ifp = sc->bfe_ifp;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc->bfe_link = 0;
+	sc->bfe_flags &= ~BFE_FLAG_LINK;
 	callout_stop(&sc->bfe_stat_co);
 	sc->bfe_watchdog_timer = 0;
 
