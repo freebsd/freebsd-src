@@ -1334,17 +1334,12 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		
 		return (0);		
 	} else if (tso_info) {
-		int undersized, eth_type;
+		int min_size = TCPPKTHDRSIZE, eth_type, tagged;
 		struct cpl_tx_pkt_lso *hdr = (struct cpl_tx_pkt_lso *)txd;
 		struct ip *ip;
 		struct tcphdr *tcp;
-		char *pkthdr, tmp[TCPPKTHDRSIZE];
-		struct mbuf_vec *mv;
-		struct mbuf_iovec *tmpmi;
+		char *pkthdr;
 
-		mv = mtomv(m0);
-		tmpmi = mv->mv_vec;
-		
 		txd->flit[2] = 0;
 		GET_VTAG(cntrl, m0);
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT_LSO);
@@ -1353,21 +1348,29 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		hdr->len = htonl(mlen | 0x80000000);
 
 		DPRINTF("tso buf len=%d\n", mlen);
-		undersized = (((tmpmi->mi_len < TCPPKTHDRSIZE) &&
-			(m0->m_flags & M_VLANTAG)) ||
-		    (tmpmi->mi_len < TCPPKTHDRSIZE - ETHER_VLAN_ENCAP_LEN));
 
-		if (__predict_false(undersized)) {
-			pkthdr = tmp;
-			if (mi)
-				dump_mi(mi);
+		tagged = m0->m_flags & M_VLANTAG;
+		if (!tagged)
+			min_size -= ETHER_VLAN_ENCAP_LEN;
+
+		if (__predict_false(mlen < min_size)) {
 			printf("mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
-			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
-			panic("discontig packet - fixxorz");
-		} else 
-			pkthdr = m0->m_data;
+			    m0, mlen, m0->m_pkthdr.tso_segsz,
+			    m0->m_pkthdr.csum_flags, m0->m_flags);
+			panic("tx tso packet too small");
+		}
 
-		if (__predict_false(m0->m_flags & M_VLANTAG)) {
+		/* Make sure that ether, ip, tcp headers are all in m0 */
+		if (__predict_false(m0->m_len < min_size)) {
+			m0 = m_pullup(m0, min_size);
+			if (__predict_false(m0 == NULL)) {
+				/* XXX panic probably an overreaction */
+				panic("couldn't fit header into mbuf");
+			}
+		}
+		pkthdr = m0->m_data;
+
+		if (tagged) {
 			eth_type = CPL_ETH_II_VLAN;
 			ip = (struct ip *)(pkthdr + ETHER_HDR_LEN +
 			    ETHER_VLAN_ENCAP_LEN);
