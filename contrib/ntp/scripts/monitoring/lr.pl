@@ -52,7 +52,7 @@ sub init
     $self->{sy2} = 0.0;
 }
 
-sub sample($$$)
+sub sample($$)
 {
     my $self = shift;
     my($_x, $_y) = @_;
@@ -65,7 +65,7 @@ sub sample($$$)
     $self->{sy2} += $_y**2;
 }
 
-sub B($)
+sub B()
 {
     my $self = shift;
 
@@ -74,28 +74,28 @@ sub B($)
 	/ ($self->{n} * $self->{sx2} - $self->{sx}**2);
 }
 
-sub A($)
+sub A()
 {
     my $self = shift;
 
-    return ($self->{sy} - B($self) * $self->{sx}) / $self->{n};
+    return ($self->{sy} - B() * $self->{sx}) / $self->{n};
 }
 
-sub Y($$)
+sub Y()
 {
     my $self = shift;
 
-    return A($self) + B($self) * $_[$[];
+    return A() + B() * $_[$[];
 }
 
-sub X($$)
+sub X()
 {
     my $self = shift;
 
-    return ($_[$[] - A($self)) / B($self);
+    return ($_[$[] - A()) / B();
 }
 
-sub r($)
+sub r()
 {
     my $self = shift;
 
@@ -107,7 +107,7 @@ sub r($)
     return ($self->{n} * $self->{sxy} - $self->{sx} * $self->{sy}) / sqrt($s);
 }
 
-sub cov($)
+sub cov()
 {
     my $self = shift;
 
@@ -115,7 +115,7 @@ sub cov($)
 	/ ($self->{n} - 1);
 }
 
-sub sigma($)
+sub sigma()
 {
     my $self = shift;
 
@@ -124,7 +124,7 @@ sub sigma($)
 		/ ($self->{n}));
 }
 
-sub mean($)
+sub mean()
 {
     my $self = shift;
 

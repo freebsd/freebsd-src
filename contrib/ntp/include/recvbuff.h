@@ -9,6 +9,9 @@
 #include "ntp_fp.h"
 #include "ntp_types.h"
 
+#include <isc/list.h>
+#include <isc/result.h>
+
 /*
  * recvbuf memory management
  */
@@ -45,8 +48,11 @@ extern HANDLE	get_recv_buff_event P((void));
  */   
 #define	RX_BUFF_SIZE	1000		/* hail Mary */
 
+
+typedef struct recvbuf recvbuf_t;
+
 struct recvbuf {
-	struct recvbuf *next;		/* next buffer in chain */
+	ISC_LINK(recvbuf_t)	link;
 	union {
 		struct sockaddr_storage X_recv_srcadr;
 		caddr_t X_recv_srcclock;
@@ -56,14 +62,14 @@ struct recvbuf {
 #define	recv_srcclock	X_from_where.X_recv_srcclock
 #define recv_peer	X_from_where.X_recv_peer
 #if defined HAVE_IO_COMPLETION_PORT
-        IoCompletionInfo	iocompletioninfo;
 	WSABUF		wsabuff;
-	DWORD		AddressLength;
 #else
 	struct sockaddr_storage srcadr;	/* where packet came from */
 #endif
+	int src_addr_len;		/* source address length */
 	struct interface *dstadr;	/* interface datagram arrived thru */
 	SOCKET	fd;			/* fd on which it was received */
+	int msg_flags;			/* Flags received about the packet */
 	l_fp recv_time;			/* time of arrival */
 	void (*receiver) P((struct recvbuf *)); /* routine to receive buffer */
 	int recv_length;		/* number of octets received */
@@ -71,6 +77,7 @@ struct recvbuf {
 		struct pkt X_recv_pkt;
 		u_char X_recv_buffer[RX_BUFF_SIZE];
 	} recv_space;
+	int used;
 #define	recv_pkt	recv_space.X_recv_pkt
 #define	recv_buffer	recv_space.X_recv_buffer
 };
@@ -81,16 +88,14 @@ extern	void	init_recvbuff	P((int));
  */
 extern	void	freerecvbuf P((struct recvbuf *));
 
-	
-extern	struct recvbuf * getrecvbufs P((void));
-
 /*  Get a free buffer (typically used so an async
  *  read can directly place data into the buffer
  *
  *  The buffer is removed from the free list. Make sure
  *  you put it back with freerecvbuf() or 
  */
-extern	struct recvbuf *get_free_recv_buffer P((void));
+extern	struct recvbuf *get_free_recv_buffer P((void)); /* signal safe - no malloc */
+extern	struct recvbuf *get_free_recv_buffer_alloc P((void)); /* signal unsafe - may malloc */
 
 /*   Add a buffer to the full list
  */
@@ -108,6 +113,11 @@ extern u_long lowater_additions P((void));
  *
  */
 extern	struct recvbuf *get_full_recv_buffer P((void));
+
+/*
+ * Checks to see if there are buffers to process
+ */
+extern isc_boolean_t has_full_recv_buffer P((void));
 
 #endif /* defined __recvbuff_h */
 

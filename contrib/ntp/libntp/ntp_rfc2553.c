@@ -65,34 +65,23 @@
  * Compatability shims with the rfc2553 API to simplify ntp.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
 
 #include <sys/types.h>
 #include <ctype.h>
 #include <sys/socket.h>
-#include "ntp_rfc2553.h"
+#include <isc/net.h>
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
-#include <netdb.h>
+#include "ntp_rfc2553.h"
 
 #include "ntpd.h"
 #include "ntp_malloc.h"
 #include "ntp_stdlib.h"
 #include "ntp_string.h"
 
-#ifndef HAVE_IPV6
-
-#if defined(SYS_WINNT)
-/* XXX This is the preferred way, but for some reason the SunOS compiler
- * does not like it.
- */
-const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
-#else
-const struct in6_addr in6addr_any;
-#endif
+#ifndef ISC_PLATFORM_HAVEIPV6
 
 static char *ai_errlist[] = {
 	"Success",
@@ -112,7 +101,32 @@ static char *ai_errlist[] = {
 	"Unknown error", 				/* EAI_MAX        */
 };
 
-static	int ipv4_aton P((const char *, struct sockaddr_storage *));
+/*
+ * Local declaration
+ */
+int
+DNSlookup_name(
+	const char *name,
+	int ai_family,
+	struct hostent **Addresses
+);
+
+#ifndef SYS_WINNT
+/*
+ * Encapsulate gethostbyname to control the error code
+ */
+int
+DNSlookup_name(
+	const char *name,
+	int ai_family,
+	struct hostent **Addresses
+)
+{
+	*Addresses = gethostbyname(name);
+	return (h_errno);
+}
+#endif
+
 static	int do_nodename P((const char *nodename, struct addrinfo *ai,
     const struct addrinfo *hints));
 
@@ -121,45 +135,133 @@ getaddrinfo (const char *nodename, const char *servname,
 	const struct addrinfo *hints, struct addrinfo **res)
 {
 	int rval;
-	struct addrinfo *ai;
-	struct sockaddr_in *sockin;
+	struct servent *sp;
+	struct addrinfo *ai = NULL;
+	int port;
+	const char *proto = NULL;
+	int family, socktype, flags, protocol;
 
+
+	/*
+	 * If no name is provide just return an error
+	 */
+	if (nodename == NULL && servname == NULL)
+		return (EAI_NONAME);
+	
 	ai = calloc(sizeof(struct addrinfo), 1);
 	if (ai == NULL)
 		return (EAI_MEMORY);
 
-	if (nodename != NULL) {
-		rval = do_nodename(nodename, ai, hints);
-		if (rval != 0) {
-			freeaddrinfo(ai);
-			return (rval);
-		}
-	}
-	if (nodename == NULL && hints != NULL) {
-		ai->ai_addr = calloc(sizeof(struct sockaddr_storage), 1);
-		if (ai->ai_addr == NULL) {
-			freeaddrinfo(ai);
-			return (EAI_MEMORY);
-		}
-		ai->ai_family = AF_INET;
-		ai->ai_addrlen = sizeof(struct sockaddr_storage);
-		sockin = (struct sockaddr_in *)ai->ai_addr;
-		sockin->sin_family = AF_INET;
-		sockin->sin_addr.s_addr = htonl(INADDR_ANY);
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
-		ai->ai_addr->sa_len = SOCKLEN(ai->ai_addr);
+	/*
+	 * Copy default values from hints, if available
+	 */
+	if (hints != NULL) {
+		ai->ai_flags = hints->ai_flags;
+		ai->ai_family = hints->ai_family;
+		ai->ai_socktype = hints->ai_socktype;
+		ai->ai_protocol = hints->ai_protocol;
+
+		family = hints->ai_family;
+		socktype = hints->ai_socktype;
+		protocol = hints->ai_protocol;
+		flags = hints->ai_flags;
+
+		switch (family) {
+		case AF_UNSPEC:
+			switch (hints->ai_socktype) {
+			case SOCK_STREAM:
+				proto = "tcp";
+				break;
+			case SOCK_DGRAM:
+				proto = "udp";
+				break;
+			}
+			break;
+		case AF_INET:
+		case AF_INET6:
+			switch (hints->ai_socktype) {
+			case 0:
+				break;
+			case SOCK_STREAM:
+				proto = "tcp";
+				break;
+			case SOCK_DGRAM:
+				proto = "udp";
+				break;
+			case SOCK_RAW:
+				break;
+			default:
+				return (EAI_SOCKTYPE);
+			}
+			break;
+#ifdef	AF_LOCAL
+		case AF_LOCAL:
+			switch (hints->ai_socktype) {
+			case 0:
+				break;
+			case SOCK_STREAM:
+				break;
+			case SOCK_DGRAM:
+				break;
+			default:
+				return (EAI_SOCKTYPE);
+			}
+			break;
 #endif
-	}
-	if (servname != NULL) {
-		ai->ai_family = AF_INET;
-		ai->ai_socktype = SOCK_DGRAM;
-		if (strcmp(servname, "ntp") != 0) {
-			freeaddrinfo(ai);
-			return (EAI_SERVICE);
+		default:
+			return (EAI_FAMILY);
 		}
-		sockin = (struct sockaddr_in *)ai->ai_addr;
-		sockin->sin_port = htons(NTP_PORT);
+	} else {
+		protocol = 0;
+		family = 0;
+		socktype = 0;
+		flags = 0;
 	}
+
+	rval = do_nodename(nodename, ai, hints);
+	if (rval != 0) {
+		freeaddrinfo(ai);
+		return (rval);
+	}
+
+	/*
+	 * First, look up the service name (port) if it was
+	 * requested.  If the socket type wasn't specified, then
+	 * try and figure it out.
+	 */
+	if (servname != NULL) {
+		char *e;
+
+		port = strtol(servname, &e, 10);
+		if (*e == '\0') {
+			if (socktype == 0)
+				return (EAI_SOCKTYPE);
+			if (port < 0 || port > 65535)
+				return (EAI_SERVICE);
+			port = htons((unsigned short) port);
+		} else {
+			sp = getservbyname(servname, proto);
+			if (sp == NULL)
+				return (EAI_SERVICE);
+			port = sp->s_port;
+			if (socktype == 0) {
+				if (strcmp(sp->s_proto, "tcp") == 0)
+					socktype = SOCK_STREAM;
+				else if (strcmp(sp->s_proto, "udp") == 0)
+					socktype = SOCK_DGRAM;
+			}
+		}
+	} else
+		port = 0;
+
+	/*
+	 *
+	 * Set up the port number
+	 */
+	if (ai->ai_family == AF_INET)
+		((struct sockaddr_in *)ai->ai_addr)->sin_port = (unsigned short) port;
+	else if (ai->ai_family == AF_INET6)
+		((struct sockaddr_in6 *)ai->ai_addr)->sin6_port = (unsigned short) port;
 	*res = ai;
 	return (0);
 }
@@ -168,10 +270,17 @@ void
 freeaddrinfo(struct addrinfo *ai)
 {
 	if (ai->ai_canonname != NULL)
+	{
 		free(ai->ai_canonname);
+		ai->ai_canonname = NULL;
+	}
 	if (ai->ai_addr != NULL)
+	{
 		free(ai->ai_addr);
+		ai->ai_addr = NULL;
+	}
 	free(ai);
+	ai = NULL;
 }
 
 int
@@ -179,6 +288,7 @@ getnameinfo (const struct sockaddr *sa, u_int salen, char *host,
 	size_t hostlen, char *serv, size_t servlen, int flags)
 {
 	struct hostent *hp;
+	int namelen;
 
 	if (sa->sa_family != AF_INET)
 		return (EAI_FAMILY);
@@ -191,9 +301,15 @@ getnameinfo (const struct sockaddr *sa, u_int salen, char *host,
 		else
 			return (EAI_FAIL);
 	}
-	if (host != NULL) {
-		strncpy(host, hp->h_name, hostlen);
-		host[hostlen] = '\0';
+	if (host != NULL && hostlen > 0) {
+		/*
+		 * Don't exceed buffer
+		 */
+		namelen = min(strlen(hp->h_name), hostlen - 1);
+		if (namelen > 0) {
+			strncpy(host, hp->h_name, namelen);
+			host[namelen] = '\0';
+		}
 	}
 	return (0);
 }
@@ -212,34 +328,99 @@ do_nodename(
 	struct addrinfo *ai,
 	const struct addrinfo *hints)
 {
-	struct hostent *hp;
+	struct hostent *hp = NULL;
 	struct sockaddr_in *sockin;
+	struct sockaddr_in6 *sockin6;
+	int errval;
 
 	ai->ai_addr = calloc(sizeof(struct sockaddr_storage), 1);
 	if (ai->ai_addr == NULL)
 		return (EAI_MEMORY);
 
-	if (hints != NULL && hints->ai_flags & AI_NUMERICHOST) {
-		if (ipv4_aton(nodename,
-		    (struct sockaddr_storage *)ai->ai_addr) == 1) {
-			ai->ai_family = AF_INET;
-			ai->ai_addrlen = sizeof(struct sockaddr_in);
+	/*
+	 * For an empty node name just use the wildcard.
+	 * NOTE: We need to assume that the address family is
+	 * set elsewhere so that we can set the appropriate wildcard
+	 */
+	if (nodename == NULL) {
+		ai->ai_addrlen = sizeof(struct sockaddr_storage);
+		if (ai->ai_family == AF_INET)
+		{
+			sockin = (struct sockaddr_in *)ai->ai_addr;
+			sockin->sin_family = (short) ai->ai_family;
+			sockin->sin_addr.s_addr = htonl(INADDR_ANY);
+		}
+		else
+		{
+			sockin6 = (struct sockaddr_in6 *)ai->ai_addr;
+			sockin6->sin6_family = (short) ai->ai_family;
+			/*
+			 * we have already zeroed out the address
+			 * so we don't actually need to do this
+			 * This assignment is causing problems so
+			 * we don't do what this would do.
+			 sockin6->sin6_addr = in6addr_any;
+			 */
+		}
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+		ai->ai_addr->sa_len = SOCKLEN(ai->ai_addr);
+#endif
+
+		return (0);
+	}
+
+	/*
+	 * See if we have an IPv6 address
+	 */
+	if(strchr(nodename, ':') != NULL) {
+		if (inet_pton(AF_INET6, nodename,
+		    &((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr) == 1) {
+			((struct sockaddr_in6 *)ai->ai_addr)->sin6_family = AF_INET6;
+			ai->ai_family = AF_INET6;
+			ai->ai_addrlen = sizeof(struct sockaddr_in6);
 			return (0);
 		}
-		return (EAI_NONAME);
 	}
-	hp = gethostbyname(nodename);
+
+	/*
+	 * See if we have an IPv4 address
+	 */
+	if (inet_pton(AF_INET, nodename,
+	    &((struct sockaddr_in *)ai->ai_addr)->sin_addr) == 1) {
+		((struct sockaddr *)ai->ai_addr)->sa_family = AF_INET;
+		ai->ai_family = AF_INET;
+		ai->ai_addrlen = sizeof(struct sockaddr_in);
+		return (0);
+	}
+
+	/*
+	 * If the numeric host flag is set, don't attempt resolution
+	 */
+	if (hints != NULL && (hints->ai_flags & AI_NUMERICHOST))
+		return (EAI_NONAME);
+
+	/*
+	 * Look for a name
+	 */
+
+	errval = DNSlookup_name(nodename, AF_INET, &hp);
+
 	if (hp == NULL) {
-		if (h_errno == TRY_AGAIN)
+		if (errval == TRY_AGAIN || errval == EAI_AGAIN)
 			return (EAI_AGAIN);
-		else {
-			if (ipv4_aton(nodename,
-			    (struct sockaddr_storage *)ai->ai_addr) == 1) {
+		else if (errval == EAI_NONAME) {
+			if (inet_pton(AF_INET, nodename,
+			    &((struct sockaddr_in *)ai->ai_addr)->sin_addr) == 1) {
+				((struct sockaddr *)ai->ai_addr)->sa_family = AF_INET;
 				ai->ai_family = AF_INET;
 				ai->ai_addrlen = sizeof(struct sockaddr_in);
 				return (0);
 			}
-			return (EAI_FAIL);
+			return (errval);
+		}
+		else
+		{
+			return (errval);
 		}
 	}
 	ai->ai_family = hp->h_addrtype;
@@ -259,73 +440,4 @@ do_nodename(
 	return (0);
 }
 
-/*
- * ipv4_aton - return a net number (this is crude, but careful)
- */
-static int
-ipv4_aton(
-	const char *num,
-	struct sockaddr_storage *saddr
-	)
-{
-	const char *cp;
-	char *bp;
-	int i;
-	int temp;
-	char buf[80];		/* will core dump on really stupid stuff */
-	u_int32 netnum;
-	struct sockaddr_in *addr;
-
-	cp = num;
-	netnum = 0;
-	for (i = 0; i < 4; i++) {
-		bp = buf;
-		while (isdigit((int)*cp))
-			*bp++ = *cp++;
-		if (bp == buf)
-			break;
-
-		if (i < 3) {
-			if (*cp++ != '.')
-				break;
-		} else if (*cp != '\0')
-			break;
-
-		*bp = '\0';
-		temp = atoi(buf);
-		if (temp > 255)
-			break;
-		netnum <<= 8;
-		netnum += temp;
-#ifdef DEBUG
-		if (debug > 3)
-			printf("ipv4_aton %s step %d buf %s temp %d netnum %lu\n",
-			   num, i, buf, temp, (u_long)netnum);
-#endif
-	}
-
-	if (i < 4) {
-#ifdef DEBUG
-		if (debug > 3)
-			printf(
-				"ipv4_aton: \"%s\" invalid host number, line ignored\n",
-				num);
-#endif
-		return (0);
-	}
-
-	/*
-	 * make up socket address.	Clear it out for neatness.
-	 */
-	memset((void *)saddr, 0, sizeof(struct sockaddr_storage));
-	addr = (struct sockaddr_in *)saddr;
-	addr->sin_family = AF_INET;
-	addr->sin_port = htons(NTP_PORT);
-	addr->sin_addr.s_addr = htonl(netnum);
-#ifdef DEBUG
-	if (debug > 1)
-		printf("ipv4_aton given %s, got %s.\n", num, ntoa(saddr));
-#endif
-	return (1);
-}
-#endif /* !HAVE_IPV6 */
+#endif /* !ISC_PLATFORM_HAVEIPV6 */

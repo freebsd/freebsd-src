@@ -115,7 +115,7 @@ int Gflag = 0;
 int height;
 
 char *progname;
-int debug;
+volatile int debug;
 
 static	void	doit		(double, double, double, double, double, char *);
 static	double	latlong		(char *, int);
@@ -298,7 +298,7 @@ latlong(
 	register char *cp;
 	register char *bp;
 	double arg;
-	double div;
+	double divby;
 	int isneg;
 	char buf[32];
 	char *colon;
@@ -340,7 +340,7 @@ latlong(
 		*bp = '\0';
 		cp++;
 		arg = atof(buf);
-		div = 60.0;
+		divby = 60.0;
 		colon = strchr(cp, ':');
 		if (colon != NULL) {
 			bp = buf;
@@ -348,11 +348,11 @@ latlong(
 			    *bp++ = *cp++;
 			*bp = '\0';
 			cp++;
-			arg += atof(buf) / div;
-			div = 3600.0;
+			arg += atof(buf) / divby;
+			divby = 3600.0;
 		}
 		if (*cp != '\0')
-		    arg += atof(cp) / div;
+		    arg += atof(cp) / divby;
 	} else {
 		arg = atof(str);
 	}
