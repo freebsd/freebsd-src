@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(btext)
 ENTRY(_start)
 	/*
-	 * Initialize misc state to known values.  Interrupts disabled, normal
+	 * Initialize misc. state to known values: interrupts disabled, normal
 	 * globals, windows flushed (cr = 0, cs = nwindows - 1), no clean
 	 * windows, pil 0, and floating point disabled.
 	 */

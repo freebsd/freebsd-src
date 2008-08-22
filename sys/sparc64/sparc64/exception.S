@@ -235,7 +235,7 @@ END(tl1_kstack_fault)
 
 /*
  * Magic to resume from a spill or fill trap.  If we get an alignment or an
- * mmu fault during a spill or a fill, this macro will detect the fault and
+ * MMU fault during a spill or a fill, this macro will detect the fault and
  * resume at a set instruction offset in the trap handler.
  *
  * To check if the previous trap was a spill/fill we convert the trapped pc
@@ -287,7 +287,7 @@ END(tl1_kstack_fault)
 	inc	16, ASP_REG
 
 /*
- * For certain faults we need to clear the SFSR mmu register before returning.
+ * For certain faults we need to clear the SFSR MMU register before returning.
  */
 #define	RSF_CLR_SFSR \
 	wr	%g0, ASI_DMMU, %asi ; \
@@ -1078,7 +1078,7 @@ ENTRY(tl0_dmmu_prot_trap)
 	membar	#Sync
 
 	/*
-	 * Save the mmu registers and call common trap code.
+	 * Save the MMU registers and call common trap code.
 	 */
 	tl0_split
 	clr	%o1
@@ -2370,10 +2370,10 @@ END(tl0_intr)
 ENTRY(tl0_ret)
 	/*
 	 * Check for pending asts atomically with returning.  We must raise
-	 * the pil before checking, and if no asts are found the pil must
+	 * the PIL before checking, and if no asts are found the PIL must
 	 * remain raised until the retry is executed, or we risk missing asts
-	 * caused by interrupts occuring after the test.  If the pil is lowered,
-	 * as it is when we call ast, the check must be re-executed.
+	 * caused by interrupts occuring after the test.  If the PIL is
+	 * lowered, as it is when we call ast, the check must be re-executed.
 	 */
 	wrpr	%g0, PIL_TICK, %pil
 	ldx	[PCPU(CURTHREAD)], %l0
@@ -2384,7 +2384,7 @@ ENTRY(tl0_ret)
 	 nop
 
 	/*
-	 * We have an ast.  Re-enable interrupts and handle it, then restart
+	 * We have an AST.  Re-enable interrupts and handle it, then restart
 	 * the return sequence.
 	 */
 	wrpr	%g0, 0, %pil

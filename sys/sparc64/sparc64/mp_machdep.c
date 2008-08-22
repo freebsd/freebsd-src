@@ -394,7 +394,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	while (csa->csa_count != 0)
 		;
 
-	/* ok, now enter the scheduler */
+	/* Ok, now enter the scheduler. */
 	sched_throw(NULL);
 }
 

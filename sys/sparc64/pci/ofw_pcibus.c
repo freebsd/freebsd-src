@@ -60,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-/* Helper functions. */
+/* Helper functions */
 static void ofw_pcibus_setup_device(device_t, u_int, u_int, u_int);
 
-/* Methods. */
+/* Methods */
 static device_probe_t ofw_pcibus_probe;
 static device_attach_t ofw_pcibus_attach;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
@@ -123,12 +123,12 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	uint32_t reg;
 
 	/*
-	 * Initialize the latency timer register for busmaster devices to work
-	 * properly. This is another task which the firmware does not always
-	 * perform. The Min_Gnt register can be used to compute it's recommended
-	 * value: it contains the desired latency in units of 1/4 us. To
-	 * calculate the correct latency timer value, the clock frequency of
-	 * the bus (defaulting to 33Mhz) should be used and no wait states
+	 * Initialize the latency timer register for busmaster devices to
+	 * work properly.  This is another task which the firmware doesn't
+	 * always perform.  The Min_Gnt register can be used to compute its
+	 * recommended value: it contains the desired latency in units of
+	 * 1/4 us.  To calculate the correct latency timer value, the clock
+	 * frequency of the bus (defaulting to 33MHz) and no wait states
 	 * should be assumed.
 	 */
 	if (OF_getprop(ofw_bus_get_node(bridge), "clock-frequency", &reg,
@@ -151,17 +151,18 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	/*
 	 * Compute a value to write into the cache line size register.
 	 * The role of the streaming cache is unclear in write invalidate
-	 * transfers, so it is made sure that it's line size is always reached.
-	 * Generally, the cache line size is fixed at 64 bytes by Fireplane/
-	 * Safari, JBus and UPA.
+	 * transfers, so it is made sure that it's line size is always
+	 * reached.  Generally, the cache line size is fixed at 64 bytes
+	 * by Fireplane/Safari, JBus and UPA.
 	 */
 	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
 	    STRBUF_LINESZ / sizeof(uint32_t), 1);
 #endif
 
 	/*
-	 * The preset in the intline register is usually wrong. Reset it to 255,
-	 * so that the PCI code will reroute the interrupt if needed.
+	 * The preset in the intline register is usually wrong.  Reset
+	 * it to 255, so that the PCI code will reroute the interrupt if
+	 * needed.
 	 */
 	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_INTLINE,
 	    PCI_INVALID_IRQ, 1);
@@ -183,7 +184,6 @@ ofw_pcibus_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
 		    domain, busno);
-
 	node = ofw_bus_get_node(dev);
 
 #ifndef SUN4V
@@ -237,7 +237,8 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	} else if (intr >= 255) {
 		/*
 		 * A fully specified interrupt (including IGN), as present on
-		 * SPARCengine Ultra AX and e450. Extract the INO and return it.
+		 * SPARCengine Ultra AX and E450.  Extract the INO and return
+		 * it.
 		 */
 		return (INTINO(intr));
 #endif
@@ -245,11 +246,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	/*
 	 * If we got intr from a property, it may or may not be an intpin.
 	 * For on-board devices, it frequently is not, and is completely out
-	 * of the valid intpin range. For PCI slots, it hopefully is, otherwise
-	 * we will have trouble interfacing with non-OFW buses such as cardbus.
+	 * of the valid intpin range.  For PCI slots, it hopefully is,
+	 * otherwise we will have trouble interfacing with non-OFW buses
+	 * such as cardbus.
 	 * Since we cannot tell which it is without violating layering, we
-	 * will always use the route_interrupt method, and treat exceptions on
-	 * the level they become apparent.
+	 * will always use the route_interrupt method, and treat exceptions
+	 * on the level they become apparent.
 	 */
 	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr));
 }
