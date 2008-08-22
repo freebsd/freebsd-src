@@ -499,7 +499,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * We have been unable to succeed in upgrading, so just
 		 * give up the shared lock.
 		 */
-		wakeup_swapper += wakeupshlk(lk, file, line);
+		wakeup_swapper |= wakeupshlk(lk, file, line);
 
 		/* FALLTHROUGH */
 	case LK_EXCLUSIVE:
@@ -787,7 +787,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 				"%s: %p waking up all threads on the %s queue",
 				    __func__, lk, queue == SQ_SHARED_QUEUE ?
 				    "shared" : "exclusive");
-				wakeup_swapper += sleepq_broadcast(
+				wakeup_swapper |= sleepq_broadcast(
 				    &lk->lock_object, SLEEPQ_LK, 0, queue);
 
 				/*
