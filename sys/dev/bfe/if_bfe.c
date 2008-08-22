@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -125,6 +126,7 @@ static int  bfe_dma_alloc			(struct bfe_softc *);
 static void bfe_dma_free		(struct bfe_softc *sc);
 static void bfe_dma_map				(void *, bus_dma_segment_t *, int, int);
 static void bfe_cam_write			(struct bfe_softc *, u_char *, int);
+static int  sysctl_bfe_stats		(SYSCTL_HANDLER_ARGS);
 
 static device_method_t bfe_methods[] = {
 	/* Device interface */
@@ -472,6 +474,11 @@ bfe_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0, sysctl_bfe_stats,
+	    "I", "Statistics");
 
 	/* Set up ifnet structure */
 	ifp = sc->bfe_ifp = if_alloc(IFT_ETHER);
@@ -877,7 +884,7 @@ bfe_pci_setup(struct bfe_softc *sc, u_int32_t cores)
 static void
 bfe_clear_stats(struct bfe_softc *sc)
 {
-	u_long reg;
+	uint32_t reg;
 
 	BFE_LOCK_ASSERT(sc);
 
@@ -1082,6 +1089,8 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 	u_int32_t val;
 	int i = 0;
 
+	BFE_LOCK_ASSERT(sc);
+
 	val = CSR_READ_4(sc, BFE_RXCONF);
 
 	if (ifp->if_flags & IFF_PROMISC)
@@ -1241,17 +1250,89 @@ bfe_setupphy(struct bfe_softc *sc)
 static void
 bfe_stats_update(struct bfe_softc *sc)
 {
-	u_long reg;
-	u_int32_t *val;
+	struct bfe_hw_stats *stats;
+	struct ifnet *ifp;
+	uint32_t mib[BFE_MIB_CNT];
+	uint32_t reg, *val;
 
-	val = &sc->bfe_hwstats.tx_good_octets;
-	for (reg = BFE_TX_GOOD_O; reg <= BFE_TX_PAUSE; reg += 4) {
-		*val++ += CSR_READ_4(sc, reg);
-	}
-	val = &sc->bfe_hwstats.rx_good_octets;
-	for (reg = BFE_RX_GOOD_O; reg <= BFE_RX_NPAUSE; reg += 4) {
-		*val++ += CSR_READ_4(sc, reg);
-	}
+	BFE_LOCK_ASSERT(sc);
+
+	val = mib;
+	CSR_WRITE_4(sc, BFE_MIB_CTRL, BFE_MIB_CLR_ON_READ);
+	for (reg = BFE_TX_GOOD_O; reg <= BFE_TX_PAUSE; reg += 4)
+		*val++ = CSR_READ_4(sc, reg);
+	for (reg = BFE_RX_GOOD_O; reg <= BFE_RX_NPAUSE; reg += 4)
+		*val++ = CSR_READ_4(sc, reg);
+
+	ifp = sc->bfe_ifp;
+	stats = &sc->bfe_stats;
+	/* Tx stat. */
+	stats->tx_good_octets += mib[MIB_TX_GOOD_O];
+	stats->tx_good_frames += mib[MIB_TX_GOOD_P];
+	stats->tx_octets += mib[MIB_TX_O];
+	stats->tx_frames += mib[MIB_TX_P];
+	stats->tx_bcast_frames += mib[MIB_TX_BCAST];
+	stats->tx_mcast_frames += mib[MIB_TX_MCAST];
+	stats->tx_pkts_64 += mib[MIB_TX_64];
+	stats->tx_pkts_65_127 += mib[MIB_TX_65_127];
+	stats->tx_pkts_128_255 += mib[MIB_TX_128_255];
+	stats->tx_pkts_256_511 += mib[MIB_TX_256_511];
+	stats->tx_pkts_512_1023 += mib[MIB_TX_512_1023];
+	stats->tx_pkts_1024_max += mib[MIB_TX_1024_MAX];
+	stats->tx_jabbers += mib[MIB_TX_JABBER];
+	stats->tx_oversize_frames += mib[MIB_TX_OSIZE];
+	stats->tx_frag_frames += mib[MIB_TX_FRAG];
+	stats->tx_underruns += mib[MIB_TX_URUNS];
+	stats->tx_colls += mib[MIB_TX_TCOLS];
+	stats->tx_single_colls += mib[MIB_TX_SCOLS];
+	stats->tx_multi_colls += mib[MIB_TX_MCOLS];
+	stats->tx_excess_colls += mib[MIB_TX_ECOLS];
+	stats->tx_late_colls += mib[MIB_TX_LCOLS];
+	stats->tx_deferrals += mib[MIB_TX_DEFERED];
+	stats->tx_carrier_losts += mib[MIB_TX_CLOST];
+	stats->tx_pause_frames += mib[MIB_TX_PAUSE];
+	/* Rx stat. */
+	stats->rx_good_octets += mib[MIB_RX_GOOD_O];
+	stats->rx_good_frames += mib[MIB_RX_GOOD_P];
+	stats->rx_octets += mib[MIB_RX_O];
+	stats->rx_frames += mib[MIB_RX_P];
+	stats->rx_bcast_frames += mib[MIB_RX_BCAST];
+	stats->rx_mcast_frames += mib[MIB_RX_MCAST];
+	stats->rx_pkts_64 += mib[MIB_RX_64];
+	stats->rx_pkts_65_127 += mib[MIB_RX_65_127];
+	stats->rx_pkts_128_255 += mib[MIB_RX_128_255];
+	stats->rx_pkts_256_511 += mib[MIB_RX_256_511];
+	stats->rx_pkts_512_1023 += mib[MIB_RX_512_1023];
+	stats->rx_pkts_1024_max += mib[MIB_RX_1024_MAX];
+	stats->rx_jabbers += mib[MIB_RX_JABBER];
+	stats->rx_oversize_frames += mib[MIB_RX_OSIZE];
+	stats->rx_frag_frames += mib[MIB_RX_FRAG];
+	stats->rx_missed_frames += mib[MIB_RX_MISS];
+	stats->rx_crc_align_errs += mib[MIB_RX_CRCA];
+	stats->rx_runts += mib[MIB_RX_USIZE];
+	stats->rx_crc_errs += mib[MIB_RX_CRC];
+	stats->rx_align_errs += mib[MIB_RX_ALIGN];
+	stats->rx_symbol_errs += mib[MIB_RX_SYM];
+	stats->rx_pause_frames += mib[MIB_RX_PAUSE];
+	stats->rx_control_frames += mib[MIB_RX_NPAUSE];
+
+	/* Update counters in ifnet. */
+	ifp->if_opackets += (u_long)mib[MIB_TX_GOOD_P];
+	ifp->if_collisions += (u_long)mib[MIB_TX_TCOLS];
+	ifp->if_oerrors += (u_long)mib[MIB_TX_URUNS] +
+	    (u_long)mib[MIB_TX_ECOLS] +
+	    (u_long)mib[MIB_TX_DEFERED] +
+	    (u_long)mib[MIB_TX_CLOST];
+
+	ifp->if_ipackets += (u_long)mib[MIB_RX_GOOD_P];
+
+	ifp->if_ierrors += mib[MIB_RX_JABBER] +
+	    mib[MIB_RX_MISS] +
+	    mib[MIB_RX_CRCA] +
+	    mib[MIB_RX_USIZE] +
+	    mib[MIB_RX_CRC] +
+	    mib[MIB_RX_ALIGN] +
+	    mib[MIB_RX_SYM];
 }
 
 static void
@@ -1283,7 +1364,6 @@ bfe_txeof(struct bfe_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->bfe_txmbuf_tag, r->bfe_map);
 
-		ifp->if_opackets++;
 		m_freem(r->bfe_mbuf);
 		r->bfe_mbuf = NULL;
 	}
@@ -1343,9 +1423,6 @@ bfe_rxeof(struct bfe_softc *sc)
 
 		/* flag an error and try again */
 		if ((len > ETHER_MAX_LEN+32) || (flags & BFE_RX_FLAG_ERRORS)) {
-			ifp->if_ierrors++;
-			if (flags & BFE_RX_FLAG_SERR)
-				ifp->if_collisions++;
 			m_freem(m);
 			continue;
 		}
@@ -1354,7 +1431,6 @@ bfe_rxeof(struct bfe_softc *sc)
 		m_adj(m, BFE_RX_OFFSET);
 		m->m_len = m->m_pkthdr.len = len;
 
-		ifp->if_ipackets++;
 		m->m_pkthdr.rcvif = ifp;
 		BFE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
@@ -1373,7 +1449,7 @@ bfe_intr(void *xsc)
 {
 	struct bfe_softc *sc = xsc;
 	struct ifnet *ifp;
-	u_int32_t istat, flag;
+	u_int32_t istat;
 
 	ifp = sc->bfe_ifp;
 
@@ -1396,6 +1472,14 @@ bfe_intr(void *xsc)
 		return;
 	}
 
+	/* A packet was received */
+	if (istat & BFE_ISTAT_RX)
+		bfe_rxeof(sc);
+
+	/* A packet was sent */
+	if (istat & BFE_ISTAT_TX)
+		bfe_txeof(sc);
+
 	if (istat & BFE_ISTAT_ERRORS) {
 
 		if (istat & BFE_ISTAT_DSCE) {
@@ -1412,26 +1496,9 @@ bfe_intr(void *xsc)
 			BFE_UNLOCK(sc);
 			return;
 		}
-		
-		flag = CSR_READ_4(sc, BFE_DMATX_STAT);
-		if (flag & BFE_STAT_EMASK)
-			ifp->if_oerrors++;
-
-		flag = CSR_READ_4(sc, BFE_DMARX_STAT);
-		if (flag & BFE_RX_FLAG_ERRORS)
-			ifp->if_ierrors++;
-
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		bfe_init_locked(sc);
 	}
-
-	/* A packet was received */
-	if (istat & BFE_ISTAT_RX)
-		bfe_rxeof(sc);
-
-	/* A packet was sent */
-	if (istat & BFE_ISTAT_TX)
-		bfe_txeof(sc);
 
 	/* We have packets pending, fire them out */
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1804,4 +1871,104 @@ bfe_stop(struct bfe_softc *sc)
 	bfe_chip_halt(sc);
 	bfe_tx_ring_free(sc);
 	bfe_rx_ring_free(sc);
+}
+
+static int
+sysctl_bfe_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct bfe_softc *sc;
+	struct bfe_hw_stats *stats;
+	int error, result;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (result != 1)
+		return (error);
+
+	sc = (struct bfe_softc *)arg1;
+	stats = &sc->bfe_stats;
+
+	printf("%s statistics:\n", device_get_nameunit(sc->bfe_dev));
+	printf("Transmit good octets : %ju\n",
+	    (uintmax_t)stats->tx_good_octets);
+	printf("Transmit good frames : %ju\n",
+	    (uintmax_t)stats->tx_good_frames);
+	printf("Transmit octets : %ju\n",
+	    (uintmax_t)stats->tx_octets);
+	printf("Transmit frames : %ju\n",
+	    (uintmax_t)stats->tx_frames);
+	printf("Transmit broadcast frames : %ju\n",
+	    (uintmax_t)stats->tx_bcast_frames);
+	printf("Transmit multicast frames : %ju\n",
+	    (uintmax_t)stats->tx_mcast_frames);
+	printf("Transmit frames 64 bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_64);
+	printf("Transmit frames 65 to 127 bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_65_127);
+	printf("Transmit frames 128 to 255 bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_128_255);
+	printf("Transmit frames 256 to 511 bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_256_511);
+	printf("Transmit frames 512 to 1023 bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_512_1023);
+	printf("Transmit frames 1024 to max bytes : %ju\n",
+	    (uint64_t)stats->tx_pkts_1024_max);
+	printf("Transmit jabber errors : %u\n", stats->tx_jabbers);
+	printf("Transmit oversized frames : %ju\n",
+	    (uint64_t)stats->tx_oversize_frames);
+	printf("Transmit fragmented frames : %ju\n",
+	    (uint64_t)stats->tx_frag_frames);
+	printf("Transmit underruns : %u\n", stats->tx_colls);
+	printf("Transmit total collisions : %u\n", stats->tx_single_colls);
+	printf("Transmit single collisions : %u\n", stats->tx_single_colls);
+	printf("Transmit multiple collisions : %u\n", stats->tx_multi_colls);
+	printf("Transmit excess collisions : %u\n", stats->tx_excess_colls);
+	printf("Transmit late collisions : %u\n", stats->tx_late_colls);
+	printf("Transmit deferrals : %u\n", stats->tx_deferrals);
+	printf("Transmit carrier losts : %u\n", stats->tx_carrier_losts);
+	printf("Transmit pause frames : %u\n", stats->tx_pause_frames);
+
+	printf("Receive good octets : %ju\n",
+	    (uintmax_t)stats->rx_good_octets);
+	printf("Receive good frames : %ju\n",
+	    (uintmax_t)stats->rx_good_frames);
+	printf("Receive octets : %ju\n",
+	    (uintmax_t)stats->rx_octets);
+	printf("Receive frames : %ju\n",
+	    (uintmax_t)stats->rx_frames);
+	printf("Receive broadcast frames : %ju\n",
+	    (uintmax_t)stats->rx_bcast_frames);
+	printf("Receive multicast frames : %ju\n",
+	    (uintmax_t)stats->rx_mcast_frames);
+	printf("Receive frames 64 bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_64);
+	printf("Receive frames 65 to 127 bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_65_127);
+	printf("Receive frames 128 to 255 bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_128_255);
+	printf("Receive frames 256 to 511 bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_256_511);
+	printf("Receive frames 512 to 1023 bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_512_1023);
+	printf("Receive frames 1024 to max bytes : %ju\n",
+	    (uint64_t)stats->rx_pkts_1024_max);
+	printf("Receive jabber errors : %u\n", stats->rx_jabbers);
+	printf("Receive oversized frames : %ju\n",
+	    (uint64_t)stats->rx_oversize_frames);
+	printf("Receive fragmented frames : %ju\n",
+	    (uint64_t)stats->rx_frag_frames);
+	printf("Receive missed frames : %u\n", stats->rx_missed_frames);
+	printf("Receive CRC align errors : %u\n", stats->rx_crc_align_errs);
+	printf("Receive undersized frames : %u\n", stats->rx_runts);
+	printf("Receive CRC errors : %u\n", stats->rx_crc_errs);
+	printf("Receive align errors : %u\n", stats->rx_align_errs);
+	printf("Receive symbol errors : %u\n", stats->rx_symbol_errs);
+	printf("Receive pause frames : %u\n", stats->rx_pause_frames);
+	printf("Receive control frames : %u\n", stats->rx_control_frames);
+
+	return (error);
 }
