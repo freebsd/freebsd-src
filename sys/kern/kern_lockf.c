@@ -1340,9 +1340,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 			goto out;
 		}
 
-		sx_xunlock(&state->ls_lock);
-		error = tsleep(lock, priority, lockstr, 0);
-		sx_xlock(&state->ls_lock);
+		error = sx_sleep(lock, &state->ls_lock, priority, lockstr, 0);
 		/*
 		 * We may have been awakened by a signal and/or by a
 		 * debugger continuing us (in which cases we must
