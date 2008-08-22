@@ -8,11 +8,13 @@ NO_MAN=
        ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntp-keygen
+SRCS=	ntp-keygen.c ntp-keygen-opts.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
+	-I${.CURDIR}/../../../contrib/ntp/libopts
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} ${LIBOPTS}
+LDADD=	${LIBNTP} ${LIBOPTS}
 
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 DPADD+=	${LIBMD} ${LIBCRYPTO}
