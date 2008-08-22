@@ -524,7 +524,8 @@ extern int (*ata_raid_ioctl_func)(u_long cmd, caddr_t data);
 extern struct intr_config_hook *ata_delayed_attach;
 extern devclass_t ata_devclass;
 extern int ata_wc;
- 
+extern int ata_dma_check_80pin;
+
 /* public prototypes */
 /* ata-all.c: */
 int ata_probe(device_t dev);
