@@ -173,8 +173,6 @@ static void lp_intr(void *);
 
 #define DEVTOSOFTC(dev) \
 	((struct lp_data *)device_get_softc(dev))
-#define UNITOSOFTC(unit) \
-	((struct lp_data *)devclass_get_softc(lp_devclass, (unit)))
 #define UNITODEVICE(unit) \
 	(devclass_get_device(lp_devclass, (unit)))
 
