@@ -9,9 +9,11 @@
 #include "ntp_syslog.h"
 #include "ntp_unixtime.h"
 #include "ntp_stdlib.h"
+#include "ntp_random.h"
+#include "ntpd.h"		/* for sys_precision */
 
 #ifdef SIM
-#include "ntpsim.h"
+# include "ntpsim.h"
 #endif /*SIM */
 
 #ifdef HAVE_SYS_PARAM_H
@@ -33,11 +35,15 @@
  * made to minimize errors by always rounding toward zero and amortizing
  * adjustment residues. By default the adjustment quantum is 1 us for
  * the usual Unix tickadj() system call, but this can be increased if
- * necessary by a configuration command. For instance, when the
+ * necessary by the tick configuration command. For instance, when the
  * adjtime() quantum is a clock tick for a 100-Hz clock, the quantum
  * should be 10 ms.
  */
-double	sys_tick = 1e-6;	/* tickadj() quantum (s) */
+#if defined RELIANTUNIX_CLOCK || defined SCO5_CLOCK
+double	sys_tick = 10e-3;	/* 10 ms tickadj() */
+#else
+double	sys_tick = 1e-6;	/* 1 us tickadj() */
+#endif
 double	sys_residual = 0;	/* adjustment residue (s) */
 
 #ifndef SIM
@@ -57,6 +63,8 @@ get_systime(
 
 	/*
 	 * Convert Unix clock from seconds and nanoseconds to seconds.
+	 * The bottom is only two bits down, so no need for fuzz.
+	 * Some systems don't have that level of precision, however...
 	 */
 # ifdef HAVE_CLOCK_GETTIME
 	clock_gettime(CLOCK_REALTIME, &ts);
@@ -71,6 +79,7 @@ get_systime(
 
 	/*
 	 * Convert Unix clock from seconds and microseconds to seconds.
+	 * Add in unbiased random fuzz beneath the microsecond.
 	 */
 	GETTIMEOFDAY(&tv, NULL);
 	now->l_i = tv.tv_sec + JAN_1970;
@@ -79,13 +88,22 @@ get_systime(
 #endif /* HAVE_CLOCK_GETTIME || HAVE_GETCLOCK */
 
 	/*
+	 * ntp_random() produces 31 bits (always nonnegative).
+	 * This bit is done only after the precision has been
+	 * determined.
+	 */
+	if (sys_precision != 0)
+		dtemp += (ntp_random() / FRAC - .5) / (1 <<
+		    -sys_precision);
+
+	/*
 	 * Renormalize to seconds past 1900 and fraction.
 	 */
 	dtemp += sys_residual;
 	if (dtemp >= 1) {
 		dtemp -= 1;
 		now->l_i++;
-	} else if (dtemp < -1) {
+	} else if (dtemp < 0) {
 		dtemp += 1;
 		now->l_i--;
 	}
@@ -135,10 +153,13 @@ adj_systime(
 	if (isneg) {
 		adjtv.tv_sec = -adjtv.tv_sec;
 		adjtv.tv_usec = -adjtv.tv_usec;
+		sys_residual = -sys_residual;
 	}
-	if (adjtime(&adjtv, &oadjtv) < 0) {
-		msyslog(LOG_ERR, "adj_systime: %m");
-		return (0);
+	if (adjtv.tv_sec != 0 || adjtv.tv_usec != 0) {
+		if (adjtime(&adjtv, &oadjtv) < 0) {
+			msyslog(LOG_ERR, "adj_systime: %m");
+			return (0);
+		}
 	}
 	return (1);
 }
@@ -173,11 +194,11 @@ step_systime(
 		    (double)adjtv.tv_sec) * 1e6 + .5);
 	}
 #if defined(HAVE_CLOCK_GETTIME) || defined(HAVE_GETCLOCK)
-#ifdef HAVE_CLOCK_GETTIME
+# ifdef HAVE_CLOCK_GETTIME
 	(void) clock_gettime(CLOCK_REALTIME, &ts);
-#else
+# else
 	(void) getclock(TIMEOFDAY, &ts);
-#endif
+# endif
 	timetv.tv_sec = ts.tv_sec;
 	timetv.tv_usec = ts.tv_nsec / 1000;
 #else /*  not HAVE_GETCLOCK */
@@ -406,13 +427,8 @@ adj_systime(
 		adjtv.tv_usec = -adjtv.tv_usec;
 		sys_residual = -sys_residual;
 	}
-
-	/*
-	 * We went to all the trouble just to be sure the emulation is
-	 * precise. We now return to our regularly scheduled concert.
-	 */
-	ntp_node.clk_time -= adjtv.tv_sec + adjtv.tv_usec / 1e6;
-        return (1);
+	ntp_node.adj = now;
+	return (1);
 }
  
  
@@ -424,7 +440,12 @@ step_systime(
         double now		/* step adjustment (s) */
         )
 {
-	ntp_node.adj = now;
+#ifdef DEBUG
+	if (debug)
+		printf("step_systime: time %.6f adj %.6f\n",
+		   ntp_node.ntp_time, now);
+#endif
+	ntp_node.ntp_time += now;
 	return (1);
 }
 

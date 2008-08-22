@@ -1,7 +1,6 @@
 /*
  * numtohost - convert network number to host name.
  */
-#include <netdb.h>
 
 #include "ntp_fp.h"
 #include "ntp_stdlib.h"

@@ -54,8 +54,6 @@ HOW TO GET IP INTERFACE INFORMATION
   the stream in an I_STR ioctl. This ususally also implies
   USE_STREAMS_DEVICE FOR IF_CONFIG. Dell UNIX is a notable exception.
 
-  STREAMS_TLI - use ioctl(I_STR) to implement ioctl(SIOCGIFCONF)
-
 WHAT DOES IOCTL(SIOCGIFCONF) RETURN IN THE BUFFER
 
   UNIX V.4 machines implement a sockets library on top of streams.
@@ -81,11 +79,6 @@ MISC
   RETSIGTYPE		- Define signal function type.
   NO_SIGNED_CHAR_DECL - No "signed char" see include/ntp.h
   LOCK_PROCESS		- Have plock.
-  UDP_WILDCARD_DELIVERY
-			- these systems deliver broadcast packets to the wildcard
-			  port instead to a port bound to the interface bound
-			  to the correct broadcast address - are these
-			  implementations broken or did the spec change ?
 */
 
 /*
@@ -98,6 +91,10 @@ MISC
 #define P(x)    ()
 #endif /* not __STDC__ and not HAVE_PROTOTYPES */
 #endif /* P */
+
+#if !defined(HAVE_NTP_ADJTIME) && defined(HAVE___ADJTIMEX)
+# define ntp_adjtime __adjtimex
+#endif
 
 #if 0
 
@@ -244,6 +241,7 @@ typedef unsigned long u_long;
 #ifndef SYS_WINNT
 # define SOCKET	int
 # define INVALID_SOCKET	-1
+# define SOCKET_ERROR	-1
 # define closesocket close
 #endif
 /*
@@ -272,8 +270,6 @@ typedef unsigned long u_long;
 # define unlink _unlink
 # define fileno _fileno
 # define write _write
-# define vsnprintf _vsnprintf
-# define snprintf _snprintf
 #ifndef close
 # define close _close
 #endif
@@ -355,8 +351,6 @@ extern void alarm P((int seconds));
 #define getclock	clock_gettime
 #define fcntl		ioctl
 #define _getch		getchar
-#define random 		rand
-#define srandom		srand
 
 /* define this away for vxWorks */
 #define openlog(x,y)

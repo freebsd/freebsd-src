@@ -20,13 +20,13 @@ while (<>) {
 	    printf "  printf(\"sizeof($type) = %%d\\n\", \n\t (int) sizeof($type));\n";
 	    next;
 	}
-	if (/\s*\w+\s*(\w*)(\[.*\])?\s*;\s*$/) {
+	if (/\s*\w+\s+(\w*)\s*(\[.*\])?\s*;\s*$/) {
 	    $field = $1;
 	    print STDERR "\tfield = '$field'\n" if $debug;
 	    printf "  printf(\"offsetof($field) = %%d\\n\", \n\t (int) offsetof($type, $field));\n";
 	    next;
 	}
-	if (/^};$/) {
+	if (/^}\s*;\s*$/) {
 	    printf "  printf(\"\\n\");\n\n";
 	    $found = 0 if $last;
 	    next;

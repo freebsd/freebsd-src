@@ -80,13 +80,9 @@ struct ppsclockev {
 };
 #endif /* ! HAVE_STRUCT_PPSCLOCKEV */
 
-#ifdef HAVE_TIMEPPS_H
-#   include <timepps.h>
-#else
-# ifdef HAVE_SYS_TIMEPPS_H
-#   include <sys/timepps.h>
-# endif
-#endif
+#ifdef HAVE_PPSAPI
+# include "ppsapi_timepps.h"
+#endif /* HAVE_PPSAPI */
 
 /*
  * This driver supports the Magnavox Model MX 4200 GPS Receiver
@@ -1524,15 +1520,15 @@ mx4200_pps(
 	if (time_pps_fetch(up->pps_h, PPS_TSFMT_TSPEC, &(up->pps_i),
 			&timeout) < 0) {
 		mx4200_debug(peer,
-		  "mx4200_pps: time_pps_fetch: serial=%d, %s\n",
-		     up->pps_i.assert_sequence, strerror(errno));
+		  "mx4200_pps: time_pps_fetch: serial=%ul, %s\n",
+		     (unsigned long)up->pps_i.assert_sequence, strerror(errno));
 		refclock_report(peer, CEVNT_FAULT);
 		return(1);
 	}
 	if (temp_serial == up->pps_i.assert_sequence) {
 		mx4200_debug(peer,
-		   "mx4200_pps: assert_sequence serial not incrementing: %d\n",
-			up->pps_i.assert_sequence);
+		   "mx4200_pps: assert_sequence serial not incrementing: %ul\n",
+			(unsigned long)up->pps_i.assert_sequence);
 		refclock_report(peer, CEVNT_FAULT);
 		return(1);
 	}
@@ -1544,8 +1540,8 @@ mx4200_pps(
 		if (up->pps_i.assert_sequence == up->lastserial) {
 			mx4200_debug(peer, "mx4200_pps: no new pps event\n");
 		} else {
-			mx4200_debug(peer, "mx4200_pps: missed %d pps events\n",
-			    up->pps_i.assert_sequence - up->lastserial - 1);
+			mx4200_debug(peer, "mx4200_pps: missed %ul pps events\n",
+			    up->pps_i.assert_sequence - up->lastserial - 1UL);
 		}
 		refclock_report(peer, CEVNT_FAULT);
 	}
@@ -1576,6 +1572,7 @@ mx4200_debug(peer, fmt, va_alist)
      char *fmt;
 #endif /* __STDC__ */
 {
+#ifdef DEBUG
 	va_list ap;
 	struct refclockproc *pp;
 	struct mx4200unit *up;
@@ -1600,6 +1597,7 @@ mx4200_debug(peer, fmt, va_alist)
 
 		va_end(ap);
 	}
+#endif
 }
 
 /*
