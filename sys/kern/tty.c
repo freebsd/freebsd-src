@@ -1332,12 +1332,11 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		if (t->c_ispeed == 0)
 			t->c_ispeed = t->c_ospeed;
 
-		/* Don't allow invalid flags to be set. */
-		if ((t->c_iflag & ~TTYSUP_IFLAG) != 0 ||
-		    (t->c_oflag & ~TTYSUP_OFLAG) != 0 ||
-		    (t->c_lflag & ~TTYSUP_LFLAG) != 0 ||
-		    (t->c_cflag & ~TTYSUP_CFLAG) != 0)
-			return (EINVAL);
+		/* Discard any unsupported bits. */
+		t->c_iflag &= TTYSUP_IFLAG;
+		t->c_oflag &= TTYSUP_OFLAG;
+		t->c_lflag &= TTYSUP_LFLAG;
+		t->c_cflag &= TTYSUP_CFLAG;
 
 		/* Set terminal flags through tcsetattr(). */
 		if (cmd == TIOCSETAW || cmd == TIOCSETAF) {
@@ -1361,7 +1360,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 
 			/* XXX: CLOCAL? */
 			
-			tp->t_termios.c_cflag = t->c_cflag;
+			tp->t_termios.c_cflag = t->c_cflag & ~CIGNORE;
 			tp->t_termios.c_ispeed = t->c_ispeed;
 			tp->t_termios.c_ospeed = t->c_ospeed;
 
