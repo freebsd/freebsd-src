@@ -1319,8 +1319,8 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 
 /* microsequence registers are equivalent to PC-like port registers */
 
-#define r_reg(reg,ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, reg))
-#define w_reg(reg, ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, reg, byte))
+#define r_reg(reg,ppc) (bus_read_1((ppc)->res_ioport, reg))
+#define w_reg(reg, ppc, byte) (bus_write_1((ppc)->res_ioport, reg, byte))
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
@@ -1708,9 +1708,6 @@ ppc_probe(device_t dev, int rid)
 
  	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
-	ppc->bsh = rman_get_bushandle(ppc->res_ioport);
-	ppc->bst = rman_get_bustag(ppc->res_ioport);
-
 	ppc->ppc_flags = device_get_flags(dev);
 
 	if (!(ppc->ppc_flags & 0x20)) {
@@ -1869,22 +1866,22 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
 	switch (iop) {
 	case PPB_OUTSB_EPP:
-	    bus_space_write_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
+	    bus_write_multi_1(ppc->res_ioport, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_OUTSW_EPP:
-	    bus_space_write_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
+	    bus_write_multi_2(ppc->res_ioport, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_OUTSL_EPP:
-	    bus_space_write_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
+	    bus_write_multi_4(ppc->res_ioport, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_INSB_EPP:
-	    bus_space_read_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
+	    bus_read_multi_1(ppc->res_ioport, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_INSW_EPP:
-	    bus_space_read_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
+	    bus_read_multi_2(ppc->res_ioport, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_INSL_EPP:
-	    bus_space_read_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
+	    bus_read_multi_4(ppc->res_ioport, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_RDTR:
 		return (r_dtr(ppc));

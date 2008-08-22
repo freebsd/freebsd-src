@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/malloc.h>
+#include <sys/rman.h>
 
 #if defined(__i386__) && defined(PC98)
 #include <pc98/cbus/cbus.h>

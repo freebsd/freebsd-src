@@ -107,9 +107,6 @@ struct ppc_data {
   	int rid_irq, rid_drq, rid_ioport;
 	struct resource *res_irq, *res_drq, *res_ioport;
 
-	bus_space_handle_t bsh;
-	bus_space_tag_t bst;
-
 	void *intr_cookie;
 
 	int ppc_registered;	/* 1 if ppcintr() is the registered interrupt */
@@ -151,25 +148,25 @@ struct ppc_data {
 #define PPC_DISABLE_INTR	(PPC_SERVICE_INTR | PPC_nFAULT_INTR)
 #define PPC_ECR_RESET		(PPC_ECR_PS2 | PPC_DISABLE_INTR)
 
-#define r_dtr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_DTR))
-#define r_str(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_STR))
-#define r_ctr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_CTR))
+#define r_dtr(ppc) (bus_read_1((ppc)->res_ioport, PPC_SPP_DTR))
+#define r_str(ppc) (bus_read_1((ppc)->res_ioport, PPC_SPP_STR))
+#define r_ctr(ppc) (bus_read_1((ppc)->res_ioport, PPC_SPP_CTR))
 
-#define r_epp_A(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_EPP_ADDR))
-#define r_epp_D(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_EPP_DATA))
-#define r_cnfgA(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_CNFGA))
-#define r_cnfgB(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_CNFGB))
-#define r_ecr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_ECR))
-#define r_fifo(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_D_FIFO))
+#define r_epp_A(ppc) (bus_read_1((ppc)->res_ioport, PPC_EPP_ADDR))
+#define r_epp_D(ppc) (bus_read_1((ppc)->res_ioport, PPC_EPP_DATA))
+#define r_cnfgA(ppc) (bus_read_1((ppc)->res_ioport, PPC_ECP_CNFGA))
+#define r_cnfgB(ppc) (bus_read_1((ppc)->res_ioport, PPC_ECP_CNFGB))
+#define r_ecr(ppc) (bus_read_1((ppc)->res_ioport, PPC_ECP_ECR))
+#define r_fifo(ppc) (bus_read_1((ppc)->res_ioport, PPC_ECP_D_FIFO))
 
-#define w_dtr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_DTR, byte))
-#define w_str(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_STR, byte))
-#define w_ctr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_CTR, byte))
+#define w_dtr(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_SPP_DTR, byte))
+#define w_str(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_SPP_STR, byte))
+#define w_ctr(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_SPP_CTR, byte))
 
-#define w_epp_A(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_EPP_ADDR, byte))
-#define w_epp_D(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_EPP_DATA, byte))
-#define w_ecr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_ECP_ECR, byte))
-#define w_fifo(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_ECP_D_FIFO, byte))
+#define w_epp_A(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_EPP_ADDR, byte))
+#define w_epp_D(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_EPP_DATA, byte))
+#define w_ecr(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_ECP_ECR, byte))
+#define w_fifo(ppc, byte) (bus_write_1((ppc)->res_ioport, PPC_ECP_D_FIFO, byte))
 
 /*
  * Register defines for the PC873xx parts
