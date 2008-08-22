@@ -1373,26 +1373,25 @@ bfe_intr(void *xsc)
 {
 	struct bfe_softc *sc = xsc;
 	struct ifnet *ifp;
-	u_int32_t istat, imask, flag;
+	u_int32_t istat, flag;
 
 	ifp = sc->bfe_ifp;
 
 	BFE_LOCK(sc);
 
 	istat = CSR_READ_4(sc, BFE_ISTAT);
-	imask = CSR_READ_4(sc, BFE_IMASK);
 
 	/*
 	 * Defer unsolicited interrupts - This is necessary because setting the
 	 * chips interrupt mask register to 0 doesn't actually stop the
 	 * interrupts
 	 */
-	istat &= imask;
+	istat &= BFE_IMASK_DEF;
 	CSR_WRITE_4(sc, BFE_ISTAT, istat);
 	CSR_READ_4(sc, BFE_ISTAT);
 
 	/* not expecting this interrupt, disregard it */
-	if (istat == 0) {
+	if (istat == 0 || (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		BFE_UNLOCK(sc);
 		return;
 	}
@@ -1435,8 +1434,7 @@ bfe_intr(void *xsc)
 		bfe_txeof(sc);
 
 	/* We have packets pending, fire them out */
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		bfe_start_locked(ifp);
 
 	BFE_UNLOCK(sc);
