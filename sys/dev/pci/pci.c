@@ -2663,7 +2663,8 @@ pci_suspend(device_t dev)
 	acpi_dev = NULL;
 	if (pci_do_power_resume)
 		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
-	device_get_children(dev, &devlist, &numdevs);
+	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
+		return (error);
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
 		dinfo = (struct pci_devinfo *) device_get_ivars(child);
@@ -2700,7 +2701,7 @@ pci_suspend(device_t dev)
 int
 pci_resume(device_t dev)
 {
-	int i, numdevs;
+	int i, numdevs, error;
 	device_t acpi_dev, child, *devlist;
 	struct pci_devinfo *dinfo;
 
@@ -2710,7 +2711,8 @@ pci_resume(device_t dev)
 	acpi_dev = NULL;
 	if (pci_do_power_resume)
 		acpi_dev = devclass_get_device(devclass_find("acpi"), 0);
-	device_get_children(dev, &devlist, &numdevs);
+	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
+		return (error);
 	for (i = 0; i < numdevs; i++) {
 		/*
 		 * Notify ACPI we're going to D0 but ignore the result.  If
@@ -2759,7 +2761,8 @@ pci_driver_added(device_t dev, driver_t *driver)
 	if (bootverbose)
 		device_printf(dev, "driver added\n");
 	DEVICE_IDENTIFY(driver, dev);
-	device_get_children(dev, &devlist, &numdevs);
+	if (device_get_children(dev, &devlist, &numdevs) != 0)
+		return;
 	for (i = 0; i < numdevs; i++) {
 		child = devlist[i];
 		if (device_get_state(child) != DS_NOTPRESENT)
