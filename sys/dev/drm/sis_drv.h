@@ -34,14 +34,47 @@ __FBSDID("$FreeBSD$");
 /* General customization:
  */
 
-#define DRIVER_AUTHOR		"SIS"
+#define DRIVER_AUTHOR		"SIS, Tungsten Graphics"
 #define DRIVER_NAME		"sis"
-#define DRIVER_DESC		"SIS 300/630/540"
-#define DRIVER_DATE		"20030826"
+#define DRIVER_DESC		"SIS 300/630/540 and XGI V3XE/V5/V8"
+#define DRIVER_DATE		"20070626"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		1
+#define DRIVER_MINOR		3
 #define DRIVER_PATCHLEVEL	0
 
+enum sis_family {
+	SIS_OTHER = 0,
+	SIS_CHIP_315 = 1,
+};
+
+#if defined(__linux__)
+#define SIS_HAVE_CORE_MM
+#endif
+
+#ifdef SIS_HAVE_CORE_MM
+#include "dev/drm/drm_sman.h"
+
+#define SIS_BASE (dev_priv->mmio)
+#define SIS_READ(reg)	 DRM_READ32(SIS_BASE, reg);
+#define SIS_WRITE(reg, val)   DRM_WRITE32(SIS_BASE, reg, val);
+
+typedef struct drm_sis_private {
+	drm_local_map_t *mmio;
+	unsigned int idle_fault;
+	struct drm_sman sman;
+	unsigned int chipset;
+	int vram_initialized;
+	int agp_initialized;
+	unsigned long vram_offset;
+	unsigned long agp_offset;
+} drm_sis_private_t;
+
+extern int sis_idle(struct drm_device *dev);
+extern void sis_reclaim_buffers_locked(struct drm_device *dev,
+				       struct drm_file *file_priv);
+extern void sis_lastclose(struct drm_device *dev);
+
+#else
 #include "dev/drm/sis_ds.h"
 
 typedef struct drm_sis_private {
@@ -49,10 +82,12 @@ typedef struct drm_sis_private {
 	memHeap_t *FBHeap;
 } drm_sis_private_t;
 
-extern int sis_init_context(drm_device_t * dev, int context);
-extern int sis_final_context(drm_device_t * dev, int context);
+extern int sis_init_context(struct drm_device * dev, int context);
+extern int sis_final_context(struct drm_device * dev, int context);
 
-extern drm_ioctl_desc_t sis_ioctls[];
+#endif
+
+extern struct drm_ioctl_desc sis_ioctls[];
 extern int sis_max_ioctl;
 
 #endif

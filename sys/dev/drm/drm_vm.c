@@ -24,6 +24,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_vm.c
+ * Support code for mmaping of DRM maps.
+ */
+
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"
 
@@ -36,7 +40,7 @@ int drm_mmap(dev_t kdev, vm_offset_t offset, int prot)
 paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 #endif
 {
-	DRM_DEVICE;
+	struct drm_device *dev = drm_get_device_from_kdev(kdev);
 	drm_local_map_t *map;
 	drm_file_t *priv;
 	drm_map_type_t type;
@@ -55,7 +59,7 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 	}
 
 	if (!priv->authenticated)
-		return DRM_ERR(EACCES);
+		return EACCES;
 
 	if (dev->dma && offset >= 0 && offset < ptoa(dev->dma->page_count)) {
 		drm_device_dma_t *dma = dev->dma;
@@ -66,9 +70,9 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 			unsigned long page = offset >> PAGE_SHIFT;
 			unsigned long phys = dma->pagelist[page];
 
+			DRM_SPINUNLOCK(&dev->dma_lock);
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500102
 			*paddr = phys;
-			DRM_SPINUNLOCK(&dev->dma_lock);
 			return 0;
 #else
 			return atop(phys);
@@ -77,7 +81,6 @@ paddr_t drm_mmap(dev_t kdev, off_t offset, int prot)
 			DRM_SPINUNLOCK(&dev->dma_lock);
 			return -1;
 		}
-		DRM_SPINUNLOCK(&dev->dma_lock);
 	}
 
 				/* A sequential search of a linked list is

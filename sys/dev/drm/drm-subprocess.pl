@@ -37,6 +37,7 @@ while (<>) {
 		s/#include "(.*)_drm.h/#include "dev\/drm\/\1_drm.h/;
 		s/#include "mga_ucode.h/#include "dev\/drm\/mga_ucode.h/;
 		s/#include "r300_reg.h/#include "dev\/drm\/r300_reg.h/;
+		s/#include "radeon_microcode.h/#include "dev\/drm\/radeon_microcode.h/;
 		s/#include "sis_ds.h/#include "dev\/drm\/sis_ds.h/;
 		s/#include "drm/#include "dev\/drm\/drm/;
 		print;

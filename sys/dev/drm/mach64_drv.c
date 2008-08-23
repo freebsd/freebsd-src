@@ -47,11 +47,13 @@ static drm_pci_id_list_t mach64_pciidlist[] = {
 	mach64_PCI_IDS
 };
 
-static void mach64_configure(drm_device_t *dev)
+static void mach64_configure(struct drm_device *dev)
 {
 	dev->driver.buf_priv_size	= 1; /* No dev_priv */
 	dev->driver.lastclose		= mach64_driver_lastclose;
-	dev->driver.vblank_wait		= mach64_driver_vblank_wait;
+	dev->driver.get_vblank_counter	= mach64_get_vblank_counter;
+	dev->driver.enable_vblank	= mach64_enable_vblank;
+	dev->driver.disable_vblank	= mach64_disable_vblank;
 	dev->driver.irq_preinstall	= mach64_driver_irq_preinstall;
 	dev->driver.irq_postinstall	= mach64_driver_irq_postinstall;
 	dev->driver.irq_uninstall	= mach64_driver_irq_uninstall;
@@ -86,9 +88,9 @@ mach64_probe(device_t dev)
 static int
 mach64_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	bzero(dev, sizeof(struct drm_device));
 	mach64_configure(dev);
 	return drm_attach(nbdev, mach64_pciidlist);
 }
@@ -105,7 +107,7 @@ static device_method_t mach64_methods[] = {
 static driver_t mach64_driver = {
 	"drm",
 	mach64_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;

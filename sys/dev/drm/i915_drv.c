@@ -1,4 +1,4 @@
-/* i915_drv.c -- ATI Radeon driver -*- linux-c -*-
+/* i915_drv.c -- Intel i915 driver -*- linux-c -*-
  * Created: Wed Feb 14 17:10:04 2001 by gareth@valinux.com
  */
 /*-
@@ -43,14 +43,44 @@ static drm_pci_id_list_t i915_pciidlist[] = {
 	i915_PCI_IDS
 };
 
-static void i915_configure(drm_device_t *dev)
+static int i915_suspend(device_t nbdev)
 {
-	dev->driver.buf_priv_size	= 1;	/* No dev_priv */
+	struct drm_device *dev = device_get_softc(nbdev);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (!dev || !dev_priv) {
+		DRM_ERROR("dev: 0x%lx, dev_priv: 0x%lx\n",
+			(unsigned long) dev, (unsigned long) dev_priv);
+		DRM_ERROR("DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	i915_save_state(dev);
+
+	return (bus_generic_suspend(nbdev));
+}
+
+static int i915_resume(device_t nbdev)
+{
+	struct drm_device *dev = device_get_softc(nbdev);
+
+	i915_restore_state(dev);
+
+	return (bus_generic_resume(nbdev));
+}
+
+static void i915_configure(struct drm_device *dev)
+{
+	dev->driver.buf_priv_size	= sizeof(drm_i915_private_t);
 	dev->driver.load		= i915_driver_load;
+	dev->driver.unload		= i915_driver_unload;
+	dev->driver.firstopen		= i915_driver_firstopen;
 	dev->driver.preclose		= i915_driver_preclose;
 	dev->driver.lastclose		= i915_driver_lastclose;
-	dev->driver.device_is_agp	= i915_driver_device_is_agp,
-	dev->driver.vblank_wait		= i915_driver_vblank_wait;
+	dev->driver.device_is_agp	= i915_driver_device_is_agp;
+	dev->driver.get_vblank_counter	= i915_get_vblank_counter;
+	dev->driver.enable_vblank	= i915_enable_vblank;
+	dev->driver.disable_vblank	= i915_disable_vblank;
 	dev->driver.irq_preinstall	= i915_driver_irq_preinstall;
 	dev->driver.irq_postinstall	= i915_driver_irq_postinstall;
 	dev->driver.irq_uninstall	= i915_driver_irq_uninstall;
@@ -71,6 +101,7 @@ static void i915_configure(drm_device_t *dev)
 	dev->driver.use_mtrr		= 1;
 	dev->driver.use_irq		= 1;
 	dev->driver.use_vbl_irq		= 1;
+	dev->driver.use_vbl_irq2	= 1;
 }
 
 #ifdef __FreeBSD__
@@ -83,9 +114,9 @@ i915_probe(device_t dev)
 static int
 i915_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	bzero(dev, sizeof(struct drm_device));
 	i915_configure(dev);
 	return drm_attach(nbdev, i915_pciidlist);
 }
@@ -94,6 +125,8 @@ static device_method_t i915_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		i915_probe),
 	DEVMETHOD(device_attach,	i915_attach),
+	DEVMETHOD(device_suspend,	i915_suspend),
+	DEVMETHOD(device_resume,	i915_resume),
 	DEVMETHOD(device_detach,	drm_detach),
 
 	{ 0, 0 }
@@ -106,7 +139,7 @@ static driver_t i915_driver = {
 	"drmsub",
 #endif
 	i915_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
