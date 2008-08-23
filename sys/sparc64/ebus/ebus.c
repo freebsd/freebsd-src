@@ -33,18 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * UltraSPARC 5 and beyond Ebus support.
- *
- * note that this driver is not complete:
- *	- ebus2 dma code is completely unwritten
- *	- interrupt establish is written and appears to work
- *	- bus map code is written and appears to work
- * XXX: This is PCI specific, however, there exist SBus-to-EBus bridges...
- * XXX: The EBus was designed to allow easy adaption of ISA devices to it - a
- * compatability layer for ISA devices might be nice, although probably not
- * easily possible because of some cruft (like in[bwl]/out[bwl] and friends).
- * Additionally, the existing ISA code is limited to one ISA bus, however,
- * there are machines with both ISA and EBus.
+ * UltraSPARC 5 and beyond EBus support
  */
 
 #include <sys/param.h>
@@ -88,8 +77,6 @@ struct ebus_rinfo {
 };
 
 struct ebus_softc {
-	phandle_t		sc_node;
-
 	struct isa_ranges	*sc_range;
 	struct ebus_rinfo	*sc_rinfo;
 
@@ -123,7 +110,7 @@ static device_method_t ebus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	ebus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	ebus_probe_nomatch),
-	DEVMETHOD(bus_setup_intr, 	bus_generic_setup_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	ebus_alloc_resource),
 	DEVMETHOD(bus_get_resource_list, ebus_get_resource_list),
@@ -152,6 +139,8 @@ static driver_t ebus_driver = {
 static devclass_t ebus_devclass;
 
 DRIVER_MODULE(ebus, pci, ebus_driver, ebus_devclass, 0, 0);
+MODULE_DEPEND(ebus, pci, 1, 1, 1);
+MODULE_VERSION(ebus, 1);
 
 static int
 ebus_probe(device_t dev)
@@ -183,8 +172,8 @@ ebus_attach(device_t dev)
 	int i, rnum, rid;
 
 	sc = device_get_softc(dev);
-	sc->sc_node = node = ofw_bus_get_node(dev);
 
+	node = ofw_bus_get_node(dev);
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_range), (void **)&sc->sc_range);
 	if (sc->sc_nrange == -1) {
@@ -215,7 +204,7 @@ ebus_attach(device_t dev)
 			goto fail;
 		}
 		if (rman_manage_region(&eri->eri_rman, rman_get_start(res),
-		     rman_get_end(res)) != 0) {
+		    rman_get_end(res)) != 0) {
 			printf("ebus_attach: failed to register region!");
 			rman_fini(&eri->eri_rman);
 			goto fail;
@@ -293,7 +282,7 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	sc = (struct ebus_softc *)device_get_softc(bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	/*
-	 * Map ebus ranges to PCI ranges. This may include changing the
+	 * Map EBus ranges to PCI ranges.  This may include changing the
 	 * allocation type.
 	 */
 	switch (type) {
@@ -339,11 +328,10 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (resource_list_alloc(rl, bus, child, type, rid, start,
 		    end, count, flags));
 	}
-
 	return (NULL);
 }
 
-int
+static int
 ebus_release_resource(device_t bus, device_t child, int type, int rid,
     struct resource *res)
 {
@@ -354,7 +342,7 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
 	switch (type) {
- 	case SYS_RES_MEMORY:
+	case SYS_RES_MEMORY:
 		if ((rv = rman_release_resource(res)) != 0)
 			return (rv);
 		if (!passthrough) {
