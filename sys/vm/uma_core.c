@@ -1667,7 +1667,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 	bucket_init();
 
-#ifdef UMA_MD_SMALL_ALLOC
+#if defined(UMA_MD_SMALL_ALLOC) && !defined(UMA_MD_SMALL_ALLOC_NEEDS_VM)
 	booted = 1;
 #endif
 
