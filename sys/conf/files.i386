@@ -329,6 +329,7 @@ i386/isa/atpic.c		optional atpic
 #i386/isa/atpic_vector.s		standard
 i386/isa/clock.c		optional native
 i386/xen/clock.c		optional xen
+i386/isa/dpms.c			optional dpms
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep | ie
 i386/isa/isa.c			optional isa

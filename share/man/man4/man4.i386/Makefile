@@ -11,6 +11,7 @@ MAN=	aic.4 \
 	cs.4 \
 	ct.4 \
 	ctau.4 \
+	dpms.4 \
 	cx.4 \
 	ep.4 \
 	ex.4 \

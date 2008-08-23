@@ -357,6 +357,8 @@ options 	VESA
 # Turn on extra debugging checks and output for VESA support.
 options 	VESA_DEBUG
 
+device		dpms		# DPMS suspend & resume via VESA BIOS
+
 #
 # The Numeric Processing eXtension driver.  This is non-optional.
 device		npx
