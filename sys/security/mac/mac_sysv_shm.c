@@ -70,7 +70,10 @@ void
 mac_sysvshm_init(struct shmid_kernel *shmsegptr)
 {
 
-	shmsegptr->label = mac_sysv_shm_label_alloc();
+	if (mac_labeled & MPC_OBJECT_SYSVSHM)
+		shmsegptr->label = mac_sysv_shm_label_alloc();
+	else
+		shmsegptr->label = NULL;
 }
 
 static void
@@ -85,8 +88,10 @@ void
 mac_sysvshm_destroy(struct shmid_kernel *shmsegptr)
 {
 
-	mac_sysv_shm_label_free(shmsegptr->label);
-	shmsegptr->label = NULL;
+	if (shmsegptr->label != NULL) {
+		mac_sysv_shm_label_free(shmsegptr->label);
+		shmsegptr->label = NULL;
+	}
 }
 
 void

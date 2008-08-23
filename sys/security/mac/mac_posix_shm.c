@@ -63,7 +63,10 @@ void
 mac_posixshm_init(struct shmfd *shmfd)
 {
 
-	shmfd->shm_label = mac_posixshm_label_alloc();
+	if (mac_labeled & MPC_OBJECT_POSIXSHM)
+		shmfd->shm_label = mac_posixshm_label_alloc();
+	else
+		shmfd->shm_label = NULL;
 }
 
 static void
@@ -78,8 +81,10 @@ void
 mac_posixshm_destroy(struct shmfd *shmfd)
 {
 
-	mac_posixshm_label_free(shmfd->shm_label);
-	shmfd->shm_label = NULL;
+	if (shmfd->shm_label != NULL) {
+		mac_posixshm_label_free(shmfd->shm_label);
+		shmfd->shm_label = NULL;
+	}
 }
 
 void

@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -125,22 +126,14 @@ SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD, &mac_max_slots,
 static int	mac_late = 0;
 
 /*
- * Flag to indicate whether or not we should allocate label storage for new
- * mbufs.  Since most dynamic policies we currently work with don't rely on
- * mbuf labeling, try to avoid paying the cost of mtag allocation unless
- * specifically notified of interest.  One result of this is that if a
- * dynamically loaded policy requests mbuf labels, it must be able to deal
- * with a NULL label being returned on any mbufs that were already in flight
- * when the policy was loaded.  Since the policy already has to deal with
- * uninitialized labels, this probably won't be a problem.  Note: currently
- * no locking.  Will this be a problem?
- *
- * In the future, we may want to allow objects to request labeling on a per-
- * object type basis, rather than globally for all objects.
+ * Each policy declares a mask of object types requiring labels to be
+ * allocated for them.  For convenience, we combine and cache the bitwise or
+ * of the per-policy object flags to track whether we will allocate a label
+ * for an object type at run-time.
  */
-#ifndef MAC_ALWAYS_LABEL_MBUF
-int	mac_labelmbufs = 0;
-#endif
+uint64_t	mac_labeled;
+SYSCTL_QUAD(_security_mac, OID_AUTO, labeled, CTLFLAG_RD, &mac_labeled, 0,
+    "Mask of object types being labeled");
 
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
@@ -344,23 +337,15 @@ mac_late_init(void)
 static void
 mac_policy_updateflags(void)
 {
-#ifndef MAC_ALWAYS_LABEL_MBUF
-	struct mac_policy_conf *tmpc;
-	int labelmbufs;
+	struct mac_policy_conf *mpc;
 
 	mac_policy_assert_exclusive();
 
-	labelmbufs = 0;
-	LIST_FOREACH(tmpc, &mac_static_policy_list, mpc_list) {
-		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
-			labelmbufs++;
-	}
-	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
-		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
-			labelmbufs++;
-	}
-	mac_labelmbufs = (labelmbufs != 0);
-#endif
+	mac_labeled = 0;
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list)
+		mac_labeled |= mpc->mpc_labeled;
+	LIST_FOREACH(mpc, &mac_policy_list, mpc_list)
+		mac_labeled |= mpc->mpc_labeled;
 }
 
 static int

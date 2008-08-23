@@ -3474,5 +3474,25 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_vnode_setlabel_extattr = biba_vnode_setlabel_extattr,
 };
 
+#define	BIBA_OBJECTS	(MPC_OBJECT_CRED |				\
+			 /* MPC_OBJECT_PROC | */			\
+			 MPC_OBJECT_VNODE |				\
+			 MPC_OBJECT_INPCB |				\
+			 MPC_OBJECT_SOCKET |				\
+			 MPC_OBJECT_DEVFS |				\
+			 MPC_OBJECT_MBUF |				\
+			 MPC_OBJECT_IPQ |				\
+			 MPC_OBJECT_IFNET |				\
+			 MPC_OBJECT_BPFDESC |				\
+			 MPC_OBJECT_PIPE |				\
+			 MPC_OBJECT_MOUNT |				\
+			 MPC_OBJECT_POSIXSEM |				\
+			 /* MPC_OBJECT_POSIXSHM | */			\
+			 MPC_OBJECT_SYSVMSG |				\
+			 MPC_OBJECT_SYSVMSQ |				\
+			 MPC_OBJECT_SYSVSEM |				\
+			 MPC_OBJECT_SYSVSHM |				\
+			 MPC_OBJECT_SYNCACHE)
+
 MAC_POLICY_SET(&mac_biba_ops, mac_biba, "TrustedBSD MAC/Biba",
-    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &biba_slot);
+    MPC_LOADTIME_FLAG_NOTLATE, &biba_slot, BIBA_OBJECTS);

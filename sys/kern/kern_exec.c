@@ -336,7 +336,7 @@ do_execve(td, args, mac_p)
 	int vfslocked;
 	int textset;
 #ifdef MAC
-	struct label *interplabel = NULL;
+	struct label *interpvplabel = NULL;
 	int will_transition;
 #endif
 #ifdef HWPMC_HOOKS
@@ -494,8 +494,7 @@ interpret:
 		if (args->fname != NULL)
 			NDFREE(ndp, NDF_ONLY_PNBUF);
 #ifdef MAC
-		interplabel = mac_vnode_label_alloc();
-		mac_vnode_copy_label(binvp->v_label, interplabel);
+		mac_execve_interpreter_enter(binvp, &interpvplabel);
 #endif
 		if (imgp->opened) {
 			VOP_CLOSE(binvp, FREAD, td->td_ucred, td);
@@ -627,7 +626,7 @@ interpret:
 	    attr.va_gid;
 #ifdef MAC
 	will_transition = mac_vnode_execve_will_transition(oldcred, imgp->vp,
-	    interplabel, imgp);
+	    interpvplabel, imgp);
 	credential_changing |= will_transition;
 #endif
 
@@ -681,7 +680,7 @@ interpret:
 #ifdef MAC
 		if (will_transition) {
 			mac_vnode_execve_transition(oldcred, newcred, imgp->vp,
-			    interplabel, imgp);
+			    interpvplabel, imgp);
 		}
 #endif
 		/*
@@ -880,8 +879,7 @@ exec_fail:
 done2:
 #ifdef MAC
 	mac_execve_exit(imgp);
-	if (interplabel != NULL)
-		mac_vnode_label_free(interplabel);
+	mac_execve_interpreter_exit(interpvplabel);
 #endif
 	VFS_UNLOCK_GIANT(vfslocked);
 	exec_free_args(args);

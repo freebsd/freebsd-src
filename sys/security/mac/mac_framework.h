@@ -249,9 +249,12 @@ int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
 void	mac_proc_create_init(struct ucred *cred);
 void	mac_proc_create_swapper(struct ucred *cred);
 void	mac_proc_destroy(struct proc *);
+void	mac_proc_init(struct proc *);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
-void	mac_proc_init(struct proc *);
+void	mac_execve_interpreter_enter(struct vnode *interpvp,
+	    struct label **interplabel);
+void	mac_execve_interpreter_exit(struct label *interpvplabel);
 
 int	mac_socket_check_accept(struct ucred *cred, struct socket *so);
 int	mac_socket_check_bind(struct ucred *cred, struct socket *so,
@@ -421,11 +424,6 @@ int	mac_vnode_execve_will_transition(struct ucred *cred,
 	    struct image_params *imgp);
 void	mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
-
-struct label	*mac_cred_label_alloc(void);
-void		 mac_cred_label_free(struct label *);
-struct label	*mac_vnode_label_alloc(void);
-void		 mac_vnode_label_free(struct label *);
 
 void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
 
