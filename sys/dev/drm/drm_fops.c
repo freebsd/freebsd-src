@@ -1,6 +1,3 @@
-/* drm_fops.h -- File operations for DRM -*- linux-c -*-
- * Created: Mon Jan  4 08:58:31 1999 by faith@valinux.com
- */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -35,9 +32,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_fops.c
+ * Support code for dealing with the file privates associated with each
+ * open of the DRM device.
+ */
+
 #include "dev/drm/drmP.h"
 
-drm_file_t *drm_find_file_by_proc(drm_device_t *dev, DRM_STRUCTPROC *p)
+drm_file_t *drm_find_file_by_proc(struct drm_device *dev, DRM_STRUCTPROC *p)
 {
 #if __FreeBSD_version >= 500021
 	uid_t uid = p->td_ucred->cr_svuid;
@@ -58,7 +60,7 @@ drm_file_t *drm_find_file_by_proc(drm_device_t *dev, DRM_STRUCTPROC *p)
 
 /* drm_open_helper is called whenever a process opens /dev/drm. */
 int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
-		    drm_device_t *dev)
+		    struct drm_device *dev)
 {
 	int	     m = minor(kdev);
 	drm_file_t   *priv;
@@ -78,7 +80,7 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		priv = malloc(sizeof(*priv), M_DRM, M_NOWAIT | M_ZERO);
 		if (priv == NULL) {
 			DRM_UNLOCK();
-			return DRM_ERR(ENOMEM);
+			return ENOMEM;
 		}
 #if __FreeBSD_version >= 500000
 		priv->uid		= p->td_ucred->cr_svuid;
@@ -96,7 +98,8 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		priv->authenticated	= DRM_SUSER(p);
 
 		if (dev->driver.open) {
-			retcode = dev->driver.open(dev, priv);
+			/* shared code returns -errno */
+			retcode = -dev->driver.open(dev, priv);
 			if (retcode != 0) {
 				free(priv, M_DRM);
 				DRM_UNLOCK();

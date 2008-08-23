@@ -1,10 +1,3 @@
-/**
- * \file drm_pci.h
- * \brief PCI consistent, DMA-accessible memory functions.
- *
- * \author Eric Anholt <anholt@FreeBSD.org>
- */
-
 /*-
  * Copyright 2003 Eric Anholt.
  * All Rights Reserved.
@@ -31,6 +24,13 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/**
+ * \file drm_pci.h
+ * \brief PCI consistent, DMA-accessible memory allocation.
+ *
+ * \author Eric Anholt <anholt@FreeBSD.org>
+ */
+
 #include "dev/drm/drmP.h"
 
 /**********************************************************************/
@@ -56,7 +56,8 @@ drm_pci_busdma_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error
  * memory block.
  */
 drm_dma_handle_t *
-drm_pci_alloc(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr)
+drm_pci_alloc(struct drm_device *dev, size_t size,
+	      size_t align, dma_addr_t maxaddr)
 {
 	drm_dma_handle_t *dmah;
 	int ret;
@@ -73,6 +74,7 @@ drm_pci_alloc(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr)
 		return NULL;
 
 #ifdef __FreeBSD__
+	DRM_UNLOCK();
 	ret = bus_dma_tag_create(NULL, align, 0, /* tag, align, boundary */
 	    maxaddr, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
@@ -81,6 +83,7 @@ drm_pci_alloc(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr)
 	    &dmah->tag);
 	if (ret != 0) {
 		free(dmah, M_DRM);
+		DRM_LOCK();
 		return NULL;
 	}
 
@@ -89,9 +92,10 @@ drm_pci_alloc(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr)
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
 		free(dmah, M_DRM);
+		DRM_LOCK();
 		return NULL;
 	}
-
+	DRM_LOCK();
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr, size,
 	    drm_pci_busdma_callback, dmah, 0);
 	if (ret != 0) {
@@ -126,7 +130,7 @@ drm_pci_alloc(drm_device_t *dev, size_t size, size_t align, dma_addr_t maxaddr)
  * \brief Free a DMA-accessible consistent memory block.
  */
 void
-drm_pci_free(drm_device_t *dev, drm_dma_handle_t *dmah)
+drm_pci_free(struct drm_device *dev, drm_dma_handle_t *dmah)
 {
 	if (dmah == NULL)
 		return;
