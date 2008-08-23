@@ -163,6 +163,7 @@ tlphy_attach(device_t dev)
 
 	capmask = 0xFFFFFFFF;
 	if (mii->mii_instance) {
+		devs = 0;
 		device_get_children(sc->sc_mii.mii_dev, &devlist, &devs);
 		for (i = 0; i < devs; i++) {
 			if (strcmp(device_get_name(devlist[i]), "tlphy")) {

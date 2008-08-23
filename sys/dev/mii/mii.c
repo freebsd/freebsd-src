@@ -339,6 +339,7 @@ mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
 
 	for (i = 0; i < MII_NPHY; i++) {
 		bmsr = MIIBUS_READREG(dev, i, MII_BMSR);
+		printf("BMSR(%d) is %#x\n", i, bmsr);
                 if (bmsr == 0 || bmsr == 0xffff ||
                     (bmsr & (BMSR_EXTSTAT|BMSR_MEDIAMASK)) == 0) {
                         /* Assume no PHY at this address. */
