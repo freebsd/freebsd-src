@@ -607,9 +607,15 @@ pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
     uint32_t *data)
 {
 	device_t bus;
+	int error;
 
 	bus = device_get_parent(pcib);
-	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
+	error = PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data);
+	if (error)
+		return (error);
+
+	pci_ht_map_msi(pcib, *addr);
+	return (0);
 }
 
 /*
