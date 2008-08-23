@@ -249,13 +249,6 @@ void uma_print_stats(void);
 static int sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS);
 static int sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS);
 
-#ifdef WITNESS
-static int nosleepwithlocks = 1;
-#else
-static int nosleepwithlocks = 0;
-#endif
-SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
-    0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
 SYSCTL_PROC(_vm, OID_AUTO, zone_count, CTLFLAG_RD|CTLTYPE_INT,
