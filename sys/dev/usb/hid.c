@@ -275,7 +275,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->logical_maximum = dval;
 				break;
 			case 3:
-				c->physical_maximum = dval;
+				c->physical_minimum = dval;
 				break;
 			case 4:
 				c->physical_maximum = dval;
