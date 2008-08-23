@@ -123,7 +123,8 @@ clkrun_hack(int run)
 
 	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
 		pci_childcount = 0;
-		device_get_children(*busp, &pci_children, &pci_childcount);
+		if (device_get_children(*busp, &pci_children, &pci_childcount))
+			continue;
 		for (j = 0, childp = pci_children; j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == 0x8086 && pci_get_device(*childp) == 0x7113) {
 				port = (pci_read_config(*childp, 0x41, 1) << 8) + 0x10;
