@@ -348,7 +348,8 @@ sis_find_bridge(device_t dev)
 
 	for (i = 0, busp = pci_devices; i < pci_count; i++, busp++) {
 		pci_childcount = 0;
-		device_get_children(*busp, &pci_children, &pci_childcount);
+		if (device_get_children(*busp, &pci_children, &pci_childcount))
+			break;
 		for (j = 0, childp = pci_children;
 		    j < pci_childcount; j++, childp++) {
 			if (pci_get_vendor(*childp) == SIS_VENDORID &&
