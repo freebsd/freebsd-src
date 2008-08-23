@@ -87,7 +87,7 @@ CTASSERT(powerof2(GEM_NTXDESC) && GEM_NTXDESC >= 32 && GEM_NTXDESC <= 8192);
 #define	TRIES	10000
 
 /*
- * The GEM hardware support basic TCP/UDP checksum offloading.  However,
+ * The hardware supports basic TCP/UDP checksum offloading.  However,
  * the hardware doesn't compensate the checksum for UDP datagram which
  * can yield to 0x0.  As a safe guard, UDP checksum offload is disabled
  * by default.  It can be reactivated by setting special link option
@@ -536,18 +536,26 @@ gem_tick(void *arg)
 {
 	struct gem_softc *sc = arg;
 	struct ifnet *ifp;
+	uint32_t v;
 
 	GEM_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp = sc->sc_ifp;
 	/*
-	 * Unload collision counters.
+	 * Unload collision and error counters.
 	 */
 	ifp->if_collisions +=
 	    GEM_BANK1_READ_4(sc, GEM_MAC_NORM_COLL_CNT) +
-	    GEM_BANK1_READ_4(sc, GEM_MAC_FIRST_COLL_CNT) +
-	    GEM_BANK1_READ_4(sc, GEM_MAC_EXCESS_COLL_CNT) +
+	    GEM_BANK1_READ_4(sc, GEM_MAC_FIRST_COLL_CNT);
+	v = GEM_BANK1_READ_4(sc, GEM_MAC_EXCESS_COLL_CNT) +
 	    GEM_BANK1_READ_4(sc, GEM_MAC_LATE_COLL_CNT);
+	ifp->if_collisions += v;
+	ifp->if_oerrors += v;
+	ifp->if_ierrors +=
+	    GEM_BANK1_READ_4(sc, GEM_MAC_RX_LEN_ERR_CNT) +
+	    GEM_BANK1_READ_4(sc, GEM_MAC_RX_ALIGN_ERR) +
+	    GEM_BANK1_READ_4(sc, GEM_MAC_RX_CRC_ERR_CNT) +
+	    GEM_BANK1_READ_4(sc, GEM_MAC_RX_CODE_VIOL);
 
 	/*
 	 * Then clear the hardware counters.
@@ -556,6 +564,10 @@ gem_tick(void *arg)
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_FIRST_COLL_CNT, 0);
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_EXCESS_COLL_CNT, 0);
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_LATE_COLL_CNT, 0);
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_LEN_ERR_CNT, 0);
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_ALIGN_ERR, 0);
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CRC_ERR_CNT, 0);
+	GEM_BANK1_WRITE_4(sc, GEM_MAC_RX_CODE_VIOL, 0);
 
 	mii_tick(sc->sc_mii);
 
@@ -1739,7 +1751,7 @@ gem_mifinit(struct gem_softc *sc)
 /*
  * MII interface
  *
- * The GEM MII interface supports at least three different operating modes:
+ * The MII interface supports at least three different operating modes:
  *
  * Bitbang mode is implemented using data, clock and output enable registers.
  *
@@ -1971,12 +1983,12 @@ gem_mii_statchg(device_t dev)
 	v |= GEM_MAC_XIF_TX_MII_ENA;
 	if ((sc->sc_flags & GEM_SERDES) == 0) {
 		if ((GEM_BANK1_READ_4(sc, GEM_MIF_CONFIG) &
-		    GEM_MIF_CONFIG_PHY_SEL) != 0 &&
-		    (IFM_OPTIONS(sc->sc_mii->mii_media_active) &
-		    IFM_FDX) == 0)
+		    GEM_MIF_CONFIG_PHY_SEL) != 0) {
 			/* External MII needs echo disable if half duplex. */
-			v |= GEM_MAC_XIF_ECHO_DISABL;
-		else
+		    	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
+			    IFM_FDX) == 0)
+				v |= GEM_MAC_XIF_ECHO_DISABL;
+		} else
 			/*
 			 * Internal MII needs buffer enable.
 			 * XXX buffer enable makes only sense for an
