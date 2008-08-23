@@ -189,7 +189,7 @@ mfi_check_clear_intr_xscale(struct mfi_softc *sc)
 
 	MFI_WRITE4(sc, MFI_OSTS, status);
 	return 0;
- }
+}
 
 static int 
 mfi_check_clear_intr_ppc(struct mfi_softc *sc)
@@ -202,7 +202,7 @@ mfi_check_clear_intr_ppc(struct mfi_softc *sc)
 
 	MFI_WRITE4(sc, MFI_ODCR0, status);
 	return 0;
- }
+}
 
 static void 
 mfi_issue_cmd_xscale(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
