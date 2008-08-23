@@ -194,6 +194,7 @@ mlphy_service(xsc, mii, cmd)
 	 * See if there's another PHY on this bus with us.
 	 * If so, we may need it for 10Mbps modes.
 	 */
+	devs = 0;
 	device_get_children(msc->ml_mii.mii_dev, &devlist, &devs);
 	for (i = 0; i < devs; i++) {
 		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
@@ -400,6 +401,7 @@ mlphy_status(sc)
 	int			devs, i;
 
 	/* See if there's another PHY on the bus with us. */
+	devs = 0;
 	device_get_children(msc->ml_mii.mii_dev, &devlist, &devs);
 	for (i = 0; i < devs; i++) {
 		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
