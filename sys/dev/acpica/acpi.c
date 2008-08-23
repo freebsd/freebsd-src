@@ -665,7 +665,9 @@ acpi_suspend(device_t dev)
      * device has an _SxD method for the next sleep state, use that power
      * state instead.
      */
-    device_get_children(dev, &devlist, &numdevs);
+    error = device_get_children(dev, &devlist, &numdevs);
+    if (error)
+	return (error);
     for (i = 0; i < numdevs; i++) {
 	/* If the device is not attached, we've powered it down elsewhere. */
 	child = devlist[i];
@@ -692,7 +694,7 @@ static int
 acpi_resume(device_t dev)
 {
     ACPI_HANDLE handle;
-    int i, numdevs;
+    int i, numdevs, error;
     device_t child, *devlist;
 
     GIANT_REQUIRED;
@@ -701,7 +703,9 @@ acpi_resume(device_t dev)
      * Put all devices in D0 before resuming them.  Call _S0D on each one
      * since some systems expect this.
      */
-    device_get_children(dev, &devlist, &numdevs);
+    error = device_get_children(dev, &devlist, &numdevs);
+    if (error)
+	return (error);
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
 	handle = acpi_get_handle(child);
@@ -801,7 +805,8 @@ acpi_driver_added(device_t dev, driver_t *driver)
     int i, numdevs;
 
     DEVICE_IDENTIFY(driver, dev);
-    device_get_children(dev, &devlist, &numdevs);
+    if (device_get_children(dev, &devlist, &numdevs))
+	    return;
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
 	if (device_get_state(child) == DS_NOTPRESENT) {
