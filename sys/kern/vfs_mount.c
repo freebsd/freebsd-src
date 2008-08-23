@@ -640,8 +640,14 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		}
 		else if (strcmp(opt->name, "async") == 0)
 			fsflags |= MNT_ASYNC;
-		else if (strcmp(opt->name, "force") == 0)
+		else if (strcmp(opt->name, "force") == 0) {
 			fsflags |= MNT_FORCE;
+			vfs_freeopt(optlist, opt);
+		}
+		else if (strcmp(opt->name, "reload") == 0) {
+			fsflags |= MNT_RELOAD;
+			vfs_freeopt(optlist, opt);
+		}
 		else if (strcmp(opt->name, "multilabel") == 0)
 			fsflags |= MNT_MULTILABEL;
 		else if (strcmp(opt->name, "noasync") == 0)
