@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include "cpufreq_if.h"
+#include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -71,6 +72,7 @@ typedef struct {
 struct est_softc {
 	device_t	dev;
 	int		acpi_settings;
+	int		msr_settings;
 	freq_info	*freq_list;
 };
 
@@ -898,6 +900,7 @@ static int	est_detach(device_t parent);
 static int	est_get_info(device_t dev);
 static int	est_acpi_info(device_t dev, freq_info **freqs);
 static int	est_table_info(device_t dev, uint64_t msr, freq_info **freqs);
+static int	est_msr_info(device_t dev, uint64_t msr, freq_info **freqs);
 static freq_info *est_get_current(freq_info *freq_list);
 static int	est_settings(device_t dev, struct cf_setting *sets, int *count);
 static int	est_set(device_t dev, const struct cf_setting *set);
@@ -1035,7 +1038,7 @@ est_detach(device_t dev)
 	struct est_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (sc->acpi_settings)
+	if (sc->acpi_settings || sc->msr_settings)
 		free(sc->freq_list, M_DEVBUF);
 #endif
 	return (ENXIO);
@@ -1060,6 +1063,8 @@ est_get_info(device_t dev)
 	error = est_table_info(dev, msr, &sc->freq_list);
 	if (error)
 		error = est_acpi_info(dev, &sc->freq_list);
+	if (error)
+		error = est_msr_info(dev, msr, &sc->freq_list);
 
 	if (error) {
 		printf(
@@ -1162,6 +1167,88 @@ est_table_info(device_t dev, uint64_t msr, freq_info **freqs)
 	}
 
 	*freqs = p->freqtab;
+	return (0);
+}
+
+static int
+bus_speed_ok(int bus)
+{
+
+	switch (bus) {
+	case 100:
+	case 133:
+	case 333:
+		return (1);
+	default:
+		return (0);
+	}
+}
+
+/*
+ * Flesh out a simple rate table containing the high and low frequencies
+ * based on the current clock speed and the upper 32 bits of the MSR.
+ */
+static int
+est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
+{
+	struct est_softc *sc;
+	freq_info *fp;
+	int bus, freq, volts;
+	uint16_t id;
+
+	/* Figure out the bus clock. */
+	freq = tsc_freq / 1000000;
+	id = msr >> 32;
+	bus = freq / (id >> 8);
+	device_printf(dev, "Guessed bus clock (high) of %d MHz\n", bus);
+	if (!bus_speed_ok(bus)) {
+		/* We may be running on the low frequency. */
+		id = msr >> 48;
+		bus = freq / (id >> 8);
+		device_printf(dev, "Guessed bus clock (low) of %d MHz\n", bus);
+		if (!bus_speed_ok(bus))
+			return (EOPNOTSUPP);
+		
+		/* Calculate high frequency. */
+		id = msr >> 32;
+		freq = ((id >> 8) & 0xff) * bus;
+	}
+
+	/* Fill out a new freq table containing just the high and low freqs. */
+	sc = device_get_softc(dev);
+	fp = malloc(sizeof(freq_info) * 3, M_DEVBUF, M_WAITOK | M_ZERO);
+
+	/* First, the high frequency. */
+	volts = id & 0xff;
+	if (volts != 0) {
+		volts <<= 4;
+		volts += 700;
+	}
+	fp[0].freq = freq;
+	fp[0].volts = volts;
+	fp[0].id16 = id;
+	fp[0].power = CPUFREQ_VAL_UNKNOWN;
+	device_printf(dev, "Guessed high setting of %d MHz @ %d Mv\n", freq,
+	    volts);
+
+	/* Second, the low frequency. */
+	id = msr >> 48;
+	freq = ((id >> 8) & 0xff) * bus;
+	volts = id & 0xff;
+	if (volts != 0) {
+		volts <<= 4;
+		volts += 700;
+	}
+	fp[1].freq = freq;
+	fp[1].volts = volts;
+	fp[1].id16 = id;
+	fp[1].power = CPUFREQ_VAL_UNKNOWN;
+	device_printf(dev, "Guessed low setting of %d MHz @ %d Mv\n", freq,
+	    volts);
+
+	/* Table is already terminated due to M_ZERO. */
+	sc->msr_settings = TRUE;
+	*freqs = fp;
 	return (0);
 }
 
