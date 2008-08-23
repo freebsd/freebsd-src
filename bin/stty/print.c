@@ -136,7 +136,14 @@ print(struct termios *tp, struct winsize *wp, int ldisc, enum FMT fmt)
 	put("-opost", OPOST, 1);
 	put("-onlcr", ONLCR, 1);
 	put("-ocrnl", OCRNL, 0);
-	put("-oxtabs", OXTABS, 1);
+	switch(tmp&TABDLY) {
+	case TAB0:
+		bput("tab0");
+		break;
+	case TAB3:
+		bput("tab3");
+		break;
+	}
 	put("-onocr", ONOCR, 0);
 	put("-onlret", ONLRET, 0);
 
