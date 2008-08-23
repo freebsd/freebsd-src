@@ -162,9 +162,8 @@ tlphy_attach(device_t dev)
 	sc->sc_mii.mii_pdata = mii;
 
 	capmask = 0xFFFFFFFF;
-	if (mii->mii_instance) {
-		devs = 0;
-		device_get_children(sc->sc_mii.mii_dev, &devlist, &devs);
+	if (mii->mii_instance &&
+	    device_get_children(sc->sc_mii.mii_dev, &devlist, &devs) == 0) {
 		for (i = 0; i < devs; i++) {
 			if (strcmp(device_get_name(devlist[i]), "tlphy")) {
 				other = device_get_softc(devlist[i]);
