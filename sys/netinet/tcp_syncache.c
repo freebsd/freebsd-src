@@ -1034,6 +1034,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	sb_hiwat = so->so_rcv.sb_hiwat;
 	noopt = (tp->t_flags & TF_NOOPT);
 
+	/* By the time we drop the lock these should no longer be used. */
 	so = NULL;
 	tp = NULL;
 
