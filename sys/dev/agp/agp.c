@@ -118,7 +118,8 @@ agp_find_display(void)
 		bus = devclass_get_device(pci, busnum);
 		if (!bus)
 			continue;
-		device_get_children(bus, &kids, &numkids);
+		if (device_get_children(bus, &kids, &numkids) != 0)
+			continue;
 		for (i = 0; i < numkids; i++) {
 			dev = kids[i];
 			if (pci_get_class(dev) == PCIC_DISPLAY
