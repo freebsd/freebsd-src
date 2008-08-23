@@ -3138,7 +3138,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	bus_dma_segment_t segs[DC_MAXFRAGS];
 	struct dc_desc *f;
 	struct mbuf *m;
-	int chainlen, cur, error, first, frag, i, idx, nseg;
+	int cur, defragged, error, first, frag, i, idx, nseg;
 
 	/*
 	 * If there's no way we can send any packets, return now.
@@ -3146,22 +3146,30 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	if (DC_TX_LIST_CNT - sc->dc_cdata.dc_tx_cnt <= DC_TX_LIST_RSVD)
 		return (ENOBUFS);
 
-	/*
-	 * Count the number of frags in this chain to see if
-	 * we need to m_defrag.  Since the descriptor list is shared
-	 * by all packets, we'll m_defrag long chains so that they
-	 * do not use up the entire list, even if they would fit.
-	 */
-	chainlen = 0;
-	for (m = *m_head; m != NULL; m = m->m_next)
-		chainlen++;
-
 	m = NULL;
-	if ((sc->dc_flags & DC_TX_COALESCE && ((*m_head)->m_next != NULL ||
-	    sc->dc_flags & DC_TX_ALIGN)) || (chainlen > DC_TX_LIST_CNT / 4) ||
-	    (DC_TX_LIST_CNT - (chainlen + sc->dc_cdata.dc_tx_cnt) <=
-	    DC_TX_LIST_RSVD)) {
+	defragged = 0;
+	if (sc->dc_flags & DC_TX_COALESCE &&
+	    ((*m_head)->m_next != NULL || sc->dc_flags & DC_TX_ALIGN)) {
 		m = m_defrag(*m_head, M_DONTWAIT);
+		defragged = 1;
+	} else {
+		/*
+		 * Count the number of frags in this chain to see if we
+		 * need to m_collapse.  Since the descriptor list is shared
+		 * by all packets, we'll m_collapse long chains so that they
+		 * do not use up the entire list, even if they would fit.
+		 */
+		i = 0;
+		for (m = *m_head; m != NULL; m = m->m_next)
+			i++;
+		if (i > DC_TX_LIST_CNT / 4 ||
+		    DC_TX_LIST_CNT - i + sc->dc_cdata.dc_tx_cnt <=
+		    DC_TX_LIST_RSVD) {
+			m = m_collapse(*m_head, M_DONTWAIT, DC_MAXFRAGS);
+			defragged = 1;
+		}
+	}
+	if (defragged != 0) {
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -3169,15 +3177,16 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 		}
 		*m_head = m;
 	}
+
 	idx = sc->dc_cdata.dc_tx_prod;
 	error = bus_dmamap_load_mbuf_sg(sc->dc_mtag,
 	    sc->dc_cdata.dc_tx_map[idx], *m_head, segs, &nseg, 0);
 	if (error == EFBIG) {
-		m = m_defrag(*m_head, M_DONTWAIT);
-		if (m == NULL) {
+		if (defragged != 0 || (m = m_collapse(*m_head, M_DONTWAIT,
+		    DC_MAXFRAGS)) == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
-			return (ENOBUFS);
+			return (defragged != 0 ? error : ENOBUFS);
 		}
 		*m_head = m;
 		error = bus_dmamap_load_mbuf_sg(sc->dc_mtag,
