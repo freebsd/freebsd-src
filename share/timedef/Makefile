@@ -54,11 +54,11 @@ LOCALES=	am_ET.UTF-8 \
 		lt_LT.ISO8859-13 \
 		lt_LT.UTF-8 \
 		mn_MN.UTF-8 \
+		nb_NO.ISO8859-1 \
+		nb_NO.UTF-8 \
 		nl_NL.ISO8859-1 \
 		nn_NO.ISO8859-1 \
 		nn_NO.UTF-8 \
-		no_NO.ISO8859-1 \
-		no_NO.UTF-8 \
 		pl_PL.ISO8859-2 \
 		pl_PL.UTF-8 \
 		pt_BR.ISO8859-1 \
@@ -118,7 +118,7 @@ DE_LINKS=	de_DE:de_CH
 FR_LINKS=	fr_FR:fr_BE fr_FR:fr_CA fr_FR:fr_CH
 IT_LINKS=	it_IT:it_CH
 NL_LINKS=	nl_NL:nl_BE
-NO_LINKS=	no_NO:nb_NO
+NO_LINKS=	nb_NO:no_NO
 GB_LINKS=	en_GB:en_AU en_GB:en_CA en_GB:en_NZ
 
 eucKR_CP949=	ko_KR
