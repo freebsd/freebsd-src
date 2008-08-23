@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_get_item.c#17 $
+ * $Id: pam_get_item.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <sys/param.h>
@@ -64,7 +65,7 @@ const char *_pam_item_name[PAM_NUM_ITEMS] = {
  */
 
 int
-pam_get_item(pam_handle_t *pamh,
+pam_get_item(const pam_handle_t *pamh,
 	int item_type,
 	const void **item)
 {

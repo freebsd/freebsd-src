@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,11 +32,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_modules.h#9 $
+ * $Id: pam_modules.h 408 2007-12-21 11:36:24Z des $
  */
 
-#ifndef _PAM_MODULES_H_INCLUDED
-#define _PAM_MODULES_H_INCLUDED
+#ifndef SECURITY_PAM_MODULES_H_INCLUDED
+#define SECURITY_PAM_MODULES_H_INCLUDED
 
 #include <security/pam_types.h>
 #include <security/pam_constants.h>
@@ -157,4 +158,4 @@ pam_sm_set_mapped_username(pam_handle_t *_pamh,
 }
 #endif
 
-#endif
+#endif /* !SECURITY_PAM_MODULES_H_INCLUDED */

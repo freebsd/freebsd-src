@@ -1,9 +1,7 @@
-# $P4: //depot/projects/openpam/bin/su/Makefile.am#2 $
+# $Id: Makefile.am 386 2006-04-12 10:26:27Z des $
 
 INCLUDES = -I$(top_srcdir)/include
 
-if WITH_PAM_SU
 bin_PROGRAMS = su
 su_SOURCES = su.c
 su_LDADD = $(top_builddir)/lib/libpam.la
-endif

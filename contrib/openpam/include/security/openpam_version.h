@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,14 +32,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/openpam_version.h#14 $
+ * $Id: openpam_version.h 412 2008-01-29 19:31:46Z des $
  */
 
-#ifndef _OPENPAM_VERSION_H_INCLUDED
-#define _OPENPAM_VERSION_H_INCLUDED
+#ifndef SECURITY_OPENPAM_VERSION_H_INCLUDED
+#define SECURITY_OPENPAM_VERSION_H_INCLUDED
 
+#define OPENPAM
+#define OPENPAM_VERSION	20071221
+#define OPENPAM_RELEASE	"Hydrangea"
+
+/* violates reserved namespace, but can't be removed for legacy reasons */
 #define _OPENPAM
-#define _OPENPAM_VERSION	20050616
-#define _OPENPAM_RELEASE	"Figwort"
 
-#endif
+#endif /* !SECURITY_OPENPAM_VERSION_H_INCLUDED */
