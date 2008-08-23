@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 1999
+.Dd August 23, 2008
 .Dt DEVICE_GET_CHILDREN 9
 .Os
 .Sh NAME
@@ -48,6 +48,10 @@ and the count in
 .Fa *devcountp .
 The memory allocated for the list should be freed using
 .Fn free "*devlistp" "M_TEMP" .
+.Fa devlistp 
+and
+.Fa devcountp 
+are not changed when an error is returned.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
