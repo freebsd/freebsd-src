@@ -4,6 +4,7 @@
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Samy Al Bahra
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -97,7 +98,10 @@ void
 mac_cred_init(struct ucred *cred)
 {
 
-	cred->cr_label = mac_cred_label_alloc();
+	if (mac_labeled & MPC_OBJECT_CRED)
+		cred->cr_label = mac_cred_label_alloc();
+	else
+		cred->cr_label = NULL;
 }
 
 static struct label *
@@ -114,7 +118,10 @@ void
 mac_proc_init(struct proc *p)
 {
 
-	p->p_label = mac_proc_label_alloc();
+	if (mac_labeled & MPC_OBJECT_PROC)
+		p->p_label = mac_proc_label_alloc();
+	else
+		p->p_label = NULL;
 }
 
 void
@@ -129,8 +136,10 @@ void
 mac_cred_destroy(struct ucred *cred)
 {
 
-	mac_cred_label_free(cred->cr_label);
-	cred->cr_label = NULL;
+	if (cred->cr_label != NULL) {
+		mac_cred_label_free(cred->cr_label);
+		cred->cr_label = NULL;
+	}
 }
 
 static void
@@ -145,8 +154,10 @@ void
 mac_proc_destroy(struct proc *p)
 {
 
-	mac_proc_label_free(p->p_label);
-	p->p_label = NULL;
+	if (p->p_label != NULL) {
+		mac_proc_label_free(p->p_label);
+		p->p_label = NULL;
+	}
 }
 
 int
@@ -238,6 +249,9 @@ mac_execve_enter(struct image_params *imgp, struct mac *mac_p)
 	if (mac_p == NULL)
 		return (0);
 
+	if (!(mac_labeled & MPC_OBJECT_CRED))
+		return (EINVAL);
+
 	error = copyin(mac_p, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -271,6 +285,26 @@ mac_execve_exit(struct image_params *imgp)
 		mac_cred_label_free(imgp->execlabel);
 		imgp->execlabel = NULL;
 	}
+}
+
+void
+mac_execve_interpreter_enter(struct vnode *interpvp,
+    struct label **interpvplabel)
+{
+
+	if (mac_labeled & MPC_OBJECT_VNODE) {
+		*interpvplabel = mac_vnode_label_alloc();
+		mac_vnode_copy_label(interpvp->v_label, *interpvplabel);
+	} else
+		*interpvplabel = NULL;
+}
+
+void
+mac_execve_interpreter_exit(struct label *interpvplabel)
+{
+
+	if (interpvplabel != NULL)
+		mac_vnode_label_free(interpvplabel);
 }
 
 /*
