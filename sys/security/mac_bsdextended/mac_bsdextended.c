@@ -748,4 +748,4 @@ static struct mac_policy_ops ugidfw_ops =
 };
 
 MAC_POLICY_SET(&ugidfw_ops, mac_bsdextended, "TrustedBSD MAC/BSD Extended",
-    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL, 0);

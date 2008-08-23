@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -126,14 +127,19 @@ int
 mac_socket_init(struct socket *so, int flag)
 {
 
-	so->so_label = mac_socket_label_alloc(flag);
-	if (so->so_label == NULL)
-		return (ENOMEM);
-	so->so_peerlabel = mac_socketpeer_label_alloc(flag);
-	if (so->so_peerlabel == NULL) {
-		mac_socket_label_free(so->so_label);
+	if (mac_labeled & MPC_OBJECT_SOCKET) {
+		so->so_label = mac_socket_label_alloc(flag);
+		if (so->so_label == NULL)
+			return (ENOMEM);
+		so->so_peerlabel = mac_socketpeer_label_alloc(flag);
+		if (so->so_peerlabel == NULL) {
+			mac_socket_label_free(so->so_label);
+			so->so_label = NULL;
+			return (ENOMEM);
+		}
+	} else {
 		so->so_label = NULL;
-		return (ENOMEM);
+		so->so_peerlabel = NULL;
 	}
 	return (0);
 }
@@ -158,10 +164,12 @@ void
 mac_socket_destroy(struct socket *so)
 {
 
-	mac_socket_label_free(so->so_label);
-	so->so_label = NULL;
-	mac_socketpeer_label_free(so->so_peerlabel);
-	so->so_peerlabel = NULL;
+	if (so->so_label != NULL) {
+		mac_socket_label_free(so->so_label);
+		so->so_label = NULL;
+		mac_socketpeer_label_free(so->so_peerlabel);
+		so->so_peerlabel = NULL;
+	}
 }
 
 void
@@ -459,6 +467,9 @@ mac_setsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 	char *buffer;
 	int error;
 
+	if (!(mac_labeled & MPC_OBJECT_SOCKET))
+		return (EINVAL);
+
 	error = mac_check_structmac_consistent(mac);
 	if (error)
 		return (error);
@@ -488,6 +499,9 @@ mac_getsockopt_label(struct ucred *cred, struct socket *so, struct mac *mac)
 	char *buffer, *elements;
 	struct label *intlabel;
 	int error;
+
+	if (!(mac_labeled & MPC_OBJECT_SOCKET))
+		return (EINVAL);
 
 	error = mac_check_structmac_consistent(mac);
 	if (error)
@@ -524,6 +538,9 @@ mac_getsockopt_peerlabel(struct ucred *cred, struct socket *so,
 	char *elements, *buffer;
 	struct label *intlabel;
 	int error;
+
+	if (!(mac_labeled & MPC_OBJECT_SOCKET))
+		return (EINVAL);
 
 	error = mac_check_structmac_consistent(mac);
 	if (error)

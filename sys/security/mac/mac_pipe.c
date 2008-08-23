@@ -68,7 +68,10 @@ void
 mac_pipe_init(struct pipepair *pp)
 {
 
-	pp->pp_label = mac_pipe_label_alloc();
+	if (mac_labeled & MPC_OBJECT_PIPE)
+		pp->pp_label = mac_pipe_label_alloc();
+	else
+		pp->pp_label = NULL;
 }
 
 void
@@ -83,8 +86,10 @@ void
 mac_pipe_destroy(struct pipepair *pp)
 {
 
-	mac_pipe_label_free(pp->pp_label);
-	pp->pp_label = NULL;
+	if (pp->pp_label != NULL) {
+		mac_pipe_label_free(pp->pp_label);
+		pp->pp_label = NULL;
+	}
 }
 
 void

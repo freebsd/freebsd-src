@@ -64,7 +64,10 @@ void
 mac_posixsem_init(struct ksem *ks)
 {
 
-	ks->ks_label = mac_posixsem_label_alloc();
+	if (mac_labeled & MPC_OBJECT_POSIXSEM)
+		ks->ks_label = mac_posixsem_label_alloc();
+	else
+		ks->ks_label = NULL;
 }
 
 static void
@@ -79,8 +82,10 @@ void
 mac_posixsem_destroy(struct ksem *ks)
 {
 
-	mac_posixsem_label_free(ks->ks_label);
-	ks->ks_label = NULL;
+	if (ks->ks_label != NULL) {
+		mac_posixsem_label_free(ks->ks_label);
+		ks->ks_label = NULL;
+	}
 }
 
 void

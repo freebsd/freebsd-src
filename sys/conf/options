@@ -114,7 +114,6 @@ KTRACE
 KTRACE_REQUEST_POOL	opt_ktrace.h
 LIBICONV
 MAC
-MAC_ALWAYS_LABEL_MBUF	opt_mac.h
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_IFOFF	opt_dontuse.h

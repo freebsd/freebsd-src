@@ -70,7 +70,10 @@ void
 mac_sysvsem_init(struct semid_kernel *semakptr)
 {
 
-	semakptr->label = mac_sysv_sem_label_alloc();
+	if (mac_labeled & MPC_OBJECT_SYSVSEM)
+		semakptr->label = mac_sysv_sem_label_alloc();
+	else
+		semakptr->label = NULL;
 }
 
 static void
@@ -85,8 +88,10 @@ void
 mac_sysvsem_destroy(struct semid_kernel *semakptr)
 {
 
-	mac_sysv_sem_label_free(semakptr->label);
-	semakptr->label = NULL;
+	if (semakptr->label != NULL) {
+		mac_sysv_sem_label_free(semakptr->label);
+		semakptr->label = NULL;
+	}
 }
 
 void

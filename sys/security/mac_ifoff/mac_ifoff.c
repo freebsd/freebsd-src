@@ -170,4 +170,4 @@ static struct mac_policy_ops ifoff_ops =
 };
 
 MAC_POLICY_SET(&ifoff_ops, mac_ifoff, "TrustedBSD MAC/ifoff",
-    MPC_LOADTIME_FLAG_UNLOADOK, NULL);
+    MPC_LOADTIME_FLAG_UNLOADOK, NULL, 0);
