@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
 
@@ -46,7 +47,10 @@ __FBSDID("$FreeBSD$");
  * si_drv1 inside the cdev to mark whether the PTY is in use.
  */
 
-static int pty_warningcnt = 10;
+static unsigned int pty_warningcnt = 10;
+SYSCTL_UINT(_kern, OID_AUTO, tty_pty_warningcnt, CTLFLAG_RW,
+	&pty_warningcnt, 0,
+	"Warnings that will be triggered upon PTY allocation");
 
 static int
 ptydev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
