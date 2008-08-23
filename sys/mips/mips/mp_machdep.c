@@ -160,7 +160,7 @@ smp_handle_ipi(struct trapframe *frame)
 		}
 	}
 	return CR_INT_IPI;
- }
+}
 
 void
 cpu_mp_setmaxid(void)
