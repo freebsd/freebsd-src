@@ -141,7 +141,6 @@ options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
 # Builtin hardware
 device		auxio		# auxiliary I/O device
-device		clkbrd		# Clock Board (blinkenlight on Sun Exx00)
 device		eeprom		# eeprom (really a front-end for the MK48Txx)
 device		mk48txx		# Mostek MK48Txx clocks
 device		rtc		# rtc (really a front-end for the MC146818)
