@@ -2645,9 +2645,7 @@ pci_attach(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
 		    domain, busno);
-
 	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
-
 	return (bus_generic_attach(dev));
 }
 
