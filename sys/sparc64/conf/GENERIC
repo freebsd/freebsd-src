@@ -128,6 +128,8 @@ device		atkbdc		# AT keyboard controller
 device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 
+device		kbdmux		# keyboard multiplexer
+
 # syscons is the default console driver, resembling an SCO console
 device		sc
 device		creator		# Creator, Creator3D and Elite3D framebuffers
@@ -157,7 +159,7 @@ device		uart		# Multi-uart driver
 #device		plip		# TCP/IP over parallel
 #device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
- 
+
 # PCI Ethernet NICs.
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
@@ -192,8 +194,8 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
-options		IEEE80211_DEBUG	# enable debug msgs
-options		IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+options 	IEEE80211_DEBUG	# enable debug msgs
+options 	IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
 device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
