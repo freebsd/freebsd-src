@@ -1,5 +1,5 @@
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam.man#4 $
+.\" $Id: pam.man 320 2006-02-16 20:33:19Z des $
 .\"
 .Sh DESCRIPTION
 The Pluggable Authentication Modules (PAM) library abstracts a number

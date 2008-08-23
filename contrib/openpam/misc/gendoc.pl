@@ -1,6 +1,7 @@
 #!/usr/bin/perl -w
 #-
 # Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+# Copyright (c) 2004-2007 Dag-Erling Smørgrav
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +33,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/misc/gendoc.pl#30 $
+# $Id: gendoc.pl 408 2007-12-21 11:36:24Z des $
 #
 
 use strict;
@@ -44,6 +45,7 @@ use vars qw($COPYRIGHT $TODAY %FUNCTIONS %PAMERR);
 
 $COPYRIGHT = ".\\\"-
 .\\\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\\\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
 .\\\" All rights reserved.
 .\\\"
 .\\\" This software was developed for the FreeBSD Project by ThinkSec AS and

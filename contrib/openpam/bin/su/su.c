@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/bin/su/su.c#12 $
+ * $Id: su.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <sys/param.h>
@@ -67,6 +68,7 @@ main(int argc, char *argv[])
 {
 	char hostname[MAXHOSTNAMELEN];
 	const char *user, *tty;
+	const void *item;
 	char **args, **pam_envlist, **pam_env;
 	struct passwd *pwd;
 	int o, pam_err, status;
@@ -122,8 +124,8 @@ main(int argc, char *argv[])
 		goto pamerr;
 
 	/* get mapped user name; PAM may have changed it */
-	pam_err = pam_get_item(pamh, PAM_USER, (const void **)&user);
-	if (pam_err != PAM_SUCCESS || (pwd = getpwnam(user)) == NULL)
+	pam_err = pam_get_item(pamh, PAM_USER, &item);
+	if (pam_err != PAM_SUCCESS || (pwd = getpwnam(user = item)) == NULL)
 		goto pamerr;
 
 	/* export PAM environment */

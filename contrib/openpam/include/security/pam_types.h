@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,11 +32,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_types.h#13 $
+ * $Id: pam_types.h 408 2007-12-21 11:36:24Z des $
  */
 
-#ifndef _PAM_TYPES_H_INCLUDED
-#define _PAM_TYPES_H_INCLUDED
+#ifndef SECURITY_PAM_TYPES_H_INCLUDED
+#define SECURITY_PAM_TYPES_H_INCLUDED
 
 #include <stddef.h>
 
@@ -77,11 +78,11 @@ typedef struct pam_handle pam_handle_t;
 typedef struct pam_repository {
 	char	*type;
 	void	*scope;
-	size_t	scope_len;
+	size_t	 scope_len;
 } pam_repository_t;
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* !SECURITY_PAM_TYPES_H_INCLUDED */

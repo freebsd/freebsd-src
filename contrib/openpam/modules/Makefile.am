@@ -1,3 +1,3 @@
-# $P4: //depot/projects/openpam/modules/Makefile.am#2 $
+# $Id: Makefile.am 320 2006-02-16 20:33:19Z des $
 
 SUBDIRS = pam_unix pam_deny pam_permit
