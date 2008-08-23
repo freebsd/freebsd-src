@@ -72,6 +72,7 @@ SUBDIR=	${_3dfx} \
 	dcons \
 	dcons_crom \
 	de \
+	${_dpms} \
 	${_dpt} \
 	${_drm} \
 	${_dtrace} \
@@ -377,6 +378,7 @@ _cs=		cs
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
+_dpms=		dpms
 _drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
