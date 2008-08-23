@@ -193,8 +193,11 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 		case 0:			/* Main */
 			switch (bTag) {
 			case 8:		/* Input */
-				if (!(s->kindset & (1 << hid_input)))
+				if (!(s->kindset & (1 << hid_input))) {
+					if (s->nu > 0)
+						s->nu--;
 					continue;
+				}
 				c->kind = hid_input;
 				c->flags = dval;
 			ret:
@@ -223,8 +226,11 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 					return (1);
 				}
 			case 9:		/* Output */
-				if (!(s->kindset & (1 << hid_output)))
+				if (!(s->kindset & (1 << hid_output))) {
+					if (s->nu > 0)
+						s->nu--;
 					continue;
+				}
 				c->kind = hid_output;
 				c->flags = dval;
 				goto ret;
@@ -237,8 +243,11 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				s->nu = 0;
 				return (1);
 			case 11:	/* Feature */
-				if (!(s->kindset & (1 << hid_feature)))
+				if (!(s->kindset & (1 << hid_feature))) {
+					if (s->nu > 0)
+						s->nu--;
 					continue;
+				}
 				c->kind = hid_feature;
 				c->flags = dval;
 				goto ret;
