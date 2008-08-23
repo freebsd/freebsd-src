@@ -250,12 +250,6 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			error = uiomove(tob->tob_data + cbegin, clen, uio);
 			tty_lock(tp);
 
-			if (tty_gone(tp)) {
-				/* We lost the discipline. */
-				uma_zfree(ttyoutq_zone, tob);
-				return (ENXIO);
-			}
-
 			/* Block can now be readded to the list. */
 			/*
 			 * XXX: we could remove the blocks here when the
@@ -281,11 +275,6 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			tty_unlock(tp);
 			error = uiomove(ob, clen, uio);
 			tty_lock(tp);
-
-			if (tty_gone(tp)) {
-				/* We lost the discipline. */
-				return (ENXIO);
-			}
 
 			if (error != 0)
 				return (error);
