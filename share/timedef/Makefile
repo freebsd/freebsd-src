@@ -53,9 +53,11 @@ LOCALES=	am_ET.UTF-8 \
 		lt_LT.ISO8859-4 \
 		lt_LT.ISO8859-13 \
 		lt_LT.UTF-8 \
+		nb_NO.ISO8859-1 \
+		nb_NO.UTF-8 \
 		nl_NL.ISO8859-1 \
-		no_NO.ISO8859-1 \
-		no_NO.UTF-8 \
+		nn_NO.ISO8859-1 \
+		nn_NO.UTF-8 \
 		pl_PL.ISO8859-2 \
 		pl_PL.UTF-8 \
 		pt_BR.ISO8859-1 \
@@ -115,15 +117,18 @@ DE_LINKS=	de_DE:de_CH
 FR_LINKS=	fr_FR:fr_BE fr_FR:fr_CA fr_FR:fr_CH
 IT_LINKS=	it_IT:it_CH
 NL_LINKS=	nl_NL:nl_BE
+NO_LINKS=	nb_NO:no_NO
 GB_LINKS=	en_GB:en_AU en_GB:en_CA en_GB:en_NZ
 
 eucKR_CP949=	ko_KR
 GB2312_GBK=	zh_CN
 ISO8859-1_ISO8859-1= ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
-		${NL_LINKS} en_US:af_ZA
+		${NL_LINKS} ${NO_LINKS} en_US:af_ZA
 ISO8859-1_ISO8859-15= ca_ES da_DK de_AT de_DE en_GB en_US es_ES eu_ES \
-		fi_FI fr_FR is_IS it_IT la_LN nl_NL no_NO pt_PT sv_SE \
-		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS}
+		fi_FI fr_FR is_IS it_IT la_LN nl_NL nn_NO no_NO pt_PT \
+		sv_SE \
+		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS} \
+		${NO_LINKS}
 ISO8859-1_US-ASCII= ${GB_LINKS} en_GB en_US la_LN
 ISO8859-1_ISO8859-2= la_LN
 ISO8859-1_ISO8859-4= la_LN
@@ -131,6 +136,7 @@ ISO8859-1_UTF-8= en_GB en_US eu_ES nl_NL
 ISO8859-15_ISO8859-15= en_US:af_ZA
 UTF-8_Big5HKSCS= zh_TW:zh_HK
 UTF-8_UTF-8=	${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS} \
+		${NO_LINKS} \
 		en_GB:en_IE en_US:af_ZA zh_TW:zh_HK
 
 SYMLINKS=

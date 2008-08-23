@@ -35,23 +35,23 @@ desember
 #
 # Short weekdays names
 #
-søn
-man
-tir
+sun
+m�n
+tys
 ons
 tor
 fre
-lør
+lau
 #
 # Long weekdays names
 #
-søndag
-mandag
-tirsdag
+sundag
+m�ndag
+tysdag
 onsdag
 torsdag
 fredag
-lørdag
+laurdag
 #
 # X_fmt
 #
