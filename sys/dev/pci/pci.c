@@ -562,11 +562,12 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 						    cfg->domain, cfg->bus,
 						    cfg->slot, cfg->func,
 						    (long long)addr);
-				}
+				} else
+					addr = MSI_INTEL_ADDR_BASE;
 
-				/* Enable MSI -> HT mapping. */
-				val |= PCIM_HTCMD_MSI_ENABLE;
-				WREG(ptr + PCIR_HT_COMMAND, val, 2);
+				cfg->ht.ht_msimap = ptr;
+				cfg->ht.ht_msictrl = val;
+				cfg->ht.ht_msiaddr = addr;
 				break;
 			}
 			break;
@@ -1095,6 +1096,9 @@ pci_enable_msix(device_t dev, u_int index, uint64_t address, uint32_t data)
 	bus_write_4(msix->msix_table_res, offset, address & 0xffffffff);
 	bus_write_4(msix->msix_table_res, offset + 4, address >> 32);
 	bus_write_4(msix->msix_table_res, offset + 8, data);
+
+	/* Enable MSI -> HT mapping. */
+	pci_ht_map_msi(dev, address);
 }
 
 void
@@ -1534,6 +1538,34 @@ pci_msix_count_method(device_t dev, device_t child)
 }
 
 /*
+ * HyperTransport MSI mapping control
+ */
+void
+pci_ht_map_msi(device_t dev, uint64_t addr)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pcicfg_ht *ht = &dinfo->cfg.ht;
+
+	if (!ht->ht_msimap)
+		return;
+
+	if (addr && !(ht->ht_msictrl & PCIM_HTCMD_MSI_ENABLE) &&
+	    ht->ht_msiaddr >> 20 == addr >> 20) {
+		/* Enable MSI -> HT mapping. */
+		ht->ht_msictrl |= PCIM_HTCMD_MSI_ENABLE;
+		pci_write_config(dev, ht->ht_msimap + PCIR_HT_COMMAND,
+		    ht->ht_msictrl, 2);
+	}
+
+	if (!addr && ht->ht_msictrl & PCIM_HTCMD_MSI_ENABLE) {
+		/* Disable MSI -> HT mapping. */
+		ht->ht_msictrl &= ~PCIM_HTCMD_MSI_ENABLE;
+		pci_write_config(dev, ht->ht_msimap + PCIR_HT_COMMAND,
+		    ht->ht_msictrl, 2);
+	}
+}
+
+/*
  * Support for MSI message signalled interrupts.
  */
 void
@@ -1558,6 +1590,9 @@ pci_enable_msi(device_t dev, uint64_t address, uint16_t data)
 	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
 	pci_write_config(dev, msi->msi_location + PCIR_MSI_CTRL, msi->msi_ctrl,
 	    2);
+
+	/* Enable MSI -> HT mapping. */
+	pci_ht_map_msi(dev, address);
 }
 
 void
@@ -1565,6 +1600,9 @@ pci_disable_msi(device_t dev)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	struct pcicfg_msi *msi = &dinfo->cfg.msi;
+
+	/* Disable MSI -> HT mapping. */
+	pci_ht_map_msi(dev, 0);
 
 	/* Disable MSI in the control register. */
 	msi->msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
