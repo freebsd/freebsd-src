@@ -1,6 +1,3 @@
-/* lock.c -- IOCTLs for locking -*- linux-c -*-
- * Created: Tue Feb  2 08:37:54 1999 by faith@valinux.com
- */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -34,6 +31,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_lock.c
+ * Implementation of the ioctls and other support code for dealing with the
+ * hardware lock.
+ *
+ * The DRM hardware lock is a shared structure between the kernel and userland.
+ *
+ * On uncontended access where the new context was the last context, the
+ * client may take the lock without dropping down into the kernel, using atomic
+ * compare-and-set.
+ *
+ * If the client finds during compare-and-set that it was not the last owner
+ * of the lock, it calls the DRM lock ioctl, which may sleep waiting for the
+ * lock, and may have side-effects of kernel-managed context switching.
+ *
+ * When the client releases the lock, if the lock is marked as being contended
+ * by another client, then the DRM unlock ioctl is called so that the
+ * contending client may be woken up.
+ */
+
 #include "dev/drm/drmP.h"
 
 int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
@@ -64,12 +80,12 @@ int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
 
 /* This takes a lock forcibly and hands it to context.	Should ONLY be used
    inside *_unlock to give lock to kernel before calling *_dma_schedule. */
-int drm_lock_transfer(drm_device_t *dev,
+int drm_lock_transfer(struct drm_device *dev,
 		       __volatile__ unsigned int *lock, unsigned int context)
 {
 	unsigned int old, new;
 
-	dev->lock.filp = NULL;
+	dev->lock.file_priv = NULL;
 	do {
 		old  = *lock;
 		new  = context | _DRM_LOCK_HELD;
@@ -78,12 +94,12 @@ int drm_lock_transfer(drm_device_t *dev,
 	return 1;
 }
 
-int drm_lock_free(drm_device_t *dev,
+int drm_lock_free(struct drm_device *dev,
 		   __volatile__ unsigned int *lock, unsigned int context)
 {
 	unsigned int old, new;
 
-	dev->lock.filp = NULL;
+	dev->lock.file_priv = NULL;
 	do {
 		old  = *lock;
 		new  = 0;
@@ -98,30 +114,28 @@ int drm_lock_free(drm_device_t *dev,
 	return 0;
 }
 
-int drm_lock(DRM_IOCTL_ARGS)
+int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-        drm_lock_t lock;
+        drm_lock_t *lock = data;
         int ret = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(lock, (drm_lock_t *)data, sizeof(lock));
-
-        if (lock.context == DRM_KERNEL_CONTEXT) {
+        if (lock->context == DRM_KERNEL_CONTEXT) {
                 DRM_ERROR("Process %d using kernel context %d\n",
-		    DRM_CURRENTPID, lock.context);
+		    DRM_CURRENTPID, lock->context);
                 return EINVAL;
         }
 
         DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
-	    lock.context, DRM_CURRENTPID, dev->lock.hw_lock->lock, lock.flags);
+	    lock->context, DRM_CURRENTPID, dev->lock.hw_lock->lock,
+	    lock->flags);
 
-        if (dev->driver.use_dma_queue && lock.context < 0)
+        if (dev->driver.use_dma_queue && lock->context < 0)
                 return EINVAL;
 
 	DRM_LOCK();
 	for (;;) {
-		if (drm_lock_take(&dev->lock.hw_lock->lock, lock.context)) {
-			dev->lock.filp = (void *)(uintptr_t)DRM_CURRENTPID;
+		if (drm_lock_take(&dev->lock.hw_lock->lock, lock->context)) {
+			dev->lock.file_priv = file_priv;
 			dev->lock.lock_time = jiffies;
 			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 			break;  /* Got lock */
@@ -129,7 +143,7 @@ int drm_lock(DRM_IOCTL_ARGS)
 
 		/* Contention */
 #if defined(__FreeBSD__) && __FreeBSD_version > 500000
-		ret = msleep((void *)&dev->lock.lock_queue, &dev->dev_lock,
+		ret = mtx_sleep((void *)&dev->lock.lock_queue, &dev->dev_lock,
 		    PZERO | PCATCH, "drmlk2", 0);
 #else
 		ret = tsleep((void *)&dev->lock.lock_queue, PZERO | PCATCH,
@@ -139,7 +153,7 @@ int drm_lock(DRM_IOCTL_ARGS)
 			break;
 	}
 	DRM_UNLOCK();
-	DRM_DEBUG("%d %s\n", lock.context, ret ? "interrupted" : "has lock");
+	DRM_DEBUG("%d %s\n", lock->context, ret ? "interrupted" : "has lock");
 
 	if (ret != 0)
 		return ret;
@@ -147,24 +161,34 @@ int drm_lock(DRM_IOCTL_ARGS)
 	/* XXX: Add signal blocking here */
 
 	if (dev->driver.dma_quiescent != NULL &&
-	    (lock.flags & _DRM_LOCK_QUIESCENT))
+	    (lock->flags & _DRM_LOCK_QUIESCENT))
 		dev->driver.dma_quiescent(dev);
 
 	return 0;
 }
 
-int drm_unlock(DRM_IOCTL_ARGS)
+int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_lock_t lock;
+	drm_lock_t *lock = data;
 
-	DRM_COPY_FROM_USER_IOCTL(lock, (drm_lock_t *)data, sizeof(lock));
-
-	if (lock.context == DRM_KERNEL_CONTEXT) {
+	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
-		    DRM_CURRENTPID, lock.context);
+		    DRM_CURRENTPID, lock->context);
 		return EINVAL;
 	}
+	/* Check that the context unlock being requested actually matches
+	 * who currently holds the lock.
+	 */
+	if (!_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) ||
+	    _DRM_LOCKING_CONTEXT(dev->lock.hw_lock->lock) != lock->context)
+		return EINVAL;
+
+	DRM_SPINLOCK(&dev->tsk_lock);
+	if (dev->locked_task_call != NULL) {
+		dev->locked_task_call(dev);
+		dev->locked_task_call = NULL;
+	}
+	DRM_SPINUNLOCK(&dev->tsk_lock);
 
 	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 

@@ -1,6 +1,3 @@
-/* drm_memory.h -- Memory management wrappers for DRM -*- linux-c -*-
- * Created: Thu Feb  4 14:00:34 1999 by faith@valinux.com
- */
 /*-
  *Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -33,6 +30,14 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+/** @file drm_memory.c
+ * Wrappers for kernel memory allocation routines, and MTRR management support.
+ *
+ * This file previously implemented a memory consumption tracking system using
+ * the "area" argument for various different types of allocations, but that
+ * has been stripped out for now.
+ */
 
 #include "dev/drm/drmP.h"
 
@@ -78,7 +83,7 @@ void drm_free(void *pt, size_t size, int area)
 	free(pt, M_DRM);
 }
 
-void *drm_ioremap(drm_device_t *dev, drm_local_map_t *map)
+void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)
 {
 #ifdef __FreeBSD__
 	return pmap_mapdev(map->offset, map->size);

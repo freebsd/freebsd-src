@@ -40,7 +40,7 @@ static drm_pci_id_list_t savage_pciidlist[] = {
 	savage_PCI_IDS
 };
 
-static void savage_configure(drm_device_t *dev)
+static void savage_configure(struct drm_device *dev)
 {
 	dev->driver.buf_priv_size	= sizeof(drm_savage_buf_priv_t);
 	dev->driver.load		= savage_driver_load;
@@ -76,9 +76,9 @@ savage_probe(device_t dev)
 static int
 savage_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	bzero(dev, sizeof(struct drm_device));
 	savage_configure(dev);
 	return drm_attach(nbdev, savage_pciidlist);
 }
@@ -95,7 +95,7 @@ static device_method_t savage_methods[] = {
 static driver_t savage_driver = {
 	"drm",
 	savage_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
