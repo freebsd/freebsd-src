@@ -366,9 +366,12 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	int i, error, lenread, lenwrote, nkid;
 	device_t *children, bus;
 
-	device_get_children(dev, &children, &nkid);
-	if (nkid != 1)
+	if ((error = device_get_children(dev, &children, &nkid)) != 0)
+		return (error);
+	if (nkid != 1) {
+		free(children, M_TEMP);
 		return (EIO);
+	}
 	bus = children[0];
 	free(children, M_TEMP);
 	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
