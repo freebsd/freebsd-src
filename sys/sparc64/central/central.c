@@ -105,6 +105,7 @@ static driver_t central_driver = {
 static devclass_t central_devclass;
 
 DRIVER_MODULE(central, nexus, central_driver, central_devclass, 0, 0);
+MODULE_VERSION(central, 1);
 
 static int
 central_probe(device_t dev)
@@ -159,7 +160,7 @@ central_attach(device_t dev)
 			resource_list_add(&cdi->cdi_rl, SYS_RES_MEMORY, i,
 			    reg[i].sbr_offset, reg[i].sbr_offset +
 			    reg[i].sbr_size, reg[i].sbr_size);
-    		free(reg, M_OFWPROP);
+		free(reg, M_OFWPROP);
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
