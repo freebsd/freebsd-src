@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -112,7 +113,10 @@ void
 mac_bpfdesc_init(struct bpf_d *d)
 {
 
-	d->bd_label = mac_bpfdesc_label_alloc();
+	if (mac_labeled & MPC_OBJECT_BPFDESC)
+		d->bd_label = mac_bpfdesc_label_alloc();
+	else
+		d->bd_label = NULL;
 }
 
 static struct label *
@@ -129,7 +133,10 @@ void
 mac_ifnet_init(struct ifnet *ifp)
 {
 
-	ifp->if_label = mac_ifnet_label_alloc();
+	if (mac_labeled & MPC_OBJECT_IFNET)
+		ifp->if_label = mac_ifnet_label_alloc();
+	else
+		ifp->if_label = NULL;
 }
 
 int
@@ -157,24 +164,18 @@ mac_mbuf_init(struct mbuf *m, int flag)
 
 	M_ASSERTPKTHDR(m);
 
-#ifndef MAC_ALWAYS_LABEL_MBUF
-	/*
-	 * If conditionally allocating mbuf labels, don't allocate unless
-	 * they are required.
-	 */
-	if (!mac_labelmbufs)
-		return (0);
-#endif
-	tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
-	    flag);
-	if (tag == NULL)
-		return (ENOMEM);
-	error = mac_mbuf_tag_init(tag, flag);
-	if (error) {
-		m_tag_free(tag);
-		return (error);
+	if (mac_labeled & MPC_OBJECT_MBUF) {
+		tag = m_tag_get(PACKET_TAG_MACLABEL, sizeof(struct label),
+		    flag);
+		if (tag == NULL)
+			return (ENOMEM);
+		error = mac_mbuf_tag_init(tag, flag);
+		if (error) {
+			m_tag_free(tag);
+			return (error);
+		}
+		m_tag_prepend(m, tag);
 	}
-	m_tag_prepend(m, tag);
 	return (0);
 }
 
@@ -190,8 +191,10 @@ void
 mac_bpfdesc_destroy(struct bpf_d *d)
 {
 
-	mac_bpfdesc_label_free(d->bd_label);
-	d->bd_label = NULL;
+	if (d->bd_label != NULL) {
+		mac_bpfdesc_label_free(d->bd_label);
+		d->bd_label = NULL;
+	}
 }
 
 static void
@@ -206,8 +209,10 @@ void
 mac_ifnet_destroy(struct ifnet *ifp)
 {
 
-	mac_ifnet_label_free(ifp->if_label);
-	ifp->if_label = NULL;
+	if (ifp->if_label != NULL) {
+		mac_ifnet_label_free(ifp->if_label);
+		ifp->if_label = NULL;
+	}
 }
 
 void
@@ -359,6 +364,9 @@ mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	struct mac mac;
 	int error;
 
+	if (!(mac_labeled & MPC_OBJECT_IFNET))
+		return (EINVAL);
+
 	error = copyin(ifr->ifr_ifru.ifru_data, &mac, sizeof(mac));
 	if (error)
 		return (error);
@@ -398,6 +406,9 @@ mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 	struct mac mac;
 	char *buffer;
 	int error;
+
+	if (!(mac_labeled & MPC_OBJECT_IFNET))
+		return (EINVAL);
 
 	error = copyin(ifr->ifr_ifru.ifru_data, &mac, sizeof(mac));
 	if (error)

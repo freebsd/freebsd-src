@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -91,9 +92,12 @@ int
 mac_inpcb_init(struct inpcb *inp, int flag)
 {
 
-	inp->inp_label = mac_inpcb_label_alloc(flag);
-	if (inp->inp_label == NULL)
-		return (ENOMEM);
+	if (mac_labeled & MPC_OBJECT_INPCB) {
+		inp->inp_label = mac_inpcb_label_alloc(flag);
+		if (inp->inp_label == NULL)
+			return (ENOMEM);
+	} else
+		inp->inp_label = NULL;
 	return (0);
 }
 
@@ -120,9 +124,12 @@ int
 mac_ipq_init(struct ipq *q, int flag)
 {
 
-	q->ipq_label = mac_ipq_label_alloc(flag);
-	if (q->ipq_label == NULL)
-		return (ENOMEM);
+	if (mac_labeled & MPC_OBJECT_IPQ) {
+		q->ipq_label = mac_ipq_label_alloc(flag);
+		if (q->ipq_label == NULL)
+			return (ENOMEM);
+	} else
+		q->ipq_label = NULL;
 	return (0);
 }
 
@@ -138,8 +145,10 @@ void
 mac_inpcb_destroy(struct inpcb *inp)
 {
 
-	mac_inpcb_label_free(inp->inp_label);
-	inp->inp_label = NULL;
+	if (inp->inp_label != NULL) {
+		mac_inpcb_label_free(inp->inp_label);
+		inp->inp_label = NULL;
+	}
 }
 
 static void
@@ -154,8 +163,10 @@ void
 mac_ipq_destroy(struct ipq *q)
 {
 
-	mac_ipq_label_free(q->ipq_label);
-	q->ipq_label = NULL;
+	if (q->ipq_label != NULL) {
+		mac_ipq_label_free(q->ipq_label);
+		q->ipq_label = NULL;
+	}
 }
 
 void
@@ -349,9 +360,11 @@ void
 mac_syncache_destroy(struct label **label)
 {
 
-	MAC_PERFORM(syncache_destroy_label, *label);
-	mac_labelzone_free(*label);
-	*label = NULL;
+	if (*label != NULL) {
+		MAC_PERFORM(syncache_destroy_label, *label);
+		mac_labelzone_free(*label);
+		*label = NULL;
+	}
 }
 
 int
@@ -359,21 +372,26 @@ mac_syncache_init(struct label **label)
 {
 	int error;
 
-	*label = mac_labelzone_alloc(M_NOWAIT);
-	if (*label == NULL)
-		return (ENOMEM);
-	/*
-	 * Since we are holding the inpcb locks the policy can not allocate
-	 * policy specific label storage using M_WAITOK.  So we need to do a
-	 * MAC_CHECK instead of the typical MAC_PERFORM so we can propagate
-	 * allocation failures back to the syncache code.
-	 */
-	MAC_CHECK(syncache_init_label, *label, M_NOWAIT);
-	if (error) {
-		MAC_PERFORM(syncache_destroy_label, *label);
-		mac_labelzone_free(*label);
-	}
-	return (error);
+	if (mac_labeled & MPC_OBJECT_SYNCACHE) {
+		*label = mac_labelzone_alloc(M_NOWAIT);
+		if (*label == NULL)
+			return (ENOMEM);
+		/*
+		 * Since we are holding the inpcb locks the policy can not
+		 * allocate policy specific label storage using M_WAITOK.  So
+		 * we need to do a MAC_CHECK instead of the typical
+		 * MAC_PERFORM so we can propagate allocation failures back
+		 * to the syncache code.
+		 */
+		MAC_CHECK(syncache_init_label, *label, M_NOWAIT);
+		if (error) {
+			MAC_PERFORM(syncache_destroy_label, *label);
+			mac_labelzone_free(*label);
+		}
+		return (error);
+	} else
+		*label = NULL;
+	return (0);
 }
 
 void

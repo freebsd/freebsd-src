@@ -3,6 +3,7 @@
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -94,7 +95,10 @@ void
 mac_devfs_init(struct devfs_dirent *de)
 {
 
-	de->de_label = mac_devfs_label_alloc();
+	if (mac_labeled & MPC_OBJECT_DEVFS)
+		de->de_label = mac_devfs_label_alloc();
+	else
+		de->de_label = NULL;
 }
 
 static struct label *
@@ -111,7 +115,10 @@ void
 mac_mount_init(struct mount *mp)
 {
 
-	mp->mnt_label = mac_mount_label_alloc();
+	if (mac_labeled & MPC_OBJECT_MOUNT)
+		mp->mnt_label = mac_mount_label_alloc();
+	else
+		mp->mnt_label = NULL;
 }
 
 struct label *
@@ -128,7 +135,10 @@ void
 mac_vnode_init(struct vnode *vp)
 {
 
-	vp->v_label = mac_vnode_label_alloc();
+	if (mac_labeled & MPC_OBJECT_VNODE)
+		vp->v_label = mac_vnode_label_alloc();
+	else
+		vp->v_label = NULL;
 }
 
 static void
@@ -143,8 +153,10 @@ void
 mac_devfs_destroy(struct devfs_dirent *de)
 {
 
-	mac_devfs_label_free(de->de_label);
-	de->de_label = NULL;
+	if (de->de_label != NULL) {
+		mac_devfs_label_free(de->de_label);
+		de->de_label = NULL;
+	}
 }
 
 static void
@@ -159,8 +171,10 @@ void
 mac_mount_destroy(struct mount *mp)
 {
 
-	mac_mount_label_free(mp->mnt_label);
-	mp->mnt_label = NULL;
+	if (mp->mnt_label != NULL) {
+		mac_mount_label_free(mp->mnt_label);
+		mp->mnt_label = NULL;
+	}
 }
 
 void
@@ -175,8 +189,10 @@ void
 mac_vnode_destroy(struct vnode *vp)
 {
 
-	mac_vnode_label_free(vp->v_label);
-	vp->v_label = NULL;
+	if (vp->v_label != NULL) {
+		mac_vnode_label_free(vp->v_label);
+		vp->v_label = NULL;
+	}
 }
 
 void

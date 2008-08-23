@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
+ * Copyright (c) 2008 Apple Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -76,8 +77,19 @@ label_on_label(struct label *subject, struct label *object)
 	if (partition_enabled == 0)
 		return (0);
 
+	if (subject == NULL)
+		return (0);
+
 	if (SLOT(subject) == 0)
 		return (0);
+
+	/*
+	 * If the object label hasn't been allocated, then it's effectively
+	 * not in a partition, and we know the subject is as it has a label
+	 * and it's not 0, so reject.
+	 */
+	if (object == NULL)
+		return (EPERM);
 
 	if (SLOT(subject) == SLOT(object))
 		return (0);
@@ -124,7 +136,10 @@ static void
 partition_cred_copy_label(struct label *src, struct label *dest)
 {
 
-	SLOT_SET(dest, SLOT(src));
+	if (src != NULL && dest != NULL)
+		SLOT_SET(dest, SLOT(src));
+	else if (dest != NULL)
+		SLOT_SET(dest, 0);
 }
 
 static void
@@ -144,10 +159,14 @@ partition_cred_externalize_label(struct label *label, char *element_name,
 
 	(*claimed)++;
 
-	if (sbuf_printf(sb, "%jd", (intmax_t)SLOT(label)) == -1)
-		return (EINVAL);
-	else
-		return (0);
+	if (label != NULL) {
+		if (sbuf_printf(sb, "%jd", (intmax_t)SLOT(label)) == -1)
+			return (EINVAL);
+	} else {
+		if (sbuf_printf(sb, "0") == -1)
+			return (EINVAL);
+	}
+	return (0);
 }
 
 static void
@@ -174,7 +193,7 @@ static void
 partition_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
 
-	if (SLOT(newlabel) != 0)
+	if (newlabel != NULL && SLOT(newlabel) != 0)
 		SLOT_SET(cred->cr_label, SLOT(newlabel));
 }
 
@@ -273,4 +292,4 @@ static struct mac_policy_ops partition_ops =
 };
 
 MAC_POLICY_SET(&partition_ops, mac_partition, "TrustedBSD MAC/Partition",
-    MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot);
+    MPC_LOADTIME_FLAG_UNLOADOK, &partition_slot, MPC_OBJECT_CRED);

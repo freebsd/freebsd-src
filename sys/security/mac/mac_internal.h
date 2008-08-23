@@ -88,9 +88,7 @@ struct label {
  */
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
-#ifndef MAC_ALWAYS_LABEL_MBUF
-extern int				mac_labelmbufs;
-#endif
+extern uint64_t				mac_labeled;
 extern struct mtx			mac_ifnet_mtx;
 
 /*
@@ -121,10 +119,14 @@ int	mac_allocate_slot(void);
  * MAC Framework per-object type functions.  It's not yet clear how the
  * namespaces, etc, should work for these, so for now, sort by object type.
  */
+struct label	*mac_cred_label_alloc(void);
+void		 mac_cred_label_free(struct label *label);
 struct label	*mac_pipe_label_alloc(void);
 void		 mac_pipe_label_free(struct label *label);
 struct label	*mac_socket_label_alloc(int flag);
 void		 mac_socket_label_free(struct label *label);
+struct label	*mac_vnode_label_alloc(void);
+void		 mac_vnode_label_free(struct label *label);
 
 int	mac_cred_check_relabel(struct ucred *cred, struct label *newlabel);
 int	mac_cred_externalize_label(struct label *label, char *elements,
