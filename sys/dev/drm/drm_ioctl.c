@@ -1,6 +1,3 @@
-/* drm_ioctl.h -- IOCTL processing for DRM -*- linux-c -*-
- * Created: Fri Jan  8 09:01:26 1999 by faith@valinux.com
- */
 /*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
@@ -34,6 +31,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+/** @file drm_ioctl.c
+ * Varios minor DRM ioctls not applicable to other files, such as versioning
+ * information and reporting DRM information to userland.
+ */
+
 #include "dev/drm/drmP.h"
 
 /*
@@ -42,20 +44,16 @@ __FBSDID("$FreeBSD$");
  * before setunique has been called.  The format for the bus-specific part of
  * the unique is not defined for any other bus.
  */
-int drm_getunique(DRM_IOCTL_ARGS)
+int drm_getunique(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_unique_t	 u;
+	drm_unique_t	 *u = data;
 
-	DRM_COPY_FROM_USER_IOCTL( u, (drm_unique_t *)data, sizeof(u) );
-
-	if (u.unique_len >= dev->unique_len) {
-		if (DRM_COPY_TO_USER(u.unique, dev->unique, dev->unique_len))
-			return DRM_ERR(EFAULT);
+	if (u->unique_len >= dev->unique_len) {
+		if (DRM_COPY_TO_USER(u->unique, dev->unique, dev->unique_len))
+			return EFAULT;
 	}
-	u.unique_len = dev->unique_len;
-
-	DRM_COPY_TO_USER_IOCTL( (drm_unique_t *)data, u, sizeof(u) );
+	u->unique_len = dev->unique_len;
 
 	return 0;
 }
@@ -63,28 +61,26 @@ int drm_getunique(DRM_IOCTL_ARGS)
 /* Deprecated in DRM version 1.1, and will return EBUSY when setversion has
  * requested version 1.1 or greater.
  */
-int drm_setunique(DRM_IOCTL_ARGS)
+int drm_setunique(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_unique_t u;
+	drm_unique_t *u = data;
 	int domain, bus, slot, func, ret;
 	char *busid;
 
-	DRM_COPY_FROM_USER_IOCTL( u, (drm_unique_t *)data, sizeof(u) );
-
 	/* Check and copy in the submitted Bus ID */
-	if (!u.unique_len || u.unique_len > 1024)
-		return DRM_ERR(EINVAL);
+	if (!u->unique_len || u->unique_len > 1024)
+		return EINVAL;
 
-	busid = malloc(u.unique_len + 1, M_DRM, M_WAITOK);
+	busid = malloc(u->unique_len + 1, M_DRM, M_WAITOK);
 	if (busid == NULL)
-		return DRM_ERR(ENOMEM);
+		return ENOMEM;
 
-	if (DRM_COPY_FROM_USER(busid, u.unique, u.unique_len)) {
+	if (DRM_COPY_FROM_USER(busid, u->unique, u->unique_len)) {
 		free(busid, M_DRM);
-		return DRM_ERR(EFAULT);
+		return EFAULT;
 	}
-	busid[u.unique_len] = '\0';
+	busid[u->unique_len] = '\0';
 
 	/* Return error if the busid submitted doesn't match the device's actual
 	 * busid.
@@ -92,7 +88,7 @@ int drm_setunique(DRM_IOCTL_ARGS)
 	ret = sscanf(busid, "PCI:%d:%d:%d", &bus, &slot, &func);
 	if (ret != 3) {
 		free(busid, M_DRM);
-		return DRM_ERR(EINVAL);
+		return EINVAL;
 	}
 	domain = bus >> 8;
 	bus &= 0xff;
@@ -102,17 +98,17 @@ int drm_setunique(DRM_IOCTL_ARGS)
 	    (slot != dev->pci_slot) ||
 	    (func != dev->pci_func)) {
 		free(busid, M_DRM);
-		return DRM_ERR(EINVAL);
+		return EINVAL;
 	}
 
 	/* Actually set the device's busid now. */
 	DRM_LOCK();
 	if (dev->unique_len || dev->unique) {
 		DRM_UNLOCK();
-		return DRM_ERR(EBUSY);
+		return EBUSY;
 	}
 
-	dev->unique_len = u.unique_len;
+	dev->unique_len = u->unique_len;
 	dev->unique = busid;
 	DRM_UNLOCK();
 
@@ -121,7 +117,7 @@ int drm_setunique(DRM_IOCTL_ARGS)
 
 
 static int
-drm_set_busid(drm_device_t *dev)
+drm_set_busid(struct drm_device *dev)
 {
 
 	DRM_LOCK();
@@ -146,32 +142,29 @@ drm_set_busid(drm_device_t *dev)
 	return 0;
 }
 
-int drm_getmap(DRM_IOCTL_ARGS)
+int drm_getmap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_map_t    map;
+	drm_map_t    *map = data;
 	drm_local_map_t    *mapinlist;
 	int          idx;
 	int	     i = 0;
 
-	DRM_COPY_FROM_USER_IOCTL( map, (drm_map_t *)data, sizeof(map) );
-
-	idx = map.offset;
+	idx = map->offset;
 
 	DRM_LOCK();
 	if (idx < 0) {
 		DRM_UNLOCK();
-		return DRM_ERR(EINVAL);
+		return EINVAL;
 	}
 
 	TAILQ_FOREACH(mapinlist, &dev->maplist, link) {
 		if (i==idx) {
-			map.offset = mapinlist->offset;
-			map.size   = mapinlist->size;
-			map.type   = mapinlist->type;
-			map.flags  = mapinlist->flags;
-			map.handle = mapinlist->handle;
-			map.mtrr   = mapinlist->mtrr;
+			map->offset = mapinlist->offset;
+			map->size   = mapinlist->size;
+			map->type   = mapinlist->type;
+			map->flags  = mapinlist->flags;
+			map->handle = mapinlist->handle;
+			map->mtrr   = mapinlist->mtrr;
 			break;
 		}
 		i++;
@@ -182,70 +175,59 @@ int drm_getmap(DRM_IOCTL_ARGS)
  	if (mapinlist == NULL)
 		return EINVAL;
 
-	DRM_COPY_TO_USER_IOCTL( (drm_map_t *)data, map, sizeof(map) );
-
 	return 0;
 }
 
-int drm_getclient(DRM_IOCTL_ARGS)
+int drm_getclient(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_client_t client;
+	drm_client_t *client = data;
 	drm_file_t   *pt;
 	int          idx;
 	int          i = 0;
 
-	DRM_COPY_FROM_USER_IOCTL( client, (drm_client_t *)data, sizeof(client) );
-
-	idx = client.idx;
+	idx = client->idx;
 	DRM_LOCK();
 	TAILQ_FOREACH(pt, &dev->files, link) {
 		if (i==idx)
 		{
-			client.auth  = pt->authenticated;
-			client.pid   = pt->pid;
-			client.uid   = pt->uid;
-			client.magic = pt->magic;
-			client.iocs  = pt->ioctl_count;
+			client->auth  = pt->authenticated;
+			client->pid   = pt->pid;
+			client->uid   = pt->uid;
+			client->magic = pt->magic;
+			client->iocs  = pt->ioctl_count;
 			DRM_UNLOCK();
-
-			*(drm_client_t *)data = client;
 			return 0;
 		}
 		i++;
 	}
 	DRM_UNLOCK();
 
-	DRM_COPY_TO_USER_IOCTL( (drm_client_t *)data, client, sizeof(client) );
-
-	return 0;
+	return EINVAL;
 }
 
-int drm_getstats(DRM_IOCTL_ARGS)
+int drm_getstats(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_stats_t  stats;
+	drm_stats_t  *stats = data;
 	int          i;
 
-	memset(&stats, 0, sizeof(stats));
+	memset(stats, 0, sizeof(drm_stats_t));
 	
 	DRM_LOCK();
 
 	for (i = 0; i < dev->counters; i++) {
 		if (dev->types[i] == _DRM_STAT_LOCK)
-			stats.data[i].value
+			stats->data[i].value
 				= (dev->lock.hw_lock
 				   ? dev->lock.hw_lock->lock : 0);
 		else 
-			stats.data[i].value = atomic_read(&dev->counts[i]);
-		stats.data[i].type  = dev->types[i];
+			stats->data[i].value = atomic_read(&dev->counts[i]);
+		stats->data[i].type  = dev->types[i];
 	}
 	
-	stats.count = dev->counters;
+	stats->count = dev->counters;
 
 	DRM_UNLOCK();
-
-	DRM_COPY_TO_USER_IOCTL( (drm_stats_t *)data, stats, sizeof(stats) );
 
 	return 0;
 }
@@ -253,29 +235,31 @@ int drm_getstats(DRM_IOCTL_ARGS)
 #define DRM_IF_MAJOR	1
 #define DRM_IF_MINOR	2
 
-int drm_setversion(DRM_IOCTL_ARGS)
+int drm_setversion(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_set_version_t sv;
-	drm_set_version_t retv;
+	drm_set_version_t *sv = data;
+	drm_set_version_t ver;
 	int if_version;
 
-	DRM_COPY_FROM_USER_IOCTL(sv, (drm_set_version_t *)data, sizeof(sv));
+	/* Save the incoming data, and set the response before continuing
+	 * any further.
+	 */
+	ver = *sv;
+	sv->drm_di_major = DRM_IF_MAJOR;
+	sv->drm_di_minor = DRM_IF_MINOR;
+	sv->drm_dd_major = dev->driver.major;
+	sv->drm_dd_minor = dev->driver.minor;
 
-	retv.drm_di_major = DRM_IF_MAJOR;
-	retv.drm_di_minor = DRM_IF_MINOR;
-	retv.drm_dd_major = dev->driver.major;
-	retv.drm_dd_minor = dev->driver.minor;
-
-	DRM_COPY_TO_USER_IOCTL((drm_set_version_t *)data, retv, sizeof(sv));
-
-	if (sv.drm_di_major != -1) {
-		if (sv.drm_di_major != DRM_IF_MAJOR ||
-		    sv.drm_di_minor < 0 || sv.drm_di_minor > DRM_IF_MINOR)
+	if (ver.drm_di_major != -1) {
+		if (ver.drm_di_major != DRM_IF_MAJOR ||
+		    ver.drm_di_minor < 0 || ver.drm_di_minor > DRM_IF_MINOR) {
 			return EINVAL;
-		if_version = DRM_IF_VERSION(sv.drm_di_major, sv.drm_dd_minor);
+		}
+		if_version = DRM_IF_VERSION(ver.drm_di_major,
+		    ver.drm_dd_minor);
 		dev->if_version = DRM_MAX(if_version, dev->if_version);
-		if (sv.drm_di_minor >= 1) {
+		if (ver.drm_di_minor >= 1) {
 			/*
 			 * Version 1.1 includes tying of DRM to specific device
 			 */
@@ -283,16 +267,20 @@ int drm_setversion(DRM_IOCTL_ARGS)
 		}
 	}
 
-	if (sv.drm_dd_major != -1) {
-		if (sv.drm_dd_major != dev->driver.major ||
-		    sv.drm_dd_minor < 0 || sv.drm_dd_minor > dev->driver.minor)
+	if (ver.drm_dd_major != -1) {
+		if (ver.drm_dd_major != dev->driver.major ||
+		    ver.drm_dd_minor < 0 ||
+		    ver.drm_dd_minor > dev->driver.minor)
+		{
 			return EINVAL;
+		}
 	}
+
 	return 0;
 }
 
 
-int drm_noop(DRM_IOCTL_ARGS)
+int drm_noop(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	DRM_DEBUG("\n");
 	return 0;

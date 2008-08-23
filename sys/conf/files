@@ -572,6 +572,7 @@ dev/drm/i915_dma.c		optional i915drm
 dev/drm/i915_drv.c		optional i915drm
 dev/drm/i915_irq.c		optional i915drm
 dev/drm/i915_mem.c		optional i915drm
+dev/drm/i915_suspend.c		optional i915drm
 dev/drm/mach64_dma.c		optional mach64drm
 dev/drm/mach64_drv.c		optional mach64drm
 dev/drm/mach64_irq.c		optional mach64drm

@@ -39,7 +39,7 @@ static drm_pci_id_list_t sis_pciidlist[] = {
 	sis_PCI_IDS
 };
 
-static void sis_configure(drm_device_t *dev)
+static void sis_configure(struct drm_device *dev)
 {
 	dev->driver.buf_priv_size	= 1; /* No dev_priv */
 	dev->driver.context_ctor	= sis_init_context;
@@ -69,9 +69,9 @@ sis_probe(device_t dev)
 static int
 sis_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	bzero(dev, sizeof(struct drm_device));
 	sis_configure(dev);
 	return drm_attach(nbdev, sis_pciidlist);
 }
@@ -88,7 +88,7 @@ static device_method_t sis_methods[] = {
 static driver_t sis_driver = {
 	"drm",
 	sis_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
@@ -103,7 +103,7 @@ MODULE_DEPEND(sisdrm, drm, 1, 1, 1);
 #ifdef _LKM
 CFDRIVER_DECL(sis, DV_TTY, NULL);
 #else
-CFATTACH_DECL(sis, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
+CFATTACH_DECL(sis, sizeof(struct drm_device), drm_probe, drm_attach, drm_detach,
     drm_activate);
 #endif
 #endif

@@ -44,7 +44,7 @@ static drm_pci_id_list_t tdfx_pciidlist[] = {
 	tdfx_PCI_IDS
 };
 
-static void tdfx_configure(drm_device_t *dev)
+static void tdfx_configure(struct drm_device *dev)
 {
 	dev->driver.buf_priv_size	= 1; /* No dev_priv */
 
@@ -70,9 +70,9 @@ tdfx_probe(device_t dev)
 static int
 tdfx_attach(device_t nbdev)
 {
-	drm_device_t *dev = device_get_softc(nbdev);
+	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(drm_device_t));
+	bzero(dev, sizeof(struct drm_device));
 	tdfx_configure(dev);
 	return drm_attach(nbdev, tdfx_pciidlist);
 }
@@ -89,7 +89,7 @@ static device_method_t tdfx_methods[] = {
 static driver_t tdfx_driver = {
 	"drm",
 	tdfx_methods,
-	sizeof(drm_device_t)
+	sizeof(struct drm_device)
 };
 
 extern devclass_t drm_devclass;
@@ -104,7 +104,7 @@ MODULE_DEPEND(tdfx, drm, 1, 1, 1);
 #ifdef _LKM
 CFDRIVER_DECL(tdfx, DV_TTY, NULL);
 #else
-CFATTACH_DECL(tdfx, sizeof(drm_device_t), drm_probe, drm_attach, drm_detach,
-    drm_activate);
+CFATTACH_DECL(tdfx, sizeof(struct drm_device), drm_probe, drm_attach,
+    drm_detach, drm_activate);
 #endif
 #endif

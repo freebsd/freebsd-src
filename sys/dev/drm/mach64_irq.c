@@ -45,9 +45,8 @@ __FBSDID("$FreeBSD$");
 
 irqreturn_t mach64_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t *dev = (drm_device_t *) arg;
-	drm_mach64_private_t *dev_priv =
-	    (drm_mach64_private_t *) dev->dev_private;
+	struct drm_device *dev = arg;
+	drm_mach64_private_t *dev_priv = dev->dev_private;
 	int status;
 
 	status = MACH64_READ(MACH64_CRTC_INT_CNTL);
@@ -65,74 +64,98 @@ irqreturn_t mach64_driver_irq_handler(DRM_IRQ_ARGS)
 			     (status & ~MACH64_CRTC_INT_ACKS)
 			     | MACH64_CRTC_VBLANK_INT);
 
-		atomic_inc(&dev->vbl_received);
-		DRM_WAKEUP(&dev->vbl_queue);
-		drm_vbl_send_signals(dev);
+		atomic_inc(&dev_priv->vbl_received);
+		drm_handle_vblank(dev, 0);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
 
-int mach64_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
+u32 mach64_get_vblank_counter(struct drm_device * dev, int crtc)
 {
-	unsigned int cur_vblank;
-	int ret = 0;
+	const drm_mach64_private_t *const dev_priv = dev->dev_private;
 
-	/* Assume that the user has missed the current sequence number
-	 * by about a day rather than she wants to wait for years
-	 * using vertical blanks...
-	 */
-	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
-		    (((cur_vblank = atomic_read(&dev->vbl_received))
-		      - *sequence) <= (1 << 23)));
+	if (crtc != 0)
+		return 0;
 
-	*sequence = cur_vblank;
-
-	return ret;
+	return atomic_read(&dev_priv->vbl_received);
 }
 
-/* drm_dma.h hooks
-*/
-void mach64_driver_irq_preinstall(drm_device_t * dev)
+int mach64_enable_vblank(struct drm_device * dev, int crtc)
 {
-	drm_mach64_private_t *dev_priv =
-	    (drm_mach64_private_t *) dev->dev_private;
-
+	drm_mach64_private_t *dev_priv = dev->dev_private;
 	u32 status = MACH64_READ(MACH64_CRTC_INT_CNTL);
 
-	DRM_DEBUG("before install CRTC_INT_CTNL: 0x%08x\n", status);
+	if (crtc != 0) {
+		DRM_ERROR("tried to enable vblank on non-existent crtc %d\n",
+			  crtc);
+		return -EINVAL;
+	}
+
+	DRM_DEBUG("before enable vblank CRTC_INT_CTNL: 0x%08x\n", status);
+
+	/* Turn on VBLANK interrupt */
+	MACH64_WRITE(MACH64_CRTC_INT_CNTL, MACH64_READ(MACH64_CRTC_INT_CNTL)
+		     | MACH64_CRTC_VBLANK_INT_EN);
+
+	return 0;
+}
+
+void mach64_disable_vblank(struct drm_device * dev, int crtc)
+{
+	if (crtc != 0) {
+		DRM_ERROR("tried to disable vblank on non-existent crtc %d\n",
+			  crtc);
+		return;
+	}
+
+	/*
+	 * FIXME: implement proper interrupt disable by using the vblank
+	 * counter register (if available).
+	 */
+}
+
+static void mach64_disable_vblank_local(struct drm_device * dev, int crtc)
+{
+	drm_mach64_private_t *dev_priv = dev->dev_private;
+	u32 status = MACH64_READ(MACH64_CRTC_INT_CNTL);
+
+	if (crtc != 0) {
+		DRM_ERROR("tried to disable vblank on non-existent crtc %d\n",
+			  crtc);
+		return;
+	}
+
+	DRM_DEBUG("before disable vblank CRTC_INT_CTNL: 0x%08x\n", status);
 
 	/* Disable and clear VBLANK interrupt */
 	MACH64_WRITE(MACH64_CRTC_INT_CNTL, (status & ~MACH64_CRTC_VBLANK_INT_EN)
 		     | MACH64_CRTC_VBLANK_INT);
 }
 
-void mach64_driver_irq_postinstall(drm_device_t * dev)
+void mach64_driver_irq_preinstall(struct drm_device * dev)
 {
-	drm_mach64_private_t *dev_priv =
-	    (drm_mach64_private_t *) dev->dev_private;
+	drm_mach64_private_t *dev_priv = dev->dev_private;
 
-	/* Turn on VBLANK interrupt */
-	MACH64_WRITE(MACH64_CRTC_INT_CNTL, MACH64_READ(MACH64_CRTC_INT_CNTL)
-		     | MACH64_CRTC_VBLANK_INT_EN);
+	u32 status = MACH64_READ(MACH64_CRTC_INT_CNTL);
 
-	DRM_DEBUG("after install CRTC_INT_CTNL: 0x%08x\n",
-		  MACH64_READ(MACH64_CRTC_INT_CNTL));
+	DRM_DEBUG("before install CRTC_INT_CTNL: 0x%08x\n", status);
 
+	mach64_disable_vblank_local(dev, 0);
 }
 
-void mach64_driver_irq_uninstall(drm_device_t * dev)
+int mach64_driver_irq_postinstall(struct drm_device * dev)
 {
-	drm_mach64_private_t *dev_priv =
-	    (drm_mach64_private_t *) dev->dev_private;
+	return drm_vblank_init(dev, 1);
+}
+
+void mach64_driver_irq_uninstall(struct drm_device * dev)
+{
+	drm_mach64_private_t *dev_priv = dev->dev_private;
 	if (!dev_priv)
 		return;
 
-	/* Disable and clear VBLANK interrupt */
-	MACH64_WRITE(MACH64_CRTC_INT_CNTL,
-		     (MACH64_READ(MACH64_CRTC_INT_CNTL) &
-		      ~MACH64_CRTC_VBLANK_INT_EN)
-		     | MACH64_CRTC_VBLANK_INT);
+	mach64_disable_vblank_local(dev, 0);
 
 	DRM_DEBUG("after uninstall CRTC_INT_CTNL: 0x%08x\n",
 		  MACH64_READ(MACH64_CRTC_INT_CNTL));
