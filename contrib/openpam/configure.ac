@@ -1,19 +1,26 @@
-dnl $P4: //depot/projects/openpam/configure.ac#2 $
+dnl $Id: configure.ac 411 2007-12-21 11:44:14Z des $
 
-AC_PREREQ(2.53)
-AC_INIT([OpenPAM],[20050201],[des@freebsd.org],[openpam])
-AC_CONFIG_SRCDIR([lib/pam_start.c])
-AM_CONFIG_HEADER([config.h])
+AC_PREREQ(2.59)
+AC_REVISION([$Id: configure.ac 411 2007-12-21 11:44:14Z des $])
+AC_INIT([OpenPAM],[20071221],[des@des.no])
+AC_CONFIG_SRCDIR(lib/pam_start.c)
+AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_SYSTEM
+AC_LANG(C)
 AC_C_VOLATILE
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
-AM_INIT_AUTOMAKE(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+AM_INIT_AUTOMAKE
 
 LIB_MAJ=2
 AC_SUBST(LIB_MAJ)
 AC_DEFINE_UNQUOTED(LIB_MAJ, $LIB_MAJ, [OpenPAM library major number])
+
+AC_ARG_ENABLE(debug,
+	AC_HELP_STRING([--enable-debug],
+		[turn debugging on by default]),
+	AC_DEFINE(OPENPAM_DEBUG, 1, [Turn debugging on by default]))
 
 AC_MSG_CHECKING([whether loading unversioned modules support is enabled])
 AC_ARG_ENABLE(unversioned-modules,
@@ -45,13 +52,13 @@ AC_ARG_WITH(modules-dir,
 	AC_MSG_RESULT(no)])
 AC_SUBST(OPENPAM_MODULES_DIR)
 
-AC_MSG_CHECKING([whether to build example version of /bin/su])
-AC_ARG_WITH(pam-su,
-	AC_HELP_STRING([--with-pam-su],
-		[compile example version of /bin/su]),
+AC_MSG_CHECKING([whether to build the documentation])
+AC_ARG_WITH(doc,
+	AC_HELP_STRING([--with-doc],
+		[build documentation]),
 	,
-	[with_pam_su=no])
-AC_MSG_RESULT($with_pam_su)
+	[with_doc=yes])
+AC_MSG_RESULT($with_doc)
 
 AC_MSG_CHECKING([whether to build example version of pam_unix.so])
 AC_ARG_WITH(pam-unix,
@@ -61,8 +68,17 @@ AC_ARG_WITH(pam-unix,
 	[with_pam_unix=no])
 AC_MSG_RESULT($with_pam_unix)
 
-AM_CONDITIONAL(WITH_PAM_SU, test "x$with_pam_su" = "xyes")
+AC_MSG_CHECKING([whether to build example version of su(1)])
+AC_ARG_WITH(su,
+	AC_HELP_STRING([--with-su],
+		[compile example version of su(1)]),
+	,
+	[with_su=no])
+AC_MSG_RESULT($with_su)
+
+AM_CONDITIONAL(WITH_DOC, test "x$with_doc" = "xyes")
 AM_CONDITIONAL(WITH_PAM_UNIX, test "x$with_pam_unix" = "xyes")
+AM_CONDITIONAL(WITH_SU, test "x$with_su" = "xyes")
 
 AC_PROG_INSTALL
 
@@ -79,21 +95,32 @@ AC_CHECK_LIB(crypt, crypt, CRYPT_LIBS=-lcrypt)
 AC_SUBST(CRYPT_LIBS)
 
 CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
-AC_SUBST(CPPFLAGS)
 
-CFLAGS="$CFLAGS -Werror"
-AC_SUBST(CFLAGS)
+# This corresponds to FreeBSD's WARNS level 6
+DEVELOPER_CFLAGS="-Wall -Wextra -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align -Wunused-parameter -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls -Wformat"
 
-AC_CONFIG_FILES([bin/Makefile
-		bin/su/Makefile
-		include/Makefile
-		include/security/Makefile
-		lib/Makefile
-		modules/Makefile
-		modules/pam_unix/Makefile
-		modules/pam_deny/Makefile
-		modules/pam_permit/Makefile
-		doc/Makefile
-		doc/man/Makefile
-		Makefile])
+AC_ARG_ENABLE(developer-warnings,
+        AS_HELP_STRING([--enable-developer-warnings],[enable strict warnings (default is NO)]),
+        CFLAGS="${CFLAGS} ${DEVELOPER_CFLAGS}")
+AC_ARG_ENABLE(debugging-symbols,
+        AS_HELP_STRING([--enable-debugging-symbols],[enable debugging symbols (default is NO)]),
+        CFLAGS="${CFLAGS} -O0 -g -fno-inline")
+AC_ARG_ENABLE(werror,
+        AS_HELP_STRING([--enable-werror],[use -Werror (default is NO)]),
+        CFLAGS="${CFLAGS} -Werror")
+
+AC_CONFIG_FILES([
+	bin/Makefile
+	bin/su/Makefile
+	include/Makefile
+	include/security/Makefile
+	lib/Makefile
+	modules/Makefile
+	modules/pam_unix/Makefile
+	modules/pam_deny/Makefile
+	modules/pam_permit/Makefile
+	doc/Makefile
+	doc/man/Makefile
+	Makefile
+])
 AC_OUTPUT

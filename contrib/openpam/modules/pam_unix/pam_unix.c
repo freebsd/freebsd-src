@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/modules/pam_unix/pam_unix.c#6 $
+ * $Id: pam_unix.c 408 2007-12-21 11:36:24Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -53,7 +54,7 @@
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>
 
-#ifndef _OPENPAM
+#ifndef OPENPAM
 static char password_prompt[] = "Password:";
 #endif
 
@@ -65,7 +66,7 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
-#ifndef _OPENPAM
+#ifndef OPENPAM
 	struct pam_conv *conv;
 	struct pam_message msg;
 	const struct pam_message *msgp;
@@ -76,6 +77,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	char *crypt_password, *password;
 	int pam_err, retry;
 
+	(void)argc;
+	(void)argv;
+
 	/* identify user */
 	if ((pam_err = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
 		return (pam_err);
@@ -83,7 +87,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		return (PAM_USER_UNKNOWN);
 
 	/* get password */
-#ifndef _OPENPAM
+#ifndef OPENPAM
 	pam_err = pam_get_item(pamh, PAM_CONV, (const void **)&conv);
 	if (pam_err != PAM_SUCCESS)
 		return (PAM_SYSTEM_ERR);
@@ -92,7 +96,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	msgp = &msg;
 #endif
 	for (retry = 0; retry < 3; ++retry) {
-#ifdef _OPENPAM
+#ifdef OPENPAM
 		pam_err = pam_get_authtok(pamh, PAM_AUTHTOK,
 		    (const char **)&password, NULL);
 #else
@@ -121,7 +125,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 		pam_err = PAM_AUTH_ERR;
 	else
 		pam_err = PAM_SUCCESS;
-#ifndef _OPENPAM
+#ifndef OPENPAM
 	free(password);
 #endif
 	return (pam_err);
@@ -132,6 +136,10 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
+	(void)pamh;
+	(void)flags;
+	(void)argc;
+	(void)argv;
 	return (PAM_SUCCESS);
 }
 
@@ -140,6 +148,10 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
+	(void)pamh;
+	(void)flags;
+	(void)argc;
+	(void)argv;
 	return (PAM_SUCCESS);
 }
 
@@ -148,6 +160,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
+	(void)pamh;
+	(void)flags;
+	(void)argc;
+	(void)argv;
 	return (PAM_SUCCESS);
 }
 
@@ -156,6 +172,10 @@ pam_sm_close_session(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
+	(void)pamh;
+	(void)flags;
+	(void)argc;
+	(void)argv;
 	return (PAM_SUCCESS);
 }
 
@@ -164,6 +184,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 	int argc, const char *argv[])
 {
 
+	(void)pamh;
+	(void)flags;
+	(void)argc;
+	(void)argv;
 	return (PAM_SERVICE_ERR);
 }
 

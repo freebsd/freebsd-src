@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2007 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_vinfo.c#8 $
+ * $Id: pam_vinfo.c 408 2007-12-21 11:36:24Z des $
  */
 
 #include <stdarg.h>
@@ -49,7 +50,7 @@
  */
 
 int
-pam_vinfo(pam_handle_t *pamh,
+pam_vinfo(const pam_handle_t *pamh,
 	const char *fmt,
 	va_list ap)
 {

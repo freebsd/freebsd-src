@@ -1,4 +1,27 @@
-OpenPAM Figwort							2005-06-16
+OpenPAM Hydrangea						2007-12-21
+
+ - ENHANCE: when compiling with GCC, mark up API functions with GCC
+   attributes where appropriate.
+
+ - BUGFIX: fixed numerous warnings uncovered by GCC 4.
+
+ - ENHANCE: building the documentation is now optional.
+
+ - ENHANCE: corrected a number of mistakes and style issues in the
+   build system.
+
+ - ENHANCE: API function arguments are now const where appropriate, to
+   match corresponding changes in the Solaris PAM and Linux-PAM APIs.
+
+ - ENHANCE: corrected a number of C namespace violations.
+
+ - ENHANCE: the module cache has been removed, allowing long-lived
+   applications to pick up module changes.  This also allows multiple
+   threads to use PAM simultaneously (as long as they use separate PAM
+   contexts), since the module cache was the only part of OpenPAM that
+   was not thread-safe.
+============================================================================
+OpenPAM Figwort 2005-06-16
 
  - BUGFIX: Correct several small signedness and initialization bugs
    discovered during review by the NetBSD team.
@@ -304,4 +327,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#24 $
+$Id: HISTORY 409 2007-12-21 11:38:50Z des $
