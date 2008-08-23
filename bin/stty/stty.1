@@ -32,7 +32,7 @@
 .\"     @(#)stty.1	8.4 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd April 18, 1994
+.Dd August 23, 2008
 .Dt STTY 1
 .Os
 .Sh NAME
@@ -244,8 +244,12 @@ Map (do not map)
 to
 .Dv NL
 on output.
-.It Cm oxtabs Pq Fl oxtabs
-Expand (do not expand) tabs to spaces on output.
+.It Cm tab0 tab3
+Select tab expansion policy.
+.Cm tab0
+disables tab expansion, while
+.Cm tab3
+enables it.
 .It Cm onocr Pq Fl onocr
 Do not (do) output CRs at column zero.
 .It Cm onlret Pq Fl onlret
@@ -570,6 +574,8 @@ Same as
 .It Cm litout Pq Fl litout
 The converse of
 .Cm opost .
+.It Cm oxtabs Pq Fl oxtabs
+Expand (do not expand) tabs to spaces on output.
 .It Cm tabs Pq Fl tabs
 The converse of
 .Cm oxtabs .
