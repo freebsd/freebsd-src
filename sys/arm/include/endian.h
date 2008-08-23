@@ -94,7 +94,7 @@ __bswap32_var(__uint32_t v)
 			 : "+r" (v), "=r" (t1));
 	
 	return (v);
- }
+}
 
 static __inline __uint16_t
 __bswap16_var(__uint16_t v)
