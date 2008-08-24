@@ -103,7 +103,6 @@ static default_attr kernel_default = {
 static	int		sc_console_unit = -1;
 static	int		sc_saver_keyb_only = 1;
 static  scr_stat    	*sc_console;
-static	struct tty	*sc_console_tty;
 static  struct consdev	*sc_consptr;
 static	void		*kernel_console_ts;
 static	scr_stat	main_console;
@@ -362,6 +361,7 @@ sc_attach_unit(int unit, int flags)
     video_info_t info;
 #endif
     int vc;
+    struct tty *tp;
 
     flags &= ~SC_KERNEL_CONSOLE;
 
@@ -457,8 +457,8 @@ sc_attach_unit(int unit, int flags)
 	 */
     }
 
-    sc_console_tty = sc_alloc_tty(0, "consolectl");
-    SC_STAT(sc_console_tty) = sc_console;
+    tp = sc_alloc_tty(0, "consolectl");
+    SC_STAT(tp) = sc_console;
 
     return 0;
 }
@@ -639,13 +639,8 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
     while ((c = scgetc(sc, SCGETC_NONBLOCK)) != NOKEY) {
 
 	cur_tty = SC_DEV(sc, sc->cur_scp->index);
-	if (!tty_opened(cur_tty)) {
-	    cur_tty = sc_console_tty;
-	    if (cur_tty == NULL)
-		continue;
-	    if (!tty_opened(cur_tty))
-		continue;
-	}
+	if (!tty_opened(cur_tty))
+	    continue;
 
 	if ((*sc->cur_scp->tsw->te_input)(sc->cur_scp, c, cur_tty))
 	    continue;
@@ -1473,7 +1468,7 @@ sc_cnprobe(struct consdev *cp)
 	return;
 
     /* initialize required fields */
-    sprintf(cp->cn_name, "consolectl");
+    strcpy(cp->cn_name, "ttyv0");
 }
 
 static void
