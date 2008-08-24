@@ -25,9 +25,10 @@
  * SUCH DAMAGE.
  *
  *	from: src/sys/i386/isa/prof_machdep.c,v 1.16 2000/07/04 11:25:19
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef GUPROF
 
@@ -44,15 +45,15 @@ int	cputime_bias;
 /*
  * Return the time elapsed since the last call.  The units are machine-
  * dependent.
- * XXX: this is not SMP-safe. It should use per-CPU variables; %tick can be
+ * XXX: this is not SMP-safe.  It should use per-CPU variables; %tick can be
  * used though.
  */
 int
 cputime(void)
 {
 	u_long count;
-	int delta;
 	static u_long prev_count;
+	int delta;
 
 	count = rd(tick);
 	delta = (int)(count - prev_count);
@@ -76,6 +77,7 @@ startguprof(struct gmonparam *gp)
 void
 stopguprof(struct gmonparam *gp)
 {
+
 	/* Nothing to do. */
 }
 
