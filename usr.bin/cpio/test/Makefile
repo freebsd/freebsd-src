@@ -27,6 +27,7 @@ TESTS=	\
 	test_option_y.c				\
 	test_option_z.c				\
 	test_owner_parse.c			\
+	test_passthrough_dotdot.c		\
 	test_passthrough_reverse.c		\
 	test_pathmatch.c
 
