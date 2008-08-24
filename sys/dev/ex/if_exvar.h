@@ -68,6 +68,8 @@ struct ex_softc {
 	struct mtx	lock;
 	struct callout	timer;
 	int		tx_timeout;
+	int		flags;
+#define	HAS_INT_NO_REG	1
 };
 
 extern devclass_t ex_devclass;
