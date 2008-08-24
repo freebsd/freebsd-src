@@ -468,55 +468,6 @@ isa_assign_resources(device_t child)
 }
 
 /*
- * Return non-zero if the device has a single configuration, that is,
- * a fixed set of resoruces.
- */
-static int
-isa_has_single_config(device_t dev)
-{
-	struct isa_device *idev = DEVTOISA(dev);
-	struct isa_config_entry *ice;
-	uint32_t mask;
-	int i;
-
-	ice = TAILQ_FIRST(&idev->id_configs);
-	if (TAILQ_NEXT(ice, ice_link))
-		return (0);
-
-	for (i = 0; i < ice->ice_config.ic_nmem; ++i) {
-		if (ice->ice_config.ic_mem[i].ir_size == 0)
-			continue;
-		if (ice->ice_config.ic_mem[i].ir_end !=
-		    ice->ice_config.ic_mem[i].ir_start + 
-		    ice->ice_config.ic_mem[i].ir_size - 1)
-			return (0);
-	}
-	for (i = 0; i < ice->ice_config.ic_nport; ++i) {
-		if (ice->ice_config.ic_port[i].ir_size == 0)
-			continue;
-		if (ice->ice_config.ic_port[i].ir_end !=
-		    ice->ice_config.ic_port[i].ir_start + 
-		    ice->ice_config.ic_port[i].ir_size - 1)
-			return (0);
-	}
-	for (i = 0; i < ice->ice_config.ic_nirq; ++i) {
-		mask = ice->ice_config.ic_irqmask[i];
-		if (mask == 0)
-			continue;
-		if (find_next_bit(mask, find_first_bit(mask)) != -1)
-			return (0);
-	}
-	for (i = 0; i < ice->ice_config.ic_ndrq; ++i) {
-		mask = ice->ice_config.ic_drqmask[i];
-		if (mask == 0)
-			continue;
-		if (find_next_bit(mask, find_first_bit(mask)) != -1)
-			return (0);
-	}
-	return (1);
-}
-
-/*
  * Called after other devices have initialised to probe for isa devices.
  */
 void
@@ -1019,11 +970,6 @@ isa_add_config(device_t dev, device_t child, int priority,
 		TAILQ_INSERT_BEFORE(ice, newice, ice_link);
 	else
 		TAILQ_INSERT_TAIL(&idev->id_configs, newice, ice_link);
-
-	if (isa_has_single_config(child))
-		idev->id_config_attr &= ~ISACFGATTR_MULTI;
-	else
-		idev->id_config_attr |= ISACFGATTR_MULTI;
 
 	return (0);
 }
