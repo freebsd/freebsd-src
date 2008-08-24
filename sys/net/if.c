@@ -1154,7 +1154,7 @@ ifa_ifwithdstaddr(struct sockaddr *addr)
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
-			if (ifa->ifa_dstaddr &&
+			if (ifa->ifa_dstaddr != NULL &&
 			    sa_equal(addr, ifa->ifa_dstaddr))
 				goto done;
 		}
@@ -1208,7 +1208,7 @@ next:				continue;
 				 * The trouble is that we don't know the
 				 * netmask for the remote end.
 				 */
-				if (ifa->ifa_dstaddr != 0 &&
+				if (ifa->ifa_dstaddr != NULL &&
 				    sa_equal(addr, ifa->ifa_dstaddr))
 					goto done;
 			} else {
