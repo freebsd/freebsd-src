@@ -560,18 +560,15 @@ syscall(struct trapframe *tf)
 
 	narg = callp->sy_narg;
 
-	if (narg <= regcnt) {
-		argp = &tf->tf_out[reg];
-		error = 0;
-	} else {
-		KASSERT(narg <= sizeof(args) / sizeof(args[0]),
-		    ("Too many syscall arguments!"));
-		argp = args;
-		bcopy(&tf->tf_out[reg], args, sizeof(args[0]) * regcnt);
+	KASSERT(narg <= sizeof(args) / sizeof(args[0]),
+	    ("Too many syscall arguments!"));
+	error = 0;
+	argp = args;
+	bcopy(&tf->tf_out[reg], args, sizeof(args[0]) * regcnt);
+	if (narg > regcnt)
 		error = copyin((void *)(tf->tf_out[6] + SPOFF +
 		    offsetof(struct frame, fr_pad[6])),
 		    &args[regcnt], (narg - regcnt) * sizeof(args[0]));
-	}
 
 	CTR5(KTR_SYSC, "syscall: td=%p %s(%#lx, %#lx, %#lx)", td,
 	    syscallnames[code], argp[0], argp[1], argp[2]);
