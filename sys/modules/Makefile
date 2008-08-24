@@ -278,6 +278,7 @@ SUBDIR=	${_3dfx} \
 	uftdi \
 	ugen \
 	uhid \
+	uipaq \
 	ukbd \
 	ulpt \
 	umass \
