@@ -325,24 +325,30 @@ ex_init_locked(struct ex_softc *sc)
 	 */
 	CSR_WRITE_1(sc, CMD_REG, Bank2_Sel);
 	temp_reg = CSR_READ_1(sc, EEPROM_REG);
-	if (temp_reg & Trnoff_Enable) {
+	if (temp_reg & Trnoff_Enable)
 		CSR_WRITE_1(sc, EEPROM_REG, temp_reg & ~Trnoff_Enable);
-	}
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, I_ADDR_REG0 + i, IF_LLADDR(sc->ifp)[i]);
-	}
+
 	/*
 	 * - Setup transmit chaining and discard bad received frames.
 	 * - Match broadcast.
 	 * - Clear test mode.
 	 * - Set receiving mode.
-	 * - Set IRQ number.
 	 */
 	CSR_WRITE_1(sc, REG1, CSR_READ_1(sc, REG1) | Tx_Chn_Int_Md | Tx_Chn_ErStp | Disc_Bad_Fr);
 	CSR_WRITE_1(sc, REG2, CSR_READ_1(sc, REG2) | No_SA_Ins | RX_CRC_InMem);
 	CSR_WRITE_1(sc, REG3, CSR_READ_1(sc, REG3) & 0x3f /* XXX constants. */ );
+	/*
+	 * - Set IRQ number, if this part has it.  ISA devices have this,
+	 * while PC Card devices don't seem to.  Either way, we have to
+	 * switch to Bank1 as the rest of this code relies on that.
+	 */
 	CSR_WRITE_1(sc, CMD_REG, Bank1_Sel);
-	CSR_WRITE_1(sc, INT_NO_REG, (CSR_READ_1(sc, INT_NO_REG) & 0xf8) | sc->irq2ee[sc->irq_no]);
+	if (sc->flags & HAS_INT_NO_REG)
+		CSR_WRITE_1(sc, INT_NO_REG,
+		    (CSR_READ_1(sc, INT_NO_REG) & 0xf8) |
+		    sc->irq2ee[sc->irq_no]);
 
 	/*
 	 * Divide the available memory in the card into rcv and xmt buffers.
