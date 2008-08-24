@@ -598,8 +598,8 @@ test_assert_file_contents(const void *buff, int s, const char *fpattern, ...)
 	va_end(ap);
 
 	fd = open(f, O_RDONLY);
-	contents = malloc(s * 2);
-	n = read(fd, contents, s * 2);
+	contents = malloc(s * 2 + 128);
+	n = read(fd, contents, s * 2 + 128);
 	if (n == s && memcmp(buff, contents, s) == 0) {
 		free(contents);
 		return (1);
