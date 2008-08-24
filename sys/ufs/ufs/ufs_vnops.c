@@ -309,7 +309,7 @@ ufs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
-	int error;
+	int error, relocked;
 #ifdef UFS_ACL
 	struct acl *acl;
 #endif
@@ -326,6 +326,28 @@ ufs_access(ap)
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
+#ifdef QUOTA
+			if (VOP_ISLOCKED(vp) != LK_EXCLUSIVE) {
+				relocked = 1;
+				vhold(vp);
+				vn_lock(vp, LK_UPGRADE | LK_RETRY);
+				VI_LOCK(vp);
+				vdropl(vp);
+				if (vp->v_iflag & VI_DOOMED) {
+					VI_UNLOCK(vp);
+					error = ENOENT;
+					goto relock;
+				}
+				VI_UNLOCK(vp);
+			} else
+				relocked = 0;
+			error = getinoquota(ip);
+relock:
+			if (relocked)
+				vn_lock(vp, LK_DOWNGRADE | LK_RETRY);
+			if (error != 0)
+				return (error);
+#endif
 			break;
 		default:
 			break;
