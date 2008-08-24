@@ -309,7 +309,10 @@ ufs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
-	int error, relocked;
+	int error;
+#ifdef QUOTA
+	int relocked;
+#endif
 #ifdef UFS_ACL
 	struct acl *acl;
 #endif
