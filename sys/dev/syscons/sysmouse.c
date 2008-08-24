@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef SC_NO_SYSMOUSE
 
-#define SC_MOUSE 	128		/* minor number */
-
 /* local variables */
 static struct tty	*sysmouse_tty;
 static int		mouse_level;	/* sysmouse protocol level */
@@ -61,7 +59,6 @@ smdev_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 {
 	mousehw_t *hw;
 	mousemode_t *mode;
-	int s;
 
 	switch (cmd) {
 
@@ -121,14 +118,12 @@ smdev_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 		return 0;
 
 	case MOUSE_GETSTATUS:	/* get accumulated mouse events */
-		s = spltty();
 		*(mousestatus_t *)data = mouse_status;
 		mouse_status.flags = 0;
 		mouse_status.obutton = mouse_status.button;
 		mouse_status.dx = 0;
 		mouse_status.dy = 0;
 		mouse_status.dz = 0;
-		splx(s);
 		return 0;
 
 #ifdef notyet
@@ -169,7 +164,7 @@ static struct ttydevsw smdev_ttydevsw = {
 static void
 sm_attach_mouse(void *unused)
 {
-	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL, &Giant);
+	sysmouse_tty = tty_alloc(&smdev_ttydevsw, NULL, NULL);
 	tty_makedev(sysmouse_tty, NULL, "sysmouse");
 }
 
@@ -191,7 +186,9 @@ sysmouse_event(mouse_info_t *info)
 	};
 	u_char buf[8];
 	int x, y, z;
-	int i;
+	int i, flags = 0;
+
+	tty_lock(sysmouse_tty);
 
 	switch (info->operation) {
 	case MOUSE_ACTION:
@@ -210,7 +207,7 @@ sysmouse_event(mouse_info_t *info)
 			mouse_status.button &= ~info->u.event.id;
 		break;
 	default:
-		return 0;
+		goto done;
 	}
 
 	mouse_status.dx += x;
@@ -218,11 +215,9 @@ sysmouse_event(mouse_info_t *info)
 	mouse_status.dz += z;
 	mouse_status.flags |= ((x || y || z) ? MOUSE_POSCHANGED : 0)
 			      | (mouse_status.obutton ^ mouse_status.button);
-	if (mouse_status.flags == 0)
-		return 0;
-
-	if ((sysmouse_tty == NULL) || !tty_opened(sysmouse_tty))
-		return mouse_status.flags;
+	flags = mouse_status.flags;
+	if (flags == 0 || !tty_opened(sysmouse_tty))
+		goto done;
 
 	/* the first five bytes are compatible with MouseSystems' */
 	buf[0] = MOUSE_MSC_SYNC
@@ -247,7 +242,8 @@ sysmouse_event(mouse_info_t *info)
 	}
 	ttydisc_rint_done(sysmouse_tty);
 
-	return mouse_status.flags;
+done:	tty_unlock(sysmouse_tty);
+	return (flags);
 }
 
 #endif /* !SC_NO_SYSMOUSE */
