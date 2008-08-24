@@ -64,7 +64,7 @@ void
 tlb_context_demap(struct pmap *pm)
 {
 	void *cookie;
-	u_long s;
+	register_t s;
 
 	/*
 	 * It is important that we are not interrupted or preempted while
@@ -80,7 +80,7 @@ tlb_context_demap(struct pmap *pm)
 	PMAP_STATS_INC(tlb_ncontext_demap);
 	cookie = ipi_tlb_context_demap(pm);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
-		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		KASSERT(pm->pm_context[curcpu] != -1,
 		    ("tlb_context_demap: inactive pmap?"));
 		s = intr_disable();
 		stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_DMMU_DEMAP, 0);
@@ -96,12 +96,12 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 {
 	u_long flags;
 	void *cookie;
-	u_long s;
+	register_t s;
 
 	PMAP_STATS_INC(tlb_npage_demap);
 	cookie = ipi_tlb_page_demap(pm, va);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
-		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		KASSERT(pm->pm_context[curcpu] != -1,
 		    ("tlb_page_demap: inactive pmap?"));
 		if (pm == kernel_pmap)
 			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;
@@ -123,12 +123,12 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 	vm_offset_t va;
 	void *cookie;
 	u_long flags;
-	u_long s;
+	register_t s;
 
 	PMAP_STATS_INC(tlb_nrange_demap);
 	cookie = ipi_tlb_range_demap(pm, start, end);
 	if (pm->pm_active & PCPU_GET(cpumask)) {
-		KASSERT(pm->pm_context[PCPU_GET(cpuid)] != -1,
+		KASSERT(pm->pm_context[curcpu] != -1,
 		    ("tlb_range_demap: inactive pmap?"));
 		if (pm == kernel_pmap)
 			flags = TLB_DEMAP_NUCLEUS | TLB_DEMAP_PAGE;

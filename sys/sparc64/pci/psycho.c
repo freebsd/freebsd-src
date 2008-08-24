@@ -283,7 +283,6 @@ psycho_probe(device_t dev)
 		device_set_desc(dev, "U2P UPA-PCI bridge");
 		return (0);
 	}
-
 	return (ENXIO);
 }
 
@@ -340,6 +339,7 @@ psycho_attach(device_t dev)
 		default:
 			panic("%s: bogus PCI control register location",
 			    __func__);
+			/* NOTREACHED */
 		}
 	} else {
 		if (nreg <= 0)
@@ -640,7 +640,7 @@ psycho_attach(device_t dev)
 	 * firmware.
 	 */
 	PCIB_WRITE_CONFIG(dev, psycho_br[0], PCS_DEVICE, PCS_FUNC,
-	    PCIR_LATTIMER, 64, 1);
+	    PCIR_LATTIMER, OFW_PCI_LATENCY, 1);
 
 	sc->sc_pci_secbus = sc->sc_pci_subbus = ofw_pci_alloc_busno(node);
 	/*
@@ -886,6 +886,7 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		break;
 	default:
 		panic("%s: bad width", __func__);
+		/* NOTREACHED */
 	}
 
 	if (i) {
@@ -921,6 +922,7 @@ psycho_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		break;
 	default:
 		panic("%s: bad width", __func__);
+		/* NOTREACHED */
 	}
 }
 
@@ -1175,6 +1177,7 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	default:
 		return (NULL);
+		/* NOTREACHED */
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
@@ -1191,7 +1194,6 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 	}
-
 	return (rv);
 }
 
