@@ -768,4 +768,4 @@ IEEE80211_AMPDU_AGE	opt_wlan.h
 TCP_OFFLOAD_DISABLE	opt_inet.h
 
 # Virtualize the network stack
-VIMAGE
+VIMAGE			opt_global.h
