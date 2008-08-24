@@ -151,10 +151,7 @@ passthrough(const char *target)
 	/* Verify stderr. */
 	failure("Error invoking %s -p in dir %s",
 	    testprog, target);
-	/* gcpio 2.9 writes "1 block" to stderr */
-	/* assertFileContents("1 block\n", 8, "stderr"); */
-	/* bsdcpio writes nothing to stderr for passthrough mode */
-	assertFileContents("", 0, "stderr");
+	assertFileContents("1 block\n", 8, "stderr");
 
 	verify_files(target);
 	chdir("..");
