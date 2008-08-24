@@ -247,12 +247,11 @@ ex_isa_probe(device_t dev)
 
 	tmp = ex_eeprom_read(sc, EE_W1) & EE_W1_INT_SEL;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
-
 	if (irq > 0) {
 		/* This will happen if board is in PnP mode. */
 		if (ee2irq[tmp] != irq) {
-			printf("ex: WARNING: board's EEPROM is configured"
-				" for IRQ %d, using %d\n",
+			device_printf(dev,
+			    "WARNING: IRQ mismatch: EEPROM %d, using %d\n",
 				ee2irq[tmp], irq);
 		}
 	} else {
@@ -267,7 +266,7 @@ ex_isa_probe(device_t dev)
 
 bad:;
 	ex_release_resources(dev);
-	return(error);
+	return (error);
 }
 
 static int
@@ -280,6 +279,7 @@ ex_isa_attach(device_t dev)
 	sc->dev = dev;
 	sc->ioport_rid = 0;
 	sc->irq_rid = 0;
+	sc->flags |= HAS_INT_NO_REG;
 
 	if ((error = ex_alloc_resources(dev)) != 0) {
 		device_printf(dev, "ex_alloc_resources() failed!\n");
