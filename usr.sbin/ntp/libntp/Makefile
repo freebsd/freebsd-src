@@ -21,7 +21,7 @@ NTP_SRCS=	a_md5encrypt.c	adjtime.c	atoint.c	atolfp.c \
 	msutotsf.c	msyslog.c	netof.c		ntp_rfc2553.c \
 	numtoa.c	numtohost.c	octtoint.c	prettydate.c \
 	recvbuff.c	refnumtoa.c	snprintf.c	socktoa.c \
-	socktohost.c	strstr.c	systime_s.c	statestr.c \
+	socktohost.c	strstr.c	systime.c	statestr.c \
 	strerror.c	syssignal.c	tsftomsu.c	tstotv.c \
 	tvtoa.c	tvtots.c	uglydate.c	uinttoa.c \
 	utvtoa.c	ymd2yd.c 
