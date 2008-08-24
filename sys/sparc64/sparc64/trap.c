@@ -388,6 +388,7 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 	struct proc *p;
 	vm_offset_t va;
 	vm_prot_t prot;
+	vm_map_entry_t entry;
 	u_long ctx;
 	int flags;
 	int type;
@@ -460,6 +461,19 @@ trap_pfault(struct thread *td, struct trapframe *tf)
 		 */
 		KASSERT(tf->tf_tstate & TSTATE_PRIV,
 		    ("trap_pfault: fault on nucleus context from user mode"));
+
+		if (tf->tf_tpc >= (u_long)copy_nofault_begin &&
+		    tf->tf_tpc <= (u_long)copy_nofault_end) {
+			vm_map_lock_read(kernel_map);
+			if (vm_map_lookup_entry(kernel_map, va, &entry) &&
+			    (entry->eflags & MAP_ENTRY_NOFAULT) != 0) {
+				tf->tf_tpc = (u_long)copy_fault;
+				tf->tf_tnpc = tf->tf_tpc + 4;
+				vm_map_unlock_read(kernel_map);
+				return (0);
+			}
+			vm_map_unlock_read(kernel_map);
+		}
 
 		/*
 		 * We don't have to worry about process locking or stacks in
