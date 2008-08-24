@@ -80,6 +80,12 @@
 # ifdef HAVE_KERNEL_OPTION_HEADERS
 # include "opt_device_polling.h" /* DEVICE_POLLING */
 # endif
+# ifndef INET
+#  define INET 0
+# endif
+# ifndef INET6
+#  define INET6 0
+# endif
 # ifndef NETGRAPH
 #  define NETGRAPH 0
 # endif
