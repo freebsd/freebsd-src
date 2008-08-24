@@ -227,8 +227,4 @@ MLINKS+=	libarchive.3 archive.3
 check test:
 	cd ${.CURDIR}/test && make test
 
-myclean:
-	rm -f ${CLEANFILES}
-	cd ${.CURDIR}/test && make clean
-
 .include <bsd.lib.mk>
