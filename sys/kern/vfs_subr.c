@@ -968,7 +968,7 @@ alloc:
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
 		mac_vnode_associate_singlelabel(mp, vp);
-	else if (mp == NULL)
+	else if (mp == NULL && vops != &dead_vnodeops)
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
