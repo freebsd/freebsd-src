@@ -567,7 +567,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 		free(fbuf, M_TEMP);
 	}
 	if (cwir == 0 || (cwir != 0 && cvnp == NULL))
-		(void) sbuf_cat(&sbf, "/");
+		(void) sbuf_putc(&sbf, '/');
 	/*
 	 * Now that we have processed any alternate root and relative path
 	 * names, add the supplied pathname.
