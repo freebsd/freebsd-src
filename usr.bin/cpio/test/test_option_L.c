@@ -55,7 +55,7 @@ DEFINE_TEST(test_option_L)
 	r = systemf("cat filelist | %s -pd -L copy-L >copy-L.out 2>copy-L.err", testprog);
 	assertEqualInt(r, 0);
 	assertEmptyFile("copy-L.out");
-	assertEmptyFile("copy-L.err");
+	assertFileContents("1 block\n", 8, "copy-L.err");
 	assertEqualInt(0, lstat("copy-L/symlink", &st));
 	failure("-pdL should dereference symlinks and turn them into files.");
 	assert(!S_ISLNK(st.st_mode));

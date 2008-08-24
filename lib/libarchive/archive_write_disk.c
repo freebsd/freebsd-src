@@ -543,6 +543,8 @@ _archive_write_data_block(struct archive *_a,
 		buff = (const char *)buff + bytes_written;
 		size -= bytes_written;
 		offset += bytes_written;
+		a->archive.file_position += bytes_written;
+		a->archive.raw_position += bytes_written;
 		a->last_offset = a->offset = offset;
 	}
 	a->offset = offset;

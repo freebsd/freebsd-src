@@ -118,8 +118,7 @@ DEFINE_TEST(test_option_a)
 		/* Copy the file without -a; should change the atime. */
 		r = systemf("echo %s | %s -pd copy-no-a > copy-no-a.out 2>copy-no-a.err", files[1].name, testprog);
 		assertEqualInt(r, 0);
-		/* bsdcpio writes nothing to stderr in -p mode */
-		assertEmptyFile("copy-no-a.err");
+		assertFileContents("1 block\n", 8, "copy-no-a.err");
 		assertEmptyFile("copy-no-a.out");
 		assertEqualInt(0, stat(files[1].name, &st));
 		failure("Copying file without -a should have changed atime.");
@@ -128,7 +127,7 @@ DEFINE_TEST(test_option_a)
 		/* Archive the file without -a; should change the atime. */
 		r = systemf("echo %s | %s -o > archive-no-a.out 2>archive-no-a.err", files[2].name, testprog);
 		assertEqualInt(r, 0);
-		assertEmptyFile("copy-no-a.err");
+		assertFileContents("1 block\n", 8, "copy-no-a.err");
 		assertEqualInt(0, stat(files[2].name, &st));
 		failure("Archiving file without -a should have changed atime.");
 		assert(st.st_atime != files[2].atime_sec);
@@ -143,7 +142,7 @@ DEFINE_TEST(test_option_a)
 	r = systemf("echo %s | %s -pad copy-a > copy-a.out 2>copy-a.err",
 	    files[3].name, testprog);
 	assertEqualInt(r, 0);
-	assertEmptyFile("copy-a.err");
+	assertFileContents("1 block\n", 8, "copy-a.err");
 	assertEmptyFile("copy-a.out");
 	assertEqualInt(0, stat(files[3].name, &st));
 	failure("Copying file with -a should not have changed atime.");
@@ -153,7 +152,7 @@ DEFINE_TEST(test_option_a)
 	r = systemf("echo %s | %s -oa > archive-a.out 2>archive-a.err",
 	    files[4].name, testprog);
 	assertEqualInt(r, 0);
-	assertEmptyFile("copy-a.err");
+	assertFileContents("1 block\n", 8, "copy-a.err");
 	assertEqualInt(0, stat(files[4].name, &st));
 	failure("Archiving file with -a should not have changed atime.");
 	assertEqualInt(st.st_atime, files[4].atime_sec);
