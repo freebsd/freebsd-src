@@ -148,10 +148,10 @@ static const struct wpi_ident wpi_ident_table[] = {
 	{ 0x8086, 0x4222,    0x0, "Intel(R) PRO/Wireless 3945ABG" },
 	{ 0x8086, 0x4227,    0x0, "Intel(R) PRO/Wireless 3945ABG" },
 	/* The below entries only support BG */
-	{ 0x8086, 0x4222, 0x1005, "Intel(R) PRO/Wireless 3945AB"  },
-	{ 0x8086, 0x4222, 0x1034, "Intel(R) PRO/Wireless 3945AB"  },
-	{ 0x8086, 0x4222, 0x1014, "Intel(R) PRO/Wireless 3945AB"  },
-	{ 0x8086, 0x4222, 0x1044, "Intel(R) PRO/Wireless 3945AB"  },
+	{ 0x8086, 0x4222, 0x1005, "Intel(R) PRO/Wireless 3945BG"  },
+	{ 0x8086, 0x4222, 0x1034, "Intel(R) PRO/Wireless 3945BG"  },
+	{ 0x8086, 0x4227, 0x1014, "Intel(R) PRO/Wireless 3945BG"  },
+	{ 0x8086, 0x4222, 0x1044, "Intel(R) PRO/Wireless 3945BG"  },
 	{ 0, 0, 0, NULL }
 };
 
