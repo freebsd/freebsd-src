@@ -71,7 +71,7 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(0, chdir(".."));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("../file\n", 8, "stderr");
+	assertFileContents("../.\n../file\n", 13, "stderr");
 	assertEmptyFile("stdout");
 
 	/* Regular file. */
