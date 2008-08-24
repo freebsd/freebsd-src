@@ -14,7 +14,6 @@ SUBDIR=	atrun \
 	makekey \
 	${_mknetid} \
 	pppoed \
-	pt_chown \
 	rbootd \
 	revnetgroup \
 	${_rlogind} \
