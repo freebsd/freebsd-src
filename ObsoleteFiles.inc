@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080823: removal of unneeded pt_chown, to implement grantpt(3)
+OLD_FILES+=usr/libexec/pt_chown
 # 20080820: MPSAFE TTY layer integrated
 OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
