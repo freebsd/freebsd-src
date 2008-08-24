@@ -47,6 +47,8 @@ DEFINE_TEST(test_passthrough_dotdot)
 	assertEqualInt(0, mkdir("dir", 0755));
 	assertEqualInt(0, chdir("dir"));
 
+	write(filelist, ".\n", 2);
+
 	/* File with 10 bytes content. */
 	fd = open("file", O_CREAT | O_WRONLY, 0642);
 	assert(fd >= 0);
