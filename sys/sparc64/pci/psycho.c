@@ -295,7 +295,7 @@ psycho_attach(device_t dev)
 	bus_addr_t intrclr, intrmap;
 	uint64_t csr, dr;
 	phandle_t child, node;
-	uint32_t dvmabase, prop_array[2];
+	uint32_t dvmabase, prop, prop_array[2];
 	int32_t rev;
 	u_int ver;
 	int i, n, nrange, rid;
@@ -377,10 +377,13 @@ psycho_attach(device_t dev)
 	sc->sc_ign = 0x1f; /* Hummingbird/Sabre IGN is always 0x1f. */
 	if (sc->sc_mode == PSYCHO_MODE_PSYCHO)
 		sc->sc_ign = PSYCHO_GCSR_IGN(csr);
+	if (OF_getprop(node, "clock-frequency", &prop, sizeof(prop)) == -1)
+		prop = 33000000;
 
-	device_printf(dev, "%s, impl %d, version %d, IGN %#x, bus %c\n",
+	device_printf(dev,
+	    "%s, impl %d, version %d, IGN %#x, bus %c, %dMHz\n",
 	    desc->pd_name, (u_int)PSYCHO_GCSR_IMPL(csr), ver, sc->sc_ign,
-	    'A' + sc->sc_half);
+	    'A' + sc->sc_half, prop / 1000 / 1000);
 
 	/* Set up the PCI control and PCI diagnostic registers. */
 
