@@ -835,6 +835,7 @@ mode_list(struct cpio *cpio)
 static void
 mode_pass(struct cpio *cpio, const char *destdir)
 {
+	unsigned long blocks;
 	struct line_reader *lr;
 	const char *p;
 	int r;
@@ -863,6 +864,14 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
 	archive_write_finish(cpio->archive);
+
+	if (!cpio->quiet) {
+		blocks = (archive_position_uncompressed(cpio->archive) + 511)
+			      / 512;
+		fprintf(stderr, "%lu %s\n", blocks,
+		    blocks == 1 ? "block" : "blocks");
+	}
+
 }
 
 /*

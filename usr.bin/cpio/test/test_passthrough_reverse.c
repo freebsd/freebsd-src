@@ -75,7 +75,8 @@ DEFINE_TEST(test_passthrough_reverse)
 	assertEqualInt(0, chdir("out"));
 
 	/* Verify stderr and stdout. */
-	assertFileContents("out/dir/file\nout/dir\n", 21, "../stderr");
+	assertFileContents("out/dir/file\nout/dir\n1 block\n", 29,
+	    "../stderr");
 	assertEmptyFile("../stdout");
 
 	/* dir */
