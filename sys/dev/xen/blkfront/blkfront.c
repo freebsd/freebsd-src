@@ -142,7 +142,7 @@ xlvbd_add(blkif_sector_t capacity, int unit, uint16_t vdisk_info, uint16_t secto
 {
 	struct xb_softc	*sc;
 	int			error = 0;
-	int unitno = unit - 768;
+	int unitno = unit - 767;
 
 	sc = (struct xb_softc *)malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	sc->xb_unit = unitno;
