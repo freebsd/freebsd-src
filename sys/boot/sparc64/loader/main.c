@@ -9,6 +9,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 /*
  * FreeBSD/sparc64 kernel loader - machine dependent part
  *
@@ -28,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <machine/asi.h>
-#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
 #include <machine/lsu.h>
@@ -373,7 +373,7 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 	while (len) {
 		if (dtlb_va_to_pa(va) == (vm_offset_t)-1 ||
 		    itlb_va_to_pa(va) == (vm_offset_t)-1) {
-			/* Allocate a physical page, claim the virtual area */
+			/* Allocate a physical page, claim the virtual area. */
 			if (pa == (vm_offset_t)-1) {
 				pa = alloc_phys(PAGE_SIZE_4M, PAGE_SIZE_4M);
 				if (pa == (vm_offset_t)-1)
@@ -383,7 +383,9 @@ mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 					panic("%s: can't claim virtual page "
 					    "(wanted %#lx, got %#lx)",
 					    __func__, va, mva);
-				/* The mappings may have changed, be paranoid. */
+				/*
+				 * The mappings may have changed, be paranoid.
+				 */
 				continue;
 			}
 			/*
@@ -488,6 +490,7 @@ tlb_init_sun4u(void)
 	}
 	if (cpu != bootcpu)
 		panic("%s: no node for bootcpu?!?!", __func__);
+
 	if (OF_getprop(child, "#dtlb-entries", &dtlb_slot_max,
 	    sizeof(dtlb_slot_max)) == -1 ||
 	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
@@ -515,7 +518,7 @@ main(int (*openfirm)(void *))
 	struct devsw **dp;
 
 	/*
-	 * Tell the Open Firmware functions where they find the ofw gate.
+	 * Tell the Open Firmware functions where they find the OFW gate.
 	 */
 	OF_init(openfirm);
 

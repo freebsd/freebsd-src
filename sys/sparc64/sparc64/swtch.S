@@ -169,7 +169,7 @@ ENTRY(cpu_switch)
 
 	/*
 	 * Mark the pmap of the last non-kernel vmspace to run as no longer
-	 * active on this cpu.
+	 * active on this CPU.
 	 */
 	lduw	[%l2 + PM_ACTIVE], %l3
 	lduw	[PCPU(CPUMASK)], %l4
@@ -186,8 +186,8 @@ ENTRY(cpu_switch)
 	stw	%l5, [%l3 + %l4]
 
 	/*
-	 * Find a new tlb context.  If we've run out we have to flush all user
-	 * mappings from the tlb and reset the context numbers.
+	 * Find a new TLB context.  If we've run out we have to flush all
+	 * user mappings from the TLB and reset the context numbers.
 	 */
 3:	lduw	[PCPU(TLB_CTX)], %i3
 	lduw	[PCPU(TLB_CTX_MAX)], %i4
@@ -215,7 +215,7 @@ ENTRY(cpu_switch)
 	stw	%i3, [%i4 + %i5]
 
 	/*
-	 * Mark the pmap as active on this cpu.
+	 * Mark the pmap as active on this CPU.
 	 */
 	lduw	[%i2 + PM_ACTIVE], %i4
 	lduw	[PCPU(CPUMASK)], %i5
@@ -228,8 +228,8 @@ ENTRY(cpu_switch)
 	stx	%i2, [PCPU(PMAP)]
 
 	/*
-	 * Fiddle the hardware bits.  Set the tsb registers and install the
-	 * new context number in the cpu.
+	 * Fiddle the hardware bits.  Set the TSB registers and install the
+	 * new context number in the CPU.
 	 */
 	ldx	[%i2 + PM_TSB], %i4
 	mov	AA_DMMU_TSB, %i5
@@ -241,7 +241,7 @@ ENTRY(cpu_switch)
 	membar	#Sync
 
 	/*
-	 * Done.  Return and load the new process's window from the stack.
+	 * Done, return and load the new process's window from the stack.
 	 */
 5:	ret
 	 restore
