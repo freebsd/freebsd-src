@@ -37,7 +37,7 @@ SRCS= list.h					\
 	${TESTS}				\
 	main.c
 
-CLEANFILES+= list.h
+CLEANFILES+= list.h bsdcpio_test
 
 NO_MAN=yes
 
@@ -62,12 +62,8 @@ ${.OBJDIR}/list.h list.h: ${TESTS} Makefile
 	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
 
 clean:
-	rm -f *.out
-	rm -f *.o
-	rm -f *.core
+	rm -f ${CLEANFILES}
 	rm -f *~
-	rm -f list.h
-	rm -f archive.h ../archive.h
 	-chmod -R +w /tmp/bsdcpio_test.*
 	rm -rf /tmp/bsdcpio_test.*
 
