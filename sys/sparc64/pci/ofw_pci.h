@@ -32,7 +32,7 @@
  */
 
 #ifndef _SPARC64_PCI_OFW_PCI_H_
-#define _SPARC64_PCI_OFW_PCI_H_
+#define	_SPARC64_PCI_OFW_PCI_H_
 
 #include <machine/ofw_bus.h>
 
@@ -47,5 +47,8 @@ typedef u_int32_t ofw_pci_intr_t;
 #define	PCI_CS_MEM64	0x03
 
 u_int8_t ofw_pci_alloc_busno(phandle_t);
+
+/* default values */
+#define	OFW_PCI_LATENCY	64
 
 #endif /* ! _SPARC64_PCI_OFW_PCI_H_ */
