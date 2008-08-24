@@ -133,7 +133,6 @@ enum isa_device_ivars {
  */
 #define ISACFGATTR_CANDISABLE	(1 << 0)	/* can be disabled */
 #define ISACFGATTR_DYNAMIC	(1 << 1)	/* dynamic configuration */
-#define ISACFGATTR_MULTI	(1 << 2)	/* multiple configurations */
 #define ISACFGATTR_HINTS	(1 << 3)	/* source of config is hints */
 
 /*
