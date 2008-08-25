@@ -412,11 +412,13 @@ interpret:
 		binvp  = ndp->ni_vp;
 		imgp->vp = binvp;
 	} else {
+		AUDIT_ARG(fd, args->fd);
 		error = fgetvp(td, args->fd, &binvp);
 		if (error)
 			goto exec_fail;
 		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
+		AUDIT_ARG(vnode, binvp, ARG_VNODE1);
 		imgp->vp = binvp;
 	}
 
