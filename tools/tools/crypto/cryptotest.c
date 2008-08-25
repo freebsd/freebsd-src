@@ -250,7 +250,7 @@ runtest(struct alg *alg, int count, int size, u_long cmd, struct timeval *tv)
 	char *cleartext, *ciphertext, *originaltext;
 	struct session2_op sop;
 	struct crypt_op cop;
-	char iv[8];
+	char iv[EALG_MAX_BLOCK_LEN];
 
 	bzero(&sop, sizeof(sop));
 	if (!alg->ishash) {
