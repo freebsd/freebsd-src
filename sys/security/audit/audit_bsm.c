@@ -762,6 +762,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		EXTATTR_TOKENS;
 		break;
 
+	case AUE_FEXECVE:
+		if (ARG_IS_VALID(kar, ARG_FD)) {
+			tok = au_to_arg32(1, "fd", ar->ar_arg_fd);
+			kau_write(rec, tok);
+		}
+		/* FALLTHROUGH */
+
 	case AUE_EXECVE:
 		if (ARG_IS_VALID(kar, ARG_ARGV)) {
 			tok = au_to_exec_args(ar->ar_arg_argv,
