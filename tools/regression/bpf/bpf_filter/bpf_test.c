@@ -67,30 +67,20 @@ bpf_compile_and_filter(void)
 	if (nins == 0)
 		return (0);
 
-	/* Allocate the filter's memory */
-	if ((filter.mem = (int *)malloc(BPF_MEMWORDS * sizeof(int))) == NULL)
-		goto fail;
-
 	/* Create the binary */
-	if ((filter.func = bpf_jit_compile(pc, nins, filter.mem)) == NULL)
-		goto fail;
+	if ((filter.func = bpf_jit_compile(pc, nins, filter.mem)) == NULL) {
+		if (verbose > 1)
+			printf("Failed to allocate memory:\t");
+		if (verbose > 0)
+			printf("FATAL\n");
+		exit(FATAL);
+	}
 
 	ret = (*(filter.func))(pkt, wirelen, buflen);
 
-	free(filter.mem);
 	free(filter.func);
 
 	return (ret);
-
-fail:
-	if (filter.mem != NULL)
-		free(filter.mem);
-
-	if (verbose > 1)
-		printf("Failed to allocate memory:\t");
-	if (verbose > 0)
-		printf("FATAL\n");
-	exit(FATAL);
 }
 
 #else
