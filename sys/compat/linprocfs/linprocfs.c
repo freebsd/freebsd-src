@@ -39,6 +39,8 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -89,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #endif /* __i386__ || __amd64__ */
 
-#include "opt_compat.h"
 #ifdef COMPAT_LINUX32				/* XXX */
 #include <machine/../linux32/linux.h>
 #else

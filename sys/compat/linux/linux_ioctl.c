@@ -26,6 +26,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_compat.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -61,8 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-
-#include "opt_compat.h"
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
