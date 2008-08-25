@@ -294,7 +294,7 @@ nlm_get_rpc(struct sockaddr *sa, rpcprog_t prog, rpcvers_t vers)
 	enum clnt_stat stat = RPC_SUCCESS;
 	int rpcvers = RPCBVERS4;
 	bool_t do_tcp = FALSE;
-	struct pmap mapping;
+	struct portmap mapping;
 	u_short port = 0;
 
 	/*
@@ -392,7 +392,7 @@ again:
 		mapping.pm_port = 0;
 
 		stat = CLNT_CALL(rpcb, (rpcprog_t) PMAPPROC_GETPORT,
-		    (xdrproc_t) xdr_pmap, &mapping,
+		    (xdrproc_t) xdr_portmap, &mapping,
 		    (xdrproc_t) xdr_u_short, &port, timo);
 
 		if (stat == RPC_SUCCESS) {
