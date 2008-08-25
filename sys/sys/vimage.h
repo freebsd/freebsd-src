@@ -161,6 +161,7 @@
 #define	V_ip_defttl ip_defttl
 #define	V_ip_do_randomid ip_do_randomid
 #define	V_ip_gif_ttl ip_gif_ttl
+#define	V_ip_id ip_id
 #define	V_ip_keepfaith ip_keepfaith
 #define	V_ip_mrouter ip_mrouter
 #define	V_ip_rsvp_on ip_rsvp_on
