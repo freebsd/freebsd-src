@@ -44,6 +44,12 @@ __FBSDID("$FreeBSD$");
 #define	LOG_LEVEL	1
 #endif
 
+#ifdef BPF_BENCHMARK
+#define	BPF_NRUNS	10000000
+#else
+#define	BPF_NRUNS	1
+#endif
+
 static void	sig_handler(int);
 
 static int	nins = sizeof(pc) / sizeof(pc[0]);
@@ -57,7 +63,7 @@ static u_int
 bpf_compile_and_filter(void)
 {
 	bpf_jit_filter	*filter;
-	u_int		ret;
+	u_int		i, ret;
 
 	/* Do not use BPF JIT compiler for an empty program */
 	if (nins == 0)
@@ -72,7 +78,8 @@ bpf_compile_and_filter(void)
 		exit(FATAL);
 	}
 
-	ret = (*(filter->func))(pkt, wirelen, buflen);
+	for (i = 0; i < BPF_NRUNS; i++)
+		ret = (*(filter->func))(pkt, wirelen, buflen);
 
 	bpf_destroy_jit_filter(filter);
 
@@ -148,6 +155,9 @@ bpf_validate(const struct bpf_insn *f, int len)
 int
 main(void)
 {
+#if !defined(BPF_JIT_COMPILER)
+	u_int	i;
+#endif
 	u_int   ret;
 	int     sig;
 #ifdef BPF_VALIDATE
@@ -178,7 +188,8 @@ main(void)
 #ifdef BPF_JIT_COMPILER
 	ret = bpf_compile_and_filter();
 #else
-	ret = bpf_filter(pc, pkt, wirelen, buflen);
+	for (i = 0; i < BPF_NRUNS; i++)
+		ret = bpf_filter(pc, pkt, wirelen, buflen);
 #endif
 	if (ret != expect) {
 		if (verbose > 1)
