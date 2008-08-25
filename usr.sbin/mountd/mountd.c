@@ -1432,15 +1432,6 @@ get_exportlist()
 		iov[5].iov_base = fsp->f_mntfromname;
 		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
 
-		/*
-		 * Kick out MNT_ROOTFS.  It should not be passed from
-		 * userland to kernel.  It should only be used 
-		 * internally in the kernel.
-		 */
-		if (fsp->f_flags & MNT_ROOTFS) {
-			fsp->f_flags &= ~MNT_ROOTFS;
-		}
-
 		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
 		    errno != ENOENT && errno != ENOTSUP) {
 			syslog(LOG_ERR,
@@ -2107,12 +2098,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		iov[5].iov_base = fsb->f_mntfromname; /* "from" */
 		iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
 
-		/*
-		 * Remount the filesystem, but chop off the MNT_ROOTFS flag
-		 * as it is used internally (and will result in an error if
-		 * specified)
-		 */
-		while (nmount(iov, iovlen, fsb->f_flags & ~MNT_ROOTFS) < 0) {
+		while (nmount(iov, iovlen, fsb->f_flags) < 0) {
 			if (cp)
 				*cp-- = savedc;
 			else
