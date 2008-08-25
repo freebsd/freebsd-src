@@ -132,7 +132,7 @@ struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
 
 #ifndef UDBHASHSIZE
-#define	UDBHASHSIZE	16
+#define	UDBHASHSIZE	128
 #endif
 
 struct udpstat	udpstat;	/* from udp_var.h */
