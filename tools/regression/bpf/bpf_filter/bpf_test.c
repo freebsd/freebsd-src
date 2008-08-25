@@ -51,24 +51,20 @@ static int	verbose = LOG_LEVEL;
 
 #ifdef BPF_JIT_COMPILER
 
-#include <string.h>
-
 #include <net/bpf_jitter.h>
-
-bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
 
 static u_int
 bpf_compile_and_filter(void)
 {
-	bpf_jit_filter	filter;
+	bpf_jit_filter	*filter;
 	u_int		ret;
 
 	/* Do not use BPF JIT compiler for an empty program */
 	if (nins == 0)
 		return (0);
 
-	/* Create the binary */
-	if ((filter.func = bpf_jit_compile(pc, nins, filter.mem)) == NULL) {
+	/* Compile the BPF filter program and generate native code. */
+	if ((filter = bpf_jitter(pc, nins)) == NULL) {
 		if (verbose > 1)
 			printf("Failed to allocate memory:\t");
 		if (verbose > 0)
@@ -76,9 +72,9 @@ bpf_compile_and_filter(void)
 		exit(FATAL);
 	}
 
-	ret = (*(filter.func))(pkt, wirelen, buflen);
+	ret = (*(filter->func))(pkt, wirelen, buflen);
 
-	free(filter.func);
+	bpf_destroy_jit_filter(filter);
 
 	return (ret);
 }

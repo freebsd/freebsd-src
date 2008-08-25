@@ -35,7 +35,8 @@ CFLAGS+=	-DBPF_VALIDATE
 .endif
 
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386") && defined(BPF_JIT)
-SRCS+=		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
+SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
+		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
 CFLAGS+=	-I${SYSDIR} -DBPF_JIT_COMPILER
 WARNS?=		6
 .else
