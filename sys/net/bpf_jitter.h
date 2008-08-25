@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2002 - 2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (c) 2005 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
+ * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,9 @@
 #ifndef _NET_BPF_JITTER_H_
 #define _NET_BPF_JITTER_H_
 
+#ifdef _KERNEL
 MALLOC_DECLARE(M_BPFJIT);
+#endif
 
 extern int bpf_jitter_enable;
 

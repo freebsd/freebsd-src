@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2002 - 2003 NetGroup, Politecnico di Torino (Italy)
- * Copyright (c) 2005 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (C) 2002-2003 NetGroup, Politecnico di Torino (Italy)
+ * Copyright (C) 2005-2008 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,230 +95,232 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
  * native Instruction Macros
  */
 
-/* mov r32,i32 */
-#define MOVid(r32, i32) do {						\
+/* movl i32,r32 */
+#define MOVid(i32, r32) do {						\
 	emitm(&stream, (11 << 4) | (1 << 3) | (r32 & 0x7), 1);		\
 	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* mov dr32,sr32 */
-#define MOVrd(dr32, sr32) do {						\
-	emitm(&stream, (8 << 4) | 3 | (1 << 3), 1);			\
+/* movl sr32,dr32 */
+#define MOVrd(sr32, dr32) do {						\
+	emitm(&stream, 0x89, 1);					\
 	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* mov dr32,sr32[off] */
-#define MOVodd(dr32, sr32, off) do {					\
-	emitm(&stream, (8 << 4) | 3 | (1 << 3), 1);			\
+/* movl off(sr32),dr32 */
+#define MOVodd(off, sr32, dr32) do {					\
+	emitm(&stream, 0x8b, 1);					\
 	emitm(&stream,							\
 	    (1 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
 	emitm(&stream, off, 1);						\
 } while (0)
 
-/* mov dr32,sr32[or32] */
-#define MOVobd(dr32, sr32, or32) do {					\
-	emitm(&stream, (8 << 4) | 3 | (1 << 3), 1);			\
+/* movl (sr32,or32,1),dr32 */
+#define MOVobd(sr32, or32, dr32) do {					\
+	emitm(&stream, 0x8b, 1);					\
 	emitm(&stream, ((dr32 & 0x7) << 3) | 4, 1);			\
 	emitm(&stream, ((or32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
 } while (0)
 
-/* mov dr16,sr32[or32] */
-#define MOVobw(dr32, sr32, or32) do {					\
-	emitm(&stream, 0x66, 1);					\
-	emitm(&stream, (8 << 4) | 3 | (1 << 3), 1);			\
-	emitm(&stream, ((dr32 & 0x7) << 3) | 4, 1);			\
+/* movw (sr32,or32,1),dr16 */
+#define MOVobw(sr32, or32, dr16) do {					\
+	emitm(&stream, 0x8b66, 2);					\
+	emitm(&stream, ((dr16 & 0x7) << 3) | 4, 1);			\
 	emitm(&stream, ((or32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
 } while (0)
 
-/* mov dr8,sr32[or32] */
-#define MOVobb(dr8, sr32, or32) do {					\
+/* movb (sr32,or32,1),dr8 */
+#define MOVobb(sr32, or32, dr8) do {					\
 	emitm(&stream, 0x8a, 1);					\
 	emitm(&stream, ((dr8 & 0x7) << 3) | 4, 1);			\
 	emitm(&stream, ((or32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
 } while (0)
 
-/* mov [dr32][or32],sr32 */
-#define MOVomd(dr32, or32, sr32) do {					\
+/* movl sr32,(dr32,or32,1) */
+#define MOVomd(sr32, dr32, or32) do {					\
 	emitm(&stream, 0x89, 1);					\
 	emitm(&stream, ((sr32 & 0x7) << 3) | 4, 1);			\
 	emitm(&stream, ((or32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* bswap dr32 */
+/* bswapl dr32 */
 #define BSWAP(dr32) do {						\
 	emitm(&stream, 0xf, 1);						\
 	emitm(&stream, (0x19 << 3) | dr32, 1);				\
 } while (0)
 
-/* xchg al,ah */
+/* xchgb %al,%ah */
 #define SWAP_AX() do {							\
-	emitm(&stream, 0x86, 1);					\
-	emitm(&stream, 0xc4, 1);					\
+	emitm(&stream, 0xc486, 2);					\
 } while (0)
 
-/* push r32 */
+/* pushl r32 */
 #define PUSH(r32) do {							\
 	emitm(&stream, (5 << 4) | (0 << 3) | (r32 & 0x7), 1);		\
 } while (0)
 
-/* pop r32 */
+/* popl r32 */
 #define POP(r32) do {							\
 	emitm(&stream, (5 << 4) | (1 << 3) | (r32 & 0x7), 1);		\
 } while (0)
 
 /* leave/ret */
 #define LEAVE_RET() do {						\
-	emitm(&stream, 0xc9, 1);					\
-	emitm(&stream, 0xc3, 1);					\
+	emitm(&stream, 0xc3c9, 2);					\
 } while (0)
 
-/* add dr32,sr32 */
-#define ADDrd(dr32, sr32) do {						\
-	emitm(&stream, 0x03, 1);					\
+/* addl sr32,dr32 */
+#define ADDrd(sr32, dr32) do {						\
+	emitm(&stream, 0x01, 1);					\
 	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);	\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* add eax,i32 */
+/* addl i32,%eax */
 #define ADD_EAXi(i32) do {						\
 	emitm(&stream, 0x05, 1);					\
 	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* add r32,i32 */
-#define ADDid(r32, i32) do {						\
-	emitm(&stream, 0x81, 1);					\
-	emitm(&stream, (24 << 3) | r32, 1);				\
-	emitm(&stream, i32, 4);						\
-} while (0)
-
-/* add r32,i8 */
-#define ADDib(r32, i8) do {						\
+/* addl i8,r32 */
+#define ADDib(i8, r32) do {						\
 	emitm(&stream, 0x83, 1);					\
 	emitm(&stream, (24 << 3) | r32, 1);				\
 	emitm(&stream, i8, 1);						\
 } while (0)
 
-/* sub dr32,sr32 */
-#define SUBrd(dr32, sr32) do {						\
-	emitm(&stream, 0x2b, 1);					\
+/* subl sr32,dr32 */
+#define SUBrd(sr32, dr32) do {						\
+	emitm(&stream, 0x29, 1);					\
 	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* sub eax,i32 */
+/* subl i32,%eax */
 #define SUB_EAXi(i32) do {						\
 	emitm(&stream, 0x2d, 1);					\
 	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* mul r32 */
+/* mull r32 */
 #define MULrd(r32) do {							\
 	emitm(&stream, 0xf7, 1);					\
 	emitm(&stream, (7 << 5) | (r32 & 0x7), 1);			\
 } while (0)
 
-/* div r32 */
+/* divl r32 */
 #define DIVrd(r32) do {							\
 	emitm(&stream, 0xf7, 1);					\
 	emitm(&stream, (15 << 4) | (r32 & 0x7), 1);			\
 } while (0)
 
-/* and r8,i8 */
-#define ANDib(r8, i8) do {						\
-	emitm(&stream, 0x80, 1);					\
-	emitm(&stream, (7 << 5) | r8, 1);				\
+/* andb i8,r8 */
+#define ANDib(i8, r8) do {						\
+	if (r8 == AL) {							\
+		emitm(&stream, 0x24, 1);				\
+	} else {							\
+		emitm(&stream, 0x80, 1);				\
+		emitm(&stream, (7 << 5) | r8, 1);			\
+	}								\
 	emitm(&stream, i8, 1);						\
 } while (0)
 
-/* and r32,i32 */
-#define ANDid(r32, i32) do {						\
+/* andl i32,r32 */
+#define ANDid(i32, r32) do {						\
 	if (r32 == EAX) {						\
 		emitm(&stream, 0x25, 1);				\
-		emitm(&stream, i32, 4);					\
 	} else {							\
 		emitm(&stream, 0x81, 1);				\
 		emitm(&stream, (7 << 5) | r32, 1);			\
-		emitm(&stream, i32, 4);					\
 	}								\
+	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* and dr32,sr32 */
-#define ANDrd(dr32, sr32) do {						\
-	emitm(&stream, 0x23, 1);					\
+/* andl sr32,dr32 */
+#define ANDrd(sr32, dr32) do {						\
+	emitm(&stream, 0x21, 1);					\
 	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* or dr32,sr32 */
-#define ORrd(dr32, sr32) do {						\
-	emitm(&stream, 0x0b, 1);					\
+/* testl i32,r32 */
+#define TESTid(i32, r32) do {						\
+	if (r32 == EAX) {						\
+		emitm(&stream, 0xa9, 1);				\
+	} else {							\
+		emitm(&stream, 0xf7, 1);				\
+		emitm(&stream, (3 << 6) | r32, 1);			\
+	}								\
+	emitm(&stream, i32, 4);						\
+} while (0)
+
+/* testl sr32,dr32 */
+#define TESTrd(sr32, dr32) do {						\
+	emitm(&stream, 0x85, 1);					\
 	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* or r32,i32 */
-#define ORid(r32, i32) do {						\
+/* orl sr32,dr32 */
+#define ORrd(sr32, dr32) do {						\
+	emitm(&stream, 0x09, 1);					\
+	emitm(&stream,							\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
+} while (0)
+
+/* orl i32,r32 */
+#define ORid(i32, r32) do {						\
 	if (r32 == EAX) {						\
 		emitm(&stream, 0x0d, 1);				\
-		emitm(&stream, i32, 4);					\
 	} else {							\
 		emitm(&stream, 0x81, 1);				\
 		emitm(&stream, (25 << 3) | r32, 1);			\
-		emitm(&stream, i32, 4);					\
 	}								\
+	emitm(&stream, i32, 4);						\
 } while (0)
 
-/* shl r32,i8 */
-#define SHLib(r32, i8) do {						\
+/* shll i8,r32 */
+#define SHLib(i8, r32) do {						\
 	emitm(&stream, 0xc1, 1);					\
 	emitm(&stream, (7 << 5) | (r32 & 0x7), 1);			\
 	emitm(&stream, i8, 1);						\
 } while (0)
 
-/* shl dr32,cl */
+/* shll %cl,dr32 */
 #define SHL_CLrb(dr32) do {						\
 	emitm(&stream, 0xd3, 1);					\
 	emitm(&stream, (7 << 5) | (dr32 & 0x7), 1);			\
 } while (0)
 
-/* shr r32,i8 */
-#define SHRib(r32, i8) do {						\
+/* shrl i8,r32 */
+#define SHRib(i8, r32) do {						\
 	emitm(&stream, 0xc1, 1);					\
 	emitm(&stream, (29 << 3) | (r32 & 0x7), 1);			\
 	emitm(&stream, i8, 1);						\
 } while (0)
 
-/* shr dr32,cl */
+/* shrl %cl,dr32 */
 #define SHR_CLrb(dr32) do {						\
 	emitm(&stream, 0xd3, 1);					\
 	emitm(&stream, (29 << 3) | (dr32 & 0x7), 1);			\
 } while (0)
 
-/* neg r32 */
+/* negl r32 */
 #define NEGd(r32) do {							\
 	emitm(&stream, 0xf7, 1);					\
 	emitm(&stream, (27 << 3) | (r32 & 0x7), 1);			\
 } while (0)
 
-/* cmp dr32,sr32[off] */
-#define CMPodd(dr32, sr32, off) do {					\
-	emitm(&stream, (3 << 4) | 3 | (1 << 3), 1);			\
+/* cmpl sr32,dr32 */
+#define CMPrd(sr32, dr32) do {						\
+	emitm(&stream, 0x39, 1);					\
 	emitm(&stream,							\
-	    (1 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
-	emitm(&stream, off, 1);						\
+	    (3 << 6) | ((sr32 & 0x7) << 3) | (dr32 & 0x7), 1);		\
 } while (0)
 
-/* cmp dr32,sr32 */
-#define CMPrd(dr32, sr32) do {						\
-	emitm(&stream, 0x3b, 1);					\
-	emitm(&stream,							\
-	    (3 << 6) | ((dr32 & 0x7) << 3) | (sr32 & 0x7), 1);		\
-} while (0)
-
-/* cmp dr32,i32 */
-#define CMPid(dr32, i32) do {						\
+/* cmpl i32,dr32 */
+#define CMPid(i32, dr32) do {						\
 	if (dr32 == EAX){						\
 		emitm(&stream, 0x3d, 1);				\
 		emitm(&stream, i32, 4);					\
@@ -329,58 +331,28 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	}								\
 } while (0)
 
-/* jne off32 */
+/* jb off8 */
+#define JBb(off8) do {							\
+	emitm(&stream, 0x72, 1);					\
+	emitm(&stream, off8, 1);					\
+} while (0)
+
+/* jae off8 */
+#define JAEb(off8) do {							\
+	emitm(&stream, 0x73, 1);					\
+	emitm(&stream, off8, 1);					\
+} while (0)
+
+/* jne off8 */
 #define JNEb(off8) do {							\
 	emitm(&stream, 0x75, 1);					\
 	emitm(&stream, off8, 1);					\
 } while (0)
 
-/* je off32 */
-#define JE(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x84, 1);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jle off32 */
-#define JLE(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x8e, 1);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jle off8 */
-#define JLEb(off8) do {							\
-	emitm(&stream, 0x7e, 1);					\
+/* ja off8 */
+#define JAb(off8) do {							\
+	emitm(&stream, 0x77, 1);					\
 	emitm(&stream, off8, 1);					\
-} while (0)
-
-/* ja off32 */
-#define JA(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x87, 1);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jae off32 */
-#define JAE(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x83, 1);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jg off32 */
-#define JG(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x8f, 1);					\
-	emitm(&stream, off32, 4);					\
-} while (0)
-
-/* jge off32 */
-#define JGE(off32) do {							\
-	emitm(&stream, 0x0f, 1);					\
-	emitm(&stream, 0x8d, 1);					\
-	emitm(&stream, off32, 4);					\
 } while (0)
 
 /* jmp off32 */
@@ -389,16 +361,39 @@ typedef void (*emit_func)(bpf_bin_stream *stream, u_int value, u_int n);
 	emitm(&stream, off32, 4);					\
 } while (0)
 
-/* xor eax,eax */
-#define ZERO_EAX() do {							\
+/* xorl r32,r32 */
+#define ZEROrd(r32) do {						\
 	emitm(&stream, 0x31, 1);					\
-	emitm(&stream, 0xc0, 1);					\
+	emitm(&stream, (3 << 6) | ((r32 & 0x7) << 3) | (r32 & 0x7), 1);	\
 } while (0)
 
-/* xor edx,edx */
-#define ZERO_EDX() do {							\
-	emitm(&stream, 0x31, 1);					\
-	emitm(&stream, 0xd2, 1);					\
+/*
+ * Conditional long jumps
+ */
+#define	JB	0x82
+#define	JAE	0x83
+#define	JE	0x84
+#define	JNE	0x85
+#define	JBE	0x86
+#define	JA	0x87
+
+#define	JCC(t, f) do {							\
+	if (ins->jt != 0 && ins->jf != 0) {				\
+		/* 5 is the size of the following jmp */		\
+		emitm(&stream, ((t) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jt] -	\
+		    stream.refs[stream.bpf_pc] + 5, 4);			\
+		JMP(stream.refs[stream.bpf_pc + ins->jf] -		\
+		    stream.refs[stream.bpf_pc]);			\
+	} else if (ins->jt != 0) {					\
+		emitm(&stream, ((t) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jt] -	\
+		    stream.refs[stream.bpf_pc], 4);			\
+	} else {							\
+		emitm(&stream, ((f) << 8) | 0x0f, 2);			\
+		emitm(&stream, stream.refs[stream.bpf_pc + ins->jf] -	\
+		    stream.refs[stream.bpf_pc], 4);			\
+	}								\
 } while (0)
 
 #endif	/* _BPF_JIT_MACHDEP_H_ */
