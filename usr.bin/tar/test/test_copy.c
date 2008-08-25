@@ -196,6 +196,9 @@ verify_tree(int limit)
 		char dir[2];
 		dir[0] = *dp; dir[1] = '\0';
 		d = opendir(dir);
+		failure("Unable to open dir '%s'", dir);
+		if (!assert(d != NULL))
+			continue;
 		while ((de = readdir(d)) != NULL) {
 			p = de->d_name;
 			switch(dp[0]) {

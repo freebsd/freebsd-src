@@ -40,6 +40,7 @@ touch(const char *fn)
 DEFINE_TEST(test_option_T)
 {
 	FILE *f;
+	int r;
 
 	/* Create a simple dir heirarchy; bail if anything fails. */
 	if (!assertEqualInt(0, mkdir("d1", 0755))) return;
@@ -67,8 +68,10 @@ DEFINE_TEST(test_option_T)
 	fclose(f);
 
 	/* Use -c -T to archive up the files. */
-	systemf("%s -c -f test1.tar -T filelist > test1.out 2> test1.err",
+	r = systemf("%s -c -f test1.tar -T filelist > test1.out 2> test1.err",
 	    testprog);
+	failure("Failure here probably means that tar can't archive zero-length files without reading them");
+	assert(r == 0);
 	assertEmptyFile("test1.out");
 	assertEmptyFile("test1.err");
 
