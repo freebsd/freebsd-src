@@ -36,8 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/kernel.h>
- 
 #include <sys/socket.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -193,7 +193,7 @@ DB_SHOW_ALL_COMMAND(vaps, db_show_all_vaps)
 			break;
 		}
 
-	TAILQ_FOREACH(ifp, &ifnet, if_list)
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list)
 		if (ifp->if_type == IFT_IEEE80211) {
 			const struct ieee80211com *ic = ifp->if_l2com;
 
