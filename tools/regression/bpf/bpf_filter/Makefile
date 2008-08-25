@@ -26,7 +26,9 @@ SRCS=		${.CURDIR}/bpf_test.c
 
 CFLAGS+=	-g -fno-builtin-abort -I${.CURDIR}/tests
 
-.if defined(LOG_LEVEL)
+.if defined(BPF_BENCHMARK)
+CFLAGS+=	-DBPF_BENCHMARK -DLOG_LEVEL=0
+.elif defined(LOG_LEVEL)
 CFLAGS+=	-DLOG_LEVEL="${LOG_LEVEL}"
 .endif
 
@@ -51,10 +53,14 @@ ${TEST}:	${.CURDIR}/tests/${TEST}.h ${SRCS}
 
 all:		${TEST_CASES}
 .for TEST in ${TEST_CASES}
-.if !defined(LOG_LEVEL) || (${LOG_LEVEL} > 0)
+.if defined(BPF_BENCHMARK) || !defined(LOG_LEVEL) || (${LOG_LEVEL} > 0)
 	@${ECHO} -n "${TEST}:	"
 .endif
+.if defined(BPF_BENCHMARK)
+	@-time ${.CURDIR}/${TEST}
+.else
 	@-${.CURDIR}/${TEST}
+.endif
 	@rm -f ${.CURDIR}/${TEST}
 .endfor
 
