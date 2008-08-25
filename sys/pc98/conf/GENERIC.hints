@@ -126,6 +126,11 @@ hint.sio.1.flags="0x12000000"
 #hint.sio.1.irq="5"
 #hint.sio.1.flags="0x19000000"
 
+# COM2 (2nd CCU)
+hint.uart.1.at="isa"
+hint.uart.1.port="0x238"
+hint.uart.1.irq="5"
+
 hint.mse.0.at="isa"
 hint.mse.0.port="0x7FD9"
 hint.mse.0.irq="13"
