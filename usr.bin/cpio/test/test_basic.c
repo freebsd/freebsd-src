@@ -81,11 +81,25 @@ verify_files(const char *target)
 		}
 	}
 
+	/* Another file with 1 link and different permissions. */
+	r = lstat("file2", &st);
+	failure("Failed to stat file %s/file2, errno=%d", target, errno);
+	assertEqualInt(r, 0);
+	if (r == 0) {
+		assert(S_ISREG(st.st_mode));
+		failure("%s/file2: st.st_mode = %o", target, st.st_mode);
+		assertEqualInt(0777, st.st_mode & 0777);
+		assertEqualInt(10, st.st_size);
+		failure("file %s/file2 should have 1 link", target);
+		assertEqualInt(1, st.st_nlink);
+	}
+
 	/* dir */
 	r = lstat("dir", &st);
 	if (r == 0) {
 		assertEqualInt(r, 0);
 		assert(S_ISDIR(st.st_mode));
+		failure("%s/dir: st.st_mode = %o", target, st.st_mode);
 		assertEqualInt(0775, st.st_mode & 0777);
 	}
 }
@@ -185,20 +199,27 @@ DEFINE_TEST(test_basic)
 	assertEqualInt(0, symlink("file", "symlink"));
 	write(filelist, "symlink\n", 8);
 
+	/* Another file with different permissions. */
+	fd = open("file2", O_CREAT | O_WRONLY, 0777);
+	assert(fd >= 0);
+	assertEqualInt(10, write(fd, "123456789", 10));
+	close(fd);
+	write(filelist, "file2\n", 6);
+
 	/* Directory. */
 	assertEqualInt(0, mkdir("dir", 0775));
 	write(filelist, "dir\n", 4);
 	/* All done. */
 	close(filelist);
 
+	umask(022);
+
 	/* Archive/dearchive with a variety of options. */
-	basic_cpio("copy", "", "", "1 block\n");
-	basic_cpio("copy_odc", "--format=odc", "", "1 block\n");
+	basic_cpio("copy", "", "", "2 blocks\n");
+	basic_cpio("copy_odc", "--format=odc", "", "2 blocks\n");
 	basic_cpio("copy_newc", "-H newc", "", "2 blocks\n");
-	basic_cpio("copy_cpio", "-H odc", "", "1 block\n");
-	/* For some reason, gcpio 2.9 writes 7 blocks but only reads 6? */
-	/* bsdcpio writes 7 blocks and reads 7 blocks. */
-	basic_cpio("copy_ustar", "-H ustar", "", "7 blocks\n");
+	basic_cpio("copy_cpio", "-H odc", "", "2 blocks\n");
+	basic_cpio("copy_ustar", "-H ustar", "", "9 blocks\n");
 	/* Copy in one step using -p */
 	passthrough("passthrough");
 
