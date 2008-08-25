@@ -54,7 +54,7 @@ typedef struct bpf_jit_filter {
 	/* The native filtering binary, in the form of a bpf_filter_func. */
 	bpf_filter_func	func;
 
-	int		*mem;
+	int		mem[BPF_MEMWORDS];	/* Scratch memory */
 } bpf_jit_filter;
 
 /*

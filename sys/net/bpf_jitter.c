@@ -69,17 +69,8 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	if (filter == NULL)
 		return (NULL);
 
-	/* Allocate the filter's memory */
-	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int),
-	    M_BPFJIT, M_NOWAIT);
-	if (filter->mem == NULL) {
-		free(filter, M_BPFJIT);
-		return (NULL);
-	}
-
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
-		free(filter->mem, M_BPFJIT);
 		free(filter, M_BPFJIT);
 		return (NULL);
 	}
@@ -91,7 +82,6 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->mem, M_BPFJIT);
 	free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
@@ -106,16 +96,8 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	if (filter == NULL)
 		return (NULL);
 
-	/* Allocate the filter's memory */
-	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int));
-	if (filter->mem == NULL) {
-		free(filter);
-		return (NULL);
-	}
-
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
-		free(filter->mem);
 		free(filter);
 		return (NULL);
 	}
@@ -127,7 +109,6 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->mem);
 	free(filter->func);
 	free(filter);
 }
