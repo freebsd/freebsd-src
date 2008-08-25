@@ -137,6 +137,27 @@ static struct pccard_config_entry pccard_3ccfem556bi_func1_cfe0 = {
 	0,			/* maxtwins */
 };
 
+static struct pccard_function pccard_3c1_func0 = {
+	0,			/* function number */
+	PCCARD_FUNCTION_NETWORK,
+	0x05,			/* last cfe number */
+	0x400,			/* ccr_base */
+	0x267,			/* ccr_mask */
+};
+
+static struct pccard_config_entry pccard_3c1_func0_cfe0 = {
+	0x05,			/* cfe number */
+	PCCARD_CFE_IO8 | PCCARD_CFE_IO16 | PCCARD_CFE_IRQLEVEL,
+	PCCARD_IFTYPE_IO,
+	1,			/* num_iospace */
+	5,			/* iomask */
+	{ { 0x0010, 0 } },	/* iospace */
+	0xffff,			/* irqmask */
+	0,			/* num_memspace */
+	{ },			/* memspace */
+	0,			/* maxtwins */
+};
+
 static struct pccard_function pccard_sveclancard_func0 = {
 	0,			/* function number */
 	PCCARD_FUNCTION_NETWORK,
@@ -228,6 +249,8 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	{ PCMCIA_VENDOR_SIERRA, PCMCIA_PRODUCT_SIERRA_AC710,
 	  PCMCIA_CIS_INVALID,
 	  &pccard_sierra_a555_func1, &pccard_sierra_a555_func1_cfe0 },
+	{ PCMCIA_VENDOR_3COM, PCMCIA_PRODUCT_3COM_3C1, PCMCIA_CIS_INVALID,
+	  &pccard_3c1_func0, &pccard_3c1_func0_cfe0 },
 	{ PCMCIA_VENDOR_INVALID, PCMCIA_PRODUCT_INVALID, PCMCIA_CIS_SVEC_LANCARD,
 	  &pccard_sveclancard_func0, &pccard_sveclancard_func0_cfe0 },
 	{ PCMCIA_VENDOR_INVALID, PCMCIA_PRODUCT_INVALID, PCMCIA_CIS_NDC_ND5100_E,
