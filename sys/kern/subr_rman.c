@@ -718,10 +718,22 @@ rman_make_alignment_flags(uint32_t size)
 	return(RF_ALIGNMENT_LOG2(i));
 }
 
+void
+rman_set_start(struct resource *r, u_long start)
+{
+	r->__r_i->r_start = start;
+}
+
 u_long
 rman_get_start(struct resource *r)
 {
 	return (r->__r_i->r_start);
+}
+
+void
+rman_set_end(struct resource *r, u_long end)
+{
+	r->__r_i->r_end = end;
 }
 
 u_long
@@ -784,34 +796,22 @@ rman_set_rid(struct resource *r, int rid)
 	r->__r_i->r_rid = rid;
 }
 
-void
-rman_set_start(struct resource *r, u_long start)
-{
-	r->__r_i->r_start = start;
-}
-
-void
-rman_set_end(struct resource *r, u_long end)
-{
-	r->__r_i->r_end = end;
-}
-
 int
 rman_get_rid(struct resource *r)
 {
 	return (r->__r_i->r_rid);
 }
 
-struct device *
-rman_get_device(struct resource *r)
-{
-	return (r->__r_i->r_dev);
-}
-
 void
 rman_set_device(struct resource *r, struct device *dev)
 {
 	r->__r_i->r_dev = dev;
+}
+
+struct device *
+rman_get_device(struct resource *r)
+{
+	return (r->__r_i->r_dev);
 }
 
 int
