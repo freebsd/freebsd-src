@@ -28,6 +28,9 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_patterns)
 {
 	int fd, r;
+	const char *reffile1 = "test_patterns.tgz";
+	const char *reffile1_out = "test_patterns.tgz.out";
+	const char *reffile1_err = "test_patterns.tgz.err";
 
 	/*
 	 * Test basic command-line pattern handling.
@@ -44,4 +47,14 @@ DEFINE_TEST(test_patterns)
 	r = systemf("%s zxfv tar1.tgz foo bar > tar1b.out 2> tar1b.err", testprog);
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
+
+	extract_reference_file(reffile1);
+	extract_reference_file(reffile1_out);
+	extract_reference_file(reffile1_err);
+
+	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
+	    testprog, reffile1);
+	assertEqualInt(r, 0);
+	assertEqualFile("tar2a.out", reffile1_out);
+	assertEqualFile("tar2a.err", reffile1_err);
 }
