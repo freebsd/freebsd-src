@@ -44,15 +44,15 @@
  * PMAPPROC_NULL() returns ()
  * 	takes nothing, returns nothing
  *
- * PMAPPROC_SET(struct pmap) returns (bool_t)
+ * PMAPPROC_SET(struct portmap) returns (bool_t)
  * 	TRUE is success, FALSE is failure.  Registers the tuple
  *	[prog, vers, prot, port].
  *
- * PMAPPROC_UNSET(struct pmap) returns (bool_t)
+ * PMAPPROC_UNSET(struct portmap) returns (bool_t)
  *	TRUE is success, FALSE is failure.  Un-registers pair
  *	[prog, vers].  prot and port are ignored.
  *
- * PMAPPROC_GETPORT(struct pmap) returns (long unsigned).
+ * PMAPPROC_GETPORT(struct portmap) returns (long unsigned).
  *	0 is failure.  Otherwise returns the port number where the pair
  *	[prog, vers] is registered.  It may lie!
  *
@@ -86,7 +86,7 @@
 #define PMAPPROC_DUMP		((u_long)4)
 #define PMAPPROC_CALLIT		((u_long)5)
 
-struct pmap {
+struct portmap {
 	long unsigned pm_prog;
 	long unsigned pm_vers;
 	long unsigned pm_prot;
@@ -94,12 +94,12 @@ struct pmap {
 };
 
 struct pmaplist {
-	struct pmap	pml_map;
+	struct portmap	pml_map;
 	struct pmaplist *pml_next;
 };
 
 __BEGIN_DECLS
-extern bool_t xdr_pmap(XDR *, struct pmap *);
+extern bool_t xdr_portmap(XDR *, struct portmap *);
 extern bool_t xdr_pmaplist(XDR *, struct pmaplist **);
 extern bool_t xdr_pmaplist_ptr(XDR *, struct pmaplist *);
 __END_DECLS
