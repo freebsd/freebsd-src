@@ -14,6 +14,6 @@ MLINKS=	bsdtar.1 tar.1
 
 .PHONY: check test
 check test: $(PROG) bsdtar.1.gz
-	cd ${.CURDIR}/test && make clean test
+	cd ${.CURDIR}/test && make test
 
 .include <bsd.prog.mk>
