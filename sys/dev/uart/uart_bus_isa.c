@@ -1,5 +1,8 @@
 /*-
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2008 TAKAHASHI Yoshihiro
+ * Copyright (c) 2008 Marcel Moolenaar
+ * Copyright (c) 2001 M. Warner Losh
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -141,6 +144,18 @@ static struct isa_pnp_id isa_ns8250_ids[] = {
 	{0x0300695c, NULL},	/* WCI0003 - Fax/Voice/Modem/Speakphone/Asvd */
 	{0x01a0896a, NULL},	/* ZTIA001 - Zoom Internal V90 Faxmodem */
 	{0x61f7896a, NULL},	/* ZTIF761 - Zoom ComStar 33.6 */
+	/* The following are found in PC98 hardware. */
+	{0x4180a3b8, NULL},     /* NEC8041 - PC-9821CB-B04 */
+	{0x0181a3b8, NULL},     /* NEC8101 - PC-9821CB2-B04 */
+	{0x5181a3b8, NULL},     /* NEC8151 - Internal FAX/Modem for Cx3, Cb3 */
+	{0x9181a3b8, NULL},     /* NEC8191 - PC-9801-120 */
+	{0xe181a3b8, NULL},     /* NEC81E1 - Internal FAX/Modem */
+	{0x1182a3b8, NULL},     /* NEC8211 - PC-9801-123 */
+	{0x3182a3b8, NULL},     /* NEC8231 - Internal FAX/Modem (Voice) */
+	{0x4182a3b8, NULL},     /* NEC8241 - PC-9821NR-B05 */
+	{0x5182a3b8, NULL},     /* NEC8251 - Internel FAX/Modem */
+	{0x7182a3b8, NULL},     /* NEC8271 - PC-9801-125 */
+	{0x11802fbf, NULL},     /* OYO8011 - Internal FAX/Modem (Ring) */
 	{0}
 };
 
@@ -153,14 +168,21 @@ uart_isa_probe(device_t dev)
 	parent = device_get_parent(dev);
 	sc = device_get_softc(dev);
 
-	/* Probe PnP _and_ non-PnP ns8250 here. */
-	if (ISA_PNP_PROBE(parent, dev, isa_ns8250_ids) != ENXIO) {
-		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0, 0));
-	}
+	/* Check PnP IDs */
+	if (ISA_PNP_PROBE(parent, dev, isa_ns8250_ids) == ENXIO)
+		return (ENXIO);
 
-	/* Add checks for non-ns8250 IDs here. */
-	return (ENXIO);
+	/* Probe PnP _and_ non-PnP ns8250 here. */
+#ifdef PC98
+	if (isa_get_logicalid(dev))
+		sc->sc_class = &uart_ns8250_class;
+	else
+		sc->sc_class = uart_pc98_getdev(bus_get_resource_start(dev,
+		    SYS_RES_IOPORT, 0));
+#else
+	sc->sc_class = &uart_ns8250_class;
+#endif
+	return (uart_bus_probe(dev, 0, 0, 0, 0));
 }
 
 DRIVER_MODULE(uart, isa, uart_isa_driver, uart_devclass, 0, 0);

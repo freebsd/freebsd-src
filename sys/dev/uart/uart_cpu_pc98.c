@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2008 TAKAHASHI Yoshihiro
  * Copyright (c) 2003 M. Warner Losh, Marcel Moolenaar
  * All rights reserved.
  *
@@ -39,18 +40,41 @@ __FBSDID("$FreeBSD$");
 bus_space_tag_t uart_bus_space_io = I386_BUS_SPACE_IO;
 bus_space_tag_t uart_bus_space_mem = I386_BUS_SPACE_MEM;
 
+static struct {
+	u_long iobase;
+	struct uart_class *class;
+} uart_pc98_devs[] = {
+	{ 0x238, &uart_ns8250_class },
+	{ 0, NULL }
+};
+
+struct uart_class *
+uart_pc98_getdev(u_long port)
+{
+	int i;
+
+	for (i = 0; uart_pc98_devs[i].iobase; i++) {
+		if (port == uart_pc98_devs[i].iobase)
+			return (uart_pc98_devs[i].class);
+	}
+	return (NULL);
+}
+
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return (0);		/* XXX */
+	if (i386_memio_compare(b1->bst, b1->bsh, b2->bst, b2->bsh) == 0)
+		return (1);
+
+	return (0);
 }
 
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	struct uart_class *class;
-	unsigned int i, ivar, flags;
+	unsigned int i, ivar;
 
 	class = &uart_ns8250_class;
 	if (class == NULL)
@@ -63,16 +87,14 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * There is a serial port on all pc98 hardware.  It is 8251 or
 	 * an enhance version of that.  Some pc98 have the second serial
-	 * port which is 16550A compatible.  However, for the sio driver,
-	 * flags selected which type of uart was in the sytem.  We use
-	 * something similar to sort things out.
+	 * port which is 16550A compatible.
 	 */
-	for (i = 0; i < 1; i++) {
-		if (resource_int_value("uart", i, "flags", &flags))
+	for (i = 0; i < 2; i++) {
+		if (resource_int_value("uart", i, "flags", &ivar))
 			continue;
-		if (devtype == UART_DEV_CONSOLE && !UART_FLAGS_CONSOLE(flags))
+		if (devtype == UART_DEV_CONSOLE && !UART_FLAGS_CONSOLE(ivar))
 			continue;
-		if (devtype == UART_DEV_DBGPORT && !UART_FLAGS_DBGPORT(flags))
+		if (devtype == UART_DEV_DBGPORT && !UART_FLAGS_DBGPORT(ivar))
 			continue;
 		/*
 		 * We have a possible device. Make sure it's enabled and
@@ -83,6 +105,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			continue;
 		if (resource_int_value("uart", i, "port", &ivar) != 0 ||
 		    ivar == 0)
+			continue;
+
+		class = uart_pc98_getdev(ivar);
+		if (class == NULL)
 			continue;
 
 		di->ops = uart_getops(class);
