@@ -1161,7 +1161,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	}
 	bzero(dp, sizeof(*dp));
 	callout_init(&dp->dad_timer_ch, 0);
-	TAILQ_INSERT_TAIL(&dadq, (struct dadq *)dp, dad_list);
+	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
 
 	nd6log((LOG_DEBUG, "%s: starting DAD for %s\n", if_name(ifa->ifa_ifp),
 	    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
