@@ -3470,7 +3470,7 @@ add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	flush_rule_ptrs(chain);
 done:
 	V_static_count++;
-	static_len += l;
+	V_static_len += l;
 	IPFW_WUNLOCK(chain);
 	DEB(printf("ipfw: installed rule %d, static count now %d\n",
 		rule->rulenum, V_static_count);)
@@ -3503,7 +3503,7 @@ remove_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
 	else
 		prev->next = n;
 	V_static_count--;
-	static_len -= l;
+	V_static_len -= l;
 
 	rule->next = chain->reap;
 	chain->reap = rule;
@@ -4187,7 +4187,7 @@ ipfw_ctl(struct sockopt *sopt)
 		 * change between calculating the size and returning the
 		 * data in which case we'll just return what fits.
 		 */
-		size = static_len;	/* size of static rules */
+		size = V_static_len;	/* size of static rules */
 		if (V_ipfw_dyn_v)		/* add size of dyn.rules */
 			size += (V_dyn_count * sizeof(ipfw_dyn_rule));
 

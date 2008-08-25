@@ -293,6 +293,7 @@
 #define	V_sptree sptree
 #define	V_ss_fltsz ss_fltsz
 #define	V_ss_fltsz_local ss_fltsz_local
+#define	V_static_len static_len
 #define	V_static_count static_count
 #define	V_subnetsarelocal subnetsarelocal
 #define	V_tcb tcb
