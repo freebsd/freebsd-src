@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpcb_prot.h>
 
 bool_t
-xdr_pmap(XDR *xdrs, struct pmap *regs)
+xdr_portmap(XDR *xdrs, struct portmap *regs)
 {
 
 	if (xdr_u_long(xdrs, &regs->pm_prog) &&
