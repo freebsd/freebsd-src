@@ -93,7 +93,11 @@ test_compat_tar_hardlink_1(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+#if ARCHIVE_VERSION_NUMBER < 2000000
+	archive_read_finish(a);
+#else
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+#endif
 }
 
 DEFINE_TEST(test_compat_tar_hardlink)
