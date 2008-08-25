@@ -1,4 +1,3 @@
-.\" $FreeBSD$
 .\" $OpenBSD: uipaq.4,v 1.1 2005/06/17 23:50:35 deraadt Exp $
 .\" $NetBSD: uipaq.4,v 1.3 2008/04/30 13:10:54 martin Exp $
 .\"
@@ -29,25 +28,44 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 18, 2005
+.\" $FreeBSD$
+.\"
+.Dd August 24, 2008
 .Dt UIPAQ 4
 .Os
 .Sh NAME
 .Nm uipaq
 .Nd USB support for iPAQ units
 .Sh SYNOPSIS
-.Cd "uipaq* at uhub?"
-.Cd "ucom*  at uipaq?"
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uipaq"
+.Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uipaq_load="YES"
+.Ed
 .Sh HARDWARE
 The
 .Nm
 driver supports the following adapters:
 .Pp
 .Bl -tag -width Ds -offset indent -compact
-.It HP iPAQ 22xx/Jornada 548
-.It HP Jornada 568
+.It ASUS P535 PDA
+.It Casio BE300 PDA
 .It Compaq IPaq PocketPC
-.It Casio BE300
+.It HP Jornada 568
+.It HP iPAQ 22xx/Jornada 548
+.It HTC PPC6700 Modem
+.It HTC Smart Phone
+.It HTC Winmobile
+.It Sharp W-ZERO3 ES Spart Phone
 .El
 .Sh DESCRIPTION
 The
@@ -66,8 +84,13 @@ driver which makes it behave like a
 .Xr usb 4
 .Sh HISTORY
 The
+.Fx 
+support was imported from
+.Nx 
+for 
+.Fx 7.0 .
 .Nx
-support was added in
+added support in
 .Nx 4.0
 and it was imported from
 .Ox 3.8 .
