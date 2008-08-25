@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/vimage.h>
-#include <net/if.h>
 
+#include <net/if.h>
 
 #include <compat/svr4/svr4.h>
 #include <compat/svr4/svr4_util.h>
