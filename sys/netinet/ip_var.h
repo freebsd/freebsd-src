@@ -243,7 +243,7 @@ ip_newid(void)
 	if (V_ip_do_randomid)
 		return ip_randomid();
 
-	return htons(ip_id++);
+	return htons(V_ip_id++);
 }
 
 #endif /* _KERNEL */
