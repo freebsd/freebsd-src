@@ -152,9 +152,10 @@ device		pccard		# PC Card (16-bit) bus
 device		cardbus		# CardBus (32-bit) bus
 
 # Serial (COM) ports
-options 	COM_MULTIPORT
+#options 	COM_MULTIPORT
 #options 	COM_ESP		# ESP98
 #device		sio		# 8250, 16[45]50, 8251 based serial ports
+device		uart		# Generic UART driver
 
 device		mse
 #device		joy
