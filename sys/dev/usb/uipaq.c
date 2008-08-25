@@ -600,6 +600,7 @@ uipaq_match(device_t self)
 static int
 uipaq_attach(device_t self)
 {
+	usb_device_request_t req;
 	struct uipaq_softc *sc = device_get_softc(self);
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
@@ -661,7 +662,21 @@ uipaq_attach(device_t self)
 		    ucom->sc_bulkin_no, ucom->sc_bulkout_no);
 		return (ENXIO);
 	}
-	
+	/*
+	 * Send magic bytes, cribbed from Linux ipaq driver that claims
+	 * to have sniffed them from Win98.
+	 */
+	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
+	req.bRequest = UCDC_SET_CONTROL_LINE_STATE;
+	USETW(req.wValue, UCDC_LINE_DTR);
+	USETW(req.wIndex, 0x0);
+	USETW(req.wLength, 0);
+	for (i = 0; i < 100; i++) {
+		err = usbd_do_request_flags(ucom->sc_udev, &req, NULL, 0, NULL, 100);
+		if (!err)
+			break;
+		usbd_delay_ms(dev, 1000);
+	}
 	ucom_attach(&sc->sc_ucom);
 	return (0);
 bad:
