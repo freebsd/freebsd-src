@@ -432,7 +432,7 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 		    sizeof(*hpriv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL)
 			return (ENOMEM);
-		hpriv->conf.session_id = htons(session_id);
+		hpriv->conf.session_id = session_id;
 		hpriv->conf.control_dseq = L2TP_CONTROL_DSEQ;
 		hpriv->conf.enable_dseq = L2TP_ENABLE_DSEQ;
 		hpriv->hook = hook;
@@ -472,8 +472,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			conf->enabled = !!conf->enabled;
 			conf->match_id = !!conf->match_id;
-			conf->tunnel_id = htons(conf->tunnel_id);
-			conf->peer_id = htons(conf->peer_id);
 			if (priv->conf.enabled
 			    && ((priv->conf.tunnel_id != 0
 			       && conf->tunnel_id != priv->conf.tunnel_id)
@@ -505,10 +503,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			conf = (struct ng_l2tp_config *)resp->data;
 			*conf = priv->conf;
-
-			/* Put ID's in host order */
-			conf->tunnel_id = ntohs(conf->tunnel_id);
-			conf->peer_id = ntohs(conf->peer_id);
 			break;
 		    }
 		case NGM_L2TP_SET_SESS_CONFIG:
@@ -522,10 +516,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				break;
 			}
-
-			/* Put ID's in network order */
-			conf->session_id = htons(conf->session_id);
-			conf->peer_id = htons(conf->peer_id);
 
 			/* Find matching hook */
 			hpriv = ng_l2tp_find_session(priv, conf->session_id);
@@ -550,7 +540,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			memcpy(&session_id, msg->data, 2);
-			session_id = htons(session_id);
 
 			/* Find matching hook */
 			hpriv = ng_l2tp_find_session(priv, session_id);
@@ -567,10 +556,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			conf = (struct ng_l2tp_sess_config *)resp->data;
 			*conf = hpriv->conf;
-
-			/* Put ID's in host order */
-			conf->session_id = ntohs(conf->session_id);
-			conf->peer_id = ntohs(conf->peer_id);
 			break;
 		    }
 		case NGM_L2TP_GET_STATS:
@@ -604,7 +589,6 @@ ng_l2tp_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				break;
 			}
 			bcopy(msg->data, &session_id, sizeof(uint16_t));
-			session_id = htons(session_id);
 
 			/* Find matching hook. */
 			hpriv = ng_l2tp_find_session(priv, session_id);
@@ -722,7 +706,7 @@ ng_l2tp_disconnect(hook_p hook)
 *************************************************************************/
 
 /*
- * Find the hook with a given session ID (in network order).
+ * Find the hook with a given session ID.
  */
 static hookpriv_p
 ng_l2tp_find_session(priv_p privp, u_int16_t sid)
@@ -770,11 +754,10 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	hookpriv_p hpriv = NULL;
 	hook_p hook = NULL;
-	u_int16_t ids[2];
 	struct mbuf *m;
+	u_int16_t tid, sid;
 	u_int16_t hdr;
-	u_int16_t ns;
-	u_int16_t nr;
+	u_int16_t ns, nr;
 	int is_ctrl;
 	int error;
 	int len, plen;
@@ -857,12 +840,13 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 		NG_FREE_ITEM(item);
 		ERROUT(EINVAL);
 	}
-	memcpy(ids, mtod(m, u_int16_t *), 4);
+	tid = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
+	sid = (mtod(m, u_int8_t *)[2] << 8) + mtod(m, u_int8_t *)[3];
 	m_adj(m, 4);
 
 	/* Check tunnel ID */
-	if (ids[0] != priv->conf.tunnel_id
-	    && (priv->conf.match_id || ids[0] != 0)) {
+	if (tid != priv->conf.tunnel_id &&
+	    (priv->conf.match_id || tid != 0)) {
 		priv->stats.recvWrongTunnel++;
 		NG_FREE_ITEM(item);
 		NG_FREE_M(m);
@@ -871,7 +855,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 
 	/* Check session ID (for data packets only) */
 	if ((hdr & L2TP_HDR_CTRL) == 0) {
-		hpriv = ng_l2tp_find_session(priv, ids[1]);
+		hpriv = ng_l2tp_find_session(priv, sid);
 		if (hpriv == NULL) {
 			priv->stats.recvUnknownSID++;
 			NG_FREE_ITEM(item);
@@ -888,12 +872,11 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
 		}
-		memcpy(&ns, &mtod(m, u_int16_t *)[0], 2);
-		ns = ntohs(ns);
-		memcpy(&nr, &mtod(m, u_int16_t *)[1], 2);
-		nr = ntohs(nr);
+		ns = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
+		nr = (mtod(m, u_int8_t *)[2] << 8) + mtod(m, u_int8_t *)[3];
 		m_adj(m, 4);
-	}
+	} else
+		ns = nr = 0;
 
 	/* Strip offset padding if present */
 	if ((hdr & L2TP_HDR_OFF) != 0) {
@@ -905,8 +888,7 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			NG_FREE_ITEM(item);
 			ERROUT(EINVAL);
 		}
-		memcpy(&offset, mtod(m, u_int16_t *), 2);
-		offset = ntohs(offset);
+		offset = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
 
 		/* Trim offset padding */
 		if ((2+offset) > m->m_pkthdr.len) {
@@ -964,7 +946,8 @@ ng_l2tp_rcvdata_lower(hook_p h, item_p item)
 			NG_FREE_ITEM(item);
 			ERROUT(ENOBUFS);
 		}
-		memcpy(mtod(m, u_int16_t *), &ids[1], 2);
+		mtod(m, u_int8_t *)[0] = sid >> 8;
+		mtod(m, u_int8_t *)[1] = sid & 0xff;
 
 		/* Deliver packet to upper layers */
 		NG_FWD_NEW_DATA(error, item, priv->ctrl, m);
@@ -1154,8 +1137,8 @@ ng_l2tp_rcvdata(hook_p hook, item_p item)
 		hdr |= L2TP_HDR_LEN;
 		mtod(m, u_int16_t *)[i++] = htons(m->m_pkthdr.len);
 	}
-	mtod(m, u_int16_t *)[i++] = priv->conf.peer_id;
-	mtod(m, u_int16_t *)[i++] = hpriv->conf.peer_id;
+	mtod(m, u_int16_t *)[i++] = htons(priv->conf.peer_id);
+	mtod(m, u_int16_t *)[i++] = htons(hpriv->conf.peer_id);
 	if (hpriv->conf.enable_dseq) {
 		hdr |= L2TP_HDR_SEQ;
 		mtod(m, u_int16_t *)[i++] = htons(hpriv->ns);
@@ -1549,11 +1532,10 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
 		}
-		memcpy(&session_id, mtod(m, u_int16_t *), 2);
-		m_adj(m, 2);
+		session_id = (mtod(m, u_int8_t *)[0] << 8) + mtod(m, u_int8_t *)[1];
 
 		/* Make room for L2TP header */
-		M_PREPEND(m, 12, M_DONTWAIT);
+		M_PREPEND(m, 10, M_DONTWAIT);	/* - 2 + 12 = 10 */
 		if (m == NULL) {
 			priv->stats.memoryFailures++;
 			return (ENOBUFS);
@@ -1563,8 +1545,8 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 	/* Fill in L2TP header */
 	mtod(m, u_int16_t *)[0] = htons(L2TP_CTRL_HDR);
 	mtod(m, u_int16_t *)[1] = htons(m->m_pkthdr.len);
-	mtod(m, u_int16_t *)[2] = priv->conf.peer_id;
-	mtod(m, u_int16_t *)[3] = session_id;
+	mtod(m, u_int16_t *)[2] = htons(priv->conf.peer_id);
+	mtod(m, u_int16_t *)[3] = htons(session_id);
 	mtod(m, u_int16_t *)[4] = htons(ns);
 	mtod(m, u_int16_t *)[5] = htons(seq->nr);
 
