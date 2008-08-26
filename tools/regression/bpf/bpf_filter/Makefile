@@ -20,11 +20,13 @@ TEST_CASES=	test0001 test0002 test0003 test0004	\
 		test0069 test0070 test0071 test0072	\
 		test0073 test0074
 
+WARNS?=		6
+
 SYSDIR?=	${.CURDIR}/../../../../sys
 
 SRCS=		${.CURDIR}/bpf_test.c
 
-CFLAGS+=	-g -fno-builtin-abort -I${.CURDIR}/tests
+CFLAGS+=	-g -I${SYSDIR} -I${.CURDIR}/tests
 
 .if defined(BPF_BENCHMARK)
 CFLAGS+=	-DBPF_BENCHMARK -DLOG_LEVEL=0
@@ -39,11 +41,9 @@ CFLAGS+=	-DBPF_VALIDATE
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386") && defined(BPF_JIT)
 SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
 		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
-CFLAGS+=	-I${SYSDIR} -DBPF_JIT_COMPILER
-WARNS?=		6
+CFLAGS+=	-DBPF_JIT_COMPILER
 .else
 SRCS+=		${SYSDIR}/net/bpf_filter.c
-WARNS?=		1
 .endif
 
 .for TEST in ${TEST_CASES}
