@@ -52,10 +52,7 @@ __FBSDID("$FreeBSD$");
 
 static void	sig_handler(int);
 
-#if defined(BPF_JIT_COMPILER) || defined(BPF_VALIDATE)
 static int	nins = sizeof(pc) / sizeof(pc[0]);
-#endif
-
 static int	verbose = LOG_LEVEL;
 
 #ifdef BPF_JIT_COMPILER
@@ -67,10 +64,6 @@ bpf_compile_and_filter(void)
 {
 	bpf_jit_filter	*filter;
 	u_int		i, ret;
-
-	/* Do not use BPF JIT compiler for an empty program */
-	if (nins == 0)
-		return (0);
 
 	/* Compile the BPF filter program and generate native code. */
 	if ((filter = bpf_jitter(pc, nins)) == NULL) {
@@ -263,7 +256,7 @@ main(void)
 	ret = bpf_compile_and_filter();
 #else
 	for (i = 0; i < BPF_NRUNS; i++)
-		ret = bpf_filter(pc, pkt, wirelen, buflen);
+		ret = bpf_filter(nins != 0 ? pc : NULL, pkt, wirelen, buflen);
 #endif
 	if (ret != expect) {
 		if (verbose > 1)
