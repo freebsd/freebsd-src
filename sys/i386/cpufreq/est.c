@@ -94,6 +94,8 @@ struct est_softc {
 
 const char intel_id[] = "GenuineIntel";
 const char centaur_id[] = "CentaurHauls";
+static int msr_info_enabled = 0;
+TUNABLE_INT("hw.est.msr_info", &msr_info_enabled);
 
 /* Default bus clock value for Centrino processors. */
 #define INTEL_BUS_CLK		100
@@ -1195,6 +1197,9 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 	freq_info *fp;
 	int bus, freq, volts;
 	uint16_t id;
+
+	if (!msr_info_enabled)
+		return (EOPNOTSUPP);
 
 	/* Figure out the bus clock. */
 	freq = tsc_freq / 1000000;
