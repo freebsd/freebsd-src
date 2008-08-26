@@ -1,8 +1,7 @@
 /*-
- * Copyright (C) 2006-2008 Semihalf
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
  * All rights reserved.
- *
- * Written by: Piotr Kruszynski <ppk@semihalf.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -35,167 +32,266 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <net/bpf.h>
-#include <sys/sockio.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <net/ethernet.h>
-#include <net/if_arp.h>
-
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+
+#include <machine/bus.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <machine/ocpbus.h>
-
 #include <dev/tsec/if_tsec.h>
 #include <dev/tsec/if_tsecreg.h>
 
-#include "miibus_if.h"
-
-#define TSEC_DEBUG
-
-#ifdef TSEC_DEBUG
-#define PDEBUG(a) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
-#else
-#define PDEBUG(a) /* nop */
-#endif
-
-static int	tsec_probe(device_t dev);
-static int	tsec_attach(device_t dev);
-static int	tsec_setup_intr(device_t dev, struct resource **ires,
-    void **ihand, int *irid, driver_intr_t handler, const char *iname);
-static void	tsec_release_intr(device_t dev, struct resource *ires,
-    void *ihand, int irid, const char *iname);
-static void	tsec_free_dma(struct tsec_softc *sc);
-static int	tsec_detach(device_t dev);
-static void	tsec_shutdown(device_t dev);
-static int	tsec_suspend(device_t dev); /* XXX */
-static int	tsec_resume(device_t dev); /* XXX */
-
-static void	tsec_init(void *xsc);
-static void	tsec_init_locked(struct tsec_softc *sc);
-static void	tsec_set_mac_address(struct tsec_softc *sc);
+static int	tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag,
+    bus_dmamap_t *dmap, bus_size_t dsize, void **vaddr, void *raddr,
+    const char *dname);
 static void	tsec_dma_ctl(struct tsec_softc *sc, int state);
-static void	tsec_intrs_ctl(struct tsec_softc *sc, int state);
-static void	tsec_reset_mac(struct tsec_softc *sc);
-
-static void	tsec_watchdog(struct tsec_softc *sc);
-static void	tsec_start(struct ifnet *ifp);
-static void	tsec_start_locked(struct ifnet *ifp);
-static int	tsec_encap(struct tsec_softc *sc,
-    struct mbuf *m_head);
-static void	tsec_setfilter(struct tsec_softc *sc);
-static int	tsec_ioctl(struct ifnet *ifp, u_long command,
-    caddr_t data);
+static int	tsec_encap(struct tsec_softc *sc, struct mbuf *m_head);
+static void	tsec_free_dma(struct tsec_softc *sc);
+static void	tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap, void *vaddr);
 static int	tsec_ifmedia_upd(struct ifnet *ifp);
 static void	tsec_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static int	tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf **mbufp, uint32_t *paddr);
 static void	tsec_map_dma_addr(void *arg, bus_dma_segment_t *segs,
     int nseg, int error);
-static int	tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag,
-    bus_dmamap_t *dmap, bus_size_t dsize, void **vaddr, void *raddr,
-    const char *dname);
-static void	tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap,
-    void *vaddr);
-
+static void	tsec_intrs_ctl(struct tsec_softc *sc, int state);
+static void	tsec_init(void *xsc);
+static void	tsec_init_locked(struct tsec_softc *sc);
+static int	tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
+static void	tsec_reset_mac(struct tsec_softc *sc);
+static void	tsec_setfilter(struct tsec_softc *sc);
+static void	tsec_set_mac_address(struct tsec_softc *sc);
+static void	tsec_start(struct ifnet *ifp);
+static void	tsec_start_locked(struct ifnet *ifp);
 static void	tsec_stop(struct tsec_softc *sc);
-
-static void	tsec_receive_intr(void *arg);
-static void	tsec_transmit_intr(void *arg);
-static void	tsec_error_intr(void *arg);
-
 static void	tsec_tick(void *arg);
-static int	tsec_miibus_readreg(device_t dev, int phy, int reg);
-static void	tsec_miibus_writereg(device_t dev, int phy, int reg, int value);
-static void	tsec_miibus_statchg(device_t dev);
+static void	tsec_watchdog(struct tsec_softc *sc);
 
-static struct tsec_softc *tsec0_sc = NULL; /* XXX ugly hack! */
+struct tsec_softc *tsec0_sc = NULL; /* XXX ugly hack! */
 
-static device_method_t tsec_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		tsec_probe),
-	DEVMETHOD(device_attach,	tsec_attach),
-	DEVMETHOD(device_detach,	tsec_detach),
-	DEVMETHOD(device_shutdown,	tsec_shutdown),
-	DEVMETHOD(device_suspend,	tsec_suspend),
-	DEVMETHOD(device_resume,	tsec_resume),
-
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	/* MII interface */
-	DEVMETHOD(miibus_readreg,	tsec_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	tsec_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	tsec_miibus_statchg),
-	{ 0, 0 }
-};
-
-static driver_t tsec_driver = {
-	"tsec",
-	tsec_methods,
-	sizeof(struct tsec_softc),
-};
-
-static devclass_t tsec_devclass;
-
-DRIVER_MODULE(tsec, ocpbus, tsec_driver, tsec_devclass, 0, 0);
+devclass_t tsec_devclass;
 DRIVER_MODULE(miibus, tsec, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(tsec, ether, 1, 1, 1);
 MODULE_DEPEND(tsec, miibus, 1, 1, 1);
 
-static void
-tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
+int
+tsec_attach(struct tsec_softc *sc)
 {
-	union {
-		uint32_t reg[2];
-		uint8_t addr[6];
-	} curmac;
-	uint32_t a[6];
-	device_t parent;
-	uintptr_t macaddr;
+	uint8_t hwaddr[ETHER_ADDR_LEN];
+	struct ifnet *ifp;
+	bus_dmamap_t *map_ptr;
+	bus_dmamap_t **map_pptr;
+	int error = 0;
 	int i;
 
-	parent = device_get_parent(sc->dev);
-	if (BUS_READ_IVAR(parent, sc->dev, OCPBUS_IVAR_MACADDR,
-	    &macaddr) == 0) {
-		bcopy((uint8_t *)macaddr, addr, 6);
-		return;
+	/* Reset all TSEC counters */
+	TSEC_TX_RX_COUNTERS_INIT(sc);
+
+	/* Stop DMA engine if enabled by firmware */
+	tsec_dma_ctl(sc, 0);
+
+	/* Reset MAC */
+	tsec_reset_mac(sc);
+
+	/* Disable interrupts for now */
+	tsec_intrs_ctl(sc, 0);
+
+	/* Allocate a busdma tag and DMA safe memory for TX descriptors. */
+	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_tx_dtag, &sc->tsec_tx_dmap,
+	    sizeof(*sc->tsec_tx_vaddr) * TSEC_TX_NUM_DESC,
+	    (void **)&sc->tsec_tx_vaddr, &sc->tsec_tx_raddr, "TX");
+	if (error) {
+		tsec_detach(sc);
+		return (ENXIO);
 	}
 
-	/*
-	 * Fall back -- use the currently programmed address in the hope that
-	 * it was set be firmware...
-	 */
-	curmac.reg[0] = TSEC_READ(sc, TSEC_REG_MACSTNADDR1);
-	curmac.reg[1] = TSEC_READ(sc, TSEC_REG_MACSTNADDR2);
-	for (i = 0; i < 6; i++)
-		a[5-i] = curmac.addr[i];
+	/* Allocate a busdma tag and DMA safe memory for RX descriptors. */
+	error = tsec_alloc_dma_desc(sc->dev, &sc->tsec_rx_dtag, &sc->tsec_rx_dmap,
+	    sizeof(*sc->tsec_rx_vaddr) * TSEC_RX_NUM_DESC,
+	    (void **)&sc->tsec_rx_vaddr, &sc->tsec_rx_raddr, "RX");
+	if (error) {
+		tsec_detach(sc);
+		return (ENXIO);
+	}
 
-	addr[0] = a[0];
-	addr[1] = a[1];
-	addr[2] = a[2];
-	addr[3] = a[3];
-	addr[4] = a[4];
-	addr[5] = a[5];
+	/* Allocate a busdma tag for TX mbufs. */
+	error = bus_dma_tag_create(NULL,	/* parent */
+		TSEC_TXBUFFER_ALIGNMENT, 0,	/* alignment, boundary */
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+		BUS_SPACE_MAXADDR,		/* highaddr */
+		NULL, NULL,			/* filtfunc, filtfuncarg */
+		MCLBYTES * (TSEC_TX_NUM_DESC - 1),/* maxsize */
+		TSEC_TX_NUM_DESC - 1,		/* nsegments */
+		MCLBYTES, 0,			/* maxsegsz, flags */
+		NULL, NULL,			/* lockfunc, lockfuncarg */
+		&sc->tsec_tx_mtag);		/* dmat */
+	if (error) {
+		device_printf(sc->dev, "failed to allocate busdma tag(tx mbufs)\n");
+		tsec_detach(sc);
+		return (ENXIO);
+	}
+
+	/* Allocate a busdma tag for RX mbufs. */
+	error = bus_dma_tag_create(NULL,	/* parent */
+		TSEC_RXBUFFER_ALIGNMENT, 0,	/* alignment, boundary */
+		BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+		BUS_SPACE_MAXADDR,		/* highaddr */
+		NULL, NULL,			/* filtfunc, filtfuncarg */
+		MCLBYTES,			/* maxsize */
+		1,				/* nsegments */
+		MCLBYTES, 0,			/* maxsegsz, flags */
+		NULL, NULL,			/* lockfunc, lockfuncarg */
+		&sc->tsec_rx_mtag);		/* dmat */
+	if (error) {
+		device_printf(sc->dev, "failed to allocate busdma tag(rx mbufs)\n");
+		tsec_detach(sc);
+		return (ENXIO);
+	}
+
+	/* Create TX busdma maps */
+	map_ptr = sc->tx_map_data;
+	map_pptr = sc->tx_map_unused_data;
+
+	for (i = 0; i < TSEC_TX_NUM_DESC; i++) {
+		map_pptr[i] = &map_ptr[i];
+		error = bus_dmamap_create(sc->tsec_tx_mtag, 0, map_pptr[i]);
+		if (error) {
+			device_printf(sc->dev, "failed to init TX ring\n");
+			tsec_detach(sc);
+			return (ENXIO);
+		}
+	}
+
+	/* Create RX busdma maps and zero mbuf handlers */
+	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
+		error = bus_dmamap_create(sc->tsec_rx_mtag, 0, &sc->rx_data[i].map);
+		if (error) {
+			device_printf(sc->dev, "failed to init RX ring\n");
+			tsec_detach(sc);
+			return (ENXIO);
+		}
+		sc->rx_data[i].mbuf = NULL;
+	}
+
+	/* Create mbufs for RX buffers */
+	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
+		error = tsec_new_rxbuf(sc->tsec_rx_mtag, sc->rx_data[i].map,
+		    &sc->rx_data[i].mbuf, &sc->rx_data[i].paddr);
+		if (error) {
+			device_printf(sc->dev, "can't load rx DMA map %d, error = "
+			    "%d\n", i, error);
+			tsec_detach(sc);
+			return (error);
+		}
+	}
+
+	/* Create network interface for upper layers */
+	ifp = sc->tsec_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		device_printf(sc->dev, "if_alloc() failed\n");
+		tsec_detach(sc);
+		return (ENOMEM);
+	}
+
+	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
+	ifp->if_mtu = ETHERMTU;
+	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
+	ifp->if_init = tsec_init;
+	ifp->if_start = tsec_start;
+	ifp->if_ioctl = tsec_ioctl;
+
+	IFQ_SET_MAXLEN(&ifp->if_snd, TSEC_TX_NUM_DESC - 1);
+	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
+	IFQ_SET_READY(&ifp->if_snd);
+
+	/* XXX No special features of TSEC are supported currently */
+	ifp->if_capabilities = 0;
+	ifp->if_capenable = ifp->if_capabilities;
+
+	/* Probe PHY(s) */
+	error = mii_phy_probe(sc->dev, &sc->tsec_miibus, tsec_ifmedia_upd,
+	    tsec_ifmedia_sts);
+	if (error) {
+		device_printf(sc->dev, "MII failed to find PHY!\n");
+		if_free(ifp);
+		sc->tsec_ifp = NULL;
+		tsec_detach(sc);
+		return (error);
+	}
+	sc->tsec_mii = device_get_softc(sc->tsec_miibus);
+
+	/* Set MAC address */
+	tsec_get_hwaddr(sc, hwaddr);
+	ether_ifattach(ifp, hwaddr);
+
+	return (0);
+}
+
+int
+tsec_detach(struct tsec_softc *sc)
+{
+
+	/* Stop TSEC controller and free TX queue */
+	if (sc->sc_rres && sc->tsec_ifp)
+		tsec_shutdown(sc->dev);
+
+	/* Detach network interface */
+	if (sc->tsec_ifp) {
+		ether_ifdetach(sc->tsec_ifp);
+		if_free(sc->tsec_ifp);
+		sc->tsec_ifp = NULL;
+	}
+
+	/* Free DMA resources */
+	tsec_free_dma(sc);
+
+	return (0);
+}
+
+void
+tsec_shutdown(device_t dev)
+{
+	struct tsec_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	TSEC_GLOBAL_LOCK(sc);
+	tsec_stop(sc);
+	TSEC_GLOBAL_UNLOCK(sc);
+}
+
+int
+tsec_suspend(device_t dev)
+{
+
+	/* TODO not implemented! */
+	return (0);
+}
+
+int
+tsec_resume(device_t dev)
+{
+
+	/* TODO not implemented! */
+	return (0);
 }
 
 static void
@@ -327,16 +423,16 @@ tsec_init_locked(struct tsec_softc *sc)
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++) {
 		tx_desc[i].bufptr = 0;
 		tx_desc[i].length = 0;
-		tx_desc[i].flags = ((i == TSEC_TX_NUM_DESC-1) ? TSEC_TXBD_W : 0);
+		tx_desc[i].flags = ((i == TSEC_TX_NUM_DESC - 1) ? TSEC_TXBD_W : 0);
 	}
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_PREREAD |
-	    BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
 		rx_desc[i].bufptr = sc->rx_data[i].paddr;
 		rx_desc[i].length = 0;
 		rx_desc[i].flags = TSEC_RXBD_E | TSEC_RXBD_I |
-		    ((i == TSEC_RX_NUM_DESC-1) ? TSEC_RXBD_W : 0);
+		    ((i == TSEC_RX_NUM_DESC - 1) ? TSEC_RXBD_W : 0);
 	}
 	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap, BUS_DMASYNC_PREREAD |
 	    BUS_DMASYNC_PREWRITE);
@@ -382,15 +478,14 @@ static void
 tsec_set_mac_address(struct tsec_softc *sc)
 {
 	uint32_t macbuf[2] = { 0, 0 };
-	int i;
 	char *macbufp;
 	char *curmac;
+	int i;
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
 	KASSERT((ETHER_ADDR_LEN <= sizeof(macbuf)),
-	    ("tsec_set_mac_address: (%d <= %d",
-	    ETHER_ADDR_LEN, sizeof(macbuf)));
+	    ("tsec_set_mac_address: (%d <= %d", ETHER_ADDR_LEN, sizeof(macbuf)));
 
 	macbufp = (char *)macbuf;
 	curmac = (char *)IF_LLADDR(sc->tsec_ifp);
@@ -478,13 +573,10 @@ tsec_intrs_ctl(struct tsec_softc *sc, int state)
 		TSEC_WRITE(sc, TSEC_REG_IMASK, 0);
 		break;
 	case 1:
-		TSEC_WRITE(sc, TSEC_REG_IMASK, TSEC_IMASK_BREN |
-		    TSEC_IMASK_RXCEN | TSEC_IMASK_BSYEN |
-		    TSEC_IMASK_EBERREN | TSEC_IMASK_BTEN |
-		    TSEC_IMASK_TXEEN | TSEC_IMASK_TXBEN |
-		    TSEC_IMASK_TXFEN | TSEC_IMASK_XFUNEN |
-		    TSEC_IMASK_RXFEN
-		  );
+		TSEC_WRITE(sc, TSEC_REG_IMASK, TSEC_IMASK_BREN | TSEC_IMASK_RXCEN |
+		    TSEC_IMASK_BSYEN | TSEC_IMASK_EBERREN | TSEC_IMASK_BTEN |
+		    TSEC_IMASK_TXEEN | TSEC_IMASK_TXBEN | TSEC_IMASK_TXFEN |
+		    TSEC_IMASK_XFUNEN | TSEC_IMASK_RXFEN);
 		break;
 	default:
 		device_printf(dev, "tsec_intrs_ctl(): unknown state value: %d\n",
@@ -555,8 +647,8 @@ tsec_start_locked(struct ifnet *ifp)
 	if (sc->tsec_link == 0)
 		return;
 
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_POSTREAD |
+	    BUS_DMASYNC_POSTWRITE);
 
 	for (;;) {
 		/* Get packet from the queue */
@@ -576,8 +668,8 @@ tsec_start_locked(struct ifnet *ifp)
 		queued++;
 		BPF_MTAP(ifp, m0);
 	}
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 
 	if (queued) {
 		/* Enable transmitter and watchdog timer */
@@ -610,7 +702,7 @@ tsec_encap(struct tsec_softc *sc, struct mbuf *m0)
 
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag,
-	   *mapp, m0, segs, &nsegs, BUS_DMA_NOWAIT);
+	   *mapp, m0, segs, &nsegs, BUS_DMA_NOWAIT); 
 	if (error != 0 || nsegs > TSEC_FREE_TX_DESC(sc) || nsegs <= 0) {
 		bus_dmamap_unload(sc->tsec_tx_mtag, *mapp);
 		TSEC_FREE_TX_MAP(sc, mapp);
@@ -677,22 +769,19 @@ tsec_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		TSEC_GLOBAL_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((sc->tsec_if_flags ^ ifp->if_flags) &
-				    IFF_PROMISC)
+				if ((sc->tsec_if_flags ^ ifp->if_flags) & IFF_PROMISC)
 					tsec_setfilter(sc);
 			} else
 				tsec_init_locked(sc);
-		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-				tsec_stop(sc);
-		}
+		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			tsec_stop(sc);
+
 		sc->tsec_if_flags = ifp->if_flags;
 		TSEC_GLOBAL_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->tsec_mii->mii_media,
-		    command);
+		error = ifmedia_ioctl(ifp, ifr, &sc->tsec_mii->mii_media, command);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
@@ -738,7 +827,7 @@ tsec_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 static int
 tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map, struct mbuf **mbufp,
-	       uint32_t *paddr)
+    uint32_t *paddr)
 {
 	struct mbuf *new_mbuf;
 	bus_dma_segment_t seg[1];
@@ -758,7 +847,7 @@ tsec_new_rxbuf(bus_dma_tag_t tag, bus_dmamap_t map, struct mbuf **mbufp,
 	}
 
 	error = bus_dmamap_load_mbuf_sg(tag, map, new_mbuf, seg, &nsegs,
-	    BUS_DMA_NOWAIT);
+			BUS_DMA_NOWAIT);
 	KASSERT(nsegs == 1, ("Too many segments returned!"));
 	if (nsegs != 1 || error)
 		panic("tsec_new_rxbuf(): nsegs(%d), error(%d)", nsegs, error);
@@ -817,10 +906,10 @@ tsec_alloc_dma_desc(device_t dev, bus_dma_tag_t *dtag, bus_dmamap_t *dmap,
 	}
 
 	error = bus_dmamem_alloc(*dtag, vaddr, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    dmap);
+				dmap);
 	if (error) {
 		device_printf(dev, "failed to allocate %s DMA safe memory\n",
-		    dname);
+			dname);
 		bus_dma_tag_destroy(*dtag);
 		(*vaddr) = NULL;
 		return (ENXIO);
@@ -858,300 +947,6 @@ tsec_free_dma_desc(bus_dma_tag_t dtag, bus_dmamap_t dmap, void *vaddr)
 	bus_dma_tag_destroy(dtag);
 }
 
-static int
-tsec_probe(device_t dev)
-{
-	struct tsec_softc *sc;
-	device_t parent;
-	uintptr_t devtype;
-	int error;
-	uint32_t id;
-
-	parent = device_get_parent(dev);
-
-	error = BUS_READ_IVAR(parent, dev, OCPBUS_IVAR_DEVTYPE, &devtype);
-	if (error)
-		return (error);
-	if (devtype != OCPBUS_DEVTYPE_TSEC)
-		return (ENXIO);
-
-	sc = device_get_softc(dev);
-
-	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, TSEC_IO_SIZE, RF_ACTIVE);
-	if (sc->sc_rres == NULL)
-		return (ENXIO);
-
-	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
-	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
-
-	/* Check that we actually have a TSEC at this address */
-	id = TSEC_READ(sc, TSEC_REG_ID) | TSEC_READ(sc, TSEC_REG_ID2);
-
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rrid, sc->sc_rres);
-
-	if (id == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "Three-Speed Ethernet Controller");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-tsec_attach(device_t dev)
-{
-	uint8_t hwaddr[ETHER_ADDR_LEN];
-	struct tsec_softc *sc;
-	struct ifnet *ifp;
-	bus_dmamap_t *map_ptr;
-	bus_dmamap_t **map_pptr;
-	int error = 0;
-	int i;
-
-	sc = device_get_softc(dev);
-	sc->dev = dev;
-
-	if (device_get_unit(dev) == 0)
-		tsec0_sc = sc; /* XXX */
-
-	callout_init(&sc->tsec_callout, 1);
-	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "TSEC TX lock",
-	    MTX_DEF);
-	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "TSEC RX lock",
-	    MTX_DEF);
-
-	/* Reset all TSEC counters */
-	TSEC_TX_RX_COUNTERS_INIT(sc);
-
-	/* Allocate IO memory for TSEC registers */
-	sc->sc_rrid = 0;
-	sc->sc_rres = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->sc_rrid,
-	    0ul, ~0ul, TSEC_IO_SIZE, RF_ACTIVE);
-	if (sc->sc_rres == NULL) {
-		device_printf(dev, "could not allocate IO memory range!\n");
-		tsec_detach(dev);
-		return (ENXIO);
-	}
-	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
-	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
-
-	/* Stop DMA engine if enabled by firmware */
-	tsec_dma_ctl(sc, 0);
-
-	/* Reset MAC */
-	tsec_reset_mac(sc);
-
-	/* Disable interrupts for now */
-	tsec_intrs_ctl(sc, 0);
-
-	/* Allocate a busdma tag and DMA safe memory for TX descriptors. */
-	error = tsec_alloc_dma_desc(dev, &sc->tsec_tx_dtag, &sc->tsec_tx_dmap,
-	    sizeof(*sc->tsec_tx_vaddr) * TSEC_TX_NUM_DESC,
-	    (void **)&sc->tsec_tx_vaddr, &sc->tsec_tx_raddr, "TX");
-	if (error) {
-		tsec_detach(dev);
-		return (ENXIO);
-	}
-
-	/* Allocate a busdma tag and DMA safe memory for RX descriptors. */
-	error = tsec_alloc_dma_desc(dev, &sc->tsec_rx_dtag, &sc->tsec_rx_dmap,
-	    sizeof(*sc->tsec_rx_vaddr) * TSEC_RX_NUM_DESC,
-	    (void **)&sc->tsec_rx_vaddr, &sc->tsec_rx_raddr, "RX");
-	if (error) {
-		tsec_detach(dev);
-		return (ENXIO);
-	}
-
-	/* Allocate a busdma tag for TX mbufs. */
-	error = bus_dma_tag_create(NULL,	/* parent */
-	    TSEC_TXBUFFER_ALIGNMENT, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filtfunc, filtfuncarg */
-	    MCLBYTES * (TSEC_TX_NUM_DESC - 1),	/* maxsize */
-	    TSEC_TX_NUM_DESC - 1,		/* nsegments */
-	    MCLBYTES, 0,			/* maxsegsz, flags */
-	    NULL, NULL,				/* lockfunc, lockfuncarg */
-	    &sc->tsec_tx_mtag);			/* dmat */
-	if (error) {
-		device_printf(dev, "failed to allocate busdma tag(tx mbufs)\n");
-		tsec_detach(dev);
-		return (ENXIO);
-	}
-
-	/* Allocate a busdma tag for RX mbufs. */
-	error = bus_dma_tag_create(NULL,	/* parent */
-	    TSEC_RXBUFFER_ALIGNMENT, 0,		/* alignment, boundary */
-	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
-	    BUS_SPACE_MAXADDR,			/* highaddr */
-	    NULL, NULL,				/* filtfunc, filtfuncarg */
-	    MCLBYTES,				/* maxsize */
-	    1,					/* nsegments */
-	    MCLBYTES, 0,				/* maxsegsz, flags */
-	    NULL, NULL,			/* lockfunc, lockfuncarg */
-	    &sc->tsec_rx_mtag);			/* dmat */
-	if (error) {
-		device_printf(dev, "failed to allocate busdma tag(rx mbufs)\n");
-		tsec_detach(dev);
-		return (ENXIO);
-	}
-
-	/* Create TX busdma maps */
-	map_ptr = sc->tx_map_data;
-	map_pptr = sc->tx_map_unused_data;
-
-	for (i = 0; i < TSEC_TX_NUM_DESC; i++) {
-		map_pptr[i] = &map_ptr[i];
-		error = bus_dmamap_create(sc->tsec_tx_mtag, 0,
-		    map_pptr[i]);
-		if (error) {
-			device_printf(dev, "failed to init TX ring\n");
-			tsec_detach(dev);
-			return (ENXIO);
-		}
-	}
-
-	/* Create RX busdma maps and zero mbuf handlers */
-	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
-		error = bus_dmamap_create(sc->tsec_rx_mtag, 0,
-		    &sc->rx_data[i].map);
-		if (error) {
-			device_printf(dev, "failed to init RX ring\n");
-			tsec_detach(dev);
-			return (ENXIO);
-		}
-		sc->rx_data[i].mbuf = NULL;
-	}
-
-	/* Create mbufs for RX buffers */
-	for (i = 0; i < TSEC_RX_NUM_DESC; i++) {
-		error = tsec_new_rxbuf(sc->tsec_rx_mtag, sc->rx_data[i].map,
-		    &sc->rx_data[i].mbuf, &sc->rx_data[i].paddr);
-		if (error) {
-			device_printf(dev, "can't load rx DMA map %d, error = "
-			    "%d\n", i, error);
-			tsec_detach(dev);
-			return (error);
-		}
-	}
-
-	/* Create network interface for upper layers */
-	ifp = sc->tsec_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "if_alloc() failed\n");
-		tsec_detach(dev);
-		return (ENOMEM);
-	}
-
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST;
-	ifp->if_init = tsec_init;
-	ifp->if_start = tsec_start;
-	ifp->if_ioctl = tsec_ioctl;
-
-	IFQ_SET_MAXLEN(&ifp->if_snd, TSEC_TX_NUM_DESC - 1);
-	ifp->if_snd.ifq_drv_maxlen = TSEC_TX_NUM_DESC - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-
-	/* XXX No special features of TSEC are supported currently */
-	ifp->if_capabilities = 0;
-	ifp->if_capenable = ifp->if_capabilities;
-
-	/* Probe PHY(s) */
-	error = mii_phy_probe(dev, &sc->tsec_miibus, tsec_ifmedia_upd,
-	    tsec_ifmedia_sts);
-	if (error) {
-		device_printf(dev, "MII failed to find PHY!\n");
-		if_free(ifp);
-		sc->tsec_ifp = NULL;
-		tsec_detach(dev);
-		return (error);
-	}
-	sc->tsec_mii = device_get_softc(sc->tsec_miibus);
-
-	tsec_get_hwaddr(sc, hwaddr);
-	ether_ifattach(ifp, hwaddr);
-
-	/* Interrupts configuration (TX/RX/ERR) */
-	sc->sc_transmit_irid = OCP_TSEC_RID_TXIRQ;
-	error = tsec_setup_intr(dev, &sc->sc_transmit_ires,
-	    &sc->sc_transmit_ihand, &sc->sc_transmit_irid,
-	    tsec_transmit_intr, "TX");
-	if (error) {
-		tsec_detach(dev);
-		return (error);
-	}
-
-	sc->sc_receive_irid = OCP_TSEC_RID_RXIRQ;
-	error = tsec_setup_intr(dev, &sc->sc_receive_ires,
-	    &sc->sc_receive_ihand, &sc->sc_receive_irid,
-	    tsec_receive_intr, "RX");
-	if (error) {
-		tsec_detach(dev);
-		return (error);
-	}
-
-	sc->sc_error_irid = OCP_TSEC_RID_ERRIRQ;
-	error = tsec_setup_intr(dev, &sc->sc_error_ires,
-	    &sc->sc_error_ihand, &sc->sc_error_irid,
-	    tsec_error_intr, "ERR");
-	if (error) {
-		tsec_detach(dev);
-		return (error);
-	}
-
-	return (0);
-}
-
-static int
-tsec_setup_intr(device_t dev, struct resource **ires, void **ihand, int *irid,
-    driver_intr_t handler, const char *iname)
-{
-	struct tsec_softc *sc;
-	int error;
-
-	sc = device_get_softc(dev);
-
-	(*ires) = bus_alloc_resource_any(dev, SYS_RES_IRQ, irid, RF_ACTIVE);
-	if ((*ires) == NULL) {
-		device_printf(dev, "could not allocate %s IRQ\n", iname);
-		return (ENXIO);
-	}
-	error = bus_setup_intr(dev, *ires, INTR_TYPE_NET | INTR_MPSAFE,
-	    NULL, handler, sc, ihand);
-	if (error) {
-		device_printf(dev, "failed to set up %s IRQ\n", iname);
-		if (bus_release_resource(dev, SYS_RES_IRQ, *irid, *ires))
-			device_printf(dev, "could not release %s IRQ\n", iname);
-		(*ires) = NULL;
-		return (error);
-	}
-	return (0);
-}
-
-static void
-tsec_release_intr(device_t dev, struct resource *ires, void *ihand, int irid,
-    const char *iname)
-{
-	int error;
-
-	if (ires == NULL)
-		return;
-
-	error = bus_teardown_intr(dev, ires, ihand);
-	if (error)
-		device_printf(dev, "bus_teardown_intr() failed for %s intr"
-		    ", error %d\n", iname, error);
-
-	error = bus_release_resource(dev, SYS_RES_IRQ, irid, ires);
-	if (error)
-		device_printf(dev, "bus_release_resource() failed for %s intr"
-		    ", error %d\n", iname, error);
-}
-
 static void
 tsec_free_dma(struct tsec_softc *sc)
 {
@@ -1160,8 +955,7 @@ tsec_free_dma(struct tsec_softc *sc)
 	/* Free TX maps */
 	for (i = 0; i < TSEC_TX_NUM_DESC; i++)
 		if (sc->tx_map_data[i] != NULL)
-			bus_dmamap_destroy(sc->tsec_tx_mtag,
-			    sc->tx_map_data[i]);
+			bus_dmamap_destroy(sc->tsec_tx_mtag, sc->tx_map_data[i]);
 	/* Destroy tag for Tx mbufs */
 	bus_dma_tag_destroy(sc->tsec_tx_mtag);
 
@@ -1189,82 +983,6 @@ tsec_free_dma(struct tsec_softc *sc)
 	    sc->tsec_tx_vaddr);
 	tsec_free_dma_desc(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
 	    sc->tsec_rx_vaddr);
-}
-
-static int
-tsec_detach(device_t dev)
-{
-	struct tsec_softc *sc;
-	int error;
-
-	sc = device_get_softc(dev);
-
-	/* Stop TSEC controller and free TX queue */
-	if (sc->sc_rres && sc->tsec_ifp)
-		tsec_shutdown(dev);
-
-	/* Wait for stopping TSEC ticks */
-	callout_drain(&sc->tsec_callout);
-
-	/* Stop and release all interrupts */
-	tsec_release_intr(dev, sc->sc_transmit_ires, sc->sc_transmit_ihand,
-	    sc->sc_transmit_irid, "TX");
-	tsec_release_intr(dev, sc->sc_receive_ires, sc->sc_receive_ihand,
-	    sc->sc_receive_irid, "RX");
-	tsec_release_intr(dev, sc->sc_error_ires, sc->sc_error_ihand,
-	    sc->sc_error_irid, "ERR");
-
-	/* Detach network interface */
-	if (sc->tsec_ifp) {
-		ether_ifdetach(sc->tsec_ifp);
-		if_free(sc->tsec_ifp);
-		sc->tsec_ifp = NULL;
-	}
-
-	/* Free DMA resources */
-	tsec_free_dma(sc);
-
-	/* Free IO memory handler */
-	if (sc->sc_rres) {
-		error = bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rrid,
-		    sc->sc_rres);
-		if (error)
-			device_printf(dev, "bus_release_resource() failed for"
-			    " IO memory, error %d\n", error);
-	}
-
-	/* Destroy locks */
-	mtx_destroy(&sc->receive_lock);
-	mtx_destroy(&sc->transmit_lock);
-	return (0);
-}
-
-static void
-tsec_shutdown(device_t dev)
-{
-	struct tsec_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	TSEC_GLOBAL_LOCK(sc);
-	tsec_stop(sc);
-	TSEC_GLOBAL_UNLOCK(sc);
-}
-
-static int
-tsec_suspend(device_t dev)
-{
-
-	/* TODO not implemented! */
-	return (ENODEV);
-}
-
-static int
-tsec_resume(device_t dev)
-{
-
-	/* TODO not implemented! */
-	return (ENODEV);
 }
 
 static void
@@ -1309,7 +1027,7 @@ tsec_stop(struct tsec_softc *sc)
 	DELAY(10);
 }
 
-static void
+void
 tsec_receive_intr(void *arg)
 {
 	struct mbuf *rcv_mbufs[TSEC_RX_NUM_DESC];
@@ -1360,9 +1078,10 @@ tsec_receive_intr(void *arg)
 
 		if (flags & (TSEC_RXBD_LG | TSEC_RXBD_SH | TSEC_RXBD_NO |
 		    TSEC_RXBD_CR | TSEC_RXBD_OV | TSEC_RXBD_TR)) {
+
 			rx_desc->length = 0;
-			rx_desc->flags = (rx_desc->flags &
-			    ~TSEC_RXBD_ZEROONINIT) | TSEC_RXBD_E | TSEC_RXBD_I;
+			rx_desc->flags = (rx_desc->flags & ~TSEC_RXBD_ZEROONINIT) |
+			    TSEC_RXBD_E | TSEC_RXBD_I;
 			continue;
 		}
 
@@ -1394,8 +1113,8 @@ tsec_receive_intr(void *arg)
 		rcv_mbufs[c1++] = m;
 	}
 
-	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_rx_dtag, sc->tsec_rx_dmap, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 
 	TSEC_RECEIVE_UNLOCK(sc);
 
@@ -1404,7 +1123,7 @@ tsec_receive_intr(void *arg)
 		(*ifp->if_input)(ifp, rcv_mbufs[c2]);
 }
 
-static void
+void
 tsec_transmit_intr(void *arg)
 {
 	struct tsec_softc *sc = arg;
@@ -1431,8 +1150,8 @@ tsec_transmit_intr(void *arg)
 	TSEC_WRITE(sc, TSEC_REG_MON_TXCL, 0);
 	TSEC_WRITE(sc, TSEC_REG_MON_TNCL, 0);
 
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_POSTREAD |
-	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	while (TSEC_CUR_DIFF_DIRTY_TX_DESC(sc)) {
 		tx_desc = TSEC_GET_DIRTY_TX_DESC(sc);
@@ -1459,8 +1178,8 @@ tsec_transmit_intr(void *arg)
 		ifp->if_opackets++;
 		send = 1;
 	}
-	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->tsec_tx_dtag, sc->tsec_tx_dmap, BUS_DMASYNC_PREREAD |
+	    BUS_DMASYNC_PREWRITE);
 
 	if (send) {
 		/* Now send anything that was pending */
@@ -1474,7 +1193,7 @@ tsec_transmit_intr(void *arg)
 	TSEC_TRANSMIT_UNLOCK(sc);
 }
 
-static void
+void
 tsec_error_intr(void *arg)
 {
 	struct tsec_softc *sc = arg;
@@ -1550,7 +1269,7 @@ tsec_tick(void *xsc)
 	TSEC_GLOBAL_UNLOCK(sc);
 }
 
-static int
+int
 tsec_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct tsec_softc *sc;
@@ -1578,7 +1297,7 @@ tsec_miibus_readreg(device_t dev, int phy, int reg)
 	return (TSEC_READ(sc, TSEC_REG_MIIMSTAT));
 }
 
-static void
+void
 tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	struct tsec_softc *sc;
@@ -1602,7 +1321,7 @@ tsec_miibus_writereg(device_t dev, int phy, int reg, int value)
 		device_printf(dev, "Timeout while writing to PHY!\n");
 }
 
-static void
+void
 tsec_miibus_statchg(device_t dev)
 {
 	struct tsec_softc *sc;
@@ -1641,7 +1360,7 @@ tsec_miibus_statchg(device_t dev)
 		sc->tsec_link = 0;
 		device_printf(dev, "Unknown speed (%d), link %s!\n",
 		    IFM_SUBTYPE(mii->mii_media_active),
-		    ((link) ? "up" : "down"));
+		        ((link) ? "up" : "down"));
 		return;
 	}
 	TSEC_WRITE(sc, TSEC_REG_MACCFG2, tmp);
