@@ -39,6 +39,8 @@
 #include <machine/tlb.h>
 #include <machine/bootinfo.h>
 
+#define TMPSTACKSZ	16384
+
 /*
  * This symbol is here for the benefit of kvm_mkdb, and is supposed to
  * mark the start of kernel text.
@@ -258,9 +260,9 @@ __start:
 /*
  * Setup a temporary stack
  */
-	lis	%r1, kstack0_space@ha
-	addi	%r1, %r1, kstack0_space@l
-	addi	%r1, %r1, (16384 - 512)
+	lis	%r1, tmpstack@ha
+	addi	%r1, %r1, tmpstack@l
+	addi	%r1, %r1, (TMPSTACKSZ - 8)
 
 /*
  * Intialise exception vector offsets
@@ -277,7 +279,13 @@ __start:
 	lis	%r4, _end@ha
 	addi	%r4, %r4, _end@l
 
-	bl	e500_init   /* Prepare e500 core */
+	bl	e500_init
+
+	/* Switch to thread0.td_kstack */
+	mr	%r1, %r3
+	li	%r3, 0
+	stw	%r3, 0(%r1)
+
 	bl	mi_startup  /* Machine independet part, does not return */
 
 /************************************************************************/
@@ -469,8 +477,8 @@ setfault:
 /************************************************************************/
 	.data
 	.align	4
-GLOBAL(kstack0_space)
-	.space	16384
+tmpstack:
+	.space	TMPSTACKSZ
 
 /*
  * Compiled KERNBASE locations
@@ -481,7 +489,6 @@ GLOBAL(kstack0_space)
 /*
  * Globals
  */
-#define	INTSTK		16384		/* 16K interrupt stack */
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 
 GLOBAL(kernload)

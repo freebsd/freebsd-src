@@ -154,10 +154,6 @@ extern unsigned char _end[];
 extern struct mem_region availmem_regions[];
 extern int availmem_regions_sz;
 
-extern void *trapcode, *trapsize;
-
-extern unsigned char kstack0_space[];
-
 extern void dcache_enable(void);
 extern void dcache_inval(void);
 extern void icache_enable(void);
@@ -185,11 +181,12 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
 void print_kernel_section_addr(void);
 void dump_bootinfo(void);
 void dump_kenv(void);
-void e500_init(u_int32_t, u_int32_t, void *);
+u_int e500_init(u_int32_t, u_int32_t, void *);
 
 static void
 cpu_e500_startup(void *dummy)
 {
+	int indx, size;
 
 	/* Initialise the decrementer-based clock. */
 	decr_init();
@@ -198,20 +195,17 @@ cpu_e500_startup(void *dummy)
 	cpu_setup(PCPU_GET(cpuid));
 
 	printf("real memory  = %ld (%ld MB)\n", ptoa(physmem),
-			ptoa(physmem) / 1048576);
+	    ptoa(physmem) / 1048576);
 	realmem = physmem;
 
 	/* Display any holes after the first chunk of extended memory. */
 	if (bootverbose) {
-		int indx;
-
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size1 = phys_avail[indx + 1] - phys_avail[indx];
-
+			size = phys_avail[indx + 1] - phys_avail[indx];
 			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
-					phys_avail[indx], phys_avail[indx + 1] - 1, size1,
-					size1 / PAGE_SIZE);
+			    phys_avail[indx], phys_avail[indx + 1] - 1, size,
+			    size / PAGE_SIZE);
 		}
 	}
 
@@ -328,7 +322,7 @@ bootinfo_eth(void)
 	return (eth);
 }
 
-void
+u_int
 e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 {
 	struct pcpu *pc;
@@ -445,9 +439,9 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 	init_param2(physmem);
 
 	/* Finish setting up thread0. */
-	thread0.td_kstack = (vm_offset_t)kstack0_space;
 	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	    ((thread0.td_kstack + thread0.td_kstack_pages * PAGE_SIZE -
+	    sizeof(struct pcb)) & ~15);
 	bzero((void *)thread0.td_pcb, sizeof(struct pcb));
 	pc->pc_curpcb = thread0.td_pcb;
 
@@ -480,7 +474,10 @@ e500_init(u_int32_t startkernel, u_int32_t endkernel, void *mdp)
 		printf("L1 I-cache %sabled\n",
 		    (csr & L1CSR1_ICE) ? "en" : "dis");
 
+	debugf("e500_init: SP = 0x%08x\n", ((uintptr_t)thread0.td_pcb - 16) & ~15);
 	debugf("e500_init: e\n");
+
+	return (((uintptr_t)thread0.td_pcb - 16) & ~15);
 }
 
 /* Initialise a struct pcpu. */
