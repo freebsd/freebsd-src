@@ -30,7 +30,6 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
 #include <machine/cpufunc.h>
 
 struct pmap;
@@ -53,6 +52,8 @@ struct pmap;
 #define	CPUSAVE_DSISR	5		/* where SPR_DSISR gets saved */
 #define	CPUSAVE_SRR0	6		/* where SRR0 gets saved */
 #define	CPUSAVE_SRR1	7		/* where SRR1 gets saved */
+
+#ifdef _KERNEL
 
 #define PCPUP	((struct pcpu *) powerpc_get_pcpup())
 
