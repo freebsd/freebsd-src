@@ -52,7 +52,10 @@ __FBSDID("$FreeBSD$");
 
 static void	sig_handler(int);
 
+#if defined(BPF_JIT_COMPILER) || defined(BPF_VALIDATE)
 static int	nins = sizeof(pc) / sizeof(pc[0]);
+#endif
+
 static int	verbose = LOG_LEVEL;
 
 #ifdef BPF_JIT_COMPILER
@@ -85,10 +88,6 @@ bpf_compile_and_filter(void)
 
 	return (ret);
 }
-
-#else
-
-u_int		bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
 
 #endif
 
@@ -155,7 +154,7 @@ bpf_validate(const struct bpf_insn *f, int len)
 int
 main(void)
 {
-#if !defined(BPF_JIT_COMPILER)
+#ifndef BPF_JIT_COMPILER
 	u_int	i;
 #endif
 	u_int   ret;
