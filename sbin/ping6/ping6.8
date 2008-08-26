@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2008
+.Dd August 26, 2008
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl dfHmnNoqtvwW
+.Op Fl defHmnNoqtvwW
 .\" old ipsec
 .\" .Op Fl AdEfmnNqRtvwW
 .Bk -words
@@ -148,6 +148,12 @@ option on the socket being used.
 .\" .It Fl E
 .\" Enables transport-mode IPsec encapsulated security payload
 .\" (experimental).
+.It Fl e
+Audible.
+Include a bell
+.Tn ( ASCII
+0x07)
+character in the output when any packet is received.
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
