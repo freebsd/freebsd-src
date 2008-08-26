@@ -897,8 +897,9 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	int cnt, i, j;
 	u_int s, e, sz;
 	u_int phys_avail_count;
-	vm_size_t physsz, hwphyssz;
-	vm_offset_t kernel_pdir;
+	vm_size_t physsz, hwphyssz, kstack0_sz;
+	vm_offset_t kernel_pdir, kstack0;
+	vm_paddr_t kstack0_phys;
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
@@ -1056,6 +1057,16 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	availmem_regions_sz = cnt;
 
 	/*******************************************************/
+	/* Steal physical memory for kernel stack from the end */
+	/* of the first avail region                           */
+	/*******************************************************/
+	kstack0_sz = KSTACK_PAGES * PAGE_SIZE;
+	kstack0_phys = availmem_regions[0].mr_start +
+	    availmem_regions[0].mr_size;
+	kstack0_phys -= kstack0_sz;
+	availmem_regions[0].mr_size -= kstack0_sz;
+
+	/*******************************************************/
 	/* Fill in phys_avail table, based on availmem_regions */
 	/*******************************************************/
 	phys_avail_count = 0;
@@ -1125,6 +1136,23 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	/*******************************************************/
 	/* Final setup */
 	/*******************************************************/
+	/* Enter kstack0 into kernel map, provide guard page */
+	kstack0 = virtual_avail + KSTACK_GUARD_PAGES * PAGE_SIZE;
+	thread0.td_kstack = kstack0;
+	thread0.td_kstack_pages = KSTACK_PAGES;
+
+	debugf("kstack_sz = 0x%08x\n", kstack0_sz);
+	debugf("kstack0_phys at 0x%08x - 0x%08x\n",
+	    kstack0_phys, kstack0_phys + kstack0_sz);
+	debugf("kstack0 at 0x%08x - 0x%08x\n", kstack0, kstack0 + kstack0_sz);
+	
+	virtual_avail += KSTACK_GUARD_PAGES * PAGE_SIZE + kstack0_sz;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		mmu_booke_kenter(mmu, kstack0, kstack0_phys);
+		kstack0 += PAGE_SIZE;
+		kstack0_phys += PAGE_SIZE;
+	}
+
 	/* Initialize TLB0 handling. */
 	tlb0_init();
 
