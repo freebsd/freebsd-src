@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
 
+static u_int	bpf_jit_accept_all(u_char *, u_int, u_int);
+
 #ifdef _KERNEL
 MALLOC_DEFINE(M_BPFJIT, "BPF_JIT", "BPF JIT compiler");
 
@@ -69,6 +71,12 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	if (filter == NULL)
 		return (NULL);
 
+	/* No filter means accept all */
+	if (fp == NULL || nins == 0) {
+		filter->func = bpf_jit_accept_all;
+		return (filter);
+	}
+
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
 		free(filter, M_BPFJIT);
@@ -82,7 +90,8 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->func, M_BPFJIT);
+	if (filter->func != bpf_jit_accept_all)
+		free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
 #else
@@ -95,6 +104,12 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
 	if (filter == NULL)
 		return (NULL);
+
+	/* No filter means accept all */
+	if (fp == NULL || nins == 0) {
+		filter->func = bpf_jit_accept_all;
+		return (filter);
+	}
 
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
@@ -109,7 +124,16 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->func);
+	if (filter->func != bpf_jit_accept_all)
+		free(filter->func);
 	free(filter);
 }
 #endif
+
+static u_int
+bpf_jit_accept_all(__unused u_char *p, __unused u_int wirelen,
+    __unused u_int buflen)
+{
+
+	return ((u_int)-1);
+}
