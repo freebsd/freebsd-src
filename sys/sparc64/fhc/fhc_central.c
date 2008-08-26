@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>                                                         
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
@@ -86,6 +86,7 @@ static driver_t fhc_central_driver = {
 static devclass_t fhc_central_devclass;
 
 DRIVER_MODULE(fhc, central, fhc_central_driver, fhc_central_devclass, 0, 0);
+MODULE_DEPEND(fhc, central, 1, 1, 1);
 
 static int
 fhc_central_probe(device_t dev)
