@@ -314,7 +314,7 @@ The
 .Fa fd
 argument is not a valid file descriptor open for executing.
 .El
-.Sh CAVEAT
+.Sh CAVEATS
 If a program is
 .Em setuid
 to a non-super-user, but is executed when
@@ -322,6 +322,22 @@ the real
 .Em uid
 is ``root'', then the program has some of the powers
 of a super-user as well.
+.Pp
+When executing an interpreted program through
+.Fn fexecve ,
+kernel supplies
+.Pa /dev/fd/n
+as a second argument to the interpreter,
+where
+.Ar n
+is the file descriptor passed in the
+.Fa fd
+argument to
+.Fn fexecve .
+For this construction to work correctly, the
+.Xr fdescfs 5
+filesystem shall be mounted on
+.Pa /dev/fd .
 .Sh SEE ALSO
 .Xr ktrace 1 ,
 .Xr _exit 2 ,
@@ -332,6 +348,7 @@ of a super-user as well.
 .Xr sysctl 3 ,
 .Xr a.out 5 ,
 .Xr elf 5 ,
+.Xr fdescfs 5 ,
 .Xr environ 7 ,
 .Xr mount 8
 .Sh STANDARDS
