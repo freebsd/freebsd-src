@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/pcpu.h>
 
 #include <dev/led/led.h>
@@ -67,6 +68,8 @@ struct fhc_devinfo {
 
 static void fhc_intr_stub(void *);
 static void fhc_led_func(void *, int);
+
+MODULE_VERSION(fhc, 1);
 
 int
 fhc_probe(device_t dev)
@@ -388,7 +391,7 @@ fhc_led_func(void *arg, int onoff)
 
 const char *
 fhc_get_compat(device_t bus, device_t dev)
-{   
+{
 	struct fhc_devinfo *dinfo;
 
 	dinfo = device_get_ivars(dev);
