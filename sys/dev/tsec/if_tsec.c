@@ -368,16 +368,14 @@ tsec_init_locked(struct tsec_softc *sc)
 	/* Step 23: Reset TSEC counters for Tx and Rx rings */
 	TSEC_TX_RX_COUNTERS_INIT(sc);
 
-	/* Step 24: Activate timer for PHY */
-	callout_reset(&sc->tsec_tick_ch, hz, tsec_tick, sc);
-
-	/* Step 25: Activate network interface */
+	/* Step 24: Activate network interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->tsec_if_flags = ifp->if_flags;
+	sc->tsec_watchdog = 0;
 
 	/* Schedule watchdog timeout */
-	callout_reset(&sc->wd_callout, hz, tsec_tick, sc);
+	callout_reset(&sc->tsec_callout, hz, tsec_tick, sc);
 }
 
 static void
@@ -517,7 +515,7 @@ tsec_watchdog(struct tsec_softc *sc)
 
 	TSEC_GLOBAL_LOCK_ASSERT(sc);
 
-	if (sc->wd_timer == 0 || --sc->wd_timer > 0)
+	if (sc->tsec_watchdog == 0 || --sc->tsec_watchdog > 0)
 		return;
 
 	ifp = sc->tsec_ifp;
@@ -584,7 +582,7 @@ tsec_start_locked(struct ifnet *ifp)
 	if (queued) {
 		/* Enable transmitter and watchdog timer */
 		TSEC_WRITE(sc, TSEC_REG_TSTAT, TSEC_TSTAT_THLT);
-		sc->wd_timer = 5;
+		sc->tsec_watchdog = 5;
 	}
 }
 
@@ -917,7 +915,7 @@ tsec_attach(device_t dev)
 	if (device_get_unit(dev) == 0)
 		tsec0_sc = sc; /* XXX */
 
-	callout_init(&sc->tsec_tick_ch, 1);
+	callout_init(&sc->tsec_callout, 1);
 	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "TSEC TX lock",
 	    MTX_DEF);
 	mtx_init(&sc->receive_lock, device_get_nameunit(dev), "TSEC RX lock",
@@ -1076,7 +1074,6 @@ tsec_attach(device_t dev)
 
 	tsec_get_hwaddr(sc, hwaddr);
 	ether_ifattach(ifp, hwaddr);
-	callout_init(&sc->wd_callout, 0);
 
 	/* Interrupts configuration (TX/RX/ERR) */
 	sc->sc_transmit_irid = OCP_TSEC_RID_TXIRQ;
@@ -1207,7 +1204,7 @@ tsec_detach(device_t dev)
 		tsec_shutdown(dev);
 
 	/* Wait for stopping TSEC ticks */
-	callout_drain(&sc->tsec_tick_ch);
+	callout_drain(&sc->tsec_callout);
 
 	/* Stop and release all interrupts */
 	tsec_release_intr(dev, sc->sc_transmit_ires, sc->sc_transmit_ihand,
@@ -1282,12 +1279,12 @@ tsec_stop(struct tsec_softc *sc)
 
 	ifp = sc->tsec_ifp;
 
-	/* Stop PHY tick engine */
-	callout_stop(&sc->tsec_tick_ch);
+	/* Stop tick engine */
+	callout_stop(&sc->tsec_callout);
 
 	/* Disable interface and watchdog timer */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	sc->wd_timer = 0;
+	sc->tsec_watchdog = 0;
 
 	/* Disable all interrupts and stop DMA */
 	tsec_intrs_ctl(sc, 0);
@@ -1472,7 +1469,7 @@ tsec_transmit_intr(void *arg)
 
 		/* Stop watchdog if all sent */
 		if (TSEC_EMPTYQ_TX_MBUF(sc))
-			sc->wd_timer = 0;
+			sc->tsec_watchdog = 0;
 	}
 	TSEC_TRANSMIT_UNLOCK(sc);
 }
@@ -1548,7 +1545,7 @@ tsec_tick(void *xsc)
 		tsec_start_locked(ifp);
 
 	/* Schedule another timeout one second from now. */
-	callout_reset(&sc->wd_callout, hz, tsec_tick, sc);
+	callout_reset(&sc->tsec_callout, hz, tsec_tick, sc);
 
 	TSEC_GLOBAL_UNLOCK(sc);
 }

@@ -46,7 +46,6 @@ struct tsec_softc {
 	device_t	dev;
 	device_t	tsec_miibus;
 	struct mii_data	*tsec_mii;	/* MII media control */
-	struct callout	tsec_tick_ch;
 	int		tsec_link;
 
 	bus_dma_tag_t	tsec_tx_dtag;	/* TX descriptors tag */
@@ -91,9 +90,9 @@ struct tsec_softc {
 
 	int		tsec_if_flags;
 
-	/* Watchdog related */
-	struct callout	wd_callout;
-	int		wd_timer;
+	/* Watchdog and MII tick related */
+	struct callout	tsec_callout;
+	int		tsec_watchdog;
 
 	/* TX maps */
 	bus_dmamap_t	tx_map_data[TSEC_TX_NUM_DESC];
