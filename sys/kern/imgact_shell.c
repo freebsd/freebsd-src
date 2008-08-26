@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/vnode.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/exec.h>
@@ -95,10 +96,11 @@ exec_shell_imgact(imgp)
 	struct image_params *imgp;
 {
 	const char *image_header = imgp->image_header;
-	const char *ihp, *interpb, *interpe, *maxp, *optb, *opte;
+	const char *ihp, *interpb, *interpe, *maxp, *optb, *opte, *fname;
 	int error, offset;
 	size_t length, clength;
 	struct vattr vattr;
+	struct sbuf *sname;
 
 	/* a shell script? */
 	if (((const short *) image_header)[0] != SHELLMAGIC)
@@ -164,6 +166,16 @@ exec_shell_imgact(imgp)
 	while (--ihp > optb && ((*ihp == ' ') || (*ihp == '\t')))
 		opte = ihp;
 
+	if (imgp->args->fname != NULL) {
+		fname = imgp->args->fname;
+		sname = NULL;
+	} else {
+		sname = sbuf_new_auto();
+		sbuf_printf(sname, "/dev/fd/%d", imgp->args->fd);
+		sbuf_finish(sname);
+		fname = sbuf_data(sname);
+	}
+
 	/*
 	 * We need to "pop" (remove) the present value of arg[0], and "push"
 	 * either two or three new values in the arg[] list.  To do this,
@@ -175,12 +187,15 @@ exec_shell_imgact(imgp)
 	offset = interpe - interpb + 1;			/* interpreter */
 	if (opte > optb)				/* options (if any) */
 		offset += opte - optb + 1;
-	offset += strlen(imgp->args->fname) + 1;	/* fname of script */
+	offset += strlen(fname) + 1;			/* fname of script */
 	length = (imgp->args->argc == 0) ? 0 :
 	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
 
-	if (offset - length > imgp->args->stringspace)
+	if (offset - length > imgp->args->stringspace) {
+		if (sname != NULL)
+			sbuf_delete(sname);
 		return (E2BIG);
+	}
 
 	bcopy(imgp->args->begin_argv + length, imgp->args->begin_argv + offset,
 	    imgp->args->endp - (imgp->args->begin_argv + length));
@@ -221,13 +236,15 @@ exec_shell_imgact(imgp)
 	 * use and copy the interpreter's name to imgp->interpreter_name
 	 * for exec to use.
 	 */
-	error = copystr(imgp->args->fname, imgp->args->buf + offset,
-	    imgp->args->stringspace, &length);
+	error = copystr(fname, imgp->args->buf + offset, imgp->args->stringspace,
+	    &length);
 
 	if (error == 0)
 		error = copystr(imgp->args->begin_argv, imgp->interpreter_name,
 		    MAXSHELLCMDLEN, &length);
 
+	if (sname != NULL)
+		sbuf_delete(sname);
 	return (error);
 }
 
