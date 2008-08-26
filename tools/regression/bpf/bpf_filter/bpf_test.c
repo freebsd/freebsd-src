@@ -89,6 +89,10 @@ bpf_compile_and_filter(void)
 	return (ret);
 }
 
+#else
+
+u_int	bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
+
 #endif
 
 #ifdef BPF_VALIDATE
@@ -122,6 +126,61 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * the code block.
 		 */
 		p = &f[i];
+#if BPF_VALIDATE > 1
+		/*
+		 * XXX JK: Illegal instructions must be checked here.
+		 */
+		switch (p->code) {
+		default:
+			return (0);
+		case BPF_RET|BPF_K:
+		case BPF_RET|BPF_A:
+		case BPF_LD|BPF_W|BPF_ABS:
+		case BPF_LD|BPF_H|BPF_ABS:
+		case BPF_LD|BPF_B|BPF_ABS:
+		case BPF_LD|BPF_W|BPF_LEN:
+		case BPF_LDX|BPF_W|BPF_LEN:
+		case BPF_LD|BPF_W|BPF_IND:
+		case BPF_LD|BPF_H|BPF_IND:
+		case BPF_LD|BPF_B|BPF_IND:
+		case BPF_LDX|BPF_MSH|BPF_B:
+		case BPF_LD|BPF_IMM:
+		case BPF_LDX|BPF_IMM:
+		case BPF_LD|BPF_MEM:
+		case BPF_LDX|BPF_MEM:
+		case BPF_ST:
+		case BPF_STX:
+		case BPF_JMP|BPF_JA:
+		case BPF_JMP|BPF_JGT|BPF_K:
+		case BPF_JMP|BPF_JGE|BPF_K:
+		case BPF_JMP|BPF_JEQ|BPF_K:
+		case BPF_JMP|BPF_JSET|BPF_K:
+		case BPF_JMP|BPF_JGT|BPF_X:
+		case BPF_JMP|BPF_JGE|BPF_X:
+		case BPF_JMP|BPF_JEQ|BPF_X:
+		case BPF_JMP|BPF_JSET|BPF_X:
+		case BPF_ALU|BPF_ADD|BPF_X:
+		case BPF_ALU|BPF_SUB|BPF_X:
+		case BPF_ALU|BPF_MUL|BPF_X:
+		case BPF_ALU|BPF_DIV|BPF_X:
+		case BPF_ALU|BPF_AND|BPF_X:
+		case BPF_ALU|BPF_OR|BPF_X:
+		case BPF_ALU|BPF_LSH|BPF_X:
+		case BPF_ALU|BPF_RSH|BPF_X:
+		case BPF_ALU|BPF_ADD|BPF_K:
+		case BPF_ALU|BPF_SUB|BPF_K:
+		case BPF_ALU|BPF_MUL|BPF_K:
+		case BPF_ALU|BPF_DIV|BPF_K:
+		case BPF_ALU|BPF_AND|BPF_K:
+		case BPF_ALU|BPF_OR|BPF_K:
+		case BPF_ALU|BPF_LSH|BPF_K:
+		case BPF_ALU|BPF_RSH|BPF_K:
+		case BPF_ALU|BPF_NEG:
+		case BPF_MISC|BPF_TAX:
+		case BPF_MISC|BPF_TXA:
+			break;
+		}
+#endif
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			register int from = i + 1;
 
@@ -137,10 +196,20 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     (BPF_CLASS(p->code) == BPF_LD &&
-		      (p->code & 0xe0) == BPF_MEM)) &&
+		    (BPF_CLASS(p->code) == BPF_LD &&
+		    (p->code & 0xe0) == BPF_MEM)) &&
 		    p->k >= BPF_MEMWORDS)
 			return (0);
+#if BPF_VALIDATE > 1
+		/*
+		 * XXX JK: BPF_STX and BPF_LDX|BPF_MEM must be checked.
+		 */
+		if ((BPF_CLASS(p->code) == BPF_STX ||
+		    (BPF_CLASS(p->code) == BPF_LDX &&
+		    (p->code & 0xe0) == BPF_MEM)) &&
+		    p->k >= BPF_MEMWORDS)
+			return (0);
+#endif
 		/*
 		 * Check for constant division by 0.
 		 */
@@ -171,16 +240,22 @@ main(void)
 	valid = bpf_validate(pc, nins);
 	if (valid != 0 && invalid != 0) {
 		if (verbose > 1)
-			printf("Validated invalid instructions:\t");
+			printf("Validated invalid instruction(s):\t");
 		if (verbose > 0)
 			printf("FAILED\n");
 		return (FAILED);
 	} else if (valid == 0 && invalid == 0) {
 		if (verbose > 1)
-			printf("Invalidated valid instructions:\t");
+			printf("Invalidated valid instruction(s):\t");
 		if (verbose > 0)
 			printf("FAILED\n");
 		return (FAILED);
+	} else if (invalid != 0) {
+		if (verbose > 1)
+			printf("Expected and invalidated:\t");
+		if (verbose > 0)
+			printf("PASSED\n");
+		return (PASSED);
 	}
 #endif
 

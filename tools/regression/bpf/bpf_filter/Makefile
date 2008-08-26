@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TEST_CASES=	test0001 test0002 test0003 test0004	\
+TEST_CASES?=	test0001 test0002 test0003 test0004	\
 		test0005 test0006 test0007 test0008	\
 		test0009 test0010 test0011 test0012	\
 		test0013 test0014 test0015 test0016	\
@@ -18,9 +18,8 @@ TEST_CASES=	test0001 test0002 test0003 test0004	\
 		test0061 test0062 test0063 test0064	\
 		test0065 test0066 test0067 test0068	\
 		test0069 test0070 test0071 test0072	\
-		test0073 test0074
-
-WARNS?=		6
+		test0073 test0074 test0075 test0076	\
+		test0077 test0078
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
@@ -35,15 +34,17 @@ CFLAGS+=	-DLOG_LEVEL="${LOG_LEVEL}"
 .endif
 
 .if defined(BPF_VALIDATE)
-CFLAGS+=	-DBPF_VALIDATE
+CFLAGS+=	-DBPF_VALIDATE=${BPF_VALIDATE}
 .endif
 
 .if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386") && defined(BPF_JIT)
 SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
 		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
 CFLAGS+=	-DBPF_JIT_COMPILER
+WARNS?=		6
 .else
 SRCS+=		${SYSDIR}/net/bpf_filter.c
+WARNS?=		2
 .endif
 
 .for TEST in ${TEST_CASES}
