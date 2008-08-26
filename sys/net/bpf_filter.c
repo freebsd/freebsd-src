@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#ifdef sun
+#if !defined(_KERNEL) || defined(sun)
 #include <netinet/in.h>
 #endif
 
@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/mbuf.h>
+#else
+#include <stdlib.h>
 #endif
 #include <net/bpf.h>
 #ifdef _KERNEL
