@@ -682,6 +682,11 @@ tcp_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(tcps_sack_send_blocks, "\t%lu SACK option%s (SACK blocks) sent\n");
 	p1a(tcps_sack_sboverflow, "\t%lu SACK scoreboard overflow\n");
 
+	p(tcps_ecn_ce, "\t%lu packet%s with ECN CE bit set\n");
+	p(tcps_ecn_ect0, "\t%lu packet%s with ECN ECT(0) bit set\n");
+	p(tcps_ecn_ect1, "\t%lu packet%s with ECN ECT(1) bit set\n");
+	p(tcps_ecn_shs, "\t%lu successful ECN handshake%s\n");
+	p(tcps_ecn_rcwnd, "\t%lu time%s ECN reduced the congestion window\n");
 #undef p
 #undef p1a
 #undef p2
