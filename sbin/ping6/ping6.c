@@ -189,6 +189,7 @@ struct tv32 {
 #define F_SUPTYPES	0x80000
 #define F_NOMINMTU	0x100000
 #define F_ONCE		0x200000
+#define F_AUDIBLE	0x400000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 u_int options;
 
@@ -215,6 +216,7 @@ int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKETLEN];
 char BSPACE = '\b';		/* characters written for flood */
+char BBELL = '\a';		/* characters written for AUDIBLE */
 char DOT = '.';
 char *hostname;
 int ident;			/* process id to identify our packets */
@@ -345,7 +347,7 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:dfHg:h:I:i:l:mnNop:qS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:defHg:h:I:i:l:mnNop:qS:s:tvwW" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -413,6 +415,9 @@ main(argc, argv)
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
+			break;
+		case 'e':
+			options |= F_AUDIBLE;
 			break;
 		case 'f':
 			if (getuid()) {
@@ -1555,6 +1560,8 @@ pr_pack(buf, cc, mhdr)
 		if (options & F_FLOOD)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
 		else {
+			if (options & F_AUDIBLE)
+				(void)write(STDOUT_FILENO, &BBELL, 1);
 			(void)printf("%d bytes from %s, icmp_seq=%u", cc,
 			    pr_addr(from, fromlen), seq);
 			(void)printf(" hlim=%d", hoplim);
