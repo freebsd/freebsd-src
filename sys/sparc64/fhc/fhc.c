@@ -120,6 +120,8 @@ static devclass_t fhc_devclass;
 
 DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0);
 DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0);
+MODULE_DEPEND(fhc, central, 1, 1, 1);
+MODULE_VERSION(fhc, 1);
 
 static const struct intr_controller fhc_ic = {
 	fhc_intr_enable,
@@ -320,7 +322,7 @@ fhc_attach(device_t dev)
 		if (sc->sc_memres[i] != NULL)
 			bus_release_resource(dev, SYS_RES_MEMORY,
 			    rman_get_rid(sc->sc_memres[i]), sc->sc_memres[i]);
- 	return (error);
+	return (error);
 }
 
 static int
@@ -399,12 +401,12 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	/*
 	 * Make sure the vector is fully specified and we registered
 	 * our interrupt controller for it.
- 	 */
+	 */
 	vec = rman_get_start(r);
 	if (INTIGN(vec) != sc->sc_ign || intr_vectors[vec].iv_ic != &fhc_ic) {
 		device_printf(bus, "invalid interrupt vector 0x%lx\n", vec);
- 		return (EINVAL);
- 	}
+		return (EINVAL);
+	}
 	return (bus_generic_setup_intr(bus, child, r, flags, filt, func,
 	    arg, cookiep));
 }
