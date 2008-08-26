@@ -245,6 +245,10 @@
       a <option>-q</option> flag to suppress warnings; it now also
       accepts multiple paths on its command line.</para>
 
+    <para>&man.cron.8; now supports a <option>-m</option> option,
+      which can help managing cron mails in massive hosting
+      environment.</para>
+
     <para>&man.ypserv.8; now supports a <option>-P</option> option to
       specify the port number on which it should listen.</para>
 
