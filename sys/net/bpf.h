@@ -849,6 +849,7 @@ void	 bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
 void	 bpfdetach(struct ifnet *);
 
 void	 bpfilterattach(int);
+u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
 static __inline int
 bpf_peers_present(struct bpf_if *bpf)
@@ -876,8 +877,6 @@ bpf_peers_present(struct bpf_if *bpf)
 	}							\
 } while (0)
 #endif
-
-u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
 /*
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).
