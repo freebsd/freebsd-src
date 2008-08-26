@@ -113,6 +113,8 @@ device		atkbdc		# AT keyboard controller
 device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 
+device		kbdmux		# keyboard multiplexer
+
 # syscons is the default console driver, resembling an SCO console
 device		sc
 device		creator		# Creator, Creator3D and Elite3D framebuffers
@@ -143,7 +145,7 @@ device		puc		# Multi-channel uarts
 #device		plip		# TCP/IP over parallel
 #device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
- 
+
 # PCI Ethernet NICs.
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card
