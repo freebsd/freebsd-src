@@ -1,8 +1,6 @@
 /*-
- * Copyright (C) 2006-2007 Semihalf
+ * Copyright (C) 2006-2007 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
  * All rights reserved.
- *
- * Written by: Piotr Kruszynski <ppk@semihalf.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,8 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -29,17 +25,16 @@
  * $FreeBSD$
  */
 
+#ifndef _IF_TSEC_H
+#define _IF_TSEC_H
+
 #define TSEC_RX_NUM_DESC	256
 #define TSEC_TX_NUM_DESC	256
-
-#define	OCP_TSEC_RID_TXIRQ	0
-#define	OCP_TSEC_RID_RXIRQ	1
-#define	OCP_TSEC_RID_ERRIRQ	2
 
 struct tsec_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
 	struct ifnet	*tsec_ifp;
-
+	
 	struct mtx	transmit_lock;	/* transmitter lock */
 	struct mtx	receive_lock;	/* receiver lock */
 
@@ -106,7 +101,7 @@ struct tsec_softc {
 	uint32_t	tx_map_used_get_cnt;
 	uint32_t	tx_map_used_put_cnt;
 	bus_dmamap_t	*tx_map_used_data[TSEC_TX_NUM_DESC];
-
+	
 	/* mbufs in TX queue */
 	uint32_t	tx_mbuf_used_get_cnt;
 	uint32_t	tx_mbuf_used_put_cnt;
@@ -285,3 +280,24 @@ struct tsec_desc {
 
 #define TSEC_READ_RETRY	10000
 #define TSEC_READ_DELAY	100
+
+/* Prototypes */
+extern devclass_t tsec_devclass;
+
+int	tsec_attach(struct tsec_softc *sc);
+int	tsec_detach(struct tsec_softc *sc);
+
+void	tsec_error_intr(void *arg);
+void	tsec_receive_intr(void *arg);
+void	tsec_transmit_intr(void *arg);
+
+int	tsec_miibus_readreg(device_t dev, int phy, int reg);
+void	tsec_miibus_writereg(device_t dev, int phy, int reg, int value);
+void	tsec_miibus_statchg(device_t dev);
+int	tsec_resume(device_t dev); /* XXX */
+void	tsec_shutdown(device_t dev);
+int	tsec_suspend(device_t dev); /* XXX */
+
+void	tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr);
+
+#endif
