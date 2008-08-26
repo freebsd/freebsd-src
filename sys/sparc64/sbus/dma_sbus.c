@@ -150,6 +150,8 @@ static driver_t dma_driver = {
 };
 
 DRIVER_MODULE(dma, sbus, dma_driver, dma_devclass, 0, 0);
+MODULE_DEPEND(dma, sbus, 1, 1, 1);
+MODULE_VERSION(dma, 1);
 
 static int
 dma_probe(device_t dev)
