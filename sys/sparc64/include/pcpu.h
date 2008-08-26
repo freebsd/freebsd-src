@@ -30,8 +30,6 @@
 #ifndef	_MACHINE_PCPU_H_
 #define	_MACHINE_PCPU_H_
 
-#ifdef _KERNEL
-
 #include <machine/asmacros.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -58,6 +56,8 @@ struct pmap;
 	u_int	pc_tlb_ctx;						\
 	u_int	pc_tlb_ctx_max;						\
 	u_int	pc_tlb_ctx_min
+
+#ifdef _KERNEL
 
 struct pcb;
 struct pcpu;

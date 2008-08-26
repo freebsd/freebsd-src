@@ -33,8 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#ifdef _KERNEL
-
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -56,6 +54,9 @@
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	u_int	pc_apic_id;						\
 	int	pc_private_tss		/* Flag indicating private tss */
+
+
+#ifdef _KERNEL
 
 #ifdef lint
 
