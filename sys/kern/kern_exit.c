@@ -690,7 +690,7 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
+	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	if (q->p_flag & P_STATCHILD) {
@@ -741,11 +741,23 @@ loop:
 			sigqueue_take(p->p_ksi);
 			PROC_UNLOCK(q);
 
+			PROC_UNLOCK(p);
+
+			if (options & WNOWAIT) {
+
+				/*
+				 *  Only poll, returning the status.
+				 *  Caller does not wish to release the proc
+				 *  struct just yet.
+				 */
+				sx_xunlock(&proctree_lock);
+				return (0);
+			}
+
 			/*
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
-			PROC_UNLOCK(p);
 			if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 				PROC_LOCK(p);
 				p->p_oppid = 0;
