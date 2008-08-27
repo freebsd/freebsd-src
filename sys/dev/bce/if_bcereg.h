@@ -557,6 +557,15 @@
 
 #endif /* BCE_DEBUG */
 
+#if defined(__i386__) || defined(__amd64__)
+#define mb()    __asm volatile("mfence" ::: "memory")
+#define wmb()   __asm volatile("sfence" ::: "memory")
+#define rmb()   __asm volatile("lfence" ::: "memory")
+#else
+#define mb()
+#define rmb()
+#define wmb()
+#endif
 
 /****************************************************************************/
 /* Device identification definitions.                                       */
@@ -568,7 +577,7 @@
 #define BRCM_DEVICEID_BCM5708S		0x16AC
 #define BRCM_DEVICEID_BCM5709		0x1639
 #define BRCM_DEVICEID_BCM5709S		0x163A
-#define BRCM_DEVICEID_BCM5716		0x1654
+#define BRCM_DEVICEID_BCM5716		0x163B
 
 #define HP_VENDORID					0x103C
 
@@ -1396,75 +1405,104 @@ struct l2_fhdr {
 
 
 /*
- *  l2_context definition
+ *  l2_tx_context definition (5706 and 5708)
  */
-#define BCE_L2CTX_TYPE					0x00000000
-#define BCE_L2CTX_TYPE_SIZE_L2			((0xc0/0x20)<<16)
-#define BCE_L2CTX_TYPE_TYPE				(0xf<<28)
-#define BCE_L2CTX_TYPE_TYPE_EMPTY		(0<<28)
-#define BCE_L2CTX_TYPE_TYPE_L2			(1<<28)
+#define BCE_L2CTX_TX_TYPE			   		0x00000000
+#define BCE_L2CTX_TX_TYPE_SIZE_L2	   		((0xc0/0x20)<<16)
+#define BCE_L2CTX_TX_TYPE_TYPE		   		(0xf<<28)
+#define BCE_L2CTX_TX_TYPE_TYPE_EMPTY   		(0<<28)
+#define BCE_L2CTX_TX_TYPE_TYPE_L2	   		(1<<28)
 
-#define BCE_L2CTX_TYPE_XI				0x00000080
-#define BCE_L2CTX_TX_HOST_BIDX	 		0x00000088
-#define BCE_L2CTX_EST_NBD				0x00000088
-#define BCE_L2CTX_CMD_TYPE				0x00000088
-#define BCE_L2CTX_CMD_TYPE_TYPE	 		(0xf<<24)
-#define BCE_L2CTX_CMD_TYPE_TYPE_L2		(0<<24)
-#define BCE_L2CTX_CMD_TYPE_TYPE_TCP		(1<<24)
+#define BCE_L2CTX_TX_HOST_BIDX	 			0x00000088
+#define BCE_L2CTX_TX_EST_NBD		   		0x00000088
+#define BCE_L2CTX_TX_CMD_TYPE		   		0x00000088
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE	   		(0xf<<24)
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE_L2  		(0<<24)
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE_TCP 		(1<<24)
 
-#define BCE_L2CTX_TX_HOST_BSEQ			0x00000090
-#define BCE_L2CTX_TSCH_BSEQ				0x00000094
-#define BCE_L2CTX_TBDR_BSEQ				0x00000098
-#define BCE_L2CTX_TBDR_BOFF				0x0000009c
-#define BCE_L2CTX_TBDR_BIDX				0x0000009c
-#define BCE_L2CTX_TBDR_BHADDR_HI		0x000000a0
-#define BCE_L2CTX_TBDR_BHADDR_LO		0x000000a4
-#define BCE_L2CTX_TXP_BOFF				0x000000a8
-#define BCE_L2CTX_TXP_BIDX				0x000000a8
-#define BCE_L2CTX_TXP_BSEQ				0x000000ac
+#define BCE_L2CTX_TX_HOST_BSEQ				0x00000090
+#define BCE_L2CTX_TX_TSCH_BSEQ		   		0x00000094
+#define BCE_L2CTX_TX_TBDR_BSEQ		   		0x00000098
+#define BCE_L2CTX_TX_TBDR_BOFF		   		0x0000009c
+#define BCE_L2CTX_TX_TBDR_BIDX		   		0x0000009c
+#define BCE_L2CTX_TX_TBDR_BHADDR_HI			0x000000a0
+#define BCE_L2CTX_TX_TBDR_BHADDR_LO			0x000000a4
+#define BCE_L2CTX_TX_TXP_BOFF		   		0x000000a8
+#define BCE_L2CTX_TX_TXP_BIDX		   		0x000000a8
+#define BCE_L2CTX_TX_TXP_BSEQ		   		0x000000ac
 
-#define BCE_L2CTX_CMD_TYPE_XI			0x00000240
-#define BCE_L2CTX_TBDR_BHADDR_HI_XI		0x00000258
-#define BCE_L2CTX_TBDR_BHADDR_LO_XI		0x0000025c
+/*
+ *  l2_tx_context definition (5709 and 5716)
+ */
+#define BCE_L2CTX_TX_TYPE_XI		   		0x00000080
+#define BCE_L2CTX_TX_TYPE_SIZE_L2_XI   		((0xc0/0x20)<<16)
+#define BCE_L2CTX_TX_TYPE_TYPE_XI	   		(0xf<<28)
+#define BCE_L2CTX_TX_TYPE_TYPE_EMPTY_XI		(0<<28)
+#define BCE_L2CTX_TX_TYPE_TYPE_L2_XI   		(1<<28)
+										
+#define BCE_L2CTX_TX_CMD_TYPE_XI	   		0x00000240
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE_XI  		(0xf<<24)
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE_L2_XI	(0<<24)
+#define BCE_L2CTX_TX_CMD_TYPE_TYPE_TCP_XI	(1<<24)
+
+#define BCE_L2CTX_TX_HOST_BIDX_XI	   		0x00000240
+#define BCE_L2CTX_TX_HOST_BSEQ_XI			0x00000248
+#define BCE_L2CTX_TX_TBDR_BHADDR_HI_XI 		0x00000258
+#define BCE_L2CTX_TX_TBDR_BHADDR_LO_XI	 	0x0000025c
 
 
 /*
- *  l2_bd_chain_context definition
+ *  l2_rx_context definition (5706, 5708, 5709, and 5716)
  */
-#define BCE_L2CTX_BD_PRE_READ			0x00000000
-#define BCE_L2CTX_CTX_SIZE				0x00000000
-#define BCE_L2CTX_CTX_TYPE				0x00000000
-#define BCE_L2CTX_LO_WATER_MARK_DEFAULT	32
-#define BCE_L2CTX_LO_WATER_MARK_SCALE	4
-#define BCE_L2CTX_LO_WATER_MARK_DIS		0
-#define BCE_L2CTX_HI_WATER_MARK_SHIFT	4
-#define BCE_L2CTX_HI_WATER_MARK_SCALE	16
-#define BCE_L2CTX_WATER_MARKS_MSK		0x000000ff
+#define BCE_L2CTX_RX_WATER_MARK				0x00000000
+#define BCE_L2CTX_RX_LO_WATER_MARK_SHIFT 	0
+#define BCE_L2CTX_RX_LO_WATER_MARK_DEFAULT	32
+#define BCE_L2CTX_RX_LO_WATER_MARK_SCALE	4
+#define BCE_L2CTX_RX_LO_WATER_MARK_DIS		0
+#define BCE_L2CTX_RX_HI_WATER_MARK_SHIFT	4
+#define BCE_L2CTX_RX_HI_WATER_MARK_SCALE	16
+#define BCE_L2CTX_RX_WATER_MARKS_MSK		0x000000ff
 
-#define BCE_L2CTX_CTX_TYPE_SIZE_L2		((0x20/20)<<16)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE	(0xf<<28)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	(0<<28)
-#define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE	(1<<28)
+#define BCE_L2CTX_RX_BD_PRE_READ			0x00000000
+#define BCE_L2CTX_RX_BD_PRE_READ_SHIFT		8
 
-#define BCE_L2CTX_HOST_BDIDX			0x00000004
-#define BCE_L2CTX_HOST_BSEQ				0x00000008
-#define BCE_L2CTX_NX_BSEQ				0x0000000c
-#define BCE_L2CTX_NX_BDHADDR_HI			0x00000010
-#define BCE_L2CTX_NX_BDHADDR_LO			0x00000014
-#define BCE_L2CTX_NX_BDIDX				0x00000018
+#define BCE_L2CTX_RX_CTX_SIZE				0x00000000
+#define BCE_L2CTX_RX_CTX_SIZE_SHIFT			16
+#define BCE_L2CTX_RX_CTX_TYPE_SIZE_L2		((0x20/20)<<BCE_L2CTX_RX_CTX_SIZE_SHIFT)
 
-/* Page Buffer Descriptor Index */
-#define BCE_L2CTX_HOST_PG_BDIDX			0x00000044
-/* SKB and Page Buffer Size */
-#define BCE_L2CTX_PG_BUF_SIZE			0x00000048
-/* Page Chain BD Context */
-#define BCE_L2CTX_RBDC_KEY				0x0000004c
-#define BCE_L2CTX_RBDC_JUMBO_KEY		0x3ffe
-/* Page Chain Next BD Host Address */
-#define BCE_L2CTX_NX_PG_BDHADDR_HI		0x00000050
-#define BCE_L2CTX_NX_PG_BDHADDR_LO		0x00000054
-#define BCE_L2CTX_NX_PG_BDIDX			0x00000058
+#define BCE_L2CTX_RX_CTX_TYPE				0x00000000
+#define BCE_L2CTX_RX_CTX_TYPE_SHIFT			24
 
+#define BCE_L2CTX_RX_CTX_TYPE_CTX_BD_CHN_TYPE	(0xf<<28)
+#define BCE_L2CTX_RX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	(0<<28)
+#define BCE_L2CTX_RX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE	(1<<28)
+
+#define BCE_L2CTX_RX_HOST_BDIDX				0x00000004
+#define BCE_L2CTX_RX_HOST_BSEQ				0x00000008
+#define BCE_L2CTX_RX_NX_BSEQ				0x0000000c
+#define BCE_L2CTX_RX_NX_BDHADDR_HI			0x00000010
+#define BCE_L2CTX_RX_NX_BDHADDR_LO			0x00000014
+#define BCE_L2CTX_RX_NX_BDIDX				0x00000018
+
+#define BCE_L2CTX_RX_HOST_PG_BDIDX			0x00000044
+#define BCE_L2CTX_RX_PG_BUF_SIZE			0x00000048
+#define BCE_L2CTX_RX_RBDC_KEY				0x0000004c
+#define BCE_L2CTX_RX_RBDC_JUMBO_KEY			0x3ffe
+#define BCE_L2CTX_RX_NX_PG_BDHADDR_HI		0x00000050
+#define BCE_L2CTX_RX_NX_PG_BDHADDR_LO		0x00000054
+#define BCE_L2CTX_RX_NX_PG_BDIDX			0x00000058
+
+
+/*
+ *  l2_mq definitions (5706, 5708, 5709, and 5716)
+ */
+
+#define BCE_L2MQ_RX_HOST_BDIDX				0x00000004
+#define BCE_L2MQ_RX_HOST_BSEQ				0x00000008
+#define BCE_L2MQ_RX_HOST_PG_BDIDX			0x00000044
+
+#define BCE_L2MQ_TX_HOST_BIDX				0x00000088
+#define BCE_L2MQ_TX_HOST_BSEQ				0x00000090
 
 /*
  *  pci_config_l definition
@@ -6476,10 +6514,6 @@ struct bce_softc
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32					rx_mode;
-
-#ifdef DEVICE_POLLING
-	int					bce_rxcycles;				/* Counter for receive polling cycles */
-#endif
 
 	/* Bus tag for the bce controller. */
 	bus_dma_tag_t		parent_tag;
