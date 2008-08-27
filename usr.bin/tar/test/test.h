@@ -98,6 +98,9 @@
 /* Assert that a file is empty; supports printf-style arguments. */
 #define assertEmptyFile		\
   test_setup(__FILE__, __LINE__);test_assert_empty_file
+/* Assert that a file is not empty; supports printf-style arguments. */
+#define assertNonEmptyFile		\
+  test_setup(__FILE__, __LINE__);test_assert_non_empty_file
 /* Assert that a file exists; supports printf-style arguments. */
 #define assertFileExists		\
   test_setup(__FILE__, __LINE__);test_assert_file_exists
@@ -123,6 +126,7 @@ void test_setup(const char *, int);
 void test_skipping(const char *fmt, ...);
 int test_assert(const char *, int, int, const char *, void *);
 int test_assert_empty_file(const char *, ...);
+int test_assert_non_empty_file(const char *, ...);
 int test_assert_equal_file(const char *, const char *, ...);
 int test_assert_equal_int(const char *, int, int, const char *, int, const char *, void *);
 int test_assert_equal_string(const char *, int, const char *v1, const char *, const char *v2, const char *, void *);

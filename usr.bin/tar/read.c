@@ -210,22 +210,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (excluded(bsdtar, archive_entry_pathname(entry)))
 			continue; /* Excluded by a pattern test. */
 
-		/*
-		 * Modify the pathname as requested by the user.  We
-		 * do this for -t as well to give users a way to
-		 * preview the effects of their rewrites.  We also do
-		 * this before extraction security checks (including
-		 * leading '/' removal).  Note that some rewrite
-		 * failures prevent extraction.
-		 */
-		if (edit_pathname(bsdtar, entry))
-			continue; /* Excluded by a rewrite failure. */
-
 		if (mode == 't') {
 			/* Perversely, gtar uses -O to mean "send to stderr"
 			 * when used with -t. */
 			out = bsdtar->option_stdout ? stderr : stdout;
 
+			/*
+			 * TODO: Provide some reasonable way to
+			 * preview rewrites.  gtar always displays
+			 * the unedited path in -t output, which means
+			 * you cannot easily preview rewrites.
+			 */
 			if (bsdtar->verbose < 2)
 				safe_fprintf(out, "%s",
 				    archive_entry_pathname(entry));
@@ -252,6 +247,10 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			}
 			fprintf(out, "\n");
 		} else {
+			/* Note: some rewrite failures prevent extraction. */
+			if (edit_pathname(bsdtar, entry))
+				continue; /* Excluded by a rewrite failure. */
+
 			if (bsdtar->option_interactive &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
 				continue;

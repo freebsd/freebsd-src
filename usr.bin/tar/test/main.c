@@ -502,6 +502,37 @@ test_assert_empty_file(const char *f1fmt, ...)
 	return (0);
 }
 
+int
+test_assert_non_empty_file(const char *f1fmt, ...)
+{
+	char f1[1024];
+	struct stat st;
+	va_list ap;
+
+
+	va_start(ap, f1fmt);
+	vsprintf(f1, f1fmt, ap);
+	va_end(ap);
+
+	if (stat(f1, &st) != 0) {
+		fprintf(stderr, "%s:%d: Could not stat: %s\n",
+		    test_filename, test_line, f1);
+		report_failure(NULL);
+		return (0);
+	}
+	if (st.st_size != 0)
+		return (1);
+
+	failures ++;
+	if (!verbose && previous_failures(test_filename, test_line))
+		return (0);
+
+	fprintf(stderr, "%s:%d: File empty: %s\n",
+	    test_filename, test_line, f1);
+	report_failure(NULL);
+	return (0);
+}
+
 /* assertEqualFile() asserts that two files have the same contents. */
 /* TODO: hexdump the first bytes that actually differ. */
 int
