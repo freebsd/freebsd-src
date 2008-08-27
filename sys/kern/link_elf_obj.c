@@ -434,7 +434,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		goto out;
 	}
 #ifdef MAC
-	error = mac_kld_check_load(td->td_ucred, nd.ni_vp);
+	error = mac_check_kld_load(td->td_ucred, nd.ni_vp);
 	if (error) {
 		goto out;
 	}
