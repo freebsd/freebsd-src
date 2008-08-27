@@ -28,15 +28,18 @@ __FBSDID("$FreeBSD$");
 DEFINE_TEST(test_patterns)
 {
 	int fd, r;
-	const char *reffile1 = "test_patterns.tgz";
-	const char *reffile1_out = "test_patterns.tgz.out";
-	const char *reffile1_err = "test_patterns.tgz.err";
+	const char *reffile2 = "test_patterns_2.tgz";
+	const char *reffile3 = "test_patterns_3.tgz";
+	const char *p;
 
 	/*
 	 * Test basic command-line pattern handling.
 	 */
 
 	/*
+	 * Test 1: Files on the command line that don't get matched
+	 * didn't produce an error.
+	 *
 	 * John Baldwin reported this problem in PR bin/121598
 	 */
 	fd = open("foo", O_CREAT | O_WRONLY, 0644);
@@ -48,13 +51,50 @@ DEFINE_TEST(test_patterns)
 	failure("tar should return non-zero because a file was given on the command line that's not in the archive");
 	assert(r != 0);
 
-	extract_reference_file(reffile1);
-	extract_reference_file(reffile1_out);
-	extract_reference_file(reffile1_err);
+	/*
+	 * Test 2: Check basic matching of full paths that start with /
+	 */
+	extract_reference_file(reffile2);
 
 	r = systemf("%s tf %s /tmp/foo/bar > tar2a.out 2> tar2a.err",
-	    testprog, reffile1);
+	    testprog, reffile2);
 	assertEqualInt(r, 0);
-	assertEqualFile("tar2a.out", reffile1_out);
-	assertEqualFile("tar2a.err", reffile1_err);
+	p = "/tmp/foo/bar/\n/tmp/foo/bar/baz\n";
+	assertFileContents(p, strlen(p), "tar2a.out");
+	assertEmptyFile("tar2a.err");
+
+	/*
+	 * Test 3 archive has some entries starting with '/' and some not.
+	 */
+	extract_reference_file(reffile3);
+
+	/* Test 3a:  Pattern tmp/foo/bar should not match /tmp/foo/bar */
+	r = systemf("%s xf %s tmp/foo/bar > tar3a.out 2> tar3a.err",
+	    testprog, reffile3);
+	assert(r != 0);
+	assertEmptyFile("tar3a.out");
+
+	/* Test 3b:  Pattern /tmp/foo/baz should not match tmp/foo/baz */
+	assertNonEmptyFile("tar3a.err");
+	/* Again, with the '/' */
+	r = systemf("%s xf %s /tmp/foo/baz > tar3b.out 2> tar3b.err",
+	    testprog, reffile3);
+	assert(r != 0);
+	assertEmptyFile("tar3b.out");
+	assertNonEmptyFile("tar3b.err");
+
+	/* Test 3c: ./tmp/foo/bar should not match /tmp/foo/bar */
+	r = systemf("%s xf %s ./tmp/foo/bar > tar3c.out 2> tar3c.err",
+	    testprog, reffile3);
+	assert(r != 0);
+	assertEmptyFile("tar3c.out");
+	assertNonEmptyFile("tar3c.err");
+
+	/* Test 3d: ./tmp/foo/baz should match tmp/foo/baz */
+	r = systemf("%s xf %s ./tmp/foo/baz > tar3d.out 2> tar3d.err",
+	    testprog, reffile3);
+	assertEqualInt(r, 0);
+	assertEmptyFile("tar3d.out");
+	assertEmptyFile("tar3d.err");
+	assertEqualInt(0, access("tmp/foo/baz/bar", F_OK));
 }
