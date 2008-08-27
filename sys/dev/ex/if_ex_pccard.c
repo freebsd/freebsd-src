@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pccard/pccardvar.h>
 #include <dev/pccard/pccard_cis.h>
-
 #include "pccarddevs.h"
 
 static const struct pccard_product ex_pccard_products[] = {
@@ -104,23 +103,66 @@ static int
 ex_pccard_probe(device_t dev)
 {
 	const struct pccard_product *pp;
-	int error;
+	int error, i, j;
 	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
 
-	/* Make sure we're a network function */
+	if ((pp = pccard_product_lookup(dev, ex_pccard_products,
+	    sizeof(ex_pccard_products[0]), NULL)) == NULL)
+		return (EIO);
+	if (pp->pp_name != NULL)
+		device_set_desc(dev, pp->pp_name);
+	/*
+	 * Olicom 22.8k and 33.6k modems need to activate the right
+	 * CFE.  The odd formula below replicates the sequence of cfes
+	 * that have multiple resources:
+	 *	 9, 11, 13, 15,		0 + 9
+	 *	25, 27, 29, 31,		16 + 9
+	 *	41, 43, 45, 47,		32 + 9
+	 *	57, 59, 61, 63		48 + 9
+	 * (entries 8, 24, 40 and 56 are single resoruce cfes)
+	 * Fortunately the code that enables and disables the multiple
+	 * fuctions of the card won't mess with the lower bit for cards
+	 * that aren't stanards conforming MFC cards (which these olicom
+	 * cards aren't).
+	 *
+	 * Note: These cards still don't get interrupts for reasons
+	 * unknown, even when the right cfe is selected.  There's likely
+	 * something in the CCR that needs to be manually tweaked, but
+	 * the COR bits seem to all be used.  Bit 0 and 3 are always set
+	 * and the other bits select the config to use.  Maybe one of those
+	 * two bits needs to be cleared, or there's something else in the
+	 * CCR that needs tweaking.  The pattern of resources suggests
+	 * bit 0 turns on the ethernet, however...
+	 */
+	if (pp->pp_vendor == PCMCIA_VENDOR_OLICOM &&
+	    (pp->pp_product == PCMCIA_PRODUCT_OLICOM_OC2231 ||
+	    pp->pp_product == PCMCIA_PRODUCT_OLICOM_OC2232)) {
+		if (pccard_select_cfe(dev, 1) == 0)
+			goto good;
+		for (i = 0; i < 4; i++) {
+			for (j = 0; j < 4; j++) {
+				printf("Trying %d %d\n", i, j);
+				if (pccard_select_cfe(dev,
+				    (i << 4) + (j << 1) + 9) == 0)
+					goto good;
+			}
+		}
+		/* Can't activate the net entries, punt */
+		return (EIO);
+	}
+	/*
+	 * All other cards supported by this driver don't need specail
+	 * treatment, so just filter based on the type of card.  The
+	 * special treatment ones are setup to 'fail safe' to a modem so
+	 * this check would effectively filter them out as well.
+	 */
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
 		return (error);
 	if (fcn != PCCARD_FUNCTION_NETWORK)
-		return (ENXIO);
-
-	if ((pp = pccard_product_lookup(dev, ex_pccard_products,
-	    sizeof(ex_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
-		return 0;
-	}
-	return EIO;
+		return (EIO);
+good:;
+	return (0);
 }
 
 static int
@@ -185,3 +227,4 @@ static driver_t ex_pccard_driver = {
 };
 
 DRIVER_MODULE(ex, pccard, ex_pccard_driver, ex_devclass, 0, 0);
+MODULE_DEPEND(ex, pccard, 1, 1, 1);
