@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #ifndef __sctp_constants_h__
 #define __sctp_constants_h__
 
+/* IANA assigned port number for SCTP over UDP encapsulation */
+#define SCTP_OVER_UDP_TUNNELING_PORT 9899
+
 /* Number of packets to get before sack sent by default */
 #define SCTP_DEFAULT_SACK_FREQ 2
 
@@ -267,6 +270,9 @@ __FBSDID("$FreeBSD$");
 #else
 #define SCTP_DEFAULT_AUTO_ASCONF	1
 #endif
+
+/* default MULTIPLE_ASCONF mode enable(1)/disable(0) value (sysctl) */
+#define SCTP_DEFAULT_MULTIPLE_ASCONFS	0
 
 /* default MOBILITY_BASE mode enable(1)/disable(0) value (sysctl) */
 #if defined (__APPLE__) && !defined(SCTP_APPLE_MOBILITY_BASE)

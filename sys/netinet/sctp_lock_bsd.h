@@ -83,10 +83,10 @@ extern int sctp_logoff_stuff;
 #define SCTP_STATLOG_DESTROY()
 
 #define SCTP_INP_INFO_LOCK_DESTROY() do { \
-        if(rw_wowned(sctppcbinfo.ipi_ep_mtx)) { \
+        if(rw_wowned(&sctppcbinfo.ipi_ep_mtx)) { \
              rw_wunlock(&sctppcbinfo.ipi_ep_mtx); \
         } \
-        rw_destroy(sctppcbinfo.ipi_ep_mtx); \
+        rw_destroy(&sctppcbinfo.ipi_ep_mtx); \
       }  while (0)
 
 #define SCTP_INP_INFO_LOCK_INIT() \
@@ -111,10 +111,10 @@ extern int sctp_logoff_stuff;
         rw_init(&sctppcbinfo.ipi_addr_mtx, "sctp-addr")
 
 #define SCTP_IPI_ADDR_DESTROY() do  { \
-        if(rw_wowned(sctppcbinfo.ipi_addr_mtx)) { \
+        if(rw_wowned(&sctppcbinfo.ipi_addr_mtx)) { \
              rw_wunlock(&sctppcbinfo.ipi_addr_mtx); \
         } \
-	rw_destroy(&sctppcbinfo.ipi_addr_mtx) \
+	rw_destroy(&sctppcbinfo.ipi_addr_mtx); \
       }  while (0)
 
 

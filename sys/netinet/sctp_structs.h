@@ -257,6 +257,8 @@ struct sctp_nets {
 	uint16_t failure_threshold;
 	/* error stats on destination */
 	uint16_t error_count;
+	/* UDP port number in case of UDP tunneling */
+	uint16_t port;
 
 	uint8_t fast_retran_loss_recovery;
 	uint8_t will_exit_fast_recovery;
@@ -547,6 +549,16 @@ struct sctp_cc_functions {
 	         struct sctp_tcb *stcb, struct sctp_nets *net);
 };
 
+/* used to save ASCONF chunks for retransmission */
+TAILQ_HEAD(sctp_asconf_head, sctp_asconf);
+struct sctp_asconf {
+	TAILQ_ENTRY(sctp_asconf) next;
+	uint32_t serial_number;
+	uint16_t snd_count;
+	struct mbuf *data;
+	uint16_t len;
+};
+
 /* used to save ASCONF-ACK chunks for retransmission */
 TAILQ_HEAD(sctp_asconf_ackhead, sctp_asconf_ack);
 struct sctp_asconf_ack {
@@ -601,6 +613,9 @@ struct sctp_association {
 
 	/* Control chunk queue */
 	struct sctpchunk_listhead control_send_queue;
+
+	/* ASCONF chunk queue */
+	struct sctpchunk_listhead asconf_send_queue;
 
 	/*
 	 * Once a TSN hits the wire it is moved to the sent_queue. We
@@ -686,6 +701,7 @@ struct sctp_association {
 	uint32_t cookie_preserve_req;
 	/* ASCONF next seq I am sending out, inits at init-tsn */
 	uint32_t asconf_seq_out;
+	uint32_t asconf_seq_out_acked;
 	/* ASCONF last received ASCONF from peer, starts at peer's TSN-1 */
 	uint32_t asconf_seq_in;
 
@@ -919,8 +935,6 @@ struct sctp_association {
 	 * lock flag: 0 is ok to send, 1+ (duals as a retran count) is
 	 * awaiting ACK
 	 */
-	uint16_t asconf_sent;
-
 	uint16_t mapping_array_size;
 
 	uint16_t last_strm_seq_delivered;
