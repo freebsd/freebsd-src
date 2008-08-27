@@ -671,9 +671,6 @@ ED_SIC			opt_ed.h
 # bce driver
 BCE_DEBUG		opt_bce.h
 
-# wi driver
-WI_SYMBOL_FIRMWARE	opt_wi.h
-
 SOCKBUF_DEBUG		opt_global.h
 
 # options for ubsec driver
