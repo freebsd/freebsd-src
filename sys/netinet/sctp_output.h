@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_header.h>
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 
 struct mbuf *
@@ -201,6 +201,9 @@ sctp_send_abort(struct mbuf *, int, struct sctphdr *, uint32_t,
 
 void sctp_send_operr_to(struct mbuf *, int, struct mbuf *, uint32_t, uint32_t, uint16_t);
 
+#endif				/* _KERNEL || __Userspace__ */
+
+#if defined(_KERNEL) || defined (__Userspace__)
 int
 sctp_sosend(struct socket *so,
     struct sockaddr *addr,

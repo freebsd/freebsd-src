@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #ifndef __sctp_timer_h__
 #define __sctp_timer_h__
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 #define SCTP_RTT_SHIFT 3
 #define SCTP_RTT_VAR_SHIFT 2

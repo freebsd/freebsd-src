@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #ifndef __sctp_cc_functions_h__
 #define __sctp_cc_functions_h__
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb,
