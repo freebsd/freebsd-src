@@ -12,4 +12,6 @@ linux_sysent.c linux_syscall.h linux_proto.h: ../../kern/makesyscalls.sh \
 	-mv -f linux_sysent.c linux_sysent.c.bak
 	-mv -f linux_syscall.h linux_syscall.h.bak
 	-mv -f linux_proto.h linux_proto.h.bak
+	-mv -f linux_systrace.c linux_systrace.c.bak
+	-mv -f linux_syscallnames.c linux_syscallnames.c.bak
 	sh ../../kern/makesyscalls.sh syscalls.master syscalls.conf

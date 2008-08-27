@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -67,6 +68,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+#endif
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+int				dtrace_vtime_active;
+dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #endif
 
 #include <machine/cpu.h>
@@ -1918,6 +1925,16 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
+
+#ifdef KDTRACE_HOOKS
+		/*
+		 * If DTrace has set the active vtime enum to anything
+		 * other than INACTIVE (0), then it should have set the
+		 * function to call.
+		 */
+		if (dtrace_vtime_active)
+			(*dtrace_vtime_switch_func)(newtd);
+#endif
 		cpu_switch(td, newtd, mtx);
 		/*
 		 * We may return from cpu_switch on a different cpu.  However,

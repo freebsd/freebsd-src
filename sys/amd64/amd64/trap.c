@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -93,6 +94,24 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 #include <machine/tss.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+/*
+ * This is a hook which is initialised by the dtrace module
+ * to handle traps which might occur during DTrace probe
+ * execution.
+ */
+dtrace_trap_func_t	dtrace_trap_func;
+
+/*
+ * This is a hook which is initialised by the systrace module
+ * when it is loaded. This keeps the DTrace syscall provider
+ * implementation opaque. 
+ */
+systrace_probe_func_t	systrace_probe_func;
+#endif
 
 extern void trap(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
@@ -195,9 +214,26 @@ trap(struct trapframe *frame)
 	 * the NMI was handled by it and we can return immediately.
 	 */
 	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame->tf_rip,
-		TRAPF_USERMODE(frame)))
+	    (*pmc_intr)(PCPU_GET(cpuid), frame))
 		goto out;
+#endif
+
+#ifdef KDTRACE_HOOKS
+	/*
+	 * A trap can occur while DTrace executes a probe. Before
+	 * executing the probe, DTrace blocks re-scheduling and sets
+	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * want to fault. On returning from the the probe, the no-fault
+	 * flag is cleared and finally re-scheduling is enabled.
+	 *
+	 * If the DTrace kernel module has registered a trap handler,
+	 * call it and if it returns non-zero, assume that it has
+	 * handled the trap and modified the trap frame so that this
+	 * function can return normally.
+	 */
+	if (dtrace_trap_func != NULL)
+		if ((*dtrace_trap_func)(frame, type))
+			goto out;
 #endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
@@ -211,7 +247,7 @@ trap(struct trapframe *frame)
 		if (ISPL(frame->tf_cs) == SEL_UPL)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
-			    (long)curproc->p_pid, curproc->p_comm, type);
+			    (long)curproc->p_pid, curthread->td_name, type);
 		else if (type != T_NMI && type != T_BPTFLT &&
 		    type != T_TRCTRAP) {
 			/*
@@ -708,8 +744,8 @@ trap_fatal(frame, eva)
 	printf("current process		= ");
 	if (curproc) {
 		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curproc->p_comm ?
-		    curproc->p_comm : "");
+		    (u_long)curproc->p_pid, curthread->td_name ?
+		    curthread->td_name : "");
 	} else {
 		printf("Idle\n");
 	}
@@ -836,7 +872,7 @@ syscall(struct trapframe *frame)
 #endif
 
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 
 	td->td_syscalls++;
 
@@ -848,9 +884,34 @@ syscall(struct trapframe *frame)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+#ifdef KDTRACE_HOOKS
+		/*
+		 * If the systrace module has registered it's probe
+		 * callback and if there is a probe active for the
+		 * syscall 'entry', process the probe.
+		 */
+		if (systrace_probe_func != NULL && callp->sy_entry != 0)
+			(*systrace_probe_func)(callp->sy_entry, code, callp,
+			    args);
+#endif
+
 		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, argp);
 		AUDIT_SYSCALL_EXIT(error, td);
+
+		/* Save the latest error return value. */
+		td->td_errno = error;
+
+#ifdef KDTRACE_HOOKS
+		/*
+		 * If the systrace module has registered it's probe
+		 * callback and if there is a probe active for the
+		 * syscall 'return', process the probe.
+		 */
+		if (systrace_probe_func != NULL && callp->sy_return != 0)
+			(*systrace_probe_func)(callp->sy_return, code, callp,
+			    args);
+#endif
 	}
 
 	switch (error) {
@@ -918,7 +979,7 @@ syscall(struct trapframe *frame)
 	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
+	    td->td_proc->p_pid, td->td_name, code);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))

@@ -217,12 +217,6 @@ u_long	 casuword(volatile u_long *p, u_long oldval, u_long newval);
 
 void	realitexpire(void *);
 
-/*
- * Cyclic clock function type definition used to hook the cyclic 
- * subsystem into the appropriate timer interrupt.
- */
-typedef	void (*cyclic_clock_func_t)(void);
-
 void	hardclock(int usermode, uintfptr_t pc);
 void	hardclock_cpu(int usermode);
 void	softclock(void *);

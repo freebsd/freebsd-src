@@ -64,6 +64,17 @@ METHOD int each_function_name {
 };
 
 #
+# Call the callback with each specified function and it's value
+# defined in the file.
+# Stop and return the error if the callback returns an error.
+#
+METHOD int each_function_nameval {
+	linker_file_t	file;
+	linker_function_nameval_callback_t	callback;
+	void*		opaque;
+};
+
+#
 # Search for a linker set in a file.  Return a pointer to the first
 # entry (which is itself a pointer), and the number of entries.
 # "stop" points to the entry beyond the last valid entry.
@@ -82,6 +93,15 @@ METHOD int lookup_set {
 #
 METHOD void unload {
     linker_file_t	file;
+};
+
+#
+# Load CTF data if necessary and if there is a .SUNW_ctf section
+# in the ELF file, returning info in the linker CTF structure.
+#
+METHOD int ctf_get {
+	linker_file_t	file;
+	linker_ctf_t	*lc;
 };
 
 #

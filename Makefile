@@ -117,6 +117,9 @@ BINMAKE= \
 	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1
+.if !defined(WITHOUT_CTF)
+_MAKE+= -DWITH_CTF
+.endif
 
 #
 # Make sure we have an up-to-date make(1). Only world and buildworld

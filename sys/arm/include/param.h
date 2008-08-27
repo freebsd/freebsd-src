@@ -72,8 +72,8 @@
 #endif
 #define	MID_MACHINE	MID_ARM6 
 
-#ifdef SMP
-#define	MAXCPU		2
+#if defined(SMP) || defined(KLD_MODULE)
+#define MAXCPU		2
 #else
 #define	MAXCPU		1
 #endif /* SMP */

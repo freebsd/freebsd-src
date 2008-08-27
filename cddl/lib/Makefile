@@ -2,7 +2,10 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	libavl \
+SUBDIR=	drti \
+	libavl \
+	libctf \
+	libdtrace \
 	libnvpair \
 	libumem \
 	libuutil \

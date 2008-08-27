@@ -1103,7 +1103,7 @@ spa_init(int mode)
 
 	spa_mode = mode;
 
-	refcount_init();
+	refcount_sysinit();
 	unique_init();
 	zio_init();
 	dmu_init();
