@@ -481,11 +481,13 @@ getterminaltype(char *name undef2)
     /*
      * Handle the Authentication option before we do anything else.
      */
-    send_do(TELOPT_AUTHENTICATION, 1);
-    while (his_will_wont_is_changing(TELOPT_AUTHENTICATION))
-	ttloop();
-    if (his_state_is_will(TELOPT_AUTHENTICATION)) {
-	retval = auth_wait(name);
+    if (auth_level >= 0) {
+	send_do(TELOPT_AUTHENTICATION, 1);
+	while (his_will_wont_is_changing(TELOPT_AUTHENTICATION))
+	    ttloop();
+	if (his_state_is_will(TELOPT_AUTHENTICATION)) {
+	    retval = auth_wait(name);
+	}
     }
 #endif
 
