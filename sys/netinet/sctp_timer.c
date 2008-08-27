@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>
 #ifdef INET6
-#include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_sysctl.h>
@@ -402,8 +401,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				}
 				if (this_random % 2 == 1) {
 					max_cwnd_net = mnet;
-					max_cwnd = mnet->cwnd;
-					//Useless ?
+					max_cwnd = mnet->cwnd;	/* Useless? */
 				}
 			}
 		}
@@ -1711,7 +1709,7 @@ sctp_pathmtu_timer(struct sctp_inpcb *inp,
 					struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
 
 					/* KAME hack: embed scopeid */
-					(void)sa6_embedscope(sin6, ip6_use_defzone);
+					(void)sa6_embedscope(sin6, MODULE_GLOBAL(MOD_INET6, ip6_use_defzone));
 				}
 #endif
 

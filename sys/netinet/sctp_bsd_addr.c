@@ -79,7 +79,6 @@ MALLOC_DEFINE(SCTP_M_MVRF, "sctp_mvrf", "sctp mvrf pcb list");
 MALLOC_DEFINE(SCTP_M_ITER, "sctp_iter", "sctp iterator control");
 MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
 
-
 #if defined(SCTP_USE_THREAD_BASED_ITERATOR)
 void
 sctp_wakeup_iterator(void)
@@ -116,6 +115,7 @@ sctp_startup_iterator(void)
 #endif
 
 #ifdef INET6
+
 void
 sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 {
@@ -123,7 +123,7 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 
 	ifa6 = (struct in6_ifaddr *)ifa->ifa;
 	ifa->flags = ifa6->ia6_flags;
-	if (!ip6_use_deprecated) {
+	if (!MODULE_GLOBAL(MOD_INET6, ip6_use_deprecated)) {
 		if (ifa->flags &
 		    IN6_IFF_DEPRECATED) {
 			ifa->localifa_flags |= SCTP_ADDR_IFA_UNUSEABLE;
@@ -143,7 +143,7 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 	}
 }
 
-#endif
+#endif				/* INET6 */
 
 
 static uint32_t
@@ -189,6 +189,8 @@ sctp_is_desired_interface_type(struct ifaddr *ifa)
 static void
 sctp_init_ifns_for_vrf(int vrfid)
 {
+
+
 	/*
 	 * Here we must apply ANY locks needed by the IFN we access and also
 	 * make sure we lock any IFA that exists as we float through the
@@ -200,8 +202,9 @@ sctp_init_ifns_for_vrf(int vrfid)
 	struct sctp_ifa *sctp_ifa;
 	uint32_t ifa_flags;
 
-	TAILQ_FOREACH(ifn, &ifnet, if_list) {
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(MOD_NET, ifnet), if_list) {
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
+
 			if (ifa->ifa_addr == NULL) {
 				continue;
 			}
@@ -329,7 +332,7 @@ void
 	struct ifnet *ifn;
 	struct ifaddr *ifa;
 
-	TAILQ_FOREACH(ifn, &ifnet, if_list) {
+	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(MOD_NET, ifnet), if_list) {
 		if (!(*pred) (ifn)) {
 			continue;
 		}

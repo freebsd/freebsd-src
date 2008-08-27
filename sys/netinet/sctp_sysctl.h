@@ -483,7 +483,7 @@ struct sctp_sysctl {
 #endif
 
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 #if defined(SYSCTL_DECL)
 SYSCTL_DECL(_net_inet_sctp);
 #endif

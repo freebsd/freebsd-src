@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #define __sctputil_h__
 
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 
 
 #ifdef SCTP_ASOCLOG_OF_TSNS
