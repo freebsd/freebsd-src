@@ -2770,7 +2770,7 @@ usage()
 	    "A"
 #endif
 	    "usage: ping6 [-"
-	    "d"
+	    "de"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
 	    "E"
 #endif
