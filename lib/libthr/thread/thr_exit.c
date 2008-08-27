@@ -36,6 +36,7 @@
 #include <pthread.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
 
 void	_pthread_exit(void *status);
@@ -94,6 +95,9 @@ _pthread_exit(void *status)
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
+
+	/* Tell malloc that the thread is exiting. */
+	_malloc_thread_cleanup();
 
 	if (!_thr_isthreaded())
 		exit(0);

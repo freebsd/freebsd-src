@@ -35,6 +35,9 @@
  *   + Multiple arenas are used if there are multiple CPUs, which reduces lock
  *     contention and cache sloshing.
  *
+ *   + Thread-specific caching is used if there are multiple threads, which
+ *     reduces the amount of locking.
+ *
  *   + Cache line sharing between arenas is avoided for internal data
  *     structures.
  *
@@ -48,37 +51,49 @@
  * and a 16 byte quantum on a 32-bit system, the size classes in each category
  * are as follows:
  *
- *   |=====================================|
- *   | Category | Subcategory    |    Size |
- *   |=====================================|
- *   | Small    | Tiny           |       2 |
- *   |          |                |       4 |
- *   |          |                |       8 |
- *   |          |----------------+---------|
- *   |          | Quantum-spaced |      16 |
- *   |          |                |      32 |
- *   |          |                |      48 |
- *   |          |                |     ... |
- *   |          |                |     480 |
- *   |          |                |     496 |
- *   |          |                |     512 |
- *   |          |----------------+---------|
- *   |          | Sub-page       |    1 kB |
- *   |          |                |    2 kB |
- *   |=====================================|
- *   | Large                     |    4 kB |
- *   |                           |    8 kB |
- *   |                           |   12 kB |
- *   |                           |     ... |
- *   |                           | 1012 kB |
- *   |                           | 1016 kB |
- *   |                           | 1020 kB |
- *   |=====================================|
- *   | Huge                      |    1 MB |
- *   |                           |    2 MB |
- *   |                           |    3 MB |
- *   |                           |     ... |
- *   |=====================================|
+ *   |=======================================|
+ *   | Category | Subcategory      |    Size |
+ *   |=======================================|
+ *   | Small    | Tiny             |       2 |
+ *   |          |                  |       4 |
+ *   |          |                  |       8 |
+ *   |          |------------------+---------|
+ *   |          | Quantum-spaced   |      16 |
+ *   |          |                  |      32 |
+ *   |          |                  |      48 |
+ *   |          |                  |     ... |
+ *   |          |                  |      96 |
+ *   |          |                  |     112 |
+ *   |          |                  |     128 |
+ *   |          |------------------+---------|
+ *   |          | Cacheline-spaced |     192 |
+ *   |          |                  |     256 |
+ *   |          |                  |     320 |
+ *   |          |                  |     384 |
+ *   |          |                  |     448 |
+ *   |          |                  |     512 |
+ *   |          |------------------+---------|
+ *   |          | Sub-page         |     760 |
+ *   |          |                  |    1024 |
+ *   |          |                  |    1280 |
+ *   |          |                  |     ... |
+ *   |          |                  |    3328 |
+ *   |          |                  |    3584 |
+ *   |          |                  |    3840 |
+ *   |=======================================|
+ *   | Large                       |    4 kB |
+ *   |                             |    8 kB |
+ *   |                             |   12 kB |
+ *   |                             |     ... |
+ *   |                             | 1012 kB |
+ *   |                             | 1016 kB |
+ *   |                             | 1020 kB |
+ *   |=======================================|
+ *   | Huge                        |    1 MB |
+ *   |                             |    2 MB |
+ *   |                             |    3 MB |
+ *   |                             |     ... |
+ *   |=======================================|
  *
  * A different mechanism is used for each category:
  *
@@ -111,6 +126,19 @@
    /* MALLOC_STATS enables statistics calculation. */
 #  define MALLOC_STATS
 #endif
+
+/*
+ * MALLOC_TINY enables support for tiny objects, which are smaller than one
+ * quantum.
+ */
+#define	MALLOC_TINY
+
+/*
+ * MALLOC_MAG enables a magazine-based thread-specific caching layer for small
+ * objects.  This makes it possible to allocate/deallocate objects without any
+ * locking when the cache is in the steady state.
+ */
+#define	MALLOC_MAG
 
 /*
  * MALLOC_BALANCE enables monitoring of arena lock contention and dynamically
@@ -184,45 +212,62 @@ __FBSDID("$FreeBSD$");
 /* Size of stack-allocated buffer passed to strerror_r(). */
 #define	STRERROR_BUF		64
 
-/* Minimum alignment of allocations is 2^QUANTUM_2POW_MIN bytes. */
+/*
+ * The const_size2bin table is sized according to PAGESIZE_2POW, but for
+ * correctness reasons, we never assume that
+ * (pagesize == (1U << * PAGESIZE_2POW)).
+ *
+ * Minimum alignment of allocations is 2^QUANTUM_2POW bytes.
+ */
 #ifdef __i386__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	2
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
 #endif
 #ifdef __ia64__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	3
 #endif
 #ifdef __alpha__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		13
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	3
 #  define NO_TLS
 #endif
 #ifdef __sparc64__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		13
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	3
 #  define NO_TLS
 #endif
 #ifdef __amd64__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	3
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
 #endif
 #ifdef __arm__
-#  define QUANTUM_2POW_MIN	3
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		3
 #  define SIZEOF_PTR_2POW	2
 #  define NO_TLS
 #endif
 #ifdef __mips__
-#  define QUANTUM_2POW_MIN	3
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		3
 #  define SIZEOF_PTR_2POW	2
 #  define NO_TLS
 #endif
 #ifdef __powerpc__
-#  define QUANTUM_2POW_MIN	4
+#  define PAGESIZE_2POW		12
+#  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	2
 #endif
+
+#define	QUANTUM			((size_t)(1U << QUANTUM_2POW))
+#define	QUANTUM_MASK		(QUANTUM - 1)
 
 #define	SIZEOF_PTR		(1U << SIZEOF_PTR_2POW)
 
@@ -237,6 +282,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef NO_TLS
+   /* MALLOC_MAG requires TLS. */
+#  ifdef MALLOC_MAG
+#    undef MALLOC_MAG
+#  endif
    /* MALLOC_BALANCE requires TLS. */
 #  ifdef MALLOC_BALANCE
 #    undef MALLOC_BALANCE
@@ -253,23 +302,42 @@ __FBSDID("$FreeBSD$");
 #define	DIRTY_MAX_DEFAULT	(1U << 9)
 
 /*
- * Maximum size of L1 cache line.  This is used to avoid cache line aliasing,
- * so over-estimates are okay (up to a point), but under-estimates will
- * negatively affect performance.
+ * Maximum size of L1 cache line.  This is used to avoid cache line aliasing.
+ * In addition, this controls the spacing of cacheline-spaced size classes.
  */
 #define	CACHELINE_2POW		6
 #define	CACHELINE		((size_t)(1U << CACHELINE_2POW))
+#define	CACHELINE_MASK		(CACHELINE - 1)
 
-/* Smallest size class to support. */
-#define	TINY_MIN_2POW		1
+/*
+ * Subpages are an artificially designated partitioning of pages.  Their only
+ * purpose is to support subpage-spaced size classes.
+ *
+ * There must be at least 4 subpages per page, due to the way size classes are
+ * handled.
+ */
+#define	SUBPAGE_2POW		8
+#define	SUBPAGE			((size_t)(1U << SUBPAGE_2POW))
+#define	SUBPAGE_MASK		(SUBPAGE - 1)
+
+#ifdef MALLOC_TINY
+   /* Smallest size class to support. */
+#  define TINY_MIN_2POW		1
+#endif
 
 /*
  * Maximum size class that is a multiple of the quantum, but not (necessarily)
  * a power of 2.  Above this size, allocations are rounded up to the nearest
  * power of 2.
  */
-#define	SMALL_MAX_2POW_DEFAULT	9
-#define	SMALL_MAX_DEFAULT	(1U << SMALL_MAX_2POW_DEFAULT)
+#define	QSPACE_MAX_2POW_DEFAULT	7
+
+/*
+ * Maximum size class that is a multiple of the cacheline, but not (necessarily)
+ * a power of 2.  Above this size, allocations are rounded up to the nearest
+ * power of 2.
+ */
+#define	CSPACE_MAX_2POW_DEFAULT	9
 
 /*
  * RUN_MAX_OVRHD indicates maximum desired run header overhead.  Runs are sized
@@ -293,8 +361,7 @@ __FBSDID("$FreeBSD$");
 #define	RUN_MAX_OVRHD_RELAX	0x00001800U
 
 /* Put a cap on small object run size.  This overrides RUN_MAX_OVRHD. */
-#define	RUN_MAX_SMALL_2POW	15
-#define	RUN_MAX_SMALL		(1U << RUN_MAX_SMALL_2POW)
+#define	RUN_MAX_SMALL	(12 * pagesize)
 
 /*
  * Hyper-threaded CPUs may need a special instruction inside spin loops in
@@ -318,6 +385,15 @@ __FBSDID("$FreeBSD$");
  * worst-case spinning.
  */
 #define	BLOCK_COST_2POW		4
+
+#ifdef MALLOC_MAG
+   /*
+    * Default magazine size, in bytes.  max_rounds is calculated to make
+    * optimal use of the space, leaving just enough room for the magazine
+    * header.
+    */
+#  define MAG_SIZE_2POW_DEFAULT	9
+#endif
 
 #ifdef MALLOC_BALANCE
    /*
@@ -368,6 +444,11 @@ struct malloc_bin_stats_s {
 	 * bin.
 	 */
 	uint64_t	nrequests;
+
+#ifdef MALLOC_MAG
+	/* Number of magazine reloads from this bin. */
+	uint64_t	nmags;
+#endif
 
 	/* Total number of runs created for this bin's size class. */
 	uint64_t	nruns;
@@ -678,6 +759,35 @@ struct arena_s {
 
 /******************************************************************************/
 /*
+ * Magazine data structures.
+ */
+
+#ifdef MALLOC_MAG
+typedef struct mag_s mag_t;
+struct mag_s {
+	size_t		binind; /* Index of associated bin. */
+	size_t		nrounds;
+	void		*rounds[1]; /* Dynamically sized. */
+};
+
+/*
+ * Magazines are lazily allocated, but once created, they remain until the
+ * associated mag_rack is destroyed.
+ */
+typedef struct bin_mags_s bin_mags_t;
+struct bin_mags_s {
+	mag_t	*curmag;
+	mag_t	*sparemag;
+};
+
+typedef struct mag_rack_s mag_rack_t;
+struct mag_rack_s {
+	bin_mags_t	bin_mags[1]; /* Dynamically sized. */
+};
+#endif
+
+/******************************************************************************/
+/*
  * Data.
  */
 
@@ -690,16 +800,147 @@ static size_t		pagesize_mask;
 static size_t		pagesize_2pow;
 
 /* Various bin-related settings. */
-static size_t		bin_maxclass; /* Max size class for bins. */
-static unsigned		ntbins; /* Number of (2^n)-spaced tiny bins. */
+#ifdef MALLOC_TINY		/* Number of (2^n)-spaced tiny bins. */
+#  define		ntbins	((unsigned)(QUANTUM_2POW - TINY_MIN_2POW))
+#else
+#  define		ntbins	0
+#endif
 static unsigned		nqbins; /* Number of quantum-spaced bins. */
-static unsigned		nsbins; /* Number of (2^n)-spaced sub-page bins. */
-static size_t		small_min;
-static size_t		small_max;
+static unsigned		ncbins; /* Number of cacheline-spaced bins. */
+static unsigned		nsbins; /* Number of subpage-spaced bins. */
+static unsigned		nbins;
+#ifdef MALLOC_TINY
+#  define		tspace_max	((size_t)(QUANTUM >> 1))
+#endif
+#define			qspace_min	QUANTUM
+static size_t		qspace_max;
+static size_t		cspace_min;
+static size_t		cspace_max;
+static size_t		sspace_min;
+static size_t		sspace_max;
+#define			bin_maxclass	sspace_max
 
-/* Various quantum-related settings. */
-static size_t		quantum;
-static size_t		quantum_mask; /* (quantum - 1). */
+static uint8_t const	*size2bin;
+/*
+ * const_size2bin is a static constant lookup table that in the common case can
+ * be used as-is for size2bin.  For dynamically linked programs, this avoids
+ * a page of memory overhead per process.
+ */
+#define	S2B_1(i)	i,
+#define	S2B_2(i)	S2B_1(i) S2B_1(i)
+#define	S2B_4(i)	S2B_2(i) S2B_2(i)
+#define	S2B_8(i)	S2B_4(i) S2B_4(i)
+#define	S2B_16(i)	S2B_8(i) S2B_8(i)
+#define	S2B_32(i)	S2B_16(i) S2B_16(i)
+#define	S2B_64(i)	S2B_32(i) S2B_32(i)
+#define	S2B_128(i)	S2B_64(i) S2B_64(i)
+#define	S2B_256(i)	S2B_128(i) S2B_128(i)
+static const uint8_t	const_size2bin[(1U << PAGESIZE_2POW) - 255] = {
+	S2B_1(0xffU)		/*    0 */
+#if (QUANTUM_2POW == 4)
+/* 64-bit system ************************/
+#  ifdef MALLOC_TINY
+	S2B_2(0)		/*    2 */
+	S2B_2(1)		/*    4 */
+	S2B_4(2)		/*    8 */
+	S2B_8(3)		/*   16 */
+#    define S2B_QMIN 3
+#  else
+	S2B_16(0)		/*   16 */
+#    define S2B_QMIN 0
+#  endif
+	S2B_16(S2B_QMIN + 1)	/*   32 */
+	S2B_16(S2B_QMIN + 2)	/*   48 */
+	S2B_16(S2B_QMIN + 3)	/*   64 */
+	S2B_16(S2B_QMIN + 4)	/*   80 */
+	S2B_16(S2B_QMIN + 5)	/*   96 */
+	S2B_16(S2B_QMIN + 6)	/*  112 */
+	S2B_16(S2B_QMIN + 7)	/*  128 */
+#  define S2B_CMIN (S2B_QMIN + 8)
+#else
+/* 32-bit system ************************/
+#  ifdef MALLOC_TINY
+	S2B_2(0)		/*    2 */
+	S2B_2(1)		/*    4 */
+	S2B_4(2)		/*    8 */
+#    define S2B_QMIN 2
+#  else
+	S2B_8(0)		/*    8 */
+#    define S2B_QMIN 0
+#  endif
+	S2B_8(S2B_QMIN + 1)	/*   16 */
+	S2B_8(S2B_QMIN + 2)	/*   24 */
+	S2B_8(S2B_QMIN + 3)	/*   32 */
+	S2B_8(S2B_QMIN + 4)	/*   40 */
+	S2B_8(S2B_QMIN + 5)	/*   48 */
+	S2B_8(S2B_QMIN + 6)	/*   56 */
+	S2B_8(S2B_QMIN + 7)	/*   64 */
+	S2B_8(S2B_QMIN + 8)	/*   72 */
+	S2B_8(S2B_QMIN + 9)	/*   80 */
+	S2B_8(S2B_QMIN + 10)	/*   88 */
+	S2B_8(S2B_QMIN + 11)	/*   96 */
+	S2B_8(S2B_QMIN + 12)	/*  104 */
+	S2B_8(S2B_QMIN + 13)	/*  112 */
+	S2B_8(S2B_QMIN + 14)	/*  120 */
+	S2B_8(S2B_QMIN + 15)	/*  128 */
+#  define S2B_CMIN (S2B_QMIN + 16)
+#endif
+/****************************************/
+	S2B_64(S2B_CMIN + 0)	/*  192 */
+	S2B_64(S2B_CMIN + 1)	/*  256 */
+	S2B_64(S2B_CMIN + 2)	/*  320 */
+	S2B_64(S2B_CMIN + 3)	/*  384 */
+	S2B_64(S2B_CMIN + 4)	/*  448 */
+	S2B_64(S2B_CMIN + 5)	/*  512 */
+#  define S2B_SMIN (S2B_CMIN + 6)
+	S2B_256(S2B_SMIN + 0)	/*  768 */
+	S2B_256(S2B_SMIN + 1)	/* 1024 */
+	S2B_256(S2B_SMIN + 2)	/* 1280 */
+	S2B_256(S2B_SMIN + 3)	/* 1536 */
+	S2B_256(S2B_SMIN + 4)	/* 1792 */
+	S2B_256(S2B_SMIN + 5)	/* 2048 */
+	S2B_256(S2B_SMIN + 6)	/* 2304 */
+	S2B_256(S2B_SMIN + 7)	/* 2560 */
+	S2B_256(S2B_SMIN + 8)	/* 2816 */
+	S2B_256(S2B_SMIN + 9)	/* 3072 */
+	S2B_256(S2B_SMIN + 10)	/* 3328 */
+	S2B_256(S2B_SMIN + 11)	/* 3584 */
+	S2B_256(S2B_SMIN + 12)	/* 3840 */
+#if (PAGESIZE_2POW == 13)
+	S2B_256(S2B_SMIN + 13)	/* 4096 */
+	S2B_256(S2B_SMIN + 14)	/* 4352 */
+	S2B_256(S2B_SMIN + 15)	/* 4608 */
+	S2B_256(S2B_SMIN + 16)	/* 4864 */
+	S2B_256(S2B_SMIN + 17)	/* 5120 */
+	S2B_256(S2B_SMIN + 18)	/* 5376 */
+	S2B_256(S2B_SMIN + 19)	/* 5632 */
+	S2B_256(S2B_SMIN + 20)	/* 5888 */
+	S2B_256(S2B_SMIN + 21)	/* 6144 */
+	S2B_256(S2B_SMIN + 22)	/* 6400 */
+	S2B_256(S2B_SMIN + 23)	/* 6656 */
+	S2B_256(S2B_SMIN + 24)	/* 6912 */
+	S2B_256(S2B_SMIN + 25)	/* 7168 */
+	S2B_256(S2B_SMIN + 26)	/* 7424 */
+	S2B_256(S2B_SMIN + 27)	/* 7680 */
+	S2B_256(S2B_SMIN + 28)	/* 7936 */
+#endif
+};
+#undef S2B_1
+#undef S2B_2
+#undef S2B_4
+#undef S2B_8
+#undef S2B_16
+#undef S2B_32
+#undef S2B_64
+#undef S2B_128
+#undef S2B_256
+#undef S2B_QMIN
+#undef S2B_CMIN
+#undef S2B_SMIN
+
+#ifdef MALLOC_MAG
+static size_t		max_rounds;
+#endif
 
 /* Various chunk-related settings. */
 static size_t		chunksize;
@@ -796,6 +1037,14 @@ static pthread_mutex_t	arenas_lock; /* Protects arenas initialization. */
 static __thread arena_t	*arenas_map;
 #endif
 
+#ifdef MALLOC_MAG
+/*
+ * Map of thread-specific magazine racks, used for thread-specific object
+ * caching.
+ */
+static __thread mag_rack_t	*mag_rack;
+#endif
+
 #ifdef MALLOC_STATS
 /* Chunk statistics. */
 static chunk_stats_t	stats_chunks;
@@ -818,13 +1067,17 @@ static bool	opt_junk = false;
 static bool	opt_dss = true;
 static bool	opt_mmap = true;
 #endif
+#ifdef MALLOC_MAG
+static bool	opt_mag = true;
+static size_t	opt_mag_size_2pow = MAG_SIZE_2POW_DEFAULT;
+#endif
 static size_t	opt_dirty_max = DIRTY_MAX_DEFAULT;
 #ifdef MALLOC_BALANCE
 static uint64_t	opt_balance_threshold = BALANCE_THRESHOLD_DEFAULT;
 #endif
 static bool	opt_print_stats = false;
-static size_t	opt_quantum_2pow = QUANTUM_2POW_MIN;
-static size_t	opt_small_max_2pow = SMALL_MAX_2POW_DEFAULT;
+static size_t	opt_qspace_max_2pow = QSPACE_MAX_2POW_DEFAULT;
+static size_t	opt_cspace_max_2pow = CSPACE_MAX_2POW_DEFAULT;
 static size_t	opt_chunk_2pow = CHUNK_2POW_DEFAULT;
 static bool	opt_utrace = false;
 static bool	opt_sysv = false;
@@ -902,15 +1155,21 @@ static void	arena_run_trim_head(arena_t *arena, arena_chunk_t *chunk,
 static void	arena_run_trim_tail(arena_t *arena, arena_chunk_t *chunk,
     arena_run_t *run, size_t oldsize, size_t newsize, bool dirty);
 static arena_run_t *arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin);
-static void *arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
-static size_t arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size);
+static void	*arena_bin_malloc_hard(arena_t *arena, arena_bin_t *bin);
+static size_t	arena_bin_run_size_calc(arena_bin_t *bin, size_t min_run_size);
 #ifdef MALLOC_BALANCE
 static void	arena_lock_balance_hard(arena_t *arena);
+#endif
+#ifdef MALLOC_MAG
+static void	mag_load(mag_t *mag);
 #endif
 static void	*arena_malloc_large(arena_t *arena, size_t size, bool zero);
 static void	*arena_palloc(arena_t *arena, size_t alignment, size_t size,
     size_t alloc_size);
 static size_t	arena_salloc(const void *ptr);
+#ifdef MALLOC_MAG
+static void	mag_unload(mag_t *mag);
+#endif
 static void	arena_dalloc_large(arena_t *arena, arena_chunk_t *chunk,
     void *ptr);
 static void	arena_ralloc_large_shrink(arena_t *arena, arena_chunk_t *chunk,
@@ -921,11 +1180,22 @@ static bool	arena_ralloc_large(void *ptr, size_t size, size_t oldsize);
 static void	*arena_ralloc(void *ptr, size_t size, size_t oldsize);
 static bool	arena_new(arena_t *arena);
 static arena_t	*arenas_extend(unsigned ind);
+#ifdef MALLOC_MAG
+static mag_t	*mag_create(arena_t *arena, size_t binind);
+static void	mag_destroy(mag_t *mag);
+static mag_rack_t *mag_rack_create(arena_t *arena);
+static void	mag_rack_destroy(mag_rack_t *rack);
+#endif
 static void	*huge_malloc(size_t size, bool zero);
 static void	*huge_palloc(size_t alignment, size_t size);
 static void	*huge_ralloc(void *ptr, size_t size, size_t oldsize);
 static void	huge_dalloc(void *ptr);
 static void	malloc_print_stats(void);
+#ifdef MALLOC_DEBUG
+static void	size2bin_validate(void);
+#endif
+static bool	size2bin_init(void);
+static bool	size2bin_init_hard(void);
 static bool	malloc_init_hard(void);
 
 /*
@@ -1063,18 +1333,23 @@ malloc_spin_unlock(pthread_mutex_t *lock)
 #define	CHUNK_CEILING(s)						\
 	(((s) + chunksize_mask) & ~chunksize_mask)
 
-/* Return the smallest cacheline multiple that is >= s. */
-#define	CACHELINE_CEILING(s)						\
-	(((s) + (CACHELINE - 1)) & ~(CACHELINE - 1))
-
 /* Return the smallest quantum multiple that is >= a. */
 #define	QUANTUM_CEILING(a)						\
-	(((a) + quantum_mask) & ~quantum_mask)
+	(((a) + QUANTUM_MASK) & ~QUANTUM_MASK)
+
+/* Return the smallest cacheline multiple that is >= s. */
+#define	CACHELINE_CEILING(s)						\
+	(((s) + CACHELINE_MASK) & ~CACHELINE_MASK)
+
+/* Return the smallest subpage multiple that is >= s. */
+#define	SUBPAGE_CEILING(s)						\
+	(((s) + SUBPAGE_MASK) & ~SUBPAGE_MASK)
 
 /* Return the smallest pagesize multiple that is >= s. */
 #define	PAGE_CEILING(s)							\
 	(((s) + pagesize_mask) & ~pagesize_mask)
 
+#ifdef MALLOC_TINY
 /* Compute the smallest power of 2 that is >= x. */
 static inline size_t
 pow2_ceil(size_t x)
@@ -1092,6 +1367,7 @@ pow2_ceil(size_t x)
 	x++;
 	return (x);
 }
+#endif
 
 #ifdef MALLOC_BALANCE
 /*
@@ -1382,10 +1658,19 @@ stats_print(arena_t *arena)
 	    arena->stats.ndalloc_small + arena->stats.ndalloc_large);
 	malloc_printf("mapped:  %12zu\n", arena->stats.mapped);
 
-	malloc_printf("bins:     bin   size regs pgs  requests   newruns"
-	    "    reruns maxruns curruns\n");
-	for (i = 0, gap_start = UINT_MAX; i < ntbins + nqbins + nsbins; i++) {
-		if (arena->bins[i].stats.nrequests == 0) {
+#ifdef MALLOC_MAG
+	if (__isthreaded && opt_mag) {
+		malloc_printf("bins:     bin   size regs pgs      mags   "
+		    "newruns    reruns maxruns curruns\n");
+	} else {
+#endif
+		malloc_printf("bins:     bin   size regs pgs  requests   "
+		    "newruns    reruns maxruns curruns\n");
+#ifdef MALLOC_MAG
+	}
+#endif
+	for (i = 0, gap_start = UINT_MAX; i < nbins; i++) {
+		if (arena->bins[i].stats.nruns == 0) {
 			if (gap_start == UINT_MAX)
 				gap_start = i;
 		} else {
@@ -1404,10 +1689,15 @@ stats_print(arena_t *arena)
 			    "%13u %1s %4u %4u %3u %9llu %9llu"
 			    " %9llu %7lu %7lu\n",
 			    i,
-			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" : "S",
+			    i < ntbins ? "T" : i < ntbins + nqbins ? "Q" :
+			    i < ntbins + nqbins + ncbins ? "C" : "S",
 			    arena->bins[i].reg_size,
 			    arena->bins[i].nregs,
 			    arena->bins[i].run_size >> pagesize_2pow,
+#ifdef MALLOC_MAG
+			    (__isthreaded && opt_mag) ?
+			    arena->bins[i].stats.nmags :
+#endif
 			    arena->bins[i].stats.nrequests,
 			    arena->bins[i].stats.nruns,
 			    arena->bins[i].stats.reruns,
@@ -2137,44 +2427,9 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 static inline void
 arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 {
-	/*
-	 * To divide by a number D that is not a power of two we multiply
-	 * by (2^21 / D) and then right shift by 21 positions.
-	 *
-	 *   X / D
-	 *
-	 * becomes
-	 *
-	 *   (X * size_invs[(D >> QUANTUM_2POW_MIN) - 3]) >> SIZE_INV_SHIFT
-	 */
-#define	SIZE_INV_SHIFT 21
-#define	SIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << QUANTUM_2POW_MIN)) + 1)
-	static const unsigned size_invs[] = {
-	    SIZE_INV(3),
-	    SIZE_INV(4), SIZE_INV(5), SIZE_INV(6), SIZE_INV(7),
-	    SIZE_INV(8), SIZE_INV(9), SIZE_INV(10), SIZE_INV(11),
-	    SIZE_INV(12),SIZE_INV(13), SIZE_INV(14), SIZE_INV(15),
-	    SIZE_INV(16),SIZE_INV(17), SIZE_INV(18), SIZE_INV(19),
-	    SIZE_INV(20),SIZE_INV(21), SIZE_INV(22), SIZE_INV(23),
-	    SIZE_INV(24),SIZE_INV(25), SIZE_INV(26), SIZE_INV(27),
-	    SIZE_INV(28),SIZE_INV(29), SIZE_INV(30), SIZE_INV(31)
-#if (QUANTUM_2POW_MIN < 4)
-	    ,
-	    SIZE_INV(32), SIZE_INV(33), SIZE_INV(34), SIZE_INV(35),
-	    SIZE_INV(36), SIZE_INV(37), SIZE_INV(38), SIZE_INV(39),
-	    SIZE_INV(40), SIZE_INV(41), SIZE_INV(42), SIZE_INV(43),
-	    SIZE_INV(44), SIZE_INV(45), SIZE_INV(46), SIZE_INV(47),
-	    SIZE_INV(48), SIZE_INV(49), SIZE_INV(50), SIZE_INV(51),
-	    SIZE_INV(52), SIZE_INV(53), SIZE_INV(54), SIZE_INV(55),
-	    SIZE_INV(56), SIZE_INV(57), SIZE_INV(58), SIZE_INV(59),
-	    SIZE_INV(60), SIZE_INV(61), SIZE_INV(62), SIZE_INV(63)
-#endif
-	};
 	unsigned diff, regind, elm, bit;
 
 	assert(run->magic == ARENA_RUN_MAGIC);
-	assert(((sizeof(size_invs)) / sizeof(unsigned)) + 3
-	    >= (SMALL_MAX_DEFAULT >> QUANTUM_2POW_MIN));
 
 	/*
 	 * Avoid doing division with a variable divisor if possible.  Using
@@ -2203,26 +2458,89 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 			regind = (diff >> log2_table[size - 1]);
 		else if (size <= 32768)
 			regind = diff >> (8 + log2_table[(size >> 8) - 1]);
-		else {
-			/*
-			 * The run size is too large for us to use the lookup
-			 * table.  Use real division.
-			 */
+		else
 			regind = diff / size;
-		}
-	} else if (size <= (((sizeof(size_invs) / sizeof(unsigned)) + 2)
-	    << QUANTUM_2POW_MIN)) {
-		regind = size_invs[(size >> QUANTUM_2POW_MIN) - 3] * diff;
-		regind >>= SIZE_INV_SHIFT;
-	} else {
+	} else if (size < qspace_max) {
 		/*
-		 * size_invs isn't large enough to handle this size class, so
-		 * calculate regind using actual division.  This only happens
-		 * if the user increases small_max via the 'S' runtime
-		 * configuration option.
+		 * To divide by a number D that is not a power of two we
+		 * multiply by (2^21 / D) and then right shift by 21 positions.
+		 *
+		 *   X / D
+		 *
+		 * becomes
+		 *
+		 *   (X * qsize_invs[(D >> QUANTUM_2POW) - 3])
+		 *       >> SIZE_INV_SHIFT
+		 *
+		 * We can omit the first three elements, because we never
+		 * divide by 0, and QUANTUM and 2*QUANTUM are both powers of
+		 * two, which are handled above.
 		 */
-		regind = diff / size;
-	};
+#define	SIZE_INV_SHIFT 21
+#define	QSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << QUANTUM_2POW)) + 1)
+		static const unsigned qsize_invs[] = {
+		    QSIZE_INV(3),
+		    QSIZE_INV(4), QSIZE_INV(5), QSIZE_INV(6), QSIZE_INV(7)
+#if (QUANTUM_2POW < 4)
+		    ,
+		    QSIZE_INV(8), QSIZE_INV(9), QSIZE_INV(10), QSIZE_INV(11),
+		    QSIZE_INV(12),QSIZE_INV(13), QSIZE_INV(14), QSIZE_INV(15)
+#endif
+		};
+		assert(QUANTUM * (((sizeof(qsize_invs)) / sizeof(unsigned)) + 3)
+		    >= (1U << QSPACE_MAX_2POW_DEFAULT));
+
+		if (size <= (((sizeof(qsize_invs) / sizeof(unsigned)) + 2) <<
+		    QUANTUM_2POW)) {
+			regind = qsize_invs[(size >> QUANTUM_2POW) - 3] * diff;
+			regind >>= SIZE_INV_SHIFT;
+		} else
+			regind = diff / size;
+#undef QSIZE_INV
+	} else if (size < cspace_max) {
+#define	CSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << CACHELINE_2POW)) + 1)
+		static const unsigned csize_invs[] = {
+		    CSIZE_INV(3),
+		    CSIZE_INV(4), CSIZE_INV(5), CSIZE_INV(6), CSIZE_INV(7)
+		};
+		assert(CACHELINE * (((sizeof(csize_invs)) / sizeof(unsigned)) +
+		    3) >= (1U << CSPACE_MAX_2POW_DEFAULT));
+
+		if (size <= (((sizeof(csize_invs) / sizeof(unsigned)) + 2) <<
+		    CACHELINE_2POW)) {
+			regind = csize_invs[(size >> CACHELINE_2POW) - 3] *
+			    diff;
+			regind >>= SIZE_INV_SHIFT;
+		} else
+			regind = diff / size;
+#undef CSIZE_INV
+	} else {
+#define	SSIZE_INV(s) (((1U << SIZE_INV_SHIFT) / (s << SUBPAGE_2POW)) + 1)
+		static const unsigned ssize_invs[] = {
+		    SSIZE_INV(3),
+		    SSIZE_INV(4), SSIZE_INV(5), SSIZE_INV(6), SSIZE_INV(7),
+		    SSIZE_INV(8), SSIZE_INV(9), SSIZE_INV(10), SSIZE_INV(11),
+		    SSIZE_INV(12), SSIZE_INV(13), SSIZE_INV(14), SSIZE_INV(15)
+#if (PAGESIZE_2POW == 13)
+		    ,
+		    SSIZE_INV(16), SSIZE_INV(17), SSIZE_INV(18), SSIZE_INV(19),
+		    SSIZE_INV(20), SSIZE_INV(21), SSIZE_INV(22), SSIZE_INV(23),
+		    SSIZE_INV(24), SSIZE_INV(25), SSIZE_INV(26), SSIZE_INV(27),
+		    SSIZE_INV(28), SSIZE_INV(29), SSIZE_INV(29), SSIZE_INV(30)
+#endif
+		};
+		assert(SUBPAGE * (((sizeof(ssize_invs)) / sizeof(unsigned)) + 3)
+		    >= (1U << PAGESIZE_2POW));
+
+		if (size < (((sizeof(ssize_invs) / sizeof(unsigned)) + 2) <<
+		    SUBPAGE_2POW)) {
+			regind = ssize_invs[(size >> SUBPAGE_2POW) - 3] * diff;
+			regind >>= SIZE_INV_SHIFT;
+		} else
+			regind = diff / size;
+#undef SSIZE_INV
+	}
+#undef SIZE_INV_SHIFT
 	assert(diff == regind * size);
 	assert(regind < bin->nregs);
 
@@ -2232,8 +2550,6 @@ arena_run_reg_dalloc(arena_run_t *run, arena_bin_t *bin, void *ptr, size_t size)
 	bit = regind - (elm << (SIZEOF_INT_2POW + 3));
 	assert((run->regs_mask[elm] & (1U << bit)) == 0);
 	run->regs_mask[elm] |= (1U << bit);
-#undef SIZE_INV
-#undef SIZE_INV_SHIFT
 }
 
 static void
@@ -2813,7 +3129,7 @@ arena_lock_balance(arena_t *arena)
 		/*
 		 * Calculate the exponentially averaged contention for this
 		 * arena.  Due to integer math always rounding down, this value
-		 * decays somewhat faster then normal.
+		 * decays somewhat faster than normal.
 		 */
 		arena->contention = (((uint64_t)arena->contention
 		    * (uint64_t)((1U << BALANCE_ALPHA_INV_2POW)-1))
@@ -2846,39 +3162,125 @@ arena_lock_balance_hard(arena_t *arena)
 }
 #endif
 
+#ifdef MALLOC_MAG
+static inline void *
+mag_alloc(mag_t *mag)
+{
+
+	if (mag->nrounds == 0)
+		return (NULL);
+	mag->nrounds--;
+
+	return (mag->rounds[mag->nrounds]);
+}
+
+static void
+mag_load(mag_t *mag)
+{
+	arena_t *arena;
+	arena_bin_t *bin;
+	arena_run_t *run;
+	void *round;
+	size_t i;
+
+	arena = choose_arena();
+	bin = &arena->bins[mag->binind];
+#ifdef MALLOC_BALANCE
+	arena_lock_balance(arena);
+#else
+	malloc_spin_lock(&arena->lock);
+#endif
+	for (i = mag->nrounds; i < max_rounds; i++) {
+		if ((run = bin->runcur) != NULL && run->nfree > 0)
+			round = arena_bin_malloc_easy(arena, bin, run);
+		else
+			round = arena_bin_malloc_hard(arena, bin);
+		if (round == NULL)
+			break;
+		mag->rounds[i] = round;
+	}
+#ifdef MALLOC_STATS
+	bin->stats.nmags++;
+	arena->stats.nmalloc_small += (i - mag->nrounds);
+	arena->stats.allocated_small += (i - mag->nrounds) * bin->reg_size;
+#endif
+	malloc_spin_unlock(&arena->lock);
+	mag->nrounds = i;
+}
+
+static inline void *
+mag_rack_alloc(mag_rack_t *rack, size_t size, bool zero)
+{
+	void *ret;
+	bin_mags_t *bin_mags;
+	mag_t *mag;
+	size_t binind;
+
+	binind = size2bin[size];
+	assert(binind < nbins);
+	bin_mags = &rack->bin_mags[binind];
+
+	mag = bin_mags->curmag;
+	if (mag == NULL) {
+		/* Create an initial magazine for this size class. */
+		assert(bin_mags->sparemag == NULL);
+		mag = mag_create(choose_arena(), binind);
+		if (mag == NULL)
+			return (NULL);
+		bin_mags->curmag = mag;
+		mag_load(mag);
+	}
+
+	ret = mag_alloc(mag);
+	if (ret == NULL) {
+		if (bin_mags->sparemag != NULL) {
+			if (bin_mags->sparemag->nrounds > 0) {
+				/* Swap magazines. */
+				bin_mags->curmag = bin_mags->sparemag;
+				bin_mags->sparemag = mag;
+				mag = bin_mags->curmag;
+			} else {
+				/* Reload the current magazine. */
+				mag_load(mag);
+			}
+		} else {
+			/* Create a second magazine. */
+			mag = mag_create(choose_arena(), binind);
+			if (mag == NULL)
+				return (NULL);
+			mag_load(mag);
+			bin_mags->sparemag = bin_mags->curmag;
+			bin_mags->curmag = mag;
+		}
+		ret = mag_alloc(mag);
+		if (ret == NULL)
+			return (NULL);
+	}
+
+	if (zero == false) {
+		if (opt_junk)
+			memset(ret, 0xa5, size);
+		else if (opt_zero)
+			memset(ret, 0, size);
+	} else
+		memset(ret, 0, size);
+
+	return (ret);
+}
+#endif
+
 static inline void *
 arena_malloc_small(arena_t *arena, size_t size, bool zero)
 {
 	void *ret;
 	arena_bin_t *bin;
 	arena_run_t *run;
+	size_t binind;
 
-	if (size < small_min) {
-		/* Tiny. */
-		size = pow2_ceil(size);
-		bin = &arena->bins[ffs((int)(size >> (TINY_MIN_2POW +
-		    1)))];
-#if (!defined(NDEBUG) || defined(MALLOC_STATS))
-		/*
-		 * Bin calculation is always correct, but we may need
-		 * to fix size for the purposes of assertions and/or
-		 * stats accuracy.
-		 */
-		if (size < (1U << TINY_MIN_2POW))
-			size = (1U << TINY_MIN_2POW);
-#endif
-	} else if (size <= small_max) {
-		/* Quantum-spaced. */
-		size = QUANTUM_CEILING(size);
-		bin = &arena->bins[ntbins + (size >> opt_quantum_2pow)
-		    - 1];
-	} else {
-		/* Sub-page. */
-		size = pow2_ceil(size);
-		bin = &arena->bins[ntbins + nqbins
-		    + (ffs((int)(size >> opt_small_max_2pow)) - 2)];
-	}
-	assert(size == bin->reg_size);
+	binind = size2bin[size];
+	assert(binind < nbins);
+	bin = &arena->bins[binind];
+	size = bin->reg_size;
 
 #ifdef MALLOC_BALANCE
 	arena_lock_balance(arena);
@@ -2956,7 +3358,19 @@ arena_malloc(arena_t *arena, size_t size, bool zero)
 	assert(QUANTUM_CEILING(size) <= arena_maxclass);
 
 	if (size <= bin_maxclass) {
-		return (arena_malloc_small(arena, size, zero));
+#ifdef MALLOC_MAG
+		if (__isthreaded && opt_mag) {
+			mag_rack_t *rack = mag_rack;
+			if (rack == NULL) {
+				rack = mag_rack_create(arena);
+				if (rack == NULL)
+					return (NULL);
+				mag_rack = rack;
+			}
+			return (mag_rack_alloc(rack, size, zero));
+		} else
+#endif
+			return (arena_malloc_small(arena, size, zero));
 	} else
 		return (arena_malloc_large(arena, size, zero));
 }
@@ -3085,7 +3499,7 @@ ipalloc(size_t alignment, size_t size)
 		size_t run_size;
 
 		/*
-		 * We can't achieve sub-page alignment, so round up alignment
+		 * We can't achieve subpage alignment, so round up alignment
 		 * permanently; it makes later calculations simpler.
 		 */
 		alignment = PAGE_CEILING(alignment);
@@ -3282,6 +3696,122 @@ arena_dalloc_small(arena_t *arena, arena_chunk_t *chunk, void *ptr,
 #endif
 }
 
+#ifdef MALLOC_MAG
+static void
+mag_unload(mag_t *mag)
+{
+	arena_chunk_t *chunk;
+	arena_t *arena;
+	void *round;
+	size_t i, ndeferred, nrounds;
+
+	for (ndeferred = mag->nrounds; ndeferred > 0;) {
+		nrounds = ndeferred;
+		/* Lock the arena associated with the first round. */
+		chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(mag->rounds[0]);
+		arena = chunk->arena;
+#ifdef MALLOC_BALANCE
+		arena_lock_balance(arena);
+#else
+		malloc_spin_lock(&arena->lock);
+#endif
+		/* Deallocate every round that belongs to the locked arena. */
+		for (i = ndeferred = 0; i < nrounds; i++) {
+			round = mag->rounds[i];
+			chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(round);
+			if (chunk->arena == arena) {
+				size_t pageind = (((uintptr_t)round -
+				    (uintptr_t)chunk) >> pagesize_2pow);
+				arena_chunk_map_t *mapelm =
+				    &chunk->map[pageind];
+				arena_dalloc_small(arena, chunk, round, mapelm);
+			} else {
+				/*
+				 * This round was allocated via a different
+				 * arena than the one that is currently locked.
+				 * Stash the round, so that it can be handled
+				 * in a future pass.
+				 */
+				mag->rounds[ndeferred] = round;
+				ndeferred++;
+			}
+		}
+		malloc_spin_unlock(&arena->lock);
+	}
+
+	mag->nrounds = 0;
+}
+
+static inline void
+mag_rack_dalloc(mag_rack_t *rack, void *ptr)
+{
+	arena_t *arena;
+	arena_chunk_t *chunk;
+	arena_run_t *run;
+	arena_bin_t *bin;
+	bin_mags_t *bin_mags;
+	mag_t *mag;
+	size_t pageind, binind;
+	arena_chunk_map_t *mapelm;
+
+	chunk = (arena_chunk_t *)CHUNK_ADDR2BASE(ptr);
+	arena = chunk->arena;
+	pageind = (((uintptr_t)ptr - (uintptr_t)chunk) >> pagesize_2pow);
+	mapelm = &chunk->map[pageind];
+	run = (arena_run_t *)(mapelm->bits & ~pagesize_mask);
+	assert(run->magic == ARENA_RUN_MAGIC);
+	bin = run->bin;
+	binind = ((uintptr_t)bin - (uintptr_t)&arena->bins) /
+	    sizeof(arena_bin_t);
+	assert(binind < nbins);
+
+	if (opt_junk)
+		memset(ptr, 0x5a, arena->bins[binind].reg_size);
+
+	bin_mags = &rack->bin_mags[binind];
+	mag = bin_mags->curmag;
+	if (mag == NULL) {
+		/* Create an initial magazine for this size class. */
+		assert(bin_mags->sparemag == NULL);
+		mag = mag_create(choose_arena(), binind);
+		if (mag == NULL) {
+			malloc_spin_lock(&arena->lock);
+			arena_dalloc_small(arena, chunk, ptr, mapelm);
+			malloc_spin_unlock(&arena->lock);
+			return;
+		}
+		bin_mags->curmag = mag;
+	}
+
+	if (mag->nrounds == max_rounds) {
+		if (bin_mags->sparemag != NULL) {
+			if (bin_mags->sparemag->nrounds < max_rounds) {
+				/* Swap magazines. */
+				bin_mags->curmag = bin_mags->sparemag;
+				bin_mags->sparemag = mag;
+				mag = bin_mags->curmag;
+			} else {
+				/* Unload the current magazine. */
+				mag_unload(mag);
+			}
+		} else {
+			/* Create a second magazine. */
+			mag = mag_create(choose_arena(), binind);
+			if (mag == NULL) {
+				mag = rack->bin_mags[binind].curmag;
+				mag_unload(mag);
+			} else {
+				bin_mags->sparemag = bin_mags->curmag;
+				bin_mags->curmag = mag;
+			}
+		}
+		assert(mag->nrounds < max_rounds);
+	}
+	mag->rounds[mag->nrounds] = ptr;
+	mag->nrounds++;
+}
+#endif
+
 static void
 arena_dalloc_large(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 {
@@ -3329,9 +3859,28 @@ arena_dalloc(arena_t *arena, arena_chunk_t *chunk, void *ptr)
 	assert((mapelm->bits & CHUNK_MAP_ALLOCATED) != 0);
 	if ((mapelm->bits & CHUNK_MAP_LARGE) == 0) {
 		/* Small allocation. */
-		malloc_spin_lock(&arena->lock);
-		arena_dalloc_small(arena, chunk, ptr, mapelm);
-		malloc_spin_unlock(&arena->lock);
+#ifdef MALLOC_MAG
+		if (__isthreaded && opt_mag) {
+			mag_rack_t *rack = mag_rack;
+			if (rack == NULL) {
+				rack = mag_rack_create(arena);
+				if (rack == NULL) {
+					malloc_spin_lock(&arena->lock);
+					arena_dalloc_small(arena, chunk, ptr,
+					    mapelm);
+					malloc_spin_unlock(&arena->lock);
+				}
+				mag_rack = rack;
+			}
+			mag_rack_dalloc(rack, ptr);
+		} else {
+#endif
+			malloc_spin_lock(&arena->lock);
+			arena_dalloc_small(arena, chunk, ptr, mapelm);
+			malloc_spin_unlock(&arena->lock);
+#ifdef MALLOC_MAG
+		}
+#endif
 	} else
 		arena_dalloc_large(arena, chunk, ptr);
 }
@@ -3471,24 +4020,16 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 	size_t copysize;
 
 	/* Try to avoid moving the allocation. */
-	if (size < small_min) {
-		if (oldsize < small_min &&
-		    ffs((int)(pow2_ceil(size) >> (TINY_MIN_2POW + 1)))
-		    == ffs((int)(pow2_ceil(oldsize) >> (TINY_MIN_2POW + 1))))
-			goto IN_PLACE; /* Same size class. */
-	} else if (size <= small_max) {
-		if (oldsize >= small_min && oldsize <= small_max &&
-		    (QUANTUM_CEILING(size) >> opt_quantum_2pow)
-		    == (QUANTUM_CEILING(oldsize) >> opt_quantum_2pow))
-			goto IN_PLACE; /* Same size class. */
-	} else if (size <= bin_maxclass) {
-		if (oldsize > small_max && oldsize <= bin_maxclass &&
-		    pow2_ceil(size) == pow2_ceil(oldsize))
-			goto IN_PLACE; /* Same size class. */
-	} else if (oldsize > bin_maxclass && oldsize <= arena_maxclass) {
-		assert(size > bin_maxclass);
-		if (arena_ralloc_large(ptr, size, oldsize) == false)
-			return (ptr);
+	if (size <= bin_maxclass) {
+		if (oldsize <= bin_maxclass && size2bin[size] ==
+		    size2bin[oldsize])
+			goto IN_PLACE;
+	} else {
+		if (oldsize > bin_maxclass && oldsize <= arena_maxclass) {
+			assert(size > bin_maxclass);
+			if (arena_ralloc_large(ptr, size, oldsize) == false)
+				return (ptr);
+		}
 	}
 
 	/*
@@ -3558,8 +4099,10 @@ arena_new(arena_t *arena)
 	/* Initialize bins. */
 	prev_run_size = pagesize;
 
+	i = 0;
+#ifdef MALLOC_TINY
 	/* (2^n)-spaced tiny bins. */
-	for (i = 0; i < ntbins; i++) {
+	for (; i < ntbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
 		arena_run_tree_new(&bin->runs);
@@ -3572,6 +4115,7 @@ arena_new(arena_t *arena)
 		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
 #endif
 	}
+#endif
 
 	/* Quantum-spaced bins. */
 	for (; i < ntbins + nqbins; i++) {
@@ -3579,7 +4123,7 @@ arena_new(arena_t *arena)
 		bin->runcur = NULL;
 		arena_run_tree_new(&bin->runs);
 
-		bin->reg_size = quantum * (i - ntbins + 1);
+		bin->reg_size = (i - ntbins + 1) << QUANTUM_2POW;
 
 		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
@@ -3588,13 +4132,30 @@ arena_new(arena_t *arena)
 #endif
 	}
 
-	/* (2^n)-spaced sub-page bins. */
-	for (; i < ntbins + nqbins + nsbins; i++) {
+	/* Cacheline-spaced bins. */
+	for (; i < ntbins + nqbins + ncbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
 		arena_run_tree_new(&bin->runs);
 
-		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
+		bin->reg_size = cspace_min + ((i - (ntbins + nqbins)) <<
+		    CACHELINE_2POW);
+
+		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
+
+#ifdef MALLOC_STATS
+		memset(&bin->stats, 0, sizeof(malloc_bin_stats_t));
+#endif
+	}
+
+	/* Subpage-spaced bins. */
+	for (; i < nbins; i++) {
+		bin = &arena->bins[i];
+		bin->runcur = NULL;
+		arena_run_tree_new(&bin->runs);
+
+		bin->reg_size = sspace_min + ((i - (ntbins + nqbins + ncbins))
+		    << SUBPAGE_2POW);
 
 		prev_run_size = arena_bin_run_size_calc(bin, prev_run_size);
 
@@ -3618,7 +4179,7 @@ arenas_extend(unsigned ind)
 
 	/* Allocate enough space for trailing bins. */
 	ret = (arena_t *)base_alloc(sizeof(arena_t)
-	    + (sizeof(arena_bin_t) * (ntbins + nqbins + nsbins - 1)));
+	    + (sizeof(arena_bin_t) * (nbins - 1)));
 	if (ret != NULL && arena_new(ret) == false) {
 		arenas[ind] = ret;
 		return (ret);
@@ -3638,6 +4199,95 @@ arenas_extend(unsigned ind)
 
 	return (arenas[0]);
 }
+
+#ifdef MALLOC_MAG
+static mag_t *
+mag_create(arena_t *arena, size_t binind)
+{
+	mag_t *ret;
+
+	if (sizeof(mag_t) + (sizeof(void *) * (max_rounds - 1)) <=
+	    bin_maxclass) {
+		ret = arena_malloc_small(arena, sizeof(mag_t) + (sizeof(void *)
+		    * (max_rounds - 1)), false);
+	} else {
+		ret = imalloc(sizeof(mag_t) + (sizeof(void *) * (max_rounds -
+		    1)));
+	}
+	if (ret == NULL)
+		return (NULL);
+	ret->binind = binind;
+	ret->nrounds = 0;
+
+	return (ret);
+}
+
+static void
+mag_destroy(mag_t *mag)
+{
+	arena_t *arena;
+	arena_chunk_t *chunk;
+	size_t pageind;
+	arena_chunk_map_t *mapelm;
+
+	chunk = CHUNK_ADDR2BASE(mag);
+	arena = chunk->arena;
+	pageind = (((uintptr_t)mag - (uintptr_t)chunk) >> pagesize_2pow);
+	mapelm = &chunk->map[pageind];
+
+	assert(mag->nrounds == 0);
+	if (sizeof(mag_t) + (sizeof(void *) * (max_rounds - 1)) <=
+	    bin_maxclass) {
+		malloc_spin_lock(&arena->lock);
+		arena_dalloc_small(arena, chunk, mag, mapelm);
+		malloc_spin_unlock(&arena->lock);
+	} else
+		idalloc(mag);
+}
+
+static mag_rack_t *
+mag_rack_create(arena_t *arena)
+{
+
+	assert(sizeof(mag_rack_t) + (sizeof(bin_mags_t *) * (nbins - 1)) <=
+	    bin_maxclass);
+	return (arena_malloc_small(arena, sizeof(mag_rack_t) +
+	    (sizeof(bin_mags_t) * (nbins - 1)), true));
+}
+
+static void
+mag_rack_destroy(mag_rack_t *rack)
+{
+	arena_t *arena;
+	arena_chunk_t *chunk;
+	bin_mags_t *bin_mags;
+	size_t i, pageind;
+	arena_chunk_map_t *mapelm;
+
+	for (i = 0; i < nbins; i++) {
+		bin_mags = &rack->bin_mags[i];
+		if (bin_mags->curmag != NULL) {
+			assert(bin_mags->curmag->binind == i);
+			mag_unload(bin_mags->curmag);
+			mag_destroy(bin_mags->curmag);
+		}
+		if (bin_mags->sparemag != NULL) {
+			assert(bin_mags->sparemag->binind == i);
+			mag_unload(bin_mags->sparemag);
+			mag_destroy(bin_mags->sparemag);
+		}
+	}
+
+	chunk = CHUNK_ADDR2BASE(rack);
+	arena = chunk->arena;
+	pageind = (((uintptr_t)rack - (uintptr_t)chunk) >> pagesize_2pow);
+	mapelm = &chunk->map[pageind];
+
+	malloc_spin_lock(&arena->lock);
+	arena_dalloc_small(arena, chunk, rack, mapelm);
+	malloc_spin_unlock(&arena->lock);
+}
+#endif
 
 /*
  * End arena.
@@ -3860,6 +4510,9 @@ malloc_print_stats(void)
 #ifdef MALLOC_DSS
 		_malloc_message(opt_dss ? "D" : "d", "", "", "");
 #endif
+#ifdef MALLOC_MAG
+		_malloc_message(opt_mag ? "G" : "g", "", "", "");
+#endif
 		_malloc_message(opt_junk ? "J" : "j", "", "", "");
 #ifdef MALLOC_DSS
 		_malloc_message(opt_mmap ? "M" : "m", "", "", "");
@@ -3877,9 +4530,27 @@ malloc_print_stats(void)
 #endif
 		_malloc_message("Pointer size: ", umax2s(sizeof(void *), s),
 		    "\n", "");
-		_malloc_message("Quantum size: ", umax2s(quantum, s), "\n", "");
-		_malloc_message("Max small size: ", umax2s(small_max, s), "\n",
-		    "");
+		_malloc_message("Quantum size: ", umax2s(QUANTUM, s), "\n", "");
+		_malloc_message("Cacheline size (assumed): ", umax2s(CACHELINE,
+		    s), "\n", "");
+#ifdef MALLOC_TINY
+		_malloc_message("Tiny 2^n-spaced sizes: [", umax2s((1U <<
+		    TINY_MIN_2POW), s), "..", "");
+		_malloc_message(umax2s((qspace_min >> 1), s), "]\n", "", "");
+#endif
+		_malloc_message("Quantum-spaced sizes: [", umax2s(qspace_min,
+		    s), "..", "");
+		_malloc_message(umax2s(qspace_max, s), "]\n", "", "");
+		_malloc_message("Cacheline-spaced sizes: [", umax2s(cspace_min,
+		    s), "..", "");
+		_malloc_message(umax2s(cspace_max, s), "]\n", "", "");
+		_malloc_message("Subpage-spaced sizes: [", umax2s(sspace_min,
+		    s), "..", "");
+		_malloc_message(umax2s(sspace_max, s), "]\n", "", "");
+#ifdef MALLOC_MAG
+		_malloc_message("Rounds per magazine: ", umax2s(max_rounds, s),
+		    "\n", "");
+#endif
 		_malloc_message("Max dirty pages per arena: ",
 		    umax2s(opt_dirty_max, s), "\n", "");
 
@@ -3967,6 +4638,122 @@ malloc_print_stats(void)
 #endif /* #ifdef MALLOC_STATS */
 		_malloc_message("--- End malloc statistics ---\n", "", "", "");
 	}
+}
+
+#ifdef MALLOC_DEBUG
+static void
+size2bin_validate(void)
+{
+	size_t i, size, binind;
+
+	assert(size2bin[0] == 0xffU);
+	i = 1;
+#  ifdef MALLOC_TINY
+	/* Tiny. */
+	for (; i < (1U << TINY_MIN_2POW); i++) {
+		size = pow2_ceil(1U << TINY_MIN_2POW);
+		binind = ffs((int)(size >> (TINY_MIN_2POW + 1)));
+		assert(size2bin[i] == binind);
+	}
+	for (; i < qspace_min; i++) {
+		size = pow2_ceil(i);
+		binind = ffs((int)(size >> (TINY_MIN_2POW + 1)));
+		assert(size2bin[i] == binind);
+	}
+#  endif
+	/* Quantum-spaced. */
+	for (; i <= qspace_max; i++) {
+		size = QUANTUM_CEILING(i);
+		binind = ntbins + (size >> QUANTUM_2POW) - 1;
+		assert(size2bin[i] == binind);
+	}
+	/* Cacheline-spaced. */
+	for (; i <= cspace_max; i++) {
+		size = CACHELINE_CEILING(i);
+		binind = ntbins + nqbins + ((size - cspace_min) >>
+		    CACHELINE_2POW);
+		assert(size2bin[i] == binind);
+	}
+	/* Sub-page. */
+	for (; i <= sspace_max; i++) {
+		size = SUBPAGE_CEILING(i);
+		binind = ntbins + nqbins + ncbins + ((size - sspace_min)
+		    >> SUBPAGE_2POW);
+		assert(size2bin[i] == binind);
+	}
+}
+#endif
+
+static bool
+size2bin_init(void)
+{
+
+	if (opt_qspace_max_2pow != QSPACE_MAX_2POW_DEFAULT
+	    || opt_cspace_max_2pow != CSPACE_MAX_2POW_DEFAULT)
+		return (size2bin_init_hard());
+
+	size2bin = const_size2bin;
+#ifdef MALLOC_DEBUG
+	assert(sizeof(const_size2bin) == bin_maxclass + 1);
+	size2bin_validate();
+#endif
+	return (false);
+}
+
+static bool
+size2bin_init_hard(void)
+{
+	size_t i, size, binind;
+	uint8_t *custom_size2bin;
+
+	assert(opt_qspace_max_2pow != QSPACE_MAX_2POW_DEFAULT
+	    || opt_cspace_max_2pow != CSPACE_MAX_2POW_DEFAULT);
+
+	custom_size2bin = (uint8_t *)base_alloc(bin_maxclass + 1);
+	if (custom_size2bin == NULL)
+		return (true);
+
+	custom_size2bin[0] = 0xffU;
+	i = 1;
+#ifdef MALLOC_TINY
+	/* Tiny. */
+	for (; i < (1U << TINY_MIN_2POW); i++) {
+		size = pow2_ceil(1U << TINY_MIN_2POW);
+		binind = ffs((int)(size >> (TINY_MIN_2POW + 1)));
+		custom_size2bin[i] = binind;
+	}
+	for (; i < qspace_min; i++) {
+		size = pow2_ceil(i);
+		binind = ffs((int)(size >> (TINY_MIN_2POW + 1)));
+		custom_size2bin[i] = binind;
+	}
+#endif
+	/* Quantum-spaced. */
+	for (; i <= qspace_max; i++) {
+		size = QUANTUM_CEILING(i);
+		binind = ntbins + (size >> QUANTUM_2POW) - 1;
+		custom_size2bin[i] = binind;
+	}
+	/* Cacheline-spaced. */
+	for (; i <= cspace_max; i++) {
+		size = CACHELINE_CEILING(i);
+		binind = ntbins + nqbins + ((size - cspace_min) >>
+		    CACHELINE_2POW);
+		custom_size2bin[i] = binind;
+	}
+	/* Sub-page. */
+	for (; i <= sspace_max; i++) {
+		size = SUBPAGE_CEILING(i);
+		binind = ntbins + nqbins + ncbins + ((size - sspace_min) >>
+		    SUBPAGE_2POW);
+		custom_size2bin[i] = binind;
+	}
+
+	size2bin = custom_size2bin;
+#ifdef MALLOC_DEBUG
+	size2bin_validate();
+#endif
+	return (false);
 }
 
 /*
@@ -4128,6 +4915,18 @@ MALLOC_OUT:
 						opt_balance_threshold <<= 1;
 #endif
 					break;
+				case 'c':
+					if (opt_cspace_max_2pow - 1 >
+					    opt_qspace_max_2pow &&
+					    opt_cspace_max_2pow >
+					    CACHELINE_2POW)
+						opt_cspace_max_2pow--;
+					break;
+				case 'C':
+					if (opt_cspace_max_2pow < pagesize_2pow
+					    - 1)
+						opt_cspace_max_2pow++;
+					break;
 				case 'd':
 #ifdef MALLOC_DSS
 					opt_dss = false;
@@ -4147,6 +4946,14 @@ MALLOC_OUT:
 					else if ((opt_dirty_max << 1) != 0)
 						opt_dirty_max <<= 1;
 					break;
+#ifdef MALLOC_MAG
+				case 'g':
+					opt_mag = false;
+					break;
+				case 'G':
+					opt_mag = true;
+					break;
+#endif
 				case 'j':
 					opt_junk = false;
 					break;
@@ -4190,24 +4997,30 @@ MALLOC_OUT:
 					opt_print_stats = true;
 					break;
 				case 'q':
-					if (opt_quantum_2pow > QUANTUM_2POW_MIN)
-						opt_quantum_2pow--;
+					if (opt_qspace_max_2pow > QUANTUM_2POW)
+						opt_qspace_max_2pow--;
 					break;
 				case 'Q':
-					if (opt_quantum_2pow < pagesize_2pow -
-					    1)
-						opt_quantum_2pow++;
+					if (opt_qspace_max_2pow + 1 <
+					    opt_cspace_max_2pow)
+						opt_qspace_max_2pow++;
 					break;
-				case 's':
-					if (opt_small_max_2pow >
-					    QUANTUM_2POW_MIN)
-						opt_small_max_2pow--;
+#ifdef MALLOC_MAG
+				case 'R':
+					if (opt_mag_size_2pow + 1 < (8U <<
+					    SIZEOF_PTR_2POW))
+						opt_mag_size_2pow++;
 					break;
-				case 'S':
-					if (opt_small_max_2pow < pagesize_2pow
-					    - 1)
-						opt_small_max_2pow++;
+				case 'r':
+					/*
+					 * Make sure there's always at least
+					 * one round per magazine.
+					 */
+					if ((1U << (opt_mag_size_2pow-1)) >=
+					    sizeof(mag_t))
+						opt_mag_size_2pow--;
 					break;
+#endif
 				case 'u':
 					opt_utrace = false;
 					break;
@@ -4259,27 +5072,40 @@ MALLOC_OUT:
 		atexit(malloc_print_stats);
 	}
 
-	/* Set variables according to the value of opt_small_max_2pow. */
-	if (opt_small_max_2pow < opt_quantum_2pow)
-		opt_small_max_2pow = opt_quantum_2pow;
-	small_max = (1U << opt_small_max_2pow);
+#ifdef MALLOC_MAG
+	/*
+	 * Calculate the actual number of rounds per magazine, taking into
+	 * account header overhead.
+	 */
+	max_rounds = (1LLU << (opt_mag_size_2pow - SIZEOF_PTR_2POW)) -
+	    (sizeof(mag_t) >> SIZEOF_PTR_2POW) + 1;
+#endif
 
-	/* Set bin-related variables. */
-	bin_maxclass = (pagesize >> 1);
-	assert(opt_quantum_2pow >= TINY_MIN_2POW);
-	ntbins = opt_quantum_2pow - TINY_MIN_2POW;
-	assert(ntbins <= opt_quantum_2pow);
-	nqbins = (small_max >> opt_quantum_2pow);
-	nsbins = pagesize_2pow - opt_small_max_2pow - 1;
+	/* Set variables according to the value of opt_[qc]space_max_2pow. */
+	qspace_max = (1U << opt_qspace_max_2pow);
+	cspace_min = CACHELINE_CEILING(qspace_max);
+	if (cspace_min == qspace_max)
+		cspace_min += CACHELINE;
+	cspace_max = (1U << opt_cspace_max_2pow);
+	sspace_min = SUBPAGE_CEILING(cspace_max);
+	if (sspace_min == cspace_max)
+		sspace_min += SUBPAGE;
+	assert(sspace_min < pagesize);
+	sspace_max = pagesize - SUBPAGE;
 
-	/* Set variables according to the value of opt_quantum_2pow. */
-	quantum = (1U << opt_quantum_2pow);
-	quantum_mask = quantum - 1;
-	if (ntbins > 0)
-		small_min = (quantum >> 1) + 1;
-	else
-		small_min = 1;
-	assert(small_min <= quantum);
+#ifdef MALLOC_TINY
+	assert(QUANTUM_2POW >= TINY_MIN_2POW);
+#endif
+	assert(ntbins <= QUANTUM_2POW);
+	nqbins = qspace_max >> QUANTUM_2POW;
+	ncbins = ((cspace_max - cspace_min) >> CACHELINE_2POW) + 1;
+	nsbins = ((sspace_max - sspace_min) >> SUBPAGE_2POW) + 1;
+	nbins = ntbins + nqbins + ncbins + nsbins;
+
+	if (size2bin_init()) {
+		malloc_mutex_unlock(&init_lock);
+		return (true);
+	}
 
 	/* Set variables according to the value of opt_chunk_2pow. */
 	chunksize = (1LU << opt_chunk_2pow);
@@ -4289,11 +5115,8 @@ MALLOC_OUT:
 		size_t header_size;
 
 		/*
-		 * Compute the header size such that it is large
-		 * enough to contain the page map and enough nodes for the
-		 * worst case: one node per non-header page plus one extra for
-		 * situations where we briefly have one more node allocated
-		 * than we will need.
+		 * Compute the header size such that it is large enough to
+		 * contain the page map.
 		 */
 		header_size = sizeof(arena_chunk_t) +
 		    (sizeof(arena_chunk_map_t) * (chunk_npages - 1));
@@ -4310,10 +5133,7 @@ MALLOC_OUT:
 #endif
 
 	/* Various sanity checks that regard configuration. */
-	assert(quantum >= sizeof(void *));
-	assert(quantum <= pagesize);
 	assert(chunksize >= pagesize);
-	assert(quantum * 4 <= chunksize);
 
 	/* Initialize chunks data. */
 	malloc_mutex_init(&huge_mtx);
@@ -4350,10 +5170,10 @@ MALLOC_OUT:
 
 	if (ncpus > 1) {
 		/*
-		 * For SMP systems, create four times as many arenas as there
-		 * are CPUs by default.
+		 * For SMP systems, create twice as many arenas as there are
+		 * CPUs by default.
 		 */
-		opt_narenas_lshift += 2;
+		opt_narenas_lshift++;
 	}
 
 	/* Determine how many arenas to use. */
@@ -4682,8 +5502,37 @@ malloc_usable_size(const void *ptr)
  */
 /******************************************************************************/
 /*
- * Begin library-private functions, used by threading libraries for protection
- * of malloc during fork().  These functions are only called if the program is
+ * Begin library-private functions.
+ */
+
+/******************************************************************************/
+/*
+ * Begin thread cache.
+ */
+
+/*
+ * We provide an unpublished interface in order to receive notifications from
+ * the pthreads library whenever a thread exits.  This allows us to clean up
+ * thread caches.
+ */
+void
+_malloc_thread_cleanup(void)
+{
+
+#ifdef MALLOC_MAG
+	if (mag_rack != NULL) {
+		assert(mag_rack != (void *)-1);
+		mag_rack_destroy(mag_rack);
+#ifdef MALLOC_DEBUG
+		mag_rack = (void *)-1;
+#endif
+	}
+#endif
+}
+
+/*
+ * The following functions are used by threading libraries for protection of
+ * malloc during fork().  These functions are only called if the program is
  * running in threaded mode, so there is no need to check whether the program
  * is threaded here.
  */

@@ -32,7 +32,7 @@
 .\"     @(#)malloc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 17, 2008
+.Dd August 26, 2008
 .Dt MALLOC 3
 .Os
 .Sh NAME
@@ -154,7 +154,7 @@ should not be depended on, since such behavior is entirely
 implementation-dependent.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
-routines, various flags will be set or reset, which affect the
+routines, various flags will be set or reset, which affects the
 workings of this allocator implementation.
 .Pp
 The
@@ -196,6 +196,11 @@ it should be to contention over arenas.
 Therefore, some applications may benefit from increasing or decreasing this
 threshold parameter.
 This option is not available for some configurations (non-PIC).
+.It C
+Double/halve the size of the maximum size class that is a multiple of the
+cacheline size (64).
+Above this size, subpage spacing (256 bytes) is used for size classes.
+The default value is 512 bytes.
 .It D
 Use
 .Xr sbrk 2
@@ -214,6 +219,16 @@ physical memory becomes scarce and the pages remain unused.
 The default is 512 pages per arena;
 .Ev MALLOC_OPTIONS=10f
 will prevent any dirty unused pages from accumulating.
+.It G
+When there are multiple threads, use thread-specific caching for objects that
+are smaller than one page.
+This option is enabled by default.
+Thread-specific caching allows many allocations to be satisfied without
+performing any thread synchronization, at the cost of increased memory use.
+See the
+.Dq R
+option for related tuning information.
+This option is not available for some configurations (non-PIC).
 .It J
 Each byte of new memory allocated by
 .Fn malloc ,
@@ -248,7 +263,7 @@ option is implicitly enabled in order to assure that there is a method for
 acquiring memory.
 .It N
 Double/halve the number of arenas.
-The default number of arenas is four times the number of CPUs, or one if there
+The default number of arenas is two times the number of CPUs, or one if there
 is a single CPU.
 .It P
 Various statistics are printed at program exit via an
@@ -259,14 +274,18 @@ while one or more threads are executing in the memory allocation functions.
 Therefore, this option should only be used with care; it is primarily intended
 as a performance tuning aid during application development.
 .It Q
-Double/halve the size of the allocation quantum.
-The default quantum is the minimum allowed by the architecture (typically 8 or
-16 bytes).
-.It S
 Double/halve the size of the maximum size class that is a multiple of the
-quantum.
-Above this size, power-of-two spacing is used for size classes.
-The default value is 512 bytes.
+quantum (8 or 16 bytes, depending on architecture).
+Above this size, cacheline spacing is used for size classes.
+The default value is 128 bytes.
+.It R
+Double/halve magazine size, which approximately doubles/halves the number of
+rounds in each magazine.
+Magazines are used by the thread-specific caching machinery to acquire and
+release objects in bulk.
+Increasing the magazine size decreases locking overhead, at the expense of
+increased memory usage.
+This option is not available for some configurations (non-PIC).
 .It U
 Generate
 .Dq utrace
@@ -358,6 +377,13 @@ improve performance, mainly due to reduced cache performance.
 However, it may make sense to reduce the number of arenas if an application
 does not make much use of the allocation functions.
 .Pp
+In addition to multiple arenas, this allocator supports thread-specific
+caching for small objects (smaller than one page), in order to make it
+possible to completely avoid synchronization for most small allocation requests.
+Such caching allows very fast allocation in the common case, but it increases
+memory usage and fragmentation, since a bounded number of objects can remain
+allocated in each thread cache.
+.Pp
 Memory is conceptually broken into equal-sized chunks, where the chunk size is
 a power of two that is greater than the page size.
 Chunks are always aligned to multiples of the chunk size.
@@ -366,7 +392,7 @@ quickly.
 .Pp
 User objects are broken into three categories according to size: small, large,
 and huge.
-Small objects are no larger than one half of a page.
+Small objects are smaller than one page.
 Large objects are smaller than the chunk size.
 Huge objects are a multiple of the chunk size.
 Small and large objects are managed by arenas; huge objects are managed
@@ -378,23 +404,24 @@ Each chunk that is managed by an arena tracks its contents as runs of
 contiguous pages (unused, backing a set of small objects, or backing one large
 object).
 The combination of chunk alignment and chunk page maps makes it possible to
-determine all metadata regarding small and large allocations in
-constant and logarithmic time, respectively.
+determine all metadata regarding small and large allocations in constant time.
 .Pp
 Small objects are managed in groups by page runs.
 Each run maintains a bitmap that tracks which regions are in use.
-Allocation requests that are no more than half the quantum (see the
-.Dq Q
-option) are rounded up to the nearest power of two (typically 2, 4, or 8).
+Allocation requests that are no more than half the quantum (8 or 16, depending
+on architecture) are rounded up to the nearest power of two.
 Allocation requests that are more than half the quantum, but no more than the
-maximum quantum-multiple size class (see the
-.Dq S
+minimum cacheline-multiple size class (see the
+.Dq Q
 option) are rounded up to the nearest multiple of the quantum.
-Allocation requests that are larger than the maximum quantum-multiple size
-class, but no larger than one half of a page, are rounded up to the nearest
-power of two.
-Allocation requests that are larger than half of a page, but small enough to
-fit in an arena-managed chunk (see the
+Allocation requests that are more than the minumum cacheline-multiple size
+class, but no more than the minimum subpage-multiple size class (see the
+.Dq C
+option) are rounded up to the nearest multiple of the cacheline size (64).
+Allocation requests that are more than the minimum subpage-multiple size class
+are rounded up to the nearest multiple of the subpage size (256).
+Allocation requests that are more than one page, but small enough to fit in
+an arena-managed chunk (see the
 .Dq K
 option), are rounded up to the nearest run size.
 Allocation requests that are too large to fit in an arena-managed chunk are
@@ -402,8 +429,8 @@ rounded up to the nearest multiple of the chunk size.
 .Pp
 Allocations are packed tightly together, which can be an issue for
 multi-threaded applications.
-If you need to assure that allocations do not suffer from cache line sharing,
-round your allocation requests up to the nearest multiple of the cache line
+If you need to assure that allocations do not suffer from cacheline sharing,
+round your allocation requests up to the nearest multiple of the cacheline
 size.
 .Sh DEBUGGING MALLOC PROBLEMS
 The first thing to do is to set the

@@ -158,6 +158,12 @@ void _set_tp(void *tp);
 extern const char *__progname;
 
 /*
+ * This function is used by the threading libraries to notify malloc that a
+ * thread is exiting.
+ */
+void _malloc_thread_cleanup(void);
+
+/*
  * These functions are used by the threading libraries in order to protect
  * malloc across fork().
  */
