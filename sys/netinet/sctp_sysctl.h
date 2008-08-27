@@ -58,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_AUTOASCONF_MAX		1
 #define SCTPCTL_AUTOASCONF_DEFAULT	SCTP_DEFAULT_AUTO_ASCONF
 
+/* autoasconf: Enable SCTP Auto-ASCONF */
+#define SCTPCTL_MULTIPLEASCONFS_DESC	"Enable SCTP Muliple-ASCONFs"
+#define SCTPCTL_MULTIPLEASCONFS_MIN	0
+#define SCTPCTL_MULTIPLEASCONFS_MAX	1
+#define SCTPCTL_MULTIPLEASCONFS_DEFAULT	SCTP_DEFAULT_MULTIPLE_ASCONFS
+
 /* ecn_enable: Enable SCTP ECN */
 #define SCTPCTL_ECN_ENABLE_DESC		"Enable SCTP ECN"
 #define SCTPCTL_ECN_ENABLE_MIN		0
@@ -370,6 +376,18 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
 
+/* Enable SCTP/UDP tunneling for clients*/
+#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC	"Enable SCTP/UDP tunneling for client"
+#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN	0
+#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX	1
+#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT	SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN
+
+/* Enable SCTP/UDP tunneling port */
+#define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"
+#define SCTPCTL_UDP_TUNNELING_PORT_MIN		0
+#define SCTPCTL_UDP_TUNNELING_PORT_MAX		65535
+#define SCTPCTL_UDP_TUNNELING_PORT_DEFAULT	SCTP_OVER_UDP_TUNNELING_PORT
+
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
@@ -388,6 +406,7 @@ __FBSDID("$FreeBSD$");
 extern uint32_t sctp_sendspace;
 extern uint32_t sctp_recvspace;
 extern uint32_t sctp_auto_asconf;
+extern uint32_t sctp_multiple_asconfs;
 extern uint32_t sctp_ecn_enable;
 extern uint32_t sctp_ecn_nonce;
 extern uint32_t sctp_strict_sacks;
@@ -449,6 +468,9 @@ extern uint32_t sctp_mobility_fasthandoff;
 extern struct sctp_log sctp_log;
 
 #endif
+extern uint32_t sctp_udp_tunneling_for_client_enable;
+extern uint32_t sctp_udp_tunneling_port;
+
 #if defined(SCTP_DEBUG)
 extern uint32_t sctp_debug_on;
 
