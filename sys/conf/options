@@ -59,8 +59,6 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 SYSCTL_DEBUG	opt_sysctl.h
 
-NO_SYSCTL_DESCR	opt_global.h
-
 # Miscellaneous options.
 ADAPTIVE_SX
 ALQ
@@ -134,6 +132,7 @@ MPROF_BUFFERS	opt_mprof.h
 MPROF_HASH_SIZE	opt_mprof.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
+NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_swap.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
@@ -345,13 +344,13 @@ ACCEPT_FILTER_DNS
 ACCEPT_FILTER_HTTP
 ALTQ			opt_global.h
 ALTQ_CBQ		opt_altq.h
+ALTQ_CDNR		opt_altq.h
+ALTQ_DEBUG		opt_altq.h
+ALTQ_HFSC		opt_altq.h
+ALTQ_NOPCC		opt_altq.h
+ALTQ_PRIQ		opt_altq.h
 ALTQ_RED		opt_altq.h
 ALTQ_RIO		opt_altq.h
-ALTQ_HFSC		opt_altq.h
-ALTQ_CDNR		opt_altq.h
-ALTQ_PRIQ		opt_altq.h
-ALTQ_NOPCC		opt_altq.h
-ALTQ_DEBUG		opt_altq.h
 BOOTP			opt_bootp.h
 BOOTP_BLOCKSIZE		opt_bootp.h
 BOOTP_COMPAT		opt_bootp.h
@@ -363,50 +362,51 @@ DEV_ENC			opt_enc.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
-ETHER_II		opt_ef.h
-ETHER_8023		opt_ef.h
+DEV_VLAN		opt_vlan.h
+DUMMYNET		opt_ipdn.h
 ETHER_8022		opt_ef.h
+ETHER_8023		opt_ef.h
+ETHER_II		opt_ef.h
 ETHER_SNAP		opt_ef.h
-ROUTETABLES		opt_route.h
-MROUTING		opt_mrouting.h
 INET			opt_inet.h
 INET6			opt_inet6.h
-IPSEC			opt_ipsec.h
-IPSEC_DEBUG		opt_ipsec.h
-IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPDIVERT
-DUMMYNET		opt_ipdn.h
 IPFILTER		opt_ipfilter.h
+IPFILTER_DEFAULT_BLOCK	opt_ipfilter.h
 IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LOOKUP		opt_ipfilter.h
-IPFILTER_DEFAULT_BLOCK	opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
-IPFIREWALL_VERBOSE	opt_ipfw.h
-IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
 IPFIREWALL_FORWARD	opt_ipfw.h
 IPFIREWALL_NAT		opt_ipfw.h
+IPFIREWALL_VERBOSE	opt_ipfw.h
+IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
+IPSEC			opt_ipsec.h
+IPSEC_DEBUG		opt_ipsec.h
+IPSEC_FILTERTUNNEL	opt_ipsec.h
 IPSTEALTH
 IPX
+KRPC
+LIBALIAS
 LIBMBPOOL
 LIBMCHAIN
-LIBALIAS
-MBUF_STRESS_TEST
 MBUF_PROFILING
+MBUF_STRESS_TEST
+MROUTING		opt_mrouting.h
 NCP
 NETATALK		opt_atalk.h
+NFSLOCKD
 PPP_BSDCOMP		opt_ppp.h
 PPP_DEFLATE		opt_ppp.h
 PPP_FILTER		opt_ppp.h
 RADIX_MPATH		opt_mpath.h
+ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
+TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
 TCP_SIGNATURE		opt_inet.h
-DEV_VLAN		opt_vlan.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
-KRPC
-NFSLOCKD
 
 #
 # SCTP
@@ -760,9 +760,6 @@ INTR_FILTER
 IEEE80211_DEBUG		opt_wlan.h
 IEEE80211_DEBUG_REFCNT	opt_wlan.h
 IEEE80211_AMPDU_AGE	opt_wlan.h
-
-#Disable code to dispatch tcp offloading
-TCP_OFFLOAD_DISABLE	opt_inet.h
 
 # Virtualize the network stack
 VIMAGE			opt_global.h
