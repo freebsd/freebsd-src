@@ -1144,6 +1144,8 @@ pccard_parse_cis_tuple(const struct pccard_tuple *tuple, void *arg)
 					cfe->irqmask =
 					    (1 << (reg & PCCARD_TPCE_IR_IRQ));
 				}
+			} else {
+				cfe->irqmask = 0xffff;
 			}
 			if (memspace) {
 				if (tuple->length <= idx) {
