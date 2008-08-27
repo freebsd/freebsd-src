@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_clock.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -43,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+#endif
 
 #include "cpufreq_if.h"
 
@@ -220,3 +225,18 @@ tsc_get_timecount(struct timecounter *tc)
 {
 	return (rdtsc());
 }
+
+#ifdef KDTRACE_HOOKS
+/*
+ * DTrace needs a high resolution time function which can
+ * be called from a probe context and guaranteed not to have
+ * instrumented with probes itself.
+ *
+ * Returns nanoseconds since boot.
+ */
+uint64_t
+dtrace_gethrtime()
+{
+	return (rdtsc() * (uint64_t) 1000000000 / tsc_freq);
+}
+#endif

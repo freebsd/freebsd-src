@@ -78,8 +78,8 @@
 #define	MACHINE_ARCH	"ia64"
 #endif
 
-#ifdef SMP
-#define	MAXCPU		4
+#if defined(SMP) || defined(KLD_MODULE)
+#define MAXCPU		4
 #else
 #define MAXCPU		1
 #endif

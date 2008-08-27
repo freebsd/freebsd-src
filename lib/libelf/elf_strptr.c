@@ -55,7 +55,7 @@ elf_strptr(Elf *e, size_t scndx, size_t offset)
 	    gelf_getshdr(s, &shdr) == NULL)
 		return (NULL);
 
-	if (shdr.sh_type != SHT_STRTAB ||
+	if (/*shdr.sh_type != SHT_STRTAB || */
 	    offset >= shdr.sh_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);

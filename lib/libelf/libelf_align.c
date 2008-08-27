@@ -122,7 +122,7 @@ static struct align falign[ELF_T_NUM] = {
 #endif
 	[ELF_T_MOVEP] 	= UNSUPPORTED(),
 #if	__FreeBSD_version >= 700025
-	[ELF_T_NOTE]	= FALIGN(4,4),
+	[ELF_T_NOTE]	= FALIGN(1,1),
 #endif
 	[ELF_T_OFF]	= FALIGN(4,8),
 	[ELF_T_PHDR]	= FALIGN(4,8),

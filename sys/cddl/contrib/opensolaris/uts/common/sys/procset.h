@@ -139,6 +139,7 @@ typedef struct procset {
 
 #endif /* !defined(_XPG4_2) || defined(__EXTENSIONS__) */
 
+#if defined(sun)
 #ifdef _KERNEL
 
 struct proc;
@@ -152,6 +153,7 @@ extern boolean_t cur_inset_only(procset_t *);
 extern id_t getmyid(idtype_t);
 
 #endif	/* _KERNEL */
+#endif
 
 #ifdef	__cplusplus
 }

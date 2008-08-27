@@ -60,10 +60,17 @@ typedef	struct sx	krwlock_t;
 #define	RW_ISWRITER(x)		(rw_iswriter(x))
 
 #define	rw_init(lock, desc, type, arg)	do {				\
+	const char *_name;						\
 	KASSERT(((lock)->lock_object.lo_flags & LO_ALLMASK) !=		\
 	    LO_EXPECTED, ("lock %s already initialized", #lock));	\
 	bzero((lock), sizeof(struct sx));				\
-	sx_init_flags((lock), "zfs:" #lock, RW_FLAGS);			\
+	for (_name = #lock; *_name != '\0'; _name++) {			\
+		if (*_name >= 'a' && *_name <= 'z')			\
+			break;						\
+	}								\
+	if (*_name == '\0')						\
+		_name = #lock;						\
+	sx_init_flags((lock), _name, RW_FLAGS);				\
 } while (0)
 #define	rw_destroy(lock)	sx_destroy(lock)
 #define	rw_enter(lock, how)	do {					\

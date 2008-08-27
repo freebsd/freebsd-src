@@ -38,8 +38,4 @@
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 
-#ifdef _SOLARIS_C_SOURCE
-#include <sys/_elf_solaris.h>
-#endif
-
 #endif /* !_ELF_H_ */

@@ -105,5 +105,6 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_MAC		"mac"		/* MAC Framework. */
 #define	KDB_WHY_POWERPC		"powerpc"	/* Unhandled powerpc intr. */
 #define	KDB_WHY_UNIONFS		"unionfs"	/* Unionfs bug. */
+#define	KDB_WHY_DTRACE		"dtrace"	/* DTrace action entered debugger. */
 
 #endif /* !_SYS_KDB_H_ */

@@ -28,6 +28,7 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include_next <sys/refcount.h>
 #include <sys/list.h>
 #include <sys/zfs_context.h>
 
@@ -70,7 +71,7 @@ int64_t refcount_remove(refcount_t *rc, void *holder_tag);
 int64_t refcount_add_many(refcount_t *rc, uint64_t number, void *holder_tag);
 int64_t refcount_remove_many(refcount_t *rc, uint64_t number, void *holder_tag);
 
-void refcount_init(void);
+void refcount_sysinit(void);
 void refcount_fini(void);
 
 #else /* DEBUG */
@@ -91,7 +92,7 @@ typedef struct refcount {
 #define	refcount_remove_many(rc, number, holder) \
 	atomic_add_64_nv(&(rc)->rc_count, -number)
 
-#define	refcount_init()
+#define	refcount_sysinit()
 #define	refcount_fini()
 
 #endif /* DEBUG */
