@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pioctl.h>
 #include <sys/namei.h>
 #include <sys/resourcevar.h>
+#include <sys/sdt.h>
 #include <sys/sf_buf.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
@@ -81,6 +83,19 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+dtrace_execexit_func_t	dtrace_fasttrap_exec;
+#endif
+
+SDT_PROVIDER_DECLARE(proc);
+SDT_PROBE_DEFINE(proc, kernel, , exec);
+SDT_PROBE_ARGTYPE(proc, kernel, , exec, 0, "char *");
+SDT_PROBE_DEFINE(proc, kernel, , exec_failure);
+SDT_PROBE_ARGTYPE(proc, kernel, , exec_failure, 0, "int");
+SDT_PROBE_DEFINE(proc, kernel, , exec_success);
+SDT_PROBE_ARGTYPE(proc, kernel, , exec_success, 0, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
@@ -347,6 +362,8 @@ do_execve(td, args, mac_p)
 #endif
 
 	imgp->image_header = NULL;
+
+	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
 
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
@@ -658,6 +675,15 @@ interpret:
 	textvp = p->p_textvp;
 	p->p_textvp = ndp->ni_vp;
 
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Tell the DTrace fasttrap provider about the exec if it
+	 * has declared an interest.
+	 */
+	if (dtrace_fasttrap_exec)
+		dtrace_fasttrap_exec(p);
+#endif
+
 	/*
 	 * Notify others that we exec'd, and clear the P_INEXEC flag
 	 * as we're now a bona fide freshly-execed process.
@@ -729,6 +755,9 @@ done1:
 	else
 		crfree(newcred);
 	VOP_UNLOCK(imgp->vp, 0, td);
+
+	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
+
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
@@ -790,6 +819,8 @@ exec_fail:
 	PROC_LOCK(p);
 	p->p_flag &= ~P_INEXEC;
 	PROC_UNLOCK(p);
+
+	SDT_PROBE(proc, kernel, , exec_failure, error, 0, 0, 0, 0);
 
 done2:
 #ifdef MAC

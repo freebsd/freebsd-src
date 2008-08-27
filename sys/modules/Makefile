@@ -66,6 +66,7 @@ SUBDIR=	${_3dfx} \
 	cue \
 	cxgb \
 	${_cx} \
+	${_cyclic} \
 	dc \
 	dcons \
 	dcons_crom \
@@ -73,6 +74,7 @@ SUBDIR=	${_3dfx} \
 	${_digi} \
 	${_dpt} \
 	${_drm} \
+	${_dtrace} \
 	dummynet \
 	${_ed} \
 	${_elink} \
@@ -204,6 +206,7 @@ SUBDIR=	${_3dfx} \
 	${_nvram} \
 	${_nwfs} \
 	${_oltr} \
+	${_opensolaris} \
 	${_padlock} \
 	patm \
 	${_pccard} \
@@ -390,8 +393,14 @@ _coff=		coff
 _cp=		cp
 _cpufreq=	cpufreq
 _cs=		cs
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+.endif
 _digi=		digi
 _drm=		drm
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_dtrace=	dtrace
+.endif
 _ed=		ed
 _elink=		elink
 _em=		em
@@ -423,6 +432,9 @@ _nsp=		nsp
 _nwfs=		nwfs
 .endif
 _oltr=		oltr
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
 _pccard=	pccard
 _pcfclock=	pcfclock
 _pecoff=	pecoff
@@ -518,8 +530,14 @@ _cmx=		cmx
 _ciss=		ciss
 _coretemp=	coretemp
 _cpufreq=	cpufreq
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+.endif
 _digi=		digi
 _drm=		drm
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_dtrace=	dtrace
+.endif
 _ed=		ed
 _et=		et
 _em=		em
@@ -550,6 +568,9 @@ _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+.if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_opensolaris=	opensolaris
+.endif
 _pccard=	pccard
 _rdma=		rdma	
 _safe=		safe

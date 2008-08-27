@@ -164,6 +164,8 @@ struct trapframe;
 struct turnstile;
 struct mqueue_notifier;
 struct cpuset;
+struct kdtrace_proc;
+struct kdtrace_thread;
 
 /*
  * Here we define the two structures used for process information.
@@ -301,6 +303,8 @@ struct thread {
 	uint64_t	td_incruntime;	/* (t) Cpu ticks to transfer to proc. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
+	struct kdtrace_thread	*td_dtrace; /* (*) DTrace-specific data. */
+	int		td_errno;	/* Error returned by last syscall. */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -587,6 +591,7 @@ struct proc {
 	struct p_sched	*p_sched;	/* (*) Scheduler-specific data. */
 	STAILQ_HEAD(, ktr_request)	p_ktr;	/* (o) KTR event queue. */
 	LIST_HEAD(, mqueue_notifier)	p_mqnotifier; /* (c) mqueue notifiers.*/
+	struct kdtrace_proc	*p_dtrace; /* (*) DTrace-specific data. */
 };
 
 #define	p_session	p_pgrp->pg_session

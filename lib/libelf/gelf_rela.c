@@ -78,7 +78,9 @@ gelf_getrela(Elf_Data *d, int ndx, GElf_Rela *dst)
 		rela32 = (Elf32_Rela *) d->d_buf + ndx;
 
 		dst->r_offset = (Elf64_Addr) rela32->r_offset;
-		dst->r_info   = (Elf64_Xword) rela32->r_info;
+		dst->r_info   = ELF64_R_INFO(
+		    (Elf64_Xword) ELF32_R_SYM(rela32->r_info),
+		    ELF32_R_TYPE(rela32->r_info));
 		dst->r_addend = (Elf64_Sxword) rela32->r_addend;
 
 	} else {
@@ -134,7 +136,15 @@ gelf_update_rela(Elf_Data *d, int ndx, GElf_Rela *dr)
 		rela32 = (Elf32_Rela *) d->d_buf + ndx;
 
 		LIBELF_COPY_U32(rela32, dr, r_offset);
-		LIBELF_COPY_U32(rela32, dr, r_info);
+
+		if (ELF64_R_SYM(dr->r_info) > ELF32_R_SYM(~0UL) ||
+		    ELF64_R_TYPE(dr->r_info) > ELF32_R_TYPE(~0U)) {
+			LIBELF_SET_ERROR(RANGE, 0);
+			return (0);
+		}
+		rela32->r_info = ELF32_R_INFO(ELF64_R_SYM(dr->r_info),
+		    ELF64_R_TYPE(dr->r_info));
+
 		LIBELF_COPY_S32(rela32, dr, r_addend);
 	} else {
 		rela64 = (Elf64_Rela *) d->d_buf + ndx;

@@ -46,6 +46,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdtrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -85,6 +86,12 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <ddb/ddb.h>
+
+#ifdef KDTRACE_HOOKS
+#include <sys/dtrace_bsd.h>
+
+dtrace_malloc_probe_func_t	dtrace_malloc_probe;
+#endif
 
 /*
  * When realloc() is called, if the new size is sufficiently smaller than
@@ -255,6 +262,17 @@ malloc_type_zone_allocated(struct malloc_type *mtp, unsigned long size,
 	}
 	if (zindx != -1)
 		mtsp->mts_size |= 1 << zindx;
+
+#ifdef KDTRACE_HOOKS
+	if (dtrace_malloc_probe != NULL) {
+		uint32_t probe_id = mtip->mti_probes[DTMALLOC_PROBE_MALLOC];
+		if (probe_id != 0)
+			(dtrace_malloc_probe)(probe_id,
+			    (uintptr_t) mtp, (uintptr_t) mtip,
+			    (uintptr_t) mtsp, size, zindx);
+	}
+#endif
+
 	critical_exit();
 }
 
@@ -283,6 +301,17 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 	mtsp = &mtip->mti_stats[curcpu];
 	mtsp->mts_memfreed += size;
 	mtsp->mts_numfrees++;
+
+#ifdef KDTRACE_HOOKS
+	if (dtrace_malloc_probe != NULL) {
+		uint32_t probe_id = mtip->mti_probes[DTMALLOC_PROBE_FREE];
+		if (probe_id != 0)
+			(dtrace_malloc_probe)(probe_id,
+			    (uintptr_t) mtp, (uintptr_t) mtip,
+			    (uintptr_t) mtsp, size, 0);
+	}
+#endif
+
 	critical_exit();
 }
 
@@ -803,6 +832,40 @@ SYSCTL_PROC(_kern, OID_AUTO, malloc_stats, CTLFLAG_RD|CTLTYPE_STRUCT,
 
 SYSCTL_INT(_kern, OID_AUTO, malloc_count, CTLFLAG_RD, &kmemcount, 0,
     "Count of kernel malloc types");
+
+void
+malloc_type_list(malloc_type_list_func_t *func, void *arg)
+{
+	struct malloc_type *mtp, **bufmtp;
+	int count, i;
+	size_t buflen;
+
+	mtx_lock(&malloc_mtx);
+restart:
+	mtx_assert(&malloc_mtx, MA_OWNED);
+	count = kmemcount;
+	mtx_unlock(&malloc_mtx);
+
+	buflen = sizeof(struct malloc_type *) * count;
+	bufmtp = malloc(buflen, M_TEMP, M_WAITOK);
+
+	mtx_lock(&malloc_mtx);
+
+	if (count < kmemcount) {
+		free(bufmtp, M_TEMP);
+		goto restart;
+	}
+
+	for (mtp = kmemstatistics, i = 0; mtp != NULL; mtp = mtp->ks_next, i++)
+		bufmtp[i] = mtp;
+
+	mtx_unlock(&malloc_mtx);
+
+	for (i = 0; i < count; i++)
+		(func)(bufmtp[i], arg);
+
+	free(bufmtp, M_TEMP);
+}
 
 #ifdef DDB
 DB_SHOW_COMMAND(malloc, db_show_malloc)

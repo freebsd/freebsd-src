@@ -17,6 +17,10 @@ NO_WERROR=
 
 .if defined(DEBUG_FLAGS)
 CFLAGS+=${DEBUG_FLAGS}
+
+.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+CTFFLAGS+= -g
+.endif
 .endif
 
 .if defined(CRUNCH_CFLAGS)
@@ -56,6 +60,9 @@ ${PROG}: ${OBJS}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
+.if defined(CTFMERGE)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 
 .else	# !defined(SRCS)
 
@@ -78,6 +85,9 @@ ${PROG}: ${OBJS}
 	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.endif
+.if defined(CTFMERGE)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .endif
 
