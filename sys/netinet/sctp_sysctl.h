@@ -37,6 +37,78 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_constants.h>
 
+struct sctp_sysctl {
+	uint32_t sctp_sendspace;
+	uint32_t sctp_recvspace;
+	uint32_t sctp_auto_asconf;
+	uint32_t sctp_multiple_asconfs;
+	uint32_t sctp_ecn_enable;
+	uint32_t sctp_ecn_nonce;
+	uint32_t sctp_strict_sacks;
+	uint32_t sctp_no_csum_on_loopback;
+	uint32_t sctp_strict_init;
+	uint32_t sctp_peer_chunk_oh;
+	uint32_t sctp_max_burst_default;
+	uint32_t sctp_max_chunks_on_queue;
+	uint32_t sctp_hashtblsize;
+	uint32_t sctp_pcbtblsize;
+	uint32_t sctp_min_split_point;
+	uint32_t sctp_chunkscale;
+	uint32_t sctp_delayed_sack_time_default;
+	uint32_t sctp_sack_freq_default;
+	uint32_t sctp_system_free_resc_limit;
+	uint32_t sctp_asoc_free_resc_limit;
+	uint32_t sctp_heartbeat_interval_default;
+	uint32_t sctp_pmtu_raise_time_default;
+	uint32_t sctp_shutdown_guard_time_default;
+	uint32_t sctp_secret_lifetime_default;
+	uint32_t sctp_rto_max_default;
+	uint32_t sctp_rto_min_default;
+	uint32_t sctp_rto_initial_default;
+	uint32_t sctp_init_rto_max_default;
+	uint32_t sctp_valid_cookie_life_default;
+	uint32_t sctp_init_rtx_max_default;
+	uint32_t sctp_assoc_rtx_max_default;
+	uint32_t sctp_path_rtx_max_default;
+	uint32_t sctp_add_more_threshold;
+	uint32_t sctp_nr_outgoing_streams_default;
+	uint32_t sctp_cmt_on_off;
+	uint32_t sctp_cmt_use_dac;
+	uint32_t sctp_cmt_pf;
+	uint32_t sctp_use_cwnd_based_maxburst;
+	uint32_t sctp_early_fr;
+	uint32_t sctp_early_fr_msec;
+	uint32_t sctp_asconf_auth_nochk;
+	uint32_t sctp_auth_disable;
+	uint32_t sctp_nat_friendly;
+	uint32_t sctp_L2_abc_variable;
+	uint32_t sctp_mbuf_threshold_count;
+	uint32_t sctp_do_drain;
+	uint32_t sctp_hb_maxburst;
+	uint32_t sctp_abort_if_one_2_one_hits_limit;
+	uint32_t sctp_strict_data_order;
+	uint32_t sctp_min_residual;
+	uint32_t sctp_max_retran_chunk;
+	uint32_t sctp_logging_level;
+	/* JRS - Variable for default congestion control module */
+	uint32_t sctp_default_cc_module;
+	uint32_t sctp_default_frag_interleave;
+	uint32_t sctp_mobility_base;
+	uint32_t sctp_mobility_fasthandoff;
+#if defined(SCTP_LOCAL_TRACE_BUF)
+	struct sctp_log sctp_log;
+#endif
+	uint32_t sctp_udp_tunneling_for_client_enable;
+	uint32_t sctp_udp_tunneling_port;
+	uint32_t sctp_enable_sack_immediately;
+#if defined(SCTP_DEBUG)
+	uint32_t sctp_debug_on;
+#endif
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+	uint32_t sctp_output_unlocked;
+#endif
+};
+
 /*
  * limits for the sysctl variables
  */
@@ -388,6 +460,12 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_UDP_TUNNELING_PORT_MAX		65535
 #define SCTPCTL_UDP_TUNNELING_PORT_DEFAULT	SCTP_OVER_UDP_TUNNELING_PORT
 
+/* Enable sending of the SACK-IMMEDIATELY bit */
+#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DESC	"Enable sending of the SACK-IMMEDIATELY-bit."
+#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN	0
+#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_MAX	1
+#define SCTPCTL_SACK_IMMEDIATELY_ENABLE_DEFAULT	SCTPCTL_SACK_IMMEDIATELY_ENABLE_MIN
+
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
 #define SCTPCTL_DEBUG_DESC	"Configure debug output"
@@ -397,90 +475,20 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
+#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#define SCTPCTL_OUTPUT_UNLOCKED_DESC	"Unlock socket when sending packets down to IP."
+#define SCTPCTL_OUTPUT_UNLOCKED_MIN	0
+#define SCTPCTL_OUTPUT_UNLOCKED_MAX	1
+#define SCTPCTL_OUTPUT_UNLOCKED_DEFAULT	SCTPCTL_OUTPUT_UNLOCKED_MIN
+#endif
+
 
 #if defined(_KERNEL)
-
-/*
- * variable definitions
- */
-extern uint32_t sctp_sendspace;
-extern uint32_t sctp_recvspace;
-extern uint32_t sctp_auto_asconf;
-extern uint32_t sctp_multiple_asconfs;
-extern uint32_t sctp_ecn_enable;
-extern uint32_t sctp_ecn_nonce;
-extern uint32_t sctp_strict_sacks;
-extern uint32_t sctp_no_csum_on_loopback;
-extern uint32_t sctp_strict_init;
-extern uint32_t sctp_peer_chunk_oh;
-extern uint32_t sctp_max_burst_default;
-extern uint32_t sctp_max_chunks_on_queue;
-extern uint32_t sctp_hashtblsize;
-extern uint32_t sctp_pcbtblsize;
-extern uint32_t sctp_min_split_point;
-extern uint32_t sctp_chunkscale;
-extern uint32_t sctp_delayed_sack_time_default;
-extern uint32_t sctp_sack_freq_default;
-extern uint32_t sctp_system_free_resc_limit;
-extern uint32_t sctp_asoc_free_resc_limit;
-extern uint32_t sctp_heartbeat_interval_default;
-extern uint32_t sctp_pmtu_raise_time_default;
-extern uint32_t sctp_shutdown_guard_time_default;
-extern uint32_t sctp_secret_lifetime_default;
-extern uint32_t sctp_rto_max_default;
-extern uint32_t sctp_rto_min_default;
-extern uint32_t sctp_rto_initial_default;
-extern uint32_t sctp_init_rto_max_default;
-extern uint32_t sctp_valid_cookie_life_default;
-extern uint32_t sctp_init_rtx_max_default;
-extern uint32_t sctp_assoc_rtx_max_default;
-extern uint32_t sctp_path_rtx_max_default;
-extern uint32_t sctp_add_more_threshold;
-extern uint32_t sctp_nr_outgoing_streams_default;
-extern uint32_t sctp_cmt_on_off;
-extern uint32_t sctp_cmt_use_dac;
-
-/* JRS 5/21/07 - CMT PF type flag variables  */
-extern uint32_t sctp_cmt_pf;
-extern uint32_t sctp_use_cwnd_based_maxburst;
-extern uint32_t sctp_early_fr;
-extern uint32_t sctp_early_fr_msec;
-extern uint32_t sctp_asconf_auth_nochk;
-extern uint32_t sctp_auth_disable;
-extern uint32_t sctp_nat_friendly;
-extern uint32_t sctp_L2_abc_variable;
-extern uint32_t sctp_mbuf_threshold_count;
-extern uint32_t sctp_do_drain;
-extern uint32_t sctp_hb_maxburst;
-extern uint32_t sctp_abort_if_one_2_one_hits_limit;
-extern uint32_t sctp_strict_data_order;
-extern uint32_t sctp_min_residual;
-extern uint32_t sctp_max_retran_chunk;
-extern uint32_t sctp_logging_level;
-
-/* JRS - Variable for the default congestion control module */
-extern uint32_t sctp_default_cc_module;
-extern uint32_t sctp_default_frag_interleave;
-extern uint32_t sctp_mobility_base;
-extern uint32_t sctp_mobility_fasthandoff;
-
-#if defined(SCTP_LOCAL_TRACE_BUF)
-extern struct sctp_log sctp_log;
-
-#endif
-extern uint32_t sctp_udp_tunneling_for_client_enable;
-extern uint32_t sctp_udp_tunneling_port;
-
-#if defined(SCTP_DEBUG)
-extern uint32_t sctp_debug_on;
-
-#endif
-
-extern struct sctpstat sctpstat;
-
 #if defined(SYSCTL_DECL)
 SYSCTL_DECL(_net_inet_sctp);
 #endif
+
+void sctp_init_sysctls(void);
 
 #endif				/* _KERNEL */
 #endif				/* __sctp_sysctl_h__ */
