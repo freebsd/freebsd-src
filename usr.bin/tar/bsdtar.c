@@ -172,6 +172,7 @@ static const struct option tar_longopts[] = {
 	{ "cd",                 required_argument, NULL, 'C' },
 	{ "check-links",        no_argument,       NULL, OPTION_CHECK_LINKS },
 	{ "chroot",             no_argument,       NULL, OPTION_CHROOT },
+	{ "compress",           no_argument,       NULL, 'Z' },
 	{ "confirmation",       no_argument,       NULL, 'w' },
 	{ "create",             no_argument,       NULL, 'c' },
 	{ "dereference",	no_argument,	   NULL, 'L' },
@@ -212,6 +213,7 @@ static const struct option tar_longopts[] = {
 	{ "strip-components",	required_argument, NULL, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",          no_argument,       NULL, 'O' },
 	{ "totals",		no_argument,       NULL, OPTION_TOTALS },
+	{ "uncompress",         no_argument,       NULL, 'Z' },
 	{ "unlink",		no_argument,       NULL, 'U' },
 	{ "unlink-first",	no_argument,       NULL, 'U' },
 	{ "update",             no_argument,       NULL, 'u' },
@@ -629,11 +631,6 @@ main(int argc, char **argv)
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
-	/* Check other parameters only permitted in certain modes. */
-	if (bsdtar->create_compression == 'Z' && bsdtar->mode == 'c') {
-		bsdtar_warnc(bsdtar, 0, ".Z compression not supported");
-		usage(bsdtar);
-	}
 	if (bsdtar->create_compression != '\0') {
 		strcpy(buff, "-?");
 		buff[1] = bsdtar->create_compression;
