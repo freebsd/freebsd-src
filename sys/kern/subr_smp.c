@@ -372,7 +372,7 @@ smp_rendezvous_cpus(cpumask_t map,
 	mtx_lock_spin(&smp_ipi_mtx);
 
 	/* set static function pointers */
-	smp_rv_cpumask = map & ~(1 << curcpu);
+	smp_rv_cpumask = map;
 	smp_rv_setup_func = setup_func;
 	smp_rv_action_func = action_func;
 	smp_rv_teardown_func = teardown_func;
@@ -382,11 +382,10 @@ smp_rendezvous_cpus(cpumask_t map,
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
 	/* signal other processors, which will enter the IPI with interrupts off */
-	ipi_selected(map, IPI_RENDEZVOUS);
+	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
 
 	/* Check if the current CPU is in the map */
 	if ((map & (1 << curcpu)) != 0)
-		/* call executor function for the current CPU */
 		smp_rendezvous_action();
 
 	if (teardown_func == smp_no_rendevous_barrier)
