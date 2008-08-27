@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2006 Sam Leffler, Errno Consulting
- * Copyright (c) 2006 Atheros Communications, Inc.
+ * Copyright (c) 2006-2008 Sam Leffler, Errno Consulting
+ * Copyright (c) 2006-2008 Atheros Communications, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -32,7 +32,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/public/wackelf.c#3 $
+ * $Id: //depot/sw/branches/sam_hal/public/wackelf.c#4 $
  */
 
 /*

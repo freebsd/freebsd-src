@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/ah.h#19 $
+ * $Id: //depot/sw/branches/sam_hal/ah.h#32 $
  */
 
 #ifndef _ATH_AH_H_
@@ -132,6 +132,9 @@ typedef enum {
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
 	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
 	HAL_CAP_RXORN_FATAL	= 30,	/* HAL_INT_RXORN treated as fatal */
+	HAL_CAP_HT		= 31,   /* hardware can support HT */
+	HAL_CAP_NUMTXCHAIN	= 32,	/* # TX chains supported */
+	HAL_CAP_NUMRXCHAIN	= 33,	/* # RX chains supported */
 	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
 } HAL_CAPABILITY_TYPE;
 
@@ -304,7 +307,8 @@ typedef enum {
 	HAL_PKT_TYPE_BEACON	= 3,
 	HAL_PKT_TYPE_PROBE_RESP	= 4,
 	HAL_PKT_TYPE_CHIRP	= 5,
-	HAL_PKT_TYPE_GRP_POLL = 6,
+	HAL_PKT_TYPE_GRP_POLL	= 6,
+	HAL_PKT_TYPE_AMPDU	= 7,
 } HAL_PKT_TYPE;
 
 /* Rx Filter Frame Types */
@@ -318,7 +322,8 @@ typedef enum {
 	HAL_RX_FILTER_XRPOLL	= 0x00000040,	/* Allow XR poll frmae */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
-	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors*/
+	HAL_RX_FILTER_PHYRADAR	= 0x00000200,	/* Allow phy radar errors */
+	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
 } HAL_RX_FILTER;
 
 typedef enum {
@@ -357,6 +362,8 @@ typedef enum {
 	HAL_INT_DTIMSYNC= 0x00800000,	/* Non-common mapping */
 	HAL_INT_GPIO	= 0x01000000,
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
+	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
+	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
 #define	HAL_INT_GLOBAL	0x80000000	/* Set/clear IER */
 	HAL_INT_BMISC	= HAL_INT_TIM
@@ -389,8 +396,8 @@ typedef enum {
  * Channels are specified by frequency.
  */
 typedef struct {
+	u_int32_t	channelFlags;	/* see below */
 	u_int16_t	channel;	/* setting in Mhz */
-	u_int16_t	channelFlags;	/* see below */
 	u_int8_t	privFlags;
 	int8_t		maxRegTxPower;	/* max regulatory tx power in dBm */
 	int8_t		maxTxPower;	/* max true tx power in 0.5 dBm */
@@ -398,18 +405,21 @@ typedef struct {
 } HAL_CHANNEL;
 
 /* channelFlags */
-#define	CHANNEL_CW_INT	0x0002	/* CW interference detected on channel */
-#define	CHANNEL_TURBO	0x0010	/* Turbo Channel */
-#define	CHANNEL_CCK	0x0020	/* CCK channel */
-#define	CHANNEL_OFDM	0x0040	/* OFDM channel */
-#define	CHANNEL_2GHZ	0x0080	/* 2 GHz spectrum channel. */
-#define	CHANNEL_5GHZ	0x0100	/* 5 GHz spectrum channel */
-#define	CHANNEL_PASSIVE	0x0200	/* Only passive scan allowed in the channel */
-#define	CHANNEL_DYN	0x0400	/* dynamic CCK-OFDM channel */
-#define	CHANNEL_XR	0x0800	/* XR channel */
-#define	CHANNEL_STURBO	0x2000	/* Static turbo, no 11a-only usage */
-#define CHANNEL_HALF    0x4000 	/* Half rate channel */
-#define CHANNEL_QUARTER 0x8000 	/* Quarter rate channel */
+#define	CHANNEL_CW_INT	0x00002	/* CW interference detected on channel */
+#define	CHANNEL_TURBO	0x00010	/* Turbo Channel */
+#define	CHANNEL_CCK	0x00020	/* CCK channel */
+#define	CHANNEL_OFDM	0x00040	/* OFDM channel */
+#define	CHANNEL_2GHZ	0x00080	/* 2 GHz spectrum channel */
+#define	CHANNEL_5GHZ	0x00100	/* 5 GHz spectrum channel */
+#define	CHANNEL_PASSIVE	0x00200	/* Only passive scan allowed in the channel */
+#define	CHANNEL_DYN	0x00400	/* dynamic CCK-OFDM channel */
+#define	CHANNEL_XR	0x00800	/* XR channel */
+#define	CHANNEL_STURBO	0x02000	/* Static turbo, no 11a-only usage */
+#define	CHANNEL_HALF    0x04000 /* Half rate channel */
+#define	CHANNEL_QUARTER 0x08000 /* Quarter rate channel */
+#define	CHANNEL_HT20	0x10000 /* 11n 20MHZ channel */ 
+#define	CHANNEL_HT40PLUS 0x20000 /* 11n 40MHZ channel w/ ext chan above */
+#define	CHANNEL_HT40MINUS 0x40000 /* 11n 40MHZ channel w/ ext chan below */
 
 /* privFlags */
 #define CHANNEL_INTERFERENCE   	0x01 /* Software use: channel interference 
@@ -432,8 +442,15 @@ typedef struct {
 #define	CHANNEL_108G	(CHANNEL_2GHZ|CHANNEL_OFDM|CHANNEL_TURBO)
 #define	CHANNEL_108A	CHANNEL_T
 #define	CHANNEL_X	(CHANNEL_5GHZ|CHANNEL_OFDM|CHANNEL_XR)
+#define	CHANNEL_G_HT20		(CHANNEL_G|CHANNEL_HT20)
+#define	CHANNEL_A_HT20		(CHANNEL_A|CHANNEL_HT20)
+#define	CHANNEL_G_HT40PLUS	(CHANNEL_G|CHANNEL_HT40PLUS)
+#define	CHANNEL_G_HT40MINUS	(CHANNEL_G|CHANNEL_HT40MINUS)
+#define	CHANNEL_A_HT40PLUS	(CHANNEL_A|CHANNEL_HT40PLUS)
+#define	CHANNEL_A_HT40MINUS	(CHANNEL_A|CHANNEL_HT40MINUS)
 #define	CHANNEL_ALL \
-	(CHANNEL_OFDM|CHANNEL_CCK| CHANNEL_2GHZ | CHANNEL_5GHZ | CHANNEL_TURBO)
+	(CHANNEL_OFDM | CHANNEL_CCK| CHANNEL_2GHZ | CHANNEL_5GHZ | \
+	 CHANNEL_TURBO | CHANNEL_HT20 | CHANNEL_HT40PLUS | CHANNEL_HT40MINUS)
 #define	CHANNEL_ALL_NOTURBO 	(CHANNEL_ALL &~ CHANNEL_TURBO)
 
 #define HAL_ANTENNA_MIN_MODE  0
@@ -472,16 +489,22 @@ enum {
 	HAL_MODE_XR     = 0x100,		/* XR channels */
 	HAL_MODE_11A_HALF_RATE = 0x200,		/* 11A half rate channels */
 	HAL_MODE_11A_QUARTER_RATE = 0x400,	/* 11A quarter rate channels */
-	HAL_MODE_ALL	= 0xfff
+	HAL_MODE_11NG_HT20	= 0x008000,
+	HAL_MODE_11NA_HT20  	= 0x010000,
+	HAL_MODE_11NG_HT40PLUS	= 0x020000,
+	HAL_MODE_11NG_HT40MINUS	= 0x040000,
+	HAL_MODE_11NA_HT40PLUS	= 0x080000,
+	HAL_MODE_11NA_HT40MINUS	= 0x100000,
+	HAL_MODE_ALL	= 0xffffff
 };
 
 typedef struct {
 	int		rateCount;		/* NB: for proper padding */
-	u_int8_t	rateCodeToIndex[32];	/* back mapping */
+	u_int8_t	rateCodeToIndex[144];	/* back mapping */
 	struct {
 		u_int8_t	valid;		/* valid for rate control use */
 		u_int8_t	phy;		/* CCK/OFDM/XR */
-		u_int16_t	rateKbps;	/* transfer rate in kbs */
+		u_int32_t	rateKbps;	/* transfer rate in kbs */
 		u_int8_t	rateCode;	/* rate for h/w descriptors */
 		u_int8_t	shortPreamble;	/* mask for enabling short
 						 * preamble in CCK rate code */
@@ -498,6 +521,46 @@ typedef struct {
 	u_int		rs_count;		/* number of valid entries */
 	u_int8_t	rs_rates[32];		/* rates */
 } HAL_RATE_SET;
+
+/*
+ * 802.11n specific structures and enums
+ */
+typedef enum {
+	HAL_CHAINTYPE_TX	= 1,	/* Tx chain type */
+	HAL_CHAINTYPE_RX	= 2,	/* RX chain type */
+} HAL_CHAIN_TYPE;
+
+typedef struct {
+	u_int	Tries;
+	u_int	Rate;
+	u_int	PktDuration;
+	u_int	ChSel;
+	u_int	RateFlags;
+#define	HAL_RATESERIES_RTS_CTS		0x0001	/* use rts/cts w/this series */
+#define	HAL_RATESERIES_2040		0x0002	/* use ext channel for series */
+#define	HAL_RATESERIES_HALFGI		0x0004	/* use half-gi for series */
+} HAL_11N_RATE_SERIES;
+
+typedef enum {
+	HAL_HT_MACMODE_20	= 0,	/* 20 MHz operation */
+	HAL_HT_MACMODE_2040	= 1,	/* 20/40 MHz operation */
+} HAL_HT_MACMODE;
+
+typedef enum {
+	HAL_HT_PHYMODE_20	= 0,	/* 20 MHz operation */
+	HAL_HT_PHYMODE_2040	= 1,	/* 20/40 MHz operation */
+} HAL_HT_PHYMODE;
+
+typedef enum {
+	HAL_HT_EXTPROTSPACING_20 = 0,	/* 20 MHz spacing */
+	HAL_HT_EXTPROTSPACING_25 = 1,	/* 25 MHz spacing */
+} HAL_HT_EXTPROTSPACING;
+
+
+typedef enum {
+	HAL_RX_CLEAR_CTL_LOW	= 0x1,	/* force control channel to appear busy */
+	HAL_RX_CLEAR_EXT_LOW	= 0x2,	/* force extension channel to appear busy */
+} HAL_HT_RXCLEAR;
 
 /*
  * Antenna switch control.  By default antenna selection
@@ -569,7 +632,7 @@ typedef struct {
 
 /*
  * Like HAL_BEACON_STATE but for non-station mode setup.
- * NB: see above flag definitions 
+ * NB: see above flag definitions for bt_intval. 
  */
 typedef struct {
 	u_int32_t	bt_intval;		/* beacon interval+flags */
@@ -577,6 +640,10 @@ typedef struct {
 	u_int32_t	bt_nextatim;		/* next ATIM in TU */
 	u_int32_t	bt_nextdba;		/* next DBA in 1/8th TU */
 	u_int32_t	bt_nextswba;		/* next SWBA in 1/8th TU */
+	u_int32_t	bt_flags;		/* timer enables */
+#define HAL_BEACON_TBTT_EN	0x00000001
+#define HAL_BEACON_DBA_EN	0x00000002
+#define HAL_BEACON_SWBA_EN	0x00000004
 } HAL_BEACON_TIMERS;
 
 /*
@@ -608,7 +675,7 @@ struct ath_rx_status;
 struct ath_hal {
 	u_int32_t	ah_magic;	/* consistency check magic number */
 	u_int32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x06102600	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x08060800	/* YYMMDDnn */
 	u_int16_t	ah_devid;	/* PCI device ID */
 	u_int16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -739,6 +806,8 @@ struct ath_hal {
 	HAL_ANT_SETTING	 __ahdecl(*ah_getAntennaSwitch)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setAntennaSwitch)(struct ath_hal*,
 				HAL_ANT_SETTING);
+	HAL_BOOL  __ahdecl(*ah_setSifsTime)(struct ath_hal*, u_int);
+	u_int	  __ahdecl(*ah_getSifsTime)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setSlotTime)(struct ath_hal*, u_int);
 	u_int	  __ahdecl(*ah_getSlotTime)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_setAckTimeout)(struct ath_hal*, u_int);
@@ -766,7 +835,6 @@ struct ath_hal {
 				HAL_POWER_MODE mode, int setChip);
 	HAL_POWER_MODE __ahdecl(*ah_getPowerMode)(struct ath_hal*);
 	int16_t   __ahdecl(*ah_getChanNoise)(struct ath_hal *, HAL_CHANNEL *);
-
 
 	/* Beacon Management Functions */
 	void	  __ahdecl(*ah_setBeaconTimers)(struct ath_hal*,
@@ -811,9 +879,7 @@ extern	struct ath_hal * __ahdecl ath_hal_attach(u_int16_t devid, HAL_SOFTC,
 /*
  * Set the Vendor ID for Vendor SKU's which can modify the
  * channel properties returned by ath_hal_init_channels.
- * Return AH_TRUE if set succeeds
  */
-
 extern  HAL_BOOL __ahdecl ath_hal_setvendor(struct ath_hal *, u_int32_t );
 
 /*
@@ -830,7 +896,7 @@ extern  HAL_BOOL __ahdecl ath_hal_setvendor(struct ath_hal *, u_int32_t );
 extern	HAL_BOOL __ahdecl ath_hal_init_channels(struct ath_hal *,
 		HAL_CHANNEL *chans, u_int maxchans, u_int *nchans,
 		u_int8_t *regclassids, u_int maxregids, u_int *nregids,
-		HAL_CTRY_CODE cc, u_int16_t modeSelect,
+		HAL_CTRY_CODE cc, u_int modeSelect,
 		HAL_BOOL enableOutdoor, HAL_BOOL enableExtendedChannels);
 
 /*
@@ -845,12 +911,6 @@ extern	void __ahdecl ath_hal_process_noisefloor(struct ath_hal *ah);
 extern	u_int __ahdecl ath_hal_getwirelessmodes(struct ath_hal*, HAL_CTRY_CODE);
 
 /*
- * Return rate table for specified mode (11a, 11b, 11g, etc).
- */
-extern	const HAL_RATE_TABLE * __ahdecl ath_hal_getratetable(struct ath_hal *,
-		u_int mode);
-
-/*
  * Calculate the transmit duration of a frame.
  */
 extern u_int16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
@@ -861,6 +921,11 @@ extern u_int16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
  * Return if device is public safety.
  */
 extern HAL_BOOL __ahdecl ath_hal_ispublicsafetysku(struct ath_hal *);
+
+/*
+ * Return if device is operating in 900 MHz band.
+ */
+extern HAL_BOOL ath_hal_isgsmsku(struct ath_hal *);
 
 /*
  * Convert between IEEE channel number and channel frequency
