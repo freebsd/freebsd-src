@@ -338,6 +338,7 @@ setparam(char **argv)
 	shellparam.malloc = 1;
 	shellparam.nparam = nparam;
 	shellparam.p = newparam;
+	shellparam.reset = 1;
 	shellparam.optnext = NULL;
 }
 
@@ -405,7 +406,6 @@ setcmd(int argc, char **argv)
 	if (*argptr != NULL) {
 		setparam(argptr);
 	}
-	shellparam.reset = 1;
 	INTON;
 	return 0;
 }
