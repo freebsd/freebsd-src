@@ -190,6 +190,7 @@ struct tv32 {
 #define F_NOMINMTU	0x100000
 #define F_ONCE		0x200000
 #define F_AUDIBLE	0x400000
+#define F_MISSED	0x800000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 u_int options;
 
@@ -225,6 +226,7 @@ int hoplimit = -1;		/* hoplimit */
 int pathmtu = 0;		/* path MTU for the destination.  0 = unspec. */
 
 /* counters */
+long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
@@ -347,7 +349,7 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:defHg:h:I:i:l:mnNop:qS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:dfHg:h:I:i:l:mnNop:qrRS:s:tvwW" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -415,9 +417,6 @@ main(argc, argv)
 			break;
 		case 'd':
 			options |= F_SO_DEBUG;
-			break;
-		case 'e':
-			options |= F_AUDIBLE;
 			break;
 		case 'f':
 			if (getuid()) {
@@ -500,6 +499,12 @@ main(argc, argv)
 				break;
 		case 'q':
 			options |= F_QUIET;
+			break;
+		case 'r':
+			options |= F_AUDIBLE;
+			break;
+		case 'R':
+			options |= F_MISSED;
 			break;
 		case 'S':
 			memset(&hints, 0, sizeof(struct addrinfo));
@@ -1179,6 +1184,11 @@ main(argc, argv)
 		if (((options & F_ONCE) != 0 && nreceived > 0) ||
 		    (npackets > 0 && nreceived >= npackets))
 			break;
+		if (ntransmitted - nreceived - 1 > nmissedmax) {
+			nmissedmax = ntransmitted - nreceived - 1;
+			if (options & F_MISSED)
+				(void)write(STDOUT_FILENO, &BBELL, 1);
+		}
 	}
 	summary();
 	exit(nreceived == 0 ? 2 : 0);
@@ -2770,7 +2780,7 @@ usage()
 	    "A"
 #endif
 	    "usage: ping6 [-"
-	    "de"
+	    "d"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
 	    "E"
 #endif
@@ -2778,7 +2788,7 @@ usage()
 #ifdef IPV6_USE_MIN_MTU
 	    "m"
 #endif
-	    "nNoqtvwW] "
+	    "nNoqrRtvwW] "
 	    "[-a addrtype] [-b bufsiz] [-c count] [-g gateway]\n"
 	    "             [-h hoplimit] [-I interface] [-i wait] [-l preload]"
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
