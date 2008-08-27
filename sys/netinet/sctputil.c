@@ -110,6 +110,7 @@ rto_logging(struct sctp_nets *net, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
+	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	sctp_clog.x.rto.net = (void *)net;
 	sctp_clog.x.rto.rtt = net->prev_rtt;
 	SCTP_CTR6(KTR_SCTP, "SCTP:%d[%d]:%x-%x-%x-%x",
@@ -187,6 +188,7 @@ sctp_log_map(uint32_t map, uint32_t cum, uint32_t high, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
+	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	sctp_clog.x.map.base = map;
 	sctp_clog.x.map.cum = cum;
 	sctp_clog.x.map.high = high;
@@ -205,6 +207,7 @@ sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn,
 {
 	struct sctp_cwnd_log sctp_clog;
 
+	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	sctp_clog.x.fr.largest_tsn = biggest_tsn;
 	sctp_clog.x.fr.largest_new_tsn = biggest_new_tsn;
 	sctp_clog.x.fr.tsn = tsn;
@@ -317,6 +320,7 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
+	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	if (inp) {
 		sctp_clog.x.lock.sock = (void *)inp->sctp_socket;
 
@@ -361,6 +365,7 @@ sctp_log_maxburst(struct sctp_tcb *stcb, struct sctp_nets *net, int error, int b
 {
 	struct sctp_cwnd_log sctp_clog;
 
+	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	sctp_clog.x.cwnd.net = net;
 	sctp_clog.x.cwnd.cwnd_new_value = error;
 	sctp_clog.x.cwnd.inflight = net->flight_size;

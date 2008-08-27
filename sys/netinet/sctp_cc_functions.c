@@ -304,50 +304,25 @@ sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
 				}
 			} else {
 				/* We are in congestion avoidance */
-				if (net->flight_size + net->net_ack >=
-				    net->cwnd) {
-					/*
-					 * add to pba only if we had a
-					 * cwnd's worth (or so) in flight OR
-					 * the burst limit was applied.
-					 */
-					net->partial_bytes_acked +=
-					    net->net_ack;
+				/*
+				 * Add to pba
+				 */
+				net->partial_bytes_acked +=
+				    net->net_ack;
 
-					/*
-					 * Do we need to increase (if pba is
-					 * > cwnd)?
-					 */
-					if (net->partial_bytes_acked >=
-					    net->cwnd) {
-						if (net->cwnd <
-						    net->partial_bytes_acked) {
-							net->partial_bytes_acked -=
-							    net->cwnd;
-						} else {
-							net->partial_bytes_acked =
-							    0;
-						}
-						net->cwnd += net->mtu;
-						if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->mtu,
-							    SCTP_CWND_LOG_FROM_CA);
-						}
-					} else {
-						if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
-							sctp_log_cwnd(stcb, net, net->net_ack,
-							    SCTP_CWND_LOG_NOADV_CA);
-						}
+				if ((net->flight_size + net->net_ack >= net->cwnd) &&
+				    (net->partial_bytes_acked >= net->cwnd)) {
+					net->partial_bytes_acked -= net->cwnd;
+					net->cwnd += net->mtu;
+					if (sctp_logging_level & SCTP_CWND_MONITOR_ENABLE) {
+						sctp_log_cwnd(stcb, net, net->mtu,
+						    SCTP_CWND_LOG_FROM_CA);
 					}
 				} else {
-					unsigned int dif;
-
 					if (sctp_logging_level & SCTP_CWND_LOGGING_ENABLE) {
 						sctp_log_cwnd(stcb, net, net->net_ack,
 						    SCTP_CWND_LOG_NOADV_CA);
 					}
-					dif = net->cwnd - (net->flight_size +
-					    net->net_ack);
 				}
 			}
 		} else {
