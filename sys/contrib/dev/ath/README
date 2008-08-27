@@ -61,7 +61,7 @@ radio parts.  Binary support for these parts is necessarily built
 for the embedded MIPS processor where the code is to be run.
 
 Caveats
-=======
+========
 The binary hal builds provided here include no floating point and
 are operating system-independent.  However due to toolchain
 peculiarities the .o files may be wrongly rejected by development
