@@ -861,7 +861,11 @@ restore_entry(struct archive_write_disk *a)
 
 		/* TODO: if it's a symlink... */
 
-		if (a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER) {
+		/*
+		 * NO_OVERWRITE_NEWER doesn't apply to directories.
+		 */
+		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE_NEWER)
+		    &&  !S_ISDIR(a->st.st_mode)) {
 			if (!older(&(a->st), a->entry)) {
 				archive_set_error(&a->archive, 0,
 				    "File on disk is not older; skipping.");
