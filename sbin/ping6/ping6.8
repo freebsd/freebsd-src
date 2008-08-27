@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2008
+.Dd August 27, 2008
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .\" without ipsec, or new ipsec
-.Op Fl defHmnNoqtvwW
+.Op Fl dfHmnNoqrRtvwW
 .\" old ipsec
 .\" .Op Fl AdEfmnNqRtvwW
 .Bk -words
@@ -148,12 +148,6 @@ option on the socket being used.
 .\" .It Fl E
 .\" Enables transport-mode IPsec encapsulated security payload
 .\" (experimental).
-.It Fl e
-Audible.
-Include a bell
-.Tn ( ASCII
-0x07)
-character in the output when any packet is received.
 .It Fl f
 Flood ping.
 Outputs packets as fast as they come back or one hundred times per second,
@@ -250,6 +244,22 @@ specifies IPsec policy to be used for the probe.
 Quiet output.
 Nothing is displayed except the summary lines at startup time and
 when finished.
+.It Fl r
+Audible.
+Include a bell
+.Tn ( ASCII
+0x07)
+character in the output when any packet is received.
+.It Fl R
+Audible.
+Output a bell
+.Tn ( ASCII
+0x07)
+character when no packet is received before the next packet
+is transmitted.
+To cater for round-trip times that are longer than the interval
+between transmissions, further missing packets cause a bell only
+if the maximum number of unreceived packets has increased.
 .It Fl S Ar sourceaddr
 Specifies the source address of request packets.
 The source address must be one of the unicast addresses of the sending node,
