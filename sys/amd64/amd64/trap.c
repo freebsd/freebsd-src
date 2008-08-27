@@ -214,7 +214,8 @@ trap(struct trapframe *frame)
 	 * the NMI was handled by it and we can return immediately.
 	 */
 	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), frame))
+	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame->tf_rip,
+		TRAPF_USERMODE(frame)))
 		goto out;
 #endif
 
@@ -247,7 +248,7 @@ trap(struct trapframe *frame)
 		if (ISPL(frame->tf_cs) == SEL_UPL)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
-			    (long)curproc->p_pid, curthread->td_name, type);
+			    (long)curproc->p_pid, curproc->p_comm, type);
 		else if (type != T_NMI && type != T_BPTFLT &&
 		    type != T_TRCTRAP) {
 			/*
@@ -744,8 +745,8 @@ trap_fatal(frame, eva)
 	printf("current process		= ");
 	if (curproc) {
 		printf("%lu (%s)\n",
-		    (u_long)curproc->p_pid, curthread->td_name ?
-		    curthread->td_name : "");
+		    (u_long)curproc->p_pid, curproc->p_comm ?
+		    curproc->p_comm : "");
 	} else {
 		printf("Idle\n");
 	}
@@ -872,7 +873,7 @@ syscall(struct trapframe *frame)
 #endif
 
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
 	td->td_syscalls++;
 
@@ -979,7 +980,7 @@ syscall(struct trapframe *frame)
 	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_name, code);
+	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_SYSRET))
