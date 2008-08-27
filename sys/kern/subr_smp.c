@@ -111,7 +111,7 @@ SYSCTL_INT(_kern_smp, OID_AUTO, forward_roundrobin_enabled, CTLFLAG_RW,
 	   "Forwarding of roundrobin to all other CPUs");
 
 /* Variables needed for SMP rendezvous. */
-static volatile cpumask_t smp_rv_cpumask;
+static volatile int smp_rv_ncpus;
 static void (*volatile smp_rv_setup_func)(void *arg);
 static void (*volatile smp_rv_action_func)(void *arg);
 static void (*volatile smp_rv_teardown_func)(void *arg);
@@ -306,20 +306,14 @@ restart_cpus(cpumask_t map)
 void
 smp_rendezvous_action(void)
 {
-	cpumask_t map = smp_rv_cpumask;
-	int i, ncpus = 0;
 	void* local_func_arg = smp_rv_func_arg;
 	void (*local_setup_func)(void*)   = smp_rv_setup_func;
 	void (*local_action_func)(void*)   = smp_rv_action_func;
 	void (*local_teardown_func)(void*) = smp_rv_teardown_func;
 
-	for (i = 0; i < MAXCPU; i++)
-		if (((1 << i) & map) != 0 && pcpu_find(i) != NULL)
-			ncpus++;
-
 	/* Ensure we have up-to-date values. */
 	atomic_add_acq_int(&smp_rv_waiters[0], 1);
-	while (smp_rv_waiters[0] < ncpus)
+	while (smp_rv_waiters[0] < smp_rv_ncpus)
 		cpu_spinwait();
 
 	/* setup function */
@@ -329,7 +323,7 @@ smp_rendezvous_action(void)
 
 		/* spin on entry rendezvous */
 		atomic_add_int(&smp_rv_waiters[1], 1);
-		while (smp_rv_waiters[1] < ncpus)
+		while (smp_rv_waiters[1] < smp_rv_ncpus)
                 	cpu_spinwait();
 	}
 
@@ -341,7 +335,7 @@ smp_rendezvous_action(void)
 	atomic_add_int(&smp_rv_waiters[2], 1);
 	if (local_teardown_func == smp_no_rendevous_barrier)
                 return;
-	while (smp_rv_waiters[2] < ncpus)
+	while (smp_rv_waiters[2] < smp_rv_ncpus)
 		cpu_spinwait();
 
 	/* teardown function */
@@ -368,15 +362,15 @@ smp_rendezvous_cpus(cpumask_t map,
 		return;
 	}
 
-	for (i = 0; i < MAXCPU; i++)
-		if (((1 << i) & map) != 0 && pcpu_find(i) != NULL)
+	for (i = 0; i < mp_maxid; i++)
+		if (((1 << i) & map) != 0 && !CPU_ABSENT(i))
 			ncpus++;
-		
+
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
 
 	/* set static function pointers */
-	smp_rv_cpumask = map;
+	smp_rv_ncpus = ncpus;
 	smp_rv_setup_func = setup_func;
 	smp_rv_action_func = action_func;
 	smp_rv_teardown_func = teardown_func;
