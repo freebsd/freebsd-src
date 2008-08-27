@@ -101,6 +101,11 @@ extern u_char	aarp_org_code[3];
 
 #include <security/mac/mac_framework.h>
 
+#ifdef CTASSERT
+CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
+CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
+#endif
+
 /* netgraph node hooks for ng_ether(4) */
 void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
