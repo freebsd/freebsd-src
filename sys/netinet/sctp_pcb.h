@@ -450,7 +450,8 @@ struct sctp_tcb {
 #include <netinet/sctp_lock_bsd.h>
 
 
-#if defined(_KERNEL)
+/* TODO where to put non-_KERNEL things for __Userspace__? */
+#if defined(_KERNEL) || defined(__Userspace__)
 
 /* Attention Julian, this is the extern that
  * goes with the base info. sctp_pcb.c has

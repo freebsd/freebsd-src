@@ -1037,7 +1037,7 @@ struct sctp_log {
 /*
  * Kernel defined for sctp_send
  */
-#if defined(_KERNEL)
+#if defined(_KERNEL) || defined(__Userspace__)
 int
 sctp_lower_sosend(struct socket *so,
     struct sockaddr *addr,
@@ -1065,7 +1065,7 @@ sctp_sorecvmsg(struct socket *so,
 /*
  * API system calls
  */
-#if !(defined(_KERNEL))
+#if !(defined(_KERNEL)) && !(defined(__Userspace__))
 
 __BEGIN_DECLS
 int sctp_peeloff __P((int, sctp_assoc_t));
