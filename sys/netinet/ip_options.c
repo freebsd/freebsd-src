@@ -509,9 +509,6 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 		}
 		M_MOVE_PKTHDR(n, m);
 		n->m_pkthdr.rcvif = NULL;
-#ifdef MAC
-		mac_mbuf_copy(m, n);
-#endif
 		n->m_pkthdr.len += optlen;
 		m->m_len -= sizeof(struct ip);
 		m->m_data += sizeof(struct ip);
