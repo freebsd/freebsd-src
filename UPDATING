@@ -8,6 +8,30 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080826:
+	DTrace support was merged to STABLE today. In the best
+	tradition of "the dog ate my homework", subversion decided
+	that the commit message was too large and opted not to send
+	it. It was a stealth commit!
+
+	A 'make buildkernel' will now default to build the kernel
+	and modules with both DTrace kernel hooks and CTF data ready
+	for DTrace.
+
+	After you have installed both world and the kernel, and
+	rebooted, you can 'kldload dtraceall' to load all the DTrace
+	kernel modules and then you're set to run the 'dtrace'
+	client (as root).
+
+	For DTrace documentation, refer to:
+	<http://wikis.sun.com/display/DTrace/Documentation>
+
+	We are limited to kernel tracing at the moment, so the pid
+	provider is not available.
+
+	For the syscall provider, note that the arguments to the
+	return probes are the same as for the entry probes.
+
 20080811:
 	Today STABLE got a reorganization of the Intel E1000
 	driver code. In order to better support our new adapters
