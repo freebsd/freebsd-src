@@ -340,7 +340,7 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 		sctp_clog.x.lock.inp_lock = SCTP_LOCK_UNKNOWN;
 		sctp_clog.x.lock.create_lock = SCTP_LOCK_UNKNOWN;
 	}
-	sctp_clog.x.lock.info_lock = rw_wowned(&sctppcbinfo.ipi_ep_mtx);
+	sctp_clog.x.lock.info_lock = rw_wowned(&SCTP_BASE_INFO(ipi_ep_mtx));
 	if (inp->sctp_socket) {
 		sctp_clog.x.lock.sock_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
@@ -894,9 +894,9 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->max_burst = m->sctp_ep.max_burst;
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
-	asoc->sctp_cmt_on_off = (uint8_t) sctp_cmt_on_off;
+	asoc->sctp_cmt_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_on_off);
 	/* JRS 5/21/07 - Init CMT PF variables */
-	asoc->sctp_cmt_pf = (uint8_t) sctp_cmt_pf;
+	asoc->sctp_cmt_pf = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_pf);
 	asoc->sctp_frag_point = m->sctp_frag_point;
 #ifdef INET
 	asoc->default_tos = m->ip_inp.inp.inp_ip_tos;
@@ -1341,22 +1341,22 @@ sctp_iterator_worker(void)
 
 	/* This function is called with the WQ lock in place */
 
-	sctppcbinfo.iterator_running = 1;
+	SCTP_BASE_INFO(iterator_running) = 1;
 again:
-	it = TAILQ_FIRST(&sctppcbinfo.iteratorhead);
+	it = TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead));
 	while (it) {
 		/* now lets work on this one */
-		TAILQ_REMOVE(&sctppcbinfo.iteratorhead, it, sctp_nxt_itr);
+		TAILQ_REMOVE(&SCTP_BASE_INFO(iteratorhead), it, sctp_nxt_itr);
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 		sctp_iterator_work(it);
 		SCTP_IPI_ITERATOR_WQ_LOCK();
 		/* sa_ignore FREED_MEMORY */
-		it = TAILQ_FIRST(&sctppcbinfo.iteratorhead);
+		it = TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead));
 	}
-	if (TAILQ_FIRST(&sctppcbinfo.iteratorhead)) {
+	if (TAILQ_FIRST(&SCTP_BASE_INFO(iteratorhead))) {
 		goto again;
 	}
-	sctppcbinfo.iterator_running = 0;
+	SCTP_BASE_INFO(iterator_running) = 0;
 	return;
 }
 
@@ -1383,12 +1383,12 @@ sctp_handle_addr_wq(void)
 	LIST_INIT(&asc->list_of_work);
 	asc->cnt = 0;
 	SCTP_IPI_ITERATOR_WQ_LOCK();
-	wi = LIST_FIRST(&sctppcbinfo.addr_wq);
+	wi = LIST_FIRST(&SCTP_BASE_INFO(addr_wq));
 	while (wi != NULL) {
 		LIST_REMOVE(wi, sctp_nxt_addr);
 		LIST_INSERT_HEAD(&asc->list_of_work, wi, sctp_nxt_addr);
 		asc->cnt++;
-		wi = LIST_FIRST(&sctppcbinfo.addr_wq);
+		wi = LIST_FIRST(&SCTP_BASE_INFO(addr_wq));
 	}
 	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 	if (asc->cnt == 0) {
@@ -1901,7 +1901,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		/* Only 1 tick away :-) */
-		tmr = &sctppcbinfo.addr_wq_timer;
+		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		to_ticks = SCTP_ADDRESS_TICK_DELAY;
 		break;
 	case SCTP_TIMER_TYPE_ITERATOR:
@@ -2158,8 +2158,8 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			} else {
 				msec = ((net->lastsa >> 2) + net->lastsv) >> 1;
 			}
-			if (msec < sctp_early_fr_msec) {
-				msec = sctp_early_fr_msec;
+			if (msec < SCTP_BASE_SYSCTL(sctp_early_fr_msec)) {
+				msec = SCTP_BASE_SYSCTL(sctp_early_fr_msec);
 				if (msec < SCTP_MINFR_MSEC_FLOOR) {
 					msec = SCTP_MINFR_MSEC_FLOOR;
 				}
@@ -2259,7 +2259,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		tmr = &inp->sctp_ep.zero_copy_sendq_timer;
 		break;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
-		tmr = &sctppcbinfo.addr_wq_timer;
+		tmr = &SCTP_BASE_INFO(addr_wq_timer);
 		break;
 	case SCTP_TIMER_TYPE_EARLYFR:
 		if ((stcb == NULL) || (net == NULL)) {
@@ -2708,7 +2708,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	if (net->RTO_measured) {
 		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
 								 * shift=3 */
-		if (sctp_logging_level & SCTP_RTTVAR_LOGGING_ENABLE) {
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RTTVAR_LOGGING_ENABLE) {
 			rto_logging(net, SCTP_LOG_RTTVAR);
 		}
 		net->prev_rtt = o_calctime;
@@ -2734,7 +2734,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 		}
 		first_measure = 1;
 		net->prev_rtt = o_calctime;
-		if (sctp_logging_level & SCTP_RTTVAR_LOGGING_ENABLE) {
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RTTVAR_LOGGING_ENABLE) {
 			rto_logging(net, SCTP_LOG_INITIAL_RTT);
 		}
 	}
@@ -3325,11 +3325,11 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
 	}
 	sb = &stcb->sctp_socket->so_rcv;
-	if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 		sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(m_notify));
 	}
 	sctp_sballoc(stcb, sb, m_notify);
-	if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 		sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 	}
 	atomic_add_int(&control->length, SCTP_BUF_LEN(m_notify));
@@ -4299,11 +4299,11 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 			TAILQ_INSERT_TAIL(&tmp_queue, control, next);
 			m = control->data;
 			while (m) {
-				if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 					sctp_sblog(&old_so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
 				}
 				sctp_sbfree(control, stcb, &old_so->so_rcv, m);
-				if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 					sctp_sblog(&old_so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 				}
 				m = SCTP_BUF_NEXT(m);
@@ -4323,11 +4323,11 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 		TAILQ_INSERT_TAIL(&new_inp->read_queue, control, next);
 		m = control->data;
 		while (m) {
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(&new_so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(m));
 			}
 			sctp_sballoc(stcb, &new_so->so_rcv, m);
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(&new_so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 			}
 			m = SCTP_BUF_NEXT(m);
@@ -4391,11 +4391,11 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 			continue;
 		}
 		prev = m;
-		if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 			sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(m));
 		}
 		sctp_sballoc(stcb, sb, m);
-		if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 			sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 		}
 		atomic_add_int(&control->length, SCTP_BUF_LEN(m));
@@ -4498,11 +4498,11 @@ get_out:
 		prev = mm;
 		len += SCTP_BUF_LEN(mm);
 		if (sb) {
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, SCTP_BUF_LEN(mm));
 			}
 			sctp_sballoc(stcb, sb, mm);
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 			}
 		}
@@ -4622,7 +4622,7 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		return;
 	}
 	asoc->chunks_on_out_queue -= chk_cnt;
-	if (sctp_logging_level & SCTP_MBCNT_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBCNT_LOGGING_ENABLE) {
 		sctp_log_mbcnt(SCTP_LOG_MBCNT_DECREASE,
 		    asoc->total_output_queue_size,
 		    tp1->book_size,
@@ -5043,11 +5043,11 @@ sctp_sorecvmsg(struct socket *so,
 	if (rwnd_req < SCTP_MIN_RWND)
 		rwnd_req = SCTP_MIN_RWND;
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
-	if (sctp_logging_level & SCTP_RECV_RWND_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTER,
 		    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
 	}
-	if (sctp_logging_level & SCTP_RECV_RWND_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
 	}
@@ -5541,12 +5541,12 @@ get_more_data:
 					copied_so_far += cp_len;
 				} else {
 					/* dispose of the mbuf */
-					if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv,
 						    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
 					}
 					sctp_sbfree(control, stcb, &so->so_rcv, m);
-					if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv,
 						    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 					}
@@ -5593,7 +5593,7 @@ get_more_data:
 				if ((in_flags & MSG_PEEK) == 0) {
 					SCTP_BUF_RESV_UF(m, cp_len);
 					SCTP_BUF_LEN(m) -= cp_len;
-					if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, cp_len);
 					}
 					atomic_subtract_int(&so->so_rcv.sb_cc, cp_len);
@@ -5605,7 +5605,7 @@ get_more_data:
 					embuf = m;
 					freed_so_far += cp_len;
 					freed_so_far += MSIZE;
-					if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb,
 						    SCTP_LOG_SBRESULT, 0);
 					}
@@ -5828,14 +5828,14 @@ wait_some_more:
 		*mp = control->data;
 		m = control->data;
 		while (m) {
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(&so->so_rcv,
 				    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, SCTP_BUF_LEN(m));
 			}
 			sctp_sbfree(control, stcb, &so->so_rcv, m);
 			freed_so_far += SCTP_BUF_LEN(m);
 			freed_so_far += MSIZE;
-			if (sctp_logging_level & SCTP_SB_LOGGING_ENABLE) {
+			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 				sctp_sblog(&so->so_rcv,
 				    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 			}
@@ -5909,7 +5909,7 @@ out:
 		/* Save the value back for next time */
 		stcb->freed_by_sorcv_sincelast = freed_so_far;
 	}
-	if (sctp_logging_level & SCTP_RECV_RWND_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		if (stcb) {
 			sctp_misc_ints(SCTP_SORECV_DONE,
 			    freed_so_far,
@@ -5935,7 +5935,7 @@ out:
 struct mbuf *
 sctp_m_free(struct mbuf *m)
 {
-	if (sctp_logging_level & SCTP_MBUF_LOGGING_ENABLE) {
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 		if (SCTP_BUF_IS_EXTENDED(m)) {
 			sctp_log_mb(m, SCTP_MBUF_IFREE);
 		}
@@ -5971,7 +5971,7 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	 * Now that we have the ifa we must awaken the iterator with this
 	 * message.
 	 */
-	wi = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr, struct sctp_laddr);
+	wi = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_laddr), struct sctp_laddr);
 	if (wi == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOMEM);
 		return (ENOMEM);
@@ -5990,7 +5990,7 @@ sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id)
 	 * Should this really be a tailq? As it is we will process the
 	 * newest first :-0
 	 */
-	LIST_INSERT_HEAD(&sctppcbinfo.addr_wq, wi, sctp_nxt_addr);
+	LIST_INSERT_HEAD(&SCTP_BASE_INFO(addr_wq), wi, sctp_nxt_addr);
 	sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 	    (struct sctp_inpcb *)NULL,
 	    (struct sctp_tcb *)NULL,
@@ -6586,24 +6586,24 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 	uint32_t saveindex, newindex;
 
 	do {
-		saveindex = sctp_log.index;
+		saveindex = SCTP_BASE_SYSCTL(sctp_log).index;
 		if (saveindex >= SCTP_MAX_LOGGING_SIZE) {
 			newindex = 1;
 		} else {
 			newindex = saveindex + 1;
 		}
-	} while (atomic_cmpset_int(&sctp_log.index, saveindex, newindex) == 0);
+	} while (atomic_cmpset_int(&SCTP_BASE_SYSCTL(sctp_log).index, saveindex, newindex) == 0);
 	if (saveindex >= SCTP_MAX_LOGGING_SIZE) {
 		saveindex = 0;
 	}
-	sctp_log.entry[saveindex].timestamp = SCTP_GET_CYCLECOUNT;
-	sctp_log.entry[saveindex].subsys = subsys;
-	sctp_log.entry[saveindex].params[0] = a;
-	sctp_log.entry[saveindex].params[1] = b;
-	sctp_log.entry[saveindex].params[2] = c;
-	sctp_log.entry[saveindex].params[3] = d;
-	sctp_log.entry[saveindex].params[4] = e;
-	sctp_log.entry[saveindex].params[5] = f;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].timestamp = SCTP_GET_CYCLECOUNT;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].subsys = subsys;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[0] = a;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[1] = b;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[2] = c;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[3] = d;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[4] = e;
+	SCTP_BASE_SYSCTL(sctp_log).entry[saveindex].params[5] = f;
 }
 
 #endif
