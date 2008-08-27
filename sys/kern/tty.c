@@ -709,7 +709,6 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (error)
 			break;
 		bcopy(data, dev->si_drv2, sizeof(struct termios));
-		return (0);
 		break;
 	case TIOCGETD:
 		*(int *)data = TTYDISC;
