@@ -290,14 +290,6 @@ restart_cpus(cpumask_t map)
 	return 1;
 }
 
-void
-smp_no_rendevous_barrier(void *dummy)
-{
-#ifdef SMP
-	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
-#endif
-}
-
 /*
  * All-CPU rendezvous.  CPUs are signalled, all execute the setup function 
  * (if specified), rendezvous, execute the action function (if specified),
@@ -460,3 +452,11 @@ smp_rendezvous(void (*setup_func)(void *),
 		teardown_func(arg);
 }
 #endif /* SMP */
+
+void
+smp_no_rendevous_barrier(void *dummy)
+{
+#ifdef SMP
+	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
+#endif
+}
