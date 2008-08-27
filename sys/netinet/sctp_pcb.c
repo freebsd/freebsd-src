@@ -2784,8 +2784,8 @@ continue_anyway:
 			first = MODULE_GLOBAL(MOD_INET, ipport_lowfirstauto);
 			last = MODULE_GLOBAL(MOD_INET, ipport_lowlastauto);
 		} else {
-			first = ipport_firstauto;
-			last = ipport_lastauto;
+			first = MODULE_GLOBAL(MOD_INET, ipport_firstauto);
+			last = MODULE_GLOBAL(MOD_INET, ipport_lastauto);
 		}
 		if (first > last) {
 			uint16_t temp;
