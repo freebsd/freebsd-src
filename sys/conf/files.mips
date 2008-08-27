@@ -27,14 +27,10 @@
 # ----------------------------------------------------------------------
 # Phase 2
 # ----------------------------------------------------------------------
-
-# Juniper didn't include this in their code drop.
-#mips/mips/cpuconf.c		standard
 mips/mips/machdep.c		standard
 mips/mips/mp_machdep.c		optional smp
 mips/mips/mips_subr.c		standard
 mips/mips/psraccess.S		standard
-#
 # ----------------------------------------------------------------------
 # Phase 3
 # ----------------------------------------------------------------------
@@ -47,20 +43,17 @@ mips/mips/mainbus.c		standard
 mips/mips/pmap.c		standard
 mips/mips/trap.c		standard
 mips/mips/vm_machdep.c		standard
-#
 # ----------------------------------------------------------------------
 # Phase 4
 # ----------------------------------------------------------------------
-#
 mips/mips/tick.c		standard
-#mips/mips/queue.c		standard
 # ----------------------------------------------------------------------
 # Phase 5
 # ----------------------------------------------------------------------
 mips/mips/fp.S			standard
 mips/mips/pm_machdep.c		standard
 mips/mips/swtch.S		standard
-mips/mips/tlb.S		standard
+mips/mips/tlb.S			standard
 
 mips/mips/busdma_machdep.c 	standard
 mips/mips/cache.c		standard
