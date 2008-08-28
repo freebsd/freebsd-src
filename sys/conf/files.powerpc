@@ -25,6 +25,7 @@ opt_ah.h			optional	ath_hal			\
 	clean		"opt_ah.h"
 #
 
+dev/bm/if_bm.c			optional	bm powermac
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
@@ -110,6 +111,7 @@ powerpc/ofw/ofw_syscons.c	optional	sc
 
 powerpc/powermac/ata_kauai.c	optional	powermac ata
 powerpc/powermac/ata_macio.c	optional	powermac ata
+powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
