@@ -1,0 +1,22 @@
+The Build script will look for the default site configuration files in
+this directory.  Build will include the following files if they are
+present in this directory:
+
+	site.config.m4
+	site.OS.$SENDMAIL_SUFFIX.m4
+	site.OS.m4
+	site.post.m4
+
+OS is the name of the operating system file selected from the devtools/OS
+directory.  SENDMAIL_SUFFIX is a user environment variable which can be
+used to further distinguish between site configuration files in this
+directory.  If set, it will also be used in generating the obj.* directory
+name.
+
+Notice: if any of the above files is changed, the -c flag must be
+specified with the Build command, otherwise those changes will have
+no effect.
+
+See the README in the devtools directory for more information.
+
+$Revision: 8.8 $, Last updated $Date: 2002/02/18 20:57:00 $

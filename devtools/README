@@ -1,0 +1,398 @@
+This directory contains tools.  Do not attempt to actually build
+anything in this directory.
+
+The Build script allows you to specify a base location for the object
+files by using the -O flag:
+
+	./Build -O /tmp
+
+will put the object files in /tmp/obj.*/.  Also, if the SENDMAIL_SUFFIX
+environment variable is set, its value will be used in the obj.* directory
+name.
+
+The Build script allows you to specify a site configuration file by using
+the -f flag:
+
+	./Build -f siteconfig.m4
+
+You can put such site configuration files in the Site sub-directory;
+see Site/README for details.
+
+If you need to support multiple build configurations from the same tree,
+you can use prefixes to differentiate your configurations.  Use the -Q
+flag to Build:
+
+	./Build -Q prefix
+
+Build will select a prefix.*.m4 file instead of the site.*.m4 file according
+to the conventions in Site/README, and use it to modify the build
+configuration.  The object directory used will be obj.prefix.*/.  Your
+prefix.*.m4 files should reside in the Site directory.  You may not use
+-Q and -f simultaneously.
+
+While building a site configuration file, beyond using define() to set
+variables, you can also add to a definition using the APPENDDEF() and
+PREPENDDEF() macros.  For example:
+
+	APPENDDEF(`confINCDIRS', `-I/usr/local/bind/include')
+
+will add -I/usr/local/bind/include to the already existing confINCDIRS.
+Note: There must be no trailing spaces after the last quote mark and
+before the closing parenthesis.  Also you may need to properly quote
+m4 reserved words as specified by your vendor's m4 command.
+
+By default, sendmail will search your system for include and library
+directories as well as certain libraries (libdb.* for Berkeley DB and
+libbind.a or libresolv.* for name resolution).  You can turn off this
+configuration step by specifying the -S flag with the Build command.
+
+The OS subtree contains definitions for variations on a standard
+model for system installation.  The M4 variables that can be defined
+and their defaults before referencing the appropriate OS definitions
+are listed below.  Note that variables preceded by an asterisk (*)
+are currently not used in the open source distribution.
+
+confBEFORE	    [empty]		Files to create before sendmail is
+					compiled.  The methods must be defined
+					in the Makefile using PUSHDIVERT(3).
+confBLDVARIANT	    OPTIMIZED		This controls which object variant will
+					be built and is controlled with the
+					-v flag to the Build
+					script. Internally, this macro is
+					used to select compiler options in
+					the devtools/OS/*.m4 files.  Valid
+					arguments for the Build -v flag are
+					"optimized", "debug", and "purify"
+					which map to confBLDVARIANT values
+					of "OPTIMIZED", "DEBUG", and
+					"PURIFY".  This is a work in
+					progress, and as such not all
+					devtools/OS/*.m4 have been updated
+					yet. (See Linux for an example of
+					one that has.)  Also, in the future
+					it may be desirable to append a
+					variant identifier to the object
+					directory name to allow different
+					variants to independently co-exist
+					on a given target platform.  Note:
+					the PURIFY variant has not been
+					fully implemented on any platforms
+					yet. Other variants can be added as
+					needed in the future. Changing this
+					macro from its default will affect
+					other default values.
+confBUILDBIN	    ../../devtools/bin	The location of the build support
+					binaries, relative to the obj.*
+					directory.
+confCC		    cc			The C compiler to use.
+confCCOPTS	    [empty]		Additional options to pass to confCC.
+*confCCOPTS_SO	    -fPIC		Additional options for compiling
+					shared object libraries.
+confCCLINK	    confCC		Linker to use (for executables).
+confCOPY	    cp			A program that copies files.
+confMKDIR	    [empty]		A program that creates directories
+					(mkdir) and takes the -p parameter
+					to create also intermediate directories
+					as required.  If this macro is set,
+					then it used by "make install" to
+					create the required installation
+					directories.
+confDEPEND_TYPE	    generic		How to build dependencies.  This should
+					be the name of a file in
+					devtools/M4/depend
+confDEPLIBS	    [empty]		Dependent libraries when building 
+					shared objects.	
+confDONT_INSTALL_CATMAN  [undefined]	Don't install the formatted manual
+		    			pages.
+confEBINDIR	    /usr/libexec	The location for binaries executed
+					from other binaries, e.g., mail.local
+					or smrsh.
+confENVDEF	    [empty]		-D flags passed to C compiler.
+confFORCE_RMAIL	    [undefined]		If defined, install the rmail program
+					without question.
+confGBINGRP	    smmsp		The group for set-group-ID binaries.
+confGBINMODE	    2555		The mode for set-group-ID binaries.
+confGBINOWN	    root		The owner for set-group-ID binaries.
+confMSPQOWN	    smmsp		The owner of the MSP queue.
+confMSP_QUEUE_DIR   /var/spool/clientmqueue   The MSP queue directory.
+confMSP_STFILE	    sm-client.st	Name of the MSP statistics file.
+confHFDIR	    /etc/mail		Location of the sendmail helpfile.
+confHFFILE	    helpfile		Name of the installed helpfile.
+confINCDIRS	    [empty]		-I flags passed to C compiler.
+confINCGRP	    bin			The group for include files.
+confINCMODE	    444			The mode of installed include files.
+confINCOWN	    root		The owner for include files.
+confINCLUDEDIR	    /usr/include	Where to install include files.
+confINSTALL	    install		The BSD-compatible install program.
+					Use ${BUILDBIN}/install.sh if none
+					is available on your system.
+confINSTALL_RAWMAN  [undefined]		Install the unformatted manual pages.
+*confLD		    confCC		Linker to use (for libraries).
+confLDOPTS	    [empty]		Linker options.
+*confLDOPTS_SO	    -shared -Wl		Additional linker options for
+					linking shared object libraries.
+confLIBDIR	    /usr/lib		Where to install library files.
+confLIBDIRS	    [empty]		-L flags passed to ld.
+confLIBGRP	    bin			The group for libraries.
+confLIBMODE	    444			The mode of installed libraries.
+confLIBOWN	    root		The owner for libraries.
+confLIBS	    [varies]		-l flags passed to ld.
+confLIBSEARCH	    db bind resolv 44bsd
+					Search for these libraries for
+					linking with programs.
+confLIBSEARCHPATH   /lib /usr/lib /usr/shlib
+					Locations to search for the
+					libraries specified by confLIBSEARCH.
+confLINKS	    ${UBINDIR}/newaliases ${UBINDIR}/mailq \
+		    ${UBINDIR}/hoststat ${UBINDIR}/purgestat
+					Names of links to sendmail.
+confLN		    ln			The command used to create links.
+confLNOPTS	    -f -s		The parameters for confLN.
+confMAN1	    confMANROOT 1	The location of man1 files.
+confMAN1EXT	    1			The extension on files in confMAN1.
+confMAN1SRC	    0			The source for man pages installed
+					in confMAN1.
+confMAN3	    confMANROOT 3	The location of man3 files.
+confMAN3EXT	    3			The extension on files in confMAN3.
+confMAN3SRC	    0			The source for man pages installed
+					in confMAN3.
+confMAN4	    confMANROOT 4	The location of man4 files.
+confMAN4EXT	    4			The extension on files in confMAN4.
+confMAN4SRC	    0			The source for man pages installed
+					in confMAN4.
+confMAN5	    confMANROOT 5	The location of man5 files.
+confMAN5EXT	    5			The extension on files in confMAN5.
+confMAN5SRC	    0			The source for man pages installed
+					in confMAN5.
+confMAN8	    confMANROOT 8	The location of man8 files.
+confMAN8EXT	    8			The extension on files in confMAN8.
+confMAN8SRC	    0			The source for man pages installed
+					in confMAN8.
+confMANDOC	    -man		The macros used to format man pages.
+confMANGRP	    bin			The group of installed man pages.
+confMANMODE	    444			The mode of installed man pages.
+confMANOWN	    bin			The owner of installed man pages.
+confMANROOT	    /usr/share/man/cat	The root of the man subtree.
+confMANROOTMAN	    /usr/share/man/man	The root of the man subtree, for
+					unformatted manual pages.
+confMAPDEF	    [varies]		The map definitions, e.g.,
+					-DNDBM -DNEWDB.  -DNEWDB is always
+					added if libdb.* can be found.
+confMBINDIR	    /usr/sbin		The location of the MTA (sm-mta,
+					sendmail) binary.
+confMBINGRP	    bin			The group of the MTA binary (sm-mta).
+confMBINMODE	    550			The mode of the MTA binary (sm-mta).
+confMBINOWN	    root		The owner of the MTA binary (sm-mta).
+confMTCCOPTS	    [empty]		Additional options for compiling
+					multi-threaded object files.
+confMTLDOPTS	    [empty]		Additional linker options for
+					linking multithreaded binaries.
+confNO_HELPFILE_INSTALL  [undefined]	If defined, don't install the sendmail
+					helpfile by default.
+confNO_MAN_BUILD    [undefined]		If defined, don't build the man
+					pages.
+confNO_MAN_INSTALL  [undefined]		If defined, don't install the man
+					pages by default.
+confNO_STATISTICS_INSTALL  [undefined]	If defined, don't install the sendmail
+					statistics file by default.
+confNROFF	    groff -Tascii	The command to format man pages.
+confOBJADD	    [empty]		Objects that should be included in
+					when linking sendmail and the
+					associated utilities.  See also
+					confSRCADD.
+confOPTIMIZE	    -O			Flags passed to C compiler as ${O}.
+confRANLIB	    echo		The path to the program to use
+					as ranlib.
+confRANLIBOPTS      [empty]		Options to pass to ranlib.
+confREQUIRE_LIBSM   [empty]		Define if libsm is required.
+confSBINDIR	    /usr/sbin		The location of root-oriented
+					commands, such as makemap.
+confSBINGRP	    bin			The group for set-user-ID binaries.
+confSBINMODE	    4555		The mode for set-user-ID binaries.
+confSBINOWN	    root		The owner for set-user-ID binaries.
+confSETUSERID_INSTALL	[undefined]	Needs to be defined to enable the
+					install-set-user-id target for
+					sendmail.  See sendmail/SECURITY.
+confSHAREDLIB_EXT   .so              	Shared library file extenion name.
+confSHAREDLIB_SUFFIX [empty]		Shared object version suffix.	
+confSHAREDLIBDIR    /usr/lib/		Directory for installing shared 
+					library.  Note: if the value is
+					not empty, it must end with a
+					slash ('/') otherwise it will not
+					be taken as a directory (but as
+					the beginning of a path).
+confSHELL	    /bin/sh		The shell to use inside make.
+confSM_OS_HEADER    [varies]		The name of the platform specific
+					include file.  Undefine this if
+					libsm is not used.
+confSMOBJADD	    [empty]		Objects that should be included in
+					when linking sendmail.  See also
+					confSMSRCADD.
+confSMSRCADD	    [empty]		C source files which correspond to
+					objects listed in confSMOBJADD.
+confSMSRCDIR	    [varies]		The sendmail source directory
+					relative to support program obj.*
+					directories.  If not set, the
+					Makefile will use a path set by the
+					Build script.
+confSRCADD	    [empty]		C source files which correspond to
+					objects listed in confOBJADD.
+confSRCDIR	    [varies]		The root of the source directories
+					relative to support program obj.*
+					directories.  If not set, the
+					Makefile will use a path set by the
+					Build script.
+confSONAME	    [empty]		ld flag	for recording the shared object
+					name into shared object.
+confSTDIR	    /etc/mail		The directory in which to store the
+					sendmail statistics file.
+confSTFILE	    statistics		Name of the installed statistics file.
+confSTMODE	    0600		Mode of the installed statistics file.
+confSTRIP	    strip		What program to use for stripping
+					executables.
+confSTRIPOPTS	    [empty]		Options to pass to the strip program.
+confUBINDIR	    /usr/bin		The directory for user-executable
+					binaries.
+confUBINGRP	    bin			The group for user-executable binaries.
+confUBINMODE	    555			The mode for user-executable binaries.
+confUBINOWN	    bin			The owner for user-executable binaries.
+
+There are also program specific variables for each of the programs
+in the sendmail distribution.  Each has the form `conf_prog_ENVDEF',
+for example, `conf_sendmail_ENVDEF'.  If the program name contains
+a '.' it must be replaced by '_' first, e.g., use `conf_mail_local_LIBS'
+instead of `conf_mail.local_LIBS'.  The variables are:
+
+conf_prog_ENVDEF    [empty]		-D flags passed to C compiler when
+					compiling prog.
+conf_prog_LIB_POST  [empty]		-l flags passed to ld when linking
+					prog (after other libraries).
+conf_prog_LIBS	    [varies]		-l flags passed to ld when linking
+					prog (before other libraries).
+conf_prog_OBJADD    [empty]		Additional object files given to ld
+					when linking prog.
+conf_prog_SRCADD    [empty]		C source files to compile and link
+					for prog.
+
+The order of the different conf*LIBS* is as follows:
+conf_prog_LIBS confLIBS conf_prog_LIB_POST
+
+----------------------------------------------------------------
+
+----------------
+New build system
+----------------
+
+Sendmail's build system has undergone some rearrangement to accommodate
+future development.  To the end user building sendmail from a distribution,
+this should have little effect.  All the same configuration files and macros
+should still behave the same.
+
+If you need to make some radical changes to a Makefile.m4 or are adding new
+libraries or utilities, you may want to read the rest of this document on
+how to work with the new system.
+
+
+--------
+Overview
+--------
+
+The purpose of the redesign is twofold.  First, it cuts down massively on
+replicated information.  Second, the new design should lend itself better to
+working on platforms with somewhat different build tools than on standard
+unix.
+
+The main idea is to have the Makefile.m4 in each subdirectory contain the
+minimum amount of information needed to describe the elements needed for
+the build process and the products produced.
+
+Each product has a type and each type has a template that provides a basic
+makefile for that type.  Right now the templates are organized by the broad
+type of the operating system. The two existing types are UNIX and NT.
+
+
+------------------
+Makefile.m4 basics
+------------------
+
+Each Makefile.m4 is split into separate products.  For the most part, the
+products are considered totally separate from other products in the
+Makefile.m4.  Each products is delineated by two macros: bldPRODUCT_START and
+bldPRODUCT_END.
+
+The form for bldPRODUCT_START is:
+bldPRODUCT_START(<product_type>, <product_name>)
+where <product_type> is the type of product to be produced (e.g., executable,
+library, manpage) and <product_name> is a unique identifier within the
+product_type name space for this Makefile.m4
+
+The form for bldPRODUCT_END is:
+bldPRODUCT_END
+
+This is marks the end of all the information for the current product.
+
+There is one other macro required in any Makefile.m4 and that is bldFINISH
+which takes no arguments and must appear after all the products have been
+defined.
+
+When the actual makefile is generated each product appears in two sections.
+The first is where makefile variables are set (e.g., CFLAGS=-O).  The second
+is where the targets appear (e.g., foo.o: foo.c).  Anything diverted to
+bldTARGETS_SECTION ends up in the second part of the makefile.  Anything
+else turns up in the header part where variables are defined.
+
+As always, any straight text put into Makefile.m4 will just show up as is
+in the finished makefile.
+
+
+-------------
+Product Types
+-------------
+
+executable
+----------
+
+This means an executable created from C sources.  The name of the executable
+is derived from the product_name in the bldPRODUCT_START macro.
+
+bldSOURCES - This should be defined to a space separated list of source
+files that make up the executable.
+
+bldBIN_TYPE - This determines where the binaries will be installed and what
+permissions they will have.  Available types are `M', `U', `K', `S', and `E'.
+See M4/UNIX/make/executable.m4 for what the different types mean.
+
+bldTARGET_LINKS - This determines where additional symbolic links to the
+executable are placed.  These should be full pathnames, separated by
+spaces.
+
+
+test
+----
+
+This is just like 'executable', but is used for test programs.
+The program cannot be installed.  Each time it is built, it is executed
+by make with no arguments.
+
+
+manpage
+-------
+
+This builds manpages from source using *roff.
+
+bldSOURCES - This should be defined to a space separated list of man source
+files.
+
+
+library
+-------
+
+This builds a static library from C sources.
+
+bldSOURCES - This should be defined to a space separated list of C source
+files that make up the library.
+
+bldINSTALLABLE - This should be set if the library should be installed in
+confLIBDIR.
+
+$Revision: 8.102 $, Last updated $Date: 2008/02/12 16:40:05 $

@@ -312,7 +312,7 @@ nicer to animals and plants.  If the Berkeley DB include files
 are installed in a location other than those which your compiler searches,
 you will need to provide that directory when building:
 
-	Build -I/path/to/include/directory
+	./Build -I/path/to/include/directory
 
 If you are using Berkeley DB versions 1.85 or 1.86, you are *strongly*
 urged to upgrade to DB version 2 or later, available from
@@ -464,4 +464,4 @@ sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
 vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
 
-$Revision: 8.93 $, Last updated $Date: 2005/09/16 20:08:50 $
+$Revision: 8.94 $, Last updated $Date: 2008/02/12 16:40:05 $

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,6 +13,6 @@
 
 #include <sm/gen.h>
 
-SM_RCSID("@(#)$Id: version.c,v 8.199 2007/10/31 16:04:12 ca Exp $")
+SM_RCSID("@(#)$Id: version.c,v 8.208 2008/04/17 17:04:30 ca Exp $")
 
-char	Version[] = "8.14.2";
+char	Version[] = "8.14.3";
