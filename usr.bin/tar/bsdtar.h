@@ -96,7 +96,7 @@ struct bsdtar {
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
-	struct siginfo		*siginfo;	/* for siginfo.c */
+	struct siginfo_data	*siginfo;	/* for siginfo.c */
 };
 
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
