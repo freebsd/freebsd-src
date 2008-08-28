@@ -169,7 +169,7 @@ kcs_error(struct ipmi_softc *sc)
 			return;
 		}
 	}
-	device_printf(sc->ipmi_dev, "KCS Error retry exhausted\n");
+	device_printf(sc->ipmi_dev, "KCS: Error retry exhausted\n");
 }
 
 /*
@@ -555,7 +555,7 @@ retry:
 	/* Finish out the transaction. */
 
 	/* Clear OBF */
-	if (status && KCS_STATUS_OBF)
+	if (status & KCS_STATUS_OBF)
 		data = INB(sc, KCS_DATA);
 
 	/* 0x00 to DATA_IN */
@@ -597,7 +597,7 @@ retry:
 		}
 
 		/* Clear OBF */
-		if (status && KCS_STATUS_OBF)
+		if (status & KCS_STATUS_OBF)
 			data = INB(sc, KCS_DATA);
 	} else
 		device_printf(sc->ipmi_dev, "KCS probe: end state %x\n",
