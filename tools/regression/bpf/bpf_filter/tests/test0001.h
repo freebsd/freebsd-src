@@ -6,7 +6,7 @@
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(0xdead, 0),
+	BPF_STMT(0x55, 0),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 

@@ -89,6 +89,25 @@ u_int	bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 #endif
 
 #ifdef BPF_VALIDATE
+static u_short	bpf_code_map[] = {
+	0x10ff,	/* 0x00-0x0f: 1111111100001000 */
+	0x3070,	/* 0x10-0x1f: 0000111000001100 */
+	0x3131,	/* 0x20-0x2f: 1000110010001100 */
+	0x3031,	/* 0x30-0x3f: 1000110000001100 */
+	0x3131,	/* 0x40-0x4f: 1000110010001100 */
+	0x1011,	/* 0x50-0x5f: 1000100000001000 */
+	0x1013,	/* 0x60-0x6f: 1100100000001000 */
+	0x1010,	/* 0x70-0x7f: 0000100000001000 */
+	0x0093,	/* 0x80-0x8f: 1100100100000000 */
+	0x0000,	/* 0x90-0x9f: 0000000000000000 */
+	0x0000,	/* 0xa0-0xaf: 0000000000000000 */
+	0x0002,	/* 0xb0-0xbf: 0100000000000000 */
+	0x0000,	/* 0xc0-0xcf: 0000000000000000 */
+	0x0000,	/* 0xd0-0xdf: 0000000000000000 */
+	0x0000,	/* 0xe0-0xef: 0000000000000000 */
+	0x0000	/* 0xf0-0xff: 0000000000000000 */
+};
+
 /*
  * XXX Copied from sys/net/bpf_filter.c and modified.
  *
@@ -119,61 +138,12 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * the code block.
 		 */
 		p = &f[i];
-#if BPF_VALIDATE > 1
 		/*
-		 * XXX JK: Illegal instructions must be checked here.
+		 * Check that the instruction is valid.
 		 */
-		switch (p->code) {
-		default:
+		if ((p->code & 0xff00) ||
+		    !(bpf_code_map[p->code >> 4] & (1 << (p->code & 0xf))))
 			return (0);
-		case BPF_RET|BPF_K:
-		case BPF_RET|BPF_A:
-		case BPF_LD|BPF_W|BPF_ABS:
-		case BPF_LD|BPF_H|BPF_ABS:
-		case BPF_LD|BPF_B|BPF_ABS:
-		case BPF_LD|BPF_W|BPF_LEN:
-		case BPF_LDX|BPF_W|BPF_LEN:
-		case BPF_LD|BPF_W|BPF_IND:
-		case BPF_LD|BPF_H|BPF_IND:
-		case BPF_LD|BPF_B|BPF_IND:
-		case BPF_LDX|BPF_MSH|BPF_B:
-		case BPF_LD|BPF_IMM:
-		case BPF_LDX|BPF_IMM:
-		case BPF_LD|BPF_MEM:
-		case BPF_LDX|BPF_MEM:
-		case BPF_ST:
-		case BPF_STX:
-		case BPF_JMP|BPF_JA:
-		case BPF_JMP|BPF_JGT|BPF_K:
-		case BPF_JMP|BPF_JGE|BPF_K:
-		case BPF_JMP|BPF_JEQ|BPF_K:
-		case BPF_JMP|BPF_JSET|BPF_K:
-		case BPF_JMP|BPF_JGT|BPF_X:
-		case BPF_JMP|BPF_JGE|BPF_X:
-		case BPF_JMP|BPF_JEQ|BPF_X:
-		case BPF_JMP|BPF_JSET|BPF_X:
-		case BPF_ALU|BPF_ADD|BPF_X:
-		case BPF_ALU|BPF_SUB|BPF_X:
-		case BPF_ALU|BPF_MUL|BPF_X:
-		case BPF_ALU|BPF_DIV|BPF_X:
-		case BPF_ALU|BPF_AND|BPF_X:
-		case BPF_ALU|BPF_OR|BPF_X:
-		case BPF_ALU|BPF_LSH|BPF_X:
-		case BPF_ALU|BPF_RSH|BPF_X:
-		case BPF_ALU|BPF_ADD|BPF_K:
-		case BPF_ALU|BPF_SUB|BPF_K:
-		case BPF_ALU|BPF_MUL|BPF_K:
-		case BPF_ALU|BPF_DIV|BPF_K:
-		case BPF_ALU|BPF_AND|BPF_K:
-		case BPF_ALU|BPF_OR|BPF_K:
-		case BPF_ALU|BPF_LSH|BPF_K:
-		case BPF_ALU|BPF_RSH|BPF_K:
-		case BPF_ALU|BPF_NEG:
-		case BPF_MISC|BPF_TAX:
-		case BPF_MISC|BPF_TXA:
-			break;
-		}
-#endif
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			register int from = i + 1;
 
