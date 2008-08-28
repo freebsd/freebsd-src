@@ -94,7 +94,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.3.0";
+char igb_driver_version[] = "version - 1.4.0";
 
 
 /*********************************************************************
@@ -190,10 +190,10 @@ static void	igb_set_multi(struct adapter *);
 static void	igb_print_hw_stats(struct adapter *);
 static void	igb_update_link_status(struct adapter *);
 static int	igb_get_buf(struct rx_ring *, int);
-#ifdef IGB_HW_VLAN_SUPPORT
+
 static void	igb_register_vlan(void *, struct ifnet *, u16);
 static void	igb_unregister_vlan(void *, struct ifnet *, u16);
-#endif
+
 static int	igb_xmit(struct tx_ring *, struct mbuf **);
 static int	igb_dma_malloc(struct adapter *, bus_size_t,
 		    struct igb_dma_alloc *, int);
@@ -203,9 +203,6 @@ static void	igb_print_nvm_info(struct adapter *);
 static int 	igb_is_valid_ether_addr(u8 *);
 static int	igb_sysctl_stats(SYSCTL_HANDLER_ARGS);
 static int	igb_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
-static int	igb_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
-static void	igb_add_int_delay_sysctl(struct adapter *, const char *,
-		    const char *, struct igb_int_delay_info *, int, int);
 /* Management and WOL Support */
 static void	igb_init_manageability(struct adapter *);
 static void	igb_release_manageability(struct adapter *);
@@ -232,9 +229,8 @@ static void	igb_msix_rx(void *);
 static void	igb_msix_tx(void *);
 static void	igb_msix_link(void *);
 
-#ifdef DEVICE_POLLING
-static poll_handler_t igb_poll;
-#endif
+/* Adaptive Interrupt Moderation */
+static void	igb_update_aim(struct rx_ring *);
 
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points
@@ -264,37 +260,35 @@ MODULE_DEPEND(igb, ether, 1, 1, 1);
  *  Tunable default values.
  *********************************************************************/
 
-#define IGB_TICKS_TO_USECS(ticks)	((1024 * (ticks) + 500) / 1000)
-#define IGB_USECS_TO_TICKS(usecs)	((1000 * (usecs) + 512) / 1024)
-#define M_TSO_LEN			66
-
-/* Allow common code without TSO */
-#ifndef CSUM_TSO
-#define CSUM_TSO	0
-#endif
-
-static int igb_tx_int_delay_dflt = IGB_TICKS_TO_USECS(IGB_TIDV);
-static int igb_rx_int_delay_dflt = IGB_TICKS_TO_USECS(IGB_RDTR);
-static int igb_tx_abs_int_delay_dflt = IGB_TICKS_TO_USECS(IGB_TADV);
-static int igb_rx_abs_int_delay_dflt = IGB_TICKS_TO_USECS(IGB_RADV);
+/* Descriptor defaults */
 static int igb_rxd = IGB_DEFAULT_RXD;
 static int igb_txd = IGB_DEFAULT_TXD;
-static int igb_smart_pwr_down = FALSE;
-TUNABLE_INT("hw.igb.tx_int_delay", &igb_tx_int_delay_dflt);
-TUNABLE_INT("hw.igb.rx_int_delay", &igb_rx_int_delay_dflt);
-TUNABLE_INT("hw.igb.tx_abs_int_delay", &igb_tx_abs_int_delay_dflt);
-TUNABLE_INT("hw.igb.rx_abs_int_delay", &igb_rx_abs_int_delay_dflt);
 TUNABLE_INT("hw.igb.rxd", &igb_rxd);
 TUNABLE_INT("hw.igb.txd", &igb_txd);
-TUNABLE_INT("hw.igb.smart_pwr_down", &igb_smart_pwr_down);
 
+/*
+** These parameters are used in Adaptive
+** Interrupt Moderation. The value is set
+** into EITR and controls the interrupt
+** frequency. They can be modified but
+** be careful in tuning them.
+*/
+static int igb_enable_aim = TRUE;
+TUNABLE_INT("hw.igb.enable_aim", &igb_enable_aim);
+static int igb_low_latency = IGB_LOW_LATENCY;
+TUNABLE_INT("hw.igb.low_latency", &igb_low_latency);
+static int igb_ave_latency = IGB_AVE_LATENCY;
+TUNABLE_INT("hw.igb.ave_latency", &igb_low_latency);
+static int igb_bulk_latency = IGB_BULK_LATENCY;
+TUNABLE_INT("hw.igb.bulk_latency", &igb_bulk_latency);
+                
 /*
 ** IF YOU CHANGE THESE: be sure and change IGB_MSIX_VEC in
 ** if_igb.h to match. These can be autoconfigured if set to
 ** 0, it will then be based on number of cpus.
 */
 static int igb_tx_queues = 1;
-static int igb_rx_queues = 1;
+static int igb_rx_queues = 4;
 TUNABLE_INT("hw.igb.tx_queues", &igb_tx_queues);
 TUNABLE_INT("hw.igb.rx_queues", &igb_rx_queues);
 
@@ -403,9 +397,34 @@ igb_attach(device_t dev)
 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, "fc", CTLTYPE_INT|CTLFLAG_RW,
+	    OID_AUTO, "flow_control", CTLTYPE_INT|CTLFLAG_RW,
 	    &igb_fc_setting, 0, "Flow Control");
 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
+	    OID_AUTO, "enable_lro", CTLTYPE_INT|CTLFLAG_RW,
+	    &igb_enable_lro, 0, "Large Receive Offload");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
+	    &igb_enable_aim, 1, "Interrupt Moderation");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "low_latency", CTLTYPE_INT|CTLFLAG_RW,
+	    &igb_low_latency, 1, "Low Latency");
+                
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "ave_latency", CTLTYPE_INT|CTLFLAG_RW,
+	    &igb_ave_latency, 1, "Average Latency");
+
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "bulk_latency", CTLTYPE_INT|CTLFLAG_RW,
+	    &igb_bulk_latency, 1, "Bulk Latency");
+ 
 	callout_init_mtx(&adapter->timer, &adapter->core_mtx, 0);
 
 	/* Determine hardware and mac info */
@@ -426,24 +445,6 @@ igb_attach(device_t dev)
 	}
 
 	e1000_get_bus_info(&adapter->hw);
-
-	/* Set up some sysctls for the tunable interrupt delays */
-	igb_add_int_delay_sysctl(adapter, "rx_int_delay",
-	    "receive interrupt delay in usecs", &adapter->rx_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_RDTR), igb_rx_int_delay_dflt);
-	igb_add_int_delay_sysctl(adapter, "tx_int_delay",
-	    "transmit interrupt delay in usecs", &adapter->tx_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_TIDV), igb_tx_int_delay_dflt);
-	igb_add_int_delay_sysctl(adapter, "rx_abs_int_delay",
-	    "receive interrupt delay limit in usecs",
-	    &adapter->rx_abs_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_RADV),
-	    igb_rx_abs_int_delay_dflt);
-	igb_add_int_delay_sysctl(adapter, "tx_abs_int_delay",
-	    "transmit interrupt delay limit in usecs",
-	    &adapter->tx_abs_int_delay,
-	    E1000_REGISTER(&adapter->hw, E1000_TADV),
-	    igb_tx_abs_int_delay_dflt);
 
 	/* Sysctls for limiting the amount of work done in the taskqueue */
 	igb_add_rx_process_limit(adapter, "rx_processing_limit",
@@ -490,17 +491,11 @@ igb_attach(device_t dev)
 	adapter->min_frame_size = ETH_ZLEN + ETHERNET_FCS_SIZE;
 
 	/*
-	 * This controls when hardware reports transmit completion
-	 * status.
-	 */
-	adapter->hw.mac.report_tx_early = 1;
-
-	/*
 	** Allocate and Setup Queues
 	*/
 	if (igb_allocate_queues(adapter)) {
 		error = ENOMEM;
-		goto err_hw_init;
+		goto err_pci;
 	}
 
 	/* Make sure we have a good EEPROM before we read from it */
@@ -574,13 +569,11 @@ igb_attach(device_t dev)
 	if (eeprom_data)
 		adapter->wol = E1000_WUFC_MAG;
 
-#ifdef IGB_HW_VLAN_SUPPORT
 	/* Register for VLAN events */
 	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 	     igb_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
 	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
 	     igb_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST);
-#endif
 
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -593,8 +586,6 @@ err_late:
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
-err_hw_init:
-	e1000_remove_device(&adapter->hw);
 err_pci:
 	igb_free_pci_resources(adapter);
 	IGB_CORE_LOCK_DESTROY(adapter);
@@ -626,11 +617,6 @@ igb_detach(device_t dev)
 		return (EBUSY);
 	}
 
-#ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
-
 	IGB_CORE_LOCK(adapter);
 	adapter->in_detach = 1;
 	igb_stop(adapter);
@@ -648,19 +634,16 @@ igb_detach(device_t dev)
 		igb_enable_wakeup(dev);
 	}
 
-#ifdef IGB_HW_VLAN_SUPPORT
 	/* Unregister VLAN events */
 	if (adapter->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, adapter->vlan_attach);
 	if (adapter->vlan_detach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach);
-#endif
 
 	ether_ifdetach(adapter->ifp);
 
 	callout_drain(&adapter->timer);
 
-	e1000_remove_device(&adapter->hw);
 	igb_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
@@ -893,9 +876,6 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			IGB_CORE_LOCK(adapter);
 			igb_disable_intr(adapter);
 			igb_set_multi(adapter);
-#ifdef DEVICE_POLLING
-			if (!(ifp->if_capenable & IFCAP_POLLING))
-#endif
 				igb_enable_intr(adapter);
 			IGB_CORE_UNLOCK(adapter);
 		}
@@ -922,26 +902,6 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
 		reinit = 0;
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
-#ifdef DEVICE_POLLING
-		if (mask & IFCAP_POLLING) {
-			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register(igb_poll, ifp);
-				if (error)
-					return (error);
-				IGB_CORE_LOCK(adapter);
-				igb_disable_intr(adapter);
-				ifp->if_capenable |= IFCAP_POLLING;
-				IGB_CORE_UNLOCK(adapter);
-			} else {
-				error = ether_poll_deregister(ifp);
-				/* Enable interrupt even in error case */
-				IGB_CORE_LOCK(adapter);
-				igb_enable_intr(adapter);
-				ifp->if_capenable &= ~IFCAP_POLLING;
-				IGB_CORE_UNLOCK(adapter);
-			}
-		}
-#endif
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			reinit = 1;
@@ -952,6 +912,10 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			reinit = 1;
+		}
+		if (mask & IFCAP_VLAN_HWFILTER) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
 			reinit = 1;
 		}
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING))
@@ -1116,6 +1080,8 @@ igb_watchdog(struct adapter *adapter)
 static void
 igb_init_locked(struct adapter *adapter)
 {
+	struct rx_ring *rxr = adapter->rx_rings;
+	struct tx_ring *txr = adapter->tx_rings;
 	struct ifnet	*ifp = adapter->ifp;
 	device_t	dev = adapter->dev;
 	u32		pba = 0;
@@ -1153,16 +1119,14 @@ igb_init_locked(struct adapter *adapter)
 
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-#ifndef IGB_HW_VLAN_SUPPORT
-	/* New register interface replaces this but
-	   waiting on kernel support to be added */
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+	/* Vlan's enabled but HW Filtering off */
+	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) &&
+	    ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)) {
 		u32 ctrl;
 		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 		ctrl |= E1000_CTRL_VME;
 		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 	}
-#endif
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -1200,24 +1164,25 @@ igb_init_locked(struct adapter *adapter)
 
 	if (adapter->msix > 1) /* Set up queue routing */
 		igb_configure_queues(adapter);
-	else
-		E1000_WRITE_REG(&adapter->hw, E1000_EITR(0), DEFAULT_ITR);
 
-#ifdef DEVICE_POLLING
-	/*
-	 * Only enable interrupts if we are not polling, make sure
-	 * they are off otherwise.
-	 */
-	if (ifp->if_capenable & IFCAP_POLLING)
-		igb_disable_intr(adapter);
-	else
-#endif /* DEVICE_POLLING */
-	{
-		/* this clears any pending interrupts */
-		E1000_READ_REG(&adapter->hw, E1000_ICR);
-		igb_enable_intr(adapter);
-		E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
+        /* Set default RX interrupt moderation */
+	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
+		E1000_WRITE_REG(&adapter->hw,
+		    E1000_EITR(rxr->msix), igb_ave_latency);
+		rxr->eitr_setting = igb_ave_latency;
 	}
+
+	/* Set TX interrupt rate & reset TX watchdog */
+	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
+		E1000_WRITE_REG(&adapter->hw, 
+		    E1000_EITR(txr->msix), igb_ave_latency);
+		txr->watchdog_timer = FALSE;
+	}
+
+	/* this clears any pending interrupts */
+	E1000_READ_REG(&adapter->hw, E1000_ICR);
+	igb_enable_intr(adapter);
+	E1000_WRITE_REG(&adapter->hw, E1000_ICS, E1000_ICS_LSC);
 
 #ifdef IGB_TIMESYNC
 	/* Initialize IEEE 1588 Time sync if available */
@@ -1238,50 +1203,6 @@ igb_init(void *arg)
 	igb_init_locked(adapter);
 	IGB_CORE_UNLOCK(adapter);
 }
-
-
-#ifdef DEVICE_POLLING
-/*********************************************************************
- *
- *  Legacy polling routine  
- *
- *********************************************************************/
-static void
-igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
-{
-	struct adapter *adapter = ifp->if_softc;
-	struct rx_ring *rxr = adapter->rx_rings;
-	struct tx_ring *txr = adapter->tx_rings;
-	uint32_t reg_icr;
-
-	IGB_CORE_LOCK(adapter);
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		IGB_CORE_UNLOCK(adapter);
-		return;
-	}
-
-	if (cmd == POLL_AND_CHECK_STATUS) {
-		reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
-		if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-			callout_stop(&adapter->timer);
-			adapter->hw.mac.get_link_status = 1;
-			igb_update_link_status(adapter);
-			callout_reset(&adapter->timer, hz,
-			    igb_local_timer, adapter);
-		}
-	}
-	igb_rxeof(rxr, count);
-	IGB_CORE_UNLOCK(adapter);
-
-	/* With polling we cannot do multiqueue */
-	IGB_TX_LOCK(txr);
-	igb_txeof(txr);
-
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
-	IGB_TX_UNLOCK(txr);
-}
-#endif /* DEVICE_POLLING */
 
 
 static void
@@ -1367,12 +1288,8 @@ static int
 igb_irq_fast(void *arg)
 {
 	struct adapter	*adapter = arg;
-	struct ifnet	*ifp = adapter->ifp;
 	uint32_t	reg_icr;
 
-	/* Should not happen, but... */
-	if (ifp->if_capenable & IFCAP_POLLING)
-                return FILTER_STRAY;
 
 	reg_icr = E1000_READ_REG(&adapter->hw, E1000_ICR);
 
@@ -1443,16 +1360,74 @@ igb_msix_rx(void *arg)
 {
 	struct rx_ring *rxr = arg;
 	struct adapter *adapter = rxr->adapter;
-	struct ifnet	*ifp = adapter->ifp;
+	u32		more, loop = 5;
 
 	++rxr->rx_irq;
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-		if (igb_rxeof(rxr, adapter->rx_process_limit) != 0)
-			taskqueue_enqueue(adapter->tq, &rxr->rx_task);
+	do {
+		more = igb_rxeof(rxr, adapter->rx_process_limit);
+	} while (loop-- || more != 0);
+
+	taskqueue_enqueue(adapter->tq, &rxr->rx_task);
+
+	/* Update interrupt rate */
+	if (igb_enable_aim == TRUE)
+		igb_update_aim(rxr);
+
 	/* Reenable this interrupt */
 	E1000_WRITE_REG(&adapter->hw, E1000_EIMS, rxr->eims);
 	return;
 }
+
+
+/*
+** Routine to adjust the RX EITR value based on traffic,
+** its a simple three state model, but seems to help.
+**
+** Note that the three EITR values are tuneable using
+** sysctl in real time. The feature can be effectively
+** nullified by setting them equal.
+*/
+#define BULK_THRESHOLD	10000
+#define AVE_THRESHOLD	1600 
+
+static void
+igb_update_aim(struct rx_ring *rxr)
+{
+	struct adapter	*adapter = rxr->adapter;
+	u32		olditr, newitr;
+
+	/* Update interrupt moderation based on traffic */
+	olditr = rxr->eitr_setting;
+	newitr = olditr;
+
+	/* Idle, don't change setting */
+	if (rxr->bytes == 0)
+		return;
+
+	if (olditr == igb_low_latency) {
+		if (rxr->bytes > AVE_THRESHOLD)
+			newitr = igb_ave_latency;
+	} else if (olditr == igb_ave_latency) {
+		if (rxr->bytes < AVE_THRESHOLD) 
+			newitr = igb_low_latency;
+		else if (rxr->bytes > BULK_THRESHOLD)
+			newitr = igb_bulk_latency;
+	} else if (olditr == igb_bulk_latency) {
+		if (rxr->bytes < BULK_THRESHOLD)
+			newitr = igb_ave_latency;
+	}
+
+	if (olditr != newitr) {
+		/* Change interrupt rate */
+		rxr->eitr_setting = newitr;
+		E1000_WRITE_REG(&adapter->hw, E1000_EITR(rxr->me),
+		    newitr | (newitr << 16));
+	}
+
+	rxr->bytes = 0;
+        return;
+}
+
 
 /*********************************************************************
  *
@@ -1823,8 +1798,9 @@ igb_set_multi(struct adapter *adapter)
 {
 	struct ifnet	*ifp = adapter->ifp;
 	struct ifmultiaddr *ifma;
-	uint32_t reg_rctl = 0;
-	uint8_t  mta[512]; /* Largest MTS is 4096 bits */
+	u32 reg_rctl = 0;
+	u8  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_ADDR_LEN];
+
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("igb_set_multi: begin");
@@ -2234,10 +2210,6 @@ igb_configure_queues(struct adapter *adapter)
 		    E1000_GPIE_MSIX_MODE |
 		    E1000_GPIE_EIAME |
 		    E1000_GPIE_PBA | E1000_GPIE_NSICR);
-	 	/* Set the MSIX interrupt rate. */
-		for (int i = 0; i < IGB_MSIX_VEC; i++)
-			E1000_WRITE_REG(&adapter->hw,
-			    E1000_EITR(i), DEFAULT_ITR);
 		/* RX */
 		for (int i = 0; i < adapter->num_rx_queues; i++) {
 			u32 index = i & 0x7; /* Each IVAR has two entries */
@@ -2285,11 +2257,6 @@ igb_configure_queues(struct adapter *adapter)
                 tmp |= E1000_CTRL_EXT_EIAME;
                 tmp |= E1000_CTRL_EXT_IRCA;
                 E1000_WRITE_REG(hw, E1000_CTRL_EXT, tmp);
-
-	 	/* Set the interrupt throttling rate. */
-		for (int i = 0; i < IGB_MSIX_VEC; i++)
-			E1000_WRITE_REG(&adapter->hw,
-			    E1000_EITR(i), DEFAULT_ITR);
 
 		/* TX */
 		for (int i = 0; i < adapter->num_tx_queues; i++) {
@@ -2519,18 +2486,13 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
-	 * Tell the upper layer(s) we support long frames.
+	 * Tell the upper layer(s) what we support.
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-
-#ifdef DEVICE_POLLING
-	if (adapter->msix > 1)
-		device_printf(adapter->dev, "POLLING not supported with MSIX\n");
-	else
-		ifp->if_capabilities |= IFCAP_POLLING;
-#endif
+	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWFILTER;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
 	/*
 	 * Specify the media types supported by this adapter and register
@@ -2663,7 +2625,6 @@ igb_allocate_queues(struct adapter *adapter)
 	struct rx_ring *rxr;
 	int rsize, tsize, error = E1000_SUCCESS;
 	int txconf = 0, rxconf = 0;
-	char	name_string[16];
 
 	/* First allocate the TX ring struct memory */
 	if (!(adapter->tx_rings =
@@ -2699,9 +2660,9 @@ igb_allocate_queues(struct adapter *adapter)
 		txr->me = i;
 
 		/* Initialize the TX lock */
-		snprintf(name_string, sizeof(name_string), "%s:tx(%d)",
+		snprintf(txr->mtx_name, sizeof(txr->mtx_name), "%s:tx(%d)",
 		    device_get_nameunit(dev), txr->me);
-		mtx_init(&txr->tx_mtx, name_string, NULL, MTX_DEF);
+		mtx_init(&txr->tx_mtx, txr->mtx_name, NULL, MTX_DEF);
 
 		if (igb_dma_malloc(adapter, tsize,
 			&txr->txdma, BUS_DMA_NOWAIT)) {
@@ -2734,9 +2695,9 @@ igb_allocate_queues(struct adapter *adapter)
 		rxr->me = i;
 
 		/* Initialize the RX lock */
-		snprintf(name_string, sizeof(name_string), "%s:rx(%d)",
+		snprintf(rxr->mtx_name, sizeof(rxr->mtx_name), "%s:rx(%d)",
 		    device_get_nameunit(dev), txr->me);
-		mtx_init(&rxr->rx_mtx, name_string, NULL, MTX_DEF);
+		mtx_init(&rxr->rx_mtx, rxr->mtx_name, NULL, MTX_DEF);
 
 		if (igb_dma_malloc(adapter, rsize,
 			&rxr->rxdma, BUS_DMA_NOWAIT)) {
@@ -2897,7 +2858,7 @@ static void
 igb_initialize_transmit_units(struct adapter *adapter)
 {
 	struct tx_ring	*txr = adapter->tx_rings;
-	u32		tctl, txdctl, tipg = 0;
+	u32		tctl, txdctl;
 
 	 INIT_DEBUGOUT("igb_initialize_transmit_units: begin");
 
@@ -2928,25 +2889,13 @@ igb_initialize_transmit_units(struct adapter *adapter)
 		E1000_WRITE_REG(&adapter->hw, E1000_TXDCTL(i), txdctl);
 	}
 
-	/* Set the default values for the Tx Inter Packet Gap timer */
-	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes))
-		tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
-	else
-		tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
-
-	tipg |= DEFAULT_82543_TIPG_IPGR1 << E1000_TIPG_IPGR1_SHIFT;
-	tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
-
-	E1000_WRITE_REG(&adapter->hw, E1000_TIPG, tipg);
-	E1000_WRITE_REG(&adapter->hw, E1000_TIDV, adapter->tx_int_delay.value);
-	E1000_WRITE_REG(&adapter->hw, E1000_TADV, adapter->tx_abs_int_delay.value);
-	
 	/* Program the Transmit Control Register */
 	tctl = E1000_READ_REG(&adapter->hw, E1000_TCTL);
 	tctl &= ~E1000_TCTL_CT;
 	tctl |= (E1000_TCTL_PSP | E1000_TCTL_RTLC | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT));
+
+	e1000_config_collision_dist(&adapter->hw);
 
 	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&adapter->hw, E1000_TCTL, tctl);
@@ -3615,9 +3564,6 @@ igb_initialize_receive_units(struct adapter *adapter)
 	rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
 	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl & ~E1000_RCTL_EN);
 
-	E1000_WRITE_REG(&adapter->hw, E1000_RADV,
-	    adapter->rx_abs_int_delay.value);
-
 	/* Setup the Base and Length of the Rx Descriptor Rings */
 	for (int i = 0; i < adapter->num_rx_queues; i++, rxr++) {
 		u64 bus_addr = rxr->rxdma.dma_paddr;
@@ -3935,7 +3881,8 @@ igb_rxeof(struct rx_ring *rxr, int count)
 				rxr->fmp->m_pkthdr.rcvif = ifp;
 				ifp->if_ipackets++;
 				rxr->rx_packets++;
-				rxr->rx_bytes += rxr->fmp->m_pkthdr.len;
+				rxr->bytes += rxr->fmp->m_pkthdr.len;
+				rxr->rx_bytes += rxr->bytes;
 
 				igb_rx_checksum(staterr, rxr->fmp);
 #ifndef __NO_STRICT_ALIGNMENT
@@ -3991,9 +3938,7 @@ discard:
 			/* Use LRO if possible */   
 			if ((!lro->lro_cnt) || (tcp_lro_rx(lro, m, 0))) {
 				/* Pass up to the stack */
-				IGB_RX_UNLOCK(rxr);
 				(*ifp->if_input)(ifp, m);
-				IGB_RX_LOCK(rxr);
 				i = rxr->next_to_check;
 			}
 		}
@@ -4005,18 +3950,17 @@ discard:
 
 	/* Advance the E1000's Receive Queue #0  "Tail Pointer". */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(rxr->me), rxr->last_cleaned);
-	IGB_RX_UNLOCK(rxr);
 
 	/*
-	** Flush any outstanding LRO work
-	** this may call into the stack and
-	** must not hold a driver lock.
-	*/
-	while(!SLIST_EMPTY(&lro->lro_active)) {
+	 * Flush any outstanding LRO work
+	 */
+	while (!SLIST_EMPTY(&lro->lro_active)) {
 		queued = SLIST_FIRST(&lro->lro_active);
 		SLIST_REMOVE_HEAD(&lro->lro_active, next);
 		tcp_lro_flush(lro, queued);
 	}
+
+	IGB_RX_UNLOCK(rxr);
 
 	if (!((staterr) & E1000_RXD_STAT_DD))
 		return FALSE;
@@ -4114,7 +4058,6 @@ igb_rx_checksum(u32 staterr, struct mbuf *mp)
 	return;
 }
 
-#ifdef IGB_HW_VLAN_SUPPORT
 /*
  * This routine is run via an vlan
  * config EVENT
@@ -4124,6 +4067,10 @@ igb_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	u32		ctrl, rctl, index, vfta;
+
+	/* Shouldn't happen */
+	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		return;
 
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 	ctrl |= E1000_CTRL_VME;
@@ -4157,6 +4104,10 @@ igb_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 	struct adapter	*adapter = ifp->if_softc;
 	u32		index, vfta;
 
+	/* Shouldn't happen */
+	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		return;
+
 	/* Remove entry in the hardware filter table */
 	index = ((vtag >> 5) & 0x7F);
 	vfta = E1000_READ_REG_ARRAY(&adapter->hw, E1000_VFTA, index);
@@ -4175,7 +4126,6 @@ igb_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 		    adapter->max_frame_size);
 	}
 }
-#endif /* IGB_HW_VLAN_SUPPORT */
 
 static void
 igb_enable_intr(struct adapter *adapter)
@@ -4457,12 +4407,6 @@ igb_print_debug_info(struct adapter *adapter)
 	device_printf(dev, "Flow control watermarks high = %d low = %d\n",
 	    adapter->hw.fc.high_water,
 	    adapter->hw.fc.low_water);
-	device_printf(dev, "tx_int_delay = %d, tx_abs_int_delay = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_TIDV),
-	    E1000_READ_REG(&adapter->hw, E1000_TADV));
-	device_printf(dev, "rx_int_delay = %d, rx_abs_int_delay = %d\n",
-	    E1000_READ_REG(&adapter->hw, E1000_RDTR),
-	    E1000_READ_REG(&adapter->hw, E1000_RADV));
 
 	for (int i = 0; i < adapter->num_tx_queues; i++, txr++) {
 		device_printf(dev, "Queue(%d) tdh = %d, tdt = %d\n", i,
@@ -4634,64 +4578,6 @@ igb_sysctl_stats(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (error);
-}
-
-static int
-igb_sysctl_int_delay(SYSCTL_HANDLER_ARGS)
-{
-	struct igb_int_delay_info *info;
-	struct adapter *adapter;
-	uint32_t regval;
-	int error;
-	int usecs;
-	int ticks;
-
-	info = (struct igb_int_delay_info *)arg1;
-	usecs = info->value;
-	error = sysctl_handle_int(oidp, &usecs, 0, req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (usecs < 0 || usecs > IGB_TICKS_TO_USECS(65535))
-		return (EINVAL);
-	info->value = usecs;
-	ticks = IGB_USECS_TO_TICKS(usecs);
-
-	adapter = info->adapter;
-	
-	IGB_CORE_LOCK(adapter);
-	regval = E1000_READ_OFFSET(&adapter->hw, info->offset);
-	regval = (regval & ~0xffff) | (ticks & 0xffff);
-	/* Handle a few special cases. */
-	switch (info->offset) {
-	case E1000_RDTR:
-		break;
-	case E1000_TIDV:
-		if (ticks == 0) {
-			adapter->txd_cmd &= ~E1000_TXD_CMD_IDE;
-			/* Don't write 0 into the TIDV register. */
-			regval++;
-		} else
-			if (adapter->hw.mac.type < e1000_82575)
-				adapter->txd_cmd |= E1000_TXD_CMD_IDE;
-		break;
-	}
-	E1000_WRITE_OFFSET(&adapter->hw, info->offset, regval);
-	IGB_CORE_UNLOCK(adapter);
-	return (0);
-}
-
-static void
-igb_add_int_delay_sysctl(struct adapter *adapter, const char *name,
-	const char *description, struct igb_int_delay_info *info,
-	int offset, int value)
-{
-	info->adapter = adapter;
-	info->offset = offset;
-	info->value = value;
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(adapter->dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-	    OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW,
-	    info, 0, igb_sysctl_int_delay, "I", description);
 }
 
 static void
