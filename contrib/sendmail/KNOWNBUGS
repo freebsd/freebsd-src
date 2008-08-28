@@ -47,6 +47,17 @@ This list is not guaranteed to be complete.
   but some characters might be lost.  Fix: obey RFC (2)822 and do not
   send lines that are longer than 1000 characters.
 
+* milter communication fails if a single header is larger than 64K.
+
+  If a single header is larger than 64KB (which is not possible in the
+  default configuration) then it cannot be transferred in one block to
+  libmilter and hence the communication fails.  This can be avoided by
+  increasing the constant MILTER_CHUNK_SIZE in
+  include/libmilter/mfdef.h and recompiling sendmail, libmilter, and
+  all (statically linked) milters (or by using an undocumented compile
+  time option:  _FFR_MAXDATASIZE; you have to read the source code in
+  order to use this properly).
+
 * Sender addresses whose domain part cause a temporary A record lookup
   failure but have a valid MX record will be temporarily rejected in
   the default configuration.  Solution: fix the DNS at the sender side.
@@ -247,4 +258,4 @@ Kresolve sequence dnsmx canon
   be used if set instead of LOCAL_RELAY ($R).  This will be fixed in a
   future version.
 
-$Revision: 8.59 $, Last updated $Date: 2007/02/21 23:13:58 $
+$Revision: 8.60 $, Last updated $Date: 2007/12/04 01:16:50 $

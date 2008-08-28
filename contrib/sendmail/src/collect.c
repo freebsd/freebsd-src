@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.280 2006/11/29 00:20:40 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.282 2008/01/31 18:48:29 ca Exp $")
 
 static void	eatfrom __P((char *volatile, ENVELOPE *));
 static void	collect_doheader __P((ENVELOPE *));
@@ -308,6 +308,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	dbto = smtpmode ? ((int) TimeOuts.to_datablock * 1000)
 			: SM_TIME_FOREVER;
 	sm_io_setinfo(fp, SM_IO_WHAT_TIMEOUT, &dbto);
+	set_tls_rd_tmo(TimeOuts.to_datablock);
 	c = SM_IO_EOF;
 	inputerr = false;
 	headeronly = hdrp != NULL;

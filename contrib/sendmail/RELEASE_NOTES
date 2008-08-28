@@ -1,10 +1,46 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1909 2007/10/31 16:04:13 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1926 2008/05/03 03:34:26 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.3/8.14.3	2008/05/03
+	During ruleset processing the generation of a key for a map
+		lookup and the parsing of the default value was broken
+		for some macros, e.g., $|, which caused the BlankSub
+		character to be inserted into the workspace and thus
+		failures, e.g., rules that should have matched did not.
+	8.14.2 caused a regression: it accessed (macro) storage which was
+		freed before. First instance of the problem reported by
+		Matthew Dillon of DragonFlyBSD; variations of the same
+		bug reported by Todd C. Miller of OpenBSD, Moritz
+		Jodeit, and Dave Hayes.
+	Improve pathname length checks for persistent host status.  Patch
+		from Joerg Sonnenberger of DragonFlyBSD.
+	Reword misleading SMTP reply text for FEATURE(`badmx').  Problem
+		noted by Beth Halsema.
+	The read timeout was fixed to be Timeout.datablock if STARTTLS
+		was activated. This may cause problems if that value
+		is lowered from its default. Problem noted by Jens Elkner.
+	CONFIG: Using LOCAL_TLS_CLIENT caused the tls_client ruleset
+		to operate incorrectly.  Problem found by Werner Wiethege.
+	LIBMILTER: Omitting some protocol steps via the xxfi_negotiate()
+		callback did not work properly. The patchlevel of
+		libmilter has been set to 1 so a milter can determine
+		whether libmilter contains this fix.
+	MAKEMAP: If a delimiter is specified (-t) use that also when
+		dumping a map.  Patch from Todd C. Miller of OpenBSD.
+	Portability:
+		Add support for Darwin 9.x (Mac OS X 10.5).
+		Support shared libraries in Darwin 8 and 9.  Patch from
+		Chris Behrens of Concentric.
+		Add support for SCO OpenServer 6, patch from Boyd Gerber.
+	DEVTOOLS: Clarify that confSHAREDLIBDIR requires a trailing path.
+	Added Files:
+		devtools/OS/Darwin.9.x
+		devtools/OS/OSR.i386
 
 8.14.2/8.14.2	2007/11/01
 	If a message was queued and it contained 8 bit characters in
@@ -24,7 +60,7 @@ summary of the changes in that release.
 		Prior to 8.14 this happened only if milter could delete
 		recipients.
 	ClientRate should trigger when the limit was exceeded (as
-		documented), not when it was reached.  Patch from 
+		documented), not when it was reached.  Patch from
 		John Beck of Sun Microsystems.
 	Force a queue run for -qGqueuegroup even if no runners are
 		specified (R=0) and forking (F=f) is requested.

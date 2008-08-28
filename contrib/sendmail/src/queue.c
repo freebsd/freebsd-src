@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.975 2007/06/18 20:08:40 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.977 2008/02/15 23:19:58 ca Exp $")
 
 #include <dirent.h>
 
@@ -4514,7 +4514,7 @@ readqf(e, openonly)
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
 		return false;
 	}
- 
+
 #if _FFR_QF_PARANOIA
 	/* Check to make sure key fields were read */
 	if (e->e_from.q_mailer == NULL)
@@ -6596,8 +6596,8 @@ init_sem(owner)
 	if (SemId < 0)
 	{
 		sm_syslog(LOG_ERR, NOQID,
-			"func=init_sem, sem_key=%ld, sm_sem_start=%d",
-			(long) SemKey, SemId);
+			"func=init_sem, sem_key=%ld, sm_sem_start=%d, error=%s",
+			(long) SemKey, SemId, sm_errstring(-SemId));
 		return;
 	}
 #endif /* SM_CONF_SEM */

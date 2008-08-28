@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1052 2007/10/05 23:06:30 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1059 2008/02/15 23:19:58 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -1551,6 +1551,7 @@ extern void	stabapply __P((void (*)(STAB *, int), int));
 #define MD_ARPAFTP	'a'		/* obsolete ARPANET mode (Grey Book) */
 #define MD_DAEMON	'd'		/* run as a daemon */
 #define MD_FGDAEMON	'D'		/* run daemon in foreground */
+#define MD_LOCAL	'l'		/* like daemon, but localhost only */
 #define MD_VERIFY	'v'		/* verify: don't collect or deliver */
 #define MD_TEST		't'		/* test mode: resolve addrs only */
 #define MD_INITALIAS	'i'		/* initialize alias database */
@@ -1560,6 +1561,12 @@ extern void	stabapply __P((void (*)(STAB *, int), int));
 #define MD_HOSTSTAT	'h'		/* print persistent host stat info */
 #define MD_PURGESTAT	'H'		/* purge persistent host stat info */
 #define MD_QUEUERUN	'q'		/* queue run */
+
+#if _FFR_LOCAL_DAEMON
+EXTERN bool	LocalDaemon;
+#else /* _FFR_LOCAL_DAEMON */
+# define LocalDaemon	false
+#endif /* _FFR_LOCAL_DAEMON */
 
 /* Note: see also include/sendmail/pathnames.h: GET_CLIENT_CF */
 
@@ -2229,6 +2236,10 @@ EXTERN char	InetMode;		/* default network for daemon mode */
 EXTERN char	OpMode;		/* operation mode, see below */
 EXTERN char	SpaceSub;	/* substitution for <lwsp> */
 EXTERN int	BadRcptThrottle; /* Throttle rejected RCPTs per SMTP message */
+#if _FFR_BADRCPT_SHUTDOWN
+EXTERN int	BadRcptShutdown; /* Shutdown connection for rejected RCPTs */
+EXTERN int	BadRcptShutdownGood; /* above even when there are good RCPTs */
+#endif /* _FFR_BADRCPT_SHUTDOWN */
 EXTERN int	CheckpointInterval;	/* queue file checkpoint interval */
 EXTERN int	ConfigLevel;	/* config file level */
 EXTERN int	ConnRateThrottle;	/* throttle for SMTP connection rate */
@@ -2590,6 +2601,11 @@ extern void	setoption __P((int, char *, bool, bool, ENVELOPE *));
 extern sigfunc_t	setsignal __P((int, sigfunc_t));
 extern void	sm_setuserenv __P((const char *, const char *));
 extern void	settime __P((ENVELOPE *));
+#if STARTTLS
+extern void	set_tls_rd_tmo __P((int));
+#else /* STARTTLS */
+#define set_tls_rd_tmo(rd_tmo)
+#endif /* STARTTLS */
 extern char	*sfgets __P((char *, int, SM_FILE_T *, time_t, char *));
 extern char	*shortenstring __P((const char *, size_t));
 extern char	*shorten_hostname __P((char []));
