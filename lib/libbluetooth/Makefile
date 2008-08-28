@@ -27,4 +27,8 @@ MLINKS+=	bluetooth.3 bt_endprotoent.3
 MLINKS+=	bluetooth.3 bt_ntoa.3
 MLINKS+=	bluetooth.3 bt_aton.3
 
+MLINKS+=	bluetooth.3 bdaddr_same.3
+MLINKS+=	bluetooth.3 bdaddr_any.3
+MLINKS+=	bluetooth.3 bdaddr_copy.3
+
 .include <bsd.lib.mk>
