@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-MAN=	powermac_nvram.4
+MAN=	bm.4 \
+	powermac_nvram.4
 
 MANSUBDIR=/powerpc
 
