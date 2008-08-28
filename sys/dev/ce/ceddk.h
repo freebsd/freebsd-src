@@ -72,6 +72,7 @@ typedef struct _ce_chan_t {
 	TAU32_UserRequest *rx_queue;
 	TAU32_UserRequest *tx_queue;
 	unsigned char debug;
+	unsigned char debug_shadow;
 	void (*transmit) (struct _ce_chan_t*, void*, int);
 	void (*receive) (struct _ce_chan_t*, unsigned char*, int);
 	void (*error) (struct _ce_chan_t*, int);

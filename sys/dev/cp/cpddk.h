@@ -205,6 +205,7 @@ typedef struct _cp_chan_t {
 	void *tag [NTBUF];		/* system dependent data per buffer */
 	void *sys;			/* system dependent data per channel */
 	unsigned char debug;		/* debug level, 0..2 */
+	unsigned char debug_shadow;	/* debug shadow */
 
 	void (*transmit) (struct _cp_chan_t *c, void *tag, int len);
 	void (*receive) (struct _cp_chan_t *c, unsigned char *data, int len);
