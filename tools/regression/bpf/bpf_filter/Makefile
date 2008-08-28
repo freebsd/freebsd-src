@@ -19,7 +19,7 @@ TEST_CASES?=	test0001 test0002 test0003 test0004	\
 		test0065 test0066 test0067 test0068	\
 		test0069 test0070 test0071 test0072	\
 		test0073 test0074 test0075 test0076	\
-		test0077 test0078 test0079
+		test0077 test0078 test0079 test0080
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
@@ -62,7 +62,7 @@ all:		${TEST_CASES}
 .if defined(BPF_BENCHMARK)
 	@-time ${.CURDIR}/${TEST}
 .else
-	@-${.CURDIR}/${TEST}
+	@-env MALLOC_OPTIONS=J ${.CURDIR}/${TEST}
 .endif
 	@rm -f ${.CURDIR}/${TEST}
 .endfor
