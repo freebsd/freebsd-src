@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 /* Is there a pending SIGINFO or SIGUSR1? */
 static volatile sig_atomic_t siginfo_received = 0;
 
-struct siginfo {
+struct siginfo_data {
 	/* What sort of operation are we doing? */
 	char * oper;
 
@@ -72,7 +72,7 @@ siginfo_init(struct bsdtar *bsdtar)
 {
 
 	/* Allocate space for internal structure. */
-	if ((bsdtar->siginfo = malloc(sizeof(struct siginfo))) == NULL)
+	if ((bsdtar->siginfo = malloc(sizeof(struct siginfo_data))) == NULL)
 		bsdtar_errc(bsdtar, 1, errno, "malloc failed");
 
 	/* Set the strings to NULL so that free() is safe. */
