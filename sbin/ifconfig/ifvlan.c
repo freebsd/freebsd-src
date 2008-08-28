@@ -180,6 +180,8 @@ static struct cmd vlan_cmds[] = {
 	DEF_CMD("-vlanmtu",	-IFCAP_VLAN_MTU,	setifcap),
 	DEF_CMD("vlanhwtag",	IFCAP_VLAN_HWTAGGING,	setifcap),
 	DEF_CMD("-vlanhwtag",	-IFCAP_VLAN_HWTAGGING,	setifcap),
+	DEF_CMD("vlanhwfilter",	IFCAP_VLAN_HWFILTER,	setifcap),
+	DEF_CMD("-vlanhwfilter", -IFCAP_VLAN_HWFILTER,	setifcap),
 };
 static struct afswtch af_vlan = {
 	.af_name	= "af_vlan",

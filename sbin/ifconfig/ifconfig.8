@@ -402,18 +402,20 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter
 If the driver offers user-configurable VLAN support, enable
-reception of extended frames or tag processing in hardware,
+reception of extended frames, tag processing in hardware, or
+frame filtering in hardware,
 respectively.
 Note that this must be issued on a physical interface associated with
 .Xr vlan 4 ,
 not on a
 .Xr vlan 4
 interface itself.
-.It Fl vlanmtu , vlanhwtag
+.It Fl vlanmtu , vlanhwtag, vlanhwfilter
 If the driver offers user-configurable VLAN support, disable
-reception of extended frames or tag processing in hardware,
+reception of extended frames, tag processing in hardware, or
+frame filtering in hardware,
 respectively.
 .It Cm polling
 Turn on
