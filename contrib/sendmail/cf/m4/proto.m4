@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.732 2007/04/20 00:53:30 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -1956,7 +1956,7 @@ R<MX><$+><:$*<TEMP>:><$*>	$#error $@ 4.1.2 $: "450 MX lookup failure for "$1
 # Recursively run badmx check on each mx.
 R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><: $4 $(badmx $2 $):>
 # See if any of them fail.
-R<MX><$*><$*><$*<BADMX>:$*>	$#error $@ 5.1.2 $:"550 Illegal MX record for recipient host "$1
+R<MX><$*><$*><$*<BADMX>:$*>	$#error $@ 5.1.2 $:"550 Illegal MX record for host "$1
 # Reverse the mxlists so we can use the same argument order again.
 R<MX><$*><$*><$*>		$:<MX><$1><$3><$2>
 R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><:$4 $(dnsA $2 $) :>
@@ -1965,7 +1965,7 @@ R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><:$4 $(dnsA $2 $) :>
 R<MX><$*><$*><$*>		$:<MX><$1><$3><$2>
 R<MX><$*><:$+:$*><:$*>		<MX><$1><:$3><:$4 $(BadMXIP $2 $) :>
 
-R<MX><$*><$*><$*<BADMXIP>:$*>	$#error $@ 5.1.2 $:"550 Invalid MX record for recipient host "$1',
+R<MX><$*><$*><$*<BADMXIP>:$*>	$#error $@ 5.1.2 $:"550 Invalid MX record for host "$1',
 `dnl')
 
 
@@ -2686,9 +2686,9 @@ dnl MAIL: called from check_mail
 dnl STARTTLS: called from smtp() after STARTTLS has been accepted
 Stls_client
 ifdef(`_LOCAL_TLS_CLIENT_', `dnl
-R$*			$: $1 $| $>"Local_tls_client" $1
-R$* $| $#$*		$#$2
-R$* $| $*		$: $1', `dnl')
+R$*			$: $1 <?> $>"Local_tls_client" $1
+R$* <?> $#$*		$#$2
+R$* <?> $*		$: $1', `dnl')
 ifdef(`_ACCESS_TABLE_', `dnl
 dnl store name of other side
 R$*		$: $(macro {TLS_Name} $@ $&{server_name} $) $1

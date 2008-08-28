@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -9,12 +9,11 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1136 2007/10/10 00:06:45 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1141 2008/04/14 02:09:35 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -1514,7 +1513,7 @@ getla()
 		sm_dprintf("getla: symbol address = %#lx\n",
 			(unsigned long) Nl[X_AVENRUN].n_value);
 	if (lseek(kmem, (off_t) Nl[X_AVENRUN].n_value, SEEK_SET) == -1 ||
-	    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
+	    read(kmem, (char *) avenrun, sizeof(avenrun)) != sizeof(avenrun))
 	{
 		/* thank you Ian */
 		if (tTd(3, 1))
@@ -1836,7 +1835,7 @@ getla(void)
 
 	if (lseek(kmem, CAST_SYSMP(sysmp(MP_KERNADDR, MPKA_AVENRUN)), SEEK_SET)
 		== -1 ||
-	    read(kmem, (char *) avenrun, sizeof(avenrun)) < sizeof(avenrun))
+	    read(kmem, (char *) avenrun, sizeof(avenrun)) != sizeof(avenrun))
 	{
 		if (tTd(3, 1))
 			sm_dprintf("getla: lseek or read: %s\n",
@@ -1944,6 +1943,13 @@ getla()
 	}
 
 	r = read(afd, &avenrun, sizeof(avenrun));
+	if (r != sizeof(avenrun))
+	{
+		sm_syslog(LOG_ERR, NOQID,
+			"can't read %s: %s", _PATH_AVENRUN,
+			r == -1 ? sm_errstring(errno) : "short read");
+		return -1;
+	}
 
 	if (tTd(3, 5))
 		sm_dprintf("getla: avenrun = %d\n", avenrun);
@@ -6025,6 +6031,10 @@ char	*FFRCompileOptions[] =
 	/* DefaultAuthInfo doesn't really work in 8.13 anymore. */
 	"_FFR_ALLOW_SASLINFO",
 #endif /* _FFR_ALLOW_SASLINFO */
+#if _FFR_BADRCPT_SHUTDOWN
+	/* shut down connection (421) if there are too many bad RCPTs */
+	"_FFR_BADRCPT_SHUTDOWN",
+#endif /* _FFR_BADRCPT_SHUTDOWN */
 #if _FFR_BESTMX_BETTER_TRUNCATION
 	/* Better truncation of list of MX records for dns map. */
 	"_FFR_BESTMX_BETTER_TRUNCATION",
@@ -6165,6 +6175,10 @@ char	*FFRCompileOptions[] =
 	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
 #endif /* _FFR_IGNORE_EXT_ON_HELO */
+#if _FFR_LOCAL_DAEMON
+	/* Local daemon mode (-bl) which only accepts loopback connections */
+	"_FFR_LOCAL_DAEMON",
+#endif /* _FFR_LOCAL_DAEMON */
 #if _FFR_MAXDATASIZE
 	/*
 	**  It is possible that a header is larger than MILTER_CHUNK_SIZE,

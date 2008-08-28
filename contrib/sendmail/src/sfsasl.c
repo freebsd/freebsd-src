@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2006, 2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.115 2006/04/18 21:34:07 ca Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.117 2008/01/31 18:48:29 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <sm/time.h>
@@ -675,6 +675,26 @@ tls_retry(ssl, rfd, wfd, tlsstart, timeout, err, where)
 #endif /* ETIMEDOUT */
 
 /*
+**  SET_TLS_RD_TMO -- read secured information for the caller
+**
+**	Parameters:
+**		rd_tmo -- read timeout
+**
+**	Results:
+**		none
+**	This is a hack: there is no way to pass it in
+*/
+
+static int tls_rd_tmo = -1;
+
+void
+set_tls_rd_tmo(rd_tmo)
+	int rd_tmo;
+{
+	tls_rd_tmo = rd_tmo;
+}
+
+/*
 **  TLS_READ -- read secured information for the caller
 **
 **	Parameters:
@@ -725,7 +745,9 @@ tls_read(fp, buf, size)
 		rfd = SSL_get_rfd(so->con);
 		wfd = SSL_get_wfd(so->con);
 		try = tls_retry(so->con, rfd, wfd, tlsstart,
-				TimeOuts.to_datablock, ssl_err, "read");
+				(tls_rd_tmo < 0) ? TimeOuts.to_datablock
+						 : tls_rd_tmo,
+				ssl_err, "read");
 		if (try > 0)
 			goto retry;
 		errno = SM_ERR_TIMEOUT;
