@@ -1,14 +1,14 @@
 /*-
- * Test 0035:	BPF_ALU|BPF_DIV|BPF_K
+ * Test 0035:	BPF_ALU+BPF_DIV+BPF_K
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LD|BPF_IMM, 0xa7c2da06),
-	BPF_STMT(BPF_ALU|BPF_DIV|BPF_K, 0xdead),
-	BPF_STMT(BPF_RET|BPF_A, 0),
+	BPF_STMT(BPF_LD+BPF_IMM, 0xa7c2da06),
+	BPF_STMT(BPF_ALU+BPF_DIV+BPF_K, 0xdead),
+	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
 /* Packet */
@@ -28,5 +28,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0xc0de;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;

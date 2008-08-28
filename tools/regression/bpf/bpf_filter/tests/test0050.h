@@ -1,13 +1,13 @@
 /*-
- * Test 0050:	Check boundary conditions (BPF_LD|BPF_H|BPF_ABS)
+ * Test 0050:	Check boundary conditions (BPF_LD+BPF_H+BPF_ABS)
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LD|BPF_IMM, 0xdeadc0de),
-	BPF_STMT(BPF_LD|BPF_H|BPF_ABS, 4),
+	BPF_STMT(BPF_LD+BPF_IMM, 0xdeadc0de),
+	BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 4),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -28,5 +28,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;

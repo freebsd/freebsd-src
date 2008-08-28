@@ -1,12 +1,12 @@
 /*-
- * Test 0004:	BPF_LD|BPF_W|BPF_ABS
+ * Test 0004:	BPF_LD+BPF_W+BPF_ABS
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LD|BPF_W|BPF_ABS, 1),
+	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, 1),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -27,5 +27,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0x23456789;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;

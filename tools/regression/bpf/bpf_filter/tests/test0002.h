@@ -26,5 +26,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0xdeadc0de;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;

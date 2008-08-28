@@ -1,13 +1,13 @@
 /*-
- * Test 0008:	BPF_LDX|BPF_W|BPF_LEN & BPF_MISC|BPF_TXA
+ * Test 0008:	BPF_LDX+BPF_W+BPF_LEN & BPF_MISC+BPF_TXA
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LDX|BPF_W|BPF_LEN, 0),
-	BPF_STMT(BPF_MISC|BPF_TXA, 0),
+	BPF_STMT(BPF_LDX+BPF_W+BPF_LEN, 0),
+	BPF_STMT(BPF_MISC+BPF_TXA, 0),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -28,5 +28,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0xdeadc0de;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;
