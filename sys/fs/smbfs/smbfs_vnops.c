@@ -177,12 +177,12 @@ smbfs_open(ap)
 		if ((error = smbfs_vinvalbuf(vp, ap->a_td)) == EINTR)
 			return error;
 		smbfs_attr_cacheremove(vp);
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return error;
 		np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;
 	} else {
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return error;
 		if (np->n_mtime.tv_sec != vattr.va_mtime.tv_sec) {
@@ -254,7 +254,6 @@ smbfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -270,7 +269,7 @@ smbfs_getattr(ap)
 	if (!error)
 		return 0;
 	SMBVDEBUG("not in the cache\n");
-	smb_makescred(&scred, ap->a_td, ap->a_cred);
+	smb_makescred(&scred, curthread, ap->a_cred);
 	oldsize = np->n_size;
 	error = smbfs_smb_lookup(np, NULL, 0, &fattr, &scred);
 	if (error) {
@@ -290,7 +289,6 @@ smbfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -300,6 +298,7 @@ smbfs_setattr(ap)
 	struct smb_cred scred;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct smb_vc *vcp = SSTOVC(ssp);
+	struct thread *td = curthread;
 	u_quad_t tsize = 0;
 	int isreadonly, doclose, error = 0;
 	int old_n_dosattr;
@@ -315,7 +314,7 @@ smbfs_setattr(ap)
 	     vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL ||
 	     vap->va_mode != (mode_t)VNOVAL) && isreadonly)
 		return EROFS;
-	smb_makescred(&scred, ap->a_td, ap->a_cred);
+	smb_makescred(&scred, td, ap->a_cred);
 	if (vap->va_size != VNOVAL) {
  		switch (vp->v_type) {
  		    case VDIR:
@@ -367,12 +366,11 @@ smbfs_setattr(ap)
 		atime = &vap->va_atime;
 	if (mtime != atime) {
 		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td);
+			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td);
 			if (error)
-				error = VOP_ACCESS(vp, VWRITE, ap->a_cred,
-				    ap->a_td);
+				error = VOP_ACCESS(vp, VWRITE, ap->a_cred, td);
 		} else
-			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td);
+			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td);
 #if 0
 		if (mtime == NULL)
 			mtime = &np->n_mtime;
@@ -385,13 +383,15 @@ smbfs_setattr(ap)
 		 */
 		if ((np->n_flag & NOPEN) == 0) {
 			if (vcp->vc_flags & SMBV_WIN95) {
-				error = VOP_OPEN(vp, FWRITE, ap->a_cred, ap->a_td, NULL);
+				error = VOP_OPEN(vp, FWRITE, ap->a_cred, td,
+				    NULL);
 				if (!error) {
-/*				error = smbfs_smb_setfattrNT(np, 0, mtime, atime, &scred);
-				VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);*/
-				if (mtime)
-					np->n_mtime = *mtime;
-				VOP_CLOSE(vp, FWRITE, ap->a_cred, ap->a_td);
+/*					error = smbfs_smb_setfattrNT(np, 0,
+					    mtime, atime, &scred);
+					VOP_GETATTR(vp, &vattr, ap->a_cred); */
+					if (mtime)
+						np->n_mtime = *mtime;
+					VOP_CLOSE(vp, FWRITE, ap->a_cred, td);
 				}
 			} else if ((vcp->vc_sopt.sv_caps & SMB_CAP_NT_SMBS)) {
 				error = smbfs_smb_setptime2(np, mtime, atime, 0, &scred);
@@ -421,7 +421,7 @@ smbfs_setattr(ap)
 	 * required attributes.
 	 */
 	smbfs_attr_cacheremove(vp);	/* invalidate cache */
-	VOP_GETATTR(vp, vap, ap->a_cred, ap->a_td);
+	VOP_GETATTR(vp, vap, ap->a_cred);
 	np->n_mtime.tv_sec = vap->va_mtime.tv_sec;
 	return error;
 }
@@ -497,7 +497,7 @@ smbfs_create(ap)
 	*vpp = NULL;
 	if (vap->va_type != VREG)
 		return EOPNOTSUPP;
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread)))
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)))
 		return error;
 	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
 	
@@ -696,7 +696,7 @@ smbfs_mkdir(ap)
 	int len = cnp->cn_namelen;
 	int error;
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread))) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred))) {
 		return error;
 	}	
 	if ((name[0] == '.') && ((len == 1) || ((len == 2) && (name[1] == '.'))))
@@ -906,7 +906,7 @@ smbfs_getextattr(struct vop_getextattr_args *ap)
 	error = VOP_ACCESS(vp, VREAD, cred, td);
 	if (error)
 		return error;
-	error = VOP_GETATTR(vp, &vattr, cred, td);
+	error = VOP_GETATTR(vp, &vattr, cred);
 	if (error)
 		return error;
 	if (strcmp(name, "dosattr") == 0) {
@@ -1147,7 +1147,7 @@ smbfs_lookup(ap)
 
 		killit = 0;
 		vp = *vpp;
-		error = VOP_GETATTR(vp, &vattr, cnp->cn_cred, td);
+		error = VOP_GETATTR(vp, &vattr, cnp->cn_cred);
 		/*
 		 * If the file type on the server is inconsistent
 		 * with what it was when we created the vnode,

@@ -206,7 +206,7 @@ unionfs_lookup(struct vop_cachedlookup_args *ap)
 			if (cnp->cn_flags & ISWHITEOUT)
 				iswhiteout = 1;	/* don't lookup lower */
 		if (iswhiteout == 0 && ldvp != NULLVP)
-			if (VOP_GETATTR(udvp, &va, cnp->cn_cred, td) == 0 &&
+			if (!VOP_GETATTR(udvp, &va, cnp->cn_cred) &&
 			    (va.va_flags & OPAQUE))
 				iswhiteout = 1;	/* don't lookup lower */
 #if 0
@@ -731,10 +731,10 @@ unionfs_getattr(struct vop_getattr_args *ap)
 	ump = MOUNTTOUNIONFSMOUNT(ap->a_vp->v_mount);
 	uvp = unp->un_uppervp;
 	lvp = unp->un_lowervp;
-	td = ap->a_td;
+	td = curthread;
 
 	if (uvp != NULLVP) {
-		if ((error = VOP_GETATTR(uvp, ap->a_vap, ap->a_cred, td)) == 0)
+		if ((error = VOP_GETATTR(uvp, ap->a_vap, ap->a_cred)) == 0)
 			ap->a_vap->va_fsid = ap->a_vp->v_mount->mnt_stat.f_fsid.val[0];
 
 		UNIONFS_INTERNAL_DEBUG("unionfs_getattr: leave mode=%o, uid=%d, gid=%d (%d)\n",
@@ -744,7 +744,7 @@ unionfs_getattr(struct vop_getattr_args *ap)
 		return (error);
 	}
 
-	error = VOP_GETATTR(lvp, ap->a_vap, ap->a_cred, td);
+	error = VOP_GETATTR(lvp, ap->a_vap, ap->a_cred);
 
 	if (error == 0 && !(ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY)) {
 		/* correct the attr toward shadow file/dir. */
@@ -781,7 +781,7 @@ unionfs_setattr(struct vop_setattr_args *ap)
 	unp = VTOUNIONFS(ap->a_vp);
 	uvp = unp->un_uppervp;
 	lvp = unp->un_lowervp;
-	td = ap->a_td;
+	td = curthread;
 	vap = ap->a_vap;
 
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_RDONLY) &&
@@ -799,7 +799,7 @@ unionfs_setattr(struct vop_setattr_args *ap)
 	}
 
 	if (uvp != NULLVP)
-		error = VOP_SETATTR(uvp, vap, ap->a_cred, td);
+		error = VOP_SETATTR(uvp, vap, ap->a_cred);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_setattr: leave (%d)\n", error);
 
@@ -1264,7 +1264,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 	if (udvp != NULLVP) {
 		/* check opaque */
 		if (!(cnp->cn_flags & ISWHITEOUT)) {
-			error = VOP_GETATTR(udvp, &va, cnp->cn_cred, td);
+			error = VOP_GETATTR(udvp, &va, cnp->cn_cred);
 			if (error != 0)
 				return (error);
 			if (va.va_flags & OPAQUE) 
@@ -1412,7 +1412,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 
 	/* check opaque */
 	if (uvp != NULLVP && lvp != NULLVP) {
-		if ((error = VOP_GETATTR(uvp, &va, ap->a_cred, td)) != 0)
+		if ((error = VOP_GETATTR(uvp, &va, ap->a_cred)) != 0)
 			goto unionfs_readdir_exit;
 		if (va.va_flags & OPAQUE)
 			lvp = NULLVP;

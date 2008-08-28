@@ -563,8 +563,7 @@ maybe_demote(struct mac_lomac *subjlabel, struct mac_lomac *objlabel,
 	objlabeltext = sbuf_data(&objlabel_sb);
 
 	pgid = p->p_pgrp->pg_id;		/* XXX could be stale? */
-	if (vp != NULL && VOP_GETATTR(vp, &va, curthread->td_ucred,
-	    curthread) == 0) {
+	if (vp != NULL && VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
 		log(LOG_INFO, "LOMAC: level-%s subject p%dg%du%d:%s demoted to"
 		    " level %s after %s a level-%s %s (inode=%ld, "
 		    "mountpount=%s)\n",

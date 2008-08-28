@@ -982,7 +982,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (argp->flags & NFSMNT_NFSV3)
 		nfs_fsinfo(nmp, *vpp, curthread->td_ucred, curthread);
 	else
-		VOP_GETATTR(*vpp, &attrs, curthread->td_ucred, curthread);
+		VOP_GETATTR(*vpp, &attrs, curthread->td_ucred);
 
 	/*
 	 * Lose the lock but keep the ref.

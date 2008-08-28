@@ -1155,10 +1155,12 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	vm_object_t obj;
 	struct mount *mp;
 	struct cdevsw *dsw;
+	struct ucred *cred;
 	int error, flags, type;
 	int vfslocked;
 
 	mp = vp->v_mount;
+	cred = td->td_ucred;
 	vfslocked = VFS_LOCK_GIANT(mp);
 	if ((error = vget(vp, LK_EXCLUSIVE, td)) != 0) {
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -1218,11 +1220,10 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		error = EINVAL;
 		goto done;
 	}
-	if ((error = VOP_GETATTR(vp, &va, td->td_ucred, td))) {
+	if ((error = VOP_GETATTR(vp, &va, cred)))
 		goto done;
-	}
 #ifdef MAC
-	error = mac_vnode_check_mmap(td->td_ucred, vp, prot, flags);
+	error = mac_vnode_check_mmap(cred, vp, prot, flags);
 	if (error != 0)
 		goto done;
 #endif
@@ -1252,7 +1253,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	}
 	*objp = obj;
 	*flagsp = flags;
-	vfs_mark_atime(vp, td);
+	vfs_mark_atime(vp, cred);
 
 done:
 	vput(vp);

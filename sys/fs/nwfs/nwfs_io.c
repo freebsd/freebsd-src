@@ -178,11 +178,11 @@ nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred) {
 	biosize = NWFSTOCONN(nmp)->buffer_size;
 	if (np->n_flag & NMODIFIED) {
 		nwfs_attr_cacheremove(vp);
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error) return (error);
 		np->n_mtime = vattr.va_mtime.tv_sec;
 	} else {
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error) return (error);
 		if (np->n_mtime != vattr.va_mtime.tv_sec) {
 			error = nwfs_vinvalbuf(vp, td);
@@ -228,7 +228,7 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 		 * the correct size. */
 #ifdef notyet
 			nwfs_attr_cacheremove(vp);
-			error = VOP_GETATTR(vp, &vattr, cred, td);
+			error = VOP_GETATTR(vp, &vattr, cred);
 			if (error) return (error);
 #endif
 			uiop->uio_offset = np->n_size;

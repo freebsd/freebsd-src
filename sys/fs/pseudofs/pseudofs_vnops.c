@@ -128,7 +128,7 @@ pfs_access(struct vop_access_args *va)
 	PFS_TRACE(("%s", pvd->pvd_pn->pn_name));
 	(void)pvd;
 
-	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
+	error = VOP_GETATTR(vn, &vattr, va->a_cred);
 	if (error)
 		PFS_RETURN (error);
 	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid,
@@ -227,7 +227,7 @@ pfs_getattr(struct vop_getattr_args *va)
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
 		if (pn->pn_attr != NULL)
-			error = pn_attr(va->a_td, proc, pn, vap);
+			error = pn_attr(curthread, proc, pn, vap);
 		PROC_UNLOCK(proc);
 	} else {
 		vap->va_uid = 0;

@@ -648,7 +648,7 @@ vn_truncate(fp, length, active_cred, td)
 	if (error == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = length;
-		error = VOP_SETATTR(vp, &vattr, fp->f_cred, td);
+		error = VOP_SETATTR(vp, &vattr, fp->f_cred);
 	}
 out:
 	VOP_UNLOCK(vp, 0);
@@ -703,7 +703,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 #endif
 
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, active_cred, td);
+	error = VOP_GETATTR(vp, vap, active_cred);
 	if (error)
 		return (error);
 
@@ -803,7 +803,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 	case VDIR:
 		if (com == FIONREAD) {
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-			error = VOP_GETATTR(vp, &vattr, active_cred, td);
+			error = VOP_GETATTR(vp, &vattr, active_cred);
 			VOP_UNLOCK(vp, 0);
 			if (!error)
 				*(int *)data = vattr.va_size - fp->f_offset;

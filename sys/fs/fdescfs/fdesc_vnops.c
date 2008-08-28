@@ -379,11 +379,11 @@ fdesc_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct thread *td = curthread;
 	struct file *fp;
 	struct stat stb;
 	u_int fd;
@@ -414,12 +414,12 @@ fdesc_getattr(ap)
 	case Fdesc:
 		fd = VTOFDESC(vp)->fd_fd;
 
-		if ((error = fget(ap->a_td, fd, &fp)) != 0)
+		if ((error = fget(td, fd, &fp)) != 0)
 			return (error);
 
 		bzero(&stb, sizeof(stb));
-		error = fo_stat(fp, &stb, ap->a_td->td_ucred, ap->a_td);
-		fdrop(fp, ap->a_td);
+		error = fo_stat(fp, &stb, td->td_ucred, td);
+		fdrop(fp, td);
 		if (error == 0) {
 			VATTR_NULL(vap);
 			vap->va_type = IFTOVT(stb.st_mode);
@@ -475,13 +475,13 @@ fdesc_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vattr *vap = ap->a_vap;
 	struct vnode *vp;
 	struct mount *mp;
 	struct file *fp;
+	struct thread *td = curthread;
 	unsigned fd;
 	int error;
 
@@ -496,7 +496,7 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(ap->a_td->td_proc->p_fd, fd, &fp);
+	error = getvnode(td->td_proc->p_fd, fd, &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
@@ -514,11 +514,11 @@ fdesc_setattr(ap)
 	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) == 0) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
+		error = VOP_SETATTR(vp, ap->a_vap, ap->a_cred);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
-	fdrop(fp, ap->a_td);
+	fdrop(fp, td);
 	return (error);
 }
 

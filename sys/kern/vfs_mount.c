@@ -958,7 +958,7 @@ vfs_domount(
 		 * If the user is not root, ensure that they own the directory
 		 * onto which we are attempting to mount.
 		 */
-		error = VOP_GETATTR(vp, &va, td->td_ucred, td);
+		error = VOP_GETATTR(vp, &va, td->td_ucred);
 		if (error) {
 			vput(vp);
 			return (error);

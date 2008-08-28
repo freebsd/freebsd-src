@@ -44,9 +44,9 @@ void	venus_write(void);
 int	venus_ioctl(void *mdp, CodaFid *fid, int com, int flag, caddr_t data,
 	    struct ucred *cred, struct proc *p);
 int	venus_getattr(void *mdp, CodaFid *fid, struct ucred *cred,
-	    struct proc *p, /*out*/ struct vattr *vap);
+	    struct vattr *vap);
 int	venus_setattr(void *mdp, CodaFid *fid, struct vattr *vap,
-	    struct ucred *cred, struct proc *p);
+	    struct ucred *cred);
 int	venus_access(void *mdp, CodaFid *fid, int mode, struct ucred *cred,
 	    struct proc *p);
 int	venus_readlink(void *mdp, CodaFid *fid, struct ucred *cred,

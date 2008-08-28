@@ -304,15 +304,16 @@ venus_ioctl(void *mdp, CodaFid *fid, int com, int flag, caddr_t data,
 }
 
 int
-venus_getattr(void *mdp, CodaFid *fid, struct ucred *cred, struct proc *p,
-    /*out*/ struct vattr *vap)
+venus_getattr(void *mdp, CodaFid *fid, struct ucred *cred, struct vattr *vap)
 {
+	struct proc *p;
 	DECL(coda_getattr);			/* sets Isize & Osize */
 	ALLOC(coda_getattr);			/* sets inp & outp */
 
 	/*
 	 * Send the open to venus.
 	 */
+	p = curthread->td_proc;
 	INIT_IN(&inp->ih, CODA_GETATTR, cred, p);
 	inp->Fid = *fid;
 
@@ -325,15 +326,16 @@ venus_getattr(void *mdp, CodaFid *fid, struct ucred *cred, struct proc *p,
 }
 
 int
-venus_setattr(void *mdp, CodaFid *fid, struct vattr *vap, struct ucred *cred,
-    struct proc *p)
+venus_setattr(void *mdp, CodaFid *fid, struct vattr *vap, struct ucred *cred)
 {
+	struct proc *p;
 	DECL_NO_OUT(coda_setattr);		/* sets Isize & Osize */
 	ALLOC_NO_OUT(coda_setattr);		/* sets inp & outp */
 
 	/*
 	 * Send the open to venus.
 	 */
+	p = curthread->td_proc;
 	INIT_IN(&inp->ih, CODA_SETATTR, cred, p);
 	inp->Fid = *fid;
 	CNV_V2VV_ATTR(&inp->attr, vap);
