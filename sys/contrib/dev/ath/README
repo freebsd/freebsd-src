@@ -1,11 +1,11 @@
-$Id: //depot/sw/branches/sam_hal/README#2 $
+$Id: //depot/sw/branches/sam_hal/README#3 $
 
 
 Atheros Hardware Access Layer (HAL)
 ===================================
 
-* Copyright (c) 2002-2006 Sam Leffler.
-* Copyright (c) 2002-2006 Atheros Communications, Inc.
+* Copyright (c) 2002-2008 Sam Leffler.
+* Copyright (c) 2002-2008 Atheros Communications, Inc.
 * All rights reserved.
 
 Read the file COPYRIGHT for the complete copyright.
