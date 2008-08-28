@@ -367,7 +367,7 @@ sysctl_domainname(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_NISDOMAINNAME, domainname, CTLTYPE_STRING|CTLFLAG_RW,
-       0, 0, sysctl_domainname, "A", "NAme of the current YP/NIS domain");
+       0, 0, sysctl_domainname, "A", "Name of the current YP/NIS domain");
 
 u_long hostid;
 SYSCTL_ULONG(_kern, KERN_HOSTID, hostid, CTLFLAG_RW, &hostid, 0, "Host ID");
