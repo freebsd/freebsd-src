@@ -1352,7 +1352,6 @@ cleanup_pathname(struct archive_write_disk *a)
 {
 	char *dest, *src;
 	char separator = '\0';
-	int lastdotdot = 0; /* True if last elt copied was '..' */
 
 	dest = src = a->name;
 	if (*src == '\0') {
@@ -1391,9 +1390,7 @@ cleanup_pathname(struct archive_write_disk *a)
 						    "Path contains '..'");
 						return (ARCHIVE_FAILED);
 					}
-					lastdotdot = 1;
-				} else
-					lastdotdot = 0;
+				}
 				/*
 				 * Note: Under no circumstances do we
 				 * remove '..' elements.  In
@@ -1401,10 +1398,8 @@ cleanup_pathname(struct archive_write_disk *a)
 				 * '/foo/../bar/' should create the
 				 * 'foo' dir as a side-effect.
 				 */
-			} else
-				lastdotdot = 0;
-		} else
-			lastdotdot = 0;
+			}
+		}
 
 		/* Copy current element, including leading '/'. */
 		if (separator)
@@ -1423,13 +1418,6 @@ cleanup_pathname(struct archive_write_disk *a)
 	 * We've just copied zero or more path elements, not including the
 	 * final '/'.
 	 */
-	if (lastdotdot) {
-		/* Trailing '..' is always wrong. */
-		archive_set_error(&a->archive,
-		    ARCHIVE_ERRNO_MISC,
-		    "Path contains trailing '..'");
-		return (ARCHIVE_FAILED);
-	}
 	if (dest == a->name) {
 		/*
 		 * Nothing got copied.  The path must have been something
