@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 #ifdef DEBUG_MEMGUARD
 #include <vm/memguard.h>
 #endif
+#ifdef DEBUG_REDZONE
+#include <vm/redzone.h>
+#endif
 
 #if defined(INVARIANTS) && defined(__i386__)
 #include <machine/cpu.h>
@@ -259,7 +262,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 	caddr_t va;
 	uma_zone_t zone;
 	uma_keg_t keg;
-#ifdef DIAGNOSTIC
+#if defined(DIAGNOSTIC) || defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
 
@@ -302,6 +305,10 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		return memguard_alloc(size, flags);
 #endif
 
+#ifdef DEBUG_REDZONE
+	size = redzone_size_ntor(size);
+#endif
+
 	if (size <= KMEM_ZMAX) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
@@ -331,6 +338,10 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		memset(va, 0x70, osize);
 	}
 #endif
+#ifdef DEBUG_REDZONE
+	if (va != NULL)
+		va = redzone_setup(va, osize);
+#endif
 	return ((void *) va);
 }
 
@@ -356,6 +367,11 @@ free(void *addr, struct malloc_type *mtp)
 		memguard_free(addr);
 		return;
 	}
+#endif
+
+#ifdef DEBUG_REDZONE
+	redzone_check(addr);
+	addr = redzone_addr_ntor(addr);
 #endif
 
 	size = 0;
@@ -421,6 +437,10 @@ if (memguard_cmp(mtp)) {
 } else {
 #endif
 
+#ifdef DEBUG_REDZONE
+	slab = NULL;
+	alloc = redzone_get_size(addr);
+#else
 	slab = vtoslab((vm_offset_t)addr & ~(UMA_SLAB_MASK));
 
 	/* Sanity check */
@@ -437,6 +457,7 @@ if (memguard_cmp(mtp)) {
 	if (size <= alloc
 	    && (size > (alloc >> REALLOC_FRACTION) || alloc == MINALLOCSIZE))
 		return (addr);
+#endif /* !DEBUG_REDZONE */
 
 #ifdef DEBUG_MEMGUARD
 }

@@ -543,6 +543,9 @@ PQ_CACHESIZE		opt_vmpage.h
 # The MemGuard replacement allocator used for tamper-after-free detection
 DEBUG_MEMGUARD		opt_vm.h
 
+# The RedZone malloc(9) protection
+DEBUG_REDZONE		opt_vm.h
+
 # Standard SMP options
 SMP			opt_global.h
 
