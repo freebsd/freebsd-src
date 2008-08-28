@@ -241,7 +241,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if ((nfsmode & testmode) &&
 		nfsrv_access(vp, VEXEC, cred, rdonly, td, 0))
 		nfsmode &= ~testmode;
-	getret = VOP_GETATTR(vp, vap, cred, td);
+	getret = VOP_GETATTR(vp, vap, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_POSTOPATTR(1) + NFSX_UNSIGNED);
@@ -288,7 +288,7 @@ nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	error = VOP_GETATTR(vp, vap, cred, td);
+	error = VOP_GETATTR(vp, vap, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_FATTR(nfsd->nd_flag & ND_NFSV3));
@@ -405,7 +405,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * vp now an active resource, pay careful attention to cleanup
 	 */
 	if (v3) {
-		error = preat_ret = VOP_GETATTR(vp, &preat, cred, td);
+		error = preat_ret = VOP_GETATTR(vp, &preat, cred);
 		if (!error && gcheck &&
 			(preat.va_ctime.tv_sec != guard.tv_sec ||
 			 preat.va_ctime.tv_nsec != guard.tv_nsec))
@@ -438,8 +438,8 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			td, 0)) != 0)
 			goto out;
 	}
-	error = VOP_SETATTR(vp, vap, cred, td);
-	postat_ret = VOP_GETATTR(vp, vap, cred, td);
+	error = VOP_SETATTR(vp, vap, cred);
+	postat_ret = VOP_GETATTR(vp, vap, cred);
 	if (!error)
 		error = postat_ret;
 out:
@@ -612,7 +612,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;
 	error = VOP_VPTOFH(vp, &fhp->fh_fid);
 	if (!error)
-		error = VOP_GETATTR(vp, vap, cred, td);
+		error = VOP_GETATTR(vp, vap, cred);
 
 	vput(vp);
 	vrele(ndp->ni_startdir);
@@ -729,7 +729,7 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = ENXIO;
 	} else 
 		error = VOP_READLINK(vp, uiop, cred);
-	getret = VOP_GETATTR(vp, &attr, cred, td);
+	getret = VOP_GETATTR(vp, &attr, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_UNSIGNED);
@@ -832,7 +832,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = nfsrv_access(vp, VEXEC, cred,
 			    rdonly, td, 1);
 	}
-	getret = VOP_GETATTR(vp, vap, cred, td);
+	getret = VOP_GETATTR(vp, vap, cred);
 	if (!error)
 		error = getret;
 	if (error) {
@@ -972,7 +972,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		off = uiop->uio_offset;
 		nh->nh_nextr = off;
 		FREE((caddr_t)iv2, M_TEMP);
-		if (error || (getret = VOP_GETATTR(vp, vap, cred, td))) {
+		if (error || (getret = VOP_GETATTR(vp, vap, cred))) {
 			if (!error)
 				error = getret;
 			m_freem(mreq);
@@ -1124,7 +1124,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	if (v3)
-		forat_ret = VOP_GETATTR(vp, &forat, cred, td);
+		forat_ret = VOP_GETATTR(vp, &forat, cred);
 	if (vp->v_type != VREG) {
 		if (v3)
 			error = EINVAL;
@@ -1181,7 +1181,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    nfsrvstats.srvvop_writes++;
 	    FREE((caddr_t)iv, M_TEMP);
 	}
-	aftat_ret = VOP_GETATTR(vp, vap, cred, td);
+	aftat_ret = VOP_GETATTR(vp, vap, cred);
 	vput(vp);
 	vp = NULL;
 	if (!error)
@@ -1436,7 +1436,7 @@ loop1:
 		    slp, nfsd->nd_nam, &rdonly, TRUE);
 		if (!error) {
 		    if (v3)
-			forat_ret = VOP_GETATTR(vp, &forat, cred, td);
+			forat_ret = VOP_GETATTR(vp, &forat, cred);
 		    if (vp->v_type != VREG) {
 			if (v3)
 			    error = EINVAL;
@@ -1501,7 +1501,7 @@ loop1:
 		}
 		m_freem(mrep);
 		if (vp) {
-		    aftat_ret = VOP_GETATTR(vp, &va, cred, td);
+		    aftat_ret = VOP_GETATTR(vp, &va, cred);
 		    vput(vp);
 		    vp = NULL;
 		}
@@ -1790,8 +1790,8 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 					VATTR_NULL(vap);
 					bcopy(cverf, (caddr_t)&vap->va_atime,
 						NFSX_V3CREATEVERF);
-					error = VOP_SETATTR(nd.ni_vp, vap, cred,
-						td);
+					error = VOP_SETATTR(nd.ni_vp, vap,
+					    cred);
 				}
 			}
 		} else if (vap->va_type == VCHR || vap->va_type == VBLK ||
@@ -1858,8 +1858,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				tempsize = vap->va_size;
 				VATTR_NULL(vap);
 				vap->va_size = tempsize;
-				error = VOP_SETATTR(nd.ni_vp, vap, cred,
-					 td);
+				error = VOP_SETATTR(nd.ni_vp, vap, cred);
 			}
 		}
 	}
@@ -1869,14 +1868,14 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
 		error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 		if (!error)
-			error = VOP_GETATTR(nd.ni_vp, vap, cred, td);
+			error = VOP_GETATTR(nd.ni_vp, vap, cred);
 	}
 	if (v3) {
 		if (exclusive_flag && !error &&
 			bcmp(cverf, (caddr_t)&vap->va_atime, NFSX_V3CREATEVERF))
 			error = EEXIST;
 		if (dirp == nd.ni_dvp)
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		else {
 			/* Drop the other locks to avoid deadlock. */
 			if (nd.ni_dvp) {
@@ -1891,7 +1890,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			nd.ni_vp = NULL;
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 			VOP_UNLOCK(dirp, 0);
 		}
 	}
@@ -2072,7 +2071,7 @@ out:
 		fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;
 		error = VOP_VPTOFH(vp, &fhp->fh_fid);
 		if (!error)
-			error = VOP_GETATTR(vp, vap, cred, td);
+			error = VOP_GETATTR(vp, vap, cred);
 	}
 	if (nd.ni_dvp) {
 		if (nd.ni_dvp == nd.ni_vp)
@@ -2093,7 +2092,7 @@ out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+		diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		VOP_UNLOCK(dirp, 0);
 	}
 ereply:
@@ -2195,7 +2194,7 @@ out:
 	}
 	if (dirp && v3) {
 		if (dirp == nd.ni_dvp)
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		else {
 			/* Drop the other locks to avoid deadlock. */
 			if (nd.ni_dvp) {
@@ -2210,7 +2209,7 @@ out:
 			nd.ni_vp = NULL;
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 			VOP_UNLOCK(dirp, 0);
 		}
 		vrele(dirp);
@@ -2421,12 +2420,12 @@ out1:
 
 		if (fdirp) {
 			vn_lock(fdirp, LK_EXCLUSIVE | LK_RETRY);
-			fdiraft_ret = VOP_GETATTR(fdirp, &fdiraft, cred, td);
+			fdiraft_ret = VOP_GETATTR(fdirp, &fdiraft, cred);
 			VOP_UNLOCK(fdirp, 0);
 		}
 		if (tdirp) {
 			vn_lock(tdirp, LK_EXCLUSIVE | LK_RETRY);
-			tdiraft_ret = VOP_GETATTR(tdirp, &tdiraft, cred, td);
+			tdiraft_ret = VOP_GETATTR(tdirp, &tdiraft, cred);
 			VOP_UNLOCK(tdirp, 0);
 		}
 		nfsm_srvwcc_data(fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
@@ -2525,7 +2524,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	if (v3)
-		getret = VOP_GETATTR(vp, &at, cred, td);
+		getret = VOP_GETATTR(vp, &at, cred);
 	if (vp->v_type == VDIR) {
 		error = EPERM;		/* POSIX */
 		goto out1;
@@ -2567,11 +2566,11 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 out1:
 	if (v3)
-		getret = VOP_GETATTR(vp, &at, cred, td);
+		getret = VOP_GETATTR(vp, &at, cred);
 out2:
 	if (dirp) {
 		if (dirp == nd.ni_dvp)
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		else {
 			/* Release existing locks to prevent deadlock. */
 			if (nd.ni_dvp) {
@@ -2586,7 +2585,7 @@ out2:
 			nd.ni_vp = NULL;
 
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 			VOP_UNLOCK(dirp, 0);
 		}
 	}
@@ -2744,8 +2743,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
 			error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 			if (!error)
-				error = VOP_GETATTR(nd.ni_vp, vap, cred,
-					td);
+				error = VOP_GETATTR(nd.ni_vp, vap, cred);
 			vput(nd.ni_vp);
 			nd.ni_vp = NULL;
 		}
@@ -2762,7 +2760,7 @@ out:
 	}
 	if (dirp) {
 		vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-		diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+		diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		VOP_UNLOCK(dirp, 0);
 	}
 	if (nd.ni_startdir) {
@@ -2900,12 +2898,12 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
 		error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 		if (!error)
-			error = VOP_GETATTR(nd.ni_vp, vap, cred, td);
+			error = VOP_GETATTR(nd.ni_vp, vap, cred);
 	}
 out:
 	if (dirp) {
 		if (dirp == nd.ni_dvp) {
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		} else {
 			/* Release existing locks to prevent deadlock. */
 			if (nd.ni_dvp) {
@@ -2924,7 +2922,7 @@ out:
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 			VOP_UNLOCK(dirp, 0);
 		}
 	}
@@ -3047,7 +3045,7 @@ out:
 
 	if (dirp) {
 		if (dirp == nd.ni_dvp)
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 		else {
 			/* Release existing locks to prevent deadlock. */
 			if (nd.ni_dvp) {
@@ -3061,7 +3059,7 @@ out:
 			nd.ni_dvp = NULL;
 			nd.ni_vp = NULL;
 			vn_lock(dirp, LK_EXCLUSIVE | LK_RETRY);
-			diraft_ret = VOP_GETATTR(dirp, &diraft, cred, td);
+			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
 			VOP_UNLOCK(dirp, 0);
 		}
 	}
@@ -3199,7 +3197,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * Obtain lock on vnode for this section of the code
 	 */
 	if (v3) {
-		error = getret = VOP_GETATTR(vp, &at, cred, td);
+		error = getret = VOP_GETATTR(vp, &at, cred);
 #if 0
 		/*
 		 * XXX This check may be too strict for Solaris 2.5 clients.
@@ -3246,7 +3244,7 @@ again:
 	if (!cookies && !error)
 		error = NFSERR_PERM;
 	if (v3) {
-		getret = VOP_GETATTR(vp, &at, cred, td);
+		getret = VOP_GETATTR(vp, &at, cred);
 		if (!error)
 			error = getret;
 	}
@@ -3487,7 +3485,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	error = getret = VOP_GETATTR(vp, &at, cred, td);
+	error = getret = VOP_GETATTR(vp, &at, cred);
 #if 0
 	/*
 	 * XXX This check may be too strict for Solaris 2.5 clients.
@@ -3525,7 +3523,7 @@ again:
 	}
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
 	off = (u_quad_t)io.uio_offset;
-	getret = VOP_GETATTR(vp, &at, cred, td);
+	getret = VOP_GETATTR(vp, &at, cred);
 	VOP_UNLOCK(vp, 0);
 	if (!cookies && !error)
 		error = NFSERR_PERM;
@@ -3653,7 +3651,7 @@ again:
 				nvp = NULL;
 				goto invalid;
 			}
-			if (VOP_GETATTR(nvp, vap, cred, td)) {
+			if (VOP_GETATTR(nvp, vap, cred)) {
 				vput(nvp);
 				nvp = NULL;
 				goto invalid;
@@ -3824,7 +3822,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	for_ret = VOP_GETATTR(vp, &bfor, cred, td);
+	for_ret = VOP_GETATTR(vp, &bfor, cred);
 
 	if (cnt > MAX_COMMIT_COUNT) {
 		/*
@@ -3908,7 +3906,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		BO_UNLOCK(bo);
 	}
 
-	aft_ret = VOP_GETATTR(vp, &aft, cred, td);
+	aft_ret = VOP_GETATTR(vp, &aft, cred);
 	vput(vp);
 	vp = NULL;
 ereply:
@@ -3971,7 +3969,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	sf = &statfs;
 	error = VFS_STATFS(vp->v_mount, sf, td);
-	getret = VOP_GETATTR(vp, &at, cred, td);
+	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_STATFS(v3));
@@ -4068,7 +4066,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VFS_STATFS(vp->v_mount, &sb, td);
 	maxfsize = (u_quad_t)0x80000000 * sb.f_bsize - 1;
 
-	getret = VOP_GETATTR(vp, &at, cred, td);
+	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_V3POSTOPATTR + NFSX_V3FSINFO);
@@ -4148,7 +4146,7 @@ nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = VOP_PATHCONF(vp, _PC_CHOWN_RESTRICTED, &chownres);
 	if (!error)
 		error = VOP_PATHCONF(vp, _PC_NO_TRUNC, &notrunc);
-	getret = VOP_GETATTR(vp, &at, cred, td);
+	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
 	vp = NULL;
 	nfsm_reply(NFSX_V3POSTOPATTR + NFSX_V3PATHCONF);
@@ -4272,7 +4270,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred,
 			return (ETXTBSY);
 	}
 
-	error = VOP_GETATTR(vp, &vattr, cred, td);
+	error = VOP_GETATTR(vp, &vattr, cred);
 	if (error)
 		return (error);
 	error = VOP_ACCESS(vp, flags, cred, td);

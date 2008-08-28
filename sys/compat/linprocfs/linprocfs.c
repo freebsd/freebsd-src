@@ -937,7 +937,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 				vn_fullpath(td, vp, &name, &freename);
 				locked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
-				VOP_GETATTR(vp, &vat, td->td_ucred, td);
+				VOP_GETATTR(vp, &vat, td->td_ucred);
 				ino = vat.va_fileid;
 				vput(vp);
 				VFS_UNLOCK_GIANT(locked);

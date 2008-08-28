@@ -3336,7 +3336,6 @@ zfs_freebsd_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 
@@ -3349,7 +3348,6 @@ zfs_freebsd_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	vattr_t *vap = ap->a_vap;

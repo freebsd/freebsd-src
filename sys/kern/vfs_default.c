@@ -208,13 +208,15 @@ vop_nostrategy (struct vop_strategy_args *ap)
 int
 vop_stdadvlock(struct vop_advlock_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct thread *td = curthread;
+	struct vnode *vp;
+	struct ucred *cred;
 	struct vattr vattr;
 	int error;
 
+	vp = ap->a_vp;
+	cred = curthread->td_ucred;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	if (error)
 		return (error);
@@ -225,13 +227,15 @@ vop_stdadvlock(struct vop_advlock_args *ap)
 int
 vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct thread *td = curthread;
+	struct vnode *vp;
+	struct ucred *cred;
 	struct vattr vattr;
 	int error;
 
+	vp = ap->a_vp;
+	cred = curthread->td_ucred;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	if (error)
 		return (error);

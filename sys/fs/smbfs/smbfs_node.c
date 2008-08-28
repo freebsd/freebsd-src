@@ -205,7 +205,7 @@ loop:
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0)
 			goto retry;
 		/* Force cached attributes to be refreshed if stale. */
-		(void)VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+		(void)VOP_GETATTR(vp, &vattr, td->td_ucred);
 		/*
 		 * If the file type on the server is inconsistent with
 		 * what it was when we created the vnode, kill the
@@ -366,7 +366,7 @@ smbfs_inactive(ap)
 		smb_makescred(&scred, td, cred);
 		smbfs_vinvalbuf(vp, td);
 		if (vp->v_type == VREG) {
-			VOP_GETATTR(vp, &va, cred, td);
+			VOP_GETATTR(vp, &va, cred);
 			smbfs_smb_close(np->n_mount->sm_share, np->n_fid,
 			    &np->n_mtime, &scred);
 		} else if (vp->v_type == VDIR) {

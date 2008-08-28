@@ -1100,7 +1100,7 @@ mqfs_access(struct vop_access_args *ap)
 	struct vattr vattr;
 	int error;
 
-	error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+	error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 	if (error)
 		return (error);
 	error = vaccess(vp->v_type, vattr.va_mode, vattr.va_uid,
@@ -1114,7 +1114,6 @@ struct vop_getattr_args {
 	struct vnode *a_vp;
 	struct vattr *a_vap;
 	struct ucred *a_cred;
-	struct thread *a_td;
 };
 #endif
 
@@ -1159,7 +1158,6 @@ struct vop_setattr_args {
 	struct vnode *a_vp;
 	struct vattr *a_vap;
 	struct ucred *a_cred;
-	struct thread *a_td;
 };
 #endif
 /*
@@ -1171,10 +1169,12 @@ mqfs_setattr(struct vop_setattr_args *ap)
 	struct mqfs_node *pn;
 	struct vattr *vap;
 	struct vnode *vp;
+	struct thread *td;
 	int c, error;
 	uid_t uid;
 	gid_t gid;
 
+	td = curthread;
 	vap = ap->a_vap;
 	vp = ap->a_vp;
 	if ((vap->va_type != VNON) ||
@@ -1206,7 +1206,7 @@ mqfs_setattr(struct vop_setattr_args *ap)
 		 * To modify the ownership of a file, must possess VADMIN
 		 * for that file.
 		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)))
+		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td)))
 			return (error);
 
 		/*
@@ -1216,7 +1216,7 @@ mqfs_setattr(struct vop_setattr_args *ap)
 		 */
 		if (((ap->a_cred->cr_uid != pn->mn_uid) || uid != pn->mn_uid ||
 		    (gid != pn->mn_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = priv_check(ap->a_td, PRIV_MQ_ADMIN)) != 0)
+		    (error = priv_check(td, PRIV_MQ_ADMIN)) != 0)
 			return (error);
 		pn->mn_uid = uid;
 		pn->mn_gid = gid;
@@ -1225,7 +1225,7 @@ mqfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != pn->mn_uid) &&
-		    (error = priv_check(ap->a_td, PRIV_MQ_ADMIN)))
+		    (error = priv_check(td, PRIV_MQ_ADMIN)))
 			return (error);
 		pn->mn_mode = vap->va_mode;
 		c = 1;
@@ -1233,9 +1233,9 @@ mqfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		/* See the comment in ufs_vnops::ufs_setattr(). */
-		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
+		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
+		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, td))))
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			pn->mn_atime = vap->va_atime;

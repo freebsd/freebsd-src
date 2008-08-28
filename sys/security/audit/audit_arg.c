@@ -762,7 +762,7 @@ audit_arg_vnode(struct vnode *vp, u_int64_t flags)
 		vnp = &ar->k_ar.ar_arg_vnode2;
 	}
 
-	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred, curthread);
+	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
 	if (error) {
 		/* XXX: How to handle this case? */
 		return;
