@@ -12,9 +12,12 @@ CSCOPEDIRS=	bsm cam cddl compat conf contrib crypto ddb dev fs geom gnu \
 		i4b isa kern libkern modules net net80211 netatalk netatm \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
 		netsmb nfs nfsclient nfs4client nlm rpc pccard pci security \
-		sys ufs vm xdr ${ARCHDIR}
-
-ARCHDIR	?=	${MACHINE}
+		sys ufs vm xdr ${CSCOPE_ARCHDIR}
+.if defined(ALL_ARCH)
+CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
+.else
+CSCOPE_ARCHDIR ?= ${MACHINE}
+.endif
 
 # Loadable kernel modules
 
