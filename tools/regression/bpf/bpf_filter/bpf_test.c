@@ -189,20 +189,12 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		    (BPF_CLASS(p->code) == BPF_LD &&
-		    (p->code & 0xe0) == BPF_MEM)) &&
+		     BPF_CLASS(p->code) == BPF_STX ||
+		     ((BPF_CLASS(p->code) == BPF_LD ||
+		       BPF_CLASS(p->code) == BPF_LDX) &&
+		      (p->code & 0xe0) == BPF_MEM)) &&
 		    p->k >= BPF_MEMWORDS)
 			return (0);
-#if BPF_VALIDATE > 1
-		/*
-		 * XXX JK: BPF_STX and BPF_LDX|BPF_MEM must be checked.
-		 */
-		if ((BPF_CLASS(p->code) == BPF_STX ||
-		    (BPF_CLASS(p->code) == BPF_LDX &&
-		    (p->code & 0xe0) == BPF_MEM)) &&
-		    p->k >= BPF_MEMWORDS)
-			return (0);
-#endif
 		/*
 		 * Check for constant division by 0.
 		 */
