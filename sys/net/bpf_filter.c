@@ -496,6 +496,25 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 }
 
 #ifdef _KERNEL
+static u_short	bpf_code_map[] = {
+	0x10ff,	/* 0x00-0x0f: 1111111100001000 */
+	0x3070,	/* 0x10-0x1f: 0000111000001100 */
+	0x3131,	/* 0x20-0x2f: 1000110010001100 */
+	0x3031,	/* 0x30-0x3f: 1000110000001100 */
+	0x3131,	/* 0x40-0x4f: 1000110010001100 */
+	0x1011,	/* 0x50-0x5f: 1000100000001000 */
+	0x1013,	/* 0x60-0x6f: 1100100000001000 */
+	0x1010,	/* 0x70-0x7f: 0000100000001000 */
+	0x0093,	/* 0x80-0x8f: 1100100100000000 */
+	0x0000,	/* 0x90-0x9f: 0000000000000000 */
+	0x0000,	/* 0xa0-0xaf: 0000000000000000 */
+	0x0002,	/* 0xb0-0xbf: 0100000000000000 */
+	0x0000,	/* 0xc0-0xcf: 0000000000000000 */
+	0x0000,	/* 0xd0-0xdf: 0000000000000000 */
+	0x0000,	/* 0xe0-0xef: 0000000000000000 */
+	0x0000	/* 0xf0-0xff: 0000000000000000 */
+};
+
 /*
  * Return true if the 'fcode' is a valid filter program.
  * The constraints are that each jump be forward and to a valid
@@ -521,11 +540,17 @@ bpf_validate(f, len)
 		return 1;
 
 	for (i = 0; i < len; ++i) {
+		p = &f[i];
+		/*
+		 * Check that the code is valid.
+		 */
+		if ((p->code & 0xff00) ||
+		    !(bpf_code_map[p->code >> 4] & (1 << (p->code & 0xf))))
+			return 0;
 		/*
 		 * Check that that jumps are forward, and within
 		 * the code block.
 		 */
-		p = &f[i];
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			register int from = i + 1;
 
