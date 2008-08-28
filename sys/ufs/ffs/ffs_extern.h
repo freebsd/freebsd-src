@@ -87,6 +87,9 @@ int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
+int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
+
+#define	FFSV_FORCEINSMQ	0x0001
 
 extern struct vop_vector ffs_vnodeops1;
 extern struct vop_vector ffs_fifoops1;

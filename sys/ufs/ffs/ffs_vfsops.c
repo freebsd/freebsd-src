@@ -1296,6 +1296,17 @@ ffs_vget(mp, ino, flags, vpp)
 	int flags;
 	struct vnode **vpp;
 {
+	return (ffs_vgetf(mp, ino, flags, vpp, 0));
+}
+
+int
+ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
+	struct mount *mp;
+	ino_t ino;
+	int flags;
+	struct vnode **vpp;
+	int ffs_flags;
+{
 	struct fs *fs;
 	struct inode *ip;
 	struct ufsmount *ump;
@@ -1368,12 +1379,15 @@ ffs_vget(mp, ino, flags, vpp)
 #endif
 
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
+	if (ffs_flags & FFSV_FORCEINSMQ)
+		vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0) {
 		uma_zfree(uma_inode, ip);
 		*vpp = NULL;
 		return (error);
 	}
+	vp->v_vflag &= ~VV_FORCEINSMQ;
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
