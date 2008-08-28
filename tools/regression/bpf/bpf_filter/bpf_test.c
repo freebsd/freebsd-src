@@ -133,17 +133,17 @@ bpf_validate(const struct bpf_insn *f, int len)
 		return (1);
 
 	for (i = 0; i < len; ++i) {
-		/*
-		 * Check that that jumps are forward, and within
-		 * the code block.
-		 */
 		p = &f[i];
 		/*
-		 * Check that the instruction is valid.
+		 * Check that the code is valid.
 		 */
 		if ((p->code & 0xff00) ||
 		    !(bpf_code_map[p->code >> 4] & (1 << (p->code & 0xf))))
 			return (0);
+		/*
+		 * Check that that jumps are forward, and within
+		 * the code block.
+		 */
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			register int from = i + 1;
 
