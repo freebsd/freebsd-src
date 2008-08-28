@@ -379,6 +379,14 @@ MLINKS+=atomic.9 atomic_add.9 \
 	atomic.9 atomic_set.9 \
 	atomic.9 atomic_store.9 \
 	atomic.9 atomic_subtract.9
+MLINKS+=bpf.9 bpf_filter.9 \
+	bpf.9 bpf_mtap.9 \
+	bpf.9 bpf_mtap2.9 \
+	bpf.9 bpf_tap.9 \
+	bpf.9 bpf_validate.9 \
+	bpf.9 bpfattach.9 \
+	bpf.9 bpfattach2.9 \
+	bpf.9 bpfdetach.9
 MLINKS+=buf.9 bp.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
