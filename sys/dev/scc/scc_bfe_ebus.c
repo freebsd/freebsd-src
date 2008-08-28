@@ -64,10 +64,17 @@ scc_ebus_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+scc_ebus_attach(device_t dev)
+{
+
+	return (scc_bfe_attach(dev, 0));
+}
+
 static device_method_t scc_ebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		scc_ebus_probe),
-	DEVMETHOD(device_attach,	scc_bfe_attach),
+	DEVMETHOD(device_attach,	scc_ebus_attach),
 	DEVMETHOD(device_detach,	scc_bfe_detach),
 
 	DEVMETHOD(bus_alloc_resource,	scc_bus_alloc_resource),

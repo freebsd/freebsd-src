@@ -49,7 +49,7 @@ struct macio_reg {
  * Per macio device structure.
  */
 struct macio_devinfo {
-	int        mdi_interrupts[5];
+	int        mdi_interrupts[6];
 	int	   mdi_ninterrupts;
 	int        mdi_base;
 	struct ofw_bus_devinfo mdi_obdinfo;
