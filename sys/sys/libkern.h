@@ -39,6 +39,11 @@
 #include <sys/systm.h>
 #endif
 
+#ifndef	LIBKERN_INLINE
+#define	LIBKERN_INLINE  static __inline
+#define	LIBKERN_BODY
+#endif
+
 /* BCD conversions. */
 extern u_char const	bcd2bin_data[];
 extern u_char const	bin2bcd_data[];
@@ -140,7 +145,9 @@ memcmp(const void *b1, const void *b2, size_t len)
 	return (bcmp(b1, b2, len));
 }
 
-static __inline void *
+LIBKERN_INLINE void *memset(void *, int, size_t);
+#ifdef LIBKERN_BODY
+LIBKERN_INLINE void *
 memset(void *b, int c, size_t len)
 {
 	char *bb;
@@ -152,6 +159,7 @@ memset(void *b, int c, size_t len)
 			*bb++ = c;
 	return (b);
 }
+#endif
 
 static __inline char *
 strchr(const char *p, int ch)
