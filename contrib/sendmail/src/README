@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.390 2006/11/13 22:27:27 ca Exp $
+#	$Id: README,v 8.391 2008/02/12 16:38:21 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -41,7 +41,7 @@ Sendmail is a trademark of Sendmail, Inc.
 By far, the easiest way to compile sendmail is to use the "Build"
 script:
 
-	sh Build
+	sh ./Build
 
 This uses the "uname" command to figure out what architecture you are
 on and creates a proper Makefile accordingly.  It also creates a
@@ -52,7 +52,7 @@ read the note below in the OPERATING SYSTEM AND COMPILE QUIRKS section.
 If you need to look at other include or library directories, use the
 -I or -L flags on the command line, e.g.,
 
-	sh Build -I/usr/sww/include -L/usr/sww/lib
+	sh ./Build -I/usr/sww/include -L/usr/sww/lib
 
 It's also possible to create local site configuration in the file
 site.config.m4 (or another file settable with the -f flag).  This
@@ -1847,4 +1847,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.390 $, last update $Date: 2006/11/13 22:27:27 $ )
+(Version $Revision: 8.391 $, last update $Date: 2008/02/12 16:38:21 $ )
