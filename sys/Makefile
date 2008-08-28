@@ -28,16 +28,21 @@ SUBDIR+=modules
 HTAGSFLAGS+= -at `awk -F= '/^RELEASE *=/{release=$2}; END {print "FreeBSD", release, "kernel"}' < conf/newvers.sh`
 
 # You need the devel/cscope port for this.
-cscope:	${.CURDIR}/cscopenamefile
-	cd ${.CURDIR}; cscope -k -p4 -i cscopenamefile
+cscope: cscope.out
+cscope.out: ${.CURDIR}/cscope.files
+	cd ${.CURDIR}; cscope -k -buq -p4
 
-${.CURDIR}/cscopenamefile: 
-	cd ${.CURDIR}; find ${CSCOPEDIRS} -name "*.[csh]" > ${.TARGET}
+${.CURDIR}/cscope.files: .PHONY
+	cd ${.CURDIR}; \
+		find ${CSCOPEDIRS} -name "*.[chSs]" -a -type f > ${.TARGET}
+
+cscope-clean:
+	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
 
 # You need the devel/global and one of editor/emacs* ports for that.
-TAGS ${.CURDIR}/TAGS:	${.CURDIR}/cscopenamefile
+TAGS ${.CURDIR}/TAGS: ${.CURDIR}/cscope.files
 	rm -f ${.CURDIR}/TAGS
-	cd ${.CURDIR}; xargs etags -a < ${.CURDIR}/cscopenamefile
+	cd ${.CURDIR}; xargs etags -a < ${.CURDIR}/cscope.files
 
 # You need the textproc/glimpse ports for this.
 glimpse:
