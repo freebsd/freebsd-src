@@ -96,6 +96,7 @@ struct bsdtar {
 	struct matching		*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
+	struct siginfo		*siginfo;	/* for siginfo.c */
 };
 
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
@@ -114,6 +115,11 @@ int	process_lines(struct bsdtar *bsdtar, const char *pathname,
 	    int (*process)(struct bsdtar *, const char *));
 void	safe_fprintf(FILE *, const char *fmt, ...);
 void	set_chdir(struct bsdtar *, const char *newdir);
+void	siginfo_init(struct bsdtar *);
+void	siginfo_setinfo(struct bsdtar *, const char * oper,
+	    const char * path, int64_t size);
+void	siginfo_printinfo(struct bsdtar *, off_t progress);
+void	siginfo_done(struct bsdtar *);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);
