@@ -192,7 +192,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 		ufile = udir;
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred, td);
+	error = VOP_GETATTR(mp->mnt_vnodecovered, &va, mp->mnt_cred);
 	if (!error) {
 		if (udir == 0)
 			udir = va.va_mode;

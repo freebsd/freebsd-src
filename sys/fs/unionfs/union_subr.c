@@ -523,7 +523,7 @@ unionfs_create_uppervattr(struct unionfs_mount *ump,
 	int		error;
 	struct vattr	lva;
 
-	if ((error = VOP_GETATTR(lvp, &lva, cred, td)))
+	if ((error = VOP_GETATTR(lvp, &lva, cred)))
 		return (error);
 
 	unionfs_create_uppervattr_core(ump, &lva, uva, td);
@@ -802,7 +802,7 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 
 	memset(&cn, 0, sizeof(cn));
 
-	if ((error = VOP_GETATTR(lvp, &lva, cnp->cn_cred, td)))
+	if ((error = VOP_GETATTR(lvp, &lva, cnp->cn_cred)))
 		goto unionfs_mkshadowdir_abort;
 
 	if ((error = unionfs_relookup(udvp, &uvp, cnp, &cn, td, cnp->cn_nameptr, cnp->cn_namelen, CREATE)))
@@ -835,7 +835,7 @@ unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *udvp,
 		 * Ignore errors.
 		 */
 		va.va_type = VNON;
-		VOP_SETATTR(uvp, &va, cn.cn_cred, td);
+		VOP_SETATTR(uvp, &va, cn.cn_cred);
 	}
 	vn_finished_write(mp);
 
@@ -931,7 +931,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 	fmode = FFLAGS(O_WRONLY | O_CREAT | O_TRUNC | O_EXCL);
 	error = 0;
 
-	if ((error = VOP_GETATTR(lvp, &lva, cred, td)) != 0)
+	if ((error = VOP_GETATTR(lvp, &lva, cred)) != 0)
 		return (error);
 	unionfs_create_uppervattr_core(ump, &lva, uvap, td);
 
@@ -1119,7 +1119,7 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 	if (error == 0) {
 		/* Reset the attributes. Ignore errors. */
 		uva.va_type = VNON;
-		VOP_SETATTR(uvp, &uva, cred, td);
+		VOP_SETATTR(uvp, &uva, cred);
 	}
 
 	unionfs_node_update(unp, uvp, td);
@@ -1160,7 +1160,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 	lvp = UNIONFSVPTOLOWERVP(vp);
 
 	/* check opaque */
-	if ((error = VOP_GETATTR(uvp, &va, cred, td)) != 0)
+	if ((error = VOP_GETATTR(uvp, &va, cred)) != 0)
 		return (error);
 	if (va.va_flags & OPAQUE)
 		return (0);

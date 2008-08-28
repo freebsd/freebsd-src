@@ -693,8 +693,7 @@ void	vop_unlock_pre(void *a);
 									\
 	osize = ooffset = noffset = 0;					\
 	if (!VN_KNLIST_EMPTY((ap)->a_vp)) {				\
-		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred,	\
-		    curthread);						\
+		error = VOP_GETATTR((ap)->a_vp, &va, (ap)->a_cred);	\
 		if (error)						\
 			return (error);					\
 		ooffset = (ap)->a_uio->uio_offset;			\
@@ -740,7 +739,7 @@ void vfs_hash_rehash(struct vnode *vp, u_int hash);
 void vfs_hash_remove(struct vnode *vp);
 
 int vfs_kqfilter(struct vop_kqfilter_args *);
-void vfs_mark_atime(struct vnode *vp, struct thread *td);
+void vfs_mark_atime(struct vnode *vp, struct ucred *cred);
 struct dirent;
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 

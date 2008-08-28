@@ -797,7 +797,7 @@ interpret:
 		exec_setregs(td, imgp->entry_addr,
 		    (u_long)(uintptr_t)stack_base, imgp->ps_strings);
 
-	vfs_mark_atime(imgp->vp, td);
+	vfs_mark_atime(imgp->vp, td->td_ucred);
 
 done1:
 
@@ -1287,7 +1287,7 @@ exec_check_permissions(imgp)
 	td = curthread;
 
 	/* Get file attributes */
-	error = VOP_GETATTR(vp, attr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, attr, td->td_ucred);
 	if (error)
 		return (error);
 

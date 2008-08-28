@@ -289,7 +289,6 @@ msdosfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct denode *dep = VTODE(ap->a_vp);
@@ -366,7 +365,6 @@ msdosfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -374,11 +372,12 @@ msdosfs_setattr(ap)
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
+	struct thread *td = curthread;
 	int error = 0;
 
 #ifdef MSDOSFS_DEBUG
-	printf("msdosfs_setattr(): vp %p, vap %p, cred %p, p %p\n",
-	    ap->a_vp, vap, cred, ap->a_td);
+	printf("msdosfs_setattr(): vp %p, vap %p, cred %p\n",
+	    ap->a_vp, vap, cred);
 #endif
 
 	/*
@@ -480,7 +479,7 @@ msdosfs_setattr(ap)
 			 */
 			break;
 		}
-		error = detrunc(dep, vap->va_size, 0, cred, ap->a_td);
+		error = detrunc(dep, vap->va_size, 0, cred, td);
 		if (error)
 			return error;
 	}
@@ -488,12 +487,11 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (vap->va_vaflags & VA_UTIMES_NULL) {
-			error = VOP_ACCESS(vp, VADMIN, cred, ap->a_td); 
+			error = VOP_ACCESS(vp, VADMIN, cred, td); 
 			if (error)
-				error = VOP_ACCESS(vp, VWRITE, cred,
-				    ap->a_td);
+				error = VOP_ACCESS(vp, VWRITE, cred, td);
 		} else
-			error = VOP_ACCESS(vp, VADMIN, cred, ap->a_td);
+			error = VOP_ACCESS(vp, VADMIN, cred, td);
 		if (vp->v_type != VDIR) {
 			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
 			    vap->va_atime.tv_sec != VNOVAL) {

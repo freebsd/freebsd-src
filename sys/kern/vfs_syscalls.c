@@ -1147,7 +1147,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		error = mac_vnode_check_write(td->td_ucred, fp->f_cred, vp);
 		if (error == 0)
 #endif
-			error = VOP_SETATTR(vp, &vat, td->td_ucred, td);
+			error = VOP_SETATTR(vp, &vat, td->td_ucred);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		if (error)
@@ -1507,7 +1507,7 @@ SYSCTL_INT(_security_bsd, OID_AUTO, hardlink_check_gid, CTLFLAG_RW,
     "groups");
 
 static int
-can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
+can_hardlink(struct vnode *vp, struct ucred *cred)
 {
 	struct vattr va;
 	int error;
@@ -1515,7 +1515,7 @@ can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
 	if (!hardlink_check_uid && !hardlink_check_gid)
 		return (0);
 
-	error = VOP_GETATTR(vp, &va, cred, td);
+	error = VOP_GETATTR(vp, &va, cred);
 	if (error != 0)
 		return (error);
 
@@ -1586,7 +1586,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		    == 0) {
 			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-			error = can_hardlink(vp, td, td->td_ucred);
+			error = can_hardlink(vp, td->td_ucred);
 			if (error == 0)
 #ifdef MAC
 				error = mac_vnode_check_link(td->td_ucred,
@@ -1939,7 +1939,7 @@ lseek(td, uap)
 		break;
 	case L_XTND:
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		VOP_UNLOCK(vp, 0);
 		if (error)
 			break;
@@ -2637,7 +2637,7 @@ setfflags(td, vp, flags)
 	error = mac_vnode_check_setflags(td->td_ucred, vp, vattr.va_flags);
 	if (error == 0)
 #endif
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -2765,7 +2765,7 @@ setfmode(td, vp, mode)
 	error = mac_vnode_check_setmode(td->td_ucred, vp, vattr.va_mode);
 	if (error == 0)
 #endif
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -2930,7 +2930,7 @@ setfown(td, vp, uid, gid)
 	    vattr.va_gid);
 	if (error == 0)
 #endif
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -3137,7 +3137,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 	VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	setbirthtime = 0;
-	if (numtimes < 3 && VOP_GETATTR(vp, &vattr, td->td_ucred, td) == 0 &&
+	if (numtimes < 3 && !VOP_GETATTR(vp, &vattr, td->td_ucred) &&
 	    timespeccmp(&ts[1], &vattr.va_birthtime, < ))
 		setbirthtime = 1;
 	VATTR_NULL(&vattr);
@@ -3154,7 +3154,7 @@ setutimes(td, vp, ts, numtimes, nullflag)
 	    vattr.va_mtime);
 #endif
 	if (error == 0)
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	return (error);
@@ -3377,7 +3377,7 @@ kern_truncate(struct thread *td, char *path, enum uio_seg pathseg, off_t length)
 	    (error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td)) == 0) {
 		VATTR_NULL(&vattr);
 		vattr.va_size = length;
-		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
+		error = VOP_SETATTR(vp, &vattr, td->td_ucred);
 	}
 	vput(vp);
 	vn_finished_write(mp);
@@ -4172,7 +4172,7 @@ revoke(td, uap)
 	if (error)
 		goto out;
 #endif
-	error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &vattr, td->td_ucred);
 	if (error)
 		goto out;
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
@@ -4418,7 +4418,7 @@ fhopen(td, uap)
 #endif
 			VATTR_NULL(vap);
 			vap->va_size = 0;
-			error = VOP_SETATTR(vp, vap, td->td_ucred, td);
+			error = VOP_SETATTR(vp, vap, td->td_ucred);
 #ifdef MAC
 		}
 #endif

@@ -1100,7 +1100,7 @@ open_device(blkif_t *blkif)
 	blkif->csw = dev_refthread(blkif->cdev);
 	PANIC_IF(blkif->csw == NULL);
 
-	err = VOP_GETATTR(blkif->vn, &vattr, NOCRED, curthread);
+	err = VOP_GETATTR(blkif->vn, &vattr, NOCRED);
 	if (err) {
 		xenbus_dev_fatal(blkif->xdev, err,
 			"error getting vnode attributes for device %s", blkif->dev_name);

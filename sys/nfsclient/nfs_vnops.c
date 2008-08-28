@@ -100,10 +100,8 @@ __FBSDID("$FreeBSD$");
 static vop_read_t	nfsfifo_read;
 static vop_write_t	nfsfifo_write;
 static vop_close_t	nfsfifo_close;
-static int	nfs_flush(struct vnode *, int, struct thread *,
-		    int);
-static int	nfs_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
-		    struct thread *);
+static int	nfs_flush(struct vnode *, int, int);
+static int	nfs_setattrrpc(struct vnode *, struct vattr *, struct ucred *);
 static vop_lookup_t	nfs_lookup;
 static vop_create_t	nfs_create;
 static vop_mknod_t	nfs_mknod;
@@ -471,7 +469,7 @@ nfs_open(struct vop_open_args *ap)
 		np->n_attrstamp = 0;
 		if (vp->v_type == VDIR)
 			np->n_direofoffset = 0;
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
@@ -487,7 +485,7 @@ nfs_open(struct vop_open_args *ap)
 			np->n_attrstamp = 0;
 		}
 		mtx_unlock(&np->n_mtx);						
-		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
@@ -589,7 +587,7 @@ nfs_close(struct vop_close_args *ap)
 		     * cannot clear it if we don't commit.
 		     */
 		    int cm = nfsv3_commit_on_close ? 1 : 0;
-		    error = nfs_flush(vp, MNT_WAIT, ap->a_td, cm);
+		    error = nfs_flush(vp, MNT_WAIT, cm);
 		    /* np->n_flag &= ~NMODIFIED; */
 		} else
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
@@ -632,6 +630,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
+	struct thread *td = curthread;
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb;
@@ -651,7 +650,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 		goto nfsmout;
 	if (v3 && nfsaccess_cache_timeout > 0) {
 		nfsstats.accesscache_misses++;
-		nfs3_access_otw(vp, NFSV3ACCESS_ALL, ap->a_td, ap->a_cred);
+		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
 		if (nfs_getattrcache(vp, ap->a_vap) == 0)
 			goto nfsmout;
 	}
@@ -660,7 +659,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
 	nfsm_fhtom(vp, v3);
-	nfsm_request(vp, NFSPROC_GETATTR, ap->a_td, ap->a_cred);
+	nfsm_request(vp, NFSPROC_GETATTR, td, ap->a_cred);
 	if (!error) {
 		nfsm_loadattr(vp, ap->a_vap);
 	}
@@ -678,6 +677,7 @@ nfs_setattr(struct vop_setattr_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct vattr *vap = ap->a_vap;
+	struct thread *td = curthread;
 	int error = 0;
 	u_quad_t tsize;
 
@@ -733,16 +733,16 @@ nfs_setattr(struct vop_setattr_args *ap)
 			mtx_lock(&np->n_mtx);
 			tsize = np->n_size;
 			mtx_unlock(&np->n_mtx);
-			error = nfs_meta_setsize(vp, ap->a_cred, 
-						 ap->a_td, vap->va_size);
+			error = nfs_meta_setsize(vp, ap->a_cred, td,
+			    vap->va_size);
 			mtx_lock(&np->n_mtx);
  			if (np->n_flag & NMODIFIED) {
 			    tsize = np->n_size;
 			    mtx_unlock(&np->n_mtx);
  			    if (vap->va_size == 0)
- 				error = nfs_vinvalbuf(vp, 0, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, 0, td, 1);
  			    else
- 				error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
  			    if (error) {
 				vnode_pager_setsize(vp, tsize);
 				goto out;
@@ -764,13 +764,13 @@ nfs_setattr(struct vop_setattr_args *ap)
 		if ((vap->va_mtime.tv_sec != VNOVAL || vap->va_atime.tv_sec != VNOVAL) && 
 		    (np->n_flag & NMODIFIED) && vp->v_type == VREG) {
 			mtx_unlock(&np->n_mtx);
-			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1)) != 0 &&
+			if ((error = nfs_vinvalbuf(vp, V_SAVE, td, 1)) != 0 &&
 			    (error == EINTR || error == EIO))
 				return error;
 		} else
 			mtx_unlock(&np->n_mtx);
 	}
-	error = nfs_setattrrpc(vp, vap, ap->a_cred, ap->a_td);
+	error = nfs_setattrrpc(vp, vap, ap->a_cred);
 	if (error && vap->va_size != VNOVAL) {
 		mtx_lock(&np->n_mtx);
 		np->n_size = np->n_vattr.va_size = tsize;
@@ -785,8 +785,7 @@ out:
  * Do an nfs setattr rpc.
  */
 static int
-nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
-    struct thread *td)
+nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 {
 	struct nfsv2_sattr *sp;
 	struct nfsnode *np = VTONFS(vp);
@@ -823,7 +822,7 @@ nfs_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		txdr_nfsv2time(&vap->va_atime, &sp->sa_atime);
 		txdr_nfsv2time(&vap->va_mtime, &sp->sa_mtime);
 	}
-	nfsm_request(vp, NFSPROC_SETATTR, td, cred);
+	nfsm_request(vp, NFSPROC_SETATTR, curthread, cred);
 	if (v3) {
 		np->n_modestamp = 0;
 		nfsm_wcc_data(vp, wccflag);
@@ -873,7 +872,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		struct vattr vattr;
 
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
+		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
 		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
 		     nfsstats.lookupcache_hits++;
 		     if (cnp->cn_nameiop != LOOKUP &&
@@ -1276,9 +1275,8 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	else {
 		return (EOPNOTSUPP);
 	}
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread)) != 0) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
 		return (error);
-	}
 	nfsstats.rpccnt[NFSPROC_MKNOD]++;
 	mreq = nfsm_reqhead(dvp, NFSPROC_MKNOD, NFSX_FH(v3) + 4 * NFSX_UNSIGNED +
 		+ nfsm_rndup(cnp->cn_namelen) + NFSX_SATTR(v3));
@@ -1375,9 +1373,8 @@ nfs_create(struct vop_create_args *ap)
 	if (vap->va_type == VSOCK)
 		return (nfs_mknodrpc(dvp, ap->a_vpp, cnp, vap));
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread)) != 0) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
 		return (error);
-	}
 	if (vap->va_vaflags & VA_EXCLUSIVE)
 		fmode |= O_EXCL;
 again:
@@ -1451,7 +1448,7 @@ nfsmout:
 			vfs_timestamp(&vap->va_mtime);
 		if (vap->va_atime.tv_sec == VNOVAL)
 			vap->va_atime = vap->va_mtime;
-		error = nfs_setattrrpc(newvp, vap, cnp->cn_cred, cnp->cn_thread);
+		error = nfs_setattrrpc(newvp, vap, cnp->cn_cred);
 		if (error)
 			vput(newvp);
 	}
@@ -1498,8 +1495,7 @@ nfs_remove(struct vop_remove_args *ap)
 	if (vp->v_type == VDIR)
 		error = EPERM;
 	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
-	    VOP_GETATTR(vp, &vattr, cnp->cn_cred, cnp->cn_thread) == 0 &&
-	    vattr.va_nlink > 1)) {
+	    !VOP_GETATTR(vp, &vattr, cnp->cn_cred) && vattr.va_nlink > 1)) {
 		/*
 		 * Purge the name cache so that the chance of a lookup for
 		 * the name succeeding while the remove is in progress is
@@ -1883,9 +1879,8 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 	struct vattr vattr;
 	int v3 = NFS_ISV3(dvp);
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread)) != 0) {
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
 		return (error);
-	}
 	len = cnp->cn_namelen;
 	nfsstats.rpccnt[NFSPROC_MKDIR]++;
 	mreq = nfsm_reqhead(dvp, NFSPROC_MKDIR,
@@ -1997,7 +1992,7 @@ nfs_readdir(struct vop_readdir_args *ap)
 	 */
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
-		if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_td) == 0) {
+		if (VOP_GETATTR(vp, &vattr, ap->a_cred) == 0) {
 			mtx_lock(&np->n_mtx);
 			if (!NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 				mtx_unlock(&np->n_mtx);
@@ -2724,7 +2719,8 @@ nfs_strategy(struct vop_strategy_args *ap)
 static int
 nfs_fsync(struct vop_fsync_args *ap)
 {
-	return (nfs_flush(ap->a_vp, ap->a_waitfor, ap->a_td, 1));
+
+	return (nfs_flush(ap->a_vp, ap->a_waitfor, 1));
 }
 
 /*
@@ -2733,8 +2729,7 @@ nfs_fsync(struct vop_fsync_args *ap)
  *	associated with the vnode.
  */
 static int
-nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
-    int commit)
+nfs_flush(struct vnode *vp, int waitfor, int commit)
 {
 	struct nfsnode *np = VTONFS(vp);
 	struct buf *bp;
@@ -2747,6 +2742,7 @@ nfs_flush(struct vnode *vp, int waitfor, struct thread *td,
 	struct ucred* wcred = NULL;
 	struct buf **bvec = NULL;
 	struct bufobj *bo;
+	struct thread *td = curthread;
 #ifndef NFS_COMMITBVECSIZ
 #define NFS_COMMITBVECSIZ	20
 #endif
@@ -3198,7 +3194,7 @@ nfsspec_access(struct vop_access_args *ap)
 		}
 	}
 	vap = &vattr;
-	error = VOP_GETATTR(vp, vap, cred, ap->a_td);
+	error = VOP_GETATTR(vp, vap, cred);
 	if (error)
 		goto out;
 	error  = vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
@@ -3274,7 +3270,7 @@ nfsfifo_close(struct vop_close_args *ap)
 			if (np->n_flag & NUPD)
 				vattr.va_mtime = np->n_mtim;
 			mtx_unlock(&np->n_mtx);
-			(void)VOP_SETATTR(vp, &vattr, ap->a_cred, ap->a_td);
+			(void)VOP_SETATTR(vp, &vattr, ap->a_cred);
 			goto out;
 		}
 	}

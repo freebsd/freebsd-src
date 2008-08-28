@@ -928,7 +928,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG ||
-	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
+	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred))) {
 		VOP_UNLOCK(nd.ni_vp, 0);
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);

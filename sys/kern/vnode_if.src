@@ -159,7 +159,6 @@ vop_getattr {
 	IN struct vnode *vp;
 	OUT struct vattr *vap;
 	IN struct ucred *cred;
-	IN struct thread *td;
 };
 
 
@@ -170,7 +169,6 @@ vop_setattr {
 	IN struct vnode *vp;
 	IN struct vattr *vap;
 	IN struct ucred *cred;
-	IN struct thread *td;
 };
 
 

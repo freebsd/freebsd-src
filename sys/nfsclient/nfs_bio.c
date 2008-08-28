@@ -403,7 +403,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 				goto out;
 		}
 		np->n_attrstamp = 0;
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			goto out;
 		mtx_lock(&np->n_mtx);
@@ -411,7 +411,7 @@ nfs_bioread_check_cons(struct vnode *vp, struct thread *td, struct ucred *cred)
 		mtx_unlock(&np->n_mtx);
 	} else {
 		mtx_unlock(&np->n_mtx);
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
@@ -928,7 +928,7 @@ flush_and_restart:
 	 */
 	if (ioflag & IO_APPEND) {
 		np->n_attrstamp = 0;
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return (error);
 		mtx_lock(&np->n_mtx);
