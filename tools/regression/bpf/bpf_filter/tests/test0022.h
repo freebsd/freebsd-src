@@ -1,21 +1,21 @@
 /*-
- * Test 0022:	BPF_JMP|BPF_JEQ|BPF_X
+ * Test 0022:	BPF_JMP+BPF_JEQ+BPF_X
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LD|BPF_IMM, 0x01234567),
-	BPF_STMT(BPF_LDX|BPF_IMM, 0x01234568),
-	BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_X, 0, 3, 0),
-	BPF_STMT(BPF_LDX|BPF_IMM, 0x01234567),
-	BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_X, 0, 2, 1),
-	BPF_STMT(BPF_LD|BPF_IMM, 0xdeadc0de),
+	BPF_STMT(BPF_LD+BPF_IMM, 0x01234567),
+	BPF_STMT(BPF_LDX+BPF_IMM, 0x01234568),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 3, 0),
+	BPF_STMT(BPF_LDX+BPF_IMM, 0x01234567),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 2, 1),
+	BPF_STMT(BPF_LD+BPF_IMM, 0xdeadc0de),
 	BPF_STMT(BPF_RET+BPF_A, 0),
-	BPF_STMT(BPF_LDX|BPF_IMM, 0x01234566),
-	BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_X, 0, 1, 0),
-	BPF_STMT(BPF_LD|BPF_IMM, 0xc0decafe),
+	BPF_STMT(BPF_LDX+BPF_IMM, 0x01234566),
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_X, 0, 1, 0),
+	BPF_STMT(BPF_LD+BPF_IMM, 0xc0decafe),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -36,5 +36,5 @@ int	invalid =	0;
 /* Expected return value */
 u_int	expect =	0xc0decafe;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	0;
