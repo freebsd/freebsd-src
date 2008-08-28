@@ -561,7 +561,7 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 	}
 }
 
-static void
+void
 sctp_recover_sent_list(struct sctp_tcb *stcb)
 {
 	struct sctp_tmit_chunk *chk, *tp2;
