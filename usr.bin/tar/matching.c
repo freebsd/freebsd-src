@@ -259,6 +259,29 @@ unmatched_inclusions(struct bsdtar *bsdtar)
 }
 
 
+int
+unmatched_inclusions_warn(struct bsdtar *bsdtar, const char *msg)
+{
+	struct matching *matching;
+	struct match *p;
+
+	matching = bsdtar->matching;
+	if (matching == NULL)
+		return (0);
+
+	p = matching->inclusions;
+	while (p != NULL) {
+		if (p->matches == 0) {
+			bsdtar->return_value = 1;
+			bsdtar_warnc(bsdtar, 0, "%s: %s",
+			    p->pattern, msg);
+		}
+		p = p->next;
+	}
+	return (matching->inclusions_unmatched_count);
+}
+
+
 
 #if defined(HAVE_FNMATCH) && defined(HAVE_FNM_LEADING_DIR)
 

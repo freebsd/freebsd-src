@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	1.9.4
-SRCS=	bsdtar.c getdate.y matching.c read.c siginfo.c tree.c util.c write.c
+BSDTAR_VERSION_STRING=	1.9.25
+SRCS=	bsdtar.c getdate.y matching.c read.c siginfo.c subst.c tree.c util.c write.c
 WARNS?=	5
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ}
 LDADD=	-larchive -lbz2 -lz
@@ -12,7 +12,8 @@ CFLAGS+=	-I${.CURDIR}
 SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 
-check: $(PROG)
+.PHONY: check test
+check test: $(PROG) bsdtar.1.gz
 	cd ${.CURDIR}/test && make clean test
 
 .include <bsd.prog.mk>
