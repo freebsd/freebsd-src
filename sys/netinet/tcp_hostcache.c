@@ -37,7 +37,7 @@
  * significant speed-ups for new TCP connections after the first one.
  *
  * Due to the tcp_hostcache, all TCP-specific metrics information in the
- * routing table has been removed.  The inpcb no longer keeps a pointer to
+ * routing table have been removed.  The inpcb no longer keeps a pointer to
  * the routing entry, and protocol-initiated route cloning has been removed
  * as well.  With these changes, the routing table has gone back to being
  * more lightwight and only carries information related to packet forwarding.
