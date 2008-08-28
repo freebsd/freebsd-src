@@ -365,14 +365,20 @@ extern int sctp_logoff_stuff;
                 do { \
   	               atomic_add_int(&SCTP_BASE_INFO(ipi_count_chunk), 1); \
 	        } while (0)
-
+#ifdef INVARIANTS
 #define SCTP_DECR_CHK_COUNT() \
                 do { \
                        if(SCTP_BASE_INFO(ipi_count_chunk) == 0) \
                              panic("chunk count to 0?");    \
   	               atomic_subtract_int(&SCTP_BASE_INFO(ipi_count_chunk), 1); \
 	        } while (0)
-
+#else
+#define SCTP_DECR_CHK_COUNT() \
+                do { \
+                       if(SCTP_BASE_INFO(ipi_count_chunk) != 0) \
+  	               atomic_subtract_int(&SCTP_BASE_INFO(ipi_count_chunk), 1); \
+	        } while (0)
+#endif
 #define SCTP_INCR_READQ_COUNT() \
                 do { \
 		       atomic_add_int(&SCTP_BASE_INFO(ipi_count_readq),1); \
