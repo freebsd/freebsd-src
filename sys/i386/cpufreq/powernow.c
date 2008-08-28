@@ -983,6 +983,5 @@ static int
 pn_detach(device_t dev)
 {
 
-	cpufreq_unregister(dev);
-	return (0);
+	return (cpufreq_unregister(dev));
 }
