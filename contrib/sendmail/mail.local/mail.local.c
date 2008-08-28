@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.254 2006/10/12 22:23:45 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.256 2008/02/19 07:13:30 gshapiro Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -80,6 +80,15 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.254 2006/10/12 22:23:45 ca Exp $")
 #  include <openssl/md5.h>
 # endif /* HASHSPOOLMD5 */
 #endif /* HASHSPOOL */
+
+#if _FFR_SPOOL_PATH
+	/*
+	**  Override path to mail store at run time (using -p).
+	**  From: Eugene Grosbein of Svyaz Service JSC
+	**  See: http://www.freebsd.org/cgi/query-pr.cgi?pr=bin/114195
+	**  NOTE: Update man page before adding this to a release.
+	*/
+#endif /* _FFR_SPOOL_PATH */
 
 
 #ifndef LOCKTO_RM
@@ -231,7 +240,11 @@ main(argc, argv)
 #if HASHSPOOL
 	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lH:p:ns")) != -1)
 #else /* HASHSPOOL */
+#  if _FFR_SPOOL_PATH
+	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lp:s")) != -1)
+#  else /* _FFR_SPOOL_PATH */
 	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:ls")) != -1)
+#  endif /* _FFR_SPOOL_PATH */
 #endif /* HASHSPOOL */
 	{
 		switch(ch)
@@ -319,6 +332,12 @@ main(argc, argv)
 			}
 			break;
 
+		  case 'n':
+			StripRcptDomain = false;
+			break;
+#endif /* HASHSPOOL */
+
+#if HASHSPOOL || _FFR_SPOOL_PATH
 		  case 'p':
 			if (optarg == NULL || *optarg == '\0')
 			{
@@ -332,11 +351,7 @@ main(argc, argv)
 				usage();
 			}
 			break;
-
-		  case 'n':
-			StripRcptDomain = false;
-			break;
-#endif /* HASHSPOOL */
+#endif /* HASHSPOOL || _FFR_SPOOL_PATH */
 
 		  case '?':
 		  default:
@@ -1582,7 +1597,11 @@ void
 usage()
 {
 	ExitVal = EX_USAGE;
+# if _FFR_SPOOL_PATH
+	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] [-p path] user ...");
+# else /* _FFR_SPOOL_PATH */
 	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] user ...");
+# endif /* _FFR_SPOOL_PATH */
 	sm_exit(ExitVal);
 }
 
