@@ -61,7 +61,8 @@ __FBSDID("$FreeBSD$");
 #include "pci_if.h"
 
 /* Helper functions */
-static void ofw_pcibus_setup_device(device_t, u_int, u_int, u_int);
+static void ofw_pcibus_setup_device(device_t bridge, uint32_t clock,
+    u_int busno, u_int slot, u_int func);
 
 /* Methods */
 static device_probe_t ofw_pcibus_probe;
@@ -118,8 +119,10 @@ ofw_pcibus_probe(device_t dev)
  * Perform miscellaneous setups the firmware usually does not do for us.
  */
 static void
-ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
+ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
+    u_int slot, u_int func)
 {
+#ifndef SUN4V
 	uint32_t reg;
 
 	/*
@@ -127,27 +130,59 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	 * work properly.  This is another task which the firmware doesn't
 	 * always perform.  The Min_Gnt register can be used to compute its
 	 * recommended value: it contains the desired latency in units of
-	 * 1/4 us.  To calculate the correct latency timer value, the clock
-	 * frequency of the bus (defaulting to 33MHz) and no wait states
-	 * should be assumed.
+	 * 1/4 us assuming a clock rate of 33MHz.  To calculate the correct
+	 * latency timer value, the clock frequency of the bus (defaulting
+	 * to 33MHz) should be used and no wait states assumed.
+	 * For bridges, we additionally set up the bridge control and the
+	 * secondary latency registers.
 	 */
-	if (OF_getprop(ofw_bus_get_node(bridge), "clock-frequency", &reg,
-	    sizeof(reg)) == -1)
-		reg = 33000000;
-	reg = PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_MINGNT, 1) *
-	    reg / 1000000 / 4;
-	if (reg != 0) {
+	if ((PCIB_READ_CONFIG(bridge, busno, slot, func, PCIR_HDRTYPE, 1) &
+	    PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
+		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
+		    PCIR_BRIDGECTL_1, 1);
+		reg |= PCIB_BCR_MASTER_ABORT_MODE | PCIB_BCR_SERR_ENABLE |
+		    PCIB_BCR_PERR_ENABLE;
 #ifdef OFW_PCI_DEBUG
-		device_printf(bridge, "device %d/%d/%d: latency timer %d -> "
-		    "%d\n", busno, slot, func,
-		    PCIB_READ_CONFIG(bridge, busno, slot, func,
-			PCIR_LATTIMER, 1), reg);
+		device_printf(bridge,
+		    "bridge %d/%d/%d: control 0x%x -> 0x%x\n",
+		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
+		    func, PCIR_BRIDGECTL_1, 1), reg);
 #endif /* OFW_PCI_DEBUG */
-		PCIB_WRITE_CONFIG(bridge, busno, slot, func,
-		    PCIR_LATTIMER, min(reg, 255), 1);
-	}
+		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_BRIDGECTL_1,
+		    reg, 1);
 
-#ifndef SUN4V
+		reg = OFW_PCI_LATENCY;
+#ifdef OFW_PCI_DEBUG
+		device_printf(bridge,
+		    "bridge %d/%d/%d: latency timer %d -> %d\n",
+		    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot,
+		    func, PCIR_SECLAT_1, 1), reg);
+#endif /* OFW_PCI_DEBUG */
+		PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_SECLAT_1,
+		    reg, 1);
+	} else {
+		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
+		    PCIR_MINGNT, 1);
+		if (reg != 0) {
+			switch (clock) {
+			case 33000000:
+				reg *= 8;
+				break;
+			case 66000000:
+				reg *= 4;
+				break;
+			}
+			reg = min(reg, 255);
+		} else
+			reg = OFW_PCI_LATENCY;
+	}
+#ifdef OFW_PCI_DEBUG
+	device_printf(bridge, "device %d/%d/%d: latency timer %d -> %d\n",
+	    busno, slot, func, PCIB_READ_CONFIG(bridge, busno, slot, func,
+	    PCIR_LATTIMER, 1), reg);
+#endif /* OFW_PCI_DEBUG */
+	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_LATTIMER, reg, 1);
+
 	/*
 	 * Compute a value to write into the cache line size register.
 	 * The role of the streaming cache is unclear in write invalidate
@@ -175,10 +210,10 @@ ofw_pcibus_attach(device_t dev)
 	struct ofw_pci_register pcir;
 	struct ofw_pcibus_devinfo *dinfo;
 	phandle_t node, child;
+	uint32_t clock;
 	u_int busno, domain, func, slot;
 
 	pcib = device_get_parent(dev);
-
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
 	if (bootverbose)
@@ -198,6 +233,9 @@ ofw_pcibus_attach(device_t dev)
 	}
 #endif
 
+	if (OF_getprop(ofw_bus_get_node(pcib), "clock-frequency", &clock,
+	    sizeof(clock)) == -1)
+		clock = 33000000;
 	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
 			continue;
@@ -206,7 +244,7 @@ ofw_pcibus_attach(device_t dev)
 		/* Some OFW device trees contain dupes. */
 		if (pci_find_dbsf(domain, busno, slot, func) != NULL)
 			continue;
-		ofw_pcibus_setup_device(pcib, busno, slot, func);
+		ofw_pcibus_setup_device(pcib, clock, busno, slot, func);
 		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
 		    domain, busno, slot, func, sizeof(*dinfo));
 		if (dinfo == NULL)
