@@ -63,6 +63,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
+        archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_TIME);
 	failure("%s", msg);
 	/*
 	 * A touchy API design issue: archive_write_data() does (as of
@@ -82,6 +83,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	 * the entry being a maximum size.
 	 */
 	archive_entry_set_size(ae, sizeof(data));
+        archive_entry_set_mtime(ae, 123456789, 0);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
@@ -95,7 +97,10 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-	assertEqualInt(st.st_size, sizeof(data));
+        failure("Old bug: if no atime specified, atime got set to Jan 1, 1970");
+        assert(st.st_atime != 0);
+        assertEqualInt(st.st_size, sizeof(data));
+        assertEqualInt(st.st_mtime, 123456789);
 }
 
 static void create_reg_file2(struct archive_entry *ae, const char *msg)
