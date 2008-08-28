@@ -1,0 +1,64 @@
+MAILSTATS(8)                                                      MAILSTATS(8)
+
+
+
+NNAAMMEE
+       mailstats - display mail statistics
+
+SSYYNNOOPPSSIISS
+       mmaaiillssttaattss [--cc] [--oo] [--pp] [--PP] [--CC _c_f_f_i_l_e] [--ff _s_t_f_i_l_e]
+
+DDEESSCCRRIIPPTTIIOONN
+       The mmaaiillssttaattss utility displays the current mail statistics.
+
+       First, the time at which statistics started being kept is displayed, in
+       the format specified by ctime(3).  Then, the statistics for each mailer
+       are  displayed  on  a  single line, each with the following white space
+       separated fields:
+
+              MM           The mailer number.
+              mmssggssffrr      Number of messages from the mailer.
+              bbyytteess__ffrroomm  Kbytes from the mailer.
+              mmssggssttoo      Number of messages to the mailer.
+              bbyytteess__ttoo    Kbytes to the mailer.
+              mmssggssrreejj     Number of messages rejected.
+              mmssggssddiiss     Number of messages discarded.
+              mmssggssqquurr     Number of messages quarantined.
+              MMaaiilleerr      The name of the mailer.
+
+       After this display, a line totaling the values for all of  the  mailers
+       is  displayed  (preceded  with  a  ``T''),  separated from the previous
+       information by  a  line  containing  only  equals  (``='')  characters.
+       Another line preceded with a ``C'' lists the number of TCP connections.
+
+       The options are as follows:
+
+       --CC     Read the specified file instead of the default sseennddmmaaiill configu-
+              ration file.
+
+       --cc     Try  to use submit.cf instead of the default sseennddmmaaiill configura-
+              tion file.
+
+       --ff     Read the specified statistics file  instead  of  the  statistics
+              file specified in the sseennddmmaaiill configuration file.
+
+       --PP     Output  information  in  program-readable  mode without clearing
+              statistics.
+
+       --pp     Output information in program-readable mode  and  clear  statis-
+              tics.
+
+       --oo     Don't display the name of the mailer in the output.
+
+       The mmaaiillssttaattss utility exits 0 on success, and >0 if an error occurs.
+
+FFIILLEESS
+       /etc/mail/sendmail.cf    The default sseennddmmaaiill configuration file.
+       /etc/mail/statistics     The default sseennddmmaaiill statistics file.
+
+SSEEEE AALLSSOO
+       mailq(1), sendmail(8)
+
+
+
+                         $Date: 2002/06/27 22:47:29 $             MAILSTATS(8)

@@ -1,0 +1,62 @@
+dnl #####################################################################
+dnl ###                                                               ###
+dnl ### This is a sample "site.config.m4".  It is not intended to be  ###
+dnl ### used directly.  It is intended to illustrate, by example,     ###
+dnl ### how to make your own site configuration file.                 ###
+dnl ###                                                               ###
+dnl #####################################################################
+dnl $Id: site.config.m4.sample,v 1.1 2003/01/11 17:09:25 ca Exp $
+
+dnl #####################################################################
+dnl ###                                                               ###
+dnl ### This illustrates how to turn off an option that is defined by ###
+dnl ### default.  Check your compiler documentation to make sure that ###
+dnl ### it supports "-U".                                             ###
+dnl ###                                                               ###
+dnl #####################################################################
+
+dnl ### Changes to disable the default NIS support
+APPENDDEF(`confENVDEF', `-UNIS')
+
+dnl #####################################################################
+dnl ###                                                               ###
+dnl ### The next group of statements illustrates how to add support   ###
+dnl ### for a particular map class.  If you have not heard of this    ###
+dnl ### particular map type, then you probably don't need it.         ###
+dnl ###                                                               ###
+dnl ### Note that the map define goes in confMAPDEF, and that any     ###
+dnl ### special library must be defined.  Note, also that include     ###
+dnl ### directories and library directories must also be defined if   ###
+dnl ### they are places that your compiler does not automatically     ###
+dnl ### search.                                                       ###
+dnl ###                                                               ###
+dnl #####################################################################
+
+dnl ### Changes for PH_MAP support.
+APPENDDEF(`confMAPDEF',`-DPH_MAP')
+APPENDDEF(`confLIBS', `-lphclient')
+APPENDDEF(`confINCDIRS', `-I/opt/nph/include')
+APPENDDEF(`confLIBDIRS', `-L/opt/nph/lib')
+
+dnl #####################################################################
+dnl ###                                                               ###
+dnl ### The next group illustrates how to add support for a compile   ###
+dnl ### time option.  In addition to the compile time define, any     ###
+dnl ### required libraries must be given.  In addition, include and   ###
+dnl ### library directories must be given if they are not standardly  ###
+dnl ### searched by your compiler.                                    ###
+dnl ###                                                               ###
+dnl ### Note the "-R" for the library directory.  On some systems,    ###
+dnl ### that can be used to tell the run time loader where to find    ###
+dnl ### dynamic libraries (shared objects).  Check your system        ###
+dnl ### documentation (man ld) to see if this is appropriate for your ###
+dnl ### system.                                                       ###
+dnl ###                                                               ###
+dnl #####################################################################
+
+dnl ### Changes for STARTTLS support
+APPENDDEF(`confENVDEF',`-DSTARTTLS')
+APPENDDEF(`confLIBS', `-lssl -lcrypto')
+APPENDDEF(`confLIBDIRS', `-L/usr/local/ssl/lib -R/usr/local/ssl/lib')
+APPENDDEF(`confINCDIRS', `-I/usr/local/ssl/include')
+

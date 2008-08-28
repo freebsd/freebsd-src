@@ -1,0 +1,819 @@
+#!/bin/sh
+
+# Copyright (c) 1998-2002, 2008 Sendmail, Inc. and its suppliers.
+#	All rights reserved.
+# Copyright (c) 1993, 1996-1997 Eric P. Allman.  All rights reserved.
+# Copyright (c) 1993
+#	The Regents of the University of California.  All rights reserved.
+#
+# By using this file, you agree to the terms and conditions set
+# forth in the LICENSE file which can be found at the top level of
+# the sendmail distribution.
+#
+#
+#	$Id: Build,v 8.187 2008/01/11 18:40:17 ca Exp $
+#
+
+#
+#  A quick-and-dirty script to compile sendmail and related programs
+#  in the presence of multiple architectures.  To use, just use
+#  "sh Build".
+#
+
+trap "rm -f $obj/.settings$$; exit" 1 2 3 15
+
+cflag=""
+mflag=""
+Mflag=""
+Aflag=""
+sflag=""
+makeargs=""
+libdirs=""
+incdirs=""
+libsrch=""
+libpath=""
+siteconfig=""
+pfx=""
+obj=""
+oscf=""
+arch=""
+os=""
+rel=""
+mkdir="mkdir -p"
+SENDMAIL_BUILD_FLAGS=""
+EX_OK=0
+EX_USAGE=64
+EX_NOINPUT=66
+EX_UNAVAILABLE=69
+SHELL=/bin/sh
+
+# default to a optimized build to behave like the old system.
+build_variant="optimized"
+
+full_src_dir=`pwd`
+if [ -z "$src_dir" ]
+then
+	src_dir=`basename ${full_src_dir}`
+fi
+absolute_base_dir=`echo ${full_src_dir} | sed "s#${src_dir}\\$##"`
+obj_rel_base_dir='../..'
+
+while [ ! -z "$1" ]
+do
+	case $1
+	in
+	  -src)	# Specify pathname of source directory relative to
+		# root of cvs tree.  This relative pathname may have
+		# multiple components, as in 'foo/bar/baz', and will also
+		# be used to form the pathname of the object directory.
+		shift
+		arg=$1
+		if [ -z "$arg" ]
+		then
+			echo "Missing arg for -src" >&2
+			exit $EX_USAGE
+		fi
+		case $arg
+		in
+		  /*)	echo "Arg for -src must not begin with / ($arg)" >&2
+			exit $EX_USAGE
+			;;
+		esac
+		src_dir="$arg"
+		absolute_base_dir=`echo ${full_src_dir} | sed "s;/${src_dir}$;;"`
+		obj_rel_base_dir=`echo x/${src_dir} | sed "s;[^/][^/]*;..;g"`
+		SMROOT=${absolute_base_dir}
+		shift
+		;;
+	  -c)	# clean out existing $obj tree
+		cflag=1
+		SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS $1"
+		shift
+		;;
+
+	  -m)	# show Makefile name only
+		mflag=1
+		shift
+		;;
+
+	  -M)	# show the name of the obj. directory
+		Mflag=1
+		shift
+		;;
+
+	  -A)   # show the name of the architecture
+		Aflag=1
+		shift
+		;;
+
+	  -E*)	# environment variables to pass into Build
+		arg=`echo $1 | sed 's/^-E//'`
+		if [ -z "$arg" ]
+		then
+			shift   # move to argument
+			arg=$1
+		fi
+		if [ -z "$arg" ]
+		then
+			echo "Empty -E flag" >&2
+			exit $EX_USAGE
+		else
+			case $arg
+			in
+			  *=*)	# check format
+				eval $arg
+				export `echo $arg | sed 's;=.*;;'`
+				SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS -E \"$arg\""
+				;;
+			  *)	# bad format
+				echo "Bad format for -E argument ($arg)" >&2
+				exit $EX_USAGE
+				;;
+			esac
+			shift
+		fi
+		;;
+
+	  -L*)	# set up LIBDIRS
+		libdirs="$libdirs $1"
+		SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS $1"
+		shift
+		;;
+
+	  -I*)	# set up INCDIRS
+		incdirs="$incdirs $1"
+		SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS $1"
+		shift
+		;;
+
+	  -f*)	# select site config file
+		arg=`echo $1 | sed 's/^-f//'`
+		if [ -z "$arg" ]
+		then
+			shift   # move to argument
+			arg=$1
+		fi
+		if [ "$pfx" ]
+		then
+			echo "May not use -f and -Q together"
+			exit $EX_USAGE
+		fi
+		if [ "$siteconfig" ]
+		then
+			echo "Only one -f flag allowed" >&2
+			exit $EX_USAGE
+		else
+			siteconfig=$arg
+			if [ -z "$siteconfig" ]
+			then
+				echo "Missing argument for -f flag" >&2
+				exit $EX_USAGE
+			elif [ ! -f "$siteconfig" ]
+			then
+				echo "${siteconfig}: File not found"
+				exit $EX_NOINPUT
+			else
+				shift	# move past argument
+				case $arg
+				in
+					/*)
+					SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS -f \"$siteconfig\""
+					;;
+					*)
+					SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS -f \"${full_src_dir}/$siteconfig\""
+					;;
+				esac
+			fi
+		fi
+		;;
+
+	  -O*) # Set object directory manually.
+		arg="`echo $1 | sed 's/^-O//'`"
+		if [ -z "$arg" ]
+		then
+			shift   # move to argument
+			arg="$1"
+		fi
+		case $arg
+		in
+			/*)
+			OBJ_ROOT="$arg"
+			SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS -O \"$OBJ_ROOT\""
+			obj_rel_base_dir=$absolute_base_dir
+			;;
+			*)
+			echo "Absolute directory path required for -O flag" >&2
+			exit $EX_USAGE
+			;;
+		esac
+		shift
+		;;
+
+	  -S)	# skip auto-configure
+		sflag="-s"
+		SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS $1"
+		shift
+		;;
+
+	  -Q*)	# Select a prefix for the Site/*.config.m4 file
+		arg=`echo $1 | sed 's/^-Q//'`
+		if [ -z "$arg" ]
+		then
+			shift   # move to argument
+			arg=$1
+		fi
+		if [ -z "$arg" ]
+		then
+			echo "Empty -Q flag" >&2
+			exit $EX_USAGE
+		elif [ "$siteconfig" ]
+		then
+			echo "May not use -Q and -f together" >&2
+			exit $EX_USAGE
+		elif [ "$pfx" ]
+		then
+			echo "Only one -Q allowed" >&2
+			exit $EX_USAGE
+		else
+			pfx=$arg
+			SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS -Q \"$pfx\""
+		fi
+		shift
+		;;
+
+	  -v)	# Select a build variant: debug, optimized, purify, whatever.
+		shift
+		build_variant=$1
+		if [ -z "$build_variant" ]
+		then
+			echo "Usage error with \"-v\" <build_variant>"  >&2
+			echo "You must specify exactly one build variant of debug|optimized|purify"  >&2
+			exit $EX_USAGE
+		fi
+		shift
+		;;
+
+	  *)	# pass argument to make
+		makeargs="$makeargs \"$1\""
+		#SENDMAIL_BUILD_FLAGS="$SENDMAIL_BUILD_FLAGS \"$1\""
+		shift
+		;;
+	esac
+done
+
+# process selected build variant.
+case $build_variant in
+	debug)
+		M4_BLDVARIANT_FLAGS="-DconfBLDVARIANT=DEBUG"
+		;;
+	optimized)
+		M4_BLDVARIANT_FLAGS="-DconfBLDVARIANT=OPTIMIZED"
+		;;
+	purify)
+		M4_BLDVARIANT_FLAGS="-DconfBLDVARIANT=PURIFY"
+		echo "Sorry, the purify build variant has not been plumbed yet. (Bummer.)"  >&2
+		exit $EX_USAGE
+		;;
+	*)
+		exit $EX_USAGE
+		;;
+esac
+
+
+#
+#  Do heuristic guesses !ONLY! for machines that do not have uname
+#
+if [ -d /NextApps -a ! -f /bin/uname -a ! -f /usr/bin/uname ]
+then
+	# probably a NeXT box
+	arch=`hostinfo | sed -n 's/.*Processor type: \([^ ]*\).*/\1/p'`
+	os=NeXT
+	rel=`hostinfo | sed -n 's/.*NeXT Mach \([0-9\.]*\).*/\1/p'`
+elif [ -f /usr/sony/bin/machine -a -f /etc/osversion ]
+then
+	# probably a Sony NEWS 4.x
+	os=NEWS-OS
+	rel=`awk '{ print $3}' /etc/osversion`
+	arch=`/usr/sony/bin/machine`
+elif [ -d /usr/omron -a -f /bin/luna ]
+then
+	# probably a Omron LUNA
+	os=LUNA
+	if [ -f /bin/luna1 ] && /bin/luna1
+	then
+		rel=unios-b
+		arch=luna1
+	elif [ -f /bin/luna2 ] && /bin/luna2
+	then
+		rel=Mach
+		arch=luna2
+	elif [ -f /bin/luna88k ] && /bin/luna88k
+	then
+		rel=Mach
+		arch=luna88k
+	fi
+elif [ -d /usr/apollo -a -d \`node_data ]
+then
+	# probably a Apollo/DOMAIN
+	os=DomainOS
+	arch=$ISP
+	rel=`/usr/apollo/bin/bldt | grep Domain | awk '{ print $4 }' | sed -e 's/,//g'`
+fi
+
+if [ ! "$arch" -a ! "$os" -a ! "$rel" ]
+then
+	arch=`uname -m | sed -e 's/ //g' -e 's/\//-/g'`
+	os=`uname -s | sed -e 's/\//-/g' -e 's/ //g'`
+	rel=`uname -r | sed -e 's/(/-/g' -e 's/)//g' -e 's/ //g'`
+fi
+
+#
+#  Tweak the values we have already got.  PLEASE LIMIT THESE to
+#  tweaks that are absolutely necessary because your system uname
+#  routine doesn't return something sufficiently unique.  Don't do
+#  it just because you don't like the name that is returned.  You
+#  can combine the architecture name with the os name to create a
+#  unique Makefile name.
+#
+
+# tweak machine architecture
+case $arch
+in
+  sun4*)	arch=sun4;;
+
+  9000/*)	arch=`echo $arch | sed -e 's/9000.//' -e 's/..$/xx/'`;;
+
+  DS/907000)	arch=ds90;;
+
+  NILE*)	arch=NILE
+		os=`uname -v`;;
+
+  CRAYT3E)	os=UNICOS-mk;;
+		
+  CRAY[CJT]90*|CRAYTS|CRAYSV1*|CRAYY-MP)
+		os=UNICOS;;
+esac
+
+# tweak operating system type and release
+node=`uname -n | sed -e 's/\//-/g' -e 's/ //g'`
+if [ "$os" = "$node" -a "$arch" = "i386" -a "$rel" = 3.2 -a "`uname -v`" = 2 ]
+then
+	# old versions of SCO UNIX set uname -s the same as uname -n
+	os=SCO_SV
+fi
+if [ "$rel" = 4.0 ]
+then
+	case $arch in
+	  3[34]??|3[34]??,*|3[34]??[A-Z]|4[48]??|56??)
+		if [ -d /usr/sadm/sysadm/add-ons/WIN-TCP ]
+		then
+			os=NCR.MP-RAS
+			rel=2.x
+			arch=i486
+		elif [ -d /usr/sadm/sysadm/add-ons/inet ]
+		then
+			os=NCR.MP-RAS
+			rel=3.x
+			arch=i486
+		fi
+		;;
+	esac
+fi
+
+case $os
+in
+  DYNIX-ptx)	os=PTX;;
+  Paragon*)	os=Paragon;;
+  HP-UX)	rel=`echo $rel | sed -e 's/^[^.]*\.0*//'`;;
+  AIX)		osl=""
+		if [ -x /bin/lslpp ]
+		then
+			osl=`/bin/lslpp -Lcq bos.rte | cut -f3 -d: | cut -f1-3 -d. 2>/dev/null`
+			if [ $? = 0  -a -n "$osl" ]
+			then
+				rel=$osl
+			else
+				# command failed; fall back to old method
+				osl=""
+			fi
+		fi
+		# check whether it worked
+		if [ -z "$osl" ]
+		then
+			rela=$rel
+			rel=`uname -v`
+			rel=$rel.$rela
+		fi
+		arch=PPC
+		;;
+  BSD-386)	os=BSD-OS;;
+  SCO_SV)	rel=`uname -X | sed -n 's/Release = //p'`
+		if [ "$rel" = "5v6.0.0" ]
+		then
+		  os=OSR; rel=`uname -X | sed -n 's/Release = //p'`
+		else
+		  os=SCO; rel=`uname -X | sed -n 's/Release = 3.2v//p'`
+		fi;;
+  UNIX_System_V) if [ "$arch" = "ds90" ]
+		then
+			os="UXPDS"
+			rel=`uname -v | sed -e 's/\(V.*\)L.*/\1/'`
+		fi;;
+  ReliantUNIX-?|SINIX-?)	os=SINIX;;
+  DomainOS)	case $rel in
+		  10.4*)	rel=10.4;;
+		esac
+		;;
+  IRIX*)	rel=`echo $rel | sed -e 's/-.*$//'`;;
+  NeXT)		mkdir="mkdirs";;
+  UNICOSMK)	rel=`echo $rel | sed -e 's/\(.*\)\.\(.*\)\.\(.*\)\..*$/\1.\2.\3/'`;;
+  UNICOS*)	rel=`echo $rel | sed -e 's/\(.*\)\.\(.*\)\..*$/\1.\2/'`;;
+esac
+
+# get "base part" of operating system release
+rroot=`echo $rel | sed -e 's/\.[^.]*$//'`
+rbase=`echo $rel | sed -e 's/\..*//'`
+if [ "$rroot" = "$rbase" ]
+then
+	rroot=$rel
+fi
+
+# heuristic tweaks to clean up names -- PLEASE LIMIT THESE!
+if [ "$os" = "unix" ]
+then
+	# might be Altos System V
+	case $rel
+	in
+	  5.3*)		os=Altos;;
+	esac
+elif [ -r /unix -a -r /usr/lib/libseq.a -a -r /lib/cpp ]
+then
+	# might be a DYNIX/ptx 2.x system, which has a broken uname
+	if strings /lib/cpp | grep _SEQUENT_ > /dev/null
+	then
+		os=PTX
+	fi
+elif [ -d /usr/nec ]
+then
+	# NEC machine -- what is it running?
+	if [ "$os" = "UNIX_System_V" ]
+	then
+		os=EWS-UX_V
+	elif [ "$os" = "UNIX_SV" ]
+	then
+		os=UX4800
+	fi
+elif [ "$arch" = "mips" ]
+then
+	case $rel
+	in
+	  4_*)
+		if [ `uname -v` = "UMIPS" ]
+		then
+			os=RISCos
+		fi;;
+	esac
+fi
+
+# see if there is a "user suffix" specified
+if [ "${SENDMAIL_SUFFIX-}x" = "x" ]
+then
+	sfx=""
+else
+	sfx=".${SENDMAIL_SUFFIX}"
+fi
+
+if [ ! -n "$Mflag" -a ! -n "$Aflag" ]
+then
+	echo "Configuration: pfx=$pfx, os=$os, rel=$rel, rbase=$rbase, rroot=$rroot, arch=$arch, sfx=$sfx, variant=$build_variant"
+fi
+
+SMROOT=${SMROOT-`(cd ..;pwd)`}
+BUILDTOOLS=${BUILDTOOLS-$SMROOT/devtools}
+export SMROOT BUILDTOOLS
+
+# see if we are in a Build-able directory
+if [ ! -f Makefile.m4 -a ! -n "$Aflag" ]; then
+	echo "Makefile.m4 not found.  Build can only be run from a source directory."
+	exit $EX_UNAVAILABLE
+fi
+
+incdirs="$incdirs -I\${SRCDIR}/include"
+
+if [ -z "$OBJ_ROOT" ]; then
+	OBJ_ROOT=${SMROOT}
+fi
+
+if [ "${pfx}x" = "x" ]
+then
+	prefix=""
+else
+	prefix=".$pfx"
+fi
+
+# Print out the architecture (to build up an obj dir path) and exit
+if [ -n "$Aflag" ]
+then
+	echo "$os.$rel.$arch$sfx"
+	exit $EX_OK
+fi
+
+# now try to find a reasonable object directory
+if [ -r ${OBJ_ROOT}/obj${prefix}.$os.$rel.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rel.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os.$rroot.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rroot.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os.$rbase.x.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rbase.x.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os.$rel$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rel$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os.$rbase.x$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rbase.x$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$rel.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$rel.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$rbase.x.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$rbase.x.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$os$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$arch$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$arch$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$rel$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$rel$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}.$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$sfx
+fi
+
+if [ -n "$abs_obj_dir" ]
+then
+	obj=${abs_obj_dir}/${src_dir}
+fi
+
+# Print the directory which would be used for the build and exit
+if [ -n "$Mflag" ]
+then
+	if [ ! -n "$obj" ]
+	then
+		obj=${OBJ_ROOT}/obj.$os.$rel.$arch$sfx/${src_dir}
+	fi
+	echo "$obj"
+	exit $EX_OK
+fi
+
+# Check if trying to use -f with an existing obj directory
+if [ -n "$siteconfig" -a -n "$obj" -a -d "$obj" -a -z "$cflag" ]
+then
+	echo "Can not use Build's -f flag with an existing object tree."
+	echo "If you wish to change configuration information, use the -c flag to clear"
+	echo "the existing $obj tree."
+	exit $EX_USAGE
+fi
+
+# Check if trying to use -Q with an existing obj directory
+if [ -n "$pfx" -a -n "$obj" -a -d "$obj" -a -z "$cflag" ]
+then
+	echo "Can not use Build's -Q flag with an existing object tree."
+	echo "If you wish to change configuration information, use the -c flag to clear"
+	echo "the existing $obj tree."
+	exit $EX_USAGE
+fi
+
+
+# Clean out the directory before building.
+if [ "$cflag" ]
+then
+	if [ -n "$obj" ]
+	then
+		echo "Clearing out existing $obj tree"
+		rm -rf $obj
+	fi
+fi
+
+# If we didn't detect an existing obj directory, makeup a new obj name.
+if [ -z "$obj" ]
+then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$os.$rel.$arch$sfx
+	obj=${abs_obj_dir}/${src_dir}
+fi
+
+# Check if obj directory exists
+if [ ! -r "$obj" ]
+then
+	if [ -r $BUILDTOOLS/OS/$os.$rel.$arch$sfx ]; then
+		oscf=$os.$rel.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rel.$arch ]; then
+		oscf=$os.$rel.$arch
+	elif [ -r $BUILDTOOLS/OS/$os.$rroot.$arch$sfx ]; then
+		oscf=$os.$rroot.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rroot.$arch ]; then
+		oscf=$os.$rroot.$arch
+	elif [ -r $BUILDTOOLS/OS/$os.$rbase.x.$arch$sfx ]; then
+		oscf=$os.$rbase.x.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rbase.x.$arch ]; then
+		oscf=$os.$rbase.x.$arch
+	elif [ -r $BUILDTOOLS/OS/$os.$rel$sfx ]; then
+		oscf=$os.$rel$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rel ]; then
+		oscf=$os.$rel
+	elif [ -r $BUILDTOOLS/OS/$os.$rroot$sfx ]; then
+		oscf=$os.$rroot$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rroot ]; then
+		oscf=$os.$rroot
+	elif [ -r $BUILDTOOLS/OS/$os.$rbase.x$sfx ]; then
+		oscf=$os.$rbase.x$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$rbase.x ]; then
+		oscf=$os.$rbase.x
+	elif [ -r $BUILDTOOLS/OS/$os.$arch$sfx ]; then
+		oscf=$os.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$os.$arch ]; then
+		oscf=$os.$arch
+	elif [ -r $BUILDTOOLS/OS/$rel.$arch$sfx ]; then
+		oscf=$rel.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$rel.$arch ]; then
+		oscf=$rel.$arch
+	elif [ -r $BUILDTOOLS/OS/$rroot.$arch$sfx ]; then
+		oscf=$rroot.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$rroot.$arch ]; then
+		oscf=$rroot.$arch
+	elif [ -r $BUILDTOOLS/OS/$rbase.x.$arch$sfx ]; then
+		oscf=$rbase.x.$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$rbase.x.$arch ]; then
+		oscf=$rbase.x.$arch
+	elif [ -r $BUILDTOOLS/OS/$os$sfx ]; then
+		oscf=$os$sfx
+	elif [ -r $BUILDTOOLS/OS/$os ]; then
+		oscf=$os
+	elif [ -r $BUILDTOOLS/OS/$arch$sfx ]; then
+		oscf=$arch$sfx
+	elif [ -r $BUILDTOOLS/OS/$arch ]; then
+		oscf=$arch
+	elif [ -r $BUILDTOOLS/OS/$rel$sfx ]; then
+		oscf=$rel$sfx
+	elif [ -r $BUILDTOOLS/OS/$rel ]; then
+		oscf=$rel
+	elif [ -r $BUILDTOOLS/OS/$rel$sfx ]; then
+		oscf=$rel$sfx
+	else
+		echo "Cannot determine how to support $os.$rel.$arch" >&2
+		exit $EX_UNAVAILABLE
+	fi
+	M4=`$SHELL $BUILDTOOLS/bin/find_m4.sh`
+	ret=$?
+	if [ $ret -ne 0 ]
+	then
+		exit $ret
+	fi
+	echo "Using M4=$M4"
+	export M4
+	if [ "$mflag" ]
+	then
+		echo "Will run in virgin $obj using $BUILDTOOLS/OS/$oscf"
+		exit $EX_OK
+	fi
+
+	echo "Creating $obj using $BUILDTOOLS/OS/$oscf"
+	${mkdir} $obj
+
+		ln="ln -s"
+		(cd $obj
+		# This glob doesn't actually glob to something everywhere,
+		# thus the protective measures.
+		for i in ${obj_rel_base_dir}/${src_dir}/*.[chly13458]
+		do
+			if [ -f $i ]
+			then
+				$ln $i .
+			fi
+		done
+		# This glob doesn't actually glob to something everywhere,
+		# thus the protective measures.
+		for i in ${obj_rel_base_dir}/${src_dir}/*.0
+		do
+			if [ -f $i ]
+			then
+				$ln $i `basename $i`.dist
+			fi
+		done)
+		if [ -f helpfile ]
+		then
+			(cd $obj; $ln ${obj_rel_base_dir}/${src_dir}/helpfile .)
+		fi
+
+	rm -f $obj/.settings$$
+	echo 'divert(-1)' > $obj/.settings$$
+	cat $BUILDTOOLS/M4/header.m4 >> $obj/.settings$$
+	echo "define(\`bldOS', \`\`$os'')" >> $obj/.settings$$
+	echo "define(\`bldREL', \`\`$rel'')" >> $obj/.settings$$
+	echo "define(\`bldARCH', \`\`$arch'')" >> $obj/.settings$$
+	cat $BUILDTOOLS/OS/$oscf >> $obj/.settings$$
+
+	cur_dir=`pwd`
+	cd $obj/..
+	absolute_obj_dir=`pwd`
+
+
+	cd $cur_dir
+	echo "ifdef(\`bldABS_OBJ_DIR',,\`define(\`bldABS_OBJ_DIR', \`$absolute_obj_dir')')" >> $obj/.settings$$
+	rel_src_dir="$obj_rel_base_dir/$src_dir"
+	echo "define(\`bldSRC_NAME', \`$src_dir')" >> $obj/.settings$$
+	echo "define(\`bldREL_SRC_DIR', \`$rel_src_dir')" >> $obj/.settings$$
+
+	if [ ! -z "$pfx" ]
+	then
+		# They gave us a specific prefix, let's try it out.
+		if [ -f $BUILDTOOLS/Site/$pfx.$oscf$sfx.m4 ]
+		then
+			siteconfig=$BUILDTOOLS/Site/$pfx.$oscf$sfx.m4
+		elif [ -f $BUILDTOOLS/Site/$pfx.$oscf.m4 ]
+		then
+			siteconfig=$BUILDTOOLS/Site/$pfx.$oscf.m4
+		fi
+		if [ -f $BUILDTOOLS/Site/$pfx.config.m4 ]
+		then
+			siteconfig="$BUILDTOOLS/Site/$pfx.config.m4 $siteconfig"
+		fi
+	elif [ -z "$siteconfig" ]
+	then
+		# none specified, use defaults
+		if [ -f $BUILDTOOLS/Site/site.$oscf$sfx.m4 ]
+		then
+			siteconfig=$BUILDTOOLS/Site/site.$oscf$sfx.m4
+		elif [ -f $BUILDTOOLS/Site/site.$oscf.m4 ]
+		then
+			siteconfig=$BUILDTOOLS/Site/site.$oscf.m4
+		fi
+		if [ -f $BUILDTOOLS/Site/site.config.m4 ]
+		then
+			siteconfig="$BUILDTOOLS/Site/site.config.m4 $siteconfig"
+		fi
+		if [ -f $BUILDTOOLS/Site/site.post.m4 ]
+		then
+			siteconfig="$siteconfig $BUILDTOOLS/Site/site.post.m4"
+		fi
+	fi
+	if [ ! -z "$siteconfig" ]
+	then
+		echo "Including $siteconfig"
+		cat $siteconfig >> $obj/.settings$$
+	fi
+	if [ "$libdirs" ]
+	then
+		echo "define(\`confLIBDIRS', confLIBDIRS \`\`$libdirs'')" >> $obj/.settings$$
+	fi
+	if [ "$incdirs" ]
+	then
+		echo "define(\`confINCDIRS', \`\`$incdirs'' confINCDIRS)" >> $obj/.settings$$
+	fi
+	echo "define(\`_SRC_PATH_', \`\`$obj_rel_base_dir'')" >> $obj/.settings$$
+	echo "define(\`bldSRC_PATH', \`\`$obj_rel_base_dir'')" >> $obj/.settings$$
+	echo 'divert(0)dnl' >> $obj/.settings$$
+	libdirs=`(cat $obj/.settings$$; echo "_SRIDBIL_= confLIBDIRS" ) | \
+		sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' | \
+		${M4} ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - | \
+		grep "^_SRIDBIL_=" | \
+		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e "s/^_SRIDBIL_=//"`
+	libsrch=`(cat $obj/.settings$$; echo "_HCRSBIL_= confLIBSEARCH" ) | \
+		sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' | \
+		${M4}  ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - | \
+		grep "^_HCRSBIL_=" | \
+		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e "s/^_HCRSBIL_=//"`
+	libpath=`(cat $obj/.settings$$; echo "_HCRSBIL_= confLIBSEARCHPATH" ) | \
+		sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' | \
+		${M4} ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - | \
+		grep "^_HCRSBIL_=" | \
+		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e "s/^_HCRSBIL_=//"`
+	echo 'divert(-1)' >> $obj/.settings$$
+	LIBDIRS="$libdirs" LIBSRCH="$libsrch" LIBPATH="$libpath" SITECONFIG="$siteconfig" $SHELL $BUILDTOOLS/bin/configure.sh $sflag $oscf >> $obj/.settings$$
+	echo 'divert(0)dnl' >> $obj/.settings$$
+	sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' -e 's///g' $obj/.settings$$ | \
+		${M4}  ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - Makefile.m4 | \
+		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e 's///g' > $obj/Makefile
+	# That ^M up there was added by quoting it in emacs.
+	# Make has problems if lines end in ^M^M, but not in ^M apparently
+	if [ $? -ne 0 -o ! -s $obj/Makefile ]
+	then
+		echo "ERROR: ${M4} failed; You may need a newer version of M4, at least as new as System V or GNU" 1>&2
+		rm -rf $obj
+		exit $EX_UNAVAILABLE
+	fi
+	rm -f $obj/.settings$$
+	echo "Making dependencies in $obj"
+	(cd $obj; ${MAKE-make} depend)
+fi
+
+if [ "$mflag" ]
+then
+	makefile=`ls -l $obj/Makefile | sed 's/.* //'`
+	if [ -z "$makefile" ]
+	then
+		echo "ERROR: $obj exists but has no Makefile" >&2
+		exit $EX_NOINPUT
+	fi
+	echo "Will run in existing $obj using $makefile"
+	exit $EX_OK
+fi
+
+echo "Making in $obj"
+cd $obj
+eval exec ${MAKE-make} SENDMAIL_BUILD_FLAGS=\"$SENDMAIL_BUILD_FLAGS\" $makeargs
