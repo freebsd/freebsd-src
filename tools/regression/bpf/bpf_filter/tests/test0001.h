@@ -27,5 +27,5 @@ int	invalid =	1;
 /* Expected return value */
 u_int	expect =	0;
 
-/* Expeced signal */
+/* Expected signal */
 int	expect_signal =	SIGABRT;
