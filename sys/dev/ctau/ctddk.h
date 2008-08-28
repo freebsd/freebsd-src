@@ -412,6 +412,7 @@ typedef struct _ct_chan_t {
 	void *attach [NBUF];		/* system dependent data per buffer */
 	void *sys;			/* system dependent data per channel */
 	int debug;
+	int debug_shadow;
 
 	int e1_first_int;
 	unsigned char *sccrx, *scctx;  /* pointers to SCC rx and tx buffers */
