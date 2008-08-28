@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2008 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/ah_devid.h#2 $
+ * $Id: //depot/sw/branches/sam_hal/ah_devid.h#5 $
  */
 
 #ifndef _DEV_ATH_DEVID_H_
@@ -70,7 +70,8 @@
 #define AR5212_AR2313_REV8      0x0058          /* AR2313 WMAC (AP43-030) */
 #define AR5212_AR2315_REV6      0x0086          /* AR2315 WMAC (AP51-Light) */
 #define AR5212_AR2315_REV7      0x0087          /* AR2315 WMAC (AP51-Full) */
-#define AR5212_AR2317_REV1      0x0091          /* AR2317 WMAC (AP61) */
+#define AR5212_AR2317_REV1      0x0090          /* AR2317 WMAC (AP61-Light) */
+#define AR5212_AR2317_REV2      0x0091          /* AR2317 WMAC (AP61-Full) */
 
 /* AR5212 compatible devid's also attach to 5212 */
 #define	AR5212_DEVID_0014	0x0014
@@ -82,6 +83,7 @@
 #define AR5212_AR2413      	0x001a          /* AR2413 aka Griffin-lite */
 #define AR5212_AR5413		0x001b          /* Eagle */
 #define AR5212_AR5424		0x001c          /* Condor (PCI express) */
+#define AR5212_AR2417		0x001d          /* Nala, PCI */
 #define AR5212_DEVID_FF19	0xff19          /* XXX PCI express */
 
 /* AR5213 */

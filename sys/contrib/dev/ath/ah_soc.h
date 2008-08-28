@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2006-2008 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/ah_soc.h#3 $
+ * $Id: //depot/sw/branches/sam_hal/ah_soc.h#4 $
  */
 #ifndef _ATH_AH_SOC_H_
 #define _ATH_AH_SOC_H_
