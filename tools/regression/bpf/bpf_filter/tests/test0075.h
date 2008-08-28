@@ -1,13 +1,13 @@
 /*-
- * Test 0075:	Check boundary conditions (BPF_LD|BPF_MEM)
+ * Test 0075:	Check boundary conditions (BPF_LD+BPF_MEM)
  *
  * $FreeBSD$
  */
 
 /* BPF program */
 struct bpf_insn pc[] = {
-	BPF_STMT(BPF_LD|BPF_IMM, 0xdeadc0de),
-	BPF_STMT(BPF_LD|BPF_MEM, 0xffffffff),
+	BPF_STMT(BPF_LD+BPF_IMM, 0xdeadc0de),
+	BPF_STMT(BPF_LD+BPF_MEM, 0xffffffff),
 	BPF_STMT(BPF_RET+BPF_A, 0),
 };
 
@@ -28,7 +28,7 @@ int	invalid =	1;
 /* Expected return value */
 u_int	expect =	0xdeadc0de;
 
-/* Expeced signal */
+/* Expected signal */
 #ifdef BPF_JIT_COMPILER
 int	expect_signal =	SIGSEGV;
 #else
