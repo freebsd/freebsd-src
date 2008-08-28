@@ -411,7 +411,7 @@ ptbl_init(void)
 	//debugf("ptbl_init: e\n");
 }
 
-/* Get an sf_buf from the freelist. */
+/* Get a ptbl_buf from the freelist. */
 static struct ptbl_buf *
 ptbl_buf_alloc(void)
 {
@@ -919,7 +919,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	tlb0_get_tlbconf(); /* Read TLB0 size and associativity. */
 	tlb0 = (tlb_entry_t *)kernelend;
 	kernelend += sizeof(tlb_entry_t) * tlb0_size;
-	memset((void *)tlb0, 0, sizeof(tlb_entry_t) * tlb0_size);
 	debugf(" tlb0 at 0x%08x end = 0x%08x\n", (u_int32_t)tlb0, kernelend);
 
 	kernelend = round_page(kernelend);
@@ -927,7 +926,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	/* Allocate space for ptbl_bufs. */
 	ptbl_bufs = (struct ptbl_buf *)kernelend;
 	kernelend += sizeof(struct ptbl_buf) * PTBL_BUFS;
-	memset((void *)ptbl_bufs, 0, sizeof(struct ptbl_buf) * PTBL_SIZE);
 	debugf(" ptbl_bufs at 0x%08x end = 0x%08x\n", (u_int32_t)ptbl_bufs,
 	    kernelend);
 
@@ -938,7 +936,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_ptbls = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS +
 	    PDIR_SIZE - 1) / PDIR_SIZE;
 	kernelend += kernel_ptbls * PTBL_PAGES * PAGE_SIZE;
-	memset((void *)kernel_pdir, 0, kernel_ptbls * PTBL_PAGES * PAGE_SIZE);
 	debugf(" kernel ptbls: %d\n", kernel_ptbls);
 	debugf(" kernel pdir at 0x%08x\n", kernel_pdir);
 
@@ -948,6 +945,15 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 		    kernload + 0x1000000, kernelend - kernelstart - 0x1000000);
 	} else
 		kernelend = (kernelend + 0xffffff) & ~0xffffff;
+
+	/*
+	 * Clear the structures - note we can only do it safely after the
+	 * possible additional TLB1 translations are in place so that
+	 * all range up to the currently calculated 'kernelend' is covered.
+	 */
+	memset((void *)tlb0, 0, sizeof(tlb_entry_t) * tlb0_size);
+	memset((void *)ptbl_bufs, 0, sizeof(struct ptbl_buf) * PTBL_SIZE);
+	memset((void *)kernel_pdir, 0, kernel_ptbls * PTBL_PAGES * PAGE_SIZE);
 
 	/*******************************************************/
 	/* Set the start and end of kva. */
@@ -1082,11 +1088,13 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t kernelstart, vm_offset_t kernelend)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		if (hwphyssz != 0 && (physsz + availmem_regions[i].mr_size) >= hwphyssz) {
+		if (hwphyssz != 0 &&
+		    (physsz + availmem_regions[i].mr_size) >= hwphyssz) {
 			debugf(" hw.physmem adjust\n");
 			if (physsz < hwphyssz) {
 				phys_avail[j] = availmem_regions[i].mr_start;
-				phys_avail[j + 1] = availmem_regions[i].mr_start +
+				phys_avail[j + 1] =
+				    availmem_regions[i].mr_start +
 				    hwphyssz - physsz;
 				physsz = hwphyssz;
 				phys_avail_count++;
