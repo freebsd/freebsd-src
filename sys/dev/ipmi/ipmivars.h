@@ -63,14 +63,12 @@ struct ipmi_request {
 
 struct ipmi_softc;
 
-/* Per struct cdev data. */
+/* Per file descriptor data. */
 struct ipmi_device {
 	TAILQ_ENTRY(ipmi_device) ipmi_link;
 	TAILQ_HEAD(,ipmi_request) ipmi_completed_requests;
 	struct selinfo		ipmi_select;
 	struct ipmi_softc	*ipmi_softc;
-	struct cdev		*ipmi_cdev;
-	int			ipmi_open;
 	int			ipmi_closing;
 	int			ipmi_requests;
 	u_char			ipmi_address;	/* IPMB address. */
@@ -103,17 +101,9 @@ struct ipmi_softc {
 	struct resource		*ipmi_irq_res;
 	void			*ipmi_irq;
 	int			ipmi_detaching;
-#ifdef CLONING
-	int			ipmi_cloning;
-	u_int			ipmi_cdev_mask;
-	TAILQ_HEAD(,ipmi_device) ipmi_cdevs;
-#else
-	struct ipmi_device	ipmi_idev;
-#endif
+	int			ipmi_opened;
+	struct cdev		*ipmi_cdev;
 	TAILQ_HEAD(,ipmi_request) ipmi_pending_requests;
-#ifdef CLONING
-	eventhandler_tag	ipmi_clone_tag;
-#endif
 	eventhandler_tag	ipmi_watchdog_tag;
 	struct intr_config_hook	ipmi_ich;
 	struct mtx		ipmi_lock;

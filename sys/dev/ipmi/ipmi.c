@@ -58,11 +58,9 @@ static int ipmi_ipmb_send_message(device_t, u_char, u_char, u_char,
 static d_ioctl_t ipmi_ioctl;
 static d_poll_t ipmi_poll;
 static d_open_t ipmi_open;
-static d_close_t ipmi_close;
+static void ipmi_dtor(void *arg);
 
 int ipmi_attached = 0;
-
-#define IPMI_MINOR	0
 
 static int on = 1;
 SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0, "IPMI driver parameters");
@@ -72,7 +70,6 @@ SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
 static struct cdevsw ipmi_cdevsw = {
 	.d_version =    D_VERSION,
 	.d_open =	ipmi_open,
-	.d_close =	ipmi_close,
 	.d_ioctl =	ipmi_ioctl,
 	.d_poll =	ipmi_poll,
 	.d_name =	"ipmi",
@@ -85,18 +82,26 @@ ipmi_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
 {
 	struct ipmi_device *dev;
 	struct ipmi_softc *sc;
+	int error;
 
 	if (!on)
 		return (ENOENT);
 
-	dev = cdev->si_drv1;
-	sc = dev->ipmi_softc;
-	IPMI_LOCK(sc);
-	if (dev->ipmi_open) {
-		IPMI_UNLOCK(sc);
-		return (EBUSY);
+	/* Initialize the per file descriptor data. */
+	dev = malloc(sizeof(struct ipmi_device), M_IPMI, M_WAITOK | M_ZERO);
+	error = devfs_set_cdevpriv(dev, ipmi_dtor);
+	if (error) {
+		free(dev, M_IPMI);
+		return (error);
 	}
-	dev->ipmi_open = 1;
+
+	sc = cdev->si_drv1;
+	TAILQ_INIT(&dev->ipmi_completed_requests);
+	dev->ipmi_address = IPMI_BMC_SLAVE_ADDR;
+	dev->ipmi_lun = IPMI_BMC_SMS_LUN;
+	dev->ipmi_softc = sc;
+	IPMI_LOCK(sc);
+	sc->ipmi_opened++;
 	IPMI_UNLOCK(sc);
 
 	return (0);
@@ -109,9 +114,10 @@ ipmi_poll(struct cdev *cdev, int poll_events, struct thread *td)
 	struct ipmi_softc *sc;
 	int revents = 0;
 
-	dev = cdev->si_drv1;
-	sc = dev->ipmi_softc;
+	if (devfs_get_cdevpriv((void **)&dev))
+		return (0);
 
+	sc = cdev->si_drv1;
 	IPMI_LOCK(sc);
 	if (poll_events & (POLLIN | POLLRDNORM)) {
 		if (!TAILQ_EMPTY(&dev->ipmi_completed_requests))
@@ -142,17 +148,14 @@ ipmi_purge_completed_requests(struct ipmi_device *dev)
 	}
 }
 
-static int
-ipmi_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
+static void
+ipmi_dtor(void *arg)
 {
 	struct ipmi_request *req, *nreq;
 	struct ipmi_device *dev;
 	struct ipmi_softc *sc;
-#ifdef CLONING
-	int bit;
-#endif
 
-	dev = cdev->si_drv1;
+	dev = arg;
 	sc = dev->ipmi_softc;
 
 	IPMI_LOCK(sc);
@@ -182,24 +185,11 @@ ipmi_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
 			ipmi_purge_completed_requests(dev);
 		}
 	}
-
-#ifdef CLONING
-	/* Detach this sub-device from the main driver. */
-	bit = minor(cdev) % 32;
-	sc->ipmi_cdev_mask &= ~(1 << bit);
-	TAILQ_REMOVE(&sc->ipmi_cdevs, dev, ipmi_link);
+	sc->ipmi_opened--;
 	IPMI_UNLOCK(sc);
 
 	/* Cleanup. */
-	cdev->si_drv1 = NULL;
 	free(dev, M_IPMI);
-	destroy_dev(cdev);
-#else
-	dev->ipmi_open = 0;
-	IPMI_UNLOCK(sc);
-#endif
-
-	return (0);
 }
 
 #ifdef IPMB
@@ -308,8 +298,11 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 #endif
 	int error, len;
 
-	dev = cdev->si_drv1;
-	sc = dev->ipmi_softc;
+	error = devfs_get_cdevpriv((void **)&dev);
+	if (error)
+		return (error);
+
+	sc = cdev->si_drv1;
 
 #ifdef IPMICTL_SEND_COMMAND_32
 	/* Convert 32-bit structures to native. */
@@ -659,58 +652,6 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	}
 }
 
-#ifdef CLONING
-static void
-ipmi_clone(void *arg, struct ucred *cred, char *name, int namelen,
-    struct cdev **cdev)
-{
-	struct ipmi_softc *sc = arg;
-	struct ipmi_device *dev;
-	int minor, unit;
-
-	if (*cdev != NULL)
-		return;
-
-	if (strcmp(name, device_get_nameunit(sc->ipmi_dev)) != 0)
-		return;
-
-	dev = malloc(sizeof(struct ipmi_device), M_IPMI, M_WAITOK | M_ZERO);
-
-	/* Reserve a sub-device. */
-	IPMI_LOCK(sc);
-	minor = ffs(~(sc->ipmi_cdev_mask & 0xffff));
-	if (minor == 0 || !sc->ipmi_cloning) {
-		IPMI_UNLOCK(sc);
-		free(dev, M_IPMI);
-		return;
-	}
-	minor--;
-	sc->ipmi_cdev_mask |= (1 << minor);
-	TAILQ_INSERT_TAIL(&sc->ipmi_cdevs, dev, ipmi_link);
-	IPMI_UNLOCK(sc);
-
-	/* Initialize the device. */
-	TAILQ_INIT(&dev->ipmi_completed_requests);
-	dev->ipmi_softc = sc;
-	dev->ipmi_address = IPMI_BMC_SLAVE_ADDR;
-	dev->ipmi_lun = IPMI_BMC_SMS_LUN;
-	unit = device_get_unit(sc->ipmi_dev);
-	dev->ipmi_cdev = make_dev_cred(&ipmi_cdevsw, unit * 32 + minor, cred,
-	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d.%d", unit, minor);
-	if (dev->ipmi_cdev == NULL) {
-		IPMI_LOCK(sc);
-		sc->ipmi_cdev_mask &= ~(1 << minor);
-		TAILQ_REMOVE(&sc->ipmi_cdevs, dev, ipmi_link);
-		IPMI_UNLOCK(sc);
-		free(dev, M_IPMI);
-		return;
-	}
-	dev->ipmi_cdev->si_drv1 = dev;
-	*cdev = dev->ipmi_cdev;
-	dev_ref(*cdev);
-}
-#endif
-
 static void
 ipmi_startup(void *arg)
 {
@@ -726,9 +667,6 @@ ipmi_startup(void *arg)
 	mtx_init(&sc->ipmi_lock, device_get_nameunit(dev), "ipmi", MTX_DEF);
 	cv_init(&sc->ipmi_request_added, "ipmireq");
 	TAILQ_INIT(&sc->ipmi_pending_requests);
-#ifdef CLONING
-	TAILQ_INIT(&sc->ipmi_cdevs);
-#endif
 
 	/* Initialize interface-dependent state. */
 	error = sc->ipmi_startup(sc);
@@ -815,24 +753,13 @@ ipmi_startup(void *arg)
 	}
 	ipmi_free_request(req);
 
-#ifdef CLONING
-	sc->ipmi_cloning = 1;
-	sc->ipmi_clone_tag = EVENTHANDLER_REGISTER(dev_clone,  ipmi_clone, sc,
-	    1000);
-#else
-	/* Initialize the device. */
-	TAILQ_INIT(&sc->ipmi_idev.ipmi_completed_requests);
-	sc->ipmi_idev.ipmi_softc = sc;
-	sc->ipmi_idev.ipmi_address = IPMI_BMC_SLAVE_ADDR;
-	sc->ipmi_idev.ipmi_lun = IPMI_BMC_SMS_LUN;
-	sc->ipmi_idev.ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),
+	sc->ipmi_cdev = make_dev(&ipmi_cdevsw, device_get_unit(dev),
 	    UID_ROOT, GID_OPERATOR, 0660, "ipmi%d", device_get_unit(dev));
-	if (sc->ipmi_idev.ipmi_cdev == NULL) {
+	if (sc->ipmi_cdev == NULL) {
 		device_printf(dev, "Failed to create cdev\n");
 		return;
 	}
-	sc->ipmi_idev.ipmi_cdev->si_drv1 = &sc->ipmi_idev;
-#endif
+	sc->ipmi_cdev->si_drv1 = sc;
 }
 
 int
@@ -871,27 +798,13 @@ ipmi_detach(device_t dev)
 
 	/* Fail if there are any open handles. */
 	IPMI_LOCK(sc);
-#ifdef CLONING
-	if (!TAILQ_EMPTY(&sc->ipmi_cdevs)) {
-		IPMI_UNLOCK(sc);
-		return (EBUSY);
-	}
-
-	/* Turn off cloning. */
-	sc->ipmi_cloning = 0;
-	IPMI_UNLOCK(sc);
-
-	if (sc->ipmi_clone_tag)
-		EVENTHANDLER_DEREGISTER(dev_clone, sc->ipmi_clone_tag);
-#else
-	if (sc->ipmi_idev.ipmi_open) {
+	if (sc->ipmi_opened) {
 		IPMI_UNLOCK(sc);
 		return (EBUSY);
 	}
 	IPMI_UNLOCK(sc);
-	if (sc->ipmi_idev.ipmi_cdev)
-		destroy_dev(sc->ipmi_idev.ipmi_cdev);
-#endif
+	if (sc->ipmi_cdev)
+		destroy_dev(sc->ipmi_cdev);
 
 	/* Detach from watchdog handling and turn off watchdog. */
 	if (sc->ipmi_watchdog_tag) {
