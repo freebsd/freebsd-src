@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #else
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #endif
 
@@ -67,7 +68,7 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 
 	/* Allocate the filter structure */
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter),
-	    M_BPFJIT, M_NOWAIT);
+	    M_BPFJIT, M_NOWAIT | M_ZERO);
 	if (filter == NULL)
 		return (NULL);
 
@@ -104,6 +105,7 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
 	if (filter == NULL)
 		return (NULL);
+	memset(filter, 0, sizeof(*filter));
 
 	/* No filter means accept all */
 	if (fp == NULL || nins == 0) {
