@@ -115,6 +115,7 @@ static int I_flag  = 0;		/* use entire disk for FreeBSD */
 static int a_flag  = 0;		/* set active partition */
 static char *b_flag = NULL;	/* path to boot code */
 static int i_flag  = 0;		/* replace partition data */
+static int q_flag  = 0;		/* Be quiet */
 static int u_flag  = 0;		/* update partition data */
 static int s_flag  = 0;		/* Print a summary and exit */
 static int t_flag  = 0;		/* test only */
@@ -249,7 +250,7 @@ main(int argc, char *argv[])
 	int	partition = -1;
 	struct	dos_partition *partp;
 
-	while ((c = getopt(argc, argv, "BIab:f:ipstuv1234")) != -1)
+	while ((c = getopt(argc, argv, "BIab:f:ipqstuv1234")) != -1)
 		switch (c) {
 		case 'B':
 			B_flag = 1;
@@ -271,6 +272,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			print_config_flag = 1;
+			break;
+		case 'q':
+			q_flag = 1;
 			break;
 		case 's':
 			s_flag = 1;
@@ -440,7 +444,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s%s",
-		"usage: fdisk [-BIaipstu] [-b bootcode] [-1234] [disk]\n",
+		"usage: fdisk [-BIaipqstu] [-b bootcode] [-1234] [disk]\n",
  		"       fdisk -f configfile [-itv] [disk]\n");
         exit(1);
 }
@@ -793,7 +797,8 @@ write_disk(off_t sector, void *buf)
 		gctl_free(grq);
 		return(0);
 	}
-	warnx("%s", q);
+	if (!q_flag)	/* GEOM errors are benign, not all devices supported */
+		warnx("%s", q);
 	gctl_free(grq);
 	
 	error = pwrite(fd, buf, secsize, (sector * 512));
