@@ -403,8 +403,8 @@ smist_attach(device_t dev)
 static int
 smist_detach(device_t dev)
 {
-	cpufreq_unregister(dev);
-	return (0);
+
+	return (cpufreq_unregister(dev));
 }
 
 static int
