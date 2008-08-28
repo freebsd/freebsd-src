@@ -561,6 +561,49 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 	}
 }
 
+static void
+sctp_recover_sent_list(struct sctp_tcb *stcb)
+{
+	struct sctp_tmit_chunk *chk, *tp2;
+	struct sctp_association *asoc;
+
+	asoc = &stcb->asoc;
+	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
+	for (; chk != NULL; chk = tp2) {
+		tp2 = TAILQ_NEXT(chk, sctp_next);
+		if ((compare_with_wrap(stcb->asoc.last_acked_seq,
+		    chk->rec.data.TSN_seq,
+		    MAX_TSN)) ||
+		    (stcb->asoc.last_acked_seq == chk->rec.data.TSN_seq)) {
+
+			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
+			    chk, chk->rec.data.TSN_seq, stcb->asoc.last_acked_seq);
+			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
+			if (chk->pr_sctp_on) {
+				if (asoc->pr_sctp_cnt != 0)
+					asoc->pr_sctp_cnt--;
+			}
+			if (chk->data) {
+				/* sa_ignore NO_NULL_CHK */
+				sctp_free_bufspace(stcb, asoc, chk, 1);
+				sctp_m_freem(chk->data);
+				if (PR_SCTP_BUF_ENABLED(chk->flags)) {
+					asoc->sent_queue_cnt_removeable--;
+				}
+			}
+			chk->data = NULL;
+			asoc->sent_queue_cnt--;
+			sctp_free_a_chunk(stcb, chk);
+		}
+	}
+	SCTP_PRINTF("after recover order is as follows\n");
+	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
+	for (; chk != NULL; chk = tp2) {
+		tp2 = TAILQ_NEXT(chk, sctp_next);
+		SCTP_PRINTF("chk:%p TSN:%x\n", chk, chk->rec.data.TSN_seq);
+	}
+}
+
 static int
 sctp_mark_all_for_resend(struct sctp_tcb *stcb,
     struct sctp_nets *net,
@@ -583,6 +626,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	unsigned int cnt_mk;
 	uint32_t orig_flight, orig_tf;
 	uint32_t tsnlast, tsnfirst;
+	int recovery_cnt = 0;
 
 
 	/* none in flight now */
@@ -635,6 +679,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	/* Now on to each chunk */
 	num_mk = cnt_mk = 0;
 	tsnfirst = tsnlast = 0;
+start_again:
 	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
 	for (; chk != NULL; chk = tp2) {
 		tp2 = TAILQ_NEXT(chk, sctp_next);
@@ -643,8 +688,20 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 		    MAX_TSN)) ||
 		    (stcb->asoc.last_acked_seq == chk->rec.data.TSN_seq)) {
 			/* Strange case our list got out of order? */
-			SCTP_PRINTF("Our list is out of order?\n");
-			panic("Out of order list");
+			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x",
+			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
+			recovery_cnt++;
+#ifdef INVARIANTS
+			panic("last acked >= chk on sent-Q");
+#else
+			SCTP_PRINTF("Recover attempts a restart cnt:%d\n", recovery_cnt);
+			sctp_recover_sent_list(stcb);
+			if (recovery_cnt < 10) {
+				goto start_again;
+			} else {
+				SCTP_PRINTF("Recovery fails %d times??\n", recovery_cnt);
+			}
+#endif
 		}
 		if ((chk->whoTo == net) && (chk->sent < SCTP_DATAGRAM_ACKED)) {
 			/*
