@@ -1,9 +1,13 @@
 $FreeBSD$
 
-sendmail 8.14.2
+sendmail 8.14.3
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
-For the import of sendmail, the following files were removed:
+For the import of sendmail, the following directories were renamed:
+
+	sendmail -> src
+
+For the merge of sendmail, the following files were removed:
 
 	Build
 	cf/cf/Build
@@ -15,23 +19,32 @@ For the import of sendmail, the following files were removed:
 	sendmail/makesendmail
 	sendmail/sysexits.h
 
-The following directories were renamed:
+Imported using the instructions at:
 
-	sendmail -> src
+http://wiki.freebsd.org/SubversionPrimer/VendorImports
 
-Imported using:
+Then merged using:
 
-	cvs import -m 'Import sendmail 8.14.2' \
-		src/contrib/sendmail SENDMAIL v8_14_2
+% set FSVN=svn+ssh://svn.freebsd.org/base
+% svn checkout $FSVN/head/contrib/sendmail head
+% cd head
+% svn merge --accept=postpone $FSVN/vendor/sendmail/dist .
+% svn rm --force */Build [e-v]*/*.0 cf/cf/generic-*.cf cf/cf/Build
+% svn rm --force Build devtools doc/op/op.ps src/makesendmail src/sysexits.h
+% svn propset -R svn:keywords FreeBSD=%H .
+% svn propdel svn:keywords libmilter/docs/*.jpg
+% svn diff --no-diff-deleted --old=$FSVN/vendor/sendmail/dist --new=.
+% svn status
+% svn diff
+% svn commit
 
 After importing, bump the version of src/etc/sendmail/freebsd*mc
 so mergemaster will merge /etc/mail/freebsd*cf:
 
-	cvs commit -f src/etc/sendmail/freebsd*mc
+	(svn command TBD) cvs commit -f src/etc/sendmail/freebsd*mc
 
-To make local changes to sendmail, simply patch and commit to the main
-branch (aka HEAD).  Never make local changes on the vendor (SENDMAIL)
-branch.
+To make local changes to sendmail, simply patch and commit to the head.
+Never make local changes in the vendor area (/vendor/sendmail/).
 
 All local changes should be submitted to the Sendmail Consortium
 <sendmail@sendmail.org> for inclusion in the next vendor release.
@@ -97,4 +110,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-04-November-2007
+27-August-2008
