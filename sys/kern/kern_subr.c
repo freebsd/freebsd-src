@@ -325,6 +325,9 @@ ureadc(int c, struct uio *uio)
 	struct iovec *iov;
 	char *iov_base;
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+	    "Calling ureadc()");
+
 again:
 	if (uio->uio_iovcnt == 0 || uio->uio_resid == 0)
 		panic("ureadc");
