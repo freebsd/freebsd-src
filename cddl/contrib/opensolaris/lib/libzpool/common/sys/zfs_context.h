@@ -356,7 +356,7 @@ typedef struct vattr {
 
 #define	VOP_CLOSE(vp, f, c, o, cr)	0
 #define	VOP_PUTPAGE(vp, of, sz, fl, cr)	0
-#define	VOP_GETATTR(vp, vap, fl, cr)	((vap)->va_size = (vp)->v_size, 0)
+#define	VOP_GETATTR(vp, vap, fl)	((vap)->va_size = (vp)->v_size, 0)
 
 #define	VOP_FSYNC(vp, f, cr)	fsync((vp)->v_fd)
 
