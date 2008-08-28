@@ -921,7 +921,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 	struct timespec ts;
 	struct ufsmount *ump;
 	ino_t ino, ipref;
-	int cg, error;
+	int cg, error, error1;
 	static struct timeval lastfail;
 	static int curfail;
 
@@ -958,11 +958,21 @@ ffs_valloc(pvp, mode, cred, vpp)
 		goto noinodes;
 	error = ffs_vget(pvp->v_mount, ino, LK_EXCLUSIVE, vpp);
 	if (error) {
+		error1 = ffs_vgetf(pvp->v_mount, ino, LK_EXCLUSIVE, vpp,
+		    FFSV_FORCEINSMQ);
 		ffs_vfree(pvp, ino, mode);
+		if (error1 == 0) {
+			ip = VTOI(*vpp);
+			if (ip->i_mode)
+				goto dup_alloc;
+			ip->i_flag |= IN_MODIFIED;
+			vput(*vpp);
+		}
 		return (error);
 	}
 	ip = VTOI(*vpp);
 	if (ip->i_mode) {
+dup_alloc:
 		printf("mode = 0%o, inum = %lu, fs = %s\n",
 		    ip->i_mode, (u_long)ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
