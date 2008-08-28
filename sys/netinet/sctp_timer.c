@@ -693,6 +693,8 @@ start_again:
 			recovery_cnt++;
 #ifdef INVARIANTS
 			panic("last acked >= chk on sent-Q");
+			/* to keep compiler happy */
+			goto start_again;
 #else
 			SCTP_PRINTF("Recover attempts a restart cnt:%d\n", recovery_cnt);
 			sctp_recover_sent_list(stcb);
