@@ -137,7 +137,7 @@ static void		 write_entry(struct bsdtar *, struct archive *,
 			     const struct stat *, const char *pathname,
 			     const char *accpath);
 static void		 write_entry_backend(struct bsdtar *, struct archive *,
-			     struct archive_entry *, int);
+			     struct archive_entry *);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     struct archive_entry *, int fd);
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
@@ -473,8 +473,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	entry = NULL;
 	archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
 	while (entry != NULL) {
-		int fd = -1;
-		write_entry_backend(bsdtar, a, entry, fd);
+		write_entry_backend(bsdtar, a, entry);
 		archive_entry_free(entry);
 		entry = NULL;
 		archive_entry_linkify(bsdtar->resolver, &entry, &sparse_entry);
@@ -798,11 +797,12 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
  */
 static void
 write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
-    struct archive_entry *entry, int fd)
+    struct archive_entry *entry)
 {
+	int fd = -1;
 	int e;
 
-	if (fd == -1 && archive_entry_size(entry) > 0) {
+	if (archive_entry_size(entry) > 0) {
 		const char *pathname = archive_entry_sourcepath(entry);
 		fd = open(pathname, O_RDONLY);
 		if (fd == -1) {
@@ -837,8 +837,14 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0) {
 		if (write_file_data(bsdtar, a, entry, fd))
 			exit(1);
-		close(fd);
 	}
+
+	/*
+	 * If we opened a file, close it now even if there was an error
+	 * which made us decide not to write the archive body.
+	 */
+	if (fd >= 0)
+		close(fd);
 }
 
 /*
@@ -849,14 +855,12 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
     const char *pathname, const char *accpath)
 {
 	struct archive_entry	*entry, *sparse_entry;
-	int			fd;
 #ifdef __linux
 	int			 r;
 	unsigned long		 stflags;
 #endif
 	static char		 linkbuffer[PATH_MAX+1];
 
-	fd = -1;
 	entry = archive_entry_new();
 
 	archive_entry_set_pathname(entry, pathname);
@@ -910,6 +914,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 #endif
 
 #ifdef __linux
+	int fd;
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) &&
 	    ((fd = open(accpath, O_RDONLY|O_NONBLOCK)) >= 0) &&
 	    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags)), close(fd), (fd = -1), r) >= 0 &&
@@ -935,8 +940,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	siginfo_printinfo(bsdtar, 0);
 
 	while (entry != NULL) {
-		write_entry_backend(bsdtar, a, entry, fd);
-		fd = -1;
+		write_entry_backend(bsdtar, a, entry);
 		archive_entry_free(entry);
 		entry = sparse_entry;
 		sparse_entry = NULL;
@@ -947,9 +951,6 @@ cleanup:
 		fprintf(stderr, "\n");
 
 abort:
-	if (fd >= 0)
-		close(fd);
-
 	if (entry != NULL)
 		archive_entry_free(entry);
 }
