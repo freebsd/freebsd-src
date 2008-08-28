@@ -358,7 +358,6 @@ zfsctl_root_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -799,7 +798,6 @@ zfsctl_snapdir_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -924,10 +922,11 @@ zfsctl_snapshot_inactive(ap)
 }
 
 static int
-zfsctl_traverse_begin(vnode_t **vpp, int lktype, kthread_t *td)
+zfsctl_traverse_begin(vnode_t **vpp, int lktype)
 {
 
 	VN_HOLD(*vpp);
+
 	/* Snapshot should be already mounted, but just in case. */
 	if (vn_mountedvfs(*vpp) == NULL)
 		return (ENOENT);
@@ -950,15 +949,14 @@ zfsctl_snapshot_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	vnode_t *vp = ap->a_vp;
 	int err;
 
-	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY, ap->a_td);
+	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY);
 	if (err == 0)
-		err = VOP_GETATTR(vp, ap->a_vap, ap->a_cred, ap->a_td);
+		err = VOP_GETATTR(vp, ap->a_vap, ap->a_cred);
 	zfsctl_traverse_end(vp, err);
 	return (err);
 }
@@ -973,7 +971,7 @@ zfsctl_snapshot_fid(ap)
 	vnode_t *vp = ap->a_vp;
 	int err;
 
-	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY, curthread);
+	err = zfsctl_traverse_begin(&vp, LK_SHARED | LK_RETRY);
 	if (err == 0)
 		err = VOP_VPTOFH(vp, (void *)ap->a_fid);
 	zfsctl_traverse_end(vp, err);

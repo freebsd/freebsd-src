@@ -409,7 +409,6 @@ hpfs_getattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
@@ -457,14 +456,13 @@ hpfs_setattr(ap)
 		struct vnode *a_vp;
 		struct vattr *a_vap;
 		struct ucred *a_cred;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct hpfsnode *hp = VTOHP(vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	struct thread *td = ap->a_td;
+	struct thread *td = curthread;
 	int error;
 
 	dprintf(("hpfs_setattr(0x%x):\n", hp->h_no));

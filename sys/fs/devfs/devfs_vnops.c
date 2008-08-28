@@ -1227,12 +1227,14 @@ devfs_setattr(struct vop_setattr_args *ap)
 	struct devfs_dirent *de;
 	struct vattr *vap;
 	struct vnode *vp;
+	struct thread *td;
 	int c, error;
 	uid_t uid;
 	gid_t gid;
 
 	vap = ap->a_vap;
 	vp = ap->a_vp;
+	td = curthread;
 	if ((vap->va_type != VNON) ||
 	    (vap->va_nlink != VNOVAL) ||
 	    (vap->va_fsid != VNOVAL) ||
@@ -1261,7 +1263,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 	if (uid != de->de_uid || gid != de->de_gid) {
 		if ((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
 		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) {
-			error = priv_check(ap->a_td, PRIV_VFS_CHOWN);
+			error = priv_check(td, PRIV_VFS_CHOWN);
 			if (error)
 				return (error);
 		}
@@ -1272,7 +1274,7 @@ devfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (ap->a_cred->cr_uid != de->de_uid) {
-			error = priv_check(ap->a_td, PRIV_VFS_ADMIN);
+			error = priv_check(td, PRIV_VFS_ADMIN);
 			if (error)
 				return (error);
 		}
@@ -1282,9 +1284,9 @@ devfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		/* See the comment in ufs_vnops::ufs_setattr(). */
-		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)) &&
+		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, td)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
+		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, td))))
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL) {
 			if (vp->v_type == VCHR)

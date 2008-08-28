@@ -277,7 +277,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	}
 
 	/* Executable? */
-	error = VOP_GETATTR(vp, &attr, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &attr, td->td_ucred);
 	if (error)
 		goto cleanup;
 

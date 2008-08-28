@@ -85,7 +85,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * Determine the physical size of the file.
 	 */
 	vattr.va_mask = AT_SIZE;
-	error = VOP_GETATTR(vp, &vattr, 0, kcred);
+	error = VOP_GETATTR(vp, &vattr, 0);
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);

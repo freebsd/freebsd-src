@@ -436,7 +436,7 @@ ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 
 	if (!ugidfw_enabled)
 		return (0);
-	error = VOP_GETATTR(vp, &vap, cred, curthread);
+	error = VOP_GETATTR(vp, &vap, cred);
 	if (error)
 		return (error);
 	return (ugidfw_check(cred, vp, &vap, acc_mode));

@@ -1965,7 +1965,7 @@ swapon(struct thread *td, struct swapon_args *uap)
 		error = swapongeom(td, vp);
 	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
-	    (error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) == 0) {
+	    (error = VOP_GETATTR(vp, &attr, td->td_ucred)) == 0) {
 		/*
 		 * Allow direct swapping to NFS regular files in the same
 		 * way that nfs_mountroot() sets up diskless swapping.

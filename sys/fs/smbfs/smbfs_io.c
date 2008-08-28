@@ -215,12 +215,12 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 /*	biosize = SSTOCN(smp->sm_share)->sc_txmax;*/
 	if (np->n_flag & NMODIFIED) {
 		smbfs_attr_cacheremove(vp);
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return error;
 		np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;
 	} else {
-		error = VOP_GETATTR(vp, &vattr, cred, td);
+		error = VOP_GETATTR(vp, &vattr, cred);
 		if (error)
 			return error;
 		if (np->n_mtime.tv_sec != vattr.va_mtime.tv_sec) {
@@ -269,7 +269,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 			 * File size can be changed by another client
 			 */
 			smbfs_attr_cacheremove(vp);
-			error = VOP_GETATTR(vp, &vattr, cred, td);
+			error = VOP_GETATTR(vp, &vattr, cred);
 			if (error) return (error);
 #endif
 			uiop->uio_offset = np->n_size;

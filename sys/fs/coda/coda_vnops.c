@@ -382,7 +382,7 @@ coda_rdwr(struct vnode *vp, struct uio *uiop, enum uio_rw rw, int ioflag,
 		 */
 		{
 			struct vattr attr;
-			if (VOP_GETATTR(cfvp, &attr, cred, td) == 0)
+			if (VOP_GETATTR(cfvp, &attr, cred) == 0)
 				vnode_pager_setsize(vp, attr.va_size);
 		}
 	}
@@ -504,7 +504,6 @@ coda_getattr(struct vop_getattr_args *ap)
 	struct cnode *cp = VTOC(vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	struct thread *td = ap->a_td;
 	/* locals */
     	struct vnode *convp;
 	int error, size;
@@ -533,7 +532,7 @@ coda_getattr(struct vop_getattr_args *ap)
 		MARK_INT_SAT(CODA_GETATTR_STATS);
 		return (0);
 	}
-    	error = venus_getattr(vtomi(vp), &cp->c_fid, cred, td->td_proc, vap);
+    	error = venus_getattr(vtomi(vp), &cp->c_fid, cred, vap);
 	if (!error) {
 		CODADEBUG(CODA_GETATTR, myprintf(("getattr miss %s: result "
 		    "%d\n", coda_f2s(&cp->c_fid), error)););
@@ -568,7 +567,6 @@ coda_setattr(struct vop_setattr_args *ap)
 	struct cnode *cp = VTOC(vp);
 	struct vattr *vap = ap->a_vap;
 	struct ucred *cred = ap->a_cred;
-	struct thread *td = ap->a_td;
 	/* locals */
     	struct vnode *convp;
 	int error, size;
@@ -584,7 +582,7 @@ coda_setattr(struct vop_setattr_args *ap)
 	}
 	if (codadebug & CODADBGMSK(CODA_SETATTR))
 		coda_print_vattr(vap);
-	error = venus_setattr(vtomi(vp), &cp->c_fid, vap, cred, td->td_proc);
+	error = venus_setattr(vtomi(vp), &cp->c_fid, vap, cred);
 	if (!error)
 		cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 

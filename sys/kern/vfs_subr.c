@@ -2379,7 +2379,7 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
-			error = VOP_GETATTR(vp, &vattr, td->td_ucred, td);
+			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
 			VI_LOCK(vp);
 
 			if ((vp->v_type == VNON ||
@@ -4111,7 +4111,7 @@ filt_vfsread(struct knote *kn, long hint)
 		return (1);
 	}
 
-	if (VOP_GETATTR(vp, &va, curthread->td_ucred, curthread))
+	if (VOP_GETATTR(vp, &va, curthread->td_ucred))
 		return (0);
 
 	kn->kn_data = va.va_size - kn->kn_fp->f_offset;
@@ -4181,13 +4181,13 @@ vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off)
  * directly setting va_atime for the sake of efficiency.
  */
 void
-vfs_mark_atime(struct vnode *vp, struct thread *td)
+vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 {
 	struct vattr atimeattr;
 
 	if ((vp->v_mount->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
 		VATTR_NULL(&atimeattr);
 		atimeattr.va_vaflags |= VA_MARK_ATIME;
-		(void)VOP_SETATTR(vp, &atimeattr, td->td_ucred, td);
+		(void)VOP_SETATTR(vp, &atimeattr, cred);
 	}
 }

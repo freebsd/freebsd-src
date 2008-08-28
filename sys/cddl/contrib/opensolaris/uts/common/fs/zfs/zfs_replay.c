@@ -361,7 +361,7 @@ zfs_replay_setattr(zfsvfs_t *zfsvfs, lr_setattr_t *lr, boolean_t byteswap)
 
 	vp = ZTOV(zp);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_SETATTR(vp, &va, kcred, curthread);
+	error = VOP_SETATTR(vp, &va, kcred);
 	VOP_UNLOCK(vp, 0);
 	VN_RELE(vp);
 

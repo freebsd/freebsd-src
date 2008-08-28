@@ -128,9 +128,8 @@ __FBSDID("$FreeBSD$");
 
 static int	nfs4_flush(struct vnode *, int, struct thread *,
 		    int);
-static int	nfs4_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
-		    struct thread *);
-static int      nfs4_closerpc(struct vnode *, struct ucred *, struct thread *, int);
+static int	nfs4_setattrrpc(struct vnode *, struct vattr *, struct ucred *);
+static int      nfs4_closerpc(struct vnode *, struct ucred *, int);
 
 static vop_lookup_t	nfs4_lookup;
 static vop_create_t	nfs4_create;
@@ -528,8 +527,7 @@ nfs4_openrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 			VATTR_NULL(&va);
 			va.va_size = 0;
-			error = nfs4_setattrrpc(vp, &va,
-			    cnp->cn_cred, cnp->cn_thread);
+			error = nfs4_setattrrpc(vp, &va, cnp->cn_cred);
 		}
 		np->n_attrstamp = 0;
 	}
@@ -621,15 +619,17 @@ nfs4_open(struct vop_open_args *ap)
 }
 
 static int
-nfs4_closerpc(struct vnode *vp, struct ucred *cred, struct thread *td, int flags)
+nfs4_closerpc(struct vnode *vp, struct ucred *cred, int flags)
 {
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep = NULL, *md, *mb;
+	struct thread *td;
 	struct nfs4_fctx *fcp;
 	struct nfs4_compound cp;
 	struct nfsnode *np = VTONFS(vp);
 
+	td = curthread;
 	fcp = flags & FWRITE ? &np->n_wfc : &np->n_rfc;
 
 	nfs_v4initcompound(&cp);
@@ -687,7 +687,7 @@ nfs4_close(struct vop_close_args *ap)
 		np->n_attrstamp = 0;
 	}
 
-	error = nfs4_closerpc(vp, ap->a_cred, ap->a_td, ap->a_fflag);
+	error = nfs4_closerpc(vp, ap->a_cred, ap->a_fflag);
 
 	if (!error && np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
@@ -735,7 +735,7 @@ nfs4_getattr(struct vop_getattr_args *ap)
 	nfsm_v4build_getattr(&cp, &ga);
 	nfsm_v4build_finalize(&cp);
 
-	nfsm_request(vp, NFSV4PROC_COMPOUND, ap->a_td, ap->a_cred);
+	nfsm_request(vp, NFSV4PROC_COMPOUND, curthread, ap->a_cred);
 	if (error != 0)
 		goto nfsmout;
 
@@ -762,6 +762,7 @@ nfs4_setattr(struct vop_setattr_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct vattr *vap = ap->a_vap;
+	struct thread *td = curthread;
 	int error = 0;
 	u_quad_t tsize;
 
@@ -815,14 +816,14 @@ nfs4_setattr(struct vop_setattr_args *ap)
 			 */
 
 			tsize = np->n_size;
-			error = nfs_meta_setsize(vp, ap->a_cred, 
-						ap->a_td, vap->va_size);
+			error = nfs_meta_setsize(vp, ap->a_cred, td,
+			    vap->va_size);
 
  			if (np->n_flag & NMODIFIED) {
  			    if (vap->va_size == 0)
- 				error = nfs_vinvalbuf(vp, 0, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, 0, td, 1);
  			    else
- 				error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+ 				error = nfs_vinvalbuf(vp, V_SAVE, td, 1);
  			    if (error) {
 				vnode_pager_setsize(vp, np->n_size);
  				return (error);
@@ -839,7 +840,7 @@ nfs4_setattr(struct vop_setattr_args *ap)
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
 		vp->v_type == VREG &&
-  		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1)) == EINTR)
+  		(error = nfs_vinvalbuf(vp, V_SAVE, td, 1)) == EINTR)
 		return (error);
 
 	if (vap->va_size != VNOVAL && np->n_wfc.refcnt == 0) {
@@ -849,14 +850,14 @@ nfs4_setattr(struct vop_setattr_args *ap)
 		cn.cn_nameptr = np->n_name;
 		cn.cn_namelen = np->n_namelen;
 		cn.cn_cred = ap->a_cred;
-		cn.cn_thread = ap->a_td;
+		cn.cn_thread = td;
 		error = nfs4_openrpc(np->n_dvp, &vp, &cn, FWRITE, NULL);
 		if (error)
 			return error;
 		np->n_flag |= NTRUNCATE;
 	}
 
-	error = nfs4_setattrrpc(vp, vap, ap->a_cred, ap->a_td);
+	error = nfs4_setattrrpc(vp, vap, ap->a_cred);
 	if (error && vap->va_size != VNOVAL) {
 		np->n_size = np->n_vattr.va_size = tsize;
 		vnode_pager_setsize(vp, np->n_size);
@@ -868,17 +869,18 @@ nfs4_setattr(struct vop_setattr_args *ap)
  * Do an nfs setattr rpc.
  */
 static int
-nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
-    struct thread *td)
+nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred)
 {
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep = NULL, *md, *mb;
+	struct thread *td;
 	struct nfs4_compound cp;
 	struct nfs4_oparg_getattr ga;
 	struct nfsnode *np = VTONFS(vp);
 	struct nfs4_fctx *fcp;
 
+	td = curthread;
 	nfsstats.rpccnt[NFSPROC_SETATTR]++;
 	mreq = nfsm_reqhead(vp, NFSV4PROC_COMPOUND, 0);
 	mb = mreq;
@@ -907,7 +909,7 @@ nfs4_setattrrpc(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 
 	/* TODO: do the settatr and close in a single compound rpc */
 	if (np->n_flag & NTRUNCATE) {
-		error = nfs4_closerpc(vp, cred, td, FWRITE);
+		error = nfs4_closerpc(vp, cred, FWRITE);
 		np->n_flag &= ~NTRUNCATE;
 	}
 
@@ -965,7 +967,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		struct vattr vattr;
 
 		newvp = *vpp;
-		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, td)
+		if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred)
 		 && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
 		     nfsstats.lookupcache_hits++;
 		     if (cnp->cn_nameiop != LOOKUP &&
@@ -1532,7 +1534,7 @@ nfs4_create(struct vop_create_args *ap)
 	int error = 0, fmode = (O_CREAT | FREAD | FWRITE);
 	struct vattr vattr;
 
-	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred, cnp->cn_thread)) != 0)
+	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)) != 0)
 		return (error);
 
 	if (vap->va_vaflags & VA_EXCLUSIVE)
@@ -1586,8 +1588,7 @@ nfs4_remove(struct vop_remove_args *ap)
 	if (vp->v_type == VDIR)
 		error = EPERM;
 	else if (vrefcnt(vp) == 1 || (np->n_sillyrename &&
-	    VOP_GETATTR(vp, &vattr, cnp->cn_cred, cnp->cn_thread) == 0 &&
-	    vattr.va_nlink > 1)) {
+	    !VOP_GETATTR(vp, &vattr, cnp->cn_cred) && vattr.va_nlink > 1)) {
 		/*
 		 * Purge the name cache so that the chance of a lookup for
 		 * the name succeeding while the remove is in progress is
@@ -1925,7 +1926,7 @@ nfs4_readdir(struct vop_readdir_args *ap)
 	 */
 	if (np->n_direofoffset > 0 && uio->uio_offset >= np->n_direofoffset &&
 	    (np->n_flag & NMODIFIED) == 0) {
-		if (VOP_GETATTR(vp, &vattr, ap->a_cred, uio->uio_td) == 0 &&
+		if (!VOP_GETATTR(vp, &vattr, ap->a_cred) &&
 			!NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			nfsstats.direofcache_hits++;
 			return (0);

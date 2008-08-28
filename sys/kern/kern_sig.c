@@ -2962,7 +2962,7 @@ restart:
 
 	/* Don't dump to non-regular files or files with links. */
 	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred, td) || vattr.va_nlink != 1) {
+	    VOP_GETATTR(vp, &vattr, cred) || vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;
@@ -2993,7 +2993,7 @@ restart:
 		vattr.va_flags = UF_NODUMP;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_LEASE(vp, td, cred, LEASE_WRITE);
-	VOP_SETATTR(vp, &vattr, cred, td);
+	VOP_SETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	vn_finished_write(mp);
 	PROC_LOCK(p);

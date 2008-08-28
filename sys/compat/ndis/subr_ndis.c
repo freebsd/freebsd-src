@@ -2973,7 +2973,7 @@ NdisOpenFile(status, filehandle, filelength, filename, highestaddr)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* Get the file size. */
-	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred, td);
+	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred);
 	VOP_UNLOCK(nd.ni_vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
 

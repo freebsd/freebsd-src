@@ -122,7 +122,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 		if (vn_isdisk(vp, NULL)) {
 			size = IDX_TO_OFF(INT_MAX);
 		} else {
-			if (VOP_GETATTR(vp, &va, td->td_ucred, td) != 0)
+			if (VOP_GETATTR(vp, &va, td->td_ucred))
 				return (0);
 			size = va.va_size;
 		}

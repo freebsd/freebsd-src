@@ -119,12 +119,11 @@ static int
 kobj_get_filesize_vnode(struct _buf *file, uint64_t *size)
 {
 	struct vnode *vp = file->ptr;
-	struct thread *td = curthread;
 	struct vattr va;
 	int error;
 
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &va, td->td_ucred, td);
+	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
 		*size = (uint64_t)va.va_size;

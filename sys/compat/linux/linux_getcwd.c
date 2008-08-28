@@ -142,7 +142,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	 * current directory is still locked.
 	 */
 	if (bufp != NULL) {
-		error = VOP_GETATTR(lvp, &va, td->td_ucred, td);
+		error = VOP_GETATTR(lvp, &va, td->td_ucred);
 		if (error) {
 			vput(lvp);
 			*lvpp = NULL;
