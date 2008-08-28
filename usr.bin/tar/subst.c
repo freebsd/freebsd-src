@@ -42,7 +42,7 @@ struct subst_rule {
 	struct subst_rule *next;
 	regex_t re;
 	char *result;
-	int global:1, print:1, symlink:1;
+	unsigned int global:1, print:1, symlink:1;
 };
 
 struct substitution {
