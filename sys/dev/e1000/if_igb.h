@@ -210,7 +210,7 @@
 ** The 82575 has a total of 10, 82576 has 25. Set this
 ** to the real amount you need to streamline data storage.
 */
-#define IGB_MSIX_VEC		5	/* MSIX vectors configured */
+#define IGB_MSIX_VEC		6	/* MSIX vectors configured */
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -233,6 +233,14 @@
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
 #define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
+
+/*
+ * Interrupt Moderation parameters
+ */
+#define IGB_LOW_LATENCY         128
+#define IGB_AVE_LATENCY         450
+#define IGB_BULK_LATENCY        1200
+#define IGB_LINK_ITR            2000
 
 #ifdef IGB_TIMESYNC
 /* Precision Time Sync (IEEE 1588) defines */
@@ -290,6 +298,7 @@ struct tx_ring {
 	u32			msix;		/* This ring's MSIX vector */
 	u32			eims;		/* This ring's EIMS bit */
 	struct mtx		tx_mtx;
+	char			mtx_name[16];
 	struct igb_dma_alloc	txdma;		/* bus_dma glue for tx desc */
 	struct e1000_tx_desc	*tx_base;
 	struct task		tx_task;	/* cleanup tasklet */
@@ -317,6 +326,7 @@ struct rx_ring {
 	struct lro_ctrl		lro;
 	struct task		rx_task;	/* cleanup tasklet */
 	struct mtx		rx_mtx;
+	char			mtx_name[16];
 	u32			last_cleaned;
 	u32			next_to_check;
 	struct igb_buffer	*rx_buffers;
@@ -328,6 +338,10 @@ struct rx_ring {
 	 */
 	struct mbuf	       *fmp;
 	struct mbuf	       *lmp;
+
+	u32			bytes;
+	u32			eitr_setting;
+
 	/* Soft stats */
 	u64			rx_irq;
 	u64			rx_packets;
@@ -364,10 +378,8 @@ struct adapter {
 	struct task     link_task;
 	struct task     rxtx_task;
 	struct taskqueue *tq;           /* private task queue */
-#ifdef IGB_HW_VLAN_SUPPORT
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
-#endif
 	/* Management and WOL features */
 	int		wol;
 	int		has_manage;
@@ -377,10 +389,6 @@ struct adapter {
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
-	struct igb_int_delay_info tx_int_delay;
-	struct igb_int_delay_info tx_abs_int_delay;
-	struct igb_int_delay_info rx_int_delay;
-	struct igb_int_delay_info rx_abs_int_delay;
 
 	/*
 	 * Transmit rings
