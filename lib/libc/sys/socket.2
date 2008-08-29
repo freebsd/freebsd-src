@@ -28,7 +28,7 @@
 .\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd November 24, 1997
+.Dd August 4, 2008
 .Dt SOCKET 2
 .Os
 .Sh NAME
@@ -256,6 +256,8 @@ is denied.
 .It Bq Er ENOBUFS
 Insufficient buffer space is available.
 The socket cannot be created until sufficient resources are freed.
+.It Bq Er EPERM
+User has insufficient privileges to carry out the requested operation.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
