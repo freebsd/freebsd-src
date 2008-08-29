@@ -92,6 +92,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/debug.h>
 #include <sys/avl.h>
 
