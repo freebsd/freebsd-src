@@ -521,12 +521,13 @@ struct bfe_softc
     struct bfe_rx_data      bfe_rx_ring[BFE_RX_LIST_CNT]; /* XXX */
     struct mtx              bfe_mtx;
     u_int32_t               bfe_flags;
+#define	BFE_FLAG_DETACH		0x4000
+#define	BFE_FLAG_LINK		0x8000
     u_int32_t               bfe_imask;
     u_int32_t               bfe_dma_offset;
     u_int32_t               bfe_tx_cnt, bfe_tx_cons, bfe_tx_prod;
     u_int32_t               bfe_rx_prod, bfe_rx_cons;
     u_int32_t               bfe_tx_dma, bfe_rx_dma;
-    u_int32_t               bfe_link;
     int                     bfe_watchdog_timer;
     u_int8_t                bfe_phyaddr; /* Address of the card's PHY */
     u_int8_t                bfe_mdc_port;
