@@ -104,6 +104,9 @@ static ng_newhook_t	ng_bpf_newhook;
 static ng_rcvdata_t	ng_bpf_rcvdata;
 static ng_disconnect_t	ng_bpf_disconnect;
 
+/* Maximum bpf program instructions */
+extern int	bpf_maxinsns;
+
 /* Internal helper functions */
 static int	ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp);
 
@@ -560,7 +563,8 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 	int size;
 
 	/* Check program for validity */
-	if (!bpf_validate(hp0->bpf_prog, hp0->bpf_prog_len))
+	if (hp0->bpf_prog_len > bpf_maxinsns ||
+	    !bpf_validate(hp0->bpf_prog, hp0->bpf_prog_len))
 		return (EINVAL);
 
 	/* Make a copy of the program */
