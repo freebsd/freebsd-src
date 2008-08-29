@@ -728,6 +728,9 @@ struct ciss_bmic_flush_cache {
 #define CISS_TL_SIMPLE_POST_CMD(sc, phys)	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, phys)
 #define CISS_TL_SIMPLE_FETCH_CMD(sc)		CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_OPQ)
 
+#define CISS_TL_PERF_INTR_OPQ	(CISS_TL_SIMPLE_INTR_OPQ_SA5 | CISS_TL_SIMPLE_INTR_OPQ_SA5B)
+#define CISS_TL_PERF_INTR_MSI	0x01
+
 #define CISS_TL_PERF_POST_CMD(sc, cr)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IPQ, CISS_FIND_COMMANDPHYS(cr) | (cr)->cr_sg_tag)
 #define CISS_TL_PERF_FLUSH_INT(sc)		CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_OSR)
 #define CISS_TL_PERF_CLEAR_INT(sc)		CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_ODC, CISS_TL_SIMPLE_ODC_CLEAR)
@@ -735,18 +738,12 @@ struct ciss_bmic_flush_cache {
 
 #define CISS_MSI_COUNT	4
 
-/*
- * XXX Here we effectively trust the BIOS to set the IMR correctly.  But if
- * we don't trust it, will we get into trouble with wrongly assuming what it
- * should be?
- */
-#define CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc)				\
-    do {								\
-	(sc)->ciss_interrupt_mask =					\
-	     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR);		\
-	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, ~0);		\
-    } while (0)
-#define CISS_TL_SIMPLE_ENABLE_INTERRUPTS(sc)				\
-	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, (sc)->ciss_interrupt_mask)
+#define CISS_TL_SIMPLE_DISABLE_INTERRUPTS(sc) \
+	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
+			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) | (sc)->ciss_interrupt_mask)
+#define CISS_TL_SIMPLE_ENABLE_INTERRUPTS(sc) \
+	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
+			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) & ~(sc)->ciss_interrupt_mask)
+
 
 #endif /* _KERNEL */
