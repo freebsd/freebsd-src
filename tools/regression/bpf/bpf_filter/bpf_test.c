@@ -145,14 +145,13 @@ bpf_validate(const struct bpf_insn *f, int len)
 		 * the code block.
 		 */
 		if (BPF_CLASS(p->code) == BPF_JMP) {
-			register int from = i + 1;
+			register u_int offset;
 
-			if (BPF_OP(p->code) == BPF_JA) {
-				if (from >= len || p->k >= (u_int)len - from)
-					return (0);
-			}
-			else if (from >= len || p->jt >= len - from ||
-				 p->jf >= len - from)
+			if (BPF_OP(p->code) == BPF_JA)
+				offset = p->k;
+			else
+				offset = p->jt > p->jf ? p->jt : p->jf;
+			if (offset >= (u_int)(len - i) - 1)
 				return (0);
 		}
 		/*
