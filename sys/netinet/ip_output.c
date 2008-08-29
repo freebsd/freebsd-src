@@ -1146,7 +1146,11 @@ ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,
 	register struct ip *ip;
 	struct mbuf *copym;
 
-	copym = m_copy(m, 0, M_COPYALL);
+	/*
+	 * Make a deep copy of the packet because we're going to
+	 * modify the pack in order to generate checksums.
+	 */
+	copym = m_dup(m, M_DONTWAIT);
 	if (copym != NULL && (copym->m_flags & M_EXT || copym->m_len < hlen))
 		copym = m_pullup(copym, hlen);
 	if (copym != NULL) {
