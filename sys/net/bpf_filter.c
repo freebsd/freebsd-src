@@ -103,7 +103,7 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 	cp = mtod(m, u_char *) + k;
 	if (len - k >= 4) {
 		*err = 0;
-		return EXTRACT_LONG(cp);
+		return (EXTRACT_LONG(cp));
 	}
 	m0 = m->m_next;
 	if (m0 == 0 || m0->m_len + len - k < 4)
