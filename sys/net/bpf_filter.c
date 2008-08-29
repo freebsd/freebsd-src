@@ -496,7 +496,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 }
 
 #ifdef _KERNEL
-static u_short	bpf_code_map[] = {
+static const u_short	bpf_code_map[] = {
 	0x10ff,	/* 0x00-0x0f: 1111111100001000 */
 	0x3070,	/* 0x10-0x1f: 0000111000001100 */
 	0x3131,	/* 0x20-0x2f: 1000110010001100 */
@@ -514,6 +514,9 @@ static u_short	bpf_code_map[] = {
 	0x0000,	/* 0xe0-0xef: 0000000000000000 */
 	0x0000	/* 0xf0-0xff: 0000000000000000 */
 };
+
+#define	BPF_VALIDATE_CODE(c)	\
+    ((c) <= 0xff && (bpf_code_map[(c) >> 4] & (1 << ((c) & 0xf))) != 0)
 
 /*
  * Return true if the 'fcode' is a valid filter program.
@@ -544,8 +547,7 @@ bpf_validate(f, len)
 		/*
 		 * Check that the code is valid.
 		 */
-		if ((p->code & 0xff00) ||
-		    !(bpf_code_map[p->code >> 4] & (1 << (p->code & 0xf))))
+		if (!BPF_VALIDATE_CODE(p->code))
 			return 0;
 		/*
 		 * Check that that jumps are forward, and within
@@ -554,23 +556,24 @@ bpf_validate(f, len)
 		if (BPF_CLASS(p->code) == BPF_JMP) {
 			register u_int offset;
 
-			if (BPF_OP(p->code) == BPF_JA)
+			if (p->code == (BPF_JMP|BPF_JA))
 				offset = p->k;
 			else
 				offset = p->jt > p->jf ? p->jt : p->jf;
 			if (offset >= (u_int)(len - i) - 1)
 				return 0;
+			continue;
 		}
 		/*
 		 * Check that memory operations use valid addresses.
 		 */
-		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     BPF_CLASS(p->code) == BPF_STX ||
-		     ((BPF_CLASS(p->code) == BPF_LD ||
-		       BPF_CLASS(p->code) == BPF_LDX) &&
-		      (p->code & 0xe0) == BPF_MEM)) &&
-		    p->k >= BPF_MEMWORDS)
-			return 0;
+		if (p->code == BPF_ST || p->code == BPF_STX ||
+		    p->code == (BPF_LD|BPF_MEM) ||
+		    p->code == (BPF_LDX|BPF_MEM)) {
+			if (p->k >= BPF_MEMWORDS)
+				return 0;
+			continue;
+		}
 		/*
 		 * Check for constant division by 0.
 		 */
