@@ -1393,9 +1393,7 @@ dc_setcfg(struct dc_softc *sc, int media)
 				    __func__);
 			if (!((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
 			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
-			    !(DC_IS_CENTAUR(sc) || DC_IS_CONEXANT(sc) ||
-			    (DC_IS_DAVICOM(sc) && pci_get_revid(sc->dc_dev) >=
-			    DC_REVISION_DM9102A)))
+			    !DC_HAS_BROKEN_RXSTATE(sc))
 				device_printf(sc->dc_dev,
 				    "%s: failed to force rx to idle state\n",
 				    __func__);
@@ -2884,8 +2882,12 @@ dc_tick(void *xsc)
 			if (sc->dc_link == 0)
 				mii_tick(mii);
 		} else {
-			r = CSR_READ_4(sc, DC_ISR);
-			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
+			/*
+			 * For NICs which never report DC_RXSTATE_WAIT, we
+			 * have to bite the bullet...
+			 */
+			if ((DC_HAS_BROKEN_RXSTATE(sc) || (CSR_READ_4(sc,
+			    DC_ISR) & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
 			    sc->dc_cdata.dc_tx_cnt == 0) {
 				mii_tick(mii);
 				if (!(mii->mii_media_status & IFM_ACTIVE))
