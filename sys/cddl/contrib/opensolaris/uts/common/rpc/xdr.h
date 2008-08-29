@@ -365,7 +365,7 @@ struct xdr_discrim {
 
 #endif
 
-#ifndef _LITTLE_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 #define	IXDR_GET_HYPER(buf, v)	{ \
 			*((int32_t *)(&v)) = ntohl(*(uint32_t *)buf++); \
 			*((int32_t *)(((char *)&v) + BYTES_PER_XDR_UNIT)) \
