@@ -211,7 +211,6 @@
 #define	com_rtl		5	/* receiver trigger level (R/W) */
 /* ... */
 
-#ifdef PC98
 /* Hardware extension mode register for RSB-2000/3000. */
 #define	com_emr		com_msr
 #define	EMR_EXBUFF	0x04
@@ -220,4 +219,3 @@
 #define	EMR_RTSFLW	0x20
 #define	EMR_DTRFLW	0x40
 #define	EMR_EFMODE	0x80
-#endif
