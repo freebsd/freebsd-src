@@ -35,7 +35,7 @@ CFLAGS+=	-DLOG_LEVEL="${LOG_LEVEL}"
 .endif
 
 .if defined(BPF_VALIDATE)
-CFLAGS+=	-DBPF_VALIDATE=${BPF_VALIDATE}
+CFLAGS+=	-DBPF_VALIDATE
 .endif
 
 .if defined(BPF_JIT) &&	\
