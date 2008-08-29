@@ -473,7 +473,6 @@ bfe_attach(device_t dev)
 
 	if (bfe_dma_alloc(sc) != 0) {
 		device_printf(dev, "failed to allocate DMA resources\n");
-		bfe_release_resources(sc);
 		error = ENXIO;
 		goto fail;
 	}
