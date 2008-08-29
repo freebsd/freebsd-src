@@ -367,7 +367,7 @@ static int
 ciss_attach(device_t dev)
 {
     struct ciss_softc	*sc;
-    int			i, error;
+    int			error;
 
     debug_called(1);
 
@@ -413,26 +413,6 @@ ciss_attach(device_t dev)
 
     sc = device_get_softc(dev);
     sc->ciss_dev = dev;
-
-    /*
-     * Work out adapter type.
-     */
-    i = ciss_lookup(dev);
-    if (i < 0) {
-	ciss_printf(sc, "unknown adapter type\n");
-	error = ENXIO;
-	goto out;
-    }
-    if (ciss_vendor_data[i].flags & CISS_BOARD_SA5) {
-	sc->ciss_interrupt_mask = CISS_TL_SIMPLE_INTR_OPQ_SA5;
-    } else if (ciss_vendor_data[i].flags & CISS_BOARD_SA5B) {
-	sc->ciss_interrupt_mask = CISS_TL_SIMPLE_INTR_OPQ_SA5B;
-    } else {
-	/* really an error on our part */
-	ciss_printf(sc, "unable to determine hardware type\n");
-	error = ENXIO;
-	goto out;
-    }
 
     /*
      * Do PCI-specific init.
@@ -579,10 +559,32 @@ ciss_init_pci(struct ciss_softc *sc)
 {
     uintptr_t		cbase, csize, cofs;
     uint32_t		method, supported_methods;
-    int			error;
+    int			error, sqmask, i;
     void		*intr;
 
     debug_called(1);
+
+    /*
+     * Work out adapter type.
+     */
+    i = ciss_lookup(sc->ciss_dev);
+    if (i < 0) {
+	ciss_printf(sc, "unknown adapter type\n");
+	return (ENXIO);
+    }
+
+    if (ciss_vendor_data[i].flags & CISS_BOARD_SA5) {
+	sqmask = CISS_TL_SIMPLE_INTR_OPQ_SA5;
+    } else if (ciss_vendor_data[i].flags & CISS_BOARD_SA5B) {
+	sqmask = CISS_TL_SIMPLE_INTR_OPQ_SA5B;
+    } else {
+	/*
+	 * XXX Big hammer, masks/unmasks all possible interrupts.  This should
+	 * work on all hardware variants.  Need to add code to handle the
+	 * "controller crashed" interupt bit that this unmasks.
+	 */
+	sqmask = ~0;
+    }
 
     /*
      * Allocate register window first (we need this to find the config
@@ -729,10 +731,13 @@ setup:
     sc->ciss_irq_rid[0] = 0;
     if (method == CISS_TRANSPORT_METHOD_PERF) {
 	ciss_printf(sc, "PERFORMANT Transport\n");
-	if ((ciss_force_interrupt != 1) && (ciss_setup_msix(sc) == 0))
+	if ((ciss_force_interrupt != 1) && (ciss_setup_msix(sc) == 0)) {
 	    intr = ciss_perf_msi_intr;
-	else
+	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_MSI;
+	} else {
 	    intr = ciss_perf_intr;
+	    sc->ciss_interrupt_mask = CISS_TL_PERF_INTR_OPQ;
+	}
     } else {
 	ciss_printf(sc, "SIMPLE Transport\n");
 	/* MSIX doesn't seem to work in SIMPLE mode, only enable if it forced */
@@ -741,6 +746,7 @@ setup:
 	    ciss_setup_msix(sc);
 	sc->ciss_perf = NULL;
 	intr = ciss_intr;
+	sc->ciss_interrupt_mask = sqmask;
     }
 
     /*
