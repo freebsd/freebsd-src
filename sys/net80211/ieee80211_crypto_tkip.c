@@ -894,7 +894,7 @@ michael_mic(struct tkip_ctx *ctx, const u8 *key,
 	 * do then we'll need more involved logic.
 	 */
 	KASSERT(data_len <= space,
-	    ("not enough data, data_len %u space %u\n", data_len, space));
+	    ("not enough data, data_len %zu space %u\n", data_len, space));
 
 	/* Last block and padding (0x5a, 4..7 x 0) */
 	switch (data_len) {
