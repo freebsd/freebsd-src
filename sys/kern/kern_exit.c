@@ -737,12 +737,6 @@ loop:
 			td->td_retval[0] = p->p_pid;
 			if (status)
 				*status = p->p_xstat;	/* convert to int */
-			PROC_LOCK(q);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(q);
-
-			PROC_UNLOCK(p);
-
 			if (options & WNOWAIT) {
 
 				/*
@@ -750,9 +744,15 @@ loop:
 				 *  Caller does not wish to release the proc
 				 *  struct just yet.
 				 */
+				PROC_UNLOCK(p);
 				sx_xunlock(&proctree_lock);
 				return (0);
 			}
+
+			PROC_LOCK(q);
+			sigqueue_take(p->p_ksi);
+			PROC_UNLOCK(q);
+			PROC_UNLOCK(p);
 
 			/*
 			 * If we got the child via a ptrace 'attach',
