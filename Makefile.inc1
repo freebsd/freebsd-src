@@ -749,11 +749,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 3.2: building everything"
 	@echo "--------------------------------------------------------------"
-.if defined(NO_CTF)
 	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ
-.else
-	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} all -DNO_MODULES_OBJ -DWITH_CTF
-.endif
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
@@ -901,10 +897,10 @@ _crunchgen=	usr.sbin/crunch/crunchgen
 _pwd_mkdb=	usr.sbin/pwd_mkdb
 .endif
 
-.if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
-    lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
-.endif
+#.if ${MK_CDDL} != "no"
+#_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
+#    lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
+#.endif
 
 bootstrap-tools:
 .for _tool in \
