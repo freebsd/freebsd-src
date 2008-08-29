@@ -305,7 +305,6 @@ int
 ttydisc_read(struct tty *tp, struct uio *uio, int ioflag)
 {
 	int error;
-	size_t c;
 
 	tty_lock_assert(tp, MA_OWNED);
 
@@ -322,8 +321,8 @@ ttydisc_read(struct tty *tp, struct uio *uio, int ioflag)
 	else
 		error = ttydisc_read_raw_interbyte_timer(tp, uio, ioflag);
 
-	c = ttyinq_bytesleft(&tp->t_inq);
-	if (c >= tp->t_inlow) {
+	if (ttyinq_bytesleft(&tp->t_inq) >= tp->t_inlow ||
+	    ttyinq_bytescanonicalized(&tp->t_inq) == 0) {
 		/* Unset the input watermark when we've got enough space. */
 		tty_hiwat_in_unblock(tp);
 	}
@@ -1001,7 +1000,20 @@ parmrk:
 print:
 	/* See if we can store this on the input queue. */
 	if (ttyinq_write_nofrag(&tp->t_inq, ob, ol, quote) != 0) {
-		/* We cannot. Enable the input watermark. */
+		if (CMP_FLAG(i, IMAXBEL))
+			ttyoutq_write_nofrag(&tp->t_outq, "\a", 1);
+
+		/*
+		 * Prevent a deadlock here. It may be possible that a
+		 * user has entered so much data, there is no data
+		 * available to read(), but the buffers are full anyway.
+		 *
+		 * Only enter the high watermark if the device driver
+		 * can actually transmit something.
+		 */
+		if (ttyinq_bytescanonicalized(&tp->t_inq) == 0)
+			return (0);
+
 		tty_hiwat_in_block(tp);
 		return (-1);
 	}
