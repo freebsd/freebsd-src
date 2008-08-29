@@ -84,10 +84,19 @@ ttydisc_write_poll(struct tty *tp)
 static __inline size_t
 ttydisc_rint_poll(struct tty *tp)
 {
+	size_t l;
 
-	tty_lock_assert(tp, MA_OWNED);
-
-	return ttyinq_bytesleft(&tp->t_inq);
+	/*
+	 * XXX: Still allow character input when there's no space in the
+	 * buffers, but we haven't entered the high watermark. This is
+	 * to allow backspace characters to be inserted when in
+	 * canonical mode.
+	 */
+	l = ttyinq_bytesleft(&tp->t_inq);
+	if (l == 0 && (tp->t_flags & TF_HIWAT_IN) == 0)
+		return (1);
+	
+	return (l);
 }
 
 static __inline size_t
