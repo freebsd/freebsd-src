@@ -8,7 +8,7 @@ mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
 
 echo "1..17"
 
-geli init -P -K /dev/null md${no}
+geli init -B none -P -K /dev/null md${no}
 if [ $? -eq 0 ]; then
 	echo "ok 1"
 else
@@ -22,7 +22,7 @@ else
 	echo "not ok 2"
 fi
 
-geli init -b -P -K /dev/null md${no}
+geli init -B none -b -P -K /dev/null md${no}
 if [ $? -eq 0 ]; then
 	echo "ok 3"
 else
