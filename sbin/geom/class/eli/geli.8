@@ -224,6 +224,15 @@ Currently supported algorithms are:
 and
 .Nm HMAC/SHA512 .
 If the option is not given, there will be no authentication, only encryption.
+The recommended algorithm is
+.Nm HMAC/SHA256 .
+.It Fl b
+Ask for the passphrase on boot, before the root partition is mounted.
+This makes it possible to use an encrypted root partition.
+One will still need bootable unencrypted storage with a
+.Pa /boot/
+directory, which can be a CD-ROM disc or USB pen-drive, that can be removed
+after boot.
 .It Fl e Ar ealgo
 Encryption algorithm to use.
 Currently supported algorithms are:
@@ -232,15 +241,8 @@ Currently supported algorithms are:
 .Nm Camellia
 and
 .Nm 3DES .
-The default is
+The default and recommended algorithm is
 .Nm AES .
-.It Fl b
-Ask for the passphrase on boot, before the root partition is mounted.
-This makes it possible to use an encrypted root partition.
-One will still need bootable unencrypted storage with a
-.Pa /boot/
-directory, which can be a CD-ROM disc or USB pen-drive, that can be removed
-after boot.
 .It Fl i Ar iterations
 Number of iterations to use with PKCS#5v2.
 If this option is not specified,
@@ -267,13 +269,13 @@ If not given, the default key length for the given algorithm is used, which is:
 .Nm Camellia
 and 192 for
 .Nm 3DES .
+.It Fl P
+Do not use passphrase as the key component.
 .It Fl s Ar sectorsize
 Change decrypted provider's sector size.
 Increasing sector size allows to increase performance, because we need to
 generate an IV and do encrypt/decrypt for every single sector - less number
 of sectors means less work to do.
-.It Fl P
-Do not use passphrase as the key component.
 .El
 .It Cm attach
 Attach the given provider.
@@ -296,9 +298,6 @@ Probably a better choice is the
 option for the
 .Cm detach
 subcommand.
-.It Fl r
-Attach read-only provider.
-It will not be opened for writing.
 .It Fl k Ar keyfile
 Specifies a file which contains part of the key.
 For more information see the description of the
@@ -308,6 +307,9 @@ option for the
 subcommand.
 .It Fl p
 Do not use passphrase as the key component.
+.It Fl r
+Attach read-only provider.
+It will not be opened for writing.
 .El
 .It Cm detach
 Detach the given providers, which means remove the devfs entry
