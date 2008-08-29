@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 		k -= len; \
 		m = m->m_next; \
 		if (m == 0) \
-			return 0; \
+			return (0); \
 		len = m->m_len; \
 	} \
 }
@@ -112,25 +112,22 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 	np = mtod(m0, u_char *);
 	switch (len - k) {
 	case 1:
-		return
-		    ((u_int32_t)cp[0] << 24) |
+		return (((u_int32_t)cp[0] << 24) |
 		    ((u_int32_t)np[0] << 16) |
 		    ((u_int32_t)np[1] << 8)  |
-		    (u_int32_t)np[2];
+		    (u_int32_t)np[2]);
 
 	case 2:
-		return
-		    ((u_int32_t)cp[0] << 24) |
+		return (((u_int32_t)cp[0] << 24) |
 		    ((u_int32_t)cp[1] << 16) |
 		    ((u_int32_t)np[0] << 8) |
-		    (u_int32_t)np[1];
+		    (u_int32_t)np[1]);
 
 	default:
-		return
-		    ((u_int32_t)cp[0] << 24) |
+		return (((u_int32_t)cp[0] << 24) |
 		    ((u_int32_t)cp[1] << 16) |
 		    ((u_int32_t)cp[2] << 8) |
-		    (u_int32_t)np[0];
+		    (u_int32_t)np[0]);
 	}
     bad:
 	*err = 1;
@@ -192,7 +189,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 		switch (pc->code) {
 		default:
 #ifdef _KERNEL
-			return 0;
+			return (0);
 #else
 			abort();
 #endif
@@ -210,10 +207,10 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				int merr;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				A = m_xword((struct mbuf *)p, k, &merr);
 				if (merr != 0)
-					return 0;
+					return (0);
 				continue;
 #else
 				return (0);
@@ -234,11 +231,11 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				int merr;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				A = m_xhalf((struct mbuf *)p, k, &merr);
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 			A = EXTRACT_SHORT(&p[k]);
@@ -251,13 +248,13 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				struct mbuf *m;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				m = (struct mbuf *)p;
 				MINDEX(m, k);
 				A = mtod(m, u_char *)[k];
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 			A = p[k];
@@ -304,7 +301,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				int merr;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				A = m_xhalf((struct mbuf *)p, k, &merr);
 				if (merr != 0)
 					return (0);
@@ -323,7 +320,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				struct mbuf *m;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				m = (struct mbuf *)p;
 				MINDEX(m, k);
 				A = mtod(m, u_char *)[k];
@@ -342,13 +339,13 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 				register struct mbuf *m;
 
 				if (buflen != 0)
-					return 0;
+					return (0);
 				m = (struct mbuf *)p;
 				MINDEX(m, k);
 				X = (mtod(m, u_char *)[k] & 0xf) << 2;
 				continue;
 #else
-				return 0;
+				return (0);
 #endif
 			}
 			X = (p[pc->k] & 0xf) << 2;
@@ -428,7 +425,7 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 
 		case BPF_ALU|BPF_DIV|BPF_X:
 			if (X == 0)
-				return 0;
+				return (0);
 			A /= X;
 			continue;
 
@@ -527,20 +524,18 @@ static const u_short	bpf_code_map[] = {
  * Otherwise, a bogus program could easily crash the system.
  */
 int
-bpf_validate(f, len)
-	const struct bpf_insn *f;
-	int len;
+bpf_validate(const struct bpf_insn *f, int len)
 {
 	register int i;
 	register const struct bpf_insn *p;
 
 	/* Do not accept negative length filter. */
 	if (len < 0)
-		return 0;
+		return (0);
 
 	/* An empty filter means accept all. */
 	if (len == 0)
-		return 1;
+		return (1);
 
 	for (i = 0; i < len; ++i) {
 		p = &f[i];
@@ -548,7 +543,7 @@ bpf_validate(f, len)
 		 * Check that the code is valid.
 		 */
 		if (!BPF_VALIDATE_CODE(p->code))
-			return 0;
+			return (0);
 		/*
 		 * Check that that jumps are forward, and within
 		 * the code block.
@@ -561,7 +556,7 @@ bpf_validate(f, len)
 			else
 				offset = p->jt > p->jf ? p->jt : p->jf;
 			if (offset >= (u_int)(len - i) - 1)
-				return 0;
+				return (0);
 			continue;
 		}
 		/*
@@ -571,15 +566,15 @@ bpf_validate(f, len)
 		    p->code == (BPF_LD|BPF_MEM) ||
 		    p->code == (BPF_LDX|BPF_MEM)) {
 			if (p->k >= BPF_MEMWORDS)
-				return 0;
+				return (0);
 			continue;
 		}
 		/*
 		 * Check for constant division by 0.
 		 */
 		if (p->code == (BPF_ALU|BPF_DIV|BPF_K) && p->k == 0)
-			return 0;
+			return (0);
 	}
-	return BPF_CLASS(f[len - 1].code) == BPF_RET;
+	return (BPF_CLASS(f[len - 1].code) == BPF_RET);
 }
 #endif
