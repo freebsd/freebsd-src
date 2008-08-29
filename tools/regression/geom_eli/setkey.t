@@ -22,7 +22,7 @@ dd if=/dev/random of=${keyfile3} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile4} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile5} bs=512 count=16 >/dev/null 2>&1
 
-geli init -P -K $keyfile1 md${no}
+geli init -B none -P -K $keyfile1 md${no}
 geli attach -p -k $keyfile1 md${no}
 
 dd if=${rnd} of=/dev/md${no}.eli bs=512 count=${sectors} 2>/dev/null

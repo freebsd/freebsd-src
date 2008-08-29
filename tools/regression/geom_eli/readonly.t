@@ -11,7 +11,7 @@ echo "1..11"
 
 dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-geli init -P -K $keyfile md${no}
+geli init -B none -P -K $keyfile md${no}
 if [ $? -eq 0 ]; then
 	echo "ok 1"
 else

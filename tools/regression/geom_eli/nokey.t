@@ -9,7 +9,7 @@ mdconfig -a -t malloc -s `expr $sectors + 1` -u $no || exit 1
 
 echo "1..8"
 
-geli init -P md${no} 2>/dev/null
+geli init -B none -P md${no} 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "ok 1"
 else
@@ -18,7 +18,7 @@ fi
 
 dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-geli init -P -K ${keyfile} md${no} 2>/dev/null
+geli init -B none -P -K ${keyfile} md${no} 2>/dev/null
 if [ $? -eq 0 ]; then
 	echo "ok 2"
 else

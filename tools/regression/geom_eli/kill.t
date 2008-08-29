@@ -13,7 +13,7 @@ echo "1..9"
 dd if=/dev/random of=${keyfile1} bs=512 count=16 >/dev/null 2>&1
 dd if=/dev/random of=${keyfile2} bs=512 count=16 >/dev/null 2>&1
 
-geli init -P -K $keyfile1 md${no}
+geli init -B none -P -K $keyfile1 md${no}
 geli attach -p -k $keyfile1 md${no}
 geli setkey -n 1 -P -K $keyfile2 md${no}
 
@@ -48,7 +48,7 @@ else
 	echo "not ok 4"
 fi
 
-geli init -P -K $keyfile1 md${no}
+geli init -B none -P -K $keyfile1 md${no}
 geli setkey -n 1 -p -k $keyfile1 -P -K $keyfile2 md${no}
 
 # Should be possible to attach with keyfile1.
