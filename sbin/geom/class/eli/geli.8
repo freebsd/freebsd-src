@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2005-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2006
+.Dd August 29, 2008
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -53,6 +53,7 @@ utility:
 .Cm init
 .Op Fl bPv
 .Op Fl a Ar aalgo
+.Op Fl B Ar backupfile
 .Op Fl e Ar ealgo
 .Op Fl i Ar iterations
 .Op Fl K Ar newkeyfile
@@ -206,6 +207,14 @@ indicates an action to be performed:
 Initialize provider which needs to be encrypted.
 Here you can set up the cryptographic algorithm to use, key length, etc.
 The last provider's sector is used to store metadata.
+The
+.Cm init
+subcommand also automatically backups metadata in
+.Pa /var/backups/<prov>.eli
+file.
+The metadata can be recovered with the
+.Cm restore
+subcommand described below.
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl a Ar aalgo"
@@ -233,6 +242,13 @@ One will still need bootable unencrypted storage with a
 .Pa /boot/
 directory, which can be a CD-ROM disc or USB pen-drive, that can be removed
 after boot.
+.It Fl B Ar backupfile
+File name to use for metadata backup instead of the default
+.Pa /var/backups/<prov>.eli .
+To inhibit backups, you can use
+.Pa none
+as the
+.Ar backupfile .
 .It Fl e Ar ealgo
 Encryption algorithm to use.
 Currently supported algorithms are:
@@ -624,6 +640,30 @@ Enter passphrase:
 # dd if=/dev/random of=/dev/da0.eli bs=1m
 # newfs /dev/da0.eli
 # mount /dev/da0.eli /mnt/secret
+.Ed
+.Pp
+.Cm geli
+backups metadata by default to the
+.Pa /var/backups/<prov>.eli
+file.
+If metadata is lost in any way (eg. by accidental overwrite), it can be restored.
+Consider the following situation:
+.Bd -literal -offset indent
+# geli init /dev/da0
+Enter new passphrase:
+Reenter new passphrase:
+
+Metadata backup can be found in /var/backups/da0.eli and
+can be restored with the following command:
+
+	# geli restore /var/backups/da0.eli /dev/da0
+
+# geli clear /dev/da0
+# geli attach /dev/da0
+geli: Cannot read metadata from /dev/da0: Invalid argument.
+# geli restore /var/backups/da0.eli /dev/da0
+# geli attach /dev/da0
+Enter passphrase:
 .Ed
 .Sh DATA AUTHENTICATION
 .Nm

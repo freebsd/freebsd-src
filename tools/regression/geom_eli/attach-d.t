@@ -11,7 +11,7 @@ echo "1..3"
 
 dd if=/dev/random of=${keyfile} bs=512 count=16 >/dev/null 2>&1
 
-geli init -P -K $keyfile md${no}
+geli init -B none -P -K $keyfile md${no}
 geli attach -d -p -k $keyfile md${no}
 if [ -c /dev/md${no}.eli ]; then
 	echo "ok 1"
