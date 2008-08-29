@@ -479,6 +479,7 @@ extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern int              FixItMode;              /* FixItMode starts shell on current device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
+extern const char *	ProgName;		/* Program's proper name */
 extern int		NCpus;			/* # cpus on machine */
 
 /* Important chunks. */

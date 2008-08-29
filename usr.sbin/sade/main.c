@@ -34,6 +34,7 @@
 #include <sys/fcntl.h>
 
 const char *StartName;		/* Initial contents of argv[0] */
+const char *ProgName = "sade";
 
 int
 main(int argc, char **argv)
