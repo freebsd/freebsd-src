@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2004-2008 Pawel Jakub Dawidek <pjd@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_ELI_VERSION;
 
+#define	GELI_BACKUP_DIR	"/var/backups/"
+
 static char aalgo[] = "none";
 static char ealgo[] = "aes";
 static intmax_t keylen = 0;
@@ -61,6 +63,7 @@ static intmax_t keyno = -1;
 static intmax_t iterations = -1;
 static intmax_t sectorsize = 0;
 static char keyfile[] = "", newkeyfile[] = "";
+static char backupfile[] = "";
 
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
@@ -74,10 +77,13 @@ static void eli_restore(struct gctl_req *req);
 static void eli_clear(struct gctl_req *req);
 static void eli_dump(struct gctl_req *req);
 
+static int eli_backup_create(struct gctl_req *req, const char *prov,
+    const char *file);
+
 /*
  * Available commands:
  *
- * init [-bhPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
+ * init [-bhPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] prov
  * label - alias for 'init'
  * attach [-dprv] [-k keyfile] prov
  * detach [-fl] prov ...
@@ -97,6 +103,7 @@ struct g_command class_commands[] = {
 	    {
 		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
+		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
 		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
@@ -105,12 +112,13 @@ struct g_command class_commands[] = {
 		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    NULL, "[-bPv] [-a aalgo] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
+	    NULL, "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
+		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
 		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
 		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
 		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
@@ -514,6 +522,7 @@ eli_init(struct gctl_req *req)
 	struct g_eli_metadata md;
 	unsigned char sector[sizeof(struct g_eli_metadata)];
 	unsigned char key[G_ELI_USERKEYLEN];
+	char backfile[MAXPATHLEN];
 	const char *str, *prov;
 	unsigned secsize;
 	off_t mediasize;
@@ -648,6 +657,32 @@ eli_init(struct gctl_req *req)
 	}
 	if (verbose)
 		printf("Metadata value stored on %s.\n", prov);
+	/* Backup metadata to a file. */
+	str = gctl_get_ascii(req, "backupfile");
+	if (str[0] != '\0') {
+		/* Backupfile given be the user, just copy it. */
+		strlcpy(backfile, str, sizeof(backfile));
+	} else {
+		/* Generate file name automatically. */
+		const char *p = prov;
+		unsigned int i;
+
+		if (strncmp(p, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			p += strlen(_PATH_DEV);
+		snprintf(backfile, sizeof(backfile), "%s%s.eli",
+		    GELI_BACKUP_DIR, p);
+		/* Replace all / with _. */
+		for (i = strlen(GELI_BACKUP_DIR); backfile[i] != '\0'; i++) {
+			if (backfile[i] == '/')
+				backfile[i] = '_';
+		}
+	}
+	if (strcmp(backfile, "none") != 0 &&
+	    eli_backup_create(req, prov, backfile) == 0) {
+		printf("\nMetadata backup can be found in %s and\n", backfile);
+		printf("can be restored with the following command:\n");
+		printf("\n\t# geli restore %s %s\n\n", backfile, prov);
+	}
 }
 
 static void
@@ -887,6 +922,12 @@ eli_setkey(struct gctl_req *req)
 		eli_setkey_attached(req, &md);
 	else
 		eli_setkey_detached(req, prov, &md);
+
+	if (req->error == NULL || req->error[0] == '\0') {
+		printf("Note, that the master key encrypted with old keys "
+		    "and/or passphrase may still exists in a metadata backup "
+		    "file.\n");
+	}
 }
 
 static void
@@ -1022,24 +1063,16 @@ eli_kill(struct gctl_req *req)
 	gctl_issue(req);
 }
 
-static void
-eli_backup(struct gctl_req *req)
+static int
+eli_backup_create(struct gctl_req *req, const char *prov, const char *file)
 {
 	struct g_eli_metadata md;
-	const char *file, *prov;
 	unsigned secsize;
 	unsigned char *sector;
 	off_t mediasize;
-	int nargs, filefd, provfd;
+	int filefd, provfd, ret;
 
-	nargs = gctl_get_int(req, "nargs");
-	if (nargs != 2) {
-		gctl_error(req, "Invalid number of arguments.");
-		return;
-	}
-	prov = gctl_get_ascii(req, "arg0");
-	file = gctl_get_ascii(req, "arg1");
-
+	ret = -1;
 	provfd = filefd = -1;
 	sector = NULL;
 	secsize = 0;
@@ -1092,6 +1125,8 @@ eli_backup(struct gctl_req *req)
 		    strerror(errno));
 		goto out;
 	}
+	/* Success. */
+	ret = 0;
 out:
 	if (provfd > 0)
 		close(provfd);
@@ -1101,6 +1136,24 @@ out:
 		bzero(sector, secsize);
 		free(sector);
 	}
+	return (ret);
+}
+
+static void
+eli_backup(struct gctl_req *req)
+{
+	const char *file, *prov;
+	int nargs;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 2) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+	file = gctl_get_ascii(req, "arg1");
+
+	eli_backup_create(req, prov, file);
 }
 
 static void
