@@ -65,6 +65,9 @@ savecore_start()
 
 	if savecore -C "${dumpdir}" "${dev}" >/dev/null; then
 		savecore ${savecore_flags} ${dumpdir} ${dumpdev}
+		if checkyesno crashinfo_enable; then
+			${crashinfo_program} -d ${dumpdir}
+		fi
 	else
 		[ -z "${rc_quiet}" ] && echo "No core dumps found"
 	fi
