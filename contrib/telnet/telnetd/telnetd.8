@@ -32,7 +32,7 @@
 .\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd January 9, 2005
+.Dd August 28, 2008
 .Dt TELNETD 8
 .Os
 .Sh NAME
@@ -297,6 +297,15 @@ authentication, and
 can be used to temporarily disable
 a specific authentication type without having to recompile
 .Nm .
+Available
+.Ar authtype
+values include
+.Ar KERBEROS_V4, Ar KERBEROS_V5, Ar SPX, Ar MINK,
+and
+.Ar SRA .
+These options are completely independent of the
+.Fl a
+option.
 .El
 .Pp
 .Nm Telnetd
