@@ -464,7 +464,7 @@ static struct witness_lock_order_data *w_lofree = NULL;
 static struct witness_lock_order_hash w_lohash;
 static int w_max_used_index = 0;
 static unsigned int w_generation = 0;
-static const char *w_notrunning = "Witness not running, witness_watch == 0\n";
+static const char *w_notrunning = "Witness not running\n";
 static const char *w_stillcold = "Witness is still cold\n";
 
 
@@ -801,7 +801,7 @@ witness_init(struct lock_object *lock, const char *type)
 	 * it to the pending_locks list.  If it is not too early, then enroll
 	 * the lock now.
 	 */
-	if (witness_watch == 0 || panicstr != NULL ||
+	if (witness_watch < 1 || panicstr != NULL ||
 	    (lock->lo_flags & LO_WITNESS) == 0)
 		lock->lo_witness = NULL;
 	else if (witness_cold) {
@@ -980,7 +980,7 @@ int
 witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
 {
 
-	if (witness_watch == 0 || panicstr != NULL)
+	if (witness_watch < 1 || panicstr != NULL)
 		return (0);
 
 	/* Require locks that witness knows about. */
@@ -1019,7 +1019,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	struct thread *td;
 	int i, j;
 
-	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL ||
+	if (witness_cold || witness_watch < 1 || lock->lo_witness == NULL ||
 	    panicstr != NULL)
 		return;
 
@@ -1297,7 +1297,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 	struct witness *w;
 	struct thread *td;
 
-	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL ||
+	if (witness_cold || witness_watch == -1 || lock->lo_witness == NULL ||
 	    panicstr != NULL)
 		return;
 	w = lock->lo_witness;
@@ -1356,7 +1356,7 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_class *class;
 
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
-	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
+	if (lock->lo_witness == NULL || witness_watch < 1 || panicstr != NULL)
 		return;
 	class = LOCK_CLASS(lock);
 	file = fixup_filename(file);
@@ -1388,7 +1388,7 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 	struct lock_class *class;
 
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
-	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
+	if (lock->lo_witness == NULL || witness_watch < 1 || panicstr != NULL)
 		return;
 	class = LOCK_CLASS(lock);
 	file = fixup_filename(file);
@@ -1422,8 +1422,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	register_t s;
 	int i, j;
 
-	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL ||
-	    panicstr != NULL)
+	if (witness_cold || lock->lo_witness == NULL || panicstr != NULL)
 		return;
 	td = curthread;
 	class = LOCK_CLASS(lock);
@@ -1441,12 +1440,22 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 			if (instance->li_lock == lock)
 				goto found;
 		}
-	panic("lock (%s) %s not locked @ %s:%d", class->lc_name, lock->lo_name,
-	    file, line);
+
+	/*
+	 * When disabling WITNESS through witness_watch we could end up in
+	 * having registered locks in the locks list queue.
+	 * We have to make sure we flush these queues, so just search for
+	 * eventual registered locks and remove them.
+	 */
+	if (witness_watch > 0)
+		panic("lock (%s) %s not locked @ %s:%d", class->lc_name,
+		    lock->lo_name, file, line);
+	else
+		return;
 found:
 
 	/* First, check for shared/exclusive mismatches. */
-	if ((instance->li_flags & LI_EXCLUSIVE) != 0 &&
+	if ((instance->li_flags & LI_EXCLUSIVE) != 0 && witness_watch > 0 &&
 	    (flags & LOP_EXCLUSIVE) == 0) {
 		printf("shared unlock of (%s) %s @ %s:%d\n", class->lc_name,
 		    lock->lo_name, file, line);
@@ -1454,7 +1463,7 @@ found:
 		    instance->li_file, instance->li_line);
 		panic("excl->ushare");
 	}
-	if ((instance->li_flags & LI_EXCLUSIVE) == 0 &&
+	if ((instance->li_flags & LI_EXCLUSIVE) == 0 && witness_watch > 0 &&
 	    (flags & LOP_EXCLUSIVE) != 0) {
 		printf("exclusive unlock of (%s) %s @ %s:%d\n", class->lc_name,
 		    lock->lo_name, file, line);
@@ -1535,7 +1544,7 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 	va_list ap;
 	int i, n;
 
-	if (witness_cold || witness_watch == 0 || panicstr != NULL)
+	if (witness_cold || witness_watch < 1 || panicstr != NULL)
 		return (0);
 	n = 0;
 	td = curthread;
@@ -1596,7 +1605,7 @@ witness_file(struct lock_object *lock)
 {
 	struct witness *w;
 
-	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL)
+	if (witness_cold || witness_watch < 1 || lock->lo_witness == NULL)
 		return ("?");
 	w = lock->lo_witness;
 	return (w->w_file);
@@ -1607,7 +1616,7 @@ witness_line(struct lock_object *lock)
 {
 	struct witness *w;
 
-	if (witness_cold || witness_watch == 0 || lock->lo_witness == NULL)
+	if (witness_cold || witness_watch < 1 || lock->lo_witness == NULL)
 		return (0);
 	w = lock->lo_witness;
 	return (w->w_line);
@@ -1621,7 +1630,7 @@ enroll(const char *description, struct lock_class *lock_class)
 
 	MPASS(description != NULL);
 
-	if (witness_watch == 0 || panicstr != NULL)
+	if (witness_watch < 1 || panicstr != NULL)
 		return (NULL);
 	if ((lock_class->lc_flags & LC_SPINLOCK)) {
 		if (witness_skipspin)
@@ -1770,7 +1779,7 @@ adopt(struct witness *parent, struct witness *child)
 				    i, j, w_rmatrix[i][j]); 
 				kdb_backtrace();
 				printf("Witness disabled.\n");
-				witness_watch = 0;
+				witness_watch = -1;
 			}
 			if ((w_rmatrix[j][i] & WITNESS_ANCESTOR_MASK) &&
 			    (w_rmatrix[j][i] & WITNESS_DESCENDANT_MASK)) {
@@ -1779,7 +1788,7 @@ adopt(struct witness *parent, struct witness *child)
 				    j, i, w_rmatrix[j][i]); 
 				kdb_backtrace();
 				printf("Witness disabled.\n");
-				witness_watch = 0;
+				witness_watch = -1;
 			}
 		}
 	}
@@ -1831,7 +1840,7 @@ _isitmyx(struct witness *w1, struct witness *w2, int rmask, const char *fname)
 		    i2, i1, r2);
 		kdb_backtrace();
 		printf("Witness disabled.\n");
-		witness_watch = 0;
+		witness_watch = -1;
 	}
 	return (r1 & rmask);
 }
@@ -1888,12 +1897,12 @@ witness_get(void)
 	if (witness_cold == 0)
 		mtx_assert(&w_mtx, MA_OWNED);
 
-	if (witness_watch == 0) {
+	if (witness_watch < 1) {
 		mtx_unlock_spin(&w_mtx);
 		return (NULL);
 	}
 	if (STAILQ_EMPTY(&w_free)) {
-		witness_watch = 0;
+		witness_watch = -1;
 		mtx_unlock_spin(&w_mtx);
 		printf("WITNESS: unable to allocate a new witness object\n");
 		return (NULL);
@@ -1924,12 +1933,12 @@ witness_lock_list_get(void)
 {
 	struct lock_list_entry *lle;
 
-	if (witness_watch == 0)
+	if (witness_watch == -1)
 		return (NULL);
 	mtx_lock_spin(&w_mtx);
 	lle = w_lock_list_free;
 	if (lle == NULL) {
-		witness_watch = 0;
+		witness_watch = -1;
 		mtx_unlock_spin(&w_mtx);
 		printf("%s: witness exhausted\n", __func__);
 		return (NULL);
@@ -2046,7 +2055,7 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_class *class;
 
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
-	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
+	if (lock->lo_witness == NULL || witness_watch < 1 || panicstr != NULL)
 		return;
 	class = LOCK_CLASS(lock);
 	if (class->lc_flags & LC_SLEEPLOCK)
@@ -2072,7 +2081,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	struct lock_class *class;
 
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
-	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
+	if (lock->lo_witness == NULL || witness_watch < 1 || panicstr != NULL)
 		return;
 	class = LOCK_CLASS(lock);
 	if (class->lc_flags & LC_SLEEPLOCK)
@@ -2099,7 +2108,7 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
-	if (lock->lo_witness == NULL || witness_watch == 0 || panicstr != NULL)
+	if (lock->lo_witness == NULL || witness_watch < 1 || panicstr != NULL)
 		return;
 	class = LOCK_CLASS(lock);
 	if ((class->lc_flags & LC_SLEEPLOCK) != 0)
@@ -2163,7 +2172,7 @@ witness_ddb_list(struct thread *td)
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	KASSERT(kdb_active, ("%s: not in the debugger", __func__));
 
-	if (witness_watch == 0)
+	if (witness_watch < 1)
 		return;
 
 	witness_list_locks(&td->td_sleeplocks);
@@ -2239,7 +2248,7 @@ sysctl_debug_witness_badstacks(SYSCTL_HANDLER_ARGS)
 	tmp_data2 = NULL;
 	tmp_w1 = NULL;
 	tmp_w2 = NULL;
-	if (witness_watch == 0) {
+	if (witness_watch < 1) {
 		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));
 		return (error);
 	}
@@ -2391,7 +2400,7 @@ sysctl_debug_witness_fullgraph(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	int error;
 
-	if (witness_watch == 0) {
+	if (witness_watch < 1) {
 		error = SYSCTL_OUT(req, w_notrunning, sizeof(w_notrunning));
 		return (error);
 	}
@@ -2436,15 +2445,13 @@ sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS)
 {
 	int error, value;
 
-	value = witness_watch;
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (value == witness_watch)
-		return (0);
-	if (value != 0)
+	if (value > 1 || value < -1 ||
+	    (witness_watch == -1 && value != witness_watch))
 		return (EINVAL);
-	witness_watch = 0;
+	witness_watch = value;
 	return (0);
 }
 
