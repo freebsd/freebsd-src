@@ -463,7 +463,9 @@ static int drm_lastclose(struct drm_device *dev)
 		dev->magiclist[i].head = dev->magiclist[i].tail = NULL;
 	}
 
+	DRM_UNLOCK();
 	drm_drawable_free_all(dev);
+	DRM_LOCK();
 
 				/* Clear AGP information */
 	if ( dev->agp ) {
