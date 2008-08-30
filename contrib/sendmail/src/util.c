@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: util.c,v 8.413 2007/09/26 23:29:11 ca Exp $")
+SM_RCSID("@(#)$Id: util.c,v 8.414 2007/11/02 17:30:38 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sysexits.h>
@@ -2823,9 +2823,10 @@ count_open_connections(hostaddr)
 		return 0;
 
 	/*
-	**  Initialize to 1 instead of 0 because this code gets called
-	**  before proc_list_add() gets called, so we (the daemon child
-	**  for this connection) don't count ourselves.
+	**  This code gets called before proc_list_add() gets called,
+	**  so we (the daemon child for this connection) have not yet
+	**  counted ourselves.  Hence initialize the counter to 1
+	**  instead of 0 to compensate.
 	*/
 
 	n = 1;

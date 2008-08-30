@@ -24,7 +24,7 @@ Unix C compilers.
 
 smrsh should build on most systems with the enclosed Build script:
 
-	host.domain% sh Build
+	host.domain% sh ./Build
 
 To compile smrsh.c by hand, use the following command:
 
@@ -36,13 +36,13 @@ compiler, you should compile with the -Bstatic option.
 
 	host.domain% cc -Bstatic -o smrsh smrsh.c
 		or
-	host.domain% sh Build LDOPTS=-Bstatic
+	host.domain% sh ./Build LDOPTS=-Bstatic
 
 With gcc, the GNU C compiler, use the -static option.
 
 	host.domain% cc -static -o smrsh smrsh.c
 		or
-	host.domain% sh Build LDOPTS=-static
+	host.domain% sh ./Build LDOPTS=-static
 
 The following C defines can be set defined to change the search path and
 the bin directory used by smrsh.
@@ -58,7 +58,7 @@ conf_smrsh_ENVDEF.
 
 As root, install smrsh in /usr/libexec.  Using the Build script:
 
-	host.domain# sh Build install
+	host.domain# sh ./Build install
 
 For manual installation: install smrsh in the /usr/libexec
 directory, with mode 511.
@@ -163,4 +163,4 @@ a typical system follows:
 	host.domain# /usr/sbin/sendmail -bd -q30m
 
 
-$Revision: 8.9 $, Last updated $Date: 2003/05/26 04:30:58 $
+$Revision: 8.10 $, Last updated $Date: 2008/02/12 16:40:06 $
