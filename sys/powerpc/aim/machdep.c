@@ -743,7 +743,7 @@ cpu_idle(int busy)
 	}
 #endif
 	if (powerpc_pow_enabled) {
-		__asm __volatile("sync");
+		powerpc_sync();
 		mtmsr(msr | PSL_POW);
 		isync();
 	}
