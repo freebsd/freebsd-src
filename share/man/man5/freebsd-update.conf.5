@@ -89,6 +89,13 @@ these regular expressions will be ignored.
 .Pp
 This option can be specified multiple times, and the parameters
 accumulate.
+.It Cm IDSIgnorePaths
+The parameters following this keyword are regular expressions;
+paths which start with a string matching one of these regular
+expressions will be ignored by "freebsd-update IDS".
+.Pp
+This option can be specified multiple times, and the parameters
+accumulate.
 .It Cm UpdateIfUnmodified
 The parameters following this keyword are regular expressions;
 updates to paths which start with a string matching one of
