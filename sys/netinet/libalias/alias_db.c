@@ -606,7 +606,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 			port_sys = ntohs(port_net);
 		} else {
 			/* First trial and all subsequent are random. */
-			port_sys = random() & ALIAS_PORT_MASK;
+			port_sys = arc4random() & ALIAS_PORT_MASK;
 			port_sys += ALIAS_PORT_BASE;
 			port_net = htons(port_sys);
 		}
@@ -657,7 +657,7 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 			}
 #endif
 		}
-		port_sys = random() & ALIAS_PORT_MASK;
+		port_sys = arc4random() & ALIAS_PORT_MASK;
 		port_sys += ALIAS_PORT_BASE;
 		port_net = htons(port_sys);
 	}
@@ -772,9 +772,9 @@ FindNewPortGroup(struct libalias *la,
 
 		/* First trial and all subsequent are random. */
 		if (align == FIND_EVEN_ALIAS_BASE)
-			port_sys = random() & ALIAS_PORT_MASK_EVEN;
+			port_sys = arc4random() & ALIAS_PORT_MASK_EVEN;
 		else
-			port_sys = random() & ALIAS_PORT_MASK;
+			port_sys = arc4random() & ALIAS_PORT_MASK;
 
 		port_sys += ALIAS_PORT_BASE;
 	}
@@ -796,9 +796,9 @@ FindNewPortGroup(struct libalias *la,
 
 		/* Find a new base to try */
 		if (align == FIND_EVEN_ALIAS_BASE)
-			port_sys = random() & ALIAS_PORT_MASK_EVEN;
+			port_sys = arc4random() & ALIAS_PORT_MASK_EVEN;
 		else
-			port_sys = random() & ALIAS_PORT_MASK;
+			port_sys = arc4random() & ALIAS_PORT_MASK;
 
 		port_sys += ALIAS_PORT_BASE;
 	}
