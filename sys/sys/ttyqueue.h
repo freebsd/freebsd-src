@@ -52,6 +52,7 @@ struct ttyinq {
 	unsigned int			ti_reprint;
 	unsigned int			ti_end;
 	unsigned int			ti_nblocks;
+	unsigned int			ti_quota;
 };
 #define TTYINQ_DATASIZE 128
 
@@ -62,12 +63,14 @@ struct ttyoutq {
 	unsigned int			to_begin;
 	unsigned int			to_end;
 	unsigned int			to_nblocks;
+	unsigned int			to_quota;
 };
 #define TTYOUTQ_DATASIZE (256 - sizeof(STAILQ_ENTRY(ttyoutq_block)))
 
 #ifdef _KERNEL
 /* Input queue handling routines. */
 void	ttyinq_setsize(struct ttyinq *, struct tty *, size_t);
+void	ttyinq_free(struct ttyinq *);
 int	ttyinq_read_uio(struct ttyinq *, struct tty *, struct uio *,
     size_t, size_t);
 size_t	ttyinq_write(struct ttyinq *, const void *, size_t, int);
@@ -79,6 +82,13 @@ int	ttyinq_peekchar(struct ttyinq *, char *, int *);
 void	ttyinq_unputchar(struct ttyinq *);
 void	ttyinq_reprintpos_set(struct ttyinq *);
 void	ttyinq_reprintpos_reset(struct ttyinq *);
+
+static __inline void
+ttyinq_init(struct ttyinq *ti)
+{
+
+	TAILQ_INIT(&ti->ti_list);
+}
 
 static __inline size_t
 ttyinq_getsize(struct ttyinq *ti)
@@ -124,10 +134,18 @@ void	ttyinq_line_iterate_from_reprintpos(struct ttyinq *,
 /* Output queue handling routines. */
 void	ttyoutq_flush(struct ttyoutq *);
 void	ttyoutq_setsize(struct ttyoutq *, struct tty *, size_t);
+void	ttyoutq_free(struct ttyoutq *);
 size_t	ttyoutq_read(struct ttyoutq *, void *, size_t);
 int	ttyoutq_read_uio(struct ttyoutq *, struct tty *, struct uio *);
 size_t	ttyoutq_write(struct ttyoutq *, const void *, size_t);
 int	ttyoutq_write_nofrag(struct ttyoutq *, const void *, size_t);
+
+static __inline void
+ttyoutq_init(struct ttyoutq *to)
+{
+
+	STAILQ_INIT(&to->to_list);
+}
 
 static __inline size_t
 ttyoutq_getsize(struct ttyoutq *to)
