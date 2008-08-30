@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
  * sharing of code between *BSD's
  */
 
-#include "opt_bus.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
