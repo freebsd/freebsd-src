@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2004, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2004, 2006, 2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfapi.h,v 8.77 2006/11/02 02:44:07 ca Exp $
+ *	$Id: mfapi.h,v 8.78 2008/02/27 22:30:34 ca Exp $
  */
 
 /*
@@ -18,7 +18,7 @@
 # define _LIBMILTER_MFAPI_H	1
 
 #ifndef SMFI_VERSION
-# define SMFI_VERSION	0x01000000	/* libmilter version number */
+# define SMFI_VERSION	0x01000001	/* libmilter version number */
 #endif /* ! SMFI_VERSION */
 
 #define SM_LM_VRS_MAJOR(v)	(((v) & 0x7f000000) >> 24)

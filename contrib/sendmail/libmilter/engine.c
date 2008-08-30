@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2004, 2006, 2007 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2004, 2006-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.159 2007/04/23 22:22:50 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.162 2008/02/27 01:34:14 ca Exp $")
 
 #include "libmilter.h"
 
@@ -1001,6 +1001,7 @@ st_optionneg(g)
 			(long) ctx->ctx_id, ctx->ctx_mta_pflags, i);
 		return _SMFIS_ABORT;
 	}
+	fix_stm(ctx);
 
 	if (ctx->ctx_dbg > 3)
 		sm_dprintf("[%ld] milter_negotiate:"
@@ -1725,9 +1726,9 @@ mi_rd_socket_ready (sd)
 	int n;
 	int nerr = 0;
 #if SM_CONF_POLL
-		struct pollfd pfd;
+	struct pollfd pfd;
 #else /* SM_CONF_POLL */
-		fd_set	rd_set, exc_set;
+	fd_set	rd_set, exc_set;
 #endif /* SM_CONF_POLL */
 
 	do

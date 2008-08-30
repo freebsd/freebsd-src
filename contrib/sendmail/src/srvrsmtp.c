@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -17,7 +17,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.967 2007/10/01 16:22:14 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.975 2008/03/31 16:32:13 ca Exp $")
 
 #include <sm/time.h>
 #include <sm/fdset.h>
@@ -637,6 +637,9 @@ smtp(nullserver, d_flags, e)
 # define p_addr_st	NULL
 #endif /* MILTER */
 	size_t inplen;
+#if _FFR_BADRCPT_SHUTDOWN
+	int n_badrcpts_adj;
+#endif /* _FFR_BADRCPT_SHUTDOWN */
 
 	SevenBitInput_Saved = SevenBitInput;
 	smtp.sm_nrcpts = 0;
@@ -903,6 +906,8 @@ smtp(nullserver, d_flags, e)
 #endif /* SASL */
 
 #if STARTTLS
+
+	set_tls_rd_tmo(TimeOuts.to_nextcommand);
 #endif /* STARTTLS */
 
 #if MILTER
@@ -942,6 +947,7 @@ smtp(nullserver, d_flags, e)
 
 			/* arrange to ignore send list */
 			e->e_sendqueue = NULL;
+			lognullconnection = false;
 			goto doquit;
 		}
 	}
@@ -1054,10 +1060,10 @@ smtp(nullserver, d_flags, e)
 			if (select(fd + 1, FDSET_CAST &readfds,
 			    NULL, NULL, &timeout) > 0 &&
 			    FD_ISSET(fd, &readfds) &&
-			    (eoftest = sm_io_getc(InChannel, SM_TIME_DEFAULT)) 
+			    (eoftest = sm_io_getc(InChannel, SM_TIME_DEFAULT))
 			    != SM_IO_EOF)
 			{
-				sm_io_ungetc(InChannel, SM_TIME_DEFAULT, 
+				sm_io_ungetc(InChannel, SM_TIME_DEFAULT,
 					     eoftest);
 				gettimeofday(&ep, NULL);
 				timersub(&ep, &bp, &tp);
@@ -2523,6 +2529,36 @@ smtp(nullserver, d_flags, e)
 			milter_rcpt_added = false;
 			smtp.sm_e_nrcpts_orig = e->e_nrcpts;
 #endif
+#if _FFR_BADRCPT_SHUTDOWN
+			/*
+			**  hack to deal with hack, see below:
+			**  n_badrcpts is increased is limit is reached.
+			*/
+
+			n_badrcpts_adj = (BadRcptThrottle > 0 &&
+					  n_badrcpts > BadRcptThrottle &&
+					  LogLevel > 5)
+					  ? n_badrcpts - 1 : n_badrcpts;
+			if (BadRcptShutdown > 0 &&
+			    n_badrcpts_adj >= BadRcptShutdown &&
+			    (BadRcptShutdownGood == 0 ||
+			     smtp.sm_nrcpts == 0 ||
+			     (n_badrcpts_adj * 100 /
+			      (smtp.sm_nrcpts + n_badrcpts) >=
+			      BadRcptShutdownGood)))
+			{
+				if (LogLevel > 5)
+					sm_syslog(LOG_INFO, e->e_id,
+						  "%s: Possible SMTP RCPT flood, shutting down connection.",
+						  CurSmtpClient);
+				message("421 4.7.0 %s Too many bad recipients; closing connection",
+				MyHostName);
+
+				/* arrange to ignore any current send list */
+				e->e_sendqueue = NULL;
+				goto doquit;
+			}
+#endif /* _FFR_BADRCPT_SHUTDOWN */
 			if (BadRcptThrottle > 0 &&
 			    n_badrcpts >= BadRcptThrottle)
 			{
@@ -3775,17 +3811,10 @@ smtp_data(smtp, e)
 				dropenvelope(ee, true, false);
 		}
 	}
-	sm_rpool_free(e->e_rpool);
-
-	/*
-	**  At this point, e == &MainEnvelope, but if we did splitting,
-	**  then CurEnv may point to an envelope structure that was just
-	**  freed with the rpool.  So reset CurEnv *before* calling
-	**  newenvelope.
-	*/
 
 	CurEnv = e;
 	features = e->e_features;
+	sm_rpool_free(e->e_rpool);
 	newenvelope(e, e, sm_rpool_new_x(NULL));
 	e->e_flags = BlankEnvelope.e_flags;
 	e->e_features = features;
