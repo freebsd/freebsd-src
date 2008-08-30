@@ -171,18 +171,23 @@ int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_lock_t *lock = data;
 
+        DRM_DEBUG("%d (pid %d) requests unlock (0x%08x), flags = 0x%08x\n",
+	    lock->context, DRM_CURRENTPID, dev->lock.hw_lock->lock,
+	    lock->flags);
+
 	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
 		    DRM_CURRENTPID, lock->context);
 		return EINVAL;
 	}
+#if 0
 	/* Check that the context unlock being requested actually matches
 	 * who currently holds the lock.
 	 */
 	if (!_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) ||
 	    _DRM_LOCKING_CONTEXT(dev->lock.hw_lock->lock) != lock->context)
 		return EINVAL;
-
+#endif
 	DRM_SPINLOCK(&dev->tsk_lock);
 	if (dev->locked_task_call != NULL) {
 		dev->locked_task_call(dev);
