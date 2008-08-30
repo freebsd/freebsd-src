@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/syslog.h>
+#include <sys/ucred.h>
 
 #include <vm/uma.h>
 
@@ -144,6 +145,7 @@ struct syncache {
 #ifdef MAC
 	struct label	*sc_label;		/* MAC label reference */
 #endif
+	struct ucred	*sc_cred;		/* cred cache for jail checks */
 };
 
 #ifdef TCP_OFFLOAD_DISABLE
@@ -262,6 +264,8 @@ syncache_free(struct syncache *sc)
 {
 	if (sc->sc_ipopts)
 		(void) m_free(sc->sc_ipopts);
+	if (sc->sc_cred)
+		crfree(sc->sc_cred);
 #ifdef MAC
 	mac_destroy_syncache(&sc->sc_label);
 #endif
@@ -1021,6 +1025,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	struct label *maclabel;
 #endif
 	struct syncache scs;
+	struct ucred *cred;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	INP_WLOCK_ASSERT(inp);			/* listen socket */
@@ -1033,6 +1038,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	so = *lsop;
 	tp = sototcpcb(so);
+	cred = crhold(so->so_cred);
 
 #ifdef INET6
 	if (inc->inc_isipv6 &&
@@ -1162,6 +1168,8 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #ifdef MAC
 	sc->sc_label = maclabel;
 #endif
+	sc->sc_cred = cred;
+	cred = NULL;
 	sc->sc_ipopts = ipopts;
 	sc->sc_inc.inc_fibnum = inp->inp_inc.inc_fibnum;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
@@ -1281,6 +1289,8 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	}
 
 done:
+	if (cred != NULL)
+		crfree(cred);
 #ifdef MAC
 	if (sc == &scs)
 		mac_destroy_syncache(&maclabel);
@@ -1765,6 +1775,8 @@ syncache_pcblist(struct sysctl_req *req, int max_pcbs, int *pcbs_exported)
 				SCH_UNLOCK(sch);
 				goto exit;
 			}
+			if (cr_cansee(req->td->td_ucred, sc->sc_cred) != 0)
+				continue;
 			bzero(&xt, sizeof(xt));
 			xt.xt_len = sizeof(xt);
 			if (sc->sc_inc.inc_isipv6)
