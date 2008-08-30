@@ -112,23 +112,6 @@ tty_watermarks(struct tty *tp)
 	tp->t_outlow = (ttyoutq_getsize(&tp->t_outq) * 9) / 10;
 }
 
-static void
-tty_freebuffers(struct tty *tp)
-{
-
-	/* Destroy input buffers. */
-	ttyinq_flush(&tp->t_inq);
-	ttyinq_setsize(&tp->t_inq, NULL, 0);
-	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
-	tp->t_inlow = 0;
-
-	/* Destroy output buffers. */
-	ttyoutq_flush(&tp->t_outq);
-	ttyoutq_setsize(&tp->t_outq, NULL, 0);
-	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
-	tp->t_outlow = 0;
-}
-
 static int
 tty_drain(struct tty *tp)
 {
@@ -199,7 +182,10 @@ ttydev_leave(struct tty *tp)
 	ttydisc_close(tp);
 
 	/* Destroy associated buffers already. */
-	tty_freebuffers(tp);
+	ttyinq_free(&tp->t_inq);
+	tp->t_inlow = 0;
+	ttyoutq_free(&tp->t_outq);
+	tp->t_outlow = 0;
 
 	knlist_clear(&tp->t_inpoll.si_note, 1);
 	knlist_clear(&tp->t_outpoll.si_note, 1);
@@ -875,8 +861,8 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	cv_init(&tp->t_bgwait, "tty background");
 	cv_init(&tp->t_dcdwait, "tty dcd");
 
-	TAILQ_INIT(&tp->t_inq.ti_list);
-	STAILQ_INIT(&tp->t_outq.to_list);
+	ttyinq_init(&tp->t_inq);
+	ttyoutq_init(&tp->t_outq);
 
 	/* Allow drivers to use a custom mutex to lock the TTY. */
 	if (mutex != NULL) {
@@ -907,6 +893,10 @@ tty_dealloc(void *arg)
 	tty_list_count--;
 	sx_xunlock(&tty_list_sx);
 
+	/* Make sure we haven't leaked buffers. */
+	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
+	MPASS(ttyoutq_getsize(&tp->t_outq) == 0);
+
 	knlist_destroy(&tp->t_inpoll.si_note);
 	knlist_destroy(&tp->t_outpoll.si_note);
 
@@ -934,8 +924,6 @@ tty_rel_free(struct tty *tp)
 		tty_unlock(tp);
 		return;
 	}
-
-	tty_freebuffers(tp);
 
 	/* TTY can be deallocated. */
 	dev = tp->t_dev;

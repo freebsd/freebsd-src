@@ -78,12 +78,11 @@ ttyoutq_flush(struct ttyoutq *to)
 void
 ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t size)
 {
-	unsigned int nblocks;
 	struct ttyoutq_block *tob;
 
-	nblocks = howmany(size, TTYOUTQ_DATASIZE);
+	to->to_quota = howmany(size, TTYOUTQ_DATASIZE);
 
-	while (nblocks > to->to_nblocks) {
+	while (to->to_quota > to->to_nblocks) {
 		/*
 		 * List is getting bigger.
 		 * Add new blocks to the tail of the list.
@@ -98,40 +97,26 @@ ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t size)
 		tob = uma_zalloc(ttyoutq_zone, M_WAITOK);
 		tty_lock(tp);
 
-		if (tty_gone(tp))
-			return;
-
 		STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
 		to->to_nblocks++;
 	}
+}
 
-	while (nblocks < to->to_nblocks) {
-		/*
-		 * List is getting smaller. Remove unused blocks at the
-		 * end. This means we cannot guarantee this routine
-		 * shrinks buffers properly, when we need to reclaim
-		 * more space than there is available.
-		 *
-		 * XXX TODO: Two solutions here:
-		 * - Throw data away
-		 * - Temporarily hit the watermark until enough data has
-		 *   been flushed, so we can remove the blocks.
-		 */
+void
+ttyoutq_free(struct ttyoutq *to)
+{
+	struct ttyoutq_block *tob;
+	
+	ttyoutq_flush(to);
+	to->to_quota = 0;
 
-		if (to->to_end == 0) {
-			tob = STAILQ_FIRST(&to->to_list);
-			if (tob == NULL)
-				break;
-			STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
-		} else {
-			tob = STAILQ_NEXT(to->to_lastblock, tob_list);
-			if (tob == NULL)
-				break;
-			STAILQ_REMOVE_NEXT(&to->to_list, to->to_lastblock, tob_list);
-		}
+	while ((tob = STAILQ_FIRST(&to->to_list)) != NULL) {
+		STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
 		uma_zfree(ttyoutq_zone, tob);
 		to->to_nblocks--;
 	}
+
+	MPASS(to->to_nblocks == 0);
 }
 
 size_t
@@ -164,7 +149,12 @@ ttyoutq_read(struct ttyoutq *to, void *buf, size_t len)
 		if (cend == TTYOUTQ_DATASIZE || cend == to->to_end) {
 			/* Read the block until the end. */
 			STAILQ_REMOVE_HEAD(&to->to_list, tob_list);
-			STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
+			if (to->to_quota < to->to_nblocks) {
+				uma_zfree(ttyoutq_zone, tob);
+				to->to_nblocks--;
+			} else {
+				STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
+			}
 			to->to_begin = 0;
 			if (to->to_end <= TTYOUTQ_DATASIZE) {
 				to->to_end = 0;
@@ -251,15 +241,12 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			tty_lock(tp);
 
 			/* Block can now be readded to the list. */
-			/*
-			 * XXX: we could remove the blocks here when the
-			 * queue was shrunk, but still in use. See
-			 * ttyoutq_setsize().
-			 */
-			STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
-			to->to_nblocks++;
-			if (error != 0)
-				return (error);
+			if (to->to_quota <= to->to_nblocks) {
+				uma_zfree(ttyoutq_zone, tob);
+			} else {
+				STAILQ_INSERT_TAIL(&to->to_list, tob, tob_list);
+				to->to_nblocks++;
+			}
 		} else {
 			char ob[TTYOUTQ_DATASIZE - 1];
 			atomic_add_long(&ttyoutq_nslow, 1);
@@ -275,10 +262,10 @@ ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio)
 			tty_unlock(tp);
 			error = uiomove(ob, clen, uio);
 			tty_lock(tp);
-
-			if (error != 0)
-				return (error);
 		}
+
+		if (error != 0)
+			return (error);
 	}
 
 	return (0);

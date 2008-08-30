@@ -89,12 +89,11 @@ static uma_zone_t ttyinq_zone;
 void
 ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 {
-	unsigned int nblocks;
 	struct ttyinq_block *tib;
 
-	nblocks = howmany(size, TTYINQ_DATASIZE);
+	ti->ti_quota = howmany(size, TTYINQ_DATASIZE);
 
-	while (nblocks > ti->ti_nblocks) {
+	while (ti->ti_quota > ti->ti_nblocks) {
 		/*
 		 * List is getting bigger.
 		 * Add new blocks to the tail of the list.
@@ -109,36 +108,26 @@ ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t size)
 		tib = uma_zalloc(ttyinq_zone, M_WAITOK);
 		tty_lock(tp);
 
-		if (tty_gone(tp))
-			return;
-
 		TAILQ_INSERT_TAIL(&ti->ti_list, tib, tib_list);
 		ti->ti_nblocks++;
 	}
+}
 
-	while (nblocks < ti->ti_nblocks) {
-		/*
-		 * List is getting smaller. Remove unused blocks at the
-		 * end. This means we cannot guarantee this routine
-		 * shrinks buffers properly, when we need to reclaim
-		 * more space than there is available.
-		 *
-		 * XXX TODO: Two solutions here:
-		 * - Throw data away
-		 * - Temporarily hit the watermark until enough data has
-		 *   been flushed, so we can remove the blocks.
-		 */
+void
+ttyinq_free(struct ttyinq *ti)
+{
+	struct ttyinq_block *tib;
+	
+	ttyinq_flush(ti);
+	ti->ti_quota = 0;
 
-		if (ti->ti_end == 0)
-			tib = TAILQ_FIRST(&ti->ti_list);
-		else
-			tib = TAILQ_NEXT(ti->ti_lastblock, tib_list);
-		if (tib == NULL)
-			break;
+	while ((tib = TAILQ_FIRST(&ti->ti_list)) != NULL) {
 		TAILQ_REMOVE(&ti->ti_list, tib, tib_list);
 		uma_zfree(ttyinq_zone, tib);
 		ti->ti_nblocks--;
 	}
+
+	MPASS(ti->ti_nblocks == 0);
 }
 
 int
@@ -217,21 +206,13 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			    clen - flen, uio);
 			tty_lock(tp);
 
-			if (tty_gone(tp)) {
-				/* Something went bad - discard this block. */
-				uma_zfree(ttyinq_zone, tib);
-				return (ENXIO);
-			}
 			/* Block can now be readded to the list. */
-			/*
-			 * XXX: we could remove the blocks here when the
-			 * queue was shrunk, but still in use. See
-			 * ttyinq_setsize().
-			 */
-			TAILQ_INSERT_TAIL(&ti->ti_list, tib, tib_list);
-			ti->ti_nblocks++;
-			if (error != 0)
-				return (error);
+			if (ti->ti_quota <= ti->ti_nblocks) {
+				uma_zfree(ttyinq_zone, tib);
+			} else {
+				TAILQ_INSERT_TAIL(&ti->ti_list, tib, tib_list);
+				ti->ti_nblocks++;
+			}
 		} else {
 			char ob[TTYINQ_DATASIZE - 1];
 			atomic_add_long(&ttyinq_nslow, 1);
@@ -247,12 +228,12 @@ ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
 			tty_unlock(tp);
 			error = uiomove(ob, clen - flen, uio);
 			tty_lock(tp);
-
-			if (error != 0)
-				return (error);
-			if (tty_gone(tp))
-				return (ENXIO);
 		}
+
+		if (error != 0)
+			return (error);
+		if (tty_gone(tp))
+			return (ENXIO);
 	}
 
 	return (0);
