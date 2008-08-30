@@ -2118,7 +2118,7 @@ and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases
 the complete pathname of the command is printed.
-.It Ic ulimit Oo Fl HSabcdflmnstuv Oc Op Ar limit
+.It Ic ulimit Oo Fl HSabcdflmnpstuv Oc Op Ar limit
 Set or display resource limits (see
 .Xr getrlimit 2 ) .
 If
@@ -2172,6 +2172,8 @@ kilobytes.
 The maximal resident set size of a process, in kilobytes.
 .It Fl n Ar nofiles
 The maximal number of descriptors that could be opened by a process.
+.It Fl p Ar pseudoterminals
+The maximal number of pseudo-terminals for this user ID.
 .It Fl s Ar stacksize
 The maximal size of the stack segment, in kilobytes.
 .It Fl t Ar time
