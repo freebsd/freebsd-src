@@ -82,6 +82,11 @@
 
 #include <machine/in_cksum.h>
 
+#ifdef DEV_ENC
+#include <net/if_enc.h>
+#endif
+
+
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 {
@@ -367,6 +372,9 @@ ipsec4_process_packet(
 	sav = isr->sav;
 
 #ifdef DEV_ENC
+	encif->if_opackets++;
+	encif->if_obytes += m->m_pkthdr.len;
+
 	/* pass the mbuf to enc0 for packet filtering */
 	if ((error = ipsec_filter(&m, PFIL_OUT)) != 0)
 		goto bad;
