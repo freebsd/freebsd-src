@@ -199,6 +199,12 @@ parse_conffile() {
 				    cut -c 7- | xargs echo | tr ' ' '|'
 				`)"
 		fi
+
+		if grep -qE "^INDEX[[:space:]]" ${CONFFILE}; then
+			INDEXPAIRS="`
+				grep -E "^INDEX[[:space:]]" "${CONFFILE}" |
+				    cut -c 7- | tr ' ' '|' | xargs echo`"
+		fi
 	fi
 }
 
@@ -829,19 +835,25 @@ fetch_run() {
 
 # Build a ports INDEX file
 extract_make_index() {
+	if ! look $1 ${WORKDIR}/tINDEX > /dev/null; then
+		echo -n "$1 not provided by portsnap server; "
+		echo "$2 not being generated."
+	else
 	gunzip -c "${WORKDIR}/files/`look $1 ${WORKDIR}/tINDEX |
 	    cut -f 2 -d '|'`.gz" |
 	    cat - ${LOCALDESC} |
 	    ${MKINDEX} /dev/stdin > ${PORTSDIR}/$2
+	fi
 }
 
 # Create INDEX, INDEX-5, INDEX-6
 extract_indices() {
 	echo -n "Building new INDEX files... "
-	extract_make_index DESCRIBE.4 INDEX || return 1
-	extract_make_index DESCRIBE.5 INDEX-5 || return 1
-	extract_make_index DESCRIBE.6 INDEX-6 || return 1
-	extract_make_index DESCRIBE.7 INDEX-7 || return 1
+	for PAIR in ${INDEXPAIRS}; do
+		INDEXFILE=`echo ${PAIR} | cut -f 1 -d '|'`
+		DESCRIBEFILE=`echo ${PAIR} | cut -f 2 -d '|'`
+		extract_make_index ${DESCRIBEFILE} ${INDEXFILE} || return 1
+	done
 	echo "done."
 }
 
