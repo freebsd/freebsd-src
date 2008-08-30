@@ -129,6 +129,13 @@ isync(void)
 	__asm __volatile ("isync");
 }
 
+static __inline void
+powerpc_sync(void)
+{
+
+	__asm __volatile ("sync");
+}
+
 static __inline register_t
 intr_disable(void)
 {
