@@ -141,7 +141,7 @@ decr_init(void)
 			 * Should check for correct CPU here?		XXX
 			 */
 			msr = mfmsr();
-			mtmsr(msr & ~(PSL_EE|PSL_RI));
+			mtmsr(msr & ~PSL_EE);
 
 			ns_per_tick = 1000000000 / ticks_per_sec;
 			ticks_per_intr = ticks_per_sec / hz;
