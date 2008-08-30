@@ -57,6 +57,7 @@ main(int argc, char **argv)
 	int	ch, error, fd, oflags;
 	char   *fname, *rname;
 
+	fd = -1;
 	rsize = tsize = 0;
 	error = 0;
 	rname = NULL;
