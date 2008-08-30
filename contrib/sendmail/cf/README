@@ -1008,7 +1008,9 @@ virtusertable	A domain-specific form of aliasing, allowing multiple
 		MASQUERADE_DOMAIN_FILE, see below).  If VIRTUSER_DOMAIN or
 		VIRTUSER_DOMAIN_FILE is used, then the entries of class
 		{VirtHost} are added to class {R}, i.e., relaying is allowed
-		to (and from) those domains.  The default map definition is:
+		to (and from) those domains, which by default includes also
+		all subdomains (see relay_hosts_only).  The default map
+		definition is:
 
 			hash /etc/mail/virtusertable
 
@@ -4699,4 +4701,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.722 $, Last updated $Date: 2007/04/03 21:26:58 $
+$Revision: 8.724 $, Last updated $Date: 2008/02/15 23:05:32 $
