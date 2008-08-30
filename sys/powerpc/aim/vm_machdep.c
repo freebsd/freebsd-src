@@ -177,8 +177,8 @@ cpu_set_fork_handler(td, func, arg)
 {
 	struct	callframe *cf;
 
-	CTR3(KTR_PROC, "cpu_set_fork_handler: called with td=%08x func=%08x arg=%08x",
-	    (u_int)td, (u_int)func, (u_int)arg);
+	CTR4(KTR_PROC, "%s called with td=%08x func=%08x arg=%08x",
+	    __func__, (u_int)td, (u_int)func, (u_int)arg);
 
 	cf = (struct callframe *)td->td_pcb->pcb_sp;
 
@@ -332,23 +332,23 @@ void
 cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	stack_t *stack)
 {
-        struct trapframe *tf;
-        uint32_t sp;
+	struct trapframe *tf;
+	uint32_t sp;
 
 	tf = td->td_frame;
 	/* align stack and alloc space for frame ptr and saved LR */
-        sp = ((uint32_t)stack->ss_sp + stack->ss_size
-		- 2*sizeof(u_int32_t)) & ~0x1f;
+	sp = ((uint32_t)stack->ss_sp + stack->ss_size - sizeof(uint64_t)) &
+	    ~0x1f;
 	bzero(tf, sizeof(struct trapframe));
 
 	tf->fixreg[1] = (register_t)sp;
-        tf->fixreg[3] = (register_t)arg;
-        tf->srr0 = (register_t)entry;
-        tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
-        td->td_pcb->pcb_flags = 0;
+	tf->fixreg[3] = (register_t)arg;
+	tf->srr0 = (register_t)entry;
+	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	td->td_pcb->pcb_flags = 0;
 
-        td->td_retval[0] = (register_t)entry;
-        td->td_retval[1] = 0;
+	td->td_retval[0] = (register_t)entry;
+	td->td_retval[1] = 0;
 }
 
 int
