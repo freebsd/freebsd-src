@@ -89,6 +89,13 @@ If more than one line of any of the above forms is included in
 .Nm
 then only the last one will take effect.
 .Pp
+A line of the form
+.Dl INDEX INDEXFILE DESCRIBEFILE
+will instruct
+.Xr portsnap 8
+that the specified INDEX file is generated from the specified
+describe file distributed by the portsnap server.
+.Pp
 Finally, a line of the form
 .Dl REFUSE foo bar
 will instruct
