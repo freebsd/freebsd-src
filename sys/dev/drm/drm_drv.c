@@ -660,8 +660,11 @@ static void drm_unload(struct drm_device *dev)
 		dev->agp = NULL;
 	}
 
-	if (dev->driver.unload != NULL)
+	if (dev->driver.unload != NULL) {
+		DRM_LOCK();
 		dev->driver.unload(dev);
+		DRM_UNLOCK();
+	}
 
 	delete_unrhdr(dev->drw_unrhdr);
 
