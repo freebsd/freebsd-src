@@ -78,4 +78,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 void
 db_show_mdpcpu(struct pcpu *pc)
 {
+
+	db_printf("PPC: hwref   = %#x\n", pc->pc_hwref);
+	db_printf("PPC: ipimask = %#x\n", pc->pc_ipimask);
+	db_printf("PPC: pir     = %#x\n", pc->pc_pir);
 }
