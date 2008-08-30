@@ -97,8 +97,8 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-        failure("Old bug: if no atime specified, atime got set to Jan 1, 1970");
-        assert(st.st_atime != 0);
+        failure("No atime was specified, so atime should get set to mtime");
+        assertEqualInt(st.st_atime, st.st_mtime);
         assertEqualInt(st.st_size, sizeof(data));
         assertEqualInt(st.st_mtime, 123456789);
 }
