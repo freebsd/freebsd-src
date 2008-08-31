@@ -712,7 +712,7 @@ match:
 	if (ifp->if_flags & IFF_STATICARP)
 		goto reply;
 	/*
-	 * We look for any FIBs that has this address to find
+	 * We look for any FIB that has this address to find
 	 * the interface etc.
 	 * For sanity checks that are FIB independent we abort the loop.
 	 */
