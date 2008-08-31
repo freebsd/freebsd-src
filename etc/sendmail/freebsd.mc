@@ -64,7 +64,7 @@ dnl --------------------------------
 dnl DNS based black hole lists come and go on a regular basis
 dnl so this file will not serve as a database of the available servers.
 dnl For that, visit
-dnl http://directory.google.com/Top/Computers/Internet/Abuse/Spam/Blacklists/
+dnl http://www.google.com/Top/Computers/Internet/E-mail/Spam/Blacklists/
 
 dnl Uncomment to activate Realtime Blackhole List
 dnl information available at http://www.mail-abuse.com/
