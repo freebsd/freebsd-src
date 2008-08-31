@@ -655,7 +655,7 @@ fetch_read_word(FILE *f)
 {
 	static char word[1024];
 
-	if (fscanf(f, " %1024s ", word) != 1)
+	if (fscanf(f, " %1023s ", word) != 1)
 		return (NULL);
 	return (word);
 }
