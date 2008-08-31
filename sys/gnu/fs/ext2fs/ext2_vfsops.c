@@ -171,10 +171,10 @@ ext2_mount(mp, td)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp, LK_NOWAIT, 0, td))
+			if (vfs_busy(mp, LK_NOWAIT, 0))
 				return (EBUSY);
 			error = ext2_flushfiles(mp, flags, td);
-			vfs_unbusy(mp, td);
+			vfs_unbusy(mp);
 			if (!error && fs->s_wasvalid) {
 				fs->s_es->s_state |= EXT2_VALID_FS;
 				ext2_sbupdate(ump, MNT_WAIT);
