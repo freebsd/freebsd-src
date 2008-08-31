@@ -25,6 +25,7 @@ SUBDIR= cat \
 	mkdir \
 	mv \
 	pax \
+	pkill \
 	ps \
 	pwd \
 	${_rcp} \
