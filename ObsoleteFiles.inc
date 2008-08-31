@@ -16,6 +16,24 @@
 
 # 20080823: removal of unneeded pt_chown, to implement grantpt(3)
 OLD_FILES+=usr/libexec/pt_chown
+# 20080822: ntp 4.2.4p5 import
+OLD_FILES+=usr/share/doc/ntp/driver23.html
+OLD_FILES+=usr/share/doc/ntp/driver24.html
+# 20080821: several man pages moved from man4.i386 to man4
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/share/man/man4/i386/acpi_aiboost.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_asus.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_fujitsu.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_ibm.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_panasonic.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_sony.4.gz
+OLD_FILES+=usr/share/man/man4/i386/acpi_toshiba.4.gz
+OLD_FILES+=usr/share/man/man4/i386/ichwd.4.gz
+OLD_FILES+=usr/share/man/man4/i386/if_ndis.4.gz
+OLD_FILES+=usr/share/man/man4/i386/io.4.gz
+OLD_FILES+=usr/share/man/man4/i386/linux.4.gz
+OLD_FILES+=usr/share/man/man4/i386/ndis.4.gz
+.endif
 # 20080820: MPSAFE TTY layer integrated
 OLD_FILES+=usr/include/sys/linedisc.h
 OLD_FILES+=usr/share/man/man3/posix_openpt.3.gz
