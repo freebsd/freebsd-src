@@ -356,7 +356,7 @@ void
 expari(int flag)
 {
 	char *p, *start;
-	int result;
+	arith_t result;
 	int begoff;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 	int quoted;
@@ -372,10 +372,7 @@ expari(int flag)
 	 * have to rescan starting from the beginning since CTLESC
 	 * characters have to be processed left to right.
 	 */
-#if INT_MAX / 1000000000 >= 10 || INT_MIN / 1000000000 <= -10
-#error "integers with more than 10 digits are not supported"
-#endif
-	CHECKSTRSPACE(12 - 2, expdest);
+	CHECKSTRSPACE(DIGITS(result) - 2, expdest);
 	USTPUTC('\0', expdest);
 	start = stackblock();
 	p = expdest - 2;
@@ -397,7 +394,7 @@ expari(int flag)
 	if (quotes)
 		rmescapes(p+2);
 	result = arith(p+2);
-	fmtstr(p, 12, "%d", result);
+	fmtstr(p, DIGITS(result), ARITH_FORMAT_STR, result);
 	while (*p++)
 		;
 	if (quoted == 0)
