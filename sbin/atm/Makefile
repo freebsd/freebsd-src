@@ -25,9 +25,4 @@
 
 SUBDIR=	atmconfig
 
-# Disabled in 7.0 as netatm is not MPSAFE.
-#	atm \
-#	fore_dnld \
-#	ilmid
-
 .include <bsd.subdir.mk>
