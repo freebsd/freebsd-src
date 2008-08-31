@@ -1509,7 +1509,9 @@ sc_cnputc(struct consdev *cd, int c)
     scr_stat *scp = sc_console;
     void *save;
 #ifndef SC_NO_HISTORY
+#if 0
     struct tty *tp;
+#endif
 #endif /* !SC_NO_HISTORY */
     int s;
 
@@ -1526,11 +1528,18 @@ sc_cnputc(struct consdev *cd, int c)
 	    scp->status |= CURSOR_ENABLED;
 	    sc_draw_cursor_image(scp);
 	}
+#if 0
+	/*
+	 * XXX: Now that TTY's have their own locks, we cannot process
+	 * any data after disabling scroll lock. cnputs already holds a
+	 * spinlock.
+	 */
 	tp = SC_DEV(scp->sc, scp->index);
 	tty_lock(tp);
 	if (tty_opened(tp))
 	    sctty_outwakeup(tp);
 	tty_unlock(tp);
+#endif
     }
 #endif /* !SC_NO_HISTORY */
 
