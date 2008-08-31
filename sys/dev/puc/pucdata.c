@@ -644,6 +644,15 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	/* VScom PCI-100L: 1S */
+	{   "VScom PCI-100L",
+	    {	0x14d2,	0x8010,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ * 8 },
+	    },
+	},
+
 	/* VScom PCI-200L: 2S */
 	{   "VScom PCI-200L",
 	    {	0x14d2,	0x8020,	0,	0	},
@@ -1095,6 +1104,17 @@ const struct puc_device_description puc_devices[] = {
 	    },
 	},
 
+	{   "Avlab Low Profile PCI IO 4S-850 Serial",
+	    {	0x14db,	0x2152,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x14, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x18, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
+	    },
+	},
+
 	/* Decision Computer Inc, serial ports */
 	{   "Decision Computer Inc, PCCOM 4-port serial",
 	    {	0x6666,	0x0001,	0,	0	},
@@ -1104,6 +1124,21 @@ const struct puc_device_description puc_devices[] = {
 		{ PUC_PORT_TYPE_COM, 0x1c, 0x08, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x1c, 0x10, COM_FREQ },
 		{ PUC_PORT_TYPE_COM, 0x1c, 0x18, COM_FREQ },
+	    },
+	},
+
+	{   "Decision Computer Inc, PCCOM 4-port serial",
+	    {	0x6666,	0x0002,	0,	0	},
+	    {	0xffff,	0xffff,	0,	0	},
+	    {
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x00, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x08, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x10, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x18, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x20, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x28, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x30, COM_FREQ },
+		{ PUC_PORT_TYPE_COM, 0x1c, 0x38, COM_FREQ },
 	    },
 	},
 
