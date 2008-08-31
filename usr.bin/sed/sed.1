@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2007
+.Dd August 24, 2008
 .Dt SED 1
 .Os
 .Sh NAME
@@ -243,10 +243,17 @@ has the following two additions to regular expressions:
 In a context address, any character other than a backslash
 .Pq Dq \e
 or newline character may be used to delimit the regular expression.
+The opening delimiter needs to be preceded by a backslash
+unless it is a slash.
+For example, the context address
+.Li \exabcx
+is equivalent to
+.Li /abc/ .
 Also, putting a backslash character before the delimiting character
-causes the character to be treated literally.
-For example, in the context address \exabc\exdefx, the RE delimiter
-is an
+withing the regular expression causes the character to be treated literally.
+For example, in the context address
+.Li \exabc\exdefx ,
+the RE delimiter is an
 .Dq x
 and the second
 .Dq x
