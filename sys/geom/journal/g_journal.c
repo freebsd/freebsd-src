@@ -2843,7 +2843,7 @@ g_journal_switch_wait(struct g_journal_softc *sc)
 }
 
 static void
-g_journal_do_switch(struct g_class *classp, struct thread *td)
+g_journal_do_switch(struct g_class *classp)
 {
 	struct g_journal_softc *sc;
 	const struct g_journal_desc *desc;
@@ -2879,7 +2879,7 @@ g_journal_do_switch(struct g_class *classp, struct thread *td)
 		desc = g_journal_find_desc(mp->mnt_stat.f_fstypename);
 		if (desc == NULL)
 			continue;
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
 			continue;
 		/* mtx_unlock(&mountlist_mtx) was done inside vfs_busy() */
 
@@ -2973,7 +2973,7 @@ g_journal_do_switch(struct g_class *classp, struct thread *td)
 		vfs_write_resume(mp);
 next:
 		mtx_lock(&mountlist_mtx);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
 
@@ -3011,7 +3011,6 @@ next:
 static void
 g_journal_switcher(void *arg)
 {
-	struct thread *td = curthread;
 	struct g_class *mp;
 	struct bintime bt;
 	int error;
@@ -3033,7 +3032,7 @@ g_journal_switcher(void *arg)
 			    g_journal_cache_limit);
 		}
 		GJ_TIMER_START(1, &bt);
-		g_journal_do_switch(mp, td);
+		g_journal_do_switch(mp);
 		GJ_TIMER_STOP(1, &bt, "Entire switch time");
 		if (g_journal_sync_requested > 0) {
 			g_journal_sync_requested = 0;

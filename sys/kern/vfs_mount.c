@@ -472,8 +472,8 @@ mount_fini(void *mem, int size)
  * Allocate and initialize the mount point struct.
  */
 struct mount *
-vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
-    const char *fspath, struct thread *td)
+vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
+    struct ucred *cred)
 {
 	struct mount *mp;
 
@@ -483,7 +483,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_nvnodelistsize = 0;
 	mp->mnt_ref = 0;
-	(void) vfs_busy(mp, LK_NOWAIT, 0, td);
+	(void) vfs_busy(mp, LK_NOWAIT, 0);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;	/* XXX Unlocked */
@@ -491,13 +491,13 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp,
 	mp->mnt_gen++;
 	strlcpy(mp->mnt_stat.f_fstypename, vfsp->vfc_name, MFSNAMELEN);
 	mp->mnt_vnodecovered = vp;
-	mp->mnt_cred = crdup(td->td_ucred);
-	mp->mnt_stat.f_owner = td->td_ucred->cr_uid;
+	mp->mnt_cred = crdup(cred);
+	mp->mnt_stat.f_owner = cred->cr_uid;
 	strlcpy(mp->mnt_stat.f_mntonname, fspath, MNAMELEN);
 	mp->mnt_iosize_max = DFLTPHYS;
 #ifdef MAC
 	mac_mount_init(mp);
-	mac_mount_create(td->td_ucred, mp);
+	mac_mount_create(cred, mp);
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
 	return (mp);
@@ -932,7 +932,7 @@ vfs_domount(
 			vput(vp);
 			return (error);
 		}
-		if (vfs_busy(mp, LK_NOWAIT, 0, td)) {
+		if (vfs_busy(mp, LK_NOWAIT, 0)) {
 			vput(vp);
 			return (EBUSY);
 		}
@@ -940,7 +940,7 @@ vfs_domount(
 		if ((vp->v_iflag & VI_MOUNT) != 0 ||
 		    vp->v_mountedhere != NULL) {
 			VI_UNLOCK(vp);
-			vfs_unbusy(mp, td);
+			vfs_unbusy(mp);
 			vput(vp);
 			return (EBUSY);
 		}
@@ -993,7 +993,7 @@ vfs_domount(
 		/*
 		 * Allocate and initialize the filesystem.
 		 */
-		mp = vfs_mount_alloc(vp, vfsp, fspath, td);
+		mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
 		VOP_UNLOCK(vp, 0);
 
 		/* XXXMAC: pass to vfs_mount_alloc? */
@@ -1059,7 +1059,7 @@ vfs_domount(
 				vrele(mp->mnt_syncer);
 			mp->mnt_syncer = NULL;
 		}
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
@@ -1095,14 +1095,14 @@ vfs_domount(
 		VOP_UNLOCK(vp, 0);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		if (error)
 			vrele(vp);
 	} else {
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
 		vput(vp);
 	}
@@ -1514,7 +1514,7 @@ devfs_first(void)
 	if (vfsp == NULL)
 		return;
 
-	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td);
+	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td->td_ucred);
 
 	error = VFS_MOUNT(mp, td);
 	KASSERT(error == 0, ("VFS_MOUNT(devfs) failed %d", error));
@@ -1589,7 +1589,7 @@ devfs_fixup(struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	VOP_UNLOCK(vp, 0);
 	vput(dvp);
-	vfs_unbusy(mp, td);
+	vfs_unbusy(mp);
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
 	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
