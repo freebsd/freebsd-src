@@ -172,7 +172,7 @@ main(int argc, char *argv[])
 
 	error = extattr_string_to_namespace(argv[0], &attrnamespace);
 	if (error)
-		err(-1, argv[0]);
+		err(-1, "%s", argv[0]);
 	argc--; argv++;
 
 	if (what != EALS) {
