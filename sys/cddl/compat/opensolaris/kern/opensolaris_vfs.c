@@ -193,7 +193,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 	 * Allocate and initialize the filesystem.
 	 */
 	vn_lock(vp, LK_SHARED | LK_RETRY);
-	mp = vfs_mount_alloc(vp, vfsp, fspath, td);
+	mp = vfs_mount_alloc(vp, vfsp, fspath, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
 
 	mp->mnt_optnew = NULL;
@@ -263,7 +263,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		VOP_UNLOCK(vp, 0);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		if (error)
 			vrele(vp);
 		else
@@ -273,7 +273,7 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
 		VOP_UNLOCK(vp, 0);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
 	}
 	return (error);

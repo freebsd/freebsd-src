@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2001
+.Dd August 29, 2008
 .Dt VFS_UNBUSY 9
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft void
-.Fn vfs_unbusy "struct mount *mp" "struct thread *td"
+.Fn vfs_unbusy "struct mount *mp"
 .Sh DESCRIPTION
 The
 .Fn vfs_unbusy
@@ -50,8 +50,6 @@ Its arguments are:
 .Bl -tag -width ".Fa mp"
 .It Fa mp
 The mount point to unbusy (unlock).
-.It Fa td
-The thread responsible for this call.
 .El
 .Sh LOCKS
 .Va mnt_lock

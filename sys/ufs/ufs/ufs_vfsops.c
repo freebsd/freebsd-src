@@ -118,7 +118,7 @@ ufs_quotactl(mp, cmds, id, arg, td)
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
 
-	if (vfs_busy(mp, LK_NOWAIT, 0, td))
+	if (vfs_busy(mp, LK_NOWAIT, 0))
 		return (0);
 
 	switch (cmd) {
@@ -150,7 +150,7 @@ ufs_quotactl(mp, cmds, id, arg, td)
 		error = EINVAL;
 		break;
 	}
-	vfs_unbusy(mp, td);
+	vfs_unbusy(mp);
 	return (error);
 #endif
 }

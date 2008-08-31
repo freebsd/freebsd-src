@@ -680,7 +680,7 @@ int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_msync(struct mount *, int);
-int	vfs_busy(struct mount *, int, struct mtx *, struct thread *);
+int	vfs_busy(struct mount *, int, struct mtx *);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
 int	vfs_allocate_syncvnode(struct mount *);
@@ -694,9 +694,9 @@ void	vfs_mountedfrom(struct mount *, const char *from);
 void	vfs_ref(struct mount *);
 void	vfs_rel(struct mount *);
 struct mount *vfs_mount_alloc(struct vnode *, struct vfsconf *, const char *,
-	    struct thread *);
+	    struct ucred *);
 int	vfs_suser(struct mount *, struct thread *);
-void	vfs_unbusy(struct mount *, struct thread *);
+void	vfs_unbusy(struct mount *);
 void	vfs_unmountall(void);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
