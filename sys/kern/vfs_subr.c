@@ -338,8 +338,7 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
  * unmounting. Interlock is not released on failure.
  */
 int
-vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
-    struct thread *td)
+vfs_busy(struct mount *mp, int flags, struct mtx *interlkp)
 {
 	int lkflags;
 
@@ -379,7 +378,7 @@ vfs_busy(struct mount *mp, int flags, struct mtx *interlkp,
  * Free a busy filesystem.
  */
 void
-vfs_unbusy(struct mount *mp, struct thread *td)
+vfs_unbusy(struct mount *mp)
 {
 
 	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
@@ -573,7 +572,6 @@ vattr_null(struct vattr *vap)
 static int
 vlrureclaim(struct mount *mp)
 {
-	struct thread *td;
 	struct vnode *vp;
 	int done;
 	int trigger;
@@ -592,7 +590,6 @@ vlrureclaim(struct mount *mp)
 		usevnodes = 1;
 	trigger = cnt.v_page_count * 2 / usevnodes;
 	done = 0;
-	td = curthread;
 	vn_start_write(NULL, &mp, V_WAIT);
 	MNT_ILOCK(mp);
 	count = mp->mnt_nvnodelistsize / 10 + 1;
@@ -727,7 +724,6 @@ vnlru_proc(void)
 	struct mount *mp, *nmp;
 	int done;
 	struct proc *p = vnlruproc;
-	struct thread *td = curthread;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_FIRST);
@@ -751,7 +747,7 @@ vnlru_proc(void)
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			int vfsunlocked;
-			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
+			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
@@ -765,7 +761,7 @@ vnlru_proc(void)
 				mtx_lock(&Giant);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
-			vfs_unbusy(mp, td);
+			vfs_unbusy(mp);
 		}
 		mtx_unlock(&mountlist_mtx);
 		if (done == 0) {
@@ -2988,7 +2984,6 @@ static int
 sysctl_vnode(SYSCTL_HANDLER_ARGS)
 {
 	struct xvnode *xvn;
-	struct thread *td = req->td;
 	struct mount *mp;
 	struct vnode *vp;
 	int error, len, n;
@@ -3009,7 +3004,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	n = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td))
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
 			continue;
 		MNT_ILOCK(mp);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
@@ -3060,7 +3055,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		}
 		MNT_IUNLOCK(mp);
 		mtx_lock(&mountlist_mtx);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		if (n == len)
 			break;
 	}
@@ -3337,7 +3332,6 @@ sync_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
-	struct thread *td = ap->a_td;
 	int error;
 	struct bufobj *bo;
 
@@ -3360,12 +3354,12 @@ sync_fsync(struct vop_fsync_args *ap)
 	 * not already on the sync list.
 	 */
 	mtx_lock(&mountlist_mtx);
-	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx, td) != 0) {
+	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx) != 0) {
 		mtx_unlock(&mountlist_mtx);
 		return (0);
 	}
 	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		return (0);
 	}
 	MNT_ILOCK(mp);
@@ -3373,14 +3367,14 @@ sync_fsync(struct vop_fsync_args *ap)
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	vfs_msync(mp, MNT_NOWAIT);
-	error = VFS_SYNC(mp, MNT_LAZY, td);
+	error = VFS_SYNC(mp, MNT_LAZY, ap->a_td);
 	MNT_ILOCK(mp);
 	mp->mnt_noasync--;
 	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
 	vn_finished_write(mp);
-	vfs_unbusy(mp, td);
+	vfs_unbusy(mp);
 	return (error);
 }
 

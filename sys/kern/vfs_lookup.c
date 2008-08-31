@@ -688,7 +688,7 @@ unionlookup:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
-		if (vfs_busy(mp, 0, 0, td))
+		if (vfs_busy(mp, 0, 0))
 			continue;
 		vput(dp);
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -702,7 +702,7 @@ unionlookup:
 		vref(vp_crossmp);
 		ndp->ni_dvp = vp_crossmp;
 		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT))
 			panic("vp_crossmp exclusively locked or reclaimed");
 		if (error) {

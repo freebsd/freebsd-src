@@ -124,7 +124,7 @@ sync(td, uap)
 
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -148,7 +148,7 @@ sync(td, uap)
 		VFS_UNLOCK_GIANT(vfslocked);
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
 	return (0);
@@ -197,14 +197,14 @@ quotactl(td, uap)
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = nd.ni_vp->v_mount;
-	if ((error = vfs_busy(mp, 0, NULL, td))) {
+	if ((error = vfs_busy(mp, 0, NULL))) {
 		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 	vrele(nd.ni_vp);
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
-	vfs_unbusy(mp, td);
+	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -479,7 +479,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			continue;
 		}
 #endif
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, td)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -504,7 +504,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 				VFS_UNLOCK_GIANT(vfslocked);
 				mtx_lock(&mountlist_mtx);
 				nmp = TAILQ_NEXT(mp, mnt_list);
-				vfs_unbusy(mp, td);
+				vfs_unbusy(mp);
 				continue;
 			}
 			if (priv_check(td, PRIV_VFS_GENERATION)) {
@@ -518,7 +518,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			else /* if (bufseg == UIO_USERSPACE) */ {
 				error = copyout(sp, sfsp, sizeof(*sp));
 				if (error) {
-					vfs_unbusy(mp, td);
+					vfs_unbusy(mp);
 					VFS_UNLOCK_GIANT(vfslocked);
 					return (error);
 				}
@@ -529,7 +529,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 		count++;
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
 	if (sfsp && count > maxcount)
@@ -741,11 +741,11 @@ fchdir(td, uap)
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
-		if (vfs_busy(mp, 0, 0, td))
+		if (vfs_busy(mp, 0, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
 		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
-		vfs_unbusy(mp, td);
+		vfs_unbusy(mp);
 		if (error) {
 			VFS_UNLOCK_GIANT(tvfslocked);
 			break;
