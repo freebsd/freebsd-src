@@ -603,7 +603,7 @@ umodem_param(void *addr, int portno, struct termios *t)
 	err = umodem_set_line_coding(sc, &ls);
 	if (err) {
 		DPRINTF(("umodem_param: err=%s\n", usbd_errstr(err)));
-		return (ENOTTY);
+		return (EIO);
 	}
 	return (0);
 }
