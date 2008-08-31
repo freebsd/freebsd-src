@@ -2,16 +2,19 @@
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-.if ${TARGET_ARCH} == "arm"
-GCC_CPU=	arm
-.elif ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64"
 GCC_CPU=	i386
-.elif ${TARGET_ARCH} == "ia64"
-TARGET_CPU_DEFAULT= MASK_GNU_AS|MASK_GNU_LD
-GCC_CPU=	ia64
 .elif ${TARGET_ARCH} == "powerpc"
 GCC_CPU=	rs6000
 .elif ${TARGET_ARCH} == "sparc64"
 GCC_CPU=	sparc
+.else
+GCC_CPU=	${TARGET_ARCH}
+.endif
+
+.if ${TARGET_ARCH} == "ia64"
+TARGET_CPU_DEFAULT= MASK_GNU_AS|MASK_GNU_LD
+.endif
+.if ${TARGET_ARCH} == "sparc64"
 TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
 .endif
