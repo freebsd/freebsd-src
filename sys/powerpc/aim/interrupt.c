@@ -76,6 +76,8 @@ powerpc_interrupt(struct trapframe *framep)
 
 	td = curthread;
 
+	CTR2(KTR_INTR, "%s: EXC=%x", __func__, framep->exc);
+
 	switch (framep->exc) {
 	case EXC_EXI:
 		atomic_add_int(&td->td_intr_nesting_level, 1);
