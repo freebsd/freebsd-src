@@ -262,7 +262,7 @@ au_to_data(char unit_print, char unit_type, char unit_count, char *p)
 		break;
 
 	default:
- 		return (NULL);
+		return (NULL);
 	}
 
 	totdata = datasize * unit_count;
@@ -918,7 +918,7 @@ au_to_sock_inet32(struct sockaddr_in *so)
 	 *
 	 * XXXRW: Should a name space conversion be taking place on the value
 	 * of sin_family?
- 	 */
+	 */
 	family = so->sin_family;
 	ADD_U_INT16(dptr, family);
 	ADD_MEM(dptr, &so->sin_port, sizeof(uint16_t));
@@ -940,8 +940,8 @@ au_to_sock_inet128(struct sockaddr_in6 *so)
 	ADD_U_CHAR(dptr, AUT_SOCKINET128);
 	/*
 	 * In Darwin, sin6_family is one octet, but BSM defines the token
- 	 * to store two. So we copy in a 0 first.
- 	 */
+	 * to store two. So we copy in a 0 first.
+	 */
 	ADD_U_CHAR(dptr, 0);
 	ADD_U_CHAR(dptr, so->sin6_family);
 

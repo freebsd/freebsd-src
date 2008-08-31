@@ -109,7 +109,7 @@ struct groupset {
 };
 
 struct socket_au_info {
-	int 		so_domain;
+	int		so_domain;
 	int		so_type;
 	int		so_protocol;
 	in_addr_t	so_raddr;	/* Remote address if INET socket. */

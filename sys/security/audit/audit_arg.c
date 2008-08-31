@@ -429,7 +429,7 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 
 	case AF_UNIX:
 		audit_arg_upath(td, ((struct sockaddr_un *)sa)->sun_path,
-				ARG_UPATH1);
+		    ARG_UPATH1);
 		ARG_SET_VALID(ar, ARG_SADDRUNIX);
 		break;
 	/* XXXAUDIT: default:? */
@@ -671,9 +671,9 @@ audit_arg_file(struct proc *p, struct file *fp)
 
 /*
  * Store a path as given by the user process for auditing into the audit
- * record stored on the user thread. This function will allocate the memory
- * to store the path info if not already available. This memory will be freed
- * when the audit record is freed.
+ * record stored on the user thread.  This function will allocate the memory
+ * to store the path info if not already available.  This memory will be
+ * freed when the audit record is freed.
  *
  * XXXAUDIT: Possibly assert that the memory isn't already allocated?
  */
