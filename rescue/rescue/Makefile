@@ -70,7 +70,8 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 #
 CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
-	 ed expr getfacl hostname kenv kill ln ls mkdir mv pax ps pwd 	\
+	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
+	 pax pkill ps pwd 	\
 	 realpath rm rmdir setfacl sh stty sync test
 CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
 .if ${MK_OPENSSL} != "no"
@@ -85,9 +86,6 @@ CRUNCH_SUPPRESS_LINK_-sh= 1
 CRUNCH_ALIAS_ln= link
 CRUNCH_ALIAS_rm= unlink
 CRUNCH_ALIAS_ed= red
-
-CRUNCH_PROGS_bin+= pkill
-CRUNCH_SRCDIR_pkill= ${.CURDIR}/../../usr.bin/pkill
 CRUNCH_ALIAS_pkill= pgrep
 
 .if ${MK_RCMDS} != "no"
