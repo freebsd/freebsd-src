@@ -65,6 +65,7 @@ SRCS=	archive_check_magic.c				\
 	archive_write_set_format_by_name.c		\
 	archive_write_set_format_cpio.c			\
 	archive_write_set_format_cpio_newc.c		\
+	archive_write_set_format_mtree.c		\
 	archive_write_set_format_pax.c			\
 	archive_write_set_format_shar.c			\
 	archive_write_set_format_ustar.c		\
