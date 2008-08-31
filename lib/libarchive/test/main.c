@@ -40,9 +40,11 @@
  * The next few lines are the only differences.
  */
 #undef	PROGRAM              /* Testing a library, not a program. */
+#define	LIBRARY	"libarchive"
 #define	ENVBASE "LIBARCHIVE" /* Prefix for environment variables. */
 #define	EXTRA_DUMP(x)	archive_error_string((struct archive *)(x))
 #define	EXTRA_VERSION	archive_version()
+#define KNOWNREF	"test_compat_gtar_1.tgz.uu"
 __FBSDID("$FreeBSD$");
 
 /*
@@ -841,6 +843,52 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+static char *
+get_refdir(const char *tmpdir)
+{
+	char *ref, *p;
+
+	/* Get the current dir. */
+	systemf("/bin/pwd > %s/refdir", tmpdir);
+	ref = slurpfile(NULL, "%s/refdir", tmpdir);
+	p = ref + strlen(ref);
+	while (p[-1] == '\n') {
+		--p;
+		*p = '\0';
+	}
+	systemf("rm %s/refdir", tmpdir);
+	/* Look for a known file. */
+	p = slurpfile(NULL, "%s/%s", ref, KNOWNREF);
+	if (p != NULL) {
+		free(p);
+		return (ref);
+	}
+	p = slurpfile(NULL, "%s/test/%s", ref, KNOWNREF);
+	if (p != NULL) {
+		free(p);
+		p = malloc(strlen(ref) + strlen("/test") + 1);
+		strcpy(p, ref);
+		strcat(p, "/test");
+		free(ref);
+		return (p);
+	}
+	p = slurpfile(NULL, "%s/%s/test/%s", ref, LIBRARY, KNOWNREF);
+	if (p != NULL) {
+		free(p);
+		p = malloc(strlen(ref) + 1 + strlen(LIBRARY) + strlen("/test") + 1);
+		strcpy(p, ref);
+		strcat(p, "/");
+		strcat(p, LIBRARY);
+		strcat(p, "/test");
+		free(ref);
+		return (p);
+	}
+	printf("Unable to locate known reference file %s\n", KNOWNREF);
+	printf("  Checked directory %s\n", ref);
+	printf("  Checked directory %s/test\n", ref);
+	printf("  Checked directory %s/%s/test\n", ref, LIBRARY);
+	exit(1);
+}
 
 int main(int argc, char **argv)
 {
@@ -940,18 +988,11 @@ int main(int argc, char **argv)
 
 	/*
 	 * If the user didn't specify a directory for locating
-	 * reference files, use the current directory for that.
+	 * reference files, try to find the reference files in
+	 * the "usual places."
 	 */
-	if (refdir == NULL) {
-		systemf("/bin/pwd > %s/refdir", tmpdir);
-		refdir = refdir_alloc = slurpfile(NULL, "%s/refdir", tmpdir);
-		p = refdir + strlen(refdir);
-		while (p[-1] == '\n') {
-			--p;
-			*p = '\0';
-		}
-		systemf("rm %s/refdir", tmpdir);
-	}
+	if (refdir == NULL)
+		refdir = refdir_alloc = get_refdir(tmpdir);
 
 	/*
 	 * Banner with basic information.
