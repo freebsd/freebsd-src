@@ -188,6 +188,8 @@ struct tv32 {
 #define F_NIGROUP	0x40000
 #define F_SUPTYPES	0x80000
 #define F_NOMINMTU	0x100000
+#define F_AUDIBLE	0x400000
+#define F_MISSED	0x800000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
 u_int options;
 
@@ -214,6 +216,7 @@ int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
 u_char outpack[MAXPACKETLEN];
 char BSPACE = '\b';		/* characters written for flood */
+char BBELL = '\a';		/* characters written for AUDIBLE */
 char DOT = '.';
 char *hostname;
 int ident;			/* process id to identify our packets */
@@ -222,6 +225,7 @@ int hoplimit = -1;		/* hoplimit */
 int pathmtu = 0;		/* path MTU for the destination.  0 = unspec. */
 
 /* counters */
+long nmissedmax;		/* max value of ntransmitted - nreceived - 1 */
 long npackets;			/* max packets to transmit */
 long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
@@ -344,7 +348,7 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:dfHg:h:I:i:l:mnNp:qS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:dfHg:h:I:i:l:mnNp:qrRS:s:tvwW" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -491,6 +495,12 @@ main(argc, argv)
 				break;
 		case 'q':
 			options |= F_QUIET;
+			break;
+		case 'r':
+			options |= F_AUDIBLE;
+			break;
+		case 'R':
+			options |= F_MISSED;
 			break;
 		case 'S':
 			memset(&hints, 0, sizeof(struct addrinfo));
@@ -1169,6 +1179,11 @@ main(argc, argv)
 		}
 		if (npackets && nreceived >= npackets)
 			break;
+		if (ntransmitted - nreceived - 1 > nmissedmax) {
+			nmissedmax = ntransmitted - nreceived - 1;
+			if (options & F_MISSED)
+				(void)write(STDOUT_FILENO, &BBELL, 1);
+		}
 	}
 	summary();
 	exit(nreceived == 0 ? 2 : 0);
@@ -1550,6 +1565,8 @@ pr_pack(buf, cc, mhdr)
 		if (options & F_FLOOD)
 			(void)write(STDOUT_FILENO, &BSPACE, 1);
 		else {
+			if (options & F_AUDIBLE)
+				(void)write(STDOUT_FILENO, &BBELL, 1);
 			(void)printf("%d bytes from %s, icmp_seq=%u", cc,
 			    pr_addr(from, fromlen), seq);
 			(void)printf(" hlim=%d", hoplim);
@@ -2766,7 +2783,7 @@ usage()
 #ifdef IPV6_USE_MIN_MTU
 	    "m"
 #endif
-	    "nNqtvwW] "
+	    "nNqrRtvwW] "
 	    "[-a addrtype] [-b bufsiz] [-c count] [-g gateway]\n"
 	    "             [-h hoplimit] [-I interface] [-i wait] [-l preload]"
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
