@@ -120,9 +120,6 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 
 .if ${MK_ATM} != "no"
 CRUNCH_PROGS_sbin+= atmconfig
-# Disabled in 7.0 as netatm is not MPSAFE.
-#CRUNCH_PROGS_sbin+= atm fore_dnld ilmid
-#CRUNCH_LIBS+= -latm
 .endif
 
 .if ${MK_INET6_SUPPORT} != "no"

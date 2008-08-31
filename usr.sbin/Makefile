@@ -201,11 +201,6 @@ SUBDIR=	ac \
 _sysinstall=	sysinstall
 .endif
 
-# Disabled in 7.0 as netatm is not MPSAFE.
-#.if ${MK_ATM} != "no"
-#_atm=		atm
-#.endif
-
 .if ${MK_AUDIT} != "no"
 _audit= 	audit
 _auditd=	auditd
