@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999-2005 Apple Inc.
  * All rights reserved.
  *

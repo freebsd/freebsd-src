@@ -230,7 +230,7 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 	case KERN_IOV_MAX:
 	case KERN_MAXID:
 		return ((valid_arg & ARG_VALUE) ?
-			AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
+		    AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
 
 	default:
 		return (AUE_SYSCTL);
@@ -397,7 +397,7 @@ audit_semctl_to_event(int cmd)
 		return (AUE_SEMCTL_STAT);
 
 	default:
-		/* We will audit a bad command */
+		/* We will audit a bad command. */
 		return (AUE_SEMCTL);
 	}
 }
