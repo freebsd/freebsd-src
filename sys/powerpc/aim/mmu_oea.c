@@ -1241,8 +1241,6 @@ void
 moea_init(mmu_t mmu)
 {
 
-	CTR0(KTR_PMAP, "moea_init");
-
 	moea_upvo_zone = uma_zcreate("UPVO entry", sizeof (struct pvo_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
@@ -1571,10 +1569,6 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 	int	pteidx;
-
-	CTR4(KTR_PMAP, "moea_protect: pm=%p sva=%#x eva=%#x prot=%#x", pm, sva,
-	    eva, prot);
-
 
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("moea_protect: non current pmap"));
