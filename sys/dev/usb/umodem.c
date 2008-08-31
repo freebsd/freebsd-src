@@ -194,14 +194,12 @@ static void	umodem_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void	umodem_notify(void *, int);
 
 static struct ucom_callback umodem_callback = {
-	umodem_get_status,
-	umodem_set,
-	umodem_param,
-	umodem_ioctl,
-	umodem_open,
-	umodem_close,
-	NULL,
-	NULL,
+	.ucom_get_status = umodem_get_status,
+	.ucom_set = umodem_set,
+	.ucom_param = umodem_param,
+	.ucom_ioctl = umodem_ioctl,
+	.ucom_open = umodem_open,
+	.ucom_close = umodem_close
 };
 
 static device_probe_t umodem_match;
@@ -635,7 +633,7 @@ umodem_ioctl(void *addr, int portno, u_long cmd, caddr_t data,
 
 	default:
 		DPRINTF(("umodemioctl: unknown\n"));
-		error = ENOTTY;
+		error = ENOIOCTL;
 		break;
 	}
 
