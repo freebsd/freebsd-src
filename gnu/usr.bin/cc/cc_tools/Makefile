@@ -38,22 +38,25 @@ TARGET_INC+=	freebsd-native.h
 TARGET_INC+=	freebsd-spec.h
 TARGET_INC+=	freebsd.h
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
-.if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
+. if exists(${GCCDIR}/config/${GCC_CPU}/sysv4.h)
 TARGET_INC+=	${GCC_CPU}/sysv4.h
-.endif
+. endif
 .endif
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/x86-64.h
-TARGET_INC+=	${GCC_CPU}/freebsd.h
-TARGET_INC+=	${GCC_CPU}/freebsd64.h
-TARGET_INC+=	freebsd64-fix.h
-.elif ${TARGET_ARCH} == "arm"
+.endif
+.if ${TARGET_ARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/elf.h
+.endif
+.if ${TARGET_ARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/aout.h
+.endif
 TARGET_INC+=	${GCC_CPU}/freebsd.h
+.if ${TARGET_ARCH} == "amd64"
+TARGET_INC+=	${GCC_CPU}/freebsd64.h
+.endif
+.if ${TARGET_ARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/arm.h
-.else
-TARGET_INC+=	${GCC_CPU}/freebsd.h
 .endif
 TARGET_INC+=	defaults.h
 

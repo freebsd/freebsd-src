@@ -23,7 +23,7 @@ Boston, MA 02110-1301, USA.  */
 
 
 #undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/x86-64 ELF)");
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/amd64 ELF)");
 
 #undef  FBSD_TARGET_CPU_CPP_BUILTINS
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
