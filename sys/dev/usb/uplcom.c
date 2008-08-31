@@ -196,9 +196,6 @@ static	void uplcom_rts(struct uplcom_softc *, int);
 static	void uplcom_break(struct uplcom_softc *, int);
 static	void uplcom_set_line_state(struct uplcom_softc *);
 static	void uplcom_get_status(void *, int, u_char *, u_char *);
-#if 0 /* TODO */
-static	int  uplcom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
-#endif
 static	int  uplcom_param(void *, int, struct termios *);
 static	int  uplcom_open(void *, int);
 static	void uplcom_close(void *, int);
@@ -208,7 +205,7 @@ struct ucom_callback uplcom_callback = {
 	uplcom_get_status,
 	uplcom_set,
 	uplcom_param,
-	NULL, /* uplcom_ioctl, TODO */
+	NULL,
 	uplcom_open,
 	uplcom_close,
 	NULL,
@@ -991,34 +988,3 @@ uplcom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 	if (msr != NULL)
 		*msr = sc->sc_msr;
 }
-
-#if 0 /* TODO */
-static int
-uplcom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
-	     struct thread *p)
-{
-	struct uplcom_softc *sc = addr;
-	int error = 0;
-
-	if (sc->sc_ucom.sc_dying)
-		return (EIO);
-
-	DPRINTF(("uplcom_ioctl: cmd = 0x%08lx\n", cmd));
-
-	switch (cmd) {
-	case TIOCNOTTY:
-	case TIOCMGET:
-	case TIOCMSET:
-	case USB_GET_CM_OVER_DATA:
-	case USB_SET_CM_OVER_DATA:
-		break;
-
-	default:
-		DPRINTF(("uplcom_ioctl: unknown\n"));
-		error = ENOTTY;
-		break;
-	}
-
-	return (error);
-}
-#endif

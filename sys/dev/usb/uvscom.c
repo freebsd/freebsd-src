@@ -194,9 +194,6 @@ static	void uvscom_break(struct uvscom_softc *, int);
 
 static	void uvscom_set(void *, int, int, int);
 static	void uvscom_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
-#if 0 /* TODO */
-static	int  uvscom_ioctl(void *, int, u_long, caddr_t, int, usb_proc_ptr);
-#endif
 static	int  uvscom_param(void *, int, struct termios *);
 static	int  uvscom_open(void *, int);
 static	void uvscom_close(void *, int);
@@ -206,7 +203,7 @@ struct ucom_callback uvscom_callback = {
 	uvscom_get_status,
 	uvscom_set,
 	uvscom_param,
-	NULL, /* uvscom_ioctl, TODO */
+	NULL,
 	uvscom_open,
 	uvscom_close,
 	NULL,
@@ -907,32 +904,3 @@ uvscom_get_status(void *addr, int portno, u_char *lsr, u_char *msr)
 	if (msr != NULL)
 		*msr = sc->sc_msr;
 }
-
-#if 0 /* TODO */
-static int
-uvscom_ioctl(void *addr, int portno, u_long cmd, caddr_t data, int flag,
-	     struct thread *p)
-{
-	struct uvscom_softc *sc = addr;
-	int error = 0;
-
-	if (sc->sc_ucom.sc_dying)
-		return (EIO);
-
-	DPRINTF(("uvscom_ioctl: cmd = 0x%08lx\n", cmd));
-
-	switch (cmd) {
-	case TIOCNOTTY:
-	case TIOCMGET:
-	case TIOCMSET:
-		break;
-
-	default:
-		DPRINTF(("uvscom_ioctl: unknown\n"));
-		error = ENOTTY;
-		break;
-	}
-
-	return (error);
-}
-#endif
