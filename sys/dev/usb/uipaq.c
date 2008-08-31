@@ -104,14 +104,7 @@ static void	uipaq_break(struct uipaq_softc* sc, int onoff);
 int uipaq_detach(device_t self);
 
 struct ucom_callback uipaq_callback = {
-	NULL,
-	uipaq_set,
-	NULL,
-	NULL,
-	NULL,	/*open*/
-	NULL,	/*close*/
-	NULL,
-	NULL
+	.ucom_set = uipaq_set
 };
 
 struct uipaq_type {
