@@ -603,14 +603,14 @@ const struct puc_cfg puc_pci_devices[] = {
 	},
 
 	{   0x1415, 0x9501, 0xffff, 0,
-	    "Oxford Semiconductor OX16PCI954 UARTs",
-	    DEFAULT_RCLK,
+	    "Oxford Semiconductor OX16PCI954 UARTs 4-port type 1",
+	    DEFAULT_RCLK * 10,
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
 
 	{   0x1415, 0x950a, 0xffff, 0,
-	    "Oxford Semiconductor OX16PCI954 UARTs",
-	    DEFAULT_RCLK,
+	    "Oxford Semiconductor OX16PCI954 UARTs 4-port type 2",
+	    DEFAULT_RCLK * 10,
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
 
@@ -624,6 +624,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Oxford Semiconductor OX16PCI952 UARTs",
 	    DEFAULT_RCLK,
 	    PUC_PORT_2S, 0x10, 4, 0,
+	},
+
+	{   0x14d2, 0x8010, 0xffff, 0,
+	    "VScom PCI-100L",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_1S, 0x14, 0, 0,
 	},
 
 	{   0x14d2, 0x8020, 0xffff, 0,
@@ -694,6 +700,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 4, 0,
 	},
 
+	{   0x14db, 0x2152, 0xffff, 0,
+	    "Avlab Low Profile PCI 4 Serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_4S, 0x10, 4, 0,
+	},
+
 	{   0x1592, 0x0781, 0xffff, 0,
 	    "Syba Tech Ltd. PCI-4S2P-550-ECP",
 	    DEFAULT_RCLK,
@@ -705,6 +717,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Decision Computer Inc, PCCOM 4-port serial",
 	    DEFAULT_RCLK,
 	    PUC_PORT_4S, 0x1c, 0, 8,
+	},
+
+	{   0x6666, 0x0002, 0xffff, 0,
+	    "Decision Computer Inc, PCCOM 8-port serial",
+	    DEFAULT_RCLK,
+	    PUC_PORT_8S, 0x1c, 0, 8,
 	},
 
 	{   0x6666, 0x0004, 0xffff, 0,
