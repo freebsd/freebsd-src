@@ -34,11 +34,13 @@
 #include <sys/param.h>
 #include <sys/domain.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <net/raw_cb.h>
@@ -55,8 +57,15 @@
 struct mtx rawcb_mtx;
 struct rawcb_list_head rawcb_list;
 
-const static u_long	raw_sendspace = RAWSNDQ;
-const static u_long	raw_recvspace = RAWRCVQ;
+SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0, "Raw socket infrastructure");
+
+static u_long	raw_sendspace = RAWSNDQ;
+SYSCTL_ULONG(_net_raw, OID_AUTO, sendspace, CTLFLAG_RW, &raw_sendspace, 0,
+    "Default raw socket send space");
+
+static u_long	raw_recvspace = RAWRCVQ;
+SYSCTL_ULONG(_net_raw, OID_AUTO, recvspace, CTLFLAG_RW, &raw_recvspace, 0,
+    "Default raw socket receive space");
 
 /*
  * Allocate a control block and a nominal amount of buffer space for the
