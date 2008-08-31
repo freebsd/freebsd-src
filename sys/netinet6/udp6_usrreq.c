@@ -308,9 +308,9 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badheadlocked;
 		}
 		INP_RLOCK(last);
+		INP_INFO_RUNLOCK(&V_udbinfo);
 		udp6_append(last, m, off, &fromsa);
 		INP_RUNLOCK(last);
-		INP_INFO_RUNLOCK(&V_udbinfo);
 		return (IPPROTO_DONE);
 	}
 	/*
@@ -465,8 +465,6 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 		INP_INFO_RUNLOCK(&V_udbinfo);
 		error = ENOENT;
 	}
-	INP_RUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_udbinfo);
 	if (error == 0)
 		error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 	return (error);
