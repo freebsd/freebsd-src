@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1980, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,29 +53,25 @@ MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
  * Initialize raw connection block q.
  */
 void
-raw_init()
+raw_init(void)
 {
 
 	LIST_INIT(&rawcb_list);
 }
 
-
 /*
- * Raw protocol input routine.  Find the socket
- * associated with the packet(s) and move them over.  If
- * nothing exists for this packet, drop it.
+ * Raw protocol input routine.  Find the socket associated with the packet(s)
+ * and move them over.  If nothing exists for this packet, drop it.
  */
 /*
  * Raw protocol interface.
  */
 void
-raw_input(m0, proto, src, dst)
-	struct mbuf *m0;
-	register struct sockproto *proto;
-	struct sockaddr *src, *dst;
+raw_input(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src,
+    struct sockaddr *dst)
 {
-	register struct rawcb *rp;
-	register struct mbuf *m = m0;
+	struct rawcb *rp;
+	struct mbuf *m = m0;
 	struct socket *last;
 
 	last = 0;
@@ -86,12 +83,11 @@ raw_input(m0, proto, src, dst)
 		    rp->rcb_proto.sp_protocol != proto->sp_protocol)
 			continue;
 		/*
-		 * We assume the lower level routines have
-		 * placed the address in a canonical format
-		 * suitable for a structure comparison.
+		 * We assume the lower level routines have placed the address
+		 * in a canonical format suitable for a structure comparison.
 		 *
-		 * Note that if the lengths are not the same
-		 * the comparison will fail at the first byte.
+		 * Note that if the lengths are not the same the comparison
+		 * will fail at the first byte.
 		 */
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), a1->sa_len) == 0)
@@ -107,9 +103,8 @@ raw_input(m0, proto, src, dst)
 				    n, (struct mbuf *)0) == 0)
 					/* should notify about lost packet */
 					m_freem(n);
-				else {
+				else
 					sorwakeup(last);
-				}
 			}
 		}
 		last = rp->rcb_socket;
@@ -118,9 +113,8 @@ raw_input(m0, proto, src, dst)
 		if (sbappendaddr(&last->so_rcv, src,
 		    m, (struct mbuf *)0) == 0)
 			m_freem(m);
-		else {
+		else
 			sorwakeup(last);
-		}
 	} else
 		m_freem(m);
 	mtx_unlock(&rawcb_mtx);
@@ -128,10 +122,7 @@ raw_input(m0, proto, src, dst)
 
 /*ARGSUSED*/
 void
-raw_ctlinput(cmd, arg, dummy)
-	int cmd;
-	struct sockaddr *arg;
-	void *dummy;
+raw_ctlinput(int cmd, struct sockaddr *arg, void *dummy)
 {
 
 	if (cmd < 0 || cmd >= PRC_NCMDS)
@@ -168,7 +159,7 @@ raw_uattach(struct socket *so, int proto, struct thread *td)
 
 	/*
 	 * Implementors of raw sockets will already have allocated the PCB,
-	 * so it must be non-NULL here.
+	 *  so it must be non-NULL here.
 	 */
 	KASSERT(sotorawcb(so) != NULL, ("raw_uattach: so_pcb == NULL"));
 
@@ -183,13 +174,15 @@ raw_uattach(struct socket *so, int proto, struct thread *td)
 static int
 raw_ubind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	return EINVAL;
+
+	return (EINVAL);
 }
 
 static int
 raw_uconnect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	return EINVAL;
+
+	return (EINVAL);
 }
 
 /* pru_connect2 is EOPNOTSUPP */
@@ -210,12 +203,11 @@ raw_udisconnect(struct socket *so)
 	struct rawcb *rp = sotorawcb(so);
 
 	KASSERT(rp != NULL, ("raw_udisconnect: rp == NULL"));
-	if (rp->rcb_faddr == 0) {
-		return ENOTCONN;
-	}
+	if (rp->rcb_faddr == 0)
+		return (ENOTCONN);
 	raw_disconnect(rp);
 	soisdisconnected(so);
-	return 0;
+	return (0);
 }
 
 /* pru_listen is EOPNOTSUPP */
@@ -226,19 +218,18 @@ raw_upeeraddr(struct socket *so, struct sockaddr **nam)
 	struct rawcb *rp = sotorawcb(so);
 
 	KASSERT(rp != NULL, ("raw_upeeraddr: rp == NULL"));
-	if (rp->rcb_faddr == 0) {
-		return ENOTCONN;
-	}
+	if (rp->rcb_faddr == 0)
+		return (ENOTCONN);
 	*nam = sodupsockaddr(rp->rcb_faddr, M_WAITOK);
-	return 0;
+	return (0);
 }
 
 /* pru_rcvd is EOPNOTSUPP */
 /* pru_rcvoob is EOPNOTSUPP */
 
 static int
-raw_usend(struct socket *so, int flags, struct mbuf *m,
-	  struct sockaddr *nam, struct mbuf *control, struct thread *td)
+raw_usend(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
+    struct mbuf *control, struct thread *td)
 {
 	int error;
 	struct rawcb *rp = sotorawcb(so);
@@ -282,7 +273,7 @@ raw_ushutdown(struct socket *so)
 
 	KASSERT(sotorawcb(so) != NULL, ("raw_ushutdown: rp == NULL"));
 	socantsendmore(so);
-	return 0;
+	return (0);
 }
 
 static int
@@ -292,9 +283,9 @@ raw_usockaddr(struct socket *so, struct sockaddr **nam)
 
 	KASSERT(rp != NULL, ("raw_usockaddr: rp == NULL"));
 	if (rp->rcb_laddr == 0)
-		return EINVAL;
+		return (EINVAL);
 	*nam = sodupsockaddr(rp->rcb_laddr, M_WAITOK);
-	return 0;
+	return (0);
 }
 
 struct pr_usrreqs raw_usrreqs = {
