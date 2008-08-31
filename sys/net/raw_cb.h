@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1980, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,8 +37,8 @@
 #include <sys/queue.h>
 
 /*
- * Raw protocol interface control block.  Used
- * to tie a socket to the generic raw interface.
+ * Raw protocol interface control block.  Used to tie a socket to the generic
+ * raw interface.
  */
 struct rawcb {
 	LIST_ENTRY(rawcb) list;

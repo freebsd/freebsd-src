@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1980, 1986, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,15 +59,13 @@ const static u_long	raw_sendspace = RAWSNDQ;
 const static u_long	raw_recvspace = RAWRCVQ;
 
 /*
- * Allocate a control block and a nominal amount
- * of buffer space for the socket.
+ * Allocate a control block and a nominal amount of buffer space for the
+ * socket.
  */
 int
-raw_attach(so, proto)
-	register struct socket *so;
-	int proto;
+raw_attach(struct socket *so, int proto)
 {
-	register struct rawcb *rp = sotorawcb(so);
+	struct rawcb *rp = sotorawcb(so);
 	int error;
 
 	/*
@@ -89,12 +88,10 @@ raw_attach(so, proto)
 }
 
 /*
- * Detach the raw connection block and discard
- * socket resources.
+ * Detach the raw connection block and discard socket resources.
  */
 void
-raw_detach(rp)
-	register struct rawcb *rp;
+raw_detach(struct rawcb *rp)
 {
 	struct socket *so = rp->rcb_socket;
 
@@ -116,8 +113,7 @@ raw_detach(rp)
  * Disconnect raw socket.
  */
 void
-raw_disconnect(rp)
-	struct rawcb *rp;
+raw_disconnect(struct rawcb *rp)
 {
 
 #ifdef notdef
@@ -131,12 +127,10 @@ raw_disconnect(rp)
 #include <sys/mbuf.h>
 
 int
-raw_bind(so, nam)
-	register struct socket *so;
-	struct mbuf *nam;
+raw_bind(struct socket *so, struct mbuf *nam)
 {
 	struct sockaddr *addr = mtod(nam, struct sockaddr *);
-	register struct rawcb *rp;
+	struct rawcb *rp;
 
 	if (ifnet == 0)
 		return (EADDRNOTAVAIL);
