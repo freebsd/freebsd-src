@@ -153,13 +153,6 @@ intr_restore(register_t msr)
 	mtmsr(msr);
 }
 
-static __inline void
-restore_intr(unsigned int msr)
-{
-
-	mtmsr(msr);
-}
-
 static __inline struct pcpu *
 powerpc_get_pcpup(void)
 {
