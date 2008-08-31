@@ -78,12 +78,13 @@ raw_attach(struct socket *so, int proto)
 	int error;
 
 	/*
-	 * It is assumed that raw_attach is called
-	 * after space has been allocated for the
-	 * rawcb.
+	 * It is assumed that raw_attach is called after space has been
+	 * allocated for the rawcb; consumer protocols may simply allocate
+	 * type struct rawcb, or a wrapper data structure that begins with a
+	 * struct rawcb.
 	 */
-	if (rp == 0)
-		return (ENOBUFS);
+	KASSERT(rp != NULL, ("raw_attach: rp == NULL"));
+
 	error = soreserve(so, raw_sendspace, raw_recvspace);
 	if (error)
 		return (error);
