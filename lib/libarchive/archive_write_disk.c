@@ -1625,6 +1625,11 @@ set_time(struct archive_write_disk *a)
 	times[0].tv_sec = archive_entry_atime(a->entry);
 	times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
 
+	/* If no atime was specified, use mtime instead. */
+	if (times[0].tv_sec == 0 && times[0].tv_usec == 0) {
+		times[0].tv_sec = times[1].tv_sec;
+		times[0].tv_usec = times[1].tv_usec;
+	}
 #ifdef HAVE_FUTIMES
 	if (a->fd >= 0 && futimes(a->fd, times) == 0) {
 		return (ARCHIVE_OK);
