@@ -443,7 +443,10 @@ ugidfw_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
+	if (vp != NULL)
+		return (ugidfw_check_vp(cred, vp, MBI_WRITE));
+	else
+		return (0);
 }
 
 static int
@@ -451,15 +454,10 @@ ugidfw_check_system_auditctl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
 
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
-ugidfw_check_system_swapoff(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
+	if (vp != NULL)
+		return (ugidfw_check_vp(cred, vp, MBI_WRITE));
+	else
+		return (0);
 }
 
 static int
@@ -713,7 +711,6 @@ static struct mac_policy_ops ugidfw_ops =
 	.mpo_init = ugidfw_init,
 	.mpo_check_system_acct = ugidfw_check_system_acct,
 	.mpo_check_system_auditctl = ugidfw_check_system_auditctl,
-	.mpo_check_system_swapoff = ugidfw_check_system_swapoff,
 	.mpo_check_system_swapon = ugidfw_check_system_swapon,
 	.mpo_check_vnode_access = ugidfw_check_vnode_access,
 	.mpo_check_vnode_chdir = ugidfw_check_vnode_chdir,
