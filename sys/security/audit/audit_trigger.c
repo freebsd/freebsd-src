@@ -150,11 +150,11 @@ audit_send_trigger(unsigned int trigger)
 
 static struct cdevsw audit_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_open = 	audit_open,
-	.d_close = 	audit_close,
-	.d_read = 	audit_read,
-	.d_write = 	audit_write,
-	.d_name = 	"audit"
+	.d_open =	audit_open,
+	.d_close =	audit_close,
+	.d_read =	audit_read,
+	.d_write =	audit_write,
+	.d_name =	"audit"
 };
 
 void
