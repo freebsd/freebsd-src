@@ -188,6 +188,7 @@ struct tv32 {
 #define F_NIGROUP	0x40000
 #define F_SUPTYPES	0x80000
 #define F_NOMINMTU	0x100000
+#define F_ONCE		0x200000
 #define F_AUDIBLE	0x400000
 #define F_MISSED	0x800000
 #define F_NOUSERDATA	(F_NODEADDR | F_FQDN | F_FQDNOLD | F_SUPTYPES)
@@ -348,7 +349,7 @@ main(argc, argv)
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "a:b:c:dfHg:h:I:i:l:mnNp:qrRS:s:tvwW" ADDOPTS)) != -1) {
+	    "a:b:c:dfHg:h:I:i:l:mnNop:qrRS:s:tvwW" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'a':
@@ -488,6 +489,9 @@ main(argc, argv)
 			break;
 		case 'N':
 			options |= F_NIGROUP;
+			break;
+		case 'o':
+			options |= F_ONCE;
 			break;
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
@@ -1177,7 +1181,8 @@ main(argc, argv)
 			 */
 			pr_pack(packet, cc, &m);
 		}
-		if (npackets && nreceived >= npackets)
+		if (((options & F_ONCE) != 0 && nreceived > 0) ||
+		    (npackets > 0 && nreceived >= npackets))
 			break;
 		if (ntransmitted - nreceived - 1 > nmissedmax) {
 			nmissedmax = ntransmitted - nreceived - 1;
@@ -2783,7 +2788,7 @@ usage()
 #ifdef IPV6_USE_MIN_MTU
 	    "m"
 #endif
-	    "nNqrRtvwW] "
+	    "nNoqrRtvwW] "
 	    "[-a addrtype] [-b bufsiz] [-c count] [-g gateway]\n"
 	    "             [-h hoplimit] [-I interface] [-i wait] [-l preload]"
 #if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
