@@ -1382,6 +1382,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SYSCTL:
+	case AUE_SYSCTL_NONADMIN:
 		if (ARG_IS_VALID(kar, ARG_CTLNAME | ARG_LEN)) {
 			for (ctr = 0; ctr < ar->ar_arg_len; ctr++) {
 				tok = au_to_arg32(1, "name",
