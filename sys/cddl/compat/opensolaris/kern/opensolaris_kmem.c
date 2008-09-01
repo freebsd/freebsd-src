@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
-#define KMEM_DEBUG
-
 #ifdef KMEM_DEBUG
 #include <sys/queue.h>
 #include <sys/stack.h>
