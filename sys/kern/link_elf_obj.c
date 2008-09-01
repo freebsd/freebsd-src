@@ -91,10 +91,10 @@ typedef struct elf_file {
 	int		nprogtab;
 
 	Elf_relaent	*relatab;
-	int		nrela;
+	int		nrelatab;
 
 	Elf_relent	*reltab;
-	int		nrel;
+	int		nreltab;
 
 	Elf_Sym		*ddbsymtab;	/* The symbol table we are using */
 	long		ddbsymcnt;	/* Number of symbols */
@@ -238,10 +238,10 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 			symstrindex = shdr[i].sh_link;
 			break;
 		case SHT_REL:
-			ef->nrel++;
+			ef->nreltab++;
 			break;
 		case SHT_RELA:
-			ef->nrela++;
+			ef->nrelatab++;
 			break;
 		}
 	}
@@ -261,15 +261,15 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	if (ef->nprogtab != 0)
 		ef->progtab = malloc(ef->nprogtab * sizeof(*ef->progtab),
 		    M_LINKER, M_WAITOK | M_ZERO);
-	if (ef->nrel != 0)
-		ef->reltab = malloc(ef->nrel * sizeof(*ef->reltab), M_LINKER,
-		    M_WAITOK | M_ZERO);
-	if (ef->nrela != 0)
-		ef->relatab = malloc(ef->nrela * sizeof(*ef->relatab), M_LINKER,
-		    M_WAITOK | M_ZERO);
+	if (ef->nreltab != 0)
+		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab),
+		    M_LINKER, M_WAITOK | M_ZERO);
+	if (ef->nrelatab != 0)
+		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
+		    M_LINKER, M_WAITOK | M_ZERO);
 	if ((ef->nprogtab != 0 && ef->progtab == NULL) ||
-	    (ef->nrel != 0 && ef->reltab == NULL) ||
-	    (ef->nrela != 0 && ef->relatab == NULL)) {
+	    (ef->nreltab != 0 && ef->reltab == NULL) ||
+	    (ef->nrelatab != 0 && ef->relatab == NULL)) {
 		error = ENOMEM;
 		goto out;
 	}
@@ -338,10 +338,10 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 	}
 	if (pb != ef->nprogtab)
 		panic("lost progbits");
-	if (rl != ef->nrel)
-		panic("lost rel");
-	if (ra != ef->nrela)
-		panic("lost rela");
+	if (rl != ef->nreltab)
+		panic("lost reltab");
+	if (ra != ef->nrelatab)
+		panic("lost relatab");
 
 	/* Local intra-module relocations */
 	link_elf_reloc_local(lf);
@@ -469,8 +469,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	ef = (elf_file_t) lf;
 	ef->nprogtab = 0;
 	ef->e_shdr = 0;
-	ef->nrel = 0;
-	ef->nrela = 0;
+	ef->nreltab = 0;
+	ef->nrelatab = 0;
 
 	/* Allocate and read in the section header */
 	nbytes = hdr->e_shnum * hdr->e_shentsize;
@@ -510,10 +510,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			symstrindex = shdr[i].sh_link;
 			break;
 		case SHT_REL:
-			ef->nrel++;
+			ef->nreltab++;
 			break;
 		case SHT_RELA:
-			ef->nrela++;
+			ef->nrelatab++;
 			break;
 		case SHT_STRTAB:
 			break;
@@ -541,15 +541,15 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (ef->nprogtab != 0)
 		ef->progtab = malloc(ef->nprogtab * sizeof(*ef->progtab),
 		    M_LINKER, M_WAITOK | M_ZERO);
-	if (ef->nrel != 0)
-		ef->reltab = malloc(ef->nrel * sizeof(*ef->reltab), M_LINKER,
-		    M_WAITOK | M_ZERO);
-	if (ef->nrela != 0)
-		ef->relatab = malloc(ef->nrela * sizeof(*ef->relatab), M_LINKER,
-		    M_WAITOK | M_ZERO);
+	if (ef->nreltab != 0)
+		ef->reltab = malloc(ef->nreltab * sizeof(*ef->reltab),
+		    M_LINKER, M_WAITOK | M_ZERO);
+	if (ef->nrelatab != 0)
+		ef->relatab = malloc(ef->nrelatab * sizeof(*ef->relatab),
+		    M_LINKER, M_WAITOK | M_ZERO);
 	if ((ef->nprogtab != 0 && ef->progtab == NULL) ||
-	    (ef->nrel != 0 && ef->reltab == NULL) ||
-	    (ef->nrela != 0 && ef->relatab == NULL)) {
+	    (ef->nreltab != 0 && ef->reltab == NULL) ||
+	    (ef->nrelatab != 0 && ef->relatab == NULL)) {
 		error = ENOMEM;
 		goto out;
 	}
@@ -755,10 +755,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	}
 	if (pb != ef->nprogtab)
 		panic("lost progbits");
-	if (rl != ef->nrel)
-		panic("lost rel");
-	if (ra != ef->nrela)
-		panic("lost rela");
+	if (rl != ef->nreltab)
+		panic("lost reltab");
+	if (ra != ef->nrelatab)
+		panic("lost relatab");
 	if (mapbase != (vm_offset_t)ef->address + mapsize)
 		panic("mapbase 0x%lx != address %p + mapsize 0x%lx (0x%lx)\n",
 		    mapbase, ef->address, mapsize,
@@ -817,10 +817,10 @@ link_elf_unload_file(linker_file_t file)
 		return;
 	}
 
-	for (i = 0; i < ef->nrel; i++)
+	for (i = 0; i < ef->nreltab; i++)
 		if (ef->reltab[i].rel)
 			free(ef->reltab[i].rel, M_LINKER);
-	for (i = 0; i < ef->nrela; i++)
+	for (i = 0; i < ef->nrelatab; i++)
 		if (ef->relatab[i].rela)
 			free(ef->relatab[i].rela, M_LINKER);
 	if (ef->reltab)
@@ -887,7 +887,7 @@ relocate_file(elf_file_t ef)
 
 
 	/* Perform relocations without addend if there are any: */
-	for (i = 0; i < ef->nrel; i++) {
+	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
 		if (rel == NULL)
 			panic("lost a reltab!");
@@ -914,7 +914,7 @@ relocate_file(elf_file_t ef)
 	}
 
 	/* Perform relocations with addend if there are any: */
-	for (i = 0; i < ef->nrela; i++) {
+	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
 		if (rela == NULL)
 			panic("lost a relatab!");
@@ -1175,7 +1175,7 @@ link_elf_reloc_local(linker_file_t lf)
 	link_elf_fix_link_set(ef);
 
 	/* Perform relocations without addend if there are any: */
-	for (i = 0; i < ef->nrel; i++) {
+	for (i = 0; i < ef->nreltab; i++) {
 		rel = ef->reltab[i].rel;
 		if (rel == NULL)
 			panic("lost a reltab!");
@@ -1197,7 +1197,7 @@ link_elf_reloc_local(linker_file_t lf)
 	}
 
 	/* Perform relocations with addend if there are any: */
-	for (i = 0; i < ef->nrela; i++) {
+	for (i = 0; i < ef->nrelatab; i++) {
 		rela = ef->relatab[i].rela;
 		if (rela == NULL)
 			panic("lost a relatab!");
