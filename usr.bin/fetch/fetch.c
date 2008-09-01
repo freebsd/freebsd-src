@@ -364,7 +364,7 @@ fetch(char *URL, const char *path)
 	}
 
 	/* FTP specific flags */
-	if (strcmp(url->scheme, "ftp") == 0) {
+	if (strcmp(url->scheme, SCHEME_FTP) == 0) {
 		if (p_flag)
 			strcat(flags, "p");
 		if (d_flag)
@@ -375,7 +375,7 @@ fetch(char *URL, const char *path)
 	}
 
 	/* HTTP specific flags */
-	if (strcmp(url->scheme, "http") == 0) {
+	if (strcmp(url->scheme, SCHEME_HTTP) == 0) {
 		if (d_flag)
 			strcat(flags, "d");
 		if (A_flag)
