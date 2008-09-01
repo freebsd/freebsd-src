@@ -3592,8 +3592,10 @@ kern_renameat(struct thread *td, int oldfd, char *old, int newfd, char *new,
 			goto out;
 		}
 	}
-	if (fvp == tdvp)
+	if (fvp == tdvp) {
 		error = EINVAL;
+		goto out;
+	}
 	/*
 	 * If the source is the same as the destination (that is, if they
 	 * are links to the same vnode), then there is nothing to do.
