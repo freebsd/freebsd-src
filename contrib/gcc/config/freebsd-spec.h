@@ -185,3 +185,8 @@ is built with the --enable-threads configure-time option.}		\
 #ifdef HAVE_LD_AS_NEEDED
 #define USE_LD_AS_NEEDED 1
 #endif
+
+#define FBSD_SIZE_TYPE \
+	(POINTER_SIZE == 64 ? "long unsigned int" : "unsigned int")
+#define FBSD_PTRDIFF_TYPE \
+	(POINTER_SIZE == 64 ? "long int" : "int")
