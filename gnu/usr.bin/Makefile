@@ -22,7 +22,11 @@ SUBDIR= bc \
 	send-pr \
 	sort \
 	${_texinfo}
- 
+
+.if ${MACHINE_ARCH} == "mips"
+MK_GDB=no	# not yet
+.endif
+
 .if ${MK_CXX} != "no"
 _gperf=		gperf
 .if ${MK_GROFF} != "no"
