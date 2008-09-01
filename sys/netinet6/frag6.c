@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: frag6.c,v 1.33 2002/01/07 11:34:48 kjc Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,7 +25,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: frag6.c,v 1.33 2002/01/07 11:34:48 kjc Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,11 +64,11 @@
  */
 #define IN6_IFSTAT_STRICT
 
-static void frag6_enq __P((struct ip6asfrag *, struct ip6asfrag *));
-static void frag6_deq __P((struct ip6asfrag *));
-static void frag6_insque __P((struct ip6q *, struct ip6q *));
-static void frag6_remque __P((struct ip6q *));
-static void frag6_freef __P((struct ip6q *));
+static void frag6_enq(struct ip6asfrag *, struct ip6asfrag *);
+static void frag6_deq(struct ip6asfrag *);
+static void frag6_insque(struct ip6q *, struct ip6q *);
+static void frag6_remque(struct ip6q *);
+static void frag6_freef(struct ip6q *);
 
 static struct mtx ip6qlock;
 /*

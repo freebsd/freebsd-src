@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: udp6_usrreq.c,v 1.27 2001/05/21 05:45:10 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: udp6_usrreq.c,v 1.27 2001/05/21 05:45:10 jinmei Exp $
+ *	$KAME: udp6_output.c,v 1.31 2001/05/21 16:39:15 jinmei Exp $
  */
 
 /*-
@@ -58,8 +58,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
+ *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -398,7 +401,7 @@ udp6_ctlinput(cmd, sa, d)
 	struct ip6ctlparam *ip6cp = NULL;
 	const struct sockaddr_in6 *sa6_src = NULL;
 	void *cmdarg;
-	struct inpcb *(*notify) __P((struct inpcb *, int)) = udp_notify;
+	struct inpcb *(*notify)(struct inpcb *, int) = udp_notify;
 	struct udp_portonly {
 		u_int16_t uh_sport;
 		u_int16_t uh_dport;

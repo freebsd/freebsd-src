@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6_proto.c,v 1.91 2001/05/27 13:28:35 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in6_proto.c,v 1.91 2001/05/27 13:28:35 itojun Exp $
  */
 
 /*-
@@ -60,6 +59,9 @@
  *
  *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -321,7 +323,7 @@ struct ip6protosw inet6sw[] = {
 },
 };
 
-extern int in6_inithead __P((void **, int));
+extern int in6_inithead(void **, int);
 
 struct domain inet6domain = {
 	.dom_family =		AF_INET6,
