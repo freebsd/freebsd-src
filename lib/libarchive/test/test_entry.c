@@ -69,14 +69,25 @@ DEFINE_TEST(test_entry)
 	 * The following tests are ordered alphabetically by the
 	 * name of the field.
 	 */
+
 	/* atime */
 	archive_entry_set_atime(e, 13579, 24680);
 	assertEqualInt(archive_entry_atime(e), 13579);
 	assertEqualInt(archive_entry_atime_nsec(e), 24680);
+	archive_entry_unset_atime(e);
+	assertEqualInt(archive_entry_atime(e), 0);
+	assertEqualInt(archive_entry_atime_nsec(e), 0);
+	assert(!archive_entry_atime_is_set(e));
+
 	/* ctime */
 	archive_entry_set_ctime(e, 13580, 24681);
 	assertEqualInt(archive_entry_ctime(e), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e), 24681);
+	archive_entry_unset_ctime(e);
+	assertEqualInt(archive_entry_ctime(e), 0);
+	assertEqualInt(archive_entry_ctime_nsec(e), 0);
+	assert(!archive_entry_ctime_is_set(e));
+
 #if ARCHIVE_VERSION_STAMP >= 1009000
 	/* dev */
 	archive_entry_set_dev(e, 235);
@@ -85,6 +96,7 @@ DEFINE_TEST(test_entry)
 	skipping("archive_entry_dev()");
 #endif
 	/* devmajor/devminor are tested specially below. */
+
 #if ARCHIVE_VERSION_STAMP >= 1009000
 	/* filetype */
 	archive_entry_set_filetype(e, AE_IFREG);
@@ -92,10 +104,13 @@ DEFINE_TEST(test_entry)
 #else
 	skipping("archive_entry_filetype()");
 #endif
+
 	/* fflags are tested specially below */
+
 	/* gid */
 	archive_entry_set_gid(e, 204);
 	assertEqualInt(archive_entry_gid(e), 204);
+
 	/* gname */
 	archive_entry_set_gname(e, "group");
 	assertEqualString(archive_entry_gname(e), "group");
@@ -104,6 +119,7 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_gname_w(e), L"wgroup");
+
 	/* hardlink */
 	archive_entry_set_hardlink(e, "hardlinkname");
 	assertEqualString(archive_entry_hardlink(e), "hardlinkname");
@@ -158,10 +174,16 @@ DEFINE_TEST(test_entry)
 	/* mode */
 	archive_entry_set_mode(e, 0123456);
 	assertEqualInt(archive_entry_mode(e), 0123456);
+
 	/* mtime */
 	archive_entry_set_mtime(e, 13581, 24682);
 	assertEqualInt(archive_entry_mtime(e), 13581);
 	assertEqualInt(archive_entry_mtime_nsec(e), 24682);
+	archive_entry_unset_mtime(e);
+	assertEqualInt(archive_entry_mtime(e), 0);
+	assertEqualInt(archive_entry_mtime_nsec(e), 0);
+	assert(!archive_entry_mtime_is_set(e));
+
 #if ARCHIVE_VERSION_STAMP >= 1009000
 	/* nlink */
 	archive_entry_set_nlink(e, 736);
@@ -169,6 +191,7 @@ DEFINE_TEST(test_entry)
 #else
 	skipping("archive_entry_nlink()");
 #endif
+
 	/* pathname */
 	archive_entry_set_pathname(e, "path");
 	assertEqualString(archive_entry_pathname(e), "path");
@@ -184,6 +207,7 @@ DEFINE_TEST(test_entry)
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
 	memset(wbuff, 0, sizeof(wbuff));
 	assertEqualWString(archive_entry_pathname_w(e), L"wpath");
+
 #if ARCHIVE_VERSION_STAMP >= 1009000
 	/* rdev */
 	archive_entry_set_rdev(e, 532);
@@ -192,9 +216,14 @@ DEFINE_TEST(test_entry)
 	skipping("archive_entry_rdev()");
 #endif
 	/* rdevmajor/rdevminor are tested specially below. */
+
 	/* size */
 	archive_entry_set_size(e, 987654321);
 	assertEqualInt(archive_entry_size(e), 987654321);
+	archive_entry_unset_size(e);
+	assertEqualInt(archive_entry_size(e), 0);
+	assert(!archive_entry_size_is_set(e));
+
 	/* symlink */
 	archive_entry_set_symlink(e, "symlinkname");
 	assertEqualString(archive_entry_symlink(e), "symlinkname");
@@ -207,9 +236,11 @@ DEFINE_TEST(test_entry)
 #endif
 	archive_entry_copy_symlink_w(e, L"wsymlink");
 	assertEqualWString(archive_entry_symlink_w(e), L"wsymlink");
+
 	/* uid */
 	archive_entry_set_uid(e, 83);
 	assertEqualInt(archive_entry_uid(e), 83);
+
 	/* uname */
 	archive_entry_set_uname(e, "user");
 	assertEqualString(archive_entry_uname(e), "user");
