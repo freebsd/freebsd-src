@@ -64,10 +64,10 @@ DEFINE_TEST(test_write_open_memory)
 			assertA(ARCHIVE_FATAL == archive_write_close(a));
 		else
 			assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-		assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 		archive_write_finish(a);
+#else
+		assert(0 == archive_write_finish(a));
 #endif
 		assert(buff[i] == 0xAE);
 		assert(s <= i);

@@ -33,9 +33,9 @@ DEFINE_TEST(test_bad_fd)
 	assertA(0 == archive_read_support_compression_all(a));
 	assertA(ARCHIVE_FATAL == archive_read_open_fd(a, -1, 1024));
 	assertA(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertA(0 == archive_read_finish(a));
 #endif
 }

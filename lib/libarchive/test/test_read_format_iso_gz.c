@@ -63,10 +63,10 @@ DEFINE_TEST(test_read_format_iso_gz)
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_GZIP);
 	assert(archive_format(a) == ARCHIVE_FORMAT_ISO9660);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

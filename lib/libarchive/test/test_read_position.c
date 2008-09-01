@@ -49,11 +49,11 @@ DEFINE_TEST(test_read_position)
 	assertA(0 == archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertA(data_size == (size_t)archive_write_data(a, nulls, sizeof(nulls)));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	assertA(0 == archive_write_close(a));
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 	/* 512-byte header + data_size (rounded up) + 1024 end-of-archive */
 	assert(write_pos == ((512 + data_size + 1024 + 511)/512)*512);

@@ -47,10 +47,10 @@ DEFINE_TEST(test_write_format_shar_empty)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	failure("Empty shar archive should be exactly 0 bytes, was %d.", used);

@@ -28,7 +28,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 /*
  * This "archive" is created by "GNU ar". Here we try to verify
  * our GNU format handling functionality.
@@ -59,7 +59,7 @@ char buff[64];
 
 DEFINE_TEST(test_read_format_ar)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("test_read_support_format_ar()");
 #else
 	struct archive_entry *ae;
@@ -110,10 +110,10 @@ DEFINE_TEST(test_read_format_ar)
 	/* Test EOF */
 	assertA(1 == archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 #endif
 }

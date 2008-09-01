@@ -67,10 +67,10 @@ DEFINE_TEST(test_read_data_large)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	/* Check that archive_read_data can handle 10*10^6 at a pop. */
@@ -84,10 +84,10 @@ DEFINE_TEST(test_read_data_large)
 	failure("Read expected 10MB, but data read didn't match what was written");
 	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	/* Check archive_read_data_into_fd */
@@ -100,10 +100,10 @@ DEFINE_TEST(test_read_data_large)
 	assert(tmpfilefd != 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 	close(tmpfilefd);
 

@@ -25,7 +25,7 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
-#if ARCHIVE_VERSION_STAMP >= 1009000
+#if ARCHIVE_VERSION_NUMBER >= 1009000
 
 #define UMASK 022
 
@@ -39,10 +39,10 @@ static void create(struct archive_entry *ae, const char *msg)
 	failure("%s", msg);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(0, archive_write_finish(ad));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(ad);
+#else
+	assertEqualInt(0, archive_write_finish(ad));
 #endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -88,10 +88,10 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(0, archive_write_finish(ad));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(ad);
+#else
+	assertEqualInt(0, archive_write_finish(ad));
 #endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -132,10 +132,10 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 		    archive_write_data_block(ad, data + i, 1000, i));
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(0, archive_write_finish(ad));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(ad);
+#else
+	assertEqualInt(0, archive_write_finish(ad));
 #endif
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
@@ -156,7 +156,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 
 DEFINE_TEST(test_write_disk)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("archive_write_disk interface");
 #else
 	struct archive_entry *ae;

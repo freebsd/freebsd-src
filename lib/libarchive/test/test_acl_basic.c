@@ -165,7 +165,7 @@ compare_acls(struct archive_entry *ae, struct acl_t *acls, int n, int mode)
 			assert(matched == 1);
 		}
 	}
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	/* Known broken before 1.9.0. */
 	skipping("archive_entry_acl_next() exits with ARCHIVE_EOF");
 #else
