@@ -140,7 +140,11 @@ ofw_pcibus_setup_device(device_t bridge, uint32_t clock, u_int busno,
 	    PCIM_HDRTYPE) == PCIM_HDRTYPE_BRIDGE) {
 		reg = PCIB_READ_CONFIG(bridge, busno, slot, func,
 		    PCIR_BRIDGECTL_1, 1);
+#if 0
 		reg |= PCIB_BCR_MASTER_ABORT_MODE | PCIB_BCR_SERR_ENABLE |
+#else
+		reg |= PCIB_BCR_SERR_ENABLE |
+#endif
 		    PCIB_BCR_PERR_ENABLE;
 #ifdef OFW_PCI_DEBUG
 		device_printf(bridge,
