@@ -8,7 +8,7 @@ SRCS=	aha.c aha_isa.c ahareg.h opt_cam.h device_if.h bus_if.h \
 
 .if !defined(KERNBUILDDIR)
 opt_scsi.h:
-	echo "#define SCSI_DELAY 15000" > opt_scsi.h
+	echo "#define SCSI_DELAY 15000" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
