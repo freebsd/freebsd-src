@@ -34,7 +34,7 @@ SRCS   += opt_bus.h cryptodev_if.h
 
 .if !defined(KERNBUILDDIR)
 opt_safe.h:
-	echo "#define SAFE_DEBUG 1" > opt_safe.h
+	echo "#define SAFE_DEBUG 1" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>

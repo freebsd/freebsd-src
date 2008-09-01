@@ -10,7 +10,7 @@ NETGRAPH?=    0
 
 .if ${NETGRAPH} != 0
 opt_netgraph.h:
-	echo "#define NETGRAPH ${NETGRAPH}" > opt_netgraph.h
+	echo "#define NETGRAPH ${NETGRAPH}" > ${.TARGET}
 .endif
 .endif
 

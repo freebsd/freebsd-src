@@ -61,8 +61,8 @@ opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
 
 .if !defined(KERNBUILDDIR)
 opt_wlan.h:
-#	echo "#define IEEE80211_DEBUG 1" > opt_wlan.h
-	echo > opt_wlan.h
+#	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
+	echo > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
