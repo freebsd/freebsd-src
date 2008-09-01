@@ -43,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/domain.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
-#include <sys/protosw.h>
 
 #include <net/route.h>
 #include <netinet/in.h>
@@ -438,7 +438,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf1);
 		} else {
-			printf("%6u %6u  ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
+			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
 		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
