@@ -112,7 +112,7 @@ bpf_stats(char *ifname)
 		free(bd);
 		return;
 	}
-	printf("%5s %6s %7s %9s %9s %9s %5s %5s %s\n",
+	(void) printf("%5s %6s %7s %9s %9s %9s %5s %5s %s\n",
 	    "Pid", "Netif", "Flags", "Recv", "Drop", "Match", "Sblen",
 	    "Hblen", "Command");
 	for (d = &bd[0]; d < &bd[size / sizeof(*d)]; d++) {
@@ -120,7 +120,7 @@ bpf_stats(char *ifname)
 			continue;
 		bpf_flags(d, flagbuf);
 		pname = bpf_pidname(d->bd_pid);
-		printf("%5d %6s %7s %9lu %9lu %9lu %5d %5d %s\n",
+		(void) printf("%5d %6s %7s %9ju %9ju %9ju %5d %5d %s\n",
 		    d->bd_pid, d->bd_ifname, flagbuf,
 		    d->bd_rcount, d->bd_dcount, d->bd_fcount,
 		    d->bd_slen, d->bd_hlen, pname);
