@@ -605,13 +605,15 @@ in_arpinput(m)
 	u_int8_t *enaddr = NULL;
 	int op, rif_len;
 	int req_len;
-	int bridged = 0;
+	int bridged = 0, is_bridge = 0;
 #ifdef DEV_CARP
 	int carp_match = 0;
 #endif
 
 	if (do_bridge || ifp->if_bridge)
 		bridged = 1;
+	if (ifp->if_type == IFT_BRIDGE)
+		is_bridge = 1;
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
 	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
@@ -652,6 +654,27 @@ in_arpinput(m)
 		    (ia->ia_ifp == ifp)) &&
 		    isaddr.s_addr == ia->ia_addr.sin_addr.s_addr)
 			goto match;
+
+#define BDG_MEMBER_MATCHES_ARP(addr, ifp, ia)				\
+  (ia->ia_ifp->if_bridge == ifp->if_softc &&				\
+  !bcmp(IF_LLADDR(ia->ia_ifp), IF_LLADDR(ifp), ifp->if_addrlen) &&	\
+  addr == ia->ia_addr.sin_addr.s_addr)
+	/*
+	 * Check the case when bridge shares its MAC address with
+	 * some of its children, so packets are claimed by bridge
+	 * itself (bridge_input() does it first), but they are really
+	 * meant to be destined to the bridge member.
+	 */
+	if (is_bridge) {
+		LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
+			if (BDG_MEMBER_MATCHES_ARP(itaddr.s_addr, ifp, ia)) {
+				ifp = ia->ia_ifp;
+				goto match;
+			}
+		}
+	}
+#undef BDG_MEMBER_MATCHES_ARP
+
 	/*
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
