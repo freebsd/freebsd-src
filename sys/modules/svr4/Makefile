@@ -26,11 +26,11 @@ svr4_genassym.o: svr4_genassym.c svr4.h @ machine
 
 .if !defined(KERNBUILDDIR)
 opt_compat.h:
-	echo "#define COMPAT_43 1" > opt_compat.h
+	echo "#define COMPAT_43 1" > ${.TARGET}
 
 .if defined(DEBUG)
 opt_svr4.h:
-	echo "#define DEBUG_SVR4 1" > opt_svr4.h
+	echo "#define DEBUG_SVR4 1" > ${.TARGET}
 .endif
 .endif
 

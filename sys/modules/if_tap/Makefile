@@ -12,7 +12,7 @@ opt_compat.h:
 	echo "#define COMPAT_FREEBSD6 1" > ${.TARGET}
 
 opt_inet.h:
-	echo "#define INET 1" > opt_inet.h
+	echo "#define INET 1" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
