@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.83.2.5.2.38 $)
+AC_REVISION($Revision: 1.83.2.5.2.38.2.1 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -2590,7 +2590,7 @@ case "$host" in
 	*-solaris2.9)
 		hack_shutup_in6addr_init_macros=yes
 		;;
-	*-solaris2.10)
+	*-solaris2.1[0-9])
 		hack_shutup_in6addr_init_macros=yes
 		;;
 esac

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.h,v 1.45.2.2.4.5.4.1 2008/05/22 21:11:16 each Exp $ */
+/* $Id: dispatch.h,v 1.45.2.2.4.5.4.2 2008/07/23 07:28:11 tbox Exp $ */
 
 #ifndef DNS_DISPATCH_H
 #define DNS_DISPATCH_H 1
@@ -185,7 +185,7 @@ dns_dispatchmgr_getblackhole(dns_dispatchmgr_t *mgr);
 
 void
 dns_dispatchmgr_setblackportlist(dns_dispatchmgr_t *mgr,
-                                 dns_portlist_t *portlist);
+				 dns_portlist_t *portlist);
 /*
  * Sets a list of UDP ports that won't be used when creating a udp
  * dispatch with a wildcard port.
@@ -365,7 +365,7 @@ dns_dispatch_removeresponse(dns_dispentry_t **resp,
  *	"resp" != NULL and "*resp" contain a value previously allocated
  *	by dns_dispatch_addresponse();
  *
- *	May only be called from within the task given as the 'task' 
+ *	May only be called from within the task given as the 'task'
  * 	argument to dns_dispatch_addresponse() when allocating '*resp'.
  */
 
@@ -382,7 +382,7 @@ dns_dispatch_getsocket(dns_dispatch_t *disp);
  *	The socket the dispatcher is using.
  */
 
-isc_result_t 
+isc_result_t
 dns_dispatch_getlocaladdress(dns_dispatch_t *disp, isc_sockaddr_t *addrp);
 /*
  * Return the local address for this dispatch.
@@ -393,7 +393,7 @@ dns_dispatch_getlocaladdress(dns_dispatch_t *disp, isc_sockaddr_t *addrp);
  *	addrp to be non null.
  *
  * Returns:
- *	ISC_R_SUCCESS	
+ *	ISC_R_SUCCESS
  *	ISC_R_NOTIMPLEMENTED
  */
 
@@ -417,7 +417,7 @@ dns_dispatch_changeattributes(dns_dispatch_t *disp,
  *
  *	new = (old & ~mask) | (attributes & mask)
  *
- * This function has a side effect when DNS_DISPATCHATTR_NOLISTEN changes. 
+ * This function has a side effect when DNS_DISPATCHATTR_NOLISTEN changes.
  * When the flag becomes off, the dispatch will start receiving on the
  * corresponding socket.  When the flag becomes on, receive events on the
  * corresponding socket will be canceled.
