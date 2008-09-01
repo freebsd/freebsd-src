@@ -155,7 +155,8 @@ static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static void tcp_hc_purge(void *);
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0, "TCP Host cache");
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
+    "TCP Host cache");
 
 SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
     &tcp_hostcache.cache_limit, 0, "Overall entry limit for hostcache");
