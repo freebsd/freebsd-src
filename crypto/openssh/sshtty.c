@@ -1,4 +1,4 @@
-/* $OpenBSD: sshtty.c,v 1.12 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: sshtty.c,v 1.13 2008/05/19 15:45:07 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -47,10 +47,10 @@
 static struct termios _saved_tio;
 static int _in_raw_mode = 0;
 
-struct termios
+struct termios *
 get_saved_tio(void)
 {
-	return _saved_tio;
+	return _in_raw_mode ? &_saved_tio : NULL;
 }
 
 void

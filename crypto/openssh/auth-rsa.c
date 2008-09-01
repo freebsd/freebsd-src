@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.72 2006/11/06 21:25:27 markus Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.73 2008/07/02 12:03:51 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -173,7 +173,6 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 	u_int bits;
 	FILE *f;
 	u_long linenum = 0;
-	struct stat st;
 	Key *key;
 
 	/* Temporarily use the user's uid. */
@@ -182,27 +181,9 @@ auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 	/* The authorized keys. */
 	file = authorized_keys_file(pw);
 	debug("trying public RSA key file %s", file);
-
-	/* Fail quietly if file does not exist */
-	if (stat(file, &st) < 0) {
-		/* Restore the privileged uid. */
-		restore_uid();
-		xfree(file);
-		return (0);
-	}
-	/* Open the file containing the authorized keys. */
-	f = fopen(file, "r");
+	f = auth_openkeyfile(file, pw, options.strict_modes);
 	if (!f) {
-		/* Restore the privileged uid. */
-		restore_uid();
 		xfree(file);
-		return (0);
-	}
-	if (options.strict_modes &&
-	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
-		xfree(file);
-		fclose(f);
-		logit("Authentication refused: %s", line);
 		restore_uid();
 		return (0);
 	}

@@ -51,6 +51,8 @@ int getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	struct hostent *hp;
 	char tmpserv[16];
 
+	if (sa->sa_family != AF_UNSPEC && sa->sa_family != AF_INET)
+		return (EAI_FAMILY);
 	if (serv != NULL) {
 		snprintf(tmpserv, sizeof(tmpserv), "%d", ntohs(sin->sin_port));
 		if (strlcpy(serv, tmpserv, servlen) >= servlen)
@@ -95,6 +97,8 @@ gai_strerror(int err)
 		return ("memory allocation failure.");
 	case EAI_NONAME:
 		return ("nodename nor servname provided, or not known");
+	case EAI_FAMILY:
+		return ("ai_family not supported");
 	default:
 		return ("unknown/invalid error.");
 	}
@@ -159,6 +163,9 @@ getaddrinfo(const char *hostname, const char *servname,
 	u_long addr;
 
 	port = 0;
+	if (hints && hints->ai_family != AF_UNSPEC &&
+	    hints->ai_family != AF_INET)
+		return (EAI_FAMILY);
 	if (servname != NULL) {
 		char *cp;
 

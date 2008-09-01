@@ -14,17 +14,37 @@ Blowfish) do not work correctly.)
 
 The remaining items are optional.
 
-OpenSSH can utilise Pluggable Authentication Modules (PAM) if your system
-supports it. PAM is standard on Redhat and Debian Linux, Solaris and
-HP-UX 11.
-
 NB. If you operating system supports /dev/random, you should configure
 OpenSSL to use it. OpenSSH relies on OpenSSL's direct support of
-/dev/random. If you don't you will have to rely on ssh-rand-helper, which
-is inferior to a good kernel-based solution.
+/dev/random, or failing that, either prngd or egd.  If you don't have
+any of these you will have to rely on ssh-rand-helper, which is inferior
+to a good kernel-based solution or prngd.
+
+PRNGD:
+
+If your system lacks kernel-based random collection, the use of Lutz
+Jaenicke's PRNGd is recommended.
+
+http://prngd.sourceforge.net/
+
+EGD:
+
+The Entropy Gathering Daemon (EGD) is supported if you have a system which
+lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
+
+http://www.lothar.com/tech/crypto/
 
 PAM:
-http://www.kernel.org/pub/linux/libs/pam/
+
+OpenSSH can utilise Pluggable Authentication Modules (PAM) if your
+system supports it. PAM is standard most Linux distributions, Solaris,
+HP-UX 11, AIX >= 5.2, FreeBSD and NetBSD.
+
+Information about the various PAM implementations are available:
+
+Solaris PAM:	http://www.sun.com/software/solaris/pam/
+Linux PAM:	http://www.kernel.org/pub/linux/libs/pam/
+OpenPAM:	http://www.openpam.org/
 
 If you wish to build the GNOME passphrase requester, you will need the GNOME
 libraries and headers.
@@ -37,19 +57,14 @@ passphrase requester. This is maintained separately at:
 
 http://www.jmknoble.net/software/x11-ssh-askpass/
 
-PRNGD:
+TCP Wrappers:
 
-If your system lacks Kernel based random collection, the use of Lutz
-Jaenicke's PRNGd is recommended.
+If you wish to use the TCP wrappers functionality you will need at least
+tcpd.h and libwrap.a, either in the standard include and library paths,
+or in the directory specified by --with-tcp-wrappers.  Version 7.6 is
+known to work.
 
-http://www.aet.tu-cottbus.de/personen/jaenicke/postfix_tls/prngd.html
-
-EGD:
-
-The Entropy Gathering Daemon (EGD) is supported if you have a system which
-lacks /dev/random and don't want to use OpenSSH's internal entropy collection.
-
-http://www.lothar.com/tech/crypto/
+http://ftp.porcupine.org/pub/security/index.html
 
 S/Key Libraries:
 
@@ -70,8 +85,9 @@ http://sourceforge.net/projects/libedit/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of CVS yourself) then you will need autoconf-2.60 to rebuild
-the automatically generated files by running "autoreconf".
+the code out of CVS yourself) then you will need autoconf-2.61 to rebuild
+the automatically generated files by running "autoreconf".  Earlier
+versions may also work but this is not guaranteed.
 
 http://www.gnu.org/software/autoconf/
 
@@ -161,7 +177,7 @@ Integration Architecture.  The default for OSF1 machines is enable.
 need the S/Key libraries and header files installed for this to work.
 
 --with-tcp-wrappers will enable TCP Wrappers (/etc/hosts.allow|deny)
-support. You will need libwrap.a and tcpd.h installed.
+support.
 
 --with-md5-passwords will enable the use of MD5 passwords. Enable this
 if your operating system uses MD5 passwords and the system crypt() does
@@ -179,7 +195,7 @@ $DISPLAY environment variable. Some broken systems need this.
 --with-default-path=PATH allows you to specify a default $PATH for sessions
 started by sshd. This replaces the standard path entirely.
 
---with-pid-dir=PATH specifies the directory in which the ssh.pid file is
+--with-pid-dir=PATH specifies the directory in which the sshd.pid file is
 created.
 
 --with-xauth=PATH specifies the location of the xauth binary
@@ -250,4 +266,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.76 2006/09/17 12:55:52 dtucker Exp $
+$Id: INSTALL,v 1.84 2007/08/17 12:52:05 dtucker Exp $

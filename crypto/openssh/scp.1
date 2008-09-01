@@ -9,9 +9,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.40 2006/07/18 07:56:28 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.46 2008/07/12 05:33:41 djm Exp $
 .\"
-.Dd September 25, 1999
+.Dd $Mdocdate: July 12 2008 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -34,7 +34,7 @@
 .Ar host1 No :
 .Oc Ns Ar file1
 .Sm on
-.Op Ar ...
+.Ar ...
 .Sm off
 .Oo
 .Op Ar user No @
@@ -56,9 +56,15 @@ Unlike
 will ask for passwords or passphrases if they are needed for
 authentication.
 .Pp
-Any file name may contain a host and user specification to indicate
+File names may contain a user and host specification to indicate
 that the file is to be copied to/from that host.
-Copies between two remote hosts are permitted.
+Local file names can be made explicit using absolute or relative pathnames
+to avoid
+.Nm
+treating file names containing
+.Sq :\&
+as host specifiers.
+Copies between two remote hosts are also permitted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -98,7 +104,7 @@ per-user configuration file for
 This option is directly passed to
 .Xr ssh 1 .
 .It Fl i Ar identity_file
-Selects the file from which the identity (private key) for RSA
+Selects the file from which the identity (private key) for public key
 authentication is read.
 This option is directly passed to
 .Xr ssh 1 .
@@ -178,9 +184,14 @@ is already reserved for preserving the times and modes of the file in
 Preserves modification times, access times, and modes from the
 original file.
 .It Fl q
-Disables the progress meter.
+Quiet mode: disables the progress meter as well as warning and diagnostic
+messages from
+.Xr ssh 1 .
 .It Fl r
 Recursively copy entire directories.
+Note that
+.Nm
+follows symbolic links encountered in the tree traversal.
 .It Fl S Ar program
 Name of
 .Ar program

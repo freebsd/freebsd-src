@@ -17,6 +17,7 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
 #ifdef HAVE_SYS_SELECT_H
 # include <sys/select.h>
 #endif
@@ -27,6 +28,7 @@
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 
@@ -156,7 +158,8 @@ int nanosleep(const struct timespec *req, struct timespec *rem)
 		tremain.tv_sec = 0;
 		tremain.tv_usec = 0;
 	}
-	TIMEVAL_TO_TIMESPEC(&tremain, rem)
+	if (rem != NULL)
+		TIMEVAL_TO_TIMESPEC(&tremain, rem)
 
 	return(rc);
 }

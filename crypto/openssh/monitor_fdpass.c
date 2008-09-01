@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_fdpass.c,v 1.12 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: monitor_fdpass.c,v 1.17 2008/03/24 16:11:07 deraadt Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -40,7 +40,7 @@
 #include "log.h"
 #include "monitor_fdpass.h"
 
-void
+int
 mm_send_fd(int sock, int fd)
 {
 #if defined(HAVE_SENDMSG) && (defined(HAVE_ACCRIGHTS_IN_MSGHDR) || defined(HAVE_CONTROL_IN_MSGHDR))
@@ -49,7 +49,11 @@ mm_send_fd(int sock, int fd)
 	char ch = '\0';
 	ssize_t n;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
-	char tmp[CMSG_SPACE(sizeof(int))];
+	union {
+		struct cmsghdr hdr;
+		char tmp[CMSG_SPACE(sizeof(int))];
+		char buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
 
@@ -58,8 +62,8 @@ mm_send_fd(int sock, int fd)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
-	msg.msg_control = (caddr_t)tmp;
-	msg.msg_controllen = CMSG_LEN(sizeof(int));
+	msg.msg_control = (caddr_t)&cmsgbuf.buf;
+	msg.msg_controllen = sizeof(cmsgbuf.buf);
 	cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 	cmsg->cmsg_level = SOL_SOCKET;
@@ -72,15 +76,21 @@ mm_send_fd(int sock, int fd)
 	msg.msg_iov = &vec;
 	msg.msg_iovlen = 1;
 
-	if ((n = sendmsg(sock, &msg, 0)) == -1)
-		fatal("%s: sendmsg(%d): %s", __func__, fd,
+	if ((n = sendmsg(sock, &msg, 0)) == -1) {
+		error("%s: sendmsg(%d): %s", __func__, fd,
 		    strerror(errno));
-	if (n != 1)
-		fatal("%s: sendmsg: expected sent 1 got %ld",
+		return -1;
+	}
+
+	if (n != 1) {
+		error("%s: sendmsg: expected sent 1 got %ld",
 		    __func__, (long)n);
+		return -1;
+	}
+	return 0;
 #else
-	fatal("%s: UsePrivilegeSeparation=yes not supported",
-	    __func__);
+	error("%s: file descriptor passing not supported", __func__);
+	return -1;
 #endif
 }
 
@@ -94,7 +104,10 @@ mm_receive_fd(int sock)
 	char ch;
 	int fd;
 #ifndef HAVE_ACCRIGHTS_IN_MSGHDR
-	char tmp[CMSG_SPACE(sizeof(int))];
+	union {
+		struct cmsghdr hdr;
+		char buf[CMSG_SPACE(sizeof(int))];
+	} cmsgbuf;
 	struct cmsghdr *cmsg;
 #endif
 
@@ -107,33 +120,43 @@ mm_receive_fd(int sock)
 	msg.msg_accrights = (caddr_t)&fd;
 	msg.msg_accrightslen = sizeof(fd);
 #else
-	msg.msg_control = tmp;
-	msg.msg_controllen = sizeof(tmp);
+	msg.msg_control = &cmsgbuf.buf;
+	msg.msg_controllen = sizeof(cmsgbuf.buf);
 #endif
 
-	if ((n = recvmsg(sock, &msg, 0)) == -1)
-		fatal("%s: recvmsg: %s", __func__, strerror(errno));
-	if (n != 1)
-		fatal("%s: recvmsg: expected received 1 got %ld",
+	if ((n = recvmsg(sock, &msg, 0)) == -1) {
+		error("%s: recvmsg: %s", __func__, strerror(errno));
+		return -1;
+	}
+	if (n != 1) {
+		error("%s: recvmsg: expected received 1 got %ld",
 		    __func__, (long)n);
+		return -1;
+	}
 
 #ifdef HAVE_ACCRIGHTS_IN_MSGHDR
-	if (msg.msg_accrightslen != sizeof(fd))
-		fatal("%s: no fd", __func__);
+	if (msg.msg_accrightslen != sizeof(fd)) {
+		error("%s: no fd", __func__);
+		return -1;
+	}
 #else
 	cmsg = CMSG_FIRSTHDR(&msg);
-	if (cmsg == NULL)
-		fatal("%s: no message header", __func__);
+	if (cmsg == NULL) {
+		error("%s: no message header", __func__);
+		return -1;
+	}
 #ifndef BROKEN_CMSG_TYPE
-	if (cmsg->cmsg_type != SCM_RIGHTS)
-		fatal("%s: expected type %d got %d", __func__,
+	if (cmsg->cmsg_type != SCM_RIGHTS) {
+		error("%s: expected type %d got %d", __func__,
 		    SCM_RIGHTS, cmsg->cmsg_type);
+		return -1;
+	}
 #endif
 	fd = (*(int *)CMSG_DATA(cmsg));
 #endif
 	return fd;
 #else
-	fatal("%s: UsePrivilegeSeparation=yes not supported",
-	    __func__);
+	error("%s: file descriptor passing not supported", __func__);
+	return -1;
 #endif
 }
