@@ -1310,7 +1310,8 @@ int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
 	/* XXX dst may be overwritten, can we move this to below */
-	struct radix_node_head *rnh = V_rt_tables[rt->rt_fibnum][dst->sa_family];
+	struct radix_node_head *rnh =
+	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
 	int dlen = SA_SIZE(dst), glen = SA_SIZE(gate);
 
 again:
