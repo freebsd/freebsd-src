@@ -576,7 +576,7 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 			prmount(&sf);
 	}
 
-	return (0);
+	return (ret);
 }
 
 void
