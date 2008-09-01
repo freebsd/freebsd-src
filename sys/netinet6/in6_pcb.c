@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -29,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $
  */
 
 /*-
@@ -61,6 +59,9 @@
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
