@@ -1319,8 +1319,7 @@ fprintlog(struct filed *f, int flags, const char *msg)
 		break;
 	}
 	f->f_prevcount = 0;
-	if (wmsg)
-		free(wmsg);
+	free(wmsg);
 }
 
 /*
