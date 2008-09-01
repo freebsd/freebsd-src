@@ -1299,6 +1299,50 @@ so_sototcpcb(struct socket *so)
 	return (sototcpcb(so));
 }
 
+void
+inp_wlock(struct inpcb *inp)
+{
+
+	INP_WLOCK(inp);
+}
+
+void
+inp_wunlock(struct inpcb *inp)
+{
+
+	INP_WUNLOCK(inp);
+}
+
+void
+inp_rlock(struct inpcb *inp)
+{
+
+	INP_RLOCK(inp);
+}
+
+void
+inp_runlock(struct inpcb *inp)
+{
+
+	INP_RUNLOCK(inp);
+}
+
+#ifdef INVARIANTS
+void
+inp_wlock_assert(struct inpcb *inp)
+{
+
+	INP_WLOCK_ASSERT(inp);
+}
+
+void
+inp_wunlock_assert(struct inpcb *inp)
+{
+
+	INP_WUNLOCK_ASSERT(inp);
+}
+#endif
+
 #ifdef DDB
 static void
 db_print_indent(int indent)
