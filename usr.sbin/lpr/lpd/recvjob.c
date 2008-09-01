@@ -329,7 +329,7 @@ noresponse(void)
 static int
 chksize(int size)
 {
-	int spacefree;
+	int64_t spacefree;
 	struct statfs sfb;
 
 	if (statfs(".", &sfb) < 0) {
