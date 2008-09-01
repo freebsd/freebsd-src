@@ -331,7 +331,7 @@ int	rflag;		/* show routing tables (or routing stats) */
 int	sflag;		/* show protocol statistics */
 int	tflag;		/* show i/f watchdog timers */
 int	Wflag;		/* wide display */
-int     xflag;          /* extra information, includes all socket buffer info */
+int	xflag;		/* extra information, includes all socket buffer info */
 int	zflag;		/* zero stats */
 
 int	interval;	/* repeat interval for i/f stats */
