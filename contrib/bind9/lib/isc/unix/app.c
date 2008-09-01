@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.c,v 1.43.2.3.8.8 2008/01/17 23:45:28 tbox Exp $ */
+/* $Id: app.c,v 1.43.2.3.8.8.4.1 2008/07/29 04:43:57 each Exp $ */
 
 #include <config.h>
 
@@ -301,7 +301,7 @@ evloop() {
 		int n;
 		isc_time_t when, now;
 		struct timeval tv, *tvp;
-		fd_set readfds, writefds;
+		fd_set *readfds, *writefds;
 		int maxfd;
 		isc_boolean_t readytasks;
 		isc_boolean_t call_timer_dispatch = ISC_FALSE;
@@ -330,7 +330,7 @@ evloop() {
 		}
 
 		isc__socketmgr_getfdsets(&readfds, &writefds, &maxfd);
-		n = select(maxfd, &readfds, &writefds, NULL, tvp);
+		n = select(maxfd, readfds, writefds, NULL, tvp);
 
 		if (n == 0 || call_timer_dispatch) {
 			/*
@@ -350,7 +350,7 @@ evloop() {
 			isc__timermgr_dispatch();
 		}
 		if (n > 0)
-			(void)isc__socketmgr_dispatch(&readfds, &writefds,
+			(void)isc__socketmgr_dispatch(readfds, writefds,
 						      maxfd);
 		(void)isc__taskmgr_dispatch();
 

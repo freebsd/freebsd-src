@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.54.12.7 2007/08/28 07:19:15 tbox Exp $ */
+/* $Id: socket.h,v 1.54.12.7.4.4 2008/07/23 23:16:27 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -80,6 +80,12 @@ ISC_LANG_BEGINDECLS
  * system in use must support at least this number (plus one on some.)
  */
 #define ISC_SOCKET_MAXSCATTERGATHER	8
+
+/*%
+ * In isc_socket_bind() set socket option SO_REUSEADDR prior to calling
+ * bind() if a non zero port is specified (AF_INET and AF_INET6).
+ */
+#define ISC_SOCKET_REUSEADDRESS		0x01U
 
 /***
  *** Types
@@ -306,7 +312,8 @@ isc_socket_detach(isc_socket_t **socketp);
  */
 
 isc_result_t
-isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp);
+isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp,
+		unsigned int reuseaddr);
 /*
  * Bind 'socket' to '*addressp'.
  *
@@ -697,6 +704,12 @@ isc_socket_ipv6only(isc_socket_t *sock, isc_boolean_t yes);
  *
  * Requires:
  *	'sock' is a valid socket.
+ */
+
+void
+isc__socketmgr_setreserved(isc_socketmgr_t *mgr, isc_uint32_t);
+/*%<
+ * Temporary.  For use by named only.
  */
 
 ISC_LANG_ENDDECLS

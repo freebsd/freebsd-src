@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: server.c,v 1.339.2.15.2.78.4.1 2008/05/22 21:11:14 each Exp $ */
+/* $Id: server.c,v 1.339.2.15.2.78.4.3 2008/07/23 23:47:49 tbox Exp $ */
 
 #include <config.h>
 
@@ -2153,26 +2153,28 @@ static isc_result_t
 load_configuration(const char *filename, ns_server_t *server,
 		   isc_boolean_t first_time)
 {
-	isc_result_t result;
-	cfg_parser_t *parser = NULL;
 	cfg_obj_t *config;
-	const cfg_obj_t *options;
-	const cfg_obj_t *views;
-	const cfg_obj_t *obj;
-	const cfg_obj_t *v4ports, *v6ports;
-	const cfg_obj_t *maps[3];
-	const cfg_obj_t *builtin_views;
+	cfg_parser_t *parser = NULL;
 	const cfg_listelt_t *element;
+	const cfg_obj_t *builtin_views;
+	const cfg_obj_t *maps[3];
+	const cfg_obj_t *obj;
+	const cfg_obj_t *options;
+	const cfg_obj_t *v4ports, *v6ports;
+	const cfg_obj_t *views;
 	dns_view_t *view = NULL;
 	dns_view_t *view_next;
-	dns_viewlist_t viewlist;
 	dns_viewlist_t tmpviewlist;
-	ns_aclconfctx_t aclconfctx;
-	isc_uint32_t interface_interval;
-	isc_uint32_t heartbeat_interval;
-	isc_uint32_t udpsize;
+	dns_viewlist_t viewlist;
 	in_port_t listen_port;
 	int i;
+	isc_resourcevalue_t files;
+	isc_result_t result;
+	isc_uint32_t heartbeat_interval;
+	isc_uint32_t interface_interval;
+	isc_uint32_t reserved;
+	isc_uint32_t udpsize;
+	ns_aclconfctx_t aclconfctx;
 
 	ns_aclconfctx_init(&aclconfctx);
 	ISC_LIST_INIT(viewlist);
@@ -2260,6 +2262,43 @@ load_configuration(const char *filename, ns_server_t *server,
 	 * Set process limits, which (usually) needs to be done as root.
 	 */
 	set_limits(maps);
+
+	/*
+	 * Sanity check on "files" limit.
+	 */
+	result = isc_resource_curlimit(isc_resource_openfiles, &files);
+	if (result == ISC_R_SUCCESS && files < FD_SETSIZE) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      "the 'files' limit (%" ISC_PRINT_QUADFORMAT "u) "
+			      "is less than FD_SETSIZE (%d), increase "
+			      "'files' in named.conf or recompile with a "
+			      "smaller FD_SETSIZE.", files, FD_SETSIZE);
+		if (files > FD_SETSIZE)
+			files = FD_SETSIZE;
+	} else
+		files = FD_SETSIZE;
+
+	/*
+	 * Set the number of socket reserved for TCP, stdio etc.
+	 */
+	obj = NULL;
+	result = ns_config_get(maps, "reserved-sockets", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	reserved = cfg_obj_asuint32(obj);
+	if (files < 128U)			/* Prevent underflow. */
+		reserved = 0;
+	else if (reserved > files - 128U)	/* Mimimum UDP space. */
+		reserved = files - 128;
+	if (reserved < 128U)			/* Mimimum TCP/stdio space. */
+		reserved = 128;
+	if (reserved + 128U > files) {
+		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
+			      NS_LOGMODULE_SERVER, ISC_LOG_WARNING,
+			      "less than 128 UDP sockets available after "
+			      "applying 'reserved-sockets' and 'files'");
+	}
+	isc__socketmgr_setreserved(ns_g_socketmgr, reserved);
 
 	/*
 	 * Configure various server options.
