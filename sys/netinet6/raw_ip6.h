@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: raw_ip6.h,v 1.2 2001/05/27 13:28:35 itojun Exp $	*/
-
 /*-
  * Copyright (C) 2001 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: raw_ip6.h,v 1.2 2001/05/27 13:28:35 itojun Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET6_RAW_IP6_H_

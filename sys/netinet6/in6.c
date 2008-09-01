@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6.c,v 1.259 2002/01/21 11:37:50 keiichi Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in6.c,v 1.259 2002/01/21 11:37:50 keiichi Exp $
  */
 
 /*-
@@ -60,6 +59,9 @@
  *
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -126,7 +128,7 @@ static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *));
 static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
 	struct sockaddr_in6 *, int));
-static void in6_unlink_ifa __P((struct in6_ifaddr *, struct ifnet *));
+static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 struct in6_multihead in6_multihead;	/* XXX BSS initialization */
 int	(*faithprefix_p)(struct in6_addr *);

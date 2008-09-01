@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: nd6.c,v 1.144 2001/05/24 07:44:00 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,7 +25,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: nd6.c,v 1.144 2001/05/24 07:44:00 itojun Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -109,12 +111,12 @@ static struct sockaddr_in6 all1_sa;
 
 static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
 	struct ifnet *));
-static void nd6_setmtu0 __P((struct ifnet *, struct nd_ifinfo *));
-static void nd6_slowtimo __P((void *));
-static int regen_tmpaddr __P((struct in6_ifaddr *));
-static struct llinfo_nd6 *nd6_free __P((struct rtentry *, int));
-static void nd6_llinfo_timer __P((void *));
-static void clear_llinfo_pqueue __P((struct llinfo_nd6 *));
+static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
+static void nd6_slowtimo(void *);
+static int regen_tmpaddr(struct in6_ifaddr *);
+static struct llinfo_nd6 *nd6_free(struct rtentry *, int);
+static void nd6_llinfo_timer(void *);
+static void clear_llinfo_pqueue(struct llinfo_nd6 *);
 
 struct callout nd6_slowtimo_ch;
 struct callout nd6_timer_ch;
