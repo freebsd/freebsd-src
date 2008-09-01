@@ -1336,11 +1336,26 @@ inp_wlock_assert(struct inpcb *inp)
 }
 
 void
-inp_wunlock_assert(struct inpcb *inp)
+inp_rlock_assert(struct inpcb *inp)
 {
 
-	INP_WUNLOCK_ASSERT(inp);
+	INP_RLOCK_ASSERT(inp);
 }
+
+void
+inp_lock_assert(struct inpcb *inp)
+{
+
+	INP_LOCK_ASSERT(inp);
+}
+
+void
+inp_unlock_assert(struct inpcb *inp)
+{
+
+	INP_UNLOCK_ASSERT(inp);
+}
+
 #endif
 
 #ifdef DDB
