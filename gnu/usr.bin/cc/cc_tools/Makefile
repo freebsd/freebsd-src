@@ -33,6 +33,7 @@ TARGET_INC+=	${GCC_CPU}/unix.h
 TARGET_INC+=	${GCC_CPU}/att.h
 .endif
 TARGET_INC+=	dbxelf.h
+TARGET_INC+=	elfos-undef.h
 TARGET_INC+=	elfos.h
 TARGET_INC+=	freebsd-native.h
 TARGET_INC+=	freebsd-spec.h
@@ -45,7 +46,7 @@ TARGET_INC+=	${GCC_CPU}/sysv4.h
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/x86-64.h
 .endif
-.if ${TARGET_ARCH} == "arm"
+.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "mips"
 TARGET_INC+=	${GCC_CPU}/elf.h
 .endif
 .if ${TARGET_ARCH} == "arm"
