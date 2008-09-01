@@ -270,9 +270,9 @@ make_tx_data_wr(struct socket *so, struct mbuf *m, int len, struct mbuf *tail)
 	struct tx_data_wr *req;
 	struct sockbuf *snd;
 	
-	inp_lock_assert(tp->t_inpcb);
 	snd = so_sockbuf_snd(so);
-	
+	inp_wlock_assert(tp->t_inpcb);
+
 	req = mtod(m, struct tx_data_wr *);
 	m->m_len = sizeof(*req);
 	req->wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_TX_DATA));
@@ -507,9 +507,9 @@ close_conn(struct socket *so)
 	struct toepcb *toep;
 	unsigned int tid; 
 
-
 	inp_wlock(inp);
 	tp = so_sototcpcb(so);
+
 	toep = tp->t_toe;
 	
 	if (tp->t_state != TCPS_SYN_SENT)
@@ -535,8 +535,10 @@ close_conn(struct socket *so)
 	req->wr.wr_hi = htonl(V_WR_OP(FW_WROPCODE_OFLD_CLOSE_CON));
 	req->wr.wr_lo = htonl(V_WR_TID(tid));
 	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, tid));
-	req->rsvd = 0;
+
+	req->rsvd = htonl(toep->tp_write_seq);
 	inp_wunlock(inp);
+
 	/*
 	 * XXX - need to defer shutdown while there is still data in the queue
 	 *
@@ -719,9 +721,8 @@ t3_cleanup_rbuf(struct tcpcb *tp, int copied)
 		return;
 	}
 	
-	inp_lock_assert(tp->t_inpcb); 
-
 	sockbuf_lock(rcv);
+	inp_wlock_assert(tp->t_inpcb);	
 	if (copied)
 		toep->tp_copied_seq += copied;
 	else {
@@ -821,7 +822,7 @@ static int
 cxgb_toe_rcvd(struct tcpcb *tp)
 {
 
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 
 	t3_cleanup_rbuf(tp, 0);
 	
@@ -838,6 +839,7 @@ cxgb_toe_detach(struct tcpcb *tp)
 	 *
 	 */
 	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	toep = tp->t_toe;
 	toep->tp_tp = NULL;
 
@@ -1045,6 +1047,7 @@ t3_get_tcb(struct toepcb *toep)
 		return (ENOMEM);
 	
 	inp_lock_assert(tp->t_inpcb);	
+
 	m_set_priority(m, mkprio(CPL_PRIORITY_CONTROL, toep));
 	req = mtod(m, struct cpl_get_tcb *);
 	m->m_pkthdr.len = m->m_len = sizeof(*req);
@@ -1158,7 +1161,7 @@ t3_release_offload_resources(struct toepcb *toep)
 	}
 	toep->tp_tp = NULL;
 	if (tp) {
-		inp_lock_assert(tp->t_inpcb);
+		inp_wlock_assert(tp->t_inpcb);
 		so = inp_inpcbtosocket(tp->t_inpcb);
 		rcv = so_sockbuf_rcv(so);		
 		/*
@@ -1166,6 +1169,7 @@ t3_release_offload_resources(struct toepcb *toep)
 		 *
 		 */
 		sockbuf_lock(rcv);
+
 		tp->t_toe = NULL;
 		tp->t_flags &= ~TF_TOE;
 		if (toep->tp_ddp_state.user_ddp_pending) {
@@ -1447,6 +1451,7 @@ active_open_failed(struct toepcb *toep, struct mbuf *m)
 		goto done;
 
 	inp = toep->tp_tp->t_inpcb;
+	inp_wlock(inp);
 
 /*
  * Don't handle connection retry for now
@@ -1469,7 +1474,10 @@ active_open_failed(struct toepcb *toep, struct mbuf *m)
 		fail_act_open(toep, act_open_rpl_status_to_errno(rpl->status));
 	}
 	
-	done:
+	inp_wunlock(inp);
+done:
+	INP_INFO_WUNLOCK(&tcbinfo);
+
 	m_free(m);
 }
 
@@ -1525,8 +1533,9 @@ act_open_req_arp_failure(struct t3cdev *dev, struct mbuf *m)
 		printf("freeing %p\n", m);
 		
 		m_free(m);
-	} else
-		inp_wunlock(inp);
+	} 
+
+	inp_wunlock(inp);
 }
 #endif
 /*
@@ -1556,7 +1565,7 @@ t3_connect(struct toedev *tdev, struct socket *so,
 	if (!e)
 		goto free_tid;
 
-	inp_lock_assert(inp);
+	inp_wlock_assert(inp);
 	m = m_gethdr(MT_DATA, M_WAITOK);
 	
 #if 0	
@@ -1612,8 +1621,8 @@ t3_send_reset(struct toepcb *toep)
 	struct sockbuf *snd;
 	
 	if (tp) {
-		inp_lock_assert(tp->t_inpcb);
-		so = inp_inpcbtosocket(tp->t_inpcb);
+		inp_wlock_assert(tp->t_inpcb);
+		so = toeptoso(toep);
 	}
 	
 	if (__predict_false((toep->tp_flags & TP_ABORT_SHUTDOWN) ||
@@ -1742,8 +1751,7 @@ t3_tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 		else
 			tp->t_flags &= ~TF_NODELAY;
 		inp_wunlock(inp);
-
-
+		
 		if (oldval != tp->t_flags && (tp->t_toe != NULL))
 			t3_set_nagle(tp->t_toe);
 
@@ -1814,7 +1822,7 @@ tcb_rpl_as_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	tp = toep->tp_tp;
 	so = inp_inpcbtosocket(tp->t_inpcb);
 
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	rcv = so_sockbuf_rcv(so);
 	sockbuf_lock(rcv);	
 	
@@ -2003,7 +2011,7 @@ handle_ddp_data(struct toepcb *toep, struct mbuf *m)
 	if (tp->rcv_nxt == rcv_nxt)
 		return;
 
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	so  = inp_inpcbtosocket(tp->t_inpcb);
 	rcv = so_sockbuf_rcv(so);	
 	sockbuf_lock(rcv);	
@@ -2120,6 +2128,8 @@ new_rx_data(struct toepcb *toep, struct mbuf *m)
 		DPRINTF("rx_data so=%p flags=0x%x len=%d\n", so, rcv->sb_flags, m->m_pkthdr.len);
 #endif
 	SBAPPEND(rcv, m);
+	inp_wunlock(tp->t_inpcb);
+	sockbuf_lock(rcv);
 
 #ifdef notyet
 	/*
@@ -2170,8 +2180,8 @@ new_rx_data_ddp(struct toepcb *toep, struct mbuf *m)
 	int nomoredata = 0;
 	unsigned int delack_mode;
 	struct sockbuf *rcv;
-	
-	tp = toep->tp_tp;	
+
+	tp = toep->tp_tp;
 	inp_wlock(tp->t_inpcb);
 	so = inp_inpcbtosocket(tp->t_inpcb);
 
@@ -2324,6 +2334,7 @@ process_ddp_complete(struct toepcb *toep, struct mbuf *m)
 	
 	inp_wlock(tp->t_inpcb);
 	so = inp_inpcbtosocket(tp->t_inpcb);
+	inp_wlock(tp->t_inpcb);
 
 	if (__predict_false(so_no_receive(so))) {
 		struct inpcb *inp = so_sotoinpcb(so);
@@ -2418,6 +2429,8 @@ do_rx_ddp_complete(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 static void
 enter_timewait(struct tcpcb *tp)
 {
+
+	inp_wlock_assert(tp->t_inpcb);
 	/*
 	 * Bump rcv_nxt for the peer FIN.  We don't do this at the time we
 	 * process peer_close because we don't want to carry the peer FIN in
@@ -2470,7 +2483,7 @@ handle_peer_close_data(struct socket *so, struct mbuf *m)
 		return (1);
 	}
 
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	q = &toep->tp_ddp_state;
 	rcv = so_sockbuf_rcv(so);
 	sockbuf_lock(rcv);
@@ -2745,7 +2758,7 @@ process_abort_rpl(struct toepcb *toep, struct mbuf *m)
 	
 	inp_wlock(tp->t_inpcb);
 	so = inp_inpcbtosocket(tp->t_inpcb);
-	
+
 	if (toep->tp_flags & TP_ABORT_RPL_PENDING) {
 		/*
 		 * XXX panic on tcpdrop
@@ -3047,7 +3060,7 @@ process_abort_req(struct toepcb *toep, struct mbuf *m, struct toedev *tdev)
 	send_abort_rpl(m, tdev, rst_status);
 	return;
 skip:
-	inp_wunlock(tp->t_inpcb);	
+	inp_wunlock(tp->t_inpcb);
 }
 
 /*
@@ -3511,7 +3524,7 @@ assign_rxopt(struct socket *so, unsigned int opt)
 	struct toepcb *toep = tp->t_toe;
 	const struct t3c_data *td = T3C_DATA(TOEP_T3C_DEV(toep));
 
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	
 	toep->tp_mss_clamp = td->mtus[G_TCPOPT_MSS(opt)] - 40;
 	tp->t_flags         |= G_TCPOPT_TSTAMP(opt) ? TF_RCVD_TSTMP : 0;
@@ -3750,7 +3763,7 @@ fixup_and_send_ofo(struct toepcb *toep)
 
 	log(LOG_NOTICE, "fixup_and_send_ofo\n");
 	
-	inp_lock_assert(tp->t_inpcb);
+	inp_wlock_assert(tp->t_inpcb);
 	while ((m = mbufq_dequeue(&toep->out_of_order_queue)) != NULL) {
 		/*
 		 * A variety of messages can be waiting but the fields we'll
@@ -3851,7 +3864,8 @@ do_act_establish(struct t3cdev *cdev, struct mbuf *m, void *ctx)
 	so = inp_inpcbtosocket(tp->t_inpcb);
 	tdev = toep->tp_toedev; /* blow up here if link was down */
 	d = TOM_DATA(tdev);
-
+	inp_wlock(tp->t_inpcb);
+	
 	/*
 	 * It's OK if the TID is currently in use, the owning socket may have
 	 * backlogged its last CPL message(s).  Just take it away.
@@ -3889,6 +3903,7 @@ wr_ack(struct toepcb *toep, struct mbuf *m)
 
 	inp_wlock(tp->t_inpcb);
 	so = inp_inpcbtosocket(tp->t_inpcb);
+
 	toep->tp_wr_avail += credits;
 	if (toep->tp_wr_unacked > toep->tp_wr_max - toep->tp_wr_avail)
 		toep->tp_wr_unacked = toep->tp_wr_max - toep->tp_wr_avail;

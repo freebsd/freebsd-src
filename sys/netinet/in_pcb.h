@@ -338,6 +338,11 @@ void inp_runlock(struct inpcb *);
 #ifdef INVARIANTS
 void inp_lock_assert(struct inpcb *);
 void inp_unlock_assert(struct inpcb *);
+void inp_wlock_assert(struct inpcb *);
+void inp_wunlock_assert(struct inpcb *);
+void inp_rlock_assert(struct inpcb *);
+void inp_runlock_assert(struct inpcb *);
+
 #else
 static __inline void
 inp_lock_assert(struct inpcb *inp __unused)
@@ -348,6 +353,27 @@ static __inline void
 inp_unlock_assert(struct inpcb *inp __unused)
 {
 }
+
+static __inline void
+inp_wlock_assert(struct inpcb *inp __unused)
+{
+}
+
+static __inline void
+inp_wunlock_assert(struct inpcb *inp __unused)
+{
+}
+
+static __inline void
+inp_rlock_assert(struct inpcb *inp __unused)
+{
+}
+
+static __inline void
+inp_runlock_assert(struct inpcb *inp __unused)
+{
+}
+
 
 #endif
 
