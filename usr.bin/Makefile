@@ -233,7 +233,7 @@ SUBDIR=	alias \
 	${_ypmatch} \
 	${_ypwhich}
 
-.if ${MACHINE_ARCH} != "arm"
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 _truss=		truss
 .endif
 
@@ -299,7 +299,9 @@ _vacation=	vacation
 _ar=		ar
 _c89=		c89
 _c99=		c99
+.if ${MACHINE_ARCH} != "mips"
 _gprof=		gprof
+.endif
 _lex=		lex
 _xlint=		xlint
 _yacc=		yacc
