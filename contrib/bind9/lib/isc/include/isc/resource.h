@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resource.h,v 1.4.206.1 2004/03/06 08:14:47 marka Exp $ */
+/* $Id: resource.h,v 1.4.206.1.34.2 2008/07/23 23:47:49 tbox Exp $ */
 
 #ifndef ISC_RESOURCE_H
 #define ISC_RESOURCE_H 1
@@ -70,6 +70,19 @@ isc_resource_getlimit(isc_resource_t resource, isc_resourcevalue_t *value);
  *	there is the possibility for confusion over what exactly those
  *	particular values are supposed to represent in a particular context --
  *	discrete integral values or generalized concepts.
+ *
+ * Requires:
+ *	'resource' is a valid member of the isc_resource_t enumeration.
+ *
+ * Returns:
+ *	ISC_R_SUCCESS		Success.
+ *	ISC_R_NOTIMPLEMENTED	'resource' is not a type known by the OS.
+ */
+
+isc_result_t
+isc_resource_curlimit(isc_resource_t resource, isc_resourcevalue_t *value);
+/*
+ * Get the current limit on a resource.
  *
  * Requires:
  *	'resource' is a valid member of the isc_resource_t enumeration.

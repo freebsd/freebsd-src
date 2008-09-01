@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: client.c,v 1.176.2.13.4.38.4.1 2008/05/22 21:11:13 each Exp $ */
+/* $Id: client.c,v 1.176.2.13.4.38.4.2 2008/07/23 07:28:11 tbox Exp $ */
 
 #include <config.h>
 
@@ -256,7 +256,7 @@ exit_check(ns_client_t *client) {
 	 *
 	 * Keep the view attached until any outstanding updates complete.
 	 */
-	if (client->nupdates == 0 && 
+	if (client->nupdates == 0 &&
 	    client->newstate == NS_CLIENTSTATE_FREED && client->view != NULL)
 		dns_view_detach(&client->view);
 
@@ -786,7 +786,7 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 		isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
 		if (ns_g_server->blackholeacl != NULL &&
 		    dns_acl_match(&netaddr, NULL,
-			    	  ns_g_server->blackholeacl,
+				  ns_g_server->blackholeacl,
 				  &ns_g_server->aclenv,
 				  &match, NULL) == ISC_R_SUCCESS &&
 		    match > 0)
@@ -803,7 +803,7 @@ client_sendpkg(ns_client_t *client, isc_buffer_t *buffer) {
 	isc_buffer_usedregion(buffer, &r);
 
 	CTRACE("sendto");
-	
+
 	result = isc_socket_sendto2(socket, &r, client->task,
 				    address, pktinfo,
 				    client->sendevent, sockflags);
@@ -1077,8 +1077,8 @@ ns_client_error(ns_client_t *client, isc_result_t result) {
 	/*
 	 * FORMERR loop avoidance:  If we sent a FORMERR message
 	 * with the same ID to the same client less than two
-	 * seconds ago, assume that we are in an infinite error 
-	 * packet dialog with a server for some protocol whose 
+	 * seconds ago, assume that we are in an infinite error
+	 * packet dialog with a server for some protocol whose
 	 * error responses look enough like DNS queries to
 	 * elicit a FORMERR response.  Drop a packet to break
 	 * the loop.
@@ -1443,7 +1443,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 	 * For IPv6 UDP queries, we get this from the pktinfo structure (if
 	 * supported).
 	 * If all the attempts fail (this can happen due to memory shortage,
-	 * etc), we regard this as an error for safety. 
+	 * etc), we regard this as an error for safety.
 	 */
 	if ((client->interface->flags & NS_INTERFACEFLAG_ANYADDR) == 0)
 		isc_netaddr_fromsockaddr(&destaddr, &client->interface->addr);
@@ -1504,7 +1504,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 							   view);
 			if (sigresult == ISC_R_SUCCESS)
 				tsig = client->message->tsigname;
-				
+
 			if (allowed(&netaddr, tsig, view->matchclients) &&
 			    allowed(&destaddr, tsig, view->matchdestinations) &&
 			    !((client->message->flags & DNS_MESSAGEFLAG_RD)
@@ -1635,7 +1635,7 @@ client_request(isc_task_t *task, isc_event_t *event) {
 
 	ns_client_log(client, DNS_LOGCATEGORY_SECURITY, NS_LOGMODULE_CLIENT,
 		      ISC_LOG_DEBUG(3), ra ? "recursion available" :
-		      			     "recursion not available");
+					     "recursion not available");
 
 	/*
 	 * Dispatch the request.
@@ -1949,7 +1949,7 @@ client_newconn(isc_task_t *task, isc_event_t *event) {
 
 		if (ns_g_server->blackholeacl != NULL &&
 		    dns_acl_match(&netaddr, NULL,
-			    	  ns_g_server->blackholeacl,
+				  ns_g_server->blackholeacl,
 				  &ns_g_server->aclenv,
 				  &match, NULL) == ISC_R_SUCCESS &&
 		    match > 0)
@@ -2319,7 +2319,7 @@ ns_client_checkacl(ns_client_t *client,
 	isc_result_t result =
 		ns_client_checkaclsilent(client, acl, default_allow);
 
-	if (result == ISC_R_SUCCESS) 
+	if (result == ISC_R_SUCCESS)
 		ns_client_log(client, DNS_LOGCATEGORY_SECURITY,
 			      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(3),
 			      "%s approved", opname);
@@ -2375,16 +2375,16 @@ ns_client_log(ns_client_t *client, isc_logcategory_t *category,
 
 void
 ns_client_aclmsg(const char *msg, dns_name_t *name, dns_rdatatype_t type,
-		 dns_rdataclass_t rdclass, char *buf, size_t len) 
+		 dns_rdataclass_t rdclass, char *buf, size_t len)
 {
-        char namebuf[DNS_NAME_FORMATSIZE];
-        char typebuf[DNS_RDATATYPE_FORMATSIZE];
-        char classbuf[DNS_RDATACLASS_FORMATSIZE];
+	char namebuf[DNS_NAME_FORMATSIZE];
+	char typebuf[DNS_RDATATYPE_FORMATSIZE];
+	char classbuf[DNS_RDATACLASS_FORMATSIZE];
 
-        dns_name_format(name, namebuf, sizeof(namebuf));
-        dns_rdatatype_format(type, typebuf, sizeof(typebuf));
-        dns_rdataclass_format(rdclass, classbuf, sizeof(classbuf));
-        (void)snprintf(buf, len, "%s '%s/%s/%s'", msg, namebuf, typebuf,
+	dns_name_format(name, namebuf, sizeof(namebuf));
+	dns_rdatatype_format(type, typebuf, sizeof(typebuf));
+	dns_rdataclass_format(rdclass, classbuf, sizeof(classbuf));
+	(void)snprintf(buf, len, "%s '%s/%s/%s'", msg, namebuf, typebuf,
 		       classbuf);
 }
 
@@ -2412,7 +2412,7 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 			isc_mem_put(client->mctx, buf, len);
 			len += 1024;
 		} else if (result == ISC_R_SUCCESS)
-		        ns_client_log(client, NS_LOGCATEGORY_UNMATCHED,
+			ns_client_log(client, NS_LOGCATEGORY_UNMATCHED,
 				      NS_LOGMODULE_CLIENT, ISC_LOG_DEBUG(1),
 				      "%s\n%.*s", reason,
 				       (int)isc_buffer_usedlength(&buffer),
@@ -2432,7 +2432,7 @@ ns_client_dumprecursing(FILE *f, ns_clientmgr_t *manager) {
 	const char *sep;
 
 	REQUIRE(VALID_MANAGER(manager));
-	      
+
 	LOCK(&manager->lock);
 	client = ISC_LIST_HEAD(manager->recursing);
 	while (client != NULL) {

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket_p.h,v 1.6.206.1 2004/03/06 08:15:02 marka Exp $ */
+/* $Id: socket_p.h,v 1.6.206.1.34.1 2008/07/29 04:43:57 each Exp $ */
 
 #ifndef ISC_SOCKET_P_H
 #define ISC_SOCKET_P_H
@@ -25,7 +25,7 @@
 #endif
 
 void
-isc__socketmgr_getfdsets(fd_set *readset, fd_set *writeset, int *maxfd);
+isc__socketmgr_getfdsets(fd_set **readset, fd_set **writeset, int *maxfd);
 
 isc_result_t
 isc__socketmgr_dispatch(fd_set *readset, fd_set *writeset, int maxfd);

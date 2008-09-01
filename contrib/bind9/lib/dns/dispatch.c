@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dispatch.c,v 1.101.2.6.2.21.4.1 2008/05/22 21:11:15 each Exp $ */
+/* $Id: dispatch.c,v 1.101.2.6.2.21.4.5 2008/07/23 23:16:26 marka Exp $ */
 
 #include <config.h>
 
@@ -274,7 +274,26 @@ request_log(dns_dispatch_t *disp, dns_dispentry_t *resp,
 }
 
 /*
- * ARC4 random number generator obtained from OpenBSD
+ * ARC4 random number generator derived from OpenBSD.
+ * Only dispatch_arc4random() and dispatch_arc4uniformrandom() are expected
+ * to be called from general dispatch routines; the rest of them are subroutines
+ * for these two.
+ *
+ * The original copyright follows:
+ * Copyright (c) 1996, David Mazieres <dm@uun.org>
+ * Copyright (c) 2008, Damien Miller <djm@openbsd.org>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 static void
 dispatch_arc4init(arc4ctx_t *actx) {
@@ -708,7 +727,7 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 	isc_netaddr_fromsockaddr(&netaddr, &ev->address);
 	if (disp->mgr->blackhole != NULL &&
 	    dns_acl_match(&netaddr, NULL, disp->mgr->blackhole,
-		    	  NULL, &match, NULL) == ISC_R_SUCCESS &&
+			  NULL, &match, NULL) == ISC_R_SUCCESS &&
 	    match > 0)
 	{
 		if (isc_log_wouldlog(dns_lctx, LVL(10))) {
@@ -761,7 +780,7 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 	if (resp == NULL) {
 		free_buffer(disp, ev->region.base, ev->region.length);
 		goto unlock;
-	} 
+	}
 
 	/*
 	 * Now that we have the original dispatch the query was sent
@@ -771,7 +790,7 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 	if (disp != resp->disp) {
 		isc_sockaddr_t a1;
 		isc_sockaddr_t a2;
-		
+
 		/*
 		 * Check that the socket types and ports match.
 		 */
@@ -784,11 +803,11 @@ udp_recv(isc_task_t *task, isc_event_t *ev_in) {
 
 		/*
 		 * If both dispatches are bound to an address then fail as
-		 * the addresses can't be equal (enforced by the IP stack).  
+		 * the addresses can't be equal (enforced by the IP stack).
 		 *
 		 * Note under Linux a packet can be sent out via IPv4 socket
 		 * and the response be received via a IPv6 socket.
-		 * 
+		 *
 		 * Requests sent out via IPv6 should always come back in
 		 * via IPv6.
 		 */
@@ -909,7 +928,7 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
 		switch (tcpmsg->result) {
 		case ISC_R_CANCELED:
 			break;
-			
+
 		case ISC_R_EOF:
 			dispatch_log(disp, LVL(90), "shutting down on EOF");
 			do_cancel(disp);
@@ -1167,7 +1186,7 @@ destroy_mgr(dns_dispatchmgr_t **mgrp) {
 
 static isc_result_t
 create_socket(isc_socketmgr_t *mgr, isc_sockaddr_t *local,
-	      isc_socket_t **sockp)
+	      unsigned int options, isc_socket_t **sockp)
 {
 	isc_socket_t *sock;
 	isc_result_t result;
@@ -1181,7 +1200,7 @@ create_socket(isc_socketmgr_t *mgr, isc_sockaddr_t *local,
 #ifndef ISC_ALLOW_MAPPED
 	isc_socket_ipv6only(sock, ISC_TRUE);
 #endif
-	result = isc_socket_bind(sock, local);
+	result = isc_socket_bind(sock, local, options);
 	if (result != ISC_R_SUCCESS) {
 		isc_socket_detach(&sock);
 		return (result);
@@ -1913,7 +1932,7 @@ dispatch_createudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 				attributes &= ~DNS_DISPATCHATTR_RANDOMPORT;
 			goto getsocket;
 		}
-		result = create_socket(sockmgr, &localaddr_bound, &sock);
+		result = create_socket(sockmgr, &localaddr_bound, 0, &sock);
 		if (result == ISC_R_ADDRINUSE) {
 			if (++k == 1024)
 				attributes &= ~DNS_DISPATCHATTR_RANDOMPORT;
@@ -1921,7 +1940,8 @@ dispatch_createudp(dns_dispatchmgr_t *mgr, isc_socketmgr_t *sockmgr,
 		}
 		localport = prt;
 	} else
-		result = create_socket(sockmgr, localaddr, &sock);
+		result = create_socket(sockmgr, localaddr,
+				       ISC_SOCKET_REUSEADDRESS, &sock);
 	if (result != ISC_R_SUCCESS)
 		goto deallocate_dispatch;
 	if ((attributes & DNS_DISPATCHATTR_RANDOMPORT) == 0 &&
@@ -2410,7 +2430,7 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event) {
 	newsevent->timestamp = sevent->timestamp;
 	newsevent->pktinfo = sevent->pktinfo;
 	newsevent->attributes = sevent->attributes;
-	
+
 	isc_task_send(disp->task, ISC_EVENT_PTR(&newsevent));
 }
 
