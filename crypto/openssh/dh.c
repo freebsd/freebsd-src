@@ -1,4 +1,4 @@
-/* $OpenBSD: dh.c,v 1.43 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: dh.c,v 1.47 2008/06/26 09:19:39 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  *
@@ -46,6 +46,7 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 	char *cp, *arg;
 	char *strsize, *gen, *prime;
 	const char *errstr = NULL;
+	long long n;
 
 	cp = line;
 	if ((arg = strdelim(&cp)) == NULL)
@@ -62,11 +63,23 @@ parse_prime(int linenum, char *line, struct dhgroup *dhg)
 	arg = strsep(&cp, " "); /* type */
 	if (cp == NULL || *arg == '\0')
 		goto fail;
+	/* Ensure this is a safe prime */
+	n = strtonum(arg, 0, 5, &errstr);
+	if (errstr != NULL || n != MODULI_TYPE_SAFE)
+		goto fail;
 	arg = strsep(&cp, " "); /* tests */
 	if (cp == NULL || *arg == '\0')
 		goto fail;
+	/* Ensure prime has been tested and is not composite */
+	n = strtonum(arg, 0, 0x1f, &errstr);
+	if (errstr != NULL ||
+	    (n & MODULI_TESTS_COMPOSITE) || !(n & ~MODULI_TESTS_COMPOSITE))
+		goto fail;
 	arg = strsep(&cp, " "); /* tries */
 	if (cp == NULL || *arg == '\0')
+		goto fail;
+	n = strtonum(arg, 0, 1<<30, &errstr);
+	if (errstr != NULL || n == 0)
 		goto fail;
 	strsize = strsep(&cp, " "); /* size */
 	if (cp == NULL || *strsize == '\0' ||
@@ -153,7 +166,7 @@ choose_dh(int min, int wantbits, int max)
 	}
 
 	linenum = 0;
-	which = arc4random() % bestcount;
+	which = arc4random_uniform(bestcount);
 	while (fgets(line, sizeof(line), f)) {
 		if (!parse_prime(linenum, line, &dhg))
 			continue;
@@ -185,7 +198,7 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	BIGNUM *tmp;
 
 	if (dh_pub->neg) {
-		logit("invalid public DH value: negativ");
+		logit("invalid public DH value: negative");
 		return 0;
 	}
 	if (BN_cmp(dh_pub, BN_value_one()) != 1) {	/* pub_exp <= 1 */
@@ -193,8 +206,10 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 		return 0;
 	}
 
-	if ((tmp = BN_new()) == NULL)
-		return (-1);
+	if ((tmp = BN_new()) == NULL) {
+		error("%s: BN_new failed", __func__);
+		return 0;
+	}
 	if (!BN_sub(tmp, dh->p, BN_value_one()) ||
 	    BN_cmp(dh_pub, tmp) != -1) {		/* pub_exp > p-2 */
 		BN_clear_free(tmp);

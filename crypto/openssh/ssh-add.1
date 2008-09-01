@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-add.1,v 1.43 2005/04/21 06:17:50 djm Exp $
+.\"	$OpenBSD: ssh-add.1,v 1.46 2007/06/12 13:41:03 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -37,7 +37,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 25, 1999
+.Dd $Mdocdate: June 12 2007 $
 .Dt SSH-ADD 1
 .Os
 .Sh NAME
@@ -89,7 +89,18 @@ program, rather than text entered into the requester.
 .It Fl D
 Deletes all identities from the agent.
 .It Fl d
-Instead of adding the identity, removes the identity from the agent.
+Instead of adding identities, removes identities from the agent.
+If
+.Nm
+has been run without arguments, the keys for the default identities will
+be removed.
+Otherwise, the argument list will be interpreted as a list of paths to
+public key files and matching keys will be removed from the agent.
+If no public key is found at a given path,
+.Nm
+will append
+.Pa .pub
+and retry.
 .It Fl e Ar reader
 Remove key in smartcard
 .Ar reader .

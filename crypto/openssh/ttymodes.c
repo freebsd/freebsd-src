@@ -1,4 +1,4 @@
-/* $OpenBSD: ttymodes.c,v 1.26 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: ttymodes.c,v 1.28 2008/07/07 00:31:41 stevesk Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -298,6 +298,10 @@ tty_make_modes(int fd, struct termios *tiop)
 	}
 
 	if (tiop == NULL) {
+		if (fd == -1) {
+			debug("tty_make_modes: no fd or tio");
+			goto end;
+		}
 		if (tcgetattr(fd, &tio) == -1) {
 			logit("tcgetattr: %.100s", strerror(errno));
 			goto end;
@@ -317,12 +321,10 @@ tty_make_modes(int fd, struct termios *tiop)
 
 	/* Store values of mode flags. */
 #define TTYCHAR(NAME, OP) \
-	debug3("tty_make_modes: %d %d", OP, tio.c_cc[NAME]); \
 	buffer_put_char(&buf, OP); \
 	put_arg(&buf, special_char_encode(tio.c_cc[NAME]));
 
 #define TTYMODE(NAME, FIELD, OP) \
-	debug3("tty_make_modes: %d %d", OP, ((tio.FIELD & NAME) != 0)); \
 	buffer_put_char(&buf, OP); \
 	put_arg(&buf, ((tio.FIELD & NAME) != 0));
 
@@ -353,7 +355,7 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 	int n_bytes = 0;
 	int failure = 0;
 	u_int (*get_arg)(void);
-	int arg, arg_size;
+	int arg_size;
 
 	if (compat20) {
 		*n_bytes_ptr = packet_get_int();
@@ -410,16 +412,14 @@ tty_parse_modes(int fd, int *n_bytes_ptr)
 	case OP: \
 	  n_bytes += arg_size; \
 	  tio.c_cc[NAME] = special_char_decode(get_arg()); \
-	  debug3("tty_parse_modes: %d %d", OP, tio.c_cc[NAME]); \
 	  break;
 #define TTYMODE(NAME, FIELD, OP) \
 	case OP: \
 	  n_bytes += arg_size; \
-	  if ((arg = get_arg())) \
+	  if (get_arg()) \
 	    tio.FIELD |= NAME; \
 	  else \
 	    tio.FIELD &= ~NAME;	\
-	  debug3("tty_parse_modes: %d %d", OP, arg); \
 	  break;
 
 #include "ttymodes.h"

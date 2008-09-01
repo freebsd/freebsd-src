@@ -1,5 +1,4 @@
-/* $OpenBSD: auth.h,v 1.58 2006/08/18 09:15:20 markus Exp $ */
-/* $FreeBSD$ */
+/* $OpenBSD: auth.h,v 1.61 2008/07/02 12:03:51 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -167,8 +166,7 @@ void	abandon_challenge_response(Authctxt *);
 char	*authorized_keys_file(struct passwd *);
 char	*authorized_keys_file2(struct passwd *);
 
-int
-secure_filename(FILE *, const char *, struct passwd *, char *, size_t);
+FILE	*auth_openkeyfile(const char *, struct passwd *, int);
 
 HostStatus
 check_key_in_hostfiles(struct passwd *, Key *, const char *,
@@ -191,17 +189,10 @@ int	 sys_auth_passwd(Authctxt *, const char *);
 
 #define AUTH_FAIL_MSG "Too many authentication failures for %.100s"
 
-#ifdef SKEY
-#ifdef OPIE
-#define SKEY_PROMPT "\nOPIE Password: "
-#else
 #define SKEY_PROMPT "\nS/Key Password: "
 
 #if defined(KRB5) && !defined(HEIMDAL)
 #include <krb5.h>
 krb5_error_code ssh_krb5_cc_gen(krb5_context, krb5_ccache *);
 #endif
-#endif
-#endif
-
 #endif

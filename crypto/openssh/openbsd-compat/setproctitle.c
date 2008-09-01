@@ -43,6 +43,8 @@
 #endif
 #include <string.h>
 
+#include <vis.h>
+
 #define SPT_NONE	0	/* don't use it at all */
 #define SPT_PSTAT	1	/* use pstat(PSTAT_SETCMD, ...) */
 #define SPT_REUSEARGV	2	/* cover argv with title information */
@@ -121,7 +123,7 @@ setproctitle(const char *fmt, ...)
 {
 #if SPT_TYPE != SPT_NONE
 	va_list ap;
-	char buf[1024];
+	char buf[1024], ptitle[1024];
 	size_t len;
 	extern char *__progname;
 #if SPT_TYPE == SPT_PSTAT
@@ -142,14 +144,16 @@ setproctitle(const char *fmt, ...)
 			vsnprintf(buf + len, sizeof(buf) - len , fmt, ap);
 	}
 	va_end(ap);
+	strnvis(ptitle, buf, sizeof(ptitle),
+	    VIS_CSTYLE|VIS_NL|VIS_TAB|VIS_OCTAL);
 
 #if SPT_TYPE == SPT_PSTAT
-	pst.pst_command = buf;
-	pstat(PSTAT_SETCMD, pst, strlen(buf), 0, 0);
+	pst.pst_command = ptitle;
+	pstat(PSTAT_SETCMD, pst, strlen(ptitle), 0, 0);
 #elif SPT_TYPE == SPT_REUSEARGV
 /*	debug("setproctitle: copy \"%s\" into len %d", 
 	    buf, argv_env_len); */
-	len = strlcpy(argv_start, buf, argv_env_len);
+	len = strlcpy(argv_start, ptitle, argv_env_len);
 	for(; len < argv_env_len; len++)
 		argv_start[len] = SPT_PADCHAR;
 #endif

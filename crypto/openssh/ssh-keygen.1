@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.72 2005/11/28 05:16:53 dtucker Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.78 2008/06/12 19:10:09 jmc Exp $
 .\"
 .\"  -*- nroff -*-
 .\"
@@ -37,7 +37,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 25, 1999
+.Dd $Mdocdate: June 12 2008 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -205,8 +205,8 @@ Download the RSA public key stored in the smartcard in
 .Ar reader .
 .It Fl e
 This option will read a private or public OpenSSH key file and
-print the key in a
-.Sq SECSH Public Key File Format
+print the key in
+RFC 4716 SSH Public Key File Format
 to stdout.
 This option allows exporting keys for use by several commercial
 SSH implementations.
@@ -253,7 +253,7 @@ in SSH2-compatible format and print an OpenSSH compatible private
 (or public) key to stdout.
 .Nm
 also reads the
-.Sq SECSH Public Key File Format .
+RFC 4716 SSH Public Key File Format.
 This option allows importing keys from several commercial
 SSH implementations.
 .It Fl l
@@ -262,6 +262,9 @@ Private RSA1 keys are also supported.
 For RSA and DSA keys
 .Nm
 tries to find the matching public key file and prints its fingerprint.
+If combined with
+.Fl v ,
+an ASCII art representation of the key is supplied with the fingerprint.
 .It Fl M Ar memory
 Specify the amount of memory to use (in megabytes) when generating
 candidate moduli for DH-GEX.
@@ -450,12 +453,9 @@ The file format is described in
 .Xr moduli 5 ,
 .Xr sshd 8
 .Rs
-.%A J. Galbraith
-.%A R. Thayer
-.%T "SECSH Public Key File Format"
-.%N draft-ietf-secsh-publickeyfile-01.txt
-.%D March 2001
-.%O work in progress material
+.%R RFC 4716
+.%T "The Secure Shell (SSH) Public Key File Format"
+.%D 2006
 .Re
 .Sh AUTHORS
 OpenSSH is a derivative of the original and free

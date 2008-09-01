@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-skey.c,v 1.26 2006/08/05 08:28:24 dtucker Exp $ */
+/* $OpenBSD: auth-skey.c,v 1.27 2007/01/21 01:41:54 stevesk Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -24,7 +24,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #ifdef SKEY
 
@@ -33,15 +32,7 @@ __RCSID("$FreeBSD$");
 #include <pwd.h>
 #include <stdio.h>
 
-#ifdef OPIE
-#include <opie.h>
-#define skey			opie
-#define skeychallenge(k, u, c)	opiechallenge((k), (u), (c))
-#define skey_haskey(u)		opie_haskey((u))
-#define skey_passcheck(u, r)	opie_passverify((u), (r))
-#else
 #include <skey.h>
-#endif
 
 #include "xmalloc.h"
 #include "key.h"
@@ -68,8 +59,8 @@ skey_query(void *ctx, char **name, char **infotxt,
 	    sizeof(challenge)) == -1)
 		return -1;
 
-	*name  = xstrdup("");
-	*infotxt  = xstrdup("");
+	*name = xstrdup("");
+	*infotxt = xstrdup("");
 	*numprompts = 1;
 	*prompts = xcalloc(*numprompts, sizeof(char *));
 	*echo_on = xcalloc(*numprompts, sizeof(u_int));

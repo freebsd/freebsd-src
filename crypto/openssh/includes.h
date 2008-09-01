@@ -1,5 +1,4 @@
 /* $OpenBSD: includes.h,v 1.54 2006/07/22 20:48:23 stevesk Exp $ */
-/* $FreeBSD$	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -50,7 +49,7 @@
 #ifdef HAVE_NEXT
 # include <libc.h>
 #endif
-#ifdef HAVE_PATHS
+#ifdef HAVE_PATHS_H
 # include <paths.h>
 #endif
 
@@ -149,6 +148,8 @@
 #if defined(HAVE_SYS_SYSLOG_H)
 # include <sys/syslog.h>
 #endif
+
+#include <errno.h>
 
 /*
  * On HP-UX 11.11, shadow.h and prot.h provide conflicting declarations

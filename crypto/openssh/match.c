@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.26 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: match.c,v 1.27 2008/06/10 23:06:19 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -183,7 +183,8 @@ match_hostname(const char *host, const char *pattern, u_int len)
 
 /*
  * returns 0 if we get a negative match for the hostname or the ip
- * or if we get no match at all.  returns 1 otherwise.
+ * or if we get no match at all.  returns -1 on error, or 1 on
+ * successful match.
  */
 int
 match_host_and_ip(const char *host, const char *ipaddr,
@@ -191,9 +192,12 @@ match_host_and_ip(const char *host, const char *ipaddr,
 {
 	int mhost, mip;
 
-	/* negative ipaddr match */
-	if ((mip = match_hostname(ipaddr, patterns, strlen(patterns))) == -1)
+	/* error in ipaddr match */
+	if ((mip = addr_match_list(ipaddr, patterns)) == -2)
+		return -1;
+	else if (mip == -1) /* negative ip address match */
 		return 0;
+
 	/* negative hostname match */
 	if ((mhost = match_hostname(host, patterns, strlen(patterns))) == -1)
 		return 0;

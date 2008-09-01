@@ -14,7 +14,7 @@ SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	auth-krb5.c \
 	auth2-gss.c gss-serv.c gss-serv-krb5.c \
 	loginrec.c auth-pam.c auth-shadow.c auth-sia.c md5crypt.c \
-	audit.c audit-bsm.c platform.c \
+	audit.c audit-bsm.c platform.c sftp-server.c sftp-common.c \
 	gss-genr.c
 
 # gss-genr.c really belongs in libssh; see src/secure/lib/libssh/Makefile
@@ -32,9 +32,9 @@ LDADD+=  -lbsm
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
-CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
-LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lroken
+CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_GSSAPI_H=1 -DHAVE_GSSAPI_GSSAPI_KRB5_H=1 -DKRB5 -DHEIMDAL
+DPADD+=	 ${LIBGSSAPI} ${LIBGSSAPI_KRB5}
+LDADD+=	 -lgssapi -lgssapi_krb5
 .endif
 
 .if defined(X11BASE)

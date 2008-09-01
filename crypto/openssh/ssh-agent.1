@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.44 2006/07/18 08:03:09 jmc Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.46 2007/09/09 11:38:01 sobrado Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 25, 1999
+.Dd $Mdocdate: June 5 2007 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -42,11 +42,11 @@
 .Nd authentication agent
 .Sh SYNOPSIS
 .Nm ssh-agent
-.Op Fl a Ar bind_address
 .Op Fl c Li | Fl s
-.Op Fl t Ar life
 .Op Fl d
-.Op Ar command Op Ar args ...
+.Op Fl a Ar bind_address
+.Op Fl t Ar life
+.Op Ar command Op Ar arg ...
 .Nm ssh-agent
 .Op Fl c Li | Fl s
 .Fl k
@@ -77,16 +77,21 @@ Generate C-shell commands on
 This is the default if
 .Ev SHELL
 looks like it's a csh style of shell.
+.It Fl d
+Debug mode.
+When this option is specified
+.Nm
+will not fork.
+.It Fl k
+Kill the current agent (given by the
+.Ev SSH_AGENT_PID
+environment variable).
 .It Fl s
 Generate Bourne shell commands on
 .Dv stdout .
 This is the default if
 .Ev SHELL
 does not look like it's a csh style of shell.
-.It Fl k
-Kill the current agent (given by the
-.Ev SSH_AGENT_PID
-environment variable).
 .It Fl t Ar life
 Set a default value for the maximum lifetime of identities added to the agent.
 The lifetime may be specified in seconds or in a time format specified in
@@ -95,11 +100,6 @@ A lifetime specified for an identity with
 .Xr ssh-add 1
 overrides this value.
 Without this option the default maximum lifetime is forever.
-.It Fl d
-Debug mode.
-When this option is specified
-.Nm
-will not fork.
 .El
 .Pp
 If a commandline is given, this is executed as a subprocess of the agent.

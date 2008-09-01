@@ -3,6 +3,7 @@
 	    FreeBSD maintainer's guide to OpenSSH-portable
 	    ==============================================
 
+[needs rewriting for svn]
 
 0) Make sure your mail spool has plenty of free space.  It'll fill up
    pretty fast once you're done with this checklist.
@@ -12,12 +13,12 @@
 
 2) Unpack the tarball in a suitable directory.
 
+	$ tar xf openssh-X.YpZ.tar.gz \
+		-X /usr/src/crypto/openssh/FREEBSD-Xlist
+
 3) Remove trash:
 
-	$ sh -c 'while read glob ; do rm -rvf $glob ; done' \
-		</usr/src/crypto/openssh/FREEBSD-Xlist
-
-   Make sure that took care of everything, and if it didn't, make sure
+   Make sure -X took care of everything, and if it didn't, make sure
    to update FREEBSD-Xlist so you won't miss it the next time.  A good
    way to do this is to run a test import and see if any new files
    show up:
@@ -86,9 +87,7 @@ B) Re-commit everything on repoman (you *did* use a test repo for
 
    We've modified some configuration defaults in sshd:
 
-      - Protocol defaults to "2".
-
-      - PasswordAuthentication defaults to "no" when PAM is enabled.
+      - PasswordAuthentication defaults to "no".
 
       - For protocol version 2, we don't load RSA host keys by
         default.  If both RSA and DSA keys are present, we prefer DSA
@@ -116,12 +115,7 @@ B) Re-commit everything on repoman (you *did* use a test repo for
    reading options but before trying to connect.  This eliminates the
    usual problem with duplicate known_hosts entries.
 
-4) OPIE
-
-   We've added support for using OPIE as a drop-in replacement for
-   S/Key.
-
-5) setusercontext() environment
+4) setusercontext() environment
 
    Our setusercontext(3) can set environment variables, which we must
    take care to transfer to the child's environment.
