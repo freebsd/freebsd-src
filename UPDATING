@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080901:
+	OpenSSH has been upgraded to 5.1p1.
+
 20080826:
 	DTrace support was merged to STABLE today. In the best
 	tradition of "the dog ate my homework", subversion decided
