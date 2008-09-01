@@ -45,7 +45,7 @@ options 	NFSSERVER		# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 #options 	MSDOSFS			# MSDOS Filesystem
-options		NULLFS
+options 	NULLFS
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
@@ -194,18 +194,18 @@ device		ums		# Mouse
 #device		sbp		# SCSI over FireWire (Requires scbus and da)
 #device		fwe		# Ethernet over FireWire (non-standard!)
 
-#options		SIMULATOR	# compile for ISA simulator
-#options		KTR
-#options		KTR_MASK=(KTR_TRAP)
-#options			USB_DEBUG
-#options			USBVERBOSE
-#options			DEBUG_LOCKS
-#options			DEBUG_VFS_LOCKS
+#options 	SIMULATOR	# compile for ISA simulator
+#options 	KTR
+#options 	KTR_MASK=(KTR_TRAP)
+#options 		USB_DEBUG
+#options 		USBVERBOSE
+#options 		DEBUG_LOCKS
+#options 		DEBUG_VFS_LOCKS
 
 device		ccd
 
 # sched_lock incurs a rather high overhead at a 1000Hz with 32 cpus
 # on most arches and in most cases 1000Hz pessimizes performance
 # its choice was not adequately researched
-options		HZ=100
+options 	HZ=100
 
