@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #include <netinet/toedev.h>
 
+uint32_t toedev_registration_count;
+
 int
 tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 {
@@ -59,12 +61,15 @@ tcp_offload_connect(struct socket *so, struct sockaddr *nam)
 	struct rtentry *rt;
 	int error;
 
+	if (toedev_registration_count == 0)
+		return (EINVAL);
+	
 	/*
 	 * Look up the route used for the connection to 
 	 * determine if it uses an interface capable of
 	 * offloading the connection.
 	 */
-	rt = rtalloc1(nam, 1 /*report*/, 0 /*ignflags*/);
+	rt = rtalloc1(nam, 0 /*report*/, 0 /*ignflags*/);
 	if (rt) 
 		RT_UNLOCK(rt);
 	else 
