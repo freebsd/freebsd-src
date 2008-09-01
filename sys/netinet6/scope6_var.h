@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: scope6_var.h,v 1.4 2000/05/18 15:03:27 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 2000 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: scope6_var.h,v 1.4 2000/05/18 15:03:27 jinmei Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETINET6_SCOPE6_VAR_H_
