@@ -9,6 +9,8 @@
 
 	svn co $REPO/vendor/bind9/dist
 
+	NOTE: For RELENG_6 (BIND 9.3.x) s/dist/dist-9.3/ throughout this file
+
 3) Unpack the tarball in a suitable directory:
 
 	tar zxvf bind-9.<x.y>.tar.gz -X dist/FREEBSD-Xlist
@@ -43,8 +45,10 @@
 	svn merge $REPO/vendor/bind9/dist .
 	Resolve conflicts (if any)
 	Carefully check the output of 'svn status' and 'svn diff'
-	Test build the updated files with a clean /usr/obj and empty src.conf
-	Commit
+
+	NOTE: You may need 2 copies of head/contrib/bind9 at this point,
+	      one to do the work in steps 9 and 10 below, and a clean
+	      version to commit in step 13.
 
 9) Remove any references to the {bin,lib}/tests and docutil
    directories from the configure and Makefile templates:
@@ -69,7 +73,7 @@
    command line; src/lib/bind/config.mk will re-enable it at compile
    time if WITHOUT_INET6 is not defined.
 
-11) Copy the following generated files to src/lib/bind and commit them:
+11) Copy the following generated files to src/lib/bind:
 
 	Path in src/contrib/bind9		Path in src/lib/bind
 	------------------------------------------------------------
@@ -86,7 +90,8 @@
    steps 6) or 7).
 
 12) cd src/lib/bind/dns && make -DMAINTAINER_MODE generate && rm gen
-   Commit the new versions of the files generated.
+
+13) Test build the updated files with a clean /usr/obj and empty src.conf
 
    The following directories contain Makefiles for bits and pieces of
    BIND 9:
