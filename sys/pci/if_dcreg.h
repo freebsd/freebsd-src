@@ -182,6 +182,10 @@
 #define DC_RXSTATE_FLUSH	0x000C0000	/* 110 - flush from FIFO */
 #define DC_RXSTATE_DEQUEUE	0x000E0000	/* 111 - dequeue from FIFO */
 
+#define	DC_HAS_BROKEN_RXSTATE(x)					\
+	(DC_IS_CENTAUR(x) || DC_IS_CONEXANT(x) || (DC_IS_DAVICOM(x) &&	\
+	pci_get_revid((x)->dc_dev) >= DC_REVISION_DM9102A))
+
 #define DC_TXSTATE_RESET	0x00000000	/* 000 - reset */
 #define DC_TXSTATE_FETCH	0x00100000	/* 001 - fetching descriptor */
 #define DC_TXSTATE_WAITEND	0x00200000	/* 010 - wait for tx end */
