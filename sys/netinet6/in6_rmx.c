@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6_rmx.c,v 1.11 2001/07/26 06:53:16 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in6_rmx.c,v 1.11 2001/07/26 06:53:16 jinmei Exp $
  */
 
 /*-
@@ -72,6 +71,9 @@
  *     a large quantity of stale routing data is not kept in kernel memory
  *     indefinitely.  See in6_rtqtimo() below for the exact mechanism.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: ip6_mroute.c,v 1.58 2001/12/18 02:36:31 itojun Exp $	*/
-
 /*-
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -28,9 +25,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: ip6_mroute.c,v 1.58 2001/12/18 02:36:31 itojun Exp $
  */
-
-/*	BSDI ip_mroute.c,v 2.10 1996/11/14 00:29:52 jch Exp	*/
 
 /*-
  * Copyright (c) 1989 Stephen Deering
@@ -64,7 +61,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      @(#)ip_mroute.c 8.2 (Berkeley) 11/15/93
+ *	@(#)ip_mroute.c	8.2 (Berkeley) 11/15/93
+ *	BSDI ip_mroute.c,v 2.10 1996/11/14 00:29:52 jch Exp
  */
 
 /*
@@ -79,6 +77,9 @@
  *
  * MROUTING Revision: 3.5.1.2 + PIM-SMv2 (pimd) Support
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
