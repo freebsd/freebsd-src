@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6_src.c,v 1.132 2003/08/26 04:42:27 keiichi Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: in6_src.c,v 1.132 2003/08/26 04:42:27 keiichi Exp $
  */
 
 /*-
@@ -60,6 +59,9 @@
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -120,15 +122,15 @@ static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **));
 
-static struct in6_addrpolicy *lookup_addrsel_policy __P((struct sockaddr_in6 *));
+static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
-static void init_policy_queue __P((void));
-static int add_addrsel_policyent __P((struct in6_addrpolicy *));
-static int delete_addrsel_policyent __P((struct in6_addrpolicy *));
+static void init_policy_queue(void);
+static int add_addrsel_policyent(struct in6_addrpolicy *);
+static int delete_addrsel_policyent(struct in6_addrpolicy *);
 static int walk_addrsel_policy __P((int (*)(struct in6_addrpolicy *, void *),
 				    void *));
-static int dump_addrsel_policyent __P((struct in6_addrpolicy *, void *));
-static struct in6_addrpolicy *match_addrsel_policy __P((struct sockaddr_in6 *));
+static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
+static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
 /*
  * Return an IPv6 address, which is the most appropriate for a given
@@ -1024,9 +1026,7 @@ delete_addrsel_policyent(key)
 }
 
 static int
-walk_addrsel_policy(callback, w)
-	int (*callback) __P((struct in6_addrpolicy *, void *));
-	void *w;
+walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *), void *w)
 {
 	struct addrsel_policyent *pol;
 	int error = 0;

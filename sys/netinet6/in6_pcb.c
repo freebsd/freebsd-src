@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $	*/
-  
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -29,6 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ *	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $
  */
 
 /*-
@@ -61,6 +59,9 @@
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -614,14 +615,9 @@ in6_mapped_peeraddr(struct socket *so, struct sockaddr **nam)
  * Must be called at splnet.
  */
 void
-in6_pcbnotify(pcbinfo, dst, fport_arg, src, lport_arg, cmd, cmdarg, notify)
-	struct inpcbinfo *pcbinfo;
-	struct sockaddr *dst;
-	const struct sockaddr *src;
-	u_int fport_arg, lport_arg;
-	int cmd;
-	void *cmdarg;
-	struct inpcb *(*notify) __P((struct inpcb *, int));
+in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
+    u_int fport_arg, const struct sockaddr *src, u_int lport_arg,
+    int cmd, void *cmdarg, struct inpcb *(*notify)(struct inpcb *, int))
 {
 	struct inpcbhead *head;
 	struct inpcb *inp, *ninp;

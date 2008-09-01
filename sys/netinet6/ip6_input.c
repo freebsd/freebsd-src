@@ -1,6 +1,3 @@
-/*	$FreeBSD$	*/
-/*	$KAME: ip6_input.c,v 1.259 2002/01/21 04:58:09 jinmei Exp $	*/
-
 /*-
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -28,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$KAME: ip6_input.c,v 1.259 2002/01/21 04:58:09 jinmei Exp $
  */
 
 /*-
@@ -60,6 +59,9 @@
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ip6fw.h"
 #include "opt_inet.h"
@@ -145,11 +147,11 @@ int ip6_fw_enable = 1;
 
 struct ip6stat ip6stat;
 
-static void ip6_init2 __P((void *));
-static struct ip6aux *ip6_setdstifaddr __P((struct mbuf *, struct in6_ifaddr *));
-static int ip6_hopopts_input __P((u_int32_t *, u_int32_t *, struct mbuf **, int *));
+static void ip6_init2(void *);
+static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
+static int ip6_hopopts_input(u_int32_t *, u_int32_t *, struct mbuf **, int *);
 #ifdef PULLDOWN_TEST
-static struct mbuf *ip6_pullexthdr __P((struct mbuf *, size_t, int));
+static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 #endif
 
 /*
