@@ -16,12 +16,12 @@ CFLAGS+= ${PROTOS}
 
 .if ${NETGRAPH} != 0
 opt_netgraph.h:
-	echo "#define NETGRAPH ${NETGRAPH}" > opt_netgraph.h
+	echo "#define NETGRAPH ${NETGRAPH}" > ${.TARGET}
 .endif
 
 .if ${NG_CRONYX} != 0
 opt_ng_cronyx.h:
-	echo "#define NETGRAPH_CRONYX 1" > opt_ng_cronyx.h
+	echo "#define NETGRAPH_CRONYX 1" > ${.TARGET}
 .endif
 .endif
 

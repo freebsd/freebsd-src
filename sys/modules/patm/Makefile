@@ -14,10 +14,10 @@ CFLAGS+= -DENABLE_BPF
 
 .if !defined(KERNBUILDDIR)
 opt_inet.h:
-	echo "#define INET 1" > opt_inet.h
+	echo "#define INET 1" > ${.TARGET}
 
 opt_natm.h:
-	echo "#define NATM 1" > opt_natm.h
+	echo "#define NATM 1" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
