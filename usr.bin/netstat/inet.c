@@ -415,8 +415,8 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (xflag)
 				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
 				       "R-MBUF", "S-MBUF", "R-CLUS", "S-CLUS",
-				       "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA", 
-				       "R-BCNT", "S-BCNT", "R-BMAX", "S-BMAX", 
+				       "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA",
+				       "R-BCNT", "S-BCNT", "R-BMAX", "S-BMAX",
 				       "(state)");
 			else
 				printf("(state)\n");
@@ -446,8 +446,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf1);
 		} else {
-			printf("%6u %6u ", 
-			       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
 		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {
@@ -505,7 +504,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 		}
 		if (xflag) {
 			if (Lflag)
-				printf("%21s %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ", 
+				printf("%21s %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
 				       " ",
 				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
 				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,

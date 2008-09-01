@@ -137,7 +137,7 @@ static void ntreestuff(void);
 static void np_rtentry(struct rt_msghdr *);
 static void p_sockaddr(struct sockaddr *, struct sockaddr *, int, int);
 static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
-				 int flags);
+    int flags);
 static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry(struct rtentry *);
@@ -150,9 +150,9 @@ void
 routepr(u_long rtree)
 {
 	struct radix_node_head *rnh, head;
+	size_t intsize;
 	int i;
 	int numfibs;
-	size_t intsize;
 
 	intsize = sizeof(int);
 	if (sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
