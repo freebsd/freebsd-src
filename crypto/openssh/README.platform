@@ -23,6 +23,20 @@ to force the previous IPv4-only behaviour.
 IPv6 known to work: 5.1ML7 5.2ML2 5.2ML5
 IPv6 known broken: 4.3.3ML11 5.1ML4
 
+If you wish to use dynamic libraries that aren't in the normal system
+locations (eg IBM's OpenSSL and zlib packages) then you will need to
+define the environment variable blibpath before running configure, eg
+
+blibpath=/lib:/usr/lib:/opt/freeware/lib ./configure \
+  --with-ssl-dir=/opt/freeware --with-zlib=/opt/freeware
+
+If sshd is built with the WITH_AIXAUTHENTICATE option (which is enabled
+by default) then sshd checks that users are permitted via the
+loginrestrictions() function, in particular that the user has the
+"rlogin" attribute set.  This check is not done for the root account,
+instead the PermitRootLogin setting in sshd_config is used.
+
+
 Cygwin
 ------
 To build on Cygwin, OpenSSH requires the following packages:
@@ -67,4 +81,4 @@ account stacks which will prevent authentication entirely, but will still
 return the output from pam_nologin to the client.
 
 
-$Id: README.platform,v 1.7 2006/06/23 11:05:13 dtucker Exp $
+$Id: README.platform,v 1.9 2007/08/09 04:31:53 dtucker Exp $

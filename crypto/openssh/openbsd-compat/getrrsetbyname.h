@@ -62,8 +62,8 @@
 #define HFIXEDSZ 12
 #endif
 
-#ifndef T_SIG
-#define T_SIG 24
+#ifndef T_RRSIG
+#define T_RRSIG 46
 #endif
 
 /*

@@ -1,4 +1,4 @@
-/*	$OpenBSD: base64.c,v 1.4 2002/01/02 23:00:10 deraadt Exp $	*/
+/*	$OpenBSD: base64.c,v 1.5 2006/10/21 09:55:03 otto Exp $	*/
 
 /*
  * Copyright (c) 1996 by Internet Software Consortium.
@@ -61,9 +61,6 @@
 #include <string.h>
 
 #include "base64.h"
-
-/* XXX abort illegal in library */
-#define Assert(Cond) if (!(Cond)) abort()
 
 static const char Base64[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -151,10 +148,6 @@ b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize)
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
 		output[3] = input[2] & 0x3f;
-		Assert(output[0] < 64);
-		Assert(output[1] < 64);
-		Assert(output[2] < 64);
-		Assert(output[3] < 64);
 
 		if (datalength + 4 > targsize)
 			return (-1);
@@ -174,9 +167,6 @@ b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize)
 		output[0] = input[0] >> 2;
 		output[1] = ((input[0] & 0x03) << 4) + (input[1] >> 4);
 		output[2] = ((input[1] & 0x0f) << 2) + (input[2] >> 6);
-		Assert(output[0] < 64);
-		Assert(output[1] < 64);
-		Assert(output[2] < 64);
 
 		if (datalength + 4 > targsize)
 			return (-1);

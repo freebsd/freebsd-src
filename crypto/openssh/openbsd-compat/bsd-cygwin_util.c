@@ -175,45 +175,7 @@ check_nt_auth(int pwd_authenticated, struct passwd *pw)
 int
 check_ntsec(const char *filename)
 {
-	char *cygwin;
-	int allow_ntea = 0, allow_ntsec = 0;
-	struct statfs fsstat;
-
-	/* Windows 95/98/ME don't support file system security at all. */
-	if (!is_winnt)
-		return (0);
-
-	/* Evaluate current CYGWIN settings. */
-	cygwin = getenv("CYGWIN");
-	allow_ntea = ntea_on(cygwin);
-	allow_ntsec = ntsec_on(cygwin) ||
-	    (has_capability(HAS_NTSEC_BY_DEFAULT) && !ntsec_off(cygwin));
-
-	/*
-	 * `ntea' is an emulation of POSIX attributes. It doesn't support
-	 * real file level security as ntsec on NTFS file systems does
-	 * but it supports FAT filesystems. `ntea' is minimum requirement
-	 * for security checks.
-	 */
-	if (allow_ntea)
-		return (1);
-
-	/*
-	 * Retrieve file system flags. In Cygwin, file system flags are
-	 * copied to f_type which has no meaning in Win32 itself.
-	 */
-	if (statfs(filename, &fsstat))
-		return (1);
-
-	/*
-	 * Only file systems supporting ACLs are able to set permissions.
-	 * `ntsec' is the setting in Cygwin which switches using of NTFS
-	 * ACLs to support POSIX permissions on files.
-	 */
-	if (fsstat.f_type & FS_PERSISTENT_ACLS)
-		return (allow_ntsec);
-
-	return (0);
+	return (pathconf(filename, _PC_POSIX_PERMISSIONS));
 }
 
 void

@@ -1,4 +1,5 @@
-/* $OpenBSD: sshconnect.c,v 1.200 2006/10/10 10:12:45 markus Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.211 2008/07/01 07:24:22 dtucker Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -86,7 +87,10 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 	char *command_string, *tmp;
 	int pin[2], pout[2];
 	pid_t pid;
-	char strport[NI_MAXSERV];
+	char *shell, strport[NI_MAXSERV];
+
+	if ((shell = getenv("SHELL")) == NULL)
+		shell = _PATH_BSHELL;
 
 	/* Convert the port number into a string. */
 	snprintf(strport, sizeof strport, "%hu", port);
@@ -132,7 +136,7 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 
 		/* Stderr is left as it is so that error messages get
 		   printed on the user's terminal. */
-		argv[0] = _PATH_BSHELL;
+		argv[0] = shell;
 		argv[1] = "-c";
 		argv[2] = command_string;
 		argv[3] = NULL;
@@ -158,6 +162,8 @@ ssh_proxy_connect(const char *host, u_short port, const char *proxy_command)
 
 	/* Set the connection file descriptors. */
 	packet_set_connection(pout[0], pin[1]);
+	packet_set_timeout(options.server_alive_interval,
+	    options.server_alive_count_max);
 
 	/* Indicate OK return */
 	return 0;
@@ -201,10 +207,10 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 	hints.ai_socktype = ai->ai_socktype;
 	hints.ai_protocol = ai->ai_protocol;
 	hints.ai_flags = AI_PASSIVE;
-	gaierr = getaddrinfo(options.bind_address, "0", &hints, &res);
+	gaierr = getaddrinfo(options.bind_address, NULL, &hints, &res);
 	if (gaierr) {
 		error("getaddrinfo: %s: %s", options.bind_address,
-		    gai_strerror(gaierr));
+		    ssh_gai_strerror(gaierr));
 		close(sock);
 		return -1;
 	}
@@ -220,30 +226,36 @@ ssh_create_socket(int privileged, struct addrinfo *ai)
 
 static int
 timeout_connect(int sockfd, const struct sockaddr *serv_addr,
-    socklen_t addrlen, int timeout)
+    socklen_t addrlen, int *timeoutp)
 {
 	fd_set *fdset;
-	struct timeval tv;
+	struct timeval tv, t_start;
 	socklen_t optlen;
 	int optval, rc, result = -1;
 
-	if (timeout <= 0)
-		return (connect(sockfd, serv_addr, addrlen));
+	gettimeofday(&t_start, NULL);
+
+	if (*timeoutp <= 0) {
+		result = connect(sockfd, serv_addr, addrlen);
+		goto done;
+	}
 
 	set_nonblock(sockfd);
 	rc = connect(sockfd, serv_addr, addrlen);
 	if (rc == 0) {
 		unset_nonblock(sockfd);
-		return (0);
+		result = 0;
+		goto done;
 	}
-	if (errno != EINPROGRESS)
-		return (-1);
+	if (errno != EINPROGRESS) {
+		result = -1;
+		goto done;
+	}
 
 	fdset = (fd_set *)xcalloc(howmany(sockfd + 1, NFDBITS),
 	    sizeof(fd_mask));
 	FD_SET(sockfd, fdset);
-	tv.tv_sec = timeout;
-	tv.tv_usec = 0;
+	ms_to_timeval(&tv, *timeoutp);
 
 	for (;;) {
 		rc = select(sockfd + 1, NULL, fdset, NULL, &tv);
@@ -282,6 +294,16 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 	}
 
 	xfree(fdset);
+
+ done:
+ 	if (result == 0 && *timeoutp > 0) {
+		ms_subtract_diff(&t_start, timeoutp);
+		if (*timeoutp <= 0) {
+			errno = ETIMEDOUT;
+			result = -1;
+		}
+	}
+
 	return (result);
 }
 
@@ -298,8 +320,8 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
  */
 int
 ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
-    u_short port, int family, int connection_attempts,
-    int needpriv, const char *proxy_command)
+    u_short port, int family, int connection_attempts, int *timeout_ms,
+    int want_keepalive, int needpriv, const char *proxy_command)
 {
 	int gaierr;
 	int on = 1;
@@ -320,8 +342,8 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	hints.ai_socktype = SOCK_STREAM;
 	snprintf(strport, sizeof strport, "%u", port);
 	if ((gaierr = getaddrinfo(host, strport, &hints, &aitop)) != 0)
-		fatal("%s: %.100s: %s", __progname, host,
-		    gai_strerror(gaierr));
+		fatal("%s: Could not resolve hostname %.100s: %s", __progname,
+		    host, ssh_gai_strerror(gaierr));
 
 	for (attempt = 0; attempt < connection_attempts; attempt++) {
 		if (attempt > 0) {
@@ -352,7 +374,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 				continue;
 
 			if (timeout_connect(sock, ai->ai_addr, ai->ai_addrlen,
-			    options.connection_timeout) >= 0) {
+			    timeout_ms) >= 0) {
 				/* Successful connection. */
 				memcpy(hostaddr, ai->ai_addr, ai->ai_addrlen);
 				break;
@@ -379,13 +401,15 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
 	debug("Connection established.");
 
 	/* Set SO_KEEPALIVE if requested. */
-	if (options.tcp_keep_alive &&
+	if (want_keepalive &&
 	    setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *)&on,
 	    sizeof(on)) < 0)
 		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
 
 	/* Set the connection. */
 	packet_set_connection(sock, sock);
+	packet_set_timeout(options.server_alive_interval,
+	    options.server_alive_count_max);
 
 	return 0;
 }
@@ -395,7 +419,7 @@ ssh_connect(const char *host, struct sockaddr_storage * hostaddr,
  * identification string.
  */
 static void
-ssh_exchange_identification(void)
+ssh_exchange_identification(int timeout_ms)
 {
 	char buf[256], remote_version[256];	/* must be same size! */
 	int remote_major, remote_minor, mismatch;
@@ -403,16 +427,44 @@ ssh_exchange_identification(void)
 	int connection_out = packet_get_connection_out();
 	int minor1 = PROTOCOL_MINOR_1;
 	u_int i, n;
+	size_t len;
+	int fdsetsz, remaining, rc;
+	struct timeval t_start, t_remaining;
+	fd_set *fdset;
+
+	fdsetsz = howmany(connection_in + 1, NFDBITS) * sizeof(fd_mask);
+	fdset = xcalloc(1, fdsetsz);
 
 	/* Read other side's version identification. */
+	remaining = timeout_ms;
 	for (n = 0;;) {
 		for (i = 0; i < sizeof(buf) - 1; i++) {
-			size_t len = atomicio(read, connection_in, &buf[i], 1);
+			if (timeout_ms > 0) {
+				gettimeofday(&t_start, NULL);
+				ms_to_timeval(&t_remaining, remaining);
+				FD_SET(connection_in, fdset);
+				rc = select(connection_in + 1, fdset, NULL,
+				    fdset, &t_remaining);
+				ms_subtract_diff(&t_start, &remaining);
+				if (rc == 0 || remaining <= 0)
+					fatal("Connection timed out during "
+					    "banner exchange");
+				if (rc == -1) {
+					if (errno == EINTR)
+						continue;
+					fatal("ssh_exchange_identification: "
+					    "select: %s", strerror(errno));
+				}
+			}
+
+			len = atomicio(read, connection_in, &buf[i], 1);
 
 			if (len != 1 && errno == EPIPE)
-				fatal("ssh_exchange_identification: Connection closed by remote host");
+				fatal("ssh_exchange_identification: "
+				    "Connection closed by remote host");
 			else if (len != 1)
-				fatal("ssh_exchange_identification: read: %.100s", strerror(errno));
+				fatal("ssh_exchange_identification: "
+				    "read: %.100s", strerror(errno));
 			if (buf[i] == '\r') {
 				buf[i] = '\n';
 				buf[i + 1] = 0;
@@ -423,7 +475,8 @@ ssh_exchange_identification(void)
 				break;
 			}
 			if (++n > 65536)
-				fatal("ssh_exchange_identification: No banner received");
+				fatal("ssh_exchange_identification: "
+				    "No banner received");
 		}
 		buf[sizeof(buf) - 1] = 0;
 		if (strncmp(buf, "SSH-", 4) == 0)
@@ -431,6 +484,7 @@ ssh_exchange_identification(void)
 		debug("ssh_exchange_identification: %s", buf);
 	}
 	server_version_string = xstrdup(buf);
+	xfree(fdset);
 
 	/*
 	 * Check that the versions match.  In future this might accept
@@ -484,10 +538,10 @@ ssh_exchange_identification(void)
 		    (options.protocol & SSH_PROTO_2) ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 		    remote_major);
 	/* Send our own protocol version identification. */
-	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s\n",
+	snprintf(buf, sizeof buf, "SSH-%d.%d-%.100s%s",
 	    compat20 ? PROTOCOL_MAJOR_2 : PROTOCOL_MAJOR_1,
 	    compat20 ? PROTOCOL_MINOR_2 : minor1,
-	    SSH_VERSION);
+	    SSH_VERSION, compat20 ? "\r\n" : "\n");
 	if (atomicio(vwrite, connection_out, buf, strlen(buf)) != strlen(buf))
 		fatal("write: %.100s", strerror(errno));
 	client_version_string = xstrdup(buf);
@@ -536,14 +590,14 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	Key *file_key;
 	const char *type = key_type(host_key);
 	char *ip = NULL, *host = NULL;
-	char hostline[1000], *hostp, *fp;
+	char hostline[1000], *hostp, *fp, *ra;
 	HostStatus host_status;
 	HostStatus ip_status;
 	int r, local = 0, host_ip_differ = 0;
 	int salen;
 	char ntop[NI_MAXHOST];
 	char msg[1024];
-	int len, host_line, ip_line;
+	int len, host_line, ip_line, cancelled_forwarding = 0;
 	const char *host_file = NULL, *ip_file = NULL;
 
 	/*
@@ -590,6 +644,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 	} else {
 		ip = xstrdup("<no hostip for proxy command>");
 	}
+
 	/*
 	 * Turn off check_host_ip if the connection is to localhost, via proxy
 	 * command or if we don't have a hostname to compare with
@@ -674,6 +729,13 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				logit("Warning: Permanently added the %s host "
 				    "key for IP address '%.128s' to the list "
 				    "of known hosts.", type, ip);
+		} else if (options.visual_host_key) {
+			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+			ra = key_fingerprint(host_key, SSH_FP_MD5,
+			    SSH_FP_RANDOMART);
+			logit("Host key fingerprint is %s\n%s\n", fp, ra);
+			xfree(ra);
+			xfree(fp);
 		}
 		break;
 	case HOST_NEW:
@@ -709,6 +771,8 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 				snprintf(msg1, sizeof(msg1), ".");
 			/* The default */
 			fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
+			ra = key_fingerprint(host_key, SSH_FP_MD5,
+			    SSH_FP_RANDOMART);
 			msg2[0] = '\0';
 			if (options.verify_host_key_dns) {
 				if (matching_host_key_dns)
@@ -723,10 +787,14 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			snprintf(msg, sizeof(msg),
 			    "The authenticity of host '%.200s (%s)' can't be "
 			    "established%s\n"
-			    "%s key fingerprint is %s.\n%s"
+			    "%s key fingerprint is %s.%s%s\n%s"
 			    "Are you sure you want to continue connecting "
 			    "(yes/no)? ",
-			    host, ip, msg1, type, fp, msg2);
+			    host, ip, msg1, type, fp,
+			    options.visual_host_key ? "\n" : "",
+			    options.visual_host_key ? ra : "",
+			    msg2);
+			xfree(ra);
 			xfree(fp);
 			if (!confirm(msg))
 				goto fail;
@@ -779,7 +847,7 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			error("@       WARNING: POSSIBLE DNS SPOOFING DETECTED!          @");
 			error("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
 			error("The %s host key for %s has changed,", type, host);
-			error("and the key for the according IP address %s", ip);
+			error("and the key for the corresponding IP address %s", ip);
 			error("%s. This could either mean that", key_msg);
 			error("DNS SPOOFING is happening or the IP address for the host");
 			error("and its host key have changed at the same time.");
@@ -811,27 +879,32 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			error("Password authentication is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.password_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.kbd_interactive_authentication) {
 			error("Keyboard-interactive authentication is disabled"
 			    " to avoid man-in-the-middle attacks.");
 			options.kbd_interactive_authentication = 0;
 			options.challenge_response_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.challenge_response_authentication) {
 			error("Challenge/response authentication is disabled"
 			    " to avoid man-in-the-middle attacks.");
 			options.challenge_response_authentication = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.forward_agent) {
 			error("Agent forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.forward_agent = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.forward_x11) {
 			error("X11 forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.forward_x11 = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.num_local_forwards > 0 ||
 		    options.num_remote_forwards > 0) {
@@ -839,12 +912,18 @@ check_host_key(char *hostname, struct sockaddr *hostaddr, u_short port,
 			    "man-in-the-middle attacks.");
 			options.num_local_forwards =
 			    options.num_remote_forwards = 0;
+			cancelled_forwarding = 1;
 		}
 		if (options.tun_open != SSH_TUNMODE_NO) {
 			error("Tunnel forwarding is disabled to avoid "
 			    "man-in-the-middle attacks.");
 			options.tun_open = SSH_TUNMODE_NO;
+			cancelled_forwarding = 1;
 		}
+		if (options.exit_on_forward_failure && cancelled_forwarding)
+			fatal("Error: forwarding disabled due to host key "
+			    "check failure");
+		
 		/*
 		 * XXX Should permit the user to change to use the new id.
 		 * This could be done by converting the host key to an
@@ -943,7 +1022,7 @@ verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
  */
 void
 ssh_login(Sensitive *sensitive, const char *orighost,
-    struct sockaddr *hostaddr, struct passwd *pw)
+    struct sockaddr *hostaddr, struct passwd *pw, int timeout_ms)
 {
 	char *host, *cp;
 	char *server_user, *local_user;
@@ -958,7 +1037,7 @@ ssh_login(Sensitive *sensitive, const char *orighost,
 			*cp = (char)tolower(*cp);
 
 	/* Exchange protocol version identification strings with the server. */
-	ssh_exchange_identification();
+	ssh_exchange_identification(timeout_ms);
 
 	/* Put the connection into non-blocking mode. */
 	packet_set_nonblocking();
@@ -997,18 +1076,24 @@ static int
 show_key_from_file(const char *file, const char *host, int keytype)
 {
 	Key *found;
-	char *fp;
+	char *fp, *ra;
 	int line, ret;
 
 	found = key_new(keytype);
 	if ((ret = lookup_key_in_hostfile_by_type(file, host,
 	    keytype, found, &line))) {
 		fp = key_fingerprint(found, SSH_FP_MD5, SSH_FP_HEX);
+		if (options.visual_host_key)
+			ra = key_fingerprint(found, SSH_FP_MD5, SSH_FP_RANDOMART);
 		logit("WARNING: %s key found for host %s\n"
 		    "in %s:%d\n"
-		    "%s key fingerprint %s.",
+		    "%s key fingerprint %s.%s%s\n",
 		    key_type(found), host, file, line,
-		    key_type(found), fp);
+		    key_type(found), fp,
+		    options.visual_host_key ? "\n" : "",
+		    options.visual_host_key ? ra : "");
+		if (options.visual_host_key)
+			xfree(ra);
 		xfree(fp);
 	}
 	key_free(found);

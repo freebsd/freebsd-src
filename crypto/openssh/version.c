@@ -26,6 +26,10 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
+
+#include <string.h>
+
 #include "version.h"
 #include "xmalloc.h"
 

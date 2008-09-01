@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-none.c,v 1.13 2006/08/05 07:52:52 dtucker Exp $ */
+/* $OpenBSD: auth2-none.c,v 1.15 2008/07/02 12:36:39 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -31,8 +31,10 @@
 
 #include <fcntl.h>
 #include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
 
+#include "atomicio.h"
 #include "xmalloc.h"
 #include "key.h"
 #include "hostfile.h"
@@ -41,7 +43,6 @@
 #include "log.h"
 #include "buffer.h"
 #include "servconf.h"
-#include "atomicio.h"
 #include "compat.h"
 #include "ssh2.h"
 #ifdef GSSAPI
@@ -55,75 +56,11 @@ extern ServerOptions options;
 /* "none" is allowed only one time */
 static int none_enabled = 1;
 
-char *
-auth2_read_banner(void)
-{
-	struct stat st;
-	char *banner = NULL;
-	size_t len, n;
-	int fd;
-
-	if ((fd = open(options.banner, O_RDONLY)) == -1)
-		return (NULL);
-	if (fstat(fd, &st) == -1) {
-		close(fd);
-		return (NULL);
-	}
-	if (st.st_size > 1*1024*1024) {
-		close(fd);
-		return (NULL);
-	}
-
-	len = (size_t)st.st_size;		/* truncate */
-	banner = xmalloc(len + 1);
-	n = atomicio(read, fd, banner, len);
-	close(fd);
-
-	if (n != len) {
-		xfree(banner);
-		return (NULL);
-	}
-	banner[n] = '\0';
-
-	return (banner);
-}
-
-void
-userauth_send_banner(const char *msg)
-{
-	if (datafellows & SSH_BUG_BANNER)
-		return;
-
-	packet_start(SSH2_MSG_USERAUTH_BANNER);
-	packet_put_cstring(msg);
-	packet_put_cstring("");		/* language, unused */
-	packet_send();
-	debug("%s: sent", __func__);
-}
-
-static void
-userauth_banner(void)
-{
-	char *banner = NULL;
-
-	if (options.banner == NULL || (datafellows & SSH_BUG_BANNER))
-		return;
-
-	if ((banner = PRIVSEP(auth2_read_banner())) == NULL)
-		goto done;
-	userauth_send_banner(banner);
-
-done:
-	if (banner)
-		xfree(banner);
-}
-
 static int
 userauth_none(Authctxt *authctxt)
 {
 	none_enabled = 0;
 	packet_check_eom();
-	userauth_banner();
 #ifdef HAVE_CYGWIN
 	if (check_nt_auth(1, authctxt->pw) == 0)
 		return (0);

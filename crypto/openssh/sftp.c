@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.93 2006/09/30 17:48:22 ray Exp $ */
+/* $OpenBSD: sftp.c,v 1.103 2008/07/13 22:16:03 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -25,7 +25,11 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
+#endif
 
+#include <ctype.h>
 #include <errno.h>
 
 #ifdef HAVE_PATHS_H
@@ -42,6 +46,14 @@ typedef void EditLine;
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+
+#ifdef HAVE_UTIL_H
+# include <util.h>
+#endif
+
+#ifdef HAVE_LIBUTIL_H
+# include <libutil.h>
+#endif
 
 #include "xmalloc.h"
 #include "log.h"
@@ -63,7 +75,7 @@ int batchmode = 0;
 size_t copy_buffer_len = 32768;
 
 /* Number of concurrent outstanding requests */
-size_t num_requests = 16;
+size_t num_requests = 64;
 
 /* PID of ssh transport process */
 static pid_t sshpid = -1;
@@ -103,6 +115,7 @@ extern char *__progname;
 #define I_CHGRP		2
 #define I_CHMOD		3
 #define I_CHOWN		4
+#define I_DF		24
 #define I_GET		5
 #define I_HELP		6
 #define I_LCHDIR	7
@@ -135,6 +148,7 @@ static const struct CMD cmds[] = {
 	{ "chgrp",	I_CHGRP },
 	{ "chmod",	I_CHMOD },
 	{ "chown",	I_CHOWN },
+	{ "df",		I_DF },
 	{ "dir",	I_LS },
 	{ "exit",	I_QUIT },
 	{ "get",	I_GET },
@@ -166,6 +180,7 @@ static const struct CMD cmds[] = {
 
 int interactive_loop(int fd_in, int fd_out, char *file1, char *file2);
 
+/* ARGSUSED */
 static void
 killchild(int signo)
 {
@@ -177,6 +192,7 @@ killchild(int signo)
 	_exit(1);
 }
 
+/* ARGSUSED */
 static void
 cmd_interrupt(int signo)
 {
@@ -197,6 +213,8 @@ help(void)
 	printf("chgrp grp path                Change group of file 'path' to 'grp'\n");
 	printf("chmod mode path               Change permissions of file 'path' to 'mode'\n");
 	printf("chown own path                Change owner of file 'path' to 'own'\n");
+	printf("df [path]                     Display statistics for current directory or\n");
+	printf("                              filesystem containing 'path'\n");
 	printf("help                          Display this help text\n");
 	printf("get remote-path [local-path]  Download file\n");
 	printf("lls [ls-options [path]]       Display local directory listing\n");
@@ -298,11 +316,11 @@ static char *
 path_append(char *p1, char *p2)
 {
 	char *ret;
-	int len = strlen(p1) + strlen(p2) + 2;
+	size_t len = strlen(p1) + strlen(p2) + 2;
 
 	ret = xmalloc(len);
 	strlcpy(ret, p1, len);
-	if (p1[strlen(p1) - 1] != '/')
+	if (p1[0] != '\0' && p1[strlen(p1) - 1] != '/')
 		strlcat(ret, "/", len);
 	strlcat(ret, p2, len);
 
@@ -344,144 +362,105 @@ infer_path(const char *p, char **ifp)
 }
 
 static int
-parse_getput_flags(const char **cpp, int *pflag)
+parse_getput_flags(const char *cmd, char **argv, int argc, int *pflag)
 {
-	const char *cp = *cpp;
+	extern int opterr, optind, optopt, optreset;
+	int ch;
 
-	/* Check for flags */
-	if (cp[0] == '-' && cp[1] && strchr(WHITESPACE, cp[2])) {
-		switch (cp[1]) {
+	optind = optreset = 1;
+	opterr = 0;
+
+	*pflag = 0;
+	while ((ch = getopt(argc, argv, "Pp")) != -1) {
+		switch (ch) {
 		case 'p':
 		case 'P':
 			*pflag = 1;
 			break;
 		default:
-			error("Invalid flag -%c", cp[1]);
-			return(-1);
+			error("%s: Invalid flag -%c", cmd, optopt);
+			return -1;
 		}
-		cp += 2;
-		*cpp = cp + strspn(cp, WHITESPACE);
 	}
 
-	return(0);
+	return optind;
 }
 
 static int
-parse_ls_flags(const char **cpp, int *lflag)
+parse_ls_flags(char **argv, int argc, int *lflag)
 {
-	const char *cp = *cpp;
+	extern int opterr, optind, optopt, optreset;
+	int ch;
 
-	/* Defaults */
+	optind = optreset = 1;
+	opterr = 0;
+
 	*lflag = LS_NAME_SORT;
-
-	/* Check for flags */
-	if (cp++[0] == '-') {
-		for (; strchr(WHITESPACE, *cp) == NULL; cp++) {
-			switch (*cp) {
-			case 'l':
-				*lflag &= ~VIEW_FLAGS;
-				*lflag |= LS_LONG_VIEW;
-				break;
-			case '1':
-				*lflag &= ~VIEW_FLAGS;
-				*lflag |= LS_SHORT_VIEW;
-				break;
-			case 'n':
-				*lflag &= ~VIEW_FLAGS;
-				*lflag |= LS_NUMERIC_VIEW|LS_LONG_VIEW;
-				break;
-			case 'S':
-				*lflag &= ~SORT_FLAGS;
-				*lflag |= LS_SIZE_SORT;
-				break;
-			case 't':
-				*lflag &= ~SORT_FLAGS;
-				*lflag |= LS_TIME_SORT;
-				break;
-			case 'r':
-				*lflag |= LS_REVERSE_SORT;
-				break;
-			case 'f':
-				*lflag &= ~SORT_FLAGS;
-				break;
-			case 'a':
-				*lflag |= LS_SHOW_ALL;
-				break;
-			default:
-				error("Invalid flag -%c", *cp);
-				return(-1);
-			}
+	while ((ch = getopt(argc, argv, "1Saflnrt")) != -1) {
+		switch (ch) {
+		case '1':
+			*lflag &= ~VIEW_FLAGS;
+			*lflag |= LS_SHORT_VIEW;
+			break;
+		case 'S':
+			*lflag &= ~SORT_FLAGS;
+			*lflag |= LS_SIZE_SORT;
+			break;
+		case 'a':
+			*lflag |= LS_SHOW_ALL;
+			break;
+		case 'f':
+			*lflag &= ~SORT_FLAGS;
+			break;
+		case 'l':
+			*lflag &= ~VIEW_FLAGS;
+			*lflag |= LS_LONG_VIEW;
+			break;
+		case 'n':
+			*lflag &= ~VIEW_FLAGS;
+			*lflag |= LS_NUMERIC_VIEW|LS_LONG_VIEW;
+			break;
+		case 'r':
+			*lflag |= LS_REVERSE_SORT;
+			break;
+		case 't':
+			*lflag &= ~SORT_FLAGS;
+			*lflag |= LS_TIME_SORT;
+			break;
+		default:
+			error("ls: Invalid flag -%c", optopt);
+			return -1;
 		}
-		*cpp = cp + strspn(cp, WHITESPACE);
 	}
 
-	return(0);
+	return optind;
 }
 
 static int
-get_pathname(const char **cpp, char **path)
+parse_df_flags(const char *cmd, char **argv, int argc, int *hflag, int *iflag)
 {
-	const char *cp = *cpp, *end;
-	char quot;
-	u_int i, j;
+	extern int opterr, optind, optopt, optreset;
+	int ch;
 
-	cp += strspn(cp, WHITESPACE);
-	if (!*cp) {
-		*cpp = cp;
-		*path = NULL;
-		return (0);
+	optind = optreset = 1;
+	opterr = 0;
+
+	*hflag = *iflag = 0;
+	while ((ch = getopt(argc, argv, "hi")) != -1) {
+		switch (ch) {
+		case 'h':
+			*hflag = 1;
+			break;
+		case 'i':
+			*iflag = 1;
+			break;
+		default:
+			error("%s: Invalid flag -%c", cmd, optopt);
+			return -1;
+		}
 	}
 
-	*path = xmalloc(strlen(cp) + 1);
-
-	/* Check for quoted filenames */
-	if (*cp == '\"' || *cp == '\'') {
-		quot = *cp++;
-
-		/* Search for terminating quote, unescape some chars */
-		for (i = j = 0; i <= strlen(cp); i++) {
-			if (cp[i] == quot) {	/* Found quote */
-				i++;
-				(*path)[j] = '\0';
-				break;
-			}
-			if (cp[i] == '\0') {	/* End of string */
-				error("Unterminated quote");
-				goto fail;
-			}
-			if (cp[i] == '\\') {	/* Escaped characters */
-				i++;
-				if (cp[i] != '\'' && cp[i] != '\"' &&
-				    cp[i] != '\\') {
-					error("Bad escaped character '\\%c'",
-					    cp[i]);
-					goto fail;
-				}
-			}
-			(*path)[j++] = cp[i];
-		}
-
-		if (j == 0) {
-			error("Empty quotes");
-			goto fail;
-		}
-		*cpp = cp + i + strspn(cp + i, WHITESPACE);
-	} else {
-		/* Read to end of filename */
-		end = strpbrk(cp, WHITESPACE);
-		if (end == NULL)
-			end = strchr(cp, '\0');
-		*cpp = end + strspn(end, WHITESPACE);
-
-		memcpy(*path, cp, end - cp);
-		(*path)[end - cp] = '\0';
-	}
-	return (0);
-
- fail:
-	xfree(*path);
-	*path = NULL;
-	return (-1);
+	return optind;
 }
 
 static int
@@ -494,17 +473,6 @@ is_dir(char *path)
 		return(0);
 
 	return(S_ISDIR(sb.st_mode));
-}
-
-static int
-is_reg(char *path)
-{
-	struct stat sb;
-
-	if (stat(path, &sb) == -1)
-		fatal("stat %s: %s", path, strerror(errno));
-
-	return(S_ISREG(sb.st_mode));
 }
 
 static int
@@ -595,6 +563,7 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 	glob_t g;
 	int err = 0;
 	int i;
+	struct stat sb;
 
 	if (dst) {
 		tmp_dst = xstrdup(dst);
@@ -603,7 +572,7 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 
 	memset(&g, 0, sizeof(g));
 	debug3("Looking up %s", src);
-	if (glob(src, 0, NULL, &g)) {
+	if (glob(src, GLOB_NOCHECK, NULL, &g)) {
 		error("File \"%s\" not found.", src);
 		err = -1;
 		goto out;
@@ -618,7 +587,13 @@ process_put(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 	}
 
 	for (i = 0; g.gl_pathv[i] && !interrupted; i++) {
-		if (!is_reg(g.gl_pathv[i])) {
+		if (stat(g.gl_pathv[i], &sb) == -1) {
+			err = -1;
+			error("stat %s: %s", g.gl_pathv[i], strerror(errno));
+			continue;
+		}
+
+		if (!S_ISREG(sb.st_mode)) {
 			error("skipping non-regular file %s",
 			    g.gl_pathv[i]);
 			continue;
@@ -865,14 +840,238 @@ do_globbed_ls(struct sftp_conn *conn, char *path, char *strip_path,
 }
 
 static int
-parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
+do_df(struct sftp_conn *conn, char *path, int hflag, int iflag)
+{
+	struct sftp_statvfs st;
+	char s_used[FMT_SCALED_STRSIZE];
+	char s_avail[FMT_SCALED_STRSIZE];
+	char s_root[FMT_SCALED_STRSIZE];
+	char s_total[FMT_SCALED_STRSIZE];
+
+	if (do_statvfs(conn, path, &st, 1) == -1)
+		return -1;
+	if (iflag) {
+		printf("     Inodes        Used       Avail      "
+		    "(root)    %%Capacity\n");
+		printf("%11llu %11llu %11llu %11llu         %3llu%%\n",
+		    (unsigned long long)st.f_files,
+		    (unsigned long long)(st.f_files - st.f_ffree),
+		    (unsigned long long)st.f_favail,
+		    (unsigned long long)st.f_ffree,
+		    (unsigned long long)(100 * (st.f_files - st.f_ffree) /
+		    st.f_files));
+	} else if (hflag) {
+		strlcpy(s_used, "error", sizeof(s_used));
+		strlcpy(s_avail, "error", sizeof(s_avail));
+		strlcpy(s_root, "error", sizeof(s_root));
+		strlcpy(s_total, "error", sizeof(s_total));
+		fmt_scaled((st.f_blocks - st.f_bfree) * st.f_frsize, s_used);
+		fmt_scaled(st.f_bavail * st.f_frsize, s_avail);
+		fmt_scaled(st.f_bfree * st.f_frsize, s_root);
+		fmt_scaled(st.f_blocks * st.f_frsize, s_total);
+		printf("    Size     Used    Avail   (root)    %%Capacity\n");
+		printf("%7sB %7sB %7sB %7sB         %3llu%%\n",
+		    s_total, s_used, s_avail, s_root,
+		    (unsigned long long)(100 * (st.f_blocks - st.f_bfree) /
+		    st.f_blocks));
+	} else {
+		printf("        Size         Used        Avail       "
+		    "(root)    %%Capacity\n");
+		printf("%12llu %12llu %12llu %12llu         %3llu%%\n",
+		    (unsigned long long)(st.f_frsize * st.f_blocks / 1024),
+		    (unsigned long long)(st.f_frsize *
+		    (st.f_blocks - st.f_bfree) / 1024),
+		    (unsigned long long)(st.f_frsize * st.f_bavail / 1024),
+		    (unsigned long long)(st.f_frsize * st.f_bfree / 1024),
+		    (unsigned long long)(100 * (st.f_blocks - st.f_bfree) /
+		    st.f_blocks));
+	}
+	return 0;
+}
+
+/*
+ * Undo escaping of glob sequences in place. Used to undo extra escaping
+ * applied in makeargv() when the string is destined for a function that
+ * does not glob it.
+ */
+static void
+undo_glob_escape(char *s)
+{
+	size_t i, j;
+
+	for (i = j = 0;;) {
+		if (s[i] == '\0') {
+			s[j] = '\0';
+			return;
+		}
+		if (s[i] != '\\') {
+			s[j++] = s[i++];
+			continue;
+		}
+		/* s[i] == '\\' */
+		++i;
+		switch (s[i]) {
+		case '?':
+		case '[':
+		case '*':
+		case '\\':
+			s[j++] = s[i++];
+			break;
+		case '\0':
+			s[j++] = '\\';
+			s[j] = '\0';
+			return;
+		default:
+			s[j++] = '\\';
+			s[j++] = s[i++];
+			break;
+		}
+	}
+}
+
+/*
+ * Split a string into an argument vector using sh(1)-style quoting,
+ * comment and escaping rules, but with some tweaks to handle glob(3)
+ * wildcards.
+ * Returns NULL on error or a NULL-terminated array of arguments.
+ */
+#define MAXARGS 	128
+#define MAXARGLEN	8192
+static char **
+makeargv(const char *arg, int *argcp)
+{
+	int argc, quot;
+	size_t i, j;
+	static char argvs[MAXARGLEN];
+	static char *argv[MAXARGS + 1];
+	enum { MA_START, MA_SQUOTE, MA_DQUOTE, MA_UNQUOTED } state, q;
+
+	*argcp = argc = 0;
+	if (strlen(arg) > sizeof(argvs) - 1) {
+ args_too_longs:
+		error("string too long");
+		return NULL;
+	}
+	state = MA_START;
+	i = j = 0;
+	for (;;) {
+		if (isspace(arg[i])) {
+			if (state == MA_UNQUOTED) {
+				/* Terminate current argument */
+				argvs[j++] = '\0';
+				argc++;
+				state = MA_START;
+			} else if (state != MA_START)
+				argvs[j++] = arg[i];
+		} else if (arg[i] == '"' || arg[i] == '\'') {
+			q = arg[i] == '"' ? MA_DQUOTE : MA_SQUOTE;
+			if (state == MA_START) {
+				argv[argc] = argvs + j;
+				state = q;
+			} else if (state == MA_UNQUOTED) 
+				state = q;
+			else if (state == q)
+				state = MA_UNQUOTED;
+			else
+				argvs[j++] = arg[i];
+		} else if (arg[i] == '\\') {
+			if (state == MA_SQUOTE || state == MA_DQUOTE) {
+				quot = state == MA_SQUOTE ? '\'' : '"';
+				/* Unescape quote we are in */
+				/* XXX support \n and friends? */
+				if (arg[i + 1] == quot) {
+					i++;
+					argvs[j++] = arg[i];
+				} else if (arg[i + 1] == '?' ||
+				    arg[i + 1] == '[' || arg[i + 1] == '*') {
+					/*
+					 * Special case for sftp: append
+					 * double-escaped glob sequence -
+					 * glob will undo one level of
+					 * escaping. NB. string can grow here.
+					 */
+					if (j >= sizeof(argvs) - 5)
+						goto args_too_longs;
+					argvs[j++] = '\\';
+					argvs[j++] = arg[i++];
+					argvs[j++] = '\\';
+					argvs[j++] = arg[i];
+				} else {
+					argvs[j++] = arg[i++];
+					argvs[j++] = arg[i];
+				}
+			} else {
+				if (state == MA_START) {
+					argv[argc] = argvs + j;
+					state = MA_UNQUOTED;
+				}
+				if (arg[i + 1] == '?' || arg[i + 1] == '[' ||
+				    arg[i + 1] == '*' || arg[i + 1] == '\\') {
+					/*
+					 * Special case for sftp: append
+					 * escaped glob sequence -
+					 * glob will undo one level of
+					 * escaping.
+					 */
+					argvs[j++] = arg[i++];
+					argvs[j++] = arg[i];
+				} else {
+					/* Unescape everything */
+					/* XXX support \n and friends? */
+					i++;
+					argvs[j++] = arg[i];
+				}
+			}
+		} else if (arg[i] == '#') {
+			if (state == MA_SQUOTE || state == MA_DQUOTE)
+				argvs[j++] = arg[i];
+			else
+				goto string_done;
+		} else if (arg[i] == '\0') {
+			if (state == MA_SQUOTE || state == MA_DQUOTE) {
+				error("Unterminated quoted argument");
+				return NULL;
+			}
+ string_done:
+			if (state == MA_UNQUOTED) {
+				argvs[j++] = '\0';
+				argc++;
+			}
+			break;
+		} else {
+			if (state == MA_START) {
+				argv[argc] = argvs + j;
+				state = MA_UNQUOTED;
+			}
+			if ((state == MA_SQUOTE || state == MA_DQUOTE) &&
+			    (arg[i] == '?' || arg[i] == '[' || arg[i] == '*')) {
+				/*
+				 * Special case for sftp: escape quoted
+				 * glob(3) wildcards. NB. string can grow
+				 * here.
+				 */
+				if (j >= sizeof(argvs) - 3)
+					goto args_too_longs;
+				argvs[j++] = '\\';
+				argvs[j++] = arg[i];
+			} else
+				argvs[j++] = arg[i];
+		}
+		i++;
+	}
+	*argcp = argc;
+	return argv;
+}
+
+static int
+parse_args(const char **cpp, int *pflag, int *lflag, int *iflag, int *hflag,
     unsigned long *n_arg, char **path1, char **path2)
 {
 	const char *cmd, *cp = *cpp;
-	char *cp2;
+	char *cp2, **argv;
 	int base = 0;
 	long l;
-	int i, cmdnum;
+	int i, cmdnum, optidx, argc;
 
 	/* Skip leading whitespace */
 	cp = cp + strspn(cp, WHITESPACE);
@@ -888,17 +1087,13 @@ parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
 		cp++;
 	}
 
-	/* Figure out which command we have */
-	for (i = 0; cmds[i].c; i++) {
-		int cmdlen = strlen(cmds[i].c);
+	if ((argv = makeargv(cp, &argc)) == NULL)
+		return -1;
 
-		/* Check for command followed by whitespace */
-		if (!strncasecmp(cp, cmds[i].c, cmdlen) &&
-		    strchr(WHITESPACE, cp[cmdlen])) {
-			cp += cmdlen;
-			cp = cp + strspn(cp, WHITESPACE);
+	/* Figure out which command we have */
+	for (i = 0; cmds[i].c != NULL; i++) {
+		if (strcasecmp(cmds[i].c, argv[0]) == 0)
 			break;
-		}
 	}
 	cmdnum = cmds[i].n;
 	cmd = cmds[i].c;
@@ -909,40 +1104,44 @@ parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
 		cmdnum = I_SHELL;
 	} else if (cmdnum == -1) {
 		error("Invalid command.");
-		return (-1);
+		return -1;
 	}
 
 	/* Get arguments and parse flags */
-	*lflag = *pflag = *n_arg = 0;
+	*lflag = *pflag = *hflag = *n_arg = 0;
 	*path1 = *path2 = NULL;
+	optidx = 1;
 	switch (cmdnum) {
 	case I_GET:
 	case I_PUT:
-		if (parse_getput_flags(&cp, pflag))
-			return(-1);
+		if ((optidx = parse_getput_flags(cmd, argv, argc, pflag)) == -1)
+			return -1;
 		/* Get first pathname (mandatory) */
-		if (get_pathname(&cp, path1))
-			return(-1);
-		if (*path1 == NULL) {
+		if (argc - optidx < 1) {
 			error("You must specify at least one path after a "
 			    "%s command.", cmd);
-			return(-1);
+			return -1;
 		}
-		/* Try to get second pathname (optional) */
-		if (get_pathname(&cp, path2))
-			return(-1);
+		*path1 = xstrdup(argv[optidx]);
+		/* Get second pathname (optional) */
+		if (argc - optidx > 1) {
+			*path2 = xstrdup(argv[optidx + 1]);
+			/* Destination is not globbed */
+			undo_glob_escape(*path2);
+		}
 		break;
 	case I_RENAME:
 	case I_SYMLINK:
-		if (get_pathname(&cp, path1))
-			return(-1);
-		if (get_pathname(&cp, path2))
-			return(-1);
-		if (!*path1 || !*path2) {
+		if (argc - optidx < 2) {
 			error("You must specify two paths after a %s "
 			    "command.", cmd);
-			return(-1);
+			return -1;
 		}
+		*path1 = xstrdup(argv[optidx]);
+		*path2 = xstrdup(argv[optidx + 1]);
+		/* Paths are not globbed */
+		undo_glob_escape(*path1);
+		undo_glob_escape(*path2);
 		break;
 	case I_RM:
 	case I_MKDIR:
@@ -951,59 +1150,69 @@ parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
 	case I_LCHDIR:
 	case I_LMKDIR:
 		/* Get pathname (mandatory) */
-		if (get_pathname(&cp, path1))
-			return(-1);
-		if (*path1 == NULL) {
+		if (argc - optidx < 1) {
 			error("You must specify a path after a %s command.",
 			    cmd);
-			return(-1);
+			return -1;
+		}
+		*path1 = xstrdup(argv[optidx]);
+		/* Only "rm" globs */
+		if (cmdnum != I_RM)
+			undo_glob_escape(*path1);
+		break;
+	case I_DF:
+		if ((optidx = parse_df_flags(cmd, argv, argc, hflag,
+		    iflag)) == -1)
+			return -1;
+		/* Default to current directory if no path specified */
+		if (argc - optidx < 1)
+			*path1 = NULL;
+		else {
+			*path1 = xstrdup(argv[optidx]);
+			undo_glob_escape(*path1);
 		}
 		break;
 	case I_LS:
-		if (parse_ls_flags(&cp, lflag))
+		if ((optidx = parse_ls_flags(argv, argc, lflag)) == -1)
 			return(-1);
 		/* Path is optional */
-		if (get_pathname(&cp, path1))
-			return(-1);
+		if (argc - optidx > 0)
+			*path1 = xstrdup(argv[optidx]);
 		break;
 	case I_LLS:
+		/* Skip ls command and following whitespace */
+		cp = cp + strlen(cmd) + strspn(cp, WHITESPACE);
 	case I_SHELL:
 		/* Uses the rest of the line */
 		break;
 	case I_LUMASK:
-		base = 8;
 	case I_CHMOD:
 		base = 8;
 	case I_CHOWN:
 	case I_CHGRP:
 		/* Get numeric arg (mandatory) */
+		if (argc - optidx < 1)
+			goto need_num_arg;
 		errno = 0;
-		l = strtol(cp, &cp2, base);
-		if (cp2 == cp || ((l == LONG_MIN || l == LONG_MAX) &&
-		    errno == ERANGE) || l < 0) {
+		l = strtol(argv[optidx], &cp2, base);
+		if (cp2 == argv[optidx] || *cp2 != '\0' ||
+		    ((l == LONG_MIN || l == LONG_MAX) && errno == ERANGE) ||
+		    l < 0) {
+ need_num_arg:
 			error("You must supply a numeric argument "
 			    "to the %s command.", cmd);
-			return(-1);
+			return -1;
 		}
-		cp = cp2;
 		*n_arg = l;
-		if (cmdnum == I_LUMASK && strchr(WHITESPACE, *cp))
+		if (cmdnum == I_LUMASK)
 			break;
-		if (cmdnum == I_LUMASK || !strchr(WHITESPACE, *cp)) {
-			error("You must supply a numeric argument "
-			    "to the %s command.", cmd);
-			return(-1);
-		}
-		cp += strspn(cp, WHITESPACE);
-
 		/* Get pathname (mandatory) */
-		if (get_pathname(&cp, path1))
-			return(-1);
-		if (*path1 == NULL) {
+		if (argc - optidx < 2) {
 			error("You must specify a path after a %s command.",
 			    cmd);
-			return(-1);
+			return -1;
 		}
+		*path1 = xstrdup(argv[optidx + 1]);
 		break;
 	case I_QUIT:
 	case I_PWD:
@@ -1025,7 +1234,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
     int err_abort)
 {
 	char *path1, *path2, *tmp;
-	int pflag, lflag, iflag, cmdnum, i;
+	int pflag, lflag, iflag, hflag, cmdnum, i;
 	unsigned long n_arg;
 	Attrib a, *aa;
 	char path_buf[MAXPATHLEN];
@@ -1033,7 +1242,7 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 	glob_t g;
 
 	path1 = path2 = NULL;
-	cmdnum = parse_args(&cmd, &pflag, &lflag, &iflag, &n_arg,
+	cmdnum = parse_args(&cmd, &pflag, &lflag, &iflag, &hflag, &n_arg,
 	    &path1, &path2);
 
 	if (iflag != 0)
@@ -1126,6 +1335,13 @@ parse_dispatch_command(struct sftp_conn *conn, const char *cmd, char **pwd,
 
 		path1 = make_absolute(path1, *pwd);
 		err = do_globbed_ls(conn, path1, tmp, lflag);
+		break;
+	case I_DF:
+		/* Default to current directory if no path specified */
+		if (path1 == NULL)
+			path1 = xstrdup(*pwd);
+		path1 = make_absolute(path1, *pwd);
+		err = do_df(conn, path1, hflag, iflag);
 		break;
 	case I_LCHDIR:
 		if (chdir(path1) == -1) {
@@ -1566,7 +1782,7 @@ main(int argc, char **argv)
 				fprintf(stderr, "Missing username\n");
 				usage();
 			}
-			addargs(&args, "-l%s",userhost);
+			addargs(&args, "-l%s", userhost);
 		}
 
 		if ((cp = colon(host)) != NULL) {

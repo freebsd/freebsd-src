@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.15 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.19 2008/07/03 21:46:58 otto Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -28,9 +28,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <fcntl.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 #include "xmalloc.h"
 #include "ssh.h"
@@ -183,7 +185,6 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	int found_key = 0;
 	FILE *f;
 	u_long linenum = 0;
-	struct stat st;
 	Key *found;
 	char *fp;
 
@@ -191,24 +192,9 @@ user_key_allowed2(struct passwd *pw, Key *key, char *file)
 	temporarily_use_uid(pw);
 
 	debug("trying public key file %s", file);
+	f = auth_openkeyfile(file, pw, options.strict_modes);
 
-	/* Fail quietly if file does not exist */
-	if (stat(file, &st) < 0) {
-		/* Restore the privileged uid. */
-		restore_uid();
-		return 0;
-	}
-	/* Open the file containing the authorized keys. */
-	f = fopen(file, "r");
 	if (!f) {
-		/* Restore the privileged uid. */
-		restore_uid();
-		return 0;
-	}
-	if (options.strict_modes &&
-	    secure_filename(f, file, pw, line, sizeof(line)) != 0) {
-		fclose(f);
-		logit("Authentication refused: %s", line);
 		restore_uid();
 		return 0;
 	}
