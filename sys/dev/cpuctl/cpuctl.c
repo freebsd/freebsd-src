@@ -80,7 +80,6 @@ static MALLOC_DEFINE(M_CPUCTL, "cpuctl", "CPUCTL buffer");
 
 static struct cdevsw cpuctl_cdevsw = {
         .d_version =    D_VERSION,
-        .d_flags =      D_NEEDMINOR,
         .d_open =       cpuctl_open,
         .d_ioctl =      cpuctl_ioctl,
         .d_name =       "cpuctl",
