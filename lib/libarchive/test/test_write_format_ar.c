@@ -34,7 +34,7 @@ static char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o
 
 DEFINE_TEST(test_write_format_ar)
 {
-#if ARCHIVE_VERSION_STAMP < 1009000
+#if ARCHIVE_VERSION_NUMBER < 1009000
 	skipping("ar write support");
 #else
 	struct archive_entry *ae;
@@ -102,10 +102,10 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_free(ae);
 
 	archive_write_close(a);
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*
@@ -141,10 +141,10 @@ DEFINE_TEST(test_write_format_ar)
 	assert(0 == memcmp(buff2, "88877766", 8));
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	/*
@@ -175,10 +175,10 @@ DEFINE_TEST(test_write_format_ar)
 	assertA(6 == archive_write_data(a, "555555", 7));
 	archive_entry_free(ae);
 	archive_write_close(a);
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/* Now, Read the data back */
@@ -202,10 +202,10 @@ DEFINE_TEST(test_write_format_ar)
 	/* Test EOF */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 #endif
 }

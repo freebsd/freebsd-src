@@ -111,10 +111,10 @@ DEFINE_TEST(test_write_format_cpio_newc)
 	archive_entry_free(entry);
 
 
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*
