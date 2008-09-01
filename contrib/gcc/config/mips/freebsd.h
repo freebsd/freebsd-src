@@ -184,8 +184,10 @@ Boston, MA 02110-1301, USA.  */
 /* Default to the mips32 ISA */
 #undef  DRIVER_SELF_SPECS
 #define DRIVER_SELF_SPECS \
-  "%{!EB:%{!EL:%(endian_spec)}}", \
   "%{!march=*: -march=mips32}"
+#if 0
+  "%{!EB:%{!EL:%(endian_spec)}}", 
+#endif
 
 #if 0
 /* Don't default to pcc-struct-return, we want to retain compatibility with
