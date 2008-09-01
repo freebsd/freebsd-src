@@ -140,6 +140,7 @@ struct archive_write_disk {
 	uid_t			 user_uid;
 	dev_t			 skip_file_dev;
 	ino_t			 skip_file_ino;
+	time_t			 start_time;
 
 	gid_t (*lookup_gid)(void *private, const char *gname, gid_t gid);
 	void  (*cleanup_gid)(void *private);
@@ -445,6 +446,8 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		fe->mtime_nanos = archive_entry_mtime_nsec(entry);
 		fe->atime = archive_entry_atime(entry);
 		fe->atime_nanos = archive_entry_atime_nsec(entry);
+		if (fe->atime == 0 && fe->atime_nanos == 0)
+			fe->atime = a->start_time;
 	}
 
 	if (a->deferred & TODO_FFLAGS) {
@@ -720,6 +723,7 @@ archive_write_disk_new(void)
 	a->archive.vtable = archive_write_disk_vtable();
 	a->lookup_uid = trivial_lookup_uid;
 	a->lookup_gid = trivial_lookup_gid;
+	a->start_time = time(NULL);
 #ifdef HAVE_GETEUID
 	a->user_uid = geteuid();
 #endif /* HAVE_GETEUID */
@@ -1625,11 +1629,13 @@ set_time(struct archive_write_disk *a)
 	times[0].tv_sec = archive_entry_atime(a->entry);
 	times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
 
-	/* If no atime was specified, use mtime instead. */
-	if (times[0].tv_sec == 0 && times[0].tv_usec == 0) {
-		times[0].tv_sec = times[1].tv_sec;
-		times[0].tv_usec = times[1].tv_usec;
-	}
+	/* If no atime was specified, use start time instead. */
+	/* In theory, it would be marginally more correct to use
+	 * time(NULL) here, but that would cost us an extra syscall
+	 * for little gain. */
+	if (times[0].tv_sec == 0 && times[0].tv_usec == 0)
+		times[0].tv_sec = a->start_time;
+
 #ifdef HAVE_FUTIMES
 	if (a->fd >= 0 && futimes(a->fd, times) == 0) {
 		return (ARCHIVE_OK);
@@ -1668,6 +1674,8 @@ set_time(struct archive_write_disk *a)
 
 	times.modtime = archive_entry_mtime(a->entry);
 	times.actime = archive_entry_atime(a->entry);
+	if (times.actime == 0)
+		times.actime = a->start_time;
 	if (!S_ISLNK(a->mode) && utime(a->name, &times) != 0) {
 		archive_set_error(&a->archive, errno,
 		    "Can't update time for %s", a->name);
