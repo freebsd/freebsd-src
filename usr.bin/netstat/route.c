@@ -137,7 +137,7 @@ static void ntreestuff(void);
 static void np_rtentry(struct rt_msghdr *);
 static void p_sockaddr(struct sockaddr *, struct sockaddr *, int, int);
 static const char *fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask,
-				int flags);
+    int flags);
 static void p_flags(int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry(struct rtentry *);
@@ -150,13 +150,14 @@ void
 routepr(u_long rtree)
 {
 	struct radix_node_head *rnh, head;
+	size_t intsize;
 	int i;
 	int numfibs;
 
-	i = sizeof(int);
-	if (sysctlbyname("net.my_fibnum", &fibnum, &i, NULL, 0) == -1)
+	intsize = sizeof(int);
+	if (sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
 		fibnum = 0;
-	if (sysctlbyname("net.fibs", &numfibs, &i, NULL, 0) == -1)
+	if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
 		numfibs = 1;
 	rt_tables = calloc(numfibs, sizeof(struct rtline));
 	if (rt_tables == NULL)
@@ -181,7 +182,7 @@ routepr(u_long rtree)
 
 		if (kread((u_long)(rtree), (char *)(rt_tables),
 		    (numfibs * sizeof(struct rtline))) != 0)
-  			return;
+			return;
 		for (i = 0; i <= AF_MAX; i++) {
 			int tmpfib;
 			if (i != AF_INET)
@@ -273,7 +274,7 @@ static int wid_if;
 static int wid_expire;
 
 static void
-size_cols(int ef, struct radix_node *rn)
+size_cols(int ef __unused, struct radix_node *rn)
 {
 	wid_dst = WID_DST_DEFAULT(ef);
 	wid_gw = WID_GW_DEFAULT(ef);
@@ -853,7 +854,7 @@ routename(in_addr_t in)
 	0)
 
 static void
-domask(char *dst, in_addr_t addr, u_long mask)
+domask(char *dst, in_addr_t addr __unused, u_long mask)
 {
 	int b, i;
 
