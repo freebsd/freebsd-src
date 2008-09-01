@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.90.18.34 $)
+AC_REVISION($Revision: 1.90.18.34.10.2 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -2590,7 +2590,7 @@ case "$host" in
 	*-solaris2.9)
 		hack_shutup_in6addr_init_macros=yes
 		;;
-	*-solaris2.10)
+	*-solaris2.1[0-9])
 		hack_shutup_in6addr_init_macros=yes
 		;;
 esac
