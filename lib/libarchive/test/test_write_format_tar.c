@@ -72,10 +72,10 @@ DEFINE_TEST(test_write_format_tar)
 
 		/* Close out the archive. */
 		assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-		assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 		archive_write_finish(a);
+#else
+		assertA(0 == archive_write_finish(a));
 #endif
 		/* This calculation gives "the smallest multiple of
 		 * the block size that is at least 2048 bytes". */
@@ -105,10 +105,10 @@ DEFINE_TEST(test_write_format_tar)
 		/* Verify the end of the archive. */
 		assert(1 == archive_read_next_header(a, &ae));
 		assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-		assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 		archive_read_finish(a);
+#else
+		assert(0 == archive_read_finish(a));
 #endif
 	}
 }

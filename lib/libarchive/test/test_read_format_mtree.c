@@ -103,10 +103,10 @@ DEFINE_TEST(test_read_format_mtree)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 #endif
 }
 

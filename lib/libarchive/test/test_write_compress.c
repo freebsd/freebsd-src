@@ -68,10 +68,10 @@ DEFINE_TEST(test_write_compress)
 
 
 	archive_write_close(a);
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*
@@ -91,10 +91,10 @@ DEFINE_TEST(test_write_compress)
 	}
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 
 	free(data);

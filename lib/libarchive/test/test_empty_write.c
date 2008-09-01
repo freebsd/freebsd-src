@@ -55,12 +55,11 @@ DEFINE_TEST(test_empty_write)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
-
 
 	/*
 	 * Again, with bzip2 compression.
@@ -84,10 +83,10 @@ DEFINE_TEST(test_empty_write)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 
@@ -113,9 +112,9 @@ DEFINE_TEST(test_empty_write)
 
 	/* Close out the archive. */
 	assertA(0 == archive_write_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 }
