@@ -41,6 +41,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	Adding these drivers to your kernel configuration file shall
 	cause compilation to fail.
 
+20080801:
+	OpenSSH has been upgraded to 5.1p1.
+
+	For many years, FreeBSD's version of OpenSSH preferred DSA
+	over RSA for host and user authentication keys.  With this
+	upgrade, we've switched to the vendor's default of RSA over
+	DSA.  This may cause upgraded clients to warn about unknown
+	host keys even for previously known hosts.  Users should
+	follow the usual procedure for verifying host keys before
+	accepting the RSA key.
+
+	This can be circumvented by setting the "HostKeyAlgorithms"
+	option to "ssh-dss,ssh-rsa" in ~/.ssh/config or on the ssh
+	command line.
+
 20080713:
 	The sio(4) driver has been removed from the i386 and amd64
 	kernel configuration files. This means uart(4) is now the
