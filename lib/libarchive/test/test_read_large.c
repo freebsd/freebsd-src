@@ -52,10 +52,10 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertA(sizeof(testdata) == archive_write_data(a, testdata, sizeof(testdata)));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assertA(0 == archive_write_finish(a));
 #endif
 
 	assert(NULL != (a = archive_read_new()));
@@ -64,10 +64,10 @@ DEFINE_TEST(test_read_large)
 	assertA(0 == archive_read_open_memory(a, buff, sizeof(buff)));
 	assertA(0 == archive_read_next_header(a, &entry));
 	assertA(0 == archive_read_data_into_buffer(a, testdatacopy, sizeof(testdatacopy)));
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertA(0 == archive_read_finish(a));
 #endif
 	assert(0 == memcmp(testdata, testdatacopy, sizeof(testdata)));
 
@@ -80,10 +80,10 @@ DEFINE_TEST(test_read_large)
 	assert(0 < (tmpfilefd = mkstemp(tmpfilename)));
 	assertA(0 == archive_read_data_into_fd(a, tmpfilefd));
 	close(tmpfilefd);
-#if ARCHIVE_API_VERSION > 1
-	assertA(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assertA(0 == archive_read_finish(a));
 #endif
 	tmpfilefd = open(tmpfilename, O_RDONLY);
 	read(tmpfilefd, testdatacopy, sizeof(testdatacopy));

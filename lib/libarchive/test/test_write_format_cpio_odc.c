@@ -122,10 +122,10 @@ DEFINE_TEST(test_write_format_cpio_odc)
 	/* Write of data to symlink should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
 
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_write_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
+#else
+	assert(0 == archive_write_finish(a));
 #endif
 
 	/*

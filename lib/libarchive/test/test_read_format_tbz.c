@@ -45,10 +45,10 @@ DEFINE_TEST(test_read_format_tbz)
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_TAR_USTAR);
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 

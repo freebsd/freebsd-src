@@ -75,10 +75,10 @@ static void verifyEmpty(void)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 }
 
@@ -447,10 +447,10 @@ static void verify(unsigned char *d, size_t s,
 	f(ae);
 
 	assert(0 == archive_read_close(a));
-#if ARCHIVE_API_VERSION > 1
-	assert(0 == archive_read_finish(a));
-#else
+#if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_read_finish(a);
+#else
+	assert(0 == archive_read_finish(a));
 #endif
 	free(buff);
 }
