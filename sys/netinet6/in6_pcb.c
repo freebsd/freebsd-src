@@ -571,7 +571,7 @@ void
 in6_pcbnotify(struct inpcbinfo *pcbinfo, struct sockaddr *dst,
     u_int fport_arg, const struct sockaddr *src, u_int lport_arg,
     int cmd, void *cmdarg,
-    struct inpcb *(*notify) __P((struct inpcb *, int)))
+    struct inpcb *(*notify)(struct inpcb *, int))
 {
 	struct inpcb *inp, *inp_temp;
 	struct sockaddr_in6 sa6_src, *sa6_dst;
