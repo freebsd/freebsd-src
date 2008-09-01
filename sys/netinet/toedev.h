@@ -34,6 +34,8 @@
 #error "no user-serviceable parts inside"
 #endif
 
+extern uint32_t toedev_registration_count;
+
 /* Parameter values for offload_get_phys_egress(). */
 enum {
 	TOE_OPEN,
