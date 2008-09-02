@@ -549,7 +549,7 @@ cust_pkg () (
 	echo "==="
 	while true
 	do
-		# Record how may we have now
+		# Record how many we have now
 		have=`ls ${NANO_WORLDDIR}/var/db/pkg | wc -l`
 
 		# Attempt to install more packages
