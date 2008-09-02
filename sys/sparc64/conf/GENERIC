@@ -101,6 +101,7 @@ device		atapicd		# ATAPI CDROM drives
 
 # SCSI Controllers
 device		ahc		# AHA2940 and onboard AIC7xxx devices
+options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
