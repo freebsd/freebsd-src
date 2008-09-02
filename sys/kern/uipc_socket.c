@@ -1857,7 +1857,6 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	int flags, len, error, offset;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
-	int orig_resid = uio->uio_resid;
 
 	if (psa != NULL)
 		*psa = NULL;
@@ -1935,7 +1934,6 @@ restart:
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
 
-		/* XXXRW: sbwait() may not be as happy without sblock(). */
 		error = sbwait(&so->so_rcv);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		if (error)
@@ -1968,7 +1966,6 @@ dontblock:
 	if (pr->pr_flags & PR_ADDR) {
 		KASSERT(m->m_type == MT_SONAME,
 		    ("m->m_type == %d", m->m_type));
-		orig_resid = 0;
 		if (psa != NULL)
 			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
 			    M_NOWAIT);
@@ -2048,13 +2045,11 @@ dontblock:
 			else
 				m_freem(cm);
 			if (controlp != NULL) {
-				orig_resid = 0;
 				while (*controlp != NULL)
 					controlp = &(*controlp)->m_next;
 			}
 			cm = cmn;
 		}
-		orig_resid = 0;	/* XXXRW: why this? */
 	}
 
 	KASSERT(m->m_type == MT_DATA, ("soreceive_dgram: !data"));
