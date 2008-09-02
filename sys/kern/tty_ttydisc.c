@@ -1086,19 +1086,18 @@ ttydisc_wakeup_watermark(struct tty *tp)
 size_t
 ttydisc_getc(struct tty *tp, void *buf, size_t len)
 {
-	int ret;
 
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
 
-	ret = ttyoutq_read(&tp->t_outq, buf, len);
+	len = ttyoutq_read(&tp->t_outq, buf, len);
 	ttydisc_wakeup_watermark(tp);
 
-	atomic_add_long(&tty_nout, ret);
+	atomic_add_long(&tty_nout, len);
 
-	return (ret);
+	return (len);
 }
 
 int
