@@ -188,11 +188,12 @@ ASSYM(PM_TSB_MISS_COUNT, offsetof(struct pmap, pm_tsb_miss_count));
 ASSYM(PM_TSB_CAP_MISS_COUNT, offsetof(struct pmap, pm_tsb_cap_miss_count));
 #endif
 #ifdef SUN4U
+ASSYM(PC_CACHE, offsetof(struct pcpu, pc_cache));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
+ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
-ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
 #endif
 
 ASSYM(IR_NEXT, offsetof(struct intr_request, ir_next));

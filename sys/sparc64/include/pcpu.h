@@ -31,6 +31,7 @@
 #define	_MACHINE_PCPU_H_
 
 #include <machine/asmacros.h>
+#include <machine/cache.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 
@@ -43,6 +44,7 @@ struct pmap;
  * point at the globaldata structure.
  */
 #define	PCPU_MD_FIELDS							\
+	struct	cacheinfo pc_cache;					\
 	struct	intr_request pc_irpool[IR_FREE];			\
 	struct	intr_request *pc_irhead;				\
 	struct	intr_request **pc_irtail;				\
