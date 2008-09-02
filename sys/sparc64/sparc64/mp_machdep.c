@@ -301,6 +301,8 @@ cpu_mp_start(void)
 		pc->pc_mid = mid;
 		pc->pc_node = child;
 
+		cache_init(pc);
+
 		all_cpus |= 1 << cpuid;
 		intr_add_cpu(cpuid);
 	}
