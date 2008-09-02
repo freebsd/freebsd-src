@@ -930,6 +930,13 @@ initvalues(start_info_t *startinfo)
 
 	/* allocate remainder of NKPT pages */
 	for (i = l1_pages; i < NKPT; i++, cur_space += PAGE_SIZE) {
+		/*
+		 * ensure that all page table pages have been zeroed
+		 */
+		PT_SET_MA(cur_space, xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
+		bzero((char *)cur_space, PAGE_SIZE);
+		PT_SET_MA(cur_space, 0);
+		    
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDma + (offset + i)*sizeof(vm_paddr_t)), 
 		    xpmap_ptom(VTOP(cur_space)) | PG_KERNEL);
