@@ -742,5 +742,6 @@ ia32_setregs(td, entry, stack, ps_strings)
 
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	pcb->pcb_flags &= ~PCB_GS32BIT;
 	td->td_retval[1] = 0;
 }
