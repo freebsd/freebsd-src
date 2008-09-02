@@ -228,7 +228,7 @@ MDTimeTrial(Algorithm_t *alg)
 		block[i] = (unsigned char) (i & 0xff);
 
 	/* Start timer */
-	getrusage(0, &before);
+	getrusage(RUSAGE_SELF, &before);
 
 	/* Digest blocks */
 	alg->Init(&context);
@@ -237,7 +237,7 @@ MDTimeTrial(Algorithm_t *alg)
 	p = alg->End(&context, buf);
 
 	/* Stop timer */
-	getrusage(0, &after);
+	getrusage(RUSAGE_SELF, &after);
 	timersub(&after.ru_utime, &before.ru_utime, &total);
 	seconds = total.tv_sec + (float) total.tv_usec / 1000000;
 
