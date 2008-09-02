@@ -56,12 +56,3 @@ void
 cpu_stopprofclock(void)
 {
 }
-
-int
-sysbeep(int pitch, int period)
-{
-	/*
-	 * XXX: function exists to enable RAID drivers to compile at the moment.
-	 */
-	return (0);
-}
