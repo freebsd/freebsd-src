@@ -734,6 +734,7 @@ exec_setregs(td, entry, stack, ps_strings)
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
 	critical_exit();
+	pcb->pcb_flags &= ~(PCB_32BIT | PCB_GS32BIT);
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_udatasel);
