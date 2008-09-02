@@ -325,7 +325,7 @@ cputime ()
 {
 	struct rusage rus;
 
-	getrusage(0, &rus);
+	getrusage(RUSAGE_SELF, &rus);
 	return(rus.ru_utime.tv_sec * 1000 + rus.ru_utime.tv_usec / 1000);
 }
 #endif /* DEBUG */
