@@ -375,6 +375,7 @@ cxgb_controller_probe(device_t dev)
 	const struct adapter_info *ai;
 	char *ports, buf[80];
 	int nports;
+	struct adapter *sc = device_get_softc(dev);
 	
 	ai = cxgb_get_adapter_info(dev);
 	if (ai == NULL)
@@ -386,7 +387,9 @@ cxgb_controller_probe(device_t dev)
 	else
 		ports = "ports";
 
-	snprintf(buf, sizeof(buf), "%s RNIC, %d %s", ai->desc, nports, ports);
+	snprintf(buf, sizeof(buf), "%s %sNIC, rev: %d nports: %d %s",
+	    ai->desc, is_offload(sc) ? "R" : "",
+	    sc->params.rev, nports, ports);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
