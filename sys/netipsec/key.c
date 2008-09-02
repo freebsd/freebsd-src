@@ -2412,6 +2412,7 @@ key_setdumpsp(sp, type, seq, pid)
 	u_int32_t seq, pid;
 {
 	struct mbuf *result = NULL, *m;
+	struct seclifetime lt;
 
 	m = key_setsadbmsg(type, 0, SADB_SATYPE_UNSPEC, seq, pid, sp->refcnt);
 	if (!m)
@@ -2436,6 +2437,22 @@ key_setdumpsp(sp, type, seq, pid)
 	if (!m)
 		goto fail;
 	m_cat(result, m);
+
+	if(sp->lifetime){
+		lt.addtime=sp->created;
+		lt.usetime= sp->lastused;
+		m = key_setlifetime(&lt, SADB_EXT_LIFETIME_CURRENT);
+		if (!m)
+			goto fail;
+		m_cat(result, m);
+		
+		lt.addtime=sp->lifetime;
+		lt.usetime= sp->validtime;
+		m = key_setlifetime(&lt, SADB_EXT_LIFETIME_HARD);
+		if (!m)
+			goto fail;
+		m_cat(result, m);
+	}
 
 	if ((result->m_flags & M_PKTHDR) == 0)
 		goto fail;
