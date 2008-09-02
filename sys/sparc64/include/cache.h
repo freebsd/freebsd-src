@@ -45,10 +45,6 @@
 #ifndef _MACHINE_CACHE_H_
 #define	_MACHINE_CACHE_H_
 
-#ifndef LOCORE
-#include <dev/ofw/openfirm.h>
-#endif
-
 #define	DCACHE_COLOR_BITS	(1)
 #define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
 #define	DCACHE_COLOR_MASK	(DCACHE_COLORS - 1)
@@ -80,31 +76,27 @@
  * Cache control information
  */
 struct cacheinfo {
-	u_int	c_enabled;		/* true => cache is enabled */
 	u_int	ic_size;		/* instruction cache */
-	u_int	ic_set;
-	u_int	ic_l2set;
 	u_int	ic_assoc;
 	u_int	ic_linesize;
 	u_int	dc_size;		/* data cache */
-	u_int	dc_l2size;
 	u_int	dc_assoc;
 	u_int	dc_linesize;
 	u_int	ec_size;		/* external cache info */
 	u_int	ec_assoc;
-	u_int	ec_l2set;
 	u_int	ec_linesize;
-	u_int	ec_l2linesize;
 };
 
 #ifdef _KERNEL
+
+struct pcpu;
 
 typedef void cache_enable_t(void);
 typedef void cache_flush_t(void);
 typedef void dcache_page_inval_t(vm_paddr_t pa);
 typedef void icache_page_inval_t(vm_paddr_t pa);
 
-void	cache_init(phandle_t node);
+void cache_init(struct pcpu *pcpu);
 
 cache_enable_t cheetah_cache_enable;
 cache_flush_t cheetah_cache_flush;
@@ -120,8 +112,6 @@ extern cache_enable_t *cache_enable;
 extern cache_flush_t *cache_flush;
 extern dcache_page_inval_t *dcache_page_inval;
 extern icache_page_inval_t *icache_page_inval;
-
-extern struct cacheinfo cache;
 
 #endif /* KERNEL */
 

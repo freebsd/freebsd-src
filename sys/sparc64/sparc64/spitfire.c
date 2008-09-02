@@ -72,9 +72,11 @@ spitfire_cache_flush(void)
 {
 	u_long addr;
 
-	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize)
+	for (addr = 0; addr < PCPU_GET(cache.dc_size);
+	    addr += PCPU_GET(cache.dc_linesize))
 		stxa_sync(addr, ASI_DCACHE_TAG, 0);
-	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize)
+	for (addr = 0; addr < PCPU_GET(cache.ic_size);
+	    addr += PCPU_GET(cache.ic_linesize))
 		stxa_sync(addr, ASI_ICACHE_TAG, 0);
 }
 
@@ -93,7 +95,8 @@ spitfire_dcache_page_inval(vm_paddr_t pa)
 	PMAP_STATS_INC(spitfire_dcache_npage_inval);
 	target = pa >> (PAGE_SHIFT - DC_TAG_SHIFT);
 	cookie = ipi_dcache_page_inval(tl_ipi_spitfire_dcache_page_inval, pa);
-	for (addr = 0; addr < cache.dc_size; addr += cache.dc_linesize) {
+	for (addr = 0; addr < PCPU_GET(cache.dc_size);
+	    addr += PCPU_GET(cache.dc_linesize)) {
 		tag = ldxa(addr, ASI_DCACHE_TAG);
 		if (((tag >> DC_VALID_SHIFT) & DC_VALID_MASK) == 0)
 			continue;
@@ -121,7 +124,8 @@ spitfire_icache_page_inval(vm_paddr_t pa)
 	PMAP_STATS_INC(spitfire_icache_npage_inval);
 	target = pa >> (PAGE_SHIFT - IC_TAG_SHIFT);
 	cookie = ipi_icache_page_inval(tl_ipi_spitfire_icache_page_inval, pa);
-	for (addr = 0; addr < cache.ic_size; addr += cache.ic_linesize) {
+	for (addr = 0; addr < PCPU_GET(cache.ic_size);
+	    addr += PCPU_GET(cache.ic_linesize)) {
 		__asm __volatile("ldda [%1] %2, %%g0" /*, %g1 */
 		    : "=r" (tag) : "r" (addr), "n" (ASI_ICACHE_TAG));
 		if (((tag >> IC_VALID_SHIFT) & IC_VALID_MASK) == 0)
