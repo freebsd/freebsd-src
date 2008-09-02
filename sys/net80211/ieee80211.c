@@ -532,6 +532,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_power_vdetach(vap);
 	ieee80211_node_vdetach(vap);
 	ieee80211_sysctl_vdetach(vap);
+
+	if_free(ifp);
 }
 
 /*
