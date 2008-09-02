@@ -861,7 +861,8 @@ initvalues(start_info_t *startinfo)
 	l3_pages = 0;
 #endif
 	l2_pages = 1;
-	l1_pages = 4; /* XXX not certain if this varies */
+	l1_pages = xen_start_info->nr_pt_frames - l2_pages - l3_pages;
+
 	KPTphysoff = (l2_pages + l3_pages)*PAGE_SIZE;
 	
 	KPTphys = xpmap_ptom(VTOP(startinfo->pt_base + KPTphysoff));
@@ -916,7 +917,9 @@ initvalues(start_info_t *startinfo)
 	xen_pt_unpin(IdlePDPTma);
 #endif  /* PAE */
 	
-	/* unmap remaining pages from initial 4MB chunk */
+	/* unmap remaining pages from initial 4MB chunk
+	 *
+	 */
 	for (tmpva = cur_space; (tmpva & ((1<<22)-1)) != 0; tmpva += PAGE_SIZE) {
 		bzero((char *)tmpva, PAGE_SIZE);
 		PT_SET_MA(tmpva, (vm_paddr_t)0);
@@ -931,12 +934,12 @@ initvalues(start_info_t *startinfo)
 	/* allocate remainder of NKPT pages */
 	for (i = l1_pages; i < NKPT; i++, cur_space += PAGE_SIZE) {
 		/*
-		 * ensure that all page table pages have been zeroed
+		 * make sure that all the initial page table pages
+		 * have been zeroed
 		 */
 		PT_SET_MA(cur_space, xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
 		bzero((char *)cur_space, PAGE_SIZE);
-		PT_SET_MA(cur_space, 0);
-		    
+		PT_SET_MA(cur_space, (vm_paddr_t)0);
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDma + (offset + i)*sizeof(vm_paddr_t)), 
 		    xpmap_ptom(VTOP(cur_space)) | PG_KERNEL);
