@@ -30,11 +30,11 @@
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
 .Op Fl ea
-.Op Fl bcdflmnstuv Op Ar val
+.Op Fl bcdflmnstuvp Op Ar val
 .Nm
 .Op Fl C Ar class | Fl U Ar user
 .Op Fl SHB
-.Op Fl bcdflmnstuv Op Ar val
+.Op Fl bcdflmnstuvp Op Ar val
 .Op Fl E
 .Oo
 .Op Ar name Ns = Ns Ar value ...
@@ -262,6 +262,10 @@ and is inclusive of text, data, bss, stack,
 and
 .Xr mmap 2 Ns 'd
 space.
+.It Fl p Op Ar val
+Select or set the
+.Va pseudoterminals
+resource limit.
 .El
 .Pp
 Valid values for
