@@ -116,7 +116,7 @@ static int cxgb_controller_detach(device_t);
 static void cxgb_free(struct adapter *);
 static __inline void reg_block_dump(struct adapter *ap, uint8_t *buf, unsigned int start,
     unsigned int end);
-static void cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf);
+static void cxgb_get_regs(adapter_t *sc, struct ch_ifconf_regs *regs, uint8_t *buf);
 static int cxgb_get_regs_len(void);
 static int offload_open(struct port_info *pi);
 static void touch_bars(device_t dev);
@@ -266,6 +266,8 @@ struct filter_info {
 };
 
 enum { FILTER_NO_VLAN_PRI = 7 };
+
+#define EEPROM_MAGIC 0x38E2F10C
 
 #define PORT_MASK ((1 << MAX_NPORTS) - 1)
 
@@ -2361,10 +2363,10 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 #endif
 	
 	switch (cmd) {
-	case SIOCGMIIREG: {
+	case CHELSIO_GET_MIIREG: {
 		uint32_t val;
 		struct cphy *phy = &pi->phy;
-		struct mii_data *mid = (struct mii_data *)data;
+		struct ch_mii_data *mid = (struct ch_mii_data *)data;
 		
 		if (!phy->mdio_read)
 			return (EOPNOTSUPP);
@@ -2384,9 +2386,9 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			mid->val_out = val;
 		break;
 	}
-	case SIOCSMIIREG: {
+	case CHELSIO_SET_MIIREG: {
 		struct cphy *phy = &pi->phy;
-		struct mii_data *mid = (struct mii_data *)data;
+		struct ch_mii_data *mid = (struct ch_mii_data *)data;
 
 		if (!phy->mdio_write)
 			return (EOPNOTSUPP);
@@ -2424,19 +2426,19 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		mtx_lock_spin(&sc->sge.reg_lock);
 		switch (ecntxt->cntxt_type) {
 		case CNTXT_TYPE_EGRESS:
-			error = t3_sge_read_ecntxt(sc, ecntxt->cntxt_id,
+			error = -t3_sge_read_ecntxt(sc, ecntxt->cntxt_id,
 			    ecntxt->data);
 			break;
 		case CNTXT_TYPE_FL:
-			error = t3_sge_read_fl(sc, ecntxt->cntxt_id,
+			error = -t3_sge_read_fl(sc, ecntxt->cntxt_id,
 			    ecntxt->data);
 			break;
 		case CNTXT_TYPE_RSP:
-			error = t3_sge_read_rspq(sc, ecntxt->cntxt_id,
+			error = -t3_sge_read_rspq(sc, ecntxt->cntxt_id,
 			    ecntxt->data);
 			break;
 		case CNTXT_TYPE_CQ:
-			error = t3_sge_read_cq(sc, ecntxt->cntxt_id,
+			error = -t3_sge_read_cq(sc, ecntxt->cntxt_id,
 			    ecntxt->data);
 			break;
 		default:
@@ -2458,77 +2460,18 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		edesc->size = ret;
 		break;
 	}
-	case CHELSIO_SET_QSET_PARAMS: {
-		struct qset_params *q;
-		struct ch_qset_params *t = (struct ch_qset_params *)data;
-		int i;
-	
-		if (t->qset_idx >= SGE_QSETS)
-			return (EINVAL);
-		if (!in_range(t->intr_lat, 0, M_NEWTIMER) ||
-		    !in_range(t->cong_thres, 0, 255) ||
-		    !in_range(t->txq_size[0], MIN_TXQ_ENTRIES,
-			      MAX_TXQ_ENTRIES) ||
-		    !in_range(t->txq_size[1], MIN_TXQ_ENTRIES,
-			      MAX_TXQ_ENTRIES) ||
-		    !in_range(t->txq_size[2], MIN_CTRL_TXQ_ENTRIES,
-			      MAX_CTRL_TXQ_ENTRIES) ||
-		    !in_range(t->fl_size[0], MIN_FL_ENTRIES, MAX_RX_BUFFERS) ||
-		    !in_range(t->fl_size[1], MIN_FL_ENTRIES,
-			      MAX_RX_JUMBO_BUFFERS) ||
-		    !in_range(t->rspq_size, MIN_RSPQ_ENTRIES, MAX_RSPQ_ENTRIES))
-			return (EINVAL);
-
-		if ((sc->flags & FULL_INIT_DONE) && t->lro > 0)
-			for_each_port(sc, i) {
-				pi = adap2pinfo(sc, i);
-				if (t->qset_idx >= pi->first_qset &&
-				    t->qset_idx < pi->first_qset + pi->nqsets
-#if 0					
-					&& !pi->rx_csum_offload
-#endif					    
-					)
-					return -EINVAL;
-			}
-		if ((sc->flags & FULL_INIT_DONE) &&
-		    (t->rspq_size >= 0 || t->fl_size[0] >= 0 ||
-		     t->fl_size[1] >= 0 || t->txq_size[0] >= 0 ||
-		     t->txq_size[1] >= 0 || t->txq_size[2] >= 0 ||
-		     t->polling >= 0 || t->cong_thres >= 0))
-			return (EBUSY);
-
-		q = &sc->params.sge.qset[t->qset_idx];
-
-		if (t->rspq_size >= 0)
-			q->rspq_size = t->rspq_size;
-		if (t->fl_size[0] >= 0)
-			q->fl_size = t->fl_size[0];
-		if (t->fl_size[1] >= 0)
-			q->jumbo_size = t->fl_size[1];
-		if (t->txq_size[0] >= 0)
-			q->txq_size[0] = t->txq_size[0];
-		if (t->txq_size[1] >= 0)
-			q->txq_size[1] = t->txq_size[1];
-		if (t->txq_size[2] >= 0)
-			q->txq_size[2] = t->txq_size[2];
-		if (t->cong_thres >= 0)
-			q->cong_thres = t->cong_thres;
-		if (t->intr_lat >= 0) {
-			struct sge_qset *qs = &sc->sge.qs[t->qset_idx];
-
-			q->coalesce_usecs = t->intr_lat;
-			t3_update_qset_coalesce(qs, q);
-		}
-		break;
-	}
 	case CHELSIO_GET_QSET_PARAMS: {
 		struct qset_params *q;
 		struct ch_qset_params *t = (struct ch_qset_params *)data;
+		int q1 = pi->first_qset;
+		int nqsets = pi->nqsets;
+		int i;
 
-		if (t->qset_idx >= SGE_QSETS)
-			return (EINVAL);
+		if (t->qset_idx >= nqsets)
+			return EINVAL;
 
-		q = &(sc)->params.sge.qset[t->qset_idx];
+		i = q1 + t->qset_idx;
+		q = &sc->params.sge.qset[i];
 		t->rspq_size   = q->rspq_size;
 		t->txq_size[0] = q->txq_size[0];
 		t->txq_size[1] = q->txq_size[1];
@@ -2536,27 +2479,16 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		t->fl_size[0]  = q->fl_size;
 		t->fl_size[1]  = q->jumbo_size;
 		t->polling     = q->polling;
+		t->lro         = q->lro;
 		t->intr_lat    = q->coalesce_usecs;
 		t->cong_thres  = q->cong_thres;
-		break;
-	}
-	case CHELSIO_SET_QSET_NUM: {
-		struct ch_reg *edata = (struct ch_reg *)data;
-		unsigned int port_idx = pi->port_id;
-		
-		if (sc->flags & FULL_INIT_DONE)
-			return (EBUSY);
-		if (edata->val < 1 ||
-		    (edata->val > 1 && !(sc->flags & USING_MSIX)))
-			return (EINVAL);
-		if (edata->val + sc->port[!port_idx].nqsets > SGE_QSETS)
-			return (EINVAL);
-		sc->port[port_idx].nqsets = edata->val;
-		sc->port[0].first_qset = 0;
-		/*
-		 * XXX hardcode ourselves to 2 ports just like LEEENUX
-		 */
-		sc->port[1].first_qset = sc->port[0].nqsets;
+		t->qnum        = i;
+
+		if (sc->flags & USING_MSIX)
+			t->vector = rman_get_start(sc->msix_irq_res[i]);
+		else
+			t->vector = rman_get_start(sc->irq_res);
+
 		break;
 	}
 	case CHELSIO_GET_QSET_NUM: {
@@ -2564,13 +2496,110 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		edata->val = pi->nqsets;
 		break;
 	}
-#ifdef notyet		
-	case CHELSIO_LOAD_FW:
-	case CHELSIO_GET_PM:
-	case CHELSIO_SET_PM:
-		return (EOPNOTSUPP);
+	case CHELSIO_LOAD_FW: {
+		uint8_t *fw_data;
+		uint32_t vers;
+		struct ch_mem_range *t = (struct ch_mem_range *)data;
+
+		/*
+		 * You're allowed to load a firmware only before FULL_INIT_DONE
+		 *
+		 * FW_UPTODATE is also set so the rest of the initialization
+		 * will not overwrite what was loaded here.  This gives you the
+		 * flexibility to load any firmware (and maybe shoot yourself in
+		 * the foot).
+		 */
+
+		ADAPTER_LOCK(sc);
+		if (sc->open_device_map || sc->flags & FULL_INIT_DONE) {
+			ADAPTER_UNLOCK(sc);
+			return (EBUSY);
+		}
+
+		fw_data = malloc(t->len, M_DEVBUF, M_NOWAIT);
+		if (!fw_data)
+			error = ENOMEM;
+		else
+			error = copyin(t->buf, fw_data, t->len);
+
+		if (!error)
+			error = -t3_load_fw(sc, fw_data, t->len);
+
+		if (t3_get_fw_version(sc, &vers) == 0) {
+			snprintf(&sc->fw_version[0], sizeof(sc->fw_version),
+			    "%d.%d.%d", G_FW_VERSION_MAJOR(vers),
+			    G_FW_VERSION_MINOR(vers), G_FW_VERSION_MICRO(vers));
+		}
+
+		if (!error)
+			sc->flags |= FW_UPTODATE;
+
+		free(fw_data, M_DEVBUF);
+		ADAPTER_UNLOCK(sc);
 		break;
-#endif		
+	}
+	case CHELSIO_LOAD_BOOT: {
+		uint8_t *boot_data;
+		struct ch_mem_range *t = (struct ch_mem_range *)data;
+
+		boot_data = malloc(t->len, M_DEVBUF, M_NOWAIT);
+		if (!boot_data)
+			return ENOMEM;
+
+		error = copyin(t->buf, boot_data, t->len);
+		if (!error)
+			error = -t3_load_boot(sc, boot_data, t->len);
+
+		free(boot_data, M_DEVBUF);
+		break;
+	}
+	case CHELSIO_GET_PM: {
+		struct ch_pm *m = (struct ch_pm *)data;
+		struct tp_params *p = &sc->params.tp;
+
+		if (!is_offload(sc))
+			return (EOPNOTSUPP);
+
+		m->tx_pg_sz = p->tx_pg_size;
+		m->tx_num_pg = p->tx_num_pgs;
+		m->rx_pg_sz  = p->rx_pg_size;
+		m->rx_num_pg = p->rx_num_pgs;
+		m->pm_total  = p->pmtx_size + p->chan_rx_size * p->nchan;
+
+		break;
+	}
+	case CHELSIO_SET_PM: {
+		struct ch_pm *m = (struct ch_pm *)data;
+		struct tp_params *p = &sc->params.tp;
+
+		if (!is_offload(sc))
+			return (EOPNOTSUPP);
+		if (sc->flags & FULL_INIT_DONE)
+			return (EBUSY);
+
+		if (!m->rx_pg_sz || (m->rx_pg_sz & (m->rx_pg_sz - 1)) ||
+		    !m->tx_pg_sz || (m->tx_pg_sz & (m->tx_pg_sz - 1)))
+			return (EINVAL);	/* not power of 2 */
+		if (!(m->rx_pg_sz & 0x14000))
+			return (EINVAL);	/* not 16KB or 64KB */
+		if (!(m->tx_pg_sz & 0x1554000))
+			return (EINVAL);
+		if (m->tx_num_pg == -1)
+			m->tx_num_pg = p->tx_num_pgs;
+		if (m->rx_num_pg == -1)
+			m->rx_num_pg = p->rx_num_pgs;
+		if (m->tx_num_pg % 24 || m->rx_num_pg % 24)
+			return (EINVAL);
+		if (m->rx_num_pg * m->rx_pg_sz > p->chan_rx_size ||
+		    m->tx_num_pg * m->tx_pg_sz > p->chan_tx_size)
+			return (EINVAL);
+
+		p->rx_pg_size = m->rx_pg_sz;
+		p->tx_pg_size = m->tx_pg_sz;
+		p->rx_num_pgs = m->rx_num_pg;
+		p->tx_num_pgs = m->tx_num_pg;
+		break;
+	}
 	case CHELSIO_SETMTUTAB: {
 		struct ch_mtus *m = (struct ch_mtus *)data;
 		int i;
@@ -2591,8 +2620,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			if (m->mtus[i] < m->mtus[i - 1])
 				return (EINVAL);
 
-		memcpy(sc->params.mtus, m->mtus,
-		       sizeof(sc->params.mtus));
+		memcpy(sc->params.mtus, m->mtus, sizeof(sc->params.mtus));
 		break;
 	}
 	case CHELSIO_GETMTUTAB: {
@@ -2605,22 +2633,23 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		m->nmtus = NMTUS;
 		break;
 	}
-	case CHELSIO_DEVUP:
-		if (!is_offload(sc))
-			return (EOPNOTSUPP);
-		return offload_open(pi);
-		break;
 	case CHELSIO_GET_MEM: {
 		struct ch_mem_range *t = (struct ch_mem_range *)data;
 		struct mc7 *mem;
 		uint8_t *useraddr;
 		u64 buf[32];
-		
+
+		/*
+		 * Use these to avoid modifying len/addr in the the return
+		 * struct
+		 */
+		uint32_t len = t->len, addr = t->addr;
+
 		if (!is_offload(sc))
 			return (EOPNOTSUPP);
 		if (!(sc->flags & FULL_INIT_DONE))
 			return (EIO);         /* need the memory controllers */
-		if ((t->addr & 0x7) || (t->len & 0x7))
+		if ((addr & 0x7) || (len & 0x7))
 			return (EINVAL);
 		if (t->mem_id == MEM_CM)
 			mem = &sc->cm;
@@ -2643,17 +2672,17 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		 * want to use huge intermediate buffers.
 		 */
 		useraddr = (uint8_t *)t->buf; 
-		while (t->len) {
-			unsigned int chunk = min(t->len, sizeof(buf));
+		while (len) {
+			unsigned int chunk = min(len, sizeof(buf));
 
-			error = t3_mc7_bd_read(mem, t->addr / 8, chunk / 8, buf);
+			error = t3_mc7_bd_read(mem, addr / 8, chunk / 8, buf);
 			if (error)
 				return (-error);
 			if (copyout(buf, useraddr, chunk))
 				return (EFAULT);
 			useraddr += chunk;
-			t->addr += chunk;
-			t->len -= chunk;
+			addr += chunk;
+			len -= chunk;
 		}
 		break;
 	}
@@ -2689,21 +2718,21 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		break;
 	}
 	case CHELSIO_IFCONF_GETREGS: {
-		struct ifconf_regs *regs = (struct ifconf_regs *)data;
+		struct ch_ifconf_regs *regs = (struct ch_ifconf_regs *)data;
 		int reglen = cxgb_get_regs_len();
-		uint8_t *buf = malloc(REGDUMP_SIZE, M_DEVBUF, M_NOWAIT);
+		uint8_t *buf = malloc(reglen, M_DEVBUF, M_NOWAIT);
 		if (buf == NULL) {
 			return (ENOMEM);
-		} if (regs->len > reglen)
-			regs->len = reglen;
-		else if (regs->len < reglen) {
-			error = E2BIG;
-			goto done;
 		}
-		cxgb_get_regs(sc, regs, buf);
-		error = copyout(buf, regs->data, reglen);
-		
-		done:
+		if (regs->len > reglen)
+			regs->len = reglen;
+		else if (regs->len < reglen)
+			error = E2BIG;
+
+		if (!error) {
+			cxgb_get_regs(sc, regs, buf);
+			error = copyout(buf, regs->data, reglen);
+		}
 		free(buf, M_DEVBUF);
 
 		break;
@@ -2743,7 +2772,35 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 			t3_set_reg_field(sc, A_TP_TX_MOD_QUEUE_REQ_MAP,
 					 1 << t->sched, t->channel << t->sched);
 		break;
-	}	
+	}
+	case CHELSIO_GET_EEPROM: {
+		int i;
+		struct ch_eeprom *e = (struct ch_eeprom *)data;
+		uint8_t *buf = malloc(EEPROMSIZE, M_DEVBUF, M_NOWAIT);
+
+		if (buf == NULL) {
+			return (ENOMEM);
+		}
+		e->magic = EEPROM_MAGIC;
+		for (i = e->offset & ~3; !error && i < e->offset + e->len; i += 4)
+			error = -t3_seeprom_read(sc, i, (uint32_t *)&buf[i]);
+
+		if (!error)
+			error = copyout(buf + e->offset, e->data, e->len);
+
+		free(buf, M_DEVBUF);
+		break;
+	}
+	case CHELSIO_CLEAR_STATS: {
+		if (!(sc->flags & FULL_INIT_DONE))
+			return EAGAIN;
+
+		PORT_LOCK(pi);
+		t3_mac_update_stats(&pi->mac);
+		memset(&pi->mac.stats, 0, sizeof(pi->mac.stats));
+		PORT_UNLOCK(pi);
+		break;
+	}
 	default:
 		return (EOPNOTSUPP);
 		break;
@@ -2756,7 +2813,7 @@ static __inline void
 reg_block_dump(struct adapter *ap, uint8_t *buf, unsigned int start,
     unsigned int end)
 {
-	uint32_t *p = (uint32_t *)buf + start;
+	uint32_t *p = (uint32_t *)(buf + start);
 
 	for ( ; start <= end; start += sizeof(uint32_t))
 		*p++ = t3_read_reg(ap, start);
@@ -2768,10 +2825,9 @@ cxgb_get_regs_len(void)
 {
 	return T3_REGMAP_SIZE;
 }
-#undef T3_REGMAP_SIZE
 
 static void
-cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf)
+cxgb_get_regs(adapter_t *sc, struct ch_ifconf_regs *regs, uint8_t *buf)
 {	    
 	
 	/*
@@ -2787,7 +2843,7 @@ cxgb_get_regs(adapter_t *sc, struct ifconf_regs *regs, uint8_t *buf)
 	 * Also reading multi-register stats would need to synchronize with the
 	 * periodic mac stats accumulation.  Hard to justify the complexity.
 	 */
-	memset(buf, 0, REGDUMP_SIZE);
+	memset(buf, 0, cxgb_get_regs_len());
 	reg_block_dump(sc, buf, 0, A_SG_RSPQ_CREDIT_RETURN);
 	reg_block_dump(sc, buf, A_SG_HI_DRB_HI_THRSH, A_ULPRX_PBL_ULIMIT);
 	reg_block_dump(sc, buf, A_ULPTX_CONFIG, A_MPS_INT_CAUSE);
