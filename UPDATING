@@ -41,6 +41,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	Adding these drivers to your kernel configuration file shall
 	cause compilation to fail.
 
+20080818:
+	ntpd has been upgraded to 4.2.4p5.
+
 20080801:
 	OpenSSH has been upgraded to 5.1p1.
 
