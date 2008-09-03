@@ -163,13 +163,13 @@ pcib_attach_common(device_t dev)
     sctx = device_get_sysctl_ctx(dev);
     soid = device_get_sysctl_tree(dev);
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "domain",
-	CTLFLAG_RD, &sc->domain, 0, "Domain number");
+      CTLFLAG_RD, &sc->domain, 0, "Domain number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
-	CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
+      CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
-	CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+      CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
-	CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+      CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
 
     /*
      * Determine current I/O decode.
