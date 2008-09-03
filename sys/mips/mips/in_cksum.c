@@ -104,9 +104,9 @@ in_cksumdata(const void *buf, int len)
 	union q_util q_util;
 
 	if ((3 & (long) lw) == 0 && len == 20) {
-	     sum = (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
-	     REDUCE32;
-	     return sum;
+		sum = (u_int64_t) lw[0] + lw[1] + lw[2] + lw[3] + lw[4];
+		REDUCE32;
+		return sum;
 	}
 
 	if ((offset = 3 & (long) lw) != 0) {
@@ -190,7 +190,7 @@ in_pseudo(u_int32_t a, u_int32_t b, u_int32_t c)
 	u_int64_t sum;
 	union q_util q_util;
 	union l_util l_util;
-		    
+
 	sum = (u_int64_t) a + b + c;
 	REDUCE16;
 	return (sum);
@@ -206,16 +206,16 @@ in_cksum_skip(struct mbuf *m, int len, int skip)
 	union q_util q_util;
 	union l_util l_util;
 
-        len -= skip;
-        for (; skip && m; m = m->m_next) {
-                if (m->m_len > skip) {
-                        mlen = m->m_len - skip;
+	len -= skip;
+	for (; skip && m; m = m->m_next) {
+		if (m->m_len > skip) {
+			mlen = m->m_len - skip;
 			addr = mtod(m, caddr_t) + skip;
-                        goto skip_start;
-                } else {
-                        skip -= m->m_len;
-                }
-        }
+			goto skip_start;
+		} else {
+			skip -= m->m_len;
+		}
+	}
 
 	for (; m && len; m = m->m_next) {
 		if (m->m_len == 0)
@@ -227,9 +227,9 @@ skip_start:
 			mlen = len;
 
 		if ((clen ^ (int) addr) & 1)
-		    sum += in_cksumdata(addr, mlen) << 8;
+			sum += in_cksumdata(addr, mlen) << 8;
 		else
-		    sum += in_cksumdata(addr, mlen);
+			sum += in_cksumdata(addr, mlen);
 
 		clen += mlen;
 		len -= mlen;
@@ -240,9 +240,9 @@ skip_start:
 
 u_int in_cksum_hdr(const struct ip *ip)
 {
-    u_int64_t sum = in_cksumdata(ip, sizeof(struct ip));
-    union q_util q_util;
-    union l_util l_util;
-    REDUCE16;
-    return (~sum & 0xffff);
+	u_int64_t sum = in_cksumdata(ip, sizeof(struct ip));
+	union q_util q_util;
+	union l_util l_util;
+	REDUCE16;
+	return (~sum & 0xffff);
 }
