@@ -1,5 +1,6 @@
 # $FreeBSD$
 # Standard include file for IDT
 
-files           "../mips32/idt/files.idt"
+files	"../idt/files.idt"
+
 options		ISA_MIPS32
