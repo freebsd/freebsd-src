@@ -1,4 +1,4 @@
-/*	
+/*
  * $NetBSD: dev_net.c,v 1.12 1997/12/10 20:38:37 gwr Exp $
  */
 
@@ -90,20 +90,21 @@ static void	net_print(int);
 static int net_getparams(int sock);
 
 struct devsw netdev = {
-    "net", 
-    DEVT_NET, 
-    net_init,
-    net_strategy, 
-    net_open, 
-    net_close, 
-    noioctl,
-    net_print
+	"net",
+	DEVT_NET,
+	net_init,
+	net_strategy,
+	net_open,
+	net_close,
+	noioctl,
+	net_print
 };
 
 int
 net_init(void)
 {
-    return 0;
+
+	return (0);
 }
 
 /*
@@ -114,75 +115,74 @@ net_init(void)
 int
 net_open(struct open_file *f, ...)
 {
-    va_list args;
-    char *devname;		/* Device part of file name (or NULL). */
-    int error = 0;
+	va_list args;
+	char *devname;		/* Device part of file name (or NULL). */
+	int error = 0;
 
-    va_start(args, f);
-    devname = va_arg(args, char*);
-    va_end(args);
+	va_start(args, f);
+	devname = va_arg(args, char*);
+	va_end(args);
 
-    /* On first open, do netif open, mount, etc. */
-    if (netdev_opens == 0) {
-	/* Find network interface. */
-	if (netdev_sock < 0) {
-	    netdev_sock = netif_open(devname);
-	    if (netdev_sock < 0) {
-		printf("net_open: netif_open() failed\n");
-		return (ENXIO);
-	    }
-	    if (debug)
-		printf("net_open: netif_open() succeeded\n");
-	}
-	if (rootip.s_addr == 0) {
-	    /* Get root IP address, and path, etc. */
-	    error = net_getparams(netdev_sock);
-	    if (error) {
+	/* On first open, do netif open, mount, etc. */
+	if (netdev_opens == 0) {
+		/* Find network interface. */
+		if (netdev_sock < 0) {
+			netdev_sock = netif_open(devname);
+			if (netdev_sock < 0) {
+				printf("net_open: netif_open() failed\n");
+				return (ENXIO);
+			}
+			if (debug)
+			printf("net_open: netif_open() succeeded\n");
+		}
+		if (rootip.s_addr == 0) {
+			/* Get root IP address, and path, etc. */
+			error = net_getparams(netdev_sock);
+			if (error) {
 				/* getparams makes its own noise */
-		netif_close(netdev_sock);
-		netdev_sock = -1;
-		return (error);
-	    }
+				netif_close(netdev_sock);
+				netdev_sock = -1;
+				return (error);
+			}
+		}
 	}
-    }
-    netdev_opens++;
-    f->f_devdata = &netdev_sock;
-    return (error);
+	netdev_opens++;
+	f->f_devdata = &netdev_sock;
+	return (error);
 }
 
 int
-net_close(f)
-    struct open_file *f;
+net_close(struct open_file *f)
 {
-
 #ifdef	NETIF_DEBUG
-    if (debug)
-	printf("net_close: opens=%d\n", netdev_opens);
+	if (debug)
+		printf("net_close: opens=%d\n", netdev_opens);
 #endif
 
-    /* On last close, do netif close, etc. */
-    f->f_devdata = NULL;
-    /* Extra close call? */
-    if (netdev_opens <= 0)
+	/* On last close, do netif close, etc. */
+	f->f_devdata = NULL;
+	/* Extra close call? */
+	if (netdev_opens <= 0)
+		return (0);
+	netdev_opens--;
+	/* Not last close? */
+	if (netdev_opens > 0)
+		return(0);
+	rootip.s_addr = 0;
+	if (netdev_sock >= 0) {
+		if (debug)
+			printf("net_close: calling netif_close()\n");
+		netif_close(netdev_sock);
+		netdev_sock = -1;
+	}
 	return (0);
-    netdev_opens--;
-    /* Not last close? */
-    if (netdev_opens > 0)
-	return(0);
-    rootip.s_addr = 0;
-    if (netdev_sock >= 0) {
-	if (debug)
-	    printf("net_close: calling netif_close()\n");
-	netif_close(netdev_sock);
-	netdev_sock = -1;
-    }
-    return (0);
 }
 
 int
 net_strategy()
 {
-    return EIO;
+
+	return (EIO);
 }
 
 #define SUPPORT_BOOTP
@@ -205,106 +205,118 @@ int try_bootp = 1;
 extern n_long ip_convertaddr(char *p);
 
 static int
-net_getparams(sock)
-    int sock;
+net_getparams(int sock)
 {
-    char buf[MAXHOSTNAMELEN];
-    char temp[FNAME_SIZE];
-    struct iodesc *d;
-    int i;
-    n_long smask;
+	char buf[MAXHOSTNAMELEN];
+	char temp[FNAME_SIZE];
+	struct iodesc *d;
+	int i;
+	n_long smask;
 
 #ifdef	SUPPORT_BOOTP
-    /*
-     * Try to get boot info using BOOTP.  If we succeed, then
-     * the server IP address, gateway, and root path will all
-     * be initialized.  If any remain uninitialized, we will
-     * use RARP and RPC/bootparam (the Sun way) to get them.
-     */
-    if (try_bootp)
-	bootp(sock, BOOTP_NONE);
-    if (myip.s_addr != 0)
-	goto exit;
-    if (debug)
-	printf("net_open: BOOTP failed, trying RARP/RPC...\n");
+	/*
+	 * Try to get boot info using BOOTP.  If we succeed, then
+	 * the server IP address, gateway, and root path will all
+	 * be initialized.  If any remain uninitialized, we will
+	 * use RARP and RPC/bootparam (the Sun way) to get them.
+	 */
+	if (try_bootp)
+		bootp(sock, BOOTP_NONE);
+	if (myip.s_addr != 0)
+		goto exit;
+	if (debug)
+		printf("net_open: BOOTP failed, trying RARP/RPC...\n");
 #endif
 
-    /*
-     * Use RARP to get our IP address.  This also sets our
-     * netmask to the "natural" default for our address.
-     */
-    if (rarp_getipaddress(sock)) {
-	printf("net_open: RARP failed\n");
-	return (EIO);
-    }
-    printf("net_open: client addr: %s\n", inet_ntoa(myip));
+	/*
+	 * Use RARP to get our IP address.  This also sets our
+	 * netmask to the "natural" default for our address.
+	 */
+	if (rarp_getipaddress(sock)) {
+		printf("net_open: RARP failed\n");
+		return (EIO);
+	}
+	printf("net_open: client addr: %s\n", inet_ntoa(myip));
 
-    /* Get our hostname, server IP address, gateway. */
-    if (bp_whoami(sock)) {
-	printf("net_open: bootparam/whoami RPC failed\n");
-	return (EIO);
-    }
-    if (debug)
-        printf("net_open: client name: %s\n", hostname);
+	/* Get our hostname, server IP address, gateway. */
+	if (bp_whoami(sock)) {
+		printf("net_open: bootparam/whoami RPC failed\n");
+		return (EIO);
+	}
+	if (debug)
+		printf("net_open: client name: %s\n", hostname);
 
-    /*
-     * Ignore the gateway from whoami (unreliable).
-     * Use the "gateway" parameter instead.
-     */
-    smask = 0;
-    gateip.s_addr = 0;
-    if (bp_getfile(sock, "gateway", &gateip, buf) == 0) {
-	/* Got it!  Parse the netmask. */
-	smask = ip_convertaddr(buf);
-    }
-    if (smask) {
-	netmask = smask;
-        if (debug)
-            printf("net_open: subnet mask: %s\n", intoa(netmask));
-    }
-    if (gateip.s_addr && debug)
-        printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
+	/*
+	 * Ignore the gateway from whoami (unreliable).
+	 * Use the "gateway" parameter instead.
+	 */
+	smask = 0;
+	gateip.s_addr = 0;
+	if (bp_getfile(sock, "gateway", &gateip, buf) == 0) {
+		/* Got it!  Parse the netmask. */
+		smask = ip_convertaddr(buf);
+	}
+	if (smask) {
+		netmask = smask;
+		if (debug)
+		printf("net_open: subnet mask: %s\n", intoa(netmask));
+	}
+	if (gateip.s_addr && debug)
+		printf("net_open: net gateway: %s\n", inet_ntoa(gateip));
 
-    /* Get the root server and pathname. */
-    if (bp_getfile(sock, "root", &rootip, rootpath)) {
-	printf("net_open: bootparam/getfile RPC failed\n");
-	return (EIO);
-    }
- exit:
-    /*
-     * If present, strip the server's address off of the rootpath
-     * before passing it along.  This allows us to be compatible with
-     * the kernel's diskless (BOOTP_NFSROOT) booting conventions
-     */
-    for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
-	    if (rootpath[i] == ':')
-		    break;
-    if (i && i != FNAME_SIZE && rootpath[i] == ':') {
-	    rootpath[i++] = '\0';
-	    if (inet_addr(&rootpath[0]) != INADDR_NONE)
-		    rootip.s_addr = inet_addr(&rootpath[0]);
-	    bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
-	    bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);	    
-    }
-    if (debug) {
-        printf("net_open: server addr: %s\n", inet_ntoa(rootip));
-        printf("net_open: server path: %s\n", rootpath);
-    }
+	/* Get the root server and pathname. */
+	if (bp_getfile(sock, "root", &rootip, rootpath)) {
+		printf("net_open: bootparam/getfile RPC failed\n");
+		return (EIO);
+	}
+exit:
+	/*
+	 * If present, strip the server's address off of the rootpath
+	 * before passing it along.  This allows us to be compatible with
+	 * the kernel's diskless (BOOTP_NFSROOT) booting conventions
+	 */
+	for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)
+		if (rootpath[i] == ':')
+			break;
+	if (i && i != FNAME_SIZE && rootpath[i] == ':') {
+		rootpath[i++] = '\0';
+		if (inet_addr(&rootpath[0]) != INADDR_NONE)
+			rootip.s_addr = inet_addr(&rootpath[0]);
+		bcopy(&rootpath[i], &temp[0], strlen(&rootpath[i])+1);
+		bcopy(&temp[0], &rootpath[0], strlen(&rootpath[i])+1);
+	}
+	if (debug) {
+		printf("net_open: server addr: %s\n", inet_ntoa(rootip));
+		printf("net_open: server path: %s\n", rootpath);
+	}
 
-    d = socktodesc(sock);
-    sprintf(temp, "%6D", d->myea, ":");
-    setenv("boot.netif.ip", inet_ntoa(myip), 1);
-    setenv("boot.netif.netmask", intoa(netmask), 1);
-    setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
-    setenv("boot.netif.hwaddr", temp, 1);
-    setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
-    setenv("boot.nfsroot.path", rootpath, 1);
+	d = socktodesc(sock);
+	sprintf(temp, "%6D", d->myea, ":");
+	setenv("boot.netif.ip", inet_ntoa(myip), 1);
+	setenv("boot.netif.netmask", intoa(netmask), 1);
+	setenv("boot.netif.gateway", inet_ntoa(gateip), 1);
+	setenv("boot.netif.hwaddr", temp, 1);
+	setenv("boot.nfsroot.server", inet_ntoa(rootip), 1);
+	setenv("boot.nfsroot.path", rootpath, 1);
 
-    return (0);
+	return (0);
 }
 
 static void
 net_print(int verbose)
 {
-    return;
+	struct netif_driver *drv;
+	int i, d, cnt;
+
+	cnt = 0;
+	for (d = 0; netif_drivers[d]; d++) {
+		drv = netif_drivers[d];
+		for (i = 0; i < drv->netif_nifs; i++) {
+			printf("\t%s%d:", "net", cnt++);
+			if (verbose)
+				printf(" (%s%d)", drv->netif_bname,
+				    drv->netif_ifs[i].dif_unit);
+		}
+	}
+	printf("\n");
 }
