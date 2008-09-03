@@ -53,6 +53,7 @@ struct pmap;
 	vm_offset_t pc_addr;						\
 	u_long	pc_tickref;						\
 	u_long	pc_tickadj;						\
+	u_int	pc_clock;						\
 	u_int	pc_mid;							\
 	u_int	pc_node;						\
 	u_int	pc_tlb_ctx;						\

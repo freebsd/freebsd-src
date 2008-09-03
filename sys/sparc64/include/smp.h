@@ -29,9 +29,10 @@
 #ifndef	_MACHINE_SMP_H_
 #define	_MACHINE_SMP_H_
 
-#define	CPU_CLKSYNC		1
-#define	CPU_INIT		2
-#define	CPU_BOOTSTRAP		3
+#define	CPU_TICKSYNC		1
+#define	CPU_STICKSYNC		2
+#define	CPU_INIT		3
+#define	CPU_BOOTSTRAP		4
 
 #ifndef	LOCORE
 
@@ -62,6 +63,7 @@ struct cpu_start_args {
 	u_int	csa_state;
 	vm_offset_t csa_pcpu;
 	u_long	csa_tick;
+	u_long	csa_stick;
 	u_long	csa_ver;
 	struct	tte csa_ttes[PCPU_PAGES];
 };
