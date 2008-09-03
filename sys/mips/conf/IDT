@@ -7,7 +7,7 @@ ident		RB532
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 
-include		"../mips32/idt/std.idt"
+include		"../idt/std.idt"
 hints		"IDT.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols

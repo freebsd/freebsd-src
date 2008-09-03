@@ -27,7 +27,7 @@ makeoptions	MIPS_LITTLE_ENDIAN=defined
 makeoptions	MODULES_OVERRIDE=""
 
 options		KERNVIRTADDR=0x80100000
-include		"../mips32/adm5120/std.adm5120"
+include		"../adm5120/std.adm5120"
 
 hints		"ADM5120.hints"		#Default places to look for devices.
 
