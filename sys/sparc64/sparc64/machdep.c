@@ -133,18 +133,6 @@ struct kva_md_info kmi;
 u_long ofw_vec;
 u_long ofw_tba;
 
-/*
- * Note: timer quality for CPU's is set low to try and prevent them from
- * being chosen as the primary timecounter.  The CPU counters are not
- * synchronized among the CPU's so in MP machines this causes problems
- * when calculating the time.  With this value the CPU's should only be
- * chosen as the primary timecounter as a last resort.
- */
-
-#define	UP_TICK_QUALITY	1000
-#define	MP_TICK_QUALITY	-100
-static struct timecounter tick_tc;
-
 char sparc64_model[32];
 
 static int cpu_use_vis = 1;
@@ -152,7 +140,6 @@ static int cpu_use_vis = 1;
 cpu_block_copy_t *cpu_block_copy;
 cpu_block_zero_t *cpu_block_zero;
 
-static timecounter_get_t tick_get_timecount;
 void sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3,
     ofw_vec_t *vec);
 void sparc64_shutdown_final(void *dummy, int howto);
@@ -180,22 +167,6 @@ cpu_startup(void *arg)
 	vm_paddr_t physsz;
 	int i;
 
-	tick_tc.tc_get_timecount = tick_get_timecount;
-	tick_tc.tc_poll_pps = NULL;
-	tick_tc.tc_counter_mask = ~0u;
-	tick_tc.tc_frequency = tick_freq;
-	tick_tc.tc_name = "tick";
-	tick_tc.tc_quality = UP_TICK_QUALITY;
-#ifdef SMP
-	/*
-	 * We do not know if each CPU's tick counter is synchronized.
-	 */
-	if (cpu_mp_probe())
-		tick_tc.tc_quality = MP_TICK_QUALITY;
-#endif
-
-	tc_init(&tick_tc);
-
 	physsz = 0;
 	for (i = 0; i < sparc64_nmemreg; i++)
 		physsz += sparc64_memreg[i].mr_size;
@@ -217,7 +188,7 @@ cpu_startup(void *arg)
 	if (bootverbose)
 		printf("machine: %s\n", sparc64_model);
 
-	cpu_identify(rdpr(ver), tick_freq, PCPU_GET(cpuid));
+	cpu_identify(rdpr(ver), PCPU_GET(clock), curcpu);
 }
 
 void
@@ -262,12 +233,6 @@ spinlock_exit(void)
 		wrpr(pil, td->td_md.md_saved_pil, 0);
 }
 
-unsigned
-tick_get_timecount(struct timecounter *tc)
-{
-	return ((unsigned)rd(tick));
-}
-
 void
 sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 {
@@ -278,7 +243,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	caddr_t kmdp;
 	phandle_t child;
 	phandle_t root;
-	u_int clock;
 	uint32_t portid;
 
 	end = 0;
@@ -289,6 +253,21 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * behaviour.
 	 */
 	cpu_impl = VER_IMPL(rdpr(ver));
+
+	/*
+	 * Clear (S)TICK timer (including NPT).
+	 */
+	tick_clear();
+
+	/*
+	 * UltraSparc II[e,i] based systems come up with the tick interrupt
+	 * enabled and a handler that resets the tick counter, causing DELAY()
+	 * to not work properly when used early in boot.
+	 * UltraSPARC III based systems come up with the system tick interrupt
+	 * enabled, causing an interrupt storm on startup since they are not
+	 * handled.
+	 */
+	tick_stop();
 
 	/*
 	 * Initialize Open Firmware (needed for console).
@@ -329,7 +308,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
 
 	/*
-	 * Determine the OFW node (and ensure the
+	 * Determine the OFW node and frequency of the BSP (and ensure the
 	 * BSP is in the device tree in the first place).
 	 */
 	pc->pc_node = 0;
@@ -349,17 +328,23 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 	if (pc->pc_node == 0)
 		OF_exit();
+	if (OF_getprop(child, "clock-frequency", &pc->pc_clock,
+	    sizeof(pc->pc_clock)) <= 0)
+		OF_exit();
 
 	/*
-	 * Initialize the tick counter.  Must be before the console is inited
-	 * in order to provide the low-level console drivers with a working
-	 * DELAY().
+	 * Provide a DELAY() that works before PCPU_REG is set.  We can't
+	 * set PCPU_REG without also taking over the trap table or the
+	 * firmware will overwrite it.  Unfortunately, it's way to early
+	 * to also take over the trap table at this point.
 	 */
-	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
-	tick_init(clock);
+	clock_boot = pc->pc_clock;
+	delay_func = delay_boot;
 
 	/*
 	 * Initialize the console before printing anything.
+	 * NB: the low-level console drivers require a working DELAY() at
+	 * this point.
 	 */
 	cninit();
 
@@ -443,6 +428,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize global registers.
 	 */
 	cpu_setregs(pc);
+
+	/*
+	 * It's now safe to use the real DELAY().
+	 */
+	delay_func = delay_tick;
 
 	/*
 	 * Initialize the message buffer (after setting trap table).
@@ -719,8 +709,13 @@ cpu_shutdown(void *args)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
+	struct pcpu *pc;
 
-	return (ENXIO);
+	pc = pcpu_find(cpu_id);
+	if (pc == NULL || rate == NULL)
+		return (EINVAL);
+	*rate = pc->pc_clock;
+	return (0);
 }
 
 /*

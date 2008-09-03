@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
@@ -101,7 +102,7 @@ static ih_func_t cpu_ipi_stop;
  * since the other processors will use it before the boot CPU enters the
  * kernel.
  */
-struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0 };
+struct	cpu_start_args cpu_start_args = { 0, -1, -1, 0, 0, 0 };
 struct	ipi_cache_args ipi_cache_args;
 struct	ipi_tlb_args ipi_tlb_args;
 struct	pcb stoppcbs[MAXCPU];
@@ -281,13 +282,19 @@ cpu_mp_start(void)
 		csa->csa_state = 0;
 		sun4u_startcpu(child, (void *)mp_tramp, 0);
 		s = intr_disable();
-		while (csa->csa_state != CPU_CLKSYNC)
+		while (csa->csa_state != CPU_TICKSYNC)
 			;
 		membar(StoreLoad);
 		csa->csa_tick = rd(tick);
+		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII) {
+			while (csa->csa_state != CPU_STICKSYNC)
+				;
+			membar(StoreLoad);
+			csa->csa_stick = rdstick();
+		}
 		while (csa->csa_state != CPU_INIT)
 			;
-		csa->csa_tick = 0;
+		csa->csa_tick = csa->csa_stick = 0;
 		intr_restore(s);
 
 		cpuid = mp_ncpus++;
@@ -298,6 +305,7 @@ cpu_mp_start(void)
 		pc = (struct pcpu *)(va + (PCPU_PAGES * PAGE_SIZE)) - 1;
 		pcpu_init(pc, cpuid, sizeof(*pc));
 		pc->pc_addr = va;
+		pc->pc_clock = clock;
 		pc->pc_mid = mid;
 		pc->pc_node = child;
 

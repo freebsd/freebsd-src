@@ -41,6 +41,8 @@
 #define	VER_MAXTL_SIZE		(8)
 #define	VER_MAXWIN_SIZE		(5)
 
+#ifndef LOCORE
+
 #define	VER_MANUF_MASK		(((1L<<VER_MANUF_SIZE)-1)<<VER_MANUF_SHIFT)
 #define	VER_IMPL_MASK		(((1L<<VER_IMPL_SIZE)-1)<<VER_IMPL_SHIFT)
 #define	VER_MASK_MASK		(((1L<<VER_MASK_SIZE)-1)<<VER_MASK_SHIFT)
@@ -60,6 +62,8 @@
 
 extern int cpu_impl;
 extern char sparc64_model[];
+
+#endif /* !LOCORE */
 
 /* Known implementations. */
 #define	CPU_IMPL_SPARC64		0x01
