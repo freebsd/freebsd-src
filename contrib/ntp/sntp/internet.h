@@ -39,9 +39,9 @@ to see whether the universal availability of 64-bit integers arrives first. */
 /* Defined in internet.c */
 #ifdef HAVE_IPV6
 extern void find_address (struct sockaddr_storage *address,
-    struct sockaddr_storage *anywhere, struct sockaddr_storage *everwhere,
+    struct sockaddr_storage *anywhere,
     int *port, char *hostname, int timespan);
 #else
 extern void find_address (struct in_addr *address, struct in_addr *anywhere,
-    struct in_addr *everwhere, int *port, char *hostname, int timespan);
+    int *port, char *hostname, int timespan);
 #endif

@@ -72,7 +72,7 @@
  *
  * The stratum for this driver set at 5 by default, but it can be
  * changed by the fudge command and/or the ntpdc utility. The reference
- * ID is "LCL" by default, but can be changed using the same mechanism.
+ * ID is 127.0.0.1 by default, but can be changed using the same mechanism.
  * *NEVER* configure this driver to operate at a stratum which might
  * possibly disrupt a client with access to a bona fide primary server,
  * unless the local clock oscillator is reliably disciplined by another
@@ -93,13 +93,7 @@
  * Local interface definitions
  */
 #define PRECISION	(-7)	/* about 10 ms precision */
-#if defined(VMS) && defined(VMS_LOCALUNIT)
-#define REFID		"LCLv"	/* reference ID */
-#else /* VMS VMS_LOCALUNIT */
-#define REFID		"LCL\0"	/* reference ID */
-#endif /* VMS VMS_LOCALUNIT */
 #define DESCRIPTION "Undisciplined local clock" /* WRU */
-
 #define STRATUM 	5	/* default stratum */
 #define DISPERSION	.01	/* default dispersion (10 ms) */
 
@@ -168,7 +162,7 @@ local_start(
 	peer->stratum = STRATUM;
 	pp->stratum = STRATUM;
 	pp->clockdesc = DESCRIPTION;
-	memcpy(&pp->refid, "INIT", 4);
+	memcpy(&pp->refid, "LOCL", 4);
 	poll_time = current_time;
 	return (1);
 }

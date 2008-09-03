@@ -10,175 +10,25 @@
 #include "ntp_cmdargs.h"
 
 #ifdef SIM
-#include "ntpsim.h"
+# include "ntpsim.h"
+# include "ntpdsim-opts.h"
+# define OPTSTRUCT	ntpdsimOptions
+#else
+# include "ntpd-opts.h"
+# define OPTSTRUCT	ntpdOptions
 #endif /* SIM */
 
 /*
  * Definitions of things either imported from or exported to outside
  */
 extern char const *progname;
-int	listen_to_virtual_ips = 1;
-
-#ifdef SYS_WINNT
-extern BOOL NoWinService;
-#endif
-
-static const char *ntp_options = "aAbB:c:C:dD:f:gi:k:l:LmnNO:p:P:qr:s:S:t:T:W:u:v:V:xY:Z:-:";
+extern const char *specific_interface;
+extern short default_ai_family;
 
 #ifdef HAVE_NETINFO
 extern int	check_netinfo;
 #endif
 
-
-/*
- * getstartup - search through the options looking for a debugging flag
- */
-void
-getstartup(
-	int argc,
-	char *argv[]
-	)
-{
-	int errflg;
-	extern int priority_done;
-	int c;
-
-#ifdef DEBUG
-	debug = 0;		/* no debugging by default */
-#endif
-
-	/*
-	 * This is a big hack.	We don't really want to read command line
-	 * configuration until everything else is initialized, since
-	 * the ability to configure the system may depend on storage
-	 * and the like having been initialized.  Except that we also
-	 * don't want to initialize anything until after detaching from
-	 * the terminal, but we won't know to do that until we've
-	 * parsed the command line.  Do that now, crudely, and do it
-	 * again later.  Our ntp_getopt() is explicitly reusable, by the
-	 * way.  Your own mileage may vary.
-	 *
-	 * This hack is even called twice (to allow complete logging to file)
-	 */
-	errflg = 0;
-	progname = argv[0];
-
-	/*
-	 * Decode argument list
-	 */
-	while ((c = ntp_getopt(argc, argv, ntp_options)) != EOF)
-	    switch (c) {
-#ifdef DEBUG
-		case 'd':
-		    ++debug;
-		    break;
-		case 'D':
-		    debug = (int)atol(ntp_optarg);
-		    printf("Debug1: %s -> %x = %d\n", ntp_optarg, debug, debug);
-		    break;
-#else
-		case 'd':
-		case 'D':
-		    msyslog(LOG_ERR, "ntpd not compiled with -DDEBUG option - no DEBUG support");
-		    fprintf(stderr, "ntpd not compiled with -DDEBUG option - no DEBUG support\n");
-		    ++errflg;
-		    break;
-#endif
-		case 'L':
-		    listen_to_virtual_ips = 0;
-		    break;
-		case 'l':
-			{
-				FILE *new_file;
-
-				if(strcmp(ntp_optarg, "stderr") == 0)
-					new_file = stderr;
-				else if(strcmp(ntp_optarg, "stdout") == 0)
-					new_file = stdout;
-				else
-					new_file = fopen(ntp_optarg, "a");
-				if (new_file != NULL) {
-					NLOG(NLOG_SYSINFO)
-						msyslog(LOG_NOTICE, "logging to file %s", ntp_optarg);
-					if (syslog_file != NULL &&
-						fileno(syslog_file) != fileno(new_file))
-						(void)fclose(syslog_file);
-
-					syslog_file = new_file;
-					syslogit = 0;
-				}
-				else
-					msyslog(LOG_ERR,
-						"Cannot open log file %s",
-						ntp_optarg);
-			}
-			break;
-
-		case 'n':
-		case 'q':
-		    ++nofork;
-#ifdef SYS_WINNT
-		    NoWinService = TRUE;	 
-#endif
-		    break;
-
-		case 'N':
-		    priority_done = 0;
-		    break;
-			
-		case '?':
-		    ++errflg;
-		    break;
-
-	    case '-':
-	      if ( ! strcmp(ntp_optarg, "version") ) {
-		printf("%.80s: %.80s\n", progname, Version);
-		exit(0);
-	      } else if ( ! strcmp(ntp_optarg, "help") ) {
-		/* usage(); */
-		/* exit(0); */
-		++errflg;
-	      } else if ( ! strcmp(ntp_optarg, "copyright") ) {
-		printf("unknown\n");
-		exit(0);
-	      } else {
-		fprintf(stderr, "%.80s: Error unknown argument '--%.80s'\n",
-			progname,
-			ntp_optarg);
-		exit(12);
-	      }
-	      break;
-
-		default:
-			break;
-		}
-
-	if (errflg || ntp_optind != argc) {
-		(void) fprintf(stderr, "usage: %s [ -abdgmnqx ] [ -c config_file ] [ -e e_delay ]\n", progname);
-		(void) fprintf(stderr, "\t\t[ -f freq_file ] [ -k key_file ] [ -l log_file ]\n");
-		(void) fprintf(stderr, "\t\t[ -p pid_file ] [ -r broad_delay ] [ -s statdir ]\n");
-		(void) fprintf(stderr, "\t\t[ -t trust_key ] [ -v sys_var ] [ -V default_sysvar ]\n");
-#if defined(HAVE_SCHED_SETSCHEDULER)
-		(void) fprintf(stderr, "\t\t[ -P fixed_process_priority ]\n");
-#endif
-#ifdef HAVE_CLOCKCTL
-		(void) fprintf(stderr, "\t\t[ -u user[:group] ] [ -i chrootdir ]\n");
-#endif
-		exit(2);
-	}
-	ntp_optind = 0;	/* reset ntp_optind to restart ntp_getopt */
-
-#ifdef DEBUG
-	if (debug) {
-#ifdef HAVE_SETVBUF
-		static char buf[BUFSIZ];
-		setvbuf(stdout, buf, _IOLBF, BUFSIZ);
-#else
-		setlinebuf(stdout);
-#endif
-	}
-#endif
-}
 
 /*
  * getCmdOpts - get command line options
@@ -189,230 +39,194 @@ getCmdOpts(
 	char *argv[]
 	)
 {
-	extern char *config_file;
-	struct sockaddr_in inaddrntp;
+	extern const char *config_file;
 	int errflg;
-	int c;
+	tOptions *myOptions = &OPTSTRUCT;
 
 	/*
 	 * Initialize, initialize
 	 */
 	errflg = 0;
-#ifdef DEBUG
-	debug = 0;
-#endif	/* DEBUG */
 
-	progname = argv[0];
+	switch (WHICH_IDX_IPV4) {
+	    case INDEX_OPT_IPV4:
+		default_ai_family = AF_INET;
+		break;
+	    case INDEX_OPT_IPV6:
+		default_ai_family = AF_INET6;
+		break;
+	    default:
+		/* ai_fam_templ = ai_fam_default;	*/
+		break;
+	}
 
-	/*
-	 * Decode argument list
-	 */
-	while ((c = ntp_getopt(argc, argv, ntp_options)) != EOF) {
-		switch (c) {
-		    case 'a':
-			proto_config(PROTO_AUTHENTICATE, 1, 0., NULL);
-			break;
+	if (HAVE_OPT( AUTHREQ ))
+		proto_config(PROTO_AUTHENTICATE, 1, 0., NULL);
 
-		    case 'A':
-			proto_config(PROTO_AUTHENTICATE, 0, 0., NULL);
-			break;
+	if (HAVE_OPT( AUTHNOREQ ))
+		proto_config(PROTO_AUTHENTICATE, 0, 0., NULL);
 
-		    case 'b':
-			proto_config(PROTO_BROADCLIENT, 1, 0., NULL);
-			break;
+	if (HAVE_OPT( BCASTSYNC ))
+		proto_config(PROTO_BROADCLIENT, 1, 0., NULL);
 
-		    case 'c':
-			config_file = ntp_optarg;
+	if (HAVE_OPT( CONFIGFILE )) {
+		config_file = OPT_ARG( CONFIGFILE );
 #ifdef HAVE_NETINFO
-			check_netinfo = 0;
+		check_netinfo = 0;
 #endif
-			break;
+	}
 
-		    case 'd':
-#ifdef DEBUG
-			debug++;
-#else
-			errflg++;
-#endif	/* DEBUG */
-			break;
+	if (HAVE_OPT( DRIFTFILE ))
+		stats_config(STATS_FREQ_FILE, OPT_ARG( DRIFTFILE ));
 
-		    case 'D':
-#ifdef DEBUG
-			debug = (int)atol(ntp_optarg);
-			printf("Debug2: %s -> %x = %d\n", ntp_optarg, debug, debug);
-#else
-			errflg++;
-#endif	/* DEBUG */
-			break;
+	if (HAVE_OPT( PANICGATE ))
+		allow_panic = TRUE;
 
-		    case 'f':
-			stats_config(STATS_FREQ_FILE, ntp_optarg);
-			break;
-
-		    case 'g':
-			allow_panic = TRUE;
-			break;
-
-		    case 'i':
-#ifdef HAVE_CLOCKCTL
-			if (!ntp_optarg)
-				errflg++;
-			else
-				chrootdir = ntp_optarg;
-			break;
+	if (HAVE_OPT( JAILDIR )) {
+#ifdef HAVE_DROPROOT
+			droproot = 1;
+			chrootdir = OPT_ARG( JAILDIR );
 #else
 			errflg++;
 #endif
-		    case 'k':
-			getauthkeys(ntp_optarg);
-			break;
+	}
 
-		    case 'L':   /* already done at pre-scan */
-		    case 'l':   /* already done at pre-scan */
-			break;
+	if (HAVE_OPT( KEYFILE ))
+		getauthkeys(OPT_ARG( KEYFILE ));
 
-		    case 'm':
-			inaddrntp.sin_family = AF_INET;
-			inaddrntp.sin_port = htons(NTP_PORT);
-			inaddrntp.sin_addr.s_addr = htonl(INADDR_NTP);
-			proto_config(PROTO_MULTICAST_ADD, 0, 0., (struct sockaddr_storage*)&inaddrntp);
-			sys_bclient = 1;
-			break;
+	if (HAVE_OPT( PIDFILE ))
+		stats_config(STATS_PID_FILE, OPT_ARG( PIDFILE ));
 
-		    case 'n':	/* already done at pre-scan */
-			break;
+	if (HAVE_OPT( QUIT ))
+		mode_ntpdate = TRUE;
 
-		    case 'N':	/* already done at pre-scan */
-			break;
+	if (HAVE_OPT( PROPAGATIONDELAY ))
+		do {
+			double tmp;
+			const char *my_ntp_optarg = OPT_ARG( PROPAGATIONDELAY );
 
-		    case 'p':
-			stats_config(STATS_PID_FILE, ntp_optarg);
-			break;
+			if (sscanf(my_ntp_optarg, "%lf", &tmp) != 1) {
+				msyslog(LOG_ERR,
+					"command line broadcast delay value %s undecodable",
+					my_ntp_optarg);
+			} else {
+				proto_config(PROTO_BROADDELAY, 0, tmp, NULL);
+			}
+		} while (0);
 
-		    case 'P':
-#if defined(HAVE_SCHED_SETSCHEDULER)
-			config_priority = (int)atol(ntp_optarg);
-			config_priority_override = 1;
-#else
+	if (HAVE_OPT( STATSDIR ))
+		stats_config(STATS_STATSDIR, OPT_ARG( STATSDIR ));
+
+	if (HAVE_OPT( TRUSTEDKEY )) {
+		int           ct = STACKCT_OPT(  TRUSTEDKEY );
+		const char**  pp = STACKLST_OPT( TRUSTEDKEY );
+
+		do  {
+			u_long tkey;
+			const char* p = *pp++;
+
+			tkey = (int)atol(p);
+			if (tkey == 0 || tkey > NTP_MAXKEY) {
+				msyslog(LOG_ERR,
+				    "command line trusted key %s is invalid",
+				    p);
+			} else {
+				authtrust(tkey, 1);
+			}
+		} while (--ct > 0);
+	}
+
+	if (HAVE_OPT( USER )) {
+#ifdef HAVE_DROPROOT
+		char *ntp_optarg = OPT_ARG( USER );
+
+		droproot = 1;
+		user = malloc(strlen(ntp_optarg) + 1);
+		if (user == NULL) {
 			errflg++;
-#endif
-			break;
-
-		    case 'q':
-			mode_ntpdate = TRUE;
-			break;
-
-		    case 'r':
-			do {
-				double tmp;
-
-				if (sscanf(ntp_optarg, "%lf", &tmp) != 1) {
-					msyslog(LOG_ERR,
-						"command line broadcast delay value %s undecodable",
-						ntp_optarg);
-				} else {
-					proto_config(PROTO_BROADDELAY, 0, tmp, NULL);
-				}
-			} while (0);
-			break;
-			
-		    case 'u':
-#ifdef HAVE_CLOCKCTL
-			user = malloc(strlen(ntp_optarg) + 1);
-			if ((user == NULL) || (ntp_optarg == NULL))
-				errflg++;
+		} else {
 			(void)strncpy(user, ntp_optarg, strlen(ntp_optarg) + 1);
 			group = rindex(user, ':');
 			if (group)
 				*group++ = '\0'; /* get rid of the ':' */
-#else
-			errflg++;
-#endif
-			break;
-		    case 's':
-			stats_config(STATS_STATSDIR, ntp_optarg);
-			break;
-			
-		    case 't':
-			do {
-				u_long tkey;
-				
-				tkey = (int)atol(ntp_optarg);
-				if (tkey <= 0 || tkey > NTP_MAXKEY) {
-					msyslog(LOG_ERR,
-					    "command line trusted key %s is invalid",
-					    ntp_optarg);
-				} else {
-					authtrust(tkey, 1);
-				}
-			} while (0);
-			break;
-
-		    case 'v':
-		    case 'V':
-			set_sys_var(ntp_optarg, strlen(ntp_optarg)+1,
-			    (u_short) (RW | ((c == 'V') ? DEF : 0)));
-			break;
-
-		    case 'x':
-			clock_max = 600;
-			break;
-#ifdef SIM
-		case 'B':
-			sscanf(ntp_optarg, "%lf", &ntp_node.bdly);
-                        break;
-
-		case 'C':
-			sscanf(ntp_optarg, "%lf", &ntp_node.snse);
-                        break;
-
-		case 'H':
-			sscanf(ntp_optarg, "%lf", &ntp_node.slew);
-                        break;
-
-		case 'O':
-			sscanf(ntp_optarg, "%lf", &ntp_node.clk_time);
-                        break;
-
-		case 'S':
-			sscanf(ntp_optarg, "%lf", &ntp_node.sim_time);
-                        break;
-
-		case 'T':
-			sscanf(ntp_optarg, "%lf", &ntp_node.ferr);
-                        break;
-
-		case 'W':
-			sscanf(ntp_optarg, "%lf", &ntp_node.fnse);
-                        break;
-
-		case 'Y':
-			sscanf(ntp_optarg, "%lf", &ntp_node.ndly);
-                        break;
-
-		case 'Z': 
-			sscanf(ntp_optarg, "%lf", &ntp_node.pdly);
-                        break;
-
-#endif /* SIM */
-		    default:
-			errflg++;
-			break;
 		}
+#else
+		errflg++;
+#endif
 	}
 
-	if (errflg || ntp_optind != argc) {
-		(void) fprintf(stderr, "usage: %s [ -abdgmnx ] [ -c config_file ] [ -e e_delay ]\n", progname);
-		(void) fprintf(stderr, "\t\t[ -f freq_file ] [ -k key_file ] [ -l log_file ]\n");
-		(void) fprintf(stderr, "\t\t[ -p pid_file ] [ -r broad_delay ] [ -s statdir ]\n");
-		(void) fprintf(stderr, "\t\t[ -t trust_key ] [ -v sys_var ] [ -V default_sysvar ]\n");
-#if defined(HAVE_SCHED_SETSCHEDULER)
-		(void) fprintf(stderr, "\t\t[ -P fixed_process_priority ]\n");
-#endif
-#ifdef HAVE_CLOCKCTL
-		(void) fprintf(stderr, "\t\t[ -u user[:group] ] [ -i chrootdir ]\n");
-#endif
-		exit(2);
+	if (HAVE_OPT( VAR )) {
+		int           ct = STACKCT_OPT(  VAR );
+		const char**  pp = STACKLST_OPT( VAR );
+
+		do  {
+			const char* my_ntp_optarg = *pp++;
+
+			set_sys_var(my_ntp_optarg, strlen(my_ntp_optarg)+1,
+			    (u_short) (RW));
+		} while (--ct > 0);
+	}
+
+	if (HAVE_OPT( DVAR )) {
+		int           ct = STACKCT_OPT(  DVAR );
+		const char**  pp = STACKLST_OPT( DVAR );
+
+		do  {
+			const char* my_ntp_optarg = *pp++;
+
+			set_sys_var(my_ntp_optarg, strlen(my_ntp_optarg)+1,
+			    (u_short) (RW | DEF));
+		} while (--ct > 0);
+	}
+
+	if (HAVE_OPT( SLEW ))
+		clock_max = 600;
+
+	if (HAVE_OPT( UPDATEINTERVAL )) {
+		long val = OPT_VALUE_UPDATEINTERVAL;
+			  
+		if (val >= 0)
+			interface_interval = val;
+		else {
+			msyslog(LOG_ERR,
+				"command line interface update interval %ld must be greater or equal to 0",
+				      val);
+			errflg++;
+		}
+	}
+#ifdef SIM
+	if (HAVE_OPT( SIMBROADCASTDELAY ))
+		sscanf(OPT_ARG( SIMBROADCASTDELAY ), "%lf", &ntp_node.bdly);
+
+	if (HAVE_OPT( PHASENOISE ))
+		sscanf(OPT_ARG( PHASENOISE ), "%lf", &ntp_node.snse);
+
+	if (HAVE_OPT( SIMSLEW ))
+		sscanf(OPT_ARG( SIMSLEW ), "%lf", &ntp_node.slew);
+
+	if (HAVE_OPT( SERVERTIME ))
+		sscanf(OPT_ARG( SERVERTIME ), "%lf", &ntp_node.clk_time);
+
+	if (HAVE_OPT( ENDSIMTIME ))
+		sscanf(OPT_ARG( ENDSIMTIME ), "%lf", &ntp_node.sim_time);
+
+	if (HAVE_OPT( FREQERR ))
+		sscanf(OPT_ARG( FREQERR ), "%lf", &ntp_node.ferr);
+
+	if (HAVE_OPT( WALKNOISE ))
+		sscanf(OPT_ARG( WALKNOISE ), "%lf", &ntp_node.fnse);
+
+	if (HAVE_OPT( NDELAY ))
+		sscanf(OPT_ARG( NDELAY ), "%lf", &ntp_node.ndly);
+
+	if (HAVE_OPT( PDELAY ))
+		sscanf(OPT_ARG( PDELAY ), "%lf", &ntp_node.pdly);
+
+#endif /* SIM */
+
+	if (errflg || argc) {
+		printf("argc is <%d>\n", argc);
+		optionUsage(myOptions, 2);
 	}
 	return;
 }

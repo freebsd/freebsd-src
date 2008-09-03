@@ -30,9 +30,11 @@
 
 #if defined HAVE_SYS_MODEM_H
 # include <sys/modem.h>
-# define TIOCMSET MCSETA
-# define TIOCMGET MCGETA
-# define TIOCM_RTS MRTS
+# ifndef __QNXNTO__
+#  define TIOCMSET MCSETA
+#  define TIOCMGET MCGETA
+#  define TIOCM_RTS MRTS
+# endif
 #endif
 
 #ifdef HAVE_TERMIOS_H

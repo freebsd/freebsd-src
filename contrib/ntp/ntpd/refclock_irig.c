@@ -116,13 +116,14 @@
  * timestamp in NTP format.
  *
  * The fraction part of the on-time timestamp is a good indicator of how
- * well the driver is doing. With an UltrSPARC 30 and Solaris 2.7, this
- * thing can keep the clock within a few tens of microseconds relative
- * to the IRIG-B signal. Accuracy with IRIG-E is about ten times worse.
- * Unfortunately, Sun broke the 2.7 audio driver in 2.8, which has a
- * 10-ms sawtooth modulation. The driver attempts to remove the
- * modulation by some clever estimation techniques which mostly work.
- * Your experience may vary.
+ * well the driver is doing. Once upon a time, an UltrSPARC 30 and
+ * Solaris 2.7 kept the clock within a few tens of microseconds relative
+ * to the IRIG-B signal. Accuracy with IRIG-E was about ten times worse.
+ * Unfortunately, Sun broke the 2.7 audio driver in 2.8, which has a 10-
+ * ms sawtooth modulation. The driver attempts to remove the modulation
+ * by some clever estimation techniques which mostly work. With the
+ * "mixerctl -o" command before starting the daemon, the jitter is down
+ * to about 100 microseconds. Your experience may vary.
  *
  * Unlike other drivers, which can have multiple instantiations, this
  * one supports only one. It does not seem likely that more than one
@@ -132,13 +133,12 @@
  * Fudge factors
  *
  * Fudge flag4 causes the dubugging output described above to be
- * recorded in the clockstats file. When the audio driver is compiled,
- * fudge flag2 selects the audio input port, where 0 is the mike port
- * (default) and 1 is the line-in port. It does not seem useful to
- * select the compact disc player port. Fudge flag3 enables audio
- * monitoring of the input signal. For this purpose, the monitor gain is
- * set to a default value. Fudgetime2 is used as a frequency vernier for
- * broken codec sample frequency.
+ * recorded in the clockstats file. Fudge flag2 selects the audio input
+ * port, where 0 is the mike port (default) and 1 is the line-in port.
+ * It does not seem useful to select the compact disc player port. Fudge
+ * flag3 enables audio monitoring of the input signal. For this purpose,
+ * the monitor gain is set to a default value. Fudgetime2 is used as a
+ * frequency vernier for broken codec sample frequency.
  */
 /*
  * Interface definitions
@@ -157,7 +157,7 @@
 #define FIELD		10	/* subfields per field */
 #define MINTC		2	/* min PLL time constant */
 #define MAXTC		20	/* max PLL time constant max */
-#define	MAXSIG		6000.	/* maximum signal level */
+#define	MAXAMP		6000.	/* maximum signal level */
 #define	MAXCLP		100	/* max clips above reference per s */
 #define DRPOUT		100.	/* dropout signal level */
 #define MODMIN		0.5	/* minimum modulation index */
@@ -442,15 +442,15 @@ irig_receive(
 		sample = up->comp[~*dpt++ & 0xff];
 
 		/*
-		 * Clip noise spikes greater than MAXSIG. If no clips,
+		 * Clip noise spikes greater than MAXAMP. If no clips,
 		 * increase the gain a tad; if the clips are too high, 
 		 * decrease a tad.
 		 */
-		if (sample > MAXSIG) {
-			sample = MAXSIG;
+		if (sample > MAXAMP) {
+			sample = MAXAMP;
 			up->clipcnt++;
-		} else if (sample < -MAXSIG) {
-			sample = -MAXSIG;
+		} else if (sample < -MAXAMP) {
+			sample = -MAXAMP;
 			up->clipcnt++;
 		}
 
@@ -690,6 +690,7 @@ irig_base(
 	 */
 	if (up->carphase != 7)
 		return;
+
 	env = (up->lastenv[2] - up->lastenv[6]) / 2.;
 	lope = (up->lastint[2] - up->lastint[6]) / 2.;
 	if (lope > up->intmax)
@@ -939,11 +940,8 @@ irig_decode(
 			else
 				pp->leap = LEAP_NOWARNING;
 			up->second = (up->second + up->decim) % 60;
-			if (pp->year > 0) {
+			if (pp->year > 0)
 				pp->year += 2000;
-				if (syncchar == '0')
-					up->errflg |= IRIG_ERR_CHECK;
-			}
 			if (pp->second != up->second)
 				up->errflg |= IRIG_ERR_CHECK;
 			up->second = pp->second;
@@ -993,6 +991,7 @@ irig_poll(
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
+
 	} else {
 		refclock_receive(peer);
 		record_clock_stats(&peer->srcadr, pp->a_lastcode);

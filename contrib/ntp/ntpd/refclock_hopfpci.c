@@ -181,17 +181,11 @@ hopfpci_shutdown(
 	struct peer *peer
 	)
 {
-	struct refclockproc *pp;
-	register struct hopfpciTime *up;
-
-	pp = peer->procptr;
-	up = (struct hopfpciTime *)pp->unitptr;
 
 #ifndef SYS_WINNT
 	close(fd);
 #else
 	CloseHopfDevice();
-/*	UnmapViewOfFile (up); */
 #endif
 }
 
@@ -206,11 +200,9 @@ hopfpci_poll(
 	)
 {
 	struct refclockproc *pp;
-	register struct hopfpciTime *up;
 	HOPFTIME m_time;
 
 	pp = peer->procptr;
-	up = (struct hopfpciTime *)pp->unitptr;
 
 #ifndef SYS_WINNT
 	ioctl(fd,HOPF_CLOCK_GET_UTC,&m_time);

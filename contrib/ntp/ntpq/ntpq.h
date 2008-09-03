@@ -15,14 +15,17 @@
 /*
  * Flags for forming descriptors.
  */
-#define	OPT	0x80		/* this argument is optional, or'd with type */
+/*
+ * Flags for forming descriptors.
+ */
+#define	OPT		0x80	/* this argument is optional, or'd with type */
 
-#define	NO	0x0
-#define	STR	0x1		/* string argument */
-#define	UINT	0x2		/* unsigned integer */
-#define	INT	0x3		/* signed integer */
-#define	ADD	0x4		/* IP network address */
-#define	IP_VERSION 0x5		/* IP address family */
+#define	NO		0x0
+#define	NTP_STR		0x1	/* string argument */
+#define	NTP_UINT	0x2	/* unsigned integer */
+#define	NTP_INT		0x3	/* signed integer */
+#define	NTP_ADD		0x4	/* IP network address */
+#define IP_VERSION	0x5	/* IP version */
 
 /*
  * Arguments are returned in a union
@@ -87,4 +90,4 @@ extern	int	nextvar		P((int *, char **, char **, char **));
 extern	int	decodetime	P((char *, l_fp *));
 extern	void	printvars	P((int, char *, int, int, FILE *));
 extern	int	decodeint	P((char *, long *));
-extern	int	findvar		P((char *, struct ctl_var *));
+extern	int	findvar		P((char *, struct ctl_var *, int code));

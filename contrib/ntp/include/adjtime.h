@@ -39,10 +39,6 @@
 
 #include "ntp_types.h"
 
-#ifdef __QNXNTO__
-int adjtime( const struct timeval * oldtime, struct timeval * newtime );
-#else /* not __QNXNTO__ */
-
 #define KEY	659847L
 
 typedef union {
@@ -65,5 +61,3 @@ typedef union {
  */
 #define DELTA1	0
 #define DELTA2	1
-
-#endif /* not __QNXNTO__ */

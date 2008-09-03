@@ -91,12 +91,14 @@ negative, unsigned values. */
             (long)adjust.tv_sec,(long)adjust.tv_usec);
     if (immediate) {
         errno = 0;
-      /*  if (settimeofday(&new,NULL))
-            fatal(1,"unable to reset current system time",NULL);*/
+        if (settimeofday(&new,NULL))
+            fatal(1,"unable to reset current system time",NULL);
     } else {
+	previous.tv_sec  = 0;
+	previous.tv_usec = 0;
         errno = 0;
-       /* if (adjtime(&adjust,&previous))
-            fatal(1,"unable to adjust current system time",NULL);*/
+        if (adjtime(&adjust,&previous))
+            fatal(1,"unable to adjust current system time",NULL);
         if (previous.tv_sec != 0 || previous.tv_usec != 0) {
             sprintf(text,"(%ld,%.6ld)",
                 (long)previous.tv_sec,(long)previous.tv_usec);
