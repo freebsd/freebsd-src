@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000 Benno Rice <benno@jeamland.net>
  * Copyright (c) 2000 Stephane Potvin <sepotvin@videotron.ca>
- * Copyright (c) 2007 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (c) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 #include "libuboot.h"
 
-struct uboot_devdesc	currdev;
-struct arch_switch	archsw;		/* MI/MD interface boundary */
-int			devs_no;
+struct uboot_devdesc currdev;
+struct arch_switch archsw;		/* MI/MD interface boundary */
+int devs_no;
 
 extern char end[];
 extern char bootprog_name[];
@@ -53,17 +53,8 @@ extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
 
-void dump_si(struct sys_info *si)
-{
-#ifdef DEBUG
-	printf("sys info:\n");
-	printf("  clkbus\t= 0x%08x\n", si->clk_bus);
-	printf("  clkcpu\t= 0x%08x\n", si->clk_cpu);
-	printf("  bar\t\t= 0x%08x\n", si->bar);
-#endif
-}
-
-static void dump_sig(struct api_signature *sig)
+static void
+dump_sig(struct api_signature *sig)
 {
 #ifdef DEBUG
 	printf("signature:\n");
@@ -72,30 +63,27 @@ static void dump_sig(struct api_signature *sig)
 	printf("  sc entry\t= 0x%08x\n", sig->syscall);
 #endif
 }
+
 static void
 dump_addr_info(void)
 {
 #ifdef DEBUG
 	printf("\naddresses info:\n");
-	printf(" _etext (sdata) = 0x%08x\n", (u_int32_t)_etext);
-	printf(" _edata         = 0x%08x\n", (u_int32_t)_edata);
-	printf(" __sbss_start   = 0x%08x\n", (u_int32_t)__sbss_start);
-	printf(" __sbss_end     = 0x%08x\n", (u_int32_t)__sbss_end);
-	printf(" __sbss_start   = 0x%08x\n", (u_int32_t)__bss_start);
-	printf(" _end           = 0x%08x\n", (u_int32_t)_end);
-	printf(" syscall entry  = 0x%08x\n", (u_int32_t)syscall_ptr);
+	printf(" _etext (sdata) = 0x%08x\n", (uint32_t)_etext);
+	printf(" _edata         = 0x%08x\n", (uint32_t)_edata);
+	printf(" __sbss_start   = 0x%08x\n", (uint32_t)__sbss_start);
+	printf(" __sbss_end     = 0x%08x\n", (uint32_t)__sbss_end);
+	printf(" __sbss_start   = 0x%08x\n", (uint32_t)__bss_start);
+	printf(" _end           = 0x%08x\n", (uint32_t)_end);
+	printf(" syscall entry  = 0x%08x\n", (uint32_t)syscall_ptr);
 #endif
 }
 
 static uint64_t
-memsize(int flags)
+memsize(struct sys_info *si, int flags)
 {
-	int		i;
-	struct sys_info	*si;
-	uint64_t	size;
-
-	if ((si = ub_get_sys_info()) == NULL)
-		return 0;
+	uint64_t size;
+	int i;
 
 	size = 0;
 	for (i = 0; i < si->mr_no; i++)
@@ -105,6 +93,25 @@ memsize(int flags)
 	return (size);
 }
 
+static void
+meminfo(void)
+{
+	uint64_t size;
+	struct sys_info *si;
+	int t[3] = { MR_ATTR_DRAM, MR_ATTR_FLASH, MR_ATTR_SRAM };
+	int i;
+
+	if ((si = ub_get_sys_info()) == NULL)
+		panic("could not retrieve system info");
+
+	for (i = 0; i < 3; i++) {
+		size = memsize(si, t[i]);
+		if (size > 0)
+			printf("%s:\t %lldMB\n", ub_mem_type(t[i]),
+			    size / 1024 / 1024);
+	}
+}
+
 int
 main(void)
 {
@@ -112,14 +119,14 @@ main(void)
 	int i;
 
 	if (!api_search_sig(&sig))
-		return -1;
+		return (-1);
 
 	syscall_ptr = sig->syscall;
 	if (syscall_ptr == NULL)
-		return -2;
+		return (-2);
 
 	if (sig->version > API_SIG_VERSION)
-		return -3;
+		return (-3);
 
         /* Clear BSS sections */
 	bzero(__sbss_start, __sbss_end - __sbss_start);
@@ -146,10 +153,9 @@ main(void)
 	 * Enumerate U-Boot devices
 	 */
 	if ((devs_no = ub_dev_enum()) == 0)
-		panic("no devices found");
-	printf("Number of U-Boot devices found %d\n", devs_no);
+		panic("no U-Boot devices found");
+	printf("Number of U-Boot devices: %d\n", devs_no);
 
-	/* XXX all our dv_init()s currently don't do anything... */
 	/*
 	 * March through the device switch probing for things.
 	 */
@@ -160,9 +166,7 @@ main(void)
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
-	printf("Memory: %lldMB\n", memsize(MR_ATTR_DRAM) / 1024 / 1024);
-	printf("FLASH:  %lldMB\n", memsize(MR_ATTR_FLASH) / 1024 / 1024);
-//	printf("SRAM:   %lldMB\n", memsize(MR_ATTR_SRAM) / 1024 / 1024);
+	meminfo();
 
 	/* XXX only support netbooting for now */
 	for (i = 0; devsw[i] != NULL; i++)
@@ -193,7 +197,7 @@ main(void)
 
 	interact();				/* doesn't return */
 
-	return 0;
+	return (0);
 }
 
 
@@ -205,7 +209,7 @@ command_heap(int argc, char *argv[])
 	printf("heap base at %p, top at %p, used %d\n", end, sbrk(0),
 	    sbrk(0) - end);
 
-	return(CMD_OK);
+	return (CMD_OK);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
@@ -217,4 +221,39 @@ command_reboot(int argc, char *argv[])
 
 	printf("Reset failed!\n");
 	while(1);
+}
+
+COMMAND_SET(devinfo, "devinfo", "show U-Boot devices", command_devinfo);
+static int
+command_devinfo(int argc, char *argv[])
+{
+	int i;
+
+	if ((devs_no = ub_dev_enum()) == 0) {
+		command_errmsg = "no U-Boot devices found!?";
+		return (CMD_ERROR);
+	}
+	
+	printf("U-Boot devices:\n");
+	for (i = 0; i < devs_no; i++) {
+		ub_dump_di(i);
+		printf("\n");
+	}
+	return (CMD_OK);
+}
+
+COMMAND_SET(sysinfo, "sysinfo", "show U-Boot system info", command_sysinfo);
+static int
+command_sysinfo(int argc, char *argv[])
+{
+	struct sys_info *si;
+
+	if ((si = ub_get_sys_info()) == NULL) {
+		command_errmsg = "could not retrieve U-Boot sys info!?";
+		return (CMD_ERROR);
+	}
+
+	printf("U-Boot system info:\n");
+	ub_dump_si(si);
+	return (CMD_OK);
 }

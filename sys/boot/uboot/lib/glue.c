@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Semihalf, Rafal Jaworowski <raj@semihalf.com>
+ * Copyright (c) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Some random address used by U-Boot. */
-extern long		uboot_address;
+extern long uboot_address;
 
 /* crc32 stuff stolen from lib/libdisk/write_ia64_disk.c */
 static uint32_t crc32_tab[] = {
@@ -138,7 +138,6 @@ valid_sig(struct api_signature *sig)
 int
 api_search_sig(struct api_signature **sig)
 {
-
 	unsigned char *sp, *spend;
 
 	if (sig == NULL)
@@ -176,7 +175,7 @@ ub_getc(void)
 	if (!syscall(API_GETC, NULL, (uint32_t)&c))
 		return (-1);
 
-	return c;
+	return (c);
 }
 
 int
@@ -187,7 +186,7 @@ ub_tstc(void)
 	if (!syscall(API_TSTC, NULL, (uint32_t)&t))
 		return (-1);
 
-	return t;
+	return (t);
 }
 
 void
@@ -313,7 +312,7 @@ ub_dev_enum(void)
 		di->cookie = devices[n - 1].cookie;
 
 		if (!syscall(API_DEV_ENUM, NULL, di))
-			return 0;
+			return (0);
 	}
 
 	return (n);
@@ -459,6 +458,87 @@ ub_dev_send(int handle, void *buf, int len)
 		return (-1);
 
 	return (err);
+}
+
+static char *
+ub_stor_type(int type)
+{
+
+	if (type & DT_STOR_IDE)
+		return ("IDE");
+
+	if (type & DT_STOR_SCSI)
+		return ("SCSI");
+
+	if (type & DT_STOR_USB)
+		return ("USB");
+
+	if (type & DT_STOR_MMC);
+		return ("MMC");
+
+	return ("Unknown");
+}
+
+char *
+ub_mem_type(int flags)
+{
+
+	switch(flags & 0x000F) {
+	case MR_ATTR_FLASH:
+		return ("FLASH");
+	case MR_ATTR_DRAM:
+		return ("DRAM");
+	case MR_ATTR_SRAM:
+		return ("SRAM");
+	default:
+		return ("Unknown");
+	}
+}
+
+void
+ub_dump_di(int handle)
+{
+	struct device_info *di = ub_dev_get(handle);
+	int i;
+
+	printf("device info (%d):\n", handle);
+	printf("  cookie\t= 0x%08x\n", (uint32_t)di->cookie);
+	printf("  type\t\t= 0x%08x\n", di->type);
+
+	if (di->type == DEV_TYP_NET) {
+		printf("  hwaddr\t= ");
+		for (i = 0; i < 6; i++)
+			printf("%02x ", di->di_net.hwaddr[i]);
+
+		printf("\n");
+
+	} else if (di->type & DEV_TYP_STOR) {
+		printf("  type\t\t= %s\n", ub_stor_type(di->type));
+		printf("  blk size\t\t= %ld\n", di->di_stor.block_size);
+		printf("  blk count\t\t= %ld\n", di->di_stor.block_count);
+	}
+}
+
+void
+ub_dump_si(struct sys_info *si)
+{
+	int i;
+
+	printf("sys info:\n");
+	printf("  clkbus\t= %ld MHz\n", si->clk_bus / 1000 / 1000);
+	printf("  clkcpu\t= %ld MHz\n", si->clk_cpu / 1000 / 1000);
+	printf("  bar\t\t= 0x%08lx\n", si->bar);
+
+	printf("---\n");
+	for (i = 0; i < si->mr_no; i++) {
+		if (si->mr[i].flags == 0)
+			break;
+
+		printf("  start\t= 0x%08lx\n", si->mr[i].start);
+		printf("  size\t= 0x%08lx\n", si->mr[i].size);
+		printf("  type\t= %s\n", ub_mem_type(si->mr[i].flags));
+		printf("---\n");
+	}
 }
 
 /****************************************
