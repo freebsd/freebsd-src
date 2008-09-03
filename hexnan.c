@@ -71,6 +71,12 @@ hexnan( CONST char **sp, FPI *fpi, ULong *x0)
 	x1 = xe = x;
 	havedig = hd0 = i = 0;
 	s = *sp;
+	/* allow optional initial 0x or 0X */
+	while((c = *(CONST unsigned char*)(s+1)) && c <= ' ')
+		++s;
+	if (s[1] == '0' && (s[2] == 'x' || s[2] == 'X')
+	 && *(CONST unsigned char*)(s+3) > ' ')
+		s += 2;
 	while(c = *(CONST unsigned char*)++s) {
 		if (!(h = hexdig[c])) {
 			if (c <= ' ') {
@@ -86,12 +92,25 @@ hexnan( CONST char **sp, FPI *fpi, ULong *x0)
 					x1 = x;
 					i = 0;
 					}
+				while(*(CONST unsigned char*)(s+1) <= ' ')
+					++s;
+				if (s[1] == '0' && (s[2] == 'x' || s[2] == 'X')
+				 && *(CONST unsigned char*)(s+3) > ' ')
+					s += 2;
 				continue;
 				}
 			if (/*(*/ c == ')' && havedig) {
 				*sp = s + 1;
 				break;
 				}
+#ifndef GDTOA_NON_PEDANTIC_NANCHECK
+			do {
+				if (/*(*/ c == ')') {
+					*sp = s + 1;
+					break;
+					}
+				} while(c = *++s);
+#endif
 			return STRTOG_NaN;
 			}
 		havedig++;
