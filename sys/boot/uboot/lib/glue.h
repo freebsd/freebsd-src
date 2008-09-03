@@ -35,10 +35,10 @@
 
 #include "api_public.h"
 
-int	syscall(int, int *, ...);
-void	*syscall_ptr;
+int syscall(int, int *, ...);
+void *syscall_ptr;
 
-int	api_search_sig(struct api_signature **sig);
+int api_search_sig(struct api_signature **sig);
 
 /*
  * The ub_ library calls are part of the application, not U-Boot code!  They
@@ -48,32 +48,36 @@ int	api_search_sig(struct api_signature **sig);
  */
 
 /* console */
-int	ub_getc(void);
-int	ub_tstc(void);
-void	ub_putc(char c);
-void	ub_puts(const char *s);
+int ub_getc(void);
+int ub_tstc(void);
+void ub_putc(char c);
+void ub_puts(const char *s);
 
 /* system */
-void	ub_reset(void);
+void ub_reset(void);
 struct sys_info *ub_get_sys_info(void);
 
 /* time */
-void		ub_udelay(unsigned long);
-unsigned long	ub_get_timer(unsigned long);
+void ub_udelay(unsigned long);
+unsigned long ub_get_timer(unsigned long);
 
 /* env vars */
-char	*ub_env_get(const char *name);
-void	ub_env_set(const char *name, char *value);
-const char	*ub_env_enum(const char *last);
+char *ub_env_get(const char *name);
+void ub_env_set(const char *name, char *value);
+const char *ub_env_enum(const char *last);
 
 /* devices */
-int	ub_dev_enum(void);
-int	ub_dev_open(int handle);
-int	ub_dev_close(int handle);
-int	ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start);
-int	ub_dev_send(int handle, void *buf, int len);
-int	ub_dev_recv(int handle, void *buf, int len);
+int ub_dev_enum(void);
+int ub_dev_open(int handle);
+int ub_dev_close(int handle);
+int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start);
+int ub_dev_send(int handle, void *buf, int len);
+int ub_dev_recv(int handle, void *buf, int len);
 
 struct device_info *	ub_dev_get(int);
+
+void ub_dump_di(int);
+void ub_dump_si(struct sys_info *);
+char *ub_mem_type(int);
 
 #endif /* _API_GLUE_H_ */
