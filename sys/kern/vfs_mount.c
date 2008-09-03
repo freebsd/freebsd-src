@@ -1839,7 +1839,8 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 		}
 		if (*t != NULL)
 			continue;
-		sprintf(errmsg, "mount option <%s> is unknown", p);
+		snprintf(errmsg, sizeof(errmsg),
+		    "mount option <%s> is unknown", p);
 		printf("%s\n", errmsg);
 		ret = EINVAL;
 	}
