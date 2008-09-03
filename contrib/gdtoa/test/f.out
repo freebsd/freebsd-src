@@ -124,7 +124,9 @@ strtof consumes 9 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 9 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 1.23e-320
@@ -132,7 +134,9 @@ strtof consumes 9 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 9 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 1.23e-20
@@ -160,7 +164,9 @@ strtof consumes 15 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 15 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 1.234567890123456789
@@ -188,7 +194,9 @@ strtof consumes 25 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 25 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 1.234567890123456789e-321
@@ -196,7 +204,9 @@ strtof consumes 25 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 25 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 1e23
@@ -224,7 +234,9 @@ strtof consumes 23 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 23 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 9.025971879324147880346310405869e-277
@@ -232,7 +244,9 @@ strtof consumes 37 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 37 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 9.025971879324147880346310405868e-277
@@ -240,7 +254,9 @@ strtof consumes 37 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 37 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 2.2250738585072014e-308
@@ -248,7 +264,9 @@ strtof consumes 23 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 23 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 
 Input: 2.2250738585072013e-308
@@ -256,7 +274,9 @@ strtof consumes 23 bytes and returns 0 = #0
 g_ffmt(0) gives 1 bytes: "0"
 
 strtoIf returns 80, consuming 23 bytes.
-fI[0] == fI[1] == strtof
+fI[0] = #0 = 0
+fI[1] = #1 = 1.4012985e-45
+fI[0] == strtof
 
 Rounding mode for strtor... changed from 1 (nearest) to 0 (toward zero)
 
