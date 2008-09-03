@@ -332,5 +332,15 @@ Compiling g__fmt.c, strtod.c, and strtodg.c with -DUSE_LOCALE causes
 the decimal-point character to be taken from the current locale; otherwise
 it is '.'.
 
+Source files dtoa.c and strtod.c in this directory are derived from
+netlib's "dtoa.c from fp" and are meant to function equivalently.
+When compiled with Honor_FLT_ROUNDS #defined (on systems that provide
+FLT_ROUNDS and fegetround() as specified in the C99 standard), they
+honor the current rounding mode.  Because FLT_ROUNDS is buggy on some
+(Linux) systems -- not reflecting calls on fesetround(), as the C99
+standard says it should -- when Honor_FLT_ROUNDS is #defined, the
+current rounding mode is obtained from fegetround() rather than from
+FLT_ROUNDS, unless Trust_FLT_ROUNDS is also #defined.
+
 Please send comments to	David M. Gay (dmg at acm dot org, with " at "
 changed at "@" and " dot " changed to ".").
