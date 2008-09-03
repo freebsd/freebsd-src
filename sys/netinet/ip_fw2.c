@@ -4461,7 +4461,7 @@ ipfw_tick(void * __unused unused)
 				continue;
 			if ( (q->state & BOTH_SYN) != BOTH_SYN)
 				continue;
-			if (TIME_LEQ( time_uptime+V_dyn_keepalive_interval,
+			if (TIME_LEQ(time_uptime + V_dyn_keepalive_interval,
 			    q->expire))
 				continue;	/* too early */
 			if (TIME_LEQ(q->expire, time_uptime))
