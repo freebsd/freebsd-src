@@ -611,6 +611,7 @@ nlm4_unlock_msg_4_svc(nlm4_unlockargs *argp, void *result, struct svc_req *rqstp
 	char dummy;
 
 	if (nlm_do_unlock(argp, &res4, rqstp, &rpc))
+		return (FALSE);
 	if (rpc) {
 		nlm4_unlock_res_4(&res4, &dummy, rpc, NULL, nlm_zero_tv);
 		CLNT_RELEASE(rpc);
