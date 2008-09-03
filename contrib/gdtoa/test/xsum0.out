@@ -1,11 +1,11 @@
-README	e6ebdc91	2429
+README	e86e9133	2692
 Qtest.c	e8353ffc	5046
 dItest.c	e33800ce	2371
 ddtest.c	f9d06e7b	4984
 dtest.c	ee533ac3	4078
 dt.c	7eeda57	6384
 ftest.c	ec8a6654	3999
-getround.c	f810968	2011
+getround.c	161043dd	2143
 strtoIdSI.c	7bfb88b	49
 strtoIddSI.c	72e8852	50
 strtodISI.c	ed08b740	49
@@ -25,7 +25,7 @@ ddsi.out	1f94bbe2	10251
 dd.out	e262456e	40923
 dtst.out	e284ac98	23711
 d.out	f271efc9	28131
-f.out	4b0bd51	21207
+f.out	9013e91	21537
 x.ou0	1402f834	25372
 xL.ou0	faa3a741	26363
 x.ou1	f1af5a00	34581

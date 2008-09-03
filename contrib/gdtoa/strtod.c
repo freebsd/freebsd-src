@@ -44,16 +44,15 @@ THIS SOFTWARE.
 #ifndef NO_IEEE_Scale
 #define Avoid_Underflow
 #undef tinytens
-/* The factor of 2^53 in tinytens[4] helps us avoid setting the underflow */
+/* The factor of 2^106 in tinytens[4] helps us avoid setting the underflow */
 /* flag unnecessarily.  It leads to a song and dance at the end of strtod. */
 static CONST double tinytens[] = { 1e-16, 1e-32, 1e-64, 1e-128,
-		9007199254740992.e-256
+		9007199254740992.*9007199254740992.e-256
 		};
 #endif
 #endif
 
 #ifdef Honor_FLT_ROUNDS
-#define Rounding rounding
 #undef Check_FLT_ROUNDS
 #define Check_FLT_ROUNDS
 #else
@@ -81,9 +80,19 @@ strtod
 #ifdef SET_INEXACT
 	int inexact, oldinexact;
 #endif
-#ifdef Honor_FLT_ROUNDS
-	int rounding;
-#endif
+#ifdef Honor_FLT_ROUNDS /*{*/
+	int Rounding;
+#ifdef Trust_FLT_ROUNDS /*{{ only define this if FLT_ROUNDS really works! */
+	Rounding = Flt_Rounds;
+#else /*}{*/
+	Rounding = 1;
+	switch(fegetround()) {
+	  case FE_TOWARDZERO:	Rounding = 0; break;
+	  case FE_UPWARD:	Rounding = 2; break;
+	  case FE_DOWNWARD:	Rounding = 3;
+	  }
+#endif /*}}*/
+#endif /*}*/
 
 	sign = nz0 = nz = decpt = 0;
 	dval(rv) = 0.;
@@ -109,7 +118,7 @@ strtod
 		}
  break2:
 	if (*s == '0') {
-#ifndef NO_HEX_FP
+#ifndef NO_HEX_FP /*{{*/
 		{
 		static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI };
 		Long exp;
@@ -118,16 +127,20 @@ strtod
 		  case 'x':
 		  case 'X':
 			{
-#if defined(FE_DOWNWARD) && defined(FE_TONEAREST) && defined(FE_TOWARDZERO) && defined(FE_UPWARD)
+#if defined(FE_DOWNWARD) && defined(FE_TONEAREST) && defined(FE_TOWARDZERO) && defined(FE_UPWARD) /*{{*/
 			FPI fpi1 = fpi;
+#ifdef Honor_FLT_ROUNDS /*{{*/
+			fpi1.rounding = Rounding;
+#else /*}{*/
 			switch(fegetround()) {
 			  case FE_TOWARDZERO:	fpi1.rounding = 0; break;
 			  case FE_UPWARD:	fpi1.rounding = 2; break;
 			  case FE_DOWNWARD:	fpi1.rounding = 3;
 			  }
-#else
+#endif /*}}*/
+#else /*}{*/
 #define fpi1 fpi
-#endif
+#endif /*}}*/
 			switch((i = gethex(&s, &fpi1, &exp, &bb, sign)) & STRTOG_Retmask) {
 			  case STRTOG_NoNumber:
 				s = s00;
@@ -381,12 +394,12 @@ strtod
 	scale = 0;
 #endif
 #ifdef Honor_FLT_ROUNDS
-	if ((rounding = Flt_Rounds) >= 2) {
+	if (Rounding >= 2) {
 		if (sign)
-			rounding = rounding == 2 ? 0 : 2;
+			Rounding = Rounding == 2 ? 0 : 2;
 		else
-			if (rounding != 2)
-				rounding = 0;
+			if (Rounding != 2)
+				Rounding = 0;
 		}
 #endif
 #endif /*IEEE_Arith*/
@@ -405,7 +418,7 @@ strtod
 				/* Can't trust HUGE_VAL */
 #ifdef IEEE_Arith
 #ifdef Honor_FLT_ROUNDS
-				switch(rounding) {
+				switch(Rounding) {
 				  case 0: /* toward 0 */
 				  case 3: /* toward -infinity */
 					word0(rv) = Big0;
@@ -536,7 +549,7 @@ strtod
 			bd2 -= bbe;
 		bs2 = bb2;
 #ifdef Honor_FLT_ROUNDS
-		if (rounding != 1)
+		if (Rounding != 1)
 			bs2++;
 #endif
 #ifdef Avoid_Underflow
@@ -594,7 +607,7 @@ strtod
 		delta->sign = 0;
 		i = cmp(delta, bs);
 #ifdef Honor_FLT_ROUNDS
-		if (rounding != 1) {
+		if (Rounding != 1) {
 			if (i < 0) {
 				/* Error is less than an ulp */
 				if (!delta->x[0] && delta->wds <= 1) {
@@ -604,7 +617,7 @@ strtod
 #endif
 					break;
 					}
-				if (rounding) {
+				if (Rounding) {
 					if (dsign) {
 						adj = 1.;
 						goto apply_adj;
@@ -650,10 +663,10 @@ strtod
 			if (adj < 1.)
 				adj = 1.;
 			if (adj <= 0x7ffffffe) {
-				/* adj = rounding ? ceil(adj) : floor(adj); */
+				/* adj = Rounding ? ceil(adj) : floor(adj); */
 				y = adj;
 				if (y != adj) {
-					if (!((rounding>>1) ^ dsign))
+					if (!((Rounding>>1) ^ dsign))
 						y++;
 					adj = y;
 					}
@@ -676,8 +689,11 @@ strtod
 #endif /*Sudden_Underflow*/
 #endif /*Avoid_Underflow*/
 			adj *= ulp(dval(rv));
-			if (dsign)
+			if (dsign) {
+				if (word0(rv) == Big0 && word1(rv) == Big1)
+					goto ovfl;
 				dval(rv) += adj;
+				}
 			else
 				dval(rv) -= adj;
 			goto cont;
@@ -770,7 +786,7 @@ strtod
 					}
 #endif /*Avoid_Underflow*/
 				L = (word0(rv) & Exp_mask) - Exp_msk1;
-#endif /*Sudden_Underflow}*/
+#endif /*Sudden_Underflow}}*/
 				word0(rv) = L | Bndry_mask1;
 				word1(rv) = 0xffffffff;
 #ifdef IBM

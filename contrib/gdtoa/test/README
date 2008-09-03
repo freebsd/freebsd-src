@@ -55,7 +55,12 @@ logic (on double and double-double conversions).
 
 Program strtodt tests strtod on some hard cases (in file testnos3)
 posted by Fred Tydeman to comp.arch.arithmetic on 26 Feb. 1996.
+To get correct results on Intel (x86) systems, the rounding precision
+must be set to 53 bits.  This can be done, e.g., by invoking
+fpinit_ASL(), whose source appears in
+http://www.netlib.org/ampl/solvers/fpinit.c .
 
 These are simple test programs, not meant for exhaustive testing,
 but for manually testing "interesting" cases.  Paxson's testbase
 is good for more exhaustive testing, in part with random inputs.
+See ftp://ftp.ee.lbl.gov/testbase-report.ps.Z .

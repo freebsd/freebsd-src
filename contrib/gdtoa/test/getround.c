@@ -44,7 +44,14 @@ getround(int r, char *s)
 {
 	int i;
 
-	i = atoi(s+1);
+	while(*++s <= ' ') {
+		if (!*s) {
+			printf("Current round mode for strtor... is %d (%s).\n",
+				r, dir[r]);
+			return r;
+			}
+		}	
+	i = atoi(s);
 	if (i >= 0 && i < 4) {
 		printf("Rounding mode for strtor... ");
 		if (i == r)
