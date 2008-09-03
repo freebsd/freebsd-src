@@ -37,7 +37,7 @@ _start:
 	/* Hint where to look for the API signature */
 	lis	%r11, uboot_address@ha
 	addi	%r11, %r11, uboot_address@l
-	stw	%r2, 0(%r11)
+	stw	%r1, 0(%r11)
 	/* Save U-Boot's r14 */
 	lis	%r11, saved_regs@ha
 	addi	%r11, %r11, saved_regs@l
