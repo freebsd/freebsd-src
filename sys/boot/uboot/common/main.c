@@ -46,8 +46,6 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-static char bootargs[128];
-
 extern unsigned char _etext[];
 extern unsigned char _edata[];
 extern unsigned char __bss_start[];
@@ -110,10 +108,8 @@ memsize(int flags)
 int
 main(void)
 {
-	char **bargv;
-	char *ch;
-	int bargc, i;
 	struct api_signature *sig = NULL;
+	int i;
 
 	if (!api_search_sig(&sig))
 		return -1;
@@ -134,7 +130,7 @@ main(void)
          */
 	cons_probe();
 
-	printf("Compatible API signature found @%x\n", sig);
+	printf("Compatible API signature found @%x\n", (uint32_t)sig);
 
 	dump_sig(sig);
 	dump_addr_info();
@@ -205,7 +201,8 @@ COMMAND_SET(heap, "heap", "show heap usage", command_heap);
 static int
 command_heap(int argc, char *argv[])
 {
-	printf("heap base at %p, top at %p, used %ld\n", end, sbrk(0),
+
+	printf("heap base at %p, top at %p, used %d\n", end, sbrk(0),
 	    sbrk(0) - end);
 
 	return(CMD_OK);
