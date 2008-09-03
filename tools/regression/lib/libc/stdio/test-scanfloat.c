@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define	eq(type, a, b)	_eq(type##_EPSILON, (a), (b))
@@ -187,15 +188,8 @@ main(int argc, char *argv[])
 	assert(f != f);
 	assert(d != d);
 	assert(ld != ld);
-#if 0
-	/*
-	 * POSIX says we should only generate quiet NaNs, but the gdtoa
-	 * author convincingly argues that if you ask for a NaN format
-	 * based on some implementation-defined string, you should get
-	 * what you asked for, even if it's a signaling NaN.
-	 */
+	/* POSIX says we should only generate quiet NaNs. */
 	assert(fetestexcept(FE_INVALID) == 0);
-#endif
 
 	printf("ok 2 - scanfloat\n");
 
@@ -282,6 +276,20 @@ main(int argc, char *argv[])
 	assert(strtod("0xy", &endp) == 0);
 	assert(strcmp("xy", endp) == 0);
 
+	/* This used to cause an infinite loop and round the wrong way. */
+	fesetround(FE_DOWNWARD);
+	assert(strtof("3.5e38", &endp) == FLT_MAX);
+	assert(strtod("2e308", &endp) == DBL_MAX);
+	fesetround(FE_UPWARD);
+	assert(strtof("3.5e38", &endp) == INFINITY);
+	assert(strtod("2e308", &endp) == INFINITY);
+	fesetround(FE_TOWARDZERO);
+	assert(strtof("3.5e38", &endp) == FLT_MAX);
+	assert(strtod("2e308", &endp) == DBL_MAX);
+	fesetround(FE_TONEAREST);
+	assert(strtof("3.5e38", &endp) == INFINITY);
+	assert(strtod("2e308", &endp) == INFINITY);
+
 	printf("ok 4 - scanfloat\n");
 
 	return (0);
@@ -292,8 +300,6 @@ _eq(long double epsilon, long double a, long double b)
 {
 	long double delta;
 
-	delta = a - b;
-	if (delta < 0)		/* XXX no fabsl() */
-		delta = -delta;
+	delta = fabsl(a - b);
 	return (delta <= epsilon);
 }
