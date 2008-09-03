@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/proc.h>
 #include <sys/eventhandler.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -237,7 +238,7 @@ iwch_init_module(void)
 
 	/* Register existing TOE interfaces by walking the ifnet chain */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		(void)ifaddr_event_handler(NULL, ifp);
 	}
 	IFNET_RUNLOCK();
