@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2005, 2008 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,22 +29,30 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/bus.h>
-#include <sys/interrupt.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/timetc.h>
 
-#include <machine/clock.h>
+#include <dev/ofw/openfirm.h>
+
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/tick.h>
 #include <machine/ver.h>
 
-#define	TICK_GRACE	10000
+/* 10000 ticks proved okay for 500MHz. */
+#define	TICK_GRACE(clock)	((clock) / 1000000 * 2 * 10)
+
+#define	TICK_QUALITY_MP	10
+#define	TICK_QUALITY_UP	1000
 
 SYSCTL_NODE(_machdep, OID_AUTO, tick, CTLFLAG_RD, 0, "tick statistics");
 
@@ -63,7 +72,20 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
     0, "total number of tick interrupts with adjustment");
 
+static struct timecounter tick_tc;
+static u_long tick_increment;
+static u_int hardclock_use_stick;
+
+static uint64_t tick_cputicks(void);
+static timecounter_get_t tick_get_timecount_up;
+#ifdef SMP
+static timecounter_get_t tick_get_timecount_mp;
+#endif
 static void tick_hardclock(struct trapframe *tf);
+static inline void tick_hardclock_common(struct trapframe *tf, u_long tick,
+    u_long adj);
+static inline void tick_process(struct trapframe *tf);
+static void stick_hardclock(struct trapframe *tf);
 
 static uint64_t
 tick_cputicks(void)
@@ -75,9 +97,85 @@ tick_cputicks(void)
 void
 cpu_initclocks(void)
 {
+	uint32_t clock;
 
 	stathz = hz;
+
+	/*
+	 * On USIII and later we use the STICK timer instead of the TICK
+	 * one if possible in order to ensure hardclock is driven by same
+	 * frequency on all CPUs (besides, we no longer need to apply the
+	 * workaround for the BlackBird erratum #1 there).  Similarly, we
+	 * don't provide a CPU ticker in that case as long as we can't
+	 * specify the ticker frequency per CPU.
+	 * XXX we don't use the STICK timer with all CPUs beyond USIII
+	 * unconditionally, yet, due to unsolved problems with USIIIi APs
+	 * causing a hang when using it.
+	 */
+	switch (cpu_impl) {
+	case CPU_IMPL_ULTRASPARCIII:	/* mandatory */
+	case CPU_IMPL_ULTRASPARCIIIp:
+		hardclock_use_stick = 1;
+		break;
+	case CPU_IMPL_ULTRASPARCIIIi:
+#ifdef SMP
+		if (cpu_mp_probe() == 0) {
+#endif
+			hardclock_use_stick = 1;
+			break;
+#ifdef SMP
+		}
+		/* FALLTHROUGH */
+#endif
+	default:
+		hardclock_use_stick = 0;
+	}
+	if (hardclock_use_stick != 0) {
+		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
+		    &clock, sizeof(clock)) == -1)
+		panic("%s: could not determine STICK frequency", __func__);
+		intr_setup(PIL_TICK, stick_hardclock, -1, NULL, NULL);
+	} else {
+		clock = PCPU_GET(clock);
+		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
+		set_cputicker(tick_cputicks, clock, 0);
+	}
+	tick_increment = clock / hz;
+	/*
+	 * Avoid stopping of hardclock in terms of a lost (S)TICK interrupt
+	 * by ensuring that the (S)TICK period is at least TICK_GRACE ticks.
+	 */
+	if (tick_increment < TICK_GRACE(clock))
+		panic("%s: HZ too high, decrease to at least %d",
+		    __func__, clock / TICK_GRACE(clock));
 	tick_start();
+
+	/*
+	 * Initialize the TICK-based timecounter.  This must not happen
+	 * before SI_SUB_INTRINSIC for tick_get_timecount_mp() to work.
+	 */
+	tick_tc.tc_get_timecount = tick_get_timecount_up;
+	tick_tc.tc_poll_pps = NULL;
+	tick_tc.tc_counter_mask = ~0u;
+	tick_tc.tc_frequency = PCPU_GET(clock);
+	tick_tc.tc_name = "tick";
+	tick_tc.tc_quality = TICK_QUALITY_UP;
+	tick_tc.tc_priv = NULL;
+#ifdef SMP
+	/*
+	 * We (try to) sync the (S)TICK timers of APs with the BSP during
+	 * their startup but not afterwards.  The resulting drift can
+	 * cause problems when the time is calculated based on (S)TICK
+	 * values read on different CPUs.  Thus we bind to the BSP for
+	 * reading the register and use a low quality for the otherwise
+	 * high quality (S)TICK timers in the MP case.
+	 */
+	if (cpu_mp_probe()) {
+		tick_tc.tc_get_timecount = tick_get_timecount_mp;
+		tick_tc.tc_quality = TICK_QUALITY_MP;
+	}
+#endif
+	tc_init(&tick_tc);
 }
 
 static inline void
@@ -93,27 +191,52 @@ tick_process(struct trapframe *tf)
 	statclock(TRAPF_USERMODE(tf));
 }
 
+/*
+ * NB: the sequence of reading the (S)TICK register, calculating the value
+ * of the next tick and writing it to the (S)TICK_COMPARE register must not
+ * be interrupted, not even by an IPI, otherwise a value that is in the past
+ * could be written in the worst case, causing hardclock to stop.
+ */
+
 static void
 tick_hardclock(struct trapframe *tf)
 {
-	u_long adj, ref, tick;
-	long delta;
+	u_long adj, tick;
 	register_t s;
-	int count;
 
-	/*
-	 * The sequence of reading the TICK register, calculating the value
-	 * of the next tick and writing it to the TICK_CMPR register must not
-	 * be interrupted, not even by an IPI, otherwise a value that is in
-	 * the past could be written in the worst case, causing hardclock to
-	 * stop.
-	 */
 	critical_enter();
 	adj = PCPU_GET(tickadj);
 	s = intr_disable();
 	tick = rd(tick);
 	wrtickcmpr(tick + tick_increment - adj, 0);
 	intr_restore(s);
+	tick_hardclock_common(tf, tick, adj);
+	critical_exit();
+}
+
+static void
+stick_hardclock(struct trapframe *tf)
+{
+	u_long adj, stick;
+	register_t s;
+
+	critical_enter();
+	adj = PCPU_GET(tickadj);
+	s = intr_disable();
+	stick = rdstick();
+	wrstickcmpr(stick + tick_increment - adj, 0);
+	intr_restore(s);
+	tick_hardclock_common(tf, stick, adj);
+	critical_exit();
+}
+
+static inline void
+tick_hardclock_common(struct trapframe *tf, u_long tick, u_long adj)
+{
+	u_long ref;
+	long delta;
+	int count;
+
 	ref = PCPU_GET(tickref);
 	delta = tick - ref;
 	count = 0;
@@ -139,29 +262,36 @@ tick_hardclock(struct trapframe *tf)
 	}
 	PCPU_SET(tickref, ref);
 	PCPU_SET(tickadj, adj);
-	critical_exit();
 }
 
-void
-tick_init(u_long clock)
+static u_int
+tick_get_timecount_up(struct timecounter *tc)
 {
 
-	tick_freq = clock;
-	tick_MHz = clock / 1000000;
-	tick_increment = clock / hz;
-
-	/*
-	 * UltraSparc II[e,i] based systems come up with the tick interrupt
-	 * enabled and a handler that resets the tick counter, causing DELAY()
-	 * to not work properly when used early in boot.
-	 * UltraSPARC III based systems come up with the system tick interrupt
-	 * enabled, causing an interrupt storm on startup since they are not
-	 * handled.
-	 */
-	tick_stop();
-
-	set_cputicker(tick_cputicks, tick_freq, 0);
+	return ((u_int)rd(tick));
 }
+
+#ifdef SMP
+static u_int
+tick_get_timecount_mp(struct timecounter *tc)
+{
+	struct thread *td;
+	u_int tick;
+
+	td = curthread;
+	thread_lock(td);
+	sched_bind(td, 0);
+	thread_unlock(td);
+
+	tick = tick_get_timecount_up(tc);
+
+	thread_lock(td);
+	sched_unbind(td);
+	thread_unlock(td);
+
+	return (tick);
+}
+#endif
 
 void
 tick_start(void)
@@ -170,32 +300,34 @@ tick_start(void)
 	register_t s;
 
 	/*
-	 * Avoid stopping of hardclock in terms of a lost tick interrupt
-	 * by ensuring that the tick period is at least TICK_GRACE ticks.
-	 * This check would be better placed in tick_init(), however we
-	 * have to call tick_init() before cninit() in order to provide
-	 * the low-level console drivers with a working DELAY() which in
-	 * turn means we cannot use panic() in tick_init().
+	 * Try to make the (S)TICK interrupts as synchronously as possible
+	 * on all CPUs to avoid inaccuracies for migrating processes.  Leave
+	 * out one tick to make sure that it is not missed.
 	 */
-	if (tick_increment < TICK_GRACE)
-		panic("%s: HZ too high, decrease to at least %ld", __func__,
-		    tick_freq / TICK_GRACE);
-
-	if (curcpu == 0)
-		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
-
-	/*
-	 * Try to make the tick interrupts as synchronously as possible on
-	 * all CPUs to avoid inaccuracies for migrating processes. Leave out
-	 * one tick to make sure that it is not missed.
-	 */
+	critical_enter();
 	PCPU_SET(tickadj, 0);
 	s = intr_disable();
-	base = rd(tick);
+	if (hardclock_use_stick != 0)
+		base = rdstick();
+	else
+		base = rd(tick);
 	base = roundup(base, tick_increment);
 	PCPU_SET(tickref, base);
-	wrtickcmpr(base + tick_increment, 0);
+	if (hardclock_use_stick != 0)
+		wrstickcmpr(base + tick_increment, 0);
+	else
+		wrtickcmpr(base + tick_increment, 0);
 	intr_restore(s);
+	critical_exit();
+}
+
+void
+tick_clear(void)
+{
+
+	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
+		wrstick(0, 0);
+	wrpr(tick, 0, 0);
 }
 
 void
@@ -203,6 +335,6 @@ tick_stop(void)
 {
 
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
-		wr(asr25, 1L << 63, 0);
+		wrstickcmpr(1L << 63, 0);
 	wrtickcmpr(1L << 63, 0);
 }

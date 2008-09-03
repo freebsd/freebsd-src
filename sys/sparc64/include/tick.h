@@ -29,7 +29,7 @@
 #ifndef _MACHINE_TICK_H_
 #define	_MACHINE_TICK_H_
 
-void	tick_init(u_long clock);
+void	tick_clear(void);
 void	tick_start(void);
 void	tick_stop(void);
 
