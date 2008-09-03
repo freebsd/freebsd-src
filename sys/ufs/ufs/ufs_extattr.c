@@ -847,7 +847,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	if (strlen(name) == 0)
 		return (EINVAL);
 
-	error = extattr_check_cred(vp, attrnamespace, cred, td, IREAD);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, VREAD);
 	if (error)
 		return (error);
 
@@ -1054,7 +1054,7 @@ ufs_extattr_set(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
-	error = extattr_check_cred(vp, attrnamespace, cred, td, IWRITE);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, VWRITE);
 	if (error)
 		return (error);
 
@@ -1162,7 +1162,7 @@ ufs_extattr_rm(struct vnode *vp, int attrnamespace, const char *name,
 	if (!ufs_extattr_valid_attrname(attrnamespace, name))
 		return (EINVAL);
 
-	error = extattr_check_cred(vp, attrnamespace, cred, td, IWRITE);
+	error = extattr_check_cred(vp, attrnamespace, cred, td, VWRITE);
 	if (error)
 		return (error);
 
