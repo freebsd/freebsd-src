@@ -216,13 +216,13 @@ k8temp_attach(device_t dev)
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core0", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR0_CORE0, k8temp_sysctl, "I",
+	    dev, SENSOR1_CORE0, k8temp_sysctl, "I",
 	    "Sensor 1 / Core 0 temperature");
 	
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
 	    OID_AUTO, "core1", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR0_CORE0, k8temp_sysctl, "I",
+	    dev, SENSOR1_CORE1, k8temp_sysctl, "I",
 	    "Sensor 1 / Core 1 temperature");
 
 	return (0);
