@@ -1,8 +1,9 @@
 # $FreeBSD$
 # Standard include file for ADM5120
 
+files	"../adm5120/files.adm5120"
+
 cpu		CPU_MIPS4KC
-files		"../mips32/adm5120/files.adm5120"
 options		ISA_MIPS32
 
 # device		admpci
