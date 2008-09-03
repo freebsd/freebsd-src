@@ -1,5 +1,5 @@
 # $FreeBSD$
-files	"../mips32/malta/files.malta"
+files	"../malta/files.malta"
 
 cpu		CPU_MIPS4KC
 options 	ISA_MIPS32
