@@ -89,7 +89,7 @@ increment(Bigint *b)
 	return b;
 	}
 
- int
+ void
 #ifdef KR_headers
 decrement(b) Bigint *b;
 #else
@@ -119,7 +119,6 @@ decrement(Bigint *b)
 		*x++ = y & 0xffff;
 		} while(borrow && x < xe);
 #endif
-	return STRTOG_Inexlo;
 	}
 
  static int
@@ -206,9 +205,9 @@ rvOK
 		goto ret;
 		}
 	switch(rd) {
-	  case 1:
+	  case 1: /* round down (toward -Infinity) */
 		goto trunc;
-	  case 2:
+	  case 2: /* round up (toward +Infinity) */
 		break;
 	  default: /* round near */
 		k = bdif - 1;
@@ -330,7 +329,7 @@ strtodg
 	CONST char *s, *s0, *s1;
 	double adj, adj0, rv, tol;
 	Long L;
-	ULong y, z;
+	ULong *b, *be, y, z;
 	Bigint *ab, *bb, *bb1, *bd, *bd0, *bs, *delta, *rvb, *rvb0;
 
 	irv = STRTOG_Zero;
@@ -822,10 +821,8 @@ strtodg
 				break;
 			if (dsign) {
 				rvb = increment(rvb);
-				if ( (j = rvbits & kmask) !=0)
-					j = ULbits - j;
-				if (hi0bits(rvb->x[(rvb->wds - 1) >> kshift])
-						!= j)
+				j = kmask & (ULbits - (rvbits & kmask));
+				if (hi0bits(rvb->x[rvb->wds - 1]) != j)
 					rvbits++;
 				irv = STRTOG_Normal | STRTOG_Inexhi;
 				}
@@ -978,6 +975,29 @@ strtodg
 	Bfree(bd0);
 	Bfree(delta);
 	if (rve > fpi->emax) {
+		switch(fpi->rounding & 3) {
+		  case FPI_Round_near:
+			goto huge;
+		  case FPI_Round_up:
+			if (!sign)
+				goto huge;
+			break;
+		  case FPI_Round_down:
+			if (sign)
+				goto huge;
+		  }
+		/* Round to largest representable magnitude */
+		Bfree(rvb);
+		rvb = 0;
+		irv = STRTOG_Normal | STRTOG_Inexlo;
+		*exp = fpi->emax;
+		b = bits;
+		be = b + (fpi->nbits >> 5) + 1;
+		while(b < be)
+			*b++ = -1;
+		if ((j = fpi->nbits & 0x1f))
+			*--be >>= (32 - j);
+		goto ret;
  huge:
 		rvb->wds = 0;
 		irv = STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
@@ -992,12 +1012,19 @@ strtodg
 		if (sudden_underflow) {
 			rvb->wds = 0;
 			irv = STRTOG_Underflow | STRTOG_Inexlo;
+#ifndef NO_ERRNO
+			errno = ERANGE;
+#endif
 			}
 		else  {
 			irv = (irv & ~STRTOG_Retmask) |
 				(rvb->wds > 0 ? STRTOG_Denormal : STRTOG_Zero);
-			if (irv & STRTOG_Inexact)
+			if (irv & STRTOG_Inexact) {
 				irv |= STRTOG_Underflow;
+#ifndef NO_ERRNO
+				errno = ERANGE;
+#endif
+				}
 			}
 		}
 	if (se)
