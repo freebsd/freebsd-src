@@ -1409,7 +1409,7 @@ vop_deleteextattr {
 		return (EROFS);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, IWRITE);
+	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
@@ -1493,7 +1493,7 @@ vop_getextattr {
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, IREAD);
+	    ap->a_cred, ap->a_td, VREAD);
 	if (error)
 		return (error);
 
@@ -1553,7 +1553,7 @@ vop_listextattr {
 		return (EOPNOTSUPP);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, IREAD);
+	    ap->a_cred, ap->a_td, VREAD);
 	if (error)
 		return (error);
 
@@ -1633,7 +1633,7 @@ vop_setextattr {
 		return (EROFS);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
-	    ap->a_cred, ap->a_td, IWRITE);
+	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)
 			ip->i_ea_error = error;
