@@ -1,32 +1,51 @@
 /*
- * /src/NTP/ntp-4/ntpd/refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A
+ * /src/NTP/REPOSITORY/ntp4-dev/ntpd/refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp
  *
- * refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A
+ * refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp
  *
- * generic reference clock driver for receivers
+ * generic reference clock driver for several DCF/GPS/MSF/... receivers
  *
- * optionally make use of a STREAMS module for input processing where
- * available and configured. Currently the STREAMS module
- * is only available for Suns running SunOS 4.x and SunOS5.x
+ * PPS notes:
+ *   On systems that support PPSAPI (RFC2783) PPSAPI is the
+ *   preferred interface.
  *
- * the STREAMS module is not required for operation and may be omitted
- * at the cost of reduced accuracy. As new kernel interfaces emerger this
- * restriction may be lifted in future.
+ *   Optionally make use of a STREAMS module for input processing where
+ *   available and configured. This STREAMS module reduces the time
+ *   stamp latency for serial and PPS events.
+ *   Currently the STREAMS module is only available for Suns running
+ *   SunOS 4.x and SunOS5.x.
  *
- * Copyright (c) 1995-1999 by Frank Kardel <kardel@acm.org>
+ * Copyright (c) 1995-2007 by Frank Kardel <kardel <AT> ntp.org>
  * Copyright (c) 1989-1994 by Frank Kardel, Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
  *
- * This software may not be sold for profit without a written consent
- * from the author.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the author nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  */
 
 #ifdef HAVE_CONFIG_H
-# include <config.h>
+# include "config.h"
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_PARSE)
@@ -42,12 +61,12 @@
  *   - Schmid clock                                         (DCF)
  *   - Conrad DCF77 receiver module                         (DCF)
  *   - FAU DCF77 NTP receiver (TimeBrick)                   (DCF)
+ *   - WHARTON 400A Series clock			    (DCF)
  *
  *   - Meinberg GPS166/GPS167                               (GPS)
  *   - Trimble (TSIP and TAIP protocol)                     (GPS)
  *
  *   - RCC8000 MSF Receiver                                 (MSF)
- *   - WHARTON 400A Series clock			    (DCF)
  *   - VARITEXT clock					    (MSF)
  */
 
@@ -79,11 +98,16 @@
 #include "ntp_refclock.h"
 #include "ntp_unixtime.h"	/* includes <sys/time.h> */
 #include "ntp_control.h"
+#include "ntp_string.h"
 
 #include <stdio.h>
 #include <ctype.h>
 #ifndef TM_IN_SYS_TIME
 # include <time.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+# include <unistd.h>
 #endif
 
 #if !defined(STREAM) && !defined(HAVE_SYSV_TTYS) && !defined(HAVE_BSD_TTYS) && !defined(HAVE_TERMIOS)
@@ -115,14 +139,43 @@
 # include <sys/ioctl.h>
 #endif
 
+#ifdef HAVE_PPSAPI
+# include "ppsapi_timepps.h"
+#endif
+
 #ifdef PPS
-#ifdef HAVE_SYS_PPSCLOCK_H
-#include <sys/ppsclock.h>
+# ifdef HAVE_SYS_PPSCLOCK_H
+#  include <sys/ppsclock.h>
+# endif
+# ifdef HAVE_TIO_SERIAL_STUFF
+#  include <linux/serial.h>
+# endif
 #endif
-#ifdef HAVE_TIO_SERIAL_STUFF
-#include <linux/serial.h>
+
+#define BUFFER_SIZE(_BUF, _PTR) ((_BUF) + sizeof(_BUF) - (_PTR))
+#define BUFFER_SIZES(_BUF, _PTR, _SZ) ((_BUF) + (_SZ) - (_PTR))
+
+/*
+ * document type of PPS interfacing - copy of ifdef mechanism in local_input()
+ */
+#undef PPS_METHOD 
+
+#ifdef HAVE_PPSAPI
+#define PPS_METHOD "PPS API"
+#else
+#ifdef TIOCDCDTIMESTAMP
+#define PPS_METHOD "TIOCDCDTIMESTAMP"
+#else /* TIOCDCDTIMESTAMP */
+#if defined(HAVE_STRUCT_PPSCLOCKEV) && (defined(HAVE_CIOGETEV) || defined(HAVE_TIOCGPPSEV))
+#ifdef HAVE_CIOGETEV
+#define PPS_METHOD "CIOGETEV"
+#endif
+#ifdef HAVE_TIOCGPPSEV
+#define PPS_METHOD "TIOCGPPSEV"
 #endif
 #endif
+#endif /* TIOCDCDTIMESTAMP */
+#endif /* HAVE_PPSAPI */
 
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
@@ -133,28 +186,26 @@
 #include "binio.h"
 #include "ascii.h"
 #include "ieee754io.h"
+#include "recvbuff.h"
 
-static char rcsid[]="refclock_parse.c,v 4.36 1999/11/28 17:18:20 kardel RELEASE_19991128_A";
+static char rcsid[] = "refclock_parse.c,v 4.80 2007/08/11 12:06:29 kardel Exp";
 
 /**===========================================================================
  ** external interface to ntp mechanism
  **/
 
-static	void	parse_init	P((void));
 static	int	parse_start	P((int, struct peer *));
 static	void	parse_shutdown	P((int, struct peer *));
 static	void	parse_poll	P((int, struct peer *));
 static	void	parse_control	P((int, struct refclockstat *, struct refclockstat *, struct peer *));
-
-#define	parse_buginfo	noentry
 
 struct	refclock refclock_parse = {
 	parse_start,
 	parse_shutdown,
 	parse_poll,
 	parse_control,
-	parse_init,
-	parse_buginfo,
+	noentry,
+	noentry,
 	NOFLAGS
 };
 
@@ -163,9 +214,13 @@ struct	refclock refclock_parse = {
  */
 #define	MAXUNITS	4	/* maximum number of "PARSE" units permitted */
 #define PARSEDEVICE	"/dev/refclock-%d" /* device to open %d is unit number */
+#define PARSEPPSDEVICE	"/dev/refclockpps-%d" /* optional pps device to open %d is unit number */
 
 #undef ABS
 #define ABS(_X_) (((_X_) < 0) ? -(_X_) : (_X_))
+
+#define PARSE_HARDPPS_DISABLE 0
+#define PARSE_HARDPPS_ENABLE  1
 
 /**===========================================================================
  ** function vector for dynamically binding io handling mechanism
@@ -344,9 +399,17 @@ struct parseunit
 	u_long        pollneeddata; 	/* current_time(!=0) for receive sample expected in PPS mode */
 	u_short	      lastformat;       /* last format used */
 	u_long        lastsync;		/* time (ntp) when clock was last seen fully synchronized */
-	u_long        lastmissed;       /* time (ntp) when poll didn't get data (powerup heuristic) */
+        u_long        maxunsync;        /* max time in seconds a receiver is trusted after loosing synchronisation */
+        double        ppsphaseadjust;   /* phase adjustment of PPS time stamp */
+        u_long        lastmissed;       /* time (ntp) when poll didn't get data (powerup heuristic) */
 	u_long        ppsserial;        /* magic cookie for ppsclock serials (avoids stale ppsclock data) */
-	parsetime_t   time;		/* last (parse module) data */
+	int	      ppsfd;	        /* fd to ise for PPS io */
+#ifdef HAVE_PPSAPI
+        pps_handle_t  ppshandle;        /* store PPSAPI handle */
+        pps_params_t  ppsparams;        /* current PPS parameters */
+        int           hardppsstate;     /* current hard pps state */
+#endif
+	parsetime_t   timedata;		/* last (parse module) data */
 	void         *localdata;        /* optional local, receiver-specific data */
         unsigned long localstate;       /* private local state */
 	struct errorinfo errors[ERR_CNT];  /* error state table for suppressing excessive error messages */
@@ -376,7 +439,7 @@ typedef struct poll_info
 #define NO_INIT		0
 #define NO_END		0
 #define NO_EVENT	0
-#define NO_DATA		0
+#define NO_LCLDATA	0
 #define NO_MESSAGE	0
 #define NO_PPSDELAY     0
 
@@ -397,7 +460,7 @@ typedef struct poll_info
 #define NOCLOCK_POLL		NO_POLL
 #define NOCLOCK_INIT		NO_INIT
 #define NOCLOCK_END		NO_END
-#define NOCLOCK_DATA		NO_DATA
+#define NOCLOCK_DATA		NO_LCLDATA
 #define NOCLOCK_FORMAT		""
 #define NOCLOCK_TYPE		CTL_SST_TS_UNSPEC
 #define NOCLOCK_SAMPLES		0
@@ -410,7 +473,7 @@ typedef struct poll_info
  * receiver specific constants
  */
 #define MBG_SPEED		(B9600)
-#define MBG_CFLAG		(CS7|PARENB|CREAD|CLOCAL|HUPCL)
+#define MBG_CFLAG		(CS7|PARENB|CREAD|CLOCAL|HUPCL|CSTOPB)
 #define MBG_IFLAG		(IGNBRK|IGNPAR|ISTRIP)
 #define MBG_OFLAG		0
 #define MBG_LFLAG		0
@@ -591,6 +654,11 @@ static poll_info_t wsdcf_pollinfo = { WS_POLLRATE, WS_POLLCMD, WS_CMDSIZE };
 #define CONRAD_BASEDELAY	0.292 /* Conrad receiver @ 50 Baud on a Sun */
 #define CONRAD_DESCRIPTION	"RAW DCF77 CODE (Conrad DCF77 receiver module)"
 
+/* Gude Analog- und Digitalsystem GmbH 'Expert mouseCLOCK USB v2.0' */
+#define GUDE_EMC_USB_V20_SPEED            (B4800)
+#define GUDE_EMC_USB_V20_BASEDELAY        0.425 /* USB serial<->USB converter FTDI232R */
+#define GUDE_EMC_USB_V20_DESCRIPTION      "RAW DCF77 CODE (Expert mouseCLOCK USB v2.0)"
+
 /*
  * TimeBrick receiver
  */
@@ -645,6 +713,7 @@ static	void	trimbletsip_message	P((struct parseunit *, parsetime_t *));
 static	void	trimbletsip_event	P((struct parseunit *, int));
 
 #define TRIMBLETSIP_IDLE_TIME	    (300) /* 5 minutes silence at most */
+#define TRIMBLE_RESET_HOLDOFF       TRIMBLETSIP_IDLE_TIME
 
 #define TRIMBLETAIP_SPEED	    (B4800)
 #define TRIMBLETAIP_CFLAG           (CS8|CREAD|CLOCAL)
@@ -819,7 +888,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		DCFPZF535_ROOTDELAY,
 		DCFPZF535_BASEDELAY,
 		DCF_P_ID,
@@ -842,7 +911,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		DCFPZF535OCXO_ROOTDELAY,
 		DCFPZF535OCXO_BASEDELAY,
 		DCF_P_ID,
@@ -865,7 +934,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		DCFUA31_ROOTDELAY,
 		DCFUA31_BASEDELAY,
 		DCF_A_ID,
@@ -888,7 +957,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		DCF7000_ROOTDELAY,
 		DCF7000_BASEDELAY,
 		DCF_A_ID,
@@ -934,7 +1003,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		RAWDCF_ROOTDELAY,
 		CONRAD_BASEDELAY,
 		DCF_A_ID,
@@ -957,7 +1026,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		RAWDCF_ROOTDELAY,
 		TIMEBRICK_BASEDELAY,
 		DCF_A_ID,
@@ -1003,7 +1072,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		RAWDCF_ROOTDELAY,
 		IGELCLOCK_BASEDELAY,
 		DCF_A_ID,
@@ -1103,7 +1172,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		HOPF6021_ROOTDELAY,
 		HOPF6021_BASEDELAY,
 		DCF_ID,
@@ -1126,7 +1195,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		COMPUTIME_ROOTDELAY,
 		COMPUTIME_BASEDELAY,
 		COMPUTIME_ID,
@@ -1149,7 +1218,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		RAWDCF_ROOTDELAY,
 		RAWDCF_BASEDELAY,
 		DCF_A_ID,
@@ -1172,7 +1241,7 @@ static struct parse_clockinfo
   		NO_EVENT,		        /* special event handling (e.g. reset clock) */
   		NO_END,				/* active poll end routine */
   		NO_MESSAGE,			/* process a lower layer message */
-		NO_DATA,			/* local data area for "poll" mechanism */
+		NO_LCLDATA,			/* local data area for "poll" mechanism */
 		0,				/* rootdelay */
 		11.0 /* bits */ / 9600,		/* current offset by which the RS232
 				           	time code is delayed from the actual time */
@@ -1197,7 +1266,7 @@ static struct parse_clockinfo
 		NO_EVENT,
 		NO_END,
 		NO_MESSAGE,
-		NO_DATA,
+		NO_LCLDATA,
 		RAWDCF_ROOTDELAY,
 		RAWDCF_BASEDELAY,
 		DCF_A_ID,
@@ -1220,7 +1289,7 @@ static struct parse_clockinfo
                 NO_EVENT,
                 NO_END,
                 NO_MESSAGE,
-                NO_DATA,
+                NO_LCLDATA,
                 VARITEXT_ROOTDELAY,
                 VARITEXT_BASEDELAY,
                 VARITEXT_ID,
@@ -1235,7 +1304,53 @@ static struct parse_clockinfo
                 VARITEXT_LFLAG,
                 VARITEXT_SAMPLES,
                 VARITEXT_KEEP
-        }
+        },
+	{				/* mode 18 */
+		MBG_FLAGS,
+		NO_POLL,
+		NO_INIT,
+		NO_EVENT,
+		GPS16X_END,
+		GPS16X_MESSAGE,
+		GPS16X_DATA,
+		GPS16X_ROOTDELAY,
+		GPS16X_BASEDELAY,
+		GPS16X_ID,
+		GPS16X_DESCRIPTION,
+		GPS16X_FORMAT,
+		GPS_TYPE,
+		GPS16X_MAXUNSYNC,
+		GPS16X_SPEED,
+		GPS16X_CFLAG,
+		GPS16X_IFLAG,
+		GPS16X_OFLAG,
+		GPS16X_LFLAG,
+		GPS16X_SAMPLES,
+		GPS16X_KEEP
+	},
+	{				/* mode 19 */
+		RAWDCF_FLAGS,
+		NO_POLL,
+		RAWDCF_INIT,
+		NO_EVENT,
+		NO_END,
+		NO_MESSAGE,
+		NO_LCLDATA,
+		RAWDCF_ROOTDELAY,
+		GUDE_EMC_USB_V20_BASEDELAY,
+		DCF_A_ID,
+		GUDE_EMC_USB_V20_DESCRIPTION,
+		RAWDCF_FORMAT,
+		DCF_TYPE,
+		RAWDCF_MAXUNSYNC,
+		GUDE_EMC_USB_V20_SPEED,
+		RAWDCF_CFLAG,
+		RAWDCF_IFLAG,
+		RAWDCF_OFLAG,
+		RAWDCF_LFLAG,
+		RAWDCF_SAMPLES,
+		RAWDCF_KEEP
+	},
 };
 
 static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
@@ -1251,8 +1366,6 @@ static int ncltypes = sizeof(parse_clockinfo) / sizeof(struct parse_clockinfo);
 #define	PARSEHSREFID	0x7f7f08ff	/* 127.127.8.255 refid for hi strata */
 
 #define PARSESTATISTICS   (60*60)	        /* output state statistics every hour */
-
-static struct parseunit *parseunits[MAXUNITS];
 
 static int notice = 0;
 
@@ -1551,8 +1664,8 @@ ppsclock_init(
 	 * now push the parse streams module
 	 * it will ensure exclusive access to the device
 	 */
-	if (ioctl(parse->generic->io.fd, I_PUSH, (caddr_t)m1) == -1 &&
-	    ioctl(parse->generic->io.fd, I_PUSH, (caddr_t)m2) == -1)
+	if (ioctl(parse->ppsfd, I_PUSH, (caddr_t)m1) == -1 &&
+	    ioctl(parse->ppsfd, I_PUSH, (caddr_t)m2) == -1)
 	{
 		if (errno != EINVAL)
 		{
@@ -1563,7 +1676,7 @@ ppsclock_init(
 	}
 	if (!local_init(parse))
 	{
-		(void)ioctl(parse->generic->io.fd, I_POP, (caddr_t)0);
+		(void)ioctl(parse->ppsfd, I_POP, (caddr_t)0);
 		return 0;
 	}
 
@@ -1790,7 +1903,6 @@ stream_receive(
 		ERR(ERR_BADIO)
 			msyslog(LOG_ERR,"PARSE receiver #%d: stream_receive: bad size (got %d expected %d)",
 				CLK_UNIT(parse->peer), rbufp->recv_length, (int)sizeof(parsetime_t));
-		parse->generic->baddata++;
 		parse_event(parse, CEVNT_BADREPLY);
 		return;
 	}
@@ -1807,12 +1919,12 @@ stream_receive(
 		   CLK_UNIT(parse->peer),
 		   (unsigned int)parsetime.parse_status,
 		   (unsigned int)parsetime.parse_state,
-		   (long)parsetime.parse_time.tv.tv_sec,
-		   (long)parsetime.parse_time.tv.tv_usec,
-		   (long)parsetime.parse_stime.tv.tv_sec,
-		   (long)parsetime.parse_stime.tv.tv_usec,
-		   (long)parsetime.parse_ptime.tv.tv_sec,
-		   (long)parsetime.parse_ptime.tv.tv_usec);
+		   (unsigned long)parsetime.parse_time.tv.tv_sec,
+		   (unsigned long)parsetime.parse_time.tv.tv_usec,
+		   (unsigned long)parsetime.parse_stime.tv.tv_sec,
+		   (unsigned long)parsetime.parse_stime.tv.tv_usec,
+		   (unsigned long)parsetime.parse_ptime.tv.tv_sec,
+		   (unsigned long)parsetime.parse_ptime.tv.tv_usec);
 	  }
 #endif
 
@@ -1945,17 +2057,96 @@ local_input(
 	{
 		if (parse_ioread(&parse->parseio, (unsigned int)(*s++), &ts))
 		{
-			struct recvbuf buf;
+			struct recvbuf *buf;
 
 			/*
 			 * got something good to eat
 			 */
 			if (!PARSE_PPS(parse->parseio.parse_dtime.parse_state))
 			{
+#ifdef HAVE_PPSAPI
+				if (parse->flags & PARSE_PPSCLOCK)
+				{
+					struct timespec pps_timeout;
+					pps_info_t      pps_info;
+				
+					pps_timeout.tv_sec  = 0;
+					pps_timeout.tv_nsec = 0;
+
+					if (time_pps_fetch(parse->ppshandle, PPS_TSFMT_TSPEC, &pps_info,
+							   &pps_timeout) == 0)
+					{
+						if (pps_info.assert_sequence + pps_info.clear_sequence != parse->ppsserial)
+						{
+							double dtemp;
+
+						        struct timespec pts;
+							/*
+							 * add PPS time stamp if available via ppsclock module
+							 * and not supplied already.
+							 */
+							if (parse->flags & PARSE_CLEAR)
+							  pts = pps_info.clear_timestamp;
+							else
+							  pts = pps_info.assert_timestamp;
+
+							parse->parseio.parse_dtime.parse_ptime.fp.l_ui = pts.tv_sec + JAN_1970;
+
+							dtemp = pts.tv_nsec / 1e9;
+							if (dtemp < 0.) {
+								dtemp += 1;
+								parse->parseio.parse_dtime.parse_ptime.fp.l_ui--;
+							}
+							if (dtemp > 1.) {
+								dtemp -= 1;
+								parse->parseio.parse_dtime.parse_ptime.fp.l_ui++;
+							}
+							parse->parseio.parse_dtime.parse_ptime.fp.l_uf = dtemp * FRAC;
+
+						        parse->parseio.parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
+#ifdef DEBUG
+							if (debug > 3)
+							{
+								printf(
+								       "parse: local_receive: fd %d PPSAPI seq %ld - PPS %s\n",
+								       rbufp->fd,
+								       (long)pps_info.assert_sequence + (long)pps_info.clear_sequence,
+								       lfptoa(&parse->parseio.parse_dtime.parse_ptime.fp, 6));
+							}
+#endif
+						}
+#ifdef DEBUG
+						else
+						{
+							if (debug > 3)
+							{
+								printf(
+								       "parse: local_receive: fd %d PPSAPI seq assert %ld, seq clear %ld - NO PPS event\n",
+								       rbufp->fd,
+								       (long)pps_info.assert_sequence, (long)pps_info.clear_sequence);
+							}
+						}
+#endif
+						parse->ppsserial = pps_info.assert_sequence + pps_info.clear_sequence;
+					}
+#ifdef DEBUG
+					else
+					{
+						if (debug > 3)
+						{
+							printf(
+							       "parse: local_receive: fd %d PPSAPI time_pps_fetch errno = %d\n",
+							       rbufp->fd,
+							       errno);
+						}
+					}
+#endif
+				}
+#else
 #ifdef TIOCDCDTIMESTAMP
 				struct timeval dcd_time;
 				
-				if (ioctl(rbufp->fd, TIOCDCDTIMESTAMP, &dcd_time) != -1)
+				if (ioctl(parse->ppsfd, TIOCDCDTIMESTAMP, &dcd_time) != -1)
 				{
 					l_fp tstmp;
 					
@@ -1969,7 +2160,7 @@ local_input(
 						{
 							printf(
 							       "parse: local_receive: fd %d DCDTIMESTAMP %s\n",
-							       rbufp->fd,
+							       parse->ppsfd,
 							       lfptoa(&tstmp, 6));
 							printf(" sigio %s\n",
 							       lfptoa(&ts.fp, 6));
@@ -1982,54 +2173,58 @@ local_input(
 #else /* TIOCDCDTIMESTAMP */
 #if defined(HAVE_STRUCT_PPSCLOCKEV) && (defined(HAVE_CIOGETEV) || defined(HAVE_TIOCGPPSEV))
 				if (parse->flags & PARSE_PPSCLOCK)
-				{
-					l_fp tts;
-					struct ppsclockev ev;
+				  {
+				    l_fp tts;
+				    struct ppsclockev ev;
 
 #ifdef HAVE_CIOGETEV
-					if (ioctl(parse->generic->io.fd, CIOGETEV, (caddr_t)&ev) == 0)
+				    if (ioctl(parse->ppsfd, CIOGETEV, (caddr_t)&ev) == 0)
 #endif
 #ifdef HAVE_TIOCGPPSEV
-					if (ioctl(parse->generic->io.fd, TIOCGPPSEV, (caddr_t)&ev) == 0)
+				    if (ioctl(parse->ppsfd, TIOCGPPSEV, (caddr_t)&ev) == 0)
 #endif
 					{
-						if (ev.serial != parse->ppsserial)
+					  if (ev.serial != parse->ppsserial)
+					    {
+					      /*
+					       * add PPS time stamp if available via ppsclock module
+					       * and not supplied already.
+					       */
+					      if (!buftvtots((const char *)&ev.tv, &tts))
 						{
-							/*
-							 * add PPS time stamp if available via ppsclock module
-							 * and not supplied already.
-							 */
-							if (!buftvtots((const char *)&ev.tv, &tts))
-							{
-								ERR(ERR_BADDATA)
-									msyslog(LOG_ERR,"parse: local_receive: timestamp conversion error (buftvtots) (ppsclockev.tv)");
-							}
-							else
-							{
-								parse->parseio.parse_dtime.parse_ptime.fp = tts;
-								parse->parseio.parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
-							}
+						  ERR(ERR_BADDATA)
+						    msyslog(LOG_ERR,"parse: local_receive: timestamp conversion error (buftvtots) (ppsclockev.tv)");
 						}
-						parse->ppsserial = ev.serial;
+					      else
+						{
+						  parse->parseio.parse_dtime.parse_ptime.fp = tts;
+						  parse->parseio.parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
+						}
+					    }
+					  parse->ppsserial = ev.serial;
 					}
-				}
+				  }
 #endif
 #endif /* TIOCDCDTIMESTAMP */
+#endif /* !HAVE_PPSAPI */
 			}
 			if (count)
 			{	/* simulate receive */
-				memmove((caddr_t)buf.recv_buffer,
-					(caddr_t)&parse->parseio.parse_dtime,
-					sizeof(parsetime_t));
+				buf = get_free_recv_buffer();
+				if (buf != NULL) {
+					memmove((caddr_t)buf->recv_buffer,
+						(caddr_t)&parse->parseio.parse_dtime,
+						sizeof(parsetime_t));
+					buf->recv_length  = sizeof(parsetime_t);
+					buf->recv_time    = rbufp->recv_time;
+					buf->srcadr       = rbufp->srcadr;
+					buf->dstadr       = rbufp->dstadr;
+					buf->receiver     = rbufp->receiver;
+					buf->fd           = rbufp->fd;
+					buf->X_from_where = rbufp->X_from_where;
+					add_full_recv_buffer(buf);
+				}
 				parse_iodone(&parse->parseio);
-				buf.recv_length = sizeof(parsetime_t);
-				buf.recv_time = rbufp->recv_time;
-				buf.srcadr = rbufp->srcadr;
-				buf.dstadr = rbufp->dstadr;
-				buf.fd     = rbufp->fd;
-				buf.next = 0;
-				buf.X_from_where = rbufp->X_from_where;
-				rbufp->receiver(&buf);
 			}
 			else
 			{
@@ -2064,7 +2259,6 @@ local_receive(
 		ERR(ERR_BADIO)
 			msyslog(LOG_ERR,"PARSE receiver #%d: local_receive: bad size (got %d expected %d)",
 				CLK_UNIT(parse->peer), rbufp->recv_length, (int)sizeof(parsetime_t));
-		parse->generic->baddata++;
 		parse_event(parse, CEVNT_BADREPLY);
 		return;
 	}
@@ -2077,16 +2271,16 @@ local_receive(
 #ifdef DEBUG
 	if (debug > 3)
 	  {
-	    printf("PARSE receiver #%d: status %06x, state %08x, time %lx.%08lx, stime %lx.%08lx, ptime %lx.%08lx\n",
+	    printf("PARSE receiver #%d: status %06x, state %08x, time(fp) %lx.%08lx, stime(fp) %lx.%08lx, ptime(fp) %lx.%08lx\n",
 		   CLK_UNIT(parse->peer),
 		   (unsigned int)parsetime.parse_status,
 		   (unsigned int)parsetime.parse_state,
-		   (long)parsetime.parse_time.tv.tv_sec,
-		   (long)parsetime.parse_time.tv.tv_usec,
-		   (long)parsetime.parse_stime.tv.tv_sec,
-		   (long)parsetime.parse_stime.tv.tv_usec,
-		   (long)parsetime.parse_ptime.tv.tv_sec,
-		   (long)parsetime.parse_ptime.tv.tv_usec);
+		   (unsigned long)parsetime.parse_time.fp.l_ui,
+		   (unsigned long)parsetime.parse_time.fp.l_uf,
+		   (unsigned long)parsetime.parse_stime.fp.l_ui,
+		   (unsigned long)parsetime.parse_stime.fp.l_uf,
+		   (unsigned long)parsetime.parse_ptime.fp.l_ui,
+		   (unsigned long)parsetime.parse_ptime.fp.l_uf);
 	  }
 #endif
 
@@ -2124,7 +2318,8 @@ init_iobinding(
 static char *
 parsestate(
 	u_long lstate,
-	char *buffer
+	char *buffer,
+	int size
 	)
 {
 	static struct bits
@@ -2161,31 +2356,35 @@ parsestate(
 		  { 0 }
 	  };
 	int i;
+	char *s, *t;
+
 
 	*buffer = '\0';
+	s = t = buffer;
 
 	i = 0;
 	while (flagstrings[i].bit)
 	{
 		if (flagstrings[i].bit & lstate)
 		{
-			if (buffer[0])
-			    strcat(buffer, "; ");
-			strcat(buffer, flagstrings[i].name);
+			if (s != t)
+				strncpy(t, "; ", BUFFER_SIZES(buffer, t, size));
+			strncat(t, flagstrings[i].name, BUFFER_SIZES(buffer, t, size));
+			t += strlen(t);
 		}
 		i++;
 	}
 
 	if (lstate & (PARSEB_S_LEAP|PARSEB_S_ANTENNA|PARSEB_S_PPS|PARSEB_S_POSITION))
 	{
-      char *s, *t;
+		if (s != t)
+			strncpy(t, "; ", BUFFER_SIZES(buffer, t, size));
 
-		if (buffer[0])
-		    strcat(buffer, "; ");
+		t += strlen(t);
 
-		strcat(buffer, "(");
+		strncpy(t, "(", BUFFER_SIZES(buffer, t, size));
 
-		t = s = buffer + strlen(buffer);
+		s = t = t + strlen(t);
 
 		i = 0;
 		while (sflagstrings[i].bit)
@@ -2194,16 +2393,16 @@ parsestate(
 			{
 				if (t != s)
 				{
-					strcpy(t, "; ");
+					strncpy(t, "; ", BUFFER_SIZES(buffer, t, size));
 					t += 2;
 				}
 	
-				strcpy(t, sflagstrings[i].name);
+				strncpy(t, sflagstrings[i].name, BUFFER_SIZES(buffer, t, size));
 				t += strlen(t);
 			}
 			i++;
 		}
-		strcpy(t, ")");
+		strncpy(t, ")", BUFFER_SIZES(buffer, t, size));
 	}
 	return buffer;
 }
@@ -2214,7 +2413,8 @@ parsestate(
 static char *
 parsestatus(
 	u_long lstate,
-	char *buffer
+	char *buffer,
+	int size
 	)
 {
 	static struct bits
@@ -2242,8 +2442,8 @@ parsestatus(
 		if (flagstrings[i].bit & lstate)
 		{
 			if (buffer[0])
-			    strcat(buffer, "; ");
-			strcat(buffer, flagstrings[i].name);
+				strncat(buffer, "; ", size);
+			strncat(buffer, flagstrings[i].name, size);
 		}
 		i++;
 	}
@@ -2287,7 +2487,7 @@ clockstatus(
 		i++;
 	}
 
-	sprintf(buffer, "unknown #%ld", (u_long)lstate);
+	snprintf(buffer, sizeof(buffer), "unknown #%ld", (u_long)lstate);
 
 	return buffer;
 }
@@ -2303,12 +2503,13 @@ l_mktime(
 {
 	u_long tmp, m, s;
 	static char buffer[40];
+	char *t;
 
 	buffer[0] = '\0';
 
 	if ((tmp = delta / (60*60*24)) != 0)
 	{
-		sprintf(buffer, "%ldd+", (u_long)tmp);
+		snprintf(buffer, BUFFER_SIZE(buffer, buffer), "%ldd+", (u_long)tmp);
 		delta -= tmp * 60*60*24;
 	}
 
@@ -2317,8 +2518,10 @@ l_mktime(
 	m = delta % 60;
 	delta /= 60;
 
-	sprintf(buffer+strlen(buffer), "%02d:%02d:%02d",
-		(int)delta, (int)m, (int)s);
+	t = buffer + strlen(buffer);
+
+	snprintf(t, BUFFER_SIZE(buffer, t), "%02d:%02d:%02d",
+		 (int)delta, (int)m, (int)s);
 
 	return buffer;
 }
@@ -2377,7 +2580,7 @@ parse_statistics(
  */
 static void
 cparse_statistics(
-	register struct parseunit *parse
+        struct parseunit *parse
 	)
 {
 	if (parse->laststatistic + PARSESTATISTICS < current_time)
@@ -2390,16 +2593,6 @@ cparse_statistics(
  **/
 
 /*--------------------------------------------------
- * parse_init - initialize internal parse driver data
- */
-static void
-parse_init(void)
-{
-	memset((caddr_t)parseunits, 0, sizeof parseunits);
-}
-
-
-/*--------------------------------------------------
  * parse_shutdown - shut down a PARSE clock
  */
 static void
@@ -2408,14 +2601,31 @@ parse_shutdown(
 	struct peer *peer
 	)
 {
-	struct parseunit *parse = (struct parseunit *)peer->procptr->unitptr;
+	struct parseunit *parse = (struct parseunit *)0;
 
-	if (parse && !parse->peer)
+	if (peer && peer->procptr)
+		parse = (struct parseunit *)peer->procptr->unitptr;
+
+	if (!parse)
 	{
-		msyslog(LOG_ERR,
-			"PARSE receiver #%d: parse_shutdown: INTERNAL ERROR, unit not in use", unit);
+		/* nothing to clean up */
 		return;
 	}
+
+        if (!parse->peer)
+	{
+		msyslog(LOG_INFO, "PARSE receiver #%d: INTERNAL ERROR - unit already inactive - shutdown ignored", unit);
+		return;
+	}
+
+#ifdef HAVE_PPSAPI
+	if (parse->flags & PARSE_PPSCLOCK)
+	{
+		(void)time_pps_destroy(parse->ppshandle);
+	}
+#endif
+	if (parse->generic->io.fd != parse->ppsfd && parse->ppsfd != -1)
+		(void)close(parse->ppsfd);  /* close separate PPS source */
 
 	/*
 	 * print statistics a last time and
@@ -2428,6 +2638,9 @@ parse_shutdown(
 		parse->parse_type->cl_end(parse);
 	}
 	
+	/*
+	 * cleanup before leaving this world
+	 */
 	if (parse->binding)
 	    PARSE_END(parse);
 
@@ -2443,8 +2656,137 @@ parse_shutdown(
 			CLK_UNIT(parse->peer), parse->parse_type->cl_description);
 
 	parse->peer = (struct peer *)0; /* unused now */
+	peer->procptr->unitptr = (caddr_t)0;
 	free(parse);
 }
+
+#ifdef HAVE_PPSAPI
+/*----------------------------------------
+ * set up HARDPPS via PPSAPI
+ */
+static void
+parse_hardpps(
+	      struct parseunit *parse,
+	      int mode
+	      )
+{
+        if (parse->hardppsstate == mode)
+	        return;
+
+	if (CLK_PPS(parse->peer) && (parse->flags & PARSE_PPSKERNEL)) {
+		int	i = 0;
+
+		if (mode == PARSE_HARDPPS_ENABLE) 
+		        {
+			        if (parse->flags & PARSE_CLEAR)
+				        i = PPS_CAPTURECLEAR;
+				else
+				        i = PPS_CAPTUREASSERT;
+			}
+		
+		if (time_pps_kcbind(parse->ppshandle, PPS_KC_HARDPPS, i,
+		    PPS_TSFMT_TSPEC) < 0) {
+		        msyslog(LOG_ERR, "PARSE receiver #%d: time_pps_kcbind failed: %m",
+				CLK_UNIT(parse->peer));
+		} else {
+		        NLOG(NLOG_CLOCKINFO)
+		                msyslog(LOG_INFO, "PARSE receiver #%d: kernel PPS synchronisation %sabled",
+					CLK_UNIT(parse->peer), (mode == PARSE_HARDPPS_ENABLE) ? "en" : "dis");
+			/*
+			 * tell the rest, that we have a kernel PPS source, iff we ever enable HARDPPS
+			 */
+			if (mode == PARSE_HARDPPS_ENABLE)
+			        pps_enable = 1;
+		}
+	}
+
+	parse->hardppsstate = mode;
+}
+
+/*----------------------------------------
+ * set up PPS via PPSAPI
+ */
+static int
+parse_ppsapi(
+	     struct parseunit *parse
+	)
+{
+	int cap, mode, mode1;
+	char *cp;
+	
+	parse->flags &= ~PARSE_PPSCLOCK;
+
+	if (time_pps_getcap(parse->ppshandle, &cap) < 0) {
+		msyslog(LOG_ERR, "PARSE receiver #%d: parse_ppsapi: time_pps_getcap failed: %m",
+			CLK_UNIT(parse->peer));
+		
+		return 0;
+	}
+
+	if (time_pps_getparams(parse->ppshandle, &parse->ppsparams) < 0) {
+		msyslog(LOG_ERR, "PARSE receiver #%d: parse_ppsapi: time_pps_getparams failed: %m",
+			CLK_UNIT(parse->peer));
+		return 0;
+	}
+
+	/* nb. only turn things on, if someone else has turned something
+	 *	on before we get here, leave it alone!
+	 */
+
+	if (parse->flags & PARSE_CLEAR) {
+		cp = "CLEAR";
+		mode = PPS_CAPTURECLEAR;
+		mode1 = PPS_OFFSETCLEAR;
+	} else {
+		cp = "ASSERT";
+		mode = PPS_CAPTUREASSERT;
+		mode1 = PPS_OFFSETASSERT;
+	}
+
+	msyslog(LOG_INFO, "PARSE receiver #%d: initializing PPS to %s",
+		CLK_UNIT(parse->peer), cp);
+
+	if (!(mode & cap)) {
+	  msyslog(LOG_ERR, "PARSE receiver #%d: FAILED to initialize PPS to %s (PPS API capabilities=0x%x)",
+		  CLK_UNIT(parse->peer), cp, cap);
+	
+		return 0;
+	}
+
+	if (!(mode1 & cap)) {
+	  msyslog(LOG_WARNING, "PARSE receiver #%d: Cannot set PPS_%sCLEAR, this will increase jitter (PPS API capabilities=0x%x)",
+		  CLK_UNIT(parse->peer), cp, cap);
+		mode1 = 0;
+	} else {
+	        if (mode1 == PPS_OFFSETCLEAR) 
+		        {
+			        parse->ppsparams.clear_offset.tv_sec = -parse->ppsphaseadjust;
+			        parse->ppsparams.clear_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
+			}
+	  
+		if (mode1 == PPS_OFFSETASSERT)
+	                {
+		                parse->ppsparams.assert_offset.tv_sec = -parse->ppsphaseadjust;
+				parse->ppsparams.assert_offset.tv_nsec = -1e9*(parse->ppsphaseadjust - (long)parse->ppsphaseadjust);
+			}
+	}
+	
+	/* only set what is legal */
+
+	parse->ppsparams.mode = (mode | mode1 | PPS_TSFMT_TSPEC) & cap;
+
+	if (time_pps_setparams(parse->ppshandle, &parse->ppsparams) < 0) {
+	  msyslog(LOG_ERR, "PARSE receiver #%d: FAILED set PPS parameters: %m",
+		  CLK_UNIT(parse->peer));
+		return 0;
+	}
+
+	parse->flags |= PARSE_PPSCLOCK;
+	return 1;
+}
+#else
+#define parse_hardpps(_PARSE_, _MODE_) /* empty */
+#endif
 
 /*--------------------------------------------------
  * parse_start - open the PARSE devices and initialize data for processing
@@ -2465,8 +2807,19 @@ parse_start(
 #endif
 	struct parseunit * parse;
 	char parsedev[sizeof(PARSEDEVICE)+20];
+	char parseppsdev[sizeof(PARSEPPSDEVICE)+20];
 	parsectl_t tmp_ctl;
 	u_int type;
+
+	/*
+	 * get out Copyright information once
+	 */
+	if (!notice)
+        {
+		NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
+			msyslog(LOG_INFO, "NTP PARSE support: Copyright (c) 1989-2006, Frank Kardel");
+		notice = 1;
+	}
 
 	type = CLK_TYPE(peer);
 	unit = CLK_UNIT(peer);
@@ -2481,7 +2834,8 @@ parse_start(
 	/*
 	 * Unit okay, attempt to open the device.
 	 */
-	(void) sprintf(parsedev, PARSEDEVICE, unit);
+	(void) snprintf(parsedev, sizeof(parsedev), PARSEDEVICE, unit);
+	(void) snprintf(parseppsdev, sizeof(parsedev), PARSEPPSDEVICE, unit);
 
 #ifndef O_NOCTTY
 #define O_NOCTTY 0
@@ -2512,15 +2866,14 @@ parse_start(
 	parse->generic->timestarted    = current_time;
 	parse->lastchange     = current_time;
 
-	parse->generic->currentstatus	        = CEVNT_TIMEOUT; /* expect the worst */
-
 	parse->flags          = 0;
 	parse->pollneeddata   = 0;
 	parse->laststatistic  = current_time;
 	parse->lastformat     = (unsigned short)~0;	/* assume no format known */
-	parse->time.parse_status = (unsigned short)~0;	/* be sure to mark initial status change */
+	parse->timedata.parse_status = (unsigned short)~0;	/* be sure to mark initial status change */
 	parse->lastmissed     = 0;	/* assume got everything */
 	parse->ppsserial      = 0;
+	parse->ppsfd	      = -1;
 	parse->localdata      = (void *)0;
 	parse->localstate     = 0;
 	parse->kv             = (struct ctl_var *)0;
@@ -2529,17 +2882,21 @@ parse_start(
   
 	parse->parse_type     = &parse_clockinfo[type];
 	
+	parse->maxunsync      = parse->parse_type->cl_maxunsync;
+
 	parse->generic->fudgetime1 = parse->parse_type->cl_basedelay;
 
 	parse->generic->fudgetime2 = 0.0;
+	parse->ppsphaseadjust = parse->generic->fudgetime2;
 
-	parse->generic->clockdesc = parse->parse_type->cl_description;
+	parse->generic->clockdesc  = parse->parse_type->cl_description;
 
 	peer->rootdelay       = parse->parse_type->cl_rootdelay;
 	peer->sstclktype      = parse->parse_type->cl_type;
 	peer->precision       = sys_precision;
 	
 	peer->stratum         = STRATUM_REFCLOCK;
+
 	if (peer->stratum <= 1)
 	    memmove((char *)&parse->generic->refid, parse->parse_type->cl_id, 4);
 	else
@@ -2607,38 +2964,84 @@ parse_start(
 		tio.c_cflag     |= parse_clockinfo[type].cl_speed;
 #endif
 
+		/*
+		 * set up pps device
+		 * if the PARSEPPSDEVICE can be opened that will be used
+		 * for PPS else PARSEDEVICE will be used
+		 */
+		parse->ppsfd = open(parseppsdev, O_RDWR | O_NOCTTY
+#ifdef O_NONBLOCK
+				    | O_NONBLOCK
+#endif
+				    , 0777);
+
+		if (parse->ppsfd == -1)
+		{
+			parse->ppsfd = fd232;
+		}
+
+/*
+ * Linux PPS - the old way
+ */
 #if defined(HAVE_TIO_SERIAL_STUFF)		/* Linux hack: define PPS interface */
 		{
-		  struct serial_struct	ss;
-		  if (ioctl(fd232, TIOCGSERIAL, &ss) < 0 ||
-		      (
+			struct serial_struct	ss;
+			if (ioctl(parse->ppsfd, TIOCGSERIAL, &ss) < 0 ||
+			    (
 #ifdef ASYNC_LOW_LATENCY
-		       ss.flags |= ASYNC_LOW_LATENCY,
+			     ss.flags |= ASYNC_LOW_LATENCY,
 #endif
+#ifndef HAVE_PPSAPI
 #ifdef ASYNC_PPS_CD_NEG
-		       ss.flags |= ASYNC_PPS_CD_NEG,
+			     ss.flags |= ASYNC_PPS_CD_NEG,
 #endif
-		       ioctl(fd232, TIOCSSERIAL, &ss)) < 0) {
-		    msyslog(LOG_NOTICE, "refclock_parse: TIOCSSERIAL fd %d, %m", fd232);
-		    msyslog(LOG_NOTICE,
-			    "refclock_parse: optional PPS processing not available");
-		  } else {
-		    parse->flags    |= PARSE_PPSCLOCK;
-		    msyslog(LOG_INFO,
-			    "refclock_parse: PPS detection on");
-		  }
+#endif
+			     ioctl(parse->ppsfd, TIOCSSERIAL, &ss)) < 0) {
+				msyslog(LOG_NOTICE, "refclock_parse: TIOCSSERIAL fd %d, %m", parse->ppsfd);
+				msyslog(LOG_NOTICE,
+					"refclock_parse: optional PPS processing not available");
+			} else {
+				parse->flags    |= PARSE_PPSCLOCK;
+#ifdef ASYNC_PPS_CD_NEG
+				NLOG(NLOG_CLOCKINFO)
+				  msyslog(LOG_INFO,
+					  "refclock_parse: PPS detection on");
+#endif
+			}
 		}
 #endif
+
+/*
+ * SUN the Solaris way
+ */
 #ifdef HAVE_TIOCSPPS			/* SUN PPS support */
 		if (CLK_PPS(parse->peer))
-		  {
-		    int i = 1;
+		    {
+			int i = 1;
 		    
-		    if (ioctl(fd232, TIOCSPPS, (caddr_t)&i) == 0)
-		      {
-			parse->flags |= PARSE_PPSCLOCK;
-		      }
-		  }
+			if (ioctl(parse->ppsfd, TIOCSPPS, (caddr_t)&i) == 0)
+			    {
+				parse->flags |= PARSE_PPSCLOCK;
+			    }
+		    }
+#endif
+
+/*
+ * PPS via PPSAPI
+ */
+#if defined(HAVE_PPSAPI)
+		parse->hardppsstate = PARSE_HARDPPS_DISABLE;
+		if (CLK_PPS(parse->peer))
+		{
+		  if (time_pps_create(parse->ppsfd, &parse->ppshandle) < 0) 
+		    {
+		      msyslog(LOG_NOTICE, "PARSE receiver #%d: parse_start: could not set up PPS: %m", CLK_UNIT(parse->peer));
+		    }
+		  else
+		    {
+		      parse_ppsapi(parse);
+		    }
+		}
 #endif
 
 		if (TTY_SETATTR(fd232, &tio) == -1)
@@ -2650,22 +3053,12 @@ parse_start(
 	}
 
 	/*
-	 * Insert in async io device list.
+	 * pick correct input machine
 	 */
 	parse->generic->io.srcclock = (caddr_t)parse;
 	parse->generic->io.datalen = 0;
 	
-	if (!io_addclock(&parse->generic->io))
-        {
-		msyslog(LOG_ERR,
-			"PARSE receiver #%d: parse_start: addclock %s fails (ABORT - clock type requires async io)", CLK_UNIT(parse->peer), parsedev);
-		parse_shutdown(CLK_UNIT(parse->peer), peer); /* let our cleaning staff do the work */
-		return 0;
-	}
-
 	parse->binding = init_iobinding(parse);
-	parse->generic->io.clock_recv = parse->binding->bd_receive; /* pick correct receive routine */
-	parse->generic->io.io_input   = parse->binding->bd_io_input; /* pick correct input routine */
 
 	if (parse->binding == (bind_t *)0)
 		{
@@ -2673,6 +3066,9 @@ parse_start(
 			parse_shutdown(CLK_UNIT(parse->peer), peer); /* let our cleaning staff do the work */
 			return 0;			/* well, ok - special initialisation broke */
 		}      
+
+	parse->generic->io.clock_recv = parse->binding->bd_receive; /* pick correct receive routine */
+	parse->generic->io.io_input   = parse->binding->bd_io_input; /* pick correct input routine */
 
 	/*
 	 * as we always(?) get 8 bit chars we want to be
@@ -2708,7 +3104,7 @@ parse_start(
 		return 0;			/* well, ok - special initialisation broke */
 	}
   
-	strcpy(tmp_ctl.parseformat.parse_buffer, parse->parse_type->cl_format);
+	strncpy(tmp_ctl.parseformat.parse_buffer, parse->parse_type->cl_format, sizeof(tmp_ctl.parseformat.parse_buffer));
 	tmp_ctl.parseformat.parse_count = strlen(tmp_ctl.parseformat.parse_buffer);
 
 	if (!PARSE_SETFMT(parse, &tmp_ctl))
@@ -2724,11 +3120,8 @@ parse_start(
 #ifdef HAVE_TERMIOS
 	(void) tcflush(parse->generic->io.fd, TCIOFLUSH);
 #else
-#ifdef TCFLSH
+#if defined(TCFLSH) && defined(TCIOFLUSH)
 	{
-#ifndef TCIOFLUSH
-#define TCIOFLUSH 2
-#endif
 		int flshcmd = TCIOFLUSH;
 
 		(void) ioctl(parse->generic->io.fd, TCFLSH, (caddr_t)&flshcmd);
@@ -2749,13 +3142,14 @@ parse_start(
 		}
 	
 	/*
-	 * get out Copyright information once
+	 * Insert in async io device list.
 	 */
-	if (!notice)
+	if (!io_addclock(&parse->generic->io))
         {
-		NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
-			msyslog(LOG_INFO, "NTP PARSE support: Copyright (c) 1989-1999, Frank Kardel");
-		notice = 1;
+		msyslog(LOG_ERR,
+			"PARSE receiver #%d: parse_start: addclock %s fails (ABORT - clock type requires async io)", CLK_UNIT(parse->peer), parsedev);
+		parse_shutdown(CLK_UNIT(parse->peer), peer); /* let our cleaning staff do the work */
+		return 0;
 	}
 
 	/*
@@ -2764,30 +3158,96 @@ parse_start(
 	NLOG(NLOG_CLOCKINFO)
 		{
 			/* conditional if clause for conditional syslog */
-			msyslog(LOG_INFO, "PARSE receiver #%d: reference clock \"%s\" (device %s) added",
+			msyslog(LOG_INFO, "PARSE receiver #%d: reference clock \"%s\" (I/O device %s, PPS device %s) added",
 				CLK_UNIT(parse->peer),
-				parse->parse_type->cl_description, parsedev);
+				parse->parse_type->cl_description, parsedev,
+				(parse->ppsfd != parse->generic->io.fd) ? parseppsdev : parsedev);
 
-			msyslog(LOG_INFO, "PARSE receiver #%d:  Stratum %d, %sPPS support, trust time %s, precision %d",
+			msyslog(LOG_INFO, "PARSE receiver #%d: Stratum %d, trust time %s, precision %d",
 				CLK_UNIT(parse->peer),
-				parse->peer->stratum, CLK_PPS(parse->peer) ? "" : "no ",
-				l_mktime(parse->parse_type->cl_maxunsync), parse->peer->precision);
+				parse->peer->stratum,
+				l_mktime(parse->maxunsync), parse->peer->precision);
 
-			msyslog(LOG_INFO, "PARSE receiver #%d:  rootdelay %.6f s, phaseadjust %.6f s, %s IO handling",
+			msyslog(LOG_INFO, "PARSE receiver #%d: rootdelay %.6f s, phase adjustment %.6f s, PPS phase adjustment %.6f s, %s IO handling",
 				CLK_UNIT(parse->peer),
 				parse->parse_type->cl_rootdelay,
 				parse->generic->fudgetime1,
-				parse->binding->bd_description);
+				parse->ppsphaseadjust,
+                                parse->binding->bd_description);
 
-			msyslog(LOG_INFO, "PARSE receiver #%d:  Format recognition: %s", CLK_UNIT(parse->peer),
+			msyslog(LOG_INFO, "PARSE receiver #%d: Format recognition: %s", CLK_UNIT(parse->peer),
 				parse->parse_type->cl_format);
-#ifdef PPS
-                        msyslog(LOG_INFO, "PARSE receiver #%d:  %sPPS ioctl support", CLK_UNIT(parse->peer),
-				(parse->flags & PARSE_PPSCLOCK) ? "" : "NO ");
+                        msyslog(LOG_INFO, "PARSE receiver #%d: %sPPS support%s", CLK_UNIT(parse->peer),
+				CLK_PPS(parse->peer) ? "" : "NO ",
+				CLK_PPS(parse->peer) ?
+#ifdef PPS_METHOD
+				" (implementation " PPS_METHOD ")"
+#else
+				""
 #endif
+				: ""
+				);
 		}
 
 	return 1;
+}
+
+/*--------------------------------------------------
+ * parse_ctl - process changes on flags/time values
+ */
+static void
+parse_ctl(
+	    struct parseunit *parse,
+	    struct refclockstat *in
+	    )
+{
+        if (in)
+	{
+		if (in->haveflags & (CLK_HAVEFLAG1|CLK_HAVEFLAG2|CLK_HAVEFLAG3|CLK_HAVEFLAG4))
+		{
+		  parse->flags = (parse->flags & ~(CLK_FLAG1|CLK_FLAG2|CLK_FLAG3|CLK_FLAG4)) |
+		    (in->flags & (CLK_FLAG1|CLK_FLAG2|CLK_FLAG3|CLK_FLAG4));
+#if defined(HAVE_PPSAPI)
+		  if (CLK_PPS(parse->peer))
+		    {
+		      parse_ppsapi(parse);
+		    }
+#endif
+		}
+		
+		if (in->haveflags & CLK_HAVETIME1)
+                {
+		  parse->generic->fudgetime1 = in->fudgetime1;
+		  msyslog(LOG_INFO, "PARSE receiver #%d: new phase adjustment %.6f s",
+			  CLK_UNIT(parse->peer),
+			  parse->generic->fudgetime1);
+		}
+		
+		if (in->haveflags & CLK_HAVETIME2)
+                {
+		  parse->generic->fudgetime2 = in->fudgetime2;
+		  if (parse->flags & PARSE_TRUSTTIME) 
+		    {
+		      parse->maxunsync = (u_long)ABS(in->fudgetime2);
+		      msyslog(LOG_INFO, "PARSE receiver #%d: new trust time %s",
+			      CLK_UNIT(parse->peer),
+			      l_mktime(parse->maxunsync));
+		    }
+		  else
+		    {
+		      parse->ppsphaseadjust = in->fudgetime2;
+		      msyslog(LOG_INFO, "PARSE receiver #%d: new PPS phase adjustment %.6f s",
+			  CLK_UNIT(parse->peer),
+			      parse->ppsphaseadjust);
+#if defined(HAVE_PPSAPI)
+		      if (CLK_PPS(parse->peer))
+		      {
+			      parse_ppsapi(parse);
+		      }
+#endif
+		    }
+		}
+	}
 }
 
 /*--------------------------------------------------
@@ -2821,12 +3281,11 @@ parse_poll(
 		 * start worrying when exceeding a poll inteval
 		 * bad news - didn't get a response last time
 		 */
-		parse->generic->noreply++;
 		parse->lastmissed = current_time;
 		parse_event(parse, CEVNT_TIMEOUT);
 		
 		ERR(ERR_NODATA)
-			msyslog(LOG_WARNING, "PARSE receiver #%d: no data from device within poll interval (check receiver / cableling)", CLK_UNIT(parse->peer));
+			msyslog(LOG_WARNING, "PARSE receiver #%d: no data from device within poll interval (check receiver / wiring)", CLK_UNIT(parse->peer));
 	}
 
 	/*
@@ -2857,7 +3316,7 @@ parse_control(
 	struct peer *peer
 	)
 {
-	register struct parseunit *parse = (struct parseunit *)peer->procptr->unitptr;
+        struct parseunit *parse = (struct parseunit *)peer->procptr->unitptr;
 	parsectl_t tmpctl;
 
 	static char outstatus[400];	/* status output buffer */
@@ -2878,32 +3337,36 @@ parse_control(
 
 	unit = CLK_UNIT(parse->peer);
 
-	if (in)
-	{
-		if (in->haveflags & (CLK_HAVEFLAG1|CLK_HAVEFLAG2|CLK_HAVEFLAG3|CLK_HAVEFLAG4))
-		{
-			parse->flags = in->flags & (CLK_FLAG1|CLK_FLAG2|CLK_FLAG3|CLK_FLAG4);
-		}
-	}
-
+	/*
+	 * handle changes
+	 */
+	parse_ctl(parse, in);
+		
+	/*
+	 * supply data
+	 */
 	if (out)
 	{
 		u_long sum = 0;
-		char *t, *tt, *start;
+		char *tt, *start;
 		int i;
 
 		outstatus[0] = '\0';
 
 		out->type       = REFCLK_PARSE;
-		out->haveflags |= CLK_HAVETIME2;
+
+		/*
+		 * keep fudgetime2 in sync with TRUSTTIME/MAXUNSYNC flag1
+		 */
+		parse->generic->fudgetime2 = (parse->flags & PARSE_TRUSTTIME) ? (double)parse->maxunsync : parse->ppsphaseadjust;
 
 		/*
 		 * figure out skew between PPS and RS232 - just for informational
-		 * purposes - returned in time2 value
+		 * purposes
 		 */
-		if (PARSE_SYNC(parse->time.parse_state))
+		if (PARSE_SYNC(parse->timedata.parse_state))
 		{
-			if (PARSE_PPS(parse->time.parse_state) && PARSE_TIMECODE(parse->time.parse_state))
+			if (PARSE_PPS(parse->timedata.parse_state) && PARSE_TIMECODE(parse->timedata.parse_state))
 			{
 				l_fp off;
 
@@ -2911,31 +3374,30 @@ parse_control(
 				 * we have a PPS and RS232 signal - calculate the skew
 				 * WARNING: assumes on TIMECODE == PULSE (timecode after pulse)
 				 */
-				off = parse->time.parse_stime.fp;
-				L_SUB(&off, &parse->time.parse_ptime.fp); /* true offset */
+				off = parse->timedata.parse_stime.fp;
+				L_SUB(&off, &parse->timedata.parse_ptime.fp); /* true offset */
 				tt = add_var(&out->kv_list, 80, RO);
-				sprintf(tt, "refclock_ppsskew=%s", lfptoms(&off, 6));
+				snprintf(tt, 80, "refclock_ppsskew=%s", lfptoms(&off, 6));
 			}
 		}
 
-		if (PARSE_PPS(parse->time.parse_state))
+		if (PARSE_PPS(parse->timedata.parse_state))
 		{
 			tt = add_var(&out->kv_list, 80, RO|DEF);
-			sprintf(tt, "refclock_ppstime=\"%s\"", gmprettydate(&parse->time.parse_ptime.fp));
+			snprintf(tt, 80, "refclock_ppstime=\"%s\"", gmprettydate(&parse->timedata.parse_ptime.fp));
 		}
 
-		tt = add_var(&out->kv_list, 128, RO|DEF);
-		sprintf(tt, "refclock_time=\"");
+		start = tt = add_var(&out->kv_list, 128, RO|DEF);
+		snprintf(tt, 128, "refclock_time=\"");
 		tt += strlen(tt);
 
-		if (parse->time.parse_time.fp.l_ui == 0)
+		if (parse->timedata.parse_time.fp.l_ui == 0)
 		{
-			strcpy(tt, "<UNDEFINED>\"");
+			strncpy(tt, "<UNDEFINED>\"", BUFFER_SIZES(start, tt, 128));
 		}
 		else
 		{
-			sprintf(tt, "%s\"", gmprettydate(&parse->time.parse_time.fp));
-			t = tt + strlen(tt);
+			snprintf(tt, 128, "%s\"", gmprettydate(&parse->timedata.parse_time.fp));
 		}
 
 		if (!PARSE_GETTIMECODE(parse, &tmpctl))
@@ -2945,25 +3407,24 @@ parse_control(
 		}
 		else
 		{
-			tt = add_var(&out->kv_list, 512, RO|DEF);
-			sprintf(tt, "refclock_status=\"");
+			start = tt = add_var(&out->kv_list, 512, RO|DEF);
+			snprintf(tt, 512, "refclock_status=\"");
 			tt += strlen(tt);
 
 			/*
 			 * copy PPS flags from last read transaction (informational only)
 			 */
-			tmpctl.parsegettc.parse_state |= parse->time.parse_state &
+			tmpctl.parsegettc.parse_state |= parse->timedata.parse_state &
 				(PARSEB_PPS|PARSEB_S_PPS);
 
-			(void) parsestate(tmpctl.parsegettc.parse_state, tt);
+			(void) parsestate(tmpctl.parsegettc.parse_state, tt, BUFFER_SIZES(start, tt, 512));
 
-			strcat(tt, "\"");
+			strncat(tt, "\"", BUFFER_SIZES(start, tt, 512));
 
 			if (tmpctl.parsegettc.parse_count)
 			    mkascii(outstatus+strlen(outstatus), (int)(sizeof(outstatus)- strlen(outstatus) - 1),
-				    tmpctl.parsegettc.parse_buffer, (unsigned)(tmpctl.parsegettc.parse_count - 1));
+				    tmpctl.parsegettc.parse_buffer, (unsigned)(tmpctl.parsegettc.parse_count));
 
-			parse->generic->badformat += tmpctl.parsegettc.parse_badformat;
 		}
 	
 		tmpctl.parseformat.parse_format = tmpctl.parsegettc.parse_format;
@@ -2976,10 +3437,10 @@ parse_control(
 		else
 		{
 			tt = add_var(&out->kv_list, 80, RO|DEF);
-			sprintf(tt, "refclock_format=\"");
+			snprintf(tt, 80, "refclock_format=\"");
 
 			strncat(tt, tmpctl.parseformat.parse_buffer, tmpctl.parseformat.parse_count);
-			strcat(tt,"\"");
+			strncat(tt,"\"", 80);
 		}
 
 		/*
@@ -2987,7 +3448,7 @@ parse_control(
 		 */
 
 		start = tt = add_var(&out->kv_list, LEN_STATES, RO|DEF);
-		strcpy(tt, "refclock_states=\"");
+		strncpy(tt, "refclock_states=\"", LEN_STATES);
 		tt += strlen(tt);
 
 		for (i = 0; i <= CEVNT_MAX; i++)
@@ -3014,7 +3475,7 @@ parse_control(
 				char item[80];
 				int count;
 				
-				sprintf(item, "%s%s%s: %s (%d.%02d%%)",
+				snprintf(item, 80, "%s%s%s: %s (%d.%02d%%)",
 					sum ? "; " : "",
 					(parse->generic->currentstatus == i) ? "*" : "",
 					clockstatus((unsigned int)i),
@@ -3022,23 +3483,23 @@ parse_control(
 					(int)(percent / 100), (int)(percent % 100));
 				if ((count = strlen(item)) < (LEN_STATES - 40 - (tt - start)))
 					{
-						strcpy(tt, item);
+						strncpy(tt, item, BUFFER_SIZES(start, tt, LEN_STATES));
 						tt  += count;
 					}
 				sum += s_time;
 			}
 		}
 		
-		sprintf(tt, "; running time: %s\"", l_mktime(sum));
+		snprintf(tt, BUFFER_SIZES(start, tt, LEN_STATES), "; running time: %s\"", l_mktime(sum));
 		
 		tt = add_var(&out->kv_list, 32, RO);
-		sprintf(tt, "refclock_id=\"%s\"", parse->parse_type->cl_id);
+		snprintf(tt, 32,  "refclock_id=\"%s\"", parse->parse_type->cl_id);
 		
 		tt = add_var(&out->kv_list, 80, RO);
-		sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
+		snprintf(tt, 80,  "refclock_iomode=\"%s\"", parse->binding->bd_description);
 
 		tt = add_var(&out->kv_list, 128, RO);
-		sprintf(tt, "refclock_driver_version=\"%s\"", rcsid);
+		snprintf(tt, 128, "refclock_driver_version=\"%s\"", rcsid);
 		
 		{
 			struct ctl_var *k;
@@ -3062,6 +3523,7 @@ parse_control(
 
 /*--------------------------------------------------
  * event handling - note that nominal events will also be posted
+ * keep track of state dwelling times
  */
 static void
 parse_event(
@@ -3074,41 +3536,17 @@ parse_event(
 		parse->statetime[parse->generic->currentstatus] += current_time - parse->lastchange;
 		parse->lastchange              = current_time;
 
-		parse->generic->currentstatus    = (u_char)event;
-
 		if (parse->parse_type->cl_event)
 		    parse->parse_type->cl_event(parse, event);
       
-		if (event != CEVNT_NOMINAL)
-		{
-	  parse->generic->lastevent = parse->generic->currentstatus;
-		}
-		else
+		if (event == CEVNT_NOMINAL)
 		{
 			NLOG(NLOG_CLOCKSTATUS)
 				msyslog(LOG_INFO, "PARSE receiver #%d: SYNCHRONIZED",
 					CLK_UNIT(parse->peer));
 		}
 
-		if (event == CEVNT_FAULT)
-		{
-			NLOG(NLOG_CLOCKEVENT) /* conditional if clause for conditional syslog */
-				ERR(ERR_BADEVENT)
-				msyslog(LOG_ERR,
-					"clock %s fault '%s' (0x%02x)", refnumtoa(&parse->peer->srcadr), ceventstr(event),
-					(u_int)event);
-		}
-		else
-		{
-			NLOG(NLOG_CLOCKEVENT) /* conditional if clause for conditional syslog */
-				if (event == CEVNT_NOMINAL || list_err(parse, ERR_BADEVENT))
-				    msyslog(LOG_INFO,
-					    "clock %s event '%s' (0x%02x)", refnumtoa(&parse->peer->srcadr), ceventstr(event),
-					    (u_int)event);
-		}
-
-		report_event(EVNT_PEERCLOCK, parse->peer);
-		report_event(EVNT_CLOCKEXCPT, parse->peer);
+		refclock_report(parse->peer, event);
 	}
 }
 
@@ -3130,13 +3568,13 @@ parse_process(
 	 */
 	if (((parsetime->parse_status & CVT_MASK) != CVT_OK) &&
 	    ((parsetime->parse_status & CVT_MASK) != CVT_NONE) &&
-	    (parse->time.parse_status != parsetime->parse_status))
+	    (parse->timedata.parse_status != parsetime->parse_status))
 	{
 		char buffer[400];
 		
 		NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
 			msyslog(LOG_WARNING, "PARSE receiver #%d: conversion status \"%s\"",
-				CLK_UNIT(parse->peer), parsestatus(parsetime->parse_status, buffer));
+				CLK_UNIT(parse->peer), parsestatus(parsetime->parse_status, buffer, sizeof(buffer)));
 		
 		if ((parsetime->parse_status & CVT_MASK) == CVT_FAIL)
 		{
@@ -3155,9 +3593,8 @@ parse_process(
 			else
 			{
 				ERR(ERR_BADDATA)
-					msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / cableling)",
+					msyslog(LOG_WARNING, "PARSE receiver #%d: FAILED TIMECODE: \"%s\" (check receiver configuration / wiring)",
 						CLK_UNIT(parse->peer), mkascii(buffer, sizeof buffer, tmpctl.parsegettc.parse_buffer, (unsigned)(tmpctl.parsegettc.parse_count - 1)));
-				parse->generic->badformat += tmpctl.parsegettc.parse_badformat;
 			}
 		}
 	}
@@ -3176,10 +3613,17 @@ parse_process(
 			if ((parsetime->parse_status & CVT_ADDITIONAL) &&
 			    parse->parse_type->cl_message)
 				parse->parse_type->cl_message(parse, parsetime);
+			/*
+			 * save PPS information that comes piggyback
+			 */
+			if (PARSE_PPS(parsetime->parse_state))
+			  {
+			    parse->timedata.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
+			    parse->timedata.parse_ptime  = parsetime->parse_ptime;
+			  }
 			break; 		/* well, still waiting - timeout is handled at higher levels */
 			    
 		case CVT_FAIL:
-			parse->generic->badformat++;
 			if (parsetime->parse_status & CVT_BADFMT)
 			{
 				parse_event(parse, CEVNT_BADREPLY);
@@ -3229,16 +3673,17 @@ parse_process(
 	/*
 	 * now, any changes ?
 	 */
-	if (parse->time.parse_state != parsetime->parse_state)
+	if ((parse->timedata.parse_state ^ parsetime->parse_state) &
+	    ~(unsigned)(PARSEB_PPS|PARSEB_S_PPS))
 	{
 		char tmp1[200];
 		char tmp2[200];
 		/*
-		 * something happend
+		 * something happend - except for PPS events
 		 */
 	
-		(void) parsestate(parsetime->parse_state, tmp1);
-		(void) parsestate(parse->time.parse_state, tmp2);
+		(void) parsestate(parsetime->parse_state, tmp1, sizeof(tmp1));
+		(void) parsestate(parse->timedata.parse_state, tmp2, sizeof(tmp2));
 	
 		NLOG(NLOG_CLOCKINFO) /* conditional if clause for conditional syslog */
 			msyslog(LOG_INFO,"PARSE receiver #%d: STATE CHANGE: %s -> %s",
@@ -3246,9 +3691,18 @@ parse_process(
 	}
 
 	/*
+	 * carry on PPS information if still usable
+	 */
+	if (PARSE_PPS(parse->timedata.parse_state) && !PARSE_PPS(parsetime->parse_state))
+        {
+	        parsetime->parse_state |= PARSEB_PPS|PARSEB_S_PPS;
+		parsetime->parse_ptime  = parse->timedata.parse_ptime;
+	}
+
+	/*
 	 * remember for future
 	 */
-	parse->time = *parsetime;
+	parse->timedata = *parsetime;
 
 	/*
 	 * check to see, whether the clock did a complete powerup or lost PZF signal
@@ -3351,6 +3805,17 @@ parse_process(
 	if (PARSE_PPS(parsetime->parse_state) && CLK_PPS(parse->peer))
 	{
 		l_fp offset;
+		double ppsphaseadjust = parse->ppsphaseadjust;
+
+#ifdef HAVE_PPSAPI
+		/*
+		 * set fudge = 0.0 if already included in PPS time stamps
+		 */
+		if (parse->ppsparams.mode & (PPS_OFFSETCLEAR|PPS_OFFSETASSERT))
+		        {
+			        ppsphaseadjust = 0.0;
+			}
+#endif
 
 		/*
 		 * we have a PPS signal - much better than the RS232 stuff (we hope)
@@ -3368,7 +3833,7 @@ parse_process(
 			if (M_ISGEQ(off.l_i, off.l_f, -1, 0x80000000) &&
 			    M_ISGEQ(0, 0x7fffffff, off.l_i, off.l_f))
 			{
-				fudge = parse->generic->fudgetime2; /* pick PPS fudge factor */
+				fudge = ppsphaseadjust; /* pick PPS fudge factor */
 			
 				/*
 				 * RS232 offsets within [-0.5..0.5[ - take PPS offsets
@@ -3404,7 +3869,7 @@ parse_process(
 		}
 		else
 		{
-			fudge = parse->generic->fudgetime2; /* pick PPS fudge factor */
+			fudge = ppsphaseadjust; /* pick PPS fudge factor */
 			/*
 			 * Well, no time code to guide us - assume on second pulse
 			 * and pray, that we are within [-0.5..0.5[
@@ -3473,35 +3938,22 @@ parse_process(
 	clear_err(parse, ERR_NODATA);
 	clear_err(parse, ERR_INTERNAL);
   
-#ifdef DEBUG
-	if (debug > 2) 
-		{
-			printf("PARSE receiver #%d: refclock_process_offset(reftime=%s, rectime=%s, Fudge=%f)\n",
-				CLK_UNIT(parse->peer),
-				prettydate(&reftime),
-				prettydate(&rectime),
-				fudge);
-		}
-#endif
-
-	refclock_process_offset(parse->generic, reftime, rectime, fudge);
-	if (PARSE_PPS(parsetime->parse_state) && CLK_PPS(parse->peer))
-	{
-		(void) pps_sample(&parse->time.parse_ptime.fp);
-	}
-	
-
 	/*
 	 * and now stick it into the clock machine
 	 * samples are only valid iff lastsync is not too old and
 	 * we have seen the clock in sync at least once
 	 * after the last time we didn't see an expected data telegram
+	 * at startup being not in sync is also bad just like
+	 * POWERUP state
 	 * see the clock states section above for more reasoning
 	 */
-	if (((current_time - parse->lastsync) > parse->parse_type->cl_maxunsync) ||
-	    (parse->lastsync <= parse->lastmissed))
+	if (((current_time - parse->lastsync) > parse->maxunsync) ||
+	    (parse->lastsync < parse->lastmissed) ||
+	    ((parse->lastsync == 0) && !PARSE_SYNC(parsetime->parse_state)) ||
+	    PARSE_POWERUP(parsetime->parse_state))
 	{
 		parse->generic->leap = LEAP_NOTINSYNC;
+		parse->lastsync = 0;	/* wait for full sync again */
 	}
 	else
 	{
@@ -3524,14 +3976,48 @@ parse_process(
 			    parse->generic->leap = LEAP_NOWARNING;
 		    }
 	}
-  
+
+	if (parse->generic->leap != LEAP_NOTINSYNC)
+	{
+	        /*
+		 * only good/trusted samples are interesting
+		 */
+#ifdef DEBUG
+	        if (debug > 2) 
+		        {
+			        printf("PARSE receiver #%d: refclock_process_offset(reftime=%s, rectime=%s, Fudge=%f)\n",
+				       CLK_UNIT(parse->peer),
+				       prettydate(&reftime),
+				       prettydate(&rectime),
+				       fudge);
+			}
+#endif
+		parse->generic->lastref = reftime;
+		
+		refclock_process_offset(parse->generic, reftime, rectime, fudge);
+
+		/*
+		 * pass PPS information on to PPS clock
+		 */
+		if (PARSE_PPS(parsetime->parse_state) && CLK_PPS(parse->peer))
+		        {
+			        (void) pps_sample(&parse->timedata.parse_ptime.fp);
+				parse_hardpps(parse, PARSE_HARDPPS_ENABLE);
+			}
+	} else {
+	        parse_hardpps(parse, PARSE_HARDPPS_DISABLE);
+	}
+
 	/*
-	 * ready, unless the machine wants a sample
+	 * ready, unless the machine wants a sample or 
+	 * we are in fast startup mode (peer->dist > MAXDISTANCE)
 	 */
-	if (!parse->pollneeddata)
+	if (!parse->pollneeddata && parse->peer->disp <= MAXDISTANCE)
 	    return;
 
 	parse->pollneeddata = 0;
+
+	parse->timedata.parse_state &= ~(unsigned)(PARSEB_PPS|PARSEB_S_PPS);
 
 	refclock_receive(parse->peer);
 }
@@ -3547,12 +4033,14 @@ mk_utcinfo(
 	   int wnlsf,
 	   int dn,
 	   int dtls,
-	   int dtlsf
+	   int dtlsf,
+	   int size
 	   )
 {
   l_fp leapdate;
+  char *start = t;
   
-  sprintf(t, "current correction %d sec", dtls);
+  snprintf(t, size, "current correction %d sec", dtls);
   t += strlen(t);
   
   if (wnlsf < 990)
@@ -3566,12 +4054,12 @@ mk_utcinfo(
   if ((dtlsf != dtls) &&
       ((wnlsf - wnt) < 52))
     {
-      sprintf(t, ", next correction %d sec on %s, new GPS-UTC offset %d",
+	    snprintf(t, BUFFER_SIZES(start, t, size), ", next correction %d sec on %s, new GPS-UTC offset %d",
 	      dtlsf - dtls, gmprettydate(&leapdate), dtlsf);
     }
   else
     {
-      sprintf(t, ", last correction on %s",
+	    snprintf(t, BUFFER_SIZES(start, t, size), ", last correction on %s",
 	      gmprettydate(&leapdate));
     }
 }
@@ -3590,7 +4078,7 @@ gps16x_message(
 	       parsetime_t      *parsetime
 	       )
 {
-	if (parse->time.parse_msglen && parsetime->parse_msg[0] == SOH)
+	if (parse->timedata.parse_msglen && parsetime->parse_msg[0] == SOH)
 	{
 		GPS_MSG_HDR header;
 		unsigned char *bufp = (unsigned char *)parsetime->parse_msg + 1;
@@ -3624,12 +4112,12 @@ gps16x_message(
 					SW_REV gps_sw_rev;
 					
 					get_mbg_sw_rev(&bufp, &gps_sw_rev);
-					sprintf(buffer, "meinberg_gps_version=\"%x.%02x%s%s\"",
+					snprintf(buffer, sizeof(buffer), "meinberg_gps_version=\"%x.%02x%s%s\"",
 						(gps_sw_rev.code >> 8) & 0xFF,
 						gps_sw_rev.code & 0xFF,
 						gps_sw_rev.name[0] ? " " : "",
 						gps_sw_rev.name);
-					set_var(&parse->kv, buffer, 64, RO|DEF);
+					set_var(&parse->kv, buffer, strlen(buffer)+1, RO|DEF);
 				}
 			break;
 
@@ -3653,7 +4141,7 @@ gps16x_message(
 					char *p, *b;
 					
 					status = get_lsb_short(&bufp);
-					sprintf(buffer, "meinberg_gps_status=\"[0x%04x] ", status);
+					snprintf(buffer, sizeof(buffer), "meinberg_gps_status=\"[0x%04x] ", status);
 					
 					if (status)
 					{
@@ -3668,7 +4156,7 @@ gps16x_message(
 									*p++ = ' ';
 								}
 								
-								strcat(p, (const char *)s->string);
+								strncat(p, (const char *)s->string, sizeof(buffer));
 							}
 							s++;
 						}
@@ -3678,10 +4166,10 @@ gps16x_message(
 					}
 					else
 					{
-						strcat(buffer, "<OK>\"");
+						strncat(buffer, "<OK>\"", sizeof(buffer));
 					}
 		
-					set_var(&parse->kv, buffer, 64, RO|DEF);
+					set_var(&parse->kv, buffer, strlen(buffer)+1, RO|DEF);
 				}
 			break;
 
@@ -3691,7 +4179,7 @@ gps16x_message(
 					char buffer[256];
 					
 					get_mbg_xyz(&bufp, xyz);
-					sprintf(buffer, "gps_position(XYZ)=\"%s m, %s m, %s m\"",
+					snprintf(buffer, sizeof(buffer), "gps_position(XYZ)=\"%s m, %s m, %s m\"",
 						mfptoa(xyz[XP].l_ui, xyz[XP].l_uf, 1),
 						mfptoa(xyz[YP].l_ui, xyz[YP].l_uf, 1),
 						mfptoa(xyz[ZP].l_ui, xyz[ZP].l_uf, 1));
@@ -3707,7 +4195,7 @@ gps16x_message(
 					
 					get_mbg_lla(&bufp, lla);
 					
-					sprintf(buffer, "gps_position(LLA)=\"%s deg, %s deg, %s m\"",
+					snprintf(buffer, sizeof(buffer), "gps_position(LLA)=\"%s deg, %s deg, %s m\"",
 						mfptoa(lla[LAT].l_ui, lla[LAT].l_uf, 4),
 						mfptoa(lla[LON].l_ui, lla[LON].l_uf, 4), 
 						mfptoa(lla[ALT].l_ui, lla[ALT].l_uf, 1));
@@ -3728,55 +4216,54 @@ gps16x_message(
 			case GPS_ANT_INFO:
 				{
 					ANT_INFO antinfo;
-					u_char buffer[512];
-					u_char *p;
+					char buffer[512];
+					char *p;
 					
 					get_mbg_antinfo(&bufp, &antinfo);
-					sprintf(buffer, "meinberg_antenna_status=\"");
+					snprintf(buffer, sizeof(buffer), "meinberg_antenna_status=\"");
 					p = buffer + strlen(buffer);
 					
 					switch (antinfo.status)
 					{
 					case ANT_INVALID:
-						strcat(p, "<OK>");
+						strncat(p, "<OK>", BUFFER_SIZE(buffer, p));
 						p += strlen(p);
 						break;
 						
 					case ANT_DISCONN:
-						strcat(p, "DISCONNECTED since ");
+						strncat(p, "DISCONNECTED since ", BUFFER_SIZE(buffer, p));
 						NLOG(NLOG_CLOCKSTATUS)
 							ERR(ERR_BADSTATUS)
 							msyslog(LOG_ERR,"PARSE receiver #%d: ANTENNA FAILURE: %s",
 								CLK_UNIT(parse->peer), p);
 						
 						p += strlen(p);
-						mbg_tm_str(&p, &antinfo.tm_disconn);
+						mbg_tm_str(&p, &antinfo.tm_disconn, BUFFER_SIZE(buffer, p));
 						*p = '\0';
 						break;
 		    
 					case ANT_RECONN:
-						strcat(p, "RECONNECTED on ");
+						strncat(p, "RECONNECTED on ", BUFFER_SIZE(buffer, p));
 						p += strlen(p);
-						mbg_tm_str(&p, &antinfo.tm_reconn);
-						sprintf(p, ", reconnect clockoffset %c%ld.%07ld s, disconnect time ",
+						mbg_tm_str(&p, &antinfo.tm_reconn, BUFFER_SIZE(buffer, p));
+						snprintf(p, BUFFER_SIZE(buffer, p), ", reconnect clockoffset %c%ld.%07ld s, disconnect time ",
 							(antinfo.delta_t < 0) ? '-' : '+',
 							ABS(antinfo.delta_t) / 10000,
 							ABS(antinfo.delta_t) % 10000);
 						p += strlen(p);
-						mbg_tm_str(&p, &antinfo.tm_disconn);
+						mbg_tm_str(&p, &antinfo.tm_disconn, BUFFER_SIZE(buffer, p));
 						*p = '\0';
 						break;
 		    
 					default:
-						sprintf(p, "bad status 0x%04x", antinfo.status);
+						snprintf(p, BUFFER_SIZE(buffer, p), "bad status 0x%04x", antinfo.status);
 						p += strlen(p);
 						break;
 					}
 					
-					*p++ = '"';
-					*p   = '\0';
+					strncat(p, "\"", BUFFER_SIZE(buffer, p));
 					
-					set_var(&parse->kv, buffer, sizeof(buffer), RO|DEF);
+					set_var(&parse->kv, buffer, strlen(buffer)+1, RO|DEF);
 				}
 			break;
 	      
@@ -3786,8 +4273,8 @@ gps16x_message(
 			case GPS_CFGH:
 				{
 					CFGH cfgh;
-					u_char buffer[512];
-					u_char *p;
+					char buffer[512];
+					char *p;
 					
 					get_mbg_cfgh(&bufp, &cfgh);
 					if (cfgh.valid)
@@ -3795,77 +4282,74 @@ gps16x_message(
 						int i;
 						
 						p = buffer;
-						strcpy(buffer, "gps_tot_51=\"");
+						strncpy(buffer, "gps_tot_51=\"", BUFFER_SIZE(buffer, p));
 						p += strlen(p);
-						mbg_tgps_str(&p, &cfgh.tot_51);
-						*p++ = '"';
-						*p   = '\0';
-						set_var(&parse->kv, buffer, sizeof(buffer), RO);
+						mbg_tgps_str(&p, &cfgh.tot_51, BUFFER_SIZE(buffer, p));
+						strncpy(p, "\"", BUFFER_SIZE(buffer, p));
+						set_var(&parse->kv, buffer, strlen(buffer)+1, RO);
 						
 						p = buffer;
-						strcpy(buffer, "gps_tot_63=\"");
+						strncpy(buffer, "gps_tot_63=\"", BUFFER_SIZE(buffer, p));
 						p += strlen(p);
-						mbg_tgps_str(&p, &cfgh.tot_63);
-						*p++ = '"';
-						*p   = '\0';
-						set_var(&parse->kv, buffer, sizeof(buffer), RO);
+						mbg_tgps_str(&p, &cfgh.tot_63, BUFFER_SIZE(buffer, p));
+						strncpy(p, "\"", BUFFER_SIZE(buffer, p));
+						set_var(&parse->kv, buffer, strlen(buffer)+1, RO);
 						
 						p = buffer;
-						strcpy(buffer, "gps_t0a=\"");
+						strncpy(buffer, "gps_t0a=\"", BUFFER_SIZE(buffer, p));
 						p += strlen(p);
-						mbg_tgps_str(&p, &cfgh.t0a);
-						*p++ = '"';
-						*p   = '\0';
-						set_var(&parse->kv, buffer, sizeof(buffer), RO);
+						mbg_tgps_str(&p, &cfgh.t0a, BUFFER_SIZE(buffer, p));
+						strncpy(p, "\"", BUFFER_SIZE(buffer, p));
+						set_var(&parse->kv, buffer, strlen(buffer)+1, RO);
 						
-						for (i = MIN_SVNO; i <= MAX_SVNO; i++)
+						for (i = MIN_SVNO; i < MAX_SVNO; i++)
 						{
 							p = buffer;
-							sprintf(p, "gps_cfg[%d]=\"[0x%x] ", i, cfgh.cfg[i]);
+							snprintf(p, BUFFER_SIZE(buffer, p), "gps_cfg[%d]=\"[0x%x] ", i, cfgh.cfg[i]);
 							p += strlen(p);
 							switch (cfgh.cfg[i] & 0x7)
 							{
 							case 0:
-								strcpy(p, "BLOCK I");
+								strncpy(p, "BLOCK I", BUFFER_SIZE(buffer, p));
 								break;
 							case 1:
-								strcpy(p, "BLOCK II");
+								strncpy(p, "BLOCK II", BUFFER_SIZE(buffer, p));
 								break;
 							default:
-								sprintf(p, "bad CFG");
+								strncpy(p, "bad CFG", BUFFER_SIZE(buffer, p));
 								break;
 							}
-							strcat(p, "\"");
-							set_var(&parse->kv, buffer, sizeof(buffer), RO);
+							strncat(p, "\"", BUFFER_SIZE(buffer, p));
+							set_var(&parse->kv, buffer, strlen(buffer)+1, RO);
 							
 							p = buffer;
-							sprintf(p, "gps_health[%d]=\"[0x%x] ", i, cfgh.health[i]);
+							snprintf(p, BUFFER_SIZE(buffer, p), "gps_health[%d]=\"[0x%x] ", i, cfgh.health[i]);
 							p += strlen(p);
 							switch ((cfgh.health[i] >> 5) & 0x7 )
 							{
 							case 0:
-								strcpy(p, "OK;");
+								strncpy(p, "OK;", BUFFER_SIZE(buffer, p));
 								break;
 							case 1:
-								strcpy(p, "PARITY;");
+								strncpy(p, "PARITY;", BUFFER_SIZE(buffer, p));
 								break;
 							case 2:
-								strcpy(p, "TLM/HOW;");
+								strncpy(p, "TLM/HOW;", BUFFER_SIZE(buffer, p));
 								break;
 							case 3:
-								strcpy(p, "Z-COUNT;");
+								strncpy(p, "Z-COUNT;", BUFFER_SIZE(buffer, p));
 								break;
 							case 4:
-								strcpy(p, "SUBFRAME 1,2,3;");
+								strncpy(p, "SUBFRAME 1,2,3;", BUFFER_SIZE(buffer, p));
 								break;
 							case 5:
-								strcpy(p, "SUBFRAME 4,5;");
+								strncpy(p, "SUBFRAME 4,5;", BUFFER_SIZE(buffer, p));
 								break;
 							case 6:
-								strcpy(p, "UPLOAD BAD;");
+								strncpy(p, "UPLOAD BAD;", BUFFER_SIZE(buffer, p));
 								break;
 							case 7:
-								strcpy(p, "DATA BAD;");
+								strncpy(p, "DATA BAD;", BUFFER_SIZE(buffer, p));
 								break;
 							}
 							
@@ -3874,26 +4358,26 @@ gps16x_message(
 							switch (cfgh.health[i] & 0x1F)
 							{
 							case 0:
-								strcpy(p, "SIGNAL OK");
+								strncpy(p, "SIGNAL OK", BUFFER_SIZE(buffer, p));
 								break;
 							case 0x1C:
-								strcpy(p, "SV TEMP OUT");
+								strncpy(p, "SV TEMP OUT", BUFFER_SIZE(buffer, p));
 								break;
 							case 0x1D:
-								strcpy(p, "SV WILL BE TEMP OUT");
+								strncpy(p, "SV WILL BE TEMP OUT", BUFFER_SIZE(buffer, p));
 								break;
 							case 0x1E:
 								break;
 							case 0x1F:
-								strcpy(p, "MULTIPLE ERRS");
+								strncpy(p, "MULTIPLE ERRS", BUFFER_SIZE(buffer, p));
 								break;
 							default:
-								strcpy(p, "TRANSMISSION PROBLEMS");
+								strncpy(p, "TRANSMISSION PROBLEMS", BUFFER_SIZE(buffer, p));
 								break;
 							}
 							
-							strcat(p, "\"");
-							set_var(&parse->kv, buffer, sizeof(buffer), RO);
+							strncat(p, "\"", sizeof(buffer));
+							set_var(&parse->kv, buffer, strlen(buffer)+1, RO);
 						}
 					}
 				}
@@ -3917,16 +4401,16 @@ gps16x_message(
 					
 					if (utc.valid)
 					{
-						strcpy(p, "gps_utc_correction=\"");
+						strncpy(p, "gps_utc_correction=\"", sizeof(buffer));
 						p += strlen(p);
-						mk_utcinfo(p, utc.t0t.wn, utc.WNlsf, utc.DNt, utc.delta_tls, utc.delta_tlsf);
-						strcat(p, "\"");
+						mk_utcinfo(p, utc.t0t.wn, utc.WNlsf, utc.DNt, utc.delta_tls, utc.delta_tlsf, BUFFER_SIZE(buffer, p));
+						strncat(p, "\"", BUFFER_SIZE(buffer, p));
 					}
 					else
 					{
-						strcpy(p, "gps_utc_correction=\"<NO UTC DATA>\"");
+						strncpy(p, "gps_utc_correction=\"<NO UTC DATA>\"", BUFFER_SIZE(buffer, p));
 					}
-					set_var(&parse->kv, buffer, sizeof(buffer), RO|DEF);
+					set_var(&parse->kv, buffer, strlen(buffer)+1, RO|DEF);
 				}
 			break;
 			
@@ -3945,12 +4429,12 @@ gps16x_message(
 							char buffer1[128];
 							mkreadable(buffer1, sizeof(buffer1), gps_ascii_msg.s, strlen(gps_ascii_msg.s), (int)0);
 							
-							sprintf(buffer, "gps_message=\"%s\"", buffer1);
+							snprintf(buffer, sizeof(buffer), "gps_message=\"%s\"", buffer1);
 						}
 					else
-						strcpy(buffer, "gps_message=<NONE>");
+						strncpy(buffer, "gps_message=<NONE>", sizeof(buffer));
 					
-					set_var(&parse->kv, buffer, 128, RO|DEF);
+					set_var(&parse->kv, buffer, strlen(buffer)+1, RO|DEF);
 				}
 			
 			break;
@@ -4331,6 +4815,7 @@ trimbletaip_event(
 typedef struct trimble
 {
 	u_long last_msg;	/* last message received */
+	u_long last_reset;	/* last time a reset was issued */
 	u_char qtracking;	/* query tracking status */
 	u_long ctrack;		/* current tracking set */
 	u_long ltrack;		/* last tracking set */
@@ -4366,6 +4851,12 @@ sendcmd(
 	buf->idx = 2;
 }
 
+void	sendcmd		P((struct txbuf *buf, int c)); 
+void	sendbyte	P((struct txbuf *buf, int b)); 
+void	sendetx		P((struct txbuf *buf, struct parseunit *parse)); 
+void	sendint		P((struct txbuf *buf, int a)); 
+void	sendflt		P((struct txbuf *buf, double a)); 
+ 
 void
 sendbyte(
 	struct txbuf *buf,
@@ -4451,7 +4942,16 @@ trimbletsip_setup(
 {
 	u_char buffer[256];
 	struct txbuf buf;
+	trimble_t *t = parse->localdata;
 
+	if (t && t->last_reset &&
+	    ((t->last_reset + TRIMBLE_RESET_HOLDOFF) > current_time)) {
+		return 1;	/* not yet */
+	}
+
+	if (t)
+		t->last_reset = current_time;
+			
 	buf.txt = buffer;
   
 	sendcmd(&buf, CMD_CVERSION);	/* request software versions */
@@ -4466,7 +4966,7 @@ trimbletsip_setup(
 	sendetx(&buf, parse);
 	
 	sendcmd(&buf, CMD_CMODESEL);	/* fix mode select */
-	sendbyte(&buf, 0);	/* automatic */
+	sendbyte(&buf, 1);	/* time transfer mode */
 	sendetx(&buf, parse);
 	
 	sendcmd(&buf, CMD_CMESSAGE);	/* request system message */
@@ -4512,9 +5012,10 @@ trimble_check(
 		if (current_time > t->last_msg + TRIMBLETSIP_IDLE_TIME)
 			(void)trimbletsip_setup(parse, "message timeout");
 	}
+
 	poll_poll(parse->peer);	/* emit query string and re-arm timer */
 	
-	if (t->qtracking)
+	if (t && t->qtracking)
 	{
 		u_long oldsats = t->ltrack & ~t->ctrack;
 		
@@ -4525,14 +5026,15 @@ trimble_check(
 		{
 			int i;
 				
-			for (i = 0; oldsats; i++)
+			for (i = 0; oldsats; i++) {
 				if (oldsats & (1 << i))
 					{
 						sendcmd(&buf, CMD_CSTATTRACK);
 						sendbyte(&buf, i+1);	/* old sat */
 						sendetx(&buf, parse);
 					}
-			oldsats &= ~(1 << i);
+				oldsats &= ~(1 << i);
+			}
 		}
 						
 		sendcmd(&buf, CMD_CSTATTRACK);
@@ -4777,11 +5279,11 @@ trimbletsip_message(
 		
 		if (s)
 		{
-			sprintf(t, "%s=\"", s->varname);
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%s=\"", s->varname);
 		}
 		else
 		{
-			printf("TRIMBLE unknown command 0x%02x\n", cmd);
+			DPRINTF(1, ("TRIMBLE UNKNOWN COMMAND 0x%02x\n", cmd));
 			return;
 		}
 
@@ -4792,40 +5294,40 @@ trimbletsip_message(
 		switch(cmd)
 		{
 		case CMD_RCURTIME:
-			sprintf(t, "%f, %d, %f",
-				getflt((unsigned char *)&mb(0)), getshort((unsigned char *)&mb(4)),
-				getflt((unsigned char *)&mb(6)));
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%f, %d, %f",
+				 getflt((unsigned char *)&mb(0)), getshort((unsigned char *)&mb(4)),
+				 getflt((unsigned char *)&mb(6)));
 			break;
 			
 		case CMD_RBEST4:
-			strcpy(t, "mode: ");
+			strncpy(t, "mode: ", BUFFER_SIZE(pbuffer, t));
 			t += strlen(t);
 			switch (mb(0) & 0xF)
 			{
 			default:
-				sprintf(t, "0x%x", mb(0) & 0x7);
+				snprintf(t, BUFFER_SIZE(pbuffer, t), "0x%x", mb(0) & 0x7);
 				break;
 
 			case 1:
-				strcat(t, "0D");
+				strncpy(t, "0D", BUFFER_SIZE(pbuffer, t));
 				break;
 				
 			case 3:
-				strcat(t, "2D");
+				strncpy(t, "2D", BUFFER_SIZE(pbuffer, t));
 				break;
 				
 			case 4:
-				strcat(t, "3D");
+				strncpy(t, "3D", BUFFER_SIZE(pbuffer, t));
 				break;
 			}
 			t += strlen(t);
 			if (mb(0) & 0x10)
-				strcpy(t, "-MANUAL, ");
+				strncpy(t, "-MANUAL, ", BUFFER_SIZE(pbuffer, t));
 			else
-				strcpy(t, "-AUTO, ");
+				strncpy(t, "-AUTO, ", BUFFER_SIZE(pbuffer, t));
 			t += strlen(t);
 			
-			sprintf(t, "satellites %02d %02d %02d %02d, PDOP %.2f, HDOP %.2f, VDOP %.2f, TDOP %.2f",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "satellites %02d %02d %02d %02d, PDOP %.2f, HDOP %.2f, VDOP %.2f, TDOP %.2f",
 				mb(1), mb(2), mb(3), mb(4),
 				getflt((unsigned char *)&mb(5)),
 				getflt((unsigned char *)&mb(9)),
@@ -4835,7 +5337,7 @@ trimbletsip_message(
 			break;
 			
 		case CMD_RVERSION:
-			sprintf(t, "%d.%d (%d/%d/%d)",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%d.%d (%d/%d/%d)",
 				mb(0)&0xff, mb(1)&0xff, 1900+(mb(4)&0xff), mb(2)&0xff, mb(3)&0xff);
 			break;
 			
@@ -4858,31 +5360,31 @@ trimbletsip_message(
 			switch (mb(0) & 0xFF)
 			{
 			default:
-				sprintf(t, "illegal value 0x%02x", mb(0) & 0xFF);
+				snprintf(t, BUFFER_SIZE(pbuffer, t), "illegal value 0x%02x", mb(0) & 0xFF);
 				break;
 			case 0x00:
-				strcpy(t, "doing position fixes");
+				strncpy(t, "doing position fixes", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x01:
-				strcpy(t, "no GPS time yet");
+				strncpy(t, "no GPS time yet", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x03:
-				strcpy(t, "PDOP too high");
+				strncpy(t, "PDOP too high", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x08:
-				strcpy(t, "no usable satellites");
+				strncpy(t, "no usable satellites", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x09:
-				strcpy(t, "only ONE usable satellite");
+				strncpy(t, "only ONE usable satellite", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x0A:
-				strcpy(t, "only TWO usable satellites");
+				strncpy(t, "only TWO usable satellites", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x0B:
-				strcpy(t, "only THREE usable satellites");
+				strncpy(t, "only THREE usable satellites", BUFFER_SIZE(pbuffer, t));
 				break;
 			case 0x0C:
-				strcpy(t, "the chosen satellite is unusable");
+				strncpy(t, "the chosen satellite is unusable", BUFFER_SIZE(pbuffer, t));
 				break;
 			}
 
@@ -4893,14 +5395,14 @@ trimbletsip_message(
 			for (i = 0; i < 8; i++)
 				if (bits & (0x1<<i))
 				{
-					sprintf(t, ", %s", msgs[i]);
+					snprintf(t, BUFFER_SIZE(pbuffer, t), ", %s", msgs[i]);
 					t += strlen(t);
 				}
 		}
 		break;
 			
 		case CMD_RMESSAGE:
-			mkreadable(t, (int)(sizeof(pbuffer) - (t - pbuffer)), (char *)&mb(0), (unsigned)(size - 2 - (&mb(0) - buffer)), 0);
+			mkreadable(t, (int)BUFFER_SIZE(pbuffer, t), (char *)&mb(0), (unsigned)(size - 2 - (&mb(0) - buffer)), 0);
 			break;
 			
 		case CMD_RMACHSTAT:
@@ -4919,7 +5421,7 @@ trimbletsip_message(
 			
 			int i, bits;
 
-			sprintf(t, "machine id 0x%02x", mb(0) & 0xFF);
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "machine id 0x%02x", mb(0) & 0xFF);
 			t += strlen(t);
 			
 			bits = mb(1) & 0xFF;
@@ -4927,16 +5429,16 @@ trimbletsip_message(
 			for (i = 0; i < 8; i++)
 				if (bits & (0x1<<i))
 				{
-					sprintf(t, ", %s", msgs[i]);
+					snprintf(t, BUFFER_SIZE(pbuffer, t), ", %s", msgs[i]);
 					t += strlen(t);
 				}
 
-			sprintf(t, ", Superpackets %ssupported", (mb(2) & 0xFF) ? "" :"un" );
+			snprintf(t, BUFFER_SIZE(pbuffer, t), ", Superpackets %ssupported", (mb(2) & 0xFF) ? "" :"un" );
 		}
 		break;
 			
 		case CMD_ROPERPARAM:
-			sprintf(t, "%2x %.1f %.1f %.1f %.1f",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%2x %.1f %.1f %.1f %.1f",
 				mb(0), getflt((unsigned char *)&mb(1)), getflt((unsigned char *)&mb(5)),
 				getflt((unsigned char *)&mb(9)), getflt((unsigned char *)&mb(13)));
 			break;
@@ -4952,23 +5454,23 @@ trimbletsip_message(
 
 			if ((int)t0t != 0)
 			  {
-			    mk_utcinfo(t, wnt, wnlsf, dn, dtls, dtlsf);
+				  mk_utcinfo(t, wnt, wnlsf, dn, dtls, dtlsf, BUFFER_SIZE(pbuffer, t));
 			  }
 			else
 			  {
-			    strcpy(t, "<NO UTC DATA>");
+			    strncpy(t, "<NO UTC DATA>", BUFFER_SIZE(pbuffer, t));
 			  }
 		}
 		break;
 
 		case CMD_RSAT1BIAS:
-			sprintf(t, "%.1fm %.2fm/s at %.1fs",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%.1fm %.2fm/s at %.1fs",
 				getflt(&mb(0)), getflt(&mb(4)), getflt(&mb(8)));
 			break;
 
 		case CMD_RIOOPTIONS:
 		{
-			sprintf(t, "%02x %02x %02x %02x",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "%02x %02x %02x %02x",
 				mb(0), mb(1), mb(2), mb(3));
 			if (mb(0) != TRIM_POS_OPT ||
 			    mb(2) != TRIM_TIME_OPT)
@@ -4986,7 +5488,7 @@ trimbletsip_message(
 			double f = getflt((unsigned char *)&mb(12));
 			
 			if (f > 0.0)
-			  sprintf(t, "x= %.1fm, y= %.1fm, z= %.1fm, time_of_fix= %f sec",
+			  snprintf(t, BUFFER_SIZE(pbuffer, t), "x= %.1fm, y= %.1fm, z= %.1fm, time_of_fix= %f sec",
 				  x, y, z,
 				  f);
 			else
@@ -5001,7 +5503,7 @@ trimbletsip_message(
 			double f   = getflt((unsigned char *)&mb(12));
 			
 			if (f > 0.0)
-			  sprintf(t, "lat %f %c, long %f %c, alt %.2fm",
+			  snprintf(t, BUFFER_SIZE(pbuffer, t), "lat %f %c, long %f %c, alt %.2fm",
 				  ((lat < 0.0) ? (-lat) : (lat))*RTOD, (lat < 0.0 ? 'S' : 'N'),
 				  ((lng < 0.0) ? (-lng) : (lng))*RTOD, (lng < 0.0 ? 'W' : 'E'),
 				  getflt((unsigned char *)&mb(8)));
@@ -5015,7 +5517,7 @@ trimbletsip_message(
 			double x = getdbl((unsigned char *)&mb(0));
 			double y = getdbl((unsigned char *)&mb(8));
 			double z = getdbl((unsigned char *)&mb(16));
-			sprintf(t, "x= %.1fm, y= %.1fm, z= %.1fm",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "x= %.1fm, y= %.1fm, z= %.1fm",
 				x, y, z);
 		}
 		break;
@@ -5024,7 +5526,7 @@ trimbletsip_message(
 		{
 			double lat = getdbl((unsigned char *)&mb(0));
 			double lng = getdbl((unsigned char *)&mb(8));
-			sprintf(t, "lat %f %c, lon %f %c, alt %.2fm",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "lat %f %c, lon %f %c, alt %.2fm",
 				((lat < 0.0) ? (-lat) : (lat))*RTOD, (lat < 0.0 ? 'S' : 'N'),
 				((lng < 0.0) ? (-lng) : (lng))*RTOD, (lng < 0.0 ? 'W' : 'E'),
 				getdbl((unsigned char *)&mb(16)));
@@ -5035,32 +5537,32 @@ trimbletsip_message(
 		{
 			int i, sats;
 			
-			strcpy(t, "mode: ");
+			strncpy(t, "mode: ", BUFFER_SIZE(pbuffer, t));
 			t += strlen(t);
 			switch (mb(0) & 0x7)
 			{
 			default:
-				sprintf(t, "0x%x", mb(0) & 0x7);
+				snprintf(t, BUFFER_SIZE(pbuffer, t), "0x%x", mb(0) & 0x7);
 				break;
 
 			case 3:
-				strcat(t, "2D");
+				strncpy(t, "2D", BUFFER_SIZE(pbuffer, t));
 				break;
 				
 			case 4:
-				strcat(t, "3D");
+				strncpy(t, "3D", BUFFER_SIZE(pbuffer, t));
 				break;
 			}
 			t += strlen(t);
 			if (mb(0) & 0x8)
-				strcpy(t, "-MANUAL, ");
+				strncpy(t, "-MANUAL, ", BUFFER_SIZE(pbuffer, t));
 			else
-				strcpy(t, "-AUTO, ");
+				strncpy(t, "-AUTO, ", BUFFER_SIZE(pbuffer, t));
 			t += strlen(t);
 			
 			sats = (mb(0)>>4) & 0xF;
 			
-			sprintf(t, "PDOP %.2f, HDOP %.2f, VDOP %.2f, TDOP %.2f, %d satellite%s in view: ",
+			snprintf(t, BUFFER_SIZE(pbuffer, t), "PDOP %.2f, HDOP %.2f, VDOP %.2f, TDOP %.2f, %d satellite%s in view: ",
 				getflt((unsigned char *)&mb(1)),
 				getflt((unsigned char *)&mb(5)),
 				getflt((unsigned char *)&mb(9)),
@@ -5070,7 +5572,7 @@ trimbletsip_message(
 
 			for (i=0; i < sats; i++)
 			{
-				sprintf(t, "%s%02d", i ? ", " : "", mb(17+i));
+				snprintf(t, BUFFER_SIZE(pbuffer, t), "%s%02d", i ? ", " : "", mb(17+i));
 				t += strlen(t);
 				if (tr)
 					tr->ctrack |= (1 << (mb(17+i)-1));
@@ -5085,17 +5587,17 @@ trimbletsip_message(
 		
 		case CMD_RSTATTRACK:
 		{
-			sprintf(t-2, "[%02d]=\"", mb(0)); /* add index to var name */
+			snprintf(t-2, BUFFER_SIZE(pbuffer, t-2), "[%02d]=\"", mb(0)); /* add index to var name */
 			t += strlen(t);
 
 			if (getflt((unsigned char *)&mb(4)) < 0.0)
 			{
-				strcpy(t, "<NO MEASUREMENTS>");
+				strncpy(t, "<NO MEASUREMENTS>", BUFFER_SIZE(pbuffer, t));
 				var_flag &= ~DEF;
 			}
 			else
 			{	
-				sprintf(t, "ch=%d, acq=%s, eph=%d, signal_level= %5.2f, elevation= %5.2f, azimuth= %6.2f",
+				snprintf(t, BUFFER_SIZE(pbuffer, t), "ch=%d, acq=%s, eph=%d, signal_level= %5.2f, elevation= %5.2f, azimuth= %6.2f",
 					(mb(1) & 0xFF)>>3,
 					mb(2) ? ((mb(2) == 1) ? "ACQ" : "SRCH") : "NEVER",
 					mb(3),
@@ -5106,29 +5608,31 @@ trimbletsip_message(
 				if (mb(20))
 				{
 					var_flag &= ~DEF;
-					strcpy(t, ", OLD");
+					strncpy(t, ", OLD", BUFFER_SIZE(pbuffer, t));
 				}
 				t += strlen(t);
 				if (mb(22))
 				{
 					if (mb(22) == 1)
-						strcpy(t, ", BAD PARITY");
+						strncpy(t, ", BAD PARITY", BUFFER_SIZE(pbuffer, t));
 					else
 						if (mb(22) == 2)
-							strcpy(t, ", BAD EPH HEALTH");
+							strncpy(t, ", BAD EPH HEALTH", BUFFER_SIZE(pbuffer, t));
 				}
 				t += strlen(t);
 				if (mb(23))
-					strcpy(t, ", collecting data");
+					strncpy(t, ", collecting data", BUFFER_SIZE(pbuffer, t));
 			}
 		}
 		break;
 		
 		default:
-			strcpy(t, "<UNDECODED>");
+			strncpy(t, "<UNDECODED>", BUFFER_SIZE(pbuffer, t));
 			break;
 		}
-		strcat(t,"\"");
+		t += strlen(t);
+
+		strncpy(t,"\"", BUFFER_SIZE(pbuffer, t));
 		set_var(&parse->kv, pbuffer, sizeof(pbuffer), var_flag);
 	}
 }
@@ -5240,6 +5744,161 @@ int refclock_parse_bs;
  * History:
  *
  * refclock_parse.c,v
+ * Revision 4.80  2007/08/11 12:06:29  kardel
+ * update comments wrt/ to PPS
+ *
+ * Revision 4.79  2007/08/11 11:52:23  kardel
+ * - terminate io bindings before io_closeclock() will close our file descriptor
+ *
+ * Revision 4.78  2006/12/22 20:08:27  kardel
+ * Bug 746 (RFE): add configuration for Expert mouseCLOCK USB v2.0 as mode 19
+ *
+ * Revision 4.77  2006/08/05 07:44:49  kardel
+ * support optionally separate PPS devices via /dev/refclockpps-{0..3}
+ *
+ * Revision 4.76  2006/06/22 18:40:47  kardel
+ * clean up signedness (gcc 4)
+ *
+ * Revision 4.75  2006/06/22 16:58:10  kardel
+ * Bug #632: call parse_ppsapi() in parse_ctl() when updating
+ * the PPS offset. Fix sign of offset passed to kernel.
+ *
+ * Revision 4.74  2006/06/18 21:18:37  kardel
+ * NetBSD Coverity CID 3796: possible NULL deref
+ *
+ * Revision 4.73  2006/05/26 14:23:46  kardel
+ * cleanup of copyright info
+ *
+ * Revision 4.72  2006/05/26 14:19:43  kardel
+ * cleanup of ioctl cruft
+ *
+ * Revision 4.71  2006/05/26 14:15:57  kardel
+ * delay adding refclock to async refclock io after all initializations
+ *
+ * Revision 4.70  2006/05/25 18:20:50  kardel
+ * bug #619
+ * terminate parse io engine after de-registering
+ * from refclock io engine
+ *
+ * Revision 4.69  2006/05/25 17:28:02  kardel
+ * complete refclock io structure initialization *before* inserting it into the
+ * refclock input machine (avoids null pointer deref) (bug #619)
+ *
+ * Revision 4.68  2006/05/01 17:02:51  kardel
+ * copy receiver method also for newlwy created receive buffers
+ *
+ * Revision 4.67  2006/05/01 14:37:29  kardel
+ * If an input buffer parses into more than one message do insert the
+ * parsed message in a new input buffer instead of processing it
+ * directly. This avoids deed complicated processing in signal
+ * handling.
+ *
+ * Revision 4.66  2006/03/18 00:45:30  kardel
+ * coverity fixes found in NetBSD coverity scan
+ *
+ * Revision 4.65  2006/01/26 06:08:33  kardel
+ * output errno on PPS setup failure
+ *
+ * Revision 4.64  2005/11/09 20:44:47  kardel
+ * utilize full PPS timestamp resolution from PPS API
+ *
+ * Revision 4.63  2005/10/07 22:10:25  kardel
+ * bounded buffer implementation
+ *
+ * Revision 4.62.2.2  2005/09/25 10:20:16  kardel
+ * avoid unexpected buffer overflows due to sprintf("%f") on strange floats:
+ * replace almost all str* and *printf functions be their buffer bounded
+ * counterparts
+ *
+ * Revision 4.62.2.1  2005/08/27 16:19:27  kardel
+ * limit re-set rate of trimble clocks
+ *
+ * Revision 4.62  2005/08/06 17:40:00  kardel
+ * cleanup size handling wrt/ to buffer boundaries
+ *
+ * Revision 4.61  2005/07/27 21:16:19  kardel
+ * fix a long (> 11 years) misconfiguration wrt/ Meinberg cflag factory
+ * default setup. CSTOPB was missing for the 7E2 default data format of
+ * the DCF77 clocks.
+ *
+ * Revision 4.60  2005/07/17 21:14:44  kardel
+ * change contents of version string to include the RCS/CVS Id
+ *
+ * Revision 4.59  2005/07/06 06:56:38  kardel
+ * syntax error
+ *
+ * Revision 4.58  2005/07/04 13:10:40  kardel
+ * fix bug 455: tripping over NULL pointer on cleanup
+ * fix shadow storage logic for ppsphaseadjust and trustime wrt/ time2
+ * fix compiler warnings for some platforms wrt/ printf formatstrings and
+ *     varying structure element sizes
+ * reorder assignment in binding to avoid tripping over NULL pointers
+ *
+ * Revision 4.57  2005/06/25 09:25:19  kardel
+ * sort out log output sequence
+ *
+ * Revision 4.56  2005/06/14 21:47:27  kardel
+ * collect samples only if samples are ok (sync or trusted flywheel)
+ * propagate pps phase adjustment value to kernel via PPSAPI to help HARDPPS
+ * en- and dis-able HARDPPS in correlation to receiver sync state
+ *
+ * Revision 4.55  2005/06/02 21:28:31  kardel
+ * clarify trust logic
+ *
+ * Revision 4.54  2005/06/02 17:06:49  kardel
+ * change status reporting to use fixed refclock_report()
+ *
+ * Revision 4.53  2005/06/02 16:33:31  kardel
+ * fix acceptance of clocks unsync clocks right at start
+ *
+ * Revision 4.52  2005/05/26 21:55:06  kardel
+ * cleanup status reporting
+ *
+ * Revision 4.51  2005/05/26 19:19:14  kardel
+ * implement fast refclock startup
+ *
+ * Revision 4.50  2005/04/16 20:51:35  kardel
+ * set pps_enable = 1 when binding a kernel PPS source
+ *
+ * Revision 4.49  2005/04/16 17:29:26  kardel
+ * add non polling clock type 18 for just listenning to Meinberg clocks
+ *
+ * Revision 4.48  2005/04/16 16:22:27  kardel
+ * bk sync 20050415 ntp-dev
+ *
+ * Revision 4.47  2004/11/29 10:42:48  kardel
+ * bk sync ntp-dev 20041129
+ *
+ * Revision 4.46  2004/11/29 10:26:29  kardel
+ * keep fudgetime2 in sync with trusttime/ppsphaseadjust depending in flag1
+ *
+ * Revision 4.45  2004/11/14 20:53:20  kardel
+ * clear PPS flags after using them
+ *
+ * Revision 4.44  2004/11/14 15:29:41  kardel
+ * support PPSAPI, upgrade Copyright to Berkeley style
+ *
+ * Revision 4.43  2001/05/26 22:53:16  kardel
+ * 20010526 reconcilation
+ *
+ * Revision 4.42  2000/05/14 15:31:51  kardel
+ * PPSAPI && RAWDCF modemline support
+ *
+ * Revision 4.41  2000/04/09 19:50:45  kardel
+ * fixed rawdcfdtr_init() -> rawdcf_init_1
+ *
+ * Revision 4.40  2000/04/09 15:27:55  kardel
+ * modem line fiddle in rawdcf_init_2
+ *
+ * Revision 4.39  2000/03/18 09:16:55  kardel
+ * PPSAPI integration
+ *
+ * Revision 4.38  2000/03/05 20:25:06  kardel
+ * support PPSAPI
+ *
+ * Revision 4.37  2000/03/05 20:11:14  kardel
+ * 4.0.99g reconcilation
+ *
  * Revision 4.36  1999/11/28 17:18:20  kardel
  * disabled burst mode
  *

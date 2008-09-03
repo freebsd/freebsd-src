@@ -4,6 +4,12 @@
 
 #include <stdio.h>
 
+#include <ctype.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <sys/types.h>
+#include <sys/time.h>
+
 #include "ntpq.h"
 #include "ntp_unixtime.h"
 #include "ntp_calendar.h"
@@ -15,16 +21,13 @@
 #include "isc/net.h"
 #include "isc/result.h"
 
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#include <netdb.h>
+#include "ntpq-opts.h"
+
 #ifdef SYS_WINNT
+# include <Mswsock.h>
 # include <io.h>
 #else
-#define closesocket close
+# define closesocket close
 #endif /* SYS_WINNT */
 
 #if defined(HAVE_LIBREADLINE) || defined(HAVE_LIBEDIT)
@@ -33,9 +36,14 @@
 #endif /* HAVE_LIBREADLINE || HAVE_LIBEDIT */
 
 #ifdef SYS_VXWORKS
-/* vxWorks needs mode flag -casey*/
-#define open(name, flags)   open(name, flags, 0777)
-#define SERVER_PORT_NUM     123
+				/* vxWorks needs mode flag -casey*/
+# define open(name, flags)   open(name, flags, 0777)
+# define SERVER_PORT_NUM     123
+#endif
+
+/* we use COMMAND as an autogen keyword */
+#ifdef COMMAND
+# undef COMMAND
 #endif
 
 /*
@@ -45,6 +53,11 @@
 int interactive = 0;		/* set to 1 when we should prompt */
 const char *prompt = "ntpq> ";	/* prompt to ask him about */
 
+
+/*
+ * for get_systime()
+ */
+s_char	sys_precision;		/* local clock precision (log2 s) */
 
 /*
  * Keyid used for authenticated requests.  Obtained on the fly.
@@ -156,7 +169,7 @@ struct ctl_var peer_var[] = {
 	{ CP_REC,	TS,	"rec" },	/* 19 */
 	{ CP_XMT,	TS,	"xmt" },	/* 20 */
 	{ CP_REACH,	OC,	"reach" },	/* 21 */
-	{ CP_VALID,	UI,	"valid" },	/* 22 */
+	{ CP_UNREACH,	UI,	"unreach" },	/* 22 */
 	{ CP_TIMER,	UI,	"timer" },	/* 23 */
 	{ CP_DELAY,	FS,	"delay" },	/* 24 */
 	{ CP_OFFSET,	FL,	"offset" },	/* 25 */
@@ -209,17 +222,19 @@ struct ctl_var clock_var[] = {
  * flasher bits
  */
 static const char *tstflagnames[] = {
-	"dup_pkt",		/* TEST1 */
-	"bogus_pkt",		/* TEST2 */
-	"proto_unsync",		/* TEST3 */
-	"no_access",		/* TEST4 */
-	"bad_auth",			/* TEST5 */
-	"peer_unsync",		/* TEST6 */
-	"peer_stratum",		/* TEST7 */
-	"root_bounds",		/* TEST8 */
-	"peer_bounds",		/* TEST9 */
-	"bad_autokey",		/* TEST10 */
-	"not_proventic"		/* TEST11*/
+	"pkt_dup",		/* TEST1 */
+	"pkt_bogus",		/* TEST2 */
+	"pkt_proto",		/* TEST3 */
+	"pkt_denied",		/* TEST4 */
+	"pkt_auth",		/* TEST5 */
+	"pkt_synch",		/* TEST6 */
+	"pkt_dist",		/* TEST7 */
+	"pkt_autokey",		/* TEST8 */
+	"pkt_crypto",		/* TEST9 */
+	"peer_stratum",		/* TEST10 */
+	"peer_dist",		/* TEST11 */
+	"peer_loop",		/* TEST12 */
+	"peer_unfit"		/* TEST13 */
 };
 
 
@@ -284,31 +299,31 @@ static	int	assoccmp	P((struct association *, struct association *));
  * Built-in commands we understand
  */
 struct xcmd builtins[] = {
-	{ "?",		help,		{  OPT|STR, NO, NO, NO },
+	{ "?",		help,		{  OPT|NTP_STR, NO, NO, NO },
 	  { "command", "", "", "" },
 	  "tell the use and syntax of commands" },
-	{ "help",	help,		{  OPT|STR, NO, NO, NO },
+	{ "help",	help,		{  OPT|NTP_STR, NO, NO, NO },
 	  { "command", "", "", "" },
 	  "tell the use and syntax of commands" },
-	{ "timeout",	timeout,	{ OPT|UINT, NO, NO, NO },
+	{ "timeout",	timeout,	{ OPT|NTP_UINT, NO, NO, NO },
 	  { "msec", "", "", "" },
 	  "set the primary receive time out" },
-	{ "delay",	auth_delay,	{ OPT|INT, NO, NO, NO },
+	{ "delay",	auth_delay,	{ OPT|NTP_INT, NO, NO, NO },
 	  { "msec", "", "", "" },
 	  "set the delay added to encryption time stamps" },
-	{ "host",	host,		{ OPT|STR, OPT|STR, NO, NO },
+	{ "host",	host,		{ OPT|NTP_STR, OPT|NTP_STR, NO, NO },
 	  { "-4|-6", "hostname", "", "" },
 	  "specify the host whose NTP server we talk to" },
-	{ "poll",	ntp_poll,	{ OPT|UINT, OPT|STR, NO, NO },
+	{ "poll",	ntp_poll,	{ OPT|NTP_UINT, OPT|NTP_STR, NO, NO },
 	  { "n", "verbose", "", "" },
 	  "poll an NTP server in client mode `n' times" },
 	{ "passwd",	passwd,		{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "specify a password to use for authenticated requests"},
-	{ "hostnames",	hostnames,	{ OPT|STR, NO, NO, NO },
+	{ "hostnames",	hostnames,	{ OPT|NTP_STR, NO, NO, NO },
 	  { "yes|no", "", "", "" },
 	  "specify whether hostnames or net numbers are printed"},
-	{ "debug",	setdebug,	{ OPT|STR, NO, NO, NO },
+	{ "debug",	setdebug,	{ OPT|NTP_STR, NO, NO, NO },
 	  { "no|more|less", "", "", "" },
 	  "set/change debugging level" },
 	{ "quit",	quit,		{ NO, NO, NO, NO },
@@ -317,7 +332,7 @@ struct xcmd builtins[] = {
 	{ "exit",	quit,		{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "exit ntpq" },
-	{ "keyid",	keyid,		{ OPT|UINT, NO, NO, NO },
+	{ "keyid",	keyid,		{ OPT|NTP_UINT, NO, NO, NO },
 	  { "key#", "", "", "" },
 	  "set keyid to use for authenticated requests" },
 	{ "version",	version,	{ NO, NO, NO, NO },
@@ -329,13 +344,13 @@ struct xcmd builtins[] = {
 	{ "cooked",	cooked,		{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "do cooked mode variable output" },
-	{ "authenticate", authenticate,	{ OPT|STR, NO, NO, NO },
+	{ "authenticate", authenticate,	{ OPT|NTP_STR, NO, NO, NO },
 	  { "yes|no", "", "", "" },
 	  "always authenticate requests to this server" },
-	{ "ntpversion",	ntpversion,	{ OPT|UINT, NO, NO, NO },
+	{ "ntpversion",	ntpversion,	{ OPT|NTP_UINT, NO, NO, NO },
 	  { "version number", "", "", "" },
 	  "set the NTP version number to use for requests" },
-	{ "keytype",	keytype,	{ OPT|STR, NO, NO, NO },
+	{ "keytype",	keytype,	{ OPT|NTP_STR, NO, NO, NO },
 	  { "key type (md5|des)", "", "", "" },
 	  "set key type to use for authenticated requests (des|md5)" },
 	{ 0,		0,		{ NO, NO, NO, NO },
@@ -358,6 +373,7 @@ struct xcmd builtins[] = {
 #define	MAXVARLEN	256		/* maximum length of a variable name */
 #define	MAXVALLEN	400		/* maximum length of a variable value */
 #define	MAXOUTLINE	72		/* maximum length of an output line */
+#define SCREENWIDTH     76              /* nominal screen width in columns */
 
 /*
  * Some variables used and manipulated locally
@@ -457,10 +473,8 @@ CALL(ntpq,"ntpq",ntpqmain);
 void clear_globals(void)
 {
     extern int ntp_optind;
-    extern char *ntp_optarg;
     showhostnames = 0;				/* don'tshow host names by default */
     ntp_optind = 0;
-    ntp_optarg = 0;
     server_entry = NULL;            /* server entry for ntp */
     havehost = 0;				/* set to 1 when host open */
     numassoc = 0;		/* number of cached associations */
@@ -489,15 +503,13 @@ ntpqmain(
 	char *argv[]
 	)
 {
-	int c;
-	int errflg = 0;
 	extern int ntp_optind;
-	extern char *ntp_optarg;
 
-#ifdef NO_MAIN_ALLOWED
-    clear_globals();
-    taskPrioritySet(taskIdSelf(), 100 );
+#ifdef SYS_VXWORKS
+	clear_globals();
+	taskPrioritySet(taskIdSelf(), 100 );
 #endif
+
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
 
@@ -515,7 +527,49 @@ ntpqmain(
 	}
 
 	progname = argv[0];
-	ai_fam_templ = ai_fam_default;
+
+	{
+		int optct = optionProcess(&ntpqOptions, argc, argv);
+		argc -= optct;
+		argv += optct;
+	}
+
+	switch (WHICH_IDX_IPV4) {
+	    case INDEX_OPT_IPV4:
+		ai_fam_templ = AF_INET;
+		break;
+	    case INDEX_OPT_IPV6:
+		ai_fam_templ = AF_INET6;
+		break;
+	    default:
+		ai_fam_templ = ai_fam_default;
+		break;
+	}
+
+	if (HAVE_OPT(COMMAND)) {
+		int		cmdct = STACKCT_OPT( COMMAND );
+		const char**	cmds  = STACKLST_OPT( COMMAND );
+
+		while (cmdct-- > 0) {
+			ADDCMD(*cmds++);
+		}
+	}
+
+	debug = DESC(DEBUG_LEVEL).optOccCt;
+
+	if (HAVE_OPT(INTERACTIVE)) {
+		interactive = 1;
+	}
+
+	if (HAVE_OPT(NUMERIC)) {
+		showhostnames = 0;
+	}
+
+	if (HAVE_OPT(PEERS)) {
+		ADDCMD("peers");
+	}
+
+#if 0
 	while ((c = ntp_getopt(argc, argv, "46c:dinp")) != EOF)
 	    switch (c) {
 		case '4':
@@ -549,6 +603,7 @@ ntpqmain(
 			       progname);
 		exit(2);
 	}
+#endif
 	if (ntp_optind == argc) {
 		ADDHOST(DEFHOST);
 	} else {
@@ -630,7 +685,11 @@ openhost(
 	hints.ai_flags = AI_NUMERICHOST;
 
 	a_info = getaddrinfo(hname, service, &hints, &ai);
-	if (a_info == EAI_NONAME || a_info == EAI_NODATA) {
+	if (a_info == EAI_NONAME
+#ifdef EAI_NODATA
+	    || a_info == EAI_NODATA
+#endif
+	   ) {
 		hints.ai_flags = AI_CANONNAME;
 #ifdef AI_ADDRCONFIG
 		hints.ai_flags |= AI_ADDRCONFIG;
@@ -684,6 +743,7 @@ openhost(
 	{
 		int optionValue = SO_SYNCHRONOUS_NONALERT;
 		int err;
+
 		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&optionValue, sizeof(optionValue));
 		if (err != NO_ERROR) {
 			(void) fprintf(stderr, "cannot open nonoverlapped sockets\n");
@@ -1268,6 +1328,8 @@ doquery(
 			done = 1;
 			goto again;
 		}
+		if (numhosts > 1)
+			(void) fprintf(stderr, "server=%s ", currenthost);
 		switch(res) {
 		    case CERR_BADFMT:
 			(void) fprintf(stderr,
@@ -1577,16 +1639,16 @@ getarg(
 	static const char *digits = "0123456789";
 
 	switch (code & ~OPT) {
-	    case STR:
+	    case NTP_STR:
 		argp->string = str;
 		break;
-	    case ADD:
+	    case NTP_ADD:
 		if (!getnetnum(str, &(argp->netnum), (char *)0, 0)) {
 			return 0;
 		}
 		break;
-	    case INT:
-	    case UINT:
+	    case NTP_INT:
+	    case NTP_UINT:
 		isneg = 0;
 		np = str;
 		if (*np == '&') {
@@ -1629,7 +1691,7 @@ getarg(
 		} while (*(++np) != '\0');
 
 		if (isneg) {
-			if ((code & ~OPT) == UINT) {
+			if ((code & ~OPT) == NTP_UINT) {
 				(void) fprintf(stderr,
 					       "***Value %s should be unsigned\n", str);
 				return 0;
@@ -1666,7 +1728,6 @@ getnetnum(
 	int af
 	)
 {
-	int err;
 	int sockaddr_len;
 	struct addrinfo hints, *ai = NULL;
 
@@ -1685,10 +1746,9 @@ getnetnum(
 			getnameinfo((struct sockaddr *)num, sockaddr_len,
 					fullhost, sizeof(fullhost), NULL, 0,
 					NI_NUMERICHOST);
-
 		}
 		return 1;
-	} else if ((err = getaddrinfo(hname, "ntp", &hints, &ai)) == 0) {
+	} else if (getaddrinfo(hname, "ntp", &hints, &ai) == 0) {
 		memmove((char *)num, ai->ai_addr, ai->ai_addrlen);
 		if (ai->ai_canonname != 0)
 		    (void) strcpy(fullhost, ai->ai_canonname);
@@ -1915,8 +1975,8 @@ decodeint(
 {
 	if (*str == '0') {
 		if (*(str+1) == 'x' || *(str+1) == 'X')
-		    return hextoint(str+2, (void *)&val);
-		return octtoint(str, (void *)&val);
+		    return hextoint(str+2, val);
+		return octtoint(str, val);
 	}
 	return atoint(str, val);
 }
@@ -1991,57 +2051,56 @@ help(
 	FILE *fp
 	)
 {
-	int i;
-	int n;
 	struct xcmd *xcp;
 	char *cmd;
-	const char *cmdsort[100];
-	int length[100];
-	int maxlength;
-	int numperline;
-	static const char *spaces = "                    ";	/* 20 spaces */
+	const char *list[100];
+        int word, words;
+        int row, rows;
+        int col, cols;
 
 	if (pcmd->nargs == 0) {
-		n = 0;
+		words = 0;
 		for (xcp = builtins; xcp->keyword != 0; xcp++) {
 			if (*(xcp->keyword) != '?')
-			    cmdsort[n++] = xcp->keyword;
+			    list[words++] = xcp->keyword;
 		}
 		for (xcp = opcmds; xcp->keyword != 0; xcp++)
-		    cmdsort[n++] = xcp->keyword;
+		    list[words++] = xcp->keyword;
 
+		qsort(
 #ifdef QSORT_USES_VOID_P
-		qsort(cmdsort, (size_t)n, sizeof(char *), helpsort);
+		    (void *)
 #else
-		qsort((char *)cmdsort, (size_t)n, sizeof(char *), helpsort);
+		    (char *)
 #endif
-
-		maxlength = 0;
-		for (i = 0; i < n; i++) {
-			length[i] = strlen(cmdsort[i]);
-			if (length[i] > maxlength)
-			    maxlength = length[i];
+			(list), (size_t)(words), sizeof(char *), helpsort);
+		col = 0;
+		for (word = 0; word < words; word++) {
+		 	int length = strlen(list[word]);
+			if (col < length) {
+			    col = length;
+                        }
 		}
-		maxlength++;
-		numperline = 76 / maxlength;
 
-		(void) fprintf(fp, "Commands available:\n");
-		for (i = 0; i < n; i++) {
-			if ((i % numperline) == (numperline-1)
-			    || i == (n-1))
-			    (void) fprintf(fp, "%s\n", cmdsort[i]);
-			else
-			    (void) fprintf(fp, "%s%s", cmdsort[i],
-					   spaces+20-maxlength+length[i]);
-		}
+		cols = SCREENWIDTH / ++col;
+                rows = (words + cols - 1) / cols;
+
+		(void) fprintf(fp, "ntpq commands:\n");
+
+		for (row = 0; row < rows; row++) {
+                        for (word = row; word < words; word += rows) {
+			        (void) fprintf(fp, "%-*.*s", col, col-1, list[word]);
+                        }
+                        (void) fprintf(fp, "\n");
+                }
 	} else {
 		cmd = pcmd->argval[0].string;
-		n = findcmd(cmd, builtins, opcmds, &xcp);
-		if (n == 0) {
+		words = findcmd(cmd, builtins, opcmds, &xcp);
+		if (words == 0) {
 			(void) fprintf(stderr,
 				       "Command `%s' is unknown\n", cmd);
 			return;
-		} else if (n >= 2) {
+		} else if (words >= 2) {
 			(void) fprintf(stderr,
 				       "Command `%s' is ambiguous\n", cmd);
 			return;
@@ -2743,12 +2802,15 @@ nextvar(
 
 
 /*
- * findvar - see if this variable is known to us
+ * findvar - see if this variable is known to us.
+ * If "code" is 1, return ctl_var->code.
+ * Otherwise return the ordinal position of the found variable.
  */
 int
 findvar(
 	char *varname,
-	struct ctl_var *varlist
+	struct ctl_var *varlist,
+	int code
 	)
 {
 	register char *np;
@@ -2758,7 +2820,10 @@ findvar(
 	np = varname;
 	while (vl->fmt != EOV) {
 		if (vl->fmt != PADDING && STREQ(np, vl->text))
-		    return vl->code;
+		    return (code)
+				? vl->code
+				: (vl - varlist)
+			    ;
 		vl++;
 	}
 	return 0;
@@ -2964,7 +3029,7 @@ tstflags(
 		cb += strlen(cb);
 	} else {
 		*cb++ = ' ';
-		for (i = 0; i < 11; i++) {
+		for (i = 0; i < 13; i++) {
 			if (val & 0x1) {
 				sprintf(cb, "%s%s", sep, tstflagnames[i]);
 				sep = ", ";
@@ -3022,7 +3087,7 @@ cookedprint(
 
 	startoutput();
 	while (nextvar(&length, &data, &name, &value)) {
-		varid = findvar(name, varlist);
+		varid = findvar(name, varlist, 0);
 		if (varid == 0) {
 			output_raw = '*';
 		} else {

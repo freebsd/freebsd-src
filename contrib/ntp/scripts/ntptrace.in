@@ -4,19 +4,26 @@
 
 use Socket;
 use Getopt::Std;
-use vars qw($opt_n);
+use vars qw($opt_n $opt_m);
 
 $ntpq = "ntpq";
 
-getopts('n');
+getopts('nm:');
 
 $dodns = 1;
 $dodns = 0 if (defined($opt_n));
+
+$max_hosts = (defined($opt_m) ? $opt_m :  99);
+$max_hosts = 0 if ( $max_hosts !~ /^\d+$/ );
+$nb_host = 1;
 
 $host = shift;
 $host ||= "127.0.0.1";
 
 for (;;) {
+	$nb_host++;
+	$rootdelay = 0;
+	$rootdispersion = 0;
 	$stratum = 255;
 	$cmd = "$ntpq -n -c rv $host";
 	open(PH, $cmd . "|") || die "failed to start command $cmd: $!";
@@ -26,12 +33,13 @@ for (;;) {
 		# Very old servers report phase and not offset.
 		$offset = $1 if (/(?:offset|phase)=([^\s,]+)/);
 		$rootdelay = $1 if (/rootdelay=([^\s,]+)/);
+		$rootdispersion = $1 if (/rootdispersion=([^\s,]+)/);
 		$refid = $1 if (/refid=([^\s,]+)/);
 	}
 	close(PH) || die "$cmd failed";
 	last if ($stratum == 255);
 	$offset /= 1000;
-	$rootdelay /= 1000;
+	$syncdistance = ($rootdispersion + ($rootdelay / 2)) / 1000;
 	$dhost = $host;
 	# Only do lookups of IPv4 addresses. The standard lookup functions
 	# of perl only do IPv4 and I don't know if we should require extras.
@@ -40,12 +48,13 @@ for (;;) {
 		$name = (gethostbyaddr($iaddr, AF_INET))[0];
 		$dhost = $name if (defined($name));
 	}
-	printf("%s: stratum %d, offset %f, root distance %f",
-	    $dhost, $stratum, $offset, $rootdelay);
+	printf("%s: stratum %d, offset %f, synch distance %f",
+	    $dhost, $stratum, $offset, $syncdistance);
 	printf(", refid '%s'", $refid) if ($stratum == 1);
 	printf("\n");
 	last if ($stratum == 0 || $stratum == 1 || $stratum == 16);
 	last if ($refid =~ /^127\.127\.\d{1,3}\.\d{1,3}$/);
+	last if ($nb_host > $max_hosts);
 
 	$cmd = "$ntpq -n -c \"pstat $peer\" $host";
 	open(PH, $cmd . "|") || die "failed to start command $cmd: $!";
@@ -55,6 +64,7 @@ for (;;) {
 	}
 	close(PH) || die "$cmd failed";
 	last if ($thost eq "");
+	last if ($thost =~ /^127\.127\.\d{1,3}\.\d{1,3}$/);
 	$host = $thost;
 }
 

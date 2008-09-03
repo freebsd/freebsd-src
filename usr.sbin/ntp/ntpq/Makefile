@@ -9,12 +9,13 @@ NO_MAN=
 BINDIR=	/usr/bin
 
 PROG=	ntpq
-SRCS= 	ntpq.c ntpq_ops.c version.c
+SRCS= 	ntpq.c ntpq-opts.c ntpq-subs.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
+	-I${.CURDIR}/../../../contrib/ntp/libopts
 
-DPADD=	${LIBNTP} ${LIBMD}
-LDADD=	${LIBNTP} -lmd
+DPADD=	${LIBNTP} ${LIBM} ${LIBMD} ${LIBOPTS}
+LDADD=	${LIBNTP} -lm -lmd ${LIBOPTS}
 
 .if ${MK_GNU_SUPPORT} != "no"
 DPADD+=		${LIBREADLINE} ${LIBTERMCAP}

@@ -4,6 +4,10 @@
 
 #include <stdio.h>
 
+#include <ctype.h>
+#include <signal.h>
+#include <setjmp.h>
+
 #include "ntpdc.h"
 #include "ntp_select.h"
 #include "ntp_io.h"
@@ -13,12 +17,10 @@
 #include "isc/net.h"
 #include "isc/result.h"
 
-#include <ctype.h>
-#include <signal.h>
-#include <setjmp.h>
-#include <netdb.h>
+#include "ntpdc-opts.h"
 
 #ifdef SYS_WINNT
+# include <Mswsock.h>
 # include <io.h>
 #else
 # define closesocket close
@@ -30,9 +32,14 @@
 #endif /* HAVE_LIBREADLINE || HAVE_LIBEDIT */
 
 #ifdef SYS_VXWORKS
-/* vxWorks needs mode flag -casey*/
-#define open(name, flags)   open(name, flags, 0777)
-#define SERVER_PORT_NUM     123
+				/* vxWorks needs mode flag -casey*/
+# define open(name, flags)   open(name, flags, 0777)
+# define SERVER_PORT_NUM     123
+#endif
+
+/* We use COMMAND as an autogen keyword */
+#ifdef COMMAND
+# undef COMMAND
 #endif
 
 /*
@@ -47,6 +54,7 @@ static	const char *	prompt = "ntpdc> ";	/* prompt to ask him about */
  * Keyid used for authenticated requests.  Obtained on the fly.
  */
 static	u_long	info_auth_keyid;
+static int keyid_entered = 0;
 
 /*
  * Type of key md5
@@ -55,6 +63,11 @@ static	u_long	info_auth_keyid;
 
 static	int info_auth_keytype = KEY_TYPE_MD5;	/* MD5 */
 u_long	current_time;		/* needed by authkeys; not used */
+
+/*
+ * for get_systime()
+ */
+s_char	sys_precision;		/* local clock precision (log2 s) */
 
 int		ntpdcmain	P((int,	char **));
 /*
@@ -105,10 +118,10 @@ static	struct xcmd builtins[] = {
 	{ "help",	help,		{  OPT|NTP_STR, NO, NO, NO },
 	  { "command", "", "", "" },
 	  "tell the use and syntax of commands" },
-	{ "timeout",	timeout,	{ OPT|UINT, NO, NO, NO },
+	{ "timeout",	timeout,	{ OPT|NTP_UINT, NO, NO, NO },
 	  { "msec", "", "", "" },
 	  "set the primary receive time out" },
-	{ "delay",	my_delay,	{ OPT|INT, NO, NO, NO },
+	{ "delay",	my_delay,	{ OPT|NTP_INT, NO, NO, NO },
 	  { "msec", "", "", "" },
 	  "set the delay added to encryption time stamps" },
 	{ "host",	host,		{ OPT|NTP_STR, OPT|NTP_STR, NO, NO },
@@ -129,7 +142,7 @@ static	struct xcmd builtins[] = {
 	{ "exit",	quit,		{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "exit ntpdc" },
-	{ "keyid",	keyid,		{ OPT|UINT, NO, NO, NO },
+	{ "keyid",	keyid,		{ OPT|NTP_UINT, NO, NO, NO },
 	  { "key#", "", "", "" },
 	  "set/show keyid to use for authenticated requests" },
 	{ "keytype",	keytype,	{ OPT|NTP_STR, NO, NO, NO },
@@ -154,9 +167,8 @@ static	struct xcmd builtins[] = {
 #define	MAXCMDS		100		/* maximum commands on cmd line */
 #define	MAXHOSTS	200		/* maximum hosts on cmd line */
 #define	MAXLINE		512		/* maximum line length */
-#define	MAXTOKENS	(1+1+MAXARGS+2)	/* maximum number of usable tokens */
-					/* command + -4|-6 + MAXARGS + */
-					/* redirection */
+#define	MAXTOKENS	(1+1+MAXARGS+MOREARGS+2)	/* maximum number of usable tokens */
+#define	SCREENWIDTH  	78		/* nominal screen width in columns */
 
 /*
  * Some variables used and manipulated locally
@@ -268,11 +280,7 @@ main(
 #ifdef SYS_VXWORKS
 void clear_globals(void)
 {
-    extern int ntp_optind;
-    extern char *ntp_optarg;
     showhostnames = 0;              /* show host names by default */
-    ntp_optind = 0;
-    ntp_optarg = 0;
     havehost = 0;                   /* set to 1 when host open */
     numcmds = 0;
     numhosts = 0;
@@ -288,10 +296,7 @@ ntpdcmain(
 	char *argv[]
 	)
 {
-	int c;
-	int errflg = 0;
 	extern int ntp_optind;
-	extern char *ntp_optarg;
 
 	delay_time.l_ui = 0;
 	delay_time.l_uf = DEFDELAY;
@@ -315,6 +320,69 @@ ntpdcmain(
 	}
 
 	progname = argv[0];
+
+	{
+		int optct = optionProcess(&ntpdcOptions, argc, argv);
+		argc -= optct;
+		argv += optct;
+	}
+
+	switch (WHICH_IDX_IPV4) {
+	    case INDEX_OPT_IPV4:
+		ai_fam_templ = AF_INET;
+		break;
+	    case INDEX_OPT_IPV6:
+		ai_fam_templ = AF_INET6;
+		break;
+	    default:
+		ai_fam_templ = ai_fam_default;
+		break;
+	}
+
+	if (HAVE_OPT(COMMAND)) {
+		int		cmdct = STACKCT_OPT( COMMAND );
+		const char**	cmds  = STACKLST_OPT( COMMAND );
+
+		while (cmdct-- > 0) {
+			ADDCMD(*cmds++);
+		}
+	}
+
+	debug = DESC(DEBUG_LEVEL).optOccCt;
+
+	if (HAVE_OPT(INTERACTIVE)) {
+		interactive = 1;
+	}
+
+	if (HAVE_OPT(NUMERIC)) {
+		showhostnames = 0;
+	}
+
+	if (HAVE_OPT(LISTPEERS)) {
+		ADDCMD("listpeers");
+	}
+
+	if (HAVE_OPT(PEERS)) {
+		ADDCMD("peers");
+	}
+
+	if (HAVE_OPT(SHOWPEERS)) {
+		ADDCMD("dmpeers");
+	}
+
+	if (ntp_optind == argc) {
+		ADDHOST(DEFHOST);
+	} else {
+		for (; ntp_optind < argc; ntp_optind++)
+		    ADDHOST(argv[ntp_optind]);
+	}
+
+	if (numcmds == 0 && interactive == 0
+	    && isatty(fileno(stdin)) && isatty(fileno(stderr))) {
+		interactive = 1;
+	}
+
+#if 0
 	ai_fam_templ = ai_fam_default;
 	while ((c = ntp_getopt(argc, argv, "46c:dilnps")) != EOF)
 	    switch (c) {
@@ -349,12 +417,14 @@ ntpdcmain(
 		    errflg++;
 		    break;
 	    }
+
 	if (errflg) {
 		(void) fprintf(stderr,
 			       "usage: %s [-46dilnps] [-c cmd] host ...\n",
 			       progname);
 		exit(2);
 	}
+
 	if (ntp_optind == argc) {
 		ADDHOST(DEFHOST);
 	} else {
@@ -366,6 +436,7 @@ ntpdcmain(
 	    && isatty(fileno(stdin)) && isatty(fileno(stderr))) {
 		interactive = 1;
 	}
+#endif
 
 #ifndef SYS_WINNT /* Under NT cannot handle SIGINT, WIN32 spawns a handler */
 	if (interactive)
@@ -449,7 +520,11 @@ openhost(
 	hints.ai_flags = AI_NUMERICHOST;
 
 	a_info = getaddrinfo(hname, service, &hints, &ai);
-	if (a_info == EAI_NONAME || a_info == EAI_NODATA) {
+	if (a_info == EAI_NONAME
+#ifdef EAI_NODATA
+	    || a_info == EAI_NODATA
+#endif
+	   ) {
 		hints.ai_flags = AI_CANONNAME;
 #ifdef AI_ADDRCONFIG
 		hints.ai_flags |= AI_ADDRCONFIG;
@@ -463,6 +538,8 @@ openhost(
 	}
 	if (a_info != 0) {
 		(void) fprintf(stderr, "%s\n", gai_strerror(a_info));
+		if (ai != NULL)
+			freeaddrinfo(ai);
 		return 0;
 	}
 
@@ -502,6 +579,7 @@ openhost(
 	{
 		int optionValue = SO_SYNCHRONOUS_NONALERT;
 		int err;
+
 		err = setsockopt(INVALID_SOCKET, SOL_SOCKET, SO_OPENTYPE, (char *)&optionValue, sizeof(optionValue));
 		if (err != NO_ERROR) {
 			(void) fprintf(stderr, "cannot open nonoverlapped sockets\n");
@@ -541,7 +619,7 @@ openhost(
 		    ai->ai_addrlen) == -1)
 #endif /* SYS_VXWORKS */
 	    error("connect", "", "");
-	if (a_info)
+	if (ai != NULL)
 		freeaddrinfo(ai);
 	havehost = 1;
 	req_pkt_size = REQ_LEN_NOMAC;
@@ -853,10 +931,10 @@ sendrequest(
 		qpkt.mbz_itemsize = MBZ_ITEMSIZE(qsize);
 	} else {
 		qpkt.err_nitems = ERR_NITEMS(0, 0);
-		qpkt.mbz_itemsize = MBZ_ITEMSIZE(0);
+		qpkt.mbz_itemsize = MBZ_ITEMSIZE(qsize);  /* allow for optional first item */
 	}
 
-	if (!auth) {
+	if (!auth || (keyid_entered && info_auth_keyid == 0)) {
 		qpkt.auth_seq = AUTH_SEQ(0, 0);
 		return sendpkt((char *)&qpkt, req_pkt_size);
 	} else {
@@ -869,13 +947,17 @@ sendrequest(
 		    + MAX_MAC_LEN - sizeof(struct req_pkt_tail));
 
 		if (info_auth_keyid == 0) {
-			maclen = getkeyid("Keyid: ");
-			if (maclen == 0) {
-				(void) fprintf(stderr,
-				    "Invalid key identifier\n");
-				return 1;
+			if (((struct conf_peer *)qpkt.data)->keyid > 0)
+				info_auth_keyid = ((struct conf_peer *)qpkt.data)->keyid;
+			else {
+				maclen = getkeyid("Keyid: ");
+				if (maclen == 0) {
+					(void) fprintf(stderr,
+					    "Invalid key identifier\n");
+					return 1;
+				}
+				info_auth_keyid = maclen;
 			}
-			info_auth_keyid = maclen;
 		}
 		if (!authistrusted(info_auth_keyid)) {
 			pass = getpass("MD5 Password: ");
@@ -1098,7 +1180,7 @@ docmd(
 	const char *cmdline
 	)
 {
-	char *tokens[1+MAXARGS+2];
+	char *tokens[1+MAXARGS+MOREARGS+2];
 	struct parse pcmd;
 	int ntok;
 	int i, ti;
@@ -1145,6 +1227,21 @@ docmd(
 		if ((xcmd->arg[i] & OPT) && (*tokens[i+ti] == '>'))
 			break;
 		rval = getarg(tokens[i+ti], (int)xcmd->arg[i], &pcmd.argval[i]);
+		if (rval == -1) {
+			ti++;
+			continue;
+		}
+		if (rval == 0)
+			return;
+		pcmd.nargs++;
+		i++;
+	}
+
+	/* Any extra args are assumed to be "OPT|NTP_STR". */
+	for ( ; i < MAXARGS + MOREARGS;) {
+	     if ((i+ti) >= ntok)
+		  break;
+		rval = getarg(tokens[i+ti], (int)(OPT|NTP_STR), &pcmd.argval[i]);
 		if (rval == -1) {
 			ti++;
 			continue;
@@ -1293,6 +1390,9 @@ findcmd(
 /*
  * getarg - interpret an argument token
  *
+ * string is always set.
+ * type is set to the decoded type.
+ *
  * return:	 0 - failure
  *		 1 - success
  *		-1 - skip to next token
@@ -1308,11 +1408,15 @@ getarg(
 	char *cp, *np;
 	static const char *digits = "0123456789";
 
-	switch (code & ~OPT) {
+	memset(argp, 0, sizeof(*argp));
+
+	argp->string = str;
+	argp->type   = code & ~OPT;
+
+	switch (argp->type) {
 	    case NTP_STR:
-		argp->string = str;
 		break;
-	    case ADD:
+	    case NTP_ADD:
 		if (!strcmp("-6", str)) {
 			ai_fam_templ = AF_INET6;
 			return -1;
@@ -1324,8 +1428,8 @@ getarg(
 			return 0;
 		}
 		break;
-	    case INT:
-	    case UINT:
+	    case NTP_INT:
+	    case NTP_UINT:
 		isneg = 0;
 		np = str;
 		if (*np == '-') {
@@ -1346,7 +1450,7 @@ getarg(
 		} while (*(++np) != '\0');
 
 		if (isneg) {
-			if ((code & ~OPT) == UINT) {
+			if ((code & ~OPT) == NTP_UINT) {
 				(void) fprintf(stderr,
 					       "***Value %s should be unsigned\n", str);
 				return 0;
@@ -1383,7 +1487,6 @@ getnetnum(
 	int af
 	)
 {
-	int err;
 	int sockaddr_len;
 	struct addrinfo hints, *ai = NULL;
 
@@ -1404,7 +1507,7 @@ getnetnum(
 				    NI_NUMERICHOST); 
 		}
 		return 1;
-	} else if ((err = getaddrinfo(hname, "ntp", &hints, &ai)) == 0) {
+	} else if (getaddrinfo(hname, "ntp", &hints, &ai) == 0) {
 		memmove((char *)num, ai->ai_addr, ai->ai_addrlen);
 		if (fullhost != 0)
 			(void) strcpy(fullhost, ai->ai_canonname);
@@ -1447,57 +1550,56 @@ help(
 	FILE *fp
 	)
 {
-	int i;
-	int n;
 	struct xcmd *xcp;
 	char *cmd;
-	const char *cmdsort[100];
-	int length[100];
-	int maxlength;
-	int numperline;
-	static const char *spaces = "                    ";	/* 20 spaces */
+	const char *list[100];
+	int word, words;     
+        int row, rows;
+	int col, cols;
 
 	if (pcmd->nargs == 0) {
-		n = 0;
+		words = 0;
 		for (xcp = builtins; xcp->keyword != 0; xcp++) {
 			if (*(xcp->keyword) != '?')
-			    cmdsort[n++] = xcp->keyword;
+			    list[words++] = xcp->keyword;
 		}
-		for (xcp = opcmds; xcp->keyword != 0; xcp++)
-		    cmdsort[n++] = xcp->keyword;
+                for (xcp = opcmds; xcp->keyword != 0; xcp++)
+		    list[words++] = xcp->keyword;
 
+		qsort(
 #ifdef QSORT_USES_VOID_P
-		qsort(cmdsort, (size_t)n, sizeof(char *), helpsort);
+		    (void *)
 #else
-		qsort((char *)cmdsort, (size_t)n, sizeof(char *), helpsort);
+		    (char *)
 #endif
-
-		maxlength = 0;
-		for (i = 0; i < n; i++) {
-			length[i] = strlen(cmdsort[i]);
-			if (length[i] > maxlength)
-			    maxlength = length[i];
+			(list), (size_t)(words), sizeof(char *), helpsort);
+		col = 0;
+		for (word = 0; word < words; word++) {
+			int length = strlen(list[word]);
+			if (col < length) {
+			    col = length;
+                        }
 		}
-		maxlength++;
-		numperline = 76 / maxlength;
 
-		(void) fprintf(fp, "Commands available:\n");
-		for (i = 0; i < n; i++) {
-			if ((i % numperline) == (numperline-1)
-			    || i == (n-1))
-			    (void) fprintf(fp, "%s\n", cmdsort[i]);
-			else
-			    (void) fprintf(fp, "%s%s", cmdsort[i],
-					   spaces+20-maxlength+length[i]);
+		cols = SCREENWIDTH / ++col;
+                rows = (words + cols - 1) / cols;
+
+		(void) fprintf(fp, "ntpdc commands:\n");
+
+		for (row = 0; row < rows; row++) {
+                        for (word = row; word < words; word += rows) {
+				(void) fprintf(fp, "%-*.*s", col, col-1, list[word]);
+                        }
+			(void) fprintf(fp, "\n");
 		}
 	} else {
 		cmd = pcmd->argval[0].string;
-		n = findcmd(cmd, builtins, opcmds, &xcp);
-		if (n == 0) {
+		words = findcmd(cmd, builtins, opcmds, &xcp);
+		if (words == 0) {
 			(void) fprintf(stderr,
 				       "Command `%s' is unknown\n", cmd);
 			return;
-		} else if (n >= 2) {
+		} else if (words >= 2) {
 			(void) fprintf(stderr,
 				       "Command `%s' is ambiguous\n", cmd);
 			return;
@@ -1549,7 +1651,7 @@ printusage(
 	opt46 = 0;
 	(void) fprintf(fp, "usage: %s", xcp->keyword);
 	for (i = 0; i < MAXARGS && xcp->arg[i] != NO; i++) {
-		if (opt46 == 0 && (xcp->arg[i] & ~OPT) == ADD) {
+		if (opt46 == 0 && (xcp->arg[i] & ~OPT) == NTP_ADD) {
 			(void) fprintf(fp, " [ -4|-6 ]");
 			opt46 = 1;
 		}
@@ -1675,12 +1777,15 @@ keyid(
 	)
 {
 	if (pcmd->nargs == 0) {
-		if (info_auth_keyid == 0)
+		if (info_auth_keyid == 0 && !keyid_entered)
 		    (void) fprintf(fp, "no keyid defined\n");
+		else if (info_auth_keyid == 0 && keyid_entered)
+		    (void) fprintf(fp, "no keyid will be sent\n");
 		else
 		    (void) fprintf(fp, "keyid is %lu\n", (u_long)info_auth_keyid);
 	} else {
 		info_auth_keyid = pcmd->argval[0].uval;
+		keyid_entered = 1;
 	}
 }
 

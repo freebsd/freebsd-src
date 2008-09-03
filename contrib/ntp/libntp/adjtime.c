@@ -249,18 +249,31 @@ _adjtime(
 /*
  * Emulate adjtime() using QNX ClockAdjust().
  * Chris Burghart <burghart@atd.ucar.edu>, 11/2001
+ * Miroslaw Pabich <miroslaw_pabich@o2.pl>, 09/2005
  *
- * This is a *very* simple implementation of adjtime() for QNX.  
- * ClockAdjust() is used to tweak the system clock by about +- 1/10 
- * of its current clock period per tick until the desired delta is 
- * achieved.
+ * This is an implementation of adjtime() for QNX.  
+ * ClockAdjust() is used to tweak the system clock for about
+ * 1 second period until the desired delta is achieved.
+ * Time correction slew is limited to reasonable value.
+ * Internal rounding and relative errors are reduced.
  */
-# include <math.h>
-# include <stdio.h>
 # include <sys/neutrino.h>
 # include <sys/time.h>
 
 # include <ntp_stdlib.h>
+
+/*
+ * Time correction slew limit. QNX is a hard real-time system,
+ * so don't adjust system clock too fast.
+ */
+#define CORR_SLEW_LIMIT     0.02  /* [s/s] */
+
+/*
+ * Period of system clock adjustment. It should be equal to adjtime
+ * execution period (1s). If slightly less than 1s (0.95-0.99), then olddelta
+ * residual error (introduced by execution period jitter) will be reduced.
+ */
+#define ADJUST_PERIOD       0.97  /* [s] */
 
 int 
 adjtime (struct timeval *delta, struct timeval *olddelta)
@@ -269,10 +282,15 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
     double delta_nsec_old;
     struct _clockadjust adj;
     struct _clockadjust oldadj;
+
     /*
      * How many nanoseconds are we adjusting?
      */
-    delta_nsec = delta->tv_sec * 1e9 + delta->tv_usec * 1000;
+    if (delta != NULL)
+	delta_nsec = 1e9 * (long)delta->tv_sec + 1e3 * delta->tv_usec;
+    else
+	delta_nsec = 0;
+
     /*
      * Build the adjust structure and call ClockAdjust()
      */
@@ -281,6 +299,17 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
 	struct _clockperiod period;
 	long count;
 	long increment;
+	long increment_limit;
+	int isneg = 0;
+
+	/*
+	 * Convert to absolute value for future processing
+	 */
+	if (delta_nsec < 0)
+	{
+	    isneg = 1;
+	    delta_nsec = -delta_nsec;
+	}
 
 	/*
 	 * Get the current clock period (nanoseconds)
@@ -289,13 +318,34 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
 	    return -1;
 
 	/*
-	 * Set the adjust increment to approximately 1/10 timer period per 
-	 * clock tick.
+	 * Compute count and nanoseconds increment
 	 */
-	count = 1 + (long)(fabs(10 * delta_nsec / period.nsec));
-	increment = (long)(delta_nsec / count);
+	count = 1e9 * ADJUST_PERIOD / period.nsec;
+	increment = delta_nsec / count + .5;
+	/* Reduce relative error */
+	if (count > increment + 1)
+	{
+	    increment = 1 + (long)((delta_nsec - 1) / count);
+	    count = delta_nsec / increment + .5;
+	}
 
-	adj.tick_nsec_inc = increment;
+	/*
+	 * Limit the adjust increment to appropriate value
+	 */
+	increment_limit = CORR_SLEW_LIMIT * period.nsec;
+	if (increment > increment_limit)
+	{
+	    increment = increment_limit;
+	    count = delta_nsec / increment + .5;
+	    /* Reduce relative error */
+	    if (increment > count + 1)
+	    {
+		count =  1 + (long)((delta_nsec - 1) / increment);
+		increment = delta_nsec / count + .5;
+	    }
+	}
+
+	adj.tick_nsec_inc = isneg ? -increment : increment;
 	adj.tick_count = count;
     }
     else
@@ -310,11 +360,24 @@ adjtime (struct timeval *delta, struct timeval *olddelta)
     /*
      * Build olddelta
      */
-    delta_nsec_old = oldadj.tick_count * oldadj.tick_nsec_inc;
-    olddelta->tv_sec = (int)(delta_nsec_old / 1e9);
-    olddelta->tv_usec = (int)((delta_nsec_old - 1.0e9 * olddelta->tv_sec) / 
-                              1000);
-	    
+    delta_nsec_old = (double)oldadj.tick_count * oldadj.tick_nsec_inc;
+    if (olddelta != NULL)
+    {
+	if (delta_nsec_old != 0)
+	{
+	    /* Reduce rounding error */
+	    delta_nsec_old += (delta_nsec_old < 0) ? -500 : 500;
+	    olddelta->tv_sec = delta_nsec_old / 1e9;
+	    olddelta->tv_usec = (long)(delta_nsec_old - 1e9
+				 * (long)olddelta->tv_sec) / 1000;
+	}
+	else
+	{
+	    olddelta->tv_sec = 0;
+	    olddelta->tv_usec = 0;
+	}
+    }
+
     return 0;
 }
 # else /* no special adjtime() needed */

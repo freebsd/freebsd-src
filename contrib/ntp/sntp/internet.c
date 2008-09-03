@@ -62,7 +62,7 @@ void preferred_family(int fam) {
 #ifdef HAVE_IPV6
 
 void find_address (struct sockaddr_storage *address,
-    struct sockaddr_storage *anywhere, struct sockaddr_storage *everywhere,
+    struct sockaddr_storage *anywhere,
     int *port, char *hostname, int timespan) {
 
 /* Locate the specified NTP server and return its Internet address and port 
@@ -71,13 +71,10 @@ number. */
     int family, rval;
     struct addrinfo hints;
     struct addrinfo *res;
-    struct sockaddr_in *sin;
-    struct sockaddr_in6 *sin6;
 
     res = NULL;
     memset(address, 0, sizeof(struct sockaddr_storage));
     memset(anywhere, 0, sizeof(struct sockaddr_storage));
-    memset(everywhere, 0, sizeof(struct sockaddr_storage));
 
     if (setjmp(jump_buffer))
         fatal(0,"unable to set up access to NTP server %s",hostname);
@@ -92,7 +89,8 @@ number. */
     hints.ai_family = pref_family;
     rval = getaddrinfo(hostname, "ntp", &hints, &res);
     if (rval != 0)
-	fatal(0, "getaddrinfo failed with %s", gai_strerror(rval));
+	fatal(0, "getaddrinfo(hostname, ntp)  failed with %s",
+	    gai_strerror(rval));
 
 /* Now clear the timer and check the result. */
 
@@ -109,13 +107,9 @@ number. */
 	hints.ai_flags = AI_PASSIVE;
 	rval = getaddrinfo(NULL, "ntp", &hints, &res);
 	if (rval != 0)
-	    fatal(0, "getaddrinfo failed with %s", gai_strerror(rval));
+	    fatal(0, "getaddrinfo(NULL, ntp) failed with %s",
+		gai_strerror(rval));
 	memcpy(anywhere, res->ai_addr, res->ai_addrlen);
-	freeaddrinfo(res);
-	rval = getaddrinfo("255.255.255.255", "ntp", &hints, &res);
-	if (rval != 0)
-	    fatal(0, "getaddrinfo failed with %s", gai_strerror(rval));
-	memcpy(everywhere, res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
 	break;
     case AF_INET6:
@@ -123,15 +117,9 @@ number. */
 	hints.ai_flags = AI_PASSIVE;
 	rval = getaddrinfo(NULL, "ntp", &hints, &res);
 	if (rval != 0)
-	    fatal(0, "getaddrinfo failed with %s", gai_strerror(rval));
+	    fatal(0, "getaddrinfo(NULL, ntp, INET6, AI_PASSIVE) failed with %s",
+		gai_strerror(rval));
 	memcpy(anywhere, res->ai_addr, res->ai_addrlen);
-	freeaddrinfo(res);
-	/* IPv6 do not have broadcast, give it loopback. */
-	hints.ai_flags = 0;
-	rval = getaddrinfo(NULL, "ntp", &hints, &res);
-	if (rval != 0)
-	    fatal(0, "getaddrinfo failed with %s", gai_strerror(rval));
-	memcpy(everywhere, res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
 	break;
     }
@@ -140,7 +128,7 @@ number. */
 #else
 
 void find_address (struct in_addr *address, struct in_addr *anywhere,
-    struct in_addr *everywhere, int *port, char *hostname, int timespan) {
+    int *port, char *hostname, int timespan) {
 
 /* Locate the specified NTP server and return its Internet address and port 
 number. */
@@ -155,7 +143,6 @@ addresses are 32 bits. */
 
     local_to_address(nowhere,INADDR_LOOPBACK);
     local_to_address(anywhere,INADDR_ANY);
-    local_to_address(everywhere,INADDR_BROADCAST);
 
 /* Check the address, if any.  This assumes that the DNS is reliable, or is at
 least checked by someone else.  But it doesn't assume that it is accessible, so
@@ -192,9 +179,8 @@ it needs to set up a timeout. */
         if (host->h_length != sizeof(struct in_addr))
             fatal(0,"the address does not seem to be an Internet one",NULL);
         *address = *((struct in_addr **)host->h_addr_list)[0];
-        if (memcmp(address,nowhere,sizeof(struct in_addr)) == 0 ||
-                memcmp(address,anywhere,sizeof(struct in_addr)) == 0 ||
-                memcmp(address,everywhere,sizeof(struct in_addr)) == 0)
+        if (memcmp(address,nowhere,sizeof(struct in_addr)) == 0
+	    || memcmp(address,anywhere,sizeof(struct in_addr)) == 0)
             fatal(0,"reserved IP numbers cannot be used",NULL);
         if (verbose)
             fprintf(stderr,
