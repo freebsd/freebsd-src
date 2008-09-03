@@ -34,7 +34,7 @@ options		CPU_SENTRY5			# XXX should this be a
 
 # XXX only siba should be hardwired for now; we will use
 # bus enumeration there
-files		"../mips32/sentry5/files.sentry5"
+files		"../sentry5/files.sentry5"
 hints		"SENTRY5.hints"
 
 # sentry5 normally ships with cfe firmware; use the console for now
