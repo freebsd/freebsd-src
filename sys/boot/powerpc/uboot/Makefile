@@ -7,7 +7,7 @@ INSTALLFLAGS=	-b
 NO_MAN=
 
 # Architecture-specific loader code
-SRCS=		start.S conf.c metadata.c vers.c
+SRCS=		start.S conf.c vers.c
 
 LOADER_DISK_SUPPORT?=	no
 LOADER_UFS_SUPPORT?=	no
