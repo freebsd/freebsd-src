@@ -211,7 +211,6 @@ copy_file(const FTSENT *entp, int dne)
 			rval = 1;
 		}
 	}
-	(void)close(from_fd);
 	
 	/*
 	 * Don't remove the target even after an error.  The target might
@@ -231,6 +230,9 @@ copy_file(const FTSENT *entp, int dne)
 			rval = 1;
 		}
 	}
+
+	(void)close(from_fd);
+
 	return (rval);
 }
 
