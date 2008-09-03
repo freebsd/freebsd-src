@@ -40,13 +40,21 @@ strtof(s, sp) CONST char *s; char **sp;
 strtof(CONST char *s, char **sp)
 #endif
 {
-	static FPI fpi = { 24, 1-127-24+1,  254-127-24+1, 1, SI };
+	static FPI fpi0 = { 24, 1-127-24+1,  254-127-24+1, 1, SI };
+	FPI *fpi, fpi1;
 	ULong bits[1];
 	Long exp;
 	int k;
+	int Rounding = Flt_Rounds;
 	union { ULong L[1]; float f; } u;
 
-	k = strtodg(s, sp, &fpi, &exp, bits);
+	fpi = &fpi0;
+	if (Rounding != FPI_Round_near) {
+		fpi1 = fpi0;
+		fpi1.rounding = Rounding;
+		fpi = &fpi1;
+		}
+	k = strtodg(s, sp, fpi, &exp, bits);
 	switch(k & STRTOG_Retmask) {
 	  case STRTOG_NoNumber:
 	  case STRTOG_Zero:
