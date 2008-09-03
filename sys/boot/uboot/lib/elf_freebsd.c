@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/linker.h>
 
+#include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/elf.h>
 
@@ -38,11 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 
+extern vm_offset_t md_load(char *, vm_offset_t *);
+
 int
 __elfN(uboot_load)(char *filename, u_int64_t dest,
     struct preloaded_file **result)
 {
-	int	r;
+	int r;
 
 	r = __elfN(loadfile)(filename, dest, result);
 	if (r != 0)
@@ -62,20 +65,20 @@ __elfN(uboot_load)(char *filename, u_int64_t dest,
 int
 __elfN(uboot_exec)(struct preloaded_file *fp)
 {
-	struct file_metadata	*fmp;
-	vm_offset_t		 mdp;
-	Elf_Ehdr		*e;
-	int			 error;
+	struct file_metadata *fmp;
+	vm_offset_t mdp;
+	Elf_Ehdr *e;
+	int error;
 
-	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
+	if ((fmp = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
 		return (EFTYPE);
-	}
+
 	e = (Elf_Ehdr *)&fmp->md_data;
 
 	if ((error = md_load(fp->f_args, &mdp)) != 0)
 		return (error);
 
-	printf("Kernel entry at 0x%lx ...\n", e->e_entry);
+	printf("Kernel entry at 0x%x ...\n", e->e_entry);
 
 	dev_cleanup();
 

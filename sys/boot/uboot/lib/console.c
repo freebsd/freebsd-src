@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include "bootstrap.h"
+#include "glue.h"
 
 int console;
 
@@ -60,7 +61,7 @@ static int
 uboot_cons_init(int arg)
 {
 
-	return 0;
+	return (0);
 }
 
 static void
