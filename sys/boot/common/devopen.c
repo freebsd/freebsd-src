@@ -35,32 +35,33 @@ __FBSDID("$FreeBSD$");
 int
 devopen(struct open_file *f, const char *fname, const char **file) 
 {
-    struct devdesc *dev;
-    int result;
+	struct devdesc *dev;
+	int result;
 
-    result = archsw.arch_getdev((void **)&dev, fname, file);
-    if (result)
-	return (result);
+	result = archsw.arch_getdev((void **)&dev, fname, file);
+	if (result)
+		return (result);
 
-    /* point to device-specific data so that device open can use it */
-    f->f_devdata = dev;
-    result = dev->d_dev->dv_open(f, dev);
-    if (result != 0) {
-	f->f_devdata = NULL;
-	free(dev);
-	return (result);
-    }
+	/* point to device-specific data so that device open can use it */
+	f->f_devdata = dev;
+	result = dev->d_dev->dv_open(f, dev);
+	if (result != 0) {
+		f->f_devdata = NULL;
+		free(dev);
+		return (result);
+	}
 
-    /* reference the devsw entry from the open_file structure */
-    f->f_dev = dev->d_dev;
-    return (0);
+	/* reference the devsw entry from the open_file structure */
+	f->f_dev = dev->d_dev;
+	return (0);
 }
 
 int
 devclose(struct open_file *f)
 {
-    if (f->f_devdata != NULL) {
-	free(f->f_devdata);
-    }
-    return(0);
+
+	if (f->f_devdata != NULL) {
+		free(f->f_devdata);
+	}
+	return (0);
 }
