@@ -2,6 +2,7 @@
 
 LIB=		uboot
 INTERNALLIB=
+WARNS?=		2
 
 SRCS=	devicename.c elf_freebsd.c console.c copy.c disk.c \
 	module.c net.c reboot.c time.c glue.c

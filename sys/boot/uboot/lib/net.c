@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netif.h>
 
 #include "api_public.h"
+#include "glue.h"
 #include "libuboot.h"
 
 #define NETIF_DEBUG
@@ -57,8 +58,6 @@ static void	net_init(struct iodesc *, void *);
 static int	net_get(struct iodesc *, void *, size_t, time_t);
 static int	net_put(struct iodesc *, void *, size_t);
 static void	net_end(struct netif *);
-
-struct device_info * ub_dev_get(int i);
 
 extern int			devs_no;
 extern struct netif_stats	net_stats[];
@@ -107,13 +106,14 @@ net_match(struct netif *nif, void *machdep_hint)
 static int
 net_probe(struct netif *nif, void *machdep_hint)
 {
-	struct device_info	*di;
-	int			i;
+	struct device_info *di;
+	int i;
 
 	for (i = 0; i < devs_no; i++)
-		if (di = ub_dev_get(i))
+		if ((di = ub_dev_get(i)) != NULL)
 			if (di->type == DEV_TYP_NET)
 				break;
+
 	if (i == devs_no) {
 		printf("net_probe: no network devices found, maybe not"
 		    " enumerated yet..?\n");
@@ -131,14 +131,14 @@ net_probe(struct netif *nif, void *machdep_hint)
 static int
 net_put(struct iodesc *desc, void *pkt, size_t len)
 {
-	struct netif		*nif = desc->io_netif;
-	struct uboot_softc	*sc = nif->nif_devdata;
-
-	struct ether_header	*eh;
-	size_t			sendlen;
-	ssize_t			rv;
+	struct netif *nif = desc->io_netif;
+	struct uboot_softc *sc = nif->nif_devdata;
+	size_t sendlen;
+	ssize_t rv;
 
 #if defined(NETIF_DEBUG)
+	struct ether_header *eh;
+
 	printf("net_put: desc 0x%x, pkt 0x%x, len %d\n", desc, pkt, len);
 	eh = pkt;
 	printf("dst: %s ", ether_sprintf(eh->ether_dhost));
@@ -205,14 +205,14 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 static void
 net_init(struct iodesc *desc, void *machdep_hint)
 {
-	struct netif		*nif = desc->io_netif;
-	struct uboot_softc	*sc;
-	struct device_info	*di;
-	int			 err, i;
+	struct netif *nif = desc->io_netif;
+	struct uboot_softc *sc;
+	struct device_info *di;
+	int err;
 
 	sc = nif->nif_devdata = &uboot_softc;
 
-	if (err = ub_dev_open(sc->sc_handle))
+	if ((err = ub_dev_open(sc->sc_handle)) != 0)
 		panic("%s%d: initialisation failed with error %d\n",
 		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 
@@ -240,10 +240,10 @@ net_init(struct iodesc *desc, void *machdep_hint)
 static void
 net_end(struct netif *nif)
 {
-	struct uboot_softc	*sc = nif->nif_devdata;
-	int			 err;
+	struct uboot_softc *sc = nif->nif_devdata;
+	int err;
 
-	if (err = ub_dev_close(sc->sc_handle))
+	if ((err = ub_dev_close(sc->sc_handle)) != 0)
 		panic("%s%d: net_end failed with error %d\n",
 		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 }

@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 
+#include "glue.h"
+
 /*
  * Return the time in seconds since the beginning of the day.
  */
@@ -42,7 +44,7 @@ time(time_t *tloc)
 	if (tloc)
 		*tloc = secs;
 
-	return secs;
+	return (secs);
 }
 
 int

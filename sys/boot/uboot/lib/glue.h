@@ -33,8 +33,10 @@
 #ifndef _API_GLUE_H_
 #define _API_GLUE_H_
 
+#include "api_public.h"
+
 int	syscall(int, int *, ...);
-void *	syscall_ptr;
+void	*syscall_ptr;
 
 int	api_search_sig(struct api_signature **sig);
 
@@ -53,16 +55,16 @@ void	ub_puts(const char *s);
 
 /* system */
 void	ub_reset(void);
-struct sys_info *	ub_get_sys_info(void);
+struct sys_info *ub_get_sys_info(void);
 
 /* time */
 void		ub_udelay(unsigned long);
 unsigned long	ub_get_timer(unsigned long);
 
 /* env vars */
-char *	ub_env_get(const char *name);
+char	*ub_env_get(const char *name);
 void	ub_env_set(const char *name, char *value);
-const char *	ub_env_enum(const char *last);
+const char	*ub_env_enum(const char *last);
 
 /* devices */
 int	ub_dev_enum(void);
