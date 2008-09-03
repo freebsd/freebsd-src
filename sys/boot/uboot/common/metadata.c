@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
- * Copyright (C) 2007-2008 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2006 Semihalf, Piotr Kruszynski <ppk@semihalf.com>
+ * Copyright (C) 2007-2008 Semihalf, Rafal Jaworowski <raj@semihalf.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,3 +1,3 @@
 # $FreeBSD$
 
-SRCS+=	main.c
+SRCS+=	main.c metadata.c
