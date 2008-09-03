@@ -100,5 +100,5 @@ addr2refid(struct sockaddr_storage *addr)
 	    sizeof(struct in6_addr));
 	MD5Final(digest, &md5);
 	memcpy(&addr_refid, digest, 4);
-	return (htonl(addr_refid));
+	return (addr_refid);
 }

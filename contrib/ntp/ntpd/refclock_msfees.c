@@ -40,12 +40,13 @@
 
 #include "ntp_stdlib.h"
 
+int dbg = 0;
 /*
 	fudgefactor	= fudgetime1;
 	os_delay	= fudgetime2;
 	   offset_fudge	= os_delay + fudgefactor + inherent_delay;
 	stratumtouse	= fudgeval1 & 0xf
-	debug		= fudgeval2;
+	dbg		= fudgeval2;
 	sloppyclockflag	= flags & CLK_FLAG1;
 		1	  log smoothing summary when processing sample
 		4	  dump the buffer from the clock
@@ -675,7 +676,7 @@ ees_receive(
 	ees = (struct eesunit *)rbufp->recv_srcclock;
 	dpt = (u_char *)&rbufp->recv_space;
 	dpend = dpt + rbufp->recv_length;
-	if ((debug & DB_LOG_AWAITMORE) && (rbufp->recv_length != LENEESCODE))
+	if ((dbg & DB_LOG_AWAITMORE) && (rbufp->recv_length != LENEESCODE))
 	    printf("[%d] ", rbufp->recv_length);
 
 	/* Check out our state and process appropriately */
@@ -718,7 +719,7 @@ ees_receive(
 		/* Gave up because it was end of the buffer, rather than ff */
 		if (dpt == dpend) {
 			/* Incomplete.  Wait for more. */
-			if (debug & DB_LOG_AWAITMORE)
+			if (dbg & DB_LOG_AWAITMORE)
 			    msyslog(LOG_INFO,
 				    "I: ees clock %d: %p == %p: await more",
 				    ees->unit, dpt, dpend);
@@ -897,7 +898,7 @@ ees_receive(
 	memset((char *) &ppsclockev, 0, sizeof ppsclockev);
 
 	rc = ioctl(ees->io.fd, request, (char *) &ppsclockev);
-	if (debug & DB_PRINT_EV) fprintf(stderr,
+	if (dbg & DB_PRINT_EV) fprintf(stderr,
 					 "[%x] CIOGETEV u%d %d (%x %d) gave %d (%d): %08lx %08lx %ld\n",
 					 DB_PRINT_EV, ees->unit, ees->io.fd, request, is_pps(ees),
 					 rc, errno, ptr[0], ptr[1], ptr[2]);
@@ -925,7 +926,7 @@ ees_receive(
 			diff = pps_arrvstamp;
 			conv = 0;
 			L_SUB(&diff, &ees->arrvtime);
-			if (debug & DB_PRINT_CDT)
+			if (dbg & DB_PRINT_CDT)
 			    printf("[%x] Have %lx.%08lx and %lx.%08lx -> %lx.%08lx @ %s",
 				   DB_PRINT_CDT, (long)ees->arrvtime.l_ui, (long)ees->arrvtime.l_uf,
 				   (long)pps_arrvstamp.l_ui, (long)pps_arrvstamp.l_uf,
@@ -962,7 +963,7 @@ ees_receive(
 			}
 		}
 		ees->last_pps_no = ppsclockev.serial;
-		if (debug & DB_PRINT_CDTC)
+		if (dbg & DB_PRINT_CDTC)
 		    printf(
 			    "[%x] %08lx %08lx %d u%d (%d %d)\n",
 			    DB_PRINT_CDTC, (long)pps_arrvstamp.l_ui,
@@ -985,7 +986,7 @@ ees_receive(
 	if (delta_f_abs < 0) delta_f_abs = -delta_f_abs;
 
 	/* Dump the deltas each minute */
-	if (debug & DB_DUMP_DELTAS)
+	if (dbg & DB_DUMP_DELTAS)
 	{	if (/*0 <= ees->second && */
 		ees->second < ((sizeof deltas) / (sizeof deltas[0]))) deltas[ees->second] = delta_sfsec;
 	/* Dump on second 1, as second 0 sometimes missed */
@@ -1147,12 +1148,12 @@ ees_receive(
 	/* sec_of_ramp * ees->jump_fsecs may overflow 2**32 */
 	fsecs = sec_of_ramp * (ees->jump_fsecs /  ees->last_step_secs);
 
-	if (debug & DB_LOG_DELTAS) msyslog(LOG_ERR,
+	if (dbg & DB_LOG_DELTAS) msyslog(LOG_ERR,
 					   "[%x] MSF%d: %3ld/%03d -> d=%11ld (%d|%ld)",
 					   DB_LOG_DELTAS,
 					   ees->unit, sec_of_ramp, ees->last_step_secs, fsecs,
 					   pps_arrvstamp.l_f, pps_arrvstamp.l_f + fsecs);
-	if (debug & DB_PRINT_DELTAS) printf(
+	if (dbg & DB_PRINT_DELTAS) printf(
 		"MSF%d: %3ld/%03d -> d=%11ld (%ld|%ld)\n",
 		ees->unit, sec_of_ramp, ees->last_step_secs, fsecs,
 		(long)pps_arrvstamp.l_f, pps_arrvstamp.l_f + fsecs);
@@ -1160,7 +1161,7 @@ ees_receive(
 	/* Must sign extend the result */
 	inc.l_i = (fsecs < 0) ? -1 : 0;
 	inc.l_f = fsecs;
-	if (debug & DB_INC_PPS)
+	if (dbg & DB_INC_PPS)
 	{	L_SUB(&pps_arrvstamp, &inc);
 	L_SUB(&ees->arrvtime, &inc);
 	}
@@ -1170,14 +1171,14 @@ ees_receive(
 	}
 	}
 	else {
-		if (debug & DB_LOG_DELTAS) msyslog(LOG_ERR,
+		if (dbg & DB_LOG_DELTAS) msyslog(LOG_ERR,
 						   "[%x] MSF%d: ees->using_ramp=%d, sincelast=%x / %x, ees->last_step_secs=%x",
 						   DB_LOG_DELTAS,
 						   ees->unit, ees->using_ramp,
 						   sincelast,
 						   (ees->last_step_secs)*2,
 						   ees->last_step_secs);
-		if (debug & DB_PRINT_DELTAS) printf(
+		if (dbg & DB_PRINT_DELTAS) printf(
 			"[%x] MSF%d: ees->using_ramp=%d, sincelast=%x / %x, ees->last_step_secs=%x\n",
 			DB_LOG_DELTAS,
 			ees->unit, ees->using_ramp,
@@ -1189,7 +1190,7 @@ ees_receive(
 	L_SUB(&ees->arrvtime, &offset_fudge[ees->unit]);
 	L_SUB(&pps_arrvstamp, &offset_fudge[ees->unit]);
 
-	if (call_pps_sample && !(debug & DB_NO_PPS)) {
+	if (call_pps_sample && !(dbg & DB_NO_PPS)) {
 		/* Sigh -- it expects its args negated */
 		L_NEG(&pps_arrvstamp);
 		/*
@@ -1202,14 +1203,14 @@ ees_receive(
 
 	/* Subtract off the local clock time stamp */
 	L_SUB(&ees->codeoffsets[n_sample], &ees->arrvtime);
-	if (debug & DB_LOG_SAMPLES) msyslog(LOG_ERR,
+	if (dbg & DB_LOG_SAMPLES) msyslog(LOG_ERR,
 					    "MSF%d: [%x] %d (ees: %d %d) (pps: %d %d)%s",
 					    ees->unit, DB_LOG_DELTAS, n_sample,
 					    ees->codeoffsets[n_sample].l_f,
 					    ees->codeoffsets[n_sample].l_f / 4295,
 					    pps_arrvstamp.l_f,
 					    pps_arrvstamp.l_f /4295,
-					    (debug & DB_NO_PPS) ? " [no PPS]" : "");
+					    (dbg & DB_NO_PPS) ? " [no PPS]" : "");
 
 	if (ees->nsamples++ == NCODES-1) ees_process(ees);
 
@@ -1284,7 +1285,13 @@ ees_process(
 	if (ees->dump_vals) dump_buf(coffs, 0, samples, "Raw  data  is:");
 
 	/* Sort the offsets, trim off the extremes, then choose one. */
-	qsort((char *) coffs, (size_t)samples, sizeof(l_fp), offcompare);
+	qsort(
+#ifdef QSORT_USES_VOID_P
+	    (void *)
+#else
+	    (char *)
+#endif
+	    coffs, (size_t)samples, sizeof(l_fp), offcompare);
 
 	noff = samples;
 	i = 0;
@@ -1328,10 +1335,10 @@ ees_process(
 	L_SUB(&tmp, &coffs[i]);
 #define	FRACT_SEC(n) ((1 << 30) / (n/2))
 	dispersion = LFPTOFP(&tmp) / 2; /* ++++ */
-	if (debug & (DB_SYSLOG_SMPLI | DB_SYSLOG_SMPLE)) msyslog(
-		(debug & DB_SYSLOG_SMPLE) ? LOG_ERR : LOG_INFO,
+	if (dbg & (DB_SYSLOG_SMPLI | DB_SYSLOG_SMPLE)) msyslog(
+		(dbg & DB_SYSLOG_SMPLE) ? LOG_ERR : LOG_INFO,
 		"I: [%x] Offset=%06d (%d), disp=%f%s [%d], %d %d=%d %d:%d %d=%d %d",
-		debug & (DB_SYSLOG_SMPLI | DB_SYSLOG_SMPLE),
+		dbg & (DB_SYSLOG_SMPLI | DB_SYSLOG_SMPLE),
 		offset.l_f / 4295, offset.l_f,
 		(dispersion * 1526) / 100,
 		(sloppyclockflag[ees->unit]) ? " by averaging" : "",
@@ -1371,24 +1378,24 @@ ees_process(
 				offset.l_ui += (new < 0) ? -1 : 1;
 			}
 			dispersion /= 4;
-			if (debug & (DB_SYSLOG_SMTHI | DB_SYSLOG_SMTHE)) msyslog(
-				(debug & DB_SYSLOG_SMTHE) ? LOG_ERR : LOG_INFO,
+			if (dbg & (DB_SYSLOG_SMTHI | DB_SYSLOG_SMTHE)) msyslog(
+				(dbg & DB_SYSLOG_SMTHE) ? LOG_ERR : LOG_INFO,
 				"I: [%x] Smooth data: %ld -> %ld, dispersion now %f",
-				debug & (DB_SYSLOG_SMTHI | DB_SYSLOG_SMTHE),
+				dbg & (DB_SYSLOG_SMTHI | DB_SYSLOG_SMTHE),
 				((long) offset.l_uf) / 4295, new / 4295,
 				(dispersion * 1526) / 100);
 			offset.l_uf = (unsigned long) new;
 		}
-		else if (debug & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE)) msyslog(
-			(debug & DB_SYSLOG_NSMTHE) ? LOG_ERR : LOG_INFO,
+		else if (dbg & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE)) msyslog(
+			(dbg & DB_SYSLOG_NSMTHE) ? LOG_ERR : LOG_INFO,
 			"[%x] No smooth as delta not %d < %ld < %d",
-			debug & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE),
+			dbg & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE),
 			- FRACT_SEC(100), diff, FRACT_SEC(100));
 	}
-	else if (debug & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE)) msyslog(
-		(debug & DB_SYSLOG_NSMTHE) ? LOG_ERR : LOG_INFO,
+	else if (dbg & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE)) msyslog(
+		(dbg & DB_SYSLOG_NSMTHE) ? LOG_ERR : LOG_INFO,
 		"I: [%x] No smooth as flag=%x and old=%x=%d (%d:%d)",
-		debug & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE),
+		dbg & (DB_SYSLOG_NSMTHI | DB_SYSLOG_NSMTHE),
 		ees->usealldata, ees->offset.l_f, ees->offset.l_uf,
 		offset.l_f, ees->offset.l_f - offset.l_f);
 

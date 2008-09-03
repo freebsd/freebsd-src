@@ -112,9 +112,9 @@ init_restrict(void)
 	/*
 	 * Zero the list and put all but one on the free list
 	 */
-	resfree = 0;
+	resfree = NULL;
 	memset((char *)resinit, 0, sizeof resinit);
-	resfree6 = 0;
+	resfree6 = NULL;
 	memset((char *)resinit6, 0, sizeof resinit6);
 	for (i = 1; i < INITRESLIST; i++) {
 		resinit[i].next = resfree;
@@ -158,7 +158,8 @@ init_restrict(void)
  */
 int
 restrictions(
-	struct sockaddr_storage *srcadr
+	struct sockaddr_storage *srcadr,
+	int at_listhead
 	)
 {
 	struct restrictlist *rl;
@@ -193,7 +194,7 @@ restrictions(
 		 * Work our way down from there.
 		 */
 		match = restrictlist;
-		for (rl = match->next; rl != 0 && rl->addr <= hostaddr;
+		for (rl = match->next; rl != NULL && rl->addr <= hostaddr;
 		    rl = rl->next)
 			if ((hostaddr & rl->mask) == rl->addr) {
 				if ((rl->mflags & RESM_NTPONLY) &&
@@ -233,7 +234,7 @@ restrictions(
 		 *  Work our way down from there.
 		 */
 		match6 = restrictlist6;
-		for (rl6 = match6->next; rl6 != 0 &&
+		for (rl6 = match6->next; rl6 != NULL &&
 		    (memcmp(&(rl6->addr6), &hostaddr6,
 		    sizeof(hostaddr6)) <= 0); rl6 = rl6->next) {
 			SET_IPV6_ADDR_MASK(&hostservaddr6, &hostaddr6,
@@ -260,7 +261,7 @@ restrictions(
 	 * packet is greater than res_min_interval and the average is
 	 * greater thatn res_avg_interval.
 	 */
-	if (mon_enabled == MON_OFF) {
+	if (!at_listhead || mon_enabled == MON_OFF) {
 		flags &= ~RES_LIMITED;
 	} else {
 		struct mon_data *md;
@@ -323,14 +324,14 @@ hack_restrict(
 		 * list. Else go searching for it.
 		 */
 		if (addr == 0) {
-			rlprev = 0;
+			rlprev = NULL;
 			rl = restrictlist;
 		} else {
 			rlprev = restrictlist;
 			rl = rlprev->next;
-			while (rl != 0) {
+			while (rl != NULL) {
 				if (rl->addr > addr) {
-					rl = 0;
+					rl = NULL;
 					break;
 				} else if (rl->addr == addr) {
 					if (rl->mask == mask) {
@@ -342,11 +343,11 @@ hack_restrict(
 
 						if (!(mflags &
 						    RESM_NTPONLY)) {
-							rl = 0;
+							rl = NULL;
 							break;
 						}
 					} else if (rl->mask > mask) {
-						rl = 0;
+						rl = NULL;
 						break;
 					}
 				}
@@ -361,16 +362,16 @@ hack_restrict(
 		SET_IPV6_ADDR_MASK(&addr6,
 		    &GET_INADDR6(*resaddr), &mask6);
 		if (IN6_IS_ADDR_UNSPECIFIED(&addr6)) {
-			rlprev6 = 0;
+			rlprev6 = NULL;
 			rl6 = restrictlist6;
 		} else {
 			rlprev6 = restrictlist6;
 			rl6 = rlprev6->next;
-			while (rl6 != 0) {
+			while (rl6 != NULL) {
 				addr_cmp = memcmp(&rl6->addr6, &addr6,
 				    sizeof(addr6));
 				if (addr_cmp > 0) {
-					rl6 = 0;
+					rl6 = NULL;
 					break;
 				} else if (addr_cmp == 0) {
 					mask_cmp = memcmp(&rl6->mask6,
@@ -384,11 +385,11 @@ hack_restrict(
 
 						if (!(mflags &
 						    RESM_NTPONLY)) {
-							rl6 = 0;
+							rl6 = NULL;
 							break;
 						}
 					} else if (mask_cmp > 0) {
-						rl6 = 0;
+						rl6 = NULL;
 						break;
 					}
 				}
@@ -415,8 +416,8 @@ hack_restrict(
 			 * Here we add bits to the flags. If this is a
 			 * new restriction add it.
 			 */
-			if (rl == 0) {
-				if (numresfree == 0) {
+			if (rl == NULL) {
+				if (resfree == NULL) {
 					rl = (struct restrictlist *)
 					    emalloc(INCRESLIST *
 					    sizeof(struct
@@ -440,8 +441,13 @@ hack_restrict(
 				rl->mask = mask;
 				rl->mflags = (u_short)mflags;
 
-				rl->next = rlprev->next;
-				rlprev->next = rl;
+				if (rlprev == NULL) {
+					rl->next = restrictlist;
+					restrictlist = rl;
+				} else {
+					rl->next = rlprev->next;
+					rlprev->next = rl;
+				}
 				restrictcount++;
 			}
 			if ((rl->flags ^ (u_short)flags) &
@@ -457,7 +463,7 @@ hack_restrict(
 			 * Remove some bits from the flags. If we didn't
 			 * find this one, just return.
 			 */
-			if (rl != 0) {
+			if (rl != NULL) {
 				if ((rl->flags ^ (u_short)flags) &
 				    RES_LIMITED) {
 					res_limited_refcnt--;
@@ -469,15 +475,20 @@ hack_restrict(
 			break;
 	
 		case RESTRICT_REMOVE:
+		case RESTRICT_REMOVEIF:
 			/*
 			 * Remove an entry from the table entirely if we
 			 * found one. Don't remove the default entry and
 			 * don't remove an interface entry.
 			 */
-			if (rl != 0
+			if (rl != NULL
 			    && rl->addr != htonl(INADDR_ANY)
-			    && !(rl->mflags & RESM_INTERFACE)) {
-				rlprev->next = rl->next;
+			    && !(rl->mflags & RESM_INTERFACE && op != RESTRICT_REMOVEIF)) {
+				if (rlprev != NULL) {
+					rlprev->next = rl->next;
+				} else {
+					restrictlist = rl->next;
+				}
 				restrictcount--;
 				if (rl->flags & RES_LIMITED) {
 					res_limited_refcnt--;
@@ -503,8 +514,8 @@ hack_restrict(
 			 * Here we add bits to the flags. If this is a
 			 * new restriction add it.
 			 */
-			if (rl6 == 0) {
-				if (numresfree6 == 0) {
+			if (rl6 == NULL) {
+				if (resfree6 == NULL) {
 					rl6 = (struct
 					    restrictlist6 *)emalloc(
 					    INCRESLIST * sizeof(struct
@@ -527,8 +538,13 @@ hack_restrict(
 				rl6->addr6 = addr6;
 				rl6->mask6 = mask6;
 				rl6->mflags = (u_short)mflags;
-				rl6->next = rlprev6->next;
-				rlprev6->next = rl6;
+				if (rlprev6 != NULL) {
+					rl6->next = rlprev6->next;
+					rlprev6->next = rl6;
+				} else {
+					rl6->next = restrictlist6;
+					restrictlist6 = rl6;
+				}
 				restrictcount6++;
 			}
 			if ((rl6->flags ^ (u_short)flags) &
@@ -544,7 +560,7 @@ hack_restrict(
 			 * Remove some bits from the flags. If we didn't
 			 * find this one, just return.
 			 */
-			if (rl6 != 0) {
+			if (rl6 != NULL) {
 				if ((rl6->flags ^ (u_short)flags) &
 				    RES_LIMITED) {
 					res_limited_refcnt6--;
@@ -556,15 +572,20 @@ hack_restrict(
 			break;
 
 		case RESTRICT_REMOVE:
+		case RESTRICT_REMOVEIF:
 			/*
 			 * Remove an entry from the table entirely if we
 			 * found one. Don't remove the default entry and
 			 * don't remove an interface entry.
 			 */
-			if (rl6 != 0 &&
+			if (rl6 != NULL &&
 			    !IN6_IS_ADDR_UNSPECIFIED(&rl6->addr6)
-			    && !(rl6->mflags & RESM_INTERFACE)) {
-				rlprev6->next = rl6->next;
+			    && !(rl6->mflags & RESM_INTERFACE && op != RESTRICT_REMOVEIF)) {
+				if (rlprev6 != NULL) {
+					rlprev6->next = rl6->next;
+				} else {
+					restrictlist6 = rl6->next;
+				}
 				restrictcount6--;
 				if (rl6->flags & RES_LIMITED) {
 					res_limited_refcnt6--;

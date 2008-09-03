@@ -4,6 +4,7 @@
  *  as int and u_int.
  *  For 32 bit systems, define them as long and u_long
  */
+#include <sys/types.h>
 #include "ntp_machine.h"
 
 #ifndef _NTP_TYPES_
@@ -64,6 +65,12 @@ typedef unsigned int u_int;
 # endif /* not sizeof(long) == 4 */
 # include "Bletch: what's 32 bits on this machine?"
 #endif /* not sizeof(int) == 4 */
+
+typedef u_char		ntp_u_int8_t;
+typedef u_short		ntp_u_int16_t;
+typedef u_int32		ntp_u_int32_t;
+
+typedef struct ntp_uint64_t { u_int32 val[2]; } ntp_uint64_t;
 
 typedef unsigned short associd_t; /* association ID */
 typedef u_int32 keyid_t;	/* cryptographic key ID */

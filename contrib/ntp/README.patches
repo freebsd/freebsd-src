@@ -1,5 +1,9 @@
 See README.hackers for notes on coding styles.
 
+The master copy of this information can be found at:
+
+ http://ntp.isc.org/bin/view/Dev/MaintainerIssues#How_to_work_on_a_bug_using_BitKe
+
 If you are going to patch both ntp-stable and ntp-dev
 please do it this way:
 
@@ -20,12 +24,18 @@ it will be trivial to apply your patches.
 
 Otherwise, it will be much more difficult to apply your patches.
 
+You are pretty much done now if your repos are on pogo.udel.edu.
+
+If these patches are for a bugzilla issue, mark the issue as Resolved/READY
+with a comment of "Please pick up the patches in pogo:/wherever"
+
 ---
 
 Please read (and follow) the previous section if you want to submit
 patches for both ntp-stable and ntp-dev.
 
-To submit patches please use the 'bk send' command:
+If you cannot easily get your patches to pogo, you may submit patches
+via the 'bk send' command:
 
  > cd REPO
  > bk citool	(or bk ci ... ;  bk commit ... )

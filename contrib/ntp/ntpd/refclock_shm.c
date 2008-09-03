@@ -244,6 +244,10 @@ shm_poll(
 		struct timeval tvt;
 		struct tm *t;
 		int ok=1;
+		tvr.tv_sec = 0;
+		tvr.tv_usec = 0;
+		tvt.tv_sec = 0;
+		tvt.tv_usec = 0;
 		switch (up->mode) {
 		    case 0: {
 			    tvr.tv_sec=up->receiveTimeStampSec;
@@ -266,11 +270,14 @@ shm_poll(
 		}
 		up->valid=0;
 		if (ok) {
+			time_t help;	/* XXX NetBSD has incompatible tv_sec */
+
 			TVTOTS(&tvr,&pp->lastrec);
 			pp->lastrec.l_ui += JAN_1970;
 			/* pp->lasttime = current_time; */
 			pp->polls++;
-			t=gmtime (&tvt.tv_sec);
+			help = tvt.tv_sec;
+			t = gmtime (&help);
 			pp->day=t->tm_yday+1;
 			pp->hour=t->tm_hour;
 			pp->minute=t->tm_min;

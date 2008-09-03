@@ -25,6 +25,21 @@
  *
  *		Installation of the Datum/Bancomm driver creates the 
  *		device file /dev/btfp0 
+ *
+ *	04/28/2005 Rob Neal 
+ *		Modified to add support for Symmetricom bc637PCI-U Time & 
+ *		Frequency Processor. 
+ *		Card bus type (VME/VXI or PCI) and environment are specified via the
+ *		"mode" keyword on the server command in ntp.conf.
+ *		server 127.127.16.u prefer mode m (...) 
+ *		Modes currently supported are 
+ *		1		: FreeBSD PCI 635/637.
+ *		2		: Linux or Windows PCI 635/637.
+ *		not specified, or other number: 
+ *				: Assumed to be VME/VXI legacy Bancomm card on Solaris.
+ *		Linux and Windows platforms require Symmetricoms' proprietary driver
+ *		for the TFP card. 
+ *		Tested on FreeBSD 5.3 with a 637 card. 
  */
 
 #ifdef HAVE_CONFIG_H
@@ -49,7 +64,6 @@ struct btfp_time                /* Structure for reading 5 time words   */
 {
 	unsigned short btfp_time[5];  /* Time words 0,1,2,3, and 4. (16bit)*/
 };
-
 /* SunOS5 ioctl commands definitions.*/
 #define BTFPIOC            ( 'b'<< 8 )
 #define IOCIO( l, n )      ( BTFPIOC | n )
@@ -61,11 +75,16 @@ struct btfp_time                /* Structure for reading 5 time words   */
 #define RUNLOCK     	IOCIOR(b, 19, int )  /* Release Capture Lockout */
 #define RCR0      	IOCIOR(b, 22, int )  /* Read control register zero.*/
 #define	WCR0		IOCIOWN(b, 23, int)	     /* Write control register zero*/
-
 /***** Compound ioctl commands *****/
 
 /* Read all 5 time words in one call.   */
 #define READTIME	IOCIORN(b, 32, sizeof( struct btfp_time ))
+
+#if defined(__FreeBSD__) 
+#undef  READTIME
+#define READTIME	_IOR('u', 5, struct btfp_time )
+#endif 
+
 #define VMEFD "/dev/btfp0"
 
 struct vmedate {               /* structure returned by get_vmetime.c */
@@ -74,11 +93,12 @@ struct vmedate {               /* structure returned by get_vmetime.c */
 	unsigned short hr;
 	unsigned short mn;
 	unsigned short sec;
-	unsigned long frac;
+	long frac;
 	unsigned short status;
 };
 
 /* END OF STUFF FROM RES */
+typedef void *SYMMT_PCI_HANDLE;
 
 /*
  * VME interface parameters. 
@@ -99,7 +119,7 @@ extern u_long current_time;     /* current time(s) */
 /*
  * Imported from ntpd module
  */
-extern int debug;               /* global debug flag */
+extern volatile int debug;               /* global debug flag */
 
 /*
  * VME unit control structure.
@@ -114,12 +134,20 @@ struct vmeunit {
 /*
  * Function prototypes
  */
-static  void    vme_init        (void);
 static  int     vme_start       (int, struct peer *);
 static  void    vme_shutdown    (int, struct peer *);
 static  void    vme_receive     (struct recvbuf *);
 static  void    vme_poll        (int unit, struct peer *);
-struct vmedate *get_datumtime(struct vmedate *);
+struct vmedate *get_datumtime(struct vmedate *);	
+void 	tvme_fill(struct vmedate *, uint32_t btm[2]);
+/*
+ * Define the bc*() functions as weak so we can compile/link without them.
+ * Only clients with the card will have the proprietary vendor device driver
+ * and interface library needed for use on Linux/Windows platforms.
+ */
+extern uint32_t __attribute__ ((weak)) bcReadBinTime(SYMMT_PCI_HANDLE, uint32_t *, uint32_t*, uint8_t*);
+extern SYMMT_PCI_HANDLE __attribute__ ((weak)) bcStartPci(void);
+extern void __attribute__ ((weak)) bcStopPci(SYMMT_PCI_HANDLE);
 
 /*
  * Transfer vector
@@ -136,6 +164,8 @@ struct  refclock refclock_bancomm = {
 
 int fd_vme;  /* file descriptor for ioctls */
 int regvalue;
+int tfp_type;	/* mode selector, indicate platform and driver interface */
+SYMMT_PCI_HANDLE stfp_handle;
 
 
 /*
@@ -151,7 +181,17 @@ vme_start(
 	struct refclockproc *pp;
 	int dummy;
 	char vmedev[20];
-
+	
+	tfp_type = (int)(peer->ttl);
+	switch (tfp_type) {		
+		case 1:
+			break;
+		case 2:
+			stfp_handle = bcStartPci(); 	/* init the card in lin/win */
+			break;
+		default:
+			break;
+	}
 	/*
 	 * Open VME device
 	 */
@@ -163,13 +203,20 @@ vme_start(
 		msyslog(LOG_ERR, "vme_start: failed open of %s: %m", vmedev);
 		return (0);
 	}
-	else  { /* Release capture lockout in case it was set from before. */
-		if( ioctl( fd_vme, RUNLOCK, &dummy ) )
-		    msyslog(LOG_ERR, "vme_start: RUNLOCK failed %m");
+	else  { 
+		switch (tfp_type) {
+		  	case 1:	break;
+			case 2: break;
+			default: 
+				/* Release capture lockout in case it was set before. */
+				if( ioctl( fd_vme, RUNLOCK, &dummy ) )
+		    		msyslog(LOG_ERR, "vme_start: RUNLOCK failed %m");
 
-		regvalue = 0; /* More esoteric stuff to do... */
-		if( ioctl( fd_vme, WCR0, &regvalue ) )
-		    msyslog(LOG_ERR, "vme_start: WCR0 failed %m");
+				regvalue = 0; /* More esoteric stuff to do... */
+				if( ioctl( fd_vme, WCR0, &regvalue ) )
+		    		msyslog(LOG_ERR, "vme_start: WCR0 failed %m");
+				break;
+		}
 	}
 
 	/*
@@ -222,6 +269,7 @@ vme_shutdown(
 	io_closeclock(&pp->io);
 	pp->unitptr = NULL;
 	free(vme);
+	if (tfp_type == 2) bcStopPci(stfp_handle); 
 }
 
 
@@ -275,7 +323,6 @@ vme_poll(
 	  time(&tloc);
 	  tadr = gmtime(&tloc);
 	  tptr->year = (unsigned short)(tadr->tm_year + 1900);
-	
 
 	sprintf(pp->a_lastcode, 
 		"%3.3d %2.2d:%2.2d:%2.2d.%.6ld %1d",
@@ -292,13 +339,13 @@ vme_poll(
 	pp->hour =   tptr->hr;
 	pp->minute =  tptr->mn;
 	pp->second =  tptr->sec;
-	pp->usec =   tptr->frac;	
+	pp->nsec =   tptr->frac;	
 
 #ifdef DEBUG
 	if (debug)
 	    printf("pp: %3d %02d:%02d:%02d.%06ld %1x\n",
 		   pp->day, pp->hour, pp->minute, pp->second,
-		   pp->usec, tptr->status);
+		   pp->nsec, tptr->status);
 #endif
 	if (tptr->status ) {       /*  Status 0 is locked to ref., 1 is not */
 		refclock_report(peer, CEVNT_BADREPLY);
@@ -325,107 +372,94 @@ vme_poll(
 struct vmedate *
 get_datumtime(struct vmedate *time_vme)
 {
-	unsigned short  status;
 	char cbuf[7];
 	struct btfp_time vts;
+	uint32_t btm[2];
+	uint8_t dmy;
 	
 	if ( time_vme == (struct vmedate *)NULL) {
   	  time_vme = (struct vmedate *)malloc(sizeof(struct vmedate ));
 	}
 
-	if( ioctl(fd_vme, READTIME, &vts))
-	    msyslog(LOG_ERR, "get_datumtime error: %m");
+	switch (tfp_type) {
+		case 1:				/* BSD, PCI, 2 32bit time words */
+			if (ioctl(fd_vme, READTIME, &btm)) {
+	    		msyslog(LOG_ERR, "get_bc63x error: %m");
+				return(NULL);
+			}
+			tvme_fill(time_vme, btm);
+			break;
 
-	/* if you want to actually check the validity of these registers, do a 
-	   define of CHECK   above this.  I didn't find it necessary. - RES
-	*/
+		case 2:				/* Linux/Windows, PCI, 2 32bit time words */
+			if (bcReadBinTime(stfp_handle, &btm[1], &btm[0], &dmy) == 0) {
+	    		msyslog(LOG_ERR, "get_datumtime error: %m"); 
+				return(NULL);
+			}
+			tvme_fill(time_vme, btm);
+			break;
 
-#ifdef CHECK            
+		default:			/* legacy bancomm card */
 
-	/* Get day */
-	sprintf(cbuf,"%3.3x", ((vts.btfp_time[ 0 ] & 0x000f) <<8) +
-		((vts.btfp_time[ 1 ] & 0xff00) >> 8));  
+			if (ioctl(fd_vme, READTIME, &vts)) {
+	    		msyslog(LOG_ERR, "get_datumtime error: %m");
+				return(NULL);
+			}
+			/* Get day */
+			sprintf(cbuf,"%3.3x", ((vts.btfp_time[ 0 ] & 0x000f) <<8) +
+				((vts.btfp_time[ 1 ] & 0xff00) >> 8));  
+			time_vme->day = (unsigned short)atoi(cbuf);
 
-	if (isdigit(cbuf[0]) && isdigit(cbuf[1]) && isdigit(cbuf[2]) )
-	    time_vme->day = (unsigned short)atoi(cbuf);
-	else
-	    time_vme->day = (unsigned short) 0;
+			/* Get hour */
+			sprintf(cbuf,"%2.2x", vts.btfp_time[ 1 ] & 0x00ff);
 
-	/* Get hour */
-	sprintf(cbuf,"%2.2x", vts.btfp_time[ 1 ] & 0x00ff);
+			time_vme->hr = (unsigned short)atoi(cbuf);
 
-	if (isdigit(cbuf[0]) && isdigit(cbuf[1]))
-	    time_vme->hr = (unsigned short)atoi(cbuf);
-	else
-	    time_vme->hr = (unsigned short) 0;
+			/* Get minutes */
+			sprintf(cbuf,"%2.2x", (vts.btfp_time[ 2 ] & 0xff00) >>8);
+			time_vme->mn = (unsigned short)atoi(cbuf);
 
-	/* Get minutes */
-	sprintf(cbuf,"%2.2x", (vts.btfp_time[ 2 ] & 0xff00) >>8);
-	if (isdigit(cbuf[0]) && isdigit(cbuf[1]))
-	    time_vme->mn = (unsigned short)atoi(cbuf);
-	else
-	    time_vme->mn = (unsigned short) 0;
+			/* Get seconds */
+			sprintf(cbuf,"%2.2x", vts.btfp_time[ 2 ] & 0x00ff);
+			time_vme->sec = (unsigned short)atoi(cbuf);
 
-	/* Get seconds */
-	sprintf(cbuf,"%2.2x", vts.btfp_time[ 2 ] & 0x00ff);
+			/* Get microseconds.  Yes, we ignore the 0.1 microsecond digit so
+				 we can use the TVTOTSF function  later on...*/
 
-	if (isdigit(cbuf[0]) && isdigit(cbuf[1]))
-	    time_vme->sec = (unsigned short)atoi(cbuf);
-	else
-	    time_vme->sec = (unsigned short) 0;
+			sprintf(cbuf,"%4.4x%2.2x", vts.btfp_time[ 3 ],
+			vts.btfp_time[ 4 ]>>8);
 
-	/* Get microseconds.  Yes, we ignore the 0.1 microsecond digit so we can
-	   use the TVTOTSF function  later on...*/
+			time_vme->frac = (u_long) atoi(cbuf);
 
-	sprintf(cbuf,"%4.4x%2.2x", vts.btfp_time[ 3 ],
-		vts.btfp_time[ 4 ]>>8);
+			/* Get status bit */
+			time_vme->status = (vts.btfp_time[0] & 0x0010) >>4;
 
-	if (isdigit(cbuf[0]) && isdigit(cbuf[1]) && isdigit(cbuf[2])
-	    && isdigit(cbuf[3]) && isdigit(cbuf[4]) && isdigit(cbuf[5]))
-	    time_vme->frac = (u_long) atoi(cbuf);
-	else
-	    time_vme->frac = (u_long) 0;
-#else
-
-	/* DONT CHECK  just trust the card */
-
-	/* Get day */
-	sprintf(cbuf,"%3.3x", ((vts.btfp_time[ 0 ] & 0x000f) <<8) +
-		((vts.btfp_time[ 1 ] & 0xff00) >> 8));  
-	time_vme->day = (unsigned short)atoi(cbuf);
-
-	/* Get hour */
-	sprintf(cbuf,"%2.2x", vts.btfp_time[ 1 ] & 0x00ff);
-
-	time_vme->hr = (unsigned short)atoi(cbuf);
-
-	/* Get minutes */
-	sprintf(cbuf,"%2.2x", (vts.btfp_time[ 2 ] & 0xff00) >>8);
-	time_vme->mn = (unsigned short)atoi(cbuf);
-
-	/* Get seconds */
-	sprintf(cbuf,"%2.2x", vts.btfp_time[ 2 ] & 0x00ff);
-	time_vme->sec = (unsigned short)atoi(cbuf);
-
-	/* Get microseconds.  Yes, we ignore the 0.1 microsecond digit so we can
-	   use the TVTOTSF function  later on...*/
-
-	sprintf(cbuf,"%4.4x%2.2x", vts.btfp_time[ 3 ],
-		vts.btfp_time[ 4 ]>>8);
-
-	time_vme->frac = (u_long) atoi(cbuf);
-
-#endif /* CHECK */
-
-	/* Get status bit */
-	status = (vts.btfp_time[0] & 0x0010) >>4;
-	time_vme->status = status;  /* Status=0 if locked to ref. */
-	/* Status=1 if flywheeling */
-	if (status) {        /* lost lock ? */
-		return ((void *)NULL);
+			break;
 	}
+
+	if (time_vme->status) 
+		return ((void *)NULL);
 	else
 	    return (time_vme);
+}
+/* Assign values to time_vme struct. Mostly for readability */
+void
+tvme_fill(struct vmedate *time_vme, uint32_t btm[2])
+{
+	struct tm maj;
+	uint32_t dmaj, dmin;
+
+	dmaj = btm[1];			/* syntax sugar */
+	dmin = btm[0];
+
+	gmtime_r(&dmaj, &maj);
+	time_vme->day  = maj.tm_yday+1;
+	time_vme->hr   = maj.tm_hour;
+	time_vme->mn   = maj.tm_min;
+	time_vme->sec  = maj.tm_sec;
+	time_vme->frac = (dmin & 0x000fffff) * 1000; 
+	time_vme->frac += ((dmin & 0x00f00000) >> 20) * 100;
+	time_vme->status = (dmin & 0x01000000) >> 24;
+	return;
 }
 
 #else

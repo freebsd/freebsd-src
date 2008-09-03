@@ -18,7 +18,6 @@
 #ifdef HAVE_SYS_TIMEX_H
 # include <sys/timex.h>
 #endif
-#include <netdb.h>
 #if !defined(__bsdi__) && !defined(apollo)
 #include <netinet/in.h>
 #endif
@@ -79,6 +78,8 @@ static	void	clockstat	P((struct parse *, FILE *));
 static	void	fudge		P((struct parse *, FILE *));
 static	void	clkbug		P((struct parse *, FILE *));
 static	void	kerninfo	P((struct parse *, FILE *));
+static  void    get_if_stats    P((struct parse *, FILE *));
+static  void    do_if_reload    P((struct parse *, FILE *));
 
 /*
  * Commands we understand.  Ntpdc imports this.
@@ -93,10 +94,10 @@ struct xcmd opcmds[] = {
 	{ "dmpeers",	dmpeers,	{ OPT|IP_VERSION, NO, NO, NO },
 	  { "-4|-6", "", "", "" },
 	  "display peer summary info the way Dave Mills likes it (IP Version)" },
-	{ "showpeer",	showpeer, 	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD},
+	{ "showpeer",	showpeer, 	{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD},
 	  { "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 	  "display detailed information for one or more peers" },
-	{ "pstats",	peerstats,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
+	{ "pstats",	peerstats,	{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD },
 	  { "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 	  "display statistical information for one or more peers" },
 	{ "loopinfo",	loopinfo,	{ OPT|NTP_STR, NO, NO, NO },
@@ -117,19 +118,19 @@ struct xcmd opcmds[] = {
 	{ "timerstats",	timerstats,	{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "display event timer subsystem statistics" },
-	{ "addpeer",	addpeer,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
-	  { "addr", "keyid", "version", "minpoll|prefer" },
+	{ "addpeer",	addpeer,	{ NTP_ADD, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
+	  { "addr", "keyid", "version", "minpoll#|prefer|burst|iburst|'minpoll N'|'maxpoll N'|'keyid N'|'version N' ..." },
 	  "configure a new peer association" },
-	{ "addserver",	addserver,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
-	  { "addr", "keyid", "version", "minpoll|prefer" },
+	{ "addserver",	addserver,	{ NTP_ADD, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
+	  { "addr", "keyid", "version", "minpoll#|prefer|burst|iburst|'minpoll N'|'maxpoll N'|'keyid N'|'version N' ..." },
 	  "configure a new server" },
-	{ "addrefclock",addrefclock,	{ ADD, OPT|UINT, OPT|NTP_STR, OPT|NTP_STR },
+	{ "addrefclock",addrefclock,	{ NTP_ADD, OPT|NTP_UINT, OPT|NTP_STR, OPT|NTP_STR },
 	  { "addr", "mode", "minpoll|prefer", "minpoll|prefer" },
 	  "configure a new server" },
-	{ "broadcast",	broadcast,	{ ADD, OPT|UINT, OPT|UINT, OPT|NTP_STR },
+	{ "broadcast",	broadcast,	{ NTP_ADD, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
 	  { "addr", "keyid", "version", "minpoll" },
 	  "configure broadcasting time service" },
-	{ "unconfig",	unconfig,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
+	{ "unconfig",	unconfig,	{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD },
 	  { "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 	  "unconfigure existing peer assocations" },
 	{ "enable",	set,		{ NTP_STR, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
@@ -141,35 +142,35 @@ struct xcmd opcmds[] = {
 	{ "reslist",	reslist,	{OPT|IP_VERSION, NO, NO, NO },
 	  { "-4|-6", "", "", "" },
 	  "display the server's restrict list" },
-	{ "restrict",	new_restrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
+	{ "restrict",	new_restrict,	{ NTP_ADD, NTP_ADD, NTP_STR, OPT|NTP_STR },
 	  { "address", "mask",
 	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer|version|kod",
 	    "..." },
 	  "create restrict entry/add flags to entry" },
-	{ "unrestrict", unrestrict,	{ ADD, ADD, NTP_STR, OPT|NTP_STR },
+	{ "unrestrict", unrestrict,	{ NTP_ADD, NTP_ADD, NTP_STR, OPT|NTP_STR },
 	  { "address", "mask",
 	    "ntpport|ignore|noserve|notrust|noquery|nomodify|nopeer|version|kod",
 	    "..." },
 	  "remove flags from a restrict entry" },
-	{ "delrestrict", delrestrict,	{ ADD, ADD, OPT|NTP_STR, NO },
+	{ "delrestrict", delrestrict,	{ NTP_ADD, NTP_ADD, OPT|NTP_STR, NO },
 	  { "address", "mask", "ntpport", "" },
 	  "delete a restrict entry" },
-	{ "monlist",	monlist,	{ OPT|INT, NO, NO, NO },
+	{ "monlist",	monlist,	{ OPT|NTP_INT, NO, NO, NO },
 	  { "version", "", "", "" },
 	  "display data the server's monitor routines have collected" },
 	{ "reset",	reset,		{ NTP_STR, OPT|NTP_STR, OPT|NTP_STR, OPT|NTP_STR },
 	  { "io|sys|mem|timer|auth|allpeers", "...", "...", "..." },
 	  "reset various subsystem statistics counters" },
-	{ "preset",	preset,		{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
+	{ "preset",	preset,		{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD },
 	  { "peer_address", "peer2_addr", "peer3_addr", "peer4_addr" },
 	  "reset stat counters associated with particular peer(s)" },
 	{ "readkeys",	readkeys,	{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "request a reread of the keys file and re-init of system keys" },
-	{ "trustedkey",	trustkey,	{ UINT, OPT|UINT, OPT|UINT, OPT|UINT },
+	{ "trustedkey",	trustkey,	{ NTP_UINT, OPT|NTP_UINT, OPT|NTP_UINT, OPT|NTP_UINT },
 	  { "keyid", "keyid", "keyid", "keyid" },
 	  "add one or more key ID's to the trusted list" },
-	{ "untrustedkey", untrustkey,	{ UINT, OPT|UINT, OPT|UINT, OPT|UINT },
+	{ "untrustedkey", untrustkey,	{ NTP_UINT, OPT|NTP_UINT, OPT|NTP_UINT, OPT|NTP_UINT },
 	  { "keyid", "keyid", "keyid", "keyid" },
 	  "remove one or more key ID's from the trusted list" },
 	{ "authinfo",	authinfo,	{ NO, NO, NO, NO },
@@ -178,34 +179,39 @@ struct xcmd opcmds[] = {
 	{ "traps",	traps,		{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "display the traps set in the server" },
-	{ "addtrap",	addtrap,	{ ADD, OPT|UINT, OPT|ADD, NO },
+	{ "addtrap",	addtrap,	{ NTP_ADD, OPT|NTP_UINT, OPT|NTP_ADD, NO },
 	  { "address", "port", "interface", "" },
 	  "configure a trap in the server" },
-	{ "clrtrap",	clrtrap,	{ ADD, OPT|UINT, OPT|ADD, NO },
+	{ "clrtrap",	clrtrap,	{ NTP_ADD, OPT|NTP_UINT, OPT|NTP_ADD, NO },
 	  { "address", "port", "interface", "" },
 	  "remove a trap (configured or otherwise) from the server" },
-	{ "requestkey",	requestkey,	{ UINT, NO, NO, NO },
+	{ "requestkey",	requestkey,	{ NTP_UINT, NO, NO, NO },
 	  { "keyid", "", "", "" },
 	  "change the keyid the server uses to authenticate requests" },
-	{ "controlkey",	controlkey,	{ UINT, NO, NO, NO },
+	{ "controlkey",	controlkey,	{ NTP_UINT, NO, NO, NO },
 	  { "keyid", "", "", "" },
 	  "change the keyid the server uses to authenticate control messages" },
 	{ "ctlstats",	ctlstats,	{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "display packet count statistics from the control module" },
-	{ "clockstat",	clockstat,	{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
+	{ "clockstat",	clockstat,	{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD },
 	  { "address", "address", "address", "address" },
 	  "display clock status information" },
-	{ "fudge",	fudge,		{ ADD, NTP_STR, NTP_STR, NO },
+	{ "fudge",	fudge,		{ NTP_ADD, NTP_STR, NTP_STR, NO },
 	  { "address", "time1|time2|val1|val2|flags", "value", "" },
 	  "set/change one of a clock's fudge factors" },
-	{ "clkbug",	clkbug,		{ ADD, OPT|ADD, OPT|ADD, OPT|ADD },
+	{ "clkbug",	clkbug,		{ NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD, OPT|NTP_ADD },
 	  { "address", "address", "address", "address" },
 	  "display clock debugging information" },
 	{ "kerninfo",	kerninfo,	{ NO, NO, NO, NO },
 	  { "", "", "", "" },
 	  "display the kernel pll/pps variables" },
-
+	{ "ifstats",	get_if_stats,	{ NO, NO, NO, NO },
+	  { "", "", "", "" },
+	  "list interface statistics" },
+	{ "ifreload",	do_if_reload,	{ NO, NO, NO, NO },
+	  { "", "", "", "" },
+	  "reload interface configuration" },
 	{ 0,		0,		{ NO, NO, NO, NO },
 	  { "", "", "", "" }, "" }
 };
@@ -301,7 +307,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -391,7 +397,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -483,6 +489,52 @@ refid_string(
 	return numtoa(refid);
 }
 
+static void
+print_pflag(
+	    FILE *fp,
+	    u_int32 flags
+	    )
+{
+     const char *str;
+
+     if (flags == 0) {
+		(void) fprintf(fp, " none\n");
+	} else {
+		str = "";
+		if (flags & INFO_FLAG_SYSPEER) {
+			(void) fprintf(fp, " system_peer");
+			str = ",";
+		}
+		if (flags & INFO_FLAG_CONFIG) {
+			(void) fprintf(fp, "%s config", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_REFCLOCK) {
+			(void) fprintf(fp, "%s refclock", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_AUTHENABLE) {
+			(void) fprintf(fp, "%s auth", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_BCLIENT) {
+			(void) fprintf(fp, "%s bclient", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_PREFER) {
+			(void) fprintf(fp, "%s prefer", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_IBURST) {
+			(void) fprintf(fp, "%s iburst", str);
+			str = ",";
+		}
+		if (flags & INFO_FLAG_BURST) {
+			(void) fprintf(fp, "%s burst", str);
+		}
+		(void) fprintf(fp, "\n");
+	}
+}
 /*
  * printpeer - print detail information for a peer
  */
@@ -493,7 +545,6 @@ printpeer(
 	)
 {
 	register int i;
-	const char *str;
 	l_fp tempts;
 	struct sockaddr_storage srcadr, dstadr;
 	
@@ -539,39 +590,7 @@ printpeer(
 		       fptoa(NTOHS_FP(pp->estbdelay), 5), pp->ttl);
 	
 	(void) fprintf(fp, "timer %lds, flags", (long)ntohl(pp->timer));
-	if (pp->flags == 0) {
-		(void) fprintf(fp, " none\n");
-	} else {
-		str = "";
-		if (pp->flags & INFO_FLAG_SYSPEER) {
-			(void) fprintf(fp, " system_peer");
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_CONFIG) {
-			(void) fprintf(fp, "%s config", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_REFCLOCK) {
-			(void) fprintf(fp, "%s refclock", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_AUTHENABLE) {
-			(void) fprintf(fp, "%s auth", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_BCLIENT) {
-			(void) fprintf(fp, "%s bclient", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_PREFER) {
-			(void) fprintf(fp, "%s prefer", str);
-			str = ",";
-		}
-		if (pp->flags & INFO_FLAG_BURST) {
-			(void) fprintf(fp, "%s burst", str);
-		}
-		(void) fprintf(fp, "\n");
-	}
+	print_pflag(fp, pp->flags); 
 
 	NTOHL_FP(&pp->reftime, &tempts);
 	(void) fprintf(fp, "reference time:      %s\n",
@@ -674,7 +693,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -748,7 +767,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -804,7 +823,9 @@ again:
 			       (int)pp->candidate);
 		if (items > 0)
 		    (void) fprintf(fp, "\n");
-		pp++;
+		(void) fprintf(fp, "flags:	");
+		print_pflag(fp, ntohs(pp->flags));
+	        pp++;
 	}
 }
 
@@ -846,7 +867,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -865,8 +886,8 @@ again:
 			       "offset %s, frequency %s, time_const %ld, watchdog %ld\n",
 			       lfptoa(&tempts, 6),
 			       lfptoa(&temp2ts, 3),
-			       (u_long)ntohl(il->compliance),
-			       (u_long)ntohl(il->watchdog_timer));
+			       (long)(int32_t)ntohl((u_long)il->compliance),
+			       (u_long)ntohl((u_long)il->watchdog_timer));
 	} else {
 		NTOHL_FP(&il->last_offset, &tempts);
 		(void) fprintf(fp, "offset:               %s s\n",
@@ -875,7 +896,7 @@ again:
 		(void) fprintf(fp, "frequency:            %s ppm\n",
 			       lfptoa(&tempts, 3));
 		(void) fprintf(fp, "poll adjust:          %ld\n",
-			       (u_long)ntohl(il->compliance));
+			       (long)(int32_t)ntohl(il->compliance));
 		(void) fprintf(fp, "watchdog timer:       %ld s\n",
 			       (u_long)ntohl(il->watchdog_timer));
 	}
@@ -909,7 +930,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -1006,7 +1027,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -1072,7 +1093,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -1134,7 +1155,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -1157,9 +1178,9 @@ again:
 		       (u_long)ntohl(mem->demobilizations));
 
 	(void) fprintf(fp, "hash table counts:   ");
-	for (i = 0; i < HASH_SIZE; i++) {
+	for (i = 0; i < NTP_HASH_SIZE; i++) {
 		(void) fprintf(fp, "%4d", (int)mem->hashcount[i]);
-		if ((i % 8) == 7 && i != (HASH_SIZE-1)) {
+		if ((i % 8) == 7 && i != (NTP_HASH_SIZE-1)) {
 			(void) fprintf(fp, "\n                     ");
 		}
 	}
@@ -1193,7 +1214,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -1281,78 +1302,108 @@ doconfig(
 	u_long keyid;
 	u_int version;
 	u_char minpoll;
+	u_char maxpoll;
 	u_int flags;
 	u_char cmode;
 	int res;
 	int sendsize;
+	int numtyp;
 
 again:
 	keyid = 0;
-	version = NTP_OLDVERSION + 1;
+	version = 3;
 	flags = 0;
 	res = 0;
 	cmode = 0;
 	minpoll = NTP_MINDPOLL;
+	maxpoll = NTP_MAXDPOLL;
+	numtyp = 1;
+	if (refc)
+	     numtyp = 5;
 
 	if (impl_ver == IMPL_XNTPD)
 		sendsize = sizeof(struct conf_peer);
 	else
 		sendsize = v4sizeof(struct conf_peer);
 
-	items = pcmd->nargs;
-
-	if (refc) {
-		if (pcmd->nargs > 1) {
-			cmode = (u_char) pcmd->argval[1].uval;
-			items = 2;
-		}
-	} else {
-		if (pcmd->nargs > 1) {
-			keyid = pcmd->argval[1].uval;
-			if (keyid > 0) {
-				flags |= CONF_FLAG_AUTHENABLE;
-			}
-			if (pcmd->nargs > 2) {
-				version = (u_int)pcmd->argval[2].uval;
-				if (version > NTP_VERSION ||
-				    version < NTP_OLDVERSION) {
-					(void)fprintf(fp,
-					"invalid version number %u\n",
-					    version);
-					res++;
-				}
-				items = 3;
-			}
-		}
-	}
-
+	items = 1;
 	while (pcmd->nargs > items) {
 		if (STREQ(pcmd->argval[items].string, "prefer"))
 		    flags |= CONF_FLAG_PREFER;
 		else if (STREQ(pcmd->argval[items].string, "burst"))
 		    flags |= CONF_FLAG_BURST;
+		else if (STREQ(pcmd->argval[items].string, "dynamic"))
+		    (void) fprintf(fp, "Warning: the \"dynamic\" keyword has been obsoleted and will be removed in the next release\n"); 
+		else if (STREQ(pcmd->argval[items].string, "iburst"))
+		    flags |= CONF_FLAG_IBURST;
+		else if (!refc && STREQ(pcmd->argval[items].string, "keyid"))
+		    numtyp = 1;
+		else if (!refc && STREQ(pcmd->argval[items].string, "version"))
+		    numtyp = 2;
+		else if (STREQ(pcmd->argval[items].string, "minpoll"))
+		    numtyp = 3;
+		else if (STREQ(pcmd->argval[items].string, "maxpoll"))
+		    numtyp = 4;
 		else {
 		        long val;
-			if (!atoint(pcmd->argval[items].string, &val)) {
-				(void) fprintf(fp,
-				    "%s not understood\n",
-				    pcmd->argval[items].string);
-				res++;
-				break;
-			} else {
-				if (val >= NTP_MINPOLL && val <= NTP_MAXPOLL) {
-					minpoll = (u_char)val;
-				} else {
-					(void) fprintf(fp,
-						       "minpol must be within %d..%d\n",
-						       NTP_MINPOLL, NTP_MAXPOLL);
-					res++;
-					break;
-				}					
+			if (!atoint(pcmd->argval[items].string, &val))
+			     numtyp = 0;				  
+			switch (numtyp) {
+			case 1:
+			     keyid = val;
+			     numtyp = 2;				  
+			     break;
+			     
+			case 2:
+			     version = (u_int) val;
+			     numtyp = 0;				  
+			     break;
+
+			case 3:
+			     minpoll = (u_char)val;
+			     numtyp = 0;				  
+			     break;
+
+			case 4:
+			     maxpoll = (u_char)val;
+			     numtyp = 0;				  
+			     break;
+
+			case 5:
+			     cmode = (u_char)val;
+			     numtyp = 0;				  
+			     break;
+
+			default:
+			     (void) fprintf(fp, "*** '%s' not understood\n",
+					    pcmd->argval[items].string);
+			     res++;
+			     numtyp = 0;				  
 			}
-		}
-		items++;
+			if (val < 0) {
+			     (void) fprintf(stderr,
+				     "***Value '%s' should be unsigned\n",
+				      pcmd->argval[items].string);
+			     res++;
+			}
+		   }
+	     items++;
 	}
+	if (keyid > 0)
+	     flags |= CONF_FLAG_AUTHENABLE;
+	if (version > NTP_VERSION ||
+	    version < NTP_OLDVERSION) {
+	     (void)fprintf(fp, "***invalid version number: %u\n",
+			   version);
+	     res++;
+	}
+	if (minpoll < NTP_MINPOLL || minpoll > NTP_MAXPOLL || 
+	    maxpoll < NTP_MINPOLL || maxpoll > NTP_MAXPOLL || 
+	    minpoll > maxpoll) {
+	     (void) fprintf(fp, "***min/max-poll must be within %d..%d\n",
+			    NTP_MINPOLL, NTP_MAXPOLL);
+	     res++;
+	}					
 
 	if (res)
 	    return;
@@ -1376,7 +1427,7 @@ again:
 	cpeer.keyid = keyid;
 	cpeer.version = (u_char) version;
 	cpeer.minpoll = minpoll;
-	cpeer.maxpoll = NTP_MAXDPOLL;
+	cpeer.maxpoll = maxpoll;
 	cpeer.flags = (u_char)flags;
 	cpeer.ttl = cmode;
 
@@ -1528,6 +1579,7 @@ doset(
 		}
 	}
 
+	sys.flags = htonl(sys.flags);
 	if (res || sys.flags == 0)
 	    return;
 
@@ -1554,7 +1606,22 @@ struct resflags {
 	int bit;
 };
 
-static struct resflags resflags[] = {
+/* XXX: HMS: we apparently don't report set bits we do not recognize. */
+
+static struct resflags resflagsV2[] = {
+	{ "ignore",	0x001 },
+	{ "noserve",	0x002 },
+	{ "notrust",	0x004 },
+	{ "noquery",	0x008 },
+	{ "nomodify",	0x010 },
+	{ "nopeer",	0x020 },
+	{ "notrap",	0x040 },
+	{ "lptrap",	0x080 },
+	{ "limited",	0x100 },
+	{ "",		0 }
+};
+
+static struct resflags resflagsV3[] = {
 	{ "ignore",	RES_IGNORE },
 	{ "noserve",	RES_DONTSERVE },
 	{ "notrust",	RES_DONTTRUST },
@@ -1614,7 +1681,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -1677,7 +1744,10 @@ again:
 			rf++;
 		}
 
-		rf = &resflags[0];
+		rf = (impl_ver == IMPL_XNTPD_OLD)
+		     ? &resflagsV2[0]
+		     : &resflagsV3[0]
+		     ;
 		while (rf->bit != 0) {
 			if (flags & rf->bit) {
 				if (!res)
@@ -1795,17 +1865,17 @@ again:
 		if (STREQ(pcmd->argval[res].string, "ntpport")) {
 			cres.mflags |= RESM_NTPONLY;
 		} else {
-			for (i = 0; resflags[i].bit != 0; i++) {
+			for (i = 0; resflagsV3[i].bit != 0; i++) {
 				if (STREQ(pcmd->argval[res].string,
-					  resflags[i].str))
+					  resflagsV3[i].str))
 				    break;
 			}
-			if (resflags[i].bit != 0) {
-				cres.flags |= resflags[i].bit;
+			if (resflagsV3[i].bit != 0) {
+				cres.flags |= resflagsV3[i].bit;
 				if (req_code == REQ_UNRESTRICT) {
 					(void) fprintf(fp,
 						       "Flag %s inappropriate\n",
-						       resflags[i].str);
+						       resflagsV3[i].str);
 					err++;
 				}
 			} else {
@@ -1815,6 +1885,8 @@ again:
 			}
 		}
 	}
+	cres.flags = htons(cres.flags);
+	cres.mflags = htons(cres.mflags);
 
 	/*
 	 * Make sure mask for default address is zero.  Otherwise,
@@ -1899,7 +1971,7 @@ again:
 			  &items, &itemsize, &struct_star, 0, 
 			  sizeof(struct info_monitor));
 	
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -2068,6 +2140,7 @@ reset(
 			rflags.flags |= sreset[i].flag;
 		}
 	}
+	rflags.flags = htonl(rflags.flags);
 
 	if (err) {
 		(void) fprintf(fp, "Not done due to errors\n");
@@ -2268,7 +2341,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -2326,7 +2399,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -2567,7 +2640,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!check1item(items, fp))
@@ -2627,7 +2700,6 @@ clockstat(
 	int res;
 	l_fp ts;
 	struct clktype *clk;
-	u_long ltemp;
 
 	for (qitems = 0; qitems < min(pcmd->nargs, 8); qitems++)
 	    clist[qitems] = GET_INADDR(pcmd->argval[qitems].netnum);
@@ -2642,7 +2714,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -2685,9 +2757,8 @@ again:
 			       lfptoa(&ts, 6));
 		(void) fprintf(fp, "stratum:              %ld\n",
 			       (u_long)ntohl(cl->fudgeval1));
-		ltemp = ntohl(cl->fudgeval2);
 		(void) fprintf(fp, "reference ID:         %s\n",
-			       (char *)&ltemp);
+			       refid_string(ntohl(cl->fudgeval2), 0));
 		(void) fprintf(fp, "fudge flags:          0x%x\n",
 			       cl->flags);
 
@@ -2815,7 +2886,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 
 	if (!checkitems(items, fp))
@@ -2903,7 +2974,7 @@ again:
 		goto again;
 	}
 
-	if (res != 0 && items == 0)
+	if (res != 0)
 	    return;
 	if (!check1item(items, fp))
 	    return;
@@ -2919,7 +2990,7 @@ again:
 		tscale = 1e-9;
 #endif
 	(void)fprintf(fp, "pll offset:           %g s\n",
-	    (long)ntohl(ik->offset) * tscale);
+	    (int32_t)ntohl(ik->offset) * tscale);
 	(void)fprintf(fp, "pll frequency:        %s ppm\n",
 	    fptoa((s_fp)ntohl(ik->freq), 3));
 	(void)fprintf(fp, "maximum error:        %g s\n",
@@ -3009,4 +3080,125 @@ again:
 		      (u_long)ntohl(ik->stbcnt));
 	(void)fprintf(fp, "calibration errors:   %ld\n",
 		      (u_long)ntohl(ik->errcnt));
+}
+
+#define IF_LIST_FMT     "%2d %c %48s %c %c %12.12s %03x %3d %2d %5d %5d %5d %2d %2d %3d %7d\n"
+#define IF_LIST_FMT_STR "%2s %c %48s %c %c %12.12s %3s %3s %2s %5s %5s %5s %2s %2s %3s %7s\n"
+#define IF_LIST_AFMT_STR "     %48s %c\n"
+#define IF_LIST_LABELS  "#", 'A', "Address/Mask/Broadcast", 'T', 'E', "IF name", "Flg", "TL", "#M", "recv", "sent", "drop", "S", "IX", "PC", "uptime"
+#define IF_LIST_LINE    "=====================================================================================================================\n"
+
+static void
+iflist(
+	FILE *fp,
+	struct info_if_stats *ifs,
+	int items,
+	int itemsize,
+	int res
+	)
+{
+	static char *actions = "?.+-";
+	struct sockaddr_storage saddr;
+
+	if (res != 0)
+	    return;
+
+	if (!checkitems(items, fp))
+	    return;
+
+	if (!checkitemsize(itemsize, sizeof(struct info_if_stats)))
+	    return;
+
+	fprintf(fp, IF_LIST_FMT_STR, IF_LIST_LABELS);
+	fprintf(fp, IF_LIST_LINE);
+	
+	while (items > 0) {
+		if (ntohl(ifs->v6_flag)) {
+			memcpy((char *)&GET_INADDR6(saddr), (char *)&ifs->unaddr.addr6, sizeof(ifs->unaddr.addr6));
+			saddr.ss_family = AF_INET6;
+		} else {
+			memcpy((char *)&GET_INADDR(saddr), (char *)&ifs->unaddr.addr, sizeof(ifs->unaddr.addr));
+			saddr.ss_family = AF_INET;
+		}
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+		saddr.ss_len = SOCKLEN(&saddr);
+#endif
+		fprintf(fp, IF_LIST_FMT,
+			ntohl(ifs->ifnum),
+			actions[(ifs->action >= 1 && ifs->action < 4) ? ifs->action : 0],
+			stoa((&saddr)), 'A',
+			ifs->ignore_packets ? 'D' : 'E',
+			ifs->name,
+			ntohl(ifs->flags),
+			ntohl(ifs->last_ttl),
+			ntohl(ifs->num_mcast),
+			ntohl(ifs->received),
+			ntohl(ifs->sent),
+			ntohl(ifs->notsent),
+			ntohl(ifs->scopeid),
+			ntohl(ifs->ifindex),
+			ntohl(ifs->peercnt),
+			ntohl(ifs->uptime));
+
+		if (ntohl(ifs->v6_flag)) {
+			memcpy((char *)&GET_INADDR6(saddr), (char *)&ifs->unmask.addr6, sizeof(ifs->unmask.addr6));
+			saddr.ss_family = AF_INET6;
+		} else {
+			memcpy((char *)&GET_INADDR(saddr), (char *)&ifs->unmask.addr, sizeof(ifs->unmask.addr));
+			saddr.ss_family = AF_INET;
+		}
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+		saddr.ss_len = SOCKLEN(&saddr);
+#endif
+		fprintf(fp, IF_LIST_AFMT_STR, stoa(&saddr), 'M');
+
+		if (!ntohl(ifs->v6_flag) && ntohl(ifs->flags) & (INT_BCASTOPEN)) {
+			memcpy((char *)&GET_INADDR(saddr), (char *)&ifs->unbcast.addr, sizeof(ifs->unbcast.addr));
+			saddr.ss_family = AF_INET;
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+			saddr.ss_len = SOCKLEN(&saddr);
+#endif
+			fprintf(fp, IF_LIST_AFMT_STR, stoa(&saddr), 'B');
+
+		}
+
+		ifs++;
+		items--;
+	}
+}
+
+/*ARGSUSED*/
+static void
+get_if_stats(
+	struct parse *pcmd,
+	FILE *fp
+	)
+{
+	struct info_if_stats *ifs;
+	int items;
+	int itemsize;
+	int res;
+
+	res = doquery(impl_ver, REQ_IF_STATS, 1, 0, 0, (char *)NULL, &items,
+		      &itemsize, (void *)&ifs, 0, 
+		      sizeof(struct info_if_stats));
+	iflist(fp, ifs, items, itemsize, res);
+}
+
+/*ARGSUSED*/
+static void
+do_if_reload(
+	struct parse *pcmd,
+	FILE *fp
+	)
+{
+	struct info_if_stats *ifs;
+	int items;
+	int itemsize;
+	int res;
+
+	res = doquery(impl_ver, REQ_IF_RELOAD, 1, 0, 0, (char *)NULL, &items,
+		      &itemsize, (void *)&ifs, 0, 
+		      sizeof(struct info_if_stats));
+	iflist(fp, ifs, items, itemsize, res);
 }

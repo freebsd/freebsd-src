@@ -24,7 +24,7 @@ extern	struct refclock	refclock_local;
 #define	refclock_local	refclock_none
 #endif
 
-#if defined(CLOCK_TRAK) && defined(PPS)
+#if 0 && defined(CLOCK_TRAK) && defined(PPS)
 extern	struct refclock	refclock_trak;
 #else
 #define	refclock_trak	refclock_none
@@ -96,7 +96,7 @@ extern	struct refclock	refclock_irig;
 #define refclock_irig	refclock_none
 #endif
 
-#if defined(CLOCK_MSFEES) && defined(PPS)
+#if 0 && defined(CLOCK_MSFEES) && defined(PPS)
 extern	struct refclock	refclock_msfees;
 #else
 #define refclock_msfees	refclock_none
@@ -144,18 +144,6 @@ extern	struct refclock	refclock_atom;
 #define refclock_atom	refclock_none
 #endif
 
-#ifdef CLOCK_PTBACTS
-extern	struct refclock	refclock_ptb;
-#else
-#define refclock_ptb	refclock_none
-#endif
-
-#ifdef CLOCK_USNO
-extern	struct refclock	refclock_usno;
-#else
-#define refclock_usno	refclock_none
-#endif
-
 #ifdef CLOCK_HPGPS
 extern	struct refclock	refclock_hpgps;
 #else
@@ -186,7 +174,7 @@ extern  struct refclock refclock_palisade;
 #define refclock_palisade refclock_none
 #endif
 
-#if defined(CLOCK_ONCORE) && defined(HAVE_PPSAPI)
+#if defined(CLOCK_ONCORE)
 extern	struct refclock refclock_oncore;
 #else
 #define refclock_oncore refclock_none
@@ -279,7 +267,7 @@ extern	struct refclock	refclock_neoclock4x;
 struct refclock *refclock_conf[] = {
 	&refclock_none,		/* 0 REFCLK_NONE */
 	&refclock_local,	/* 1 REFCLK_LOCAL */
-	&refclock_trak,		/* 2 REFCLK_GPS_TRAK */
+	&refclock_none,		/* 2 deprecated: REFCLK_GPS_TRAK */
 	&refclock_pst,		/* 3 REFCLK_WWV_PST */
 	&refclock_wwvb, 	/* 4 REFCLK_SPECTRACOM */
 	&refclock_true,		/* 5 REFCLK_TRUETIME */
@@ -291,18 +279,18 @@ struct refclock *refclock_conf[] = {
 	&refclock_arbiter,	/* 11 REFCLK_GPS_ARBITER */
 	&refclock_tpro,		/* 12 REFCLK_IRIG_TPRO */
 	&refclock_leitch,	/* 13 REFCLK_ATOM_LEITCH */
-	&refclock_msfees,	/* 14 REFCLK_MSF_EES */
-	&refclock_true,		/* 15 alias for REFCLK_TRUETIME */
+	&refclock_none,		/* 14 deprecated: REFCLK_MSF_EES */
+	&refclock_none,		/* 15 not used */
 	&refclock_bancomm,	/* 16 REFCLK_IRIG_BANCOMM */
 	&refclock_datum,	/* 17 REFCLK_GPS_DATUM */
-	&refclock_acts,		/* 18 REFCLK_NIST_ACTS */
+	&refclock_acts,		/* 18 REFCLK_ACTS */
 	&refclock_heath,	/* 19 REFCLK_WWV_HEATH */
 	&refclock_nmea,		/* 20 REFCLK_GPS_NMEA */
 	&refclock_gpsvme,	/* 21 REFCLK_GPS_VME */
 	&refclock_atom,		/* 22 REFCLK_ATOM_PPS */
-	&refclock_ptb,		/* 23 REFCLK_PTB_ACTS */
-	&refclock_usno,		/* 24 REFCLK_USNO */
-	&refclock_true,		/* 25 alias for REFCLK_TRUETIME */
+	&refclock_none,		/* 23 not used */
+	&refclock_none,		/* 24 not used */
+	&refclock_none,		/* 25 not used */
 	&refclock_hpgps,	/* 26 REFCLK_GPS_HP */
 	&refclock_arc, 		/* 27 REFCLK_ARCRON_MSF */
 	&refclock_shm,		/* 28 REFCLK_SHM */
