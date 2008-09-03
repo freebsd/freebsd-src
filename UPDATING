@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080903:	p4	FreeBSD-SA-08:07.amd64, FreeBSD-SA-08:08.nmount,
+			FreeBSD-SA-08:09.icmp6
+	Fix amd64 local privilege escalation. [08:07]
+	Fix nmount(2) local privilege escalation. [08:08]
+	Fix IPv6 remote kernel panics. [08:09]
+
 20080713:	p3	FreeBSD-SA-08:06.bind
 	Improve randomization in BIND to prevent response spoofing.
 

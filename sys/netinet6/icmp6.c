@@ -1133,6 +1133,15 @@ icmp6_mtudisc_update(ip6cp, validated)
 	if (!validated)
 		return;
 
+	/*
+	 * In case the suggested mtu is less than IPV6_MMTU, we
+	 * only need to remember that it was for above mentioned
+	 * "alwaysfrag" case.
+	 * Try to be as close to the spec as possible.
+	 */
+	if (mtu < IPV6_MMTU)
+		mtu = IPV6_MMTU - 8;
+
 	bzero(&inc, sizeof(inc));
 	inc.inc_flags = 1; /* IPv6 */
 	inc.inc6_faddr = *dst;
