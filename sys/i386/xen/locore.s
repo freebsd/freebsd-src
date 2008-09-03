@@ -66,10 +66,9 @@
 #include "assym.s"
 
 .section __xen_guest
-#if 0	
 	.ascii "LOADER=generic,GUEST_OS=freebsd,GUEST_VER=7.0,XEN_VER=xen-3.0,BSD_SYMTAB,VIRT_BASE=0xc0000000"
 	.byte 0
-#endif
+
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "FreeBSD")	
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz, "HEAD")
 	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz, "xen-3.0")
