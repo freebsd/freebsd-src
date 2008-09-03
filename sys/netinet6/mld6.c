@@ -275,7 +275,7 @@ mld6_input(struct mbuf *m, int off)
 	struct in6_addr mld_addr, all_in6;
 	struct in6_ifaddr *ia;
 	struct ifmultiaddr *ifma;
-	int timer;		/* timer value in the MLD query header */
+	u_long timer;		/* timer value in the MLD query header */
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(*mldh),);
@@ -391,9 +391,9 @@ mld6_input(struct mbuf *m, int off)
 					in6m->in6m_state = MLD_IREPORTEDLAST;
 				}
 				else if (in6m->in6m_timer == IN6M_TIMER_UNDEF ||
-				    mld_timerresid(in6m) > (u_long)timer) {
-					in6m->in6m_timer = arc4random() %
-					    (int)((long)(timer * hz) / 1000);
+				    mld_timerresid(in6m) > timer) {
+					in6m->in6m_timer =
+					   1 + (arc4random() % timer) * hz / 1000;
 					mld_starttimer(in6m);
 				}
 			}
