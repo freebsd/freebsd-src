@@ -34,7 +34,7 @@ libkern/fls.c			standard
 libkern/flsl.c			standard
 sparc64/sparc64/autoconf.c	standard
 sun4v/sun4v/bus_machdep.c	standard
-sparc64/sparc64/clock.c		standard
+sun4v/sun4v/clock.c		standard
 sparc64/sparc64/db_disasm.c	optional	ddb
 sun4v/sun4v/db_interface.c	optional	ddb
 sun4v/sun4v/db_trace.c		optional	ddb
