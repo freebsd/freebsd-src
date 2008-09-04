@@ -53,14 +53,14 @@ static int intrcnt_index = 0;
 static int last_printed = 0;
 #endif
 
-void 
+void
 mips_mask_irq(void)
 {
 
 	printf("Unimplemented: %s\n", __func__);
 }
 
-void 
+void
 mips_unmask_irq(void)
 {
 
@@ -68,70 +68,69 @@ mips_unmask_irq(void)
 }
 
 void
-cpu_establish_hardintr(const char *name, driver_filter_t *filt, 
-    void (*handler)(void*), void *arg, int irq, int flags, 
-    void **cookiep)
+cpu_establish_hardintr(const char *name, driver_filter_t *filt,
+    void (*handler)(void*), void *arg, int irq, int flags, void **cookiep)
 {
-        struct intr_event *event;
-        int error;
+	struct intr_event *event;
+	int error;
 
-	printf("Establish HARD IRQ %d: filt %p handler %p arg %p\n", irq, filt, handler, arg);
+	printf("Establish HARD IRQ %d: filt %p handler %p arg %p\n",
+	    irq, filt, handler, arg);
 	/*
 	 * We have 6 levels, but thats 0 - 5 (not including 6)
 	 */
 	if (irq < 0 || irq >= NHARD_IRQS)
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
-        event = hardintr_events[irq];
-        if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0,
+	event = hardintr_events[irq];
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "hard intr%d:", irq);
-                if (error)
-                        return;
-                hardintr_events[irq] = event;
+		if (error)
+			return;
+		hardintr_events[irq] = event;
 #ifdef notyet
-                last_printed += 
-                    snprintf(intrnames + last_printed,
-                    MAXCOMLEN + 1,
-                    "hard irq%d: %s", irq, name);
-                last_printed++;
-                intrcnt_tab[irq] = intrcnt_index;
-                intrcnt_index++;
+		last_printed += snprintf(intrnames + last_printed,
+		    MAXCOMLEN + 1, "hard irq%d: %s", irq, name);
+		last_printed++;
+		intrcnt_tab[irq] = intrcnt_index;
+		intrcnt_index++;
 #endif
-                
-        }
 
-        intr_event_add_handler(event, name, filt, handler, arg,
-            intr_priority(flags), flags, cookiep);
+	}
 
-	mips_wr_status(mips_rd_status() | (((1<< irq) << 8) << 2));
+	intr_event_add_handler(event, name, filt, handler, arg,
+	    intr_priority(flags), flags, cookiep);
+
+	mips_wr_status(mips_rd_status() | (((1 << irq) << 8) << 2));
 }
 
 void
-cpu_establish_softintr(const char *name, driver_filter_t *filt, 
-    void (*handler)(void*), void *arg, int irq, int flags, 
+cpu_establish_softintr(const char *name, driver_filter_t *filt,
+    void (*handler)(void*), void *arg, int irq, int flags,
     void **cookiep)
 {
-        struct intr_event *event;
-        int error;
+	struct intr_event *event;
+	int error;
 
-	printf("Establish SOFT IRQ %d: filt %p handler %p arg %p\n", irq, filt, handler, arg);
+	printf("Establish SOFT IRQ %d: filt %p handler %p arg %p\n",
+	    irq, filt, handler, arg);
 	if (irq < 0 || irq > NSOFT_IRQS)
 		panic("%s called for unknown hard intr %d", __func__, irq);
 
-        event = softintr_events[irq];
-        if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0,
+	event = softintr_events[irq];
+	if (event == NULL) {
+		error = intr_event_create(&event, (void *)irq, 0,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "intr%d:", irq);
-                if (error)
-                        return;
-                softintr_events[irq] = event;
-        }
+		if (error)
+			return;
+		softintr_events[irq] = event;
+	}
 
-        intr_event_add_handler(event, name, filt, handler, arg,
-            intr_priority(flags), flags, cookiep);
+	intr_event_add_handler(event, name, filt, handler, arg,
+	    intr_priority(flags), flags, cookiep);
 
 	mips_wr_status(mips_rd_status() | (((1<< irq) << 8)));
 }
@@ -142,10 +141,7 @@ cpu_intr(struct trapframe *tf)
 	struct intr_handler *ih;
 	struct intr_event *event;
 	register_t cause;
-	int hard;
-	int intr;
-	int i;
-	int thread;
+	int hard, i, intr, thread;
 
 	critical_enter();
 
@@ -171,11 +167,10 @@ cpu_intr(struct trapframe *tf)
 			break;
 		}
 
-		if (!event || TAILQ_EMPTY(&event->ie_handlers))
-		{
-		  printf("stray %s interrupt %d\n",
-			 hard ? "hard" : "soft", i);
-		  continue;
+		if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
+			printf("stray %s interrupt %d\n",
+			    hard ? "hard" : "soft", i);
+			continue;
 		}
 
 		/* Execute fast handlers. */
