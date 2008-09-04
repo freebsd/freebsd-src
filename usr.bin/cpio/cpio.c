@@ -863,7 +863,6 @@ mode_pass(struct cpio *cpio, const char *destdir)
 	r = archive_write_close(cpio->archive);
 	if (r != ARCHIVE_OK)
 		cpio_errc(1, 0, archive_error_string(cpio->archive));
-	archive_write_finish(cpio->archive);
 
 	if (!cpio->quiet) {
 		blocks = (archive_position_uncompressed(cpio->archive) + 511)
@@ -872,6 +871,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		    blocks == 1 ? "block" : "blocks");
 	}
 
+	archive_write_finish(cpio->archive);
 }
 
 /*
