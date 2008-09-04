@@ -103,6 +103,7 @@ struct tty {
 	struct winsize	t_winsize;	/* (t) Window size. */
 	unsigned int	t_column;	/* (t) Current cursor position. */
 	unsigned int	t_writepos;	/* (t) Where input was interrupted. */
+	int		t_compatflags;	/* (t) COMPAT_43TTY flags. */
 
 	/* Init/lock-state devices. */
 	struct termios	t_termios_init_in;	/* tty%s.init. */
