@@ -83,10 +83,6 @@ __FBSDID("$FreeBSD$");
 #include "stand.h"
 #include "string.h"
 
-#ifdef __alpha__
-#define COMPAT_UFS		/* DUX has old format file systems */
-#endif
-
 static int	ufs_open(const char *path, struct open_file *f);
 static int	ufs_write(struct open_file *f, void *buf, size_t size, size_t *resid);
 static int	ufs_close(struct open_file *f);
