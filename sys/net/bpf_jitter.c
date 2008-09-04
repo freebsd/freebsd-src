@@ -23,7 +23,7 @@
  * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
  * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS intERRUPTION) HOWEVER CAUSED AND ON ANY
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #else
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #endif
 
@@ -49,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf_jitter.h>
 
 bpf_filter_func	bpf_jit_compile(struct bpf_insn *, u_int, int *);
+
+static u_int	bpf_jit_accept_all(u_char *, u_int, u_int);
 
 #ifdef _KERNEL
 MALLOC_DEFINE(M_BPFJIT, "BPF_JIT", "BPF JIT compiler");
@@ -65,21 +68,18 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 
 	/* Allocate the filter structure */
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter),
-	    M_BPFJIT, M_NOWAIT);
+	    M_BPFJIT, M_NOWAIT | M_ZERO);
 	if (filter == NULL)
 		return (NULL);
 
-	/* Allocate the filter's memory */
-	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int),
-	    M_BPFJIT, M_NOWAIT);
-	if (filter->mem == NULL) {
-		free(filter, M_BPFJIT);
-		return (NULL);
+	/* No filter means accept all */
+	if (fp == NULL || nins == 0) {
+		filter->func = bpf_jit_accept_all;
+		return (filter);
 	}
 
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
-		free(filter->mem, M_BPFJIT);
 		free(filter, M_BPFJIT);
 		return (NULL);
 	}
@@ -91,8 +91,8 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->mem, M_BPFJIT);
-	free(filter->func, M_BPFJIT);
+	if (filter->func != bpf_jit_accept_all)
+		free(filter->func, M_BPFJIT);
 	free(filter, M_BPFJIT);
 }
 #else
@@ -105,17 +105,16 @@ bpf_jitter(struct bpf_insn *fp, int nins)
 	filter = (struct bpf_jit_filter *)malloc(sizeof(*filter));
 	if (filter == NULL)
 		return (NULL);
+	memset(filter, 0, sizeof(*filter));
 
-	/* Allocate the filter's memory */
-	filter->mem = (int *)malloc(BPF_MEMWORDS * sizeof(int));
-	if (filter->mem == NULL) {
-		free(filter);
-		return (NULL);
+	/* No filter means accept all */
+	if (fp == NULL || nins == 0) {
+		filter->func = bpf_jit_accept_all;
+		return (filter);
 	}
 
 	/* Create the binary */
 	if ((filter->func = bpf_jit_compile(fp, nins, filter->mem)) == NULL) {
-		free(filter->mem);
 		free(filter);
 		return (NULL);
 	}
@@ -127,8 +126,16 @@ void
 bpf_destroy_jit_filter(bpf_jit_filter *filter)
 {
 
-	free(filter->mem);
-	free(filter->func);
+	if (filter->func != bpf_jit_accept_all)
+		free(filter->func);
 	free(filter);
 }
 #endif
+
+static u_int
+bpf_jit_accept_all(__unused u_char *p, __unused u_int wirelen,
+    __unused u_int buflen)
+{
+
+	return ((u_int)-1);
+}
