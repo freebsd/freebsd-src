@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2007
+.Dd August 5, 2008
 .Dt archive_write_disk 3
 .Os
 .Sh NAME
@@ -169,11 +169,11 @@ The default is to not refuse such paths.
 Note that paths ending in
 .Pa ..
 always cause an error, regardless of this flag.
-.El
 .It Cm ARCHIVE_EXTRACT_SPARSE
 Scan data for blocks of NUL bytes and try to recreate them with holes.
 This results in sparse files, independent of whether the archive format
 supports or uses them.
+.El
 .It Xo
 .Fn archive_write_disk_set_group_lookup ,
 .Fn archive_write_disk_set_user_lookup
