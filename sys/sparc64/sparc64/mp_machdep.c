@@ -386,6 +386,7 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	csa = &cpu_start_args;
 	if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 		cheetah_init();
+	cache_enable();
 	pmap_map_tsb();
 	/*
 	 * Flush all non-locked TLB entries possibly left over by the
