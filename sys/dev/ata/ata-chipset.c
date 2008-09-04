@@ -4932,6 +4932,7 @@ ata_sii_ident(device_t dev)
      { ATA_SII3112_1, 0x00, SIIMEMIO, SIIBUG,    ATA_SA150, "3112" },
      { ATA_SII3124,   0x00, SIIPRBIO, SII4CH,    ATA_SA300, "3124" },
      { ATA_SII3132,   0x00, SIIPRBIO, 0,         ATA_SA300, "3132" },
+     { ATA_SII3132_1, 0x00, SIIPRBIO, 0,         ATA_SA300, "3132" },
      { ATA_SII0680,   0x00, SIIMEMIO, SIISETCLK, ATA_UDMA6, "680" },
      { ATA_CMD649,    0x00, 0,        SIIINTR,   ATA_UDMA5, "(CMD) 649" },
      { ATA_CMD648,    0x00, 0,        SIIINTR,   ATA_UDMA4, "(CMD) 648" },
