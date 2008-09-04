@@ -317,7 +317,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
 			return (ESRCH);
-		if ((error = p_cansee(td, tp)) != 0)
+		if ((error = p_cansee(td, tp)) != 0) {
 			PROC_UNLOCK(tp);
 			return (error);
 		}
@@ -348,7 +348,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 			crfree(newcred);
 			return (ESRCH);
 		}
-		if ((error = p_cansee(td, tp)) != 0)
+		if ((error = p_cansee(td, tp)) != 0) {
 			PROC_UNLOCK(tp);
 			crfree(newcred);
 			return (error);
