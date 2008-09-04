@@ -883,7 +883,7 @@ svc_rpc_gss_check_replay(struct svc_rpc_gss_client *client, uint32_t seq)
 	u_int32_t offset;
 	int word, bit;
 
-	if (seq < client->cl_seqlast) {
+	if (seq <= client->cl_seqlast) {
 		/*
 		 * The request sequence number is less than
 		 * the largest we have seen so far. If it is
