@@ -689,7 +689,7 @@ bm_dummypacket(struct bm_softc *sc)
 	mtod(m, unsigned char *)[16] = 0xE3;
 	m->m_len = m->m_pkthdr.len = sizeof(struct ether_header) + 3;
 	IF_ENQUEUE(&ifp->if_snd, m);
-	bm_start(ifp);
+	bm_start_locked(ifp);
 }
 
 static void
