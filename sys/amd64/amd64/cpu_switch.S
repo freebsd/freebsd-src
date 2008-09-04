@@ -109,8 +109,24 @@ ENTRY(cpu_switch)
 	movq	%rsp,PCB_RSP(%r8)
 	movq	%rbx,PCB_RBX(%r8)
 	movq	%rax,PCB_RIP(%r8)
-	movq	PCB_FSBASE(%r8),%r9
-	movq	PCB_GSBASE(%r8),%r10
+
+	/*
+	 * Reread fs and gs bases. Explicit fs segment register load
+	 * by the usermode code may change actual fs base without
+	 * updating pcb_{fs,gs}base.
+	 *
+	 * %rdx still contains the mtx, save %rdx around rdmsr.
+	 */
+	movq	%rdx,%r11
+	movl	$MSR_FSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%r9
+	movl	$MSR_KGSBASE,%ecx
+	rdmsr
+	shlq	$32,%rdx
+	leaq	(%rax,%rdx),%r10
+	movq	%r11,%rdx
 
 	testl	$PCB_32BIT,PCB_FLAGS(%r8)
 	jnz	store_seg
