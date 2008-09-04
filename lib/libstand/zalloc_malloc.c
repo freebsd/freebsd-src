@@ -50,15 +50,6 @@ void mallocstats(void);
 #undef free
 #endif
 
-#ifdef __alpha__
-void
-free_region(void *start, void *end)
-{
-    zextendPool(&MallocPool, start, (caddr_t)end - (caddr_t)start);
-    zfree(&MallocPool, start, (caddr_t)end - (caddr_t)start);
-}
-#endif
-
 void *
 Malloc(size_t bytes, const char *file, int line)
 {
