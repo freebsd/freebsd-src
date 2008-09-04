@@ -314,12 +314,12 @@ auditon(struct thread *td, struct auditon_args *uap)
 
 	case A_GETPINFO:
 		if (udata.au_aupinfo.ap_pid < 1)
-			return (EINVAL);
+			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
-			return (EINVAL);
-		if (p_cansee(td, tp) != 0) {
+			return (ESRCH);
+		if ((error = p_cansee(td, tp)) != 0)
 			PROC_UNLOCK(tp);
-			return (EINVAL);
+			return (error);
 		}
 		if (tp->p_ucred->cr_audit.ai_termid.at_type == AU_IPv6) {
 			PROC_UNLOCK(tp);
@@ -342,16 +342,16 @@ auditon(struct thread *td, struct auditon_args *uap)
 
 	case A_SETPMASK:
 		if (udata.au_aupinfo.ap_pid < 1)
-			return (EINVAL);
+			return (ESRCH);
 		newcred = crget();
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL) {
 			crfree(newcred);
-			return (EINVAL);
+			return (ESRCH);
 		}
-		if (p_cansee(td, tp) != 0) {
+		if ((error = p_cansee(td, tp)) != 0)
 			PROC_UNLOCK(tp);
 			crfree(newcred);
-			return (EINVAL);
+			return (error);
 		}
 		oldcred = tp->p_ucred;
 		crcopy(newcred, oldcred);
@@ -378,9 +378,9 @@ auditon(struct thread *td, struct auditon_args *uap)
 
 	case A_GETPINFO_ADDR:
 		if (udata.au_aupinfo_addr.ap_pid < 1)
-			return (EINVAL);
+			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo_addr.ap_pid)) == NULL)
-			return (EINVAL);
+			return (ESRCH);
 		udata.au_aupinfo_addr.ap_auid =
 		    tp->p_ucred->cr_audit.ai_auid;
 		udata.au_aupinfo_addr.ap_mask.am_success =
