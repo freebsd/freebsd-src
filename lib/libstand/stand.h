@@ -235,9 +235,6 @@ extern void	*calloc(size_t n1, size_t n2);
 extern void	*realloc(void *ptr, size_t size);
 extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
-#ifdef __alpha__
-extern void	free_region(void *start, void *end);
-#endif
 
 /* disklabel support (undocumented, may be junk) */
 struct		disklabel;
