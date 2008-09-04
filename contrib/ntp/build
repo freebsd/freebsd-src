@@ -41,6 +41,12 @@ MYNAME=`IFS=. ; set $IAM ; echo $1`
 case "$IAM" in
  *.udel.edu)
     BDIR=A.$MYNAME
+    CONFIG_ARGS="$CONFIG_ARGS --enable-local-libopts"
+    case "$CVO" in
+     *-*-ultrix*)
+	CONFIG_ARGS="$CONFIG_ARGS --with-libregex=/usr/local"
+	;;
+    esac
     ;;
  *)
     BDIR=A.$CVO
@@ -55,6 +61,18 @@ case "$CONFIG_ARGS" in
     ;;
  *--without-crypto*)
     KEYSUF="-noopenssl"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-all-clocks*)
+    KEYSUF="$KEYSUF-no-refclocks"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-debugging*)
+    KEYSUF="$KEYSUF-nodebug"
     ;;
 esac
 

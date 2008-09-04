@@ -5,7 +5,6 @@
 #include <ctype.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h>
 
 #include "ntp_stdlib.h"
 

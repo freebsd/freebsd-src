@@ -25,7 +25,6 @@
 
 #ifdef SYS_WINNT
 # include <stdarg.h>
-# include "..\ports\winnt\libntp\log.h"
 # include "..\ports\winnt\libntp\messages.h"
 #endif
 

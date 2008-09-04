@@ -7,6 +7,7 @@ noinst_HEADERS = \
 	app.h \
 	assertions.h \
 	boolean.h \
+	buffer.h \
 	error.h \
 	formatcheck.h \
 	int.h \
@@ -22,11 +23,13 @@ noinst_HEADERS = \
 	mutex.h \
 	net.h \
 	netaddr.h \
+	netscope.h \
 	offset.h \
 	once.h \
 	platform.h \
 	print.h \
 	result.h \
+	region.h \
 	sockaddr.h \
 	strerror.h \
 	string.h \

@@ -23,7 +23,11 @@ libparse_a_SOURCES = parse.c \
 		     clk_varitext.c \
                      data_mbg.c \
 		     info_trimble.c \
-		     trim_info.c
+		     trim_info.c \
+		     binio.c \
+		     ieee754io.c \
+		     mfp_mul.c \
+		     gpstolfp.c
 
 libparse_kernel_a_SOURCES = 
 libparse_kernel_a_LIBADD = kparse$U.o \
@@ -38,7 +42,12 @@ libparse_kernel_a_LIBADD = kparse$U.o \
 			    kclk_trimtaip$U.o \
 			    kclk_trimtsip$U.o \
 			    kclk_varitext$U.o \
-			    kclk_wharton$U.o
+			    kclk_wharton$U.o \
+			    kbinio$U.o \
+			    kieee754io$U.o \
+			    kmfp_mul$U.o \
+			    kgpstolfp$U.o
+
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/kernel
 ETAGS_ARGS = Makefile.am
@@ -52,6 +61,18 @@ info_trimble.c: $(top_srcdir)/include/trimble.h mkinfo_rcmd.sed mkinfo_scmd.sed
 	@rm -f info_trimble.c
 	sed -n -f $(srcdir)/mkinfo_scmd.sed $(top_srcdir)/include/trimble.h  > info_trimble.c || rm -f info_trimble.c
 	sed -n -f $(srcdir)/mkinfo_rcmd.sed $(top_srcdir)/include/trimble.h >> info_trimble.c || rm -f info_trimble.c
+
+kieee754io.o: ieee754io.c
+	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/ieee754io.c -o $@
+
+kmfp_mul.o: mfp_mul.c
+	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/mfp_mul.c -o $@
+
+kgpstolfp.o: gpstolfp.c
+	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/gpstolfp.c -o $@
+
+kbinio.o: binio.c
+	 $(COMPILE) $(K_CFLAGS) -c $(srcdir)/binio.c -o $@
 
 kclk_computime.o: clk_computime.c
 	$(COMPILE) $(K_CFLAGS) -c $(srcdir)/clk_computime.c -o $@
