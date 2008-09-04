@@ -31,9 +31,9 @@ SunOS (SunOS4 and SunOS5).
 
 The structure of the parse reference clock driver is as follows:
 
-	xntpd	- contains NTP implementation and calls a reference clock
+	ntpd	- contains NTP implementation and calls a reference clock
 		  127.127.8.x which is implemented by
-		refclock_parse.c
+	 	  refclock_parse.c
 		  - which contains several refclock decriptions. These are
 		    selected by the x part of the refclock address.
 		    The lower two bits specify the device to use. Thus the

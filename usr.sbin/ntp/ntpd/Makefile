@@ -1,10 +1,13 @@
 # $FreeBSD$
 
+NO_MAN=
+
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntpd
-NO_MAN=
-SRCS=	cmd_args.c	map_vme.c	ntp_config.c \
+SRCS=	cmd_args.c	ntp_config.c \
 	ntp_control.c	ntp_crypto.c	ntp_filegen.c \
 	ntp_intres.c	ntp_io.c	ntp_loopfilter.c \
 	ntp_monitor.c	ntp_peer.c	ntp_proto.c \
@@ -20,16 +23,17 @@ SRCS=	cmd_args.c	map_vme.c	ntp_config.c \
 	refclock_local.c	refclock_msfees.c	refclock_mx4200.c \
 	refclock_neoclock4x.c refclock_nmea.c	refclock_oncore.c \
 	refclock_palisade.c refclock_parse.c	refclock_pcf.c \
-	refclock_pst.c refclock_ptbacts.c	refclock_ripencc.c \
+	refclock_pst.c refclock_ripencc.c \
 	refclock_shm.c	refclock_tpro.c refclock_trak.c	refclock_true.c \
-	refclock_ulink.c refclock_usno.c	refclock_wwv.c	\
-	refclock_wwvb.c \
+	refclock_ulink.c refclock_wwv.c	\
+	refclock_wwvb.c ntpd-opts.c \
 	version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
+	-I${.CURDIR}/../../../contrib/ntp/libopts -I${.CURDIR}
 
-DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD}
-LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd
+DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD} ${LIBOPTS}
+LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd ${LIBOPTS}
 
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DPADD+=	${LIBCRYPTO}

@@ -1,0 +1,385 @@
+.TH NTPQ 1 2008-08-17 "( 4.2.4p5)" "Programmer's Manual"
+.\"  EDIT THIS FILE WITH CAUTION  (ntpq.1)
+.\"  
+.\"  It has been AutoGen-ed  Sunday August 17, 2008 at 05:26:57 AM EDT
+.\"  From the definitions    ntpq-opts.def
+.\"  and the template file   agman1.tpl
+.\"
+.SH NAME
+ntpq \- standard NTP query program
+.SH SYNOPSIS
+.B ntpq
+.\" Mixture of short (flag) options and long options
+.RB [ \-\fIflag\fP " [\fIvalue\fP]]... [" \--\fIopt-name\fP " [[=| ]\fIvalue\fP]]..."
+.br
+.in +8
+[ host ...]
+.SH "DESCRIPTION"
+This manual page documents, briefly, the \fBntpq\fP command.
+The
+[= prog-name =]
+utility program is used to query NTP servers which
+implement the standard NTP mode 6 control message formats defined
+in Appendix B of the NTPv3 specification RFC1305, requesting
+information about current state and/or changes in that state.
+The same formats are used in NTPv4, although some of the
+variables have changed and new ones added. The description on this
+page is for the NTPv4 variables.
+The program may be run either in interactive mode or controlled using
+command line arguments.
+Requests to read and write arbitrary
+variables can be assembled, with raw and pretty-printed output
+options being available.
+The
+[= prog-name =]
+utility can also obtain and print a
+list of peers in a common format by sending multiple queries to the
+server.
+
+If one or more request options is included on the command line
+when
+[= prog-name =]
+is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default.
+If no request options
+are given,
+[= prog-name =]
+will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified.
+The
+[= prog-name =]
+utility will prompt for
+commands if the standard input is a terminal device.
+
+The
+[= prog-name =]
+utility uses NTP mode 6 packets to communicate with the
+NTP server, and hence can be used to query any compatible server on
+the network which permits it.
+Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology.
+The
+[= prog-name =]
+utility makes
+one attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.
+
+Specifying a
+command line option other than
+.Fl i
+or
+.Fl n
+will
+cause the specified query (queries) to be sent to the indicated
+host(s) immediately.
+Otherwise,
+[= prog-name =]  
+will attempt to read
+interactive format commands from the standard input.
+.Ss "Internal Commands"
+Interactive format commands consist of a keyword followed by zero
+to four arguments.
+Only enough characters of the full keyword to
+uniquely identify the command need be typed.
+
+A
+number of interactive format commands are executed entirely within
+the
+[= prog-name =]
+utility itself and do not result in NTP mode 6
+requests being sent to a server.
+These are described following.
+.sp
+.IR "? [command_keyword]"
+.sp 1x help [command_keyword]
+A
+.Ql \&?
+by itself will print a list of all the command
+keywords known to this incarnation of
+[= prog-name =] .
+A
+.Ql \&?
+followed by a command keyword will print function and usage
+information about the command.
+This command is probably a better
+source of information about
+[= prog-name =]
+than this manual
+page.
+.sp
+.IR "addvars"
+.Ar variable_name [=value] ...
+.Xc
+.sp
+.IR "rmvars variable_name ..."
+.sp
+.IR "clearvars"
+The data carried by NTP mode 6 messages consists of a list of
+items of the form
+.Ql variable_name=value ,
+where the
+.Ql =value
+is ignored, and can be omitted,
+in requests to the server to read variables.
+The
+[= prog-name =]
+utility maintains an internal list in which data to be included in control
+messages can be assembled, and sent using the
+.Ic readlist
+and
+.Ic writelist
+commands described below.
+The
+.Ic addvars
+command allows variables and their optional values to be added to
+the list.
+If more than one variable is to be added, the list should
+be comma-separated and not contain white space.
+The
+.Ic rmvars
+command can be used to remove individual variables from the list,
+while the
+.Ic clearlist
+command removes all variables from the
+list.
+.sp
+.IR "authenticate [ yes | no ]"
+Normally
+[= prog-name =]
+does not authenticate requests unless
+they are write requests.
+The command
+.Ql authenticate yes
+causes
+[= prog-name =]
+to send authentication with all requests it
+makes.
+Authenticated requests causes some servers to handle
+requests slightly differently, and can occasionally melt the CPU in
+fuzzballs if you turn authentication on before doing a
+.Ic peer
+display.
+The command
+.Ql authenticate
+causes
+[= prog-name =]
+to display whether or not
+[= prog-name =]
+is currently autheinticating requests.
+.sp
+.IR "cooked"
+Causes output from query commands to be "cooked", so that
+variables which are recognized by
+[= prog-name =]
+will have their
+values reformatted for human consumption.
+Variables which
+[= prog-name =]
+thinks should have a decodable value but didn't are
+marked with a trailing
+.Ql \&? .
+.@item debug [
+.Cm more |
+.Cm less |
+.Cm off
+]
+.Xc
+With no argument, displays the current debug level.
+Otherwise, the debug level is changed to the indicated level.
+.sp
+.IR "delay milliseconds"
+Specify a time interval to be added to timestamps included in
+requests which require authentication.
+This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized.
+Actually the
+server does not now require timestamps in authenticated requests,
+so this command may be obsolete.
+.sp
+.IR "host hostname"
+Set the host to which future queries will be sent.
+Hostname may
+be either a host name or a numeric address.
+.sp
+.IR "hostnames Cm yes | Cm no"
+If
+.Cm yes
+is specified, host names are printed in
+information displays.
+If
+.Cm no
+is specified, numeric
+addresses are printed instead.
+The default is
+.Cm yes ,
+unless
+modified using the command line
+.Fl n
+switch.
+.sp
+.IR "keyid keyid"
+This command allows the specification of a key number to be
+used to authenticate configuration requests.
+This must correspond
+to a key number the server has been configured to use for this
+purpose.
+.sp
+.IR "ntpversion ["
+.Cm 1 |
+.Cm 2 |
+.Cm 3 |
+.Cm 4
+]
+.Xc
+Sets the NTP version number which
+[= prog-name =]
+claims in
+packets.
+Defaults to 3, Note that mode 6 control messages (and
+modes, for that matter) didn't exist in NTP version 1.
+There appear
+to be no servers left which demand version 1.
+With no argument, displays the current NTP version that will be used
+when communicating with servers.
+.sp
+.IR "quit"
+Exit
+[= prog-name =] .
+.sp
+.IR "passwd"
+This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests.
+The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.
+.sp
+.IR "raw"
+Causes all output from query commands is printed as received
+from the remote server.
+The only formating/interpretation done on
+the data is to transform nonascii data into a printable (but barely
+understandable) form.
+.sp
+.IR "timeout Ar milliseconds"
+Specify a timeout period for responses to server queries.
+The
+default is about 5000 milliseconds.
+Note that since
+[= prog-name =]
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.
+.br
+
+.SH OPTIONS
+.TP
+.BR \-4 ", " \--ipv4
+Force IPv4 DNS name resolution.
+This option is a member of the ipv4 class of options.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv4 namespace.
+.TP
+.BR \-6 ", " \--ipv6
+Force IPv6 DNS name resolution.
+This option is a member of the ipv4 class of options.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv6 namespace.
+.TP
+.BR \-c " \fIcmd\fP, " \--command "=" \fIcmd\fP
+run a command and exit.
+This option may appear an unlimited number of times.
+.sp
+The following argument is interpreted as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+.TP
+.BR \-d ", " \--debug-level
+Increase output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Increase the debugging message output level.
+.TP
+.BR \-D " \fIstring\fP, " \--set-debug-level "=" \fIstring\fP
+Set the output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Set the output debugging level.  Can be supplied multiple times,
+but each overrides the previous value(s).
+.TP
+.BR \-p ", " \--peers
+Print a list of the peers.
+This option must not appear in combination with any of the following options:
+interactive.
+.sp
+Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the 'peers' interactive command.
+.TP
+.BR \-i ", " \--interactive
+Force ntpq to operate in interactive mode.
+This option must not appear in combination with any of the following options:
+command, peers.
+.sp
+Force ntpq to operate in interactive mode.  Prompts will be written
+to the standard output and commands read from the standard input.
+.TP
+.BR \-n ", " \--numeric
+numeric host addresses.
+.sp
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names. 
+.TP
+.BR \-? , " \--help"
+Display usage information and exit.
+.TP
+.BR \-! , " \--more-help"
+Extended usage information passed thru pager.
+.TP
+.BR \-> " [\fIrcfile\fP]," " \--save-opts" "[=\fIrcfile\fP]"
+Save the option state to \fIrcfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+.TP
+.BR \-< " \fIrcfile\fP," " \--load-opts" "=\fIrcfile\fP," " \--no-load-opts"
+Load options from \fIrcfile\fP.
+The \fIno-load-opts\fP form will disable the loading
+of earlier RC/INI files.  \fI--no-load-opts\fP is handled early,
+out of order.
+.TP
+.BR \-v " [{\fIv|c|n\fP}]," " \--version" "[=\fI{v|c|n}\fP]"
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.SH OPTION PRESETS
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBNTPQ_<option-name>\fP or \fBNTPQ\fP
+.fi
+.aj
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.SH AUTHOR
+David L. Mills and/or others
+.br
+Please send bug reports to:  http://bugs.ntp.isc.org, bugs@ntp.org
+
+.PP
+.nf
+.na
+see html/copyright.html
+.fi
+.ad
+.PP
+This manual page was \fIAutoGen\fP-erated from the \fBntpq\fP
+option definitions.

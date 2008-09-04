@@ -1,15 +1,20 @@
 # $FreeBSD$
 
+NO_MAN=
+
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../contrib/ntp/util \
        ${.CURDIR}/../../../contrib/ntp/ntpd
 
 PROG=	ntp-keygen
-NO_MAN=
+SRCS=	ntp-keygen.c ntp-keygen-opts.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
+	-I${.CURDIR}/../../../contrib/ntp/libopts
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} ${LIBOPTS}
+LDADD=	${LIBNTP} ${LIBOPTS}
 
 .if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DPADD+=	${LIBMD} ${LIBCRYPTO}

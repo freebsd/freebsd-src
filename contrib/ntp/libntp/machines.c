@@ -454,6 +454,7 @@ ntp_set_tod(
 		 */
 		adjtv.tv_sec = adjtv.tv_usec = 0;
 		adjtime(&adjtv, NULL);
+		errno = 0;
 		rc = SETTIMEOFDAY(tvp, tzp);
 #ifdef DEBUG
 		if (debug) {
@@ -468,6 +469,7 @@ ntp_set_tod(
 		long tp = tvp->tv_sec;
 
 		set_tod_using = "stime";
+		errno = 0;
 		rc = stime(&tp); /* lie as bad as SysVR4 */
 #ifdef DEBUG
 		if (debug) {
@@ -498,10 +500,10 @@ getpass(const char * prompt)
 {
 	int c, i;
 	static char password[32];
-#ifdef DEBUG
+
 	fprintf(stderr, "%s", prompt);
 	fflush(stderr);
-#endif
+
 	for (i=0; i<sizeof(password)-1 && ((c=_getch())!='\n' && c!='\r'); i++) {
 		password[i] = (char) c;
 	}

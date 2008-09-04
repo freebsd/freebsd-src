@@ -401,8 +401,8 @@ sprintb(
 	else
 	    (void)sprintf(buf, "0x%x", v);
 	cp = buf + strlen(buf);
-	bits++;
 	if (bits) {
+		bits++;
 		*cp++ = ' ';
 		*cp++ = '(';
 		while ((i = *bits++) != 0) {
@@ -433,7 +433,7 @@ timex_state(
 {
 	static char buf[32];
 
-	if (s >= 0 && s <= sizeof(timex_states) / sizeof(timex_states[0]))
+	if (s >= 0 && s < sizeof(timex_states) / sizeof(timex_states[0]))
 	    return (timex_states[s]);
 	sprintf(buf, "TIME-#%d", s);
 	return (buf);

@@ -28,13 +28,13 @@
 #endif
 
 #ifdef  DOSYNCTODR
-#if !defined(VMS)
-#include <sys/resource.h>
-#endif /* VMS */
+# if !defined(VMS)
+#  include <sys/resource.h>
+# endif /* VMS */
 #endif
 
 #if defined(VMS)
-#include <descrip.h>
+# include <descrip.h>
 #endif /* VMS */
 
 /*
@@ -53,20 +53,23 @@ static	char *key_file_name;
  */
 static	char *stats_drift_file;
 static	char *stats_temp_file;
+int stats_write_period = 3600;	/* # of seconds between writes. */
+double stats_write_tolerance = 0;
+static double prev_drift_comp = 99999.;
 
 /*
  * Statistics file stuff
  */
 #ifndef NTP_VAR
-#ifndef SYS_WINNT
-#define NTP_VAR "/var/NTP/"		/* NOTE the trailing '/' */
-#else
-#define NTP_VAR "c:\\var\\ntp\\"		/* NOTE the trailing '\\' */
-#endif /* SYS_WINNT */
+# ifndef SYS_WINNT
+#  define NTP_VAR "/var/NTP/"		/* NOTE the trailing '/' */
+# else
+#  define NTP_VAR "c:\\var\\ntp\\"		/* NOTE the trailing '\\' */
+# endif /* SYS_WINNT */
 #endif
 
 #ifndef MAXPATHLEN
-#define MAXPATHLEN 256
+# define MAXPATHLEN 256
 #endif
 
 static	char statsdir[MAXPATHLEN] = NTP_VAR;
@@ -76,6 +79,9 @@ static FILEGEN loopstats;
 static FILEGEN clockstats;
 static FILEGEN rawstats;
 static FILEGEN sysstats;
+#ifdef DEBUG_TIMING
+static FILEGEN timingstats;
+#endif
 #ifdef OPENSSL
 static FILEGEN cryptostats;
 #endif /* OPENSSL */
@@ -87,6 +93,11 @@ static FILEGEN cryptostats;
 int stats_control;
 
 /*
+ * Initial frequency offset later passed to the loopfilter.
+ */
+double	old_drift;
+
+/*
  * init_util - initialize the utilities
  */
 void
@@ -96,79 +107,23 @@ init_util(void)
 	stats_temp_file = 0;
 	key_file_name = 0;
 
-#define PEERNAME "peerstats"
-#define LOOPNAME "loopstats"
-#define CLOCKNAME "clockstats"
-#define RAWNAME "rawstats"
-#define STANAME "systats"
-#ifdef OPENSSL
-#define CRYPTONAME "cryptostats"
-#endif /* OPENSSL */
+	filegen_register(&statsdir[0], "peerstats", &peerstats);
 
-	peerstats.fp       = NULL;
-	peerstats.prefix   = &statsdir[0];
-	peerstats.basename = (char*)emalloc(strlen(PEERNAME)+1);
-	strcpy(peerstats.basename, PEERNAME);
-	peerstats.id       = 0;
-	peerstats.type     = FILEGEN_DAY;
-	peerstats.flag     = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("peerstats", &peerstats);
-	
-	loopstats.fp       = NULL;
-	loopstats.prefix   = &statsdir[0];
-	loopstats.basename = (char*)emalloc(strlen(LOOPNAME)+1);
-	strcpy(loopstats.basename, LOOPNAME);
-	loopstats.id       = 0;
-	loopstats.type     = FILEGEN_DAY;
-	loopstats.flag     = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("loopstats", &loopstats);
+	filegen_register(&statsdir[0], "loopstats", &loopstats);
 
-	clockstats.fp      = NULL;
-	clockstats.prefix  = &statsdir[0];
-	clockstats.basename = (char*)emalloc(strlen(CLOCKNAME)+1);
-	strcpy(clockstats.basename, CLOCKNAME);
-	clockstats.id      = 0;
-	clockstats.type    = FILEGEN_DAY;
-	clockstats.flag    = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("clockstats", &clockstats);
+	filegen_register(&statsdir[0], "clockstats", &clockstats);
 
-	rawstats.fp      = NULL;
-	rawstats.prefix  = &statsdir[0];
-	rawstats.basename = (char*)emalloc(strlen(RAWNAME)+1);
-	strcpy(rawstats.basename, RAWNAME);
-	rawstats.id      = 0;
-	rawstats.type    = FILEGEN_DAY;
-	rawstats.flag    = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("rawstats", &rawstats);
+	filegen_register(&statsdir[0], "rawstats", &rawstats);
 
-	sysstats.fp      = NULL;
-	sysstats.prefix  = &statsdir[0];
-	sysstats.basename = (char*)emalloc(strlen(STANAME)+1);
-	strcpy(sysstats.basename, STANAME);
-	sysstats.id      = 0;
-	sysstats.type    = FILEGEN_DAY;
-	sysstats.flag    = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("sysstats", &sysstats);
+	filegen_register(&statsdir[0], "sysstats", &sysstats);
 
 #ifdef OPENSSL
-	cryptostats.fp	 = NULL;
-	cryptostats.prefix = &statsdir[0];
-	cryptostats.basename = (char*)emalloc(strlen(CRYPTONAME)+1);
-	strcpy(cryptostats.basename, CRYPTONAME);
-	cryptostats.id	 = 0;
-	cryptostats.type = FILEGEN_DAY;
-	cryptostats.flag = FGEN_FLAG_LINK; /* not yet enabled !!*/
-	filegen_register("cryptostats", &cryptostats);
+	filegen_register(&statsdir[0], "cryptostats", &cryptostats);
 #endif /* OPENSSL */
 
-#undef PEERNAME
-#undef LOOPNAME
-#undef CLOCKNAME
-#undef RAWNAME
-#undef STANAME
-#ifdef OPENSSL
-#undef CRYPTONAME
-#endif /* OPENSSL */
+#ifdef DEBUG_TIMING
+	filegen_register(&statsdir[0], "timingstats", &timingstats);
+#endif
 }
 
 
@@ -176,7 +131,7 @@ init_util(void)
  * hourly_stats - print some interesting stats
  */
 void
-hourly_stats(void)
+write_stats(void)
 {
 	FILE *fp;
 
@@ -260,6 +215,11 @@ hourly_stats(void)
 
 	
 	record_sys_stats();
+	if ((u_long)(fabs(prev_drift_comp - drift_comp) * 1e9) <=
+	    (u_long)(fabs(stats_write_tolerance * drift_comp) * 1e9)) {
+	     return;
+	}
+	prev_drift_comp = drift_comp;
 	if (stats_drift_file != 0) {
 		if ((fp = fopen(stats_temp_file, "w")) == NULL) {
 			msyslog(LOG_ERR, "can't open %s: %m",
@@ -276,7 +236,7 @@ hourly_stats(void)
 #ifndef NO_RENAME
 		(void) rename(stats_temp_file, stats_drift_file);
 #else
-        /* we have no rename NFS of ftp in use*/
+		/* we have no rename NFS of ftp in use */
 		if ((fp = fopen(stats_drift_file, "w")) == NULL) {
 			msyslog(LOG_ERR, "can't open %s: %m",
 			    stats_drift_file);
@@ -305,12 +265,11 @@ hourly_stats(void)
 void
 stats_config(
 	int item,
-	char *invalue	/* only one type so far */
+	const char *invalue	/* only one type so far */
 	)
 {
 	FILE *fp;
-	char *value;
-	double old_drift;
+	const char *value;
 	int len;
 
 	/*
@@ -381,21 +340,21 @@ stats_config(
 		 * missing or contains errors, tell the loop to reset.
 		 */
 		if ((fp = fopen(stats_drift_file, "r")) == NULL) {
-			loop_config(LOOP_DRIFTCOMP, 1e9);
+			old_drift = 1e9;
 			break;
 		}
 		if (fscanf(fp, "%lf", &old_drift) != 1) {
 			msyslog(LOG_ERR, "Frequency format error in %s", 
 			    stats_drift_file);
-			loop_config(LOOP_DRIFTCOMP, 1e9);
+			old_drift = 1e9;
 			fclose(fp);
 			break;
 		}
 		fclose(fp);
+		prev_drift_comp = old_drift / 1e6;
 		msyslog(LOG_INFO,
 		    "frequency initialized %.3f PPM from %s",
 			old_drift, stats_drift_file);
-		loop_config(LOOP_DRIFTCOMP, old_drift / 1e6);
 		break;
 	
 	    case STATS_STATSDIR:
@@ -505,6 +464,7 @@ record_peer_stats(
 		fflush(peerstats.fp);
 	}
 }
+
 /*
  * record_loop_stats - write loop filter statistics to file
  *
@@ -535,7 +495,7 @@ record_loop_stats(
 	day = now.l_ui / 86400 + MJD_1900;
 	now.l_ui %= 86400;
 	if (loopstats.fp != NULL) {
-		fprintf(loopstats.fp, "%lu %s %.9f %.6f %.9f %.6f %d\n",
+		fprintf(loopstats.fp, "%lu %s %.9f %.3f %.9f %.6f %d\n",
 		    day, ulfptoa(&now, 3), offset, freq * 1e6, jitter,
 		    stability * 1e6, spoll);
 		fflush(loopstats.fp);
@@ -606,9 +566,9 @@ record_raw_stats(
 	now.l_ui %= 86400;
 	if (rawstats.fp != NULL) {
                 fprintf(rawstats.fp, "%lu %s %s %s %s %s %s %s\n",
-		    day, ulfptoa(&now, 3), stoa(srcadr), stoa(dstadr),
-		    ulfptoa(t1, 9), ulfptoa(t2, 9), ulfptoa(t3, 9),
-		    ulfptoa(t4, 9));
+			day, ulfptoa(&now, 3), stoa(srcadr), dstadr ? stoa(dstadr) : "-",
+			ulfptoa(t1, 9), ulfptoa(t2, 9), ulfptoa(t3, 9),
+			ulfptoa(t4, 9));
 		fflush(rawstats.fp);
 	}
 }
@@ -695,13 +655,45 @@ record_crypto_stats(
 }
 #endif /* OPENSSL */
 
+#ifdef DEBUG_TIMING
+/*
+ * record_crypto_stats - write crypto statistics to file
+ *
+ * file format:
+ * day (mjd)
+ * time (s past midnight)
+ * text message
+ */
+void
+record_timing_stats(
+	const char *text
+	)
+{
+	static unsigned int flshcnt;
+	l_fp	now;
+	u_long	day;
 
+	if (!stats_control)
+		return;
+
+	get_systime(&now);
+	filegen_setup(&timingstats, now.l_ui);
+	day = now.l_ui / 86400 + MJD_1900;
+	now.l_ui %= 86400;
+	if (timingstats.fp != NULL) {
+		fprintf(timingstats.fp, "%lu %s %s\n",
+			    day, lfptoa(&now, 3), text);
+		if (++flshcnt % 100 == 0)
+			fflush(timingstats.fp);
+	}
+}
+#endif
 /*
  * getauthkeys - read the authentication keys from the specified file
  */
 void
 getauthkeys(
-	char *keyfile
+	const char *keyfile
 	)
 {
 	int len;
@@ -795,3 +787,15 @@ sock_hash(
 
 	return hashVal;
 }
+
+#if notyet
+/*
+ * ntp_exit - document explicitly that ntpd has exited
+ */
+void
+ntp_exit(int retval)
+{
+  msyslog(LOG_ERR, "EXITING with return code %d", retval);
+  exit(retval);
+}
+#endif

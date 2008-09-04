@@ -1,8 +1,10 @@
 /*
- * refclock_heath - clock driver for Heath GC-1000 and and GC-1000 II
+ * refclock_heath - clock driver for Heath GC-1000
+ * (but no longer the GC-1001 Model II, which apparently never worked)
  */
+
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+# include <config.h>
 #endif
 
 #if defined(REFCLOCK) && defined(CLOCK_HEATH)
@@ -32,16 +34,19 @@
  * occasionally being rudely stepped when the offset exceeds the default
  * clock_max of 128 ms. 
  *
- * There are two GC-1000 versions supported by this driver. The original
+ * There were two GC-1000 versions supported by this driver. The original
  * GC-1000 with RS-232 output first appeared in 1983, but dissapeared
- * from the market a few years later. The GC-1000 II with RS-232 output
+ * from the market a few years later. The GC-1001 II with RS-232 output
  * first appeared circa 1990, but apparently is no longer manufactured.
  * The two models differ considerably, both in interface and commands.
  * The GC-1000 has a pseudo-bipolar timecode output triggered by a RTS
  * transition. The timecode includes both the day of year and time of
- * day. The GC-1000 II has a true bipolar output and a complement of
+ * day. The GC-1001 II has a true bipolar output and a complement of
  * single character commands. The timecode includes only the time of
  * day.
+ *
+ * The GC-1001 II was apparently never tested and, based on a Coverity
+ * scan, apparently never worked [Bug 689].  Related code has been disabled.
  *
  * GC-1000
  *
@@ -78,7 +83,7 @@
  * established and hh:mm:ss.? once synchronization is established and
  * then lost again for about a day.
  *
- * GC-1000 II
+ * GC-1001 II
  *
  * Commands consist of a single letter and are case sensitive. When
  * enterred in lower case, a description of the action performed is
@@ -161,7 +166,9 @@
 #define	DESCRIPTION	"Heath GC-1000 Most Accurate Clock" /* WRU */
 
 #define LENHEATH1	23	/* min timecode length */
+#if 0	/* BUG 689 */
 #define LENHEATH2	13	/* min timecode length */
+#endif
 
 /*
  * Tables to compute the ddd of year form icky dd/mm timecode. Viva la
@@ -172,7 +179,7 @@ static int day2tab[] = {31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
 /*
  * Baud rate table. The GC-1000 supports 1200, 2400 and 4800; the
- * GC-1000 II supports only 9600.
+ * GC-1001 II supports only 9600.
  */
 static int speed[] = {B1200, B2400, B4800, B9600};
 
@@ -214,9 +221,10 @@ heath_start(
 	/*
 	 * Open serial port
 	 */
-	(void)sprintf(device, DEVICE, unit);
-	if (!(fd = refclock_open(device, speed[peer->ttl & 0x3], 0)))
-	    return (0);
+	sprintf(device, DEVICE, unit);
+	if (!(fd = refclock_open(device, speed[peer->ttl & 0x3],
+	    LDISC_REMOTE)))
+		return (0);
 	pp = peer->procptr;
 	pp->io.clock_recv = heath_receive;
 	pp->io.srcclock = (caddr_t)peer;
@@ -286,7 +294,7 @@ heath_receive(
 
 	/*
 	 * GC-1000 timecode format: "hh:mm:ss.f AM  mm/dd/yy"
-	 * GC-1000 II timecode format: "hh:mm:ss.f   "
+	 * GC-1001 II timecode format: "hh:mm:ss.f   "
 	 */
 	case LENHEATH1:
 		if (sscanf(pp->a_lastcode,
@@ -298,16 +306,35 @@ heath_receive(
 		}
 		break;
 
+#if 0	/* BUG 689 */
 	/*
-	 * GC-1000 II timecode format: "hh:mm:ss.f   "
+	 * GC-1001 II timecode format: "hh:mm:ss.f   "
 	 */
 	case LENHEATH2:
 		if (sscanf(pp->a_lastcode, "%2d:%2d:%2d.%c", &pp->hour,
 		    &pp->minute, &pp->second, &dsec) != 4) {
 			refclock_report(peer, CEVNT_BADREPLY);
 			return;
+		} else {
+			struct tm *tm_time_p;
+			time_t     now;
+
+			time(&now);	/* we should grab 'now' earlier */
+			tm_time_p = gmtime(&now);
+			/*
+			 * There is a window of time around midnight
+			 * where this will Do The Wrong Thing.
+			 */
+			if (tm_time_p) {
+				month = tm_time_p->tm_mon + 1;
+				day = tm_time_p->tm_mday;
+			} else {
+				refclock_report(peer, CEVNT_FAULT);
+				return;
+			}
 		}
 		break;
+#endif
 
 	default:
 		refclock_report(peer, CEVNT_BADREPLY);
@@ -385,12 +412,15 @@ heath_poll(
 
 	/*
 	 * We toggle the RTS modem control lead (GC-1000) and sent a T
-	 * (GC-1000 II) to kick a timecode loose from the radio. This
+	 * (GC-1001 II) to kick a timecode loose from the radio. This
 	 * code works only for POSIX and SYSV interfaces. With bsd you
 	 * are on your own. We take a timestamp between the up and down
 	 * edges to lengthen the pulse, which should be about 50 usec on
 	 * a Sun IPC. With hotshot CPUs, the pulse might get too short.
 	 * Later.
+	 *
+	 * Bug 689: Even though we no longer support the GC-1001 II,
+	 * I'm leaving the 'T' write in for timing purposes.
 	 */
 	if (ioctl(pp->io.fd, TIOCMBIC, (char *)&bits) < 0)
 		refclock_report(peer, CEVNT_FAULT);

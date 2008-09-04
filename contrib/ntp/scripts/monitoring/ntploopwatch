@@ -1,8 +1,7 @@
 #!/usr/bin/perl -w
 ;# --*-perl-*--
 ;#
-;# /src/NTP/ntp-4/scripts/monitoring/ntploopwatch,v 4.3 1999/02/21 12:18:38 kardel RELEASE_19990228_A
-;# RELEASE_19990228_A
+;# /src/NTP/ntp4-dev/scripts/monitoring/ntploopwatch,v 4.7 2004/11/14 16:11:05 kardel RELEASE_20050508_A
 ;#
 ;# process loop filter statistics file and either
 ;#     - show statistics periodically using gnuplot
@@ -55,7 +54,7 @@ a file of this name instead of delivered to a printer.
 E-O-P
 
 ;# add directory to look for lr.pl and timelocal.pl (in front of current list)
-unshift(@INC,"/usr/local/xntp/monitoring");
+unshift(@INC,".");
 
 require "lr.pl";	# linear regresion routines
 
@@ -438,8 +437,9 @@ sub read_config
 print "configuration file read\n" if $verbose > 2;
 }
 
-sub make_doplot
+sub make_doplot($$)
 {
+    my($lo, $lf) = @_;
     local($c) = ("");
     local($fmt)
 	= ("%s \"%s\" using 1:%d title '%s <%lf %lf> %6s' with lines");
@@ -536,22 +536,22 @@ sub make_doplot
 	 $c = ",");
     $showoreg && $showoffs &&
 	($doplot .= sprintf($regfmt, $c,
-			    &lr_B('offs'),&lr_A('offs'),
+			    $lo->B(),$lo->A(),
 			    "offset   ",
-			    &lr_B('offs'),
-			    ((&lr_A('offs')) < 0 ? '-' : '+'),
-			    &abs(&lr_A('offs')), &lr_r('offs'),
+			    $lo->B(),
+			    (($lo->A()) < 0 ? '-' : '+'),
+			    &abs($lo->A()), $lo->r(),
 			    "[ms]"),
 	 $c = ",");
     $showfreg && $showfreq &&
 	($doplot .= sprintf($regfmt, $c,
-			    &lr_B('freq') * $FreqScale,
-			    (&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase,
+			    $lf->B() * $FreqScale,
+			    ($lf->A() + $minfreq) * $FreqScale - $LastFreqBase,
 			    "frequency",
-			    &lr_B('freq') * $FreqScale,
-			    ((&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase) < 0 ? '-' : '+',
-			    &abs((&lr_A('freq') + $minfreq) * $FreqScale - $LastFreqBase),
-			    &lr_r('freq'),
+			    $lf->B() * $FreqScale,
+			    (($lf->A() + $minfreq) * $FreqScale - $LastFreqBase) < 0 ? '-' : '+',
+			    &abs(($lf->A() + $minfreq) * $FreqScale - $LastFreqBase),
+			    $lf->r(),
 			    "[${FreqScaleInv}ppm]"),
 	 $c = ",");
     $doplot .= "\n";
@@ -566,7 +566,7 @@ sub make_doplot
 
 sub genfile
 {
-    local($cnt,$in,$out,@fpos) = @_;
+    local($cnt,$in,$out,$lo,$lf,@fpos) = @_;
     
     local(@F,@t,$t,$lastT) = ();
     local(@break,@time,@offs,@freq,@cmpl,@loffset,@filekey) = ();
@@ -1058,9 +1058,6 @@ sub genfile
     print "input scanned ($l lines/",scalar(@time)," samples)\n"
 	if $verbose > 1;
     
-    &lr_init('offs');
-    &lr_init('freq');
-    
     if (@time)
     {
 	local($_,@F);
@@ -1110,13 +1107,13 @@ sub genfile
 	    ;# (otherwise a (shift(@a1),shift(a2)) would do),
 	    ;# I dont like to make copies of these arrays as they may be huge
 	    $i = $[;
-	    &lr_sample(($time[$i]-$timebase)/3600,$offs[$i],'offs'),$i++
+	    $lo->sample(($time[$i]-$timebase)/3600,$offs[$i]),$i++
 		while $i <= $#time;
 
 	    ($minoffs == $maxoffs) && ($minoffs -= 0.1,$maxoffs += 0.1);
 
-	    $i = &lr_sigma('offs');
-	    $m = &lr_mean('offs');
+	    $i = $lo->sigma();
+	    $m = $lo->mean();
 
 	    print "mean offset: $m sigma: $i\n" if $verbose > 2;
 
@@ -1156,12 +1153,12 @@ sub genfile
 	    $maxfreq = &max(@freq);
 	    
 	    $i = $[;
-	    &lr_sample(($time[$i]-$timebase)/3600,$freq[$i]-$minfreq,'freq'),
+	    $lf->sample(($time[$i]-$timebase)/3600,$freq[$i]-$minfreq),
 	    $i++
 		while $i <= $#time;
 	    
-	    $i = &lr_sigma('freq');
-	    $m = &lr_mean('freq') + $minfreq;
+	    $i = $lf->sigma();
+	    $m = $lf->mean() + $minfreq;
 
 	    print "mean frequency: $m sigma: $i\n" if $verbose > 2;
 
@@ -1185,7 +1182,7 @@ sub genfile
 			 ($FreqScale == 1 ? "" : (1/$FreqScale));
 		    
 		    $freqbase = ($maxfreq + $minfreq)/ 2 * $FreqScale; #$m * $FreqScale;
-		    $freqbase -= ($maxy + $miny) / 2; #&lr_mean('offs');
+		    $freqbase -= ($maxy + $miny) / 2; #$lf->mean();
 
 		    ;# round resulting freqbase
 		    ;# to precision of min max difference
@@ -1306,10 +1303,10 @@ sub genfile
 	;# prevent plotcmd from processing empty file
 	print "Creating plot command dummy...\n" if $verbose > 2;
 	print OUT "# dummy samples\n0 1 2 3\n1 1 2 3\n";
-	&lr_sample(0,1,'offs');
-	&lr_sample(1,1,'offs');
-	&lr_sample(0,2,'freq');
-	&lr_sample(1,2,'freq');
+	$lo->sample(0,1);
+	$lo->sample(1,1);
+	$lf->sample(0,2);
+	$lf->sample(1,2);
 	@time = (0, 1); $maxtime = 1; $mintime = 0;
 	@offs = (1, 1); $maxoffs = 1; $minoffs = 1;
 	@freq = (2, 2); $maxfreq = 2; $minfreq = 2;
@@ -1453,10 +1450,13 @@ while(1)
   &read_config;# unless defined($PrintIt);
 
   unlink($tmpfile);
-  @filepos = &genfile($samples,$srcprefix,$tmpfile,@filepos);
+  my $lo = lr->new();
+  my $lf = lr->new();
+    
+  @filepos = &genfile($samples,$srcprefix,$tmpfile,$lo,$lf,@filepos);
 
   ;# make plotcmd display samples
-  &make_doplot;
+  make_doplot($lo, $lf);
   print "Displaying plot...\n" if $verbose > 1;
   print "command for plot sub process:\n$doplot----\n" if $verbose > 3;
   print PLOT $doplot;
