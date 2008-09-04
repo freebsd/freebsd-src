@@ -988,10 +988,10 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 		np = pfind(pid);
 	}
 	if (np == NULL)
-		return EAGAIN;
+		return (ESRCH);
 	if (np != p) {
 		PROC_UNLOCK(np);
-		return EAGAIN;
+		return (ESRCH);
 	}
 	PROC_UNLOCK(np);
 	return (0);
