@@ -396,36 +396,44 @@ itlb_get_data_sun4u(int slot)
 static vm_offset_t
 dtlb_va_to_pa_sun4u(vm_offset_t va)
 {
-	u_long reg;
+	u_long pstate, reg;
 	int i;
 
+	pstate = rdpr(pstate);
+	wrpr(pstate, pstate & ~PSTATE_IE, 0);
 	for (i = 0; i < dtlb_slot_max; i++) {
 		reg = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_TAG_READ_REG);
 		if (TLB_TAR_VA(reg) != va)
 			continue;
 		reg = dtlb_get_data_sun4u(i);
+		wrpr(pstate, pstate, 0);
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 			return ((reg & TD_PA_CH_MASK) >> TD_PA_SHIFT);
 		return ((reg & TD_PA_SF_MASK) >> TD_PA_SHIFT);
 	}
+	wrpr(pstate, pstate, 0);
 	return (-1);
 }
 
 static vm_offset_t
 itlb_va_to_pa_sun4u(vm_offset_t va)
 {
-	u_long reg;
+	u_long pstate, reg;
 	int i;
 
+	pstate = rdpr(pstate);
+	wrpr(pstate, pstate & ~PSTATE_IE, 0);
 	for (i = 0; i < itlb_slot_max; i++) {
 		reg = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_TAG_READ_REG);
 		if (TLB_TAR_VA(reg) != va)
 			continue;
 		reg = itlb_get_data_sun4u(i);
+		wrpr(pstate, pstate, 0);
 		if (cpu_impl >= CPU_IMPL_ULTRASPARCIII)
 			return ((reg & TD_PA_CH_MASK) >> TD_PA_SHIFT);
 		return ((reg & TD_PA_SF_MASK) >> TD_PA_SHIFT);
 	}
+	wrpr(pstate, pstate, 0);
 	return (-1);
 }
 
