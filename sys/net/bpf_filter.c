@@ -541,7 +541,9 @@ bpf_validate(f, len)
 		 * Check that memory operations use valid addresses.
 		 */
 		if ((BPF_CLASS(p->code) == BPF_ST ||
-		     (BPF_CLASS(p->code) == BPF_LD &&
+		     BPF_CLASS(p->code) == BPF_STX ||
+		     ((BPF_CLASS(p->code) == BPF_LD ||
+		       BPF_CLASS(p->code) == BPF_LDX) &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
 		    p->k >= BPF_MEMWORDS)
 			return 0;
