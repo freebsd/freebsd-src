@@ -2,25 +2,26 @@
 
 <html>
 
-    <head>
-        <title>Making PARSE Clocks</title>
-        <link href="scripts/style.css" type="text/css" rel="stylesheet">
-    </head>
+	<head>
+		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+		<title>Making PARSE Clocks</title>
+		<link href="scripts/style.css" type="text/css" rel="stylesheet">
+	</head>
 
-    <body>
-        <h3>How to build new PARSE clocks</h3>
-        <p>Here is an attempt to sketch out what you need to do in order to add another clock to the parse driver: Currently the implementation is being cleaned up - so not all information in here is completely correct. Refer to the included code where in doubt.</p>
-        <p>Prerequisites:</p>
-        <ul>
-            <li>Does the system you want the clock connect to have the include files termio.h or termios.h ? (You need that for the parse driver)
-        </ul>
-        <p>What to do:</p>
-        <p>Make a conversion module (libparse/clk_*.c)</p>
-        <ol>
-            <li>What ist the time code format ?
-            <ul>
-                <li>find year, month, day, hour, minute, second, status (synchronised or not), possibly time zone information (you need to give the offset to UTC) You will have to convert the data from a string into a struct clocktime:
-                <pre>
+	<body>
+		<h3>How to build new PARSE clocks</h3>
+		<p>Here is an attempt to sketch out what you need to do in order to add another clock to the parse driver: Currently the implementation is being cleaned up - so not all information in here is completely correct. Refer to the included code where in doubt.</p>
+		<p>Prerequisites:</p>
+		<ul>
+			<li>Does the system you want the clock connect to have the include files termio.h or termios.h ? (You need that for the parse driver)
+		</ul>
+		<p>What to do:</p>
+		<p>Make a conversion module (libparse/clk_*.c)</p>
+		<ol>
+			<li>What ist the time code format ?
+				<ul>
+					<li>find year, month, day, hour, minute, second, status (synchronised or not), possibly time zone information (you need to give the offset to UTC) You will have to convert the data from a string into a struct clocktime:
+						<pre>
       struct clocktime                /* clock time broken up from time code */
       {
 	long day;
@@ -35,8 +36,8 @@
 	long flags;           /* current clock status */
       };
 </pre>
-                <p>Conversion is usually simple and straight forward. For the flags following values can be OR'ed together:</p>
-                <pre>
+						<p>Conversion is usually simple and straight forward. For the flags following values can be OR'ed together:</p>
+						<pre>
      PARSEB_ANNOUNCE           switch time zone warning (informational only)
      PARSEB_POWERUP            no synchronisation - clock confused (must set then)
      PARSEB_NOSYNC             timecode currently not confirmed (must set then)
@@ -54,16 +55,16 @@
      PARSEB_LEAPSECOND         actual leap second (this time code is the leap
                                second - informational only)
 </pre>
-                <p>These are feature flags denoting items that are supported by the clock:</p>
-                <pre>
+						<p>These are feature flags denoting items that are supported by the clock:</p>
+						<pre>
      PARSEB_S_LEAP             supports LEAP - might set PARSEB_LEAP
      PARSEB_S_ANTENNA          supports ANTENNA - might set PARSEB_ALTERNATE
      PARSEB_S_PPS              supports PPS time stamping
      PARSEB_S_POSITION         supports position information (GPS)
    </pre>
-                <p>If the utctime field is non zero this value will be take as time code value. This allows for conversion routines that already have the utc time value. The utctime field gives the seconds since Jan 1st 1970, 0:00:00. The useconds field gives the respective usec value. The fields for date and time (down to second resolution) will be ignored.</p>
-                <p>Conversion is done in the cvt_* routine in parse/clk_*.c files. look in them for examples. The basic structure is:</p>
-                <pre>
+						<p>If the utctime field is non zero this value will be take as time code value. This allows for conversion routines that already have the utc time value. The utctime field gives the seconds since Jan 1st 1970, 0:00:00. The useconds field gives the respective usec value. The fields for date and time (down to second resolution) will be ignored.</p>
+						<p>Conversion is done in the cvt_* routine in parse/clk_*.c files. look in them for examples. The basic structure is:</p>
+						<pre>
      struct clockformat &lt;yourclock&gt;_format = {
        lots of fields for you to fill out (see below)
      };
@@ -82,8 +83,8 @@
          }
        }
 </pre>
-                <p>The struct clockformat is the interface to the rest of the parse driver - it holds all information necessary for finding the clock message and doing the appropriate time stamping.</p>
-                <pre>
+						<p>The struct clockformat is the interface to the rest of the parse driver - it holds all information necessary for finding the clock message and doing the appropriate time stamping.</p>
+						<pre>
 struct clockformat
 {
   u_long (*input)();
@@ -104,14 +105,14 @@ struct clockformat
  /* information for the parser what to look for */
 };
 </pre>
-                <p>The above should have given you some hints on how to build a clk_*.c file with the time code conversion. See the examples and pick a clock closest to yours and tweak the code to match your clock.</p>
-                <p>In order to make your clk_*.c file usable a reference to the clockformat structure must be put into parse_conf.c.</p>
-            </ul>
-            <li>TTY setup and initialisation/configuration will be done in ntpd/refclock_parse.c.
-            <ul>
-                <li>Find out the exact tty settings for your clock (baud rate, parity, stop bits, character size, ...) and note them in terms of termio*.h c_cflag macros.
-                <li>in ntpd/refclock_parse.c fill out a new the struct clockinfo element (that allocates a new &quot;IP&quot; address - see comments) (see all the other clocks for example)
-                <pre>
+						<p>The above should have given you some hints on how to build a clk_*.c file with the time code conversion. See the examples and pick a clock closest to yours and tweak the code to match your clock.</p>
+						<p>In order to make your clk_*.c file usable a reference to the clockformat structure must be put into parse_conf.c.</p>
+				</ul>
+			<li>TTY setup and initialisation/configuration will be done in ntpd/refclock_parse.c.
+				<ul>
+					<li>Find out the exact tty settings for your clock (baud rate, parity, stop bits, character size, ...) and note them in terms of termio*.h c_cflag macros.
+					<li>in ntpd/refclock_parse.c fill out a new the struct clockinfo element (that allocates a new &quot;IP&quot; address - see comments) (see all the other clocks for example)
+						<pre>
    struct clockinfo
      {
       u_long  cl_flags;             /* operation flags (io modes) */
@@ -180,16 +181,18 @@ struct clockformat
   };
 
 </pre>
-            </ul>
-        </ol>
-        <p>Well, this is very sketchy, i know. But I hope it helps a little bit. The best way is to look which clock comes closest to your and tweak that code.</p>
-        <p>Two sorts of clocks are used with parse. Clocks that automatically send their time code (once a second) do not need entries in the poll routines because they send the data all the time. The second sort are the clocks that need a command sent to them in order to reply with a time code (like the Trimble clock).</p>
-        <p>For questions: <a href="mailto:%20kardel@acm.org">kardel@acm.org</a>.</p>
-        <p>Please include an exact description on how your clock works. (initialisation, TTY modes, strings to be sent to it, responses received from the clock).</p>
-        <hr>
-        <script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
-    </body>
+				</ul>
+		</ol>
+		<p>Well, this is very sketchy, i know. But I hope it helps a little bit. The best way is to look which clock comes closest to your and tweak that code.</p>
+		<p>Two sorts of clocks are used with parse. Clocks that automatically send their time code (once a second) do not need entries in the poll routines because they send the data all the time. The second sort are the clocks that need a command sent to them in order to reply with a time code (like the Trimble clock).</p>
+		<p>For questions: <a href="mailto:%20kardel <AT> acm.org">kardel 
+				<AT>
+				acm.org</a>.</p>
+		<p>Please include an exact description on how your clock works. (initialisation, TTY modes, strings to be sent to it, responses received from the clock).</p>
+		<hr>
+		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+	</body>
 
-    <body></body>
+	<body></body>
 
 </html>

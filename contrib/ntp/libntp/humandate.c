@@ -22,10 +22,8 @@ humandate(
 {
 	char *bp;
 	struct tm *tm;
-	time_t sec;
 
-	sec = ntptime - JAN_1970;
-	tm = localtime(&sec);
+	tm = ntp2unix_tm(ntptime, 1);
 
 	if (!tm)
 		return "--- --- -- ---- --:--:--";
@@ -48,8 +46,9 @@ humanlogtime(void)
 {
 	char *bp;
 	time_t cursec = time((time_t *) 0);
-	struct tm *tm = localtime(&cursec);
+	struct tm *tm;
 	
+	tm = localtime(&cursec);
 	if (!tm)
 		return "-- --- --:--:--";
 

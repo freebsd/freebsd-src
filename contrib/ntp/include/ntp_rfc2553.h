@@ -68,54 +68,89 @@
 #ifndef _NTP_RFC2553_H_
 #define _NTP_RFC2553_H_
 
-#if defined(_SS_MAXSIZE) || defined(_SS_SIZE)
-#define HAVE_IPV6
-#else
+/*
+ * Ensure that we include the configuration file before we check
+ * for IPV6
+ */
+#include <config.h>
 
-#include <sys/types.h>
+#include <netdb.h>
+
 #include "ntp_types.h"
 
-#ifndef AF_INET6
-#define AF_INET6	AF_MAX
-#define PF_INET6	AF_INET6
-#endif
-
-#ifndef HAVE_TYPE_U_INT8_T
-typedef u_char		u_int8_t;
-typedef u_short		u_int16_t;
-typedef u_int32		u_int32_t;
-#endif /* HAVE_TYPE_U_INT8_T */
-
-#ifndef HAVE_TYPE_U_INT64_T
-typedef struct u_int64_t { u_int32 val[2]; } u_int64_t;
-#endif /* HAVE_TYPE_U_INT64_T */
-
-/*
- * IPv6 address
- */
-#ifdef SYS_WINNT
-#define in6_addr in_addr6
-#else
 /*
  * Don't include any additional IPv6 definitions
  * We are defining our own here.
  */
 #define ISC_IPV6_H 1
 
-struct in6_addr {
-	union {
-		u_int8_t   __u6_addr8[16];
-		u_int16_t  __u6_addr16[8];
-		u_int32_t  __u6_addr32[4];
-	} __u6_addr;			/* 128-bit IP6 address */
-};
+ /*
+ * If various macros are not defined we need to define them
+ */
 
-#define s6_addr   __u6_addr.__u6_addr8
+#ifndef AF_INET6
+#define AF_INET6	AF_MAX
+#define PF_INET6	AF_INET6
+#endif
+
+#if !defined(_SS_MAXSIZE) && !defined(_SS_ALIGNSIZE)
+
+#define	_SS_MAXSIZE	128
+#define	_SS_ALIGNSIZE	(sizeof(ntp_uint64_t))
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) - sizeof(ntp_u_int8_t))
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) - sizeof(ntp_u_int8_t) - \
+				_SS_PAD1SIZE - _SS_ALIGNSIZE)
+#else
+#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(short))
+#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(short) - \
+				_SS_PAD1SIZE - _SS_ALIGNSIZE)
+#endif /* HAVE_SA_LEN_IN_STRUCT_SOCKADDR */
 #endif
 
 /*
+ * If we don't have the sockaddr_storage structure
+ * we need to define it
+ */
+
+#ifndef HAVE_STRUCT_SOCKADDR_STORAGE
+struct sockaddr_storage {
+#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
+	ntp_u_int8_t	ss_len;		/* address length */
+	ntp_u_int8_t	ss_family;	/* address family */
+#else
+	short		ss_family;	/* address family */
+#endif
+	char		__ss_pad1[_SS_PAD1SIZE];
+	ntp_uint64_t	__ss_align;	/* force desired structure storage alignment */
+	char		__ss_pad2[_SS_PAD2SIZE];
+};
+#endif
+
+/*
+ * Finally if the platform doesn't support IPv6 we need some
+ * additional definitions
+ */
+
+/*
+ * Flag values for getaddrinfo()
+ */
+#ifndef AI_NUMERICHOST
+#define	AI_PASSIVE	0x00000001 /* get address to use bind() */
+#define	AI_CANONNAME	0x00000002 /* fill ai_canonname */
+#define	AI_NUMERICHOST	0x00000004 /* prevent name resolution */
+/* valid flags for addrinfo */
+#define AI_MASK \
+    (AI_PASSIVE | AI_CANONNAME | AI_NUMERICHOST | AI_ADDRCONFIG)
+
+#define	AI_ADDRCONFIG	0x00000400 /* only if any address is assigned */
+#endif
+
+#ifndef ISC_PLATFORM_HAVEIPV6
+/*
  * Definition of some useful macros to handle IP6 addresses
  */
+#ifdef ISC_PLATFORM_NEEDIN6ADDRANY
 #ifdef SYS_WINNT
 #define IN6ADDR_ANY_INIT 	{{ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 }}
 #else
@@ -123,22 +158,44 @@ struct in6_addr {
 	{{{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, \
 	    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }}}
 #endif
+#endif
 
+
+/*
+ * IPv6 address
+ */
+#ifdef SYS_WINNT
+#define in6_addr in_addr6
+#else
+
+struct in6_addr {
+	union {
+		ntp_u_int8_t   __u6_addr8[16];
+		ntp_u_int16_t  __u6_addr16[8];
+		ntp_u_int32_t  __u6_addr32[4];
+	} __u6_addr;			/* 128-bit IP6 address */
+};
+
+#define s6_addr   __u6_addr.__u6_addr8
+#endif
+
+#if defined(ISC_PLATFORM_HAVEIPV6) && defined(ISC_PLATFORM_NEEDIN6ADDRANY)
 extern const struct in6_addr in6addr_any;
+#endif
 
 #define SIN6_LEN
 #ifndef HAVE_SOCKADDR_IN6
 struct sockaddr_in6 {
 #ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
-	u_int8_t	sin6_len;	/* length of this struct(sa_family_t)*/
-	u_int8_t	sin6_family;	/* AF_INET6 (sa_family_t) */
+	ntp_u_int8_t	sin6_len;	/* length of this struct(sa_family_t)*/
+	ntp_u_int8_t	sin6_family;	/* AF_INET6 (sa_family_t) */
 #else
 	short		sin6_family;	/* AF_INET6 (sa_family_t) */
 #endif
-	u_int16_t	sin6_port;	/* Transport layer port # (in_port_t)*/
-	u_int32_t	sin6_flowinfo;	/* IP6 flow information */
+	ntp_u_int16_t	sin6_port;	/* Transport layer port # (in_port_t)*/
+	ntp_u_int32_t	sin6_flowinfo;	/* IP6 flow information */
 	struct in6_addr	sin6_addr;	/* IP6 address */
-	u_int32_t	sin6_scope_id;	/* scope zone index */
+	ntp_u_int32_t	sin6_scope_id;	/* scope zone index */
 };
 #endif
 
@@ -147,10 +204,10 @@ struct sockaddr_in6 {
  */
 #ifndef IN6_IS_ADDR_UNSPECIFIED
 #define IN6_IS_ADDR_UNSPECIFIED(a)	\
-	((*(const u_int32_t *)(const void *)(&(a)->s6_addr[0]) == 0) &&	\
-	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[4]) == 0) &&	\
-	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[8]) == 0) &&	\
-	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[12]) == 0))
+	((*(const ntp_u_int32_t *)(const void *)(&(a)->s6_addr[0]) == 0) &&	\
+	 (*(const ntp_u_int32_t *)(const void *)(&(a)->s6_addr[4]) == 0) &&	\
+	 (*(const ntp_u_int32_t *)(const void *)(&(a)->s6_addr[8]) == 0) &&	\
+	 (*(const ntp_u_int32_t *)(const void *)(&(a)->s6_addr[12]) == 0))
 #endif
 /*
  * Multicast
@@ -158,33 +215,20 @@ struct sockaddr_in6 {
 #ifndef IN6_IS_ADDR_MULTICAST
 #define IN6_IS_ADDR_MULTICAST(a)	((a)->s6_addr[0] == 0xff)
 #endif
-
 /*
- * RFC 2553: protocol-independent placeholder for socket addresses
+ * Unicast link / site local.
  */
-#define	_SS_MAXSIZE	128
-#define	_SS_ALIGNSIZE	(sizeof(u_int64_t))
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
-#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(u_char) - sizeof(u_int8_t))
-#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(u_char) - sizeof(u_int8_t) - \
-				_SS_PAD1SIZE - _SS_ALIGNSIZE)
-#else
-#define	_SS_PAD1SIZE	(_SS_ALIGNSIZE - sizeof(short))
-#define	_SS_PAD2SIZE	(_SS_MAXSIZE - sizeof(short) - \
-				_SS_PAD1SIZE - _SS_ALIGNSIZE)
-#endif /* HAVE_SA_LEN_IN_STRUCT_SOCKADDR */
-
-struct sockaddr_storage {
-#ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
-	u_int8_t	ss_len;		/* address length */
-	u_int8_t	ss_family;	/* address family */
-#else
-	short		ss_family;	/* address family */
+#ifndef IN6_IS_ADDR_LINKLOCAL
+#define IN6_IS_ADDR_LINKLOCAL(a)	(\
+(*((u_long *)((a)->s6_addr)    ) == 0xfe) && \
+((*((u_long *)((a)->s6_addr) + 1) & 0xc0) == 0x80))
 #endif
-	char		__ss_pad1[_SS_PAD1SIZE];
-	u_int64_t	__ss_align;	/* force desired structure storage alignment */
-	char		__ss_pad2[_SS_PAD2SIZE];
-};
+
+#ifndef IN6_IS_ADDR_SITELOCAL
+#define IN6_IS_ADDR_SITELOCAL(a)	(\
+(*((u_long *)((a)->s6_addr)    ) == 0xfe) && \
+((*((u_long *)((a)->s6_addr) + 1) & 0xc0) == 0xc0))
+#endif
 
 struct addrinfo {
 	int	ai_flags;	/* AI_PASSIVE, AI_CANONNAME, AI_NUMERICHOST */
@@ -215,33 +259,6 @@ struct addrinfo {
 #define	EAI_PROTOCOL	13
 #define	EAI_MAX		14
 
-/*
- * Flag values for getaddrinfo()
- */
-#define	AI_PASSIVE	0x00000001 /* get address to use bind() */
-#define	AI_CANONNAME	0x00000002 /* fill ai_canonname */
-#define	AI_NUMERICHOST	0x00000004 /* prevent name resolution */
-/* valid flags for addrinfo */
-#define AI_MASK \
-    (AI_PASSIVE | AI_CANONNAME | AI_NUMERICHOST | AI_ADDRCONFIG)
-
-#define	AI_ADDRCONFIG	0x00000400 /* only if any address is assigned */
-
-/*
- * Constants for getnameinfo()
- */
-#define	NI_MAXHOST	1025
-#define	NI_MAXSERV	32
-
-/*
- * Flag values for getnameinfo()
- */
-#define	NI_NOFQDN	0x00000001
-#define	NI_NUMERICHOST	0x00000002
-#define	NI_NAMEREQD	0x00000004
-#define	NI_NUMERICSERV	0x00000008
-#define	NI_DGRAM	0x00000010
-#define NI_WITHSCOPEID	0x00000020
 
 int	getaddrinfo P((const char *, const char *,
 			 const struct addrinfo *, struct addrinfo **));
@@ -250,5 +267,26 @@ int	getnameinfo P((const struct sockaddr *, u_int, char *,
 void	freeaddrinfo P((struct addrinfo *));
 char	*gai_strerror P((int));
 
-#endif /* _SS_MAXSIZE */
+/*
+ * Constants for getnameinfo()
+ */
+#ifndef NI_MAXHOST
+#define	NI_MAXHOST	1025
+#define	NI_MAXSERV	32
+#endif
+
+/*
+ * Flag values for getnameinfo()
+ */
+#ifndef NI_NUMERICHOST
+#define	NI_NOFQDN	0x00000001
+#define	NI_NUMERICHOST	0x00000002
+#define	NI_NAMEREQD	0x00000004
+#define	NI_NUMERICSERV	0x00000008
+#define	NI_DGRAM	0x00000010
+#define NI_WITHSCOPEID	0x00000020
+#endif
+
+#endif /* ISC_PLATFORM_HAVEIPV6 */
+
 #endif /* !_NTP_RFC2553_H_ */

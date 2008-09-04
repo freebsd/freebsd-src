@@ -1,15 +1,19 @@
 # $FreeBSD$
 
+NO_MAN=
+
+.include <bsd.own.mk>
+
 .PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
 
 PROG=	ntpdc
-NO_MAN=
-SRCS= 	ntpdc.c ntpdc_ops.c version.c
+SRCS= 	ntpdc.c ntpdc_ops.c ntpdc-opts.c version.c
 
-CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
+CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
+	-I${.CURDIR}/../../../contrib/ntp/libopts
 
-DPADD=	${LIBNTP} ${LIBMD}
-LDADD=	${LIBNTP} -lmd
+DPADD=	${LIBNTP} ${LIBM} ${LIBMD} ${LIBOPTS}
+LDADD=	${LIBNTP} -lm -lmd ${LIBOPTS}
 
 .if !defined(NO_GNU)
 DPADD+=		${LIBREADLINE} ${LIBTERMCAP}

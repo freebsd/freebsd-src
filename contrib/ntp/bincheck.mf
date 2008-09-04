@@ -1,0 +1,15 @@
+# we traditionally installed software in bindir, while it should have gone
+# in sbindir.  Now that we offer a choice, look in the "other" installation
+# subdir to warn folks if there is another version there.
+
+install-exec-hook:
+	@case ${BINSUBDIR} in					\
+	 bin) ODIR=${exec_prefix}/sbin ;;			\
+	 sbin) ODIR=${exec_prefix}/bin ;;			\
+	esac;							\
+	test -z "${bin_PROGRAMS}${bin_SCRIPTS}"			\
+	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do		\
+	   test ! -f $$ODIR/$$i || echo "*** $$i is also in $$ODIR!";	\
+	done
+
+#

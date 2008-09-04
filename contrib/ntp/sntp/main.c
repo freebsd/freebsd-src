@@ -11,8 +11,8 @@ which 90-99% of all NTP systems are run ....
 
 The specification of this program is:
 
-    msntp [ --help | -h | -? ] [ -v | -V | -W ]
-        [ -B [ period ] | -S | -q [ -f savefile ] |
+    sntp [ --help | -h | -? ] [ -v | -V | -W ]
+        [ -q [ -f savefile ] |
             [ { -r | -a } [ -P prompt ] [ -l lockfile ] ]
             [ -c count ] [ -e minerr ][ -E maxerr ]
             [ -d delay | -x [ separation ] [ -f savefile ] ]
@@ -26,14 +26,6 @@ timestamps.  -W requests very verbose debugging output, and will interfere with
 the timing when writing to the terminal (because of line buffered output from
 C); it is useful only when debugging the source.  Note that the times produced
 by -V and -W are the corrections needed, and not the error in the local clock.
-
-    -B indicates that it should behave as a server, broadcasting time packets
-at intervals of 'period' minutes.  Acceptable values of 'period' are from 1 to
-1440 (a day) and the default is 60.  Naturally, this will work only if the
-user has enough privilege.
-
-    -S indicates that it should behave as a server, responding to time requests 
-from clients.  Naturally, this will work only if the user has enough privilege.
 
     -q indicates that it will query a savefile that is being maintained by
 it being run in daemon mode.
@@ -86,13 +78,13 @@ values are from 1 to 3600, and the default is 15 if 'address' is specified and
 Acceptable values are from 1 to 1440 (a day), and the default is 300.
 
     'lockfile' may be used in an update mode to ensure that there is only
-one copy of msntp running at once.  The default is installation-dependent,
-but will usually be /etc/msntp.pid.
+one copy of sntp running at once.  The default is installation-dependent,
+but will usually be /etc/sntp.pid.
 
     'savefile' may be used in daemon mode to store a record of previous
-packets, which may speed up recalculating the drift after msntp has to be
+packets, which may speed up recalculating the drift after sntp has to be
 restarted (e.g. because of network or server outages).  The default is
-installation-dependent, but will usually be /etc/msntp.state.  Note that
+installation-dependent, but will usually be /etc/sntp.state.  Note that
 there is no locking of this file, and using it twice may cause chaos.
 
     'address' is the DNS name or IP number of a host to poll; if no name is
@@ -119,11 +111,10 @@ port this to a toaster, you may have problems!
 In its terminating modes, its return code is EXIT_SUCCESS if the operation was
 completed successfully and EXIT_FAILURE otherwise.
 
-In server or daemon mode, it runs for ever and stops with a return code
-EXIT_FAILURE only after a severe error.  Commonly, two server processes will be
-run, one with each of the -B and -S options.  In daemon mode, it will fail if
-the server is inaccessible for a long time or seriously sick, and will need
-manual restarting.
+In daemon mode, it runs for ever and stops with a return code EXIT_FAILURE
+only after a severe error.  In daemon mode, it will fail if the server is
+inaccessible for a long time or seriously sick, and will need manual
+restarting.
 
 
 WARNING: this program has reached its 'hack count' and needs restructuring,
@@ -189,6 +180,7 @@ const char *argv0 = NULL;              /* For diagnostics only - not NULL */
 int verbose = 0,                       /* Default = 0, -v = 1, -V = 2, -W = 3 */
     operation = 0;                     /* Defined in header.h - see action */
 const char *lockname = NULL;           /* The name of the lock file */
+int unprivport = 0;			/* Use an unpriv port for query? */
 
 #define COUNT_MAX          25          /* Do NOT increase this! */
 #define WEEBLE_FACTOR     1.2          /* See run_server() and run_daemon() */
@@ -208,7 +200,6 @@ const char *lockname = NULL;           /* The name of the lock file */
 
 static const char version[] = VERSION; /* For reverse engineering :-) */
 static int action = 0,                 /* Defined above - see operation */
-    period = 0,                        /* -B value in seconds (broadcast) */
     count = 0,                         /* -c value in seconds */
     delay = 0,                         /* -d or -x value in seconds */
     attempts = 0,                      /* Packets transmitted up to 2*count */
@@ -227,7 +218,8 @@ static FILE *savefile = NULL;          /* Holds the data to restart from */
 to SNTP. */
 
 typedef struct NTP_DATA {
-    unsigned char status, version, mode, stratum, polling, precision;
+    unsigned char status, version, mode, stratum, polling;
+    signed char precision;
     double dispersion, reference, originate, receive, transmit, current;
 } ntp_data;
 
@@ -241,7 +233,24 @@ typedef struct {
     double dispersion, weight, when, offset, error;
 } data_record;
 
-
+void syntax(int);
+void display_data(ntp_data *);
+void display_packet(unsigned char *, int);
+void pack_ntp(unsigned char *, int, ntp_data *);
+void unpack_ntp(ntp_data *, unsigned char *, int);
+void make_packet(ntp_data *, int);
+int read_packet(int, ntp_data *, double *, double *);
+void format_time(char *, int, double, double, double, double, int);
+double reset_clock(double, double, int);
+void run_server(void);
+double estimate_stats(int *, int *, data_record *, double, double *, double *,
+	double *, double *, double *, double *, int *, int);
+double correct_drift(double *, double *, double);
+void handle_saving(int, int *, int *, int *, data_record *, double *,
+	double *, double *);
+void query_savefile(void);
+void run_daemon(char **, int, int);
+void run_client(char **, int);
 
 void fatal (int syserr, const char *message, const char *insert) {
 
@@ -274,12 +283,12 @@ void syntax (int halt) {
 helpfully.  This is called before any files or sockets are opened. */
 
     fprintf(stderr,"Syntax: %s [ --help | -h | -? ] [ -v | -V | -W ] \n",argv0);
-    fprintf(stderr,"    [ -B period | -S | -q [ -f savefile ] |\n");
+    fprintf(stderr,"    [ -q [ -f savefile ] |\n");
     fprintf(stderr,"        [ { -r | -a } [ -P prompt ] [ -l lockfile ] ]\n");
     fprintf(stderr,"            [ -c count ] [ -e minerr ] [ -E maxerr ]\n");
     fprintf(stderr,"            [ -d delay | -x [ separation ] ");
     fprintf(stderr,"[ -f savefile ] ]\n");
-    fprintf(stderr,"        [ -4 | -6 ] [ address(es) ] ]\n");
+    fprintf(stderr,"        [ -4 | -6 ] [-u] [ address(es) ] ]\n");
     if (halt) exit(EXIT_FAILURE);
 }
 
@@ -444,22 +453,20 @@ that it must not change its arguments if it fails. */
 /* Start by checking that the packet looks reasonable.  Be a little paranoid,
 but allow for version 1 semantics and sick clients. */
 
-    if (operation == op_server) {
-        if (data->mode == NTP_BROADCAST) return 2;
-        failed = (data->mode != NTP_CLIENT && data->mode != NTP_ACTIVE);
-    } else if (operation == op_listen)
+    if (operation == op_listen)
         failed = (data->mode != NTP_BROADCAST);
     else {
         failed = (data->mode != NTP_SERVER && data->mode != NTP_PASSIVE);
         response = 1;
     }
-    if (failed || data->status != 0 || data->version < 1 ||
+    if (failed || data->status == 3 || data->version < 1 ||
             data->version > NTP_VERSION_MAX ||
             data->stratum > NTP_STRATUM_MAX) {
         if (verbose)
             fprintf(stderr,
-                "%s: totally spurious NTP packet rejected on socket %d\n",
-                argv0,which);
+                "%s: Unusable NTP packet rejected on socket %d (f=%d, status %d, version %d, stratum %d)\n",
+                argv0, which,
+		failed, data->status, data->version, data->stratum);
         return 1;
     }
 
@@ -469,9 +476,13 @@ packets is an abomination, anyway, so reject it. */
 
     delay1 = data->transmit-data->receive;
     delay2 = data->current-data->originate;
-    failed = ((data->stratum != 0 && data->stratum != NTP_STRATUM_MAX &&
-                data->reference == 0.0) ||
-            (operation != op_server && data->transmit == 0.0));
+    failed = (
+	      (  data->stratum != 0
+	      /* && data->stratum != NTP_STRATUM_MAX */
+	      && data->reference == 0.0
+	      )
+	     || data->transmit == 0.0
+	     );
     if (response &&
             (data->originate == 0.0 || data->receive == 0.0 ||
                 (data->reference != 0.0 && data->receive < data->reference) ||
@@ -483,6 +494,12 @@ packets is an abomination, anyway, so reject it. */
             fprintf(stderr,
                 "%s: incomprehensible NTP packet rejected on socket %d\n",
                 argv0,which);
+        return 1;
+    }
+    if (data->stratum == NTP_STRATUM_MAX) {
+	fprintf(stderr,
+	    "%s: unsynch NTP response on socket %d\n",
+	    argv0,which);
         return 1;
     }
 
@@ -511,7 +528,7 @@ too badly.  Heaven help us with broadcasts - make a wild kludge here, and see
 elsewhere for other kludges. */
 
     if (dispersion < data->dispersion) dispersion = data->dispersion;
-    if (operation == op_listen || operation == op_server) {
+    if (operation == op_listen) {
         *off = data->transmit-data->current;
         *err = NTP_INSANITY;
     } else {
@@ -528,7 +545,7 @@ elsewhere for other kludges. */
 
 
 void format_time (char *text, int length, double offset, double error,
-    double drift, double drifterr) {
+    double drift, double drifterr, int precision) {
 
 /* Format the current time into a string, with the extra information as
 requested.  Note that the rest of the program uses the correction needed, which
@@ -551,12 +568,14 @@ systems do not set the return value from (s)printf. */
     errno = 0;
     if ((gmt = localtime(&now)) == NULL)
         fatal(1,"unable to work out local time",NULL);
-    len = 24;
+    len = 21;
     if (length <= len) fatal(0,"internal error calling format_time",NULL);
     errno = 0;
-    sprintf(text,"%.4d %s %.2d %.2d:%.2d:%.2d.%.3d",
+    precision /= -3;
+    len += precision;
+    sprintf(text,"%.4d %s %.2d %.2d:%.2d:%.2d.%.*d",
             gmt->tm_year+1900,months[gmt->tm_mon],gmt->tm_mday,
-            gmt->tm_hour,gmt->tm_min,gmt->tm_sec,milli);
+            gmt->tm_hour,gmt->tm_min,gmt->tm_sec,precision,milli);
     if (strlen(text) != len)
         fatal(1,"unable to format current local time",NULL);
 
@@ -566,8 +585,9 @@ systems do not set the return value from (s)printf. */
         if (length < len+30)
             fatal(0,"internal error calling format_time",NULL);
         errno = 0;
-        sprintf(&text[len]," %c %.3f +/- %.3f secs",(offset > 0.0 ? '-' : '+'),
-                (offset > 0.0 ? offset : -offset),dispersion+error);
+        sprintf(&text[len]," %c %.*f +/- %.*f secs",(offset > 0.0 ? '-' : '+'),
+		precision,(offset > 0.0 ? offset : -offset),
+		precision,dispersion+error);
         if (strlen(&text[len]) < 22)
             fatal(1,"unable to format clock correction",NULL);
     }
@@ -644,80 +664,13 @@ correction not having completed, but it will rarely help much. */
     adjust_time(offset,(action == action_reset ? 1 : 0),
         (daemon ? 2.0*minerr : 0.0));
     if (daemon ? verbose > 1 : verbose) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0);
+        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
         fprintf(stderr,
             "%s: time changed by %.3f secs to %s +/- %.3f+%.3f\n",
             argv0,offset,text,dispersion,error);
     }
     return offset;
 }
-
-
-
-void run_server (void) {
-
-/* Set up a socket, and either broadcast at intervals or wait for requests.
-It is quite tricky to get this to fail, and it will usually indicate that the
-local system is sick. */
-
-    unsigned char transmit[NTP_PACKET_MIN];
-    ntp_data data;
-    double started = current_time(JAN_1970), successes = 0.0, failures = 0.0,
-        broadcasts = 0.0, weeble = 1.0, x, y;
-    int i, j;
-
-    open_socket(0,NULL,delay);
-    while (1) {
-
-/* In server mode, provide some tracing of normal running (but not too much,
-except when debugging!) */
-
-        if (operation == op_server) {
-            x = current_time(JAN_1970)-started;
-            if (verbose && x/3600.0+successes+failures >= weeble) {
-                weeble *= WEEBLE_FACTOR;
-                x -= 3600.0*(i = (int)(x/3600.0));
-                x -= 60.0*(j = (int)(x/60.0));
-                if (i > 0)
-                    fprintf(stderr,"%s: after %d hours %d mins ",argv0,i,j);
-                else if (j > 0)
-                    fprintf(stderr,"%s: after %d mins %.0f secs ",argv0,j,x);
-                else
-                    fprintf(stderr,"%s: after %.1f secs ",argv0,x);
-                fprintf(stderr,"%.0f acc. %.0f rej. %.0f b'cast\n",
-                    successes,failures,broadcasts);
-            }
-
-/* Respond to incoming requests or plaster broadcasts over the net.  Note that
-we could skip almost all of the decoding, but it provides a healthy amount of
-error detection.  We could print some information on incoming packets, but the
-code is not structured to do this very helpfully. */
-
-            i = read_packet(0,&data,&x,&y);
-            if (i == 2) {
-                ++broadcasts;
-                continue;
-            } else if (i != 0) {
-                ++failures;
-                continue;
-            } else {
-                ++successes;
-                make_packet(&data,NTP_SERVER);
-            }
-        } else {
-            do_nothing(period);
-            make_packet(&data,NTP_BROADCAST);
-        }
-        if (verbose > 2) {
-            fprintf(stderr,"Outgoing packet:\n");
-            display_data(&data);
-        }
-        pack_ntp(transmit,NTP_PACKET_MIN,&data);
-        if (verbose > 2) display_packet(transmit,NTP_PACKET_MIN);
-        write_socket(0,transmit,NTP_PACKET_MIN);
-    }
-}
-
 
 
 double estimate_stats (int *a_total, int *a_index, data_record *record,
@@ -1144,14 +1097,14 @@ void query_savefile (void) {
 
     previous = when = current_time(JAN_1970);
     if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0);
+        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
         fprintf(stderr,"Started=%.6f %s\n",when,text);
     }
     handle_saving(save_read_only,&total,&index,&cycle,record,&previous,&when,
         &correction);
     estimate_stats(&total,&index,record,correction,&dispersion,
         &when,&offset,&error,&drift,&drifterr,&waiting,0);
-    format_time(text,100,offset,error,drift,drifterr);
+    format_time(text,100,offset,error,drift,drifterr,-10);
     printf("%s\n",text);
     if (fclose(savefile)) fatal(1,"unable to close daemon save file",NULL);
     if (verbose > 2) fprintf(stderr,"Stopped normally\n");
@@ -1188,7 +1141,7 @@ the rest are mainly for diagnostics. */
 
     started = previous = when = current_time(JAN_1970);
     if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0);
+        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
         fprintf(stderr,"Started=%.6f %s\n",when,text);
     }
     if (initial) {
@@ -1235,7 +1188,7 @@ check that we aren't in a failing loop. */
             if (operation == op_listen)
                 fprintf(stderr," rep. %.0f skip %.0f",replicates,skips);
             fprintf(stderr," max.off. %.3f corr. %.3f\n",maxoff,correction);
-            format_time(text,100,offset,error,drift,drifterr);
+            format_time(text,100,offset,error,drift,drifterr,-10);
             fprintf(stderr,"%s: %s\n",argv0,text);
             maxoff = 0.0;
         }
@@ -1384,7 +1337,7 @@ is the statistics are bad. */
         correction = 0.0;
         if (operation == op_client || accepts >= count) {
             if (action == action_display) {
-                format_time(text,100,offset,error,drift,drifterr);
+                format_time(text,100,offset,error,drift,drifterr,-10);
                 printf("%s\n",text);
             } else {
                 x = reset_clock(offset,error,1);
@@ -1425,13 +1378,14 @@ triggered if the signal handling works. */
 
     double history[COUNT_MAX], guesses[COUNT_MAX], offset, error, deadline,
         a, b, x, y;
+    int precs[COUNT_MAX], precision = 0;
     int accepts = 0, rejects = 0, flushes = 0, replicates = 0, cycle = 0, k;
     unsigned char transmit[NTP_PACKET_MIN];
     ntp_data data;
     char text[100];
 
     if (verbose > 2) {
-        format_time(text,50,0.0,-1.0,0.0,-1.0);
+        format_time(text,50,0.0,-1.0,0.0,-1.0,-10);
         fprintf(stderr,"Started=%.6f %s\n",current_time(JAN_1970),text);
     }
     for (k = 0; k < nhosts; ++k) open_socket(k,hostnames[k],delay);
@@ -1469,6 +1423,7 @@ the same time. */
                         goto continue1;
                     }
                 history[accepts] = a;
+		precs[accepts] = data.precision;
                 guesses[accepts++] = x;
             }
             if (verbose > 2)
@@ -1486,10 +1441,14 @@ the same time. */
                     x = guesses[k];
                     guesses[k] = guesses[k+1];
                     guesses[k+1] = x;
+		    precision = precs[k];
+		    precs[k] = precs[k+1];
+		    precs[k+1] = precision;
                 }
 continue1:  ;
         }
         offset = guesses[0];
+	precision = precs[0];
         error = minerr+guesses[count <= 5 ? count-1 : 5]-offset;
         if (verbose > 2)
             fprintf(stderr,"accepts=%d rejects=%d flushes=%d replicates=%d\n",
@@ -1500,11 +1459,13 @@ mainly out of paranoia. */
 
     } else {
         offset = 0.0;
+	precision = 0;
         error = NTP_INSANITY;
         while (accepts < count && attempts < 2*count) {
             if (current_time(JAN_1970) > deadline)
                 fatal(0,"not enough valid responses received in time",NULL);
             make_packet(&data,NTP_CLIENT);
+            precs[attempts] = data.precision;
             outgoing[attempts++] = data.transmit;
             if (verbose > 2) {
                 fprintf(stderr,"Outgoing packet on socket %d:\n",cycle);
@@ -1537,6 +1498,7 @@ the results warrant. */
             if (y < error) {
                 offset = x;
                 error = y;
+		precision = data.precision;
             }
             if (verbose > 2)
                 fprintf(stderr,"best=%.6f+/-%.6f\n",offset,error);
@@ -1562,7 +1524,7 @@ the results warrant. */
         fprintf(stderr,"Correction: %.6f +/- %.6f disp=%.6f\n",
             offset,error,dispersion);
     if (action == action_display) {
-        format_time(text,75,offset,error,0.0,-1.0);
+        format_time(text,75,offset,error,0.0,-1.0,precision);
         printf("%s\n",text);
     } else
         (void)reset_clock(offset,error,0);
@@ -1583,16 +1545,18 @@ one of the specialised routines to do the work. */
     char c;
 
     if (argv[0] == NULL || argv[0][0] == '\0')
-        argv0 = "msntp";
+        argv0 = "sntp";
     else if ((argv0 = strrchr(argv[0],'/')) != NULL)
         ++argv0;
     else
         argv0 = argv[0];
+
     setvbuf(stdout,NULL,_IOLBF,BUFSIZ);
     setvbuf(stderr,NULL,_IOLBF,BUFSIZ);
-    if (INT_MAX < 2147483647) fatal(0,"msntp requires >= 32-bit ints",NULL);
+
+    if (INT_MAX < 2147483647) fatal(0,"sntp requires >= 32-bit ints",NULL);
     if (DBL_EPSILON > 1.0e-13)
-        fatal(0,"msntp requires doubles with eps <= 1.0e-13",NULL);
+        fatal(0,"sntp requires doubles with eps <= 1.0e-13",NULL);
     for (k = 0; k < MAX_SOCKETS; ++k) hostnames[k] = NULL;
 
 /* Decode the arguments. */
@@ -1603,18 +1567,8 @@ one of the specialised routines to do the work. */
 	    preferred_family(PREF_FAM_INET);
 	else if (strcmp(argv[1],"-6") == 0)
 	    preferred_family(PREF_FAM_INET6);
-        else if (strcmp(argv[1],"-B") == 0 && action == 0) {
-            action = action_broadcast;
-            if (argc > 2) {
-                if (sscanf(argv[2],"%d%c",&period,&c) != 1) syntax(1);
-                if (period < 1 || period > 1440)
-                    fatal(0,"%s option value out of range","-B");
-                period *= 60;
-                k = 2;
-            } else
-                period = 60*60;
-        } else if (strcmp(argv[1],"-S") == 0 && action == 0)
-            action = action_server;
+        else if (strcmp(argv[1],"-u") == 0)
+            ++unprivport;
         else if (strcmp(argv[1],"-q") == 0 && action == 0)
             action = action_query;
         else if (strcmp(argv[1],"-r") == 0 && action == 0)
@@ -1682,13 +1636,7 @@ one of the specialised routines to do the work. */
 
 /* Check the arguments for consistency and set the defaults. */
 
-    if (action == action_broadcast || action == action_server) {
-        operation = (action == action_server ? op_server : op_broadcast);
-        if (argc != 1 || minerr != 0.0 || maxerr != 0.0 || count != 0 ||
-                delay != 0 || daemon != 0 || prompt != 0.0 ||
-                lockname != NULL || savename != NULL)
-            syntax(1);
-    } else if (action == action_query) {
+    if (action == action_query) {
         if (argc != 1 || minerr != 0.0 || maxerr != 0.0 || count != 0 ||
                 delay != 0 || daemon != 0 || prompt != 0.0 || lockname != NULL)
             syntax(1);
@@ -1756,8 +1704,8 @@ operation.  The calls do not return. */
 
     if (help) syntax(args == 1);
     if (verbose) {
-        fprintf(stderr,"%s options: a=%d p=%d v=%d e=%.3f E=%.3f P=%.3f\n",
-            argv0,action,period,verbose,minerr,maxerr,prompt);
+        fprintf(stderr,"%s options: a=%d v=%d e=%.3f E=%.3f P=%.3f\n",
+            argv0,action,verbose,minerr,maxerr,prompt);
         fprintf(stderr,"    d=%d c=%d %c=%d op=%d l=%s f=%s",
             delay,count,'x',daemon,operation,
             (lockname == NULL ? "" : lockname),
@@ -1767,9 +1715,7 @@ operation.  The calls do not return. */
         fprintf(stderr,"\n");
     }
     if (nhosts == 0) nhosts = 1;    /* Kludge for broadcasts */
-    if (operation == op_server || operation == op_broadcast)
-        run_server();
-    else if (action == action_query) {
+    if (action == action_query) {
         if (savename == NULL || savename[0] == '\0')
             fatal(0,"no daemon save file specified",NULL);
         else if ((savefile = fopen(savename,"rb")) == NULL)

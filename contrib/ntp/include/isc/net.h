@@ -1,21 +1,21 @@
 /*
- * Copyright (C) 1999-2001  Internet Software Consortium.
+ * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM
- * DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL
- * INTERNET SOFTWARE CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT,
- * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
- * FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,
- * NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION
- * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ * INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ * LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.h,v 1.34 2002/04/03 06:38:38 marka Exp $ */
+/* $Id: net.h,v 1.31.2.2.10.8 2004/04/29 01:31:23 marka Exp $ */
 
 #ifndef ISC_NET_H
 #define ISC_NET_H 1
@@ -74,6 +74,8 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>		/* Contractual promise. */
+
+#include <net/if.h>
 
 #include <netinet/in.h>		/* Contractual promise. */
 #include <arpa/inet.h>		/* Contractual promise. */
@@ -230,6 +232,10 @@ typedef isc_uint16_t in_port_t;
 		(((isc_uint32_t)(i) & ISC__IPADDR(0xf0000000)) \
 		 == ISC__IPADDR(0xe0000000))
 
+#define ISC_IPADDR_ISEXPERIMENTAL(i) \
+		(((isc_uint32_t)(i) & ISC__IPADDR(0xf0000000)) \
+		 == ISC__IPADDR(0xf0000000))
+
 /***
  *** Functions.
  ***/
@@ -245,6 +251,7 @@ isc_net_probeipv4(void);
  *
  *	ISC_R_SUCCESS		IPv4 is supported.
  *	ISC_R_NOTFOUND		IPv4 is not supported.
+ *	ISC_R_DISABLED		IPv4 is disabled.
  *	ISC_R_UNEXPECTED
  */
 
@@ -257,25 +264,63 @@ isc_net_probeipv6(void);
  *
  *	ISC_R_SUCCESS		IPv6 is supported.
  *	ISC_R_NOTFOUND		IPv6 is not supported.
+ *	ISC_R_DISABLED		IPv6 is disabled.
  *	ISC_R_UNEXPECTED
  */
 
+isc_result_t
+isc_net_probe_ipv6only(void);
+/*
+ * Check if the system's kernel supports the IPV6_V6ONLY socket option.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		the option is supported for both TCP and UDP.
+ *	ISC_R_NOTFOUND		IPv6 itself or the option is not supported.
+ *	ISC_R_UNEXPECTED
+ */
+
+isc_result_t
+isc_net_probe_ipv6pktinfo(void);
+/*
+ * Check if the system's kernel supports the IPV6_(RECV)PKTINFO socket option
+ * for UDP sockets.
+ *
+ * Returns:
+ *
+ *	ISC_R_SUCCESS		the option is supported.
+ *	ISC_R_NOTFOUND		IPv6 itself or the option is not supported.
+ *	ISC_R_UNEXPECTED
+ */
+
+void
+isc_net_disableipv4(void);
+
+void
+isc_net_disableipv6(void);
+
+void
+isc_net_enableipv4(void);
+
+void
+isc_net_enableipv6(void);
+
+#ifdef ISC_PLATFORM_NEEDNTOP
 const char *
 isc_net_ntop(int af, const void *src, char *dst, size_t size);
-#ifdef ISC_PLATFORM_NEEDNTOP
 #define inet_ntop isc_net_ntop
 #endif
 
+#ifdef ISC_PLATFORM_NEEDPTON
 int
 isc_net_pton(int af, const char *src, void *dst);
-#ifdef ISC_PLATFORM_NEEDPTON
 #undef inet_pton
 #define inet_pton isc_net_pton
 #endif
 
+#ifdef ISC_PLATFORM_NEEDATON
 int
 isc_net_aton(const char *cp, struct in_addr *addr);
-#ifdef ISC_PLATFORM_NEEDATON
 #define inet_aton isc_net_aton
 #endif
 

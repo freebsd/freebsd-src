@@ -4,20 +4,7 @@
  * usage: clktest -b bps -f -t timeo -s cmd -c char1 -a char2 /dev/whatever
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <signal.h>
-#include <netinet/in.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <sys/file.h>
-#include <sgtty.h>
-
-#include "../include/ntp_fp.h"
-#include "../include/ntp.h"
-#include "../include/ntp_unixtime.h"
+#include "clktest-opts.h"
 
 #define	STREQ(a, b)	(*(a) == *(b) && strcmp((a), (b)) == 0)
 
@@ -28,9 +15,13 @@
 #endif
 
 #ifndef STREAM
-#ifndef CLKLDISC
-CLOCK_LINE_DISCIPLINE_NEEDED_BY_THIS_PROGRAM;
-#endif
+# ifndef CLKLDISC
+    CLOCK_LINE_DISCIPLINE_NEEDED_BY_THIS_PROGRAM;
+# endif
+#else
+# ifdef CLKLDISC
+    ONLY_ONE_CLOCK_LINE_DISCIPLINE_FOR_THIS_PROGRAM;
+# endif
 #endif
 
 /*
@@ -38,51 +29,17 @@ CLOCK_LINE_DISCIPLINE_NEEDED_BY_THIS_PROGRAM;
  */
 #define	BLOCKSIGMASK	(sigmask(SIGIO)|sigmask(SIGALRM))
 
-/*
- * speed table
- */
-struct speeds {
-	int bps;
-	int rate;
-} speedtab[] = {
-	{ 300,		B300 },
-	{ 1200,		B1200 },
-	{ 2400,		B2400 },
-	{ 4800,		B4800 },
-	{ 9600,		B9600 },
-	{ 19200,	EXTA },
-	{ 38400,	EXTB },
-	{ 0,		0 }
-};
+#define progname clktestOptions.pzProgName
 
-char *progname;
-int debug;
-
-#ifdef CLKLDISC
-#define	DEFMAGIC	'\r'
-#endif
-
-#ifdef CLKLDISC
-# ifdef STREAM
-#  include <stropts.h>
-#  ifdef HAVE_SYS_CLKDEFS_H
-#   include <sys/clkdefs.h>
-#  endif
-#  define DEFMAGIC	"\r"
-# endif
-#endif
- 
 struct timeval timeout = { 0 };
 char *cmd = NULL;
 int cmdlen;
-int docmd = 0;
+
 #ifdef CLKLDISC
 u_long magic1 = DEFMAGIC;
 u_long magic2 = DEFMAGIC;
 #endif
-#ifdef STREAM
-char magic[32];
-#endif
+
 int speed = B9600;
 int ttflags = RAW|EVENP|ODDP;
 
@@ -95,6 +52,9 @@ extern u_long ustotslo[];
 extern u_long ustotsmid[];
 extern u_long ustotshi[];
 
+int alarming();
+int ioready();
+
 /*
  * main - parse arguments and handle options
  */
@@ -104,113 +64,35 @@ main(
 	char *argv[]
 	)
 {
-	int c;
-	int errflg = 0;
-	struct speeds *spd;
-	u_long tmp;
 	int fd;
 	struct sgttyb ttyb;
 	struct itimerval itimer;
-	extern int ntp_optind;
-	extern char *ntp_optarg;
-	int alarming();
-	int ioready();
 
-	progname = argv[0];
 #ifdef STREAM
 	magic[0] = 0;
 #endif
-	while ((c = ntp_getopt(argc, argv, "a:b:c:dfs:t:")) != EOF)
-	    switch (c) {
-#ifdef CLKLDISC
-		case 'a':
-#endif
-		case 'c':
-		    if (!atouint(ntp_optarg, &tmp)) {
-			    (void) fprintf(stderr,
-					   "%s: argument for -%c must be integer\n",
-					   progname, c);
-			    errflg++;
-			    break;
-		    }
-#ifdef CLKLDISC
-		    if (c == 'c')
-			magic1 = tmp;
-		    else
-			magic2 = tmp;
-#endif
-#ifdef STREAM
-		    magic[strlen(magic)+1] = '\0';
-		    magic[strlen(magic)] = tmp;
-#endif
-		    break;
-		case 'b':
-		    if (!atouint(ntp_optarg, &tmp)) {
-			    errflg++;
-			    break;
-		    }
-		    spd = speedtab;
-		    while (spd->bps != 0)
-			if ((int)tmp == spd->bps)
-			    break;
-		    if (spd->bps == 0) {
-			    (void) fprintf(stderr,
-					   "%s: speed %lu is unsupported\n",
-					   progname, tmp);
-			    errflg++;
-		    } else {
-			    speed = spd->rate;
-		    }
-		    break;
-		case 'd':
-		    ++debug;
-		    break;
-		case 'f':
-		    ttflags |= CRMOD;
-		    break;
-		case 's':
-		    cmdlen = strlen(ntp_optarg);
-		    if (cmdlen == 0)
-			errflg++;
-		    else
-			cmd = ntp_optarg;
-		    break;
-		case 't':
-		    if (!atouint(ntp_optarg, &tmp))
-			errflg++;
-		    else {
-			    timeout.tv_sec = (long)tmp;
-			    docmd = 1;
-		    }
-		    break;
-		default:
-		    errflg++;
-		    break;
-	    }
-	if (errflg || ntp_optind+1 != argc) {
-		(void) fprintf(stderr,
-#ifdef CLKLDISC
-			       "usage: %s [-b bps] [-c magic1] [-a magic2] [-f] [-s cmd] [-t timeo]  tty_device\n",
-#endif
-#ifdef STREAM
-			       "usage: %s [-b bps] [-c magic1] [-c magic2]... [-f] [-s cmd] [-t timeo]  tty_device\n",
-#endif
-			       progname);
-		exit(2);
-	}
 
+	{
+	    int ct = optionProcess( &clktestOptions, argc, argv );
+	    if (HAVE_OPT(COMMAND) && (strlen(OPT_ARG(COMMAND)) == 0)) {
+		fputs( "The command option string must not be empty\n", stderr );
+		USAGE( EXIT_FAILURE );
+	    }
+
+	    if ((argc -= ct) != 1) {
+		fputs( "Missing tty device name\n", stderr );
+		USAGE( EXIT_FAILURE );
+	    }
+	    argv += ct;
+	}
 #ifdef STREAM
 	if (!strlen(magic))
 	    strcpy(magic,DEFMAGIC);
 #endif
 
-	if (docmd)
-	    fd = open(argv[ntp_optind], O_RDWR, 0777);
-	else
-	    fd = open(argv[ntp_optind], O_RDONLY, 0777);
+	fd = open(*argv, HAVE_OPT(TIMEOUT) ? O_RDWR : O_RDONLY, 0777);
 	if (fd == -1) {
-		(void) fprintf(stderr, "%s: open(%s): ", progname,
-			       argv[ntp_optind]);
+		fprintf(stderr, "%s: open(%s): ", progname, *argv);
 		perror("");
 		exit(1);
 	}
@@ -270,7 +152,7 @@ main(
 
 
 	(void) gettimeofday(&lasttv, (struct timezone *)0);
-	if (docmd) {
+	if (HAVE_OPT(TIMEOUT)) {
 		/*
 		 * set non-blocking, async I/O on the descriptor
 		 */
@@ -288,6 +170,7 @@ main(
 		 */
 		wasalarmed = 0;
 		(void) signal(SIGALRM, alarming);
+		timeout.tv_sec = OPT_VALUE_TIMEOUT;
 		itimer.it_interval = itimer.it_value = timeout;
 		setitimer(ITIMER_REAL, &itimer, (struct itimerval *)0);
 		doboth(fd);
@@ -495,7 +378,7 @@ doalarm(
 {
 	int n;
 
-	if (cmd == NULL || cmdlen <= 0)
+	if (! HAVE_OPT(COMMAND))
 	    return;
 
 	n = write(fd, cmd, cmdlen);

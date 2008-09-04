@@ -59,6 +59,8 @@ struct isc_interface {
 	isc_netaddr_t dstaddress; 	/* Destination address
 					   (point-to-point only). */
 	isc_uint32_t flags;		/* Flags; see below. */
+	unsigned int ifindex;		/* Interface Index */
+	unsigned int scopeid;		/* Scope id for Multicasting */
 };
 
 /* Interface flags. */
