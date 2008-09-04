@@ -816,6 +816,11 @@ ttydevsw_defmmap(struct tty *tp, vm_offset_t offset, vm_paddr_t *paddr,
 }
 
 static void
+ttydevsw_defpktnotify(struct tty *tp, char event)
+{
+}
+
+static void
 ttydevsw_deffree(void *softc)
 {
 
@@ -846,6 +851,7 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	PATCH_FUNC(param);
 	PATCH_FUNC(modem);
 	PATCH_FUNC(mmap);
+	PATCH_FUNC(pktnotify);
 	PATCH_FUNC(free);
 #undef PATCH_FUNC
 
@@ -1226,11 +1232,13 @@ tty_flush(struct tty *tp, int flags)
 		tp->t_flags &= ~TF_HIWAT_OUT;
 		ttyoutq_flush(&tp->t_outq);
 		tty_wakeup(tp, FWRITE);
+		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHWRITE);
 	}
 	if (flags & FREAD) {
 		tty_hiwat_in_unblock(tp);
 		ttyinq_flush(&tp->t_inq);
 		ttydevsw_inwakeup(tp);
+		ttydevsw_pktnotify(tp, TIOCPKT_FLUSHREAD);
 	}
 }
 
@@ -1372,6 +1380,17 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 			ttyinq_canonicalize(&tp->t_inq);
 			tty_wakeup(tp, FREAD);
 		}
+
+		/*
+		 * For packet mode: notify the PTY consumer that VSTOP
+		 * and VSTART may have been changed.
+		 */
+		if (tp->t_termios.c_iflag & IXON &&
+		    tp->t_termios.c_cc[VSTOP] == CTRL('S') &&
+		    tp->t_termios.c_cc[VSTART] == CTRL('Q'))
+			ttydevsw_pktnotify(tp, TIOCPKT_DOSTOP);
+		else
+			ttydevsw_pktnotify(tp, TIOCPKT_NOSTOP);
 		return (0);
 	}
 	case TIOCGETD:
@@ -1562,10 +1581,12 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 		return (0);
 	case TIOCSTOP:
 		tp->t_flags |= TF_STOPPED;
+		ttydevsw_pktnotify(tp, TIOCPKT_STOP);
 		return (0);
 	case TIOCSTART:
 		tp->t_flags &= ~TF_STOPPED;
 		ttydevsw_outwakeup(tp);
+		ttydevsw_pktnotify(tp, TIOCPKT_START);
 		return (0);
 	case TIOCSTAT:
 		tty_info(tp);
