@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20080904:
+	ntpd upgraded to 4.2.4p5.
+
 20080118:
 	FreeBSD 6.3-RELEASE
 
