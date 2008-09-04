@@ -82,6 +82,7 @@ struct pts_softc {
 	int		pts_unit;	/* (c) Device unit number. */
 	unsigned int	pts_flags;	/* (t) Device flags. */
 #define PTS_PKT		0x1	/* Packet mode. */
+	char		pts_pkt;	/* (t) Unread packet mode data. */
 
 	struct cv	pts_inwait;	/* (t) Blocking write() on master. */
 	struct selinfo	pts_inpoll;	/* (t) Select queue for write(). */
@@ -105,34 +106,54 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 {
 	struct tty *tp = fp->f_data;
 	struct pts_softc *psc = tty_softc(tp);
-	int error, oresid;
+	int error = 0;
+	char pkt;
 
 	if (uio->uio_resid == 0)
 		return (0);
-	
-	/*
-	 * Implement packet mode. When packet mode is turned on, the
-	 * first byte contains a bitmask of events that occured (start,
-	 * stop, flush, window size, etc).
-	 */
-
-	if (psc->pts_flags & PTS_PKT) {
-		/* XXX: return proper bits. */
-		error = ureadc(0, uio);
-		if (error != 0)
-			return (error);
-		if (uio->uio_resid == 0)
-			return (0);
-	}
-
-	oresid = uio->uio_resid;
 
 	tty_lock(tp);
+
 	for (;;) {
-		error = ttydisc_getc_uio(tp, uio);
-		/* We've got data (or an error). */
-		if (error != 0 || uio->uio_resid != oresid)
+		/*
+		 * Implement packet mode. When packet mode is turned on,
+		 * the first byte contains a bitmask of events that
+		 * occured (start, stop, flush, window size, etc).
+		 */
+		if (psc->pts_flags & PTS_PKT && psc->pts_pkt) {
+			pkt = psc->pts_pkt;
+			psc->pts_pkt = 0;
+			tty_unlock(tp);
+
+			error = ureadc(pkt, uio);
+			return (error);
+		}
+
+		/*
+		 * Transmit regular data.
+		 *
+		 * XXX: We shouldn't use ttydisc_getc_poll()! Even
+		 * though in this implementation, there is likely going
+		 * to be data, we should just call ttydisc_getc_uio()
+		 * and use its return value to sleep.
+		 */
+		if (ttydisc_getc_poll(tp)) {
+			if (psc->pts_flags & PTS_PKT) {
+				/*
+				 * XXX: Small race. Fortunately PTY
+				 * consumers aren't multithreaded.
+				 */
+
+				tty_unlock(tp);
+				error = ureadc(TIOCPKT_DATA, uio);
+				if (error)
+					return (error);
+				tty_lock(tp);
+			}
+
+			error = ttydisc_getc_uio(tp, uio);
 			break;
+		}
 
 		/* Maybe the device isn't used anyway. */
 		if (tty_opened(tp) == 0)
@@ -147,6 +168,7 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		if (error != 0)
 			break;
 	}
+
 	tty_unlock(tp);
 
 	return (error);
@@ -162,14 +184,14 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	size_t iblen, rintlen;
 	int error = 0;
 
-	tty_lock(tp);
+	if (uio->uio_resid == 0)
+		return (0);
 
-	while (uio->uio_resid > 0) {
-		/* Temporarily unlock to buffer new characters. */
-		tty_unlock(tp);
+	for (;;) {
 		ibstart = ib;
 		iblen = MIN(uio->uio_resid, sizeof ib);
 		error = uiomove(ib, iblen, uio);
+
 		tty_lock(tp);
 		if (error != 0)
 			goto done;
@@ -178,7 +200,8 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 * When possible, avoid the slow path. rint_bypass()
 		 * copies all input to the input queue at once.
 		 */
-		while (iblen > 0) {
+		MPASS(iblen > 0);
+		do {
 			if (ttydisc_can_bypass(tp)) {
 				/* Store data at once. */
 				rintlen = ttydisc_rint_bypass(tp,
@@ -188,7 +211,7 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 				if (iblen == 0) {
 					/* All data written. */
-					continue;
+					break;
 				}
 			} else {
 				error = ttydisc_rint(tp, *ibstart, 0);
@@ -217,7 +240,11 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			error = cv_wait_sig(&psc->pts_inwait, tp->t_mtx);
 			if (error != 0)
 				goto done;
-		}
+		} while (iblen > 0);
+
+		if (uio->uio_resid == 0)
+			break;
+		tty_unlock(tp);
 	}
 
 done:	ttydisc_rint_done(tp);
@@ -362,7 +389,8 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 
 	if (events & (POLLIN|POLLRDNORM)) {
 		/* See if we can getc something. */
-		if (ttydisc_getc_poll(tp))
+		if (ttydisc_getc_poll(tp) ||
+		    (psc->pts_flags & PTS_PKT && psc->pts_pkt))
 			revents |= events & (POLLIN|POLLRDNORM);
 	}
 	if (events & (POLLOUT|POLLWRNORM)) {
@@ -481,6 +509,34 @@ ptsdrv_close(struct tty *tp)
 }
 
 static void
+ptsdrv_pktnotify(struct tty *tp, char event)
+{
+	struct pts_softc *psc = tty_softc(tp);
+
+	/*
+	 * Clear conflicting flags.
+	 */
+
+	switch (event) {
+	case TIOCPKT_STOP:
+		psc->pts_pkt &= ~TIOCPKT_START;
+		break;
+	case TIOCPKT_START:
+		psc->pts_pkt &= ~TIOCPKT_STOP;
+		break;
+	case TIOCPKT_NOSTOP:
+		psc->pts_pkt &= ~TIOCPKT_DOSTOP;
+		break;
+	case TIOCPKT_DOSTOP:
+		psc->pts_pkt &= ~TIOCPKT_NOSTOP;
+		break;
+	}
+
+	psc->pts_pkt |= event;
+	ptsdrv_outwakeup(tp);
+}
+
+static void
 ptsdrv_free(void *softc)
 {
 	struct pts_softc *psc = softc;
@@ -506,6 +562,7 @@ static struct ttydevsw pts_class = {
 	.tsw_outwakeup	= ptsdrv_outwakeup,
 	.tsw_inwakeup	= ptsdrv_inwakeup,
 	.tsw_close	= ptsdrv_close,
+	.tsw_pktnotify	= ptsdrv_pktnotify,
 	.tsw_free	= ptsdrv_free,
 };
 
