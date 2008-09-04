@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/tte.h>
 #include <machine/tsb.h>
+#include <machine/ver.h>
 
 #define	PMAP_DEBUG
 
@@ -473,6 +474,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		    "translation: start=%#lx size=%#lx tte=%#lx",
 		    translations[i].om_start, translations[i].om_size,
 		    translations[i].om_tte);
+		if ((translations[i].om_tte & TD_V) == 0)
+			continue;
 		if (translations[i].om_start < VM_MIN_PROM_ADDRESS ||
 		    translations[i].om_start > VM_MAX_PROM_ADDRESS)
 			continue;
@@ -483,7 +486,11 @@ pmap_bootstrap(vm_offset_t ekva)
 			tp->tte_vpn = TV_VPN(va, TS_8K);
 			tp->tte_data =
 			    ((translations[i].om_tte &
-			      ~(TD_SOFT_MASK << TD_SOFT_SHIFT)) | TD_EXEC) +
+			    ~((TD_SOFT2_MASK << TD_SOFT2_SHIFT) |
+			    (cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+			    (TD_DIAG_SF_MASK << TD_DIAG_SF_SHIFT) :
+			    (TD_RSVD_CH_MASK << TD_RSVD_CH_SHIFT)) |
+			    (TD_SOFT_MASK << TD_SOFT_SHIFT))) | TD_EXEC) +
 			    off;
 		}
 	}
@@ -603,6 +610,8 @@ pmap_init(void)
 	for (i = 0; i < translations_size; i++) {
 		addr = translations[i].om_start;
 		size = translations[i].om_size;
+		if ((translations[i].om_tte & TD_V) == 0)
+			continue;
 		if (addr < VM_MIN_PROM_ADDRESS || addr > VM_MAX_PROM_ADDRESS)
 			continue;
 		result = vm_map_find(kernel_map, NULL, 0, &addr, size, FALSE,
