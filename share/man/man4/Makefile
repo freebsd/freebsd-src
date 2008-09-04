@@ -148,6 +148,7 @@ MAN=	aac.4 \
 	iwi.4 \
 	iwn.4 \
 	ixgb.4 \
+	ixgbe.4 \
 	jme.4 \
 	joy.4 \
 	${_k8temp.4} \
@@ -492,6 +493,7 @@ MLINKS+=ipfirewall.4 ipaccounting.4 \
 MLINKS+=ipw.4 if_ipw.4
 MLINKS+=iwi.4 if_iwi.4
 MLINKS+=ixgb.4 if_ixgb.4
+MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
 MLINKS+=le.4 if_le.4
