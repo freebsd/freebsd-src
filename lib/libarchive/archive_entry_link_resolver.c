@@ -189,7 +189,7 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 	case ARCHIVE_ENTRY_LINKIFY_LIKE_TAR:
 		le = find_entry(res, *e);
 		if (le != NULL) {
-			archive_entry_set_size(*e, 0);
+			archive_entry_unset_size(*e);
 			archive_entry_copy_hardlink(*e,
 			    archive_entry_pathname(le->canonical));
 		} else
@@ -217,7 +217,7 @@ archive_entry_linkify(struct archive_entry_linkresolver *res,
 			*e = le->entry;
 			le->entry = t;
 			/* Make the old entry into a hardlink. */
-			archive_entry_set_size(*e, 0);
+			archive_entry_unset_size(*e);
 			archive_entry_copy_hardlink(*e,
 			    archive_entry_pathname(le->canonical));
 			/* If we ran out of links, return the
