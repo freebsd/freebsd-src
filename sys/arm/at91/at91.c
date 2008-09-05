@@ -458,10 +458,6 @@ at91_attach(device_t dev)
 	sc->sc_irq_rman.rm_descr = "AT91 IRQs";
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
-#if 0
-	sc->sc_usbmem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_usbmem_rman.rm_descr = "AT91RM9200 USB Memory-mapped regs";
-#endif
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
 	    rman_manage_region(&sc->sc_irq_rman, 1, 31) != 0)
 		panic("at91_attach: failed to set up IRQ rman");
@@ -536,14 +532,8 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    start, end, count, flags, child);
 		break;
 	case SYS_RES_MEMORY:
-#if 0
-		if (start >= 0x00300000 && start <= 0x003fffff)
-			rle->res = rman_reserve_resource(&sc->sc_usbmem_rman,
-			    start, end, count, flags, child);
-		else
-#endif
-			rle->res = rman_reserve_resource(&sc->sc_mem_rman,
-			    start, end, count, flags, child);
+		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
+		    start, end, count, flags, child);
 		rman_set_bustag(rle->res, &at91_bs_tag);
 		rman_set_bushandle(rle->res, start);
 		break;
