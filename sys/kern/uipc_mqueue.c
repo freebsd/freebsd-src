@@ -373,16 +373,24 @@ mqnode_addref(struct mqfs_node *node)
 static __inline void
 mqnode_release(struct mqfs_node *node)
 {
+	struct mqfs_info *mqfs;
 	int old, exp;
 
+	mqfs = node->mn_info;
 	old = atomic_fetchadd_int(&node->mn_refcount, -1);
 	if (node->mn_type == mqfstype_dir ||
 	    node->mn_type == mqfstype_root)
 		exp = 3; /* include . and .. */
 	else
 		exp = 1;
-	if (old == exp)
+	if (old == exp) {
+		int locked = sx_xlocked(&mqfs->mi_lock);
+		if (!locked)
+			sx_xlock(&mqfs->mi_lock);
 		mqfs_destroy(node);
+		if (!locked)
+			sx_xunlock(&mqfs->mi_lock);
+	}
 }
 
 /*
@@ -417,7 +425,7 @@ mqfs_create_node(const char *name, int namelen, struct ucred *cred, int mode,
 	strncpy(node->mn_name, name, namelen);
 	node->mn_type = nodetype;
 	node->mn_refcount = 1;
-	getnanotime(&node->mn_birth);
+	vfs_timestamp(&node->mn_birth);
 	node->mn_ctime = node->mn_atime = node->mn_mtime
 		= node->mn_birth;
 	node->mn_uid = cred->cr_uid;
@@ -601,9 +609,7 @@ mqfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 	int ret;
 
 	mqfs = VFSTOMQFS(mp);
-	sx_xlock(&mqfs->mi_lock);
 	ret = mqfs_allocv(mp, vpp, mqfs->mi_root);
-	sx_xunlock(&mqfs->mi_lock);
 	return (ret);
 }
 
@@ -696,28 +702,56 @@ static int
 mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 {
 	struct mqfs_vdata *vd;
+	struct mqfs_info  *mqfs;
+	struct vnode *newvpp;
 	int error;
 
+	mqfs = pn->mn_info;
+	*vpp = NULL;
+	sx_xlock(&mqfs->mi_lock);
 	LIST_FOREACH(vd, &pn->mn_vnodes, mv_link) {
-		if (vd->mv_vnode->v_mount == mp)
+		if (vd->mv_vnode->v_mount == mp) {
+			vhold(vd->mv_vnode);
 			break;
+		}
 	}
 
 	if (vd != NULL) {
+found:
 		*vpp = vd->mv_vnode;
-		vget(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
-		return (0);
+		sx_xunlock(&mqfs->mi_lock);
+		error = vget(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
+		vdrop(*vpp);
+		return (error);
 	}
+	sx_xunlock(&mqfs->mi_lock);
 
-	error = getnewvnode("mqueue", mp, &mqfs_vnodeops, vpp);
+	error = getnewvnode("mqueue", mp, &mqfs_vnodeops, &newvpp);
 	if (error)
 		return (error);
-	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
-	error = insmntque(*vpp, mp);
-	if (error != 0) {
-		*vpp = NULLVP;
+	vn_lock(newvpp, LK_EXCLUSIVE | LK_RETRY);
+	error = insmntque(newvpp, mp);
+	if (error != 0)
 		return (error);
+
+	sx_xlock(&mqfs->mi_lock);
+	/*
+	 * Check if it has already been allocated
+	 * while we were blocked.
+	 */
+	LIST_FOREACH(vd, &pn->mn_vnodes, mv_link) {
+		if (vd->mv_vnode->v_mount == mp) {
+			vhold(vd->mv_vnode);
+			sx_xunlock(&mqfs->mi_lock);
+
+			vgone(newvpp);
+			vput(newvpp);
+			goto found;
+		}
 	}
+
+	*vpp = newvpp;
+
 	vd = uma_zalloc(mvdata_zone, M_WAITOK);
 	(*vpp)->v_data = vd;
 	vd->mv_vnode = *vpp;
@@ -745,6 +779,7 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	default:
 		panic("%s has unexpected type: %d", pn->mn_name, pn->mn_type);
 	}
+	sx_xunlock(&mqfs->mi_lock);
 	return (0);
 }
 
@@ -756,6 +791,7 @@ mqfs_search(struct mqfs_node *pd, const char *name, int len)
 {
 	struct mqfs_node *pn;
 
+	sx_assert(&pd->mn_info->mi_lock, SX_LOCKED);
 	LIST_FOREACH(pn, &pd->mn_children, mn_sibling) {
 		if (strncmp(pn->mn_name, name, len) == 0)
 			return (pn);
@@ -773,6 +809,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	struct vnode *dvp, **vpp;
 	struct mqfs_node *pd;
 	struct mqfs_node *pn;
+	struct mqfs_info *mqfs;
 	int nameiop, flags, error, namelen;
 	char *pname;
 	struct thread *td;
@@ -787,6 +824,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	nameiop = cnp->cn_nameiop;
 	pd = VTON(dvp);
 	pn = NULL;
+	mqfs = pd->mn_info;
 	*vpp = NULLVP;
 
 	if (dvp->v_type != VDIR)
@@ -825,24 +863,32 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	}
 
 	/* named node */
+	sx_xlock(&mqfs->mi_lock);
 	pn = mqfs_search(pd, pname, namelen);
+	if (pn != NULL)
+		mqnode_addref(pn);
+	sx_xunlock(&mqfs->mi_lock);
 	
 	/* found */
 	if (pn != NULL) {
 		/* DELETE */
 		if (nameiop == DELETE && (flags & ISLASTCN)) {
 			error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
-			if (error)
+			if (error) {
+				mqnode_release(pn);
 				return (error);
+			}
 			if (*vpp == dvp) {
 				VREF(dvp);
 				*vpp = dvp;
+				mqnode_release(pn);
 				return (0);
 			}
 		}
 
 		/* allocate vnode */
 		error = mqfs_allocv(dvp->v_mount, vpp, pn);
+		mqnode_release(pn);
 		if (error == 0 && cnp->cn_flags & MAKEENTRY)
 			cache_enter(dvp, *vpp, cnp);
 		return (error);
@@ -877,12 +923,9 @@ struct vop_lookup_args {
 static int
 mqfs_lookup(struct vop_cachedlookup_args *ap)
 {
-	struct mqfs_info *mqfs = VFSTOMQFS(ap->a_dvp->v_mount);
 	int rc;
 
-	sx_xlock(&mqfs->mi_lock);
 	rc = mqfs_lookupx(ap);
-	sx_xunlock(&mqfs->mi_lock);
 	return (rc);
 }
 
@@ -915,30 +958,23 @@ mqfs_create(struct vop_create_args *ap)
 	if (mq == NULL)
 		return (EAGAIN);
 	sx_xlock(&mqfs->mi_lock);
-#if 0
-	/* named node */
-	pn = mqfs_search(pd, cnp->cn_nameptr, cnp->cn_namelen);
-	if (pn != NULL) {
-		mqueue_free(mq);
-		sx_xunlock(&mqfs->mi_lock);
-		return (EEXIST);
-	}
-#else
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("%s: no name", __func__);
-#endif
 	pn = mqfs_create_file(pd, cnp->cn_nameptr, cnp->cn_namelen,
 		cnp->cn_cred, ap->a_vap->va_mode);
-	if (pn == NULL)
+	if (pn == NULL) {
+		sx_xunlock(&mqfs->mi_lock);
 		error = ENOSPC;
-	else {
+	} else {
+		mqnode_addref(pn);
+		sx_xunlock(&mqfs->mi_lock);
 		error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+		mqnode_release(pn);
 		if (error)
 			mqfs_destroy(pn);
 		else
 			pn->mn_data = mq;
 	}
-	sx_xunlock(&mqfs->mi_lock);
 	if (error)
 		mqueue_free(mq);
 	return (error);
@@ -1412,24 +1448,19 @@ mqfs_mkdir(struct vop_mkdir_args *ap)
 	if (pd->mn_type != mqfstype_root && pd->mn_type != mqfstype_dir)
 		return (ENOTDIR);
 	sx_xlock(&mqfs->mi_lock);
-#if 0
-	/* named node */
-	pn = mqfs_search(pd, cnp->cn_nameptr, cnp->cn_namelen);
-	if (pn != NULL) {
-		sx_xunlock(&mqfs->mi_lock);
-		return (EEXIST);
-	}
-#else
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("%s: no name", __func__);
-#endif
 	pn = mqfs_create_dir(pd, cnp->cn_nameptr, cnp->cn_namelen,
 		ap->a_vap->cn_cred, ap->a_vap->va_mode);
-	if (pn == NULL)
-		error = ENOSPC;
-	else
-		error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+	if (pn != NULL)
+		mqnode_addref(pn);
 	sx_xunlock(&mqfs->mi_lock);
+	if (pn == NULL) {
+		error = ENOSPC;
+	} else {
+		error = mqfs_allocv(ap->a_dvp->v_mount, ap->a_vpp, pn);
+		mqnode_release(pn);
+	}
 	return (error);
 }
 
