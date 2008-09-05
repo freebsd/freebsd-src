@@ -73,7 +73,7 @@ struct g_part_alias_list {
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", G_PART_ALIAS_FREEBSD_ZFS },
 	{ "mbr", G_PART_ALIAS_MBR },
-	{ "hfs", G_PART_ALIAS_APPLE_HFS }
+	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS }
 };
 
 /*
