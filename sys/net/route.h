@@ -307,6 +307,7 @@ struct rt_addrinfo {
 		("negative refcnt %ld", (_rt)->rt_refcnt));	\
 	(_rt)->rt_refcnt++;					\
 } while (0)
+
 #define	RT_REMREF(_rt)	do {					\
 	RT_LOCK_ASSERT(_rt);					\
 	KASSERT((_rt)->rt_refcnt > 0,				\
@@ -324,6 +325,7 @@ struct rt_addrinfo {
 		/* guard against invalid refs */		\
 		_rt = 0;					\
 	} while (0)
+
 #define	RTFREE(_rt) do {					\
 		RT_LOCK(_rt);					\
 		RTFREE_LOCKED(_rt);				\
