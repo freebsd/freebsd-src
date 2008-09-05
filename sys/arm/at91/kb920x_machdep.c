@@ -164,7 +164,6 @@ static const struct pmap_devmap kb920x_devmap[] = {
 	 * initialization is done. However, the AT91 resource allocation
 	 * system doesn't know how to use pmap_mapdev() yet.
 	 */
-#if 1
 	{
 		/*
 		 * Add the ohci controller, and anything else that might be
@@ -176,7 +175,6 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,                             
 		PTE_NOCACHE,
 	},
-#endif
 	{
 		0,
 		0,
