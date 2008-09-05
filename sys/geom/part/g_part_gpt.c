@@ -131,6 +131,7 @@ static struct g_part_scheme g_part_gpt_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_gpt);
 
+static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
@@ -140,7 +141,6 @@ static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 static struct uuid gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
-static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 
 static void

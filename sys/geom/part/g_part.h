@@ -36,6 +36,7 @@
 #define	G_PART_PROBE_PRI_HIGH	0
 
 enum g_part_alias {
+	G_PART_ALIAS_APPLE_HFS,		/* An HFS file system entry. */
 	G_PART_ALIAS_EFI,		/* A EFI system partition entry. */
 	G_PART_ALIAS_FREEBSD,		/* A BSD labeled partition entry. */
 	G_PART_ALIAS_FREEBSD_BOOT,	/* A FreeBSD boot partition entry. */
@@ -44,7 +45,6 @@ enum g_part_alias {
 	G_PART_ALIAS_FREEBSD_VINUM,	/* A Vinum partition entry. */
 	G_PART_ALIAS_FREEBSD_ZFS,	/* A ZFS file system entry. */
 	G_PART_ALIAS_MBR,		/* A MBR (extended) partition entry. */
-	G_PART_ALIAS_APPLE_HFS,		/* An HFS file system entry. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };

@@ -65,6 +65,7 @@ struct g_part_alias_list {
 	const char *lexeme;
 	enum g_part_alias alias;
 } g_part_alias_list[G_PART_ALIAS_COUNT] = {
+	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS }
 	{ "efi", G_PART_ALIAS_EFI },
 	{ "freebsd", G_PART_ALIAS_FREEBSD },
 	{ "freebsd-boot", G_PART_ALIAS_FREEBSD_BOOT },
@@ -73,7 +74,6 @@ struct g_part_alias_list {
 	{ "freebsd-vinum", G_PART_ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", G_PART_ALIAS_FREEBSD_ZFS },
 	{ "mbr", G_PART_ALIAS_MBR },
-	{ "apple-hfs", G_PART_ALIAS_APPLE_HFS }
 };
 
 /*
