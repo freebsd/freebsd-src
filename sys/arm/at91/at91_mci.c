@@ -298,14 +298,7 @@ at91_mci_update_ios(device_t brdev, device_t reqdev)
 	else
 		WR4(sc, MCI_SDCR, RD4(sc, MCI_SDCR) & ~MCI_SDCR_SDCBUS);
 	WR4(sc, MCI_MR, (RD4(sc, MCI_MR) & ~MCI_MR_CLKDIV) | clkdiv);
-#if 0
-	if (sc->vcc_pin) {
-		if (sc->power_mode == MMC_POWER_OFF)
-			gpio_set(sc->vcc_pin, 0);
-		else
-			gpio_set(sc->vcc_pin, 1);
-	}
-#endif
+	/* XXX We need to turn the device on/off here with a GPIO pin */
 	return (0);
 }
 
