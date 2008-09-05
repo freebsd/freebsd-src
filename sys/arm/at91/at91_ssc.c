@@ -209,16 +209,6 @@ static void
 at91_ssc_intr(void *xsc)
 {
 	struct at91_ssc_softc *sc = xsc;
-#if 0
-	uint32_t status;
-
-	/* Reading the status also clears the interrupt */
-	status = RD4(sc, SSC_SR);
-	if (status == 0)
-		return;
-	AT91_SSC_LOCK(sc);
-	AT91_SSC_UNLOCK(sc);
-#endif
 	wakeup(sc);
 	return;
 }
@@ -232,9 +222,6 @@ at91_ssc_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	AT91_SSC_LOCK(sc);
 	if (!(sc->flags & OPENED)) {
 		sc->flags |= OPENED;
-#if 0
-	// Enable interrupts
-#endif
 	}
 	AT91_SSC_UNLOCK(sc);
     	return (0);
@@ -248,9 +235,6 @@ at91_ssc_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	sc = CDEV2SOFTC(dev);
 	AT91_SSC_LOCK(sc);
 	sc->flags &= ~OPENED;
-#if 0
-	// Disable interrupts
-#endif
 	AT91_SSC_UNLOCK(sc);
 	return (0);
 }
