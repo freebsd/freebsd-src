@@ -410,6 +410,10 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	if (error)
 		return error;
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if (nd.ni_vp->v_type != VREG) {
+		error = ENOEXEC;
+		goto out;
+	}
 #ifdef MAC
 	error = mac_check_kld_load(td->td_ucred, nd.ni_vp);
 	if (error) {
