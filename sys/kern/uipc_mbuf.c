@@ -1732,10 +1732,8 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 
 	/*
 	 * The smallest unit returned by m_getm2() is a single mbuf
-	 * with pkthdr.  We can't align past it.  Align align itself.
+	 * with pkthdr.  We can't align past it.
 	 */
-	if (align)
-		align &= ~(sizeof(long) - 1);
 	if (align >= MHLEN)
 		return (NULL);
 
