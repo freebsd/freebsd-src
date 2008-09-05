@@ -587,6 +587,7 @@ ucomtty_outwakeup(struct tty *tp)
 		sc->sc_state &= ~UCS_TXBUSY;
 		return;
 	}
+	sc->sc_obufactive = cnt;
 
 	DPRINTF(("ucomtty_outwakeup: %zu chars\n", cnt));
 	usbd_setup_xfer(sc->sc_oxfer, sc->sc_bulkout_pipe,
@@ -661,6 +662,9 @@ ucomwritecb(usbd_xfer_handle xfer, usbd_private_handle p, usbd_status status)
 
 	/* convert from USB bytes to tty bytes */
 	cc -= sc->sc_opkthdrlen;
+	if (cc != sc->sc_obufactive)
+		panic("Partial write of %d of %d bytes, not supported\n",
+		    cc, sc->sc_obufactive);
 
 	sc->sc_state &= ~UCS_TXBUSY;
 #if 0
