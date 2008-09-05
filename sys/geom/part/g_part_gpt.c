@@ -140,6 +140,7 @@ static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
 static struct uuid gpt_uuid_freebsd_zfs = GPT_ENT_TYPE_FREEBSD_ZFS;
 static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_mbr = GPT_ENT_TYPE_MBR;
+static struct uuid gpt_uuid_apple_hfs = GPT_ENT_TYPE_APPLE_HFS;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 
 static void
@@ -335,6 +336,11 @@ gpt_parse_type(const char *type, struct uuid *uuid)
 	alias = g_part_alias_name(G_PART_ALIAS_MBR);
 	if (!strcasecmp(type, alias)) {
 		*uuid = gpt_uuid_mbr;
+		return (0);
+	}
+	alias = g_part_alias_name(G_PART_ALIAS_APPLE_HFS);
+	if (!strcasecmp(type, alias)) {
+		*uuid = gpt_uuid_apple_hfs;
 		return (0);
 	}
 	return (EINVAL);
