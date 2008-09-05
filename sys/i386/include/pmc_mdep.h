@@ -93,9 +93,9 @@ struct pmc;
 	 (PC) < (uintptr_t) end_exceptions)
 
 #define	PMC_AT_FUNCTION_PROLOGUE_PUSH_BP(I)		\
-	(((I) & 0xffffffff) == 0xe5894855) /* pushq %rbp; movq %rsp,%rbp */
+	(((I) & 0x00ffffff) == 0xe58955) /* pushl %ebp; movl %esp,%ebp */
 #define	PMC_AT_FUNCTION_PROLOGUE_MOV_SP_BP(I)		\
-	(((I) & 0x00ffffff) == 0x00e58948) /* movq %rsp,%rbp */
+	(((I) & 0x0000ffff) == 0xe589)	/* movl %esp,%ebp */
 #define	PMC_AT_FUNCTION_EPILOGUE_RET(I)			\
 	(((I) & 0xFF) == 0xC3)		   /* ret */
 
