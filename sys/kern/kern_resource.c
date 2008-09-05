@@ -892,7 +892,7 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		tu = ruxp->rux_tu;
 	} else { /* tu < ruxp->rux_tu */
 		/*
-		 * What happene here was likely that a laptop, which ran at
+		 * What happened here was likely that a laptop, which ran at
 		 * a reduced clock frequency at boot, kicked into high gear.
 		 * The wisdom of spamming this message in that case is
 		 * dubious, but it might also be indicative of something
