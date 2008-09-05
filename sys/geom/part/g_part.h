@@ -44,6 +44,7 @@ enum g_part_alias {
 	G_PART_ALIAS_FREEBSD_VINUM,	/* A Vinum partition entry. */
 	G_PART_ALIAS_FREEBSD_ZFS,	/* A ZFS file system entry. */
 	G_PART_ALIAS_MBR,		/* A MBR (extended) partition entry. */
+	G_PART_ALIAS_APPLE_HFS,		/* An HFS file system entry. */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
