@@ -176,7 +176,7 @@ struct archive_write_disk {
 	int			 fd;
 	/* Current offset for writing data to the file. */
 	off_t			 offset;
-	/* Maximum size of file. */
+	/* Maximum size of file, -1 if unknown. */
 	off_t			 filesize;
 	/* Dir we were in before this restore; only for deep paths. */
 	int			 restore_pwd;
@@ -231,7 +231,8 @@ static int	set_time(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
 static uid_t	trivial_lookup_uid(void *, const char *, uid_t);
-
+static ssize_t	write_data_block(struct archive_write_disk *,
+		    const char *, size_t, off_t);
 
 static struct archive_vtable *archive_write_disk_vtable(void);
 
@@ -337,7 +338,10 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	a->offset = 0;
 	a->uid = a->user_uid;
 	a->mode = archive_entry_mode(a->entry);
-	a->filesize = archive_entry_size(a->entry);
+	if (archive_entry_size_is_set(a->entry))
+		a->filesize = archive_entry_size(a->entry);
+	else
+		a->filesize = -1;
 	archive_strcpy(&(a->_name_data), archive_entry_pathname(a->entry));
 	a->name = a->_name_data.s;
 	archive_clear_error(&a->archive);
@@ -496,89 +500,113 @@ archive_write_disk_set_skip_file(struct archive *_a, dev_t d, ino_t i)
 }
 
 static ssize_t
-_archive_write_data_block(struct archive *_a,
-    const void *buff, size_t size, off_t offset)
+write_data_block(struct archive_write_disk *a,
+    const char *buff, size_t size, off_t offset)
 {
-	struct archive_write_disk *a = (struct archive_write_disk *)_a;
 	ssize_t bytes_written = 0;
-	ssize_t block_size, bytes_to_write;
-	int r = ARCHIVE_OK;
+	ssize_t block_size = 0, bytes_to_write;
+	int r;
 
-	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
-	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
-	if (a->fd < 0) {
-		archive_set_error(&a->archive, 0, "File not open");
+	if (a->filesize == 0 || a->fd < 0) {
+		archive_set_error(&a->archive, 0,
+		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
 	}
-	archive_clear_error(&a->archive);
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
 		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
-	} else
-		block_size = -1;
-
-	if ((off_t)(offset + size) > a->filesize) {
-		size = (size_t)(a->filesize - a->offset);
-		archive_set_error(&a->archive, 0,
-		    "Write request too large");
-		r = ARCHIVE_WARN;
 	}
+
+	if (a->filesize >= 0 && (off_t)(offset + size) > a->filesize)
+		size = (size_t)(a->filesize - offset);
 
 	/* Write the data. */
 	while (size > 0) {
-		if (block_size != -1) {
-			const char *buf;
+		if (block_size == 0) {
+			bytes_to_write = size;
+		} else {
+			/* We're sparsifying the file. */
+			const char *p, *end;
+			off_t block_end;
 
-			for (buf = buff; size; ++buf, --size, ++offset) {
-				if (*buf != '\0')
+			/* Skip leading zero bytes. */
+			for (p = buff, end = buff + size; p < end; ++p) {
+				if (*p != '\0')
 					break;
 			}
+			offset += p - buff;
+			size -= p - buff;
+			buff = p;
 			if (size == 0)
 				break;
-			bytes_to_write = block_size - offset % block_size;
-			buff = buf;
-		} else
+
+			/* Calculate next block boundary after offset. */
+			block_end
+			    = (offset / block_size) * block_size + block_size;
+
+			/* If the adjusted write would cross block boundary,
+			 * truncate it to the block boundary. */
 			bytes_to_write = size;
+			if (offset + bytes_to_write > block_end)
+				bytes_to_write = block_end - offset;
+		}
+
 		/* Seek if necessary to the specified offset. */
 		if (offset != a->last_offset) {
 			if (lseek(a->fd, offset, SEEK_SET) < 0) {
-				archive_set_error(&a->archive, errno, "Seek failed");
+				archive_set_error(&a->archive, errno,
+				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
  		}
-		bytes_written = write(a->fd, buff, size);
+		bytes_written = write(a->fd, buff, bytes_to_write);
 		if (bytes_written < 0) {
 			archive_set_error(&a->archive, errno, "Write failed");
 			return (ARCHIVE_WARN);
 		}
-		buff = (const char *)buff + bytes_written;
+		buff += bytes_written;
 		size -= bytes_written;
 		offset += bytes_written;
 		a->archive.file_position += bytes_written;
 		a->archive.raw_position += bytes_written;
 		a->last_offset = a->offset = offset;
 	}
-	a->offset = offset;
-	return (r);
+	return (bytes_written);
+}
+
+static ssize_t
+_archive_write_data_block(struct archive *_a,
+    const void *buff, size_t size, off_t offset)
+{
+	struct archive_write_disk *a = (struct archive_write_disk *)_a;
+	ssize_t r;
+
+	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
+	    ARCHIVE_STATE_DATA, "archive_write_disk_block");
+
+	r = write_data_block(a, buff, size, offset);
+
+	if (r < 0)
+		return (r);
+	if ((size_t)r < size) {
+		archive_set_error(&a->archive, 0,
+		    "Write request too large");
+		return (ARCHIVE_WARN);
+	}
+	return (ARCHIVE_OK);
 }
 
 static ssize_t
 _archive_write_data(struct archive *_a, const void *buff, size_t size)
 {
 	struct archive_write_disk *a = (struct archive_write_disk *)_a;
-	int r;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_DISK_MAGIC,
 	    ARCHIVE_STATE_DATA, "archive_write_data");
-	if (a->fd < 0)
-		return (ARCHIVE_OK);
 
-	r = _archive_write_data_block(_a, buff, size, a->offset);
-	if (r < ARCHIVE_OK)
-		return (r);
-	return size;
+	return (write_data_block(a, buff, size, a->offset));
 }
 
 static int
@@ -594,7 +622,15 @@ _archive_write_finish_entry(struct archive *_a)
 		return (ARCHIVE_OK);
 	archive_clear_error(&a->archive);
 
-	if (a->last_offset != a->filesize && a->fd >= 0) {
+	/* Pad or truncate file to the right size. */
+	if (a->fd < 0) {
+		/* There's no file. */
+	} else if (a->filesize < 0) {
+		/* File size is unknown, so we can't set the size. */
+	} else if (a->last_offset == a->filesize) {
+		/* Last write ended at exactly the filesize; we're done. */
+		/* Hopefully, this is the common case. */
+	} else {
 		if (ftruncate(a->fd, a->filesize) == -1 &&
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
@@ -611,7 +647,8 @@ _archive_write_finish_entry(struct archive *_a)
 		if (a->st.st_size != a->filesize) {
 			const char nul = '\0';
 			if (lseek(a->fd, a->st.st_size - 1, SEEK_SET) < 0) {
-				archive_set_error(&a->archive, errno, "Seek failed");
+				archive_set_error(&a->archive, errno,
+				    "Seek failed");
 				return (ARCHIVE_FATAL);
 			}
 			if (write(a->fd, &nul, 1) < 0) {
@@ -619,6 +656,7 @@ _archive_write_finish_entry(struct archive *_a)
 				    "Write to restore size failed");
 				return (ARCHIVE_FATAL);
 			}
+			a->pst = NULL;
 		}
 	}
 
@@ -973,7 +1011,7 @@ create_filesystem_object(struct archive_write_disk *a)
 		 * If the hardlink does carry data, let the last
 		 * archive entry decide ownership.
 		 */
-		if (r == 0 && a->filesize == 0) {
+		if (r == 0 && a->filesize <= 0) {
 			a->todo = 0;
 			a->deferred = 0;
 		} if (r == 0 && a->filesize > 0) {
