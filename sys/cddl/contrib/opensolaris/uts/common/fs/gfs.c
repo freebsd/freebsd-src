@@ -358,6 +358,7 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	fp = kmem_zalloc(size, KM_SLEEP);
 	error = getnewvnode("zfs", vfsp, ops, &vp);
 	ASSERT(error == 0);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vp->v_data = (caddr_t)fp;
 
 	/*
@@ -368,7 +369,9 @@ gfs_file_create(size_t size, vnode_t *pvp, vfs_t *vfsp, vnodeops_t *ops)
 	fp->gfs_size = size;
 	fp->gfs_type = GFS_FILE;
 
+	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, vfsp);
+	vp->v_vflag &= ~VV_FORCEINSMQ;
 	KASSERT(error == 0, ("insmntque() failed: error %d", error));
 
 	/*

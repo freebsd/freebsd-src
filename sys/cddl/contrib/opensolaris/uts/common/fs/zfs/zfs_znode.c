@@ -346,7 +346,9 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, uint64_t obj_num, int blksz)
 	if (vp == NULL)
 		return (zp);
 
+	vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, zfsvfs->z_vfs);
+	vp->v_vflag &= ~VV_FORCEINSMQ;
 	KASSERT(error == 0, ("insmntque() failed: error %d", error));
 
 	vp->v_type = IFTOVT((mode_t)zp->z_phys->zp_mode);
@@ -602,7 +604,9 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			vp->v_type = IFTOVT((mode_t)zp->z_phys->zp_mode);
 			if (vp->v_type == VDIR)
 				zp->z_zn_prefetch = B_TRUE;	/* z_prefetch default is enabled */
+			vp->v_vflag |= VV_FORCEINSMQ;
 			err = insmntque(vp, zfsvfs->z_vfs);
+			vp->v_vflag &= ~VV_FORCEINSMQ;
 			KASSERT(err == 0, ("insmntque() failed: error %d", err));
 		}
 		mutex_exit(&zp->z_lock);
