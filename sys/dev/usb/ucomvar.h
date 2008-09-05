@@ -140,6 +140,7 @@ struct ucom_softc {
 	u_int			sc_obufsize;	/* write buffer size */
 	u_int			sc_opkthdrlen;	/* header length of
 						   output packet */
+	u_int			sc_obufactive;	/* Active bytes in buffer */
 
 	struct ucom_callback	*sc_callback;
 	void			*sc_parent;
