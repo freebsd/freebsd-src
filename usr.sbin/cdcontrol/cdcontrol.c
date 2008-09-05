@@ -16,6 +16,19 @@
  * 11-Oct-1995: Serge V.Vakulenko <vak@cronyx.ru>
  *              New eject algorithm.
  *              Some code style reformatting.
+ * 
+ * 13-Dec-1999: Knut A. Syed <kas@kas.no>
+ * 		Volume-command modified.  If used with only one
+ * 		parameter it now sets both channels.  If used without
+ * 		parameters it will print volume-info.
+ * 		Version 2.0.1
+ *
+ * 27-Jun-2008  Pietro Cerutti <gahr@FreeBSD.org>
+ * 		Further enhancement to volume. Values not in range 0-255
+ * 		are now reduced to be in range. This prevents overflow in
+ * 		the uchar storing the volume (256 -> 0, -20 -> 236, ...).
+ * 		Version 2.0.2
+ *
  */
 
 #include <sys/cdefs.h>
@@ -39,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#define VERSION "2.0"
+#define VERSION "2.0.2"
 
 #define ASTS_INVALID	0x00  /* Audio status byte not valid */
 #define ASTS_PLAYING	0x11  /* Audio play operation in progress */
@@ -100,7 +113,7 @@ struct cmdtab {
 { CMD_STATUS,	"status",	1, "[audio | media | volume]" },
 { CMD_STOP,	"stop",		3, "" },
 { CMD_VOLUME,	"volume",	1,
-      "<l> <r> | left | right | mute | mono | stereo" },
+      "<l&r> <l> <r> | left | right | mute | mono | stereo" },
 { CMD_CDID,	"cdid",		2, "" },
 { CMD_SPEED,	"speed",	2, "speed" },
 { 0,		NULL,		0, NULL }
@@ -270,7 +283,7 @@ int main (int argc, char **argv)
 int run (int cmd, char *arg)
 {
 	long speed;
-	int l, r, rc;
+	int l, r, rc, count;
 
 	switch (cmd) {
 
@@ -396,6 +409,9 @@ int run (int cmd, char *arg)
 		if (fd < 0 && !open_cd ())
 			return (0);
 
+		if (! strlen (arg))
+		    	return pstatus ("volume");
+
 		if (! strncasecmp (arg, "left", strlen(arg)))
 			return ioctl (fd, CDIOCSETLEFT);
 
@@ -411,12 +427,13 @@ int run (int cmd, char *arg)
 		if (! strncasecmp (arg, "mute", strlen(arg)))
 			return ioctl (fd, CDIOCSETMUTE);
 
-		if (2 != sscanf (arg, "%d %d", &l, &r)) {
-			warnx("invalid command arguments");
-			return (0);
-		}
-
-		return setvol (l, r);
+		count = sscanf (arg, "%d %d", &l, &r);
+		if (count == 1)
+		    return setvol (l, l);
+		if (count == 2)
+		    return setvol (l, r);
+		warnx("invalid command arguments");
+		return (0);
 
 	case CMD_SPEED:
 		if (fd < 0 && ! open_cd ())
@@ -1038,6 +1055,9 @@ int play_blocks (int blk, int len)
 int setvol (int left, int right)
 {
 	struct ioc_vol  v;
+
+	left  = left  < 0 ? 0 : left  > 255 ? 255 : left;
+	right = right < 0 ? 0 : right > 255 ? 255 : right;
 
 	v.vol[0] = left;
 	v.vol[1] = right;
