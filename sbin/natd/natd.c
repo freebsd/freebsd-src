@@ -130,6 +130,7 @@ static void	SetupPunchFW(const char *strValue);
 static void	SetupSkinnyPort(const char *strValue);
 static void	NewInstance(const char *name);
 static void	DoGlobal (int fd);
+static int	CheckIpfwRulenum(unsigned int rnum);
 
 /*
  * Globals.
@@ -1947,6 +1948,10 @@ SetupPunchFW(const char *strValue)
 	if (sscanf(strValue, "%u:%u", &base, &num) != 2)
 		errx(1, "punch_fw: basenumber:count parameter required");
 
+	if (CheckIpfwRulenum(base + num - 1) == -1)
+		errx(1, "punch_fw: basenumber:count parameter should fit "
+			"the maximum allowed rule numbers");
+
 	LibAliasSetFWBase(mla, base, num);
 	(void)LibAliasSetMode(mla, PKT_ALIAS_PUNCH_FW, PKT_ALIAS_PUNCH_FW);
 }
@@ -1990,4 +1995,23 @@ NewInstance(const char *name)
 	LIST_INSERT_HEAD(&root, ip, list);
 	mla = ip->la;
 	mip = ip;
+}
+
+static int
+CheckIpfwRulenum(unsigned int rnum)
+{
+	unsigned int default_rule;
+	size_t len = sizeof(default_rule);
+
+	if (sysctlbyname("net.inet.ip.fw.default_rule", &default_rule, &len,
+		NULL, 0) == -1) {
+		warn("Failed to get the default ipfw rule number, using "
+		     "default historical value 65535.  The reason was");
+		default_rule = 65535;
+	}
+	if (rnum >= default_rule) {
+		return -1;
+	}
+
+	return 0;
 }
