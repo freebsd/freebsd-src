@@ -148,13 +148,6 @@ typedef struct {
 	_AGEQ_ENQUEUE(&ni->ni_savedq, _m, _qlen, _age);		\
 } while (0)
 
-#define	IEEE80211_TAPQ_INIT(_tap) do {				\
-	mtx_init(&(tap)->txa_q.ifq_mtx, "ampdu tx queue", NULL, MTX_DEF); \
-	(_tap)->txa_q.ifq_maxlen = IEEE80211_AGGR_BAWMAX;	\
-} while (0)
-#define	IEEE80211_TAPQ_DESTROY(_tap) \
-	mtx_destroy(&(_tap)->txa_q.ifq_mtx)
-
 #ifndef IF_PREPEND_LIST
 #define _IF_PREPEND_LIST(ifq, mhead, mtail, mcount) do {	\
 	(mtail)->m_nextpkt = (ifq)->ifq_head;			\

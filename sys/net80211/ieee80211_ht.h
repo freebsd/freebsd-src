@@ -56,7 +56,6 @@ struct ieee80211_tx_ampdu {
 	uint16_t	txa_wnd;	/* BA window size */
 	uint8_t		txa_attempts;	/* # ADDBA requests w/o a response */
 	int		txa_nextrequest;/* soonest to make next ADDBA request */
-	struct ifqueue	txa_q;		/* packet queue */
 	struct callout	txa_timer;
 	void		*txa_private;	/* driver-private storage */
 };
