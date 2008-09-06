@@ -122,7 +122,6 @@ static int verbose_limit;
 
 static struct callout ipfw_timeout;
 static uma_zone_t ipfw_dyn_rule_zone;
-#define	IPFW_DEFAULT_RULE	65535
 
 /*
  * Data structure to cache our ucred related
@@ -180,6 +179,8 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose,
     &fw_verbose, 0, "Log matches to ipfw rules");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
     &verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
+    NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
 
 /*
  * Description of dynamic rules.
