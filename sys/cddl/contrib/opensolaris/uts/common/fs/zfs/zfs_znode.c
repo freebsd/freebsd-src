@@ -117,6 +117,7 @@ zfs_znode_cache_constructor(void *buf, void *cdrarg, int kmflags)
 	if (cdrarg != NULL) {
 		error = getnewvnode("zfs", vfsp, &zfs_vnodeops, &vp);
 		ASSERT(error == 0);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		zp->z_vnode = vp;
 		vp->v_data = (caddr_t)zp;
 		VN_LOCK_AREC(vp);
@@ -535,8 +536,10 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, uint64_t *oid, dmu_tx_t *tx, cred_t *cr,
 
 		*zpp = zp;
 	} else {
-		if (ZTOV(zp) != NULL)
+		if (ZTOV(zp) != NULL) {
 			ZTOV(zp)->v_count = 0;
+			VOP_UNLOCK(ZTOV(zp), 0);
+		}
 		dmu_buf_rele(dbp, NULL);
 		zfs_znode_free(zp);
 	}
@@ -598,6 +601,7 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			    &zp->z_vnode);
 			ASSERT(err == 0);
 			vp = ZTOV(zp);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			vp->v_data = (caddr_t)zp;
 			VN_LOCK_AREC(vp);
 			VN_LOCK_ASHARE(vp);
@@ -608,6 +612,7 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 			err = insmntque(vp, zfsvfs->z_vfs);
 			vp->v_vflag &= ~VV_FORCEINSMQ;
 			KASSERT(err == 0, ("insmntque() failed: error %d", err));
+			VOP_UNLOCK(vp, 0);
 		}
 		mutex_exit(&zp->z_lock);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
@@ -623,6 +628,7 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 	zfs_znode_dmu_init(zp);
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 	*zpp = zp;
+	VOP_UNLOCK(vp, 0);
 	return (0);
 }
 
