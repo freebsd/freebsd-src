@@ -283,8 +283,8 @@ _db_show_sta(const struct ieee80211_node *ni)
 	db_printf("\thtcap %b htparam 0x%x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, IEEE80211_HTCAP_BITS,
 		ni->ni_htparam, ni->ni_htctlchan, ni->ni_ht2ndchan);
-	db_printf("\thtopmode 0x%x htstbc 0x%x reqcw %u chw %u\n",
-		ni->ni_htopmode, ni->ni_htstbc, ni->ni_reqcw, ni->ni_chw);
+	db_printf("\thtopmode 0x%x htstbc 0x%x chw %u\n",
+		ni->ni_htopmode, ni->ni_htstbc, ni->ni_chw);
 
 	/* XXX ampdu state */
 	for (i = 0; i < WME_NUM_AC; i++)
