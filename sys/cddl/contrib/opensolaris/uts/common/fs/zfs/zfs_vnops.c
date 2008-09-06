@@ -1303,12 +1303,6 @@ top:
 		}
 	}
 out:
-
-	if (error == 0) {
-		*vpp = ZTOV(zp);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
-	}
-
 	if (dl)
 		zfs_dirent_unlock(dl);
 
@@ -1587,8 +1581,6 @@ top:
 
 	zfs_log_create(zilog, tx, TX_MKDIR, dzp, zp, dirname);
 	dmu_tx_commit(tx);
-
-	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 
 	zfs_dirent_unlock(dl);
 
@@ -2773,7 +2765,6 @@ out:
 	if (error == 0) {
 		zfs_log_symlink(zilog, tx, TX_SYMLINK, dzp, zp, name, link);
 		*vpp = ZTOV(zp);
-		vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	}
 
 	dmu_tx_commit(tx);
