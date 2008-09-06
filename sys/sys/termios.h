@@ -31,7 +31,7 @@
  */
 
 #ifndef _SYS_TERMIOS_H_
-#define _SYS_TERMIOS_H_
+#define	_SYS_TERMIOS_H_
 
 #include <sys/_types.h>
 #ifndef _PID_T_DECLARED
@@ -53,30 +53,30 @@ typedef	__pid_t		pid_t;
 #endif
 #define	VERASE		3	/* ICANON */
 #ifndef _POSIX_SOURCE
-#define VWERASE 	4	/* ICANON together with IEXTEN */
+#define	VWERASE 	4	/* ICANON together with IEXTEN */
 #endif
-#define VKILL		5	/* ICANON */
+#define	VKILL		5	/* ICANON */
 #ifndef _POSIX_SOURCE
 #define	VREPRINT 	6	/* ICANON together with IEXTEN */
-#define VERASE2 	7	/* ICANON */
+#define	VERASE2 	7	/* ICANON */
 #endif
 /*			7	   ex-spare 1 */
-#define VINTR		8	/* ISIG */
-#define VQUIT		9	/* ISIG */
-#define VSUSP		10	/* ISIG */
+#define	VINTR		8	/* ISIG */
+#define	VQUIT		9	/* ISIG */
+#define	VSUSP		10	/* ISIG */
 #ifndef _POSIX_SOURCE
-#define VDSUSP		11	/* ISIG together with IEXTEN */
+#define	VDSUSP		11	/* ISIG together with IEXTEN */
 #endif
-#define VSTART		12	/* IXON, IXOFF */
-#define VSTOP		13	/* IXON, IXOFF */
+#define	VSTART		12	/* IXON, IXOFF */
+#define	VSTOP		13	/* IXON, IXOFF */
 #ifndef _POSIX_SOURCE
 #define	VLNEXT		14	/* IEXTEN */
 #define	VDISCARD	15	/* IEXTEN */
 #endif
-#define VMIN		16	/* !ICANON */
-#define VTIME		17	/* !ICANON */
+#define	VMIN		16	/* !ICANON */
+#define	VTIME		17	/* !ICANON */
 #ifndef _POSIX_SOURCE
-#define VSTATUS		18	/* ICANON together with IEXTEN */
+#define	VSTATUS		18	/* ICANON together with IEXTEN */
 /*			19	   spare 2 */
 #endif
 #define	NCCS		20
@@ -99,7 +99,7 @@ typedef	__pid_t		pid_t;
 #define	IXOFF		0x00000400	/* enable input flow control */
 #ifndef _POSIX_SOURCE
 #define	IXANY		0x00000800	/* any char will restart after stop */
-#define IMAXBEL		0x00002000	/* ring bell on input queue full */
+#define	IMAXBEL		0x00002000	/* ring bell on input queue full */
 #endif  /*_POSIX_SOURCE */
 
 /*
@@ -107,17 +107,17 @@ typedef	__pid_t		pid_t;
  */
 #define	OPOST		0x00000001	/* enable following output processing */
 #ifndef _POSIX_SOURCE
-#define ONLCR		0x00000002	/* map NL to CR-NL (ala CRMOD) */
+#define	ONLCR		0x00000002	/* map NL to CR-NL (ala CRMOD) */
 #define	TABDLY		0x00000004	/* tab delay mask */
 #define	    TAB0	    0x00000000	    /* no tab delay and expansion */
 #define	    TAB3	    0x00000004	    /* expand tabs to spaces */
 #ifndef _KERNEL
 #define	OXTABS		TAB3
 #endif /* !_KERNEL */
-#define ONOEOT		0x00000008	/* discard EOT's (^D) on output) */
-#define OCRNL		0x00000010	/* map CR to NL on output */
-#define ONOCR		0x00000020	/* no CR output at column 0 */
-#define ONLRET		0x00000040	/* NL performs CR function */
+#define	ONOEOT		0x00000008	/* discard EOT's (^D) on output) */
+#define	OCRNL		0x00000010	/* map CR to NL on output */
+#define	ONOCR		0x00000020	/* no CR output at column 0 */
+#define	ONLRET		0x00000040	/* NL performs CR function */
 #endif  /*_POSIX_SOURCE */
 
 /*
@@ -126,23 +126,23 @@ typedef	__pid_t		pid_t;
 #ifndef _POSIX_SOURCE
 #define	CIGNORE		0x00000001	/* ignore control flags */
 #endif
-#define CSIZE		0x00000300	/* character size mask */
-#define     CS5		    0x00000000	    /* 5 bits (pseudo) */
-#define     CS6		    0x00000100	    /* 6 bits */
-#define     CS7		    0x00000200	    /* 7 bits */
-#define     CS8		    0x00000300	    /* 8 bits */
-#define CSTOPB		0x00000400	/* send 2 stop bits */
-#define CREAD		0x00000800	/* enable receiver */
-#define PARENB		0x00001000	/* parity enable */
-#define PARODD		0x00002000	/* odd parity, else even */
-#define HUPCL		0x00004000	/* hang up on last close */
-#define CLOCAL		0x00008000	/* ignore modem status lines */
+#define	CSIZE		0x00000300	/* character size mask */
+#define	    CS5		    0x00000000	    /* 5 bits (pseudo) */
+#define	    CS6		    0x00000100	    /* 6 bits */
+#define	    CS7		    0x00000200	    /* 7 bits */
+#define	    CS8		    0x00000300	    /* 8 bits */
+#define	CSTOPB		0x00000400	/* send 2 stop bits */
+#define	CREAD		0x00000800	/* enable receiver */
+#define	PARENB		0x00001000	/* parity enable */
+#define	PARODD		0x00002000	/* odd parity, else even */
+#define	HUPCL		0x00004000	/* hang up on last close */
+#define	CLOCAL		0x00008000	/* ignore modem status lines */
 #ifndef _POSIX_SOURCE
-#define CCTS_OFLOW	0x00010000	/* CTS flow control of output */
-#define CRTSCTS		(CCTS_OFLOW | CRTS_IFLOW)
-#define CRTS_IFLOW	0x00020000	/* RTS flow control of input */
+#define	CCTS_OFLOW	0x00010000	/* CTS flow control of output */
+#define	CRTSCTS		(CCTS_OFLOW | CRTS_IFLOW)
+#define	CRTS_IFLOW	0x00020000	/* RTS flow control of input */
 #define	CDTR_IFLOW	0x00040000	/* DTR flow control of input */
-#define CDSR_OFLOW	0x00080000	/* DSR flow control of output */
+#define	CDSR_OFLOW	0x00080000	/* DSR flow control of output */
 #define	CCAR_OFLOW	0x00100000	/* DCD flow control of output */
 #ifndef _KERNEL
 #define	MDMBUF		CCAR_OFLOW
@@ -163,24 +163,24 @@ typedef	__pid_t		pid_t;
 #endif  /*_POSIX_SOURCE */
 #define	ECHOE		0x00000002	/* visually erase chars */
 #define	ECHOK		0x00000004	/* echo NL after line kill */
-#define ECHO		0x00000008	/* enable echoing */
+#define	ECHO		0x00000008	/* enable echoing */
 #define	ECHONL		0x00000010	/* echo NL even if ECHO is off */
 #ifndef _POSIX_SOURCE
 #define	ECHOPRT		0x00000020	/* visual erase mode for hardcopy */
-#define ECHOCTL  	0x00000040	/* echo control chars as ^(Char) */
+#define	ECHOCTL  	0x00000040	/* echo control chars as ^(Char) */
 #endif  /*_POSIX_SOURCE */
 #define	ISIG		0x00000080	/* enable signals INTR, QUIT, [D]SUSP */
 #define	ICANON		0x00000100	/* canonicalize input lines */
 #ifndef _POSIX_SOURCE
-#define ALTWERASE	0x00000200	/* use alternate WERASE algorithm */
+#define	ALTWERASE	0x00000200	/* use alternate WERASE algorithm */
 #endif  /*_POSIX_SOURCE */
 #define	IEXTEN		0x00000400	/* enable DISCARD and LNEXT */
-#define EXTPROC         0x00000800      /* external processing */
-#define TOSTOP		0x00400000	/* stop background jobs from output */
+#define	EXTPROC         0x00000800      /* external processing */
+#define	TOSTOP		0x00400000	/* stop background jobs from output */
 #ifndef _POSIX_SOURCE
-#define FLUSHO		0x00800000	/* output being flushed (state) */
+#define	FLUSHO		0x00800000	/* output being flushed (state) */
 #define	NOKERNINFO	0x02000000	/* no kernel output from VSTATUS */
-#define PENDIN		0x20000000	/* XXX retype pending input (state) */
+#define	PENDIN		0x20000000	/* XXX retype pending input (state) */
 #endif  /*_POSIX_SOURCE */
 #define	NOFLSH		0x80000000	/* don't flush after interrupt */
 
@@ -201,34 +201,34 @@ struct termios {
 /*
  * Standard speeds
  */
-#define B0	0
-#define B50	50
-#define B75	75
-#define B110	110
-#define B134	134
-#define B150	150
-#define B200	200
-#define B300	300
-#define B600	600
-#define B1200	1200
+#define	B0	0
+#define	B50	50
+#define	B75	75
+#define	B110	110
+#define	B134	134
+#define	B150	150
+#define	B200	200
+#define	B300	300
+#define	B600	600
+#define	B1200	1200
 #define	B1800	1800
-#define B2400	2400
-#define B4800	4800
-#define B9600	9600
-#define B19200	19200
-#define B38400	38400
+#define	B2400	2400
+#define	B4800	4800
+#define	B9600	9600
+#define	B19200	19200
+#define	B38400	38400
 #ifndef _POSIX_SOURCE
-#define B7200	7200
-#define B14400	14400
-#define B28800	28800
-#define B57600	57600
-#define B76800	76800
-#define B115200	115200
-#define B230400	230400
-#define B460800	460800
-#define B921600	921600
-#define EXTA	19200
-#define EXTB	38400
+#define	B7200	7200
+#define	B14400	14400
+#define	B28800	28800
+#define	B57600	57600
+#define	B76800	76800
+#define	B115200	115200
+#define	B230400	230400
+#define	B460800	460800
+#define	B921600	921600
+#define	EXTA	19200
+#define	EXTB	38400
 #endif  /* !_POSIX_SOURCE */
 
 #ifndef _KERNEL
@@ -244,16 +244,16 @@ struct termios {
 #define	TCSADRAIN	1		/* drain output, then change */
 #define	TCSAFLUSH	2		/* drain output, flush input */
 #ifndef _POSIX_SOURCE
-#define TCSASOFT	0x10		/* flag - don't alter h.w. state */
+#define	TCSASOFT	0x10		/* flag - don't alter h.w. state */
 #endif
 
 #define	TCIFLUSH	1
 #define	TCOFLUSH	2
-#define TCIOFLUSH	3
+#define	TCIOFLUSH	3
 #define	TCOOFF		1
 #define	TCOON		2
-#define TCIOFF		3
-#define TCION		4
+#define	TCIOFF		3
+#define	TCION		4
 
 #include <sys/cdefs.h>
 
