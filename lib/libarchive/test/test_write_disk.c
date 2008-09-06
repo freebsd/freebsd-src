@@ -60,6 +60,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
 	struct stat st;
+	time_t now;
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
@@ -97,10 +98,11 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
-        failure("No atime was specified, so atime should get set to mtime");
-        assertEqualInt(st.st_atime, st.st_mtime);
         assertEqualInt(st.st_size, sizeof(data));
         assertEqualInt(st.st_mtime, 123456789);
+        failure("No atime was specified, so atime should get set to current time");
+	now = time(NULL);
+        assert(st.st_atime <= now && st.st_atime > now - 5);
 }
 
 static void create_reg_file2(struct archive_entry *ae, const char *msg)
