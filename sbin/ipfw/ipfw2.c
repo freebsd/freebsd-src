@@ -2429,7 +2429,7 @@ sets_handler(int ac, char *av[])
 		rulenum = atoi(av[0]);
 		new_set = atoi(av[2]);
 		if (!isdigit(*(av[0])) || (cmd == 3 && rulenum > RESVD_SET) ||
-			(cmd == 2 && rulenum == 65535) )
+			(cmd == 2 && rulenum == IPFW_DEFAULT_RULE) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
 		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
@@ -2553,7 +2553,7 @@ list(int ac, char *av[], int show_counters)
 	 * need to scan the list to count them.
 	 */
 	for (nstat = 1, r = data, lim = (char *)data + nbytes;
-		    r->rulenum < 65535 && (char *)r < lim;
+		    r->rulenum < IPFW_DEFAULT_RULE && (char *)r < lim;
 		    ++nstat, r = NEXT(r) )
 		; /* nothing */
 
@@ -5045,7 +5045,8 @@ chkarg:
 			if (have_tag)
 				errx(EX_USAGE, "tag and untag cannot be "
 				    "specified more than once");
-			GET_UINT_ARG(tag, 1, 65534, i, rule_action_params);
+			GET_UINT_ARG(tag, 1, IPFW_DEFAULT_RULE - 1, i,
+			   rule_action_params);
 			have_tag = cmd;
 			fill_cmd(cmd, O_TAG, (i == TOK_TAG) ? 0: F_NOT, tag);
 			ac--; av++;
@@ -5521,8 +5522,8 @@ read_options:
 			if (c->limit_mask == 0)
 				errx(EX_USAGE, "limit: missing limit mask");
 
-			GET_UINT_ARG(c->conn_limit, 1, 65534, TOK_LIMIT,
-			    rule_options);
+			GET_UINT_ARG(c->conn_limit, 1, IPFW_DEFAULT_RULE - 1,
+			    TOK_LIMIT, rule_options);
 
 			ac--; av++;
 			break;
@@ -5649,8 +5650,8 @@ read_options:
 			else {
 				uint16_t tag;
 
-				GET_UINT_ARG(tag, 1, 65534, TOK_TAGGED,
-				    rule_options);
+				GET_UINT_ARG(tag, 1, IPFW_DEFAULT_RULE - 1,
+				    TOK_TAGGED, rule_options);
 				fill_cmd(cmd, O_TAGGED, 0, tag);
 			}
 			ac--; av++;
@@ -5978,7 +5979,7 @@ show_nat(int ac, char **av) {
 	size = 0;
 	data = NULL;
 	frule = 0;
-	lrule = 65535; /* max ipfw rule number */
+	lrule = IPFW_DEFAULT_RULE; /* max ipfw rule number */
 	ac--; av++;
 
 	/* Parse parameters. */
