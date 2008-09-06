@@ -829,8 +829,7 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 		ampdu_rx_stop(&ni->ni_rx_ampdu[i]);
 
 	ni->ni_htcap = 0;
-	ni->ni_flags &= ~(IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT |
-		IEEE80211_NODE_AMPDU);
+	ni->ni_flags &= ~IEEE80211_NODE_HT_ALL;
 }
 
 /*
