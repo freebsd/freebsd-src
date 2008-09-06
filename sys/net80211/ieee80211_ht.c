@@ -1402,7 +1402,7 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 	const struct ieee80211_action *ia;
 	struct ieee80211_rx_ampdu *rap;
 	struct ieee80211_tx_ampdu *tap;
-	uint8_t dialogtoken;
+	uint8_t dialogtoken, policy;
 	uint16_t baparamset, batimeout, baseqctl, code;
 	uint16_t args[4];
 	int tid, ac, bufsiz;
@@ -1470,6 +1470,7 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 			baparamset = LE_READ_2(frm+5);
 			tid = MS(baparamset, IEEE80211_BAPS_TID);
 			bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
+			policy = MS(baparamset, IEEE80211_BAPS_POLICY);
 			batimeout = LE_READ_2(frm+7);
 
 			ac = TID_TO_WME_AC(tid);
@@ -1493,6 +1494,31 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 				vap->iv_stats.is_addba_badtoken++;
 				return;
 			}
+			/* NB: assumes IEEE80211_AGGR_IMMEDIATE is 1 */
+			if (policy != (tap->txa_flags & IEEE80211_AGGR_IMMEDIATE)) {
+				IEEE80211_DISCARD_MAC(vap,
+				    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
+				    ni->ni_macaddr, "ADDBA response",
+				    "policy mismatch: expecting %s, "
+				    "received %s, tid %d code %d",
+				    tap->txa_flags & IEEE80211_AGGR_IMMEDIATE,
+				    policy, tid, code);
+				vap->iv_stats.is_addba_badpolicy++;
+				return;
+			}
+#if 0
+			/* XXX we take MIN in ieee80211_addba_response */
+			if (bufsiz > IEEE80211_AGGR_BAWMAX) {
+				IEEE80211_DISCARD_MAC(vap,
+				    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
+				    ni->ni_macaddr, "ADDBA response",
+				    "BA window too large: max %d, "
+				    "received %d, tid %d code %d",
+				    bufsiz, IEEE80211_AGGR_BAWMAX, tid, code);
+				vap->iv_stats.is_addba_badbawinsize++;
+				return;
+			}
+#endif
 
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
