@@ -804,7 +804,6 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 			 * to reclaim any resources it might have allocated.
 			 */
 			ic->ic_addba_stop(ni, &ni->ni_tx_ampdu[i]);
-			IEEE80211_TAPQ_DESTROY(tap);
 			tap->txa_lastsample = 0;
 			tap->txa_avgpps = 0;
 			/* NB: clearing NAK means we may re-send ADDBA */ 
@@ -1370,8 +1369,6 @@ ieee80211_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	/* XXX locking */
 	addba_stop_timeout(tap);
 	if (tap->txa_flags & IEEE80211_AGGR_RUNNING) {
-		/* clear aggregation queue */
-		ieee80211_drain_ifq(&tap->txa_q);
 		tap->txa_flags &= ~IEEE80211_AGGR_RUNNING;
 	}
 	tap->txa_attempts = 0;
@@ -1637,7 +1634,6 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	/* XXX locking */
 	if ((tap->txa_flags & IEEE80211_AGGR_SETUP) == 0) {
 		/* do deferred setup of state */
-		IEEE80211_TAPQ_INIT(tap);
 		callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
 		tap->txa_flags |= IEEE80211_AGGR_SETUP;
 	}
