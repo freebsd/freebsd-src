@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/poll.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -60,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttydefaults.h>
 #undef TTYDEFCHARS
 #include <sys/ucred.h>
-#include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
@@ -1513,46 +1511,21 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td)
 	case TIOCCONS:
 		/* Set terminal as console TTY. */
 		if (*(int *)data) {
-			struct nameidata nd;
-			int vfslocked;
+			error = priv_check(td, PRIV_TTY_CONSOLE);
+			if (error)
+				return (error);
 
 			/*
-			 * XXX: TTY won't slip away, but constty would
-			 * really need to be locked!
+			 * XXX: constty should really need to be locked!
+			 * XXX: allow disconnected constty's to be stolen!
 			 */
-			tty_unlock(tp);
 
-			if (constty == tp) {
-				tty_lock(tp);
+			if (constty == tp)
 				return (0);
-			}
-			if (constty != NULL) {
-				tty_lock(tp);
+			if (constty != NULL)
 				return (EBUSY);
-			}
-			/* XXX: allow disconnected constty's to be stolen! */
 
-			/*
-			 * Only allow this to work when the user can
-			 * open /dev/console.
-			 */
-			NDINIT(&nd, LOOKUP, FOLLOW|LOCKLEAF|MPSAFE,
-			    UIO_SYSSPACE, "/dev/console", td);
-			if ((error = namei(&nd)) != 0) {
-				tty_lock(tp);
-				return (error);
-			}
-			vfslocked = NDHASGIANT(&nd);
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-
-			error = VOP_ACCESS(nd.ni_vp, VREAD, td->td_ucred, td);
-			vput(nd.ni_vp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			if (error) {
-				tty_lock(tp);
-				return (error);
-			}
-
+			tty_unlock(tp);
 			constty_set(tp);
 			tty_lock(tp);
 		} else if (constty == tp) {
