@@ -59,127 +59,123 @@ struct ieee80211_ds_plcp_hdr {
 #define	CCK	IEEE80211_T_CCK
 #define	TURBO	IEEE80211_T_TURBO
 #define	PBCC	(IEEE80211_T_HT+1)		/* XXX */
+#define	B(r)	(0x80 | r)
+#define	Mb(x)	(x*1000)
 
 static struct ieee80211_rate_table ieee80211_11b_table = {
-	4,  /* number of rates, XXX no PBCC */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   1 Mb */ {  CCK,    1000,    0x00, (0x80| 2),   0 },
-/*   2 Mb */ {  CCK,    2000,    0x04, (0x80| 4),   1 },
-/* 5.5 Mb */ {  CCK,    5500,    0x04, (0x80|11),   1 },
-/*  11 Mb */ {  CCK,   11000,    0x04, (0x80|22),   1 },
-/*  22 Mb */ { PBCC,   22000,    0x04,        44,   3 }
-	},
+    .rateCount = 4,		/* XXX no PBCC */
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = CCK,     1000,    0x00,      B(2),   0 },/*   1 Mb */
+     [1] = { .phy = CCK,     2000,    0x04,      B(4),   1 },/*   2 Mb */
+     [2] = { .phy = CCK,     5500,    0x04,     B(11),   1 },/* 5.5 Mb */
+     [3] = { .phy = CCK,    11000,    0x04,     B(22),   1 },/*  11 Mb */
+     [4] = { .phy = PBCC,   22000,    0x04,        44,   3 } /*  22 Mb */
+    },
 };
 
-
 static struct ieee80211_rate_table ieee80211_11g_table = {
-	12,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   1 Mb */ {  CCK,     1000,    0x00, (0x80| 2),   0 },
-/*   2 Mb */ {  CCK,     2000,    0x04, (0x80| 4),   1 },
-/* 5.5 Mb */ {  CCK,     5500,    0x04, (0x80|11),   2 },
-/*  11 Mb */ {  CCK,    11000,    0x04, (0x80|22),   3 },
-/*   6 Mb */ {  OFDM,    6000,    0x00,        12,   4 },
-/*   9 Mb */ {  OFDM,    9000,    0x00,        18,   4 },
-/*  12 Mb */ {  OFDM,   12000,    0x00,        24,   6 },
-/*  18 Mb */ {  OFDM,   18000,    0x00,        36,   6 },
-/*  24 Mb */ {  OFDM,   24000,    0x00,        48,   8 },
-/*  36 Mb */ {  OFDM,   36000,    0x00,        72,   8 },
-/*  48 Mb */ {  OFDM,   48000,    0x00,        96,   8 },
-/*  54 Mb */ {  OFDM,   54000,    0x00,       108,   8 }
-	},
+    .rateCount = 12,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = CCK,     1000,    0x00,      B(2),   0 },
+     [1] = { .phy = CCK,     2000,    0x04,      B(4),   1 },
+     [2] = { .phy = CCK,     5500,    0x04,     B(11),   2 },
+     [3] = { .phy = CCK,    11000,    0x04,     B(22),   3 },
+     [4] = { .phy = OFDM,    6000,    0x00,        12,   4 },
+     [5] = { .phy = OFDM,    9000,    0x00,        18,   4 },
+     [6] = { .phy = OFDM,   12000,    0x00,        24,   6 },
+     [7] = { .phy = OFDM,   18000,    0x00,        36,   6 },
+     [8] = { .phy = OFDM,   24000,    0x00,        48,   8 },
+     [9] = { .phy = OFDM,   36000,    0x00,        72,   8 },
+    [10] = { .phy = OFDM,   48000,    0x00,        96,   8 },
+    [11] = { .phy = OFDM,   54000,    0x00,       108,   8 }
+    },
 };
 
 static struct ieee80211_rate_table ieee80211_11a_table = {
-	8,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   6 Mb */ {  OFDM,    6000,    0x00, (0x80|12),   0 },
-/*   9 Mb */ {  OFDM,    9000,    0x00,        18,   0 },
-/*  12 Mb */ {  OFDM,   12000,    0x00, (0x80|24),   2 },
-/*  18 Mb */ {  OFDM,   18000,    0x00,        36,   2 },
-/*  24 Mb */ {  OFDM,   24000,    0x00, (0x80|48),   4 },
-/*  36 Mb */ {  OFDM,   36000,    0x00,        72,   4 },
-/*  48 Mb */ {  OFDM,   48000,    0x00,        96,   4 },
-/*  54 Mb */ {  OFDM,   54000,    0x00,       108,   4 }
-	},
+    .rateCount = 8,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = OFDM,    6000,    0x00,     B(12),   0 },
+     [1] = { .phy = OFDM,    9000,    0x00,        18,   0 },
+     [2] = { .phy = OFDM,   12000,    0x00,     B(24),   2 },
+     [3] = { .phy = OFDM,   18000,    0x00,        36,   2 },
+     [4] = { .phy = OFDM,   24000,    0x00,     B(48),   4 },
+     [5] = { .phy = OFDM,   36000,    0x00,        72,   4 },
+     [6] = { .phy = OFDM,   48000,    0x00,        96,   4 },
+     [7] = { .phy = OFDM,   54000,    0x00,       108,   4 }
+    },
 };
 
 static struct ieee80211_rate_table ieee80211_half_table = {
-	8,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   6 Mb */ {  OFDM,   3000,    0x00, (0x80| 6),  0 },
-/*   9 Mb */ {  OFDM,   4500,    0x00,         9,  0 },
-/*  12 Mb */ {  OFDM,   6000,    0x00, (0x80|12),  2 },
-/*  18 Mb */ {  OFDM,   9000,    0x00,        18,  2 },
-/*  24 Mb */ {  OFDM,  12000,    0x00, (0x80|24),  4 },
-/*  36 Mb */ {  OFDM,  18000,    0x00,        36,  4 },
-/*  48 Mb */ {  OFDM,  24000,    0x00,        48,  4 },
-/*  54 Mb */ {  OFDM,  27000,    0x00,        54,  4 }
-	},
+    .rateCount = 8,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = OFDM,    3000,    0x00,      B(6),   0 },
+     [1] = { .phy = OFDM,    4500,    0x00,         9,   0 },
+     [2] = { .phy = OFDM,    6000,    0x00,     B(12),   2 },
+     [3] = { .phy = OFDM,    9000,    0x00,        18,   2 },
+     [4] = { .phy = OFDM,   12000,    0x00,     B(24),   4 },
+     [5] = { .phy = OFDM,   18000,    0x00,        36,   4 },
+     [6] = { .phy = OFDM,   24000,    0x00,        48,   4 },
+     [7] = { .phy = OFDM,   27000,    0x00,        54,   4 }
+    },
 };
 
 static struct ieee80211_rate_table ieee80211_quarter_table = {
-	8,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   6 Mb */ {  OFDM,    1500,    0x00, (0x80| 3),  0 },
-/*   9 Mb */ {  OFDM,    2250,    0x00,         4,  0 },
-/*  12 Mb */ {  OFDM,    3000,    0x00, (0x80| 6),  2 },
-/*  18 Mb */ {  OFDM,    4500,    0x00,         9,  2 },
-/*  24 Mb */ {  OFDM,    6000,    0x00, (0x80|12),  4 },
-/*  36 Mb */ {  OFDM,    9000,    0x00,        18,  4 },
-/*  48 Mb */ {  OFDM,   12000,    0x00,        24,  4 },
-/*  54 Mb */ {  OFDM,   13500,    0x00,        27,  4 }
-	},
+    .rateCount = 8,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = OFDM,    1500,    0x00,      B(3),   0 },
+     [1] = { .phy = OFDM,    2250,    0x00,         4,   0 },
+     [2] = { .phy = OFDM,    3000,    0x00,      B(9),   2 },
+     [3] = { .phy = OFDM,    4500,    0x00,         9,   2 },
+     [4] = { .phy = OFDM,    6000,    0x00,     B(12),   4 },
+     [5] = { .phy = OFDM,    9000,    0x00,        18,   4 },
+     [6] = { .phy = OFDM,   12000,    0x00,        24,   4 },
+     [7] = { .phy = OFDM,   13500,    0x00,        27,   4 }
+    },
 };
 
 static struct ieee80211_rate_table ieee80211_turbog_table = {
-	7,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   6 Mb */ {  TURBO,   6000,    0x00, (0x80|12),   0 },
-/*  12 Mb */ {  TURBO,  12000,    0x00, (0x80|24),   1 },
-/*  18 Mb */ {  TURBO,  18000,    0x00,        36,   1 },
-/*  24 Mb */ {  TURBO,  24000,    0x00, (0x80|48),   3 },
-/*  36 Mb */ {  TURBO,  36000,    0x00,        72,   3 },
-/*  48 Mb */ {  TURBO,  48000,    0x00,        96,   3 },
-/*  54 Mb */ {  TURBO,  54000,    0x00,       108,   3 }
-	},
+    .rateCount = 7,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = TURBO,   12000,   0x00,     B(12),   0 },
+     [1] = { .phy = TURBO,   24000,   0x00,     B(24),   1 },
+     [2] = { .phy = TURBO,   36000,   0x00,        36,   1 },
+     [3] = { .phy = TURBO,   48000,   0x00,     B(48),   3 },
+     [4] = { .phy = TURBO,   72000,   0x00,        72,   3 },
+     [5] = { .phy = TURBO,   96000,   0x00,        96,   3 },
+     [6] = { .phy = TURBO,  108000,   0x00,       108,   3 }
+    },
 };
 
 static struct ieee80211_rate_table ieee80211_turboa_table = {
-	8,  /* number of rates */
-	{ 0 },
-	{
-/*                               short            ctrl  */
-/*                            Preamble  dot11Rate Rate */
-/*   6 Mb */ {  TURBO,   6000,    0x00, (0x80|12),   0 },
-/*   9 Mb */ {  TURBO,   9000,    0x00,        18,   0 },
-/*  12 Mb */ {  TURBO,  12000,    0x00, (0x80|24),   2 },
-/*  18 Mb */ {  TURBO,  18000,    0x00,        36,   2 },
-/*  24 Mb */ {  TURBO,  24000,    0x00, (0x80|48),   4 },
-/*  36 Mb */ {  TURBO,  36000,    0x00,        72,   4 },
-/*  48 Mb */ {  TURBO,  48000,    0x00,        96,   4 },
-/*  54 Mb */ {  TURBO,  54000,    0x00,       108,   4 }
-	},
+    .rateCount = 8,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = TURBO,   12000,   0x00,     B(12),   0 },
+     [1] = { .phy = TURBO,   18000,   0x00,        18,   0 },
+     [2] = { .phy = TURBO,   24000,   0x00,     B(24),   2 },
+     [3] = { .phy = TURBO,   36000,   0x00,        36,   2 },
+     [4] = { .phy = TURBO,   48000,   0x00,     B(48),   4 },
+     [5] = { .phy = TURBO,   72000,   0x00,        72,   4 },
+     [6] = { .phy = TURBO,   96000,   0x00,        96,   4 },
+     [7] = { .phy = TURBO,  108000,   0x00,       108,   4 }
+    },
 };
 
+#undef	Mb
+#undef	B
 #undef	OFDM
 #undef	CCK
 #undef	TURBO
