@@ -172,7 +172,6 @@ struct ieee80211_node {
 	uint8_t			ni_ht2ndchan;	/* HT 2nd channel */
 	uint8_t			ni_htopmode;	/* HT operating mode */
 	uint8_t			ni_htstbc;	/* HT */
-	uint8_t			ni_reqcw;	/* requested tx channel width */
 	uint8_t			ni_chw;		/* negotiated channel width */
 	struct ieee80211_htrateset ni_htrates;	/* negotiated ht rate set */
 	struct ieee80211_tx_ampdu ni_tx_ampdu[WME_NUM_AC];
