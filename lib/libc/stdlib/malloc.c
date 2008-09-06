@@ -226,7 +226,7 @@ __FBSDID("$FreeBSD$");
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
 #endif
 #ifdef __ia64__
-#  define PAGESIZE_2POW		12
+#  define PAGESIZE_2POW		13
 #  define QUANTUM_2POW		4
 #  define SIZEOF_PTR_2POW	3
 #endif
