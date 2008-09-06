@@ -535,7 +535,21 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 		 */
 		return PROCESS;
 	}
-	rxseq = le16toh(*(uint16_t *)wh->i_seq) >> IEEE80211_SEQ_SEQ_SHIFT;
+	rxseq = le16toh(*(uint16_t *)wh->i_seq);
+	if ((rxseq & IEEE80211_SEQ_FRAG_MASK) != 0) {
+		/*
+		 * Fragments are not allowed; toss.
+		 */
+		IEEE80211_DISCARD_MAC(vap,
+		    IEEE80211_MSG_INPUT | IEEE80211_MSG_11N, ni->ni_macaddr,
+		    "A-MPDU", "fragment, rxseq 0x%x tid %u%s", rxseq, tid,
+		    wh->i_fc[1] & IEEE80211_FC1_RETRY ? " (retransmit)" : "");
+		vap->iv_stats.is_ampdu_rx_drop++;
+		IEEE80211_NODE_STAT(ni, rx_drop);
+		m_freem(m);
+		return CONSUMED;
+	}
+	rxseq >>= IEEE80211_SEQ_SEQ_SHIFT;
 	rap->rxa_nframes++;
 again:
 	if (rxseq == rap->rxa_start) {
