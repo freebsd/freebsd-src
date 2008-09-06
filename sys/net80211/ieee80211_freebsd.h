@@ -101,7 +101,7 @@ typedef struct {
 #define	_AGEQ_ENQUEUE(_ifq, _m, _qlen, _age) do {		\
 	(_m)->m_nextpkt = NULL;					\
 	if ((_ifq)->ifq_tail != NULL) { 			\
-		_age -= M_AGE_GET((_ifq)->ifq_tail);		\
+		_age -= M_AGE_GET((_ifq)->ifq_head);		\
 		(_ifq)->ifq_tail->m_nextpkt = (_m);		\
 	} else { 						\
 		(_ifq)->ifq_head = (_m); 			\
