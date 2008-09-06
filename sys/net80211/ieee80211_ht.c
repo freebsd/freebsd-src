@@ -1382,6 +1382,7 @@ ieee80211_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	/* XXX locking */
 	addba_stop_timeout(tap);
 	if (tap->txa_flags & IEEE80211_AGGR_RUNNING) {
+		/* XXX clear aggregation queue */
 		tap->txa_flags &= ~IEEE80211_AGGR_RUNNING;
 	}
 	tap->txa_attempts = 0;
