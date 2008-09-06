@@ -207,6 +207,7 @@ struct ieee80211_stats {
 	uint32_t	is_addba_norequest;	/* ADDBA response w/o ADDBA */
 	uint32_t	is_addba_badtoken;	/* ADDBA response w/ wrong
 						   dialogtoken */
+	uint32_t	is_addba_badpolicy;	/* ADDBA resp w/ wrong policy */
 	uint32_t	is_ampdu_stop;		/* A-MPDU stream stopped */
 	uint32_t	is_ampdu_stop_failed;	/* A-MPDU stream not running */
 	uint32_t	is_ampdu_rx_reorder;	/* A-MPDU held for rx reorder */
@@ -215,7 +216,7 @@ struct ieee80211_stats {
 	uint8_t		is_rx_disassoc_code;	/* last rx'd disassoc reason */
 	uint8_t		is_rx_authfail_code;	/* last rx'd auth fail reason */
 	uint32_t	is_beacon_miss;		/* beacon miss notification */
-	uint32_t	is_spare[14];
+	uint32_t	is_spare[13];
 };
 
 /*
