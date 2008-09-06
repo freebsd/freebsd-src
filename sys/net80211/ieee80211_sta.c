@@ -1549,7 +1549,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		    ic->ic_flags&IEEE80211_F_USEPROT ? ", protection" : "",
 		    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 		    ni->ni_flags & IEEE80211_NODE_HT ?
-			(ni->ni_chw == 20 ? ", HT20" : ", HT40") : "",
+			(ni->ni_chw == 40 ? ", HT40" : ", HT20") : "",
 		    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
 		    IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) ?
 			", fast-frames" : "",
