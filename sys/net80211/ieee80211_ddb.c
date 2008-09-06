@@ -691,30 +691,30 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 	switch (cip->ic_cipher) {
 	case IEEE80211_CIPHER_WEP:
 		/* compatibility */
-		db_printf(" wepkey %u:%s", wk->wk_keyix+1,
+		db_printf(" wepkey %u:%s", wk->wk_keyix,
 		    keylen <= 5 ? "40-bit" :
 		    keylen <= 13 ? "104-bit" : "128-bit");
 		break;
 	case IEEE80211_CIPHER_TKIP:
 		if (keylen > 128/8)
 			keylen -= 128/8;	/* ignore MIC for now */
-		db_printf(" TKIP %u:%u-bit", wk->wk_keyix+1, 8*keylen);
+		db_printf(" TKIP %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_OCB:
-		db_printf(" AES-OCB %u:%u-bit", wk->wk_keyix+1, 8*keylen);
+		db_printf(" AES-OCB %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_AES_CCM:
-		db_printf(" AES-CCM %u:%u-bit", wk->wk_keyix+1, 8*keylen);
+		db_printf(" AES-CCM %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_CKIP:
-		db_printf(" CKIP %u:%u-bit", wk->wk_keyix+1, 8*keylen);
+		db_printf(" CKIP %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	case IEEE80211_CIPHER_NONE:
-		db_printf(" NULL %u:%u-bit", wk->wk_keyix+1, 8*keylen);
+		db_printf(" NULL %u:%u-bit", wk->wk_keyix, 8*keylen);
 		break;
 	default:
 		db_printf(" UNKNOWN (0x%x) %u:%u-bit",
-			cip->ic_cipher, wk->wk_keyix+1, 8*keylen);
+			cip->ic_cipher, wk->wk_keyix, 8*keylen);
 		break;
 	}
 	if (memcmp(wk->wk_key, zerodata, keylen) != 0) {
@@ -739,6 +739,10 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 				db_printf("%srx", sep), sep = "+";
 			if (wk->wk_flags & IEEE80211_KEY_DEFAULT)
 				db_printf("%sdef", sep), sep = "+";
+			if (wk->wk_flags & IEEE80211_KEY_SWCRYPT)
+				db_printf("%sswcrypt", sep), sep = "+";
+			if (wk->wk_flags & IEEE80211_KEY_SWMIC)
+				db_printf("%sswmic", sep), sep = "+";
 		}
 		db_printf("\n");
 	}
