@@ -38,8 +38,8 @@ MINIMALDOCPORTS+= \
 	ports/graphics/scr2png \
 	ports/graphics/tiff \
 	ports/print/freetype2 \
-	ports/print/ghostscript-gpl \
-	ports/print/ghostscript-gpl-nox11 \
+	ports/print/ghostscript8 \
+	ports/print/ghostscript8-nox11 \
 	ports/print/gsfonts \
 	ports/textproc/docbook-410 \
 	ports/textproc/docbook-xml \
