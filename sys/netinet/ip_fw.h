@@ -29,6 +29,11 @@
 #define _IPFW2_H
 
 /*
+ * The default rule number.  It is also the max possible rule number.
+ */
+#define	IPFW_DEFAULT_RULE	65535
+
+/*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
