@@ -1585,16 +1585,14 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 		switch (ia->ia_action) {
 		case IEEE80211_ACTION_HT_TXCHWIDTH:
 			chw = frm[2] == IEEE80211_A_HT_TXCHWIDTH_2040 ? 40 : 20;
-			if (chw != ni->ni_chw) {
-				ni->ni_chw = chw;
-				ni->ni_flags |= IEEE80211_NODE_CHWUPDATE;
-			}
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-		            "%s: HT txchwidth, width %d (%s)",
-			    __func__, chw,
-			    ni->ni_flags & IEEE80211_NODE_CHWUPDATE ?
-				"new" : "no change");
+		            "%s: HT txchwidth, width %d%s",
+			    __func__, chw, ni->ni_chw != chw ? "*" : "");
+			if (chw != ni->ni_chw) {
+				ni->ni_chw = chw;
+				/* XXX notify on change */
+			}
 			break;
 		case IEEE80211_ACTION_HT_MIMOPWRSAVE:
 			IEEE80211_NOTE(vap,

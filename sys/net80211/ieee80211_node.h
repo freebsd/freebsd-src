@@ -108,8 +108,6 @@ struct ieee80211_node {
 #define IEEE80211_NODE_XR	0x0008		/* Atheros WME enable */
 #define IEEE80211_NODE_AR	0x0010		/* AR capable */
 #define IEEE80211_NODE_BOOST	0x0080
-#define IEEE80211_NODE_PSUPDATE	0x0200		/* power save state changed */ 
-#define	IEEE80211_NODE_CHWUPDATE 0x0400		/* 11n channel width change */
 	uint16_t		ni_flags;	/* special-purpose state */
 #define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
 #define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
