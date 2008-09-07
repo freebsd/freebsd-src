@@ -1,4 +1,4 @@
-# KB920X -- Custom kernel configuration for the KB9200, 9201 and 9202
+# KB920X -- Custom kernel configuration for the KB9202 (no letter, A and B)
 # AT91RM9200 evaluation boards from kwikbyte.com.
 #
 # For more information on this file, please read the handbook section on
@@ -22,13 +22,13 @@ machine		arm
 ident		KB920X
 
 include		"../at91/std.kb920x"
-#To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		#Default places to look for devices.
+# The AT91 platform doesn't use /boot/loader, so we have to statically wire
+# hints.
 hints		"KB920X.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
-options		DDB
-options		KDB
+options 	DDB
+options 	KDB
 
 options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
@@ -38,14 +38,14 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	UFS_ACL			#Support for access control lists
 #options 	UFS_DIRHASH		#Improve performance on big directories
 #options 	MD_ROOT			#MD is a potential root device
-#options		MD_ROOT_SIZE=4096	# 3MB ram disk
+#options 	MD_ROOT_SIZE=4096	# 4MB ram disk
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 options 	NFSCLIENT		#Network Filesystem Client
 #options 	NFSSERVER		#Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
 #options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
-#options	BOOTP_NFSROOT
-#options	BOOTP
+#options 	BOOTP_NFSROOT
+#options 	BOOTP
 
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
@@ -58,8 +58,11 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 #options 	SYSCTL_OMIT_DESCR
+# Disable the inlining of mutex, rwlock and sx locks.  These eat up a lot
+# of space.
 options 	MUTEX_NOINLINE
-options		RWLOCK_NOINLINE
+options 	RWLOCK_NOINLINE
+options 	SX_NOINLINE
 options 	NO_FFS_SNAPSHOT
 options 	NO_SWAPPING
 device		random
