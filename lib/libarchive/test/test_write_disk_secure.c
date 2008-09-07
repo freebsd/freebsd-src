@@ -176,6 +176,7 @@ DEFINE_TEST(test_write_disk_secure)
 	/* Verify link was replaced. */
 	assertEqualInt(0, lstat("link_to_dir5", &st));
 	assert(S_ISDIR(st.st_mode));
+	archive_entry_free(ae);
 
 
 #if ARCHIVE_VERSION_NUMBER < 2000000
