@@ -197,6 +197,13 @@ struct asmc_model asmc_models[] = {
 	  NULL, NULL,
 	  ASMC_MP_TEMPS, ASMC_MP_TEMPNAMES, ASMC_MP_TEMPDESCS
 	},
+
+	{
+	  "MacBookAir1,1", "Apple SMC MacBook Air",
+	  ASMC_SMS_FUNCS, ASMC_FAN_FUNCS, NULL, NULL,
+	  ASMC_MBA_TEMPS, ASMC_MBA_TEMPNAMES, ASMC_MBA_TEMPDESCS
+	},	
+
 	
 	{ NULL, NULL }
 };

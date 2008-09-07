@@ -126,8 +126,8 @@ struct asmc_softc {
 /*
  * Temperatures.
  *
- * First for MacBook, second for MacBook Pro, third for Intel Mac Mini and
- * last Mac Pro 8-core.
+ * First for MacBook, second for MacBook Pro, third for Intel Mac Mini,
+ * fourth the Mac Pro 8-core and finally the MacBook Air.
  *
  */
 /* maximum array size for temperatures including the last NULL */
@@ -186,3 +186,7 @@ struct asmc_softc {
 				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
 				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
 				  NULL }
+
+#define	ASMC_MBA_TEMPS		{ "TB0T", NULL }
+#define	ASMC_MBA_TEMPNAMES	{ "enclosure" }
+#define	ASMC_MBA_TEMPDESCS	{ "Enclosure Bottom" }
