@@ -48,3 +48,6 @@ branch for unsigned char/int fixes and removal of a DoS.
 
 Documentation in /usr/share/doc/ntp is generated from the HTML files with
 lynx (without the GIF files of course).
+
+One patch needs to be applied after that to close two buffer overflows. See
+bin/92839 for details.
