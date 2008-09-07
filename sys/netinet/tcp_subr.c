@@ -111,14 +111,50 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 int	tcp_mssdflt = TCP_MSS;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW,
-    &tcp_mssdflt, 0, "Default TCP Maximum Segment Size");
-
 #ifdef INET6
 int	tcp_v6mssdflt = TCP6_MSS;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
-    CTLFLAG_RW, &tcp_v6mssdflt , 0,
-    "Default TCP Maximum Segment Size for IPv6");
+#endif
+
+static int
+sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = tcp_mssdflt;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if (new < TCP_MINMSS)
+			error = EINVAL;
+		else
+			tcp_mssdflt = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLTYPE_INT|CTLFLAG_RW,
+	   &tcp_mssdflt, 0, &sysctl_net_inet_tcp_mss_check, "I",
+	   "Default TCP Maximum Segment Size");
+
+#ifdef INET6
+static int
+sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = tcp_v6mssdflt;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr) {
+		if (new < TCP_MINMSS)
+			error = EINVAL;
+		else
+			tcp_v6mssdflt = new;
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
+	   &tcp_v6mssdflt, 0, &sysctl_net_inet_tcp_mss_v6_check, "I",
+	   "Default TCP Maximum Segment Size for IPv6");
 #endif
 
 /*
