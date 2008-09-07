@@ -105,6 +105,79 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_free(ae);
 	assert(0 == archive_write_finish_entry(a));
 
+	/*
+	 * Without security checks, extracting a dir over a link to a
+	 * dir should follow the link.
+	 */
+	/* Create a symlink to a dir. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "link_to_dir3");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "dir");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Extract a dir whose name matches the symlink. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "link_to_dir3");
+	archive_entry_set_mode(ae, S_IFDIR | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Verify link was followed. */
+	assertEqualInt(0, lstat("link_to_dir3", &st));
+	assert(S_ISLNK(st.st_mode));
+	archive_entry_free(ae);
+
+	/*
+	 * As above, but a broken link, so the link should get replaced.
+	 */
+	/* Create a symlink to a dir. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "link_to_dir4");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "nonexistent_dir");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Extract a dir whose name matches the symlink. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "link_to_dir4");
+	archive_entry_set_mode(ae, S_IFDIR | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Verify link was followed. */
+	assertEqualInt(0, lstat("link_to_dir4", &st));
+	assert(S_ISDIR(st.st_mode));
+	archive_entry_free(ae);
+
+	/*
+	 * As above, but a link to a non-dir, so the link should get replaced.
+	 */
+	/* Create a regular file and a symlink to it */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "non_dir");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Create symlink to the file. */
+	archive_entry_copy_pathname(ae, "link_to_dir5");
+	archive_entry_set_mode(ae, S_IFLNK | 0777);
+	archive_entry_set_symlink(ae, "non_dir");
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Extract a dir whose name matches the symlink. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "link_to_dir5");
+	archive_entry_set_mode(ae, S_IFDIR | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+	/* Verify link was followed. */
+	assertEqualInt(0, lstat("link_to_dir5", &st));
+	assert(S_ISDIR(st.st_mode));
+
+
 #if ARCHIVE_VERSION_NUMBER < 2000000
 	archive_write_finish(a);
 #else
