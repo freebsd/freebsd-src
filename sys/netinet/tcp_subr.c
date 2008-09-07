@@ -381,7 +381,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 			(IPV6_VERSION & IPV6_VERSION_MASK);
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = sizeof(struct tcphdr);
+		ip6->ip6_plen = htons(sizeof(struct tcphdr));
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
 	} else
