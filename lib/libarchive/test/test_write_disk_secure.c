@@ -145,7 +145,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_set_mode(ae, S_IFDIR | 0777);
 	assert(0 == archive_write_header(a, ae));
 	assert(0 == archive_write_finish_entry(a));
-	/* Verify link was followed. */
+	/* Verify link was replaced. */
 	assertEqualInt(0, lstat("link_to_dir4", &st));
 	assert(S_ISDIR(st.st_mode));
 	archive_entry_free(ae);
@@ -173,7 +173,7 @@ DEFINE_TEST(test_write_disk_secure)
 	archive_entry_set_mode(ae, S_IFDIR | 0777);
 	assert(0 == archive_write_header(a, ae));
 	assert(0 == archive_write_finish_entry(a));
-	/* Verify link was followed. */
+	/* Verify link was replaced. */
 	assertEqualInt(0, lstat("link_to_dir5", &st));
 	assert(S_ISDIR(st.st_mode));
 
