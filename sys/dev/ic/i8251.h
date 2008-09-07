@@ -32,13 +32,25 @@
 /*
  * modified for PC9801 by M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
- */
-
-/*
+ *
  * modified for 8251(FIFO) by Seigo TANIMURA <tanimura@FreeBSD.org>
  */
 
-/* define command and status code */
+/* i8251 mode register */
+#define	MOD8251_5BITS	0x00
+#define	MOD8251_6BITS	0x04
+#define	MOD8251_7BITS	0x08
+#define	MOD8251_8BITS	0x0c
+#define	MOD8251_PENAB	0x10	/* parity enable */
+#define	MOD8251_PEVEN	0x20	/* parity even */
+#define	MOD8251_STOP1	0x40	/* 1 stop bit */
+#define	MOD8251_STOP15	0x80	/* 1.5 stop bit */
+#define	MOD8251_STOP2	0xc0	/* 2 stop bit */
+#define	MOD8251_CLKx1	0x01	/* x1 */
+#define	MOD8251_CLKx16	0x02	/* x16 */
+#define	MOD8251_CLKx64	0x03	/* x64 */
+
+/* i8251 command register */
 #define	CMD8251_TxEN	0x01	/* transmit enable */
 #define	CMD8251_DTR	0x02	/* assert DTR */
 #define	CMD8251_RxEN	0x04	/* receive enable */
@@ -46,59 +58,54 @@
 #define	CMD8251_ER	0x10	/* error reset */
 #define	CMD8251_RTS	0x20	/* assert RTS */
 #define	CMD8251_RESET	0x40	/* internal reset */
-#define	CMD8251_EH	0x80	/* enter hunt mode (only synchronous mode)*/
+#define	CMD8251_EH	0x80	/* enter hunt mode */
 
+/* i8251 status register */
 #define	STS8251_TxRDY	0x01	/* transmit READY */
 #define	STS8251_RxRDY	0x02	/* data exists in receive buffer */
 #define	STS8251_TxEMP	0x04	/* transmit buffer EMPTY */
 #define	STS8251_PE	0x08	/* perity error */
 #define	STS8251_OE	0x10	/* overrun error */
 #define	STS8251_FE	0x20	/* framing error */
-#define	STS8251_BD_SD	0x40	/* break detect (async) / sync detect (sync) */
+#define	STS8251_BI	0x40	/* break detect */
 #define	STS8251_DSR	0x80	/* DSR is asserted */
 
-#define	STS8251F_TxEMP	0x01	/* transmit buffer EMPTY */
-#define	STS8251F_TxRDY	0x02	/* transmit READY */
-#define	STS8251F_RxRDY	0x04	/* data exists in receive buffer */
-#define	STS8251F_OE	0x10	/* overrun error */
-#define	STS8251F_PE	0x20	/* perity error */
-#define	STS8251F_BD_SD	0x80	/* break detect (async) / sync detect (sync) */
+/* i8251F line status register */
+#define	FLSR_TxEMP	0x01	/* transmit buffer EMPTY */
+#define	FLSR_TxRDY	0x02	/* transmit READY */
+#define	FLSR_RxRDY	0x04	/* data exists in receive buffer */
+#define	FLSR_OE		0x10	/* overrun error */
+#define	FLSR_PE		0x20	/* perity error */
+#define	FLSR_BI		0x80	/* break detect */
 
-#define	INTR8251F_DTCT	0x60	/* FIFO detection mask */
-#define	INTR8251F_INTRV	0x0e	/* interrupt event */
-#define	INTR8251F_TO	0x0c	/* receive timeout */
-#define	INTR8251F_LSTS	0x06	/* line status */
-#define	INTR8251F_RxRDY	0x04	/* receive READY */
-#define	INTR8251F_TxRDY	0x02	/* transmit READY */
-#define	INTR8251F_ISEV	0x01	/* event occured */
-#define	INTR8251F_MSTS	0x00	/* modem status */
+/* i8251F modem status register */
+#define	MSR_DCD		0x80	/* Current Data Carrier Detect */
+#define	MSR_RI		0x40	/* Current Ring Indicator */
+#define	MSR_DSR		0x20	/* Current Data Set Ready */
+#define	MSR_CTS		0x10	/* Current Clear to Send */
+#define	MSR_DDCD	0x08	/* DCD has changed state */
+#define	MSR_TERI	0x04	/* RI has toggled low to high */
+#define	MSR_DDSR	0x02	/* DSR has changed state */
+#define	MSR_DCTS	0x01	/* CTS has changed state */
 
-#define	CTRL8251F_ENABLE	0x01	/* enable FIFO */
-#define	CTRL8251F_RCV_RST	0x02	/* reset receive FIFO */
-#define	CTRL8251F_XMT_RST	0x04	/* reset transmit FIFO */
+/* i8251F interrupt identification register */
+#define	IIR_FIFO_CK1	0x40
+#define	IIR_FIFO_CK2	0x20
+#define	IIR_IMASK	0x0f
+#define	IIR_RXTOUT	0x0c	/* Receiver timeout */
+#define	IIR_RLS		0x06	/* Line status change */
+#define	IIR_RXRDY	0x04	/* Receiver ready */
+#define	IIR_TXRDY	0x02	/* Transmitter ready */
+#define	IIR_NOPEND	0x01	/* Transmitter ready */
+#define	IIR_MLSC	0x00	/* Modem status */
 
-#define	MOD8251_5BITS	0x00
-#define	MOD8251_6BITS	0x04
-#define	MOD8251_7BITS	0x08
-#define	MOD8251_8BITS	0x0c
-#define MOD8251_PDISAB	0x00	/* parity disable */
-#define	MOD8251_PODD	0x10	/* parity odd */
-#define	MOD8251_PEVEN	0x30	/* parity even */
-#define	MOD8251_STOP1	0x40	/* stop bit len = 1bit */
-#define	MOD8251_STOP2	0xc0	/* stop bit len = 2bit */
-#define	MOD8251_CLKX16	0x02	/* x16 */
-#define	MOD8251_CLKX1	0x01	/* x1 */
-
-#define	CICSCD_CD	0x20	/* CD */
-#define	CICSCD_CS	0x40	/* CS */
-#define	CICSCD_CI	0x80	/* CI */
-
-#define	CICSCDF_CS	0x10	/* CS */
-#define	CICSCDF_DR	0x20	/* DR */
-#define	CICSCDF_CI	0x40	/* CI */
-#define	CICSCDF_CD	0x80	/* CD */
-
-/* interrupt mask control */
-#define	IEN_Rx		0x01
-#define	IEN_TxEMP	0x02
-#define	IEN_Tx		0x04
+/* i8251F fifo control register */
+#define	FIFO_ENABLE	0x01	/* Turn the FIFO on */
+#define	FIFO_RCV_RST	0x02	/* Reset RX FIFO */
+#define	FIFO_XMT_RST	0x04	/* Reset TX FIFO */
+#define	FIFO_LSR_EN	0x08
+#define	FIFO_MSR_EN	0x10
+#define	FIFO_TRIGGER_1	0x00	/* Trigger RXRDY intr on 1 character */
+#define	FIFO_TRIGGER_4	0x40	/* ibid 4 */
+#define	FIFO_TRIGGER_8	0x80	/* ibid 8 */
+#define	FIFO_TRIGGER_14	0xc0	/* ibid 14 */

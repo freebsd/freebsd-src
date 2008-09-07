@@ -121,6 +121,7 @@
 #include <dev/ic/ns16550.h>
 #ifdef PC98
 #include <dev/ic/i8251.h>
+#include <dev/ic/i8255.h>
 #include <dev/ic/rsa.h>
 #endif
 
@@ -1784,8 +1785,8 @@ comopen(struct tty *tp, struct cdev *dev)
 		pc98_msrint_start(dev);
 		if (com->pc98_8251fifo) {
 			com->pc98_8251fifo_enable = 1;
-			outb(I8251F_fcr, CTRL8251F_ENABLE |
-			     CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
+			outb(I8251F_fcr,
+			     FIFO_ENABLE | FIFO_XMT_RST | FIFO_RCV_RST);
 		}
 	}
 #endif
@@ -1803,8 +1804,7 @@ comopen(struct tty *tp, struct cdev *dev)
 		 */
 		for (i = 0; i < 500; i++) {
 			sio_setreg(com, com_fifo,
-				   FIFO_RCV_RST | FIFO_XMT_RST
-				   | com->fifo_image);
+			    FIFO_RCV_RST | FIFO_XMT_RST | com->fifo_image);
 #ifdef PC98
 			if (com->pc98_if_type == COM_IF_RSA98III)
 				outb(com->rsabase + rsa_frr , 0x00);
@@ -1955,7 +1955,7 @@ comclose(tp)
 #ifdef PC98
 	if (com->pc98_8251fifo)	{
 	    if (com->pc98_8251fifo_enable)
-		outb(I8251F_fcr, CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
+		outb(I8251F_fcr, FIFO_XMT_RST | FIFO_RCV_RST);
 	    com->pc98_8251fifo_enable = 0;
 	}
 #endif
@@ -1997,8 +1997,8 @@ siobusycheck(chan)
 #ifdef	PC98
 	else if ((IS_8251(com->pc98_if_type) &&
 		  ((com->pc98_8251fifo_enable &&
-		    (inb(I8251F_lsr) & (STS8251F_TxRDY | STS8251F_TxEMP))
-		    == (STS8251F_TxRDY | STS8251F_TxEMP)) ||
+		    (inb(I8251F_lsr) & (FLSR_TxRDY | FLSR_TxEMP))
+		    == (FLSR_TxRDY | FLSR_TxEMP)) ||
 		   (!com->pc98_8251fifo_enable &&
 		    (inb(com->sts_port) & (STS8251_TxRDY | STS8251_TxEMP))
 		    == (STS8251_TxRDY | STS8251_TxEMP)))) ||
@@ -2298,12 +2298,12 @@ status_read:;
 more_intr:
 			line_status = 0;
 			if (com->pc98_8251fifo_enable) {
-			    if (tmp & STS8251F_TxRDY) line_status |= LSR_TXRDY;
-			    if (tmp & STS8251F_RxRDY) line_status |= LSR_RXRDY;
-			    if (tmp & STS8251F_TxEMP) line_status |= LSR_TSRE;
-			    if (tmp & STS8251F_PE)    line_status |= LSR_PE;
-			    if (tmp & STS8251F_OE)    line_status |= LSR_OE;
-			    if (tmp & STS8251F_BD_SD) line_status |= LSR_BI;
+			    if (tmp & FLSR_TxRDY) line_status |= LSR_TXRDY;
+			    if (tmp & FLSR_RxRDY) line_status |= LSR_RXRDY;
+			    if (tmp & FLSR_TxEMP) line_status |= LSR_TSRE;
+			    if (tmp & FLSR_PE)    line_status |= LSR_PE;
+			    if (tmp & FLSR_OE)    line_status |= LSR_OE;
+			    if (tmp & FLSR_BI)    line_status |= LSR_BI;
 			} else {
 			    if (tmp & STS8251_TxRDY)  line_status |= LSR_TXRDY;
 			    if (tmp & STS8251_RxRDY)  line_status |= LSR_RXRDY;
@@ -2311,7 +2311,7 @@ more_intr:
 			    if (tmp & STS8251_PE)     line_status |= LSR_PE;
 			    if (tmp & STS8251_OE)     line_status |= LSR_OE;
 			    if (tmp & STS8251_FE)     line_status |= LSR_FE;
-			    if (tmp & STS8251_BD_SD)  line_status |= LSR_BI;
+			    if (tmp & STS8251_BI)     line_status |= LSR_BI;
 			}
 		} else {
 #endif /* PC98 */
@@ -2345,15 +2345,15 @@ more_intr:
 			if (IS_8251(com->pc98_if_type)) {
 				if (com->pc98_8251fifo_enable) {
 				    recv_data = inb(I8251F_data);
-				    if (tmp & (STS8251F_PE | STS8251F_OE |
-					       STS8251F_BD_SD)) {
+				    if (tmp &
+					(FLSR_PE | FLSR_OE | FLSR_BI)) {
 					pc98_i8251_or_cmd(com, CMD8251_ER);
 					recv_data = 0;
 				    }
 				} else {
 				    recv_data = inb(com->data_port);
 				    if (tmp & (STS8251_PE | STS8251_OE |
-					       STS8251_FE | STS8251_BD_SD)) {
+					       STS8251_FE | STS8251_BI)) {
 					pc98_i8251_or_cmd(com, CMD8251_ER);
 					recv_data = 0;
 				    }
@@ -2626,7 +2626,7 @@ txrdy:
 		}
 		if (IS_8251(com->pc98_if_type)) {
 		    if (com->pc98_8251fifo_enable) {
-			if ((tmp = inb(I8251F_lsr)) & STS8251F_RxRDY)
+			if ((tmp = inb(I8251F_lsr)) & FLSR_RxRDY)
 			    goto more_intr;
 		    } else {
 			if ((tmp = inb(com->sts_port)) & STS8251_RxRDY)
@@ -3874,10 +3874,10 @@ pc98_get_modem_status(struct com_s *com)
 		int	stat2;
 
 		stat2 = inb(I8251F_msr);
-		if ( stat2 & CICSCDF_CD ) msr |= TIOCM_CAR;
-		if ( stat2 & CICSCDF_CI ) msr |= TIOCM_RI;
-		if ( stat2 & CICSCDF_DR ) msr |= TIOCM_DSR;
-		if ( stat2 & CICSCDF_CS ) msr |= TIOCM_CTS;
+		if ( stat2 & MSR_DCD ) msr |= TIOCM_CAR;
+		if ( stat2 & MSR_RI ) msr |= TIOCM_RI;
+		if ( stat2 & MSR_DSR ) msr |= TIOCM_DSR;
+		if ( stat2 & MSR_CTS ) msr |= TIOCM_CTS;
 #if COM_CARRIER_DETECT_EMULATE
 		if ( msr & (TIOCM_DSR|TIOCM_CTS) ) {
 			msr |= TIOCM_CAR;
@@ -4005,7 +4005,7 @@ pc98_i8251_clear_cmd(struct com_s *com, int x)
 	outb(com->cmd_port, tmp);
 	com->pc98_prev_siocmd = tmp & ~(CMD8251_ER|CMD8251_RESET|CMD8251_EH);
 	if (com->pc98_8251fifo_enable)
-	    outb(I8251F_fcr, CTRL8251F_ENABLE);
+	    outb(I8251F_fcr, FIFO_ENABLE);
 	COM_INT_ENABLE
 }
 
@@ -4021,7 +4021,7 @@ pc98_i8251_or_cmd(struct com_s *com, int x)
 	outb(com->cmd_port, tmp);
 	com->pc98_prev_siocmd = tmp & ~(CMD8251_ER|CMD8251_RESET|CMD8251_EH);
 	if (com->pc98_8251fifo_enable)
-	    outb(I8251F_fcr, CTRL8251F_ENABLE);
+	    outb(I8251F_fcr, FIFO_ENABLE);
 	COM_INT_ENABLE
 }
 
@@ -4037,7 +4037,7 @@ pc98_i8251_set_cmd(struct com_s *com, int x)
 	outb(com->cmd_port, tmp);
 	com->pc98_prev_siocmd = tmp & ~(CMD8251_ER|CMD8251_RESET|CMD8251_EH);
 	if (com->pc98_8251fifo_enable)
-	    outb(I8251F_fcr, CTRL8251F_ENABLE);
+	    outb(I8251F_fcr, FIFO_ENABLE);
 	COM_INT_ENABLE
 }
 
@@ -4053,7 +4053,7 @@ pc98_i8251_clear_or_cmd(struct com_s *com, int clr, int x)
 	outb(com->cmd_port, tmp);
 	com->pc98_prev_siocmd = tmp & ~(CMD8251_ER|CMD8251_RESET|CMD8251_EH);
 	if (com->pc98_8251fifo_enable)
-	    outb(I8251F_fcr, CTRL8251F_ENABLE);
+	    outb(I8251F_fcr, FIFO_ENABLE);
 	COM_INT_ENABLE
 }
 
@@ -4088,8 +4088,7 @@ pc98_i8251_reset(struct com_s *com, int mode, int command)
 	pc98_i8251_set_cmd( com, (command|CMD8251_ER) );
 	DELAY(10);
 	if (com->pc98_8251fifo_enable)
-	    outb(I8251F_fcr, CTRL8251F_ENABLE |
-		 CTRL8251F_XMT_RST | CTRL8251F_RCV_RST);
+	    outb(I8251F_fcr, FIFO_ENABLE | FIFO_XMT_RST | FIFO_RCV_RST);
 }
 
 static void
@@ -4131,11 +4130,10 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 	}
 	if ( cflag&PARENB ) {
 	    if ( cflag&PARODD )
-		cfcr |= MOD8251_PODD;
+		cfcr |= MOD8251_PENAB;
 	    else
-		cfcr |= MOD8251_PEVEN;
-	} else
-		cfcr |= MOD8251_PDISAB;
+		cfcr |= MOD8251_PENAB | MOD8251_PEVEN;
+	}
 
 	if ( cflag&CSTOPB )
 		cfcr |= MOD8251_STOP2;
@@ -4143,9 +4141,9 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 		cfcr |= MOD8251_STOP1;
 
 	if ( count & 0x10000 )
-		cfcr |= MOD8251_CLKX1;
+		cfcr |= MOD8251_CLKx1;
 	else
-		cfcr |= MOD8251_CLKX16;
+		cfcr |= MOD8251_CLKx16;
 
 	while (!((tmp = inb(com->sts_port)) & STS8251_TxEMP))
 		;
