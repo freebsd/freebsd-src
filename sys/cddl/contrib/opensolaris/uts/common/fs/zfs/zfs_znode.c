@@ -628,7 +628,8 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 	zfs_znode_dmu_init(zp);
 	ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
 	*zpp = zp;
-	VOP_UNLOCK(vp, 0);
+	if ((vp = ZTOV(zp)) != NULL)
+		VOP_UNLOCK(vp, 0);
 	return (0);
 }
 
