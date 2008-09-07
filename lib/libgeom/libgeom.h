@@ -154,6 +154,8 @@ int g_delete(int, off_t, off_t);
 int g_get_ident(int, char *, size_t);
 int g_get_name(const char *, char *, size_t);
 int g_open_by_ident(const char *, int, char *, size_t);
+char *g_device_path(const char *);
+char *g_providername(int);
 
 __END_DECLS
 

@@ -42,29 +42,22 @@ __FBSDID("$FreeBSD$");
 
 #include <libgeom.h>
 
+static char	*g_device_path_open(const char *, int *, int);
+
 /*
  * Open the given provider and at least check if this is a block device.
  */
 int
 g_open(const char *name, int dowrite)
 {
-	char path[MAXPATHLEN];
+	char *path;
 	int fd;
 
-	if (name[0] == '/')
-		strlcpy(path, name, sizeof(path));
-	else
-		snprintf(path, sizeof(path), "%s%s", _PATH_DEV, name);
-
-	fd = open(path, dowrite ? O_RDWR : O_RDONLY);
+	path = g_device_path_open(name, &fd, dowrite);
+	if (path != NULL)
+		free(path);
 	if (fd == -1)
 		return (-1);
-	/* Let try to get sectorsize, which will prove it is a GEOM provider. */
-	if (g_sectorsize(fd) == -1) {
-		close(fd);
-		errno = EFTYPE;
-		return (-1);
-	}
 	return (fd);
 }
 
@@ -118,6 +111,19 @@ g_sectorsize(int fd)
 	if (g_ioctl_arg(fd, DIOCGSECTORSIZE, &sectorsize) == -1)
 		return (-1);
 	return ((ssize_t)sectorsize);
+}
+
+/*
+ * Return the correct provider name.
+ */
+char *
+g_providername(int fd)
+{
+	char name[MAXPATHLEN];
+
+	if (g_ioctl_arg(fd, DIOCGPROVIDERNAME, name) == -1)
+		return (NULL);
+	return (strdup(name));
 }
 
 /*
@@ -233,4 +239,78 @@ end:
 		return (-1);
 	}
 	return (fd);
+}
+
+/*
+ * Return the device path device given a partial or full path to its node.
+ * A pointer can be provided, which will be set to an opened file descriptor of
+ * not NULL.
+ */
+static char *
+g_device_path_open(const char *devpath, int *fdp, int dowrite)
+{
+	char *path;
+	int fd;
+
+	/* Make sure that we can fail. */
+	if (fdp != NULL)
+		*fdp = -1;
+	/* Use the device node if we're able to open it. */
+	do {
+		fd = open(devpath, dowrite ? O_RDWR : O_RDONLY);
+		if (fd == -1)
+			break;
+		/*
+		 * Let try to get sectorsize, which will prove it is a GEOM
+		 * provider. 
+		 */
+		if (g_sectorsize(fd) == -1) {
+			close(fd);
+			errno = EFTYPE;
+			return (NULL);
+		}
+		if ((path = strdup(devpath)) == NULL) {
+			close(fd);
+			return (NULL);
+		}
+		if (fdp != NULL)
+			*fdp = fd;
+		else
+			close(fd);
+		return (path);
+	} while (0);
+
+	/* If we're not given an absolute path, assume /dev/ prefix. */
+	if (*devpath != '/') {
+		asprintf(&path, "%s%s", _PATH_DEV, devpath);
+		if (path == NULL)
+			return (NULL);
+		fd = open(path, dowrite ? O_RDWR : O_RDONLY);
+		if (fd == -1) {
+			free(path);
+			return (NULL);
+		}
+		/*
+		 * Let try to get sectorsize, which will prove it is a GEOM
+		 * provider.
+		 */
+		if (g_sectorsize(fd) == -1) {
+			free(path);
+			close(fd);
+			errno = EFTYPE;
+			return (NULL);
+		}
+		if (fdp != NULL)
+			*fdp = fd;
+		else
+			close(fd);
+		return (path);
+	}
+	return (NULL);
+}
+
+char *
+g_device_path(const char *devpath)
+{
+	return (g_device_path_open(devpath, NULL, 0));
 }
