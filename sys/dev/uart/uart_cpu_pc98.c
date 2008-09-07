@@ -64,7 +64,7 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	if (i386_memio_compare(b1->bst, b1->bsh, b2->bst, b2->bsh) == 0)
+	if (bus_space_compare(b1->bst, b1->bsh, b2->bst, b2->bsh) == 0)
 		return (1);
 
 	return (0);
