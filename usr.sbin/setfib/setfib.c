@@ -73,7 +73,7 @@ main(int argc, char *argv[])
 			fib = strtol(optarg, &ep, 10);
 			if (ep == optarg || *ep != '\0' || errno ||
 			    fib < 0 || fib >= numfibs)
-				errx(1, "%s: invalid FIB (max %s)",
+				errx(1, "%s: invalid FIB (max %d)",
 				    optarg, numfibs - 1);
 			break;
 		default:
