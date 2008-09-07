@@ -605,7 +605,7 @@ usage () {
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-k	suppress buildkernel"
 	echo "	-w	suppress buildworld"
-	echo "  -i	suppress disk image build"
+	echo "	-i	suppress disk image build"
 	echo "	-c	specify config file"
 	) 1>&2
 	exit 2
