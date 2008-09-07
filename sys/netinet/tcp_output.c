@@ -392,7 +392,7 @@ after_sack_rexmit:
 	}
 
 	/* len will be >= 0 after this point. */
-	KASSERT(len >= 0, ("%s: len < 0", __func__));
+	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
 
 	/*
 	 * Automatic sizing of send socket buffer.  Often the send buffer
@@ -744,6 +744,12 @@ send:
 #endif
 		panic("tcphdr too big");
 /*#endif*/
+
+	/*
+	 * This KASSERT is here to catch edge cases at a well defined place.
+	 * Before, those had triggered (random) panic conditions further down.
+	 */
+	KASSERT(len >= 0, ("[%s:%d]: len < 0", __func__, __LINE__));
 
 	/*
 	 * Grab a header mbuf, attaching a copy of data to
