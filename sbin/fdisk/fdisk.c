@@ -245,7 +245,6 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct	stat sb;
 	int	c, i;
 	int	partition = -1;
 	struct	dos_partition *partp;
@@ -307,18 +306,9 @@ main(int argc, char *argv[])
 	if (argc == 0) {
 		disk = get_rootdisk();
 	} else {
-		if (stat(argv[0], &sb) == 0) {
-			/* OK, full pathname given */
-			disk = argv[0];
-		} else if (errno == ENOENT && argv[0][0] != '/') {
-			/* Try prepending "/dev" */
-			asprintf(&disk, "%s%s", _PATH_DEV, argv[0]);
-			if (disk == NULL)
-				errx(1, "out of memory");
-		} else {
-			/* other stat error, let it fail below */
-			disk = argv[0];
-		}
+		disk = g_device_path(argv[0]);
+		if (disk == NULL)
+			err(1, "unable to get correct path for %s\n", argv[0]);
 	}
 	if (open_disk(u_flag) < 0)
 		err(1, "cannot open disk %s", disk);
@@ -724,21 +714,14 @@ dos(struct dos_partition *partp)
 static int
 open_disk(int flag)
 {
-	struct stat 	st;
 	int rwmode;
 
-	if (stat(disk, &st) == -1) {
-		if (errno == ENOENT)
-			return -2;
-		warnx("can't get file status of %s", disk);
-		return -1;
-	}
-	if ( !(st.st_mode & S_IFCHR) )
-		warnx("device %s is not character special", disk);
-	rwmode = a_flag || I_flag || B_flag || flag ? O_RDWR : O_RDONLY;
-	fd = open(disk, rwmode);
-	if (fd == -1 && errno == EPERM && rwmode == O_RDWR)
-		fd = open(disk, O_RDONLY);
+	/* Write mode if one of these flags are set. */
+	rwmode = (a_flag || I_flag || B_flag || flag);
+	fd = g_open(disk, rwmode);
+	/* If the mode fails, try read-only if we didn't. */
+	if (fd == -1 && errno == EPERM && rwmode)
+		fd = g_open(disk, 0);
 	if (fd == -1 && errno == ENXIO)
 		return -2;
 	if (fd == -1) {
@@ -778,29 +761,30 @@ write_disk(off_t sector, void *buf)
 {
 	int error;
 	struct gctl_req *grq;
-	const char *q;
-	char fbuf[BUFSIZ];
+	const char *errmsg;
+	char fbuf[BUFSIZ], *pname;
 	int i, fdw;
 
 	grq = gctl_get_handle();
 	gctl_ro_param(grq, "verb", -1, "write MBR");
 	gctl_ro_param(grq, "class", -1, "MBR");
-	q = strrchr(disk, '/');
-	if (q == NULL)
-		q = disk;
-	else
-		q++;
-	gctl_ro_param(grq, "geom", -1, q);
+	pname = g_providername(fd);
+	if (pname == NULL) {
+		warnx("Error getting providername for %s\n", disk);
+		return (-1);
+	}
+	gctl_ro_param(grq, "geom", -1, pname);
 	gctl_ro_param(grq, "data", secsize, buf);
-	q = gctl_issue(grq);
-	if (q == NULL) {
+	errmsg = gctl_issue(grq);
+	free(pname);
+	if (errmsg == NULL) {
 		gctl_free(grq);
 		return(0);
 	}
 	if (!q_flag)	/* GEOM errors are benign, not all devices supported */
-		warnx("%s", q);
+		warnx("%s", errmsg);
 	gctl_free(grq);
-	
+
 	error = pwrite(fd, buf, secsize, (sector * 512));
 	if (error == secsize)
 		return (0);
@@ -841,21 +825,18 @@ get_params()
 	dos_cylsecs = cylsecs = heads * sectors;
 	disksecs = cyls * heads * sectors;
 
-	error = ioctl(fd, DIOCGSECTORSIZE, &u);
-	if (error != 0 || u == 0)
-		u = 512;
-	else
-		secsize = u;
+	u = g_sectorsize(fd);
+	if (u <= 0)
+		return (-1);
 
-	error = ioctl(fd, DIOCGMEDIASIZE, &o);
-	if (error == 0) {
-		disksecs = o / u;
-		cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
-	}
+	o = g_mediasize(fd);
+	if (o < 0)
+		return (-1);
+	disksecs = o / u;
+	cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
 
 	return (disksecs);
 }
-
 
 static int
 read_s0()

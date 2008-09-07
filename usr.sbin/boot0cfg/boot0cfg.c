@@ -80,7 +80,6 @@ static void display_mbr(u_int8_t *);
 static int boot0version(const u_int8_t *);
 static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
-static char *mkrdev(const char *);
 static int argtoi(const char *, int, int, int);
 static void usage(void);
 
@@ -142,7 +141,9 @@ main(int argc, char *argv[])
     argv += optind;
     if (argc != 1)
         usage();
-    disk = mkrdev(*argv);
+    disk = g_device_path(*argv);
+    if (disk == NULL)
+        errx(1, "Unable to get providername for %s\n", *argv);
     up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || s_arg != -1
 	|| t_arg != -1;
 
@@ -257,7 +258,8 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
     int fd, p;
     ssize_t n;
     char *s;
-    const char *q;
+    const char *errmsg;
+    char *pname;
     struct gctl_req *grq;
    
     fd = open(fname, O_WRONLY | flags, 0666);
@@ -269,23 +271,31 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 	return;
     }
 
+    /* Try open it read only. */
+    fd = open(fname, O_RDONLY);
+    if (fd == -1) {
+	warnx("Error opening %s\n", fname);
+	return;
+    }
+    pname = g_providername(fd);
+    if (pname == NULL) {
+	warnx("Error getting providername for %s\n", fname);
+	return;
+    }
     if (flags != 0)
 	err(1, "%s", fname);
     grq = gctl_get_handle();
     gctl_ro_param(grq, "verb", -1, "write MBR");
     gctl_ro_param(grq, "class", -1, "MBR");
-    q = strrchr(fname, '/');
-    if (q == NULL)
-	q = fname;
-    else
-	q++;
-    gctl_ro_param(grq, "geom", -1, q);
+    gctl_ro_param(grq, "geom", -1, pname);
     gctl_ro_param(grq, "data", mbr_size, mbr);
-    q = gctl_issue(grq);
-    if (q == NULL)
+    errmsg = gctl_issue(grq);
+    if (errmsg == NULL) {
+    	free(pname);
 	return;
-
-    warnx("%s: %s", fname, q);
+    }
+    warnx("%s: %s", fname, pname);
+    free(pname);
     gctl_free(grq);
 
 #ifdef DIOCSMBR
@@ -419,26 +429,6 @@ stropt(const char *arg, int *xa, int *xo)
             *xo |= x;
     }
     free(s);
-}
-
-/*
- * Produce a device path for a "canonical" name, where appropriate.
- */
-static char *
-mkrdev(const char *fname)
-{
-    char buf[MAXPATHLEN];
-    char *s;
-
-    if (!strchr(fname, '/')) {
-	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-        s = strdup(buf);
-    } else
-        s = strdup(fname);
-
-    if (s == NULL)
-        errx(1, "No more memory");
-    return s;
 }
 
 /*
