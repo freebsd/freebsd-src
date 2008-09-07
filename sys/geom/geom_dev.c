@@ -244,6 +244,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 {
 	struct g_geom *gp;
 	struct g_consumer *cp;
+	struct g_provider *pp;
 	struct g_kerneldump kd;
 	off_t offset, length, chunk;
 	int i, error;
@@ -251,6 +252,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
+	pp = cp->provider;
 
 	error = 0;
 	KASSERT(cp->acr || cp->acw,
@@ -328,6 +330,11 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	case DIOCGIDENT:
 		error = g_io_getattr("GEOM::ident", cp, &i, data);
+		break;
+	case DIOCGPROVIDERNAME:
+		if (pp == NULL)
+			return (ENOENT);
+		strlcpy(data, pp->name, i);
 		break;
 
 	default:
