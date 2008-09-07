@@ -221,6 +221,31 @@ i386_memio_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
 }
 
 int
+i386_memio_map_load(bus_space_tag_t t, bus_space_handle_t bsh,
+		    bus_size_t size, bus_space_iat_t iat, u_int flags __unused)
+{
+	int i;
+
+	if (size > bsh->bsh_maxiatsz) {
+		printf("i386_memio_map_load: map size too large\n");
+		return EINVAL;
+	}
+
+	for (i = 0; i < bsh->bsh_maxiatsz; i++) {
+		if (i < size)
+			bsh->bsh_iat[i] = iat[i];
+		else
+			bsh->bsh_iat[i] = 0;
+		bsh->bsh_iat[i] += bsh->bsh_base;
+	}
+
+	bsh->bsh_iatsz = size;
+	bsh->bsh_bam = t->bs_ra;	/* relocate access */
+
+	return 0;
+}
+
+int
 i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
 		     bus_size_t offset, bus_size_t size,
 		     bus_space_handle_t *tbshp)
