@@ -937,11 +937,13 @@ sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
 
 	/* Advance by len to be as close as possible for the next transmit. */
 	for (off = off - sb->sb_sndptroff + len - 1;
-	     off > 0 && off >= m->m_len;
+	     off > 0 && m != NULL && off >= m->m_len;
 	     m = m->m_next) {
 		sb->sb_sndptroff += m->m_len;
 		off -= m->m_len;
 	}
+	if (off > 0 && m == NULL)
+		panic("%s: sockbuf %p and mbuf %p clashing", __func__, sb, ret);
 	sb->sb_sndptr = m;
 
 	return (ret);
