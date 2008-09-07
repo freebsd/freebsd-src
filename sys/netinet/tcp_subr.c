@@ -120,13 +120,13 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
-	new = tcp_mssdflt;
+	new = V_tcp_mssdflt;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
 		if (new < TCP_MINMSS)
 			error = EINVAL;
 		else
-			tcp_mssdflt = new;
+			V_tcp_mssdflt = new;
 	}
 	return (error);
 }
@@ -141,13 +141,13 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
 	int error, new;
 
-	new = tcp_v6mssdflt;
+	new = V_tcp_v6mssdflt;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr) {
 		if (new < TCP_MINMSS)
 			error = EINVAL;
 		else
-			tcp_v6mssdflt = new;
+			V_tcp_v6mssdflt = new;
 	}
 	return (error);
 }
