@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 #include <machine/smp.h>
 #include <machine/tlb.h>
+#include <machine/vmparam.h>
 
 PMAP_STATS_VAR(tlb_ncontext_demap);
 PMAP_STATS_VAR(tlb_npage_demap);
@@ -85,7 +86,7 @@ tlb_context_demap(struct pmap *pm)
 		s = intr_disable();
 		stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_PRIMARY | TLB_DEMAP_CONTEXT, ASI_IMMU_DEMAP, 0);
-		membar(Sync);
+		flush(KERNBASE);
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
@@ -111,7 +112,7 @@ tlb_page_demap(struct pmap *pm, vm_offset_t va)
 		s = intr_disable();
 		stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
 		stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
-		membar(Sync);
+		flush(KERNBASE);
 		intr_restore(s);
 	}
 	ipi_wait(cookie);
@@ -139,7 +140,7 @@ tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		for (va = start; va < end; va += PAGE_SIZE) {
 			stxa(TLB_DEMAP_VA(va) | flags, ASI_DMMU_DEMAP, 0);
 			stxa(TLB_DEMAP_VA(va) | flags, ASI_IMMU_DEMAP, 0);
-			membar(Sync);
+			flush(KERNBASE);
 		}
 		intr_restore(s);
 	}
