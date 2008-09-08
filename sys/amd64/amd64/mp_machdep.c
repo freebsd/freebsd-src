@@ -436,7 +436,8 @@ init_secondary(void)
 {
 	struct pcpu *pc;
 	u_int64_t msr, cr0;
-	int cpu, gsel_tss;
+	int cpu, gsel_tss, x;
+	struct region_descriptor ap_gdt;
 
 	/* Set by the startup code for us to use */
 	cpu = bootAP;
@@ -447,11 +448,17 @@ init_secondary(void)
 	common_tss[cpu].tss_iobase = sizeof(struct amd64tss);
 	common_tss[cpu].tss_ist1 = (long)&doublefault_stack[PAGE_SIZE];
 
+	/* Prepare private GDT */
 	gdt_segs[GPROC0_SEL].ssd_base = (long) &common_tss[cpu];
 	ssdtosyssd(&gdt_segs[GPROC0_SEL],
-	   (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
-
-	lgdt(&r_gdt);			/* does magic intra-segment return */
+	   (struct system_segment_descriptor *)&gdt[NGDT * cpu + GPROC0_SEL]);
+	for (x = 0; x < NGDT; x++) {
+		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
+			ssdtosd(&gdt_segs[x], &gdt[NGDT * cpu + x]);
+	}
+	ap_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
+	ap_gdt.rd_base =  (long) &gdt[NGDT * cpu];
+	lgdt(&ap_gdt);			/* does magic intra-segment return */
 
 	/* Get per-cpu data */
 	pc = &__pcpu[cpu];
