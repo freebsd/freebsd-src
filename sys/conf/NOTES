@@ -2276,6 +2276,14 @@ device		ic
 device		iic
 device		iicsmb		# smb over i2c bridge
 
+# I2C peripheral devices
+#
+# ds133x	Dallas Semiconductor DS1337, DS1338 and DS1339 RTC
+# ds1672	Dallas Semiconductor DS1672 RTC
+#
+device		ds133x
+device		ds1672
+
 # Parallel-Port Bus
 #
 # Parallel port bus support is provided by the `ppbus' device.

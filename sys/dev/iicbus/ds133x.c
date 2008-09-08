@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 #include "clock_if.h"
 
+#define DS133X_DEVNAME		"rtc"
+
 #define	DS133X_ADDR		0xd0	/* slave address */
 #define	DS133X_DATE_REG		0x0
 #define	DS133X_CTRL_REG		0x0e
@@ -217,6 +219,15 @@ ds133x_init(device_t dev, uint8_t cs_reg, uint8_t cs_bit, uint8_t osf_reg,
 	return (0);
 }
 
+
+static void
+ds133x_identify(driver_t *driver, device_t parent)
+{
+
+	if (device_find_child(parent, DS133X_DEVNAME, -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, DS133X_DEVNAME, -1);
+}
+
 static int
 ds133x_probe(device_t dev)
 {
@@ -336,6 +347,7 @@ ds133x_settime(device_t dev, struct timespec *ts)
 }
 
 static device_method_t ds133x_methods[] = {
+	DEVMETHOD(device_identify,	ds133x_identify),
 	DEVMETHOD(device_probe,		ds133x_probe),
 	DEVMETHOD(device_attach,	ds133x_attach),
 
@@ -346,7 +358,7 @@ static device_method_t ds133x_methods[] = {
 };
 
 static driver_t ds133x_driver = {
-	"rtc",
+	DS133X_DEVNAME,
 	ds133x_methods,
 	sizeof(struct ds133x_softc),
 };
