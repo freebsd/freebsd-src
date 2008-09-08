@@ -147,7 +147,6 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
 ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct savefpu));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_GS32P, offsetof(struct pcb, pcb_gs32p));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 
 ASSYM(PCB_SIZE, sizeof(struct pcb));
@@ -199,6 +198,7 @@ ASSYM(PC_SCRATCH_RSP, offsetof(struct pcpu, pc_scratch_rsp));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TSSP, offsetof(struct pcpu, pc_tssp));
 ASSYM(PC_RSP0, offsetof(struct pcpu, pc_rsp0));
+ASSYM(PC_GS32P, offsetof(struct pcpu, pc_gs32p));
  
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));

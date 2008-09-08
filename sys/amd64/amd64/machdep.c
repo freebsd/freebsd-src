@@ -1347,6 +1347,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
 	PCPU_SET(tssp, &common_tss[0]);
+	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
 
 	/*
 	 * Initialize mutexes.
