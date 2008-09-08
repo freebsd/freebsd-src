@@ -545,7 +545,6 @@ pmap_map_tsb(void)
 		pa = tsb_kernel_phys + i;
 		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
 		    TD_P | TD_W;
-		/* XXX - cheetah */
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
 		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
@@ -555,7 +554,8 @@ pmap_map_tsb(void)
 	 * Set the secondary context to be the kernel context (needed for
 	 * FP block operations in the kernel).
 	 */
-	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
+	stxa(AA_DMMU_SCXR, ASI_DMMU, (ldxa(AA_DMMU_SCXR, ASI_DMMU) &
+	    TLB_SCXR_PGSZ_MASK) | TLB_CTX_KERNEL);
 	flush(KERNBASE);
 
 	intr_restore(s);
@@ -1979,7 +1979,8 @@ pmap_activate(struct thread *td)
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
-	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
+	stxa(AA_DMMU_PCXR, ASI_DMMU, (ldxa(AA_DMMU_PCXR, ASI_DMMU) &
+	    TLB_PCXR_PGSZ_MASK) | context);
 	flush(KERNBASE);
 
 	mtx_unlock_spin(&sched_lock);
