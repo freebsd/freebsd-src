@@ -67,6 +67,9 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	MUTEX_NOINLINE		#Mutex inlines are space hogs
+options 	RWLOCK_NOINLINE		#rwlock inlines are space hogs
+options 	SX_NOINLINE		#sx inliens are space hogs
 options 	BOOTP
 options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
@@ -89,7 +92,8 @@ device		npe		# Network Processing Engine
 device		npe_fw
 device		firmware
 device		qmgr		# Q Manager (required by npe)
-device		miibus		# NB: required by npe
+device		mii		# Minimal mii routines
+device		rlphy		# NSLU2 uses Realtek PHY attached to npe
 device		ether
 device		bpf
 
