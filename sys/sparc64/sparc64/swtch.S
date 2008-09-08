@@ -237,8 +237,9 @@ ENTRY(cpu_switch)
 	mov	AA_IMMU_TSB, %i5
 	stxa	%i4, [%i5] ASI_IMMU
 	mov	AA_DMMU_PCXR, %i5
+	sethi	%hi(KERNBASE), %i4
 	stxa	%i3, [%i5] ASI_DMMU
-	membar	#Sync
+	flush	%i4
 
 	/*
 	 * Done, return and load the new process's window from the stack.

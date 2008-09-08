@@ -556,7 +556,7 @@ pmap_map_tsb(void)
 	 * FP block operations in the kernel).
 	 */
 	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
-	membar(Sync);
+	flush(KERNBASE);
 
 	intr_restore(s);
 }
@@ -1980,7 +1980,7 @@ pmap_activate(struct thread *td)
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
-	membar(Sync);
+	flush(KERNBASE);
 
 	mtx_unlock_spin(&sched_lock);
 }

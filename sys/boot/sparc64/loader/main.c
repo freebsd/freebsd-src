@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/upa.h>
 #include <machine/ver.h>
+#include <machine/vmparam.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
@@ -461,7 +462,7 @@ itlb_enter_sun4u(u_long vpn, u_long data)
 	stxa(AA_IMMU_TAR, ASI_IMMU,
 	     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 	stxa(0, ASI_ITLB_DATA_IN_REG, data);
-	membar(Sync);
+	flush(KERNBASE);
 	wrpr(pstate, reg, 0);
 }
 
