@@ -48,7 +48,8 @@
 	register_t pc_rsp0;						\
 	register_t pc_scratch_rsp;	/* User %rsp in syscall */	\
 	u_int	pc_apic_id;						\
-	u_int   pc_acpi_id		/* ACPI CPU id */
+	u_int   pc_acpi_id;		/* ACPI CPU id */		\
+	struct user_segment_descriptor	*pc_gs32p
 
 #ifdef _KERNEL
 

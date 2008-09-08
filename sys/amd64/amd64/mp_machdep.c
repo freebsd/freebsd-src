@@ -470,6 +470,7 @@ init_secondary(void)
 	pc->pc_curthread = 0;
 	pc->pc_tssp = &common_tss[cpu];
 	pc->pc_rsp0 = 0;
+	pc->pc_gs32p = &gdt[NGDT * cpu + GUGS32_SEL];
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
