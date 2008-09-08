@@ -77,7 +77,6 @@ struct pcb {
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
 
 	/* 32-bit segment descriptor */
-	struct user_segment_descriptor	*pcb_gs32p;
 	struct user_segment_descriptor	pcb_gs32sd;
 };
 
