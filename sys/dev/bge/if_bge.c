@@ -3387,8 +3387,12 @@ bge_tick(void *xsc)
 
 	if ((sc->bge_flags & BGE_FLAG_TBI) == 0) {
 		mii = device_get_softc(sc->bge_miibus);
-		/* Don't mess with the PHY in IPMI/ASF mode */
-		if (!((sc->bge_asf_mode & ASF_STACKUP) && (sc->bge_link)))
+		/*
+		 * Do not touch PHY if we have link up. This could break
+		 * IPMI/ASF mode or produce extra input errors
+		 * (extra errors was reported for bcm5701 & bcm5704).
+		 */
+		if (!sc->bge_link)
 			mii_tick(mii);
 	} else {
 		/*
