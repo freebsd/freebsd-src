@@ -92,6 +92,22 @@ the same link addresses.
 The address can be changed by assigning the desired link address using
 .Xr ifconfig 8 .
 .Pp
+If
+.Xr sysctl 8
+node
+.Va net.link.bridge.inherit_mac
+has non-zero value, newly created bridge will inherit MAC address
+from its first member instead of choosing random link-level address.
+This will provide more predictable bridge MAC without any
+additional configuration, but currently this feature is known
+to break some L2 protocols, for example PPPoE that is provided
+by
+.Xr ng_pppoe 4
+and
+.Xr ppp 8 .
+Now this feature is considered as experimental and is turned off
+by-default.
+.Pp
 A bridge can be used to provide several services, such as a simple
 802.11-to-Ethernet bridge for wireless hosts, and traffic isolation.
 .Pp
