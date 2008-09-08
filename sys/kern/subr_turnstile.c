@@ -396,12 +396,13 @@ init_turnstile0(void *dummy)
 {
 
 	turnstile_zone = uma_zcreate("TURNSTILE", sizeof(struct turnstile),
+	    NULL,
 #ifdef INVARIANTS
-	    NULL, turnstile_dtor, turnstile_init, turnstile_fini,
-	    UMA_ALIGN_CACHE, 0);
+	    turnstile_dtor,
 #else
-	    NULL, NULL, turnstile_init, turnstile_fini, UMA_ALIGN_CACHE, 0);
+	    NULL,
 #endif
+	    turnstile_init, turnstile_fini, UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
 	thread0.td_turnstile = turnstile_alloc();
 }
 SYSINIT(turnstile0, SI_SUB_LOCK, SI_ORDER_ANY, init_turnstile0, NULL);
