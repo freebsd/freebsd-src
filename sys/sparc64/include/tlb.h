@@ -51,6 +51,34 @@
 #define	TLB_TAR_VA(va)			((va) & ~TAR_CTX_MASK)
 #define	TLB_TAR_CTX(ctx)		((ctx) & TAR_CTX_MASK)
 
+#define	TLB_CXR_CTX_BITS		(13)
+#define	TLB_CXR_CTX_MASK						\
+	(((1UL << TLB_CXR_CTX_BITS) - 1) << TLB_CXR_CTX_SHIFT)
+#define	TLB_CXR_CTX_SHIFT		(0)
+#define	TLB_CXR_PGSZ_BITS		(3)
+#define	TLB_PCXR_PGSZ_MASK						\
+	((((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_PCXR_N_PGSZ0_SHIFT) |	\
+	(((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_PCXR_N_PGSZ1_SHIFT) |	\
+	(((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_PCXR_P_PGSZ0_SHIFT) |	\
+	(((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_PCXR_P_PGSZ1_SHIFT))
+#define	TLB_PCXR_N_PGSZ0_SHIFT		(61)
+#define	TLB_PCXR_N_PGSZ1_SHIFT		(58)
+#define	TLB_PCXR_P_PGSZ0_SHIFT		(16)
+#define	TLB_PCXR_P_PGSZ1_SHIFT		(19)
+#define	TLB_SCXR_PGSZ_MASK						\
+	((((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_SCXR_S_PGSZ0_SHIFT) |	\
+	(((1UL << TLB_CXR_PGSZ_BITS) - 1) << TLB_SCXR_S_PGSZ1_SHIFT))
+#define	TLB_SCXR_S_PGSZ1_SHIFT		(19)
+#define	TLB_SCXR_S_PGSZ0_SHIFT		(16)
+
+#define	TLB_TAE_PGSZ_BITS		(3)
+#define	TLB_TAE_PGSZ0_MASK						\
+	(((1UL << TLB_TAE_PGSZ_BITS) - 1) << TLB_TAE_PGSZ0_SHIFT)
+#define	TLB_TAE_PGSZ1_MASK						\
+	(((1UL << TLB_TAE_PGSZ_BITS) - 1) << TLB_TAE_PGSZ1_SHIFT)
+#define	TLB_TAE_PGSZ0_SHIFT		(16)
+#define	TLB_TAE_PGSZ1_SHIFT		(19)
+
 #define	TLB_DEMAP_ID_SHIFT		(4)
 #define	TLB_DEMAP_ID_PRIMARY		(0)
 #define	TLB_DEMAP_ID_SECONDARY		(1)
@@ -59,8 +87,7 @@
 #define	TLB_DEMAP_TYPE_SHIFT		(6)
 #define	TLB_DEMAP_TYPE_PAGE		(0)
 #define	TLB_DEMAP_TYPE_CONTEXT		(1)
-/* US-III and greater only */
-#define	TLB_DEMAP_TYPE_ALL		(2)
+#define	TLB_DEMAP_TYPE_ALL		(2)	/* USIII and beyond only */
 
 #define	TLB_DEMAP_VA(va)		((va) & ~PAGE_MASK)
 #define	TLB_DEMAP_ID(id)		((id) << TLB_DEMAP_ID_SHIFT)
