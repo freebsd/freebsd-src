@@ -803,7 +803,7 @@ cpu_setregs(void)
  * Initialize segments & interrupt table
  */
 
-struct user_segment_descriptor gdt[NGDT * MAXCPU];/* global descriptor table */
+struct user_segment_descriptor gdt[NGDT * MAXCPU];/* global descriptor tables */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
@@ -870,7 +870,7 @@ struct soft_segment_descriptor gdt_segs[] = {
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
 {
 	0x0,			/* segment base address */
-	sizeof(struct amd64tss)-1,/* length - all address space */
+	sizeof(struct amd64tss)-1,/* length */
 	SDT_SYSTSS,		/* segment type */
 	SEL_KPL,		/* segment descriptor priority level */
 	1,			/* segment descriptor present */
