@@ -89,7 +89,7 @@ CFLAGS+= -I${LA_SRCDIR} -I.
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
-#WARNS=6
+WARNS=6
 
 # Build libarchive_test and run it.
 check test: libarchive_test
