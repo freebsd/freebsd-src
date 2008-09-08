@@ -347,6 +347,7 @@ static int pfil_ipfw_arp = 0;   /* layer2 filter with ipfw */
 static int pfil_local_phys = 0; /* run pfil hooks on the physical interface for
                                    locally destined packets */
 static int log_stp   = 0;   /* log STP state changes */
+static int bridge_inherit_mac = 0;   /* share MAC with first bridge member */
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RW,
@@ -360,6 +361,9 @@ SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys, CTLFLAG_RW,
     "Packet filter on the physical interface for locally destined packets");
 SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RW,
     &log_stp, 0, "Log STP state changes");
+SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac, CTLFLAG_RW,
+    &bridge_inherit_mac, 0,
+    "Inherit MAC address from the first bridge member");
 
 struct bridge_control {
 	int	(*bc_func)(struct bridge_softc *, void *);
@@ -923,7 +927,8 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	 * the mac address of the bridge to the address of the next member, or
 	 * to its default address if no members are left.
 	 */
-	if (!memcmp(IF_LLADDR(sc->sc_ifp), IF_LLADDR(ifs), ETHER_ADDR_LEN)) {
+	if (bridge_inherit_mac &&
+	    !memcmp(IF_LLADDR(sc->sc_ifp), IF_LLADDR(ifs), ETHER_ADDR_LEN)) {
 		if (LIST_EMPTY(&sc->sc_iflist))
 			bcopy(sc->sc_defaddr,
 			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
@@ -1030,7 +1035,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 * member and the MAC address of the bridge has not been changed from
 	 * the default randomly generated one.
 	 */
-	if (LIST_EMPTY(&sc->sc_iflist) &&
+	if (bridge_inherit_mac && LIST_EMPTY(&sc->sc_iflist) &&
 	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN))
 		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
 
