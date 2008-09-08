@@ -692,7 +692,8 @@ trap_fatal(frame, eva)
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
+	sdtossd(&gdt[NGDT * PCPU_GET(cpuid) + IDXSEL(frame->tf_cs & 0xffff)],
+	    &softseg);
 
 	if (type <= MAX_TRAP_MSG)
 		msg = trap_msg[type];
