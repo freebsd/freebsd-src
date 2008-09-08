@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2007
+.Dd September 8, 2008
 .Dt LIBGEOM 3
 .Os
 .Sh NAME
@@ -52,9 +52,11 @@
 .Nm g_sectorsize ,
 .Nm g_flush ,
 .Nm g_delete ,
+.Nm g_device_path ,
 .Nm g_get_ident ,
 .Nm g_get_name ,
-.Nm g_open_by_ident
+.Nm g_open_by_ident ,
+.Nm g_providername
 .Nd userland API library for kernel GEOM subsystem
 .Sh LIBRARY
 .Lb libgeom
@@ -103,12 +105,16 @@
 .Fn g_flush "int fd"
 .Ft int
 .Fn g_delete "int fd" "off_t offset" "off_t length"
+.Ft "char *"
+.Fn g_device_path "const char *devpath"
 .Ft int
 .Fn g_get_ident "int fd" "char *ident" "size_t size"
 .Ft int
 .Fn g_get_name "const char *ident" "char *name" "size_t size"
 .Ft int
 .Fn g_open_by_ident "const char *ident" "int dowrite" "char *name" "size_t size"
+.Ft "char *"
+.Fn g_providername "int fd"
 .Sh DESCRIPTION
 The
 .Nm geom
@@ -301,6 +307,13 @@ The
 function tells the provider that the given data range is no longer used.
 .Pp
 The
+.Fn g_device_path
+function returns the full path to a provider given a partial or full path to the
+device node.
+If the device can not be found or is not a valid geom provider, NULL is
+returned.
+.Pp
+The
 .Fn g_get_ident
 function returns provider's fixed and unique identifier.
 The
@@ -326,7 +339,17 @@ argument is not
 .Dv NULL ,
 the function will store provider's name there.
 .Pp
-All functions return value greater than or equal to
+The
+.Fn g_providername
+function returns the provider name of an open file descriptor.
+If the file descriptor does not point to a valid geom provider, NULL is
+returned.
+.Pp
+All functions except
+.Fn g_providername
+and
+.Fn g_device_path
+return a value greater than or equal to
 .Va 0
 on success or
 .Va -1
