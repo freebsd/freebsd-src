@@ -187,6 +187,7 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	struct contents expect;
 	/* data, size, offset of block read from archive. */
 	struct contents actual;
+	const void *p;
 	struct archive *a;
 
 	extract_reference_file(name);
@@ -206,10 +207,10 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 
 		expect = *cts++;
 		while (0 == (err = archive_read_data_block(a,
-				 (const void **)&actual.d,
-				 &actual.s, &actual.o))) {
+				 &p, &actual.s, &actual.o))) {
+			actual.d = p;
 			while (actual.s > 0) {
-				char c = *(const char *)actual.d;
+				char c = *actual.d;
 				if(actual.o < expect.o) {
 					/*
 					 * Any byte before the expected
