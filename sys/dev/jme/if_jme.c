@@ -625,7 +625,7 @@ jme_attach(device_t dev)
 	}
 
 	sc->jme_rev = pci_get_revid(dev);
-	if (sc->jme_rev == DEVICEREVID_JMC260) {
+	if (sc->jme_rev == DEVICEID_JMC260) {
 		sc->jme_flags |= JME_FLAG_FASTETH;
 		sc->jme_flags |= JME_FLAG_NOJUMBO;
 	}
