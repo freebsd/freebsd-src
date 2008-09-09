@@ -45,11 +45,16 @@ __FBSDID("$FreeBSD$");
 static int drm_ati_alloc_pcigart_table(struct drm_device *dev,
 				       struct drm_ati_pcigart_info *gart_info)
 {
-	dev->sg->dmah = drm_pci_alloc(dev, gart_info->table_size,
-						PAGE_SIZE,
-						gart_info->table_mask);
-	if (dev->sg->dmah == NULL)
+	drm_dma_handle_t *dmah;
+
+	DRM_UNLOCK();
+	dmah = drm_pci_alloc(dev, gart_info->table_size, PAGE_SIZE,
+	    gart_info->table_mask);
+	DRM_LOCK();
+	if (dmah == NULL)
 		return ENOMEM;
+
+	dev->sg->dmah = dmah;
 
 	return 0;
 }
