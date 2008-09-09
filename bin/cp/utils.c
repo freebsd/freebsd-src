@@ -224,7 +224,6 @@ copy_file(const FTSENT *entp, int dne)
 			rval = 1;
 		if (pflag && preserve_fd_acls(from_fd, to_fd) != 0)
 			rval = 1;
-		(void)close(from_fd);
 		if (close(to_fd)) {
 			warn("%s", to.p_path);
 			rval = 1;
