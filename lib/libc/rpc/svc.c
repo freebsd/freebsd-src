@@ -569,6 +569,7 @@ svc_xprt_alloc()
 	ext = mem_alloc(sizeof(SVCXPRT_EXT));
 	memset(ext, 0, sizeof(SVCXPRT_EXT));
 	xprt->xp_p3 = ext;
+	ext->xp_auth.svc_ah_ops = &svc_auth_null_ops;
 
 	return (xprt);
 }
