@@ -837,8 +837,14 @@ static int mach64_bm_dma_test(struct drm_device * dev)
 
 	/* FIXME: get a dma buffer from the freelist here */
 	DRM_DEBUG("Allocating data memory ...\n");
+#ifdef __FreeBSD__
+	DRM_UNLOCK();
+#endif
 	cpu_addr_dmah =
 	    drm_pci_alloc(dev, 0x1000, 0x1000, 0xfffffffful);
+#ifdef __FreeBSD__
+	DRM_LOCK();
+#endif
 	if (!cpu_addr_dmah) {
 		DRM_INFO("data-memory allocation failed!\n");
 		return -ENOMEM;
