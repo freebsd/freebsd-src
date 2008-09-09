@@ -598,8 +598,10 @@ static int drm_do_addbufs_pci(struct drm_device *dev, drm_buf_desc_t *request)
 	page_count = 0;
 
 	while ( entry->buf_count < count ) {
+		DRM_SPINUNLOCK(&dev->dma_lock);
 		drm_dma_handle_t *dmah = drm_pci_alloc(dev, size, alignment,
 		    0xfffffffful);
+		DRM_SPINLOCK(&dev->dma_lock);
 		if (dmah == NULL) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;

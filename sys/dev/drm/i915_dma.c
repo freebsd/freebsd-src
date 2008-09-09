@@ -250,16 +250,22 @@ static int i915_initialize(struct drm_device * dev,
 
 	/* Program Hardware Status Page */
 	if (!I915_NEED_GFX_HWS(dev)) {
-		dev_priv->status_page_dmah =
-			drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
-
-		if (!dev_priv->status_page_dmah) {
+		drm_dma_handle_t *dmah;
+#ifdef __FreeBSD__
+		DRM_UNLOCK();
+#endif
+		dmah = drm_pci_alloc(dev, PAGE_SIZE, PAGE_SIZE, 0xffffffff);
+#ifdef __FreeBSD__
+		DRM_LOCK();
+#endif
+		if (!dmah) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Can not allocate hardware status page\n");
 			return -ENOMEM;
 		}
-		dev_priv->hw_status_page = dev_priv->status_page_dmah->vaddr;
-		dev_priv->dma_status_page = dev_priv->status_page_dmah->busaddr;
+		dev_priv->status_page_dmah = dmah;
+		dev_priv->hw_status_page = dmah->vaddr;
+		dev_priv->dma_status_page = dmah->busaddr;
 
 		memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 

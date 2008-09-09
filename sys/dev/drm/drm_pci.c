@@ -74,7 +74,12 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 		return NULL;
 
 #ifdef __FreeBSD__
-	DRM_UNLOCK();
+	/* Make sure we aren't holding locks here */
+	if (mtx_owned(&dev->dev_lock))
+	    DRM_ERROR("called while holding dev_lock\n");
+	if (mtx_owned(&dev->dma_lock))
+	    DRM_ERROR("called while holding dma_lock\n");
+
 	ret = bus_dma_tag_create(NULL, align, 0, /* tag, align, boundary */
 	    maxaddr, BUS_SPACE_MAXADDR, /* lowaddr, highaddr */
 	    NULL, NULL, /* filtfunc, filtfuncargs */
@@ -83,7 +88,6 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	    &dmah->tag);
 	if (ret != 0) {
 		free(dmah, M_DRM);
-		DRM_LOCK();
 		return NULL;
 	}
 
@@ -92,10 +96,9 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
 		free(dmah, M_DRM);
-		DRM_LOCK();
 		return NULL;
 	}
-	DRM_LOCK();
+
 	ret = bus_dmamap_load(dmah->tag, dmah->map, dmah->vaddr, size,
 	    drm_pci_busdma_callback, dmah, 0);
 	if (ret != 0) {
