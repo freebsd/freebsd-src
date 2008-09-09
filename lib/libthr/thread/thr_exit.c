@@ -96,9 +96,6 @@ _pthread_exit(void *status)
 		_thread_cleanupspecific();
 	}
 
-	/* Tell malloc that the thread is exiting. */
-	_malloc_thread_cleanup();
-
 	if (!_thr_isthreaded())
 		exit(0);
 
@@ -109,6 +106,12 @@ _pthread_exit(void *status)
 		exit(0);
 		/* Never reach! */
 	}
+	THREAD_LIST_UNLOCK(curthread);
+
+	/* Tell malloc that the thread is exiting. */
+	_malloc_thread_cleanup();
+
+	THREAD_LIST_LOCK(curthread);
 	THR_LOCK(curthread);
 	curthread->state = PS_DEAD;
 	if (curthread->flags & THR_FLAGS_NEED_SUSPEND) {
