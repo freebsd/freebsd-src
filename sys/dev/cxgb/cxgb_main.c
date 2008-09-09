@@ -1016,17 +1016,6 @@ cxgb_port_attach(device_t dev)
 		ifmedia_set(&p->media, IFM_ETHER | IFM_AUTO);
 	}	
 
-
-	snprintf(p->taskqbuf, TASKQ_NAME_LEN, "cxgb_port_taskq%d", p->port_id);
-#ifdef TASKQUEUE_CURRENT
-	/* Create a port for handling TX without starvation */
-	p->tq = taskqueue_create(p->taskqbuf, M_NOWAIT,
-	    taskqueue_thread_enqueue, &p->tq);
-#else
-	/* Create a port for handling TX without starvation */
-	p->tq = taskqueue_create_fast(p->taskqbuf, M_NOWAIT,
-	    taskqueue_thread_enqueue, &p->tq);
-#endif
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(IF_LLADDR(p->ifp), p->hw_addr, ETHER_ADDR_LEN);
 	t3_sge_init_port(p);
@@ -1049,12 +1038,6 @@ cxgb_port_detach(device_t dev)
 		cxgb_stop_locked(p);
 	PORT_UNLOCK(p);
 	
-	if (p->tq != NULL) {
-		taskqueue_drain(p->tq, &p->start_task);
-		taskqueue_free(p->tq);
-		p->tq = NULL;
-	}
-
 	ether_ifdetach(p->ifp);
 	printf("waiting for callout to stop ...");
 	DELAY(1000000);
