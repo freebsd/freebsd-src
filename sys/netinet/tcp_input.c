@@ -2086,13 +2086,15 @@ process_ACK:
 		 * in flight, open exponentially (maxseg per packet).
 		 * Otherwise open linearly: maxseg per window
 		 * (maxseg^2 / cwnd per packet).
+		 * If cwnd > maxseg^2, fix the cwnd increment at 1 byte
+		 * to avoid capping cwnd (as suggested in RFC2581).
 		 */
 		if ((!V_tcp_do_newreno && !(tp->t_flags & TF_SACK_PERMIT)) ||
 		    !IN_FASTRECOVERY(tp)) {
 			u_int cw = tp->snd_cwnd;
 			u_int incr = tp->t_maxseg;
 			if (cw > tp->snd_ssthresh)
-				incr = incr * incr / cw;
+				incr = max((incr * incr / cw), 1);
 			tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
 		}
 		SOCKBUF_LOCK(&so->so_snd);
