@@ -73,6 +73,16 @@
 #		If this file exists, then failure to execute the mount
 #		command contained in /conf/T/M/remount is non-fatal.
 #
+# /conf/T/M/remount_subdir
+#		If this file exists, then the behaviour of /conf/T/M/remount
+#		changes as follows:
+#		 1. /conf/T/M/remount is invoked to mount the root of the
+#		    filesystem where the configuration data exists on a
+#		    temporary mountpoint.
+#		 2. /conf/T/M/remount_subdir is then invoked to mount a
+#		    *subdirectory* of the filesystem mounted by
+#		    /conf/T/M/remount on /conf/T/M/.
+#
 # /conf/T/M/diskless_remount
 #		The contents of the file points to an NFS filesystem,
 #		possibly followed by mount_nfs options. If the server name
@@ -296,10 +306,33 @@ for i in ${templates} ; do
 
 	# remount. Beware, the command is in the file itself!
 	if [ -f $j/remount ]; then
-	    nfspt=`/bin/cat $j/remount`
-	    $nfspt $j
-	    chkerr $? "$nfspt $j"
-	    to_umount="$j ${to_umount}" # XXX hope it is really a mount!
+	    if [ -f $j/remount_subdir ]; then
+		k="/conf.tmp/$i/$subdir"
+		[ -d $k ] || continue
+
+		# Mount the filesystem root where the config data is
+		# on the temporary mount point.
+		nfspt=`/bin/cat $j/remount`
+		$nfspt $k
+		chkerr $? "$nfspt $k"
+
+		# Now use a nullfs mount to get the data where we
+		# really want to see it.
+		remount_subdir=`/bin/cat $j/remount_subdir`
+		remount_subdir_cmd="mount -t nullfs $k/$remount_subdir"
+
+		$remount_subdir_cmd $j
+		chkerr $? "$remount_subdir_cmd $j"
+
+		# XXX check order -- we must force $k to be unmounted
+		# after j, as j depends on k.
+		to_umount="$j $k ${to_umount}"
+	    else
+		nfspt=`/bin/cat $j/remount`
+		$nfspt $j
+		chkerr $? "$nfspt $j"
+		to_umount="$j ${to_umount}" # XXX hope it is really a mount!
+	    fi
 	fi
 
 	# NFS remount
