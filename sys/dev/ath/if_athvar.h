@@ -506,7 +506,7 @@ void	ath_intr(void *);
 #define	ath_hal_getregdomain(_ah, _prd) \
 	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
 #define	ath_hal_setregdomain(_ah, _rd) \
-	(*(uint16_t *)(((uint8_t *)(_ah)) + 520) = (_rd))
+	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 128) = (_rd))
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
 #define	ath_hal_gettkipmic(_ah) \
