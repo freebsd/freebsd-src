@@ -467,6 +467,7 @@ _iwifw=		iwifw
 _iwn=		iwn
 _iwnfw=		iwnfw
 _ixgb=		ixgb
+_k8temp=	k8temp
 _mly=		mly
 _nfe=		nfe
 _nve=		nve
