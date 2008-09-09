@@ -127,16 +127,12 @@ struct port_info {
 	uint32_t	nqsets;
 	
 	uint8_t		hw_addr[ETHER_ADDR_LEN];
-	struct taskqueue *tq;
-	struct task     start_task;
 	struct task	timer_reclaim_task;
 	struct cdev     *port_cdev;
 
 #define PORT_LOCK_NAME_LEN 32
-#define TASKQ_NAME_LEN 32
 #define PORT_NAME_LEN 32
 	char            lockbuf[PORT_LOCK_NAME_LEN];
-	char            taskqbuf[TASKQ_NAME_LEN];
 	char            namebuf[PORT_NAME_LEN];
 };
 
@@ -375,7 +371,6 @@ struct adapter {
 	struct task		ext_intr_task;
 	struct task		slow_intr_task;
 	struct task		tick_task;
-	struct task		process_responses_task;
 	struct taskqueue	*tq;
 	struct callout		cxgb_tick_ch;
 	struct callout		sge_timer_ch;
