@@ -1996,6 +1996,19 @@ jme_mac_config(struct jme_softc *sc)
 	default:
 		break;
 	}
+	/* Workaround CRC errors at 100Mbps on JMC250 A2. */
+	if (sc->jme_rev == DEVICEID_JMC250 &&
+	    sc->jme_chip_rev == DEVICEREVID_JMC250_A2) {
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
+			/* Extend interface FIFO depth. */
+			jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
+			    0x1B, 0x0000);
+		} else {
+			/* Select default interface FIFO depth. */
+			jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
+			    0x1B, 0x0004);
+		}
+	}
 	CSR_WRITE_4(sc, JME_GHC, ghc);
 	CSR_WRITE_4(sc, JME_RXMAC, rxmac);
 	CSR_WRITE_4(sc, JME_TXMAC, txmac);
