@@ -75,7 +75,7 @@ struct authsvc {
 };
 static struct authsvc *Auths = NULL;
 
-static struct svc_auth_ops svc_auth_null_ops;
+struct svc_auth_ops svc_auth_null_ops;
 
 /*
  * The call rpc message, msg has been obtained from the wire.  The msg contains
@@ -162,7 +162,7 @@ svcauth_null_wrap(auth, xdrs, xdr_func, xdr_ptr)
 	return (xdr_func(xdrs, xdr_ptr));
 }
 
-static struct svc_auth_ops svc_auth_null_ops = {
+struct svc_auth_ops svc_auth_null_ops = {
 	svcauth_null_wrap,
 	svcauth_null_wrap,
 };
