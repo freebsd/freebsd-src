@@ -184,7 +184,7 @@ vptetomachpte(vm_paddr_t *pte)
 do { 								\
    PANIC_IF(HYPERVISOR_update_va_mapping(((unsigned long)(_va)),\
 	   (_ma),						\
-	   UVMF_INVLPG| UVMF_LOCAL) < 0);			\
+	   UVMF_INVLPG| UVMF_ALL) < 0);			\
 } while (/*CONSTCOND*/0)	  
 
 #define	PT_UPDATES_FLUSH() do {				        \

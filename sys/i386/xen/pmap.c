@@ -211,7 +211,7 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 int pgeflag = 0;		/* PG_G or-in */
 int pseflag = 0;		/* PG_PS or-in */
 
-static int nkpt;
+int nkpt;
 vm_offset_t kernel_vm_end;
 extern u_int32_t KERNend;
 
