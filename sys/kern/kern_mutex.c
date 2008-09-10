@@ -256,7 +256,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 {
 	int rval, contested = 0;
 	uint64_t waittime = 0;
-	
+
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_trylock() of destroyed mutex @ %s:%d", file, line));
@@ -305,7 +305,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	int contested = 0;
 	uint64_t waittime = 0;
 	uintptr_t v;
-	
+
 	if (mtx_owned(m)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
 	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
@@ -324,7 +324,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
 		    m->lock_object.lo_name, (void *)m->mtx_lock, file, line);
 
-	while (!_obtain_lock(m, tid)) { 
+	while (!_obtain_lock(m, tid)) {
 #ifdef ADAPTIVE_MUTEXES
 		/*
 		 * If the owner is running on another CPU, spin until the
@@ -414,8 +414,8 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		    m->lock_object.lo_name, (void *)tid, file, line);
 	}
 #endif
-	lock_profile_obtain_lock_success(&m->lock_object, contested,	
-	    waittime, file, line);					
+	lock_profile_obtain_lock_success(&m->lock_object, contested,
+	    waittime, file, line);
 }
 
 static void
@@ -450,7 +450,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 {
 	int i = 0, contested = 0;
 	uint64_t waittime = 0;
-	
+
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
@@ -476,7 +476,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spin done", m);
 
-	lock_profile_obtain_lock_success(&m->lock_object, contested,	
+	lock_profile_obtain_lock_success(&m->lock_object, contested,
 	    waittime, (file), (line));
 }
 #endif /* SMP */
@@ -535,7 +535,7 @@ retry:
 		_rel_spin_lock(m);	/* does spinlock_exit() */
 	}
 	if (m->mtx_recurse == 0)
-		lock_profile_obtain_lock_success(&m->lock_object, contested,	
+		lock_profile_obtain_lock_success(&m->lock_object, contested,
 		    waittime, (file), (line));
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
@@ -604,10 +604,10 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 	ts = turnstile_lookup(&m->lock_object);
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p contested", m);
-
 	MPASS(ts != NULL);
 	turnstile_broadcast(ts, TS_EXCLUSIVE_QUEUE);
 	_release_lock_quick(m);
+
 	/*
 	 * This turnstile is now no longer associated with the mutex.  We can
 	 * unlock the chain lock so a new turnstile may take it's place.
