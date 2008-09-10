@@ -1036,14 +1036,17 @@ est_attach(device_t dev)
 static int
 est_detach(device_t dev)
 {
-#if 0
 	struct est_softc *sc;
+	int error;
+
+	error = cpufreq_unregister(dev);
+	if (error)
+		return (error);
 
 	sc = device_get_softc(dev);
 	if (sc->acpi_settings || sc->msr_settings)
 		free(sc->freq_list, M_DEVBUF);
-#endif
-	return (ENXIO);
+	return (0);
 }
 
 /*
