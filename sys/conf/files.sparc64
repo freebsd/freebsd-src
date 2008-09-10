@@ -109,6 +109,7 @@ sparc64/sparc64/in_cksum.c	optional	inet
 sparc64/sparc64/interrupt.S	standard	no-obj
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
+sparc64/sparc64/jbusppm.c	standard
 sparc64/sparc64/locore.S	standard	no-obj
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/mem.c		optional	mem
@@ -123,6 +124,7 @@ sparc64/sparc64/prof_machdep.c	optional	profiling-routine
 sparc64/sparc64/rtc.c		optional	rtc ebus | rtc isa
 sparc64/sparc64/rwindow.c	standard
 sparc64/sparc64/sc_machdep.c	optional	sc
+sparc64/sparc64/schppm.c	standard
 sparc64/sparc64/spitfire.c	standard
 sparc64/sparc64/stack_machdep.c	optional	ddb | stack
 sparc64/sparc64/support.S	standard
