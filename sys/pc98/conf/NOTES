@@ -380,6 +380,7 @@ hint.mse.0.irq="13"
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
 # ral:	Ralink Technology IEEE 802.11 wireless adapter
+# sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 
@@ -404,6 +405,11 @@ hint.le.0.at="isa"
 hint.le.0.port="0x03d0"
 hint.le.0.irq="6"
 device		ral
+device		sbni
+hint.sbni.0.at="isa"
+hint.sbni.0.port="0x210"
+hint.sbni.0.irq="0xefdead"
+hint.sbni.0.flags="0"
 device		snc
 hint.snc.0.at="isa"
 hint.snc.0.port="0x888"

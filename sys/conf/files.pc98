@@ -120,6 +120,8 @@ dev/le/if_le_cbus.c		optional le isa
 dev/mem/memutil.c		optional mem
 dev/mse/mse.c			optional mse
 dev/mse/mse_cbus.c		optional mse isa
+dev/sbni/if_sbni.c		optional sbni
+dev/sbni/if_sbni_pci.c		optional sbni pci
 dev/sio/sio_pccard.c		optional sio pccard
 dev/sio/sio_pci.c		optional sio pci
 dev/sio/sio_puc.c		optional sio puc
