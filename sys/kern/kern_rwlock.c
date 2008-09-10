@@ -206,7 +206,7 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
-	    line);
+	    line, NULL);
 	__rw_wlock(rw, curthread, file, line);
 	LOCK_LOG_LOCK("WLOCK", &rw->lock_object, 0, rw->rw_recurse, file, line);
 	WITNESS_LOCK(&rw->lock_object, LOP_EXCLUSIVE, file, line);
@@ -283,7 +283,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	KASSERT(rw_wowner(rw) != curthread,
 	    ("%s (%s): wlock already held @ %s:%d", __func__,
 	    rw->lock_object.lo_name, file, line));
-	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line);
+	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER, file, line, NULL);
 
 	for (;;) {
 		/*

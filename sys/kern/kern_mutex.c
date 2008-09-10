@@ -177,7 +177,7 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 	    ("mtx_lock() of spin mutex %s @ %s:%d", m->lock_object.lo_name,
 	    file, line));
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
-	    file, line);
+	    file, line, NULL);
 
 	_get_sleep_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
@@ -221,7 +221,7 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	    ("mtx_lock_spin: recursed on non-recursive mutex %s @ %s:%d\n",
 		    m->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&m->lock_object, opts | LOP_NEWORDER | LOP_EXCLUSIVE,
-	    file, line);
+	    file, line, NULL);
 	_get_spin_lock(m, curthread, opts, file, line);
 	LOCK_LOG_LOCK("LOCK", &m->lock_object, opts, m->mtx_recurse, file,
 	    line);
@@ -506,7 +506,7 @@ retry:
 	    ("thread_lock: recursed on non-recursive mutex %s @ %s:%d\n",
 			    m->lock_object.lo_name, file, line));
 		WITNESS_CHECKORDER(&m->lock_object,
-		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line);
+		    opts | LOP_NEWORDER | LOP_EXCLUSIVE, file, line, NULL);
 		while (!_obtain_lock(m, tid)) {
 			if (m->mtx_lock == tid) {
 				m->mtx_recurse++;

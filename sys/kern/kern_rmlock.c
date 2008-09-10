@@ -433,7 +433,7 @@ void _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 
 
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, 
-	    file, line);
+	    file, line, NULL);
 
 	_rm_wlock(rm);
 
@@ -460,7 +460,7 @@ _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
 {
 
 
-	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER , file, line);
+	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER , file, line, NULL);
 	
 	_rm_rlock(rm, tracker);
 
