@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 /*
  * XXXMIPS:
  */
-#include <mips/mips32/malta/maltareg.h>
+#include <mips/malta/maltareg.h>
 
 #include "uart_if.h"
 

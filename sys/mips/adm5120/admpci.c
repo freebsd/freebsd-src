@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
-#include <mips/mips32/adm5120/adm5120reg.h>
+#include <mips/adm5120/adm5120reg.h>
 
 #ifdef ADMPCI_DEBUG
 int admpci_debug = 1;

@@ -60,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/pmap.h>
 
-#include <mips/mips32/malta/maltareg.h>
+#include <mips/malta/maltareg.h>
 
-#include <mips/mips32/malta/gtreg.h>
-#include <mips/mips32/malta/gtvar.h>
+#include <mips/malta/gtreg.h>
+#include <mips/malta/gtvar.h>
 
 #include <isa/isareg.h>
 #include <dev/ic/i8259.h>

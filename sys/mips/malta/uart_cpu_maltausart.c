@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/mips32/malta/maltareg.h>
+#include <mips/malta/maltareg.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

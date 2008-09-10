@@ -55,8 +55,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <mips/mips32/sentry5/obiovar.h>
-#include <mips/mips32/sentry5/sentry5reg.h>
+#include <mips/sentry5/obiovar.h>
+#include <mips/sentry5/sentry5reg.h>
 
 int	obio_probe(device_t);
 int	obio_attach(device_t);
