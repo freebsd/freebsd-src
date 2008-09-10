@@ -507,7 +507,7 @@ extern int arm_structure_size_boundary;
 /* wchar_t is unsigned under the AAPCS.  */
 #ifndef WCHAR_TYPE
 #define WCHAR_TYPE (TARGET_AAPCS_BASED ? "unsigned int" : "int")
-
+#undef  WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
 #endif
 
