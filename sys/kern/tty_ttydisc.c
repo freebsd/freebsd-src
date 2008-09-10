@@ -539,8 +539,9 @@ ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 		} while (oblen > 0);
 	}
 
-done:	
-	ttydevsw_outwakeup(tp);
+done:
+	if (!tty_gone(tp))
+		ttydevsw_outwakeup(tp);
 
 	/*
 	 * Add the amount of bytes that we didn't process back to the
