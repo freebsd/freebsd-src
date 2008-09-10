@@ -764,19 +764,20 @@ sge_timer_cb(void *arg)
 	int i, j;
 	int reclaim_ofl, refill_rx;
 
-	for (i = 0; i < sc->params.nports; i++) 
-		for (j = 0; j < sc->port[i].nqsets; j++) {
-			qs = &sc->sge.qs[i + j];
+	for (i = 0; i < sc->params.nports; i++) {
+		pi = &sc->port[i];
+		for (j = 0; j < pi->nqsets; j++) {
+			qs = &sc->sge.qs[pi->first_qset + j];
 			txq = &qs->txq[0];
 			reclaim_ofl = txq[TXQ_OFLD].processed - txq[TXQ_OFLD].cleaned;
 			refill_rx = ((qs->fl[0].credits < qs->fl[0].size) || 
 			    (qs->fl[1].credits < qs->fl[1].size));
 			if (reclaim_ofl || refill_rx) {
-				pi = &sc->port[i];
-				taskqueue_enqueue(pi->tq, &pi->timer_reclaim_task);
+				taskqueue_enqueue(sc->tq, &pi->timer_reclaim_task);
 				break;
 			}
 		}
+	}
 #endif
 	if (sc->params.nports > 2) {
 		int i;
@@ -885,7 +886,7 @@ sge_timer_reclaim(void *arg, int ncount)
 	panic("%s should not be called with multiqueue support\n", __FUNCTION__);
 #endif 
 	for (i = 0; i < nqsets; i++) {
-		qs = &sc->sge.qs[i];
+		qs = &sc->sge.qs[pi->first_qset + i];
 
 		txq = &qs->txq[TXQ_OFLD];
 		sge_txq_reclaim_(txq, FALSE);
