@@ -42,9 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
 
-
 #include <machine/xen/xen-os.h>
-
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -679,7 +677,7 @@ extern unsigned long *SMPpt;
 extern  struct user	*proc0uarea;
 extern  vm_offset_t	proc0kstack;
 extern int vm86paddr, vm86phystk;
-char *bootmem_start, *bootmem_current, *bootmem_end; 
+char *bootmem_start, *bootmem_current, *bootmem_end;
 
 pteinfo_t *pteinfo_list;
 void initvalues(start_info_t *startinfo);
@@ -813,9 +811,17 @@ initvalues(start_info_t *startinfo)
 	vm_paddr_t pdir_shadow_ma;
 #endif
 	unsigned long i;
+	int ncpus;
 
+#ifdef SMP
+	ncpus = MAXCPU;
+#else
+	ncpus = 1;
+#endif	
 
+#if 0	
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
+#endif
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);	
 #ifdef notyet
 	/*
@@ -864,7 +870,7 @@ initvalues(start_info_t *startinfo)
 	l1_pages = xen_start_info->nr_pt_frames - l2_pages - l3_pages;
 
 	KPTphysoff = (l2_pages + l3_pages)*PAGE_SIZE;
-	
+
 	KPTphys = xpmap_ptom(VTOP(startinfo->pt_base + KPTphysoff));
 	XENPRINTF("IdlePTD %p\n", IdlePTD);
 	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%lx pt_base: 0x%lx "
@@ -876,7 +882,7 @@ initvalues(start_info_t *startinfo)
 
 	proc0kstack = cur_space; cur_space += (KSTACK_PAGES * PAGE_SIZE);
 	printk("proc0kstack=%u\n", proc0kstack);
-    
+
 	/* vm86/bios stack */
 	cur_space += PAGE_SIZE;
 
@@ -954,6 +960,7 @@ initvalues(start_info_t *startinfo)
 	}
 	xen_load_cr3(VTOP(IdlePDPTnew));
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
+
 	for (i = 0; i < 4; i++) {
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[2] + (PTDPTDI - 1024 + i)*sizeof(vm_paddr_t)), 
 		    IdlePTDnewma[i] | PG_V);
@@ -972,10 +979,13 @@ initvalues(start_info_t *startinfo)
 	IdlePDPTma = IdlePDPTnewma;
 	
 	/* allocate page for gdt */
-	gdt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
-	/* allocate page for ldt */
-	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
+	gdt = (union descriptor *)cur_space;
+	cur_space += PAGE_SIZE*ncpus;
 
+        /* allocate page for ldt */
+	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
+	cur_space += PAGE_SIZE;
+	
 	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
 	cur_space += PAGE_SIZE;
 
@@ -1001,18 +1011,6 @@ initvalues(start_info_t *startinfo)
 
 	printk("#5\n");
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = (unsigned long)xen_phys_machine;
-#if 0 && defined(SMP)
-	for (i = 0; i < ncpus; i++) {
-		int j, npages = (sizeof(struct privatespace) + 1)/PAGE_SIZE;
-
-		for (j = 0; j < npages; j++) {
-			vm_paddr_t ma = xpmap_ptom(cur_space);
-			cur_space += PAGE_SIZE;
-			PT_SET_VA_MA(SMPpt + i*npages + j, ma | PG_KERNEL, FALSE);
-		}
-	}
-	xen_flush_queue();
-#endif
 
 	set_iopl.iopl = 1;
 	PANIC_IF(HYPERVISOR_physdev_op(PHYSDEVOP_SET_IOPL, &set_iopl));
@@ -1280,7 +1278,6 @@ xen_suspend(void *ignore)
 		vcpu_prepare(i);
 
 #endif
-
 	/* 
 	 * Only resume xenbus /after/ we've prepared our VCPUs; otherwise
 	 * the VCPU hotplug callback can race with our vcpu_prepare
