@@ -145,6 +145,9 @@ net_open(struct open_file *f, ...)
 				return (error);
 			}
 		}
+#if defined(__sparc64__)
+		netdev_opens++;
+#endif
 	}
 	netdev_opens++;
 	f->f_devdata = &netdev_sock;
