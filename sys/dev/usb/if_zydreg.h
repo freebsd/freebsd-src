@@ -1198,8 +1198,9 @@ struct zyd_softc {
 	usbd_device_handle		sc_udev;
 	usbd_interface_handle		sc_iface;
 	int				sc_flags;
+#define ZYD_FLAG_FWLOADED		(1 << 0)
+#define ZYD_FLAG_DETACHING		(1 << 1)
 	int				sc_if_flags;
-#define ZD1211_FWLOADED (1 << 0)
 	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
 
 	enum ieee80211_state		sc_state;

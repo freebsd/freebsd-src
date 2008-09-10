@@ -268,7 +268,7 @@ zyd_attachhook(struct zyd_softc *sc)
 		return error;
 	}
 
-	sc->sc_flags |= ZD1211_FWLOADED;
+	sc->sc_flags |= ZYD_FLAG_FWLOADED;
 
 	/* complete the attach process */
 	return zyd_complete_attach(sc);
@@ -450,6 +450,9 @@ zyd_detach(device_t dev)
 
 	if (!device_is_attached(dev))
 		return 0;
+
+	/* set a flag to indicate we're detaching.  */
+	sc->sc_flags |= ZYD_FLAG_DETACHING;
 
 	/* protect a race when we have listeners related with the driver.  */
 	ifp->if_flags &= ~IFF_UP;
@@ -2742,6 +2745,9 @@ zyd_scantask(void *arg)
 	struct zyd_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
+
+	if (sc->sc_flags & ZYD_FLAG_DETACHING)
+		return;
 
 	ZYD_LOCK(sc);
 
