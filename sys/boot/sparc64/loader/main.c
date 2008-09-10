@@ -6,6 +6,31 @@
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file.
  */
+/*-
+ * Copyright (c) 2008 Marius Strobl <marius@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -65,6 +90,7 @@ static vm_offset_t dtlb_va_to_pa_sun4u(vm_offset_t);
 static inline u_long itlb_get_data_sun4u(int slot);
 static void itlb_enter_sun4u(u_long vpn, u_long data);
 static vm_offset_t itlb_va_to_pa_sun4u(vm_offset_t);
+static void itlb_relocate_locked0_sun4u(void);
 extern vm_offset_t md_load(char *, vm_offset_t *);
 static int sparc64_autoload(void);
 static ssize_t sparc64_readin(const int, vm_offset_t, const size_t);
@@ -456,14 +482,79 @@ static void
 itlb_enter_sun4u(u_long vpn, u_long data)
 {
 	u_long reg;
+	int i;
 
 	reg = rdpr(pstate);
 	wrpr(pstate, reg & ~PSTATE_IE, 0);
+
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp) {
+		/*
+		 * Search an unused slot != 0 and explicitly enter the data
+		 * and tag there in order to avoid Cheetah+ erratum 34.
+		 */
+		for (i = 1; i < itlb_slot_max; i++) {
+			if ((itlb_get_data_sun4u(i) & TD_V) != 0)
+				continue;
+
+			stxa(AA_IMMU_TAR, ASI_IMMU,
+			     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
+			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
+			flush(KERNBASE);
+			break;
+		}
+		wrpr(pstate, reg, 0);
+		if (i == itlb_slot_max)
+			panic("%s: could not find an unused slot", __func__);
+		return;
+	}
+
 	stxa(AA_IMMU_TAR, ASI_IMMU,
 	     TLB_TAR_VA(vpn) | TLB_TAR_CTX(TLB_CTX_KERNEL));
 	stxa(0, ASI_ITLB_DATA_IN_REG, data);
 	flush(KERNBASE);
 	wrpr(pstate, reg, 0);
+}
+
+static void
+itlb_relocate_locked0_sun4u(void)
+{
+	u_long data, pstate, tag;
+	int i;
+
+	if (cpu_impl != CPU_IMPL_ULTRASPARCIIIp)
+		return;
+
+	pstate = rdpr(pstate);
+	wrpr(pstate, pstate & ~PSTATE_IE, 0);
+
+	data = itlb_get_data_sun4u(0);
+	if ((data & (TD_V | TD_L)) != (TD_V | TD_L)) {
+		wrpr(pstate, pstate, 0);
+		return;
+	}
+
+	/* Flush the mapping of slot 0. */
+	tag = ldxa(TLB_DAR_SLOT(0), ASI_ITLB_TAG_READ_REG);
+	stxa(TLB_DEMAP_VA(TLB_TAR_VA(tag)) | TLB_DEMAP_PRIMARY |
+	    TLB_DEMAP_PAGE, ASI_IMMU_DEMAP, 0);
+	flush(0);	/* The USIII-family ignores the address. */
+
+	/*
+	 * Search a replacement slot != 0 and enter the data and tag
+	 * that formerly were in slot 0.
+	 */
+	for (i = 1; i < itlb_slot_max; i++) {
+		if ((itlb_get_data_sun4u(i) & TD_V) != 0)
+			continue;
+
+		stxa(AA_IMMU_TAR, ASI_IMMU, tag);
+		stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, data);
+		flush(0);	/* The USIII-family ignores the address. */
+		break;
+	}
+	wrpr(pstate, pstate, 0);
+	if (i == itlb_slot_max)
+		panic("%s: could not find a replacement slot", __func__);
 }
 
 static int
@@ -603,6 +694,25 @@ tlb_init_sun4u(void)
 	    OF_getprop(child, "#itlb-entries", &itlb_slot_max,
 	    sizeof(itlb_slot_max)) == -1)
 		panic("%s: can't get TLB slot max.", __func__);
+
+	if (cpu_impl == CPU_IMPL_ULTRASPARCIIIp) {
+#ifdef LOADER_DEBUG
+		printf("pre fixup:\n");
+		pmap_print_tlb_sun4u();
+#endif
+
+		/*
+		 * Relocate the locked entry in it16 slot 0 (if existent)
+		 * as part of working around Cheetah+ erratum 34.
+		 */
+		itlb_relocate_locked0_sun4u();
+
+#ifdef LOADER_DEBUG
+		printf("post fixup:\n");
+		pmap_print_tlb_sun4u();
+#endif
+	}
+
 	dtlb_store = malloc(dtlb_slot_max * sizeof(*dtlb_store));
 	itlb_store = malloc(itlb_slot_max * sizeof(*itlb_store));
 	if (dtlb_store == NULL || itlb_store == NULL)
