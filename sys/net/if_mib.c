@@ -137,6 +137,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		error = SYSCTL_IN(req, ifp->if_linkmib, ifp->if_linkmiblen);
 		if (error)
 			return error;
+		break;
 
 	case IFDATA_DRIVERNAME:
 		/* 20 is enough for 64bit ints */
