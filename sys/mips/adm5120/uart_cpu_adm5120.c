@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/mips32/adm5120/adm5120reg.h>
+#include <mips/adm5120/adm5120reg.h>
 
 extern struct uart_class uart_adm5120_uart_class;
 bus_space_tag_t uart_bus_space_io;

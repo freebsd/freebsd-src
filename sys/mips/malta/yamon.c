@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <mips/mips32/malta/yamon.h>
+#include <mips/malta/yamon.h>
 
 char *
 yamon_getenv(char *name)

@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <mips/mips32/adm5120/adm5120reg.h>
-#include <mips/mips32/adm5120/obiovar.h>
+#include <mips/adm5120/adm5120reg.h>
+#include <mips/adm5120/obiovar.h>
 
 /* MIPS HW interrupts of IRQ/FIQ respectively */
 #define ADM5120_INTR		0

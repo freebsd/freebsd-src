@@ -70,8 +70,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 
-#include <mips/mips32/adm5120/adm5120reg.h>
-#include <mips/mips32/adm5120/if_admswreg.h>
+#include <mips/adm5120/adm5120reg.h>
+#include <mips/adm5120/if_admswreg.h>
 
 #define	MAC_BUFLEN	0x07ff
 

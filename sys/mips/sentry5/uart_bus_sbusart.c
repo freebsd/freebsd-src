@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <mips/mips32/sentry5/sentry5reg.h>
+#include <mips/sentry5/sentry5reg.h>
 
 #include "uart_if.h"
 

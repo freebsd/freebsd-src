@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
-#include <mips/mips32/idt/idtreg.h>
+#include <mips/idt/idtreg.h>
 
 #ifdef IDTPCI_DEBUG
 int idtpci_debug = 1;
