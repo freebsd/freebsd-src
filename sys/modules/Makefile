@@ -234,6 +234,7 @@ SUBDIR=	${_3dfx} \
 	rum \
 	${_s3} \
 	${_safe} \
+	${_sbni} \
 	scc \
 	scd \
 	${_scsi_low} \
@@ -421,6 +422,7 @@ _pst=		pst
 _ray=		ray
 _rdma=		rdma
 _safe=		safe
+_sbni=		sbni
 _scsi_low=	scsi_low
 _smbfs=		smbfs
 _sound=		sound
@@ -574,7 +576,7 @@ _zfs=		zfs
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp s3 stg vesa
+#	nsp s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
 #_ar=		ar	not 64-bit clean
