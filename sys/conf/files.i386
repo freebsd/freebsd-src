@@ -216,6 +216,9 @@ dev/nve/if_nve.c		optional nve pci
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/nehemiah.c		optional random
+dev/sbni/if_sbni.c		optional sbni
+dev/sbni/if_sbni_isa.c		optional sbni isa
+dev/sbni/if_sbni_pci.c		optional sbni pci
 dev/sio/sio.c			optional sio
 dev/sio/sio_isa.c		optional sio isa
 dev/sio/sio_pccard.c		optional sio pccard
