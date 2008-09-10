@@ -382,7 +382,6 @@ sleepq_catch_signals(void *wchan)
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
 		(void *)td, (long)p->p_pid, p->p_comm);
 
-	MPASS(td->td_flags & TDF_SINTR);
 	mtx_unlock_spin(&sc->sc_lock);
 
 	/* See if there are any pending signals for this thread. */
