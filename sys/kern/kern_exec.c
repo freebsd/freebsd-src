@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/shm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/stat.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
@@ -622,9 +623,9 @@ interpret:
 	 */
 	oldcred = p->p_ucred;
 	credential_changing = 0;
-	credential_changing |= (attr.va_mode & VSUID) && oldcred->cr_uid !=
+	credential_changing |= (attr.va_mode & S_ISUID) && oldcred->cr_uid !=
 	    attr.va_uid;
-	credential_changing |= (attr.va_mode & VSGID) && oldcred->cr_gid !=
+	credential_changing |= (attr.va_mode & S_ISGID) && oldcred->cr_gid !=
 	    attr.va_gid;
 #ifdef MAC
 	will_transition = mac_vnode_execve_will_transition(oldcred, imgp->vp,
@@ -675,9 +676,9 @@ interpret:
 		 * Set the new credentials.
 		 */
 		crcopy(newcred, oldcred);
-		if (attr.va_mode & VSUID)
+		if (attr.va_mode & S_ISUID)
 			change_euid(newcred, euip);
-		if (attr.va_mode & VSGID)
+		if (attr.va_mode & S_ISGID)
 			change_egid(newcred, attr.va_gid);
 #ifdef MAC
 		if (will_transition) {
