@@ -1012,7 +1012,6 @@ static struct apic_enumerator *best_enum;
 void
 apic_register_enumerator(struct apic_enumerator *enumerator)
 {
-#ifndef XEN
 #ifdef INVARIANTS
 	struct apic_enumerator *apic_enum;
 
@@ -1023,7 +1022,6 @@ apic_register_enumerator(struct apic_enumerator *enumerator)
 	}
 #endif
 	SLIST_INSERT_HEAD(&enumerators, enumerator, apic_next);
-#endif
 }
 
 /*
@@ -1108,6 +1106,9 @@ apic_setup_io(void *dummy __unused)
 		printf("%s: Failed to setup I/O APICs: returned %d\n",
 		    best_enum->apic_name, retval);
 
+#ifdef XEN
+	return;
+#endif
 	/*
 	 * Finish setting up the local APIC on the BSP once we know how to
 	 * properly program the LINT pins.

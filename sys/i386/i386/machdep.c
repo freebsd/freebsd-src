@@ -1213,7 +1213,7 @@ void (*cpu_idle_fn)(int) = cpu_idle_acpi;
 void
 cpu_idle(int busy)
 {
-#ifdef SMP
+#if defined(SMP) && !defined(XEN)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
