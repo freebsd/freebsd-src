@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 
-#include <mips/mips32/malta/gtvar.h>
+#include <mips/malta/gtvar.h>
 
 static int
 gt_probe(device_t dev)

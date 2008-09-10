@@ -44,8 +44,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <mips/mips32/idt/idtreg.h>
-#include <mips/mips32/idt/obiovar.h>
+#include <mips/idt/idtreg.h>
+#include <mips/idt/obiovar.h>
 
 #define ICU_REG_READ(o) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1(IDT_BASE_ICU + (o)))

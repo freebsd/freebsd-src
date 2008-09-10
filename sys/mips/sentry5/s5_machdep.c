@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <machine/cpuregs.h>
 
-#include <mips/mips32/sentry5/s5reg.h>
+#include <mips/sentry5/s5reg.h>
 
 #include "opt_ddb.h"
 

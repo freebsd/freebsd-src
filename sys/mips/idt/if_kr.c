@@ -69,7 +69,7 @@ MODULE_DEPEND(kr, miibus, 1, 1, 1);
 
 #include "miibus_if.h"
 
-#include <mips/mips32/idt/if_krreg.h>
+#include <mips/idt/if_krreg.h>
 
 #define KR_DEBUG
 
