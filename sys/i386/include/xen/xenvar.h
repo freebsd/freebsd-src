@@ -72,8 +72,8 @@ extern xen_pfn_t *xen_machine_phys;
 #define PFNTOMFN(i) (xen_phys_machine[(i)])
 #define MFNTOPFN(i) ((vm_paddr_t)xen_machine_phys[(i)])
 
-#define VTOP(x) ((uintptr_t)(((uint8_t *)(x)) - KERNBASE))
-#define PTOV(x) ((x) + KERNBASE)
+#define VTOP(x) ((((uintptr_t)(x))) - KERNBASE)
+#define PTOV(x) (((uintptr_t)(x)) + KERNBASE)
 
 #define VTOPFN(x) (VTOP(x) >> PAGE_SHIFT)
 #define PFNTOV(x) PTOV((vm_paddr_t)(x)  << PAGE_SHIFT)
