@@ -203,7 +203,8 @@ void	spinlock_exit(void);
 void	witness_init(struct lock_object *, const char *);
 void	witness_destroy(struct lock_object *);
 int	witness_defineorder(struct lock_object *, struct lock_object *);
-void	witness_checkorder(struct lock_object *, int, const char *, int);
+void	witness_checkorder(struct lock_object *, int, const char *, int,
+    struct lock_object *);
 void	witness_lock(struct lock_object *, int, const char *, int);
 void	witness_upgrade(struct lock_object *, int, const char *, int);
 void	witness_downgrade(struct lock_object *, int, const char *, int);
@@ -231,8 +232,8 @@ void	witness_thread_exit(struct thread *);
 #define WITNESS_DESTROY(lock)						\
 	witness_destroy(lock)
 
-#define	WITNESS_CHECKORDER(lock, flags, file, line)			\
-	witness_checkorder((lock), (flags), (file), (line))
+#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)		\
+	witness_checkorder((lock), (flags), (file), (line), (interlock))
 
 #define	WITNESS_DEFINEORDER(lock1, lock2)				\
 	witness_defineorder((struct lock_object *)(lock1),		\
@@ -276,7 +277,7 @@ void	witness_thread_exit(struct thread *);
 #define	WITNESS_INIT(lock, type)
 #define	WITNESS_DESTROY(lock)
 #define	WITNESS_DEFINEORDER(lock1, lock2)	0
-#define	WITNESS_CHECKORDER(lock, flags, file, line)
+#define	WITNESS_CHECKORDER(lock, flags, file, line, interlock)
 #define	WITNESS_LOCK(lock, flags, file, line)
 #define	WITNESS_UPGRADE(lock, flags, file, line)
 #define	WITNESS_DOWNGRADE(lock, flags, file, line)
@@ -296,10 +297,10 @@ void	witness_thread_exit(struct thread *);
  */
 #define	witness_check(l)						\
 	WITNESS_CHECKORDER(&(l)->lock_object, LOP_EXCLUSIVE, LOCK_FILE,	\
-	    LOCK_LINE)
+	    LOCK_LINE, NULL)
 
 #define	witness_check_shared(l)						\
-	WITNESS_CHECKORDER(&(l)->lock_object, 0, LOCK_FILE, LOCK_LINE)
+	WITNESS_CHECKORDER(&(l)->lock_object, 0, LOCK_FILE, LOCK_LINE, NULL)
 	
 #endif	/* _KERNEL */
 #endif	/* _SYS_LOCK_H_ */
