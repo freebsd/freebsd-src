@@ -184,7 +184,7 @@ tcp_lro_rx(struct lro_ctrl *cntl, struct mbuf *m_head, uint32_t csum)
 	struct mbuf *m_nxt, *m_tail;
 	struct lro_entry *lro;
 	int hlen, ip_len, tcp_hdr_len, tcp_data_len, tot_len;
-	int opt_bytes, trim;
+	int opt_bytes, trim, csum_flags;
 	uint32_t seq, tmp_csum, device_mtu;
 
 
@@ -204,12 +204,20 @@ tcp_lro_rx(struct lro_ctrl *cntl, struct mbuf *m_head, uint32_t csum)
 		return -1;
 
 	/* verify that the IP header checksum is correct */
-	tmp_csum = do_csum_data((uint16_t *)ip, sizeof (*ip));
-	if (__predict_false((tmp_csum ^ 0xffff) != 0)) {
-		cntl->lro_bad_csum++;
-		return -1;
+	csum_flags = m_head->m_pkthdr.csum_flags;
+	if (csum_flags & CSUM_IP_CHECKED) {
+		if (__predict_false((csum_flags & CSUM_IP_VALID) == 0)) {
+			cntl->lro_bad_csum++;
+			return -1;
+		}
+	} else {
+		tmp_csum = do_csum_data((uint16_t *)ip, sizeof (*ip));
+		if (__predict_false((tmp_csum ^ 0xffff) != 0)) {
+			cntl->lro_bad_csum++;
+			return -1;
+		}
 	}
-
+	
 	/* find the TCP header */
 	tcp = (struct tcphdr *) (ip + 1);
 
