@@ -59,7 +59,7 @@ static device_method_t ppc_acpi_methods[] = {
 #else
 	DEVMETHOD(device_attach,	ppc_attach),
 #endif
-	DEVMETHOD(device_detach,	ppc_attach),
+	DEVMETHOD(device_detach,	ppc_detach),
 
 	/* bus interface */
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
