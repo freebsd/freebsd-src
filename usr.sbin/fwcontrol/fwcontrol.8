@@ -59,7 +59,7 @@ will output a list of devices that are/were connected to the bus.
 The following options are available:
 .Bl -tag -width indent
 .It Fl u Ar bus_num
-Specify the FireWire bus number to be operated on.
+Specify the FireWire bus number to be operated on.  Default is bus 0.
 .It Fl r
 Initiate bus reset.
 .It Fl t
@@ -81,11 +81,14 @@ Load hex dump file of the configuration ROM and parse it.
 .It Fl f Ar node
 Force specified
 .Ar node
-to be the root node on the next bus reset.
+to be the root node on the next bus reset by sending a PHY config packet.
+Valid values are 0 - 63.
 .It Fl g Ar gap_count
-Broadcast
+Broadcast new
 .Ar gap_count
-by phy_config packet.
+by sending a PHY_config packet.
+By default this value is 63 on all nodes.
+Valid values are 0 - 63.
 .It Fl i Ar pri_req
 Set the
 .Dv PRIORITY_BUDGET
