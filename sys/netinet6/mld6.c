@@ -204,7 +204,7 @@ mld_timerresid(struct in6_multi *in6m)
 	}
 
 	/* return the remaining time in milliseconds */
-	return (((u_long)(diff.tv_sec * 1000000 + diff.tv_usec)) / 1000);
+	return (diff.tv_sec * 1000 + diff.tv_usec / 1000);
 }
 
 void
