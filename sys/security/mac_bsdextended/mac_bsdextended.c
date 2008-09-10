@@ -61,6 +61,7 @@
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
+#include <sys/stat.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
@@ -303,7 +304,7 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_object.mbo_flags & MBO_SUID) {
-		match = (vap->va_mode & VSUID);
+		match = (vap->va_mode & S_ISUID);
 		if (rule->mbr_object.mbo_neg & MBO_SUID)
 			match = !match;
 		if (!match)
@@ -311,7 +312,7 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_object.mbo_flags & MBO_SGID) {
-		match = (vap->va_mode & VSGID);
+		match = (vap->va_mode & S_ISGID);
 		if (rule->mbr_object.mbo_neg & MBO_SGID)
 			match = !match;
 		if (!match)

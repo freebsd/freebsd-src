@@ -314,9 +314,6 @@ struct vattr {
 #define	VEXEC	000100		/* execute/search permission */
 #define	VWRITE	000200		/* write permission */
 #define	VREAD	000400		/* read permission */
-#define	VSVTX	001000		/* save swapped text even after use */
-#define	VSGID	002000		/* set group id on execution */
-#define	VSUID	004000		/* set user id on execution */
 #define	VADMIN	010000		/* permission to administer */
 #define	VSTAT	020000		/* permission to retrieve attrs */
 #define	VAPPEND	040000		/* permission to write/append */

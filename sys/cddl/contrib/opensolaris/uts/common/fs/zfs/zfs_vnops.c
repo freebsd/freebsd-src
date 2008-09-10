@@ -1191,8 +1191,8 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 top:
 	*vpp = NULL;
 
-	if ((vap->va_mode & VSVTX) && secpolicy_vnode_stky_modify(cr))
-		vap->va_mode &= ~VSVTX;
+	if ((vap->va_mode & S_ISVTX) && secpolicy_vnode_stky_modify(cr))
+		vap->va_mode &= ~S_ISVTX;
 
 	if (*name == '\0') {
 		/*
