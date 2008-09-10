@@ -1011,10 +1011,10 @@ witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
 
 void
 witness_checkorder(struct lock_object *lock, int flags, const char *file,
-    int line)
+    int line, struct lock_object *interlock)
 {
 	struct lock_list_entry **lock_list, *lle;
-	struct lock_instance *lock1, *lock2;
+	struct lock_instance *lock1, *lock2, *plock;
 	struct lock_class *class;
 	struct witness *w, *w1;
 	struct thread *td;
@@ -1094,11 +1094,25 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	}
 
 	/*
+	 * Find the previously acquired lock, but ignore interlocks.
+	 */
+	plock = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
+	if (interlock != NULL && plock->li_lock == interlock) {
+		if ((*lock_list)->ll_count == 1) {
+			/*
+			 * The interlock is the only lock we hold, so
+			 * nothing to do.
+			 */
+			return;
+		}
+		plock = &(*lock_list)->ll_children[(*lock_list)->ll_count - 2];
+	}
+	
+	/*
 	 * Try to perform most checks without a lock.  If this succeeds we
 	 * can skip acquiring the lock and return success.
 	 */
-	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
-	w1 = lock1->li_lock->lo_witness;
+	w1 = plock->li_lock->lo_witness;
 	if (witness_lock_order_check(w1, w))
 		return;
 
@@ -1141,12 +1155,20 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 
 			MPASS(j < WITNESS_COUNT);
 			lock1 = &lle->ll_children[i];
-			w1 = lock1->li_lock->lo_witness;
+
+			/*
+			 * Ignore the interlock the first time we see it.
+			 */
+			if (interlock != NULL && interlock == lock1->li_lock) {
+				interlock = NULL;
+				continue;
+			}
 
 			/*
 			 * If this lock doesn't undergo witness checking,
 			 * then skip it.
 			 */
+			w1 = lock1->li_lock->lo_witness;
 			if (w1 == NULL) {
 				KASSERT((lock1->li_lock->lo_flags & LO_WITNESS) == 0,
 				    ("lock missing witness structure"));
@@ -1271,7 +1293,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			return;
 		}
 	}
-	lock1 = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 
 	/*
 	 * If requested, build a new lock order.  However, don't build a new
@@ -1280,11 +1301,11 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	 * always come before Giant.
 	 */
 	if (flags & LOP_NEWORDER &&
-	    !(lock1->li_lock == &Giant.lock_object &&
+	    !(plock->li_lock == &Giant.lock_object &&
 	    (lock->lo_flags & LO_SLEEPABLE) != 0)) {
 		CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
-		    w->w_name, lock1->li_lock->lo_witness->w_name);
-		itismychild(lock1->li_lock->lo_witness, w);
+		    w->w_name, plock->li_lock->lo_witness->w_name);
+		itismychild(plock->li_lock->lo_witness, w);
 	}
 out:
 	mtx_unlock_spin(&w_mtx);
