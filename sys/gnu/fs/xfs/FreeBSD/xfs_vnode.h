@@ -489,7 +489,7 @@ typedef struct xfs_vattr {
  * Check whether mandatory file locking is enabled.
  */
 #define MANDLOCK(vp, mode)	\
-	((vp)->v_vnode->v_type == VREG && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
+	((vp)->v_vnode->v_type == VREG && ((mode) & (S_ISGID|(VEXEC>>3))) == S_ISGID)
 
 extern void		vn_init(void);
 extern int		vn_wait(struct xfs_vnode *);
