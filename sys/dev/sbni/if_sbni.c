@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/sbni/if_sbnireg.h>
 #include <dev/sbni/if_sbnivar.h>
 
-#define ASM_CRC 1
-
 static void	sbni_init(void *);
 static void	sbni_init_locked(struct sbni_softc *);
 static void	sbni_start(struct ifnet *);
@@ -1202,88 +1200,6 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 /* -------------------------------------------------------------------------- */
 
-#ifdef ASM_CRC
-
-static u_int32_t
-calc_crc32(u_int32_t crc, caddr_t p, u_int len)
-{
-	register u_int32_t  _crc __asm ("ax");
-	_crc = crc;
-	
-	__asm __volatile (
-		"xorl	%%ebx, %%ebx\n"
-		"movl	%1, %%esi\n" 
-		"movl	%2, %%ecx\n" 
-		"movl	$crc32tab, %%edi\n"
-		"shrl	$2, %%ecx\n"
-		"jz	1f\n"
-
-		".align 4\n"
-	"0:\n"
-		"movb	%%al, %%bl\n"
-		"movl	(%%esi), %%edx\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"shrl	$8, %%edx\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"shrl	$8, %%edx\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"movb	%%dh, %%dl\n" 
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	%%dl, %%bl\n"
-		"addl	$4, %%esi\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jnz	0b\n"
-
-	"1:\n"
-		"movl	%2, %%ecx\n"
-		"andl	$3, %%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	1(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-
-		"decl	%%ecx\n"
-		"jz	2f\n"
-
-		"movb	%%al, %%bl\n"
-		"shrl	$8, %%eax\n"
-		"xorb	2(%%esi), %%bl\n"
-		"xorl	(%%edi,%%ebx,4), %%eax\n"
-	"2:\n"
-		: "=a" (_crc)
-		: "g" (p), "g" (len)
-		: "bx", "cx", "dx", "si", "di"
-	);
-
-	return (_crc);
-}
-
-#else	/* ASM_CRC */
-
 static u_int32_t
 calc_crc32(u_int32_t crc, caddr_t p, u_int len)
 {
@@ -1292,9 +1208,6 @@ calc_crc32(u_int32_t crc, caddr_t p, u_int len)
 
 	return (crc);
 }
-
-#endif	/* ASM_CRC */
-
 
 static u_int32_t crc32tab[] __aligned(8) = {
 	0xD202EF8D,  0xA505DF1B,  0x3C0C8EA1,  0x4B0BBE37,
