@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>
+#include <sys/endian.h>
 
 #define NMTUS 16
 #define TCB_SIZE 128
@@ -499,7 +500,7 @@ dump_regs(int argc, char *argv[], int start_arg, const char *iff_name)
 		if (revision == 0)
 			return dump_regs_t3(argc, argv, start_arg,
 					    (uint32_t *)regs.data, is_pcie);
-		if (revision == 2)
+		if (revision == 2 || revision == 3)
 			return dump_regs_t3b(argc, argv, start_arg,
 					     (uint32_t *)regs.data, is_pcie);
 		if (revision == 4)
@@ -745,11 +746,7 @@ static int get_sge_context(int argc, char *argv[], int start_arg,
 	return 0;
 }
 
-#if __BYTE_ORDER == __BIG_ENDIAN
-# define ntohll(n) (n)
-#else
-# define ntohll(n) bswap_64(n)
-#endif
+#define ntohll(x) be64toh((x))
 
 static int get_sge_desc(int argc, char *argv[], int start_arg,
 			const char *iff_name)
@@ -821,7 +818,7 @@ static int get_tcb2(int argc, char *argv[], int start_arg, const char *iff_name)
 	if (doit(iff_name, CHELSIO_GET_MEM, &mr) < 0)
 		err(1, "get TCB");
 
-	for (d = (uint64_t *)&mr.buf, i = 0; i < TCB_SIZE / 32; i++) {
+	for (d = (uint64_t *)mr.buf, i = 0; i < TCB_SIZE / 32; i++) {
 		printf("%2u:", i);
 		printf(" %08x %08x %08x %08x", (uint32_t)d[1],
 		       (uint32_t)(d[1] >> 32), (uint32_t)d[0],
