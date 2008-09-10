@@ -30,6 +30,7 @@ MAN=	aic.4 \
 	pnp.4 \
 	pnpbios.4 \
 	ray.4 \
+	sbni.4 \
 	scd.4 \
 	smapi.4 \
 	snc.4 \
@@ -43,6 +44,7 @@ MAN=	aic.4 \
 
 MLINKS=	CPU_ELAN.4 CPU_SOEKRIS.4
 MLINKS+=pae.4 PAE.4
+MLINKS+=sbni.4 if_sbni.4
 
 MANSUBDIR=/i386
 
