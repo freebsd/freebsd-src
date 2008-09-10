@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 #ifdef TICK_USE_YAMON_FREQ
-#include <mips/mips32/malta/yamon.h>
+#include <mips/malta/yamon.h>
 #endif
 
 #ifdef TICK_USE_MALTA_RTC
@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <isa/rtc.h>
 #endif
 
-#include <mips/mips32/malta/maltareg.h>
+#include <mips/malta/maltareg.h>
 
 extern int	*edata;
 extern int	*end;

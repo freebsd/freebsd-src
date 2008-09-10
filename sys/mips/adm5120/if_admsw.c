@@ -109,9 +109,9 @@ __FBSDID("$FreeBSD$");
 #include <net/bpf.h>
 #include <net/bpfdesc.h>
 
-#include <mips/mips32/adm5120/adm5120reg.h>
-#include <mips/mips32/adm5120/if_admswreg.h>
-#include <mips/mips32/adm5120/if_admswvar.h>
+#include <mips/adm5120/adm5120reg.h>
+#include <mips/adm5120/if_admswreg.h>
+#include <mips/adm5120/if_admswvar.h>
 
 /* TODO: add locking */
 #define ADMSW_LOCK(sc) do {} while(0);

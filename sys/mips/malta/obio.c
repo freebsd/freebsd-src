@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <mips/mips32/malta/maltareg.h>
-#include <mips/mips32/malta/obiovar.h>
+#include <mips/malta/maltareg.h>
+#include <mips/malta/obiovar.h>
 
 int	obio_probe(device_t);
 int	obio_attach(device_t);

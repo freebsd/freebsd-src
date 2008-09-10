@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
 
-#include <mips/mips32/adm5120/uart_dev_adm5120.h>
+#include <mips/adm5120/uart_dev_adm5120.h>
 
 #include "uart_if.h"
 
