@@ -734,7 +734,6 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 
 	turnstile_chain_lock(&rw->lock_object);
 	ts = turnstile_lookup(&rw->lock_object);
-
 	MPASS(ts != NULL);
 
 	/*
