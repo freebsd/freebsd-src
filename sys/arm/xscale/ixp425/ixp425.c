@@ -143,22 +143,27 @@ ixp425_irq2gpio_bit(int irq)
 void
 arm_mask_irq(uintptr_t nb)
 {
+	int i;
+	
+	i = disable_interrupts(I32_bit);
 	intr_enabled &= ~(1 << nb);
 	ixp425_set_intrmask();
+	restore_interrupts(i);
 	/*XXX; If it's a GPIO interrupt, ACK it know. Can it be a problem ?*/
 	if ((1 << nb) & IXP425_INT_GPIOMASK)
 		IXPREG(IXP425_GPIO_VBASE + IXP425_GPIO_GPISR) =
 		    ixp425_irq2gpio_bit(nb);
-
-		
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
-
+	int i;
+	
+	i = disable_interrupts(I32_bit);
 	intr_enabled |= (1 << nb);
 	ixp425_set_intrmask();
+	restore_interrupts(i);
 }
 
 static __inline uint32_t
