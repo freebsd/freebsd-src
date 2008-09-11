@@ -107,10 +107,10 @@ enum {
 };
 
 enum sge_context_type {           /* SGE egress context types */
-	SGE_CNTXT_RDMA  = 0,
-	SGE_CNTXT_ETH   = 2,
-	SGE_CNTXT_OFLD  = 4,
-	SGE_CNTXT_CTRL  = 5
+	SGE_CNTXT_RDMA = 0,
+	SGE_CNTXT_ETH  = 2,
+	SGE_CNTXT_OFLD = 4,
+	SGE_CNTXT_CTRL = 5
 };
 
 enum {
@@ -131,12 +131,14 @@ struct sg_ent {                   /* SGE scatter/gather entry */
 #define TX_DESC_FLITS 16U
 #define WR_FLITS (TX_DESC_FLITS + 1 - SGE_NUM_GENBITS)
 
+#define MAX_PHYINTRS 4
+
 struct cphy;
 
 struct mdio_ops {
 	int  (*read)(adapter_t *adapter, int phy_addr, int mmd_addr,
 		     int reg_addr, unsigned int *val);
-        int  (*write)(adapter_t *adapter, int phy_addr, int mmd_addr,
+	int  (*write)(adapter_t *adapter, int phy_addr, int mmd_addr,
 		      int reg_addr, unsigned int val);
 };
 
@@ -147,15 +149,10 @@ struct adapter_info {
 	unsigned char          mdien:1;
 	unsigned char          mdiinv:1;
 	unsigned int           gpio_out;       /* GPIO output settings */
-	unsigned char gpio_intr[MAX_NPORTS];   /* GPIO PHY IRQ pins */
+	unsigned char gpio_intr[MAX_PHYINTRS]; /* GPIO PHY IRQ pins */
 	unsigned long          caps;           /* adapter capabilities */
 	const struct mdio_ops *mdio_ops;       /* MDIO operations */
 	const char            *desc;           /* product description */
-};
-
-struct port_type_info {
-	int (*phy_prep)(struct cphy *phy, adapter_t *adapter, int phy_addr,
-			const struct mdio_ops *ops);
 };
 
 struct mc5_stats {
@@ -397,9 +394,9 @@ enum {					    /* chip revisions */
 
 struct trace_params {
 	u32 sip;
-       	u32 sip_mask;
+	u32 sip_mask;
 	u32 dip;
-       	u32 dip_mask;
+	u32 dip_mask;
 	u16 sport;
 	u16 sport_mask;
 	u16 dport;
@@ -415,14 +412,14 @@ struct trace_params {
 struct link_config {
 	unsigned int   supported;        /* link capabilities */
 	unsigned int   advertising;      /* advertised capabilities */
-        unsigned short requested_speed;  /* speed user has requested */
+	unsigned short requested_speed;  /* speed user has requested */
 	unsigned short speed;            /* actual link speed */
-        unsigned char  requested_duplex; /* duplex user has requested */
+	unsigned char  requested_duplex; /* duplex user has requested */
 	unsigned char  duplex;           /* actual link duplex */
 	unsigned char  requested_fc;     /* flow control user has requested */
 	unsigned char  fc;               /* actual link flow control */
 	unsigned char  autoneg;          /* autonegotiating? */
-	unsigned int link_ok;          /* link up? */
+	unsigned int   link_ok;          /* link up? */
 };
 
 #define SPEED_INVALID   0xffff
@@ -511,7 +508,19 @@ enum {
 /* PHY interrupt types */
 enum {
 	cphy_cause_link_change = 1,
-	cphy_cause_fifo_error = 2
+	cphy_cause_fifo_error = 2,
+	cphy_cause_module_change = 4,
+};
+
+/* PHY module types */
+enum {
+	phy_modtype_none,
+	phy_modtype_sr,
+	phy_modtype_lr,
+	phy_modtype_lrm,
+	phy_modtype_twinax,
+	phy_modtype_twinax_long,
+	phy_modtype_unknown
 };
 
 /* PHY operations */
@@ -536,7 +545,9 @@ struct cphy_ops {
 
 /* A PHY instance */
 struct cphy {
-	int addr;                            /* PHY address */
+	u8 addr;                             /* PHY address */
+	u8 modtype;                          /* PHY module type */
+	short priv;                          /* scratch pad */
 	unsigned int caps;                   /* PHY capabilities */
 	adapter_t *adapter;                  /* associated adapter */
 	const char *desc;                    /* PHY description */
@@ -552,13 +563,13 @@ struct cphy {
 static inline int mdio_read(struct cphy *phy, int mmd, int reg,
 			    unsigned int *valp)
 {
-        return phy->mdio_read(phy->adapter, phy->addr, mmd, reg, valp);
+	return phy->mdio_read(phy->adapter, phy->addr, mmd, reg, valp);
 }
 
 static inline int mdio_write(struct cphy *phy, int mmd, int reg,
 			     unsigned int val)
 {
-        return phy->mdio_write(phy->adapter, phy->addr, mmd, reg, val);
+	return phy->mdio_write(phy->adapter, phy->addr, mmd, reg, val);
 }
 
 /* Convenience initializer */
@@ -567,9 +578,9 @@ static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 			     const struct mdio_ops *mdio_ops, unsigned int caps,
 			     const char *desc)
 {
-	phy->adapter = adapter;
-	phy->addr    = phy_addr;
+	phy->addr    = (u8)phy_addr;
 	phy->caps    = caps;
+	phy->adapter = adapter;
 	phy->desc    = desc;
 	phy->ops     = phy_ops;
 	if (mdio_ops) {
@@ -619,7 +630,7 @@ static inline int is_10G(const adapter_t *adap)
 
 static inline int is_offload(const adapter_t *adap)
 {
-#ifdef CONFIG_CHELSIO_T3_CORE
+#if defined(CONFIG_CHELSIO_T3_CORE)
 	return adap->params.offload;
 #else
 	return 0;
@@ -694,6 +705,7 @@ int t3_init_hw(adapter_t *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, adapter_t *adapter, int index);
 void early_hw_init(adapter_t *adapter, const struct adapter_info *ai);
 int t3_prep_adapter(adapter_t *adapter, const struct adapter_info *ai, int reset);
+int t3_reinit_adapter(adapter_t *adap);
 void t3_led_ready(adapter_t *adapter);
 void t3_fatal_err(adapter_t *adapter);
 void t3_set_vlan_accel(adapter_t *adapter, unsigned int ports, int on);
@@ -737,7 +749,7 @@ int t3_tp_set_coalescing_size(adapter_t *adap, unsigned int size, int psh);
 void t3_tp_set_max_rxsize(adapter_t *adap, unsigned int size);
 void t3_tp_get_mib_stats(adapter_t *adap, struct tp_mib_stats *tps);
 void t3_load_mtus(adapter_t *adap, unsigned short mtus[NMTUS],
-                  unsigned short alpha[NCCTRL_WIN],
+		  unsigned short alpha[NCCTRL_WIN],
 		  unsigned short beta[NCCTRL_WIN], unsigned short mtu_cap);
 void t3_read_hw_mtus(adapter_t *adap, unsigned short mtus[NMTUS]);
 void t3_get_cong_cntl_tab(adapter_t *adap,

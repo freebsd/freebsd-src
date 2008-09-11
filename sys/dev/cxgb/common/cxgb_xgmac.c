@@ -1,4 +1,3 @@
-
 /**************************************************************************
 
 Copyright (c) 2007, Chelsio Inc.
@@ -40,10 +39,6 @@ __FBSDID("$FreeBSD$");
 #undef msleep
 #define msleep t3_os_sleep
 
-/*
- * # of exact address filters.  The first one is used for the station address,
- * the rest are available for multicast addresses.
- */
 
 static inline int macidx(const struct cmac *mac)
 {
@@ -186,7 +181,8 @@ static int t3b2_mac_reset(struct cmac *mac)
 	u32 val;
 	adapter_t *adap = mac->adapter;
 	unsigned int oft = mac->offset;
-
+	int idx = macidx(mac);
+	unsigned int store;
 
 	/* Stop egress traffic to xgm*/
 	if (!macidx(mac))
@@ -198,11 +194,20 @@ static int t3b2_mac_reset(struct cmac *mac)
 	t3_write_reg(adap, A_XGM_RESET_CTRL + oft, F_MAC_RESET_);
 	(void) t3_read_reg(adap, A_XGM_RESET_CTRL + oft);    /* flush */
 
+	/* Store A_TP_TX_DROP_CFG_CH0 */
+	t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
+	store = t3_read_reg(adap, A_TP_TX_DROP_CFG_CH0 + idx);
+
 	msleep(10);
 
+	/* Change DROP_CFG to 0xc0000011 */
+	t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
+	t3_write_reg(adap, A_TP_PIO_DATA, 0xc0000011);
+
 	/* Check for xgm Rx fifo empty */
+	/* Increased loop count to 1000 from 5 cover 1G and 100Mbps case */
 	if (t3_wait_op_done(adap, A_XGM_RX_MAX_PKT_SIZE_ERR_CNT + oft,
-			    0x80000000, 1, 5, 2)) {
+			    0x80000000, 1, 1000, 2)) {
 		CH_ERR(adap, "MAC %d Rx fifo drain failed\n",
 		       macidx(mac));
 		return -1;
@@ -228,7 +233,11 @@ static int t3b2_mac_reset(struct cmac *mac)
 		 F_DISPAUSEFRAMES | F_EN1536BFRAMES |
 		                F_RMFCS | F_ENJUMBO | F_ENHASHMCAST );
 
-	/*Resume egress traffic to xgm*/
+	/* Restore the DROP_CFG */
+	t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
+	t3_write_reg(adap, A_TP_PIO_DATA, store);
+
+	/* Resume egress traffic to xgm */
 	if (!macidx(mac))
 		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT0ACTIVE);
 	else
