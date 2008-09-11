@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/mutex.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -60,6 +61,8 @@ static vm_offset_t pcie_base;
 static int pcie_minbus, pcie_maxbus;
 static uint32_t pcie_badslots;
 static struct mtx pcicfg_mtx;
+static int mcfg_enable = 1;
+TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
 
 /* 
  * Initialise access to PCI configuration space 
@@ -247,6 +250,9 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 {
 	uint32_t val1, val2;
 	int slot;
+
+	if (!mcfg_enable)
+		return (0);
 
 	if (minbus != 0)
 		return (0);
