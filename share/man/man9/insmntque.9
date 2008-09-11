@@ -26,17 +26,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2008
+.Dd September 8, 2008
 .Dt insmntque 9
 .Os
 .Sh NAME
-.Nm insmntque
+.Nm insmntque ,
+.Nm insmntque1
 .Nd "associate a vnode with a mount"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
 .Fn insmntque "struct vnode *vp" "struct mount *mp"
+.Ft int
+.Fn insmntque1 "struct vnode *vp" "struct mount *mp" "void (*dtr)(struct vnode *, void *)" "void *dtr_arg"
 .Sh DESCRIPTION
 The
 .Fn insmntque
@@ -47,14 +50,43 @@ for the vnode, and inserting the vnode into the mounts vnode list.
 .Pp
 The mount reference count is incremented for each vnode added to the
 mount, and that reference is decremented by
-.Fn vgone 9 .
+.Xr vgone 9 .
 .Pp
 The mount's interlock is held while the vnode is inserted.
+For MP-safe file systems, the vnode must be exclusively locked.
+.Pp
+On failure,
+.Fn insmntque
+calls
+.Xr vgone 9
+on the supplied vnode, and then drops the vnode lock and reference.
+If more elaborated cleanup after
+.Fn insmntque
+failure is needed, the
+.Fn insmntque1
+function may be used instead.
+The
+.Fa dtr
+argument is a pointer to a function that is called on failure.
+This function may perform any custom cleanup.
+The vnode pointer is supplied as the first argument to
+.Fa dtr .
+The
+.Fa dtr_arg
+argument is the second, supplying any additional context needed.
 .Sh RETURN VALUES
 .Fn insmntque
 will always return 0, unless the file system is currently being unmounted
-in which case it will return
+in which case it may return
 .Dv EBUSY .
+The
+.Fn insmntque
+function may be forced to insert the vnode into the mount's vnode list
+by setting the
+.Va VV_FORCEINSMQ
+flag in the vnode
+.Va v_flag ,
+even if the file system is being unmounted.
 .Sh SEE ALSO
 .Xr vgone 9
 .Sh AUTHORS
