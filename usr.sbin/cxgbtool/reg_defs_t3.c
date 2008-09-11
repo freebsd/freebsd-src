@@ -1302,7 +1302,7 @@ struct reg_info tp1_regs[] = {
 	{ "TP_TX_MOD_QUEUE_REQ_MAP", 0x428, 0 },
 		{ "RX_MOD_WEIGHT", 24, 8 },
 		{ "TX_MOD_WEIGHT", 16, 8 },
-		{ "TX_MOD_TIMER_MODE", 9, 7 },
+		{ "TX_MOD_TIMER_MODE", 8, 8 },
 		{ "TX_MOD_QUEUE_REQ_MAP", 0, 8 },
 	{ "TP_TX_MOD_QUEUE_WEIGHT1", 0x42c, 0 },
 		{ "TP_TX_MOD_QUEUE_WEIGHT7", 24, 8 },
