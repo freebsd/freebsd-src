@@ -119,6 +119,7 @@ int
 register_tom(struct tom_info *t)
 {
 	mtx_lock(&offload_db_lock);
+	toedev_registration_count++;
 	TAILQ_INSERT_HEAD(&offload_module_list, t, entry);
 	mtx_unlock(&offload_db_lock);
 	return 0;
