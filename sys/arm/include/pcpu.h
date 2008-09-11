@@ -40,12 +40,7 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-/*
- * Inside the kernel, the globally reserved register g7 is used to
- * point at the globaldata structure.
- */
-#define	PCPU_MD_FIELDS							\
-	struct pcup *pc_prvspace;
+#define	PCPU_MD_FIELDS
 
 #ifdef _KERNEL
 
