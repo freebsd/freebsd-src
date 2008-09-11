@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/kernel.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -81,6 +82,8 @@ static uint32_t pcie_badslots;
 static int cfgmech;
 static int devmax;
 static struct mtx pcicfg_mtx;
+static int mcfg_enable = 1;
+TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
 
 static uint32_t	pci_docfgregread(int bus, int slot, int func, int reg,
 		    int bytes);
@@ -521,6 +524,9 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	vm_offset_t va;
 	uint32_t val1, val2;
 	int i, slot;
+
+	if (!mcfg_enable)
+		return (0);
 
 	if (minbus != 0)
 		return (0);
