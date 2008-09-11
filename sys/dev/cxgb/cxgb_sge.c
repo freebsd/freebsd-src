@@ -401,7 +401,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 			q->coalesce_usecs = 5;
 #endif			
 		}
-		q->polling = adap->params.rev > 0;
+		q->polling = 0;
 		q->rspq_size = RSPQ_Q_SIZE;
 		q->fl_size = fl_q_size;
 		q->jumbo_size = jumbo_q_size;
