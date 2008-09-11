@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2007
+.Dd September 12, 2008
 .Dt FWCONTROL 8
 .Os
 .Sh NAME
@@ -59,7 +59,8 @@ will output a list of devices that are/were connected to the bus.
 The following options are available:
 .Bl -tag -width indent
 .It Fl u Ar bus_num
-Specify the FireWire bus number to be operated on.  Default is bus 0.
+Specify the FireWire bus number to be operated on.
+The default is bus 0.
 .It Fl r
 Initiate bus reset.
 .It Fl t
@@ -101,13 +102,18 @@ or
 mode for the incoming stream.
 Only meaningful in case of and must precede the
 .Fl R
-option. If not specified, the program will try to guess. If you get
-an error complaining about "format 0x20", try to force the "mpeg" mode.
+option.
+If not specified, the program will try to guess.
+In case of
+.Dq format 0x20
+error, try to force the
+.Dq mpeg
+mode.
 .It Fl R Ar filename
 Receive DV or MPEG TS stream and dump it to a file.
-Use Ctrl-C to stop the receiving.
+Use ^C to stop the receiving.
 Some DV cameras seem not to send the stream if a bus manager exists.
-If you cannot get the stream, try the following commands:
+If it is impossible to get the stream, try the following commands:
 .Bd -literal -offset indent
 sysctl hw.firewire.try_bmr=0
 fwcontrol -r
@@ -119,14 +125,17 @@ It can be handled by
 .Nm libdv
 in the
 .Fx
-Ports Collection. Resulting MPEG TS stream can be played and sent over a
+Ports Collection.
+Resulting MPEG TS stream can be played and sent over a
 network using the VideoLAN
 .Nm vlc
 tool in the
 .Fx
-Ports Collection. The stream can be piped directly to
+Ports Collection.
+The stream can be piped directly to
 .Nm vlc,
-see EXAMPLES.
+see
+.Sx EXAMPLES .
 .It Fl S Ar filename
 Send a DV file as isochronous stream.
 .It Fl m Ar EUI64 | hostname
@@ -164,11 +173,12 @@ with
 .Pp
 .Dl "fwcontrol -R file.m2t
 .Pp
-Receive an MPEG TS stream from a camera producing MPEG transport stream.  This
-has been tested with SONY HDR-FX1E camera that produces HD MPEG-2 stream at
-25 Mbps bandwidth.
+Receive an MPEG TS stream from a camera producing MPEG transport stream.
+This has been tested with SONY HDR-FX1E camera that produces HD MPEG-2
+stream at 25 Mbps bandwidth.
 .Pp
-To send the stream from the camera over the network using TCP (which supprisingly works better with vlc), you can use
+To send the stream from the camera over the network using TCP (which
+supprisingly works better with vlc), you can use
 .Dl "fwcontrol -R - | nc 192.168.10.11 9000
 with
 .Nm netcat
@@ -178,8 +188,8 @@ from ports and to receive the stream, use
 To netcast via UDP, you need to use
 .Nm buffer
 program from ports, since vlc is not fast enough to read UDP packets from
-buffers and thus it experiences dropouts when run directly. The sending side
-can use
+buffers and thus it experiences dropouts when run directly.
+The sending side can use
 .Dl "fwcontrol -R - | nc 192.168.10.11 9000
 and to receive the stream, use
 .Dl nc -l -u -p 9000 | buffer -s 10k -b 1000 -m 20m -p 5 | vlc -
