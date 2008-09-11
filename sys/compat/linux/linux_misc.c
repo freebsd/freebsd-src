@@ -532,15 +532,8 @@ linux_select(struct thread *td, struct linux_select_args *args)
 	if (ldebug(select))
 		printf(LMSG("real select returns %d"), error);
 #endif
-	if (error) {
-		/*
-		 * See fs/select.c in the Linux kernel.  Without this,
-		 * Maelstrom doesn't work.
-		 */
-		if (error == ERESTART)
-			error = EINTR;
+	if (error)
 		goto select_out;
-	}
 
 	if (args->timeout) {
 		if (td->td_retval[0]) {
