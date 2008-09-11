@@ -57,6 +57,6 @@ void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
 void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*), 
     void *, int, int, void **);    
-int arm_remove_irqhandler(void *);
+int arm_remove_irqhandler(int, void *);
 extern void (*arm_post_filter)(void *);
 #endif	/* _MACHINE_INTR_H */

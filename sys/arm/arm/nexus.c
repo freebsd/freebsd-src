@@ -120,34 +120,26 @@ nexus_probe(device_t dev)
 		panic("nexus_probe mem_rman");
 		
 	return (0);
-	return bus_generic_probe(dev);
 }
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	int i;
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
-	for (i = rman_get_start(res); i <= rman_get_end(res); i++)
-		arm_setup_irqhandler(device_get_nameunit(child), 
-		    filt, intr, arg, i, flags, cookiep);
+	arm_setup_irqhandler(device_get_nameunit(child), 
+	    filt, intr, arg, rman_get_start(res), flags, cookiep);
 	return (0);
 }
 
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
-	int error;
-	int i;
 
-	for (i = rman_get_start(r); i <= rman_get_end(r); i++)
-		arm_mask_irq(i);
-	error = arm_remove_irqhandler(ih);
-	return (error);
+	return (arm_remove_irqhandler(rman_get_start(r), ih));
 }
 
 static int
