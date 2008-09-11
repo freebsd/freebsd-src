@@ -173,7 +173,7 @@ enum {                     /* TCP congestion control algorithms */
 	CONG_ALG_HIGHSPEED
 };
 
-enum {			   /* RSS hash type */
+enum {                     /* RSS hash type */
 	RSS_HASH_NONE = 0,
 	RSS_HASH_2_TUPLE = 1,
 	RSS_HASH_4_TUPLE = 2,
@@ -189,13 +189,6 @@ union opcode_tid {
 #define V_OPCODE(x) ((x) << S_OPCODE)
 #define G_OPCODE(x) (((x) >> S_OPCODE) & 0xFF)
 #define G_TID(x)    ((x) & 0xFFFFFF)
-
-#define S_HASHTYPE 22
-#define M_HASHTYPE 0x3
-#define G_HASHTYPE(x) (((x) >> S_HASHTYPE) & M_HASHTYPE) 
-
-#define S_QNUM 0
-#define G_QNUM(x) (((x) >> S_QNUM) & 0xFFFF)
 
 /* tid is assumed to be 24-bits */
 #define MK_OPCODE_TID(opcode, tid) (V_OPCODE(opcode) | (tid))
@@ -234,6 +227,14 @@ struct rss_header {
 	__be32 rss_hash_val;
 };
 
+#define S_HASHTYPE 22
+#define M_HASHTYPE 0x3
+#define G_HASHTYPE(x) (((x) >> S_HASHTYPE) & M_HASHTYPE)
+
+#define S_QNUM 0
+#define M_QNUM 0xFFFF
+#define G_QNUM(x) (((x) >> S_QNUM) & M_QNUM)
+
 #ifndef CHELSIO_FW
 struct work_request_hdr {
 	__be32 wr_hi;
@@ -256,14 +257,16 @@ struct work_request_hdr {
 #define V_WR_BCNTLFLT(x) ((x) << S_WR_BCNTLFLT)
 #define G_WR_BCNTLFLT(x) (((x) >> S_WR_BCNTLFLT) & M_WR_BCNTLFLT)
 
-/* Applicable to BYPASS WRs only: the uP will added a CPL_BARRIER before
+/*
+ * Applicable to BYPASS WRs only: the uP will add a CPL_BARRIER before
  * and after the BYPASS WR if the ATOMIC bit is set.
  */
 #define S_WR_ATOMIC	16
 #define V_WR_ATOMIC(x)	((x) << S_WR_ATOMIC)
 #define F_WR_ATOMIC	V_WR_ATOMIC(1U)
 
-/* Applicable to BYPASS WRs only: the uP will flush buffered non abort
+/*
+ * Applicable to BYPASS WRs only: the uP will flush buffered non abort
  * related WRs.
  */
 #define S_WR_FLUSH	17
