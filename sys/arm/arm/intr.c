@@ -92,9 +92,19 @@ arm_setup_irqhandler(const char *name, driver_filter_t *filt,
 }
 
 int
-arm_remove_irqhandler(void *cookie)
+arm_remove_irqhandler(int irq, void *cookie)
 {
-	return (intr_event_remove_handler(cookie));
+	struct intr_event *event;
+	int error;
+
+	event = intr_events[irq];
+	arm_mask_irq(irq);
+	
+	error = intr_event_remove_handler(cookie);
+
+	if (!TAILQ_EMPTY(&event->ie_handlers))
+		arm_unmask_irq(irq);
+	return (error);
 }
 
 void dosoftints(void);
