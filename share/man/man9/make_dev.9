@@ -24,13 +24,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2007
+.Dd September 8, 2008
 .Os
 .Dt MAKE_DEV 9
 .Sh NAME
 .Nm make_dev ,
+.Nm make_dev_cred ,
+.Nm make_dev_credf ,
 .Nm make_dev_alias ,
 .Nm destroy_dev ,
+.Nm destroy_dev_sched ,
+.Nm destroy_dev_sched_cb ,
+.Nm destroy_dev_drain ,
 .Nm dev_depends
 .Nd manage
 .Vt cdev Ns 's
@@ -41,19 +46,34 @@ and DEVFS registration for devices
 .Ft struct cdev *
 .Fn make_dev "struct cdevsw *cdevsw" "int minor" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
 .Ft struct cdev *
+.Fn make_dev_cred "struct cdevsw *cdevsw" "int minor" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
+.Fn make_dev_credf "int flags" "struct cdevsw *cdevsw" "int minor" "struct ucred *cr" "uid_t uid" "gid_t gid" "int perms" "const char *fmt" ...
+.Ft struct cdev *
 .Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
 .Ft void
 .Fn destroy_dev "struct cdev *dev"
 .Ft void
+.Fn destroy_dev_sched "struct cdev *dev"
+.Ft void
+.Fn destroy_dev_sched_cb "struct cdev *dev" "void (*cb)(void *)" "void *arg"
+.Ft void
+.Fn destroy_dev_drain "struct cdevsw *csw"
+.Ft void
 .Fn dev_depends "struct cdev *pdev" "struct cdev *cdev"
 .Sh DESCRIPTION
 The
-.Fn make_dev
+.Fn make_dev_credf
 function creates a
 .Fa cdev
 structure for a new device.
-If DEVFS is available, it is also notified of
-the presence of the new device.
+It also notifies
+.Xr devfs 5
+of the presence of the new device, that causes corresponding nodes
+to be created.
+Besides this, a
+.Xr devctl 4
+notification is sent.
 The device will be owned by
 .Va uid ,
 with the group ownership as
@@ -100,6 +120,45 @@ are defined in
 .Ed
 .Pp
 The
+.Va cr
+argument specifies credentials that will be stored in the
+.Fa si_cred
+member of the initialized
+.Fa struct cdev .
+The
+.Va flags
+argument alters the operation of
+.Fn make_dev_credf .
+The following values are currently accepted:
+.Pp
+.Bd -literal -offset indent -compact
+MAKEDEV_REF	reference the created device
+.Ed
+.Pp
+The
+.Xr dev_clone 9
+event handler shall specify
+.Dv MAKEDEV_REF
+flag when creating a device in response to lookup, to avoid race where
+the device created is destroyed immediately after
+.Xr devfs_lookup 9
+drops his reference to cdev.
+.Pp
+The
+.Fn make_dev_cred
+function is equivalent to the call
+.Bd -literal -offset indent
+make_dev_credf(0, cdevsw, minor, cr, uid, gid, perms, fmt, ...);
+.Ed .
+.Pp
+The
+.Fn make_dev
+function call is the same as
+.Bd -literal -offset indent
+make_dev_credf(0, cdevsw, minor, NULL, uid, gid, perms, fmt, ...);
+.Ed .
+.Pp
+The
 .Fn make_dev_alias
 function takes the returned
 .Ft cdev
@@ -136,6 +195,9 @@ function takes the returned
 from
 .Fn make_dev
 and destroys the registration for that device.
+The notification is sent to
+.Xr devctl 4
+about the destruction event.
 Do not call
 .Fn destroy_dev
 on devices that were created with
@@ -151,7 +213,58 @@ child device(s),
 if any exist.
 A device may simultaneously be a parent and a child,
 so it is possible to build a complete hierarchy.
+.Pp
+The
+.Fn destroy_dev_sched_cb
+function schedules execution of the
+.Fn destroy_dev
+for the specified
+.Fa cdev
+in the safe context.
+After
+.Fn destroy_dev
+is finished, and if the supplied
+.Fa cb
+is not NULL, the callback
+.Fa cb
+is called, with argument
+.Fa arg .
+The
+.Fn destroy_dev_sched
+function is the same as
+.Bd -literal -offset indent
+destroy_dev_sched(cdev, NULL, NULL);
+.Ed .
+.Pp
+The
+.Fn d_close
+driver method cannot call
+.Fn destroy_dev
+directly. Doing so causes deadlock when
+.Fn destroy_dev
+waits for all threads to leave the driver methods.
+Also, because
+.Fn destroy_dev
+sleeps, no non-sleepable locks may be held over the call.
+The
+.Fn destroy_dev_sched
+family of functions overcome these issues.
+.Pp
+The device driver may call the
+.Fn destroy_dev_drain
+function to wait until all devices that have supplied
+.Fa csw
+as cdevsw, are destroyed. This is useful when driver knows that
+.Fn destroy_dev_sched
+is called for all instantiated devices, but need to postpone module
+unload until
+.Fn destroy_dev
+is actually finished for all of them.
+.Pp
 .Sh SEE ALSO
+.Xr devctl 4 ,
+.Xr destroy_dev_drain 9 ,
+.Xr dev_clone 9 ,
 .Xr devfs 5
 .Sh HISTORY
 The
@@ -168,3 +281,9 @@ The function
 .Fn dev_depends
 first appeared in
 .Fx 5.0 .
+The functions
+.Fn make_dev_credf ,
+.Fn destroy_dev_sched ,
+.Fn destroy_dev_sched_cb
+first appeared in
+.Fx 7.0 .
