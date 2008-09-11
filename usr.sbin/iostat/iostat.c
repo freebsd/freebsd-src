@@ -667,6 +667,7 @@ static void
 phdr(void)
 {
 	int i, printed;
+	char devbuf[256];
 
 	/*
 	 * If xflag is set, we need a per-loop header, not a page header, so
@@ -682,14 +683,13 @@ phdr(void)
 		if ((dev_select[i].selected != 0)
 		 && (dev_select[i].selected <= maxshowdevs)) {
 			di = dev_select[i].position;
+			snprintf(devbuf, sizeof(devbuf), "%s%d", 
+					    cur.dinfo->devices[di].device_name,
+					    cur.dinfo->devices[di].unit_number);
 			if (oflag > 0)
-				(void)printf("%12.6s%d ",
-					    cur.dinfo->devices[di].device_name,
-					    cur.dinfo->devices[di].unit_number);
+				(void)printf("%13.6s ", devbuf);
 			else
-				printf("%15.6s%d ",
-					    cur.dinfo->devices[di].device_name,
-					    cur.dinfo->devices[di].unit_number);
+				printf("%16.6s ", devbuf);
 			printed++;
 		}
 	}
