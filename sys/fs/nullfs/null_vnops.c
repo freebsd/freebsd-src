@@ -625,7 +625,7 @@ null_islocked(struct vop_islocked_args *ap)
 
 /*
  * There is no way to tell that someone issued remove/rmdir operation
- * on the underlying filesystem. For now we just have to release lowevrp
+ * on the underlying filesystem. For now we just have to release lowervp
  * as soon as possible.
  *
  * Note, we can't release any resources nor remove vnode from hash before 
@@ -676,7 +676,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 		lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
 		vput(lowervp);
 	} else
-		panic("null_reclaim: reclaiming an node with now lowervp");
+		panic("null_reclaim: reclaiming a node with no lowervp");
 	FREE(xp, M_NULLFSNODE);
 
 	return (0);
