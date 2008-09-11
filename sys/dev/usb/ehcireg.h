@@ -71,9 +71,8 @@
 #define EHCI_EECP_ID(x)		((x) & 0xff)
 
 /* Legacy support extended capability */
-#define EHCI_LEGSUP_LEGSUP	0x01
-#define  EHCI_LEGSUP_OSOWNED	0x01000000 /* OS owned semaphore */
-#define  EHCI_LEGSUP_BIOSOWNED	0x00010000 /* BIOS owned semaphore */
+#define	EHCI_LEGSUP_OS_SEM	0x03	/* OS owned semaphore */
+#define	EHCI_LEGSUP_BIOS_SEM	0x02	/* BIOS owned semaphore */
 #define EHCI_LEGSUP_USBLEGCTLSTS 0x04
 
 /*** EHCI capability registers ***/
