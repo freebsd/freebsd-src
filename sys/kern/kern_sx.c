@@ -354,6 +354,7 @@ void
 _sx_downgrade(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
+	int wakeup_swapper;
 
 	KASSERT(sx->sx_lock != SX_LOCK_DESTROYED,
 	    ("sx_downgrade() of destroyed sx @ %s:%d", file, line));
@@ -394,16 +395,20 @@ _sx_downgrade(struct sx *sx, const char *file, int line)
 	 * Preserve SX_LOCK_EXCLUSIVE_WAITERS while downgraded to a single
 	 * shared lock.  If there are any shared waiters, wake them up.
 	 */
+	wakeup_swapper = 0;
 	x = sx->sx_lock;
 	atomic_store_rel_ptr(&sx->sx_lock, SX_SHARERS_LOCK(1) |
 	    (x & SX_LOCK_EXCLUSIVE_WAITERS));
 	if (x & SX_LOCK_SHARED_WAITERS)
-		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
-		    SQ_SHARED_QUEUE);
+		wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX,
+		    -1, SQ_SHARED_QUEUE);
 	else
 		sleepq_release(&sx->lock_object);
 
 	LOCK_LOG_LOCK("XDOWNGRADE", &sx->lock_object, 0, 0, file, line);
+
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 /*
@@ -585,7 +590,7 @@ void
 _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 {
 	uintptr_t x;
-	int queue;
+	int queue, wakeup_swapper;
 
 	MPASS(!(sx->sx_lock & SX_LOCK_SHARED));
 
@@ -623,7 +628,10 @@ _sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int line)
 		    __func__, sx, queue == SQ_SHARED_QUEUE ? "shared" :
 		    "exclusive");
 	atomic_store_rel_ptr(&sx->sx_lock, x);
-	sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1, queue);
+	wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
+	    queue);
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 /*
@@ -801,6 +809,7 @@ void
 _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 {
 	uintptr_t x;
+	int wakeup_swapper;
 
 	for (;;) {
 		x = sx->sx_lock;
@@ -868,8 +877,10 @@ _sx_sunlock_hard(struct sx *sx, const char *file, int line)
 		if (LOCK_LOG_TEST(&sx->lock_object, 0))
 			CTR2(KTR_LOCK, "%s: %p waking up all thread on"
 			    "exclusive queue", __func__, sx);
-		sleepq_broadcast(&sx->lock_object, SLEEPQ_SX, -1,
-		    SQ_EXCLUSIVE_QUEUE);
+		wakeup_swapper = sleepq_broadcast(&sx->lock_object, SLEEPQ_SX,
+		    -1, SQ_EXCLUSIVE_QUEUE);
+		if (wakeup_swapper)
+			kick_proc0();
 		break;
 	}
 }
