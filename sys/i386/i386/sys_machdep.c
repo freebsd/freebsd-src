@@ -526,6 +526,14 @@ user_ldt_free(struct thread *td)
 	}
 
 	mdp->md_ldt = NULL;
+	user_ldt_deref(pldt);
+}
+
+void
+user_ldt_deref(struct proc_ldt *pldt)
+{
+
+	mtx_assert(&dt_lock, MA_OWNED);
 	if (--pldt->ldt_refcnt == 0) {
 		mtx_unlock_spin(&dt_lock);
 		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,

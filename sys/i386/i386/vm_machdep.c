@@ -158,17 +158,17 @@ cpu_fork(td1, p2, td2, flags)
 		if ((flags & RFMEM) == 0) {
 			/* unshare user LDT */
 			struct mdproc *mdp1 = &p1->p_md;
-			struct proc_ldt *pldt;
+			struct proc_ldt *pldt, *pldt1;
 
 			mtx_lock_spin(&dt_lock);
-			if ((pldt = mdp1->md_ldt) != NULL &&
-			    pldt->ldt_refcnt > 1) {
-				pldt = user_ldt_alloc(mdp1, pldt->ldt_len);
+			if ((pldt1 = mdp1->md_ldt) != NULL &&
+			    pldt1->ldt_refcnt > 1) {
+				pldt = user_ldt_alloc(mdp1, pldt1->ldt_len);
 				if (pldt == NULL)
 					panic("could not copy LDT");
 				mdp1->md_ldt = pldt;
 				set_user_ldt(mdp1);
-				user_ldt_free(td1);
+				user_ldt_deref(pldt1);
 			} else
 				mtx_unlock_spin(&dt_lock);
 		}
