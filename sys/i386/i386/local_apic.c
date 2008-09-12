@@ -77,10 +77,6 @@ CTASSERT(APIC_TIMER_INT < APIC_LOCAL_INTS);
 CTASSERT(APIC_LOCAL_INTS == 240);
 CTASSERT(IPI_STOP < APIC_SPURIOUS_INT);
 
-#define	LAPIC_TIMER_HZ_DIVIDER		2
-#define	LAPIC_TIMER_STATHZ_DIVIDER	15
-#define	LAPIC_TIMER_PROFHZ_DIVIDER	3
-
 /* Magic IRQ values for the timer and syscalls. */
 #define	IRQ_TIMER	(NUM_IO_INTS + 1)
 #define	IRQ_SYSCALL	(NUM_IO_INTS + 2)
@@ -391,13 +387,24 @@ lapic_setup_clock(void)
 		    lapic_timer_divisor, value);
 
 	/*
-	 * We will drive the timer at a small multiple of hz and drive
-	 * both of the other timers with similarly small but relatively
-	 * prime divisors.
+	 * We want to run stathz in the neighborhood of 128hz.  We would
+	 * like profhz to run as often as possible, so we let it run on
+	 * each clock tick.  We try to honor the requested 'hz' value as
+	 * much as possible.
+	 *
+	 * If 'hz' is above 1500, then we just let the lapic timer
+	 * (and profhz) run at hz.  If 'hz' is below 1500 but above
+	 * 750, then we let the lapic timer run at 2 * 'hz'.  If 'hz'
+	 * is below 750 then we let the lapic timer run at 4 * 'hz'.
 	 */
-	lapic_timer_hz = hz * LAPIC_TIMER_HZ_DIVIDER;
-	stathz = lapic_timer_hz / LAPIC_TIMER_STATHZ_DIVIDER;
-	profhz = lapic_timer_hz / LAPIC_TIMER_PROFHZ_DIVIDER;
+	if (hz >= 1500)
+		lapic_timer_hz = hz;
+	else if (hz >= 750)
+		lapic_timer_hz = hz * 2;
+	else
+		lapic_timer_hz = hz * 4;
+	stathz = lapic_timer_hz / (lapic_timer_hz / 128);
+	profhz = lapic_timer_hz;
 	lapic_timer_period = value / lapic_timer_hz;
 
 	/*
