@@ -276,6 +276,7 @@ SUBDIR=	${_3dfx} \
 	udf_iconv \
 	ufm \
 	${_ufs} \
+	ufoma \
 	uftdi \
 	ugen \
 	uhid \
