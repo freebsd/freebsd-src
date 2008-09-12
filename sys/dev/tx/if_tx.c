@@ -269,16 +269,17 @@ epic_attach(device_t dev)
 	}
 
 	/* Allocate DMA tags. */
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * EPIC_MAX_FRAGS,
-	    EPIC_MAX_FRAGS, MCLBYTES, 0, NULL, NULL, &sc->mtag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * EPIC_MAX_FRAGS, EPIC_MAX_FRAGS, MCLBYTES, 0, NULL, NULL,
+	    &sc->mtag);
 	if (error) {
 		device_printf(dev, "couldn't allocate dma tag\n");
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_rx_desc) * RX_RING_SIZE,
 	    1, sizeof(struct epic_rx_desc) * RX_RING_SIZE, 0, NULL,
 	    NULL, &sc->rtag);
@@ -287,8 +288,8 @@ epic_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_tx_desc) * TX_RING_SIZE,
 	    1, sizeof(struct epic_tx_desc) * TX_RING_SIZE, 0,
 	    NULL, NULL, &sc->ttag);
@@ -297,8 +298,8 @@ epic_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct epic_frag_list) * TX_RING_SIZE,
 	    1, sizeof(struct epic_frag_list) * TX_RING_SIZE, 0,
 	    NULL, NULL, &sc->ftag);
