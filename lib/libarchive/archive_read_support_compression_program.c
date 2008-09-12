@@ -31,6 +31,8 @@ __FBSDID("$FreeBSD$");
 #if !defined(HAVE_PIPE) || !defined(HAVE_FCNTL) || \
     !(defined(HAVE_FORK) || defined(HAVE_VFORK))
 
+#include "archive.h"
+
 /*
  * On non-Posix systems, allow the program to build, but choke if
  * this function is actually invoked.
