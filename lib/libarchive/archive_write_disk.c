@@ -637,12 +637,14 @@ _archive_write_finish_entry(struct archive *_a)
 		/* Last write ended at exactly the filesize; we're done. */
 		/* Hopefully, this is the common case. */
 	} else {
+#if HAVE_FTRUNCATE
 		if (ftruncate(a->fd, a->filesize) == -1 &&
 		    a->filesize == 0) {
 			archive_set_error(&a->archive, errno,
 			    "File size could not be restored");
 			return (ARCHIVE_FAILED);
 		}
+#endif
 		/*
 		 * Explicitly stat the file as some platforms might not
 		 * implement the XSI option to extend files via ftruncate.

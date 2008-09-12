@@ -56,6 +56,7 @@
 #define	HAVE_FCNTL_H 1
 #define	HAVE_FSEEKO 1
 #define	HAVE_FSTAT 1
+#define	HAVE_FTRUNCATE 1
 #define	HAVE_FUTIMES 1
 #define	HAVE_GETEUID 1
 #define	HAVE_GETPID 1
