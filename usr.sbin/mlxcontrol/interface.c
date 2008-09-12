@@ -79,16 +79,18 @@ void
 mlxd_foreach_ctrlr(int unit, void *arg)
 {
     struct mlxd_foreach_action	*ma = (struct mlxd_foreach_action *)arg;
-    int				i, fd;
+    int				i, fd, ctrlfd;
     
     /* Get the device */
-    if ((fd = open(ctrlrpath(unit), 0)) < 0)
+    if ((ctrlfd = open(ctrlrpath(unit), 0)) < 0)
 	return;
     
     for (i = -1; ;) {
 	/* Get the unit number of the next child device */
-	if (ioctl(fd, MLX_NEXT_CHILD, &i) < 0)
+	if (ioctl(ctrlfd, MLX_NEXT_CHILD, &i) < 0) {
+	    close(ctrlfd);
 	    return;
+	}
 	
 	/* check that we can open this unit */
 	if ((fd = open(drivepath(i), 0)) >= 0)
