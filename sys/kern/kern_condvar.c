@@ -389,13 +389,17 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 void
 cv_signal(struct cv *cvp)
 {
+	int wakeup_swapper;
 
+	wakeup_swapper = 0;
 	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters--;
-		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1, 0);
+		wakeup_swapper = sleepq_signal(cvp, SLEEPQ_CONDVAR, -1, 0);
 	}
 	sleepq_release(cvp);
+	if (wakeup_swapper)
+		kick_proc0();
 }
 
 /*
@@ -405,11 +409,15 @@ cv_signal(struct cv *cvp)
 void
 cv_broadcastpri(struct cv *cvp, int pri)
 {
+	int wakeup_swapper;
 
+	wakeup_swapper = 0;
 	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters = 0;
-		sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri, 0);
+		wakeup_swapper = sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri, 0);
 	} else
 		sleepq_release(cvp);
+	if (wakeup_swapper)
+		kick_proc0();
 }
