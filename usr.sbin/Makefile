@@ -32,6 +32,7 @@ SUBDIR=	ac \
 	ckdist \
 	clear_locks \
 	config \
+	crashinfo \
 	cron \
 	crunch \
 	ctm \
