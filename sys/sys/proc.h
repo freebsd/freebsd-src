@@ -857,7 +857,7 @@ void	pstats_free(struct pstats *ps);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sessrele(struct session *);
-void	setrunnable(struct thread *);
+int	setrunnable(struct thread *);
 void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);
 void	sleepinit(void);
@@ -914,7 +914,7 @@ struct thread *thread_switchout(struct thread *td, int flags,
 	    struct thread *newtd);
 void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
-void	thread_unsuspend_one(struct thread *td);
+int	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct thread *td);
