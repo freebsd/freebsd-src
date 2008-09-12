@@ -514,9 +514,15 @@ write_data_block(struct archive_write_disk *a,
 	}
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
+#if HAVE_STRUCT_STAT_ST_BLKSIZE
 		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
+#else
+		/* XXX TODO XXX Is there a more appropriate choice here ? */
+		/* This needn't match the filesystem allocation size. */
+		block_size = 16*1024;
+#endif
 	}
 
 	if (a->filesize >= 0 && (off_t)(offset + size) > a->filesize)
