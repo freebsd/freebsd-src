@@ -760,7 +760,7 @@ mlx_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	    if (sc->mlx_sysdrive[i].ms_disk != 0) {
 		/* looking for the next one we come across? */
 		if (*arg == -1) {
-		    *arg = device_get_unit(sc->mlx_sysdrive[0].ms_disk);
+		    *arg = device_get_unit(sc->mlx_sysdrive[i].ms_disk);
 		    return(0);
 		}
 		/* we want the one after this one */

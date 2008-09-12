@@ -628,7 +628,7 @@ cmd_rebuild(int argc, char *argv[])
 	    warnx("drive rebuild or consistency check is already in progress on this controller");
 	    break;
 	default:
-	    warn("ioctl MLXD_CHECKASYNC");
+	    warn("ioctl MLXD_REBUILDASYNC");
 	}
     }
     return(0);
