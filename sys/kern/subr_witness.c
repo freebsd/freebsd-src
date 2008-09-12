@@ -1099,6 +1099,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	plock = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
 	if (interlock != NULL && plock->li_lock == interlock) {
 		if ((*lock_list)->ll_count == 1) {
+
 			/*
 			 * The interlock is the only lock we hold, so
 			 * nothing to do.
@@ -1523,10 +1524,20 @@ found:
 	intr_restore(s);
 
 	/*
-	 * If this lock list entry is not the first and is now empty, free it.
+	 * In order to reduce contention on w_mtx, we want to keep always an
+	 * head object into lists so that frequent allocation from the 
+	 * free witness pool (and subsequent locking) is avoided.
+	 * In order to maintain the current code simple, when the head
+	 * object is totally unloaded it means also that we do not have
+	 * further objects in the list, so the list ownership needs to be
+	 * hand over to another object if the current head needs to be freed.
 	 */
-	if (*lock_list != lle && (*lock_list)->ll_count == 0) {
-		lle = *lock_list;
+	if ((*lock_list)->ll_count == 0) {
+		if (*lock_list == lle) {
+			if (lle->ll_next == NULL)
+				return;
+		} else
+			lle = *lock_list;
 		*lock_list = lle->ll_next;
 		CTR3(KTR_WITNESS, "%s: pid %d removed lle %p", __func__,
 		    td->td_proc->p_pid, lle);
@@ -2025,7 +2036,9 @@ static int
 witness_thread_has_locks(struct thread *td)
 {
 
-	return (td->td_sleeplocks != NULL);
+	if (td->td_sleeplocks == NULL)
+		return (0);
+	return (td->td_sleeplocks->ll_count != 0);
 }
 
 static int
@@ -2252,7 +2265,7 @@ DB_SHOW_COMMAND(alllocks, db_witness_list_all)
 			if (!witness_thread_has_locks(td))
 				continue;
 			db_printf("Process %d (%s) thread %p (%d)\n", p->p_pid,
-			    td->td_name, td, td->td_tid);
+			    p->p_comm, td, td->td_tid);
 			witness_ddb_list(td);
 		}
 	}
