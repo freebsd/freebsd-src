@@ -71,8 +71,14 @@ configure(void *dummy)
 #endif
 	root_bus_configure();
 #ifdef DEV_ISA
+	/*
+	 * We bypass isa_probe_children(9) here in order to avoid
+	 * invasive probes done by identify-routines of ISA drivers,
+	 * which in turn can trigger master/target aborts, and the
+	 * addition of ISA hints, which might erroneously exist.
+	 */
 	if (isa_bus_device != NULL)
-		isa_probe_children(isa_bus_device);
+		(void)bus_generic_attach(isa_bus_device);
 #endif
 }
 
