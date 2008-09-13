@@ -1357,7 +1357,7 @@ syncache_respond(struct syncache *sc)
 
 #ifdef TCP_SIGNATURE
 		if (sc->sc_flags & SCF_SIGNATURE)
-			tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
+			tcp_signature_compute(m, 0, 0, optlen,
 			    to.to_signature, IPSEC_DIR_OUTBOUND);
 #endif
 #ifdef INET6
