@@ -161,18 +161,6 @@ struct hdac_command_list {
 typedef int nid_t;
 
 struct hdac_softc;
-/****************************************************************************
- * struct hdac_codec
- *
- ****************************************************************************/
-struct hdac_codec {
-	int	verbs_sent;
-	int	responses_received;
-	nid_t	cad;
-	struct hdac_command_list *commands;
-	struct hdac_softc *sc;
-};
-
 struct hdac_bdle {
 	volatile uint32_t addrl;
 	volatile uint32_t addrh;
@@ -183,15 +171,19 @@ struct hdac_bdle {
 #define HDA_MAX_CONNS	32
 #define HDA_MAX_NAMELEN	32
 
-struct hdac_devinfo;
-
 struct hdac_widget {
 	nid_t nid;
 	int type;
 	int enable;
 	int nconns, selconn;
-	uint32_t pflags, ctlflags;
+	int waspin;
+	uint32_t pflags;
+	int bindas;
+	int bindseqmask;
+	int ossdev;
+	uint32_t ossmask;
 	nid_t conns[HDA_MAX_CONNS];
+	u_char connsenable[HDA_MAX_CONNS];
 	char name[HDA_MAX_NAMELEN];
 	struct hdac_devinfo *devinfo;
 	struct {
@@ -201,7 +193,6 @@ struct hdac_widget {
 		uint32_t supp_stream_formats;
 		uint32_t supp_pcm_size_rate;
 		uint32_t eapdbtl;
-		int outpath;
 	} param;
 	union {
 		struct {
@@ -215,12 +206,36 @@ struct hdac_widget {
 struct hdac_audio_ctl {
 	struct hdac_widget *widget, *childwidget;
 	int enable;
-	int index;
+	int index, dir, ndir;
 	int mute, step, size, offset;
-	int left, right;
+	int left, right, forcemute;
 	uint32_t muted;
-	int ossdev;
-	uint32_t dir, ossmask, ossval;
+	uint32_t ossmask, possmask;
+};
+
+/* Association is a group of pins bound for some special function. */
+struct hdac_audio_as {
+	u_char enable;
+	u_char index;
+	u_char dir;
+	u_char pincnt;
+	u_char fakeredir;
+	nid_t hpredir;
+	nid_t pins[16];
+	nid_t dacs[16];
+	int chan;
+};
+
+struct hdac_pcm_devinfo {
+	device_t dev;
+	struct hdac_devinfo *devinfo;
+	int	index;
+	int	registered;
+	int	play, rec;
+	u_char	left[SOUND_MIXER_NRDEVICES];
+	u_char	right[SOUND_MIXER_NRDEVICES];
+	int	chan_size;
+	int	chan_blkcnt;
 };
 
 /****************************************************************************
@@ -230,11 +245,6 @@ struct hdac_audio_ctl {
  * in the ivar of each child of the hdac bus
  ****************************************************************************/
 struct hdac_devinfo {
-	device_t dev;
-	uint16_t vendor_id;
-	uint16_t device_id;
-	uint8_t revision_id;
-	uint8_t stepping_id;
 	uint8_t node_type;
 	nid_t nid;
 	nid_t startnode, endnode;
@@ -247,14 +257,14 @@ struct hdac_devinfo {
 			uint32_t inamp_cap;
 			uint32_t supp_stream_formats;
 			uint32_t supp_pcm_size_rate;
-			int ctlcnt, pcnt, rcnt;
+			int ctlcnt, ascnt;
 			struct hdac_audio_ctl *ctl;
-			uint32_t mvol;
+			struct hdac_audio_as *as;
 			uint32_t quirks;
 			uint32_t gpio;
-			int ossidx;
 			int playcnt, reccnt;
-			int parsing_strategy;
+			struct hdac_pcm_devinfo *devs;
+			int num_devs;
 		} audio;
 		/* XXX undefined: modem, hdmi. */
 	} function;
@@ -268,6 +278,7 @@ struct hdac_chan {
 	struct pcm_channel *c;
 	struct pcmchan_caps caps;
 	struct hdac_devinfo *devinfo;
+	struct hdac_pcm_devinfo *pdevinfo;
 	struct hdac_dma	bdl_dma;
 	uint32_t spd, fmt, fmtlist[8], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
@@ -278,7 +289,26 @@ struct hdac_chan {
 	int off;
 	int sid;
 	int bit16, bit32;
+	int as;
 	nid_t io[16];
+};
+
+/****************************************************************************
+ * struct hdac_codec
+ *
+ ****************************************************************************/
+struct hdac_codec {
+	int	verbs_sent;
+	int	responses_received;
+	nid_t	cad;
+	uint16_t vendor_id;
+	uint16_t device_id;
+	uint8_t revision_id;
+	uint8_t stepping_id;
+	struct hdac_command_list *commands;
+	struct hdac_softc *sc;
+	struct hdac_devinfo *fgs;
+	int	num_fgs;
 };
 
 /****************************************************************************
@@ -303,6 +333,8 @@ struct hdac_softc {
 
 	uint32_t	flags;
 
+	struct hdac_chan	*chans;
+	int		num_chans;
 	int		num_iss;
 	int		num_oss;
 	int		num_bss;
@@ -319,10 +351,7 @@ struct hdac_softc {
 
 	struct hdac_dma	pos_dma;
 
-	struct hdac_chan	play, rec;
 	bus_dma_tag_t		chan_dmat;
-	int			chan_size;
-	int			chan_blkcnt;
 
 	/*
 	 * Polling
@@ -345,8 +374,6 @@ struct hdac_softc {
 	uint32_t	unsolq[HDAC_UNSOLQ_MAX];
 
 	struct hdac_codec *codecs[HDAC_CODEC_MAX];
-
-	int		registered;
 };
 
 /****************************************************************************
