@@ -408,9 +408,13 @@ OLD_FILES+=usr/share/man/man1/gcpio.1.gz
 # to be filled in
 #.endif
 
-#.if ${MK_HESIOD} == no
-# to be filled in
-#.endif
+.if ${MK_HESIOD} == no
+OLD_FILES+=usr/bin/hesinfo
+OLD_FILES+=usr/include/hesiod.h
+OLD_FILES+=usr/share/man/man1/hesinfo.1.gz
+OLD_FILES+=usr/share/man/man3/hesiod.3.gz
+OLD_FILES+=usr/share/man/man5/hesiod.conf.5.gz
+.endif
 
 #.if ${MK_HTML} == no
 # to be filled in
