@@ -889,7 +889,7 @@ options 	ACCEPT_FILTER_HTTP
 # This is enabled on a per-socket basis using the TCP_MD5SIG socket option.
 # This requires the use of 'device crypto', 'options IPSEC'
 # or 'device cryptodev'.
-#options 	TCP_SIGNATURE		#include support for RFC 2385
+options 	TCP_SIGNATURE		#include support for RFC 2385
 
 # DUMMYNET enables the "dummynet" bandwidth limiter.  You need IPFIREWALL
 # as well.  See dummynet(4) and ipfw(8) for more info.  When you run
