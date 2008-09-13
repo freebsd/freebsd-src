@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <netipsec/ipsec6.h>
 #endif
 #include <netipsec/key.h>
+#include <sys/syslog.h>
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
@@ -1829,11 +1830,11 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
 }
 
 /*
- * Compute TCP-MD5 hash of a TCPv4 segment. (RFC2385)
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
  *
  * Parameters:
  * m		pointer to head of mbuf chain
- * off0		offset to TCP header within the mbuf chain
+ * _unused	
  * len		length of TCP segment data, excluding options
  * optlen	length of TCP segment options
  * buf		pointer to storage for computed MD5 digest
@@ -1842,9 +1843,6 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  * We do this over ip, tcphdr, segment data, and the key in the SADB.
  * When called from tcp_input(), we can be sure that th_sum has been
  * zeroed out and verified already.
- *
- * This function is for IPv4 use only. Calling this function with an
- * IPv6 packet in the mbuf chain will yield undefined results.
  *
  * Return 0 if successful, otherwise return -1.
  *
@@ -1855,7 +1853,7 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
  * specify per-application flows but it is unstable.
  */
 int
-tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
+tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
 	union sockaddr_union dst;
@@ -1866,34 +1864,62 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	struct ipovly *ipovly;
 	struct secasvar *sav;
 	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+	char ip6buf[INET6_ADDRSTRLEN];
+	uint32_t plen;
+	uint16_t nhdr;
+#endif
 	u_short savecsum;
 
 	KASSERT(m != NULL, ("NULL mbuf chain"));
 	KASSERT(buf != NULL, ("NULL signature pointer"));
 
 	/* Extract the destination from the IP header in the mbuf. */
-	ip = mtod(m, struct ip *);
 	bzero(&dst, sizeof(union sockaddr_union));
-	dst.sa.sa_len = sizeof(struct sockaddr_in);
-	dst.sa.sa_family = AF_INET;
-	dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
-	    ip->ip_src : ip->ip_dst;
+	ip = mtod(m, struct ip *);
+#ifdef INET6
+	ip6 = NULL;	/* Make the compiler happy. */
+#endif
+	switch (ip->ip_v) {
+	case IPVERSION:
+		dst.sa.sa_len = sizeof(struct sockaddr_in);
+		dst.sa.sa_family = AF_INET;
+		dst.sin.sin_addr = (direction == IPSEC_DIR_INBOUND) ?
+		    ip->ip_src : ip->ip_dst;
+		break;
+#ifdef INET6
+	case (IPV6_VERSION >> 4):
+		ip6 = mtod(m, struct ip6_hdr *);
+		dst.sa.sa_len = sizeof(struct sockaddr_in6);
+		dst.sa.sa_family = AF_INET6;
+		dst.sin6.sin6_addr = (direction == IPSEC_DIR_INBOUND) ?
+		    ip6->ip6_src : ip6->ip6_dst;
+		break;
+#endif
+	default:
+		return (EINVAL);
+		/* NOTREACHED */
+		break;
+	}
 
 	/* Look up an SADB entry which matches the address of the peer. */
 	sav = KEY_ALLOCSA(&dst, IPPROTO_TCP, htonl(TCP_SIG_SPI));
 	if (sav == NULL) {
-		printf("%s: SADB lookup failed for %s\n", __func__,
-		    inet_ntoa(dst.sin.sin_addr));
+		ipseclog((LOG_ERR, "%s: SADB lookup failed for %s\n", __func__,
+		    (ip->ip_v == IPVERSION) ? inet_ntoa(dst.sin.sin_addr) :
+#ifdef INET6
+			(ip->ip_v == (IPV6_VERSION >> 4)) ?
+			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
+#endif
+			"(unsupported)"));
 		return (EINVAL);
 	}
 
 	MD5Init(&ctx);
-	ipovly = (struct ipovly *)ip;
-	th = (struct tcphdr *)((u_char *)ip + off0);
-	doff = off0 + sizeof(struct tcphdr) + optlen;
-
 	/*
-	 * Step 1: Update MD5 hash with IP pseudo-header.
+	 * Step 1: Update MD5 hash with IP(v6) pseudo-header.
 	 *
 	 * XXX The ippseudo header MUST be digested in network byte order,
 	 * or else we'll fail the regression test. Assume all fields we've
@@ -1901,12 +1927,55 @@ tcp_signature_compute(struct mbuf *m, int off0, int len, int optlen,
 	 * XXX One cannot depend on ipovly->ih_len here. When called from
 	 * tcp_output(), the underlying ip_len member has not yet been set.
 	 */
-	ippseudo.ippseudo_src = ipovly->ih_src;
-	ippseudo.ippseudo_dst = ipovly->ih_dst;
-	ippseudo.ippseudo_pad = 0;
-	ippseudo.ippseudo_p = IPPROTO_TCP;
-	ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) + optlen);
-	MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+	switch (ip->ip_v) {
+	case IPVERSION:
+		ipovly = (struct ipovly *)ip;
+		ippseudo.ippseudo_src = ipovly->ih_src;
+		ippseudo.ippseudo_dst = ipovly->ih_dst;
+		ippseudo.ippseudo_pad = 0;
+		ippseudo.ippseudo_p = IPPROTO_TCP;
+		ippseudo.ippseudo_len = htons(len + sizeof(struct tcphdr) +
+		    optlen);
+		MD5Update(&ctx, (char *)&ippseudo, sizeof(struct ippseudo));
+
+		th = (struct tcphdr *)((u_char *)ip + sizeof(struct ip));
+		doff = sizeof(struct ip) + sizeof(struct tcphdr) + optlen;
+		break;
+#ifdef INET6
+	/*
+	 * RFC 2385, 2.0  Proposal
+	 * For IPv6, the pseudo-header is as described in RFC 2460, namely the
+	 * 128-bit source IPv6 address, 128-bit destination IPv6 address, zero-
+	 * extended next header value (to form 32 bits), and 32-bit segment
+	 * length.
+	 * Note: Upper-Layer Packet Length comes before Next Header.
+	 */
+	case (IPV6_VERSION >> 4):
+		in6 = ip6->ip6_src;
+		in6_clearscope(&in6);
+		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
+		in6 = ip6->ip6_dst;
+		in6_clearscope(&in6);
+		MD5Update(&ctx, (char *)&in6, sizeof(struct in6_addr));
+		plen = htonl(len + sizeof(struct tcphdr) + optlen);
+		MD5Update(&ctx, (char *)&plen, sizeof(uint32_t));
+		nhdr = 0;
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+		nhdr = IPPROTO_TCP;
+		MD5Update(&ctx, (char *)&nhdr, sizeof(uint8_t));
+
+		th = (struct tcphdr *)((u_char *)ip6 + sizeof(struct ip6_hdr));
+		doff = sizeof(struct ip6_hdr) + sizeof(struct tcphdr) + optlen;
+		break;
+#endif
+	default:
+		return (EINVAL);
+		/* NOTREACHED */
+		break;
+	}
+
 
 	/*
 	 * Step 2: Update MD5 hash with TCP header, excluding options.
