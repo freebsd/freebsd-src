@@ -71,8 +71,7 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
-	 pkill ps pwd 	\
-	 realpath rm rmdir setfacl sh stty sync test
+	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
 CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -lm -ltermcap -lutil
 .if ${MK_OPENSSL} != "no"
 CRUNCH_LIBS+= -lcrypto
@@ -109,16 +108,16 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atacontrol badsect 		\
-	camcontrol ccdconfig clri devfs dmesg dump			\
+CRUNCH_PROGS_sbin= atacontrol badsect				\
+	camcontrol ccdconfig clri devfs dmesg dump		\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\
-	kldconfig kldload kldstat kldunload ldconfig 			\
-	md5 mdconfig mdmfs mknod mount mount_cd9660	\
-	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
-	mount_udf mount_unionfs newfs		\
-	newfs_msdos nos-tun ping reboot			\
-	restore rcorder route routed rtquery rtsol savecore 		\
+	kldconfig kldload kldstat kldunload ldconfig 		\
+	md5 mdconfig mdmfs mknod mount mount_cd9660		\
+	mount_msdosfs mount_nfs mount_ntfs mount_nullfs		\
+	mount_udf mount_unionfs newfs				\
+	newfs_msdos nos-tun ping reboot				\
+	restore rcorder route routed rtquery rtsol savecore	\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
 
 .if ${MK_ATM} != "no"
