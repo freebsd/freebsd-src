@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2007 Robert N. M. Watson
+ * Copyright (c) 2004-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -585,9 +585,9 @@ uipc_detach(struct socket *so)
 		unp_drop(ref, ECONNRESET);
 		UNP_PCB_UNLOCK(ref);
 	}
+	local_unp_rights = unp_rights;
 	UNP_GLOBAL_WUNLOCK();
 	unp->unp_socket->so_pcb = NULL;
-	local_unp_rights = unp_rights;
 	saved_unp_addr = unp->unp_addr;
 	unp->unp_addr = NULL;
 	unp->unp_refcount--;
@@ -1602,7 +1602,9 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				FILE_LOCK(fp);
 				fp->f_msgcount--;
 				FILE_UNLOCK(fp);
+				UNP_GLOBAL_WLOCK();
 				unp_rights--;
+				UNP_GLOBAL_WUNLOCK();
 				*fdp++ = f;
 			}
 			FILEDESC_XUNLOCK(td->td_proc->p_fd);
@@ -1768,7 +1770,9 @@ unp_internalize(struct mbuf **controlp, struct thread *td)
 				fp->f_count++;
 				fp->f_msgcount++;
 				FILE_UNLOCK(fp);
+				UNP_GLOBAL_WLOCK();
 				unp_rights++;
+				UNP_GLOBAL_WUNLOCK();
 			}
 			FILEDESC_SUNLOCK(fdescp);
 			break;
