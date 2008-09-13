@@ -2365,19 +2365,27 @@ ng_apply_item(node_p node, item_p item, int rw)
 	case NGQF_FN:
 	case NGQF_FN2:
 		/*
-		 *  We have to implicitly trust the hook,
-		 * as some of these are used for system purposes
-		 * where the hook is invalid. In the case of
-		 * the shutdown message we allow it to hit
+		 * In the case of the shutdown message we allow it to hit
 		 * even if the node is invalid.
 		 */
-		if ((NG_NODE_NOT_VALID(node))
-		&& (NGI_FN(item) != &ng_rmnode)) {
+		if (NG_NODE_NOT_VALID(node) &&
+		    NGI_FN(item) != &ng_rmnode) {
 			TRAP_ERROR();
 			error = EINVAL;
 			NG_FREE_ITEM(item);
 			break;
 		}
+		/* Same is about some internal functions and invalid hook. */
+		if (hook && NG_HOOK_NOT_VALID(hook) &&
+		    NGI_FN2(item) != &ng_con_part2 &&
+		    NGI_FN2(item) != &ng_con_part3 &&
+		    NGI_FN(item) != &ng_rmhook_part2) {
+			TRAP_ERROR();
+			error = EINVAL;
+			NG_FREE_ITEM(item);
+			break;
+		}
+		
 		if ((item->el_flags & NGQF_TYPE) == NGQF_FN) {
 			(*NGI_FN(item))(node, hook, NGI_ARG1(item),
 			    NGI_ARG2(item));
