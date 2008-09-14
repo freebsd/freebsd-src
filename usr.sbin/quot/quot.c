@@ -589,8 +589,6 @@ main(int argc, char *argv[])
 	char all = 0;
 	struct statfs *mp;
 	struct fstab *fs;
-	char dev[MNAMELEN + 1];
-	char *nm;
 	int cnt;
 
 	func = douser;
@@ -631,14 +629,8 @@ main(int argc, char *argv[])
 	if (all) {
 		cnt = getmntinfo(&mp,MNT_NOWAIT);
 		for (; --cnt >= 0; mp++) {
-			if (!strncmp(mp->f_fstypename, "ufs", MFSNAMELEN)) {
-				if ((nm = strrchr(mp->f_mntfromname,'/'))) {
-					sprintf(dev,"%s%s",_PATH_DEV,nm + 1);
-					nm = dev;
-				} else
-					nm = mp->f_mntfromname;
-				quot(nm,mp->f_mntonname);
-			}
+			if (!strncmp(mp->f_fstypename, "ufs", MFSNAMELEN))
+				quot(mp->f_mntfromname, mp->f_mntonname);
 		}
 	}
 	while (--argc >= 0) {
