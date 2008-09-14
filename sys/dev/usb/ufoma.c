@@ -1,5 +1,5 @@
 /*	$NetBSD: umodem.c,v 1.45 2002/09/23 05:51:23 simonb Exp $	*/
-
+#define UFOMA_HANDSFREE
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -547,7 +547,9 @@ static int ufoma_activate_state(struct ufoma_softc *sc, int state)
 	
 	err = usbd_do_request(ucom->sc_udev, &req, NULL);
 	if(err){
-		printf("%s:ACTIVATE:%s\n", device_get_nameunit(ucom->sc_dev), usbd_errstr(err));
+		printf("%s:ACTIVATE(%x):%s\n", 
+		       device_get_nameunit(ucom->sc_dev), state,
+		       usbd_errstr(err));
 		return EIO;
 	}
 
@@ -776,7 +778,7 @@ static void ufoma_outwakeup(struct tty *tp)
 			usbd_do_request(ucom->sc_udev, &req, &c);
 		}
 	}
-	ucom->sc_state |= UCS_TXBUSY;
+	ucom->sc_state &= ~(UCS_TXBUSY);
 
 }
 #endif
@@ -876,11 +878,17 @@ ufoma_set_line_state(struct ufoma_softc *sc)
 	usb_device_request_t req;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 	int ls;
+	int err;
 
 	if(!sc->sc_isopen){
 		return ; /*Set it later*/
 	}
-	 
+
+	/*Don't send line state emulation request for OBEX port*/
+	if(sc->sc_currentmode == UMCPC_ACM_MODE_OBEX){
+		return;
+	}
+
 	ls = (sc->sc_dtr ? UCDC_LINE_DTR : 0) |
 	     (sc->sc_rts ? UCDC_LINE_RTS : 0);
 	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -889,7 +897,11 @@ ufoma_set_line_state(struct ufoma_softc *sc)
 	USETW(req.wIndex, sc->sc_ctl_iface_no);
 	USETW(req.wLength, 0);
 
-	(void)usbd_do_request(ucom->sc_udev, &req, 0);
+	err = usbd_do_request(ucom->sc_udev, &req, 0);
+	if(err){
+		printf("LINE_STATE:%s\n", usbd_errstr(err));
+	}
+
 
 }
 
@@ -928,6 +940,7 @@ ufoma_set_line_coding(struct ufoma_softc *sc, usb_cdc_line_state_t *state)
 		sc->sc_line_state_init = *state;
 		return (USBD_NORMAL_COMPLETION);
 	}
+
 	DPRINTF(("ufoma_set_line_coding: rate=%d fmt=%d parity=%d bits=%d\n",
 		 UGETDW(state->dwDTERate), state->bCharFormat,
 		 state->bParityType, state->bDataBits));
@@ -936,6 +949,12 @@ ufoma_set_line_coding(struct ufoma_softc *sc, usb_cdc_line_state_t *state)
 	}else if (memcmp(state, &sc->sc_line_state, 
 			 UCDC_LINE_STATE_LENGTH) == 0) {
 		DPRINTF(("ufoma_set_line_coding: already set\n"));
+		return (USBD_NORMAL_COMPLETION);
+	}
+
+	/*Don't send line state emulation request for OBEX port*/
+	if(sc->sc_currentmode == UMCPC_ACM_MODE_OBEX){
+		sc->sc_line_state = *state;
 		return (USBD_NORMAL_COMPLETION);
 	}
 
