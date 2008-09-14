@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080913: pax removed from rescue
+OLD_FILES+=rescue/pax
 # 20080823: removal of unneeded pt_chown, to implement grantpt(3)
 OLD_FILES+=usr/libexec/pt_chown
 # 20080822: ntp 4.2.4p5 import
