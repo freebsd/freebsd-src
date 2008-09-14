@@ -162,14 +162,14 @@ openpic_attach(device_t dev)
 	for (irq = 0; irq < sc->sc_nirq; irq++)
 		openpic_write(sc, OPENPIC_IDEST(irq), 1 << 0);
 
-	for (cpu = 0; cpu < sc->sc_ncpu; cpu++)
-		openpic_write(sc, OPENPIC_PCPU_TPR(cpu), 0);
-
 	/* clear all pending interrupts */
 	for (irq = 0; irq < sc->sc_nirq; irq++) {
 		(void)openpic_read(sc, OPENPIC_PCPU_IACK(PCPU_GET(cpuid)));
 		openpic_write(sc, OPENPIC_PCPU_EOI(PCPU_GET(cpuid)), 0);
 	}
+
+	for (cpu = 0; cpu < sc->sc_ncpu; cpu++)
+		openpic_write(sc, OPENPIC_PCPU_TPR(cpu), 0);
 
 	powerpc_register_pic(dev, sc->sc_nirq);
 
@@ -203,25 +203,17 @@ openpic_config(device_t dev, u_int irq, enum intr_trigger trig,
 void
 openpic_dispatch(device_t dev, struct trapframe *tf)
 {
-	static int once = 0;
 	struct openpic_softc *sc;
-	u_int vector;
+	u_int cpuid, vector;
 
-	if (once == 0 && PCPU_GET(cpuid) != 0) {
-		printf("XXX: got interrupt!\n");
-		once++;
-	}
-
+	cpuid = PCPU_GET(cpuid);
 	sc = device_get_softc(dev);
+
 	while (1) {
-		vector = openpic_read(sc, OPENPIC_PCPU_IACK(PCPU_GET(cpuid)));
+		vector = openpic_read(sc, OPENPIC_PCPU_IACK(cpuid));
 		vector &= OPENPIC_VECTOR_MASK;
 		if (vector == 255)
 			break;
-		if (once == 1 && PCPU_GET(cpuid) != 0) {
-			printf("XXX: got vector %u\n", vector);
-			once++;
-		}
 		powerpc_dispatch_intr(vector, tf);
 	}
 }
