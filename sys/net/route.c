@@ -1675,7 +1675,6 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
  *	final destination if directly reachable);
  *   *lrt0 points to the cached route to the final destination;
  *   *lrt is not meaningful;
- *    fibnum is the index to the correct network fib for this packet
  *
  * === Operation ===
  * If the route is marked down try to find a new route.  If the route
@@ -1692,19 +1691,14 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 int
 rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 {
-	return (rt_check_fib(lrt, lrt0, dst, 0));
-}
-
-int
-rt_check_fib(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst,
-		u_int fibnum)
-{
 	struct rtentry *rt;
 	struct rtentry *rt0;
+	u_int fibnum;
 	int error;
 
 	KASSERT(*lrt0 != NULL, ("rt_check"));
 	rt = rt0 = *lrt0;
+	fibnum = (*rt0)->rt_fibnum;
 
 	/* NB: the locking here is tortuous... */
 	RT_LOCK(rt);
@@ -1730,8 +1724,7 @@ rt_check_fib(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst,
 			rt0->rt_gwroute = NULL;
 		lookup:
 			RT_UNLOCK(rt0);
-/* XXX MRT link level looked up in table 0 */
-			rt = rtalloc1_fib(rt->rt_gateway, 1, 0UL, 0);
+			rt = rtalloc1_fib(rt->rt_gateway, 1, 0UL, fibnum);
 			if (rt == rt0) {
 				RT_REMREF(rt0);
 				RT_UNLOCK(rt0);
