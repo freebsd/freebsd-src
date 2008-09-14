@@ -181,6 +181,8 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
     &verbose_limit, 0, "Set upper limit of matches of ipfw rules logged");
 SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, default_rule, CTLFLAG_RD,
     NULL, IPFW_DEFAULT_RULE, "The default/max possible rule number.");
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, tables_max, CTLFLAG_RD,
+    NULL, IPFW_TABLES_MAX, "The maximum number of tables.");
 
 /*
  * Description of dynamic rules.
