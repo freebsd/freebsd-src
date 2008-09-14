@@ -641,10 +641,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	dev_t first_dev = 0;
 	int dev_recorded = 0;
 	int tree_ret;
-#ifdef __linux
-	int	 fd, r;
-	unsigned long fflags;
-#endif
 
 	tree = tree_open(path);
 
@@ -707,23 +703,25 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * If this file/dir is flagged "nodump" and we're
 		 * honoring such flags, skip this file/dir.
 		 */
-#ifdef HAVE_CHFLAGS
+#ifdef HAVE_STRUCT_STAT_ST_FLAGS
+		/* BSD systems store flags in struct stat */
 		if (bsdtar->option_honor_nodump &&
 		    (lst->st_flags & UF_NODUMP))
 			continue;
 #endif
 
-#ifdef __linux
-		/*
-		 * Linux has a nodump flag too but to read it
-		 * we have to open() the file/dir and do an ioctl on it...
-		 */
-		if (bsdtar->option_honor_nodump &&
-		    ((fd = open(name, O_RDONLY|O_NONBLOCK)) >= 0) &&
-		    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags)),
-			close(fd), r) >= 0 &&
-		    (fflags & EXT2_NODUMP_FL))
-			continue;
+#if defined(EXT2_IOC_GETFLAGS) && defined(EXT2_NODUMP_FL)
+		/* Linux uses ioctl to read flags. */
+		if (bsdtar->option_honor_nodump) {
+			int fd = open(name, O_RDONLY | O_NONBLOCK);
+			if (fd >= 0) {
+				unsigned long fflags;
+				int r = ioctl(fd, EXT2_IOC_GETFLAGS, &fflags);
+				close(fd);
+				if (r >= 0 && (fflags & EXT2_NODUMP_FL))
+					continue;
+			}
+		}
 #endif
 
 		/*
@@ -849,10 +847,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
     const char *pathname, const char *accpath)
 {
 	struct archive_entry	*entry, *sparse_entry;
-#ifdef __linux
-	int			 r;
-	unsigned long		 stflags;
-#endif
 	static char		 linkbuffer[PATH_MAX+1];
 
 	entry = archive_entry_new();
@@ -902,18 +896,25 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	archive_entry_set_uname(entry, lookup_uname(bsdtar, st->st_uid));
 	archive_entry_set_gname(entry, lookup_gname(bsdtar, st->st_gid));
 
-#ifdef HAVE_CHFLAGS
+#ifdef HAVE_STRUCT_STAT_ST_FLAGS
+	/* XXX TODO: archive_entry_copy_stat() should copy st_flags
+	 * on platforms that support it.  This should go away then. */
 	if (st->st_flags != 0)
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#ifdef __linux
-	int fd;
-	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) &&
-	    ((fd = open(accpath, O_RDONLY|O_NONBLOCK)) >= 0) &&
-	    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags)), close(fd), (fd = -1), r) >= 0 &&
-	    stflags) {
-		archive_entry_set_fflags(entry, stflags, 0);
+#ifdef EXT2_IOC_GETFLAGS
+	/* XXX TODO: Find a way to merge this with the
+	 * flags fetch for nodump support earlier. */
+	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode))) {
+		int fd = open(accpath, O_RDONLY | O_NONBLOCK);
+		if (fd >= 0) {
+			unsigned long stflags;
+			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			close(fd);
+			if (r == 0 && stflags != 0)
+				archive_entry_set_fflags(entry, stflags, 0);
+		}
 	}
 #endif
 
