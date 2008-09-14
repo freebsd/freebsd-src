@@ -364,7 +364,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct rtentry *rt = NULL;
 	struct sockaddr_dl *sdl;
 	int error;
-	int fibnum = 0;
+	int fibnum = -1;
 
 	if (m) {
 		if (m->m_flags & M_BCAST) {
@@ -385,7 +385,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		/* Look for a cached arp (ll) entry. */
 		if (m == NULL)
 			fibnum = rt0->rt_fibnum;
-		error = in_rt_check(&rt, &rt0, dst, fibnum);
+		error = rt_check(&rt, &rt0, dst);
 		if (error) {
 			m_freem(m);
 			return error;
@@ -394,14 +394,23 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		if (la == NULL)
 			RT_UNLOCK(rt);
 	}
+
+	/*
+	 * If we had no mbuf and no route, then hope the caller
+	 * has a fib in mind because we are running out of ideas.
+	 * I think this should not happen in current code.
+	 * (kmacy would know).
+	 */
+	if (fibnum == -1)
+		fibnum = curthread->td_proc->p_fibnum; /* last gasp */
+
 	if (la == NULL) {
 		/*
 		 * We enter this block if rt0 was NULL,
-		 * or if rt found by in_rt_check() didn't have llinfo.
-		 * We should get a cloned route from the local interface,
-		 * so it should have an ll entry.
+		 * or if rt found by rt_check() didn't have llinfo.
+		 * we should get a cloned route, which since it should
+		 * come from the local interface should have a ll entry.
 		 * It may be incomplete but that's ok.
-		 * XXXMRT if we haven't found a fibnum is that OK?
 		 */
 		rt = arplookup(SIN(dst)->sin_addr.s_addr, 1, 0, fibnum);
 		if (rt == NULL) {
