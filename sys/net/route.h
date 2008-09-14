@@ -316,20 +316,36 @@ struct rt_addrinfo {
 } while (0)
 
 #define	RTFREE_LOCKED(_rt) do {					\
-		if ((_rt)->rt_refcnt <= 1)			\
-			rtfree(_rt);				\
-		else {						\
-			RT_REMREF(_rt);				\
-			RT_UNLOCK(_rt);				\
-		}						\
-		/* guard against invalid refs */		\
-		_rt = 0;					\
-	} while (0)
+	if ((_rt)->rt_refcnt <= 1)				\
+		rtfree(_rt);					\
+	else {							\
+		RT_REMREF(_rt);					\
+		RT_UNLOCK(_rt);					\
+	}							\
+	/* guard against invalid refs */			\
+	_rt = 0;						\
+} while (0)
 
 #define	RTFREE(_rt) do {					\
-		RT_LOCK(_rt);					\
-		RTFREE_LOCKED(_rt);				\
-	} while (0)
+	RT_LOCK(_rt);						\
+	RTFREE_LOCKED(_rt);					\
+} while (0)
+
+#define RT_TEMP_UNLOCK(_rt) do {				\
+	RT_ADDREF(_rt);						\
+	RT_UNLOCK(_rt);						\
+} while (0)
+
+#define RT_RELOCK(_rt) do {					\
+	RT_LOCK(_rt);						\
+	if ((_rt)->rt_refcnt <= 1) {				\
+		rtfree(_rt);					\
+		_rt = 0; /*  signal that it went away */	\
+	} else {						\
+		RT_REMREF(_rt);					\
+		/* note that _rt is still valid */		\
+	}							\
+} while (0)
 
 extern struct radix_node_head *rt_tables[][AF_MAX+1];
 
