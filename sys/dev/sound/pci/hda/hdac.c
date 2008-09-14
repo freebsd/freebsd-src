@@ -6968,7 +6968,9 @@ hdac_attach2(void *arg)
 			continue;
 		for (fg_index = 0; fg_index < codec->num_fgs; fg_index++) {
 			devinfo = &codec->fgs[fg_index];
-			device_printf(sc->dev, "\n");
+			HDA_BOOTVERBOSE(
+				device_printf(sc->dev, "\n");
+			);
 			if (devinfo->node_type !=
 			    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) {
 				HDA_BOOTVERBOSE(
