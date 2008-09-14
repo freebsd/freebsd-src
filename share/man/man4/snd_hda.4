@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 11, 2008
+.Dd Sep 14, 2008
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -57,8 +57,9 @@ driver is a HDA bus controller driver and HDA codecs audio functions bridge
 driver that allows the generic audio driver,
 .Xr sound 4 ,
 to be used with this hardware.
-Only audio functions are supported by this driver. Modem, HDMI and other
-possible functions are not implemented.
+.Nm
+only supports audio functions.
+Modem, HDMI and other possible functions are not implemented.
 .Pp
 The
 .Nm
@@ -69,14 +70,15 @@ devices.
 .Pp
 According to HDA and UAA specifications, depending on number of HDA buses
 and codecs present in system, their audio capabilities and BIOS provided
-configuration,
+configuration, the
 .Nm
-driver often provides several PCM audio devices. For example, one device for
-main rear 7.1 output and inputs, one device for independent headset connectors
-at front and one device for SPDIF or HDMI audio input/output. Usually that
-assignment may be widely tuned by user using device hints. A lot of useful
-information about driver operation and present audio setup may be obtained from
-the driver verbose boot messages.
+driver often provides several PCM audio devices.
+For example, one device for main rear 7.1 output and inputs, one device
+for independent headset connectors at front and one device for SPDIF or
+HDMI audio input/output.
+Usually that assignment may be widely tuned by using device hints.
+A lot of useful information about driver operation and present audio setup may
+be obtained from the driver verbose boot messages.
 .Ss Boot-time Configuration
 The following variables are available at boot-time through the
 .Xr device.hints 5
@@ -342,19 +344,37 @@ Realtek ALC885
 .It
 Realtek ALC888
 .It
+Realtek ALC889
+.It
 Sigmatel STAC9205
 .It
 Sigmatel STAC9220
 .It
-Sigmatel STAC9220D/9223D
+Sigmatel STAC9220D / 9223D
 .It
 Sigmatel STAC9221
 .It
 Sigmatel STAC9221D
 .It
-Sigmatel STAC9227
+Sigmatel STAC9227D
+.It
+Sigmatel STAC9227X
+.It
+Sigmatel STAC9228D
+.It
+Sigmatel STAC9228X
+.It
+Sigmatel STAC9229D
+.It
+Sigmatel STAC9229X
+.It
+Sigmatel STAC9230D
+.It
+Sigmatel STAC9230X
 .It
 Sigmatel STAC9271D
+.It
+Sigmatel STAC9872AK
 .It
 VIA VT1708
 .It
