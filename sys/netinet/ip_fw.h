@@ -29,7 +29,10 @@
 #define _IPFW2_H
 
 /*
- * The default rule number.  It is also the max possible rule number.
+ * The default rule number.  By the design of ip_fw, the default rule
+ * is the last one, so its number can also serve as the highest number
+ * allowed for a rule.  The ip_fw code relies on both meanings of this
+ * constant. 
  */
 #define	IPFW_DEFAULT_RULE	65535
 
