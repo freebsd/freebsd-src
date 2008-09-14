@@ -30,10 +30,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	drivers have not yet been ported to the new TTY layer:
 
 	PCI/ISA:
-		cy, digi, rc, rp, si, sio
+		cy, digi, rc, rp, sio
 
 	USB:
-		ubser, ucycom, ufoma
+		ubser, ucycom
 
 	Line disciplines:
 		ng_h4, ng_tty, ppp, sl, snp
