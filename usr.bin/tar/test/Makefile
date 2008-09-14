@@ -18,6 +18,7 @@ TESTS=	\
 	test_option_q.c				\
 	test_patterns.c				\
 	test_stdio.c				\
+	test_symlink_dir.c			\
 	test_version.c
 
 # Build the test program
