@@ -357,6 +357,7 @@ int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 
 int	 rtexpunge(struct rtentry *);
 void	 rtfree(struct rtentry *);
+int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
@@ -371,7 +372,6 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 int	 rtrequest1(int, struct rt_addrinfo *, struct rtentry **);
-int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
 
 /* defaults to "all" FIBs */
 int	 rtinit_fib(struct ifaddr *, int, int);
@@ -390,7 +390,6 @@ void	 rtredirect_fib(struct sockaddr *, struct sockaddr *,
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
 int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
-int	 rt_check_fib(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
 
 #include <sys/eventhandler.h>
 typedef void (*rtevent_arp_update_fn)(void *, struct rtentry *, uint8_t *, struct sockaddr *);
