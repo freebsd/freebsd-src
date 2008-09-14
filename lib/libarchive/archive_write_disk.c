@@ -1963,7 +1963,10 @@ set_fflags(struct archive_write_disk *a)
 }
 
 
-#if ( defined(HAVE_LCHFLAGS) || defined(HAVE_CHFLAGS) || defined(HAVE_FCHFLAGS) ) && !defined(__linux)
+#if ( defined(HAVE_LCHFLAGS) || defined(HAVE_CHFLAGS) || defined(HAVE_FCHFLAGS) ) && defined(HAVE_STRUCT_STAT_ST_FLAGS)
+/*
+ * BSD reads flags using stat() and sets them with one of {f,l,}chflags()
+ */
 static int
 set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
     mode_t mode, unsigned long set, unsigned long clear)
@@ -2012,11 +2015,9 @@ set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
 	return (ARCHIVE_WARN);
 }
 
-#elif defined(__linux) && defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS)
-
+#elif defined(EXT2_IOC_GETFLAGS) && defined(EXT2_IOC_SETFLAGS)
 /*
- * Linux has flags too, but uses ioctl() to access them instead of
- * having a separate chflags() system call.
+ * Linux uses ioctl() to read and write file flags.
  */
 static int
 set_fflags_platform(struct archive_write_disk *a, int fd, const char *name,
@@ -2084,7 +2085,7 @@ cleanup:
 	return (ret);
 }
 
-#else /* Not HAVE_CHFLAGS && Not __linux */
+#else
 
 /*
  * Of course, some systems have neither BSD chflags() nor Linux' flags
