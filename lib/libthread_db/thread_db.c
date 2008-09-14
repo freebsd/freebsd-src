@@ -324,7 +324,7 @@ thr_pread(struct ps_prochandle *ph, psaddr_t addr, uint64_t *val,
 }
 
 int
-thr_pread_int(struct td_thragent *ta, psaddr_t addr, uint32_t *val)
+thr_pread_int(const struct td_thragent *ta, psaddr_t addr, uint32_t *val)
 {
 	uint64_t tmp;
 	int error;
@@ -337,17 +337,23 @@ thr_pread_int(struct td_thragent *ta, psaddr_t addr, uint32_t *val)
 }
 
 int
-thr_pread_long(struct td_thragent *ta, psaddr_t addr, uint64_t *val)
+thr_pread_long(const struct td_thragent *ta, psaddr_t addr, uint64_t *val)
 {
 
 	return (thr_pread(ta->ph, addr, val, sizeof(long), BYTE_ORDER));
 }
 
 int
-thr_pread_ptr(struct td_thragent *ta, psaddr_t addr, uint64_t *val)
+thr_pread_ptr(const struct td_thragent *ta, psaddr_t addr, psaddr_t *val)
 {
+	uint64_t tmp;
+	int error;
 
-	return (thr_pread(ta->ph, addr, val, sizeof(void *), BYTE_ORDER));
+	error = thr_pread(ta->ph, addr, &tmp, sizeof(void *), BYTE_ORDER);
+	if (!error)
+		*val = tmp;
+
+	return (error);
 }
 
 static int
@@ -406,21 +412,21 @@ thr_pwrite(struct ps_prochandle *ph, psaddr_t addr, uint64_t val,
 }
 
 int
-thr_pwrite_int(struct td_thragent *ta, psaddr_t addr, uint32_t val)
+thr_pwrite_int(const struct td_thragent *ta, psaddr_t addr, uint32_t val)
 {
 
 	return (thr_pwrite(ta->ph, addr, val, sizeof(int), BYTE_ORDER));
 }
 
 int
-thr_pwrite_long(struct td_thragent *ta, psaddr_t addr, uint64_t val)
+thr_pwrite_long(const struct td_thragent *ta, psaddr_t addr, uint64_t val)
 {
 
 	return (thr_pwrite(ta->ph, addr, val, sizeof(long), BYTE_ORDER));
 }
 
 int
-thr_pwrite_ptr(struct td_thragent *ta, psaddr_t addr, uint64_t val)
+thr_pwrite_ptr(const struct td_thragent *ta, psaddr_t addr, psaddr_t val)
 {
 
 	return (thr_pwrite(ta->ph, addr, val, sizeof(void *), BYTE_ORDER));
