@@ -532,8 +532,12 @@ static const struct {
 #define REALTEK_VENDORID	0x10ec
 #define HDA_CODEC_ALC260	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
 #define HDA_CODEC_ALC262	HDA_CODEC_CONSTRUCT(REALTEK, 0x0262)
+#define HDA_CODEC_ALC267	HDA_CODEC_CONSTRUCT(REALTEK, 0x0267)
 #define HDA_CODEC_ALC268	HDA_CODEC_CONSTRUCT(REALTEK, 0x0268)
+#define HDA_CODEC_ALC269	HDA_CODEC_CONSTRUCT(REALTEK, 0x0269)
+#define HDA_CODEC_ALC272	HDA_CODEC_CONSTRUCT(REALTEK, 0x0272)
 #define HDA_CODEC_ALC660	HDA_CODEC_CONSTRUCT(REALTEK, 0x0660)
+#define HDA_CODEC_ALC662	HDA_CODEC_CONSTRUCT(REALTEK, 0x0662)
 #define HDA_CODEC_ALC861	HDA_CODEC_CONSTRUCT(REALTEK, 0x0861)
 #define HDA_CODEC_ALC861VD	HDA_CODEC_CONSTRUCT(REALTEK, 0x0862)
 #define HDA_CODEC_ALC880	HDA_CODEC_CONSTRUCT(REALTEK, 0x0880)
@@ -629,8 +633,13 @@ static const struct {
 } hdac_codecs[] = {
 	{ HDA_CODEC_ALC260,    "Realtek ALC260" },
 	{ HDA_CODEC_ALC262,    "Realtek ALC262" },
+	{ HDA_CODEC_ALC267,    "Realtek ALC267" },
 	{ HDA_CODEC_ALC268,    "Realtek ALC268" },
+	{ HDA_CODEC_ALC269,    "Realtek ALC269" },
+	{ HDA_CODEC_ALC272,    "Realtek ALC272" },
 	{ HDA_CODEC_ALC660,    "Realtek ALC660" },
+	{ HDA_CODEC_ALC662,    "Realtek ALC662" },
+	{ HDA_CODEC_ALC663,    "Realtek ALC663" },
 	{ HDA_CODEC_ALC861,    "Realtek ALC861" },
 	{ HDA_CODEC_ALC861VD,  "Realtek ALC861-VD" },
 	{ HDA_CODEC_ALC880,    "Realtek ALC880" },
@@ -1807,7 +1816,7 @@ hdac_probe_codec(struct hdac_codec *codec)
 	codec->fgs = (struct hdac_devinfo *)malloc(sizeof(struct hdac_devinfo) *
 	    (endnode - startnode), M_HDAC, M_NOWAIT | M_ZERO);
 	if (codec->fgs == NULL) {
-		device_printf(sc->dev, "%s: Unable to allocate functiom groups\n",
+		device_printf(sc->dev, "%s: Unable to allocate function groups\n",
 		    __func__);
 		return;
 	}
