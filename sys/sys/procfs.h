@@ -80,6 +80,6 @@ typedef struct prpsinfo {
     char	pr_psargs[PRARGSZ+1];	/* Arguments, null terminated (1) */
 } prpsinfo_t;
 
-typedef uintptr_t psaddr_t;	/* An address in the target process. */
+typedef uint64_t psaddr_t;	/* An address in the target process. */
 
 #endif /* _SYS_PROCFS_H_ */
