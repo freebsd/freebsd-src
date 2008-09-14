@@ -201,34 +201,28 @@ pt_ta_delete(td_thragent_t *ta)
 static td_err_e
 pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 {
-	TAILQ_HEAD(, pthread) thread_list;
 	psaddr_t pt;
-	long lwp;
+	int32_t lwp;
 	int ret;
 
 	TDBG_FUNC();
 
 	if (id == 0)
 		return (TD_NOTHR);
-	ret = ps_pread(ta->ph, ta->thread_list_addr, &thread_list,
-		sizeof(thread_list));
+	ret = thr_pread_ptr(ta, ta->thread_list_addr, &pt);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	/* Iterate through thread list to find pthread */
-	pt = (psaddr_t)thread_list.tqh_first;
 	while (pt != 0) {
-		ret = ps_pread(ta->ph, pt + ta->thread_off_tid,
-			       &lwp, sizeof(lwp));
+		ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
 		if (ret != 0)
-			return (P2T(ret));
+			return (TD_ERR);
 		if (lwp == id)
 			break;
 		/* get next thread */
-		ret = ps_pread(ta->ph,
-				pt + ta->thread_off_next,
-				&pt, sizeof(pt));
+		ret = thr_pread_ptr(ta, pt + ta->thread_off_next, &pt);
 		if (ret != 0)
-			return (P2T(ret));
+			return (TD_ERR);
 	}
 	if (pt == 0)
 		return (TD_NOTHR);
@@ -249,24 +243,20 @@ pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
     void *cbdata_p, td_thr_state_e state __unused, int ti_pri __unused,
     sigset_t *ti_sigmask_p __unused, unsigned int ti_user_flags __unused)
 {
-	TAILQ_HEAD(, pthread) thread_list;
 	td_thrhandle_t th;
 	psaddr_t pt;
-	long lwp;
+	int32_t lwp;
 	int ret;
 
 	TDBG_FUNC();
 
-	ret = ps_pread(ta->ph, ta->thread_list_addr, &thread_list,
-		       sizeof(thread_list));
+	ret = thr_pread_ptr(ta, ta->thread_list_addr, &pt);
 	if (ret != 0)
-		return (P2T(ret));
-	pt = (psaddr_t)thread_list.tqh_first;
+		return (TD_ERR);
 	while (pt != 0) {
-		ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp,
-			      sizeof(lwp));
+		ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
 		if (ret != 0)
-			return (P2T(ret));
+			return (TD_ERR);
 		if (lwp != 0 && lwp != TERMINATED) {
 			th.th_ta = ta;
 			th.th_tid = (thread_t)lwp;
@@ -275,10 +265,9 @@ pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
 				return (TD_DBERR);
 		}
 		/* get next thread */
-		ret = ps_pread(ta->ph, pt + ta->thread_off_next, &pt,
-			       sizeof(pt));
+		ret = thr_pread_ptr(ta, pt + ta->thread_off_next, &pt);
 		if (ret != 0)
-			return (P2T(ret));
+			return (TD_ERR);
 	}
 	return (TD_OK);
 }
@@ -377,24 +366,23 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 {
 	static td_thrhandle_t handle;
 
-	psaddr_t pt, pt_temp;
+	psaddr_t pt;
 	td_thr_events_e	tmp;
-	long lwp;
+	int32_t lwp;
 	int ret;
 
 	TDBG_FUNC();
 
-	ret = ps_pread(ta->ph, ta->thread_last_event_addr, &pt, sizeof(pt));
+	ret = thr_pread_ptr(ta, ta->thread_last_event_addr, &pt);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	if (pt == 0)
 		return (TD_NOMSG);
 	/*
 	 * Take the event pointer, at the time, libthr only reports event
 	 * once a time, so it is not a link list.
 	 */
-	pt_temp = 0;
-	ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
+	thr_pwrite_ptr(ta, ta->thread_last_event_addr, 0);
 
 	/* Read event info */
 	ret = ps_pread(ta->ph, pt + ta->thread_off_event_buf, msg, sizeof(*msg));
@@ -406,14 +394,14 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 	tmp = 0;
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
 	/* Convert event */
-	pt = (psaddr_t)msg->th_p;
-	ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp, sizeof(lwp));
+	pt = msg->th_p;
+	ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	handle.th_ta = ta;
 	handle.th_tid = lwp;
 	handle.th_thread = pt;
-	msg->th_p = &handle;
+	msg->th_p = (uintptr_t)&handle;
 	return (0);
 }
 
@@ -478,14 +466,13 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 	ret = pt_validate(th);
 	if (ret)
 		return (ret);
-	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_state,
-	               &state, sizeof(state));
+	ret = thr_pread_int(ta, th->th_thread + ta->thread_off_state, &state);
 	if (ret != 0)
-		return (P2T(ret));
-	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_report_events,
-		&info->ti_traceme, sizeof(int));
+		return (TD_ERR);
+	ret = thr_pread_int(ta, th->th_thread + ta->thread_off_report_events,
+	    &info->ti_traceme);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	ret = ps_pread(ta->ph, th->th_thread + ta->thread_off_event_mask,
 		&info->ti_events, sizeof(td_thr_events_t));
 	if (ret != 0)
@@ -662,15 +649,15 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	static td_thrhandle_t handle;
 	const td_thragent_t *ta = th->th_ta;
 	psaddr_t pt, pt_temp;
-	long lwp;
+	int32_t lwp;
 	int ret;
 	td_thr_events_e	tmp;
 
 	TDBG_FUNC();
 	pt = th->th_thread;
-	ret = ps_pread(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
+	ret = thr_pread_ptr(ta, ta->thread_last_event_addr, &pt_temp);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	/* Get event */
 	ret = ps_pread(ta->ph, pt + ta->thread_off_event_buf, msg, sizeof(*msg));
 	if (ret != 0)
@@ -681,22 +668,21 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	 * Take the event pointer, at the time, libthr only reports event
 	 * once a time, so it is not a link list.
 	 */
-	if (pt == pt_temp) {
-		pt_temp = 0;
-		ps_pwrite(ta->ph, ta->thread_last_event_addr, &pt_temp, sizeof(pt_temp));
-	}
+	if (pt == pt_temp)
+		thr_pwrite_ptr(ta, ta->thread_last_event_addr, 0);
+
 	/* Clear event */
 	tmp = 0;
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
 	/* Convert event */
-	pt = (psaddr_t)msg->th_p;
-	ret = ps_pread(ta->ph, pt + ta->thread_off_tid, &lwp, sizeof(lwp));
+	pt = msg->th_p;
+	ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
 	if (ret != 0)
-		return (P2T(ret));
+		return (TD_ERR);
 	handle.th_ta = ta;
 	handle.th_tid = lwp;
 	handle.th_thread = pt;
-	msg->th_p = &handle;
+	msg->th_p = (uintptr_t)&handle;
 	return (0);
 }
 

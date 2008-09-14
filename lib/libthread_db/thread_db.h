@@ -95,7 +95,7 @@ typedef enum {
 
 typedef struct {
 	td_thr_events_e	event;
-	const td_thrhandle_t *th_p;
+	psaddr_t	th_p;
 	uintptr_t	data;
 } td_event_msg_t;
 
