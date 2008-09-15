@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/watchdog.h>
+#include <sys/kernel.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_command.h>
@@ -63,10 +64,6 @@ db_addr_t	db_last_addr;
 db_addr_t	db_prev;
 db_addr_t	db_next;
 
-SET_DECLARE(db_cmd_set, struct command);
-SET_DECLARE(db_show_cmd_set, struct command);
-SET_DECLARE(db_show_all_cmd_set, struct command);
-
 static db_cmdfcn_t	db_fncall;
 static db_cmdfcn_t	db_gdb;
 static db_cmdfcn_t	db_halt;
@@ -81,30 +78,20 @@ static db_cmdfcn_t	db_watchdog;
  */
 
 static struct command db_show_all_cmds[] = {
-	{ (char *)0 }
+	{ "trace",	db_stack_trace_all,	0,	0 },
 };
-
-static struct command_table db_show_all_table = {
-	db_show_all_cmds,
-	SET_BEGIN(db_show_all_cmd_set),
-	SET_LIMIT(db_show_all_cmd_set)
-};
+struct command_table db_show_all_table =
+    LIST_HEAD_INITIALIZER(db_show_all_table);
 
 static struct command db_show_cmds[] = {
 	{ "all",	0,			0,	&db_show_all_table },
 	{ "registers",	db_show_regs,		0,	0 },
 	{ "breaks",	db_listbreak_cmd, 	0,	0 },
 	{ "threads",	db_show_threads,	0,	0 },
-	{ (char *)0, }
 };
+struct command_table db_show_table = LIST_HEAD_INITIALIZER(db_show_table);
 
-static struct command_table db_show_table = {
-	db_show_cmds,
-	SET_BEGIN(db_show_cmd_set),
-	SET_LIMIT(db_show_cmd_set)
-};
-	
-static struct command db_commands[] = {
+static struct command db_cmds[] = {
 	{ "print",	db_print_cmd,		0,	0 },
 	{ "p",		db_print_cmd,		0,	0 },
 	{ "examine",	db_examine_cmd,		CS_SET_DOT, 0 },
@@ -130,6 +117,7 @@ static struct command db_commands[] = {
 	{ "match",	db_trace_until_matching_cmd,0,	0 },
 	{ "trace",	db_stack_trace,		CS_OWN,	0 },
 	{ "t",		db_stack_trace,		CS_OWN,	0 },
+	/* XXX alias for all trace */
 	{ "alltrace",	db_stack_trace_all,	0,	0 },
 	{ "where",	db_stack_trace,		CS_OWN,	0 },
 	{ "bt",		db_stack_trace,		CS_OWN,	0 },
@@ -149,14 +137,8 @@ static struct command db_commands[] = {
 	{ "unscript",	db_unscript_cmd,	CS_OWN,	0 },
 	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
 	{ "textdump",	db_textdump_cmd,	CS_OWN, 0 },
-	{ (char *)0, }
 };
-
-static struct command_table db_command_table = {
-	db_commands,
-	SET_BEGIN(db_cmd_set),
-	SET_LIMIT(db_cmd_set)
-};
+struct command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 
 static struct command	*db_last_command = 0;
 
@@ -195,6 +177,73 @@ static int	db_cmd_search(char *name, struct command_table *table,
 		    struct command **cmdp);
 static void	db_command(struct command **last_cmdp,
 		    struct command_table *cmd_table, int dopager);
+
+/*
+ * Initialize the command lists from the static tables.
+ */
+static void
+db_cmd_init(void)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	int i;
+
+	for (i = 0; i < N(db_cmds); i++)
+		db_command_register(&db_cmd_table, &db_cmds[i]);
+	for (i = 0; i < N(db_show_cmds); i++)
+		db_command_register(&db_show_table, &db_show_cmds[i]);
+	for (i = 0; i < N(db_show_all_cmds); i++)
+		db_command_register(&db_show_all_table, &db_show_all_cmds[i]);
+#undef N
+}
+SYSINIT(_cmd_init, SI_SUB_KLD, SI_ORDER_FIRST, db_cmd_init, NULL);
+
+/*
+ * Register a command.
+ */
+void
+db_command_register(struct command_table *list, struct command *cmd)
+{
+	struct command *c, *last;
+
+	last = NULL;
+	LIST_FOREACH(c, list, next) {
+		int n = strcmp(cmd->name, c->name);
+
+		/* Check that the command is not already present. */
+		if (n == 0) {
+			printf("%s: Warning, the command \"%s\" already exists;"
+			     " ignoring request\n", __func__, cmd->name);
+			return;
+		}
+		if (n < 0) {
+			/* NB: keep list sorted lexicographically */
+			LIST_INSERT_BEFORE(c, cmd, next);
+			return;
+		}
+		last = c;
+	}
+	if (last == NULL)
+		LIST_INSERT_HEAD(list, cmd, next);
+	else
+		LIST_INSERT_AFTER(last, cmd, next);
+}
+
+/*
+ * Remove a command previously registered with db_command_register.
+ */
+void
+db_command_unregister(struct command_table *list, struct command *cmd)
+{
+	struct command *c;
+
+	LIST_FOREACH(c, list, next) {
+		if (cmd == c) {
+			LIST_REMOVE(cmd, next);
+			return;
+		}
+	}
+	/* NB: intentionally quiet */
+}
 
 /*
  * Helper function to match a single command.
@@ -245,22 +294,14 @@ db_cmd_search(name, table, cmdp)
 	struct command	**cmdp;	/* out */
 {
 	struct command	*cmd;
-	struct command	**aux_cmdp;
 	int		result = CMD_NONE;
 
-	for (cmd = table->table; cmd->name != 0; cmd++) {
-		db_cmd_match(name, cmd, cmdp, &result);
+	LIST_FOREACH(cmd, table, next) {
+		db_cmd_match(name,cmd,cmdp,&result);
 		if (result == CMD_UNIQUE)
-			return (CMD_UNIQUE);
+			break;
 	}
-	if (table->aux_tablep != NULL)
-		for (aux_cmdp = table->aux_tablep;
-		     aux_cmdp < table->aux_tablep_end;
-		     aux_cmdp++) {
-			db_cmd_match(name, *aux_cmdp, cmdp, &result);
-			if (result == CMD_UNIQUE)
-				return (CMD_UNIQUE);
-		}
+
 	if (result == CMD_NONE) {
 		/* check for 'help' */
 		if (name[0] == 'h' && name[1] == 'e'
@@ -274,19 +315,11 @@ static void
 db_cmd_list(table)
 	struct command_table *table;
 {
-	register struct command *cmd;
-	register struct command **aux_cmdp;
+	register struct command	*cmd;
 
-	for (cmd = table->table; cmd->name != 0; cmd++) {
-	    db_printf("%-12s", cmd->name);
-	    db_end_line(12);
-	}
-	if (table->aux_tablep == NULL)
-	    return;
-	for (aux_cmdp = table->aux_tablep; aux_cmdp < table->aux_tablep_end;
-	     aux_cmdp++) {
-	    db_printf("%-12s", (*aux_cmdp)->name);
-	    db_end_line(12);
+	LIST_FOREACH(cmd, table, next) {
+		db_printf("%-12s", cmd->name);
+		db_end_line(12);
 	}
 }
 
@@ -296,7 +329,7 @@ db_command(last_cmdp, cmd_table, dopager)
 	struct command_table *cmd_table;
 	int dopager;
 {
-	struct command	*cmd;
+	struct command	*cmd = NULL;
 	int		t;
 	char		modif[TOK_STRING_SIZE];
 	db_expr_t	addr, count;
@@ -463,7 +496,7 @@ db_command_loop()
 	    db_printf("db> ");
 	    (void) db_read_line();
 
-	    db_command(&db_last_command, &db_command_table, /* dopager */ 1);
+	    db_command(&db_last_command, &db_cmd_table, /* dopager */ 1);
 	}
 }
 
@@ -481,7 +514,7 @@ db_command_script(const char *command)
 {
 	db_prev = db_next = db_dot;
 	db_inject_line(command);
-	db_command(&db_last_command, &db_command_table, /* dopager */ 0);
+	db_command(&db_last_command, &db_cmd_table, /* dopager */ 0);
 }
 
 void
