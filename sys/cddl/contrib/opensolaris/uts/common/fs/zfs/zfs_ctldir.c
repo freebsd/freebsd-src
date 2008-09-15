@@ -744,6 +744,7 @@ domount:
 		VN_RELE(*vpp);
 		*vpp = NULL;
 	}
+	ZFS_EXIT(zfsvfs);
 	return (err);
 }
 
