@@ -72,7 +72,7 @@ machdep_ap_bootstrap(volatile uint32_t *trcp)
 	/* Initialize curthread. */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
-	mtmsr(mfmsr() | PSL_EE | PSL_RI);
+	mtmsr(mfmsr() | PSL_EE);
 	sched_throw(NULL);
 }
 
