@@ -95,24 +95,6 @@ __FBSDID("$FreeBSD$");
 
 #include "yp_ping.h"
 
-struct cu_data {
-	int			cu_fd;		/* connections fd */
-	bool_t			cu_closeit;	/* opened by library */
-	struct sockaddr_storage	cu_raddr;	/* remote address */
-	int			cu_rlen;
-	struct timeval		cu_wait;	/* retransmit interval */
-	struct timeval		cu_total;	/* total time for the call */
-	struct rpc_err		cu_error;
-	XDR			cu_outxdrs;
-	u_int			cu_xdrpos;
-	u_int			cu_sendsz;	/* send size */
-	char			*cu_outbuf;
-	u_int			cu_recvsz;	/* recv size */
-	struct pollfd		pfdp;
-	int			cu_async;
-	char			cu_inbuf[1];
-};
-
 /*
  * pmap_getport.c
  * Client interface to pmap rpc service.
@@ -237,12 +219,12 @@ __yp_ping(struct in_addr *restricted_addrs, int cnt, char *dom, short *port)
 	unsigned long		i;
 	int			async;
 	struct sockaddr_in	sin, *any = NULL;
+	struct netbuf		addr;
 	int			winner = -1;
 	u_int32_t		xid_seed, xid_lookup;
 	int			sock, dontblock = 1;
 	CLIENT			*clnt;
 	char			*foo = dom;
-	struct cu_data		*cu;
 	int			validsrvs = 0;
 
 	/* Set up handles. */
@@ -284,7 +266,6 @@ __yp_ping(struct in_addr *restricted_addrs, int cnt, char *dom, short *port)
 		return(-1);
 	}
 	clnt->cl_auth = authunix_create_default();
-	cu = (struct cu_data *)clnt->cl_private;
 	tv.tv_sec = 0;
 
 	clnt_control(clnt, CLSET_TIMEOUT, (char *)&tv);
@@ -296,8 +277,9 @@ __yp_ping(struct in_addr *restricted_addrs, int cnt, char *dom, short *port)
 	for (i = 0; i < cnt; i++) {
 		if (reqs[i] != NULL) {
 			clnt_control(clnt, CLSET_XID, (char *)&reqs[i]->xid);
-			bcopy((char *)&reqs[i]->sin, (char *)&cu->cu_raddr,
-				sizeof(struct sockaddr_in));
+			addr.len = sizeof(reqs[i]->sin);
+			addr.buf = (char *) &reqs[i]->sin;
+			clnt_control(clnt, CLSET_SVC_ADDR, &addr);
 			ypproc_domain_nonack_2_send(&foo, clnt);
 		}
 	}
