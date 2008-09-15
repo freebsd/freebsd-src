@@ -19,7 +19,8 @@ NON_GPROF_ENTRY(linux_sigcode)
 linux_rt_sigcode:
 	call	*LINUX_RT_SIGF_HANDLER(%esp)
 	leal	LINUX_RT_SIGF_UC(%esp),%ebx	/* linux ucp */
-	movl	LINUX_SC_GS(%ebx),%gs
+	leal	LINUX_RT_SIGF_SC(%ebx),%ecx	/* linux sigcontext */
+	movl	LINUX_SC_GS(%ecx),%gs
 	push	%eax				/* fake ret addr */
 	movl	$LINUX_SYS_linux_rt_sigreturn,%eax   /* linux_rt_sigreturn() */
 	int	$0x80				/* enter kernel with args */
