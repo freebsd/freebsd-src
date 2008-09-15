@@ -62,7 +62,8 @@ static device_method_t ppc_isa_methods[] = {
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	ppc_alloc_resource),
+	DEVMETHOD(bus_release_resource,	ppc_release_resource),
 
 	/* ppbus interface */
 	DEVMETHOD(ppbus_io,		ppc_io),
@@ -142,7 +143,7 @@ ppc_isa_write(device_t dev, char *buf, int len, int how)
 	int s, error = 0;
 	int spin;
 
-	if (!(ppc->ppc_avm & PPB_ECP) || !ppc->ppc_registered)
+	if (!(ppc->ppc_avm & PPB_ECP))
 		return (EINVAL);
 	if (ppc->ppc_dmachan == 0)
 		return (EINVAL);

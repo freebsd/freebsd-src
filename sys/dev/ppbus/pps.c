@@ -107,18 +107,14 @@ ppsattach(device_t dev)
 	struct pps_data *sc = DEVTOSOFTC(dev);
 	device_t ppbus = device_get_parent(dev);
 	struct cdev *d;
-	intptr_t irq;
-	int i, unit, zero = 0;
+	int i, unit, rid = 0;
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), "pps", MTX_SPIN);
-	/* retrieve the ppbus irq */
-	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
 
-	if (irq > 0) {
-		/* declare our interrupt handler */
-		sc->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
-		    &zero, irq, irq, 1, RF_SHAREABLE);
-	}
+	/* declare our interrupt handler */
+	sc->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE);
+
 	/* interrupts seem mandatory */
 	if (sc->intr_resource == NULL)
 		return (ENXIO);
