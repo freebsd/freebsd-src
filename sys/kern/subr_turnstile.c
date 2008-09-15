@@ -1150,7 +1150,7 @@ DB_SHOW_COMMAND(lockchain, db_show_lockchain)
 	print_lockchain(td, "");
 }
 
-DB_SHOW_COMMAND(allchains, db_show_allchains)
+DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 {
 	struct thread *td;
 	struct proc *p;
@@ -1168,6 +1168,7 @@ DB_SHOW_COMMAND(allchains, db_show_allchains)
 		}
 	}
 }
+DB_SHOW_ALIAS(allchains, db_show_allchains)
 
 /*
  * Show all the threads a particular thread is waiting on based on

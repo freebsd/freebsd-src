@@ -155,7 +155,7 @@ DB_SHOW_COMMAND(pcpu, db_show_pcpu)
 	show_pcpu(pc);
 }
 
-DB_SHOW_COMMAND(allpcpu, db_show_cpu_all)
+DB_SHOW_ALL_COMMAND(pcpu, db_show_cpu_all)
 {
 	struct pcpu *pc;
 	int id;
@@ -169,4 +169,5 @@ DB_SHOW_COMMAND(allpcpu, db_show_cpu_all)
 		}
 	}
 }
+DB_SHOW_ALIAS(allpcpu, db_show_cpu_all);
 #endif

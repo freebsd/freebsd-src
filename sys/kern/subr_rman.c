@@ -949,11 +949,12 @@ DB_SHOW_COMMAND(rman, db_show_rman)
 		dump_rman((struct rman *)addr);
 }
 
-DB_SHOW_COMMAND(allrman, db_show_all_rman)
+DB_SHOW_ALL_COMMAND(rman, db_show_all_rman)
 {
 	struct rman *rm;
 
 	TAILQ_FOREACH(rm, &rman_head, rm_link)
 		dump_rman(rm);
 }
+DB_SHOW_ALIAS(allrman, db_show_all_rman);
 #endif
