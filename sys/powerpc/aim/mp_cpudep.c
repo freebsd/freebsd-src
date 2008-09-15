@@ -169,7 +169,7 @@ cpudep_ap_bootstrap(volatile uint32_t *trcp)
 	trcp[0] = 0x2003;
 	trcp[1] = hid;
 
-	msr = PSL_IR | PSL_DR | PSL_ME;
+	msr = PSL_IR | PSL_DR | PSL_ME | PSL_RI;
 	mtmsr(msr);
 	isync();
 
