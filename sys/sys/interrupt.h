@@ -90,6 +90,16 @@ struct intr_handler {
  * The 'assign_cpu' hook is used to bind an interrupt source to a
  * specific CPU.  If the interrupt cannot be bound, this function may
  * return an error.
+ *
+ * Note that device drivers may also use interrupt events to manage
+ * multiplexing interrupt interrupt handler into handlers for child
+ * devices.  In that case, the above hooks are not used.  The device
+ * can create an event for its interrupt resource and register child
+ * event handlers with that event.  It can then use
+ * intr_event_execute_handlers() to execute non-filter handlers.
+ * Currently filter handlers are not supported by this, but that can
+ * be added by splitting out the filter loop from intr_event_handle()
+ * if desired.
  */
 struct intr_event {
 	TAILQ_ENTRY(intr_event) ie_list;
@@ -132,6 +142,8 @@ struct intr_event {
 #define	SWI_TQ		6
 #define	SWI_TQ_GIANT	6
 
+struct proc;
+
 extern struct	intr_event *tty_intr_event;
 extern struct	intr_event *clk_intr_event;
 extern void	*softclock_ih;
@@ -157,6 +169,7 @@ int	intr_event_create(struct intr_event **event, void *source,
 	    int (*assign_cpu)(void *, u_char), const char *fmt, ...)
 	    __printflike(9, 10);
 int	intr_event_destroy(struct intr_event *ie);
+void	intr_event_execute_handlers(struct proc *p, struct intr_event *ie);
 int	intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 int	intr_event_remove_handler(void *cookie);
 int	intr_getaffinity(int irq, void *mask);
