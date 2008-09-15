@@ -383,6 +383,8 @@ clnt_dg_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	kin_len = 1;
 
 call_again:
+	if (cu->cu_async == TRUE && xargs == NULL)
+		goto get_reply;
 	/*
 	 * the transaction is the first thing in the out buffer
 	 * XXX Yes, and it's in network byte order, so we should to
@@ -393,8 +395,6 @@ call_again:
 	*(u_int32_t *)(void *)(cu->cu_outhdr) = htonl(xid);
 call_again_same_xid:
 	xdrs = &(cu->cu_outxdrs);
-	if (cu->cu_async == TRUE && xargs == NULL)
-		goto get_reply;
 	xdrs->x_op = XDR_ENCODE;
 	XDR_SETPOS(xdrs, 0);
 
