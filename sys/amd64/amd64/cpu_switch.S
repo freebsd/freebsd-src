@@ -266,7 +266,7 @@ store_seg:
 	movl	%es,PCB_ES(%r8)
 	movl	%fs,PCB_FS(%r8)
 	jmp	done_store_seg
-2:	movq	PCB_GS32P(%r8),%rax
+2:	movq	PCPU(GS32P),%rax
 	movq	(%rax),%rax
 	movq	%rax,PCB_GS32SD(%r8)
 	jmp	1b
@@ -283,7 +283,7 @@ load_seg:
 	movl	PCB_FS(%r8),%fs
 	jmp	done_load_seg
 	/* Restore userland %gs while preserving kernel gsbase */
-2:	movq	PCB_GS32P(%r8),%rax
+2:	movq	PCPU(GS32P),%rax
 	movq	PCB_GS32SD(%r8),%rcx
 	movq	%rcx,(%rax)
 	jmp	1b
