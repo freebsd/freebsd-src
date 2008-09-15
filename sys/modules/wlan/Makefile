@@ -9,19 +9,20 @@ SRCS=	ieee80211.c ieee80211_crypto.c ieee80211_crypto_none.c ieee80211_dfs.c \
 	ieee80211_proto.c ieee80211_scan.c ieee80211_scan_sta.c \
 	ieee80211_regdomain.c ieee80211_ht.c \
 	ieee80211_adhoc.c ieee80211_hostap.c ieee80211_monitor.c \
-	ieee80211_sta.c ieee80211_wds.c
-SRCS+=	bus_if.h device_if.h opt_inet.h opt_ipx.h opt_wlan.h
+	ieee80211_sta.c ieee80211_wds.c ieee80211_ddb.c
+SRCS+=	bus_if.h device_if.h opt_inet.h opt_ipx.h opt_wlan.h opt_ddb.h
 
 .if !defined(KERNBUILDDIR)
 opt_wlan.h:
 	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
 	echo "#define IEEE80211_AMDPU_AGE 1" >> ${.TARGET}
-
 opt_inet.h:
 	echo "#define INET 1" > ${.TARGET}
-
 opt_ipx.h:
 	echo "#define IPX 1" > ${.TARGET}
+# override to get ddb support?
+opt_ddb.h:
+	echo "#define DDB 0" > ${.TARGET}
 .endif
 
 .include <bsd.kmod.mk>
