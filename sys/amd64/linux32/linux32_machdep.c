@@ -1354,7 +1354,7 @@ linux_set_thread_area(struct thread *td,
 	td->td_pcb->pcb_gsbase = (register_t)info.base_addr;
 	td->td_pcb->pcb_gs32sd = gdt[GUGS32_SEL] = sd;
 	td->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
-	td->td_pcb->pcb_flags |= PCB_32BIT;
+	td->td_pcb->pcb_flags |= PCB_32BIT | PCB_GS32BIT;
 	wrmsr(MSR_KGSBASE, td->td_pcb->pcb_gsbase);
 	critical_exit();
 
