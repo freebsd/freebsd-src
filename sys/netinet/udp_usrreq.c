@@ -80,6 +80,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#ifdef INET6
+#include <netinet6/udp6_var.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -128,6 +131,11 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
+static int udp_soreceive_dgram;
+SYSCTL_INT(_net_inet_udp, OID_AUTO, soreceive_dgram_enabled,
+    CTLFLAG_RD | CTLFLAG_TUN, &udp_soreceive_dgram, 0,
+    "Use experimental optimized datagram receive");
+
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
 
@@ -155,6 +163,12 @@ udp_inpcb_init(void *mem, int size, int flags)
 {
 	struct inpcb *inp;
 
+	TUNABLE_INT_FETCH("net.inet.udp.soreceive_dgram_enabled",
+	    &udp_soreceive_dgram);
+	if (udp_soreceive_dgram) {
+		udp_usrreqs.pru_soreceive = soreceive_dgram;
+		udp6_usrreqs.pru_soreceive = soreceive_dgram;
+	}
 	inp = mem;
 	INP_LOCK_INIT(inp, "inp", "udpinp");
 	return (0);
