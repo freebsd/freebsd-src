@@ -105,6 +105,8 @@ __FBSDID("$FreeBSD$");
  */
 dtrace_trap_func_t	dtrace_trap_func;
 
+dtrace_doubletrap_func_t	dtrace_doubletrap_func;
+
 /*
  * This is a hook which is initialised by the systrace module
  * when it is loaded. This keeps the DTrace syscall provider
@@ -773,6 +775,10 @@ trap_fatal(frame, eva)
 void
 dblfault_handler(struct trapframe *frame)
 {
+#ifdef KDTRACE_HOOKS
+	if (dtrace_doubletrap_func != NULL)
+		(*dtrace_doubletrap_func)();
+#endif
 	printf("\nFatal double fault\n");
 	printf("rip = 0x%lx\n", frame->tf_rip);
 	printf("rsp = 0x%lx\n", frame->tf_rsp);
