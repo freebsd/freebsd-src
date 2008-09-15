@@ -32,10 +32,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/interrupt.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
   
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -1515,9 +1517,20 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 static void
 ppcintr(void *arg)
 {
-	device_t dev = (device_t)arg;
-	struct ppc_data *ppc = (struct ppc_data *)device_get_softc(dev);
+	struct ppc_data *ppc = arg;
 	u_char ctr, ecr, str;
+
+	/*
+	 * If we have any child interrupt handlers registered, let
+	 * them handle this interrupt.
+	 *
+	 * XXX: If DMA is in progress should we just complete that w/o
+	 * doing this?
+	 */
+	if (ppc->ppc_child_handlers > 0) {
+		intr_event_execute_handlers(curproc, ppc->ppc_intr_event);
+		return;
+	}
 
 	str = r_str(ppc);
 	ctr = r_ctr(ppc);
@@ -1790,8 +1803,8 @@ int
 ppc_attach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-
 	device_t ppbus;
+	int error;
 
 	device_printf(dev, "%s chipset (%s) in %s mode%s\n",
 		      ppc_models[ppc->ppc_model], ppc_avms[ppc->ppc_avm],
@@ -1802,6 +1815,30 @@ ppc_attach(device_t dev)
 		device_printf(dev, "FIFO with %d/%d/%d bytes threshold\n",
 			      ppc->ppc_fifo, ppc->ppc_wthr, ppc->ppc_rthr);
 
+	if (ppc->res_irq) {
+		/*
+		 * Create an interrupt event to manage the handlers of
+		 * child devices.
+		 */
+		error = intr_event_create(&ppc->ppc_intr_event, ppc, 0, -1,
+		    NULL, NULL, NULL, NULL, "%s:", device_get_nameunit(dev));
+		if (error) {
+			device_printf(dev,
+			    "failed to create interrupt event: %d\n", error);
+			return (error);
+		}
+
+		/* default to the tty mask for registration */	/* XXX */
+		error = bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
+		    NULL, ppcintr, ppc, &ppc->intr_cookie);
+		if (error) {
+			device_printf(dev,
+			    "failed to register interrupt handler: %d\n",
+			    error);
+			return (error);
+		}
+	}
+
 	/* add ppbus as a child of this isa to parallel bridge */
 	ppbus = device_add_child(dev, "ppbus", -1);
 
@@ -1809,17 +1846,6 @@ ppc_attach(device_t dev)
 	 * Probe the ppbus and attach devices found.
 	 */
 	device_probe_and_attach(ppbus);
-
-	/* register the ppc interrupt handler as default */
-	if (ppc->res_irq) {
-		/* default to the tty mask for registration */	/* XXX */
-		if (bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
-		    NULL, ppcintr, dev, &ppc->intr_cookie) == 0) {
-
-			/* remember the ppcintr is registered */
-			ppc->ppc_registered = 1;
-		}
-	}
 
 	return (0);
 }
@@ -1935,9 +1961,6 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 	case PPC_IVAR_EPP_PROTO:
 		*val = (u_long)ppc->ppc_epp;
 		break;
-	case PPC_IVAR_IRQ:
-		*val = (u_long)ppc->ppc_irq;
-		break;
 	default:
 		return (ENOENT);
 	}
@@ -1946,63 +1969,84 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
 }
 
 /*
- * Resource is useless here since ppbus devices' interrupt handlers are
- * multiplexed to the same resource initially allocated by ppc
+ * We allow child devices to allocate an IRQ resource at rid 0 for their
+ * interrupt handlers.
+ */
+struct resource *
+ppc_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct ppc_data *ppc = DEVTOSOFTC(bus);
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		if (*rid == 0)
+			return (ppc->res_irq);
+		break;
+	}
+	return (NULL);
+}
+
+int
+ppc_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+#ifdef INVARIANTS
+	struct ppc_data *ppc = DEVTOSOFTC(bus);
+#endif
+
+	switch (type) {
+	case SYS_RES_IRQ:
+		if (rid == 0) {
+			KASSERT(r == ppc->res_irq,
+			    ("ppc child IRQ resource mismatch"));
+			return (0);
+		}
+		break;
+	}
+	return (EINVAL);
+}
+
+/*
+ * If a child wants to add a handler for our IRQ, add it to our interrupt
+ * event.  Otherwise, fail the request.
  */
 int
 ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
     driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
-	int error;
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
+	int error;
 
-	if (ppc->ppc_registered) {
-		/* XXX refuse registration if DMA is in progress */
+	if (r != ppc->res_irq)
+		return (EINVAL);
 
-		/* first, unregister the default interrupt handler */
-		if ((error = BUS_TEARDOWN_INTR(device_get_parent(bus),
-				bus, ppc->res_irq, ppc->intr_cookie)))
-			return (error);
+	/* We don't allow filters. */
+	if (filt != NULL)
+		return (EINVAL);
 
-/* 		bus_deactivate_resource(bus, SYS_RES_IRQ, ppc->rid_irq, */
-/* 					ppc->res_irq); */
-
-		/* DMA/FIFO operation won't be possible anymore */
-		ppc->ppc_registered = 0;
-	}
-
-	/* 
-	 * pass registration to the upper layer, ignore the incoming 
-	 * resource 
-	 */
-	return (BUS_SETUP_INTR(device_get_parent(bus), child,
-	    r, flags, filt, ihand, arg, cookiep));
+	error = intr_event_add_handler(ppc->ppc_intr_event,
+	    device_get_nameunit(child), NULL, ihand, arg, intr_priority(flags),
+	    flags, cookiep);
+	if (error == 0)
+		ppc->ppc_child_handlers++;
+	return (error);
 }
 
-/*
- * When no underlying device has a registered interrupt, register the ppc
- * layer one
- */
 int
-ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
+ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *cookie)
 {
-	int error;
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
-	device_t parent = device_get_parent(bus);
+	int error;
 
-	/* pass unregistration to the upper layer */
-	if ((error = BUS_TEARDOWN_INTR(parent, child, r, ih)))
-		return (error);
+	if (r != ppc->res_irq)
+		return (EINVAL);
 
-	/* default to the tty mask for registration */		/* XXX */
-	if (ppc->ppc_irq &&
-		!(error = BUS_SETUP_INTR(parent, bus, ppc->res_irq,
-			INTR_TYPE_TTY, NULL, ppcintr, bus, &ppc->intr_cookie))) {
-
-		/* remember the ppcintr is registered */
-		ppc->ppc_registered = 1;
-	}
-
+	KASSERT(intr_handler_source(cookie) == ppc,
+	    ("ppc_teardown_intr: source mismatch"));
+	error = intr_event_remove_handler(cookie);
+	if (error == 0)
+		ppc->ppc_child_handlers--;
 	return (error);
 }
 

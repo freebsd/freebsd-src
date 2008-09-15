@@ -109,7 +109,8 @@ struct ppc_data {
 
 	void *intr_cookie;
 
-	int ppc_registered;	/* 1 if ppcintr() is the registered interrupt */
+	struct intr_event *ppc_intr_event;
+	int ppc_child_handlers;
 };
 
 /*

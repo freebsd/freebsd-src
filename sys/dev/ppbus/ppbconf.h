@@ -179,7 +179,6 @@ struct ppb_context {
  */
 #define PPBUS_IVAR_MODE 0
 #define PPBUS_IVAR_AVM	1
-#define PPBUS_IVAR_IRQ	2
 
 /* other fields are reserved to the ppbus internals */
 
@@ -216,7 +215,6 @@ struct ppb_device {
   
 /* Parallel Port Chipset IVARS */		/* elsewhere XXX */
 #define PPC_IVAR_EPP_PROTO	0
-#define PPC_IVAR_IRQ		1
  
 /*
  * Maximum size of the PnP info string
@@ -248,9 +246,6 @@ struct ppb_data {
 				 * NIBBLE, PS2, EPP or ECP */
 
 	void *ppb_owner;	/* device which owns the bus */
-
-	struct resource *irq_res;
-	void *intr_cookie;
 };
 
 #ifdef _KERNEL
