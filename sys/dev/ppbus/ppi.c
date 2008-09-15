@@ -163,16 +163,12 @@ static int
 ppi_attach(device_t dev)
 {
 #ifdef PERIPH_1284
-	uintptr_t irq;
-	int zero = 0;
+	int rid = 0;
 	struct ppi_data *ppi = DEVTOSOFTC(dev);
 
-	/* retrive the irq */
-	BUS_READ_IVAR(device_get_parent(dev), dev, PPBUS_IVAR_IRQ, &irq);
-
 	/* declare our interrupt handler */
-	ppi->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
-						&zero, irq, irq, 1, RF_ACTIVE);
+	ppi->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
 #endif /* PERIPH_1284 */
 
 	make_dev(&ppi_cdevsw, device_get_unit(dev),	/* XXX cleanup */
