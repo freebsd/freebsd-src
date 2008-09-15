@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2003-2005,2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -79,7 +79,25 @@ struct pmc;
 
 #define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_eip)
 #define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_ebp)
-#define	PMC_TRAPFRAME_TO_SP(TF)	((TF)->tf_esp)
+
+/*
+ * The layout of the stack frame on entry into the NMI handler depends on
+ * whether a privilege level change (and consequent stack switch) was
+ * required for entry.
+ *
+ * When processing an interrupt when in user mode, the processor switches
+ * stacks, and saves the user mode stack pointer on the kernel stack.  The
+ * user mode stack pointer is then available to the interrupt handler
+ * at frame->tf_esp.
+ *
+ * When processing an interrupt while in kernel mode, the processor
+ * continues to use the existing (kernel) stack.  Therefore we determine
+ * the stack pointer for the interrupted kernel procedure by adding an
+ * offset to the current frame pointer.
+ */
+
+#define	PMC_TRAPFRAME_TO_USER_SP(TF)	((TF)->tf_esp)
+#define	PMC_TRAPFRAME_TO_KERNEL_SP(TF)	((uintptr_t) &((TF)->tf_esp))
 
 #define	PMC_IN_KERNEL_STACK(S,START,END)		\
 	((S) >= (START) && (S) < (END))
