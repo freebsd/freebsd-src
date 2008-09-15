@@ -1085,16 +1085,16 @@ priv_ithread_execute_handler(struct proc *p, struct intr_handler *ih)
 }
 #endif
 
-static void
-ithread_execute_handlers(struct proc *p, struct intr_event *ie)
+/*
+ * This is a public function for use by drivers that mux interrupt
+ * handlers for child devices from their interrupt handler.
+ */
+void
+intr_event_execute_handlers(struct proc *p, struct intr_event *ie)
 {
 	struct intr_handler *ih, *ihn;
 
-	/* Interrupt handlers should not sleep. */
-	if (!(ie->ie_flags & IE_SOFT))
-		THREAD_NO_SLEEPING();
 	TAILQ_FOREACH_SAFE(ih, &ie->ie_handlers, ih_next, ihn) {
-
 		/*
 		 * If this handler is marked for death, remove it from
 		 * the list of handlers and wake up the sleeper.
@@ -1135,6 +1135,16 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 		if (!(ih->ih_flags & IH_MPSAFE))
 			mtx_unlock(&Giant);
 	}
+}
+
+static void
+ithread_execute_handlers(struct proc *p, struct intr_event *ie)
+{
+
+	/* Interrupt handlers should not sleep. */
+	if (!(ie->ie_flags & IE_SOFT))
+		THREAD_NO_SLEEPING();
+	intr_event_execute_handlers(p, ie);
 	if (!(ie->ie_flags & IE_SOFT))
 		THREAD_SLEEPING_OK();
 
