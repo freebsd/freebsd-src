@@ -1716,7 +1716,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 	KASSERT(*lrt0 != NULL, ("rt_check"));
 	rt0 = *lrt0;
 	rt = NULL;
-	fibnum = (*rt0)->rt_fibnum;
+	fibnum = rt0->rt_fibnum;
 
 	/* NB: the locking here is tortuous... */
 	RT_LOCK(rt0);
