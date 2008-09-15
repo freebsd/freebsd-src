@@ -1167,5 +1167,5 @@ found:
 }
 
 /* Alias 'show sleepqueue' to 'show sleepq'. */
-DB_SET(sleepqueue, db_show_sleepqueue, db_show_cmd_set, 0, NULL);
+DB_SHOW_ALIAS(sleepqueue, db_show_sleepqueue);
 #endif

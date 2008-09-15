@@ -2248,7 +2248,7 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 	witness_ddb_list(td);
 }
 
-DB_SHOW_COMMAND(alllocks, db_witness_list_all)
+DB_SHOW_ALL_COMMAND(locks, db_witness_list_all)
 {
 	struct thread *td;
 	struct proc *p;
@@ -2270,6 +2270,7 @@ DB_SHOW_COMMAND(alllocks, db_witness_list_all)
 		}
 	}
 }
+DB_SHOW_ALIAS(alllocks, db_witness_list_all)
 
 DB_SHOW_COMMAND(witness, db_witness_display)
 {
