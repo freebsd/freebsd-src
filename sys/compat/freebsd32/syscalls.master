@@ -179,7 +179,7 @@
 				    struct itimerval32 *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
-85	AUE_SWAPON	OBSOL	oswapon
+85	AUE_SWAPON	NOPROTO	{ int swapon(char *name); }
 86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(u_int which, \
 				    struct itimerval32 *itv); }
 87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
