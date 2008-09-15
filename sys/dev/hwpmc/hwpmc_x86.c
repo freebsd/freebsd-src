@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, Joseph Koshy
+ * Copyright (c) 2005,2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -90,7 +90,7 @@ pmc_save_user_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 
 	pc = PMC_TRAPFRAME_TO_PC(tf);
 	oldfp = fp = PMC_TRAPFRAME_TO_FP(tf);
-	sp = PMC_TRAPFRAME_TO_SP(tf);
+	sp = PMC_TRAPFRAME_TO_USER_SP(tf);
 
 	*cc++ = pc; n = 1;
 
@@ -171,7 +171,7 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 
 	pc = PMC_TRAPFRAME_TO_PC(tf);
 	fp = PMC_TRAPFRAME_TO_FP(tf);
-	sp = PMC_TRAPFRAME_TO_SP(tf);
+	sp = PMC_TRAPFRAME_TO_KERNEL_SP(tf);
 
 	*cc++ = pc;
 	r = fp + sizeof(uintptr_t); /* points to return address */
