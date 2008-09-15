@@ -309,13 +309,8 @@
 #define	SPR_RPA			0x3d6	/* .68 Required Physical Address Register */
 #define	SPR_PTELO		0x3d6	/* .6. Required Physical Address Register */
 
-#if defined(AIM)
-#define	SPR_TSR			0x3d8	/* 4.. Timer Status Register */
-#define	SPR_TCR			0x3da	/* 4.. Timer Control Register */
-#elif defined(E500)
 #define	SPR_TSR			0x150	/* ..8 Timer Status Register */
 #define	SPR_TCR			0x154	/* ..8 Timer Control Register */
-#endif
 
 #define	  TSR_ENW		  0x80000000 /* Enable Next Watchdog */
 #define	  TSR_WIS		  0x40000000 /* Watchdog Interrupt Status */
@@ -429,7 +424,6 @@
 #define	  DBCR0_FT		  0x00000001 /* Freeze Timers on debug event */
 
 #define	SPR_IABR		0x3f2	/* ..8 Instruction Address Breakpoint Register 0 */
-#define	SPR_HID2		0x3f3	/* ..8 Hardware Implementation Register 2 */
 #define	SPR_DABR		0x3f5	/* .6. Data Address Breakpoint Register */
 #define	SPR_MSSCR0		0x3f6	/* .6. Memory SubSystem Control Register */
 #define	  MSSCR0_SHDEN		  0x80000000 /* 0: Shared-state enable */
@@ -481,9 +475,30 @@
 #define	  L2CR_L2DRO		  0x00000100 /* 23: L2DLL rollover checkstop enable. */
 #define	  L2CR_L2IP		  0x00000001 /* 31: L2 global invalidate in */
 					     /*     progress (read only). */
+
 #define	SPR_L3CR		0x3fa	/* .6. L3 Control Register */
-#define	  L3CR_L3E		  0x80000000 /*  0: L3 enable */
-#define	  L3CR_L3SIZ		  0x10000000 /*  3: L3 size (0=1MB, 1=2MB) */
+#define	  L3CR_L3E		  0x80000000 /* 0: L3 enable */
+#define	  L3CR_L3PE		  0x40000000 /* 1: L3 data parity enable */
+#define	  L3CR_L3APE		  0x20000000
+#define	  L3CR_L3SIZ		  0x10000000 /* 3: L3 size (0=1MB, 1=2MB) */
+#define	  L3CR_L3CLKEN		  0x08000000 /* 4: Enables L3_CLK[0:1] */
+#define	  L3CR_L3CLK		  0x03800000
+#define	  L3CR_L3IO		  0x00400000
+#define	  L3CR_L3CLKEXT		  0x00200000
+#define	  L3CR_L3CKSPEXT	  0x00100000
+#define	  L3CR_L3OH1		  0x00080000
+#define	  L3CR_L3SPO		  0x00040000
+#define	  L3CR_L3CKSP		  0x00030000
+#define	  L3CR_L3PSP		  0x0000e000
+#define	  L3CR_L3REP		  0x00001000
+#define	  L3CR_L3HWF		  0x00000800
+#define	  L3CR_L3I		  0x00000400 /* 21: L3 global invalidate */
+#define	  L3CR_L3RT		  0x00000300
+#define	  L3CR_L3NIRCA		  0x00000080
+#define	  L3CR_L3DO		  0x00000040
+#define	  L3CR_PMEN		  0x00000004
+#define	  L3CR_PMSIZ		  0x00000003
+
 #define	SPR_DCCR		0x3fa	/* 4.. Data Cache Cachability Register */
 #define	SPR_ICCR		0x3fb	/* 4.. Instruction Cache Cachability Register */
 #define	SPR_THRM1		0x3fc	/* .6. Thermal Management Register */
