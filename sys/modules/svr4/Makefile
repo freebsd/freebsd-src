@@ -24,14 +24,9 @@ svr4_locore.o: svr4_locore.s svr4_assym.h
 svr4_genassym.o: svr4_genassym.c svr4.h @ machine
 	${CC} -c ${CFLAGS:N-fno-common} ${.IMPSRC}
 
-.if !defined(KERNBUILDDIR)
-opt_compat.h:
-	echo "#define COMPAT_43 1" > ${.TARGET}
-
-.if defined(DEBUG)
+.if !defined(KERNBUILDDIR) && defined(DEBUG)
 opt_svr4.h:
 	echo "#define DEBUG_SVR4 1" > ${.TARGET}
-.endif
 .endif
 
 .include <bsd.kmod.mk>
