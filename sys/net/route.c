@@ -1675,18 +1675,36 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
  *	final destination if directly reachable);
  *   *lrt0 points to the cached route to the final destination;
  *   *lrt is not meaningful;
+ *	(*lrt0 has no ref held on it by us so REMREF is not needed.
+ *	Refs only account for major structural references and not usages,
+ * 	which is actually a bit of a problem.)
  *
  * === Operation ===
  * If the route is marked down try to find a new route.  If the route
  * to the gateway is gone, try to setup a new route.  Otherwise,
  * if the route is marked for packets to be rejected, enforce that.
+ * Note that rtalloc returns an rtentry with an extra REF that we may
+ * need to lose.
  *
  * === On return ===
  *   *dst is unchanged;
  *   *lrt0 points to the (possibly new) route to the final destination
- *   *lrt points to the route to the next hop
+ *   *lrt points to the route to the next hop   [LOCKED]
  *
  * Their values are meaningful ONLY if no error is returned.
+ *
+ * To follow this you have to remember that:
+ * RT_REMREF reduces the reference count by 1 but doesn't check it for 0 (!)
+ * RTFREE_LOCKED includes an RT_REMREF (or an rtfree if refs == 1)
+ *    and an RT_UNLOCK
+ * RTFREE does an RT_LOCK and an RTFREE_LOCKED
+ * The gwroute pointer counts as a reference on the rtentry to which it points.
+ * so when we add it we use the ref that rtalloc gives us and when we lose it
+ * we need to remove the reference.
+ * RT_TEMP_UNLOCK does an RT_ADDREF before freeing the lock, and
+ * RT_RELOCK locks it (it can't have gone away due to the ref) and
+ * drops the ref, possibly freeing it and zeroing the pointer if
+ * the ref goes to 0 (unlocking in the process).
  */
 int
 rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
@@ -1694,58 +1712,83 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 	struct rtentry *rt;
 	struct rtentry *rt0;
 	u_int fibnum;
-	int error;
 
 	KASSERT(*lrt0 != NULL, ("rt_check"));
-	rt = rt0 = *lrt0;
-	fibnum = rt0->rt_fibnum;
+	rt0 = *lrt0;
+	rt = NULL;
+	fibnum = (*rt0)->rt_fibnum;
 
 	/* NB: the locking here is tortuous... */
-	RT_LOCK(rt);
-	if ((rt->rt_flags & RTF_UP) == 0) {
-		RT_UNLOCK(rt);
-		rt = rtalloc1_fib(dst, 1, 0UL, fibnum);
-		if (rt != NULL) {
-			RT_REMREF(rt);
-			/* XXX what about if change? */
-		} else
-			return (EHOSTUNREACH);
-		rt0 = rt;
+	RT_LOCK(rt0);
+retry:
+	if (rt0 && (rt0->rt_flags & RTF_UP) == 0) {
+		/* Current rt0 is useless, try get a replacement. */
+		RT_UNLOCK(rt0);
+		rt0 = NULL;
 	}
-	/* XXX BSD/OS checks dst->sa_family != AF_NS */
-	if (rt->rt_flags & RTF_GATEWAY) {
-		if (rt->rt_gwroute == NULL)
-			goto lookup;
-		rt = rt->rt_gwroute;
-		RT_LOCK(rt);		/* NB: gwroute */
-		if ((rt->rt_flags & RTF_UP) == 0) {
-			RTFREE_LOCKED(rt);	/* unlock gwroute */
-			rt = rt0;
-			rt0->rt_gwroute = NULL;
-		lookup:
-			RT_UNLOCK(rt0);
-			rt = rtalloc1_fib(rt->rt_gateway, 1, 0UL, fibnum);
-			if (rt == rt0) {
-				RT_REMREF(rt0);
-				RT_UNLOCK(rt0);
-				return (ENETUNREACH);
-			}
-			RT_LOCK(rt0);
-			if (rt0->rt_gwroute != NULL)
-				RTFREE(rt0->rt_gwroute);
-			rt0->rt_gwroute = rt;
-			if (rt == NULL) {
-				RT_UNLOCK(rt0);
-				return (EHOSTUNREACH);
+	if (rt0 == NULL) {
+		rt0 = rtalloc1_fib(dst, 1, 0UL, fibnum);
+		if (rt0 == NULL) {
+			return (EHOSTUNREACH);
+		}
+		RT_REMREF(rt0); /* don't need the reference. */
+	}
+
+	if (rt0->rt_flags & RTF_GATEWAY) {
+		if ((rt = rt0->rt_gwroute) != NULL) {
+			RT_LOCK(rt);		/* NB: gwroute */
+			if ((rt->rt_flags & RTF_UP) == 0) {
+				/* gw route is dud. ignore/lose it */
+				RTFREE_LOCKED(rt); /* unref (&unlock) gwroute */
+				rt = rt0->rt_gwroute = NULL;
 			}
 		}
+		
+		if (rt == NULL) {  /* NOT AN ELSE CLAUSE */
+			RT_TEMP_UNLOCK(rt0); /* MUST return to undo this */
+			rt = rtalloc1_fib(rt0->rt_gateway, 1, 0UL, fibnum);
+			if ((rt == rt0) || (rt == NULL)) {
+				/* the best we can do is not good enough */
+				if (rt) {
+					RT_REMREF(rt); /* assumes ref > 0 */
+					RT_UNLOCK(rt);
+				}
+				RTFREE(rt0); /* lock, unref, (unlock) */
+				return (ENETUNREACH);
+			}
+			/*
+			 * Relock it and lose the added reference.
+			 * All sorts of things could have happenned while we
+			 * had no lock on it, so check for them.
+			 */
+			RT_RELOCK(rt0);
+			if (rt0 == NULL || ((rt0->rt_flags & RTF_UP) == 0))
+				/* Ru-roh.. what we had is no longer any good */
+				goto retry;
+			/* 
+			 * While we were away, someone replaced the gateway.
+			 * Since a reference count is involved we can't just
+			 * overwrite it.
+			 */
+			if (rt0->rt_gwroute) {
+				if (rt0->rt_gwroute != rt) {
+					RTFREE_LOCKED(rt);
+					goto retry;
+				}
+			} else {
+				rt0->rt_gwroute = rt;
+			}
+		}
+		RT_LOCK_ASSERT(rt);
 		RT_UNLOCK(rt0);
+	} else {
+		/* think of rt as having the lock from now on.. */
+		rt = rt0;
 	}
 	/* XXX why are we inspecting rmx_expire? */
-	error = (rt->rt_flags & RTF_REJECT) &&
-		(rt->rt_rmx.rmx_expire == 0 ||
-			time_uptime < rt->rt_rmx.rmx_expire);
-	if (error) {
+	if ((rt->rt_flags & RTF_REJECT) &&
+	    (rt->rt_rmx.rmx_expire == 0 ||
+	    time_uptime < rt->rt_rmx.rmx_expire)) {
 		RT_UNLOCK(rt);
 		return (rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
