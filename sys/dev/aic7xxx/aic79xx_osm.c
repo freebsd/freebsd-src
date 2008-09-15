@@ -1423,7 +1423,7 @@ DB_COMMAND(ahd_in, ahd_ddb_in)
 	}
 }
 
-DB_FUNC(ahd_out, ahd_ddb_out, db_cmd_set, CS_MORE, NULL)
+DB_FUNC(ahd_out, ahd_ddb_out, db_cmd_table, CS_MORE, NULL)
 {
 	db_expr_t old_value;
 	db_expr_t new_value;
