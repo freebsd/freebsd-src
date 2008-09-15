@@ -694,7 +694,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 #endif
 			td2->td_pcb->pcb_gsbase = (register_t)info.base_addr;
 			td2->td_pcb->pcb_gs32sd = sd;
-			td2->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
 			td2->td_pcb->pcb_gs = GSEL(GUGS32_SEL, SEL_UPL);
 			td2->td_pcb->pcb_flags |= PCB_GS32BIT | PCB_32BIT;
 		}
@@ -1352,8 +1351,7 @@ linux_set_thread_area(struct thread *td,
 
 	critical_enter();
 	td->td_pcb->pcb_gsbase = (register_t)info.base_addr;
-	td->td_pcb->pcb_gs32sd = gdt[GUGS32_SEL] = sd;
-	td->td_pcb->pcb_gs32p = &gdt[GUGS32_SEL];
+	td->td_pcb->pcb_gs32sd = *PCPU_GET(gs32p) = sd;
 	td->td_pcb->pcb_flags |= PCB_32BIT | PCB_GS32BIT;
 	wrmsr(MSR_KGSBASE, td->td_pcb->pcb_gsbase);
 	critical_exit();
