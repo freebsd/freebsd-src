@@ -65,7 +65,8 @@ static device_method_t ppc_acpi_methods[] = {
 	DEVMETHOD(bus_read_ivar,	ppc_read_ivar),
 	DEVMETHOD(bus_setup_intr,	ppc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	ppc_teardown_intr),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	ppc_alloc_resource),
+	DEVMETHOD(bus_release_resource,	ppc_release_resource),
 
 	/* ppbus interface */
 	DEVMETHOD(ppbus_io,		ppc_io),

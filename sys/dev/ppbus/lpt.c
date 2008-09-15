@@ -367,9 +367,8 @@ lpt_attach(device_t dev)
 {
 	device_t ppbus = device_get_parent(dev);
 	struct lpt_data *sc = DEVTOSOFTC(dev);
-	int zero = 0, unit = device_get_unit(dev);
+	int rid = 0, unit = device_get_unit(dev);
 	int error;
-	intptr_t irq;
 
 	sc->sc_primed = 0;	/* not primed yet */
 
@@ -383,14 +382,9 @@ lpt_attach(device_t dev)
 	/* check if we can use interrupt, should be done by ppc stuff */
 	lprintf(("oldirq %x\n", sc->sc_irq));
 
-	/* retrieve the ppbus irq */
-	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
-
-	if (irq > 0) {
-		/* declare our interrupt handler */
-		sc->intr_resource = bus_alloc_resource(dev, SYS_RES_IRQ,
-						       &zero, irq, irq, 1, RF_SHAREABLE);
-	}
+	/* declare our interrupt handler */
+	sc->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE);
 	if (sc->intr_resource) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		device_printf(dev, "Interrupt-driven port\n");
@@ -398,7 +392,7 @@ lpt_attach(device_t dev)
 		sc->sc_irq = 0;
 		device_printf(dev, "Polled port\n");
 	}
-	lprintf(("irq %x %x\n", (int)irq, sc->sc_irq));
+	lprintf(("irq %x\n", sc->sc_irq));
 
 	lpt_release_ppbus(dev);
 

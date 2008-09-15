@@ -193,33 +193,6 @@ lp_identify(driver_t *driver, device_t parent)
 static int
 lp_probe(device_t dev)
 {
-	device_t ppbus = device_get_parent(dev);
-	struct lp_data *lp;
-	int zero = 0;
-	uintptr_t irq;
-
-	lp = DEVTOSOFTC(dev);
-
-	/* retrieve the ppbus irq */
-	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
-
-	/* if we haven't interrupts, the probe fails */
-	if (irq == -1) {
-		device_printf(dev, "not an interrupt driven port, failed.\n");
-		return (ENXIO);
-	}
-
-	/* reserve the interrupt resource, expecting irq is available to continue */
-	lp->res_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1, 
-					 RF_SHAREABLE);
-	if (lp->res_irq == 0) {
-		device_printf(dev, "cannot reserve interrupt, failed.\n");
-		return (ENXIO);
-	}
-
-	/*
-	 * lp dependent initialisation.
-	 */
 
 	device_set_desc(dev, "PLIP network interface");
 
@@ -231,6 +204,18 @@ lp_attach (device_t dev)
 {
 	struct lp_data *lp = DEVTOSOFTC(dev);
 	struct ifnet *ifp;
+	int rid = 0;
+
+	/*
+	 * Reserve the interrupt resource.  If we don't have one, the
+	 * attach fails.
+	 */
+	lp->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	    RF_SHAREABLE);
+	if (lp->res_irq == 0) {
+		device_printf(dev, "cannot reserve interrupt, failed.\n");
+		return (ENXIO);
+	}
 
 	ifp = lp->sc_ifp = if_alloc(IFT_PARA);
 	if (ifp == NULL) {
