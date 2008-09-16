@@ -974,56 +974,6 @@ unlock:
  * time, these operations are halted until the suspension is over.
  */
 int
-vn_write_suspend_wait(vp, mp, flags)
-	struct vnode *vp;
-	struct mount *mp;
-	int flags;
-{
-	int error;
-
-	if (vp != NULL) {
-		if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
-			if (error != EOPNOTSUPP)
-				return (error);
-			return (0);
-		}
-	}
-	/*
-	 * If we are not suspended or have not yet reached suspended
-	 * mode, then let the operation proceed.
-	 */
-	if (mp == NULL)
-		return (0);
-	MNT_ILOCK(mp);
-	if (vp == NULL)
-		MNT_REF(mp);
-	if ((mp->mnt_kern_flag & MNTK_SUSPENDED) == 0) {
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
-		return (0);
-	}
-	if (flags & V_NOWAIT) {
-		MNT_REL(mp);
-		MNT_IUNLOCK(mp);
-		return (EWOULDBLOCK);
-	}
-	/*
-	 * Wait for the suspension to finish.
-	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-	    (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
-	vfs_rel(mp);
-	return (error);
-}
-
-/*
- * Secondary suspension. Used by operations such as vop_inactive
- * routines that are needed by the higher level functions. These
- * are allowed to proceed until all the higher level functions have
- * completed (indicated by mnt_writeopcount dropping to zero). At that
- * time, these operations are halted until the suspension is over.
- */
-int
 vn_start_secondary_write(vp, mpp, flags)
 	struct vnode *vp;
 	struct mount **mpp;
