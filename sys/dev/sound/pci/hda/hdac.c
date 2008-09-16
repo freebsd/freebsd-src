@@ -83,13 +83,18 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20080913_0111"
-#define HDA_WIDGET_PARSER_REV	2
+#define HDA_DRV_TEST_REV	"20080916_0112"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
 #define HDA_BOOTVERBOSE(stmt)	do {			\
 	if (bootverbose != 0 || snd_verbose > 3) {	\
+		stmt					\
+	}						\
+} while(0)
+
+#define HDA_BOOTHVERBOSE(stmt)	do {			\
+	if (snd_verbose > 3) {				\
 		stmt					\
 	}						\
 } while(0)
@@ -1317,7 +1322,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 		return (ENXIO);
 	}
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "    CORB size: %d\n", sc->corb_size);
 		device_printf(sc->dev, "    RIRB size: %d\n", sc->rirb_size);
 		device_printf(sc->dev, "      Streams: ISS=%d OSS=%d BSS=%d\n",
@@ -1416,7 +1421,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 		goto hdac_dma_alloc_fail;
 	}
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "%s: size=%ju -> roundsz=%ju\n",
 		    __func__, (uintmax_t)size, (uintmax_t)roundsz);
 	);
@@ -1809,7 +1814,7 @@ hdac_probe_codec(struct hdac_codec *codec)
 	startnode = HDA_PARAM_SUB_NODE_COUNT_START(subnode);
 	endnode = startnode + HDA_PARAM_SUB_NODE_COUNT_TOTAL(subnode);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "\tstartnode=%d endnode=%d\n",
 		    startnode, endnode);
 	);
@@ -3152,7 +3157,7 @@ hdac_stream_setup(struct hdac_chan *ch)
 	nid_t cad = ch->devinfo->codec->cad;
 	uint16_t fmt, dfmt;
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(ch->pdevinfo->dev,
 		    "PCMDIR_%s: Stream setup fmt=%08x speed=%d\n",
 		    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
@@ -3195,7 +3200,7 @@ hdac_stream_setup(struct hdac_chan *ch)
 
 		if (as->hpredir >= 0 && i == as->pincnt)
 			chn = 0;
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			device_printf(ch->pdevinfo->dev,
 			    "PCMDIR_%s: Stream setup nid=%d: "
 			    "fmt=0x%04x, dfmt=0x%04x\n",
@@ -3650,7 +3655,7 @@ hdac_audio_ctl_recsel_comm(struct hdac_pcm_devinfo *pdevinfo, uint32_t src, nid_
 				    HDA_AMP_MUTE_DEFAULT,
 				    HDA_AMP_VOL_DEFAULT, HDA_AMP_VOL_DEFAULT);
 			}
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(pdevinfo->dev,
 				    "Recsel (%s): nid %d source %d %s\n",
 				    hdac_audio_ctl_ossmixer_mask2allname(
@@ -3664,7 +3669,7 @@ hdac_audio_ctl_recsel_comm(struct hdac_pcm_devinfo *pdevinfo, uint32_t src, nid_
 				continue;
 			/* If we found requested source - select it and exit. */
 			hdac_widget_connection_select(w, i);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(pdevinfo->dev,
 				    "Recsel (%s): nid %d source %d select\n",
 				    hdac_audio_ctl_ossmixer_mask2allname(
@@ -3801,7 +3806,7 @@ hdac_attach(device_t dev)
 		/* TCSEL -> TC0 */
 		v = pci_read_config(dev, 0x44, 1);
 		pci_write_config(dev, 0x44, v & 0xf8, 1);
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			device_printf(dev, "TCSEL: 0x%02d -> 0x%02d\n", v,
 			    pci_read_config(dev, 0x44, 1));
 		);
@@ -3865,7 +3870,7 @@ hdac_attach(device_t dev)
 	}
 #endif
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "DMA Coherency: %s / vendor=0x%04x\n",
 		    (sc->flags & HDAC_F_DMA_NOCACHE) ?
 		    "Uncacheable" : "PCIe snoop", vendor);
@@ -3895,7 +3900,7 @@ hdac_attach(device_t dev)
 		goto hdac_attach_fail;
 
 	/* Quiesce everything */
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
 	hdac_reset(sc, 1);
@@ -3943,10 +3948,10 @@ hdac_audio_parse(struct hdac_devinfo *devinfo)
 	devinfo->function.audio.gpio = res;
 
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "         GPIO: 0x%08x\n",
-		    devinfo->function.audio.gpio);
-		device_printf(sc->dev, "               NumGPIO=%d NumGPO=%d "
+		device_printf(sc->dev, "GPIO: 0x%08x "
+		    "NumGPIO=%d NumGPO=%d "
 		    "NumGPI=%d GPIWake=%d GPIUnsol=%d\n",
+		    devinfo->function.audio.gpio,
 		    HDA_PARAM_GPIO_COUNT_NUM_GPIO(devinfo->function.audio.gpio),
 		    HDA_PARAM_GPIO_COUNT_NUM_GPO(devinfo->function.audio.gpio),
 		    HDA_PARAM_GPIO_COUNT_NUM_GPI(devinfo->function.audio.gpio),
@@ -4272,7 +4277,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	}
 	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
-		    "%d associations found\n", max);
+		    "%d associations found:\n", max);
 		for (i = 0; i < max; i++) {
 			device_printf(sc->dev,
 			    "Association %d (%d) %s%s:\n",
@@ -4282,7 +4287,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 				if (as[i].pins[j] == 0)
 					continue;
 				device_printf(sc->dev,
-				    "  Pin nid=%d seq=%d\n",
+				    " Pin nid=%d seq=%d\n",
 				    as[i].pins[j], j);
 			}
 		}
@@ -4439,7 +4444,7 @@ hdac_audio_trace_dac(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 	w = hdac_widget_get(devinfo, nid);
 	if (w == NULL || w->enable == 0)
 		return (0);
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		if (!only) {
 			device_printf(devinfo->codec->sc->dev,
 			    " %*stracing via nid %d\n",
@@ -4448,7 +4453,7 @@ hdac_audio_trace_dac(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 	);
 	/* Use only unused widgets */
 	if (w->bindas >= 0 && w->bindas != as) {
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			if (!only) {
 				device_printf(devinfo->codec->sc->dev,
 				    " %*snid %d busy by association %d\n",
@@ -4459,7 +4464,7 @@ hdac_audio_trace_dac(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 	}
 	if (dupseq < 0) {
 		if (w->bindseqmask != 0) {
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				if (!only) {
 					device_printf(devinfo->codec->sc->dev,
 					    " %*snid %d busy by seqmask %x\n",
@@ -4472,7 +4477,7 @@ hdac_audio_trace_dac(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 		/* If this is headphones - allow duplicate first pin. */
 		if (w->bindseqmask != 0 &&
 		    (w->bindseqmask & (1 << dupseq)) == 0) {
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
 				    " %*snid %d busy by seqmask %x\n",
 					depth + 1, "", w->nid, w->bindseqmask);
@@ -4524,7 +4529,7 @@ hdac_audio_trace_dac(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 		w->bindas = as;
 		w->bindseqmask |= (1 << seq);
 	}
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		if (!only) {
 			device_printf(devinfo->codec->sc->dev,
 			    " %*snid %d returned %d\n",
@@ -4550,14 +4555,14 @@ hdac_audio_trace_adc(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 	w = hdac_widget_get(devinfo, nid);
 	if (w == NULL || w->enable == 0)
 		return (0);
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
 		    " %*stracing via nid %d\n",
 			depth + 1, "", w->nid);
 	);
 	/* Use only unused widgets */
 	if (w->bindas >= 0 && w->bindas != as) {
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			device_printf(devinfo->codec->sc->dev,
 			    " %*snid %d busy by association %d\n",
 				depth + 1, "", w->nid, w->bindas);
@@ -4603,7 +4608,7 @@ hdac_audio_trace_adc(struct hdac_devinfo *devinfo, int as, int seq, nid_t nid,
 		w->bindas = as;
 		w->bindseqmask |= (1 << seq);
 	}
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
 		    " %*snid %d returned %d\n",
 			depth + 1, "", w->nid, res);
@@ -4661,14 +4666,13 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 	min = 0;
 	res = 0;
 	do {
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			device_printf(devinfo->codec->sc->dev,
 			    " Tracing pin %d with min nid %d",
 			    ases[as].pins[i], min);
 			if (hpredir >= 0)
-				printf(" and hpredir %d\n", hpredir);
-			else
-				printf("\n");
+				printf(" and hpredir %d", hpredir);
+			printf("\n");
 		);
 		/* Trace this pin taking min nid into account. */
 		res = hdac_audio_trace_dac(devinfo, as, i,
@@ -4678,16 +4682,23 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 			HDA_BOOTVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
 				    " Unable to trace pin %d seq %d with min "
-				    "nid %d hpredir %d\n",
-				    ases[as].pins[i], i, min, hpredir);
+				    "nid %d",
+				    ases[as].pins[i], i, min);
+				if (hpredir >= 0)
+					printf(" and hpredir %d", hpredir);
+				printf("\n");
 			);
 			return (0);
 		}
 		HDA_BOOTVERBOSE(
 			device_printf(devinfo->codec->sc->dev,
-			    " Pin %d traced to DAC %d%s\n",
-			    ases[as].pins[i], res,
-			    ases[as].fakeredir?" with fake redirection":"");
+			    " Pin %d traced to DAC %d",
+			    ases[as].pins[i], res);
+			if (hpredir >= 0)
+				printf(" and hpredir %d", hpredir);
+			if (ases[as].fakeredir)
+				printf(" with fake redirection");
+			printf("\n");
 		);
 		/* Trace again to mark the path */
 		hdac_audio_trace_dac(devinfo, as, i,
@@ -4727,7 +4738,7 @@ hdac_audio_trace_as_in(struct hdac_devinfo *devinfo, int as)
 			if (ases[as].pins[i] == 0)
 				continue;
 	
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
 				    " Tracing pin %d to ADC %d\n",
 				    ases[as].pins[i], j);
@@ -4738,7 +4749,7 @@ hdac_audio_trace_as_in(struct hdac_devinfo *devinfo, int as)
 				/* If we failed - return to previous and redo it. */
 				HDA_BOOTVERBOSE(
 					device_printf(devinfo->codec->sc->dev,
-					    " Unable to trace pin %d to ADC %d\n",
+					    " Unable to trace pin %d to ADC %d, undo traces\n",
 					    ases[as].pins[i], j);
 				);
 				hdac_audio_undo_trace(devinfo, as, -1);
@@ -4748,8 +4759,8 @@ hdac_audio_trace_as_in(struct hdac_devinfo *devinfo, int as)
 			}
 			HDA_BOOTVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
-				    " Traced to ADC %d\n",
-				    j);
+				    " Pin %d traced to ADC %d\n",
+				    ases[as].pins[i], j);
 			);
 			ases[as].dacs[i] = j;
 		}
@@ -4762,7 +4773,7 @@ hdac_audio_trace_as_in(struct hdac_devinfo *devinfo, int as)
 /*
  * Trace input monitor path from mixer to output association.
  */
-static nid_t
+static int
 hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 {
 	struct hdac_audio_as *ases = devinfo->function.audio.as;
@@ -4775,7 +4786,7 @@ hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 	w = hdac_widget_get(devinfo, nid);
 	if (w == NULL || w->enable == 0)
 		return (0);
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
 		    " %*stracing via nid %d\n",
 			depth + 1, "", w->nid);
@@ -4783,14 +4794,14 @@ hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 	/* Use only unused widgets */
 	if (depth > 0 && w->bindas != -1) {
 		if (w->bindas < 0 || ases[w->bindas].dir == HDA_CTL_OUT) {
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
 				    " %*snid %d found output association %d\n",
 					depth + 1, "", w->nid, w->bindas);
 			);
 			return (1);
 		} else {
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev,
 				    " %*snid %d busy by input association %d\n",
 					depth + 1, "", w->nid, w->bindas);
@@ -4833,7 +4844,7 @@ hdac_audio_trace_to_out(struct hdac_devinfo *devinfo, nid_t nid, int depth)
 	if (res)
 		w->bindas = -2;
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
 		    " %*snid %d returned %d\n",
 			depth + 1, "", w->nid, res);
@@ -4893,12 +4904,18 @@ hdac_audio_trace_as_extra(struct hdac_devinfo *devinfo)
 			continue;
 		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET)
 			continue;
-		HDA_BOOTVERBOSE(
+		HDA_BOOTHVERBOSE(
 			device_printf(devinfo->codec->sc->dev,
 			    " Tracing nid %d to out\n",
 			    j);
 		);
-		hdac_audio_trace_to_out(devinfo, w->nid, 0);
+		if (hdac_audio_trace_to_out(devinfo, w->nid, 0)) {
+			HDA_BOOTVERBOSE(
+				device_printf(devinfo->codec->sc->dev,
+				    " nid %d traced to out\n",
+				    j);
+			);
+		}
 		w->bindas = -2;
 	}
 }
@@ -4979,7 +4996,7 @@ hdac_audio_disable_nonaudio(struct hdac_devinfo *devinfo)
 		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_POWER_WIDGET ||
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_VOLUME_WIDGET) {
 			w->enable = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling nid %d due to it's"
 				    " non-audio type.\n",
@@ -5006,7 +5023,7 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
 		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE) {
 			w->enable = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling pin nid %d due"
 				    " to None connectivity.\n",
@@ -5032,7 +5049,7 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 				if (ctl->ndir == HDA_CTL_IN)
 					ctl->widget->connsenable[ctl->index] = 0;
 				done = 0;
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(devinfo->codec->sc->dev, 
 					    " Disabling ctl %d nid %d cnid %d due"
 					    " to disabled widget.\n", i,
@@ -5053,7 +5070,7 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 					cw = hdac_widget_get(devinfo, w->conns[j]);
 					if (cw == NULL || cw->enable == 0) {
 						w->connsenable[j] = 0;
-						HDA_BOOTVERBOSE(
+						HDA_BOOTHVERBOSE(
 							device_printf(devinfo->codec->sc->dev, 
 							    " Disabling nid %d connection %d due"
 							    " to disabled child widget.\n",
@@ -5076,7 +5093,7 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 			if (found == 0) {
 				w->enable = 0;
 				done = 0;
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(devinfo->codec->sc->dev, 
 					    " Disabling nid %d due to all it's"
 					    " inputs disabled.\n", w->nid);
@@ -5101,7 +5118,7 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 			if (found == 0) {
 				w->enable = 0;
 				done = 0;
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(devinfo->codec->sc->dev, 
 					    " Disabling nid %d due to all it's"
 					    " consumers disabled.\n", w->nid);
@@ -5127,7 +5144,7 @@ hdac_audio_disable_unas(struct hdac_devinfo *devinfo)
 			continue;
 		if (w->bindas == -1) {
 			w->enable = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling unassociated nid %d.\n",
 				    w->nid);
@@ -5149,7 +5166,7 @@ hdac_audio_disable_unas(struct hdac_devinfo *devinfo)
 				if (w->connsenable[j] == 0)
 					continue;
 				w->connsenable[j] = 0;
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(devinfo->codec->sc->dev, 
 					    " Disabling connection to input pin "
 					    "nid %d conn %d.\n",
@@ -5182,7 +5199,7 @@ hdac_audio_disable_unas(struct hdac_devinfo *devinfo)
 				for (j = 0; j < cw->nconns; j++) {
 					if (cw->connsenable[j] && cw->conns[j] == i) {
 						cw->connsenable[j] = 0;
-						HDA_BOOTVERBOSE(
+						HDA_BOOTHVERBOSE(
 							device_printf(devinfo->codec->sc->dev, 
 							    " Disabling connection from output pin "
 							    "nid %d conn %d cnid %d.\n",
@@ -5231,7 +5248,7 @@ hdac_audio_disable_notselected(struct hdac_devinfo *devinfo)
 			if (w->selconn < 0 || w->selconn == j)
 				continue;
 			w->connsenable[j] = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling unselected connection "
 				    "nid %d conn %d.\n",
@@ -5269,7 +5286,7 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 			if (w->bindas == cw->bindas || cw->bindas == -2)
 				continue;
 			w->connsenable[j] = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling crossassociatement connection "
 				    "nid %d conn %d cnid %d.\n",
@@ -5293,7 +5310,7 @@ hdac_audio_disable_crossas(struct hdac_devinfo *devinfo)
 			ctl->enable = 0;
 			if (ctl->ndir == HDA_CTL_IN)
 				ctl->widget->connsenable[ctl->index] = 0;
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(devinfo->codec->sc->dev, 
 				    " Disabling crossassociatement connection "
 				    "ctl %d nid %d cnid %d.\n", i,
@@ -5630,12 +5647,6 @@ hdac_audio_build_tree(struct hdac_devinfo *devinfo)
 	struct hdac_audio_as *as = devinfo->function.audio.as;
 	int j, res;
 
-	HDA_BOOTVERBOSE(
-		device_printf(devinfo->codec->sc->dev,
-		    "HWiP: HDA Widget Parser - Revision %d\n",
-		    HDA_WIDGET_PARSER_REV);
-	);
-	
 	/* Trace all associations in order of their numbers, */
 	for (j = 0; j < devinfo->function.audio.ascnt; j++) {
 		if (as[j].enable == 0)
@@ -6161,7 +6172,7 @@ hdac_dump_audio_formats(device_t dev, uint32_t fcap, uint32_t pcmcap)
 	cap = fcap;
 	if (cap != 0) {
 		device_printf(dev, "     Stream cap: 0x%08x\n", cap);
-		device_printf(dev, "         Format:");
+		device_printf(dev, "                ");
 		if (HDA_PARAM_SUPP_STREAM_FORMATS_AC3(cap))
 			printf(" AC3");
 		if (HDA_PARAM_SUPP_STREAM_FORMATS_FLOAT32(cap))
@@ -6173,7 +6184,7 @@ hdac_dump_audio_formats(device_t dev, uint32_t fcap, uint32_t pcmcap)
 	cap = pcmcap;
 	if (cap != 0) {
 		device_printf(dev, "        PCM cap: 0x%08x\n", cap);
-		device_printf(dev, "       PCM size:");
+		device_printf(dev, "                ");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_8BIT(cap))
 			printf(" 8");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_16BIT(cap))
@@ -6184,8 +6195,7 @@ hdac_dump_audio_formats(device_t dev, uint32_t fcap, uint32_t pcmcap)
 			printf(" 24");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_32BIT(cap))
 			printf(" 32");
-		printf("\n");
-		device_printf(dev, "       PCM rate:");
+		printf(" bits,");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_8KHZ(cap))
 			printf(" 8");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_11KHZ(cap))
@@ -6207,17 +6217,16 @@ hdac_dump_audio_formats(device_t dev, uint32_t fcap, uint32_t pcmcap)
 			printf(" 176");
 		if (HDA_PARAM_SUPP_PCM_SIZE_RATE_192KHZ(cap))
 			printf(" 192");
-		printf("\n");
+		printf(" KHz\n");
 	}
 }
 
 static void
 hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 {
-	uint32_t pincap, wcap;
+	uint32_t pincap;
 
 	pincap = w->wclass.pin.cap;
-	wcap = w->param.widget_cap;
 
 	device_printf(sc->dev, "        Pin cap: 0x%08x\n", pincap);
 	device_printf(sc->dev, "                ");
@@ -6251,8 +6260,6 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 	}
 	if (HDA_PARAM_PIN_CAP_EAPD_CAP(pincap))
 		printf(" EAPD");
-	if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(wcap))
-		printf(" : UNSOL");
 	printf("\n");
 	device_printf(sc->dev, "     Pin config: 0x%08x\n",
 	    w->wclass.pin.config);
@@ -6273,7 +6280,7 @@ hdac_dump_pin_config(struct hdac_widget *w, uint32_t conf)
 {
 	struct hdac_softc *sc = w->devinfo->codec->sc;
 
-	device_printf(sc->dev, "nid %d 0x%08x as %2d seq %2d %13s %5s "
+	device_printf(sc->dev, " nid %d 0x%08x as %2d seq %2d %13s %5s "
 	    "jack %2d loc %2d color %7s misc %d%s\n",
 	    w->nid, conf,
 	    HDA_CONFIG_DEFAULTCONF_ASSOCIATION(conf),
@@ -6341,22 +6348,40 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 			continue;
 		}
 		device_printf(sc->dev, "\n");
-		device_printf(sc->dev, "            nid: %d [%s]%s\n", w->nid,
-		    HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap) ?
-		    "DIGITAL" : "ANALOG",
+		device_printf(sc->dev, "            nid: %d%s\n", w->nid,
 		    (w->enable == 0) ? " [DISABLED]" : "");
-		device_printf(sc->dev, "           name: %s\n", w->name);
-		device_printf(sc->dev, "     widget_cap: 0x%08x\n",
+		device_printf(sc->dev, "           Name: %s\n", w->name);
+		device_printf(sc->dev, "     Widget cap: 0x%08x\n",
 		    w->param.widget_cap);
-		device_printf(sc->dev, "    Parse flags: 0x%x\n",
-		    w->pflags);
-		device_printf(sc->dev, "    Association: %d (0x%08x)\n",
-		    w->bindas, w->bindseqmask);
-		device_printf(sc->dev, "            OSS: %s",
-		    hdac_audio_ctl_ossmixer_mask2allname(w->ossmask, buf, sizeof(buf)));
-		if (w->ossdev >= 0)
-		    printf(" (%s)", ossname[w->ossdev]);
-		printf("\n");
+		if (w->param.widget_cap & 0x0ee1) {
+			device_printf(sc->dev, "                ");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_LR_SWAP(w->param.widget_cap))
+			    printf(" LRSWAP");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_POWER_CTRL(w->param.widget_cap))
+			    printf(" PWR");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
+			    printf(" DIGITAL");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap))
+			    printf(" UNSOL");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_PROC_WIDGET(w->param.widget_cap))
+			    printf(" PROC");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap))
+			    printf(" STRIPE");
+			if (HDA_PARAM_AUDIO_WIDGET_CAP_STEREO(w->param.widget_cap))
+			    printf(" STEREO");
+			printf("\n");
+		}
+		if (w->bindas != -1) {
+			device_printf(sc->dev, "    Association: %d (0x%08x)\n",
+			    w->bindas, w->bindseqmask);
+		}
+		if (w->ossmask != 0 || w->ossdev >= 0) {
+			device_printf(sc->dev, "            OSS: %s",
+			    hdac_audio_ctl_ossmixer_mask2allname(w->ossmask, buf, sizeof(buf)));
+			if (w->ossdev >= 0)
+			    printf(" (%s)", ossname[w->ossdev]);
+			printf("\n");
+		}
 		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_OUTPUT ||
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
 			hdac_dump_audio_formats(sc->dev,
@@ -6374,9 +6399,10 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_IN_AMP(w->param.widget_cap) &&
 		    w->param.inamp_cap != 0)
 			hdac_dump_amp(sc, w->param.inamp_cap, " Input");
-		device_printf(sc->dev, "    connections: %d\n", w->nconns);
-		if (w->nconns > 0)
+		if (w->nconns > 0) {
+			device_printf(sc->dev, "    connections: %d\n", w->nconns);
 			device_printf(sc->dev, "          |\n");
+		}
 		for (j = 0; j < w->nconns; j++) {
 			cw = hdac_widget_get(devinfo, w->conns[j]);
 			device_printf(sc->dev, "          + %s<- nid=%d [%s]",
@@ -6929,7 +6955,7 @@ hdac_attach2(void *arg)
 
 	hdac_config_fetch(sc, &quirks_on, &quirks_off);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "HDA Config: on=0x%08x off=0x%08x\n",
 		    quirks_on, quirks_off);
 	);
@@ -6943,16 +6969,16 @@ hdac_attach2(void *arg)
 	}
 
 	/* Start the corb and rirb engines */
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "Starting CORB Engine...\n");
 	);
 	hdac_corb_start(sc);
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "Starting RIRB Engine...\n");
 	);
 	hdac_rirb_start(sc);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev,
 		    "Enabling controller interrupt...\n");
 	);
@@ -6966,7 +6992,7 @@ hdac_attach2(void *arg)
 	}
 	DELAY(1000);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev,
 		    "Scanning HDA codecs ...\n");
 	);
@@ -6980,14 +7006,18 @@ hdac_attach2(void *arg)
 			devinfo = &codec->fgs[fg_index];
 			HDA_BOOTVERBOSE(
 				device_printf(sc->dev, "\n");
+				device_printf(sc->dev,
+				    "Processing %s FG cad=%d nid=%d...\n",
+				    (devinfo->node_type == HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) ? "audio":
+				    (devinfo->node_type == HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_MODEM) ? "modem":
+				    "unknown",
+				    devinfo->codec->cad, devinfo->nid);
 			);
 			if (devinfo->node_type !=
 			    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) {
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(sc->dev,
-					    "Power down unsupported non-audio FG"
-					    " cad=%d nid=%d to the D3 state...\n",
-					    codec->cad, devinfo->nid);
+					    "Powering down...\n");
 				);
 				hdac_command(sc,
 				    HDA_CMD_SET_POWER_STATE(codec->cad,
@@ -6996,93 +7026,93 @@ hdac_attach2(void *arg)
 				continue;
 			}
 
-			HDA_BOOTVERBOSE(
-				device_printf(sc->dev,
-				    "Power up audio FG cad=%d nid=%d...\n",
-				    devinfo->codec->cad, devinfo->nid);
+			HDA_BOOTHVERBOSE(
+				device_printf(sc->dev, "Powering up...\n");
 			);
 			hdac_powerup(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Parsing audio FG...\n");
 			);
 			hdac_audio_parse(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Parsing Ctls...\n");
 			);
 		    	hdac_audio_ctl_parse(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Parsing vendor patch...\n");
 			);
 			hdac_vendor_patch_parse(devinfo);
 			devinfo->function.audio.quirks |= quirks_on;
 			devinfo->function.audio.quirks &= ~quirks_off;
 
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling nonaudio...\n");
 			);
 			hdac_audio_disable_nonaudio(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling useless...\n");
 			);
 			hdac_audio_disable_useless(devinfo);
 			HDA_BOOTVERBOSE(
 				device_printf(sc->dev, "Patched pins configuration:\n");
 				hdac_dump_pin_configs(devinfo);
+			);
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Parsing pin associations...\n");
 			);
 			hdac_audio_as_parse(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Building AFG tree...\n");
 			);
 			hdac_audio_build_tree(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling unassociated "
 				    "widgets...\n");
 			);
 			hdac_audio_disable_unas(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling nonselected "
 				    "inputs...\n");
 			);
 			hdac_audio_disable_notselected(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling useless...\n");
 			);
 			hdac_audio_disable_useless(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling "
 				    "crossassociatement connections...\n");
 			);
 			hdac_audio_disable_crossas(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling useless...\n");
 			);
 			hdac_audio_disable_useless(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Binding associations to channels...\n");
 			);
 			hdac_audio_bind_as(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Assigning names to signal sources...\n");
 			);
 			hdac_audio_assign_names(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Assigning mixers to the tree...\n");
 			);
 			hdac_audio_assign_mixers(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Preparing pin controls...\n");
 			);
 			hdac_audio_prepare_pin_ctrl(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "AFG commit...\n");
 		    	);
 			hdac_audio_commit(devinfo);
-		    	HDA_BOOTVERBOSE(
+		    	HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Ctls commit...\n");
 			);
 			hdac_audio_ctl_commit(devinfo);
-		    	HDA_BOOTVERBOSE(
+		    	HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "HP switch init...\n");
 			);
 			hdac_hp_switch_init(devinfo);
@@ -7150,8 +7180,7 @@ hdac_attach2(void *arg)
 
 			HDA_BOOTVERBOSE(
 				if (devinfo->function.audio.quirks != 0) {
-					device_printf(sc->dev, "\n");
-					device_printf(sc->dev, "HDA config/quirks:");
+					device_printf(sc->dev, "FG config/quirks:");
 					for (i = 0; i < HDAC_QUIRKS_TAB_LEN; i++) {
 						if ((devinfo->function.audio.quirks &
 						    hdac_quirks_tab[i].value) ==
@@ -7166,7 +7195,9 @@ hdac_attach2(void *arg)
 				device_printf(sc->dev, "| DUMPING HDA NODES |\n");
 				device_printf(sc->dev, "+-------------------+\n");
 				hdac_dump_nodes(devinfo);
+			);
 
+			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "\n");
 				device_printf(sc->dev, "+------------------------+\n");
 				device_printf(sc->dev, "| DUMPING HDA AMPLIFIERS |\n");
@@ -7232,14 +7263,14 @@ hdac_suspend(device_t dev)
 	struct hdac_devinfo *devinfo;
 	int codec_index, fg_index, i;
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Suspend...\n");
 	);
 
 	sc = device_get_softc(dev);
 	hdac_lock(sc);
 	
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Stop streams...\n");
 	);
 	for (i = 0; i < sc->num_chans; i++) {
@@ -7255,7 +7286,7 @@ hdac_suspend(device_t dev)
 			continue;
 		for (fg_index = 0; fg_index < codec->num_fgs; fg_index++) {
 			devinfo = &codec->fgs[fg_index];
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(dev,
 				    "Power down FG"
 				    " cad=%d nid=%d to the D3 state...\n",
@@ -7268,7 +7299,7 @@ hdac_suspend(device_t dev)
 		}
 	}
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
 	callout_stop(&sc->poll_hda);
@@ -7281,7 +7312,7 @@ hdac_suspend(device_t dev)
 	callout_drain(&sc->poll_hdac);
 	callout_drain(&sc->poll_jack);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Suspend done\n");
 	);
 
@@ -7301,7 +7332,7 @@ hdac_resume(device_t dev)
 	struct hdac_devinfo *devinfo;
 	int codec_index, fg_index, i;
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Resume...\n");
 	);
 
@@ -7309,7 +7340,7 @@ hdac_resume(device_t dev)
 	hdac_lock(sc);
 
 	/* Quiesce everything */
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Reset controller...\n");
 	);
 	hdac_reset(sc, 1);
@@ -7319,16 +7350,16 @@ hdac_resume(device_t dev)
 	hdac_rirb_init(sc);
 
 	/* Start the corb and rirb engines */
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Starting CORB Engine...\n");
 	);
 	hdac_corb_start(sc);
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Starting RIRB Engine...\n");
 	);
 	hdac_rirb_start(sc);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev,
 		    "Enabling controller interrupt...\n");
 	);
@@ -7350,7 +7381,7 @@ hdac_resume(device_t dev)
 			devinfo = &codec->fgs[fg_index];
 			if (devinfo->node_type !=
 			    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO) {
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(dev,
 					    "Power down unsupported non-audio FG"
 					    " cad=%d nid=%d to the D3 state...\n",
@@ -7363,21 +7394,21 @@ hdac_resume(device_t dev)
 				continue;
 			}
 
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(dev,
 				    "Power up audio FG cad=%d nid=%d...\n",
 				    devinfo->codec->cad, devinfo->nid);
 			);
 			hdac_powerup(devinfo);
-			HDA_BOOTVERBOSE(
+			HDA_BOOTHVERBOSE(
 				device_printf(dev, "AFG commit...\n");
 		    	);
 			hdac_audio_commit(devinfo);
-		    	HDA_BOOTVERBOSE(
+		    	HDA_BOOTHVERBOSE(
 				device_printf(dev, "Ctls commit...\n");
 			);
 			hdac_audio_ctl_commit(devinfo);
-		    	HDA_BOOTVERBOSE(
+		    	HDA_BOOTHVERBOSE(
 				device_printf(dev, "HP switch init...\n");
 			);
 			hdac_hp_switch_init(devinfo);
@@ -7386,7 +7417,7 @@ hdac_resume(device_t dev)
 			for (i = 0; i < devinfo->function.audio.num_devs; i++) {
 				struct hdac_pcm_devinfo *pdevinfo = 
 				    &devinfo->function.audio.devs[i];
-				HDA_BOOTVERBOSE(
+				HDA_BOOTHVERBOSE(
 					device_printf(pdevinfo->dev,
 					    "OSS mixer reinitialization...\n");
 				);
@@ -7398,7 +7429,7 @@ hdac_resume(device_t dev)
 		}
 	}
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Start streams...\n");
 	);
 	for (i = 0; i < sc->num_chans; i++) {
@@ -7410,7 +7441,7 @@ hdac_resume(device_t dev)
 
 	hdac_unlock(sc);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Resume done\n");
 	);
 
@@ -7542,13 +7573,13 @@ hdac_pcm_attach(device_t dev)
 	 */
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_MPSAFE);
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "OSS mixer initialization...\n");
 	);
 	if (mixer_init(dev, &hdac_audio_ctl_ossmixer_class, pdevinfo) != 0)
 		device_printf(dev, "Can't register mixer\n");
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
 	);
 	if (pcm_register(dev, pdevinfo, (pdevinfo->play >= 0)?1:0,
