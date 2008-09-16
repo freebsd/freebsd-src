@@ -334,7 +334,7 @@ cxgb_get_adapter_info(device_t dev)
 {
 	struct cxgb_ident *id;
 	const struct adapter_info *ai;
-      
+
 	id = cxgb_get_ident(dev);
 	if (id == NULL)
 		return (NULL);
@@ -351,7 +351,7 @@ cxgb_controller_probe(device_t dev)
 	char *ports, buf[80];
 	int nports;
 	struct adapter *sc = device_get_softc(dev);
-	
+
 	ai = cxgb_get_adapter_info(dev);
 	if (ai == NULL)
 		return (ENXIO);
