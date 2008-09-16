@@ -28,6 +28,9 @@
 #ifndef _UFS_UFS_DIRHASH_H_
 #define _UFS_UFS_DIRHASH_H_
 
+#include <sys/_lock.h>
+#include <sys/_sx.h>
+
 /*
  * For fast operations on large directories, we maintain a hash
  * that maps the file name to the offset of the directory entry within
@@ -80,7 +83,8 @@
     ((dh)->dh_hash[(slot) >> DH_BLKOFFSHIFT][(slot) & DH_BLKOFFMASK])
 
 struct dirhash {
-	struct lock dh_lock;	/* protects all fields except list & score */
+	struct sx dh_lock;	/* protects all fields except list & score */
+	int	dh_refcount;
 
 	doff_t	**dh_hash;	/* the hash array (2-level) */
 	int	dh_narrays;	/* number of entries in dh_hash */
