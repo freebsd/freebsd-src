@@ -227,7 +227,7 @@ TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, force_fw_update, CTLFLAG_RDTUN, &force_fw_update, 0,
     "update firmware even if up to date");
 
-int cxgb_use_16k_clusters = 0;
+int cxgb_use_16k_clusters = 1;
 TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
@@ -294,31 +294,6 @@ struct cxgb_ident {
 
 static int set_eeprom(struct port_info *pi, const uint8_t *data, int len, int offset);
 
-
-void
-cxgb_log_tcb(struct adapter *sc, unsigned int tid)
-{
-	char buf[TCB_SIZE];
-	uint64_t *tcb = (uint64_t *)buf;
-	int i, error;
-	struct mc7 *mem = &sc->cm;
-	
-	error = t3_mc7_bd_read(mem, tid*TCB_SIZE/8, TCB_SIZE/8, tcb);
-	if (error)
-		printf("cxgb_tcb_log failed\n");
-	
-	CTR1(KTR_CXGB, "TCB tid=%u", tid);
-	for (i = 0; i < TCB_SIZE / 32; i++) {
-		CTR5(KTR_CXGB, "%1d: %08x %08x %08x %08x",
-		    i, (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
-		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
-		tcb += 2;
-		CTR4(KTR_CXGB, "   %08x %08x %08x %08x",
-		    (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
-		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
-		tcb += 2;
-	}
-}
 
 static __inline char
 t3rev2char(struct adapter *adapter)
@@ -724,7 +699,7 @@ cxgb_free(struct adapter *sc)
 			printf("cxgb_free: DEVMAP_BIT not set\n");
 	} else
 		printf("not offloading set\n");	
-#ifdef notyet	
+#ifdef notyet
 	if (sc->flags & CXGB_OFLD_INIT)
 		cxgb_offload_deactivate(sc);
 #endif
@@ -1730,21 +1705,18 @@ offload_open(struct port_info *pi)
 {
 	struct adapter *adapter = pi->adapter;
 	struct t3cdev *tdev = &adapter->tdev;
-#ifdef notyet	
-	    T3CDEV(pi->ifp);
-#endif	
+
 	int adap_up = adapter->open_device_map & PORT_MASK;
 	int err = 0;
 
-	CTR1(KTR_CXGB, "device_map=0x%x", adapter->open_device_map); 
 	if (atomic_cmpset_int(&adapter->open_device_map,
 		(adapter->open_device_map & ~(1<<OFFLOAD_DEVMAP_BIT)),
 		(adapter->open_device_map | (1<<OFFLOAD_DEVMAP_BIT))) == 0)
 		return (0);
 
-       
 	if (!isset(&adapter->open_device_map, OFFLOAD_DEVMAP_BIT)) 
-		printf("offload_open: DEVMAP_BIT did not get set 0x%x\n", adapter->open_device_map);
+		printf("offload_open: DEVMAP_BIT did not get set 0x%x\n",
+		    adapter->open_device_map);
 	ADAPTER_LOCK(pi->adapter); 
 	if (!adap_up)
 		err = cxgb_up(adapter);
