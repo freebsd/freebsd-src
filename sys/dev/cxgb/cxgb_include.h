@@ -2,7 +2,6 @@
  *  $FreeBSD$
  */
 
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -29,7 +28,6 @@
 #include <dev/cxgb/common/cxgb_ctl_defs.h>
 #include <dev/cxgb/common/cxgb_sge_defs.h>
 #include <dev/cxgb/common/cxgb_firmware_exports.h>
-
 #include <dev/cxgb/common/jhash.h>
 #include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
 #endif
