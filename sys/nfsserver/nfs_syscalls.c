@@ -95,10 +95,9 @@ SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay, CTLFLAG_RW,
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
 	    &nfsrvw_procrastinate_v3, 0, "");
 
-static int	nfssvc_addsock(struct file *, struct sockaddr *,
-		    struct thread *);
+static int	nfssvc_addsock(struct file *, struct sockaddr *);
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
-static int	nfssvc_nfsd(struct thread *);
+static int	nfssvc_nfsd(void);
 
 extern u_long sb_max_adj;
 
@@ -166,10 +165,10 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 				return (error);
 			}
 		}
-		error = nfssvc_addsock(fp, nam, td);
+		error = nfssvc_addsock(fp, nam);
 		fdrop(fp, td);
 	} else if (uap->flag & NFSSVC_NFSD) {
-		error = nfssvc_nfsd(td);
+		error = nfssvc_nfsd();
 	} else {
 		error = ENXIO;
 	}
@@ -182,7 +181,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
  * Adds a socket to the list for servicing by nfsds.
  */
 static int
-nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
+nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 {
 	int siz;
 	struct nfssvc_sock *slp;
@@ -283,7 +282,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam, struct thread *td)
  * until it is killed by a signal.
  */
 static int
-nfssvc_nfsd(struct thread *td)
+nfssvc_nfsd()
 {
 	int siz;
 	struct nfssvc_sock *slp;
@@ -303,7 +302,6 @@ nfssvc_nfsd(struct thread *td)
 	s = splnet();
 	NFSD_LOCK();
 
-	nfsd->nfsd_td = td;
 	TAILQ_INSERT_TAIL(&nfsd_head, nfsd, nfsd_chain);
 	nfsrv_numnfsd++;
 
@@ -450,11 +448,10 @@ nfssvc_nfsd(struct thread *td)
 			if (writes_todo || (!(nd->nd_flag & ND_NFSV3) &&
 			    nd->nd_procnum == NFSPROC_WRITE &&
 			    procrastinate > 0 && !notstarted))
-			    error = nfsrv_writegather(&nd, slp,
-				nfsd->nfsd_td, &mreq);
+			    error = nfsrv_writegather(&nd, slp, &mreq);
 			else
 			    error = (*(nfsrv3_procs[nd->nd_procnum]))(nd,
-				slp, nfsd->nfsd_td, &mreq);
+				slp, &mreq);
 			NFSD_LOCK();
 			if (mreq == NULL)
 				break;

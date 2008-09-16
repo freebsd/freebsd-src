@@ -138,8 +138,7 @@ struct nfsrvstats nfsrvstats;
 SYSCTL_STRUCT(_vfs_nfsrv, NFS_NFSRVSTATS, nfsrvstats, CTLFLAG_RW,
 	&nfsrvstats, nfsrvstats, "S,nfsrvstats");
 
-static int	nfsrv_access(struct vnode *, int, struct ucred *, int,
-		    struct thread *, int);
+static int	nfsrv_access(struct vnode *, int, struct ucred *, int, int);
 static void	nfsrvw_coalesce(struct nfsrv_descript *,
 		    struct nfsrv_descript *);
 
@@ -189,7 +188,7 @@ nfsrv_lockedpair_nd(int vfs1, struct nameidata *nd)
  */
 int
 nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -224,7 +223,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	nfsmode = fxdr_unsigned(u_int32_t, *tl);
 	if ((nfsmode & NFSV3ACCESS_READ) &&
-		nfsrv_access(vp, VREAD, cred, rdonly, td, 0))
+		nfsrv_access(vp, VREAD, cred, rdonly, 0))
 		nfsmode &= ~NFSV3ACCESS_READ;
 	if (vp->v_type == VDIR)
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
@@ -232,14 +231,14 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	else
 		testmode = (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VWRITE, cred, rdonly, td, 0))
+		nfsrv_access(vp, VWRITE, cred, rdonly, 0))
 		nfsmode &= ~testmode;
 	if (vp->v_type == VDIR)
 		testmode = NFSV3ACCESS_LOOKUP;
 	else
 		testmode = NFSV3ACCESS_EXECUTE;
 	if ((nfsmode & testmode) &&
-		nfsrv_access(vp, VEXEC, cred, rdonly, td, 0))
+		nfsrv_access(vp, VEXEC, cred, rdonly, 0))
 		nfsmode &= ~testmode;
 	getret = VOP_GETATTR(vp, vap, cred);
 	vput(vp);
@@ -260,7 +259,7 @@ nfsmout:
  */
 int
 nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -313,7 +312,7 @@ nfsmout:
  */
 int
 nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -435,7 +434,7 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = EISDIR;
 			goto out;
 		} else if ((error = nfsrv_access(vp, VWRITE, cred, rdonly,
-			td, 0)) != 0)
+		    0)) != 0)
 			goto out;
 	}
 	error = VOP_SETATTR(vp, vap, cred);
@@ -471,7 +470,7 @@ nfsmout:
  */
 int
 nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -504,7 +503,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_nameiop = LOOKUP;
 	nd.ni_cnd.cn_flags = LOCKLEAF | SAVESTART | MPSAFE;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirattr, &dirattr_ret, td, pubflag);
+		&dirp, v3, &dirattr, &dirattr_ret, pubflag);
 	vfslocked = NDHASGIANT(&nd);
 
 	/*
@@ -655,7 +654,7 @@ nfsmout:
  */
 int
 nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -762,7 +761,7 @@ nfsmout:
  */
 int
 nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -827,10 +826,8 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = (vp->v_type == VDIR) ? EISDIR : EACCES;
 	}
 	if (!error) {
-		if ((error = nfsrv_access(vp, VREAD, cred, rdonly,
-		    td, 1)) != 0)
-			error = nfsrv_access(vp, VEXEC, cred,
-			    rdonly, td, 1);
+		if ((error = nfsrv_access(vp, VREAD, cred, rdonly, 1)) != 0)
+			error = nfsrv_access(vp, VEXEC, cred, rdonly, 1);
 	}
 	getret = VOP_GETATTR(vp, vap, cred);
 	if (!error)
@@ -1014,7 +1011,7 @@ nfsmout:
  */
 int
 nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -1132,7 +1129,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			error = (vp->v_type == VDIR) ? EISDIR : EACCES;
 	}
 	if (!error)
-		error = nfsrv_access(vp, VWRITE, cred, rdonly, td, 1);
+		error = nfsrv_access(vp, VWRITE, cred, rdonly, 1);
 	if (error) {
 		vput(vp);
 		vp = NULL;
@@ -1258,7 +1255,7 @@ nfsrv_samecred(struct ucred *cr1, struct ucred *cr2)
  */
 int
 nfsrv_writegather(struct nfsrv_descript **ndp, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct iovec *ivp;
 	struct mbuf *mp;
@@ -1447,8 +1444,7 @@ loop1:
 		    vp = NULL;
 		}
 		if (!error)
-		    error = nfsrv_access(vp, VWRITE, cred, rdonly,
-			td, 1);
+		    error = nfsrv_access(vp, VWRITE, cred, rdonly, 1);
 		if (nfsd->nd_stable == NFSV3WRITE_UNSTABLE)
 		    ioflags = IO_NODELOCKED;
 		else if (nfsd->nd_stable == NFSV3WRITE_DATASYNC)
@@ -1641,7 +1637,7 @@ nfsrvw_coalesce(struct nfsrv_descript *owp, struct nfsrv_descript *nfsd)
  */
 int
 nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -1699,7 +1695,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 * prior to calling nfsm_reply ( which might goto nfsmout ).
 	 */
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (dirp && !v3) {
 		vrele(dirp);
@@ -1831,7 +1827,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 */
 			nd.ni_cnd.cn_nameiop = LOOKUP;
 			nd.ni_cnd.cn_flags &= ~(LOCKPARENT);
-			nd.ni_cnd.cn_thread = td;
+			nd.ni_cnd.cn_thread = curthread;
 			nd.ni_cnd.cn_cred = cred;
 			tvfslocked = VFS_LOCK_GIANT(nd.ni_startdir->v_mount);
 			if (tvfslocked)
@@ -1853,7 +1849,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	} else {
 		if (vap->va_size != -1) {
 			error = nfsrv_access(nd.ni_vp, VWRITE,
-			    cred, (nd.ni_cnd.cn_flags & RDONLY), td, 0);
+			    cred, (nd.ni_cnd.cn_flags & RDONLY), 0);
 			if (!error) {
 				tempsize = vap->va_size;
 				VATTR_NULL(vap);
@@ -1936,7 +1932,7 @@ nfsmout:
  */
 int
 nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -1944,6 +1940,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct ucred *cred = nfsd->nd_cr;
 	struct vattr va, dirfor, diraft;
 	struct vattr *vap = &va;
+	struct thread *td = curthread;
 	u_int32_t *tl;
 	struct nameidata nd;
 	caddr_t bpos;
@@ -1987,7 +1984,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	 */
 
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (error) {
 		nfsm_reply(NFSX_WCCDATA(1));
@@ -2131,7 +2128,7 @@ nfsmout:
  */
 int
 nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -2168,7 +2165,7 @@ nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_nameiop = DELETE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | MPSAFE;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3,  &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3,  &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (dirp && !v3) {
 		vrele(dirp);
@@ -2241,7 +2238,7 @@ nfsmout:
  */
 int
 nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -2295,7 +2292,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	fromnd.ni_cnd.cn_nameiop = DELETE;
 	fromnd.ni_cnd.cn_flags = WANTPARENT | SAVESTART | MPSAFE;
 	error = nfs_namei(&fromnd, ffhp, len, slp, nam, &md,
-		&dpos, &fdirp, v3, &fdirfor, &fdirfor_ret, td, FALSE);
+		&dpos, &fdirp, v3, &fdirfor, &fdirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &fromnd);
 	if (fdirp && !v3) {
 		vrele(fdirp);
@@ -2318,7 +2315,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	tond.ni_cnd.cn_nameiop = RENAME;
 	tond.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | NOCACHE | SAVESTART | MPSAFE;
 	error = nfs_namei(&tond, tfhp, len2, slp, nam, &md,
-		&dpos, &tdirp, v3, &tdirfor, &tdirfor_ret, td, FALSE);
+		&dpos, &tdirp, v3, &tdirfor, &tdirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &tond);
 	if (tdirp && !v3) {
 		vrele(tdirp);
@@ -2474,7 +2471,7 @@ nfsmout:
  */
 int
 nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -2534,7 +2531,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_nameiop = CREATE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | MPSAFE | MPSAFE;
 	error = nfs_namei(&nd, dfhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (dirp && !v3) {
 		vrele(dirp);
@@ -2622,7 +2619,7 @@ nfsmout:
  */
 int
 nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -2663,7 +2660,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_nameiop = CREATE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | SAVESTART | MPSAFE;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (error == 0) {
 		VATTR_NULL(vap);
@@ -2728,7 +2725,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		nd.ni_cnd.cn_nameiop = LOOKUP;
 		nd.ni_cnd.cn_flags &= ~(LOCKPARENT | FOLLOW);
 		nd.ni_cnd.cn_flags |= (NOFOLLOW | LOCKLEAF);
-		nd.ni_cnd.cn_thread = td;
+		nd.ni_cnd.cn_thread = curthread;
 		nd.ni_cnd.cn_cred = cred;
 		tvfslocked = VFS_LOCK_GIANT(nd.ni_startdir->v_mount);
 		if (tvfslocked)
@@ -2805,7 +2802,7 @@ nfsmout:
  */
 int
 nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -2846,7 +2843,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_flags = LOCKPARENT | MPSAFE;
 
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (dirp && !v3) {
 		vrele(dirp);
@@ -2968,7 +2965,7 @@ nfsmout:
  */
 int
 nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -3004,7 +3001,7 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_nameiop = DELETE;
 	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | MPSAFE;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
-		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	vfslocked = nfsrv_lockedpair_nd(vfslocked, &nd);
 	if (dirp && !v3) {
 		vrele(dirp);
@@ -3127,7 +3124,7 @@ struct flrep {
 
 int
 nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -3207,7 +3204,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 #endif
 	}
 	if (!error)
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, td, 0);
+		error = nfsrv_access(vp, VEXEC, cred, rdonly, 0);
 	if (error) {
 		vput(vp);
 		vp = NULL;
@@ -3422,7 +3419,7 @@ nfsmout:
 
 int
 nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -3494,7 +3491,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = NFSERR_BAD_COOKIE;
 #endif
 	if (!error)
-		error = nfsrv_access(vp, VEXEC, cred, rdonly, td, 0);
+		error = nfsrv_access(vp, VEXEC, cred, rdonly, 0);
 	if (error) {
 		vput(vp);
 		vp = NULL;
@@ -3771,7 +3768,7 @@ nfsmout:
  */
 int
 nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -3834,7 +3831,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
-		error = VOP_FSYNC(vp, MNT_WAIT, td);
+		error = VOP_FSYNC(vp, MNT_WAIT, curthread);
 	} else {
 		/*
 		 * Locate and synchronously write any buffers that fall
@@ -3934,7 +3931,7 @@ nfsmout:
  */
 int
 nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -3968,7 +3965,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	sf = &statfs;
-	error = VFS_STATFS(vp->v_mount, sf, td);
+	error = VFS_STATFS(vp->v_mount, sf, curthread);
 	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
 	vp = NULL;
@@ -4028,7 +4025,7 @@ nfsmout:
  */
 int
 nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -4063,7 +4060,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	/* XXX Try to make a guess on the max file size. */
-	VFS_STATFS(vp->v_mount, &sb, td);
+	VFS_STATFS(vp->v_mount, &sb, curthread);
 	maxfsize = (u_quad_t)0x80000000 * sb.f_bsize - 1;
 
 	getret = VOP_GETATTR(vp, &at, cred);
@@ -4107,7 +4104,7 @@ nfsmout:
  */
 int
 nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep, *md = nfsd->nd_md;
 	struct sockaddr *nam = nfsd->nd_nam;
@@ -4182,7 +4179,7 @@ nfsmout:
 /* ARGSUSED */
 int
 nfsrv_null(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep;
 	caddr_t bpos;
@@ -4201,7 +4198,7 @@ nfsmout:
 /* ARGSUSED */
 int
 nfsrv_noop(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-    struct thread *td, struct mbuf **mrq)
+    struct mbuf **mrq)
 {
 	struct mbuf *mrep = nfsd->nd_mrep;
 	caddr_t bpos;
@@ -4235,8 +4232,8 @@ nfsmout:
  * will return EPERM instead of EACCESS. EPERM is always an error.
  */
 static int
-nfsrv_access(struct vnode *vp, int flags, struct ucred *cred,
-    int rdonly, struct thread *td, int override)
+nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
+    int override)
 {
 	struct vattr vattr;
 	int error;
@@ -4273,7 +4270,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred,
 	error = VOP_GETATTR(vp, &vattr, cred);
 	if (error)
 		return (error);
-	error = VOP_ACCESS(vp, flags, cred, td);
+	error = VOP_ACCESS(vp, flags, cred, curthread);
 	/*
 	 * Allow certain operations for the owner (reads and writes
 	 * on files that are already open).
