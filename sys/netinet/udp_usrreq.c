@@ -167,7 +167,9 @@ udp_inpcb_init(void *mem, int size, int flags)
 	    &udp_soreceive_dgram);
 	if (udp_soreceive_dgram) {
 		udp_usrreqs.pru_soreceive = soreceive_dgram;
+#ifdef INET6
 		udp6_usrreqs.pru_soreceive = soreceive_dgram;
+#endif
 	}
 	inp = mem;
 	INP_LOCK_INIT(inp, "inp", "udpinp");
