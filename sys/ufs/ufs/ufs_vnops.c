@@ -335,13 +335,12 @@ ufs_access(ap)
 				vhold(vp);
 				vn_lock(vp, LK_UPGRADE | LK_RETRY);
 				VI_LOCK(vp);
-				vdropl(vp);
 				if (vp->v_iflag & VI_DOOMED) {
-					VI_UNLOCK(vp);
+					vdropl(vp);
 					error = ENOENT;
 					goto relock;
 				}
-				VI_UNLOCK(vp);
+				vdropl(vp);
 			} else
 				relocked = 0;
 			error = getinoquota(ip);
