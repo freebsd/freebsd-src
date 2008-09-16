@@ -83,6 +83,7 @@ device		apic			# I/O APIC
 device		cpufreq
 
 # Bus support.
+device		acpi
 device		eisa
 device		pci
 
