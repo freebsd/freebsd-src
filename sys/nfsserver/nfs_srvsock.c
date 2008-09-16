@@ -104,7 +104,6 @@ static int	nfsrv_getstream(struct nfssvc_sock *, int);
 
 int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 				struct nfssvc_sock *slp,
-				struct thread *td,
 				struct mbuf **mreqp) = {
 	nfsrv_null,
 	nfsrv_getattr,
