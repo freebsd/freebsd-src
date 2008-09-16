@@ -1389,7 +1389,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 
 		if (__predict_false(mlen <= PIO_LEN)) {
 			/* pkt not undersized but fits in PIO_LEN
-			 * Indicates a TSO bug
+			 * Indicates a TSO bug at the higher levels.
 			 *
 			 */
 			DPRINTF("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
