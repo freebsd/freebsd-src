@@ -362,14 +362,12 @@ foundentry:
 					slotstatus = FOUND;
 					slotoffset = i_offset;
 					slotsize = ep->d_reclen;
-					dp->i_reclen = slotsize;
 					enduseful = dp->i_size;
 					ap->a_cnp->cn_flags |= ISWHITEOUT;
 					numdirpasses--;
 					goto notfound;
 				}
 				ino = ep->d_ino;
-				dp->i_reclen = ep->d_reclen;
 				goto found;
 			}
 		}
@@ -1005,7 +1003,7 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	int isrmdir;
 {
 	struct inode *dp;
-	struct direct *ep;
+	struct direct *ep, *rep;
 	struct buf *bp;
 	int error;
 
@@ -1026,14 +1024,19 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 	if ((error = UFS_BLKATOFF(dvp,
 	    (off_t)(dp->i_offset - dp->i_count), (char **)&ep, &bp)) != 0)
 		return (error);
+
+	/* Set 'rep' to the entry being removed. */
+	if (dp->i_count == 0)
+		rep = ep;
+	else
+		rep = (struct direct *)((char *)ep + ep->d_reclen);
 #ifdef UFS_DIRHASH
 	/*
 	 * Remove the dirhash entry. This is complicated by the fact
 	 * that `ep' is the previous entry when dp->i_count != 0.
 	 */
 	if (dp->i_dirhash != NULL)
-		ufsdirhash_remove(dp, (dp->i_count == 0) ? ep :
-		   (struct direct *)((char *)ep + ep->d_reclen), dp->i_offset);
+		ufsdirhash_remove(dp, rep, dp->i_offset);
 #endif
 	if (dp->i_count == 0) {
 		/*
@@ -1044,7 +1047,7 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 		/*
 		 * Collapse new free space into previous entry.
 		 */
-		ep->d_reclen += dp->i_reclen;
+		ep->d_reclen += rep->d_reclen;
 	}
 #ifdef UFS_DIRHASH
 	if (dp->i_dirhash != NULL)
