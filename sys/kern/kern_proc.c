@@ -506,7 +506,6 @@ pgdelete(pgrp)
 	if (tp != NULL) {
 		tty_lock(tp);
 		tty_rel_pgrp(tp, pgrp);
-		tty_unlock(tp);
 	}
 
 	mtx_destroy(&pgrp->pg_mtx);
