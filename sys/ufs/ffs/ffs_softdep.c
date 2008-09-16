@@ -41,6 +41,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ffs.h"
+#include "opt_ddb.h"
+
 /*
  * For now we want the safety net that the DEBUG flag provides.
  */
@@ -77,7 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 
-#include "opt_ffs.h"
+#include <ddb/ddb.h>
 
 #ifndef SOFTUPDATES
 
@@ -6333,5 +6336,31 @@ softdep_error(func, error)
 	/* XXX should do something better! */
 	printf("%s: got error %d while accessing filesystem\n", func, error);
 }
+
+#ifdef DDB
+
+DB_SHOW_COMMAND(inodedeps, db_show_inodedeps)
+{
+	struct inodedep_hashhead *inodedephd;
+	struct inodedep *inodedep;
+	struct fs *fs;
+	int cnt;
+
+	fs = have_addr ? (struct fs *)addr : NULL;
+	for (cnt = 0; cnt < inodedep_hash; cnt++) {
+		inodedephd = &inodedep_hashtbl[cnt];
+		LIST_FOREACH(inodedep, inodedephd, id_hash) {
+			if (fs != NULL && fs != inodedep->id_fs)
+				continue;
+			db_printf("%p fs %p st %x ino %jd inoblk %jd\n",
+			    inodedep, inodedep->id_fs, inodedep->id_state,
+			    (intmax_t)inodedep->id_ino,
+			    (intmax_t)fsbtodb(inodedep->id_fs,
+			    ino_to_fsba(inodedep->id_fs, inodedep->id_ino)));
+		}
+	}
+}
+
+#endif /* DDB */
 
 #endif /* SOFTUPDATES */
