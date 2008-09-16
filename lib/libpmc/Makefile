@@ -23,6 +23,14 @@ MAN+=	pmc_set.3
 MAN+=	pmc_start.3
 MAN+=	pmclog.3
 
+# PMC-dependent manual pages
+MAN+=	pmc.k7.3
+MAN+=	pmc.k8.3
+MAN+=	pmc.p4.3
+MAN+=	pmc.p5.3
+MAN+=	pmc.p6.3
+MAN+=	pmc.tsc.3
+
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \
 	pmc_attach.3 pmc_detach.3 \
