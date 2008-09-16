@@ -940,10 +940,13 @@ tty_rel_free(struct tty *tp)
 void
 tty_rel_pgrp(struct tty *tp, struct pgrp *pg)
 {
+	MPASS(tp->t_sessioncnt > 0);
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tp->t_pgrp == pg)
 		tp->t_pgrp = NULL;
+	
+	tty_unlock(tp);
 }
 
 void
