@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/lockmgr.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/fnv_hash.h>
@@ -47,7 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <sys/refcount.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 #include <vm/uma.h>
 
 #include <ufs/ufs/quota.h>
@@ -98,7 +99,7 @@ static uma_zone_t	ufsdirhash_zone;
 #define DIRHASH_BLKALLOC_WAITOK() 	uma_zalloc(ufsdirhash_zone, M_WAITOK)
 #define DIRHASH_BLKFREE(ptr) 		uma_zfree(ufsdirhash_zone, (ptr))
 #define	DIRHASH_ASSERT_LOCKED(dh)					\
-    lockmgr_assert(&(dh)->dh_lock, KA_LOCKED)
+    sx_assert(&(dh)->dh_lock, SA_LOCKED)
 
 /* Dirhash list; recently-used entries are near the tail. */
 static TAILQ_HEAD(, dirhash) ufsdirhash_list;
@@ -111,7 +112,12 @@ static struct mtx	ufsdirhash_mtx;
  *
  * The relationship between inode and dirhash is protected either by an
  * exclusive vnode lock or the vnode interlock where a shared vnode lock
- * may be used.  The dirhash_mtx is acquired after the dirhash lock.
+ * may be used.  The dirhash_mtx is acquired after the dirhash lock.  To
+ * handle teardown races, code wishing to lock the dirhash for an inode
+ * when using a shared vnode lock must obtain a private reference on the
+ * dirhash while holding the vnode interlock.  They can drop it once they
+ * have obtained the dirhash lock and verified that the dirhash wasn't
+ * recycled while they waited for the dirhash lock.
  *
  * ufsdirhash_build() acquires a shared lock on the dirhash when it is
  * successful.  This lock is released after a call to ufsdirhash_lookup().
@@ -122,6 +128,23 @@ static struct mtx	ufsdirhash_mtx;
  * The dirhash lock may be held across io operations.
  */
 
+static void
+ufsdirhash_hold(struct dirhash *dh)
+{
+
+	refcount_acquire(&dh->dh_refcount);
+}
+
+static void
+ufsdirhash_drop(struct dirhash *dh)
+{
+
+	if (refcount_release(&dh->dh_refcount)) {
+		sx_destroy(&dh->dh_lock);
+		free(dh, M_DIRHASH);
+	}
+}
+
 /*
  * Release the lock on a dirhash.
  */
@@ -129,7 +152,7 @@ static void
 ufsdirhash_release(struct dirhash *dh)
 {
 
-	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
+	sx_unlock(&dh->dh_lock);
 }
 
 /*
@@ -157,8 +180,9 @@ ufsdirhash_create(struct inode *ip)
 			    M_NOWAIT | M_ZERO);
 			if (ndh == NULL)
 				return (NULL);
-			lockinit(&ndh->dh_lock, PRIBIO, "dirhash", 0, 0);
-			lockmgr(&ndh->dh_lock, LK_EXCLUSIVE, NULL);
+			refcount_init(&ndh->dh_refcount, 1);
+			sx_init(&ndh->dh_lock, "dirhash");
+			sx_xlock(&ndh->dh_lock);
 		}
 		/*
 		 * Check i_dirhash.  If it's NULL just try to use a
@@ -173,31 +197,39 @@ ufsdirhash_create(struct inode *ip)
 				continue;
 			return (ndh);
 		}
-		/* Try to acquire shared on existing hashes. */
-		if (lockmgr(&dh->dh_lock, LK_SHARED | LK_INTERLOCK,
-		    VI_MTX(vp)))
-			continue;
+		ufsdirhash_hold(dh);
+		VI_UNLOCK(vp);
+
+		/* Acquire a shared lock on existing hashes. */
+		sx_slock(&dh->dh_lock);
+
 		/* The hash could've been recycled while we were waiting. */
+		VI_LOCK(vp);
 		if (ip->i_dirhash != dh) {
+			VI_UNLOCK(vp);
 			ufsdirhash_release(dh);
+			ufsdirhash_drop(dh);
 			continue;
 		}
+		VI_UNLOCK(vp);
+		ufsdirhash_drop(dh);
+
 		/* If the hash is still valid we've succeeded. */
 		if (dh->dh_hash != NULL)
 			break;
 		/*
 		 * If the hash is NULL it has been recycled.  Try to upgrade
-		 * so we can recreate it.  If we fail the upgrade another
-		 * thread must've already exclusively locked it.
+		 * so we can recreate it.  If we fail the upgrade, drop our
+		 * lock and try again.
 		 */
-		if (lockmgr(&dh->dh_lock, LK_UPGRADE | LK_SLEEPFAIL, NULL) == 0)
+		if (sx_try_upgrade(&dh->dh_lock))
 			break;
+		sx_sunlock(&dh->dh_lock);
 	}
 	/* Free the preallocated structure if it was not necessary. */
 	if (ndh) {
-		lockmgr(&ndh->dh_lock, LK_RELEASE, NULL);
-		lockdestroy(&ndh->dh_lock);
-		FREE(ndh, M_DIRHASH);
+		ufsdirhash_release(ndh);
+		ufsdirhash_drop(ndh);
 	}
 	return (dh);
 }
@@ -219,7 +251,7 @@ ufsdirhash_acquire(struct inode *ip)
 	dh = ip->i_dirhash;
 	if (dh == NULL)
 		return (NULL);
-	lockmgr(&dh->dh_lock, LK_EXCLUSIVE, 0);
+	sx_xlock(&dh->dh_lock);
 	if (dh->dh_hash != NULL)
 		return (dh);
 	ufsdirhash_free_locked(ip);
@@ -238,18 +270,34 @@ ufsdirhash_free(struct inode *ip)
 
 	vp = ip->i_vnode;
 	for (;;) {
+		/* Grab a reference on this inode's dirhash if it has one. */
 		VI_LOCK(vp);
 		dh = ip->i_dirhash;
 		if (dh == NULL) {
 			VI_UNLOCK(vp);
 			return;
 		}
-		if (lockmgr(&dh->dh_lock, LK_EXCLUSIVE | LK_INTERLOCK,
-		    VI_MTX(vp)))
-			continue;
-		if (ip->i_dirhash == dh)
+		ufsdirhash_hold(dh);
+		VI_UNLOCK(vp);
+
+		/* Exclusively lock the dirhash. */
+		sx_xlock(&dh->dh_lock);
+
+		/* If this dirhash still belongs to this inode, then free it. */
+		VI_LOCK(vp);
+		if (ip->i_dirhash == dh) {
+			VI_UNLOCK(vp);
+			ufsdirhash_drop(dh);
 			break;
+		}
+		VI_UNLOCK(vp);
+
+		/*
+		 * This inode's dirhash has changed while we were
+		 * waiting for the dirhash lock, so try again.
+		 */
 		ufsdirhash_release(dh);
+		ufsdirhash_drop(dh);
 	}
 	ufsdirhash_free_locked(ip);
 }
@@ -382,7 +430,7 @@ ufsdirhash_build(struct inode *ip)
 	TAILQ_INSERT_TAIL(&ufsdirhash_list, dh, dh_list);
 	dh->dh_onlist = 1;
 	DIRHASHLIST_UNLOCK();
-	lockmgr(&dh->dh_lock, LK_DOWNGRADE, 0);
+	sx_downgrade(&dh->dh_lock);
 	return (0);
 
 fail:
@@ -401,6 +449,7 @@ ufsdirhash_free_locked(struct inode *ip)
 	int i;
 
 	DIRHASH_ASSERT_LOCKED(ip->i_dirhash);
+
 	/*
 	 * Clear the pointer in the inode to prevent new threads from
 	 * finding the dead structure.
@@ -410,12 +459,15 @@ ufsdirhash_free_locked(struct inode *ip)
 	dh = ip->i_dirhash;
 	ip->i_dirhash = NULL;
 	VI_UNLOCK(vp);
+
 	/*
-	 * Drain waiters.  They will abort when they see that ip->i_dirhash
-	 * is NULL after locking.
+	 * At this point, any waiters for the lock should hold their
+	 * own reference on the dirhash structure.  They will drop
+	 * that reference once they grab the vnode interlock and see
+	 * that ip->i_dirhash is NULL.
 	 */
-	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
-	lockmgr(&dh->dh_lock, LK_DRAIN, 0);
+	sx_xunlock(&dh->dh_lock);
+
 	/*
 	 * Handle partially recycled as well as fully constructed hashes.
 	 */
@@ -432,14 +484,11 @@ ufsdirhash_free_locked(struct inode *ip)
 		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
 	ufs_dirhashmem -= dh->dh_memreq;
 	DIRHASHLIST_UNLOCK();
-	/*
-	 * Release the lock and reclaim datastructure memory.
-	 */
-	lockmgr(&dh->dh_lock, LK_RELEASE, 0);
-	lockdestroy(&dh->dh_lock);
-	FREE(dh, M_DIRHASH);
 
-	return;
+	/*
+	 * Drop the inode's reference to the data structure.
+	 */
+	ufsdirhash_drop(dh);
 }
 
 /*
@@ -1098,7 +1147,7 @@ ufsdirhash_recycle(int wanted)
 		 * If we can't lock it it's in use and we don't want to
 		 * recycle it anyway.
 		 */
-		if (lockmgr(&dh->dh_lock, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+		if (!sx_try_xlock(&dh->dh_lock)) {
 			dh = TAILQ_NEXT(dh, dh_list);
 			continue;
 		}
