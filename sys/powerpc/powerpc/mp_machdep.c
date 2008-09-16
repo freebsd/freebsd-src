@@ -48,6 +48,7 @@ extern struct pcpu __pcpu[MAXCPU];
 volatile static int ap_awake;
 volatile static u_int ap_state;
 volatile static uint32_t ap_decr;
+volatile static uint32_t ap_tbl;
 
 int mp_ipi_test = 0;
 
@@ -55,19 +56,21 @@ void
 machdep_ap_bootstrap(void)
 {
 
-	// __asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
-	__asm __volatile("mfspr %0,1023" : "=r"(pcpup->pc_pir));
 	pcpup->pc_awake = 1;
 
 	while (ap_state == 0)
 		;
 
+	mtspr(SPR_TBL, 0);
+	mtspr(SPR_TBU, 0);
+	mtspr(SPR_TBL, ap_tbl);
 	__asm __volatile("mtdec %0" :: "r"(ap_decr));
 
 	ap_awake++;
 
 	/* Initialize curthread. */
 	PCPU_SET(curthread, PCPU_GET(idlethread));
+	PCPU_SET(curpcb, curthread->td_pcb);
 
 	mtmsr(mfmsr() | PSL_EE);
 	sched_throw(NULL);
@@ -202,8 +205,16 @@ cpu_mp_unleash(void *dummy)
 	}
 
 	ap_awake = 1;
+
+	__asm __volatile("mftb %0" : "=r"(ap_tbl));
+	ap_tbl += 10;
 	__asm __volatile("mfdec %0" : "=r"(ap_decr));
 	ap_state++;
+	powerpc_sync();
+
+	mtspr(SPR_TBL, 0);
+	mtspr(SPR_TBU, 0);
+	mtspr(SPR_TBL, ap_tbl);
 
 	while (ap_awake < smp_cpus)
 		;
