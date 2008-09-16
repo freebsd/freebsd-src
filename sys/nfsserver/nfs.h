@@ -155,8 +155,7 @@ extern u_int32_t nfsrv_rpc_auth_unix, nfsrv_rpc_msgaccepted, nfsrv_rpc_call,
 extern const int	nfsrvv2_procid[NFS_NPROCS];
 extern const int	nfsrv_nfsv3_procid[NFS_NPROCS];
 extern int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
-		    struct nfssvc_sock *slp, struct thread *td,
-		    struct mbuf **mreqp);
+		    struct nfssvc_sock *slp, struct mbuf **mreqp);
 
 /*
  * A list of nfssvc_sock structures is maintained with all the sockets
@@ -225,7 +224,6 @@ struct nfsd {
 	u_char		nfsd_authstr[RPCAUTH_MAXSIZ]; /* Authenticator data */
 	int		nfsd_verflen;	/* and the Verifier */
 	u_char		nfsd_verfstr[RPCVERF_MAXSIZ];
-	struct thread	*nfsd_td;	/* daemon thread ptr */
 	struct nfsrv_descript *nfsd_nd;	/* Associated nfsrv_descript */
 };
 
@@ -332,8 +330,7 @@ void	nfsm_srvpostopattr(struct nfsrv_descript *, int, struct vattr *,
 int	netaddr_match(int, union nethostaddr *, struct sockaddr *);
 int	nfs_namei(struct nameidata *, fhandle_t *, int,
 	    struct nfssvc_sock *, struct sockaddr *, struct mbuf **,
-	    caddr_t *, struct vnode **, int, struct vattr *, int *,
-	    struct thread *, int);
+	    caddr_t *, struct vnode **, int, struct vattr *, int *, int);
 void	nfsm_adj(struct mbuf *, int, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
 void	nfsrv_initcache(void);
@@ -349,59 +346,59 @@ int	nfsrv_errmap(struct nfsrv_descript *, int);
 void	nfsrvw_sort(gid_t *, int);
 void	nfsrv_wakenfsd(struct nfssvc_sock *slp);
 int	nfsrv_writegather(struct nfsrv_descript **, struct nfssvc_sock *,
-	    struct thread *, struct mbuf **);
+	    struct mbuf **);
 
 int	nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *, struct ucred *,
 	    struct nfssvc_sock *, struct sockaddr *, int *, int);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,
 	    struct export_args *);
 int	nfs_ispublicfh(fhandle_t *);
 int	nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_getattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_noop(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_null(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_pathconf(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_remove(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 int	nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
-	    struct thread *td, struct mbuf **mrq);
+	    struct mbuf **mrq);
 void	nfsrv_rcv(struct socket *so, void *arg, int waitflag);
 void	nfsrv_slpderef(struct nfssvc_sock *slp);
 #endif	/* _KERNEL */
