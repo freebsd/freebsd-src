@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 #include "opt_ufs.h"
 #include "opt_ffs.h"
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -70,6 +71,8 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
+
+#include <ddb/ddb.h>
 
 static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
@@ -1863,3 +1866,35 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 	}
 	g_vfs_strategy(bo, bp);
 }
+
+#ifdef	DDB
+
+static void
+db_print_ffs(struct ufsmount *ump)
+{
+	db_printf("mp %p %s devvp %p fs %p su_wl %d su_wl_in %d su_deps %d "
+		  "su_req %d\n",
+	    ump->um_mountp, ump->um_mountp->mnt_stat.f_mntonname,
+	    ump->um_devvp, ump->um_fs, ump->softdep_on_worklist,
+	    ump->softdep_on_worklist_inprogress, ump->softdep_deps,
+	    ump->softdep_req);
+}
+
+DB_SHOW_COMMAND(ffs, db_show_ffs)
+{
+	struct mount *mp;
+	struct ufsmount *ump;
+
+	if (have_addr) {
+		ump = VFSTOUFS((struct mount *)addr);
+		db_print_ffs(ump);
+		return;
+	}
+
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		if (!strcmp(mp->mnt_stat.f_fstypename, ufs_vfsconf.vfc_name))
+			db_print_ffs(VFSTOUFS(mp));
+	}
+}
+
+#endif	/* DDB */
