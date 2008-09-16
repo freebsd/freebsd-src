@@ -3903,9 +3903,10 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
-	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd\n",
+	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_dep = %p\n",
 	    bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
-	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno);
+	    bp->b_bufobj, bp->b_data, (intmax_t)bp->b_blkno,
+	    bp->b_dep.lh_first);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
@@ -3933,6 +3934,28 @@ DB_SHOW_COMMAND(lockedbufs, lockedbufs)
 			db_show_buffer((uintptr_t)bp, 1, 0, NULL);
 			db_printf("\n");
 		}
+	}
+}
+
+DB_SHOW_COMMAND(vnodebufs, db_show_vnodebufs)
+{
+	struct vnode *vp;
+	struct buf *bp;
+
+	if (!have_addr) {
+		db_printf("usage: show vnodebufs <addr>\n");
+		return;
+	}
+	vp = (struct vnode *)addr;
+	db_printf("Clean buffers:\n");
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_clean.bv_hd, b_bobufs) {
+		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
+		db_printf("\n");
+	}
+	db_printf("Dirty buffers:\n");
+	TAILQ_FOREACH(bp, &vp->v_bufobj.bo_dirty.bv_hd, b_bobufs) {
+		db_show_buffer((uintptr_t)bp, 1, 0, NULL);
+		db_printf("\n");
 	}
 }
 #endif /* DDB */

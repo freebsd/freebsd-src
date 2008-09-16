@@ -610,6 +610,13 @@ See the
 header file for more details on the exact meaning of the structure fields.
 .\"
 .Pp
+.It Ic show Cm ffs Op Ar addr
+Show brief information about ffs mount at the address
+.Ar addr ,
+if argument is given.
+Otherwise, provides the summary about each ffs mount.
+.\"
+.Pp
 .It Ic show Cm file Ar addr
 Show information about the file structure
 .Vt struct file
@@ -640,6 +647,14 @@ Show IDT layout.
 The first column specifies the IDT vector.
 The second one is the name of the interrupt/trap handler.
 Those functions are machine dependent.
+.\"
+.Pp
+.It Ic show Cm inodedeps Op Ar addr
+Show brief information about each inodedep structure.
+If
+.Ar addr
+is given, only inodedeps belonging to the fs located at the
+supplied address are shown.
 .\"
 .Pp
 .It Ic show Cm inpcb Ar addr
@@ -1017,6 +1032,11 @@ structure lying at
 For the exact interpretation of the output, look at the
 .Pa sys/vnode.h
 header file.
+.\"
+.Pp
+.It Ic show Cm vnodebufs Ar addr
+Shows clean/dirty buffer lists of the vnode located at
+.Ar addr .
 .\"
 .Pp
 .It Ic show Cm watches
