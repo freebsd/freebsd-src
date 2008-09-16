@@ -607,7 +607,7 @@ int
 nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
     struct nfssvc_sock *slp, struct sockaddr *nam, struct mbuf **mdp,
     caddr_t *dposp, struct vnode **retdirp, int v3, struct vattr *retdirattrp,
-    int *retdirattr_retp, struct thread *td, int pubflag)
+    int *retdirattr_retp, int pubflag)
 {
 	int i, rem;
 	struct mbuf *md;
@@ -765,7 +765,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 * because lookup() will dereference ni_startdir.
 	 */
 
-	cnp->cn_thread = td;
+	cnp->cn_thread = curthread;
 	VREF(dp);
 	ndp->ni_startdir = dp;
 
