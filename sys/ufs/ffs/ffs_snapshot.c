@@ -167,7 +167,6 @@ static int snapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
 static int mapacct_ufs2(struct vnode *, ufs2_daddr_t *, ufs2_daddr_t *,
     struct fs *, ufs_lbn_t, int);
 static int readblock(struct vnode *vp, struct buf *, ufs2_daddr_t);
-static void process_deferred_inactive(struct mount *);
 static void try_free_snapdata(struct vnode *devvp);
 static struct snapdata *ffs_snapdata_acquire(struct vnode *devvp);
 static int ffs_bp_snapblk(struct vnode *, struct buf *);
@@ -2375,12 +2374,14 @@ readblock(vp, bp, lbn)
 	return (bp->b_error);
 }
 
+#endif
+
 /*
  * Process file deletes that were deferred by ufs_inactive() due to
  * the file system being suspended. Transfer IN_LAZYACCESS into
  * IN_MODIFIED for vnodes that were accessed during suspension.
  */
-static void
+void
 process_deferred_inactive(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
@@ -2452,6 +2453,8 @@ process_deferred_inactive(struct mount *mp)
 	MNT_IUNLOCK(mp);
 	vn_finished_secondary_write(mp);
 }
+
+#ifndef NO_FFS_SNAPSHOT
 
 static struct snapdata *
 ffs_snapdata_alloc(void)

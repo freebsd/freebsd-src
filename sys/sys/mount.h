@@ -180,6 +180,7 @@ struct mount {
 	int		mnt_holdcntwaiters;	/* waits on hold count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
+	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension */
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
@@ -544,6 +545,7 @@ typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
 typedef	int vfs_mount_t(struct mount *mp, struct thread *td);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
+typedef void vfs_susp_clean_t(struct mount *mp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -560,6 +562,7 @@ struct vfsops {
 	vfs_uninit_t		*vfs_uninit;
 	vfs_extattrctl_t	*vfs_extattrctl;
 	vfs_sysctl_t		*vfs_sysctl;
+	vfs_susp_clean_t	*vfs_susp_clean;
 };
 
 vfs_statfs_t	__vfs_statfs;
@@ -581,6 +584,9 @@ vfs_statfs_t	__vfs_statfs;
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
 #define VFS_SYSCTL(MP, OP, REQ) \
 	(*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ)
+#define	VFS_SUSP_CLEAN(MP) \
+	({if (*(MP)->mnt_op->vfs_susp_clean != NULL)		\
+	       (*(MP)->mnt_op->vfs_susp_clean)(MP); })
 
 extern int mpsafe_vfs;
 

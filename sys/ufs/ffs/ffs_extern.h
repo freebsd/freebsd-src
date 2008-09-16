@@ -80,6 +80,7 @@ void	ffs_snapremove(struct vnode *vp);
 int	ffs_snapshot(struct mount *mp, char *snapfile);
 void	ffs_snapshot_mount(struct mount *mp);
 void	ffs_snapshot_unmount(struct mount *mp);
+void	process_deferred_inactive(struct mount *mp);
 int	ffs_syncvnode(struct vnode *vp, int waitfor);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ffs_update(struct vnode *, int);

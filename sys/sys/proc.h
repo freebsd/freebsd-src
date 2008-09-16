@@ -359,6 +359,7 @@ do {									\
 #define	TDP_INBDFLUSH	0x00100000 /* Already in BO_BDFLUSH, do not recurse */
 #define	TDP_KTHREAD	0x00200000 /* This is an official kernel thread */
 #define	TDP_CALLCHAIN	0x00400000 /* Capture thread's callchain */
+#define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
 
 /*
  * Reasons that the current thread can not be run yet.
