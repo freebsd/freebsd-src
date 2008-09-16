@@ -52,11 +52,8 @@ volatile static uint32_t ap_decr;
 int mp_ipi_test = 0;
 
 void
-machdep_ap_bootstrap(volatile uint32_t *trcp)
+machdep_ap_bootstrap(void)
 {
-
-	trcp[0] = 0x3000;
-	trcp[1] = (uint32_t)&machdep_ap_bootstrap;
 
 	// __asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
 	__asm __volatile("mfspr %0,1023" : "=r"(pcpup->pc_pir));
