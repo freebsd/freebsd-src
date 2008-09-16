@@ -90,8 +90,7 @@ ufs_inactive(ap)
 	ufs_gjournal_close(vp);
 #endif
 	if ((ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
-	    (ip->i_nlink <= 0 &&
-	     (vp->v_mount->mnt_flag & MNT_RDONLY) == 0)) {
+	    (ip->i_nlink <= 0 && !UFS_RDONLY(ip))) {
 	loop:
 		if (vn_start_secondary_write(vp, &mp, V_NOWAIT) != 0) {
 			/* Cannot delete file while file system is suspended */
@@ -121,7 +120,7 @@ ufs_inactive(ap)
 	}
 	if (ip->i_effnlink == 0 && DOINGSOFTDEP(vp))
 		softdep_releasefile(ip);
-	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
+	if (ip->i_nlink <= 0 && !UFS_RDONLY(ip)) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
