@@ -157,11 +157,6 @@ __FBSDID("$FreeBSD$");
 
 #define TODO	panic("%s: not implemented", __func__);
 
-#define	TLBIE(va)	__asm __volatile("tlbie %0" :: "r"(va))
-#define	TLBSYNC()	__asm __volatile("tlbsync");
-#define	SYNC()		__asm __volatile("sync");
-#define	EIEIO()		__asm __volatile("eieio");
-
 #define	VSID_MAKE(sr, hash)	((sr) | (((hash) & 0xfffff) << 4))
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
@@ -208,6 +203,9 @@ extern struct pmap ofw_pmap;
  * Lock for the pteg and pvo tables.
  */
 struct mtx	moea_table_mutex;
+
+/* tlbie instruction synchronization */
+static struct mtx tlbie_mtx;
 
 /*
  * PTEG data.
@@ -290,7 +288,6 @@ static void		moea_syncicache(vm_offset_t, vm_size_t);
 static boolean_t	moea_query_bit(vm_page_t, int);
 static u_int		moea_clear_bit(vm_page_t, int, int *);
 static void		moea_kremove(mmu_t, vm_offset_t);
-static void		tlbia(void);
 int		moea_pte_spill(vm_offset_t);
 
 /*
@@ -384,6 +381,29 @@ static mmu_def_t oea_mmu = {
 };
 MMU_DEF(oea_mmu);
 
+static void
+tlbie(vm_offset_t va)
+{
+
+	mtx_lock_spin(&tlbie_mtx);
+	__asm __volatile("tlbie %0" :: "r"(va));
+	__asm __volatile("tlbsync");
+	powerpc_sync();
+	mtx_unlock_spin(&tlbie_mtx);
+}
+
+static void
+tlbia(void)
+{
+	vm_offset_t va;
+ 
+	for (va = 0; va < 0x00040000; va += 0x00001000) {
+		__asm __volatile("tlbie %0" :: "r"(va));
+		powerpc_sync();
+	}
+	__asm __volatile("tlbsync");
+	powerpc_sync();
+}
 
 static __inline int
 va_to_sr(u_int *sr, vm_offset_t va)
@@ -499,10 +519,7 @@ moea_pte_clear(struct pte *pt, vm_offset_t va, int ptebit)
 	 * As shown in Section 7.6.3.2.3
 	 */
 	pt->pte_lo &= ~ptebit;
-	TLBIE(va);
-	EIEIO();
-	TLBSYNC();
-	SYNC();
+	tlbie(va);
 }
 
 static __inline void
@@ -518,9 +535,9 @@ moea_pte_set(struct pte *pt, struct pte *pvo_pt)
 	 * been saved so this routine can restore them (if desired).
 	 */
 	pt->pte_lo = pvo_pt->pte_lo;
-	EIEIO();
+	powerpc_sync();
 	pt->pte_hi = pvo_pt->pte_hi;
-	SYNC();
+	powerpc_sync();
 	moea_pte_valid++;
 }
 
@@ -534,18 +551,14 @@ moea_pte_unset(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 	/*
 	 * Force the reg & chg bits back into the PTEs.
 	 */
-	SYNC();
+	powerpc_sync();
 
 	/*
 	 * Invalidate the pte.
 	 */
 	pt->pte_hi &= ~PTE_VALID;
 
-	SYNC();
-	TLBIE(va);
-	EIEIO();
-	TLBSYNC();
-	SYNC();
+	tlbie(va);
 
 	/*
 	 * Save the reg & chg bits.
@@ -610,6 +623,7 @@ pmap_cpu_bootstrap(int ap)
 	int i;
 
 	if (ap) {
+		powerpc_sync();
 		__asm __volatile("mtdbatu 0,%0" :: "r"(battable[0].batu));
 		__asm __volatile("mtdbatl 0,%0" :: "r"(battable[0].batl));
 		isync();
@@ -634,7 +648,7 @@ pmap_cpu_bootstrap(int ap)
 
 	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
 	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
-	__asm __volatile("sync");
+	powerpc_sync();
 
 	sdr = (u_int)moea_pteg_table | (moea_pteg_mask >> 10);
 	__asm __volatile("mtsdr1 %0" :: "r"(sdr));
@@ -793,6 +807,8 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	mtx_init(&moea_table_mutex, "pmap table", NULL, MTX_DEF |
 	    MTX_RECURSE);
 
+	mtx_init(&tlbie_mtx, "tlbie", NULL, MTX_SPIN);
+
 	/*
 	 * Initialise the unmanaged pvo pool.
 	 */
@@ -947,7 +963,7 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~(PCPU_GET(cpumask));
+	pm->pm_active &= ~PCPU_GET(cpumask);
 	PCPU_SET(curpmap, NULL);
 }
 
@@ -1091,7 +1107,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((VM_PAGE_TO_PHYS(m) >= pregions[i].mr_start) &&
 		    (VM_PAGE_TO_PHYS(m) < 
 			(pregions[i].mr_start + pregions[i].mr_size))) {
-			pte_lo &= ~(PTE_I | PTE_G);
+			pte_lo = PTE_M;
 			break;
 		}
 	}
@@ -1275,7 +1291,7 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 	lo = moea_attr_fetch(m);
-	SYNC();
+	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
@@ -1346,7 +1362,7 @@ moea_kenter(mmu_t mmu, vm_offset_t va, vm_offset_t pa)
 	for (i = 0; i < pregions_sz; i++) {
 		if ((pa >= pregions[i].mr_start) &&
 		    (pa < (pregions[i].mr_start + pregions[i].mr_size))) {
-			pte_lo &= ~(PTE_I | PTE_G);
+			pte_lo = PTE_M;
 			break;
 		}
 	}	
@@ -1738,20 +1754,6 @@ static void
 moea_syncicache(vm_offset_t pa, vm_size_t len)
 {
 	__syncicache((void *)pa, len);
-}
-
-static void
-tlbia(void)
-{
-	caddr_t	i;
-
-	SYNC();
-	for (i = 0; i < (caddr_t)0x00040000; i += 0x00001000) {
-		TLBIE(i);
-		EIEIO();
-	}
-	TLBSYNC();
-	SYNC();
 }
 
 static int
@@ -2200,7 +2202,7 @@ moea_query_bit(vm_page_t m, int ptebit)
 	 * themselves.  Sync so that any pending REF/CHG bits are flushed to
 	 * the PTEs.
 	 */
-	SYNC();
+	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
@@ -2245,7 +2247,7 @@ moea_clear_bit(vm_page_t m, int ptebit, int *origbit)
 	 * table, we don't have to worry about further accesses setting the
 	 * REF/CHG bits.
 	 */
-	SYNC();
+	powerpc_sync();
 
 	/*
 	 * For each pvo entry, clear the pvo's ptebit.  If this pvo has a
@@ -2372,7 +2374,7 @@ moea_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 
 	for (tmpva = va; size > 0;) {
 		moea_kenter(mmu, tmpva, ppa);
-		TLBIE(tmpva); /* XXX or should it be invalidate-all ? */
+		tlbie(tmpva);
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		ppa += PAGE_SIZE;
