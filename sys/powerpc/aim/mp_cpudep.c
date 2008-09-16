@@ -139,18 +139,12 @@ powerpc_smp_get_bsp(struct cpuref *cpuref)
 }
 
 uint32_t
-cpudep_ap_bootstrap(volatile uint32_t *trcp)
+cpudep_ap_bootstrap(void)
 {
 	uint32_t hid, msr, sp;
 
-	trcp[0] = 0x2000;
-	trcp[1] = (uint32_t)&cpudep_ap_bootstrap;
-
 	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
 	__asm __volatile("sync");
-
-	trcp[0] = 0x2001;
-	trcp[1] = (uint32_t)pcpup;
 
 	hid = mfspr(SPR_HID0);
 	hid &= ~(HID0_ICE | HID0_DCE);
@@ -158,37 +152,22 @@ cpudep_ap_bootstrap(volatile uint32_t *trcp)
 	mtspr(SPR_HID0, hid);
 	isync();
 
-	trcp[0] = 0x2002;
-	trcp[1] = hid;
-
 	hid |= HID0_ICFI | HID0_DCFI;
 	hid |= HID0_ICE | HID0_DCE;
 	mtspr(SPR_HID0, hid);
 	isync();
 
-	trcp[0] = 0x2003;
-	trcp[1] = hid;
-
 	msr = PSL_IR | PSL_DR | PSL_ME | PSL_RI;
 	mtmsr(msr);
 	isync();
-
-	trcp[0] = 0x2004;
-	trcp[1] = msr;
 
 	hid |= HID0_NAP | HID0_DPM;
 	mtspr(SPR_HID0, hid);
 	isync();
 
-	trcp[0] = 0x2005;
-	trcp[1] = hid;
-
 	pcpup->pc_curthread = pcpup->pc_idlethread;
 	pcpup->pc_curpcb = pcpup->pc_curthread->td_pcb;
 	sp = pcpup->pc_curpcb->pcb_sp;
-
-	trcp[0] = 0x2006;
-	trcp[1] = sp;
 
 	return (sp);
 }
@@ -197,18 +176,13 @@ int
 powerpc_smp_start_cpu(struct pcpu *pc)
 {
 	phandle_t cpu;
-	volatile uint32_t *trcp;
 	volatile uint8_t *rstvec;
-	uint32_t trace;
 	int res, reset, timeout;
 
 	cpu = pc->pc_hwref;
 	res = OF_getprop(cpu, "soft-reset", &reset, sizeof(reset));
 	if (res < 0)
 		return (ENXIO);
-
-	trcp = (uint32_t *)(EXC_RST + 4);
-	trace = *trcp;
 
 	ap_pcpu = pc;
 
@@ -224,8 +198,5 @@ powerpc_smp_start_cpu(struct pcpu *pc)
 	while (!pc->pc_awake && timeout--)
 		DELAY(100);
 
-	if (!pc->pc_awake)
-		printf("XXX: timeout (trace=%x; data=%x)\n", trcp[0], trcp[1]);
-
-	return (0);
+	return ((pc->pc_awake) ? 0 : EBUSY);
 }
