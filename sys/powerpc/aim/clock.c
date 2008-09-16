@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 
 /*
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
@@ -112,10 +113,11 @@ decr_intr(struct trapframe *frame)
 		tick += ticks_per_intr;
 	mtdec(tick);
 
-	while (nticks-- > 0) {
-		if (PCPU_GET(cpuid) == 0)
+	if (PCPU_GET(cpuid) == 0) {
+		while (nticks-- > 0)
 			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
-		else
+	} else {
+		while (nticks-- > 0)
 			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
 }
@@ -184,7 +186,10 @@ mftb(void)
 static unsigned
 decr_get_timecount(struct timecounter *tc)
 {
-	return mftb();
+	register_t tb;
+
+	__asm __volatile("mftb %0" : "=r"(tb));
+	return (tb);
 }
 
 /*
