@@ -1033,7 +1033,7 @@ void
 t3_fatal_err(struct adapter *sc)
 {
 	u_int fw_status[4];
-	
+
 	if (sc->flags & FULL_INIT_DONE) {
 		t3_sge_stop(sc);
 		t3_write_reg(sc, A_XGM_TX_CTRL, 0);
@@ -1733,11 +1733,9 @@ offload_open(struct port_info *pi)
 		     adapter->params.rev == 0 ?
 		       adapter->port[0].ifp->if_mtu : 0xffff);
 	init_smt(adapter);
-
 	/* Call back all registered clients */
 	cxgb_add_clients(tdev);
 
-	
 	/* restore them in case the offload module has changed them */
 	if (err) {
 		t3_tp_set_offload_mode(adapter, 0);

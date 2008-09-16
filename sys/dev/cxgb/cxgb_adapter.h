@@ -25,7 +25,6 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
-
 $FreeBSD$
 
 ***************************************************************************/
@@ -149,7 +148,6 @@ enum {				/* adapter flags */
 };
 
 #define FL_Q_SIZE	4096
-
 #define JUMBO_Q_SIZE	1024
 #define RSPQ_Q_SIZE	1024
 #define TX_ETH_Q_SIZE	1024
