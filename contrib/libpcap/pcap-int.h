@@ -167,12 +167,36 @@ struct pcap {
 	struct pcap_md md;
 
 	/*
-	 * Read buffer.
+	 * Read buffer -- for file descriptor read buffer model.
 	 */
 	int bufsize;
 	u_char *buffer;
 	u_char *bp;
 	int cc;
+	int to_ms;
+
+	/*
+	 * Zero-copy read buffer -- for zero-copy BPF.  'buffer' above will
+	 * alternative between these two actual mmap'd buffers as required.
+	 * As there is a header on the front size of the mmap'd buffer, only
+	 * some of the buffer is exposed to libpcap as a whole via bufsize;
+	 * zbufsize is the true size.  zbuffer tracks the current zbuf
+	 * assocated with buffer so that it can be used to decide which the
+	 * next buffer to read will be.
+	 */
+	u_char *zbuf1, *zbuf2, *zbuffer;
+	u_int zbufsize;
+	u_int timeout;
+	u_int zerocopy;
+	u_int interrupted;
+	struct timespec firstsel;
+
+	/*
+	 * If there's currently a buffer being actively processed, then it is
+	 * referenced here; 'buffer' is also pointed at it, but offset by the
+	 * size of the header.
+	 */
+	struct bpf_zbuf_header *bzh;
 
 	/*
 	 * Place holder for pcap_next().
