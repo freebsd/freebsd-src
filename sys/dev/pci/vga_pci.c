@@ -46,6 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+struct vga_pci_softc {
+	device_t	vga_msi_child;	/* Child driver using MSI. */
+};
+
 static int
 vga_pci_probe(device_t dev)
 {
@@ -176,6 +180,21 @@ vga_pci_disable_io(device_t dev, device_t child, int space)
 }
 
 static int
+vga_pci_get_vpd_ident(device_t dev, device_t child, const char **identptr)
+{
+
+	return (pci_get_vpd_ident(dev, identptr));
+}
+
+static int
+vga_pci_get_vpd_readonly(device_t dev, device_t child, const char *kw,
+    const char **vptr)
+{
+
+	return (pci_get_vpd_readonly(dev, kw, vptr));
+}
+
+static int
 vga_pci_set_powerstate(device_t dev, device_t child, int state)
 {
 
@@ -210,6 +229,77 @@ vga_pci_find_extcap(device_t dev, device_t child, int capability,
 	return (pci_find_extcap(dev, capability, capreg));
 }
 
+static int
+vga_pci_alloc_msi(device_t dev, device_t child, int *count)
+{
+	struct vga_pci_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_msi_child != NULL)
+		return (EBUSY);
+	error = pci_alloc_msi(dev, count);
+	if (error == 0)
+		sc->vga_msi_child = child;
+	return (error);
+}
+
+static int
+vga_pci_alloc_msix(device_t dev, device_t child, int *count)
+{
+	struct vga_pci_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_msi_child != NULL)
+		return (EBUSY);
+	error = pci_alloc_msix(dev, count);
+	if (error == 0)
+		sc->vga_msi_child = child;
+	return (error);
+}
+
+static int
+vga_pci_remap_msix(device_t dev, device_t child, int count,
+    const u_int *vectors)
+{
+	struct vga_pci_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_msi_child != child)
+		return (ENXIO);
+	return (pci_remap_msix(dev, count, vectors));
+}
+
+static int
+vga_pci_release_msi(device_t dev, device_t child)
+{
+	struct vga_pci_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+	if (sc->vga_msi_child != child)
+		return (ENXIO);
+	error = pci_release_msi(dev);
+	if (error == 0)
+		sc->vga_msi_child = NULL;
+	return (error);
+}
+
+static int
+vga_pci_msi_count(device_t dev, device_t child)
+{
+
+	return (pci_msi_count(dev));
+}
+
+static int
+vga_pci_msix_count(device_t dev, device_t child)
+{
+
+	return (pci_msix_count(dev));
+}
+
 static device_method_t vga_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		vga_pci_probe),
@@ -236,10 +326,18 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(pci_disable_busmaster, vga_pci_disable_busmaster),
 	DEVMETHOD(pci_enable_io,	vga_pci_enable_io),
 	DEVMETHOD(pci_disable_io,	vga_pci_disable_io),
+	DEVMETHOD(pci_get_vpd_ident,	vga_pci_get_vpd_ident),
+	DEVMETHOD(pci_get_vpd_readonly,	vga_pci_get_vpd_readonly),
 	DEVMETHOD(pci_get_powerstate,	vga_pci_get_powerstate),
 	DEVMETHOD(pci_set_powerstate,	vga_pci_set_powerstate),
 	DEVMETHOD(pci_assign_interrupt,	vga_pci_assign_interrupt),
 	DEVMETHOD(pci_find_extcap,	vga_pci_find_extcap),
+	DEVMETHOD(pci_alloc_msi,	vga_pci_alloc_msi),
+	DEVMETHOD(pci_alloc_msix,	vga_pci_alloc_msix),
+	DEVMETHOD(pci_remap_msix,	vga_pci_remap_msix),
+	DEVMETHOD(pci_release_msi,	vga_pci_release_msi),
+	DEVMETHOD(pci_msi_count,	vga_pci_msi_count),
+	DEVMETHOD(pci_msix_count,	vga_pci_msix_count),
 
 	{ 0, 0 }
 };
@@ -247,7 +345,7 @@ static device_method_t vga_pci_methods[] = {
 static driver_t vga_pci_driver = {
 	"vgapci",
 	vga_pci_methods,
-	1,
+	sizeof(struct vga_pci_softc),
 };
 
 static devclass_t vga_devclass;
