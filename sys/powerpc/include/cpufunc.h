@@ -158,7 +158,7 @@ powerpc_get_pcpup(void)
 {
 	struct pcpu	*ret;
 
-	__asm ("mfsprg %0, 0" : "=r"(ret));
+	__asm __volatile("mfsprg %0, 0" : "=r"(ret));
 
 	return(ret);
 }
