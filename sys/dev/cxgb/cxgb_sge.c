@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -375,7 +375,7 @@ t3_sge_prep(adapter_t *adap, struct sge_params *p)
 
 	while (!powerof2(fl_q_size))
 		fl_q_size--;
-#if __FreeBSD_version > 800000
+#if __FreeBSD_version >= 700111
 	if (cxgb_use_16k_clusters) 
 		jumbo_q_size = min(nmbjumbo16/(3*nqsets), JUMBO_Q_SIZE);
 	else
@@ -1388,8 +1388,11 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 		hdr->lso_info = htonl(tso_info);
 
 		if (__predict_false(mlen <= PIO_LEN)) {
-			/* pkt not undersized but fits in PIO_LEN */
-			printf("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
+			/* pkt not undersized but fits in PIO_LEN
+			 * Indicates a TSO bug
+			 *
+			 */
+			DPRINTF("**5592 Fix** mbuf=%p,len=%d,tso_segsz=%d,csum_flags=%#x,flags=%#x",
 			    m0, mlen, m0->m_pkthdr.tso_segsz, m0->m_pkthdr.csum_flags, m0->m_flags);
 			txq_prod(txq, 1, &txqs);
 			m_copydata(m0, 0, mlen, (caddr_t)&txd->flit[3]);
@@ -2022,9 +2025,6 @@ calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
 	flits = m->m_len / 8;
 
 	ndescs = flits_to_desc(flits + sgl_len(cnt));
-
-	CTR4(KTR_CXGB, "flits=%d sgl_len=%d nsegs=%d ndescs=%d",
-	    flits, sgl_len(cnt), nsegs, ndescs);
 
 	return (ndescs);
 }

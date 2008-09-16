@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockstate.h>
 #include <sys/sockopt.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/sockbuf.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
