@@ -44,6 +44,7 @@ static const char rcsid[] _U_ =
 #include <pcap-stdinc.h>
 #else /* WIN32 */
 #include <sys/types.h>
+#include <sys/mman.h>
 #endif /* WIN32 */
 
 #include <stdio.h>
@@ -738,6 +739,24 @@ pcap_stats_dead(pcap_t *p, struct pcap_stat *ps _U_)
 void
 pcap_close_common(pcap_t *p)
 {
+#ifdef BIOCSETBUFMODE
+	/*
+	 * Check to see if this pcap instance was using the zerocopy buffer
+	 * mode.  If it was, delete the mappings.  Note that p->buffer
+	 * gets initialized to one of the mmaped regions in this case, so
+	 * do not try and free it directly.
+	 *
+	 * If the regular buffer mode was selected, then it is safe to free
+	 * this memory.
+	 */
+	if (p->zerocopy) {
+		if (p->zbuf1 != MAP_FAILED && p->zbuf1 != NULL)
+			munmap(p->zbuf1, p->zbufsize);
+		if (p->zbuf2 != MAP_FAILED && p->zbuf2 != NULL)
+			munmap(p->zbuf2, p->zbufsize);
+		p->buffer = NULL;
+	} else
+#endif
 	if (p->buffer != NULL)
 		free(p->buffer);
 #if !defined(WIN32) && !defined(MSDOS)
