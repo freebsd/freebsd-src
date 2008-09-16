@@ -192,7 +192,7 @@ static struct pmc_event_alias k7_aliases[] = {
 	EV_ALIAS("branches",		"k7-retired-branches"),
 	EV_ALIAS("branch-mispredicts",	"k7-retired-branches-mispredicted"),
 	EV_ALIAS("cycles",		"tsc"),
-	EV_ALIAS("dc-misses",		"k7-dc-misses,mask=moesi"),
+	EV_ALIAS("dc-misses",		"k7-dc-misses"),
 	EV_ALIAS("ic-misses",		"k7-ic-misses"),
 	EV_ALIAS("instructions",	"k7-retired-instructions"),
 	EV_ALIAS("interrupts",		"k7-hardware-interrupts"),
