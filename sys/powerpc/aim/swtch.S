@@ -111,13 +111,13 @@ ENTRY(cpu_switch)
 	bl	pmap_deactivate		/* Deactivate the current pmap */
 
 cpu_switchin:
-	mr	%r3,%r15		/* Get new thread ptr */
-	bl	pmap_activate		/* Activate the new address space */
-
 	mfsprg	%r7,0			/* Get the pcpu pointer */
 	stw	%r15,PC_CURTHREAD(%r7)	/* Store new current thread */
 	lwz	%r17,TD_PCB(%r15)	/* Store new current PCB */
 	stw	%r17,PC_CURPCB(%r7)
+
+	mr	%r3,%r15		/* Get new thread ptr */
+	bl	pmap_activate		/* Activate the new address space */
 
 	lwz	%r6, PCB_FLAGS(%r17)
 	/* Restore FPU context if needed */
