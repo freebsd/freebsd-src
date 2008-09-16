@@ -481,7 +481,6 @@ ext2_inactive(ap)
 	if (ip->i_mode == 0)
 		goto out;
 	if (ip->i_nlink <= 0) {
-		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 		error = ext2_truncate(vp, (off_t)0, 0, NOCRED, td);
 		ip->i_rdev = 0;
 		mode = ip->i_mode;
@@ -489,15 +488,8 @@ ext2_inactive(ap)
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		ext2_vfree(vp, ip->i_number, mode);
 	}
-	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) {
-		if ((ip->i_flag & (IN_CHANGE | IN_UPDATE | IN_MODIFIED)) == 0 &&
-		    vn_write_suspend_wait(vp, NULL, V_NOWAIT)) {
-			ip->i_flag &= ~IN_ACCESS;
-		} else {
-			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
-			ext2_update(vp, 0);
-		}
-	}
+	if (ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE))
+		ext2_update(vp, 0);
 out:
 	/*
 	 * If we are done with the inode, reclaim it
