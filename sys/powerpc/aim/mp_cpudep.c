@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/ofw_machdep.h>
 
 extern void *rstcode;
+extern register_t l2cr_config;
+extern register_t l3cr_config;
 
 void *ap_pcpu;
 
@@ -138,29 +140,123 @@ powerpc_smp_get_bsp(struct cpuref *cpuref)
 	return (powerpc_smp_fill_cpuref(cpuref, bsp));
 }
 
+static register_t
+l2_enable(void)
+{
+	register_t ccr;
+
+	ccr = mfspr(SPR_L2CR);
+	if (ccr & L2CR_L2E)
+		return (ccr);
+
+	/* Configure L2 cache. */
+	ccr = l2cr_config & ~L2CR_L2E;
+	mtspr(SPR_L2CR, ccr | L2CR_L2I);
+	do {
+		ccr = mfspr(SPR_L2CR);
+	} while (ccr & L2CR_L2I);
+	powerpc_sync();
+	mtspr(SPR_L2CR, l2cr_config);
+	powerpc_sync();
+
+	return (l2cr_config);
+}
+
+static register_t
+l3_enable(void)
+{
+	register_t ccr;
+
+	ccr = mfspr(SPR_L3CR);
+	if (ccr & L3CR_L3E)
+		return (ccr);
+
+	/* Configure L3 cache. */
+	ccr = l3cr_config & ~(L3CR_L3E | L3CR_L3I | L3CR_L3PE | L3CR_L3CLKEN);
+	mtspr(SPR_L3CR, ccr);
+	ccr |= 0x4000000;       /* Magic, but documented. */
+	mtspr(SPR_L3CR, ccr);
+	ccr |= L3CR_L3CLKEN;
+	mtspr(SPR_L3CR, ccr);
+	mtspr(SPR_L3CR, ccr | L3CR_L3I);
+	while (mfspr(SPR_L3CR) & L3CR_L3I)
+		;
+	mtspr(SPR_L3CR, ccr & ~L3CR_L3CLKEN);
+	powerpc_sync();
+	DELAY(100);
+	mtspr(SPR_L3CR, ccr);
+	powerpc_sync();
+	DELAY(100);
+	ccr |= L3CR_L3E;
+	mtspr(SPR_L3CR, ccr);
+	powerpc_sync();
+
+	return(ccr);
+}
+
+static register_t
+l1d_enable(void)
+{
+	register_t hid;
+
+	hid = mfspr(SPR_HID0);
+	if (hid & HID0_DCE)
+		return (hid);
+
+	/* Enable L1 D-cache */
+	hid |= HID0_DCE;
+	powerpc_sync();
+	mtspr(SPR_HID0, hid | HID0_DCFI);
+	powerpc_sync();
+
+	return (hid);
+}
+
+static register_t
+l1i_enable(void)
+{
+	register_t hid;
+
+	hid = mfspr(SPR_HID0);
+	if (hid & HID0_ICE)
+		return (hid);
+
+	/* Enable L1 I-cache */
+	hid |= HID0_ICE;
+	isync();
+	mtspr(SPR_HID0, hid | HID0_ICFI);
+	isync();
+
+	return (hid);
+}
+
 uint32_t
 cpudep_ap_bootstrap(void)
 {
-	uint32_t hid, msr, sp;
+	uint32_t hid, msr, reg, sp;
+
+	// reg = mfspr(SPR_MSSCR0);
+	// mtspr(SPR_MSSCR0, reg | 0x3);
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
-	__asm __volatile("sync");
+	powerpc_sync();
 
-	hid = mfspr(SPR_HID0);
-	hid &= ~(HID0_ICE | HID0_DCE);
-	hid &= ~(HID0_DOZE | HID0_NAP | HID0_SLEEP);
-	mtspr(SPR_HID0, hid);
+	__asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
+	__asm __volatile("mfspr %0,1023" : "=r"(pcpup->pc_pir));
+
+	msr = PSL_FP | PSL_IR | PSL_DR | PSL_ME | PSL_RI;
+	powerpc_sync();
 	isync();
-
-	hid |= HID0_ICFI | HID0_DCFI;
-	hid |= HID0_ICE | HID0_DCE;
-	mtspr(SPR_HID0, hid);
-	isync();
-
-	msr = PSL_IR | PSL_DR | PSL_ME | PSL_RI;
 	mtmsr(msr);
 	isync();
 
+	reg = l3_enable();
+	reg = l2_enable();
+	reg = l1d_enable();
+	reg = l1i_enable();
+
+	hid = mfspr(SPR_HID0);
+	hid &= ~(HID0_DOZE | HID0_SLEEP);
 	hid |= HID0_NAP | HID0_DPM;
 	mtspr(SPR_HID0, hid);
 	isync();
@@ -189,10 +285,10 @@ powerpc_smp_start_cpu(struct pcpu *pc)
 	rstvec = (uint8_t *)(0x80000000 + reset);
 
 	*rstvec = 4;
-	__asm __volatile("sync");
+	powerpc_sync();
 	DELAY(1);
 	*rstvec = 0;
-	__asm __volatile("sync");
+	powerpc_sync();
 
 	timeout = 1000;
 	while (!pc->pc_awake && timeout--)
