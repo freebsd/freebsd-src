@@ -55,9 +55,9 @@ int	powerpc_smp_get_bsp(struct cpuref *);
 int	powerpc_smp_next_cpu(struct cpuref *);
 int	powerpc_smp_start_cpu(struct pcpu *);
 
-void	pmap_cpu_bootstrap(volatile uint32_t *, int);
-uint32_t cpudep_ap_bootstrap(volatile uint32_t *);
-void	machdep_ap_bootstrap(volatile uint32_t *);
+void	pmap_cpu_bootstrap(int);
+uint32_t cpudep_ap_bootstrap(void);
+void	machdep_ap_bootstrap(void);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

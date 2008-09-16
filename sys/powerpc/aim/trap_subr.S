@@ -238,44 +238,16 @@
 CNAME(rstcode):
 	bl	1f
 
-	/* We use this space for tracing purposes. */
-	.long	0
-	.long	0
+	.space	124
 
 1:
-	mflr	%r2
-	mfmsr	%r3
-	stw	%r2,0(%r2)		/* trace: 0x104 - we're here. */
-	stw	%r3,4(%r2)		/* trace data: MSR */
-	sync
+	mflr	%r1
+	addi	%r1,%r1,(124-16)@l
 
-	lis	%r1,(tmpstk+TMPSTKSZ-16)@ha
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-16)@l
-
-	addi	%r3,%r2,4
-	stw	%r3,0(%r1)
-	sync
-	stw	%r3,0(%r2)		/* trace: 0x108 - stack is writable */
-	stw	%r1,4(%r2)		/* trace data: SP */
-	sync
-
-	mr	%r3,%r2
-	lis	%r4,1@l
+	lis	%r3,1@l
 	bla	CNAME(pmap_cpu_bootstrap)
-
-	addi	%r3,%r2,8
-	stw	%r3,0(%r2)		/* trace 0x10c - back from 1st call */
-	sync
-
-	mr	%r3,%r2
 	bla	CNAME(cpudep_ap_bootstrap)
 	mr	%r1,%r3
-
-	addi    %r3,%r2,12
-	stw     %r3,0(%r2)              /* trace 0x110 - back from 2nd call */
-	stw	%r1,4(%r2)		/* trace data: SP */
-
-	mr	%r3,%r2
 	bla	CNAME(machdep_ap_bootstrap)
 
 	/* Should not be reached */

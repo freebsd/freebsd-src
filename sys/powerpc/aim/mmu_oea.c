@@ -604,13 +604,10 @@ om_cmp(const void *a, const void *b)
 }
 
 void
-pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
+pmap_cpu_bootstrap(int ap)
 {
 	u_int sdr;
 	int i;
-
-	trcp[0] = 0x1000;
-	trcp[1] = (uint32_t)&pmap_cpu_bootstrap;
 
 	if (ap) {
 		__asm __volatile("mtdbatu 0,%0" :: "r"(battable[0].batu));
@@ -621,13 +618,9 @@ pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
 		isync();
 	}
 
-	trcp[0] = 0x1001;
-
 	__asm __volatile("mtdbatu 1,%0" :: "r"(battable[8].batu));
 	__asm __volatile("mtdbatl 1,%0" :: "r"(battable[8].batl));
 	isync();
-
-	trcp[0] = 0x1002;
 
 	__asm __volatile("mtibatu 1,%0" :: "r"(0));
 	__asm __volatile("mtdbatu 2,%0" :: "r"(0));
@@ -636,29 +629,18 @@ pmap_cpu_bootstrap(volatile uint32_t *trcp, int ap)
 	__asm __volatile("mtibatu 3,%0" :: "r"(0));
 	isync();
 
-	trcp[0] = 0x1003;
-
 	for (i = 0; i < 16; i++)
 		mtsrin(i << ADDR_SR_SHFT, EMPTY_SEGMENT);
-
-	trcp[0] = 0x1004;
 
 	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
 	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
 	__asm __volatile("sync");
 
-	trcp[0] = 0x1005;
-
 	sdr = (u_int)moea_pteg_table | (moea_pteg_mask >> 10);
 	__asm __volatile("mtsdr1 %0" :: "r"(sdr));
 	isync();
 
-	trcp[0] = 0x1006;
-	trcp[1] = sdr;
-
 	tlbia();
-
-	trcp[0] = 0x1007;
 }
 
 void
@@ -669,7 +651,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	int		sz;
 	int		i, j;
 	int		ofw_mappings;
-	uint32_t	trace[2];
 	vm_size_t	size, physsz, hwphyssz;
 	vm_offset_t	pa, va, off;
 
@@ -898,7 +879,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
 	kernel_pmap->pm_active = ~0;
 
-	pmap_cpu_bootstrap(trace, 0);
+	pmap_cpu_bootstrap(0);
 
 	pmap_bootstrapped++;
 
