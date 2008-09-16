@@ -646,3 +646,11 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	*countp = blocksreleased;
 	return (allerror);
 }
+
+int
+ffs_rdonly(struct inode *ip)
+{
+
+	return (ip->i_ump->um_fs->fs_ronly != 0);
+}
+
