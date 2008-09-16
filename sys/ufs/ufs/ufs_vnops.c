@@ -135,7 +135,7 @@ ufs_itimes_locked(struct vnode *vp)
 	ASSERT_VI_LOCKED(vp, __func__);
 
 	ip = VTOI(vp);
-	if ((vp->v_mount->mnt_flag & MNT_RDONLY) != 0)
+	if (UFS_RDONLY(ip))
 		goto out;
 	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
 		return;
