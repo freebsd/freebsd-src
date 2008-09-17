@@ -1,7 +1,7 @@
 /*
  *
  * Copyright (c) 2004 Christian Limpach.
- * Copyright (c) 2004-2006 Kip Macy
+ * Copyright (c) 2004-2006,2008 Kip Macy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -258,19 +258,26 @@ _xen_flush_queue(void)
 	if (__predict_true(gdtset))
 	for (i = _xpq_idx; i > 0;) {
 		if (i >= 3) {
-			CTR6(KTR_PMAP, "mmu:val: %lx ptr: %lx val: %lx ptr: %lx val: %lx ptr: %lx",
-			    (XPQ_QUEUE[i-1].val & 0xffffffff), (XPQ_QUEUE[i-1].ptr & 0xffffffff),
-			    (XPQ_QUEUE[i-2].val & 0xffffffff), (XPQ_QUEUE[i-2].ptr & 0xffffffff),
-			    (XPQ_QUEUE[i-3].val & 0xffffffff), (XPQ_QUEUE[i-3].ptr & 0xffffffff));
+			CTR6(KTR_PMAP, "mmu:val: %lx ptr: %lx val: %lx "
+			    "ptr: %lx val: %lx ptr: %lx",
+			    (XPQ_QUEUE[i-1].val & 0xffffffff),
+			    (XPQ_QUEUE[i-1].ptr & 0xffffffff),
+			    (XPQ_QUEUE[i-2].val & 0xffffffff),
+			    (XPQ_QUEUE[i-2].ptr & 0xffffffff),
+			    (XPQ_QUEUE[i-3].val & 0xffffffff),
+			    (XPQ_QUEUE[i-3].ptr & 0xffffffff));
 			    i -= 3;
 		} else if (i == 2) {
 			CTR4(KTR_PMAP, "mmu: val: %lx ptr: %lx val: %lx ptr: %lx",
-			    (XPQ_QUEUE[i-1].val & 0xffffffff), (XPQ_QUEUE[i-1].ptr & 0xffffffff),
-			    (XPQ_QUEUE[i-2].val & 0xffffffff), (XPQ_QUEUE[i-2].ptr & 0xffffffff));
+			    (XPQ_QUEUE[i-1].val & 0xffffffff),
+			    (XPQ_QUEUE[i-1].ptr & 0xffffffff),
+			    (XPQ_QUEUE[i-2].val & 0xffffffff),
+			    (XPQ_QUEUE[i-2].ptr & 0xffffffff));
 			i = 0;
 		} else {
 			CTR2(KTR_PMAP, "mmu: val: %lx ptr: %lx", 
-			    (XPQ_QUEUE[i-1].val & 0xffffffff), (XPQ_QUEUE[i-1].ptr & 0xffffffff));
+			    (XPQ_QUEUE[i-1].val & 0xffffffff),
+			    (XPQ_QUEUE[i-1].ptr & 0xffffffff));
 			i = 0;
 		}
 	}
@@ -279,7 +286,8 @@ _xen_flush_queue(void)
 		critical_exit();
 	if (__predict_false(error < 0)) {
 		for (i = 0; i < _xpq_idx; i++)
-			printf("val: %llx ptr: %llx\n", XPQ_QUEUE[i].val, XPQ_QUEUE[i].ptr);
+			printf("val: %llx ptr: %llx\n",
+			    XPQ_QUEUE[i].val, XPQ_QUEUE[i].ptr);
 		panic("Failed to execute MMU updates: %d", error);
 	}
 
@@ -389,8 +397,11 @@ _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 	if (__predict_true(gdtset))	
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
+	KASSERT((ptr & 7) == 0, ("misaligned update"));
+	
 	if (__predict_true(gdtset))
 		critical_enter();
+	
 	XPQ_QUEUE[XPQ_IDX].ptr = ((uint64_t)ptr) | MMU_NORMAL_PT_UPDATE;
 	XPQ_QUEUE[XPQ_IDX].val = (uint64_t)val;
 #ifdef INVARIANTS
@@ -792,6 +803,10 @@ shift_phys_machine(unsigned long *phys_machine, int nr_pages)
 #endif /* ADD_ISA_HOLE */
 
 extern unsigned long physfree;
+
+int pdir, curoffset;
+
+
 void
 initvalues(start_info_t *startinfo)
 { 
@@ -837,7 +852,9 @@ initvalues(start_info_t *startinfo)
 	    ((xen_start_info->nr_pt_frames) + 3 )*PAGE_SIZE;
 	printk("initvalues(): wooh - availmem=%x,%x\n", avail_space, cur_space);
 
-	printk("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n", KERNBASE,xen_start_info->pt_base, VTOPFN(xen_start_info->pt_base), xen_start_info->nr_pt_frames);
+	printk("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n",
+	    KERNBASE,xen_start_info->pt_base, VTOPFN(xen_start_info->pt_base),
+	    xen_start_info->nr_pt_frames);
 	xendebug_flags = 0; /* 0xffffffff; */
 
 	/* allocate 4 pages for bootmem allocator */
@@ -851,13 +868,13 @@ initvalues(start_info_t *startinfo)
 	/* 
 	 * pre-zero unused mapped pages - mapped on 4MB boundary
 	 */
-/*
-	bzero((char *)cur_space, (cur_space + 0x3fffff) % 0x400000);
- */
-
 #ifdef PAE
 	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
 	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
+	/*
+	 * Note that only one page directory has been allocated at this point.
+	 * Thus, if KERNBASE
+	 */
 	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
 	IdlePTDma = xpmap_ptom(VTOP(IdlePTD));
 	l3_pages = 1;
@@ -931,14 +948,25 @@ initvalues(start_info_t *startinfo)
 		PT_SET_MA(tmpva, (vm_paddr_t)0);
 	}
 	
-#ifdef PAE
-	offset = 0;
-#else	
-	offset = KPTDI;
-#endif	
+	PT_UPDATES_FLUSH();
+  
+	memcpy(((uint8_t *)IdlePTDnew) + ((unsigned int)(KERNBASE >> 18)),
+	    ((uint8_t *)IdlePTD) + ((KERNBASE >> 18) & PAGE_MASK),
+	    l1_pages*sizeof(pt_entry_t));
+
+	for (i = 0; i < 4; i++) {
+		PT_SET_MA((uint8_t *)IdlePTDnew + i*PAGE_SIZE,
+		    IdlePTDnewma[i] | PG_V);
+	}
+	xen_load_cr3(VTOP(IdlePDPTnew));
+	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
 
 	/* allocate remainder of NKPT pages */
-	for (i = l1_pages; i < NKPT; i++, cur_space += PAGE_SIZE) {
+	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages - 1; i < NKPT;
+	     i++, cur_space += PAGE_SIZE) {
+		pdir = (offset + i) / NPDEPG;
+		curoffset = ((offset + i) % NPDEPG);
+		
 		/*
 		 * make sure that all the initial page table pages
 		 * have been zeroed
@@ -947,31 +975,21 @@ initvalues(start_info_t *startinfo)
 		bzero((char *)cur_space, PAGE_SIZE);
 		PT_SET_MA(cur_space, (vm_paddr_t)0);
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
-		xen_queue_pt_update((vm_paddr_t)(IdlePTDma + (offset + i)*sizeof(vm_paddr_t)), 
+		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
+			curoffset*sizeof(vm_paddr_t)), 
 		    xpmap_ptom(VTOP(cur_space)) | PG_KERNEL);
+		PT_UPDATES_FLUSH();
 	}
 	
-	PT_UPDATES_FLUSH();
-	memcpy((uint8_t *)IdlePTDnew + 3*PAGE_SIZE, IdlePTD, PAGE_SIZE/2);
-	printk("do remapping\n");
 	for (i = 0; i < 4; i++) {
-		PT_SET_MA((uint8_t *)IdlePTDnew + i*PAGE_SIZE,
-		    IdlePTDnewma[i] | PG_V);
-	}
-	xen_load_cr3(VTOP(IdlePDPTnew));
-	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
+		pdir = (PTDPTDI + i) / NPDEPG;
+		curoffset = (PTDPTDI + i) % NPDEPG;
 
-	for (i = 0; i < 4; i++) {
-		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[2] + (PTDPTDI - 1024 + i)*sizeof(vm_paddr_t)), 
+		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
+			curoffset*sizeof(vm_paddr_t)), 
 		    IdlePTDnewma[i] | PG_V);
 	}
 
-	/* copy	NKPT pages */
-	for (i = 0; i < NKPT; i++) {
-		xen_queue_pt_update(
-			(vm_paddr_t)(IdlePTDnewma[3] + (i)*sizeof(vm_paddr_t)), 
-			    IdlePTD[i]);
-	}
 	PT_UPDATES_FLUSH();
 	
 	IdlePTD = IdlePTDnew;
