@@ -39,13 +39,14 @@
  * JMC250 PCI device ID
  */
 #define	DEVICEID_JMC250		0x0250
-#define	DEVICEREVID_JMC250	0x10
+#define	DEVICEREVID_JMC250_A0	0x00
+#define	DEVICEREVID_JMC250_A2	0x11
 
 /*
  * JMC260 PCI device ID
  */
 #define	DEVICEID_JMC260		0x0260
-#define	DEVICEREVID_JMC260	0x20
+#define	DEVICEREVID_JMC260_A0	0x00
 
 /* JMC250 PCI configuration register. */
 #define	JME_PCI_BAR0		0x10	/* 16KB memory window. */
