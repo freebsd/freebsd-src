@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.4.3
+	Original Revision: 181796
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -127,7 +127,39 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>暂无安全公告。</para>
+    <para>下列安全公告适用于 &os; &release.bugfix;。
+      如欲了解进一步的信息， 请参阅
+      <ulink url="http://security.FreeBSD.org/"></ulink> 提供的具体安全公告。</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>公告</entry>
+	    <entry>日期</entry>
+	    <entry>主题</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>2008&nbsp;年&nbsp;4&nbsp;月&nbsp;17&nbsp;日</entry>
+	    <entry><para>OpenSSH X11-转发 特权提升问题</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+		>SA-08:06.bind</ulink></entry>
+	    <entry>2008&nbsp;年&nbsp;7&nbsp;月&nbsp;13&nbsp;日</entry>
+	    <entry><para>DNS 缓存投毒问题</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
 ]]>
 
   </sect1>
@@ -153,10 +185,10 @@
       有用户观察到了包数据损坏和不稳定等现象。 一些用户报告使用这一驱动的较新版本
       (在 HEAD 上) 能够解决他们的问题， 或至少有所改善。</para>
 
-    <para>[20080229] 有用户反映， &os; 对发出 TCP 选项方式所进行的变动，
-      会导致与某些 cable modem 路由器之间的交互出现问题。
-      尽管对这一现象的原因仍在进行调查， 但目前的试验发现， 已汇入 HEAD
-      的将选项处理方式改回与 &os; 6 相同的方式改善了这一状况。</para>
+    <para>[20080229， 20080817 更新] 有用户反映， &os; 对发出 TCP 选项方式所进行的变动，
+      会导致连接出现问题。 这一问题的修正目前已汇入
+      HEAD 和 RELENG_7 以及 RELENG_7_0 分支。 更多详情请参阅勘误通知
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:02.tcp.asc">FreeBSD-EN-08:02.tcp</ulink>。</para>
 
     <para>[20080307] &os; 中的 SCTP 实现目前依赖于将 <literal>INET6</literal>
       支持联编进内核中。 我们计划在未来的版本中将这一需求去掉。</para>
