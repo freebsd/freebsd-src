@@ -2,7 +2,7 @@
 	The FreeBSD Documentation Project
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.40
+	Original Revision: 179456
 -->
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
@@ -29,6 +29,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -63,8 +64,8 @@
 	基于 Intel Itanium Processor 的计算机 (&arch.ia64;)，
 	NEC PC-9801/9821 系列 PC 及其兼容机 (&arch.pc98;)，
 	以及 &ultrasparc; 机器 (&arch.sparc64;)。
-	支持 &powerpc; (&arch.powerpc;) 和 &mips; (mips)
-	硬件架构的的版本也正在开发中。
+	支持 &arm; (&arch.arm;)、 &mips; (&arch.mips;) 和
+	&powerpc; (&arch.powerpc;) 硬件架构的的版本也正在开发中。
 	&os; 支持各种各样的外围设备，
 	可以胜任软件开发、游戏，以及提供 Internet
 	服务等的各式应用。</para>
