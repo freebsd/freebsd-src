@@ -54,7 +54,7 @@ void	ttydisc_modem(struct tty *, int);
 int	ttydisc_rint(struct tty *, char, int);
 size_t	ttydisc_rint_bypass(struct tty *, char *, size_t);
 void	ttydisc_rint_done(struct tty *);
-size_t	ttydisc_getc(struct tty *, void *buf, size_t);
+size_t	ttydisc_getc(struct tty *, void *, size_t);
 int	ttydisc_getc_uio(struct tty *, struct uio *);
 
 /* Error codes for ttydisc_rint(). */
