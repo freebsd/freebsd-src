@@ -1291,7 +1291,14 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
  */
 
 static struct pmc_event_alias p5_aliases[] = {
-	EV_ALIAS("cycles", "tsc"),
+	EV_ALIAS("branches",		"p5-taken-branches"),
+	EV_ALIAS("cycles",		"tsc"),
+	EV_ALIAS("dc-misses",		"p5-data-read-miss-or-write-miss"),
+	EV_ALIAS("ic-misses",		"p5-code-cache-miss"),
+	EV_ALIAS("instructions",	"p5-instructions-executed"),
+	EV_ALIAS("interrupts",		"p5-hardware-interrupts"),
+	EV_ALIAS("unhalted-cycles",
+	    "p5-number-of-cycles-not-in-halt-state"),
 	EV_ALIAS(NULL, NULL)
 };
 

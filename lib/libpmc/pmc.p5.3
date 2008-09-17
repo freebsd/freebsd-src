@@ -380,6 +380,21 @@ The number of writes to non-cacheable memory, including write cycles
 caused by TLB misses and I/O writes.
 This event is only allocated on counter 1.
 .El
+.Ss Event Name Aliases
+The following table shows the mapping between the PMC-independent
+aliases supported by
+.Lb libpmc
+and the underlying hardware events used.
+.Bl -column "branch-mispredicts" "Description"
+.It Em Alias Ta Em Event
+.It Li branches Ta Li p5-taken-branches
+.It Li branch-mispredicts Ta Li (unsupported)
+.It Li dc-misses Ta Li p5-data-read-miss-or-write-miss
+.It Li ic-misses Ta Li p5-code-cache-miss
+.It Li instructions Ta Li p5-instructions-executed
+.It Li interrupts Ta Li p5-hardware-interrupts
+.It Li unhalted-cycles Ta Li p5-number-of-cycles-not-in-halt-state
+.El
 .Sh SEE ALSO
 .Xr pmc 3 ,
 .Xr pmc.k7 3 ,
