@@ -256,6 +256,100 @@ Controller/Jack Sense polling interval (1-1000 ms)
 Setting this to a non-zero value dumps the current pin configuration, main
 capabilities and jack sense status to console and syslog.
 .El
+.Sh EXAMPLES
+Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example. It has two
+audio connectors on a front side, three audio connectors on a rear side and one
+internal speaker. Codec has five stereo DACs and two ADCs, all are routable to
+any pin. All codec pins are reversible.
+.Pp
+Driver reports such default pin configuration when verbose messages enabled:
+.Bd -literal
+hdac0: nid 20 0x01014020 as  2 seq  0   Line-out  Jack jack 1 loc  1 color   Green misc 0
+hdac0: nid 21 0x99130110 as  1 seq  0    Speaker Fixed jack 3 loc 25 color Unknown misc 1
+hdac0: nid 22 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
+hdac0: nid 23 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
+hdac0: nid 24 0x01a19830 as  3 seq  0        Mic  Jack jack 1 loc  1 color    Pink misc 8
+hdac0: nid 25 0x02a1983f as  3 seq 15        Mic  Jack jack 1 loc  2 color    Pink misc 8
+hdac0: nid 26 0x01813031 as  3 seq  1    Line-in  Jack jack 1 loc  1 color    Blue misc 0
+hdac0: nid 27 0x0221401f as  1 seq 15 Headphones  Jack jack 1 loc  2 color   Green misc 0
+hdac0: nid 28 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
+hdac0: nid 30 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
+hdac0: nid 31 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
+.Ed
+.Pp
+Pins with nid 21,23,28,30 and 31 are disabled due to "None" connectivity, so
+total pin count matches - six. All present pins by default are grouped into 3
+associations:
+.Bd -literal
+hdac0: Association 0 (1) out:
+hdac0:   Pin nid=21 seq=0
+hdac0:   Pin nid=27 seq=15
+hdac0: Association 1 (2) out:
+hdac0:   Pin nid=20 seq=0
+hdac0: Association 2 (3) in:
+hdac0:   Pin nid=24 seq=0
+hdac0:   Pin nid=26 seq=1
+hdac0:   Pin nid=25 seq=15
+.Ed
+.Pp
+It means that by default pcm0 device will play to the internal speaker and
+headphones jack with speaker automute on headphones connection.
+Recording on pcm0 will go from two external microphones and line-in jack.
+pcm1 playback will go to the Line-out jack.
+.Ss Example 1
+Setting
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1"
+hint.hdac.0.cad0.nid21.config="as=2"
+.Ed
+.Pp
+will swap line-out and speacker functions. So pcm0 device will play to the
+line-out and headphones jacks with line-out automute on headphones connection.
+Recording on pcm0 will go from two external microphones and line-in jacks.
+pcm1 playback will go to the internal speaker.
+.Pp
+.Ss Example 2
+Setting
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=15 device=Headphones"
+hint.hdac.0.cad0.nid27.config="as=2 seq=0"
+hint.hdac.0.cad0.nid25.config="as=4 seq=0"
+.Ed
+.Pp
+will split headphones and one of mics to separate playback device. So pcm0
+device will play to the internal speaker and line-out jack with speaker automute
+on line-out connection. Recording on pcm0 will go from one external microphone
+and line-in jacks. pcm1 will be completely dedicated to headset (headphones and
+mic) connected to the front connectors.
+.Pp
+.Ss Example 3
+Setting
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=0"
+hint.hdac.0.cad0.nid26.config="as=2 seq=0"
+hint.hdac.0.cad0.nid27.config="as=3 seq=0"
+hint.hdac.0.cad0.nid25.config="as=4 seq=0"
+hint.hdac.0.cad0.nid24.config="as=5 seq=0 device=Line-out"
+hint.hdac.0.cad0.nid21.config="as=6 seq=0"
+.Ed
+.Pp
+will give 4 independent devices: pcm0 - line-out + line-in, pcm1 - headphones
++ mic, pcm2 - additional line-out via retasked rear mic jack, pcm3 - internal
+speaker.
+.Pp
+.Ss Example 4
+Setting
+.Bd -literal
+hint.hdac.0.cad0.nid20.config="as=1 seq=0"
+hint.hdac.0.cad0.nid24.config="as=1 seq=1 device=Line-out"
+hint.hdac.0.cad0.nid26.config="as=1 seq=2 device=Line-out"
+hint.hdac.0.cad0.nid21.config="as=2 seq=0"
+.Ed
+.Pp
+will give 2 devices: pcm0 - 5.1 playback via 3 rear (line-out and retasked
+mic and line-in) connectors and front headphones with rear connectors automute
+on headphones connection + front mic recording. pcm1 - internal speaker
+playback.
 .Sh HARDWARE
 The
 .Nm
@@ -410,3 +504,6 @@ rendering the
 driver useless, which usually results in a state where the
 .Nm
 driver seems to attach and work, but without any sound.
+.Pp
+Due to OSS limitation multichannel (not multidevice) playback is not
+supported.
