@@ -162,7 +162,7 @@ pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
 
 	if (pmask == NULL)	/* no mask keywords */
 		return (-1);
-	q = strchr(p, '='); 	/* skip '=' */
+	q = strchr(p, '=');	/* skip '=' */
 	if (*++q == '\0')	/* no more data */
 		return (-1);
 	c = 0;			/* count of mask keywords seen */
@@ -210,8 +210,8 @@ static int
 k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
     struct pmc_op_pmcallocate *pmc_config)
 {
-	char 		*e, *p, *q;
-	int 		c, has_unitmask;
+	char		*e, *p, *q;
+	int		c, has_unitmask;
 	uint32_t	count, unitmask;
 
 	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
@@ -315,7 +315,7 @@ static struct pmc_event_alias k8_aliases[] = {
 	EV_ALIAS("cycles",		"tsc"),
 	EV_ALIAS("dc-misses",		"k8-dc-miss"),
 	EV_ALIAS("ic-misses",		"k8-ic-miss"),
-	EV_ALIAS("instructions", 	"k8-fr-retired-x86-instructions"),
+	EV_ALIAS("instructions",	"k8-fr-retired-x86-instructions"),
 	EV_ALIAS("interrupts",		"k8-fr-taken-hardware-interrupts"),
 	EV_ALIAS("unhalted-cycles",	"k8-bu-cpu-clk-unhalted"),
 	EV_ALIAS(NULL, NULL)
@@ -490,7 +490,7 @@ static const struct pmc_masks k8_mask_npr[] = {
 /* nb hypertransport bus bandwidth */
 static const struct pmc_masks k8_mask_nhbb[] = { /* HT bus bandwidth */
 	__K8MASK(command,	0),
-	__K8MASK(data, 	1),
+	__K8MASK(data,	1),
 	__K8MASK(buffer-release, 2),
 	__K8MASK(nop,	3),
 	NULLMASK
@@ -509,8 +509,8 @@ static int
 k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
     struct pmc_op_pmcallocate *pmc_config)
 {
-	char 		*e, *p, *q;
-	int 		n;
+	char		*e, *p, *q;
+	int		n;
 	uint32_t	count, evmask;
 	const struct pmc_masks	*pm, *pmask;
 
@@ -1023,7 +1023,7 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	pmc_config->pm_caps |= PMC_CAP_WRITE;
 
 #define	__P4SETMASK(M) do {				\
-	pmask = p4_mask_##M; 				\
+	pmask = p4_mask_##M;				\
 } while (0)
 
 	switch (pe) {
@@ -1264,7 +1264,7 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		if ((evmask & (evmask - 1)) != 0)
 			return (-1);
 		if (evmask == 0) {
-			evmask = 0x1; 	/* 'CLEAR' */
+			evmask = 0x1;	/* 'CLEAR' */
 			pmc_config->pm_caps |= PMC_CAP_QUALIFIER;
 		}
 		break;
@@ -1457,7 +1457,7 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 #define	P6MASKSET(M)	pmask = p6_mask_ ## M
 
 	switch(pe) {
-	case PMC_EV_P6_L2_IFETCH: 	P6MASKSET(mesi); break;
+	case PMC_EV_P6_L2_IFETCH:	P6MASKSET(mesi); break;
 	case PMC_EV_P6_L2_LD:		P6MASKSET(mesi); break;
 	case PMC_EV_P6_L2_ST:		P6MASKSET(mesi); break;
 	case PMC_EV_P6_L2_RQSTS:	P6MASKSET(mesi); break;
