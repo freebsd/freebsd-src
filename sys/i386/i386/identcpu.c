@@ -719,7 +719,7 @@ printcpuinfo(void)
 				"\020"
 				"\001SSE3"	/* SSE3 */
 				"\002<b1>"
-				"\003RSVD2"	/* "Reserved" bit 2 */
+				"\003DTES64"	/* 64-bit Debug Trace */
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006VMX"	/* Virtual Machine Extensions */
@@ -736,11 +736,11 @@ printcpuinfo(void)
 				"\021<b16>"
 				"\022<b17>"
 				"\023DCA"	/* Direct Cache Access */
-				"\024<b19>"
-				"\025<b20>"
-				"\026<b21>"
+				"\024SSE4.1"
+				"\025SSE4.2"
+				"\026x2APIC"	/* xAPIC Extensions */
 				"\027<b22>"
-				"\030<b23>"
+				"\030POPCNT"
 				"\031<b24>"
 				"\032<b25>"
 				"\033<b26>"
@@ -790,7 +790,7 @@ printcpuinfo(void)
 				"\030<s23>"	/* Same */
 				"\031<s24>"	/* Same */
 				"\032FFXSR"	/* Fast FXSAVE/FXRSTOR */
-				"\033<b26>"	/* Undefined */
+				"\033Page1GB"	/* 1-GB large page support */
 				"\034RDTSCP"	/* RDTSCP */
 				"\035<b28>"	/* Undefined */
 				"\036LM"	/* 64 bit long mode */
