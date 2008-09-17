@@ -1,4 +1,4 @@
-<!-- Original Revision: 1.8 -->
+<!-- Original Revision: 131458 -->
 <!-- $FreeBSD$ -->
 
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
