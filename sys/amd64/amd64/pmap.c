@@ -1542,10 +1542,12 @@ pmap_growkernel(vm_offset_t addr)
 		if (pde == NULL) {
 			/* We need a new PDP entry */
 			nkpg = vm_page_alloc(NULL, nkpt,
-			    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			if (!nkpg)
 				panic("pmap_growkernel: no memory to grow kernel");
-			pmap_zero_page(nkpg);
+			if ((nkpg->flags & PG_ZERO) == 0)
+				pmap_zero_page(nkpg);
 			paddr = VM_PAGE_TO_PHYS(nkpg);
 			newpdp = (pdp_entry_t)
 				(paddr | PG_V | PG_RW | PG_A | PG_M);
@@ -1565,13 +1567,15 @@ pmap_growkernel(vm_offset_t addr)
 		 * This index is bogus, but out of the way
 		 */
 		nkpg = vm_page_alloc(NULL, nkpt,
-		    VM_ALLOC_NOOBJ | VM_ALLOC_SYSTEM | VM_ALLOC_WIRED);
+		    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
+		    VM_ALLOC_ZERO);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
 		nkpt++;
 
-		pmap_zero_page(nkpg);
+		if ((nkpg->flags & PG_ZERO) == 0)
+			pmap_zero_page(nkpg);
 		paddr = VM_PAGE_TO_PHYS(nkpg);
 		newpdir = (pd_entry_t) (paddr | PG_V | PG_RW | PG_A | PG_M);
 		*pmap_pde(kernel_pmap, kernel_vm_end) = newpdir;
