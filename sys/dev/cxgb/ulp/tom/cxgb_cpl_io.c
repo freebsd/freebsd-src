@@ -1663,8 +1663,8 @@ t3_ip_ctloutput(struct socket *so, struct sockopt *sopt)
 	if (error)
 		return (error);
 
-	if (optval > IPTOS_PREC_CRITIC_ECP && !suser(curthread))
-		return (EPERM);
+	if (optval > IPTOS_PREC_CRITIC_ECP)
+		return (EINVAL);
 
 	inp = so_sotoinpcb(so);
 	inp_wlock(inp);

@@ -163,12 +163,6 @@ In these circumstances, the thread credential
 should be used, as it requires no locking to access safely, and remains stable
 for the duration of the call even in the face of a multi-threaded
 application changing the process credentials from another thread.
-Primitives such as
-.Xr suser 9
-will assume the use of
-.Va td_ucred
-unless explicitly specified using
-.Xr suser_cred 9 .
 .Pp
 During a process credential update, the process lock must be held across
 check and update, to prevent race conditions.

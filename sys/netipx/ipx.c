@@ -99,7 +99,7 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct ifaddr *ifa;
 	struct ipx_ifaddr *oia;
 	int dstIsNew, hostIsNew;
-	int error = 0;
+	int error = 0, priv;
 
 	/*
 	 * Find address for this interface, if it exists.
@@ -135,12 +135,13 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (0);
 	}
 
-	if (td && (error = suser(td)) != 0)
-		return (error);
-
 	switch (cmd) {
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
+		priv = (cmd == SIOCAIFADDR) ? PRIV_NET_ADDIFADDR :
+		    PRIV_NET_DELIFADDR;
+		if (td && (error = priv_check(td, priv)) != 0)
+			return (error);
 		if (ifra->ifra_addr.sipx_family == AF_IPX)
 		    for (oia = ia; ia != NULL; ia = ia->ia_next) {
 			if (ia->ia_ifp == ifp  &&
@@ -154,6 +155,8 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	case SIOCSIFADDR:
 	case SIOCSIFDSTADDR:
+		if (td && (error = priv_check(td, PRIV_NET_SETLLADDR)) != 0)
+			return (error);
 		if (ia == NULL) {
 			oia = (struct ipx_ifaddr *)
 				malloc(sizeof(*ia), M_IFADDR,
@@ -183,6 +186,10 @@ ipx_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				ia->ia_broadaddr.sipx_addr.x_host = ipx_broadhost;
 			}
 		}
+		break;
+	default:
+		if (td && (error = priv_check(td, PRIV_NET_HWIOCTL)) != 0)
+			return (error);
 	}
 
 	switch (cmd) {
