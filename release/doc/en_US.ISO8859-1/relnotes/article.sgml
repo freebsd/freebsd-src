@@ -274,6 +274,9 @@
     <para><application>OpenPAM</application> has been updated from the
       Figwort release to the Hydrangea release.</para>
 
+    <para><application>sendmail</application> has been updated from
+      8.14.2 to 8.14.3.</para>
+
     <para>The timezone database has been updated from
       the <application>tzdata2007h</application> release to
       the <application>tzdata2008b</application> release.</para>
