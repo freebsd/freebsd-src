@@ -391,7 +391,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.326
+	Original Revision: 180321
 -->
 
 <!--
@@ -494,6 +494,8 @@
 
     &hwlist.hptmv;
 
+    &hwlist.hptrr;
+
     &hwlist.ida;
 
     &hwlist.iir;
@@ -522,8 +524,6 @@
     &hwlist.nsp;
 
     &hwlist.pst;
-
-    &hwlist.rr232x;
 
     &hwlist.stg;
 
@@ -688,13 +688,6 @@
 
   </sect2>
 
-  <sect2 id="tokenring">
-    <title>Token Ring Interfaces</title>
-
-    &hwlist.oltr;
-
-  </sect2>
-
   <sect2 id="fddi">
     <title>FDDI 接口</title>
     <para>[&arch.i386, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4; 驱动程序)</para>
@@ -727,10 +720,6 @@
     </para>
 
     &hwlist.ath;
-
-    &hwlist.awi;
-
-    &hwlist.cnw;
 
     <para>[&arch.i386;, &arch.amd64;] Intel PRO/Wireless 2100 MiniPCI 网络适配器
       (&man.ipw.4; 驱动程序)</para>
@@ -770,13 +759,6 @@
     &hwlist.cp;
 
     &hwlist.ctau;
-
-    <para>[&arch.i386;]Granch SBNI12 点对点通讯适配器
-    (&man.sbni.4; 驱动程序)
-    </para>
-
-    <para>[&arch.i386;]Granch SBNI16 SHDSL 调制解调器 (&man.sbsh.4;
-      驱动程序)</para>
 
     &hwlist.cm;
 
