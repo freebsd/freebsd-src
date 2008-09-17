@@ -649,7 +649,7 @@ jme_attach(device_t dev)
 	}
 
 	sc->jme_rev = pci_get_revid(dev);
-	if (sc->jme_rev == DEVICEREVID_JMC260) {
+	if (sc->jme_rev == DEVICEID_JMC260) {
 		sc->jme_flags |= JME_FLAG_FASTETH;
 		sc->jme_flags |= JME_FLAG_NOJUMBO;
 	}
@@ -2042,6 +2042,19 @@ jme_mac_config(struct jme_softc *sc)
 		break;
 	default:
 		break;
+	}
+	/* Workaround CRC errors at 100Mbps on JMC250 A2. */
+	if (sc->jme_rev == DEVICEID_JMC250 &&
+	    sc->jme_chip_rev == DEVICEREVID_JMC250_A2) {
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
+			/* Extend interface FIFO depth. */
+			jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
+			    0x1B, 0x0000);
+		} else {
+			/* Select default interface FIFO depth. */
+			jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
+			    0x1B, 0x0004);
+		}
 	}
 	CSR_WRITE_4(sc, JME_GHC, ghc);
 	CSR_WRITE_4(sc, JME_RXMAC, rxmac);
