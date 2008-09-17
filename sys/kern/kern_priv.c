@@ -133,24 +133,3 @@ priv_check(struct thread *td, int priv)
 
 	return (priv_check_cred(td->td_ucred, priv, 0));
 }
-
-/*
- * Historical suser() wrapper functions, which now simply request PRIV_ROOT.
- * These will be removed in the near future, and exist solely because
- * the kernel and modules are not yet fully adapted to the new model.
- */
-int
-suser_cred(struct ucred *cred, int flags)
-{
-
-	return (priv_check_cred(cred, PRIV_ROOT, flags));
-}
-
-int
-suser(struct thread *td)
-{
-
-	KASSERT(td == curthread, ("suser: td != curthread"));
-
-	return (suser_cred(td->td_ucred, 0));
-}

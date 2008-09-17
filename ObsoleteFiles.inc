@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080917: removal of manpage for axed kernel primitive suser(9)
+OLD_FILES+=usr/share/man/man9/suser.9
 # 20080913: pax removed from rescue
 OLD_FILES+=rescue/pax
 # 20080823: removal of unneeded pt_chown, to implement grantpt(3)
