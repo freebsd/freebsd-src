@@ -1802,7 +1802,8 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			if (vap->va_type == VCHR && rdev == 0xffffffff)
 				vap->va_type = VFIFO;
                         if (vap->va_type != VFIFO &&
-                            (error = suser_cred(cred, 0))) {
+			    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV,
+			    0))) {
 				goto ereply;
                         }
 			vap->va_rdev = rdev;
@@ -2024,7 +2025,8 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		if (error)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 	} else {
-		if (vtyp != VFIFO && (error = suser_cred(cred, 0)))
+		if (vtyp != VFIFO && (error = priv_check_cred(cred,
+		    PRIV_VFS_MKNOD_DEV, 0)))
 			goto out;
 		error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap);
 		if (error) {

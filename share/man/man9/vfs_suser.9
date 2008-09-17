@@ -46,7 +46,7 @@ It will check to see if the thread
 passed in has the same credentials as the user that mounted the
 file system.
 If so, it returns 0, otherwise it returns what
-.Xr suser 9
+.Xr priv_check 9
 would have returned.
 .Sh RETURN VALUES
 The
@@ -61,8 +61,7 @@ of some other implementations of
 in which a TRUE response indicates superuser powers.
 .Sh SEE ALSO
 .Xr chroot 2 ,
-.Xr jail 2 ,
-.Xr suser 9
+.Xr jail 2
 .Sh HISTORY
 The
 .Fn vfs_suser
