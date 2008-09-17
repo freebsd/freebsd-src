@@ -221,7 +221,7 @@ static int
 ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
     struct ucred *cred, struct vnode *vp, struct vattr *vap, int acc_mode)
 {
-	int match;
+	int mac_granted, match, priv_granted;
 	int i;
 
 	/*
@@ -372,9 +372,31 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	/*
+	 * MBI_APPEND should not be here as it should get converted to
+	 * MBI_WRITE.
+	 */
+	priv_granted = 0;
+	mac_granted = rule->mbr_mode;
+	if ((acc_mode & MBI_ADMIN) && (mac_granted & MBI_ADMIN) == 0 &&
+	    priv_check_cred(cred, PRIV_VFS_ADMIN, 0) == 0)
+		priv_granted |= MBI_ADMIN;
+	if ((acc_mode & MBI_EXEC) && (mac_granted & MBI_EXEC) == 0 &&
+	    priv_check_cred(cred, (vap->va_type == VDIR) ? PRIV_VFS_LOOKUP :
+	    PRIV_VFS_EXEC, 0) == 0)
+		priv_granted |= MBI_EXEC;
+	if ((acc_mode & MBI_READ) && (mac_granted & MBI_READ) == 0 &&
+	    priv_check_cred(cred, PRIV_VFS_READ, 0) == 0)
+		priv_granted |= MBI_READ;
+	if ((acc_mode & MBI_STAT) && (mac_granted & MBI_STAT) == 0 &&
+	    priv_check_cred(cred, PRIV_VFS_STAT, 0) == 0)
+		priv_granted |= MBI_STAT;
+	if ((acc_mode & MBI_WRITE) && (mac_granted & MBI_WRITE) == 0 &&
+	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) == 0)
+		priv_granted |= MBI_WRITE;
+	/*
 	 * Is the access permitted?
 	 */
-	if ((rule->mbr_mode & acc_mode) != acc_mode) {
+	if (((mac_granted | priv_granted) & acc_mode) != acc_mode) {
 		if (ugidfw_logging)
 			log(LOG_AUTHPRIV, "mac_bsdextended: %d:%d request %d"
 			    " on %d:%d failed. \n", cred->cr_ruid,
@@ -398,12 +420,6 @@ ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
     int acc_mode)
 {
 	int error, i;
-
-	/*
-	 * XXXRW: More specific privilege selection needed.
-	 */
-	if (suser_cred(cred, 0) == 0)
-		return (0);
 
 	/*
 	 * Since we do not separately handle append, map append to write.
