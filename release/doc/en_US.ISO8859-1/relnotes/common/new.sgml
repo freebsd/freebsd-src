@@ -202,6 +202,9 @@
     <para><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
+    <para><application>sendmail</application> has been updated from
+      8.14.2 to 8.14.3.</para>
+
     <para>The timezone database has been updated from
       the <application>tzdata2007k</application> release to
       the <application>tzdata2008b</application> release.</para>
