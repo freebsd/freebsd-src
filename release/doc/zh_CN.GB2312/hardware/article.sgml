@@ -29,6 +29,7 @@
     <year>2005</year>
     <year>2006</year>
     <year>2007</year>
+    <year>2008</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -391,7 +392,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.326.2.1
+	Original Revision: 175946
 -->
 
 <!--
@@ -524,8 +525,6 @@
     &hwlist.nsp;
 
     &hwlist.pst;
-
-    &hwlist.rr232x;
 
     &hwlist.stg;
 
