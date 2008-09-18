@@ -262,6 +262,31 @@ ata_pci_detach(device_t dev)
     return 0;
 }
 
+int
+ata_pci_suspend(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int error = 0;
+ 
+    bus_generic_suspend(dev);
+    if (ctlr->suspend)
+	error = ctlr->suspend(dev);
+    return error;
+}
+  
+int
+ata_pci_resume(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+    int error = 0;
+ 
+    if (ctlr->resume)
+	error = ctlr->resume(dev);
+    bus_generic_resume(dev);
+    return error;
+}
+
+
 struct resource *
 ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		       u_long start, u_long end, u_long count, u_int flags)
@@ -555,9 +580,9 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(device_probe,             ata_pci_probe),
     DEVMETHOD(device_attach,            ata_pci_attach),
     DEVMETHOD(device_detach,            ata_pci_detach),
+    DEVMETHOD(device_suspend,           ata_pci_suspend),
+    DEVMETHOD(device_resume,            ata_pci_resume),
     DEVMETHOD(device_shutdown,          bus_generic_shutdown),
-    DEVMETHOD(device_suspend,           bus_generic_suspend),
-    DEVMETHOD(device_resume,            bus_generic_resume),
 
     /* bus methods */
     DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource),
