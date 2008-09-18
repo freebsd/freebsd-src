@@ -46,11 +46,13 @@
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
 #ifdef _WIN32
+#define	__LA_INT64_T	__int64
 #define	__LA_SSIZE_T	long
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
 #else
 #include <unistd.h>  /* ssize_t, uid_t, and gid_t */
+#define	__LA_INT64_T	int64_t
 #define	__LA_SSIZE_T	ssize_t
 #define	__LA_UID_T	uid_t
 #define	__LA_GID_T	gid_t
@@ -328,7 +330,7 @@ __LA_DECL int		 archive_read_next_header(struct archive *,
  * Retrieve the byte offset in UNCOMPRESSED data where last-read
  * header started.
  */
-__LA_DECL int64_t		 archive_read_header_position(struct archive *);
+__LA_DECL __LA_INT64_T		 archive_read_header_position(struct archive *);
 
 /* Read data from the body of an entry.  Similar to read(2). */
 __LA_DECL __LA_SSIZE_T		 archive_read_data(struct archive *, void *, size_t);
@@ -565,9 +567,9 @@ __LA_DECL int	 archive_write_disk_set_user_lookup(struct archive *,
  * the struct archive object:
  */
 /* Bytes written after compression or read before decompression. */
-__LA_DECL int64_t	 archive_position_compressed(struct archive *);
+__LA_DECL __LA_INT64_T	 archive_position_compressed(struct archive *);
 /* Bytes written to compressor or read from decompressor. */
-__LA_DECL int64_t	 archive_position_uncompressed(struct archive *);
+__LA_DECL __LA_INT64_T	 archive_position_uncompressed(struct archive *);
 
 __LA_DECL const char	*archive_compression_name(struct archive *);
 __LA_DECL int		 archive_compression(struct archive *);
