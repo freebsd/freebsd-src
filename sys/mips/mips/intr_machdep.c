@@ -84,7 +84,7 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 
 	event = hardintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+		error = intr_event_create(&event, (void *)irq, 0, 0,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "hard intr%d:", irq);
 		if (error)
@@ -121,7 +121,7 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 
 	event = softintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+		error = intr_event_create(&event, (void *)irq, 0, 0,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "intr%d:", irq);
 		if (error)
