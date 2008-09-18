@@ -60,7 +60,7 @@ DEFINE_TEST(test_read_format_mtree)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE_V1);
+	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_MTREE);
 	assertEqualString(archive_entry_pathname(ae), "file");
 	assertEqualInt(archive_entry_uid(ae), 18);
 	assert(S_ISREG(archive_entry_mode(ae)));
