@@ -129,32 +129,55 @@ The CPUs known to the PMC library are named by the
 .Vt "enum pmc_cputype"
 enumeration.
 Supported CPUs include:
-.Bl -tag -width PMC_CPU_INTEL_PIII -compact
-.It PMC_CPU_AMD_K7
+.Bl -tag -width "Li PMC_CPU_INTEL_CORE2" -compact
+.It Li PMC_CPU_AMD_K7
 .Tn "AMD Athlon"
 CPUs.
-.It PMC_CPU_AMD_K8
+.It Li PMC_CPU_AMD_K8
 .Tn "AMD Athlon64"
 CPUs.
-.It PMC_CPU_INTEL_P5
+.It Li PMC_CPU_INTEL_ATOM
+.Tn Intel
+.Tn Atom
+CPUs and other CPUs conforming to version 3 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE
+.Tn Intel
+.Tn Core Solo
+and
+.Tn Core Duo
+CPUs, and other CPUs conforming to version 1 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_CORE2
+.Tn Intel
+.Tn "Core2 Solo" ,
+.Tn "Core2 Duo"
+and
+.Tn "Core2 Extreme"
+CPUs, and other CPUs conforming to version 2 of the
+.Tn Intel
+performance measurement architecture.
+.It Li PMC_CPU_INTEL_P5
 .Tn Intel
 .Tn "Pentium"
 CPUs.
-.It PMC_CPU_INTEL_P6
+.It Li PMC_CPU_INTEL_P6
 .Tn Intel
 .Tn "Pentium Pro"
 CPUs.
-.It PMC_CPU_INTEL_PII
+.It Li PMC_CPU_INTEL_PII
 .Tn "Intel Pentium II"
 CPUs.
-.It PMC_CPU_INTEL_PIII
+.It Li PMC_CPU_INTEL_PIII
 .Tn "Intel Pentium III"
 CPUs.
-.It PMC_CPU_INTEL_PM
-.Tn "Intel Pentium M"
-CPUs.
-.It PMC_CPU_INTEL_PIV
+.It Li PMC_CPU_INTEL_PIV
 .Tn "Intel Pentium 4"
+CPUs.
+.It Li PMC_CPU_INTEL_PM
+.Tn "Intel Pentium M"
 CPUs.
 .El
 .Ss Supported PMCs
@@ -162,25 +185,33 @@ PMC supported by this library are named by the
 .Vt enum pmc_class
 enumeration.
 Supported PMC kinds include:
-.Bl -tag -width PMC_CLASS_TSC -compact
-.It PMC_CLASS_K7
+.Bl -tag -width "Li PMC_CLASS_IA_FIXED" -compact
+.It Li PMC_CLASS_IA
+Programmable hardware counters present in CPUs conforming to the
+.Tn Intel
+performance measurement architecture version 1 and later.
+.It Li PMC_CLASS_IA_FIXED
+Fixed function hardwre counters presents in CPUs conforming to the
+.Tn Intel
+performance measurement architecture version 2 and later.
+.It Li PMC_CLASS_K7
 Programmable hardware counters present in
 .Tn "AMD Athlon"
 CPUs.
-.It PMC_CLASS_K8
+.It Li PMC_CLASS_K8
 Programmable hardware counters present in
 .Tn "AMD Athlon64"
 CPUs.
-.It PMC_CLASS_P4
+.It Li PMC_CLASS_P4
 Programmable hardware counters present in
 .Tn "Intel Pentium 4"
 CPUs.
-.It PMC_CLASS_P5
+.It Li PMC_CLASS_P5
 Programmable hardware counters present in
 .Tn Intel
 .Tn Pentium
 CPUs.
-.It PMC_CLASS_P6
+.It Li PMC_CLASS_P6
 Programmable hardware counters present in
 .Tn Intel
 .Tn "Pentium Pro" ,
@@ -190,7 +221,7 @@ Programmable hardware counters present in
 and
 .Tn "Pentium M"
 CPUs.
-.It PMC_CLASS_TSC
+.It Li PMC_CLASS_TSC
 The timestamp counter on i386 and amd64 architecture CPUs.
 .El
 .Ss PMC Capabilities
@@ -200,30 +231,34 @@ the
 .Vt "enum pmc_caps"
 enumeration.
 Supported capabilities include:
-.Bl -tag -width "PMC_CAP_INTERRUPT" -compact
-.It PMC_CAP_EDGE
+.Bl -tag -width "Li PMC_CAP_INTERRUPT" -compact
+.It Li PMC_CAP_CASCADE
+The ability to cascade counters.
+.It Li PMC_CAP_EDGE
 The ability to count negated to asserted transitions of the hardware
 conditions being probed for.
-.It PMC_CAP_INTERRUPT
+.It Li PMC_CAP_INTERRUPT
 The ability to interrupt the CPU.
-.It PMC_CAP_INVERT
+.It Li PMC_CAP_INVERT
 The ability to invert the sense of the hardware conditions being
 measured.
-.It PMC_CAP_READ
+.It Li PMC_CAP_READ
 PMC hardware allows the CPU to read performance counters.
-.It PMC_CAP_QUALIFIER
+.It Li PMC_CAP_QUALIFIER
 The hardware allows monitored to be further qualified in some
 system dependent way.
-.It PMC_CAP_SYSTEM
+.It Li PMC_CAP_PRECISE
+The ability to perform precise sampling.
+.It Li PMC_CAP_SYSTEM
 The ability to restrict counting of hardware events to when the CPU is
 running privileged code.
-.It PMC_CAP_THRESHOLD
+.It Li PMC_CAP_THRESHOLD
 The ability to ignore simultaneous hardware events below a
 programmable threshold.
-.It PMC_CAP_USER
+.It Li PMC_CAP_USER
 The ability to restrict counting of hardware events to those when the
 CPU is running unprivileged code.
-.It PMC_CAP_WRITE
+.It Li PMC_CAP_WRITE
 PMC hardware allows CPUs write to counters.
 .El
 .Ss Functional Grouping
