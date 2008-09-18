@@ -408,7 +408,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	struct mtree_entry *last_entry;
 	int r;
 
-	mtree->archive_format = ARCHIVE_FORMAT_MTREE_V1;
+	mtree->archive_format = ARCHIVE_FORMAT_MTREE;
 	mtree->archive_format_name = "mtree";
 
 	global = NULL;
