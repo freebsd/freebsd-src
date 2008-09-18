@@ -439,6 +439,8 @@ init_secondary(void)
 	while (smp_started == 0)
 		ia32_pause();
 
+	
+	PCPU_SET(curthread, PCPU_GET(idlethread));
 	/* enter the scheduler */
 	sched_throw(NULL);
 
@@ -622,18 +624,19 @@ cpu_initialize_context(unsigned int cpu)
 	vm_page_t m[4];
 	static vcpu_guest_context_t ctxt;
 	vm_offset_t boot_stack;
-	vm_paddr_t *va = (vm_paddr_t *)PTOV(IdlePDPT);
-	vm_paddr_t ma[4];
+	vm_offset_t newPTD;
+	vm_paddr_t ma[NPGPTD];
 	static int color;
 	int i;
 
 	/*
-	 * Page 0: 	boot stack
-	 * Page 1: 	PDPT
-	 * Page 2-3:	PTD{2-3]	
+	 * Page 0,[0-3]	PTD
+	 * Page 1, [4]	boot stack
+	 * Page [5]	PDPT
+
 	 *
 	 */
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < NPGPTD + 2; i++) {
 		m[i] = vm_page_alloc(NULL, color++,
 		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
@@ -641,45 +644,45 @@ cpu_initialize_context(unsigned int cpu)
 		pmap_zero_page(m[i]);
 
 	}
-	boot_stack = kmem_alloc_nofault(kernel_map, 1);	
+	boot_stack = kmem_alloc_nofault(kernel_map, 1);
+	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD);
+	ma[0] = xpmap_ptom(VM_PAGE_TO_PHYS(m[0]))|PG_V;
 
-	/*
-	 * Initialize new IdlePDPT with dedicated page
-	 * for upper 1GB
-	 */
-	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[1]));	
-	for (i = 0; i < 4; i++) {
-		((vm_paddr_t *)boot_stack)[i] = va[i];
-		ma[i] = va[i];
+#ifdef PAE	
+	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
+	for (i = 0; i < NPGPTD; i++) {
+		((vm_paddr_t *)boot_stack)[i] =
+		ma[i] = 
+		    xpmap_ptom(VM_PAGE_TO_PHYS(m[i]))|PG_V;
 	}
-	
-	ma[2] = ((vm_paddr_t *)boot_stack)[2] =
-	    xpmap_ptom(VM_PAGE_TO_PHYS(m[2]))|PG_V;
-	ma[3] = ((vm_paddr_t *)boot_stack)[3] =
-	    xpmap_ptom(VM_PAGE_TO_PHYS(m[3]))|PG_V;
+#endif	
 
 	/*
 	 * Copy cpu0 IdlePTD to new IdlePTD - copying only
 	 * kernel mappings
 	 */
-	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[3]));
-	memcpy((uint8_t *)boot_stack, (uint8_t *)PTOV(IdlePTD) + 3*PAGE_SIZE,
-	    nkpt*sizeof(vm_paddr_t));
+	pmap_qenter(newPTD, m, 4);
 	
+	memcpy((uint8_t *)newPTD + KPTDI*sizeof(vm_paddr_t),
+	    (uint8_t *)PTOV(IdlePTD) + KPTDI*sizeof(vm_paddr_t),
+	    nkpt*sizeof(vm_paddr_t));
+
+	pmap_qremove(newPTD, 4);
+	kmem_free(kernel_map, newPTD, 4);
 	/*
 	 * map actual idle stack to boot_stack
 	 */
-	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[0]));	
+	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD]));
 
-	printf("pinning pgdpt=%llx\n",
-	    xpmap_ptom(VM_PAGE_TO_PHYS(m[1])));
 
-	xen_pgdpt_pin(xpmap_ptom(VM_PAGE_TO_PHYS(m[1])));
+	xen_pgdpt_pin(xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1])));
 	vm_page_lock_queues();
 	for (i = 0; i < 4; i++) {
+		int pdir = (PTDPTDI + i) / NPDEPG;
+		int curoffset = (PTDPTDI + i) % NPDEPG;
+		
 		xen_queue_pt_update((vm_paddr_t)
-		    ((ma[2] & ~PG_V) +
-			(PTDPTDI - 1024 + i)*sizeof(vm_paddr_t)), 
+		    ((ma[pdir] & ~PG_V) + (curoffset*sizeof(vm_paddr_t))), 
 		    ma[i]);
 	}
 	PT_UPDATES_FLUSH();
@@ -715,12 +718,7 @@ cpu_initialize_context(unsigned int cpu)
 	ctxt.failsafe_callback_cs  = GSEL(GCODE_SEL, SEL_KPL);
 	ctxt.failsafe_callback_eip = (unsigned long)failsafe_callback;
 
-	ctxt.ctrlreg[3] =
-#if 1
-	    xpmap_ptom(VM_PAGE_TO_PHYS(m[1]));
-#else
-	    xpmap_ptom((unsigned long)IdlePDPT);
-#endif
+	ctxt.ctrlreg[3] = xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
 #else /* __x86_64__ */
 	ctxt.user_regs.esp = idle->thread.rsp0 - sizeof(struct pt_regs);
 	ctxt.kernel_ss = GSEL(GDATA_SEL, SEL_KPL);
@@ -751,11 +749,12 @@ cpu_initialize_context(unsigned int cpu)
  * of the different hardware we might encounter.  It isn't pretty,
  * but it seems to work.
  */
+
+int cpus;
 static int
 start_ap(int apic_id)
 {
 	int ms;
-	int cpus;
 
 	/* used as a watchpoint to signal AP startup */
 	cpus = mp_naps;
