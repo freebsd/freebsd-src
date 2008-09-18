@@ -83,6 +83,7 @@ ASSYM(PAGE_SHIFT_4M, PAGE_SHIFT_4M);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(PAGE_SIZE_4M, PAGE_SIZE_4M);
 
+#ifdef SMP
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
 #ifdef SUN4U
@@ -95,6 +96,7 @@ ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 #ifdef SUN4V
 ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
 #endif
+#endif
 
 #ifdef SUN4U
 ASSYM(DC_SIZE, offsetof(struct cacheinfo, dc_size));
@@ -103,7 +105,9 @@ ASSYM(IC_SIZE, offsetof(struct cacheinfo, ic_size));
 ASSYM(IC_LINESIZE, offsetof(struct cacheinfo, ic_linesize));
 #endif
 
+#ifdef SMP
 ASSYM(ICA_PA, offsetof(struct ipi_cache_args, ica_pa));
+#endif
 
 ASSYM(KTR_SIZEOF, sizeof(struct ktr_entry));
 ASSYM(KTR_LINE, offsetof(struct ktr_entry, ktr_line));
@@ -210,11 +214,13 @@ ASSYM(IR_ARG, offsetof(struct intr_request, ir_arg));
 ASSYM(IR_PRI, offsetof(struct intr_request, ir_pri));
 ASSYM(IR_VEC, offsetof(struct intr_request, ir_vec));
 
+#ifdef SMP
 ASSYM(ITA_MASK, offsetof(struct ipi_tlb_args, ita_mask));
 ASSYM(ITA_PMAP, offsetof(struct ipi_tlb_args, ita_pmap));
 ASSYM(ITA_START, offsetof(struct ipi_tlb_args, ita_start));
 ASSYM(ITA_END, offsetof(struct ipi_tlb_args, ita_end));
 ASSYM(ITA_VA, offsetof(struct ipi_tlb_args, ita_va));
+#endif
 
 ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
 ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));
