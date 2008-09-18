@@ -43,12 +43,14 @@
 /* Get appropriate definitions of standard POSIX-style types. */
 /* These should match the types used in 'struct stat' */
 #ifdef _WIN32
+#define	__LA_INT64_T	__int64
 #define	__LA_UID_T	unsigned int
 #define	__LA_GID_T	unsigned int
 #define	__LA_DEV_T	unsigned int
 #define	__LA_MODE_T	unsigned short
 #else
 #include <unistd.h>
+#define	__LA_INT64_T	int64_t
 #define	__LA_UID_T	uid_t
 #define	__LA_GID_T	gid_t
 #define	__LA_DEV_T	dev_t
@@ -200,7 +202,7 @@ __LA_DECL dev_t		 archive_entry_rdev(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevmajor(struct archive_entry *);
 __LA_DECL dev_t		 archive_entry_rdevminor(struct archive_entry *);
 __LA_DECL const char	*archive_entry_sourcepath(struct archive_entry *);
-__LA_DECL int64_t	 archive_entry_size(struct archive_entry *);
+__LA_DECL __LA_INT64_T	 archive_entry_size(struct archive_entry *);
 __LA_DECL int		 archive_entry_size_is_set(struct archive_entry *);
 __LA_DECL const char	*archive_entry_strmode(struct archive_entry *);
 __LA_DECL const char	*archive_entry_symlink(struct archive_entry *);
@@ -261,7 +263,7 @@ __LA_DECL void	archive_entry_set_perm(struct archive_entry *, __LA_MODE_T);
 __LA_DECL void	archive_entry_set_rdev(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_rdevmajor(struct archive_entry *, dev_t);
 __LA_DECL void	archive_entry_set_rdevminor(struct archive_entry *, dev_t);
-__LA_DECL void	archive_entry_set_size(struct archive_entry *, int64_t);
+__LA_DECL void	archive_entry_set_size(struct archive_entry *, __LA_INT64_T);
 __LA_DECL void	archive_entry_unset_size(struct archive_entry *);
 __LA_DECL void	archive_entry_copy_sourcepath(struct archive_entry *, const char *);
 __LA_DECL void	archive_entry_set_symlink(struct archive_entry *, const char *);
