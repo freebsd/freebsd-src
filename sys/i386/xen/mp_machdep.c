@@ -558,11 +558,11 @@ start_all_aps(void)
 
 		/* Get per-cpu data */
 		pc = &__pcpu[bootAP];
+		pcpu_init(pc, bootAP, sizeof(struct pcpu));
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;
 		pc->pc_curthread = 0;
 
-		pcpu_init(pc, bootAP, sizeof(struct pcpu));
 		gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 		gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 		
