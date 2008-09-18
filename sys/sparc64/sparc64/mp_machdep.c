@@ -92,6 +92,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte.h>
 #include <machine/ver.h>
 
+#define	SUNW_STARTCPU		"SUNW,start-cpu"
+#define	SUNW_STOPSELF		"SUNW,stop-self"
+
 static ih_func_t cpu_ipi_ast;
 static ih_func_t cpu_ipi_preempt;
 static ih_func_t cpu_ipi_stop;
@@ -113,6 +116,7 @@ cpu_ipi_selected_t *cpu_ipi_selected;
 
 static vm_offset_t mp_tramp;
 static u_int cpuid_to_mid[MAXCPU];
+static int has_stopself;
 static int isjbus;
 static volatile u_int shutdown_cpus;
 
@@ -210,7 +214,7 @@ sun4u_startcpu(phandle_t cpu, void *func, u_long arg)
 		cell_t	func;
 		cell_t	arg;
 	} args = {
-		(cell_t)"SUNW,start-cpu",
+		(cell_t)SUNW_STARTCPU,
 		3,
 	};
 
@@ -231,7 +235,7 @@ sun4u_stopself(void)
 		cell_t	nargs;
 		cell_t	nreturns;
 	} args = {
-		(cell_t)"SUNW,stop-self",
+		(cell_t)SUNW_STOPSELF,
 	};
 
 	openfirmware_exit(&args);
@@ -255,6 +259,9 @@ cpu_mp_start(void)
 	u_int cpuid;
 
 	mtx_init(&ipi_mtx, "ipi", NULL, MTX_SPIN);
+
+	if (OF_test(SUNW_STOPSELF) == 0)
+		has_stopself = 1;
 
 	intr_setup(PIL_AST, cpu_ipi_ast, -1, NULL, NULL);
 	intr_setup(PIL_RENDEZVOUS, (ih_func_t *)smp_rendezvous_action,
@@ -448,7 +455,11 @@ cpu_ipi_stop(struct trapframe *tf)
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
 			atomic_clear_int(&shutdown_cpus, PCPU_GET(cpumask));
-			sun4u_stopself();
+			if (has_stopself != 0)
+				sun4u_stopself();
+			(void)intr_disable();
+			for (;;)
+				;
 		}
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
@@ -594,25 +605,4 @@ cheetah_ipi_selected(u_int cpus, u_long d0, u_long d1, u_long d2)
 		    __func__, cpus, ids);
 	else
 		panic("%s: couldn't send IPI", __func__);
-}
-
-void
-ipi_selected(u_int cpus, u_int ipi)
-{
-
-	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
-}
-
-void
-ipi_all(u_int ipi)
-{
-
-	panic("%s", __func__);
-}
-
-void
-ipi_all_but_self(u_int ipi)
-{
-
-	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
 }
