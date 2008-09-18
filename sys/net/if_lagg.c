@@ -1123,7 +1123,8 @@ lagg_start(struct ifnet *ifp)
 
 		ETHER_BPF_MTAP(ifp, m);
 
-		if (sc->sc_proto != LAGG_PROTO_NONE)
+		/* We need a Tx algorithm and at least one port */
+		if (sc->sc_proto != LAGG_PROTO_NONE && sc->sc_count)
 			error = (*sc->sc_start)(sc, m);
 		else
 			m_freem(m);
