@@ -247,8 +247,6 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_AR_GNU			(ARCHIVE_FORMAT_AR | 1)
 #define	ARCHIVE_FORMAT_AR_BSD			(ARCHIVE_FORMAT_AR | 2)
 #define	ARCHIVE_FORMAT_MTREE			0x80000
-#define	ARCHIVE_FORMAT_MTREE_V1			(ARCHIVE_FORMAT_MTREE | 1)
-#define	ARCHIVE_FORMAT_MTREE_V2			(ARCHIVE_FORMAT_MTREE | 2)
 
 /*-
  * Basic outline for reading an archive:
