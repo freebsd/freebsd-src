@@ -265,10 +265,6 @@
 #define	CEAFSR_P_DRD	(1UL << 62)	/* Pri. error caused by DVMA read */
 #define	CEAFSR_P_PIO	(1UL << 63)	/* Pri. error caused by PIO access */
 
-#define	CEAFSR_ERRMASK							\
-	(CEAFSR_P_PIO | CEAFSR_P_DRD | CEAFSR_P_DWR |			\
-	CEAFSR_S_PIO | CEAFSR_S_DRD | CEAFSR_S_DWR)
-
 /* PCI asynchronous fault status register */
 #define	PCIAFSR_P_MA	(1UL << 63)	/* Pri. master abort */
 #define	PCIAFSR_P_TA	(1UL << 62)	/* Pri. target abort */
@@ -281,10 +277,6 @@
 #define	PCIAFSR_BMASK	(0xffffUL << 32)/* Bytemask of failed pri. transfer */
 #define	PCIAFSR_BLK	(1UL << 31)	/* failed pri. transfer was block r/w */
 #define	PCIAFSR_MID	(0x3eUL << 25)	/* UPA MID causing error transaction */
-
-#define	PCIAFSR_ERRMASK							\
-	(PCIAFSR_P_MA | PCIAFSR_P_TA | PCIAFSR_P_RTRY |	PCIAFSR_P_RERR |\
-	PCIAFSR_S_MA | PCIAFSR_S_TA | PCIAFSR_S_RTRY | PCIAFSR_S_RERR)
 
 /* PCI diagnostic register */
 #define	DIAG_RTRY_DIS	0x0000000000000040	/* dis. retry limit */
