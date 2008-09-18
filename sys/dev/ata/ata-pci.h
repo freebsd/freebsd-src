@@ -50,6 +50,8 @@ struct ata_pci_controller {
     struct ata_chip_id  *chip;
     int                 channels;
     int                 (*chipinit)(device_t);
+    int                 (*suspend)(device_t);
+    int                 (*resume)(device_t);
     int                 (*allocate)(device_t);
     int                 (*locking)(device_t, int);
     void                (*reset)(device_t);
@@ -461,6 +463,8 @@ struct ata_connect_task {
 int ata_pci_probe(device_t dev);
 int ata_pci_attach(device_t dev);
 int ata_pci_detach(device_t dev);
+int ata_pci_suspend(device_t dev);
+int ata_pci_resume(device_t dev);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
 int ata_pci_release_resource(device_t dev, device_t child, int type, int rid, struct resource *r);
 int ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags, driver_filter_t *filter, driver_intr_t *function, void *argument, void **cookiep);
