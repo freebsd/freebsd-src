@@ -62,6 +62,8 @@ static int ata_sata_connect(struct ata_channel *ch);
 static void ata_sata_setmode(device_t dev, int mode);
 static int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
 static int ata_ahci_chipinit(device_t dev);
+static int ata_ahci_ctlr_reset(device_t dev);
+static int ata_ahci_suspend(device_t dev);
 static int ata_ahci_allocate(device_t dev);
 static int ata_ahci_status(device_t dev);
 static int ata_ahci_begin_transaction(struct ata_request *request);
@@ -602,37 +604,20 @@ ata_ahci_chipinit(device_t dev)
     else
 	device_printf(dev, "AHCI called from vendor specific driver\n");
 
-    /* enable AHCI mode */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
-
-    /* reset AHCI controller */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_HR);
-    DELAY(1000000);
-    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
-	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
-	device_printf(dev, "AHCI controller reset failure\n");
-	return ENXIO;
-    }
-
-    /* reenable AHCI mode */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
+    /* reset controller */
+    ata_ahci_ctlr_reset(dev);
 
     /* get the number of HW channels */
     ctlr->channels =
 	MAX(flsl(ATA_INL(ctlr->r_res2, ATA_AHCI_PI)), 
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
 
-    /* clear interrupts */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
-
-    /* enable AHCI interrupts */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
-	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
-
     ctlr->reset = ata_ahci_reset;
     ctlr->dmainit = ata_ahci_dmainit;
     ctlr->allocate = ata_ahci_allocate;
     ctlr->setmode = ata_sata_setmode;
+    ctlr->suspend = ata_ahci_suspend;
+    ctlr->resume = ata_ahci_ctlr_reset;
 
     /* enable PCI interrupt */
     pci_write_config(dev, PCIR_COMMAND,
@@ -651,11 +636,52 @@ ata_ahci_chipinit(device_t dev)
 }
 
 static int
+ata_ahci_ctlr_reset(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    /* enable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
+
+    /* reset AHCI controller */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_HR);
+    DELAY(1000000);
+    if (ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & ATA_AHCI_GHC_HR) {
+	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
+	device_printf(dev, "AHCI controller reset failure\n");
+	return ENXIO;
+    }
+
+    /* reenable AHCI mode */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC, ATA_AHCI_GHC_AE);
+
+    /* clear interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
+
+    /* enable AHCI interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_IE);
+
+    return 0;
+}
+
+static int
+ata_ahci_suspend(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    /* disable interupts so the state change(s) doesn't trigger */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
+             ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) & (~ATA_AHCI_GHC_IE));
+    return 0;
+}
+
+
+static int
 ata_ahci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int64_t work;
     int offset = ch->unit << 7;
 
     /* set the SATA resources */
@@ -676,30 +702,6 @@ ata_ahci_allocate(device_t dev)
     ch->hw.pm_read = ata_ahci_pm_read;
     ch->hw.pm_write = ata_ahci_pm_write;
 
-    /* setup work areas */
-    work = ch->dma.work_bus + ATA_AHCI_CL_OFFSET;
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset, work & 0xffffffff);
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLBU + offset, work >> 32);
-
-    work = ch->dma.work_bus + ATA_AHCI_FB_OFFSET;
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FB + offset, work & 0xffffffff); 
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBU + offset, work >> 32);
-
-    /* enable wanted port interrupts */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset,
-	     (ATA_AHCI_P_IX_CPD | ATA_AHCI_P_IX_TFE | ATA_AHCI_P_IX_HBF |
-	      ATA_AHCI_P_IX_HBD | ATA_AHCI_P_IX_IF | ATA_AHCI_P_IX_OF |
-	      ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC | ATA_AHCI_P_IX_DP |
-	      ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB | ATA_AHCI_P_IX_DS |
-	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
-
-    /* enable FIS based switching */
-    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, 0x00000003);
-
-    /* start operations on this channel */
-    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_FRE |
-	      ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD | ATA_AHCI_P_CMD_ST));
     return 0;
 }
 
@@ -711,21 +713,24 @@ ata_ahci_status(device_t dev)
     u_int32_t action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
     int offset = ch->unit << 7;
 
+#define ATA_AHCI_STATBITS \
+	(ATA_AHCI_P_IX_IF|ATA_AHCI_P_IX_HBD|ATA_AHCI_P_IX_HBF|ATA_AHCI_P_IX_TFE)
+
     if (action & (1 << ch->unit)) {
 	u_int32_t istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
 	u_int32_t cstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 
 	/* clear interrupt(s) */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
 
 	/* do we have any PHY events ? */
-	/* XXX SOS check istatus phy bits */
-	ata_sata_phy_check_events(dev);
+	if (istatus & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC))
+	    ata_sata_phy_check_events(dev);
 
 	/* do we have a potentially hanging engine to take care of? */
 	/* XXX SOS what todo on NCQ */
-	if ((istatus & 0x78400050) && (cstatus & 1)) {
+	if ((istatus & ATA_AHCI_STATBITS) && (cstatus & 1)) {
 
 	    u_int32_t cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
 	    int timeout = 0;
@@ -1047,10 +1052,10 @@ ata_ahci_restart(device_t dev)
 	     ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset));
 
     /* start operations on this channel */
+    cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
-	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_FRE |
-	      ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD | ATA_AHCI_P_CMD_ST)
-	     | (ch->devices & ATA_PORTMULTIPLIER ? ATA_AHCI_P_CMD_PMA : 0));
+	     cmd | (ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST) |
+	     (ch->devices & ATA_PORTMULTIPLIER ? ATA_AHCI_P_CMD_PMA : 0));
 }
 
 static u_int32_t
@@ -1110,19 +1115,50 @@ ata_ahci_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    u_int32_t signature;
+    u_int64_t work;
+    u_int32_t cmd, signature;
+    int offset = ch->unit << 7;
 
     if (!(ATA_INL(ctlr->r_res2, ATA_AHCI_PI) & (1 << ch->unit))) {
 	device_printf(dev, "port not implemented\n");
 	return;
     }
 
+    /* setup work areas */
+    work = ch->dma.work_bus + ATA_AHCI_CL_OFFSET;
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset, work & 0xffffffff);
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLBU + offset, work >> 32);
+
+    work = ch->dma.work_bus + ATA_AHCI_FB_OFFSET;
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FB + offset, work & 0xffffffff); 
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBU + offset, work >> 32);
+
+    /* enable wanted port interrupts */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IE + offset,
+	     (ATA_AHCI_P_IX_CPD | ATA_AHCI_P_IX_TFE | ATA_AHCI_P_IX_HBF |
+	      ATA_AHCI_P_IX_HBD | ATA_AHCI_P_IX_IF | ATA_AHCI_P_IX_OF |
+	      ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC | ATA_AHCI_P_IX_DP |
+	      ATA_AHCI_P_IX_UF | ATA_AHCI_P_IX_SDB | ATA_AHCI_P_IX_DS |
+	      ATA_AHCI_P_IX_PS | ATA_AHCI_P_IX_DHR));
+
+    /* activate the channel and power/spin up device */
+    ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
+	     (ATA_AHCI_P_CMD_ACTIVE | ATA_AHCI_P_CMD_POD | ATA_AHCI_P_CMD_SUD));
+
     ata_ahci_restart(dev);
+
+    /* enable FIS based switching */
+    //ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_FBS + offset, 0x00000003);
 
     if (!ata_sata_phy_reset(dev)) {
 	if (bootverbose)
 	    device_printf(dev, "phy reset found no device\n");
 	ch->devices = 0;
+
+	/* kill off all activity on this channel */
+	cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset,
+		 cmd & ~(ATA_AHCI_P_CMD_FRE | ATA_AHCI_P_CMD_ST));
 	return;
     }
 
