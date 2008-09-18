@@ -28,110 +28,110 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/syscall.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/sx.h>
 #include <sys/module.h>
+#include <sys/sx.h>
+#include <sys/syscall.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 
 /*
- * Acts like "nosys" but can be identified in sysent for dynamic call 
- * number assignment for a limited number of calls. 
- * 
+ * Acts like "nosys" but can be identified in sysent for dynamic call
+ * number assignment for a limited number of calls.
+ *
  * Place holder for system call slots reserved for loadable modules.
- */     
+ */
 int
 lkmnosys(struct thread *td, struct nosys_args *args)
 {
-	return(nosys(td, args));
+
+	return (nosys(td, args));
 }
 
 int
 lkmressys(struct thread *td, struct nosys_args *args)
 {
-	return(nosys(td, args));
+
+	return (nosys(td, args));
 }
 
 int
 syscall_register(int *offset, struct sysent *new_sysent,
-		 struct sysent *old_sysent)
+    struct sysent *old_sysent)
 {
-       if (*offset == NO_SYSCALL) {
-               int i;
+	int i;
 
-               for (i = 1; i < SYS_MAXSYSCALL; ++i)
-                       if (sysent[i].sy_call == (sy_call_t *)lkmnosys)
-                               break;
-               if (i == SYS_MAXSYSCALL)
-                       return ENFILE;
-               *offset = i;
-       } else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
-               return EINVAL;
-       else if (sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
-				sysent[*offset].sy_call != (sy_call_t *)lkmressys)
-               return EEXIST;
+	if (*offset == NO_SYSCALL) {
+		for (i = 1; i < SYS_MAXSYSCALL; ++i)
+			if (sysent[i].sy_call == (sy_call_t *)lkmnosys)
+				break;
+		if (i == SYS_MAXSYSCALL)
+			return (ENFILE);
+		*offset = i;
+	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
+		return (EINVAL);
+	else if (sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
+	    sysent[*offset].sy_call != (sy_call_t *)lkmressys)
+		return (EEXIST);
 
-       *old_sysent = sysent[*offset];
-       sysent[*offset] = *new_sysent;
-       return 0;
+	*old_sysent = sysent[*offset];
+	sysent[*offset] = *new_sysent;
+	return (0);
 }
 
 int
 syscall_deregister(int *offset, struct sysent *old_sysent)
 {
-       if (*offset)
-               sysent[*offset] = *old_sysent;
-       return 0;
+
+	if (*offset)
+		sysent[*offset] = *old_sysent;
+	return (0);
 }
 
 int
 syscall_module_handler(struct module *mod, int what, void *arg)
 {
-       struct syscall_module_data *data = (struct syscall_module_data*)arg;
-       modspecific_t ms;
-       int error;
+	struct syscall_module_data *data = arg;
+	modspecific_t ms;
+	int error;
 
-       switch (what) {
-       case MOD_LOAD :
-               error = syscall_register(data->offset, data->new_sysent,
-                                        &data->old_sysent);
-               if (error) {
-                       /* Leave a mark so we know to safely unload below. */
-                       data->offset = NULL;
-                       return error;
-               }
-	       ms.intval = *data->offset;
-	       MOD_XLOCK;
-	       module_setspecific(mod, &ms);
-	       MOD_XUNLOCK;
-               if (data->chainevh)
-                       error = data->chainevh(mod, what, data->chainarg);
-               return error;
+	switch (what) {
+	case MOD_LOAD:
+		error = syscall_register(data->offset, data->new_sysent,
+		    &data->old_sysent);
+		if (error) {
+			/* Leave a mark so we know to safely unload below. */
+			data->offset = NULL;
+			return (error);
+		}
+		ms.intval = *data->offset;
+		MOD_XLOCK;
+		module_setspecific(mod, &ms);
+		MOD_XUNLOCK;
+		if (data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return (error);
+	case MOD_UNLOAD:
+		/*
+		 * MOD_LOAD failed, so just return without calling the
+		 * chained handler since we didn't pass along the MOD_LOAD
+		 * event.
+		 */
+		if (data->offset == NULL)
+			return (0);
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return error;
+		}
+		error = syscall_deregister(data->offset, &data->old_sysent);
+		return (error);
+	default:
+		return EOPNOTSUPP;
+	}
 
-       case MOD_UNLOAD :
-               /*
-                * MOD_LOAD failed, so just return without calling the
-                * chained handler since we didn't pass along the MOD_LOAD
-                * event.
-                */
-               if (data->offset == NULL)
-                       return (0);
-               if (data->chainevh) {
-                       error = data->chainevh(mod, what, data->chainarg);
-                       if (error)
-                               return error;
-               }
-               error = syscall_deregister(data->offset, &data->old_sysent);
-               return error;
-       default :
-	       return EOPNOTSUPP;
-	
-       }
-
-       if (data->chainevh)
-               return data->chainevh(mod, what, data->chainarg);
-       else
-               return 0;
+	if (data->chainevh)
+		return (data->chainevh(mod, what, data->chainarg));
+	else
+		return (0);
 }
