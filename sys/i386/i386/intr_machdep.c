@@ -458,6 +458,13 @@ intr_shuffle_irqs(void *arg __unused)
 	struct intsrc *isrc;
 	int i;
 
+#ifdef XEN
+	/*
+	 * Doesn't work yet
+	 */
+	return;
+#endif	
+	
 	/* Don't bother on UP. */
 	if (mp_ncpus == 1)
 		return;
