@@ -657,7 +657,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0,
+                error = intr_event_create(&event, (void *)irq, 0, 0,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "gt_pci intr%d:", irq);
 		if (error)
