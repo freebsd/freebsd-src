@@ -29,6 +29,8 @@
 #ifndef	_MACHINE_SMP_H_
 #define	_MACHINE_SMP_H_
 
+#ifdef SMP
+
 #define	CPU_TICKSYNC		1
 #define	CPU_STICKSYNC		2
 #define	CPU_INIT		3
@@ -91,10 +93,6 @@ void	cpu_mp_shutdown(void);
 typedef	void cpu_ipi_selected_t(u_int, u_long, u_long, u_long);
 extern	cpu_ipi_selected_t *cpu_ipi_selected;
 
-void	ipi_selected(u_int cpus, u_int ipi);
-void	ipi_all(u_int ipi);
-void	ipi_all_but_self(u_int ipi);
-
 void	mp_init(void);
 
 extern	struct mtx ipi_mtx;
@@ -117,7 +115,19 @@ extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
 
-#ifdef SMP
+static __inline void
+ipi_all_but_self(u_int ipi)
+{
+
+	cpu_ipi_selected(PCPU_GET(other_cpus), 0, (u_long)tl_ipi_level, ipi);
+}
+
+static __inline void
+ipi_selected(u_int cpus, u_int ipi)
+{
+
+	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_level, ipi);
+}
 
 #if defined(_MACHINE_PMAP_H_) && defined(_SYS_MUTEX_H_)
 
@@ -224,7 +234,11 @@ ipi_wait(void *cookie)
 
 #endif /* _MACHINE_PMAP_H_ && _SYS_MUTEX_H_ */
 
+#endif /* !LOCORE */
+
 #else
+
+#ifndef	LOCORE
 
 static __inline void *
 ipi_dcache_page_inval(void *func, vm_paddr_t pa)
@@ -267,8 +281,26 @@ ipi_wait(void *cookie)
 
 }
 
-#endif /* SMP */
+static __inline void
+tl_ipi_cheetah_dcache_page_inval(void)
+{
+
+}
+
+static __inline void
+tl_ipi_spitfire_dcache_page_inval(void)
+{
+
+}
+
+static __inline void
+tl_ipi_spitfire_icache_page_inval(void)
+{
+
+}
 
 #endif /* !LOCORE */
+
+#endif /* SMP */
 
 #endif /* !_MACHINE_SMP_H_ */
