@@ -97,8 +97,8 @@ static struct disklabel *getvirginlabel(void);
 #define	DEFEDITOR	_PATH_VI
 #define	DEFPARTITIONS	8
 
-static char	*dkname;
 static char	*specname;
+static char	*pname;
 static char	tmpfil[] = PATH_TMPFILE;
 
 static struct	disklabel lab;
@@ -147,8 +147,11 @@ int
 main(int argc, char *argv[])
 {
 	FILE *t;
-	int ch, error = 0;
-	char const *name = 0;
+	int ch, error, fd;
+	const char *name;
+	
+	error = 0;
+	name = NULL;
 
 	while ((ch = getopt(argc, argv, "ABb:efm:nRrw")) != -1)
 		switch (ch) {
@@ -220,17 +223,24 @@ main(int argc, char *argv[])
 
 	/* Figure out the names of the thing we're working on */
 	if (is_file) {
-		dkname = specname = argv[0];
-	} else if (argv[0][0] != '/') {
-		dkname = argv[0];
-		asprintf(&specname, "%s%s", _PATH_DEV, argv[0]);
-	} else if (strncmp(argv[0], _PATH_DEV, strlen(_PATH_DEV)) == 0) {
-		dkname = argv[0] + strlen(_PATH_DEV);
 		specname = argv[0];
 	} else {
-		dkname = strrchr(argv[0], '/');
-		dkname++;
-		specname = argv[0];
+		specname = g_device_path(argv[0]);
+		if (specname == NULL) {
+			warn("unable to get correct path for %s", argv[0]);
+			return(1);
+		}
+		fd = open(specname, O_RDONLY);
+		if (fd < 0) {
+			warn("error opening %s", specname);
+			return(1);
+		}
+		pname = g_providername(fd);
+		close(fd);
+		if (pname == NULL) {
+			warnx("error getting providername for %s", specname);
+			return(1);
+		}
 	}
 
 	if (installboot && op == UNSPEC)
@@ -408,10 +418,11 @@ writelabel(void)
 			warn("cannot open file %s for writing label", specname);
 			return(1);
 		}
+
 		grq = gctl_get_handle();
 		gctl_ro_param(grq, "verb", -1, "write label");
 		gctl_ro_param(grq, "class", -1, "BSD");
-		gctl_ro_param(grq, "geom", -1, dkname);
+		gctl_ro_param(grq, "geom", -1, pname);
 		gctl_ro_param(grq, "label", 148+16*8,
 			bootarea + labeloffset + labelsoffset * secsize);
 		errstr = gctl_issue(grq);
@@ -425,7 +436,7 @@ writelabel(void)
 			grq = gctl_get_handle();
 			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "class", -1, "BSD");
-			gctl_ro_param(grq, "geom", -1, dkname);
+			gctl_ro_param(grq, "geom", -1, pname);
 			gctl_ro_param(grq, "bootcode", BBSIZE, bootarea);
 			errstr = gctl_issue(grq);
 			if (errstr != NULL) {
@@ -477,9 +488,11 @@ readlabel(int flag)
 		err(1, specname);
 	if (is_file)
 		get_file_parms(f);
-	else if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
-	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
-		err(4, "cannot get disk geometry");
+	else {
+		mediasize = g_mediasize(f);
+		secsize = g_sectorsize(f);
+		if (secsize < 0 || mediasize < 0)
+			err(4, "cannot get disk geometry");
 	}
 	if (mediasize > (off_t)0xffffffff * secsize)
 		errx(1,
@@ -494,10 +507,12 @@ readlabel(int flag)
 	if (flag && error)
 		errx(1, "%s: no valid label found", specname);
 
+	if (is_file)
+		return(0);
 	grq = gctl_get_handle();
 	gctl_ro_param(grq, "verb", -1, "read mbroffset");
 	gctl_ro_param(grq, "class", -1, "BSD");
-	gctl_ro_param(grq, "geom", -1, dkname);
+	gctl_ro_param(grq, "geom", -1, pname);
 	gctl_rw_param(grq, "mbroffset", sizeof(mbroffset), &mbroffset);
 	errstr = gctl_issue(grq);
 	if (errstr != NULL) {
@@ -1427,10 +1442,13 @@ getvirginlabel(void)
 
 	if (is_file)
 		get_file_parms(f);
-	else if ((ioctl(f, DIOCGMEDIASIZE, &mediasize) != 0) ||
-	    (ioctl(f, DIOCGSECTORSIZE, &secsize) != 0)) {
-		close (f);
-		return (NULL);
+	else {
+		mediasize = g_mediasize(f);
+		secsize = g_sectorsize(f);
+		if (secsize < 0 || mediasize < 0) {
+			close (f);
+			return (NULL);
+		}
 	}
 	memset(&loclab, 0, sizeof loclab);
 	loclab.d_magic = DISKMAGIC;
