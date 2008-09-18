@@ -52,14 +52,14 @@ typedef	void (*systrace_args_func_t)(void *, u_int64_t *, int *);
 
 extern systrace_probe_func_t	systrace_probe_func;
 
-struct sysent {		/* system call table */
+struct sysent {			/* system call table */
 	int	sy_narg;	/* number of arguments */
 	sy_call_t *sy_call;	/* implementing function */
 	au_event_t sy_auevent;	/* audit event associated with syscall */
 	systrace_args_func_t sy_systrace_args_func;
 				/* optional argument conversion function. */
-	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */ 
-	u_int32_t sy_return;	/* DTrace return ID for systrace. */ 
+	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
+	u_int32_t sy_return;	/* DTrace return ID for systrace. */
 };
 
 struct image_params;
@@ -108,55 +108,53 @@ extern struct sysentvec elf_freebsd_sysvec;
 extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 
-#define NO_SYSCALL (-1)
+#define	NO_SYSCALL (-1)
 
 struct module;
 
 struct syscall_module_data {
-       int     (*chainevh)(struct module *, int, void *); /* next handler */
-       void    *chainarg;      /* arg for next event handler */
-       int     *offset;         /* offset into sysent */
-       struct  sysent *new_sysent; /* new sysent */
-       struct  sysent old_sysent; /* old sysent */
+	int	(*chainevh)(struct module *, int, void *); /* next handler */
+	void	*chainarg;		/* arg for next event handler */
+	int	*offset;		/* offset into sysent */
+	struct sysent *new_sysent;	/* new sysent */
+	struct sysent old_sysent;	/* old sysent */
 };
 
-#define MAKE_SYSENT(syscallname)                        \
-static struct sysent syscallname##_sysent = {           \
-    (sizeof(struct syscallname ## _args )               \
-     / sizeof(register_t)),                             \
-    (sy_call_t *)& syscallname,                         \
-    SYS_AUE_##syscallname                               \
+#define	MAKE_SYSENT(syscallname)				\
+static struct sysent syscallname##_sysent = {			\
+	(sizeof(struct syscallname ## _args )			\
+	    / sizeof(register_t)),				\
+	(sy_call_t *)& syscallname,				\
+	SYS_AUE_##syscallname					\
 }
-	
-#define SYSCALL_MODULE(name, offset, new_sysent, evh, arg)     \
-static struct syscall_module_data name##_syscall_mod = {       \
-       evh, arg, offset, new_sysent, { 0, NULL, AUE_NULL }     \
-};                                                             \
-                                                               \
-static moduledata_t name##_mod = {                             \
-       #name,                                                  \
-       syscall_module_handler,                                 \
-       &name##_syscall_mod                                     \
-};                                                             \
+
+#define SYSCALL_MODULE(name, offset, new_sysent, evh, arg)	\
+static struct syscall_module_data name##_syscall_mod = {	\
+	evh, arg, offset, new_sysent, { 0, NULL, AUE_NULL }	\
+};								\
+								\
+static moduledata_t name##_mod = {				\
+	#name,							\
+	syscall_module_handler,					\
+	&name##_syscall_mod					\
+};								\
 DECLARE_MODULE(name, name##_mod, SI_SUB_SYSCALLS, SI_ORDER_MIDDLE)
 
-#define SYSCALL_MODULE_HELPER(syscallname)              \
-static int syscallname##_syscall = SYS_##syscallname;   \
-MAKE_SYSENT(syscallname);                               \
-SYSCALL_MODULE(syscallname,                             \
-    & syscallname##_syscall, & syscallname##_sysent,    \
-    NULL, NULL);
+#define	SYSCALL_MODULE_HELPER(syscallname)			\
+static int syscallname##_syscall = SYS_##syscallname;		\
+MAKE_SYSENT(syscallname);					\
+SYSCALL_MODULE(syscallname,					\
+    & syscallname##_syscall, & syscallname##_sysent,		\
+    NULL, NULL)
 
-#define SYSCALL_MODULE_PRESENT(syscallname)		\
-	(sysent[SYS_##syscallname].sy_call !=		\
-			(sy_call_t *)lkmnosys &&	\
-	sysent[SYS_##syscallname].sy_call !=		\
-			(sy_call_t *)lkmressys)
+#define	SYSCALL_MODULE_PRESENT(syscallname)				\
+	(sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmnosys &&	\
+	sysent[SYS_##syscallname].sy_call != (sy_call_t *)lkmressys)
 
-int    syscall_register(int *offset, struct sysent *new_sysent,
+int	syscall_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
-int    syscall_deregister(int *offset, struct sysent *old_sysent);
-int    syscall_module_handler(struct module *mod, int what, void *arg);
+int	syscall_deregister(int *offset, struct sysent *old_sysent);
+int	syscall_module_handler(struct module *mod, int what, void *arg);
 
 #endif /* _KERNEL */
 
