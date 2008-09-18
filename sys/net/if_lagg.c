@@ -1116,6 +1116,13 @@ lagg_start(struct ifnet *ifp)
 	int error = 0;
 
 	LAGG_RLOCK(sc);
+	/* We need a Tx algorithm and at least one port */
+	if (sc->sc_proto == LAGG_PROTO_NONE || sc->sc_count == 0) {
+		IF_DRAIN(&ifp->if_snd);
+		LAGG_RUNLOCK(sc);
+		return;
+	}
+
 	for (;; error = 0) {
 		IFQ_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
@@ -1123,20 +1130,13 @@ lagg_start(struct ifnet *ifp)
 
 		ETHER_BPF_MTAP(ifp, m);
 
-		/* We need a Tx algorithm and at least one port */
-		if (sc->sc_proto != LAGG_PROTO_NONE && sc->sc_count)
-			error = (*sc->sc_start)(sc, m);
-		else
-			m_freem(m);
-
+		error = (*sc->sc_start)(sc, m);
 		if (error == 0)
 			ifp->if_opackets++;
 		else
 			ifp->if_oerrors++;
 	}
 	LAGG_RUNLOCK(sc);
-
-	return;
 }
 
 static struct mbuf *
