@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+.if ${MACHINE_ARCH} == "mips"
+MK_FORTH=no	# not yet
+.endif
+
 .if ${MK_FORTH} != "no"
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
