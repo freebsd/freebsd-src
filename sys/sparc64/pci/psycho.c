@@ -369,9 +369,6 @@ psycho_attach(device_t dev)
 		sc->sc_mtx = osc->sc_mtx;
 	}
 
-	/* Clear PCI AFSR. */
-	PCICTL_WRITE8(sc, PCR_AFS, PCIAFSR_ERRMASK);
-
 	csr = PSYCHO_READ8(sc, PSR_CS);
 	ver = PSYCHO_GCSR_VERS(csr);
 	sc->sc_ign = 0x1f; /* Hummingbird/Sabre IGN is always 0x1f. */
@@ -425,7 +422,7 @@ psycho_attach(device_t dev)
 		break;
 	}
 
-	csr |= PCICTL_SERR | PCICTL_ERRINTEN | PCICTL_ARB_4;
+	csr |= PCICTL_ERRINTEN | PCICTL_ARB_4;
 	csr &= ~(PCICTL_SBHINTEN | PCICTL_WAKEUPEN);
 #ifdef PSYCHO_DEBUG
 	device_printf(dev, "PCI CSR 0x%016llx -> 0x%016llx\n",
@@ -533,46 +530,7 @@ psycho_attach(device_t dev)
 				    "controller for INO %d", __func__, n);
 		}
 
-		/*
-		 * Establish handlers for interesting interrupts...
-		 *
-		 * XXX We need to remember these and remove this to support
-		 * hotplug on the UPA/FHC bus.
-		 *
-		 * XXX Not all controllers have these, but installing them
-		 * is better than trying to sort through this mess.
-		 */
-		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
-		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
-#ifdef DEBUGGER_ON_POWERFAIL
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, psycho_powerfail,
-		    NULL);
-#else
-		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
-		    (driver_intr_t *)psycho_powerfail);
-#endif
-		/* Psycho-specific initialization */
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
-			/*
-			 * Hummingbirds/Sabres do not have the following two
-			 * interrupts.
-			 */
-
-			/*
-			 * The spare hardware interrupt is used for the
-			 * over-temperature interrupt.
-			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
-			    NULL, psycho_overtemp);
-#ifdef PSYCHO_MAP_WAKEUP
-			/*
-			 * psycho_wakeup() doesn't do anything useful right
-			 * now.
-			 */
-			psycho_set_intr(sc, 5, PSR_PWRMGT_INT_MAP,
-			    psycho_wakeup, NULL);
-#endif /* PSYCHO_MAP_WAKEUP */
-
 			/* Initialize the counter-timer. */
 			sparc64_counter_init(device_get_nameunit(dev),
 			    rman_get_bustag(sc->sc_mem_res),
@@ -612,14 +570,6 @@ psycho_attach(device_t dev)
 		iommu_reset(sc->sc_is);
 	}
 
-	/*
-	 * Register a PCI bus error interrupt handler according to which
-	 * half this is.  Hummingbird/Sabre don't have a PCI bus B error
-	 * interrupt but they are also only used for PCI bus A.
-	 */
-	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
-	    PSR_PCIBERR_INT_MAP, psycho_pci_bus, NULL);
-
 	/* Allocate our tags. */
 	sc->sc_pci_memt = psycho_alloc_bus_tag(sc, PCI_MEMORY_BUS_SPACE);
 	sc->sc_pci_iot = psycho_alloc_bus_tag(sc, PCI_IO_BUS_SPACE);
@@ -643,11 +593,61 @@ psycho_attach(device_t dev)
 		    prop_array[0], prop_array[1], prop_array[0]);
 	sc->sc_pci_secbus = prop_array[0];
 
-	/* Clear PCI status error bits. */
+	/* Clear any pending PCI error bits. */
 	PCIB_WRITE_CONFIG(dev, sc->sc_pci_secbus, PCS_DEVICE, PCS_FUNC,
-	    PCIR_STATUS, PCIM_STATUS_PERR | PCIM_STATUS_RMABORT |
-	    PCIM_STATUS_RTABORT | PCIM_STATUS_STABORT |
-	    PCIM_STATUS_PERRREPORT, 2);
+	    PCIR_STATUS, PCIB_READ_CONFIG(dev, sc->sc_pci_secbus,
+	    PCS_DEVICE, PCS_FUNC, PCIR_STATUS, 2), 2);
+	PCICTL_WRITE8(sc, PCR_CS, PCICTL_READ8(sc, PCR_CS));
+	PCICTL_WRITE8(sc, PCR_AFS, PCICTL_READ8(sc, PCR_AFS));
+
+	if (osc == NULL) {
+		/*
+		 * Establish handlers for interesting interrupts...
+		 *
+		 * XXX We need to remember these and remove this to support
+		 * hotplug on the UPA/FHC bus.
+		 *
+		 * XXX Not all controllers have these, but installing them
+		 * is better than trying to sort through this mess.
+		 */
+		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, psycho_ue, NULL);
+		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, psycho_ce, NULL);
+#ifdef DEBUGGER_ON_POWERFAIL
+		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, psycho_powerfail,
+		    NULL);
+#else
+		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP, NULL,
+		    (driver_intr_t *)psycho_powerfail);
+#endif
+		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
+			/*
+			 * Hummingbirds/Sabres do not have the following two
+			 * interrupts.
+			 */
+
+			/*
+			 * The spare hardware interrupt is used for the
+			 * over-temperature interrupt.
+			 */
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP,
+			    NULL, psycho_overtemp);
+#ifdef PSYCHO_MAP_WAKEUP
+			/*
+			 * psycho_wakeup() doesn't do anything useful right
+			 * now.
+			 */
+			psycho_set_intr(sc, 5, PSR_PWRMGT_INT_MAP,
+			    psycho_wakeup, NULL);
+#endif /* PSYCHO_MAP_WAKEUP */
+		}
+	}
+	/*
+	 * Register a PCI bus error interrupt handler according to which
+	 * half this is.  Hummingbird/Sabre don't have a PCI bus B error
+	 * interrupt but they are also only used for PCI bus A.
+	 */
+	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
+	    PSR_PCIBERR_INT_MAP, psycho_pci_bus, NULL);
 
 	/*
 	 * Set the latency timer register as this isn't always done by the
@@ -808,7 +808,7 @@ psycho_ce(void *arg)
 	device_printf(sc->sc_dev, "correctable DMA error AFAR %#lx "
 	    "AFSR %#lx\n", (u_long)afar, (u_long)afsr);
 	/* Clear the error bits that we caught. */
-	PSYCHO_WRITE8(sc, PSR_CE_AFS, afsr & CEAFSR_ERRMASK);
+	PSYCHO_WRITE8(sc, PSR_CE_AFS, afsr);
 	mtx_unlock_spin(sc->sc_mtx);
 	return (FILTER_HANDLED);
 }
