@@ -122,7 +122,8 @@ bpf_stats(char *ifname)
 		pname = bpf_pidname(d->bd_pid);
 		(void) printf("%5d %6s %7s %9ju %9ju %9ju %5d %5d %s\n",
 		    d->bd_pid, d->bd_ifname, flagbuf,
-		    d->bd_rcount, d->bd_dcount, d->bd_fcount,
+		    (intmax_t)d->bd_rcount, (intmax_t)d->bd_dcount,
+		    (intmax_t)d->bd_fcount,
 		    d->bd_slen, d->bd_hlen, pname);
 		free(pname);
 	}
