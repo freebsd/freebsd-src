@@ -49,6 +49,7 @@ $FreeBSD$
 struct toepcb;
 struct listen_ctx;
 
+void cxgb_log_tcb(struct adapter *sc, unsigned int tid);
 typedef void (*defer_handler_t)(struct toedev *dev, struct mbuf *m);
 
 void t3tom_register_cpl_handler(unsigned int opcode, cxgb_cpl_handler_func h);
