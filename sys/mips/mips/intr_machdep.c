@@ -57,14 +57,12 @@ void
 mips_mask_irq(void)
 {
 
-	printf("Unimplemented: %s\n", __func__);
 }
 
 void
 mips_unmask_irq(void)
 {
 
-	printf("Unimplemented: %s\n", __func__);
 }
 
 void
@@ -84,9 +82,9 @@ cpu_establish_hardintr(const char *name, driver_filter_t *filt,
 
 	event = hardintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, 0,
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
-		    (mask_fn)mips_unmask_irq, NULL, "hard intr%d:", irq);
+		    NULL, NULL, "hard intr%d:", irq);
 		if (error)
 			return;
 		hardintr_events[irq] = event;
@@ -121,9 +119,9 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 
 	event = softintr_events[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0, 0,
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
-		    (mask_fn)mips_unmask_irq, NULL, "intr%d:", irq);
+		    NULL, NULL, "intr%d:", irq);
 		if (error)
 			return;
 		softintr_events[irq] = event;
@@ -138,10 +136,9 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 void
 cpu_intr(struct trapframe *tf)
 {
-	struct intr_handler *ih;
 	struct intr_event *event;
 	register_t cause;
-	int hard, i, intr, thread;
+	int hard, i, intr;
 
 	critical_enter();
 
@@ -173,19 +170,10 @@ cpu_intr(struct trapframe *tf)
 			continue;
 		}
 
-		/* Execute fast handlers. */
-		thread = 0;
-		TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
-			if (ih->ih_filter == NULL)
-				thread = 1;
-			else
-				ih->ih_filter(ih->ih_argument ?
-				    ih->ih_argument : tf);
+		if (intr_event_handle(event, tf) != 0) {
+			printf("stray %s interrupt %d\n", 
+			    hard ? "hard" : "soft", i);
 		}
-
-		/* Schedule thread if needed. */
-		if (thread)
-			intr_event_schedule_thread(event);
 	}
 
 	KASSERT(i == 0, ("all interrupts handled"));
