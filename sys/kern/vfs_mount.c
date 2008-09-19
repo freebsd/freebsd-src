@@ -77,8 +77,6 @@ static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata);
 static int	vfs_mountroot_ask(void);
 static int	vfs_mountroot_try(const char *mountfrom);
-static int	vfs_donmount(struct thread *td, int fsflags,
-		    struct uio *fsoptions);
 static void	free_mntarg(struct mntarg *ma);
 static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
@@ -583,7 +581,7 @@ vfs_mount_destroy(struct mount *mp)
 	uma_zfree(mount_zone, mp);
 }
 
-static int
+int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
@@ -592,11 +590,9 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
 	int has_rw, has_noro;
 
-	errmsg = NULL;
-	errmsg_len = 0;
+	errmsg = fspath = NULL;
+	errmsg_len = has_noro = has_rw = fspathlen = 0;
 	errmsg_pos = -1;
-	has_rw = 0;
-	has_noro = 0;
 
 	error = vfs_buildopts(fsoptions, &optlist);
 	if (error)

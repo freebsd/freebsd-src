@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#include <security/audit/audit.h>
+
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_ipc.h>
@@ -2552,8 +2554,51 @@ freebsd32_cpuset_setaffinity(struct thread *td,
 	return (cpuset_setaffinity(td, &ap));
 }
 
-#if 0
+int
+freebsd32_nmount(struct thread *td,
+    struct freebsd32_nmount_args /* {
+    	struct iovec *iovp;
+    	unsigned int iovcnt;
+    	int flags;
+    } */ *uap)
+{
+	struct uio *auio;
+	struct iovec *iov;
+	int error, k;
 
+	AUDIT_ARG(fflags, uap->flags);
+
+	/*
+	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
+	 * userspace to set this flag, but we must filter it out if we want
+	 * MNT_UPDATE on the root file system to work.
+	 * MNT_ROOTFS should only be set in the kernel in vfs_mountroot_try().
+	 */
+	uap->flags &= ~MNT_ROOTFS;
+
+	/*
+	 * check that we have an even number of iovec's
+	 * and that we have at least two options.
+	 */
+	if ((uap->iovcnt & 1) || (uap->iovcnt < 4))
+		return (EINVAL);
+
+	error = freebsd32_copyinuio(uap->iovp, uap->iovcnt, &auio);
+	if (error)
+		return (error);
+	for (iov = auio->uio_iov, k = 0; k < uap->iovcnt; ++k, ++iov) {
+		if (iov->iov_len > MMAXOPTIONLEN) {
+			free(auio, M_IOV);
+			return (EINVAL);
+		}
+	}
+
+	error = vfs_donmount(td, uap->flags, auio);
+	free(auio, M_IOV);
+	return error;
+}
+
+#if 0
 int
 freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 {
@@ -2578,5 +2623,4 @@ freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 	}
 	return (error);
 }
-
 #endif
