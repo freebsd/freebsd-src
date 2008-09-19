@@ -2883,9 +2883,8 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	firstpte = vtopte(trunc_4mpage(va));
-	KASSERT((*firstpte & PG_V) != 0,
-	    ("pmap_promote_pde: firstpte is missing PG_V"));
-	if ((*firstpte & PG_A) == 0) {
+	newpde = *firstpte;
+	if ((newpde & (PG_A | PG_V)) != (PG_A | PG_V)) {
 		pmap_pde_p_failures++;
 		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#x"
 		    " in pmap %p", va, pmap);
@@ -2897,14 +2896,13 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		    " in pmap %p", va, pmap);
 		return;
 	}
-	pa = *firstpte & PG_PS_FRAME;
-	newpde = *firstpte;
 	if ((newpde & (PG_M | PG_RW)) == PG_RW)
 		newpde &= ~PG_RW;
 
 	/* 
 	 * Check all the ptes before promotion
 	 */
+	pa = newpde & PG_PS_FRAME;
 	for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
 retry:
 		oldpte = *pte;
