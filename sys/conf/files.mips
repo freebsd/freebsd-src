@@ -29,7 +29,6 @@
 # ----------------------------------------------------------------------
 mips/mips/machdep.c		standard
 mips/mips/mp_machdep.c		optional smp
-mips/mips/mips_subr.c		standard
 mips/mips/psraccess.S		standard
 # ----------------------------------------------------------------------
 # Phase 3
