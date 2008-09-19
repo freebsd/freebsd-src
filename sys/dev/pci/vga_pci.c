@@ -110,6 +110,22 @@ vga_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return (EINVAL);
 }
 
+static int
+vga_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
+    void **cookiep)
+{
+	return (BUS_SETUP_INTR(device_get_parent(dev), dev, irq, flags,
+	    filter, intr, arg, cookiep));
+}
+
+static int
+vga_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie)
+{
+	return (BUS_TEARDOWN_INTR(device_get_parent(dev), dev, irq, cookie));
+}
+
 static struct resource *
 vga_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -311,8 +327,8 @@ static device_method_t vga_pci_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	vga_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	vga_pci_write_ivar),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_setup_intr,	vga_pci_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	vga_pci_teardown_intr),
 
 	DEVMETHOD(bus_alloc_resource,	vga_pci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	vga_pci_release_resource),
