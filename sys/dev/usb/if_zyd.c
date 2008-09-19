@@ -234,6 +234,7 @@ static void	zyd_scantask(void *);
 static void	zyd_scan_start(struct ieee80211com *);
 static void	zyd_scan_end(struct ieee80211com *);
 static void	zyd_set_channel(struct ieee80211com *);
+static void	zyd_wakeup(struct zyd_softc *);
 
 static int
 zyd_match(device_t dev)
@@ -451,9 +452,6 @@ zyd_detach(device_t dev)
 	if (!device_is_attached(dev))
 		return 0;
 
-	/* set a flag to indicate we're detaching.  */
-	sc->sc_flags |= ZYD_FLAG_DETACHING;
-
 	/* protect a race when we have listeners related with the driver.  */
 	ifp->if_flags &= ~IFF_UP;
 
@@ -461,10 +459,14 @@ zyd_detach(device_t dev)
 	bpfdetach(ifp);
 	ieee80211_ifdetach(ic);
 
+	/* set a flag to indicate we're detaching.  */
+	sc->sc_flags |= ZYD_FLAG_DETACHING;
+
 	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
 	callout_stop(&sc->sc_watchdog_ch);
 
+	zyd_wakeup(sc);
 	zyd_close_pipes(sc);
 
 	if_free(ifp);
@@ -789,6 +791,9 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 	struct rq rq;
 	uint16_t xferflags;
 	usbd_status error;
+
+	if (sc->sc_flags & ZYD_FLAG_DETACHING)
+		return ENXIO;
 
 	if ((xfer = usbd_alloc_xfer(sc->sc_udev)) == NULL)
 		return ENOMEM;
@@ -2748,9 +2753,6 @@ zyd_scantask(void *arg)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
-	if (sc->sc_flags & ZYD_FLAG_DETACHING)
-		return;
-
 	ZYD_LOCK(sc);
 
 	switch (sc->sc_scan_action) {
@@ -2777,6 +2779,16 @@ zyd_scantask(void *arg)
         }
 
         ZYD_UNLOCK(sc);
+}
+
+static void
+zyd_wakeup(struct zyd_softc *sc)
+{
+	struct rq *rqp;
+
+	STAILQ_FOREACH(rqp, &sc->sc_rqh, rq) {
+		wakeup(rqp->odata);		/* wakeup sleeping caller */
+	}
 }
 
 static device_method_t zyd_methods[] = {
