@@ -173,8 +173,8 @@ OBJ_GRPS =	STD DIV
 #
 # Floating point emulation functions
 #
-.if ${TARGET_ARCH} == "armNOT_YET" || ${TARGET_ARCH} == "powerpc" || \
-    ${TARGET_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "armNOT_YET" || ${TARGET_ARCH} == "mips" || \
+    ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
 
 FPBIT_CFLAGS =	-DFINE_GRAINED_LIBRARIES -DFLOAT
 DPBIT_CFLAGS =	-DFINE_GRAINED_LIBRARIES
