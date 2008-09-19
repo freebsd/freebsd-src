@@ -14,7 +14,7 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
 
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "powerpc"
-CFLAGS+=	-msoft-float -DPOWERMAC_SCREEN_HACK
+CFLAGS+=	-msoft-float
 .endif
 
 .ifdef(BOOT_DISK_DEBUG)
