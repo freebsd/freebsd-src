@@ -43,7 +43,7 @@ static	d_poll_t	snppoll;
 
 static struct cdevsw snp_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
+	.d_flags =	D_PSEUDO | D_NEEDGIANT,
 	.d_open =	snpopen,
 	.d_read =	snpread,
 	.d_write =	snpwrite,
