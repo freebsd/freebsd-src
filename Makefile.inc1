@@ -27,6 +27,10 @@
 
 .include <bsd.own.mk>
 
+.if ${MACHINE_ARCH} == "mips"
+MK_RESCUE=no	# not yet
+.endif
+
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
