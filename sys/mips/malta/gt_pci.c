@@ -142,8 +142,7 @@ gt_pci_intr(void *v)
 {
 	struct gt_pci_softc *sc = v;
 	struct intr_event *event;
-	struct intr_handler *ih;
-	int irq, thread;
+	int irq;
 
 	for (;;) {
 		bus_space_write_1(sc->sc_pciio, sc->sc_ioh_icu1, PIC_OCW3,
@@ -168,22 +167,13 @@ gt_pci_intr(void *v)
 		}
 
 		event = sc->sc_eventstab[irq];
-		thread = 0;
 
-		if (event && !TAILQ_EMPTY(&event->ie_handlers))
-		{
-			/* Execute fast handlers. */
-			TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
-				if (ih->ih_filter == NULL)
-					thread = 1;
-				else
-					ih->ih_filter(ih->ih_argument);
-			}
-		}
+		if (!event || TAILQ_EMPTY(&event->ie_handlers))
+			continue;
 
-		/* Schedule thread if needed. */
-		if (thread)
-			intr_event_schedule_thread(event);
+		/* TODO: frame instead of NULL? */
+		intr_event_handle(event, NULL);
+		/* XXX: Log stray IRQs */
 
 		/* Send a specific EOI to the 8259. */
 		if (irq > 7) {
@@ -657,7 +647,7 @@ gt_pci_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-                error = intr_event_create(&event, (void *)irq, 0, 0,
+                error = intr_event_create(&event, (void *)irq, 0, irq,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    (mask_fn)mips_unmask_irq, NULL, "gt_pci intr%d:", irq);
 		if (error)
