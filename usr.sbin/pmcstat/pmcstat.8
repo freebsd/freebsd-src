@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2008
+.Dd September 19, 2008
 .Os
 .Dt PMCSTAT 8
 .Sh NAME
@@ -303,10 +303,15 @@ and measure the number of data cache misses suffered
 by it and its children every 12 seconds on an AMD Athlon, use:
 .Dl "pmcstat -d -w 12 -p k7-dc-misses mozilla"
 .Pp
-To measure processor instructions retired for all processes named
+To measure instructions retired for all processes named
 .Dq emacs
 use:
 .Dl "pmcstat -t '^emacs$' -p instructions"
+.Pp
+To measure instructions retired for processes named
+.Dq emacs
+for a period of 10 seconds use:
+.Dl "pmcstat -t '^emacs$' -p instructions sleep 10"
 .Pp
 To count instruction tlb-misses on CPUs 0 and 2 on a Intel
 Pentium Pro/Pentium III SMP system use:
