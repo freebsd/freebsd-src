@@ -651,7 +651,7 @@
 375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int flags); }
 377	AUE_NULL	UNIMPL	afs_syscall
-378	AUE_NMOUNT	NOPROTO	{ int nmount(struct iovec *iovp, \
+378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	UNIMPL	kse_exit
 380	AUE_NULL	UNIMPL	kse_wakeup
