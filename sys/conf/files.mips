@@ -75,6 +75,13 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
+hal.o				optional	ath_hal		\
+	compile-with		"ATH_HAL_CPU=mips; ATH_ENDIAN=`if ([ x${TARGET_BIG_ENDIAN} = x ]); then echo le; else echo be; fi;`; uudecode < $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.hal.o.uu" \
+	no-implicit-rule
+opt_ah.h			optional	ath_hal		\
+	compile-with		"ATH_HAL_CPU=mips; ATH_ENDIAN=`if ([ x${TARGET_BIG_ENDIAN} = x ]); then echo le; else echo be; fi;`; rm -f opt_ah.h; cp $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.opt_ah.h opt_ah.h" \
+	no-obj no-implicit-rule before-depend			\
+	clean		"opt_ah.h"
 libkern/ashldi3.c		standard
 libkern/ashrdi3.c		standard
 libkern/divdi3.c		standard
