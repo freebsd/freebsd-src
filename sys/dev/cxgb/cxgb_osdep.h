@@ -92,7 +92,6 @@ struct t3_mbuf_hdr {
 #define m_get_socket(m) ((m)->m_pkthdr.header)
 
 #define	KTR_CXGB	KTR_SPARE2
-void cxgb_log_tcb(struct adapter *sc, unsigned int tid);
 
 #define MT_DONTFREE  128
 

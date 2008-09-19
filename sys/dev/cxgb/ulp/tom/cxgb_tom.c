@@ -145,6 +145,35 @@ struct cxgb_client t3c_tom_client = {
 	.redirect = NULL
 };
 
+void
+cxgb_log_tcb(struct adapter *sc, unsigned int tid)
+{
+
+	char buf[TCB_SIZE];
+	uint64_t *tcb = (uint64_t *)buf;
+	int i, error;
+	struct mc7 *mem = &sc->cm;
+
+	error = t3_mc7_bd_read(mem, tid*TCB_SIZE/8, TCB_SIZE/8, tcb);
+	if (error)
+		printf("cxgb_tcb_log failed\n");
+
+
+	CTR1(KTR_CXGB, "TCB tid=%u", tid);
+	for (i = 0; i < TCB_SIZE / 32; i++) {
+
+		CTR5(KTR_CXGB, "%1d: %08x %08x %08x %08x",
+		    i, (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
+		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
+
+		tcb += 2;
+		CTR4(KTR_CXGB, "   %08x %08x %08x %08x",
+		    (uint32_t)tcb[1], (uint32_t)(tcb[1] >> 32),
+		    (uint32_t)tcb[0], (uint32_t)(tcb[0] >> 32));
+		tcb += 2;
+	}
+}
+
 /*
  * Add an skb to the deferred skb queue for processing from process context.
  */
