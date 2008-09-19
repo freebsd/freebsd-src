@@ -273,7 +273,7 @@ obio_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+		error = intr_event_create(&event, (void *)irq, 0, irq, 
 		    (mask_fn)obio_mask_irq, (mask_fn)obio_unmask_irq,
 		    NULL, NULL,
 		    "obio intr%d:", irq);
@@ -328,9 +328,8 @@ obio_intr(void *arg)
 {
 	struct obio_softc *sc = arg;
 	struct intr_event *event;
-	struct intr_handler *ih;
 	uint32_t irqstat, ipend, imask, xpend;
-	int irq, thread, group, i, ret;
+	int irq, thread, group, i;
 
 	irqstat = 0;
 	irq = 0;
@@ -350,47 +349,16 @@ obio_intr(void *arg)
 			irq = IP_IRQ(group, i - 1);
 			event = sc->sc_eventstab[irq];
 			thread = 0;
-#ifndef INTR_FILTER
-			obio_mask_irq(irq);
-#endif
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
-#ifdef INTR_FILTER
-				obio_unmask_irq(irq);
-#endif
+				/* TODO: Log stray IRQs */
 				continue;
 			}
 
-#ifdef INTR_FILTER
 			/* TODO: frame instead of NULL? */
 			intr_event_handle(event, NULL);
 			/* XXX: Log stray IRQs */
-#else
-			/* Execute fast handlers. */
-			TAILQ_FOREACH(ih, &event->ie_handlers,
-			    ih_next) {
-				if (ih->ih_filter == NULL)
-					thread = 1;
-				else
-					ret = ih->ih_filter(ih->ih_argument);
-				/*
-				 * Wrapper handler special case: see
-				 * intr_execute_handlers() in
-				 * i386/intr_machdep.c
-				 */
-				if (!thread) {
-					if (ret == FILTER_SCHEDULE_THREAD)
-						thread = 1;
-				}
-			}
-
-			/* Schedule thread if needed. */
-			if (thread)
-				intr_event_schedule_thread(event);
-			else
-				obio_unmask_irq(irq);
 		}
 	}
-#endif
 #if 0
 	ipend = ICU_REG_READ(ICU_IPEND2);
 	printf("ipend2 = %08x!\n", ipend);
