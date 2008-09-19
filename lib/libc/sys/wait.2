@@ -99,6 +99,7 @@ equals the absolute value of
 The
 .Fa status
 argument is defined below.
+.Pp
 The
 .Fa options
 argument contains the bitwise OR of any of the following options.
@@ -121,8 +122,15 @@ due to a
 .Dv SIGTTIN , SIGTTOU , SIGTSTP ,
 or
 .Dv SIGSTOP
-signal also have
-their status reported.
+signal also have their status reported.
+The
+.Dv WSTOPPED
+option is an alias for
+.Dv WUNTRACED .
+The
+.Dv WNOWAIT
+option keeps the process whose status is returned in a waitable state.
+The process may be waited for again after this call completes.
 .Pp
 If
 .Fa rusage
