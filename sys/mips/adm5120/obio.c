@@ -320,7 +320,7 @@ obio_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+		error = intr_event_create(&event, (void *)irq, 0, irq,
 		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
 		    NULL, NULL, "obio intr%d:", irq);
 
@@ -379,9 +379,8 @@ obio_intr(void *arg)
 {
 	struct obio_softc *sc = arg;
 	struct intr_event *event;
-	struct intr_handler *ih;
 	uint32_t irqstat;
-	int irq, thread = 0;
+	int irq;
 
 	irqstat = REG_READ(ICU_FIQ_STATUS_REG);
 	irqstat |= REG_READ(ICU_STATUS_REG);
@@ -390,20 +389,12 @@ obio_intr(void *arg)
 	while (irqstat != 0) {
 		if ((irqstat & 1) == 1) {
 			event = sc->sc_eventstab[irq];
-			if (event && !TAILQ_EMPTY(&event->ie_handlers)) {
-				/* Execute fast handlers. */
-				TAILQ_FOREACH(ih, &event->ie_handlers,
-				    ih_next) {
-					if (ih->ih_filter == NULL)
-						thread = 1;
-					else
-						ih->ih_filter(ih->ih_argument);
-				}
-			}
+			if (!event || TAILQ_EMPTY(&event->ie_handlers))
+				continue;
 
-			/* Schedule thread if needed. */
-			if (thread)
-				intr_event_schedule_thread(event);
+			/* TODO: pass frame as an argument*/
+			/* TODO: log stray interrupt */
+			intr_event_handle(event, NULL);
 		}
 
 		irq++;
