@@ -763,7 +763,9 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct zyd_softc *sc = ic->ic_ifp->if_softc;
 
+	usb_rem_task(sc->sc_udev, &sc->sc_scantask);
 	usb_rem_task(sc->sc_udev, &sc->sc_task);
+	callout_stop(&sc->sc_watchdog_ch);
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
