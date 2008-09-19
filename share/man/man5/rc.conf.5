@@ -3453,7 +3453,8 @@ Note that the alias is created at jail startup and removed at jail shutdown.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fib
 .Pq Vt str
 Unset by default.
-When set, the jail is started with the specified routing table via
+When set, the jail is started with the specified forwarding table (sometimes
+referred to as a routing table) via
 .Xr setfib 1 .
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fstab
 .Pq Vt str
