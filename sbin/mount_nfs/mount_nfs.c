@@ -164,19 +164,19 @@ enum tryret nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec,
 enum tryret nfs4_tryproto(struct addrinfo *ai, char *hostp, char *spec,
     char **errstr);
 enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);
+extern int getosreldate(void);
 
 int
 main(int argc, char *argv[])
 {
 	int c;
 	struct iovec *iov;
-	int mntflags, altflags, num;
-	int iovlen;
+	int mntflags, num, iovlen;
+	int osversion;
 	char *name, *p, *spec, *fstype;
 	char mntpath[MAXPATHLEN], errmsg[255];
 
 	mntflags = 0;
-	altflags = 0;
 	iov = NULL;
 	iovlen = 0;
 	memset(errmsg, 0, sizeof(errmsg));
@@ -403,9 +403,19 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
-	if (nmount(iov, iovlen, mntflags)) {
-		if (errno != ENOENT
-		    || fallback_mount(iov, iovlen, mntflags))
+	/*
+	 * XXX:
+	 * Backwards compatibility routines for older kernels.
+	 * Remove this and fallback_mount() code when we do not need to support
+	 * NFS mounts against older kernels which still need
+	 * struct nfs_args to be passed in via nmount().
+	 */
+	osversion = getosreldate();
+	if (osversion >= 800048) {
+		if (nmount(iov, iovlen, mntflags))
+			err(1, "%s, %s", mntpath, errmsg);
+	} else {
+		if (fallback_mount(iov, iovlen, mntflags))
 			err(1, "%s, %s", mntpath, errmsg);
 	}
 
