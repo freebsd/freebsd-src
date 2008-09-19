@@ -197,7 +197,7 @@ SUBDIR=	ac \
 	zic \
 	${_zzz}
 
-.if ${MACHINE_ARCH} != "arm"
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 _sysinstall=	sysinstall
 .endif
 
