@@ -11,6 +11,9 @@ FBSD_1.0 {
 	uuid_create_nil;
 	uuid_create;
 	uuid_compare;
+};
+
+FBSD_1.1 {
 	uuid_enc_le;
 	uuid_dec_le;
 	uuid_enc_be;
