@@ -42,6 +42,10 @@ int ofw_cons_poll(void);
 
 static ihandle_t stdin;
 static ihandle_t stdout;
+#ifdef POWERMAC_SCREEN_HACK
+static ihandle_t stdout1;
+static int do_stdout1 = 0;
+#endif
 
 struct console ofwconsole = {
 	"ofw",
@@ -57,9 +61,26 @@ struct console ofwconsole = {
 static void
 ofw_cons_probe(struct console *cp)
 {
+#ifdef POWERMAC_SCREEN_HACK
+	char path1[128], path2[128];
+#endif
 
 	OF_getprop(chosen, "stdin", &stdin, sizeof(stdin));
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+#ifdef POWERMAC_SCREEN_HACK
+	stdout1 = OF_open("screen");
+	if (stdout1 != -1) {
+		if (OF_instance_to_path(stdout, path1, sizeof(path1)) == -1)
+			path1[0] = '\0';
+		if (OF_instance_to_path(stdout1, path2, sizeof(path2)) == -1)
+			path2[0] = '\0';
+		if (strcmp(path1, path2) == 0) {
+			OF_close(stdout1);
+		} else {
+			do_stdout1 = 1;
+		}
+	}
+#endif
 	cp->c_flags |= C_PRESENTIN|C_PRESENTOUT;
 }
 
@@ -77,10 +98,18 @@ ofw_cons_putchar(int c)
 	if (c == '\n') {
 		cbuf = '\r';
 		OF_write(stdout, &cbuf, 1);
+#ifdef POWERMAC_SCREEN_HACK
+		if (do_stdout1 != 0)
+			OF_write(stdout1, &cbuf, 1);
+#endif
 	}
 
 	cbuf = c;
 	OF_write(stdout, &cbuf, 1);
+#ifdef POWERMAC_SCREEN_HACK
+	if (do_stdout1 != 0)
+		OF_write(stdout1, &cbuf, 1);
+#endif
 }
 
 static int saved_char = -1;
