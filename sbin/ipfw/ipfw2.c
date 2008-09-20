@@ -3569,7 +3569,7 @@ setup_redir_addr(char *spool_buf, int len,
 	char **av, *sep; /* Token separator. */
 	/* Temporary buffer used to hold server pool ip's. */
 	char tmp_spool_buf[NAT_BUF_LEN]; 
-	int ac, i, space, lsnat;
+	int ac, space, lsnat;
 	struct cfg_redir *r;	
 	struct cfg_spool *tmp;		
 
@@ -3788,7 +3788,7 @@ setup_redir_proto(char *spool_buf, int len,
 		 int *_ac, char ***_av) 
 {
 	char **av;
-	int ac, i, space;
+	int ac, space;
 	struct protoent *protoent;
 	struct cfg_redir *r;
 	
@@ -3975,7 +3975,6 @@ static void
 config_nat(int ac, char **av)
 {
 	struct cfg_nat *n;              /* Nat instance configuration. */
-	struct in_addr ip;
 	int i, len, off, tok;
 	char *id, buf[NAT_BUF_LEN]; 	/* Buffer for serialized data. */
 	
@@ -5978,7 +5977,7 @@ show_nat(int ac, char **av)
 	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
 	int nat_cnt, redir_cnt, r;
 	uint8_t *data, *p;
-	char **lav, *endptr;
+	char *endptr;
 
 	do_rule = 0;
 	nalloc = 1024;
