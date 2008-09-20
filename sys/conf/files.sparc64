@@ -100,20 +100,23 @@ sparc64/sparc64/db_trace.c	optional	ddb
 sparc64/sparc64/db_hwwatch.c	optional	ddb
 sparc64/sparc64/dump_machdep.c	standard
 sparc64/sparc64/elf_machdep.c	standard
-sparc64/sparc64/exception.S	standard	no-obj
+sparc64/sparc64/exception.S	standard	no-obj			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/eeprom.c	optional	eeprom ebus | eeprom fhc | \
 						eeprom sbus
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
-sparc64/sparc64/interrupt.S	standard	no-obj
+sparc64/sparc64/interrupt.S	standard	no-obj			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
 sparc64/sparc64/jbusppm.c	standard
 sparc64/sparc64/locore.S	standard	no-obj
 sparc64/sparc64/machdep.c	standard
 sparc64/sparc64/mem.c		optional	mem
-sparc64/sparc64/mp_exception.S	optional	smp
+sparc64/sparc64/mp_exception.S	optional	smp			\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/mp_locore.S	optional	smp
 sparc64/sparc64/mp_machdep.c	optional	smp
 sparc64/sparc64/nexus.c		standard
@@ -127,6 +130,8 @@ sparc64/sparc64/sc_machdep.c	optional	sc
 sparc64/sparc64/schppm.c	standard
 sparc64/sparc64/spitfire.c	standard
 sparc64/sparc64/stack_machdep.c	optional	ddb | stack
+sparc64/sparc64/support.S	standard				\
+	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/support.S	standard
 sparc64/sparc64/sys_machdep.c	standard
 sparc64/sparc64/swtch.S		standard
