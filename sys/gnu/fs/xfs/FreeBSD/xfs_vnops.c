@@ -240,7 +240,6 @@ _xfs_getattr(
 	/* extract the xfs vnode from the private data */
 	//xfs_vnode_t	*xvp = (xfs_vnode_t *)vp->v_data;
 
-	VATTR_NULL(vap);
 	memset(&va,0,sizeof(xfs_vattr_t));
 	va.va_mask = XFS_AT_STAT|XFS_AT_GENCOUNT|XFS_AT_XFLAGS;
 

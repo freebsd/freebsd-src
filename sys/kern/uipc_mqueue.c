@@ -1164,7 +1164,6 @@ mqfs_getattr(struct vop_getattr_args *ap)
 	struct vattr *vap = ap->a_vap;
 	int error = 0;
 
-	VATTR_NULL(vap);
 	vap->va_type = vp->v_type;
 	vap->va_mode = pn->mn_mode;
 	vap->va_nlink = 1;
