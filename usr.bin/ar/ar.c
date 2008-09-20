@@ -151,7 +151,7 @@ main(int argc, char **argv)
 		}
 	}
 
-	while ((opt = getopt_long(argc, argv, "abCcdfijlmopqrSsTtuVvxz",
+	while ((opt = getopt_long(argc, argv, "abCcdfijlMmopqrSsTtuVvxz",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case 'a':
@@ -179,6 +179,9 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			/* ignored, for GNU ar comptibility */
+			break;
+		case 'M':
+			set_mode(bsdar, opt);
 			break;
 		case 'm':
 			set_mode(bsdar, opt);
@@ -229,7 +232,7 @@ main(int argc, char **argv)
 	argv += optind;
 	argc -= optind;
 
-	if (*argv == NULL)
+	if (*argv == NULL && bsdar->mode != 'M')
 		bsdar_usage();
 
 	if (bsdar->options & AR_A && bsdar->options & AR_B)
@@ -269,6 +272,11 @@ main(int argc, char **argv)
 		only_mode(bsdar, "-S", "mqr");
 	if (bsdar->options & AR_U)
 		only_mode(bsdar, "-u", "qrx");
+
+	if (bsdar->mode == 'M') {
+		ar_mode_script(bsdar);
+		exit(EX_OK);
+	}
 
 	if ((bsdar->filename = *argv) == NULL)
 		bsdar_usage();

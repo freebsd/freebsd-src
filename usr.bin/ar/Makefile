@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	ar
-SRCS=	ar.c read.c util.c write.c
+SRCS=	ar.c acplex.l acpyacc.y read.c util.c write.c y.tab.h
 
 WARNS?=	5
 

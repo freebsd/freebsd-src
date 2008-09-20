@@ -60,6 +60,8 @@ static void	create_symtab_entry(struct bsdar *bsdar, void *maddr,
 		    size_t size);
 static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 		    struct ar_obj *pos);
+static void	read_objs(struct bsdar *bsdar, const char *archive,
+		    int checkargv);
 static void	write_archive(struct bsdar *bsdar, char mode);
 static void	write_cleanup(struct bsdar *bsdar);
 static void	write_data(struct bsdar *bsdar, struct archive *a,
@@ -99,6 +101,13 @@ ar_mode_s(struct bsdar *bsdar)
 {
 
 	write_archive(bsdar, 's');
+}
+
+void
+ar_mode_A(struct bsdar *bsdar)
+{
+
+	write_archive(bsdar, 'A');
 }
 
 /*
@@ -218,62 +227,29 @@ tail:
 }
 
 /*
- * Determine the constitution of resulting archive.
+ * Read objects from archive into v_obj list. Note that checkargv is
+ * set when read_objs is used to read objects from the target of
+ * ADDLIB command (ar script mode), in this case argv array possibly
+ * specifies the members ADDLIB want.
  */
 static void
-write_archive(struct bsdar *bsdar, char mode)
+read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 {
 	struct archive		 *a;
 	struct archive_entry	 *entry;
-	struct ar_obj		 *nobj, *obj, *obj_temp, *pos;
-	struct stat		  sb;
+	struct ar_obj		 *obj;
 	const char		 *name;
 	const char		 *bname;
 	char			 *buff;
 	char			**av;
 	size_t			  size;
-	int			  i, r;
+	int			  i, r, find;
 
-	TAILQ_INIT(&bsdar->v_obj);
-	nobj = NULL;
-	pos = NULL;
-	memset(&sb, 0, sizeof(sb));
-
-	/* By default, no compression is assumed. */
-	bsdar->compression = ARCHIVE_COMPRESSION_NONE;
-
-	/*
-	 * Test if the specified archive exists, to figure out
-         * whether we are creating one here.
-	 */
-	if (stat(bsdar->filename, &sb) != 0) {
-		if (errno != ENOENT) {
-			bsdar_warnc(bsdar, 0, "stat %s failed",
-			    bsdar->filename);
-			return;
-		}
-
-		/* We do not create archive in mode 'd', 'm' and 's'.  */
-		if (mode != 'r' && mode != 'q') {
-			bsdar_warnc(bsdar, 0, "%s: no such file",
-			    bsdar->filename);
-			return;
-		}
-
-		/* Issue a warning if -c is not specified when creating. */
-		if (!(bsdar->options & AR_C))
-			bsdar_warnc(bsdar, 0, "creating %s", bsdar->filename);
-		goto new_archive;
-	}
-
-	/*
-	 * First read members from existing archive.
-	 */
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "archive_read_new failed");
 	archive_read_support_compression_all(a);
 	archive_read_support_format_ar(a);
-	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
+	AC(archive_read_open_filename(a, archive, DEF_BLKSZ));
 	for (;;) {
 		r = archive_read_next_header(a, &entry);
 		if (r == ARCHIVE_FATAL)
@@ -302,6 +278,30 @@ write_archive(struct bsdar *bsdar, char mode)
 		 */
 		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0)
 			continue;
+
+		/*
+		 * If checkargv is set, only read those members specified
+		 * in argv.
+		 */
+		if (checkargv && bsdar->argc > 0) {
+			find = 0;
+			for(i = 0; i < bsdar->argc; i++) {
+				av = &bsdar->argv[i];
+				if (*av == NULL)
+					continue;
+				if ((bname = basename(*av)) == NULL)
+					bsdar_errc(bsdar, EX_SOFTWARE, errno,
+					    "basename failed");
+				if (strcmp(bname, name) != 0)
+					continue;
+
+				*av = NULL;
+				find = 1;
+				break;
+			}
+			if (!find)
+				continue;
+		}
 
 		size = archive_entry_size(entry);
 
@@ -341,6 +341,56 @@ write_archive(struct bsdar *bsdar, char mode)
 	}
 	AC(archive_read_close(a));
 	AC(archive_read_finish(a));
+}
+
+/*
+ * Determine the constitution of resulting archive.
+ */
+static void
+write_archive(struct bsdar *bsdar, char mode)
+{
+	struct ar_obj		 *nobj, *obj, *obj_temp, *pos;
+	struct stat		  sb;
+	const char		 *bname;
+	char			**av;
+	int			  i;
+
+	TAILQ_INIT(&bsdar->v_obj);
+	nobj = NULL;
+	pos = NULL;
+	memset(&sb, 0, sizeof(sb));
+
+	/* By default, no compression is assumed. */
+	bsdar->compression = ARCHIVE_COMPRESSION_NONE;
+
+	/*
+	 * Test if the specified archive exists, to figure out
+	 * whether we are creating one here.
+	 */
+	if (stat(bsdar->filename, &sb) != 0) {
+		if (errno != ENOENT) {
+			bsdar_warnc(bsdar, 0, "stat %s failed",
+			    bsdar->filename);
+			return;
+		}
+
+		/* We do not create archive in mode 'd', 'm' and 's'.  */
+		if (mode != 'r' && mode != 'q') {
+			bsdar_warnc(bsdar, 0, "%s: no such file",
+			    bsdar->filename);
+			return;
+		}
+
+		/* Issue a warning if -c is not specified when creating. */
+		if (!(bsdar->options & AR_C))
+			bsdar_warnc(bsdar, 0, "creating %s", bsdar->filename);
+		goto new_archive;
+	}
+
+	/*
+	 * First read members from existing archive.
+	 */
+	read_objs(bsdar, bsdar->filename, 0);
 
 	/*
 	 * For mode 's', no member will be moved, deleted or replaced.
@@ -355,6 +405,22 @@ write_archive(struct bsdar *bsdar, char mode)
 	 */
 	if (mode == 'q')
 		goto new_archive;
+
+	/*
+	 * Mode 'A' adds the contents of another archive to the tail of
+	 * current archive. Note that mode 'A' is a special mode for the
+	 * ADDLIB command of the ar script mode. Currently there is no
+	 * access to this function from the ar command line mode.
+	 */
+	if (mode == 'A') {
+		/*
+		 * Read objects from the target archive of ADDLIB command.
+		 * If there are members spcified in argv, read those members
+		 * only, otherwise the entire archive will be read.
+		 */
+		read_objs(bsdar, bsdar->addlib, 1);
+		goto write_objs;
+	}
 
 	/*
 	 * Try to find the position member specified by user.
