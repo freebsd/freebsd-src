@@ -463,7 +463,7 @@ portal_getattr(ap)
 	vap->va_ctime = vap->va_mtime;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_rdev = 0;
+	vap->va_rdev = NODEV;
 	/* vap->va_qbytes = 0; */
 	vap->va_bytes = 0;
 	/* vap->va_qsize = 0; */
