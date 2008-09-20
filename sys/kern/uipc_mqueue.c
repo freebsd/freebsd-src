@@ -1184,7 +1184,6 @@ mqfs_getattr(struct vop_getattr_args *ap)
 	vap->va_rdev = 0;
 	vap->va_bytes = 0;
 	vap->va_filerev = 0;
-	vap->va_vaflags = 0;
 	return (error);
 }
 
