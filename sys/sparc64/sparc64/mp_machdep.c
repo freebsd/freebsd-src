@@ -285,6 +285,8 @@ cpu_mp_start(void)
 		if (OF_getprop(child, "clock-frequency", &clock,
 		    sizeof(clock)) <= 0)
 			panic("%s: can't get clock", __func__);
+		if (clock != PCPU_GET(clock))
+			hardclock_use_stick = 1;
 
 		csa->csa_state = 0;
 		sun4u_startcpu(child, (void *)mp_tramp, 0);
