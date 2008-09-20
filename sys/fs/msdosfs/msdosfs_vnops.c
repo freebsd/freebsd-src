@@ -334,7 +334,7 @@ msdosfs_getattr(ap)
 	vap->va_uid = pmp->pm_uid;
 	vap->va_gid = pmp->pm_gid;
 	vap->va_nlink = 1;
-	vap->va_rdev = 0;
+	vap->va_rdev = NODEV;
 	vap->va_size = dep->de_FileSize;
 	fattime2timespec(dep->de_MDate, dep->de_MTime, 0, 0, &vap->va_mtime);
 	vap->va_ctime = vap->va_mtime;

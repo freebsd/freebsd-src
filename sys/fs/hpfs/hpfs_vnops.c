@@ -424,7 +424,7 @@ hpfs_getattr(ap)
 	vap->va_nlink = 1;
 	vap->va_uid = hp->h_uid;
 	vap->va_gid = hp->h_gid;
-	vap->va_rdev = 0;				/* XXX UNODEV ? */
+	vap->va_rdev = NODEV;
 	vap->va_size = hp->h_fn.fn_size;
 	vap->va_bytes = ((hp->h_fn.fn_size + DEV_BSIZE-1) & ~(DEV_BSIZE-1)) +
 			DEV_BSIZE;
