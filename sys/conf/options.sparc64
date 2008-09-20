@@ -24,5 +24,7 @@ PSM_RESETAFTERSUSPEND	opt_psm.h
 DEBUGGER_ON_POWERFAIL	opt_psycho.h
 PSYCHO_DEBUG		opt_psycho.h
 
+SCHIZO_DEBUG		opt_schizo.h
+
 SUNKBD_DFLT_KEYMAP	opt_sunkbd.h
 SUNKBD_EMULATE_ATKBD	opt_sunkbd.h
