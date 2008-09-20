@@ -63,26 +63,6 @@
 
 #include <vm/uma.h>
 
-#ifndef ROUTETABLES
- #define RT_NUMFIBS 1
- #define RT_MAXFIBS 1
-#else
- /* while we use 4 bits in the mbuf flags,
-  * we are limited to 16
-  */
- #define RT_MAXFIBS 16
- #if ROUTETABLES > RT_MAXFIBS
-  #define RT_NUMFIBS RT_MAXFIBS
-  #error "ROUTETABLES defined too big"
- #else
-  #if ROUTETABLES == 0
-   #define RT_NUMFIBS 1
-  #else
-   #define RT_NUMFIBS ROUTETABLES
-  #endif
- #endif
-#endif
-
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_INT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
 /*
