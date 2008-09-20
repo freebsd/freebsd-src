@@ -366,9 +366,7 @@ tmpfs_getattr(struct vop_getattr_args *v)
 	vap->va_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
 		node->tn_rdev : VNOVAL;
 	vap->va_bytes = round_page(node->tn_size);
-	vap->va_filerev = VNOVAL;
-	vap->va_vaflags = 0;
-	vap->va_spare = VNOVAL; /* XXX */
+	vap->va_filerev = 0;
 
 	return 0;
 }

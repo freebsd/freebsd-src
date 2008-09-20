@@ -433,8 +433,6 @@ ufs_getattr(ap)
 		vap->va_mtime.tv_nsec = ip->i_din1->di_mtimensec;
 		vap->va_ctime.tv_sec = ip->i_din1->di_ctime;
 		vap->va_ctime.tv_nsec = ip->i_din1->di_ctimensec;
-		vap->va_birthtime.tv_sec = 0;
-		vap->va_birthtime.tv_nsec = 0;
 		vap->va_bytes = dbtob((u_quad_t)ip->i_din1->di_blocks);
 	} else {
 		vap->va_rdev = ip->i_din2->di_rdev;
