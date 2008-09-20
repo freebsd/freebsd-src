@@ -132,7 +132,6 @@ sparc64/sparc64/spitfire.c	standard
 sparc64/sparc64/stack_machdep.c	optional	ddb | stack
 sparc64/sparc64/support.S	standard				\
 	compile-with "${NORMAL_S} -mcpu=ultrasparc"
-sparc64/sparc64/support.S	standard
 sparc64/sparc64/sys_machdep.c	standard
 sparc64/sparc64/swtch.S		standard
 sparc64/sparc64/tick.c		standard
