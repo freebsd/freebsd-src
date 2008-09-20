@@ -144,7 +144,7 @@ IFC_SIMPLE_DECLARE(wlan, 0);
 void
 ieee80211_vap_destroy(struct ieee80211vap *vap)
 {
-	ifc_simple_destroy(&wlan_cloner, vap->iv_ifp);
+	if_clone_destroyif(&wlan_cloner, vap->iv_ifp);
 }
 
 static int
