@@ -5937,6 +5937,11 @@ table_handler(int ac, char *av[])
 		l = sizeof(a);
 		if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_TABLE_GETSIZE)");
+
+		/* If a is zero we have nothing to do, the table is empty. */
+		if (a == 0)
+			return;
+
 		l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
 		tbl = malloc(l);
 		if (tbl == NULL)
