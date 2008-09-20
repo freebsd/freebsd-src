@@ -391,8 +391,10 @@ map:
 		goto done;
 	}
 
+	td->td_fpop = fp;
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle_type, handle, pos);
+	td->td_fpop = NULL;
 #ifdef HWPMC_HOOKS
 	/* inform hwpmc(4) if an executable is being mapped */
 	if (error == 0 && handle_type == OBJT_VNODE &&
