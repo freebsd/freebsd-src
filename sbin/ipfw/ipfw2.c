@@ -5965,6 +5965,7 @@ table_handler(int ac, char *av[])
 			        tbl->ent[a].masklen, tval);
 			}
 		}
+		free(tbl);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
 }
