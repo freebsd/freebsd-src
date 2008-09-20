@@ -2861,10 +2861,10 @@ retry:
 
 /*
  * Tries to promote the 512 or 1024, contiguous 4KB page mappings that are
- * within a single page table page to a single 2- or 4MB page mapping.  For
- * promotion to occur, two conditions must be met: (1) the 4KB page mappings
- * must map aligned, contiguous physical memory and (2) the 4KB page mappings
- * must have identical characteristics. 
+ * within a single page table page (PTP) to a single 2- or 4MB page mapping.
+ * For promotion to occur, two conditions must be met: (1) the 4KB page
+ * mappings must map aligned, contiguous physical memory and (2) the 4KB page
+ * mappings must have identical characteristics.
  *
  * Managed (PG_MANAGED) mappings within the kernel address space are not
  * promoted.  The reason is that kernel PDEs are replicated in each pmap but
@@ -2876,15 +2876,21 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 {
 	pd_entry_t newpde;
 	pmap_t allpmaps_entry;
-	pt_entry_t *firstpte, oldpte, *pte;
+	pt_entry_t *firstpte, oldpte, pa, *pte;
 	vm_offset_t oldpteva;
-	vm_paddr_t pa;
 	vm_page_t mpte;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	/*
+	 * Examine the first PTE in the specified PTP.  Abort if this PTE is
+	 * either invalid, unused, or does not map the first 4KB physical page
+	 * within a 2- or 4MB page.
+	 */
 	firstpte = vtopte(trunc_4mpage(va));
+setpde:
 	newpde = *firstpte;
-	if ((newpde & (PG_A | PG_V)) != (PG_A | PG_V)) {
+	if ((newpde & ((PG_FRAME & PDRMASK) | PG_A | PG_V)) != (PG_A | PG_V)) {
 		pmap_pde_p_failures++;
 		CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#x"
 		    " in pmap %p", va, pmap);
@@ -2896,17 +2902,27 @@ pmap_promote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 		    " in pmap %p", va, pmap);
 		return;
 	}
-	if ((newpde & (PG_M | PG_RW)) == PG_RW)
+	if ((newpde & (PG_M | PG_RW)) == PG_RW) {
+		/*
+		 * When PG_M is already clear, PG_RW can be cleared without
+		 * a TLB invalidation.
+		 */
+		if (!atomic_cmpset_int((u_int *)firstpte, newpde, newpde &
+		    ~PG_RW))  
+			goto setpde;
 		newpde &= ~PG_RW;
+	}
 
 	/* 
-	 * Check all the ptes before promotion
+	 * Examine each of the other PTEs in the specified PTP.  Abort if this
+	 * PTE maps an unexpected 4KB physical page or does not have identical
+	 * characteristics to the first PTE.
 	 */
-	pa = newpde & PG_PS_FRAME;
-	for (pte = firstpte; pte < firstpte + NPTEPG; pte++) {
-retry:
+	pa = (newpde & (PG_PS_FRAME | PG_A | PG_V)) + NBPDR - PAGE_SIZE;
+	for (pte = firstpte + NPTEPG - 1; pte > firstpte; pte--) {
+setpte:
 		oldpte = *pte;
-		if ((oldpte & PG_FRAME) != pa) {
+		if ((oldpte & (PG_FRAME | PG_A | PG_V)) != pa) {
 			pmap_pde_p_failures++;
 			CTR2(KTR_PMAP, "pmap_promote_pde: failure for va %#x"
 			    " in pmap %p", va, pmap);
@@ -2919,7 +2935,7 @@ retry:
 			 */
 			if (!atomic_cmpset_int((u_int *)pte, oldpte,
 			    oldpte & ~PG_RW))
-				goto retry;
+				goto setpte;
 			oldpte &= ~PG_RW;
 			oldpteva = (oldpte & PG_FRAME & PDRMASK) |
 			    (va & ~PDRMASK);
@@ -2932,7 +2948,7 @@ retry:
 			    " in pmap %p", va, pmap);
 			return;
 		}
-		pa += PAGE_SIZE;
+		pa -= PAGE_SIZE;
 	}
 
 	/*
