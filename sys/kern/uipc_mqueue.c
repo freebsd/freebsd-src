@@ -1181,7 +1181,7 @@ mqfs_getattr(struct vop_getattr_args *ap)
 	vap->va_birthtime = pn->mn_birth;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_rdev = 0;
+	vap->va_rdev = NODEV;
 	vap->va_bytes = 0;
 	vap->va_filerev = 0;
 	return (error);
