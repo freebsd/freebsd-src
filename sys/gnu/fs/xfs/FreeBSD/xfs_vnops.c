@@ -273,15 +273,9 @@ _xfs_getattr(
 
 	/*
 	 * Fields with no direct equivalent in XFS
-	 * leave initialized by VATTR_NULL
 	 */
-#if 0
 	vap->va_filerev = 0;
-	vap->va_birthtime = va.va_ctime;
-	vap->va_vaflags = 0;
 	vap->va_flags = 0;
-	vap->va_spare = 0;
-#endif
 
 	return (0);
 }
