@@ -5971,7 +5971,8 @@ table_handler(int ac, char *av[])
 }
 
 static void
-show_nat(int ac, char **av) {
+show_nat(int ac, char **av)
+{
 	struct cfg_nat *n;
 	struct cfg_redir *e;
 	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
