@@ -344,8 +344,6 @@ tmpfs_getattr(struct vop_getattr_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	VATTR_NULL(vap);
-
 	tmpfs_update(vp);
 
 	vap->va_type = vp->v_type;
