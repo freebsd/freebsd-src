@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#define	BSDAR_VERSION	"1.0.2"
+#define	BSDAR_VERSION	"1.1.0"
 
 /*
  * ar(1) options.
@@ -54,7 +54,7 @@
 		bsdar_errc(bsdar, EX_SOFTWARE, 0, "%s",	\
 		    archive_error_string(a));		\
 } while (0)
-	
+
 /*
  * In-memory representation of archive member(object).
  */
@@ -74,10 +74,11 @@ struct ar_obj {
 };
 
 /*
- * Structure encapsulates the "global" data for "ar" program. 
+ * Structure encapsulates the "global" data for "ar" program.
  */
 struct bsdar {
 	const char	 *filename;	/* archive name. */
+	const char	 *addlib;	/* target of ADDLIB. */
 	const char	 *posarg;	/* position arg for modifiers -a, -b. */
 	char		  mode;		/* program mode */
 	char		  compression;	/* compression mode */
@@ -120,3 +121,5 @@ void	ar_mode_r(struct bsdar *bsdar);
 void	ar_mode_s(struct bsdar *bsdar);
 void	ar_mode_t(struct bsdar *bsdar);
 void	ar_mode_x(struct bsdar *bsdar);
+void	ar_mode_A(struct bsdar *bsdar);
+void	ar_mode_script(struct bsdar *ar);
