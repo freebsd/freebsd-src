@@ -703,6 +703,15 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 #endif
 
 	vap = &vattr;
+
+	/*
+	 * Initialize defaults for new and unusual fields, so that file
+	 * systems which don't support these fields don't need to know
+	 * about them.
+	 */
+	vap->va_birthtime.tv_sec = -1;
+	vap->va_birthtime.tv_nsec = 0;
+
 	error = VOP_GETATTR(vp, vap, active_cred);
 	if (error)
 		return (error);
