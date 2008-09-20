@@ -72,9 +72,12 @@ static int adjust_ticks = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, adjust_ticks, CTLFLAG_RD, &adjust_ticks,
     0, "total number of tick interrupts with adjustment");
 
+u_int hardclock_use_stick = 0;
+SYSCTL_INT(_machdep_tick, OID_AUTO, hardclock_use_stick, CTLFLAG_RD,
+    &hardclock_use_stick, 0, "hardclock uses STICK instead of TICK timer");
+
 static struct timecounter tick_tc;
 static u_long tick_increment;
-static u_int hardclock_use_stick;
 
 static uint64_t tick_cputicks(void);
 static timecounter_get_t tick_get_timecount_up;
@@ -82,6 +85,7 @@ static timecounter_get_t tick_get_timecount_up;
 static timecounter_get_t tick_get_timecount_mp;
 #endif
 static void tick_hardclock(struct trapframe *tf);
+static void tick_hardclock_bbwar(struct trapframe *tf);
 static inline void tick_hardclock_common(struct trapframe *tf, u_long tick,
     u_long adj);
 static inline void tick_process(struct trapframe *tf);
@@ -102,42 +106,22 @@ cpu_initclocks(void)
 	stathz = hz;
 
 	/*
-	 * On USIII and later we use the STICK timer instead of the TICK
-	 * one if possible in order to ensure hardclock is driven by same
-	 * frequency on all CPUs (besides, we no longer need to apply the
-	 * workaround for the BlackBird erratum #1 there).  Similarly, we
-	 * don't provide a CPU ticker in that case as long as we can't
-	 * specify the ticker frequency per CPU.
-	 * XXX we don't use the STICK timer with all CPUs beyond USIII
-	 * unconditionally, yet, due to unsolved problems with USIIIi APs
-	 * causing a hang when using it.
+	 * Given that the STICK timers typically are driven at rather low
+	 * frequencies they shouldn't be used except when really necessary.
 	 */
-	switch (cpu_impl) {
-	case CPU_IMPL_ULTRASPARCIII:	/* mandatory */
-	case CPU_IMPL_ULTRASPARCIIIp:
-		hardclock_use_stick = 1;
-		break;
-	case CPU_IMPL_ULTRASPARCIIIi:
-#ifdef SMP
-		if (cpu_mp_probe() == 0) {
-#endif
-			hardclock_use_stick = 1;
-			break;
-#ifdef SMP
-		}
-		/* FALLTHROUGH */
-#endif
-	default:
-		hardclock_use_stick = 0;
-	}
 	if (hardclock_use_stick != 0) {
 		if (OF_getprop(OF_parent(PCPU_GET(node)), "stick-frequency",
 		    &clock, sizeof(clock)) == -1)
 		panic("%s: could not determine STICK frequency", __func__);
 		intr_setup(PIL_TICK, stick_hardclock, -1, NULL, NULL);
+		/*
+		 * We don't provide a CPU ticker as long as the frequency
+		 * supplied isn't actually used per-CPU.
+		 */
 	} else {
 		clock = PCPU_GET(clock);
-		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
+		intr_setup(PIL_TICK, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		    tick_hardclock_bbwar : tick_hardclock, -1, NULL, NULL);
 		set_cputicker(tick_cputicks, clock, 0);
 	}
 	tick_increment = clock / hz;
@@ -200,6 +184,22 @@ tick_process(struct trapframe *tf)
 
 static void
 tick_hardclock(struct trapframe *tf)
+{
+	u_long adj, tick;
+	register_t s;
+
+	critical_enter();
+	adj = PCPU_GET(tickadj);
+	s = intr_disable();
+	tick = rd(tick);
+	wr(tick_cmpr, tick + tick_increment - adj, 0);
+	intr_restore(s);
+	tick_hardclock_common(tf, tick, adj);
+	critical_exit();
+}
+
+static void
+tick_hardclock_bbwar(struct trapframe *tf)
 {
 	u_long adj, tick;
 	register_t s;
