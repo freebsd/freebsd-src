@@ -391,8 +391,6 @@ fdesc_getattr(ap)
 
 	switch (VTOFDESC(vp)->fd_type) {
 	case Froot:
-		VATTR_NULL(vap);
-
 		vap->va_mode = S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 		vap->va_type = VDIR;
 		vap->va_nlink = 2;
@@ -409,6 +407,7 @@ fdesc_getattr(ap)
 		vap->va_flags = 0;
 		vap->va_rdev = NODEV;
 		vap->va_bytes = 0;
+		vap->va_filerev = 0;
 		break;
 
 	case Fdesc:
@@ -421,7 +420,6 @@ fdesc_getattr(ap)
 		error = fo_stat(fp, &stb, td->td_ucred, td);
 		fdrop(fp, td);
 		if (error == 0) {
-			VATTR_NULL(vap);
 			vap->va_type = IFTOVT(stb.st_mode);
 			vap->va_mode = stb.st_mode;
 #define FDRX (VREAD|VEXEC)
@@ -456,6 +454,8 @@ fdesc_getattr(ap)
 			vap->va_ctime = stb.st_ctimespec;
 			vap->va_uid = stb.st_uid;
 			vap->va_gid = stb.st_gid;
+			vap->va_gen = 0;
+			vap->va_filerev = 0;
 		}
 		break;
 

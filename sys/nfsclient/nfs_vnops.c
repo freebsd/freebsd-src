@@ -631,6 +631,8 @@ nfs_getattr(struct vop_getattr_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct thread *td = curthread;
+	struct vattr *vap = ap->a_vap;
+	struct vattr vattr;
 	caddr_t bpos, dpos;
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb;
@@ -646,12 +648,12 @@ nfs_getattr(struct vop_getattr_args *ap)
 	/*
 	 * First look in the cache.
 	 */
-	if (nfs_getattrcache(vp, ap->a_vap) == 0)
+	if (nfs_getattrcache(vp, &vattr) == 0)
 		goto nfsmout;
 	if (v3 && nfsaccess_cache_timeout > 0) {
 		nfsstats.accesscache_misses++;
 		nfs3_access_otw(vp, NFSV3ACCESS_ALL, td, ap->a_cred);
-		if (nfs_getattrcache(vp, ap->a_vap) == 0)
+		if (nfs_getattrcache(vp, &vattr) == 0)
 			goto nfsmout;
 	}
 	nfsstats.rpccnt[NFSPROC_GETATTR]++;
@@ -661,10 +663,28 @@ nfs_getattr(struct vop_getattr_args *ap)
 	nfsm_fhtom(vp, v3);
 	nfsm_request(vp, NFSPROC_GETATTR, td, ap->a_cred);
 	if (!error) {
-		nfsm_loadattr(vp, ap->a_vap);
+		nfsm_loadattr(vp, &vattr);
 	}
 	m_freem(mrep);
 nfsmout:
+	vap->va_type = vattr.va_type;
+	vap->va_mode = vattr.va_mode;
+	vap->va_nlink = vattr.va_nlink;
+	vap->va_uid = vattr.va_uid;
+	vap->va_gid = vattr.va_gid;
+	vap->va_fsid = vattr.va_fsid;
+	vap->va_fileid = vattr.va_fileid;
+	vap->va_size = vattr.va_size;
+	vap->va_blocksize = vattr.va_blocksize;
+	vap->va_atime = vattr.va_atime;
+	vap->va_mtime = vattr.va_mtime;
+	vap->va_ctime = vattr.va_ctime;
+	vap->va_gen = vattr.va_gen;
+	vap->va_flags = vattr.va_flags;
+	vap->va_rdev = vattr.va_rdev;
+	vap->va_bytes = vattr.va_bytes;
+	vap->va_filerev = vattr.va_filerev;
+
 	return (error);
 }
 

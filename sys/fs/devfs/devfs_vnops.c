@@ -499,8 +499,6 @@ devfs_getattr(struct vop_getattr_args *ap)
 		KASSERT(de != NULL,
 		    ("Null dir dirent in devfs_getattr vp=%p", vp));
 	}
-	bzero((caddr_t) vap, sizeof(*vap));
-	vattr_null(vap);
 	vap->va_uid = de->de_uid;
 	vap->va_gid = de->de_gid;
 	vap->va_mode = de->de_mode;
@@ -543,6 +541,7 @@ devfs_getattr(struct vop_getattr_args *ap)
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
+	vap->va_filerev = 0;
 	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
 
