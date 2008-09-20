@@ -75,6 +75,7 @@ void	if_clone_detach(struct if_clone *);
 
 int	if_clone_create(char *, size_t, caddr_t);
 int	if_clone_destroy(const char *);
+int	if_clone_destroyif(struct if_clone *, struct ifnet *);
 int	if_clone_list(struct if_clonereq *);
 
 int	ifc_name2unit(const char *name, int *unit);
