@@ -685,7 +685,7 @@ _db_show_key(const char *tag, int ix, const struct ieee80211_key *wk)
 	const struct ieee80211_cipher *cip = wk->wk_cipher;
 	int keylen = wk->wk_keylen;
 
-	if (wk->wk_keyix == IEEE80211_KEYIX_NONE)
+	if ((wk->wk_flags & IEEE80211_KEY_DEVKEY) == 0)
 		return;
 	db_printf(tag, ix);
 	switch (cip->ic_cipher) {

@@ -59,7 +59,7 @@ static	const struct ieee80211_cipher *ciphers[IEEE80211_CIPHER_MAX];
  * Default "null" key management routines.
  */
 static int
-null_key_alloc(struct ieee80211vap *vap, const struct ieee80211_key *k,
+null_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	if (!(&vap->iv_nw_keys[0] <= k &&
@@ -116,7 +116,7 @@ cipher_attach(struct ieee80211vap *vap, struct ieee80211_key *key)
  */
 static __inline int
 dev_key_alloc(struct ieee80211vap *vap,
-	const struct ieee80211_key *key,
+	struct ieee80211_key *key,
 	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	return vap->iv_key_alloc(vap, key, keyix, rxkeyix);
@@ -335,15 +335,11 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 	 * whether or not it needs to do the cipher work.
 	 */
 	if (key->wk_cipher != cip || key->wk_flags != flags) {
-again:
 		/*
 		 * Fillin the flags so cipher modules can see s/w
 		 * crypto requirements and potentially allocate
 		 * different state and/or attach different method
 		 * pointers.
-		 *
-		 * XXX this is not right when s/w crypto fallback
-		 *     fails and we try to restore previous state.
 		 */
 		key->wk_flags = flags;
 		keyctx = cip->ic_attach(vap, key);
@@ -372,36 +368,45 @@ again:
 	 * cipher template.  Note also that when using software
 	 * crypto we also call the driver to give us a key index.
 	 */
-	if (key->wk_keyix == IEEE80211_KEYIX_NONE) {
+	if ((key->wk_flags & IEEE80211_KEY_DEVKEY) == 0) {
 		if (!dev_key_alloc(vap, key, &keyix, &rxkeyix)) {
 			/*
-			 * Driver has no room; fallback to doing crypto
-			 * in the host.  We change the flags and start the
-			 * procedure over.  If we get back here then there's
-			 * no hope and we bail.  Note that this can leave
-			 * the key in a inconsistent state if the caller
-			 * continues to use it.
+			 * Unable to setup driver state.
 			 */
-			if ((key->wk_flags & IEEE80211_KEY_SWCRYPT) == 0) {
-				vap->iv_stats.is_crypto_swfallback++;
-				IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-				    "%s: no h/w resources for cipher %s, "
-				    "falling back to s/w\n", __func__,
-				    cip->ic_name);
-				oflags = key->wk_flags;
-				flags |= IEEE80211_KEY_SWCRYPT;
-				if (cipher == IEEE80211_CIPHER_TKIP)
-					flags |= IEEE80211_KEY_SWMIC;
-				goto again;
-			}
 			vap->iv_stats.is_crypto_keyfail++;
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 			    "%s: unable to setup cipher %s\n",
 			    __func__, cip->ic_name);
 			return 0;
 		}
+		if (key->wk_flags != flags) {
+			/*
+			 * Driver overrode flags we setup; typically because
+			 * resources were unavailable to handle _this_ key.
+			 * Re-attach the cipher context to allow cipher
+			 * modules to handle differing requirements.
+			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+			    "%s: driver override for cipher %s, flags "
+			    "0x%x -> 0x%x\n", __func__, cip->ic_name,
+			    oflags, key->wk_flags);
+			keyctx = cip->ic_attach(vap, key);
+			if (keyctx == NULL) {
+				IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+				    "%s: unable to attach cipher %s with "
+				    "flags 0x%x\n", __func__, cip->ic_name,
+				    key->wk_flags);
+				key->wk_flags = oflags;	/* restore old flags */
+				vap->iv_stats.is_crypto_attachfail++;
+				return 0;
+			}
+			cipher_detach(key);
+			key->wk_cipher = cip;		/* XXX refcnt? */
+			key->wk_private = keyctx;
+		}
 		key->wk_keyix = keyix;
 		key->wk_rxkeyix = rxkeyix;
+		key->wk_flags |= IEEE80211_KEY_DEVKEY;
 	}
 	return 1;
 }
@@ -412,8 +417,6 @@ again:
 static int
 _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 {
-	ieee80211_keyix keyix;
-
 	KASSERT(key->wk_cipher != NULL, ("No cipher!"));
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
@@ -423,8 +426,7 @@ _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
-	keyix = key->wk_keyix;
-	if (keyix != IEEE80211_KEYIX_NONE) {
+	if (key->wk_flags & IEEE80211_KEY_DEVKEY) {
 		/*
 		 * Remove hardware entry.
 		 */
@@ -432,7 +434,7 @@ _ieee80211_crypto_delkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 		if (!dev_key_delete(vap, key)) {
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
 			    "%s: driver did not delete key index %u\n",
-			    __func__, keyix);
+			    __func__, key->wk_keyix);
 			vap->iv_stats.is_crypto_delkey++;
 			/* XXX recovery? */
 		}
@@ -492,6 +494,14 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 	    key->wk_keyrsc[IEEE80211_NONQOS_TID], key->wk_keytsc,
 	    key->wk_keylen);
 
+	if ((key->wk_flags & IEEE80211_KEY_DEVKEY)  == 0) {
+		/* XXX nothing allocated, should not happen */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+		    "%s: no device key setup done; should not happen!\n",
+		    __func__);
+		vap->iv_stats.is_crypto_setkey_nokey++;
+		return 0;
+	}
 	/*
 	 * Give cipher a chance to validate key contents.
 	 * XXX should happen before modifying state.
@@ -502,13 +512,6 @@ ieee80211_crypto_setkey(struct ieee80211vap *vap, struct ieee80211_key *key)
 		    __func__, cip->ic_name, key->wk_keyix,
 		    key->wk_keylen, key->wk_flags);
 		vap->iv_stats.is_crypto_setkey_cipher++;
-		return 0;
-	}
-	if (key->wk_keyix == IEEE80211_KEYIX_NONE) {
-		/* XXX nothing allocated, should not happen */
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
-		    "%s: no key index; should not happen!\n", __func__);
-		vap->iv_stats.is_crypto_setkey_nokey++;
 		return 0;
 	}
 	return dev_key_set(vap, key);
@@ -619,7 +622,7 @@ load_ucastkey(void *arg, struct ieee80211_node *ni)
 	if (vap->iv_state != IEEE80211_S_RUN)
 		return;
 	k = &ni->ni_ucastkey;
-	if (k->wk_keyix != IEEE80211_KEYIX_NONE)
+	if (k->wk_flags & IEEE80211_KEY_DEVKEY)
 		dev_key_set(vap, k);
 }
 
@@ -643,7 +646,7 @@ ieee80211_crypto_reload_keys(struct ieee80211com *ic)
 			continue;
 		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
 			const struct ieee80211_key *k = &vap->iv_nw_keys[i];
-			if (k->wk_keyix != IEEE80211_KEYIX_NONE)
+			if (k->wk_flags & IEEE80211_KEY_DEVKEY)
 				dev_key_set(vap, k);
 		}
 	}
