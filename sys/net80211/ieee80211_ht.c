@@ -1656,9 +1656,8 @@ ieee80211_ampdu_enable(struct ieee80211_node *ni,
 		return 0;
 	}
 	IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
-	    "%s: enable AMPDU on %s, avgpps %d pkts %d",
-	    __func__, ieee80211_wme_acnames[tap->txa_ac],
-	    tap->txa_avgpps, tap->txa_pkts);
+	    "enable AMPDU on %s, avgpps %d pkts %d",
+	    ieee80211_wme_acnames[tap->txa_ac], tap->txa_avgpps, tap->txa_pkts);
 	return 1;
 }
 
