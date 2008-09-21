@@ -609,6 +609,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_ROAM		107	/* roaming params en masse */
 #define	IEEE80211_IOC_TXPARAMS		108	/* tx parameters */
 #define	IEEE80211_IOC_STA_VLAN		109	/* per-station vlan tag */
+#define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
 
 /*
  * Parameters for controlling a scan requested with

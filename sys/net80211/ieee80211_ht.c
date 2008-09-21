@@ -1237,6 +1237,32 @@ htinfo_update_chw(struct ieee80211_node *ni, int htflags)
 }
 
 /*
+ * Update 11n MIMO PS state according to received htcap.
+ */
+static __inline int
+htcap_update_mimo_ps(struct ieee80211_node *ni)
+{
+	uint16_t oflags = ni->ni_flags;
+
+	switch (ni->ni_htcap & IEEE80211_HTCAP_SMPS) {
+	case IEEE80211_HTCAP_SMPS_DYNAMIC:
+		ni->ni_flags |= IEEE80211_NODE_MIMO_PS;
+		ni->ni_flags |= IEEE80211_NODE_MIMO_RTS;
+		break;
+	case IEEE80211_HTCAP_SMPS_ENA:
+		ni->ni_flags |= IEEE80211_NODE_MIMO_PS;
+		ni->ni_flags &= ~IEEE80211_NODE_MIMO_RTS;
+		break;
+	case IEEE80211_HTCAP_SMPS_OFF:
+	default:		/* disable on rx of reserved value */
+		ni->ni_flags &= ~IEEE80211_NODE_MIMO_PS;
+		ni->ni_flags &= ~IEEE80211_NODE_MIMO_RTS;
+		break;
+	}
+	return (oflags ^ ni->ni_flags);
+}
+
+/*
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
  */
@@ -1249,6 +1275,8 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	int htflags;
 
 	ieee80211_parse_htcap(ni, htcapie);
+	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
+		htcap_update_mimo_ps(ni);
 
 	if (htinfoie[0] == IEEE80211_ELEMID_VENDOR)
 		htinfoie += 4;
@@ -1279,6 +1307,8 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	int htflags;
 
 	ieee80211_parse_htcap(ni, htcapie);
+	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
+		htcap_update_mimo_ps(ni);
 
 	/* NB: honor operating mode constraint */
 	/* XXX 40 MHZ intolerant */
@@ -1660,11 +1690,29 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 				/* XXX notify on change */
 			}
 			break;
-		case IEEE80211_ACTION_HT_MIMOPWRSAVE:
+		case IEEE80211_ACTION_HT_MIMOPWRSAVE: {
+			const struct ieee80211_action_ht_mimopowersave *mps =
+			    (const struct ieee80211_action_ht_mimopowersave *) ia;
+			/* XXX check iv_htcaps */
+			if (mps->am_control & IEEE80211_A_HT_MIMOPWRSAVE_ENA)
+				ni->ni_flags |= IEEE80211_NODE_MIMO_PS;
+			else
+				ni->ni_flags &= ~IEEE80211_NODE_MIMO_PS;
+			if (mps->am_control & IEEE80211_A_HT_MIMOPWRSAVE_MODE)
+				ni->ni_flags |= IEEE80211_NODE_MIMO_RTS;
+			else
+				ni->ni_flags &= ~IEEE80211_NODE_MIMO_RTS;
+			/* XXX notify on change */
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
-		            "%s: HT MIMO PS", __func__);
+		            "%s: HT MIMO PS (%s%s)", __func__,
+			    (ni->ni_flags & IEEE80211_NODE_MIMO_PS) ?
+				"on" : "off",
+			    (ni->ni_flags & IEEE80211_NODE_MIMO_RTS) ?
+				"+rts" : ""
+			);
 			break;
+		}
 		default:
 			IEEE80211_NOTE(vap,
 			   IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
