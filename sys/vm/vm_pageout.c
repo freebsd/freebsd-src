@@ -1280,7 +1280,8 @@ vm_pageout_page_stats()
 	pcount = cnt.v_active_count;
 	fullintervalcount += vm_pageout_stats_interval;
 	if (fullintervalcount < vm_pageout_full_stats_interval) {
-		tpcount = (vm_pageout_stats_max * cnt.v_active_count) / cnt.v_page_count;
+		tpcount = (int64_t)vm_pageout_stats_max * cnt.v_active_count /
+		    cnt.v_page_count;
 		if (pcount > tpcount)
 			pcount = tpcount;
 	} else {
