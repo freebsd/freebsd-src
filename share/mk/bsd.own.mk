@@ -282,8 +282,12 @@ WITH_IDEA=
 # MK_* options which default to "yes".
 #
 .for var in \
+    ACCT \
     ACPI \
+    AMD \
+    APM \
     ASSERT_DEBUG \
+    AT \
     ATM \
     AUDIT \
     AUTHPF \
@@ -297,18 +301,22 @@ WITH_IDEA=
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
+    BSNMP \
     BZIP2 \
     CALENDAR \
     CDDL \
     CPP \
     CRYPT \
+    CTM \
     CVS \
     CXX \
     DICT \
     DYNAMICROOT \
     EXAMPLES \
+    FLOPPY \
     FORTH \
     FP_LIBC \
+    FREEBSD_UPDATE \
     GAMES \
     GCOV \
     GDB \
@@ -321,40 +329,60 @@ WITH_IDEA=
     INFO \
     INSTALLLIB \
     IPFILTER \
+    IPFW \
     IPX \
+    JAIL \
     KERBEROS \
     KVM \
+    LEGACY_CONSOLE \
     LIB32 \
     LIBPTHREAD \
     LIBTHR \
     LOCALES \
+    LOCATE \
     LPR \
+    MAIL \
     MAILWRAPPER \
+    MAKE \
     MAN \
     NCP \
+    NDIS \
     NETCAT \
+    NETGRAPH \
     NIS \
     NLS \
     NLS_CATALOGS \
     NS_CACHING \
+    NTP \
     OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
     PF \
+    PKGTOOLS \
+    PMC \
+    PORTSNAP \
+    PPP \
     PROFILE \
+    QUOTAS \
     RCMDS \
     RCS \
     RESCUE \
+    ROUTED \
     SENDMAIL \
     SETUID_LOGIN \
     SHAREDOCS \
+    SLIP \
     SSP \
+    SYSINSTALL \
     SYMVER \
     SYSCONS \
     TCSH \
+    TELNET \
+    TEXTPROC \
     TOOLCHAIN \
     USB \
+    WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
     ZONEINFO
@@ -432,6 +460,11 @@ MK_KERBEROS:=	no
 MK_NCP:=	no
 .endif
 
+.if ${MK_MAIL} == "no"
+MK_MAILWRAPPER:= no
+MK_SENDMAIL:=	no
+.endif
+
 .if ${MK_OPENSSL} == "no"
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
@@ -439,6 +472,10 @@ MK_KERBEROS:=	no
 
 .if ${MK_PF} == "no"
 MK_AUTHPF:=	no
+.endif
+
+.if ${MK_TEXTPROC} == "no"
+MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
@@ -460,7 +497,9 @@ MK_GDB:=	no
     IPX \
     KERBEROS \
     KVM \
-    PAM
+    NETGRAPH \
+    PAM \
+    WIRELESS
 .if defined(WITH_${var}_SUPPORT) && defined(WITHOUT_${var}_SUPPORT)
 .error WITH_${var}_SUPPORT and WITHOUT_${var}_SUPPORT can't both be set.
 .endif
