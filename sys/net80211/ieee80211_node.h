@@ -99,6 +99,22 @@ struct ieee80211_node {
 	LIST_ENTRY(ieee80211_node) ni_hash;	/* hash collision list */
 	u_int			ni_refcnt;	/* count of held references */
 	u_int			ni_scangen;	/* gen# for timeout scan */
+	u_int			ni_flags;
+#define	IEEE80211_NODE_AUTH	0x000001	/* authorized for data */
+#define	IEEE80211_NODE_QOS	0x000002	/* QoS enabled */
+#define	IEEE80211_NODE_ERP	0x000004	/* ERP enabled */
+/* NB: this must have the same value as IEEE80211_FC1_PWR_MGT */
+#define	IEEE80211_NODE_PWR_MGT	0x000010	/* power save mode enabled */
+#define	IEEE80211_NODE_AREF	0x000020	/* authentication ref held */
+#define	IEEE80211_NODE_HT	0x000040	/* HT enabled */
+#define	IEEE80211_NODE_HTCOMPAT	0x000080	/* HT setup w/ vendor OUI's */
+#define	IEEE80211_NODE_WPS	0x000100	/* WPS association */
+#define	IEEE80211_NODE_TSN	0x000200	/* TSN association */
+#define	IEEE80211_NODE_AMPDU_RX	0x000400	/* AMPDU rx enabled */
+#define	IEEE80211_NODE_AMPDU_TX	0x000800	/* AMPDU tx enabled */
+	uint16_t		ni_associd;	/* association ID */
+	uint16_t		ni_vlan;	/* vlan tag */
+	uint16_t		ni_txpower;	/* current transmit power */
 	uint8_t			ni_authmode;	/* authentication algorithm */
 	uint8_t			ni_ath_flags;	/* Atheros feature flags */
 	/* NB: These must have the same values as IEEE80211_ATHC_* */
@@ -107,24 +123,8 @@ struct ieee80211_node {
 #define IEEE80211_NODE_FF	0x0004          /* Fast Frame capable */
 #define IEEE80211_NODE_XR	0x0008		/* Atheros WME enable */
 #define IEEE80211_NODE_AR	0x0010		/* AR capable */
-#define IEEE80211_NODE_BOOST	0x0080
-	uint16_t		ni_flags;	/* special-purpose state */
-#define	IEEE80211_NODE_AUTH	0x0001		/* authorized for data */
-#define	IEEE80211_NODE_QOS	0x0002		/* QoS enabled */
-#define	IEEE80211_NODE_ERP	0x0004		/* ERP enabled */
-/* NB: this must have the same value as IEEE80211_FC1_PWR_MGT */
-#define	IEEE80211_NODE_PWR_MGT	0x0010		/* power save mode enabled */
-#define	IEEE80211_NODE_AREF	0x0020		/* authentication ref held */
-#define	IEEE80211_NODE_HT	0x0040		/* HT enabled */
-#define	IEEE80211_NODE_HTCOMPAT	0x0080		/* HT setup w/ vendor OUI's */
-#define	IEEE80211_NODE_WPS	0x0100		/* WPS association */
-#define	IEEE80211_NODE_TSN	0x0200		/* TSN association */
-#define	IEEE80211_NODE_AMPDU_RX	0x0400		/* AMPDU rx enabled */
-#define	IEEE80211_NODE_AMPDU_TX	0x0800		/* AMPDU tx enabled */
+#define IEEE80211_NODE_BOOST	0x0080		/* Dynamic Turbo boosted */
 	uint16_t		ni_ath_defkeyix;/* Atheros def key index */
-	uint16_t		ni_associd;	/* assoc response */
-	uint16_t		ni_txpower;	/* current transmit power */
-	uint16_t		ni_vlan;	/* vlan tag */
 	const struct ieee80211_txparam *ni_txparms;
 	uint32_t		ni_jointime;	/* time of join (secs) */
 	uint32_t		*ni_challenge;	/* shared-key challenge */
