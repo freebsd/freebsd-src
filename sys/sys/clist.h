@@ -50,7 +50,6 @@ struct clist {
 
 struct cblock {
 	struct cblock *c_next;			/* next cblock in queue */
-	unsigned char c_quote[CBQSIZE];		/* quoted characters */
 	unsigned char c_info[CBSIZE];		/* characters */
 };
 
@@ -58,13 +57,11 @@ struct cblock {
 extern	int cfreecount;
 
 int	 b_to_q(char *cp, int cc, struct clist *q);
-void	 catq(struct clist *from, struct clist *to);
 void	 clist_alloc_cblocks(struct clist *q, int ccmax, int ccres);
 void	 clist_free_cblocks(struct clist *q);
 int	 getc(struct clist *q);
 void	 ndflush(struct clist *q, int cc);
-char	*nextc(struct clist *q, char *cp, int *c);
-int	 putc(int c, struct clist *q);
+int	 putc(char c, struct clist *q);
 int	 q_to_b(struct clist *q, char *cp, int cc);
 int	 unputc(struct clist *q);
 #endif
