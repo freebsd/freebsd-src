@@ -12,19 +12,37 @@ SUBDIR=	${_colldef} \
 	${_man} \
 	${_me} \
 	misc \
-	mk \
+	${_mk} \
 	${_mklocale} \
 	${_monetdef} \
 	${_msgdef} \
 	${_numericdef} \
 	${_sendmail} \
 	skel \
-	snmp \
+	${_snmp} \
 	${_syscons} \
 	tabset \
 	termcap \
 	${_timedef} \
 	${_zoneinfo}
+
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_BSNMP} != "no"
+_snmp=		snmp
+.endif
+
+.if ${MK_DICT} != "no"
+_dict=	 	dict
+.endif
+
+.if ${MK_EXAMPLES} != "no"
+_examples=	examples
+.endif
+
+.if ${MK_GROFF} != "no"
+_me=		me
+.endif
 
 .if ${MK_LOCALES} != "no"
 _colldef =	colldef
@@ -35,24 +53,12 @@ _numericdef =	numericdef
 _timedef =	timedef
 .endif
 
-.if ${MK_SYSCONS} != "no"
-_syscons=	syscons
+.if ${MK_MAKE} != "no"
+_mk=		mk
 .endif
 
 .if ${MK_MAN} != "no"
 _man=		man
-.endif
-
-.if ${MK_GROFF} != "no"
-_me=		me
-.endif
-
-.if ${MK_EXAMPLES} != "no"
-_examples=	examples
-.endif
-
-.if ${MK_DICT} != "no"
-_dict=	 	dict
 .endif
 
 .if ${MK_SENDMAIL} != "no"
@@ -61,6 +67,10 @@ _sendmail=	 sendmail
 
 .if ${MK_SHAREDOCS} != "no"
 _doc=		doc
+.endif
+
+.if ${MK_SYSCONS} != "no"
+_syscons=	syscons
 .endif
 
 .if ${MK_ZONEINFO} != "no"

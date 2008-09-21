@@ -40,7 +40,7 @@ SUBDIR=	adjkerntz \
 	ifconfig \
 	init \
 	${_ipf} \
-	ipfw \
+	${_ipfw} \
 	iscontrol \
 	kldconfig \
 	kldload \
@@ -61,7 +61,7 @@ SUBDIR=	adjkerntz \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \
-	natd \
+	${_natd} \
 	newfs \
 	newfs_msdos \
 	nfsiod \
@@ -70,13 +70,13 @@ SUBDIR=	adjkerntz \
 	${_pflogd} \
 	ping \
 	${_ping6} \
-	quotacheck \
+	${_quotacheck} \
 	rcorder \
 	reboot \
 	recoverdisk \
 	restore \
 	route \
-	routed \
+	${_routed} \
 	${_rtsol} \
 	savecore \
 	${_sconfig} \
@@ -84,7 +84,7 @@ SUBDIR=	adjkerntz \
 	shutdown \
 	slattach \
 	spppcontrol \
-	startslip \
+	${_startslip} \
 	${_sunlabel} \
 	swapon \
 	sysctl \
@@ -103,6 +103,11 @@ _devd=		devd
 _ipf=		ipf
 .endif
 
+.if ${MK_IPFW} != "no"
+_ipfw=		ipfw
+_natd=		natd
+.endif
+
 .if ${MK_PF} != "no"
 _pfctl=		pfctl
 _pflogd=	pflogd
@@ -115,6 +120,18 @@ _rtsol=		rtsol
 
 .if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "powerpc"
 _bsdlabel=	bsdlabel
+.endif
+
+.if ${MK_QUOTAS} != "no"
+_quotacheck=	quotacheck
+.endif
+
+.if ${MK_ROUTED} != "no"
+_routed=	routed
+.endif
+
+.if ${MK_SLIP} != "no"
+_startslip=	startslip
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
