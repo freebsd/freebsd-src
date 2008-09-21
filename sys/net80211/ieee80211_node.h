@@ -112,6 +112,8 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_TSN	0x000200	/* TSN association */
 #define	IEEE80211_NODE_AMPDU_RX	0x000400	/* AMPDU rx enabled */
 #define	IEEE80211_NODE_AMPDU_TX	0x000800	/* AMPDU tx enabled */
+#define	IEEE80211_NODE_MIMO_PS	0x001000	/* MIMO power save enabled */
+#define	IEEE80211_NODE_MIMO_RTS	0x002000	/* send RTS in MIMO PS */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -195,7 +197,8 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 	(IEEE80211_NODE_AMPDU_RX | IEEE80211_NODE_AMPDU_TX)
 #define	IEEE80211_NODE_HT_ALL \
 	(IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT | \
-	 IEEE80211_NODE_AMPDU)
+	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_MIMO_PS | \
+	 IEEE80211_NODE_MIMO_RTS)
 
 #define	IEEE80211_NODE_AID(ni)	IEEE80211_AID(ni->ni_associd)
 
