@@ -117,6 +117,7 @@ devfs_alloc(void)
 {
 	struct cdev_priv *cdp;
 	struct cdev *cdev;
+	struct timespec ts;
 
 	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO | M_WAITOK);
 
@@ -128,6 +129,9 @@ devfs_alloc(void)
 
 	cdev->si_name = cdev->__si_namebuf;
 	LIST_INIT(&cdev->si_children);
+	vfs_timestamp(&ts);
+	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;
+
 	return (cdev);
 }
 
