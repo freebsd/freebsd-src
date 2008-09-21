@@ -215,9 +215,9 @@ _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
 {
 	db_printf("%stxampdu[%d]: %p flags %b ac %u\n",
 		sep, ix, tap, tap->txa_flags, IEEE80211_AGGR_BITS, tap->txa_ac);
-	db_printf("%s  token %u qbytes %d qframes %d seqstart %u start %u wnd %u\n",
+	db_printf("%s  token %u qbytes %d qframes %d start %u wnd %u\n",
 		sep, tap->txa_token, tap->txa_qbytes, tap->txa_qframes,
-		tap->txa_seqstart, tap->txa_start, tap->txa_wnd);
+		tap->txa_start, tap->txa_wnd);
 	db_printf("%s  attempts %d nextrequest %d\n",
 		sep, tap->txa_attempts, tap->txa_nextrequest);
 	/* XXX packet q + timer */

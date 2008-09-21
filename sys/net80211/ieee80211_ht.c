@@ -1337,7 +1337,7 @@ ieee80211_addba_request(struct ieee80211_node *ni,
 	/* XXX locking */
 	tap->txa_token = dialogtoken;
 	tap->txa_flags |= IEEE80211_AGGR_IMMEDIATE;
-	tap->txa_start = tap->txa_seqstart = 0;
+	tap->txa_start = 0;
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	tap->txa_wnd = (bufsiz == 0) ?
 	    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
@@ -1679,6 +1679,8 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
 
 	dialogtoken = (tokens+1) % 63;		/* XXX */
+	tid = WME_AC_TO_TID(tap->txa_ac);
+	tap->txa_start = ni->ni_txseqs[tid];
 
 	tid = WME_AC_TO_TID(tap->txa_ac);
 	args[0] = dialogtoken;
@@ -1701,8 +1703,8 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		return 0;
 	}
 	tokens = dialogtoken;			/* allocate token */
-	/* NB: after calling ic_addba_request so driver can set seqstart */
-	args[3] = SM(tap->txa_seqstart, IEEE80211_BASEQ_START)
+	/* NB: after calling ic_addba_request so driver can set txa_start */
+	args[3] = SM(tap->txa_start, IEEE80211_BASEQ_START)
 		| SM(0, IEEE80211_BASEQ_FRAG)
 		;
 	return ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
