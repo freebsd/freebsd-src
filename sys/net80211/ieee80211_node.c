@@ -2264,7 +2264,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 		newassoc = 0;
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
-	    "station associated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s",
+	    "station associated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s",
 	    IEEE80211_NODE_AID(ni),
 	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
 	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long",
@@ -2273,6 +2273,8 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	    ni->ni_flags & IEEE80211_NODE_HT ?
 		(ni->ni_chw == 40 ? ", HT40" : ", HT20") : "",
 	    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
+	    ni->ni_flags & IEEE80211_NODE_MIMO_RTS ? " (+SMPS-DYN)" :
+	        ni->ni_flags & IEEE80211_NODE_MIMO_PS ? " (+SMPS)" : "",
 	    IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) ?
 		", fast-frames" : "",
 	    IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_TURBOP) ?

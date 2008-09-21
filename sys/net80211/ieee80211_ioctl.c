@@ -1068,6 +1068,18 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_STA_VLAN:
 		error = ieee80211_ioctl_getstavlan(vap, ireq);
 		break;
+	case IEEE80211_IOC_SMPS:
+		if (vap->iv_opmode == IEEE80211_M_STA &&
+		    vap->iv_state == IEEE80211_S_RUN) {
+			if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_RTS)
+				ireq->i_val = IEEE80211_HTCAP_SMPS_DYNAMIC;
+			else if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_PS)
+				ireq->i_val = IEEE80211_HTCAP_SMPS_ENA;
+			else
+				ireq->i_val = IEEE80211_HTCAP_SMPS_OFF;
+		} else
+			ireq->i_val = vap->iv_htcaps & IEEE80211_HTCAP_SMPS;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -3067,6 +3079,19 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		break;
 	case IEEE80211_IOC_STA_VLAN:
 		error = ieee80211_ioctl_setstavlan(vap, ireq);
+		break;
+	case IEEE80211_IOC_SMPS:
+		if ((ireq->i_val &~ IEEE80211_HTCAP_SMPS) != 0 ||
+		    ireq->i_val == 0x0008)	/* value of 2 is reserved */
+			return EINVAL;
+		if (ireq->i_val != IEEE80211_HTCAP_SMPS_OFF &&
+		    (vap->iv_htcaps & IEEE80211_HTC_SMPS) == 0)
+			return EOPNOTSUPP;
+		vap->iv_htcaps = (vap->iv_htcaps &~ IEEE80211_HTCAP_SMPS) |
+			ireq->i_val;
+		/* NB: if not operating in 11n this can wait */
+		if (isvapht(vap))
+			error = ERESTART;
 		break;
 	default:
 		error = EINVAL;
