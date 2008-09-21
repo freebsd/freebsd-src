@@ -990,6 +990,9 @@ htinfo_notify(struct ieee80211com *ic)
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP)
 			continue;
+		if (vap->iv_state != IEEE80211_S_RUN ||
+		    !IEEE80211_IS_CHAN_HT(vap->iv_bss->ni_chan))
+			continue;
 		if (first) {
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N,
