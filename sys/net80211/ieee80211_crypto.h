@@ -75,13 +75,16 @@ struct ieee80211_key {
 	uint8_t		wk_keylen;	/* key length in bytes */
 	uint8_t		wk_pad;
 	uint16_t	wk_flags;
-#define	IEEE80211_KEY_XMIT	0x01	/* key used for xmit */
-#define	IEEE80211_KEY_RECV	0x02	/* key used for recv */
-#define	IEEE80211_KEY_GROUP	0x04	/* key used for WPA group operation */
-#define	IEEE80211_KEY_SWENCRYPT	0x10	/* host-based encrypt */
-#define	IEEE80211_KEY_SWDECRYPT	0x20	/* host-based decrypt */
-#define	IEEE80211_KEY_SWENMIC	0x40	/* host-based enmic */
-#define	IEEE80211_KEY_SWDEMIC	0x80	/* host-based demic */
+#define	IEEE80211_KEY_XMIT	0x0001	/* key used for xmit */
+#define	IEEE80211_KEY_RECV	0x0002	/* key used for recv */
+#define	IEEE80211_KEY_GROUP	0x0004	/* key used for WPA group operation */
+#define	IEEE80211_KEY_SWENCRYPT	0x0010	/* host-based encrypt */
+#define	IEEE80211_KEY_SWDECRYPT	0x0020	/* host-based decrypt */
+#define	IEEE80211_KEY_SWENMIC	0x0040	/* host-based enmic */
+#define	IEEE80211_KEY_SWDEMIC	0x0080	/* host-based demic */
+#define	IEEE80211_KEY_DEVKEY	0x0100	/* device key request completed */
+#define	IEEE80211_KEY_CIPHER0	0x1000	/* cipher-specific action 0 */
+#define	IEEE80211_KEY_CIPHER1	0x2000	/* cipher-specific action 1 */
 	ieee80211_keyix	wk_keyix;	/* h/w key index */
 	ieee80211_keyix	wk_rxkeyix;	/* optional h/w rx key index */
 	uint8_t		wk_key[IEEE80211_KEYBUF_SIZE+IEEE80211_MICBUF_SIZE];

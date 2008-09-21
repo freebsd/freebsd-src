@@ -370,7 +370,7 @@ struct ieee80211vap {
 	ieee80211_keyix		iv_def_txkey;	/* default/group tx key index */
 	struct ieee80211_key	iv_nw_keys[IEEE80211_WEP_NKID];
 	int			(*iv_key_alloc)(struct ieee80211vap *,
-				    const struct ieee80211_key *,
+				    struct ieee80211_key *,
 				    ieee80211_keyix *, ieee80211_keyix *);
 	int			(*iv_key_delete)(struct ieee80211vap *, 
 				    const struct ieee80211_key *);

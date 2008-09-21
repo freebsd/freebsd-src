@@ -141,7 +141,7 @@ static void	ath_bmiss_proc(void *, int);
 static int	ath_keyset(struct ath_softc *, const struct ieee80211_key *,
 			struct ieee80211_node *);
 static int	ath_key_alloc(struct ieee80211vap *,
-			const struct ieee80211_key *,
+			struct ieee80211_key *,
 			ieee80211_keyix *, ieee80211_keyix *);
 static int	ath_key_delete(struct ieee80211vap *,
 			const struct ieee80211_key *);
@@ -2387,7 +2387,7 @@ key_alloc_single(struct ath_softc *sc,
  * 64 entries.
  */
 static int
-ath_key_alloc(struct ieee80211vap *vap, const struct ieee80211_key *k,
+ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	ieee80211_keyix *keyix, ieee80211_keyix *rxkeyix)
 {
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
