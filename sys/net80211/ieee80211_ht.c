@@ -1722,7 +1722,8 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
  * and the peer notified with a DelBA Action frame.
  */
 void
-ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
+ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
+	int reason)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211vap *vap = ni->ni_vap;
@@ -1731,19 +1732,20 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	/* XXX locking */
 	if (IEEE80211_AMPDU_RUNNING(tap)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: stop BA stream for AC %d", __func__, tap->txa_ac);
+		    ni, "%s: stop BA stream for AC %d (reason %d)",
+		    __func__, tap->txa_ac, reason);
 		vap->iv_stats.is_ampdu_stop++;
 
 		ic->ic_addba_stop(ni, tap);
 		args[0] = WME_AC_TO_TID(tap->txa_ac);
 		args[1] = IEEE80211_DELBAPS_INIT;
-		args[2] = 1;				/* XXX reason code */
+		args[2] = reason;			/* XXX reason code */
 		ieee80211_send_action(ni, IEEE80211_ACTION_CAT_BA,
 			IEEE80211_ACTION_BA_DELBA, args);
 	} else {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
-		    ni, "%s: BA stream for AC %d not running",
-		    __func__, tap->txa_ac);
+		    ni, "%s: BA stream for AC %d not running (reason %d)",
+		    __func__, tap->txa_ac, reason);
 		vap->iv_stats.is_ampdu_stop_failed++;
 	}
 }

@@ -183,7 +183,7 @@ void	ieee80211_recv_action(struct ieee80211_node *,
 int	ieee80211_ampdu_request(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *);
 void	ieee80211_ampdu_stop(struct ieee80211_node *,
-		struct ieee80211_tx_ampdu *);
+		struct ieee80211_tx_ampdu *, int);
 int	ieee80211_send_bar(struct ieee80211_node *,
 		const struct ieee80211_tx_ampdu *);
 int	ieee80211_send_action(struct ieee80211_node *,
