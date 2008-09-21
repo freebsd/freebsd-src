@@ -125,6 +125,7 @@ struct ieee80211_node {
 	uint16_t		ni_associd;	/* assoc response */
 	uint16_t		ni_txpower;	/* current transmit power */
 	uint16_t		ni_vlan;	/* vlan tag */
+	const struct ieee80211_txparam *ni_txparms;
 	uint32_t		ni_jointime;	/* time of join (secs) */
 	uint32_t		*ni_challenge;	/* shared-key challenge */
 	struct ieee80211_ies	ni_ies;		/* captured ie's */
