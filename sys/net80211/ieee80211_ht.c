@@ -335,14 +335,14 @@ ampdu_rx_stop(struct ieee80211_rx_ampdu *rap)
 /*
  * Dispatch a frame from the A-MPDU reorder queue.  The
  * frame is fed back into ieee80211_input marked with an
- * M_AMPDU flag so it doesn't come back to us (it also
+ * M_AMPDU_MPDU flag so it doesn't come back to us (it also
  * permits ieee80211_input to optimize re-processing).
  */
 static __inline void
 ampdu_dispatch(struct ieee80211_node *ni, struct mbuf *m)
 {
-	m->m_flags |= M_AMPDU;	/* bypass normal processing */
-	/* NB: rssi, noise, and rstamp are ignored w/ M_AMPDU set */
+	m->m_flags |= M_AMPDU_MPDU;	/* bypass normal processing */
+	/* NB: rssi, noise, and rstamp are ignored w/ M_AMPDU_MPDU set */
 	(void) ieee80211_input(ni, m, 0, 0, 0);
 }
 
@@ -517,11 +517,19 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 	uint8_t tid;
 	int off;
 
+	KASSERT((m->m_flags & (M_AMPDU | M_AMPDU_MPDU)) == M_AMPDU,
+	    ("!a-mpdu or already re-ordered, flags 0x%x", m->m_flags));
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT sta"));
 
 	/* NB: m_len known to be sufficient */
 	wh = mtod(m, struct ieee80211_qosframe *);
-	KASSERT(wh->i_fc[0] == IEEE80211_FC0_QOSDATA, ("not QoS data"));
+	if (wh->i_fc[0] != IEEE80211_FC0_QOSDATA) {
+		/*
+		 * Not QoS data, shouldn't get here but just
+		 * return it to the caller for processing.
+		 */
+		return PROCESS;
+	}
 
 	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 		tid = ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0];
