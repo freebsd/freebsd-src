@@ -37,6 +37,12 @@
 #define	IPFW_DEFAULT_RULE	65535
 
 /*
+ * The number of ipfw tables.  The maximum allowed table number is the
+ * (IPFW_TABLES_MAX - 1).
+ */
+#define	IPFW_TABLES_MAX		128
+
+/*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
@@ -640,7 +646,6 @@ extern	ip_fw_chk_t	*ip_fw_chk_ptr;
 
 #ifdef IPFW_INTERNAL
 
-#define	IPFW_TABLES_MAX		128
 struct ip_fw_chain {
 	struct ip_fw	*rules;		/* list of rules */
 	struct ip_fw	*reap;		/* list of rules to reap */
