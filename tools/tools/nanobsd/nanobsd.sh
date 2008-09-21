@@ -750,4 +750,4 @@ else
 fi
 last_orders
 
-echo "# NanoBSD image completed"
+echo "# NanoBSD image ${NANO_NAME} completed"
