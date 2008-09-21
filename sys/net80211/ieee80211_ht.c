@@ -1080,22 +1080,21 @@ void
 ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
 {
 #define	OPMODE(x)	SM(x, IEEE80211_HTINFO_OPMODE)
-	if (protmode == ic->ic_curhtprotmode)
-		return;
-	if (OPMODE(ic->ic_curhtprotmode) == IEEE80211_HTINFO_OPMODE_MIXED &&
-	    OPMODE(protmode) == IEEE80211_HTINFO_OPMODE_PROTOPT)
-		return;
-
 	IEEE80211_LOCK(ic);
+
 	/* track non-HT station presence */
 	KASSERT(protmode & IEEE80211_HTINFO_NONHT_PRESENT,
-	    ("missing NONHT_PRESENT"));
+	    ("protmode 0x%x", protmode));
 	ic->ic_flags_ext |= IEEE80211_FEXT_NONHT_PR;
 	ic->ic_lastnonht = ticks;
 
-	/* push beacon update */
-	ic->ic_curhtprotmode = protmode;
-	htinfo_notify(ic);
+	if (protmode != ic->ic_curhtprotmode &&
+	    (OPMODE(ic->ic_curhtprotmode) != IEEE80211_HTINFO_OPMODE_MIXED ||
+	     OPMODE(protmode) == IEEE80211_HTINFO_OPMODE_PROTOPT)) {
+		/* push beacon update */
+		ic->ic_curhtprotmode = protmode;
+		htinfo_notify(ic);
+	}
 	IEEE80211_UNLOCK(ic);
 #undef OPMODE
 }
