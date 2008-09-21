@@ -390,7 +390,7 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 	struct freqband *fp;
 	struct netband *nb;
 	const void *id;
-	int i;
+	int i, errors;
 
 	memset(rdp, 0, sizeof(struct regdata));
 	mt = calloc(1, sizeof(struct mystate));
@@ -415,6 +415,8 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 	if (rdp->ident == NULL)
 		return ENOMEM;
 	free(mt);
+
+	errors = 0;
 	i = 0;
 	LIST_FOREACH(dp, &rdp->domains, next) {
 		rdp->ident[i].id = dp->name;
@@ -440,26 +442,71 @@ lib80211_regdomain_readconfig(struct regdata *rdp, const void *p, size_t len)
 		if (dp->cc != NULL) {
 			id = dp->cc;
 			dp->cc = findid(rdp, id, COUNTRY);
+			if (dp->cc == NULL) {
+				warnx("undefined country \"%s\"",
+				    __DECONST(char *, id));
+				errors++;
+			}
 			free(__DECONST(char *, id));
 		}
-		LIST_FOREACH(nb, &dp->bands_11b, next)
-			nb->band = findid(rdp, nb->band, FREQBAND);
-		LIST_FOREACH(nb, &dp->bands_11g, next)
-			nb->band = findid(rdp, nb->band, FREQBAND);
-		LIST_FOREACH(nb, &dp->bands_11a, next)
-			nb->band = findid(rdp, nb->band, FREQBAND);
-		LIST_FOREACH(nb, &dp->bands_11ng, next)
-			nb->band = findid(rdp, nb->band, FREQBAND);
-		LIST_FOREACH(nb, &dp->bands_11na, next)
-			nb->band = findid(rdp, nb->band, FREQBAND);
+		LIST_FOREACH(nb, &dp->bands_11b, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11b band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
+		LIST_FOREACH(nb, &dp->bands_11g, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11g band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
+		LIST_FOREACH(nb, &dp->bands_11a, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11a band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
+		LIST_FOREACH(nb, &dp->bands_11ng, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11ng band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
+		LIST_FOREACH(nb, &dp->bands_11na, next) {
+			id = findid(rdp, nb->band, FREQBAND);
+			if (id == NULL) {
+				warnx("undefined 11na band \"%s\"",
+				    __DECONST(char *, nb->band));
+				errors++;
+			}
+			nb->band = id;
+		}
 	}
 	LIST_FOREACH(cp, &rdp->countries, next) {
 		id = cp->rd;
 		cp->rd = findid(rdp, id, DOMAIN);
+		if (cp->rd == NULL) {
+			warnx("undefined country \"%s\"",
+			    __DECONST(char *, id));
+			errors++;
+		}
 		free(__DECONST(char *, id));
 	}
 
-	return 0;
+	return errors ? EINVAL : 0;
 }
 
 static void
