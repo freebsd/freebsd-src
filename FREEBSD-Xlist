@@ -18,7 +18,6 @@ openssl-*/*/*.com
 openssl-*/*/*/*.bat
 openssl-*/*/*/*.com
 openssl-*/apps/openssl-vms.cnf
-openssl-*/crypto/bn/asm/pa-risc2.s.old
 openssl-*/crypto/bn/asm/vms.mar
 openssl-*/crypto/bn/vms-helper.c
 openssl-*/crypto/buildinf.h
@@ -26,8 +25,6 @@ openssl-*/crypto/dso/dso_vms.c
 openssl-*/crypto/dso/dso_win32.c
 openssl-*/crypto/threads/solaris.sh
 openssl-*/demos/engines/rsaref/
-openssl-*/diffs.*
-openssl-*/do_patch.sh
 openssl-*/fips/
 openssl-*/ms/
 openssl-*/op
@@ -47,4 +44,4 @@ openssl-*/shlib/svr5-shared-installed
 openssl-*/shlib/svr5-shared.sh
 openssl-*/test/fips_aes_data
 openssl-*/util/cygwin.sh
-openssl-*/include/openssl
+openssl-*/include
