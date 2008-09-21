@@ -534,6 +534,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_HTC_AMSDU	0x00020000	/* CAPABILITY: A-MSDU tx */
 /* NB: HT40 is implied by IEEE80211_HTCAP_CHWIDTH40 */
 #define	IEEE80211_HTC_HT	0x00040000	/* CAPABILITY: HT operation */
+#define	IEEE80211_HTC_SMPS	0x00080000	/* CAPABILITY: MIMO power save*/
 
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
