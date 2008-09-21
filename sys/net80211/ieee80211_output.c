@@ -1050,8 +1050,13 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 			if (IEEE80211_AMPDU_RUNNING(tap)) {
 				/*
 				 * Operational, mark frame for aggregation.
+				 *
+				 * NB: We support only immediate BA's for
+				 * AMPDU which means we set the QoS control
+				 * field to "normal ack" (0) to get "implicit
+				 * block ack" behaviour.
 				 */
-				qos[0] |= IEEE80211_QOS_ACKPOLICY_BA;
+				m->m_flags |= M_AMPDU_MPDU;
 			} else if (!IEEE80211_AMPDU_REQUESTED(tap) &&
 			    ic->ic_ampdu_enable(ni, tap)) {
 				/*
@@ -1066,8 +1071,23 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 		qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;
 
-		*(uint16_t *)wh->i_seq =
-		    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
+		if ((m->m_flags & M_AMPDU_MPDU) == 0) {
+			/*
+			 * NB: don't assign a sequence # to potential
+			 * aggregates; we expect this happens at the
+			 * point the frame comes off any aggregation q
+			 * as otherwise we may introduce holes in the
+			 * BA sequence space and/or make window accouting
+			 * more difficult.
+			 *
+			 * XXX may want to control this with a driver
+			 * capability; this may also change when we pull
+			 * aggregation up into net80211
+			 */
+			*(uint16_t *)wh->i_seq =
+			    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
+			ni->ni_txseqs[tid]++;
+		}
 		ni->ni_txseqs[tid]++;
 	} else {
 		*(uint16_t *)wh->i_seq =

@@ -468,14 +468,14 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 	uint8_t dir, type, subtype, qos;
 	uint16_t rxseq;
 
-	if (m->m_flags & M_AMPDU) {
+	if (m->m_flags & M_AMPDU_MPDU) {
 		/*
 		 * Fastpath for A-MPDU reorder q resubmission.  Frames
-		 * w/ M_AMPDU marked have already passed through here
-		 * but were received out of order and been held on the
-		 * reorder queue.  When resubmitted they are marked
-		 * with the M_AMPDU flag and we can bypass most of the
-		 * normal processing.
+		 * w/ M_AMPDU_MPDU marked have already passed through
+		 * here but were received out of order and been held on
+		 * the reorder queue.  When resubmitted they are marked
+		 * with the M_AMPDU_MPDU flag and we can bypass most of
+		 * the normal processing.
 		 */
 		wh = mtod(m, struct ieee80211_frame *);
 		type = IEEE80211_FC0_TYPE_DATA;
@@ -590,16 +590,12 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 		if (!IEEE80211_IS_MULTICAST(wh->i_addr1))
 			ni->ni_inact = ni->ni_inact_reload;
 		/*
-		 * Handle A-MPDU re-ordering.  The station must be
-		 * associated and negotiated HT.  The frame must be
-		 * a QoS frame (not QoS null data) and not previously
-		 * processed for A-MPDU re-ordering.  If the frame is
-		 * to be processed directly then ieee80211_ampdu_reorder
+		 * Handle A-MPDU re-ordering.  If the frame is to be
+		 * processed directly then ieee80211_ampdu_reorder
 		 * will return 0; otherwise it has consumed the mbuf
 		 * and we should do nothing more with it.
 		 */
-		if ((ni->ni_flags & IEEE80211_NODE_HT) &&
-		    subtype == IEEE80211_FC0_SUBTYPE_QOS &&
+		if ((m->m_flags & M_AMPDU) &&
 		    ieee80211_ampdu_reorder(ni, m) != 0) {
 			m = NULL;
 			goto out;

@@ -246,13 +246,17 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
 #define	M_FF		M_PROTO6		/* fast frame */
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
+#define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_80211_TX \
-	(M_LINK0|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB)
+	(M_LINK0|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
 
 /* rx path usage */
-#define	M_AMPDU		M_PROTO1		/* A-MPDU processing done */
+#define	M_AMPDU		M_PROTO1		/* A-MPDU subframe */
 #define	M_WEP		M_PROTO2		/* WEP done by hardware */
-#define	M_80211_RX	(M_AMPDU|M_WEP)
+#if 0
+#define	M_AMPDU_MPDU	M_PROTO8		/* A-MPDU re-order done */
+#endif
+#define	M_80211_RX	(M_AMPDU|M_WEP|M_AMPDU_MPDU)
 /*
  * Store WME access control bits in the vlan tag.
  * This is safe since it's done after the packet is classified
