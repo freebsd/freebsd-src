@@ -120,6 +120,7 @@
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include <openssl/pqueue.h>
+#include <openssl/rand.h>
 
 static int have_handshake_fragment(SSL *s, int type, unsigned char *buf, 
 	int len, int peek);
@@ -486,9 +487,9 @@ int dtls1_get_record(SSL *s)
 	SSL3_RECORD *rr;
 	SSL_SESSION *sess;
 	unsigned char *p;
-	short version;
+	unsigned short version;
 	DTLS1_BITMAP *bitmap;
-    unsigned int is_next_epoch;
+	unsigned int is_next_epoch;
 
 	rr= &(s->s3->rrec);
 	sess=s->session;
@@ -524,7 +525,7 @@ again:
 		ssl_minor= *(p++);
 		version=(ssl_major<<8)|ssl_minor;
 
-        /* sequence number is 64 bits, with top 2 bytes = epoch */ 
+		/* sequence number is 64 bits, with top 2 bytes = epoch */ 
 		n2s(p,rr->epoch);
 
 		memcpy(&(s->s3->read_sequence[2]), p, 6);
@@ -535,7 +536,7 @@ again:
 		/* Lets check version */
 		if (!s->first_packet)
 			{
-			if (version != s->version)
+			if (version != s->version && version != DTLS1_BAD_VER)
 				{
 				SSLerr(SSL_F_DTLS1_GET_RECORD,SSL_R_WRONG_VERSION_NUMBER);
 				/* Send back error using their
@@ -546,7 +547,8 @@ again:
 				}
 			}
 
-		if ((version & 0xff00) != (DTLS1_VERSION & 0xff00))
+		if ((version & 0xff00) != (DTLS1_VERSION & 0xff00) &&
+		    (version & 0xff00) != (DTLS1_BAD_VER & 0xff00))
 			{
 			SSLerr(SSL_F_DTLS1_GET_RECORD,SSL_R_WRONG_VERSION_NUMBER);
 			goto err;
@@ -559,6 +561,7 @@ again:
 			goto f_err;
 			}
 
+		s->client_version = version;
 		/* now s->rstate == SSL_ST_READ_BODY */
 		}
 
@@ -808,6 +811,14 @@ start:
              *  may be fragmented--don't always expect dest_maxlen bytes */
 			if ( rr->length < dest_maxlen)
 				{
+#ifdef DTLS1_AD_MISSING_HANDSHAKE_MESSAGE
+				/*
+				 * for normal alerts rr->length is 2, while
+				 * dest_maxlen is 7 if we were to handle this
+				 * non-existing alert...
+				 */
+				FIX ME
+#endif
 				s->rstate=SSL_ST_READ_HEADER;
 				rr->length = 0;
 				goto start;
@@ -973,47 +984,40 @@ start:
 		}
 
 	if (rr->type == SSL3_RT_CHANGE_CIPHER_SPEC)
-        {
-        struct ccs_header_st ccs_hdr;
+		{
+		struct ccs_header_st ccs_hdr;
 
 		dtls1_get_ccs_header(rr->data, &ccs_hdr);
 
-		if ( ccs_hdr.seq == s->d1->handshake_read_seq)
+		/* 'Change Cipher Spec' is just a single byte, so we know
+		 * exactly what the record payload has to look like */
+		/* XDTLS: check that epoch is consistent */
+		if (	(s->client_version == DTLS1_BAD_VER && rr->length != 3) ||
+			(s->client_version != DTLS1_BAD_VER && rr->length != DTLS1_CCS_HEADER_LENGTH) || 
+			(rr->off != 0) || (rr->data[0] != SSL3_MT_CCS))
 			{
-			/* 'Change Cipher Spec' is just a single byte, so we know
-			 * exactly what the record payload has to look like */
-			/* XDTLS: check that epoch is consistent */
-			if (	(rr->length != DTLS1_CCS_HEADER_LENGTH) || 
-				(rr->off != 0) || (rr->data[0] != SSL3_MT_CCS))
-				{
-				i=SSL_AD_ILLEGAL_PARAMETER;
-				SSLerr(SSL_F_DTLS1_READ_BYTES,SSL_R_BAD_CHANGE_CIPHER_SPEC);
-				goto err;
-				}
-			
-			rr->length=0;
-			
-			if (s->msg_callback)
-				s->msg_callback(0, s->version, SSL3_RT_CHANGE_CIPHER_SPEC, 
-					rr->data, 1, s, s->msg_callback_arg);
-			
-			s->s3->change_cipher_spec=1;
-			if (!ssl3_do_change_cipher_spec(s))
-				goto err;
-			
-			/* do this whenever CCS is processed */
-			dtls1_reset_seq_numbers(s, SSL3_CC_READ);
-			
-			/* handshake read seq is reset upon handshake completion */
+			i=SSL_AD_ILLEGAL_PARAMETER;
+			SSLerr(SSL_F_DTLS1_READ_BYTES,SSL_R_BAD_CHANGE_CIPHER_SPEC);
+			goto err;
+			}
+
+		rr->length=0;
+
+		if (s->msg_callback)
+			s->msg_callback(0, s->version, SSL3_RT_CHANGE_CIPHER_SPEC, 
+				rr->data, 1, s, s->msg_callback_arg);
+
+		s->s3->change_cipher_spec=1;
+		if (!ssl3_do_change_cipher_spec(s))
+			goto err;
+
+		/* do this whenever CCS is processed */
+		dtls1_reset_seq_numbers(s, SSL3_CC_READ);
+
+		if (s->client_version == DTLS1_BAD_VER)
 			s->d1->handshake_read_seq++;
-			
-			goto start;
-			}
-		else
-			{
-			rr->length = 0;
-			goto start;
-			}
+
+		goto start;
 		}
 
 	/* Unexpected handshake message (Client Hello, or protocol violation) */
@@ -1255,7 +1259,7 @@ int dtls1_write_bytes(SSL *s, int type, const void *buf_, int len)
 	else 
 		s->s3->wnum += i;
 
-	return tot + i;
+	return i;
 	}
 
 int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len, int create_empty_fragment)
@@ -1341,8 +1345,12 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len,
 	*(p++)=type&0xff;
 	wr->type=type;
 
-	*(p++)=(s->version>>8);
-	*(p++)=s->version&0xff;
+	if (s->client_version == DTLS1_BAD_VER)
+		*(p++) = DTLS1_BAD_VER>>8,
+		*(p++) = DTLS1_BAD_VER&0xff;
+	else
+		*(p++)=(s->version>>8),
+		*(p++)=s->version&0xff;
 
 	/* field where we are to write out packet epoch, seq num and len */
 	pseq=p; 
@@ -1397,8 +1405,14 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf, unsigned int len,
 
 
 	/* ssl3_enc can only have an error on read */
-	wr->length += bs;  /* bs != 0 in case of CBC.  The enc fn provides
-						* the randomness */ 
+	if (bs)	/* bs != 0 in case of CBC */
+		{
+		RAND_pseudo_bytes(p,bs);
+		/* master IV and last CBC residue stand for
+		 * the rest of randomness */
+		wr->length += bs;
+		}
+
 	s->method->ssl3_enc->enc(s,1);
 
 	/* record length after mac and block padding */
@@ -1570,7 +1584,7 @@ int dtls1_dispatch_alert(SSL *s)
 	{
 	int i,j;
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
-	unsigned char buf[2 + 2 + 3]; /* alert level + alert desc + message seq +frag_off */
+	unsigned char buf[DTLS1_AL_HEADER_LENGTH];
 	unsigned char *ptr = &buf[0];
 
 	s->s3->alert_dispatch=0;
@@ -1579,6 +1593,7 @@ int dtls1_dispatch_alert(SSL *s)
 	*ptr++ = s->s3->send_alert[0];
 	*ptr++ = s->s3->send_alert[1];
 
+#ifdef DTLS1_AD_MISSING_HANDSHAKE_MESSAGE
 	if (s->s3->send_alert[1] == DTLS1_AD_MISSING_HANDSHAKE_MESSAGE)
 		{	
 		s2n(s->d1->handshake_read_seq, ptr);
@@ -1594,6 +1609,7 @@ int dtls1_dispatch_alert(SSL *s)
 #endif
 		l2n3(s->d1->r_msg_hdr.frag_off, ptr);
 		}
+#endif
 
 	i = do_dtls1_write(s, SSL3_RT_ALERT, &buf[0], sizeof(buf), 0);
 	if (i <= 0)
@@ -1603,8 +1619,11 @@ int dtls1_dispatch_alert(SSL *s)
 		}
 	else
 		{
-		if ( s->s3->send_alert[0] == SSL3_AL_FATAL ||
-			s->s3->send_alert[1] == DTLS1_AD_MISSING_HANDSHAKE_MESSAGE)
+		if (s->s3->send_alert[0] == SSL3_AL_FATAL
+#ifdef DTLS1_AD_MISSING_HANDSHAKE_MESSAGE
+		    || s->s3->send_alert[1] == DTLS1_AD_MISSING_HANDSHAKE_MESSAGE
+#endif
+		   )
 			(void)BIO_flush(s->wbio);
 
 		if (s->msg_callback)

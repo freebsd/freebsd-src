@@ -134,6 +134,7 @@ typedef unsigned int u_int;
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
+#include <openssl/ocsp.h>
 #include "s_apps.h"
 #include "timeouts.h"
 
@@ -171,11 +172,18 @@ static int c_nbio=0;
 #endif
 static int c_Pause=0;
 static int c_debug=0;
+#ifndef OPENSSL_NO_TLSEXT
+static int c_tlsextdebug=0;
+static int c_status_req=0;
+#endif
 static int c_msg=0;
 static int c_showcerts=0;
 
 static void sc_usage(void);
 static void print_stuff(BIO *berr,SSL *con,int full);
+#ifndef OPENSSL_NO_TLSEXT
+static int ocsp_resp_cb(SSL *s, void *arg);
+#endif
 static BIO *bio_c_out=NULL;
 static int c_quiet=0;
 static int c_ign_eof=0;
@@ -231,9 +239,37 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -engine id    - Initialise and use the specified engine\n");
 #endif
 	BIO_printf(bio_err," -rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
-
+	BIO_printf(bio_err," -sess_out arg - file to write SSL session to\n");
+	BIO_printf(bio_err," -sess_in arg  - file to read SSL session from\n");
+#ifndef OPENSSL_NO_TLSEXT
+	BIO_printf(bio_err," -servername host  - Set TLS extension servername in ClientHello\n");
+	BIO_printf(bio_err," -tlsextdebug      - hex dump of all TLS extensions received\n");
+	BIO_printf(bio_err," -status           - request certificate status from server\n");
+	BIO_printf(bio_err," -no_ticket        - disable use of RFC4507bis session tickets\n");
+#endif
 	}
 
+#ifndef OPENSSL_NO_TLSEXT
+
+/* This is a context that we pass to callbacks */
+typedef struct tlsextctx_st {
+   BIO * biodebug;
+   int ack;
+} tlsextctx;
+
+
+static int MS_CALLBACK ssl_servername_cb(SSL *s, int *ad, void *arg)
+	{
+	tlsextctx * p = (tlsextctx *) arg;
+	const char * hn= SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+	if (SSL_get_servername_type(s) != -1) 
+ 	        p->ack = !SSL_session_reused(s) && hn != NULL;
+	else 
+		BIO_printf(bio_err,"Can't use SSL_get_servername\n");
+	
+	return SSL_TLSEXT_ERR_OK;
+	}
+#endif
 enum
 {
 	PROTO_OFF	= 0,
@@ -281,12 +317,20 @@ int MAIN(int argc, char **argv)
 	int mbuf_len=0;
 #ifndef OPENSSL_NO_ENGINE
 	char *engine_id=NULL;
-	ENGINE *e=NULL;
+	char *ssl_client_engine_id=NULL;
+	ENGINE *e=NULL, *ssl_client_engine=NULL;
 #endif
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE)
 	struct timeval tv;
 #endif
 
+#ifndef OPENSSL_NO_TLSEXT
+	char *servername = NULL; 
+        tlsextctx tlsextcbp = 
+        {NULL,0};
+#endif
+	char *sess_in = NULL;
+	char *sess_out = NULL;
 	struct sockaddr peer;
 	int peerlen = sizeof(peer);
 	int enable_timeouts = 0 ;
@@ -361,6 +405,16 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			cert_file= *(++argv);
 			}
+		else if	(strcmp(*argv,"-sess_out") == 0)
+			{
+			if (--argc < 1) goto bad;
+			sess_out = *(++argv);
+			}
+		else if	(strcmp(*argv,"-sess_in") == 0)
+			{
+			if (--argc < 1) goto bad;
+			sess_in = *(++argv);
+			}
 		else if	(strcmp(*argv,"-certform") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -385,6 +439,12 @@ int MAIN(int argc, char **argv)
 			c_Pause=1;
 		else if	(strcmp(*argv,"-debug") == 0)
 			c_debug=1;
+#ifndef OPENSSL_NO_TLSEXT
+		else if	(strcmp(*argv,"-tlsextdebug") == 0)
+			c_tlsextdebug=1;
+		else if	(strcmp(*argv,"-status") == 0)
+			c_status_req=1;
+#endif
 #ifdef WATT32
 		else if (strcmp(*argv,"-wdebug") == 0)
 			dbug_init();
@@ -460,6 +520,10 @@ int MAIN(int argc, char **argv)
 			off|=SSL_OP_NO_SSLv3;
 		else if (strcmp(*argv,"-no_ssl2") == 0)
 			off|=SSL_OP_NO_SSLv2;
+#ifndef OPENSSL_NO_TLSEXT
+		else if	(strcmp(*argv,"-no_ticket") == 0)
+			{ off|=SSL_OP_NO_TICKET; }
+#endif
 		else if (strcmp(*argv,"-serverpref") == 0)
 			off|=SSL_OP_CIPHER_SERVER_PREFERENCE;
 		else if	(strcmp(*argv,"-cipher") == 0)
@@ -492,12 +556,25 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			engine_id = *(++argv);
 			}
+		else if	(strcmp(*argv,"-ssl_client_engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			ssl_client_engine_id = *(++argv);
+			}
 #endif
 		else if (strcmp(*argv,"-rand") == 0)
 			{
 			if (--argc < 1) goto bad;
 			inrand= *(++argv);
 			}
+#ifndef OPENSSL_NO_TLSEXT
+		else if (strcmp(*argv,"-servername") == 0)
+			{
+			if (--argc < 1) goto bad;
+			servername= *(++argv);
+			/* meth=TLSv1_client_method(); */
+			}
+#endif
 		else
 			{
 			BIO_printf(bio_err,"unknown option %s\n",*argv);
@@ -519,6 +596,16 @@ bad:
 
 #ifndef OPENSSL_NO_ENGINE
         e = setup_engine(bio_err, engine_id, 1);
+	if (ssl_client_engine_id)
+		{
+		ssl_client_engine = ENGINE_by_id(ssl_client_engine_id);
+		if (!ssl_client_engine)
+			{
+			BIO_printf(bio_err,
+					"Error getting client auth engine\n");
+			goto end;
+			}
+		}
 #endif
 	if (!app_passwd(bio_err, passarg, NULL, &pass, NULL))
 		{
@@ -586,6 +673,20 @@ bad:
 		goto end;
 		}
 
+#ifndef OPENSSL_NO_ENGINE
+	if (ssl_client_engine)
+		{
+		if (!SSL_CTX_set_client_cert_engine(ctx, ssl_client_engine))
+			{
+			BIO_puts(bio_err, "Error setting client auth engine\n");
+			ERR_print_errors(bio_err);
+			ENGINE_free(ssl_client_engine);
+			goto end;
+			}
+		ENGINE_free(ssl_client_engine);
+		}
+#endif
+
 	if (bugs)
 		SSL_CTX_set_options(ctx,SSL_OP_ALL|off);
 	else
@@ -621,8 +722,51 @@ bad:
 
 	store = SSL_CTX_get_cert_store(ctx);
 	X509_STORE_set_flags(store, vflags);
+#ifndef OPENSSL_NO_TLSEXT
+	if (servername != NULL)
+		{
+		tlsextcbp.biodebug = bio_err;
+		SSL_CTX_set_tlsext_servername_callback(ctx, ssl_servername_cb);
+		SSL_CTX_set_tlsext_servername_arg(ctx, &tlsextcbp);
+		}
+#endif
 
 	con=SSL_new(ctx);
+	if (sess_in)
+		{
+		SSL_SESSION *sess;
+		BIO *stmp = BIO_new_file(sess_in, "r");
+		if (!stmp)
+			{
+			BIO_printf(bio_err, "Can't open session file %s\n",
+						sess_in);
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+		sess = PEM_read_bio_SSL_SESSION(stmp, NULL, 0, NULL);
+		BIO_free(stmp);
+		if (!sess)
+			{
+			BIO_printf(bio_err, "Can't open session file %s\n",
+						sess_in);
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+		SSL_set_session(con, sess);
+		SSL_SESSION_free(sess);
+		}
+#ifndef OPENSSL_NO_TLSEXT
+	if (servername != NULL)
+		{
+		if (!SSL_set_tlsext_host_name(con,servername))
+			{
+			BIO_printf(bio_err,"Unable to set TLS servername extension.\n");
+			ERR_print_errors(bio_err);
+			goto end;
+			}
+		}
+#endif
+
 #ifndef OPENSSL_NO_KRB5
 	if (con  &&  (con->kssl_ctx = kssl_ctx_new()) != NULL)
                 {
@@ -668,7 +812,7 @@ re_start:
 			goto end;
 			}
 
-		BIO_ctrl_set_connected(sbio, 1, &peer);
+		(void)BIO_ctrl_set_connected(sbio, 1, &peer);
 
 		if ( enable_timeouts)
 			{
@@ -714,6 +858,30 @@ re_start:
 		SSL_set_msg_callback(con, msg_cb);
 		SSL_set_msg_callback_arg(con, bio_c_out);
 		}
+#ifndef OPENSSL_NO_TLSEXT
+	if (c_tlsextdebug)
+		{
+		SSL_set_tlsext_debug_callback(con, tlsext_cb);
+		SSL_set_tlsext_debug_arg(con, bio_c_out);
+		}
+	if (c_status_req)
+		{
+		SSL_set_tlsext_status_type(con, TLSEXT_STATUSTYPE_ocsp);
+		SSL_CTX_set_tlsext_status_cb(ctx, ocsp_resp_cb);
+		SSL_CTX_set_tlsext_status_arg(ctx, bio_c_out);
+#if 0
+{
+STACK_OF(OCSP_RESPID) *ids = sk_OCSP_RESPID_new_null();
+OCSP_RESPID *id = OCSP_RESPID_new();
+id->value.byKey = ASN1_OCTET_STRING_new();
+id->type = V_OCSP_RESPID_KEY;
+ASN1_STRING_set(id->value.byKey, "Hello World", -1);
+sk_OCSP_RESPID_push(ids, id);
+SSL_set_tlsext_status_ids(con, ids);
+}
+#endif
+		}
+#endif
 
 	SSL_set_bio(con,sbio,sbio);
 	SSL_set_connect_state(con);
@@ -752,7 +920,7 @@ re_start:
 		while (mbuf_len>3 && mbuf[3]=='-');
 		/* STARTTLS command requires EHLO... */
 		BIO_printf(fbio,"EHLO openssl.client.net\r\n");
-		BIO_flush(fbio);
+		(void)BIO_flush(fbio);
 		/* wait for multi-line response to end EHLO SMTP response */
 		do
 			{
@@ -761,7 +929,7 @@ re_start:
 				foundit=1;
 			}
 		while (mbuf_len>3 && mbuf[3]=='-');
-		BIO_flush(fbio);
+		(void)BIO_flush(fbio);
 		BIO_pop(fbio);
 		BIO_free(fbio);
 		if (!foundit)
@@ -785,7 +953,7 @@ re_start:
 		BIO_gets(fbio,mbuf,BUFSIZZ);
 		/* STARTTLS command requires CAPABILITY... */
 		BIO_printf(fbio,". CAPABILITY\r\n");
-		BIO_flush(fbio);
+		(void)BIO_flush(fbio);
 		/* wait for multi-line CAPABILITY response */
 		do
 			{
@@ -794,7 +962,7 @@ re_start:
 				foundit=1;
 			}
 		while (mbuf_len>3 && mbuf[0]!='.');
-		BIO_flush(fbio);
+		(void)BIO_flush(fbio);
 		BIO_pop(fbio);
 		BIO_free(fbio);
 		if (!foundit)
@@ -814,7 +982,7 @@ re_start:
 			mbuf_len = BIO_gets(fbio,mbuf,BUFSIZZ);
 			}
 		while (mbuf_len>3 && mbuf[3]=='-');
-		BIO_flush(fbio);
+		(void)BIO_flush(fbio);
 		BIO_pop(fbio);
 		BIO_free(fbio);
 		BIO_printf(sbio,"AUTH TLS\r\n");
@@ -837,6 +1005,17 @@ re_start:
 			if (in_init)
 				{
 				in_init=0;
+				if (sess_out)
+					{
+					BIO *stmp = BIO_new_file(sess_out, "w");
+					if (stmp)
+						{
+						PEM_write_bio_SSL_SESSION(stmp, SSL_get_session(con));
+						BIO_free(stmp);
+						}
+					else 
+						BIO_printf(bio_err, "Error writing session file %s\n", sess_out);
+					}
 				print_stuff(bio_c_out,con,full_log);
 				if (full_log > 0) full_log--;
 
@@ -1303,6 +1482,34 @@ static void print_stuff(BIO *bio, SSL *s, int full)
 	if (peer != NULL)
 		X509_free(peer);
 	/* flush, or debugging output gets mixed with http response */
-	BIO_flush(bio);
+	(void)BIO_flush(bio);
 	}
 
+#ifndef OPENSSL_NO_TLSEXT
+
+static int ocsp_resp_cb(SSL *s, void *arg)
+	{
+	const unsigned char *p;
+	int len;
+	OCSP_RESPONSE *rsp;
+	len = SSL_get_tlsext_status_ocsp_resp(s, &p);
+	BIO_puts(arg, "OCSP response: ");
+	if (!p)
+		{
+		BIO_puts(arg, "no response sent\n");
+		return 1;
+		}
+	rsp = d2i_OCSP_RESPONSE(NULL, &p, len);
+	if (!rsp)
+		{
+		BIO_puts(arg, "response parse error\n");
+		BIO_dump_indent(arg, (char *)p, len, 4);
+		return 0;
+		}
+	BIO_puts(arg, "\n======================================\n");
+	OCSP_RESPONSE_print(arg, rsp, 0);
+	BIO_puts(arg, "======================================\n");
+	OCSP_RESPONSE_free(rsp);
+	return 1;
+	}
+#endif  /* ndef OPENSSL_NO_TLSEXT */

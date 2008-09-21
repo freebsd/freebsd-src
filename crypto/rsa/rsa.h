@@ -195,13 +195,27 @@ struct rsa_st
                                                 * default (ignoring RSA_FLAG_BLINDING),
                                                 * but other engines might not need it
                                                 */
-#define RSA_FLAG_NO_EXP_CONSTTIME	0x0100 /* new with 0.9.7h; the built-in RSA
+#define RSA_FLAG_NO_CONSTTIME		0x0100 /* new with 0.9.8f; the built-in RSA
+						* implementation now uses constant time
+						* operations by default in private key operations,
+						* e.g., constant time modular exponentiation, 
+                                                * modular inverse without leaking branches, 
+                                                * division without leaking branches. This 
+                                                * flag disables these constant time 
+                                                * operations and results in faster RSA 
+                                                * private key operations.
+                                                */ 
+#ifndef OPENSSL_NO_DEPRECATED
+#define RSA_FLAG_NO_EXP_CONSTTIME RSA_FLAG_NO_CONSTTIME /* deprecated name for the flag*/
+                                                /* new with 0.9.7h; the built-in RSA
                                                 * implementation now uses constant time
                                                 * modular exponentiation for secret exponents
                                                 * by default. This flag causes the
                                                 * faster variable sliding window method to
                                                 * be used for all exponents.
                                                 */
+#endif
+
 
 #define RSA_PKCS1_PADDING	1
 #define RSA_SSLV23_PADDING	2
@@ -267,6 +281,7 @@ int	RSA_print_fp(FILE *fp, const RSA *r,int offset);
 int	RSA_print(BIO *bp, const RSA *r,int offset);
 #endif
 
+#ifndef OPENSSL_NO_RC4
 int i2d_RSA_NET(const RSA *a, unsigned char **pp,
 		int (*cb)(char *buf, int len, const char *prompt, int verify),
 		int sgckey);
@@ -280,6 +295,7 @@ int i2d_Netscape_RSA(const RSA *a, unsigned char **pp,
 RSA *d2i_Netscape_RSA(RSA **a, const unsigned char **pp, long length,
 		      int (*cb)(char *buf, int len, const char *prompt,
 				int verify));
+#endif
 
 /* The following 2 functions sign and verify a X509_SIG ASN1 object
  * inside PKCS#1 padded RSA encryption */

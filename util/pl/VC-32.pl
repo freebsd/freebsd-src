@@ -31,8 +31,10 @@ if ($FLAVOR =~ /WIN64/)
     $base_cflags=' /W3 /Gs0 /GF /Gy /nologo -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32 -DOPENSSL_SYSNAME_WIN32 -DOPENSSL_SYSNAME_WINNT -DUNICODE -D_UNICODE';
     $base_cflags.=' -D_CRT_SECURE_NO_DEPRECATE';	# shut up VC8
     $base_cflags.=' -D_CRT_NONSTDC_NO_DEPRECATE';	# shut up VC8
-    $opt_cflags=' /MD /Ox';
-    $dbg_cflags=' /MDd /Od -DDEBUG -D_DEBUG';
+    my $f = $shlib?' /MD':' /MT';
+    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
+    $opt_cflags=$f.' /Ox';
+    $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
     }
 elsif ($FLAVOR =~ /CE/)
@@ -94,8 +96,10 @@ else	# Win32
     $base_cflags=' /W3 /WX /Gs0 /GF /Gy /nologo -DOPENSSL_SYSNAME_WIN32 -DWIN32_LEAN_AND_MEAN -DL_ENDIAN -DDSO_WIN32';
     $base_cflags.=' -D_CRT_SECURE_NO_DEPRECATE';	# shut up VC8
     $base_cflags.=' -D_CRT_NONSTDC_NO_DEPRECATE';	# shut up VC8
-    $opt_cflags=' /MD /Ox /O2 /Ob2';
-    $dbg_cflags=' /MDd /Od -DDEBUG -D_DEBUG';
+    my $f = $shlib?' /MD':' /MT';
+    $lib_cflag='/Zl' if (!$shlib);	# remove /DEFAULTLIBs from static lib
+    $opt_cflags=$f.' /Ox /O2 /Ob2';
+    $dbg_cflags=$f.'d /Od -DDEBUG -D_DEBUG';
     $lflags="/nologo /subsystem:console /opt:ref";
     }
 $mlflags='';
@@ -134,7 +138,7 @@ if ($FLAVOR =~ /CE/)
 	}
 else
 	{
-	$ex_libs.=' gdi32.lib advapi32.lib user32.lib';
+	$ex_libs.=' gdi32.lib crypt32.lib advapi32.lib user32.lib';
 	$ex_libs.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
 	}
 
@@ -156,7 +160,10 @@ $lfile='/out:';
 $shlib_ex_obj="";
 $app_ex_obj="setargv.obj" if ($FLAVOR !~ /CE/);
 if ($nasm) {
-	$asm='nasmw -f win32';
+	my $ver=`nasm -v 2>NUL`;
+	my $vew=`nasmw -v 2>NUL`;
+	# pick newest version
+	$asm=($ver gt $vew?"nasm":"nasmw")." -f win32";
 	$afile='-o ';
 } else {
 	$asm='ml /Cp /coff /c /Cx';
@@ -173,8 +180,12 @@ $bf_enc_src='';
 
 if (!$no_asm)
 	{
+	$aes_asm_obj='crypto\aes\asm\a_win32.obj';
+	$aes_asm_src='crypto\aes\asm\a_win32.asm';
 	$bn_asm_obj='crypto\bn\asm\bn_win32.obj';
 	$bn_asm_src='crypto\bn\asm\bn_win32.asm';
+	$bnco_asm_obj='crypto\bn\asm\co_win32.obj';
+	$bnco_asm_src='crypto\bn\asm\co_win32.asm';
 	$des_enc_obj='crypto\des\asm\d_win32.obj crypto\des\asm\y_win32.obj';
 	$des_enc_src='crypto\des\asm\d_win32.asm crypto\des\asm\y_win32.asm';
 	$bf_enc_obj='crypto\bf\asm\b_win32.obj';
@@ -187,17 +198,18 @@ if (!$no_asm)
 	$rc5_enc_src='crypto\rc5\asm\r5_win32.asm';
 	$md5_asm_obj='crypto\md5\asm\m5_win32.obj';
 	$md5_asm_src='crypto\md5\asm\m5_win32.asm';
-	$sha1_asm_obj='crypto\sha\asm\s1_win32.obj';
-	$sha1_asm_src='crypto\sha\asm\s1_win32.asm';
+	$sha1_asm_obj='crypto\sha\asm\s1_win32.obj crypto\sha\asm\sha512-sse2.obj';
+	$sha1_asm_src='crypto\sha\asm\s1_win32.asm crypto\sha\asm\sha512-sse2.asm';
 	$rmd160_asm_obj='crypto\ripemd\asm\rm_win32.obj';
 	$rmd160_asm_src='crypto\ripemd\asm\rm_win32.asm';
-	$cflags.=" -DBN_ASM -DMD5_ASM -DSHA1_ASM -DRMD160_ASM";
+	$cpuid_asm_obj='crypto\cpu_win32.obj';
+	$cpuid_asm_src='crypto\cpu_win32.asm';
+	$cflags.=" -DOPENSSL_CPUID_OBJ -DOPENSSL_IA32_SSE2 -DAES_ASM -DBN_ASM -DOPENSSL_BN_ASM_PART_WORDS -DMD5_ASM -DSHA1_ASM -DRMD160_ASM";
 	}
 
 if ($shlib && $FLAVOR !~ /CE/)
 	{
 	$mlflags.=" $lflags /dll";
-#	$cflags =~ s| /MD| /MT|;
 	$lib_cflag=" -D_WINDLL";
 	$out_def="out32dll";
 	$tmp_def="tmp32dll";
@@ -247,7 +259,6 @@ sub do_lib_rule
 		$name =~ tr/a-z/A-Z/;
 		$name = "/def:ms/${name}.def";
 		}
-
 #	$target="\$(LIB_D)$o$target";
 	$ret.="$target: $objs\n";
 	if (!$shlib)
@@ -262,6 +273,10 @@ sub do_lib_rule
 		if ($name eq "")
 			{
 			$ex.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
+			if ($target =~ /capi/)
+				{
+				$ex.=' crypt32.lib advapi32.lib';
+				}
 			}
 		elsif ($FLAVOR =~ /CE/)
 			{
@@ -271,11 +286,12 @@ sub do_lib_rule
 			{
 			$ex.=' unicows.lib' if ($FLAVOR =~ /NT/);
 			$ex.=' wsock32.lib gdi32.lib advapi32.lib user32.lib';
+			$ex.=' crypt32.lib';
 			$ex.=' bufferoverflowu.lib' if ($FLAVOR =~ /WIN64/);
 			}
 		$ex.=" $zlib_lib" if $zlib_opt == 1 && $target =~ /O_CRYPTO/;
 		$ret.="\t\$(LINK) \$(MLFLAGS) $efile$target $name @<<\n  \$(SHLIB_EX_OBJ) $objs $ex\n<<\n";
-        $ret.="\tIF EXIST \$@.manifest mt -manifest \$@.manifest -outputresource:\$@;2\n\n";
+        $ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;2\n\n";
 		}
 	$ret.="\n";
 	return($ret);
@@ -291,7 +307,7 @@ sub do_link_rule
 	$ret.="$target: $files $dep_libs\n";
 	$ret.="\t\$(LINK) \$(LFLAGS) $efile$target @<<\n";
 	$ret.="  \$(APP_EX_OBJ) $files $libs\n<<\n";
-    $ret.="\tIF EXIST \$@.manifest mt -manifest \$@.manifest -outputresource:\$@;1\n\n";
+    $ret.="\tIF EXIST \$@.manifest mt -nologo -manifest \$@.manifest -outputresource:\$@;1\n\n";
 	return($ret);
 	}
 
