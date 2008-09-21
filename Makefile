@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=0.9.8e
+VERSION=0.9.8i
 MAJOR=0
 MINOR=9.8
 SHLIB_VERSION_NUMBER=0.9.8
@@ -13,7 +13,7 @@ SHLIB_MAJOR=0
 SHLIB_MINOR=9.8
 SHLIB_EXT=
 PLATFORM=dist
-OPTIONS= no-camellia no-gmp no-krb5 no-mdc2 no-rc5 no-rfc3779 no-shared no-zlib no-zlib-dynamic
+OPTIONS= no-camellia no-capieng no-cms no-gmp no-krb5 no-mdc2 no-montasm no-rc5 no-rfc3779 no-seed no-shared no-tlsext no-zlib no-zlib-dynamic
 CONFIGURE_ARGS=dist
 SHLIB_TARGET=
 
@@ -61,7 +61,7 @@ OPENSSLDIR=/usr/local/ssl
 
 CC= cc
 CFLAG= -O
-DEPFLAG= -DOPENSSL_NO_CAMELLIA -DOPENSSL_NO_GMP -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 
+DEPFLAG= -DOPENSSL_NO_CAMELLIA -DOPENSSL_NO_CAPIENG -DOPENSSL_NO_CMS -DOPENSSL_NO_GMP -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SEED -DOPENSSL_NO_TLSEXT 
 PEX_LIBS= 
 EX_LIBS= 
 EXE_EXT= 
@@ -92,7 +92,7 @@ DES_ENC= des_enc.o fcrypt_b.o
 AES_ASM_OBJ= aes_core.o aes_cbc.o
 BF_ENC= bf_enc.o
 CAST_ENC= c_enc.o
-RC4_ENC= rc4_enc.o
+RC4_ENC= rc4_enc.o rc4_skey.o
 RC5_ENC= rc5_enc.o
 MD5_ASM_OBJ= 
 SHA1_ASM_OBJ= 

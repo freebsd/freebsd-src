@@ -393,8 +393,9 @@ int ASN1_GENERALIZEDTIME_print(BIO *bp, ASN1_GENERALIZEDTIME *tm)
 	d= (v[6]-'0')*10+(v[7]-'0');
 	h= (v[8]-'0')*10+(v[9]-'0');
 	m=  (v[10]-'0')*10+(v[11]-'0');
-	if (	(v[12] >= '0') && (v[12] <= '9') &&
-		(v[13] >= '0') && (v[13] <= '9'))
+	if (i >= 14 &&
+	    (v[12] >= '0') && (v[12] <= '9') &&
+	    (v[13] >= '0') && (v[13] <= '9'))
 		s=  (v[12]-'0')*10+(v[13]-'0');
 
 	if (BIO_printf(bp,"%s %2d %02d:%02d:%02d %d%s",
@@ -428,8 +429,9 @@ int ASN1_UTCTIME_print(BIO *bp, ASN1_UTCTIME *tm)
 	d= (v[4]-'0')*10+(v[5]-'0');
 	h= (v[6]-'0')*10+(v[7]-'0');
 	m=  (v[8]-'0')*10+(v[9]-'0');
-	if (	(v[10] >= '0') && (v[10] <= '9') &&
-		(v[11] >= '0') && (v[11] <= '9'))
+	if (i >=12 &&
+	    (v[10] >= '0') && (v[10] <= '9') &&
+	    (v[11] >= '0') && (v[11] <= '9'))
 		s=  (v[10]-'0')*10+(v[11]-'0');
 
 	if (BIO_printf(bp,"%s %2d %02d:%02d:%02d %d%s",
@@ -449,13 +451,13 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
 
 	l=80-2-obase;
 
-	b=s=X509_NAME_oneline(name,NULL,0);
-	if (!*s)
+	b=X509_NAME_oneline(name,NULL,0);
+	if (!*b)
 		{
 		OPENSSL_free(b);
 		return 1;
 		}
-	s++; /* skip the first slash */
+	s=b+1; /* skip the first slash */
 
 	c=s;
 	for (;;)
@@ -480,8 +482,7 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
 			{
 			i=s-c;
 			if (BIO_write(bp,c,i) != i) goto err;
-			c+=i;
-			c++;
+			c=s+1;	/* skip following slash */
 			if (*s != '\0')
 				{
 				if (BIO_write(bp,", ",2) != 2) goto err;
@@ -502,4 +503,3 @@ err:
 	OPENSSL_free(b);
 	return(ret);
 	}
-

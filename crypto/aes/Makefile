@@ -24,8 +24,8 @@ APPS=
 
 LIB=$(TOP)/libcrypto.a
 LIBSRC=aes_core.c aes_misc.c aes_ecb.c aes_cbc.c aes_cfb.c aes_ofb.c \
-       aes_ctr.c aes_ige.c
-LIBOBJ=aes_misc.o aes_ecb.o aes_cfb.o aes_ofb.o aes_ctr.o aes_ige.o \
+       aes_ctr.c aes_ige.c aes_wrap.c
+LIBOBJ=aes_misc.o aes_ecb.o aes_cfb.o aes_ofb.o aes_ctr.o aes_ige.o aes_wrap.o \
        $(AES_ASM_OBJ)
 
 SRC= $(LIBSRC)
@@ -56,6 +56,9 @@ ax86-cof.s: asm/aes-586.pl ../perlasm/x86asm.pl
 	(cd asm; $(PERL) aes-586.pl coff $(CFLAGS) $(PROCESSOR) > ../$@)
 ax86-out.s: asm/aes-586.pl ../perlasm/x86asm.pl
 	(cd asm; $(PERL) aes-586.pl a.out $(CFLAGS) $(PROCESSOR) > ../$@)
+
+aes-x86_64.s: asm/aes-x86_64.pl
+	$(PERL) asm/aes-x86_64.pl $@
 
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
@@ -117,3 +120,11 @@ aes_misc.o: ../../include/openssl/opensslconf.h
 aes_misc.o: ../../include/openssl/opensslv.h aes_locl.h aes_misc.c
 aes_ofb.o: ../../include/openssl/aes.h ../../include/openssl/e_os2.h
 aes_ofb.o: ../../include/openssl/opensslconf.h aes_locl.h aes_ofb.c
+aes_wrap.o: ../../e_os.h ../../include/openssl/aes.h
+aes_wrap.o: ../../include/openssl/bio.h ../../include/openssl/buffer.h
+aes_wrap.o: ../../include/openssl/crypto.h ../../include/openssl/e_os2.h
+aes_wrap.o: ../../include/openssl/err.h ../../include/openssl/lhash.h
+aes_wrap.o: ../../include/openssl/opensslconf.h
+aes_wrap.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
+aes_wrap.o: ../../include/openssl/safestack.h ../../include/openssl/stack.h
+aes_wrap.o: ../../include/openssl/symhacks.h ../cryptlib.h aes_wrap.c

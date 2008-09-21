@@ -527,9 +527,9 @@ case "$GUESSOS" in
 	esac
 	if [ "$CC" = "gcc" ]; then
 	    case ${ISA:-generic} in
-	    EV5|EV45)		options="$options -march=ev5";;
-	    EV56|PCA56)		options="$options -march=ev56";;
-	    *)			options="$options -march=ev6";;
+	    EV5|EV45)		options="$options -mcpu=ev5";;
+	    EV56|PCA56)		options="$options -mcpu=ev56";;
+	    *)			options="$options -mcpu=ev6";;
 	    esac
 	fi
 	;;
@@ -588,7 +588,8 @@ case "$GUESSOS" in
   sh*b-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
   sh*-*-linux2)  OUT="linux-generic32"; options="$options -DL_ENDIAN" ;;
   m68k*-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN" ;;
-  s390*-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN -DNO_ASM" ;;
+  s390-*-linux2) OUT="linux-generic32"; options="$options -DB_ENDIAN -DNO_ASM" ;;
+  s390x-*-linux2) OUT="linux-generic64"; options="$options -DB_ENDIAN" ;;
   x86_64-*-linux?) OUT="linux-x86_64" ;;
   *86-*-linux2) OUT="linux-elf"
 	if [ "$GCCVER" -gt 28 ]; then
@@ -604,7 +605,7 @@ case "$GUESSOS" in
         fi ;;
   *-*-linux1) OUT="linux-aout" ;;
   *-*-linux2) OUT="linux-generic32" ;;
-  sun4u*-*-solaris2)
+  sun4[uv]*-*-solaris2)
 	OUT="solaris-sparcv9-$CC"
 	ISA64=`(isalist) 2>/dev/null | grep sparcv9`
 	if [ "$ISA64" != "" ]; then
@@ -655,8 +656,8 @@ case "$GUESSOS" in
   *-*-sunos4)		OUT="sunos-$CC" ;;
 
   *86*-*-bsdi4)		OUT="BSD-x86-elf"; options="$options no-sse2 -ldl" ;;
-  alpha*-*-*bsd*)	OUT="BSD-generic64; options="$options -DL_ENDIAN" ;;
-  powerpc64-*-*bsd*)	OUT="BSD-generic64; options="$options -DB_ENDIAN" ;;
+  alpha*-*-*bsd*)	OUT="BSD-generic64"; options="$options -DL_ENDIAN" ;;
+  powerpc64-*-*bsd*)	OUT="BSD-generic64"; options="$options -DB_ENDIAN" ;;
   sparc64-*-*bsd*)	OUT="BSD-sparc64" ;;
   ia64-*-*bsd*)		OUT="BSD-ia64" ;;
   amd64-*-*bsd*)	OUT="BSD-x86_64" ;;
@@ -748,7 +749,7 @@ case "$GUESSOS" in
 		fi
 	    fi
 	fi
-	if (lsattr -E -O -l proc0 | grep -i powerpc) >/dev/null 2>&1; then
+	if (lsattr -E -O -l `lsdev -c processor|awk '{print$1;exit}'` | grep -i powerpc) >/dev/null 2>&1; then
 	    :	# this applies even to Power3 and later, as they return PowerPC_POWER[345]
 	else
 	    options="$options no-asm"
@@ -797,7 +798,7 @@ case "$GUESSOS" in
   i386-*) options="$options 386" ;;
 esac
 
-for i in aes bf camellia cast des dh dsa ec hmac idea md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa sha
+for i in aes bf camellia cast des dh dsa ec hmac idea md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa seed sha
 do
   if [ ! -d crypto/$i ]
   then
