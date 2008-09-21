@@ -15,7 +15,8 @@
 #
 
 # 20080917: removal of manpage for axed kernel primitive suser(9)
-OLD_FILES+=usr/share/man/man9/suser.9
+OLD_FILES+=usr/share/man/man9/suser.9.gz
+OLD_FILES+=usr/share/man/man9/suser_cred.9.gz
 # 20080913: pax removed from rescue
 OLD_FILES+=rescue/pax
 # 20080823: removal of unneeded pt_chown, to implement grantpt(3)
