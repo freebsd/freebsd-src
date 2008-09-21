@@ -1268,9 +1268,10 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				ieee80211_wme_updateparams(vap);
 			if (scan.ath != NULL)
 				ieee80211_parse_athparams(ni, scan.ath, wh);
-			if (scan.htcap != NULL && scan.htinfo != NULL) {
-				ieee80211_parse_htcap(ni, scan.htcap);
-				ieee80211_parse_htinfo(ni, scan.htinfo);
+			if (scan.htcap != NULL && scan.htinfo != NULL &&
+			    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
+				ieee80211_ht_updateparams(ni,
+				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
 			}
 			if (scan.tim != NULL) {
@@ -1503,8 +1504,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		 */
 		if (htcap != NULL && htinfo != NULL &&
 		    (vap->iv_flags_ext & IEEE80211_FEXT_HT)) {
-			ieee80211_ht_node_init(ni, htcap);
-			ieee80211_parse_htinfo(ni, htinfo);
+			ieee80211_ht_node_init(ni);
+			ieee80211_ht_updateparams(ni, htcap, htinfo);
 			ieee80211_setup_htrates(ni, htcap,
 			     IEEE80211_F_JOIN | IEEE80211_F_DOBRS);
 			ieee80211_setup_basic_htrates(ni, htinfo);

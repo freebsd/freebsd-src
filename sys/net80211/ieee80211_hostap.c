@@ -2038,7 +2038,8 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				vap->iv_stats.is_ht_assoc_norate++;
 				return;
 			}
-			ieee80211_ht_node_init(ni, htcap);
+			ieee80211_ht_node_init(ni);
+			ieee80211_ht_updatehtcap(ni, htcap);
 		} else if (ni->ni_flags & IEEE80211_NODE_HT)
 			ieee80211_ht_node_cleanup(ni);
 		/*

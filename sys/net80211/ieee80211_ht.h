@@ -165,7 +165,7 @@ void	ieee80211_setup_basic_htrates(struct ieee80211_node *,
 struct mbuf *ieee80211_decap_amsdu(struct ieee80211_node *, struct mbuf *);
 int	ieee80211_ampdu_reorder(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_recv_bar(struct ieee80211_node *, struct mbuf *);
-void	ieee80211_ht_node_init(struct ieee80211_node *, const uint8_t *);
+void	ieee80211_ht_node_init(struct ieee80211_node *);
 void	ieee80211_ht_node_cleanup(struct ieee80211_node *);
 void	ieee80211_ht_node_age(struct ieee80211_node *);
 
@@ -178,6 +178,9 @@ void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
 void	ieee80211_ht_timeout(struct ieee80211com *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
+void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
+		const uint8_t *);
+void	ieee80211_ht_updatehtcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_recv_action(struct ieee80211_node *,
 		const uint8_t *, const uint8_t *);
 int	ieee80211_ampdu_request(struct ieee80211_node *,
