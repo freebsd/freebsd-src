@@ -7,6 +7,12 @@
 #ifndef OPENSSL_NO_CAMELLIA
 # define OPENSSL_NO_CAMELLIA
 #endif
+#ifndef OPENSSL_NO_CAPIENG
+# define OPENSSL_NO_CAPIENG
+#endif
+#ifndef OPENSSL_NO_CMS
+# define OPENSSL_NO_CMS
+#endif
 #ifndef OPENSSL_NO_GMP
 # define OPENSSL_NO_GMP
 #endif
@@ -22,6 +28,12 @@
 #ifndef OPENSSL_NO_RFC3779
 # define OPENSSL_NO_RFC3779
 #endif
+#ifndef OPENSSL_NO_SEED
+# define OPENSSL_NO_SEED
+#endif
+#ifndef OPENSSL_NO_TLSEXT
+# define OPENSSL_NO_TLSEXT
+#endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
 #ifndef OPENSSL_NO_DYNAMIC_ENGINE
@@ -35,6 +47,12 @@
 #ifdef OPENSSL_ALGORITHM_DEFINES
 # if defined(OPENSSL_NO_CAMELLIA) && !defined(NO_CAMELLIA)
 #  define NO_CAMELLIA
+# endif
+# if defined(OPENSSL_NO_CAPIENG) && !defined(NO_CAPIENG)
+#  define NO_CAPIENG
+# endif
+# if defined(OPENSSL_NO_CMS) && !defined(NO_CMS)
+#  define NO_CMS
 # endif
 # if defined(OPENSSL_NO_GMP) && !defined(NO_GMP)
 #  define NO_GMP
@@ -50,6 +68,12 @@
 # endif
 # if defined(OPENSSL_NO_RFC3779) && !defined(NO_RFC3779)
 #  define NO_RFC3779
+# endif
+# if defined(OPENSSL_NO_SEED) && !defined(NO_SEED)
+#  define NO_SEED
+# endif
+# if defined(OPENSSL_NO_TLSEXT) && !defined(NO_TLSEXT)
+#  define NO_TLSEXT
 # endif
 #endif
 

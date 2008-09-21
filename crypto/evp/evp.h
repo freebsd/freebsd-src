@@ -303,6 +303,8 @@ struct env_md_ctx_st
 						* cleaned */
 #define EVP_MD_CTX_FLAG_REUSE		0x0004 /* Don't free up ctx->md_data
 						* in EVP_MD_CTX_cleanup */
+#define EVP_MD_CTX_FLAG_NON_FIPS_ALLOW	0x0008	/* Allow use of non FIPS digest
+						 * in FIPS mode */
 
 struct evp_cipher_st
 	{
@@ -766,6 +768,14 @@ const EVP_CIPHER *EVP_camellia_256_cfb128(void);
 const EVP_CIPHER *EVP_camellia_256_ofb(void);
 #endif
 
+#ifndef OPENSSL_NO_SEED
+const EVP_CIPHER *EVP_seed_ecb(void);
+const EVP_CIPHER *EVP_seed_cbc(void);
+const EVP_CIPHER *EVP_seed_cfb128(void);
+# define EVP_seed_cfb EVP_seed_cfb128
+const EVP_CIPHER *EVP_seed_ofb(void);
+#endif
+
 void OPENSSL_add_all_algorithms_noconf(void);
 void OPENSSL_add_all_algorithms_conf(void);
 
@@ -963,6 +973,7 @@ void ERR_load_EVP_strings(void);
 #define EVP_R_UNSUPPORTED_SALT_TYPE			 126
 #define EVP_R_WRONG_FINAL_BLOCK_LENGTH			 109
 #define EVP_R_WRONG_PUBLIC_KEY_TYPE			 110
+#define EVP_R_SEED_KEY_SETUP_FAILED			 162
 
 #ifdef  __cplusplus
 }

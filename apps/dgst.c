@@ -190,6 +190,8 @@ int MAIN(int argc, char **argv)
 			out_bin = 1;
 		else if (strcmp(*argv,"-d") == 0)
 			debug=1;
+		else if (!strcmp(*argv,"-fips-fingerprint"))
+			hmac_key = "etaonrishdlcupfm";
 		else if (!strcmp(*argv,"-hmac"))
 			{
 			if (--argc < 1)
@@ -227,33 +229,38 @@ int MAIN(int argc, char **argv)
 		BIO_printf(bio_err,"-keyform arg    key file format (PEM or ENGINE)\n");
 		BIO_printf(bio_err,"-signature file signature to verify\n");
 		BIO_printf(bio_err,"-binary         output in binary form\n");
+		BIO_printf(bio_err,"-hmac key       create hashed MAC with key\n");
 #ifndef OPENSSL_NO_ENGINE
 		BIO_printf(bio_err,"-engine e       use engine e, possibly a hardware device.\n");
 #endif
 
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm (default)\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm (default)\n",
 			LN_md5,LN_md5);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_md4,LN_md4);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_md2,LN_md2);
 #ifndef OPENSSL_NO_SHA
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha1,LN_sha1);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha,LN_sha);
 #ifndef OPENSSL_NO_SHA256
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
+			LN_sha224,LN_sha224);
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha256,LN_sha256);
 #endif
 #ifndef OPENSSL_NO_SHA512
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
+			LN_sha384,LN_sha384);
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_sha512,LN_sha512);
 #endif
 #endif
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_mdc2,LN_mdc2);
-		BIO_printf(bio_err,"-%3s to use the %s message digest algorithm\n",
+		BIO_printf(bio_err,"-%-14s to use the %s message digest algorithm\n",
 			LN_ripemd160,LN_ripemd160);
 		err=1;
 		goto end;

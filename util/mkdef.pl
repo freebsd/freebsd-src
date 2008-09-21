@@ -79,12 +79,12 @@ my $OS2=0;
 my $safe_stack_def = 0;
 
 my @known_platforms = ( "__FreeBSD__", "PERL5", "NeXT",
-			"EXPORT_VAR_AS_FUNCTION" );
+			"EXPORT_VAR_AS_FUNCTION", "ZLIB" );
 my @known_ossl_platforms = ( "VMS", "WIN16", "WIN32", "WINNT", "OS2" );
 my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 "CAST", "MD2", "MD4", "MD5", "SHA", "SHA0", "SHA1",
 			 "SHA256", "SHA512", "RIPEMD",
-			 "MDC2", "RSA", "DSA", "DH", "EC", "ECDH", "ECDSA", "HMAC", "AES", "CAMELLIA",
+			 "MDC2", "RSA", "DSA", "DH", "EC", "ECDH", "ECDSA", "HMAC", "AES", "CAMELLIA", "SEED",
 			 # Envelope "algorithms"
 			 "EVP", "X509", "ASN1_TYPEDEFS",
 			 # Helper "algorithms"
@@ -96,6 +96,12 @@ my @known_algorithms = ( "RC2", "RC4", "RC5", "IDEA", "DES", "BF",
 			 "STATIC_ENGINE", "ENGINE", "HW", "GMP",
 			 # RFC3779 support 
 			 "RFC3779",
+			 # TLS extension support
+			 "TLSEXT",
+			 # CMS
+			 "CMS",
+			 # CryptoAPI Engine
+			 "CAPIENG",
 			 # Deprecated functions
 			 "DEPRECATED" );
 
@@ -114,8 +120,9 @@ my $no_cast;
 my $no_md2; my $no_md4; my $no_md5; my $no_sha; my $no_ripemd; my $no_mdc2;
 my $no_rsa; my $no_dsa; my $no_dh; my $no_hmac=0; my $no_aes; my $no_krb5;
 my $no_ec; my $no_ecdsa; my $no_ecdh; my $no_engine; my $no_hw; my $no_camellia;
+my $no_seed;
 my $no_fp_api; my $no_static_engine; my $no_gmp; my $no_deprecated;
-my $no_rfc3779;
+my $no_rfc3779; my $no_tlsext; my $no_cms; my $no_capieng;
 
 
 foreach (@ARGV, split(/ /, $options))
@@ -137,6 +144,11 @@ foreach (@ARGV, split(/ /, $options))
 	}
 	$VMS=1 if $_ eq "VMS";
 	$OS2=1 if $_ eq "OS2";
+	if ($_ eq "zlib" || $_ eq "zlib-dynamic"
+			 || $_ eq "enable-zlib-dynamic") {
+		$zlib = 1;
+	}
+
 
 	$do_ssl=1 if $_ eq "ssleay";
 	if ($_ eq "ssl") {
@@ -179,6 +191,7 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-hmac$/)	{ $no_hmac=1; }
 	elsif (/^no-aes$/)	{ $no_aes=1; }
 	elsif (/^no-camellia$/)	{ $no_camellia=1; }
+	elsif (/^no-seed$/)     { $no_seed=1; }
 	elsif (/^no-evp$/)	{ $no_evp=1; }
 	elsif (/^no-lhash$/)	{ $no_lhash=1; }
 	elsif (/^no-stack$/)	{ $no_stack=1; }
@@ -193,6 +206,9 @@ foreach (@ARGV, split(/ /, $options))
 	elsif (/^no-hw$/)	{ $no_hw=1; }
 	elsif (/^no-gmp$/)	{ $no_gmp=1; }
 	elsif (/^no-rfc3779$/)	{ $no_rfc3779=1; }
+	elsif (/^no-tlsext$/)	{ $no_tlsext=1; }
+	elsif (/^no-cms$/)	{ $no_cms=1; }
+	elsif (/^no-capieng$/)	{ $no_capieng=1; }
 	}
 
 
@@ -228,6 +244,7 @@ $max_crypto = $max_num;
 
 my $ssl="ssl/ssl.h";
 $ssl.=" ssl/kssl.h";
+$ssl.=" ssl/tls1.h";
 
 my $crypto ="crypto/crypto.h";
 $crypto.=" crypto/o_dir.h";
@@ -246,6 +263,7 @@ $crypto.=" crypto/sha/sha.h" ; # unless $no_sha;
 $crypto.=" crypto/ripemd/ripemd.h" ; # unless $no_ripemd;
 $crypto.=" crypto/aes/aes.h" ; # unless $no_aes;
 $crypto.=" crypto/camellia/camellia.h" ; # unless $no_camellia;
+$crypto.=" crypto/seed/seed.h"; # unless $no_seed;
 
 $crypto.=" crypto/bn/bn.h";
 $crypto.=" crypto/rsa/rsa.h" ; # unless $no_rsa;
@@ -286,6 +304,7 @@ $crypto.=" crypto/krb5/krb5_asn.h";
 $crypto.=" crypto/tmdiff.h";
 $crypto.=" crypto/store/store.h";
 $crypto.=" crypto/pqueue/pqueue.h";
+$crypto.=" crypto/cms/cms.h";
 
 my $symhacks="crypto/symhacks.h";
 
@@ -1071,6 +1090,7 @@ sub is_valid
 			if ($keyword eq "EXPORT_VAR_AS_FUNCTION" && ($VMSVAX || $W32 || $W16)) {
 				return 1;
 			}
+			if ($keyword eq "ZLIB" && $zlib) { return 1; }
 			return 0;
 		} else {
 			# algorithms
@@ -1096,6 +1116,7 @@ sub is_valid
 			if ($keyword eq "HMAC" && $no_hmac) { return 0; }
 			if ($keyword eq "AES" && $no_aes) { return 0; }
 			if ($keyword eq "CAMELLIA" && $no_camellia) { return 0; }
+			if ($keyword eq "SEED" && $no_seed) { return 0; }
 			if ($keyword eq "EVP" && $no_evp) { return 0; }
 			if ($keyword eq "LHASH" && $no_lhash) { return 0; }
 			if ($keyword eq "STACK" && $no_stack) { return 0; }
@@ -1111,6 +1132,9 @@ sub is_valid
 			if ($keyword eq "STATIC_ENGINE" && $no_static_engine) { return 0; }
 			if ($keyword eq "GMP" && $no_gmp) { return 0; }
 			if ($keyword eq "RFC3779" && $no_rfc3779) { return 0; }
+			if ($keyword eq "TLSEXT" && $no_tlsext) { return 0; }
+			if ($keyword eq "CMS" && $no_cms) { return 0; }
+			if ($keyword eq "CAPIENG" && $no_capieng) { return 0; }
 			if ($keyword eq "DEPRECATED" && $no_deprecated) { return 0; }
 
 			# Nothing recognise as true
@@ -1213,8 +1237,6 @@ EOO
 ;
 
 LIBRARY         $libname	$liboptions
-
-DESCRIPTION     '$description'
 
 EOF
 
