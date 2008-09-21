@@ -202,6 +202,29 @@ ieee80211_node_unauthorize(struct ieee80211_node *ni)
 }
 
 /*
+ * Fix tx parameters for a node according to ``association state''.
+ */
+static void
+node_setuptxparms(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	if (ni->ni_flags & IEEE80211_NODE_HT) {
+		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
+			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11NA];
+		else
+			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11NG];
+	} else {				/* legacy rate handling */
+		if (IEEE80211_IS_CHAN_A(ni->ni_chan))
+			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11A];
+		else if (ni->ni_flags & IEEE80211_NODE_ERP)
+			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11G];
+		else
+			ni->ni_txparms = &vap->iv_txparms[IEEE80211_MODE_11B];
+	}
+}
+
+/*
  * Set/change the channel.  The rate set is also updated as
  * to insure a consistent view by drivers.
  * XXX should be private but hostap needs it to deal with CSA
@@ -211,10 +234,13 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 	struct ieee80211_channel *chan)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
+	enum ieee80211_phymode mode;
 
 	KASSERT(chan != IEEE80211_CHAN_ANYC, ("no channel"));
 
 	ni->ni_chan = chan;
+	mode = ieee80211_chan2mode(chan);
 	if (IEEE80211_IS_CHAN_HT(chan)) {
 		/*
 		 * XXX Gotta be careful here; the rate set returned by
@@ -224,7 +250,22 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 		 * HT rate set in ni_htrates.
 		 */
 		ni->ni_htrates = *ieee80211_get_suphtrates(ic, chan);
+		/*
+		 * Setup bss tx parameters based on operating mode.  We
+		 * use legacy rates when operating in a mixed HT+non-HT bss
+		 * and non-ERP rates in 11g for mixed ERP+non-ERP bss.
+		 */
+		if (mode == IEEE80211_MODE_11NA &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+			mode = IEEE80211_MODE_11A;
+		else if (mode == IEEE80211_MODE_11NG &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_PUREN) == 0)
+			mode = IEEE80211_MODE_11G;
+		if (mode == IEEE80211_MODE_11G &&
+		    (vap->iv_flags & IEEE80211_F_PUREG) == 0)
+			mode = IEEE80211_MODE_11B;
 	}
+	ni->ni_txparms = &vap->iv_txparms[mode];
 	ni->ni_rates = *ieee80211_get_suprates(ic, chan);
 }
 
@@ -965,6 +1006,7 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_chan = IEEE80211_CHAN_ANYC;
 	ni->ni_authmode = IEEE80211_AUTH_OPEN;
 	ni->ni_txpower = ic->ic_txpowlimit;	/* max power */
+	ni->ni_txparms = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 	ieee80211_crypto_resetkey(vap, &ni->ni_ucastkey, IEEE80211_KEYIX_NONE);
 	ni->ni_avgrssi = IEEE80211_RSSI_DUMMY_MARKER;
 	ni->ni_inact_reload = nt->nt_inact_init;
@@ -1238,6 +1280,7 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 			if (vap->iv_flags & IEEE80211_F_FF)
 				ni->ni_flags |= IEEE80211_NODE_FF;
 		}
+		node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -1295,6 +1338,7 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 		struct ieee80211com *ic = vap->iv_ic;
 
 		ieee80211_init_neighbor(ni, wh, sp);
+		node_setuptxparms(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -2235,6 +2279,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 		", turbo" : ""
 	);
 
+	node_setuptxparms(ni);
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ni, newassoc);
