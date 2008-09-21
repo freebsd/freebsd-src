@@ -2852,7 +2852,8 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 		    "%s: %s beacons bslot %d intval %u tsfadjust %llu\n",
 		    __func__, sc->sc_stagbeacons ? "stagger" : "burst",
-		    avp->av_bslot, ni->ni_intval, le64toh(tsfadjust));
+		    avp->av_bslot, ni->ni_intval,
+		    (long long unsigned) le64toh(tsfadjust));
 
 		wh = mtod(m, struct ieee80211_frame *);
 		memcpy(&wh[1], &tsfadjust, sizeof(tsfadjust));
