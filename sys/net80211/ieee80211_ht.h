@@ -51,8 +51,8 @@ struct ieee80211_tx_ampdu {
 	int		txa_avgpps;	/* filtered traffic over window */
 	int		txa_qbytes;	/* data queued (bytes) */
 	short		txa_qframes;	/* data queued (frames) */
-	ieee80211_seq	txa_seqstart;
-	ieee80211_seq	txa_start;
+	ieee80211_seq	txa_start;	/* BA window left edge */
+	ieee80211_seq	txa_seqpending;	/* new txa_start pending BAR response */
 	uint16_t	txa_wnd;	/* BA window size */
 	uint8_t		txa_attempts;	/* # ADDBA requests w/o a response */
 	int		txa_nextrequest;/* soonest to make next ADDBA request */
