@@ -5870,7 +5870,21 @@ table_handler(int ac, char *av[])
 {
 	ipfw_table_entry ent;
 	int do_add;
+	size_t len;
 	char *p;
+	uint32_t tables_max;
+
+	len = sizeof(a);
+	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
+		NULL, 0) == -1) {
+#ifdef IPFW_TABLES_MAX
+		warn("Warn: Failed to get the max tables number via sysctl. "
+		     "Using the compiled in defaults. \nThe reason was");
+		tables_max = IPFW_TABLES_MAX;
+#else
+		errx(1, "Failed sysctlbyname(\"net.inet.ip.fw.tables_max\")");
+#endif
+	}
 
 	ac--; av++;
 	if (ac && isdigit(**av)) {
@@ -5878,6 +5892,9 @@ table_handler(int ac, char *av[])
 		ac--; av++;
 	} else
 		errx(EX_USAGE, "table number required");
+	if (ent.tbl >= tables_max)
+		errx(EX_USAGE, "The table number exceeds the maximum allowed "
+			"value (%d)", tables_max - 1);
 	NEED1("table needs command");
 	if (_substrcmp(*av, "add") == 0 ||
 	    _substrcmp(*av, "delete") == 0) {
