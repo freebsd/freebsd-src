@@ -5856,6 +5856,8 @@ free_args(int ac, char **av)
 	free(av);
 }
 
+static void table_list(ipfw_table_entry ent);
+
 /*
  * This one handles all table-related commands
  * 	ipfw table N add addr[/masklen] [value]
@@ -5867,11 +5869,8 @@ static void
 table_handler(int ac, char *av[])
 {
 	ipfw_table_entry ent;
-	ipfw_table *tbl;
 	int do_add;
 	char *p;
-	socklen_t l;
-	uint32_t a;
 
 	ac--; av++;
 	if (ac && isdigit(**av)) {
@@ -5932,42 +5931,52 @@ table_handler(int ac, char *av[])
 		if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl, sizeof(ent.tbl)) < 0)
 			err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
 	} else if (_substrcmp(*av, "list") == 0) {
-		a = ent.tbl;
-		l = sizeof(a);
-		if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_TABLE_GETSIZE)");
-
-		/* If a is zero we have nothing to do, the table is empty. */
-		if (a == 0)
-			return;
-
-		l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
-		tbl = malloc(l);
-		if (tbl == NULL)
-			err(EX_OSERR, "malloc");
-		tbl->tbl = ent.tbl;
-		if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
-			err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
-		for (a = 0; a < tbl->cnt; a++) {
-			unsigned int tval;
-			tval = tbl->ent[a].value;
-			if (do_value_as_ip) {
-			    char tbuf[128];
-			    strncpy(tbuf, inet_ntoa(*(struct in_addr *)
-				&tbl->ent[a].addr), 127);
-			    /* inet_ntoa expects network order */
-			    tval = htonl(tval);
-			    printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
-			        inet_ntoa(*(struct in_addr *)&tval));
-			} else {
-			    printf("%s/%u %u\n",
-			        inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
-			        tbl->ent[a].masklen, tval);
-			}
-		}
-		free(tbl);
+		table_list(ent);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
+}
+
+static void
+table_list(ipfw_table_entry ent)
+{
+	ipfw_table *tbl;
+	socklen_t l;
+	uint32_t a;
+
+	a = ent.tbl;
+	l = sizeof(a);
+	if (do_cmd(IP_FW_TABLE_GETSIZE, &a, (uintptr_t)&l) < 0)
+		err(EX_OSERR, "getsockopt(IP_FW_TABLE_GETSIZE)");
+
+	/* If a is zero we have nothing to do, the table is empty. */
+	if (a == 0)
+		return;
+
+	l = sizeof(*tbl) + a * sizeof(ipfw_table_entry);
+	tbl = malloc(l);
+	if (tbl == NULL)
+		err(EX_OSERR, "malloc");
+	tbl->tbl = ent.tbl;
+	if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
+		err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
+	for (a = 0; a < tbl->cnt; a++) {
+		unsigned int tval;
+		tval = tbl->ent[a].value;
+		if (do_value_as_ip) {
+			char tbuf[128];
+			strncpy(tbuf, inet_ntoa(*(struct in_addr *)
+				&tbl->ent[a].addr), 127);
+			/* inet_ntoa expects network order */
+			tval = htonl(tval);
+			printf("%s/%u %s\n", tbuf, tbl->ent[a].masklen,
+				inet_ntoa(*(struct in_addr *)&tval));
+		} else {
+			printf("%s/%u %u\n",
+				inet_ntoa(*(struct in_addr *)&tbl->ent[a].addr),
+				tbl->ent[a].masklen, tval);
+		}
+	}
+	free(tbl);
 }
 
 static void
