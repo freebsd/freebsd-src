@@ -616,7 +616,7 @@ ng_source_store_output_ifp(sc_p sc, char *ifname)
 	ifp = ifunit(ifname);
 
 	if (ifp == NULL) {
-		printf("%s: can't find interface %d\n", __func__, V_if_index);
+		printf("%s: can't find interface %s\n", __func__, ifname);
 		return (EINVAL);
 	}
 	sc->output_ifp = ifp;
