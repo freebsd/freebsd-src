@@ -52,8 +52,6 @@ static int ctotcount;
 #define	INITIAL_CBLOCKS 50
 #endif
 
-#define	QUOTEMASK	0x100
-
 static struct cblock *cblock_alloc(void);
 static void cblock_alloc_cblocks(int number);
 static void cblock_free(struct cblock *cblockp);
@@ -79,8 +77,7 @@ DB_SHOW_COMMAND(cbstat, cbstat)
  */
 /* ARGSUSED*/
 static void
-clist_init(dummy)
-	void *dummy;
+clist_init(void *dummy)
 {
 	/*
 	 * Allocate an initial base set of cblocks as a 'slush'.
@@ -98,7 +95,7 @@ clist_init(dummy)
  * to it.
  */
 static __inline struct cblock *
-cblock_alloc()
+cblock_alloc(void)
 {
 	struct cblock *cblockp;
 
@@ -115,11 +112,8 @@ cblock_alloc()
  * Add a cblock to the cfreelist queue.
  */
 static __inline void
-cblock_free(cblockp)
-	struct cblock *cblockp;
+cblock_free(struct cblock *cblockp)
 {
-	if (isset(cblockp->c_quote, CBQSIZE * NBBY - 1))
-		bzero(cblockp->c_quote, sizeof cblockp->c_quote);
 	cblockp->c_next = cfreelist;
 	cfreelist = cblockp;
 	cfreecount += CBSIZE;
@@ -129,8 +123,7 @@ cblock_free(cblockp)
  * Allocate some cblocks for the cfreelist queue.
  */
 static void
-cblock_alloc_cblocks(number)
-	int number;
+cblock_alloc_cblocks(int number)
 {
 	int i;
 	struct cblock *cbp;
@@ -146,7 +139,6 @@ cblock_alloc_cblocks(number)
 		 * Freed cblocks have zero quotes and garbage elsewhere.
 		 * Set the may-have-quote bit to force zeroing the quotes.
 		 */
-		setbit(cbp->c_quote, CBQSIZE * NBBY - 1);
 		cblock_free(cbp);
 	}
 	ctotcount += number;
@@ -157,10 +149,7 @@ cblock_alloc_cblocks(number)
  * Must be called in process context at spltty().
  */
 void
-clist_alloc_cblocks(clistp, ccmax, ccreserved)
-	struct clist *clistp;
-	int ccmax;
-	int ccreserved;
+clist_alloc_cblocks(struct clist *clistp, int ccmax, int ccreserved)
 {
 	int dcbr;
 
@@ -189,8 +178,7 @@ clist_alloc_cblocks(clistp, ccmax, ccreserved)
  * system malloc pool.
  */
 static void
-cblock_free_cblocks(number)
-	int number;
+cblock_free_cblocks(int number)
 {
 	int i;
 
@@ -204,8 +192,7 @@ cblock_free_cblocks(number)
  * Must be called at spltty().
  */
 void
-clist_free_cblocks(clistp)
-	struct clist *clistp;
+clist_free_cblocks(struct clist *clistp)
 {
 	if (clistp->c_cbcount != 0)
 		panic("freeing active clist cblocks");
@@ -218,8 +205,7 @@ clist_free_cblocks(clistp)
  * Get a character from the head of a clist.
  */
 int
-getc(clistp)
-	struct clist *clistp;
+getc(struct clist *clistp)
 {
 	int chr = -1;
 	int s;
@@ -231,12 +217,6 @@ getc(clistp)
 	if (clistp->c_cc) {
 		cblockp = (struct cblock *)((intptr_t)clistp->c_cf & ~CROUND);
 		chr = (u_char)*clistp->c_cf;
-
-		/*
-		 * If this char is quoted, set the flag.
-		 */
-		if (isset(cblockp->c_quote, clistp->c_cf - (char *)cblockp->c_info))
-			chr |= QUOTEMASK;
 
 		/*
 		 * Advance to next character.
@@ -272,10 +252,7 @@ getc(clistp)
  * actually copied.
  */
 int
-q_to_b(clistp, dest, amount)
-	struct clist *clistp;
-	char *dest;
-	int amount;
+q_to_b(struct clist *clistp, char *dest, int amount)
 {
 	struct cblock *cblockp;
 	struct cblock *cblockn;
@@ -321,9 +298,7 @@ q_to_b(clistp, dest, amount)
  * Flush 'amount' of chars, beginning at head of clist 'clistp'.
  */
 void
-ndflush(clistp, amount)
-	struct clist *clistp;
-	int amount;
+ndflush(struct clist *clistp, int amount)
 {
 	struct cblock *cblockp;
 	struct cblock *cblockn;
@@ -366,9 +341,7 @@ ndflush(clistp, amount)
  * more clists, or 0 for success.
  */
 int
-putc(chr, clistp)
-	int chr;
-	struct clist *clistp;
+putc(char chr, struct clist *clistp)
 {
 	struct cblock *cblockp;
 	int s;
@@ -405,19 +378,6 @@ putc(chr, clistp)
 		}
 	}
 
-	/*
-	 * If this character is quoted, set the quote bit, if not, clear it.
-	 */
-	if (chr & QUOTEMASK) {
-		setbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
-		/*
-		 * Use one of the spare quote bits to record that something
-		 * may be quoted.
-		 */
-		setbit(cblockp->c_quote, CBQSIZE * NBBY - 1);
-	} else
-		clrbit(cblockp->c_quote, clistp->c_cl - (char *)cblockp->c_info);
-
 	*clistp->c_cl++ = chr;
 	clistp->c_cc++;
 
@@ -430,16 +390,10 @@ putc(chr, clistp)
  * number of characters not copied.
  */
 int
-b_to_q(src, amount, clistp)
-	char *src;
-	int amount;
-	struct clist *clistp;
+b_to_q(char *src, int amount, struct clist *clistp)
 {
 	struct cblock *cblockp;
-	char *firstbyte, *lastbyte;
-	u_char startmask, endmask;
-	int startbit, endbit, num_between, numc;
-	int s;
+	int numc, s;
 
 	/*
 	 * Avoid allocating an initial cblock and then not using it.
@@ -497,39 +451,6 @@ b_to_q(src, amount, clistp)
 		bcopy(src, clistp->c_cl, numc);
 
 		/*
-		 * Clear quote bits if they aren't known to be clear.
-		 * The following could probably be made into a separate
-		 * "bitzero()" routine, but why bother?
-		 */
-		if (isset(cblockp->c_quote, CBQSIZE * NBBY - 1)) {
-			startbit = clistp->c_cl - (char *)cblockp->c_info;
-			endbit = startbit + numc - 1;
-
-			firstbyte = (u_char *)cblockp->c_quote + (startbit / NBBY);
-			lastbyte = (u_char *)cblockp->c_quote + (endbit / NBBY);
-
-			/*
-			 * Calculate mask of bits to preserve in first and
-			 * last bytes.
-			 */
-			startmask = NBBY - (startbit % NBBY);
-			startmask = 0xff >> startmask;
-			endmask = (endbit % NBBY);
-			endmask = 0xff << (endmask + 1);
-
-			if (firstbyte != lastbyte) {
-				*firstbyte &= startmask;
-				*lastbyte &= endmask;
-
-				num_between = lastbyte - firstbyte - 1;
-				if (num_between)
-					bzero(firstbyte + 1, num_between);
-			} else {
-				*firstbyte &= (startmask | endmask);
-			}
-		}
-
-		/*
 		 * ...and update pointer for the next chunk.
 		 */
 		src += numc;
@@ -552,50 +473,10 @@ b_to_q(src, amount, clistp)
 }
 
 /*
- * Get the next character in the clist. Store it at dst. Don't
- * advance any clist pointers, but return a pointer to the next
- * character position.
- */
-char *
-nextc(clistp, cp, dst)
-	struct clist *clistp;
-	char *cp;
-	int *dst;
-{
-	struct cblock *cblockp;
-
-	++cp;
-	/*
-	 * See if the next character is beyond the end of
-	 * the clist.
-	 */
-	if (clistp->c_cc && (cp != clistp->c_cl)) {
-		/*
-		 * If the next character is beyond the end of this
-		 * cblock, advance to the next cblock.
-		 */
-		if (((intptr_t)cp & CROUND) == 0)
-			cp = ((struct cblock *)cp - 1)->c_next->c_info;
-		cblockp = (struct cblock *)((intptr_t)cp & ~CROUND);
-
-		/*
-		 * Get the character. Set the quote flag if this character
-		 * is quoted.
-		 */
-		*dst = (u_char)*cp | (isset(cblockp->c_quote, cp - (char *)cblockp->c_info) ? QUOTEMASK : 0);
-
-		return (cp);
-	}
-
-	return (NULL);
-}
-
-/*
  * "Unput" a character from a clist.
  */
 int
-unputc(clistp)
-	struct clist *clistp;
+unputc(struct clist *clistp)
 {
 	struct cblock *cblockp = 0, *cbp = 0;
 	int s;
@@ -611,12 +492,6 @@ unputc(clistp)
 		chr = (u_char)*clistp->c_cl;
 
 		cblockp = (struct cblock *)((intptr_t)clistp->c_cl & ~CROUND);
-
-		/*
-		 * Set quote flag if this character was quoted.
-		 */
-		if (isset(cblockp->c_quote, (u_char *)clistp->c_cl - cblockp->c_info))
-			chr |= QUOTEMASK;
 
 		/*
 		 * If all of the characters have been unput in this
@@ -655,46 +530,4 @@ unputc(clistp)
 
 	splx(s);
 	return (chr);
-}
-
-/*
- * Move characters in source clist to destination clist,
- * preserving quote bits.
- */
-void
-catq(src_clistp, dest_clistp)
-	struct clist *src_clistp, *dest_clistp;
-{
-	int chr, s;
-
-	s = spltty();
-	/*
-	 * If the destination clist is empty (has no cblocks atttached),
-	 * and there are no possible complications with the resource counters,
-	 * then we simply assign the current clist to the destination.
-	 */
-	if (!dest_clistp->c_cf
-	    && src_clistp->c_cbcount <= src_clistp->c_cbmax
-	    && src_clistp->c_cbcount <= dest_clistp->c_cbmax) {
-		dest_clistp->c_cf = src_clistp->c_cf;
-		dest_clistp->c_cl = src_clistp->c_cl;
-		src_clistp->c_cf = src_clistp->c_cl = NULL;
-
-		dest_clistp->c_cc = src_clistp->c_cc;
-		src_clistp->c_cc = 0;
-		dest_clistp->c_cbcount = src_clistp->c_cbcount;
-		src_clistp->c_cbcount = 0;
-
-		splx(s);
-		return;
-	}
-
-	splx(s);
-
-	/*
-	 * XXX  This should probably be optimized to more than one
-	 * character at a time.
-	 */
-	while ((chr = getc(src_clistp)) != -1)
-		putc(chr, dest_clistp);
 }
