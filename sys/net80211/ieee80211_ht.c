@@ -783,7 +783,7 @@ ieee80211_recv_bar(struct ieee80211_node *ni, struct mbuf *m0)
  * work for temporary and/or legacy sta's.
  */
 void
-ieee80211_ht_node_init(struct ieee80211_node *ni, const uint8_t *htcap)
+ieee80211_ht_node_init(struct ieee80211_node *ni)
 {
 	struct ieee80211_tx_ampdu *tap;
 	int ac;
@@ -796,7 +796,6 @@ ieee80211_ht_node_init(struct ieee80211_node *ni, const uint8_t *htcap)
 		 */
 		ieee80211_ht_node_cleanup(ni);
 	}
-	ieee80211_parse_htcap(ni, htcap);
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		tap = &ni->ni_tx_ampdu[ac];
 		tap->txa_ac = ac;
@@ -1146,8 +1145,6 @@ ieee80211_ht_timeout(struct ieee80211com *ic)
 void
 ieee80211_parse_htcap(struct ieee80211_node *ni, const uint8_t *ie)
 {
-	struct ieee80211vap *vap = ni->ni_vap;
-
 	if (ie[0] == IEEE80211_ELEMID_VENDOR) {
 		/*
 		 * Station used Vendor OUI ie to associate;
@@ -1162,55 +1159,54 @@ ieee80211_parse_htcap(struct ieee80211_node *ni, const uint8_t *ie)
 	ni->ni_htcap = LE_READ_2(ie +
 		__offsetof(struct ieee80211_ie_htcap, hc_cap));
 	ni->ni_htparam = ie[__offsetof(struct ieee80211_ie_htcap, hc_param)];
-	/* XXX needed or will ieee80211_parse_htinfo always be called? */
-	ni->ni_chw = (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
-		     (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40) ? 40 : 20;
 }
 
-/*
- * Process an 802.11n HT info ie and update the node state.
- * Note that we handle use this information to identify the
- * correct channel (HT20, HT40+, HT40-, legacy).  The caller
- * is responsible for insuring any required channel change is
- * done (e.g. in sta mode when parsing the contents of a
- * beacon frame).
- */
-void
-ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
+static void
+htinfo_parse(struct ieee80211_node *ni,
+	const struct ieee80211_ie_htinfo *htinfo)
 {
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211vap *vap = ni->ni_vap;
- 	const struct ieee80211_ie_htinfo *htinfo;
-	struct ieee80211_channel *c;
 	uint16_t w;
-	int htflags, chanflags;
 
-	if (ie[0] == IEEE80211_ELEMID_VENDOR)
-		ie += 4;
- 	htinfo = (const struct ieee80211_ie_htinfo *) ie;
 	ni->ni_htctlchan = htinfo->hi_ctrlchannel;
 	ni->ni_ht2ndchan = SM(htinfo->hi_byte1, IEEE80211_HTINFO_2NDCHAN);
 	w = LE_READ_2(&htinfo->hi_byte2);
 	ni->ni_htopmode = SM(w, IEEE80211_HTINFO_OPMODE);
 	w = LE_READ_2(&htinfo->hi_byte45);
 	ni->ni_htstbc = SM(w, IEEE80211_HTINFO_BASIC_STBCMCS);
-	/*
-	 * Handle 11n channel switch.  Use the received HT ie's to
-	 * identify the right channel to use.  If we cannot locate it
-	 * in the channel table then fallback to legacy operation.
-	 */
-	/* NB: honor operating mode constraint */
-	htflags = (vap->iv_flags_ext & IEEE80211_FEXT_HT) ?
-	    IEEE80211_CHAN_HT20 : 0;
-	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH_2040) &&
-	    (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)) {
-		if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_ABOVE)
-			htflags = IEEE80211_CHAN_HT40U;
-		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
-			htflags = IEEE80211_CHAN_HT40D;
-	}
+}
+
+/*
+ * Parse an 802.11n HT info ie and save useful information
+ * to the node state.  Note this does not effect any state
+ * changes such as for channel width change.
+ */
+void
+ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
+{
+	if (ie[0] == IEEE80211_ELEMID_VENDOR)
+		ie += 4;
+	htinfo_parse(ni, (const struct ieee80211_ie_htinfo *) ie);
+}
+
+/*
+ * Handle 11n channel switch.  Use the received HT ie's to
+ * identify the right channel to use.  If we cannot locate it
+ * in the channel table then fallback to legacy operation.
+ * Note that we use this information to identify the node's
+ * channel only; the caller is responsible for insuring any
+ * required channel change is done (e.g. in sta mode when
+ * parsing the contents of a beacon frame).
+ */
+static void
+htinfo_update_chw(struct ieee80211_node *ni, int htflags)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_channel *c;
+	int chanflags;
+
 	chanflags = (ni->ni_chan->ic_flags &~ IEEE80211_CHAN_HT) | htflags;
 	if (chanflags != ni->ni_chan->ic_flags) {
+		/* XXX not right for ht40- */
 		c = ieee80211_find_channel(ic, ni->ni_chan->ic_freq, chanflags);
 		if (c == NULL && (htflags & IEEE80211_CHAN_HT40)) {
 			/*
@@ -1218,14 +1214,16 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
 			 * to HT20 operation.  This should not happen.
 			 */
 			c = findhtchan(ic, ni->ni_chan, IEEE80211_CHAN_HT20);
-			IEEE80211_NOTE(vap,
+#if 0
+			IEEE80211_NOTE(ni->ni_vap,
 			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
 			    "no HT40 channel (freq %u), falling back to HT20",
 			    ni->ni_chan->ic_freq);
+#endif
 			/* XXX stat */
 		}
 		if (c != NULL && c != ni->ni_chan) {
-			IEEE80211_NOTE(vap,
+			IEEE80211_NOTE(ni->ni_vap,
 			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N, ni,
 			    "switch station to HT%d channel %u/0x%x",
 			    IEEE80211_IS_CHAN_HT40(c) ? 40 : 20,
@@ -1236,6 +1234,64 @@ ieee80211_parse_htinfo(struct ieee80211_node *ni, const uint8_t *ie)
 	}
 	/* update node's tx channel width */
 	ni->ni_chw = IEEE80211_IS_CHAN_HT40(ni->ni_chan)? 40 : 20;
+}
+
+/*
+ * Parse and update HT-related state extracted from
+ * the HT cap and info ie's.
+ */
+void
+ieee80211_ht_updateparams(struct ieee80211_node *ni,
+	const uint8_t *htcapie, const uint8_t *htinfoie)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	const struct ieee80211_ie_htinfo *htinfo;
+	int htflags;
+
+	ieee80211_parse_htcap(ni, htcapie);
+
+	if (htinfoie[0] == IEEE80211_ELEMID_VENDOR)
+		htinfoie += 4;
+	htinfo = (const struct ieee80211_ie_htinfo *) htinfoie;
+	htinfo_parse(ni, htinfo);
+
+	htflags = (vap->iv_flags_ext & IEEE80211_FEXT_HT) ?
+	    IEEE80211_CHAN_HT20 : 0;
+	/* NB: honor operating mode constraint */
+	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_TXWIDTH_2040) &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)) {
+		if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_ABOVE)
+			htflags = IEEE80211_CHAN_HT40U;
+		else if (ni->ni_ht2ndchan == IEEE80211_HTINFO_2NDCHAN_BELOW)
+			htflags = IEEE80211_CHAN_HT40D;
+	}
+	htinfo_update_chw(ni, htflags);
+}
+
+/*
+ * Parse and update HT-related state extracted from the HT cap ie
+ * for a station joining an HT BSS.
+ */
+void
+ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	int htflags;
+
+	ieee80211_parse_htcap(ni, htcapie);
+
+	/* NB: honor operating mode constraint */
+	/* XXX 40 MHZ intolerant */
+	htflags = (vap->iv_flags_ext & IEEE80211_FEXT_HT) ?
+	    IEEE80211_CHAN_HT20 : 0;
+	if ((ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40) &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_USEHT40)) {
+		if (IEEE80211_IS_CHAN_HT40U(vap->iv_bss->ni_chan))
+			htflags = IEEE80211_CHAN_HT40U;
+		else if (IEEE80211_IS_CHAN_HT40D(vap->iv_bss->ni_chan))
+			htflags = IEEE80211_CHAN_HT40D;
+	}
+	htinfo_update_chw(ni, htflags);
 }
 
 /*
