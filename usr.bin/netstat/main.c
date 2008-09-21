@@ -54,7 +54,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#ifdef NETGRAPH
 #include <netgraph/ng_socket.h>
+#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -272,7 +274,7 @@ struct protox atalkprotox[] = {
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0,	0 }
 };
-
+#ifdef NETGRAPH
 struct protox netgraphprotox[] = {
 	{ N_NGSOCKS,	-1,		1,	netgraphprotopr,
 	  NULL,		NULL,		"ctrl",	0,	0 },
@@ -281,7 +283,7 @@ struct protox netgraphprotox[] = {
 	{ -1,		-1,		0,	NULL,
 	  NULL,		NULL,		NULL,	0,	0 }
 };
-
+#endif
 #ifdef IPX
 struct protox ipxprotox[] = {
 	{ N_IPX,	N_IPXSTAT,	1,	ipxprotopr,
@@ -384,9 +386,11 @@ main(int argc, char *argv[])
 				af = AF_UNIX;
 			else if (strcmp(optarg, "atalk") == 0)
 				af = AF_APPLETALK;
+#ifdef NETGRAPH
 			else if (strcmp(optarg, "ng") == 0
 			    || strcmp(optarg, "netgraph") == 0)
 				af = AF_NETGRAPH;
+#endif
 			else if (strcmp(optarg, "link") == 0)
 				af = AF_LINK;
 			else {
@@ -584,9 +588,11 @@ main(int argc, char *argv[])
 	if (af == AF_APPLETALK || af == AF_UNSPEC)
 		for (tp = atalkprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
+#ifdef NETGRAPH
 	if (af == AF_NETGRAPH || af == AF_UNSPEC)
 		for (tp = netgraphprotox; tp->pr_name; tp++)
 			printproto(tp, tp->pr_name);
+#endif /* NETGRAPH */
 	if ((af == AF_UNIX || af == AF_UNSPEC) && !Lflag && !sflag)
 		unixpr(nl[N_UNP_COUNT].n_value, nl[N_UNP_GENCNT].n_value,
 		    nl[N_UNP_DHEAD].n_value, nl[N_UNP_SHEAD].n_value);

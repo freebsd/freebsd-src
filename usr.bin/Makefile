@@ -13,12 +13,12 @@ SUBDIR=	alias \
 	apply \
 	${_ar} \
 	asa \
-	at \
+	${_at} \
 	${_atm} \
 	awk \
 	banner \
 	basename \
-	biff \
+	${_biff} \
 	${_bluetooth} \
 	brandelf \
 	bsdiff \
@@ -30,24 +30,24 @@ SUBDIR=	alias \
 	cap_mkdb \
 	${_catman} \
 	chat \
-	checknr \
+	${_checknr} \
 	${_chkey} \
 	chpass \
 	cksum \
 	cmp \
 	col \
-	colcrt \
+	${_colcrt} \
 	colldef \
 	colrm \
 	column \
 	comm \
-	compile_et \
+	${_compile_et} \
 	compress \
 	${_cpio} \
 	cpuset \
 	csplit \
 	${_csup} \
-	ctags \
+	${_ctags} \
 	cut \
 	${_dig} \
 	dirname \
@@ -61,12 +61,12 @@ SUBDIR=	alias \
 	false \
 	fetch \
 	file \
-	file2c \
+	${_file2c} \
 	find \
 	finger \
-	fmt \
+	${_fmt} \
 	fold \
-	from \
+	${_from} \
 	fstat \
 	fsync \
 	ftp \
@@ -82,7 +82,7 @@ SUBDIR=	alias \
 	hexdump \
 	${_host} \
 	id \
-	indent \
+	${_indent} \
 	ipcrm \
 	ipcs \
 	join \
@@ -104,7 +104,7 @@ SUBDIR=	alias \
 	${_lex} \
 	limits \
 	locale \
-	locate \
+	${_locate} \
 	lock \
 	lockf \
 	logger \
@@ -115,8 +115,8 @@ SUBDIR=	alias \
 	lorder \
 	lsvfs \
 	m4 \
-	mail \
-	make \
+	${_mail} \
+	${_make} \
 	makewhatis \
 	mesg \
 	minigzip \
@@ -124,10 +124,10 @@ SUBDIR=	alias \
 	mkdep \
 	mkfifo \
 	mklocale \
-	mkstr \
+	${_mkstr} \
 	mktemp \
 	mkuzip \
-	msgs \
+	${_msgs} \
 	mt \
 	${_nc} \
 	ncal \
@@ -153,19 +153,19 @@ SUBDIR=	alias \
 	printenv \
 	printf \
 	procstat \
-	quota \
+	${_quota} \
 	renice \
 	rev \
 	${_rlogin} \
-	rpcgen \
+	${_rpcgen} \
 	rpcinfo \
 	rs \
 	${_rsh} \
 	rup \
-	ruptime \
+	${_ruptime} \
 	rusers \
 	rwall \
-	rwho \
+	${_rwho} \
 	script \
 	sed \
 	shar \
@@ -182,7 +182,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
-	telnet \
+	${_telnet} \
 	tftp \
 	time \
 	tip \
@@ -196,10 +196,10 @@ SUBDIR=	alias \
 	tset \
 	tsort \
 	tty \
-	ul \
+	${_ul} \
 	uname \
 	unexpand \
-	unifdef \
+	${_unifdef} \
 	uniq \
 	units \
 	unvis \
@@ -209,7 +209,7 @@ SUBDIR=	alias \
 	uudecode \
 	uuencode \
 	${_vacation} \
-	vgrind \
+	${_vgrind} \
 	vi \
 	vis \
 	vmstat \
@@ -226,7 +226,7 @@ SUBDIR=	alias \
 	xargs \
 	xinstall \
 	${_xlint} \
-	xstr \
+	${_xstr} \
 	${_yacc} \
 	yes \
 	${_ypcat} \
@@ -235,6 +235,12 @@ SUBDIR=	alias \
 
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 _truss=		truss
+.endif
+
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_AT} != "no"
+_at=		at
 .endif
 
 .if ${MK_ATM} != "no"
@@ -264,6 +270,10 @@ _cpio=		cpio
 _calendar=	calendar
 .endif
 
+.if ${MK_HESIOD} != "no"
+_hesinfo=	hesinfo
+.endif
+
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
@@ -272,8 +282,21 @@ _csup=		csup
 .endif
 .endif
 
-.if ${MK_HESIOD} != "no"
-_hesinfo=	hesinfo
+.if ${MK_LOCATE} != "no"
+_locate=	locate
+.endif
+
+# XXX msgs?
+.if ${MK_MAIL} != "no"
+_biff=		biff
+_fmt=		fmt
+_from=		from
+_mail=		mail
+_msgs=		msgs
+.endif
+
+.if ${MK_MAKE} != "no"
+_make=		make
 .endif
 
 .if ${MK_NETCAT} != "no"
@@ -286,22 +309,47 @@ _ypmatch=	ypmatch
 _ypwhich=	ypwhich
 .endif
 
+.if ${MK_QUOTAS} != "no"
+_quota=		quota
+.endif
+
 .if ${MK_RCMDS} != "no"
 _rlogin=	rlogin
 _rsh=		rsh
+_ruptime=	ruptime
+_rwho=		rwho
 .endif
 
 .if ${MK_SENDMAIL} != "no"
 _vacation=	vacation
 .endif
 
+.if ${MK_TELNET} != "no"
+_telnet=	telnet
+.endif
+
+.if ${MK_TEXTPROC} != "no"
+_checknr=	checknr
+_colcrt=	colcrt
+_ul=		ul
+.endif
+
 .if ${MK_TOOLCHAIN} != "no"
-_ar=		ar
 _c89=		c89
 _c99=		c99
+_compile_et=	compile_et
+_ctags=		ctags
+_file2c=	file2c
 _gprof=		gprof
+_indent=	indent
 _lex=		lex
+_mkstr=		mkstr
+_rpcgen=	rpcgen
+_unifdef=	unifdef
 _xlint=		xlint
+_xstr=		xstr
+# XXX maybe under textproc?
+_vgrind=	vgrind
 _yacc=		yacc
 .endif
 
