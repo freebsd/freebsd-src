@@ -505,8 +505,13 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
 	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
+#if defined(__LP64__)
+#define	ath_hal_setregdomain(_ah, _rd) \
+	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 176) = (_rd))
+#else
 #define	ath_hal_setregdomain(_ah, _rd) \
 	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 128) = (_rd))
+#endif
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
 #define	ath_hal_gettkipmic(_ah) \
