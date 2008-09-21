@@ -4,12 +4,12 @@
 .include <bsd.own.mk>
 
 # XXX MISSING:		mkproto
-SUBDIR=	ac \
-	accton \
+SUBDIR=	${_ac} \
+	${_accton} \
 	${_acpi} \
 	adduser \
-	amd \
-	ancontrol \
+	${_amd} \
+	${_ancontrol} \
 	${_apm} \
 	${_apmd} \
 	arp \
@@ -23,7 +23,7 @@ SUBDIR=	ac \
 	${_boot0cfg} \
 	${_boot98cfg} \
 	bootparamd \
-	bsnmpd \
+	${_bsnmpd} \
 	${_btxld} \
 	burncd \
 	cdcontrol \
@@ -32,12 +32,12 @@ SUBDIR=	ac \
 	chroot \
 	ckdist \
 	clear_locks \
-	config \
+	${_config} \
 	${_cpucontrol} \
 	crashinfo \
 	cron \
-	crunch \
-	ctm \
+	${_crunch} \
+	${_ctm} \
 	daemon \
 	dconschat \
 	devinfo \
@@ -46,18 +46,18 @@ SUBDIR=	ac \
 	${_dnssec-keygen} \
 	${_dnssec-signzone} \
 	${_editmap} \
-	edquota \
+	${_edquota} \
 	${_eeprom} \
 	extattr \
 	extattrctl \
 	${_faithd} \
-	fdcontrol \
-	fdformat \
-	fdread \
-	fdwrite \
+	${_fdcontrol} \
+	${_fdformat} \
+	${_fdread} \
+	${_fdwrite} \
 	fifolog \
-	flowctl \
-	freebsd-update \
+	${_flowctl} \
+	${_freebsd-update} \
 	${_ftp-proxy} \
 	fwcontrol \
 	getfmac \
@@ -67,19 +67,19 @@ SUBDIR=	ac \
 	inetd \
 	iostat \
 	${_ip6addrctl} \
-	ipfwpcap \
+	${_ipfwpcap} \
 	${_IPXrouted} \
-	jail \
-	jexec \
-	jls \
-	kbdcontrol \
-	kbdmap \
+	${_jail} \
+	${_jexec} \
+	${_jls} \
+	${_kbdcontrol} \
+	${_kbdmap} \
 	${_keyserv} \
 	${_kgmon} \
 	${_kgzip} \
 	kldxref \
 	lastlogin \
-	lmcconfig \
+	${_lmcconfig} \
 	${_lpr} \
 	${_lptcontrol} \
 	${_mailstats} \
@@ -95,7 +95,7 @@ SUBDIR=	ac \
 	${_mount_nwfs} \
 	mount_portalfs \
 	${_mount_smbfs} \
-	moused \
+	${_moused} \
 	${_mptable} \
 	mtest \
 	mtree \
@@ -107,26 +107,26 @@ SUBDIR=	ac \
 	${_ndp} \
 	newsyslog \
 	nfsd \
-	ngctl \
-	nghook \
+	${_ngctl} \
+	${_nghook} \
 	nologin \
 	${_nscd} \
-	ntp \
+	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
 	pccard \
 	pciconf \
 	periodic \
-	pkg_install \
-	pmccontrol \
-	pmcstat \
+	${_pkg_install} \
+	${_pmccontrol} \
+	${_pmcstat} \
 	${_pnpinfo} \
-	portsnap \
+	${_portsnap} \
 	powerd \
-	ppp \
+	${_ppp} \
 	${_pppctl} \
-	pppd \
-	pppstats \
+	${_pppd} \
+	${_pppstats} \
 	${_praliases} \
 	${_praudit} \
 	procctl \
@@ -134,10 +134,10 @@ SUBDIR=	ac \
 	pw \
 	pwd_mkdb \
 	quot \
-	quotaon \
+	${_quotaon} \
 	rarpd \
-	raycontrol \
-	repquota \
+	${_raycontrol} \
+	${_repquota} \
 	${_rip6query} \
 	rmt \
 	${_rndc} \
@@ -154,16 +154,16 @@ SUBDIR=	ac \
 	${_rtadvd} \
 	rtprio \
 	${_rtsold} \
-	rwhod \
-	sa \
+	${_rwhod} \
+	${_sa} \
 	${_sade} \
 	${_sendmail} \
 	setfib \
 	setfmac \
 	setpmac \
 	${_sicontrol} \
-	sliplogin \
-	slstat \
+	${_sliplogin} \
+	${_slstat} \
 	smbmsg \
 	snapinfo \
 	${_spkrtest} \
@@ -181,13 +181,13 @@ SUBDIR=	ac \
 	tzsetup \
 	ugidfw \
 	${_usbdevs} \
-	vidcontrol \
+	${_vidcontrol} \
 	vipw \
 	watch \
 	watchdogd \
-	wlandebug \
+	${_wlandebug} \
 	${_wlconfig} \
-	wpa \
+	${_wpa} \
 	${_ypbind} \
 	${_yp_mkdb} \
 	${_yppoll} \
@@ -197,8 +197,16 @@ SUBDIR=	ac \
 	zic \
 	${_zzz}
 
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
-_sysinstall=	sysinstall
+# NB: keep these sorted by MK_* knobs
+
+.if ${MK_ACCT} != "no"
+_ac=		ac
+_accton=	accton
+_sa=		sa
+.endif
+
+.if ${MK_AMD} != "no"
+_amd=		amd
 .endif
 
 .if ${MK_AUDIT} != "no"
@@ -206,6 +214,10 @@ _audit= 	audit
 _auditd=	auditd
 _auditreduce=	auditreduce
 _praudit=	praudit
+.endif
+
+.if ${MK_AUTHPF} != "no"
+_authpf=	authpf
 .endif
 
 .if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
@@ -225,12 +237,23 @@ _rndc-confgen=		rndc-confgen
 _bluetooth=	bluetooth
 .endif
 
-.if ${MK_OPENSSL} != "no"
-_keyserv=	keyserv
+.if ${MK_BSNMP} != "no"
+_bsnmpd=	bsnmpd
 .endif
 
-.if ${MK_PF} != "no"
-_ftp-proxy=	ftp-proxy
+.if ${MK_CTM} != "no"
+_ctm=		ctm
+.endif
+
+.if ${MK_FLOPPY} != "no"
+_fdcontrol=	fdcontrol
+_fdformat=	fdformat
+_fdread=	fdread
+_fdwrite=	fdwrite
+.endif
+
+.if ${MK_FREEBSD_UPDATE} != "no"
+_freebsd-update= freebsd-update
 .endif
 
 .if ${MK_INET6} != "no"
@@ -246,8 +269,47 @@ _rtsold=	rtsold
 _traceroute6=	traceroute6
 .endif
 
+.if ${MK_IPFW} != "no"
+_ipfwpcap=	ipfwpcap
+.endif
+
 .if ${MK_IPX} != "no"
 _IPXrouted=	IPXrouted
+.endif
+
+.if ${MK_JAIL} != "no"
+_jail=		jail
+_jexect=	jexec
+_jls=		jls
+.endif
+
+# XXX MK_SYSCONS
+# XXX is moused w/ usb useful?
+.if ${MK_LEGACY_CONSOLE} != "no"
+_kbdcontrol=	kbdcontrol
+_kbdmap=	kbdmap
+_moused=	moused
+_vidcontrol=	vidcontrol
+.endif
+
+.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_PPP} != "no"
+_pppctl=	pppctl
+.endif
+.if ${MK_NS_CACHING} != "no"
+_nscd=		nscd
+.endif
+.endif
+
+.if ${MK_LPR} != "no"
+_lpr=		lpr
+.endif
+
+.if ${MK_NETGRAPH} != "no"
+_flowctl=	flowctl
+_lmcconfig=	lmcconfig
+_ngctl=		ngctl
+_nghook=	nghook
 .endif
 
 .if ${MK_NIS} != "no"
@@ -262,22 +324,47 @@ _ypserv=	ypserv
 _ypset=		ypset
 .endif
 
-.if ${MK_AUTHPF} != "no"
-_authpf=	authpf
+.if ${MK_NTP} != "no"
+_ntp=		ntp
 .endif
 
-.if ${MK_LIBTHR} != "no"
-_pppctl=	pppctl
+.if ${MK_OPENSSL} != "no"
+_keyserv=	keyserv
 .endif
 
-.if ${MK_LPR} != "no"
-_lpr=		lpr
+.if ${MK_PF} != "no"
+_ftp-proxy=	ftp-proxy
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-.if ${MK_LIBTHR} != "no"
-_nscd=		nscd
+.if ${MK_PKGTOOLS} != "no"
+_pkg_install=	pkg_install
 .endif
+
+# XXX MK_TOOLCHAIN?
+.if ${MK_PMC} != "no"
+_pmccontrol=	pmccontrol
+_pmcstat=	pmcstat
+.endif
+
+.if ${MK_PORTSNAP} != "no"
+_portsnap=	portsnap
+.endif
+
+.if ${MK_PPP} != "no"
+_ppp		= ppp
+#_pppctl handled below
+_pppd		= pppd
+_pppstats	= pppstats
+.endif
+
+.if ${MK_QUOTAS} != "no"
+_edquota=	edquota
+_quotaon=	quotaon
+_repquota=	repquota
+.endif
+
+.if ${MK_RCMDS} != "no"
+_rwhod=		rwhod
 .endif
 
 .if ${MK_SENDMAIL} != "no"
@@ -288,8 +375,32 @@ _praliases=	praliases
 _sendmail=	sendmail
 .endif
 
+.if ${MK_SLIP} != "no"
+_sliplogin	= sliplogin
+_slstats	= slstats
+.endif
+
+.if ${MK_SYSINSTALL} != "no"
+_sade=		sade
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+_sysinstall=	sysinstall
+.endif
+.endif
+
+.if ${MK_TOOLCHAIN} != "no"
+_config=	config
+_crunch=	crunch
+.endif
+
 .if ${MK_USB} != "no"
 _usbdevs=	usbdevs
+.endif
+
+.if ${MK_WIRELESS} != "no"
+_ancontrol=	ancontrol
+_raycontrol=	raycontrol
+_wlandebug=	wlandebug
+_wpa=		wpa
 .endif
 
 .if ${MACHINE_ARCH} == "arm"
@@ -297,10 +408,14 @@ _kgmon=		kgmon
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
+.if ${MK_APM} != "no"
 _apm=		apm
 _apmd=		apmd
+.endif
 _asf=		asf
+.if ${MK_TOOLCHAIN} != "no"
 _btxld=		btxld
+.endif
 _cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _kgzip=		kgzip
@@ -310,9 +425,10 @@ _mount_nwfs=	mount_nwfs
 .endif
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
+.if ${MK_NDIS} != "no"
 _ndiscvt=	ndiscvt
+.endif
 _pnpinfo=	pnpinfo
-_sade=		sade
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -321,7 +437,9 @@ _zzz=		zzz
 _acpi=		acpi
 .endif
 _boot0cfg=	boot0cfg
+.if ${MK_WIRELESS} != "no"
 _wlconfig=	wlconfig
+.endif
 .elif ${MACHINE} == "pc98"
 _boot98cfg=	boot98cfg
 .endif
@@ -336,7 +454,9 @@ _acpi=		acpi
 .endif
 _asf=		asf
 _boot0cfg=	boot0cfg
+.if ${MK_TOOLCHAIN} != "no"
 _btxld=		btxld
+.endif
 _cpucontrol=	cpucontrol
 _kgmon=		kgmon
 _lptcontrol=	lptcontrol
@@ -345,8 +465,9 @@ _mount_nwfs=	mount_nwfs
 .endif
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
+.if ${MK_NDIS} != "no"
 _ndiscvt=	ndiscvt
-_sade=		sade
+.endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
@@ -370,7 +491,6 @@ _ofwdump=	ofwdump
 .if ${MACHINE_ARCH} == "sparc64"
 _eeprom=	eeprom
 _ofwdump=	ofwdump
-_sade=		sade
 .endif
 
 .include <bsd.subdir.mk>
