@@ -430,6 +430,7 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 #ifdef PTS_EXTERNAL
 	struct pts_softc *psc = tty_softc(tp);
 #endif /* PTS_EXTERNAL */
+	struct cdev *dev = tp->t_dev;
 
 	/*
 	 * According to POSIX, we must implement an fstat(). This also
@@ -437,8 +438,7 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	 * because Linux calls fstat() on the pseudo-terminal master to
 	 * obtain st_rdev.
 	 *
-	 * XXX: POSIX also mentions we must fill in st_dev, st_atime,
-	 * st_ctime and st_mtime, but how?
+	 * XXX: POSIX also mentions we must fill in st_dev, but how?
 	 */
 
 	bzero(sb, sizeof *sb);
@@ -448,9 +448,13 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	else
 #endif /* PTS_EXTERNAL */
 		sb->st_ino = sb->st_rdev = tty_udev(tp);
-	sb->st_mode = S_IFCHR;
-	sb->st_uid = tp->t_dev->si_cred->cr_ruid;
-	sb->st_gid = GID_TTY;
+
+	sb->st_atimespec = dev->si_atime;
+	sb->st_ctimespec = dev->si_ctime;
+	sb->st_mtimespec = dev->si_mtime;
+	sb->st_uid = dev->si_uid;
+	sb->st_gid = dev->si_gid;
+	sb->st_mode = dev->si_mode | S_IFCHR;
 	
 	return (0);
 }
