@@ -4,17 +4,31 @@
 # $FreeBSD$
 #
 
+media_type()
+{
+	ifconfig $1 2>/dev/null | while read line; do
+		case "$line" in
+		*media:?Ethernet*)
+			echo 802.3
+			;;
+		*media:?IEEE?802.11*)
+			echo 802.11
+			;;
+		esac
+	done
+}
+
 #
 # Auto-detect WIRED and WIRELESS.
 # NB: takes first device of each type; to fix
 #     either specify them before . config.
 #
 for i in `ifconfig -l`; do
-	case $i in
-	bge*|em*|re*|nfe*|fxp*|vr*|msk*|tx*|dc*)
+	case `media_type $i`  in
+	802.3)
 		test -z "$WIRED" && WIRED=$i
 		;;
-	ath*|ral*|zyd*|ural*|rum*|bwi*)
+	802.11)
 		test -z "$WIRELESS" && WIRELESS=$i
 		;;
 	esac
