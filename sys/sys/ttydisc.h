@@ -42,20 +42,20 @@ struct tty;
 struct uio;
 
 /* Top half routines. */
-void	ttydisc_open(struct tty *);
-void	ttydisc_close(struct tty *);
-int	ttydisc_read(struct tty *, struct uio *, int);
-int	ttydisc_write(struct tty *, struct uio *, int);
-void	ttydisc_optimize(struct tty *);
+void	ttydisc_open(struct tty *tp);
+void	ttydisc_close(struct tty *tp);
+int	ttydisc_read(struct tty *tp, struct uio *uio, int ioflag);
+int	ttydisc_write(struct tty *tp, struct uio *uio, int ioflag);
+void	ttydisc_optimize(struct tty *tp);
 
 /* Bottom half routines. */
-void	ttydisc_modem(struct tty *, int);
+void	ttydisc_modem(struct tty *tp, int open);
 #define ttydisc_can_bypass(tp) ((tp)->t_flags & TF_BYPASS)
-int	ttydisc_rint(struct tty *, char, int);
-size_t	ttydisc_rint_bypass(struct tty *, char *, size_t);
-void	ttydisc_rint_done(struct tty *);
-size_t	ttydisc_getc(struct tty *, void *, size_t);
-int	ttydisc_getc_uio(struct tty *, struct uio *);
+int	ttydisc_rint(struct tty *tp, char c, int flags);
+size_t	ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len);
+void	ttydisc_rint_done(struct tty *tp);
+size_t	ttydisc_getc(struct tty *tp, void *buf, size_t len);
+int	ttydisc_getc_uio(struct tty *tp, struct uio *uio);
 
 /* Error codes for ttydisc_rint(). */
 #define	TRE_FRAMING	0x01
