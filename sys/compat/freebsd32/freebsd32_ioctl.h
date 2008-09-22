@@ -33,6 +33,20 @@
 #define	_COMPAT_FREEBSD32_IOCTL_H_
 
 typedef __uint32_t caddr_t32;
+
+struct ioc_toc_header32 {
+	u_short	len;
+	u_char	starting_track;
+	u_char	ending_track;
+};
+
+struct ioc_read_toc_entry32 {
+	u_char	address_format;
+	u_char	starting_track;
+	u_short	data_len;
+	uint32_t data;		/* struct cd_toc_entry* */
+};
+
 #define	MDNPAD32	MDNPAD - 1
 struct md_ioctl32 {
 	unsigned	md_version;	/* Structure layout version */
@@ -48,6 +62,8 @@ struct md_ioctl32 {
 	int		md_pad[MDNPAD32]; /* padding for future ideas */
 };
 
+#define	CDIOREADTOCENTRYS_32 _IOWR('c', 5, struct ioc_read_toc_entry32)
+#define	CDIOREADTOCHEADER_32 _IOR('c', 4, struct ioc_toc_header32)
 #define	MDIOCATTACH_32	_IOC(IOC_INOUT, 'm', 0, sizeof(struct md_ioctl32) + 4)
 #define	MDIOCDETACH_32	_IOC(IOC_INOUT, 'm', 1, sizeof(struct md_ioctl32) + 4)
 #define	MDIOCQUERY_32	_IOC(IOC_INOUT, 'm', 2, sizeof(struct md_ioctl32) + 4)
