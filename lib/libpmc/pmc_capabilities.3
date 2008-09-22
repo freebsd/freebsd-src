@@ -1,4 +1,4 @@
-.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2007
+.Dd September 22, 2008
 .Os
 .Dt PMC_CAPABILITIES 3
 .Sh NAME
@@ -96,8 +96,11 @@ in the system.
 .Pp
 Function
 .Fn pmc_ncpu
-is a convenience function that returns the number of CPUs in the
-system.
+is a convenience function that returns the maximum CPU number in
+the system.
+On systems that support sparsely numbered CPUs, not all CPUs may
+be physically present.
+Applications need to be prepared to deal with nonexistent CPUs.
 .Pp
 Function
 .Fn pmc_npmc
@@ -201,11 +204,11 @@ may fail with the following errors:
 .It Bq Er EINVAL
 The argument
 .Fa cpu
-specified a non-existent CPU.
+was invalid.
 .It Bq Er ENXIO
 The argument
 .Fa cpu
-specified a disabled CPU.
+specified a disabled or absent CPU.
 .El
 .Pp
 A call to function
