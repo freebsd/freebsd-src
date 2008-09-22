@@ -344,7 +344,7 @@ static void
 ${1}_drvinit(void *unused)
 {
 	int	unit;
-	sc_p scp  = sca[unit];
+	sc_p	scp;
 
 	for (unit = 0; unit < N${UPPER}; unit++) {
 		/*
@@ -362,7 +362,7 @@ ${1}_drvinit(void *unused)
 }
 
 SYSINIT(${1}dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR,
-		${1}_drvinit, NULL)
+		${1}_drvinit, NULL);
 DONE
 
 cat >${TOP}/sys/${1}io.h <<DONE
