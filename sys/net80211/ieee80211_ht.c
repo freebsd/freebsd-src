@@ -1466,7 +1466,6 @@ ieee80211_addba_request(struct ieee80211_node *ni,
 	/* XXX locking */
 	tap->txa_token = dialogtoken;
 	tap->txa_flags |= IEEE80211_AGGR_IMMEDIATE;
-	tap->txa_start = 0;
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	tap->txa_wnd = (bufsiz == 0) ?
 	    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
