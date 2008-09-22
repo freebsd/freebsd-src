@@ -1507,7 +1507,7 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 /* Shut this node down as soon as everyone is clear of it */
 /* Should add arg "immediately" to jump the queue */
 int
-ng_rmnode_self(node_p node)
+ng_rmnode_flags(node_p node, int flags)
 {
 	int		error;
 
@@ -1517,8 +1517,14 @@ ng_rmnode_self(node_p node)
 	if (node->nd_flags & NGF_CLOSING)
 		return (0);
 
-	error = ng_send_fn(node, NULL, &ng_rmnode, NULL, 0);
+	error = ng_send_fn1(node, NULL, &ng_rmnode, NULL, 0, flags);
 	return (error);
+}
+
+int
+ng_rmnode_self(node_p node)
+{
+	return (ng_rmnode_flags(node, NG_NOFLAGS));
 }
 
 static void
