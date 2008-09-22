@@ -574,8 +574,15 @@
 #define	GPREG0_PHY_ADDR_SHIFT	0
 #define	GPREG0_PHY_ADDR		1
 
-/* General purpose register 1. reserved for future use. */
+/* General purpose register 1. */
 #define	JME_GPREG1		0x080C
+#define	GPREG1_RSS_IPV6_10_100	0x00000040	/* JMC250 A2 */
+#define	GPREG1_HDPX_FIX		0x00000020	/* JMC250 A2 */
+#define	GPREG1_INTDLY_UNIT_16US	0x00000018	/* JMC250 A1, A2 */
+#define	GPREG1_INTDLY_UNIT_1US	0x00000010	/* JMC250 A1, A2 */
+#define	GPREG1_INTDLY_UNIT_256NS	0x00000008	/* JMC250 A1, A2 */
+#define	GPREG1_INTDLY_UNIT_16NS	0x00000000	/* JMC250 A1, A2 */
+#define	GPREG1_INTDLY_MASK	0x00000007
 
 /* MSIX entry number of interrupt source. */
 #define	JME_MSINUM_BASE		0x0810
