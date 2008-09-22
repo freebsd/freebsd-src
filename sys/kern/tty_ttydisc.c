@@ -79,6 +79,8 @@ SYSCTL_LONG(_kern, OID_AUTO, tty_nout, CTLFLAG_RD,
 #define CTL_ALNUM(c)	(((c) >= '0' && (c) <= '9') || \
     ((c) >= 'a' && (c) <= 'z') || ((c) >= 'A' && (c) <= 'Z'))
 
+#define	TTY_STACKBUF	256
+
 void
 ttydisc_open(struct tty *tp)
 {
@@ -100,6 +102,9 @@ ttydisc_close(struct tty *tp)
 		ttydevsw_inwakeup(tp);
 		ttydevsw_outwakeup(tp);
 	}
+
+	if (ttyhook_hashook(tp, close))
+		ttyhook_close(tp);
 }
 
 static int
@@ -433,7 +438,7 @@ ttydisc_write_oproc(struct tty *tp, char c)
 int
 ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 {
-	char ob[256];
+	char ob[TTY_STACKBUF];
 	char *obstart;
 	int error = 0;
 	unsigned int oblen = 0;
@@ -557,11 +562,12 @@ ttydisc_optimize(struct tty *tp)
 {
 	tty_lock_assert(tp, MA_OWNED);
 
-	if (!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
+	if ((!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
 	    (!CMP_FLAG(i, BRKINT) || CMP_FLAG(i, IGNBRK)) &&
 	    (!CMP_FLAG(i, PARMRK) ||
 	        CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
-	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) {
+	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) ||
+	    ttyhook_hashook(tp, rint_bypass)) {
 		tp->t_flags |= TF_BYPASS;
 	} else {
 		tp->t_flags &= ~TF_BYPASS;
@@ -818,6 +824,9 @@ ttydisc_rint(struct tty *tp, char c, int flags)
 	tty_lock_assert(tp, MA_OWNED);
 
 	atomic_add_long(&tty_nin, 1);
+
+	if (ttyhook_hashook(tp, rint))
+		return ttyhook_rint(tp, c, flags);
 	
 	if (tp->t_flags & TF_BYPASS)
 		goto processed;
@@ -1045,6 +1054,9 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 
 	atomic_add_long(&tty_nin, len);
 
+	if (ttyhook_hashook(tp, rint_bypass))
+		return ttyhook_rint_bypass(tp, buf, len);
+
 	ret = ttyinq_write(&tp->t_inq, buf, len, 0);
 	ttyinq_canonicalize(&tp->t_inq);
 
@@ -1057,10 +1069,36 @@ ttydisc_rint_done(struct tty *tp)
 
 	tty_lock_assert(tp, MA_OWNED);
 
+	if (ttyhook_hashook(tp, rint_done))
+		ttyhook_rint_done(tp);
+
 	/* Wake up readers. */
 	tty_wakeup(tp, FREAD);
 	/* Wake up driver for echo. */
 	ttydevsw_outwakeup(tp);
+}
+
+size_t
+ttydisc_rint_poll(struct tty *tp)
+{
+	size_t l;
+
+	tty_lock_assert(tp, MA_OWNED);
+
+	if (ttyhook_hashook(tp, rint_poll))
+		return ttyhook_rint_poll(tp);
+
+	/*
+	 * XXX: Still allow character input when there's no space in the
+	 * buffers, but we haven't entered the high watermark. This is
+	 * to allow backspace characters to be inserted when in
+	 * canonical mode.
+	 */
+	l = ttyinq_bytesleft(&tp->t_inq);
+	if (l == 0 && (tp->t_flags & TF_HIWAT_IN) == 0)
+		return (1);
+	
+	return (l);
 }
 
 static void
@@ -1093,9 +1131,15 @@ ttydisc_getc(struct tty *tp, void *buf, size_t len)
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
 
-	len = ttyoutq_read(&tp->t_outq, buf, len);
-	ttydisc_wakeup_watermark(tp);
+	if (ttyhook_hashook(tp, getc_inject))
+		return ttyhook_getc_inject(tp, buf, len);
 
+	len = ttyoutq_read(&tp->t_outq, buf, len);
+
+	if (ttyhook_hashook(tp, getc_capture))
+		ttyhook_getc_capture(tp, buf, len);
+
+	ttydisc_wakeup_watermark(tp);
 	atomic_add_long(&tty_nout, len);
 
 	return (len);
@@ -1104,20 +1148,61 @@ ttydisc_getc(struct tty *tp, void *buf, size_t len)
 int
 ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 {
-	int error;
+	int error = 0;
 	int obytes = uio->uio_resid;
+	size_t len;
+	char buf[TTY_STACKBUF];
 
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tp->t_flags & TF_STOPPED)
 		return (0);
 
-	error = ttyoutq_read_uio(&tp->t_outq, tp, uio);
-	ttydisc_wakeup_watermark(tp);
+	/*
+	 * When a TTY hook is attached, we cannot perform unbuffered
+	 * copying to userspace. Just call ttydisc_getc() and
+	 * temporarily store data in a shadow buffer.
+	 */
+	if (ttyhook_hashook(tp, getc_capture) ||
+	    ttyhook_hashook(tp, getc_inject)) {
+		while (uio->uio_resid > 0) {
+			/* Read to shadow buffer. */
+			len = ttydisc_getc(tp, buf,
+			    MIN(uio->uio_resid, sizeof buf));
+			if (len == 0)
+				break;
 
-	atomic_add_long(&tty_nout, obytes - uio->uio_resid);
+			/* Copy to userspace. */
+			tty_unlock(tp);
+			error = uiomove(buf, len, uio);
+			tty_lock(tp);
+			
+			if (error != 0)
+				break;
+		}
+	} else {
+		error = ttyoutq_read_uio(&tp->t_outq, tp, uio);
+
+		ttydisc_wakeup_watermark(tp);
+		atomic_add_long(&tty_nout, obytes - uio->uio_resid);
+	}
 
 	return (error);
+}
+
+size_t
+ttydisc_getc_poll(struct tty *tp)
+{
+
+	tty_lock_assert(tp, MA_OWNED);
+
+	if (tp->t_flags & TF_STOPPED)
+		return (0);
+
+	if (ttyhook_hashook(tp, getc_poll))
+		return ttyhook_getc_poll(tp);
+
+	return ttyoutq_bytesused(&tp->t_outq);
 }
 
 /*
