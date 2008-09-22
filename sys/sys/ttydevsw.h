@@ -40,16 +40,18 @@
  * Driver routines that are called from the line discipline to adjust
  * hardware parameters and such.
  */
-typedef int tsw_open_t(struct tty *);
-typedef void tsw_close_t(struct tty *);
-typedef void tsw_outwakeup_t(struct tty *);
-typedef void tsw_inwakeup_t(struct tty *);
-typedef int tsw_ioctl_t(struct tty *, u_long, caddr_t, struct thread *);
-typedef int tsw_param_t(struct tty *, struct termios *);
-typedef int tsw_modem_t(struct tty *, int, int);
-typedef int tsw_mmap_t(struct tty *, vm_offset_t, vm_paddr_t *, int);
-typedef void tsw_pktnotify_t(struct tty *, char);
-typedef void tsw_free_t(void *);
+typedef int tsw_open_t(struct tty *tp);
+typedef void tsw_close_t(struct tty *tp);
+typedef void tsw_outwakeup_t(struct tty *tp);
+typedef void tsw_inwakeup_t(struct tty *tp);
+typedef int tsw_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
+    struct thread *td);
+typedef int tsw_param_t(struct tty *tp, struct termios *t);
+typedef int tsw_modem_t(struct tty *tp, int sigon, int sigoff);
+typedef int tsw_mmap_t(struct tty *tp, vm_offset_t offset,
+    vm_paddr_t * paddr, int nprot);
+typedef void tsw_pktnotify_t(struct tty *tp, char event);
+typedef void tsw_free_t(void *softc);
 
 struct ttydevsw {
 	unsigned int	tsw_flags;	/* Default TTY flags. */
