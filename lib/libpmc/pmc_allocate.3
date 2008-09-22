@@ -1,4 +1,4 @@
-.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2007
+.Dd September 22, 2008
 .Os
 .Dt PMC_ALLOCATE 3
 .Sh NAME
@@ -156,7 +156,7 @@ error.
 .It Bq Er ENXIO
 Function
 .Fn pmc_allocate
-requested the use of a hardware resource that was previously
+requested the use of a hardware resource that was absent or
 administratively disabled.
 .It Bq Er EOPNOTSUPP
 The underlying hardware does not support the capabilities needed for

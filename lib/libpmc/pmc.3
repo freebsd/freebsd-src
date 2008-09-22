@@ -261,7 +261,14 @@ CPU is running unprivileged code.
 .It Li PMC_CAP_WRITE
 The ability to write to performance counters.
 .El
-.Ss Functional Grouping
+.Ss CPU Naming Conventions
+CPUs are named using small integers from zero uptil, but
+excluding, the value returned by function
+.Fn pmc_ncpu .
+On platforms supporting sparsely numbered CPUs not all the numbers in
+this range will denote valid CPUs.
+Operations on non-existent CPUs will return an error.
+.Ss Functional Grouping of the API
 This section contains a brief overview of the available functionality
 in the PMC library.
 Each function listed here is described further in its own manual page.
@@ -342,7 +349,7 @@ system.
 Retrieve statistics maintained by
 .Xr hwpmc 4 .
 .It Fn pmc_ncpu
-Determine the number of CPUs in the system.
+Determine the greatest possible CPU number on the system.
 .It Fn pmc_npmc
 Return the number of hardware PMCs present in a given CPU.
 .It Fn pmc_pmcinfo
