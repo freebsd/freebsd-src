@@ -144,51 +144,52 @@ struct xtty {
 #ifdef _KERNEL
 
 /* Allocation and deallocation. */
-struct tty *tty_alloc(struct ttydevsw *, void *, struct mtx *);
-void	tty_rel_pgrp(struct tty *, struct pgrp *);
-void	tty_rel_sess(struct tty *, struct session *);
-void	tty_rel_gone(struct tty *);
+struct tty *tty_alloc(struct ttydevsw *tsw, void *softc, struct mtx *mtx);
+void	tty_rel_pgrp(struct tty *tp, struct pgrp *pgrp);
+void	tty_rel_sess(struct tty *tp, struct session *sess);
+void	tty_rel_gone(struct tty *tp);
 
 #define	tty_lock(tp)		mtx_lock((tp)->t_mtx)
 #define	tty_unlock(tp)		mtx_unlock((tp)->t_mtx)
 #define	tty_lock_assert(tp,ma)	mtx_assert((tp)->t_mtx, (ma))
 
 /* Device node creation. */
-void	tty_makedev(struct tty *, struct ucred *, const char *, ...)
+void	tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
     __printflike(3, 4);
 #define	tty_makealias(tp,fmt,...) \
 	make_dev_alias((tp)->t_dev, fmt, ## __VA_ARGS__)
 
 /* Signalling processes. */
-void	tty_signal_sessleader(struct tty *, int);
-void	tty_signal_pgrp(struct tty *, int);
+void	tty_signal_sessleader(struct tty *tp, int signal);
+void	tty_signal_pgrp(struct tty *tp, int signal);
 /* Waking up readers/writers. */
-int	tty_wait(struct tty *, struct cv *);
-int	tty_timedwait(struct tty *, struct cv *, int);
-void	tty_wakeup(struct tty *, int);
+int	tty_wait(struct tty *tp, struct cv *cv);
+int	tty_timedwait(struct tty *tp, struct cv *cv, int timo);
+void	tty_wakeup(struct tty *tp, int flags);
 
 /* System messages. */
-int	tty_checkoutq(struct tty *);
-int	tty_putchar(struct tty *, char);
+int	tty_checkoutq(struct tty *tp);
+int	tty_putchar(struct tty *tp, char c);
 
-int	tty_ioctl(struct tty *, u_long, void *, struct thread *);
-int	tty_ioctl_compat(struct tty *, u_long, caddr_t, struct thread *);
-void	tty_init_console(struct tty *, speed_t);
-void	tty_flush(struct tty *, int);
-void	tty_hiwat_in_block(struct tty *);
-void	tty_hiwat_in_unblock(struct tty *);
-dev_t	tty_udev(struct tty *);
+int	tty_ioctl(struct tty *tp, u_long cmd, void *data, struct thread *td);
+int	tty_ioctl_compat(struct tty *tp, u_long cmd, caddr_t data,
+    struct thread *td);
+void	tty_init_console(struct tty *tp, speed_t speed);
+void	tty_flush(struct tty *tp, int flags);
+void	tty_hiwat_in_block(struct tty *tp);
+void	tty_hiwat_in_unblock(struct tty *tp);
+dev_t	tty_udev(struct tty *tp);
 #define	tty_opened(tp)		((tp)->t_flags & TF_OPENED)
 #define	tty_gone(tp)		((tp)->t_flags & TF_GONE)
 #define	tty_softc(tp)		((tp)->t_softc)
 #define	tty_devname(tp)		devtoname((tp)->t_dev)
 
 /* Status line printing. */
-void	tty_info(struct tty *);
+void	tty_info(struct tty *tp);
 
 /* Pseudo-terminal hooks. */
-int	pts_alloc_external(int, struct thread *, struct file *,
-    struct cdev *, const char *);
+int	pts_alloc_external(int fd, struct thread *td, struct file *fp,
+    struct cdev *dev, const char *name);
 
 /* Drivers and line disciplines also need to call these. */
 #include <sys/ttydevsw.h>

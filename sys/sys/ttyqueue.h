@@ -69,19 +69,22 @@ struct ttyoutq {
 
 #ifdef _KERNEL
 /* Input queue handling routines. */
-void	ttyinq_setsize(struct ttyinq *, struct tty *, size_t);
-void	ttyinq_free(struct ttyinq *);
-int	ttyinq_read_uio(struct ttyinq *, struct tty *, struct uio *,
-    size_t, size_t);
-size_t	ttyinq_write(struct ttyinq *, const void *, size_t, int);
-int	ttyinq_write_nofrag(struct ttyinq *, const void *, size_t, int);
-void	ttyinq_canonicalize(struct ttyinq *);
-size_t	ttyinq_findchar(struct ttyinq *, const char *, size_t, char *);
-void	ttyinq_flush(struct ttyinq *);
-int	ttyinq_peekchar(struct ttyinq *, char *, int *);
-void	ttyinq_unputchar(struct ttyinq *);
-void	ttyinq_reprintpos_set(struct ttyinq *);
-void	ttyinq_reprintpos_reset(struct ttyinq *);
+void	ttyinq_setsize(struct ttyinq *ti, struct tty *tp, size_t len);
+void	ttyinq_free(struct ttyinq *ti);
+int	ttyinq_read_uio(struct ttyinq *ti, struct tty *tp, struct uio *uio,
+    size_t readlen, size_t flushlen);
+size_t	ttyinq_write(struct ttyinq *ti, const void *buf, size_t len,
+    int quote);
+int	ttyinq_write_nofrag(struct ttyinq *ti, const void *buf, size_t len,
+    int quote);
+void	ttyinq_canonicalize(struct ttyinq *ti);
+size_t	ttyinq_findchar(struct ttyinq *ti, const char *breakc, size_t maxlen,
+    char *lastc);
+void	ttyinq_flush(struct ttyinq *ti);
+int	ttyinq_peekchar(struct ttyinq *ti, char *c, int *quote);
+void	ttyinq_unputchar(struct ttyinq *ti);
+void	ttyinq_reprintpos_set(struct ttyinq *ti);
+void	ttyinq_reprintpos_reset(struct ttyinq *ti);
 
 static __inline void
 ttyinq_init(struct ttyinq *ti)
@@ -125,20 +128,20 @@ ttyinq_bytesline(struct ttyinq *ti)
 }
 
 /* Input buffer iteration. */
-typedef void ttyinq_line_iterator_t(void *, char, int);
-void	ttyinq_line_iterate_from_linestart(struct ttyinq *,
-    ttyinq_line_iterator_t *, void *);
-void	ttyinq_line_iterate_from_reprintpos(struct ttyinq *,
-    ttyinq_line_iterator_t *, void *);
+typedef void ttyinq_line_iterator_t(void *data, char c, int flags);
+void	ttyinq_line_iterate_from_linestart(struct ttyinq *ti,
+    ttyinq_line_iterator_t *iterator, void *data);
+void	ttyinq_line_iterate_from_reprintpos(struct ttyinq *ti,
+    ttyinq_line_iterator_t *iterator, void *data);
 
 /* Output queue handling routines. */
-void	ttyoutq_flush(struct ttyoutq *);
-void	ttyoutq_setsize(struct ttyoutq *, struct tty *, size_t);
-void	ttyoutq_free(struct ttyoutq *);
-size_t	ttyoutq_read(struct ttyoutq *, void *, size_t);
-int	ttyoutq_read_uio(struct ttyoutq *, struct tty *, struct uio *);
-size_t	ttyoutq_write(struct ttyoutq *, const void *, size_t);
-int	ttyoutq_write_nofrag(struct ttyoutq *, const void *, size_t);
+void	ttyoutq_flush(struct ttyoutq *to);
+void	ttyoutq_setsize(struct ttyoutq *to, struct tty *tp, size_t len);
+void	ttyoutq_free(struct ttyoutq *to);
+size_t	ttyoutq_read(struct ttyoutq *to, void *buf, size_t len);
+int	ttyoutq_read_uio(struct ttyoutq *to, struct tty *tp, struct uio *uio);
+size_t	ttyoutq_write(struct ttyoutq *to, const void *buf, size_t len);
+int	ttyoutq_write_nofrag(struct ttyoutq *to, const void *buf, size_t len);
 
 static __inline void
 ttyoutq_init(struct ttyoutq *to)
