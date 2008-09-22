@@ -1041,6 +1041,8 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 
 	ni = ic->ic_node_alloc(vap, macaddr);
 	if (ni != NULL) {
+		struct ieee80211_node *bss = vap->iv_bss;
+
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 			"%s %p<%s>\n", __func__, ni, ether_sprintf(macaddr));
 
@@ -1049,12 +1051,13 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ni->ni_vap = vap;
 
 		IEEE80211_ADDR_COPY(ni->ni_macaddr, macaddr);
-		IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_bss->ni_bssid);
+		IEEE80211_ADDR_COPY(ni->ni_bssid, bss->ni_bssid);
 		ieee80211_node_initref(ni);		/* mark referenced */
 		/* NB: required by ieee80211_fix_rate */
-		ieee80211_node_set_chan(ni, vap->iv_bss->ni_chan);
+		ieee80211_node_set_chan(ni, bss->ni_chan);
 		ieee80211_crypto_resetkey(vap, &ni->ni_ucastkey,
 			IEEE80211_KEYIX_NONE);
+		ni->ni_txpower = bss->ni_txpower;
 		/* XXX optimize away */
 		IEEE80211_NODE_SAVEQ_INIT(ni, "unknown");
 		IEEE80211_NODE_WDSQ_INIT(ni, "unknown");
@@ -1074,13 +1077,13 @@ ieee80211_dup_bss(struct ieee80211vap *vap,
 
 	ni = ieee80211_alloc_node(&ic->ic_sta, vap, macaddr);
 	if (ni != NULL) {
+		struct ieee80211_node *bss = vap->iv_bss;
 		/*
 		 * Inherit from iv_bss.
 		 */
-		ni->ni_authmode = vap->iv_bss->ni_authmode;
-		ni->ni_vlan = vap->iv_bss->ni_vlan;	/* XXX?? */
-		IEEE80211_ADDR_COPY(ni->ni_bssid, vap->iv_bss->ni_bssid);
-		ieee80211_node_set_chan(ni, vap->iv_bss->ni_chan);
+		copy_bss(ni, bss);
+		IEEE80211_ADDR_COPY(ni->ni_bssid, bss->ni_bssid);
+		ieee80211_node_set_chan(ni, bss->ni_chan);
 	}
 	return ni;
 }
@@ -1107,8 +1110,7 @@ ieee80211_node_create_wds(struct ieee80211vap *vap,
 		/*
 		 * Inherit any manually configured settings.
 		 */
-		ni->ni_authmode = vap->iv_bss->ni_authmode;
-		ni->ni_vlan = vap->iv_bss->ni_vlan;
+		copy_bss(ni, vap->iv_bss);
 		ieee80211_node_set_chan(ni, chan);
 		/* NB: propagate ssid so available to WPA supplicant */
 		ni->ni_esslen = vap->iv_des_ssid[0].len;
