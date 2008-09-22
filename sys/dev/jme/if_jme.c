@@ -1940,7 +1940,7 @@ static void
 jme_mac_config(struct jme_softc *sc)
 {
 	struct mii_data *mii;
-	uint32_t ghc, rxmac, txmac, txpause;
+	uint32_t ghc, gpreg, rxmac, txmac, txpause;
 
 	JME_LOCK_ASSERT(sc);
 
@@ -1996,9 +1996,19 @@ jme_mac_config(struct jme_softc *sc)
 	default:
 		break;
 	}
-	/* Workaround CRC errors at 100Mbps on JMC250 A2. */
 	if (sc->jme_rev == DEVICEID_JMC250 &&
 	    sc->jme_chip_rev == DEVICEREVID_JMC250_A2) {
+		/*
+		 * Workaround occasional packet loss issue of JMC250 A2
+		 * when it runs on half-duplex media.
+		 */
+		gpreg = CSR_READ_4(sc, JME_GPREG1);
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+			gpreg &= ~GPREG1_HDPX_FIX;
+		else
+			gpreg |= GPREG1_HDPX_FIX;
+		CSR_WRITE_4(sc, JME_GPREG1, gpreg);
+		/* Workaround CRC errors at 100Mbps on JMC250 A2. */
 		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 			/* Extend interface FIFO depth. */
 			jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
