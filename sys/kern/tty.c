@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/filio.h>
 #ifdef COMPAT_43TTY
 #include <sys/ioctl_compat.h>
@@ -59,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ttydefaults.h>
 #undef TTYDEFCHARS
 #include <sys/ucred.h>
+#include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
@@ -855,7 +857,7 @@ tty_alloc(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 
 	tp = malloc(sizeof(struct tty), M_TTY, M_WAITOK|M_ZERO);
 	tp->t_devsw = tsw;
-	tp->t_softc = sc;
+	tp->t_devswsoftc = sc;
 	tp->t_flags = tsw->tsw_flags;
 
 	tty_init_termios(tp);
@@ -923,7 +925,7 @@ tty_rel_free(struct tty *tp)
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tp->t_sessioncnt != 0 ||
-	    (tp->t_flags & (TF_GONE|TF_OPENED)) != TF_GONE) {
+	    (tp->t_flags & (TF_GONE|TF_OPENED|TF_HOOK)) != TF_GONE) {
 		/* TTY is still in use. */
 		tty_unlock(tp);
 		return;
@@ -1653,6 +1655,89 @@ tty_hiwat_in_unblock(struct tty *tp)
 		ttydevsw_inwakeup(tp);
 }
 
+static int
+ttyhook_defrint(struct tty *tp, char c, int flags)
+{
+
+	if (ttyhook_rint_bypass(tp, &c, 1) != 1)
+		return (-1);
+	
+	return (0);
+}
+
+int
+ttyhook_register(struct tty **rtp, struct thread *td, int fd,
+    struct ttyhook *th, void *softc)
+{
+	struct tty *tp;
+	struct file *fp;
+	struct cdev *dev;
+	struct cdevsw *cdp;
+	int error;
+
+	/* Validate the file descriptor. */
+	if (fget(td, fd, &fp) != 0)
+		return (EINVAL);
+	
+	/* Make sure the vnode is bound to a character device. */
+	error = EINVAL;
+	if (fp->f_type != DTYPE_VNODE || fp->f_vnode->v_type != VCHR ||
+	    fp->f_vnode->v_rdev == NULL)
+		goto done1;
+	dev = fp->f_vnode->v_rdev;
+
+	/* Make sure it is a TTY. */
+	cdp = dev_refthread(dev);
+	if (cdp == NULL)
+		goto done1;
+	if ((cdp->d_flags & D_TTY) == 0)
+		goto done2;
+	tp = dev->si_drv1;
+
+	/* Try to attach the hook to the TTY. */
+	error = EBUSY;
+	tty_lock(tp);
+	MPASS((tp->t_hook == NULL) == ((tp->t_flags & TF_HOOK) == 0));
+	if (tp->t_flags & TF_HOOK)
+		goto done3;
+
+	tp->t_flags |= TF_HOOK;
+	tp->t_hook = th;
+	tp->t_hooksoftc = softc;
+	*rtp = tp;
+	error = 0;
+
+	/* Maybe we can switch into bypass mode now. */
+	ttydisc_optimize(tp);
+
+	/* Silently convert rint() calls to rint_bypass() when possible. */
+	if (!ttyhook_hashook(tp, rint) && ttyhook_hashook(tp, rint_bypass))
+		th->th_rint = ttyhook_defrint;
+
+done3:	tty_unlock(tp);
+done2:	dev_relthread(dev);
+done1:	fdrop(fp, td);
+	return (error);
+}
+
+void
+ttyhook_unregister(struct tty *tp)
+{
+
+	tty_lock_assert(tp, MA_OWNED);
+	MPASS(tp->t_flags & TF_HOOK);
+
+	/* Disconnect the hook. */
+	tp->t_flags &= ~TF_HOOK;
+	tp->t_hook = NULL;
+
+	/* Maybe we need to leave bypass mode. */
+	ttydisc_optimize(tp);
+
+	/* Maybe deallocate the TTY as well. */
+	tty_rel_free(tp);
+}
+
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -1686,6 +1771,7 @@ static struct {
 	{ TF_EXCLUDE,	'X' },
 	{ TF_BYPASS,	'l' },
 	{ TF_ZOMBIE,	'Z' },
+	{ TF_HOOK,	's' },
 
 	{ 0,	       '\0' },
 };

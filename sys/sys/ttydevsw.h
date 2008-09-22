@@ -97,9 +97,7 @@ ttydevsw_outwakeup(struct tty *tp)
 	MPASS(!tty_gone(tp));
 
 	/* Prevent spurious wakeups. */
-	if (tp->t_flags & TF_STOPPED)
-		return;
-	if (ttyoutq_bytesused(&tp->t_outq) == 0)
+	if (ttydisc_getc_poll(tp) == 0)
 		return;
 
 	tp->t_devsw->tsw_outwakeup(tp);
