@@ -149,9 +149,9 @@ acpi_table_quirks(int *quirks)
     if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_FADT, 0, &fadt)))
 	bzero(&fadt, sizeof(fadt));
     if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_DSDT, 0, &dsdt)))
-	bzero(&fadt, sizeof(dsdt));
+	bzero(&dsdt, sizeof(dsdt));
     if (ACPI_FAILURE(AcpiGetTableHeader(ACPI_SIG_XSDT, 0, &xsdt)))
-	bzero(&fadt, sizeof(xsdt));
+	bzero(&xsdt, sizeof(xsdt));
 
     /* Then, override the quirks with any matched from table signatures. */
     for (entry = acpi_quirks_table; entry->match; entry++) {
