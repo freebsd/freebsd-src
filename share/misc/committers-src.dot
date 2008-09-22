@@ -148,6 +148,7 @@ rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2007/01/31"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2007/02/23"]
 rik [label="Roman Kurakin\nrik@FreeBSD.org\n2003/12/18"]
 rink [label="Rink Springer\nrink@FreeBSD.org\n2006/01/16"]
+rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/09/15"]
 roberto [label="Ollivier Robert\nroberto@FreeBSD.org\n1995/02/22"]
 rpaulo [label="Rui Paulo\nrpaulo@FreeBSD.org\n2007/09/25"]
 rrs [label="Randall R Stewart\nrrs@FreeBSD.org\n2007/02/08"]
@@ -292,6 +293,7 @@ jdp -> fjoe
 jhb -> arr
 jhb -> jeff
 jhb -> kbyanc
+jhb -> rnoland
 
 jkh -> imp
 jkh -> jlemon
