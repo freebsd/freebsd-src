@@ -1,4 +1,4 @@
-.\" Copyright (c) 2007 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2007-2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2007
+.Dd September 22, 2008
 .Os
 .Dt PMC_ENABLE 3
 .Sh NAME
@@ -85,7 +85,7 @@ were invalid.
 .It Bq Er ENXIO
 Argument
 .Fa cpu
-specified a disabled CPU.
+specified a disabled or absent CPU.
 .It Bq Er EPERM
 The current process lacks sufficient privilege to perform this
 operation.

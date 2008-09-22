@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2007 Joseph Koshy
+.\" Copyright (c) 2003-2008 Joseph Koshy
 .\" Copyright (c) 2007 The FreeBSD Foundation
 .\" All rights reserved.
 .\"
@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2007
+.Dd September 22, 2008
 .Dt HWPMC 4
 .Os
 .Sh NAME
@@ -307,8 +307,8 @@ has returned.
 The returned error code reflects any pending error state inside
 .Nm .
 .It Dv PMC_OP_GETCPUINFO
-Retrieve information about the number of CPUs on the system and
-the number of hardware performance monitoring counters available per-CPU.
+Retrieve information about the highest possible CPU number for the system,
+and the number of hardware performance monitoring counters available per CPU.
 .It Dv PMC_OP_GETDRIVERSTATS
 Retrieve module statistics (for analyzing the behavior of
 .Nm
@@ -490,6 +490,12 @@ via the RDTSC instruction.
 .Ss SMP Symmetry
 The kernel driver requires all physical CPUs in an SMP system to have
 identical performance monitoring counter hardware.
+.Ss Sparse CPU Numbering
+On platforms that sparsely number CPUs and which support hot-plugging
+of CPUs, requests that specify non-existent or disabled CPUs will fail
+with an error.
+Applications allocating system-scope PMCs need to be aware of
+the possibility of such transient failures.
 .Ss x86 TSC Handling
 Historically, on the x86 architecture,
 .Fx
@@ -735,17 +741,19 @@ PMCs directly with the RDPMC instruction.
 .It Bq Er ENXIO
 A
 .Dv PMC_OP_GETPMCINFO
-operation was requested for a disabled CPU.
+operation was requested for an absent or disabled CPU.
 .It Bq Er ENXIO
-A system-wide PMC on a disabled CPU was requested to be allocated with
-.Dv PMC_OP_PMCALLOCATE .
+A
+.Dv PMC_OP_PMCALLOCATE
+operation specified allocation of a system-wide PMC on an absent or
+disabled CPU.
 .It Bq Er ENXIO
 A
 .Dv PMC_OP_PMCSTART
 or
 .Dv PMC_OP_PMCSTOP
-request was issued for a system-wide PMC that was allocated on a
-currently disabled CPU.
+request was issued for a system-wide PMC that was allocated on a CPU
+that is currently absent or disabled.
 .It Bq Er EOPNOTSUPP
 A
 .Dv PMC_OP_PMCALLOCATE
