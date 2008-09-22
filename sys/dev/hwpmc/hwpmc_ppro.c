@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2003-2005,2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -336,7 +336,7 @@ p6_init(int cpu)
 	struct p6_cpu *pcs;
 	struct pmc_hw *phw;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] bad cpu %d", __LINE__, cpu));
 
 	PMCDBG(MDP,INI,0,"p6-init cpu=%d", cpu);
@@ -366,7 +366,7 @@ p6_cleanup(int cpu)
 {
 	struct pmc_cpu *pcs;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] bad cpu %d", __LINE__, cpu));
 
 	PMCDBG(MDP,INI,0,"p6-cleanup cpu=%d", cpu);
@@ -512,7 +512,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	(void) cpu;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p4,%d] illegal CPU %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p4,%d] illegal row-index value %d", __LINE__, ri));
@@ -616,7 +616,7 @@ p6_release_pmc(int cpu, int ri, struct pmc *pm)
 
 	PMCDBG(MDP,REL,1, "p6-release cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
@@ -638,7 +638,7 @@ p6_start_pmc(int cpu, int ri)
 	struct pmc_hw *phw;
 	const struct p6pmc_descr *pd;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
@@ -682,7 +682,7 @@ p6_stop_pmc(int cpu, int ri)
 	struct pmc_hw *phw;
 	struct p6pmc_descr *pd;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] illegal cpu value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row index %d", __LINE__, ri));
@@ -724,7 +724,7 @@ p6_intr(int cpu, struct trapframe *tf)
 	struct pmc_hw *phw;
 	pmc_value_t v;
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
