@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd August 27, 2008
+.Dd September 5, 2008
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1396,6 +1396,13 @@ See also
 .Cm outdoor ,
 and
 .Cm anywhere .
+.It Cm rifs
+Enable use of Reduced InterFrame Spacing (RIFS) when operating in 802.11n
+on an HT channel.
+Note that RIFS must be supported by both the station and access point
+for it to be used.
+To disable RIFS use
+.Fl rifs .
 .It Cm roam:rate Ar rate
 Set the threshold for controlling roaming when operating in a BSS.
 The
@@ -1497,6 +1504,23 @@ on an HT channel.
 NB: this currently enables Short GI on both HT40 and HT20 channels.
 To disable Short GI use
 .Fl shortgi .
+.It Cm smps
+Enable use of Static Spatial Multiplexing Power Save (SMPS)
+when operating in 802.11n.
+A station operating with Static SMPS maintains only a single
+receive chain active (this can significantly reduce power consumption).
+To disable SMPS use
+.Fl smps .
+.It Cm smpsdyn
+Enable use of Dynamic Spatial Multiplexing Power Save (SMPS)
+when operating in 802.11n.
+A station operating with Dynamic SMPS maintains only a single
+receive chain active but switches to multiple receive chains when it
+receives an RTS frame (this can significantly reduce power consumption).
+Note that stations cannot distinguish between RTS/CTS intended to
+enable multiple receive chains and those used for other purposes.
+To disable SMPS use
+.Fl smps .
 .It Cm ssid Ar ssid
 Set the desired Service Set Identifier (aka network name).
 The SSID is a string up to 32 characters
