@@ -166,6 +166,10 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 			if (vap->iv_htcaps & IEEE80211_HTCAP_SHORTGI40)
 				vap->iv_flags_ext |= IEEE80211_FEXT_SHORTGI40;
 		}
+		/* enable RIFS if capable */
+		if (vap->iv_htcaps & IEEE80211_HTC_RIFS)
+			vap->iv_flags_ext |= IEEE80211_FEXT_RIFS;
+
 		/* NB: A-MPDU and A-MSDU rx are mandated, these are tx only */
 		vap->iv_flags_ext |= IEEE80211_FEXT_AMPDU_RX;
 		if (vap->iv_htcaps & IEEE80211_HTC_AMPDU)
@@ -963,6 +967,9 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		ni->ni_ht2ndchan = IEEE80211_HTINFO_2NDCHAN_NONE;
 	}
 	ni->ni_htctlchan = ni->ni_chan->ic_ieee;
+	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+		ni->ni_flags |= IEEE80211_NODE_RIFS;
+	/* XXX does it make sense to enable SMPS? */
 
 	ni->ni_htopmode = 0;		/* XXX need protection state */
 	ni->ni_htstbc = 0;		/* XXX need info */
@@ -1294,6 +1301,12 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 			htflags = IEEE80211_CHAN_HT40D;
 	}
 	htinfo_update_chw(ni, htflags);
+
+	if ((htinfo->hi_byte1 & IEEE80211_HTINFO_RIFSMODE_PERM) &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS))
+		ni->ni_flags |= IEEE80211_NODE_RIFS;
+	else
+		ni->ni_flags &= ~IEEE80211_NODE_RIFS;
 }
 
 /*
@@ -2211,7 +2224,10 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 
 	/* XXX only update on channel change */
 	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, bsschan);
-	ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PROH;
+	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+		ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PERM;
+	else
+		ht->hi_byte1 = IEEE80211_HTINFO_RIFSMODE_PROH;
 	if (IEEE80211_IS_CHAN_HT40U(bsschan))
 		ht->hi_byte1 |= IEEE80211_HTINFO_2NDCHAN_ABOVE;
 	else if (IEEE80211_IS_CHAN_HT40D(bsschan))
@@ -2238,6 +2254,7 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 static uint8_t *
 ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 
 	/* pre-zero remainder of ie */
@@ -2246,7 +2263,10 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 	/* primary/control channel center */
 	*frm++ = ieee80211_chan2ieee(ic, ni->ni_chan);
 
-	frm[0] = IEEE80211_HTINFO_RIFSMODE_PROH;
+	if (vap->iv_flags_ext & IEEE80211_FEXT_RIFS)
+		frm[0] = IEEE80211_HTINFO_RIFSMODE_PERM;
+	else
+		frm[0] = IEEE80211_HTINFO_RIFSMODE_PROH;
 	if (IEEE80211_IS_CHAN_HT40U(ni->ni_chan))
 		frm[0] |= IEEE80211_HTINFO_2NDCHAN_ABOVE;
 	else if (IEEE80211_IS_CHAN_HT40D(ni->ni_chan))

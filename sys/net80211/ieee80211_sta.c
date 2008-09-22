@@ -1538,7 +1538,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			ic->ic_flags &= ~IEEE80211_F_USEPROT;
 		IEEE80211_NOTE_MAC(vap,
 		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, wh->i_addr2,
-		    "%sassoc success at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s",
+		    "%sassoc success at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s%s",
 		    ISREASSOC(subtype) ? "re" : "",
 		    IEEE80211_NODE_AID(ni),
 		    ic->ic_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
@@ -1550,6 +1550,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
 		    ni->ni_flags & IEEE80211_NODE_MIMO_RTS ? " (+SMPS-DYN)" :
 			ni->ni_flags & IEEE80211_NODE_MIMO_PS ? " (+SMPS)" : "",
+		    ni->ni_flags & IEEE80211_NODE_RIFS ? " (+RIFS)" : "",
 		    IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) ?
 			", fast-frames" : "",
 		    IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_TURBOP) ?
