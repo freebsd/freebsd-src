@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Joseph Koshy
+ * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -98,8 +98,8 @@ static int		*pmc_pmcdisp;	 /* PMC row dispositions */
 	KASSERT(pmc_pmcdisp[(R)] <= 0, ("[pmc,%d] row disposition error", \
 		    __LINE__));						  \
 	atomic_add_int(&pmc_pmcdisp[(R)], -1);				  \
-	KASSERT(pmc_pmcdisp[(R)] >= (-mp_ncpus), ("[pmc,%d] row "	  \
-		"disposition error", __LINE__));			  \
+	KASSERT(pmc_pmcdisp[(R)] >= (-pmc_cpu_max_active()),		  \
+		("[pmc,%d] row disposition error", __LINE__));		  \
 } while (0)
 
 #define	PMC_UNMARK_ROW_STANDALONE(R) do { 				  \
@@ -637,12 +637,12 @@ pmc_restore_cpu_binding(struct pmc_binding *pb)
 static void
 pmc_select_cpu(int cpu)
 {
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[pmc,%d] bad cpu number %d", __LINE__, cpu));
 
-	/* never move to a disabled CPU */
-	KASSERT(pmc_cpu_is_disabled(cpu) == 0, ("[pmc,%d] selecting "
-	    "disabled CPU %d", __LINE__, cpu));
+	/* Never move to an inactive CPU. */
+	KASSERT(pmc_cpu_is_active(cpu), ("[pmc,%d] selecting inactive "
+	    "CPU %d", __LINE__, cpu));
 
 	PMCDBG(CPU,SEL,2, "select-cpu cpu=%d", cpu);
 	thread_lock(curthread);
@@ -1186,7 +1186,7 @@ pmc_process_csw_in(struct thread *td)
 	PMCDBG(CSW,SWI,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
 	    p->p_pid, p->p_comm, pp);
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[pmc,%d] wierd CPU id %d", __LINE__, cpu));
 
 	pc = pmc_pcpu[cpu];
@@ -1311,7 +1311,7 @@ pmc_process_csw_out(struct thread *td)
 	PMCDBG(CSW,SWO,1, "cpu=%d proc=%p (%d, %s) pp=%p", cpu, p,
 	    p->p_pid, p->p_comm, pp);
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[pmc,%d wierd CPU id %d", __LINE__, cpu));
 
 	pc = pmc_pcpu[cpu];
@@ -2038,7 +2038,7 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
 #ifdef	DEBUG
 	volatile int maxloop;
 
-	maxloop = 100 * mp_ncpus;
+	maxloop = 100 * pmc_cpu_max();
 #endif
 
 	/*
@@ -2499,7 +2499,7 @@ pmc_start(struct pmc *pm)
 
 	cpu = PMC_TO_CPU(pm);
 
-	if (pmc_cpu_is_disabled(cpu))
+	if (!pmc_cpu_is_active(cpu))
 		return ENXIO;
 
 	pmc_select_cpu(cpu);
@@ -2566,10 +2566,10 @@ pmc_stop(struct pmc *pm)
 
 	cpu = PMC_TO_CPU(pm);
 
-	KASSERT(cpu >= 0 && cpu < mp_ncpus,
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[pmc,%d] illegal cpu=%d", __LINE__, cpu));
 
-	if (pmc_cpu_is_disabled(cpu))
+	if (!pmc_cpu_is_active(cpu))
 		return ENXIO;
 
 	pmc_select_cpu(cpu);
@@ -2734,7 +2734,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		struct pmc_op_getcpuinfo gci;
 
 		gci.pm_cputype = md->pmd_cputype;
-		gci.pm_ncpu    = mp_ncpus;
+		gci.pm_ncpu    = pmc_cpu_max();
 		gci.pm_npmc    = md->pmd_npmc;
 		gci.pm_nclass  = md->pmd_nclass;
 		bcopy(md->pmd_classes, &gci.pm_classes,
@@ -2802,12 +2802,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error = copyin(&gpi->pm_cpu, &cpu, sizeof(cpu))) != 0)
 			break;
 
-		if (cpu >= (unsigned int) mp_ncpus) {
+		if (cpu >= pmc_cpu_max()) {
 			error = EINVAL;
 			break;
 		}
 
-		if (pmc_cpu_is_disabled(cpu)) {
+		if (!pmc_cpu_is_active(cpu)) {
 			error = ENXIO;
 			break;
 		}
@@ -2896,12 +2896,12 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		cpu = pma.pm_cpu;
 
-		if (cpu < 0 || cpu >= mp_ncpus) {
+		if (cpu < 0 || cpu >= (int) pmc_cpu_max()) {
 			error = EINVAL;
 			break;
 		}
 
-		if (pmc_cpu_is_disabled(cpu)) {
+		if (!pmc_cpu_is_active(cpu)) {
 			error = ENXIO;
 			break;
 		}
@@ -2989,7 +2989,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if ((mode != PMC_MODE_SS  &&  mode != PMC_MODE_SC  &&
 		     mode != PMC_MODE_TS  &&  mode != PMC_MODE_TC) ||
-		    (cpu != (u_int) PMC_CPU_ANY && cpu >= (u_int) mp_ncpus)) {
+		    (cpu != (u_int) PMC_CPU_ANY && cpu >= pmc_cpu_max())) {
 			error = EINVAL;
 			break;
 		}
@@ -3006,10 +3006,10 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		}
 
 		/*
-		 * Check that a disabled CPU is not being asked for.
+		 * Check that an inactive CPU is not being asked for.
 		 */
 
-		if (PMC_IS_SYSTEM_MODE(mode) && pmc_cpu_is_disabled(cpu)) {
+		if (PMC_IS_SYSTEM_MODE(mode) && !pmc_cpu_is_active(cpu)) {
 			error = ENXIO;
 			break;
 		}
@@ -3522,7 +3522,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			cpu = PMC_TO_CPU(pm);
 			ri  = PMC_TO_ROWINDEX(pm);
 
-			if (pmc_cpu_is_disabled(cpu)) {
+			if (!pmc_cpu_is_active(cpu)) {
 				error = ENXIO;
 				break;
 			}
@@ -4292,6 +4292,7 @@ static int
 pmc_initialize(void)
 {
 	int cpu, error, n;
+	unsigned int maxcpu;
 	struct pmc_binding pb;
 	struct pmc_sample *ps;
 	struct pmc_samplebuffer *sb;
@@ -4349,18 +4350,20 @@ pmc_initialize(void)
 	if (md == NULL || md->pmd_init == NULL)
 		return ENOSYS;
 
+	maxcpu = pmc_cpu_max();
+
 	/* allocate space for the per-cpu array */
-	MALLOC(pmc_pcpu, struct pmc_cpu **, mp_ncpus * sizeof(struct pmc_cpu *),
+	MALLOC(pmc_pcpu, struct pmc_cpu **, maxcpu * sizeof(struct pmc_cpu *),
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	/* per-cpu 'saved values' for managing process-mode PMCs */
 	MALLOC(pmc_pcpu_saved, pmc_value_t *,
-	    sizeof(pmc_value_t) * mp_ncpus * md->pmd_npmc, M_PMC, M_WAITOK);
+	    sizeof(pmc_value_t) * maxcpu * md->pmd_npmc, M_PMC, M_WAITOK);
 
-	/* perform cpu dependent initialization */
+	/* Perform CPU-dependent initialization. */
 	pmc_save_cpu_binding(&pb);
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
-		if (pmc_cpu_is_disabled(cpu))
+	for (cpu = 0; cpu < maxcpu; cpu++) {
+		if (!pmc_cpu_is_active(cpu))
 			continue;
 		pmc_select_cpu(cpu);
 		if ((error = md->pmd_init(cpu)) != 0)
@@ -4372,8 +4375,8 @@ pmc_initialize(void)
 		return error;
 
 	/* allocate space for the sample array */
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
-		if (pmc_cpu_is_disabled(cpu))
+	for (cpu = 0; cpu < maxcpu; cpu++) {
+		if (!pmc_cpu_is_active(cpu))
 			continue;
 		MALLOC(sb, struct pmc_samplebuffer *,
 		    sizeof(struct pmc_samplebuffer) +
@@ -4463,6 +4466,7 @@ static void
 pmc_cleanup(void)
 {
 	int cpu;
+	unsigned int maxcpu;
 	struct pmc_ownerhash *ph;
 	struct pmc_owner *po, *tmp;
 	struct pmc_binding pb;
@@ -4542,9 +4546,10 @@ pmc_cleanup(void)
 	KASSERT(pmc_ss_count == 0,
 	    ("[pmc,%d] Global SS count not empty", __LINE__));
 
-	/* free the per-cpu sample buffers */
-	for (cpu = 0; cpu < mp_ncpus; cpu++) {
-		if (pmc_cpu_is_disabled(cpu))
+	/* Free the per-cpu sample buffers. */
+	maxcpu = pmc_cpu_max();
+	for (cpu = 0; cpu < maxcpu; cpu++) {
+		if (!pmc_cpu_is_active(cpu))
 			continue;
 		KASSERT(pmc_pcpu[cpu]->pc_sb != NULL,
 		    ("[pmc,%d] Null cpu sample buffer cpu=%d", __LINE__,
@@ -4558,14 +4563,14 @@ pmc_cleanup(void)
 	PMCDBG(MOD,INI,3, "%s", "md cleanup");
 	if (md) {
 		pmc_save_cpu_binding(&pb);
-		for (cpu = 0; cpu < mp_ncpus; cpu++) {
+		for (cpu = 0; cpu < maxcpu; cpu++) {
 			PMCDBG(MOD,INI,1,"pmc-cleanup cpu=%d pcs=%p",
 			    cpu, pmc_pcpu[cpu]);
-			if (pmc_cpu_is_disabled(cpu))
+			if (!pmc_cpu_is_active(cpu) || pmc_pcpu[cpu] == NULL)
 				continue;
 			pmc_select_cpu(cpu);
-			if (pmc_pcpu[cpu])
-				(void) md->pmd_cleanup(cpu);
+			if (md->pmd_cleanup)
+				md->pmd_cleanup(cpu);
 		}
 		FREE(md, M_PMC);
 		md = NULL;
@@ -4606,8 +4611,8 @@ load (struct module *module __unused, int cmd, void *arg __unused)
 		error = pmc_initialize();
 		if (error != 0)
 			break;
-		PMCDBG(MOD,INI,1, "syscall=%d ncpus=%d",
-		    pmc_syscall_num, mp_ncpus);
+		PMCDBG(MOD,INI,1, "syscall=%d maxcpu=%d",
+		    pmc_syscall_num, pmc_cpu_max());
 		break;
 
 
