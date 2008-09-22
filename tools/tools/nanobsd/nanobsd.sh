@@ -402,6 +402,10 @@ create_i386_diskimage ( ) (
 			    c - $1, "sectors" > "/dev/stderr"
 			exit 2
 		}
+
+		# Force slice 1 to be marked active. This is necessary
+		# for booting the image from a USB device to work.
+		print "a 1"
 	}
 	' > ${MAKEOBJDIRPREFIX}/_.fdisk
 
