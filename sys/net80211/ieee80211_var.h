@@ -492,6 +492,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_SHORTGI20 0x04000000	/* CONF: short GI in HT20 */
 #define	IEEE80211_FEXT_SHORTGI40 0x08000000	/* CONF: short GI in HT40 */
 #define	IEEE80211_FEXT_HTCOMPAT  0x10000000	/* CONF: HT vendor OUI's */
+#define	IEEE80211_FEXT_RIFS  	 0x20000000	/* CONF: RIFS enabled */
 
 /* ic_caps/iv_caps: device driver capabilities */
 /* 0x2f available */
@@ -535,6 +536,7 @@ MALLOC_DECLARE(M_80211_VAP);
 /* NB: HT40 is implied by IEEE80211_HTCAP_CHWIDTH40 */
 #define	IEEE80211_HTC_HT	0x00040000	/* CAPABILITY: HT operation */
 #define	IEEE80211_HTC_SMPS	0x00080000	/* CAPABILITY: MIMO power save*/
+#define	IEEE80211_HTC_RIFS	0x00100000	/* CAPABILITY: RIFS support */
 
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);

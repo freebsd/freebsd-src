@@ -1080,6 +1080,15 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		} else
 			ireq->i_val = vap->iv_htcaps & IEEE80211_HTCAP_SMPS;
 		break;
+	case IEEE80211_IOC_RIFS:
+		if (vap->iv_opmode == IEEE80211_M_STA &&
+		    vap->iv_state == IEEE80211_S_RUN)
+			ireq->i_val =
+			    (vap->iv_bss->ni_flags & IEEE80211_NODE_RIFS) != 0;
+		else
+			ireq->i_val =
+			    (vap->iv_flags_ext & IEEE80211_FEXT_RIFS) != 0;
+		break;
 	default:
 		error = EINVAL;
 		break;
@@ -3089,6 +3098,17 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 			return EOPNOTSUPP;
 		vap->iv_htcaps = (vap->iv_htcaps &~ IEEE80211_HTCAP_SMPS) |
 			ireq->i_val;
+		/* NB: if not operating in 11n this can wait */
+		if (isvapht(vap))
+			error = ERESTART;
+		break;
+	case IEEE80211_IOC_RIFS:
+		if (ireq->i_val != 0) {
+			if ((vap->iv_htcaps & IEEE80211_HTC_RIFS) == 0)
+				return EOPNOTSUPP;
+			vap->iv_flags_ext |= IEEE80211_FEXT_RIFS;
+		} else
+			vap->iv_flags_ext &= ~IEEE80211_FEXT_RIFS;
 		/* NB: if not operating in 11n this can wait */
 		if (isvapht(vap))
 			error = ERESTART;
