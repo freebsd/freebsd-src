@@ -104,10 +104,10 @@ MALLOC_DEFINE(M_KBDMUX, KEYBOARD_NAME, "Keyboard multiplexor");
 
 #define KBDMUX_LOCK_DESTROY(s)
 
-#define KBDMUX_LOCK(s)
-
-#define KBDMUX_UNLOCK(s)
-
+#define KBDMUX_LOCK(s) \
+	mtx_lock(&Giant)
+#define KBDMUX_UNLOCK(s) \
+	mtx_unlock(&Giant)
 #define KBDMUX_LOCK_ASSERT(s, w)
 
 #define KBDMUX_SLEEP(s, f, d, t) \
