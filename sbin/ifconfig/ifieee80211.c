@@ -112,6 +112,11 @@
 #define	IEEE80211_NODE_HTCOMPAT	0x0080		/* HT setup w/ vendor OUI's */
 #define	IEEE80211_NODE_WPS	0x0100		/* WPS association */
 #define	IEEE80211_NODE_TSN	0x0200		/* TSN association */
+#define	IEEE80211_NODE_AMPDU_RX	0x0400		/* AMPDU rx enabled */
+#define	IEEE80211_NODE_AMPDU_TX	0x0800		/* AMPDU tx enabled */
+#define	IEEE80211_NODE_MIMO_PS	0x1000		/* MIMO power save enabled */
+#define	IEEE80211_NODE_MIMO_RTS	0x2000		/* send RTS in MIMO PS */
+#define	IEEE80211_NODE_RIFS	0x4000		/* RIFS enabled */
 #endif
 
 #define	MAXCOL	78
@@ -1695,6 +1700,18 @@ set80211dotd(const char *val, int d, int s, const struct afswtch *rafp)
 	set80211(s, IEEE80211_IOC_DOTD, d, 0, NULL);
 }
 
+static void
+set80211smps(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_SMPS, d, 0, NULL);
+}
+
+static void
+set80211rifs(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_RIFS, d, 0, NULL);
+}
+
 static int
 regdomain_sort(const void *a, const void *b)
 {
@@ -2093,7 +2110,18 @@ getflags(int flags)
 	if (flags & IEEE80211_NODE_WPS)
 		*cp++ = 'W';
 	if (flags & IEEE80211_NODE_TSN)
+		*cp++ = 'N';
+	if (flags & IEEE80211_NODE_AMPDU_TX)
 		*cp++ = 'T';
+	if (flags & IEEE80211_NODE_AMPDU_RX)
+		*cp++ = 'R';
+	if (flags & IEEE80211_NODE_MIMO_PS) {
+		*cp++ = 'M';
+		if (flags & IEEE80211_NODE_MIMO_RTS)
+			*cp++ = '+';
+	}
+	if (flags & IEEE80211_NODE_RIFS)
+		*cp++ = 'I';
 	*cp = '\0';
 	return flagstring;
 }
@@ -4111,6 +4139,20 @@ end:
 			else if (verbose)
 				LINE_CHECK("-puren");
 		}
+		if (get80211val(s, IEEE80211_IOC_SMPS, &val) != -1) {
+			if (val == IEEE80211_HTCAP_SMPS_DYNAMIC)
+				LINE_CHECK("smpsdyn");
+			else if (val == IEEE80211_HTCAP_SMPS_ENA)
+				LINE_CHECK("smps");
+			else if (verbose)
+				LINE_CHECK("-smps");
+		}
+		if (get80211val(s, IEEE80211_IOC_RIFS, &val) != -1) {
+			if (val)
+				LINE_CHECK("rifs");
+			else if (verbose)
+				LINE_CHECK("-rifs");
+		}
 	}
 
 	if (get80211val(s, IEEE80211_IOC_WME, &wme) != -1) {
@@ -4593,6 +4635,11 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-ht40",	0,	set80211htconf),
 	DEF_CMD("ht",		3,	set80211htconf),	/* NB: 20+40 */
 	DEF_CMD("-ht",		0,	set80211htconf),
+	DEF_CMD("rifs",		1,	set80211rifs),
+	DEF_CMD("-rifs",	0,	set80211rifs),
+	DEF_CMD("smps",		IEEE80211_HTCAP_SMPS_ENA,	set80211smps),
+	DEF_CMD("smpsdyn",	IEEE80211_HTCAP_SMPS_DYNAMIC,	set80211smps),
+	DEF_CMD("-smps",	IEEE80211_HTCAP_SMPS_OFF,	set80211smps),
 	/* XXX for testing */
 	DEF_CMD_ARG("chanswitch",	set80211chanswitch),
 
