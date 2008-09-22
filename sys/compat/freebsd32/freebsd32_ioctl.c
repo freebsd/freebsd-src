@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 /* Cannot get exact size in 64-bit due to alignment issue of entire struct. */
 CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
+CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
+CTASSERT(sizeof(struct ioc_toc_header32) == 4);
 
 
 static int
@@ -123,6 +125,60 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 }
 
 
+static int
+freebsd32_ioctl_ioc_toc_header(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct ioc_toc_header toch;
+	struct ioc_toc_header32 toch32;
+	int error;
+
+	if (uap->data == NULL)
+		panic("%s: where is my ioctl data??", __func__);
+
+	if ((error = copyin(uap->data, &toch32, sizeof(toch32))))
+		return (error);
+	CP(toch32, toch, len);
+	CP(toch32, toch, starting_track);
+	CP(toch32, toch, ending_track);
+	error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&toch,
+	    td->td_ucred, td);
+	fdrop(fp, td);
+	return (error);
+}
+
+
+static int
+freebsd32_ioctl_ioc_read_toc(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct ioc_read_toc_entry toce;
+	struct ioc_read_toc_entry32 toce32;
+	int error;
+
+	if (uap->data == NULL)
+		panic("%s: where is my ioctl data??", __func__);
+
+	if ((error = copyin(uap->data, &toce32, sizeof(toce32))))
+		return (error);
+	CP(toce32, toce, address_format);
+	CP(toce32, toce, starting_track);
+	CP(toce32, toce, data_len);
+	PTRIN_CP(toce32, toce, data);
+
+	if ((error = fo_ioctl(fp, CDIOREADTOCENTRYS, (caddr_t)&toce,
+	    td->td_ucred, td))) {
+		CP(toce, toce32, address_format);
+		CP(toce, toce32, starting_track);
+		CP(toce, toce32, data_len);
+		PTROUT_CP(toce, toce32, data);
+		error = copyout(&toce32, uap->data, sizeof(toce32));
+	}
+	fdrop(fp, td);
+	return error;
+}
+
+
 int
 freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 {
@@ -147,6 +203,12 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	case MDIOCQUERY_32:	/* FALLTHROUGH */
 	case MDIOCLIST_32:
 		return freebsd32_ioctl_md(td, uap, fp);
+
+	case CDIOREADTOCENTRYS_32:
+		return freebsd32_ioctl_ioc_read_toc(td, uap, fp);
+
+	case CDIOREADTOCHEADER_32:
+		return freebsd32_ioctl_ioc_toc_header(td, uap, fp);
 
 	default:
 		fdrop(fp, td);
