@@ -1035,7 +1035,7 @@ print:
 }
 
 size_t
-ttydisc_rint_bypass(struct tty *tp, char *buf, size_t len)
+ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 {
 	size_t ret;
 
