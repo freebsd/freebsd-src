@@ -124,8 +124,17 @@ do {						\
 /* Check if a CPU has recorded samples. */
 #define	PMC_CPU_HAS_SAMPLES(C)	(__predict_false(pmc_cpumask & (1 << (C))))
 
-/* helper functions */
-int	pmc_cpu_is_disabled(int _cpu);
-int	pmc_cpu_is_logical(int _cpu);
+/*
+ * Helper functions.
+ */
+int		pmc_cpu_is_disabled(int _cpu);  /* deprecated */
+int		pmc_cpu_is_active(int _cpu);
+int		pmc_cpu_is_present(int _cpu);
+int		pmc_cpu_is_primary(int _cpu);
+unsigned int	pmc_cpu_max(void);
+
+#ifdef	INVARIANTS
+int		pmc_cpu_max_active(void);
+#endif
 
 #endif /* _SYS_PMCKERN_H_ */
