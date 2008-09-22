@@ -5874,7 +5874,7 @@ table_handler(int ac, char *av[])
 	char *p;
 	uint32_t tables_max;
 
-	len = sizeof(a);
+	len = sizeof(tables_max);
 	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
 		NULL, 0) == -1) {
 #ifdef IPFW_TABLES_MAX
