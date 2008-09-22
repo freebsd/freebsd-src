@@ -60,6 +60,9 @@ NANO_PACKAGE_DIR=${NANO_SRC}/${NANO_TOOLS}/Pkg
 # Parallel Make
 NANO_PMAKE="make -j 3"
 
+# The default name for any image we create.
+NANO_IMGNAME="_.disk.full"
+
 # Options to put in make.conf during buildworld only
 CONF_BUILD=' '
 
@@ -85,7 +88,7 @@ NANO_NEWFS="-b 4096 -f 512 -i 8192 -O1 -U"
 NANO_DRIVE=ad0
 
 # Target media size in 512 bytes sectors
-NANO_MEDIASIZE=1000000
+NANO_MEDIASIZE=1200000
 
 # Number of code images on media (1 or 2)
 NANO_IMAGES=2
@@ -162,7 +165,8 @@ build_world ( ) (
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.bw"
 
 	cd ${NANO_SRC}
-	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} buildworld \
+	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} \
+		__MAKE_CONF=${NANO_MAKE_CONF} buildworld \
 		> ${MAKEOBJDIRPREFIX}/_.bw 2>&1
 )
 
@@ -179,7 +183,7 @@ build_kernel ( ) (
 	# when cross-building
 	unset TARGET_CPUTYPE
 	unset TARGET_BIG_ENDIAN
-	${NANO_PMAKE} buildkernel \
+	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
 		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
 		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 	)
@@ -208,6 +212,7 @@ install_world ( ) (
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.iw"
 
 	cd ${NANO_SRC}
+	env TARGET_ARCH=${NANO_ARCH} \
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} installworld \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${MAKEOBJDIRPREFIX}/_.iw 2>&1
@@ -220,6 +225,7 @@ install_etc ( ) (
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.etc"
 
 	cd ${NANO_SRC}
+	env TARGET_ARCH=${NANO_ARCH} \
 	${NANO_PMAKE} __MAKE_CONF=${NANO_MAKE_CONF} distribution \
 		DESTDIR=${NANO_WORLDDIR} \
 		> ${MAKEOBJDIRPREFIX}/_.etc 2>&1
@@ -230,7 +236,7 @@ install_kernel ( ) (
 	echo "### log: ${MAKEOBJDIRPREFIX}/_.ik"
 
 	cd ${NANO_SRC}
-	${NANO_PMAKE} installkernel \
+	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
 		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
 		> ${MAKEOBJDIRPREFIX}/_.ik 2>&1
@@ -409,7 +415,7 @@ create_i386_diskimage ( ) (
 	}
 	' > ${MAKEOBJDIRPREFIX}/_.fdisk
 
-	IMG=${NANO_DISKIMGDIR}/_.disk.full
+	IMG=${NANO_DISKIMGDIR}/${NANO_IMGNAME}
 	MNT=${MAKEOBJDIRPREFIX}/_.mnt
 	mkdir -p ${MNT}
 
@@ -506,6 +512,45 @@ FlashDevice () {
 	sub_FlashDevice $1 $2
 }
 
+#######################################################################
+# USB device geometries
+#
+# Usage:
+#	UsbDevice Generic 1000	# a generic flash key sold as having 1GB
+#
+# This function will set NANO_MEDIASIZE, NANO_HEADS and NANO_SECTS for you.
+#
+# Note that the capacity of a flash key is usually advertised in MB or
+# GB, *not* MiB/GiB. As such, the precise number of cylinders available
+# for C/H/S geometry may vary depending on the actual flash geometry.
+#
+# The following generic device layouts are understood:
+#  generic           An alias for generic-hdd.
+#  generic-hdd       255H 63S/T xxxxC with no MBR restrictions.
+#  generic-fdd       64H 32S/T xxxxC with no MBR restrictions.
+#
+# The generic-hdd device is preferred for flash devices larger than 1GB.
+#
+
+UsbDevice () {
+	a1=`echo $1 | tr '[:upper:]' '[:lower:]'`
+	case $a1 in
+	generic-fdd)
+		NANO_HEADS=64
+		NANO_SECTS=32
+		NANO_MEDIASIZE=$(( $2 * 1000 * 1000 / 512 ))
+		;;
+	generic|generic-hdd)
+		NANO_HEADS=255
+		NANO_SECTS=63
+		NANO_MEDIASIZE=$(( $2 * 1000 * 1000 / 512 ))
+		;;
+	*)
+		echo "Unknown USB flash device"
+		exit 2
+		;;
+	esac
+}
 
 #######################################################################
 # Setup serial console
@@ -706,6 +751,7 @@ export NANO_DATASIZE
 export NANO_DRIVE
 export NANO_HEADS
 export NANO_IMAGES
+export NANO_IMGNAME
 export NANO_MAKE_CONF
 export NANO_MEDIASIZE
 export NANO_NAME
@@ -749,6 +795,7 @@ prune_usr
 run_late_customize
 if $do_image ; then
 	create_${NANO_ARCH}_diskimage
+	echo "# Created NanoBSD disk image: ${MAKEOBJDIRPREFIX}/${NANO_IMGNAME}"
 else
 	echo "## Skipping image build (as instructed)"
 fi
