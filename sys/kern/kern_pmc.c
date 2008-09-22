@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Joseph Koshy
+ * Copyright (c) 2003-2008 Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -81,25 +81,102 @@ pmc_init_sx(void)
 SYSINIT(pmcsx, SI_SUB_LOCK, SI_ORDER_MIDDLE, pmc_init_sx, NULL);
 
 /*
- * Helper functions
+ * Helper functions.
+ */
+
+/*
+ * A note on the CPU numbering scheme used by the hwpmc(4) driver.
+ *
+ * CPUs are denoted using numbers in the range 0..[pmc_cpu_max()-1].
+ * CPUs could be numbered "sparsely" in this range; the predicate
+ * `pmc_cpu_is_present()' is used to test whether a given CPU is
+ * physically present.
+ *
+ * Further, a CPU that is physically present may be administratively
+ * disabled or otherwise unavailable for use by hwpmc(4).  The
+ * `pmc_cpu_is_active()' predicate tests for CPU usability.  An
+ * "active" CPU participates in thread scheduling and can field
+ * interrupts raised by PMC hardware.
+ *
+ * On systems with hyperthreaded CPUs, multiple logical CPUs may share
+ * PMC hardware resources.  For such processors one logical CPU is
+ * denoted as the primary owner of the in-CPU PMC resources. The
+ * pmc_cpu_is_primary() predicate is used to distinguish this primary
+ * CPU from the others.
  */
 
 int
-pmc_cpu_is_disabled(int cpu)
+pmc_cpu_is_active(int cpu)
 {
 #ifdef	SMP
-	return ((hlt_cpus_mask & (1 << cpu)) != 0);
+	return (pmc_cpu_is_present(cpu) &&
+	    (hlt_cpus_mask & (1 << cpu)) == 0);
 #else
-	return 0;
+	return (1);
+#endif
+}
+
+/* Deprecated. */
+int
+pmc_cpu_is_disabled(int cpu)
+{
+	return (!pmc_cpu_is_active(cpu));
+}
+
+int
+pmc_cpu_is_present(int cpu)
+{
+#ifdef	SMP
+	return (!CPU_ABSENT(cpu));
+#else
+	return (1);
 #endif
 }
 
 int
-pmc_cpu_is_logical(int cpu)
+pmc_cpu_is_primary(int cpu)
 {
 #ifdef	SMP
-	return ((logical_cpus_mask & (1 << cpu)) != 0);
+	return ((logical_cpus_mask & (1 << cpu)) == 0);
 #else
-	return 0;
+	return (1);
 #endif
 }
+
+
+/*
+ * Return the maximum CPU number supported by the system.  The return
+ * value is used for scaling internal data structures and for runtime
+ * checks.
+ */
+unsigned int
+pmc_cpu_max(void)
+{
+#ifdef	SMP
+	return (mp_maxid+1);
+#else
+	return (1);
+#endif
+}
+
+#ifdef	INVARIANTS
+
+/*
+ * Return the count of CPUs in the `active' state in the system.
+ */
+int
+pmc_cpu_max_active(void)
+{
+#ifdef	SMP
+	/*
+	 * When support for CPU hot-plugging is added to the kernel,
+	 * this function would change to return the current number
+	 * of "active" CPUs.
+	 */
+	return (mp_ncpus);
+#else
+	return (1);
+#endif
+}
+
+#endif
