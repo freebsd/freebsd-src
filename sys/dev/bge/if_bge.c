@@ -134,7 +134,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
  * ID burned into it, though it will always be overriden by the vendor
  * ID in the EEPROM. Just to be safe, we cover all possibilities.
  */
-static struct bge_type {
+static const struct bge_type {
 	uint16_t	bge_vid;
 	uint16_t	bge_did;
 } bge_devs[] = {
@@ -1851,7 +1851,7 @@ bge_lookup_vendor(uint16_t vid)
 static int
 bge_probe(device_t dev)
 {
-	struct bge_type *t = bge_devs;
+	const struct bge_type *t = bge_devs;
 	struct bge_softc *sc = device_get_softc(dev);
 	uint16_t vid, did;
 
@@ -1873,7 +1873,8 @@ bge_probe(device_t dev)
 #if __FreeBSD_version > 700024
 				const char *pname;
 
-				if (pci_get_vpd_ident(dev, &pname) == 0)
+				if (bge_has_eaddr(sc) &&
+				    pci_get_vpd_ident(dev, &pname) == 0)
 					snprintf(model, 64, "%s", pname);
 				else
 #endif
