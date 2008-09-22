@@ -115,6 +115,8 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_MIMO_PS	0x001000	/* MIMO power save enabled */
 #define	IEEE80211_NODE_MIMO_RTS	0x002000	/* send RTS in MIMO PS */
 #define	IEEE80211_NODE_RIFS	0x004000	/* RIFS enabled */
+#define	IEEE80211_NODE_SGI20	0x008000	/* Short GI in HT20 enabled */
+#define	IEEE80211_NODE_SGI40	0x010000	/* Short GI in HT40 enabled */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -199,7 +201,8 @@ MALLOC_DECLARE(M_80211_NODE_IE);
 #define	IEEE80211_NODE_HT_ALL \
 	(IEEE80211_NODE_HT | IEEE80211_NODE_HTCOMPAT | \
 	 IEEE80211_NODE_AMPDU | IEEE80211_NODE_MIMO_PS | \
-	 IEEE80211_NODE_MIMO_RTS | IEEE80211_NODE_RIFS)
+	 IEEE80211_NODE_MIMO_RTS | IEEE80211_NODE_RIFS | \
+	 IEEE80211_NODE_SGI20 | IEEE80211_NODE_SGI40)
 
 #define	IEEE80211_NODE_AID(ni)	IEEE80211_AID(ni->ni_associd)
 
