@@ -312,6 +312,7 @@ static struct {
 	{ TF_EXCLUDE,	'X' },
 	{ TF_BYPASS,	'l' },
 	{ TF_ZOMBIE,	'Z' },
+	{ TF_HOOK,	's' },
 
 	{ 0,	       '\0' },
 };

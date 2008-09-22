@@ -80,6 +80,7 @@ struct tty {
 #define	TF_EXCLUDE	0x1000	/* Exclusive access. */
 #define	TF_BYPASS	0x2000	/* Optimized input path. */
 #define	TF_ZOMBIE	0x4000	/* Modem disconnect received. */
+#define	TF_HOOK		0x8000	/* TTY has hook attached. */
 	unsigned int	t_revokecnt;	/* (t) revoke() count. */
 
 	/* Buffering mechanisms. */
@@ -112,13 +113,15 @@ struct tty {
 	struct termios	t_termios_lock_out;	/* cua%s.lock. */
 
 	struct ttydevsw	*t_devsw;	/* (c) Driver hooks. */
+	struct ttyhook	*t_hook;	/* (t) Capture/inject hook. */
 
 	/* Process signal delivery. */
 	struct pgrp	*t_pgrp;	/* (t) Foreground process group. */
 	struct session	*t_session;	/* (t) Associated session. */
 	unsigned int	t_sessioncnt;	/* (t) Backpointing sessions. */
 
-	void		*t_softc;	/* (c) Soft config, for drivers. */
+	void		*t_devswsoftc;	/* (c) Soft config, for drivers. */
+	void		*t_hooksoftc;	/* (t) Soft config, for hooks. */
 	struct cdev	*t_dev;		/* (c) Primary character device. */
 };
 
@@ -181,7 +184,7 @@ void	tty_hiwat_in_unblock(struct tty *tp);
 dev_t	tty_udev(struct tty *tp);
 #define	tty_opened(tp)		((tp)->t_flags & TF_OPENED)
 #define	tty_gone(tp)		((tp)->t_flags & TF_GONE)
-#define	tty_softc(tp)		((tp)->t_softc)
+#define	tty_softc(tp)		((tp)->t_devswsoftc)
 #define	tty_devname(tp)		devtoname((tp)->t_dev)
 
 /* Status line printing. */
@@ -192,8 +195,9 @@ int	pts_alloc_external(int fd, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name);
 
 /* Drivers and line disciplines also need to call these. */
-#include <sys/ttydevsw.h>
 #include <sys/ttydisc.h>
+#include <sys/ttydevsw.h>
+#include <sys/ttyhook.h>
 #endif /* _KERNEL */
 
 #endif /* !_SYS_TTY_H_ */

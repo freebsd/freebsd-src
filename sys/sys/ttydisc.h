@@ -54,8 +54,10 @@ void	ttydisc_modem(struct tty *tp, int open);
 int	ttydisc_rint(struct tty *tp, char c, int flags);
 size_t	ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len);
 void	ttydisc_rint_done(struct tty *tp);
+size_t	ttydisc_rint_poll(struct tty *tp);
 size_t	ttydisc_getc(struct tty *tp, void *buf, size_t len);
 int	ttydisc_getc_uio(struct tty *tp, struct uio *uio);
+size_t	ttydisc_getc_poll(struct tty *tp);
 
 /* Error codes for ttydisc_rint(). */
 #define	TRE_FRAMING	0x01
@@ -79,38 +81,6 @@ ttydisc_write_poll(struct tty *tp)
 	tty_lock_assert(tp, MA_OWNED);
 
 	return ttyoutq_bytesleft(&tp->t_outq);
-}
-
-static __inline size_t
-ttydisc_rint_poll(struct tty *tp)
-{
-	size_t l;
-
-	tty_lock_assert(tp, MA_OWNED);
-
-	/*
-	 * XXX: Still allow character input when there's no space in the
-	 * buffers, but we haven't entered the high watermark. This is
-	 * to allow backspace characters to be inserted when in
-	 * canonical mode.
-	 */
-	l = ttyinq_bytesleft(&tp->t_inq);
-	if (l == 0 && (tp->t_flags & TF_HIWAT_IN) == 0)
-		return (1);
-	
-	return (l);
-}
-
-static __inline size_t
-ttydisc_getc_poll(struct tty *tp)
-{
-
-	tty_lock_assert(tp, MA_OWNED);
-
-	if (tp->t_flags & TF_STOPPED)
-		return (0);
-
-	return ttyoutq_bytesused(&tp->t_outq);
 }
 
 #endif /* !_SYS_TTYDISC_H_ */
