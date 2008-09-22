@@ -610,6 +610,7 @@ struct ieee80211req {
 #define	IEEE80211_IOC_TXPARAMS		108	/* tx parameters */
 #define	IEEE80211_IOC_STA_VLAN		109	/* per-station vlan tag */
 #define	IEEE80211_IOC_SMPS		110	/* MIMO power save */
+#define	IEEE80211_IOC_RIFS		111	/* RIFS config (on, off) */
 
 /*
  * Parameters for controlling a scan requested with
