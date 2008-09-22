@@ -461,6 +461,16 @@ ufsdirhash_free_locked(struct inode *ip)
 	VI_UNLOCK(vp);
 
 	/*
+	 * Remove the hash from the list since we are going to free its
+	 * memory.
+	 */
+	DIRHASHLIST_LOCK();
+	if (dh->dh_onlist)
+		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
+	ufs_dirhashmem -= dh->dh_memreq;
+	DIRHASHLIST_UNLOCK();
+
+	/*
 	 * At this point, any waiters for the lock should hold their
 	 * own reference on the dirhash structure.  They will drop
 	 * that reference once they grab the vnode interlock and see
@@ -479,11 +489,6 @@ ufsdirhash_free_locked(struct inode *ip)
 		if (dh->dh_blkfree != NULL)
 			FREE(dh->dh_blkfree, M_DIRHASH);
 	}
-	DIRHASHLIST_LOCK();
-	if (dh->dh_onlist)
-		TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
-	ufs_dirhashmem -= dh->dh_memreq;
-	DIRHASHLIST_UNLOCK();
 
 	/*
 	 * Drop the inode's reference to the data structure.
