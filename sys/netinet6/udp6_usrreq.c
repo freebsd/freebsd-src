@@ -976,13 +976,23 @@ udp6_send(struct socket *so, int flags, struct mbuf *m,
 				error = EINVAL;
 				goto out;
 			}
+
+			/*
+			 * XXXRW: We release UDP-layer locks before calling
+			 * udp_send() in order to avoid recursion.  However,
+			 * this does mean there is a short window where inp's
+			 * fields are unstable.  Could this lead to a
+			 * potential race in which the factors causing us to
+			 * select the UDPv4 output routine are invalidated?
+			 */
+			INP_WUNLOCK(inp);
+			INP_INFO_WUNLOCK(&V_udbinfo);
 			if (sin6)
 				in6_sin6_2_sin_in_sock(addr);
 			pru = inetsw[ip_protox[IPPROTO_UDP]].pr_usrreqs;
-			error = ((*pru->pru_send)(so, flags, m, addr, control,
-			    td));
 			/* addr will just be freed in sendit(). */
-			goto out;
+			return ((*pru->pru_send)(so, flags, m, addr, control,
+			    td));
 		}
 	}
 #endif
