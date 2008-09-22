@@ -1598,7 +1598,7 @@ DECL_CMD_FUNC(set80211ampdudensity, val, d)
 {
 	int v;
 
-	if (isanyarg(val))
+	if (isanyarg(val) || strcasecmp(val, "na") == 0)
 		v = IEEE80211_HTCAP_MPDUDENSITY_NA;
 	else switch ((int)(atof(val)*4)) {
 	case 0:
@@ -4048,7 +4048,7 @@ end:
 			switch (val) {
 			case IEEE80211_HTCAP_MPDUDENSITY_NA:
 				if (verbose)
-					LINE_CHECK("ampdudensity -");
+					LINE_CHECK("ampdudensity NA");
 				break;
 			case IEEE80211_HTCAP_MPDUDENSITY_025:
 				LINE_CHECK("ampdudensity .25");
