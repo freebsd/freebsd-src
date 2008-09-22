@@ -1270,6 +1270,24 @@ htcap_update_mimo_ps(struct ieee80211_node *ni)
 }
 
 /*
+ * Update short GI state according to received htcap
+ * and local settings.
+ */
+static __inline void
+htcap_update_shortgi(struct ieee80211_node *ni)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	ni->ni_flags &= ~(IEEE80211_NODE_SGI20|IEEE80211_NODE_SGI40);
+	if ((ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20) &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI20))
+		ni->ni_flags |= IEEE80211_NODE_SGI20;
+	if ((ni->ni_htcap & IEEE80211_HTCAP_SHORTGI40) &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_SHORTGI40))
+		ni->ni_flags |= IEEE80211_NODE_SGI40;
+}
+
+/*
  * Parse and update HT-related state extracted from
  * the HT cap and info ie's.
  */
@@ -1284,6 +1302,7 @@ ieee80211_ht_updateparams(struct ieee80211_node *ni,
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
+	htcap_update_shortgi(ni);
 
 	if (htinfoie[0] == IEEE80211_ELEMID_VENDOR)
 		htinfoie += 4;
@@ -1322,6 +1341,7 @@ ieee80211_ht_updatehtcap(struct ieee80211_node *ni, const uint8_t *htcapie)
 	ieee80211_parse_htcap(ni, htcapie);
 	if (vap->iv_htcaps & IEEE80211_HTCAP_SMPS)
 		htcap_update_mimo_ps(ni);
+	htcap_update_shortgi(ni);
 
 	/* NB: honor operating mode constraint */
 	/* XXX 40 MHZ intolerant */
