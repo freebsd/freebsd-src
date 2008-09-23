@@ -30,13 +30,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef CONFIG_DEFINED
 #include <common/cxgb_common.h>
 #include <common/cxgb_regs.h>
-#else
-#include <dev/cxgb/common/cxgb_common.h>
-#include <dev/cxgb/common/cxgb_regs.h>
-#endif
 
 enum {
 	IDT75P52100 = 4,

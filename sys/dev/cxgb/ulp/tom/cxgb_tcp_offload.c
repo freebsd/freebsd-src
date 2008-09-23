@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_syncache.h>
 #include <netinet/toedev.h>
 
-#include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
+#include <ulp/tom/cxgb_tcp_offload.h>
 
 
 /*

@@ -54,18 +54,10 @@ $FreeBSD$
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
 #include <t3cdev.h>
 #include <ulp/toecore/cxgb_toedev.h>
 #include <sys/mbufq.h>
-#else
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/t3cdev.h>
-#include <dev/cxgb/sys/mbufq.h>
-#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
-#endif
 
 #ifdef LRO_SUPPORTED
 #include <netinet/tcp_lro.h>

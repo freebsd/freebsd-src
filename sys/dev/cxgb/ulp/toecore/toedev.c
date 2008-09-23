@@ -52,12 +52,7 @@ __FBSDID("$FreeBSD$");
 /*
  * XXX 
  */
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#endif
-
 
 
 static struct mtx offload_db_lock;

@@ -68,8 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/sys/mbufq.h>
+#include <cxgb_osdep.h>
+#include <sys/mbufq.h>
 
 #include <netinet/ip.h>
 #include <netinet/tcp_var.h>
@@ -80,24 +80,23 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <net/route.h>
 
-#include <dev/cxgb/t3cdev.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/common/cxgb_tcb.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/cxgb_offload.h>
+#include <t3cdev.h>
+#include <common/cxgb_firmware_exports.h>
+#include <common/cxgb_t3_cpl.h>
+#include <common/cxgb_tcb.h>
+#include <common/cxgb_ctl_defs.h>
+#include <cxgb_offload.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/bus.h>
-#include <dev/cxgb/sys/mvec.h>
-#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
-#include <dev/cxgb/ulp/tom/cxgb_defs.h>
-#include <dev/cxgb/ulp/tom/cxgb_tom.h>
-#include <dev/cxgb/ulp/tom/cxgb_t3_ddp.h>
-#include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
-#include <dev/cxgb/ulp/tom/cxgb_tcp.h>
-
-#include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
+#include <sys/mvec.h>
+#include <ulp/toecore/cxgb_toedev.h>
+#include <ulp/tom/cxgb_defs.h>
+#include <ulp/tom/cxgb_tom.h>
+#include <ulp/tom/cxgb_t3_ddp.h>
+#include <ulp/tom/cxgb_toepcb.h>
+#include <ulp/tom/cxgb_tcp.h>
+#include <ulp/tom/cxgb_tcp_offload.h>
 
 /*
  * For ULP connections HW may add headers, e.g., for digests, that aren't part

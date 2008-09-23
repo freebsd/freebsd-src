@@ -31,7 +31,7 @@ $FreeBSD$
 #ifndef _CHELSIO_L2T_H
 #define _CHELSIO_L2T_H
 
-#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
+#include <ulp/toecore/cxgb_toedev.h>
 #include <sys/lock.h>
 
 #if __FreeBSD_version > 700000

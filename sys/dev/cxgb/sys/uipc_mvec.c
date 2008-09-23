@@ -45,15 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <sys/mvec.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/sys/mvec.h>
-#endif
 
 #include "opt_zero.h"
 

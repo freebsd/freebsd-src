@@ -63,8 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/rdma/ib_verbs.h>
 
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
@@ -72,15 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/iw_cxgb/iw_cxgb_cm.h>
 #include <ulp/iw_cxgb/iw_cxgb.h>
 #include <ulp/iw_cxgb/iw_cxgb_resource.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_wr.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_hal.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_provider.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_cm.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_resource.h>
-#endif
 
 static TAILQ_HEAD( ,cxio_rdev) rdev_list;
 static cxio_hal_ev_callback_func_t cxio_ev_cb = NULL;
