@@ -513,21 +513,36 @@ dev/cpufreq/ichss.c		optional cpufreq
 dev/cs/if_cs.c			optional cs
 dev/cs/if_cs_isa.c		optional cs isa
 dev/cs/if_cs_pccard.c		optional cs pccard
-dev/cxgb/cxgb_main.c		optional cxgb pci
-dev/cxgb/cxgb_offload.c		optional cxgb pci
-dev/cxgb/cxgb_sge.c		optional cxgb pci
-dev/cxgb/cxgb_multiq.c		optional cxgb pci
-dev/cxgb/common/cxgb_mc5.c	optional cxgb pci
-dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci
-dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci
-dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci
-dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci
-dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci
-dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci
-dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci	
-dev/cxgb/sys/uipc_mvec.c	optional cxgb pci
-dev/cxgb/sys/cxgb_support.c	optional cxgb pci
-dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw
+dev/cxgb/cxgb_main.c		optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/cxgb_offload.c		optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/cxgb_sge.c		optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/cxgb_multiq.c		optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_mc5.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_vsc7323.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_vsc8211.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_ael1002.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_mv88e1xxx.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"	
+dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/sys/cxgb_support.c	optional cxgb pci \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
+dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci

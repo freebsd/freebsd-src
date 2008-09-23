@@ -30,7 +30,7 @@
 #define CXGB_TOEPCB_H_
 #include <sys/bus.h>
 #include <sys/condvar.h>
-#include <dev/cxgb/sys/mbufq.h>
+#include <sys/mbufq.h>
 
 struct toepcb {
 	struct toedev 		*tp_toedev;

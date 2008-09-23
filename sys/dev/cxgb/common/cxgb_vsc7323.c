@@ -31,11 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef CONFIG_DEFINED
 #include <common/cxgb_common.h>
-#else
-#include <dev/cxgb/common/cxgb_common.h>
-#endif
 
 enum {
 	ELMR_ADDR    = 0,
