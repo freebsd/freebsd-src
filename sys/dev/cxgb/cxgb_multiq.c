@@ -117,7 +117,6 @@ static int cxgb_pcpu_cookie_to_qidx(struct port_info *, uint32_t cookie);
 #endif
 static int cxgb_tx(struct sge_qset *qs, uint32_t txmax);
 
-
 static inline int
 cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 {
@@ -144,7 +143,7 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 
 	return (err);
 }
-	
+
 int
 cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m)
 {
@@ -160,9 +159,7 @@ cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m)
 	qidx = 0;
 #endif	    
 	qs = &pi->adapter->sge.qs[qidx];
-
 	err = cxgb_pcpu_enqueue_packet_(qs, m);
-	
 	return (err);
 }
 
@@ -777,11 +774,13 @@ cxgb_tx(struct sge_qset *qs, uint32_t txmax)
 	    (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 		setbit(&qs->txq_stopped, TXQ_ETH);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		txq_fills++;
 		err = ENOSPC;
 	}
 #else
 	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC)) {
 		err = ENOSPC;
+		txq_fills++;
 		setbit(&qs->txq_stopped, TXQ_ETH);
 	}
 	if (err == ENOMEM) {
