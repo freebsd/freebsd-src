@@ -67,22 +67,12 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/rdma/ib_verbs.h>
 
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
 #include <ulp/iw_cxgb/iw_cxgb_provider.h>
 #include <ulp/iw_cxgb/iw_cxgb_cm.h>
 #include <ulp/iw_cxgb/iw_cxgb.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_wr.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_hal.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_provider.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_cm.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb.h>
-#endif
 
 /*
  * XXX :-/

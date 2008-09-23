@@ -30,11 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#endif
 
 #undef msleep
 #define msleep t3_os_sleep

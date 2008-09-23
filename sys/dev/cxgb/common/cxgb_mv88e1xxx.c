@@ -30,11 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#endif
 
 /* Marvell PHY interrupt status bits. */
 #define MV_INTR_JABBER          0x0001

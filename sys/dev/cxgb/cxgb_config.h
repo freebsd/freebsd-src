@@ -31,8 +31,7 @@ $FreeBSD$
 ***************************************************************************/
 #ifndef _CXGB_CONFIG_H_
 #define _CXGB_CONFIG_H_
-#ifndef CONFIG_DEFINED
+
 #define CONFIG_CHELSIO_T3_CORE
-#endif
 
 #endif

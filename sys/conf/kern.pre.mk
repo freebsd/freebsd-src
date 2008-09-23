@@ -81,6 +81,9 @@ INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/x
 # ...  and OpenSolaris
 INCLUDES+= -I$S/contrib/opensolaris/compat
 
+# ... and the same for cxgb
+INCLUDES+= -I$S/dev/cxgb
+
 .endif
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}

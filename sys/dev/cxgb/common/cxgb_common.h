@@ -31,11 +31,7 @@ $FreeBSD$
 #ifndef __CHELSIO_COMMON_H
 #define __CHELSIO_COMMON_H
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_osdep.h>
-#else
-#include <dev/cxgb/cxgb_osdep.h>
-#endif
 
 enum {
 	MAX_FRAME_SIZE = 10240, /* max MAC frame size, includes header + FCS */
@@ -603,11 +599,7 @@ struct addr_val_pair {
 	unsigned int val;
 };
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_adapter.h>
-#else
-#include <dev/cxgb/cxgb_adapter.h>
-#endif
 
 #ifndef PCI_VENDOR_ID_CHELSIO
 # define PCI_VENDOR_ID_CHELSIO 0x1425

@@ -33,19 +33,11 @@ $FreeBSD$
 #ifndef _CXGB_OFFLOAD_H
 #define _CXGB_OFFLOAD_H
 
-#ifdef CONFIG_DEFINED
 #include <common/cxgb_version.h>
 #include <cxgb_config.h>
 #include <ulp/tom/cxgb_l2t.h>
 #include <common/cxgb_tcb.h>
 #include <t3cdev.h>
-#else
-#include <dev/cxgb/common/cxgb_version.h>
-#include <dev/cxgb/cxgb_config.h>
-#include <dev/cxgb/ulp/tom/cxgb_l2t.h>
-#include <dev/cxgb/common/cxgb_tcb.h>
-#include <dev/cxgb/t3cdev.h>
-#endif
 
 MALLOC_DECLARE(M_CXGB);
 
