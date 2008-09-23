@@ -95,6 +95,8 @@
  * Size of Kernel address space.  This is the number of page table pages
  * (4MB each) to use for the kernel.  256 pages == 1 Gigabyte.
  * This **MUST** be a multiple of 4 (eg: 252, 256, 260, etc).
+ * For PAE, the page table page unit size is 2MB.  This means that 512 pages
+ * is 1 Gigabyte.  Double everything.  It must be a multiple of 8 for PAE.
  */
 #ifndef KVA_PAGES
 #ifdef PAE
