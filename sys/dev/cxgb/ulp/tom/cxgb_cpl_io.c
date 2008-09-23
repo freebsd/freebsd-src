@@ -47,7 +47,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/protosw.h>
 #include <sys/priv.h>
+
+#if __FreeBSD_version >= 800044
 #include <sys/vimage.h>
+#else
+#define V_tcp_do_autosndbuf tcp_do_autosndbuf
+#define V_tcp_autosndbuf_max tcp_autosndbuf_max
+#define V_tcp_do_rfc1323 tcp_do_rfc1323
+#define V_tcp_do_autorcvbuf tcp_do_autorcvbuf
+#define V_tcp_autorcvbuf_max tcp_autorcvbuf_max
+#define V_tcpstat tcpstat
+#endif
 
 #include <net/if.h>
 #include <net/route.h>

@@ -53,7 +53,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/proc.h>
 #include <sys/eventhandler.h>
+
+#if __FreeBSD_version >= 800044
 #include <sys/vimage.h>
+#else
+#define V_ifnet ifnet
+#endif
 
 #include <net/if.h>
 #include <net/if_var.h>
