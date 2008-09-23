@@ -51,8 +51,8 @@ struct dbdma_command {
 };
 
 struct dbdma_channel {
-	bus_space_tag_t		sc_bt;
-	bus_space_handle_t	sc_bh;
+	struct resource 	*sc_regs;
+	u_int			sc_off;
 
 	struct dbdma_command	*sc_slots;
 	int			sc_nslots;
@@ -78,6 +78,7 @@ struct dbdma_channel {
 
 #define CHAN_CONTROL_REG	0x00
 #define	CHAN_STATUS_REG		0x04
+#define CHAN_CMDPTR_HI		0x08
 #define CHAN_CMDPTR		0x0C
 #define	CHAN_INTR_SELECT	0x10
 #define CHAN_BRANCH_SELECT	0x14
