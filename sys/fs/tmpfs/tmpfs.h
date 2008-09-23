@@ -445,7 +445,7 @@ int	tmpfs_truncate(struct vnode *, off_t);
  */
 #define TMPFS_DIRENT_MATCHES(de, name, len) \
     (de->td_namelen == (uint16_t)len && \
-    memcmp((de)->td_name, (name), (de)->td_namelen) == 0)
+    bcmp((de)->td_name, (name), (de)->td_namelen) == 0)
 
 /* --------------------------------------------------------------------- */
 

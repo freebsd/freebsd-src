@@ -585,7 +585,7 @@ tmpfs_dir_lookup(struct tmpfs_node *node, struct componentname *cnp)
 	TAILQ_FOREACH(de, &node->tn_dir.tn_dirhead, td_entries) {
 		MPASS(cnp->cn_namelen < 0xffff);
 		if (de->td_namelen == (uint16_t)cnp->cn_namelen &&
-		    memcmp(de->td_name, cnp->cn_nameptr, de->td_namelen) == 0) {
+		    bcmp(de->td_name, cnp->cn_nameptr, de->td_namelen) == 0) {
 			found = 1;
 			break;
 		}
