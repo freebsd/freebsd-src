@@ -78,7 +78,7 @@ typedef struct dbdma_command dbdma_command_t;
 struct dbdma_channel;
 typedef struct dbdma_channel dbdma_channel_t;
 
-int dbdma_allocate_channel(struct resource *dbdma_regs,
+int dbdma_allocate_channel(struct resource *dbdma_regs, u_int offset,
     bus_dma_tag_t parent_dma, int slots, dbdma_channel_t **chan);
 
 int dbdma_resize_channel(dbdma_channel_t *chan, int newslots);

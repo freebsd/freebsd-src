@@ -488,9 +488,9 @@ bm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	error = dbdma_allocate_channel(sc->sc_txdmar, bus_get_dma_tag(dev),
+	error = dbdma_allocate_channel(sc->sc_txdmar, 0, bus_get_dma_tag(dev),
 	    BM_MAX_DMA_COMMANDS, &sc->sc_txdma);
-	error += dbdma_allocate_channel(sc->sc_rxdmar, bus_get_dma_tag(dev),
+	error += dbdma_allocate_channel(sc->sc_rxdmar, 0, bus_get_dma_tag(dev),
 	    BM_MAX_DMA_COMMANDS, &sc->sc_rxdma);
 
 	if (error) {
