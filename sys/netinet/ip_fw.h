@@ -29,6 +29,14 @@
 #define _IPFW2_H
 
 /*
+ * The default rule number.  By the design of ip_fw, the default rule
+ * is the last one, so its number can also serve as the highest number
+ * allowed for a rule.  The ip_fw code relies on both meanings of this
+ * constant. 
+ */
+#define	IPFW_DEFAULT_RULE	65535
+
+/*
  * The kernel representation of ipfw rules is made of a list of
  * 'instructions' (for all practical purposes equivalent to BPF
  * instructions), which specify which fields of the packet
