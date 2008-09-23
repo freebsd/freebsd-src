@@ -81,7 +81,8 @@ static MALLOC_DEFINE(M_PTS, "pts", "pseudo tty device");
 struct pts_softc {
 	int		pts_unit;	/* (c) Device unit number. */
 	unsigned int	pts_flags;	/* (t) Device flags. */
-#define PTS_PKT		0x1	/* Packet mode. */
+#define	PTS_PKT		0x1	/* Packet mode. */
+#define	PTS_FINISHED	0x2	/* Return errors on read()/write(). */
 	char		pts_pkt;	/* (t) Unread packet mode data. */
 
 	struct cv	pts_inwait;	/* (t) Blocking write() on master. */
@@ -156,7 +157,7 @@ ptsdev_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		}
 
 		/* Maybe the device isn't used anyway. */
-		if (tty_opened(tp) == 0)
+		if (psc->pts_flags & PTS_FINISHED)
 			break;
 
 		/* Wait for more data. */
@@ -224,7 +225,7 @@ ptsdev_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			}
 
 			/* Maybe the device isn't used anyway. */
-			if (tty_opened(tp) == 0) {
+			if (psc->pts_flags & PTS_FINISHED) {
 				error = EIO;
 				goto done;
 			}
@@ -380,7 +381,7 @@ ptsdev_poll(struct file *fp, int events, struct ucred *active_cred,
 
 	tty_lock(tp);
 
-	if (tty_opened(tp) == 0) {
+	if (psc->pts_flags & PTS_FINISHED) {
 		/* Slave device is not opened. */
 		tty_unlock(tp);
 		return (events &
@@ -503,13 +504,26 @@ ptsdrv_inwakeup(struct tty *tp)
 	selwakeup(&psc->pts_inpoll);
 }
 
+static int
+ptsdrv_open(struct tty *tp)
+{
+	struct pts_softc *psc = tty_softc(tp);
+
+	psc->pts_flags &= ~PTS_FINISHED;
+
+	return (0);
+}
+
 static void
 ptsdrv_close(struct tty *tp)
 {
+	struct pts_softc *psc = tty_softc(tp);
 
 	/* Wake up any blocked readers/writers. */
 	ptsdrv_outwakeup(tp);
 	ptsdrv_inwakeup(tp);
+
+	psc->pts_flags |= PTS_FINISHED;
 }
 
 static void
@@ -565,6 +579,7 @@ static struct ttydevsw pts_class = {
 	.tsw_flags	= TF_NOPREFIX,
 	.tsw_outwakeup	= ptsdrv_outwakeup,
 	.tsw_inwakeup	= ptsdrv_inwakeup,
+	.tsw_open	= ptsdrv_open,
 	.tsw_close	= ptsdrv_close,
 	.tsw_pktnotify	= ptsdrv_pktnotify,
 	.tsw_free	= ptsdrv_free,
