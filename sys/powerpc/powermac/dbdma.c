@@ -56,8 +56,8 @@ dbdma_phys_callback(void *chan, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 int
-dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
-    int slots, dbdma_channel_t **chan)
+dbdma_allocate_channel(struct resource *dbdma_regs, u_int offset,
+    bus_dma_tag_t parent_dma, int slots, dbdma_channel_t **chan)
 {
 	int error = 0;
 	dbdma_channel_t *channel;
@@ -65,8 +65,8 @@ dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
 	channel = *chan = malloc(sizeof(struct dbdma_channel), M_DBDMA, 
 	    M_WAITOK | M_ZERO);
 
-	channel->sc_bt = rman_get_bustag(dbdma_regs);
-	channel->sc_bh = rman_get_bushandle(dbdma_regs);
+	channel->sc_regs = dbdma_regs;
+	channel->sc_off = offset;
 	dbdma_stop(channel);
 
 	channel->sc_slots_pa = 0;
@@ -81,6 +81,8 @@ dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
 
 	error = bus_dmamap_load(channel->sc_dmatag, channel->sc_dmamap,
 	    channel->sc_slots, PAGE_SIZE, dbdma_phys_callback, channel, 0);
+
+	dbdma_write_reg(channel, CHAN_CMDPTR_HI, 0);
 
 	channel->sc_nslots = slots;
 
@@ -320,12 +322,12 @@ static uint32_t
 dbdma_read_reg(dbdma_channel_t *chan, u_int offset)
 {
 
-	return (bus_space_read_4(chan->sc_bt, chan->sc_bh, offset));
+	return (bus_read_4(chan->sc_regs, chan->sc_off + offset));
 }
 
 static void
 dbdma_write_reg(dbdma_channel_t *chan, u_int offset, uint32_t val)
 {
 
-	bus_space_write_4(chan->sc_bt, chan->sc_bh, offset, val);
+	bus_write_4(chan->sc_regs, chan->sc_off + offset, val);
 }
