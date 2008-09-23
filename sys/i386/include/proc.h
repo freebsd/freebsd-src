@@ -71,6 +71,7 @@ struct mdproc {
 void 	set_user_ldt(struct mdproc *);
 struct 	proc_ldt *user_ldt_alloc(struct mdproc *, int);
 void 	user_ldt_free(struct thread *);
+void	user_ldt_deref(struct proc_ldt *pldt);
 
 extern struct mtx dt_lock;
 
