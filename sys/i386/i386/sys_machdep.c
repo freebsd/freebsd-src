@@ -406,7 +406,8 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		len * sizeof(union descriptor));
 	if (new_ldt->ldt_base == NULL) {
 		FREE(new_ldt, M_SUBPROC);
-		return NULL;
+		mtx_lock_spin(&dt_lock);
+		return (NULL);
 	}
 	new_ldt->ldt_refcnt = 1;
 	new_ldt->ldt_active = 0;
@@ -437,8 +438,10 @@ user_ldt_free(struct thread *td)
 	struct proc_ldt *pldt;
 
 	mtx_assert(&dt_lock, MA_OWNED);
-	if ((pldt = mdp->md_ldt) == NULL)
+	if ((pldt = mdp->md_ldt) == NULL) {
+		mtx_unlock_spin(&dt_lock);
 		return;
+	}
 
 	if (td == PCPU_GET(curthread)) {
 		lldt(_default_ldt);
