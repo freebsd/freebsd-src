@@ -635,7 +635,11 @@ cxgb_pcpu_start_proc(void *arg)
 	t3_free_qset(qs->port->adapter, qs);
 
 	qs->qs_flags &= ~QS_RUNNING;
+#if __FreeBSD_version >= 800002
 	kproc_exit(0);
+#else
+	kthread_exit(0);
+#endif
 }
 
 #ifdef IFNET_MULTIQUEUE
@@ -680,8 +684,13 @@ cxgb_pcpu_startup_threads(struct adapter *sc)
 			device_printf(sc->dev, "starting thread for %d\n",
 			    qs->qs_cpuid);
 
+#if __FreeBSD_version >= 800002
 			kproc_create(cxgb_pcpu_start_proc, qs, &p,
 			    RFNOWAIT, 0, "cxgbsp");
+#else
+			kthread_create(cxgb_pcpu_start_proc, qs, &p,
+			    RFNOWAIT, 0, "cxgbsp");
+#endif
 			DELAY(200);
 		}
 	}

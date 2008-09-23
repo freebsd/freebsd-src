@@ -1775,7 +1775,9 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 		MTX_DESTROY(&q->rspq.lock);
 	}
 
+#ifdef LRO_SUPPORTED
 	tcp_lro_free(&q->lro.ctrl);
+#endif
 
 	bzero(q, sizeof(*q));
 }
@@ -2387,10 +2389,8 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	q->fl[1].type = EXT_JUMBOP;
 #endif
 
-	/*
-	 * We allocate and setup the lro_ctrl structure irrespective of whether
-	 * lro is available and/or enabled.
-	 */
+#ifdef LRO_SUPPORTED
+	/* Allocate and setup the lro_ctrl structure */
 	q->lro.enabled = !!(pi->ifp->if_capenable & IFCAP_LRO);
 	ret = tcp_lro_init(&q->lro.ctrl);
 	if (ret) {
@@ -2398,6 +2398,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		goto err;
 	}
 	q->lro.ctrl.ifp = pi->ifp;
+#endif
 
 	mtx_lock_spin(&sc->sge.reg_lock);
 	ret = -t3_sge_init_rspcntxt(sc, q->rspq.cntxt_id, irq_vec_idx,
@@ -2555,8 +2556,12 @@ init_cluster_mbuf(caddr_t cl, int flags, int type, uma_zone_t zone)
 	m->m_ext.ref_cnt = (uint32_t *)(cl + header_size - sizeof(uint32_t));
 	m->m_ext.ext_size = m_getsizefromtype(type);
 	m->m_ext.ext_free = ext_free_handler;
+#if __FreeBSD_version >= 800016
 	m->m_ext.ext_arg1 = cl;
 	m->m_ext.ext_arg2 = (void *)(uintptr_t)type;
+#else
+	m->m_ext.ext_args = (void *)(uintptr_t)type;
+#endif
 	m->m_ext.ext_type = EXT_EXTREF;
 	*(m->m_ext.ref_cnt) = 1;
 	DPRINTF("data=%p ref_cnt=%p\n", m->m_data, m->m_ext.ref_cnt); 
@@ -2803,8 +2808,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	struct rsp_desc *r = &rspq->desc[rspq->cidx];
 	int budget_left = budget;
 	unsigned int sleeping = 0;
+#ifdef LRO_SUPPORTED
 	int lro_enabled = qs->lro.enabled;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
+#endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
 	int ngathered = 0;
 #ifdef DEBUG	
@@ -2922,10 +2929,13 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			prefetch(mtod(m, uint8_t *) + L1_CACHE_BYTES);
 
 			t3_rx_eth(adap, rspq, m, ethpad);
+#ifdef LRO_SUPPORTED
 			if (lro_enabled && lro_ctrl->lro_cnt &&
 			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
 				/* successfully queue'd for LRO */
-			} else {
+			} else
+#endif
+			{
 				/*
 				 * LRO not enabled, packet unsuitable for LRO,
 				 * or unable to queue.  Pass it up right now in
@@ -2945,12 +2955,14 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 
 	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
+#ifdef LRO_SUPPORTED
 	/* Flush LRO */
 	while (!SLIST_EMPTY(&lro_ctrl->lro_active)) {
 		struct lro_entry *queued = SLIST_FIRST(&lro_ctrl->lro_active);
 		SLIST_REMOVE_HEAD(&lro_ctrl->lro_active, next);
 		tcp_lro_flush(lro_ctrl, queued);
 	}
+#endif
 
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
@@ -3547,6 +3559,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLTYPE_STRING | CTLFLAG_RD, &qs->txq[TXQ_CTRL],
 			    0, t3_dump_txq_ctrl, "A", "dump of the transmit queue");
 
+#ifdef LRO_SUPPORTED
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_queued",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_queued, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_flushed",
@@ -3555,6 +3568,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_bad_csum, 0, NULL);
 			SYSCTL_ADD_INT(ctx, lropoidlist, OID_AUTO, "lro_cnt",
 			    CTLFLAG_RD, &qs->lro.ctrl.lro_cnt, 0, NULL);
+#endif
 		}
 
 		/* Now add a node for mac stats. */

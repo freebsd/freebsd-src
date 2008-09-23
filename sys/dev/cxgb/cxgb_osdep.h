@@ -114,6 +114,11 @@ struct t3_mbuf_hdr {
 #define M_SANITY(m, n)
 #endif
 
+#if __FreeBSD_version >= 701000
+#define LRO_SUPPORTED
+#define TOE_SUPPORTED
+#endif
+
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
 /*

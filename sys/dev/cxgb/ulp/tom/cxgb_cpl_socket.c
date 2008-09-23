@@ -368,8 +368,12 @@ cxgb_vm_page_to_miov(struct toepcb *toep, struct uio *uio, struct mbuf **m)
 	m0->m_flags = (M_EXT|M_NOFREE);
 	m0->m_ext.ext_type = EXT_EXTREF;
 	m0->m_ext.ext_free = cxgb_zero_copy_free;
+#if __FreeBSD_version >= 800016
 	m0->m_ext.ext_arg1 = NULL;	/* XXX: probably wrong /phk */
 	m0->m_ext.ext_arg2 = NULL;
+#else
+	m0->m_ext.ext_args = NULL;
+#endif
     
 	mv = mtomv(m0);
 	mv->mv_count = seg_count;
