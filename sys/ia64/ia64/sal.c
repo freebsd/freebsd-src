@@ -96,7 +96,7 @@ ia64_sal_init(void)
 	if (sal_systbl == NULL)
 		return;
 
-	if (memcmp(sal_systbl->sal_signature, SAL_SIGNATURE, 4)) {
+	if (bcmp(sal_systbl->sal_signature, SAL_SIGNATURE, 4)) {
 		printf("Bad signature for SAL System Table\n");
 		return;
 	}

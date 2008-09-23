@@ -969,7 +969,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	/* Ensure that we have enough memory to hold the new name, if it
 	 * has to be changed. */
 	if (fcnp->cn_namelen != tcnp->cn_namelen ||
-	    memcmp(fcnp->cn_nameptr, tcnp->cn_nameptr, fcnp->cn_namelen) != 0) {
+	    bcmp(fcnp->cn_nameptr, tcnp->cn_nameptr, fcnp->cn_namelen) != 0) {
 		newname = malloc(tcnp->cn_namelen, M_TMPFSNAME, M_WAITOK);
 	} else
 		newname = NULL;
