@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/cxgb/sys/mvec.h>
 #endif
 
+extern int txq_fills;
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
 static int cxgb_pcpu_tx_coalesce = 0;
 TUNABLE_INT("hw.cxgb.tx_coalesce", &cxgb_pcpu_tx_coalesce);
@@ -398,8 +399,10 @@ cxgb_pcpu_reclaim_tx(struct sge_txq *txq)
 		
 	txq->cleaned += reclaimable;
 	txq->in_use -= reclaimable;
-	if (isset(&qs->txq_stopped, TXQ_ETH))
+	if (isset(&qs->txq_stopped, TXQ_ETH)) {
+		qs->port->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;	
 		clrbit(&qs->txq_stopped, TXQ_ETH);
+	}
 	
 	return (reclaimable);
 }
@@ -586,7 +589,7 @@ cxgb_pcpu_start_proc(void *arg)
 		if (qs->qs_flags & QS_EXITING)
 			break;
 
-		if ((qs->port->ifp->if_drv_flags && IFF_DRV_RUNNING) == 0) {
+		if ((qs->port->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			idleticks = hz;
 			if (!buf_ring_empty(&txq->txq_mr) ||
 			    !mbufq_empty(&txq->sendq))
@@ -621,7 +624,7 @@ cxgb_pcpu_start_proc(void *arg)
 			continue;
 		}
 	done:	
-		tsleep(qs, 1, "cxgbidle", sleep_ticks);
+		tsleep(qs, 1, "cxgbidle", idleticks);
 	}
 
 	if (bootverbose)
@@ -782,6 +785,7 @@ cxgb_tx(struct sge_qset *qs, uint32_t txmax)
 		err = ENOSPC;
 		txq_fills++;
 		setbit(&qs->txq_stopped, TXQ_ETH);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 	if (err == ENOMEM) {
 		int i;
