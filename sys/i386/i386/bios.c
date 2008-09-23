@@ -522,7 +522,7 @@ bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen)
 		s = (u_char *)BIOS_PADDRTOVADDR(from);
 		se = (u_char *)BIOS_PADDRTOVADDR(to-len);
 		for (; s<se; s++) {
-			if (!memcmp(str, s, len)) {
+			if (!bcmp(str, s, len)) {
 				bios_str = s;
 				break;
 			}

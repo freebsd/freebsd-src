@@ -106,7 +106,7 @@ efi_get_table(struct uuid *uuid)
 	count = efi_systbl->st_entries;
 	ct = efi_cfgtbl;
 	while (count--) {
-		if (!memcmp(&ct->ct_uuid, uuid, sizeof(*uuid)))
+		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid)))
 			return ((void *)IA64_PHYS_TO_RR7(ct->ct_data));
 		ct++;
 	}
