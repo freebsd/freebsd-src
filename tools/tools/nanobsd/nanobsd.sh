@@ -582,7 +582,7 @@ cust_allow_ssh_root () (
 
 cust_install_files () (
 	cd ${NANO_TOOLS}/Files
-	find . -print | grep -v /CVS | cpio -dumpv ${NANO_WORLDDIR}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${NANO_WORLDDIR}
 )
 
 #######################################################################
