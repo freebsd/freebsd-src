@@ -7,8 +7,8 @@ MAN=	fdisk.8
 
 .PATH:	${.CURDIR}/../../sys/geom
 
-DPADD	+=	${LIBGEOM}
-LDADD	+=	-lgeom
+DPADD+=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
+LDADD+=	-lgeom -lbsdxml -lsbuf
 
 .include <bsd.prog.mk>
 
