@@ -58,43 +58,35 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
-#include <dev/cxgb/cxgb_osdep.h>
-#include <dev/cxgb/sys/mbufq.h>
+#include <cxgb_osdep.h>
+#include <sys/mbufq.h>
 
 #include <netinet/in_pcb.h>
 
-#include <dev/cxgb/ulp/tom/cxgb_tcp_offload.h>
+#include <ulp/tom/cxgb_tcp_offload.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_offload.h>
 #include <netinet/tcp_fsm.h>
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#endif
 
 #include <net/if_vlan_var.h>
 #include <net/route.h>
 
-
-#include <dev/cxgb/t3cdev.h>
-#include <dev/cxgb/common/cxgb_firmware_exports.h>
-#include <dev/cxgb/common/cxgb_tcb.h>
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/common/cxgb_ctl_defs.h>
-#include <dev/cxgb/common/cxgb_t3_cpl.h>
-#include <dev/cxgb/cxgb_offload.h>
-#include <dev/cxgb/ulp/toecore/cxgb_toedev.h>
-#include <dev/cxgb/ulp/tom/cxgb_tom.h>
-#include <dev/cxgb/ulp/tom/cxgb_defs.h>
-#include <dev/cxgb/ulp/tom/cxgb_t3_ddp.h>
-#include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
-#include <dev/cxgb/ulp/tom/cxgb_tcp.h>
-
-
-
+#include <t3cdev.h>
+#include <common/cxgb_firmware_exports.h>
+#include <common/cxgb_tcb.h>
+#include <cxgb_include.h>
+#include <common/cxgb_ctl_defs.h>
+#include <common/cxgb_t3_cpl.h>
+#include <cxgb_offload.h>
+#include <ulp/toecore/cxgb_toedev.h>
+#include <ulp/tom/cxgb_tom.h>
+#include <ulp/tom/cxgb_defs.h>
+#include <ulp/tom/cxgb_t3_ddp.h>
+#include <ulp/tom/cxgb_toepcb.h>
+#include <ulp/tom/cxgb_tcp.h>
 
 
 static int activated = 1;

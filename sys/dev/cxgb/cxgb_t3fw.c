@@ -10,9 +10,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/firmware.h>
 #include <sys/systm.h>
-#include <dev/cxgb/cxgb_t3fw.h>
-#include <dev/cxgb/t3b_protocol_sram.h>
-#include <dev/cxgb/t3b_tp_eeprom.h>
+#include <cxgb_t3fw.h>
+#include <t3b_protocol_sram.h>
+#include <t3b_tp_eeprom.h>
 
 static int
 cxgb_t3fw_modevent(module_t mod, int type, void *unused)

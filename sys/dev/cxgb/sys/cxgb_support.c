@@ -44,13 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <sys/mvec.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/sys/mvec.h>
-#endif
 
 extern int cxgb_use_16k_clusters;
 int cxgb_pcpu_cache_enable = 1;

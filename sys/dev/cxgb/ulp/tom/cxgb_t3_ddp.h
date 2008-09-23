@@ -132,7 +132,7 @@ enum {
 	DDP_BF_NODATA  = 1 << 4,   /* buffer completed before filling */ 
 };
 
-#include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
+#include <ulp/tom/cxgb_toepcb.h>
 struct sockbuf;
 
 /*

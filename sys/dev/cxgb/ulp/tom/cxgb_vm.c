@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
-#include <dev/cxgb/ulp/tom/cxgb_vm.h>
+#include <ulp/tom/cxgb_vm.h>
 
 #define TRACE_ENTER printf("%s:%s entered", __FUNCTION__, __FILE__)
 #define TRACE_EXIT printf("%s:%s:%d exited", __FUNCTION__, __FILE__, __LINE__)

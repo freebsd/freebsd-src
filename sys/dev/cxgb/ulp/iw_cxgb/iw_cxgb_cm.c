@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/rdma/ib_verbs.h>
 
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <ulp/tom/cxgb_tom.h>
 #include <ulp/tom/cxgb_t3_ddp.h>
@@ -80,18 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/iw_cxgb/iw_cxgb_provider.h>
 #include <ulp/iw_cxgb/iw_cxgb_cm.h>
 #include <ulp/iw_cxgb/iw_cxgb.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/ulp/tom/cxgb_tom.h>
-#include <dev/ulp/tom/cxgb_t3_ddp.h>
-#include <dev/cxgb/ulp/tom/cxgb_defs.h>
-#include <dev/cxgb/ulp/tom/cxgb_toepcb.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_wr.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_hal.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_provider.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_cm.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb.h>
-#endif
 
 #ifdef KTR
 static char *states[] = {

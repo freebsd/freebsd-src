@@ -41,13 +41,8 @@ $FreeBSD$
 
 #include <dev/mii/mii.h>
 
-#ifdef CONFIG_DEFINED
 #include <common/cxgb_version.h>
 #include <cxgb_config.h>
-#else
-#include <dev/cxgb/common/cxgb_version.h>
-#include <dev/cxgb/cxgb_config.h>
-#endif
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_

@@ -66,10 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/rdma/ib_umem.h>
 #include <contrib/rdma/ib_user_verbs.h>
 
-
-
-
-#ifdef CONFIG_DEFINED
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
@@ -78,17 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/iw_cxgb/iw_cxgb.h>
 #include <ulp/iw_cxgb/iw_cxgb_resource.h>
 #include <ulp/iw_cxgb/iw_cxgb_user.h>
-#else
-#include <dev/cxgb/cxgb_include.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_wr.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_hal.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_provider.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_cm.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_resource.h>
-#include <dev/cxgb/ulp/iw_cxgb/iw_cxgb_user.h>
-#endif
-
 
 static int
 iwch_modify_port(struct ib_device *ibdev,
