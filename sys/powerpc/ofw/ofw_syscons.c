@@ -234,17 +234,16 @@ ofwfb_configure(int flags)
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
         node = OF_instance_to_package(stdout);
-        OF_getprop(node, "device_type", type, sizeof(type));
-        if (strcmp(type, "display") != 0) {
+	if (node == -1) {
 		/*
-		 * Attaching to "/chosen/stdout" has failed, try
+		 * The "/chosen/stdout" does not exist try
 		 * using "screen" directly.
 		 */
 		node = OF_finddevice("screen");
-		OF_getprop(node, "device_type", type, sizeof(type));
-		if (strcmp(type, "display") != 0)
-			return (0);
 	}
+	OF_getprop(node, "device_type", type, sizeof(type));
+	if (strcmp(type, "display") != 0)
+		return (0);
 
 	/* Only support 8 and 32-bit framebuffers */
 	OF_getprop(node, "depth", &depth, sizeof(depth));
