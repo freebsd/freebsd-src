@@ -870,10 +870,8 @@ END(bzero)
 
 /*
  * bcmp(s1, s2, n)
- * memcmp(s1, s2, n)
  */
 LEAF(bcmp)
-ALEAF(memcmp)
 	.set	noreorder
 	blt	a2, 16, smallcmp	# is it worth any trouble?
 	xor	v0, a0, a1		# compare low two bits of addresses

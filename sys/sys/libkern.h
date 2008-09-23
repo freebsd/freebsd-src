@@ -92,6 +92,7 @@ int	 flsl(long);
 int	 fnmatch(const char *, const char *, int);
 void	 gets(char *, size_t, int);
 int	 locc(int, char *, u_int);
+int	 memcmp(const void *b1, const void *b2, size_t len);
 void	 qsort(void *base, size_t nmemb, size_t size,
 	    int (*compar)(const void *, const void *));
 void	 qsort_r(void *base, size_t nmemb, size_t size, void *thunk,
@@ -138,12 +139,6 @@ crc32(const void *buf, size_t size)
 
 	crc = crc32_raw(buf, size, ~0U);
 	return (crc ^ ~0U);
-}
-
-static __inline int
-memcmp(const void *b1, const void *b2, size_t len)
-{
-	return (bcmp(b1, b2, len));
 }
 
 LIBKERN_INLINE void *memset(void *, int, size_t);
