@@ -649,14 +649,13 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		return (ENOTTY);
 
 	if (size > 0) {
-		if (!(com & IOC_VOID))
-			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
-		else {
+		if (com & IOC_VOID) {
 			/* Integer argument. */
 			arg = (intptr_t)uap->data;
 			data = (void *)&arg;
 			size = 0;
-		}
+		} else
+			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 	} else
 		data = (void *)&uap->data;
 	if (com & IOC_IN) {
