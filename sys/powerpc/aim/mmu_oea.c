@@ -949,9 +949,7 @@ moea_activate(mmu_t mmu, struct thread *td)
 	 * not issue any loads while we have interrupts disabled below.
 	 */
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-
-	if ((pmr = (pmap_t)moea_kextract(mmu, (vm_offset_t)pm)) == NULL)
-		pmr = pm;
+	pmr = pm->pmap_phys;
 
 	pm->pm_active |= PCPU_GET(cpumask);
 	PCPU_SET(curpmap, pmr);
@@ -1203,7 +1201,7 @@ moea_extract(mmu_t mmu, pmap_t pm, vm_offset_t va)
 	if (pvo == NULL)
 		pa = 0;
 	else
-		pa = (pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+		pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
 	PMAP_UNLOCK(pm);
 	return (pa);
 }
@@ -1223,10 +1221,10 @@ moea_extract_and_hold(mmu_t mmu, pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	pvo = moea_pvo_find_va(pmap, va & ~ADDR_POFF, NULL);
-	if (pvo != NULL && (pvo->pvo_pte.pte_hi & PTE_VALID) &&
-	    ((pvo->pvo_pte.pte_lo & PTE_PP) == PTE_RW ||
+	if (pvo != NULL && (pvo->pvo_pte.pte.pte_hi & PTE_VALID) &&
+	    ((pvo->pvo_pte.pte.pte_lo & PTE_PP) == PTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
-		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
+		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
 		vm_page_hold(m);
 	}
 	vm_page_unlock_queues();
@@ -1295,15 +1293,15 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
-		if ((pvo->pvo_pte.pte_lo & PTE_PP) != PTE_BR) {
+		if ((pvo->pvo_pte.pte.pte_lo & PTE_PP) != PTE_BR) {
 			pt = moea_pvo_to_pte(pvo, -1);
-			pvo->pvo_pte.pte_lo &= ~PTE_PP;
-			pvo->pvo_pte.pte_lo |= PTE_BR;
+			pvo->pvo_pte.pte.pte_lo &= ~PTE_PP;
+			pvo->pvo_pte.pte.pte_lo |= PTE_BR;
 			if (pt != NULL) {
-				moea_pte_synch(pt, &pvo->pvo_pte);
-				lo |= pvo->pvo_pte.pte_lo;
-				pvo->pvo_pte.pte_lo &= ~PTE_CHG;
-				moea_pte_change(pt, &pvo->pvo_pte,
+				moea_pte_synch(pt, &pvo->pvo_pte.pte);
+				lo |= pvo->pvo_pte.pte.pte_lo;
+				pvo->pvo_pte.pte.pte_lo &= ~PTE_CHG;
+				moea_pte_change(pt, &pvo->pvo_pte.pte,
 				    pvo->pvo_vaddr);
 				mtx_unlock(&moea_table_mutex);
 			}
@@ -1394,19 +1392,17 @@ moea_kextract(mmu_t mmu, vm_offset_t va)
 	struct		pvo_entry *pvo;
 	vm_paddr_t pa;
 
-#ifdef UMA_MD_SMALL_ALLOC
 	/*
-	 * Allow direct mappings
+	 * Allow direct mappings on 32-bit OEA
 	 */
 	if (va < VM_MIN_KERNEL_ADDRESS) {
 		return (va);
 	}
-#endif
 
 	PMAP_LOCK(kernel_pmap);
 	pvo = moea_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
 	KASSERT(pvo != NULL, ("moea_kextract: no addr found"));
-	pa = (pvo->pvo_pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+	pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
 }
@@ -1505,6 +1501,12 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
 
+	if ((pmap->pmap_phys = (pmap_t)moea_kextract(mmu, (vm_offset_t)pmap))
+	    == NULL) {
+		pmap->pmap_phys = pmap;
+	}
+	
+
 	/*
 	 * Allocate some segment registers for this pmap.
 	 */
@@ -1593,14 +1595,14 @@ moea_protect(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva,
 		/*
 		 * Change the protection of the page.
 		 */
-		pvo->pvo_pte.pte_lo &= ~PTE_PP;
-		pvo->pvo_pte.pte_lo |= PTE_BR;
+		pvo->pvo_pte.pte.pte_lo &= ~PTE_PP;
+		pvo->pvo_pte.pte.pte_lo |= PTE_BR;
 
 		/*
 		 * If the PVO is in the page table, update that pte as well.
 		 */
 		if (pt != NULL) {
-			moea_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+			moea_pte_change(pt, &pvo->pvo_pte.pte, pvo->pvo_vaddr);
 			mtx_unlock(&moea_table_mutex);
 		}
 	}
@@ -1785,8 +1787,8 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	mtx_lock(&moea_table_mutex);
 	LIST_FOREACH(pvo, &moea_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
-			if ((pvo->pvo_pte.pte_lo & PTE_RPGN) == pa &&
-			    (pvo->pvo_pte.pte_lo & PTE_PP) ==
+			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
+			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
 				mtx_unlock(&moea_table_mutex);
 				return (0);
@@ -1833,7 +1835,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	if (flags & PVO_FAKE)
 		pvo->pvo_vaddr |= PVO_FAKE;
 
-	moea_pte_create(&pvo->pvo_pte, sr, va, pa | pte_lo);
+	moea_pte_create(&pvo->pvo_pte.pte, sr, va, pa | pte_lo);
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
@@ -1843,14 +1845,14 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		first = 1;
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 
-	if (pvo->pvo_pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
 		pm->pm_stats.wired_count++;
 	pm->pm_stats.resident_count++;
 
 	/*
 	 * We hope this succeeds but it isn't required.
 	 */
-	i = moea_pte_insert(ptegidx, &pvo->pvo_pte);
+	i = moea_pte_insert(ptegidx, &pvo->pvo_pte.pte);
 	if (i >= 0) {
 		PVO_PTEGIDX_SET(pvo, i);
 	} else {
@@ -1873,7 +1875,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 */
 	pt = moea_pvo_to_pte(pvo, pteidx);
 	if (pt != NULL) {
-		moea_pte_unset(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
+		moea_pte_unset(pt, &pvo->pvo_pte.pte, pvo->pvo_vaddr);
 		mtx_unlock(&moea_table_mutex);
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
@@ -1884,7 +1886,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	 * Update our statistics.
 	 */
 	pvo->pvo_pmap->pm_stats.resident_count--;
-	if (pvo->pvo_pte.pte_lo & PVO_WIRED)
+	if (pvo->pvo_pte.pte.pte_lo & PVO_WIRED)
 		pvo->pvo_pmap->pm_stats.wired_count--;
 
 	/*
@@ -1893,9 +1895,9 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	if ((pvo->pvo_vaddr & (PVO_MANAGED|PVO_FAKE)) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
-		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte_lo & PTE_RPGN);
+		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
 		if (pg != NULL) {
-			moea_attr_save(pg, pvo->pvo_pte.pte_lo &
+			moea_attr_save(pg, pvo->pvo_pte.pte.pte_lo &
 			    (PTE_REF | PTE_CHG));
 		}
 	}
@@ -1928,7 +1930,7 @@ moea_pvo_pte_index(const struct pvo_entry *pvo, int ptegidx)
 	 * noticing the HID bit.
 	 */
 	pteidx = ptegidx * 8 + PVO_PTEGIDX_GET(pvo);
-	if (pvo->pvo_pte.pte_hi & PTE_HID)
+	if (pvo->pvo_pte.pte.pte_hi & PTE_HID)
 		pteidx ^= moea_pteg_mask * 8;
 
 	return (pteidx);
@@ -1978,23 +1980,23 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 	pt = &moea_pteg_table[pteidx >> 3].pt[pteidx & 7];
 	mtx_lock(&moea_table_mutex);
 
-	if ((pvo->pvo_pte.pte_hi & PTE_VALID) && !PVO_PTEGIDX_ISSET(pvo)) {
+	if ((pvo->pvo_pte.pte.pte_hi & PTE_VALID) && !PVO_PTEGIDX_ISSET(pvo)) {
 		panic("moea_pvo_to_pte: pvo %p has valid pte in pvo but no "
 		    "valid pte index", pvo);
 	}
 
-	if ((pvo->pvo_pte.pte_hi & PTE_VALID) == 0 && PVO_PTEGIDX_ISSET(pvo)) {
+	if ((pvo->pvo_pte.pte.pte_hi & PTE_VALID) == 0 && PVO_PTEGIDX_ISSET(pvo)) {
 		panic("moea_pvo_to_pte: pvo %p has valid pte index in pvo "
 		    "pvo but no valid pte", pvo);
 	}
 
-	if ((pt->pte_hi ^ (pvo->pvo_pte.pte_hi & ~PTE_VALID)) == PTE_VALID) {
-		if ((pvo->pvo_pte.pte_hi & PTE_VALID) == 0) {
+	if ((pt->pte_hi ^ (pvo->pvo_pte.pte.pte_hi & ~PTE_VALID)) == PTE_VALID) {
+		if ((pvo->pvo_pte.pte.pte_hi & PTE_VALID) == 0) {
 			panic("moea_pvo_to_pte: pvo %p has valid pte in "
 			    "moea_pteg_table %p but invalid in pvo", pvo, pt);
 		}
 
-		if (((pt->pte_lo ^ pvo->pvo_pte.pte_lo) & ~(PTE_CHG|PTE_REF))
+		if (((pt->pte_lo ^ pvo->pvo_pte.pte.pte_lo) & ~(PTE_CHG|PTE_REF))
 		    != 0) {
 			panic("moea_pvo_to_pte: pvo %p pte does not match "
 			    "pte %p in moea_pteg_table", pvo, pt);
@@ -2004,7 +2006,7 @@ moea_pvo_to_pte(const struct pvo_entry *pvo, int pteidx)
 		return (pt);
 	}
 
-	if (pvo->pvo_pte.pte_hi & PTE_VALID) {
+	if (pvo->pvo_pte.pte.pte_hi & PTE_VALID) {
 		panic("moea_pvo_to_pte: pvo %p has invalid pte %p in "
 		    "moea_pteg_table but valid in pvo", pvo, pt);
 	}
@@ -2049,13 +2051,13 @@ moea_pte_spill(vm_offset_t addr)
 		 */
 		MOEA_PVO_CHECK(pvo);
 		if (source_pvo == NULL &&
-		    moea_pte_match(&pvo->pvo_pte, sr, addr,
-		    pvo->pvo_pte.pte_hi & PTE_HID)) {
+		    moea_pte_match(&pvo->pvo_pte.pte, sr, addr,
+		    pvo->pvo_pte.pte.pte_hi & PTE_HID)) {
 			/*
 			 * Now found an entry to be spilled into the pteg.
 			 * The PTE is now valid, so we know it's active.
 			 */
-			j = moea_pte_insert(ptegidx, &pvo->pvo_pte);
+			j = moea_pte_insert(ptegidx, &pvo->pvo_pte.pte);
 
 			if (j >= 0) {
 				PVO_PTEGIDX_SET(pvo, j);
@@ -2076,7 +2078,7 @@ moea_pte_spill(vm_offset_t addr)
 		 * so save the R & C bits of the PTE.
 		 */
 		if ((pt->pte_hi & PTE_HID) == 0 && victim_pvo == NULL &&
-		    moea_pte_compare(pt, &pvo->pvo_pte)) {
+		    moea_pte_compare(pt, &pvo->pvo_pte.pte)) {
 			victim_pvo = pvo;
 			if (source_pvo != NULL)
 				break;
@@ -2104,7 +2106,7 @@ moea_pte_spill(vm_offset_t addr)
 			 * We also need the pvo entry of the victim we are
 			 * replacing so save the R & C bits of the PTE.
 			 */
-			if (moea_pte_compare(pt, &pvo->pvo_pte)) {
+			if (moea_pte_compare(pt, &pvo->pvo_pte.pte)) {
 				victim_pvo = pvo;
 				break;
 			}
@@ -2120,10 +2122,10 @@ moea_pte_spill(vm_offset_t addr)
 	 * though it's valid.  If we don't, we lose any ref/chg bit changes
 	 * contained in the TLB entry.
 	 */
-	source_pvo->pvo_pte.pte_hi &= ~PTE_HID;
+	source_pvo->pvo_pte.pte.pte_hi &= ~PTE_HID;
 
-	moea_pte_unset(pt, &victim_pvo->pvo_pte, victim_pvo->pvo_vaddr);
-	moea_pte_set(pt, &source_pvo->pvo_pte);
+	moea_pte_unset(pt, &victim_pvo->pvo_pte.pte, victim_pvo->pvo_vaddr);
+	moea_pte_set(pt, &source_pvo->pvo_pte.pte);
 
 	PVO_PTEGIDX_CLR(victim_pvo);
 	PVO_PTEGIDX_SET(source_pvo, i);
@@ -2190,7 +2192,7 @@ moea_query_bit(vm_page_t m, int ptebit)
 		 * See if we saved the bit off.  If so, cache it and return
 		 * success.
 		 */
-		if (pvo->pvo_pte.pte_lo & ptebit) {
+		if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 			moea_attr_save(m, ptebit);
 			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			return (TRUE);
@@ -2213,9 +2215,9 @@ moea_query_bit(vm_page_t m, int ptebit)
 		 */
 		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
-			moea_pte_synch(pt, &pvo->pvo_pte);
+			moea_pte_synch(pt, &pvo->pvo_pte.pte);
 			mtx_unlock(&moea_table_mutex);
-			if (pvo->pvo_pte.pte_lo & ptebit) {
+			if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 				moea_attr_save(m, ptebit);
 				MOEA_PVO_CHECK(pvo);	/* sanity check */
 				return (TRUE);
@@ -2258,15 +2260,15 @@ moea_clear_bit(vm_page_t m, int ptebit, int *origbit)
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
-			moea_pte_synch(pt, &pvo->pvo_pte);
-			if (pvo->pvo_pte.pte_lo & ptebit) {
+			moea_pte_synch(pt, &pvo->pvo_pte.pte);
+			if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 				count++;
 				moea_pte_clear(pt, PVO_VADDR(pvo), ptebit);
 			}
 			mtx_unlock(&moea_table_mutex);
 		}
-		rv |= pvo->pvo_pte.pte_lo;
-		pvo->pvo_pte.pte_lo &= ~ptebit;
+		rv |= pvo->pvo_pte.pte.pte_lo;
+		pvo->pvo_pte.pte.pte_lo &= ~ptebit;
 		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
 

@@ -131,6 +131,7 @@ typedef	struct lpte lpte_t;
 #define	ADDR_PIDX	0x0ffff000
 #define	ADDR_PIDX_SHFT	12
 #define	ADDR_API_SHFT	22
+#define	ADDR_API_SHFT64	16
 #define	ADDR_POFF	0x00000fff
 
 /*
