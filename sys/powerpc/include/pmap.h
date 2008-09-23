@@ -82,6 +82,8 @@ struct	pmap {
 	u_int		pm_sr[16];
 	u_int		pm_active;
 	u_int		pm_context;
+
+	struct pmap	*pmap_phys;
 	struct		pmap_statistics	pm_stats;
 };
 
@@ -90,14 +92,17 @@ typedef	struct pmap *pmap_t;
 struct pvo_entry {
 	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
 	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
-	struct		pte pvo_pte;		/* PTE */
+	union {
+		struct	pte pte;		/* 32 bit PTE */
+		struct	lpte lpte;		/* 64 bit PTE */
+	} pvo_pte;
 	pmap_t		pvo_pmap;		/* Owning pmap */
 	vm_offset_t	pvo_vaddr;		/* VA of entry */
 };
 LIST_HEAD(pvo_head, pvo_entry);
 
 struct	md_page {
-	u_int	mdpg_attrs;
+	u_int64_t mdpg_attrs;
 	struct	pvo_head mdpg_pvoh;
 };
 
