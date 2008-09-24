@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2008
+.Dd September 24, 2008
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3450,6 +3450,12 @@ These are flags to pass to
 Unset by default.
 When set, sets the interface to use when setting IP address alias.
 Note that the alias is created at jail startup and removed at jail shutdown.
+.It Va jail_ Ns Ao Ar jname Ac Ns Va _netmask
+.Pq Vt str
+Set to
+.Li 255.255.255.255
+by default.
+This is the IP netmask to use when setting IP address alias.
 .It Va jail_ Ns Ao Ar jname Ac Ns Va _fib
 .Pq Vt str
 Unset by default.
