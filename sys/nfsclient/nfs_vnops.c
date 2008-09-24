@@ -888,7 +888,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 		*vpp = NULLVP;
 		return (error);
 	}
-	if ((error = cache_lookup(dvp, vpp, cnp)) && error != ENOENT) {
+	error = cache_lookup(dvp, vpp, cnp);
+	if (error > 0 && error != ENOENT)
+		return (error);
+	if (error == -1) {
 		struct vattr vattr;
 
 		newvp = *vpp;
