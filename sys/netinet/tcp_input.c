@@ -2472,12 +2472,19 @@ dropafterack:
 dropwithreset:
 	KASSERT(headlocked, ("%s: dropwithreset: head not locked", __func__));
 
-	tcp_dropwithreset(m, th, tp, tlen, rstreason);
-
-	if (tp != NULL)
+	/*
+	 * If tp is non-NULL, we call tcp_dropwithreset() holding both inpcb
+	 * and global locks.  However, if NULL, we must hold neither as
+	 * firewalls may acquire the global lock in order to look for a
+	 * matching inpcb.
+	 */
+	if (tp != NULL) {
+		tcp_dropwithreset(m, th, tp, tlen, rstreason);
 		INP_WUNLOCK(tp->t_inpcb);
-	if (headlocked)
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+	}
+	INP_INFO_WUNLOCK(&V_tcbinfo);
+	if (tp == NULL)
+		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 	return;
 
 drop:
