@@ -335,6 +335,7 @@ _ul=		ul
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"
+_ar=		ar
 _c89=		c89
 _c99=		c99
 _compile_et=	compile_et
