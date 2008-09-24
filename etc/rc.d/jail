@@ -39,6 +39,7 @@ init_variables()
 	_procdir="${_rootdir}/proc"
 	eval _hostname=\"\$jail_${_j}_hostname\"
 	eval _ip=\"\$jail_${_j}_ip\"
+	eval _netmask=\"\${jail_${_j}_netmask:-255.255.255.255}\"
 	eval _interface=\"\${jail_${_j}_interface:-${jail_interface}}\"
 	eval _exec=\"\$jail_${_j}_exec\"
 	eval _exec_start=\"\${jail_${_j}_exec_start:-${jail_exec_start}}\"
@@ -93,6 +94,7 @@ init_variables()
 	debug "$_j mount enable: $_mount"
 	debug "$_j hostname: $_hostname"
 	debug "$_j ip: $_ip"
+	debug "$_j netmask: $_netmask"
 	debug "$_j interface: $_interface"
 	debug "$_j fib: $_fib"
 	debug "$_j root: $_rootdir"
@@ -297,7 +299,7 @@ jail_start()
 			continue;
 		fi
 		if [ -n "${_interface}" ]; then
-			ifconfig ${_interface} alias ${_ip} netmask 255.255.255.255
+			ifconfig ${_interface} alias ${_ip} netmask ${_netmask}
 		fi
 		if [ -n "${_fib}" ]; then
 			_setfib="setfib -F '${_fib}'"
