@@ -128,6 +128,7 @@ extern vm_offset_t ksym_start, ksym_end;
 #endif
 
 int cold = 1;
+int cacheline_size = 32;
 
 struct pcpu __pcpu[MAXCPU];
 
@@ -136,12 +137,11 @@ static struct trapframe frame0;
 char		machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-static int cacheline_size = CACHELINESIZE;
-SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
-	   CTLFLAG_RD, &cacheline_size, 0, "");
-
 static void	cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
+
+SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
+	   CTLFLAG_RD, &cacheline_size, 0, "");
 
 u_int		powerpc_init(u_int, u_int, u_int, void *);
 
