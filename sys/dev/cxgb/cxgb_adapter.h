@@ -56,7 +56,6 @@ $FreeBSD$
 
 #include <cxgb_osdep.h>
 #include <t3cdev.h>
-#include <ulp/toecore/cxgb_toedev.h>
 #include <sys/mbufq.h>
 
 #ifdef LRO_SUPPORTED

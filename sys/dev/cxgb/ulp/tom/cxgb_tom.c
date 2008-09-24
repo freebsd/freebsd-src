@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <common/cxgb_t3_cpl.h>
 #include <cxgb_offload.h>
 #include <ulp/toecore/cxgb_toedev.h>
+#include <ulp/tom/cxgb_l2t.h>
 #include <ulp/tom/cxgb_tom.h>
 #include <ulp/tom/cxgb_defs.h>
 #include <ulp/tom/cxgb_t3_ddp.h>
