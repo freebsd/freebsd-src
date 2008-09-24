@@ -45,10 +45,7 @@ extern	vm_offset_t	kstack0_phys;
 extern	u_long	ns_per_tick;
 
 extern	int powerpc_pow_enabled;
-
-#if defined(_KERNEL) || defined(_STANDALONE)
-#define	CACHELINESIZE	32
-#endif
+extern	int cacheline_size;
 
 void	__syncicache(void *, int);
 

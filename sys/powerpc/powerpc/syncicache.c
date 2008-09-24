@@ -31,8 +31,10 @@
  * $NetBSD: syncicache.c,v 1.2 1999/05/05 12:36:40 tsubai Exp $
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #if	defined(_KERNEL) || defined(_STANDALONE)
@@ -42,32 +44,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/sysctl.h>
 
+#include <machine/cpu.h>
 #include <machine/md_var.h>
-
-#if	defined(_KERNEL) || defined(_STANDALONE)
-#ifndef	CACHELINESIZE
-#error "Must know the size of a cache line"
-#endif
-#else
-static void getcachelinesize(void);
-
-static int _cachelinesize;
-#define	CACHELINESIZE	_cachelinesize
-
-static void
-getcachelinesize()
-{
-	static int	cachemib[] = { CTL_MACHDEP, CPU_CACHELINE };
-	int		clen;
-
-	clen = sizeof(_cachelinesize);
-
-	if (sysctl(cachemib, sizeof(cachemib) / sizeof(cachemib[0]),
-	    &_cachelinesize, &clen, NULL, 0) < 0 || !_cachelinesize) {
-		abort();
-	}
-}
-#endif
 
 void
 __syncicache(void *from, int len)
@@ -75,22 +53,20 @@ __syncicache(void *from, int len)
 	int	l, off;
 	char	*p;
 
-#if	!defined(_KERNEL) && !defined(_STANDALONE)
-	if (!_cachelinesize)
-		getcachelinesize();
-#endif	
-	off = (u_int)from & (CACHELINESIZE - 1);
+	off = (u_int)from & (cacheline_size - 1);
 	l = len += off;
 	p = (char *)from - off;
+
 	do {
 		__asm __volatile ("dcbst 0,%0" :: "r"(p));
-		p += CACHELINESIZE;
-	} while ((l -= CACHELINESIZE) > 0);
+		p += cacheline_size;
+	} while ((l -= cacheline_size) > 0);
 	__asm __volatile ("sync");
 	p = (char *)from - off;
 	do {
 		__asm __volatile ("icbi 0,%0" :: "r"(p));
-		p += CACHELINESIZE;
-	} while ((len -= CACHELINESIZE) > 0);
+		p += cacheline_size;
+	} while ((len -= cacheline_size) > 0);
 	__asm __volatile ("sync; isync");
 }
+
