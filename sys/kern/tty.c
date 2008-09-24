@@ -924,8 +924,8 @@ tty_rel_free(struct tty *tp)
 
 	tty_lock_assert(tp, MA_OWNED);
 
-	if (tp->t_sessioncnt != 0 ||
-	    (tp->t_flags & (TF_GONE|TF_OPENED|TF_HOOK)) != TF_GONE) {
+#define	TF_ACTIVITY	(TF_GONE|TF_OPENED|TF_HOOK|TF_OPENCLOSE)
+	if (tp->t_sessioncnt != 0 || (tp->t_flags & TF_ACTIVITY) != TF_GONE) {
 		/* TTY is still in use. */
 		tty_unlock(tp);
 		return;
