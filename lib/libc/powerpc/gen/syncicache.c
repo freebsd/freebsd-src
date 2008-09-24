@@ -47,12 +47,14 @@ static const char rcsid[] =
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 
-#ifndef _KERNEL
+#ifdef _STANDALONE
 int cacheline_size = 32;
 #endif
 
 #if	!defined(_KERNEL) && !defined(_STANDALONE)
 #include <stdlib.h>
+
+int cacheline_size = 0;
 
 static void getcachelinesize(void);
 
