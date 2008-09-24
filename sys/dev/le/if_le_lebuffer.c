@@ -63,17 +63,10 @@ __FBSDID("$FreeBSD$");
 struct le_lebuffer_softc {
 	struct am7990_softc	sc_am7990;	/* glue to MI code */
 
-	int			sc_brid;
 	struct resource		*sc_bres;
-	bus_space_tag_t		sc_buft;
-	bus_space_handle_t	sc_bufh;
 
-	int			sc_rrid;
 	struct resource		*sc_rres;
-	bus_space_tag_t		sc_regt;
-	bus_space_handle_t	sc_regh;
 
-	int			sc_irid;
 	struct resource		*sc_ires;
 	void			*sc_ih;
 };
@@ -103,6 +96,7 @@ DEFINE_CLASS_0(le, le_lebuffer_driver, le_lebuffer_methods,
     sizeof(struct le_lebuffer_softc));
 DRIVER_MODULE(le, lebuffer, le_lebuffer_driver, le_lebuffer_devclass, 0, 0);
 MODULE_DEPEND(le, ether, 1, 1, 1);
+MODULE_DEPEND(le, lebuffer, 1, 1, 1);
 
 /*
  * Media types supported
@@ -126,10 +120,9 @@ le_lebuffer_wrcsr(struct lance_softc *sc, uint16_t port, uint16_t val)
 {
 	struct le_lebuffer_softc *lesc = (struct le_lebuffer_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RDP, val);
+	bus_write_2(lesc->sc_rres, LEREG1_RAP, port);
+	bus_barrier(lesc->sc_rres, LEREG1_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	bus_write_2(lesc->sc_rres, LEREG1_RDP, val);
 }
 
 static uint16_t
@@ -137,10 +130,9 @@ le_lebuffer_rdcsr(struct lance_softc *sc, uint16_t port)
 {
 	struct le_lebuffer_softc *lesc = (struct le_lebuffer_softc *)sc;
 
-	bus_space_write_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, port);
-	bus_space_barrier(lesc->sc_regt, lesc->sc_regh, LEREG1_RAP, 2,
-	    BUS_SPACE_BARRIER_WRITE);
-	return (bus_space_read_2(lesc->sc_regt, lesc->sc_regh, LEREG1_RDP));
+	bus_write_2(lesc->sc_rres, LEREG1_RAP, port);
+	bus_barrier(lesc->sc_rres, LEREG1_RAP, 2, BUS_SPACE_BARRIER_WRITE);
+	return (bus_read_2(lesc->sc_rres, LEREG1_RDP));
 }
 
 /*
@@ -163,17 +155,13 @@ le_lebuffer_copytodesc(struct lance_softc *sc, void *fromv, int off, int len)
 	caddr_t from = fromv;
 
 	for (; len >= 8; len -= 8, off += 8, from += 8)
-		bus_space_write_8(lesc->sc_buft, lesc->sc_bufh, off,
-		    be64dec(from));
+		bus_write_8(lesc->sc_bres, off, be64dec(from));
 	for (; len >= 4; len -= 4, off += 4, from += 4)
-		bus_space_write_4(lesc->sc_buft, lesc->sc_bufh, off,
-		    be32dec(from));
+		bus_write_4(lesc->sc_bres, off, be32dec(from));
 	for (; len >= 2; len -= 2, off += 2, from += 2)
-		bus_space_write_2(lesc->sc_buft, lesc->sc_bufh, off,
-		    be16dec(from));
+		bus_write_2(lesc->sc_bres, off, be16dec(from));
 	if (len == 1)
-		bus_space_write_1(lesc->sc_buft, lesc->sc_bufh, off,
-		    *from);
+		bus_write_1(lesc->sc_bres, off, *from);
 }
 
 static void
@@ -184,16 +172,15 @@ le_lebuffer_copyfromdesc(struct lance_softc *sc, void *tov, int off, int len)
 
 	for (; len >= 8; len -= 8, off += 8, to += 8)
 		be64enc(to,
-		    bus_space_read_8(lesc->sc_buft, lesc->sc_bufh, off));
+		    bus_read_8(lesc->sc_bres, off));
 	for (; len >= 4; len -= 4, off += 4, to += 4)
 		be32enc(to,
-		    bus_space_read_4(lesc->sc_buft, lesc->sc_bufh, off));
+		    bus_read_4(lesc->sc_bres, off));
 	for (; len >= 2; len -= 2, off += 2, to += 2)
 		be16enc(to,
-		    bus_space_read_2(lesc->sc_buft, lesc->sc_bufh, off));
+		    bus_read_2(lesc->sc_bres, off));
 	if (len == 1)
-		*to =
-		    bus_space_read_1(lesc->sc_buft, lesc->sc_bufh, off);
+		*to = bus_read_1(lesc->sc_bres, off);
 }
 
 static void
@@ -203,11 +190,9 @@ le_lebuffer_copytobuf(struct lance_softc *sc, void *fromv, int off, int len)
 	caddr_t from = fromv;
 
 	for (; len >= 2; len -= 2, off += 2, from += 2)
-		bus_space_write_2(lesc->sc_buft, lesc->sc_bufh, off,
-		    le16dec(from));
+		bus_write_2(lesc->sc_bres, off, le16dec(from));
 	if (len == 1)
-		bus_space_write_1(lesc->sc_buft, lesc->sc_bufh, off + 1,
-		    *from);
+		bus_write_1(lesc->sc_bres, off + 1, *from);
 }
 
 static void
@@ -218,10 +203,9 @@ le_lebuffer_copyfrombuf(struct lance_softc *sc, void *tov, int off, int len)
 
 	for (; len >= 2; len -= 2, off += 2, to += 2)
 		le16enc(to,
-		    bus_space_read_2(lesc->sc_buft, lesc->sc_bufh, off));
+		    bus_read_2(lesc->sc_bres, off));
 	if (len == 1)
-		*to =
-		    bus_space_read_1(lesc->sc_buft, lesc->sc_bufh, off + 1);
+		*to = bus_read_1(lesc->sc_bres, off + 1);
 }
 
 static void
@@ -230,9 +214,9 @@ le_lebuffer_zerobuf(struct lance_softc *sc, int off, int len)
 	struct le_lebuffer_softc *lesc = (struct le_lebuffer_softc *)sc;
 
 	for (; len >= 2; len -= 2, off += 2)
-		bus_space_write_2(lesc->sc_buft, lesc->sc_bufh, off, 0);
+		bus_write_2(lesc->sc_bres, off, 0);
 	if (len == 1)
-		bus_space_write_1(lesc->sc_buft, lesc->sc_bufh, off + 1, 0);
+		bus_write_1(lesc->sc_bres, off + 1, 0);
 }
 
 static int
@@ -251,7 +235,7 @@ le_lebuffer_attach(device_t dev)
 {
 	struct le_lebuffer_softc *lesc;
 	struct lance_softc *sc;
-	int error;
+	int error, i;
 
 	lesc = device_get_softc(dev);
 	sc = &lesc->sc_am7990.lsc;
@@ -262,33 +246,29 @@ le_lebuffer_attach(device_t dev)
 	 * The "register space" of the parent is just a buffer where the
 	 * the LANCE descriptor rings and the RX/TX buffers can be stored.
 	 */
-	lesc->sc_brid = 0;
+	i = 0;
 	lesc->sc_bres = bus_alloc_resource_any(device_get_parent(dev),
-	    SYS_RES_MEMORY, &lesc->sc_brid, RF_ACTIVE);
+	    SYS_RES_MEMORY, &i, RF_ACTIVE);
 	if (lesc->sc_bres == NULL) {
 		device_printf(dev, "cannot allocate LANCE buffer\n");
 		error = ENXIO;
 		goto fail_mtx;
 	}
-	lesc->sc_buft = rman_get_bustag(lesc->sc_bres);
-	lesc->sc_bufh = rman_get_bushandle(lesc->sc_bres);
 
 	/* Allocate LANCE registers. */
-	lesc->sc_rrid = 0;
+	i = 0;
 	lesc->sc_rres = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &lesc->sc_rrid, RF_ACTIVE);
+	    &i, RF_ACTIVE);
 	if (lesc->sc_rres == NULL) {
 		device_printf(dev, "cannot allocate LANCE registers\n");
 		error = ENXIO;
 		goto fail_bres;
 	}
-	lesc->sc_regt = rman_get_bustag(lesc->sc_rres);
-	lesc->sc_regh = rman_get_bushandle(lesc->sc_rres);
 
 	/* Allocate LANCE interrupt. */
-	lesc->sc_irid = 0;
+	i = 0;
 	if ((lesc->sc_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-	    &lesc->sc_irid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
+	    &i, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "cannot allocate interrupt\n");
 		error = ENXIO;
 		goto fail_rres;
@@ -352,12 +332,14 @@ le_lebuffer_attach(device_t dev)
  fail_am7990:
 	am7990_detach(&lesc->sc_am7990);
  fail_ires:
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
  fail_rres:
-	bus_release_resource(dev, SYS_RES_MEMORY, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
  fail_bres:
 	bus_release_resource(device_get_parent(dev), SYS_RES_MEMORY,
-	    lesc->sc_brid, lesc->sc_bres);
+	    rman_get_rid(lesc->sc_bres), lesc->sc_bres);
  fail_mtx:
 	LE_LOCK_DESTROY(sc);
 	return (error);
@@ -374,10 +356,12 @@ le_lebuffer_detach(device_t dev)
 
 	bus_teardown_intr(dev, lesc->sc_ires, lesc->sc_ih);
 	am7990_detach(&lesc->sc_am7990);
-	bus_release_resource(dev, SYS_RES_IRQ, lesc->sc_irid, lesc->sc_ires);
-	bus_release_resource(dev, SYS_RES_MEMORY, lesc->sc_rrid, lesc->sc_rres);
+	bus_release_resource(dev, SYS_RES_IRQ,
+	    rman_get_rid(lesc->sc_ires), lesc->sc_ires);
+	bus_release_resource(dev, SYS_RES_MEMORY,
+	    rman_get_rid(lesc->sc_rres), lesc->sc_rres);
 	bus_release_resource(device_get_parent(dev), SYS_RES_MEMORY,
-	    lesc->sc_brid, lesc->sc_bres);
+	    rman_get_rid(lesc->sc_bres), lesc->sc_bres);
 	LE_LOCK_DESTROY(sc);
 
 	return (0);
