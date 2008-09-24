@@ -18,6 +18,9 @@
  * $FreeBSD$
  */
 
+#ifndef __APM_H__
+#define	__APM_H__
+
 #define APM_NEVENTS 16
 #define APM_NPMEV   13
 #define APM_UNKNOWN	0xff
@@ -51,3 +54,4 @@ struct apm_softc {
 	u_char	event_filter[APM_NPMEV];
 };
 
+#endif /* !__APM_H__ */
