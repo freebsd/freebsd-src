@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/if_ether.h>
 
 #include <cxgb_include.h>
+#include <ulp/tom/cxgb_l2t.h>
 
 #define VLAN_NONE 0xfff
 #define SDL(s) ((struct sockaddr_dl *)s) 
