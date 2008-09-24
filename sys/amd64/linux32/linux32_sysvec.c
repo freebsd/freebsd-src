@@ -1000,62 +1000,62 @@ linux32_fixlimit(struct rlimit *rl, int which)
 }
 
 struct sysentvec elf_linux_sysvec = {
-	LINUX_SYS_MAXSYSCALL,
-	linux_sysent,
-	0,
-	LINUX_SIGTBLSZ,
-	bsd_to_linux_signal,
-	ELAST + 1,
-	bsd_to_linux_errno,
-	translate_traps,
-	elf_linux_fixup,
-	linux_sendsig,
-	linux_sigcode,
-	&linux_szsigcode,
-	linux_prepsyscall,
-	"Linux ELF32",
-	elf32_coredump,
-	exec_linux_imgact_try,
-	LINUX_MINSIGSTKSZ,
-	PAGE_SIZE,
-	VM_MIN_ADDRESS,
-	LINUX32_USRSTACK,
-	LINUX32_USRSTACK,
-	LINUX32_PS_STRINGS,
-	VM_PROT_ALL,
-	linux_copyout_strings,
-	exec_linux_setregs,
-	linux32_fixlimit,
-	&linux32_maxssiz,
+	.sv_size	= LINUX_SYS_MAXSYSCALL,
+	.sv_table	= linux_sysent,
+	.sv_mask	= 0,
+	.sv_sigsize	= LINUX_SIGTBLSZ,
+	.sv_sigtbl	= bsd_to_linux_signal,
+	.sv_errsize	= ELAST + 1,
+	.sv_errtbl	= bsd_to_linux_errno,
+	.sv_transtrap	= translate_traps,
+	.sv_fixup	= elf_linux_fixup,
+	.sv_sendsig	= linux_sendsig,
+	.sv_sigcode	= linux_sigcode,
+	.sv_szsigcode	= &linux_szsigcode,
+	.sv_prepsyscall	= linux_prepsyscall,
+	.sv_name	= "Linux ELF32",
+	.sv_coredump	= elf32_coredump,
+	.sv_imgact_try	= exec_linux_imgact_try,
+	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
+	.sv_pagesize	= PAGE_SIZE,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= LINUX32_USRSTACK,
+	.sv_usrstack	= LINUX32_USRSTACK,
+	.sv_psstrings	= LINUX32_PS_STRINGS,
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_strings = linux_copyout_strings,
+	.sv_setregs	= exec_linux_setregs,
+	.sv_fixlimit	= linux32_fixlimit,
+	.sv_maxssiz	= &linux32_maxssiz,
 };
 
 static Elf32_Brandinfo linux_brand = {
-					ELFOSABI_LINUX,
-					EM_386,
-					"Linux",
-					"/compat/linux",
-					"/lib/ld-linux.so.1",
-					&elf_linux_sysvec,
-					NULL,
-					BI_CAN_EXEC_DYN,
-				 };
+	.brand		= ELFOSABI_LINUX,
+	.machine	= EM_386,
+	.compat_3_brand	= "Linux",
+	.emul_path	= "/compat/linux",
+	.interp_path	= "/lib/ld-linux.so.1",
+	.sysvec		= &elf_linux_sysvec,
+	.interp_newpath	= NULL,
+	.flags		= BI_CAN_EXEC_DYN,
+};
 
 static Elf32_Brandinfo linux_glibc2brand = {
-					ELFOSABI_LINUX,
-					EM_386,
-					"Linux",
-					"/compat/linux",
-					"/lib/ld-linux.so.2",
-					&elf_linux_sysvec,
-					NULL,
-					BI_CAN_EXEC_DYN,
-				 };
+	.brand		= ELFOSABI_LINUX,
+	.machine	= EM_386,
+	.compat_3_brand	= "Linux",
+	.emul_path	= "/compat/linux",
+	.interp_path	= "/lib/ld-linux.so.2",
+	.sysvec		= &elf_linux_sysvec,
+	.interp_newpath	= NULL,
+	.flags		= BI_CAN_EXEC_DYN,
+};
 
 Elf32_Brandinfo *linux_brandlist[] = {
-					&linux_brand,
-					&linux_glibc2brand,
-					NULL
-				};
+	&linux_brand,
+	&linux_glibc2brand,
+	NULL
+};
 
 static int
 linux_elf_modevent(module_t mod, int type, void *data)
