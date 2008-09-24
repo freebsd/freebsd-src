@@ -155,6 +155,7 @@ void	tty_rel_gone(struct tty *tp);
 #define	tty_lock(tp)		mtx_lock((tp)->t_mtx)
 #define	tty_unlock(tp)		mtx_unlock((tp)->t_mtx)
 #define	tty_lock_assert(tp,ma)	mtx_assert((tp)->t_mtx, (ma))
+#define	tty_getlock(tp)		((tp)->t_mtx)
 
 /* Device node creation. */
 void	tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
