@@ -386,8 +386,9 @@ input_userauth_banner(int type, u_int32_t seq, void *ctxt)
 	if (options.log_level >= SYSLOG_LEVEL_INFO) {
 		if (len > 65536)
 			len = 65536;
-		msg = xmalloc(len * 4); /* max expansion from strnvis() */
+		msg = xmalloc(len * 4 + 1); /* max expansion from strnvis() */
 		strnvis(msg, raw, len * 4, VIS_SAFE|VIS_OCTAL);
+		msg[len*4] = '\0';
 		fprintf(stderr, "%s", msg);
 		xfree(msg);
 	}
