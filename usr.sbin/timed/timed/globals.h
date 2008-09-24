@@ -55,8 +55,6 @@
 #define	SECHR	(60*60)
 #define	SECDAY	(24*SECHR)
 
-extern int sock;
-
 /* Best expected round trip for a measurement.
  * This is essentially the number of milliseconds per CPU tick (CLK_TCK?).
  * All delays shorter than this are usually reported as 0.
