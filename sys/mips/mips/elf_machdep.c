@@ -48,57 +48,60 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 struct sysentvec elf32_freebsd_sysvec = {
-	SYS_MAXSYSCALL,
-	sysent,
-	0,
-	0,
-	NULL,
-	0,
-	NULL,
-	NULL,
-	__elfN(freebsd_fixup),
-	sendsig,
-	sigcode,
-	&szsigcode,
-	NULL,
-	"FreeBSD ELF32",
-	__elfN(coredump),
-	NULL,
-	MINSIGSTKSZ,
-	PAGE_SIZE,
-	VM_MIN_ADDRESS,
-	VM_MAXUSER_ADDRESS,
-	USRSTACK,
-	PS_STRINGS,
-	VM_PROT_ALL,
-	exec_copyout_strings,
-	exec_setregs,
-	NULL
+	.sv_size	= SYS_MAXSYSCALL,
+	.sv_table	= sysent,
+	.sv_mask	= 0,
+	.sv_sigsize	= 0,
+	.sv_sigtbl	= NULL,
+	.sv_errsize	= 0,
+	.sv_errtbl	= NULL,
+	.sv_transtrap	= NULL,
+	.sv_fixup	= __elfN(freebsd_fixup),
+	.sv_sendsig	= sendsig,
+	.sv_sigcode	= sigcode,
+	.sv_szsigcode	= &szsigcode,
+	.sv_prepsyscall	= NULL,
+	.sv_name	= "FreeBSD ELF32",
+	.sv_coredump	= __elfN(coredump),
+	.sv_imgact_try	= NULL,
+	.sv_minsigstksz	= MINSIGSTKSZ,
+	.sv_pagesize	= PAGE_SIZE,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_usrstack	= USRSTACK,
+	.sv_psstrings	= PS_STRINGS,
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs	= exec_setregs,
+	.sv_fixlimit	= NULL,
+	.sv_maxssiz	= NULL
 };
 
 static Elf32_Brandinfo freebsd_brand_info = {
-						ELFOSABI_FREEBSD,
-						EM_MIPS,
-						"FreeBSD",
-						NULL,
-						"/libexec/ld-elf.so.1",
-						&elf32_freebsd_sysvec,
-						NULL,
-					  };
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_MIPS,
+	.compat_3_brand	= "FreeBSD",
+	.emul_path	= NULL,
+	.interp_path	= "/libexec/ld-elf.so.1",
+	.sysvec		= &elf32_freebsd_sysvec,
+	.interp_newpath	= NULL,
+	.flags		= 0
+};
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
-	(sysinit_cfunc_t) elf32_insert_brand_entry,
-	&freebsd_brand_info);
+    (sysinit_cfunc_t) elf32_insert_brand_entry,
+    &freebsd_brand_info);
 
 static Elf32_Brandinfo freebsd_brand_oinfo = {
-						ELFOSABI_FREEBSD,
-						EM_MIPS,
-						"FreeBSD",
-						NULL,
-						"/usr/libexec/ld-elf.so.1",
-						&elf32_freebsd_sysvec,
-						NULL,
-					  };
+	.brand		= ELFOSABI_FREEBSD,
+	.machine	= EM_MIPS,
+	.compat_3_brand	= "FreeBSD",
+	.emul_path	= NULL,
+	.interp_path	= "/usr/libexec/ld-elf.so.1",
+	.sysvec		= &elf32_freebsd_sysvec,
+	.interp_newpath	= NULL,
+	.flags		= 0
+};
 
 SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,

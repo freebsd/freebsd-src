@@ -164,44 +164,46 @@ extern int svr4_szsigcode;
 extern char svr4_sigcode[];
 
 struct sysentvec svr4_sysvec = {
-  SVR4_SYS_MAXSYSCALL,
-  svr4_sysent,
-  0xff,
-  SVR4_NSIG-1,		/* NB: signal trans table indexed with signno-1 */
-  bsd_to_svr4_sig+1,
-  ELAST,  /* ELAST */
-  bsd_to_svr4_errno,
-  NULL,
-  svr4_fixup,
-  svr4_sendsig,
-  svr4_sigcode,
-  &svr4_szsigcode,
-  NULL,
-  "SVR4",
-  elf32_coredump,
-  NULL,
-  SVR4_MINSIGSTKSZ,
-  PAGE_SIZE,
-  VM_MIN_ADDRESS,
-  VM_MAXUSER_ADDRESS,
-  USRSTACK,
-  PS_STRINGS,
-  VM_PROT_ALL,
-  exec_copyout_strings,
-  exec_setregs,
-  NULL
+	.sv_size	= SVR4_SYS_MAXSYSCALL,
+	.sv_table	= svr4_sysent,
+	.sv_mask	= 0xff,
+	.sv_sigsize	= SVR4_NSIG-1, /* NB: signal trans table indexed with signno-1 */
+	.sv_sigtbl	= bsd_to_svr4_sig+1,
+	.sv_errsize	= ELAST,  /* ELAST */
+	.sv_errtbl	= bsd_to_svr4_errno,
+	.sv_transtrap	= NULL,
+	.sv_fixup	= svr4_fixup,
+	.sv_sendsig	= svr4_sendsig,
+	.sv_sigcode	= svr4_sigcode,
+	.sv_szsigcode	= &svr4_szsigcode,
+	.sv_prepsyscall	= NULL,
+	.sv_name	= "SVR4",
+	.sv_coredump	= elf32_coredump,
+	.sv_imgact_try	= NULL,
+	.sv_minsigstksz	= SVR4_MINSIGSTKSZ,
+	.sv_pagesize	= PAGE_SIZE,
+	.sv_minuser	= VM_MIN_ADDRESS,
+	.sv_maxuser	= VM_MAXUSER_ADDRESS,
+	.sv_usrstack	= USRSTACK,
+	.sv_psstrings	= PS_STRINGS,
+	.sv_stackprot	= VM_PROT_ALL,
+	.sv_copyout_strings = exec_copyout_strings,
+	.sv_setregs	= exec_setregs,
+	.sv_fixlimit	= NULL,
+	.sv_maxssiz     = NULL
 };
 
 const char      svr4_emul_path[] = "/compat/svr4";
 
 Elf32_Brandinfo svr4_brand = {
-  ELFOSABI_SYSV,
-  EM_386,			/* XXX only implemented for x86 so far. */
-  "SVR4",
-  svr4_emul_path,
-  "/lib/libc.so.1",
-  &svr4_sysvec,
-  NULL,
+	.brand		= ELFOSABI_SYSV,
+	.machine	= EM_386, /* XXX only implemented for x86 so far. */
+	.compat_3_brand	= "SVR4",
+	.emul_path	= svr4_emul_path,
+	.interp_path	= "/lib/libc.so.1",
+	.sysvec		= &svr4_sysvec,
+	.interp_newpath	= NULL,
+	.flags		= 0
 };
 
 static int
