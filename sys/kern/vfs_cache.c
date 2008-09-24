@@ -304,7 +304,9 @@ cache_zap(ncp)
  * succeeds, the vnode is returned in *vpp, and a status of -1 is
  * returned. If the lookup determines that the name does not exist
  * (negative cacheing), a status of ENOENT is returned. If the lookup
- * fails, a status of zero is returned.
+ * fails, a status of zero is returned.  If the directory vnode is
+ * recycled out from under us due to a forced unmount, a status of
+ * EBADF is returned.
  *
  * vpp is locked and ref'd on return.  If we're looking up DOTDOT, dvp is
  * unlocked.  If we're looking up . an extra ref is taken, but the lock is
@@ -428,10 +430,18 @@ success:
 		 * differently...
 		 */
 		ltype = cnp->cn_lkflags & LK_TYPE_MASK;
-		if (ltype == VOP_ISLOCKED(*vpp))
-			return (-1);
-		else if (ltype == LK_EXCLUSIVE)
-			vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
+		if (ltype != VOP_ISLOCKED(*vpp)) {
+			if (ltype == LK_EXCLUSIVE) {
+				vn_lock(*vpp, LK_UPGRADE | LK_RETRY);
+				if ((*vpp)->v_iflag & VI_DOOMED) {
+					/* forced unmount */
+					vrele(*vpp);
+					*vpp = NULL;
+					return (EBADF);
+				}
+			} else
+				vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
+		}
 		return (-1);
 	}
 	ltype = 0;	/* silence gcc warning */
@@ -671,9 +681,9 @@ vfs_cache_lookup(ap)
 	error = cache_lookup(dvp, vpp, cnp);
 	if (error == 0)
 		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
-	if (error == ENOENT)
-		return (error);
-	return (0);
+	if (error == -1)
+		return (0);
+	return (error);
 }
 
 
