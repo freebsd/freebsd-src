@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/rdma/ib_verbs.h>
 
 #include <cxgb_include.h>
+#include <ulp/tom/cxgb_l2t.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
 #include <ulp/iw_cxgb/iw_cxgb_hal.h>
 #include <ulp/iw_cxgb/iw_cxgb_provider.h>

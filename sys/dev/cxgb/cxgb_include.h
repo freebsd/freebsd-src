@@ -16,4 +16,3 @@
 #include <common/cxgb_sge_defs.h>
 #include <common/cxgb_firmware_exports.h>
 #include <common/jhash.h>
-#include <ulp/toecore/cxgb_toedev.h>

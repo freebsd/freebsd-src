@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/mvec.h>
 #include <ulp/toecore/cxgb_toedev.h>
+#include <ulp/tom/cxgb_l2t.h>
 #include <ulp/tom/cxgb_defs.h>
 #include <ulp/tom/cxgb_tom.h>
 #include <ulp/tom/cxgb_t3_ddp.h>

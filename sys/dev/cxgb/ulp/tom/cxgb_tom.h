@@ -33,6 +33,7 @@ $FreeBSD$
 #ifndef CXGB_TOM_H_
 #define CXGB_TOM_H_
 #include <sys/protosw.h>
+#include <netinet/toedev.h>
 
 #define LISTEN_INFO_HASH_SIZE 32 
 

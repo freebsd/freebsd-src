@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  * XXX 
  */
 #include <cxgb_include.h>
-
+#include <ulp/toecore/cxgb_toedev.h>
 
 static struct mtx offload_db_lock;
 static TAILQ_HEAD(, toedev) offload_dev_list;

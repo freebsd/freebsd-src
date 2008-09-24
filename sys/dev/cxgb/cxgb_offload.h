@@ -35,7 +35,6 @@ $FreeBSD$
 
 #include <common/cxgb_version.h>
 #include <cxgb_config.h>
-#include <ulp/tom/cxgb_l2t.h>
 #include <common/cxgb_tcb.h>
 #include <t3cdev.h>
 
@@ -71,6 +70,7 @@ void cxgb_remove_clients(struct t3cdev *tdev);
 typedef int (*cxgb_cpl_handler_func)(struct t3cdev *dev,
 				      struct mbuf *m, void *ctx);
 
+struct l2t_entry;
 struct cxgb_client {
 	char 			*name;
 	void 			(*add) (struct t3cdev *);
