@@ -486,7 +486,10 @@ vm_object_deallocate(vm_object_t object)
 			VM_OBJECT_UNLOCK(object);
 			return;
 		} else if (object->ref_count == 1) {
-			if (object->shadow_count == 0) {
+			if (object->shadow_count == 0 &&
+			    object->handle == NULL &&
+			    (object->type == OBJT_DEFAULT ||
+			     object->type == OBJT_SWAP)) {
 				vm_object_set_flag(object, OBJ_ONEMAPPING);
 			} else if ((object->shadow_count == 1) &&
 			    (object->handle == NULL) &&
@@ -1790,10 +1793,22 @@ vm_object_collapse(vm_object_t object)
 /*
  *	vm_object_page_remove:
  *
- *	Removes all physical pages in the given range from the
- *	object's list of pages.  If the range's end is zero, all
- *	physical pages from the range's start to the end of the object
- *	are deleted.
+ *	For the given object, either frees or invalidates each of the
+ *	specified pages.  In general, a page is freed.  However, if a
+ *	page is wired for any reason other than the existence of a
+ *	managed, wired mapping, then it may be invalidated but not
+ *	removed from the object.  Pages are specified by the given
+ *	range ["start", "end") and Boolean "clean_only".  As a
+ *	special case, if "end" is zero, then the range extends from
+ *	"start" to the end of the object.  If "clean_only" is TRUE,
+ *	then only the non-dirty pages within the specified range are
+ *	affected.
+ *
+ *	In general, this operation should only be performed on objects
+ *	that contain managed pages.  There are two exceptions.  First,
+ *	it may be performed on the kernel and kmem objects.  Second,
+ *	it may be used by msync(..., MS_INVALIDATE) to invalidate
+ *	device-backed pages.
  *
  *	The object must be locked.
  */
@@ -1836,13 +1851,17 @@ again:
 		next = TAILQ_NEXT(p, listq);
 
 		if (p->wire_count != 0) {
-			pmap_remove_all(p);
+			/* Fictitious pages do not have managed mappings. */
+			if ((p->flags & PG_FICTITIOUS) == 0)
+				pmap_remove_all(p);
 			if (!clean_only)
 				p->valid = 0;
 			continue;
 		}
 		if (vm_page_sleep_if_busy(p, TRUE, "vmopar"))
 			goto again;
+		KASSERT((p->flags & PG_FICTITIOUS) == 0,
+		    ("vm_object_page_remove: page %p is fictitious", p));
 		if (clean_only && p->valid) {
 			pmap_page_protect(p, VM_PROT_READ | VM_PROT_EXECUTE);
 			if (p->valid & p->dirty)
