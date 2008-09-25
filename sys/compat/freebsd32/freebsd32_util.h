@@ -28,14 +28,16 @@
  * $FreeBSD$
  */
 
+#ifndef _COMPAT_FREEBSD32_FREEBSD32_UTIL_H_
+#define _COMPAT_FREEBSD32_FREEBSD32_UTIL_H_
+
+#include <sys/cdefs.h>
+#include <sys/exec.h>
+#include <sys/sysent.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-
-
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/cdefs.h>
 
 struct freebsd32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
@@ -50,3 +52,5 @@ struct freebsd32_ps_strings {
 
 #define FREEBSD32_PS_STRINGS	\
 	(FREEBSD32_USRSTACK - sizeof(struct freebsd32_ps_strings))
+
+#endif /* !_COMPAT_FREEBSD32_FREEBSD32_UTIL_H_ */
