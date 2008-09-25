@@ -62,8 +62,12 @@ struct m_ext_ {
 	caddr_t		 ext_buf;	/* start of buffer */
 	void		(*ext_free)	/* free routine if not the usual */
 			    (void *, void *);
+#if __FreeBSD_version >= 800016
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
+#else
+	void		*ext_args;	/* optional argument pointer */
+#endif
 	u_int		 ext_size;	/* size of buffer, for ext_free */
 	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	int		 ext_type;	/* type of external storage */

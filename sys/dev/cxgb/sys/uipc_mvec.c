@@ -405,8 +405,13 @@ mb_free_ext_fast(struct mbuf_iovec *mi, int type, int idx)
 	case EXT_EXTREF:
 		KASSERT(mi->mi_ext.ext_free != NULL,
 		    ("%s: ext_free not set", __func__));
+#if __FreeBSD_version >= 800016
 		(*(mi->mi_ext.ext_free))(mi->mi_ext.ext_arg1,
 		    mi->mi_ext.ext_arg2);
+#else
+		(*(mi->mi_ext.ext_free))(mi->mi_ext.ext_buf,
+		    mi->mi_ext.ext_args);
+#endif
 		break;
 	default:
 		dump_mi(mi);
