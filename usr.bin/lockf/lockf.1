@@ -138,6 +138,11 @@ command line.
 A system call (e.g.,
 .Xr fork 2 )
 failed unexpectedly.
+.It Dv EX_SOFTWARE
+The 
+.Ar command
+did not exit normally,
+but may have been signaled or stopped.
 .El
 .Sh SEE ALSO
 .Xr flock 2 ,
