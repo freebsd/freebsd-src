@@ -15,6 +15,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_global.h"
 #include "opt_pmap.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -30,14 +31,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 
-
-
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
 #include <xen/gnttab.h>
 
 #define cmpxchg(a, b, c) atomic_cmpset_int((volatile u_int *)(a),(b),(c))
-
 
 #if 1
 #define ASSERT(_p) \
@@ -463,7 +461,11 @@ static int
 gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;
-	unsigned long *frames;
+#ifdef __LP64__
+	uint64_t *frames;
+#else	
+	uint32_t *frames;
+#endif
 	unsigned int nr_gframes = end_idx + 1;
 	int i, rc;
 

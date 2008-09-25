@@ -597,6 +597,7 @@ static int      xenpic_vector(struct intsrc *isrc);
 static int      xenpic_source_pending(struct intsrc *isrc); 
 static void     xenpic_suspend(struct pic* pic); 
 static void     xenpic_resume(struct pic* pic); 
+static void     xenpic_assign_cpu(struct intsrc *, u_int apic_id);
 
 
 struct pic xenpic_dynirq_template  =  { 
@@ -620,8 +621,10 @@ struct pic xenpic_pirq_template  =  {
 	.pic_vector		=	xenpic_vector, 
 	.pic_source_pending	=	xenpic_source_pending,
 	.pic_suspend		=	xenpic_suspend, 
-	.pic_resume		=	xenpic_resume 
+	.pic_resume		=	xenpic_resume,
+	.pic_assign_cpu		=	xenpic_assign_cpu
 };
+
 
 
 void 
@@ -734,7 +737,13 @@ static void
 xenpic_resume(struct pic* pic)
 { 
 	TODO; 
-} 
+}
+
+static void 
+xenpic_assign_cpu(struct intsrc *isrc, u_int apic_id)
+{ 
+	TODO; 
+}
 
 void
 notify_remote_via_irq(int irq)
