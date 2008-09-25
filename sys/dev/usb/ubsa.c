@@ -161,6 +161,8 @@ SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
 struct	ubsa_softc {
 	struct ucom_softc	sc_ucom;
 
+	int			sc_huawei;
+
 	int			sc_iface_number;	/* interface number */
 
 	usbd_interface_handle	sc_intr_iface;	/* interrupt interface */
@@ -339,6 +341,52 @@ MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_DEPEND(ubsa, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(ubsa, UBSA_MODVER);
 
+/*
+ * Huawei Exxx radio devices have a built in flash disk which is their
+ * default power up configuration.  This allows the device to carry its
+ * own installation software.
+ *
+ * Instead of following the USB spec, and create multiple configuration
+ * descriptors for this, the devices expects the driver to send
+ * UF_DEVICE_REMOTE_WAKEUP to endpoint 2 to reset the device, so it
+ * reprobes, now with the radio exposed.
+ */
+
+static usbd_status
+ubsa_huawei(device_t self, struct usb_attach_arg *uaa) {
+	usb_device_request_t req; usbd_device_handle dev;
+	usb_config_descriptor_t *cdesc;
+
+	if (self == NULL)
+		return (UMATCH_NONE);
+	if (uaa == NULL)
+		return (UMATCH_NONE);
+	dev = uaa->device;
+	if (dev == NULL)
+		return (UMATCH_NONE);
+	/* get the config descriptor */
+	cdesc = usbd_get_config_descriptor(dev);
+	if (cdesc == NULL)
+		return (UMATCH_NONE);
+
+	if (cdesc->bNumInterface > 1)
+		return (0);
+
+	/* Bend it like Beckham */
+	device_printf(self, "Kicking Huawei device into radio mode\n");
+	memset(&req, 0, sizeof req);
+	req.bmRequestType = UT_WRITE_DEVICE;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
+	USETW(req.wIndex, 2);
+	USETW(req.wLength, 0);
+
+	/* We get error return, but it works */
+	(void)usbd_do_request(dev, &req, 0);
+	return (UMATCH_NONE);
+}
+
+
 static int
 ubsa_match(device_t self)
 {
@@ -351,6 +399,9 @@ ubsa_match(device_t self)
 	for (i = 0; ubsa_products[i].vendor != 0; i++) {
 		if (ubsa_products[i].vendor == uaa->vendor &&
 		    ubsa_products[i].product == uaa->product) {
+			if (uaa->vendor == USB_VENDOR_HUAWEI &&
+			    ubsa_huawei(self, uaa))
+				break;
 			return (UMATCH_VENDOR_PRODUCT);
 		}
 	}
@@ -372,6 +423,9 @@ ubsa_attach(device_t self)
 
 	dev = uaa->device;
 	ucom = &sc->sc_ucom;
+
+	if (uaa->vendor == USB_VENDOR_HUAWEI)
+		sc->sc_huawei = 1;
 
 	/*
 	 * initialize rts, dtr variables to something
@@ -473,6 +527,8 @@ ubsa_attach(device_t self)
 	ucom->sc_parent = sc;
 	ucom->sc_portno = UCOM_UNK_PORTNO;
 	/* bulkin, bulkout set above */
+	ucom->sc_ibufsize = 1024;
+	ucom->sc_obufsize = 1024;
 	ucom->sc_ibufsizepad = ucom->sc_ibufsize;
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &ubsa_callback;
@@ -518,6 +574,9 @@ ubsa_request(struct ubsa_softc *sc, u_int8_t request, u_int16_t value)
 	usb_device_request_t req;
 	usbd_status err;
 
+	/* The huawei Exxx devices support none of these tricks */
+	if (sc->sc_huawei)
+		return (0);
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = request;
 	USETW(req.wValue, value);
@@ -526,8 +585,8 @@ ubsa_request(struct ubsa_softc *sc, u_int8_t request, u_int16_t value)
 
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, 0);
 	if (err)
-		device_printf(sc->sc_ucom.sc_dev, "ubsa_request: %s\n",
-		    usbd_errstr(err));
+		device_printf(sc->sc_ucom.sc_dev, "ubsa_request(%x, %x): %s\n",
+		    request, value, usbd_errstr(err));
 	return (err);
 }
 
