@@ -293,6 +293,7 @@ static char	bootfile[MAXLINE+1]; /* booted kernel file */
 
 struct allowedpeer *AllowedPeers; /* List of allowed peers */
 static int	NumAllowed;	/* Number of entries in AllowedPeers */
+static int	RemoteAddDate;	/* Always set the date on remote messages */
 
 static int	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
@@ -322,7 +323,7 @@ static void	logmsg(int, const char *, const char *, int);
 static void	log_deadchild(pid_t, int, const char *);
 static void	markit(void);
 static int	skip_message(const char *, const char *, int);
-static void	printline(const char *, char *);
+static void	printline(const char *, char *, int);
 static void	printsys(char *);
 static int	p_open(const char *, pid_t *);
 static void	readklog(void);
@@ -352,7 +353,8 @@ main(int argc, char *argv[])
 	socklen_t len;
 
 	bindhostname = NULL;
-	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nop:P:sS:uv")) != -1)
+	while ((ch = getopt(argc, argv, "468Aa:b:cCdf:kl:m:nop:P:sS:Tuv"))
+	    != -1)
 		switch (ch) {
 		case '4':
 			family = PF_INET;
@@ -451,6 +453,9 @@ main(int argc, char *argv[])
 			if (strlen(optarg) >= sizeof(sunx.sun_path))
 				errx(1, "%s path too long, exiting", optarg);
 			funix_secure.name = optarg;
+			break;
+		case 'T':
+			RemoteAddDate = 1;
 			break;
 		case 'u':		/* only log specified priority */
 			UniquePriority++;
@@ -644,7 +649,7 @@ main(int argc, char *argv[])
 						hname = cvthname((struct sockaddr *)&frominet);
 						unmapped((struct sockaddr *)&frominet);
 						if (validate((struct sockaddr *)&frominet, hname))
-							printline(hname, line);
+							printline(hname, line, RemoteAddDate ? ADDDATE : 0);
 					} else if (l < 0 && errno != EINTR)
 						logerror("recvfrom inet");
 				}
@@ -657,7 +662,7 @@ main(int argc, char *argv[])
 				    (struct sockaddr *)&fromunix, &len);
 				if (l > 0) {
 					line[l] = '\0';
-					printline(LocalHostName, line);
+					printline(LocalHostName, line, 0);
 				} else if (l < 0 && errno != EINTR)
 					logerror("recvfrom unix");
 			}
@@ -697,7 +702,7 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: syslogd [-468ACcdknosuv] [-a allowed_peer]",
+		"usage: syslogd [-468ACcdknosTuv] [-a allowed_peer]",
 		"               [-b bind_address] [-f config_file]",
 		"               [-l [mode:]path] [-m mark_interval]",
 		"               [-P pid_file] [-p log_socket]");
@@ -709,7 +714,7 @@ usage(void)
  * on the appropriate log files.
  */
 static void
-printline(const char *hname, char *msg)
+printline(const char *hname, char *msg, int flags)
 {
 	char *p, *q;
 	long n;
@@ -762,7 +767,7 @@ printline(const char *hname, char *msg)
 	}
 	*q = '\0';
 
-	logmsg(pri, line, hname, 0);
+	logmsg(pri, line, hname, flags);
 }
 
 /*
