@@ -181,6 +181,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
 	    td->td_tid, p->p_pid, td->td_name, wmesg, ident);
 
+	if (lock == &Giant.lock_object)
+		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object &&
 	    !(class->lc_flags & LC_SLEEPABLE)) {
