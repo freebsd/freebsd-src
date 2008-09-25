@@ -437,7 +437,8 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	mtx_lock_spin(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, kernel_pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
-	nkpt = NKPT;
+	if (nkpt == 0)
+		nkpt = NKPT;
 
 	/*
 	 * Reserve some special page table entries/VA space for temporary
