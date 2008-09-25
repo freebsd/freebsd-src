@@ -557,8 +557,7 @@ xen_create_contiguous_region(vm_page_t pages, int npages)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	set_xen_guest_handle(reservation.extent_start, &mfn);
-
+	reservation.extent_start = &mfn;
 	
 	balloon_lock(flags);
 
@@ -634,7 +633,7 @@ xen_destroy_contiguous_region(void *addr, int npages)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	set_xen_guest_handle(reservation.extent_start, &mfn);
+	reservation.extent_start = &mfn;
 	
 	pfn0 = vtophys(addr) >> PAGE_SHIFT;
 #if 0
@@ -805,7 +804,7 @@ shift_phys_machine(unsigned long *phys_machine, int nr_pages)
 extern unsigned long physfree;
 
 int pdir, curoffset;
-
+extern int nkpt;
 
 void
 initvalues(start_info_t *startinfo)
@@ -828,15 +827,14 @@ initvalues(start_info_t *startinfo)
 	unsigned long i;
 	int ncpus;
 
+	nkpt = min(max((startinfo->nr_pages >> NPGPTD_SHIFT), nkpt),
+	    NPGPTD*NPDEPG - KPTDI);
 #ifdef SMP
 	ncpus = MAXCPU;
 #else
 	ncpus = 1;
 #endif	
 
-#if 0	
-	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
-#endif
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);	
 #ifdef notyet
 	/*
@@ -961,8 +959,8 @@ initvalues(start_info_t *startinfo)
 	xen_load_cr3(VTOP(IdlePDPTnew));
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
 
-	/* allocate remainder of NKPT pages */
-	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages - 1; i < NKPT;
+	/* allocate remainder of nkpt pages */
+	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages - 1; i < nkpt;
 	     i++, cur_space += PAGE_SIZE) {
 		pdir = (offset + i) / NPDEPG;
 		curoffset = ((offset + i) % NPDEPG);
