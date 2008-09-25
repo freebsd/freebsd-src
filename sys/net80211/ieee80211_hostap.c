@@ -319,7 +319,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		struct mbuf *mcopy = NULL;
 
 		if (m->m_flags & M_MCAST) {
-			mcopy = m_copypacket(m, M_DONTWAIT);
+			mcopy = m_dup(m, M_DONTWAIT);
 			if (mcopy == NULL)
 				ifp->if_oerrors++;
 			else
