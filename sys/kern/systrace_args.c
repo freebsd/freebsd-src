@@ -2016,11 +2016,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
-	/* lkmressys */
-	case 370: {
-		*n_args = 0;
-		break;
-	}
 	/* extattr_set_fd */
 	case 371: {
 		struct extattr_set_fd_args *p = params;
@@ -6305,9 +6300,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		default:
 			break;
 		};
-		break;
-	/* lkmressys */
-	case 370:
 		break;
 	/* extattr_set_fd */
 	case 371:
