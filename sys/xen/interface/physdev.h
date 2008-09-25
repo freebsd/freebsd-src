@@ -81,7 +81,11 @@ DEFINE_XEN_GUEST_HANDLE(physdev_set_iopl_t);
 #define PHYSDEVOP_set_iobitmap           7
 struct physdev_set_iobitmap {
     /* IN */
-    XEN_GUEST_HANDLE_00030205(uint8_t) bitmap;
+#if __XEN_INTERFACE_VERSION__ >= 0x00030205
+    XEN_GUEST_HANDLE(uint8) bitmap;
+#else
+    uint8_t *bitmap;
+#endif
     uint32_t nr_ports;
 };
 typedef struct physdev_set_iobitmap physdev_set_iobitmap_t;
@@ -117,6 +121,52 @@ struct physdev_irq {
 };
 typedef struct physdev_irq physdev_irq_t;
 DEFINE_XEN_GUEST_HANDLE(physdev_irq_t);
+ 
+#define MAP_PIRQ_TYPE_MSI               0x0
+#define MAP_PIRQ_TYPE_GSI               0x1
+#define MAP_PIRQ_TYPE_UNKNOWN           0x2
+
+#define PHYSDEVOP_map_pirq               13
+struct physdev_map_pirq {
+    domid_t domid;
+    /* IN */
+    int type;
+    /* IN */
+    int index;
+    /* IN or OUT */
+    int pirq;
+    /* IN */
+    int bus;
+    /* IN */
+    int devfn;
+    /* IN */
+    int entry_nr;
+    /* IN */
+    uint64_t table_base;
+};
+typedef struct physdev_map_pirq physdev_map_pirq_t;
+DEFINE_XEN_GUEST_HANDLE(physdev_map_pirq_t);
+
+#define PHYSDEVOP_unmap_pirq             14
+struct physdev_unmap_pirq {
+    domid_t domid;
+    /* IN */
+    int pirq;
+};
+
+typedef struct physdev_unmap_pirq physdev_unmap_pirq_t;
+DEFINE_XEN_GUEST_HANDLE(physdev_unmap_pirq_t);
+
+#define PHYSDEVOP_manage_pci_add         15
+#define PHYSDEVOP_manage_pci_remove      16
+struct physdev_manage_pci {
+    /* IN */
+    uint8_t bus;
+    uint8_t devfn;
+}; 
+
+typedef struct physdev_manage_pci physdev_manage_pci_t;
+DEFINE_XEN_GUEST_HANDLE(physdev_manage_pci_t);
 
 /*
  * Argument to physdev_op_compat() hypercall. Superceded by new physdev_op()
