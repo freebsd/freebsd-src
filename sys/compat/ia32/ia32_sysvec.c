@@ -96,8 +96,6 @@ CTASSERT(sizeof(struct ia32_sigframe4) == 408);
 static register_t *ia32_copyout_strings(struct image_params *imgp);
 static void ia32_fixlimit(struct rlimit *rl, int which);
 
-extern struct sysent freebsd32_sysent[];
-
 SYSCTL_NODE(_compat, OID_AUTO, ia32, CTLFLAG_RW, 0, "ia32 mode");
 
 static u_long	ia32_maxdsiz = IA32_MAXDSIZ;
