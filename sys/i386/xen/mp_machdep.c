@@ -571,7 +571,18 @@ start_all_aps(void)
 		for (x = 0; x < NGDT; x++)
 			ssdtosd(&gdt_segs[x], &bootAPgdt[x].sd);
 		PT_SET_MA(bootAPgdt, vtomach(bootAPgdt) | PG_V);
-
+#ifdef notyet
+		
+                if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, cpu, &cpu_id) == 0) { 
+                        apicid = xen_vcpu_physid_to_x86_apicid(cpu_id.phys_id); 
+                        acpiid = xen_vcpu_physid_to_x86_acpiid(cpu_id.phys_id); 
+#ifdef CONFIG_ACPI 
+                        if (acpiid != 0xff) 
+                                x86_acpiid_to_apicid[acpiid] = apicid; 
+#endif 
+                } 
+#endif
+		
 		/* attempt to start the Application Processor */
 		if (!start_ap(cpu)) {
 			printf("AP #%d (PHY# %d) failed!\n", cpu, apic_id);
@@ -895,6 +906,17 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 	}
 }
 
+static __inline void
+ipi_pcpu(unsigned int cpu, int vector) 
+{ 
+#ifdef notyet
+        int irq = per_cpu(ipi_to_irq, cpu)[vector]; 
+
+        notify_remote_via_irq(irq); 
+#endif
+} 
+
+
 void
 ipi_bitmap_handler(struct trapframe frame)
 {
@@ -948,9 +970,8 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 				continue;
 		}
 
-		lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
+		ipi_pcpu(cpu, ipi);
 	}
-
 }
 
 /*
@@ -965,7 +986,12 @@ ipi_all(u_int ipi)
 		return;
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_ALL);
+
+	/*
+	 * 
+	 */
+
+	ipi_selected(-1, ipi);
 }
 
 /*
@@ -980,7 +1006,7 @@ ipi_all_but_self(u_int ipi)
 		return;
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
+	ipi_selected(((int)-1 & ~(1 << curcpu)), ipi);
 }
 
 /*
@@ -995,7 +1021,7 @@ ipi_self(u_int ipi)
 		return;
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_SELF);
+	ipi_pcpu(curcpu, ipi);
 }
 
 #ifdef STOP_NMI
