@@ -83,7 +83,9 @@ void	smp_masked_invltlb(u_int mask);
 #ifdef STOP_NMI
 int	ipi_nmi_handler(void);
 #endif
-
+#ifdef XEN
+void ipi_to_irq_init(void);
+#endif
 #endif /* !LOCORE */
 #endif /* SMP */
 
