@@ -181,8 +181,8 @@ static void	db_command(struct command **last_cmdp,
 /*
  * Initialize the command lists from the static tables.
  */
-static void
-db_cmd_init(void)
+void
+db_command_init(void)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	int i;
@@ -195,7 +195,6 @@ db_cmd_init(void)
 		db_command_register(&db_show_all_table, &db_show_all_cmds[i]);
 #undef N
 }
-SYSINIT(_cmd_init, SI_SUB_KLD, SI_ORDER_FIRST, db_cmd_init, NULL);
 
 /*
  * Register a command.
