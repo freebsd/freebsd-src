@@ -1173,6 +1173,13 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	dd = usbd_get_device_descriptor(udev);
 
+	/*
+	 * These are radio devices with auto-install flash disks for win/mac.
+ 	 * We want the ubsa driver to kick them into shape instead.
+	 */
+	if (UGETW(dd->idVendor) == USB_VENDOR_HUAWEI)
+		return(UMATCH_NONE);
+
 	/* An entry specifically for Y-E Data devices as they don't fit in the
 	 * device description table.
 	 */
