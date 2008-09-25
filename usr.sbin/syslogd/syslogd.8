@@ -242,6 +242,11 @@ Do not log messages from remote machines.
 If
 specified twice, no network socket will be opened at all, which also
 disables logging to remote machines.
+.It Fl T
+Always use the local time and date for messages received from the network,
+instead of the timestamp field supplied in the message by the remote host.
+This is useful if some of the originating hosts can't keep time properly
+or are unable to generate a correct timestamp.
 .It Fl u
 Unique priority logging.
 Only log messages at the specified priority.
@@ -308,6 +313,13 @@ will not append to log files that do not exist (unless
 option is specified);
 therefore, they must be created manually before running
 .Nm .
+.Pp
+The date and time are taken from the received message.
+If the format of the timestamp field is incorrect,
+time obtained from the local host is used instead.
+This can be overriden by the
+.Fl T
+flag.
 .Sh FILES
 .Bl -tag -width /var/run/syslog.pid -compact
 .It Pa /etc/syslog.conf
