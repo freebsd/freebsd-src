@@ -32,7 +32,7 @@
 ;		so the SYSCALL_MODULE macro works
 ;	NOARGS	same as STD except do not create structure in sys/sysproto.h
 ;	NODEF	same as STD except only have the entry in the syscall table
-;		added.  Meaning - do do not create structure or function
+;		added.  Meaning - do not create structure or function
 ;		prototype in sys/sysproto.h
 ;	NOPROTO	same as STD except do not create structure or
 ;		function prototype in sys/sysproto.h.  Does add a
@@ -380,7 +380,7 @@
 197	AUE_MMAP	STD	{ caddr_t freebsd6_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, off_t pos); }
-198	AUE_NULL	STD	{ int nosys(void); } __syscall \
+198	AUE_NULL	NOPROTO	{ int nosys(void); } __syscall \
 				    __syscall_args int
 199	AUE_LSEEK	STD	{ off_t freebsd6_lseek(int fd, int pad, \
 				    off_t offset, int whence); }
@@ -657,7 +657,7 @@
 367	AUE_NULL	UNIMPL	__cap_get_file
 368	AUE_NULL	UNIMPL	__cap_set_fd
 369	AUE_NULL	UNIMPL	__cap_set_file
-370	AUE_NULL	NODEF	lkmressys lkmressys nosys_args int
+370	AUE_NULL	UNIMPL	nosys
 371	AUE_EXTATTR_SET_FD	STD	{ int extattr_set_fd(int fd, \
 				    int attrnamespace, const char *attrname, \
 				    void *data, size_t nbytes); }
