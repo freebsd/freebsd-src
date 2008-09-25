@@ -136,6 +136,11 @@ There was an error on the
 command line.
 .It Dv EX_OSERR
 A system call (e.g., fork) failed unexpectedly.
+.It Dv EX_SOFTWARE
+The 
+.Ar command
+did not exit normally,
+but may have been signaled or stopped.
 .El
 .Sh SEE ALSO
 .Xr flock 2 ,
