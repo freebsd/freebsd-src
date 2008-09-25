@@ -345,37 +345,27 @@ s/\$//g
 		}
 		printf("\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", argc) > systrace
 		printf("\t\tbreak;\n") > systracetmp
-		if ((!nosys || funcname != "nosys") && \
-		    (funcname != "lkmnosys") && (funcname != "lkmressys")) {
-			if (argc != 0 && $3 != "NOARGS" && $3 != "NOPROTO") {
-				printf("struct %s {\n", argalias) > sysarg
-				for (i = 1; i <= argc; i++)
-					printf("\tchar %s_l_[PADL_(%s)]; " \
-					    "%s %s; char %s_r_[PADR_(%s)];\n",
-					    argname[i], argtype[i],
-					    argtype[i], argname[i],
-					    argname[i], argtype[i]) > sysarg
-				printf("};\n") > sysarg
-			}
-			else if ($3 != "NOARGS" && $3 != "NOPROTO" && \
-			    $3 != "NODEF")
-				printf("struct %s {\n\tregister_t dummy;\n};\n",
-				    argalias) > sysarg
+		if (argc != 0 && $3 != "NOARGS" && $3 != "NOPROTO" && \
+		    $3 != "NODEF") {
+			printf("struct %s {\n", argalias) > sysarg
+			for (i = 1; i <= argc; i++)
+				printf("\tchar %s_l_[PADL_(%s)]; " \
+				    "%s %s; char %s_r_[PADR_(%s)];\n",
+				    argname[i], argtype[i],
+				    argtype[i], argname[i],
+				    argname[i], argtype[i]) > sysarg
+			printf("};\n") > sysarg
 		}
-		if (($3 != "NOPROTO" && $3 != "NODEF" && \
-		    (funcname != "nosys" || !nosys)) || \
-		    (funcname == "lkmnosys" && !lkmnosys) || \
-		    funcname == "lkmressys") {
+		else if ($3 != "NOARGS" && $3 != "NOPROTO" && $3 != "NODEF")
+			printf("struct %s {\n\tregister_t dummy;\n};\n",
+			    argalias) > sysarg
+		if ($3 != "NOPROTO" && $3 != "NODEF") {
 			printf("%s\t%s(struct thread *, struct %s *)",
 			    rettype, funcname, argalias) > sysdcl
 			printf(";\n") > sysdcl
 			printf("#define\t%sAUE_%s\t%s\n", syscallprefix,
 			    funcalias, auditev) > sysaue
 		}
-		if (funcname == "nosys")
-			nosys = 1
-		if (funcname == "lkmnosys")
-			lkmnosys = 1
 		printf("\t{ %s, (sy_call_t *)", argssize) > sysent
 		column = 8 + 2 + length(argssize) + 15
 		if ($3 == "NOIMPL") {

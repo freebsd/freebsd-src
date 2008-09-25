@@ -156,6 +156,12 @@ int	syscall_register(int *offset, struct sysent *new_sysent,
 int	syscall_deregister(int *offset, struct sysent *old_sysent);
 int	syscall_module_handler(struct module *mod, int what, void *arg);
 
+/* Special purpose system call functions. */
+struct nosys_args;
+
+int	lkmnosys(struct thread *, struct nosys_args *);
+int	lkmressys(struct thread *, struct nosys_args *);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_SYSENT_H_ */
