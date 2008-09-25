@@ -37,6 +37,7 @@
  * Command loop declarations.
  */
 
+void	db_command_init(void);
 void	db_command_loop(void);
 void	db_command_script(const char *command);
 
