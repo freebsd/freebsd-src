@@ -50,14 +50,14 @@ struct gnttab_free_callback {
 };
 
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
-				int readonly);
+				int flags);
 
 /*
  * End access through the given grant reference, iff the grant entry is no
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
+int gnttab_end_foreign_access_ref(grant_ref_t ref);
 
 /*
  * Eventually end access through the given grant reference, and once that
@@ -65,8 +65,7 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
  * immediately iff the grant entry is not in use, otherwise it will happen
  * some time later.  page may be 0, in which case no freeing will occur.
  */
-void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
-    void *page);
+void gnttab_end_foreign_access(grant_ref_t ref, unsigned long page);
 
 int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
 
@@ -96,7 +95,7 @@ void gnttab_request_free_callback(struct gnttab_free_callback *callback,
 void gnttab_cancel_free_callback(struct gnttab_free_callback *callback);
 
 void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
-				     unsigned long frame, int readonly);
+				     unsigned long frame, int flags);
 
 void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 				       unsigned long pfn);
@@ -133,6 +132,21 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, vm_paddr_t addr,
 
 	unmap->handle = handle;
 	unmap->dev_bus_addr = 0;
+}
+
+static inline void
+gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, maddr_t addr,
+		      maddr_t new_addr, grant_handle_t handle)
+{
+	if (xen_feature(XENFEAT_auto_translated_physmap)) {
+		unmap->host_addr = __pa(addr);
+		unmap->new_addr = __pa(new_addr);
+	} else {
+		unmap->host_addr = addr;
+		unmap->new_addr = new_addr;
+	}
+
+	unmap->handle = handle;
 }
 
 #endif /* __ASM_GNTTAB_H__ */

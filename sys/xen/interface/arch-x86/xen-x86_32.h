@@ -30,18 +30,6 @@
 #ifndef __XEN_PUBLIC_ARCH_X86_XEN_X86_32_H__
 #define __XEN_PUBLIC_ARCH_X86_XEN_X86_32_H__
 
-/* Structural guest handles introduced in 0x00030201. */
-#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
-    typedef struct name { type *p; } __guest_handle_ ## name
-
-#define DEFINE_XEN_GUEST_HANDLE(name)   __DEFINE_XEN_GUEST_HANDLE(name, name)
-#define __XEN_GUEST_HANDLE(name)        __guest_handle_ ## name
-#define XEN_GUEST_HANDLE(name)          __XEN_GUEST_HANDLE(name)
-#define set_xen_guest_handle(hnd, val)  do { (hnd).p = val; } while (0)
-#ifdef __XEN_TOOLS__
-#define get_xen_guest_handle(val, hnd)  do { val = (hnd).p; } while (0)
-#endif
-
 /*
  * Hypercall interface:
  *  Input:  %ebx, %ecx, %edx, %esi, %edi (arguments 1-5)
@@ -89,6 +77,7 @@
 #define MACH2PHYS_VIRT_END_PAE         \
     mk_unsigned_long(__MACH2PHYS_VIRT_END_PAE)
 
+/* Non-PAE bounds are obsolete. */
 #define __HYPERVISOR_VIRT_START_NONPAE 0xFC000000
 #define __MACH2PHYS_VIRT_START_NONPAE  0xFC000000
 #define __MACH2PHYS_VIRT_END_NONPAE    0xFC400000
@@ -99,16 +88,9 @@
 #define MACH2PHYS_VIRT_END_NONPAE      \
     mk_unsigned_long(__MACH2PHYS_VIRT_END_NONPAE)
 
-#ifdef CONFIG_X86_PAE
 #define __HYPERVISOR_VIRT_START __HYPERVISOR_VIRT_START_PAE
 #define __MACH2PHYS_VIRT_START  __MACH2PHYS_VIRT_START_PAE
 #define __MACH2PHYS_VIRT_END    __MACH2PHYS_VIRT_END_PAE
-#else
-#warning "not using PAE!!!"
-#define __HYPERVISOR_VIRT_START __HYPERVISOR_VIRT_START_NONPAE
-#define __MACH2PHYS_VIRT_START  __MACH2PHYS_VIRT_START_NONPAE
-#define __MACH2PHYS_VIRT_END    __MACH2PHYS_VIRT_END_NONPAE
-#endif
 
 #ifndef HYPERVISOR_VIRT_START
 #define HYPERVISOR_VIRT_START mk_unsigned_long(__HYPERVISOR_VIRT_START)
@@ -123,8 +105,8 @@
 
 /* 32-/64-bit invariability for control interfaces (domctl/sysctl). */
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
-#undef __DEFINE_XEN_GUEST_HANDLE
-#define __DEFINE_XEN_GUEST_HANDLE(name, type)                   \
+#undef ___DEFINE_XEN_GUEST_HANDLE
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type)                  \
     typedef struct { type *p; }                                 \
         __guest_handle_ ## name;                                \
     typedef struct { union { type *p; uint64_aligned_t q; }; }  \
@@ -135,7 +117,8 @@
          (hnd).p = val;                                     \
     } while ( 0 )
 #define uint64_aligned_t uint64_t __attribute__((aligned(8)))
-#define XEN_GUEST_HANDLE_64(name) __guest_handle_64_ ## name
+#define __XEN_GUEST_HANDLE_64(name) __guest_handle_64_ ## name
+#define XEN_GUEST_HANDLE_64(name) __XEN_GUEST_HANDLE_64(name)
 #endif
 
 #ifndef __ASSEMBLY__
@@ -163,7 +146,7 @@ struct cpu_user_regs {
     uint16_t gs, _pad5;
 };
 typedef struct cpu_user_regs cpu_user_regs_t;
-__DEFINE_XEN_GUEST_HANDLE(foobarbaz, cpu_user_regs_t);
+DEFINE_XEN_GUEST_HANDLE(cpu_user_regs_t);
 
 /*
  * Page-directory addresses above 4GB do not fit into architectural %cr3.

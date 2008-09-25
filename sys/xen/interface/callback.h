@@ -36,15 +36,39 @@
  * @extra_args == Operation-specific extra arguments (NULL if none).
  */
 
+/* ia64, x86: Callback for event delivery. */
 #define CALLBACKTYPE_event                 0
+
+/* x86: Failsafe callback when guest state cannot be restored by Xen. */
 #define CALLBACKTYPE_failsafe              1
-#define CALLBACKTYPE_syscall               2 /* x86_64 only */
+
+/* x86/64 hypervisor: Syscall by 64-bit guest app ('64-on-64-on-64'). */
+#define CALLBACKTYPE_syscall               2
+
 /*
- * sysenter is only available on x86_32 with the
- * supervisor_mode_kernel option enabled.
+ * x86/32 hypervisor: Only available on x86/32 when supervisor_mode_kernel
+ *     feature is enabled. Do not use this callback type in new code.
  */
-#define CALLBACKTYPE_sysenter              3
+#define CALLBACKTYPE_sysenter_deprecated   3
+
+/* x86: Callback for NMI delivery. */
 #define CALLBACKTYPE_nmi                   4
+
+/*
+ * x86: sysenter is only available as follows:
+ * - 32-bit hypervisor: with the supervisor_mode_kernel feature enabled
+ * - 64-bit hypervisor: 32-bit guest applications on Intel CPUs
+ *                      ('32-on-32-on-64', '32-on-64-on-64')
+ *                      [nb. also 64-bit guest applications on Intel CPUs
+ *                           ('64-on-64-on-64'), but syscall is preferred]
+ */
+#define CALLBACKTYPE_sysenter              5
+
+/*
+ * x86/64 hypervisor: Syscall by 32-bit guest app on AMD CPUs
+ *                    ('32-on-32-on-64', '32-on-64-on-64')
+ */
+#define CALLBACKTYPE_syscall32             7
 
 /*
  * Disable event deliver during callback? This flag is ignored for event and
@@ -78,6 +102,11 @@ struct callback_unregister {
 };
 typedef struct callback_unregister callback_unregister_t;
 DEFINE_XEN_GUEST_HANDLE(callback_unregister_t);
+
+#if __XEN_INTERFACE_VERSION__ < 0x00030207
+#undef CALLBACKTYPE_sysenter
+#define CALLBACKTYPE_sysenter CALLBACKTYPE_sysenter_deprecated
+#endif
 
 #endif /* __XEN_PUBLIC_CALLBACK_H__ */
 
