@@ -108,7 +108,6 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(lock, lock_witness);
 	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
@@ -124,12 +123,15 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
+	if (lock == &Giant.lock_object)
+		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
+		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_lock(cvp);
@@ -225,7 +227,6 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(lock, lock_witness);
 	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
@@ -241,6 +242,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
+	if (lock == &Giant.lock_object)
+		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
@@ -248,6 +251,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
+		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_lock(cvp);
@@ -290,7 +294,6 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(lock, lock_witness);
 	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
@@ -306,6 +309,8 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
+	if (lock == &Giant.lock_object)
+		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
@@ -313,6 +318,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, int timo)
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
+		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_lock(cvp);
@@ -358,7 +364,6 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	CV_ASSERT(cvp, lock, td);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Waiting on \"%s\"", cvp->cv_description);
-	WITNESS_SAVE(lock, lock_witness);
 	class = LOCK_CLASS(lock);
 
 	if (cold || panicstr) {
@@ -374,6 +379,8 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
+	if (lock == &Giant.lock_object)
+		mtx_assert(&Giant, MA_OWNED);
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
@@ -382,6 +389,7 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, int timo)
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
+		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_lock(cvp);
