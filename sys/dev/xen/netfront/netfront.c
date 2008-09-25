@@ -801,7 +801,7 @@ refill:
 		/* Tell the ballon driver what is going on. */
 		balloon_update_driver_allowance(i);
 #endif
-		set_xen_guest_handle(reservation.extent_start,sc->rx_pfn_array);
+		reservation.extent_start = sc->rx_pfn_array;
 		reservation.nr_extents   = i;
 		reservation.extent_order = 0;
 		reservation.address_bits = 0;
