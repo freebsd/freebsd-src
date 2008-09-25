@@ -82,9 +82,11 @@
 #ifdef PAE
 #define NPGPTD		4
 #define PDRSHIFT	21		/* LOG2(NBPDR) */
+#define NPGPTD_SHIFT	9
 #else
 #define NPGPTD		1
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
+#define NPGPTD_SHIFT	10
 #endif
 
 #define NBPTD		(NPGPTD<<PAGE_SHIFT)
