@@ -172,6 +172,7 @@ db_init(void)
 	uintptr_t symtab, strtab;
 	Elf_Size tabsz, strsz;
 
+	db_command_init();
 	if (ksym_end > ksym_start && ksym_start != 0) {
 		symtab = ksym_start;
 		tabsz = *((Elf_Size*)symtab);
