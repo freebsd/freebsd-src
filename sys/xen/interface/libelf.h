@@ -1,10 +1,30 @@
+/******************************************************************************
+ * libelf.h
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
 #ifndef __XC_LIBELF__
 #define __XC_LIBELF__ 1
 
-#if defined(__i386__) || defined(__x86_64) || defined(__ia64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__ia64__)
 #define XEN_ELF_LITTLE_ENDIAN
-#elif defined(__powerpc__)
-#define XEN_ELF_BIG_ENDIAN
 #else
 #error define architectural endianness
 #endif
@@ -69,6 +89,9 @@ struct elf_binary {
     uint64_t pend;
     uint64_t reloc_offset;
 
+    uint64_t bsd_symtab_pstart;
+    uint64_t bsd_symtab_pend;
+
 #ifndef __XEN__
     /* misc */
     FILE *log;
@@ -91,33 +114,32 @@ struct elf_binary {
 #define elf_lsb(elf)   (ELFDATA2LSB == (elf)->data)
 #define elf_swap(elf)  (NATIVE_ELFDATA != (elf)->data)
 
-#define elf_uval(elf, str, elem)			\
-	((ELFCLASS64 == (elf)->class)			\
-	? elf_access_unsigned((elf), (str),		\
-		offsetof(typeof(*(str)),e64.elem),	\
-		sizeof((str)->e64.elem))		\
-	: elf_access_unsigned((elf), (str),		\
-		offsetof(typeof(*(str)),e32.elem),	\
-		sizeof((str)->e32.elem)))
+#define elf_uval(elf, str, elem)                                        \
+    ((ELFCLASS64 == (elf)->class)                                       \
+     ? elf_access_unsigned((elf), (str),                                \
+                           offsetof(typeof(*(str)),e64.elem),           \
+                           sizeof((str)->e64.elem))                     \
+     : elf_access_unsigned((elf), (str),                                \
+                           offsetof(typeof(*(str)),e32.elem),           \
+                           sizeof((str)->e32.elem)))
 
-#define elf_sval(elf, str, elem)			\
-	((ELFCLASS64 == (elf)->class)			\
-	? elf_access_signed((elf), (str),		\
-		offsetof(typeof(*(str)),e64.elem),	\
-		sizeof((str)->e64.elem))		\
-	: elf_access_signed((elf), (str),		\
-		offsetof(typeof(*(str)),e32.elem),	\
-		sizeof((str)->e32.elem)))
+#define elf_sval(elf, str, elem)                                        \
+    ((ELFCLASS64 == (elf)->class)                                       \
+     ? elf_access_signed((elf), (str),                                  \
+                         offsetof(typeof(*(str)),e64.elem),             \
+                         sizeof((str)->e64.elem))                       \
+     : elf_access_signed((elf), (str),                                  \
+                         offsetof(typeof(*(str)),e32.elem),             \
+                         sizeof((str)->e32.elem)))
 
-#define elf_size(elf, str)		\
-	((ELFCLASS64 == (elf)->class)	\
-	? sizeof((str)->e64)		\
-	: sizeof((str)->e32))
+#define elf_size(elf, str)                              \
+    ((ELFCLASS64 == (elf)->class)                       \
+     ? sizeof((str)->e64) : sizeof((str)->e32))
 
 uint64_t elf_access_unsigned(struct elf_binary *elf, const void *ptr,
-			     uint64_t offset, size_t size);
+                             uint64_t offset, size_t size);
 int64_t elf_access_signed(struct elf_binary *elf, const void *ptr,
-			  uint64_t offset, size_t size);
+                          uint64_t offset, size_t size);
 
 uint64_t elf_round_up(struct elf_binary *elf, uint64_t addr);
 
@@ -165,6 +187,8 @@ void elf_load_binary(struct elf_binary *elf);
 void *elf_get_ptr(struct elf_binary *elf, unsigned long addr);
 uint64_t elf_lookup_addr(struct elf_binary *elf, const char *symbol);
 
+void elf_parse_bsdsyms(struct elf_binary *elf, uint64_t pstart); /* private */
+
 /* ------------------------------------------------------------------------ */
 /* xc_libelf_relocate.c                                                     */
 
@@ -185,8 +209,8 @@ struct xen_elfnote {
     enum xen_elfnote_type type;
     const char *name;
     union {
-	const char *str;
-	uint64_t num;
+        const char *str;
+        uint64_t num;
     } data;
 };
 
@@ -228,14 +252,14 @@ static inline int elf_xen_feature_get(int nr, uint32_t * addr)
 }
 
 int elf_xen_parse_features(const char *features,
-			   uint32_t *supported,
-			   uint32_t *required);
+                           uint32_t *supported,
+                           uint32_t *required);
 int elf_xen_parse_note(struct elf_binary *elf,
-		       struct elf_dom_parms *parms,
-		       const elf_note *note);
+                       struct elf_dom_parms *parms,
+                       const elf_note *note);
 int elf_xen_parse_guest_info(struct elf_binary *elf,
-			     struct elf_dom_parms *parms);
+                             struct elf_dom_parms *parms);
 int elf_xen_parse(struct elf_binary *elf,
-		  struct elf_dom_parms *parms);
+                  struct elf_dom_parms *parms);
 
 #endif /* __XC_LIBELF__ */

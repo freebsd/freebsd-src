@@ -174,7 +174,7 @@ gnttab_query_foreign_access(grant_ref_t ref)
 }
 
 int
-gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
+gnttab_end_foreign_access_ref(grant_ref_t ref)
 {
 	uint16_t flags, nflags;
 
@@ -191,9 +191,9 @@ gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly)
 }
 
 void
-gnttab_end_foreign_access(grant_ref_t ref, int readonly, void *page)
+gnttab_end_foreign_access(grant_ref_t ref, void *page)
 {
-	if (gnttab_end_foreign_access_ref(ref, readonly)) {
+	if (gnttab_end_foreign_access_ref(ref)) {
 		put_free_entry(ref);
 		if (page != NULL) {
 			free(page, M_DEVBUF);
@@ -461,11 +461,8 @@ static int
 gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;
-#ifdef __LP64__
-	uint64_t *frames;
-#else	
-	uint32_t *frames;
-#endif
+	u_long *frames;
+
 	unsigned int nr_gframes = end_idx + 1;
 	int i, rc;
 

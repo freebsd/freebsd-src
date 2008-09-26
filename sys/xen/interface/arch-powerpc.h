@@ -22,15 +22,20 @@
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
 
+#include "xen.h"
+
 #ifndef __XEN_PUBLIC_ARCH_PPC_64_H__
 #define __XEN_PUBLIC_ARCH_PPC_64_H__
 
-#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
     typedef struct { \
         int __pad[(sizeof (long long) - sizeof (void *)) / sizeof (int)]; \
         type *p; \
     } __attribute__((__aligned__(8))) __guest_handle_ ## name
 
+#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
+    ___DEFINE_XEN_GUEST_HANDLE(name, type);   \
+    ___DEFINE_XEN_GUEST_HANDLE(const_##name, const type)
 #define DEFINE_XEN_GUEST_HANDLE(name) __DEFINE_XEN_GUEST_HANDLE(name, name)
 #define XEN_GUEST_HANDLE(name)        __guest_handle_ ## name
 #define set_xen_guest_handle(hnd, val) \
@@ -45,17 +50,7 @@
 #endif
 
 #ifndef __ASSEMBLY__
-/* Guest handles for primitive C types. */
-__DEFINE_XEN_GUEST_HANDLE(uchar, unsigned char);
-__DEFINE_XEN_GUEST_HANDLE(uint,  unsigned int);
-__DEFINE_XEN_GUEST_HANDLE(ulong, unsigned long);
-DEFINE_XEN_GUEST_HANDLE(char);
-DEFINE_XEN_GUEST_HANDLE(int);
-DEFINE_XEN_GUEST_HANDLE(long);
-DEFINE_XEN_GUEST_HANDLE(void);
-
 typedef unsigned long long xen_pfn_t;
-DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define PRI_xen_pfn "llx"
 #endif
 

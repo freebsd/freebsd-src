@@ -27,7 +27,7 @@
 #ifndef __XEN_PUBLIC_XEN_COMPAT_H__
 #define __XEN_PUBLIC_XEN_COMPAT_H__
 
-#define __XEN_LATEST_INTERFACE_VERSION__ 0x00030205
+#define __XEN_LATEST_INTERFACE_VERSION__ 0x00030209
 
 #if defined(__XEN__) || defined(__XEN_TOOLS__)
 /* Xen is built with matching headers and implements the latest interface. */
@@ -39,13 +39,6 @@
 
 #if __XEN_INTERFACE_VERSION__ > __XEN_LATEST_INTERFACE_VERSION__
 #error "These header files do not support the requested interface version."
-#endif
-
-/* Fields defined as a Xen guest handle since 0x00030205. */
-#if __XEN_INTERFACE_VERSION__ >= 0x00030205
-#define XEN_GUEST_HANDLE_00030205(type) XEN_GUEST_HANDLE(type)
-#else
-#define XEN_GUEST_HANDLE_00030205(type) type *
 #endif
 
 #endif /* __XEN_PUBLIC_XEN_COMPAT_H__ */
