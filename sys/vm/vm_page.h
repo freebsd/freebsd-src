@@ -150,13 +150,6 @@ struct vm_page {
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
-/* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
-#if PAGE_SIZE == 32768
-#ifdef CTASSERT
-CTASSERT(sizeof(u_long) >= 8);
-#endif
-#endif
-
 #define PQ_NONE		0
 #define	PQ_INACTIVE	1
 #define	PQ_ACTIVE	2

@@ -149,6 +149,13 @@ SYSCTL_INT(_vm, OID_AUTO, boot_pages, CTLFLAG_RD, &boot_pages, 0,
 
 static void vm_page_enqueue(int queue, vm_page_t m);
 
+/* Make sure that u_long is at least 64 bits when PAGE_SIZE is 32K. */
+#if PAGE_SIZE == 32768
+#ifdef CTASSERT
+CTASSERT(sizeof(u_long) >= 8);
+#endif
+#endif
+
 /*
  *	vm_set_page_size:
  *
