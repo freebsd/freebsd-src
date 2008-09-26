@@ -190,6 +190,7 @@ struct ata_connect_task {
 #define ATA_ITE_ID              0x1283
 #define ATA_IT8211F             0x82111283
 #define ATA_IT8212F             0x82121283
+#define ATA_IT8213F             0x82131283
 
 #define ATA_JMICRON_ID          0x197b
 #define ATA_JMB360              0x2360197b
