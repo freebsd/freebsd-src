@@ -56,7 +56,14 @@ enum xenbus_state {
      */
     XenbusStateClosing       = 5,
 
-    XenbusStateClosed        = 6
+    XenbusStateClosed        = 6,
+
+    /*
+     * Reconfiguring: The device is being reconfigured.
+     */
+    XenbusStateReconfiguring = 7,
+
+    XenbusStateReconfigured  = 8
 };
 typedef enum xenbus_state XenbusState;
 

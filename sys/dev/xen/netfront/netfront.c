@@ -601,6 +601,8 @@ backend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 	case XenbusStateUnknown:
 	case XenbusStateClosed:
+	case XenbusStateReconfigured:
+	case XenbusStateReconfiguring:
 			break;
 	case XenbusStateInitWait:
 		if (dev->state != XenbusStateInitialising)
@@ -801,7 +803,7 @@ refill:
 		/* Tell the ballon driver what is going on. */
 		balloon_update_driver_allowance(i);
 #endif
-		reservation.extent_start = sc->rx_pfn_array;
+		set_xen_guest_handle(reservation.extent_start, sc->rx_pfn_array);
 		reservation.nr_extents   = i;
 		reservation.extent_order = 0;
 		reservation.address_bits = 0;
@@ -994,7 +996,7 @@ xn_txeof(struct netfront_info *np)
 				goto out; 
 			}
 			gnttab_end_foreign_access_ref(
-				np->grant_tx_ref[id], GNTMAP_readonly);
+				np->grant_tx_ref[id]);
 			gnttab_release_grant_reference(
 				&np->gref_tx_head, np->grant_tx_ref[id]);
 			np->grant_tx_ref[id] = GRANT_INVALID_REF;
@@ -1221,7 +1223,7 @@ xennet_get_responses(struct netfront_info *np,
 			}
 			pages_flipped++;
 		} else {
-			ret = gnttab_end_foreign_access_ref(ref, 0);
+			ret = gnttab_end_foreign_access_ref(ref);
 			KASSERT(ret, ("ret != 0"));
 		}
 
@@ -1797,7 +1799,7 @@ static void netif_disconnect_backend(struct netfront_info *info)
 static void end_access(int ref, void *page)
 {
 	if (ref != GRANT_INVALID_REF)
-		gnttab_end_foreign_access(ref, 0, page);
+		gnttab_end_foreign_access(ref, page);
 }
 
 

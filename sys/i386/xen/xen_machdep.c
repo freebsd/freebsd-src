@@ -557,7 +557,7 @@ xen_create_contiguous_region(vm_page_t pages, int npages)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	reservation.extent_start = &mfn;
+	set_xen_guest_handle(reservation.extent_start, &mfn);
 	
 	balloon_lock(flags);
 
@@ -633,7 +633,7 @@ xen_destroy_contiguous_region(void *addr, int npages)
 		.extent_order = 0,
 		.domid        = DOMID_SELF
 	};
-	reservation.extent_start = &mfn;
+	set_xen_guest_handle(reservation.extent_start, &mfn);
 	
 	pfn0 = vtophys(addr) >> PAGE_SHIFT;
 #if 0

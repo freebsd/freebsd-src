@@ -376,7 +376,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_hypercall_init_t);
 #define XEN_DOMAINSETUP_hvm_guest  (1UL<<_XEN_DOMAINSETUP_hvm_guest)
 #define _XEN_DOMAINSETUP_query 1 /* Get parameters (for save)  */
 #define XEN_DOMAINSETUP_query  (1UL<<_XEN_DOMAINSETUP_query)
-define _XEN_DOMAINSETUP_sioemu_guest 2
+#define _XEN_DOMAINSETUP_sioemu_guest 2
 #define XEN_DOMAINSETUP_sioemu_guest  (1UL<<_XEN_DOMAINSETUP_sioemu_guest)
 typedef struct xen_domctl_arch_setup {
     uint64_aligned_t flags;  /* XEN_DOMAINSETUP_* */

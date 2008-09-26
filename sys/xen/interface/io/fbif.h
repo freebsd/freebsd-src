@@ -50,12 +50,29 @@ struct xenfb_update
     int32_t height; /* rect height */
 };
 
+/*
+ * Framebuffer resize notification event
+ * Capable backend sets feature-resize in xenstore.
+ */
+#define XENFB_TYPE_RESIZE 3
+
+struct xenfb_resize
+{
+    uint8_t type;    /* XENFB_TYPE_RESIZE */
+    int32_t width;   /* width in pixels */
+    int32_t height;  /* height in pixels */
+    int32_t stride;  /* stride in bytes */
+    int32_t depth;   /* depth in bits */
+    int32_t offset;  /* offset of the framebuffer in bytes */
+};
+
 #define XENFB_OUT_EVENT_SIZE 40
 
 union xenfb_out_event
 {
     uint8_t type;
     struct xenfb_update update;
+    struct xenfb_resize resize;
     char pad[XENFB_OUT_EVENT_SIZE];
 };
 
@@ -63,14 +80,33 @@ union xenfb_out_event
 
 /*
  * Frontends should ignore unknown in events.
- * No in events currently defined.
  */
+
+/*
+ * Framebuffer refresh period advice
+ * Backend sends it to advise the frontend their preferred period of
+ * refresh.  Frontends that keep the framebuffer constantly up-to-date
+ * just ignore it.  Frontends that use the advice should immediately
+ * refresh the framebuffer (and send an update notification event if
+ * those have been requested), then use the update frequency to guide
+ * their periodical refreshs.
+ */
+#define XENFB_TYPE_REFRESH_PERIOD 1
+#define XENFB_NO_REFRESH 0
+
+struct xenfb_refresh_period
+{
+    uint8_t type;    /* XENFB_TYPE_UPDATE_PERIOD */
+    uint32_t period; /* period of refresh, in ms,
+                      * XENFB_NO_REFRESH if no refresh is needed */
+};
 
 #define XENFB_IN_EVENT_SIZE 40
 
 union xenfb_in_event
 {
     uint8_t type;
+    struct xenfb_refresh_period refresh_period;
     char pad[XENFB_IN_EVENT_SIZE];
 };
 
@@ -109,15 +145,17 @@ struct xenfb_page
      * Each directory page holds PAGE_SIZE / sizeof(*pd)
      * framebuffer pages, and can thus map up to PAGE_SIZE *
      * PAGE_SIZE / sizeof(*pd) bytes.  With PAGE_SIZE == 4096 and
-     * sizeof(unsigned long) == 4, that's 4 Megs.  Two directory
-     * pages should be enough for a while.
+     * sizeof(unsigned long) == 4/8, that's 4 Megs 32 bit and 2 Megs
+     * 64 bit.  256 directories give enough room for a 512 Meg
+     * framebuffer with a max resolution of 12,800x10,240.  Should
+     * be enough for a while with room leftover for expansion.
      */
-    unsigned long pd[2];
+    unsigned long pd[256];
 };
 
 /*
- * Wart: xenkbd needs to know resolution.  Put it here until a better
- * solution is found, but don't leak it to the backend.
+ * Wart: xenkbd needs to know default resolution.  Put it here until a
+ * better solution is found, but don't leak it to the backend.
  */
 #ifdef __KERNEL__
 #define XENFB_WIDTH 800

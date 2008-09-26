@@ -235,11 +235,7 @@ struct gnttab_setup_table {
     uint32_t nr_frames;
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
-#ifdef __LP64__
-    XEN_GUEST_HANDLE(uint64_t) frame_list;
-#else
-    XEN_GUEST_HANDLE(uint32_t) frame_list;
-#endif    
+    XEN_GUEST_HANDLE(ulong) frame_list;
 };
 typedef struct gnttab_setup_table gnttab_setup_table_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_setup_table_t);
