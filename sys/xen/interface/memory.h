@@ -35,6 +35,21 @@
 #define XENMEM_increase_reservation 0
 #define XENMEM_decrease_reservation 1
 #define XENMEM_populate_physmap     6
+
+#if __XEN_INTERFACE_VERSION__ >= 0x00030209
+/*
+ * Maximum # bits addressable by the user of the allocated region (e.g., I/O 
+ * devices often have a 32-bit limitation even in 64-bit systems). If zero 
+ * then the user has no addressing restriction. This field is not used by 
+ * XENMEM_decrease_reservation.
+ */
+#define XENMEMF_address_bits(x)     (x)
+#define XENMEMF_get_address_bits(x) ((x) & 0xffu)
+/* NUMA node to allocate from. */
+#define XENMEMF_node(x)     (((x) + 1) << 8)
+#define XENMEMF_get_node(x) ((((x) >> 8) - 1) & 0xffu)
+#endif
+
 struct xen_memory_reservation {
 
     /*
@@ -47,19 +62,18 @@ struct xen_memory_reservation {
      *   OUT: GMFN bases of extents that were allocated
      *   (NB. This command also updates the mach_to_phys translation table)
      */
-    xen_pfn_t *extent_start;
+    XEN_GUEST_HANDLE(xen_pfn_t) extent_start;
 
     /* Number of extents, and size/alignment of each (2^extent_order pages). */
     xen_ulong_t    nr_extents;
     unsigned int   extent_order;
 
-    /*
-     * Maximum # bits addressable by the user of the allocated region (e.g., 
-     * I/O devices often have a 32-bit limitation even in 64-bit systems). If 
-     * zero then the user has no addressing restriction.
-     * This field is not used by XENMEM_decrease_reservation.
-     */
+#if __XEN_INTERFACE_VERSION__ >= 0x00030209
+    /* XENMEMF flags. */
+    unsigned int   mem_flags;
+#else
     unsigned int   address_bits;
+#endif
 
     /*
      * Domain whose reservation is being changed.
@@ -152,7 +166,7 @@ struct xen_machphys_mfn_list {
      * any large discontiguities in the machine address space, 2MB gaps in
      * the machphys table will be represented by an MFN base of zero.
      */
-    xen_pfn_t extent_start;
+    XEN_GUEST_HANDLE(xen_pfn_t) extent_start;
 
     /*
      * Number of extents written to the above array. This will be smaller
@@ -190,6 +204,7 @@ struct xen_add_to_physmap {
     /* Source mapping space. */
 #define XENMAPSPACE_shared_info 0 /* shared info page */
 #define XENMAPSPACE_grant_table 1 /* grant table page */
+#define XENMAPSPACE_mfn         2 /* usual MFN */
     unsigned int space;
 
     /* Index into source mapping space. */
@@ -200,6 +215,22 @@ struct xen_add_to_physmap {
 };
 typedef struct xen_add_to_physmap xen_add_to_physmap_t;
 DEFINE_XEN_GUEST_HANDLE(xen_add_to_physmap_t);
+
+/*
+ * Unmaps the page appearing at a particular GPFN from the specified guest's
+ * pseudophysical address space.
+ * arg == addr of xen_remove_from_physmap_t.
+ */
+#define XENMEM_remove_from_physmap      15
+struct xen_remove_from_physmap {
+    /* Which domain to change the mapping for. */
+    domid_t domid;
+
+    /* GPFN of the current mapping of the page. */
+    xen_pfn_t     gpfn;
+};
+typedef struct xen_remove_from_physmap xen_remove_from_physmap_t;
+DEFINE_XEN_GUEST_HANDLE(xen_remove_from_physmap_t);
 
 /*
  * Translates a list of domain-specific GPFNs into MFNs. Returns a -ve error
@@ -214,13 +245,13 @@ struct xen_translate_gpfn_list {
     xen_ulong_t nr_gpfns;
 
     /* List of GPFNs to translate. */
-    xen_pfn_t gpfn_list;
+    XEN_GUEST_HANDLE(xen_pfn_t) gpfn_list;
 
     /*
      * Output list to contain MFN translations. May be the same as the input
      * list (in which case each input GPFN is overwritten with the output MFN).
      */
-    xen_pfn_t mfn_list;
+    XEN_GUEST_HANDLE(xen_pfn_t) mfn_list;
 };
 typedef struct xen_translate_gpfn_list xen_translate_gpfn_list_t;
 DEFINE_XEN_GUEST_HANDLE(xen_translate_gpfn_list_t);
@@ -243,7 +274,7 @@ struct xen_memory_map {
      * Entries in the buffer are in the same format as returned by the
      * BIOS INT 0x15 EAX=0xE820 call.
      */
-    void *buffer;
+    XEN_GUEST_HANDLE(void) buffer;
 };
 typedef struct xen_memory_map xen_memory_map_t;
 DEFINE_XEN_GUEST_HANDLE(xen_memory_map_t);

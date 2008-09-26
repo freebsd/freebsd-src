@@ -23,17 +23,27 @@
  *
  */
 
+#include "xen.h"
+
 #ifndef __HYPERVISOR_IF_IA64_H__
 #define __HYPERVISOR_IF_IA64_H__
 
+#if !defined(__GNUC__) || defined(__STRICT_ANSI__)
+#error "Anonymous structs/unions are a GNU extension."
+#endif
+
 /* Structural guest handles introduced in 0x00030201. */
 #if __XEN_INTERFACE_VERSION__ >= 0x00030201
-#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
     typedef struct { type *p; } __guest_handle_ ## name
 #else
-#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
+#define ___DEFINE_XEN_GUEST_HANDLE(name, type) \
     typedef type * __guest_handle_ ## name
 #endif
+
+#define __DEFINE_XEN_GUEST_HANDLE(name, type) \
+    ___DEFINE_XEN_GUEST_HANDLE(name, type);   \
+    ___DEFINE_XEN_GUEST_HANDLE(const_##name, const type)
 
 #define DEFINE_XEN_GUEST_HANDLE(name)   __DEFINE_XEN_GUEST_HANDLE(name, name)
 #define XEN_GUEST_HANDLE(name)          __guest_handle_ ## name
@@ -45,18 +55,7 @@
 #endif
 
 #ifndef __ASSEMBLY__
-/* Guest handles for primitive C types. */
-__DEFINE_XEN_GUEST_HANDLE(uchar, unsigned char);
-__DEFINE_XEN_GUEST_HANDLE(uint,  unsigned int);
-__DEFINE_XEN_GUEST_HANDLE(ulong, unsigned long);
-__DEFINE_XEN_GUEST_HANDLE(u64,   unsigned long);
-DEFINE_XEN_GUEST_HANDLE(char);
-DEFINE_XEN_GUEST_HANDLE(int);
-DEFINE_XEN_GUEST_HANDLE(long);
-DEFINE_XEN_GUEST_HANDLE(void);
-
 typedef unsigned long xen_pfn_t;
-DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #define PRI_xen_pfn "lx"
 #endif
 
@@ -69,55 +68,21 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 /* WARNING: before changing this, check that shared_info fits on a page */
 #define MAX_VIRT_CPUS 64
 
+/* IO ports location for PV.  */
+#define IO_PORTS_PADDR          0x00000ffffc000000UL
+#define IO_PORTS_SIZE           0x0000000004000000UL
+
 #ifndef __ASSEMBLY__
 
 typedef unsigned long xen_ulong_t;
 
+#ifdef __XEN_TOOLS__
+#define XEN_PAGE_SIZE XC_PAGE_SIZE
+#else
+#define XEN_PAGE_SIZE PAGE_SIZE
+#endif
+
 #define INVALID_MFN       (~0UL)
-
-#define MEM_G   (1UL << 30)
-#define MEM_M   (1UL << 20)
-#define MEM_K   (1UL << 10)
-
-#define MMIO_START       (3 * MEM_G)
-#define MMIO_SIZE        (512 * MEM_M)
-
-#define VGA_IO_START     0xA0000UL
-#define VGA_IO_SIZE      0x20000
-
-#define LEGACY_IO_START  (MMIO_START + MMIO_SIZE)
-#define LEGACY_IO_SIZE   (64*MEM_M)
-
-#define IO_PAGE_START (LEGACY_IO_START + LEGACY_IO_SIZE)
-#define IO_PAGE_SIZE  PAGE_SIZE
-
-#define STORE_PAGE_START (IO_PAGE_START + IO_PAGE_SIZE)
-#define STORE_PAGE_SIZE  PAGE_SIZE
-
-#define BUFFER_IO_PAGE_START (STORE_PAGE_START+STORE_PAGE_SIZE)
-#define BUFFER_IO_PAGE_SIZE PAGE_SIZE
-
-#define BUFFER_PIO_PAGE_START (BUFFER_IO_PAGE_START+BUFFER_IO_PAGE_SIZE)
-#define BUFFER_PIO_PAGE_SIZE PAGE_SIZE
-
-#define IO_SAPIC_START   0xfec00000UL
-#define IO_SAPIC_SIZE    0x100000
-
-#define PIB_START 0xfee00000UL
-#define PIB_SIZE 0x200000
-
-#define GFW_START        (4*MEM_G -16*MEM_M)
-#define GFW_SIZE         (16*MEM_M)
-
-/* Nvram belongs to GFW memory space  */
-#define NVRAM_SIZE       (MEM_K * 64)
-#define NVRAM_START      (GFW_START + 10 * MEM_M)
-
-#define NVRAM_VALID_SIG 0x4650494e45584948 		// "HIXENIPF"
-struct nvram_save_addr {
-    unsigned long addr;
-    unsigned long signature;
-};
 
 struct pt_fpreg {
     union {
@@ -125,83 +90,6 @@ struct pt_fpreg {
         long double __dummy;    /* force 16-byte alignment */
     } u;
 };
-
-struct cpu_user_regs {
-    /* The following registers are saved by SAVE_MIN: */
-    unsigned long b6;  /* scratch */
-    unsigned long b7;  /* scratch */
-
-    unsigned long ar_csd; /* used by cmp8xchg16 (scratch) */
-    unsigned long ar_ssd; /* reserved for future use (scratch) */
-
-    unsigned long r8;  /* scratch (return value register 0) */
-    unsigned long r9;  /* scratch (return value register 1) */
-    unsigned long r10; /* scratch (return value register 2) */
-    unsigned long r11; /* scratch (return value register 3) */
-
-    unsigned long cr_ipsr; /* interrupted task's psr */
-    unsigned long cr_iip;  /* interrupted task's instruction pointer */
-    unsigned long cr_ifs;  /* interrupted task's function state */
-
-    unsigned long ar_unat; /* interrupted task's NaT register (preserved) */
-    unsigned long ar_pfs;  /* prev function state  */
-    unsigned long ar_rsc;  /* RSE configuration */
-    /* The following two are valid only if cr_ipsr.cpl > 0: */
-    unsigned long ar_rnat;  /* RSE NaT */
-    unsigned long ar_bspstore; /* RSE bspstore */
-
-    unsigned long pr;  /* 64 predicate registers (1 bit each) */
-    unsigned long b0;  /* return pointer (bp) */
-    unsigned long loadrs;  /* size of dirty partition << 16 */
-
-    unsigned long r1;  /* the gp pointer */
-    unsigned long r12; /* interrupted task's memory stack pointer */
-    unsigned long r13; /* thread pointer */
-
-    unsigned long ar_fpsr;  /* floating point status (preserved) */
-    unsigned long r15;  /* scratch */
-
- /* The remaining registers are NOT saved for system calls.  */
-
-    unsigned long r14;  /* scratch */
-    unsigned long r2;  /* scratch */
-    unsigned long r3;  /* scratch */
-    unsigned long r16;  /* scratch */
-    unsigned long r17;  /* scratch */
-    unsigned long r18;  /* scratch */
-    unsigned long r19;  /* scratch */
-    unsigned long r20;  /* scratch */
-    unsigned long r21;  /* scratch */
-    unsigned long r22;  /* scratch */
-    unsigned long r23;  /* scratch */
-    unsigned long r24;  /* scratch */
-    unsigned long r25;  /* scratch */
-    unsigned long r26;  /* scratch */
-    unsigned long r27;  /* scratch */
-    unsigned long r28;  /* scratch */
-    unsigned long r29;  /* scratch */
-    unsigned long r30;  /* scratch */
-    unsigned long r31;  /* scratch */
-    unsigned long ar_ccv;  /* compare/exchange value (scratch) */
-
-    /*
-     * Floating point registers that the kernel considers scratch:
-     */
-    struct pt_fpreg f6;  /* scratch */
-    struct pt_fpreg f7;  /* scratch */
-    struct pt_fpreg f8;  /* scratch */
-    struct pt_fpreg f9;  /* scratch */
-    struct pt_fpreg f10;  /* scratch */
-    struct pt_fpreg f11;  /* scratch */
-    unsigned long r4;  /* preserved */
-    unsigned long r5;  /* preserved */
-    unsigned long r6;  /* preserved */
-    unsigned long r7;  /* preserved */
-    unsigned long eml_unat;    /* used for emulating instruction */
-    unsigned long pad0;     /* alignment pad */
-
-};
-typedef struct cpu_user_regs cpu_user_regs_t;
 
 union vac {
     unsigned long value;
@@ -309,8 +197,7 @@ struct mapped_regs {
             int banknum; // 0 or 1, which virtual register bank is active
             unsigned long rrs[8]; // region registers
             unsigned long krs[8]; // kernel registers
-            unsigned long pkrs[8]; // protection key registers
-            unsigned long tmp[8]; // temp registers (e.g. for hyperprivops)
+            unsigned long tmp[16]; // temp registers (e.g. for hyperprivops)
         };
     };
 };
@@ -328,6 +215,21 @@ struct arch_vcpu_info {
 };
 typedef struct arch_vcpu_info arch_vcpu_info_t;
 
+/*
+ * This structure is used for magic page in domain pseudo physical address
+ * space and the result of XENMEM_machine_memory_map.
+ * As the XENMEM_machine_memory_map result,
+ * xen_memory_map::nr_entries indicates the size in bytes 
+ * including struct xen_ia64_memmap_info. Not the number of entries.
+ */
+struct xen_ia64_memmap_info {
+    uint64_t efi_memmap_size;       /* size of EFI memory map */
+    uint64_t efi_memdesc_size;      /* size of an EFI memory map descriptor */
+    uint32_t efi_memdesc_version;   /* memory descriptor version */
+    void *memdesc[0];               /* array of efi_memory_desc_t */
+};
+typedef struct xen_ia64_memmap_info xen_ia64_memmap_info_t;
+
 struct arch_shared_info {
     /* PFN of the start_info page.  */
     unsigned long start_info_pfn;
@@ -335,7 +237,12 @@ struct arch_shared_info {
     /* Interrupt vector for event channel.  */
     int evtchn_vector;
 
-    uint64_t pad[32];
+    /* PFN of memmap_info page */
+    unsigned int memmap_info_num_pages;/* currently only = 1 case is
+                                          supported. */
+    unsigned long memmap_info_pfn;
+
+    uint64_t pad[31];
 };
 typedef struct arch_shared_info arch_shared_info_t;
 
@@ -347,21 +254,154 @@ struct ia64_tr_entry {
     unsigned long vadr;
     unsigned long rid;
 };
+typedef struct ia64_tr_entry ia64_tr_entry_t;
+DEFINE_XEN_GUEST_HANDLE(ia64_tr_entry_t);
 
-struct vcpu_extra_regs {
-    struct ia64_tr_entry itrs[8];
-    struct ia64_tr_entry dtrs[8];
-    unsigned long iva;
-    unsigned long dcr;
-    unsigned long event_callback_ip;
+struct vcpu_tr_regs {
+    struct ia64_tr_entry itrs[12];
+    struct ia64_tr_entry dtrs[12];
+};
+
+union vcpu_ar_regs {
+    unsigned long ar[128];
+    struct {
+        unsigned long kr[8];
+        unsigned long rsv1[8];
+        unsigned long rsc;
+        unsigned long bsp;
+        unsigned long bspstore;
+        unsigned long rnat;
+        unsigned long rsv2;
+        unsigned long fcr;
+        unsigned long rsv3[2];
+        unsigned long eflag;
+        unsigned long csd;
+        unsigned long ssd;
+        unsigned long cflg;
+        unsigned long fsr;
+        unsigned long fir;
+        unsigned long fdr;
+        unsigned long rsv4;
+        unsigned long ccv; /* 32 */
+        unsigned long rsv5[3];
+        unsigned long unat;
+        unsigned long rsv6[3];
+        unsigned long fpsr;
+        unsigned long rsv7[3];
+        unsigned long itc;
+        unsigned long rsv8[3];
+        unsigned long ign1[16];
+        unsigned long pfs; /* 64 */
+        unsigned long lc;
+        unsigned long ec;
+        unsigned long rsv9[45];
+        unsigned long ign2[16];
+    };
+};
+
+union vcpu_cr_regs {
+    unsigned long cr[128];
+    struct {
+        unsigned long dcr;  // CR0
+        unsigned long itm;
+        unsigned long iva;
+        unsigned long rsv1[5];
+        unsigned long pta;  // CR8
+        unsigned long rsv2[7];
+        unsigned long ipsr;  // CR16
+        unsigned long isr;
+        unsigned long rsv3;
+        unsigned long iip;
+        unsigned long ifa;
+        unsigned long itir;
+        unsigned long iipa;
+        unsigned long ifs;
+        unsigned long iim;  // CR24
+        unsigned long iha;
+        unsigned long rsv4[38];
+        unsigned long lid;  // CR64
+        unsigned long ivr;
+        unsigned long tpr;
+        unsigned long eoi;
+        unsigned long irr[4];
+        unsigned long itv;  // CR72
+        unsigned long pmv;
+        unsigned long cmcv;
+        unsigned long rsv5[5];
+        unsigned long lrr0;  // CR80
+        unsigned long lrr1;
+        unsigned long rsv6[46];
+    };
+};
+
+struct vcpu_guest_context_regs {
+        unsigned long r[32];
+        unsigned long b[8];
+        unsigned long bank[16];
+        unsigned long ip;
+        unsigned long psr;
+        unsigned long cfm;
+        unsigned long pr;
+        unsigned int nats; /* NaT bits for r1-r31.  */
+        unsigned int bnats; /* Nat bits for banked registers.  */
+        union vcpu_ar_regs ar;
+        union vcpu_cr_regs cr;
+        struct pt_fpreg f[128];
+        unsigned long dbr[8];
+        unsigned long ibr[8];
+        unsigned long rr[8];
+        unsigned long pkr[16];
+
+        /* FIXME: cpuid,pmd,pmc */
+
+        unsigned long xip;
+        unsigned long xpsr;
+        unsigned long xfs;
+        unsigned long xr[4];
+
+        struct vcpu_tr_regs tr;
+
+        /* Physical registers in case of debug event.  */
+        unsigned long excp_iipa;
+        unsigned long excp_ifa;
+        unsigned long excp_isr;
+        unsigned int excp_vector;
+
+        /*
+         * The rbs is intended to be the image of the stacked registers still
+         * in the cpu (not yet stored in memory).  It is laid out as if it
+         * were written in memory at a 512 (64*8) aligned address + offset.
+         * rbs_voff is (offset / 8).  rbs_nat contains NaT bits for the
+         * remaining rbs registers.  rbs_rnat contains NaT bits for in memory
+         * rbs registers.
+         * Note: loadrs is 2**14 bytes == 2**11 slots.
+         */
+        unsigned int rbs_voff;
+        unsigned long rbs[2048];
+        unsigned long rbs_rnat;
+
+        /*
+         * RSE.N_STACKED_PHYS via PAL_RSE_INFO
+         * Strictly this isn't cpu context, but this value is necessary
+         * for domain save/restore. So is here.
+         */
+        unsigned long num_phys_stacked;
 };
 
 struct vcpu_guest_context {
-#define VGCF_EXTRA_REGS (1<<1)	/* Get/Set extra regs.  */
+#define VGCF_EXTRA_REGS (1UL << 1)	/* Set extra regs.  */
+#define VGCF_SET_CR_IRR (1UL << 2)	/* Set cr_irr[0:3]. */
+#define VGCF_online     (1UL << 3)  /* make this vcpu online */
     unsigned long flags;       /* VGCF_* flags */
 
-    struct cpu_user_regs user_regs;
-    struct vcpu_extra_regs extra_regs;
+    struct vcpu_guest_context_regs regs;
+
+    unsigned long event_callback_ip;
+
+    /* xen doesn't share privregs pages with hvm domain so that this member
+     * doesn't make sense for hvm domain.
+     * ~0UL is already used for INVALID_P2M_ENTRY. */
+#define VGC_PRIVREGS_HVM       (~(-2UL))
     unsigned long privregs_pfn;
 };
 typedef struct vcpu_guest_context vcpu_guest_context_t;
@@ -400,8 +440,18 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 /* gmfn version of IA64_DOM0VP_add_physmap */
 #define IA64_DOM0VP_add_physmap_with_gmfn       9
 
+/* get fpswa revision */
+#define IA64_DOM0VP_fpswa_revision      10
+
 /* Add an I/O port space range */
 #define IA64_DOM0VP_add_io_space        11
+
+/* expose the foreign domain's p2m table into privileged domain */
+#define IA64_DOM0VP_expose_foreign_p2m  12
+#define         IA64_DOM0VP_EFP_ALLOC_PTE       0x1 /* allocate p2m table */
+
+/* unexpose the foreign domain's p2m table into privileged domain */
+#define IA64_DOM0VP_unexpose_foreign_p2m        13
 
 // flags for page assignement to pseudo physical address space
 #define _ASSIGN_readonly                0
@@ -416,6 +466,9 @@ DEFINE_XEN_GUEST_HANDLE(vcpu_guest_context_t);
 /* Internal only: associated with PGC_allocated bit */
 #define _ASSIGN_pgc_allocated           3
 #define ASSIGN_pgc_allocated            (1UL << _ASSIGN_pgc_allocated)
+/* Page is an IO page.  */
+#define _ASSIGN_io                      4
+#define ASSIGN_io                       (1UL << _ASSIGN_io)
 
 /* This structure has the same layout of struct ia64_boot_param, defined in
    <asm/system.h>.  It is redefined here to ease use.  */
@@ -477,19 +530,61 @@ struct xen_ia64_boot_param {
 #define HYPERPRIVOP_SET_EFLAG		(HYPERPRIVOP_START + 0x16)
 #define HYPERPRIVOP_RSM_BE		(HYPERPRIVOP_START + 0x17)
 #define HYPERPRIVOP_GET_PSR		(HYPERPRIVOP_START + 0x18)
-#define HYPERPRIVOP_MAX			(0x19)
+#define HYPERPRIVOP_SET_RR0_TO_RR4	(HYPERPRIVOP_START + 0x19)
+#define HYPERPRIVOP_MAX			(0x1a)
 
 /* Fast and light hypercalls.  */
 #define __HYPERVISOR_ia64_fast_eoi	__HYPERVISOR_arch_1
+
+/* Extra debug features.  */
+#define __HYPERVISOR_ia64_debug_op  __HYPERVISOR_arch_2
 
 /* Xencomm macros.  */
 #define XENCOMM_INLINE_MASK 0xf800000000000000UL
 #define XENCOMM_INLINE_FLAG 0x8000000000000000UL
 
-#define XENCOMM_IS_INLINE(addr) \
-  (((unsigned long)(addr) & XENCOMM_INLINE_MASK) == XENCOMM_INLINE_FLAG)
-#define XENCOMM_INLINE_ADDR(addr) \
-  ((unsigned long)(addr) & ~XENCOMM_INLINE_MASK)
+#ifndef __ASSEMBLY__
+
+/*
+ * Optimization features.
+ * The hypervisor may do some special optimizations for guests. This hypercall
+ * can be used to switch on/of these special optimizations.
+ */
+#define __HYPERVISOR_opt_feature	0x700UL
+
+#define XEN_IA64_OPTF_OFF	0x0
+#define XEN_IA64_OPTF_ON	0x1
+
+/*
+ * If this feature is switched on, the hypervisor inserts the
+ * tlb entries without calling the guests traphandler.
+ * This is useful in guests using region 7 for identity mapping
+ * like the linux kernel does.
+ */
+#define XEN_IA64_OPTF_IDENT_MAP_REG7    1
+
+/* Identity mapping of region 4 addresses in HVM. */
+#define XEN_IA64_OPTF_IDENT_MAP_REG4    2
+
+/* Identity mapping of region 5 addresses in HVM. */
+#define XEN_IA64_OPTF_IDENT_MAP_REG5    3
+
+#define XEN_IA64_OPTF_IDENT_MAP_NOT_SET  (0)
+
+struct xen_ia64_opt_feature {
+	unsigned long cmd;		/* Which feature */
+	unsigned char on;		/* Switch feature on/off */
+	union {
+		struct {
+				/* The page protection bit mask of the pte.
+			 	 * This will be or'ed with the pte. */
+			unsigned long pgprot;
+			unsigned long key;	/* A protection key for itir. */
+		};
+	};
+};
+
+#endif /* __ASSEMBLY__ */
 
 /* xen perfmon */
 #ifdef XEN
@@ -508,6 +603,10 @@ DEFINE_XEN_GUEST_HANDLE(pfarg_reg_t);
 DEFINE_XEN_GUEST_HANDLE(pfarg_load_t);
 #endif /* __ASSEMBLY__ */
 #endif /* XEN */
+
+#ifndef __ASSEMBLY__
+#include "arch-ia64/hvm/memmap.h"
+#endif
 
 #endif /* __HYPERVISOR_IF_IA64_H__ */
 

@@ -65,7 +65,7 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref);
  * immediately iff the grant entry is not in use, otherwise it will happen
  * some time later.  page may be 0, in which case no freeing will occur.
  */
-void gnttab_end_foreign_access(grant_ref_t ref, unsigned long page);
+void gnttab_end_foreign_access(grant_ref_t ref, void *page);
 
 int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
 
@@ -135,12 +135,12 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, vm_paddr_t addr,
 }
 
 static inline void
-gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, maddr_t addr,
-		      maddr_t new_addr, grant_handle_t handle)
+gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, vm_paddr_t addr,
+		      vm_paddr_t new_addr, grant_handle_t handle)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
-		unmap->host_addr = __pa(addr);
-		unmap->new_addr = __pa(new_addr);
+		unmap->host_addr = vtophys(addr);
+		unmap->new_addr = vtophys(new_addr);
 	} else {
 		unmap->host_addr = addr;
 		unmap->new_addr = new_addr;

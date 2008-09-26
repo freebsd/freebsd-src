@@ -75,9 +75,11 @@ struct netif_tx_request {
 typedef struct netif_tx_request netif_tx_request_t;
 
 /* Types of netif_extra_info descriptors. */
-#define XEN_NETIF_EXTRA_TYPE_NONE  (0)  /* Never used - invalid */
-#define XEN_NETIF_EXTRA_TYPE_GSO   (1)  /* u.gso */
-#define XEN_NETIF_EXTRA_TYPE_MAX   (2)
+#define XEN_NETIF_EXTRA_TYPE_NONE      (0)  /* Never used - invalid */
+#define XEN_NETIF_EXTRA_TYPE_GSO       (1)  /* u.gso */
+#define XEN_NETIF_EXTRA_TYPE_MCAST_ADD (2)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MCAST_DEL (3)  /* u.mcast */
+#define XEN_NETIF_EXTRA_TYPE_MAX       (4)
 
 /* netif_extra_info flags. */
 #define _XEN_NETIF_EXTRA_FLAG_MORE (0)
@@ -95,6 +97,9 @@ struct netif_extra_info {
     uint8_t flags; /* XEN_NETIF_EXTRA_FLAG_* */
 
     union {
+        /*
+         * XEN_NETIF_EXTRA_TYPE_GSO:
+         */
         struct {
             /*
              * Maximum payload size of each segment. For example, for TCP this
@@ -118,9 +123,25 @@ struct netif_extra_info {
             uint16_t features; /* XEN_NETIF_GSO_FEAT_* */
         } gso;
 
+        /*
+         * XEN_NETIF_EXTRA_TYPE_MCAST_{ADD,DEL}:
+         * Backend advertises availability via 'feature-multicast-control'
+         * xenbus node containing value '1'.
+         * Frontend requests this feature by advertising
+         * 'request-multicast-control' xenbus node containing value '1'.
+         * If multicast control is requested then multicast flooding is
+         * disabled and the frontend must explicitly register its interest
+         * in multicast groups using dummy transmit requests containing
+         * MCAST_{ADD,DEL} extra-info fragments.
+         */
+        struct {
+            uint8_t addr[6]; /* Address to add/remove. */
+        } mcast;
+
         uint16_t pad[3];
     } u;
 };
+typedef struct netif_extra_info netif_extra_info_t;
 
 struct netif_tx_response {
     uint16_t id;

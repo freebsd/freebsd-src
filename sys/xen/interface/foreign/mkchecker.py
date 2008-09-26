@@ -29,14 +29,14 @@ for a in archs:
 f.write('int main(int argc, char *argv[])\n{\n');
 
 f.write('\tprintf("\\n");');
-f.write('printf("%-20s |", "structs");\n');
+f.write('printf("%-25s |", "structs");\n');
 for a in archs:
     f.write('\tprintf("%%8s", "%s");\n' % a);
 f.write('\tprintf("\\n");');
 
 f.write('\tprintf("\\n");');
 for struct in structs:
-    f.write('\tprintf("%%-20s |", "%s");\n' % struct);
+    f.write('\tprintf("%%-25s |", "%s");\n' % struct);
     for a in archs:
         if a == arch:
             s = struct; # native
