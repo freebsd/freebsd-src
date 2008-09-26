@@ -287,7 +287,7 @@ sgregister(struct cam_periph *periph, void *arg)
 	cam_periph_unlock(periph);
 	no_tags = (cgd->inq_data.flags & SID_CmdQue) == 0;
 	softc->device_stats = devstat_new_entry("sg",
-			unit2minor(periph->unit_number), 0,
+			periph->unit_number, 0,
 			DEVSTAT_NO_BLOCKSIZE
 			| (no_tags ? DEVSTAT_NO_ORDERED_TAGS : 0),
 			softc->pd_type |
@@ -296,7 +296,7 @@ sgregister(struct cam_periph *periph, void *arg)
 			DEVSTAT_PRIORITY_PASS);
 
 	/* Register the device */
-	softc->dev = make_dev(&sg_cdevsw, unit2minor(periph->unit_number),
+	softc->dev = make_dev(&sg_cdevsw, periph->unit_number,
 			      UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 			      periph->periph_name, periph->unit_number);
 	(void)make_dev_alias(softc->dev, "sg%c", 'a' + periph->unit_number);

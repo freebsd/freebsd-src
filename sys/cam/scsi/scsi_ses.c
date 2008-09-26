@@ -343,7 +343,7 @@ sesregister(struct cam_periph *periph, void *arg)
 	}
 
 	cam_periph_unlock(periph);
-	softc->ses_dev = make_dev(&ses_cdevsw, unit2minor(periph->unit_number),
+	softc->ses_dev = make_dev(&ses_cdevsw, periph->unit_number,
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
 	cam_periph_lock(periph);
