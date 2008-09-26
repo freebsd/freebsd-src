@@ -55,7 +55,7 @@ static void destroy_devl(struct cdev *dev);
 static int destroy_dev_sched_cbl(struct cdev *dev,
     void (*cb)(void *), void *arg);
 static struct cdev *make_dev_credv(int flags,
-    struct cdevsw *devsw, int minornr,
+    struct cdevsw *devsw, int unit,
     struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
 
@@ -649,7 +649,7 @@ prep_cdevsw(struct cdevsw *devsw)
 }
 
 struct cdev *
-make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
+make_dev_credv(int flags, struct cdevsw *devsw, int unit,
     struct ucred *cr, uid_t uid,
     gid_t gid, int mode, const char *fmt, va_list ap)
 {
@@ -659,7 +659,7 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 	dev = devfs_alloc();
 	dev_lock();
 	prep_cdevsw(devsw);
-	dev = newdev(devsw, minornr, dev);
+	dev = newdev(devsw, unit, dev);
 	if (flags & MAKEDEV_REF)
 		dev_refl(dev);
 	if (dev->si_flags & SI_CHEAPCLONE &&
@@ -701,34 +701,34 @@ make_dev_credv(int flags, struct cdevsw *devsw, int minornr,
 }
 
 struct cdev *
-make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode,
+make_dev(struct cdevsw *devsw, int unit, uid_t uid, gid_t gid, int mode,
     const char *fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(0, devsw, minornr, NULL, uid, gid, mode, fmt, ap);
+	dev = make_dev_credv(0, devsw, unit, NULL, uid, gid, mode, fmt, ap);
 	va_end(ap);
 	return (dev);
 }
 
 struct cdev *
-make_dev_cred(struct cdevsw *devsw, int minornr, struct ucred *cr, uid_t uid,
+make_dev_cred(struct cdevsw *devsw, int unit, struct ucred *cr, uid_t uid,
     gid_t gid, int mode, const char *fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(0, devsw, minornr, cr, uid, gid, mode, fmt, ap);
+	dev = make_dev_credv(0, devsw, unit, cr, uid, gid, mode, fmt, ap);
 	va_end(ap);
 
 	return (dev);
 }
 
 struct cdev *
-make_dev_credf(int flags, struct cdevsw *devsw, int minornr,
+make_dev_credf(int flags, struct cdevsw *devsw, int unit,
     struct ucred *cr, uid_t uid,
     gid_t gid, int mode, const char *fmt, ...)
 {
@@ -736,7 +736,7 @@ make_dev_credf(int flags, struct cdevsw *devsw, int minornr,
 	va_list ap;
 
 	va_start(ap, fmt);
-	dev = make_dev_credv(flags, devsw, minornr, cr, uid, gid, mode,
+	dev = make_dev_credv(flags, devsw, unit, cr, uid, gid, mode,
 	    fmt, ap);
 	va_end(ap);
 
