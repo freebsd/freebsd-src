@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #ifndef	CFECONS_POLL_HZ
-#define	CFECONS_POLL_HZ	4	/* 50-100 works best on Ultra2 */
+#define	CFECONS_POLL_HZ	4
 #endif
 #define CFEBURSTLEN	128	/* max number of bytes to write in one chunk */
 
