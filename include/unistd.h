@@ -485,6 +485,7 @@ char	*fflagstostr(u_long);
 int	 getdomainname(char *, int);
 int	 getgrouplist(const char *, gid_t, gid_t *, int *);
 mode_t	 getmode(const void *, mode_t);
+int	 getosreldate(void);
 int	 getpeereid(int, uid_t *, gid_t *);
 int	 getresgid(gid_t *, gid_t *, gid_t *);
 int	 getresuid(uid_t *, uid_t *, uid_t *);
