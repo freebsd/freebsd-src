@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys, re;
-from structs import structs, defines;
+from structs import unions, structs, defines;
 
 # command line arguments
 arch    = sys.argv[1];
@@ -110,6 +110,16 @@ input = re.sub("#define[^\n]+\n", "", input);
 input = re.compile("/\*(.*?)\*/", re.S).sub("", input)
 input = re.compile("\n\s*\n", re.S).sub("\n", input);
 
+# add unions to output
+for union in unions:
+    regex = "union\s+%s\s*\{(.*?)\n\};" % union;
+    match = re.search(regex, input, re.S)
+    if None == match:
+        output += "#define %s_has_no_%s 1\n" % (arch, union);
+    else:
+        output += "union %s_%s {%s\n};\n" % (union, arch, match.group(1));
+    output += "\n";
+
 # add structs to output
 for struct in structs:
     regex = "struct\s+%s\s*\{(.*?)\n\};" % struct;
@@ -134,6 +144,10 @@ for define in defines:
     else:
         replace = define + "_" + arch;
     output = re.sub("\\b%s\\b" % define, replace, output);
+
+# replace: unions
+for union in unions:
+    output = re.sub("\\b(union\s+%s)\\b" % union, "\\1_%s" % arch, output);
 
 # replace: structs + struct typedefs
 for struct in structs:

@@ -1,6 +1,24 @@
 /******************************************************************************
  * kexec.h - Public portion
  * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ * 
  * Xen port written by:
  * - Simon 'Horms' Horman <horms@verge.net.au>
  * - Magnus Damm <magnus@valinux.co.jp>
@@ -79,6 +97,9 @@ typedef struct xen_kexec_image {
 #if defined(__i386__) || defined(__x86_64__)
     unsigned long page_list[KEXEC_XEN_NO_PAGES];
 #endif
+#if defined(__ia64__)
+    unsigned long reboot_code_buffer;
+#endif
     unsigned long indirection_page;
     unsigned long start_address;
 } xen_kexec_image_t;
@@ -105,9 +126,19 @@ typedef struct xen_kexec_load {
     xen_kexec_image_t image;
 } xen_kexec_load_t;
 
-#define KEXEC_RANGE_MA_CRASH 0   /* machine address and size of crash area */
-#define KEXEC_RANGE_MA_XEN   1   /* machine address and size of Xen itself */
-#define KEXEC_RANGE_MA_CPU   2   /* machine address and size of a CPU note */
+#define KEXEC_RANGE_MA_CRASH      0 /* machine address and size of crash area */
+#define KEXEC_RANGE_MA_XEN        1 /* machine address and size of Xen itself */
+#define KEXEC_RANGE_MA_CPU        2 /* machine address and size of a CPU note */
+#define KEXEC_RANGE_MA_XENHEAP    3 /* machine address and size of xenheap
+                                     * Note that although this is adjacent
+                                     * to Xen it exists in a separate EFI
+                                     * region on ia64, and thus needs to be
+                                     * inserted into iomem_machine separately */
+#define KEXEC_RANGE_MA_BOOT_PARAM 4 /* machine address and size of
+                                     * the ia64_boot_param */
+#define KEXEC_RANGE_MA_EFI_MEMMAP 5 /* machine address and size of
+                                     * of the EFI Memory Map */
+#define KEXEC_RANGE_MA_VMCOREINFO 6 /* machine address and size of vmcoreinfo */
 
 /*
  * Find the address and size of certain memory areas
@@ -123,6 +154,27 @@ typedef struct xen_kexec_range {
     unsigned long size;
     unsigned long start;
 } xen_kexec_range_t;
+
+/* vmcoreinfo stuff */
+#define VMCOREINFO_BYTES           (4096)
+#define VMCOREINFO_NOTE_NAME       "VMCOREINFO_XEN"
+void arch_crash_save_vmcoreinfo(void);
+void vmcoreinfo_append_str(const char *fmt, ...)
+       __attribute__ ((format (printf, 1, 2)));
+#define VMCOREINFO_PAGESIZE(value) \
+       vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+#define VMCOREINFO_SYMBOL(name) \
+       vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+#define VMCOREINFO_SYMBOL_ALIAS(alias, name) \
+       vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #alias, (unsigned long)&name)
+#define VMCOREINFO_STRUCT_SIZE(name) \
+       vmcoreinfo_append_str("SIZE(%s)=%zu\n", #name, sizeof(struct name))
+#define VMCOREINFO_OFFSET(name, field) \
+       vmcoreinfo_append_str("OFFSET(%s.%s)=%lu\n", #name, #field, \
+                             (unsigned long)offsetof(struct name, field))
+#define VMCOREINFO_OFFSET_ALIAS(name, field, alias) \
+       vmcoreinfo_append_str("OFFSET(%s.%s)=%lu\n", #name, #alias, \
+                             (unsigned long)offsetof(struct name, field))
 
 #endif /* _XEN_PUBLIC_KEXEC_H */
 

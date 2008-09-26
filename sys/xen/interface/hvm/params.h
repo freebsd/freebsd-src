@@ -52,9 +52,47 @@
 
 #ifdef __ia64__
 #define HVM_PARAM_NVRAM_FD     7
-#define HVM_NR_PARAMS          8
-#else
-#define HVM_NR_PARAMS          7
+#define HVM_PARAM_VHPT_SIZE    8
+#define HVM_PARAM_BUFPIOREQ_PFN	9
 #endif
+
+/*
+ * Set mode for virtual timers (currently x86 only):
+ *  delay_for_missed_ticks (default):
+ *   Do not advance a vcpu's time beyond the correct delivery time for
+ *   interrupts that have been missed due to preemption. Deliver missed
+ *   interrupts when the vcpu is rescheduled and advance the vcpu's virtual
+ *   time stepwise for each one.
+ *  no_delay_for_missed_ticks:
+ *   As above, missed interrupts are delivered, but guest time always tracks
+ *   wallclock (i.e., real) time while doing so.
+ *  no_missed_ticks_pending:
+ *   No missed interrupts are held pending. Instead, to ensure ticks are
+ *   delivered at some non-zero rate, if we detect missed ticks then the
+ *   internal tick alarm is not disabled if the VCPU is preempted during the
+ *   next tick period.
+ *  one_missed_tick_pending:
+ *   Missed interrupts are collapsed together and delivered as one 'late tick'.
+ *   Guest time always tracks wallclock (i.e., real) time.
+ */
+#define HVM_PARAM_TIMER_MODE   10
+#define HVMPTM_delay_for_missed_ticks    0
+#define HVMPTM_no_delay_for_missed_ticks 1
+#define HVMPTM_no_missed_ticks_pending   2
+#define HVMPTM_one_missed_tick_pending   3
+
+/* Boolean: Enable virtual HPET (high-precision event timer)? (x86-only) */
+#define HVM_PARAM_HPET_ENABLED 11
+
+/* Identity-map page directory used by Intel EPT when CR0.PG=0. */
+#define HVM_PARAM_IDENT_PT     12
+
+/* Device Model domain, defaults to 0. */
+#define HVM_PARAM_DM_DOMAIN    13
+
+/* ACPI S state: currently support S0 and S3 on x86. */
+#define HVM_PARAM_ACPI_S_STATE 14
+
+#define HVM_NR_PARAMS          15
 
 #endif /* __XEN_PUBLIC_HVM_PARAMS_H__ */

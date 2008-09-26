@@ -34,14 +34,8 @@
 
 #define IOREQ_TYPE_PIO          0 /* pio */
 #define IOREQ_TYPE_COPY         1 /* mmio ops */
-#define IOREQ_TYPE_AND          2
-#define IOREQ_TYPE_OR           3
-#define IOREQ_TYPE_XOR          4
-#define IOREQ_TYPE_XCHG         5
-#define IOREQ_TYPE_ADD          6
 #define IOREQ_TYPE_TIMEOFFSET   7
 #define IOREQ_TYPE_INVALIDATE   8 /* mapcache */
-#define IOREQ_TYPE_SUB          9
 
 /*
  * VMExit dispatcher should cooperate with instruction decoder to
@@ -58,6 +52,7 @@ struct ioreq {
                              *   of the real data to use.   */
     uint8_t dir:1;          /*  1=read, 0=write             */
     uint8_t df:1;
+    uint8_t pad:1;
     uint8_t type;           /* I/O type                     */
     uint8_t _pad0[6];
     uint64_t io_count;      /* How many IO done on a vcpu   */
@@ -77,11 +72,21 @@ struct shared_iopage {
 };
 typedef struct shared_iopage shared_iopage_t;
 
-#define IOREQ_BUFFER_SLOT_NUM     80
+struct buf_ioreq {
+    uint8_t  type;   /* I/O type                    */
+    uint8_t  pad:1;
+    uint8_t  dir:1;  /* 1=read, 0=write             */
+    uint8_t  size:2; /* 0=>1, 1=>2, 2=>4, 3=>8. If 8, use two buf_ioreqs */
+    uint32_t addr:20;/* physical address            */
+    uint32_t data;   /* data                        */
+};
+typedef struct buf_ioreq buf_ioreq_t;
+
+#define IOREQ_BUFFER_SLOT_NUM     511 /* 8 bytes each, plus 2 4-byte indexes */
 struct buffered_iopage {
-    unsigned int    read_pointer;
-    unsigned int    write_pointer;
-    ioreq_t         ioreq[IOREQ_BUFFER_SLOT_NUM];
+    unsigned int read_pointer;
+    unsigned int write_pointer;
+    buf_ioreq_t buf_ioreq[IOREQ_BUFFER_SLOT_NUM];
 }; /* NB. Size of this structure must be no greater than one page. */
 typedef struct buffered_iopage buffered_iopage_t;
 
@@ -103,11 +108,11 @@ struct buffered_piopage {
 };
 #endif /* defined(__ia64__) */
 
-#if defined(__i386__) || defined(__x86_64__)
 #define ACPI_PM1A_EVT_BLK_ADDRESS           0x0000000000001f40
 #define ACPI_PM1A_CNT_BLK_ADDRESS           (ACPI_PM1A_EVT_BLK_ADDRESS + 0x04)
 #define ACPI_PM_TMR_BLK_ADDRESS             (ACPI_PM1A_EVT_BLK_ADDRESS + 0x08)
-#endif /* defined(__i386__) || defined(__x86_64__) */
+#define ACPI_GPE0_BLK_ADDRESS               (ACPI_PM_TMR_BLK_ADDRESS + 0x20)
+#define ACPI_GPE0_BLK_LEN                   0x08
 
 #endif /* _IOREQ_H_ */
 

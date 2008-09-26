@@ -411,6 +411,8 @@ static void backend_changed(struct xenbus_device *dev,
 	case XenbusStateInitWait:
 	case XenbusStateInitialised:
 	case XenbusStateClosed:
+	case XenbusStateReconfigured:
+	case XenbusStateReconfiguring:
 		break;
 
 	case XenbusStateConnected:
@@ -892,7 +894,7 @@ blkif_free(struct blkfront_info *info, int suspend)
 
 	/* Free resources associated with old device channel. */
 	if (info->ring_ref != GRANT_INVALID_REF) {
-		gnttab_end_foreign_access(info->ring_ref, 0,
+		gnttab_end_foreign_access(info->ring_ref, 
 					  info->ring.sring);
 		info->ring_ref = GRANT_INVALID_REF;
 		info->ring.sring = NULL;
@@ -909,7 +911,7 @@ blkif_completion(struct blk_shadow *s)
 	int i;
 
 	for (i = 0; i < s->req.nr_segments; i++)
-		gnttab_end_foreign_access(s->req.seg[i].gref, 0, 0UL);
+		gnttab_end_foreign_access(s->req.seg[i].gref, 0UL);
 }
 
 static void 
