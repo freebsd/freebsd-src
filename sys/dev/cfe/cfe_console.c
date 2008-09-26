@@ -50,15 +50,15 @@ __FBSDID("$FreeBSD$");
 #endif
 #define CFEBURSTLEN	128	/* max number of bytes to write in one chunk */
 
-static d_open_t		cfe_dev_open;
-static d_close_t	cfe_dev_close;
+static tsw_open_t cfe_tty_open;
+static tsw_close_t cfe_tty_close;
+static tsw_outwakeup_t cfe_tty_outwakeup;
 
-static struct cdevsw cfe_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	cfe_dev_open,
-	.d_close =	cfe_dev_close,
-	.d_name =	"cfe",
-	.d_flags =	D_TTY | D_NEEDGIANT,
+static struct ttydevsw cfe_ttydevsw = {
+	.tsw_flags	= TF_NOPREFIX,
+	.tsw_open	= cfe_tty_open,
+	.tsw_close	= cfe_tty_close,
+	.tsw_outwakeup	= cfe_tty_outwakeup,
 };
 
 static int			conhandle = -1;
@@ -72,9 +72,6 @@ static struct callout_handle	cfe_timeouthandle
 static int			alt_break_state;
 #endif
 
-static void	cfe_tty_start(struct tty *);
-static int	cfe_tty_param(struct tty *, struct termios *);
-static void	cfe_tty_stop(struct tty *, int);
 static void	cfe_timeout(void *);
 
 static cn_probe_t	cfe_cnprobe;
@@ -89,123 +86,47 @@ static void
 cn_drvinit(void *unused)
 {
 	char output[32];
-	struct cdev *dev;
+	struct tty *tp;
 
 	if (cfe_consdev.cn_pri != CN_DEAD &&
 	    cfe_consdev.cn_name[0] != '\0') {
-		dev = make_dev(&cfe_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
-		    output);
-		make_dev_alias(dev, "cfecons");
+		tp = tty_alloc(&cfe_ttydevsw, NULL, NULL);
+		tty_makedev(tp, NULL, "%s", output);
+		tty_makealias(tp, "cfecons");
 	}
 }
 
 static int
-cfe_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
+cfe_tty_open(struct tty *tp)
 {
-	struct	tty *tp;
-	int	unit;
-	int	error, setuptimeout;
+	polltime = hz / CFECONS_POLL_HZ;
+	if (polltime < 1)
+		polltime = 1;
+	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
 
-	error = 0;
-	setuptimeout = 0;
-	unit = minor(dev);
-
-	/*
-	 * XXX: BAD, should happen at attach time
-	 */
-	if (dev->si_tty == NULL) {
-		cfe_tp = ttyalloc();
-		dev->si_tty = cfe_tp;
-		cfe_tp->t_dev = dev;
-	}
-	tp = dev->si_tty;
-
-	tp->t_oproc = cfe_tty_start;
-	tp->t_param = cfe_tty_param;
-	tp->t_stop = cfe_tty_stop;
-	tp->t_dev = dev;
-
-	if ((tp->t_state & TS_ISOPEN) == 0) {
-		tp->t_state |= TS_CARR_ON;
-		ttyconsolemode(tp, 0);
-
-		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) &&
-	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
-		return (EBUSY);
-	}
-
-	error = ttyld_open(tp, dev);
-
-	if (error == 0 && setuptimeout) {
-		polltime = hz / CFECONS_POLL_HZ;
-		if (polltime < 1) {
-			polltime = 1;
-		}
-
-		cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
-	}
-
-	return (error);
+	return (0);
 }
 
-static int
-cfe_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
+static void
+cfe_tty_close(struct tty *tp)
 {
-	int	unit;
-	struct	tty *tp;
-
-	unit = minor(dev);
-	tp = dev->si_tty;
-
-	if (unit != 0) {
-		return (ENXIO);
-	}
 
 	/* XXX Should be replaced with callout_stop(9) */
 	untimeout(cfe_timeout, tp, cfe_timeouthandle);
-	ttyld_close(tp, flag);
-	tty_close(tp);
-
-	return (0);
-}
-
-
-static int
-cfe_tty_param(struct tty *tp, struct termios *t)
-{
-
-	return (0);
 }
 
 static void
-cfe_tty_start(struct tty *tp)
+cfe_tty_outwakeup(struct tty *tp)
 {
-	struct clist *cl;
 	int len;
 	u_char buf[CFEBURSTLEN];
 
-	if (tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))
-		return;
-
-	tp->t_state |= TS_BUSY;
-	cl = &tp->t_outq;
-	len = q_to_b(cl, buf, CFEBURSTLEN);
-	while (cfe_write(conhandle, buf, len) == 0)
-		;
-	tp->t_state &= ~TS_BUSY;
-
-	ttwwakeup(tp);
-}
-
-static void
-cfe_tty_stop(struct tty *tp, int flag)
-{
-
-	if (tp->t_state & TS_BUSY) {
-		if ((tp->t_state & TS_TTSTOP) == 0) {
-			tp->t_state |= TS_FLUSH;
-		}
+	for (;;) {
+		len = ttydisc_getc(tp, buf, sizeof buf);
+		if (len == 0)
+			break;
+		while (cfe_write(conhandle, buf, len) == 0)
+			;
 	}
 }
 
@@ -217,11 +138,11 @@ cfe_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	while ((c = cfe_cngetc(NULL)) != -1) {
-		if (tp->t_state & TS_ISOPEN) {
-			ttyld_rint(tp, c);
-		}
-	}
+	tty_lock(tp);
+	while ((c = cfe_cngetc(NULL)) != -1)
+		ttydisc_rint(tp, c, 0);
+	ttydisc_rint_done(tp);
+	tty_unlock(tp);
 
 	cfe_timeouthandle = timeout(cfe_timeout, tp, polltime);
 }
@@ -273,8 +194,23 @@ cfe_cngetc(struct consdev *cp)
 
 	if (result > 0) {
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
-		if (kdb_alt_break(ch, &alt_break_state))
-			kdb_enter(KDB_WHY_BREAK, "Break sequence on console");
+		int kdb_brk;
+
+		if ((kdb_brk = kdb_alt_break(ch, &alt_break_state)) != 0) {
+			switch (kdb_brk) {
+			case KDB_REQ_DEBUGGER:
+				kdb_enter(KDB_WHY_BREAK,
+				    "Break sequence on console");
+				break;
+			case KDB_REQ_PANIC:
+				kdb_panic("Panic sequence on console");
+				break;
+			case KDB_REQ_REBOOT:
+				kdb_reboot();
+				break;
+
+			}
+		}
 #endif
 		return (ch);
 	}
@@ -295,4 +231,4 @@ cfe_cnputc(struct consdev *cp, int c)
 		;
 }
 
-SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL)
+SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
