@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 
 
 #include <machine/xen/xen-os.h>
+#include <machine/xen/evtchn.h>
 #include <machine/xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
 
@@ -905,17 +906,6 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
 	}
 }
-
-static __inline void
-ipi_pcpu(unsigned int cpu, int vector) 
-{ 
-#ifdef notyet
-        int irq = per_cpu(ipi_to_irq, cpu)[vector]; 
-
-        notify_remote_via_irq(irq); 
-#endif
-} 
-
 
 void
 ipi_bitmap_handler(struct trapframe frame)
