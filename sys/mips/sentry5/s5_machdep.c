@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pte.h>
 #include <machine/sigframe.h>
-#include <machine/tlb.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
