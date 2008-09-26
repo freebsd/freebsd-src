@@ -179,7 +179,7 @@ ng_device_constructor(node_p node)
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
-	priv->ngddev = make_dev(&ngd_cdevsw, unit2minor(priv->unit), UID_ROOT,
+	priv->ngddev = make_dev(&ngd_cdevsw, priv->unit, UID_ROOT,
 	    GID_WHEEL, 0600, NG_DEVICE_DEVNAME "%d", priv->unit);
 	if(priv->ngddev == NULL) {
 		printf("%s(): make_dev() failed\n",__func__);

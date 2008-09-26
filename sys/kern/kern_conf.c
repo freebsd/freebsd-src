@@ -1017,7 +1017,7 @@ clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **
 	}
 	if (unit == -1)
 		unit = low & CLONE_UNITMASK;
-	dev = newdev(csw, unit2minor(unit | extra), ndev);
+	dev = newdev(csw, unit | extra, ndev);
 	if (dev->si_flags & SI_CLONELIST) {
 		printf("dev %p (%s) is on clonelist\n", dev, dev->si_name);
 		printf("unit=%d, low=%d, extra=0x%x\n", unit, low, extra);

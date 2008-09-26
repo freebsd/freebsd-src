@@ -127,7 +127,7 @@ coda_fbsd_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return;
 	if (dev_stdclone(name, NULL, "cfs", &u) != 1)
 		return;
-	*dev = make_dev(&codadevsw, unit2minor(u), UID_ROOT, GID_WHEEL, 0600,
+	*dev = make_dev(&codadevsw, u, UID_ROOT, GID_WHEEL, 0600,
 	    "cfs%d", u);
 	dev_ref(*dev);
 	mnt = malloc(sizeof(struct coda_mntinfo), M_CODA, M_WAITOK|M_ZERO);
