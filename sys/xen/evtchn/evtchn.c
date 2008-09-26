@@ -112,14 +112,14 @@ enum {
 #define index_from_irq(irq)  ((uint8_t)(irq_info[irq] >> 16))
 #define type_from_irq(irq)   ((uint8_t)(irq_info[irq] >> 24))
 
-/* IRQ <-> VIRQ mapping. */
-DEFINE_PER_CPU(int, virq_to_irq[NR_VIRQS]);
-
-/* IRQ <-> IPI mapping. */
-#ifndef NR_IPIS
+/* IRQ <-> VIRQ mapping. */ 
+DEFINE_PER_CPU(int, virq_to_irq[NR_VIRQS]) = {[0 ... NR_VIRQS-1] = -1}; 
+ 
+/* IRQ <-> IPI mapping. */ 
+#ifndef NR_IPIS 
 #define NR_IPIS 1 
-#endif
-DEFINE_PER_CPU(int, ipi_to_irq[NR_IPIS]);
+#endif 
+DEFINE_PER_CPU(int, ipi_to_irq[NR_IPIS]) = {[0 ... NR_IPIS-1] = -1}; 
 
 /* Bitmap indicating which PIRQs require Xen to be notified on unmask. */
 static unsigned long pirq_needs_unmask_notify[NR_PIRQS/sizeof(unsigned long)];
@@ -218,6 +218,14 @@ evtchn_do_upcall(struct trapframe *frame)
 		}
 	}
 }
+
+void
+ipi_pcpu(unsigned int cpu, int vector) 
+{ 
+        int irq = per_cpu(ipi_to_irq, cpu)[vector]; 
+
+        notify_remote_via_irq(irq); 
+} 
 
 static int 
 find_unbound_irq(void)
