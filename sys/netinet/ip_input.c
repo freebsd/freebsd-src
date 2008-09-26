@@ -85,6 +85,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef CTASSERT
+CTASSERT(sizeof(struct ip) == 20);
+#endif
+
 int rsvp_on = 0;
 
 int	ipforwarding = 0;

@@ -69,10 +69,6 @@ struct ip {
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
 } __packed __aligned(4);
 
-#ifdef CTASSERT
-CTASSERT(sizeof (struct ip) == 20);
-#endif
-
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
 /*
