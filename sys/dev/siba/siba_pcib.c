@@ -157,7 +157,7 @@ siba_pcib_attach(device_t dev)
 	sc->sc_bh = rman_get_bushandle(sc->sc_mem);
 
 	device_printf(dev, "bridge registers addr 0x%08x vaddr %p\n",
-	    sc->sc_bh, rman_get_virtual(sc->sc_mem));
+	    (uint32_t)sc->sc_bh, rman_get_virtual(sc->sc_mem));
 
 	SBPCI_WRITE_4(sc, 0x0000, 0x05);
 	SBPCI_WRITE_4(sc, 0x0000, 0x0D);
@@ -179,7 +179,8 @@ siba_pcib_attach(device_t dev)
 		device_printf(dev, "cannot map PCI configuration space\n");
 		return (ENXIO);
 	}
-	device_printf(dev, "mapped pci config space at 0x%08x\n", sc_cfg_hand);
+	device_printf(dev, "mapped pci config space at 0x%08x\n",
+	    (uint32_t)sc_cfg_hand);
 
 	/*
 	 * Setup configuration, io, and dma space windows.
