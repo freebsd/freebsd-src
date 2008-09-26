@@ -223,7 +223,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		"sep",	    "sep",     "mtrr",	   "pge",      "mca",
 		"cmov",	    "pat",     "pse36",	   "pn",       "b19",
 		"b20",	    "b21",     "mmxext",   "mmx",      "fxsr",
-		"xmm",	    "b26",     "b27",	   "b28",      "b29",
+		"xmm",	    "sse2",    "b27",	   "b28",      "b29",
 		"3dnowext", "3dnow"
 	};
 
