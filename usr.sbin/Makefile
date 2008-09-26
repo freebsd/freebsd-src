@@ -381,7 +381,9 @@ _slstats	= slstats
 .endif
 
 .if ${MK_SYSINSTALL} != "no"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _sade=		sade
+.endif
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
 _sysinstall=	sysinstall
 .endif
