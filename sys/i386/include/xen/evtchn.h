@@ -59,6 +59,7 @@ notify_remote_via_evtchn(int port)
  */
 int irq_to_evtchn_port(int irq);
 
+void ipi_pcpu(unsigned int cpu, int vector);
 
 /*
  * CHARACTER-DEVICE DEFINITIONS
