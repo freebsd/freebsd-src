@@ -108,7 +108,7 @@ nsmb_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
 		return;
 	if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
 		return;
-	*dev = make_dev(&nsmb_cdevsw, unit2minor(u), 0, 0, 0600,
+	*dev = make_dev(&nsmb_cdevsw, u, 0, 0, 0600,
 	    NSMB_NAME"%d", u);
 	dev_ref(*dev);
 }

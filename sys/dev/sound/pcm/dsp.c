@@ -2096,7 +2096,7 @@ dsp_clone_alloc:
 		snd_clone_setmaxunit(d->clones, tumax);
 	if (ce != NULL) {
 		udcmask |= snd_c2unit(cunit);
-		*dev = make_dev(&dsp_cdevsw, unit2minor(udcmask),
+		*dev = make_dev(&dsp_cdevsw, udcmask,
 		    UID_ROOT, GID_WHEEL, 0666, "%s%d%s%d",
 		    devname, unit, devsep, cunit);
 		snd_clone_register(ce, *dev);

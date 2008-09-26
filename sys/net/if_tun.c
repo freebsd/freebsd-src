@@ -183,7 +183,7 @@ tun_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	i = clone_create(&tunclones, &tun_cdevsw, &unit, &dev, 0);
 	if (i) {
 		/* No preexisting struct cdev *, create one */
-		dev = make_dev(&tun_cdevsw, unit2minor(unit),
+		dev = make_dev(&tun_cdevsw, unit,
 		    UID_UUCP, GID_DIALER, 0600, "%s%d", ifc->ifc_name, unit);
 		if (dev != NULL) {
 			dev_ref(dev);
@@ -233,7 +233,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 			name = devname;
 		}
 		/* No preexisting struct cdev *, create one */
-		*dev = make_dev(&tun_cdevsw, unit2minor(u),
+		*dev = make_dev(&tun_cdevsw, u,
 		    UID_UUCP, GID_DIALER, 0600, "%s", name);
 		if (*dev != NULL) {
 			dev_ref(*dev);

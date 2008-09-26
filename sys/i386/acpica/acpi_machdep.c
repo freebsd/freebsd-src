@@ -235,10 +235,10 @@ apm_clone(void *arg, struct ucred *cred, char *name, int namelen,
 	unit = -1;
 	if (clone_create(&apm_clones, &apm_cdevsw, &unit, dev, 0)) {
 		if (ctl_dev) {
-			*dev = make_dev(&apm_cdevsw, unit2minor(unit),
+			*dev = make_dev(&apm_cdevsw, unit,
 			    UID_ROOT, GID_OPERATOR, 0660, "apmctl%d", unit);
 		} else {
-			*dev = make_dev(&apm_cdevsw, unit2minor(unit),
+			*dev = make_dev(&apm_cdevsw, unit,
 			    UID_ROOT, GID_OPERATOR, 0664, "apm%d", unit);
 		}
 		if (*dev != NULL) {

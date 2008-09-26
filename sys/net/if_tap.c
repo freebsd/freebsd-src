@@ -190,7 +190,7 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, extra);
 	if (i) {
-		dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
+		dev = make_dev(&tap_cdevsw, unit | extra,
 		     UID_ROOT, GID_WHEEL, 0600, "%s%d", ifc->ifc_name, unit);
 		if (dev != NULL) {
 			dev_ref(dev);
@@ -381,7 +381,7 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 			name = devname;
 		}
 
-		*dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
+		*dev = make_dev(&tap_cdevsw, unit | extra,
 		     UID_ROOT, GID_WHEEL, 0600, "%s", name);
 		if (*dev != NULL) {
 			dev_ref(*dev);
