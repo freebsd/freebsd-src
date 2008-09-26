@@ -103,7 +103,16 @@ osreldate.h: ${.CURDIR}/../sys/conf/newvers.sh ${.CURDIR}/../sys/sys/param.h \
 	echo "#else" >> osreldate.h; \
 	echo "#undef __FreeBSD_version" >> osreldate.h; \
 	echo "#define __FreeBSD_version $$RELDATE" >> osreldate.h; \
-	echo "#endif" >> osreldate.h
+	echo "#ifdef __STDC__" >> osreldate.h; \
+	echo "#ifndef _OSRELDATE_H" >> osreldate.h; \
+	echo "#define _OSRELDATE_H" >> osreldate.h; \
+	echo "#include <sys/cdefs.h>" >> osreldate.h; \
+	echo "__BEGIN_DECLS" >> osreldate.h; \
+	echo "extern int getosreldate(void);" >> osreldate.h; \
+	echo "__END_DECLS" >> osreldate.h; \
+	echo "#endif /* _OSRELDATE_H */" >> osreldate.h; \
+	echo "#endif /* __STDC__ */" >> osreldate.h; \
+	echo "#endif /* _KERNEL */" >> osreldate.h
 
 .for i in ${LHDRS}
 INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
