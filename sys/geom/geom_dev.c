@@ -139,7 +139,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	KASSERT(error == 0,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
 	unit = alloc_unr(unithdr);
-	dev = make_dev(&g_dev_cdevsw, unit2minor(unit),
+	dev = make_dev(&g_dev_cdevsw, unit,
 	    UID_ROOT, GID_OPERATOR, 0640, gp->name);
 	if (pp->flags & G_PF_CANDELETE)
 		dev->si_flags |= SI_CANDELETE;

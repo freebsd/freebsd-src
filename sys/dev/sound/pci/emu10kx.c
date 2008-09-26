@@ -2313,7 +2313,7 @@ emu10kx_dev_init(struct emu_sc_info *sc)
 	mtx_init(&sc->emu10kx_lock, device_get_nameunit(sc->dev), "kxdevlock", 0);
 	unit = device_get_unit(sc->dev);
 
-	sc->cdev = make_dev(&emu10kx_cdevsw, unit2minor(unit), UID_ROOT, GID_WHEEL, 0640, "emu10kx%d", unit);
+	sc->cdev = make_dev(&emu10kx_cdevsw, unit, UID_ROOT, GID_WHEEL, 0640, "emu10kx%d", unit);
 	if (sc->cdev != NULL) {
 		sc->cdev->si_drv1 = sc;
 		return (0);

@@ -257,7 +257,7 @@ led_create_state(led_t *func, void *priv, char const *name, int state)
 	sc->unit = alloc_unr(led_unit);
 	sc->private = priv;
 	sc->func = func;
-	sc->dev = make_dev(&led_cdevsw, unit2minor(sc->unit),
+	sc->dev = make_dev(&led_cdevsw, sc->unit,
 	    UID_ROOT, GID_WHEEL, 0600, "led/%s", name);
 	sx_xunlock(&led_sx);
 

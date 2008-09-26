@@ -616,7 +616,7 @@ audit_pipe_clone(void *arg, struct ucred *cred, char *name, int namelen,
 
 	i = clone_create(&audit_pipe_clones, &audit_pipe_cdevsw, &u, dev, 0);
 	if (i) {
-		*dev = make_dev(&audit_pipe_cdevsw, unit2minor(u), UID_ROOT,
+		*dev = make_dev(&audit_pipe_cdevsw, u, UID_ROOT,
 		    GID_WHEEL, 0600, "%s%d", AUDIT_PIPE_NAME, u);
 		if (*dev != NULL) {
 			dev_ref(*dev);
