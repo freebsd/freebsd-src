@@ -214,6 +214,8 @@ dev_pager_getpages(object, m, count, reqpage)
 	int i, ret;
 	int prot;
 	struct cdevsw *csw;
+	struct thread *td;
+	struct file *fpop;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	dev = object->handle;
@@ -224,8 +226,12 @@ dev_pager_getpages(object, m, count, reqpage)
 		panic("dev_pager_getpage: no cdevsw");
 	prot = PROT_READ;	/* XXX should pass in? */
 
+	td = curthread;
+	fpop = td->td_fpop;
+	td->td_fpop = NULL;
 	ret = (*csw->d_mmap)(dev, (vm_offset_t)offset << PAGE_SHIFT, &paddr, prot);
 	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
+	td->td_fpop = fpop;
 	dev_relthread(dev);
 
 	if ((m[reqpage]->flags & PG_FICTITIOUS) != 0) {
