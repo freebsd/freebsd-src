@@ -5966,7 +5966,7 @@ table_handler(int ac, char *av[])
 	} else if (_substrcmp(*av, "list") == 0) {
 		a = is_all ? tables_max : (ent.tbl + 1);
 		do {
-			table_list(ent);
+			table_list(ent, is_all);
 		} while (++ent.tbl < a);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
