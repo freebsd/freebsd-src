@@ -213,7 +213,7 @@ fw_open (struct cdev *dev, int flags, int fmt, fw_proc *td)
 		int unit = DEV2UNIT(dev);
 		int sub = DEV2SUB(dev);
 
-		make_dev(&firewire_cdevsw, minor(dev),
+		make_dev(&firewire_cdevsw, dev2unit(dev),
 			UID_ROOT, GID_OPERATOR, 0660,
 			"fw%d.%d", unit, sub);
 	}

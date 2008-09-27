@@ -126,7 +126,7 @@ struct urio_softc {
 	u_char sc_dying;
 };
 
-#define URIOUNIT(n) (minor(n))
+#define URIOUNIT(n) (dev2unit(n))
 
 #define RIO_RW_TIMEOUT 4000	/* ms */
 

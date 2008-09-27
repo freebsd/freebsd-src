@@ -381,7 +381,7 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 	int s;
 	int port;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if (sc->sc_port == 0)
 		return (ENXIO);
 
@@ -391,7 +391,7 @@ lptopen (struct cdev *dev, int flags, int fmt, struct thread *td)
 	} else
 		sc->sc_state |= INIT;
 
-	sc->sc_flags = LPTFLAGS(minor(dev));
+	sc->sc_flags = LPTFLAGS(dev2unit(dev));
 
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
@@ -469,7 +469,7 @@ lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct lpt_softc *sc;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if(sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
@@ -558,7 +558,7 @@ lptwrite(struct cdev *dev, struct uio * uio, int ioflag)
 	int pl, err;
 	struct lpt_softc *sc;
 
-	sc = devclass_get_softc(olpt_devclass, LPTUNIT(minor(dev)));
+	sc = devclass_get_softc(olpt_devclass, LPTUNIT(dev2unit(dev)));
 	if(sc->sc_flags & LP_BYPASS) {
 		/* we can't do writes in bypass mode */
 		return(EPERM);
@@ -614,7 +614,7 @@ lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 {
 	int	error = 0;
         struct	lpt_softc *sc;
-        u_int	unit = LPTUNIT(minor(dev));
+        u_int	unit = LPTUNIT(dev2unit(dev));
 	u_char	old_sc_irq;	/* old printer IRQ status */
 
         sc = devclass_get_softc(olpt_devclass, unit);

@@ -155,7 +155,7 @@ struct ses_softc {
 #define	SES_FLAG_OPEN		0x02
 #define	SES_FLAG_INITIALIZED	0x04
 
-#define SESUNIT(x)       (minor((x)))
+#define SESUNIT(x)       (dev2unit((x)))
 
 static	d_open_t	sesopen;
 static	d_close_t	sesclose;

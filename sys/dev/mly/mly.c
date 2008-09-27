@@ -2834,7 +2834,7 @@ mly_print_controller(int controller)
 static int
 mly_user_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
 
     sc->mly_state |= MLY_STATE_OPEN;
@@ -2847,7 +2847,7 @@ mly_user_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 mly_user_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct mly_softc	*sc = devclass_get_softc(devclass_find("mly"), unit);
 
     sc->mly_state &= ~MLY_STATE_OPEN;

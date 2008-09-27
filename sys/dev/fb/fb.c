@@ -350,7 +350,7 @@ fbattach(device_t dev)
 
 #endif
 
-#define FB_UNIT(dev)	minor(dev)
+#define FB_UNIT(dev)	dev2unit(dev)
 #define FB_MKMINOR(unit) (u)
 
 #if 0 /* experimental */

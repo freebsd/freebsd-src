@@ -108,7 +108,7 @@ struct streams_softc {
 	struct isa_device *dev;
 } ;
 
-#define UNIT(dev) minor(dev)	/* assume one minor number per unit */
+#define UNIT(dev) dev2unit(dev)	/* assume one minor number per unit */
 
 typedef	struct streams_softc *sc_p;
 
@@ -194,7 +194,7 @@ streamsopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	if (td->td_dupfd >= 0)
 	  return ENODEV;
 
-	switch (minor(dev)) {
+	switch (dev2unit(dev)) {
 	case dev_udp:
 	  family = AF_INET;
 	  type = SOCK_DGRAM;

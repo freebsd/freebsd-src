@@ -93,7 +93,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
 kmemphys:
 			o = v & PAGE_MASK;
@@ -101,7 +101,7 @@ kmemphys:
 			error = uiomove((void *)PHYS_TO_DMAP(v), (int)c, uio);
 			continue;
 		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 
 			if (v >= DMAP_MIN_ADDRESS && v < DMAP_MAX_ADDRESS) {
@@ -147,9 +147,9 @@ int
 memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
     int prot __unused)
 {
-	if (minor(dev) == CDEV_MINOR_MEM)
+	if (dev2unit(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
-	else if (minor(dev) == CDEV_MINOR_KMEM)
+	else if (dev2unit(dev) == CDEV_MINOR_KMEM)
         	*paddr = vtophys(offset);
 	/* else panic! */
 	return (0);

@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/kbd/kbdreg.h>
 
-#define KBD_INDEX(dev)	minor(dev)
+#define KBD_INDEX(dev)	dev2unit(dev)
 
 typedef struct genkbd_softc {
 	int		gkb_flags;	/* flag/status bits */
@@ -460,7 +460,7 @@ kbd_configure(int flags)
  * appropriate subdrivers.
  */
 
-#define KBD_UNIT(dev)	minor(dev)
+#define KBD_UNIT(dev)	dev2unit(dev)
 
 static d_open_t		genkbdopen;
 static d_close_t	genkbdclose;

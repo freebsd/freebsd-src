@@ -674,7 +674,7 @@ make_dev_credv(int flags, struct cdevsw *devsw, int unit,
 	}
 	KASSERT(!(dev->si_flags & SI_NAMED),
 	    ("make_dev() by driver %s on pre-existing device (min=%x, name=%s)",
-	    devsw->d_name, minor(dev), devtoname(dev)));
+	    devsw->d_name, dev2unit(dev), devtoname(dev)));
 
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
 	if (i > (sizeof dev->__si_namebuf - 1)) {
@@ -800,7 +800,7 @@ destroy_devl(struct cdev *dev)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
-	    ("WARNING: Driver mistake: destroy_dev on %d\n", minor(dev)));
+	    ("WARNING: Driver mistake: destroy_dev on %d\n", dev2unit(dev)));
 
 	devfs_destroy(dev);
 
@@ -896,7 +896,7 @@ devtoname(struct cdev *dev)
 			dev_relthread(dev);
 		}
 		p += strlen(p);
-		mynor = minor(dev);
+		mynor = dev2unit(dev);
 		if (mynor < 0 || mynor > 255)
 			sprintf(p, "/%#x", (u_int)mynor);
 		else

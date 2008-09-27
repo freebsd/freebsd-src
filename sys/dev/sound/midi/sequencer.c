@@ -91,8 +91,8 @@ __FBSDID("$FreeBSD$");
 #define PCMMKMINOR(u, d, c) \
 	    ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 #define MIDIMKMINOR(u, d, c) PCMMKMINOR(u, d, c)
-#define MIDIUNIT(y) ((minor(y) >> 4) & 0x0f)
-#define MIDIDEV(y) (minor(y) & 0x0f)
+#define MIDIUNIT(y) ((dev2unit(y) >> 4) & 0x0f)
+#define MIDIDEV(y) (dev2unit(y) & 0x0f)
 
 /* These are the entries to the sequencer driver. */
 static d_open_t seq_open;

@@ -163,8 +163,8 @@ void ulpt_tick(void *xsc);
 void ieee1284_print_id(char *);
 #endif
 
-#define	ULPTUNIT(s)	(minor(s) & 0x1f)
-#define	ULPTFLAGS(s)	(minor(s) & 0xe0)
+#define	ULPTUNIT(s)	(dev2unit(s) & 0x1f)
+#define	ULPTFLAGS(s)	(dev2unit(s) & 0xe0)
 
 static device_probe_t ulpt_match;
 static device_attach_t ulpt_attach;

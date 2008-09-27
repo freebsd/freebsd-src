@@ -182,8 +182,8 @@ static usb_config_descriptor_t *ugen_get_cdesc(struct ugen_softc *sc,
 static usbd_status ugen_set_interface(struct ugen_softc *, int, int);
 static int ugen_get_alt_index(struct ugen_softc *sc, int ifaceidx);
 
-#define UGENUNIT(n) ((minor(n) >> 4) & 0xf)
-#define UGENENDPOINT(n) (minor(n) & 0xf)
+#define UGENUNIT(n) ((dev2unit(n) >> 4) & 0xf)
+#define UGENENDPOINT(n) (dev2unit(n) & 0xf)
 #define UGENMINOR(u, e) (((u) << 4) | (e))
 
 static device_probe_t ugen_match;

@@ -152,7 +152,7 @@ iir_open(struct cdev *dev, int flags, int fmt, d_thread_t * p)
     int minor_no;
     struct gdt_softc *gdt;
 
-    minor_no = minor(dev);
+    minor_no = dev2unit(dev);
     gdt = gdt_minor2softc(minor_no);
     if (gdt == NULL)
         return (ENXIO);
@@ -170,7 +170,7 @@ iir_close(struct cdev *dev, int flags, int fmt, d_thread_t * p)
     int minor_no;
     struct gdt_softc *gdt;
 
-    minor_no = minor(dev);
+    minor_no = dev2unit(dev);
     gdt = gdt_minor2softc(minor_no);
     if (gdt == NULL)
         return (ENXIO);
@@ -188,7 +188,7 @@ iir_write(struct cdev *dev, struct uio * uio, int ioflag)
     int minor_no;
     struct gdt_softc *gdt;
 
-    minor_no = minor(dev);
+    minor_no = dev2unit(dev);
     gdt = gdt_minor2softc(minor_no);
     if (gdt == NULL)
         return (ENXIO);
@@ -206,7 +206,7 @@ iir_read(struct cdev *dev, struct uio * uio, int ioflag)
     int minor_no;
     struct gdt_softc *gdt;
 
-    minor_no = minor(dev);
+    minor_no = dev2unit(dev);
     gdt = gdt_minor2softc(minor_no);
     if (gdt == NULL)
         return (ENXIO);
@@ -230,7 +230,7 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, d_thread_t * 
     int minor_no;
     struct gdt_softc *gdt;
 
-    minor_no = minor(dev);
+    minor_no = dev2unit(dev);
     gdt = gdt_minor2softc(minor_no);
     if (gdt == NULL)
         return (ENXIO);
