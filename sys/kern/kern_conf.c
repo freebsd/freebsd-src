@@ -545,20 +545,6 @@ newdev(struct cdevsw *csw, int y, struct cdev *si)
 	return (si);
 }
 
-#define UMINORMASK	0xffff00ffU
-
-int
-uminor(dev_t dev)
-{
-	return (dev & UMINORMASK);
-}
-
-int
-umajor(dev_t dev)
-{
-	return ((dev & ~UMINORMASK) >> 8);
-}
-
 static void
 fini_cdevsw(struct cdevsw *devsw)
 {
