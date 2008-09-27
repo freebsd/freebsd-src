@@ -12815,7 +12815,11 @@ dtrace_state_create(struct cdev *dev)
 	state = ddi_get_soft_state(dtrace_softstate, minor);
 #else
 	if (dev != NULL) {
-		cr = dev->si_cred;
+		/*
+		 * Disable this until we have the ability to set user
+		 * credentials for DTrace.
+		 * cr = dev->si_cred;
+		 */
 		m = dev2unit(dev);
 		}
 
