@@ -84,9 +84,6 @@ int dbdma_allocate_channel(struct resource *dbdma_regs, u_int offset,
 int dbdma_resize_channel(dbdma_channel_t *chan, int newslots);
 int dbdma_free_channel(dbdma_channel_t *chan);
 
-uint16_t dbdma_get_cmd_status(dbdma_channel_t *chan, int slot);
-uint16_t dbdma_get_residuals(dbdma_channel_t *chan, int slot);
-
 void dbdma_run(dbdma_channel_t *chan);
 void dbdma_stop(dbdma_channel_t *chan);
 void dbdma_reset(dbdma_channel_t *chan);
@@ -95,8 +92,43 @@ void dbdma_set_current_cmd(dbdma_channel_t *chan, int slot);
 void dbdma_pause(dbdma_channel_t *chan);
 void dbdma_wake(dbdma_channel_t *chan);
 
+/*
+ * DBDMA uses a 16 bit channel control register to describe the current
+ * state of DMA on the channel. The high-order bits (8-15) contain information
+ * on the run state and are listed in the DBDMA_STATUS_* constants above. These
+ * are manipulated with the dbdma_run/stop/reset() routines above.
+ *
+ * The low order bits (0-7) are device dependent status bits. These can be set
+ * and read by both hardware and software. The mask is the set of bits to 
+ * modify; if mask is 0x03 and value is 0, the lowest order 2 bits will be
+ * zeroed.
+ */
+
 uint16_t dbdma_get_chan_status(dbdma_channel_t *chan);
-uint8_t dbdma_get_chan_device_status(dbdma_channel_t *chan);
+
+uint8_t dbdma_get_device_status(dbdma_channel_t *chan);
+void dbdma_set_device_status(dbdma_channel_t *chan, uint8_t mask,
+    uint8_t value);
+
+/*
+ * Each DBDMA command word has the current channel status register and the
+ * number of residual bytes (requested - actually transferred) written to it
+ * at time of command completion.
+ */
+
+uint16_t dbdma_get_cmd_status(dbdma_channel_t *chan, int slot);
+uint16_t dbdma_get_residuals(dbdma_channel_t *chan, int slot);
+
+void dbdma_clear_cmd_status(dbdma_channel_t *chan, int slot);
+
+/*
+ * The interrupt/branch/wait selector let you specify a set of values
+ * of the device dependent status bits that will cause intterupt/branch/wait
+ * conditions to be taken if the flags for these are set to one of the 
+ * DBDMA_COND_* values.
+ * 
+ * The condition is considered true if (status & mask) == value.
+ */
 
 void dbdma_set_interrupt_selector(dbdma_channel_t *chan, uint8_t mask,
     uint8_t value);
