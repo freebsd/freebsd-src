@@ -1218,7 +1218,7 @@ static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td
 {
 	drv_t *d;
 
-	if (minor(dev) >= NCTAU*NCHAN || ! (d = channel[minor(dev)]))
+	if (dev2unit(dev) >= NCTAU*NCHAN || ! (d = channel[dev2unit(dev)]))
 		return ENXIO;
 		
 	CT_DEBUG2 (d, ("ct_open\n"));
@@ -1227,7 +1227,7 @@ static int ct_open (struct cdev *dev, int oflags, int devtype, struct thread *td
 
 static int ct_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	drv_t *d = channel [minor(dev)];
+	drv_t *d = channel [dev2unit(dev)];
 
 	if (!d)
 		return 0;
@@ -1265,7 +1265,7 @@ static int ct_modem_status (ct_chan_t *c)
  */
 static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [dev2unit (dev)];
 	bdrv_t *bd;
 	ct_chan_t *c;
 	struct serial_statistics *st;

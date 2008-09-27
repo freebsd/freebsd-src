@@ -153,7 +153,7 @@ pcfclock_attach(device_t dev)
 static int 
 pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);
 	device_t pcfclockdev = UNITODEVICE(unit);
 	device_t ppbus = device_get_parent(pcfclockdev);
@@ -174,7 +174,7 @@ pcfclock_open(struct cdev *dev, int flag, int fms, struct thread *td)
 static int
 pcfclock_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct pcfclock_data *sc = UNITOSOFTC(unit);
 	device_t pcfclockdev = UNITODEVICE(unit);
 	device_t ppbus = device_get_parent(pcfclockdev);
@@ -189,7 +189,7 @@ pcfclock_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 static void
 pcfclock_write_cmd(struct cdev *dev, unsigned char command)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
 	unsigned char ctr = 14;
@@ -209,7 +209,7 @@ pcfclock_write_cmd(struct cdev *dev, unsigned char command)
 static void
 pcfclock_display_data(struct cdev *dev, char buf[18]) 
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 #ifdef PCFCLOCK_VERBOSE
 	int year;
 
@@ -233,7 +233,7 @@ pcfclock_display_data(struct cdev *dev, char buf[18])
 static int 
 pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
 	int i;
@@ -272,7 +272,7 @@ pcfclock_read_data(struct cdev *dev, char *buf, ssize_t bits)
 static int 
 pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries) 
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
 	int error = 0;
@@ -302,7 +302,7 @@ pcfclock_read_dev(struct cdev *dev, char *buf, int maxretries)
 static int
 pcfclock_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	char buf[18];
 	int error = 0;
 

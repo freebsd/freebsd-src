@@ -180,7 +180,7 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	/* Create the targ device, allocate its softc, initialize it */
 	if ((dev->si_flags & SI_NAMED) == 0) {
-		make_dev(&targ_cdevsw, minor(dev), UID_ROOT, GID_WHEEL, 0600,
+		make_dev(&targ_cdevsw, dev2unit(dev), UID_ROOT, GID_WHEEL, 0600,
 			 "targ%d", dev2unit(dev));
 	}
 	MALLOC(softc, struct targ_softc *, sizeof(*softc), M_TARG,

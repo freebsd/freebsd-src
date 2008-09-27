@@ -61,7 +61,7 @@
 #define GDCREG		(IO_VGA + 0x0F)		/* graph data controller data */
 
 #define VGA_DRIVER_NAME		"vga"
-#define VGA_UNIT(dev)		minor(dev)
+#define VGA_UNIT(dev)		dev2unit(dev)
 #define VGA_MKMINOR(unit)	(unit)
 
 #ifdef _KERNEL

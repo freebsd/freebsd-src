@@ -72,7 +72,7 @@ static unsigned int cnsl_evt_reg;
 static unsigned int wc, wp; /* write_cons, write_prod */
 
 #define CDEV_MAJOR 12
-#define	XCUNIT(x)	(minor(x))
+#define	XCUNIT(x)	(dev2unit(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 #define CN_LOCK_INIT(x, _name) \
         mtx_init(&x, _name, NULL, MTX_SPIN|MTX_RECURSE)

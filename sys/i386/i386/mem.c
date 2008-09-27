@@ -91,10 +91,10 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	GIANT_REQUIRED;
 
 
-	if (minor(dev) != CDEV_MINOR_MEM && minor(dev) != CDEV_MINOR_KMEM)
+	if (dev2unit(dev) != CDEV_MINOR_MEM && dev2unit(dev) != CDEV_MINOR_KMEM)
 		return EIO;
 
-	if ( minor(dev) == CDEV_MINOR_KMEM && uio->uio_resid > 0) {
+	if (dev2unit(dev) == CDEV_MINOR_KMEM && uio->uio_resid > 0) {
 		if (uio->uio_offset < (vm_offset_t)VADDR(PTDPTDI, 0))
 				return (EFAULT);
 
@@ -112,7 +112,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			pa = uio->uio_offset;
 			pa &= ~PAGE_MASK;
 		} else {
@@ -166,9 +166,9 @@ int
 memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
     int prot __unused)
 {
-	if (minor(dev) == CDEV_MINOR_MEM)
+	if (dev2unit(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
-	else if (minor(dev) == CDEV_MINOR_KMEM)
+	else if (dev2unit(dev) == CDEV_MINOR_KMEM)
         	*paddr = vtophys(offset);
 	/* else panic! */
 	return (0);

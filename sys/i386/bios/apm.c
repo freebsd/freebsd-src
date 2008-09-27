@@ -78,7 +78,7 @@ int	apm_evindex;
 #define	SCFLAG_OCTL	0x0000002
 #define	SCFLAG_OPEN	(SCFLAG_ONORMAL|SCFLAG_OCTL)
 
-#define APMDEV(dev)	(minor(dev)&0x0f)
+#define APMDEV(dev)	(dev2unit(dev)&0x0f)
 #define APMDEV_NORMAL	0
 #define APMDEV_CTL	8
 

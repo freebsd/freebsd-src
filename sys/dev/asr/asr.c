@@ -3113,7 +3113,7 @@ typedef U32   DPT_RTN_T;
 #undef SCSI_RESET	/* Conflicts with "scsi/scsiconf.h" defintion */
 #include	"dev/asr/osd_unix.h"
 
-#define	asr_unit(dev)	  minor(dev)
+#define	asr_unit(dev)	  dev2unit(dev)
 
 static u_int8_t ASR_ctlr_held;
 

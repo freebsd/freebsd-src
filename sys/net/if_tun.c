@@ -386,7 +386,7 @@ tuncreate(const char *name, struct cdev *dev)
 	bpfattach(ifp, DLT_NULL, sizeof(u_int32_t));
 	dev->si_drv1 = sc;
 	TUNDEBUG(ifp, "interface %s is created, minor = %#x\n",
-	    ifp->if_xname, minor(dev));
+	    ifp->if_xname, dev2unit(dev));
 }
 
 static int
@@ -978,19 +978,19 @@ tunkqfilter(struct cdev *dev, struct knote *kn)
 	switch(kn->kn_filter) {
 	case EVFILT_READ:
 		TUNDEBUG(ifp, "%s kqfilter: EVFILT_READ, minor = %#x\n",
-		    ifp->if_xname, minor(dev));
+		    ifp->if_xname, dev2unit(dev));
 		kn->kn_fop = &tun_read_filterops;
 		break;
 
 	case EVFILT_WRITE:
 		TUNDEBUG(ifp, "%s kqfilter: EVFILT_WRITE, minor = %#x\n",
-		    ifp->if_xname, minor(dev));
+		    ifp->if_xname, dev2unit(dev));
 		kn->kn_fop = &tun_write_filterops;
 		break;
 	
 	default:
 		TUNDEBUG(ifp, "%s kqfilter: invalid filter, minor = %#x\n",
-		    ifp->if_xname, minor(dev));
+		    ifp->if_xname, dev2unit(dev));
 		splx(s);
 		return(EINVAL);
 	}
@@ -1017,12 +1017,12 @@ tunkqread(struct knote *kn, long hint)
 	if ((kn->kn_data = ifp->if_snd.ifq_len) > 0) {
 		TUNDEBUG(ifp,
 		    "%s have data in the queue.  Len = %d, minor = %#x\n",
-		    ifp->if_xname, ifp->if_snd.ifq_len, minor(dev));
+		    ifp->if_xname, ifp->if_snd.ifq_len, dev2unit(dev));
 		ret = 1;
 	} else {
 		TUNDEBUG(ifp,
 		    "%s waiting for data, minor = %#x\n", ifp->if_xname,
-		    minor(dev));
+		    dev2unit(dev));
 		ret = 0;
 	}
 	splx(s);

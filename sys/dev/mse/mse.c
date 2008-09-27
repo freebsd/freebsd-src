@@ -111,8 +111,8 @@ static struct cdevsw mse_cdevsw = {
 static	void		mseintr(void *);
 static	timeout_t	msetimeout;
 
-#define	MSE_UNIT(dev)		(minor(dev) >> 1)
-#define	MSE_NBLOCKIO(dev)	(minor(dev) & 0x1)
+#define	MSE_UNIT(dev)		(dev2unit(dev) >> 1)
+#define	MSE_NBLOCKIO(dev)	(dev2unit(dev) & 0x1)
 
 #define	MSEPRI	(PZERO + 3)
 

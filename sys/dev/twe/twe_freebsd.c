@@ -81,7 +81,7 @@ static struct cdevsw twe_cdevsw = {
 static int
 twe_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
 
     sc->twe_state |= TWE_STATE_OPEN;
@@ -94,7 +94,7 @@ twe_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 static int
 twe_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct twe_softc	*sc = devclass_get_softc(twe_devclass, unit);
 
     sc->twe_state &= ~TWE_STATE_OPEN;

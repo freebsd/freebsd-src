@@ -1709,7 +1709,7 @@ MALLOC_DECLARE(M_IPFILTER);
 # endif
 
 # ifndef	GET_MINOR
-#  define	GET_MINOR(x)	minor(x)
+#  define	GET_MINOR(x)	dev2unit(x)
 # endif
 # define	PANIC(x,y)	if (x) panic y
 #endif /* _KERNEL */

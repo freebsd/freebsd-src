@@ -132,8 +132,8 @@ nsmb_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 * someone should take care of it.
 	 */
 	if ((dev->si_flags & SI_NAMED) == 0)
-		make_dev(&nsmb_cdevsw, minor(dev), cred->cr_uid, cred->cr_gid, 0700,
-		    NSMB_NAME"%d", dev2unit(dev));
+		make_dev(&nsmb_cdevsw, dev2unit(dev), cred->cr_uid,
+		    cred->cr_gid, 0700, NSMB_NAME"%d", dev2unit(dev));
 	bzero(sdp, sizeof(*sdp));
 /*
 	STAILQ_INIT(&sdp->sd_rqlist);

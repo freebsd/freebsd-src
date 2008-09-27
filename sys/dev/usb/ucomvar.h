@@ -82,9 +82,9 @@
 #define UCOMDIALOUT_MASK	0x80000
 #define UCOMCALLUNIT_MASK	0x40000
 
-#define UCOMUNIT(x)		(minor(x) & UCOMUNIT_MASK)
-#define UCOMDIALOUT(x)		(minor(x) & UCOMDIALOUT_MASK)
-#define UCOMCALLUNIT(x)		(minor(x) & UCOMCALLUNIT_MASK)
+#define UCOMUNIT(x)		(dev2unit(x) & UCOMUNIT_MASK)
+#define UCOMDIALOUT(x)		(dev2unit(x) & UCOMDIALOUT_MASK)
+#define UCOMCALLUNIT(x)		(dev2unit(x) & UCOMCALLUNIT_MASK)
 
 #define UCOM_UNK_PORTNO		-1	/* XXX */
 

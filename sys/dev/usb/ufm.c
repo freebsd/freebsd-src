@@ -96,7 +96,7 @@ struct ufm_softc {
 	int sc_refcnt;
 };
 
-#define UFMUNIT(n) (minor(n))
+#define UFMUNIT(n) (dev2unit(n))
 
 static device_probe_t ufm_match;
 static device_attach_t ufm_attach;

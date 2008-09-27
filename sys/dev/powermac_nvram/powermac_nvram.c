@@ -91,7 +91,7 @@ DRIVER_MODULE(powermac_nvram, nexus, powermac_nvram_driver, powermac_nvram_devcl
  * Cdev methods.
  */
 
-#define	NVRAM_UNIT(dev)		minor(dev)
+#define	NVRAM_UNIT(dev)		dev2unit(dev)
 #define	NVRAM_SOFTC(unit)	((struct powermac_nvram_softc *) \
      devclass_get_softc(powermac_nvram_devclass, unit))
 

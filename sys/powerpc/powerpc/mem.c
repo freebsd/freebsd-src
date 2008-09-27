@@ -93,7 +93,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 kmem_direct_mapped:	v = uio->uio_offset;
 
 			off = uio->uio_offset & PAGE_MASK;
@@ -111,7 +111,7 @@ kmem_direct_mapped:	v = uio->uio_offset;
 			uiomove((void *)v, cnt, uio);
 			break;
 		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;
 
 			if ((va < VM_MIN_KERNEL_ADDRESS)
@@ -162,7 +162,7 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 	 * could be transient and hence incorrect or invalid at
 	 * a later time.
 	 */
-	if (minor(dev) != CDEV_MINOR_MEM)
+	if (dev2unit(dev) != CDEV_MINOR_MEM)
 		return (-1);
 
 	/* Only direct-mapped addresses. */

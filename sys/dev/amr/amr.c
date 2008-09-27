@@ -438,7 +438,7 @@ amr_submit_bio(struct amr_softc *sc, struct bio *bio)
 static int
 amr_open(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
 
     debug_called(1);
@@ -494,7 +494,7 @@ amr_prepare_ld_delete(struct amr_softc *sc)
 static int
 amr_close(struct cdev *dev, int flags, int fmt, d_thread_t *td)
 {
-    int			unit = minor(dev);
+    int			unit = dev2unit(dev);
     struct amr_softc	*sc = devclass_get_softc(devclass_find("amr"), unit);
 
     debug_called(1);

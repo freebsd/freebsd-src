@@ -238,7 +238,7 @@ ast_close(struct cdev *cdev, int flags, int fmt, struct thread *td)
 	ast_write_filemark(dev, ATAPI_WF_WRITE);
 
     /* if minor is even rewind on close */
-    if (!(minor(cdev) & 0x01))
+    if (!(dev2unit(cdev) & 0x01))
 	ast_rewind(dev);
 
     if (stp->cap.lock && count_dev(cdev) == 1)

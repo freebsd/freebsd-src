@@ -417,7 +417,7 @@ struct fw_crom_buf {
 #endif
 
 #define MAKEMINOR(f, u, s)	\
-	unit2minor((f) | (((u) & 0xff) << 8) | (s & 0xff))
+	((f) | (((u) & 0xff) << 8) | (s & 0xff))
 #define DEV2UNIT(x)	((dev2unit(x) & 0xff00) >> 8)
 #define DEV2SUB(x)	(dev2unit(x) & 0xff)
 

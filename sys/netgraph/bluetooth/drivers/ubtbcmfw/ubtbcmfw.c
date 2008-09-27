@@ -83,8 +83,8 @@ typedef struct ubtbcmfw_softc	*ubtbcmfw_softc_p;
  * Device methods
  */
 
-#define UBTBCMFW_UNIT(n)	((minor(n) >> 4) & 0xf)
-#define UBTBCMFW_ENDPOINT(n)	(minor(n) & 0xf)
+#define UBTBCMFW_UNIT(n)	((dev2unit(n) >> 4) & 0xf)
+#define UBTBCMFW_ENDPOINT(n)	(dev2unit(n) & 0xf)
 #define UBTBCMFW_MINOR(u, e)	(((u) << 4) | (e))
 #define UBTBCMFW_BSIZE		1024
 

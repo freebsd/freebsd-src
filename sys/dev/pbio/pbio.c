@@ -79,8 +79,8 @@ static char *port_names[] = {"a", "b", "ch", "cl"};
 
 #define	PBIO_PNAME(n)		(port_names[(n)])
 
-#define	UNIT(dev)		(minor(dev) >> 2)
-#define	PORT(dev)		(minor(dev) & 0x3)
+#define	UNIT(dev)		(dev2unit(dev) >> 2)
+#define	PORT(dev)		(dev2unit(dev) & 0x3)
 
 #define	PBIOPRI	((PZERO + 5) | PCATCH)
 

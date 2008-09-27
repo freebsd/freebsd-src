@@ -141,8 +141,8 @@ __FBSDID("$FreeBSD$");
     (((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
 
 /* some macros */
-#define	PSM_UNIT(dev)		(minor(dev) >> 1)
-#define	PSM_NBLOCKIO(dev)	(minor(dev) & 1)
+#define	PSM_UNIT(dev)		(dev2unit(dev) >> 1)
+#define	PSM_NBLOCKIO(dev)	(dev2unit(dev) & 1)
 #define	PSM_MKMINOR(unit,block)	(((unit) << 1) | ((block) ? 0:1))
 
 /* ring buffer */

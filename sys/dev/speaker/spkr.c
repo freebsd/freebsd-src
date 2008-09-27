@@ -419,7 +419,7 @@ spkropen(dev, flags, fmt, td)
 	(void) printf("spkropen: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (minor(dev) != 0)
+	if (dev2unit(dev) != 0)
 		return(ENXIO);
 	else if (spkr_active)
 		return(EBUSY);
@@ -444,7 +444,7 @@ spkrwrite(dev, uio, ioflag)
 	printf("spkrwrite: entering with dev = %s, count = %d\n",
 		devtoname(dev), uio->uio_resid);
 #endif /* DEBUG */
-	if (minor(dev) != 0)
+	if (dev2unit(dev) != 0)
 		return(ENXIO);
 	else if (uio->uio_resid > (DEV_BSIZE - 1))     /* prevent system crashes */
 		return(E2BIG);	
@@ -475,7 +475,7 @@ spkrclose(dev, flags, fmt, td)
 	(void) printf("spkrclose: entering with dev = %s\n", devtoname(dev));
 #endif /* DEBUG */
 
-	if (minor(dev) != 0)
+	if (dev2unit(dev) != 0)
 		return(ENXIO);
 	else {
 		wakeup(&endtone);
@@ -499,7 +499,7 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
     		devtoname(dev), cmd);
 #endif /* DEBUG */
 
-	if (minor(dev) != 0)
+	if (dev2unit(dev) != 0)
 		return(ENXIO);
 	else if (cmd == SPKRTONE) {
 		tone_t	*tp = (tone_t *)cmdarg;
