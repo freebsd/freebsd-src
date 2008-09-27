@@ -279,7 +279,7 @@ _IPXrouted=	IPXrouted
 
 .if ${MK_JAIL} != "no"
 _jail=		jail
-_jexect=	jexec
+_jexec=		jexec
 _jls=		jls
 .endif
 
@@ -351,10 +351,10 @@ _portsnap=	portsnap
 .endif
 
 .if ${MK_PPP} != "no"
-_ppp		= ppp
+_ppp=		ppp
 #_pppctl handled below
-_pppd		= pppd
-_pppstats	= pppstats
+_pppd=		pppd
+_pppstats=	pppstats
 .endif
 
 .if ${MK_QUOTAS} != "no"
@@ -376,8 +376,8 @@ _sendmail=	sendmail
 .endif
 
 .if ${MK_SLIP} != "no"
-_sliplogin	= sliplogin
-_slstats	= slstats
+_sliplogin=	sliplogin
+_slstat=	slstat
 .endif
 
 .if ${MK_SYSINSTALL} != "no"
