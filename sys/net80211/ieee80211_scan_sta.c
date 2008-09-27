@@ -1392,9 +1392,12 @@ notfound:
 			 */
 			if (vap->iv_des_chan == IEEE80211_CHAN_ANYC ||
 			    IEEE80211_IS_CHAN_RADAR(vap->iv_des_chan)) {
-				chan = ieee80211_ht_adjust_channel(vap->iv_ic,
-				    adhoc_pick_channel(ss, 0),
-				    vap->iv_flags_ext);
+				struct ieee80211com *ic = vap->iv_ic;
+
+				chan = adhoc_pick_channel(ss, 0);
+				if (chan != NULL)
+					chan = ieee80211_ht_adjust_channel(ic,
+					    chan, vap->iv_flags_ext);
 			} else
 				chan = vap->iv_des_chan;
 			if (chan != NULL) {
