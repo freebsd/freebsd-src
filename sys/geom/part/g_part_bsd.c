@@ -322,7 +322,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 	if (le32dec(buf + 40) != pp->sectorsize)
 		goto invalid_label;
 	sectors = le32dec(buf + 44);
-	if (sectors < 1 || sectors > 63)
+	if (sectors < 1 || sectors > 255)
 		goto invalid_label;
 	if (sectors != basetable->gpt_sectors && !basetable->gpt_fixgeom) {
 		g_part_geometry_heads(msize, sectors, &chs, &heads);
