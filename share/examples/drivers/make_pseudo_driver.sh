@@ -168,7 +168,7 @@ static struct cdevsw ${1}_cdevsw = {
  * device  specific Misc defines
  */
 #define BUFFERSIZE 1024
-#define UNIT(dev) minor(dev)	/* assume one minor number per unit */
+#define UNIT(dev) dev2unit(dev)	/* assume one minor number per unit */
 
 /*
  * One of these per allocated device
