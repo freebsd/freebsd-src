@@ -1979,7 +1979,7 @@ fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
 static int
 check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
     struct in_addr dst_ip, u_int16_t dst_port, struct in_addr src_ip,
-    u_int16_t src_port, struct ip_fw_ugid *ugp, int *lookup,
+    u_int16_t src_port, struct ip_fw_ugid *ugp, int *ugid_lookupp,
     struct inpcb *inp)
 {
 	struct inpcbinfo *pi;
@@ -1993,11 +1993,11 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	 * the PCB. If so, rather then holding a lock and looking
 	 * up the PCB, we can use the one that was supplied.
 	 */
-	if (inp && *lookup == 0) {
+	if (inp && *ugid_lookupp == 0) {
 		INP_LOCK_ASSERT(inp);
 		if (inp->inp_socket != NULL) {
 			fill_ugid_cache(inp, ugp);
-			*lookup = 1;
+			*ugid_lookupp = 1;
 		}
 	}
 	/*
@@ -2005,7 +2005,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	 * PCB entry associated with it, then we can safely
 	 * assume that this is a no match.
 	 */
-	if (*lookup == -1)
+	if (*ugid_lookupp == -1)
 		return (0);
 	if (proto == IPPROTO_TCP) {
 		wildcard = 0;
@@ -2016,7 +2016,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 	} else
 		return 0;
 	match = 0;
-	if (*lookup == 0) {
+	if (*ugid_lookupp == 0) {
 		INP_INFO_RLOCK(pi);
 		pcb =  (oif) ?
 			in_pcblookup_hash(pi,
@@ -2031,19 +2031,19 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 			INP_RLOCK(pcb);
 			if (pcb->inp_socket != NULL) {
 				fill_ugid_cache(pcb, ugp);
-				*lookup = 1;
+				*ugid_lookupp = 1;
 			}
 			INP_RUNLOCK(pcb);
 		}
 		INP_INFO_RUNLOCK(pi);
-		if (*lookup == 0) {
+		if (*ugid_lookupp == 0) {
 			/*
 			 * If the lookup did not yield any results, there
 			 * is no sense in coming back and trying again. So
 			 * we can set lookup to -1 and ensure that we wont
 			 * bother the pcb system again.
 			 */
-			*lookup = -1;
+			*ugid_lookupp = -1;
 			return (0);
 		}
 	} 
