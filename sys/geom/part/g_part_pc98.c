@@ -241,19 +241,25 @@ g_part_pc98_dumpconf(struct g_part_table *table,
     struct g_part_entry *baseentry, struct sbuf *sb, const char *indent)
 {
 	struct g_part_pc98_entry *entry;
+	char name[sizeof(entry->ent.dp_name) + 1];
 	u_int type;
 
 	entry = (struct g_part_pc98_entry *)baseentry;
+	if (entry == NULL) {
+		/* confxml: scheme information */
+		return (0);
+	}
+
+	type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
+	strncpy(name, entry->ent.dp_name, sizeof(name) - 1);
+	name[sizeof(name) - 1] = '\0';
 	if (indent == NULL) {
 		/* conftxt: libdisk compatibility */
-		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-		sbuf_printf(sb, " xs PC98 xt %u", type);
-	} else if (entry != NULL) {
-		/* confxml: partition entry information */
-		type = entry->ent.dp_mid + (entry->ent.dp_sid << 8);
-		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent, type);
+		sbuf_printf(sb, " xs PC98 xt %u sn %s", type, name);
 	} else {
-		/* confxml: scheme information */
+		/* confxml: partition entry information */
+		sbuf_printf(sb, "%s<label>%s</label>\n", indent, name);
+		sbuf_printf(sb, "%s<rawtype>%u</rawtype>\n", indent, type);
 	}
 	return (0);
 }
