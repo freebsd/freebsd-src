@@ -2721,6 +2721,7 @@ help(void)
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "set N {show|list|zero|resetlog|delete} [N{,N}] | flush\n"
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
+"table all {flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
@@ -5856,22 +5857,24 @@ free_args(int ac, char **av)
 	free(av);
 }
 
-static void table_list(ipfw_table_entry ent);
+static void table_list(ipfw_table_entry ent, int need_header);
 
 /*
  * This one handles all table-related commands
  * 	ipfw table N add addr[/masklen] [value]
  * 	ipfw table N delete addr[/masklen]
- * 	ipfw table N flush
- * 	ipfw table N list
+ * 	ipfw table {N | all} flush
+ * 	ipfw table {N | all} list
  */
 static void
 table_handler(int ac, char *av[])
 {
 	ipfw_table_entry ent;
 	int do_add;
+	int is_all;
 	size_t len;
 	char *p;
+	uint32_t a;
 	uint32_t tables_max;
 
 	len = sizeof(tables_max);
@@ -5889,13 +5892,22 @@ table_handler(int ac, char *av[])
 	ac--; av++;
 	if (ac && isdigit(**av)) {
 		ent.tbl = atoi(*av);
+		is_all = 0;
+		ac--; av++;
+	} else if (ac && _substrcmp(*av, "all") == 0) {
+		ent.tbl = 0;
+		is_all = 1;
 		ac--; av++;
 	} else
-		errx(EX_USAGE, "table number required");
+		errx(EX_USAGE, "table number or 'all' keyword required");
 	if (ent.tbl >= tables_max)
 		errx(EX_USAGE, "The table number exceeds the maximum allowed "
 			"value (%d)", tables_max - 1);
 	NEED1("table needs command");
+	if (is_all && _substrcmp(*av, "list") != 0
+		   && _substrcmp(*av, "flush") != 0)
+		errx(EX_USAGE, "table number required");
+
 	if (_substrcmp(*av, "add") == 0 ||
 	    _substrcmp(*av, "delete") == 0) {
 		do_add = **av == 'a';
@@ -5945,16 +5957,23 @@ table_handler(int ac, char *av[])
 			}
 		}
 	} else if (_substrcmp(*av, "flush") == 0) {
-		if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl, sizeof(ent.tbl)) < 0)
-			err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
+		a = is_all ? tables_max : (ent.tbl + 1);
+		do {
+			if (do_cmd(IP_FW_TABLE_FLUSH, &ent.tbl,
+			    sizeof(ent.tbl)) < 0)
+				err(EX_OSERR, "setsockopt(IP_FW_TABLE_FLUSH)");
+		} while (++ent.tbl < a);
 	} else if (_substrcmp(*av, "list") == 0) {
-		table_list(ent);
+		a = is_all ? tables_max : (ent.tbl + 1);
+		do {
+			table_list(ent);
+		} while (++ent.tbl < a);
 	} else
 		errx(EX_USAGE, "invalid table command %s", *av);
 }
 
 static void
-table_list(ipfw_table_entry ent)
+table_list(ipfw_table_entry ent, int need_header)
 {
 	ipfw_table *tbl;
 	socklen_t l;
@@ -5976,6 +5995,8 @@ table_list(ipfw_table_entry ent)
 	tbl->tbl = ent.tbl;
 	if (do_cmd(IP_FW_TABLE_LIST, tbl, (uintptr_t)&l) < 0)
 		err(EX_OSERR, "getsockopt(IP_FW_TABLE_LIST)");
+	if (tbl->cnt && need_header)
+		printf("---table(%d)---\n", tbl->tbl);
 	for (a = 0; a < tbl->cnt; a++) {
 		unsigned int tval;
 		tval = tbl->ent[a].value;
