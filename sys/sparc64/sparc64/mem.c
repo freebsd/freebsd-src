@@ -111,7 +111,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			pa = uio->uio_offset & ~PAGE_MASK;
 			if (!is_physical_memory(pa)) {
 				error = EFAULT;
@@ -159,7 +159,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			}
 			break;
 		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = trunc_page(uio->uio_offset);
 			eva = round_page(uio->uio_offset + iov->iov_len);
 

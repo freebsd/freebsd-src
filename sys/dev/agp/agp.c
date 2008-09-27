@@ -80,7 +80,7 @@ static struct cdevsw agp_cdevsw = {
 };
 
 static devclass_t agp_devclass;
-#define KDEV2DEV(kdev)	devclass_get_device(agp_devclass, minor(kdev))
+#define KDEV2DEV(kdev)	devclass_get_device(agp_devclass, dev2unit(kdev))
 
 /* Helper functions for implementing chipset mini drivers. */
 

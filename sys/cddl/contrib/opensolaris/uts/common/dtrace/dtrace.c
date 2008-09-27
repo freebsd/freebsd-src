@@ -12816,7 +12816,7 @@ dtrace_state_create(struct cdev *dev)
 #else
 	if (dev != NULL) {
 		cr = dev->si_cred;
-		m = minor(dev);
+		m = dev2unit(dev);
 		}
 
 	/* Allocate memory for the state. */
@@ -15266,7 +15266,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 * The first minor device is the one that is cloned so there is
 	 * nothing more to do here.
 	 */
-	if (minor(dev) == 0)
+	if (dev2unit(dev) == 0)
 		return 0;
 
 	/*
@@ -15367,7 +15367,7 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	dtrace_state_t *state = dev->si_drv1;
 
 	/* Check if this is not a cloned device. */
-	if (minor(dev) == 0)
+	if (dev2unit(dev) == 0)
 		return (0);
 
 #endif

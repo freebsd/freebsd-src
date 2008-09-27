@@ -478,7 +478,7 @@ pf_thread_create(void *v)
 int
 pfopen(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
-	if (minor(dev) >= 1)
+	if (dev2unit(dev) >= 1)
 		return (ENXIO);
 	return (0);
 }
@@ -486,7 +486,7 @@ pfopen(struct cdev *dev, int flags, int fmt, struct proc *p)
 int
 pfclose(struct cdev *dev, int flags, int fmt, struct proc *p)
 {
-	if (minor(dev) >= 1)
+	if (dev2unit(dev) >= 1)
 		return (ENXIO);
 	return (0);
 }

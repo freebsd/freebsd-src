@@ -252,7 +252,7 @@ netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	/* only support interface specific ioctls */
 	if (IOCGROUP(cmd) != 'i')
 		return (EOPNOTSUPP);
-	idx = minor(dev);
+	idx = dev2unit(dev);
 	if (idx == 0) {
 		/*
 		 * special network device, not interface.
@@ -291,7 +291,7 @@ netkqfilter(struct cdev *dev, struct knote *kn)
 		return (EINVAL);
 	}
 
-	idx = minor(dev);
+	idx = dev2unit(dev);
 	if (idx == 0) {
 		klist = &V_ifklist;
 	} else {

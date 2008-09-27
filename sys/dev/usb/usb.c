@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
-#define USBUNIT(d)	(minor(d))	/* usb_discover device nodes, kthread */
+#define USBUNIT(d)	(dev2unit(d))	/* usb_discover device nodes, kthread */
 #define USB_DEV_MINOR	255		/* event queue device */
 
 MALLOC_DEFINE(M_USB, "USB", "USB");

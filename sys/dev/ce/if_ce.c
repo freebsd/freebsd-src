@@ -1254,7 +1254,7 @@ static int ce_open (dev_t dev, int oflags, int devtype, struct proc *p)
 static int ce_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
 #endif
 {
-	int unit = minor (dev);
+	int unit = dev2unit (dev);
 	drv_t *d;
 
 	if (unit >= NBRD*NCHAN || ! (d = channel[unit]))
@@ -1272,7 +1272,7 @@ static int ce_close (dev_t dev, int fflag, int devtype, struct proc *p)
 static int ce_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
 #endif
 {
-	drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [dev2unit (dev)];
 
 	CE_DEBUG2 (d, ("ce_close\n"));
 	return 0;
@@ -1303,7 +1303,7 @@ static int ce_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct proc 
 static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 #endif
 {
-	drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [dev2unit (dev)];
 	bdrv_t *bd = d->board->sys;
 	ce_chan_t *c = d->chan;
 	struct serial_statistics *st;

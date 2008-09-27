@@ -144,7 +144,7 @@ cpuctl_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	int flags, struct thread *td)
 {
 	int ret;
-	int cpu = minor(dev);
+	int cpu = dev2unit(dev);
 
 	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: bad cpu number %d\n", __LINE__, cpu);
@@ -389,7 +389,7 @@ cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	int ret = 0;
 	int cpu;
 
-	cpu = minor(dev);
+	cpu = dev2unit(dev);
 	if (cpu >= mp_ncpus || !cpu_enabled(cpu)) {
 		DPRINTF("[cpuctl,%d]: incorrect cpu number %d\n", __LINE__,
 		    cpu);

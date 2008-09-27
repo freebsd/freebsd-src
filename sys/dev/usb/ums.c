@@ -81,7 +81,7 @@ SYSCTL_INT(_hw_usb_ums, OID_AUTO, debug, CTLFLAG_RW,
 #define DPRINTFN(n,x)
 #endif
 
-#define UMSUNIT(s)	(minor(s)&0x1f)
+#define UMSUNIT(s)	(dev2unit(s)&0x1f)
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 

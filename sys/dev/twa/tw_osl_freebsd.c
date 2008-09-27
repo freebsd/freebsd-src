@@ -88,7 +88,7 @@ static devclass_t	twa_devclass;
 static TW_INT32
 twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
 {
-	TW_INT32		unit = minor(dev);
+	TW_INT32		unit = dev2unit(dev);
 	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
 
 	tw_osli_dbg_dprintf(5, sc, "entered");
@@ -114,7 +114,7 @@ twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
 static TW_INT32
 twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, d_thread_t *proc)
 {
-	TW_INT32		unit = minor(dev);
+	TW_INT32		unit = dev2unit(dev);
 	struct twa_softc	*sc = devclass_get_softc(twa_devclass, unit);
 
 	tw_osli_dbg_dprintf(5, sc, "entered");

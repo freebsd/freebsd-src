@@ -311,7 +311,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 
 	isp = isplist;
 	while (isp) {
-		if (minor(dev) == device_get_unit(isp->isp_dev)) {
+		if (dev2unit(dev) == device_get_unit(isp->isp_dev)) {
 			break;
 		}
 		isp = isp->isp_osinfo.next;

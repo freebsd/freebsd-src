@@ -175,11 +175,11 @@ typedef enum {
 
 /* units are bits 4-7, 16-21 (1024 units) */
 #define SAUNIT(DEV) \
-	(((minor(DEV) & 0xF0) >> 4) |  ((minor(DEV) & 0x3f0000) >> 16))
+	(((dev2unit(DEV) & 0xF0) >> 4) |  ((dev2unit(DEV) & 0x3f0000) >> 16))
 
-#define SAMODE(z) ((minor(z) & 0x3))
-#define SADENSITY(z) (((minor(z) >> 2) & 0x3))
-#define	SA_IS_CTRL(z) (minor(z) & (1 << 29))
+#define SAMODE(z) ((dev2unit(z) & 0x3))
+#define SADENSITY(z) (((dev2unit(z) >> 2) & 0x3))
+#define	SA_IS_CTRL(z) (dev2unit(z) & (1 << 29))
 
 #define SA_NOT_CTLDEV	0
 #define SA_CTLDEV	1

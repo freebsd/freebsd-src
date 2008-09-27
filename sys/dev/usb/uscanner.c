@@ -293,7 +293,7 @@ static int uscanner_do_read(struct uscanner_softc *, struct uio *, int);
 static int uscanner_do_write(struct uscanner_softc *, struct uio *, int);
 static void uscanner_do_close(struct uscanner_softc *);
 
-#define USCANNERUNIT(n) (minor(n))
+#define USCANNERUNIT(n) (dev2unit(n))
 
 static device_probe_t uscanner_match;
 static device_attach_t uscanner_attach;

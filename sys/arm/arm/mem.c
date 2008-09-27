@@ -91,7 +91,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				panic("memrw");
 			continue;
 		}
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			int i;
 			int address_valid = 0;
 
@@ -116,7 +116,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			pmap_qremove((vm_offset_t)_tmppt, 1);
 			continue;
 		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			c = iov->iov_len;
 
 			/*
@@ -156,9 +156,9 @@ int
 memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
     int prot __unused)
 {
-	if (minor(dev) == CDEV_MINOR_MEM)
+	if (dev2unit(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
-	else if (minor(dev) == CDEV_MINOR_KMEM)
+	else if (dev2unit(dev) == CDEV_MINOR_KMEM)
         	*paddr = vtophys(offset);
 	/* else panic! */
 	return (0);

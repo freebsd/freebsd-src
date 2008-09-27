@@ -256,7 +256,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		struct AdapterControlBlock *acb=dev->si_drv1;
 	#else
-		int	unit = minor(dev);
+		int	unit = dev2unit(dev);
 		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
 	#endif
 	if(acb==NULL) {
@@ -281,7 +281,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		struct AdapterControlBlock *acb=dev->si_drv1;
 	#else
-		int	unit = minor(dev);
+		int	unit = dev2unit(dev);
 		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
 	#endif
 	if(acb==NULL) {
@@ -306,7 +306,7 @@ MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 	#if __FreeBSD_version < 503000
 		struct AdapterControlBlock *acb=dev->si_drv1;
 	#else
-		int	unit = minor(dev);
+		int	unit = dev2unit(dev);
 		struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
 	#endif
 	

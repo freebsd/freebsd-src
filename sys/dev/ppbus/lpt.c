@@ -461,7 +461,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int s;
 	int trys, err;
-	u_int unit = LPTUNIT(minor(dev));
+	u_int unit = LPTUNIT(dev2unit(dev));
 	struct lpt_data *sc = UNITOSOFTC(unit);
 	device_t lptdev = UNITODEVICE(unit);
 	device_t ppbus = device_get_parent(lptdev);
@@ -475,7 +475,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	} else
 		sc->sc_state |= LPTINIT;
 
-	sc->sc_flags = LPTFLAGS(minor(dev));
+	sc->sc_flags = LPTFLAGS(dev2unit(dev));
 
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
@@ -579,7 +579,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static	int
 lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = LPTUNIT(minor(dev));
+	u_int unit = LPTUNIT(dev2unit(dev));
 	struct lpt_data *sc = UNITOSOFTC(unit);
 	device_t lptdev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(lptdev);
@@ -688,7 +688,7 @@ lpt_pushbytes(device_t dev)
 static int
 lptread(struct cdev *dev, struct uio *uio, int ioflag)
 {
-        u_int	unit = LPTUNIT(minor(dev));
+        u_int	unit = LPTUNIT(dev2unit(dev));
 	struct lpt_data *sc = UNITOSOFTC(unit);
 	device_t lptdev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(lptdev);
@@ -735,7 +735,7 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	register unsigned n;
 	int err;
-        u_int	unit = LPTUNIT(minor(dev));
+        u_int	unit = LPTUNIT(dev2unit(dev));
 	struct lpt_data *sc = UNITOSOFTC(unit);
 	device_t lptdev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(lptdev);
@@ -902,7 +902,7 @@ static	int
 lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int	error = 0;
-        u_int	unit = LPTUNIT(minor(dev));
+        u_int	unit = LPTUNIT(dev2unit(dev));
         struct	lpt_data *sc = UNITOSOFTC(unit);
 	u_char	old_sc_irq;	/* old printer IRQ status */
 

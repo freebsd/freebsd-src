@@ -178,7 +178,7 @@ static struct cdevsw hptiop_cdevsw = {
 #define hba_from_dev(dev) ((struct hpt_iop_hba *)(dev)->si_drv1)
 #else
 #define hba_from_dev(dev) \
-	((struct hpt_iop_hba *)devclass_get_softc(hptiop_devclass, minor(dev)))
+	((struct hpt_iop_hba *)devclass_get_softc(hptiop_devclass, dev2unit(dev)))
 #endif
 
 #define BUS_SPACE_WRT4_ITL(offset, value) bus_space_write_4(hba->bar0t,\
