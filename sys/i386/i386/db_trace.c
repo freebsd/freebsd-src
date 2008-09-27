@@ -172,6 +172,7 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 #define	SYSCALL		3
 #define	DOUBLE_FAULT	4
 #define	TRAP_INTERRUPT	5
+#define	TRAP_TIMERINT	6
 
 static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
@@ -307,8 +308,9 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		else if (strcmp(name, "dblfault_handler") == 0)
 			frame_type = DOUBLE_FAULT;
 		/* XXX: These are interrupts with trap frames. */
-		else if (strcmp(name, "Xtimerint") == 0 ||
-		    strcmp(name, "Xcpustop") == 0 ||
+		else if (strcmp(name, "Xtimerint") == 0)
+			frame_type = TRAP_TIMERINT;
+		else if (strcmp(name, "Xcpustop") == 0 ||
 		    strcmp(name, "Xrendezvous") == 0 ||
 		    strcmp(name, "Xipi_intr_bitmap_handler") == 0 ||
 		    strcmp(name, "Xlazypmap") == 0)
@@ -349,6 +351,8 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 */
 	if (frame_type == INTERRUPT)
 		tf = (struct trapframe *)((int)*fp + 16);
+	else if (frame_type == TRAP_INTERRUPT)
+		tf = (struct trapframe *)((int)*fp + 8);
 	else
 		tf = (struct trapframe *)((int)*fp + 12);
 
@@ -364,6 +368,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 			db_printf("--- syscall");
 			decode_syscall(tf->tf_eax, td);
 			break;
+		case TRAP_TIMERINT:
 		case TRAP_INTERRUPT:
 		case INTERRUPT:
 			db_printf("--- interrupt");
