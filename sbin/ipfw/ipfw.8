@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2007
+.Dd September 27, 2008
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -49,9 +49,13 @@
 .Nm
 .Cm table Ar number Cm delete Ar addr Ns Op / Ns Ar masklen
 .Nm
-.Cm table Ar number Cm flush
+.Cm table
+.Brq Ar number | all
+.Cm flush
 .Nm
-.Cm table Ar number Cm list
+.Cm table
+.Brq Ar number | all
+.Cm list
 .Pp
 .Nm
 .Brq Cm pipe | queue
@@ -2242,6 +2246,11 @@ The current number of buckets in the hash table for dynamic rules
 .It Va net.inet.ip.fw.debug : No 1
 Controls debugging messages produced by
 .Nm .
+.It Va net.inet.ip.fw.default_rule : No 65535
+The default rule number (read-only).
+By the design of
+.Nm , the default rule is the last one, so its number
+can also serve as the highest number allowed for a rule.
 .It Va net.inet.ip.fw.dyn_buckets : No 256
 The number of buckets in the hash table for dynamic rules.
 Must be a power of 2, up to 65536.
@@ -2295,6 +2304,8 @@ pipe or from
 node is not passed though the firewall again.
 Otherwise, after an action, the packet is
 reinjected into the firewall at the next rule.
+.It Va net.inet.ip.fw.tables_max : No 128
+Maximum number of tables (read-only).
 .It Va net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
 .It Va net.inet.ip.fw.verbose_limit : No 0
