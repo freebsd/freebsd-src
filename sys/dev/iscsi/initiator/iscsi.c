@@ -115,13 +115,13 @@ iscsi_open(struct cdev *dev, int flags, int otype, struct thread *td)
 {
      debug_called(8);
 
-     debug(7, "dev=%d", minor(dev));
+     debug(7, "dev=%d", dev2unit(dev));
 
-     if(minor(dev) > MAX_SESSIONS) {
+     if(dev2unit(dev) > MAX_SESSIONS) {
 	  // should not happen
           return ENODEV;
      }
-     if(minor(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == MAX_SESSIONS) {
 #if 1
 	  struct isc_softc *sc = (struct isc_softc *)dev->si_drv1;
 
@@ -144,12 +144,12 @@ iscsi_close(struct cdev *dev, int flag, int otyp, struct thread *td)
      debug(3, "flag=%x", flag);
 
      sc = (struct isc *)dev->si_drv1;
-     if(minor(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == MAX_SESSIONS) {
 	  return 0;
      }
      sp = (isc_session_t *)dev->si_drv2;
      if(sp != NULL) {
-	  sdebug(2, "session=%d flags=%x", minor(dev), sp->flags );
+	  sdebug(2, "session=%d flags=%x", dev2unit(dev), sp->flags );
 	  /*
 	   | if still in full phase, this probably means
 	   | that something went realy bad.
@@ -179,7 +179,7 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
      debug_called(8);
 
      error = 0;
-     if(minor(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == MAX_SESSIONS) {
 	  /*
 	   | non Session commands
 	   */
@@ -205,7 +205,7 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
      if(sp == NULL)
 	  return ENXIO;
 
-     sdebug(6, "dev=%d cmd=%d", minor(dev), (int)(cmd & 0xff));
+     sdebug(6, "dev=%d cmd=%d", dev2unit(dev), (int)(cmd & 0xff));
 
      switch(cmd) {
      case ISCSISETSOC:
@@ -285,7 +285,7 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 
      sc = (struct isc_softc *)dev->si_drv1;
      sp = (isc_session_t *)dev->si_drv2;
-     if(minor(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == MAX_SESSIONS) {
 	  sprintf(buf, "/----- Session ------/\n");
 	  uiomove(buf, strlen(buf), uio);
 	  int	i = 0;

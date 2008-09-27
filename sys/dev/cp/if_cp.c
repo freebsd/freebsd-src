@@ -999,7 +999,7 @@ static void cp_error (cp_chan_t *c, int data)
  */
 static int cp_open (struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	int unit = minor (dev);
+	int unit = dev2unit (dev);
 	drv_t *d;
 
 	if (unit >= NBRD*NCHAN || ! (d = channel[unit]))
@@ -1013,7 +1013,7 @@ static int cp_open (struct cdev *dev, int oflags, int devtype, struct thread *td
  */
 static int cp_close (struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [dev2unit (dev)];
 
 	CP_DEBUG2 (d, ("cp_close\n"));
 	return 0;
@@ -1040,7 +1040,7 @@ static int cp_modem_status (cp_chan_t *c)
 
 static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
-	drv_t *d = channel [minor (dev)];
+	drv_t *d = channel [dev2unit (dev)];
 	bdrv_t *bd = d->board->sys;
 	cp_chan_t *c = d->chan;
 	struct serial_statistics *st;

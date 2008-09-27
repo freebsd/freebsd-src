@@ -93,7 +93,7 @@ memrw(dev, uio, flags)
 		}
 
 		/* minor device 0 is physical memory */
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
 			c = iov->iov_len;
 
@@ -130,7 +130,7 @@ memrw(dev, uio, flags)
 		}
 
 		/* minor device 1 is kernel memory */
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 			c = min(iov->iov_len, MAXPHYS);
 			vm_offset_t addr, eaddr;

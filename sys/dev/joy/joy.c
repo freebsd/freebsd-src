@@ -54,8 +54,8 @@ __FBSDID("$FreeBSD$");
  * wait until the corresponding bit returns to 0.
  */
 
-#define joypart(d) (minor(d)&1)
-#define UNIT(d) ((minor(d)>>1)&3)
+#define joypart(d) (dev2unit(d)&1)
+#define UNIT(d) ((dev2unit(d)>>1)&3)
 #ifndef JOY_TIMEOUT
 #define JOY_TIMEOUT   2000 /* 2 milliseconds */
 #endif

@@ -108,7 +108,7 @@ smapi_ioctl (dev, cmd, data, fflag, td)
 	int error;
 
 	error = 0;
-	sc = devclass_get_softc(smapi_devclass, minor(dev)); 
+	sc = devclass_get_softc(smapi_devclass, dev2unit(dev)); 
         if (sc == NULL) {
                 error = ENXIO;
                 goto fail;

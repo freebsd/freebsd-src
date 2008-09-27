@@ -394,7 +394,7 @@ tdfx_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * We can pretty much allow any opening of the device.
 	 */
 	struct tdfx_softc *tdfx_info = devclass_get_softc(tdfx_devclass, 
-			UNIT(minor(dev)));
+			UNIT(dev2unit(dev)));
 	if(tdfx_info->busy != 0) return EBUSY;
 #ifdef	DEBUG
 	printf("3dfx: Opened by #%d\n", td->td_proc->p_pid);
@@ -412,7 +412,7 @@ tdfx_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	 * We'll always want to close the device when it's called.
 	 */
 	struct tdfx_softc *tdfx_info = devclass_get_softc(tdfx_devclass, 
-		UNIT(minor(dev)));
+		UNIT(dev2unit(dev)));
 	if(tdfx_info->busy == 0) return EBADF;
 	tdfx_info->busy = 0;
 #ifdef	DEBUG
@@ -435,7 +435,7 @@ tdfx_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int nprot)
 	
 	/* Get the configuration for our card XXX*/
 	/*tdfx_info = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass,
-			UNIT(minor(dev)));*/
+			UNIT(dev2unit(dev)));*/
 	/************************/
 
 	struct tdfx_softc* tdfx_info[2];

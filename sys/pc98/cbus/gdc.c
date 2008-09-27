@@ -69,7 +69,7 @@
 
 /* cdev driver declaration */
 
-#define GDC_UNIT(dev)	minor(dev)
+#define GDC_UNIT(dev)	dev2unit(dev)
 #define GDC_MKMINOR(unit) (unit)
 
 typedef struct gdc_softc {

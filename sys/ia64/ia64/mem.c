@@ -94,7 +94,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 
-		if (minor(dev) == CDEV_MINOR_MEM) {
+		if (dev2unit(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
 kmemphys:
 			/* Allow reads only in RAM. */
@@ -111,7 +111,7 @@ kmemphys:
 			error = uiomove((caddr_t)IA64_PHYS_TO_RR7(v), c, uio);
 			continue;
 		}
-		else if (minor(dev) == CDEV_MINOR_KMEM) {
+		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 
 			if (v >= IA64_RR_BASE(6)) {
@@ -156,7 +156,7 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
 	 * could be transient and hence incorrect or invalid at
 	 * a later time.
 	 */
-	if (minor(dev) != CDEV_MINOR_MEM)
+	if (dev2unit(dev) != CDEV_MINOR_MEM)
 		return (-1);
 
 	/*

@@ -137,7 +137,7 @@ struct uhid_softc {
 	struct cdev *dev;
 };
 
-#define	UHIDUNIT(dev)	(minor(dev))
+#define	UHIDUNIT(dev)	(dev2unit(dev))
 #define	UHID_CHUNK	128	/* chunk size for read */
 #define	UHID_BSIZE	1020	/* buffer size */
 

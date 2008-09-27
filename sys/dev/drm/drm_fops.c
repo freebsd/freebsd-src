@@ -62,7 +62,7 @@ drm_file_t *drm_find_file_by_proc(struct drm_device *dev, DRM_STRUCTPROC *p)
 int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    struct drm_device *dev)
 {
-	int	     m = minor(kdev);
+	int	     m = dev2unit(kdev);
 	drm_file_t   *priv;
 	int retcode;
 

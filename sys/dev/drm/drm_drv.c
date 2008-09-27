@@ -713,7 +713,7 @@ int drm_open(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p)
 	struct drm_device *dev = NULL;
 	int retcode = 0;
 
-	dev = DRIVER_SOFTC(minor(kdev));
+	dev = DRIVER_SOFTC(dev2unit(kdev));
 
 	DRM_DEBUG( "open_count = %d\n", dev->open_count );
 

@@ -252,7 +252,7 @@ ppiintr(void *arg)
 static int
 ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
@@ -286,7 +286,7 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 ppiclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
@@ -329,7 +329,7 @@ static int
 ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
@@ -413,7 +413,7 @@ static int
 ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	struct ppi_data *ppi = UNITOSOFTC(unit);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
@@ -499,7 +499,7 @@ error:
 static int
 ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
-	u_int unit = minor(dev);
+	u_int unit = dev2unit(dev);
 	device_t ppidev = UNITODEVICE(unit);
         device_t ppbus = device_get_parent(ppidev);
 	int error = 0;
