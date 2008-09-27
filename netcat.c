@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.89 2007/02/20 14:11:17 jmc Exp $ */
+/* $OpenBSD: netcat.c,v 1.91 2008/05/09 09:00:11 markus Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -80,6 +80,8 @@ int	vflag;					/* Verbosity */
 int	xflag;					/* Socks proxy */
 int	zflag;					/* Port Scan Flag */
 int	Dflag;					/* sodebug */
+int	Iflag;					/* TCP receive buffer size */
+int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
 
@@ -123,7 +125,7 @@ main(int argc, char *argv[])
 	sv = NULL;
 
 	while ((ch = getopt(argc, argv,
-	    "46Ddhi:jklnP:p:rSs:tT:Uuvw:X:x:z")) != -1) {
+	    "46DdhI:i:jklnO:P:p:rSs:tT:Uuvw:X:x:z")) != -1) {
 		switch (ch) {
 		case '4':
 			family = AF_INET;
@@ -204,6 +206,18 @@ main(int argc, char *argv[])
 			break;
 		case 'D':
 			Dflag = 1;
+			break;
+		case 'I':
+			Iflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL)
+				errx(1, "TCP receive window %s: %s",
+				    errstr, optarg);
+			break;
+		case 'O':
+			Oflag = strtonum(optarg, 1, 65536 << 14, &errstr);
+			if (errstr != NULL)
+				errx(1, "TCP send window %s: %s",
+				    errstr, optarg);
 			break;
 		case 'S':
 			Sflag = 1;
@@ -473,7 +487,7 @@ int
 remote_connect(const char *host, const char *port, struct addrinfo hints)
 {
 	struct addrinfo *res, *res0;
-	int s, error;
+	int s, error, on = 1;
 
 	if ((error = getaddrinfo(host, port, &hints, &res)))
 		errx(1, "getaddrinfo: %s", gai_strerror(error));
@@ -488,6 +502,8 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
+			/* try SO_BINDANY, but don't insist */
+			setsockopt(s, SOL_SOCKET, SO_BINDANY, &on, sizeof(on));
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
@@ -781,6 +797,16 @@ set_common_sockopts(int s)
 		    &Tflag, sizeof(Tflag)) == -1)
 			err(1, "set IP ToS");
 	}
+	if (Iflag) {
+		if (setsockopt(s, SOL_SOCKET, SO_RCVBUF,
+		    &Iflag, sizeof(Iflag)) == -1)
+			err(1, "set TCP receive buffer size");
+	}
+	if (Oflag) {
+		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF,
+		    &Oflag, sizeof(Oflag)) == -1)
+			err(1, "set TCP send buffer size");
+	}
 }
 
 int
@@ -810,10 +836,12 @@ help(void)
 	\t-D		Enable the debug socket option\n\
 	\t-d		Detach from stdin\n\
 	\t-h		This help text\n\
+	\t-I length	TCP receive buffer length\n\
 	\t-i secs\t	Delay interval for lines sent, ports scanned\n\
 	\t-k		Keep inbound sockets open for multiple connects\n\
 	\t-l		Listen mode, for inbound connects\n\
 	\t-n		Suppress name/port resolutions\n\
+	\t-O length	TCP send buffer length\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
 	\t-r		Randomize remote ports\n\
@@ -835,7 +863,8 @@ help(void)
 void
 usage(int ret)
 {
-	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-i interval] [-P proxy_username] [-p source_port]\n");
+	fprintf(stderr, "usage: nc [-46DdhklnrStUuvz] [-I receive_buffer_len] [-i interval]\n");
+	fprintf(stderr, "\t  [-O send_buffer_len] [-P proxy_username] [-p source_port]\n");
 	fprintf(stderr, "\t  [-s source_ip_address] [-T ToS] [-w timeout] [-X proxy_protocol]\n");
 	fprintf(stderr, "\t  [-x proxy_address[:port]] [hostname] [port[s]]\n");
 	if (ret)
