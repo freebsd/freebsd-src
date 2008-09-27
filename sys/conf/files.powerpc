@@ -109,6 +109,7 @@ powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata
 powerpc/powermac/ata_macio.c	optional	powermac ata
+powerpc/powermac/ata_dbdma.c	optional	powermac ata
 powerpc/powermac/dbdma.c	optional	powermac pci
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
