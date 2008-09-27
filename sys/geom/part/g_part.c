@@ -1443,6 +1443,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct g_geom *gp;
 	struct g_part_entry *entry;
 	struct g_part_table *table;
+	struct root_hold_token *rht;
 	int attr, depth;
 	int error;
 
@@ -1464,6 +1465,7 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	}
 
+	rht = root_mount_hold(mp->name);
 	g_topology_unlock();
 
 	/*
@@ -1516,11 +1518,13 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_part_new_provider(gp, table, entry);
 	}
 
+	root_mount_rel(rht);
 	g_access(cp, -1, 0, 0);
 	return (gp);
 
  fail:
 	g_topology_lock();
+	root_mount_rel(rht);
 	g_access(cp, -1, 0, 0);
 	g_part_wither(gp, error);
 	return (NULL);
