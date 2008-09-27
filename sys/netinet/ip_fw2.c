@@ -1998,7 +1998,8 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 		if (inp->inp_socket != NULL) {
 			fill_ugid_cache(inp, ugp);
 			*ugid_lookupp = 1;
-		}
+		} else
+			*ugid_lookupp = -1;
 	}
 	/*
 	 * If we have already been here and the packet has no
