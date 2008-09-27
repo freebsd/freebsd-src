@@ -127,6 +127,13 @@ dbdma_get_cmd_status(dbdma_channel_t *chan, int slot)
 	return (le16toh(chan->sc_slots[slot].resCount));
 }
 
+void
+dbdma_clear_cmd_status(dbdma_channel_t *chan, int slot)
+{
+	/* See endian note above */
+	chan->sc_slots[slot].resCount = 0;
+}
+
 uint16_t
 dbdma_get_residuals(dbdma_channel_t *chan, int slot)
 {
@@ -212,10 +219,21 @@ dbdma_get_chan_status(dbdma_channel_t *chan)
 }
 
 uint8_t
-dbdma_get_chan_device_status(dbdma_channel_t *chan)
+dbdma_get_device_status(dbdma_channel_t *chan)
 {
-
 	return (dbdma_get_chan_status(chan) & 0x00ff);
+}
+
+void
+dbdma_set_device_status(dbdma_channel_t *chan, uint8_t mask, uint8_t value)
+{
+	uint32_t control_reg;
+	
+	control_reg = mask;
+	control_reg <<= 16;
+	control_reg |= value;
+
+	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 }
 
 void
