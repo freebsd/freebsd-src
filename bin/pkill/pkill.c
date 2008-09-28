@@ -607,12 +607,11 @@ makelist(struct listhead *head, enum listtype type, char *src)
 	struct passwd *pw;
 	struct group *gr;
 	struct stat st;
-	const char *cp, *prefix;
+	const char *cp;
 	char *sp, *ep, buf[MAXPATHLEN];
 	int empty;
 
 	empty = 1;
-	prefix = _PATH_DEV;
 
 	while ((sp = strsep(&src, ",")) != NULL) {
 		if (*sp == '\0')
@@ -673,11 +672,9 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				cp = "console";
 			} else {
 				cp = sp;
-				if (strncmp(sp, "tty", 3) != 0)
-					prefix = _PATH_TTY;
 			}
 
-			snprintf(buf, sizeof(buf), "%s%s", prefix, cp);
+			snprintf(buf, sizeof(buf), _PATH_DEV "%s", cp);
 
 			if (stat(buf, &st) == -1) {
 				if (errno == ENOENT) {
