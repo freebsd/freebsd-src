@@ -2592,7 +2592,6 @@ pmap_growkernel(vm_offset_t addr)
 	cpu_tlb_flushD();
 	cpu_cpwait();
 	kernel_vm_end = pmap_curmaxkvaddr;
-
 }
 
 
