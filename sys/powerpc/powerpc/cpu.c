@@ -251,21 +251,20 @@ cpu_setup(u_int cpuid)
 	}
 
 	switch (vers) {
-		case MPC7400:
-		case MPC7410:
-		case MPC7447A:
-		case MPC7448:
 		case MPC7450:
 		case MPC7455:
 		case MPC7457:
-			/* G3 systems don't have an L3 cache, so only check
-			 * for G4 and above */
+			/* Only MPC745x CPUs have an L3 cache. */
 
 			l3cr_config = mfspr(SPR_L3CR);
 
 			/* Fallthrough */
 		case MPC750:
 		case IBM750FX:
+		case MPC7400:
+		case MPC7410:
+		case MPC7447A:
+		case MPC7448:
 			cpu_print_speed();
 			printf("\n");
 
