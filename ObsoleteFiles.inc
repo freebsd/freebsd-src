@@ -14,6 +14,12 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20080928: removal of inaccurate device_ids(9) manual page
+OLD_FILES+=usr/share/man/man9/device_ids.9.gz
+OLD_FILES+=usr/share/man/man9/major.9.gz
+OLD_FILES+=usr/share/man/man9/minor.9.gz
+OLD_FILES+=usr/share/man/man9/umajor.9.gz
+OLD_FILES+=usr/share/man/man9/uminor.9.gz
 # 20080917: removal of manpage for axed kernel primitive suser(9)
 OLD_FILES+=usr/share/man/man9/suser.9.gz
 OLD_FILES+=usr/share/man/man9/suser_cred.9.gz
