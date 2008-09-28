@@ -97,4 +97,10 @@ mmcbr_update_ios(device_t dev)
 	return (MMCBR_UPDATE_IOS(device_get_parent(dev), dev));
 }
 
+static int __inline
+mmcbr_get_ro(device_t dev)
+{
+	return (MMCBR_GET_RO(device_get_parent(dev), dev));
+}
+
 #endif /* DEV_MMC_MMCBRVAR_H */
