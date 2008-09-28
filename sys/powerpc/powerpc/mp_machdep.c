@@ -50,8 +50,6 @@ volatile static u_int ap_state;
 volatile static uint32_t ap_decr;
 volatile static uint32_t ap_tbl;
 
-int mp_ipi_test = 0;
-
 void
 machdep_ap_bootstrap(void)
 {
@@ -182,11 +180,6 @@ cpu_mp_unleash(void *dummy)
 	if (mp_ncpus <= 1)
 		return;
 
-	if (mp_ipi_test != 1) {
-		printf("SMP: ERROR: sending of a test IPI failed\n");
-		return;
-	}
-
 	cpus = 0;
 	smp_cpus = 0;
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
@@ -263,9 +256,6 @@ powerpc_ipi_handler(void *arg)
 			atomic_clear_int(&started_cpus, self);
 			atomic_clear_int(&stopped_cpus, self);
 			break;
-		case IPI_PPC_TEST:
-			mp_ipi_test++;
-			break;
 		}
 	}
 
@@ -292,17 +282,6 @@ ipi_selected(cpumask_t cpus, int ipi)
 	}
 }
 
-/* Send an IPI to all CPUs, including myself. */
-void
-ipi_all(int ipi)
-{
-	struct pcpu *pc;
-
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		ipi_send(pc, ipi);
-	}
-}
-
 /* Send an IPI to all CPUs EXCEPT myself. */
 void
 ipi_all_but_self(int ipi)
@@ -313,12 +292,4 @@ ipi_all_but_self(int ipi)
 		if (pc != pcpup)
 			ipi_send(pc, ipi);
 	}
-}
-
-/* Send an IPI to myself. */
-void
-ipi_self(int ipi)
-{
-
-	ipi_send(pcpup, ipi);
 }

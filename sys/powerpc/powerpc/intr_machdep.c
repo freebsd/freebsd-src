@@ -235,11 +235,6 @@ powerpc_enable_intr(void)
 			PIC_ENABLE(pic, i->irq, vector);
 	}
 
-#ifdef SMP
-	/* Send ourself a test IPI message. */
-	ipi_self(IPI_PPC_TEST);
-#endif
-
 	return (0);
 }
 

@@ -72,8 +72,6 @@ void ia64_ap_startup(void);
 #define	LID_SAPIC_SET(id,eid)	(((id & 0xff) << 8 | (eid & 0xff)) << 16);
 #define	LID_SAPIC_MASK		0xffff0000UL
 
-int	mp_ipi_test = 0;
-
 /* Variables used by os_boot_rendez and ia64_ap_startup */
 struct pcpu *ap_pcpu;
 void *ap_stack;
@@ -269,9 +267,6 @@ cpu_mp_start()
 			if (!ap_awake)
 				printf("SMP: WARNING: cpu%d did not wake up\n",
 				    pc->pc_cpuid);
-		} else {
-			pc->pc_awake = 1;
-			ipi_self(IPI_TEST);
 		}
 	}
 }
@@ -284,9 +279,6 @@ cpu_mp_unleash(void *dummy)
 
 	if (mp_ncpus <= 1)
 		return;
-
-	if (mp_ipi_test != 1)
-		printf("SMP: WARNING: sending of a test IPI failed\n");
 
 	cpus = 0;
 	smp_cpus = 0;
@@ -326,19 +318,6 @@ ipi_selected(cpumask_t cpus, int ipi)
 }
 
 /*
- * send an IPI to all CPUs, including myself.
- */
-void
-ipi_all(int ipi)
-{
-	struct pcpu *pc;
-
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		ipi_send(pc, ipi);
-	}
-}
-
-/*
  * send an IPI to all CPUs EXCEPT myself.
  */
 void
@@ -350,16 +329,6 @@ ipi_all_but_self(int ipi)
 		if (pc != pcpup)
 			ipi_send(pc, ipi);
 	}
-}
-
-/*
- * send an IPI to myself.
- */
-void
-ipi_self(int ipi)
-{
-
-	ipi_send(pcpup, ipi);
 }
 
 /*

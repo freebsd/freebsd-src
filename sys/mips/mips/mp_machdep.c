@@ -86,16 +86,6 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 }
 
 /*
- * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
- */
-void
-ipi_all(u_int ipi)
-{
-
-	ipi_selected(all_cpus, ipi);
-}
-
-/*
  * send an IPI to all CPUs EXCEPT myself
  */
 void
@@ -103,16 +93,6 @@ ipi_all_but_self(u_int ipi)
 {
 
 	ipi_selected(PCPU_GET(other_cpus), ipi);
-}
-
-/*
- * send an IPI to myself
- */
-void
-ipi_self(u_int ipi)
-{
-
-	ipi_selected(PCPU_GET(cpumask), ipi);
 }
 
 /*
