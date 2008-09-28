@@ -86,6 +86,7 @@ struct mmc_ivars {
 	enum mmc_card_mode mode;
 	struct mmc_cid cid;	/* cid decoded */
 	struct mmc_csd csd;	/* csd decoded */
+	u_char read_only;	/* True when the device is read-only */
 };
 
 #define CMD_RETRIES	3
@@ -613,7 +614,8 @@ mmc_discover_cards(struct mmc_softc *sc)
 			mmc_decode_cid(1, ivar->raw_cid, &ivar->cid);
 			mmc_send_relative_addr(sc, &resp);
 			ivar->rca = resp >> 16;
-			// RO check
+			if (mmcbr_get_ro(sc->dev))
+				ivar->read_only = 1;
 			mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
 			mmc_decode_csd(1, ivar->raw_csd, &ivar->csd);
 			printf("SD CARD: %lld bytes\n", (long long)
@@ -737,6 +739,9 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		break;
 	case MMC_IVAR_TRAN_SPEED:
 		*(int *)result = ivar->csd.tran_speed;
+		break;
+	case MMC_IVAR_READ_ONLY:
+		*(int *)result = ivar->read_only;
 		break;
 	}
 	return (0);
