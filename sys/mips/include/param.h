@@ -109,63 +109,24 @@
 #define	KERNBASE	0x80000000	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
-#define	BLKDEV_IOSIZE	2048
-#define	DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
-
-#define	MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
-
-#define	MAXDUMPPGS	1
-
-#define	CLSIZE		1
-#define	CLBYTES		(CLSIZE * NBPG)
-#define	CLSIZELOG2	0
+#define	BLKDEV_IOSIZE	2048		/* xxx: Why is this 1/2 page? */
+#define	MAXDUMPPGS	1		/* xxx: why is this only one? */
 
 /*
  * NOTE: In FreeBSD, Uarea's don't have a fixed address.
  *	 Therefore, any code imported from OpenBSD which depends on
  *	 UADDR, UVPN and KERNELSTACK requires porting.
+ * XXX: 3 stack pages?  Not 4 which would be more efficient from a tlb
+ * XXX: point of view.
  */
 #define	KSTACK_PAGES		3	/* kernel stack*/
 #define	KSTACK_GUARD_PAGES	0	/* pages of kstack guard; 0 disables */
 
 #define	UPAGES			2
 
-/*
- * Constants related to network buffer management.
- * MCLBYTES must be no larger than CLBYTES (the software page size), and,
- * on machines that exchange pages of input or output buffers with mbuf
- * clusters (MAPPED_MBUFS), MCLBYTES must also be an integral multiple
- * of the hardware page size.
- */
-#ifndef MSIZE
-#define	MSIZE		256		/* size of an mbuf */
-#endif /* MSIZE */
-
-#ifndef MCLSHIFT
-#define	MCLSHIFT	11
-#endif /* MCLSHIFT */
-#define	MCLBYTES	(1 << MCLSHIFT)	/* enough for whole Ethernet packet */
-#define	MCLOFSET	(MCLBYTES - 1)
-
-/*
- * Size of kernel malloc arena in CLBYTES-sized logical pages
- */
-#ifndef NKMEMCLUSTERS
-#define	NKMEMCLUSTERS	(4096*1024/CLBYTES)
-#endif
-
 /* pages ("clicks") (4096 bytes) to disk blocks */
 #define	ctod(x)		((x) << (PGSHIFT - DEV_BSHIFT))
 #define	dtoc(x)		((x) >> (PGSHIFT - DEV_BSHIFT))
-
-/* pages to bytes */
-#define	ctob(x)		((x) << PGSHIFT)
-#define	btoc(x)		(((x) + PGOFSET) >> PGSHIFT)
-
-/* bytes to disk blocks */
-#define	btodb(x)	((x) >> DEV_BSHIFT)
-#define	dbtob(x)	((x) << DEV_BSHIFT)
 
 /*
  * Map a ``block device block'' to a file system block.
