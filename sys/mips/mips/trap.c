@@ -336,10 +336,9 @@ trap(trapframe)
 
 	/*
 	 * Enable hardware interrupts if they were on before the trap. If it
-	 * was off disable all (splhigh) so we don't accidently enable it
-	 * when doing a spllower().
+	 * was off disable all so we don't accidently enable it when doing a
+	 * return to userland.
 	 */
-/*XXX do in locore? */
 	if (trapframe->sr & SR_INT_ENAB) {
 		set_intr_mask(~(trapframe->sr & ALL_INT_MASK));
 		enableintr();
