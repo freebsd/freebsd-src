@@ -469,7 +469,7 @@ struct pmc_classinfo {
 
 struct pmc_op_getcpuinfo {
 	enum pmc_cputype pm_cputype; /* what kind of CPU */
-	uint32_t	pm_ncpu;    /* number of CPUs */
+	uint32_t	pm_ncpu;    /* max CPU number */
 	uint32_t	pm_npmc;    /* #PMCs per CPU */
 	uint32_t	pm_nclass;  /* #classes of PMCs */
 	struct pmc_classinfo  pm_classes[PMC_CLASS_MAX];
