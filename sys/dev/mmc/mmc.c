@@ -106,6 +106,7 @@ static int mmc_detach(device_t dev);
 #define MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
 static void mmc_delayed_attach(void *);
+static void mmc_power_down(struct mmc_softc *sc);
 static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
     int retries);
 static int mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
@@ -161,6 +162,7 @@ mmc_detach(device_t dev)
 		free(ivar, M_DEVBUF);
 	}
 	free(kids, M_TEMP);
+	mmc_power_down(sc);
 
 	MMC_LOCK_DESTROY(sc);
 
@@ -454,7 +456,19 @@ mmc_power_up(struct mmc_softc *sc)
 	mmc_ms_delay(2);
 }
 
-// I wonder if the following is endian safe.
+static void
+mmc_power_down(struct mmc_softc *sc)
+{
+	device_t dev = sc->dev;
+
+	mmcbr_set_bus_mode(dev, opendrain);
+	mmcbr_set_chip_select(dev, cs_dontcare);
+	mmcbr_set_bus_width(dev, bus_width_1);
+	mmcbr_set_power_mode(dev, power_off);
+	mmcbr_set_clock(dev, 0);
+	mmcbr_update_ios(dev);
+}
+
 static uint32_t
 mmc_get_bits(uint32_t *bits, int start, int size)
 {
