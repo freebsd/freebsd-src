@@ -292,6 +292,7 @@ struct mmc_request {
  *
  * The MMC_OCR_CCS appears to be valid for only SD cards.
  */
+#define MMC_OCR_VOLTAGE	0x3fffffffU	/* Vdd Voltage mask */
 #define	MMC_OCR_LOW_VOLTAGE (1u << 7)	/* Low Voltage Range -- tbd */
 #define	MMC_OCR_200_210	(1U << 8)	/* Vdd voltage 2.00 ~ 2.10 */
 #define	MMC_OCR_210_220	(1U << 9)	/* Vdd voltage 2.10 ~ 2.20 */

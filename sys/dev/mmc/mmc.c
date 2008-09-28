@@ -239,8 +239,8 @@ mmc_rescan_cards(struct mmc_softc *sc)
 static uint32_t
 mmc_select_vdd(struct mmc_softc *sc, uint32_t ocr)
 {
-    // XXX
-	return ocr;
+
+	return ocr & MMC_OCR_VOLTAGE;
 }
 
 static int
