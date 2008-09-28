@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007, Joseph Koshy
+ * Copyright (c) 2003-2008, Joseph Koshy
  * Copyright (c) 2007 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -74,7 +74,10 @@
 	__PMC_CPU(INTEL_PII,  "Intel Pentium II")	\
 	__PMC_CPU(INTEL_PIII, "Intel Pentium III")	\
 	__PMC_CPU(INTEL_PM,   "Intel Pentium M")	\
-	__PMC_CPU(INTEL_PIV,  "Intel Pentium IV")
+	__PMC_CPU(INTEL_PIV,  "Intel Pentium IV")	\
+	__PMC_CPU(INTEL_CORE, "Intel Core Solo/Duo")	\
+	__PMC_CPU(INTEL_CORE2,"Intel Core2")		\
+	__PMC_CPU(INTEL_ATOM, "Intel Atom")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -95,7 +98,9 @@ enum pmc_cputype {
 	__PMC_CLASS(K8)		/* AMD K8 performance counters */	\
 	__PMC_CLASS(P5)		/* Intel Pentium counters */		\
 	__PMC_CLASS(P6)		/* Intel Pentium Pro counters */	\
-	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */
+	__PMC_CLASS(P4)		/* Intel Pentium-IV counters */		\
+	__PMC_CLASS(IAF)	/* Intel Core2/Atom, fixed function */	\
+	__PMC_CLASS(IAP)	/* Intel Core...Atom, programmable */
 
 enum pmc_class {
 #undef  __PMC_CLASS
