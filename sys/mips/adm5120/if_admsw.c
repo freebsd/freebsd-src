@@ -1067,7 +1067,7 @@ admsw_rxintr(struct admsw_softc *sc, int high)
 /*
  * admsw_init:		[ifnet interface function]
  *
- *	Initialize the interface.  Must be called at splnet().
+ *	Initialize the interface.
  */
 static void
 admsw_init(void *xsc)
