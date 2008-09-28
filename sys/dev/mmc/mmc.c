@@ -97,8 +97,8 @@ static int mmc_detach(device_t dev);
 
 #define MMC_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMC_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define MMC_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+#define MMC_LOCK_INIT(_sc)					\
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev),	\
 	    "mmc", MTX_DEF)
 #define MMC_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
 #define MMC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
