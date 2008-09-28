@@ -82,7 +82,6 @@ void cpu_ipi_stop(struct trapframe *tf);
 void cpu_ipi_preempt(struct trapframe *tf);
 
 void	ipi_selected(u_int cpus, u_int ipi);
-void	ipi_all(u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 
 vm_offset_t mp_tramp_alloc(void);
