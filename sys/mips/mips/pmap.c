@@ -1193,12 +1193,6 @@ pmap_release(pmap_t pmap)
 }
 
 /*
- * Changes:
- *	 * Replace splhigh()/splx() with critical_enter()/critical_exit()
- *	 * Use the VM_ALLOC_WIRED flag for allocating the new page.
- */
-
-/*
  * grow the number of kernel page table entries, if needed
  */
 void
