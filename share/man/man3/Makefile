@@ -8,6 +8,7 @@ MAN=		assert.3 \
 		end.3 \
 		fpgetround.3 \
 		intro.3 \
+		makedev.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
 		siginfo.3 \
@@ -36,6 +37,8 @@ MLINKS+=	fpgetround.3 fpgetmask.3 \
 		fpgetround.3 fpsetmask.3 \
 		fpgetround.3 fpsetprec.3 \
 		fpgetround.3 fpsetround.3
+MLINKS+=	makedev.3 major.3 \
+		makedev.3 minor.3
 MLINKS+=	${PTHREAD_MLINKS}
 MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_ENTRY.3 \

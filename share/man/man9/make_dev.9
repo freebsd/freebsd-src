@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 8, 2008
+.Dd September 28, 2008
 .Os
 .Dt MAKE_DEV 9
 .Sh NAME
@@ -186,7 +186,9 @@ Both fields are of type
 These are designed to replace the
 .Fa unit
 argument to
-.Fn make_dev .
+.Fn make_dev ,
+which can be obtained with
+.Fn dev2unit .
 .Pp
 The
 .Fn destroy_dev
