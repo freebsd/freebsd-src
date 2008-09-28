@@ -215,8 +215,15 @@ mmcsd_task(void *arg)
 		MMCSD_UNLOCK(sc);
 		if (!sc->running)
 			break;
+//		printf("mmc_task: request %p for block %ju\n", bp, bp->bio_pblkno);
+		if (bp->bio_cmd != BIO_READ && mmc_get_read_only(dev)) {
+			bp->bio_error = EROFS;
+			bp->bio_resid = bp->bio_bcount;
+			bp->bio_flags |= BIO_ERROR;
+			biodone(bp);
+			continue;
+		}
 		MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
-//		printf("mmc_task: request %p for block %lld\n", bp, bp->bio_pblkno);
 		sz = sc->disk->d_sectorsize;
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
 		// XXX should use read/write_mulit
