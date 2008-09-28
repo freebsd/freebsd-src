@@ -25,7 +25,7 @@ WITHOUT_SSP=
 BEGINSRC=	crtbegin.asm
 ENDSRC=		crtend.asm
 CFLAGS+=	-x assembler-with-cpp	# Ugly hack
-CFLAGS+=	-D_OSRELDATE_H -include osreldate.h
+CFLAGS+=	-include osreldate.h
 .undef SRCS				# hack for 'make depend'
 .endif
 .if ${MACHINE_ARCH} == "powerpc"
