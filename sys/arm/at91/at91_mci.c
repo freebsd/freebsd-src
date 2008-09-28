@@ -642,6 +642,9 @@ at91_mci_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case MMCBR_IVAR_VDD:
 		*(int *)result = sc->host.ios.vdd;
 		break;
+	case MMCBR_IVAR_CAPS:
+		*(int *)result = sc->host.ios.caps;
+		break;
 	}
 	return (0);
 }
@@ -678,9 +681,11 @@ at91_mci_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 	case MMCBR_IVAR_VDD:
 		sc->host.ios.vdd = value;
 		break;
+	/* These are read-only */
 	case MMCBR_IVAR_HOST_OCR:
 	case MMCBR_IVAR_F_MIN:
 	case MMCBR_IVAR_F_MAX:
+	case MMCBR_IVAR_CAPS:
 		return (EINVAL);
 	}
 	return (0);
