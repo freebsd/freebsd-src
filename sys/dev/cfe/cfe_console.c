@@ -126,7 +126,7 @@ cfe_tty_outwakeup(struct tty *tp)
 		if (len == 0)
 			break;
 		while (cfe_write(conhandle, buf, len) == 0)
-			;
+			continue;
 	}
 }
 
@@ -190,7 +190,7 @@ cfe_cngetc(struct consdev *cp)
 	unsigned char ch;
 
 	while ((result = cfe_read(conhandle, &ch, 1)) == 0)
-		;
+		continue;
 
 	if (result > 0) {
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
@@ -228,7 +228,7 @@ cfe_cnputc(struct consdev *cp, int c)
 
 	cbuf = c;
 	while (cfe_write(conhandle, &cbuf, 1) == 0)
-		;
+		continue;
 }
 
 SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
