@@ -120,7 +120,7 @@ static int
 mmc_probe(device_t dev)
 {
 
-	device_set_desc(dev, "mmc/sd bus");
+	device_set_desc(dev, "MMC/SD bus");
 	return (0);
 }
 
