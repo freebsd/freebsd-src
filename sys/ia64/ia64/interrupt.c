@@ -74,10 +74,6 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #include <ddb/ddb.h>
 #endif
 
-#ifdef SMP
-extern int mp_ipi_test;
-#endif
-
 static void ia64_dispatch_intr(void *, u_int);
 
 static void 
@@ -241,9 +237,6 @@ interrupt(struct trapframe *tf)
 			cpu_spinwait();
 		atomic_clear_int(&started_cpus, mybit);
 		atomic_clear_int(&stopped_cpus, mybit);
-	} else if (vector == ipi_vector[IPI_TEST]) {
-		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
-		mp_ipi_test++;
 	} else if (vector == ipi_vector[IPI_PREEMPT]) {
 		CTR1(KTR_SMP, "IPI_PREEMPT, cpuid=%d", PCPU_GET(cpuid));
 		__asm __volatile("mov cr.eoi = r0;; srlz.d");

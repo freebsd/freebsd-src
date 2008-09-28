@@ -30,9 +30,7 @@
 extern u_int32_t		boot_cpu_id;
 
 void	ipi_selected(u_int cpus, u_int32_t ipi);
-void	ipi_all(u_int32_t ipi);
 void	ipi_all_but_self(u_int32_t ipi);
-void	ipi_self(u_int32_t ipi);
 intrmask_t	smp_handle_ipi(struct trapframe *frame);
 void	smp_init_secondary(u_int32_t cpuid);
 void	mips_ipi_send(int thread_id);

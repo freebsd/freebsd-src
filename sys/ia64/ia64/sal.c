@@ -80,7 +80,6 @@ setup_ipi_vectors(int ceil)
 
 	ipi_vector[IPI_HIGH_FP] = ceil - 0x30;
 	ipi_vector[IPI_MCA_CMCV] = ceil - 0x30 + 1;
-	ipi_vector[IPI_TEST] = ceil - 0x30 + 2;
 }
 
 void

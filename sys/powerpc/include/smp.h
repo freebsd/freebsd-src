@@ -36,14 +36,10 @@
 #define	IPI_RENDEZVOUS		2
 #define	IPI_STOP		3
 
-#define	IPI_PPC_TEST		4
-
 #ifndef LOCORE
 
-void	ipi_all(int ipi);
 void	ipi_all_but_self(int ipi);
 void	ipi_selected(cpumask_t cpus, int ipi);
-void	ipi_self(int ipi);
 
 struct cpuref {
 	uintptr_t	cr_hwref;

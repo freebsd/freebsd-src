@@ -1194,21 +1194,6 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 }
 
 /*
- * send an IPI INTerrupt containing 'vector' to all CPUs, including myself
- */
-void
-ipi_all(u_int ipi)
-{
-
-	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
-		ipi_selected(all_cpus, ipi);
-		return;
-	}
-	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_ALL);
-}
-
-/*
  * send an IPI to all CPUs EXCEPT myself
  */
 void
@@ -1221,21 +1206,6 @@ ipi_all_but_self(u_int ipi)
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
-}
-
-/*
- * send an IPI to myself
- */
-void
-ipi_self(u_int ipi)
-{
-
-	if (IPI_IS_BITMAPED(ipi) || (ipi == IPI_STOP && stop_cpus_with_nmi)) {
-		ipi_selected(PCPU_GET(cpumask), ipi);
-		return;
-	}
-	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	lapic_ipi_vectored(ipi, APIC_IPI_DEST_SELF);
 }
 
 #ifdef STOP_NMI
