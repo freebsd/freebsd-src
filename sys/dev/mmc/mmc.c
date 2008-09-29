@@ -310,7 +310,6 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	memset(&mreq, 0, sizeof(mreq));
 	memset(cmd->resp, 0, sizeof(cmd->resp));
 	cmd->retries = retries;
-	cmd->data = NULL;
 	mreq.cmd = cmd;
 /*	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg); */
 	mmc_wait_for_req(sc, &mreq);
@@ -328,6 +327,7 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 		appcmd.opcode = MMC_APP_CMD;
 		appcmd.arg = rca << 16;
 		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		appcmd.data = NULL;
 		mmc_wait_for_cmd(sc, &appcmd, 0);
 		err = appcmd.error;
 		if (err != MMC_ERR_NONE)
@@ -353,6 +353,7 @@ mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
 	cmd.opcode = opcode;
 	cmd.arg = arg;
 	cmd.flags = flags;
+	cmd.data = NULL;
 	err = mmc_wait_for_cmd(sc, &cmd, retries);
 	if (err)
 		return (err);
@@ -382,6 +383,7 @@ mmc_idle_cards(struct mmc_softc *sc)
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_NONE | MMC_CMD_BC;
+	cmd.data = NULL;
 	mmc_wait_for_cmd(sc, &cmd, 0);
 	mmc_ms_delay(1);
 
@@ -400,6 +402,7 @@ mmc_send_app_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	cmd.opcode = ACMD_SD_SEND_OP_COND;
 	cmd.arg = ocr;
 	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
+	cmd.data = NULL;
 
 	for (i = 0; i < 100; i++) {
 		err = mmc_wait_for_app_cmd(sc, 0, &cmd, CMD_RETRIES);
@@ -425,6 +428,7 @@ mmc_send_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	cmd.opcode = MMC_SEND_OP_COND;
 	cmd.arg = ocr;
 	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
+	cmd.data = NULL;
 
 	for (i = 0; i < 100; i++) {
 		err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
@@ -576,6 +580,7 @@ mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid)
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
+	cmd.data = NULL;
 	err = mmc_wait_for_cmd(sc, &cmd, 0);
 	memcpy(rawcid, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
@@ -590,6 +595,7 @@ mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcid)
 	cmd.opcode = MMC_SEND_CSD;
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
+	cmd.data = NULL;
 	err = mmc_wait_for_cmd(sc, &cmd, 0);
 	memcpy(rawcid, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
@@ -604,6 +610,7 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 	cmd.opcode = SD_SEND_RELATIVE_ADDR;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
+	cmd.data = NULL;
 	err = mmc_wait_for_cmd(sc, &cmd, 0);
 	*resp = cmd.resp[0];
 	return (err);
