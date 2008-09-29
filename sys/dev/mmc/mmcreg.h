@@ -96,7 +96,7 @@ struct mmc_command {
 #define	MMC_ERR_FIFO	3
 #define	MMC_ERR_FAILED	4
 #define	MMC_ERR_INVALID	5
-#define MMC_ERR_NO_MEMORY 6
+#define	MMC_ERR_NO_MEMORY 6
 	struct mmc_data	*data;		/* Data segment with cmd */
 	struct mmc_request *mrq;	/* backpointer to request */
 };
@@ -292,7 +292,7 @@ struct mmc_request {
  *
  * The MMC_OCR_CCS appears to be valid for only SD cards.
  */
-#define MMC_OCR_VOLTAGE	0x3fffffffU	/* Vdd Voltage mask */
+#define	MMC_OCR_VOLTAGE	0x3fffffffU	/* Vdd Voltage mask */
 #define	MMC_OCR_LOW_VOLTAGE (1u << 7)	/* Low Voltage Range -- tbd */
 #define	MMC_OCR_200_210	(1U << 8)	/* Vdd voltage 2.00 ~ 2.10 */
 #define	MMC_OCR_210_220	(1U << 9)	/* Vdd voltage 2.10 ~ 2.20 */

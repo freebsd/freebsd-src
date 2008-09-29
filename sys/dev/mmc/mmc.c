@@ -618,14 +618,15 @@ mmc_discover_cards(struct mmc_softc *sc)
 	device_t child;
 
 	while (1) {
-		ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF, M_WAITOK);
+		ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
+		    M_WAITOK | M_ZERO);
 		if (!ivar)
 			return;
 		err = mmc_all_send_cid(sc, ivar->raw_cid);
 		if (err == MMC_ERR_TIMEOUT)
 			break;
 		if (err != MMC_ERR_NONE) {
-			printf("Error reading CID %d\n", err);
+			device_printf(sc->dev, "Error reading CID %d\n", err);
 			break;
 		}
 		if (mmcbr_get_mode(sc->dev) == mode_sd) {
