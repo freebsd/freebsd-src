@@ -681,9 +681,6 @@ vm_pageout_scan(int pass)
 	struct vm_page marker;
 	int page_shortage, maxscan, pcount;
 	int addl_page_shortage, addl_page_shortage_init;
-	struct proc *p, *bigproc;
-	struct thread *td;
-	vm_offset_t size, bigsize;
 	vm_object_t object;
 	int actcount;
 	int vnodes_skipped = 0;
@@ -1174,7 +1171,22 @@ unlock_and_continue:
 	 * doing this on the first pass in order to give ourselves a
 	 * chance to flush out dirty vnode-backed pages and to allow
 	 * active pages to be moved to the inactive queue and reclaimed.
-	 *
+	 */
+	if (pass != 0 &&
+	    ((swap_pager_avail < 64 && vm_page_count_min()) ||
+	     (swap_pager_full && vm_paging_target() > 0)))
+		vm_pageout_oom(VM_OOM_MEM);
+}
+
+
+void
+vm_pageout_oom(int shortage)
+{
+	struct proc *p, *bigproc;
+	vm_offset_t size, bigsize;
+	struct thread *td;
+
+	/*
 	 * We keep the process bigproc locked once we find it to keep anyone
 	 * from messing with it; however, there is a possibility of
 	 * deadlock if process B is bigproc and one of it's child processes
@@ -1182,75 +1194,72 @@ unlock_and_continue:
 	 * lock while walking this list.  To avoid this, we don't block on
 	 * the process lock but just skip a process if it is already locked.
 	 */
-	if (pass != 0 &&
-	    ((swap_pager_avail < 64 && vm_page_count_min()) ||
-	     (swap_pager_full && vm_paging_target() > 0))) {
-		bigproc = NULL;
-		bigsize = 0;
-		sx_slock(&allproc_lock);
-		FOREACH_PROC_IN_SYSTEM(p) {
-			int breakout;
+	bigproc = NULL;
+	bigsize = 0;
+	sx_slock(&allproc_lock);
+	FOREACH_PROC_IN_SYSTEM(p) {
+		int breakout;
 
-			if (PROC_TRYLOCK(p) == 0)
-				continue;
-			/*
-			 * If this is a system or protected process, skip it.
-			 */
-			if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
-			    (p->p_flag & P_PROTECTED) ||
-			    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			/*
-			 * If the process is in a non-running type state,
-			 * don't touch it.  Check all the threads individually.
-			 */
-			breakout = 0;
-			FOREACH_THREAD_IN_PROC(p, td) {
-				thread_lock(td);
-				if (!TD_ON_RUNQ(td) &&
-				    !TD_IS_RUNNING(td) &&
-				    !TD_IS_SLEEPING(td)) {
-					thread_unlock(td);
-					breakout = 1;
-					break;
-				}
+		if (PROC_TRYLOCK(p) == 0)
+			continue;
+		/*
+		 * If this is a system or protected process, skip it.
+		 */
+		if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
+		    (p->p_flag & P_PROTECTED) ||
+		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		/*
+		 * If the process is in a non-running type state,
+		 * don't touch it.  Check all the threads individually.
+		 */
+		breakout = 0;
+		FOREACH_THREAD_IN_PROC(p, td) {
+			thread_lock(td);
+			if (!TD_ON_RUNQ(td) &&
+			    !TD_IS_RUNNING(td) &&
+			    !TD_IS_SLEEPING(td)) {
 				thread_unlock(td);
+				breakout = 1;
+				break;
 			}
-			if (breakout) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			/*
-			 * get the process size
-			 */
-			if (!vm_map_trylock_read(&p->p_vmspace->vm_map)) {
-				PROC_UNLOCK(p);
-				continue;
-			}
-			size = vmspace_swap_count(p->p_vmspace);
-			vm_map_unlock_read(&p->p_vmspace->vm_map);
+			thread_unlock(td);
+		}
+		if (breakout) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		/*
+		 * get the process size
+		 */
+		if (!vm_map_trylock_read(&p->p_vmspace->vm_map)) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		size = vmspace_swap_count(p->p_vmspace);
+		vm_map_unlock_read(&p->p_vmspace->vm_map);
+		if (shortage == VM_OOM_MEM)
 			size += vmspace_resident_count(p->p_vmspace);
-			/*
-			 * if the this process is bigger than the biggest one
-			 * remember it.
-			 */
-			if (size > bigsize) {
-				if (bigproc != NULL)
-					PROC_UNLOCK(bigproc);
-				bigproc = p;
-				bigsize = size;
-			} else
-				PROC_UNLOCK(p);
-		}
-		sx_sunlock(&allproc_lock);
-		if (bigproc != NULL) {
-			killproc(bigproc, "out of swap space");
-			sched_nice(bigproc, PRIO_MIN);
-			PROC_UNLOCK(bigproc);
-			wakeup(&cnt.v_free_count);
-		}
+		/*
+		 * if the this process is bigger than the biggest one
+		 * remember it.
+		 */
+		if (size > bigsize) {
+			if (bigproc != NULL)
+				PROC_UNLOCK(bigproc);
+			bigproc = p;
+			bigsize = size;
+		} else
+			PROC_UNLOCK(p);
+	}
+	sx_sunlock(&allproc_lock);
+	if (bigproc != NULL) {
+		killproc(bigproc, "out of swap space");
+		sched_nice(bigproc, PRIO_MIN);
+		PROC_UNLOCK(bigproc);
+		wakeup(&cnt.v_free_count);
 	}
 }
 
