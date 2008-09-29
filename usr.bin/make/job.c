@@ -411,7 +411,12 @@ mkfifotemp(char *template)
 	 * them with random characters until there are no more 'X'.
 	 */
 	while (ptr >= template && *ptr == 'X') {
-		uint32_t rand_num = arc4random_uniform(sizeof(padchar) - 1);
+		uint32_t rand_num =
+#if __FreeBSD_version < 800041
+			arc4random() % (sizeof(padchar) - 1);
+#else
+			arc4random_uniform(sizeof(padchar) - 1);
+#endif
 		*ptr-- = padchar[rand_num];
 	}
 	start = ptr + 1;
