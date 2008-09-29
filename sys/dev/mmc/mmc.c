@@ -152,7 +152,7 @@ mmc_detach(device_t dev)
 
 	/* kill children [ph33r].  -sorbo */
 	if (device_get_children(sc->dev, &kids, &nkid) != 0)
-		return 0;
+		return (0);
 	for (i = 0; i < nkid; i++) {
 		device_t kid = kids[i];
 		void *ivar = device_get_ivars(kid);
@@ -166,7 +166,7 @@ mmc_detach(device_t dev)
 
 	MMC_LOCK_DESTROY(sc);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -248,7 +248,7 @@ static uint32_t
 mmc_select_vdd(struct mmc_softc *sc, uint32_t ocr)
 {
 
-	return ocr & MMC_OCR_VOLTAGE;
+	return (ocr & MMC_OCR_VOLTAGE);
 }
 
 static int
@@ -258,7 +258,7 @@ mmc_highest_voltage(uint32_t ocr)
 
 	for (i = 30; i >= 0; i--)
 		if (ocr & (1 << i))
-			return i;
+			return (i);
 	return (-1);
 }
 
@@ -299,7 +299,7 @@ mmc_wait_for_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 {
 	struct mmc_softc *sc = device_get_softc(brdev);
 
-	return mmc_wait_for_req(sc, req);
+	return (mmc_wait_for_req(sc, req));
 }
 
 static int
@@ -412,7 +412,7 @@ mmc_send_app_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	}
 	if (rocr && err == MMC_ERR_NONE)
 		*rocr = cmd.resp[0];
-	return err;
+	return (err);
 }
 
 static int
@@ -437,7 +437,7 @@ mmc_send_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 	}
 	if (rocr && err == MMC_ERR_NONE)
 		*rocr = cmd.resp[0];
-	return err;
+	return (err);
 }
 
 static void
@@ -482,7 +482,7 @@ mmc_get_bits(uint32_t *bits, int start, int size)
 	uint32_t retval = bits[i] >> shift;
 	if (size + shift > 32)
 		retval |= bits[i - 1] << (32 - shift);
-	return retval & ((1 << size) - 1);
+	return (retval & ((1 << size) - 1));
 }
 
 static void
@@ -719,7 +719,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	free(kids, M_TEMP);
 	device_printf(sc->dev, "setting transfer rate to %d.%03dMHz\n",
 	    max_dtr / 1000000, (max_dtr / 1000) % 1000);
-	return max_dtr;
+	return (max_dtr);
 }
 
 static void

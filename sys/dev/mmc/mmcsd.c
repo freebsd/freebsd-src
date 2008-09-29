@@ -162,19 +162,19 @@ mmcsd_detach(device_t dev)
 
 	MMCSD_LOCK_DESTROY(sc);
 
-	return 0;
+	return (0);
 }
 
 static int
 mmcsd_open(struct disk *dp)
 {
-	return 0;
+	return (0);
 }
 
 static int
 mmcsd_close(struct disk *dp)
 {
-	return 0;
+	return (0);
 }
 
 static void
