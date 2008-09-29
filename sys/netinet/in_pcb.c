@@ -684,21 +684,29 @@ in_pcbdisconnect(struct inpcb *inp)
 }
 
 /*
- * In the old world order, in_pcbdetach() served two functions: to detach the
- * pcb from the socket/potentially free the socket, and to free the pcb
- * itself.  In the new world order, the protocol code is responsible for
- * managing the relationship with the socket, and this code simply frees the
- * pcb.
+ * Historically, in_pcbdetach() included the functionality now found in
+ * in_pcbfree() and in_pcbdrop().  They are now broken out to reflect the
+ * more complex life cycle of TCP.
+ *
+ * in_pcbdetach() is responsibe for disconnecting the socket from an inpcb.
+ * For most protocols, this will be invoked immediately prior to calling
+ * in_pcbfree().  However, for TCP the inpcb may significantly outlive the
+ * socket, in which case in_pcbfree() may be deferred.
  */
 void
 in_pcbdetach(struct inpcb *inp)
 {
 
 	KASSERT(inp->inp_socket != NULL, ("in_pcbdetach: inp_socket == NULL"));
+
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
 }
 
+/*
+ * in_pcbfree() is responsible for freeing an already-detached inpcb, as well
+ * as removing it from any global inpcb lists it might be on.
+ */
 void
 in_pcbfree(struct inpcb *inp)
 {
@@ -728,10 +736,24 @@ in_pcbfree(struct inpcb *inp)
 }
 
 /*
- * TCP needs to maintain its inpcb structure after the TCP connection has
- * been torn down.  However, it must be disconnected from the inpcb hashes as
- * it must not prevent binding of future connections to the same port/ip
- * combination by other inpcbs.
+ * in_pcbdrop() removes an inpcb from hashed lists, releasing its address and
+ * port reservation, and preventing it from being returned by inpcb lookups.
+ *
+ * It is used by TCP to mark an inpcb as unused and avoid future packet
+ * delivery or event notification when a socket remains open but TCP has
+ * closed.  This might occur as a result of a shutdown()-initiated TCP close
+ * or a RST on the wire, and allows the port binding to be reused while still
+ * maintaining the invariant that so_pcb always points to a valid inpcb until
+ * in_pcbdetach().
+ *
+ * XXXRW: An inp_lport of 0 is used to indicate that the inpcb is not on hash
+ * lists, but can lead to confusing netstat output, as open sockets with
+ * closed TCP connections will no longer appear to have their bound port
+ * number.  An explicit flag would be better, as it would allow us to leave
+ * the port number intact after the connection is dropped.
+ *
+ * XXXRW: Possibly in_pcbdrop() should also prevent future notifications by
+ * in_pcbnotifyall() and in_pcbpurgeif0()?
  */
 void
 in_pcbdrop(struct inpcb *inp)
