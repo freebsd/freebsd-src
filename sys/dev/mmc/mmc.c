@@ -176,7 +176,7 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 	int err;
 	int rca;
 
-	err = MMCBR_ACQUIRE_HOST(device_get_parent(busdev), dev);
+	err = MMCBR_ACQUIRE_HOST(device_get_parent(busdev), busdev);
 	if (err)
 		return (err);
 	sc = device_get_softc(busdev);
@@ -224,7 +224,7 @@ mmc_release_bus(device_t busdev, device_t dev)
 	if (sc->owner != dev)
 		panic("mmc: you don't own the bus.  game over.");
 	MMC_UNLOCK(sc);
-	err = MMCBR_RELEASE_HOST(device_get_parent(busdev), dev);
+	err = MMCBR_RELEASE_HOST(device_get_parent(busdev), busdev);
 	if (err)
 		return (err);
 	MMC_LOCK(sc);
