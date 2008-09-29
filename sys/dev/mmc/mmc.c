@@ -187,24 +187,29 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 	MMC_UNLOCK(sc);
 
 	if (busdev != dev) {
-		// Keep track of the last rca that we've selected.  If
-		// we're asked to do it again, don't.  We never unselect
-		// unless the bus code itself wants the mmc bus.
+		/*
+		 * Keep track of the last rca that we've selected.  If
+		 * we're asked to do it again, don't.  We never
+		 * unselect unless the bus code itself wants the mmc
+		 * bus, and constantly reselecting causes problems.
+		 */
 		rca = mmc_get_rca(dev);
 		if (sc->last_rca != rca) {
 			mmc_wait_for_command(sc, MMC_SELECT_CARD, rca << 16,
 			    MMC_RSP_R1 | MMC_CMD_AC, NULL, CMD_RETRIES);
 			sc->last_rca = rca;
 		}
-		// XXX should set bus width here?
+		/* XXX should set bus width here? */
 	} else {
-		// If there's a card selected, stand down.
+		/*
+		 * If there's a card selected, stand down.
+		 */
 		if (sc->last_rca != 0) {
 			mmc_wait_for_command(sc, MMC_SELECT_CARD, 0,
 			    MMC_RSP_R1 | MMC_CMD_AC, NULL, CMD_RETRIES);
 			sc->last_rca = 0;
 		}
-		// XXX should set bus width here?
+		/* XXX should set bus width here? */
 	}
 
 	return (0);
@@ -262,7 +267,7 @@ mmc_wakeup(struct mmc_request *req)
 {
 	struct mmc_softc *sc;
 
-//	printf("Wakeup for req %p done_data %p\n", req, req->done_data);
+/*	printf("Wakeup for req %p done_data %p\n", req, req->done_data); */
 	sc = (struct mmc_softc *)req->done_data;
 	MMC_LOCK(sc);
 	req->flags |= MMC_REQ_DONE;
@@ -277,14 +282,14 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 
 	req->done = mmc_wakeup;
 	req->done_data = sc;
-//	printf("Submitting request %p sc %p\n", req, sc);
+/*	printf("Submitting request %p sc %p\n", req, sc); */
 	MMCBR_REQUEST(device_get_parent(sc->dev), sc->dev, req);
 	MMC_LOCK(sc);
 	do {
 		err = msleep(req, &sc->sc_mtx, PZERO | PCATCH, "mmcreq",
 		    hz / 10);
 	} while (!(req->flags & MMC_REQ_DONE) && err == EAGAIN);
-//	printf("Request %p done with error %d\n", req, err);
+/*	printf("Request %p done with error %d\n", req, err); */
 	MMC_UNLOCK(sc);
 	return (err);
 }
@@ -307,7 +312,7 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 	cmd->retries = retries;
 	cmd->data = NULL;
 	mreq.cmd = cmd;
-//	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg);
+/*	printf("CMD: %x ARG %x\n", cmd->opcode, cmd->arg); */
 	mmc_wait_for_req(sc, &mreq);
 	return (cmd->error);
 }
@@ -497,7 +502,7 @@ mmc_decode_cid(int is_sd, uint32_t *raw_cid, struct mmc_cid *cid)
 		cid->mdt_year = mmc_get_bits(raw_cid, 12, 8) + 2001;
 		cid->mdt_month = mmc_get_bits(raw_cid, 8, 4);
 	} else {
-		// XXX write me
+		/* XXX write me */
 		panic("write mmc cid decoder");
 	}
 }
@@ -651,16 +656,20 @@ mmc_go_discovery(struct mmc_softc *sc)
 
 	dev = sc->dev;
 	if (mmcbr_get_power_mode(dev) != power_on) {
-		// First, try SD modes
+		/*
+		 * First, try SD modes
+		 */
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
 		mmc_idle_cards(sc);
 		if (mmc_send_app_op_cond(sc, 0, &ocr) != MMC_ERR_NONE) {
-			// Failed, try MMC
+			/*
+			 * Failed, try MMC
+			 */
 			mmcbr_set_mode(dev, mode_mmc);
 			if (mmc_send_op_cond(sc, 0, &ocr) != MMC_ERR_NONE)
-				return;	// Failed both, punt! XXX power down?
+				return;	/* Failed both, punt! XXX powerdown? */
 		}
 		mmcbr_set_ocr(dev, mmc_select_vdd(sc, ocr));
 		if (mmcbr_get_ocr(dev) != 0)
@@ -669,7 +678,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_bus_mode(dev, opendrain);
 		mmcbr_set_clock(dev, mmcbr_get_f_min(dev));
 		mmcbr_update_ios(dev);
-		// XXX recompute vdd based on new cards?
+		/* XXX recompute vdd based on new cards? */
 	}
 	/*
 	 * Make sure that we have a mutually agreeable voltage to at least
@@ -689,7 +698,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 	mmcbr_set_bus_mode(dev, pushpull);
 	mmcbr_update_ios(dev);
 	bus_generic_attach(dev);
-//	mmc_update_children_sysctl(dev);
+/*	mmc_update_children_sysctl(dev);*/
 }
 
 static int
@@ -728,7 +737,7 @@ mmc_scan(struct mmc_softc *sc)
 	mmcbr_update_ios(dev);
 
 	mmc_release_bus(dev, dev);
-	// XXX probe/attach/detach children?
+	/* XXX probe/attach/detach children? */
 }
 
 static int
@@ -764,12 +773,10 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 static int
 mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 {
-	// None are writable ATM
-	switch (which) {
-	default:
-		return (EINVAL);
-	}
-	return (0);
+	/*
+	 * None are writable ATM
+	 */
+	return (EINVAL);
 }
 
 
