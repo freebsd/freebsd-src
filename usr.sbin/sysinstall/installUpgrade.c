@@ -363,7 +363,7 @@ media:
     }
 
     if (extractingBin)
-	vsystem("disklabel -B `awk '$2~/\\/$/ {print substr($1, 6, 3)}' /etc/fstab`");
+	vsystem("disklabel -B `awk '$2~/\\/$/ {print substr($1, 6, 5)}' /etc/fstab`");
     msgNotify("First stage of upgrade completed successfully!\n\n"
 	       "Next comes stage 2, where we attempt to resurrect your /etc\n"
 	       "directory!");
