@@ -1727,7 +1727,7 @@ static void
 g_part_init(struct g_class *mp)
 {
 
-	TAILQ_INSERT_TAIL(&g_part_schemes, &g_part_null_scheme, scheme_list);
+	TAILQ_INSERT_HEAD(&g_part_schemes, &g_part_null_scheme, scheme_list);
 }
 
 static void
