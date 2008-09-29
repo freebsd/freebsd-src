@@ -65,9 +65,7 @@ __FBSDID("$FreeBSD$");
 int
 vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags)
 {
-
 	vm_offset_t end, va;
-	vm_paddr_t pa;
 	int faults, rv;
 
 	struct thread *td;
@@ -96,7 +94,6 @@ vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags)
 
 	prot = VM_PROT_READ;
 	prot |= (flags & VM_HOLD_WRITEABLE) ? VM_PROT_WRITE : 0;
-	bzero(pages, sizeof(vm_page_t *) * count);
 retry:
 
 	/*
@@ -115,13 +112,12 @@ retry:
 			 * we were only acquiring the pmap lock 1 time as opposed to potentially
 			 * many dozens of times
 			 */
-			m = pmap_extract_and_hold(pmap, va, prot);
+			*pages = m = pmap_extract_and_hold(pmap, va, prot);
 			if (m == NULL) {
 				faults++;
 				continue;
 			}
 			
-			*pages = m;
 			if (flags & VM_HOLD_WRITEABLE)
 				vm_page_dirty(m);
 		}
@@ -137,16 +133,14 @@ retry:
 	 * trigger a fault where neccessary
 	 * 
 	 */
-	for (va = addr; va < end; va += PAGE_SIZE) {
-		m = NULL;
-		pa = pmap_extract(pmap, va);
+	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++) {
+		m = *pages;
 		rv = 0;
-		if (pa)
-			m = PHYS_TO_VM_PAGE(pa);
-		if (flags & VM_HOLD_WRITEABLE) {
-			if (m == NULL  || (m->flags & PG_WRITEABLE) == 0)
-				rv = vm_fault(map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
-		} else if (m == NULL)
+		if (m)
+			continue;
+		if (flags & VM_HOLD_WRITEABLE) 
+			rv = vm_fault(map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
+		else	
 			rv = vm_fault(map, va, VM_PROT_READ, VM_FAULT_NORMAL);
 		if (rv) {
 			printf("vm_fault bad return rv=%d va=0x%zx\n", rv, va);
