@@ -760,7 +760,7 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(int *)result = ivar->csd.dsr_imp;
 		break;
 	case MMC_IVAR_MEDIA_SIZE:
-		*(int *)result = ivar->csd.capacity;
+		*(int *)result = ivar->csd.capacity / DEV_BSIZE;
 		break;
 	case MMC_IVAR_RCA:
 		*(int *)result = ivar->rca;
