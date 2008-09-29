@@ -265,9 +265,11 @@ info_print(int fd, int channel, int prchan)
 
 	devices.channel = channel;
 
-	if (ioctl(fd, IOCATADEVICES, &devices) < 0)
-		err(1, "ioctl(IOCATADEVICES)");
-
+	if (ioctl(fd, IOCATADEVICES, &devices) < 0) {
+		if (!prchan)
+			err(1, "ioctl(IOCATADEVICES)");
+		return;
+	}
 	if (prchan)
 		printf("ATA channel %d:\n", channel);
 	printf("%sMaster: ", prchan ? "    " : "");
