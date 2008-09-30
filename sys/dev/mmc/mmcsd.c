@@ -80,7 +80,7 @@ struct mmcsd_softc {
 	int running;
 };
 
-#define	MULTI_BLOCK_READ_BROKEN
+#define	MULTI_BLOCK_BROKEN
 
 /* bus entry points */
 static int mmcsd_probe(device_t dev);
@@ -106,7 +106,7 @@ static int
 mmcsd_probe(device_t dev)
 {
 
-	device_set_desc(dev, "mmc or sd flash card");
+	device_set_desc(dev, "MMC/SD Memory Card");
 	return (0);
 }
 
@@ -126,10 +126,16 @@ mmcsd_attach(device_t dev)
 	// sc->disk->d_dump = mmcsd_dump;	Need polling mmc layer
 	sc->disk->d_name = "mmcsd";
 	sc->disk->d_drv1 = sc;
-	sc->disk->d_maxsize = DFLTPHYS;
+	sc->disk->d_maxsize = 256*1024; /* This is completely empirical */
 	sc->disk->d_sectorsize = mmc_get_sector_size(dev);
-	sc->disk->d_mediasize = mmc_get_media_size(dev);
+	sc->disk->d_mediasize = ((off_t)mmc_get_media_size(dev)) *
+	    mmc_get_sector_size(dev);
 	sc->disk->d_unit = device_get_unit(dev);
+	
+	device_printf(dev, "%juMB <MMC/SD Memory Card>%s at %s\n",
+	    sc->disk->d_mediasize / 1048576,
+	    mmc_get_read_only(dev)?" (read-only)":"",
+	    device_get_nameunit(device_get_parent(sc->dev)));
 	disk_create(sc->disk, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
 
@@ -226,62 +232,60 @@ mmcsd_task(void *arg)
 		MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
 		sz = sc->disk->d_sectorsize;
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
-		// XXX should use read/write_mulit
 		for (block = bp->bio_pblkno; block < end;) {
 			char *vaddr = bp->bio_data + (block - bp->bio_pblkno) * sz;
+			int numblocks;
+#ifdef MULTI_BLOCK
+			numblocks = end - block;
+#else
+			numblocks = 1;
+#endif
 			memset(&req, 0, sizeof(req));
 			memset(&cmd, 0, sizeof(cmd));
 			memset(&stop, 0, sizeof(stop));
 			req.cmd = &cmd;
 			cmd.data = &data;
 			if (bp->bio_cmd == BIO_READ) {
-#ifdef MULTI_BLOCK_READ
-				if (end - block > 1)
+				if (numblocks > 1)
 					cmd.opcode = MMC_READ_MULTIPLE_BLOCK;
 				else
 					cmd.opcode = MMC_READ_SINGLE_BLOCK;
-#else
-				cmd.opcode = MMC_READ_SINGLE_BLOCK;
-#endif
-			} else
-				cmd.opcode = MMC_WRITE_BLOCK;
+			} else {
+				if (numblocks > 1)
+					cmd.opcode = MMC_WRITE_MULTIPLE_BLOCK;
+				else
+					cmd.opcode = MMC_WRITE_BLOCK;
+			}
 			cmd.arg = block << 9;
 			cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
-			// data.timeout_ns = ;
-			// data.timeout_clks = ;
 			data.data = vaddr;
 			data.mrq = &req;
-			if (bp->bio_cmd == BIO_READ) {
+			if (bp->bio_cmd == BIO_READ)
 				data.flags = MMC_DATA_READ;
-#ifdef MULTI_BLOCK_READ
-				data.len = bp->bio_bcount;
-				if (end - block > 1) {
-					req.stop = &stop;
-					data.flags |= MMC_DATA_MULTI;
-				}
-				printf("Len %d  %lld-%lld flags %#x sz %d\n",
-				    data.len, block, end, data.flags, sz);
-				block = end;
-#else
-				data.len = sz;
-				block++;
-#endif
-			} else {
+			else
 				data.flags = MMC_DATA_WRITE;
-				data.len = sz;
-				block++;
+			data.len = numblocks * sz;
+			if (numblocks > 1) {
+				data.flags |= MMC_DATA_MULTI;
+				stop.opcode = MMC_STOP_TRANSMISSION;
+				stop.arg = 0;
+				stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+				req.stop = &stop;
 			}
-			stop.opcode = MMC_STOP_TRANSMISSION;
-			stop.arg = 0;
-			stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+//			printf("Len %d  %lld-%lld flags %#x sz %d\n",
+//			    (int)data.len, (long long)block, (long long)end, data.flags, sz);
 			MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
 			    &req);
-			// XXX error handling
-//XXX			while (!(mmc_send_status(dev) & R1_READY_FOR_DATA))
-//				continue;
-			// XXX decode mmc status
+			if (req.cmd->error != MMC_ERR_NONE)
+				break;
+			block += numblocks;
 		}
 		MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
+		if (block < end) {
+			bp->bio_error = EIO;
+			bp->bio_resid = (end - block) * sz;
+			bp->bio_flags |= BIO_ERROR;
+		}
 		biodone(bp);
 	}
 
