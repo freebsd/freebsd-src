@@ -675,16 +675,18 @@ makelist(struct listhead *head, enum listtype type, char *src)
 			}
 
 			snprintf(buf, sizeof(buf), _PATH_DEV "%s", cp);
+			if (stat(buf, &st) != -1)
+				goto foundtty;
 
-			if (stat(buf, &st) == -1) {
-				if (errno == ENOENT) {
-					errx(STATUS_BADUSAGE,
-					    "No such tty: `%s'", sp);
-				}
-				err(STATUS_ERROR, "Cannot access `%s'", sp);
-			}
+			snprintf(buf, sizeof(buf), _PATH_DEV "tty%s", cp);
+			if (stat(buf, &st) != -1)
+				goto foundtty;
 
-			if ((st.st_mode & S_IFCHR) == 0)
+			if (errno == ENOENT)
+				errx(STATUS_BADUSAGE, "No such tty: `%s'", sp);
+			err(STATUS_ERROR, "Cannot access `%s'", sp);
+
+foundtty:		if ((st.st_mode & S_IFCHR) == 0)
 				errx(STATUS_BADUSAGE, "Not a tty: `%s'", sp);
 
 			li->li_number = st.st_rdev;
