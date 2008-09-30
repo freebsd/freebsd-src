@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Pseudo-driver for media selection on the Lite-On PNIC 82c168
- * chip. The NWAY support on this chip is horribly broken, so we
- * only support manual mode selection. This is lame, but getting
+ * chip.  The NWAY support on this chip is horribly broken, so we
+ * only support manual mode selection.  This is lame, but getting
  * NWAY to work right is amazingly difficult.
  */
 
@@ -112,7 +112,7 @@ pnphy_probe(device_t dev)
 	 */
 	if (ma->mii_id1 != DC_VENDORID_LO ||
 	    ma->mii_id2 != DC_DEVICEID_82C168)
-		return(ENXIO);
+		return (ENXIO);
 
 	device_set_desc(dev, "PNIC 82c168 media interface");
 
@@ -143,7 +143,7 @@ pnphy_attach(device_t dev)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
 	sc->mii_capabilities =
-	    BMSR_100TXFDX|BMSR_100TXHDX|BMSR_10TFDX|BMSR_10THDX;
+	    BMSR_100TXFDX | BMSR_100TXHDX | BMSR_10TFDX | BMSR_10THDX;
 	sc->mii_capabilities &= ma->mii_capmask;
 	device_printf(dev, " ");
 	mii_add_media(sc);
@@ -157,7 +157,7 @@ pnphy_attach(device_t dev)
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -170,9 +170,8 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * If we're not polling our PHY instance, just return.
 		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
-		}
 		break;
 
 	case MII_MEDIACHG:
@@ -200,19 +199,19 @@ pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			 */
 			return (EINVAL);
 		case IFM_100_TX:
-			mii->mii_media_active = IFM_ETHER|IFM_100_TX;
+			mii->mii_media_active = IFM_ETHER | IFM_100_TX;
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
-			return(0);
+			return (0);
 		case IFM_10_T:
-			mii->mii_media_active = IFM_ETHER|IFM_10_T;
+			mii->mii_media_active = IFM_ETHER | IFM_10_T;
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
 				mii->mii_media_active |= IFM_FDX;
 			MIIBUS_STATCHG(sc->mii_dev);
-			return(0);
+			return (0);
 		default:
-			return(EINVAL);
+			return (EINVAL);
 		}
 		break;
 
@@ -263,6 +262,4 @@ pnphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
-
-	return;
 }
