@@ -770,7 +770,7 @@ write_disk(off_t sector, void *buf)
 	gctl_ro_param(grq, "class", -1, "MBR");
 	pname = g_providername(fd);
 	if (pname == NULL) {
-		warnx("Error getting providername for %s\n", disk);
+		warn("Error getting providername for %s", disk);
 		return (-1);
 	}
 	gctl_ro_param(grq, "geom", -1, pname);

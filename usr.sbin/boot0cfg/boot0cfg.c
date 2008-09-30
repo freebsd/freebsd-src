@@ -274,12 +274,12 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
     /* Try open it read only. */
     fd = open(fname, O_RDONLY);
     if (fd == -1) {
-	warnx("Error opening %s\n", fname);
+	warn("error opening %s", fname);
 	return;
     }
     pname = g_providername(fd);
     if (pname == NULL) {
-	warnx("Error getting providername for %s\n", fname);
+	warn("error getting providername for %s", fname);
 	return;
     }
     if (flags != 0)
