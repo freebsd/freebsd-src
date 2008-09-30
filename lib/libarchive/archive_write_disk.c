@@ -96,10 +96,12 @@ __FBSDID("$FreeBSD$");
 struct fixup_entry {
 	struct fixup_entry	*next;
 	mode_t			 mode;
-	int64_t			 mtime;
 	int64_t			 atime;
-	unsigned long		 mtime_nanos;
+	int64_t                  birthtime;
+	int64_t			 mtime;
 	unsigned long		 atime_nanos;
+	unsigned long            birthtime_nanos;
+	unsigned long		 mtime_nanos;
 	unsigned long		 fflags_set;
 	int			 fixup; /* bitmask of what needs fixing */
 	char			*name;
@@ -227,7 +229,8 @@ static int	set_fflags_platform(struct archive_write_disk *, int fd,
 		    unsigned long fflags_set, unsigned long fflags_clear);
 static int	set_ownership(struct archive_write_disk *);
 static int	set_mode(struct archive_write_disk *, int mode);
-static int	set_time(struct archive_write_disk *);
+static int	set_time(int, int, const char *, time_t, long, time_t, long);
+static int	set_times(struct archive_write_disk *);
 static struct fixup_entry *sort_dir_list(struct fixup_entry *p);
 static gid_t	trivial_lookup_gid(void *, const char *, gid_t);
 static uid_t	trivial_lookup_uid(void *, const char *, uid_t);
@@ -448,19 +451,29 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 		    || archive_entry_atime_is_set(entry))) {
 		fe = current_fixup(a, archive_entry_pathname(entry));
 		fe->fixup |= TODO_TIMES;
-		if (archive_entry_mtime_is_set(entry)) {
-			fe->mtime = archive_entry_mtime(entry);
-			fe->mtime_nanos = archive_entry_mtime_nsec(entry);
-		} else {
-			fe->mtime = a->start_time;
-			fe->mtime_nanos = 0;
-		}
 		if (archive_entry_atime_is_set(entry)) {
 			fe->atime = archive_entry_atime(entry);
 			fe->atime_nanos = archive_entry_atime_nsec(entry);
 		} else {
+			/* If atime is unset, use start time. */
 			fe->atime = a->start_time;
 			fe->atime_nanos = 0;
+		}
+		if (archive_entry_mtime_is_set(entry)) {
+			fe->mtime = archive_entry_mtime(entry);
+			fe->mtime_nanos = archive_entry_mtime_nsec(entry);
+		} else {
+			/* If mtime is unset, use start time. */
+			fe->mtime = a->start_time;
+			fe->mtime_nanos = 0;
+		}
+		if (archive_entry_birthtime_is_set(entry)) {
+			fe->birthtime = archive_entry_birthtime(entry);
+			fe->birthtime_nanos = archive_entry_birthtime_nsec(entry);
+		} else {
+			/* If birthtime is unset, use mtime. */
+			fe->birthtime = fe->mtime;
+			fe->birthtime_nanos = fe->mtime_nanos;
 		}
 	}
 
@@ -698,7 +711,7 @@ _archive_write_finish_entry(struct archive *_a)
 		if (r2 < ret) ret = r2;
 	}
 	if (a->todo & TODO_TIMES) {
-		int r2 = set_time(a);
+		int r2 = set_times(a);
 		if (r2 < ret) ret = r2;
 	}
 	if (a->todo & TODO_ACLS) {
@@ -1170,10 +1183,19 @@ _archive_write_close(struct archive *_a)
 #ifdef HAVE_UTIMES
 			/* {f,l,}utimes() are preferred, when available. */
 			struct timeval times[2];
-			times[1].tv_sec = p->mtime;
-			times[1].tv_usec = p->mtime_nanos / 1000;
 			times[0].tv_sec = p->atime;
 			times[0].tv_usec = p->atime_nanos / 1000;
+#ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
+			/* if it's valid and not mtime, push the birthtime first */
+			if (((times[1].tv_sec = p->birthtime) < p->mtime) &&
+			(p->birthtime > 0))
+			{
+				times[1].tv_usec = p->birthtime_nanos / 1000;
+				utimes(p->name, times);
+			}
+#endif
+			times[1].tv_sec = p->mtime;
+			times[1].tv_usec = p->mtime_nanos / 1000;
 #ifdef HAVE_LUTIMES
 			lutimes(p->name, times);
 #else
@@ -1687,49 +1709,113 @@ set_ownership(struct archive_write_disk *a)
  * when they're available.
  */
 static int
-set_time(struct archive_write_disk *a)
+set_time(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec)
 {
 	struct timeval times[2];
 
+	times[0].tv_sec = atime;
+	times[0].tv_usec = atime_nsec / 1000;
+	times[1].tv_sec = mtime;
+	times[1].tv_usec = mtime_nsec / 1000;
+
+#ifdef HAVE_FUTIMES
+	if (fd >= 0)
+		return (futimes(fd, times));
+#else
+	(void)fd; /* UNUSED */
+#endif
+#ifdef HAVE_LUTIMES
+	(void)mode; /* UNUSED */
+	return (lutimes(name, times));
+#else
+	if (S_ISLNK(mode))
+		return (0);
+	return (utimes(name, times));
+#endif
+}
+#elif defined(HAVE_UTIME)
+/*
+ * utime() is an older, more standard interface that we'll use
+ * if utimes() isn't available.
+ */
+static int
+set_time(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec)
+{
+	struct utimbuf times;
+	(void)fd; /* UNUSED */
+	(void)name; /* UNUSED */
+	(void)atime_nsec; /* UNUSED */
+	(void)mtime_nsec; /* UNUSED */
+	times.actime = atime;
+	times.modtime = mtime;
+	if (S_ISLINK(mode))
+		return (ARCHIVE_OK);
+	return (utime(name, &times));
+}
+#else
+static int
+set_time(int fd, int mode, const char *name,
+    time_t atime, long atime_nsec,
+    time_t mtime, long mtime_nsec)
+{
+	return (ARCHIVE_WARN);
+}
+#endif
+
+static int
+set_times(struct archive_write_disk *a)
+{
+	time_t atime = a->start_time, mtime = a->start_time;
+	long atime_nsec = 0, mtime_nsec = 0;
+
 	/* If no time was provided, we're done. */
 	if (!archive_entry_atime_is_set(a->entry)
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
+	    && !archive_entry_birthtime_is_set(a->entry)
+#endif
 	    && !archive_entry_mtime_is_set(a->entry))
 		return (ARCHIVE_OK);
-
-	/* We know at least one is set, so... */
-	if (archive_entry_mtime_is_set(a->entry)) {
-		times[1].tv_sec = archive_entry_mtime(a->entry);
-		times[1].tv_usec = archive_entry_mtime_nsec(a->entry) / 1000;
-	} else {
-		times[1].tv_sec = a->start_time;
-		times[1].tv_usec = 0;
-	}
 
 	/* If no atime was specified, use start time instead. */
 	/* In theory, it would be marginally more correct to use
 	 * time(NULL) here, but that would cost us an extra syscall
 	 * for little gain. */
 	if (archive_entry_atime_is_set(a->entry)) {
-		times[0].tv_sec = archive_entry_atime(a->entry);
-		times[0].tv_usec = archive_entry_atime_nsec(a->entry) / 1000;
-	} else {
-		times[0].tv_sec = a->start_time;
-		times[0].tv_usec = 0;
+		atime = archive_entry_atime(a->entry);
+		atime_nsec = archive_entry_atime_nsec(a->entry);
 	}
 
-#ifdef HAVE_FUTIMES
-	if (a->fd >= 0 && futimes(a->fd, times) == 0) {
-		return (ARCHIVE_OK);
-	}
+	/*
+	 * If you have struct stat.st_birthtime, we assume BSD birthtime
+	 * semantics, in which {f,l,}utimes() updates birthtime to earliest
+	 * mtime.  So we set the time twice, first using the birthtime,
+	 * then using the mtime.
+	 */
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
+	/* If birthtime is set, flush that through to disk first. */
+	if (archive_entry_birthtime_is_set(a->entry))
+		if (set_time(a->fd, a->mode, a->name, atime, atime_nsec,
+			archive_entry_birthtime(a->entry),
+			archive_entry_birthtime_nsec(a->entry))) {
+			archive_set_error(&a->archive, errno,
+			    "Can't update time for %s",
+			    a->name);
+			return (ARCHIVE_WARN);
+		}
 #endif
 
-#ifdef HAVE_LUTIMES
-	if (lutimes(a->name, times) != 0)
-#else
-	if (!S_ISLNK(a->mode) && utimes(a->name, times) != 0)
-#endif
-	{
-		archive_set_error(&a->archive, errno, "Can't update time for %s",
+	if (archive_entry_mtime_is_set(a->entry)) {
+		mtime = archive_entry_mtime(a->entry);
+		mtime_nsec = archive_entry_mtime_nsec(a->entry);
+	}
+	if (set_time(a->fd, a->mode, a->name,
+		atime, atime_nsec, mtime, mtime_nsec)) {
+		archive_set_error(&a->archive, errno,
+		    "Can't update time for %s",
 		    a->name);
 		return (ARCHIVE_WARN);
 	}
@@ -1740,56 +1826,8 @@ set_time(struct archive_write_disk *a)
 	 * So, any restoration of ctime will necessarily be OS-specific.
 	 */
 
-	/* XXX TODO: Can FreeBSD restore ctime? XXX */
 	return (ARCHIVE_OK);
 }
-#elif defined(HAVE_UTIME)
-/*
- * utime() is an older, more standard interface that we'll use
- * if utimes() isn't available.
- */
-static int
-set_time(struct archive_write_disk *a)
-{
-	struct utimbuf times;
-
-	/* If no time was provided, we're done. */
-	if (!archive_entry_atime_is_set(a->entry)
-	    && !archive_entry_mtime_is_set(a->entry))
-		return (ARCHIVE_OK);
-
-	/* We know at least one is set, so... */
-	/* Set mtime from mtime if set, else start time. */
-	if (archive_entry_mtime_is_set(a->entry))
-		times.modtime = archive_entry_mtime(a->entry);
-	else
-		times.modtime = a->start_time;
-
-	/* Set atime from provided atime, else mtime. */
-	if (archive_entry_atime_is_set(a->entry))
-		times.actime = archive_entry_atime(a->entry);
-	else
-		times.actime = a->start_time;
-
-	if (!S_ISLNK(a->mode) && utime(a->name, &times) != 0) {
-		archive_set_error(&a->archive, errno,
-		    "Can't update time for %s", a->name);
-		return (ARCHIVE_WARN);
-	}
-	return (ARCHIVE_OK);
-}
-#else
-/* This platform doesn't give us a way to restore the time. */
-static int
-set_time(struct archive_write_disk *a)
-{
-	(void)a; /* UNUSED */
-	archive_set_error(&a->archive, errno,
-	    "Can't update time for %s", a->name);
-	return (ARCHIVE_WARN);
-}
-#endif
-
 
 static int
 set_mode(struct archive_write_disk *a, int mode)

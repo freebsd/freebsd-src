@@ -99,6 +99,7 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_mode, (archive_entry_mode(ae) & ~UMASK));
         assertEqualInt(st.st_size, sizeof(data));
+	/* test_write_disk_times has more detailed tests of this area. */
         assertEqualInt(st.st_mtime, 123456789);
         failure("No atime was specified, so atime should get set to current time");
 	now = time(NULL);
