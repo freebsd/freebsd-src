@@ -64,6 +64,9 @@ archive_entry_stat(struct archive_entry *entry)
 	 * the appropriate conversions get invoked.
 	 */
 	st->st_atime = archive_entry_atime(entry);
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
+	st->st_birthtime = archive_entry_birthtime(entry);
+#endif
 	st->st_ctime = archive_entry_ctime(entry);
 	st->st_mtime = archive_entry_mtime(entry);
 	st->st_dev = archive_entry_dev(entry);
@@ -87,6 +90,9 @@ archive_entry_stat(struct archive_entry *entry)
 	st->st_atim.tv_nsec = archive_entry_atime_nsec(entry);
 	st->st_ctim.tv_nsec = archive_entry_ctime_nsec(entry);
 	st->st_mtim.tv_nsec = archive_entry_mtime_nsec(entry);
+#endif
+#if HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC
+	st->st_birthtimespec.tv_nsec = archive_entry_birthtime_nsec(entry);
 #endif
 
 	/*

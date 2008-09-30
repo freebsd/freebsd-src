@@ -79,6 +79,15 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_atime_nsec(e), 0);
 	assert(!archive_entry_atime_is_set(e));
 
+	/* birthtime */
+	archive_entry_set_birthtime(e, 17579, 24990);
+	assertEqualInt(archive_entry_birthtime(e), 17579);
+	assertEqualInt(archive_entry_birthtime_nsec(e), 24990);
+	archive_entry_unset_birthtime(e);
+	assertEqualInt(archive_entry_birthtime(e), 0);
+	assertEqualInt(archive_entry_birthtime_nsec(e), 0);
+	assert(!archive_entry_birthtime_is_set(e));
+
 	/* ctime */
 	archive_entry_set_ctime(e, 13580, 24681);
 	assertEqualInt(archive_entry_ctime(e), 13580);
@@ -312,6 +321,7 @@ DEFINE_TEST(test_entry)
 	/* Set values in 'e' */
 	archive_entry_clear(e);
 	archive_entry_set_atime(e, 13579, 24680);
+	archive_entry_set_birthtime(e, 13779, 24990);
 	archive_entry_set_ctime(e, 13580, 24681);
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 235);
@@ -348,6 +358,8 @@ DEFINE_TEST(test_entry)
 	/* Clone should have same contents. */
 	assertEqualInt(archive_entry_atime(e2), 13579);
 	assertEqualInt(archive_entry_atime_nsec(e2), 24680);
+	assertEqualInt(archive_entry_birthtime(e2), 13779);
+	assertEqualInt(archive_entry_birthtime_nsec(e2), 24990);
 	assertEqualInt(archive_entry_ctime(e2), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e2), 24681);
 #if ARCHIVE_VERSION_NUMBER >= 1009000
@@ -435,6 +447,7 @@ DEFINE_TEST(test_entry)
 
 	/* Change the original */
 	archive_entry_set_atime(e, 13580, 24690);
+	archive_entry_set_birthtime(e, 13980, 24999);
 	archive_entry_set_ctime(e, 13590, 24691);
 #if ARCHIVE_VERSION_NUMBER >= 1009000
 	archive_entry_set_dev(e, 245);
@@ -468,6 +481,8 @@ DEFINE_TEST(test_entry)
 	/* Clone should still have same contents. */
 	assertEqualInt(archive_entry_atime(e2), 13579);
 	assertEqualInt(archive_entry_atime_nsec(e2), 24680);
+	assertEqualInt(archive_entry_birthtime(e2), 13779);
+	assertEqualInt(archive_entry_birthtime_nsec(e2), 24990);
 	assertEqualInt(archive_entry_ctime(e2), 13580);
 	assertEqualInt(archive_entry_ctime_nsec(e2), 24681);
 #if ARCHIVE_VERSION_NUMBER >= 1009000
@@ -561,6 +576,8 @@ DEFINE_TEST(test_entry)
 	archive_entry_clear(e);
 	assertEqualInt(archive_entry_atime(e), 0);
 	assertEqualInt(archive_entry_atime_nsec(e), 0);
+	assertEqualInt(archive_entry_birthtime(e), 0);
+	assertEqualInt(archive_entry_birthtime_nsec(e), 0);
 	assertEqualInt(archive_entry_ctime(e), 0);
 	assertEqualInt(archive_entry_ctime_nsec(e), 0);
 	assertEqualInt(archive_entry_dev(e), 0);
