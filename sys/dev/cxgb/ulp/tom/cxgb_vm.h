@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,8 @@ $FreeBSD$
 #ifndef CXGB_VM_H_
 #define CXGB_VM_H_
 
-#define VM_HOLD_WRITEABLE	0x1
-
-int vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags);
+int vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr,
+    vm_page_t *mp, int count, vm_prot_t prot);
 void vm_fault_unhold_pages(vm_page_t *mp, int count);
 
 #endif
