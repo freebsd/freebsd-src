@@ -35,9 +35,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Pseudo-driver for internal NWAY support on DEC 21143 and workalike
- * controllers. Technically we're abusing the miibus code to handle
+ * controllers.  Technically we're abusing the miibus code to handle
  * media selection and NWAY support here since there is no MII
- * interface. However the logical operations are roughly the same,
+ * interface.  However the logical operations are roughly the same,
  * and the alternative is to create a fake MII interface in the driver,
  * which is harder to do.
  */
@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * This is the subsystem ID for the built-in 21143 ethernet
- * in several Compaq Presario systems. Apparently these are
+ * in several Compaq Presario systems.  Apparently these are
  * 10Mbps only, so we need to treat them specially.
  */
 #define COMPAQ_PRESARIO_ID	0xb0bb0e11
@@ -127,7 +127,7 @@ dcphy_probe(device_t dev)
 	 */
 	if (ma->mii_id1 != DC_VENDORID_DEC ||
 	    ma->mii_id2 != DC_DEVICEID_21143)
-		return(ENXIO);
+		return (ENXIO);
 
 	device_set_desc(dev, "Intel 21143 NWAY media interface");
 
@@ -171,20 +171,16 @@ dcphy_attach(device_t dev)
 	switch (pci_get_subdevice(brdev) << 16 | pci_get_subvendor(brdev)) {
 	case COMPAQ_PRESARIO_ID:
 		/* Example of how to only allow 10Mbps modes. */
-		sc->mii_capabilities = BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
+		sc->mii_capabilities = BMSR_ANEG | BMSR_10TFDX | BMSR_10THDX;
 		break;
 	default:
-		if (dc_sc->dc_pmode == DC_PMODE_SIA) {
+		if (dc_sc->dc_pmode == DC_PMODE_SIA)
 			sc->mii_capabilities =
-			    BMSR_ANEG|BMSR_10TFDX|BMSR_10THDX;
-		} else {
-			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-			    sc->mii_inst), BMCR_LOOP|BMCR_S100);
-
+			    BMSR_ANEG | BMSR_10TFDX | BMSR_10THDX;
+		else
 			sc->mii_capabilities =
-			    BMSR_ANEG|BMSR_100TXFDX|BMSR_100TXHDX|
-			    BMSR_10TFDX|BMSR_10THDX;
-		}
+			    BMSR_ANEG | BMSR_100TXFDX | BMSR_100TXHDX |
+			    BMSR_10TFDX | BMSR_10THDX;
 		break;
 	}
 
@@ -195,7 +191,7 @@ dcphy_attach(device_t dev)
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -213,9 +209,8 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * If we're not polling our PHY instance, just return.
 		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
-		}
 		break;
 
 	case MII_MEDIACHG:
@@ -223,9 +218,8 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 * If the media indicates a different PHY instance,
 		 * isolate ourselves.
 		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
+		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
-		}
 
 		/*
 		 * If the interface is not up, don't do anything.
@@ -236,8 +230,8 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		sc->mii_flags = 0;
 		mii->mii_media_active = IFM_NONE;
 		mode = CSR_READ_4(dc_sc, DC_NETCFG);
-		mode &= ~(DC_NETCFG_FULLDUPLEX|DC_NETCFG_PORTSEL|
-		    DC_NETCFG_PCS|DC_NETCFG_SCRAMBLER|DC_NETCFG_SPEEDSEL);
+		mode &= ~(DC_NETCFG_FULLDUPLEX | DC_NETCFG_PORTSEL |
+		    DC_NETCFG_PCS | DC_NETCFG_SCRAMBLER | DC_NETCFG_SPEEDSEL);
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
@@ -252,7 +246,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		case IFM_100_TX:
 			dcphy_reset(sc);
 			DC_CLRBIT(dc_sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
-			mode |= DC_NETCFG_PORTSEL|DC_NETCFG_PCS|
+			mode |= DC_NETCFG_PORTSEL | DC_NETCFG_PCS |
 			    DC_NETCFG_SCRAMBLER;
 			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX)
 				mode |= DC_NETCFG_FULLDUPLEX;
@@ -278,7 +272,7 @@ dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			CSR_WRITE_4(dc_sc, DC_NETCFG, mode);
 			break;
 		default:
-			return(EINVAL);
+			return (EINVAL);
 		}
 		break;
 
@@ -366,7 +360,7 @@ dcphy_status(struct mii_softc *sc)
 			anlpar = tstat >> 16;
 			if (anlpar & ANLPAR_TX_FD &&
 			    sc->mii_capabilities & BMSR_100TXFDX)
-				mii->mii_media_active |= IFM_100_TX|IFM_FDX;
+				mii->mii_media_active |= IFM_100_TX | IFM_FDX;
 			else if (anlpar & ANLPAR_T4 &&
 			    sc->mii_capabilities & BMSR_100T4)
 				mii->mii_media_active |= IFM_100_T4;
@@ -374,7 +368,7 @@ dcphy_status(struct mii_softc *sc)
 			    sc->mii_capabilities & BMSR_100TXHDX)
 				mii->mii_media_active |= IFM_100_TX;
 			else if (anlpar & ANLPAR_10_FD)
-				mii->mii_media_active |= IFM_10_T|IFM_FDX;
+				mii->mii_media_active |= IFM_10_T | IFM_FDX;
 			else if (anlpar & ANLPAR_10)
 				mii->mii_media_active |= IFM_10_T;
 			else
@@ -384,10 +378,11 @@ dcphy_status(struct mii_softc *sc)
 				    DC_TCTL_AUTONEGENBL);
 			return;
 		}
+
 		/*
 		 * If the other side doesn't support NWAY, then the
 		 * best we can do is determine if we have a 10Mbps or
-		 * 100Mbps link. There's no way to know if the link 
+		 * 100Mbps link.  There's no way to know if the link
 		 * is full or half duplex, so we default to half duplex
 		 * and hope that the user is clever enough to manually
 		 * change the media settings if we're wrong.
@@ -404,15 +399,12 @@ dcphy_status(struct mii_softc *sc)
 	}
 
 skip:
-
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_SPEEDSEL)
 		mii->mii_media_active |= IFM_10_T;
 	else
 		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
-
-	return;
 }
 
 static int
@@ -433,7 +425,7 @@ dcphy_auto(struct mii_softc *mii)
 	DC_SETBIT(sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
 	DC_SETBIT(sc, DC_10BTSTAT, DC_ASTAT_TXDISABLE);
 
-	return(EJUSTRETURN);
+	return (EJUSTRETURN);
 }
 
 static void
@@ -446,7 +438,4 @@ dcphy_reset(struct mii_softc *mii)
 	DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
 	DELAY(1000);
 	DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
-
-	return;
 }
-
