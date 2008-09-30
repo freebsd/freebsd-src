@@ -629,6 +629,7 @@ DEFINE_TEST(test_entry)
 	st.st_atimespec.tv_nsec = 6543210;
 	st.st_ctimespec.tv_nsec = 5432109;
 	st.st_mtimespec.tv_nsec = 3210987;
+	st.st_birthtimespec.tv_nsec = 7459386;
 #endif
 	/* Copy them into the entry. */
 	archive_entry_copy_stat(e, &st);
@@ -650,6 +651,7 @@ DEFINE_TEST(test_entry)
 	assertEqualInt(archive_entry_atime_nsec(e), 6543210);
 	assertEqualInt(archive_entry_ctime_nsec(e), 5432109);
 	assertEqualInt(archive_entry_mtime_nsec(e), 3210987);
+	assertEqualInt(archive_entry_birthtime_nsec(e), 7459386);
 #endif
 
 	/*
