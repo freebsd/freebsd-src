@@ -236,11 +236,12 @@ main(int argc, char *argv[])
 			return(1);
 		}
 		pname = g_providername(fd);
-		close(fd);
 		if (pname == NULL) {
 			warn("error getting providername for %s", specname);
+			close(fd);
 			return(1);
 		}
+		close(fd);
 	}
 
 	if (installboot && op == UNSPEC)
