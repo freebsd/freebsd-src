@@ -1199,7 +1199,7 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 
 	td->td_retval[0] = 0;
 
-	return (copyout(&stat, uap->stat, sizeof(struct kld_file_stat)));
+	return (copyout(&stat, uap->stat, version));
 }
 
 int
