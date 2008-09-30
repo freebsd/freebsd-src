@@ -179,9 +179,10 @@ command.
 Restrict matches to processes associated with a terminal in the
 comma-separated list
 .Ar tty .
-The 
-.Pa /dev/
-prefix of the terminal names must be omitted.
+Terminal names may be of the form
+.Pa tty Ns Ar xx
+or the shortened form
+.Ar xx .
 A single dash
 .Pq Ql -
 matches processes not associated with a terminal.
