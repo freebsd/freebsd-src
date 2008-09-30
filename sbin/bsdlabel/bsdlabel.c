@@ -238,7 +238,7 @@ main(int argc, char *argv[])
 		pname = g_providername(fd);
 		close(fd);
 		if (pname == NULL) {
-			warnx("error getting providername for %s", specname);
+			warn("error getting providername for %s", specname);
 			return(1);
 		}
 	}
