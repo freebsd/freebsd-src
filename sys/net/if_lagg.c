@@ -1373,8 +1373,6 @@ lagg_enqueue(struct ifnet *ifp, struct mbuf *m)
 	int error = 0;
 
 	IFQ_HANDOFF(ifp, m, error);
-	if (error)
-		ifp->if_oerrors++;
 	return (error);
 }
 
