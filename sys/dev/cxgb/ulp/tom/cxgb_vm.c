@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2007, Chelsio Inc.
+Copyright (c) 2007-2008, Chelsio Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/syslog.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -49,32 +50,29 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <ulp/tom/cxgb_vm.h>
 
-#define TRACE_ENTER printf("%s:%s entered", __FUNCTION__, __FILE__)
-#define TRACE_EXIT printf("%s:%s:%d exited", __FUNCTION__, __FILE__, __LINE__)
-
 /*
- * This routine takes a user address range and does the following:
- *  - validate that the user has access to those pages (flags indicates read or write) - if not fail
+ * This routine takes a user's map, array of pages, number of pages, and flags
+ * and then does the following:
+ *  - validate that the user has access to those pages (flags indicates read
+ *	or write) - if not fail
  *  - validate that count is enough to hold range number of pages - if not fail
  *  - fault in any non-resident pages
  *  - if the user is doing a read force a write fault for any COWed pages
  *  - if the user is doing a read mark all pages as dirty
  *  - hold all pages
- *  - return number of pages in count
  */
 int
-vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags)
+vm_fault_hold_user_pages(vm_map_t map, vm_offset_t addr, vm_page_t *mp,
+    int count, vm_prot_t prot)
 {
 	vm_offset_t end, va;
 	int faults, rv;
-
-	struct thread *td;
-	vm_map_t map;
 	pmap_t pmap;
 	vm_page_t m, *pages;
-	vm_prot_t prot;
 	
-
+	pmap = vm_map_pmap(map);
+	pages = mp;
+	addr &= ~PAGE_MASK;
 	/*
 	 * Check that virtual address range is legal
 	 * This check is somewhat bogus as on some architectures kernel
@@ -83,79 +81,73 @@ vm_fault_hold_user_pages(vm_offset_t addr, vm_page_t *mp, int count, int flags)
 	 */
 	end = addr + (count * PAGE_SIZE);
 	if (end > VM_MAXUSER_ADDRESS) {
-		printf("bad address passed\n");
+		log(LOG_WARNING, "bad address passed to vm_fault_hold_user_pages");
 		return (EFAULT);
 	}
 
-	td = curthread;
-	map = &td->td_proc->p_vmspace->vm_map;
-	pmap = &td->td_proc->p_vmspace->vm_pmap;
-	pages = mp;
-
-	prot = VM_PROT_READ;
-	prot |= (flags & VM_HOLD_WRITEABLE) ? VM_PROT_WRITE : 0;
-retry:
-
 	/*
-	 * First optimistically assume that all pages are resident (and R/W if for write)
-	 * if so just mark pages as held (and dirty if for write) and return
+	 * First optimistically assume that all pages are resident 
+	 * (and R/W if for write) if so just mark pages as held (and 
+	 * dirty if for write) and return
 	 */
 	vm_page_lock_queues();
-	for (pages = mp, faults = 0, va = addr; va < end; va += PAGE_SIZE, pages++) {
+	for (pages = mp, faults = 0, va = addr; va < end;
+	     va += PAGE_SIZE, pages++) {
 		/*
-		 * Assure that we only hold the page once
+		 * page queue mutex is recursable so this is OK
+		 * it would be really nice if we had an unlocked
+		 * version of this so we were only acquiring the 
+		 * pmap lock 1 time as opposed to potentially
+		 * many dozens of times
 		 */
-		if (*pages == NULL) {
-			/*
-			 * page queue mutex is recursable so this is OK
-			 * it would be really nice if we had an unlocked version of this so
-			 * we were only acquiring the pmap lock 1 time as opposed to potentially
-			 * many dozens of times
-			 */
-			*pages = m = pmap_extract_and_hold(pmap, va, prot);
-			if (m == NULL) {
-				faults++;
-				continue;
-			}
-			
-			if (flags & VM_HOLD_WRITEABLE)
-				vm_page_dirty(m);
+		*pages = m = pmap_extract_and_hold(pmap, va, prot);
+		if (m == NULL) {
+			faults++;
+			continue;
 		}
+		/*
+		 * Preemptively mark dirty - the pages
+		 * will never have the modified bit set if
+		 * they are only changed via DMA
+		 */
+		if (prot & VM_PROT_WRITE)
+			vm_page_dirty(m);
+		
 	}
 	vm_page_unlock_queues();
 	
-	if (faults == 0) {
+	if (faults == 0)
 		return (0);
-	}
 	
 	/*
 	 * Pages either have insufficient permissions or are not present
 	 * trigger a fault where neccessary
 	 * 
 	 */
+	rv = 0;
 	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++) {
-		m = *pages;
-		rv = 0;
-		if (m)
-			continue;
-		if (flags & VM_HOLD_WRITEABLE) 
-			rv = vm_fault(map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
-		else	
-			rv = vm_fault(map, va, VM_PROT_READ, VM_FAULT_NORMAL);
-		if (rv) {
-			printf("vm_fault bad return rv=%d va=0x%zx\n", rv, va);
-			
-			goto error;
-		} 
+		/*
+		 * Account for a very narrow race where the page may be
+		 * taken away from us before it is held
+		 */
+		while (*pages == NULL) {
+			rv = vm_fault(map, va, prot,
+			    (prot & VM_PROT_WRITE) ? VM_FAULT_DIRTY : VM_FAULT_NORMAL);
+			if (rv) 
+				goto error;
+			*pages = pmap_extract_and_hold(pmap, va, prot);
+		}
 	}
-	
-	goto retry;
-
+	return (0);
 error:	
+	log(LOG_WARNING,
+	    "vm_fault bad return rv=%d va=0x%zx\n", rv, va);
 	vm_page_lock_queues();
 	for (pages = mp, va = addr; va < end; va += PAGE_SIZE, pages++)
-		if (*pages)
+		if (*pages) {
 			vm_page_unhold(*pages);
+			*pages = NULL;
+		}
 	vm_page_unlock_queues();
 	return (EFAULT);
 }
