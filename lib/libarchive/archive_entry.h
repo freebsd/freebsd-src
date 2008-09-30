@@ -174,6 +174,9 @@ __LA_DECL struct archive_entry	*archive_entry_new(void);
 __LA_DECL time_t	 archive_entry_atime(struct archive_entry *);
 __LA_DECL long		 archive_entry_atime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_atime_is_set(struct archive_entry *);
+__LA_DECL time_t	 archive_entry_birthtime(struct archive_entry *);
+__LA_DECL long		 archive_entry_birthtime_nsec(struct archive_entry *);
+__LA_DECL int		 archive_entry_birthtime_is_set(struct archive_entry *);
 __LA_DECL time_t	 archive_entry_ctime(struct archive_entry *);
 __LA_DECL long		 archive_entry_ctime_nsec(struct archive_entry *);
 __LA_DECL int		 archive_entry_ctime_is_set(struct archive_entry *);
@@ -224,6 +227,8 @@ __LA_DECL const wchar_t	*archive_entry_uname_w(struct archive_entry *);
 
 __LA_DECL void	archive_entry_set_atime(struct archive_entry *, time_t, long);
 __LA_DECL void  archive_entry_unset_atime(struct archive_entry *);
+__LA_DECL void	archive_entry_set_birthtime(struct archive_entry *, time_t, long);
+__LA_DECL void  archive_entry_unset_birthtime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_ctime(struct archive_entry *, time_t, long);
 __LA_DECL void  archive_entry_unset_ctime(struct archive_entry *);
 __LA_DECL void	archive_entry_set_dev(struct archive_entry *, dev_t);

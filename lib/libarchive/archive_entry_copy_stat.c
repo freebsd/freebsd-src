@@ -47,6 +47,12 @@ archive_entry_copy_stat(struct archive_entry *entry, const struct stat *st)
 	archive_entry_set_atime(entry, st->st_atime, 0);
 	archive_entry_set_ctime(entry, st->st_ctime, 0);
 	archive_entry_set_mtime(entry, st->st_mtime, 0);
+#if HAVE_STRUCT_STAT_ST_BIRTHTIME
+	archive_entry_set_birthtime(entry, st->st_birthtime, 0);
+#endif
+#endif
+#if HAVE_STRUCT_STAT_ST_BIRTHTIMESPEC_TV_NSEC
+	archive_entry_set_birthtime(entry, st->st_birthtime, st->st_birthtimespec.tv_nsec);
 #endif
 	archive_entry_set_dev(entry, st->st_dev);
 	archive_entry_set_gid(entry, st->st_gid);

@@ -461,6 +461,24 @@ archive_entry_atime_is_set(struct archive_entry *entry)
 }
 
 time_t
+archive_entry_birthtime(struct archive_entry *entry)
+{
+	return (entry->ae_stat.aest_birthtime);
+}
+
+long
+archive_entry_birthtime_nsec(struct archive_entry *entry)
+{
+	return (entry->ae_stat.aest_birthtime_nsec);
+}
+
+int
+archive_entry_birthtime_is_set(struct archive_entry *entry)
+{
+	return (entry->ae_set & AE_SET_BIRTHTIME);
+}
+
+time_t
 archive_entry_ctime(struct archive_entry *entry)
 {
 	return (entry->ae_stat.aest_ctime);
@@ -835,6 +853,22 @@ archive_entry_unset_atime(struct archive_entry *entry)
 {
 	archive_entry_set_atime(entry, 0, 0);
 	entry->ae_set &= ~AE_SET_ATIME;
+}
+
+void
+archive_entry_set_birthtime(struct archive_entry *entry, time_t m, long ns)
+{
+	entry->stat_valid = 0;
+	entry->ae_set |= AE_SET_BIRTHTIME;
+	entry->ae_stat.aest_birthtime = m;
+	entry->ae_stat.aest_birthtime_nsec = ns;
+}
+
+void
+archive_entry_unset_birthtime(struct archive_entry *entry)
+{
+	archive_entry_set_birthtime(entry, 0, 0);
+	entry->ae_set &= ~AE_SET_BIRTHTIME;
 }
 
 void
