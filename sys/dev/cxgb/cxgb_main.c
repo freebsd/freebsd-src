@@ -981,6 +981,12 @@ cxgb_port_attach(device_t dev)
 		ifmedia_add(&p->media, IFM_ETHER | IFM_1000_T | IFM_FDX,
 			    0, NULL);
 		media_flags = 0;
+	} else if (!strcmp(p->phy.desc, "1000BASE-X")) {
+		/*
+		 * XXX: This is not very accurate.  Fix when common code
+		 * returns more specific value - eg 1000BASE-SX, LX, etc.
+		 */
+		media_flags = IFM_ETHER | IFM_1000_SX | IFM_FDX;
 	} else {
 	        printf("unsupported media type %s\n", p->phy.desc);
 		return (ENXIO);
