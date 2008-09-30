@@ -264,10 +264,13 @@ setit:
 		if (reg & BMSR_LINK)
 			break;
 
+		/* Announce link loss right after it happens. */
+		if (++sc->mii_ticks == 0)
+			break;
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
+		if (sc->mii_ticks <= MII_ANEGTICKS)
 			break;
 
 		sc->mii_ticks = 0;
