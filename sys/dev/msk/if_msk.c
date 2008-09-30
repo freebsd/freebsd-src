@@ -2601,6 +2601,11 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		    (m->m_pkthdr.csum_flags & CSUM_TCP) != 0) {
 			uint16_t csum;
 
+			m = m_pullup(m, offset + sizeof(struct tcphdr));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
 			csum = in_cksum_skip(m, ntohs(ip->ip_len) + offset -
 			    (ip->ip_hl << 2), offset);
 			*(uint16_t *)(m->m_data + offset +
