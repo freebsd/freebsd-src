@@ -1959,7 +1959,7 @@ dontblock:
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	if (uio->uio_td)
 		uio->uio_td->td_ru.ru_msgrcv++;
-	KASSERT(m == so->so_rcv.sb_mb, ("soreceive: m != so->so_rcv.sb_mb"));
+	KASSERT(m == so->so_rcv.sb_mb, ("soreceive_dgram: m != sb_mb"));
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
 	nextrecord = m->m_nextpkt;
@@ -1980,12 +1980,12 @@ dontblock:
 		return (0);
 	}
 	KASSERT(m->m_nextpkt == nextrecord,
-	    ("soreceive: post-control, nextrecord !sync"));
+	    ("soreceive_dgram: post-control, nextrecord !sync"));
 	if (nextrecord == NULL) {
 		KASSERT(so->so_rcv.sb_mb == m,
-		    ("soreceive: post-control, sb_mb!=m"));
+		    ("soreceive_dgram: post-control, sb_mb!=m"));
 		KASSERT(so->so_rcv.sb_lastrecord == m,
-		    ("soreceive: post-control, lastrecord!=m"));
+		    ("soreceive_dgram: lastrecord != m"));
 	}
 
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
