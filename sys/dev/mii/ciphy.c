@@ -268,9 +268,9 @@ setit:
 		if (++sc->mii_ticks == 0)
 			break;
 		/*
-		 * Only retry autonegotiation every 5 seconds.
+		 * Only retry autonegotiation every mii_anegticks seconds.
 		 */
-		if (sc->mii_ticks <= MII_ANEGTICKS)
+		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
 		sc->mii_ticks = 0;
