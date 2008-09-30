@@ -1451,6 +1451,10 @@ pax_attribute(struct tar *tar, struct archive_entry *entry,
 		if (strcmp(key, "LIBARCHIVE.xxxxxxx")==0)
 			archive_entry_set_xxxxxx(entry, value);
 */
+		if (strcmp(key, "LIBARCHIVE.creationtime")==0) {
+			pax_time(value, &s, &n);
+			archive_entry_set_birthtime(entry, s, n);
+		}
 		if (strncmp(key, "LIBARCHIVE.xattr.", 17)==0)
 			pax_attribute_xattr(entry, key, value);
 		break;

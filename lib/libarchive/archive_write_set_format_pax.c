@@ -762,6 +762,15 @@ archive_write_pax_header(struct archive_write *a,
 			    archive_entry_atime(entry_main),
 			    archive_entry_atime_nsec(entry_main));
 
+		/* Store birth/creationtime only if it's earlier than mtime */
+		if (archive_entry_birthtime_is_set(entry_main) &&
+		    archive_entry_birthtime(entry_main)
+		    < archive_entry_mtime(entry_main))
+			add_pax_attr_time(&(pax->pax_header),
+			    "LIBARCHIVE.creationtime",
+			    archive_entry_birthtime(entry_main),
+			    archive_entry_birthtime_nsec(entry_main));
+
 		/* I use a star-compatible file flag attribute. */
 		p = archive_entry_fflags_text(entry_main);
 		if (p != NULL  &&  *p != '\0')
