@@ -120,7 +120,7 @@ pages2ppods(unsigned int pages)
  *	a new gather list was allocated it is returned in @newgl.
  */ 
 static int
-t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t map, vm_offset_t addr,
+t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t dmamap, vm_offset_t addr,
     size_t len, struct ddp_gather_list **newgl,
     const struct ddp_gather_list *gl)
 {
@@ -128,13 +128,16 @@ t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t map, vm_offset_t addr,
 	size_t pg_off;
 	unsigned int npages;
 	struct ddp_gather_list *p;
-
+	vm_map_t map;
+	
 	/*
 	 * XXX need x86 agnostic check
 	 */
 	if (addr + len > VM_MAXUSER_ADDRESS)
 		return (EFAULT);
 
+
+	
 	pg_off = addr & PAGE_MASK;
 	npages = (pg_off + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	p = malloc(sizeof(struct ddp_gather_list) + npages * sizeof(vm_page_t *),
@@ -142,7 +145,9 @@ t3_pin_pages(bus_dma_tag_t tag, bus_dmamap_t map, vm_offset_t addr,
 	if (p == NULL)
 		return (ENOMEM);
 
-	err = vm_fault_hold_user_pages(addr, p->dgl_pages, npages, VM_HOLD_WRITEABLE);
+	map = &curthread->td_proc->p_vmspace->vm_map;
+	err = vm_fault_hold_user_pages(map, addr, p->dgl_pages, npages,
+	    VM_PROT_READ | VM_PROT_WRITE);
 	if (err)
 		goto free_gl;
 

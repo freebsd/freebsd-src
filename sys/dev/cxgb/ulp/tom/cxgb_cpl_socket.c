@@ -193,14 +193,16 @@ cxgb_zero_copy_free(void *cl, void *arg)
 
 
 static int
-cxgb_hold_iovec_pages(struct uio *uio, vm_page_t *m, int *held, int flags)
+cxgb_hold_iovec_pages(struct uio *uio, vm_page_t *m, int *held, vm_prot_t prot)
 {
 	struct iovec *iov = uio->uio_iov;
 	int iovcnt = uio->uio_iovcnt;
 	int err, i, count, totcount, maxcount, totbytes, npages, curbytes;
 	uint64_t start, end;
 	vm_page_t *mp;
-	
+	vm_map_t map;
+
+	map = &uio->uio_td->td_proc->p_vmspace->vm_map;
 	totbytes = totcount = 0;
 	maxcount = *held;
 
@@ -217,11 +219,8 @@ cxgb_hold_iovec_pages(struct uio *uio, vm_page_t *m, int *held, int flags)
 		
 		count = min(count, npages);
 
-		err = vm_fault_hold_user_pages((vm_offset_t)iov->iov_base, mp, count, flags);
-		if (err) {
-			vm_fault_unhold_pages(m, totcount);
-			return (err);
-		}
+		err = vm_fault_hold_user_pages(map,
+			(vm_offset_t)iov->iov_base, mp, count, prot);
 		mp += count;
 		totcount += count;
 		curbytes = iov->iov_len;
@@ -429,7 +428,7 @@ sendmore:
 	 * Make sure we don't exceed the socket buffer
 	 */
 	count = min(toep->tp_page_count, (sockbuf_sbspace(snd) >> PAGE_SHIFT) + 2*PAGE_SIZE);
-	rv = cxgb_hold_iovec_pages(&uiotmp, toep->tp_pages, &count, 0);
+	rv = cxgb_hold_iovec_pages(&uiotmp, toep->tp_pages, &count, VM_PROT_READ);
 	hold_resid = uiotmp.uio_resid;
 	if (rv)
 		return (rv);
