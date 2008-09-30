@@ -210,7 +210,7 @@ static void
 e1000phy_reset(struct mii_softc *sc)
 {
 	struct e1000phy_softc *esc;
-	uint16_t reg;
+	uint16_t reg, page;
 
 	esc = (struct e1000phy_softc *)sc;
 	reg = PHY_READ(sc, E1000_SCR);
@@ -219,12 +219,13 @@ e1000phy_reset(struct mii_softc *sc)
 		PHY_WRITE(sc, E1000_SCR, reg);
 		if (esc->mii_model == MII_MODEL_MARVELL_E1112) {
 			/* Select 1000BASE-X only mode. */
+			page = PHY_READ(sc, E1000_EADR);
 			PHY_WRITE(sc, E1000_EADR, 2);
 			reg = PHY_READ(sc, E1000_SCR);
 			reg &= ~E1000_SCR_MODE_MASK;
 			reg |= E1000_SCR_MODE_1000BX;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			PHY_WRITE(sc, E1000_EADR, 1);
+			PHY_WRITE(sc, E1000_EADR, page);
 		}
 	} else {
 		switch (esc->mii_model) {
