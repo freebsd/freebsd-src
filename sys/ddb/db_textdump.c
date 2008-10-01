@@ -177,30 +177,6 @@ char textdump_block_buffer[TEXTDUMP_BLOCKSIZE];
 static struct kerneldumpheader kdh;
 
 /*
- * Text dumps are prefixed with a normal kernel dump header but with a
- * different magic number to allow them to be uniquely identified.
- */
-static void
-mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver,
-    uint64_t dumplen, uint32_t blksz)
-{
-
-	bzero(kdh, sizeof(*kdh));
-	strncpy(kdh->magic, TEXTDUMPMAGIC, sizeof(kdh->magic));
-	strncpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
-	kdh->version = htod32(KERNELDUMPVERSION);
-	kdh->architectureversion = htod32(archver);
-	kdh->dumplength = htod64(dumplen);
-	kdh->dumptime = htod64(time_second);
-	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
-	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
-	if (panicstr != NULL)
-		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
-	kdh->parity = kerneldump_parity(kdh);
-}
-
-/*
  * Calculate and fill in the checksum for a ustar header.
  */
 static void
@@ -468,7 +444,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 */
 	textdump_offset = di->mediasize - sizeof(kdh);
 	textdump_saveoff(&trailer_offset);
-	mkdumpheader(&kdh, KERNELDUMP_TEXT_VERSION, 0, TEXTDUMP_BLOCKSIZE);
+	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, 0, TEXTDUMP_BLOCKSIZE);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 
 	/*
@@ -493,7 +469,7 @@ textdump_dumpsys(struct dumperinfo *di)
 	 * size.
 	 */
 	dumplen = trailer_offset - (textdump_offset + TEXTDUMP_BLOCKSIZE);
-	mkdumpheader(&kdh, KERNELDUMP_TEXT_VERSION, dumplen,
+	mkdumpheader(&kdh, TEXTDUMPMAGIC, KERNELDUMP_TEXT_VERSION, dumplen,
 	    TEXTDUMP_BLOCKSIZE);
 	(void)textdump_writenextblock(di, (char *)&kdh);
 	textdump_restoreoff(trailer_offset);
