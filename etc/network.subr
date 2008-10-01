@@ -506,15 +506,9 @@ childif_create()
 
 	# Create wireless interfaces
 	child_wlans=`get_if_var $ifn wlans_IF`
-	if [ -z "${child_wlans}" ]; then
-		child_wlans=`get_if_var $ifn vaps_IF`
-		if [ -n "${child_wlans}" ]; then
-			warn "soon to be deleted vaps_$ifn variable defined use wlans_$ifn"
-		fi
-	fi
 
 	for child in ${child_wlans}; do
-		create_args="wlandev $ifn `get_if_var $child create_args_IF` `get_if_var $child vap_create_IF`"
+		create_args="wlandev $ifn `get_if_var $child create_args_IF`"
 		if expr $child : 'wlan[0-9][0-9]*$' >/dev/null 2>&1; then
 			ifconfig $child create ${create_args} && cfg=0
 		else
