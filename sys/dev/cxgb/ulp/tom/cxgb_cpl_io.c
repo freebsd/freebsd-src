@@ -1741,10 +1741,9 @@ t3_tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			return (err);
 
 		inp = so_sotoinpcb(so);
-		tp = inp_inpcbtotcpcb(inp);
-		    
 		inp_wlock(inp);
-		
+		tp = inp_inpcbtotcpcb(inp);
+
 		oldval = tp->t_flags;
 		if (optval)
 			tp->t_flags |= TF_NODELAY;
@@ -3263,6 +3262,7 @@ syncache_add_accept_req(struct cpl_pass_accept_req *req, struct socket *lso, str
 	/*
 	 * Fill out information for entering us into the syncache
 	 */
+	bzero(&inc, sizeof(inc));
 	inc.inc_fport = th.th_sport = req->peer_port;
 	inc.inc_lport = th.th_dport = req->local_port;
 	th.th_seq = req->rcv_isn;
@@ -3607,6 +3607,7 @@ syncache_expand_establish_req(struct cpl_pass_establish *req, struct socket **so
 	/*
 	 * Fill out information for entering us into the syncache
 	 */
+	bzero(&inc, sizeof(inc));
 	inc.inc_fport = th.th_sport = req->peer_port;
 	inc.inc_lport = th.th_dport = req->local_port;
 	th.th_seq = req->rcv_isn;
