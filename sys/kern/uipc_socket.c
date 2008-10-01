@@ -1926,34 +1926,11 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
 	nextrecord = m->m_nextpkt;
-	if (pr->pr_flags & PR_ADDR) {
-		KASSERT(m->m_type == MT_SONAME,
-		    ("m->m_type == %d", m->m_type));
-		if (psa != NULL)
-			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
-			    M_NOWAIT);
-		sbfree(&so->so_rcv, m);
-		so->so_rcv.sb_mb = m_free(m);
-		m = so->so_rcv.sb_mb;
-		sockbuf_pushsync(&so->so_rcv, nextrecord);
-	}
-	if (m == NULL) {
-		/* XXXRW: Can this happen? */
-		SOCKBUF_UNLOCK(&so->so_rcv);
-		return (0);
-	}
-	KASSERT(m->m_nextpkt == nextrecord,
-	    ("soreceive_dgram: post-control, nextrecord !sync"));
 	if (nextrecord == NULL) {
-		KASSERT(so->so_rcv.sb_mb == m,
-		    ("soreceive_dgram: post-control, sb_mb!=m"));
 		KASSERT(so->so_rcv.sb_lastrecord == m,
 		    ("soreceive_dgram: lastrecord != m"));
 	}
 
-	SBLASTRECORDCHK(&so->so_rcv);
-	SBLASTMBUFCHK(&so->so_rcv);
-	KASSERT(m == so->so_rcv.sb_mb, ("soreceive_dgram: m not sb_mb"));
 	KASSERT(so->so_rcv.sb_mb->m_nextpkt == nextrecord,
 	    ("soreceive_dgram: m_nextpkt != nextrecord"));
 
@@ -1975,6 +1952,19 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
 	SOCKBUF_UNLOCK(&so->so_rcv);
+
+	if (pr->pr_flags & PR_ADDR) {
+		KASSERT(m->m_type == MT_SONAME,
+		    ("m->m_type == %d", m->m_type));
+		if (psa != NULL)
+			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
+			    M_NOWAIT);
+		m = m_free(m);
+	}
+	if (m == NULL) {
+		/* XXXRW: Can this happen? */
+		return (0);
+	}
 
 	/*
 	 * Packet to copyout() is now in 'm' and it is disconnected from the
