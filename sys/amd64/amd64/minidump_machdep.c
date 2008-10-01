@@ -81,27 +81,6 @@ is_dumpable(vm_paddr_t pa)
 	return (0);
 }
 
-/* XXX should be MI */
-static void
-mkdumpheader(struct kerneldumpheader *kdh, uint32_t archver, uint64_t dumplen,
-    uint32_t blksz)
-{
-
-	bzero(kdh, sizeof(*kdh));
-	strncpy(kdh->magic, KERNELDUMPMAGIC, sizeof(kdh->magic));
-	strncpy(kdh->architecture, MACHINE_ARCH, sizeof(kdh->architecture));
-	kdh->version = htod32(KERNELDUMPVERSION);
-	kdh->architectureversion = htod32(archver);
-	kdh->dumplength = htod64(dumplen);
-	kdh->dumptime = htod64(time_second);
-	kdh->blocksize = htod32(blksz);
-	strncpy(kdh->hostname, G_hostname, sizeof(kdh->hostname));
-	strncpy(kdh->versionstring, version, sizeof(kdh->versionstring));
-	if (panicstr != NULL)
-		strncpy(kdh->panicstring, panicstr, sizeof(kdh->panicstring));
-	kdh->parity = kerneldump_parity(kdh);
-}
-
 #define PG2MB(pgs) (((pgs) + (1 << 8) - 1) >> 8)
 
 static int
@@ -284,7 +263,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
 
-	mkdumpheader(&kdh, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
 
 	printf("Physical memory: %ju MB\n", ptoa((uintmax_t)physmem) / 1048576);
 	printf("Dumping %llu MB:", (long long)dumpsize >> 20);

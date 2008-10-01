@@ -98,4 +98,9 @@ kerneldump_parity(struct kerneldumpheader *kdhp)
 	return (parity);
 }
 
+#ifdef _KERNEL
+void mkdumpheader(struct kerneldumpheader *kdh, char *magic, uint32_t archver,
+    uint64_t dumplen, uint32_t blksz);
+#endif
+
 #endif /* _SYS_KERNELDUMP_H */
