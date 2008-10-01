@@ -10,7 +10,7 @@ SRCS=	vnode_if.h \
 	nlm_prot_svc.c \
 	nlm_prot_xdr.c \
 	sm_inter_xdr.c
-SRCS+=	opt_inet6.h
+SRCS+=	opt_inet6.h opt_nfs.h
 
 .if !defined(KERNBUILDDIR)
 NFS_INET6?=	1	# 0/1 - requires INET6 to be configured in kernel
