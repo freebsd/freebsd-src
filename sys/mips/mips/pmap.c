@@ -452,9 +452,8 @@ void
 pmap_init(void)
 {
 
-	if (need_wired_tlb_page_pool) {
+	if (need_wired_tlb_page_pool)
 		pmap_init_fpage();
-	}
 	/*
 	 * Initialize the address space (zone) for the pv entries.  Set a
 	 * high water mark so that the system can recover from excessive
@@ -1203,7 +1202,7 @@ pmap_growkernel(vm_offset_t addr)
 	pt_entry_t *pte;
 	int i, req;
 
-	critical_enter();
+	mtx_assert(&kernel_map->system_mtx, MA_OWNED);
 	if (kernel_vm_end == 0) {
 		kernel_vm_end = VM_MIN_KERNEL_ADDRESS + VM_KERNEL_ALLOC_OFFSET;
 		nkpt = 0;
@@ -1276,7 +1275,6 @@ pmap_growkernel(vm_offset_t addr)
 			break;
 		}
 	}
-	critical_exit();
 }
 
 /***************************************************
