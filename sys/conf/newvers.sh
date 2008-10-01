@@ -97,7 +97,7 @@ for dir in /bin /usr/bin /usr/local/bin; do
 done
 
 if [ -n "$svnversion" -a -d "${SRCDIR}/.svn" ] ; then
-	svn=" r`cd $SRCDIR && $svnversion`"
+	svn=" r`cd $SRCDIR/sys && $svnversion`"
 else
 	svn=""
 fi
