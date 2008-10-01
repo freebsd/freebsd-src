@@ -1846,8 +1846,10 @@ release:
 }
 
 /*
- * Optimized version of soreceive() for simple datagram cases from userspace;
- * this is experimental, and while heavily tested, may contain errors.
+ * Optimized version of soreceive() for simple datagram cases from userspace.
+ * Unlike in the stream case, we're able to drop a datagram if copyout()
+ * fails, and because we handle datagrams atomically, we don't need to use a
+ * sleep lock to prevent I/O interlacing.
  */
 int
 soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
@@ -1886,80 +1888,41 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	KASSERT((so->so_proto->pr_flags & PR_CONNREQUIRED) == 0,
 	    ("soreceive_dgram: P_CONNREQUIRED"));
 
-restart:
-	SOCKBUF_LOCK(&so->so_rcv);
-	m = so->so_rcv.sb_mb;
-
 	/*
-	 * If we have less data than requested, block awaiting more (subject
-	 * to any timeout) if:
-	 *   1. the current count is less than the low water mark, or
-	 *   2. MSG_WAITALL is set, and it is possible to do the entire
-	 *	receive operation at once if we block (resid <= hiwat).
-	 *   3. MSG_DONTWAIT is not set
-	 * If MSG_WAITALL is set but resid is larger than the receive buffer,
-	 * we have to do the receive in sections, and thus risk returning a
-	 * short count if a timeout or signal occurs after we start.
+	 * Loop blocking while waiting for a datagram.
 	 */
-	if (m == NULL) {
-		KASSERT(m != NULL || !so->so_rcv.sb_cc,
-		    ("receive: m == %p so->so_rcv.sb_cc == %u",
-		    m, so->so_rcv.sb_cc));
+	SOCKBUF_LOCK(&so->so_rcv);
+	while ((m = so->so_rcv.sb_mb) == NULL) {
+		KASSERT(so->so_rcv.sb_cc == 0,
+		    ("soreceive_dgram: sb_mb NULL but sb_cc %u",
+		    so->so_rcv.sb_cc));
 		if (so->so_error) {
-			if (m != NULL)
-				goto dontblock;
 			error = so->so_error;
 			so->so_error = 0;
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (error);
 		}
-		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			if (m == NULL) {
-				SOCKBUF_UNLOCK(&so->so_rcv);
-				return (0);
-			} else
-				goto dontblock;
-		}
-		if (uio->uio_resid == 0) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (0);
 		}
 		if ((so->so_state & SS_NBIO) ||
 		    (flags & (MSG_DONTWAIT|MSG_NBIO))) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
-			error = EWOULDBLOCK;
-			return (error);
+			return (EWOULDBLOCK);
 		}
 		SBLASTRECORDCHK(&so->so_rcv);
 		SBLASTMBUFCHK(&so->so_rcv);
-
 		error = sbwait(&so->so_rcv);
-		SOCKBUF_UNLOCK(&so->so_rcv);
-		if (error)
+		if (error) {
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (error);
-		goto restart;
+		}
 	}
-dontblock:
-	/*
-	 * From this point onward, we maintain 'nextrecord' as a cache of the
-	 * pointer to the next record in the socket buffer.  We must keep the
-	 * various socket buffer pointers and local stack versions of the
-	 * pointers in sync, pushing out modifications before dropping the
-	 * socket buffer mutex, and re-reading them when picking it up.
-	 *
-	 * Otherwise, we will race with the network stack appending new data
-	 * or records onto the socket buffer by using inconsistent/stale
-	 * versions of the field, possibly resulting in socket buffer
-	 * corruption.
-	 *
-	 * By holding the high-level sblock(), we prevent simultaneous
-	 * readers from pulling off the front of the socket buffer.
-	 */
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+
 	if (uio->uio_td)
 		uio->uio_td->td_ru.ru_msgrcv++;
-	KASSERT(m == so->so_rcv.sb_mb, ("soreceive_dgram: m != sb_mb"));
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
 	nextrecord = m->m_nextpkt;
@@ -1988,7 +1951,6 @@ dontblock:
 		    ("soreceive_dgram: lastrecord != m"));
 	}
 
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 	SBLASTRECORDCHK(&so->so_rcv);
 	SBLASTMBUFCHK(&so->so_rcv);
 	KASSERT(m == so->so_rcv.sb_mb, ("soreceive_dgram: m not sb_mb"));
@@ -2019,9 +1981,9 @@ dontblock:
 	 * queue.
 	 *
 	 * Process one or more MT_CONTROL mbufs present before any data mbufs
-	 * in the first mbuf chain on the socket buffer.  If MSG_PEEK, we
-	 * just copy the data; if !MSG_PEEK, we call into the protocol to
-	 * perform externalization (or freeing if controlp == NULL).
+	 * in the first mbuf chain on the socket buffer.  We call into the
+	 * protocol to perform externalization (or freeing if controlp ==
+	 * NULL).
 	 */
 	if (m->m_type == MT_CONTROL) {
 		struct mbuf *cm = NULL, *cmn;
@@ -2051,7 +2013,6 @@ dontblock:
 			cm = cmn;
 		}
 	}
-
 	KASSERT(m->m_type == MT_DATA, ("soreceive_dgram: !data"));
 
 	offset = 0;
@@ -2066,7 +2027,7 @@ dontblock:
 		}
 		m = m_free(m);
 	}
-	if (m != NULL && pr->pr_flags & PR_ATOMIC)
+	if (m != NULL)
 		flags |= MSG_TRUNC;
 	m_freem(m);
 	if (flagsp != NULL)
