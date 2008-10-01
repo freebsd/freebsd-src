@@ -34,9 +34,11 @@
 /* geom_vinum_drive.c */
 void	gv_config_new_drive(struct gv_drive *);
 void	gv_drive_modify(struct gv_drive *);
+int	gv_read_header(struct g_consumer *, struct gv_hdr *);
 void	gv_save_config_all(struct gv_softc *);
 void	gv_save_config(struct g_consumer *, struct gv_drive *,
 	    struct gv_softc *);
+int	gv_write_header(struct g_consumer *, struct gv_hdr *);
 
 /* geom_vinum_init.c */
 void	gv_parityop(struct g_geom *, struct gctl_req *);
