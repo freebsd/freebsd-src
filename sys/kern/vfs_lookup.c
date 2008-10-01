@@ -88,7 +88,7 @@ nameiinit(void *dummy __unused)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
-static int lookup_shared = 0;
+static int lookup_shared = 1;
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
     "Enables/Disables shared locks for path name translation");
 TUNABLE_INT("vfs.lookup_shared", &lookup_shared);
