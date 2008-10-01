@@ -741,9 +741,6 @@ DCONS_POLL_HZ		opt_dcons.h
 DCONS_FORCE_CONSOLE	opt_dcons.h
 DCONS_FORCE_GDB		opt_dcons.h
 
-# VFS options
-LOOKUP_SHARED		opt_vfs.h
-
 # HWPMC options
 HWPMC_HOOKS
 

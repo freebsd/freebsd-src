@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
 #include "opt_mac.h"
-#include "opt_vfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,13 +88,10 @@ nameiinit(void *dummy __unused)
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
-#ifdef LOOKUP_SHARED
-static int lookup_shared = 1;
-#else
 static int lookup_shared = 0;
-#endif
 SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
     "Enables/Disables shared locks for path name translation");
+TUNABLE_INT("vfs.lookup_shared", &lookup_shared);
 
 /*
  * Convert a pathname into a pointer to a locked vnode.
