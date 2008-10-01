@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/errno.h>
+#include <sys/endian.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -48,8 +49,228 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
+#define GV_LEGACY_I386	0
+#define GV_LEGACY_AMD64 1
+#define GV_LEGACY_SPARC64 2
+#define GV_LEGACY_POWERPC 3
+
 static void	gv_drive_dead(void *, int);
 static void	gv_drive_worker(void *);
+static int	gv_legacy_header_type(uint8_t *, int);
+
+/*
+ * Here are the "offset (size)" for the various struct gv_hdr fields,
+ * for the legacy i386 (or 32-bit powerpc), legacy amd64 (or sparc64), and
+ * current (cpu & endian agnostic) versions of the on-disk format of the vinum
+ * header structure:
+ *
+ *       i386    amd64   current   field
+ *     -------- -------- --------  -----
+ *       0 ( 8)   0 ( 8)   0 ( 8)  magic
+ *       8 ( 4)   8 ( 8)   8 ( 8)  config_length
+ *      12 (32)  16 (32)  16 (32)  label.sysname
+ *      44 (32)  48 (32)  48 (32)  label.name
+ *      76 ( 4)  80 ( 8)  80 ( 8)  label.date_of_birth.tv_sec
+ *      80 ( 4)  88 ( 8)  88 ( 8)  label.date_of_birth.tv_usec
+ *      84 ( 4)  96 ( 8)  96 ( 8)  label.last_update.tv_sec
+ *      88 ( 4) 104 ( 8) 104 ( 8)  label.last_update.tv_usec
+ *      92 ( 8) 112 ( 8) 112 ( 8)  label.drive_size
+ *     ======== ======== ========
+ *     100      120      120       total size
+ *
+ * NOTE: i386 and amd64 formats are stored as little-endian; the current
+ * format uses big-endian (network order).
+ */
+
+
+/* Checks for legacy format depending on platform. */
+static int
+gv_legacy_header_type(uint8_t *hdr, int bigendian)
+{
+	uint32_t *i32;
+	int arch_32, arch_64, i;
+
+	/* Set arch according to endianess. */
+	if (bigendian) {
+		arch_32 = GV_LEGACY_POWERPC;
+		arch_64 = GV_LEGACY_SPARC64;
+	} else {
+		arch_32 = GV_LEGACY_I386;
+		arch_64 = GV_LEGACY_AMD64;
+	}
+
+	/* if non-empty hostname overlaps 64-bit config_length */
+	i32 = (uint32_t *)(hdr + 12);
+	if (*i32 != 0)
+		return (arch_32);
+	/* check for non-empty hostname */
+	if (hdr[16] != 0)
+		return (arch_64);
+	/* check bytes past 32-bit structure */
+	for (i = 100; i < 120; i++)
+		if (hdr[i] != 0)
+			return (arch_32);
+	/* check for overlapping timestamp */
+	i32 = (uint32_t *)(hdr + 84);
+
+	if (*i32 == 0)
+		return (arch_64);
+	return (arch_32);
+}
+
+/*
+ * Read the header while taking magic number into account, and write it to
+ * destination pointer.
+ */
+int
+gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
+{
+	struct g_provider *pp;
+	uint64_t magic_machdep;
+	uint8_t *d_hdr;
+	int be, off;
+
+#define GV_GET32(endian)					\
+		endian##32toh(*((uint32_t *)&d_hdr[off]));	\
+		off += 4
+#define GV_GET64(endian)					\
+		endian##64toh(*((uint64_t *)&d_hdr[off]));	\
+		off += 8
+
+	KASSERT(m_hdr != NULL, ("gv_read_header: null m_hdr"));
+	KASSERT(cp != NULL, ("gv_read_header: null cp"));
+	pp = cp->provider;
+	KASSERT(pp != NULL, ("gv_read_header: null pp"));
+
+	d_hdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, NULL);
+	if (d_hdr == NULL)
+		return (-1);
+	off = 0;
+	m_hdr->magic = GV_GET64(be);
+	magic_machdep = *((uint64_t *)&d_hdr[0]);
+	/*
+	 * The big endian machines will have a reverse of GV_OLD_MAGIC, so we
+	 * need to decide if we are running on a big endian machine as well as
+	 * checking the magic against the reverse of GV_OLD_MAGIC.
+	 */
+	be = (m_hdr->magic == magic_machdep);
+	if (m_hdr->magic == GV_MAGIC) {
+		m_hdr->config_length = GV_GET64(be);
+		off = 16;
+		bcopy(d_hdr + off, m_hdr->label.sysname, GV_HOSTNAME_LEN);
+		off += GV_HOSTNAME_LEN;
+		bcopy(d_hdr + off, m_hdr->label.name, GV_MAXDRIVENAME);
+		off += GV_MAXDRIVENAME;
+		m_hdr->label.date_of_birth.tv_sec = GV_GET64(be);
+		m_hdr->label.date_of_birth.tv_usec = GV_GET64(be);
+		m_hdr->label.last_update.tv_sec = GV_GET64(be);
+		m_hdr->label.last_update.tv_usec = GV_GET64(be);
+		m_hdr->label.drive_size = GV_GET64(be);
+	} else if (m_hdr->magic != GV_OLD_MAGIC &&
+	    m_hdr->magic != le64toh(GV_OLD_MAGIC)) {
+		/* Not a gvinum drive. */
+		g_free(d_hdr);
+		return (-1);
+	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_SPARC64) {
+		printf("VINUM: detected legacy sparc64 header\n");
+		m_hdr->magic = GV_MAGIC;
+		/* Legacy sparc64 on-disk header */
+		m_hdr->config_length = GV_GET64(be);
+		bcopy(d_hdr + 16, m_hdr->label.sysname, GV_HOSTNAME_LEN);
+		off += GV_HOSTNAME_LEN;
+		bcopy(d_hdr + 48, m_hdr->label.name, GV_MAXDRIVENAME);
+		off += GV_MAXDRIVENAME;
+		m_hdr->label.date_of_birth.tv_sec = GV_GET64(be);
+		m_hdr->label.date_of_birth.tv_usec = GV_GET64(be);
+		m_hdr->label.last_update.tv_sec = GV_GET64(be);
+		m_hdr->label.last_update.tv_usec = GV_GET64(be);
+		m_hdr->label.drive_size = GV_GET64(be);
+	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_POWERPC) {
+		printf("VINUM: detected legacy PowerPC header\n");
+		m_hdr->magic = GV_MAGIC;
+		/* legacy 32-bit big endian on-disk header */
+		m_hdr->config_length = GV_GET32(be);
+		bcopy(d_hdr + off, m_hdr->label.sysname, GV_HOSTNAME_LEN);
+		off += GV_HOSTNAME_LEN;
+		bcopy(d_hdr + off, m_hdr->label.name, GV_MAXDRIVENAME);
+		off += GV_MAXDRIVENAME;
+		m_hdr->label.date_of_birth.tv_sec = GV_GET32(be);
+		m_hdr->label.date_of_birth.tv_usec = GV_GET32(be);
+		m_hdr->label.last_update.tv_sec = GV_GET32(be);
+		m_hdr->label.last_update.tv_usec = GV_GET32(be);
+		m_hdr->label.drive_size = GV_GET64(be);
+	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_I386) {
+		printf("VINUM: detected legacy i386 header\n");
+		m_hdr->magic = GV_MAGIC;
+		/* legacy i386 on-disk header */
+		m_hdr->config_length = GV_GET32(le);
+		bcopy(d_hdr + off, m_hdr->label.sysname, GV_HOSTNAME_LEN);
+		off += GV_HOSTNAME_LEN;
+		bcopy(d_hdr + off, m_hdr->label.name, GV_MAXDRIVENAME);
+		off += GV_MAXDRIVENAME;
+		m_hdr->label.date_of_birth.tv_sec = GV_GET32(le);
+		m_hdr->label.date_of_birth.tv_usec = GV_GET32(le);
+		m_hdr->label.last_update.tv_sec = GV_GET32(le);
+		m_hdr->label.last_update.tv_usec = GV_GET32(le);
+		m_hdr->label.drive_size = GV_GET64(le);
+	} else {
+		printf("VINUM: detected legacy amd64 header\n");
+		m_hdr->magic = GV_MAGIC;
+		/* legacy amd64 on-disk header */
+		m_hdr->config_length = GV_GET64(le);
+		bcopy(d_hdr + 16, m_hdr->label.sysname, GV_HOSTNAME_LEN);
+		off += GV_HOSTNAME_LEN;
+		bcopy(d_hdr + 48, m_hdr->label.name, GV_MAXDRIVENAME);
+		off += GV_MAXDRIVENAME;
+		m_hdr->label.date_of_birth.tv_sec = GV_GET64(le);
+		m_hdr->label.date_of_birth.tv_usec = GV_GET64(le);
+		m_hdr->label.last_update.tv_sec = GV_GET64(le);
+		m_hdr->label.last_update.tv_usec = GV_GET64(le);
+		m_hdr->label.drive_size = GV_GET64(le);
+	}
+
+	g_free(d_hdr);
+	return (0);
+}
+
+/* Write out the gvinum header. */
+int
+gv_write_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
+{
+	uint8_t d_hdr[GV_HDR_LEN];
+	int off, ret;
+
+#define GV_SET32BE(field)					\
+	do {							\
+		*((uint32_t *)&d_hdr[off]) = htobe32(field);	\
+		off += 4;					\
+	} while (0)
+#define GV_SET64BE(field)					\
+	do {							\
+		*((uint64_t *)&d_hdr[off]) = htobe64(field);	\
+		off += 8;					\
+	} while (0)
+
+	KASSERT(m_hdr != NULL, ("gv_write_header: null m_hdr"));
+
+	off = 0;
+	memset(d_hdr, 0, GV_HDR_LEN);
+	GV_SET64BE(m_hdr->magic);
+	GV_SET64BE(m_hdr->config_length);
+	off = 16;
+	bcopy(m_hdr->label.sysname, d_hdr + off, GV_HOSTNAME_LEN);
+	off += GV_HOSTNAME_LEN;
+	bcopy(m_hdr->label.name, d_hdr + off, GV_MAXDRIVENAME);
+	off += GV_MAXDRIVENAME;
+	GV_SET64BE(m_hdr->label.date_of_birth.tv_sec);
+	GV_SET64BE(m_hdr->label.date_of_birth.tv_usec);
+	GV_SET64BE(m_hdr->label.last_update.tv_sec);
+	GV_SET64BE(m_hdr->label.last_update.tv_usec);
+	GV_SET64BE(m_hdr->label.drive_size);
+
+	ret = g_write_data(cp, GV_HDR_OFFSET, d_hdr, GV_HDR_LEN);
+	return (ret);
+}
 
 void
 gv_config_new_drive(struct gv_drive *d)
@@ -160,7 +381,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 	g_topology_unlock();
 
 	do {
-		error = g_write_data(cp2, GV_HDR_OFFSET, vhdr, GV_HDR_LEN);
+		error = gv_write_header(cp2, vhdr);
 		if (error) {
 			printf("GEOM_VINUM: writing vhdr failed on drive %s, "
 			    "errno %d", d->name, error);
@@ -443,10 +664,9 @@ gv_drive_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/* Now check if the provided slice is a valid vinum drive. */
 	do {
-		vhdr = g_read_data(cp, GV_HDR_OFFSET, pp->sectorsize, NULL);
-		if (vhdr == NULL)
-			break;
-		if (vhdr->magic != GV_MAGIC) {
+		vhdr = g_malloc(GV_HDR_LEN, M_WAITOK | M_ZERO);
+		error = gv_read_header(cp, vhdr);
+		if (error) {
 			g_free(vhdr);
 			break;
 		}

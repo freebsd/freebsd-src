@@ -136,10 +136,12 @@ struct gv_label {
 /* The 'header' of each valid vinum drive. */
 struct gv_hdr {
 	uint64_t	magic;
-#define	GV_MAGIC	22322600044678729LL
-#define	GV_NOMAGIC	22322600044678990LL
+#define GV_OLD_MAGIC	0x494E2056494E4F00LL
+#define GV_OLD_NOMAGIC	0x4E4F2056494E4F00LL
+#define GV_MAGIC	0x56494E554D2D3100LL
+#define GV_NOMAGIC	0x56494E554D2D2D00LL
 
-	int		config_length;
+	uint64_t	config_length;
 	struct gv_label	label;
 };
 
