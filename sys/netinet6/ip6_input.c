@@ -145,6 +145,7 @@ static struct mbuf *ip6_pullexthdr(struct mbuf *, size_t, int);
 void
 ip6_init(void)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6protosw *pr;
 	int i;
 
@@ -192,6 +193,7 @@ ip6_init(void)
 static void
 ip6_init2(void *dummy)
 {
+	INIT_VNET_INET6(curvnet);
 
 	/* nd6_timer_init */
 	callout_init(&V_nd6_timer_ch, 0);
@@ -214,6 +216,8 @@ extern struct	route_in6 ip6_forward_rt;
 void
 ip6_input(struct mbuf *m)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	int off = sizeof(struct ip6_hdr), nest;
 	u_int32_t plen;
@@ -813,6 +817,7 @@ static int
 ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
     struct mbuf **mp, int *offp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	int off = *offp, hbhlen;
 	struct ip6_hbh *hbh;
@@ -868,6 +873,7 @@ int
 ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
     u_int32_t *rtalertp, u_int32_t *plenp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	int optlen = 0;
 	u_int8_t *opt = opthead;
@@ -1000,6 +1006,7 @@ ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
 int
 ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 
 	switch (IP6OPT_TYPE(*optp)) {

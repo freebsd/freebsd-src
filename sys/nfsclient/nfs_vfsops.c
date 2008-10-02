@@ -401,6 +401,7 @@ nfsmout:
 int
 nfs_mountroot(struct mount *mp, struct thread *td)
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct nfsv3_diskless *nd = &nfsv3_diskless;
 	struct socket *so;
 	struct vnode *vp;

@@ -98,6 +98,7 @@ static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
 void
 nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_solicit *nd_ns;
@@ -377,6 +378,7 @@ void
 nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
     const struct in6_addr *taddr6, struct llinfo_nd6 *ln, int dad)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
@@ -582,6 +584,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 void
 nd6_na_input(struct mbuf *m, int off, int icmp6len)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_advert *nd_na;
@@ -894,6 +897,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
     const struct in6_addr *taddr6, u_long flags, int tlladdr,
     struct sockaddr *sdl0)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
@@ -1098,6 +1102,7 @@ static int dad_init = 0;
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)
 {
+	INIT_VNET_INET6(curvnet);
 	struct dadq *dp;
 
 	for (dp = V_dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
@@ -1128,6 +1133,7 @@ nd6_dad_stoptimer(struct dadq *dp)
 void
 nd6_dad_start(struct ifaddr *ifa, int delay)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -1210,6 +1216,7 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 void
 nd6_dad_stop(struct ifaddr *ifa)
 {
+	INIT_VNET_INET6(curvnet);
 	struct dadq *dp;
 
 	if (!V_dad_init)
@@ -1231,6 +1238,8 @@ nd6_dad_stop(struct ifaddr *ifa)
 static void
 nd6_dad_timer(struct ifaddr *ifa)
 {
+	CURVNET_SET(dp->dad_vnet);
+	INIT_VNET_INET6(curvnet);
 	int s;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct dadq *dp;
@@ -1330,11 +1339,13 @@ nd6_dad_timer(struct ifaddr *ifa)
 
 done:
 	splx(s);
+	CURVNET_RESTORE();
 }
 
 void
 nd6_dad_duplicated(struct ifaddr *ifa)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct ifnet *ifp;
 	struct dadq *dp;
@@ -1424,6 +1435,7 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 static void
 nd6_dad_ns_input(struct ifaddr *ifa)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 	struct ifnet *ifp;
 	const struct in6_addr *taddr6;

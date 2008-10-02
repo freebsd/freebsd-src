@@ -212,6 +212,7 @@ ifaddr_event_handler(void *arg, struct ifnet *ifp)
 static int
 iwch_init_module(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	int err;
 	struct ifnet *ifp;
 
@@ -233,9 +234,15 @@ iwch_init_module(void)
 
 	/* Register existing TOE interfaces by walking the ifnet chain */
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		(void)ifaddr_event_handler(NULL, ifp);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter); /* XXX CURVNET_SET_QUIET() ? */
+		INIT_VNET_NET(vnet_iter);
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link)
+			(void)ifaddr_event_handler(NULL, ifp);
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	IFNET_RUNLOCK();
 	return 0;
 }

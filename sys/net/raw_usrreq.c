@@ -46,6 +46,7 @@
 #include <sys/systm.h>
 #include <sys/vimage.h>
 
+#include <net/if.h>
 #include <net/raw_cb.h>
 
 MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
@@ -56,6 +57,7 @@ MTX_SYSINIT(rawcb_mtx, &rawcb_mtx, "rawcb", MTX_DEF);
 void
 raw_init(void)
 {
+	INIT_VNET_NET(curvnet);
 
 	LIST_INIT(&V_rawcb_list);
 }
@@ -70,6 +72,7 @@ raw_init(void)
 void
 raw_input(struct mbuf *m0, struct sockproto *proto, struct sockaddr *src)
 {
+	INIT_VNET_NET(curvnet);
 	struct rawcb *rp;
 	struct mbuf *m = m0;
 	struct socket *last;

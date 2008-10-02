@@ -246,6 +246,7 @@ getdomainname(td, uap)
 	struct thread *td;
 	struct getdomainname_args *uap;
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	char tmpdomainname[MAXHOSTNAMELEN];
 	int domainnamelen;
 
@@ -271,6 +272,7 @@ setdomainname(td, uap)
 	struct thread *td;
 	struct setdomainname_args *uap;
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	char tmpdomainname[MAXHOSTNAMELEN];
 	int error, domainnamelen;
 
@@ -284,7 +286,7 @@ setdomainname(td, uap)
 	if (error == 0) {
 		tmpdomainname[domainnamelen] = 0;
 		mtx_lock(&hostname_mtx);
-		bcopy(tmpdomainname, V_domainname, sizeof(domainname));
+		bcopy(tmpdomainname, V_domainname, sizeof(V_domainname));
 		mtx_unlock(&hostname_mtx);
 	}
 	return (error);

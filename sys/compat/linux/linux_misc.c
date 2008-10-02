@@ -707,6 +707,7 @@ linux_times(struct thread *td, struct linux_times_args *args)
 int
 linux_newuname(struct thread *td, struct linux_newuname_args *args)
 {
+	INIT_VPROCG(TD_TO_VPROCG(td));
 	struct l_new_utsname utsname;
 	char osname[LINUX_MAX_UTSNAME];
 	char osrelease[LINUX_MAX_UTSNAME];

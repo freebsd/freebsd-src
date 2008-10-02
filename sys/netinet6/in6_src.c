@@ -174,6 +174,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct inpcb *inp, struct route_in6 *ro, struct ucred *cred,
     struct ifnet **ifpp, int *errorp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_addr dst;
 	struct ifnet *ifp = NULL;
 	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
@@ -456,6 +457,8 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ifnet **retifp, struct rtentry **retrt, int clone,
     int norouteok)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	struct ifnet *ifp = NULL;
 	struct rtentry *rt = NULL;
@@ -735,6 +738,7 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 int
 in6_selecthlim(struct in6pcb *in6p, struct ifnet *ifp)
 {
+	INIT_VNET_INET6(curvnet);
 
 	if (in6p && in6p->in6p_hops >= 0)
 		return (in6p->in6p_hops);
@@ -767,6 +771,7 @@ in6_selecthlim(struct in6pcb *in6p, struct ifnet *ifp)
 int
 in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 {
+	INIT_VNET_INET(curvnet);
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0, first, last, *lastport;
 	int count, error = 0, wild = 0;
@@ -863,6 +868,7 @@ addrsel_policy_init(void)
 {
 	ADDRSEL_LOCK_INIT();
 	ADDRSEL_SXLOCK_INIT();
+	INIT_VNET_INET6(curvnet);
 
 	init_policy_queue();
 
@@ -874,6 +880,7 @@ addrsel_policy_init(void)
 static struct in6_addrpolicy *
 lookup_addrsel_policy(struct sockaddr_in6 *key)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_addrpolicy *match = NULL;
 
 	ADDRSEL_LOCK();
@@ -965,6 +972,7 @@ struct addrsel_policyhead addrsel_policytab;
 static void
 init_policy_queue(void)
 {
+	INIT_VNET_INET6(curvnet);
 
 	TAILQ_INIT(&V_addrsel_policytab);
 }
@@ -972,6 +980,7 @@ init_policy_queue(void)
 static int
 add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 {
+	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *new, *pol;
 
 	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
@@ -1007,6 +1016,7 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 static int
 delete_addrsel_policyent(struct in6_addrpolicy *key)
 {
+	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pol;
 
 	ADDRSEL_XLOCK();
@@ -1038,6 +1048,7 @@ static int
 walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *),
     void *w)
 {
+	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pol;
 	int error = 0;
 
@@ -1066,6 +1077,7 @@ dump_addrsel_policyent(struct in6_addrpolicy *pol, void *arg)
 static struct in6_addrpolicy *
 match_addrsel_policy(struct sockaddr_in6 *key)
 {
+	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *pent;
 	struct in6_addrpolicy *bestpol = NULL, *pol;
 	int matchlen, bestmatchlen = -1;

@@ -136,6 +136,11 @@ int (*mrt6_ioctl)(int, caddr_t);
 int
 rip6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET6(curvnet);
+#ifdef IPSEC
+	INIT_VNET_IPSEC(curvnet);
+#endif
 	struct mbuf *m = *mp;
 	register struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	register struct inpcb *in6p;
@@ -258,6 +263,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 void
 rip6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 	int off = 0;
@@ -313,6 +319,7 @@ rip6_output(m, va_alist)
 	va_dcl
 #endif
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *control;
 	struct socket *so;
 	struct sockaddr_in6 *dstsock;
@@ -544,6 +551,7 @@ rip6_ctloutput(struct socket *so, struct sockopt *sopt)
 static int
 rip6_attach(struct socket *so, int proto, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct icmp6_filter *filter;
 	int error;
@@ -583,6 +591,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 static void
 rip6_detach(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -640,6 +649,9 @@ rip6_disconnect(struct socket *so)
 static int
 rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_NET(so->so_vnet);
+	INIT_VNET_INET(so->so_vnet);
+	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct ifaddr *ia = NULL;
@@ -675,6 +687,9 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 rip6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_NET(so->so_vnet);
+	INIT_VNET_INET(so->so_vnet);
+	INIT_VNET_INET6(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct in6_addr *in6a = NULL;
@@ -749,6 +764,7 @@ static int
 rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 tmp;
 	struct sockaddr_in6 *dst;

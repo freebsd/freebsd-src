@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 
 #include <netinet/in.h>
+#include <netinet/ip6.h>
 
 #include <netinet6/in6_var.h>
 #include <netinet6/scope6_var.h>
@@ -72,6 +73,7 @@ static struct scope6_id sid_default;
 void
 scope6_init(void)
 {
+	INIT_VNET_INET6(curvnet);
 
 	SCOPE6_LOCK_INIT();
 	bzero(&V_sid_default, sizeof(V_sid_default));
@@ -110,6 +112,7 @@ scope6_ifdetach(struct scope6_id *sid)
 int
 scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	int i;
 	int error = 0;
 	struct scope6_id *sid = NULL;
@@ -264,6 +267,8 @@ in6_addrscope(struct in6_addr *addr)
 void
 scope6_setdefault(struct ifnet *ifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
+
 	/*
 	 * Currently, this function just sets the default "interfaces"
 	 * and "links" according to the given interface.
@@ -286,6 +291,7 @@ scope6_setdefault(struct ifnet *ifp)
 int
 scope6_get_default(struct scope6_id *idlist)
 {
+	INIT_VNET_INET6(curvnet);
 
 	SCOPE6_LOCK();
 	*idlist = V_sid_default;
@@ -297,6 +303,7 @@ scope6_get_default(struct scope6_id *idlist)
 u_int32_t
 scope6_addr2default(struct in6_addr *addr)
 {
+	INIT_VNET_INET6(curvnet);
 	u_int32_t id;
 
 	/*
@@ -327,6 +334,7 @@ scope6_addr2default(struct in6_addr *addr)
 int
 sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	u_int32_t zoneid;
 
@@ -363,6 +371,7 @@ sa6_embedscope(struct sockaddr_in6 *sin6, int defaultok)
 int
 sa6_recoverscope(struct sockaddr_in6 *sin6)
 {
+	INIT_VNET_NET(curvnet);
 	char ip6buf[INET6_ADDRSTRLEN];
 	u_int32_t zoneid;
 

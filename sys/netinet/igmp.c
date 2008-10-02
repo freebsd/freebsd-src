@@ -82,8 +82,8 @@ static void	igmp_sendpkt(struct in_multi *, int, unsigned long);
 
 static struct igmpstat igmpstat;
 
-SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RW, &igmpstat,
-    igmpstat, "");
+SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
+    stats, CTLFLAG_RW, igmpstat, igmpstat, "");
 
 /*
  * igmp_mtx protects all mutable global variables in igmp.c, as well as the
@@ -116,6 +116,7 @@ static struct route igmprt;
 void
 igmp_init(void)
 {
+	INIT_VNET_INET(curvnet);
 	struct ipoption *ra;
 
 	/*
@@ -145,6 +146,7 @@ igmp_init(void)
 static struct router_info *
 find_rti(struct ifnet *ifp)
 {
+	INIT_VNET_INET(ifp->if_vnet);
 	struct router_info *rti;
 
 	mtx_assert(&igmp_mtx, MA_OWNED);
@@ -183,6 +185,7 @@ igmp_input(register struct mbuf *m, int off)
 	struct in_multistep step;
 	struct router_info *rti;
 	int timer; /** timer value in the igmp query header **/
+	INIT_VNET_INET(ifp->if_vnet);
 
 	++V_igmpstat.igps_rcv_total;
 
@@ -410,6 +413,7 @@ igmp_leavegroup(struct in_multi *inm)
 void
 igmp_fasttimo(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	register struct in_multi *inm;
 	struct in_multistep step;
 
@@ -423,35 +427,50 @@ igmp_fasttimo(void)
 
 	IN_MULTI_LOCK();
 	igmp_timers_are_running = 0;
-	IN_FIRST_MULTI(step, inm);
-	while (inm != NULL) {
-		if (inm->inm_timer == 0) {
-			/* do nothing */
-		} else if (--inm->inm_timer == 0) {
-			igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
-			inm->inm_state = IGMP_IREPORTEDLAST;
-		} else {
-			igmp_timers_are_running = 1;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
+		IN_FIRST_MULTI(step, inm);
+		while (inm != NULL) {
+			if (inm->inm_timer == 0) {
+				/* do nothing */
+			} else if (--inm->inm_timer == 0) {
+				igmp_sendpkt(inm, inm->inm_rti->rti_type, 0);
+				inm->inm_state = IGMP_IREPORTEDLAST;
+			} else {
+				igmp_timers_are_running = 1;
+			}
+			IN_NEXT_MULTI(step, inm);
 		}
-		IN_NEXT_MULTI(step, inm);
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	IN_MULTI_UNLOCK();
 }
 
 void
 igmp_slowtimo(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct router_info *rti;
 
 	IGMP_PRINTF("[igmp.c,_slowtimo] -- > entering \n");
 	mtx_lock(&igmp_mtx);
-	SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
-		if (rti->rti_type == IGMP_V1_ROUTER) {
-			rti->rti_time++;
-			if (rti->rti_time >= IGMP_AGE_THRESHOLD)
-				rti->rti_type = IGMP_V2_ROUTER;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
+		SLIST_FOREACH(rti, &V_router_info_head, rti_list) {
+			if (rti->rti_type == IGMP_V1_ROUTER) {
+				rti->rti_time++;
+				if (rti->rti_time >= IGMP_AGE_THRESHOLD)
+					rti->rti_type = IGMP_V2_ROUTER;
+			}
 		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	mtx_unlock(&igmp_mtx);
 	IGMP_PRINTF("[igmp.c,_slowtimo] -- > exiting \n");
 }
@@ -459,6 +478,8 @@ igmp_slowtimo(void)
 static void
 igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct mbuf *m;
 	struct igmp *igmp;
 	struct ip *ip;

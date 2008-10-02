@@ -376,6 +376,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 int
 X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 {
+	INIT_VNET_INET6(curvnet);
 	int error = 0;
 
 	if (so != ip6_mrouter)
@@ -452,6 +453,7 @@ get_mif6_cnt(struct sioc_mif_req6 *req)
 static int
 set_pim6(int *i)
 {
+	INIT_VNET_INET6(curvnet);
 	if ((*i != 1) && (*i != 0))
 		return (EINVAL);
 
@@ -466,6 +468,8 @@ set_pim6(int *i)
 static int
 ip6_mrouter_init(struct socket *so, int v, int cmd)
 {
+	INIT_VNET_INET6(curvnet);
+
 #ifdef MRT6DEBUG
 	if (V_mrt6debug)
 		log(LOG_DEBUG,
@@ -509,6 +513,7 @@ ip6_mrouter_init(struct socket *so, int v, int cmd)
 int
 X_ip6_mrouter_done(void)
 {
+	INIT_VNET_INET6(curvnet);
 	mifi_t mifi;
 	int i;
 	struct mf6c *rt;
@@ -601,6 +606,7 @@ static struct sockaddr_in6 sin6 = { sizeof(sin6), AF_INET6 };
 static int
 add_m6if(struct mif6ctl *mifcp)
 {
+	INIT_VNET_NET(curvnet);
 	struct mif6 *mifp;
 	struct ifnet *ifp;
 	int error, s;
@@ -1002,6 +1008,7 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
 int
 X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mf6c *rt;
 	struct mif6 *mifp;
 	struct mbuf *mm;
@@ -1327,6 +1334,7 @@ expire_upcalls(void *unused)
 static int
 ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	mifi_t mifi, iif;
 	struct mif6 *mifp;
@@ -1505,6 +1513,7 @@ ip6_mdq(struct mbuf *m, struct ifnet *ifp, struct mf6c *rt)
 static void
 phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *mb_copy;
 	struct ifnet *ifp = mifp->m6_ifp;
 	int error = 0;
@@ -1692,6 +1701,7 @@ register_send(struct ip6_hdr *ip6, struct mif6 *mif, struct mbuf *m)
 int
 pim6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET6(curvnet);
 	struct pim *pim; /* pointer to a pim struct */
 	struct ip6_hdr *ip6;
 	int pimlen;

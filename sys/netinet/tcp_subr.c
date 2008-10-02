@@ -119,6 +119,7 @@ int	tcp_v6mssdflt = TCP6_MSS;
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(TD_TO_VNET(curthread));
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -140,6 +141,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLTYPE_INT|CTLFLAG_RW,
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET6(TD_TO_VNET(curthread));
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -167,12 +169,13 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
  * checking. This setting prevents us from sending too small packets.
  */
 int	tcp_minmss = TCP_MINMSS;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
-    &tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, minmss,
+    CTLFLAG_RW, tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
 
 int	tcp_do_rfc1323 = 1;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
-    &tcp_do_rfc1323, 0, "Enable rfc1323 (high performance TCP) extensions");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
+    CTLFLAG_RW, tcp_do_rfc1323, 0,
+    "Enable rfc1323 (high performance TCP) extensions");
 
 static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
@@ -183,21 +186,21 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 static int	do_tcpdrain = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW,
-    &do_tcpdrain, 0,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
-    &tcbinfo.ipi_count, 0, "Number of active PCBs");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, pcbcount,
+    CTLFLAG_RD, tcbinfo.ipi_count, 0, "Number of active PCBs");
 
 static int	icmp_may_rst = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
-    &icmp_may_rst, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, icmp_may_rst,
+    CTLFLAG_RW, icmp_may_rst, 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
 static int	tcp_isn_reseed_interval = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
-    &tcp_isn_reseed_interval, 0, "Seconds between reseeding of ISN secret");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, isn_reseed_interval,
+    CTLFLAG_RW, tcp_isn_reseed_interval, 0,
+    "Seconds between reseeding of ISN secret");
 
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
@@ -208,8 +211,9 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
     "TCP inflight data limiting");
 
 static int	tcp_inflight_enable = 1;
-SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, enable, CTLFLAG_RW,
-    &tcp_inflight_enable, 0, "Enable automatic TCP inflight data limiting");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, enable,
+    CTLFLAG_RW, tcp_inflight_enable, 0,
+    "Enable automatic TCP inflight data limiting");
 
 static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
@@ -221,16 +225,17 @@ SYSCTL_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh, CTLTYPE_INT|CTLFLAG_RW,
     "RTT threshold below which inflight will deactivate itself");
 
 static int	tcp_inflight_min = 6144;
-SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
-    &tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, min,
+    CTLFLAG_RW, tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
 
 static int	tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, max, CTLFLAG_RW,
-    &tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, max,
+    CTLFLAG_RW, tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
 
 static int	tcp_inflight_stab = 20;
-SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
-    &tcp_inflight_stab, 0, "Inflight Algorithm Stabilization 20 = 2 packets");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, stab,
+    CTLFLAG_RW, tcp_inflight_stab, 0,
+    "Inflight Algorithm Stabilization 20 = 2 packets");
 
 uma_zone_t sack_hole_zone;
 
@@ -291,6 +296,7 @@ tcp_inpcb_init(void *mem, int size, int flags)
 void
 tcp_init(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	int hashsize = TCBHASHSIZE;
 	tcp_delacktime = TCPTV_DELACK;
@@ -450,6 +456,7 @@ void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
     tcp_seq ack, tcp_seq seq, int flags)
 {
+	INIT_VNET_INET(curvnet);
 	int tlen;
 	int win = 0;
 	struct ip *ip;
@@ -620,6 +627,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 struct tcpcb *
 tcp_newtcpcb(struct inpcb *inp)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct tcpcb_mem *tm;
 	struct tcpcb *tp;
 #ifdef INET6
@@ -683,6 +691,7 @@ tcp_newtcpcb(struct inpcb *inp)
 struct tcpcb *
 tcp_drop(struct tcpcb *tp, int errno)
 {
+	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	struct socket *so = tp->t_inpcb->inp_socket;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
@@ -703,6 +712,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 void
 tcp_discardcb(struct tcpcb *tp)
 {
+	INIT_VNET_INET(tp->t_vnet);
 	struct tseg_qent *q;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
@@ -804,6 +814,7 @@ tcp_discardcb(struct tcpcb *tp)
 struct tcpcb *
 tcp_close(struct tcpcb *tp)
 {
+	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so;
 
@@ -835,8 +846,15 @@ tcp_close(struct tcpcb *tp)
 void
 tcp_drain(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
-	if (do_tcpdrain) {
+	if (!do_tcpdrain)
+		return;
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
 		struct tseg_qent *te;
@@ -868,7 +886,9 @@ tcp_drain(void)
 			INP_WUNLOCK(inpb);
 		}
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 }
 
 /*
@@ -926,6 +946,7 @@ tcp_notify(struct inpcb *inp, int error)
 static int
 tcp_pcblist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, i, m, n, pcb_count;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
@@ -1062,6 +1083,7 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 static int
 tcp_getcred(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
@@ -1104,6 +1126,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, getcred,
 static int
 tcp6_getcred(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
@@ -1167,6 +1191,7 @@ SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
 void
 tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip *ip = vip;
 	struct tcphdr *th;
 	struct in_addr faddr;
@@ -1286,6 +1311,7 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 void
 tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
+	INIT_VNET_INET(curvnet);
 	struct tcphdr th;
 	struct inpcb *(*notify)(struct inpcb *, int) = tcp_notify;
 	struct ip6_hdr *ip6;
@@ -1414,6 +1440,7 @@ static MD5_CTX isn_ctx;
 tcp_seq
 tcp_new_isn(struct tcpcb *tp)
 {
+	INIT_VNET_INET(tp->t_vnet);
 	u_int32_t md5_buffer[4];
 	tcp_seq new_isn;
 
@@ -1464,15 +1491,24 @@ tcp_new_isn(struct tcpcb *tp)
 static void
 tcp_isn_tick(void *xtp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	u_int32_t projected_offset;
 
 	ISN_LOCK();
-	projected_offset = V_isn_offset_old + ISN_BYTES_PER_SECOND / 100;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter); /* XXX appease INVARIANTS */
+		INIT_VNET_INET(curvnet);
+		projected_offset =
+		    V_isn_offset_old + ISN_BYTES_PER_SECOND / 100;
 
-	if (SEQ_GT(projected_offset, V_isn_offset))
-		V_isn_offset = projected_offset;
+		if (SEQ_GT(projected_offset, V_isn_offset))
+			V_isn_offset = projected_offset;
 
-	V_isn_offset_old = V_isn_offset;
+		V_isn_offset_old = V_isn_offset;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 	callout_reset(&isn_callout, hz/100, tcp_isn_tick, NULL);
 	ISN_UNLOCK();
 }
@@ -1485,6 +1521,9 @@ tcp_isn_tick(void *xtp)
 struct inpcb *
 tcp_drop_syn_sent(struct inpcb *inp, int errno)
 {
+#ifdef INVARIANTS
+	INIT_VNET_INET(inp->inp_vnet);
+#endif
 	struct tcpcb *tp;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
@@ -1514,6 +1553,7 @@ tcp_drop_syn_sent(struct inpcb *inp, int errno)
 struct inpcb *
 tcp_mtudisc(struct inpcb *inp, int errno)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct tcpcb *tp;
 	struct socket *so;
 
@@ -1720,6 +1760,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 void
 tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
 {
+	INIT_VNET_INET(tp->t_vnet);
 	u_long bw;
 	u_long bwnd;
 	int save_ticks;
@@ -2008,6 +2049,10 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 static int
 sysctl_drop(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
+#ifdef INET6
+	INIT_VNET_INET6(curvnet);
+#endif
 	/* addrs[0] is a foreign socket, addrs[1] is a local one. */
 	struct sockaddr_storage addrs[2];
 	struct inpcb *inp;

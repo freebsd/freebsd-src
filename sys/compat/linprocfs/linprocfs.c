@@ -1001,6 +1001,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 static int
 linprocfs_donetdev(PFS_FILL_ARGS)
 {
+	INIT_VNET_NET(TD_TO_VNET(curthread));
 	char ifname[16]; /* XXX LINUX_IFNAMSIZ */
 	struct ifnet *ifp;
 

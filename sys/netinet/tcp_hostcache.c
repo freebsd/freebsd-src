@@ -158,26 +158,32 @@ static void tcp_hc_purge(void *);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, hostcache, CTLFLAG_RW, 0,
     "TCP Host cache");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
-    &tcp_hostcache.cache_limit, 0, "Overall entry limit for hostcache");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, cachelimit,
+    CTLFLAG_RDTUN, tcp_hostcache.cache_limit, 0,
+    "Overall entry limit for hostcache");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
-    &tcp_hostcache.hashsize, 0, "Size of TCP hostcache hashtable");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, hashsize,
+    CTLFLAG_RDTUN, tcp_hostcache.hashsize, 0,
+    "Size of TCP hostcache hashtable");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, bucketlimit, CTLFLAG_RDTUN,
-    &tcp_hostcache.bucket_limit, 0, "Per-bucket hash limit for hostcache");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, bucketlimit,
+    CTLFLAG_RDTUN, tcp_hostcache.bucket_limit, 0,
+    "Per-bucket hash limit for hostcache");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_RD,
-    &tcp_hostcache.cache_count, 0, "Current number of entries in hostcache");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, count,
+    CTLFLAG_RD, tcp_hostcache.cache_count, 0,
+    "Current number of entries in hostcache");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_RW,
-    &tcp_hostcache.expire, 0, "Expire time of TCP hostcache entries");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, expire,
+    CTLFLAG_RW, tcp_hostcache.expire, 0,
+    "Expire time of TCP hostcache entries");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_RW,
-     &tcp_hostcache.prune, 0, "Time between purge runs");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, prune,
+     CTLFLAG_RW, tcp_hostcache.prune, 0, "Time between purge runs");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_RW,
-    &tcp_hostcache.purgeall, 0, "Expire all entires on next purge run");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_hostcache, OID_AUTO, purge,
+    CTLFLAG_RW, tcp_hostcache.purgeall, 0,
+    "Expire all entires on next purge run");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, list,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_SKIP, 0, 0,
@@ -204,6 +210,7 @@ static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
 void
 tcp_hc_init(void)
 {
+	INIT_VNET_INET(curvnet);
 	int i;
 
 	/*
@@ -271,6 +278,7 @@ tcp_hc_init(void)
 static struct hc_metrics *
 tcp_hc_lookup(struct in_conninfo *inc)
 {
+	INIT_VNET_INET(curvnet);
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -326,6 +334,7 @@ tcp_hc_lookup(struct in_conninfo *inc)
 static struct hc_metrics *
 tcp_hc_insert(struct in_conninfo *inc)
 {
+	INIT_VNET_INET(curvnet);
 	int hash;
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry;
@@ -416,6 +425,7 @@ tcp_hc_insert(struct in_conninfo *inc)
 void
 tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 {
+	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	/*
@@ -456,6 +466,7 @@ tcp_hc_get(struct in_conninfo *inc, struct hc_metrics_lite *hc_metrics_lite)
 u_long
 tcp_hc_getmtu(struct in_conninfo *inc)
 {
+	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 	u_long mtu;
 
@@ -478,6 +489,7 @@ tcp_hc_getmtu(struct in_conninfo *inc)
 void
 tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
 {
+	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	/*
@@ -517,6 +529,7 @@ tcp_hc_updatemtu(struct in_conninfo *inc, u_long mtu)
 void
 tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 {
+	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry;
 
 	hc_entry = tcp_hc_lookup(inc);
@@ -597,6 +610,7 @@ tcp_hc_update(struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 static int
 sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int bufsize;
 	int linesize = 128;
 	char *p, *buf;
@@ -659,6 +673,7 @@ sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS)
 static void
 tcp_hc_purge(void *arg)
 {
+	INIT_VNET_INET(curvnet);
 	struct hc_metrics *hc_entry, *hc_next;
 	int all = (intptr_t)arg;
 	int i;

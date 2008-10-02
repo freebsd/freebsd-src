@@ -43,6 +43,7 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/random.h>
+#include <sys/vimage.h>
 
 #include <net/if.h>
 #include <net/if_clone.h>
@@ -224,6 +225,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	else
 		append_unit = 0;
 
+	CURVNET_SET(TD_TO_VNET(curthread));
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
@@ -242,6 +244,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	}
 
 	if_clone_create(name, namelen, NULL);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -253,6 +256,7 @@ tun_destroy(struct tun_softc *tp)
 	KASSERT((tp->tun_flags & TUN_OPEN) == 0,
 	    ("tununits is out of sync - unit %d", TUN2IFP(tp)->if_dunit));
 
+	CURVNET_SET(TUN2IFP(tp)->if_vnet);
 	dev = tp->tun_dev;
 	bpfdetach(TUN2IFP(tp));
 	if_detach(TUN2IFP(tp));
@@ -261,6 +265,7 @@ tun_destroy(struct tun_softc *tp)
 	knlist_destroy(&tp->tun_rsel.si_note);
 	mtx_destroy(&tp->tun_mtx);
 	free(tp, M_TUN);
+	CURVNET_RESTORE();
 }
 
 static void
@@ -447,6 +452,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	/*
 	 * junk all pending output
 	 */
+	CURVNET_SET(ifp->if_vnet);
 	s = splimp();
 	IFQ_PURGE(&ifp->if_snd);
 	splx(s);
@@ -476,6 +482,7 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		splx(s);
 	}
+	CURVNET_RESTORE();
 
 	funsetown(&tp->tun_sigio);
 	selwakeuppri(&tp->tun_rsel, PZERO + 1);
@@ -924,7 +931,9 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
+	CURVNET_SET(ifp->if_vnet);
 	netisr_dispatch(isr, m);
+	CURVNET_RESTORE();
 	return (0);
 }
 

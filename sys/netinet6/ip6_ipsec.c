@@ -103,6 +103,8 @@ int
 ip6_ipsec_fwd(struct mbuf *m)
 {
 #ifdef IPSEC
+	INIT_VNET_INET6(curvnet);
+	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -148,6 +150,7 @@ int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 {
 #ifdef IPSEC
+	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;

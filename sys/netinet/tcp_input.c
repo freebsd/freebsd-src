@@ -100,60 +100,63 @@ __FBSDID("$FreeBSD$");
 static const int tcprexmtthresh = 3;
 
 struct	tcpstat tcpstat;
-SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
-    &tcpstat , tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
+SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
+    CTLFLAG_RW, tcpstat , tcpstat,
+    "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
 int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
 static int blackhole = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
-    &blackhole, 0, "Do not send RST on segments to closed ports");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
+    blackhole, 0, "Do not send RST on segments to closed ports");
 
 int tcp_delack_enabled = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
-    &tcp_delack_enabled, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, delayed_ack,
+    CTLFLAG_RW, tcp_delack_enabled, 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
 static int drop_synfin = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
-    &drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, drop_synfin,
+    CTLFLAG_RW, drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 
 static int tcp_do_rfc3042 = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
-    &tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
+    tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
 static int tcp_do_rfc3390 = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
-    &tcp_do_rfc3390, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
+    tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
 int	tcp_do_ecn = 0;
 int	tcp_ecn_maxretries = 1;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
-SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
-    &tcp_do_ecn, 0, "TCP ECN support");
-SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
-    &tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
+    CTLFLAG_RW, tcp_do_ecn, 0, "TCP ECN support");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, maxretries,
+    CTLFLAG_RW, tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
 
 static int tcp_insecure_rst = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
-    &tcp_insecure_rst, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, insecure_rst,
+    CTLFLAG_RW, tcp_insecure_rst, 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
 int	tcp_do_autorcvbuf = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
-    &tcp_do_autorcvbuf, 0, "Enable automatic receive buffer sizing");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_auto,
+    CTLFLAG_RW, tcp_do_autorcvbuf, 0,
+    "Enable automatic receive buffer sizing");
 
 int	tcp_autorcvbuf_inc = 16*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
-    &tcp_autorcvbuf_inc, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_inc,
+    CTLFLAG_RW, tcp_autorcvbuf_inc, 0,
     "Incrementor step size of automatic receive buffer");
 
 int	tcp_autorcvbuf_max = 256*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
-    &tcp_autorcvbuf_max, 0, "Max size of automatic receive buffer");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_max,
+    CTLFLAG_RW, tcp_autorcvbuf_max, 0,
+    "Max size of automatic receive buffer");
 
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
@@ -225,6 +228,7 @@ do { \
 int
 tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct in6_ifaddr *ia6;
 
@@ -252,6 +256,13 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 void
 tcp_input(struct mbuf *m, int off0)
 {
+	INIT_VNET_INET(curvnet);
+#ifdef INET6
+	INIT_VNET_INET6(curvnet);
+#endif
+#ifdef IPSEC
+	INIT_VNET_IPSEC(curvnet);
+#endif
 	struct tcphdr *th;
 	struct ip *ip = NULL;
 	struct ipovly *ipov;
@@ -921,6 +932,7 @@ static void
 tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
     struct tcpcb *tp, int drop_hdrlen, int tlen, uint8_t iptos)
 {
+	INIT_VNET_INET(tp->t_vnet);
 	int thflags, acked, ourfinisacked, needoutput = 0;
 	int headlocked = 1;
 	int rstreason, todrop, win;
@@ -2585,6 +2597,7 @@ drop:
 static void
 tcp_dooptions(struct tcpopt *to, u_char *cp, int cnt, int flags)
 {
+	INIT_VNET_INET(curvnet);
 	int opt, optlen;
 
 	to->to_flags = 0;
@@ -2712,6 +2725,7 @@ tcp_pulloutofband(struct socket *so, struct tcphdr *th, struct mbuf *m,
 static void
 tcp_xmit_timer(struct tcpcb *tp, int rtt)
 {
+	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	int delta;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -2817,6 +2831,7 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 void
 tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
 {
+	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	int mss;
 	u_long maxmtu;
 	struct inpcb *inp = tp->t_inpcb;
@@ -3100,6 +3115,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 int
 tcp_mssopt(struct in_conninfo *inc)
 {
+	INIT_VNET_INET(curvnet);
 	int mss = 0;
 	u_long maxmtu = 0;
 	u_long thcmtu = 0;
