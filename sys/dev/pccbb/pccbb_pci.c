@@ -229,6 +229,7 @@ cbb_pci_probe(device_t brdev)
 {
 	const char *name;
 	uint32_t progif;
+	uint32_t baseclass;
 	uint32_t subclass;
 
 	/*
@@ -245,9 +246,11 @@ cbb_pci_probe(device_t brdev)
 	 * to date have progif 0 (the Yenta spec, and successors mandate
 	 * this).
 	 */
+	baseclass = pci_get_class(brdev);
 	subclass = pci_get_subclass(brdev);
 	progif = pci_get_progif(brdev);
-	if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0) {
+	if (baseclass == PCIC_BRIDGE &&
+	    subclass == PCIS_BRIDGE_CARDBUS && progif == 0) {
 		device_set_desc(brdev, "PCI-CardBus Bridge");
 		return (BUS_PROBE_DEFAULT);
 	}
