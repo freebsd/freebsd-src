@@ -339,6 +339,7 @@ extern struct llinfo_nd6 llinfo_nd6;
 extern struct nd_drhead nd_defrouter;
 extern struct nd_prhead nd_prefix;
 extern int nd6_debug;
+extern int nd6_onlink_ns_rfc4861;
 
 #define nd6log(x)	do { if (V_nd6_debug) log x; } while (/*CONSTCOND*/ 0)
 
