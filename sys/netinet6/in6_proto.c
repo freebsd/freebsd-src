@@ -403,6 +403,7 @@ time_t	ip6_log_time = (time_t)0L;
 #ifdef IPSTEALTH
 int	ip6stealth = 0;
 #endif
+int	nd6_onlink_ns_rfc4861 = 0; /* allow 'on-link' nd6 NS (as in RFC 4861) */
 
 /* icmp6 */
 /*
@@ -576,3 +577,6 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXNUDHINT,
 	nd6_maxnudhint, CTLFLAG_RW,	&nd6_maxnudhint, 0, "");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_DEBUG,
 	nd6_debug, CTLFLAG_RW,	&nd6_debug,		0, "");
+SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_ONLINKNSRFC4861,
+	nd6_onlink_ns_rfc4861, CTLFLAG_RW, &nd6_onlink_ns_rfc4861, 0,
+	"Accept 'on-link' nd6 NS in compliance with RFC 4861.");
