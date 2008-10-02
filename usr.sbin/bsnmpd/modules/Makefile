@@ -12,8 +12,11 @@ SUBDIR=	${_snmp_atm} \
 	snmp_bridge \
 	snmp_hostres \
 	snmp_mibII \
-	snmp_netgraph \
 	snmp_pf
+
+.if ${MK_NETGRAPH_SUPPORT} != "no"
+SUBDIR+=snmp_netgraph
+.endif
 
 INCS=	snmpmod.h
 INCSDIR= ${INCLUDEDIR}/bsnmp
