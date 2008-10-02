@@ -49,8 +49,8 @@
 struct inpcbpolicy;
 
 /*
- * Struct inpcb is the ommon structure pcb for the Internet Protocol
- * implementation.
+ * struct inpcb is the common protocol control block structure used in most
+ * IP transport protocols.
  *
  * Pointers to local and foreign host table entries, local and foreign socket
  * numbers, and pointers up (to a socket structure) and down (to a
