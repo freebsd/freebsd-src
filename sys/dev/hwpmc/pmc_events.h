@@ -138,8 +138,8 @@ __PMC_EV(P6, DCU_LINES_IN,		p6-dcu-lines-in)		\
 __PMC_EV(P6, DCU_M_LINES_IN,		p6-dcu-m-lines-in)		\
 __PMC_EV(P6, DCU_M_LINES_OUT,		p6-dcu-m-lines-out)		\
 __PMC_EV(P6, DCU_MISS_OUTSTANDING,	p6-dcu-miss-outstanding)	\
-__PMC_EV(P6, IFU_FETCH,			p6-ifu-fetch)			\
-__PMC_EV(P6, IFU_FETCH_MISS,		p6-ifu-fetch-miss)		\
+__PMC_EV(P6, IFU_FETCH,			p6-ifu-ifetch)			\
+__PMC_EV(P6, IFU_FETCH_MISS,		p6-ifu-ifetch-miss)		\
 __PMC_EV(P6, ITLB_MISS,			p6-itlb-miss)			\
 __PMC_EV(P6, IFU_MEM_STALL,		p6-ifu-mem-stall)		\
 __PMC_EV(P6, ILD_STALL,			p6-ild-stall)			\
