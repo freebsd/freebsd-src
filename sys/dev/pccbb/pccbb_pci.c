@@ -252,7 +252,7 @@ cbb_pci_probe(device_t brdev)
 	if (baseclass == PCIC_BRIDGE &&
 	    subclass == PCIS_BRIDGE_CARDBUS && progif == 0) {
 		device_set_desc(brdev, "PCI-CardBus Bridge");
-		return (BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_GENERIC);
 	}
 	return (ENXIO);
 }
