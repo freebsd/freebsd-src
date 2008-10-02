@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 16, 2008
+.Dd October 2, 2008
 .Os
 .Dt PMC.K7 3
 .Sh NAME
@@ -141,66 +141,89 @@ qualifiers were specified, the default is to enable both.
 The event specifiers supported on AMD K7 PMCs are:
 .Bl -tag -width indent
 .It Li k7-dc-accesses
+.Pq Event 40H
 Count data cache accesses.
 .It Li k7-dc-misses
+.Pq Event 41H
 Count data cache misses.
 .It Li k7-dc-refills-from-l2 Op Li ,unitmask= Ns Ar mask
+.Pq Event 42H
 Count data cache refills from L2 cache.
 This event may be further qualified using the
 .Dq Li unitmask
 qualifier.
 .It Li k7-dc-refills-from-system Op Li ,unitmask= Ns Ar mask
+.Pq Event 43H
 Count data cache refills from system memory.
 This event may be further qualified using the
 .Dq Li unitmask
 qualifier.
 .It Li k7-dc-writebacks Op Li ,unitmask= Ns Ar mask
+.Pq Event 44H
 Count data cache writebacks.
 This event may be further qualified using the
 .Dq Li unitmask
 qualifier.
-.It Li k7-l1-dtlb-miss-and-l2-dtlb-hits
-Count L1 DTLB misses and L2 DTLB hits.
-.It Li k7-l1-and-l2-dtlb-misses
-Count L1 and L2 DTLB misses.
-.It Li k7-misaligned-references
-Count misaligned data references.
+.It Li k7-hardware-interrupts
+.Pq Event CFH
+Count the number of taken hardware interrupts.
 .It Li k7-ic-fetches
+.Pq Event 80H
 Count instruction cache fetches.
 .It Li k7-ic-misses
+.Pq Event 81H
 Count instruction cache misses.
-.It Li k7-l1-itlb-misses
-Count L1 ITLB misses that are L2 ITLB hits.
-.It Li k7-l1-l2-itlb-misses
-Count L1 (and L2) ITLB misses.
-.It Li k7-retired-instructions
-Count all retired instructions.
-.It Li k7-retired-ops
-Count retired ops.
-.It Li k7-retired-branches
-Count all retired branches (conditional, unconditional, exceptions
-and interrupts).
-.It Li k7-retired-branches-mispredicted
-Count all misprediced retired branches.
-.It Li k7-retired-taken-branches
-Count retired taken branches.
-.It Li k7-retired-taken-branches-mispredicted
-Count mispredicted taken branches that were retired.
-.It Li k7-retired-far-control-transfers
-Count retired far control transfers.
-.It Li k7-retired-resync-branches
-Count retired resync branches (non control transfer branches).
 .It Li k7-interrupts-masked-cycles
+.Pq Event CDH
 Count the number of cycles when the processor's
 .Va IF
 flag was zero.
 .It Li k7-interrupts-masked-while-pending-cycles
+.Pq Event CEH
 Count the number of cycles interrupts were masked while pending due
 to the processor's
 .Va IF
 flag being zero.
-.It Li k7-hardware-interrupts
-Count the number of taken hardware interrupts.
+.It Li k7-l1-and-l2-dtlb-misses
+.Pq Event 46H
+Count L1 and L2 DTLB misses.
+.It Li k7-l1-dtlb-miss-and-l2-dtlb-hits
+.Pq Event 45H
+Count L1 DTLB misses and L2 DTLB hits.
+.It Li k7-l1-itlb-misses
+.Pq Event 84H
+Count L1 ITLB misses that are L2 ITLB hits.
+.It Li k7-l1-l2-itlb-misses
+.Pq Event 85H
+Count L1 (and L2) ITLB misses.
+.It Li k7-misaligned-references
+.Pq Event 47H
+Count misaligned data references.
+.It Li k7-retired-branches
+.Pq Event C2H
+Count all retired branches (conditional, unconditional, exceptions
+and interrupts).
+.It Li k7-retired-branches-mispredicted
+.Pq Event C3H
+Count all misprediced retired branches.
+.It Li k7-retired-far-control-transfers
+.Pq Event C6H
+Count retired far control transfers.
+.It Li k7-retired-instructions
+.Pq Event C0H
+Count all retired instructions.
+.It Li k7-retired-ops
+.Pq Event C1H
+Count retired ops.
+.It Li k7-retired-resync-branches
+.Pq Event C7H
+Count retired resync branches (non control transfer branches).
+.It Li k7-retired-taken-branches
+.Pq Event C4H
+Count retired taken branches.
+.It Li k7-retired-taken-branches-mispredicted
+.Pq Event C5H
+Count mispredicted taken branches that were retired.
 .El
 .Ss Event Name Aliases
 The following table shows the mapping between the PMC-independent
