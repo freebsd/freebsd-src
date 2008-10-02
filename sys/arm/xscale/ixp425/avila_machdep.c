@@ -480,6 +480,11 @@ initarm(void *arg, void *arg2)
 	init_param1();
 	init_param2(physmem);
 	kdb_init();
+
+	/* use static kernel environment if so configured */
+	if (envmode == 1)
+		kern_envp = static_env;
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
