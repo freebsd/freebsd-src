@@ -240,11 +240,6 @@ gv_write_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 	uint8_t d_hdr[GV_HDR_LEN];
 	int off, ret;
 
-#define GV_SET32BE(field)					\
-	do {							\
-		*((uint32_t *)&d_hdr[off]) = htobe32(field);	\
-		off += 4;					\
-	} while (0)
 #define GV_SET64BE(field)					\
 	do {							\
 		*((uint64_t *)&d_hdr[off]) = htobe64(field);	\
