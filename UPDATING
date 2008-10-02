@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20081002:	p5	FreeBSD-SA-08:10.nd6
+	Default to ignoring potentially evil IPv6 Neighbor Solicitation
+	messages.
+
 20080903:	p4	FreeBSD-SA-08:07.amd64, FreeBSD-SA-08:08.nmount,
 			FreeBSD-SA-08:09.icmp6
 	Fix amd64 local privilege escalation. [08:07]
