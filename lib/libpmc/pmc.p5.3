@@ -118,38 +118,38 @@ The number of matches on the DR2 breakpoint register.
 .Pq Event 26H
 The number of matches on the DR3 breakpoint register.
 .It Li p5-btb-false-entries
-.Pq Event 3AH, Tn Pentium MMX
+.Pq Event 3AH , Tn Pentium MMX
 The number of false entries in the BTB.
 This event is only allocated on counter 0.
 .It Li p5-btb-hits
 .Pq Event 13H
 The number of branches executed that hit in the branch table buffer.
 .It Li p5-btb-miss-prediction-on-not-taken-branch
-.Pq Event 3AH, Tn Pentium MMX
+.Pq Event 3AH , Tn Pentium MMX
 The number of times the BTB predicted a not-taken branch as taken.
 This event is only allocated on counter 1.
 .It Li p5-bus-cycle-duration
 .Pq Event 18H
 The number of cycles while a bus cycle was in progress.
 .It Li p5-bus-ownership-latency
-.Pq Event 2AH, Tn Pentium MMX
+.Pq Event 2AH , Tn Pentium MMX
 The time from bus ownership being requested to ownership being granted.
 This event is only allocated on counter 0.
 .It Li p5-bus-ownership-transfers
-.Pq Event 2AH, Tn Pentium MMX
+.Pq Event 2AH , Tn Pentium MMX
 The number of bus ownership transfers.
 This event is only allocated on counter 1.
 .It Li p5-bus-utilization-due-to-processor-activity
-.Pq Event 2EH, Tn Pentium MMX
+.Pq Event 2EH , Tn Pentium MMX
 The number of clocks the bus is busy due to the processor's own
 activity.
 This event is only allocated on counter 0.
 .It Li p5-cache-line-sharing
-.Pq Event 2CH, Tn Pentium MMX
+.Pq Event 2CH , Tn Pentium MMX
 The number of shared data lines in L1 cache.
 This event is only allocated on counter 1.
 .It Li p5-cache-m-state-line-sharing
-.Pq Event 2CH, Tn Pentium MMX
+.Pq Event 2CH , Tn Pentium MMX
 The number of hits to an M- state line due to a memory access by
 another processor.
 This event is only allocated on counter 0.
@@ -165,12 +165,12 @@ The number of instruction reads to both cacheable and uncacheable regions.
 The number of instruction reads that miss the instruction TLB.
 Both cacheable and uncacheable unreads are counted.
 .It Li p5-d1-starvation-and-fifo-is-empty
-.Pq Event 33H, Tn Pentium MMX
+.Pq Event 33H , Tn Pentium MMX
 The number of times the D1 stage cannot issue any instructions because
 the FIFO was empty.
 This event is only allocated on counter 0.
 .It Li p5-d1-starvation-and-only-one-instruction-in-fifo
-.Pq Event 33H, Tn Pentium MMX
+.Pq Event 33H , Tn Pentium MMX
 The number of times the D1 stage could issue only one instruction
 because the FIFO had one instruction ready.
 This event is only allocated on counter 1.
@@ -179,7 +179,7 @@ This event is only allocated on counter 1.
 The number of data cache lines that are written back, including
 those caused by internal and external snoops.
 .It Li p5-data-cache-tlb-miss-stall-duration
-.Pq Event 30H, Tn Pentium MMX
+.Pq Event 30H , Tn Pentium MMX
 The number of clocks the pipeline is stalled due to a data cache
 TLB miss.
 This event is only allocated on counter 1.
@@ -220,7 +220,7 @@ The number of memory write accesses that miss the data cache, counting
 both cacheable and uncacheable accesses.
 I/O accesses are not counted.
 .It Li p5-emms-instructions-executed
-.Pq Event 2DH, Tn Pentium MMX
+.Pq Event 2DH , Tn Pentium MMX
 The number of EMMS instructions executed.
 This event is only allocated on counter 0.
 .It Li p5-external-data-cache-snoop-hits
@@ -232,7 +232,7 @@ or the data line fill buffer, or one of the write back buffers.
 The number of external snoop requests accepted, including snoops that
 hit in the code cache, the data cache and that hit in neither.
 .It Li p5-floating-point-stalls-duration
-.Pq Event 32H, Tn Pentium MMX
+.Pq Event 32H , Tn Pentium MMX
 The number of cycles the pipeline is stalled due to a floating point
 freeze.
 This event is only allocated on counter 0.
@@ -245,7 +245,7 @@ Instructions generating divide-by-zero, negative square root, special
 operand and stack exceptions are not counted.
 Integer multiply instructions that use the x87 FPU are counted.
 .It Li p5-full-write-buffer-stall-duration-while-executing-mmx-instructions
-.Pq Event 3BH, Tn Pentium MMX
+.Pq Event 3BH , Tn Pentium MMX
 The number of clocks the pipeline has stalled due to full write
 buffers when executing MMX instructions.
 This event is only allocated on counter 0.
@@ -281,46 +281,46 @@ natural boundaries.
 2- and 4-byte accesses are counted as misaligned if they cross a 4
 byte boundary.
 .It Li p5-misaligned-data-memory-reference-on-mmx-instructions
-.Pq Event 36H, Tn Pentium MMX
+.Pq Event 36H , Tn Pentium MMX
 The number of misaligned data memory references when executing MMX
 instructions.
 This event is only allocated on counter 0.
 .It Li p5-mispredicted-or-unpredicted-returns
-.Pq Event 37H, Tn Pentium MMX
+.Pq Event 37H , Tn Pentium MMX
 The number of returns predicted incorrectly or not at all, only
 counting RET instructions.
 This event is only allocated on counter 0.
 .It Li p5-mmx-instruction-data-read-misses
-.Pq Event 31H, Tn Pentium MMX
+.Pq Event 31H , Tn Pentium MMX
 The number of MMX instruction data read misses.
 This event is only allocated on counter 1.
 .It Li p5-mmx-instruction-data-reads
-.Pq Event 31H, Tn Pentium MMX
+.Pq Event 31H , Tn Pentium MMX
 The number of MMX instruction data reads.
 This event is only allocated on counter 0.
 .It Li p5-mmx-instruction-data-write-misses
-.Pq Event 34H, Tn Pentium MMX
+.Pq Event 34H , Tn Pentium MMX
 The number of data write misses caused by MMX instructions.
 This event is only allocated on counter 1.
 .It Li p5-mmx-instruction-data-writes
-.Pq Event 34H, Tn Pentium MMX
+.Pq Event 34H , Tn Pentium MMX
 The number of data writes caused by MMX instructions.
 This event is only allocated on counter 0.
 .It Li p5-mmx-instructions-executed-u-pipe
-.Pq Event 2BH, Tn Pentium MMX
+.Pq Event 2BH , Tn Pentium MMX
 The number of MMX instructions executed in the U pipe.
 This event is only allocated on counter 0.
 .It Li p5-mmx-instructions-executed-v-pipe
-.Pq Event 2BH, Tn Pentium MMX
+.Pq Event 2BH , Tn Pentium MMX
 The number of MMX instructions executed in the V pipe.
 This event is only allocated on counter 1.
 .It Li p5-mmx-multiply-unit-interlock
-.Pq Event 38H, Tn Pentium MMX
+.Pq Event 38H , Tn Pentium MMX
 The number of clocks the pipeline is stalled because the destination
 of a prior MMX multiply is not ready.
 This event is only allocated on counter 0.
 .It Li p5-movd-movq-store-stall-due-to-previous-mmx-operation
-.Pq Event 38H, Tn Pentium MMX
+.Pq Event 38H , Tn Pentium MMX
 The number of clocks a MOVD/MOVQ instruction stalled in the D2 stage
 of the pipeline due to a previous MMX instruction.
 This event is only allocated on counter 1.
@@ -329,7 +329,7 @@ This event is only allocated on counter 1.
 The number of bus cycles for non-cacheable instruction or data reads,
 including cycles caused by TLB misses.
 .It Li p5-number-of-cycles-not-in-halt-state
-.Pq Event 30H, Tn Pentium MMX
+.Pq Event 30H , Tn Pentium MMX
 The number of cycles the processor is not idle due to the HLT
 instruction.
 This event is only allocated on counter 0.
@@ -346,40 +346,40 @@ interrupts, some segment register loads, and BTB misses.
 Prefetch queue flushes due to serializing instructions are not
 counted.
 .It Li p5-pipeline-flushes-due-to-wrong-branch-predictions
-.Pq Event 35H, Tn Pentium MMX
+.Pq Event 35H , Tn Pentium MMX
 The number of pipeline flushes due to wrong branch predictions
 resolved in either the E- or WB- stage of the pipeline.
 This event is only allocated on counter 0.
 .It Li p5-pipeline-flushes-due-to-wrong-branch-predictions-resolved-in-wb-stage
-.Pq Event 35H, Tn Pentium MMX
+.Pq Event 35H , Tn Pentium MMX
 The number of pipeline flushes due to wrong branch predictions
 resolved in the stage of the pipeline.
 This event is only allocated on counter 1.
 .It Li p5-pipeline-stall-for-mmx-instruction-data-memory-reads
-.Pq Event 36H, Tn Pentium MMX
+.Pq Event 36H , Tn Pentium MMX
 The number of clocks during pipeline stalls caused by waiting MMX data
 memory reads.
 This event is only allocated on counter 1.
 .It Li p5-predicted-returns
-.Pq Event 37H, Tn Pentium MMX
+.Pq Event 37H , Tn Pentium MMX
 The number of predicted returns, whether correct or incorrect.
 This counter only counts RET instructions.
 This event is only allocated on counter 1.
 .It Li p5-returns
-.Pq Event 39H, Tn Pentium MMX
+.Pq Event 39H , Tn Pentium MMX
 The number of RET instructions executed.
 This event is only allocated on counter 0.
 .It Li p5-saturating-mmx-instructions-executed
-.Pq Event 2FH, Tn Pentium MMX
+.Pq Event 2FH , Tn Pentium MMX
 The number of saturating MMX instructions executed.
 This event is only allocated on counter 0.
 .It Li p5-saturations-performed
-.Pq Event 2FH, Tn Pentium MMX
+.Pq Event 2FH , Tn Pentium MMX
 The number of saturating MMX instructions executed when at least one
 of its results were actually saturated.
 This event is only allocated on counter 1.
 .It Li p5-stall-on-mmx-instruction-write-to-e-o-m-state-line
-.Pq Event 3BH, Tn Pentium MMX
+.Pq Event 3BH , Tn Pentium MMX
 The number of clocks during stalls on MMX instructions writing to
 E- or M- state cache lines.
 This event is only allocated on counter 1.
@@ -392,11 +392,11 @@ line.
 The number of events that may cause a hit in the BTB, namely either
 taken branches or BTB hits.
 .It Li p5-taken-branches
-.Pq Event 32H, Tn Pentium MMX
+.Pq Event 32H , Tn Pentium MMX
 The number of taken branches.
 This event is only allocated on counter 1.
 .It Li p5-transitions-between-mmx-and-fp-instructions
-.Pq Event 2DH, Tn Pentium MMX
+.Pq Event 2DH , Tn Pentium MMX
 The number of transitions between MMX and floating-point instructions
 and vice-versa.
 This event is only allocated on counter 1.
@@ -414,7 +414,7 @@ buffers being full.
 The number of writes that hit exclusive or modified lines in the data
 cache.
 .It Li p5-writes-to-noncacheable-memory
-.Pq Event 2EH, Tn Pentium MMX
+.Pq Event 2EH , Tn Pentium MMX
 The number of writes to non-cacheable memory, including write cycles
 caused by TLB misses and I/O writes.
 This event is only allocated on counter 1.
