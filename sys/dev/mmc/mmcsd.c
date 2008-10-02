@@ -128,7 +128,7 @@ mmcsd_attach(device_t dev)
 	sc->disk->d_drv1 = sc;
 	sc->disk->d_maxsize = MAXPHYS;		/* Maybe ask bridge? */
 	sc->disk->d_sectorsize = mmc_get_sector_size(dev);
-	sc->disk->d_mediasize = ((off_t)mmc_get_media_size(dev)) *
+	sc->disk->d_mediasize = mmc_get_media_size(dev) *
 	    mmc_get_sector_size(dev);
 	sc->disk->d_unit = device_get_unit(dev);
 	
