@@ -104,12 +104,15 @@ static int	arp_maxtries = 5;
 static int	useloopback = 1; /* use loopback interface for local traffic */
 static int	arp_proxyall = 0;
 
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
-	   &arp_maxtries, 0, "ARP resolution attempts before returning error");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, useloopback, CTLFLAG_RW,
-	   &useloopback, 0, "Use the loopback interface for local traffic");
-SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
-	   &arp_proxyall, 0, "Enable proxy ARP for all suitable requests");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, maxtries,
+	CTLFLAG_RW, arp_maxtries, 0,
+	"ARP resolution attempts before returning error");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, useloopback,
+	CTLFLAG_RW, useloopback, 0,
+	"Use the loopback interface for local traffic");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, proxyall,
+	CTLFLAG_RW, arp_proxyall, 0,
+	"Enable proxy ARP for all suitable requests");
 
 static void	arp_init(void);
 static void	arp_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
@@ -150,6 +153,8 @@ arptimer(void *arg)
 static void
 arp_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct sockaddr *gate;
 	struct llinfo_arp *la;
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
@@ -361,6 +366,7 @@ int
 arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
     struct sockaddr *dst, u_char *desten)
 {
+	INIT_VNET_INET(ifp->if_vnet);
 	struct llinfo_arp *la = NULL;
 	struct rtentry *rt = NULL;
 	struct sockaddr_dl *sdl;
@@ -613,7 +619,8 @@ in_arpinput(struct mbuf *m)
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
-	
+	INIT_VNET_INET(ifp->if_vnet);
+
 	if (ifp->if_bridge)
 		bridged = 1;
 	if (ifp->if_type == IFT_BRIDGE)

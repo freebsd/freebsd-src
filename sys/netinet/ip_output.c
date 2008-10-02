@@ -109,6 +109,8 @@ int
 ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -626,6 +628,7 @@ int
 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
     u_long if_hwassist_flags, int sw_csum)
 {
+	INIT_VNET_INET(curvnet);
 	int error = 0;
 	int hlen = ip->ip_hl << 2;
 	int len = (mtu - hlen) & ~7;	/* size of payload in each fragment */

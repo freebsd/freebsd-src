@@ -743,4 +743,8 @@ void	 in_ifdetach(struct ifnet *);
 #undef __KAME_NETINET_IN_H_INCLUDED_
 #endif
 
+#ifdef _KERNEL
+#include <netinet/vinet.h>
+#endif
+
 #endif /* !_NETINET_IN_H_*/

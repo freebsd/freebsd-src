@@ -93,6 +93,7 @@ struct	route_in6 ip6_forward_rt;
 void
 ip6_forward(struct mbuf *m, int srcrt)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct sockaddr_in6 *dst = NULL;
 	struct rtentry *rt = NULL;
@@ -102,6 +103,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 	u_int32_t inzone, outzone;
 	struct in6_addr src_in6, dst_in6;
 #ifdef IPSEC
+	INIT_VNET_IPSEC(curvnet);
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif

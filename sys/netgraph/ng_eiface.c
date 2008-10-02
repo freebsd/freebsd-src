@@ -333,6 +333,7 @@ ng_eiface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
 static int
 ng_eiface_constructor(node_p node)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	struct ifnet *ifp;
 	priv_p priv;
 	u_char eaddr[6] = {0,0,0,0,0,0};
@@ -545,11 +546,18 @@ ng_eiface_rcvdata(hook_p hook, item_p item)
 static int
 ng_eiface_rmnode(node_p node)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ifnet *const ifp = priv->ifp;
 
+	/*
+	 * the ifnet may be in a different vnet than the netgraph node, 
+	 * hence we have to change the current vnet context here.
+	 */
+	CURVNET_SET_QUIET(ifp->if_vnet);
 	ether_ifdetach(ifp);
 	if_free(ifp);
+	CURVNET_RESTORE();
 	free_unr(V_ng_eiface_unit, priv->unit);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);

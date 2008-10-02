@@ -189,6 +189,8 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
     struct ifnet **ifpp, struct inpcb *inp)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6, *mhip6;
 	struct ifnet *ifp, *origifp;
 	struct mbuf *m = m0;
@@ -2420,6 +2422,8 @@ ip6_freepcbopts(struct ip6_pktopts *pktopt)
 static int
 ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	u_int loop, ifindex;
 	struct ipv6_mreq *mreq;
@@ -2721,6 +2725,7 @@ ip6_setmoptions(int optname, struct ip6_moptions **im6op, struct mbuf *m)
 static int
 ip6_getmoptions(int optname, struct ip6_moptions *im6o, struct mbuf **mp)
 {
+	INIT_VNET_INET6(curvnet);
 	u_int *hlim, *loop, *ifindex;
 
 	*mp = m_get(M_WAIT, MT_HEADER);		/* XXX */
@@ -2850,6 +2855,8 @@ static int
 ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
     struct ucred *cred, int sticky, int cmsg, int uproto)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	int minmtupolicy, preftemp;
 	int error;
 

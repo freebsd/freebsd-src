@@ -71,10 +71,10 @@ int	ipcomp_enable = 0;
 struct	ipcompstat ipcompstat;
 
 SYSCTL_DECL(_net_inet_ipcomp);
-SYSCTL_INT(_net_inet_ipcomp, OID_AUTO,
-	ipcomp_enable,	CTLFLAG_RW,	&ipcomp_enable,	0, "");
-SYSCTL_STRUCT(_net_inet_ipcomp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&ipcompstat,	ipcompstat, "");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipcomp, OID_AUTO,
+	ipcomp_enable,	CTLFLAG_RW,	ipcomp_enable,	0, "");
+SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipcomp, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	ipcompstat,	ipcompstat, "");
 
 static int ipcomp_input_cb(struct cryptop *crp);
 static int ipcomp_output_cb(struct cryptop *crp);
@@ -97,6 +97,7 @@ ipcomp_algorithm_lookup(int alg)
 static int
 ipcomp_init(struct secasvar *sav, struct xformsw *xsp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct comp_algo *tcomp;
 	struct cryptoini cric;
 
@@ -137,6 +138,7 @@ ipcomp_zeroize(struct secasvar *sav)
 static int
 ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
@@ -207,6 +209,7 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ipcomp_input_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct cryptodesc *crd;
 	struct tdb_crypto *tc;
 	int skip, protoff;
@@ -327,6 +330,7 @@ ipcomp_output(
 	int protoff
 )
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 	struct comp_algo *ipcompx;
 	int error, ralen, hlen, maxpacketsize, roff;
@@ -485,6 +489,7 @@ bad:
 static int
 ipcomp_output_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;

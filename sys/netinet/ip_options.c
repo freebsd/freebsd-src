@@ -98,6 +98,7 @@ static void	save_rte(struct mbuf *m, u_char *, struct in_addr);
 int
 ip_dooptions(struct mbuf *m, int pass)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip *ip = mtod(m, struct ip *);
 	u_char *cp;
 	struct in_ifaddr *ia;

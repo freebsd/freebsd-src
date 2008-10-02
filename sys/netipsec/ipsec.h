@@ -433,6 +433,9 @@ extern int ipsec_get_policylen __P((caddr_t));
 extern char *ipsec_dump_policy __P((caddr_t, char *));
 
 extern const char *ipsec_strerror __P((void));
-#endif /* !_KERNEL */
+
+#else
+#include <netipsec/vipsec.h>
+#endif /* ! KERNEL */
 
 #endif /* _NETIPSEC_IPSEC_H_ */

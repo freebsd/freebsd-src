@@ -54,6 +54,7 @@
 struct mbuf *
 m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m;
 	unsigned remain;
 
@@ -156,6 +157,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 caddr_t
 m_pad(struct mbuf *m, int n)
 {
+	INIT_VNET_IPSEC(curvnet);
 	register struct mbuf *m0, *m1;
 	register int len, pad;
 	caddr_t retval;
@@ -228,6 +230,7 @@ m_pad(struct mbuf *m, int n)
 int
 m_striphdr(struct mbuf *m, int skip, int hlen)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m1;
 	int roff;
 

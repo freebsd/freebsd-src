@@ -93,12 +93,12 @@ int	ah_cleartos = 1;		/* clear ip_tos when doing AH calc */
 struct	ahstat ahstat;
 
 SYSCTL_DECL(_net_inet_ah);
-SYSCTL_INT(_net_inet_ah, OID_AUTO,
-	ah_enable,	CTLFLAG_RW,	&ah_enable,	0, "");
-SYSCTL_INT(_net_inet_ah, OID_AUTO,
-	ah_cleartos,	CTLFLAG_RW,	&ah_cleartos,	0, "");
-SYSCTL_STRUCT(_net_inet_ah, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&ahstat,	ahstat, "");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ah, OID_AUTO,
+	ah_enable,	CTLFLAG_RW,	ah_enable,	0, "");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ah, OID_AUTO,
+	ah_cleartos,	CTLFLAG_RW,	ah_cleartos,	0, "");
+SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ah, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	ahstat,	ahstat, "");
 
 static unsigned char ipseczeroes[256];	/* larger than an ip6 extension hdr */
 
@@ -160,6 +160,7 @@ ah_hdrsiz(struct secasvar *sav)
 int
 ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *thash;
 	int keylen;
 
@@ -214,6 +215,7 @@ ah_init0(struct secasvar *sav, struct xformsw *xsp, struct cryptoini *cria)
 static int
 ah_init(struct secasvar *sav, struct xformsw *xsp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct cryptoini cria;
 	int error;
 
@@ -248,6 +250,7 @@ ah_zeroize(struct secasvar *sav)
 static int
 ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m = *m0;
 	unsigned char *ptr;
 	int off, count;
@@ -552,6 +555,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 static int
 ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *ahx;
 	struct tdb_ident *tdbi;
 	struct tdb_crypto *tc;
@@ -721,6 +725,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 ah_input_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	int rplen, error, skip, protoff;
 	unsigned char calc[AH_ALEN_MAX];
 	struct mbuf *m;
@@ -883,6 +888,7 @@ ah_output(
 	int skip,
 	int protoff)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 	struct auth_hash *ahx;
 	struct cryptodesc *crda;
@@ -1109,6 +1115,7 @@ bad:
 static int
 ah_output_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	int skip, protoff, error;
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;

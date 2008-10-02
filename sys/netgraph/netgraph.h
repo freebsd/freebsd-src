@@ -1184,4 +1184,23 @@ typedef void *meta_p;
 #define NGI_GET_META(i,m)
 #define	ng_copy_meta(meta) NULL
 
+/* Hash related definitions */
+#define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
+
+/* Virtualization macros */
+#define	INIT_VNET_NETGRAPH(vnet) \
+	INIT_FROM_VNET(vnet, VNET_MOD_NETGRAPH, \
+	    struct vnet_netgraph, vnet_netgraph)
+
+#define	VNET_NETGRAPH(sym)	VSYM(vnet_netgraph, sym)
+
+/* Symbol translation macros */
+#define	V_nextID		VNET_NETGRAPH(nextID)
+#define	V_ng_ID_hash		VNET_NETGRAPH(ng_ID_hash)
+#define	V_ng_eiface_unit	VNET_NETGRAPH(ng_eiface_unit)
+#define	V_ng_iface_unit		VNET_NETGRAPH(ng_iface_unit)
+#define	V_ng_name_hash		VNET_NETGRAPH(ng_name_hash)
+#define	V_ng_nodelist		VNET_NETGRAPH(ng_nodelist)
+#define	V_ng_wormhole_unit	VNET_NETGRAPH(ng_wormhole_unit)
+
 #endif /* _NETGRAPH_NETGRAPH_H_ */

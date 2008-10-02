@@ -125,6 +125,7 @@ extern struct callout in6_tmpaddrtimer_ch;
 void
 nd6_init(void)
 {
+	INIT_VNET_INET6(curvnet);
 	static int nd6_init_done = 0;
 	int i;
 
@@ -198,6 +199,7 @@ nd6_setmtu(struct ifnet *ifp)
 void
 nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	u_int32_t omaxmtu;
 
 	omaxmtu = ndi->maxmtu;
@@ -307,6 +309,7 @@ nd6_option(union nd_opts *ndopts)
 int
 nd6_options(union nd_opts *ndopts)
 {
+	INIT_VNET_INET6(curvnet);
 	struct nd_opt_hdr *nd_opt;
 	int i = 0;
 
@@ -432,6 +435,9 @@ nd6_llinfo_timer(void *arg)
 		panic("ln->ln_rt->rt_ifp == NULL");
 	ndi = ND_IFINFO(ifp);
 
+	CURVNET_SET(ifp->if_vnet);
+	INIT_VNET_INET6(curvnet);
+
 	/* sanity check */
 	if (rt->rt_llinfo && (struct llinfo_nd6 *)rt->rt_llinfo != ln)
 		panic("rt_llinfo(%p) is not equal to ln(%p)",
@@ -522,6 +528,7 @@ nd6_llinfo_timer(void *arg)
 		}
 		break;
 	}
+	CURVNET_RESTORE();
 }
 
 
@@ -529,8 +536,10 @@ nd6_llinfo_timer(void *arg)
  * ND6 timer routine to expire default route list and prefix list
  */
 void
-nd6_timer(void *ignored_arg)
+nd6_timer(void *arg)
 {
+	CURVNET_SET_QUIET((struct vnet *) arg);
+	INIT_VNET_INET6((struct vnet *) arg);
 	int s;
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
@@ -650,6 +659,7 @@ nd6_timer(void *ignored_arg)
 			pr = pr->ndpr_next;
 	}
 	splx(s);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -724,6 +734,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 void
 nd6_purge(struct ifnet *ifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct llinfo_nd6 *ln, *nln;
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
@@ -811,6 +822,7 @@ nd6_purge(struct ifnet *ifp)
 struct rtentry *
 nd6_lookup(struct in6_addr *addr6, int create, struct ifnet *ifp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	char ip6buf[INET6_ADDRSTRLEN];
@@ -916,6 +928,7 @@ nd6_lookup(struct in6_addr *addr6, int create, struct ifnet *ifp)
 static int
 nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct nd_prefix *pr;
 	struct ifaddr *dstaddr;
 
@@ -1013,6 +1026,7 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 static struct llinfo_nd6 *
 nd6_free(struct rtentry *rt, int gc)
 {
+	INIT_VNET_INET6(curvnet);
 	struct llinfo_nd6 *ln = (struct llinfo_nd6 *)rt->rt_llinfo, *next;
 	struct in6_addr in6 = ((struct sockaddr_in6 *)rt_key(rt))->sin6_addr;
 	struct nd_defrouter *dr;
@@ -1122,6 +1136,7 @@ nd6_free(struct rtentry *rt, int gc)
 void
 nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 {
+	INIT_VNET_INET6(curvnet);
 	struct llinfo_nd6 *ln;
 
 	/*
@@ -1175,6 +1190,8 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 	struct ifnet *ifp = rt->rt_ifp;
 	struct ifaddr *ifa;
+	INIT_VNET_NET(ifp->if_vnet);
+	INIT_VNET_INET6(ifp->if_vnet);
 
 	RT_LOCK_ASSERT(rt);
 
@@ -1415,6 +1432,7 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 int
 nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_drlist *drl = (struct in6_drlist *)data;
 	struct in6_oprlist *oprl = (struct in6_oprlist *)data;
 	struct in6_ndireq *ndi = (struct in6_ndireq *)data;
@@ -1653,6 +1671,7 @@ struct rtentry *
 nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
     int lladdrlen, int type, int code)
 {
+	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt = NULL;
 	struct llinfo_nd6 *ln = NULL;
 	int is_newentry;
@@ -1883,8 +1902,11 @@ fail:
 }
 
 static void
-nd6_slowtimo(void *ignored_arg)
+nd6_slowtimo(void *arg)
 {
+	CURVNET_SET((struct vnet *) arg);
+	INIT_VNET_NET((struct vnet *) arg);
+	INIT_VNET_INET6((struct vnet *) arg);
 	struct nd_ifinfo *nd6if;
 	struct ifnet *ifp;
 
@@ -1907,6 +1929,7 @@ nd6_slowtimo(void *ignored_arg)
 		}
 	}
 	IFNET_RUNLOCK();
+	CURVNET_RESTORE();
 }
 
 #define senderr(e) { error = (e); goto bad;}
@@ -1914,6 +1937,7 @@ int
 nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
     struct sockaddr_in6 *dst, struct rtentry *rt0)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = m0;
 	struct rtentry *rt = rt0;
 	struct sockaddr_in6 *gw6 = NULL;
@@ -2264,12 +2288,13 @@ SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_DRLIST, nd6_drlist,
 	CTLFLAG_RD, nd6_sysctl_drlist, "");
 SYSCTL_NODE(_net_inet6_icmp6, ICMPV6CTL_ND6_PRLIST, nd6_prlist,
 	CTLFLAG_RD, nd6_sysctl_prlist, "");
-SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN, nd6_maxqueuelen,
-	CTLFLAG_RW, &nd6_maxqueuelen, 1, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_icmp6, ICMPV6CTL_ND6_MAXQLEN,
+	nd6_maxqueuelen, CTLFLAG_RW, nd6_maxqueuelen, 1, "");
 
 static int
 nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET6(curvnet);
 	int error;
 	char buf[1024] __aligned(4);
 	struct in6_defrouter *d, *de;
@@ -2310,6 +2335,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 static int
 nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET6(curvnet);
 	int error;
 	char buf[1024] __aligned(4);
 	struct in6_prefix *p, *pe;

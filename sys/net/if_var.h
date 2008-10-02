@@ -713,6 +713,8 @@ int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */
 
+#include <net/vnet.h>
+
 #endif /* _KERNEL */
 
 #endif /* !_NET_IF_VAR_H_ */

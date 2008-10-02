@@ -167,7 +167,6 @@ static struct mtx	ng_typelist_mtx;
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
-#define NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
 static LIST_HEAD(, ng_node) ng_ID_hash[NG_ID_HASH_SIZE];
 static struct mtx	ng_idhash_mtx;
 /* Method to find a node.. used twice so do it here */
@@ -612,6 +611,7 @@ ng_make_node(const char *typename, node_p *nodepp)
 int
 ng_make_node_common(struct ng_type *type, node_p *nodepp)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 
 	/* Require the node type to have been already installed */
@@ -793,6 +793,7 @@ ng_unref_node(node_p node)
 static node_p
 ng_ID2noderef(ng_ID_t ID)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	mtx_lock(&ng_idhash_mtx);
 	NG_IDHASH_FIND(ID, node);
@@ -818,6 +819,7 @@ ng_node2ID(node_p node)
 int
 ng_name_node(node_p node, const char *name)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	int i, hash;
 	node_p node2;
 
@@ -868,6 +870,7 @@ ng_name_node(node_p node, const char *name)
 node_p
 ng_name2noderef(node_p here, const char *name)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	node_p node;
 	ng_ID_t temp;
 	int	hash;
@@ -2430,6 +2433,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 static int
 ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 {
+	INIT_VNET_NETGRAPH(curvnet);
 	int error = 0;
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;

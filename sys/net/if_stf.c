@@ -375,6 +375,7 @@ static struct in6_ifaddr *
 stf_getsrcifa6(ifp)
 	struct ifnet *ifp;
 {
+	INIT_VNET_INET(ifp->if_vnet);
 	struct ifaddr *ia;
 	struct in_ifaddr *ia4;
 	struct sockaddr_in6 *sin6;
@@ -584,6 +585,7 @@ stf_checkaddr4(sc, in, inifp)
 	struct in_addr *in;
 	struct ifnet *inifp;	/* incoming interface */
 {
+	INIT_VNET_INET(curvnet);
 	struct in_ifaddr *ia4;
 
 	/*

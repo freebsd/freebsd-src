@@ -484,43 +484,51 @@ ef_clone(struct ef_link *efl, int ft)
 static int
 ef_load(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
 	struct efnet *efp;
 	struct ef_link *efl = NULL, *efl_temp;
 	int error = 0, d;
 
-	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_type != IFT_ETHER) continue;
-		EFDEBUG("Found interface %s\n", ifp->if_xname);
-		efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
-		    M_IFADDR, M_WAITOK | M_ZERO);
-		if (efl == NULL) {
-			error = ENOMEM;
-			break;
-		}
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_NET(vnet_iter);
+		IFNET_RLOCK();
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			if (ifp->if_type != IFT_ETHER) continue;
+			EFDEBUG("Found interface %s\n", ifp->if_xname);
+			efl = (struct ef_link*)malloc(sizeof(struct ef_link), 
+			    M_IFADDR, M_WAITOK | M_ZERO);
+			if (efl == NULL) {
+				error = ENOMEM;
+				break;
+			}
 
-		efl->el_ifp = ifp;
+			efl->el_ifp = ifp;
 #ifdef ETHER_II
-		error = ef_clone(efl, ETHER_FT_EII);
-		if (error) break;
+			error = ef_clone(efl, ETHER_FT_EII);
+			if (error) break;
 #endif
 #ifdef ETHER_8023
-		error = ef_clone(efl, ETHER_FT_8023);
-		if (error) break;
+			error = ef_clone(efl, ETHER_FT_8023);
+			if (error) break;
 #endif
 #ifdef ETHER_8022
-		error = ef_clone(efl, ETHER_FT_8022);
-		if (error) break;
+			error = ef_clone(efl, ETHER_FT_8022);
+			if (error) break;
 #endif
 #ifdef ETHER_SNAP
-		error = ef_clone(efl, ETHER_FT_SNAP);
-		if (error) break;
+			error = ef_clone(efl, ETHER_FT_SNAP);
+			if (error) break;
 #endif
-		efcount++;
-		SLIST_INSERT_HEAD(&efdev, efl, el_next);
+			efcount++;
+			SLIST_INSERT_HEAD(&efdev, efl, el_next);
+		}
+		IFNET_RUNLOCK();
+		CURVNET_RESTORE();
 	}
-	IFNET_RUNLOCK();
+	VNET_LIST_RUNLOCK();
 	if (error) {
 		if (efl)
 			SLIST_INSERT_HEAD(&efdev, efl, el_next);

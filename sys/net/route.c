@@ -257,6 +257,7 @@ struct rtentry *
 rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		    u_int fibnum)
 {
+	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
 	struct radix_node *rn;
@@ -362,6 +363,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 void
 rtfree(struct rtentry *rt)
 {
+	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
@@ -462,6 +464,7 @@ rtredirect_fib(struct sockaddr *dst,
 	struct sockaddr *src,
 	u_int fibnum)
 {
+	INIT_VNET_NET(curvnet);
 	struct rtentry *rt, *rt0 = NULL;
 	int error = 0;
 	short *stat = NULL;
@@ -768,6 +771,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 int
 rtexpunge(struct rtentry *rt)
 {
+	INIT_VNET_NET(curvnet);
 	struct radix_node *rn;
 	struct radix_node_head *rnh;
 	struct ifaddr *ifa;
@@ -859,6 +863,7 @@ int
 rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 				u_int fibnum)
 {
+	INIT_VNET_NET(curvnet);
 	int error = 0;
 	register struct rtentry *rt;
 	register struct radix_node *rn;
@@ -1289,6 +1294,7 @@ delete_rt:
 int
 rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 {
+	INIT_VNET_NET(curvnet);
 	/* XXX dst may be overwritten, can we move this to below */
 	struct radix_node_head *rnh =
 	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
@@ -1431,6 +1437,7 @@ rt_maskedcopy(struct sockaddr *src, struct sockaddr *dst, struct sockaddr *netma
 static inline  int
 rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 {
+	INIT_VNET_NET(curvnet);
 	struct sockaddr *dst;
 	struct sockaddr *netmask;
 	struct rtentry *rt = NULL;

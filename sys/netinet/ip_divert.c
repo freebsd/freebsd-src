@@ -148,6 +148,7 @@ div_inpcb_fini(void *mem, int size)
 void
 div_init(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	INP_INFO_LOCK_INIT(&V_divcbinfo, "div");
 	LIST_INIT(&V_divcb);
@@ -175,6 +176,8 @@ div_init(void)
 void
 div_input(struct mbuf *m, int off)
 {
+	INIT_VNET_INET(curvnet);
+
 	V_ipstat.ips_noproto++;
 	m_freem(m);
 }
@@ -188,6 +191,7 @@ div_input(struct mbuf *m, int off)
 static void
 divert_packet(struct mbuf *m, int incoming)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip *ip;
 	struct inpcb *inp;
 	struct socket *sa;
@@ -304,6 +308,7 @@ static int
 div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
     struct mbuf *control)
 {
+	INIT_VNET_INET(curvnet);
 	struct m_tag *mtag;
 	struct divert_tag *dt;
 	int error = 0;
@@ -456,6 +461,7 @@ cantsend:
 static int
 div_attach(struct socket *so, int proto, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -487,6 +493,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 static void
 div_detach(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -501,6 +508,7 @@ div_detach(struct socket *so)
 static int
 div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -541,6 +549,8 @@ static int
 div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
+
 	/* Packet must have a header (but that's about it) */
 	if (m->m_len < sizeof (struct ip) &&
 	    (m = m_pullup(m, sizeof (struct ip))) == 0) {

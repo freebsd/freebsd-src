@@ -65,6 +65,7 @@ static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,
 int
 route6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6;
 	struct mbuf *m = *mp;
 	struct ip6_rthdr *rh;
@@ -150,6 +151,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 static int
 ip6_rthdr0(struct mbuf *m, struct ip6_hdr *ip6, struct ip6_rthdr0 *rh0)
 {
+	INIT_VNET_INET6(curvnet);
 	int addrs, index;
 	struct in6_addr *nextaddr, tmpaddr;
 	struct in6_ifaddr *ifa;

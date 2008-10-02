@@ -127,6 +127,7 @@ static void
 udp6_append(struct inpcb *inp, struct mbuf *n, int off,
     struct sockaddr_in6 *fromsa)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct socket *so;
 	struct mbuf *opts;
 
@@ -135,6 +136,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
+		INIT_VNET_IPSEC(inp->inp_vnet);
 		m_freem(n);
 		V_ipsec6stat.in_polvio++;
 		return;
@@ -168,6 +170,8 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 int
 udp6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ip6_hdr *ip6;
 	struct udphdr *uh;
@@ -361,6 +365,7 @@ badunlocked:
 void
 udp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 {
+	INIT_VNET_INET(curvnet);
 	struct udphdr uh;
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
@@ -426,6 +431,8 @@ udp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 static int
 udp6_getcred(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct xucred xuc;
 	struct sockaddr_in6 addrs[2];
 	struct inpcb *inp;
@@ -477,6 +484,8 @@ static int
 udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
     struct mbuf *control, struct thread *td)
 {
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	u_int32_t ulen = m->m_pkthdr.len;
 	u_int32_t plen = sizeof(struct udphdr) + ulen;
 	struct ip6_hdr *ip6;
@@ -692,6 +701,7 @@ releaseopt:
 static void
 udp6_abort(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -721,6 +731,7 @@ udp6_abort(struct socket *so)
 static int
 udp6_attach(struct socket *so, int proto, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -759,6 +770,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 static int
 udp6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -798,6 +810,7 @@ out:
 static void
 udp6_close(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -826,6 +839,7 @@ udp6_close(struct socket *so)
 static int
 udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -878,6 +892,7 @@ out:
 static void
 udp6_detach(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -893,6 +908,7 @@ udp6_detach(struct socket *so)
 static int
 udp6_disconnect(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -931,6 +947,7 @@ static int
 udp6_send(struct socket *so, int flags, struct mbuf *m,
     struct sockaddr *addr, struct mbuf *control, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error = 0;
 

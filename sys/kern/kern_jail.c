@@ -475,6 +475,7 @@ jailed(struct ucred *cred)
 void
 getcredhostname(struct ucred *cred, char *buf, size_t size)
 {
+	INIT_VPROCG(cred->cr_vimage->v_procg);
 
 	if (jailed(cred)) {
 		mtx_lock(&cred->cr_prison->pr_mtx);

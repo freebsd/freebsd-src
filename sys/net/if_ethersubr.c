@@ -393,6 +393,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
 	int error;
 #if defined(INET) || defined(INET6)
+	INIT_VNET_NET(ifp->if_vnet);
 	struct ip_fw *rule = ip_dn_claim_rule(m);
 
 	if (IPFW_LOADED && V_ether_ipfw != 0) {
@@ -424,6 +425,7 @@ int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, int shared)
 {
+	INIT_VNET_IPFW(dst->if_vnet);
 	struct ether_header *eh;
 	struct ether_header save_eh;
 	struct mbuf *m;
@@ -716,6 +718,7 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
 
 #if defined(INET) || defined(INET6)
+	INIT_VNET_NET(ifp->if_vnet);
 	/*
 	 * Allow dummynet and/or ipfw to claim the frame.
 	 * Do not do this for PROMISC frames in case we are re-entered.
@@ -937,8 +940,8 @@ ether_ifdetach(struct ifnet *ifp)
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
 #if defined(INET) || defined(INET6)
-SYSCTL_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
-	    &ether_ipfw,0,"Pass ether pkts through firewall");
+SYSCTL_V_INT(V_NET, vnet_net, _net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
+	     ether_ipfw, 0, "Pass ether pkts through firewall");
 #endif
 
 #if 0

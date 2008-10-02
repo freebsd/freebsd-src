@@ -136,30 +136,37 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0, "IP Ports");
 
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, lowfirst, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_lowfirstauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, lowlast, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_lowlastauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, first, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_firstauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, last, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_lastauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hifirst, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_hifirstauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_PROC(_net_inet_ip_portrange, OID_AUTO, hilast, CTLTYPE_INT|CTLFLAG_RW,
-	   &ipport_hilastauto, 0, &sysctl_net_ipport_check, "I", "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedhigh,
-	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedhigh, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
-	   CTLFLAG_RW|CTLFLAG_SECURE, &ipport_reservedlow, 0, "");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomized, CTLFLAG_RW,
-	   &ipport_randomized, 0, "Enable random port allocation");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomcps, CTLFLAG_RW,
-	   &ipport_randomcps, 0, "Maximum number of random port "
-	   "allocations before switching to a sequental one");
-SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
-	   &ipport_randomtime, 0, "Minimum time to keep sequental port "
-	   "allocation before switching to a random one");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	lowfirst, CTLTYPE_INT|CTLFLAG_RW, ipport_lowfirstauto, 0,
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	lowlast, CTLTYPE_INT|CTLFLAG_RW, ipport_lowlastauto, 0,
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	first, CTLTYPE_INT|CTLFLAG_RW, ipport_firstauto, 0,
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	last, CTLTYPE_INT|CTLFLAG_RW, ipport_lastauto, 0,
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	hifirst, CTLTYPE_INT|CTLFLAG_RW, ipport_hifirstauto, 0,	
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	hilast, CTLTYPE_INT|CTLFLAG_RW, ipport_hilastauto, 0,
+	&sysctl_net_ipport_check, "I", "");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO,
+	reservedhigh, CTLFLAG_RW|CTLFLAG_SECURE, ipport_reservedhigh, 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO, reservedlow,
+	CTLFLAG_RW|CTLFLAG_SECURE, ipport_reservedlow, 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO, randomized,
+	CTLFLAG_RW, ipport_randomized, 0, "Enable random port allocation");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO, randomcps,
+	CTLFLAG_RW, ipport_randomcps, 0, "Maximum number of random port "
+	"allocations before switching to a sequental one");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip_portrange, OID_AUTO, randomtime,
+	CTLFLAG_RW, ipport_randomtime, 0,
+	"Minimum time to keep sequental port "
+	"allocation before switching to a random one");
 
 /*
  * in_pcb.c: manage the Protocol Control Blocks.
@@ -176,6 +183,9 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, randomtime, CTLFLAG_RW,
 int
 in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 {
+#ifdef INET6
+	INIT_VNET_INET6(curvnet);
+#endif
 	struct inpcb *inp;
 	int error;
 
@@ -270,6 +280,7 @@ int
 in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
     u_short *lportp, struct ucred *cred)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct socket *so = inp->inp_socket;
 	unsigned short *lastport;
 	struct sockaddr_in *sin;
@@ -543,6 +554,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
     in_addr_t *laddrp, u_short *lportp, in_addr_t *faddrp, u_short *fportp,
     struct inpcb **oinpp, struct ucred *cred)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
 	struct sockaddr_in sa;
@@ -1223,13 +1235,22 @@ in_pcbsosetlabel(struct socket *so)
 void
 ipport_tick(void *xtp)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
-	if (V_ipport_tcpallocs <= V_ipport_tcplastcount + V_ipport_randomcps) {
-		if (V_ipport_stoprandom > 0)
-			V_ipport_stoprandom--;
-	} else
-		V_ipport_stoprandom = V_ipport_randomtime;
-	V_ipport_tcplastcount = V_ipport_tcpallocs;
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);	/* XXX appease INVARIANTS here */
+		INIT_VNET_INET(vnet_iter);
+		if (V_ipport_tcpallocs <=
+		    V_ipport_tcplastcount + V_ipport_randomcps) {
+			if (V_ipport_stoprandom > 0)
+				V_ipport_stoprandom--;
+		} else
+			V_ipport_stoprandom = V_ipport_randomtime;
+		V_ipport_tcplastcount = V_ipport_tcpallocs;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
 
@@ -1280,6 +1301,7 @@ inp_unlock_assert(struct inpcb *inp)
 void
 inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
 {
+	INIT_VNET_INET(curvnet);
 	struct inpcb *inp;
 
 	INP_INFO_RLOCK(&V_tcbinfo);
