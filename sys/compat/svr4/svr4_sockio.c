@@ -88,6 +88,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 	switch (cmd) {
 	case SVR4_SIOCGIFNUM:
 		{
+			INIT_VNET_NET(curvnet);
 			struct ifnet *ifp;
 			struct ifaddr *ifa;
 			int ifnum = 0;

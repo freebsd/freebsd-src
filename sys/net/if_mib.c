@@ -65,12 +65,15 @@
 SYSCTL_DECL(_net_link_generic);
 SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
 	    "Variables global to all interfaces");
-SYSCTL_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,
-	   &if_index, 0, "Number of configured interfaces");
+
+SYSCTL_V_INT(V_NET, vnet_net, _net_link_generic_system, IFMIB_IFCOUNT,
+	     ifcount, CTLFLAG_RD, if_index, 0,
+	     "Number of configured interfaces");
 
 static int
 sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 {
+	INIT_VNET_NET(curvnet);
 	int *name = (int *)arg1;
 	int error;
 	u_int namelen = arg2;

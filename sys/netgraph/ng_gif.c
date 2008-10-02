@@ -541,6 +541,7 @@ ng_gif_disconnect(hook_p hook)
 static int
 ng_gif_mod_event(module_t mod, int event, void *data)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
 	int error = 0;
 	int s;
@@ -561,10 +562,17 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 
 		/* Create nodes for any already-existing gif interfaces */
 		IFNET_RLOCK();
-		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-			if (ifp->if_type == IFT_GIF)
-				ng_gif_attach(ifp);
+		VNET_LIST_RLOCK();
+		VNET_FOREACH(vnet_iter) {
+			CURVNET_SET_QUIET(vnet_iter); /* XXX revisit quiet */
+			INIT_VNET_NET(curvnet);
+			TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+				if (ifp->if_type == IFT_GIF)
+					ng_gif_attach(ifp);
+			}
+			CURVNET_RESTORE();
 		}
+		VNET_LIST_RUNLOCK();
 		IFNET_RUNLOCK();
 		break;
 

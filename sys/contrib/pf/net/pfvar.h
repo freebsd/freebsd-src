@@ -1855,5 +1855,12 @@ int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 struct pf_os_fingerprint *
 	pf_osfp_validate(void);
 
+/*
+ * Symbol translation macros
+ */
+#define	INIT_VNET_PF(vnet) \
+	INIT_FROM_VNET(vnet, VNET_MOD_PF, struct vnet_pf, vnet_pf)
+
+#define	VNET_PF(sym)	VSYM(vnet_pf, sym)
 
 #endif /* _NET_PFVAR_H_ */

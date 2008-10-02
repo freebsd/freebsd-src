@@ -122,6 +122,8 @@ RB_GENERATE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
 void
 pfi_initialize(void)
 {
+	INIT_VNET_NET(curvnet);
+
 	if (pfi_all != NULL)	/* already initialized */
 		return;
 

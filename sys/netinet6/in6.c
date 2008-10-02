@@ -231,6 +231,7 @@ in6_ifaddloop(struct ifaddr *ifa)
 void
 in6_ifremloop(struct ifaddr *ifa)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 	struct rtentry *rt;
 	int ia_count = 0;
@@ -322,6 +323,7 @@ int
 in6_control(struct socket *so, u_long cmd, caddr_t data,
     struct ifnet *ifp, struct thread *td)
 {
+	INIT_VNET_INET6(curvnet);
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
@@ -795,6 +797,8 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
+	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	int error = 0, hostIsNew = 0, plen = -1;
 	struct in6_ifaddr *oia;
 	struct sockaddr_in6 dst6;
@@ -1323,6 +1327,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *oia;
 	int	s = splnet();
 
@@ -1890,6 +1895,7 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 int
 in6_localaddr(struct in6_addr *in6)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	if (IN6_IS_ADDR_LOOPBACK(in6) || IN6_IS_ADDR_LINKLOCAL(in6))
@@ -1908,6 +1914,7 @@ in6_localaddr(struct in6_addr *in6)
 int
 in6_is_addr_deprecated(struct sockaddr_in6 *sa6)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 
 	for (ia = V_in6_ifaddr; ia; ia = ia->ia_next) {
@@ -2000,6 +2007,7 @@ in6_prefixlen2mask(struct in6_addr *maskp, int len)
 struct in6_ifaddr *
 in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 {
+	INIT_VNET_INET6(curvnet);
 	int dst_scope =	in6_addrscope(dst), blen = -1, tlen;
 	struct ifaddr *ifa;
 	struct in6_ifaddr *besta = 0;
@@ -2148,6 +2156,8 @@ in6if_do_dad(struct ifnet *ifp)
 void
 in6_setmaxmtu(void)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	unsigned long maxmtu = 0;
 	struct ifnet *ifp;
 

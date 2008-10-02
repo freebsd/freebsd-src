@@ -104,6 +104,7 @@ static void in6_purgemaddrs(struct ifnet *);
 static int
 get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
+	INIT_VPROCG(TD_TO_VPROCG(curthread)); /* XXX V_hostname needs this */
 	MD5_CTX ctxt;
 	u_int8_t digest[16];
 	int hostnamelen;
@@ -139,6 +140,7 @@ get_rand_ifid(struct ifnet *ifp, struct in6_addr *in6)
 static int
 generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 {
+	INIT_VNET_INET6(curvnet);
 	MD5_CTX ctxt;
 	u_int8_t seed[16], digest[16], nullbuf[8];
 	u_int32_t val32;
@@ -358,6 +360,8 @@ static int
 get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
     struct in6_addr *in6)
 {
+	INIT_VNET_NET(ifp0->if_vnet);
+	INIT_VNET_INET6(ifp0->if_vnet);
 	struct ifnet *ifp;
 
 	/* first, try to get it from the interface itself */
@@ -421,6 +425,7 @@ success:
 static int
 in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
@@ -537,6 +542,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 static int
 in6_ifattach_loopback(struct ifnet *ifp)
 {
+	INIT_VNET_INET6(curvnet);
 	struct in6_aliasreq ifra;
 	int error;
 
@@ -648,6 +654,7 @@ in6_nigroup(struct ifnet *ifp, const char *name, int namelen,
 void
 in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *ia;
 	struct in6_addr in6;
 
@@ -730,6 +737,9 @@ statinit:
 void
 in6_ifdetach(struct ifnet *ifp)
 {
+	INIT_VNET_NET(ifp->if_vnet);
+	INIT_VNET_INET(ifp->if_vnet);
+	INIT_VNET_INET6(ifp->if_vnet);
 	struct in6_ifaddr *ia, *oia;
 	struct ifaddr *ifa, *next;
 	struct rtentry *rt;
@@ -865,6 +875,8 @@ in6_get_tmpifid(struct ifnet *ifp, u_int8_t *retbuf,
 void
 in6_tmpaddrtimer(void *ignored_arg)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET6(curvnet);
 	struct nd_ifinfo *ndi;
 	u_int8_t nullbuf[8];
 	struct ifnet *ifp;

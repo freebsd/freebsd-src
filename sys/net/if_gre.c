@@ -241,6 +241,9 @@ static int
 gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	   struct rtentry *rt)
 {
+#ifdef INET6
+	INIT_VNET_INET(ifp->if_vnet);
+#endif
 	int error = 0;
 	struct gre_softc *sc = ifp->if_softc;
 	struct greip *gh;

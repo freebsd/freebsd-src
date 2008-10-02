@@ -276,6 +276,7 @@ mk_tid_release(struct mbuf *m, const struct toepcb *toep, unsigned int tid)
 static inline void
 make_tx_data_wr(struct socket *so, struct mbuf *m, int len, struct mbuf *tail)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct tcpcb *tp = so_sototcpcb(so);
 	struct toepcb *toep = tp->t_toe;
 	struct tx_data_wr *req;
@@ -1220,6 +1221,7 @@ install_offload_ops(struct socket *so)
 static __inline int
 select_rcv_wscale(int space)
 {
+	INIT_VNET_INET(so->so_vnet);
 	int wscale = 0;
 
 	if (space > MAX_RCV_WND)
@@ -1237,6 +1239,7 @@ select_rcv_wscale(int space)
 static unsigned long
 select_rcv_wnd(struct toedev *dev, struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct tom_data *d = TOM_DATA(dev);
 	unsigned int wnd;
 	unsigned int max_rcv_wnd;
@@ -3783,6 +3786,7 @@ fixup_and_send_ofo(struct toepcb *toep)
 static void
 socket_act_establish(struct socket *so, struct mbuf *m)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct cpl_act_establish *req = cplhdr(m);
 	u32 rcv_isn = ntohl(req->rcv_isn);	/* real RCV_ISN + 1 */
 	struct tcpcb *tp = so_sototcpcb(so);

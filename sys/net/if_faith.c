@@ -324,6 +324,7 @@ static int
 faithprefix(in6)
 	struct in6_addr *in6;
 {
+	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	int ret;

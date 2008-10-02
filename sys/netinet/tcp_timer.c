@@ -124,11 +124,19 @@ int	tcp_maxidle;
 void
 tcp_slowtimo(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
-	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
-	INP_INFO_WLOCK(&V_tcbinfo);
-	(void) tcp_tw_2msl_scan(0);
-	INP_INFO_WUNLOCK(&V_tcbinfo);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET(vnet_iter);
+		tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
+		INP_INFO_WLOCK(&V_tcbinfo);
+		(void) tcp_tw_2msl_scan(0);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK();
 }
 
 int	tcp_syn_backoff[TCP_MAXRXTSHIFT + 1] =
@@ -152,6 +160,8 @@ tcp_timer_delack(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
+	CURVNET_SET(tp->t_vnet);
+	INIT_VNET_INET(tp->t_vnet);
 
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
@@ -165,6 +175,7 @@ tcp_timer_delack(void *xtp)
 	if (inp == NULL) {
 		tcp_timer_race++;
 		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
@@ -172,6 +183,7 @@ tcp_timer_delack(void *xtp)
 	if ((inp->inp_vflag & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
 	    || !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
+		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_delack);
@@ -180,6 +192,7 @@ tcp_timer_delack(void *xtp)
 	V_tcpstat.tcps_delack++;
 	(void) tcp_output(tp);
 	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
 }
 
 void
@@ -187,6 +200,8 @@ tcp_timer_2msl(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
+	CURVNET_SET(tp->t_vnet);
+	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -207,6 +222,7 @@ tcp_timer_2msl(void *xtp)
 	if (inp == NULL) {
 		tcp_timer_race++;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
@@ -215,6 +231,7 @@ tcp_timer_2msl(void *xtp)
 	    !callout_active(&tp->t_timers->tt_2msl)) {
 		INP_WUNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_2msl);
@@ -250,6 +267,7 @@ tcp_timer_2msl(void *xtp)
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
 void
@@ -258,6 +276,8 @@ tcp_timer_keep(void *xtp)
 	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
 	struct inpcb *inp;
+	CURVNET_SET(tp->t_vnet);
+	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -275,6 +295,7 @@ tcp_timer_keep(void *xtp)
 	if (inp == NULL) {
 		tcp_timer_race++;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
@@ -282,6 +303,7 @@ tcp_timer_keep(void *xtp)
 	    || !callout_active(&tp->t_timers->tt_keep)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_keep);
@@ -327,6 +349,7 @@ tcp_timer_keep(void *xtp)
 #endif
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 	return;
 
 dropit:
@@ -341,6 +364,7 @@ dropit:
 	if (tp != NULL)
 		INP_WUNLOCK(tp->t_inpcb);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
 void
@@ -348,6 +372,8 @@ tcp_timer_persist(void *xtp)
 {
 	struct tcpcb *tp = xtp;
 	struct inpcb *inp;
+	CURVNET_SET(tp->t_vnet);
+	INIT_VNET_INET(tp->t_vnet);
 #ifdef TCPDEBUG
 	int ostate;
 
@@ -365,6 +391,7 @@ tcp_timer_persist(void *xtp)
 	if (inp == NULL) {
 		tcp_timer_race++;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
@@ -372,6 +399,7 @@ tcp_timer_persist(void *xtp)
 	    || !callout_active(&tp->t_timers->tt_persist)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_persist);
@@ -407,12 +435,15 @@ out:
 	if (tp != NULL)
 		INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
 void
 tcp_timer_rexmt(void * xtp)
 {
 	struct tcpcb *tp = xtp;
+	CURVNET_SET(tp->t_vnet);
+	INIT_VNET_INET(tp->t_vnet);
 	int rexmt;
 	int headlocked;
 	struct inpcb *inp;
@@ -434,6 +465,7 @@ tcp_timer_rexmt(void * xtp)
 	if (inp == NULL) {
 		tcp_timer_race++;
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	INP_WLOCK(inp);
@@ -441,6 +473,7 @@ tcp_timer_rexmt(void * xtp)
 	    || !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_rexmt);
@@ -564,6 +597,7 @@ out:
 		INP_WUNLOCK(inp);
 	if (headlocked)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+	CURVNET_RESTORE();
 }
 
 void

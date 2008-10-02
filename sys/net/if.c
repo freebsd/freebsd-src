@@ -168,6 +168,7 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 struct ifnet *
 ifnet_byindex(u_short idx)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
@@ -179,6 +180,7 @@ ifnet_byindex(u_short idx)
 static void
 ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 {
+	INIT_VNET_NET(curvnet);
 
 	IFNET_WLOCK_ASSERT();
 
@@ -188,6 +190,7 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
@@ -199,6 +202,7 @@ ifaddr_byindex(u_short idx)
 struct cdev *
 ifdev_byindex(u_short idx)
 {
+	INIT_VNET_NET(curvnet);
 	struct cdev *cdev;
 
 	IFNET_RLOCK();
@@ -210,6 +214,7 @@ ifdev_byindex(u_short idx)
 static void
 ifdev_setbyindex(u_short idx, struct cdev *cdev)
 {
+	INIT_VNET_NET(curvnet);
 
 	IFNET_WLOCK();
 	V_ifindex_table[idx].ife_dev = cdev;
@@ -279,6 +284,7 @@ netioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 static int
 netkqfilter(struct cdev *dev, struct knote *kn)
 {
+	INIT_VNET_NET(curvnet);
 	struct knlist *klist;
 	struct ifnet *ifp;
 	int idx;
@@ -348,6 +354,7 @@ filt_netdev(struct knote *kn, long hint)
 static void
 if_init(void *dummy __unused)
 {
+	INIT_VNET_NET(curvnet);
 
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&V_ifnet);
@@ -362,6 +369,7 @@ if_init(void *dummy __unused)
 static void
 if_grow(void)
 {
+	INIT_VNET_NET(curvnet);
 	u_int n;
 	struct ifindex_entry *e;
 
@@ -383,6 +391,7 @@ if_grow(void)
 struct ifnet*
 if_alloc(u_char type)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK|M_ZERO);
@@ -445,6 +454,7 @@ if_free(struct ifnet *ifp)
 void
 if_free_type(struct ifnet *ifp, u_char type)
 {
+	INIT_VNET_NET(curvnet); /* ifp->if_vnet can be NULL here ! */
 
 	if (ifp != ifnet_byindex(ifp->if_index)) {
 		if_printf(ifp, "%s: value was not if_alloced, skipping\n",
@@ -482,6 +492,7 @@ if_free_type(struct ifnet *ifp, u_char type)
 void
 if_attach(struct ifnet *ifp)
 {
+	INIT_VNET_NET(curvnet);
 	unsigned socksize, ifasize;
 	int namelen, masklen;
 	struct sockaddr_dl *sdl;
@@ -595,6 +606,7 @@ if_attach(struct ifnet *ifp)
 static void
 if_attachdomain(void *dummy)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	int s;
 
@@ -705,6 +717,7 @@ if_purgemaddrs(struct ifnet *ifp)
 void
 if_detach(struct ifnet *ifp)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
 	int s;
@@ -820,6 +833,7 @@ if_detach(struct ifnet *ifp)
 int
 if_addgroup(struct ifnet *ifp, const char *groupname)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	struct ifg_list		*ifgl;
 	struct ifg_group	*ifg = NULL;
 	struct ifg_member	*ifgm;
@@ -889,6 +903,7 @@ if_addgroup(struct ifnet *ifp, const char *groupname)
 int
 if_delgroup(struct ifnet *ifp, const char *groupname)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	struct ifg_list		*ifgl;
 	struct ifg_member	*ifgm;
 
@@ -978,6 +993,7 @@ if_getgroup(struct ifgroupreq *data, struct ifnet *ifp)
 static int
 if_getgroupmembers(struct ifgroupreq *data)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifgroupreq	*ifgr = data;
 	struct ifg_group	*ifg;
 	struct ifg_member	*ifgm;
@@ -1087,6 +1103,7 @@ if_rtdel(struct radix_node *rn, void *arg)
 struct ifaddr *
 ifa_ifwithaddr(struct sockaddr *addr)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1117,6 +1134,7 @@ done:
 struct ifaddr *
 ifa_ifwithbroadaddr(struct sockaddr *addr)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1144,6 +1162,7 @@ done:
 struct ifaddr *
 ifa_ifwithdstaddr(struct sockaddr *addr)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
@@ -1172,6 +1191,7 @@ done:
 struct ifaddr *
 ifa_ifwithnet(struct sockaddr *addr)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct ifaddr *ifa_maybe = (struct ifaddr *) 0;
@@ -1415,6 +1435,7 @@ do_link_state_change(void *arg, int pending)
 	struct ifnet *ifp = (struct ifnet *)arg;
 	int link_state = ifp->if_link_state;
 	int link;
+	CURVNET_SET(ifp->if_vnet);
 
 	/* Notify that the link state has changed. */
 	rt_ifmsg(ifp);
@@ -1451,6 +1472,7 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
+	CURVNET_RESTORE();
 }
 
 /*
@@ -1513,16 +1535,24 @@ if_qflush(struct ifaltq *ifq)
 static void
 if_slowtimo(void *arg)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
 	int s = splimp();
 
 	IFNET_RLOCK();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
-		if (ifp->if_timer == 0 || --ifp->if_timer)
-			continue;
-		if (ifp->if_watchdog)
-			(*ifp->if_watchdog)(ifp);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_NET(vnet_iter);
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			if (ifp->if_timer == 0 || --ifp->if_timer)
+				continue;
+			if (ifp->if_watchdog)
+				(*ifp->if_watchdog)(ifp);
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	IFNET_RUNLOCK();
 	splx(s);
 	timeout(if_slowtimo, (void *)0, hz / IFNET_SLOWHZ);
@@ -1535,6 +1565,7 @@ if_slowtimo(void *arg)
 struct ifnet *
 ifunit(const char *name)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	IFNET_RLOCK();
@@ -2107,6 +2138,7 @@ ifpromisc(struct ifnet *ifp, int pswitch)
 static int
 ifconf(u_long cmd, caddr_t data)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifconf *ifc = (struct ifconf *)data;
 #ifdef __amd64__
 	struct ifconf32 *ifc32 = (struct ifconf32 *)data;
@@ -2466,6 +2498,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 	int lastref;
 #ifdef INVARIANTS
 	struct ifnet *oifp;
+	INIT_VNET_NET(ifp->if_vnet);
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(oifp, &V_ifnet, if_link)
@@ -2510,6 +2543,9 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 void
 if_delmulti_ifma(struct ifmultiaddr *ifma)
 {
+#ifdef DIAGNOSTIC
+	INIT_VNET_NET(curvnet);
+#endif
 	struct ifnet *ifp;
 	int lastref;
 

@@ -107,6 +107,7 @@ fail:
 void
 tcp_offload_twstart(struct tcpcb *tp)
 {
+	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);
@@ -117,6 +118,7 @@ tcp_offload_twstart(struct tcpcb *tp)
 struct tcpcb *
 tcp_offload_close(struct tcpcb *tp)
 {
+	INIT_VNET_INET(curvnet);
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);
@@ -131,6 +133,7 @@ tcp_offload_close(struct tcpcb *tp)
 struct tcpcb *
 tcp_offload_drop(struct tcpcb *tp, int error)
 {
+	INIT_VNET_INET(curvnet);
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
 	INP_WLOCK(tp->t_inpcb);

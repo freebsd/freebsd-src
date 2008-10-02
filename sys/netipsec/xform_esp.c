@@ -80,10 +80,10 @@ int	esp_enable = 1;
 struct	espstat espstat;
 
 SYSCTL_DECL(_net_inet_esp);
-SYSCTL_INT(_net_inet_esp, OID_AUTO,
-	esp_enable,	CTLFLAG_RW,	&esp_enable,	0, "");
-SYSCTL_STRUCT(_net_inet_esp, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&espstat,	espstat, "");
+SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_esp, OID_AUTO,
+	esp_enable,	CTLFLAG_RW,	esp_enable,	0, "");
+SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_esp, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	espstat,	espstat, "");
 
 static	int esp_max_ivlen;		/* max iv length over all algorithms */
 
@@ -123,6 +123,7 @@ esp_algorithm_lookup(int alg)
 size_t
 esp_hdrsiz(struct secasvar *sav)
 {
+	INIT_VNET_IPSEC(curvnet);
 	size_t size;
 
 	if (sav != NULL) {
@@ -157,6 +158,7 @@ esp_hdrsiz(struct secasvar *sav)
 static int
 esp_init(struct secasvar *sav, struct xformsw *xsp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct enc_xform *txform;
 	struct cryptoini cria, crie;
 	int keylen;
@@ -267,6 +269,7 @@ esp_zeroize(struct secasvar *sav)
 static int
 esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct auth_hash *esph;
 	struct enc_xform *espx;
 	struct tdb_ident *tdbi;
@@ -449,6 +452,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 static int
 esp_input_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	u_int8_t lastthree[3], aalg[AH_HMAC_HASHLEN];
 	int hlen, skip, protoff, error;
 	struct mbuf *m;
@@ -652,6 +656,7 @@ esp_output(
 	int protoff
 )
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct enc_xform *espx;
 	struct auth_hash *esph;
 	int hlen, rlen, plen, padding, blks, alen, i, roff;
@@ -882,6 +887,7 @@ bad:
 static int
 esp_output_cb(struct cryptop *crp)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct tdb_crypto *tc;
 	struct ipsecrequest *isr;
 	struct secasvar *sav;

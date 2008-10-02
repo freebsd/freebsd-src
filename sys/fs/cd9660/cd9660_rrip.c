@@ -114,6 +114,7 @@ cd9660_rrip_slink(p,ana)
 	ISO_RRIP_SLINK	*p;
 	ISO_RRIP_ANALYZE *ana;
 {
+	INIT_VPROCG(TD_TO_VPROCG(curthread));
 	ISO_RRIP_SLINK_COMPONENT *pcomp;
 	ISO_RRIP_SLINK_COMPONENT *pcompe;
 	int len, wlen, cont;
@@ -224,6 +225,7 @@ cd9660_rrip_altname(p,ana)
 	ISO_RRIP_ALTNAME *p;
 	ISO_RRIP_ANALYZE *ana;
 {
+	INIT_VPROCG(TD_TO_VPROCG(curthread));
 	char *inbuf;
 	int wlen;
 	int cont;

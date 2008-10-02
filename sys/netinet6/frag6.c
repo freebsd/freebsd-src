@@ -91,6 +91,7 @@ static MALLOC_DEFINE(M_FTABLE, "fragment", "fragment reassembly header");
 static void
 frag6_change(void *tag)
 {
+	INIT_VNET_INET6(curvnet);
 
 	V_ip6_maxfragpackets = nmbclusters / 4;
 	V_ip6_maxfrags = nmbclusters / 4;
@@ -99,6 +100,7 @@ frag6_change(void *tag)
 void
 frag6_init(void)
 {
+	INIT_VNET_INET6(curvnet);
 
 	V_ip6_maxfragpackets = nmbclusters / 4;
 	V_ip6_maxfrags = nmbclusters / 4;
@@ -145,6 +147,7 @@ frag6_init(void)
 int
 frag6_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp, *t;
 	struct ip6_hdr *ip6;
 	struct ip6_frag *ip6f;
@@ -586,6 +589,7 @@ insert:
 void
 frag6_freef(struct ip6q *q6)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6asfrag *af6, *down6;
 
 	IP6Q_LOCK_ASSERT();
@@ -682,31 +686,39 @@ frag6_remque(struct ip6q *p6)
 void
 frag6_slowtimo(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct ip6q *q6;
 
 	IP6Q_LOCK();
-	q6 = V_ip6q.ip6q_next;
-	if (q6)
-		while (q6 != &V_ip6q) {
-			--q6->ip6q_ttl;
-			q6 = q6->ip6q_next;
-			if (q6->ip6q_prev->ip6q_ttl == 0) {
-				V_ip6stat.ip6s_fragtimeout++;
-				/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-				frag6_freef(q6->ip6q_prev);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET6(vnet_iter);
+		q6 = V_ip6q.ip6q_next;
+		if (q6)
+			while (q6 != &V_ip6q) {
+				--q6->ip6q_ttl;
+				q6 = q6->ip6q_next;
+				if (q6->ip6q_prev->ip6q_ttl == 0) {
+					V_ip6stat.ip6s_fragtimeout++;
+					/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
+					frag6_freef(q6->ip6q_prev);
+				}
 			}
+		/*
+		 * If we are over the maximum number of fragments
+		 * (due to the limit being lowered), drain off
+		 * enough to get down to the new limit.
+		 */
+		while (V_frag6_nfragpackets > (u_int)V_ip6_maxfragpackets &&
+		    V_ip6q.ip6q_prev) {
+			V_ip6stat.ip6s_fragoverflow++;
+			/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
+			frag6_freef(V_ip6q.ip6q_prev);
 		}
-	/*
-	 * If we are over the maximum number of fragments
-	 * (due to the limit being lowered), drain off
-	 * enough to get down to the new limit.
-	 */
-	while (V_frag6_nfragpackets > (u_int)V_ip6_maxfragpackets &&
-	    V_ip6q.ip6q_prev) {
-		V_ip6stat.ip6s_fragoverflow++;
-		/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-		frag6_freef(V_ip6q.ip6q_prev);
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
 
 #if 0
@@ -732,13 +744,21 @@ frag6_slowtimo(void)
 void
 frag6_drain(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 
 	if (IP6Q_TRYLOCK() == 0)
 		return;
-	while (V_ip6q.ip6q_next != &V_ip6q) {
-		V_ip6stat.ip6s_fragdropped++;
-		/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
-		frag6_freef(V_ip6q.ip6q_next);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_INET6(vnet_iter);
+		while (V_ip6q.ip6q_next != &V_ip6q) {
+			V_ip6stat.ip6s_fragdropped++;
+			/* XXX in6_ifstat_inc(ifp, ifs6_reass_fail) */
+			frag6_freef(V_ip6q.ip6q_next);
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 	IP6Q_UNLOCK();
 }
