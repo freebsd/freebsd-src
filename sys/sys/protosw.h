@@ -201,7 +201,6 @@ struct uio;
  * See uipc_domain.c:net_init_domain()
  */
 struct pr_usrreqs {
-	double	__Break_the_struct_layout_for_now;
 	void	(*pru_abort)(struct socket *so);
 	int	(*pru_accept)(struct socket *so, struct sockaddr **nam);
 	int	(*pru_attach)(struct socket *so, int proto, struct thread *td);
