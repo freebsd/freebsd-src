@@ -201,7 +201,7 @@ static void
 load_kld (char *path, CORE_ADDR base_addr, int from_tty)
 {
 	struct section_addr_info *sap;
-	struct section_table *sections, *sections_end, *s;
+	struct section_table *sections = NULL, *sections_end = NULL, *s;
 	struct cleanup *cleanup;
 	bfd *bfd;
 	int i;
