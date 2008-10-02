@@ -70,6 +70,7 @@ enum {
 	CHIP_I915,	/* 915G/915GM */
 	CHIP_I965,	/* G965 */
 	CHIP_G33,	/* G33/Q33/Q35 */
+	CHIP_G4X,	/* G45/Q45 */
 };
 
 /* The i810 through i855 have the registers at BAR 1, and the GATT gets
@@ -133,7 +134,7 @@ static const struct agp_i810_match {
 	{0x25628086, CHIP_I830, 0x00020000,
 	    "Intel 82845M (845M GMCH) SVGA controller"},
 	{0x35828086, CHIP_I855, 0x00020000,
-	    "Intel 82852/5"},
+	    "Intel 82852/855GM SVGA controller"},
 	{0x25728086, CHIP_I855, 0x00020000,
 	    "Intel 82865G (865G GMCH) SVGA controller"},
 	{0x25828086, CHIP_I915, 0x00020000,
@@ -154,18 +155,26 @@ static const struct agp_i810_match {
 	    "Intel G965 SVGA controller"},
 	{0x29928086, CHIP_I965, 0x00020000,
 	    "Intel Q965 SVGA controller"},
-	{0x29a28086, CHIP_I965, 0x00020000,
+	{0x29A28086, CHIP_I965, 0x00020000,
 	    "Intel G965 SVGA controller"},
-	{0x29b28086, CHIP_G33, 0x00020000,
+	{0x29B28086, CHIP_G33, 0x00020000,
 	    "Intel Q35 SVGA controller"},
-	{0x29c28086, CHIP_G33, 0x00020000,
+	{0x29C28086, CHIP_G33, 0x00020000,
 	    "Intel G33 SVGA controller"},
-	{0x29d28086, CHIP_G33, 0x00020000,
+	{0x29D28086, CHIP_G33, 0x00020000,
 	    "Intel Q33 SVGA controller"},
-	{0x2a028086, CHIP_I965, 0x00020000,
+	{0x2A028086, CHIP_I965, 0x00020000,
 	    "Intel GM965 SVGA controller"},
-	{0x2a128086, CHIP_I965, 0x00020000,
+	{0x2A128086, CHIP_I965, 0x00020000,
 	    "Intel GME965 SVGA controller"},
+	{0x2A428086, CHIP_I965, 0x00020000,
+	    "Intel GM45 SVGA controller"},
+	{0x2E028086, CHIP_G4X, 0x00020000,
+	    "Intel 4 Series SVGA controller"},
+	{0x2E128086, CHIP_G4X, 0x00020000,
+	    "Intel Q45 SVGA controller"},
+	{0x2E228086, CHIP_G4X, 0x00020000,
+	    "Intel G45 SVGA controller"},
 	{0, 0, 0, NULL}
 };
 
@@ -377,6 +386,7 @@ agp_i810_attach(device_t dev)
 		agp_set_aperture_resource(dev, AGP_I915_GMADR);
 		break;
 	case CHIP_I965:
+	case CHIP_G4X:
 		sc->sc_res_spec = agp_i965_res_spec;
 		agp_set_aperture_resource(dev, AGP_I915_GMADR);
 		break;
@@ -476,7 +486,8 @@ agp_i810_attach(device_t dev)
 
 		gatt->ag_physical = pgtblctl & ~1;
 	} else if (sc->chiptype == CHIP_I855 || sc->chiptype == CHIP_I915 ||
-	    sc->chiptype == CHIP_I965 || sc->chiptype == CHIP_G33) {
+	    sc->chiptype == CHIP_I965 || sc->chiptype == CHIP_G33 ||
+	    sc->chiptype == CHIP_G4X) {
 		unsigned int gcc1, pgtblctl, stolen, gtt_size;
 
 		/* Stolen memory is set up at the beginning of the aperture by
@@ -491,7 +502,6 @@ agp_i810_attach(device_t dev)
 			gtt_size = 256;
 			break;
 		case CHIP_I965:
-		case CHIP_G33:
 			switch (bus_read_4(sc->sc_res[0], AGP_I810_PGTBL_CTL) &
 			    AGP_I810_PGTBL_SIZE_MASK) {
 			case AGP_I810_PGTBL_SIZE_128KB:
@@ -503,6 +513,15 @@ agp_i810_attach(device_t dev)
 			case AGP_I810_PGTBL_SIZE_512KB:
 				gtt_size = 512;
 				break;
+			case AGP_I965_PGTBL_SIZE_1MB:
+				gtt_size = 1024;
+				break;
+			case AGP_I965_PGTBL_SIZE_2MB:
+				gtt_size = 2048;
+				break;
+			case AGP_I965_PGTBL_SIZE_1_5MB:
+				gtt_size = 1024 + 512;
+				break;
 			default:
 				device_printf(dev, "Bad PGTBL size\n");
 				bus_release_resources(dev, sc->sc_res_spec,
@@ -511,6 +530,27 @@ agp_i810_attach(device_t dev)
 				agp_generic_detach(dev);
 				return EINVAL;
 			}
+			break;
+		case CHIP_G33:
+			gcc1 = pci_read_config(sc->bdev, AGP_I855_GCC1, 2);
+			switch (gcc1 & AGP_G33_MGGC_GGMS_MASK) {
+			case AGP_G33_MGGC_GGMS_SIZE_1M:
+				gtt_size = 1024;
+				break;
+			case AGP_G33_MGGC_GGMS_SIZE_2M:
+				gtt_size = 2048;
+				break;
+			default:
+				device_printf(dev, "Bad PGTBL size\n");
+				bus_release_resources(dev, sc->sc_res_spec,
+				    sc->sc_res);
+				free(gatt, M_AGP);
+				agp_generic_detach(dev);
+				return EINVAL;
+			}
+			break;
+		case CHIP_G4X:
+			gtt_size = 0;
 			break;
 		default:
 			device_printf(dev, "Bad chiptype\n");
@@ -528,28 +568,86 @@ agp_i810_attach(device_t dev)
 			stolen = 1024;
 			break;
 		case AGP_I855_GCC1_GMS_STOLEN_4M:
-			stolen = 4096;
+			stolen = 4 * 1024;
 			break;
 		case AGP_I855_GCC1_GMS_STOLEN_8M:
-			stolen = 8192;
+			stolen = 8 * 1024;
 			break;
 		case AGP_I855_GCC1_GMS_STOLEN_16M:
-			stolen = 16384;
+			stolen = 16 * 1024;
 			break;
 		case AGP_I855_GCC1_GMS_STOLEN_32M:
-			stolen = 32768;
+			stolen = 32 * 1024;
 			break;
 		case AGP_I915_GCC1_GMS_STOLEN_48M:
-			stolen = 49152;
+			if (sc->chiptype == CHIP_I915 ||
+			    sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G33 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 48 * 1024;
+			} else {
+				stolen = 0;
+			}
 			break;
 		case AGP_I915_GCC1_GMS_STOLEN_64M:
-			stolen = 65536;
+			if (sc->chiptype == CHIP_I915 ||
+			    sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G33 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 64 * 1024;
+			} else {
+				stolen = 0;
+			}
 			break;
 		case AGP_G33_GCC1_GMS_STOLEN_128M:
-			stolen = 128 * 1024;
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G33 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 128 * 1024;
+			} else {
+				stolen = 0;
+			}
 			break;
 		case AGP_G33_GCC1_GMS_STOLEN_256M:
-			stolen = 256 * 1024;
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G33 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 256 * 1024;
+			} else {
+				stolen = 0;
+			}
+			break;
+		case AGP_G4X_GCC1_GMS_STOLEN_96M:
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 96 * 1024;
+			} else {
+				stolen = 0;
+			}
+			break;
+		case AGP_G4X_GCC1_GMS_STOLEN_160M:
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 160 * 1024;
+			} else {
+				stolen = 0;
+			}
+			break;
+		case AGP_G4X_GCC1_GMS_STOLEN_224M:
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 224 * 1024;
+			} else {
+				stolen = 0;
+			}
+			break;
+		case AGP_G4X_GCC1_GMS_STOLEN_352M:
+			if (sc->chiptype == CHIP_I965 ||
+			    sc->chiptype == CHIP_G4X) {
+				stolen = 352 * 1024;
+			} else {
+				stolen = 0;
+			}
 			break;
 		default:
 			device_printf(dev, "unknown memory configuration, "
@@ -560,7 +658,11 @@ agp_i810_attach(device_t dev)
 			agp_generic_detach(dev);
 			return EINVAL;
 		}
-		sc->stolen = (stolen - gtt_size - 4) * 1024 / 4096;
+
+		if (sc->chiptype != CHIP_G4X)
+		    gtt_size += 4;
+
+		sc->stolen = (stolen - gtt_size) * 1024 / 4096;
 		if (sc->stolen > 0)
 			device_printf(dev, "detected %dk stolen memory\n", sc->stolen * 4);
 		device_printf(dev, "aperture size is %dM\n", sc->initial_aperture / 1024 / 1024);
