@@ -14,7 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,37 +30,64 @@
  * $FreeBSD$
  */
 
-#ifndef	_SYS_VIMAGE_H_
-#define	_SYS_VIMAGE_H_
+#ifndef _NET_VNET_H_
+#define _NET_VNET_H_
 
-/* Non-VIMAGE null-macros */
-#define	CURVNET_SET(arg)
-#define	CURVNET_SET_QUIET(arg)
-#define	CURVNET_RESTORE()
-#define	VNET_ASSERT(condition)
-#define	VSYM(base, sym) (sym)
-#define	INIT_FROM_VNET(vnet, modindex, modtype, sym)
-#define	VNET_ITERATOR_DECL(arg)
-#define	VNET_FOREACH(arg)
-#define	VNET_LIST_RLOCK()
-#define	VNET_LIST_RUNLOCK()
-#define	INIT_VPROCG(arg)
-#define	INIT_VCPU(arg)
-#define	TD_TO_VIMAGE(td)
-#define	TD_TO_VNET(td)
-#define	TD_TO_VPROCG(td)
-#define	TD_TO_VCPU(td)
-#define	P_TO_VIMAGE(p)
-#define	P_TO_VNET(p)
-#define	P_TO_VPROCG(p)
-#define	P_TO_VCPU(p)
+#ifdef VIMAGE
+#include "opt_route.h"
 
-/* XXX those defines bellow should probably go into vprocg.h and vcpu.h */
-#define	VPROCG(sym)		VSYM(vprocg, sym)
-#define	VCPU(sym)		VSYM(vcpu, sym)
+#include <sys/proc.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
 
-#define	V_hostname		VPROCG(hostname)
-#define	G_hostname		VSYM(basevprocg, hostname) /* global hostname */
-#define	V_domainname		VPROCG(domainname)
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/route.h>
+#include <net/raw_cb.h>
 
-#endif /* !_SYS_VIMAGE_H_ */
+struct vnet_net {
+	int	_if_index;
+	struct	ifindex_entry *_ifindex_table;
+	struct	ifnethead _ifnet;
+	struct	ifgrouphead _ifg_head;
+
+	int	_if_indexlim;
+	struct	knlist _ifklist;
+
+	struct	rtstat _rtstat;
+	struct	radix_node_head *_rt_tables[RT_MAXFIBS][AF_MAX+1];
+	int	_rttrash;
+
+	struct	ifnet *_loif;
+	LIST_HEAD(, lo_softc) _lo_list;
+
+	LIST_HEAD(, rawcb) _rawcb_list;
+
+	int	_ether_ipfw;
+};
+
+#endif
+
+/*
+ * Symbol translation macros
+ */
+#define	INIT_VNET_NET(vnet) \
+	INIT_FROM_VNET(vnet, VNET_MOD_NET, struct vnet_net, vnet_net)
+
+#define	VNET_NET(sym)	VSYM(vnet_net, sym)
+
+#define	V_ether_ipfw	VNET_NET(ether_ipfw)
+#define	V_if_index	VNET_NET(if_index)
+#define	V_if_indexlim	VNET_NET(if_indexlim)
+#define	V_ifg_head	VNET_NET(ifg_head)
+#define	V_ifindex_table	VNET_NET(ifindex_table)
+#define	V_ifklist	VNET_NET(ifklist)
+#define	V_ifnet		VNET_NET(ifnet)
+#define	V_lo_list	VNET_NET(lo_list)
+#define	V_loif		VNET_NET(loif)
+#define	V_rawcb_list	VNET_NET(rawcb_list)
+#define	V_rt_tables	VNET_NET(rt_tables)
+#define	V_rtstat	VNET_NET(rtstat)
+#define	V_rttrash	VNET_NET(rttrash)
+
+#endif /* !_NET_VNET_H_ */

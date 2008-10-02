@@ -117,6 +117,8 @@ int
 in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
     struct ucred *cred)
 {
+	INIT_VNET_INET6(inp->inp_vnet);
+	INIT_VNET_INET(inp->inp_vnet);
 	struct socket *so = inp->inp_socket;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)NULL;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
@@ -284,6 +286,7 @@ int
 in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
     struct in6_addr **plocal_addr6)
 {
+	INIT_VNET_INET6(inp->inp_vnet);
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error = 0;
 	struct ifnet *ifp = NULL;

@@ -52,13 +52,17 @@
 #include <sys/systm.h>
 #include <sys/vimage.h>
 
+#include <net/if.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+
+#include <netinet/in.h>
 
 #include <net/pfkeyv2.h>
 #include <netipsec/key.h>
 #include <netipsec/keysock.h>
 #include <netipsec/key_debug.h>
+#include <netipsec/ipsec.h>
 
 #include <machine/stdarg.h>
 
@@ -80,6 +84,7 @@ struct pfkeystat pfkeystat;
 int
 key_output(struct mbuf *m, struct socket *so)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct sadb_msg *msg;
 	int len, error = 0;
 
@@ -133,6 +138,7 @@ key_sendup0(rp, m, promisc)
 	struct mbuf *m;
 	int promisc;
 {
+	INIT_VNET_IPSEC(curvnet);
 	int error;
 
 	if (promisc) {
@@ -177,6 +183,7 @@ key_sendup(so, msg, len, target)
 	u_int len;
 	int target;	/*target of the resulting message*/
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *m, *n, *mprev;
 	int tlen;
 
@@ -265,6 +272,8 @@ key_sendup_mbuf(so, m, target)
 	struct mbuf *m;
 	int target;
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_IPSEC(curvnet);
 	struct mbuf *n;
 	struct keycb *kp;
 	int sendup;
@@ -382,6 +391,7 @@ key_abort(struct socket *so)
 static int
 key_attach(struct socket *so, int proto, struct thread *td)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct keycb *kp;
 	int error;
 
@@ -456,6 +466,7 @@ key_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 key_detach(struct socket *so)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct keycb *kp = (struct keycb *)sotorawcb(so);
 
 	KASSERT(kp != NULL, ("key_detach: kp == NULL"));
@@ -558,6 +569,7 @@ struct protosw keysw[] = {
 static void
 key_init0(void)
 {
+	INIT_VNET_IPSEC(curvnet);
 	bzero((caddr_t)&V_key_cb, sizeof(V_key_cb));
 	key_init();
 }

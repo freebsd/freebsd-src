@@ -311,6 +311,7 @@ imo_match_source(struct ip_moptions *imo, size_t gidx, struct sockaddr *src)
 struct in_multi *
 in_addmulti(struct in_addr *ap, struct ifnet *ifp)
 {
+	INIT_VNET_INET(ifp->if_vnet);
 	struct in_multi *inm;
 
 	inm = NULL;
@@ -463,6 +464,8 @@ in_delmulti_locked(struct in_multi *inm)
 static int
 inp_change_source_filter(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -752,6 +755,7 @@ inp_freemoptions(struct ip_moptions *imo)
 static int
 inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;
@@ -849,6 +853,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 int
 inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip_mreqn		 mreqn;
 	struct ip_moptions	*imo;
 	struct ifnet		*ifp;
@@ -955,6 +960,8 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 static int
 inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	sockunion_t			*gsa, *ssa;
 	struct ifnet			*ifp;
@@ -1211,6 +1218,8 @@ out_locked:
 static int
 inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_INET(curvnet);
 	struct group_source_req		 gsr;
 	struct ip_mreq_source		 mreqs;
 	sockunion_t			*gsa, *ssa;
@@ -1399,6 +1408,7 @@ out_locked:
 static int
 inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
 	struct in_addr		 addr;
 	struct ip_mreqn		 mreqn;
 	struct ifnet		*ifp;
@@ -1467,6 +1477,7 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 static int
 inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 {
+	INIT_VNET_NET(curvnet);
 	struct __msfilterreq	 msfr;
 	sockunion_t		*gsa;
 	struct ifnet		*ifp;

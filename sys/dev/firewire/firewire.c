@@ -703,7 +703,7 @@ fw_reset_crom(struct firewire_comm *fc)
 	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
 	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
 #endif
-	crom_add_simple_text(src, root, &buf->hw, V_hostname);
+	crom_add_simple_text(src, root, &buf->hw, G_hostname);
 }
 
 /*

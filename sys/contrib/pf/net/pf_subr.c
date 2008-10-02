@@ -123,6 +123,7 @@ static MD5_CTX isn_ctx;
 u_int32_t
 pf_new_isn(struct pf_state *s)
 {
+	INIT_VNET_INET(curvnet);
 	u_int32_t md5_buffer[4];
 	u_int32_t new_isn;
 	struct pf_state_host *src, *dst;

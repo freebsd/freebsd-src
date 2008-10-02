@@ -242,6 +242,7 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache,
 static void
 in6_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
+	INIT_VNET_INET6(curvnet);
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK_ASSERT(rt);
@@ -286,6 +287,7 @@ struct rtqk_arg {
 static int
 in6_rtqkill(struct radix_node *rn, void *rock)
 {
+	INIT_VNET_INET6(curvnet);
 	struct rtqk_arg *ap = rock;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
@@ -328,6 +330,9 @@ static struct callout rtq_timer6;
 static void
 in6_rtqtimo(void *rock)
 {
+	CURVNET_SET_QUIET((struct vnet *) rock);
+	INIT_VNET_NET((struct vnet *) rock);
+	INIT_VNET_INET6((struct vnet *) rock);
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	struct timeval atv;
@@ -372,6 +377,7 @@ in6_rtqtimo(void *rock)
 	atv.tv_usec = 0;
 	atv.tv_sec = arg.nextstop - time_uptime;
 	callout_reset(&V_rtq_timer6, tvtohz(&atv), in6_rtqtimo, rock);
+	CURVNET_RESTORE();
 }
 
 /*
@@ -410,6 +416,9 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 static void
 in6_mtutimo(void *rock)
 {
+	CURVNET_SET_QUIET((struct vnet *) rock);
+	INIT_VNET_NET((struct vnet *) rock);
+	INIT_VNET_INET6((struct vnet *) rock);
 	struct radix_node_head *rnh = rock;
 	struct mtuex_arg arg;
 	struct timeval atv;
@@ -428,12 +437,14 @@ in6_mtutimo(void *rock)
 		atv.tv_sec = 30;
 	}
 	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
+	CURVNET_RESTORE();
 }
 
 #if 0
 void
 in6_rtqdrain(void)
 {
+	INIT_VNET_NET(curvnet);
 	struct radix_node_head *rnh = V_rt_tables[AF_INET6];
 	struct rtqk_arg arg;
 
@@ -458,6 +469,7 @@ in6_rtqdrain(void)
 int
 in6_inithead(void **head, int off)
 {
+	INIT_VNET_INET6(curvnet);
 	struct radix_node_head *rnh;
 
 	if (!rn_inithead(head, offsetof(struct sockaddr_in6, sin6_addr) << 3))

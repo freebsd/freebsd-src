@@ -95,10 +95,10 @@ int	ipip_allow = 0;
 struct	ipipstat ipipstat;
 
 SYSCTL_DECL(_net_inet_ipip);
-SYSCTL_INT(_net_inet_ipip, OID_AUTO,
-	ipip_allow,	CTLFLAG_RW,	&ipip_allow,	0, "");
-SYSCTL_STRUCT(_net_inet_ipip, IPSECCTL_STATS,
-	stats,		CTLFLAG_RD,	&ipipstat,	ipipstat, "");
+SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
+	ipip_allow,	CTLFLAG_RW,	ipip_allow,	0, "");
+SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipip, IPSECCTL_STATS,
+	stats,		CTLFLAG_RD,	ipipstat,	ipipstat, "");
 
 /* XXX IPCOMP */
 #define	M_IPSEC	(M_AUTHIPHDR|M_AUTHIPDGM|M_DECRYPTED)
@@ -156,6 +156,8 @@ ip4_input(struct mbuf *m, int off)
 static void
 _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 {
+	INIT_VNET_NET(curvnet);
+	INIT_VNET_IPSEC(curvnet);
 	register struct sockaddr_in *sin;
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
@@ -407,6 +409,10 @@ ipip_output(
 	int protoff
 )
 {
+	INIT_VNET_IPSEC(curvnet);
+#ifdef INET
+	INIT_VNET_INET(curvnet);
+#endif /* INET */
 	struct secasvar *sav;
 	u_int8_t tp, otos;
 	struct secasindex *saidx;

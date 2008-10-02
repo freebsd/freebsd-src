@@ -123,9 +123,17 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
+#ifndef VIMAGE
 static int max_gif_nesting = MAX_GIF_NEST;
-SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
-    &max_gif_nesting, 0, "Max nested tunnels");
+#endif
+SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, max_nesting,
+    CTLFLAG_RW, max_gif_nesting, 0, "Max nested tunnels");
+
+#ifdef INET6
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
+    gifhlim, CTLFLAG_RW, ip6_gif_hlim, 0, "");
+#endif
 
 /*
  * By default, we disallow creation of multiple tunnels between the same
@@ -137,8 +145,8 @@ static int parallel_tunnels = 1;
 #else
 static int parallel_tunnels = 0;
 #endif
-SYSCTL_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
-    &parallel_tunnels, 0, "Allow parallel tunnels?");
+SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, parallel_tunnels,
+    CTLFLAG_RW, parallel_tunnels, 0, "Allow parallel tunnels?");
 
 /* copy from src/sys/net/if_ethersubr.c */
 static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
@@ -154,6 +162,7 @@ gif_clone_create(ifc, unit, params)
 	int unit;
 	caddr_t params;
 {
+	INIT_VNET_GIF(curvnet);
 	struct gif_softc *sc;
 
 	sc = malloc(sizeof(struct gif_softc), M_GIF, M_WAITOK | M_ZERO);
@@ -364,6 +373,7 @@ gif_output(ifp, m, dst, rt)
 	struct sockaddr *dst;
 	struct rtentry *rt;	/* added in net2 */
 {
+	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct m_tag *mtag;
 	int error = 0;
@@ -854,6 +864,7 @@ gif_set_tunnel(ifp, src, dst)
 	struct sockaddr *src;
 	struct sockaddr *dst;
 {
+	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct gif_softc *sc2;
 	struct sockaddr *osrc, *odst, *sa;

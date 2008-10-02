@@ -110,6 +110,7 @@ static void	tcp_tw_2msl_stop(struct tcptw *);
 static int
 tcptw_auto_size(void)
 {
+	INIT_VNET_INET(curvnet);
 	int halfrange;
 
 	/*
@@ -162,6 +163,7 @@ tcp_tw_zone_change(void)
 void
 tcp_tw_init(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	tcptw_zone = uma_zcreate("tcptw", sizeof(struct tcptw),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
@@ -181,6 +183,9 @@ tcp_tw_init(void)
 void
 tcp_twstart(struct tcpcb *tp)
 {
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+	INIT_VNET_INET(tp->t_vnet);
+#endif
 	struct tcptw *tw;
 	struct inpcb *inp = tp->t_inpcb;
 	int acknow;
@@ -296,6 +301,7 @@ tcp_twstart(struct tcpcb *tp)
 int
 tcp_twrecycleable(struct tcptw *tw)
 {
+	INIT_VNET_INET(curvnet);
 	tcp_seq new_iss = tw->iss;
 	tcp_seq new_irs = tw->irs;
 
@@ -318,6 +324,9 @@ int
 tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
     struct mbuf *m, int tlen)
 {
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+	INIT_VNET_INET(curvnet);
+#endif
 	struct tcptw *tw;
 	int thflags;
 	tcp_seq seq;
@@ -454,6 +463,7 @@ drop:
 void
 tcp_twclose(struct tcptw *tw, int reuse)
 {
+	INIT_VNET_INET(curvnet);
 	struct socket *so;
 	struct inpcb *inp;
 
@@ -521,6 +531,7 @@ tcp_twclose(struct tcptw *tw, int reuse)
 int
 tcp_twrespond(struct tcptw *tw, int flags)
 {
+	INIT_VNET_INET(curvnet);
 	struct inpcb *inp = tw->tw_inpcb;
 	struct tcphdr *th;
 	struct mbuf *m;
@@ -614,6 +625,7 @@ tcp_twrespond(struct tcptw *tw, int flags)
 static void
 tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 {
+	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(tw->tw_inpcb);
@@ -626,6 +638,7 @@ tcp_tw_2msl_reset(struct tcptw *tw, int rearm)
 static void
 tcp_tw_2msl_stop(struct tcptw *tw)
 {
+	INIT_VNET_INET(curvnet);
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	TAILQ_REMOVE(&V_twq_2msl, tw, tw_2msl);
@@ -634,6 +647,7 @@ tcp_tw_2msl_stop(struct tcptw *tw)
 struct tcptw *
 tcp_tw_2msl_scan(int reuse)
 {
+	INIT_VNET_INET(curvnet);
 	struct tcptw *tw;
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);

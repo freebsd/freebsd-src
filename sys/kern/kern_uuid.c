@@ -88,6 +88,7 @@ MTX_SYSINIT(uuid_lock, &uuid_mutex, "UUID generator mutex lock", MTX_DEF);
 static void
 uuid_node(uint16_t *node)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;

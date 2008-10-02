@@ -91,6 +91,7 @@
 int
 ipsec_process_done(struct mbuf *m, struct ipsecrequest *isr)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct tdb_ident *tdbi;
 	struct m_tag *mtag;
 	struct secasvar *sav;
@@ -207,6 +208,7 @@ ipsec_nextisr(
 {
 #define IPSEC_OSTAT(x,y,z) (isr->saidx.proto == IPPROTO_ESP ? (x)++ : \
 			    isr->saidx.proto == IPPROTO_AH ? (y)++ : (z)++)
+	INIT_VNET_IPSEC(curvnet);
 	struct secasvar *sav;
 
 	IPSECREQUEST_LOCK_ASSERT(isr);
@@ -350,6 +352,7 @@ ipsec4_process_packet(
 	int flags,
 	int tunalready)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct secasindex saidx;
 	struct secasvar *sav;
 	struct ip *ip;
@@ -563,6 +566,7 @@ ipsec6_output_trans(
 	int flags,
 	int *tun)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct ipsecrequest *isr;
 	struct secasindex saidx;
 	int error = 0;
@@ -630,6 +634,7 @@ bad:
 static int
 ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 {
+	INIT_VNET_IPSEC(curvnet);
 	struct ip6_hdr *oip6;
 	struct ip6_hdr *ip6;
 	size_t plen;
@@ -699,6 +704,8 @@ ipsec6_encapsulate(struct mbuf *m, struct secasvar *sav)
 int
 ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int flags)
 {
+	INIT_VNET_INET6(curvnet);
+	INIT_VNET_IPSEC(curvnet);
 	struct ip6_hdr *ip6;
 	struct ipsecrequest *isr;
 	struct secasindex saidx;

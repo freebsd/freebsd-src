@@ -88,36 +88,41 @@ extern struct mbuf *m_copypack();
 #endif
 
 int path_mtu_discovery = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
-	&path_mtu_discovery, 1, "Enable Path MTU Discovery");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, path_mtu_discovery,
+	CTLFLAG_RW, path_mtu_discovery, 1, "Enable Path MTU Discovery");
 
 int ss_fltsz = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, slowstart_flightsize, CTLFLAG_RW,
-	&ss_fltsz, 1, "Slow start flight size");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO,
+	slowstart_flightsize, CTLFLAG_RW,
+	ss_fltsz, 1, "Slow start flight size");
 
 int ss_fltsz_local = 4;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
-	&ss_fltsz_local, 1, "Slow start flight size for local networks");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO,
+	local_slowstart_flightsize, CTLFLAG_RW,
+	ss_fltsz_local, 1, "Slow start flight size for local networks");
 
 int     tcp_do_newreno = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
-	&tcp_do_newreno, 0, "Enable NewReno Algorithms");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
+	tcp_do_newreno, 0, "Enable NewReno Algorithms");
 
 int	tcp_do_tso = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
-	&tcp_do_tso, 0, "Enable TCP Segmentation Offload");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
+	tcp_do_tso, 0, "Enable TCP Segmentation Offload");
 
 int	tcp_do_autosndbuf = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_RW,
-	&tcp_do_autosndbuf, 0, "Enable automatic send buffer sizing");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_auto,
+	CTLFLAG_RW,
+	tcp_do_autosndbuf, 0, "Enable automatic send buffer sizing");
 
 int	tcp_autosndbuf_inc = 8*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
-	&tcp_autosndbuf_inc, 0, "Incrementor step size of automatic send buffer");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_inc,
+	CTLFLAG_RW, tcp_autosndbuf_inc, 0,
+	"Incrementor step size of automatic send buffer");
 
 int	tcp_autosndbuf_max = 256*1024;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
-	&tcp_autosndbuf_max, 0, "Max size of automatic send buffer");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_max,
+	CTLFLAG_RW, tcp_autosndbuf_max, 0,
+	"Max size of automatic send buffer");
 
 
 /*
@@ -126,6 +131,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
 int
 tcp_output(struct tcpcb *tp)
 {
+	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
 	int off, flags, error;
@@ -1318,6 +1324,7 @@ tcp_setpersist(struct tcpcb *tp)
 int
 tcp_addoptions(struct tcpopt *to, u_char *optp)
 {
+	INIT_VNET_INET(curvnet);
 	u_int mask, optlen = 0;
 
 	for (mask = 1; mask < TOF_MAXOPT; mask <<= 1) {

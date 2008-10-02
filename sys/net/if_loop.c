@@ -115,6 +115,7 @@ lo_clone_destroy(struct ifnet *ifp)
 static int
 lo_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 
 	ifp = if_alloc(IFT_LOOP);
@@ -214,6 +215,7 @@ looutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 int
 if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 {
+	INIT_VNET_NET(ifp->if_vnet);
 	int isr;
 
 	M_ASSERTPKTHDR(m);

@@ -207,7 +207,9 @@ static char	machine_arch[] = MACHINE_ARCH;
 SYSCTL_STRING(_hw, HW_MACHINE_ARCH, machine_arch, CTLFLAG_RD,
     machine_arch, 0, "System architecture");
 
+#ifndef VIMAGE
 char hostname[MAXHOSTNAMELEN];
+#endif
 
 /*
  * This mutex is used to protect the hostname and domainname variables, and
@@ -219,6 +221,7 @@ MTX_SYSINIT(hostname_mtx, &hostname_mtx, "hostname", MTX_DEF);
 static int
 sysctl_hostname(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VPROCG(TD_TO_VPROCG(req->td));
 	struct prison *pr;
 	char tmphostname[MAXHOSTNAMELEN];
 	int error;
@@ -345,7 +348,9 @@ SYSCTL_PROC(_kern, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RW,
     0, 0, sysctl_kern_config, "", "Kernel configuration file");
 #endif
 
+#ifndef VIMAGE
 char domainname[MAXHOSTNAMELEN];	/* Protected by hostname_mtx. */
+#endif
 
 static int
 sysctl_domainname(SYSCTL_HANDLER_ARGS)
@@ -354,13 +359,13 @@ sysctl_domainname(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	mtx_lock(&hostname_mtx);
-	bcopy(domainname, tmpdomainname, MAXHOSTNAMELEN);
+	bcopy(V_domainname, tmpdomainname, MAXHOSTNAMELEN);
 	mtx_unlock(&hostname_mtx);
 	error = sysctl_handle_string(oidp, tmpdomainname,
 	    sizeof tmpdomainname, req);
 	if (req->newptr != NULL && error == 0) {
 		mtx_lock(&hostname_mtx);
-		bcopy(tmpdomainname, domainname, MAXHOSTNAMELEN);
+		bcopy(tmpdomainname, V_domainname, MAXHOSTNAMELEN);
 		mtx_unlock(&hostname_mtx);
 	}
 	return (error);

@@ -152,17 +152,19 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 }
 
 static int rtq_reallyold = 60*60;		/* one hour is "really old" */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
-    &rtq_reallyold, 0, "Default expiration time on dynamically learned routes");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
+    CTLFLAG_RW, rtq_reallyold, 0,
+    "Default expiration time on dynamically learned routes");
 
 static int rtq_minreallyold = 10;  /* never automatically crank down to less */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
-    &rtq_minreallyold, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMINEXPIRE,
+    rtminexpire, CTLFLAG_RW, rtq_minreallyold, 0,
     "Minimum time to attempt to hold onto dynamically learned routes");
 
 static int rtq_toomany = 128;		/* 128 cached routes is "too many" */
-SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &rtq_toomany, 0, "Upper limit on dynamically learned routes");
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMAXCACHE,
+    rtmaxcache, CTLFLAG_RW, rtq_toomany, 0,
+    "Upper limit on dynamically learned routes");
 
 /*
  * On last reference drop, mark the route as belong to us so that it can be
@@ -171,6 +173,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
 static void
 in_clsroute(struct radix_node *rn, struct radix_node_head *head)
 {
+	INIT_VNET_INET(curvnet);
 	struct rtentry *rt = (struct rtentry *)rn;
 
 	RT_LOCK_ASSERT(rt);
@@ -216,6 +219,7 @@ struct rtqk_arg {
 static int
 in_rtqkill(struct radix_node *rn, void *rock)
 {
+	INIT_VNET_INET(curvnet);
 	struct rtqk_arg *ap = rock;
 	struct rtentry *rt = (struct rtentry *)rn;
 	int err;
@@ -323,21 +327,29 @@ in_rtqtimo_one(void *rock)
 void
 in_rtqdrain(void)
 {
+	VNET_ITERATOR_DECL(vnet_iter);
 	struct radix_node_head *rnh;
 	struct rtqk_arg arg;
 	int 	fibnum;
 
-	for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		rnh = V_rt_tables[fibnum][AF_INET];
-		arg.found = arg.killed = 0;
-		arg.rnh = rnh;
-		arg.nextstop = 0;
-		arg.draining = 1;
-		arg.updating = 0;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		INIT_VNET_NET(vnet_iter);
+		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+			rnh = V_rt_tables[fibnum][AF_INET];
+			arg.found = arg.killed = 0;
+			arg.rnh = rnh;
+			arg.nextstop = 0;
+			arg.draining = 1;
+			arg.updating = 0;
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, in_rtqkill, &arg);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 }
 
 static int _in_rt_was_here;
@@ -347,6 +359,7 @@ static int _in_rt_was_here;
 int
 in_inithead(void **head, int off)
 {
+	INIT_VNET_INET(curvnet);
 	struct radix_node_head *rnh;
 
 	/* XXX MRT
@@ -416,6 +429,7 @@ in_ifadownkill(struct radix_node *rn, void *xap)
 int
 in_ifadown(struct ifaddr *ifa, int delete)
 {
+	INIT_VNET_NET(curvnet);
 	struct in_ifadown_arg arg;
 	struct radix_node_head *rnh;
 	int	fibnum;

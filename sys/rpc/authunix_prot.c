@@ -69,6 +69,7 @@ xdr_authunix_parms(XDR *xdrs, uint32_t *time, struct xucred *cred)
 	uint32_t namelen;
 	uint32_t ngroups, i;
 	uint32_t junk;
+	INIT_VPROCG(TD_TO_VPROCG(&thread0)); /* XXX revisit - fixme! */
 
 	mtx_lock(&hostname_mtx);
 	if (xdrs->x_op == XDR_ENCODE) {

@@ -422,6 +422,8 @@ vlan_setmulti(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ifp_p = PARENT(sc);
 
+	CURVNET_SET_QUIET(ifp_p->if_vnet);
+
 	bzero((char *)&sdl, sizeof(sdl));
 	sdl.sdl_len = sizeof(sdl);
 	sdl.sdl_family = AF_LINK;
@@ -456,6 +458,7 @@ vlan_setmulti(struct ifnet *ifp)
 			return (error);
 	}
 
+	CURVNET_RESTORE();
 	return (0);
 }
 
@@ -573,6 +576,7 @@ MODULE_DEPEND(if_vlan, miibus, 1, 1, 1);
 static struct ifnet *
 vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
 {
+	INIT_VNET_NET(curvnet);
 	const char *cp;
 	struct ifnet *ifp;
 	int t = 0;

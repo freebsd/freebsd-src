@@ -94,6 +94,8 @@ int
 ip_ipsec_fwd(struct mbuf *m)
 {
 #ifdef IPSEC
+	INIT_VNET_INET(curvnet);
+	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
@@ -141,6 +143,7 @@ ip_ipsec_input(struct mbuf *m)
 {
 	struct ip *ip = mtod(m, struct ip *);
 #ifdef IPSEC
+	INIT_VNET_IPSEC(curvnet);
 	struct m_tag *mtag;
 	struct tdb_ident *tdbi;
 	struct secpolicy *sp;

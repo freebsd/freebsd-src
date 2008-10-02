@@ -137,8 +137,9 @@ struct inpcbinfo	udbinfo;
 #endif
 
 struct udpstat	udpstat;	/* from udp_var.h */
-SYSCTL_STRUCT(_net_inet_udp, UDPCTL_STATS, stats, CTLFLAG_RW, &udpstat,
-    udpstat, "UDP statistics (struct udpstat, netinet/udp_var.h)");
+SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_udp, UDPCTL_STATS, stats,
+    CTLFLAG_RW, udpstat, udpstat,
+    "UDP statistics (struct udpstat, netinet/udp_var.h)");
 
 static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
@@ -164,6 +165,7 @@ udp_inpcb_init(void *mem, int size, int flags)
 void
 udp_init(void)
 {
+	INIT_VNET_INET(curvnet);
 
 	INP_INFO_LOCK_INIT(&V_udbinfo, "udp");
 	LIST_INIT(&V_udb);
@@ -202,6 +204,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 #ifdef IPSEC
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
+		INIT_VNET_IPSEC(curvnet);
 		m_freem(n);
 		V_ipsec4stat.in_polvio++;
 		return;
@@ -237,6 +240,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, append_sa, n, opts) == 0) {
+		INIT_VNET_INET(so->so_vnet);
 		SOCKBUF_UNLOCK(&so->so_rcv);
 		m_freem(n);
 		if (opts)
@@ -249,6 +253,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 void
 udp_input(struct mbuf *m, int off)
 {
+	INIT_VNET_INET(curvnet);
 	int iphlen = off;
 	struct ip *ip;
 	struct udphdr *uh;
@@ -586,6 +591,7 @@ udp_notify(struct inpcb *inp, int errno)
 void
 udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 {
+	INIT_VNET_INET(curvnet);
 	struct ip *ip = vip;
 	struct udphdr *uh;
 	struct in_addr faddr;
@@ -632,6 +638,7 @@ udp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 udp_pcblist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;
@@ -730,6 +737,7 @@ SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
 static int
 udp_getcred(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct inpcb *inp;
@@ -772,6 +780,7 @@ static int
 udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *td)
 {
+	INIT_VNET_INET(inp->inp_vnet);
 	struct udpiphdr *ui;
 	int len = m->m_pkthdr.len;
 	struct in_addr faddr, laddr;
@@ -1081,6 +1090,7 @@ release:
 static void
 udp_abort(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -1099,6 +1109,7 @@ udp_abort(struct socket *so)
 static int
 udp_attach(struct socket *so, int proto, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -1125,6 +1136,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 static int
 udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 
@@ -1141,6 +1153,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 udp_close(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -1159,6 +1172,7 @@ udp_close(struct socket *so)
 static int
 udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	int error;
 	struct sockaddr_in *sin;
@@ -1186,6 +1200,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 static void
 udp_detach(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);
@@ -1202,6 +1217,7 @@ udp_detach(struct socket *so)
 static int
 udp_disconnect(struct socket *so)
 {
+	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 
 	inp = sotoinpcb(so);

@@ -87,6 +87,7 @@ in6_gif_output(struct ifnet *ifp,
     int family,			/* family of the packet to be encapsulate */
     struct mbuf *m)
 {
+	INIT_VNET_GIF(ifp->if_vnet);
 	struct gif_softc *sc = ifp->if_softc;
 	struct sockaddr_in6 *dst = (struct sockaddr_in6 *)&sc->gif_ro6.ro_dst;
 	struct sockaddr_in6 *sin6_src = (struct sockaddr_in6 *)sc->gif_psrc;
@@ -246,6 +247,7 @@ in6_gif_output(struct ifnet *ifp,
 int
 in6_gif_input(struct mbuf **mp, int *offp, int proto)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *m = *mp;
 	struct ifnet *gifp = NULL;
 	struct gif_softc *sc;

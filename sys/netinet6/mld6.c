@@ -115,6 +115,7 @@ static u_long mld_timerresid(struct in6_multi *);
 void
 mld6_init(void)
 {
+	INIT_VNET_INET6(curvnet);
 	static u_int8_t hbh_buf[8];
 	struct ip6_hbh *hbh = (struct ip6_hbh *)hbh_buf;
 	u_int16_t rtalert_code = htons((u_int16_t)IP6OPT_RTALERT_MLD);
@@ -268,6 +269,7 @@ mld6_stop_listening(struct in6_multi *in6m)
 void
 mld6_input(struct mbuf *m, int off)
 {
+	INIT_VNET_INET6(curvnet);
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct mld_hdr *mldh;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
@@ -438,6 +440,7 @@ mld6_input(struct mbuf *m, int off)
 static void
 mld6_sendpkt(struct in6_multi *in6m, int type, const struct in6_addr *dst)
 {
+	INIT_VNET_INET6(curvnet);
 	struct mbuf *mh, *md;
 	struct mld_hdr *mldh;
 	struct ip6_hdr *ip6;
