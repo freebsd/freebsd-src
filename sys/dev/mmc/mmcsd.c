@@ -126,7 +126,7 @@ mmcsd_attach(device_t dev)
 	// sc->disk->d_dump = mmcsd_dump;	Need polling mmc layer
 	sc->disk->d_name = "mmcsd";
 	sc->disk->d_drv1 = sc;
-	sc->disk->d_maxsize = 256*1024; /* This is completely empirical */
+	sc->disk->d_maxsize = MAXPHYS;		/* Maybe ask bridge? */
 	sc->disk->d_sectorsize = mmc_get_sector_size(dev);
 	sc->disk->d_mediasize = ((off_t)mmc_get_media_size(dev)) *
 	    mmc_get_sector_size(dev);
