@@ -359,7 +359,7 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 	/* Clear the Vinum Magic. */
 	d->hdr->magic = GV_NOMAGIC;
 	g_topology_unlock();
-	err = g_write_data(cp, GV_HDR_OFFSET, d->hdr, GV_HDR_LEN);
+	err = gv_write_header(cp, d->hdr);
 	if (err) {
 		printf("GEOM_VINUM: gv_rm_drive: couldn't write header to '%s'"
 		    ", errno: %d\n", cp->provider->name, err);
