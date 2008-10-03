@@ -79,6 +79,11 @@ HDMI audio input/output.
 Usually that assignment may be widely tuned by using device hints.
 A lot of useful information about driver operation and present audio setup may
 be obtained from the driver verbose boot messages.
+.Pp
+You can select audio device to use by default with hw.snd.default_unit
+sysctl described in 
+.Xr sound 4
+or explicitly specify it in appliation settings.
 .Ss Boot-time Configuration
 The following variables are available at boot-time through the
 .Xr device.hints 5
