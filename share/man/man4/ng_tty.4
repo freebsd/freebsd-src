@@ -35,12 +35,12 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_tty.8,v 1.5 1999/01/25 23:46:28 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd October 2, 2008
 .Dt NG_TTY 4
 .Os
 .Sh NAME
 .Nm ng_tty
-.Nd netgraph node type that is also a line discipline
+.Nd netgraph node type that is also a TTY hook
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/ttycom.h
@@ -48,11 +48,7 @@
 .Sh DESCRIPTION
 The
 .Nm tty
-node type is both a netgraph node type and a line discipline.
-A new node is created when the corresponding line discipline,
-.Dv NETGRAPHDISC ,
-is registered on a tty device (see
-.Xr tty 4 ) .
+node type is both a netgraph node type and a TTY hook.
 .Pp
 The node has a single hook called
 .Dv hook .
@@ -61,13 +57,18 @@ and frames received on
 .Dv hook
 are transmitted out on the tty device.
 No modification to the data is performed in either direction.
-While the line discipline is installed on a tty, the normal
-read and write operations are unavailable, returning
+While the hook is installed on a tty, the normal read and write 
+operations are unavailable, returning
 .Er EIO .
+.Pp
+Incoming data is delivered directly to ng_tty via the tty bypass hook as a
+buffer pointer and length, this is converted to a mbuf and passed to the peer.
 .Pp
 The node supports an optional
 .Dq hot character .
-If set to non-zero, incoming
+If the driver can not deliver data directly to the tty bypass hook then each
+character is input one at a time.
+If set to non-zero and bypass mode is unavailable, incoming
 data from the tty device is queued until this character is seen.
 This avoids sending lots of mbufs containing a small number of bytes,
 but introduces potentially infinite latency.
@@ -110,14 +111,12 @@ so that all received data is forwarded immediately.
 .It Dv NGM_TTY_GET_HOTCHAR
 Returns an integer containing the current hot character in the lower
 eight bits.
+.It Dv NGM_TTY_SET_TTY
+This command takes an integer pointer to the open file descriptor of the tty
+and registers the tty hooks.
 .El
 .Sh SHUTDOWN
-This node shuts down when the corresponding device is closed
-(or the line discipline is uninstalled on the device).
-The
-.Dv NGM_SHUTDOWN
-control message is not valid, and always returns the error
-.Er EOPNOTSUPP .
+This node shuts down when the corresponding device is closed.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr netgraph 4 ,
@@ -131,6 +130,7 @@ node type was implemented in
 .Fx 4.0 .
 .Sh AUTHORS
 .An Archie Cobbs Aq archie@FreeBSD.org
+.An Andrew Thompson Aq thompsa@FreeBSD.org
 .Sh BUGS
 The serial driver code also has a notion of a
 .Dq hot character .
