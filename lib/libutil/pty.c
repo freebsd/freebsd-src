@@ -56,37 +56,26 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	const char *slavename;
 	int master, slave;
 
-	master = posix_openpt(O_RDWR);
+	master = posix_openpt(O_RDWR|O_NOCTTY);
 	if (master == -1)
 		return (-1);
 
-	if (grantpt(master) == -1) {
-		close(master);
-		return (-1);
-	}
+	if (grantpt(master) == -1)
+		goto bad;
+
+	if (unlockpt(master) == -1)
+		goto bad;
 
 	slavename = ptsname(master);
-	if (slavename == NULL) {
-		close(master);
-		return (-1);
-	}
+	if (slavename == NULL)
+		goto bad;
 
-	if (revoke(slavename) == -1) {
-		close(master);
-		return (-1);
-	}
+	if (revoke(slavename) == -1)
+		goto bad;
 
 	slave = open(slavename, O_RDWR);
-	if (slave == -1) {
-		close(master);
-		return (-1);
-	}
-
-	if (unlockpt(master) == -1) {
-		close(master);
-		close(slave);
-		return (-1);
-	}
+	if (slave == -1)
+		goto bad;
 
 	*amaster = master;
 	*aslave = slave;
@@ -99,6 +88,9 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 		ioctl(slave, TIOCSWINSZ, (char *)winp);
 
 	return (0);
+
+bad:	close(master);
+	return (-1);
 }
 
 int
