@@ -9,6 +9,7 @@ SUBDIR=	${_3dfx} \
 	accf_dns \
 	accf_http \
 	${_acpi} \
+	ae \
 	age \
 	${_agp} \
 	aha \
