@@ -46,21 +46,21 @@ static drm_pci_id_list_t tdfx_pciidlist[] = {
 
 static void tdfx_configure(struct drm_device *dev)
 {
-	dev->driver.buf_priv_size	= 1; /* No dev_priv */
+	dev->driver->driver_features =
+	    DRIVER_USE_MTRR;
 
-	dev->driver.max_ioctl		= 0;
+	dev->driver->buf_priv_size	= 1; /* No dev_priv */
 
-	dev->driver.name		= DRIVER_NAME;
-	dev->driver.desc		= DRIVER_DESC;
-	dev->driver.date		= DRIVER_DATE;
-	dev->driver.major		= DRIVER_MAJOR;
-	dev->driver.minor		= DRIVER_MINOR;
-	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
+	dev->driver->max_ioctl		= 0;
 
-	dev->driver.use_mtrr		= 1;
+	dev->driver->name		= DRIVER_NAME;
+	dev->driver->desc		= DRIVER_DESC;
+	dev->driver->date		= DRIVER_DATE;
+	dev->driver->major		= DRIVER_MAJOR;
+	dev->driver->minor		= DRIVER_MINOR;
+	dev->driver->patchlevel		= DRIVER_PATCHLEVEL;
 }
 
-#ifdef __FreeBSD__
 static int
 tdfx_probe(device_t dev)
 {
@@ -73,15 +73,31 @@ tdfx_attach(device_t nbdev)
 	struct drm_device *dev = device_get_softc(nbdev);
 
 	bzero(dev, sizeof(struct drm_device));
+
+	dev->driver = malloc(sizeof(struct drm_driver_info), M_DRM, M_NOWAIT | M_ZERO);
 	tdfx_configure(dev);
+
 	return drm_attach(nbdev, tdfx_pciidlist);
+}
+
+static int
+tdfx_detach(device_t nbdev)
+{
+	struct drm_device *dev = device_get_softc(nbdev);
+	int ret;
+
+	ret = drm_detach(nbdev);
+
+	free(dev->driver, M_DRM);
+
+	return ret;
 }
 
 static device_method_t tdfx_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tdfx_probe),
 	DEVMETHOD(device_attach,	tdfx_attach),
-	DEVMETHOD(device_detach,	drm_detach),
+	DEVMETHOD(device_detach,	tdfx_detach),
 
 	{ 0, 0 }
 };
@@ -99,12 +115,3 @@ DRIVER_MODULE(tdfx, vgapci, tdfx_driver, drm_devclass, 0, 0);
 DRIVER_MODULE(tdfx, pci, tdfx_driver, drm_devclass, 0, 0);
 #endif
 MODULE_DEPEND(tdfx, drm, 1, 1, 1);
-
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-#ifdef _LKM
-CFDRIVER_DECL(tdfx, DV_TTY, NULL);
-#else
-CFATTACH_DECL(tdfx, sizeof(struct drm_device), drm_probe, drm_attach,
-    drm_detach, drm_activate);
-#endif
-#endif
