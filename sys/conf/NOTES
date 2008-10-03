@@ -1712,6 +1712,8 @@ device		miibus
 
 # an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #       PCI and ISA varieties.
+# ae:   Support for gigabit ethernet adapters based on the Attansic/Atheros
+#       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
@@ -1853,6 +1855,7 @@ device		wi
 device		xe
 
 # PCI Ethernet NICs that use the common MII bus controller code.
+device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
