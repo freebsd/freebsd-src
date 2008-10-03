@@ -1133,10 +1133,11 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		    w_rmatrix[i][i] |= WITNESS_REVERSAL;
 			w->w_reversed = 1;
 			mtx_unlock_spin(&w_mtx);
-		printf("acquiring duplicate lock of same type: \"%s\"\n", 
+			printf(
+			    "acquiring duplicate lock of same type: \"%s\"\n", 
 			    w->w_name);
-			printf(" 1st %s @ %s:%d\n", lock1->li_lock->lo_name,
-			       lock1->li_file, lock1->li_line);
+			printf(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
+			       plock->li_file, plock->li_line);
 			printf(" 2nd %s @ %s:%d\n", lock->lo_name, file, line);
 			witness_debugger(1);
 		    } else
