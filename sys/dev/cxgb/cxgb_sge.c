@@ -2805,6 +2805,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	unsigned int sleeping = 0;
 #ifdef LRO_SUPPORTED
 	int lro_enabled = qs->lro.enabled;
+	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
 #endif
 	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
@@ -2924,8 +2925,19 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			prefetch(mtod(m, uint8_t *) + L1_CACHE_BYTES);
 
 			t3_rx_eth(adap, rspq, m, ethpad);
+
 #ifdef LRO_SUPPORTED
-			if (lro_enabled && lro_ctrl->lro_cnt &&
+			/*
+			 * The T304 sends incoming packets on any qset.  If LRO
+			 * is also enabled, we could end up sending packet up
+			 * lro_ctrl->ifp's input.  That is incorrect.
+			 *
+			 * The mbuf's rcvif was derived from the cpl header and
+			 * is accurate.  Skip LRO and just use that.
+			 */
+			skip_lro = __predict_false(qs->port->ifp != m->m_pkthdr.rcvif);
+
+			if (lro_enabled && lro_ctrl->lro_cnt && !skip_lro &&
 			    (tcp_lro_rx(lro_ctrl, m, 0) == 0)) {
 				/* successfully queue'd for LRO */
 			} else
