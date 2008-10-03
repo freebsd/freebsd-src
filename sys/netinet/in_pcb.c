@@ -535,6 +535,205 @@ in_pcbconnect(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
 }
 
 /*
+ * Do proper source address selection on an unbound socket in case
+ * of connect. Take jails into account as well.
+ */
+static int
+in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
+    struct ucred *cred)
+{
+	struct in_ifaddr *ia;
+	struct ifaddr *ifa;
+	struct sockaddr *sa;
+	struct sockaddr_in *sin;
+	struct route sro;
+	int error;
+
+	KASSERT(laddr != NULL, ("%s: null laddr", __func__));
+
+	error = 0;
+	ia = NULL;
+	bzero(&sro, sizeof(sro));
+
+	sin = (struct sockaddr_in *)&sro.ro_dst;
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(struct sockaddr_in);
+	sin->sin_addr.s_addr = faddr->s_addr;
+
+	/*
+	 * If route is known our src addr is taken from the i/f,
+	 * else punt.
+	 *
+	 * Find out route to destination.
+	 */
+	if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
+		in_rtalloc_ign(&sro, RTF_CLONING, inp->inp_inc.inc_fibnum);
+
+	/*
+	 * If we found a route, use the address corresponding to
+	 * the outgoing interface.
+	 * 
+	 * Otherwise assume faddr is reachable on a directly connected
+	 * network and try to find a corresponding interface to take
+	 * the source address from.
+	 */
+	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
+		struct ifnet *ifp;
+
+		ia = ifatoia(ifa_ifwithdstaddr((struct sockaddr *)sin));
+		if (ia == NULL)
+			ia = ifatoia(ifa_ifwithnet((struct sockaddr *)sin));
+		if (ia == NULL) {
+			error = ENETUNREACH;
+			goto done;
+		}
+
+		if (cred == NULL || !jailed(cred)) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		ifp = ia->ia_ifp;
+		ia = NULL;
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			sin = (struct sockaddr_in *)sa;
+			if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+				ia = (struct in_ifaddr *)ifa;
+				break;
+			}
+		}
+		if (ia != NULL) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		laddr->s_addr = htonl(prison_getip(cred));
+		goto done;
+	}
+
+	/*
+	 * If the outgoing interface on the route found is not
+	 * a loopback interface, use the address from that interface.
+	 * In case of jails do those three steps:
+	 * 1. check if the interface address belongs to the jail. If so use it.
+	 * 2. check if we have any address on the outgoing interface
+	 *    belonging to this jail. If so use it.
+	 * 3. as a last resort return the 'default' jail address.
+	 */
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0) {
+
+		/* If not jailed, use the default returned. */
+		if (cred == NULL || !jailed(cred)) {
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* Jailed. */
+		/* 1. Check if the iface address belongs to the jail. */
+		sin = (struct sockaddr_in *)sro.ro_rt->rt_ifa->ifa_addr;
+		if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+			ia = (struct in_ifaddr *)sro.ro_rt->rt_ifa;
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/*
+		 * 2. Check if we have any address on the outgoing interface
+		 *    belonging to this jail.
+		 */
+		TAILQ_FOREACH(ifa, &sro.ro_rt->rt_ifp->if_addrhead, ifa_link) {
+
+			sa = ifa->ifa_addr;
+			if (sa->sa_family != AF_INET)
+				continue;
+			sin = (struct sockaddr_in *)sa;
+			if (htonl(prison_getip(cred)) == sin->sin_addr.s_addr) {
+				ia = (struct in_ifaddr *)ifa;
+				break;
+			}
+		}
+		if (ia != NULL) {
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		laddr->s_addr = htonl(prison_getip(cred));
+		goto done;
+	}
+
+	/*
+	 * The outgoing interface is marked with 'loopback net', so a route
+	 * to ourselves is here.
+	 * Try to find the interface of the destination address and then
+	 * take the address from there. That interface is not necessarily
+	 * a loopback interface.
+	 * In case of jails, check that it is an address of the jail
+	 * and if we cannot find, fall back to the 'default' jail address.
+	 */
+	if ((sro.ro_rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
+		struct sockaddr_in sain;
+
+		bzero(&sain, sizeof(struct sockaddr_in));
+		sain.sin_family = AF_INET;
+		sain.sin_len = sizeof(struct sockaddr_in);
+		sain.sin_addr.s_addr = faddr->s_addr;
+
+		ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sain)));
+		if (ia == NULL)
+			ia = ifatoia(ifa_ifwithnet(sintosa(&sain)));
+
+		if (cred == NULL || !jailed(cred)) {
+			if (ia == NULL) {
+				error = ENETUNREACH;
+				goto done;
+			}
+			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+			goto done;
+		}
+
+		/* Jailed. */
+		if (ia != NULL) {
+			struct ifnet *ifp;
+
+			ifp = ia->ia_ifp;
+			ia = NULL;
+			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+
+				sa = ifa->ifa_addr;
+				if (sa->sa_family != AF_INET)
+					continue;
+				sin = (struct sockaddr_in *)sa;
+				if (htonl(prison_getip(cred)) ==
+				    sin->sin_addr.s_addr) {
+					ia = (struct in_ifaddr *)ifa;
+					break;
+				}
+			}
+			if (ia != NULL) {
+				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
+				goto done;
+			}
+		}
+
+		/* 3. As a last resort return the 'default' jail address. */
+		laddr->s_addr = htonl(prison_getip(cred));
+		goto done;
+	}
+
+done:
+	if (sro.ro_rt != NULL)
+		RTFREE(sro.ro_rt);
+	return (error);
+}
+
+/*
  * Set up for a connect from a socket to the specified address.
  * On entry, *laddrp and *lportp should contain the current local
  * address and port for the PCB; these are updated to the values
@@ -557,8 +756,6 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	INIT_VNET_INET(inp->inp_vnet);
 	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
 	struct in_ifaddr *ia;
-	struct sockaddr_in sa;
-	struct ucred *socred;
 	struct inpcb *oinp;
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
@@ -583,17 +780,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	lport = *lportp;
 	faddr = sin->sin_addr;
 	fport = sin->sin_port;
-	socred = inp->inp_socket->so_cred;
-	if (laddr.s_addr == INADDR_ANY && jailed(socred)) {
-		bzero(&sa, sizeof(sa));
-		sa.sin_addr.s_addr = htonl(prison_getip(socred));
-		sa.sin_len = sizeof(sa);
-		sa.sin_family = AF_INET;
-		error = in_pcbbind_setup(inp, (struct sockaddr *)&sa,
-		    &laddr.s_addr, &lport, cred);
-		if (error)
-			return (error);
-	}
+
 	if (!TAILQ_EMPTY(&V_in_ifaddrhead)) {
 		/*
 		 * If the destination address is INADDR_ANY,
@@ -611,35 +798,10 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 			    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
 	}
 	if (laddr.s_addr == INADDR_ANY) {
-		ia = NULL;
-		/*
-		 * If route is known our src addr is taken from the i/f,
-		 * else punt.
-		 *
-		 * Find out route to destination
-		 */
-		if ((inp->inp_socket->so_options & SO_DONTROUTE) == 0)
-			ia = ip_rtaddr(faddr, inp->inp_inc.inc_fibnum);
-		/*
-		 * If we found a route, use the address corresponding to
-		 * the outgoing interface.
-		 *
-		 * Otherwise assume faddr is reachable on a directly connected
-		 * network and try to find a corresponding interface to take
-		 * the source address from.
-		 */
-		if (ia == NULL) {
-			bzero(&sa, sizeof(sa));
-			sa.sin_addr = faddr;
-			sa.sin_len = sizeof(sa);
-			sa.sin_family = AF_INET;
+		error = in_pcbladdr(inp, &faddr, &laddr, cred);
+		if (error)
+			return (error);
 
-			ia = ifatoia(ifa_ifwithdstaddr(sintosa(&sa)));
-			if (ia == NULL)
-				ia = ifatoia(ifa_ifwithnet(sintosa(&sa)));
-			if (ia == NULL)
-				return (ENETUNREACH);
-		}
 		/*
 		 * If the destination address is multicast and an outgoing
 		 * interface has been set as a multicast option, use the
@@ -658,9 +820,9 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 						break;
 				if (ia == NULL)
 					return (EADDRNOTAVAIL);
+				laddr = ia->ia_addr.sin_addr;
 			}
 		}
-		laddr = ia->ia_addr.sin_addr;
 	}
 
 	oinp = in_pcblookup_hash(inp->inp_pcbinfo, faddr, fport, laddr, lport,
