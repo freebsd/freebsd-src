@@ -37,24 +37,26 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
+ * Updated by Andrew Thompson <thompsa@FreeBSD.org> for MPSAFE TTY.
+ *
  * $FreeBSD$
  * $Whistle: ng_tty.c,v 1.21 1999/11/01 09:24:52 julian Exp $
  */
 
 /*
- * This file implements a terminal line discipline that is also a
- * netgraph node. Installing this line discipline on a terminal device
- * instantiates a new netgraph node of this type, which allows access
- * to the device via the "hook" hook of the node.
+ * This file implements TTY hooks to link in to the netgraph system.  The node
+ * is created and then passed the callers opened TTY file descriptor number to
+ * NGM_TTY_SET_TTY, this will hook the tty via ttyhook_register().
  *
- * Once the line discipline is installed, you can find out the name
- * of the corresponding netgraph node via a NGIOCGINFO ioctl().
+ * Incoming data is delivered directly to ng_tty via the TTY bypass hook as a
+ * buffer pointer and length, this is converted to a mbuf and passed to the
+ * peer.
  *
- * Incoming characters are delievered to the hook one at a time, each
- * in its own mbuf. You may optionally define a ``hotchar,'' which causes
- * incoming characters to be buffered up until either the hotchar is
- * seen or the mbuf is full (MHLEN bytes). Then all buffered characters
- * are immediately delivered.
+ * If the TTY device does not support bypass then incoming characters are
+ * delivered to the hook one at a time, each in its own mbuf. You may
+ * optionally define a ``hotchar,'' which causes incoming characters to be
+ * buffered up until either the hotchar is seen or the mbuf is full (MHLEN
+ * bytes). Then all buffered characters are immediately delivered.
  */
 
 #include <sys/param.h>
@@ -79,69 +81,55 @@
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_tty.h>
 
-/* Misc defs */
-#define MAX_MBUFQ		3	/* Max number of queued mbufs */
-#define NGT_HIWATER		400	/* High water mark on output */
-
 /* Per-node private info */
-struct ngt_sc {
-	struct	tty *tp;		/* Terminal device */
-	node_p	node;			/* Netgraph node */
-	hook_p	hook;			/* Netgraph hook */
-	struct	ifqueue outq;		/* Queue of outgoing data */
-	struct	mbuf *m;		/* Incoming data buffer */
-	short	hotchar;		/* Hotchar, or -1 if none */
-	u_int	flags;			/* Flags */
-	struct	callout	chand;		/* See man timeout(9) */
+struct ngt_softc {
+	struct tty	*tp;		/* Terminal device */
+	node_p		node;		/* Netgraph node */
+	hook_p		hook;		/* Netgraph hook */
+	struct ifqueue	outq;		/* Queue of outgoing data */
+	size_t		outqlen;	/* Number of bytes in outq */
+	struct mbuf	*m;		/* Incoming non-bypass data buffer */
+	short		hotchar;	/* Hotchar, or -1 if none */
+	u_int		flags;		/* Flags */
 };
-typedef struct ngt_sc *sc_p;
+typedef struct ngt_softc *sc_p;
+
+static int ngt_unit;
 
 /* Flags */
 #define FLG_DEBUG		0x0002
-#define	FLG_DIE			0x0004
-
-/* Line discipline methods */
-static int	ngt_open(struct cdev *dev, struct tty *tp);
-static int	ngt_close(struct tty *tp, int flag);
-static int	ngt_read(struct tty *tp, struct uio *uio, int flag);
-static int	ngt_write(struct tty *tp, struct uio *uio, int flag);
-static int	ngt_tioctl(struct tty *tp,
-		    u_long cmd, caddr_t data, int flag, struct thread *);
-static int	ngt_input(int c, struct tty *tp);
-static int	ngt_start(struct tty *tp);
 
 /* Netgraph methods */
-static ng_constructor_t	ngt_constructor;
-static ng_rcvmsg_t	ngt_rcvmsg;
-static ng_shutdown_t	ngt_shutdown;
-static ng_newhook_t	ngt_newhook;
-static ng_connect_t	ngt_connect;
-static ng_rcvdata_t	ngt_rcvdata;
-static ng_disconnect_t	ngt_disconnect;
-static int		ngt_mod_event(module_t mod, int event, void *data);
-
-/* Other stuff */
-static void	ngt_timeout(node_p node, hook_p hook, void *arg1, int arg2);
+static ng_constructor_t		ngt_constructor;
+static ng_rcvmsg_t		ngt_rcvmsg;
+static ng_shutdown_t		ngt_shutdown;
+static ng_newhook_t		ngt_newhook;
+static ng_connect_t		ngt_connect;
+static ng_rcvdata_t		ngt_rcvdata;
+static ng_disconnect_t		ngt_disconnect;
 
 #define ERROUT(x)		do { error = (x); goto done; } while (0)
 
-/* Line discipline descriptor */
-static struct linesw ngt_disc = {
-	.l_open =	ngt_open,
-	.l_close =	ngt_close,
-	.l_read =	ngt_read,
-	.l_write =	ngt_write,
-	.l_ioctl =	ngt_tioctl,
-	.l_rint =	ngt_input,
-	.l_start =	ngt_start,
-	.l_modem =	ttymodem,
+static th_getc_inject_t		ngt_getc_inject;
+static th_getc_poll_t		ngt_getc_poll;
+static th_rint_t		ngt_rint;
+static th_rint_bypass_t		ngt_rint_bypass;
+static th_rint_poll_t		ngt_rint_poll;
+static th_close_t		ngt_close;
+
+static struct ttyhook ngt_hook = {
+	.th_getc_inject = ngt_getc_inject,
+	.th_getc_poll = ngt_getc_poll,
+	.th_rint = ngt_rint,
+	.th_rint_bypass = ngt_rint_bypass,
+	.th_rint_poll = ngt_rint_poll,
+	.th_close = ngt_close,
 };
 
 /* Netgraph node type descriptor */
 static struct ng_type typestruct = {
 	.version =	NG_ABI_VERSION,
 	.name =		NG_TTY_NODE_TYPE,
-	.mod_event =	ngt_mod_event,
 	.constructor =	ngt_constructor,
 	.rcvmsg =	ngt_rcvmsg,
 	.shutdown =	ngt_shutdown,
@@ -152,324 +140,8 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(tty, &typestruct);
 
-/*
- * Locking:
- *
- * - node private data and tp->t_lsc is protected by mutex in struct
- *   ifqueue, locking is done using IF_XXX() macros.
- * - in all tty methods we should acquire node ifqueue mutex, when accessing
- *   private data.
- * - in _rcvdata() we should use locked versions of IF_{EN,DE}QUEUE() since
- *   we may have multiple _rcvdata() threads.
- * - when calling any of tty methods from netgraph methods, we should
- *   acquire tty locking (now Giant).
- *
- * - ngt_unit is incremented atomically.
- */
-
 #define	NGTLOCK(sc)	IF_LOCK(&sc->outq)
 #define	NGTUNLOCK(sc)	IF_UNLOCK(&sc->outq)
-
-static int ngt_unit;
-static int ngt_ldisc;
-
-/******************************************************************
-		    LINE DISCIPLINE METHODS
-******************************************************************/
-
-/*
- * Set our line discipline on the tty.
- * Called from device open routine or ttioctl()
- */
-static int
-ngt_open(struct cdev *dev, struct tty *tp)
-{
-	struct thread *const td = curthread;	/* XXX */
-	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
-	sc_p sc;
-	int error;
-
-	/* Super-user only */
-	error = priv_check(td, PRIV_NETGRAPH_TTY);
-	if (error)
-		return (error);
-
-	/* Initialize private struct */
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
-
-	sc->tp = tp;
-	sc->hotchar = tp->t_hotchar = NG_TTY_DFL_HOTCHAR;
-	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&sc->outq, MAX_MBUFQ);
-
-	NGTLOCK(sc);
-
-	/* Setup netgraph node */
-	error = ng_make_node_common(&typestruct, &sc->node);
-	if (error) {
-		NGTUNLOCK(sc);
-		FREE(sc, M_NETGRAPH);
-		return (error);
-	}
-
-	atomic_add_int(&ngt_unit, 1);
-	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit);
-
-	/* Assign node its name */
-	if ((error = ng_name_node(sc->node, name))) {
-		sc->flags |= FLG_DIE;
-		NGTUNLOCK(sc);
-		NG_NODE_UNREF(sc->node);
-		log(LOG_ERR, "%s: node name exists?\n", name);
-		return (error);
-	}
-
-	/* Set back pointers */
-	NG_NODE_SET_PRIVATE(sc->node, sc);
-	tp->t_lsc = sc;
-
-	ng_callout_init(&sc->chand);
-
-	/*
-	 * Pre-allocate cblocks to the an appropriate amount.
-	 * I'm not sure what is appropriate.
-	 */
-	ttyflush(tp, FREAD | FWRITE);
-	clist_alloc_cblocks(&tp->t_canq, 0, 0);
-	clist_alloc_cblocks(&tp->t_rawq, 0, 0);
-	clist_alloc_cblocks(&tp->t_outq,
-	    MLEN + NGT_HIWATER, MLEN + NGT_HIWATER);
-
-	NGTUNLOCK(sc);
-
-	return (0);
-}
-
-/*
- * Line specific close routine, called from device close routine
- * and from ttioctl. This causes the node to be destroyed as well.
- */
-static int
-ngt_close(struct tty *tp, int flag)
-{
-	const sc_p sc = (sc_p) tp->t_lsc;
-
-	ttyflush(tp, FREAD | FWRITE);
-	clist_free_cblocks(&tp->t_outq);
-	if (sc != NULL) {
-		NGTLOCK(sc);
-		if (callout_pending(&sc->chand))
-			ng_uncallout(&sc->chand, sc->node);
-		tp->t_lsc = NULL;
-		sc->flags |= FLG_DIE;
-		NGTUNLOCK(sc);
-		ng_rmnode_self(sc->node);
-	}
-	return (0);
-}
-
-/*
- * Once the device has been turned into a node, we don't allow reading.
- */
-static int
-ngt_read(struct tty *tp, struct uio *uio, int flag)
-{
-	return (EIO);
-}
-
-/*
- * Once the device has been turned into a node, we don't allow writing.
- */
-static int
-ngt_write(struct tty *tp, struct uio *uio, int flag)
-{
-	return (EIO);
-}
-
-/*
- * We implement the NGIOCGINFO ioctl() defined in ng_message.h.
- */
-static int
-ngt_tioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	const sc_p sc = (sc_p) tp->t_lsc;
-
-	if (sc == NULL)
-		/* No node attached */
-		return (0);
-
-	switch (cmd) {
-	case NGIOCGINFO:
-	    {
-		struct nodeinfo *const ni = (struct nodeinfo *) data;
-		const node_p node = sc->node;
-
-		bzero(ni, sizeof(*ni));
-		NGTLOCK(sc);
-		if (NG_NODE_HAS_NAME(node))
-			strncpy(ni->name, NG_NODE_NAME(node), sizeof(ni->name) - 1);
-		strncpy(ni->type, node->nd_type->name, sizeof(ni->type) - 1);
-		ni->id = (u_int32_t) ng_node2ID(node);
-		ni->hooks = NG_NODE_NUMHOOKS(node);
-		NGTUNLOCK(sc);
-		break;
-	    }
-	default:
-		return (ENOIOCTL);
-	}
-
-	return (0);
-}
-
-/*
- * Receive data coming from the device. We get one character at
- * a time, which is kindof silly.
- *
- * Full locking of softc is not required, since we are the only
- * user of sc->m.
- */
-static int
-ngt_input(int c, struct tty *tp)
-{
-	sc_p sc;
-	node_p node;
-	struct mbuf *m;
-	int error = 0;
-
-	sc = (sc_p) tp->t_lsc;
-	if (sc == NULL)
-		/* No node attached */
-		return (0);
-
-	node = sc->node;
-
-	if (tp != sc->tp)
-		panic("ngt_input");
-
-	/* Check for error conditions */
-	if ((tp->t_state & TS_CONNECTED) == 0) {
-		if (sc->flags & FLG_DEBUG)
-			log(LOG_DEBUG, "%s: no carrier\n", NG_NODE_NAME(node));
-		return (0);
-	}
-	if (c & TTY_ERRORMASK) {
-		/* framing error or overrun on this char */
-		if (sc->flags & FLG_DEBUG)
-			log(LOG_DEBUG, "%s: line error %x\n",
-			    NG_NODE_NAME(node), c & TTY_ERRORMASK);
-		return (0);
-	}
-	c &= TTY_CHARMASK;
-
-	/* Get a new header mbuf if we need one */
-	if (!(m = sc->m)) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
-		if (!m) {
-			if (sc->flags & FLG_DEBUG)
-				log(LOG_ERR,
-				    "%s: can't get mbuf\n", NG_NODE_NAME(node));
-			return (ENOBUFS);
-		}
-		m->m_len = m->m_pkthdr.len = 0;
-		m->m_pkthdr.rcvif = NULL;
-		sc->m = m;
-	}
-
-	/* Add char to mbuf */
-	*mtod(m, u_char *) = c;
-	m->m_data++;
-	m->m_len++;
-	m->m_pkthdr.len++;
-
-	/* Ship off mbuf if it's time */
-	if (sc->hotchar == -1 || c == sc->hotchar || m->m_len >= MHLEN) {
-		m->m_data = m->m_pktdat;
-		sc->m = NULL;
-
-		/*
-		 * We have built our mbuf without checking that we actually
-		 * have a hook to send it. This was done to avoid
-		 * acquiring mutex on each character. Check now.
-		 *
-		 */
-
-		NGTLOCK(sc);
-		if (sc->hook == NULL) {
-			NGTUNLOCK(sc);
-			m_freem(m);
-			return (0);		/* XXX: original behavior */
-		}
-		NG_SEND_DATA_ONLY(error, sc->hook, m);	/* Will queue */
-		NGTUNLOCK(sc);
-	}
-
-	return (error);
-}
-
-/*
- * This is called when the device driver is ready for more output.
- * Also called from ngt_rcv_data() when a new mbuf is available for output.
- */
-static int
-ngt_start(struct tty *tp)
-{
-	const sc_p sc = (sc_p) tp->t_lsc;
-
-	while (tp->t_outq.c_cc < NGT_HIWATER) {	/* XXX 2.2 specific ? */
-		struct mbuf *m;
-
-		/* Remove first mbuf from queue */
-		IF_DEQUEUE(&sc->outq, m);
-		if (m == NULL)
-			break;
-
-		/* Send as much of it as possible */
-		while (m != NULL) {
-			int     sent;
-
-			sent = m->m_len
-			    - b_to_q(mtod(m, u_char *), m->m_len, &tp->t_outq);
-			m->m_data += sent;
-			m->m_len -= sent;
-			if (m->m_len > 0)
-				break;	/* device can't take no more */
-			m = m_free(m);
-		}
-
-		/* Put remainder of mbuf chain (if any) back on queue */
-		if (m != NULL) {
-			IF_PREPEND(&sc->outq, m);
-			break;
-		}
-	}
-
-	/* Call output process whether or not there is any output. We are
-	 * being called in lieu of ttstart and must do what it would. */
-	tt_oproc(tp);
-
-	/* This timeout is needed for operation on a pseudo-tty, because the
-	 * pty code doesn't call pppstart after it has drained the t_outq. */
-	/* XXX: outq not locked */
-	if (!IFQ_IS_EMPTY(&sc->outq) && !callout_pending(&sc->chand))
-		ng_callout(&sc->chand, sc->node, NULL, 1, ngt_timeout, NULL, 0);
-
-	return (0);
-}
-
-/*
- * We still have data to output to the device, so try sending more.
- */
-static void
-ngt_timeout(node_p node, hook_p hook, void *arg1, int arg2)
-{
-	const sc_p sc = NG_NODE_PRIVATE(node);
-
-	mtx_lock(&Giant);
-	ngt_start(sc->tp);
-	mtx_unlock(&Giant);
-}
 
 /******************************************************************
 		    NETGRAPH NODE METHODS
@@ -484,7 +156,29 @@ ngt_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 static int
 ngt_constructor(node_p node)
 {
-	return (EOPNOTSUPP);
+	sc_p sc;
+	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
+
+	/* Allocate private structure */
+	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	if (sc == NULL)
+		return (ENOMEM);
+
+	NG_NODE_SET_PRIVATE(node, sc);
+	sc->node = node;
+
+	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
+	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
+
+	atomic_add_int(&ngt_unit, 1);
+	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit);
+
+	/* Assign node its name */
+	if (ng_name_node(node, name))
+		log(LOG_WARNING, "%s: can't name node %s\n",
+		    __func__, name);
+	/* Done */
+	return (0);
 }
 
 /*
@@ -516,12 +210,6 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 static int
 ngt_connect(hook_p hook)
 {
-	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
-	/*
-	 * XXX: While ngt_start() is Giant-locked, queue incoming
-	 * packets, too. Otherwise we acquire Giant holding some
-	 * IP stack locks, e.g. divinp, and this makes WITNESS scream.
-	 */
 	NG_HOOK_FORCE_QUEUE(hook);
 	return (0);
 }
@@ -546,70 +234,23 @@ ngt_disconnect(hook_p hook)
 
 /*
  * Remove this node. The does the netgraph portion of the shutdown.
- * This should only be called indirectly from ngt_close().
- *
- * tp->t_lsc is already NULL, so we should be protected from
- * tty calls now.
  */
 static int
 ngt_shutdown(node_p node)
 {
 	const sc_p sc = NG_NODE_PRIVATE(node);
+	struct tty *tp;
 
-	NGTLOCK(sc);
-	if (!(sc->flags & FLG_DIE)) {
-		NGTUNLOCK(sc);
-		return (EOPNOTSUPP);
+	tp = sc->tp;
+	if (tp != NULL) {
+		tty_lock(tp);
+		ttyhook_unregister(tp);
 	}
-	NGTUNLOCK(sc);
-
 	/* Free resources */
-	_IF_DRAIN(&sc->outq);
+	IF_DRAIN(&sc->outq);
 	mtx_destroy(&(sc)->outq.ifq_mtx);
-	m_freem(sc->m);
 	NG_NODE_UNREF(sc->node);
 	FREE(sc, M_NETGRAPH);
-
-	return (0);
-}
-
-/*
- * Receive incoming data from netgraph system. Put it on our
- * output queue and start output if necessary.
- */
-static int
-ngt_rcvdata(hook_p hook, item_p item)
-{
-	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	struct mbuf *m;
-	int qlen;
-
-	if (hook != sc->hook)
-		panic(__func__);
-
-	NGI_GET_M(item, m);
-	NG_FREE_ITEM(item);
-
-	IF_LOCK(&sc->outq);
-	if (_IF_QFULL(&sc->outq)) {
-		_IF_DROP(&sc->outq);
-		IF_UNLOCK(&sc->outq);
-		NG_FREE_M(m);
-		return (ENOBUFS);
-	}
-
-	_IF_ENQUEUE(&sc->outq, m);
-	qlen = sc->outq.ifq_len;
-	IF_UNLOCK(&sc->outq);
-
-	/*
-	 * If qlen > 1, then we should already have a scheduled callout.
-	 */
-	if (qlen == 1) {
-		mtx_lock(&Giant);
-		ngt_start(sc->tp);
-		mtx_unlock(&Giant);
-	}
 
 	return (0);
 }
@@ -620,6 +261,7 @@ ngt_rcvdata(hook_p hook, item_p item)
 static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
+	struct thread *td = curthread;	/* XXX */
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -628,6 +270,14 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	switch (msg->header.typecookie) {
 	case NGM_TTY_COOKIE:
 		switch (msg->header.cmd) {
+		case NGM_TTY_SET_TTY:
+			if (sc->tp != NULL)
+				return (EBUSY);
+			error = ttyhook_register(&sc->tp, td, *(int *)msg->data,
+			    &ngt_hook, sc);
+			if (error != 0)
+				return (error);
+			break;
 		case NGM_TTY_SET_HOTCHAR:
 		    {
 			int     hotchar;
@@ -660,43 +310,220 @@ done:
 	return (error);
 }
 
-/******************************************************************
-		    	INITIALIZATION
-******************************************************************/
-
 /*
- * Handle loading and unloading for this node type
+ * Receive incoming data from netgraph system. Put it on our
+ * output queue and start output if necessary.
  */
 static int
-ngt_mod_event(module_t mod, int event, void *data)
+ngt_rcvdata(hook_p hook, item_p item)
 {
+	const sc_p sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	struct tty *tp = sc->tp;
+	struct mbuf *m;
+
+	if (hook != sc->hook)
+		panic(__func__);
+
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
+
+	if (tp == NULL) {
+		NG_FREE_M(m);
+		return (ENXIO);
+	}
+
+	IF_LOCK(&sc->outq);
+	if (_IF_QFULL(&sc->outq)) {
+		_IF_DROP(&sc->outq);
+		IF_UNLOCK(&sc->outq);
+		NG_FREE_M(m);
+		return (ENOBUFS);
+	}
+
+	_IF_ENQUEUE(&sc->outq, m);
+	sc->outqlen += m->m_pkthdr.len;
+	IF_UNLOCK(&sc->outq);
+
+	/* notify the TTY that data is ready */
+	tty_lock(tp);
+	if (!tty_gone(tp))
+		ttydevsw_outwakeup(tp);
+	tty_unlock(tp);
+
+	return (0);
+}
+
+static size_t
+ngt_getc_inject(struct tty *tp, void *buf, size_t len)
+{
+	sc_p sc = ttyhook_softc(tp);
+	size_t total = 0;
+	int length;
+
+	while (len) {
+		struct mbuf *m;
+
+		/* Remove first mbuf from queue */
+		IF_DEQUEUE(&sc->outq, m);
+		if (m == NULL)
+			break;
+
+		/* Send as much of it as possible */
+		while (m != NULL) {
+			length = min(m->m_len, len);
+			memcpy((char *)buf + total, mtod(m, char *), length);
+
+			m->m_data += length;
+			m->m_len -= length;
+			total += length;
+			len -= length;
+
+			if (m->m_len > 0)
+				break;	/* device can't take any more */
+			m = m_free(m);
+		}
+
+		/* Put remainder of mbuf chain (if any) back on queue */
+		if (m != NULL) {
+			IF_PREPEND(&sc->outq, m);
+			break;
+		}
+	}
+	IF_LOCK(&sc->outq);
+	sc->outqlen -= total;
+	IF_UNLOCK(&sc->outq);
+	MPASS(sc->outqlen >= 0);
+
+	return (total);
+}
+
+static size_t
+ngt_getc_poll(struct tty *tp)
+{
+	sc_p sc = ttyhook_softc(tp);
+
+	return (sc->outqlen);
+}
+
+/*
+ * Optimised TTY input.
+ *
+ * We get a buffer pointer to hopefully a complete data frame. Do not check for
+ * the hotchar, just pass it on.
+ */
+static size_t
+ngt_rint_bypass(struct tty *tp, const void *buf, size_t len)
+{
+	sc_p sc = ttyhook_softc(tp);
+	node_p node = sc->node;
+	struct mbuf *m, *mb;
+	size_t total = 0;
+	int error = 0, length;
+
+	tty_lock_assert(tp, MA_OWNED);
+
+	if (sc->hook == NULL)
+		return (0);
+
+	m = m_getm2(NULL, len, M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL) {
+		if (sc->flags & FLG_DEBUG)
+			log(LOG_ERR,
+			    "%s: can't get mbuf\n", NG_NODE_NAME(node));
+		return (0);
+	}
+	m->m_pkthdr.rcvif = NULL;
+
+	for (mb = m; mb != NULL; mb = mb->m_next) {
+		length = min(M_TRAILINGSPACE(mb), len - total);
+
+		memcpy(mtod(m, char *), (const char *)buf + total, length);
+		mb->m_len = length;
+		total += length;
+		m->m_pkthdr.len += length;
+	}
+	if (sc->m != NULL) {
+		/*
+		 * Odd, we have changed from non-bypass to bypass. It is
+		 * unlikely but not impossible, flush the data first.
+		 */
+		sc->m->m_data = sc->m->m_pktdat;
+		NG_SEND_DATA_ONLY(error, sc->hook, sc->m);
+		sc->m = NULL;
+	}
+	NG_SEND_DATA_ONLY(error, sc->hook, m);
+
+	return (total);
+}
+
+/*
+ * Receive data coming from the device one char at a time, when it is not in
+ * bypass mode.
+ */
+static int
+ngt_rint(struct tty *tp, char c, int flags)
+{
+	sc_p sc = ttyhook_softc(tp);
+	node_p node = sc->node;
+	struct mbuf *m;
 	int error = 0;
 
-	switch (event) {
-	case MOD_LOAD:
+	tty_lock_assert(tp, MA_OWNED);
 
-		/* Register line discipline */
-		mtx_lock(&Giant);
-		if ((ngt_ldisc = ldisc_register(NETGRAPHDISC, &ngt_disc)) < 0) {
-			mtx_unlock(&Giant);
-			log(LOG_ERR, "%s: can't register line discipline",
-			    __func__);
-			return (EIO);
-		}
-		mtx_unlock(&Giant);
-		break;
+	if (sc->hook == NULL)
+		return (0);
 
-	case MOD_UNLOAD:
-
-		/* Unregister line discipline */
-		mtx_lock(&Giant);
-		ldisc_deregister(ngt_ldisc);
-		mtx_unlock(&Giant);
-		break;
-
-	default:
-		error = EOPNOTSUPP;
-		break;
+	if (flags != 0) {
+		/* framing error or overrun on this char */
+		if (sc->flags & FLG_DEBUG)
+			log(LOG_DEBUG, "%s: line error %x\n",
+			    NG_NODE_NAME(node), flags);
+		return (0);
 	}
+
+	/* Get a new header mbuf if we need one */
+	if (!(m = sc->m)) {
+		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		if (!m) {
+			if (sc->flags & FLG_DEBUG)
+				log(LOG_ERR,
+				    "%s: can't get mbuf\n", NG_NODE_NAME(node));
+			return (ENOBUFS);
+		}
+		m->m_len = m->m_pkthdr.len = 0;
+		m->m_pkthdr.rcvif = NULL;
+		sc->m = m;
+	}
+
+	/* Add char to mbuf */
+	*mtod(m, u_char *) = c;
+	m->m_data++;
+	m->m_len++;
+	m->m_pkthdr.len++;
+
+	/* Ship off mbuf if it's time */
+	if (sc->hotchar == -1 || c == sc->hotchar || m->m_len >= MHLEN) {
+		m->m_data = m->m_pktdat;
+		sc->m = NULL;
+		NG_SEND_DATA_ONLY(error, sc->hook, m);	/* Will queue */
+	}
+
 	return (error);
 }
+
+static size_t
+ngt_rint_poll(struct tty *tp)
+{
+	/* We can always accept input */
+	return (1);
+}
+
+static void
+ngt_close(struct tty *tp)
+{
+	sc_p sc = ttyhook_softc(tp);
+
+	/* Must be queued to drop the tty lock */
+	ng_rmnode_flags(sc->node, NG_QUEUE);
+}
+
