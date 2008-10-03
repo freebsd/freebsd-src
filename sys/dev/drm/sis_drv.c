@@ -41,25 +41,24 @@ static drm_pci_id_list_t sis_pciidlist[] = {
 
 static void sis_configure(struct drm_device *dev)
 {
-	dev->driver.buf_priv_size	= 1; /* No dev_priv */
-	dev->driver.context_ctor	= sis_init_context;
-	dev->driver.context_dtor	= sis_final_context;
+	dev->driver->driver_features =
+	    DRIVER_USE_AGP | DRIVER_USE_MTRR;
 
-	dev->driver.ioctls		= sis_ioctls;
-	dev->driver.max_ioctl		= sis_max_ioctl;
+	dev->driver->buf_priv_size	= 1; /* No dev_priv */
+	dev->driver->context_ctor	= sis_init_context;
+	dev->driver->context_dtor	= sis_final_context;
 
-	dev->driver.name		= DRIVER_NAME;
-	dev->driver.desc		= DRIVER_DESC;
-	dev->driver.date		= DRIVER_DATE;
-	dev->driver.major		= DRIVER_MAJOR;
-	dev->driver.minor		= DRIVER_MINOR;
-	dev->driver.patchlevel		= DRIVER_PATCHLEVEL;
+	dev->driver->ioctls		= sis_ioctls;
+	dev->driver->max_ioctl		= sis_max_ioctl;
 
-	dev->driver.use_agp		= 1;
-	dev->driver.use_mtrr		= 1;
+	dev->driver->name		= DRIVER_NAME;
+	dev->driver->desc		= DRIVER_DESC;
+	dev->driver->date		= DRIVER_DATE;
+	dev->driver->major		= DRIVER_MAJOR;
+	dev->driver->minor		= DRIVER_MINOR;
+	dev->driver->patchlevel		= DRIVER_PATCHLEVEL;
 }
 
-#ifdef __FreeBSD__
 static int
 sis_probe(device_t dev)
 {
@@ -72,15 +71,31 @@ sis_attach(device_t nbdev)
 	struct drm_device *dev = device_get_softc(nbdev);
 
 	bzero(dev, sizeof(struct drm_device));
+
+	dev->driver = malloc(sizeof(struct drm_driver_info), M_DRM, M_NOWAIT | M_ZERO);
 	sis_configure(dev);
+
 	return drm_attach(nbdev, sis_pciidlist);
+}
+
+static int
+sis_detach(device_t nbdev)
+{
+	struct drm_device *dev = device_get_softc(nbdev);
+	int ret;
+
+	ret = drm_detach(nbdev);
+
+	free(dev->driver, M_DRM);
+
+	return ret;
 }
 
 static device_method_t sis_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sis_probe),
 	DEVMETHOD(device_attach,	sis_attach),
-	DEVMETHOD(device_detach,	drm_detach),
+	DEVMETHOD(device_detach,	sis_detach),
 
 	{ 0, 0 }
 };
@@ -98,12 +113,3 @@ DRIVER_MODULE(sisdrm, vgapci, sis_driver, drm_devclass, 0, 0);
 DRIVER_MODULE(sisdrm, pci, sis_driver, drm_devclass, 0, 0);
 #endif
 MODULE_DEPEND(sisdrm, drm, 1, 1, 1);
-
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-#ifdef _LKM
-CFDRIVER_DECL(sis, DV_TTY, NULL);
-#else
-CFATTACH_DECL(sis, sizeof(struct drm_device), drm_probe, drm_attach, drm_detach,
-    drm_activate);
-#endif
-#endif

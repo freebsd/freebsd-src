@@ -45,9 +45,6 @@ MALLOC_DEFINE(M_DRM, "drm", "DRM Data Structures");
 
 void drm_mem_init(void)
 {
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	malloc_type_attach(M_DRM);
-#endif
 }
 
 void drm_mem_uninit(void)
@@ -72,7 +69,7 @@ void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
 	if (pt == NULL)
 		return NULL;
 	if (oldpt && oldsize) {
-		memcpy(pt, oldpt, oldsize);
+		memcpy(pt, oldpt, DRM_MIN(oldsize,size));
 		free(oldpt, M_DRM);
 	}
 	return pt;
@@ -83,29 +80,21 @@ void drm_free(void *pt, size_t size, int area)
 	free(pt, M_DRM);
 }
 
+void *drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map)
+{
+	return pmap_mapdev_attr(map->offset, map->size, PAT_WRITE_COMBINING);
+}
+
 void *drm_ioremap(struct drm_device *dev, drm_local_map_t *map)
 {
-#ifdef __FreeBSD__
 	return pmap_mapdev(map->offset, map->size);
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	map->bst = dev->pa.pa_memt;
-	if (bus_space_map(map->bst, map->offset, map->size, 
-	    BUS_SPACE_MAP_LINEAR, &map->bsh))
-		return NULL;
-	return bus_space_vaddr(map->bst, map->bsh);
-#endif
 }
 
 void drm_ioremapfree(drm_local_map_t *map)
 {
-#ifdef __FreeBSD__
 	pmap_unmapdev((vm_offset_t) map->handle, map->size);
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-	bus_space_unmap(map->bst, map->bsh, map->size);
-#endif
 }
 
-#ifdef __FreeBSD__
 int
 drm_mtrr_add(unsigned long offset, size_t size, int flags)
 {
@@ -133,30 +122,3 @@ drm_mtrr_del(int __unused handle, unsigned long offset, size_t size, int flags)
 	strlcpy(mrdesc.mr_owner, "drm", sizeof(mrdesc.mr_owner));
 	return mem_range_attr_set(&mrdesc, &act);
 }
-#elif defined(__NetBSD__) || defined(__OpenBSD__)
-int
-drm_mtrr_add(unsigned long offset, size_t size, int flags)
-{
-	struct mtrr mtrrmap;
-	int one = 1;
-
-	mtrrmap.base = offset;
-	mtrrmap.len = size;
-	mtrrmap.type = flags;
-	mtrrmap.flags = MTRR_VALID;
-	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
-}
-
-int
-drm_mtrr_del(unsigned long offset, size_t size, int flags)
-{
-	struct mtrr mtrrmap;
-	int one = 1;
-
-	mtrrmap.base = offset;
-	mtrrmap.len = size;
-	mtrrmap.type = flags;
-	mtrrmap.flags = 0;
-	return mtrr_set(&mtrrmap, &one, NULL, MTRR_GETSET_KERNEL);
-}
-#endif

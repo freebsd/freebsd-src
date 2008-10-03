@@ -631,9 +631,6 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 		     dev_priv->ring.size_l2qw);
 #endif
 
-	/* Start with assuming that writeback doesn't work */
-	dev_priv->writeback_works = 0;
-
 	/* Initialize the scratch register pointer.  This will cause
 	 * the scratch register values to be written out to memory
 	 * whenever they are updated.
@@ -1189,6 +1186,9 @@ static int radeon_do_init_cp(struct drm_device * dev, drm_radeon_init_t * init)
 		/* Turn on PCI GART */
 		radeon_set_pcigart(dev_priv, 1);
 	}
+
+	/* Start with assuming that writeback doesn't work */
+	dev_priv->writeback_works = 0;
 
 	radeon_cp_load_microcode(dev_priv);
 	radeon_cp_init_ring_buffer(dev, dev_priv);

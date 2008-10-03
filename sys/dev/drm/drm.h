@@ -962,6 +962,31 @@ struct drm_mm_info_arg {
 	uint64_t p_size;
 };
 
+struct drm_gem_close {
+	/** Handle of the object to be closed. */
+	uint32_t handle;
+	uint32_t pad;
+};
+
+struct drm_gem_flink {
+	/** Handle for the object being named */
+	uint32_t handle;
+
+	/** Returned global name */
+	uint32_t name;
+};
+
+struct drm_gem_open {
+	/** Name of object being opened */
+	uint32_t name;
+
+	/** Returned handle for the object */
+	uint32_t handle;
+	
+	/** Returned size of the object */
+	uint64_t size;
+};
+
 /**
  * \name Ioctls Definitions
  */
@@ -981,7 +1006,11 @@ struct drm_mm_info_arg {
 #define DRM_IOCTL_GET_CLIENT            DRM_IOWR(0x05, struct drm_client)
 #define DRM_IOCTL_GET_STATS             DRM_IOR( 0x06, struct drm_stats)
 #define DRM_IOCTL_SET_VERSION		DRM_IOWR(0x07, struct drm_set_version)
-#define DRM_IOCTL_MODESET_CTL           DRM_IOW(0x08, struct drm_modeset_ctl)
+#define DRM_IOCTL_MODESET_CTL           DRM_IOW(0x08,  struct drm_modeset_ctl)
+
+#define DRM_IOCTL_GEM_CLOSE		DRM_IOW (0x09, struct drm_gem_close)
+#define DRM_IOCTL_GEM_FLINK		DRM_IOWR(0x0a, struct drm_gem_flink)
+#define DRM_IOCTL_GEM_OPEN		DRM_IOWR(0x0b, struct drm_gem_open)
 
 #define DRM_IOCTL_SET_UNIQUE		DRM_IOW( 0x10, struct drm_unique)
 #define DRM_IOCTL_AUTH_MAGIC		DRM_IOW( 0x11, struct drm_auth)
@@ -1069,7 +1098,7 @@ struct drm_mm_info_arg {
 #define DRM_COMMAND_END                 0xA0
 
 /* typedef area */
-#if !defined(__KERNEL__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#ifndef __KERNEL__
 typedef struct drm_clip_rect drm_clip_rect_t;
 typedef struct drm_tex_region drm_tex_region_t;
 typedef struct drm_hw_lock drm_hw_lock_t;

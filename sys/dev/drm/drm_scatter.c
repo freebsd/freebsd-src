@@ -48,27 +48,27 @@ void drm_sg_cleanup(drm_sg_mem_t *entry)
 	free(entry, M_DRM);
 }
 
-int drm_sg_alloc(struct drm_device * dev, drm_scatter_gather_t * request)
+int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 {
 	drm_sg_mem_t *entry;
 	unsigned long pages;
 	int i;
 
-	if ( dev->sg )
+	if (dev->sg)
 		return EINVAL;
 
 	entry = malloc(sizeof(*entry), M_DRM, M_WAITOK | M_ZERO);
-	if ( !entry )
+	if (!entry)
 		return ENOMEM;
 
 	pages = round_page(request->size) / PAGE_SIZE;
-	DRM_DEBUG( "sg size=%ld pages=%ld\n", request->size, pages );
+	DRM_DEBUG("sg size=%ld pages=%ld\n", request->size, pages);
 
 	entry->pages = pages;
 
 	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), M_DRM,
 	    M_WAITOK | M_ZERO);
-	if ( !entry->busaddr ) {
+	if (!entry->busaddr) {
 		drm_sg_cleanup(entry);
 		return ENOMEM;
 	}
@@ -84,7 +84,7 @@ int drm_sg_alloc(struct drm_device * dev, drm_scatter_gather_t * request)
 		entry->busaddr[i] = vtophys(entry->handle + i * PAGE_SIZE);
 	}
 
-	DRM_DEBUG( "sg alloc handle  = %08lx\n", entry->handle );
+	DRM_DEBUG("sg alloc handle  = %08lx\n", entry->handle);
 
 	entry->virtual = (void *)entry->handle;
 	request->handle = entry->handle;
@@ -104,10 +104,10 @@ int drm_sg_alloc(struct drm_device * dev, drm_scatter_gather_t * request)
 int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	drm_scatter_gather_t *request = data;
+	struct drm_scatter_gather *request = data;
 	int ret;
 
-	DRM_DEBUG( "%s\n", __FUNCTION__ );
+	DRM_DEBUG("%s\n", __FUNCTION__);
 
 	ret = drm_sg_alloc(dev, request);
 	return ret;
@@ -115,7 +115,7 @@ int drm_sg_alloc_ioctl(struct drm_device *dev, void *data,
 
 int drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	drm_scatter_gather_t *request = data;
+	struct drm_scatter_gather *request = data;
 	drm_sg_mem_t *entry;
 
 	DRM_LOCK();
@@ -123,10 +123,10 @@ int drm_sg_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	dev->sg = NULL;
 	DRM_UNLOCK();
 
-	if ( !entry || entry->handle != request->handle )
+	if (!entry || entry->handle != request->handle)
 		return EINVAL;
 
-	DRM_DEBUG( "sg free virtual  = 0x%lx\n", entry->handle );
+	DRM_DEBUG("sg free virtual = 0x%lx\n", entry->handle);
 
 	drm_sg_cleanup(entry);
 
