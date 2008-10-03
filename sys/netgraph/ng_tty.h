@@ -59,6 +59,7 @@
 enum {
 	NGM_TTY_GET_HOTCHAR = 1,
 	NGM_TTY_SET_HOTCHAR,
+	NGM_TTY_SET_TTY,
 };
 
 #endif /* _NETGRAPH_NG_TTY_H_ */
