@@ -86,6 +86,7 @@ static int	atphy_auto(struct mii_softc *);
 
 static const struct mii_phydesc atphys[] = {
 	MII_PHY_DESC(ATHEROS, F1),
+	MII_PHY_DESC(ATHEROS, F2),
 	MII_PHY_END
 };
 
