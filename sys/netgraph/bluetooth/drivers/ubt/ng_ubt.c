@@ -812,24 +812,29 @@ ubt_detach(device_t self)
 
 	/* Close pipes */
 	if (sc->sc_intr_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_intr_pipe);
 		usbd_close_pipe(sc->sc_intr_pipe);
 		sc->sc_intr_pipe = NULL;
 	}
 
 	if (sc->sc_bulk_in_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_bulk_in_pipe);
 		usbd_close_pipe(sc->sc_bulk_in_pipe);
 		sc->sc_bulk_in_pipe = NULL;
 	}
 	if (sc->sc_bulk_out_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_bulk_out_pipe);
 		usbd_close_pipe(sc->sc_bulk_out_pipe);
 		sc->sc_bulk_out_pipe = NULL;
 	}
 
 	if (sc->sc_isoc_in_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_isoc_in_pipe);
 		usbd_close_pipe(sc->sc_isoc_in_pipe);
 		sc->sc_isoc_in_pipe = NULL;
 	}
 	if (sc->sc_isoc_out_pipe != NULL) {
+		usbd_abort_pipe(sc->sc_isoc_out_pipe);
 		usbd_close_pipe(sc->sc_isoc_out_pipe);
 		sc->sc_isoc_out_pipe = NULL;
 	}
