@@ -122,6 +122,7 @@ model xxAMD 79C873		0x0000 Am79C873/DM9101 10/100 media interface
 
 /* Atheros Communications/Attansic PHYs. */
 model ATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
+model ATHEROS F2		0x0002 Atheros F2 10/100 PHY
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3C905B		0x0012 3c905B 10/100 internal PHY
