@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2007 Robert N. M. Watson
+ * Copyright (c) 2004-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -578,8 +578,8 @@ uipc_detach(struct socket *so)
 	}
 
 	/*
-	 * We hold the global lock, so it's OK to acquire multiple pcb locks
-	 * at a time.
+	 * We hold the global lock exclusively, so it's OK to acquire
+	 * multiple pcb locks at a time.
 	 */
 	while (!LIST_EMPTY(&unp->unp_refs)) {
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
@@ -744,8 +744,6 @@ uipc_rcvd(struct socket *so, int flags)
 	return (0);
 }
 
-/* pru_rcvoob is EOPNOTSUPP */
-
 static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
@@ -763,15 +761,12 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		error = EOPNOTSUPP;
 		goto release;
 	}
-
 	if (control != NULL && (error = unp_internalize(&control, td)))
 		goto release;
-
 	if ((nam != NULL) || (flags & PRUS_EOF))
 		UNP_GLOBAL_WLOCK();
 	else
 		UNP_GLOBAL_RLOCK();
-
 	switch (so->so_type) {
 	case SOCK_DGRAM:
 	{
@@ -789,6 +784,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				break;
 			unp2 = unp->unp_conn;
 		}
+
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
 		 * with a target address, it's possible that the socket will
@@ -829,12 +825,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	case SOCK_STREAM:
-		/*
-		 * Connect if not connected yet.
-		 *
-		 * Note: A better implementation would complain if not equal
-		 * to the peer's address.
-		 */
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
 				UNP_GLOBAL_WLOCK_ASSERT();
@@ -852,6 +842,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = EPIPE;
 			break;
 		}
+
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
 		 * with a target address, it's possible that the socket will
@@ -910,7 +901,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	/*
-	 * SEND_EOF is equivalent to a SEND followed by a SHUTDOWN.
+	 * PRUS_EOF is equivalent to pru_send followed by pru_shutdown.
 	 */
 	if (flags & PRUS_EOF) {
 		UNP_PCB_LOCK(unp);
@@ -1260,7 +1251,7 @@ bad2:
 	if (vfslocked)
 		/* 
 		 * Giant has been previously acquired. This means filesystem
-		 * isn't MPSAFE. Do it once again.
+		 * isn't MPSAFE.  Do it once again.
 		 */
 		mtx_lock(&Giant);
 bad:
@@ -1580,6 +1571,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				unp_freerights(rp, newfds);
 				goto next;
 			}
+
 			/*
 			 * Now change each pointer to an fd in the global
 			 * table to an integer that is the index to the local
@@ -1938,6 +1930,7 @@ unp_gc_process(struct unpcb *unp)
 	if (unp->unp_gcflag & UNPGC_SCANNED)
 		return;
 	fp = unp->unp_file;
+
 	/*
 	 * Check for a socket potentially in a cycle.  It must be in a
 	 * queue as indicated by msgcount, and this must equal the file
@@ -1949,6 +1942,7 @@ unp_gc_process(struct unpcb *unp)
 		unp_unreachable++;
 		return;
 	}
+
 	/*
 	 * Mark all sockets we reference with RIGHTS.
 	 */
@@ -1956,6 +1950,7 @@ unp_gc_process(struct unpcb *unp)
 	SOCKBUF_LOCK(&so->so_rcv);
 	unp_scan(so->so_rcv.sb_mb, unp_accessable);
 	SOCKBUF_UNLOCK(&so->so_rcv);
+
 	/*
 	 * Mark all sockets in our accept queue.
 	 */
@@ -1994,6 +1989,7 @@ unp_gc(__unused void *arg, int pending)
 	for (head = heads; *head != NULL; head++)
 		LIST_FOREACH(unp, *head, unp_link)
 			unp->unp_gcflag = 0;
+
 	/*
 	 * Scan marking all reachable sockets with UNPGC_REF.  Once a socket
 	 * is reachable all of the sockets it references are reachable.
@@ -2010,11 +2006,13 @@ unp_gc(__unused void *arg, int pending)
 	UNP_GLOBAL_RUNLOCK();
 	if (unp_unreachable == 0)
 		return;
+
 	/*
 	 * Allocate space for a local list of dead unpcbs.
 	 */
 	unref = malloc(unp_unreachable * sizeof(struct file *),
 	    M_TEMP, M_WAITOK);
+
 	/*
 	 * Iterate looking for sockets which have been specifically marked
 	 * as as unreachable and store them locally.
@@ -2031,6 +2029,7 @@ unp_gc(__unused void *arg, int pending)
 				    ("unp_gc: incorrect unreachable count."));
 			}
 	UNP_GLOBAL_RUNLOCK();
+
 	/*
 	 * Now flush all sockets, free'ing rights.  This will free the
 	 * struct files associated with these sockets but leave each socket
@@ -2038,6 +2037,7 @@ unp_gc(__unused void *arg, int pending)
 	 */
 	for (i = 0; i < unp_unreachable; i++)
 		sorflush(unref[i]->f_data);
+
 	/*
 	 * And finally release the sockets so they can be reclaimed.
 	 */
