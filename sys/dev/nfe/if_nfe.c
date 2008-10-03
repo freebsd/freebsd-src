@@ -122,6 +122,9 @@ static void nfe_dma_map_segs(void *, bus_dma_segment_t *, int, int);
 
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_nfe_proc_limit(SYSCTL_HANDLER_ARGS);
+static void nfe_sysctl_node(struct nfe_softc *);
+static void nfe_stats_clear(struct nfe_softc *);
+static void nfe_stats_update(struct nfe_softc *);
 
 #ifdef NFE_DEBUG
 static int nfedebug = 0;
@@ -454,18 +457,19 @@ nfe_attach(device_t dev)
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP51_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP51_LAN2:
-		sc->nfe_flags |= NFE_40BIT_ADDR | NFE_PWR_MGMT;
+		sc->nfe_flags |= NFE_40BIT_ADDR | NFE_PWR_MGMT | NFE_MIB_V1;
 		break;
 	case PCI_PRODUCT_NVIDIA_CK804_LAN1:
 	case PCI_PRODUCT_NVIDIA_CK804_LAN2:
 	case PCI_PRODUCT_NVIDIA_MCP04_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP04_LAN2:
-		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM;
+		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM |
+		    NFE_MIB_V1;
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP55_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP55_LAN2:
 		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM |
-		    NFE_HW_VLAN | NFE_PWR_MGMT | NFE_TX_FLOW_CTRL;
+		    NFE_HW_VLAN | NFE_PWR_MGMT | NFE_TX_FLOW_CTRL | NFE_MIB_V2;
 		break;
 
 	case PCI_PRODUCT_NVIDIA_MCP61_LAN1:
@@ -481,7 +485,7 @@ nfe_attach(device_t dev)
 	case PCI_PRODUCT_NVIDIA_MCP73_LAN3:
 	case PCI_PRODUCT_NVIDIA_MCP73_LAN4:
 		sc->nfe_flags |= NFE_40BIT_ADDR | NFE_PWR_MGMT |
-		    NFE_CORRECT_MACADDR | NFE_TX_FLOW_CTRL;
+		    NFE_CORRECT_MACADDR | NFE_TX_FLOW_CTRL | NFE_MIB_V2;
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP77_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP77_LAN2:
@@ -489,7 +493,7 @@ nfe_attach(device_t dev)
 	case PCI_PRODUCT_NVIDIA_MCP77_LAN4:
 		/* XXX flow control */
 		sc->nfe_flags |= NFE_40BIT_ADDR | NFE_HW_CSUM | NFE_PWR_MGMT |
-		    NFE_CORRECT_MACADDR;
+		    NFE_CORRECT_MACADDR | NFE_MIB_V3;
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP79_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP79_LAN2:
@@ -497,14 +501,15 @@ nfe_attach(device_t dev)
 	case PCI_PRODUCT_NVIDIA_MCP79_LAN4:
 		/* XXX flow control */
 		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM |
-		    NFE_PWR_MGMT | NFE_CORRECT_MACADDR;
+		    NFE_PWR_MGMT | NFE_CORRECT_MACADDR | NFE_MIB_V3;
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN2:
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN3:
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN4:
 		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR |
-		    NFE_PWR_MGMT | NFE_CORRECT_MACADDR | NFE_TX_FLOW_CTRL;
+		    NFE_PWR_MGMT | NFE_CORRECT_MACADDR | NFE_TX_FLOW_CTRL |
+		    NFE_MIB_V2;
 		break;
 	}
 
@@ -551,24 +556,8 @@ nfe_attach(device_t dev)
 		goto fail;
 
 	nfe_alloc_jrx_ring(sc, &sc->jrxq);
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-	    OID_AUTO, "process_limit", CTLTYPE_INT | CTLFLAG_RW,
-	    &sc->nfe_process_limit, 0, sysctl_hw_nfe_proc_limit, "I",
-	    "max number of Rx events to process");
-
-	sc->nfe_process_limit = NFE_PROC_DEFAULT;
-	error = resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "process_limit", &sc->nfe_process_limit);
-	if (error == 0) {
-		if (sc->nfe_process_limit < NFE_PROC_MIN ||
-		    sc->nfe_process_limit > NFE_PROC_MAX) {
-			device_printf(dev, "process_limit value out of range; "
-			    "using default: %d\n", NFE_PROC_DEFAULT);
-			sc->nfe_process_limit = NFE_PROC_DEFAULT;
-		}
-	}
+	/* Create sysctl node. */
+	nfe_sysctl_node(sc);
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
@@ -2767,6 +2756,9 @@ nfe_init_locked(void *xsc)
 
 	NFE_WRITE(sc, NFE_PHY_STATUS, 0xf);
 
+	/* Clear hardware stats. */
+	nfe_stats_clear(sc);
+
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING)
 		nfe_disable_intr(sc);
@@ -2855,6 +2847,8 @@ nfe_stop(struct ifnet *ifp)
 			tdata->m = NULL;
 		}
 	}
+	/* Update hardware stats. */
+	nfe_stats_update(sc);
 }
 
 
@@ -2906,6 +2900,7 @@ nfe_tick(void *xsc)
 
 	mii = device_get_softc(sc->nfe_miibus);
 	mii_tick(mii);
+	nfe_stats_update(sc);
 	nfe_watchdog(ifp);
 	callout_reset(&sc->nfe_stat_ch, hz, nfe_tick, sc);
 }
@@ -3012,4 +3007,200 @@ sysctl_hw_nfe_proc_limit(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_int_range(oidp, arg1, arg2, req, NFE_PROC_MIN,
 	    NFE_PROC_MAX));
+}
+
+
+#define	NFE_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+#define	NFE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
+static void
+nfe_sysctl_node(struct nfe_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct nfe_hw_stats *stats;
+	int error;
+
+	stats = &sc->nfe_stats;
+	ctx = device_get_sysctl_ctx(sc->nfe_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->nfe_dev));
+	SYSCTL_ADD_PROC(ctx, child,
+	    OID_AUTO, "process_limit", CTLTYPE_INT | CTLFLAG_RW,
+	    &sc->nfe_process_limit, 0, sysctl_hw_nfe_proc_limit, "I",
+	    "max number of Rx events to process");
+
+	sc->nfe_process_limit = NFE_PROC_DEFAULT;
+	error = resource_int_value(device_get_name(sc->nfe_dev),
+	    device_get_unit(sc->nfe_dev), "process_limit",
+	    &sc->nfe_process_limit);
+	if (error == 0) {
+		if (sc->nfe_process_limit < NFE_PROC_MIN ||
+		    sc->nfe_process_limit > NFE_PROC_MAX) {
+			device_printf(sc->nfe_dev,
+			    "process_limit value out of range; "
+			    "using default: %d\n", NFE_PROC_DEFAULT);
+			sc->nfe_process_limit = NFE_PROC_DEFAULT;
+		}
+	}
+
+	if ((sc->nfe_flags & (NFE_MIB_V1 | NFE_MIB_V2 | NFE_MIB_V3)) == 0)
+		return;
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "NFE statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Rx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "Rx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "frame_errors",
+	    &stats->rx_frame_errors, "Framing Errors");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "extra_bytes",
+	    &stats->rx_extra_bytes, "Extra Bytes");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "late_cols",
+	    &stats->rx_late_cols, "Late Collisions");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "runts",
+	    &stats->rx_runts, "Runts");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "jumbos",
+	    &stats->rx_jumbos, "Jumbos");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "fifo_overuns",
+	    &stats->rx_fifo_overuns, "FIFO Overruns");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "crc_errors",
+	    &stats->rx_crc_errors, "CRC Errors");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "fae",
+	    &stats->rx_fae, "Frame Alignment Errors");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "len_errors",
+	    &stats->rx_len_errors, "Length Errors");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "unicast",
+	    &stats->rx_unicast, "Unicast Frames");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "multicast",
+	    &stats->rx_multicast, "Multicast Frames");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "brocadcast",
+	    &stats->rx_broadcast, "Broadcast Frames");
+	if ((sc->nfe_flags & NFE_MIB_V2) != 0) {
+		NFE_SYSCTL_STAT_ADD64(ctx, child, "octets",
+		    &stats->rx_octets, "Octets");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "pause",
+		    &stats->rx_pause, "Pause frames");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "drops",
+		    &stats->rx_drops, "Drop frames");
+	}
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "Tx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	NFE_SYSCTL_STAT_ADD64(ctx, child, "octets",
+	    &stats->tx_octets, "Octets");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "zero_rexmits",
+	    &stats->tx_zero_rexmits, "Zero Retransmits");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "one_rexmits",
+	    &stats->tx_one_rexmits, "One Retransmits");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "multi_rexmits",
+	    &stats->tx_multi_rexmits, "Multiple Retransmits");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "late_cols",
+	    &stats->tx_late_cols, "Late Collisions");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "fifo_underuns",
+	    &stats->tx_fifo_underuns, "FIFO Underruns");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "carrier_losts",
+	    &stats->tx_carrier_losts, "Carrier Losts");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "excess_deferrals",
+	    &stats->tx_excess_deferals, "Excess Deferrals");
+	NFE_SYSCTL_STAT_ADD32(ctx, child, "retry_errors",
+	    &stats->tx_retry_errors, "Retry Errors");
+	if ((sc->nfe_flags & NFE_MIB_V2) != 0) {
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "deferrals",
+		    &stats->tx_deferals, "Deferrals");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "frames",
+		    &stats->tx_frames, "Frames");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "pause",
+		    &stats->tx_pause, "Pause Frames");
+	}
+	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "unicast",
+		    &stats->tx_deferals, "Unicast Frames");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "multicast",
+		    &stats->tx_frames, "Multicast Frames");
+		NFE_SYSCTL_STAT_ADD32(ctx, child, "broadcast",
+		    &stats->tx_pause, "Broadcast Frames");
+	}
+}
+
+#undef NFE_SYSCTL_STAT_ADD32
+#undef NFE_SYSCTL_STAT_ADD64
+
+static void
+nfe_stats_clear(struct nfe_softc *sc)
+{
+	int i, mib_cnt;
+
+	if ((sc->nfe_flags & NFE_MIB_V1) != 0)
+		mib_cnt = NFE_NUM_MIB_STATV1;
+	else if ((sc->nfe_flags & (NFE_MIB_V2 | NFE_MIB_V3)) != 0)
+		mib_cnt = NFE_NUM_MIB_STATV2;
+	else
+		return;
+
+	for (i = 0; i < mib_cnt; i += sizeof(uint32_t))
+		NFE_READ(sc, NFE_TX_OCTET + i);
+
+	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
+		NFE_READ(sc, NFE_TX_UNICAST);
+		NFE_READ(sc, NFE_TX_MULTICAST);
+		NFE_READ(sc, NFE_TX_BROADCAST);
+	}
+}
+
+static void
+nfe_stats_update(struct nfe_softc *sc)
+{
+	struct nfe_hw_stats *stats;
+
+	NFE_LOCK_ASSERT(sc);
+
+	if ((sc->nfe_flags & (NFE_MIB_V1 | NFE_MIB_V2 | NFE_MIB_V3)) == 0)
+		return;
+
+	stats = &sc->nfe_stats;
+	stats->tx_octets += NFE_READ(sc, NFE_TX_OCTET);
+	stats->tx_zero_rexmits += NFE_READ(sc, NFE_TX_ZERO_REXMIT);
+	stats->tx_one_rexmits += NFE_READ(sc, NFE_TX_ONE_REXMIT);
+	stats->tx_multi_rexmits += NFE_READ(sc, NFE_TX_MULTI_REXMIT);
+	stats->tx_late_cols += NFE_READ(sc, NFE_TX_LATE_COL);
+	stats->tx_fifo_underuns += NFE_READ(sc, NFE_TX_FIFO_UNDERUN);
+	stats->tx_carrier_losts += NFE_READ(sc, NFE_TX_CARRIER_LOST);
+	stats->tx_excess_deferals += NFE_READ(sc, NFE_TX_EXCESS_DEFERRAL);
+	stats->tx_retry_errors += NFE_READ(sc, NFE_TX_RETRY_ERROR);
+	stats->rx_frame_errors += NFE_READ(sc, NFE_RX_FRAME_ERROR);
+	stats->rx_extra_bytes += NFE_READ(sc, NFE_RX_EXTRA_BYTES);
+	stats->rx_late_cols += NFE_READ(sc, NFE_RX_LATE_COL);
+	stats->rx_runts += NFE_READ(sc, NFE_RX_RUNT);
+	stats->rx_jumbos += NFE_READ(sc, NFE_RX_JUMBO);
+	stats->rx_fifo_overuns += NFE_READ(sc, NFE_RX_FIFO_OVERUN);
+	stats->rx_crc_errors += NFE_READ(sc, NFE_RX_CRC_ERROR);
+	stats->rx_fae += NFE_READ(sc, NFE_RX_FAE);
+	stats->rx_len_errors += NFE_READ(sc, NFE_RX_LEN_ERROR);
+	stats->rx_unicast += NFE_READ(sc, NFE_RX_UNICAST);
+	stats->rx_multicast += NFE_READ(sc, NFE_RX_MULTICAST);
+	stats->rx_broadcast += NFE_READ(sc, NFE_RX_BROADCAST);
+
+	if ((sc->nfe_flags & NFE_MIB_V2) != 0) {
+		stats->tx_deferals += NFE_READ(sc, NFE_TX_DEFERAL);
+		stats->tx_frames += NFE_READ(sc, NFE_TX_FRAME);
+		stats->rx_octets += NFE_READ(sc, NFE_RX_OCTET);
+		stats->tx_pause += NFE_READ(sc, NFE_TX_PAUSE);
+		stats->rx_pause += NFE_READ(sc, NFE_RX_PAUSE);
+		stats->rx_drops += NFE_READ(sc, NFE_RX_DROP);
+	}
+
+	if ((sc->nfe_flags & NFE_MIB_V3) != 0) {
+		stats->tx_unicast += NFE_READ(sc, NFE_TX_UNICAST);
+		stats->tx_multicast += NFE_READ(sc, NFE_TX_MULTICAST);
+		stats->rx_broadcast += NFE_READ(sc, NFE_TX_BROADCAST);
+	}
 }
