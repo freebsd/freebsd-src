@@ -156,24 +156,24 @@ cd9660_defattr(isodir, inop, bp, ftype)
 
 		if (isonum_711(ap->version) == 1) {
 			if (!(ap->perm[0]&0x40))
-				inop->inode.iso_mode |= VEXEC >> 6;
+				inop->inode.iso_mode |= S_IXOTH;
 			if (!(ap->perm[0]&0x10))
-				inop->inode.iso_mode |= VREAD >> 6;
+				inop->inode.iso_mode |= S_IROTH;
 			if (!(ap->perm[0]&4))
-				inop->inode.iso_mode |= VEXEC >> 3;
+				inop->inode.iso_mode |= S_IXGRP;
 			if (!(ap->perm[0]&1))
-				inop->inode.iso_mode |= VREAD >> 3;
+				inop->inode.iso_mode |= S_IRGRP;
 			if (!(ap->perm[1]&0x40))
-				inop->inode.iso_mode |= VEXEC;
+				inop->inode.iso_mode |= S_IXUSR;
 			if (!(ap->perm[1]&0x10))
-				inop->inode.iso_mode |= VREAD;
+				inop->inode.iso_mode |= S_IRUSR;
 			inop->inode.iso_uid = isonum_723(ap->owner); /* what about 0? */
 			inop->inode.iso_gid = isonum_723(ap->group); /* what about 0? */
 		} else
 			ap = NULL;
 	}
 	if (!ap) {
-		inop->inode.iso_mode |= VREAD|VEXEC|(VREAD|VEXEC)>>3|(VREAD|VEXEC)>>6;
+		inop->inode.iso_mode |= S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 		inop->inode.iso_uid = (uid_t)0;
 		inop->inode.iso_gid = (gid_t)0;
 	}
