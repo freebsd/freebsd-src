@@ -422,10 +422,8 @@ fdesc_getattr(ap)
 		if (error == 0) {
 			vap->va_type = IFTOVT(stb.st_mode);
 			vap->va_mode = stb.st_mode;
-#define FDRX (VREAD|VEXEC)
 			if (vap->va_type == VDIR)
-				vap->va_mode &= ~((FDRX)|(FDRX>>3)|(FDRX>>6));
-#undef FDRX
+				vap->va_mode &= ~(S_IRUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
 			vap->va_nlink = 1;
 			vap->va_flags = 0;
 			vap->va_bytes = stb.st_blocks * stb.st_blksize;
