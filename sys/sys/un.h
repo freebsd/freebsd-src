@@ -58,18 +58,9 @@ struct sockaddr_un {
 #define	LOCAL_CONNWAIT		0x004	/* connects block until accepted */
 
 #ifdef _KERNEL
-struct mbuf;
-struct socket;
-struct sockopt;
 
+struct socket;
 int	uipc_connect2(struct socket *so1, struct socket *so2);
-int	uipc_ctloutput(struct socket *so, struct sockopt *sopt);
-int	uipc_usrreq(struct socket *so, int req, struct mbuf *m,
-		struct mbuf *nam, struct mbuf *control);
-void	unp_dispose(struct mbuf *m);
-int	unp_externalize(struct mbuf *mbuf, struct mbuf **controlp);
-void	unp_init(void);
-extern	struct pr_usrreqs uipc_usrreqs;
 
 #else /* !_KERNEL */
 
