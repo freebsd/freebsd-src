@@ -1,4 +1,6 @@
-/*-
+/* i915_suspend.c -- i830,i845,i855,i865,i915 driver -*- linux-c -*-
+ */
+/*
  *
  * Copyright 2003 Tungsten Graphics, Inc., Cedar Park, Texas.
  * All Rights Reserved.
