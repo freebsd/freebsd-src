@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd October 4, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -547,6 +547,9 @@ for every thread in the system.
 .Pp
 .It Ic show Cm alllocks
 Show all locks that are currently held.
+This command is only available if
+.Xr witness 4
+is included in the kernel.
 .\"
 .Pp
 .It Ic show Cm allpcpu
@@ -724,6 +727,9 @@ List all locked vnodes in the system.
 .Pp
 .It Ic show Cm locks
 Prints all locks that are currently acquired.
+This command is only available if
+.Xr witness 4
+is included in the kernel.
 .\"
 .Pp
 .It Ic show Cm locktree
@@ -1020,7 +1026,7 @@ and none have zero ref counts.
 This is supposed to show physical addresses consumed by a
 VM object.
 Currently, it is not possible to use this command when
-.Xr witness 9
+.Xr witness 4
 is compiled in the kernel.
 .\"
 .Pp
@@ -1046,7 +1052,7 @@ Shows watchpoints set with "watch" command.
 .Pp
 .It Ic show Cm witness
 Shows information about lock acquisition coming from the
-.Xr witness 9
+.Xr witness 4
 subsystem.
 .\"
 .Pp
@@ -1420,8 +1426,7 @@ directory.
 .Xr witness 4 ,
 .Xr ddb 8 ,
 .Xr sysctl 8 ,
-.Xr panic 9 ,
-.Xr witness 9
+.Xr panic 9
 .Sh HISTORY
 The
 .Nm
