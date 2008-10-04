@@ -259,8 +259,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		int e;
 		if ((e = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0)
 			return (e);
-	}
-	else {
+	} else {
 		inp->inp_lport = lport;
 		if (in_pcbinshash(inp) != 0) {
 			inp->in6p_laddr = in6addr_any;
@@ -330,7 +329,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 		return(error);
 	}
 
-	if (*plocal_addr6 == 0) {
+	if (*plocal_addr6 == NULL) {
 		if (error == 0)
 			error = EADDRNOTAVAIL;
 		return (error);
