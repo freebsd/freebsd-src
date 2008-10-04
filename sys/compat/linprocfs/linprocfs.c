@@ -872,16 +872,13 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
-	char mebuffer[512];
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry, tmp_entry;
+	vm_map_entry_t entry;
 	vm_object_t obj, tobj, lobj;
 	vm_offset_t saved_end;
 	vm_ooffset_t off = 0;
 	char *name = "", *freename = NULL;
-	size_t len;
 	ino_t ino;
-	unsigned int last_timestamp;
 	int ref_count, shadow_count, flags;
 	int error;
 	struct vnode *vp;
@@ -897,13 +894,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-	if (uio->uio_offset != 0)
-		return (0);
-
 	error = 0;
 	vm_map_lock_read(map);
-	for (entry = map->header.next;
-	    ((uio->uio_resid > 0) && (entry != &map->header));
+	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
 		name = "";
 		freename = NULL;
@@ -952,7 +945,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		 * format:
 		 *  start, end, access, offset, major, minor, inode, name.
 		 */
-		snprintf(mebuffer, sizeof mebuffer,
+		error = sbuf_printf(sb,
 		    "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n",
 		    (u_long)entry->start, (u_long)entry->end,
 		    (entry->protection & VM_PROT_READ)?"r":"-",
@@ -968,26 +961,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    );
 		if (freename)
 			free(freename, M_TEMP);
-		len = strlen(mebuffer);
-		if (len > uio->uio_resid)
-			len = uio->uio_resid; /*
-					       * XXX We should probably return
-					       * EFBIG here, as in procfs.
-					       */
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
-		error = uiomove(mebuffer, len, uio);
-		vm_map_lock_read(map);
-		if (error)
+		if (error == -1) {
+			error = 0;
 			break;
-		if (last_timestamp + 1 != map->timestamp) {
-			/*
-			 * Look again for the entry because the map was
-			 * modified while it was unlocked.  Specifically,
-			 * the entry may have been clipped, merged, or deleted.
-			 */
-			vm_map_lookup_entry(map, saved_end - 1, &tmp_entry);
-			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
