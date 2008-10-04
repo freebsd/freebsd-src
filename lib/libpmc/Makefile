@@ -24,6 +24,10 @@ MAN+=	pmc_start.3
 MAN+=	pmclog.3
 
 # PMC-dependent manual pages
+MAN+=	pmc.atom.3
+MAN+=	pmc.core.3
+MAN+=	pmc.core2.3
+MAN+=	pmc.iaf.3
 MAN+=	pmc.k7.3
 MAN+=	pmc.k8.3
 MAN+=	pmc.p4.3
