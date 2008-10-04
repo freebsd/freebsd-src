@@ -197,6 +197,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	bzero(inp, inp_zero_size);
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+	inp->inp_cred = crhold(so->so_cred);
 	inp->inp_inc.inc_fibnum = so->so_fibnum;
 #ifdef MAC
 	error = mac_inpcb_init(inp, M_NOWAIT);
@@ -235,8 +236,10 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 
 #if defined(IPSEC) || defined(MAC)
 out:
-	if (error != 0)
+	if (error != 0) {
+		crfree(inp->inp_cred);
 		uma_zfree(pcbinfo->ipi_zone, inp);
+	}
 #endif
 	return (error);
 }
@@ -357,7 +360,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			if (jailed(cred))
 				prison = 1;
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
-			    priv_check_cred(so->so_cred,
+			    priv_check_cred(inp->inp_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 				    lport, prison ? 0 : INPLOOKUP_WILDCARD,
@@ -374,8 +377,8 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
 				     (t->inp_socket->so_options &
 					 SO_REUSEPORT) == 0) &&
-				    (so->so_cred->cr_uid !=
-				     t->inp_socket->so_cred->cr_uid))
+				    (inp->inp_cred->cr_uid !=
+				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 			}
 			if (prison && prison_ip(cred, 0, &sin->sin_addr.s_addr))
@@ -901,6 +904,7 @@ in_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
+	crfree(inp->inp_cred);
 
 #ifdef MAC
 	mac_inpcb_destroy(inp);
