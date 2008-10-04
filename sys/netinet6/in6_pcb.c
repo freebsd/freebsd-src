@@ -189,7 +189,7 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 			    0))
 				return (EACCES);
 			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
-			    priv_check_cred(so->so_cred,
+			    priv_check_cred(inp->inp_cred,
 			    PRIV_NETINET_REUSEPORT, 0) != 0) {
 				t = in6_pcblookup_local(pcbinfo,
 				    &sin6->sin6_addr, lport,
@@ -201,8 +201,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				    (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
 				     !IN6_IS_ADDR_UNSPECIFIED(&t->in6p_laddr) ||
 				     (t->inp_socket->so_options & SO_REUSEPORT)
-				      == 0) && (so->so_cred->cr_uid !=
-				     t->inp_socket->so_cred->cr_uid))
+				      == 0) && (inp->inp_cred->cr_uid !=
+				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
 				if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0 &&
 				    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
@@ -218,8 +218,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 					    (so->so_type != SOCK_STREAM ||
 					     ntohl(t->inp_faddr.s_addr) ==
 					      INADDR_ANY) &&
-					    (so->so_cred->cr_uid !=
-					     t->inp_socket->so_cred->cr_uid))
+					    (inp->inp_cred->cr_uid !=
+					     t->inp_cred->cr_uid))
 						return (EADDRINUSE);
 				}
 			}
@@ -323,7 +323,7 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 	 */
 	*plocal_addr6 = in6_selectsrc(sin6, inp->in6p_outputopts,
 				      inp, NULL,
-				      inp->inp_socket->so_cred,
+				      inp->inp_cred,
 				      &ifp, &error);
 	if (ifp && scope_ambiguous &&
 	    (error = in6_setscope(&sin6->sin6_addr, ifp, NULL)) != 0) {

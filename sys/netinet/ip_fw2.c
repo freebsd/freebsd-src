@@ -1977,15 +1977,11 @@ fill_ugid_cache(struct inpcb *inp, struct ip_fw_ugid *ugp)
 {
 	struct ucred *cr;
 
-	if (inp->inp_socket != NULL) {
-		cr = inp->inp_socket->so_cred;
-		ugp->fw_prid = jailed(cr) ?
-		    cr->cr_prison->pr_id : -1;
-		ugp->fw_uid = cr->cr_uid;
-		ugp->fw_ngroups = cr->cr_ngroups;
-		bcopy(cr->cr_groups, ugp->fw_groups,
-		    sizeof(ugp->fw_groups));
-	}
+	cr = inp->inp_cred;
+	ugp->fw_prid = jailed(cr) ? cr->cr_prison->pr_id : -1;
+	ugp->fw_uid = cr->cr_uid;
+	ugp->fw_ngroups = cr->cr_ngroups;
+	bcopy(cr->cr_groups, ugp->fw_groups, sizeof(ugp->fw_groups));
 }
 
 static int
@@ -2042,12 +2038,8 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 				dst_ip, htons(dst_port),
 				wildcard, NULL);
 		if (pcb != NULL) {
-			INP_RLOCK(pcb);
-			if (pcb->inp_socket != NULL) {
-				fill_ugid_cache(pcb, ugp);
-				*ugid_lookupp = 1;
-			}
-			INP_RUNLOCK(pcb);
+			fill_ugid_cache(pcb, ugp);
+			*ugid_lookupp = 1;
 		}
 		INP_INFO_RUNLOCK(pi);
 		if (*ugid_lookupp == 0) {

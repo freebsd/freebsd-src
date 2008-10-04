@@ -761,7 +761,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 			error = cr_canseesocket(req->td->td_ucred,
 			    inp->inp_socket);
 		if (error == 0)
-			cru2x(inp->inp_socket->so_cred, &xuc);
+			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
 	} else {
 		INP_INFO_RUNLOCK(&V_udbinfo);
