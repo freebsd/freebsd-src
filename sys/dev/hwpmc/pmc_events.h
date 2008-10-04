@@ -509,7 +509,7 @@ __PMC_EV(P5,								\
     FULL_WRITE_BUFFER_STALL_DURATION_WHILE_EXECUTING_MMX_INSTRUCTIONS,	\
     p5-full-write-buffer-stall-duration-while-executing-mmx-instructions) \
 __PMC_EV(P5, STALL_ON_MMX_INSTRUCTION_WRITE_TO_E_OR_M_STATE_LINE,	\
-    p5-stall-on-mmx-instruction-write-to-e-o-m-state-line)
+    p5-stall-on-mmx-instruction-write-to-e-or-m-state-line)
 
 #define	PMC_EV_P5_FIRST		PMC_EV_P5_DATA_READ
 #define	PMC_EV_P5_LAST	        \
