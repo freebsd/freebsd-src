@@ -477,7 +477,7 @@ char *
 ub_mem_type(int flags)
 {
 
-	switch(flags & 0x000F) {
+	switch (flags & 0x000F) {
 	case MR_ATTR_FLASH:
 		return ("FLASH");
 	case MR_ATTR_DRAM:

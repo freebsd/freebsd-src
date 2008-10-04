@@ -53,8 +53,8 @@ int api_search_sig(struct api_signature **sig);
 /* console */
 int ub_getc(void);
 int ub_tstc(void);
-void ub_putc(char c);
-void ub_puts(const char *s);
+void ub_putc(char);
+void ub_puts(const char *);
 
 /* system */
 void ub_reset(void);
@@ -65,19 +65,18 @@ void ub_udelay(unsigned long);
 unsigned long ub_get_timer(unsigned long);
 
 /* env vars */
-char *ub_env_get(const char *name);
-void ub_env_set(const char *name, char *value);
-const char *ub_env_enum(const char *last);
+char *ub_env_get(const char *);
+void ub_env_set(const char *, char *);
+const char *ub_env_enum(const char *);
 
 /* devices */
 int ub_dev_enum(void);
-int ub_dev_open(int handle);
-int ub_dev_close(int handle);
-int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start,
-    lbasize_t *rlen);
-int ub_dev_send(int handle, void *buf, int len);
-int ub_dev_recv(int handle, void *buf, int len, int *rlen);
-struct device_info *	ub_dev_get(int);
+int ub_dev_open(int);
+int ub_dev_close(int);
+int ub_dev_read(int, void *, lbasize_t, lbastart_t, lbasize_t *);
+int ub_dev_send(int, void *, int);
+int ub_dev_recv(int, void *, int, int *);
+struct device_info *ub_dev_get(int);
 
 void ub_dump_di(int);
 void ub_dump_si(struct sys_info *);

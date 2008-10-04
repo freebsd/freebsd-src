@@ -118,7 +118,7 @@ struct sys_info {
 
 #undef CFG_64BIT_LBA
 #ifdef CFG_64BIT_LBA
-typedef	u_int64_t lbasize_t;
+typedef	uint64_t lbasize_t;
 #else
 typedef unsigned long lbasize_t;
 #endif
