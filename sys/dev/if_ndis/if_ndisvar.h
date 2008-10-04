@@ -87,7 +87,7 @@ TAILQ_HEAD(nch, ndis_cfglist);
 
 #define NDIS_TXPKTS 64
 #define NDIS_INC(x)		\
-	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % NDIS_TXPKTS
+	(x)->ndis_txidx = ((x)->ndis_txidx + 1) % (x)->ndis_maxpkts
 
 
 #define NDIS_EVENTS 4
