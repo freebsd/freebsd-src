@@ -59,8 +59,8 @@ static int	net_get(struct iodesc *, void *, size_t, time_t);
 static int	net_put(struct iodesc *, void *, size_t);
 static void	net_end(struct netif *);
 
-extern int			devs_no;
-extern struct netif_stats	net_stats[];
+extern int devs_no;
+extern struct netif_stats net_stats[];
 
 struct netif_dif net_ifs[] = {
 	/*	dif_unit	dif_nsel	dif_stats	dif_private */
@@ -82,10 +82,10 @@ struct netif_driver uboot_net = {
 };
 
 struct uboot_softc {
-	u_int32_t	sc_pad;
-	u_int8_t	sc_rxbuf[ETHER_MAX_LEN];
-	u_int8_t	sc_txbuf[ETHER_MAX_LEN + PKTALIGN];
-	u_int8_t	*sc_txbufp;
+	uint32_t	sc_pad;
+	uint8_t		sc_rxbuf[ETHER_MAX_LEN];
+	uint8_t		sc_txbuf[ETHER_MAX_LEN + PKTALIGN];
+	uint8_t		*sc_txbufp;
 	int		sc_handle;	/* device handle for ub_dev_xxx */
 };
 
@@ -170,10 +170,10 @@ net_put(struct iodesc *desc, void *pkt, size_t len)
 static int
 net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 {
-	struct netif		*nif = desc->io_netif;
-	struct uboot_softc	*sc = nif->nif_devdata;
-	time_t	t;
-	int	err, rlen;
+	struct netif *nif = desc->io_netif;
+	struct uboot_softc *sc = nif->nif_devdata;
+	time_t t;
+	int err, rlen;
 
 #if defined(NETIF_DEBUG)
 	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len, timeout);
@@ -240,7 +240,6 @@ net_init(struct iodesc *desc, void *machdep_hint)
 		sc->sc_txbufp += PKTALIGN -
 		    (unsigned long)sc->sc_txbufp % PKTALIGN;
 }
-
 
 static void
 net_end(struct netif *nif)
