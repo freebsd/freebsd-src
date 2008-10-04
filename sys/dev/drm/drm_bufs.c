@@ -1102,11 +1102,12 @@ int drm_mapbufs(struct drm_device *dev, void *data, struct drm_file *file_priv)
 int drm_order(unsigned long size)
 {
 	int order;
-	unsigned long tmp;
 
-	for (order = 0, tmp = size; tmp >>= 1; ++order);
+	if (size == 0)
+		return 0;
 
-	if (size & ~(1 << order))
+	order = ffsl(size) - 1;
+	if (size & ~(1ul << order))
 		++order;
 
 	return order;
