@@ -86,8 +86,6 @@ mach64_attach(device_t nbdev)
 {
 	struct drm_device *dev = device_get_softc(nbdev);
 
-	bzero(dev, sizeof(struct drm_device));
-
 	dev->driver = malloc(sizeof(struct drm_driver_info), M_DRM,
 	    M_WAITOK | M_ZERO);
 
