@@ -62,6 +62,7 @@
 #define	API_ENOMEM		3	/* no memory		*/
 #define	API_EBUSY		4	/* busy, occupied etc.	*/
 #define	API_EIO			5	/* I/O error		*/
+#define	API_ESYSC		6	/* syscall error	*/
 
 typedef int (*scp_t)(int, int *, ...);
 
