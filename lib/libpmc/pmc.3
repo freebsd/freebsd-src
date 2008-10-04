@@ -185,15 +185,15 @@ PMC supported by this library are named by the
 .Vt enum pmc_class
 enumeration.
 Supported PMC kinds include:
-.Bl -tag -width "Li PMC_CLASS_IA_FIXED" -compact
-.It Li PMC_CLASS_IA
-Programmable hardware counters present in CPUs conforming to the
-.Tn Intel
-performance measurement architecture version 1 and later.
-.It Li PMC_CLASS_IA_FIXED
+.Bl -tag -width "Li PMC_CLASS_IAF" -compact
+.It Li PMC_CLASS_IAF
 Fixed function hardwre counters presents in CPUs conforming to the
 .Tn Intel
 performance measurement architecture version 2 and later.
+.It Li PMC_CLASS_IAP
+Programmable hardware counters present in CPUs conforming to the
+.Tn Intel
+performance measurement architecture version 1 and later.
 .It Li PMC_CLASS_K7
 Programmable hardware counters present in
 .Tn "AMD Athlon"
@@ -474,10 +474,12 @@ or sleep state.
 .El
 .Pp
 .Ss PMC Architecture Dependent Events
-PMC architecture dependent event specifiers are described in their own
-individual manual pages:
+PMC architecture dependent event specifiers are described in the
+following manual pages:
 .Bl -column " PMC_CLASS_TSC " "MANUAL PAGE "
 .It Em "PMC Class"      Ta Em "Manual Page"
+.It Li PMC_CLASS_IAF    Ta Xr pmc.iaf 3
+.It Li PMC_CLASS_IAP    Ta Xr pmc.atom 3 , Xr pmc.core 3 , Xr pmc.core2 3
 .It Li PMC_CLASS_K7     Ta Xr pmc.k7 3
 .It Li PMC_CLASS_K8     Ta Xr pmc.k8 3
 .It Li PMC_CLASS_P4     Ta Xr pmc.p4 3
@@ -503,6 +505,10 @@ The
 API is
 .Ud
 .Sh SEE ALSO
+.Xr pmc.atom 3 ,
+.Xr pmc.core 3 ,
+.Xr pmc.core2 3 ,
+.Xr pmc.iaf 3 ,
 .Xr pmc.k7 3 ,
 .Xr pmc.k8 3 ,
 .Xr pmc.p4 3 ,
