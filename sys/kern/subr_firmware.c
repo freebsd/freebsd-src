@@ -386,6 +386,8 @@ set_rootvnode(void *arg, int npending)
 		VREF(rootvnode);
 	}
 	FILEDESC_XUNLOCK(p->p_fd);
+
+	free(arg, M_TEMP);
 }
 
 /*
@@ -395,10 +397,14 @@ set_rootvnode(void *arg, int npending)
 static void
 firmware_mountroot(void *arg)
 {
-	static struct task setroot_task;
+	struct task *setroot_task;
 
-	TASK_INIT(&setroot_task, 0, set_rootvnode, NULL);
-	taskqueue_enqueue(firmware_tq, &setroot_task);
+	setroot_task = malloc(sizeof(struct task), M_TEMP, M_NOWAIT);
+	if (setroot_task != NULL) {
+		TASK_INIT(setroot_task, 0, set_rootvnode, setroot_task);
+		taskqueue_enqueue(firmware_tq, setroot_task);
+	} else
+		printf("%s: no memory for task!\n", __func__);
 }
 EVENTHANDLER_DEFINE(mountroot, firmware_mountroot, NULL, 0);
 
