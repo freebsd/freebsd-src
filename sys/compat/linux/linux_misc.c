@@ -1828,15 +1828,17 @@ linux_sched_getaffinity(struct thread *td,
 		printf(ARGS(sched_getaffinity, "%d, %d, *"), args->pid,
 		    args->len);
 #endif
+	if (args->len < sizeof(cpuset_t))
+		return (EINVAL);
 
 	cga.level = CPU_LEVEL_WHICH;
 	cga.which = CPU_WHICH_PID;
 	cga.id = args->pid;
-	cga.cpusetsize = sizeof(cpumask_t);
+	cga.cpusetsize = sizeof(cpuset_t);
 	cga.mask = (cpuset_t *) args->user_mask_ptr;
-	
+
 	if ((error = cpuset_getaffinity(td, &cga)) == 0)
-		td->td_retval[0] = sizeof(cpumask_t);
+		td->td_retval[0] = sizeof(cpuset_t);
 
 	return (error);
 }
@@ -1855,10 +1857,13 @@ linux_sched_setaffinity(struct thread *td,
 		printf(ARGS(sched_setaffinity, "%d, %d, *"), args->pid,
 		    args->len);
 #endif
+	if (args->len < sizeof(cpuset_t))
+		return (EINVAL);
+
 	csa.level = CPU_LEVEL_WHICH;
 	csa.which = CPU_WHICH_PID;
 	csa.id = args->pid;
-	csa.cpusetsize = args->len;
+	csa.cpusetsize = sizeof(cpuset_t);
 	csa.mask = (cpuset_t *) args->user_mask_ptr;
 
 	return (cpuset_setaffinity(td, &csa));
