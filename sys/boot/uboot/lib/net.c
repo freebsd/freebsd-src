@@ -173,34 +173,39 @@ net_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 	struct netif		*nif = desc->io_netif;
 	struct uboot_softc	*sc = nif->nif_devdata;
 	time_t	t;
-	int	length;
+	int	err, rlen;
 
 #if defined(NETIF_DEBUG)
 	printf("net_get: pkt %x, len %d, timeout %d\n", pkt, len, timeout);
 #endif
 	t = getsecs();
 	do {
-		length = ub_dev_recv(sc->sc_handle, sc->sc_rxbuf, len);
-	} while ((length == -1 || length == 0) &&
-		(getsecs() - t < timeout));
+		err = ub_dev_recv(sc->sc_handle, sc->sc_rxbuf, len, &rlen);
+
+		if (err != 0) {
+			printf("net_get: ub_dev_recv() failed, error=%d\n",
+			    err);
+			rlen = 0;
+			break;
+		}
+	} while ((rlen == -1 || rlen == 0) && (getsecs() - t < timeout));
 
 #if defined(NETIF_DEBUG)
-	printf("net_get: received len %d (%x)\n", length, length);
+	printf("net_get: received len %d (%x)\n", rlen, rlen);
 #endif
 
-	if (length > 0) {
-		memcpy(pkt, sc->sc_rxbuf, MIN(len, length));
-		if (length != len) {
+	if (rlen > 0) {
+		memcpy(pkt, sc->sc_rxbuf, MIN(len, rlen));
+		if (rlen != len) {
 #if defined(NETIF_DEBUG)
-			printf("net_get: len %x, length %x\n", len, length);
+			printf("net_get: len %x, rlen %x\n", len, rlen);
 #endif
 		}
-		return (length);
+		return (rlen);
 	}
 
 	return (-1);
 }
-
 
 static void
 net_init(struct iodesc *desc, void *machdep_hint)
