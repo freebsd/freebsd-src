@@ -40,6 +40,9 @@ void *syscall_ptr;
 
 int api_search_sig(struct api_signature **sig);
 
+#define	UB_MAX_MR	5		/* max mem regions number */
+#define	UB_MAX_DEV	6		/* max devices number */
+
 /*
  * The ub_ library calls are part of the application, not U-Boot code!  They
  * are front-end wrappers that are used by the consumer application: they
@@ -70,10 +73,10 @@ const char *ub_env_enum(const char *last);
 int ub_dev_enum(void);
 int ub_dev_open(int handle);
 int ub_dev_close(int handle);
-int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start);
+int ub_dev_read(int handle, void *buf, lbasize_t len, lbastart_t start,
+    lbasize_t *rlen);
 int ub_dev_send(int handle, void *buf, int len);
-int ub_dev_recv(int handle, void *buf, int len);
-
+int ub_dev_recv(int handle, void *buf, int len, int *rlen);
 struct device_info *	ub_dev_get(int);
 
 void ub_dump_di(int);
