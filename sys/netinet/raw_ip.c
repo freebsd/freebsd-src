@@ -303,7 +303,6 @@ rip_input(struct mbuf *m, int off)
 		if (jailed(inp->inp_cred) &&
 		    (htonl(prison_getip(inp->inp_cred)) !=
 		    ip->ip_dst.s_addr)) {
-			INP_RUNLOCK(inp);
 			continue;
 		}
 		if (last) {
