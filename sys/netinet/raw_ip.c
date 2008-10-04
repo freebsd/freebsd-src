@@ -261,6 +261,7 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
+		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
@@ -268,11 +269,9 @@ rip_input(struct mbuf *m, int off)
 			continue;
 		if (inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		INP_RLOCK(inp);
-		if (jailed(inp->inp_socket->so_cred) &&
-		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+		if (jailed(inp->inp_cred) &&
+		    (htonl(prison_getip(inp->inp_cred)) !=
 		    ip->ip_dst.s_addr)) {
-			INP_RUNLOCK(inp);
 			continue;
 		}
 		if (last) {
@@ -284,12 +283,14 @@ rip_input(struct mbuf *m, int off)
 			/* XXX count dropped packet */
 			INP_RUNLOCK(last);
 		}
+		INP_RLOCK(inp);
 		last = inp;
 	}
 	LIST_FOREACH(inp, &V_ripcbinfo.ipi_hashbase[0], inp_hash) {
 		if (inp->inp_ip_p && inp->inp_ip_p != proto)
 			continue;
 #ifdef INET6
+		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV4) == 0)
 			continue;
 #endif
@@ -299,9 +300,8 @@ rip_input(struct mbuf *m, int off)
 		if (inp->inp_faddr.s_addr &&
 		    inp->inp_faddr.s_addr != ip->ip_src.s_addr)
 			continue;
-		INP_RLOCK(inp);
-		if (jailed(inp->inp_socket->so_cred) &&
-		    (htonl(prison_getip(inp->inp_socket->so_cred)) !=
+		if (jailed(inp->inp_cred) &&
+		    (htonl(prison_getip(inp->inp_cred)) !=
 		    ip->ip_dst.s_addr)) {
 			INP_RUNLOCK(inp);
 			continue;
@@ -315,6 +315,7 @@ rip_input(struct mbuf *m, int off)
 			/* XXX count dropped packet */
 			INP_RUNLOCK(last);
 		}
+		INP_RLOCK(inp);
 		last = inp;
 	}
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
@@ -365,9 +366,9 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 			ip->ip_off = 0;
 		ip->ip_p = inp->inp_ip_p;
 		ip->ip_len = m->m_pkthdr.len;
-		if (jailed(inp->inp_socket->so_cred))
+		if (jailed(inp->inp_cred))
 			ip->ip_src.s_addr =
-			    htonl(prison_getip(inp->inp_socket->so_cred));
+			    htonl(prison_getip(inp->inp_cred));
 		else
 			ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
@@ -379,9 +380,9 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 		}
 		INP_RLOCK(inp);
 		ip = mtod(m, struct ip *);
-		if (jailed(inp->inp_socket->so_cred)) {
+		if (jailed(inp->inp_cred)) {
 			if (ip->ip_src.s_addr !=
-			    htonl(prison_getip(inp->inp_socket->so_cred))) {
+			    htonl(prison_getip(inp->inp_cred))) {
 				INP_RUNLOCK(inp);
 				m_freem(m);
 				return (EPERM);

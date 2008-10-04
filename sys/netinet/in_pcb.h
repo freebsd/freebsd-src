@@ -153,6 +153,7 @@ struct inpcb {
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
 	struct	socket *inp_socket;	/* (i)  back pointer to socket */
+	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
 
 	u_int32_t	inp_flow;	/* (i) IPv6 flow information */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
