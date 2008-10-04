@@ -15,6 +15,7 @@ MAN=	aac.4 \
 	acpi_video.4 \
 	adv.4 \
 	adw.4 \
+	ae.4 \
 	age.4 \
 	agp.4 \
 	aha.4 \
