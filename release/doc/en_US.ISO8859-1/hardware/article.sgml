@@ -29,6 +29,7 @@
     <year>2005</year>
     <year>2006</year>
     <year>2007</year>
+    <year>2008</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -613,6 +614,8 @@
   </sect2>
   <sect2 id="ethernet">
     <title>Ethernet Interfaces</title>
+
+    &hwlist.ae;
 
     &hwlist.aue;
 
