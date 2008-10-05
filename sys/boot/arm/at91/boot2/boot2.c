@@ -1,4 +1,6 @@
 /*-
+ * Copyright (c) 2008 John Hay
+ * Copyright (c) 2006 Warner Losh
  * Copyright (c) 1998 Robert Nordier
  * All rights reserved.
  *
@@ -51,7 +53,7 @@ __FBSDID("$FreeBSD$");
 /* 0x13 is reserved for boot programs. */
 /* #define RBX_PAUSE	0x14	   -p */
 /* #define RBX_QUIET	0x15	   -q */
-/* #define RBX_NOINTR	0x1c	   -n */
+#define RBX_NOINTR	0x1c	/* -n */
 /* 0x1d is reserved for log2(RB_MULTIPLE) and is just misnamed here. */
 /* #define RBX_DUAL	0x1d	   -D */
 /* 0x1f is reserved for log2(RB_BOOTINFO). */
@@ -66,20 +68,21 @@ __FBSDID("$FreeBSD$");
 //#define PATH_KERNEL	"/boot/kernel/kernel"
 #define PATH_KERNEL	"/boot/kernel/kernel.gz.tramp"
 
-#define NOPT		5
+extern uint32_t _end;
+
+#define NOPT		6
 
 #define OPT_SET(opt)	(1 << (opt))
 #define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
 
-extern uint32_t _end;
-
-static const char optstr[NOPT] = "agrsv";
+static const char optstr[NOPT] = "agnrsv";
 static const unsigned char flags[NOPT] = {
-    RBX_ASKNAME,
-    RBX_GDB,
-    RBX_DFLTROOT,
-    RBX_SINGLE,
-    RBX_VERBOSE
+	RBX_ASKNAME,
+	RBX_GDB,
+	RBX_NOINTR,
+	RBX_DFLTROOT,
+	RBX_SINGLE,
+	RBX_VERBOSE
 };
 
 unsigned dsk_start;
@@ -95,6 +98,12 @@ static int dskread(void *, unsigned, unsigned);
 
 #define	UFS_SMALL_CGBASE
 #include "ufsread.c"
+
+#ifdef DEBUG
+#define	DPRINTF(fmt, ...) printf(fmt, __VA_ARGS__)
+#else
+#define	DPRINTF(fmt, ...)
+#endif
 
 static inline int
 xfsread(ino_t inode, void *buf, size_t nbyte)
@@ -142,31 +151,31 @@ main(void)
 	int autoboot, c = 0;
 	ino_t ino;
 
-	board_init();
-
 	dmadat = (void *)(0x20000000 + (16 << 20));
-	/* Process configuration file */
+	board_init();
 
 	autoboot = 1;
 
+	/* Process configuration file */
 	if ((ino = lookup(PATH_CONFIG)))
 		fsread(ino, cmd, sizeof(cmd));
 
 	if (*cmd) {
 		if (parse())
 			autoboot = 0;
-		printf("%s: %s", PATH_CONFIG, cmd);
+		printf("%s: %s\n", PATH_CONFIG, cmd);
 		/* Do not process this command twice */
 		*cmd = 0;
 	}
 
-	/* Present the user with the boot2 prompt. */
-
 	if (*kname == '\0')
 		strcpy(kname, PATH_KERNEL);
+
+	/* Present the user with the boot2 prompt. */
 	for (;;) {
 		printf("\nDefault: %s\nboot: ", kname);
-		if (!autoboot || (c = getc(2)) != -1)
+		if (!autoboot ||
+		    (OPT_CHECK(RBX_NOINTR) == 0 && (c = getc(2)) != 0))
 			getstr(c);
 		xputchar('\n');
 		autoboot = 0;
