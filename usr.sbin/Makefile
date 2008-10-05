@@ -210,7 +210,7 @@ _amd=		amd
 .endif
 
 .if ${MK_AUDIT} != "no"
-_audit= 	audit
+_audit=		audit
 _auditd=	auditd
 _auditreduce=	auditreduce
 _praudit=	praudit
@@ -381,7 +381,8 @@ _slstat=	slstat
 .endif
 
 .if ${MK_SYSINSTALL} != "no"
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
+    ${MACHINE_ARCH} == "sparc64"
 _sade=		sade
 .endif
 .if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
@@ -434,7 +435,7 @@ _pnpinfo=	pnpinfo
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
 _zzz=		zzz
-.if ${MACHINE} == "i386" 
+.if ${MACHINE} == "i386"
 .if ${MK_ACPI} != "no"
 _acpi=		acpi
 .endif
