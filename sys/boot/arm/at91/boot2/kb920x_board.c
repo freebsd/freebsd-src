@@ -49,11 +49,6 @@ MacFromEE()
 }
 
 void
-Update(void)
-{
-}
-
-void
 board_init(void)
 {
     InitEEPROM();
