@@ -173,10 +173,6 @@ main(void)
 		c = 0;
 		if (parse())
 			xputchar('\a');
-#ifdef XMODEM_DL
-		else if (*cmd == '*')
-			Update();
-#endif
 		else
 			load();
 	}
