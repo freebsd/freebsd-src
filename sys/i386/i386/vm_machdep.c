@@ -412,6 +412,14 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 */
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 
+	/* If the current thread has the trap bit set (i.e. a debugger had
+	 * single stepped the process to the system call), we need to clear
+	 * the trap flag from the new frame. Otherwise, the new thread will
+	 * receive a (likely unexpected) SIGTRAP when it executes the first
+	 * instruction after returning to userland.
+	 */
+	td->td_frame->tf_eflags &= ~PSL_T;
+
 	/*
 	 * Set registers for trampoline to user mode.  Leave space for the
 	 * return address on stack.  These are the kernel mode register values.
