@@ -410,8 +410,15 @@ extern	void m_checkalignment(const char* where, struct mbuf *m0,
 extern	struct mbuf *m_makespace(struct mbuf *m0, int skip, int hlen, int *off);
 extern	caddr_t m_pad(struct mbuf *m, int n);
 extern	int m_striphdr(struct mbuf *m, int skip, int hlen);
-extern	int ipsec_filter(struct mbuf **, int);
-extern	void ipsec_bpf(struct mbuf *, struct secasvar *, int);
+
+#ifdef DEV_ENC
+#define	ENC_BEFORE	0x0001
+#define	ENC_AFTER	0x0002
+#define	ENC_IN		0x0100
+#define	ENC_OUT		0x0200
+extern	int ipsec_filter(struct mbuf **, int, int);
+extern	void ipsec_bpf(struct mbuf *, struct secasvar *, int, int);
+#endif
 #endif /* _KERNEL */
 
 #ifndef _KERNEL
