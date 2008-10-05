@@ -375,8 +375,10 @@ ipsec4_process_packet(
 	encif->if_opackets++;
 	encif->if_obytes += m->m_pkthdr.len;
 
+	/* pass the mbuf to enc0 for bpf processing */
+	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_BEFORE);
 	/* pass the mbuf to enc0 for packet filtering */
-	if ((error = ipsec_filter(&m, PFIL_OUT)) != 0)
+	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
 		goto bad;
 #endif
 
@@ -479,7 +481,10 @@ ipsec4_process_packet(
 
 #ifdef DEV_ENC
 	/* pass the mbuf to enc0 for bpf processing */
-	ipsec_bpf(m, sav, AF_INET);
+	ipsec_bpf(m, sav, AF_INET, ENC_OUT|ENC_AFTER);
+	/* pass the mbuf to enc0 for packet filtering */
+	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
+		goto bad;
 #endif
 
 	/*
@@ -729,6 +734,14 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		return EJUSTRETURN; 
 	}
 
+#ifdef DEV_ENC
+	/* pass the mbuf to enc0 for bpf processing */
+	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_BEFORE);
+	/* pass the mbuf to enc0 for packet filtering */
+	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_BEFORE)) != 0)
+		goto bad;
+#endif
+
 	/*
 	 * There may be the case that SA status will be changed when
 	 * we are refering to one. So calling splsoftnet().
@@ -797,6 +810,15 @@ ipsec6_output_tunnel(struct ipsec_output_state *state, struct secpolicy *sp, int
 		goto bad;
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
+
+#ifdef DEV_ENC
+	/* pass the mbuf to enc0 for bpf processing */
+	ipsec_bpf(m, isr->sav, AF_INET6, ENC_OUT|ENC_AFTER);
+	/* pass the mbuf to enc0 for packet filtering */
+	if ((error = ipsec_filter(&m, PFIL_OUT, ENC_OUT|ENC_AFTER)) != 0)
+		goto bad;
+#endif
+
 	error = (*isr->sav->tdb_xform->xf_output)(m, isr, NULL,
 		sizeof (struct ip6_hdr),
 		offsetof(struct ip6_hdr, ip6_nxt));
