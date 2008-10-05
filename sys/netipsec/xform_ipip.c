@@ -348,8 +348,22 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 	ipipstat.ipips_ibytes += m->m_pkthdr.len - iphlen;
 
 #ifdef DEV_ENC
+	switch (v >> 4) {
+#ifdef INET
+	case 4:
+		ipsec_bpf(m, NULL, AF_INET, ENC_IN|ENC_AFTER);
+		break;
+#endif
+#ifdef INET6
+	case 6:
+		ipsec_bpf(m, NULL, AF_INET6, ENC_IN|ENC_AFTER);
+		break;
+#endif
+	default:
+		panic("%s: bogus ip version %u", __func__, v>>4);
+	}
 	/* pass the mbuf to enc0 for packet filtering */
-	if (ipsec_filter(&m, PFIL_IN) != 0)
+	if (ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER) != 0)
 		return;
 #endif
 
