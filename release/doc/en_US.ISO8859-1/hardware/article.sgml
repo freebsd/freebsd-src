@@ -600,14 +600,13 @@
 	</listitem>
       </itemizedlist>
 
-    <para>[&arch.i386;] The following device is unmaintained:
+    <para>[&arch.i386;] The following device is unmaintained:</para>
       <itemizedlist>
         <listitem>
 	  <para>Mitsumi proprietary CD-ROM interface (all
 	  models) (&man.mcd.4;)</para>
 	</listitem>
       </itemizedlist>
-    </para>
 
   </sect2>
   <sect2 id="ethernet">
