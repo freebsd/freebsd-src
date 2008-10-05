@@ -171,7 +171,6 @@
                  (u (string-append "&release.man.url;?query="
                          (data r) "&" "sektion=" (data m))))
             (case v
-              (("xfree86") (string-append u "&" "manpath=XFree86+&release.manpath.xfree86;" ))
               (("xorg")    (string-append u "&" "manpath=Xorg+&release.manpath.xorg;" ))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))
