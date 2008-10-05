@@ -151,6 +151,7 @@ sub parse {
     my %mdocvars;
     $mdocvars{isin_hwlist} = 0;
     $mdocvars{isin_list} = 0;
+    $mdocvars{first_para} = 1;
     $mdocvars{parabuf} = "";
     $mdocvars{listtype} = "";
     $mdocvars{it_nr} = 0;
@@ -310,6 +311,15 @@ sub parse {
 
 		$txt = make_ulink($txt) . $punct_str;
 		parabuf_addline(\%mdocvars, normalize($txt));
+	    } elsif (/^Pp/) {
+		dlog(3, "Got Pp command - forcing new para");
+		flush_out(\%mdocvars);
+	    } elsif (/^Fx (.+)/) {
+		dlog(3, "Got Fx command");
+		parabuf_addline(\%mdocvars, "FreeBSD $1");
+	    } elsif (/^Fx/) {
+		dlog(3, "Got Fx command");
+		parabuf_addline(\%mdocvars, "FreeBSD");
 	    } else {
 		# Ignore all other commands.
 		dlog(3, "Ignoring unknown command $cmd");
@@ -380,7 +390,12 @@ sub flush_out {
     if ($compat_mode) {
 	$out = "<para".$para_arch.">&".$entity_name.";</para>";
     } else {
-	$out = "<para>".$para_arch."&".$entity_name.";</para>";
+	if (${$mdocvars}{first_para}) {
+	    $out = "<para>".$para_arch."&".$entity_name.";</para>";
+	} else {
+	    $out = "<para>&".$entity_name.";</para>";
+	}
+	${$mdocvars}{first_para} = 0;
     }
 
     dlog(4, "Flushing parabuf");
@@ -400,8 +415,6 @@ sub add_listitem {
 	if(defined($archlist{${$mdocvars}{Nm}})) {
 	    $para_arch = ' arch="' . $archlist{${$mdocvars}{Nm}} . '"';
 	}
-    } else {
-	$listitem = "<listitem><para>&".$entity_name.";</para></listitem>";
     }
     $listitem = "<listitem><para".$para_arch.">&".$entity_name.";</para></listitem>";
     dlog(4, "Adding '$listitem' to out_dev");
