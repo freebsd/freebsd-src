@@ -303,13 +303,6 @@
 
   </sect2>
 
-  <sect2 id="tokenring">
-    <title>トークンリングインタフェース</title>
-
-    &hwlist.oltr;
-
-  </sect2>
-
   <sect2 id="fddi">
     <title>FDDI インタフェース</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; ドライバ)</para>
@@ -351,10 +344,6 @@
     
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz 無線アダプタ
       (&man.ray.4; ドライバ)</para>
-
-    &hwlist.awi;
-
-    &hwlist.cnw;
 
     &hwlist.ath;
   </sect2>
