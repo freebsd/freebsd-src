@@ -308,13 +308,6 @@
 
   </sect2>
 
-  <sect2 id="tokenring">
-    <title>Token Ring интерфейсы</title>
-
-    &hwlist.oltr;
-
-  </sect2>
-
   <sect2 id="fddi">
     <title>FDDI интерфейсы</title>
     <para arch="i386,pc98,alpha">DEC DEFPA PCI (драйвер &man.fpa.4;)</para>
@@ -358,10 +351,6 @@
 
     <para arch="i386,pc98">Raytheon Raylink 2.4GHz беспроводные адаптеры (драйвер &man.ray.4;)
     </para>
-
-    &hwlist.awi;
-
-    &hwlist.cnw;
 
     &hwlist.ath;
 
