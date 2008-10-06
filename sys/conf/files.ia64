@@ -28,6 +28,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_ia32
 compat/freebsd32/freebsd32_misc.c	optional	compat_ia32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_ia32
 compat/freebsd32/freebsd32_sysent.c	optional	compat_ia32

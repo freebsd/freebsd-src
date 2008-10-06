@@ -134,8 +134,8 @@
 53	AUE_SIGALTSTACK	STD	{ int freebsd32_sigaltstack( \
 				    struct sigaltstack32 *ss, \
 				    struct sigaltstack32 *oss); }
-54	AUE_IOCTL	NOPROTO	{ int ioctl(int fd, u_long com, \
-				    caddr_t data); }
+54	AUE_NULL	STD	{ int freebsd32_ioctl(int fd, uint32_t com, \
+				    struct md_ioctl32 *data); }
 55	AUE_REBOOT	NOPROTO	{ int reboot(int opt); }
 56	AUE_REVOKE	NOPROTO	{ int revoke(char *path); }
 57	AUE_SYMLINK	NOPROTO	{ int symlink(char *path, char *link); }
@@ -179,7 +179,7 @@
 				    struct itimerval32 *oitv); }
 84	AUE_NULL	OBSOL	owait
 ; XXX implement
-85	AUE_SWAPON	OBSOL	oswapon
+85	AUE_SWAPON	NOPROTO	{ int swapon(char *name); }
 86	AUE_GETITIMER	STD	{ int freebsd32_getitimer(u_int which, \
 				    struct itimerval32 *itv); }
 87	AUE_O_GETHOSTNAME	OBSOL	ogethostname
@@ -651,7 +651,7 @@
 375	AUE_NULL	UNIMPL	nfsclnt
 376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int flags); }
 377	AUE_NULL	UNIMPL	afs_syscall
-378	AUE_NMOUNT	NOPROTO	{ int nmount(struct iovec *iovp, \
+378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
 379	AUE_NULL	NOPROTO	{ int kse_exit(void); }
 380	AUE_NULL	NOPROTO	{ int kse_wakeup(struct kse_mailbox *mbx); }
