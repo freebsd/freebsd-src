@@ -120,6 +120,7 @@ kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
 kmacy [label="Kip Macy\nkmacy@FreeBSD.org\n2005/06/01"]
 le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 linimon [label="Mark Linimon\nlinimon@FreeBSD.org\n2006/09/30"]
+lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 lulf [label="Ulf Lilleengen\nlulf@FreeBSD.org\n2007/10/24"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marks [label="Mark Santcroos\nmarks@FreeBSD.org\n2004/03/18"]
@@ -251,6 +252,7 @@ gnn -> jinmei
 gnn -> rrs
 gnn -> ivoras
 gnn -> vanhu
+gnn -> lstewart
 
 grog -> edwin
 grog -> le
@@ -319,6 +321,8 @@ julian -> adrian
 julian -> zec
 
 kib -> lulf
+
+kmacy -> lstewart
 
 marcel -> arun
 marcel -> marius
