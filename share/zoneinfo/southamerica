@@ -1,4 +1,4 @@
-# @(#)southamerica	8.27
+# @(#)southamerica	8.29
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -619,7 +619,7 @@ Zone	America/La_Paz	-4:32:36 -	LMT	1890
 # </a>
 # Note that this link does not always work directly, but must be accessed
 # by going to
-# <a href="http://www.mme.gov.br/first>"
+# <a href="http://www.mme.gov.br/first">
 # http://www.mme.gov.br/first
 # </a>
 #
@@ -768,12 +768,33 @@ Rule	Brazil	2007	only	-	Feb	25	 0:00	0	-
 # Decree <a href="http://pcdsh01.on.br/DecHV6212.gif">6,212</a> (2007-09-26),
 # adopted by the same states as before.
 Rule	Brazil	2007	only	-	Oct	Sun>=8	 0:00	1:00	S
-Rule	Brazil	2008	max	-	Feb	Sun>=15	 0:00	0	-
-Rule	Brazil	2008	max	-	Oct	Sun>=15	 0:00	1:00	S
+# From Frederico A. C. Neves (2008-09-10):
+# Acording to this decree
+# <a href="http://www.planalto.gov.br/ccivil_03/_Ato2007-2010/2008/Decreto/D6558.htm">
+# http://www.planalto.gov.br/ccivil_03/_Ato2007-2010/2008/Decreto/D6558.htm
+# </a>
+# [t]he DST period in Brazil now on will be from the 3rd Oct Sunday to the
+# 3rd Feb Sunday. There is an exception on the return date when this is
+# the Carnival Sunday then the return date will be the next Sunday...
+Rule	Brazil	2008	max	-	Oct	Sun>=15	0:00	1:00	S
+Rule	Brazil	2008	2011	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2012	only	-	Feb	Sun>=22	0:00	0	-
+Rule	Brazil	2013	2014	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2015	only	-	Feb	Sun>=22	0:00	0	-
+Rule	Brazil	2016	2022	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2023	only	-	Feb	Sun>=22	0:00	0	-
+Rule	Brazil	2024	2025	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2026	only	-	Feb	Sun>=22	0:00	0	-
+Rule	Brazil	2027	2033	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2034	only	-	Feb	Sun>=22	0:00	0	-
+Rule	Brazil	2035	2036	-	Feb	Sun>=15	0:00	0	-
+Rule	Brazil	2037	only	-	Feb	Sun>=22	0:00	0	-
+# From Arthur David Olson (2008-09-29):
+# The next is wrong in some years but is better than nothing.
+Rule	Brazil	2038	max	-	Feb	Sun>=15	0:00	0	-
+
 # The latest ruleset listed above says that the following states observe DST:
 # DF, ES, GO, MG, MS, MT, PR, RJ, RS, SC, SP.
-# For dates after mid-2008, the above rules with TO="max" are guesses
-# and are quite possibly wrong, but are more likely than no DST at all.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 #
