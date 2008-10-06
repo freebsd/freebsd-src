@@ -57,18 +57,13 @@ struct sockaddr_un {
 #define	LOCAL_CREDS		0x002	/* pass credentials to receiver */
 #define	LOCAL_CONNWAIT		0x004	/* connects block until accepted */
 
-#ifdef _KERNEL
-
-struct socket;
-int	uipc_connect2(struct socket *so1, struct socket *so2);
-
-#else /* !_KERNEL */
+#ifndef _KERNEL
 
 /* actual length of an initialized sockaddr_un */
 #define SUN_LEN(su) \
 	(sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path))
 
-#endif /* _KERNEL */
+#endif /* !_KERNEL */
 
 #endif /* __BSD_VISIBLE */
 
