@@ -193,7 +193,7 @@ __PMC_EV(P6, EMON_KNI_COMP_INST_RET,	p6-emon-kni-comp-inst-ret)	\
 __PMC_EV(P6, HW_INT_RX,			p6-hw-int-rx)			\
 __PMC_EV(P6, CYCLES_INT_MASKED,		p6-cycles-int-masked)		\
 __PMC_EV(P6, CYCLES_INT_PENDING_AND_MASKED,				\
-			    p6-cycles-in-pending-and-masked)		\
+			    p6-cycles-int-pending-and-masked)		\
 __PMC_EV(P6, BR_INST_RETIRED,		p6-br-inst-retired)		\
 __PMC_EV(P6, BR_MISS_PRED_RETIRED,	p6-br-miss-pred-retired)	\
 __PMC_EV(P6, BR_TAKEN_RETIRED,		p6-br-taken-retired)		\
