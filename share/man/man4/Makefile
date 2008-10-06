@@ -126,6 +126,7 @@ MAN=	aac.4 \
 	ieee80211.4 \
 	if_bridge.4 \
 	ifmib.4 \
+	igb.4 \
 	iic.4 \
 	iicbb.4 \
 	iicbus.4 \
