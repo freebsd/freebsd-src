@@ -225,6 +225,7 @@ static struct rwlock	unp_global_rwlock;
 #define	UNP_PCB_UNLOCK(unp)		mtx_unlock(&(unp)->unp_mtx)
 #define	UNP_PCB_LOCK_ASSERT(unp)	mtx_assert(&(unp)->unp_mtx, MA_OWNED)
 
+static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
@@ -531,7 +532,7 @@ uipc_close(struct socket *so)
 /*
  * uipc_connect2() is not static as it is invoked directly by fifofs.
  */
-int
+static int
 uipc_connect2(struct socket *so1, struct socket *so2)
 {
 	struct unpcb *unp, *unp2;
