@@ -708,6 +708,8 @@
 
       &hwlist.ixgb;
 
+      &hwlist.jme;
+
       &hwlist.kue;
 
       &hwlist.lge;
