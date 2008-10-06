@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2008
+.Dd October 6, 2008
 .Dt JME 4
 .Os
 .Sh NAME
@@ -94,6 +94,17 @@ Force half duplex operation.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+device driver provides support for the following Ethernet controllers:
+.Pp
+.Bl -bullet -compact
+.It
+JMicron JMC250 PCI Express Gigabit Ethernet controller
+.It
+JMicron JMC260 PCI Express Fast Ethernet controller
+.El
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
