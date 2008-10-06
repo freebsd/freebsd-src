@@ -172,6 +172,8 @@ typedef struct mcp_kreq_ether_recv mcp_kreq_ether_recv_t;
 #define	MXGEFW_ETH_SEND_3	0x2c0000
 #define	MXGEFW_ETH_RECV_SMALL	0x300000
 #define	MXGEFW_ETH_RECV_BIG	0x340000
+#define	MXGEFW_ETH_SEND_GO	0x380000
+#define	MXGEFW_ETH_SEND_STOP	0x3C0000
 
 #define	MXGEFW_ETH_SEND(n)		(0x200000 + (((n) & 0x03) * 0x40000))
 #define	MXGEFW_ETH_SEND_OFFSET(n)	(MXGEFW_ETH_SEND(n) - MXGEFW_ETH_SEND_4)
@@ -192,6 +194,11 @@ enum myri10ge_mcp_cmd_type {
      MXGEFW_CMD_RESET is issued */
 
   MXGEFW_CMD_SET_INTRQ_DMA,
+  /* data0 = LSW of the host address
+   * data1 = MSW of the host address
+   * data2 = slice number if multiple slices are used
+   */
+  
   MXGEFW_CMD_SET_BIG_BUFFER_SIZE,	/* in bytes, power of 2 */
   MXGEFW_CMD_SET_SMALL_BUFFER_SIZE,	/* in bytes */
   
@@ -202,6 +209,8 @@ enum myri10ge_mcp_cmd_type {
   MXGEFW_CMD_GET_SEND_OFFSET,
   MXGEFW_CMD_GET_SMALL_RX_OFFSET,
   MXGEFW_CMD_GET_BIG_RX_OFFSET,
+  /* data0 = slice number if multiple slices are used */
+  
   MXGEFW_CMD_GET_IRQ_ACK_OFFSET,
   MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET,
 
@@ -217,6 +226,7 @@ enum myri10ge_mcp_cmd_type {
      a power of 2 number of entries.  */
 
   MXGEFW_CMD_SET_INTRQ_SIZE, 	/* in bytes */
+#define MXGEFW_CMD_SET_INTRQ_SIZE_FLAG_NO_STRICT_SIZE_CHECK  (1 << 31)
 
   /* command to bring ethernet interface up.  Above parameters
      (plus mtu & mac address) must have been exchanged prior
@@ -271,8 +281,13 @@ enum myri10ge_mcp_cmd_type {
 
   MXGEFW_CMD_SET_STATS_DMA_V2,
   /* data0, data1 = bus addr,
-     data2 = sizeof(struct mcp_irq_data) from driver point of view, allows
-     adding new stuff to mcp_irq_data without changing the ABI */
+   * data2 = sizeof(struct mcp_irq_data) from driver point of view, allows
+   * adding new stuff to mcp_irq_data without changing the ABI
+   *
+   * If multiple slices are used, data2 contains both the size of the
+   * structure (in the lower 16 bits) and the slice number
+   * (in the upper 16 bits).
+   */
 
   MXGEFW_CMD_UNALIGNED_TEST,
   /* same than DMA_TEST (same args) but abort with UNALIGNED on unaligned
@@ -294,13 +309,18 @@ enum myri10ge_mcp_cmd_type {
   MXGEFW_CMD_GET_MAX_RSS_QUEUES,
   MXGEFW_CMD_ENABLE_RSS_QUEUES,
   /* data0 = number of slices n (0, 1, ..., n-1) to enable
-   * data1 = interrupt mode.
-   * 0=share one INTx/MSI, 1=use one MSI-X per queue.
+   * data1 = interrupt mode | use of multiple transmit queues.
+   * 0=share one INTx/MSI.
+   * 1=use one MSI-X per queue.
    * If all queues share one interrupt, the driver must have set
    * RSS_SHARED_INTERRUPT_DMA before enabling queues.
+   * 2=enable both receive and send queues.
+   * Without this bit set, only one send queue (slice 0's send queue)
+   * is enabled.  The receive queues are always enabled.
    */
-#define MXGEFW_SLICE_INTR_MODE_SHARED 0
-#define MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE 1
+#define MXGEFW_SLICE_INTR_MODE_SHARED          0x0
+#define MXGEFW_SLICE_INTR_MODE_ONE_PER_SLICE   0x1
+#define MXGEFW_SLICE_ENABLE_MULTIPLE_TX_QUEUES 0x2
   
   MXGEFW_CMD_GET_RSS_SHARED_INTERRUPT_MASK_OFFSET,
   MXGEFW_CMD_SET_RSS_SHARED_INTERRUPT_DMA,
@@ -322,10 +342,13 @@ enum myri10ge_mcp_cmd_type {
    * 2: TCP_IPV4        (required by RSS)
    * 3: IPV4 | TCP_IPV4 (required by RSS)
    * 4: source port
+   * 5: source port + destination port
    */
 #define MXGEFW_RSS_HASH_TYPE_IPV4      0x1
 #define MXGEFW_RSS_HASH_TYPE_TCP_IPV4  0x2
 #define MXGEFW_RSS_HASH_TYPE_SRC_PORT  0x4
+#define MXGEFW_RSS_HASH_TYPE_SRC_DST_PORT 0x5
+#define MXGEFW_RSS_HASH_TYPE_MAX 0x5
   
   MXGEFW_CMD_GET_MAX_TSO6_HDR_SIZE,
   /* Return data = the max. size of the entire headers of a IPv6 TSO packet.
@@ -393,9 +416,27 @@ enum myri10ge_mcp_cmd_type {
      with tx_boundary == 2048, max-throttle-factor == 8191 => min-speed == 500Mb/s
      with tx_boundary == 4096, max-throttle-factor == 4095 => min-speed == 1Gb/s
   */
-
-  MXGEFW_CMD_VPUMP_UP
+  
+  MXGEFW_CMD_VPUMP_UP,
   /* Allocates VPump Connection, Send Request and Zero copy buffer address tables */
+  MXGEFW_CMD_GET_VPUMP_CLK,
+  /* Get the lanai clock */
+
+  MXGEFW_CMD_GET_DCA_OFFSET,
+  /* offset of dca control for WDMAs */
+
+  /* VMWare NetQueue commands */
+  MXGEFW_CMD_NETQ_GET_FILTERS_PER_QUEUE,
+  MXGEFW_CMD_NETQ_ADD_FILTER,
+  /* data0 = filter_id << 16 | queue << 8 | type */
+  /* data1 = MS4 of MAC Addr */
+  /* data2 = LS2_MAC << 16 | VLAN_tag */
+  MXGEFW_CMD_NETQ_DEL_FILTER,
+  /* data0 = filter_id */
+  MXGEFW_CMD_NETQ_QUERY1,
+  MXGEFW_CMD_NETQ_QUERY2,
+  MXGEFW_CMD_NETQ_QUERY3,
+  MXGEFW_CMD_NETQ_QUERY4,
 
 };
 typedef enum myri10ge_mcp_cmd_type myri10ge_mcp_cmd_type_t;
@@ -415,7 +456,8 @@ enum myri10ge_mcp_cmd_status {
   MXGEFW_CMD_ERROR_UNALIGNED,
   MXGEFW_CMD_ERROR_NO_MDIO,
   MXGEFW_CMD_ERROR_XFP_FAILURE,
-  MXGEFW_CMD_ERROR_XFP_ABSENT
+  MXGEFW_CMD_ERROR_XFP_ABSENT,
+  MXGEFW_CMD_ERROR_BAD_PCIE_LINK
 };
 typedef enum myri10ge_mcp_cmd_status myri10ge_mcp_cmd_status_t;
 
@@ -461,5 +503,11 @@ struct mcp_rss_shared_interrupt {
   uint8_t valid;
 };
 #endif
+
+/* definitions for NETQ filter type */
+#define MXGEFW_NETQ_FILTERTYPE_NONE 0
+#define MXGEFW_NETQ_FILTERTYPE_MACADDR 1
+#define MXGEFW_NETQ_FILTERTYPE_VLAN 2
+#define MXGEFW_NETQ_FILTERTYPE_VLANMACADDR 3
 
 #endif /* _myri10ge_mcp_h */
