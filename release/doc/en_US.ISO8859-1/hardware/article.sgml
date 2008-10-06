@@ -706,6 +706,8 @@
 
       &hwlist.ie;
 
+      &hwlist.igb;
+
       &hwlist.ixgb;
 
       &hwlist.jme;
