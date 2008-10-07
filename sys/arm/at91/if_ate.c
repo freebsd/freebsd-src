@@ -359,9 +359,9 @@ ate_activate(device_t dev)
 	/*
 	 * Allocate DMA tags and maps
 	 */
-	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0,
-	    busdma_lock_mutex, &sc->sc_mtx, &sc->mtag);
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->mtag);
 	if (err != 0)
 		goto errout;
 	for (i = 0; i < ATE_MAX_TX_BUFFERS; i++) {
@@ -377,15 +377,15 @@ ate_activate(device_t dev)
 	/*
 	 * Allocate DMA tags and maps for RX.
 	 */
-	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0,
-	    busdma_lock_mutex, &sc->sc_mtx, &sc->rxtag);
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, 0, busdma_lock_mutex, &sc->sc_mtx, &sc->rxtag);
 	if (err != 0)
 		goto errout;
 
 	/* Dma TAG and MAP for the rx descriptors. */
-	err = bus_dma_tag_create(NULL, sizeof(eth_rx_desc_t), 0, 
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_rx_desc_t),
+	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t), 1,
 	    ATE_MAX_RX_BUFFERS * sizeof(eth_rx_desc_t), 0, busdma_lock_mutex,
 	    &sc->sc_mtx, &sc->rx_desc_tag);

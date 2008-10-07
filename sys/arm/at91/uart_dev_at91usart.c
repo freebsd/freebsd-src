@@ -350,9 +350,10 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	/*
 	 * Allocate DMA tags and maps
 	 */
-	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, USART_BUFFER_SIZE, 1,
-	    USART_BUFFER_SIZE, BUS_DMA_ALLOCNOW, NULL, NULL, &atsc->dmatag);
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    USART_BUFFER_SIZE, 1, USART_BUFFER_SIZE, BUS_DMA_ALLOCNOW, NULL,
+	    NULL, &atsc->dmatag);
 	if (err != 0)
 		goto errout;
 	err = bus_dmamap_create(atsc->dmatag, 0, &atsc->tx_map);
