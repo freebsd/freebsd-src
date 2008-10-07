@@ -57,13 +57,13 @@ memmem.c:	$S/../lib/libc/string/memmem.c
 CLEANFILES+=memchr.c memmem.c
 
 ashldi3.o:	$S/libkern/ashldi3.c
-	cc -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
+	${CC} -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
 
 divsi3.o:	$S/libkern/${M}/divsi3.S
-	cc -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
+	${CC} -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
 
 muldi3.o:	$S/libkern/${M}/muldi3.c
-	cc -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
+	${CC} -c ${CFLAGS} -D_KERNEL -o ${.TARGET} ${.IMPSRC}
 
 inflate.c:	$S/kern/inflate.c
 	sed -e 's/extern void putstr (char/extern void putstr (const char/' < \
