@@ -95,6 +95,9 @@ static void load(void);
 static int parse(void);
 static int xfsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
+#ifdef FIXUP_BOOT_DRV
+static void fixup_boot_drv(caddr_t, int, int, int);
+#endif
 
 #define	UFS_SMALL_CGBASE
 #include "ufsread.c"
@@ -196,7 +199,13 @@ load(void)
 	ino_t ino;
 	uint32_t addr;
 	int i, j;
+#ifdef FIXUP_BOOT_DRV
+	caddr_t staddr;
+	int klen;
 
+	staddr = (caddr_t)0xffffffff;
+	klen = 0;
+#endif
 	if (!(ino = lookup(kname))) {
 		if (!ls)
 			printf("No %s\n", kname);
@@ -218,10 +227,18 @@ load(void)
 	for (i = 0; i < 2; i++) {
 		p = (caddr_t)ep[i].p_paddr;
 		fs_off = ep[i].p_offset;
+#ifdef FIXUP_BOOT_DRV
+		if (staddr == (caddr_t)0xffffffff)
+			staddr = p;
+		klen += ep[i].p_filesz;
+#endif
 		if (xfsread(ino, p, ep[i].p_filesz))
 			return;
 	}
 	addr = eh.e_entry;
+#ifdef FIXUP_BOOT_DRV
+	fixup_boot_drv(staddr, klen, bootslice, bootpart);
+#endif
 	((void(*)(int))addr)(opts & RBX_MASK);
 }
 
@@ -304,3 +321,73 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	}
 	return drvread(buf, dsk_start + lba, nblk);
 }
+
+#ifdef FIXUP_BOOT_DRV
+/*
+ * fixup_boot_drv() will try to find the ROOTDEVNAME spec in the kernel
+ * and change it to what was specified on the comandline or /boot.conf
+ * file or to what was encountered on the disk. It will try to handle 3
+ * different disk layouts, raw (dangerously dedicated), slice only and
+ * slice + partition. It will look for the following strings in the
+ * kernel, but if it is one of the first three, the string in the kernel
+ * must use the correct form to match the actual disk layout:
+ * - ufs:ad0a
+ * - ufs:ad0s1
+ * - ufs:ad0s1a
+ * - ufs:ROOTDEVNAME
+ * In the case of the first three strings, only the "a" at the end and
+ * the "1" after the "s" will be modified, if they exist. The string
+ * length will not be changed. In the case of the last string, the
+ * whole string will be built up and nul, '\0' terminated.
+ */
+static void
+fixup_boot_drv(caddr_t addr, int klen, int bs, int bp)
+{
+	const u_int8_t op[] = "ufs:ROOTDEVNAME";
+	const u_int8_t op2[] = "ufs:ad0";
+	u_int8_t *p, *ps;
+
+	DPRINTF("fixup_boot_drv: 0x%x, %d, slice %d, partition %d\n",
+	    (int)addr, klen, bs, bp);
+	if (bs > 4)
+		return;
+	if (bp > 7)
+		return;
+	ps = memmem(addr, klen, op, sizeof(op));
+	if (ps != NULL) {
+		p = ps + 4;	/* past ufs: */
+		DPRINTF("Found it at 0x%x\n", (int)ps);
+		p[0] = 'a'; p[1] = 'd'; p[2] = '0';	/* ad0 */
+		p += 3;
+		if (bs > 0) {
+			/* append slice */
+			*p++ = 's';
+			*p++ = bs + '0';
+		}
+		if (disk_layout != DL_SLICE) {
+			/* append partition */
+			*p++ = bp + 'a';
+		}
+		*p = '\0';
+	} else {
+		ps = memmem(addr, klen, op2, sizeof(op2) - 1);
+		if (ps != NULL) {
+			p = ps + sizeof(op2) - 1;
+			DPRINTF("Found it at 0x%x\n", (int)ps);
+			if (*p == 's') {
+				/* fix slice */
+				p++;
+				*p++ = bs + '0';
+			}
+			if (*p == 'a')
+				*p = bp + 'a';
+		}
+	}
+	if (ps == NULL) {
+		printf("Could not locate \"%s\" to fix kernel boot device, "
+		     "check ROOTDEVNAME is set\n", op);
+		return;
+	}
+	DPRINTF("Changed boot device to %s\n", ps);
+}
+#endif
