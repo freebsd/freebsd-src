@@ -1285,10 +1285,6 @@ sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
 
-	/* XXXRW: Temporary debugging. */
-	KASSERT(so->so_proto->pr_usrreqs->pru_sosend != sosend,
-	    ("sosend: protocol calls sosend"));
-
 	return (so->so_proto->pr_usrreqs->pru_sosend(so, addr, uio, top,
 	    control, flags, td));
 }
@@ -2030,10 +2026,6 @@ soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 
-	/* XXXRW: Temporary debugging. */
-	KASSERT(so->so_proto->pr_usrreqs->pru_soreceive != soreceive,
-	    ("soreceive: protocol calls soreceive"));
-
 	return (so->so_proto->pr_usrreqs->pru_soreceive(so, psa, uio, mp0,
 	    controlp, flagsp));
 }
@@ -2656,10 +2648,6 @@ int
 sopoll(struct socket *so, int events, struct ucred *active_cred,
     struct thread *td)
 {
-
-	/* XXXRW: Temporary debugging. */
-	KASSERT(so->so_proto->pr_usrreqs->pru_sopoll != sopoll,
-	    ("sopoll: protocol calls sopoll"));
 
 	return (so->so_proto->pr_usrreqs->pru_sopoll(so, events, active_cred,
 	    td));
