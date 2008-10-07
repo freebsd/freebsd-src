@@ -1898,7 +1898,8 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (error);
 		}
-		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE ||
+		    uio->uio_resid == 0) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			return (0);
 		}
