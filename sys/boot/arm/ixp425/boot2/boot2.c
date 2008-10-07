@@ -148,7 +148,7 @@ getstr(int c)
 				*s++ = c;
 			xputchar(c);
 		}
-	c = getc(10000);
+		c = getc(10000);
 	}
 }
 
