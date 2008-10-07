@@ -28,6 +28,7 @@
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 
@@ -58,6 +59,7 @@ static void
 test(int domain, const char *domainstr, struct sockaddr *sa, socklen_t salen)
 {
 	int sock_send, sock_receive;
+	ssize_t size;
 
 	sock_send = socket(domain, SOCK_DGRAM, 0);
 	if (sock_send < 0)
@@ -76,27 +78,37 @@ test(int domain, const char *domainstr, struct sockaddr *sa, socklen_t salen)
 	if (connect(sock_send, sa, salen) < 0)
 		err(-1, "Protocol %s connect(sock_send)", domainstr);
 
-	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
+	size = recv(sock_receive, NULL, 0, 0);
+	if (size > 0)
+		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) before: %d",
+		    domainstr, size);
+	else if (size < 0)
 		err(-1, "Protocol %s recv(sock_receive, NULL, 0) before",
 		    domainstr);
 
-	if (send(sock_send, NULL, 0, 0) < 0)
+	size = send(sock_send, NULL, 0, 0);
+	if (size < 0)
 		err(-1, "Protocol %s send(sock_send, NULL, 0)", domainstr);
 
 	(void)sleep(1);
-	if (recv(sock_receive, NULL, 0, 0) < 0)
+	size = recv(sock_receive, NULL, 0, 0);
+	if (size < 0)
 		err(-1, "Protocol %s recv(sock_receive, NULL, 0) test",
 		    domainstr);
 
-	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
+	size = recv(sock_receive, NULL, 0, 0);
+	if (size > 0)
+		errx(-1, "Protocol %s recv(sock_receive, NULL, 0) after: %d",
+		    domainstr, size);
+	else if (size < 0)
 		err(-1, "Protocol %s recv(sock_receive, NULL, 0) after",
 		    domainstr);
-
 }
 
 int
 main(int argc, __unused char *argv[])
 {
+	struct sockaddr_un sun;
 	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
 	struct in6_addr loopback6addr = IN6ADDR_LOOPBACK_INIT;
@@ -119,6 +131,15 @@ main(int argc, __unused char *argv[])
 	sin6.sin6_port = htons(THEPORT);
 
 	test(PF_INET6, "PF_INET6", (struct sockaddr *)&sin6, sizeof(sin6));
+
+	bzero(&sun, sizeof(sun));
+	sun.sun_len = sizeof(sun);
+	sun.sun_family = AF_LOCAL;
+	strlcpy(sun.sun_path, "/tmp/udpzerosize-socket", sizeof(sun.sun_path));
+	if (unlink(sun.sun_path) < 0 && errno != ENOENT)
+		err(-1, "unlink: %s", sun.sun_path);
+
+	test(PF_LOCAL, "PF_LOCAL", (struct sockaddr *)&sun, sizeof(sun));
 
 	return (0);
 }
