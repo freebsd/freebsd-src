@@ -97,9 +97,9 @@ at91_spi_attach(device_t dev)
 	/*
 	 * Allocate DMA tags and maps
 	 */
-	err = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, 2058, 1, 2048, BUS_DMA_ALLOCNOW,
-	    NULL, NULL, &sc->dmatag);
+	err = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, 2058, 1,
+	    2048, BUS_DMA_ALLOCNOW, NULL, NULL, &sc->dmatag);
 	if (err != 0)
 		goto out;
 	for (i = 0; i < 4; i++) {
