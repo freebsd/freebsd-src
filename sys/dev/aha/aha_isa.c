@@ -231,7 +231,7 @@ aha_isa_attach(device_t dev)
 	filter_arg = NULL;
 	lowaddr = BUS_SPACE_MAXADDR_24BIT;
 
-	if (bus_dma_tag_create(	/* parent	*/ NULL,
+	if (bus_dma_tag_create(	/* parent	*/ bus_get_dma_tag(dev),
 				/* alignemnt	*/ 1,
 				/* boundary	*/ 0,
 				/* lowaddr	*/ lowaddr,
