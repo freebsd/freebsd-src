@@ -54,51 +54,71 @@ usage(void)
 	errx(-1, "no arguments allowed\n");
 }
 
+static void
+test(int domain, const char *domainstr, struct sockaddr *sa, socklen_t salen)
+{
+	int sock_send, sock_receive;
+
+	sock_send = socket(domain, SOCK_DGRAM, 0);
+	if (sock_send < 0)
+		err(-1, "socket(%s, SOCK_DGRAM, 0)", domainstr);
+
+	sock_receive = socket(domain, SOCK_DGRAM, 0);
+	if (sock_receive < 0)
+		err(-1, "socket(%s, SOCK_DGRAM, 0)", domainstr);
+
+	if (bind(sock_receive, sa, salen) < 0)
+		err(-1, "Protocol %s bind(sock_receive)", domainstr);
+	if (fcntl(sock_receive, F_SETFL, O_NONBLOCK, 1) < 0)
+		err(-1, "Protocll %s fcntl(sock_receive, FL_SETFL, "
+		    "O_NONBLOCK)", domainstr);
+
+	if (connect(sock_send, sa, salen) < 0)
+		err(-1, "Protocol %s connect(sock_send)", domainstr);
+
+	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
+		err(-1, "Protocol %s recv(sock_receive, NULL, 0) before",
+		    domainstr);
+
+	if (send(sock_send, NULL, 0, 0) < 0)
+		err(-1, "Protocol %s send(sock_send, NULL, 0)", domainstr);
+
+	(void)sleep(1);
+	if (recv(sock_receive, NULL, 0, 0) < 0)
+		err(-1, "Protocol %s recv(sock_receive, NULL, 0) test",
+		    domainstr);
+
+	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
+		err(-1, "Protocol %s recv(sock_receive, NULL, 0) after",
+		    domainstr);
+
+}
+
 int
 main(int argc, __unused char *argv[])
 {
+	struct sockaddr_in6 sin6;
 	struct sockaddr_in sin;
-
-	int sock_send, sock_receive;
+	struct in6_addr loopback6addr = IN6ADDR_LOOPBACK_INIT;
 
 	if (argc != 1)
 		usage();
-
-	sock_send = socket(PF_INET, SOCK_DGRAM, 0);
-	if (sock_send < 0)
-		err(-1, "socket(PF_INET, SOCK_DGRAM, 0)");
-
-	sock_receive = socket(PF_INET, SOCK_DGRAM, 0);
-	if (sock_receive < 0)
-		err(-1, "socket(PF_INET, SOCK_DGRAM, 0)");
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	sin.sin_port = htons(THEPORT);
-	if (bind(sock_receive, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "bind(sock_receive, %s:%d)", inet_ntoa(sin.sin_addr),
-		    ntohs(sin.sin_port));
-	if (fcntl(sock_receive, F_SETFL, O_NONBLOCK, 1) < 0)
-		err(-1, "fcntl(sock_receive, FL_SETFL, O_NONBLOCK)");
 
-	if (connect(sock_send, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "connect(sock_send, %s:%d)", inet_ntoa(sin.sin_addr),
-		    htons(sin.sin_port));
+	test(PF_INET, "PF_INET", (struct sockaddr *)&sin, sizeof(sin));
 
-	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
-		err(-1, "recv(sock_receive, NULL, 0) before");
+	bzero(&sin6, sizeof(sin6));
+	sin6.sin6_len = sizeof(sin6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_addr = loopback6addr;
+	sin6.sin6_port = htons(THEPORT);
 
-	if (send(sock_send, NULL, 0, 0) < 0)
-		err(-1, "send(sock_send, NULL, 0)");
-
-	(void)sleep(1);
-	if (recv(sock_receive, NULL, 0, 0) < 0)
-		err(-1, "recv(sock_receive, NULL, 0) test");
-
-	if (recv(sock_receive, NULL, 0, 0) >= 0 || errno != EAGAIN)
-		err(-1, "recv(sock_receive, NULL, 0) after");
+	test(PF_INET6, "PF_INET6", (struct sockaddr *)&sin6, sizeof(sin6));
 
 	return (0);
 }
