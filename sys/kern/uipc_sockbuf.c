@@ -284,10 +284,11 @@ sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	/*
-	 * td will only be NULL when we're in an interrupt (e.g. in
-	 * tcp_input()).
-	 *
-	 * XXXRW: This comment needs updating, as might the code.
+	 * When a thread is passed, we take into account the thread's socket
+	 * buffer size limit.  The caller will generally pass curthread, but
+	 * in the TCP input path, NULL will be passed to indicate that no
+	 * appropriate thread resource limits are available.  In that case,
+	 * we don't apply a process limit.
 	 */
 	if (cc > sb_max_adj)
 		return (0);
