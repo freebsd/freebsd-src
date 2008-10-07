@@ -51,8 +51,15 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-static int flag_a, flag_c, flag_d;
+static int flag_a, flag_b, flag_c, flag_d;
 static int flag_I = 1000000;
+
+#define PRINTMSG(...) do {						\
+		if (flag_b && !loop)					\
+			printf(__VA_ARGS__);				\
+		else if (!flag_b)					\
+			printw(__VA_ARGS__);				\
+	} while(0)
 
 static void usage(void);
 
@@ -67,7 +74,7 @@ int
 main(int argc, char **argv)
 {
 	int error, i, quit;
-	int curx, cury, maxx, maxy, line_len, max_flen;
+	int curx, cury, maxx, maxy, line_len, loop, max_flen;
 	struct devstat *gsp, *gsq;
 	void *sp, *sq;
 	double dt;
@@ -87,11 +94,19 @@ main(int argc, char **argv)
 	History *hist;
 	HistEvent hist_ev;
 
+	hist = NULL;
+	el = NULL;
+	maxx = -1;
+	curx = -1;
+	loop = 1;
 	f_s[0] = '\0';
-	while ((i = getopt(argc, argv, "adcf:I:")) != -1) {
+	while ((i = getopt(argc, argv, "adcf:I:b")) != -1) {
 		switch (i) {
 		case 'a':
 			flag_a = 1;
+			break;
+		case 'b':
+			flag_b = 1;
 			break;
 		case 'c':
 			flag_c = 1;
@@ -141,34 +156,36 @@ main(int argc, char **argv)
 	sq = geom_stats_snapshot_get();
 	if (sq == NULL)
 		err(1, "geom_stats_snapshot()");
-	/* Setup curses */
-	initscr();
-	start_color();
-	use_default_colors();
-	pair_content(0, &cf, &cb);
-	init_pair(1, COLOR_GREEN, cb);
-	init_pair(2, COLOR_MAGENTA, cb);
-	init_pair(3, COLOR_RED, cb);
-	cbreak();
-	noecho();
-	nonl();
-	nodelay(stdscr, 1);
-	intrflush(stdscr, FALSE);
-	keypad(stdscr, TRUE);
-	/* Setup libedit */
-	hist = history_init();
-	if (hist == NULL)
-		err(EX_SOFTWARE, "history_init()");
-	history(hist, &hist_ev, H_SETSIZE, 100);
-	el = el_init("gstat", stdin, stdout, stderr);
-	if (el == NULL)
-		err(EX_SOFTWARE, "el_init");
-	el_set(el, EL_EDITOR, "emacs");
-	el_set(el, EL_SIGNAL, 1);
-	el_set(el, EL_HIST, history, hist);
-	el_set(el, EL_PROMPT, el_prompt);
-	if (f_s[0] != '\0')
-		history(hist, &hist_ev, H_ENTER, f_s);
+	if (!flag_b) {
+		/* Setup curses */
+		initscr();
+		start_color();
+		use_default_colors();
+		pair_content(0, &cf, &cb);
+		init_pair(1, COLOR_GREEN, cb);
+		init_pair(2, COLOR_MAGENTA, cb);
+		init_pair(3, COLOR_RED, cb);
+		cbreak();
+		noecho();
+		nonl();
+		nodelay(stdscr, 1);
+		intrflush(stdscr, FALSE);
+		keypad(stdscr, TRUE);
+		/* Setup libedit */
+		hist = history_init();
+		if (hist == NULL)
+			err(EX_SOFTWARE, "history_init()");
+		history(hist, &hist_ev, H_SETSIZE, 100);
+		el = el_init("gstat", stdin, stdout, stderr);
+		if (el == NULL)
+			err(EX_SOFTWARE, "el_init");
+		el_set(el, EL_EDITOR, "emacs");
+		el_set(el, EL_SIGNAL, 1);
+		el_set(el, EL_HIST, history, hist);
+		el_set(el, EL_PROMPT, el_prompt);
+		if (f_s[0] != '\0')
+			history(hist, &hist_ev, H_ENTER, f_s);
+	}
 	geom_stats_snapshot_timestamp(sq, &tq);
 	for (quit = 0; !quit;) {
 		sp = geom_stats_snapshot_get();
@@ -182,12 +199,13 @@ main(int argc, char **argv)
 		geom_stats_snapshot_reset(sp);
 		geom_stats_snapshot_reset(sq);
 		move(0,0);
-		printw("dT: %5.3fs  w: %.3fs",
-		    dt, (float)flag_I / 1000000);
+		PRINTMSG("dT: %5.3fs  w: %.3fs", dt, (float)flag_I / 1000000);
 		if (f_s[0] != '\0') {
-			printw("  filter: ");
-			getyx(stdscr, cury, curx);
-			getmaxyx(stdscr, maxy, maxx);
+			PRINTMSG("  filter: ");
+			if (!flag_b) {
+				getyx(stdscr, cury, curx);
+				getmaxyx(stdscr, maxy, maxx);
+			}
 			strncpy(pf_s, f_s, sizeof(pf_s));
 			max_flen = maxx - curx - 1;
 			if ((int)strlen(f_s) > max_flen && max_flen >= 0) {
@@ -199,15 +217,15 @@ main(int argc, char **argv)
 					pf_s[max_flen - 1] = '.';
 				pf_s[max_flen] = '\0';
 			}
-			printw("%s", pf_s);
+			PRINTMSG("%s", pf_s);
 		}
-		printw("\n");
-		printw(" L(q)  ops/s   ");
-		printw(" r/s   kBps   ms/r   ");
-		printw(" w/s   kBps   ms/w   ");
+		PRINTMSG("\n");
+		PRINTMSG(" L(q)  ops/s   ");
+		PRINTMSG(" r/s   kBps   ms/r   ");
+		PRINTMSG(" w/s   kBps   ms/w   ");
 		if (flag_d)
-			printw(" d/s   kBps   ms/d   ");
-		printw("%%busy Name\n");
+			PRINTMSG(" d/s   kBps   ms/d   ");
+		PRINTMSG("%%busy Name\n");
 		for (;;) {
 			gsp = geom_stats_snapshot_next(sp);
 			gsq = geom_stats_snapshot_next(sq);
@@ -228,9 +246,11 @@ main(int argc, char **argv)
 			if (gid->lg_what == ISCONSUMER && !flag_c)
 				continue;
 			/* Do not print past end of window */
-			getyx(stdscr, cury, curx);
-			if (curx > 0)
-				continue;
+			if (!flag_b) {
+				getyx(stdscr, cury, curx);
+				if (curx > 0)
+					continue;
+			}
 			if ((gid->lg_what == ISPROVIDER
 			    || gid->lg_what == ISCONSUMER) && f_s[0] != '\0') {
 				pp = gid->lg_ptr;
@@ -239,7 +259,7 @@ main(int argc, char **argv)
 				  continue;
 			}
 			if (gsp->sequence0 != gsp->sequence1) {
-				printw("*\n");
+				PRINTMSG("*\n");
 				continue;
 			}
 			devstat_compute_statistics(gsp, gsq, dt, 
@@ -265,28 +285,28 @@ main(int argc, char **argv)
 				continue;
 			}
 
-			printw(" %4ju", (uintmax_t)u64);
-			printw(" %6.0f", (double)ld[0]);
-			printw(" %6.0f", (double)ld[1]);
-			printw(" %6.0f", (double)ld[2] * 1024);
+			PRINTMSG(" %4ju", (uintmax_t)u64);
+			PRINTMSG(" %6.0f", (double)ld[0]);
+			PRINTMSG(" %6.0f", (double)ld[1]);
+			PRINTMSG(" %6.0f", (double)ld[2] * 1024);
 			if (ld[3] > 1e3) 
-				printw(" %6.0f", (double)ld[3]);
+				PRINTMSG(" %6.0f", (double)ld[3]);
 			else
-				printw(" %6.1f", (double)ld[3]);
-			printw(" %6.0f", (double)ld[4]);
-			printw(" %6.0f", (double)ld[5] * 1024);
+				PRINTMSG(" %6.1f", (double)ld[3]);
+			PRINTMSG(" %6.0f", (double)ld[4]);
+			PRINTMSG(" %6.0f", (double)ld[5] * 1024);
 			if (ld[6] > 1e3) 
-				printw(" %6.0f", (double)ld[6]);
+				PRINTMSG(" %6.0f", (double)ld[6]);
 			else
-				printw(" %6.1f", (double)ld[6]);
+				PRINTMSG(" %6.1f", (double)ld[6]);
 
 			if (flag_d) {
-				printw(" %6.0f", (double)ld[8]);
-				printw(" %6.0f", (double)ld[9] * 1024);
+				PRINTMSG(" %6.0f", (double)ld[8]);
+				PRINTMSG(" %6.0f", (double)ld[9] * 1024);
 				if (ld[10] > 1e3) 
-					printw(" %6.0f", (double)ld[10]);
+					PRINTMSG(" %6.0f", (double)ld[10]);
 				else
-					printw(" %6.1f", (double)ld[10]);
+					PRINTMSG(" %6.1f", (double)ld[10]);
 			}
 
 			if (ld[7] > 80)
@@ -295,27 +315,38 @@ main(int argc, char **argv)
 				i = 2;
 			else 
 				i = 1;
-			attron(COLOR_PAIR(i));
-			printw(" %6.1lf", (double)ld[7]);
-			attroff(COLOR_PAIR(i));
-			printw("|");
+			if (!flag_b)
+				attron(COLOR_PAIR(i));
+			PRINTMSG(" %6.1lf", (double)ld[7]);
+			if (!flag_b)
+				attroff(COLOR_PAIR(i));
+			PRINTMSG("|");
 			if (gid == NULL) {
-				printw(" ??");
+				PRINTMSG(" ??");
 			} else if (gid->lg_what == ISPROVIDER) {
 				pp = gid->lg_ptr;
-				printw(" %s", pp->lg_name);
+				PRINTMSG(" %s", pp->lg_name);
 			} else if (gid->lg_what == ISCONSUMER) {
 				cp = gid->lg_ptr;
-				printw(" %s/%s/%s",
+				PRINTMSG(" %s/%s/%s",
 				    cp->lg_geom->lg_class->lg_name,
 				    cp->lg_geom->lg_name,
 				    cp->lg_provider->lg_name);
 			}
-			clrtoeol();
-			printw("\n");
+			if (!flag_b)
+				clrtoeol();
+			PRINTMSG("\n");
 			*gsq = *gsp;
 		}
 		geom_stats_snapshot_free(sp);
+		if (flag_b) {
+			/* We loop extra to make sure we get the information. */
+			if (!loop)
+				break;
+			loop = 0;
+			usleep(flag_I);
+			continue;
+		}
 		getyx(stdscr, cury, curx);
 		getmaxyx(stdscr, maxy, maxx);
 		clrtobot();
@@ -378,15 +409,17 @@ main(int argc, char **argv)
 		}
 	}
 
-	endwin();
-	el_end(el);
+	if (!flag_b) {
+		endwin();
+		el_end(el);
+	}
 	exit(EX_OK);
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: gstat [-acd] [-f filter] [-I interval]\n");
+	fprintf(stderr, "usage: gstat [-abcd] [-f filter] [-I interval]\n");
 	exit(EX_USAGE);
         /* NOTREACHED */
 }
