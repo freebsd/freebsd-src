@@ -1294,7 +1294,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				 */
 				if (newsize)
 					if (!sbreserve_locked(&so->so_rcv,
-					    newsize, so, curthread))
+					    newsize, so, NULL))
 						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m);
