@@ -209,9 +209,9 @@ Argument
 .Ar cpu-spec
 is a comma separated list of CPU numbers, or the literal
 .Sq *
-denoting all CPUs.
-The default is to allocate system mode PMCs on all active CPUs in
-the system.
+denoting all unhalted CPUs.
+The default is to allocate system mode PMCs on all unhalted
+CPUs.
 .It Fl d
 Toggle between process mode PMCs measuring events for the target
 process' current and future children or only measuring events for

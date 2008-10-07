@@ -581,6 +581,7 @@ main(int argc, char **argv)
 	if (sysctlbyname("hw.ncpu", &ncpu, &dummy, NULL, 0) < 0)
 		err(EX_OSERR, "ERROR: Cannot determine the number of CPUs");
 	cpumask = (1 << ncpu) - 1;
+	haltedcpus = 0;
 	if (ncpu > 1) {
 		if (sysctlbyname("machdep.hlt_cpus", &haltedcpus, &dummy,
 		    NULL, 0) < 0)
@@ -600,7 +601,7 @@ main(int argc, char **argv)
 		case 'c':	/* CPU */
 
 			if (optarg[0] == '*' && optarg[1] == '\0')
-				cpumask = (1 << ncpu) - 1;
+				cpumask = ((1 << ncpu) - 1) & ~haltedcpus;
 			else
 				cpumask = pmcstat_get_cpumask(optarg);
 
@@ -1149,7 +1150,7 @@ main(int argc, char **argv)
 		if (SLIST_EMPTY(&args.pa_targets))
 			errx(EX_DATAERR, "ERROR: No matching target "
 			    "processes.");
-		else
+		if (args.pa_flags & FLAG_HAS_PROCESS_PMCS)
 			pmcstat_attach_pmcs(&args);
 
 		if (pmcstat_kvm) {
