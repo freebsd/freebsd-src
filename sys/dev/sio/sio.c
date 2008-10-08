@@ -696,6 +696,14 @@ sioprobe(dev, xrid, rclk, noprobe)
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		if (iobase == siocniobase)
 			result = 0;
+		/*
+		 * XXX: Since we don't return 0, we shouldn't be relying on
+		 * the softc that we set to persist to the call to attach
+		 * since other probe routines may be called, and the malloc
+		 * here causes subr_bus to not allocate anything for the
+		 * other probes.  Instead, this softc is preserved and other
+		 * probe routines can corrupt it.
+		 */
 		if (result != 0) {
 			device_set_softc(dev, NULL);
 			free(com, M_DEVBUF);
@@ -773,6 +781,13 @@ sioprobe(dev, xrid, rclk, noprobe)
 	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 	if (iobase == siocniobase)
 		result = 0;
+	/*
+	 * XXX: Since we don't return 0, we shouldn't be relying on the softc
+	 * that we set to persist to the call to attach since other probe
+	 * routines may be called, and the malloc here causes subr_bus to not
+	 * allocate anything for the other probes.  Instead, this softc is
+	 * preserved and other probe routines can corrupt it.
+	 */
 	if (result != 0) {
 		device_set_softc(dev, NULL);
 		free(com, M_DEVBUF);
