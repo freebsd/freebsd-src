@@ -1286,4 +1286,4 @@ static devclass_t mmc_devclass;
 
 
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, 0, 0);
-DRIVER_MODULE(mmc, sdh, mmc_driver, mmc_devclass, 0, 0);
+DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, 0, 0);
