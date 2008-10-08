@@ -33,7 +33,7 @@ _snmp=		snmp
 .endif
 
 .if ${MK_DICT} != "no"
-_dict=	 	dict
+_dict=		dict
 .endif
 
 .if ${MK_EXAMPLES} != "no"
