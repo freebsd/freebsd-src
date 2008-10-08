@@ -740,6 +740,46 @@
                 cat9
                 ..
             ..
+            en.UTF-8        uname=root
+                cat1
+                ..
+                cat1aout
+                ..
+                cat2
+                ..
+                cat3
+                ..
+                cat4
+                    amd64
+                    ..
+                    arm
+                    ..
+                    i386
+                    ..
+                    powerpc
+                    ..
+                    sparc64
+                    ..
+                ..
+                cat5
+                ..
+                cat6
+                ..
+                cat7
+                ..
+                cat8
+                    amd64
+                    ..
+                    i386
+                    ..
+                    powerpc
+                    ..
+                    sparc64
+                    ..
+                ..
+                cat9
+                ..
+            ..
             ja              uname=root
                 cat1
                 ..
