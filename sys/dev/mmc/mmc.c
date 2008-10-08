@@ -428,7 +428,8 @@ mmc_send_app_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 		err = mmc_wait_for_app_cmd(sc, 0, &cmd, CMD_RETRIES);
 		if (err != MMC_ERR_NONE)
 			break;
-		if ((cmd.resp[0] & MMC_OCR_CARD_BUSY) || ocr == 0)
+		if ((cmd.resp[0] & MMC_OCR_CARD_BUSY) ||
+		    (ocr & MMC_OCR_VOLTAGE) == 0)
 			break;
 		err = MMC_ERR_TIMEOUT;
 		mmc_ms_delay(10);
@@ -454,7 +455,8 @@ mmc_send_op_cond(struct mmc_softc *sc, uint32_t ocr, uint32_t *rocr)
 		err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 		if (err != MMC_ERR_NONE)
 			break;
-		if ((cmd.resp[0] & MMC_OCR_CARD_BUSY) || ocr == 0)
+		if ((cmd.resp[0] & MMC_OCR_CARD_BUSY) ||
+		    (ocr & MMC_OCR_VOLTAGE) == 0)
 			break;
 		err = MMC_ERR_TIMEOUT;
 		mmc_ms_delay(10);
