@@ -86,7 +86,7 @@ struct mmc_command {
 #define	MMC_RSP_R2	(MMC_RSP_PRESENT | MMC_RSP_136 | MMC_RSP_CRC)
 #define	MMC_RSP_R3	(MMC_RSP_PRESENT)
 #define	MMC_RSP_R6	(MMC_RSP_PRESENT | MMC_RSP_CRC)
-/* R7 -- new in sd 2.0 */
+#define	MMC_RSP_R7	(MMC_RSP_PRESENT | MMC_RSP_CRC)
 #define	MMC_RSP(x)	((x) & MMC_RSP_MASK)
 	uint32_t	retries;
 	uint32_t	error;
@@ -181,16 +181,23 @@ struct mmc_request {
 #define	SD_SEND_RELATIVE_ADDR	3
 #define	MMC_SET_DSR		4
 			/* reserved: 5 */
+#define	MMC_SWITCH_FUNC		6
+#define	 MMC_SWITCH_FUNC_CMDS	 0
+#define	 MMC_SWITCH_FUNC_SET	 1
+#define	 MMC_SWITCH_FUNC_CLR	 2
+#define	 MMC_SWITCH_FUNC_WR	 3
 #define	MMC_SELECT_CARD		7
 #define	MMC_DESELECT_CARD	7
-#define	MMC_SEND_IF_COND	8
+#define	MMC_SEND_EXT_CSD	8
+#define	SD_SEND_IF_COND		8
 #define	MMC_SEND_CSD		9
 #define	MMC_SEND_CID		10
 #define	MMC_READ_DAT_UNTIL_STOP	11
 #define	MMC_STOP_TRANSMISSION	12
 #define	MMC_SEND_STATUS		13
-			/* reserved: 14 */
+#define	MMC_BUSTEST_R		14
 #define	MMC_GO_INACTIVE_STATE	15
+#define	MMC_BUSTEST_W		19
 
 /* Class 2: Block oriented read commands */
 #define	MMC_SET_BLOCKLEN	16
@@ -277,6 +284,37 @@ struct mmc_request {
 #define	ACMD_SET_CLR_CARD_DETECT 42
 #define	ACMD_SEND_SCR		51
 
+/*
+ * EXT_CSD fields
+ */
+
+#define EXT_CSD_BUS_WIDTH	183	/* R/W */
+#define EXT_CSD_HS_TIMING	185	/* R/W */
+#define EXT_CSD_CARD_TYPE	196	/* RO */
+#define EXT_CSD_REV		192	/* RO */
+#define EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+
+/*
+ * EXT_CSD field definitions
+ */
+
+#define EXT_CSD_CMD_SET_NORMAL		1
+#define EXT_CSD_CMD_SET_SECURE		2
+#define EXT_CSD_CMD_SET_CPSECURE	4
+
+#define EXT_CSD_CARD_TYPE_26	1
+#define EXT_CSD_CARD_TYPE_52	2
+
+#define EXT_CSD_BUS_WIDTH_1	0
+#define EXT_CSD_BUS_WIDTH_4	1
+#define EXT_CSD_BUS_WIDTH_8	2
+
+/*
+ * SD bus widths
+ */
+#define SD_BUS_WIDTH_1		0
+#define SD_BUS_WIDTH_4		2
+
 /* OCR bits */
 
 /*
@@ -328,6 +366,7 @@ struct mmc_cid {
 struct mmc_csd 
 {
 	uint8_t csd_structure;
+	uint8_t spec_vers;
 	uint16_t ccc;
 	uint16_t tacc;
 	uint32_t nsac;
@@ -349,6 +388,14 @@ struct mmc_csd
 	    dsr_imp:1,
 	    erase_blk_en:1,
 	    wp_grp_enable:1;
+};
+
+struct mmc_scr
+{
+	unsigned char		sda_vsn;
+	unsigned char		bus_widths;
+#define SD_SCR_BUS_WIDTH_1	(1<<0)
+#define SD_SCR_BUS_WIDTH_4	(1<<2)
 };
 
 /*

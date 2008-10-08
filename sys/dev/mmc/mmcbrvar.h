@@ -71,6 +71,7 @@ enum mmcbr_device_ivars {
     MMCBR_IVAR_POWER_MODE,
     MMCBR_IVAR_VDD,
     MMCBR_IVAR_CAPS,
+    MMCBR_IVAR_TIMING,
 //    MMCBR_IVAR_,
 };
 
@@ -92,6 +93,7 @@ MMCBR_ACCESSOR(ocr, OCR, int)
 MMCBR_ACCESSOR(power_mode, POWER_MODE, int)
 MMCBR_ACCESSOR(vdd, VDD, int)
 MMCBR_ACCESSOR(caps, CAPS, int)
+MMCBR_ACCESSOR(timing, TIMING, int)
 
 static int __inline
 mmcbr_update_ios(device_t dev)
