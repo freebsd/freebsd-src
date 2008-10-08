@@ -251,6 +251,7 @@ distrib-dirs:
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 	cd ${DESTDIR}/usr/share/man/en.ISO8859-1; ln -sf ../man* .
+	cd ${DESTDIR}/usr/share/man/en.UTF-8; ln -sf ../man* .
 	cd ${DESTDIR}/usr/share/man; \
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/man.alias`; \
 	while [ $$# -gt 0 ] ; \
