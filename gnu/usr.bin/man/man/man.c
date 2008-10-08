@@ -105,6 +105,7 @@ static struct ltable ltable[] = {
 	{"KOI8-R", "koi8-r"},
 	{"ISO8859-1", "latin1"},
 	{"ISO8859-15", "latin1"},
+	{"UTF-8", "utf8"},
 	{NULL}
 };
 #endif
