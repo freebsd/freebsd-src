@@ -813,7 +813,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		if (!have_interp && newinterp != NULL) {
 			error = __elfN(load_file)(imgp->proc, newinterp, &addr,
 			    &imgp->entry_addr, sv->sv_pagesize);
-			have_interp = TRUE;
+			if (error == 0)
+				have_interp = TRUE;
 		}
 		if (!have_interp) {
 			error = __elfN(load_file)(imgp->proc, interp, &addr,
