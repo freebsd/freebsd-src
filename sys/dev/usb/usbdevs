@@ -1855,6 +1855,7 @@ product OMNIVISION OV511	0x0511	OV511 Camera
 product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 
 /* OnSpec Electronic, Inc. */
+product ONSPEC SDS_HOTFIND_D	0x0400	SDS-infrared.com Hotfind-D Infrared Camera
 product ONSPEC MDCFE_B_CF_READER	0xa000	MDCFE-B USB CF Reader
 product ONSPEC CFMS_RW		0xa001	SIIG/Datafab Memory Stick+CF Reader/Writer
 product ONSPEC READER		0xa003	Datafab-based Reader
