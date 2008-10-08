@@ -59,6 +59,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	option to "ssh-dss,ssh-rsa" in ~/.ssh/config or on the ssh
 	command line.
 
+	Please note that the sequence of keys offered for
+	authentication has been changed as well.  You may want to
+	specify IdentityFile in a different order to revert this
+	behavior.
+
 20080713:
 	The sio(4) driver has been removed from the i386 and amd64
 	kernel configuration files. This means uart(4) is now the
@@ -1018,7 +1023,7 @@ COMMON ITEMS:
 	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
 	<reboot into current>
 	<do a "native" rebuild/install as described in the previous section>
-	<maybe install compatibility libraries from src/lib/compat>
+	<maybe install compatibility libraries from ports/misc/compat*>
  	<reboot>
 
 
