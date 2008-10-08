@@ -50,6 +50,7 @@ enum {
     NGM_NETFLOW_SETDLT		= 4,	/* set data-link type */	
     NGM_NETFLOW_SETIFINDEX	= 5, 	/* set interface index */
     NGM_NETFLOW_SETTIMEOUTS	= 6, 	/* set active/inactive flow timeouts */
+    NGM_NETFLOW_SETCONFIG	= 7, 	/* set flow generation options */
 };
 
 /* This structure is returned by the NGM_NETFLOW_INFO message */
@@ -71,6 +72,7 @@ struct ng_netflow_ifinfo {
 	uint8_t		ifinfo_dlt;	/* Data Link Type, DLT_XXX */
 #define	MAXDLTNAMELEN	20
 	u_int16_t	ifinfo_index;	/* connected iface index */
+	uint32_t	conf;
 };
 
 
@@ -90,6 +92,17 @@ struct ng_netflow_setifindex {
 struct ng_netflow_settimeouts {
 	uint32_t	inactive_timeout;	/* flow inactive timeout */
 	uint32_t	active_timeout;		/* flow active timeout */
+};
+
+#define NG_NETFLOW_CONF_INGRESS		1
+#define NG_NETFLOW_CONF_EGRESS		2
+#define NG_NETFLOW_CONF_ONCE		4
+#define NG_NETFLOW_CONF_THISONCE	8
+
+/* This structure is passed to NGM_NETFLOW_SETCONFIG */
+struct ng_netflow_setconfig {
+	u_int16_t iface;		/* which iface config change */
+	u_int32_t conf;			/* new config */
 };
 
 /* This is unique data, which identifies flow */
@@ -182,6 +195,7 @@ struct flow_entry {
 	{ "packets",	&ng_parse_uint32_type },	\
 	{ "data link type", &ng_parse_uint8_type },	\
 	{ "index", &ng_parse_uint16_type },		\
+	{ "conf", &ng_parse_uint32_type },		\
 	{ NULL }					\
 }
 
@@ -203,6 +217,13 @@ struct flow_entry {
 #define NG_NETFLOW_SETTIMEOUTS_TYPE {			\
 	{ "inactive",	&ng_parse_uint32_type },	\
 	{ "active",	&ng_parse_uint32_type },	\
+	{ NULL }					\
+}
+
+/* Parse the setifindex structure */
+#define	NG_NETFLOW_SETCONFIG_TYPE {			\
+	{ "iface",	&ng_parse_uint16_type },	\
+	{ "conf",	&ng_parse_uint32_type },	\
 	{ NULL }					\
 }
 
@@ -263,12 +284,15 @@ struct flow_hash_entry {
 
 #define	ERROUT(x)	{ error = (x); goto done; }
 
+#define MTAG_NETFLOW		1221656444
+#define MTAG_NETFLOW_CALLED	0
+
 /* Prototypes for netflow.c */
 int	ng_netflow_cache_init(priv_p);
 void	ng_netflow_cache_flush(priv_p);
 void	ng_netflow_copyinfo(priv_p, struct ng_netflow_info *);
 timeout_t ng_netflow_expire;
-int	ng_netflow_flow_add(priv_p, struct ip *, iface_p, struct ifnet *);
+int	ng_netflow_flow_add(priv_p, struct ip *, unsigned int src_if_index);
 int	ng_netflow_flow_show(priv_p, uint32_t last, struct ng_mesg *);
 
 #endif	/* _KERNEL */
