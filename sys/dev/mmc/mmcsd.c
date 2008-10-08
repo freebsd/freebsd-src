@@ -106,6 +106,7 @@ static int
 mmcsd_probe(device_t dev)
 {
 
+	device_quiet(dev);
 	device_set_desc(dev, "MMC/SD Memory Card");
 	return (0);
 }
@@ -256,7 +257,9 @@ mmcsd_task(void *arg)
 				else
 					cmd.opcode = MMC_WRITE_BLOCK;
 			}
-			cmd.arg = block << 9;
+			cmd.arg = block;
+			if (!mmc_get_high_cap(dev))
+				cmd.arg <<= 9;
 			cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 			data.data = vaddr;
 			data.mrq = &req;
