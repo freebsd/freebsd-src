@@ -62,6 +62,7 @@ enum mmc_device_ivars {
     MMC_IVAR_SECTOR_SIZE,
     MMC_IVAR_TRAN_SPEED,
     MMC_IVAR_READ_ONLY,
+    MMC_IVAR_HIGH_CAP,
 //    MMC_IVAR_,
 };
 
@@ -77,5 +78,6 @@ MMC_ACCESSOR(rca, RCA, int)
 MMC_ACCESSOR(sector_size, SECTOR_SIZE, int)
 MMC_ACCESSOR(tran_speed, TRAN_SPEED, int)
 MMC_ACCESSOR(read_only, READ_ONLY, int)
+MMC_ACCESSOR(high_cap, HIGH_CAP, int)
 
 #endif /* DEV_MMC_MMCVAR_H */
