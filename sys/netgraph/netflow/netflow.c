@@ -389,8 +389,7 @@ ng_netflow_cache_flush(priv_p priv)
 
 /* Insert packet from into flow cache. */
 int
-ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
-	struct ifnet *ifp)
+ng_netflow_flow_add(priv_p priv, struct ip *ip, unsigned int src_if_index)
 {
 	register struct flow_entry	*fle, *fle1;
 	struct flow_hash_entry		*hsh;
@@ -421,12 +420,7 @@ ng_netflow_flow_add(priv_p priv, struct ip *ip, iface_p iface,
 	r.r_ip_p = ip->ip_p;
 	r.r_tos = ip->ip_tos;
 
-	/* Configured in_ifx overrides mbuf's */
-	if (iface->info.ifinfo_index == 0) {
-		if (ifp != NULL)
-			r.r_i_ifx = ifp->if_index;
-	} else
-		r.r_i_ifx = iface->info.ifinfo_index;
+	r.r_i_ifx = src_if_index;
 
 	/*
 	 * XXX NOTE: only first fragment of fragmented TCP, UDP and
