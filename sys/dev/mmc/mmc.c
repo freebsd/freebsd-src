@@ -555,8 +555,8 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 	cmd.arg = mode << 31;
 	cmd.arg |= 0x00FFFFFF;
-	cmd.arg &= ~(0xF << grp);
-	cmd.arg |= value << grp;
+	cmd.arg &= ~(0xF << (grp * 4));
+	cmd.arg |= value << (grp * 4);
 	cmd.data = &data;
 
 	data.data = res;
