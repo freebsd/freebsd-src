@@ -196,7 +196,7 @@ watch_virt_set(vm_offset_t va, int sz)
 static int
 sparc64_autoload(void)
 {
-	printf("nothing to autoload yet.\n");
+	setenv("hw.ata.atapi_dma", "0", 0);
 	return 0;
 }
 
