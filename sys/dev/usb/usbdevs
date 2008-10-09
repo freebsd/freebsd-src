@@ -1434,7 +1434,7 @@ product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
-product HUAWEI E270		0x1003	Huawei HSPA modem
+product HUAWEI E220		0x1003	Huawei HSDPA modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
