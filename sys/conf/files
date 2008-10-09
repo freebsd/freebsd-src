@@ -1327,6 +1327,7 @@ dev/usb/ohci_pci.c		optional ohci pci
 dev/usb/sl811hs.c		optional slhci
 dev/usb/slhci_pccard.c		optional slhci pccard
 dev/usb/uark.c			optional uark
+dev/usb/u3g.c			optional u3g
 dev/usb/ubsa.c			optional ubsa
 dev/usb/ubser.c			optional ubser
 dev/usb/ucom.c			optional ucom
