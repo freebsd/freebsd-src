@@ -93,7 +93,8 @@ struct mmc_ivars {
 	u_char read_only;	/* True when the device is read-only */
 	u_char bus_width;	/* Bus width to use */
 	u_char timing;		/* Bus timing support */
-	u_char high_cap;	/* High Capacity card */
+	u_char high_cap;	/* High Capacity card (block addressed) */
+	uint32_t sec_count;	/* Card capacity in 512byte blocks */
 	uint32_t tran_speed;	/* Max speed in normal mode */
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
 };
@@ -1011,7 +1012,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 {
 	struct mmc_ivars *ivar;
 	int err;
-	uint32_t resp;
+	uint32_t resp, sec_count;
 	device_t child;
 	uint16_t rca = 2;
 	u_char switch_res[64];
@@ -1039,6 +1040,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			/* Get card CSD. */
 			mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
 			mmc_decode_csd_sd(ivar->raw_csd, &ivar->csd);
+			ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 			if (ivar->csd.csd_structure > 0)
 				ivar->high_cap = 1;
 			ivar->tran_speed = ivar->csd.tran_speed;
@@ -1071,18 +1073,28 @@ mmc_discover_cards(struct mmc_softc *sc)
 		/* Get card CSD. */
 		mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
 		mmc_decode_csd_mmc(ivar->raw_csd, &ivar->csd);
+		ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 		ivar->tran_speed = ivar->csd.tran_speed;
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
 			/* Card must be selected to fetch EXT_CSD. */
 			mmc_select_card(sc, ivar->rca);
 			mmc_send_ext_csd(sc, ivar->raw_ext_csd);
+			/* Handle extended capacity from EXT_CSD */
+			sec_count = ivar->raw_ext_csd[EXT_CSD_SEC_CNT] +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 1] << 8) +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 2] << 16) +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 3] << 24);
+			if (sec_count != 0) {
+				ivar->sec_count = sec_count;
+				ivar->high_cap = 1;
+			}
 			/* Get card speed in high speed mode. */
 			ivar->timing = bus_timing_hs;
-			if (((uint8_t *)(ivar->raw_ext_csd))[EXT_CSD_CARD_TYPE]
+			if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_52)
 				ivar->hs_tran_speed = 52000000;
-			else if (((uint8_t *)(ivar->raw_ext_csd))[EXT_CSD_CARD_TYPE]
+			else if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_26)
 				ivar->hs_tran_speed = 26000000;
 			else
@@ -1234,7 +1246,7 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(int *)result = ivar->csd.dsr_imp;
 		break;
 	case MMC_IVAR_MEDIA_SIZE:
-		*(off_t *)result = ivar->csd.capacity / MMC_SECTOR_SIZE;
+		*(off_t *)result = ivar->sec_count;
 		break;
 	case MMC_IVAR_RCA:
 		*(int *)result = ivar->rca;
