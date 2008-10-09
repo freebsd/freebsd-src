@@ -459,23 +459,49 @@ dev/an/if_an_isa.c		optional an isa
 dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
 dev/asr/asr.c			optional asr pci
-dev/ata/ata_if.m		optional ata
-dev/ata/ata-all.c		optional ata
-dev/ata/ata-card.c		optional ata pccard
-dev/ata/ata-cbus.c		optional ata pc98
-dev/ata/ata-chipset.c		optional ata pci
+#
+dev/ata/ata_if.m		optional ata | atacore
+dev/ata/ata-all.c		optional ata | atacore
+dev/ata/ata-lowlevel.c		optional ata | atacore
+dev/ata/ata-queue.c		optional ata | atacore
+dev/ata/ata-card.c		optional ata pccard | atapccard
+dev/ata/ata-cbus.c		optional ata pc98 | atapc98
+dev/ata/ata-isa.c		optional ata isa | ataisa
+dev/ata/ata-pci.c		optional ata pci | atapci
+dev/ata/ata-dma.c		optional ata pci | atapci
+dev/ata/ata-sata.c		optional ata pci | atapci
+dev/ata/chipsets/ata-ahci.c	optional ata pci | ataahci | ataacerlabs | \
+					 ataati | ataintel | atajmicron | atavia
+dev/ata/chipsets/ata-acard.c	optional ata pci | ataacard
+dev/ata/chipsets/ata-acerlabs.c	optional ata pci | ataacerlabs
+dev/ata/chipsets/ata-adaptec.c	optional ata pci | ataadaptec
+dev/ata/chipsets/ata-amd.c	optional ata pci | ataamd
+dev/ata/chipsets/ata-ati.c	optional ata pci | ataati
+dev/ata/chipsets/ata-cenatek.c	optional ata pci | atacenatek
+dev/ata/chipsets/ata-cypress.c	optional ata pci | atacypress
+dev/ata/chipsets/ata-cyrix.c	optional ata pci | atacyrix
+dev/ata/chipsets/ata-highpoint.c	optional ata pci | atahighpoint
+dev/ata/chipsets/ata-intel.c	optional ata pci | ataintel
+dev/ata/chipsets/ata-ite.c	optional ata pci | ataite
+dev/ata/chipsets/ata-jmicron.c	optional ata pci | atajmicron
+dev/ata/chipsets/ata-marvell.c	optional ata pci | atamarvell
+dev/ata/chipsets/ata-micron.c	optional ata pci | atamicron
+dev/ata/chipsets/ata-national.c	optional ata pci | atanational
+dev/ata/chipsets/ata-netcell.c	optional ata pci | atanetcell
+dev/ata/chipsets/ata-nvidia.c	optional ata pci | atanvidia
+dev/ata/chipsets/ata-promise.c	optional ata pci | atapromise
+dev/ata/chipsets/ata-serverworks.c	optional ata pci | ataserverworks
+dev/ata/chipsets/ata-siliconimage.c	optional ata pci | atasiliconimage
+dev/ata/chipsets/ata-sis.c	optional ata pci | atasis
+dev/ata/chipsets/ata-via.c	optional ata pci | atavia
 dev/ata/ata-disk.c		optional atadisk
-dev/ata/ata-dma.c		optional ata pci
-dev/ata/ata-isa.c		optional ata isa
-dev/ata/ata-lowlevel.c		optional ata
-dev/ata/ata-pci.c		optional ata pci
-dev/ata/ata-queue.c		optional ata
 dev/ata/ata-raid.c		optional ataraid
 dev/ata/ata-usb.c		optional atausb
-dev/ata/atapi-cam.c		optional atapicam
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
+dev/ata/atapi-cam.c		optional atapicam
+#
 dev/ath/ah_osdep.c optional ath_hal \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
