@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 17, 2008
+.Dd Oct 9, 2008
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -404,6 +404,41 @@ action or reverted with the
 action.
 .Sh EXIT STATUS
 Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Create GPT scheme on
+.Pa ad0 .
+.Bd -literal -offset indent
+/sbin/gpart create -s GPT ad0
+.Ed
+.Pp
+Embed GPT bootstrap code into protective MBR.
+.Bd -literal -offset indent
+/sbin/gpart bootcode -b /boot/pmbr ad0
+.Ed
+.Pp
+Create a dedicated
+.Pa freebsd-boot
+partition that can boot FreeBSD from a
+.Pa freebsd-ufs
+partition, and install bootstrap code into it.
+This partition must be larger than
+.Pa /boot/gptboot ,
+or the GPT boot you are willing to write,
+a size of 15 blocks (7680 bytes) would be sufficient for
+booting from UFS, but let's use 128 blocks (64 KB) here in
+this example, in order to reserve some space for potential
+future need (e.g. from a ZFS partition).
+.Bd -literal -offset indent
+/sbin/gpart add -b 34 -s 128 -t freebsd-boot ad0
+/sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
+.Ed
+.Pp
+Create a 512MB-sized
+.Pa freebsd-ufs
+partition that would contain UFS where the system boot from.
+.Bd -literal -offset indent
+/sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+.Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8 ,
