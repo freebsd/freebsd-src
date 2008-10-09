@@ -121,6 +121,11 @@ static enum pmc_cputype p6_cputype;
 
 /*
  * P6 Event descriptor
+ *
+ * The 'pm_flags' field has the following structure:
+ * - The upper 4 bits are used to track which counter an event is valid on.
+ * - The lower bits form a bitmask of flags indicating support for the event
+ *   on a given CPU.
  */
 
 struct p6_event_descr {
@@ -129,6 +134,23 @@ struct p6_event_descr {
 	uint32_t	     pm_flags;
 	uint32_t	     pm_unitmask;
 };
+
+#define	P6F_CTR(C)	(1 << (28 + (C)))
+#define	P6F_CTR0	P6F_CTR(0)
+#define	P6F_CTR1	P6F_CTR(1)
+#define	P6F(CPU)	(1 << ((CPU) - PMC_CPU_INTEL_P6))
+#define	_P6F(C)		P6F(PMC_CPU_INTEL_##C)
+#define	P6F_P6		_P6F(P6)
+#define	P6F_CL		_P6F(CL)
+#define	P6F_PII		_P6F(PII)
+#define	P6F_PIII	_P6F(PIII)
+#define	P6F_PM		_P6F(PM)
+#define	P6F_ALL_CPUS	(P6F_P6 | P6F_PII | P6F_CL | P6F_PIII | P6F_PM)
+#define	P6F_ALL_CTRS	(P6F_CTR0 | P6F_CTR1)
+#define	P6F_ALL		(P6F_ALL_CPUS | P6F_ALL_CTRS)
+
+#define	P6_EVENT_VALID_FOR_CPU(P,CPU)	((P)->pm_flags & P6F(CPU))
+#define	P6_EVENT_VALID_FOR_CTR(P,CTR)	((P)->pm_flags & P6F_CTR(CTR))
 
 static const struct p6_event_descr p6_events[] = {
 
@@ -139,20 +161,6 @@ static const struct p6_event_descr p6_events[] = {
 		.pm_flags = (FLAGS),		\
 		.pm_unitmask = (UMASK)		\
 	}
-
-#define	P6F_P6		(1 << PMC_CPU_INTEL_P6)
-#define	P6F_CL		(1 << PMC_CPU_INTEL_CL)
-#define	P6F_PII		(1 << PMC_CPU_INTEL_PII)
-#define	P6F_PIII	(1 << PMC_CPU_INTEL_PIII)
-#define	P6F_PM		(1 << PMC_CPU_INTEL_PM)
-#define	P6F_CTR0	0x0001
-#define	P6F_CTR1	0x0002
-#define	P6F_ALL_CPUS	(P6F_P6 | P6F_PII | P6F_CL | P6F_PIII | P6F_PM)
-#define	P6F_ALL_CTRS	(P6F_CTR0 | P6F_CTR1)
-#define	P6F_ALL		(P6F_ALL_CPUS | P6F_ALL_CTRS)
-
-#define	P6_EVENT_VALID_FOR_CPU(P,CPU)	((P)->pm_flags & (1 << (CPU)))
-#define	P6_EVENT_VALID_FOR_CTR(P,CTR)	((P)->pm_flags & (1 << (CTR)))
 
 P6_EVDESCR(DATA_MEM_REFS,		0x43, P6F_ALL, 0x00),
 P6_EVDESCR(DCU_LINES_IN,		0x45, P6F_ALL, 0x00),
