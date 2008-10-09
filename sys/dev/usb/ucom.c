@@ -161,14 +161,11 @@ ucom_modevent(module_t mod, int type, void *data)
 {
 	switch (type) {
 	case MOD_LOAD:
-		break;
 	case MOD_UNLOAD:
-		break;
+		return (0);
 	default:
 		return (EOPNOTSUPP);
-		break;
 	}
-	return (0);
 }
 
 void

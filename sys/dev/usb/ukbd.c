@@ -1534,5 +1534,5 @@ ukbd_driver_load(module_t mod, int what, void *arg)
 			kbd_delete_driver(&ukbd_kbd_driver);
 			break;
 	}
-	return usbd_driver_load(mod, what, 0);
+	return usbd_driver_load(mod, what, arg);
 }
