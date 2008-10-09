@@ -3291,17 +3291,6 @@ umass_cam_quirk_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	xpt_done(ccb);
 }
 
-static int
-umass_driver_load(module_t mod, int what, void *arg)
-{
-	switch (what) {
-	case MOD_UNLOAD:
-	case MOD_LOAD:
-	default:
-		return(usbd_driver_load(mod, what, arg));
-	}
-}
-
 /*
  * SCSI specific functions
  */
@@ -3541,7 +3530,7 @@ umass_atapi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 
 /* (even the comment is missing) */
 
-DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, umass_driver_load, 0);
+DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, usbd_driver_load, 0);
 
 
 
