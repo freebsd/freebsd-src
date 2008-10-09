@@ -19,9 +19,4 @@ SRCS=	bus_if.h device_if.h usb_if.h usb_if.c \
 	usbdi_util.c usbdi_util.h \
 	usb_ethersubr.c usbdevs.h
 
-SRCS+=	uhci_pci.c uhci.c uhcireg.h uhcivar.h
-SRCS+=	ohci_pci.c ohci.c ohcireg.h ohcivar.h
-SRCS+=	ehci_pci.c ehci.c ehcireg.h ehcivar.h
-SRCS+=	pci_if.h
-
 .include <bsd.kmod.mk>
