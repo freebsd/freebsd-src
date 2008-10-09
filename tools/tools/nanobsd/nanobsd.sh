@@ -281,7 +281,7 @@ setup_nanobsd ( ) (
 	# have hardcoded paths under ${prefix}/etc are not tweakable.
 	if [ -d usr/local/etc ] ; then
 		(
-		mkdir etc/local
+		mkdir -p etc/local
 		cd usr/local/etc
 		find . -print | cpio -dumpl ../../../etc/local
 		cd ..
