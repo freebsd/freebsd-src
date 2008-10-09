@@ -79,6 +79,7 @@ SUBDIR=	${_3dfx} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
+	ehci \
 	${_elink} \
 	${_em} \
 	en \
@@ -205,6 +206,7 @@ SUBDIR=	${_3dfx} \
 	${_nwfs} \
 	${_nxge} \
 	${_opensolaris} \
+	ohci \
 	${_padlock} \
 	patm \
 	${_pccard} \
@@ -241,6 +243,7 @@ SUBDIR=	${_3dfx} \
 	${_scsi_low} \
 	sem \
 	sf \
+	slhci \
 	sis \
 	sk \
 	${_smbfs} \
@@ -280,6 +283,7 @@ SUBDIR=	${_3dfx} \
 	ufoma \
 	uftdi \
 	ugen \
+	uhci \
 	uhid \
 	uipaq \
 	ukbd \
