@@ -165,7 +165,7 @@ u3g_attach(device_t self)
 	char devnamefmt[32];
 
 	sc->sc_dev = self;
-#ifdef DEBUG
+#ifdef U3G_DEBUG
 	sc->sc_intr_number = -1;
 	sc->sc_intr_pipe = NULL;
 #endif
