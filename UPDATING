@@ -23,6 +23,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	ln -s aj /etc/malloc.conf.)
 
 20081009:
+	The uhci, ohci, ehci and slhci USB Host controller drivers have
+	been put into separate modules. If you load the usb module
+	separately through loader.conf you will need to load the
+	appropriate *hci module as well. E.g. for a UHCI-based USB 2.0
+	controller add the following to loader.conf:
+
+		uhci_load="YES"
+		ehci_load="YES"
+
+20081009:
 	The ABI used by the PMC toolset has changed.  Please keep
 	userland (libpmc(3)) and the kernel module (hwpmc(4)) in
 	sync.
