@@ -3778,10 +3778,10 @@ bwait(struct buf *bp, u_char pri, const char *wchan)
 }
 
 int
-bufsync(struct bufobj *bo, int waitfor, struct thread *td)
+bufsync(struct bufobj *bo, int waitfor)
 {
 
-	return (VOP_FSYNC(bo->__bo_vnode, waitfor, td));
+	return (VOP_FSYNC(bo->__bo_vnode, waitfor, curthread));
 }
 
 void

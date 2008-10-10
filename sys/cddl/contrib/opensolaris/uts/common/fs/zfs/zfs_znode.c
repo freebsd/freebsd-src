@@ -916,7 +916,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 #if 0
 		error = vtruncbuf(vp, curthread->td_ucred, curthread, end, PAGE_SIZE);
 #else
-		error = vinvalbuf(vp, V_SAVE, curthread, 0, 0);
+		error = vinvalbuf(vp, V_SAVE, 0, 0);
 		vnode_pager_setsize(vp, end);
 #endif
 	}
