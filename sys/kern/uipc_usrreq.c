@@ -575,8 +575,8 @@ uipc_detach(struct socket *so)
 	}
 
 	/*
-	 * We hold the global lock, so it's OK to acquire multiple pcb locks
-	 * at a time.
+	 * We hold the global lock exclusively, so it's OK to acquire
+	 * multiple pcb locks at a time.
 	 */
 	while (!LIST_EMPTY(&unp->unp_refs)) {
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
@@ -741,8 +741,6 @@ uipc_rcvd(struct socket *so, int flags)
 	return (0);
 }
 
-/* pru_rcvoob is EOPNOTSUPP */
-
 static int
 uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
@@ -760,15 +758,12 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		error = EOPNOTSUPP;
 		goto release;
 	}
-
 	if (control != NULL && (error = unp_internalize(&control, td)))
 		goto release;
-
 	if ((nam != NULL) || (flags & PRUS_EOF))
 		UNP_GLOBAL_WLOCK();
 	else
 		UNP_GLOBAL_RLOCK();
-
 	switch (so->so_type) {
 	case SOCK_DGRAM:
 	{
@@ -786,6 +781,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 				break;
 			unp2 = unp->unp_conn;
 		}
+
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
 		 * with a target address, it's possible that the socket will
@@ -826,12 +822,6 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	case SOCK_STREAM:
-		/*
-		 * Connect if not connected yet.
-		 *
-		 * Note: A better implementation would complain if not equal
-		 * to the peer's address.
-		 */
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
 				UNP_GLOBAL_WLOCK_ASSERT();
@@ -849,6 +839,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = EPIPE;
 			break;
 		}
+
 		/*
 		 * Because connect() and send() are non-atomic in a sendto()
 		 * with a target address, it's possible that the socket will
@@ -907,7 +898,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	/*
-	 * SEND_EOF is equivalent to a SEND followed by a SHUTDOWN.
+	 * PRUS_EOF is equivalent to pru_send followed by pru_shutdown.
 	 */
 	if (flags & PRUS_EOF) {
 		UNP_PCB_LOCK(unp);
@@ -1256,7 +1247,7 @@ bad2:
 	if (vfslocked)
 		/* 
 		 * Giant has been previously acquired. This means filesystem
-		 * isn't MPSAFE. Do it once again.
+		 * isn't MPSAFE.  Do it once again.
 		 */
 		mtx_lock(&Giant);
 bad:
@@ -1576,6 +1567,7 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp)
 				unp_freerights(rp, newfds);
 				goto next;
 			}
+
 			/*
 			 * Now change each pointer to an fd in the global
 			 * table to an integer that is the index to the local
@@ -1888,6 +1880,7 @@ unp_gc(__unused void *arg, int pending)
 
 	unp_taskcount++;
 	unp_defer = 0;
+
 	/*
 	 * Before going through all this, set all FDs to be NOT deferred and
 	 * NOT externally accessible.
@@ -1913,6 +1906,7 @@ unp_gc(__unused void *arg, int pending)
 				FILE_UNLOCK(fp);
 				continue;
 			}
+
 			/*
 			 * If we already marked it as 'defer' in a
 			 * previous pass, then try to process it this
@@ -1930,6 +1924,7 @@ unp_gc(__unused void *arg, int pending)
 					FILE_UNLOCK(fp);
 					continue;
 				}
+
 				/*
 				 * If all references are from messages in
 				 * transit, then skip it. it's not externally
@@ -1939,12 +1934,14 @@ unp_gc(__unused void *arg, int pending)
 					FILE_UNLOCK(fp);
 					continue;
 				}
+
 				/*
 				 * If it got this far then it must be
 				 * externally accessible.
 				 */
 				fp->f_gcflag |= FMARK;
 			}
+
 			/*
 			 * Either it was deferred, or it is externally
 			 * accessible and not already marked so.  Now check
@@ -1955,6 +1952,7 @@ unp_gc(__unused void *arg, int pending)
 				FILE_UNLOCK(fp);
 				continue;
 			}
+
 			if (so->so_proto->pr_domain != &localdomain ||
 			    (so->so_proto->pr_flags & PR_RIGHTS) == 0) {
 				FILE_UNLOCK(fp);				
@@ -1990,6 +1988,7 @@ unp_gc(__unused void *arg, int pending)
 		}
 	} while (unp_defer);
 	sx_sunlock(&filelist_lock);
+
 	/*
 	 * XXXRW: The following comments need updating for a post-SMPng and
 	 * deferred unp_gc() world, but are still generally accurate.
@@ -2047,6 +2046,7 @@ again:
 	    fp != NULL; fp = nextfp) {
 		nextfp = LIST_NEXT(fp, f_list);
 		FILE_LOCK(fp);
+
 		/*
 		 * If it's not open, skip it
 		 */
@@ -2054,6 +2054,7 @@ again:
 			FILE_UNLOCK(fp);
 			continue;
 		}
+
 		/*
 		 * If all refs are from msgs, and it's not marked accessible
 		 * then it must be referenced from some unreachable cycle of
@@ -2068,6 +2069,7 @@ again:
 		FILE_UNLOCK(fp);
 	}
 	sx_sunlock(&filelist_lock);
+
 	/*
 	 * For each FD on our hit list, do the following two things:
 	 */
