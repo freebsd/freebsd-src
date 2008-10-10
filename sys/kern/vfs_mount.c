@@ -967,7 +967,7 @@ vfs_domount(
 				return (error);
 			}
 		}
-		error = vinvalbuf(vp, V_SAVE, td, 0, 0);
+		error = vinvalbuf(vp, V_SAVE, 0, 0);
 		if (error != 0) {
 			vput(vp);
 			return (error);
@@ -1573,7 +1573,7 @@ devfs_fixup(struct thread *td)
 	if (vp->v_type != VDIR) {
 		vput(vp);
 	}
-	error = vinvalbuf(vp, V_SAVE, td, 0, 0);
+	error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (error) {
 		vput(vp);
 	}

@@ -654,7 +654,7 @@ vm_object_terminate(vm_object_t object)
 		vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 		VM_OBJECT_UNLOCK(object);
 
-		vinvalbuf(vp, V_SAVE, NULL, 0, 0);
+		vinvalbuf(vp, V_SAVE, 0, 0);
 
 		VM_OBJECT_LOCK(object);
 	}

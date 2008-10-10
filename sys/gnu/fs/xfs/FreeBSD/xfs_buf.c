@@ -266,7 +266,7 @@ xfs_flush_buftarg(
 {
 	int error = 0;
 
-	error = vinvalbuf(btp->specvp, V_SAVE|V_NORMAL, curthread, 0, 0);
+	error = vinvalbuf(btp->specvp, V_SAVE | V_NORMAL, 0, 0);
 	return error;
 }
 

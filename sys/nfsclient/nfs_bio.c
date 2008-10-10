@@ -1323,11 +1323,11 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 			goto out;
 	}
 
-	error = vinvalbuf(vp, flags, td, slpflag, 0);
+	error = vinvalbuf(vp, flags, slpflag, 0);
 	while (error) {
 		if (intrflg && (error = nfs_sigintr(nmp, NULL, td)))
 			goto out;
-		error = vinvalbuf(vp, flags, td, 0, slptimeo);
+		error = vinvalbuf(vp, flags, 0, slptimeo);
 	}
 	mtx_lock(&np->n_mtx);
 	if (np->n_directio_asyncwr == 0)
