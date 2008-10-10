@@ -103,8 +103,7 @@ static MALLOC_DEFINE(M_MSDOSFSFAT, "msdosfs_fat", "MSDOSFS file allocation table
 struct iconv_functions *msdosfs_iconv;
 
 static int	update_mp(struct mount *mp, struct thread *td);
-static int	mountmsdosfs(struct vnode *devvp, struct mount *mp,
-		    struct thread *td);
+static int	mountmsdosfs(struct vnode *devvp, struct mount *mp);
 static vfs_fhtovp_t	msdosfs_fhtovp;
 static vfs_mount_t	msdosfs_mount;
 static vfs_root_t	msdosfs_root;
@@ -375,7 +374,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		return (error);
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = mountmsdosfs(devvp, mp, td);
+		error = mountmsdosfs(devvp, mp);
 #ifdef MSDOSFS_DEBUG		/* only needed for the printf below */
 		pmp = VFSTOMSDOSFS(mp);
 #endif
@@ -405,7 +404,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 }
 
 static int
-mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
+mountmsdosfs(struct vnode *devvp, struct mount *mp)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
@@ -754,7 +753,7 @@ error_exit:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -824,7 +823,7 @@ msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 #endif
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(pmp->pm_cp, td);
+	g_vfs_close(pmp->pm_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(pmp->pm_devvp);

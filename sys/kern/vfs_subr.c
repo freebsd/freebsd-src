@@ -1065,8 +1065,7 @@ insmntque(struct vnode *vp, struct mount *mp)
  * Called with the underlying object locked.
  */
 int
-bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
-    int slptimeo)
+bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 {
 	int error;
 
@@ -1079,7 +1078,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
 			BO_UNLOCK(bo);
-			if ((error = BO_SYNC(bo, MNT_WAIT, td)) != 0)
+			if ((error = BO_SYNC(bo, MNT_WAIT)) != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
@@ -1149,13 +1148,12 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
  * Called with the underlying object locked.
  */
 int
-vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag,
-    int slptimeo)
+vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
 {
 
 	CTR2(KTR_VFS, "vinvalbuf vp %p flags %d", vp, flags);
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
-	return (bufobj_invalbuf(&vp->v_bufobj, flags, td, slpflag, slptimeo));
+	return (bufobj_invalbuf(&vp->v_bufobj, flags, slpflag, slptimeo));
 }
 
 /*
@@ -2505,8 +2503,8 @@ vgonel(struct vnode *vp)
 	mp = NULL;
 	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
 		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
-	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
-		vinvalbuf(vp, 0, td, 0, 0);
+	if (vinvalbuf(vp, V_SAVE, 0, 0) != 0)
+		vinvalbuf(vp, 0, 0, 0);
 
 	/*
 	 * If purging an active vnode, it must be closed and

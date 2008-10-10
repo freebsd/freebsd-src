@@ -207,7 +207,7 @@ xfs_blkdev_put(
 	if (devvp == NULL)
 		return;
 
-	vinvalbuf(devvp, V_SAVE, curthread, 0, 0);
+	vinvalbuf(devvp, V_SAVE, 0, 0);
 
 	cp = devvp->v_bufobj.bo_private;
 	DROP_GIANT();

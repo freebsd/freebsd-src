@@ -88,8 +88,7 @@ static struct vfsops cd9660_vfsops = {
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
 
-static int iso_mountfs(struct vnode *devvp, struct mount *mp,
-		       struct thread *td);
+static int iso_mountfs(struct vnode *devvp, struct mount *mp);
 
 /*
  * VFS Operations.
@@ -181,7 +180,7 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	VOP_UNLOCK(devvp, 0);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = iso_mountfs(devvp, mp, td);
+		error = iso_mountfs(devvp, mp);
 	} else {
 		if (devvp != imp->im_devvp)
 			error = EINVAL;	/* needs translation */
@@ -200,10 +199,9 @@ cd9660_mount(struct mount *mp, struct thread *td)
  * Common code for mount and mountroot
  */
 static int
-iso_mountfs(devvp, mp, td)
+iso_mountfs(devvp, mp)
 	struct vnode *devvp;
 	struct mount *mp;
-	struct thread *td;
 {
 	struct iso_mnt *isomp = (struct iso_mnt *)0;
 	struct buf *bp = NULL;
@@ -249,7 +247,7 @@ iso_mountfs(devvp, mp, td)
 	if ((ISO_DEFAULT_BLOCK_SIZE % cp->provider->sectorsize) != 0) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
                 PICKUP_GIANT();
 		return (EINVAL);
@@ -482,7 +480,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -525,7 +523,7 @@ cd9660_unmount(mp, mntflags, td)
 	}
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(isomp->im_cp, td);
+	g_vfs_close(isomp->im_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(isomp->im_devvp);
