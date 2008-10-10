@@ -22,6 +22,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20081009:
+	The ABI used by the PMC toolset has changed.  Please keep
+	userland (libpmc(3)) and the kernel module (hwpmc(4)) in
+	sync.
+
 20080820:
 	The TTY subsystem of the kernel has been replaced by a new
 	implementation, which provides better scalability and an
