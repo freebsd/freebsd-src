@@ -258,31 +258,23 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		case R_TYPE(REL32):
 			/* 32-bit PC-relative reference */
 			def = obj->symtab + symnum;
-			tmp = load_ptr(where);
-			if (tmp == 0) {
-			  def = find_symdef(symnum, obj, &defobj, false, NULL);
-			  if (def == NULL) {
-			    dbg("Warning5, cant find symbole %d:%s", (int)symnum,
-				obj->strtab + obj->symtab[symnum].st_name);
-			  } else {
-			    tmp = def->st_value + (Elf_Addr)defobj->relocbase;
-			    dbg("Correctiong symnum:%d:%s to addr:%x", (int)symnum,
-				obj->strtab + obj->symtab[symnum].st_name,
-				(u_int32_t)tmp
-				);
-			  }
+			if (symnum >= obj->gotsym) {
+				tmp = load_ptr(where);
+				tmp += got[obj->local_gotno + symnum - obj->gotsym];
+				store_ptr(where, tmp);
+				break;
 			} else {
-			  tmp += (Elf_Addr)obj->relocbase;
-			}
-			store_ptr(where, tmp);
-			if (tmp == (Elf_Addr)obj->relocbase) {
-			  dbg("rel sym %p falls on relocbase symidx:%x symbol:%s", rel,
-			      (uint32_t)ELF_R_SYM(rel->r_info),
-			      obj->strtab + obj->symtab[symnum].st_name
-			      );
+				tmp = load_ptr(where);
+
+				if (def->st_info ==
+				    ELF_ST_INFO(STB_LOCAL, STT_SECTION)
+				    )
+					tmp += (Elf_Addr)def->st_value;
+
+				tmp += (Elf_Addr)obj->relocbase;
+				store_ptr(where, tmp);
 			}
 			break;
-
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
