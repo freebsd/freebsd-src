@@ -1925,7 +1925,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 {
     DoneList donelist;
     const Obj_Entry *obj, *defobj;
-    const Elf_Sym *def;
+    const Elf_Sym *def, *symp;
     unsigned long hash;
     int lockstate;
 
@@ -1951,9 +1951,26 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 	    if (handle == RTLD_NEXT)
 		obj = obj->next;
 	    for (; obj != NULL; obj = obj->next) {
-		if ((def = symlook_obj(name, hash, obj, ve, flags)) != NULL) {
-		    defobj = obj;
-		    break;
+	    	if ((symp = symlook_obj(name, hash, obj, ve, flags)) != NULL) {
+		    if (def == NULL || ELF_ST_BIND(symp->st_info) != STB_WEAK) {
+			def = symp;
+			defobj = obj;
+			if (ELF_ST_BIND(def->st_info) != STB_WEAK)
+			    break;
+		    }
+		}
+	    }
+	    /*
+	     * Search the dynamic linker itself, and possibly resolve the
+	     * symbol from there.  This is how the application links to
+	     * dynamic linker services such as dlopen.  Only the values listed
+	     * in the "exports" array can be resolved from the dynamic linker.
+	     */
+	    if (def == NULL || ELF_ST_BIND(def->st_info) == STB_WEAK) {
+		symp = symlook_obj(name, hash, &obj_rtld, ve, flags);
+		if (symp != NULL && is_exported(symp)) {
+		    def = symp;
+		    defobj = &obj_rtld;
 		}
 	    }
 	} else {
