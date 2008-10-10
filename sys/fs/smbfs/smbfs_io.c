@@ -690,7 +690,7 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
 	}
 
-	error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
+	error = vinvalbuf(vp, V_SAVE, PCATCH, 0);
 	while (error) {
 		if (error == ERESTART || error == EINTR) {
 			np->n_flag &= ~NFLUSHINPROG;
@@ -700,7 +700,7 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 			}
 			return EINTR;
 		}
-		error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
+		error = vinvalbuf(vp, V_SAVE, PCATCH, 0);
 	}
 	np->n_flag &= ~(NMODIFIED | NFLUSHINPROG);
 	if (np->n_flag & NFLUSHWANT) {

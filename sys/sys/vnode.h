@@ -598,8 +598,7 @@ int	vget(struct vnode *vp, int lockflag, struct thread *td);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
-int	vinvalbuf(struct vnode *vp, int save,
-	    struct thread *td, int slpflag, int slptimeo);
+int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, struct ucred *cred, struct thread *td,
 	    off_t length, int blksize);
 void	vn_printf(struct vnode *vp, const char *fmt, ...) __printflike(2,3);

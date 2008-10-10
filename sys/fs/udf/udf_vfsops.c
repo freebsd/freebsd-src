@@ -134,7 +134,7 @@ VFS_SET(udf_vfsops, udf, VFCF_READONLY);
 
 MODULE_VERSION(udf, 1);
 
-static int udf_mountfs(struct vnode *, struct mount *, struct thread *);
+static int udf_mountfs(struct vnode *, struct mount *);
 
 static int
 udf_init(struct vfsconf *foo)
@@ -243,7 +243,7 @@ udf_mount(struct mount *mp, struct thread *td)
 		return (error);
 	}
 
-	if ((error = udf_mountfs(devvp, mp, td))) {
+	if ((error = udf_mountfs(devvp, mp))) {
 		vrele(devvp);
 		return (error);
 	}
@@ -301,7 +301,7 @@ udf_checktag(struct desc_tag *tag, uint16_t id)
 }
 
 static int
-udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
+udf_mountfs(struct vnode *devvp, struct mount *mp) {
 	struct buf *bp = NULL;
 	struct anchor_vdp avdp;
 	struct udf_mnt *udfmp = NULL;
@@ -365,7 +365,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	    (logical_secsize < cp->provider->sectorsize)) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 		return (EINVAL);
@@ -493,7 +493,7 @@ bail:
 		brelse(bp);
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(cp, td);
+	g_vfs_close(cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	return error;
@@ -524,7 +524,7 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(udfmp->im_cp, td);
+	g_vfs_close(udfmp->im_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(udfmp->im_devvp);
