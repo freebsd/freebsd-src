@@ -163,14 +163,6 @@ udp_inpcb_init(void *mem, int size, int flags)
 {
 	struct inpcb *inp;
 
-	TUNABLE_INT_FETCH("net.inet.udp.soreceive_dgram_enabled",
-	    &udp_soreceive_dgram);
-	if (udp_soreceive_dgram) {
-		udp_usrreqs.pru_soreceive = soreceive_dgram;
-#ifdef INET6
-		udp6_usrreqs.pru_soreceive = soreceive_dgram;
-#endif
-	}
 	inp = mem;
 	INP_LOCK_INIT(inp, "inp", "udpinp");
 	return (0);
@@ -192,6 +184,14 @@ udp_init(void)
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
+	TUNABLE_INT_FETCH("net.inet.udp.soreceive_dgram_enabled",
+	    &udp_soreceive_dgram);
+	if (udp_soreceive_dgram) {
+		udp_usrreqs.pru_soreceive = soreceive_dgram;
+#ifdef INET6
+		udp6_usrreqs.pru_soreceive = soreceive_dgram;
+#endif
+	}
 }
 
 /*
