@@ -77,7 +77,6 @@ static void destroy_cache_(cache);
 static void destroy_runtime_env(struct runtime_env *);
 static cache init_cache_(struct configuration *);
 static struct runtime_env *init_runtime_env(struct configuration *);
-static void print_version_info(void);
 static void processing_loop(cache, struct runtime_env *,
 	struct configuration *);
 static void process_socket_event(struct kevent *, struct runtime_env *,
@@ -88,14 +87,6 @@ static void *processing_thread(void *);
 static void usage(void);
 
 void get_time_func(struct timeval *);
-
-static void
-print_version_info(void)
-{
-	TRACE_IN(print_version_info);
-	printf("nscd v0.2 (20 Oct 2005)\nwas developed during SoC 2005\n");
-	TRACE_OUT(print_version_info);
-}
 
 static void
 usage(void)
@@ -621,9 +612,6 @@ main(int argc, char *argv[])
 
 	/* by default all debug messages are omitted */
 	TRACE_OFF();
-
-	/* startup output */
-	print_version_info();
 
 	/* parsing command line arguments */
 	trace_mode_enabled = 0;
