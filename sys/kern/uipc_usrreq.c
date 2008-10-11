@@ -529,9 +529,6 @@ uipc_close(struct socket *so)
 	UNP_GLOBAL_WUNLOCK();
 }
 
-/*
- * uipc_connect2() is not static as it is invoked directly by fifofs.
- */
 static int
 uipc_connect2(struct socket *so1, struct socket *so2)
 {
