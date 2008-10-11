@@ -133,10 +133,15 @@ mmcsd_attach(device_t dev)
 	    mmc_get_sector_size(dev);
 	sc->disk->d_unit = device_get_unit(dev);
 	
-	device_printf(dev, "%juMB <MMC/SD Memory Card>%s at %s\n",
+	device_printf(dev, "%juMB <%s Memory Card>%s at %s %dMHz/%dbit\n",
 	    sc->disk->d_mediasize / 1048576,
+	    (mmc_get_card_type(dev) == mode_mmc)?"MMC":
+	    (mmc_get_high_cap(dev)?"SDHC":"SD"),
 	    mmc_get_read_only(dev)?" (read-only)":"",
-	    device_get_nameunit(device_get_parent(sc->dev)));
+	    device_get_nameunit(device_get_parent(sc->dev)),
+	    mmc_get_tran_speed(dev)/1000000,
+	    (mmc_get_bus_width(dev) == bus_width_1)?1:
+	    ((mmc_get_bus_width(dev) == bus_width_4)?4:8));
 	disk_create(sc->disk, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
 
