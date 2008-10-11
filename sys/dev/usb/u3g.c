@@ -89,6 +89,8 @@ static const struct usb_devno u3g_devs[] = {
 	/* OEM: Huawei */
 	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },
 	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },
+	/* OEM: Qualcomm */
+	{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },
 
 	{ 0, 0 }
 };
