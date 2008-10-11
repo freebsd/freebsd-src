@@ -115,6 +115,7 @@ static int mmc_detach(device_t dev);
 #define MMC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
+static int mmc_calculate_clock(struct mmc_softc *sc);
 static void mmc_delayed_attach(void *);
 static void mmc_power_down(struct mmc_softc *sc);
 static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
@@ -122,7 +123,7 @@ static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
 static int mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
     uint32_t arg, uint32_t flags, uint32_t *resp, int retries);
 static int mmc_select_card(struct mmc_softc *sc, uint16_t rca);
-static int mmc_set_bus_width(struct mmc_softc *sc, uint16_t rca, int width);
+static int mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width);
 static int mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr);
 static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
 static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
@@ -215,11 +216,13 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 			sc->last_rca = rca;
 			/* Prepare bus width for the new card. */
 			ivar = device_get_ivars(dev);
-			device_printf(busdev,
-			    "setting bus width to %d bits\n",
-			    (ivar->bus_width == bus_width_4)?4:
-			    (ivar->bus_width == bus_width_8)?8:1);
-			mmc_set_bus_width(sc, rca, ivar->bus_width);
+			if (bootverbose) {
+				device_printf(busdev,
+				    "setting bus width to %d bits\n",
+				    (ivar->bus_width == bus_width_4)?4:
+				    (ivar->bus_width == bus_width_8)?8:1);
+			}
+			mmc_set_card_bus_width(sc, rca, ivar->bus_width);
 			mmcbr_set_bus_width(busdev, ivar->bus_width);
 			mmcbr_update_ios(busdev);
 		}
@@ -571,7 +574,7 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 }
 
 static int
-mmc_set_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
+mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 {
 	int err;
 
@@ -1167,6 +1170,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 
 	mmcbr_set_bus_mode(dev, pushpull);
 	mmcbr_update_ios(dev);
+	mmc_calculate_clock(sc);
 	bus_generic_attach(dev);
 /*	mmc_update_children_sysctl(dev);*/
 }
@@ -1208,9 +1212,11 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	free(kids, M_TEMP);
 	if (max_timing == bus_timing_hs)
 		max_dtr = max_hs_dtr;
-	device_printf(sc->dev, "setting transfer rate to %d.%03dMHz%s\n",
-	    max_dtr / 1000000, (max_dtr / 1000) % 1000,
-	    (max_timing == bus_timing_hs)?" with high speed timing":"");
+	if (bootverbose) {
+		device_printf(sc->dev, "setting transfer rate to %d.%03dMHz%s\n",
+		    max_dtr / 1000000, (max_dtr / 1000) % 1000,
+		    (max_timing == bus_timing_hs)?" with high speed timing":"");
+	}
 	mmcbr_set_timing(sc->dev, max_timing);
 	mmcbr_set_clock(sc->dev, max_dtr);
 	mmcbr_update_ios(sc->dev);
@@ -1228,7 +1234,6 @@ mmc_scan(struct mmc_softc *sc)
 	if (mmcbr_get_power_mode(dev) == power_on)
 		mmc_rescan_cards(sc);
 	mmc_go_discovery(sc);
-	mmc_calculate_clock(sc);
 
 	mmc_release_bus(dev, dev);
 	/* XXX probe/attach/detach children? */
@@ -1255,13 +1260,19 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(int *)result = MMC_SECTOR_SIZE;
 		break;
 	case MMC_IVAR_TRAN_SPEED:
-		*(int *)result = ivar->csd.tran_speed;
+		*(int *)result = mmcbr_get_clock(bus);
 		break;
 	case MMC_IVAR_READ_ONLY:
 		*(int *)result = ivar->read_only;
 		break;
 	case MMC_IVAR_HIGH_CAP:
 		*(int *)result = ivar->high_cap;
+		break;
+	case MMC_IVAR_CARD_TYPE:
+		*(int *)result = ivar->mode;
+		break;
+	case MMC_IVAR_BUS_WIDTH:
+		*(int *)result = ivar->bus_width;
 		break;
 	}
 	return (0);
