@@ -526,7 +526,7 @@ static int
 mmc_select_card(struct mmc_softc *sc, uint16_t rca)
 {
 	return (mmc_wait_for_command(sc, MMC_SELECT_CARD, ((uint32_t)rca) << 16,
-	    MMC_RSP_R1B | MMC_CMD_AC, NULL, CMD_RETRIES));
+	    (rca?MMC_RSP_R1B:MMC_RSP_NONE) | MMC_CMD_AC, NULL, CMD_RETRIES));
 }
 
 static int
