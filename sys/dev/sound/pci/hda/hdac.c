@@ -4945,7 +4945,7 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		}
 	} else {
 		sc->chans = (struct hdac_chan *)realloc(sc->chans, 
-		    sizeof(struct hdac_chan) * cnt,
+		    sizeof(struct hdac_chan) * (sc->num_chans + cnt),
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
 			sc->num_chans = 0;
@@ -4963,7 +4963,6 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 	}
 
 	/* Assign associations in order of their numbers, */
-	free = 0;
 	for (j = 0; j < devinfo->function.audio.ascnt; j++) {
 		if (as[j].enable == 0)
 			continue;
