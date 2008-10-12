@@ -479,18 +479,15 @@ init_cache(struct cache_params const *params)
 	TRACE_IN(init_cache);
 	assert(params != NULL);
 
-	retval = (struct cache_ *)malloc(sizeof(struct cache_));
+	retval = (struct cache_ *)calloc(1, sizeof(struct cache_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_));
 
 	assert(params != NULL);
 	memcpy(&retval->params, params, sizeof(struct cache_params));
 
-	retval->entries = (struct cache_entry_ **)malloc(
+	retval->entries = (struct cache_entry_ **)calloc(1,
 		sizeof(struct cache_entry_ *) * INITIAL_ENTRIES_CAPACITY);
 	assert(retval->entries != NULL);
-	memset(retval->entries, 0, sizeof(sizeof(struct cache_entry_ *)
-		* INITIAL_ENTRIES_CAPACITY));
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
 	retval->entries_size = 0;
@@ -541,12 +538,10 @@ register_cache_entry(struct cache_ *the_cache,
 
 		new_capacity = the_cache->entries_capacity +
 			ENTRIES_CAPACITY_STEP;
-		new_entries = (struct cache_entry_ **)malloc(
+		new_entries = (struct cache_entry_ **)calloc(1,
 			sizeof(struct cache_entry_ *) * new_capacity);
 		assert(new_entries != NULL);
 
-		memset(new_entries, 0, sizeof(struct cache_entry_ *) *
-		    new_capacity);
 		memcpy(new_entries, the_cache->entries,
 			sizeof(struct cache_entry_ *)
 			* the_cache->entries_size);
@@ -559,21 +554,18 @@ register_cache_entry(struct cache_ *the_cache,
 	switch (params->entry_type)
 	{
 	case CET_COMMON:
-		new_common_entry = (struct cache_common_entry_ *)malloc(
+		new_common_entry = (struct cache_common_entry_ *)calloc(1,
 			sizeof(struct cache_common_entry_));
 		assert(new_common_entry != NULL);
-		memset(new_common_entry, 0, sizeof(struct cache_common_entry_));
 
 		memcpy(&new_common_entry->common_params, params,
 			sizeof(struct common_cache_entry_params));
 		new_common_entry->params =
 		  (struct cache_entry_params *)&new_common_entry->common_params;
 
-		new_common_entry->common_params.entry_name = (char *)malloc(
+		new_common_entry->common_params.entry_name = (char *)calloc(1,
 			entry_name_size+1);
 		assert(new_common_entry->common_params.entry_name != NULL);
-		memset(new_common_entry->common_params.entry_name, 0,
-			entry_name_size + 1);
 		strncpy(new_common_entry->common_params.entry_name,
 			params->entry_name, entry_name_size);
 		new_common_entry->name =
@@ -588,11 +580,9 @@ register_cache_entry(struct cache_ *the_cache,
 		else
 			policies_size = 2;
 
-		new_common_entry->policies = (struct cache_policy_ **)malloc(
+		new_common_entry->policies = (struct cache_policy_ **)calloc(1,
 			sizeof(struct cache_policy_ *) * policies_size);
 		assert(new_common_entry->policies != NULL);
-		memset(new_common_entry->policies, 0,
-			sizeof(struct cache_policy_ *) * policies_size);
 
 		new_common_entry->policies_size = policies_size;
 		new_common_entry->policies[0] = init_cache_fifo_policy();
@@ -618,21 +608,18 @@ register_cache_entry(struct cache_ *the_cache,
 			(struct cache_entry_ *)new_common_entry;
 		break;
 	case CET_MULTIPART:
-		new_mp_entry = (struct cache_mp_entry_ *)malloc(
+		new_mp_entry = (struct cache_mp_entry_ *)calloc(1,
 			sizeof(struct cache_mp_entry_));
 		assert(new_mp_entry != NULL);
-		memset(new_mp_entry, 0, sizeof(struct cache_mp_entry_));
 
 		memcpy(&new_mp_entry->mp_params, params,
 			sizeof(struct mp_cache_entry_params));
 		new_mp_entry->params =
 			(struct cache_entry_params *)&new_mp_entry->mp_params;
 
-		new_mp_entry->mp_params.entry_name = (char *)malloc(
+		new_mp_entry->mp_params.entry_name = (char *)calloc(1,
 			entry_name_size+1);
 		assert(new_mp_entry->mp_params.entry_name != NULL);
-		memset(new_mp_entry->mp_params.entry_name, 0,
-			entry_name_size + 1);
 		strncpy(new_mp_entry->mp_params.entry_name, params->entry_name,
 			entry_name_size);
 		new_mp_entry->name = new_mp_entry->mp_params.entry_name;
@@ -925,10 +912,9 @@ open_cache_mp_write_session(struct cache_entry_ *entry)
 		return (NULL);
 	}
 
-	retval = (struct cache_mp_write_session_ *)malloc(
+	retval = (struct cache_mp_write_session_ *)calloc(1,
 		sizeof(struct cache_mp_write_session_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_mp_write_session_));
 
 	TAILQ_INIT(&retval->items);
 	retval->parent_entry = mp_entry;
@@ -961,10 +947,9 @@ cache_mp_write(struct cache_mp_write_session_ *ws, char *data,
 		return (-1);
 	}
 
-	new_item = (struct cache_mp_data_item_ *)malloc(
+	new_item = (struct cache_mp_data_item_ *)calloc(1,
 		sizeof(struct cache_mp_data_item_));
 	assert(new_item != NULL);
-	memset(new_item, 0, sizeof(struct cache_mp_data_item_));
 
 	new_item->value = (char *)malloc(data_size);
 	assert(new_item->value != NULL);
@@ -1065,10 +1050,9 @@ open_cache_mp_read_session(struct cache_entry_ *entry)
 		}
 	}
 
-	retval = (struct cache_mp_read_session_ *)malloc(
+	retval = (struct cache_mp_read_session_ *)calloc(1,
 		sizeof(struct cache_mp_read_session_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_mp_read_session_));
 
 	retval->parent_entry = mp_entry;
 	retval->current_item = TAILQ_FIRST(

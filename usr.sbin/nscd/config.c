@@ -119,10 +119,9 @@ create_configuration_entry(const char *name,
 	assert(negative_params != NULL);
 	assert(mp_params != NULL);
 
-	retval = (struct configuration_entry *)malloc(
+	retval = (struct configuration_entry *)calloc(1,
 		sizeof(struct configuration_entry));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct configuration_entry));
 
 	res = pthread_mutex_init(&retval->positive_cache_lock, NULL);
 	if (res != 0) {
@@ -162,9 +161,8 @@ create_configuration_entry(const char *name,
 		sizeof(struct mp_cache_entry_params));
 
 	size = strlen(name);
-	retval->name = (char *)malloc(size + 1);
+	retval->name = (char *)calloc(1, size + 1);
 	assert(retval->name != NULL);
-	memset(retval->name, 0, size + 1);
 	memcpy(retval->name, name, size);
 
 	memcpy(&retval->common_query_timeout, common_timeout,
@@ -268,12 +266,10 @@ add_configuration_entry(struct configuration *config,
 		struct configuration_entry **new_entries;
 
 		config->entries_capacity *= 2;
-		new_entries = (struct configuration_entry **)malloc(
+		new_entries = (struct configuration_entry **)calloc(1,
 			sizeof(struct configuration_entry *) *
 			config->entries_capacity);
 		assert(new_entries != NULL);
-		memset(new_entries, 0, sizeof(struct configuration_entry *) *
-			config->entries_capacity);
 		memcpy(new_entries, config->entries,
 			sizeof(struct configuration_entry *) *
 		        config->entries_size);
@@ -514,17 +510,14 @@ init_configuration(void)
 	struct configuration	*retval;
 
 	TRACE_IN(init_configuration);
-	retval = (struct configuration *)malloc(sizeof(struct configuration));
+	retval = (struct configuration *)calloc(1, sizeof(struct configuration));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct configuration));
 
 	retval->entries_capacity = INITIAL_ENTRIES_CAPACITY;
-	retval->entries = (struct configuration_entry **)malloc(
+	retval->entries = (struct configuration_entry **)calloc(1,
 		sizeof(struct configuration_entry *) *
 		retval->entries_capacity);
 	assert(retval->entries != NULL);
-	memset(retval->entries, 0, sizeof(struct configuration_entry *) *
-		retval->entries_capacity);
 
 	pthread_rwlock_init(&retval->rwlock, NULL);
 
@@ -544,15 +537,13 @@ fill_configuration_defaults(struct configuration *config)
 		free(config->socket_path);
 
 	len = strlen(DEFAULT_SOCKET_PATH);
-	config->socket_path = (char *)malloc(len + 1);
+	config->socket_path = (char *)calloc(1, len + 1);
 	assert(config->socket_path != NULL);
-	memset(config->socket_path, 0, len + 1);
 	memcpy(config->socket_path, DEFAULT_SOCKET_PATH, len);
 
 	len = strlen(DEFAULT_PIDFILE_PATH);
-	config->pidfile_path = (char *)malloc(len + 1);
+	config->pidfile_path = (char *)calloc(1, len + 1);
 	assert(config->pidfile_path != NULL);
-	memset(config->pidfile_path, 0, len + 1);
 	memcpy(config->pidfile_path, DEFAULT_PIDFILE_PATH, len);
 
 	config->socket_mode =  S_IFSOCK | S_IRUSR | S_IWUSR |
