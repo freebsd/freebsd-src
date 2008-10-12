@@ -69,6 +69,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_msgbuf.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
