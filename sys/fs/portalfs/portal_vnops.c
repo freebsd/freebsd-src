@@ -279,7 +279,6 @@ portal_open(ap)
 	 * will happen if the server dies.  Sleep for 5 second intervals
 	 * and keep polling the reference count.   XXX.
 	 */
-	/* XXXRW: Locking? */
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {
