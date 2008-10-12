@@ -148,7 +148,7 @@ mmcsd_attach(device_t dev)
 	 */
 	mb = d->d_mediasize >> 20;	/* 1MiB == 1 << 20 */
 	unit = 'M';
-	if (mb > 1024) {		/* 1GiB = 1024 MiB */
+	if (mb >= 10240) {		/* 1GiB = 1024 MiB */
 		unit = 'G';
 		mb /= 1024;
 	}
