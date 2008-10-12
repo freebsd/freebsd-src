@@ -935,8 +935,9 @@ udp6_disconnect(struct socket *so)
 
 	in6_pcbdisconnect(inp);
 	inp->in6p_laddr = in6addr_any;
-	/* XXXRW: so_state locking? */
+	SOCK_LOCK(so);
 	so->so_state &= ~SS_ISCONNECTED;		/* XXX */
+	SOCK_UNLOCK(so);
 out:
 	INP_WUNLOCK(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
