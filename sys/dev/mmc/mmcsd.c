@@ -93,6 +93,9 @@ static int mmcsd_close(struct disk *dp);
 static void mmcsd_strategy(struct bio *bp);
 static void mmcsd_task(void *arg);
 
+static const char *mmcsd_card_name(device_t dev);
+static int mmcsd_bus_bit_width(device_t dev);
+
 #define MMCSD_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	MMCSD_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 #define MMCSD_LOCK_INIT(_sc) \
@@ -115,34 +118,46 @@ static int
 mmcsd_attach(device_t dev)
 {
 	struct mmcsd_softc *sc;
+	struct disk *d;
+	intmax_t mb;
+	char unit;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	MMCSD_LOCK_INIT(sc);
 
-	sc->disk = disk_alloc();
-	sc->disk->d_open = mmcsd_open;
-	sc->disk->d_close = mmcsd_close;
-	sc->disk->d_strategy = mmcsd_strategy;
-	// sc->disk->d_dump = mmcsd_dump;	Need polling mmc layer
-	sc->disk->d_name = "mmcsd";
-	sc->disk->d_drv1 = sc;
-	sc->disk->d_maxsize = MAXPHYS;		/* Maybe ask bridge? */
-	sc->disk->d_sectorsize = mmc_get_sector_size(dev);
-	sc->disk->d_mediasize = mmc_get_media_size(dev) *
-	    mmc_get_sector_size(dev);
-	sc->disk->d_unit = device_get_unit(dev);
-	
-	device_printf(dev, "%juMB <%s Memory Card>%s at %s %dMHz/%dbit\n",
-	    sc->disk->d_mediasize / 1048576,
-	    (mmc_get_card_type(dev) == mode_mmc)?"MMC":
-	    (mmc_get_high_cap(dev)?"SDHC":"SD"),
-	    mmc_get_read_only(dev)?" (read-only)":"",
-	    device_get_nameunit(device_get_parent(sc->dev)),
-	    mmc_get_tran_speed(dev)/1000000,
-	    (mmc_get_bus_width(dev) == bus_width_1)?1:
-	    ((mmc_get_bus_width(dev) == bus_width_4)?4:8));
-	disk_create(sc->disk, DISK_VERSION);
+	d = sc->disk = disk_alloc();
+	d->d_open = mmcsd_open;
+	d->d_close = mmcsd_close;
+	d->d_strategy = mmcsd_strategy;
+	// d->d_dump = mmcsd_dump;	Need polling mmc layer
+	d->d_name = "mmcsd";
+	d->d_drv1 = sc;
+	d->d_maxsize = MAXPHYS;		/* Maybe ask bridge? */
+	d->d_sectorsize = mmc_get_sector_size(dev);
+	d->d_mediasize = mmc_get_media_size(dev) * d->d_sectorsize;
+	d->d_unit = device_get_unit(dev);
+	/*
+	 * Display in most natural units.  There's no cards < 1MB.
+	 * The SD standard goes to 2GiB, but the data format supports
+	 * up to 4GiB and some card makers push it up to this limit.
+	 * The SDHC standard only goes to 32GiB (the data format in
+	 * SDHC is good to 2TiB however, which isn't too ugly at
+	 * 2048GiBm, so we note it in passing here and don't add the
+	 * code to print TiB).
+	 */
+	mb = d->d_mediasize >> 20;	/* 1MiB == 1 << 20 */
+	unit = 'M';
+	if (mb > 1024) {		/* 1GiB = 1024 MiB */
+		unit = 'G';
+		mb /= 1024;
+	}
+	device_printf(dev, "%ju%cB <%s Memory Card>%s at %s %dMHz/%dbit\n",
+	    mb, unit, mmcsd_card_name(dev),
+	    mmc_get_read_only(dev) ? " (read-only)" : "",
+	    device_get_nameunit(device_get_parent(dev)),
+	    mmc_get_tran_speed(dev) / 1000000, mmcsd_bus_bit_width(dev));
+	disk_create(d, DISK_VERSION);
 	bioq_init(&sc->bio_queue);
 
 	sc->running = 1;
@@ -306,6 +321,26 @@ mmcsd_task(void *arg)
 	kproc_exit(0);
 }
 
+static const char *
+mmcsd_card_name(device_t dev)
+{
+	if (mmc_get_card_type(dev) == mode_mmc)
+		return ("MMC");
+	if (mmc_get_high_cap(dev))
+		return ("SDHC");
+	return ("SD");
+}
+
+static int
+mmcsd_bus_bit_width(device_t dev)
+{
+	if (mmc_get_bus_width(dev) == bus_width_1)
+		return (1);
+	if (mmc_get_bus_width(dev) == bus_width_4)
+		return (4);
+	return (8);
+}
+
 static device_method_t mmcsd_methods[] = {
 	DEVMETHOD(device_probe, mmcsd_probe),
 	DEVMETHOD(device_attach, mmcsd_attach),
@@ -319,6 +354,5 @@ static driver_t mmcsd_driver = {
 	sizeof(struct mmcsd_softc),
 };
 static devclass_t mmcsd_devclass;
-
 
 DRIVER_MODULE(mmcsd, mmc, mmcsd_driver, mmcsd_devclass, 0, 0);
