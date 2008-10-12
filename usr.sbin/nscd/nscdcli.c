@@ -201,9 +201,8 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 	}
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
-	retval = malloc(sizeof(struct nscd_connection_));
+	retval = calloc(1, sizeof(struct nscd_connection_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct nscd_connection_));
 
 	retval->sockfd = client_socket;
 

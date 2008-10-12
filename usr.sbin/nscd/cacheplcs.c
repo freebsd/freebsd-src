@@ -82,10 +82,9 @@ cache_queue_policy_create_item()
 	struct cache_queue_policy_item_ *retval;
 
 	TRACE_IN(cache_queue_policy_create_item);
-	retval = (struct cache_queue_policy_item_ *)malloc(
+	retval = (struct cache_queue_policy_item_ *)calloc(1,
 		sizeof(struct cache_queue_policy_item_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_queue_policy_item_));
 
 	TRACE_OUT(cache_queue_policy_create_item);
 	return ((struct cache_policy_item_ *)retval);
@@ -193,10 +192,9 @@ init_cache_queue_policy(void)
 	struct cache_queue_policy_	*retval;
 
 	TRACE_IN(init_cache_queue_policy);
-	retval = (struct cache_queue_policy_ *)malloc(
+	retval = (struct cache_queue_policy_ *)calloc(1,
 		sizeof(struct cache_queue_policy_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_queue_policy_));
 
 	retval->parent_data.create_item_func = cache_queue_policy_create_item;
 	retval->parent_data.destroy_item_func = cache_queue_policy_destroy_item;
@@ -334,10 +332,9 @@ cache_lfu_policy_create_item(void)
 	struct cache_lfu_policy_item_ *retval;
 
 	TRACE_IN(cache_lfu_policy_create_item);
-	retval = (struct cache_lfu_policy_item_ *)malloc(
+	retval = (struct cache_lfu_policy_item_ *)calloc(1,
 		sizeof(struct cache_lfu_policy_item_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_lfu_policy_item_));
 
 	TRACE_OUT(cache_lfu_policy_create_item);
 	return ((struct cache_policy_item_ *)retval);
@@ -539,10 +536,9 @@ init_cache_lfu_policy()
 	struct cache_lfu_policy_ *retval;
 
 	TRACE_IN(init_cache_lfu_policy);
-	retval = (struct cache_lfu_policy_ *)malloc(
+	retval = (struct cache_lfu_policy_ *)calloc(1,
 		sizeof(struct cache_lfu_policy_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct cache_lfu_policy_));
 
 	retval->parent_data.create_item_func = cache_lfu_policy_create_item;
 	retval->parent_data.destroy_item_func = cache_lfu_policy_destroy_item;
