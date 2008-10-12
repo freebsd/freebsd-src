@@ -219,8 +219,8 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 			if (bootverbose) {
 				device_printf(busdev,
 				    "setting bus width to %d bits\n",
-				    (ivar->bus_width == bus_width_4)?4:
-				    (ivar->bus_width == bus_width_8)?8:1);
+				    (ivar->bus_width == bus_width_4) ? 4 :
+				    (ivar->bus_width == bus_width_8) ? 8 : 1);
 			}
 			mmc_set_card_bus_width(sc, rca, ivar->bus_width);
 			mmcbr_set_bus_width(busdev, ivar->bus_width);
@@ -525,8 +525,11 @@ mmc_power_down(struct mmc_softc *sc)
 static int
 mmc_select_card(struct mmc_softc *sc, uint16_t rca)
 {
-	return (mmc_wait_for_command(sc, MMC_SELECT_CARD, ((uint32_t)rca) << 16,
-	    (rca?MMC_RSP_R1B:MMC_RSP_NONE) | MMC_CMD_AC, NULL, CMD_RETRIES));
+	int flags;
+
+	flags = (rca ? MMC_RSP_R1B : MMC_RSP_NONE) | MMC_CMD_AC;
+	return (mmc_wait_for_command(sc, MMC_SELECT_CARD, (uint32_t)rca << 16,
+	    flags, NULL, CMD_RETRIES));
 }
 
 static int
@@ -1133,7 +1136,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_bus_mode(dev, pushpull);
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
-		if (mmc_send_app_op_cond(sc, err?0:MMC_OCR_CCS, &ocr) !=
+		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
 		    MMC_ERR_NONE) {
 			/*
 			 * Failed, try MMC
@@ -1163,7 +1166,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 	if (mmcbr_get_mode(dev) == mode_sd) {
 		err = mmc_send_if_cond(sc, 1);
 		mmc_send_app_op_cond(sc,
-		    (err?0:MMC_OCR_CCS)|mmcbr_get_ocr(dev), NULL);
+		    (err ? 0 : MMC_OCR_CCS) | mmcbr_get_ocr(dev), NULL);
 	} else
 		mmc_send_op_cond(sc, mmcbr_get_ocr(dev), NULL);
 	mmc_discover_cards(sc);
@@ -1213,9 +1216,10 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	if (max_timing == bus_timing_hs)
 		max_dtr = max_hs_dtr;
 	if (bootverbose) {
-		device_printf(sc->dev, "setting transfer rate to %d.%03dMHz%s\n",
+		device_printf(sc->dev,
+		    "setting transfer rate to %d.%03dMHz%s\n",
 		    max_dtr / 1000000, (max_dtr / 1000) % 1000,
-		    (max_timing == bus_timing_hs)?" with high speed timing":"");
+		    max_timing == bus_timing_hs ? " (high speed timing)" : "");
 	}
 	mmcbr_set_timing(sc->dev, max_timing);
 	mmcbr_set_clock(sc->dev, max_dtr);
