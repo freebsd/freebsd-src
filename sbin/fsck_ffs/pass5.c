@@ -291,10 +291,17 @@ pass5(void)
 				sump[run]++;
 			}
 		}
-		cstotal.cs_nffree += newcg->cg_cs.cs_nffree;
-		cstotal.cs_nbfree += newcg->cg_cs.cs_nbfree;
-		cstotal.cs_nifree += newcg->cg_cs.cs_nifree;
-		cstotal.cs_ndir += newcg->cg_cs.cs_ndir;
+		if (bkgrdflag != 0) {
+			cstotal.cs_nffree += cg->cg_cs.cs_nffree;
+			cstotal.cs_nbfree += cg->cg_cs.cs_nbfree;
+			cstotal.cs_nifree += cg->cg_cs.cs_nifree;
+			cstotal.cs_ndir += cg->cg_cs.cs_ndir;
+		} else {
+			cstotal.cs_nffree += newcg->cg_cs.cs_nffree;
+			cstotal.cs_nbfree += newcg->cg_cs.cs_nbfree;
+			cstotal.cs_nifree += newcg->cg_cs.cs_nifree;
+			cstotal.cs_ndir += newcg->cg_cs.cs_ndir;
+		}
 		cs = &fs->fs_cs(fs, c);
 		if (cursnapshot == 0 &&
 		    memcmp(&newcg->cg_cs, cs, sizeof *cs) != 0 &&
