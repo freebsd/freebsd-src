@@ -80,23 +80,20 @@ int	timeout;
 jmp_buf	toplevel;
 jmp_buf	timeoutbuf;
 
-static void nak(int, struct sockaddr *);
+static void nak(int, const struct sockaddr *);
 static int makerequest(int, const char *, struct tftphdr *, const char *);
 static void printstats(const char *, unsigned long);
 static void startclock(void);
 static void stopclock(void);
 static void timer(int);
 static void tpacket(const char *, struct tftphdr *, int);
-static int cmpport(struct sockaddr *, struct sockaddr *);
+static int cmpport(const struct sockaddr *, const struct sockaddr *);
 
 /*
  * Send the requested file.
  */
 void
-xmitfile(fd, name, mode)
-	int fd;
-	char *name;
-	char *mode;
+xmitfile(int fd, const char *name, const char *mode)
 {
 	struct tftphdr *ap;	   /* data and ack packets */
 	struct tftphdr *dp;
@@ -212,10 +209,7 @@ abort:
  * Receive a file.
  */
 void
-recvfile(fd, name, mode)
-	int fd;
-	char *name;
-	char *mode;
+recvfile(int fd, const char *name, const char *mode)
 {
 	struct tftphdr *ap;
 	struct tftphdr *dp;
@@ -335,11 +329,7 @@ abort:						/* ok to ack, since user */
 }
 
 static int
-makerequest(request, name, tp, mode)
-	int request;
-	const char *name;
-	struct tftphdr *tp;
-	const char *mode;
+makerequest(int request, const char *name, struct tftphdr *tp, const char *mode)
 {
 	char *cp;
 
@@ -376,9 +366,7 @@ struct errmsg {
  * offset by 100.
  */
 static void
-nak(error, peer)
-	int error;
-	struct sockaddr *peer;
+nak(int error, const struct sockaddr *peer)
 {
 	struct errmsg *pe;
 	struct tftphdr *tp;
@@ -403,10 +391,7 @@ nak(error, peer)
 }
 
 static void
-tpacket(s, tp, n)
-	const char *s;
-	struct tftphdr *tp;
-	int n;
+tpacket(const char *s, struct tftphdr *tp, int n)
 {
 	static const char *opcodes[] =
 	   { "#0", "RRQ", "WRQ", "DATA", "ACK", "ERROR" };
@@ -445,23 +430,21 @@ struct timeval tstart;
 struct timeval tstop;
 
 static void
-startclock()
+startclock(void)
 {
 
 	(void)gettimeofday(&tstart, NULL);
 }
 
 static void
-stopclock()
+stopclock(void)
 {
 
 	(void)gettimeofday(&tstop, NULL);
 }
 
 static void
-printstats(direction, amount)
-	const char *direction;
-	unsigned long amount;
+printstats(const char *direction, unsigned long amount)
 {
 	double delta;
 			/* compute delta in 1/10's second units */
@@ -475,8 +458,7 @@ printstats(direction, amount)
 }
 
 static void
-timer(sig)
-	int sig __unused;
+timer(int sig __unused)
 {
 
 	timeout += rexmtval;
@@ -489,9 +471,7 @@ timer(sig)
 }
 
 static int
-cmpport(sa, sb)
-	struct sockaddr *sa;
-	struct sockaddr *sb;
+cmpport(const struct sockaddr *sa, const struct sockaddr *sb)
 {
 	char a[NI_MAXSERV], b[NI_MAXSERV];
 
