@@ -47,6 +47,8 @@ options		ALT_BREAK_TO_DEBUGGER
 # XXX can we conditionalize the linker stuff on options CFE?
 options		KERNVIRTADDR=0x80001000
 
+makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
+
 #makeoptions	ARCH_FLAGS=-march=mips32
 makeoptions	MIPS_LITTLE_ENDIAN=defined
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
