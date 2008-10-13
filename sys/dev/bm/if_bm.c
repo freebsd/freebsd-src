@@ -1119,21 +1119,25 @@ bm_chip_setup(struct bm_softc *sc)
 {
 	uint16_t reg;
 	uint16_t *eaddr_sect;
-	char hrow_path[128];
-	ihandle_t hrow_ih;
+	char path[128];
+	ihandle_t bmac_ih;
 
 	eaddr_sect = (uint16_t *)(sc->sc_enaddr);
 
-	/* Enable BMAC cell */
-	OF_package_to_path(OF_parent(ofw_bus_get_node(sc->sc_dev)),
-	    hrow_path, sizeof(hrow_path));
-	hrow_ih = OF_open(hrow_path);
-	if (hrow_ih == -1) {
+	/* 
+	 * Enable BMAC cell by opening and closing its OF node. This enables 
+	 * the cell in macio as a side effect. We should probably directly 
+	 * twiddle the FCR bits, but we lack a good interface for this at the
+	 * present time. 
+	 */
+
+	OF_package_to_path(ofw_bus_get_node(sc->sc_dev), path, sizeof(path));
+	bmac_ih = OF_open(path);
+	if (bmac_ih == -1) {
 		device_printf(sc->sc_dev,
 		    "Enabling BMAC cell failed! Hoping it's already active.\n");
 	} else {
-		OF_call_method("enable-enet", hrow_ih, 0, 0);
-		OF_close(hrow_ih);
+		OF_close(bmac_ih);
 	}
 
 	/* Reset chip */
