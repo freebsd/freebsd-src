@@ -864,6 +864,13 @@ cgaccount(cg, vp, nbp, passno)
 	}
 	UFS_LOCK(ip->i_ump);
 	ACTIVESET(fs, cg);
+	/*
+	 * Recomputation of summary information might not have been performed
+	 * at mount time.  Sync up summary information for current cylinder
+	 * group while data is in memory to ensure that result of background
+	 * fsck is slightly more consistent.
+	 */
+	fs->fs_cs(fs, cg) = cgp->cg_cs;
 	UFS_UNLOCK(ip->i_ump);
 	bcopy(bp->b_data, nbp->b_data, fs->fs_cgsize);
 	if (fs->fs_cgsize < fs->fs_bsize)
