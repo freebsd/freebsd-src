@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-static void check_maps(u_char *, u_char *, int, int, const char *, int *, int, int);
+static void check_maps(u_char *, u_char *, int, ufs2_daddr_t, const char *, int *, int, int);
 
 void
 pass5(void)
@@ -321,13 +321,17 @@ pass5(void)
 			}
 			if (excessdirs > 0)
 				check_maps(cg_inosused(newcg), cg_inosused(cg),
-				    inomapsize, cg->cg_cgx * fs->fs_ipg, "DIR",
+				    inomapsize,
+				    cg->cg_cgx * (ufs2_daddr_t) fs->fs_ipg,
+				    "DIR",
 				    freedirs, 0, excessdirs);
 			check_maps(cg_inosused(newcg), cg_inosused(cg),
-			    inomapsize, cg->cg_cgx * fs->fs_ipg, "FILE",
+			    inomapsize,
+			    cg->cg_cgx * (ufs2_daddr_t) fs->fs_ipg, "FILE",
 			    freefiles, excessdirs, fs->fs_ipg);
 			check_maps(cg_blksfree(cg), cg_blksfree(newcg),
-			    blkmapsize, cg->cg_cgx * fs->fs_fpg, "FRAG",
+			    blkmapsize,
+			    cg->cg_cgx * (ufs2_daddr_t) fs->fs_fpg, "FRAG",
 			    freeblks, 0, fs->fs_fpg);
 		}
 		if (cursnapshot == 0 &&
@@ -407,7 +411,7 @@ check_maps(
 	u_char *map1,	/* map of claimed allocations */
 	u_char *map2,	/* map of determined allocations */
 	int mapsize,	/* size of above two maps */
-	int startvalue,	/* resource value for first element in map */
+	ufs2_daddr_t startvalue, /* resource value for first element in map */
 	const char *name,	/* name of resource found in maps */
 	int *opcode,	/* sysctl opcode to free resource */
 	int skip,	/* number of entries to skip before starting to free */
@@ -415,8 +419,8 @@ check_maps(
 {
 #	define BUFSIZE 16
 	char buf[BUFSIZE];
-	long i, j, k, l, m, n, size;
-	int astart, aend, ustart, uend;
+	long i, j, k, l, m, size;
+	ufs2_daddr_t n, astart, aend, ustart, uend;
 	void (*msg)(const char *fmt, ...);
 
 	if (bkgrdflag)
@@ -443,10 +447,12 @@ check_maps(
 					continue;
 				}
 				if (astart == aend)
-					(*msg)("ALLOCATED %s %d MARKED FREE\n",
+					(*msg)("ALLOCATED %s %" PRId64
+					    " MARKED FREE\n",
 					    name, astart);
 				else
-					(*msg)("%s %sS %d-%d MARKED FREE\n",
+					(*msg)("%s %sS %" PRId64 "-%" PRId64
+					    " MARKED FREE\n",
 					    "ALLOCATED", name, astart, aend);
 				astart = aend = n;
 			} else {
@@ -472,10 +478,12 @@ check_maps(
 				if (size > limit)
 					size = limit;
 				if (debug && size == 1)
-					pwarn("%s %s %d MARKED USED\n",
+					pwarn("%s %s %" PRId64
+					    " MARKED USED\n",
 					    "UNALLOCATED", name, ustart);
 				else if (debug)
-					pwarn("%s %sS %d-%ld MARKED USED\n",
+					pwarn("%s %sS %" PRId64 "-%" PRId64
+					    " MARKED USED\n",
 					    "UNALLOCATED", name, ustart,
 					    ustart + size - 1);
 				if (bkgrdflag != 0) {
@@ -497,9 +505,11 @@ check_maps(
 	}
 	if (astart != -1) {
 		if (astart == aend)
-			(*msg)("ALLOCATED %s %d MARKED FREE\n", name, astart);
+			(*msg)("ALLOCATED %s %" PRId64
+			    " MARKED FREE\n", name, astart);
 		else
-			(*msg)("ALLOCATED %sS %d-%d MARKED FREE\n",
+			(*msg)("ALLOCATED %sS %" PRId64 "-%" PRId64
+			    " MARKED FREE\n",
 			    name, astart, aend);
 	}
 	if (ustart != -1) {
@@ -514,10 +524,12 @@ check_maps(
 			size = limit;
 		if (debug) {
 			if (size == 1)
-				pwarn("UNALLOCATED %s %d MARKED USED\n",
+				pwarn("UNALLOCATED %s %" PRId64
+				    " MARKED USED\n",
 				    name, ustart);
 			else
-				pwarn("UNALLOCATED %sS %d-%ld MARKED USED\n",
+				pwarn("UNALLOCATED %sS %" PRId64 "-%" PRId64
+				    " MARKED USED\n",
 				    name, ustart, ustart + size - 1);
 		}
 		if (bkgrdflag != 0) {
