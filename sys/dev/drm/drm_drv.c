@@ -283,7 +283,7 @@ static int drm_lastclose(struct drm_device *dev)
 		drm_irq_uninstall(dev);
 
 	if (dev->unique) {
-		free(dev->unique, M_DRM);
+		free(dev->unique, DRM_MEM_DRIVER);
 		dev->unique = NULL;
 		dev->unique_len = 0;
 	}
@@ -291,7 +291,7 @@ static int drm_lastclose(struct drm_device *dev)
 	for (i = 0; i < DRM_HASH_SIZE; i++) {
 		for (pt = dev->magiclist[i].head; pt; pt = next) {
 			next = pt->next;
-			free(pt, M_DRM);
+			free(pt, DRM_MEM_MAGIC);
 		}
 		dev->magiclist[i].head = dev->magiclist[i].tail = NULL;
 	}
@@ -313,7 +313,7 @@ static int drm_lastclose(struct drm_device *dev)
 			if (entry->bound)
 				drm_agp_unbind_memory(entry->handle);
 			drm_agp_free_memory(entry->handle);
-			free(entry, M_DRM);
+			free(entry, DRM_MEM_AGPLISTS);
 		}
 		dev->agp->memory = NULL;
 
@@ -482,7 +482,7 @@ static void drm_unload(struct drm_device *dev)
 	}
 
 	if (dev->agp) {
-		free(dev->agp, M_DRM);
+		free(dev->agp, DRM_MEM_AGPLISTS);
 		dev->agp = NULL;
 	}
 
@@ -626,7 +626,7 @@ void drm_close(void *data)
 	if (dev->driver->postclose != NULL)
 		dev->driver->postclose(dev, file_priv);
 	TAILQ_REMOVE(&dev->files, file_priv, link);
-	free(file_priv, M_DRM);
+	free(file_priv, DRM_MEM_FILES);
 
 	/* ========================================================
 	 * End inline drm_release

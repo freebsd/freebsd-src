@@ -72,7 +72,7 @@ tdfx_attach(device_t nbdev)
 {
 	struct drm_device *dev = device_get_softc(nbdev);
 
-	dev->driver = malloc(sizeof(struct drm_driver_info), M_DRM,
+	dev->driver = malloc(sizeof(struct drm_driver_info), DRM_MEM_DRIVER,
 	    M_WAITOK | M_ZERO);
 
 	tdfx_configure(dev);
@@ -88,7 +88,7 @@ tdfx_detach(device_t nbdev)
 
 	ret = drm_detach(nbdev);
 
-	free(dev->driver, M_DRM);
+	free(dev->driver, DRM_MEM_DRIVER);
 
 	return ret;
 }

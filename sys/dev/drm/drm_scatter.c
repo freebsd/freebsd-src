@@ -43,9 +43,9 @@ __FBSDID("$FreeBSD$");
 
 void drm_sg_cleanup(drm_sg_mem_t *entry)
 {
-	free((void *)entry->handle, M_DRM);
-	free(entry->busaddr, M_DRM);
-	free(entry, M_DRM);
+	free((void *)entry->handle, DRM_MEM_PAGES);
+	free(entry->busaddr, DRM_MEM_PAGES);
+	free(entry, DRM_MEM_SGLISTS);
 }
 
 int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
@@ -57,7 +57,7 @@ int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 	if (dev->sg)
 		return EINVAL;
 
-	entry = malloc(sizeof(*entry), M_DRM, M_WAITOK | M_ZERO);
+	entry = malloc(sizeof(*entry), DRM_MEM_SGLISTS, M_WAITOK | M_ZERO);
 	if (!entry)
 		return ENOMEM;
 
@@ -66,14 +66,14 @@ int drm_sg_alloc(struct drm_device * dev, struct drm_scatter_gather * request)
 
 	entry->pages = pages;
 
-	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), M_DRM,
+	entry->busaddr = malloc(pages * sizeof(*entry->busaddr), DRM_MEM_PAGES,
 	    M_WAITOK | M_ZERO);
 	if (!entry->busaddr) {
 		drm_sg_cleanup(entry);
 		return ENOMEM;
 	}
 
-	entry->handle = (long)malloc(pages << PAGE_SHIFT, M_DRM,
+	entry->handle = (long)malloc(pages << PAGE_SHIFT, DRM_MEM_PAGES,
 	    M_WAITOK | M_ZERO);
 	if (entry->handle == 0) {
 		drm_sg_cleanup(entry);
