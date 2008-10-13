@@ -45,6 +45,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sbuf.h>
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
@@ -81,14 +82,11 @@ extern struct sysentvec ia32_freebsd_sysvec;
 int
 procfs_doprocmap(PFS_FILL_ARGS)
 {
-	int len;
 	int error, vfslocked;
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry, tmp_entry;
+	vm_map_entry_t entry;
 	struct vnode *vp;
-	char mebuffer[MEBUFFERSIZE];
 	char *fullpath, *freepath;
-	unsigned int last_timestamp;
 #ifdef COMPAT_IA32
 	int wrap32 = 0;
 #endif
@@ -102,9 +100,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-	if (uio->uio_offset != 0)
-		return (0);
-
 #ifdef COMPAT_IA32
         if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
                 if (p->p_sysent != &ia32_freebsd_sysvec)
@@ -114,9 +109,8 @@ procfs_doprocmap(PFS_FILL_ARGS)
 #endif
 
 	vm_map_lock_read(map);
-	for (entry = map->header.next;
-		((uio->uio_resid > 0) && (entry != &map->header));
-		entry = entry->next) {
+	for (entry = map->header.next; entry != &map->header;
+	     entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		int ref_count, shadow_count, flags;
 		vm_offset_t addr;
@@ -198,7 +192,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		 * format:
 		 *  start, end, resident, private resident, cow, access, type.
 		 */
-		snprintf(mebuffer, sizeof mebuffer,
+		error = sbuf_printf(sb,
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s\n",
 			(u_long)entry->start, (u_long)entry->end,
 			resident, privateresident,
@@ -218,25 +212,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
-		len = strlen(mebuffer);
-		if (len > uio->uio_resid) {
-			error = EFBIG;
+		if (error == -1) {
+			error = 0;
 			break;
-		}
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
-		error = uiomove(mebuffer, len, uio);
-		vm_map_lock_read(map);
-		if (error)
-			break;
-		if (last_timestamp + 1 != map->timestamp) {
-			/*
-			 * Look again for the entry because the map was
-			 * modified while it was unlocked.  Specifically,
-			 * the entry may have been clipped, merged, or deleted.
-			 */
-			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
-			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
