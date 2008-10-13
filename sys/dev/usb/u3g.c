@@ -1,8 +1,8 @@
 /*
  * Copyright (c) 2008 AnyWi Technologies
- *   Author: Andrea Guzzo <aguzzo@anywi.com>
- *   * based on uark.c 1.1 2006/08/14 08:30:22 jsg *
- *   * parts from ubsa.c 183348 2008-09-25 12:00:56Z phk *
+ * Author: Andrea Guzzo <aguzzo@anywi.com>
+ * * based on uark.c 1.1 2006/08/14 08:30:22 jsg *
+ * * parts from ubsa.c 183348 2008-09-25 12:00:56Z phk *
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,31 +41,33 @@
 #include "usbdevs.h"
 
 #ifdef U3G_DEBUG
-#define DPRINTFN(n, x)    do { if (u3gdebug > (n)) printf x; } while (0)
-int    u3gtebug = 0;
+#define DPRINTFN(n, x)	do { if (u3gdebug > (n)) printf x; } while (0)
+int	u3gtebug = 0;
 #else
 #define DPRINTFN(n, x)
 #endif
 #define DPRINTF(x) DPRINTFN(0, x)
 
-#define U3GBUFSZ        1024
-#define U3G_MAXPORTS           4
+#define U3G_BUFSIZ		1024
+#define U3G_MAXPORTS		4
+#define U3G_CONFIG_INDEX	0
 
 struct u3g_softc {
-	struct ucom_softc           sc_ucom[U3G_MAXPORTS];;
-	device_t                    sc_dev;
-	usbd_device_handle          sc_udev;
-	u_char                      sc_msr;
-	u_char                      sc_lsr;
-	u_char                      numports;
+	struct ucom_softc	sc_ucom[U3G_MAXPORTS];;
+	device_t		sc_dev;
+	usbd_device_handle	sc_udev;
+	u_int16_t		sc_flags;
+	u_char			sc_msr;
+	u_char			sc_lsr;
+	u_char			numports;
 
-	usbd_interface_handle       sc_intr_iface;   /* interrupt interface */
+	usbd_interface_handle	sc_intr_iface;	/* interrupt interface */
 #ifdef U3G_DEBUG
-	int                         sc_intr_number;  /* interrupt number */
-	usbd_pipe_handle            sc_intr_pipe;    /* interrupt pipe */
-	u_char                      *sc_intr_buf;    /* interrupt buffer */
+	int			sc_intr_number;	/* interrupt number */
+	usbd_pipe_handle	sc_intr_pipe;	/* interrupt pipe */
+	u_char			*sc_intr_buf;	/* interrupt buffer */
 #endif
-	int                         sc_isize;
+	int			sc_isize;
 };
 
 struct ucom_callback u3g_callback = {
@@ -79,49 +81,79 @@ struct ucom_callback u3g_callback = {
 	NULL,
 };
 
-static const struct usb_devno u3g_devs[] = {
-	/* OEM: Option */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },
-	/* OEM: Huawei */
-	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },
-	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },
-	/* OEM: Qualcomm */
-	{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },
 
-	{ 0, 0 }
+/*
+ * Various supported device vendors/products.
+ */
+struct u3g_dev_type_s {
+	struct usb_devno	u3g_dev;
+	u_int16_t		u3g_flags;
+#define U3GFL_NONE		0x0000
+#define U3GFL_HUAWEI_INIT	0x0001		/* Send USB command to reset iface to ucom mode */
+#define U3GFL_EJECT		0x0002		/* Send SCSI eject to reset first iface to ucom mode */
 };
+
+static const struct u3g_dev_type_s u3g_devs[] = {
+	/* OEM: Option */
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GFL_NONE},
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },		U3GFL_NONE},
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },		U3GFL_NONE},
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },		U3GFL_NONE},
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GFL_NONE},
+	/* OEM: Qualcomm, Inc. */
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GFL_EJECT},
+	/* OEM: Huawei */
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GFL_HUAWEI_INIT},
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GFL_HUAWEI_INIT},
+	/* OEM: Novatel */
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U950D },		U3GFL_EJECT },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870 },		U3GFL_NONE },
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870 },		U3GFL_NONE },
+	{{ USB_VENDOR_DELL,    USB_PRODUCT_DELL_U740 },			U3GFL_NONE },
+};
+#define u3g_lookup(v, p) ((const struct u3g_dev_type_s *)usb_lookup(u3g_devs, v, p))
 
 #ifdef U3G_DEBUG
 static void
 u3g_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 {
 	struct u3g_softc *sc = (struct u3g_softc *)priv;
-	device_printf(sc->sc_dev, "INTERRUPT CALLBACK\n");
+	device_printf(sc->sc_dev, "Interrupt callback\n");
 }
 #endif
 
 static int
-u3g_huawei_reinit(usbd_device_handle dev)
+u3g_huawei_reinit(usbd_device_handle dev, usbd_interface_handle iface)
 {
 	/* The Huawei device presents itself as a umass device with Windows
 	 * drivers on it. After installation of the driver, it reinits into a
 	 * 3G serial device.
 	 */
 	usb_device_request_t req;
-	usb_config_descriptor_t *cdesc;
+	usb_interface_descriptor_t *idesc;
 
-	/* Get the config descriptor */
-	cdesc = usbd_get_config_descriptor(dev);
-	if (cdesc == NULL)
-		return (UMATCH_NONE);
+	if (iface == NULL)
+		return UMATCH_NONE;
+	idesc = usbd_get_interface_descriptor(iface);
+	if (idesc == NULL)
+		return UMATCH_NONE;
 
-	/* One iface means umass mode, more than 1 (4 usually) means 3G mode */
-	if (cdesc->bNumInterface > 1)
-		return (UMATCH_VENDOR_PRODUCT);
+	/* If the interface class is no longer mass storage it has changed
+	 * appearance and we should attach it.
+	 */
+	if (idesc->bInterfaceClass == UICLASS_VENDOR)
+		return (UMATCH_VENDOR_PRODUCT_CONF_IFACE);
 
 	req.bmRequestType = UT_WRITE_DEVICE;
 	req.bRequest = UR_SET_FEATURE;
@@ -139,15 +171,14 @@ u3g_match(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 
-	if (uaa->iface != NULL)
-		return (UMATCH_NONE);
+	const struct u3g_dev_type_s *u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
+	if (u3g_dev_type) {
+		if (u3g_dev_type->u3g_flags & U3GFL_HUAWEI_INIT)
+			return u3g_huawei_reinit(uaa->device, uaa->iface);
+		else
+			return UMATCH_VENDOR_PRODUCT;
+	}
 
-	if (uaa->vendor == USB_VENDOR_HUAWEI)
-		return u3g_huawei_reinit(uaa->device);
-
-	if (usb_lookup(u3g_devs, uaa->vendor, uaa->product))
-		return UMATCH_VENDOR_PRODUCT;
-	
 	return UMATCH_NONE;
 }
 
@@ -172,7 +203,7 @@ u3g_attach(device_t self)
 	sc->sc_intr_pipe = NULL;
 #endif
 	/* Move the device into the configured state. */
-	error = usbd_set_config_index(dev, 1, 1);
+	error = usbd_set_config_index(dev, U3G_CONFIG_INDEX, 1);
 	if (error) {
 		device_printf(self, "failed to set configuration: %s\n",
 			      usbd_errstr(error));
@@ -210,14 +241,14 @@ u3g_attach(device_t self)
 			ed = usbd_interface2endpoint_descriptor(iface, n);
 			if (ed == NULL) {
 				device_printf(ucom->sc_dev,
-					"could not read endpoint descriptor\n");
+					      "could not read endpoint descriptor\n");
 				goto bad;
 			}
-			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
-			    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK)
+			if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN
+			    && UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK)
 				ucom->sc_bulkin_no = ed->bEndpointAddress;
-			else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT &&
-			    UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK)
+			else if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT
+				 && UE_GET_XFERTYPE(ed->bmAttributes) == UE_BULK)
 				ucom->sc_bulkout_no = ed->bEndpointAddress;
 		}
 		if (ucom->sc_bulkin_no == -1 || ucom->sc_bulkout_no == -1) {
@@ -225,9 +256,9 @@ u3g_attach(device_t self)
 			goto bad;
 		}
 		ucom->sc_parent = sc;
-		ucom->sc_ibufsize = U3GBUFSZ;
-		ucom->sc_obufsize = U3GBUFSZ;
-		ucom->sc_ibufsizepad = U3GBUFSZ;
+		ucom->sc_ibufsize = U3G_BUFSIZ;
+		ucom->sc_obufsize = U3G_BUFSIZ;
+		ucom->sc_ibufsizepad = U3G_BUFSIZ;
 		ucom->sc_opkthdrlen = 0;
 
 		ucom->sc_callback = &u3g_callback;
@@ -254,14 +285,14 @@ u3g_attach(device_t self)
 					    u3g_intr,
 					    100);
 		if (error) {
-		    device_printf(self,
-			    "cannot open interrupt pipe (addr %d)\n",
-			    sc->sc_intr_number);
-		    goto bad;
+			device_printf(self,
+				      "cannot open interrupt pipe (addr %d)\n",
+				      sc->sc_intr_number);
+			goto bad;
 		}
 	}
 #endif
-	device_printf(self, "configured %d serial ports (/dev/cuaU%d.X)",
+	device_printf(self, "configured %d serial ports (/dev/cuaU%d.X)\n",
 		      sc->numports, device_get_unit(self));
 
 	return 0;
@@ -286,7 +317,7 @@ u3g_detach(device_t self)
 			sc->sc_ucom[i].sc_dying = 1;
 			rv = ucom_detach(&sc->sc_ucom[i]);
 			if(rv != 0) {
-				device_printf(self, "Can't deallocat port %d", i);
+				device_printf(self, "Can't deallocat port %d\n", i);
 				return rv;
 			}
 		}
@@ -302,8 +333,8 @@ u3g_detach(device_t self)
 		err = usbd_close_pipe(sc->sc_intr_pipe);
 		if (err)
 			device_printf(self,
-			    "close interrupt pipe failed: %s\n",
-			    usbd_errstr(err));
+				      "close interrupt pipe failed: %s\n",
+				      usbd_errstr(err));
 		free(sc->sc_intr_buf, M_USBDEV);
 		sc->sc_intr_pipe = NULL;
 	}
