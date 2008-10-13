@@ -3850,21 +3850,19 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 
 	mtx_lock(&cmtx);
 	/*
-	 * Hook in the page, zero it, and purge the cache for that
-	 * zeroed page. Invalidate the TLB as needed.
+	 * Hook in the page, zero it, invalidate the TLB as needed.
+	 *
+	 * Note the temporary zero-page mapping must be a non-cached page in
+	 * ordert to work without corruption when write-allocate is enabled.
 	 */
-	*cdst_pte = L2_S_PROTO | phys |
-	    L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE) | pte_l2_s_cache_mode;
-	PTE_SYNC(cdst_pte);
+	*cdst_pte = L2_S_PROTO | phys | L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE);
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
-	if (off || size != PAGE_SIZE) {
+	if (off || size != PAGE_SIZE)
 		bzero((void *)(cdstp + off), size);
-		cpu_dcache_wbinv_range(cdstp + off, size);
-	} else {
+	else
 		bzero_page(cdstp);
-		cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
-	}
+
 	mtx_unlock(&cmtx);
 #endif
 }
