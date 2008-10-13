@@ -245,6 +245,8 @@ ENTRY_NP(cpu_halt)
 	ldr	r0, .Lcpufuncs
 	mov	lr, pc
 	ldr	pc, [r0, #CF_IDCACHE_WBINV_ALL]
+	mov	lr, pc
+	ldr	pc, [r0, #CF_L2CACHE_WBINV_ALL]
 
 	/*
 	 * Load the cpu_reset_needs_v4_MMU_disable flag to determine if it's
