@@ -215,6 +215,7 @@ elf_cpu_load_file(linker_file_t lf __unused)
 {
 
 	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 	cpu_tlb_flushID();
 	return (0);
 }
