@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 int drm_dma_setup(struct drm_device *dev)
 {
 
-	dev->dma = malloc(sizeof(*dev->dma), M_DRM, M_NOWAIT | M_ZERO);
+	dev->dma = malloc(sizeof(*dev->dma), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (dev->dma == NULL)
 		return ENOMEM;
 
@@ -70,21 +70,21 @@ void drm_dma_takedown(struct drm_device *dev)
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
 				drm_pci_free(dev, dma->bufs[i].seglist[j]);
 			}
-			free(dma->bufs[i].seglist, M_DRM);
+			free(dma->bufs[i].seglist, DRM_MEM_SEGS);
 		}
 
 	   	if (dma->bufs[i].buf_count) {
 		   	for (j = 0; j < dma->bufs[i].buf_count; j++) {
 				free(dma->bufs[i].buflist[j].dev_private,
-				    M_DRM);
+				    DRM_MEM_BUFS);
 			}
-		   	free(dma->bufs[i].buflist, M_DRM);
+		   	free(dma->bufs[i].buflist, DRM_MEM_BUFS);
 		}
 	}
 
-	free(dma->buflist, M_DRM);
-	free(dma->pagelist, M_DRM);
-	free(dev->dma, M_DRM);
+	free(dma->buflist, DRM_MEM_BUFS);
+	free(dma->pagelist, DRM_MEM_PAGES);
+	free(dev->dma, DRM_MEM_DRIVER);
 	dev->dma = NULL;
 	DRM_SPINUNINIT(&dev->dma_lock);
 }

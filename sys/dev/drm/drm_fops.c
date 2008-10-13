@@ -53,14 +53,14 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 
 	DRM_DEBUG("pid = %d, minor = %d\n", DRM_CURRENTPID, m);
 
-	priv = malloc(sizeof(*priv), M_DRM, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), DRM_MEM_FILES, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		return ENOMEM;
 	}
 
 	retcode = devfs_set_cdevpriv(priv, drm_close);
 	if (retcode != 0) {
-		free(priv, M_DRM);
+		free(priv, DRM_MEM_FILES);
 		return retcode;
 	}
 
@@ -79,7 +79,7 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		retcode = -dev->driver->open(dev, priv);
 		if (retcode != 0) {
 			devfs_clear_cdevpriv();
-			free(priv, M_DRM);
+			free(priv, DRM_MEM_FILES);
 			DRM_UNLOCK();
 			return retcode;
 		}
