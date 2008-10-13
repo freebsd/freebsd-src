@@ -151,6 +151,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
@@ -1196,27 +1197,104 @@ pmap_tlb_flushD(pmap_t pm)
 }
 
 static PMAP_INLINE void
-pmap_idcache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
+pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 {
+	vm_size_t rest;
+	pd_entry_t *pde;
+	pt_entry_t *ptep;
 
-	if (pmap_is_current(pm))
-		cpu_idcache_wbinv_range(va, len);
+	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+
+	while (len > 0) {
+		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
+		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
+		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
+		    cpu_l2cache_wb_range(va, rest);
+
+		len -= rest;
+		va += rest;
+
+		rest = MIN(PAGE_SIZE, len);
+	}
 }
 
 static PMAP_INLINE void
-pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len,
-    boolean_t do_inv, boolean_t rd_only)
+pmap_idcache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 {
 
 	if (pmap_is_current(pm)) {
+		cpu_idcache_wbinv_range(va, len);
+		pmap_l2cache_wbinv_range(pm, va, len);
+	}
+}
+
+static PMAP_INLINE void
+pmap_l2cache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len)
+{
+	vm_size_t rest;
+	pd_entry_t *pde;
+	pt_entry_t *ptep;
+
+	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+
+	while (len > 0) {
+		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
+		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
+		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
+		    cpu_l2cache_wb_range(va, rest);
+
+		len -= rest;
+		va += rest;
+
+		rest = MIN(PAGE_SIZE, len);
+	}
+}
+
+static PMAP_INLINE void
+pmap_l2cache_inv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
+{
+	vm_size_t rest;
+	pd_entry_t *pde;
+	pt_entry_t *ptep;
+
+	rest = MIN(PAGE_SIZE - (va & PAGE_MASK), len);
+
+	while (len > 0) {
+		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
+		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
+		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep)) 
+		    cpu_l2cache_inv_range(va, rest);
+
+		len -= rest;
+		va += rest;
+
+		rest = MIN(PAGE_SIZE, len);
+	}
+}
+
+static PMAP_INLINE void
+pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
+    boolean_t rd_only)
+{
+	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
+	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
+	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
+
+	if (pmap_is_current(pm)) {
 		if (do_inv) {
-			if (rd_only)
+			if (rd_only) {
 				cpu_dcache_inv_range(va, len);
-			else
+				pmap_l2cache_inv_range(pm, va, len);
+			}
+			else {
 				cpu_dcache_wbinv_range(va, len);
+				pmap_l2cache_wbinv_range(pm, va, len);
+			}
 		} else
-		if (!rd_only)
+		if (!rd_only) {
 			cpu_dcache_wb_range(va, len);
+			pmap_l2cache_wb_range(pm, va, len);
+		}
 	}
 }
 
@@ -1224,16 +1302,20 @@ static PMAP_INLINE void
 pmap_idcache_wbinv_all(pmap_t pm)
 {
 
-	if (pmap_is_current(pm))
+	if (pmap_is_current(pm)) {
 		cpu_idcache_wbinv_all();
+		cpu_l2cache_wbinv_all();
+	}
 }
 
 static PMAP_INLINE void
 pmap_dcache_wbinv_all(pmap_t pm)
 {
 
-	if (pmap_is_current(pm))
+	if (pmap_is_current(pm)) {
 		cpu_dcache_wbinv_all();
+		cpu_l2cache_wbinv_all();
+	}
 }
 
 /*
@@ -2169,6 +2251,8 @@ pmap_set_pt_cache_mode(pd_entry_t *kl1, vm_offset_t va)
 			PTE_SYNC(pdep);
 			cpu_dcache_wbinv_range((vm_offset_t)pdep,
 			    sizeof(*pdep));
+			cpu_l2cache_wbinv_range((vm_offset_t)pdep,
+			    sizeof(*pdep));
 			rv = 1;
 		}
 	} else {
@@ -2184,6 +2268,8 @@ pmap_set_pt_cache_mode(pd_entry_t *kl1, vm_offset_t va)
 			    pte_l2_s_cache_mode_pt;
 			PTE_SYNC(ptep);
 			cpu_dcache_wbinv_range((vm_offset_t)ptep,
+			    sizeof(*ptep));
+			cpu_l2cache_wbinv_range((vm_offset_t)ptep,
 			    sizeof(*ptep));
 			rv = 1;
 		}
@@ -2337,6 +2423,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	}
 
 	cpu_dcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 	cpu_tlb_flushID();
 	cpu_cpwait();
 
@@ -2373,6 +2460,7 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 	mtx_init(&l1_lru_lock, "l1 list lock", NULL, MTX_DEF);
 	pmap_init_l1(l1, kernel_l1pt);
 	cpu_dcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 
 	virtual_avail = round_page(virtual_avail);
 	virtual_end = lastaddr;
@@ -2402,6 +2490,7 @@ pmap_release(pmap_t pmap)
 	struct pcb *pcb;
 	
 	pmap_idcache_wbinv_all(pmap);
+	cpu_l2cache_wbinv_all();
 	pmap_tlb_flushID(pmap);
 	cpu_cpwait();
 	if (vector_page < KERNBASE) {
@@ -2589,6 +2678,7 @@ pmap_growkernel(vm_offset_t addr)
 	 * rarely
 	 */
 	cpu_dcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 	cpu_tlb_flushD();
 	cpu_cpwait();
 	kernel_vm_end = pmap_curmaxkvaddr;
@@ -2614,6 +2704,7 @@ pmap_remove_pages(pmap_t pmap)
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
 	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 		if (pv->pv_flags & PVF_WIRED) {
 			/* The page is wired, cannot remove it now. */
@@ -2726,6 +2817,7 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 	    (uint32_t) pte, opte, *pte));
 	if (l2pte_valid(opte)) {
 		cpu_dcache_wbinv_range(va, PAGE_SIZE);
+		cpu_l2cache_wbinv_range(va, PAGE_SIZE);
 		cpu_tlb_flushD_SE(va);
 		cpu_cpwait();
 	} else {
@@ -2784,6 +2876,7 @@ pmap_kremove(vm_offset_t va)
 	opte = *pte;
 	if (l2pte_valid(opte)) {
 		cpu_dcache_wbinv_range(va, PAGE_SIZE);
+		cpu_l2cache_wbinv_range(va, PAGE_SIZE);
 		cpu_tlb_flushD_SE(va);
 		cpu_cpwait();
 		*pte = 0;
@@ -3052,6 +3145,9 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	u_int flags;
 	int flush;
 
+	CTR4(KTR_PMAP, "pmap_protect: pmap %p sva 0x%08x eva 0x%08x prot %x",
+	    pm, sva, eva, prot);
+
 	if ((prot & VM_PROT_READ) == 0) {
 		pmap_remove(pm, sva, eva);
 		return;
@@ -3286,9 +3382,11 @@ do_l2b_alloc:
 		 */
 		if (pmap_is_current(pmap) &&
 		    (oflags & PVF_NC) == 0 &&
-			    (opte & L2_S_PROT_W) != 0 &&
-			    (prot & VM_PROT_WRITE) == 0)
+		    (opte & L2_S_PROT_W) != 0 &&
+		    (prot & VM_PROT_WRITE) == 0) {
 			cpu_dcache_wb_range(va, PAGE_SIZE);
+			pmap_l2cache_wb_range(pmap, va, PAGE_SIZE);
+		}
 	} else {
 		/*
 		 * New mapping, or changing the backing page
@@ -3777,11 +3875,15 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 					total++;
 			   		if (is_exec) {
         					cpu_idcache_wbinv_range(sva,
-								 PAGE_SIZE);
+						    PAGE_SIZE);
+						cpu_l2cache_wbinv_range(sva,
+						    PAGE_SIZE);
 						cpu_tlb_flushID_SE(sva);
 			   		} else if (is_refd) {
 						cpu_dcache_wbinv_range(sva,
-								 PAGE_SIZE);
+						    PAGE_SIZE);
+						cpu_l2cache_wbinv_range(sva,
+						    PAGE_SIZE);
 						cpu_tlb_flushD_SE(sva);
 					}
 				} else if (total == PMAP_REMOVE_CLEAN_LIST_SIZE) {
@@ -3789,6 +3891,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 					 * for a current pmap
 					 */
 					cpu_idcache_wbinv_all();
+					cpu_l2cache_wbinv_all();
 					flushall = 1;
 					total++;
 				}
@@ -3842,9 +3945,11 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	if (off || size != PAGE_SIZE) {
 		bzero(dstpg + off, size);
 		cpu_dcache_wbinv_range((vm_offset_t)(dstpg + off), size);
+		cpu_l2cache_wbinv_range((vm_offset_t)(dstpg + off), size);
 	} else {
 		bzero_page((vm_offset_t)dstpg);
 		cpu_dcache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
+		cpu_l2cache_wbinv_range((vm_offset_t)dstpg, PAGE_SIZE);
 	}
 #else
 
@@ -4139,6 +4244,8 @@ pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 	mtx_unlock(&cmtx);
 	cpu_dcache_inv_range(csrcp, PAGE_SIZE);
 	cpu_dcache_wbinv_range(cdstp, PAGE_SIZE);
+	cpu_l2cache_inv_range(csrcp, PAGE_SIZE);
+	cpu_l2cache_wbinv_range(cdstp, PAGE_SIZE);
 }
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
@@ -4201,6 +4308,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 #endif
 
 	cpu_dcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 	if (_arm_memcpy && PAGE_SIZE >= _min_memcpy_size &&
 	    _arm_memcpy((void *)VM_PAGE_TO_PHYS(dst), 
 	    (void *)VM_PAGE_TO_PHYS(src), PAGE_SIZE, IS_PHYSICAL) == 0)
@@ -4210,6 +4318,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	dstpg = arm_ptovirt(VM_PAGE_TO_PHYS(dst));
 	bcopy_page(srcpg, dstpg);
 	cpu_dcache_wbinv_range(dstpg, PAGE_SIZE);
+	cpu_l2cache_wbinv_range(dstpg, PAGE_SIZE);
 #else
 	pmap_copy_page_func(VM_PAGE_TO_PHYS(src), VM_PAGE_TO_PHYS(dst));
 #endif
