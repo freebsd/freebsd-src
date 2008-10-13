@@ -822,6 +822,13 @@
 	2200BG/2915ABG MiniPCI and 2225BG PCI network adapters
 	(&man.iwi.4; driver)</para>
 
+      <para>[&arch.i386;, &arch.amd64;] Intel Wireless WiFi Link
+	4965AGN IEEE 802.11n PCI network adapters
+	(&man.iwn.4; driver)</para>
+
+      <para>[&arch.i386;, &arch.amd64;] Marvell Libertas IEEE 802.11b/g
+        PCI network adapters (&man.malo.4; driver)</para>
+
       &hwlist.ral;
 
       <para>[&arch.i386;, &arch.pc98;] Raytheon Raylink 2.4GHz
