@@ -460,26 +460,31 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	 */
 	if (iir & I915_DISPLAY_PIPE_A_EVENT_INTERRUPT) {
 		pipea_stats = I915_READ(PIPEASTAT);
-		if (pipea_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
-				   PIPE_VBLANK_INTERRUPT_STATUS))
+
+		/* The vblank interrupt gets enabled even if we didn't ask for
+		   it, so make sure it's shut down again */
+		if (!(dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_A))
+			pipea_stats &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
+					 PIPE_VBLANK_INTERRUPT_ENABLE);
+		else if (pipea_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
+					PIPE_VBLANK_INTERRUPT_STATUS))
 		{
 			vblank++;
 			drm_handle_vblank(dev, i915_get_plane(dev, 0));
 		}
+
 		I915_WRITE(PIPEASTAT, pipea_stats);
 	}
 	if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT) {
 		pipeb_stats = I915_READ(PIPEBSTAT);
-		/* Ack the event */
-		I915_WRITE(PIPEBSTAT, pipeb_stats);
 
 		/* The vblank interrupt gets enabled even if we didn't ask for
 		   it, so make sure it's shut down again */
 		if (!(dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_B))
-			pipeb_stats &= ~(I915_VBLANK_INTERRUPT_ENABLE);
-
-		if (pipeb_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
-				   PIPE_VBLANK_INTERRUPT_STATUS))
+			pipeb_stats &= ~(PIPE_START_VBLANK_INTERRUPT_ENABLE |
+					 PIPE_VBLANK_INTERRUPT_ENABLE);
+		else if (pipeb_stats & (PIPE_START_VBLANK_INTERRUPT_STATUS|
+					PIPE_VBLANK_INTERRUPT_STATUS))
 		{
 			vblank++;
 			drm_handle_vblank(dev, i915_get_plane(dev, 1));
@@ -950,9 +955,9 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 
-	I915_WRITE16(HWSTAM, 0xeffe);
-	I915_WRITE16(IMR, 0x0);
-	I915_WRITE16(IER, 0x0);
+	I915_WRITE(HWSTAM, 0xeffe);
+	I915_WRITE(IMR, 0xffffffff);
+	I915_WRITE(IER, 0x0);
 }
 
 int i915_driver_irq_postinstall(struct drm_device * dev)
