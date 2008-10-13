@@ -67,7 +67,7 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 		return NULL;
 	}
 
-	dmah = malloc(sizeof(drm_dma_handle_t), M_DRM, M_ZERO | M_NOWAIT);
+	dmah = malloc(sizeof(drm_dma_handle_t), DRM_MEM_DMA, M_ZERO | M_NOWAIT);
 	if (dmah == NULL)
 		return NULL;
 
@@ -86,7 +86,7 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	    BUS_DMA_ALLOCNOW, NULL, NULL, /* flags, lockfunc, lockfuncargs */
 	    &dmah->tag);
 	if (ret != 0) {
-		free(dmah, M_DRM);
+		free(dmah, DRM_MEM_DMA);
 		return NULL;
 	}
 
@@ -94,7 +94,7 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	    &dmah->map);
 	if (ret != 0) {
 		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, M_DRM);
+		free(dmah, DRM_MEM_DMA);
 		return NULL;
 	}
 
@@ -103,7 +103,7 @@ drm_pci_alloc(struct drm_device *dev, size_t size,
 	if (ret != 0) {
 		bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 		bus_dma_tag_destroy(dmah->tag);
-		free(dmah, M_DRM);
+		free(dmah, DRM_MEM_DMA);
 		return NULL;
 	}
 
@@ -122,7 +122,7 @@ drm_pci_free(struct drm_device *dev, drm_dma_handle_t *dmah)
 	bus_dmamem_free(dmah->tag, dmah->vaddr, dmah->map);
 	bus_dma_tag_destroy(dmah->tag);
 
-	free(dmah, M_DRM);
+	free(dmah, DRM_MEM_DMA);
 }
 
 /*@}*/

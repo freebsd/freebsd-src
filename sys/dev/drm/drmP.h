@@ -129,27 +129,24 @@ struct drm_file;
 #define DRM_KERNEL_CONTEXT    0	 /* Change drm_resctx if changed	  */
 #define DRM_RESERVED_CONTEXTS 1	 /* Change drm_resctx if changed	  */
 
-#define DRM_MEM_DMA	   0
-#define DRM_MEM_SAREA	   1
-#define DRM_MEM_DRIVER	   2
-#define DRM_MEM_MAGIC	   3
-#define DRM_MEM_IOCTLS	   4
-#define DRM_MEM_MAPS	   5
-#define DRM_MEM_BUFS	   6
-#define DRM_MEM_SEGS	   7
-#define DRM_MEM_PAGES	   8
-#define DRM_MEM_FILES	  9
-#define DRM_MEM_QUEUES	  10
-#define DRM_MEM_CMDS	  11
-#define DRM_MEM_MAPPINGS  12
-#define DRM_MEM_BUFLISTS  13
-#define DRM_MEM_AGPLISTS  14
-#define DRM_MEM_TOTALAGP  15
-#define DRM_MEM_BOUNDAGP  16
-#define DRM_MEM_CTXBITMAP 17
-#define DRM_MEM_STUB	  18
-#define DRM_MEM_SGLISTS	  19
-#define DRM_MEM_DRAWABLE  20
+MALLOC_DECLARE(DRM_MEM_DMA);
+MALLOC_DECLARE(DRM_MEM_SAREA);
+MALLOC_DECLARE(DRM_MEM_DRIVER);
+MALLOC_DECLARE(DRM_MEM_MAGIC);
+MALLOC_DECLARE(DRM_MEM_IOCTLS);
+MALLOC_DECLARE(DRM_MEM_MAPS);
+MALLOC_DECLARE(DRM_MEM_BUFS);
+MALLOC_DECLARE(DRM_MEM_SEGS);
+MALLOC_DECLARE(DRM_MEM_PAGES);
+MALLOC_DECLARE(DRM_MEM_FILES);
+MALLOC_DECLARE(DRM_MEM_QUEUES);
+MALLOC_DECLARE(DRM_MEM_CMDS);
+MALLOC_DECLARE(DRM_MEM_MAPPINGS);
+MALLOC_DECLARE(DRM_MEM_BUFLISTS);
+MALLOC_DECLARE(DRM_MEM_AGPLISTS);
+MALLOC_DECLARE(DRM_MEM_CTXBITMAP);
+MALLOC_DECLARE(DRM_MEM_SGLISTS);
+MALLOC_DECLARE(DRM_MEM_DRAWABLE);
 
 #define DRM_MAX_CTXBITMAP (PAGE_SIZE * 8)
 
@@ -159,8 +156,6 @@ struct drm_file;
 #define DRM_MAX(a,b) ((a)>(b)?(a):(b))
 
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
-
-MALLOC_DECLARE(M_DRM);
 
 #define __OS_HAS_AGP	1
 
@@ -748,11 +743,6 @@ extern int		drm_open_helper(struct cdev *kdev, int flags, int fmt,
 /* Memory management support (drm_memory.c) */
 void	drm_mem_init(void);
 void	drm_mem_uninit(void);
-void	*drm_alloc(size_t size, int area);
-void	*drm_calloc(size_t nmemb, size_t size, int area);
-void	*drm_realloc(void *oldpt, size_t oldsize, size_t size,
-				   int area);
-void	drm_free(void *pt, size_t size, int area);
 void	*drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map);
 void	*drm_ioremap(struct drm_device *dev, drm_local_map_t *map);
 void	drm_ioremapfree(drm_local_map_t *map);
@@ -965,6 +955,32 @@ int	drm_sg_free(struct drm_device *dev, void *data,
 drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
 				size_t align, dma_addr_t maxaddr);
 void	drm_pci_free(struct drm_device *dev, drm_dma_handle_t *dmah);
+
+/* Inline replacements for drm_alloc and friends */
+static __inline__ void *
+drm_alloc(size_t size, struct malloc_type *area)
+{
+	return malloc(size, area, M_NOWAIT);
+}
+
+static __inline__ void *
+drm_calloc(size_t nmemb, size_t size, struct malloc_type *area)
+{
+	return malloc(size * nmemb, area, M_NOWAIT | M_ZERO);
+}
+
+static __inline__ void *
+drm_realloc(void *oldpt, size_t oldsize, size_t size,
+    struct malloc_type *area)
+{
+	return reallocf(oldpt, size, area, M_NOWAIT);
+}
+
+static __inline__ void
+drm_free(void *pt, size_t size, struct malloc_type *area)
+{
+	free(pt, area);
+}
 
 /* Inline replacements for DRM_IOREMAP macros */
 static __inline__ void
