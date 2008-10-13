@@ -126,6 +126,8 @@ kern_thr_new(struct thread *td, struct thr_param *param)
 	rtpp = NULL;
 	if (param->rtp != 0) {
 		error = copyin(param->rtp, &rtp, sizeof(struct rtprio));
+		if (error)
+			return (error);
 		rtpp = &rtp;
 	}
 	error = create_thread(td, NULL, param->start_func, param->arg,
