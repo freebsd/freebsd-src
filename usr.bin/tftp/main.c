@@ -109,9 +109,9 @@ void	status(int, char **);
 static void command(void) __dead2;
 static const char *command_prompt(void);
 
-static void getusage(char *);
+static void getusage(const char *);
 static void makeargv(void);
-static void putusage(char *);
+static void putusage(const char *);
 static void settftpmode(const char *);
 
 char	*tail(char *);
@@ -157,9 +157,7 @@ struct cmd cmdtab[] = {
 };
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	f = -1;
 	strcpy(mode, "netascii");
@@ -177,9 +175,7 @@ main(argc, argv)
 char    hostname[MAXHOSTNAMELEN];
 
 void
-setpeer0(host, port)
-	char *host;
-	const char *port;
+setpeer0(char *host, const char *port)
 {
 	struct addrinfo hints, *res0, *res;
 	int error;
@@ -244,9 +240,7 @@ setpeer0(host, port)
 }
 
 void
-setpeer(argc, argv)
-	int argc;
-	char *argv[];
+setpeer(int argc, char *argv[])
 {
 
 	if (argc < 2) {
@@ -281,9 +275,7 @@ struct	modes {
 };
 
 void
-modecmd(argc, argv)
-	int argc;
-	char *argv[];
+modecmd(int argc, char *argv[])
 {
 	struct modes *p;
 	const char *sep;
@@ -316,26 +308,21 @@ modecmd(argc, argv)
 }
 
 void
-setbinary(argc, argv)
-	int argc __unused;
-	char *argv[] __unused;
+setbinary(int argc __unused, char *argv[] __unused)
 {
 
 	settftpmode("octet");
 }
 
 void
-setascii(argc, argv)
-	int argc __unused;
-	char *argv[] __unused;
+setascii(int argc __unused, char *argv[] __unused)
 {
 
 	settftpmode("netascii");
 }
 
 static void
-settftpmode(newmode)
-	const char *newmode;
+settftpmode(const char *newmode)
 {
 	strcpy(mode, newmode);
 	if (verbose)
@@ -347,9 +334,7 @@ settftpmode(newmode)
  * Send file(s).
  */
 void
-put(argc, argv)
-	int argc;
-	char *argv[];
+put(int argc, char *argv[])
 {
 	int fd;
 	int n;
@@ -421,8 +406,7 @@ put(argc, argv)
 }
 
 static void
-putusage(s)
-	char *s;
+putusage(const char *s)
 {
 	printf("usage: %s file [[host:]remotename]\n", s);
 	printf("       %s file1 file2 ... fileN [[host:]remote-directory]\n", s);
@@ -432,9 +416,7 @@ putusage(s)
  * Receive file(s).
  */
 void
-get(argc, argv)
-	int argc;
-	char *argv[];
+get(int argc, char *argv[])
 {
 	int fd;
 	int n;
@@ -504,8 +486,7 @@ get(argc, argv)
 }
 
 static void
-getusage(s)
-	char *s;
+getusage(const char *s)
 {
 	printf("usage: %s [host:]file [localname]\n", s);
 	printf("       %s [host1:]file1 [host2:]file2 ... [hostN:]fileN\n", s);
@@ -514,9 +495,7 @@ getusage(s)
 int	rexmtval = TIMEOUT;
 
 void
-setrexmt(argc, argv)
-	int argc;
-	char *argv[];
+setrexmt(int argc, char *argv[])
 {
 	int t;
 
@@ -542,9 +521,7 @@ setrexmt(argc, argv)
 int	maxtimeout = 5 * TIMEOUT;
 
 void
-settimeout(argc, argv)
-	int argc;
-	char *argv[];
+settimeout(int argc, char *argv[])
 {
 	int t;
 
@@ -568,9 +545,7 @@ settimeout(argc, argv)
 }
 
 void
-status(argc, argv)
-	int argc __unused;
-	char *argv[] __unused;
+status(int argc __unused, char *argv[] __unused)
 {
 	if (connected)
 		printf("Connected to %s.\n", hostname);
@@ -583,8 +558,7 @@ status(argc, argv)
 }
 
 void
-intr(dummy)
-	int dummy __unused;
+intr(int dummy __unused)
 {
 
 	signal(SIGALRM, SIG_IGN);
@@ -593,8 +567,7 @@ intr(dummy)
 }
 
 char *
-tail(filename)
-	char *filename;
+tail(char *filename)
 {
 	char *s;
 
@@ -610,7 +583,7 @@ tail(filename)
 }
 
 static const char *
-command_prompt()
+command_prompt(void)
 {
 
 	return ("tftp> ");
@@ -620,7 +593,7 @@ command_prompt()
  * Command parser.
  */
 static void
-command()
+command(void)
 {
 	HistEvent he;
 	struct cmd *c;
@@ -679,8 +652,7 @@ command()
 }
 
 struct cmd *
-getcmd(name)
-	char *name;
+getcmd(char *name)
 {
 	const char *p, *q;
 	struct cmd *c, *found;
@@ -711,7 +683,7 @@ getcmd(name)
  * Slice a string up into argc/argv.
  */
 static void
-makeargv()
+makeargv(void)
 {
 	char *cp;
 	char **argp = margv;
@@ -736,9 +708,7 @@ makeargv()
 }
 
 void
-quit(argc, argv)
-	int argc __unused;
-	char *argv[] __unused;
+quit(int argc __unused, char *argv[] __unused)
 {
 	exit(txrx_error);
 }
@@ -747,9 +717,7 @@ quit(argc, argv)
  * Help command.
  */
 void
-help(argc, argv)
-	int argc;
-	char *argv[];
+help(int argc, char *argv[])
 {
 	struct cmd *c;
 
@@ -773,18 +741,14 @@ help(argc, argv)
 }
 
 void
-settrace(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+settrace(int argc __unused, char **argv __unused)
 {
 	trace = !trace;
 	printf("Packet tracing %s.\n", trace ? "on" : "off");
 }
 
 void
-setverbose(argc, argv)
-	int argc __unused;
-	char **argv __unused;
+setverbose(int argc __unused, char **argv __unused)
 {
 	verbose = !verbose;
 	printf("Verbose mode %s.\n", verbose ? "on" : "off");
