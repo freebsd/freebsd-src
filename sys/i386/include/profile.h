@@ -115,7 +115,15 @@ void user(void);
 void									\
 mcount()								\
 {									\
-	uintfptr_t selfpc, frompc;					\
+	uintfptr_t selfpc, frompc, ecx;					\
+	/*								\
+	 * In gcc 4.2, ecx might be used in the caller as the arg	\
+	 * pointer if the stack realignment option is set (-mstackrealign) \
+	 * or if the caller has the force_align_arg_pointer attribute	\
+	 * (stack realignment is ALWAYS on for main).  Preserve ecx	\
+	 * here.							\
+	 */								\
+	__asm("" : "=c" (ecx));						\
 	/*								\
 	 * Find the return address for mcount,				\
 	 * and the return address for mcount's caller.			\
@@ -132,6 +140,7 @@ mcount()								\
 	__asm("movl (%%ebp),%0" : "=r" (frompc));			\
 	frompc = ((uintfptr_t *)frompc)[1];				\
 	_mcount(frompc, selfpc);					\
+	__asm("" : : "c" (ecx));					\
 }
 #else /* !__GNUCLIKE_ASM */
 #define	MCOUNT
