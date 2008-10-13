@@ -79,7 +79,9 @@ ASSYM(CF_SETTTB, offsetof(struct cpu_functions, cf_setttb));
 ASSYM(CF_CONTROL, offsetof(struct cpu_functions, cf_control));
 ASSYM(CF_CONTEXT_SWITCH, offsetof(struct cpu_functions, cf_context_switch));
 ASSYM(CF_DCACHE_WB_RANGE, offsetof(struct cpu_functions, cf_dcache_wb_range));
+ASSYM(CF_L2CACHE_WB_RANGE, offsetof(struct cpu_functions, cf_l2cache_wb_range));
 ASSYM(CF_IDCACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_idcache_wbinv_all));
+ASSYM(CF_L2CACHE_WBINV_ALL, offsetof(struct cpu_functions, cf_l2cache_wbinv_all));
 ASSYM(CF_TLB_FLUSHID_SE, offsetof(struct cpu_functions, cf_tlb_flushID_SE));
 ASSYM(CF_ICACHE_SYNC, offsetof(struct cpu_functions, cf_icache_sync_all));
 
