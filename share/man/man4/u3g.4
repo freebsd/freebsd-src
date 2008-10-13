@@ -66,10 +66,16 @@ Option Globetrotter 3G
 .It
 Vodafone Mobile Connect Card 3G
 .It
+Qualcomm Inc. CDMA MSM
+.It
 Huawei E220 (E270?)
 .It
 Huawei Mobile
+.It
+Novatal U950D
 .El
+(See /sys/dev/u3g.c for the complete list of supported cards for each vendor
+mentioned above).
 .Pp
 The supported 3G cards provide the necessary modem port for ppp,
 pppd, or mpd connections as well as extra ports (depending on the specific
@@ -78,18 +84,13 @@ device) to provide other functions (diagnostic port, SIM toolkit port)
 .Xr tty 4 ,
 .Xr ucom 4 ,
 .Xr usb 4 ,
-.Xr ubsa 4
 .Sh HISTORY
 The
 .Nm
 driver
 appeared in
-.Fx 8.0 .
-The
-.Xr ubsa 4
-manual page was modified for
-.Nm
-by
+.Fx 8.0 ,
+is based on the uark driver, and written by
 .An Andrea Guzzo Aq aguzzo@anywi.com
 in September 2008.
 .Sh AUTHORS
