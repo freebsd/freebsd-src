@@ -155,7 +155,9 @@ ofwd_close(struct open_file *f)
 			if (odp->count == 0) {
 				SLIST_REMOVE(&opened_devs, odp, opened_dev,
 				    link);
+			#if !defined(__powerpc__)
 				OF_close(odp->handle);
+			#endif
 				free(odp);
 			}
 			break;
