@@ -130,6 +130,7 @@ enum radeon_family {
 	CHIP_RS400,
 	CHIP_RS480,
 	CHIP_RS690,
+	CHIP_RS740,
 	CHIP_RV515,
 	CHIP_R520,
 	CHIP_RV530,
@@ -1235,7 +1236,8 @@ do {								\
 
 #define IGP_WRITE_MCIND( addr, val )				\
 do {									\
-        if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)       \
+    if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||	\
+	((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))		\
 	        RS690_WRITE_MCIND( addr, val );                         \
 	else                                                            \
 	        RS480_WRITE_MCIND( addr, val );                         \
