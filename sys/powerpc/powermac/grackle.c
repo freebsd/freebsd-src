@@ -36,19 +36,18 @@
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/nexusvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
 
-#include <powerpc/ofw/ofw_pci.h>
 #include <powerpc/powermac/gracklevar.h>
 
 #include <vm/vm.h>
@@ -92,6 +91,11 @@ static void		grackle_write_config(device_t, u_int, u_int, u_int,
 static int		grackle_route_interrupt(device_t, device_t, int);
 
 /*
+ * ofw_bus interface
+ */
+static phandle_t grackle_get_node(device_t bus, device_t dev);
+
+/*
  * Local routines.
  */
 static int		grackle_enable_config(struct grackle_softc *, u_int,
@@ -122,6 +126,9 @@ static device_method_t	grackle_methods[] = {
 	DEVMETHOD(pcib_write_config,	grackle_write_config),
 	DEVMETHOD(pcib_route_interrupt,	grackle_route_interrupt),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,     grackle_get_node),
+
 	{ 0, 0 }
 };
 
@@ -138,10 +145,10 @@ DRIVER_MODULE(grackle, nexus, grackle_driver, grackle_devclass, 0, 0);
 static int
 grackle_probe(device_t dev)
 {
-	char	*type, *compatible;
+	const char	*type, *compatible;
 
-	type = nexus_get_device_type(dev);
-	compatible = nexus_get_compatible(dev);
+	type = ofw_bus_get_type(dev);
+	compatible = ofw_bus_get_compat(dev);
 
 	if (type == NULL || compatible == NULL)
 		return (ENXIO);
@@ -162,7 +169,7 @@ grackle_attach(device_t dev)
 	struct		grackle_range *rp, *io, *mem[2];
 	int		nmem, i, error;
 
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
 	if (OF_getprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
@@ -243,12 +250,6 @@ grackle_attach(device_t dev)
 			return (error);
 		}
 	}
-
-	/*
-	 * Write out the correct PIC interrupt values to config space
-	 * of all devices on the bus.
-	 */
-	ofw_pci_fixup(dev, sc->sc_bus, sc->sc_node);
 
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
@@ -509,6 +510,17 @@ grackle_disable_config(struct grackle_softc *sc)
 	 * accesses from causing config cycles
 	 */
 	out32rb(sc->sc_addr, 0);
+}
+
+static phandle_t
+grackle_get_node(device_t bus, device_t dev)
+{
+	struct grackle_softc *sc;
+
+	sc = device_get_softc(bus);
+	/* We only have one child, the PCI bus, which needs our own node. */
+
+	return sc->sc_node;
 }
 
 /*

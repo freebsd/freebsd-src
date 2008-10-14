@@ -104,7 +104,7 @@ powerpc/mpc85xx/nexus.c		optional	mpc85xx
 powerpc/mpc85xx/ocpbus.c	optional	mpc85xx
 powerpc/mpc85xx/opic.c		optional	mpc85xx
 powerpc/mpc85xx/pci_ocp.c	optional	pci mpc85xx
-powerpc/ofw/ofw_pci.c		optional	pci aim
+powerpc/ofw/ofw_pcibus.c	optional	pci aim
 powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata
