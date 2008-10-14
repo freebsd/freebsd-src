@@ -94,16 +94,18 @@ struct u3g_dev_type_s {
 
 static const struct u3g_dev_type_s u3g_devs[] = {
 	/* OEM: Option */
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GFL_NONE},
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },		U3GFL_NONE},
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },		U3GFL_NONE},
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },		U3GFL_NONE},
-	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GFL_NONE},
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GFL_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },		U3GFL_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },		U3GFL_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },		U3GFL_NONE },
+	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GFL_NONE },
 	/* OEM: Qualcomm, Inc. */
-	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GFL_EJECT},
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GFL_NONE },
 	/* OEM: Huawei */
-	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GFL_HUAWEI_INIT},
-	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GFL_HUAWEI_INIT},
+	/* Handled separately. Do not add!
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GFL_NONE },
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GFL_NONE },
+	 */
 	/* OEM: Novatel */
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GFL_NONE },
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GFL_NONE },
@@ -133,50 +135,30 @@ u3g_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 #endif
 
 static int
-u3g_huawei_reinit(usbd_device_handle dev, usbd_interface_handle iface)
-{
-	/* The Huawei device presents itself as a umass device with Windows
-	 * drivers on it. After installation of the driver, it reinits into a
-	 * 3G serial device.
-	 */
-	usb_device_request_t req;
-	usb_interface_descriptor_t *idesc;
-
-	if (iface == NULL)
-		return UMATCH_NONE;
-	idesc = usbd_get_interface_descriptor(iface);
-	if (idesc == NULL)
-		return UMATCH_NONE;
-
-	/* If the interface class is no longer mass storage it has changed
-	 * appearance and we should attach it.
-	 */
-	if (idesc->bInterfaceClass == UICLASS_VENDOR)
-		return (UMATCH_VENDOR_PRODUCT_CONF_IFACE);
-
-	req.bmRequestType = UT_WRITE_DEVICE;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
-	USETW(req.wIndex, UHF_PORT_SUSPEND);
-	USETW(req.wLength, 0);
-
-	(void) usbd_do_request(dev, &req, 0);
-
-	return UMATCH_NONE;	/* mismatch; it will be gone and reappear */
-}
-
-static int
 u3g_match(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
+	usb_interface_descriptor_t *id;
+	const struct u3g_dev_type_s *u3g_dev_type;
 
-	const struct u3g_dev_type_s *u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
-	if (u3g_dev_type) {
-		if (u3g_dev_type->u3g_flags & U3GFL_HUAWEI_INIT)
-			return u3g_huawei_reinit(uaa->device, uaa->iface);
-		else
-			return UMATCH_VENDOR_PRODUCT;
+	if (uaa->vendor == USB_VENDOR_HUAWEI) {
+		if (uaa->iface) {
+			/* We attach to the interface instead of the device as
+			 * some devices have a built-in SD card reader on the
+			 * second interface. If the interface class of the
+			 * first interface is no longer mass storage it has
+			 * changed appearance and we should attach it.
+			 */
+			id = usbd_get_interface_descriptor(uaa->iface);
+			if (id && id->bInterfaceClass == UICLASS_VENDOR)
+				return (UMATCH_VENDOR_PRODUCT_CONF_IFACE);
+		}
+		return UMATCH_NONE;
 	}
+
+	u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
+	if (u3g_dev_type)
+		return UMATCH_VENDOR_PRODUCT;
 
 	return UMATCH_NONE;
 }
@@ -192,7 +174,7 @@ u3g_attach(device_t self)
 	usb_endpoint_descriptor_t *ed;
 	usbd_status error;
 	int i, n; 
-	usb_config_descriptor_t *cdesc;
+	usb_config_descriptor_t *cd;
 	struct ucom_softc *ucom = NULL;
 	char devnamefmt[32];
 
@@ -210,15 +192,15 @@ u3g_attach(device_t self)
 	}
 
 	/* get the config descriptor */
-	cdesc = usbd_get_config_descriptor(dev);
+	cd = usbd_get_config_descriptor(dev);
 
-	if (cdesc == NULL) {
+	if (cd == NULL) {
 		device_printf(self, "failed to get configuration descriptor\n");
 		goto bad;
 	}
 
 	sc->sc_udev = dev;
-	sc->numports = (cdesc->bNumInterface <= U3G_MAXPORTS)?cdesc->bNumInterface:U3G_MAXPORTS;
+	sc->numports = (cd->bNumInterface <= U3G_MAXPORTS)?cd->bNumInterface:U3G_MAXPORTS;
 	for ( i = 0; i < sc->numports; i++ ) {
 		ucom = &sc->sc_ucom[i];
 
@@ -360,3 +342,91 @@ static driver_t u3g_driver = {
 DRIVER_MODULE(u3g, uhub, u3g_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 MODULE_DEPEND(u3g, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
+
+/*******************************************************************
+ ****** Stub driver to hide devices that need to reinitialise ******
+ *******************************************************************/
+
+static void
+u3gstub_huawei_init(usbd_device_handle dev)
+{
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_DEVICE;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
+	USETW(req.wIndex, UHF_PORT_SUSPEND);
+	USETW(req.wLength, 0);
+
+	(void) usbd_do_request(dev, &req, 0);		/* ignore any error */
+}
+
+static int
+u3gstub_match(device_t self)
+{
+	struct usb_attach_arg *uaa = device_get_ivars(self);
+	usb_device_descriptor_t *dd = usbd_get_device_descriptor(uaa->device);
+	usb_interface_descriptor_t *id;
+
+	/* These are 3G modem devices (E220, Mobile, etc.) with auto-install
+	 * flash disks for Windows/MacOSX through the first interface.
+	 */
+	if (uaa->vendor == USB_VENDOR_HUAWEI) {
+		/* The Huawei device presents itself as a umass device with
+		 * Windows drivers on it. After installation of the driver, it
+		 * reinits into a 3G serial device.
+		 */
+		if (uaa->iface) {
+			id = usbd_get_interface_descriptor(uaa->iface);
+			if (id && id->bInterfaceNumber == 0 && id->bInterfaceClass == UICLASS_MASS) {
+				u3gstub_huawei_init(uaa->device);
+				return (UMATCH_VENDOR_PRODUCT_CONF_IFACE);
+			}
+		}
+	}
+
+	if (UGETW(dd->idVendor) == USB_VENDOR_QUALCOMMINC
+	    || UGETW(dd->idVendor) == USB_VENDOR_NOVATEL) {
+		/* Device by these vendors will automatically reappear as a
+		 * ucom device if ignored (or if sent an eject command).
+		 */
+		return UMATCH_VENDOR_PRODUCT;
+	}
+
+	return UMATCH_NONE;
+}
+
+static int
+u3gstub_attach(device_t self)
+{
+#if 0
+	if (!bootverbose)
+		device_quiet(self);
+#endif
+
+	return 0;
+}
+
+static int
+u3gstub_detach(device_t self)
+{
+	return 0;
+}
+
+static device_method_t u3gstub_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, u3gstub_match),
+	DEVMETHOD(device_attach, u3gstub_attach),
+	DEVMETHOD(device_detach, u3gstub_detach),
+
+	{ 0, 0 }
+};
+
+static driver_t u3gstub_driver = {
+	"u3gstub",
+	u3gstub_methods,
+	0
+};
+
+DRIVER_MODULE(u3gstub, uhub, u3gstub_driver, ucom_devclass, usbd_driver_load, 0);
+MODULE_DEPEND(u3gstub, usb, 1, 1, 1);
