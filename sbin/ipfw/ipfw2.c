@@ -3856,6 +3856,9 @@ nospace:
 }
 
 static void
+show_nat(int ac, char **av);
+
+static void
 print_nat_config(char *buf) {
 	struct cfg_nat *n;
 	int i, cnt, flag, off;
@@ -4063,6 +4066,11 @@ config_nat(int ac, char **av)
 	i = do_cmd(IP_FW_NAT_CFG, buf, off);
 	if (i)
 		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
+
+	/* After every modification, we show the resultant rule. */
+	int _ac = 3;
+	char *_av[] = {"show", "config", id};
+	show_nat(_ac, _av);
 }
 
 static void
@@ -6054,7 +6062,6 @@ show_nat(int ac, char **av)
 		if (do_cmd(cmd, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET_%s)",
 			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
-		printf("nbytes %b\n", nbytes);
 	}
 	if (nbytes == 0)
 		exit(0);
