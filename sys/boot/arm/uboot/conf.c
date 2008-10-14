@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2008 Semihalf, Rafal Jaworowski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,12 +23,69 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	MODINFOMD_BOOTINFO	0x1001
+#include <stand.h>
+#include "bootstrap.h"
+#include "libuboot.h"
 
-#endif /* !_MACHINE_METADATA_H_ */
+#if defined(LOADER_NET_SUPPORT)
+#include "dev_net.h"
+#endif
+
+struct devsw *devsw[] = {
+#if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
+	&uboot_disk,
+#endif
+#if defined(LOADER_NET_SUPPORT)
+	&netdev,
+#endif
+	NULL
+};
+
+struct fs_ops *file_system[] = {
+#if defined(LOADER_UFS_SUPPORT)
+	&ufs_fsops,
+#endif
+#if defined(LOADER_CD9660_SUPPORT)
+	&cd9660_fsops,
+#endif
+#if defined(LOADER_EXT2FS_SUPPORT)
+	&ext2fs_fsops,
+#endif
+#if defined(LOADER_NFS_SUPPORT)
+	&nfs_fsops,
+#endif
+#if defined(LOADER_TFTP_SUPPORT)
+	&tftp_fsops,
+#endif
+#if defined(LOADER_GZIP_SUPPORT)
+	&gzipfs_fsops,
+#endif
+#if defined(LOADER_BZIP2_SUPPORT)
+	&bzipfs_fsops,
+#endif
+	NULL
+};
+
+struct netif_driver *netif_drivers[] = {
+#if defined(LOADER_NET_SUPPORT)
+	&uboot_net,
+#endif
+	NULL,
+};
+
+struct file_format *file_formats[] = {
+	&uboot_elf,
+	NULL
+};
+
+extern struct console uboot_console;
+
+struct console *consoles[] = {
+	&uboot_console,
+	NULL
+};
