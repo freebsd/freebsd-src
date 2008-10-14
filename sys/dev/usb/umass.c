@@ -1177,17 +1177,16 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	dd = usbd_get_device_descriptor(udev);
 
-	/* These are 3G modes (E220, Mobile, etc.) devices with auto-install
-	 * flash disks for Windows/MacOSX through the first interface.
-	 * We are assuming that these vendors will not produce mass storage
-	 * devices. See the list of supported parts in u3g, if this happens to
-	 * be a mistake in the future.
+	/* These are 3G modem devices (E220, Mobile, etc.) with auto-install
+	 * flash disks for Windows/MacOSX through the first interface. We are
+	 * assuming that these vendors will not produce mass storage devices.
+	 * See the list of supported parts in u3g, if this happens to be a
+	 * mistake in the future.
 	 */
 	if (UGETW(dd->idVendor) == USB_VENDOR_HUAWEI) {
-		/* The interface is reset in the u3g driver
-		 * (u3g_huawei_reinit()). Allow generic attachment to the
-		 * second interface though. Some Huawei devices contain an SD
-		 * card slot.
+		/* The interface is reset in the u3g driver. Allow generic
+		 * attachment to the second interface though. Some Huawei
+		 * devices contain an SD card slot.
 		 */
 		id = usbd_get_interface_descriptor(iface);
 		if (id == NULL || id->bInterfaceNumber == 0)
