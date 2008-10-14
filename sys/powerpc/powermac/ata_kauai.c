@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <ata_if.h>
 
 #include <dev/ofw/openfirm.h>
-#include <powerpc/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_bus.h>
 #include <machine/intr_machdep.h>
 
 #include <dev/pci/pcivar.h>
@@ -194,11 +194,10 @@ ata_kauai_probe(device_t dev)
 {
 	struct ata_channel *ch;
 	struct ata_kauai_softc *sc;
-	u_long startp, countp;
 	u_int32_t devid;
 	phandle_t node;
-	char *compatstring = NULL;
-	int i, found, rid, status;
+	const char *compatstring = NULL;
+	int i, found, rid;
 
 	found = 0;
 	devid = pci_get_devid(dev);
@@ -212,59 +211,18 @@ ata_kauai_probe(device_t dev)
 	if (!found)
 		return (ENXIO);
 
-	node = ofw_pci_find_node(dev);
+	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 	bzero(sc, sizeof(struct ata_kauai_softc));
 	ch = &sc->sc_ch.sc_ch;
 
-	OF_getprop_alloc(node, "compatible", 1, (void **)&compatstring);
-	if (strcmp(compatstring,"shasta-ata") == 0)
+	compatstring = ofw_bus_get_compat(dev);
+	if (compatstring != NULL && strcmp(compatstring,"shasta-ata") == 0)
 		sc->shasta = 1;
 
-	free(compatstring, M_OFWPROP);
-
-
-	/*
-	 * This device seems to ignore writes to the interrupt
-	 * config register, resulting in interrupt resources
-	 * not being attached. If this is the case, use
-	 * Open Firmware to determine the irq, and then attach
-	 * the resource. This allows the ATA common code to
-	 * allocate the irq.
-	 */
-	status = bus_get_resource(dev, SYS_RES_IRQ, 0, &startp, &countp);
-	if (status == ENOENT) {
-		int *irq;
-		phandle_t iparent;
-		int icells, nintr, i;
-
-		/*
-		 * Horrible hack to handle Kauai devices that have their IRQs
-		 * set up in an utterly wrong way
-		 */
-		if (!sc->shasta)
-			bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
-
-		/*
-		 * For the rest of the interrupts, and the main Shasta
-		 * interrupt, get the IRQs from firmware.
-		 */
-		if (OF_getprop(node, "interrupt-parent", &iparent, 
-		    sizeof(iparent)) == sizeof(iparent)) {
-			OF_getprop(iparent, "#interrupt-cells", &icells, 
-			    sizeof(icells)) ;
-		}
-
-		nintr = OF_getprop_alloc(node, "interrupts", sizeof(*irq),
-		    (void **)&irq);
-
-		for (i = 0; i < nintr; i += icells)
-			bus_set_resource(dev, SYS_RES_IRQ, 
-			    i/icells + !sc->shasta, irq[i], 1);
-
-		free(irq, M_OFWPROP);
-	}
-
+	/* Regular Kauai controllers apparently need this hack */
+	if (!sc->shasta)
+		bus_set_resource(dev, SYS_RES_IRQ, 0, 39, 1);
 
         rid = PCIR_BARS;
 	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 
