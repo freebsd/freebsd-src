@@ -139,6 +139,8 @@ static struct macio_pci_dev {
 	{ 0x0022106b, "KeyLargo I/O Controller" },
 	{ 0x0025106b, "Pangea I/O Controller" },
 	{ 0x003e106b, "Intrepid I/O Controller" },
+	{ 0x0041106b, "K2 KeyLargo I/O Controller" },
+	{ 0x004f106b, "Shasta I/O Controller" },
 	{ 0, NULL }
 };
 
@@ -270,7 +272,7 @@ macio_attach(device_t dev)
 	int error, quirks;
 
 	sc = device_get_softc(dev);
-	root = sc->sc_node = OF_finddevice("mac-io");
+	root = sc->sc_node = ofw_bus_get_node(dev);
 	
 	/*
 	 * Locate the device node and it's base address
