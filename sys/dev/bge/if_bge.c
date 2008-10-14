@@ -2377,11 +2377,7 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	sc->bge_btag = rman_get_bustag(sc->bge_res);
-	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
-
 	/* Save ASIC rev. */
-
 	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
