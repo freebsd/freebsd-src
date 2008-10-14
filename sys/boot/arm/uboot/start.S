@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2008 Semihalf, Rafal Czubak
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,68 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#include <machine/asm.h>
 
-#define	MODINFOMD_BOOTINFO	0x1001
+/*
+ * Entry point to the loader that U-Boot passes control to.
+ */
+	.text
+	.globl	_start
+_start:
+	/* Hint where to look for the API signature */
+	ldr	ip, =uboot_address
+	str	sp, [ip]
 
-#endif /* !_MACHINE_METADATA_H_ */
+	/* Save U-Boot's r8 */
+	ldr	ip, =saved_regs
+	str	r8, [ip, #0]
+
+	/* Start loader */
+	b	main
+
+/*
+ * syscall()
+ */
+ENTRY(syscall)
+	/* Save caller's lr */
+	ldr	ip, =saved_regs
+	str	lr, [ip, #4]
+	/* Save loader's r8 */
+	ldr	ip, =saved_regs
+	str	r8, [ip, #8]
+
+	/* Restore U-Boot's r8 */
+	ldr	ip, =saved_regs
+	ldr	r8, [ip, #0]
+	/* Call into U-Boot */
+	ldr	lr, =return_from_syscall
+	ldr	ip, =syscall_ptr
+	ldr	pc, [ip]
+
+return_from_syscall:
+	/* Restore loader's r8 */
+	ldr	ip, =saved_regs
+	ldr	r8, [ip, #8]
+	/* Restore caller's lr */
+	ldr	ip, =saved_regs
+	ldr	lr, [ip, #4]
+	/* Return to caller */
+	mov	pc, lr
+
+/*
+ * Data section
+ */
+	.data
+	.align	4
+	.globl	syscall_ptr
+syscall_ptr:
+	.long	0
+
+	.globl	uboot_address
+uboot_address:
+	.long	0
+
+saved_regs:
+	.long	0	/* U-Boot's r8 */
+	.long	0	/* Loader's r8 */
+	.long	0	/* Loader's lr */

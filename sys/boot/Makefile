@@ -22,7 +22,7 @@ SUBDIR+=		ofw
 .endif
 
 # Build U-Boot library.
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
 SUBDIR+=		uboot
 .endif
 
