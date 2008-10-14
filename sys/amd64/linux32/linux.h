@@ -880,4 +880,15 @@ typedef int l_mqd_t;
 	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
 	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
 
+/* robust futexes */
+struct linux_robust_list {
+	l_uintptr_t			next;
+};
+
+struct linux_robust_list_head {
+	struct linux_robust_list	list;
+	l_ulong				futex_offset;
+	l_uintptr_t			pending_list;
+};
+
 #endif /* !_AMD64_LINUX_H_ */

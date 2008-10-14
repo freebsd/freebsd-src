@@ -63,18 +63,6 @@
 #define FUTEX_OP_CMP_GT         4	/* if (oldval > CMPARG) wake */
 #define FUTEX_OP_CMP_GE         5	/* if (oldval >= CMPARG) wake */
 
-/* This is defined by Linux user-space */
-
-struct linux_robust_list {
-	struct linux_robust_list	*next;
-};
-
-struct linux_robust_list_head {
-	struct linux_robust_list	list;
-	l_ulong				futex_offset;
-	struct linux_robust_list	*pending_list;
-};
-
 #define	FUTEX_WAITERS		0x80000000
 #define	FUTEX_OWNER_DIED	0x40000000
 #define	FUTEX_TID_MASK		0x3fffffff
