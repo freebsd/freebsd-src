@@ -351,8 +351,12 @@ ehci_hcreset(ehci_softc_t *sc)
 	for (i = 0; i < 100; i++) {
 		usb_delay_ms(&sc->sc_bus, 1);
 		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
-		if (!hcr)
+		if (!hcr) {
+			if (sc->sc_flags & EHCI_SCFLG_SETMODE)
+				EOWRITE4(sc,  0x68, 0x3);
+
 			return (USBD_NORMAL_COMPLETION);
+		}
 	}
 	printf("%s: reset timeout\n", device_get_nameunit(sc->sc_bus.bdev));
 	return (USBD_IOERROR);
@@ -2194,7 +2198,18 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 		v = EOREAD4(sc, EHCI_PORTSC(index));
 		DPRINTFN(8,("ehci_root_ctrl_start: port status=0x%04x\n",
 			    v));
+
 		i = UPS_HIGH_SPEED;
+
+		if (sc->sc_flags & EHCI_SCFLG_FORCESPEED) {
+			if ((v & 0xc000000) == 0x8000000)
+				i = UPS_HIGH_SPEED;
+			else if ((v & 0xc000000) == 0x4000000)
+				i = UPS_LOW_SPEED;
+			else
+				i = 0;
+		}
+
 		if (v & EHCI_PS_CS)	i |= UPS_CURRENT_CONNECT_STATUS;
 		if (v & EHCI_PS_PE)	i |= UPS_PORT_ENABLED;
 		if (v & EHCI_PS_SUSP)	i |= UPS_SUSPEND;
@@ -2249,7 +2264,11 @@ ehci_root_ctrl_start(usbd_xfer_handle xfer)
 				goto ret;
 			}
 			/* Terminate reset sequence. */
-			EOWRITE4(sc, port, v);
+			if (sc->sc_flags & EHCI_SCFLG_NORESTERM)
+				;
+			else
+				EOWRITE4(sc, port, v);
+
 			/* Wait for HC to complete reset. */
 			usb_delay_ms(&sc->sc_bus, EHCI_PORT_RESET_COMPLETE);
 			if (sc->sc_dying) {
