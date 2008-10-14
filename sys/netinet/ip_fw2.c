@@ -4385,49 +4385,52 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	case IP_FW_NAT_CFG:
-	{
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_cfg_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_CFG: ipfw_nat not present, please load it.\n");
-			error = EINVAL;
+		{
+			if (IPFW_NAT_LOADED)
+				error = ipfw_nat_cfg_ptr(sopt);
+			else {
+				printf("IP_FW_NAT_CFG: %s\n",
+				    "ipfw_nat not present, please load it");
+				error = EINVAL;
+			}
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_DEL:
-	{
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_del_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_DEL: ipfw_nat not present, please load it.\n");
-			printf("ipfw_nat not loaded: %d\n", sopt->sopt_name);
-			error = EINVAL;
+		{
+			if (IPFW_NAT_LOADED)
+				error = ipfw_nat_del_ptr(sopt);
+			else {
+				printf("IP_FW_NAT_DEL: %s\n",
+				    "ipfw_nat not present, please load it");
+				error = EINVAL;
+			}
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_CONFIG:
-	{
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_get_cfg_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_GET_CFG: ipfw_nat not present, please load it.\n");
-			error = EINVAL;
+		{
+			if (IPFW_NAT_LOADED)
+				error = ipfw_nat_get_cfg_ptr(sopt);
+			else {
+				printf("IP_FW_NAT_GET_CFG: %s\n",
+				    "ipfw_nat not present, please load it");
+				error = EINVAL;
+			}
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_LOG:
-	{
-		if (IPFW_NAT_LOADED)
-			error = ipfw_nat_get_log_ptr(sopt);
-		else {
-			printf("IP_FW_NAT_GET_LOG: ipfw_nat not present, please load it.\n");
-			error = EINVAL;
+		{
+			if (IPFW_NAT_LOADED)
+				error = ipfw_nat_get_log_ptr(sopt);
+			else {
+				printf("IP_FW_NAT_GET_LOG: %s\n",
+				    "ipfw_nat not present, please load it");
+				error = EINVAL;
+			}
 		}
-	}
-	break;
+		break;
 
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
