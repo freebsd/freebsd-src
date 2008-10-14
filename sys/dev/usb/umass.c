@@ -1177,28 +1177,6 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 
 	dd = usbd_get_device_descriptor(udev);
 
-	/* These are 3G modem devices (E220, Mobile, etc.) with auto-install
-	 * flash disks for Windows/MacOSX through the first interface. We are
-	 * assuming that these vendors will not produce mass storage devices.
-	 * See the list of supported parts in u3g, if this happens to be a
-	 * mistake in the future.
-	 */
-	if (UGETW(dd->idVendor) == USB_VENDOR_HUAWEI) {
-		/* The interface is reset in the u3g driver. Allow generic
-		 * attachment to the second interface though. Some Huawei
-		 * devices contain an SD card slot.
-		 */
-		id = usbd_get_interface_descriptor(iface);
-		if (id == NULL || id->bInterfaceNumber == 0)
-			return UMATCH_NONE;
-	} else if (UGETW(dd->idVendor) == USB_VENDOR_QUALCOMMINC
-		   || UGETW(dd->idVendor) == USB_VENDOR_NOVATEL) {
-		/* Device by these vendors will automatically reappear as a
-		 * ucom device if ignored (or if sent an eject command).
-		 */
-		return UMATCH_NONE;
-	}
-
 	/* An entry specifically for Y-E Data devices as they don't fit in the
 	 * device description table.
 	 */
