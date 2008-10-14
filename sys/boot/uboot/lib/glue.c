@@ -147,7 +147,7 @@ api_search_sig(struct api_signature **sig)
 		uboot_address = 255 * 1024 * 1024;
 
 	sp = (void *)(uboot_address & ~0x000fffff);
-	spend = sp + 0x00100000 - API_SIG_MAGLEN;
+	spend = sp + 0x00300000 - API_SIG_MAGLEN;
 	while (sp < spend) {
 		if (!bcmp(sp, API_SIG_MAGIC, API_SIG_MAGLEN)) {
 			*sig = (struct api_signature *)sp;
