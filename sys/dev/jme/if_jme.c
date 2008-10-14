@@ -415,11 +415,8 @@ jme_eeprom_macaddr(struct jme_softc *sc)
 	do {
 		if (jme_eeprom_read_byte(sc, offset, &fup) != 0)
 			break;
-		/* Check for the end of EEPROM descriptor. */
-		if ((fup & JME_EEPROM_DESC_END) == JME_EEPROM_DESC_END)
-			break;
-		if ((uint8_t)JME_EEPROM_MKDESC(JME_EEPROM_FUNC0,
-		    JME_EEPROM_PAGE_BAR1) == fup) {
+		if (JME_EEPROM_MKDESC(JME_EEPROM_FUNC0, JME_EEPROM_PAGE_BAR1) ==
+		    (fup & (JME_EEPROM_FUNC_MASK | JME_EEPROM_PAGE_MASK))) {
 			if (jme_eeprom_read_byte(sc, offset + 1, &reg) != 0)
 				break;
 			if (reg >= JME_PAR0 &&
@@ -431,6 +428,9 @@ jme_eeprom_macaddr(struct jme_softc *sc)
 				match++;
 			}
 		}
+		/* Check for the end of EEPROM descriptor. */
+		if ((fup & JME_EEPROM_DESC_END) == JME_EEPROM_DESC_END)
+			break;
 		/* Try next eeprom descriptor. */
 		offset += JME_EEPROM_DESC_BYTES;
 	} while (match != ETHER_ADDR_LEN && offset < JME_EEPROM_END);
