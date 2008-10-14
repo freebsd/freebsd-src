@@ -122,6 +122,9 @@ struct ehci_soft_islot {
 
 #define EHCI_SCFLG_DONEINIT	0x0001	/* ehci_init() has been called. */
 #define EHCI_SCFLG_LOSTINTRBUG	0x0002	/* workaround for VIA / ATI chipsets */
+#define EHCI_SCFLG_SETMODE	0x0004	/* set bridge mode again after init (Marvell) */
+#define EHCI_SCFLG_FORCESPEED	0x0008	/* force speed (Marvell) */
+#define EHCI_SCFLG_NORESTERM	0x0010	/* don't terminate reset sequence (Marvell) */
 
 typedef struct ehci_softc {
 	struct usbd_bus sc_bus;		/* base device */
