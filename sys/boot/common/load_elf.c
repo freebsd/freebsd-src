@@ -289,7 +289,16 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #ifdef ELF_VERBOSE
 	    printf("Converted entry 0x%08x\n", ehdr->e_entry);
 #endif
-	} else 
+	} else
+	    off = 0;
+#elif defined(__arm__)
+	if (off & 0xf0000000u) {
+	    off = -(off & 0xf0000000u);
+	    ehdr->e_entry += off;
+#ifdef ELF_VERBOSE
+	    printf("Converted entry 0x%08x\n", ehdr->e_entry);
+#endif
+	} else
 	    off = 0;
 #else
 	off = 0;		/* other archs use direct mapped kernels */

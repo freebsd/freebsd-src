@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=
+SUBDIR=		uboot
 
 .include <bsd.subdir.mk>
