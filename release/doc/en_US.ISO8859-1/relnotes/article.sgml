@@ -455,8 +455,8 @@
       8.14.1 to 8.14.3.</para>
 
     <para role="merged">The timezone database has been updated from
-      the <application>tzdata2007h</application> release to
-      the <application>tzdata2008b</application> release.</para>
+      the <application>tzdata2008b</application> release to
+      the <application>tzdata2008h</application> release.</para>
 
     <para><application>WPA Supplicant</application> has been
       updated from 0.5.8 to 0.5.10.</para>
