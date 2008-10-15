@@ -25,11 +25,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-
-#include <vm/vm_page.h>
-#include <vm/vm_kern.h>
 
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/synch_bitops.h>
