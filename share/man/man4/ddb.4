@@ -540,6 +540,13 @@ modifier will alter the display to show VM map
 addresses for the process and not show other information.
 .\"
 .Pp
+.It Ic show Cm all ttys
+Show all TTY's within the system.
+Output is similar to
+.Xr pstat 8 ,
+but also includes the address of the TTY structure.
+.\"
+.Pp
 .It Ic show Cm allchains
 Show the same information like "show lockchain" does, but
 for every thread in the system.
@@ -963,10 +970,8 @@ Backtrace.
 .El
 .\"
 .Pp
-.It Ic show Cm ttys
-Show all TTY's within the system.
-Output is similar to
-.Xr pstat 8 .
+.It Ic show Cm tty Ar addr
+Display the contents of a TTY structure in a readable form.
 .\"
 .Pp
 .It Ic show Cm turnstile Ar addr
