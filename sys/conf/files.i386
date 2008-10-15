@@ -291,8 +291,8 @@ i386/cpufreq/smist.c		optional cpufreq
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
 i386/i386/autoconf.c		standard
-i386/i386/bios.c		standard
-i386/i386/bioscall.s		standard
+i386/i386/bios.c		optional native
+i386/i386/bioscall.s		optional native	
 i386/i386/busdma_machdep.c	standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
@@ -301,7 +301,8 @@ i386/i386/dump_machdep.c	standard
 i386/i386/elan-mmcr.c		optional cpu_elan
 i386/i386/elan-mmcr.c		optional cpu_soekris
 i386/i386/elf_machdep.c		standard
-i386/i386/exception.s		standard
+i386/i386/exception.s		optional native
+i386/xen/exception.s		optional xen
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
@@ -314,22 +315,26 @@ i386/i386/io_apic.c		optional apic
 i386/i386/k6_mem.c		optional mem
 i386/i386/legacy.c		standard
 i386/i386/local_apic.c		optional apic
-i386/i386/locore.s		standard	no-obj
+i386/i386/locore.s		optional native	no-obj
+i386/xen/locore.s		optional xen	no-obj
 i386/i386/longrun.c		optional cpu_enable_longrun
 i386/i386/machdep.c		standard
 i386/i386/mem.c			optional mem
 i386/i386/minidump_machdep.c	standard
 i386/i386/mp_clock.c		optional smp
-i386/i386/mp_machdep.c		optional smp
+i386/i386/mp_machdep.c		optional native smp
+i386/xen/mp_machdep.c		optional xen smp
 i386/i386/mp_watchdog.c		optional mp_watchdog smp
-i386/i386/mpboot.s		optional smp
+i386/i386/mpboot.s		optional native smp
 i386/i386/mptable.c		optional apic
 i386/i386/mptable_pci.c		optional apic pci
 i386/i386/msi.c			optional apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/perfmon.c		optional perfmon	profiling-routine
-i386/i386/pmap.c		standard
+i386/i386/pmap.c		optional native
+i386/xen/pmap.c			optional xen
+i386/xen/xen_machdep.c		optional xen
 i386/i386/ptrace_machdep.c	standard
 i386/i386/support.s		standard
 i386/i386/swtch.s		standard
@@ -358,9 +363,10 @@ i386/ibcs2/ibcs2_util.c		optional ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
-i386/isa/atpic.c		standard
+i386/isa/atpic.c		optional atpic
 #i386/isa/atpic_vector.s		standard
-i386/isa/clock.c		standard
+i386/isa/clock.c		optional native
+i386/xen/clock.c		optional xen
 i386/isa/elcr.c			standard
 i386/isa/elink.c		optional ep
 i386/isa/elink.c		optional ie
