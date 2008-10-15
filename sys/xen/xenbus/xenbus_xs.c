@@ -883,7 +883,7 @@ static void xenbus_thread(void *unused)
 
 		DELAY(10000);
 		xenbus_running = 1;
-		pause("xenbus", hz/10);
+		tsleep(&lbolt, 0, "xenbus", hz/10);
 
 		for (;;) {
 				err = xs_process_msg(&type);
@@ -922,13 +922,13 @@ int xs_init(void)
 		if (err)
 				return err;
 
-		err = kproc_create(xenwatch_thread, NULL, &p,
+		err = kthread_create(xenwatch_thread, NULL, &p,
 							 RFHIGHPID, 0, "xenwatch");
 		if (err)
 				return err;
 		xenwatch_pid = p->p_pid;
 
-		err = kproc_create(xenbus_thread, NULL, NULL, 
+		err = kthread_create(xenbus_thread, NULL, NULL, 
 							 RFHIGHPID, 0, "xenbus");
 	
 		return err;

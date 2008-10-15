@@ -21,7 +21,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
+
 #include <machine/xen/xen-os.h>
+#include <machine/xen/xenvar.h>
 #include <machine/xen/xen_intr.h>
 #include <machine/xen/synch_bitops.h>
 #include <machine/xen/evtchn.h>
@@ -178,7 +180,7 @@ void force_evtchn_callback(void)
 }
 
 void 
-evtchn_do_upcall(struct trapframe *frame) 
+evtchn_do_upcall(struct intrframe *frame) 
 {
 	unsigned long  l1, l2;
 	unsigned int   l1i, l2i, port;
@@ -434,7 +436,7 @@ bind_caller_port_to_irqhandler(unsigned int caller_port,
 
 	irq = bind_caller_port_to_irq(caller_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, NULL, handler, arg, irqflags, cookiep);
+	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return -retval;
@@ -457,7 +459,7 @@ bind_listening_port_to_irqhandler(
 
 	irq = bind_listening_port_to_irq(remote_domain);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, NULL, handler, arg, irqflags, cookiep);
+	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return -retval;
@@ -471,7 +473,6 @@ bind_interdomain_evtchn_to_irqhandler(
 	                unsigned int remote_domain,
 	                unsigned int remote_port,
 			const char *devname,
-			driver_filter_t filter,
 			driver_intr_t handler,
 			unsigned long irqflags)
 {
@@ -480,7 +481,7 @@ bind_interdomain_evtchn_to_irqhandler(
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, filter, handler, NULL, irqflags, NULL);
+	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return -retval;
@@ -493,7 +494,6 @@ int
 bind_virq_to_irqhandler(unsigned int virq,
 			unsigned int cpu,
 			const char *devname,
-			driver_filter_t filter,
 			driver_intr_t handler,
 			unsigned long irqflags)
 {
@@ -502,7 +502,7 @@ bind_virq_to_irqhandler(unsigned int virq,
 
 	irq = bind_virq_to_irq(virq, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, filter, handler, NULL, irqflags, NULL);
+	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return -retval;
@@ -523,7 +523,7 @@ bind_ipi_to_irqhandler(unsigned int ipi,
 
 	irq = bind_ipi_to_irq(ipi, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, NULL, handler, NULL, irqflags, NULL);
+	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return -retval;
@@ -592,13 +592,11 @@ static void     xenpic_dynirq_enable_source(struct intsrc *isrc);
 static void     xenpic_dynirq_disable_source(struct intsrc *isrc, int); 
 static void     xenpic_dynirq_eoi_source(struct intsrc *isrc); 
 static void     xenpic_dynirq_enable_intr(struct intsrc *isrc); 
-static void     xenpic_dynirq_disable_intr(struct intsrc *isrc); 
 
 static void     xenpic_pirq_enable_source(struct intsrc *isrc); 
 static void     xenpic_pirq_disable_source(struct intsrc *isrc, int); 
 static void     xenpic_pirq_eoi_source(struct intsrc *isrc); 
 static void     xenpic_pirq_enable_intr(struct intsrc *isrc); 
-static void     xenpic_pirq_disable_intr(struct intsrc *isrc); 
 
 
 static int      xenpic_vector(struct intsrc *isrc); 
@@ -613,7 +611,6 @@ struct pic xenpic_dynirq_template  =  {
 	.pic_disable_source	=	xenpic_dynirq_disable_source,
 	.pic_eoi_source		=	xenpic_dynirq_eoi_source, 
 	.pic_enable_intr	=	xenpic_dynirq_enable_intr, 
-	.pic_disable_intr	=	xenpic_dynirq_disable_intr, 
 	.pic_vector		=	xenpic_vector, 
 	.pic_source_pending	=	xenpic_source_pending,
 	.pic_suspend		=	xenpic_suspend, 
@@ -625,7 +622,6 @@ struct pic xenpic_pirq_template  =  {
 	.pic_disable_source	=	xenpic_pirq_disable_source,
 	.pic_eoi_source		=	xenpic_pirq_eoi_source, 
 	.pic_enable_intr	=	xenpic_pirq_enable_intr, 
-	.pic_disable_intr	=	xenpic_pirq_disable_intr, 
 	.pic_vector		=	xenpic_vector, 
 	.pic_source_pending	=	xenpic_source_pending,
 	.pic_suspend		=	xenpic_suspend, 
@@ -680,20 +676,6 @@ xenpic_dynirq_enable_intr(struct intsrc *isrc)
 	xp->xp_masked = 0;
 	irq = xenpic_vector(isrc);
 	unmask_evtchn(evtchn_from_irq(irq));
-	mtx_unlock_spin(&irq_mapping_update_lock);
-}
-
-static void 
-xenpic_dynirq_disable_intr(struct intsrc *isrc)
-{
-	unsigned int irq;
-	struct xenpic_intsrc *xp;
-	
-	xp = (struct xenpic_intsrc *)isrc;	
-	mtx_lock_spin(&irq_mapping_update_lock);
-	xp->xp_masked = 1;
-	irq = xenpic_vector(isrc);
-	mask_evtchn(evtchn_from_irq(irq));
 	mtx_unlock_spin(&irq_mapping_update_lock);
 }
 
@@ -826,32 +808,6 @@ xenpic_pirq_enable_intr(struct intsrc *isrc)
  out:
 	unmask_evtchn(evtchn);
 	pirq_unmask_notify(irq_to_pirq(irq));
-	mtx_unlock_spin(&irq_mapping_update_lock);
-}
-
-static void 
-xenpic_pirq_disable_intr(struct intsrc *isrc)
-{
-	unsigned int irq;
-	int evtchn;
-	struct evtchn_close close;
-			
-	mtx_lock_spin(&irq_mapping_update_lock);
-	irq = xenpic_vector(isrc);
-	evtchn = evtchn_from_irq(irq);
-
-	if (!VALID_EVTCHN(evtchn)) 
-		goto done;
-	
-	mask_evtchn(evtchn);
-
-	close.port = evtchn;
-	PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0);
-
-	bind_evtchn_to_cpu(evtchn, 0);
-	evtchn_to_irq[evtchn] = -1;
-	irq_info[irq] = IRQ_UNBOUND;
- done:
 	mtx_unlock_spin(&irq_mapping_update_lock);
 }
 
