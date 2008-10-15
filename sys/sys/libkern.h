@@ -98,6 +98,7 @@ void	 srandom(u_long);
 int	 strcasecmp(const char *, const char *);
 char	*strcat(char * __restrict, const char * __restrict);
 int	 strcmp(const char *, const char *);
+size_t	strcspn(const char *s, const char *charset);
 char	*strcpy(char * __restrict, const char * __restrict);
 char	*strdup(const char *__restrict, struct malloc_type *);
 size_t	 strlcat(char *, const char *, size_t);
@@ -149,6 +150,18 @@ memset(void *b, int c, size_t len)
 		for (bb = (char *)b; len--; )
 			*bb++ = c;
 	return (b);
+}
+
+static __inline char *
+strchr(const char *p, int ch)
+{
+	return (index(p, ch));
+}
+
+static __inline char *
+strrchr(const char *p, int ch)
+{
+	return (rindex(p, ch));
 }
 
 /* fnmatch() return values. */
