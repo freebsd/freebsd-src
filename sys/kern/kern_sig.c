@@ -2342,16 +2342,12 @@ ptracestop(struct thread *td, int sig)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
-	thread_lock(td);
-	td->td_flags |= TDF_XSIG;
-	thread_unlock(td);
+	td->td_dbgflags |= TDB_XSIG;
 	td->td_xsig = sig;
 	PROC_SLOCK(p);
-	while ((p->p_flag & P_TRACED) && (td->td_flags & TDF_XSIG)) {
+	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
 		if (p->p_flag & P_SINGLE_EXIT) {
-			thread_lock(td);
-			td->td_flags &= ~TDF_XSIG;
-			thread_unlock(td);
+			td->td_dbgflags &= ~TDB_XSIG;
 			PROC_SUNLOCK(p);
 			return (sig);
 		}
@@ -2368,7 +2364,7 @@ stopme:
 		if (!(p->p_flag & P_TRACED)) {
 			break;
 		}
-		if (td->td_flags & TDF_DBSUSPEND) {
+		if (td->td_dbgflags & TDB_SUSPEND) {
 			if (p->p_flag & P_SINGLE_EXIT)
 				break;
 			goto stopme;
