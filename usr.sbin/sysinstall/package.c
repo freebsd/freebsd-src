@@ -69,7 +69,7 @@ package_add(char *name)
 
     tmp = index_search(&Top, name, &tmp);
     if (tmp)
-	return index_extract(mediaDevice, &Top, tmp, FALSE);
+	return index_extract(mediaDevice, &Top, tmp, FALSE, 0);
     else {
 	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
 	return DITEM_FAILURE;
