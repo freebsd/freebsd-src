@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
 #include <powerpc/ofw/ofw_syscons.h>
 
@@ -845,6 +846,10 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 static int
 ofwfb_scprobe(device_t dev)
 {
+	/* This is a fake device, so make sure there is no OF node for it */
+	if (ofw_bus_get_node(dev) != -1)
+		return ENXIO;
+	
 	device_set_desc(dev, "System console");
 	return (sc_probe_unit(device_get_unit(dev), 
 	    device_get_flags(dev) | SC_AUTODETECT_KBD));
