@@ -73,6 +73,8 @@ Huawei E220 (E270?)
 Huawei Mobile
 .It
 Novatal MC950D
+.It
+Sierra cards
 .El
 (See /sys/dev/u3g.c for the complete list of supported cards for each vendor
 mentioned above).
@@ -80,6 +82,12 @@ mentioned above).
 The supported 3G cards provide the necessary modem port for ppp,
 pppd, or mpd connections as well as extra ports (depending on the specific
 device) to provide other functions (diagnostic port, SIM toolkit port)
+.Pp
+In some of these devices a mass storage device supported by the 
+.Xr umass 4
+driver is present which contains Windows and Mac OSX drivers. This device is
+hidden, unless the machine was booted in verbose (see
+.Xr boot 8 ).
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
@@ -97,5 +105,7 @@ in September 2008.
 The
 .Nm
 driver was written by
-.An Andrea Guzzo Aq aguzzo@anywi.com .
+.An Andrea Guzzo Aq aguzzo@anywi.com
+and
+.An Nick Hibma Aq n_hibma@freebsd.org .
 Hardware for testing provided by AnyWi Technologies, Leiden, NL.
