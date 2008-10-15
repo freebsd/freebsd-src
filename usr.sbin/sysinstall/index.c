@@ -225,7 +225,17 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->deps =		_strdup(deps);
     tmp->depc =		0;
     tmp->installed =	package_installed(name);
+    tmp->vol_checked =	0;
     tmp->volume =	volume;
+    if (volume != 0) {
+	have_volumes = TRUE;
+	if (low_volume == 0)
+	    low_volume = volume;
+	else if (low_volume > volume)
+	    low_volume = volume;
+	if (high_volume < volume)
+	    high_volume = volume;
+    }
     return tmp;
 }
 
@@ -682,9 +692,11 @@ recycle:
 }
 
 int
-index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
+index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended,
+    int current_volume)
 {
     int status = DITEM_SUCCESS;
+    Boolean notyet = FALSE;
     PkgNodePtr tmp2;
     IndexEntryPtr id = who->data;
     WINDOW *w;
@@ -699,7 +711,7 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
      * a certain faulty INDEX file. 
      */
 
-    if (id->installed == 1)
+    if (id->installed == 1 || (have_volumes && id->vol_checked == current_volume))
 	return DITEM_SUCCESS;
 
     w = savescr();
@@ -712,9 +724,13 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 	    if ((cp2 = index(cp, ' ')) != NULL)
 		*cp2 = '\0';
 	    if ((tmp2 = index_search(top, cp, NULL)) != NULL) {
-		status = index_extract(dev, top, tmp2, TRUE);
+		status = index_extract(dev, top, tmp2, TRUE, current_volume);
 		if (DITEM_STATUS(status) != DITEM_SUCCESS) {
-		    if (variable_get(VAR_NO_CONFIRM))
+		    /* package probably on a future disc volume */
+		    if (status & DITEM_CONTINUE) {
+			status = DITEM_SUCCESS;
+			notyet = TRUE;
+		    } else if (variable_get(VAR_NO_CONFIRM))
 			msgNotify("Loading of dependent package %s failed", cp);
 		    else
 			msgConfirm("Loading of dependent package %s failed", cp);
@@ -732,10 +748,38 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		cp = NULL;
 	}
     }
-    /* Done with the deps?  Load the real m'coy */
+
+    /*
+     * If iterating through disc volumes one at a time indicate failure if
+     * dependency install failed due to package being on a higher volume
+     * numbered disc, but that we should continue anyway.  Note that this
+     * package has already been processed for this disc volume so we don't
+     * need to do it again.
+     */
+
+    if (notyet) {
+    	restorescr(w);
+	id->vol_checked = current_volume;
+	return DITEM_FAILURE | DITEM_CONTINUE;
+    }
+
+    /*
+     * Done with the deps?  Try to load the real m'coy.  If iterating
+     * through a multi-volume disc set fail the install if the package
+     * is on a higher numbered volume to cut down on disc switches the
+     * user needs to do, but indicate caller should continue processing
+     * despite error return.  Note this package was processed for the
+     * current disc being checked.
+     */
+
     if (DITEM_STATUS(status) == DITEM_SUCCESS) {
 	/* Prompt user if the package is not available on the current volume. */
 	if(mediaDevice->type == DEVICE_TYPE_CDROM) {
+	    if (current_volume != 0 && id->volume > current_volume) {
+		restorescr(w);
+		id->vol_checked = current_volume;
+		return DITEM_FAILURE | DITEM_CONTINUE;
+	    }
 	    while (id->volume != dev->volume) {
 		if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
 			  "Would you like to switch discs now?\n", dev->volume,
@@ -801,6 +845,8 @@ index_initialize(char *path)
     if (!index_initted) {
 	w = savescr();
 	dialog_clear_norefresh();
+	have_volumes = FALSE;
+	low_volume = high_volume = 0;
 
 	/* Got any media? */
 	if (!mediaVerify()) {
