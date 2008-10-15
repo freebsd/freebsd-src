@@ -45,6 +45,28 @@
  * to each CPU's data can be set up for things like "check curproc on all
  * other processors"
  */
+
+#ifdef XEN
+#define	PCPU_MD_FIELDS							\
+	struct	pcpu *pc_prvspace;	/* Self-reference */		\
+	struct	pmap *pc_curpmap;					\
+	struct	i386tss pc_common_tss;					\
+	struct	segment_descriptor pc_common_tssd;			\
+	struct	segment_descriptor *pc_tss_gdt;				\
+	struct	segment_descriptor *pc_fsgs_gdt;			\
+	vm_paddr_t 	*pc_pdir_shadow;				\
+	int	pc_currentldt;						\
+	u_int   pc_acpi_id;		/* ACPI CPU id */		\
+	u_int	pc_apic_id;						\
+	int	pc_private_tss;		/* Flag indicating private tss*/\
+        u_int     pc_cr3;		/* track cr3 for R1/R3*/	\
+        u_int     pc_pdir;                                              \
+        u_int     pc_lazypmap;                                          \
+        u_int     pc_rendezvous;                                        \
+        u_int     pc_cpuast						
+
+	
+#else
 #define	PCPU_MD_FIELDS							\
 	struct	pcpu *pc_prvspace;		/* Self-reference */	\
 	struct	pmap *pc_curpmap;					\
@@ -55,7 +77,7 @@
 	int	pc_currentldt;						\
 	u_int	pc_acpi_id;						\
 	u_int	pc_apic_id
-
+#endif
 #if defined(lint)
  
 extern struct pcpu *pcpup;

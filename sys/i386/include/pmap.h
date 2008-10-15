@@ -68,7 +68,14 @@
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2
+
+#ifdef PAE
+#define PG_FRAME        (0x000ffffffffff000ull) 
+#define PG_PS_FRAME     (0x000fffffffe00000ull) 
+#else
 #define	PG_FRAME	(~((vm_paddr_t)PAGE_MASK))
+#define PG_PS_FRAME     (0xffc00000)
+#endif
 #define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
 #define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
 
@@ -175,6 +182,77 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  * the corresponding pde that in turn maps it.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+
+#ifdef XEN
+#include <machine/xen/xen-os.h>
+#include <machine/xen/xenvar.h>
+#include <machine/xen/xenpmap.h>
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+#define PG_KERNEL  (PG_V | PG_A | PG_RW | PG_M)
+
+#define MACH_TO_VM_PAGE(ma) PHYS_TO_VM_PAGE(xpmap_mtop((ma)))
+#define VM_PAGE_TO_MACH(m) xpmap_ptom(VM_PAGE_TO_PHYS((m)))
+
+static __inline vm_paddr_t
+pmap_kextract_ma(vm_offset_t va)
+{
+        vm_paddr_t ma;
+        if ((ma = PTD[va >> PDRSHIFT]) & PG_PS) {
+                ma = (ma & ~(NBPDR - 1)) | (va & (NBPDR - 1));
+        } else {
+                ma = (*vtopte(va) & PG_FRAME) | (va & PAGE_MASK);
+        }
+        return ma;
+}
+
+static __inline vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+        return xpmap_mtop(pmap_kextract_ma(va));
+}
+#define vtomach(va)     pmap_kextract_ma(((vm_offset_t) (va)))
+
+vm_paddr_t pmap_extract_ma(struct pmap *pmap, vm_offset_t va);
+
+void    pmap_kenter_ma(vm_offset_t va, vm_paddr_t pa);
+void    pmap_map_readonly(struct pmap *pmap, vm_offset_t va, int len);
+void    pmap_map_readwrite(struct pmap *pmap, vm_offset_t va, int len);
+
+static __inline pt_entry_t
+pte_load_store(pt_entry_t *ptep, pt_entry_t v)
+{
+	pt_entry_t r;
+
+	v = xpmap_ptom(v);
+	r = *ptep;
+	PT_SET_VA(ptep, v, TRUE);
+	return (r);
+}
+
+static __inline pt_entry_t
+pte_load_store_ma(pt_entry_t *ptep, pt_entry_t v)
+{
+	pt_entry_t r;
+
+	r = *ptep;
+	PT_SET_VA_MA(ptep, v, TRUE);
+	return (r);
+}
+
+#define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
+
+#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+#define	pte_store_ma(ptep, pte)	pte_load_store_ma((ptep), (pt_entry_t)pte)
+#define	pde_store_ma(ptep, pte)	pte_load_store_ma((ptep), (pt_entry_t)pte)
+
+#elif !defined(XEN)
 
 /*
  *	Routine:	pmap_kextract
@@ -195,10 +273,9 @@ pmap_kextract(vm_offset_t va)
 	}
 	return pa;
 }
+#endif
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
-
-#ifdef PAE
+#if defined(PAE) && !defined(XEN)
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
@@ -231,7 +308,7 @@ pte_load_store(pt_entry_t *ptep, pt_entry_t v)
 
 #define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
 
-#else /* PAE */
+#elif !defined (PAE) && !defined(XEN)
 
 static __inline pt_entry_t
 pte_load(pt_entry_t *ptep)
