@@ -1475,6 +1475,7 @@ libkern/strcasecmp.c		standard
 libkern/strcat.c		standard
 libkern/strcmp.c		standard
 libkern/strcpy.c		standard
+libkern/strcspn.c		standard
 libkern/strdup.c		standard
 libkern/strlcat.c		standard
 libkern/strlcpy.c		standard
@@ -2044,3 +2045,19 @@ xdr/xdr_mbuf.c			optional nfslockd
 xdr/xdr_mem.c			optional nfslockd
 xdr/xdr_reference.c		optional nfslockd
 xdr/xdr_sizeof.c		optional nfslockd
+
+
+xen/gnttab.c                   optional xen
+xen/features.c                 optional xen
+xen/evtchn/evtchn.c            optional xen
+xen/evtchn/evtchn_dev.c                optional xen
+xen/xenbus/xenbus_client.c     optional xen
+xen/xenbus/xenbus_comms.c      optional xen
+xen/xenbus/xenbus_dev.c                optional xen
+xen/xenbus/xenbus_probe.c      optional xen
+xen/xenbus/xenbus_probe_backend.c      optional xen
+xen/xenbus/xenbus_xs.c         optional xen
+dev/xen/console/console.c      optional xen
+dev/xen/console/xencons_ring.c optional xen
+dev/xen/blkfront/blkfront.c    optional xen
+dev/xen/netfront/netfront.c    optional xen

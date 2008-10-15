@@ -70,13 +70,17 @@ INCLUDES+= -I$S/dev/twa
 # .. and the same for em
 INCLUDES+= -I$S/dev/em
 
+INCLUDES+= -I$S/xen/interface -I$S/xen/interface/io
+
+
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
 .if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
-WERROR?= -Werror
+WERROR?= 
+#-Werror
 .endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
