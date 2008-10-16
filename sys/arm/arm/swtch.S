@@ -143,8 +143,6 @@ ENTRY(cpu_throw)
 	ldr	r9, .Lcpufuncs
 	mov	lr, pc
 	ldr	pc, [r9, #CF_IDCACHE_WBINV_ALL]
-	mov	lr, pc
-	ldr	pc, [r9, #CF_L2CACHE_WBINV_ALL]
 	ldr	r0, [r7, #(PCB_PL1VEC)]
 	ldr	r1, [r7, #(PCB_DACR)]
 	/*
@@ -174,8 +172,6 @@ ENTRY(cpu_throw)
 	movne	r1, #4
 	movne	lr, pc
 	ldrne	pc, [r9, #CF_DCACHE_WB_RANGE]
-	movne	lr, pc
-	ldrne	pc, [r9, #CF_L2CACHE_WB_RANGE]
 #endif /* PMAP_INCLUDE_PTE_SYNC */
 
 	/*
@@ -332,8 +328,6 @@ ENTRY(cpu_switch)
 	ldr	r1, .Lcpufuncs
 	mov	lr, pc
 	ldr	pc, [r1, #CF_IDCACHE_WBINV_ALL]
-	mov	lr, pc
-	ldr	pc, [r1, #CF_L2CACHE_WBINV_ALL]
 .Lcs_cache_purge_skipped:
 	/* rem: r6 = lock */
 	/* rem: r9 = new PCB */
@@ -366,8 +360,6 @@ ENTRY(cpu_switch)
 	mov	r1, #4
 	mov	lr, pc
 	ldr	pc, [r2, #CF_DCACHE_WB_RANGE]
-	mov	lr, pc
-	ldr	pc, [r2, #CF_L2CACHE_WB_RANGE]
 
 .Lcs_same_vector:
 #endif /* PMAP_INCLUDE_PTE_SYNC */
