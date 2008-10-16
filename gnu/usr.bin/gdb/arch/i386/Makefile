@@ -17,6 +17,7 @@ tm.h:
 xm.h:
 	echo '#include "i386/xm-i386.h"' > ${.TARGET}
 
+# Fix source static/extern mismatch nits that GCC 4.2 warns about.
+CLEANFILES += i386fbsd-tdep-fixed.c
 i386fbsd-tdep-fixed.c: i386fbsd-tdep.c
 	sed -e '48s/^static\ //' ${.ALLSRC} > ${.TARGET}
-CLEANFILES += i386fbsd-tdep-fixed.c
