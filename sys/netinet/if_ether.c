@@ -98,7 +98,6 @@ struct llinfo_arp {
 };
 
 static struct	ifqueue arpintrq;
-static int	arp_allocated;
 
 static int	arp_maxtries = 5;
 static int	useloopback = 1; /* use loopback interface for local traffic */
@@ -221,7 +220,6 @@ arp_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 			log(LOG_DEBUG, "%s: malloc failed\n", __func__);
 			break;
 		}
-		arp_allocated++;
 		/*
 		 * We are storing a route entry outside of radix tree. So,
 		 * it can be found and accessed by other means than radix
