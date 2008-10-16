@@ -152,7 +152,7 @@ uint32_t arch_i386_xbox_memsize = 0;
 void Xhypervisor_callback(void);
 void failsafe_callback(void);
 
-int gdt_set;
+int gdtset;
 extern trap_info_t trap_table[];
 struct proc_ldt default_proc_ldt;
 extern int init_first;
@@ -2264,7 +2264,7 @@ init386(int first)
 	PT_SET_MA(gdt, *vtopte((unsigned long)gdt) & ~(PG_RW|PG_M|PG_A));
 	PANIC_IF(HYPERVISOR_set_gdt(&gdtmachpfn, 512) != 0);	
 	lgdt(&r_gdt /* unused */);
-	gdt_set = 1;
+	gdtset = 1;
 
 	if ((error = HYPERVISOR_set_trap_table(trap_table)) != 0) {
 		panic("set_trap_table failed - error %d\n", error);

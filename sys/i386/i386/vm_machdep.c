@@ -89,6 +89,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
+#ifdef XEN
+#include <machine/xen/hypervisor.h>
+#endif
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
@@ -264,7 +267,7 @@ cpu_fork(td1, p2, td2, flags)
 
 	/* Setup to release sched_lock in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+	td2->td_md.md_saved_flags = PSL_USER;
 
 	/*
 	 * Now, cpu_switch() can schedule the new process.
@@ -436,7 +439,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 
 	/* Setup to release sched_lock in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+	td->td_md.md_saved_flags = PSL_USER;
 }
 
 /*
@@ -593,6 +596,9 @@ cpu_reset_real()
 	int b;
 #endif
 
+#ifdef XEN
+	HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+#endif	
 	disable_intr();
 #ifdef CPU_ELAN
 	if (elan_mmcr != NULL)
@@ -762,8 +768,11 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	 */
 	ptep = vtopte(sf->kva);
 	opte = *ptep;
+#ifdef XEN
+	PT_SET_MA(sf->kva, xpmap_ptom(VM_PAGE_TO_PHYS(m)) | pgeflag | PG_RW | PG_V);
+#else	
 	*ptep = VM_PAGE_TO_PHYS(m) | pgeflag | PG_RW | PG_V;
-
+#endif
 	/*
 	 * Avoid unnecessary TLB invalidations: If the sf_buf's old
 	 * virtual-to-physical mapping was not used, then any processor
@@ -812,6 +821,14 @@ sf_buf_free(struct sf_buf *sf)
 	if (sf->ref_count == 0) {
 		TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
 		nsfbufsused--;
+#ifdef XEN
+		/*
+		 * Xen doesn't like having dangling R/W mappings
+		 */
+                pmap_qremove(sf->kva, 1);
+                sf->m = NULL;
+                LIST_REMOVE(sf, list_entry);
+#endif
 		if (sf_buf_alloc_want > 0)
 			wakeup_one(&sf_buf_freelist);
 	}

@@ -58,6 +58,25 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
+#ifdef XEN 
+#include <machine/xen/xenfunc.h>
+
+void i386_reset_ldt(struct proc_ldt *pldt); 
+
+void 
+i386_reset_ldt(struct proc_ldt *pldt) 
+{ 
+        xen_set_ldt((vm_offset_t)pldt->ldt_base, pldt->ldt_len); 
+} 
+#define SEG_VIRT_END  (HYPERVISOR_VIRT_START >> 12) & 0xffff
+#define SET_DESCRIPTOR(index, sd)  \
+	HYPERVISOR_update_descriptor(vtomach(&PCPU_GET(fsgs_gdt)[index]), *(uint64_t *)&(sd));
+#else  
+#define i386_reset_ldt(x)
+#define SEG_VIRT_END 0xffff
+#define SET_DESCRIPTOR(index, sd) PCPU_GET(fsgs_gdt)[index] = (sd);
+#endif
+
 #define MAX_LD 8192
 #define LD_PER_PAGE 512
 #define NEW_MAX_LD(num)  ((num + LD_PER_PAGE) & ~(LD_PER_PAGE-1))
@@ -163,7 +182,7 @@ sysarch(td, uap)
 			 */
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
-			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+			sd.sd_lolimit = SEG_VIRT_END; /* 4GB limit, wraps */
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -173,7 +192,7 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_fsd = sd;
-			PCPU_GET(fsgs_gdt)[0] = sd;
+			SET_DESCRIPTOR(0, sd);
 			critical_exit();
 			td->td_frame->tf_fs = GSEL(GUFS_SEL, SEL_UPL);
 		}
@@ -193,7 +212,7 @@ sysarch(td, uap)
 			 */
 			sd.sd_lobase = base & 0xffffff;
 			sd.sd_hibase = (base >> 24) & 0xff;
-			sd.sd_lolimit = 0xffff;	/* 4GB limit, wraps around */
+			sd.sd_lolimit = SEG_VIRT_END; /* 4GB limit, wraps */
 			sd.sd_hilimit = 0xf;
 			sd.sd_type  = SDT_MEMRWA;
 			sd.sd_dpl   = SEL_UPL;
@@ -203,7 +222,7 @@ sysarch(td, uap)
 			sd.sd_gran  = 1;
 			critical_enter();
 			td->td_pcb->pcb_gsd = sd;
-			PCPU_GET(fsgs_gdt)[1] = sd;
+			SET_DESCRIPTOR(1, sd);
 			critical_exit();
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
 		}
@@ -364,6 +383,10 @@ set_user_ldt(struct mdproc *mdp)
 	struct proc_ldt *pldt;
 
 	pldt = mdp->md_ldt;
+#ifdef XEN
+	i386_reset_ldt(pldt);
+	PCPU_SET(currentldt, (int)pldt);
+#else	
 #ifdef SMP
 	gdt[PCPU_GET(cpuid) * NGDT + GUSERLDT_SEL].sd = pldt->ldt_sd;
 #else
@@ -371,6 +394,7 @@ set_user_ldt(struct mdproc *mdp)
 #endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	PCPU_SET(currentldt, GSEL(GUSERLDT_SEL, SEL_KPL));
+#endif /* !XEN */
 }
 
 #ifdef SMP
@@ -385,6 +409,39 @@ set_user_ldt_rv(struct thread *td)
 }
 #endif
 
+#ifdef XEN
+
+struct proc_ldt * 
+user_ldt_alloc(struct mdproc *mdp, int len) 
+{ 
+        struct proc_ldt *pldt, *new_ldt; 
+ 
+        MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt), 
+                M_SUBPROC, M_WAITOK); 
+ 
+        new_ldt->ldt_len = len = NEW_MAX_LD(len); 
+        new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map, 
+                round_page(len * sizeof(union descriptor))); 
+        if (new_ldt->ldt_base == NULL) { 
+                FREE(new_ldt, M_SUBPROC); 
+                return NULL; 
+        } 
+        new_ldt->ldt_refcnt = 1; 
+        new_ldt->ldt_active = 0; 
+ 
+        if ((pldt = mdp->md_ldt)) { 
+                if (len > pldt->ldt_len) 
+                        len = pldt->ldt_len; 
+                bcopy(pldt->ldt_base, new_ldt->ldt_base, 
+                    len * sizeof(union descriptor)); 
+        } else { 
+                bcopy(ldt, new_ldt->ldt_base, PAGE_SIZE); 
+        } 
+        pmap_map_readonly(kernel_pmap, (vm_offset_t)new_ldt->ldt_base, 
+                          new_ldt->ldt_len*sizeof(union descriptor)); 
+        return new_ldt; 
+} 
+#else
 /*
  * Must be called with either sched_lock free or held but not recursed.
  * If it does not return NULL, it will return with it owned.
@@ -425,6 +482,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 	}
 	return new_ldt;
 }
+#endif
 
 /*
  * Must be called either with sched_lock free or held but not recursed.
@@ -443,8 +501,11 @@ user_ldt_free(struct thread *td)
 		mtx_lock_spin(&sched_lock);
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	if (td == PCPU_GET(curthread)) {
+#ifndef XEN
 		lldt(_default_ldt);
+#endif		
 		PCPU_SET(currentldt, _default_ldt);
+		i386_reset_ldt((struct proc_ldt *)_default_ldt);
 	}
 
 	mdp->md_ldt = NULL;
@@ -549,6 +610,9 @@ i386_set_ldt(td, uap, descs)
 	}
 
 	if (!(uap->start == LDT_AUTO_ALLOC && uap->num == 1)) {
+#ifdef XEN 
+                        load_gs(0);  /* XXX check if we really still need this */
+#endif 
 		/* complain a for a while if using old methods */
 		if (ldt_warnings++ < NUM_LDT_WARNINGS) {
 			printf("Warning: pid %d used static ldt allocation.\n",
@@ -671,6 +735,23 @@ again:
 	return (error);
 }
 
+#ifdef XEN
+static int 
+i386_set_ldt_data(struct thread *td, int start, int num, 
+        union descriptor *descs) 
+{ 
+        struct mdproc *mdp = &td->td_proc->p_md; 
+        struct proc_ldt *pldt = mdp->md_ldt; 
+        int i, error; 
+
+        for (i = 0; i < num; i++) { 
+                error = HYPERVISOR_update_descriptor(vtomach(&((union descriptor *)(pldt->ldt_base))[start + i]), *(uint64_t *)(descs + i)); 
+                if (error) 
+                        panic("failed to update ldt: %d", error); 
+        } 
+        return (0); 
+} 
+#else
 static int
 i386_set_ldt_data(struct thread *td, int start, int num,
 	union descriptor *descs)
@@ -686,6 +767,7 @@ i386_set_ldt_data(struct thread *td, int start, int num,
 	    num * sizeof(union descriptor));
 	return (0);
 }
+#endif
 
 static int
 i386_ldt_grow(struct thread *td, int len) 

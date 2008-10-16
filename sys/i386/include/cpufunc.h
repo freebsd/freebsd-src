@@ -42,6 +42,16 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#ifdef XEN
+extern void xen_cli(void);
+extern void xen_sti(void);
+extern void xen_load_cr3(u_int data);
+extern void xen_tlb_flush(void);
+extern void xen_invlpg(u_int addr);
+extern int xen_save_and_cli(void);
+extern void xen_restore_flags(u_int eflags);
+#endif
+
 struct region_descriptor;
 
 #define readb(va)	(*(volatile u_int8_t *) (va))
@@ -81,7 +91,11 @@ bsrl(u_int mask)
 static __inline void
 disable_intr(void)
 {
+#ifdef XEN
+	xen_cli();
+#else	
 	__asm __volatile("cli" : : : "memory");
+#endif
 }
 
 static __inline void
@@ -103,7 +117,11 @@ cpuid_count(u_int ax, u_int cx, u_int *p)
 static __inline void
 enable_intr(void)
 {
+#ifdef XEN
+	xen_sti();
+#else
 	__asm __volatile("sti");
+#endif
 }
 
 #ifdef _KERNEL
@@ -399,8 +417,11 @@ rcr2(void)
 static __inline void
 load_cr3(u_int data)
 {
-
+#ifdef XEN
+	xen_load_cr3(data);
+#else
 	__asm __volatile("movl %0,%%cr3" : : "r" (data) : "memory");
+#endif
 }
 
 static __inline u_int
@@ -433,8 +454,11 @@ rcr4(void)
 static __inline void
 invltlb(void)
 {
-
+#ifdef XEN
+	xen_tlb_flush();
+#else	
 	load_cr3(rcr3());
+#endif
 }
 
 /*
@@ -444,8 +468,11 @@ invltlb(void)
 static __inline void
 invlpg(u_int addr)
 {
-
+#ifdef XEN
+	xen_invlpg(addr);
+#else
 	__asm __volatile("invlpg %0" : : "m" (*(char *)addr) : "memory");
+#endif
 }
 
 static __inline u_int
@@ -619,15 +646,23 @@ intr_disable(void)
 {
 	register_t eflags;
 
+#ifdef XEN
+	return (xen_save_and_cli());
+#endif
 	eflags = read_eflags();
 	disable_intr();
+
 	return (eflags);
 }
 
 static __inline void
 intr_restore(register_t eflags)
 {
+#ifdef XEN
+	xen_restore_flags(eflags);
+#else
 	write_eflags(eflags);
+#endif
 }
 
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */

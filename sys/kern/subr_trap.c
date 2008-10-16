@@ -67,6 +67,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 
+#ifdef XEN
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#endif
+
 /*
  * Define the code needed before returning to user mode, for
  * trap and syscall.
@@ -139,6 +145,9 @@ userret(td, frame, oticks)
 	sched_userret(td);
 	KASSERT(td->td_locks == 0,
 	    ("userret: Returning with %d locks held.", td->td_locks));
+#ifdef XEN
+	PT_UPDATES_FLUSH();
+#endif
 }
 
 /*
