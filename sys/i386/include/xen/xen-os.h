@@ -30,14 +30,14 @@ void force_evtchn_callback(void);
 #include <vm/pmap.h>
 #endif
 
+extern int gdtset;
 #ifdef SMP
 #include <sys/time.h> /* XXX for pcpu.h */
 #include <sys/pcpu.h> /* XXX for PCPU_GET */
-extern int gdt_set;
 static inline int 
 smp_processor_id(void)  
 {
-    if (likely(gdt_set))
+    if (likely(gdtset))
 	return PCPU_GET(cpuid);
     return 0;
 }

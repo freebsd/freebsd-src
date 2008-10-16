@@ -140,6 +140,11 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static __inline int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 
+#ifdef XEN
+#undef pmap_kextract
+#define pmap_kextract pmap_kextract_ma
+#endif
+
 /*
  * Return true if a match is made.
  *

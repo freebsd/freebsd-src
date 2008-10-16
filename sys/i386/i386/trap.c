@@ -215,6 +215,7 @@ trap(frame)
 	    goto out;
 #endif
 
+#ifndef XEN	
 	if ((frame.tf_eflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
@@ -245,6 +246,7 @@ trap(frame)
 				enable_intr();
 		}
 	}
+#endif
 
 	eva = 0;
 	code = frame.tf_err;

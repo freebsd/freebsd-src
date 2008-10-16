@@ -284,7 +284,12 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	/* Schedule the ithread if needed. */
 	if (thread) {
 		error = intr_event_schedule_thread(ie);
+#ifndef XEN
 		KASSERT(error == 0, ("bad stray interrupt"));
+#else
+		if (error != 0)
+			log(LOG_CRIT, "bad stray interrupt %d", vector);
+#endif
 	}
 	critical_exit();
 	td->td_intr_nesting_level--;
