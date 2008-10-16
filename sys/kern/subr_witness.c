@@ -103,6 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/stack.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -1015,7 +1016,7 @@ void
 witness_checkorder(struct lock_object *lock, int flags, const char *file,
     int line, struct lock_object *interlock)
 {
-	struct lock_list_entry **lock_list, *lle;
+	struct lock_list_entry *lock_list, *lle;
 	struct lock_instance *lock1, *lock2, *plock;
 	struct lock_class *class;
 	struct witness *w, *w1;
@@ -1046,35 +1047,34 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		 * If this is the first lock acquired then just return as
 		 * no order checking is needed.
 		 */
-		if (td->td_sleeplocks == NULL)
+		lock_list = td->td_sleeplocks;
+		if (lock_list == NULL || lock_list->ll_count == 0)
 			return;
-		lock_list = &td->td_sleeplocks;
 	} else {
 
 		/*
 		 * If this is the first lock, just return as no order
-		 * checking is needed.  We check this in both if clauses
-		 * here as unifying the check would require us to use a
-		 * critical section to ensure we don't migrate while doing
-		 * the check.  Note that if this is not the first lock, we
-		 * are already in a critical section and are safe for the
-		 * rest of the check.
+		 * checking is needed.  Avoid problems with thread
+		 * migration pinning the thread while checking if
+		 * spinlocks are held.  If at least one spinlock is held
+		 * the thread is in a safe path and it is allowed to
+		 * unpin it.
 		 */
-		if (PCPU_GET(spinlocks) == NULL)
+		sched_pin();
+		lock_list = PCPU_GET(spinlocks);
+		if (lock_list == NULL || lock_list->ll_count == 0) {
+			sched_unpin();
 			return;
-		lock_list = PCPU_PTR(spinlocks);
+		}
+		sched_unpin();
 	}
-
-	/* Empty list? */
-	if ((*lock_list)->ll_count == 0)
-		return;
 
 	/*
 	 * Check to see if we are recursing on a lock we already own.  If
 	 * so, make sure that we don't mismatch exclusive and shared lock
 	 * acquires.
 	 */
-	lock1 = find_instance(*lock_list, lock);
+	lock1 = find_instance(lock_list, lock);
 	if (lock1 != NULL) {
 		if ((lock1->li_flags & LI_EXCLUSIVE) != 0 &&
 		    (flags & LOP_EXCLUSIVE) == 0) {
@@ -1098,17 +1098,22 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	/*
 	 * Find the previously acquired lock, but ignore interlocks.
 	 */
-	plock = &(*lock_list)->ll_children[(*lock_list)->ll_count - 1];
+	plock = &lock_list->ll_children[lock_list->ll_count - 1];
 	if (interlock != NULL && plock->li_lock == interlock) {
-		if ((*lock_list)->ll_count == 1) {
+		if (lock_list->ll_count > 1)
+			plock =
+			    &lock_list->ll_children[lock_list->ll_count - 2];
+		else {
+			lle = lock_list->ll_next;
 
 			/*
 			 * The interlock is the only lock we hold, so
-			 * nothing to do.
+			 * simply return.
 			 */
-			return;
+			if (lle == NULL)
+				return;
+			plock = &lle->ll_children[lle->ll_count - 1];
 		}
-		plock = &(*lock_list)->ll_children[(*lock_list)->ll_count - 2];
 	}
 	
 	/*
@@ -1154,7 +1159,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	if (isitmychild(w1, w))
 		goto out;
 
-	for (j = 0, lle = *lock_list; lle != NULL; lle = lle->ll_next) {
+	for (j = 0, lle = lock_list; lle != NULL; lle = lle->ll_next) {
 		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
 
 			MPASS(j < WITNESS_COUNT);
@@ -1582,7 +1587,7 @@ witness_thread_exit(struct thread *td)
 int
 witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 {
-	struct lock_list_entry **lock_list, *lle;
+	struct lock_list_entry *lock_list, *lle;
 	struct lock_instance *lock1;
 	struct thread *td;
 	va_list ap;
@@ -1615,17 +1620,33 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 			n++;
 			witness_list_lock(lock1);
 		}
-	if (PCPU_GET(spinlocks) != NULL) {
-		lock_list = PCPU_PTR(spinlocks);
+
+	/*
+	 * Pin the thread in order to avoid problems with thread migration.
+	 * Once that all verifies are passed about spinlocks ownership,
+	 * the thread is in a safe path and it can be unpinned.
+	 */
+	sched_pin();
+	lock_list = PCPU_GET(spinlocks);
+	if (lock_list != NULL) {
 
 		/* Empty list? */
-		if ((*lock_list)->ll_count == 0)
+		if (lock_list->ll_count == 0) {
+			sched_unpin();
 			return (n);
+		}
+		sched_unpin();
 
 		/*
-		 * Since we already hold a spinlock preemption is
-		 * already blocked.
+		 * We should only have one spinlock and as long as
+		 * the flags cannot match for this locks class,
+		 * check if the first spinlock is the one curthread
+		 * should hold.
 		 */
+		lock1 = &lock_list->ll_children[lock_list->ll_count - 1];
+		if (lock1->li_lock == lock)
+			return (n);
+
 		if (n == 0) {
 			va_start(ap, fmt);
 			vprintf(fmt, ap);
@@ -1635,8 +1656,9 @@ witness_warn(int flags, struct lock_object *lock, const char *fmt, ...)
 				printf(" non-sleepable");
 			printf(" locks held:\n");
 		}
-		n += witness_list_locks(PCPU_PTR(spinlocks));
-	}
+		n += witness_list_locks(&lock_list);
+	} else
+		sched_unpin();
 	if (flags & WARN_PANIC && n)
 		panic("%s", __func__);
 	else
