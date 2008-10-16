@@ -160,6 +160,7 @@ AddPoint(struct dataset *ds, double a)
 		ds->lpoints *= 4;
 		ds->points = calloc(sizeof *ds->points, ds->lpoints);
 		memcpy(ds->points, dp, sizeof *dp * ds->n);
+		free(dp);
 	}
 	ds->points[ds->n++] = a;
 	ds->sy += a;
