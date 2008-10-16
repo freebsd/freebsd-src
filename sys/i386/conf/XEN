@@ -67,8 +67,8 @@ options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, require
 #options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # To make an SMP kernel, the next two lines are needed
-#options 	SMP			# Symmetric MultiProcessor Kernel
-#device		apic			# I/O APIC
+options 	SMP			# Symmetric MultiProcessor Kernel
+device		apic			# I/O APIC
 options		PAE
 
 
@@ -103,6 +103,8 @@ device		splash		# Splash screen and screen saver support
 #device		apm
 # Add suspend/resume support for the i8254.
 #device		pmtimer		# native
+
+device		pci
 
 # Serial (COM) ports
 device		uart		# Generic UART driver

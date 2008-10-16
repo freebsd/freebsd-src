@@ -1424,7 +1424,6 @@ pmap_pinit(struct pmap *pmap)
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
 	mtx_unlock_spin(&allpmaps_lock);
 	/* Wire in kernel global address entries. */
-	/* XXX copies current process, does not fill in MPPTDI */
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * sizeof(pd_entry_t));
 
 #ifdef PAE
@@ -1441,11 +1440,6 @@ pmap_pinit(struct pmap *pmap)
 
 	}
 #endif	
-
-#ifdef SMP
-	pmap->pm_pdir[MPPTDI] = PTD[MPPTDI];
-#endif
-
 
 #ifdef XEN
 	for (i = 0; i < NPGPTD; i++) {
@@ -1742,9 +1736,6 @@ pmap_release(pmap_t pmap)
 	
 	bzero(pmap->pm_pdir + PTDPTDI, (nkpt + NPGPTD) *
 	    sizeof(*pmap->pm_pdir));
-#ifdef SMP
-	pmap->pm_pdir[MPPTDI] = 0;
-#endif
 
 	pmap_qremove((vm_offset_t)pmap->pm_pdir, NPGPTD);
 #if defined(PAE) && defined(XEN)
