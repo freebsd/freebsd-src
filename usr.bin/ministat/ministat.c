@@ -131,11 +131,10 @@ double student [NSTUDENT + 1][NCONF] = {
 #define	MAX_DS	8
 static char symbol[MAX_DS] = { ' ', 'x', '+', '*', '%', '#', '@', 'O' };
 
-TAILQ_HEAD(pointlist, point);
-
 struct dataset {
 	char *name;
-	struct pointlist list;
+	double	*points;
+	unsigned lpoints;
 	double sy, syy;
 	int n;
 };
@@ -146,51 +145,39 @@ NewSet(void)
 	struct dataset *ds;
 
 	ds = calloc(1, sizeof *ds);
-	TAILQ_INIT(&ds->list);
+	ds->lpoints = 100000;
+	ds->points = calloc(sizeof *ds->points, ds->lpoints);
 	return(ds);
 }
-
-struct point {
-	TAILQ_ENTRY(point)	list;
-	double			val;
-};
 
 static void
 AddPoint(struct dataset *ds, double a)
 {
-	struct point *pp, *pp2;
+	double *dp;
 
-	pp = calloc(1, sizeof *pp);
-	pp->val = a;
-
-	ds->n++;
+	if (ds->n >= ds->lpoints) {
+		dp = ds->points;
+		ds->lpoints *= 4;
+		ds->points = calloc(sizeof *ds->points, ds->lpoints);
+		memcpy(ds->points, dp, sizeof *dp * ds->n);
+	}
+	ds->points[ds->n++] = a;
 	ds->sy += a;
 	ds->syy += a * a;
-	if (TAILQ_EMPTY(&ds->list)) {
-		TAILQ_INSERT_HEAD(&ds->list, pp, list);
-		return;
-	}
-	TAILQ_FOREACH(pp2, &ds->list, list) {
-		if (pp->val < pp2->val) {
-			TAILQ_INSERT_BEFORE(pp2, pp, list);
-			return;
-		}
-	}
-	TAILQ_INSERT_TAIL(&ds->list, pp, list);
 }
 
 static double
 Min(struct dataset *ds)
 {
 
-	return (TAILQ_FIRST(&ds->list)->val);
+	return (ds->points[0]);
 }
 
 static double
 Max(struct dataset *ds)
 {
 
-	return(TAILQ_LAST(&ds->list, pointlist)->val);
+	return (ds->points[ds->n -1]);
 }
 
 static double
@@ -206,23 +193,7 @@ Median(struct dataset *ds)
 	int even, i;
 	struct point *p1, *p2;
 
-	if ((ds->n % 2) == 1) {
-		i = (ds->n / 2) + 1;
-		even = 0;
-	} else {
-		i = ds->n / 2;
-		even = 1;
-	}
-	TAILQ_FOREACH(p1, &ds->list, list) {
-		--i;
-		if (i == 0)
-			break;
-	}
-	if (even) {
-		p2 = TAILQ_NEXT(p1, list);
-		return ((p2->val + p1->val) / 2);
-	}
-	return (p1->val);
+	return (ds->points[ds->n / 2]);
 }
 
 static double
@@ -346,7 +317,7 @@ PlotSet(struct dataset *ds, int val)
 {
 	struct plot *pl;
 	struct point *pp;
-	int i, j, m, x;
+	int i, j, m, x, n;
 	int bar;
 
 	pl = &plot;
@@ -370,8 +341,8 @@ PlotSet(struct dataset *ds, int val)
 	m = 1;
 	i = -1;
 	j = 0;
-	TAILQ_FOREACH(pp, &ds->list, list) {
-		x = (pp->val - pl->x0) / pl->dx;
+	for (n = 0; n < ds->n; n++) {
+		x = (ds->points[n] - pl->x0) / pl->dx;
 		if (x == i) {
 			j++;
 			if (j > m)
@@ -389,8 +360,8 @@ PlotSet(struct dataset *ds, int val)
 	}
 	pl->height = m;
 	i = -1;
-	TAILQ_FOREACH(pp, &ds->list, list) {
-		x = (pp->val - pl->x0) / pl->dx;
+	for (n = 0; n < ds->n; n++) {
+		x = (ds->points[n] - pl->x0) / pl->dx;
 		if (x == i) {
 			j++;
 		} else {
@@ -463,6 +434,19 @@ DumpPlot(void)
 	putchar('\n');
 }
 
+static int
+dbl_cmp(const void *a, const void *b)
+{
+	const double *aa = a;
+	const double *bb = b;
+
+	if (*aa < *bb)
+		return (-1);
+	else if (*aa > *bb)
+		return (1);
+	else
+		return (0);
+}
 
 static struct dataset *
 ReadSet(const char *n, int column, const char *delim)
@@ -515,6 +499,7 @@ ReadSet(const char *n, int column, const char *delim)
 		    "Dataset %s must contain at least 3 data points\n", n);
 		exit (2);
 	}
+	qsort(s->points, s->n, sizeof *s->points, dbl_cmp);
 	return (s);
 }
 
