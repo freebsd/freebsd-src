@@ -37,7 +37,7 @@ extern int gdtset;
 static inline int 
 smp_processor_id(void)  
 {
-    if (likely(gdtset))
+    if (__predict_true(gdtset))
 	return PCPU_GET(cpuid);
     return 0;
 }

@@ -152,7 +152,6 @@ uint32_t arch_i386_xbox_memsize = 0;
 void Xhypervisor_callback(void);
 void failsafe_callback(void);
 
-int gdtset;
 extern trap_info_t trap_table[];
 struct proc_ldt default_proc_ldt;
 extern int init_first;
@@ -1195,7 +1194,7 @@ void
 cpu_idle(void)
 {
 
-#ifdef SMP
+#if defined(SMP) && !defined(XEN)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
