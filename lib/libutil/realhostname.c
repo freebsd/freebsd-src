@@ -61,8 +61,7 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 		if (strlen(trimmed) <= hsize) {
 			char lookup[MAXHOSTNAMELEN];
 
-			strncpy(lookup, hp->h_name, sizeof(lookup) - 1);
-			lookup[sizeof(lookup) - 1] = '\0';
+			strlcpy(lookup, hp->h_name, sizeof(lookup));
 			hp = gethostbyname(lookup);
 			if (hp == NULL)
 				result = HOSTNAME_INVALIDNAME;
