@@ -51,8 +51,7 @@ strxfrm(char * __restrict dest, const char * __restrict src, size_t len)
 			if (slen < len)
 				strcpy(dest, src);
 			else {
-				strncpy(dest, src, len - 1);
-				dest[len - 1] = '\0';
+				strlcpy(dest, src, len);
 			}
 		}
 		return slen;
