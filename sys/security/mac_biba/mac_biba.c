@@ -1115,6 +1115,24 @@ biba_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
 	return (biba_equal_effective(p, i) ? 0 : EACCES);
 }
 
+static int
+biba_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!biba_dominate_effective(obj, subj))
+		return (ENOENT);
+
+	return (0);
+}
+
 static void
 biba_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
@@ -3300,6 +3318,7 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_ifnet_relabel = biba_ifnet_relabel,
 
 	.mpo_inpcb_check_deliver = biba_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = biba_inpcb_check_visible,
 	.mpo_inpcb_create = biba_inpcb_create,
 	.mpo_inpcb_create_mbuf = biba_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = biba_destroy_label,
