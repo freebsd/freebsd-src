@@ -59,8 +59,7 @@ logwtmp(const char *line, const char *name, const char *host)
 	char   fullhost[MAXHOSTNAMELEN];
 	int fd;
 	
-	strncpy(fullhost, host, sizeof(fullhost) - 1);	
-	fullhost[sizeof(fullhost) - 1] = '\0';
+	strlcpy(fullhost, host, sizeof(fullhost));	
 	trimdomain(fullhost, UT_HOSTSIZE);
 	host = fullhost;
 
