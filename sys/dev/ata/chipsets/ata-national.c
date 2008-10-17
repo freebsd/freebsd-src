@@ -101,7 +101,7 @@ ata_national_setmode(device_t dev, int mode)
     int error;
 
     ch->dma.alignment = 16;
-    ch->dma.max_iosize = 126 * DEV_BSIZE;
+    ch->dma.max_iosize = 64 * DEV_BSIZE;
 
     mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 

@@ -536,7 +536,7 @@ ata_marvell_edma_dmainit(device_t dev)
 	ch->dma.max_address = BUS_SPACE_MAXADDR;
 
     /* chip does not reliably do 64K DMA transfers */
-    ch->dma.max_iosize = 126 * DEV_BSIZE; 
+    ch->dma.max_iosize = 64 * DEV_BSIZE; 
 }
 
 ATA_DECLARE_DRIVER(ata_marvell);

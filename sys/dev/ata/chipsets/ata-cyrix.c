@@ -109,7 +109,7 @@ ata_cyrix_setmode(device_t dev, int mode)
 	/* dont try to set the mode if we dont have the resource */
 	if (ctlr->r_res1) {
 	    ch->dma.alignment = 16;
-	    ch->dma.max_iosize = 126 * DEV_BSIZE;
+	    ch->dma.max_iosize = 64 * DEV_BSIZE;
 
 	    if (mode >= ATA_UDMA0) {
 		ATA_OUTL(ch->r_io[ATA_BMCMD_PORT].res,
