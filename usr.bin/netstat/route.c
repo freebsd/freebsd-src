@@ -836,8 +836,7 @@ routename(in_addr_t in)
 		}
 	}
 	if (cp) {
-		strncpy(line, cp, sizeof(line) - 1);
-		line[sizeof(line) - 1] = '\0';
+		strlcpy(line, cp, sizeof(line));
 	} else {
 #define	C(x)	((x) & 0xff)
 		in = ntohl(in);
@@ -902,8 +901,7 @@ netname(in_addr_t in, u_long mask)
 		}
 	}
 	if (cp != NULL) {
-		strncpy(line, cp, sizeof(line) - 1);
-		line[sizeof(line) - 1] = '\0';
+		strlcpy(line, cp, sizeof(line));
 	} else {
 		inet_ntop(AF_INET, &in, line, sizeof(line) - 1);
 	}
