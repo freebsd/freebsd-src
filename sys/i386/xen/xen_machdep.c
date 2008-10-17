@@ -373,6 +373,13 @@ xen_sti(void)
 	__sti();
 }
 
+u_int
+xen_rcr2(void)
+{
+
+	return (HYPERVISOR_shared_info->vcpu_info[curcpu].arch.cr2);
+}
+
 void
 _xen_machphys_update(vm_paddr_t mfn, vm_paddr_t pfn, char *file, int line)
 {
