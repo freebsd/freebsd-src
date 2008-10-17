@@ -244,11 +244,10 @@ kvm_openfiles(uf, mf, sf, flag, errout)
 {
 	kvm_t *kd;
 
-	if ((kd = malloc(sizeof(*kd))) == NULL) {
+	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
 		(void)strlcpy(errout, strerror(errno), _POSIX2_LINE_MAX);
 		return (0);
 	}
-	memset(kd, 0, sizeof(*kd));
 	kd->program = 0;
 	return (_kvm_open(kd, uf, mf, flag, errout));
 }
@@ -263,13 +262,12 @@ kvm_open(uf, mf, sf, flag, errstr)
 {
 	kvm_t *kd;
 
-	if ((kd = malloc(sizeof(*kd))) == NULL) {
+	if ((kd = calloc(1, sizeof(*kd))) == NULL) {
 		if (errstr != NULL)
 			(void)fprintf(stderr, "%s: %s\n",
 				      errstr, strerror(errno));
 		return (0);
 	}
-	memset(kd, 0, sizeof(*kd));
 	kd->program = errstr;
 	return (_kvm_open(kd, uf, mf, flag, NULL));
 }
