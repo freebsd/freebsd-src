@@ -45,6 +45,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -67,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+
+#if defined(INET) || defined(INET6)
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -1703,6 +1710,34 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 
 	return (0);
 }
+
+#if defined(INET) || defined(INET6)
+/*-
+ * Determine whether the subject represented by cred can "see" a socket.
+ * Returns: 0 for permitted, ENOENT otherwise.
+ */
+int
+cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
+{
+	int error;
+
+	error = prison_check(cred, inp->inp_cred);
+	if (error)
+		return (ENOENT);
+#ifdef MAC
+	INP_LOCK_ASSERT(inp);
+	error = mac_inpcb_check_visible(cred, inp);
+	if (error)
+		return (error);
+#endif
+	if (cr_seeotheruids(cred, inp->inp_cred))
+		return (ENOENT);
+	if (cr_seeothergids(cred, inp->inp_cred))
+		return (ENOENT);
+
+	return (0);
+}
+#endif
 
 /*-
  * Determine whether td can wait for the exit of p.

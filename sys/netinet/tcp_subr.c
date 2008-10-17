@@ -1015,8 +1015,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				else
 					error = EINVAL;	/* Skip this inp. */
 			} else
-				error = cr_canseesocket(req->td->td_ucred,
-				    inp->inp_socket);
+				error = cr_canseeinpcb(req->td->td_ucred, inp);
 			if (error == 0)
 				inp_list[i++] = inp;
 		}
@@ -1104,8 +1103,7 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
-			error = cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket);
+			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
 			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
@@ -1168,8 +1166,7 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
-			error = cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket);
+			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
 			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
