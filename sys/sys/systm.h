@@ -112,6 +112,7 @@ extern char **kenvp;
  * General function declarations.
  */
 
+struct inpcb;
 struct lock_object;
 struct malloc_type;
 struct mtx;
@@ -227,6 +228,7 @@ void	cpu_stopprofclock(void);
 
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
+int	cr_canseeinpcb(struct ucred *cred, struct inpcb *inp);
 
 char	*getenv(const char *name);
 void	freeenv(char *env);
