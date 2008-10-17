@@ -859,6 +859,14 @@ stub_socket_check_stat(struct ucred *cred, struct socket *so,
 }
 
 static int
+stub_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+   struct label *inplabel)
+{
+
+	return (0);
+}
+
+static int
 stub_socket_check_visible(struct ucred *cred, struct socket *so,
    struct label *solabel)
 {
@@ -1531,6 +1539,7 @@ static struct mac_policy_ops stub_ops =
 	.mpo_ifnet_relabel = stub_ifnet_relabel,
 
 	.mpo_inpcb_check_deliver = stub_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = stub_inpcb_check_visible,
 	.mpo_inpcb_create = stub_inpcb_create,
 	.mpo_inpcb_create_mbuf = stub_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = stub_destroy_label,

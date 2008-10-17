@@ -494,6 +494,19 @@ test_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
 	return (0);
 }
 
+COUNTER_DECL(inpcb_check_visible);
+static int
+test_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(inplabel, MAGIC_INPCB);
+	COUNTER_INC(inpcb_check_visible);
+
+	return (0);
+}
+
 COUNTER_DECL(inpcb_create);
 static void
 test_inpcb_create(struct socket *so, struct label *solabel,
@@ -2840,6 +2853,7 @@ static struct mac_policy_ops test_ops =
 	.mpo_sysvshm_init_label = test_sysvshm_init_label,
 
 	.mpo_inpcb_check_deliver = test_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = test_inpcb_check_visible,
 	.mpo_inpcb_create = test_inpcb_create,
 	.mpo_inpcb_create_mbuf = test_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = test_inpcb_destroy_label,
