@@ -962,7 +962,7 @@ initvalues(start_info_t *startinfo)
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
 
 	/* allocate remainder of nkpt pages */
-	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages - 1; i < nkpt;
+	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages; i < nkpt;
 	     i++, cur_space += PAGE_SIZE) {
 		pdir = (offset + i) / NPDEPG;
 		curoffset = ((offset + i) % NPDEPG);
