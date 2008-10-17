@@ -1033,6 +1033,24 @@ mls_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
 	return (mls_equal_effective(p, i) ? 0 : EACCES);
 }
 
+static int
+mls_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (ENOENT);
+
+	return (0);
+}
+
 static void
 mls_inpcb_create(struct socket *so, struct label *solabel, struct inpcb *inp,
     struct label *inplabel)
@@ -2923,6 +2941,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_ifnet_relabel = mls_ifnet_relabel,
 
 	.mpo_inpcb_check_deliver = mls_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = mls_inpcb_check_visible,
 	.mpo_inpcb_create = mls_inpcb_create,
 	.mpo_inpcb_create_mbuf = mls_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = mls_destroy_label,
