@@ -148,7 +148,6 @@ _kvm_minidump_initvtop(kvm_t *kd)
 		return (-1);
 	}
 	kd->vmst = vmst;
-	bzero(vmst, sizeof(*vmst));
 	vmst->minidump = 1;
 	if (pread(kd->pmfd, &vmst->hdr, sizeof(vmst->hdr), 0) !=
 	    sizeof(vmst->hdr)) {
