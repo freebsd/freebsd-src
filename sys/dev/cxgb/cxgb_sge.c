@@ -1887,7 +1887,11 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 			m_freem_iovec(&txsd->mi);	
 			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
 			txsd->mi.mi_base = NULL;
-
+			/*
+			 * XXX check for cache hit rate here
+			 *
+			 */
+			q->port->ifp->if_opackets++;
 #if defined(DIAGNOSTIC) && 0
 			if (m_get_priority(txsd->m[0]) != cidx) 
 				printf("pri=%d cidx=%d\n",
@@ -2505,6 +2509,7 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
+	ifp->if_ipackets++;
 #ifndef DISABLE_MBUF_IOVEC
 	m_explode(m);
 #endif	
