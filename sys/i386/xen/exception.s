@@ -93,8 +93,6 @@
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
-#define	TRAP(a)		pushl $(a) ; jmp alltraps
-
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
@@ -182,11 +180,9 @@ alltraps:
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
-
 alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
-
 calltrap:
 	call	trap
 
@@ -220,9 +216,7 @@ IDTVEC(lcall_syscall)
 	pushl	%fs
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
-	pushl	%esp
 	call	syscall
-	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
 
@@ -236,16 +230,14 @@ IDTVEC(lcall_syscall)
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
 	pushl	$2			/* sizeof "int 0x80" */
-	pushl	$0xBEEF			/* for debug */
+	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
 	pushl	%ds
 	pushl	%es
 	pushl	%fs
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
-	pushl	%esp
 	call	syscall
-	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
 
@@ -283,7 +275,6 @@ MCOUNT_LABEL(bintr)
 #ifdef DEV_ATPIC	
 #include <i386/isa/atpic_vector.s>
 #endif
-	
 #ifdef DEV_APIC
 	.data
 	.p2align 4
@@ -385,8 +376,7 @@ doreti_popl_ds:
 	addl	$8,%esp
 	.globl	doreti_iret
 doreti_iret:
-/*	#jmp	hypercall_page + (__HYPERVISOR_iret * 32) */
-	iret
+	jmp	hypercall_page + (__HYPERVISOR_iret * 32)
 	.globl	ecrit
 ecrit:
   	/*
@@ -459,8 +449,10 @@ critical_fixup_table:
 .byte   0x24	                        #pop    %ecx
 .byte   0x28	                        #pop    %eax
 .byte   0x2c,0x2c,0x2c                  #add    $0x8,%esp
+#if 0
 .byte   0x34				#iret   
-/* .byte   0x34,0x34,0x34,0x34,0x34        #HYPERVISOR_iret    */
+#endif
+.byte   0x34,0x34,0x34,0x34,0x34        #HYPERVISOR_iret
 
 	
 /* # Hypervisor uses this for application faults while it executes.*/
