@@ -131,6 +131,7 @@ int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 
 int	mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m);
+int	mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp);
 void	mac_inpcb_create(struct socket *so, struct inpcb *inp);
 void	mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m);
 void	mac_inpcb_destroy(struct inpcb *);
