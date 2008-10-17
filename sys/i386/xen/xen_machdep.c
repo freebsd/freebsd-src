@@ -836,8 +836,12 @@ initvalues(start_info_t *startinfo)
 	unsigned long i;
 	int ncpus;
 
-	nkpt = min(max((startinfo->nr_pages >> NPGPTD_SHIFT), nkpt),
-	    NPGPTD*NPDEPG - KPTDI);
+	nkpt = min(
+		min(
+			max((startinfo->nr_pages >> NPGPTD_SHIFT), nkpt),
+		    NPGPTD*NPDEPG - KPTDI),
+		    (HYPERVISOR_VIRT_START - KERNBASE) >> PDRSHIFT);
+	
 #ifdef SMP
 	ncpus = MAXCPU;
 #else
@@ -973,6 +977,8 @@ initvalues(start_info_t *startinfo)
 	     i++, cur_space += PAGE_SIZE) {
 		pdir = (offset + i) / NPDEPG;
 		curoffset = ((offset + i) % NPDEPG);
+		if (((offset + i) << PDRSHIFT) == VM_MAX_KERNEL_ADDRESS)
+			break;
 		
 		/*
 		 * make sure that all the initial page table pages
