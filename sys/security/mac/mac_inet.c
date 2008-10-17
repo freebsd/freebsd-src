@@ -313,6 +313,18 @@ mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m)
 	return (error);
 }
 
+int
+mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp)
+{
+	int error;
+
+	INP_LOCK_ASSERT(inp);
+
+	MAC_CHECK(inpcb_check_visible, cred, inp, inp->inp_label);
+
+	return (error);
+}
+
 void
 mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 {

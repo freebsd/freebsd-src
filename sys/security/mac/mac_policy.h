@@ -187,6 +187,8 @@ typedef void	(*mpo_ifnet_relabel_t)(struct ucred *cred, struct ifnet *ifp,
 typedef int	(*mpo_inpcb_check_deliver_t)(struct inpcb *inp,
 		    struct label *inplabel, struct mbuf *m,
 		    struct label *mlabel);
+typedef int	(*mpo_inpcb_check_visible_t)(struct ucred *cred,
+		    struct inpcb *inp, struct label *inplabel);
 typedef void	(*mpo_inpcb_create_t)(struct socket *so,
 		    struct label *solabel, struct inpcb *inp,
 		    struct label *inplabel);
@@ -689,6 +691,7 @@ struct mac_policy_ops {
 	mpo_ifnet_relabel_t			mpo_ifnet_relabel;
 
 	mpo_inpcb_check_deliver_t		mpo_inpcb_check_deliver;
+	mpo_inpcb_check_visible_t		mpo_inpcb_check_visible;
 	mpo_inpcb_create_t			mpo_inpcb_create;
 	mpo_inpcb_create_mbuf_t			mpo_inpcb_create_mbuf;
 	mpo_inpcb_destroy_label_t		mpo_inpcb_destroy_label;
