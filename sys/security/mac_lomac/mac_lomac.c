@@ -1244,6 +1244,24 @@ lomac_inpcb_check_deliver(struct inpcb *inp, struct label *inplabel,
 	return (lomac_equal_single(p, i) ? 0 : EACCES);
 }
 
+static int
+lomac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_lomac *subj, *obj;
+
+	if (!lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!lomac_dominate_single(obj, subj))
+		return (ENOENT);
+
+	return (0);
+}
+
 static void
 lomac_inpcb_create(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
@@ -2861,6 +2879,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_syncache_init_label = lomac_init_label_waitcheck,
 
 	.mpo_inpcb_check_deliver = lomac_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = lomac_inpcb_check_visible,
 	.mpo_inpcb_create = lomac_inpcb_create,
 	.mpo_inpcb_create_mbuf = lomac_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = lomac_destroy_label,
