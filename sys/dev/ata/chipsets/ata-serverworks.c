@@ -79,7 +79,7 @@ ata_serverworks_probe(device_t dev)
      { ATA_CSB6,      0x00, SWKS_100, 0, ATA_UDMA5, "CSB6" },
      { ATA_CSB6_1,    0x00, SWKS_66,  0, ATA_UDMA4, "CSB6" },
      { ATA_HT1000,    0x00, SWKS_100, 0, ATA_UDMA5, "HT1000" },
-     { ATA_HT1000_S1, 0x00, SWKS_100, 4, ATA_SA150, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKS_MIO, 4, ATA_SA150, "HT1000" },
      { ATA_HT1000_S2, 0x00, SWKS_MIO, 4, ATA_SA150, "HT1000" },
      { ATA_K2,        0x00, SWKS_MIO, 4, ATA_SA150, "K2" },
      { ATA_FRODO4,    0x00, SWKS_MIO, 4, ATA_SA150, "Frodo4" },
@@ -184,7 +184,7 @@ ata_serverworks_allocate(device_t dev)
     ch->hw.tf_write = ata_serverworks_tf_write;
 
     /* chip does not reliably do 64K DMA transfers */
-    ch->dma.max_iosize = 126 * DEV_BSIZE;
+    ch->dma.max_iosize = 64 * DEV_BSIZE;
 
     return 0;
 }
