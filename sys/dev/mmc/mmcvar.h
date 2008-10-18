@@ -67,6 +67,7 @@ enum mmc_device_ivars {
     MMC_IVAR_HIGH_CAP,
     MMC_IVAR_CARD_TYPE,
     MMC_IVAR_BUS_WIDTH,
+    MMC_IVAR_ERASE_SECTOR,
 //    MMC_IVAR_,
 };
 
@@ -85,5 +86,6 @@ MMC_ACCESSOR(read_only, READ_ONLY, int)
 MMC_ACCESSOR(high_cap, HIGH_CAP, int)
 MMC_ACCESSOR(card_type, CARD_TYPE, int)
 MMC_ACCESSOR(bus_width, BUS_WIDTH, int)
+MMC_ACCESSOR(erase_sector, ERASE_SECTOR, int)
 
 #endif /* DEV_MMC_MMCVAR_H */
