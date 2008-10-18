@@ -819,7 +819,7 @@ void
 initvalues(start_info_t *startinfo)
 { 
 	int l3_pages, l2_pages, l1_pages, offset;
-	vm_offset_t cur_space;
+	vm_offset_t cur_space, cur_space_pt;
 	struct physdev_set_iopl set_iopl;
 	
 	vm_paddr_t KPTphys, IdlePTDma;
@@ -873,6 +873,23 @@ initvalues(start_info_t *startinfo)
 	cur_space += (4 * PAGE_SIZE);
 	bootmem_end = (char *)cur_space;
 	
+	/* allocate page for gdt */
+	gdt = (union descriptor *)cur_space;
+	cur_space += PAGE_SIZE*ncpus;
+
+        /* allocate page for ldt */
+	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
+	cur_space += PAGE_SIZE;
+	
+	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
+	cur_space += PAGE_SIZE;
+
+	xen_store = (struct ringbuf_head *)cur_space;
+	cur_space += PAGE_SIZE;
+
+	console_page = (char *)cur_space;
+	cur_space += PAGE_SIZE;
+
 #ifdef ADD_ISA_HOLE
 	shift_phys_machine(xen_phys_machine, xen_start_info->nr_pages);
 #endif
@@ -949,6 +966,16 @@ initvalues(start_info_t *startinfo)
 	 * Unpin the current PDPT
 	 */
 	xen_pt_unpin(IdlePDPTma);
+	
+	for (i = 0; i < l1_pages; i++) {
+		int startidx = ((KERNBASE >> 18) & PAGE_MASK) >> 3;
+
+		if (IdlePTD[startidx + i] == 0) {
+			l1_pages = i - 1;
+			break;
+		}	
+	}
+		    
 #endif  /* PAE */
 	
 	/* unmap remaining pages from initial 4MB chunk
@@ -960,7 +987,9 @@ initvalues(start_info_t *startinfo)
 	}
 	
 	PT_UPDATES_FLUSH();
-  
+
+		
+
 	memcpy(((uint8_t *)IdlePTDnew) + ((unsigned int)(KERNBASE >> 18)),
 	    ((uint8_t *)IdlePTD) + ((KERNBASE >> 18) & PAGE_MASK),
 	    l1_pages*sizeof(pt_entry_t));
@@ -973,6 +1002,7 @@ initvalues(start_info_t *startinfo)
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
 
 	/* allocate remainder of nkpt pages */
+	cur_space_pt = cur_space;
 	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages; i < nkpt;
 	     i++, cur_space += PAGE_SIZE) {
 		pdir = (offset + i) / NPDEPG;
@@ -984,9 +1014,10 @@ initvalues(start_info_t *startinfo)
 		 * make sure that all the initial page table pages
 		 * have been zeroed
 		 */
-		PT_SET_MA(cur_space, xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
-		bzero((char *)cur_space, PAGE_SIZE);
-		PT_SET_MA(cur_space, (vm_paddr_t)0);
+		PT_SET_MA(cur_space_pt,
+		    xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
+		bzero((char *)cur_space_pt, PAGE_SIZE);
+		PT_SET_MA(cur_space_pt, (vm_paddr_t)0);
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
 			curoffset*sizeof(vm_paddr_t)), 
@@ -1009,17 +1040,6 @@ initvalues(start_info_t *startinfo)
 	IdlePDPT = IdlePDPTnew;
 	IdlePDPTma = IdlePDPTnewma;
 	
-	/* allocate page for gdt */
-	gdt = (union descriptor *)cur_space;
-	cur_space += PAGE_SIZE*ncpus;
-
-        /* allocate page for ldt */
-	ldt = (union descriptor *)cur_space; cur_space += PAGE_SIZE;
-	cur_space += PAGE_SIZE;
-	
-	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
-	cur_space += PAGE_SIZE;
-
 	/*
 	 * shared_info is an unsigned long so this will randomly break if
 	 * it is allocated above 4GB - I guess people are used to that
@@ -1030,13 +1050,9 @@ initvalues(start_info_t *startinfo)
 	
 	printk("#4\n");
 
-	xen_store = (struct ringbuf_head *)cur_space;
-	cur_space += PAGE_SIZE;
 	
 	xen_store_ma = (((vm_paddr_t)xen_start_info->store_mfn) << PAGE_SHIFT);
 	PT_SET_MA(xen_store, xen_store_ma | PG_KERNEL);
-	console_page = (char *)cur_space;
-	cur_space += PAGE_SIZE;
 	console_page_ma = (((vm_paddr_t)xen_start_info->console.domU.mfn) << PAGE_SHIFT);
 	PT_SET_MA(console_page, console_page_ma | PG_KERNEL);
 
