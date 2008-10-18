@@ -967,11 +967,11 @@ initvalues(start_info_t *startinfo)
 	 */
 	xen_pt_unpin(IdlePDPTma);
 	
-	for (i = 0; i < l1_pages; i++) {
+	for (i = 0; i < 20; i++) {
 		int startidx = ((KERNBASE >> 18) & PAGE_MASK) >> 3;
 
 		if (IdlePTD[startidx + i] == 0) {
-			l1_pages = i - 1;
+			l1_pages = i;
 			break;
 		}	
 	}
