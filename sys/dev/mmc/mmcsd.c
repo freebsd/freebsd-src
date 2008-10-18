@@ -77,6 +77,7 @@ struct mmcsd_softc {
 	struct disk *disk;
 	struct proc *p;
 	struct bio_queue_head bio_queue;
+	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
 };
 
@@ -162,6 +163,7 @@ mmcsd_attach(device_t dev)
 	bioq_init(&sc->bio_queue);
 
 	sc->running = 1;
+	sc->eblock = sc->eend = 0;
 	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
 
 	return (0);
@@ -296,17 +298,23 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 
 	block = bp->bio_pblkno;
 	end = bp->bio_pblkno + (bp->bio_bcount / sz);
-
+	/* Coalesce with part remaining from previous request. */
+	if (block > sc->eblock && block <= sc->eend)
+		block = sc->eblock;
+	if (end >= sc->eblock && end < sc->eend)
+		end = sc->eend;
 	/* Safe round to the erase sector boundaries. */
 	erase_sector = mmc_get_erase_sector(dev);
 	start = block + erase_sector - 1;	 /* Round up. */
 	start -= start % erase_sector;
 	stop = end;				/* Round down. */
 	stop -= end % erase_sector;	 
-
-	/* We can't erase areas smaller then sector. */
-	if (start >= stop)
+	/* We can't erase area smaller then sector, store it for later. */
+	if (start >= stop) {
+		sc->eblock = block;
+		sc->eend = end;
 		return (end);
+	}
 
 	/* Set erase start position. */
 	memset(&req, 0, sizeof(req));
@@ -358,7 +366,14 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	    printf("erase err3 %d\n", req.cmd->error);
 	    return (block);
 	}
-
+	/* Store one of remaining parts for the next call. */
+	if (bp->bio_pblkno >= sc->eblock || block == start) {
+		sc->eblock = stop;	/* Predict next forward. */
+		sc->eend = end;
+	} else {
+		sc->eblock = block;	/* Predict next backward. */
+		sc->eend = start;
+	}
 	return (end);
 }
 
@@ -396,12 +411,12 @@ mmcsd_task(void *arg)
 		block = bp->bio_pblkno;
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
 		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+			/* Access to the remaining erase block obsoletes it. */
+			if (block < sc->eend && end > sc->eblock)
+				sc->eblock = sc->eend = 0;
 			block = mmcsd_rw(sc, bp);
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			block = mmcsd_delete(sc, bp);
-		} else {
-			/* UNSUPPORTED COMMAND */
-			block = bp->bio_pblkno;
 		}
 		MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
 		if (block < end) {
