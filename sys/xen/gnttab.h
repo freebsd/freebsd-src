@@ -36,12 +36,16 @@
 
 #ifndef __ASM_GNTTAB_H__
 
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_page.h>
+#include <vm/vm_kern.h>
+
 #include <machine/xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/features.h>
-
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
 	void (*fn)(void *);

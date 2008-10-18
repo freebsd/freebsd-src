@@ -110,7 +110,16 @@
 	.set	PTmap,(PTDPTDI << PDRSHIFT)
 	.set	PTD,PTmap + (PTDPTDI * PAGE_SIZE)
 	.set	PTDpde,PTD + (PTDPTDI * PDESIZE)
-
+#ifdef SMP
+/*
+ * Define layout of per-cpu address space.
+ * This is "constructed" in locore.s on the BSP and in mp_machdep.c
+ * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
+ */
+	.globl	SMP_prvspace
+	.set	SMP_prvspace,(MPPTDI << PDRSHIFT)
+#endif /* SMP */
+	
 /*
  * Compiled KERNBASE location and the kernel load address
  */

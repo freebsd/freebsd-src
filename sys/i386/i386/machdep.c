@@ -2205,7 +2205,11 @@ init386(int first)
 	gdt_segs[GUDATA_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
 	gdt_segs[GBIOSLOWMEM_SEL].ssd_limit = atop(HYPERVISOR_VIRT_START + MTOPSIZE);
 
-	pc = &__pcpu[0];
+#ifdef SMP
+	pc = &SMP_prvspace[0].pcpu;
+#else
+	pc = &__pcpu;
+#endif
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
