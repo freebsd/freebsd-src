@@ -583,13 +583,13 @@ update_crc32(uint32_t crc32c,
     unsigned char *buffer,
     unsigned int length)
 {
-	uint32_t offset;
+	uint32_t to_even_word;
 
 	if (length == 0) {
 		return (crc32c);
 	}
-	offset = ((uintptr_t) buffer) & 0x3;
-	return (sctp_crc32c_sb8_64_bit(crc32c, buffer, length, offset));
+	to_even_word = (4 - (((uintptr_t) buffer) & 0x3));
+	return (sctp_crc32c_sb8_64_bit(crc32c, buffer, length, to_even_word));
 }
 
 uint32_t sctp_crc_c[256] = {
