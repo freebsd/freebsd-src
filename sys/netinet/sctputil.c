@@ -5896,9 +5896,10 @@ release_unlocked:
 		    (no_rcv_needed == 0))
 			sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 	}
-	if (msg_flags)
-		*msg_flags = out_flags;
 out:
+	if (msg_flags) {
+		*msg_flags = out_flags;
+	}
 	if (((out_flags & MSG_EOR) == 0) &&
 	    ((in_flags & MSG_PEEK) == 0) &&
 	    (sinfo) &&
