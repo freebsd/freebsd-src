@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
-#include <machine/privatespace.h>
 
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/evtchn.h>
@@ -623,7 +622,7 @@ start_all_aps(void)
 		bootAPgdt = gdt + (512*cpu);
 
 		/* Get per-cpu data */
-		pc = &SMP_prvspace[bootAP].pcpu;
+		pc = &__pcpu[bootAP];
 		pcpu_init(pc, bootAP, sizeof(struct pcpu));
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;

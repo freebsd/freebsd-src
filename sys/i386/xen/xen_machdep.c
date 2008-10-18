@@ -65,10 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/memory.h>
 #include <machine/xen/features.h>
-#ifdef SMP
-#include <machine/privatespace.h>
-#endif
-
 
 #include <vm/vm_page.h>
 
@@ -834,7 +830,7 @@ initvalues(start_info_t *startinfo)
 	vm_paddr_t pdir_shadow_ma;
 #endif
 	unsigned long i;
-	int ncpus;
+	int ncpus = MAXCPU;
 
 	nkpt = min(
 		min(
@@ -842,12 +838,6 @@ initvalues(start_info_t *startinfo)
 		    NPGPTD*NPDEPG - KPTDI),
 		    (HYPERVISOR_VIRT_START - KERNBASE) >> PDRSHIFT);
 	
-#ifdef SMP
-	ncpus = MAXCPU;
-#else
-	ncpus = 1;
-#endif	
-
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);	
 #ifdef notyet
 	/*
@@ -873,7 +863,7 @@ initvalues(start_info_t *startinfo)
 	cur_space += (4 * PAGE_SIZE);
 	bootmem_end = (char *)cur_space;
 	
-	/* allocate page for gdt */
+	/* allocate pages for gdt */
 	gdt = (union descriptor *)cur_space;
 	cur_space += PAGE_SIZE*ncpus;
 
@@ -987,8 +977,6 @@ initvalues(start_info_t *startinfo)
 	}
 	
 	PT_UPDATES_FLUSH();
-
-		
 
 	memcpy(((uint8_t *)IdlePTDnew) + ((unsigned int)(KERNBASE >> 18)),
 	    ((uint8_t *)IdlePTD) + ((KERNBASE >> 18) & PAGE_MASK),
