@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/cc.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -100,10 +101,6 @@ int ss_fltsz_local = 4;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO,
 	local_slowstart_flightsize, CTLFLAG_RW,
 	ss_fltsz_local, 1, "Slow start flight size for local networks");
-
-int     tcp_do_newreno = 1;
-SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
-	tcp_do_newreno, 0, "Enable NewReno Algorithms");
 
 int	tcp_do_tso = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
@@ -169,24 +166,9 @@ tcp_output(struct tcpcb *tp)
 	 */
 	idle = (tp->t_flags & TF_LASTIDLE) || (tp->snd_max == tp->snd_una);
 	if (idle && (ticks - tp->t_rcvtime) >= tp->t_rxtcur) {
-		/*
-		 * We have been idle for "a while" and no acks are
-		 * expected to clock out any data we send --
-		 * slow start to get ack "clock" running again.
-		 *
-		 * Set the slow-start flight size depending on whether
-		 * this is a local network or not.
-		 */
-		int ss = V_ss_fltsz;
-#ifdef INET6
-		if (isipv6) {
-			if (in6_localaddr(&tp->t_inpcb->in6p_faddr))
-				ss = V_ss_fltsz_local;
-		} else
-#endif /* INET6 */
-		if (in_localaddr(tp->t_inpcb->inp_faddr))
-			ss = V_ss_fltsz_local;
-		tp->snd_cwnd = tp->t_maxseg * ss;
+		/* reset cwnd after a period of idleness */
+		if (CC_ALGO(tp)->after_idle)
+			CC_ALGO(tp)->after_idle(tp);
 	}
 	tp->t_flags &= ~TF_LASTIDLE;
 	if (idle) {

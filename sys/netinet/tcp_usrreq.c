@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#include <netinet/cc.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
@@ -1281,6 +1282,8 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	inpcb *inp;
 	struct	tcpcb *tp;
 	struct	tcp_info ti;
+	char buf[TCP_CA_NAME_MAX];
+	struct cc_algo *cc_algo;
 
 	error = 0;
 	inp = sotoinpcb(so);
@@ -1390,6 +1393,58 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = EINVAL;
 			break;
 
+		case TCP_CONGESTION:
+			INP_WUNLOCK(inp);
+			bzero(buf, sizeof(buf));
+			error = sooptcopyin(sopt, &buf, sizeof(buf), 1);
+			if (error)
+				break;
+			INP_WLOCK_RECHECK(inp);
+			/*
+			 * We return EINVAL if we can't find the requested cc
+			 * algo. We set error here and reset to 0 if found to
+			 * simplify the error checking,
+			 */
+			error = EINVAL;
+			CC_LIST_RLOCK();
+			STAILQ_FOREACH(cc_algo, &cc_list, entries) {
+				if (	strncmp(buf,
+					cc_algo->name,
+					TCP_CA_NAME_MAX) == 0) {
+					/*
+					 * we've found the requested algo,
+					 * so revert the EINVAL error condition.
+					 */
+					error = 0;
+					/*
+					 * we hold a write lock over the tcb
+					 * so it's safe to do these things
+					 * without ordering concerns
+					 */
+					if (CC_ALGO(tp)->deinit)
+						CC_ALGO(tp)->deinit(tp);
+					CC_ALGO(tp) = cc_algo;
+					/*
+					 * if something goes pear shaped
+					 * initialising the new algo,
+					 * fall back to newreno (which
+					 * does not require initialisation)
+					 */
+					if (cc_algo->init(tp) > 0) {
+						CC_ALGO(tp) = &newreno_cc_algo;
+						/*
+						 * the only reason init() should
+						 * fail is because of malloc
+						 */
+						error = ENOMEM;
+					}
+					break; /* break the STAILQ_FOREACH */
+				}
+			}
+			CC_LIST_RUNLOCK();
+			INP_WUNLOCK(inp);
+			break;
+
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1432,6 +1487,12 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			tcp_fill_info(tp, &ti);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, &ti, sizeof ti);
+			break;
+		case TCP_CONGESTION:
+			bzero(buf, sizeof(buf));
+			memcpy(&(CC_ALGO(tp)->name), buf, TCP_CA_NAME_MAX);
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
 			break;
 		default:
 			INP_WUNLOCK(inp);

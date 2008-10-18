@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #include <netinet/tcp_syncache.h>
+#include <netinet/cc.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
@@ -97,7 +98,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static const int tcprexmtthresh = 3;
+const int tcprexmtthresh = 3;
 
 struct	tcpstat tcpstat;
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
@@ -125,7 +126,7 @@ static int tcp_do_rfc3042 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
-static int tcp_do_rfc3390 = 1;
+int tcp_do_rfc3390 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
@@ -1096,14 +1097,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (SEQ_GT(th->th_ack, tp->snd_una) &&
 			    SEQ_LEQ(th->th_ack, tp->snd_max) &&
 			    tp->snd_cwnd >= tp->snd_wnd &&
-			    ((!V_tcp_do_newreno &&
-			      !(tp->t_flags & TF_SACK_PERMIT) &&
-			      tp->t_dupacks < tcprexmtthresh) ||
-			     ((V_tcp_do_newreno ||
-			       (tp->t_flags & TF_SACK_PERMIT)) &&
-			      !IN_FASTRECOVERY(tp) &&
-			      (to.to_flags & TOF_SACK) == 0 &&
-			      TAILQ_EMPTY(&tp->snd_holes)))) {
+			    !IN_FASTRECOVERY(tp) &&
+			    (to.to_flags & TOF_SACK) == 0 &&
+			    TAILQ_EMPTY(&tp->snd_holes)) {
 				KASSERT(headlocked,
 				    ("%s: headlocked", __func__));
 				INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1870,9 +1866,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				    th->th_ack != tp->snd_una)
 					tp->t_dupacks = 0;
 				else if (++tp->t_dupacks > tcprexmtthresh ||
-				    ((V_tcp_do_newreno ||
-				      (tp->t_flags & TF_SACK_PERMIT)) &&
-				     IN_FASTRECOVERY(tp))) {
+				     IN_FASTRECOVERY(tp)) {
 					if ((tp->t_flags & TF_SACK_PERMIT) &&
 					    IN_FASTRECOVERY(tp)) {
 						int awnd;
@@ -1909,14 +1903,24 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							tp->t_dupacks = 0;
 							break;
 						}
-					} else if (V_tcp_do_newreno ||
-					    V_tcp_do_ecn) {
+					} else {
 						if (SEQ_LEQ(th->th_ack,
 						    tp->snd_recover)) {
 							tp->t_dupacks = 0;
 							break;
 						}
 					}
+
+					/*
+					 * If the current tcp cc module has
+					 * defined a hook for tasks to run
+					 * before entering FR, call it
+					 */
+					if (CC_ALGO(tp)->pre_fr)
+						CC_ALGO(tp)->pre_fr(tp, th);
+
+					ENTER_FASTRECOVERY(tp);
+					tp->snd_recover = tp->snd_max;
 					tcp_congestion_exp(tp);
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
@@ -1981,37 +1985,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (V_tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) {
-			if (IN_FASTRECOVERY(tp)) {
-				if (SEQ_LT(th->th_ack, tp->snd_recover)) {
-					if (tp->t_flags & TF_SACK_PERMIT)
-						tcp_sack_partialack(tp, th);
-					else
-						tcp_newreno_partial_ack(tp, th);
-				} else {
-					/*
-					 * Out of fast recovery.
-					 * Window inflation should have left us
-					 * with approximately snd_ssthresh
-					 * outstanding data.
-					 * But in case we would be inclined to
-					 * send a burst, better to do it via
-					 * the slow start mechanism.
-					 */
-					if (SEQ_GT(th->th_ack +
-							tp->snd_ssthresh,
-						   tp->snd_max))
-						tp->snd_cwnd = tp->snd_max -
-								th->th_ack +
-								tp->t_maxseg;
-					else
-						tp->snd_cwnd = tp->snd_ssthresh;
-				}
+		if (IN_FASTRECOVERY(tp)) {
+			if (SEQ_LT(th->th_ack, tp->snd_recover)) {
+				if (tp->t_flags & TF_SACK_PERMIT)
+					tcp_sack_partialack(tp, th);
+				else
+					tcp_newreno_partial_ack(tp, th);
+			} else {
+				if (CC_ALGO(tp)->post_fr)
+					CC_ALGO(tp)->post_fr(tp, th);
 			}
-		} else {
-			if (tp->t_dupacks >= tcprexmtthresh &&
-			    tp->snd_cwnd > tp->snd_ssthresh)
-				tp->snd_cwnd = tp->snd_ssthresh;
 		}
 		tp->t_dupacks = 0;
 		/*
@@ -2117,13 +2100,9 @@ process_ACK:
 		 * If cwnd > maxseg^2, fix the cwnd increment at 1 byte
 		 * to avoid capping cwnd (as suggested in RFC2581).
 		 */
-		if ((!V_tcp_do_newreno && !(tp->t_flags & TF_SACK_PERMIT)) ||
-		    !IN_FASTRECOVERY(tp)) {
-			u_int cw = tp->snd_cwnd;
-			u_int incr = tp->t_maxseg;
-			if (cw > tp->snd_ssthresh)
-				incr = max((incr * incr / cw), 1);
-			tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
+		if (!IN_FASTRECOVERY(tp)) {
+			if (CC_ALGO(tp)->ack_received)
+				CC_ALGO(tp)->ack_received(tp, th);
 		}
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
@@ -2138,14 +2117,11 @@ process_ACK:
 		/* NB: sowwakeup_locked() does an implicit unlock. */
 		sowwakeup_locked(so);
 		/* Detect una wraparound. */
-		if ((V_tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
-		    !IN_FASTRECOVERY(tp) &&
+		if (!IN_FASTRECOVERY(tp) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
 		    SEQ_LEQ(th->th_ack, tp->snd_recover))
 			tp->snd_recover = th->th_ack - 1;
-		if ((V_tcp_do_newreno || (tp->t_flags & TF_SACK_PERMIT)) &&
-		    IN_FASTRECOVERY(tp) &&
-		    SEQ_GEQ(th->th_ack, tp->snd_recover))
+		if (IN_FASTRECOVERY(tp) && SEQ_GEQ(th->th_ack, tp->snd_recover))
 			EXIT_FASTRECOVERY(tp);
 		tp->snd_una = th->th_ack;
 		if (tp->t_flags & TF_SACK_PERMIT) {
@@ -3072,41 +3048,9 @@ tcp_mss(struct tcpcb *tp, int offer)
 	if (metrics.rmx_bandwidth)
 		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
-	/*
-	 * Set the slow-start flight size depending on whether this
-	 * is a local network or not.
-	 *
-	 * Extend this so we cache the cwnd too and retrieve it here.
-	 * Make cwnd even bigger than RFC3390 suggests but only if we
-	 * have previous experience with the remote host. Be careful
-	 * not make cwnd bigger than remote receive window or our own
-	 * send socket buffer. Maybe put some additional upper bound
-	 * on the retrieved cwnd. Should do incremental updates to
-	 * hostcache when cwnd collapses so next connection doesn't
-	 * overloads the path again.
-	 *
-	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
-	 * We currently check only in syncache_socket for that.
-	 */
-#define TCP_METRICS_CWND
-#ifdef TCP_METRICS_CWND
-	if (metrics.rmx_cwnd)
-		tp->snd_cwnd = max(mss,
-				min(metrics.rmx_cwnd / 2,
-				 min(tp->snd_wnd, so->so_snd.sb_hiwat)));
-	else
-#endif
-	if (V_tcp_do_rfc3390)
-		tp->snd_cwnd = min(4 * mss, max(2 * mss, 4380));
-#ifdef INET6
-	else if ((isipv6 && in6_localaddr(&inp->in6p_faddr)) ||
-		 (!isipv6 && in_localaddr(inp->inp_faddr)))
-#else
-	else if (in_localaddr(inp->inp_faddr))
-#endif
-		tp->snd_cwnd = mss * V_ss_fltsz_local;
-	else
-		tp->snd_cwnd = mss * V_ss_fltsz;
+	/* set the initial cwnd value */
+	if (CC_ALGO(tp)->cwnd_init)
+		CC_ALGO(tp)->cwnd_init(tp);
 }
 
 /*

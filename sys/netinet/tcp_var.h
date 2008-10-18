@@ -213,6 +213,8 @@ struct tcpcb {
 	void	*t_pspare[3];		/* toe usrreqs / toepcb * / congestion algo / vimage / 1 general use */
 	struct toe_usrreqs *t_tu;       /* offload operations vector */
 	void	*t_toe;			/* TOE pcb pointer */
+	struct cc_algo	*cc_algo;	/* the algorithm that will manage congestion control*/
+	void	*cc_data;		/* pointer to a struct containing data required for the cc algorithm in use */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
@@ -512,7 +514,7 @@ extern	int tcp_log_in_vain;
 extern	int tcp_mssdflt;	/* XXX */
 extern	int tcp_minmss;
 extern	int tcp_delack_enabled;
-extern	int tcp_do_newreno;
+extern	int tcp_do_rfc3390;
 extern	int path_mtu_discovery;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
