@@ -110,16 +110,6 @@
 	.set	PTmap,(PTDPTDI << PDRSHIFT)
 	.set	PTD,PTmap + (PTDPTDI * PAGE_SIZE)
 	.set	PTDpde,PTD + (PTDPTDI * PDESIZE)
-#ifdef SMP
-/*
- * Define layout of per-cpu address space.
- * This is "constructed" in locore.s on the BSP and in mp_machdep.c
- * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
- */
-	.globl	SMP_prvspace
-	.set	SMP_prvspace,(MPPTDI << PDRSHIFT)
-#endif /* SMP */
-	
 /*
  * Compiled KERNBASE location and the kernel load address
  */
@@ -144,16 +134,6 @@ bootinfo:	.space	BOOTINFO_SIZE	/* bootinfo that we can handle */
 KERNend:	.long	0		/* phys addr end of kernel (just after bss) */
 		.globl physfree
 physfree:	.long	0		/* phys addr of next free page */
-
-#ifdef SMP
-		.globl	cpu0prvpage
-cpu0pp:		.long	0		/* phys addr cpu0 private pg */
-cpu0prvpage:	.long	0		/* relocated version */
-
-		.globl	SMPpt
-SMPptpa:	.long	0		/* phys addr SMP page table */
-SMPpt:		.long	0		/* relocated version */
-#endif /* SMP */
 
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
