@@ -665,6 +665,7 @@ usage () {
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
+	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quite"
 	echo "	-v	make output more verbose"
 	echo "	-w	suppress buildworld"
@@ -676,12 +677,13 @@ usage () {
 #######################################################################
 # Parse arguments
 
+do_clean=true
 do_kernel=true
 do_world=true
 do_image=true
 
 set +e
-args=`getopt bc:hikqvw $*`
+args=`getopt bc:hiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -712,6 +714,10 @@ do
 		;;
 	-i)
 		do_image=false
+		shift
+		;;
+	-n)
+		do_clean=false
 		shift
 		;;
 	-q)
@@ -763,6 +769,12 @@ else
 	exit 1
 fi
 
+if $do_clean ; then
+	true
+else
+	NANO_PMAKE="${NANO_PMAKE} -DNO_CLEAN"
+fi
+
 export MAKEOBJDIRPREFIX
 
 export NANO_ARCH
@@ -793,7 +805,11 @@ export NANO_BOOTLOADER
 pprint 1 "NanoBSD image ${NANO_NAME} build starting"
 
 if $do_world ; then
-	clean_build
+	if $do_clean ; then
+		clean_build
+	else
+		pprint 2 "Using existing build tree (as instructed)"
+	fi
 	make_conf_build
 	build_world
 else
