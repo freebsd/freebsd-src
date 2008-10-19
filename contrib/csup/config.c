@@ -444,10 +444,10 @@ coll_add(char *name)
 		    "\"%s\"\n", cur_coll->co_name);
 		exit(1);
 	}
-	if (!(cur_coll->co_options & CO_CHECKOUTMODE)) {
+/*	if (!(cur_coll->co_options & CO_CHECKOUTMODE)) {
 		lprintf(-1, "Client only supports checkout mode\n");
 		exit(1);
-	}
+	}*/
 	if (!STAILQ_EMPTY(&colls)) {
 		coll = STAILQ_LAST(&colls, coll, co_next);
 		if (strcmp(coll->co_host, cur_coll->co_host) != 0) {

@@ -107,14 +107,22 @@ int	 rcsdatetotm(const char *, struct tm *);
 time_t	 rcsdatetotime(const char *);
 int	 pathcmp(const char *, const char *);
 size_t	 commonpathlength(const char *, size_t, const char *, size_t);
-char	*pathlast(char *);
+const char *pathlast(const char *); /*XXX*/
+int	isrcs(const char *, size_t *);
 char	*checkoutpath(const char *, const char *);
+char	*cvspath(const char *, const char *, int);
+char	*atticpath(const char *, const char *);
+char	*path_prefix(char *);
+char	*path_first(char *);
 int	 mkdirhier(char *, mode_t);
 char	*tempname(const char *);
 void	*xmalloc(size_t);
 void	*xrealloc(void *, size_t);
 char	*xstrdup(const char *);
 int	 xasprintf(char **, const char *, ...) __printflike(2, 3);
+int	 rcsnum_cmp(char *, char *);
+int	 rcsrev_istrunk(char *);
+char	*rcsrev_prefix(char *);
 
 struct pattlist		*pattlist_new(void);
 void			 pattlist_add(struct pattlist *, const char *);

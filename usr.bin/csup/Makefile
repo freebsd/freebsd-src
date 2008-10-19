@@ -13,6 +13,7 @@ SRCS=	attrstack.c \
 	globtree.c \
 	idcache.c \
 	keyword.c \
+	lex.rcs.c \
 	lister.c \
 	main.c \
 	misc.c \
@@ -20,6 +21,8 @@ SRCS=	attrstack.c \
 	parse.y \
 	pathcomp.c \
 	proto.c \
+	rcsfile.c \
+	rcsparse.c \
 	status.c \
 	stream.c \
 	threads.c \

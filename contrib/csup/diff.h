@@ -45,6 +45,8 @@ struct diffinfo {
 };
 
 int		 diff_apply(struct stream *, struct stream *, struct stream *,
-		     struct keyword *, struct diffinfo *);
+		     struct keyword *, struct diffinfo *, int);
+int		 diff_reverse(struct stream *, struct stream *,
+		     struct stream *, struct keyword *, struct diffinfo *);
 
 #endif /* !_DIFF_H_ */
