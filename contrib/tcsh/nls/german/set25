@@ -1,6 +1,0 @@
-$ $tcsh: set25,v 1.3 2006/03/02 18:46:46 christos Exp $
-$ tc.sig.c
-$set 25
-1 unser wait %d\n
-2 Fehler: bsd_signal(%d) Signal auﬂerhalb der Grenzen\n
-3 Fehler: bsd_signal(%d) - sigaction fehlerhaft, errno %d\n
