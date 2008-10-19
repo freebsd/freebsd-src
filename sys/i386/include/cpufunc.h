@@ -45,6 +45,7 @@
 #ifdef XEN
 extern void xen_cli(void);
 extern void xen_sti(void);
+extern u_int xen_rcr2(void);
 extern void xen_load_cr3(u_int data);
 extern void xen_tlb_flush(void);
 extern void xen_invlpg(u_int addr);
@@ -94,7 +95,7 @@ disable_intr(void)
 #ifdef XEN
 	xen_cli();
 #else	
-    __asm __volatile("cli" : : : "memory");
+	__asm __volatile("cli" : : : "memory");
 #endif
 }
 
@@ -119,7 +120,7 @@ enable_intr(void)
 {
 #ifdef XEN
 	xen_sti();
-#else	
+#else
 	__asm __volatile("sti");
 #endif
 }
@@ -423,6 +424,9 @@ rcr2(void)
 {
 	u_int	data;
 
+#ifdef XEN
+	return (xen_rcr2());
+#endif
 	__asm __volatile("movl %%cr2,%0" : "=r" (data));
 	return (data);
 }
