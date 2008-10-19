@@ -1,8 +1,0 @@
-# $FreeBSD$
-Project:	Ncurses (new curses) library
-ProjectURL:	http://www.gnu.org/software/ncurses/
-Version:	5.6-20080503 snapshot
-VendorTag:	NCURSES
-VersionTag:	v5_6_20080503
-License:	MIT-like
-Maintainer:	rafan
