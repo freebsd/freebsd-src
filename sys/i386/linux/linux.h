@@ -80,6 +80,8 @@ typedef l_long		l_suseconds_t;
 typedef l_long		l_time_t;
 typedef l_uint		l_uid_t;
 typedef l_ushort	l_uid16_t;
+typedef l_int		l_timer_t;
+typedef l_int		l_mqd_t;
 
 typedef struct {
 	l_int		val[2];
@@ -374,6 +376,11 @@ struct l_ucontext {
 #define	LINUX_SI_MAX_SIZE	128
 #define	LINUX_SI_PAD_SIZE	((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
 
+typedef union l_sigval {
+	l_int		sival_int;
+	l_uintptr_t	sival_ptr;
+} l_sigval_t;
+
 typedef struct l_siginfo {
 	l_int		lsi_signo;
 	l_int		lsi_errno;
@@ -383,34 +390,37 @@ typedef struct l_siginfo {
 
 		struct {
 			l_pid_t		_pid;
-			l_uid16_t	_uid;
+			l_uid_t		_uid;
 		} _kill;
 
 		struct {
-			l_uint		_timer1;
-			l_uint		_timer2;
+			l_timer_t	_tid;
+			l_int		_overrun;
+			char		_pad[sizeof(l_uid_t) - sizeof(l_int)];
+			l_sigval_t	_sigval;
+			l_int		_sys_private;
 		} _timer;
 
 		struct {
 			l_pid_t		_pid;		/* sender's pid */
-			l_uid16_t	_uid;		/* sender's uid */
-			union sigval _sigval;
+			l_uid_t		_uid;		/* sender's uid */
+			l_sigval_t	_sigval;
 		} _rt;
 
 		struct {
 			l_pid_t		_pid;		/* which child */
-			l_uid16_t	_uid;		/* sender's uid */
+			l_uid_t		_uid;		/* sender's uid */
 			l_int		_status;	/* exit code */
 			l_clock_t	_utime;
 			l_clock_t	_stime;
 		} _sigchld;
 
 		struct {
-			void		*_addr;	/* Faulting insn/memory ref. */
+			l_uintptr_t	_addr;	/* Faulting insn/memory ref. */
 		} _sigfault;
 
 		struct {
-			l_int		_band;	/* POLL_IN,POLL_OUT,POLL_MSG */
+			l_long		_band;	/* POLL_IN,POLL_OUT,POLL_MSG */
 			l_int		_fd;
 		} _sigpoll;
 	} _sifields;
@@ -418,6 +428,9 @@ typedef struct l_siginfo {
 
 #define	lsi_pid		_sifields._kill._pid
 #define	lsi_uid		_sifields._kill._uid
+#define	lsi_tid		_sifields._timer._tid
+#define	lsi_overrun	_sifields._timer._overrun
+#define	lsi_sys_private	_sifields._timer._sys_private
 #define	lsi_status	_sifields._sigchld._status
 #define	lsi_utime	_sifields._sigchld._utime
 #define	lsi_stime	_sifields._sigchld._stime
@@ -824,9 +837,6 @@ struct l_desc_struct {
 #define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
 #define	LINUX_CLOCK_REALTIME_HR		4
 #define	LINUX_CLOCK_MONOTONIC_HR	5
-
-typedef int l_timer_t;
-typedef int l_mqd_t;
 
 #define	LINUX_CLONE_VM			0x00000100
 #define	LINUX_CLONE_FS			0x00000200
