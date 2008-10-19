@@ -2403,7 +2403,8 @@ ath_key_alloc(struct ieee80211vap *vap, struct ieee80211_key *k,
 	 * it permits us to support multiple users for adhoc and/or
 	 * multi-station operation.
 	 */
-	if ((k->wk_flags & IEEE80211_KEY_GROUP) && !sc->sc_mcastkey) {
+	if (k->wk_keyix != IEEE80211_KEYIX_NONE ||	/* global key */
+	    ((k->wk_flags & IEEE80211_KEY_GROUP) && !sc->sc_mcastkey)) {
 		if (!(&vap->iv_nw_keys[0] <= k &&
 		      k < &vap->iv_nw_keys[IEEE80211_WEP_NKID])) {
 			/* should not happen */
