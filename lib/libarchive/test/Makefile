@@ -9,6 +9,7 @@ LA_SRCS!=make -f ${LA_SRCDIR}/Makefile -V SRCS
 
 TESTS= \
 	test_acl_basic.c			\
+	test_acl_freebsd.c			\
 	test_acl_pax.c				\
 	test_archive_api_feature.c		\
 	test_bad_fd.c				\
