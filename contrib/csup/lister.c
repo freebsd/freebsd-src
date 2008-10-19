@@ -64,6 +64,8 @@ static int	lister_dofile(struct lister *, struct coll *,
 		    struct statusrec *);
 static int	lister_dodead(struct lister *, struct coll *,
 		    struct statusrec *);
+static int	lister_dorcsfile(struct lister *, struct coll *,
+		    struct statusrec *, int);
 
 void *
 lister(void *arg)
@@ -146,13 +148,14 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 	struct statusrec *sr;
 	struct fattr *fa;
 	size_t i;
-	int depth, error, ret, prunedepth;
+	int depth, error, ret, prunedepth, attic;
 
 	wr = l->wr;
 	depth = 0;
 	prunedepth = INT_MAX;
 	as = attrstack_new();
 	while ((ret = status_get(st, NULL, 0, 0, &sr)) == 1) {
+		attic = 0;
 		switch (sr->sr_type) {
 		case SR_DIRDOWN:
 			depth++;
@@ -189,6 +192,20 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 					goto bad;
 			}
 			break;
+#if 0
+		case SR_FILEDEAD:
+			attic = 1;
+		case SR_FILELIVE:
+			if (depth < prunedepth) {
+				if (!(coll->co_options & CO_CHECKOUTMODE)) {
+					error = lister_dorcsfile(l, coll, sr,
+					    attic);
+					if (error)
+						goto bad;
+				}
+			}
+			break;
+#endif
 		}
 	}
 	if (ret == -1) {
@@ -377,6 +394,56 @@ lister_dofile(struct lister *l, struct coll *coll, struct statusrec *sr)
 		fattr_free(rfa);
 send:
 	error = proto_printf(wr, "F %s %F\n", pathlast(sr->sr_file), sendattr,
+	    config->fasupport, coll->co_attrignore);
+	if (error)
+		return (LISTER_ERR_WRITE);
+	return (0);
+}
+
+/* Handle a file live or file dead entry found in the status file. */
+static int
+lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
+    int attic)
+{
+	struct config *config;
+	struct stream *wr;
+	const struct fattr *sendattr;
+	struct fattr *fa;
+	char *path, *spath;
+	char cmd;
+	size_t len;
+	int error;
+
+	if (!globtree_test(coll->co_filefilter, sr->sr_file))
+		return (0);
+	config = l->config;
+	wr = l->wr;
+	if (!coll->co_options & CO_TRUSTSTATUSFILE) {
+		path = cvspath(coll->co_prefix, sr->sr_file, attic);
+		if (path == NULL) {
+			spath = coll_statuspath(coll);
+			xasprintf(&l->errmsg, "Error in \"%s\": "
+			    "Invalid filename \"%s\"", spath, sr->sr_file);
+			free(spath);
+			return (LISTER_ERR_STATUS);
+		}
+		fa = fattr_frompath(path, FATTR_NOFOLLOW);
+		free(path);
+	} else 
+		fa = sr->sr_clientattr;
+	/* XXX: Perhaps check attic path name here. */
+	cmd = attic ? 'F' : 'f';
+	if (fattr_equal(fa, sr->sr_clientattr)) {
+		if (isrcs(sr->sr_file, &len) &&
+		    !(coll->co_options & CO_NORCS) &&
+		    !(coll->co_options & CO_STRICTCHECKRCS)) {
+			fattr_maskout(fa, FA_SIZE);
+		}
+		sendattr = fa;
+	} else {
+		sendattr = fattr_bogus;
+	}
+	error = proto_printf(wr, "%c %s %F\n", cmd, pathlast(sr->sr_file), fa,
 	    config->fasupport, coll->co_attrignore);
 	if (error)
 		return (LISTER_ERR_WRITE);

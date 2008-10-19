@@ -101,6 +101,15 @@ statusrec_cook(struct statusrec *sr, char *line)
 	char *clientattr, *serverattr;
 
 	switch (sr->sr_type) {
+	case SR_FILEDEAD:
+	case SR_FILELIVE:
+		clientattr = proto_get_ascii(&line);
+		if (clientattr == NULL || line != NULL)
+			return (-1);
+		sr->sr_clientattr = fattr_decode(clientattr);
+		if (sr->sr_clientattr == NULL)
+			return (-1);
+		break;
 	case SR_DIRDOWN:
 		/* Nothing to do. */
 		if (line != NULL)
@@ -161,6 +170,7 @@ status_rd(struct status *st)
 	error = statusrec_cook(sr, line);
 	if (error) {
 		st->error = STATUS_ERR_PARSE;
+		printf("ERROR HERE\n");
 		return (NULL);
 	}
 	return (sr);
@@ -197,6 +207,9 @@ status_rdraw(struct status *st, char **linep)
 	}
 
 	switch (cmd[0]) {
+	case 'A':
+		sr.sr_type = SR_FILELIVE;
+		break;
 	case 'D':
 		sr.sr_type = SR_DIRDOWN;
 		st->depth++;
@@ -214,6 +227,12 @@ status_rdraw(struct status *st, char **linep)
 			return (NULL);
 		}
 		st->depth--;
+		break;
+	case 'V':
+		sr.sr_type = SR_FILELIVE;
+		break;
+	case 'v':
+		sr.sr_type = SR_FILEDEAD;
 		break;
 	default:
 		st->error = STATUS_ERR_BAD_TYPE;
@@ -290,6 +309,14 @@ status_wr(struct status *st, struct statusrec *sr)
 		error = proto_printf(st->wr, "c %s %s %s %f\n", sr->sr_file,
 		    sr->sr_tag, sr->sr_date, sr->sr_serverattr);
 		break;
+	case SR_FILELIVE:
+		error = proto_printf(st->wr, "V %s %f\n", sr->sr_file,
+		    sr->sr_clientattr);
+		break;
+	case SR_FILEDEAD:
+		error = proto_printf(st->wr, "v %s %f\n", sr->sr_file,
+		    sr->sr_clientattr);
+		break;
 	}
 	if (error)
 		goto bad;
@@ -345,6 +372,12 @@ status_wrraw(struct status *st, struct statusrec *sr, char *line)
 		break;
 	case SR_CHECKOUTDEAD:
 		cmd = 'c';
+		break;
+	case SR_FILELIVE:
+		cmd = 'V';
+		break;
+	case SR_FILEDEAD:
+		cmd = 'v';
 		break;
 	default:
 		assert(0);
