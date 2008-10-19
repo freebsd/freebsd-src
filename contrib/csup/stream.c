@@ -97,6 +97,7 @@ struct buf {
 struct stream {
 	void *cookie;
 	int fd;
+	int buf;
 	struct buf *rdbuf;
 	struct buf *wrbuf;
 	stream_readfn_t *readfn;
@@ -126,10 +127,8 @@ struct stream_filter {
 #define	buf_count(buf)		((buf)->in)
 #define	buf_size(buf)		((buf)->size)
 
-static struct buf	*buf_new(size_t);
 static void		 buf_more(struct buf *, size_t);
 static void		 buf_less(struct buf *, size_t);
-static void		 buf_free(struct buf *);
 static void		 buf_grow(struct buf *, size_t);
 
 /* Internal stream functions. */
@@ -165,12 +164,20 @@ static int		 zfilter_flush(struct stream *, struct buf *,
 struct md5filter {
 	MD5_CTX ctx;
 	char *md5;
+	char lastc;
+#define PRINT	1
+#define WS	2
+#define STRING	3
+#define SEEN	4
+	int state;
 };
 
 static int		 md5filter_init(struct stream *, void *);
 static void		 md5filter_fini(struct stream *);
 static ssize_t		 md5filter_fill(struct stream *, struct buf *);
 static int		 md5filter_flush(struct stream *, struct buf *,
+			     stream_flush_t);
+static int		 md5rcsfilter_flush(struct stream *, struct buf *,
 			     stream_flush_t);
 
 /* The available stream filters. */
@@ -195,12 +202,20 @@ struct stream_filter stream_filters[] = {
 		md5filter_fini,
 		md5filter_fill,
 		md5filter_flush
+	},
+	{
+		STREAM_FILTER_MD5RCS,
+		md5filter_init,
+		md5filter_fini,
+		md5filter_fill,
+		md5rcsfilter_flush
 	}
+
 };
 
 
 /* Create a new buffer. */
-static struct buf *
+struct buf *
 buf_new(size_t size)
 {
 	struct buf *buf;
@@ -211,6 +226,7 @@ buf_new(size_t size)
 	 * there in case the stream doesn't have an ending newline.
 	 */
 	buf->buf = xmalloc(size + 1);
+	memset(buf->buf, 0, size + 1);
 	buf->size = size;
 	buf->in = 0;
 	buf->off = 0;
@@ -272,7 +288,7 @@ buf_less(struct buf *buf, size_t n)
 }
 
 /* Free a buffer. */
-static void
+void
 buf_free(struct buf *buf)
 {
 
@@ -301,6 +317,7 @@ stream_new(stream_readfn_t *readfn, stream_writefn_t *writefn,
 		stream->wrbuf = NULL;
 	stream->cookie = NULL;
 	stream->fd = -1;
+	stream->buf = 0;
 	stream->readfn = readfn;
 	stream->writefn = writefn;
 	stream->closefn = closefn;
@@ -333,6 +350,29 @@ stream_open_fd(int fd, stream_readfn_t *readfn, stream_writefn_t *writefn,
 	stream->cookie = &stream->fd;
 	stream->fd = fd;
 	return (stream);
+}
+
+/* Associate a buf with a stream. */
+struct stream *
+stream_open_buf(struct buf *b)
+{
+	struct stream *stream;
+
+	stream = stream_new(stream_read_buf, stream_append_buf, stream_close_buf);
+	stream->cookie = b;
+	stream->buf = 1;
+	b->in = 0;
+	return (stream);
+}
+
+/*
+ * Truncate a buffer, just decrease offset pointer.
+ * XXX: this can be dangerous if not used correctly.
+ */
+void
+stream_truncate_buf(struct buf *b, off_t off)
+{
+	b->off += off;
 }
 
 /* Like open() but returns a stream. */
@@ -391,6 +431,57 @@ stream_fileno(struct stream *stream)
 	return (stream->fd);
 }
 
+/* Convenience read function for character buffers. */
+ssize_t
+stream_read_buf(void *cookie, void *buf, size_t size)
+{
+	struct buf *b;
+	size_t avail;
+
+	/* Use in to be read offset. */
+	b = (struct buf *)cookie;
+	/* Just return what we have if the request is to large. */
+	avail = b->off - b->in;
+	if (avail < size) {
+		memcpy(buf, (b->buf + b->in), avail);
+		b->in += avail;
+		return (avail);
+	}
+	memcpy(buf, (b->buf + b->in), size);
+	b->in += size;
+	return (size);
+}
+
+/* Convenience write function for appending character buffers. */
+ssize_t
+stream_append_buf(void *cookie, const void *buf, size_t size)
+{
+	struct buf *b;
+	size_t avail;
+
+	/* Use off to be write offset. */
+	b = (struct buf *)cookie;
+
+	avail = b->size - b->off;
+	if (size > avail)
+		buf_grow(b, b->size + size);
+	memcpy((b->buf + b->off), buf, size);
+	b->off += size;
+	b->buf[b->off] = '\0';
+	return (size);
+}
+
+/* Convenience close function for freeing character buffers. */
+int
+stream_close_buf(void *cookie)
+{
+	void *data;
+
+	data = cookie;
+	/* Basically a NOP. */
+	return (0);
+}
+
 /* Convenience read function for file descriptors. */
 ssize_t
 stream_read_fd(void *cookie, void *buf, size_t size)
@@ -440,6 +531,28 @@ stream_read(struct stream *stream, void *buf, size_t size)
 		if (ret <= 0)
 			return (-1);
 	}
+	n = min(size, buf_count(rdbuf));
+	memcpy(buf, rdbuf->buf + rdbuf->off, n);
+	buf_less(rdbuf, n);
+	return (n);
+}
+
+/* A blocking stream_read call. */
+ssize_t
+stream_read_blocking(struct stream *stream, void *buf, size_t size)
+{
+	struct buf *rdbuf;
+	ssize_t ret;
+	size_t n;
+
+	rdbuf = stream->rdbuf;
+	while (buf_count(rdbuf) <= size) {
+		ret = stream_fill(stream);
+		if (ret <= 0)
+			return (-1);
+	}
+	/* XXX: Should be at least size bytes in the buffer, right? */
+	/* Just do this to make sure. */
 	n = min(size, buf_count(rdbuf));
 	memcpy(buf, rdbuf->buf + rdbuf->off, n);
 	buf_less(rdbuf, n);
@@ -638,6 +751,10 @@ stream_truncate_rel(struct stream *stream, off_t off)
 	struct stat sb;
 	int error;
 
+	if (stream->buf) {
+		stream_truncate_buf(stream->cookie, off);
+		return (0);
+	}
 	if (stream->fd == -1) {
 		errno = EINVAL;
 		return (-1);
@@ -1043,6 +1160,8 @@ md5filter_init(struct stream *stream, void *data)
 	mf = xmalloc(sizeof(struct md5filter));
 	MD5_Init(&mf->ctx);
 	mf->md5 = data;
+	mf->lastc = ';';
+	mf->state = PRINT;
 	stream->fdata = mf;
 	return (0);
 }
@@ -1078,3 +1197,107 @@ md5filter_flush(struct stream *stream, struct buf *buf, stream_flush_t how)
 	error = stream_flush_default(stream, buf, how);
 	return (error);
 }
+
+/* MD5 flush for RCS, where whitespaces are omitted. */
+static int
+md5rcsfilter_flush(struct stream *stream, struct buf *buf, stream_flush_t how)
+{
+	struct md5filter *mf;
+	char *ptr, *end;
+	char *start;
+	char space[2];
+	int error;
+
+	mf = stream->fdata;
+	space[1] = '\0';
+	space[0] = ' ';
+	ptr = buf->buf + buf->off;
+	end = buf->buf + buf->off + buf->in;
+
+#define IS_WS(var) ((var) == ' ' || (var) == '\n' || (var) == '\t' || \
+                    (var) == '\010' || (var) == '\013' || (var) == '\f' || \
+                    (var) == '\r')
+
+#define IS_SPECIAL(var) ((var) == '$' || (var) == ',' || (var) == ':' || \
+			 (var) == ';' || (var) == '@')
+
+#define IS_PRINT(var) (!IS_WS(var) && (var) != '@')
+
+	/* XXX: We can do better than this state machine. */
+	while (ptr < end) {
+		switch (mf->state) {
+			/* Outside RCS statements. */
+			case PRINT:
+				start = ptr;
+				while (ptr < end && IS_PRINT(*ptr)) {
+					mf->lastc = *ptr;
+					ptr++;
+				}
+				MD5_Update(&mf->ctx, start, (ptr - start));
+				if (ptr < end) {
+					if (*ptr == '@') {
+						MD5_Update(&mf->ctx, ptr, 1);
+						ptr++;
+						mf->state = STRING;
+					} else {
+						mf->state = WS;
+					}
+				}
+				break;
+			case WS:
+				while (ptr < end && IS_WS(*ptr)) {
+					ptr++;
+				}
+				if (ptr < end) {
+					if (*ptr == '@') {
+						if (mf->lastc == '@') {
+							MD5_Update(&mf->ctx,
+							    space, 1);
+						}
+						MD5_Update(&mf->ctx, ptr, 1);
+						ptr++;
+						mf->state = STRING;
+					} else {
+						if (!IS_SPECIAL(*ptr) &&
+						    !IS_SPECIAL(mf->lastc)) {
+							MD5_Update(&mf->ctx,
+							    space, 1);
+						}
+						mf->state = PRINT;
+					}
+				}
+				break;
+			case STRING:
+				start = ptr;
+				while (ptr < end && *ptr != '@') {
+					ptr++;
+				}
+				MD5_Update(&mf->ctx, start, (ptr - start));
+				if (ptr < end) {
+					MD5_Update(&mf->ctx, ptr, 1);
+					ptr++;
+					mf->state = SEEN;
+				}
+				break;
+			case SEEN:
+				if (*ptr == '@') {
+					MD5_Update(&mf->ctx, ptr, 1);
+					ptr++;
+					mf->state = STRING;
+				} else if(IS_WS(*ptr)) {
+					mf->lastc = '@';
+					mf->state = WS;
+				} else {
+					mf->state = PRINT;
+				}
+				break;
+			default:
+				err(1, "Invalid state");
+				break;
+		}
+	}
+
+	error = stream_flush_default(stream, buf, how);
+	return (error);
+}
+

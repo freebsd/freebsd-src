@@ -768,6 +768,7 @@ proto_printf(struct stream *wr, const char *format, ...)
 	va_list ap;
 	char *cp, *s, *attr;
 	ssize_t n;
+	off_t off;
 	int rv, val, ignore;
 	char c;
 
@@ -800,6 +801,10 @@ proto_printf(struct stream *wr, const char *format, ...)
 		case 'o':
 			val = va_arg(ap, int);
 			rv = stream_printf(wr, "%o", val);
+			break;
+		case 'O':
+			off = va_arg(ap, off_t);
+			rv = stream_printf(wr, "%lu", off);
 			break;
 		case 'S':
 			s = va_arg(ap, char *);
