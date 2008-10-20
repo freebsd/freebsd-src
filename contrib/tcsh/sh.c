@@ -462,7 +462,7 @@ main(int argc, char **argv)
 	    else
 		cp2 = cp;
 	    if (!(((Strncmp(cp2, STRtty, 3) == 0) && Isalpha(cp2[3])) ||
-	          Strstr(cp, STRslptssl) != NULL)) {
+	          Strstr(cp, STRptssl) != NULL)) {
 		if (getenv("DISPLAY") == NULL) {
 		    /* NOT on X window shells */
 		    setcopy(STRautologout, STRdefautologout, VAR_READWRITE);
