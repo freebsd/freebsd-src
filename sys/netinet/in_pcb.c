@@ -458,8 +458,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (pcbinfo != &V_udbinfo)
 			V_ipport_tcpallocs++;
 		/*
-		 * Simple check to ensure all ports are not used up causing
-		 * a deadlock here.
+		 * Instead of having two loops further down counting up or down
+		 * make sure that first is always <= last and go with only one
+		 * code path implementing all logic.
 		 */
 		if (first > last) {
 			aux = first;
