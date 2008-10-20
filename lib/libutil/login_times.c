@@ -137,11 +137,12 @@ in_ltm(const login_time_t *ltm, struct tm *tt, time_t *ends)
 int
 in_lt(const login_time_t *ltm, time_t *t)
 {
+
     return (in_ltm(ltm, localtime(t), t));
 }
 
 int
-in_ltms(const login_time_t *ltm, struct tm * tm, time_t *t)
+in_ltms(const login_time_t *ltm, struct tm *tm, time_t *t)
 {
     int	    i = 0;
 
@@ -156,5 +157,6 @@ in_ltms(const login_time_t *ltm, struct tm * tm, time_t *t)
 int
 in_lts(const login_time_t *ltm, time_t *t)
 {
+
     return (in_ltms(ltm, localtime(t), t));
 }
