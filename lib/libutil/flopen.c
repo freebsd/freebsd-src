@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2007 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ int
 flopen(const char *path, int flags, ...)
 {
 	int fd, operation, serrno, trunc;
-	struct flock flock;
+	struct flock lock;
 	struct stat sb, fsb;
 	mode_t mode;
 
@@ -55,13 +55,13 @@ flopen(const char *path, int flags, ...)
 		va_list ap;
 
 		va_start(ap, flags);
-		mode = va_arg(ap, int); /* mode_t promoted to int */
+		mode = (mode_t)va_arg(ap, int); /* mode_t promoted to int */
 		va_end(ap);
 	}
 
-	memset(&flock, 0, sizeof flock);
-	flock.l_type = F_WRLCK;
-	flock.l_whence = SEEK_SET;
+	memset(&lock, 0, sizeof lock);
+	lock.l_type = ((flags & O_ACCMODE) == O_RDONLY) ? F_RDLCK : F_WRLCK;
+	lock.l_whence = SEEK_SET;
 	operation = (flags & O_NONBLOCK) ? F_SETLK : F_SETLKW;
 
 	trunc = (flags & O_TRUNC);
@@ -71,35 +71,35 @@ flopen(const char *path, int flags, ...)
 		if ((fd = open(path, flags, mode)) == -1)
 			/* non-existent or no access */
 			return (-1);
-		if (fcntl(fd, operation, &flock) == -1) {
+		if (fcntl(fd, operation, &lock) == -1) {
 			/* unsupported or interrupted */
 			serrno = errno;
-			close(fd);
+			(void)close(fd);
 			errno = serrno;
 			return (-1);
 		}
 		if (stat(path, &sb) == -1) {
 			/* disappeared from under our feet */
-			close(fd);
+			(void)close(fd);
 			continue;
 		}
 		if (fstat(fd, &fsb) == -1) {
 			/* can't happen [tm] */
 			serrno = errno;
-			close(fd);
+			(void)close(fd);
 			errno = serrno;
 			return (-1);
 		}
 		if (sb.st_dev != fsb.st_dev ||
 		    sb.st_ino != fsb.st_ino) {
 			/* changed under our feet */
-			close(fd);
+			(void)close(fd);
 			continue;
 		}
 		if (trunc && ftruncate(fd, 0) != 0) {
 			/* can't happen [tm] */
 			serrno = errno;
-			close(fd);
+			(void)close(fd);
 			errno = serrno;
 			return (-1);
 		}
