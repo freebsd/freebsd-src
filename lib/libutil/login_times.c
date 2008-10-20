@@ -34,8 +34,8 @@ __FBSDID("$FreeBSD$");
 static struct
 {
     const char	*dw;
-    u_char      cn;
-    u_char      fl;
+    u_char       cn;
+    u_char       fl;
 } dws[] =
 {
     { "su", 2, LTM_SUN }, { "mo", 2, LTM_MON }, { "tu", 2, LTM_TUE },
@@ -54,22 +54,22 @@ parse_time(char * ptr, u_short * t)
 
     *t = (u_short)((val / 100) * 60 + (val % 100));
 
-    return ptr;
+    return (ptr);
 }
 
 
 login_time_t
-parse_lt(const char * str)
+parse_lt(const char *str)
 {
     login_time_t    t;
 
     memset(&t, 0, sizeof t);
     t.lt_dow = LTM_NONE;
     if (str && *str && strcmp(str, "Never") != 0 && strcmp(str, "None") != 0) {
-	int		i;
-	login_time_t	m = t;
+	int		 i;
+	login_time_t	 m = t;
 	char		*p;
-	char		buf[64];
+	char		 buf[64];
 
 	/* Make local copy and force lowercase to simplify parsing */
 	strlcpy(buf, str, sizeof buf);
@@ -102,12 +102,12 @@ parse_lt(const char * str)
 
 	t = m;
     }
-    return t;
+    return (t);
 }
 
 
 int
-in_ltm(const login_time_t * ltm, struct tm * tt, time_t * ends)
+in_ltm(const login_time_t *ltm, struct tm *tt, time_t *ends)
 {
     int	    rc = 0;
 
@@ -130,31 +130,31 @@ in_ltm(const login_time_t * ltm, struct tm * tt, time_t * ends)
 	    }
 	}
     }
-    return rc;
+    return (rc);
 }
 
 
 int
-in_lt(const login_time_t * ltm, time_t * t)
+in_lt(const login_time_t *ltm, time_t *t)
 {
-    return in_ltm(ltm, localtime(t), t);
+    return (in_ltm(ltm, localtime(t), t));
 }
 
 int
-in_ltms(const login_time_t * ltm, struct tm * tm, time_t * t)
+in_ltms(const login_time_t *ltm, struct tm * tm, time_t *t)
 {
     int	    i = 0;
 
     while (i < LC_MAXTIMES && ltm[i].lt_dow != LTM_NONE) {
 	if (in_ltm(ltm + i, tm, t))
-	    return i;
+	    return (i);
 	i++;
     }
-    return -1;
+    return (-1);
 }
 
 int
-in_lts(const login_time_t * ltm, time_t * t)
+in_lts(const login_time_t *ltm, time_t *t)
 {
-    return in_ltms(ltm, localtime(t), t);
+    return (in_ltms(ltm, localtime(t), t));
 }
