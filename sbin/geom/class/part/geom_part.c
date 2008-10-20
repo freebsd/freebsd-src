@@ -223,13 +223,20 @@ fmtsize(long double rawsz)
 static const char *
 fmtattrib(struct gprovider *pp)
 {
-	static char buf[64];
-	const char *val;
+	static char buf[128];
+	struct gconfig *gc;
+	u_int idx;
 
-	val = find_provcfg(pp, "attrib");
-	if (val == NULL)
-		return ("");
-	snprintf(buf, sizeof(buf), " [%s] ", val);
+	buf[0] = '\0';
+	idx = 0;
+	LIST_FOREACH(gc, &pp->lg_config, lg_config) {
+		if (strcmp(gc->lg_name, "attrib") != 0)
+			continue;
+		idx += snprintf(buf + idx, sizeof(buf) - idx, "%s%s",
+		    (idx == 0) ? " [" : ",", gc->lg_val);
+	}
+	if (idx > 0)
+		snprintf(buf + idx, sizeof(buf) - idx, "] ");
 	return (buf);
 }
 
