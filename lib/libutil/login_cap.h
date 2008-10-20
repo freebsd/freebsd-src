@@ -146,8 +146,10 @@ int auth_timeok(login_cap_t *, time_t);
 struct tm;
 
 login_time_t parse_lt(const char *);
+int in_lt(const login_time_t *, time_t *);
 int in_ltm(const login_time_t *, struct tm *, time_t *);
 int in_ltms(const login_time_t *, struct tm *, time_t *);
+int in_lts(const login_time_t *, time_t *);
 
 /* helper functions */
 
