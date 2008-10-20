@@ -116,6 +116,7 @@ int login_getcapbool(login_cap_t *, const char *, int);
 const char *login_setcryptfmt(login_cap_t *, const char *, const char *);
 
 int setclasscontext(const char *, unsigned int);
+void setclasscpumask(login_cap_t *);
 int setusercontext(login_cap_t *, const struct passwd *, uid_t, unsigned int);
 void setclassresources(login_cap_t *);
 void setclassenvironment(login_cap_t *, const struct passwd *, int);
