@@ -37,18 +37,37 @@
 #include <machine/psl.h>
 #include <machine/trap.h>
 
-
 #include "assym.s"
 
 #define	SEL_RPL_MASK	0x0002
 #define __HYPERVISOR_iret	23
 	
 /* Offsets into shared_info_t. */
+
 #define evtchn_upcall_pending /* 0 */
 #define evtchn_upcall_mask       1
-#define XEN_BLOCK_EVENTS(reg)     movb $1,evtchn_upcall_mask(reg)
-#define XEN_UNBLOCK_EVENTS(reg)   movb $0,evtchn_upcall_mask(reg)
-#define XEN_TEST_PENDING(reg)     testb $0x1,evtchn_upcall_pending(reg)
+
+#define	sizeof_vcpu_shift	6
+
+		
+#ifdef SMP
+#ifdef notyet	
+#define GET_VCPU_INFO		movl TI_cpu(%ebp),reg			; \
+				shl  $sizeof_vcpu_shift,reg		; \
+				addl HYPERVISOR_shared_info,reg
+#else
+#endif	
+
+#define GET_VCPU_INFO(reg)	movl HYPERVISOR_shared_info,reg
+#endif
+
+#define __DISABLE_INTERRUPTS(reg)	movb $1,evtchn_upcall_mask(reg)
+#define __ENABLE_INTERRUPTS(reg)	movb $0,evtchn_upcall_mask(reg)
+#define DISABLE_INTERRUPTS(reg)	GET_VCPU_INFO(reg)			; \
+				__DISABLE_INTERRUPTS(reg)
+#define ENABLE_INTERRUPTS(reg)	GET_VCPU_INFO(reg)			; \
+				__ENABLE_INTERRUPTS(reg)
+#define __TEST_PENDING(reg)	testb $0xFF,evtchn_upcall_pending(reg)
 
 #define POPA \
         popl %edi; \
@@ -163,8 +182,7 @@ call_evtchn_upcall:
 
 	
 hypervisor_callback_pending:
-	movl	HYPERVISOR_shared_info,%esi
-	XEN_BLOCK_EVENTS(%esi)				/*	cli */	
+	DISABLE_INTERRUPTS(%esi)				/*	cli */	
 	jmp	10b
 
 	/*
@@ -338,12 +356,11 @@ doreti_ast:
 	 * interrupts provides sufficient locking even in the SMP case,
 	 * since we will be informed of any new ASTs by an IPI.
 	 */
-	movl	HYPERVISOR_shared_info,%esi
-	XEN_BLOCK_EVENTS(%esi)				/*	cli */
+	DISABLE_INTERRUPTS(%esi)				/*	cli */
 	movl	PCPU(CURTHREAD),%eax
 	testl	$TDF_ASTPENDING | TDF_NEEDRESCHED,TD_FLAGS(%eax)
 	je	doreti_exit
-	XEN_UNBLOCK_EVENTS(%esi)	/* sti */
+	ENABLE_INTERRUPTS(%esi)	/* sti */
 	pushl	%esp			/* pass a pointer to the trapframe */
 	call	ast
 	add	$4,%esp
@@ -357,12 +374,11 @@ doreti_ast:
 	 *	registers.  The fault is handled in trap.c.
 	 */
 doreti_exit:
-	movl	HYPERVISOR_shared_info,%esi
-	XEN_UNBLOCK_EVENTS(%esi) # reenable event callbacks (sti)
+	ENABLE_INTERRUPTS(%esi) # reenable event callbacks (sti)
 
 	.globl	scrit
 scrit:
-	XEN_TEST_PENDING(%esi)
+	__TEST_PENDING(%esi)
         jnz	hypervisor_callback_pending	/* More to go  */
 
 	MEXITCOUNT
