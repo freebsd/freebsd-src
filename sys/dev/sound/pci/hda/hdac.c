@@ -7552,6 +7552,21 @@ hdac_detach(device_t dev)
 	return (0);
 }
 
+static int
+hdac_print_child(device_t dev, device_t child)
+{
+	struct hdac_pcm_devinfo *pdevinfo =
+	    (struct hdac_pcm_devinfo *)device_get_ivars(child);
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	retval += printf(" at cad %d nid %d",
+	    pdevinfo->devinfo->codec->cad, pdevinfo->devinfo->nid);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
 static device_method_t hdac_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		hdac_probe),
@@ -7559,6 +7574,8 @@ static device_method_t hdac_methods[] = {
 	DEVMETHOD(device_detach,	hdac_detach),
 	DEVMETHOD(device_suspend,	hdac_suspend),
 	DEVMETHOD(device_resume,	hdac_resume),
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	hdac_print_child),
 	{ 0, 0 }
 };
 
@@ -7581,8 +7598,7 @@ hdac_pcm_probe(device_t dev)
 	    (struct hdac_pcm_devinfo *)device_get_ivars(dev);
 	char buf[128];
 
-	snprintf(buf, sizeof(buf), "HDA codec #%d %s PCM #%d",
-	    pdevinfo->devinfo->codec->cad,
+	snprintf(buf, sizeof(buf), "HDA %s PCM #%d",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
 	    pdevinfo->index);
 	device_set_desc_copy(dev, buf);
@@ -7673,9 +7689,9 @@ hdac_pcm_attach(device_t dev)
 	if (pdevinfo->rec >= 0)
 		pcm_addchan(dev, PCMDIR_REC, &hdac_channel_class, pdevinfo);
 
-	snprintf(status, SND_STATUSLEN, "at %s cad %d %s [%s]",
-	    device_get_nameunit(sc->dev), pdevinfo->devinfo->codec->cad,
-	    PCM_KLDSTRING(snd_hda), HDA_DRV_TEST_REV);
+	snprintf(status, SND_STATUSLEN, "at cad %d nid %d on %s %s",
+	    pdevinfo->devinfo->codec->cad, pdevinfo->devinfo->nid,
+	    device_get_nameunit(sc->dev), PCM_KLDSTRING(snd_hda));
 	pcm_setstatus(dev, status);
 
 	return (0);
