@@ -873,6 +873,10 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("vn_lock called with no locktype."));
 	do {
+#ifdef DEBUG_VFS_LOCKS
+		KASSERT(vp->v_holdcnt != 0,
+		    ("vn_lock %p: zero hold count", vp));
+#endif
 		error = VOP_LOCK1(vp, flags, file, line);
 		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
