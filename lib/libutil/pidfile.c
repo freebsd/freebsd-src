@@ -231,10 +231,6 @@ _pidfile_remove(struct pidfh *pfh, int freeit)
 
 	if (unlink(pfh->pf_path) == -1)
 		error = errno;
-	if (flock(pfh->pf_fd, LOCK_UN) == -1) {
-		if (error == 0)
-			error = errno;
-	}
 	if (close(pfh->pf_fd) == -1) {
 		if (error == 0)
 			error = errno;
