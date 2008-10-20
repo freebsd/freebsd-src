@@ -1854,7 +1854,7 @@ hdac_probe_codec(struct hdac_codec *codec)
 	nid_t cad = codec->cad;
 
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "Probing codec %d...\n", cad);
+		device_printf(sc->dev, "Probing codec #%d...\n", cad);
 	);
 	vendorid = hdac_command(sc,
 	    HDA_CMD_GET_PARAMETER(cad, 0x0, HDA_PARAM_VENDOR_ID),
@@ -1873,10 +1873,10 @@ hdac_probe_codec(struct hdac_codec *codec)
 		return;
 	}
 
-	device_printf(sc->dev, "<HDA Codec #%d: %s>\n",
+	device_printf(sc->dev, "HDA Codec #%d: %s\n",
 	    cad, hdac_codec_name(codec));
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "<HDA Codec ID: 0x%08x>\n",
+		device_printf(sc->dev, " HDA Codec ID: 0x%08x\n",
 		    hdac_codec_id(codec));
 		device_printf(sc->dev, "       Vendor: 0x%04x\n",
 		    codec->vendor_id);
@@ -3826,7 +3826,7 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	device_printf(dev, "<HDA Driver Revision: %s>\n", HDA_DRV_TEST_REV);
+	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
 
 	sc = device_get_softc(dev);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
