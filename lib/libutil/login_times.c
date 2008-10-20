@@ -40,7 +40,7 @@ static struct
 {
     { "su", 2, LTM_SUN }, { "mo", 2, LTM_MON }, { "tu", 2, LTM_TUE },
     { "we", 2, LTM_WED }, { "th", 2, LTM_THU }, { "fr", 2, LTM_FRI },
-    { "sa", 2, LTM_SAT }, { "any",3, LTM_ANY }, { "all",3, LTM_ANY }, 
+    { "sa", 2, LTM_SAT }, { "any",3, LTM_ANY }, { "all",3, LTM_ANY },
     { "wk", 2, LTM_WK  }, { "wd", 2, LTM_WD  }, { NULL, 0, 0       }
 };
 
@@ -72,9 +72,10 @@ parse_lt(const char * str)
 	char		buf[64];
 
 	/* Make local copy and force lowercase to simplify parsing */
-	p = strlcpy(buf, str, sizeof buf);
+	strlcpy(buf, str, sizeof buf);
 	for (i = 0; buf[i]; i++)
 	    buf[i] = (char)tolower(buf[i]);
+	p = buf;
 
 	while (isalpha(*p)) {
 
@@ -157,4 +158,3 @@ in_lts(const login_time_t * ltm, time_t * t)
 {
     return in_ltms(ltm, localtime(t), t);
 }
-
