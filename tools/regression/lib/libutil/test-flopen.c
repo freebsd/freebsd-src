@@ -89,6 +89,7 @@ test_flopen_open(void)
 	return (result);
 }
 
+#if FLOPEN_CAN_LOCK_AGAINST_SELF
 /*
  * Test that flopen() can lock against itself
  */
@@ -114,6 +115,7 @@ test_flopen_lock_self(void)
 	unlink(fn);
 	return (result);
 }
+#endif
 
 /*
  * Test that flopen() can lock against other processes
@@ -152,7 +154,9 @@ static struct test {
 } t[] = {
 	{ "flopen_create", test_flopen_create },
 	{ "flopen_open", test_flopen_open },
+#if FLOPEN_CAN_LOCK_AGAINST_SELF
 	{ "flopen_lock_self", test_flopen_lock_self },
+#endif
 	{ "flopen_lock_other", test_flopen_lock_other },
 };
 
