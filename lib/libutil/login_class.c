@@ -25,14 +25,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/cpuset.h>
 #include <sys/mac.h>
+#include <sys/resource.h>
 #include <sys/rtprio.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <login_cap.h>
@@ -92,7 +94,7 @@ setclassresources(login_cap_t *lc)
 	if (getrlimit(lr->why, &rlim) != 0)
 	    syslog(LOG_ERR, "getting %s resource limit: %m", lr->what);
 	else {
-	    char  	name_cur[40];
+	    char	name_cur[40];
 	    char	name_max[40];
 	    rlim_t	rcur = rlim.rlim_cur;
 	    rlim_t	rmax = rlim.rlim_max;
@@ -104,7 +106,7 @@ setclassresources(login_cap_t *lc)
 	    rmax = (*lr->who)(lc, lr->what, rmax, rmax);
 	    rlim.rlim_cur = (*lr->who)(lc, name_cur, rcur, rcur);
 	    rlim.rlim_max = (*lr->who)(lc, name_max, rmax, rmax);
-    
+
 	    if (setrlimit(lr->why, &rlim) == -1)
 		syslog(LOG_WARNING, "set class '%s' resource limit %s: %m", lc->lc_class, lr->what);
 	}
@@ -534,4 +536,3 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 
     return 0;
 }
-
