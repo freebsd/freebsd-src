@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2005
+.Dd October 20, 2008
 .Dt PIDFILE 3
 .Os
 .Sh NAME
@@ -51,16 +51,14 @@ The
 .Nm pidfile
 family of functions allows daemons to handle PID files.
 It uses
-.Xr flock 2
+.Xr flopen 3
 to lock a pidfile and detect already running daemons.
 .Pp
 The
 .Fn pidfile_open
 function opens (or creates) a file specified by the
 .Fa path
-argument and locks it with the
-.Xr flock 2
-system call.
+argument and locks it.
 If a file can not be locked, a PID of an already running daemon is returned in
 the
 .Fa pidptr
@@ -233,16 +231,17 @@ function may also fail and set
 .Va errno
 for any errors specified for the
 .Xr close 2 ,
-.Xr flock 2 ,
 .Xr fstat 2 ,
 .Xr write 2 ,
 and
 .Xr unlink 2
-calls.
+system calls and the
+.Xr flopen 3
+library function.
 .Sh SEE ALSO
-.Xr flock 2 ,
 .Xr open 2 ,
-.Xr daemon 3
+.Xr daemon 3 ,
+.Xr flopen 3
 .Sh AUTHORS
 .An -nosplit
 The
