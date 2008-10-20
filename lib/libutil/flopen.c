@@ -28,12 +28,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/file.h>
 #include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <libutil.h>
@@ -42,6 +42,7 @@ int
 flopen(const char *path, int flags, ...)
 {
 	int fd, operation, serrno, trunc;
+	struct flock flock;
 	struct stat sb, fsb;
 	mode_t mode;
 
@@ -58,9 +59,10 @@ flopen(const char *path, int flags, ...)
 		va_end(ap);
 	}
 
-	operation = LOCK_EX;
-	if (flags & O_NONBLOCK)
-		operation |= LOCK_NB;
+	memset(&flock, 0, sizeof flock);
+	flock.l_type = F_WRLCK;
+	flock.l_whence = SEEK_SET;
+	operation = (flags & O_NONBLOCK) ? F_SETLK : F_SETLKW;
 
 	trunc = (flags & O_TRUNC);
 	flags &= ~O_TRUNC;
@@ -69,7 +71,7 @@ flopen(const char *path, int flags, ...)
 		if ((fd = open(path, flags, mode)) == -1)
 			/* non-existent or no access */
 			return (-1);
-		if (flock(fd, operation) == -1) {
+		if (fcntl(fd, operation, &flock) == -1) {
 			/* unsupported or interrupted */
 			serrno = errno;
 			close(fd);
