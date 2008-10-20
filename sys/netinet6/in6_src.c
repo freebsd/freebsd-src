@@ -95,6 +95,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/ip_var.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
@@ -774,7 +777,7 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	INIT_VNET_INET(curvnet);
 	struct socket *so = inp->inp_socket;
 	u_int16_t lport = 0, first, last, *lastport;
-	int count, error = 0, wild = 0;
+	int count, error = 0, wild = 0, dorandom;
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
@@ -802,56 +805,58 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 		last  = V_ipport_lastauto;
 		lastport = &pcbinfo->ipi_lastport;
 	}
+
 	/*
-	 * Simple check to ensure all ports are not used up causing
-	 * a deadlock here.
-	 *
-	 * We split the two cases (up and down) so that the direction
-	 * is not being tested on each round of the loop.
+	 * For UDP, use random port allocation as long as the user
+	 * allows it.  For TCP (and as of yet unknown) connections,
+	 * use random port allocation only if the user allows it AND
+	 * ipport_tick() allows it.
+	 */
+	if (V_ipport_randomized &&
+	    (!V_ipport_stoprandom || pcbinfo == &V_udbinfo))
+		dorandom = 1;
+	else
+		dorandom = 0;
+	/*
+	 * It makes no sense to do random port allocation if
+	 * we have the only port available.
+	 */
+	if (first == last)
+		dorandom = 0;
+	/* Make sure to not include UDP packets in the count. */
+	if (pcbinfo != &V_udbinfo)
+		V_ipport_tcpallocs++;
+
+	/*
+	 * Instead of having two loops further down counting up or down
+	 * make sure that first is always <= last and go with only one
+	 * code path implementing all logic.
 	 */
 	if (first > last) {
-		/*
-		 * counting down
-		 */
-		count = first - last;
+		u_int16_t aux;
 
-		do {
-			if (count-- < 0) {	/* completely used? */
-				/*
-				 * Undo any address bind that may have
-				 * occurred above.
-				 */
-				inp->in6p_laddr = in6addr_any;
-				return (EAGAIN);
-			}
-			--*lastport;
-			if (*lastport > first || *lastport < last)
-				*lastport = first;
-			lport = htons(*lastport);
-		} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
-		    lport, wild, cred));
-	} else {
-		/*
-			 * counting up
-			 */
-		count = last - first;
-
-		do {
-			if (count-- < 0) {	/* completely used? */
-				/*
-				 * Undo any address bind that may have
-				 * occurred above.
-				 */
-				inp->in6p_laddr = in6addr_any;
-				return (EAGAIN);
-			}
-			++*lastport;
-			if (*lastport < first || *lastport > last)
-				*lastport = first;
-			lport = htons(*lastport);
-		} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
-		    lport, wild, cred));
+		aux = first;
+		first = last;
+		last = aux;
 	}
+
+	if (dorandom)
+		*lastport = first + (arc4random() % (last - first));
+
+	count = last - first;
+
+	do {
+		if (count-- < 0) {	/* completely used? */
+			/* Undo an address bind that may have occurred. */
+			inp->in6p_laddr = in6addr_any;
+			return (EADDRNOTAVAIL);
+		}
+		++*lastport;
+		if (*lastport < first || *lastport > last)
+			*lastport = first;
+		lport = htons(*lastport);
+	} while (in6_pcblookup_local(pcbinfo, &inp->in6p_laddr,
+	    lport, wild, cred));
 
 	inp->inp_lport = lport;
 	if (in_pcbinshash(inp) != 0) {
