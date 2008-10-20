@@ -46,12 +46,13 @@ The
 function opens or creates a file and acquires an exclusive lock on it.
 It is essentially equivalent with calling
 .Fn open
-with the same parameters followed by
-.Fn flock
-with an
-.Va operation
-argument of
-.Dv LOCK_EX ,
+with the same parameters followed by an
+.Fn fcntl
+.Dv F_SETLK
+or
+.Dv F_SETLKW
+operation with lock type
+.Dv F_WRLCK ,
 except that
 .Fn flopen
 will attempt to detect and handle races that may occur between opening
@@ -86,12 +87,12 @@ returns a valid file descriptor.
 Otherwise, it returns -1, and sets
 .Va errno
 as described in
-.Xr flock 2
+.Xr fcntl 2
 and
 .Xr open 2 .
 .Sh SEE ALSO
 .Xr errno 2 ,
-.Xr flock 2 ,
+.Xr fcntl 2 ,
 .Xr open 2
 .Sh HISTORY
 The
