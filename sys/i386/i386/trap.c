@@ -123,14 +123,6 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 #endif
 
-#ifdef XEN
-#include <sys/syslog.h>
-#include <machine/xen/xenfunc.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xenvar.h>
-#include <machine/xen/evtchn.h>
-#endif
-
 extern void trap(struct trapframe *frame);
 extern void syscall(struct trapframe *frame);
 
