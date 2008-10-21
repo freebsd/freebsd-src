@@ -32,7 +32,6 @@
 /* Dynamic binding of event channels and VIRQ sources to Linux IRQ space. */
 extern void unbind_from_irq(int irq);
 
-extern void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu);
 extern int bind_caller_port_to_irqhandler(unsigned int caller_port,
 	const char *devname, driver_intr_t handler, void *arg,
 	unsigned long irqflags, void **cookiep);
@@ -41,8 +40,12 @@ extern int bind_listening_port_to_irqhandler(unsigned int remote_domain,
 	void **cookiep);
 extern int bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu, const char *devname,
 									 driver_filter_t filter, driver_intr_t handler, unsigned long irqflags);
-extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu, const char *devname,
-									 driver_intr_t handler, unsigned long irqflags);
+extern int bind_ipi_to_irqhandler(unsigned int ipi,
+	unsigned int cpu,
+	const char *devname,
+	driver_intr_t handler,
+	unsigned long irqflags);
+
 extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 	                                             unsigned int remote_port,
 	                                             const char *devname,
@@ -65,7 +68,7 @@ extern void enable_irq(unsigned int);
 extern void irq_suspend(void);
 extern void irq_resume(void);
 
-extern void idle_block(void);
-
+extern void	idle_block(void);
+extern int	ap_cpu_initclocks(int cpu);
 
 #endif /* _XEN_INTR_H_ */

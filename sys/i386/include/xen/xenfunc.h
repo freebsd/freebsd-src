@@ -67,8 +67,6 @@ void _xen_machphys_update(vm_paddr_t, vm_paddr_t, char *file, int line);
 
 void xen_update_descriptor(union descriptor *, union descriptor *);
 
-void ap_cpu_initclocks(void);
-
 extern struct mtx balloon_lock;
 #if 0
 #define balloon_lock(__flags)   mtx_lock_irqsave(&balloon_lock, __flags)
