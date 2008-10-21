@@ -48,8 +48,12 @@ __FBSDID("$FreeBSD$");
 
 uint64_t	tsc_freq;
 int		tsc_is_broken;
+int		tsc_is_invariant;
 u_int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
+
+SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
+    &tsc_is_invariant, 0, "Indicates the TSC is P-state invariant");
 
 #ifdef SMP
 static int	smp_tsc;
@@ -107,8 +111,9 @@ init_TSC(void)
 	set_cputicker(rdtsc, tsc_freq, 1);
 
 	/* Register to find out about changes in CPU frequency. */
-	tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
-	    tsc_freq_changing, NULL, EVENTHANDLER_PRI_FIRST);
+	if (!tsc_is_invariant)
+		tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
+		    tsc_freq_changing, NULL, EVENTHANDLER_PRI_FIRST);
 	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
 	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_FIRST);
 	tsc_levels_tag = EVENTHANDLER_REGISTER(cpufreq_levels_changed,
@@ -198,11 +203,12 @@ static void
 tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 {
 
-	if (*status != 0 || timecounter != &tsc_timecounter)
+	if (*status != 0 || timecounter != &tsc_timecounter ||
+	    tsc_is_invariant)
 		return;
 
 	printf("timecounter TSC must not be in use when "
-	     "changing frequencies; change denied\n");
+	    "changing frequencies; change denied\n");
 	*status = EBUSY;
 }
 
@@ -210,8 +216,11 @@ tsc_freq_changing(void *arg, const struct cf_level *level, int *status)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
-	/* If there was an error during the transition, don't do anything. */
-	if (status != 0)
+	/*
+	 * If there was an error during the transition or
+	 * TSC is P-state invariant, don't do anything.
+	 */
+	if (status != 0 || tsc_is_invariant)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
