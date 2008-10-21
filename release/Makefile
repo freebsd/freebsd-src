@@ -957,13 +957,13 @@ cdrom.1:
 	@rm -f ${CD_LIVEFS}/boot/device.hints
 	@cp ${RD}/trees/base/boot/device.hints ${CD_LIVEFS}/boot/device.hints
 .endif
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 .if defined(MAKE_DVD)
 	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_DVD1}/boot/kernel
 	@rm -f ${CD_DVD1}/boot/kernel/*.symbols
 	@rm -f ${CD_DVD1}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_DVD1}/.profile
 	@ln -sf /rescue ${CD_DVD1}/stand
-	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DVD1}/cdrom.inf
 	@rm -f ${CD_DVD1}/boot/loader.conf
 	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DVD1}/boot/mfsroot.gz
