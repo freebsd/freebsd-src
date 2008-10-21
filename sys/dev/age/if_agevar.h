@@ -68,8 +68,6 @@ struct age_txdesc {
 	struct tx_desc		*tx_desc;
 };
 
-STAILQ_HEAD(age_txdq, age_txdesc);
-
 struct age_rxdesc {
 	struct mbuf 		*rx_m;
 	bus_dmamap_t		rx_dmamap;
