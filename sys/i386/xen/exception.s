@@ -184,14 +184,12 @@ call_evtchn_upcall:
 hypervisor_callback_pending:
 	DISABLE_INTERRUPTS(%esi)				/*	cli */	
 	jmp	10b
-
 	/*
 	 * alltraps entry point.  Interrupts are enabled if this was a trap
 	 * gate (TGT), else disabled if this was an interrupt gate (IGT).
 	 * Note that int0x80_syscall is a trap gate.  Only page faults
 	 * use an interrupt gate.
 	 */
-
 	SUPERALIGN_TEXT
 	.globl	alltraps
 	.type	alltraps,@function
