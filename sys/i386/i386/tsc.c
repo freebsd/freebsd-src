@@ -53,7 +53,8 @@ u_int		tsc_present;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
 
 SYSCTL_INT(_kern_timecounter, OID_AUTO, invariant_tsc, CTLFLAG_RDTUN,
-    &tsc_is_invariant, 0, "Indicates the TSC is P-state invariant");
+    &tsc_is_invariant, 0, "Indicates whether the TSC is P-state invariant");
+TUNABLE_INT("kern.timecounter.invariant_tsc", &tsc_is_invariant);
 
 #ifdef SMP
 static int	smp_tsc;
@@ -111,9 +112,8 @@ init_TSC(void)
 	set_cputicker(rdtsc, tsc_freq, 1);
 
 	/* Register to find out about changes in CPU frequency. */
-	if (!tsc_is_invariant)
-		tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
-		    tsc_freq_changing, NULL, EVENTHANDLER_PRI_FIRST);
+	tsc_pre_tag = EVENTHANDLER_REGISTER(cpufreq_pre_change,
+	    tsc_freq_changing, NULL, EVENTHANDLER_PRI_FIRST);
 	tsc_post_tag = EVENTHANDLER_REGISTER(cpufreq_post_change,
 	    tsc_freq_changed, NULL, EVENTHANDLER_PRI_FIRST);
 	tsc_levels_tag = EVENTHANDLER_REGISTER(cpufreq_levels_changed,
