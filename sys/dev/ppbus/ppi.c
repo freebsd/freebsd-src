@@ -59,8 +59,8 @@ __FBSDID("$FreeBSD$");
 #define BUFSIZE		512
 
 struct ppi_data {
-
-    int		ppi_unit;
+    device_t	ppi_device;
+    struct cdev *ppi_cdev;
     int		ppi_flags;
 #define HAVE_PPBUS	(1<<0)
 #define HAD_PPBUS	(1<<1)
@@ -77,10 +77,6 @@ struct ppi_data {
 
 #define DEVTOSOFTC(dev) \
 	((struct ppi_data *)device_get_softc(dev))
-#define UNITOSOFTC(unit) \
-	((struct ppi_data *)devclass_get_softc(ppi_devclass, (unit)))
-#define UNITODEVICE(unit) \
-	(devclass_get_device(ppi_devclass, (unit)))
 
 static devclass_t ppi_devclass;
 
@@ -162,18 +158,24 @@ ppi_probe(device_t dev)
 static int
 ppi_attach(device_t dev)
 {
+	struct ppi_data *ppi = DEVTOSOFTC(dev);
 #ifdef PERIPH_1284
 	int rid = 0;
-	struct ppi_data *ppi = DEVTOSOFTC(dev);
 
 	/* declare our interrupt handler */
 	ppi->intr_resource = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 #endif /* PERIPH_1284 */
 
-	make_dev(&ppi_cdevsw, device_get_unit(dev),	/* XXX cleanup */
+	ppi->ppi_cdev = make_dev(&ppi_cdevsw, device_get_unit(dev),
 		 UID_ROOT, GID_WHEEL,
 		 0600, "ppi%d", device_get_unit(dev));
+	if (ppi->ppi_cdev == NULL) {
+		device_printf("Failed to create character device\n");
+		return (ENXIO);
+	}
+	ppi->ppi_cdev->si_drv1 = ppi;
+	ppi->ppi_device = dev;
 
 	return (0);
 }
@@ -252,14 +254,10 @@ ppiintr(void *arg)
 static int
 ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = dev2unit(dev);
-	struct ppi_data *ppi = UNITOSOFTC(unit);
-	device_t ppidev = UNITODEVICE(unit);
+	struct ppi_data *ppi = dev->si_drv1;
+	device_t ppidev = ppi->ppi_device;
         device_t ppbus = device_get_parent(ppidev);
 	int res;
-
-	if (!ppi)
-		return (ENXIO);
 
 	if (!(ppi->ppi_flags & HAVE_PPBUS)) {
 		if ((res = ppb_request_bus(ppbus, ppidev,
@@ -286,9 +284,8 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 ppiclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = dev2unit(dev);
-	struct ppi_data *ppi = UNITOSOFTC(unit);
-	device_t ppidev = UNITODEVICE(unit);
+	struct ppi_data *ppi = dev->si_drv1;
+	device_t ppidev = ppi->ppi_device;
         device_t ppbus = device_get_parent(ppidev);
 
 	ppi->ppi_count --;
@@ -329,9 +326,8 @@ static int
 ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
-	u_int unit = dev2unit(dev);
-	struct ppi_data *ppi = UNITOSOFTC(unit);
-	device_t ppidev = UNITODEVICE(unit);
+	struct ppi_data *ppi = dev->si_drv1;
+	device_t ppidev = ppi->ppi_device;
         device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0;
 
@@ -413,9 +409,8 @@ static int
 ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 #ifdef PERIPH_1284
-	u_int unit = dev2unit(dev);
-	struct ppi_data *ppi = UNITOSOFTC(unit);
-	device_t ppidev = UNITODEVICE(unit);
+	struct ppi_data *ppi = dev->si_drv1;
+	device_t ppidev = ppi->ppi_device;
         device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0, sent;
 
@@ -499,9 +494,8 @@ error:
 static int
 ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
-	u_int unit = dev2unit(dev);
-	device_t ppidev = UNITODEVICE(unit);
-        device_t ppbus = device_get_parent(ppidev);
+	struct ppi_data *ppi = dev->si_drv1;
+	device_t ppidev = ppi->ppi_device;
 	int error = 0;
 	u_int8_t *val = (u_int8_t *)data;
 
