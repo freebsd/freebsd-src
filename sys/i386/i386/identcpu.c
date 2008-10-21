@@ -1089,6 +1089,10 @@ finishidentcpu(void)
 			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
 			amd_feature2 = regs[2];
 		}
+		if (cpu_exthigh >= 0x80000007) {
+			do_cpuid(0x80000007, regs);
+			amd_pminfo = regs[3];
+		}
 		if (cpu_exthigh >= 0x80000008) {
 			do_cpuid(0x80000008, regs);
 			cpu_procinfo2 = regs[2];
