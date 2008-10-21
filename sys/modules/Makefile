@@ -179,6 +179,8 @@ SUBDIR=	${_3dfx} \
 	mii \
 	mlx \
 	${_mly} \
+	mmc \
+	mmcsd \
 	mpt \
 	mqueue \
 	msdosfs \
@@ -241,6 +243,7 @@ SUBDIR=	${_3dfx} \
 	scc \
 	scd \
 	${_scsi_low} \
+	sdhci \
 	sem \
 	sf \
 	slhci \
