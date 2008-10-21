@@ -147,6 +147,7 @@ static int volatile lptflag = 0;
 
 struct lp_data {
 	struct  ifnet	*sc_ifp;
+	device_t	sc_dev;
 	u_char		*sc_ifbuf;
 	int		sc_iferrs;
 
@@ -173,8 +174,6 @@ static void lp_intr(void *);
 
 #define DEVTOSOFTC(dev) \
 	((struct lp_data *)device_get_softc(dev))
-#define UNITODEVICE(unit) \
-	(devclass_get_device(lp_devclass, (unit)))
 
 static devclass_t lp_devclass;
 
@@ -205,6 +204,8 @@ lp_attach (device_t dev)
 	struct lp_data *lp = DEVTOSOFTC(dev);
 	struct ifnet *ifp;
 	int rid = 0;
+
+	lp->sc_dev = dev;
 
 	/*
 	 * Reserve the interrupt resource.  If we don't have one, the
@@ -284,9 +285,9 @@ lpinittables (void)
 static int
 lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    device_t dev = UNITODEVICE(ifp->if_dunit);
+    struct lp_data *sc = ifp->if_softc;
+    device_t dev = sc->sc_dev;
     device_t ppbus = device_get_parent(dev);
-    struct lp_data *sc = DEVTOSOFTC(dev);
     struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *)data;
     u_char *ptr;
@@ -560,7 +561,7 @@ lp_intr (void *arg)
 	 * so stop wasting our time
 	 */
 	if (sc->sc_iferrs > LPMAXERRS) {
-	    printf("lp%d: Too many errors, Going off-line.\n", device_get_unit(dev));
+	    if_printf(sc->sc_ifp, "Too many errors, Going off-line.\n");
 	    ppb_wctr(ppbus, 0x00);
 	    sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	    sc->sc_iferrs=0;
@@ -589,7 +590,8 @@ static int
 lpoutput (struct ifnet *ifp, struct mbuf *m,
 	  struct sockaddr *dst, struct rtentry *rt)
 {
-    device_t dev = UNITODEVICE(ifp->if_dunit);
+    struct lp_data *sc = ifp->if_softc;
+    device_t dev = sc->sc_dev;
     device_t ppbus = device_get_parent(dev);
     int s, err;
     struct mbuf *mm;

@@ -133,8 +133,7 @@ ppc_ecp_sync(device_t dev) {
 		DELAY(100);
 	}
 
-	printf("ppc%d: ECP sync failed as data still " \
-		"present in FIFO.\n", ppc->ppc_unit);
+	device_printf(dev, "ECP sync failed as data still present in FIFO.\n");
 
 	return;
 }
@@ -752,8 +751,7 @@ config:
 
 	if (bootverbose) {
 		outb(csr, 0x1);
-		printf("ppc%d: SMC registers CR1=0x%x", ppc->ppc_unit,
-			inb(cio) & 0xff);
+		device_printf(dev, "SMC registers CR1=0x%x", inb(cio) & 0xff);
 
 		outb(csr, 0x4);
 		printf(" CR4=0x%x", inb(cio) & 0xff);
@@ -1046,7 +1044,7 @@ found:
 
 	if (bootverbose) {
 		/* dump of registers */
-		printf("ppc%d: 0x%x - ", ppc->ppc_unit, w83877f_keys[i]);
+		device_printf(dev, "0x%x - ", w83877f_keys[i]);
 		for (i = 0; i <= 0xd; i ++) {
 			outb(efir, i);
 			printf("0x%x ", inb(efdr));
@@ -1062,7 +1060,6 @@ found:
 			printf("0x%x ", inb(efdr));
 		}
 		printf("\n");
-		printf("ppc%d:", ppc->ppc_unit);
 	}
 
 	ppc->ppc_type = PPC_TYPE_GENERIC;
@@ -1081,8 +1078,7 @@ found:
 		switch (r) {
 		case WINB_W83757:
 			if (bootverbose)
-				printf("ppc%d: W83757 compatible mode\n",
-					ppc->ppc_unit);
+				device_printf(dev, "W83757 compatible mode\n");
 			return (-1);	/* generic or SMC-like */
 
 		case WINB_EXTFDC:
@@ -1090,19 +1086,20 @@ found:
 		case WINB_EXT2FDD:
 		case WINB_JOYSTICK:
 			if (bootverbose)
-				printf(" not in parallel port mode\n");
+				device_printf(dev,
+				    "not in parallel port mode\n");
 			return (-1);
 
 		case (WINB_PARALLEL | WINB_EPP_SPP):
 			ppc->ppc_avm |= PPB_EPP | PPB_SPP;
 			if (bootverbose)
-				printf(" EPP SPP");
+				device_printf(dev, "EPP SPP\n");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP):
 			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
 			if (bootverbose)
-				printf(" ECP SPP");
+				device_printf(dev, "ECP SPP\n");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP_EPP):
@@ -1110,7 +1107,7 @@ found:
 			ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			if (bootverbose)
-				printf(" ECP+EPP SPP");
+				device_printf(dev, "ECP+EPP SPP\n");
 			break;
 		default:
 			printf("%s: unknown case (0x%x)!\n", __func__, r);
@@ -1131,27 +1128,24 @@ found:
 			if (chipset_mode & PPB_EPP) {
 				outb(efdr, inb(efdr) | WINB_ECP_EPP);
 				if (bootverbose)
-					printf(" ECP+EPP");
+					device_printf(dev, "ECP+EPP\n");
 
 				ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			} else {
 				outb(efdr, inb(efdr) | WINB_ECP);
 				if (bootverbose)
-					printf(" ECP");
+					device_printf(dev, "ECP\n");
 			}
 		} else {
 			/* select EPP_SPP otherwise */
 			outb(efdr, inb(efdr) | WINB_EPP_SPP);
 			if (bootverbose)
-				printf(" EPP SPP");
+				device_printf(dev, "EPP SPP\n");
 		}
 		ppc->ppc_avm = chipset_mode;
 	}
 
-	if (bootverbose)
-		printf("\n");
-	
 	/* exit configuration mode */
 	outb(efer, 0xaa);
 
@@ -1178,14 +1172,14 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 	ppc->ppc_type = PPC_TYPE_GENERIC;
 
 	if (bootverbose)
-		printf("ppc%d:", ppc->ppc_unit);
+		device_printf(ppc->ppc_dev, "SPP");
 
 	/* first, check for ECP */
 	w_ecr(ppc, PPC_ECR_PS2);
 	if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
 		ppc->ppc_dtm |= PPB_ECP | PPB_SPP;
 		if (bootverbose)
-			printf(" ECP SPP");
+			printf(" ECP ");
 
 		/* search for SMC style ECP+EPP mode */
 		w_ecr(ppc, PPC_ECR_EPP);
@@ -1213,9 +1207,6 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 
 	/* XXX try to detect NIBBLE and PS2 modes */
 	ppc->ppc_dtm |= PPB_NIBBLE;
-
-	if (bootverbose)
-		printf(" SPP");
 
 	if (chipset_mode)
 		ppc->ppc_avm = chipset_mode;
@@ -1737,7 +1728,7 @@ ppc_probe(device_t dev, int rid)
 	if (ppc->res_drq)
 		ppc->ppc_dmachan = rman_get_start(ppc->res_drq);
 
-	ppc->ppc_unit = device_get_unit(dev);
+	ppc->ppc_dev = dev;
 	ppc->ppc_model = GENERIC;
 
 	ppc->ppc_mode = PPB_COMPATIBLE;
