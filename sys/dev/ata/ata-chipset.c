@@ -1500,7 +1500,7 @@ ata_cyrix_setmode(device_t dev, int mode)
     int error;
 
     ch->dma->alignment = 16;
-    ch->dma->max_iosize = 126 * DEV_BSIZE;
+    ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 
@@ -2892,7 +2892,7 @@ ata_marvell_edma_dmainit(device_t dev)
 	    ch->dma->max_address = BUS_SPACE_MAXADDR;
 
 	/* chip does not reliably do 64K DMA transfers */
-	ch->dma->max_iosize = 126 * DEV_BSIZE; 
+	ch->dma->max_iosize = 64 * DEV_BSIZE; 
     }
 }
 
@@ -2942,7 +2942,7 @@ ata_national_setmode(device_t dev, int mode)
     int error;
 
     ch->dma->alignment = 16;
-    ch->dma->max_iosize = 126 * DEV_BSIZE;
+    ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 
@@ -4192,7 +4192,7 @@ ata_serverworks_ident(device_t dev)
      { ATA_CSB6,      0x00, SWKS100, 0, ATA_UDMA5, "CSB6" },
      { ATA_CSB6_1,    0x00, SWKS66,  0, ATA_UDMA4, "CSB6" },
      { ATA_HT1000,    0x00, SWKS100, 0, ATA_UDMA5, "HT1000" },
-     { ATA_HT1000_S1, 0x00, SWKS100, 4, ATA_SA150, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
      { ATA_HT1000_S2, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
      { ATA_K2,        0x00, SWKSMIO, 4, ATA_SA150, "K2" },
      { ATA_FRODO4,    0x00, SWKSMIO, 4, ATA_SA150, "Frodo4" },
@@ -4295,7 +4295,7 @@ ata_serverworks_allocate(device_t dev)
 
     /* chip does not reliably do 64K DMA transfers */
     if (ch->dma)
-	ch->dma->max_iosize = 126 * DEV_BSIZE;
+	ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     return 0;
 }
