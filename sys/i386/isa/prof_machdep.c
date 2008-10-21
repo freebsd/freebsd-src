@@ -353,8 +353,11 @@ static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
 
-	/* If there was an error during the transition, don't do anything. */
-	if (status != 0)
+	/*
+	 * If there was an error during the transition or
+	 * TSC is P-state invariant, don't do anything.
+	 */
+	if (status != 0 || tsc_is_invariant)
 		return;
 	if (cputime_prof_active && cputime_clock == CPUTIME_CLOCK_TSC)
 		printf("warning: cpu freq changed while profiling active\n");
