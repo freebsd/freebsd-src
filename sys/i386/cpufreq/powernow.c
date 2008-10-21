@@ -867,7 +867,7 @@ pn_identify(driver_t *driver, device_t parent)
 {
 	device_t child;
 
-	if ((amd_pminfo & (AMDPM_FID | AMDPM_VID)) == 0)
+	if ((amd_pminfo & AMDPM_FID) == 0 || (amd_pminfo & AMDPM_VID) == 0)
 		return;
 	switch (cpu_id & 0xf00) {
 	case 0x600:
