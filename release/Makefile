@@ -1033,7 +1033,7 @@ cdrom.2:
 	@echo "CD_VOLUME = 1" >> ${CD_DVD1}/cdrom.inf
 .endif
 .if !defined(NODOC)
-	echo "Building CDROM docs filesystem image"
+	@echo "Building CDROM docs filesystem image"
 	@mkdir -p ${CD_DOCS}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DOCS}/cdrom.inf
 	@mkdir -p ${CD_DOCS}/usr/share/doc
