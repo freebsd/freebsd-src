@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 static struct ppb_xfer *
 mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 {
-	int index, epp;
+	int index, epp, mode;
 	struct ppb_xfer *table;
 
 	switch (opcode) {
@@ -72,7 +72,8 @@ mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 	}
 
 	/* retrieve the device operating mode */
-	switch (ppb_get_mode(bus)) {
+	mode = ppb_get_mode(bus);
+	switch (mode) {
 	case PPB_COMPATIBLE:
 		index = COMPAT_MSQ;
 		break;
@@ -99,7 +100,7 @@ mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 		index = ECP_MSQ;
 		break;
 	default:
-		panic("%s: unknown mode (%d)", __func__, ppbdev->mode);
+		panic("%s: unknown mode (%d)", __func__, mode);
 	}
 
 	return (&table[index]);
