@@ -119,6 +119,10 @@ tty_drain(struct tty *tp)
 {
 	int error;
 
+	if (ttyhook_hashook(tp, getc_inject))
+		/* buffer is inaccessable */
+		return (0);
+
 	while (ttyoutq_bytesused(&tp->t_outq) > 0) {
 		ttydevsw_outwakeup(tp);
 		/* Could be handled synchronously. */
