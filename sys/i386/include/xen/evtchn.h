@@ -37,13 +37,24 @@ void mask_evtchn(int port);
 
 void unmask_evtchn(int port);
 
+#ifdef SMP
+void rebind_evtchn_to_cpu(int port, unsigned int cpu);
+#else
+#define rebind_evtchn_to_cpu(port, cpu)	((void)0)
+#endif
 
+static inline
+int test_and_set_evtchn_mask(int port)
+{
+	shared_info_t *s = HYPERVISOR_shared_info;
+	return synch_test_and_set_bit(port, s->evtchn_mask);
+}
 
 static inline void 
 clear_evtchn(int port)
 {
-    shared_info_t *s = HYPERVISOR_shared_info;
-    synch_clear_bit(port, &s->evtchn_pending[0]);
+	shared_info_t *s = HYPERVISOR_shared_info;
+	synch_clear_bit(port, &s->evtchn_pending[0]);
 }
 
 static inline void 
