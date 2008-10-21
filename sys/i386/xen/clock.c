@@ -766,27 +766,28 @@ cpu_initclocks(void)
 	}
 
 	/* should fast clock be enabled ? */
-}
-
-/*
- *
- * XXX 
- */
-#if 0 && defined(SMP)
-void
-ap_cpu_initclocks(void)
-{
-	int irq;
-	int cpu = smp_processor_id();
 	
-	per_cpu(processed_system_time, cpu) = processed_system_time;
-
-	irq = bind_virq_to_irq(VIRQ_TIMER);
-	PCPU_SET(time_irq, irq);
-	PANIC_IF(intr_add_handler("clk", irq, (driver_filter_t *)clkintr, NULL,
-				  NULL, INTR_TYPE_CLK | INTR_FAST, NULL));
 }
-#endif
+
+int
+ap_cpu_initclocks(int cpu)
+{
+	int time_irq;
+
+	xen_set_periodic_tick.period_ns = NS_PER_TICK;
+
+	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, cpu,
+			   &xen_set_periodic_tick);
+
+        if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, "clk", 
+						(driver_filter_t *)clkintr, NULL,
+						INTR_TYPE_CLK | INTR_FAST)) < 0) {
+		panic("failed to register clock interrupt\n");
+	}
+
+	return (0);
+}
+
 
 void
 cpu_startprofclock(void)
