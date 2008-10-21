@@ -2216,10 +2216,13 @@ device		cardbus
 #
 # MMC/SD
 #
-# mmc: mmc bus
-# mmcsd: mmc memory and sd cards.
-#device		mmc
-#device		mmcsd
+# mmc 		MMC/SD bus
+# mmcsd		MMC/SD memory card
+# sdhci		Generic PCI SD Host Controller
+#
+device		mmc
+device		mmcsd
+device		sdhci
 
 #
 # SMB bus

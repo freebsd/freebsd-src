@@ -1136,6 +1136,7 @@ dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
+dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
