@@ -154,6 +154,7 @@ static cpumask_t	hyperthreading_cpus_mask;
 
 extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
+extern void pmap_lazyfix_action(void);
 
 struct cpu_group *
 cpu_topo(void)
@@ -303,42 +304,51 @@ cpu_mp_start(void)
 static void
 iv_rendezvous(uintptr_t a, uintptr_t b)
 {
-	
+	smp_rendezvous_action();
 }
 
 static void
 iv_invltlb(uintptr_t a, uintptr_t b)
 {
-	
+	xen_tlb_flush();
 }
 
 static void
 iv_invlpg(uintptr_t a, uintptr_t b)
 {
-	
+	xen_invlpg(a);
 }
 
 static void
 iv_invlrng(uintptr_t a, uintptr_t b)
 {
-	
+	vm_offset_t start = (vm_offset_t)a;
+	vm_offset_t end = (vm_offset_t)b;
+
+	while (start < end) {
+		xen_invlpg(start);
+		start += PAGE_SIZE;
+	}
 }
+
 
 static void
 iv_invlcache(uintptr_t a, uintptr_t b)
 {
-	
+
+	wbinvd();
 }
 
 static void
 iv_lazypmap(uintptr_t a, uintptr_t b)
 {
-	
+	pmap_lazyfix_action();
 }
 
 static void
 iv_bitmap_vector(uintptr_t a, uintptr_t b)
 {
+
 	
 }
 
@@ -679,6 +689,7 @@ start_all_aps(void)
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
 
+	xen_smp_intr_init(0);
 	/* start each AP */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		apic_id = cpu_apic_ids[cpu];
@@ -1031,19 +1042,6 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 	}
 }
 
-void
-ipi_bitmap_handler(struct trapframe frame)
-{
-	int cpu = PCPU_GET(cpuid);
-	u_int ipi_bitmap;
-
-	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
-
-	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
-		sched_preempt(curthread);
-	}
-}
-
 /*
  * send an IPI to a set of cpus.
  */
@@ -1083,7 +1081,7 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 			if (old_pending)
 				continue;
 		}
-
+		call_data->func = ipi_vectors[ipi];
 		ipi_pcpu(cpu, ipi);
 	}
 }
