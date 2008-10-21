@@ -56,8 +56,7 @@
  * Generic structure to hold parallel port chipset info.
  */
 struct ppc_data {
-
-	int ppc_unit;
+	device_t ppc_dev;
 	int ppc_model;		/* chipset model if detected */
 	int ppc_type;		/* generic or smclike chipset type */
 

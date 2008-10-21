@@ -104,11 +104,10 @@ static int volatile lptflag = 1;
 #define	BUFSIZE		1024
 #define	BUFSTATSIZE	32
 
-#define	LPTUNIT(s)	((s)&0x03)
-#define	LPTFLAGS(s)	((s)&0xfc)
-
 struct lpt_data {
-
+	device_t dev;
+	struct cdev *cdev;
+	struct cdev *cdev_bypass;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,
 	   prime once */
@@ -145,10 +144,6 @@ static int	lpt_detect(device_t dev);
 
 #define DEVTOSOFTC(dev) \
 	((struct lpt_data *)device_get_softc(dev))
-#define UNITOSOFTC(unit) \
-	((struct lpt_data *)devclass_get_softc(lpt_devclass, (unit)))
-#define UNITODEVICE(unit) \
-	(devclass_get_device(lpt_devclass, (unit)))
 
 static void lptintr(device_t dev);
 static void lpt_intr(void *arg);	/* without spls */
@@ -396,10 +391,15 @@ lpt_attach(device_t dev)
 
 	lpt_release_ppbus(dev);
 
-	make_dev(&lpt_cdevsw, unit,
+	sc->dev = dev;
+	sc->cdev = make_dev(&lpt_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", unit);
-	make_dev(&lpt_cdevsw, unit | LP_BYPASS,
+	sc->cdev->si_drv1 = sc;
+	sc->cdev->si_drv2 = 0;
+	sc->cdev_bypass = make_dev(&lpt_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", unit);
+	sc->cdev_bypass->si_drv1 = sc;
+	sc->cdev_bypass->si_drv2 = LP_BYPASS;
 	return (0);
 }
 
@@ -408,6 +408,8 @@ lpt_detach(device_t dev)
 {
 	struct lpt_data *sc = DEVTOSOFTC(dev);
 
+	destroy_dev(sc->cdev);
+	destroy_dev(sc->cdev_bypass);
 	lpt_release_ppbus(dev);
 	if (sc->intr_resource != 0) {
 		BUS_TEARDOWN_INTR(device_get_parent(dev), dev,
@@ -461,9 +463,8 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	int s;
 	int trys, err;
-	u_int unit = LPTUNIT(dev2unit(dev));
-	struct lpt_data *sc = UNITOSOFTC(unit);
-	device_t lptdev = UNITODEVICE(unit);
+	struct lpt_data *sc = dev->si_drv1;
+	device_t lptdev = sc->dev;
 	device_t ppbus = device_get_parent(lptdev);
 
 	if (!sc)
@@ -475,7 +476,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	} else
 		sc->sc_state |= LPTINIT;
 
-	sc->sc_flags = LPTFLAGS(dev2unit(dev));
+	sc->sc_flags = dev->si_drv2;
 
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
@@ -579,13 +580,12 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static	int
 lptclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
-	u_int unit = LPTUNIT(dev2unit(dev));
-	struct lpt_data *sc = UNITOSOFTC(unit);
-	device_t lptdev = UNITODEVICE(unit);
+	struct lpt_data *sc = dev->si_drv1;
+	device_t lptdev = sc->dev;
         device_t ppbus = device_get_parent(lptdev);
 	int err;
 
-	if(sc->sc_flags & LP_BYPASS)
+	if (sc->sc_flags & LP_BYPASS)
 		goto end_close;
 
 	if ((err = lpt_request_ppbus(lptdev, PPB_WAIT|PPB_INTR)) != 0)
@@ -688,9 +688,8 @@ lpt_pushbytes(device_t dev)
 static int
 lptread(struct cdev *dev, struct uio *uio, int ioflag)
 {
-        u_int	unit = LPTUNIT(dev2unit(dev));
-	struct lpt_data *sc = UNITOSOFTC(unit);
-	device_t lptdev = UNITODEVICE(unit);
+	struct lpt_data *sc = dev->si_drv1;
+	device_t lptdev = sc->dev;
         device_t ppbus = device_get_parent(lptdev);
 	int error = 0, len;
 
@@ -735,9 +734,8 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	register unsigned n;
 	int err;
-        u_int	unit = LPTUNIT(dev2unit(dev));
-	struct lpt_data *sc = UNITOSOFTC(unit);
-	device_t lptdev = UNITODEVICE(unit);
+	struct lpt_data *sc = dev->si_drv1;
+	device_t lptdev = sc->dev;
         device_t ppbus = device_get_parent(lptdev);
 
 	if(sc->sc_flags & LP_BYPASS) {
@@ -783,7 +781,9 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 				return(err);
 			case EINVAL:
 				/* advanced mode not avail */
-				log(LOG_NOTICE, LPT_NAME "%d: advanced mode not avail, polling\n", unit);
+				log(LOG_NOTICE,
+				    "%s: advanced mode not avail, polling\n",
+				    device_get_nameunit(sc->dev));
 				break;
 			default:
 				return(err);
@@ -902,8 +902,7 @@ static	int
 lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 {
 	int	error = 0;
-        u_int	unit = LPTUNIT(dev2unit(dev));
-        struct	lpt_data *sc = UNITOSOFTC(unit);
+	struct lpt_data *sc = dev->si_drv1;
 	u_char	old_sc_irq;	/* old printer IRQ status */
 
 	switch (cmd) {
@@ -942,8 +941,8 @@ lptioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 			}
 				
 			if (old_sc_irq != sc->sc_irq )
-				log(LOG_NOTICE, LPT_NAME "%d: switched to %s %s mode\n",
-					unit,
+				log(LOG_NOTICE, "%s: switched to %s %s mode\n",
+					device_get_nameunit(sc->dev),
 					(sc->sc_irq & LP_ENABLE_IRQ)?
 					"interrupt-driven":"polled",
 					(sc->sc_irq & LP_ENABLE_EXT)?

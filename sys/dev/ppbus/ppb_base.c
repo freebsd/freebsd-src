@@ -75,7 +75,7 @@ ppb_poll_bus(device_t bus, int max,
 		switch (how) {
 		case PPB_NOINTR:
 			/* wait 10 ms */
-			tsleep((caddr_t)bus, PPBPRI, "ppbpoll", hz/100);
+			pause("ppbpoll", hz/100);
 			break;
 
 		case PPB_INTR:
