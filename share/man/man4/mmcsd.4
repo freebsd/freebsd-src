@@ -24,18 +24,18 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2007
+.Dd Oct 22, 2008
 .Dt MMCSD 4
 .Os
 .Sh NAME
 .Nm mmcsd
-.Nd MMC and SD card driver.
+.Nd MMC and SD memory card driver.
 .Sh SYNOPSIS
 .Cd device mmcsd
 .Sh DESCRIPTION
 The
 .Nm
-driver implements the MMC and SD memory cards.
+driver implements direct access block device for MMC and SD memory cards.
 .Sh SEE ALSO
 .Xr mmc 4 ,
 .Xr at91_mci 4
@@ -45,7 +45,3 @@ driver implements the MMC and SD memory cards.
 .Rs
 .%T "The MultiMediaCard System Specification"
 .Re
-.Sh BUGS
-Memory MultMediaCards do not currently work.
-SDIO cards currently do not work.
-SDHC cards currently do not work.
