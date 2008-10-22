@@ -133,7 +133,7 @@ __xuname(int namesize, void *namebuf)
 		mib[1] = HW_MACHINE;
 		len = namesize;
 		oerrno = errno;
-		if (sysctl(mib, 2, &q, &len, NULL, 0) == -1) {
+		if (sysctl(mib, 2, q, &len, NULL, 0) == -1) {
 			if (errno == ENOMEM)
 				errno = oerrno;
 			else
