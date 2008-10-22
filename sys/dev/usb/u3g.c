@@ -48,7 +48,6 @@
 
 #include "usbdevs.h"
 
-#define U3G_DEBUG	1
 #ifdef U3G_DEBUG
 #define DPRINTF(x...)		do { if (u3gdebug) device_printf(self, ##x); } while (0)
 #define DPRINTFN(n, x...)	do { if (u3gdebug > (n)) device_printf(self, ##x); } while (0)
