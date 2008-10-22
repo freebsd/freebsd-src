@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2007 M. Warner Losh
+.\" Copyright (c) 2008 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,37 +24,29 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2008
-.Dt MMC 4
+.Dd October 22, 2008
+.Dt SDHCI 4
 .Os
 .Sh NAME
-.Nm mmc
-.Nd MultiMediaCard and SD Card bus driver
+.Nm sdhci
+.Nd PCI SD Host Controller bridge driver
 .Sh SYNOPSIS
 .Cd device mmc
+.Cd device mmcsd
+.Cd device sdhci
 .Sh DESCRIPTION
 The
 .Nm
-driver implements the MMC and SD Card bus.
-The
-.Nm
-driver supports all MMC and SD bridges in the system.
-All SD or MMC cards in the system attach to an instance of
-.Nm .
-The
-.Nm 
-bus typically has only one slot, and only memory cards.
-MultiMediaCards exist only in memory.
-SD Cards exist as memory, I/O, or combination cards.
+driver supports PCI devices with class 8 and subclass 5 according to
+SD Host Controller Specification.
+Driver supports up to six high speed 4bit MMC/SD slots per controller.
+Driver attaches mmc bus to the respective slot on card insertion and
+detaches it on card removing.
 .Sh SEE ALSO
-.Xr mmcsd 4 ,
-.Xr at91_mci 4 ,
-.Xr sdhci 4
+.Xr mmc 4 ,
+.Xr mmcsd 4
 .Rs
-.%T "SD Specifications, Part 1, Physical Layer, Simplified Specification"
+.%T "SD Specifications, Part 2, SD Host Controller, Simplified Specification"
 .Re
-.Rs
-.%T "The MultiMediaCard System Specification"
-.Re
-.Sh BUGS
-SDIO cards currently do not work.
+.Sh AUTHORS
+.An Alexander Motin Aq mav@FreeBSD.org .
