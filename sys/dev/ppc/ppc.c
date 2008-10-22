@@ -751,7 +751,8 @@ config:
 
 	if (bootverbose) {
 		outb(csr, 0x1);
-		device_printf(dev, "SMC registers CR1=0x%x", inb(cio) & 0xff);
+		device_printf(ppc->ppc_dev, "SMC registers CR1=0x%x",
+		    inb(cio) & 0xff);
 
 		outb(csr, 0x4);
 		printf(" CR4=0x%x", inb(cio) & 0xff);
@@ -1044,7 +1045,7 @@ found:
 
 	if (bootverbose) {
 		/* dump of registers */
-		device_printf(dev, "0x%x - ", w83877f_keys[i]);
+		device_printf(ppc->ppc_dev, "0x%x - ", w83877f_keys[i]);
 		for (i = 0; i <= 0xd; i ++) {
 			outb(efir, i);
 			printf("0x%x ", inb(efdr));
@@ -1078,7 +1079,8 @@ found:
 		switch (r) {
 		case WINB_W83757:
 			if (bootverbose)
-				device_printf(dev, "W83757 compatible mode\n");
+				device_printf(ppc->ppc_dev,
+				    "W83757 compatible mode\n");
 			return (-1);	/* generic or SMC-like */
 
 		case WINB_EXTFDC:
@@ -1086,20 +1088,20 @@ found:
 		case WINB_EXT2FDD:
 		case WINB_JOYSTICK:
 			if (bootverbose)
-				device_printf(dev,
+				device_printf(ppc->ppc_dev,
 				    "not in parallel port mode\n");
 			return (-1);
 
 		case (WINB_PARALLEL | WINB_EPP_SPP):
 			ppc->ppc_avm |= PPB_EPP | PPB_SPP;
 			if (bootverbose)
-				device_printf(dev, "EPP SPP\n");
+				device_printf(ppc->ppc_dev, "EPP SPP\n");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP):
 			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
 			if (bootverbose)
-				device_printf(dev, "ECP SPP\n");
+				device_printf(ppc->ppc_dev, "ECP SPP\n");
 			break;
 
 		case (WINB_PARALLEL | WINB_ECP_EPP):
@@ -1107,7 +1109,7 @@ found:
 			ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			if (bootverbose)
-				device_printf(dev, "ECP+EPP SPP\n");
+				device_printf(ppc->ppc_dev, "ECP+EPP SPP\n");
 			break;
 		default:
 			printf("%s: unknown case (0x%x)!\n", __func__, r);
@@ -1128,20 +1130,21 @@ found:
 			if (chipset_mode & PPB_EPP) {
 				outb(efdr, inb(efdr) | WINB_ECP_EPP);
 				if (bootverbose)
-					device_printf(dev, "ECP+EPP\n");
+					device_printf(ppc->ppc_dev,
+					    "ECP+EPP\n");
 
 				ppc->ppc_type = PPC_TYPE_SMCLIKE;
 
 			} else {
 				outb(efdr, inb(efdr) | WINB_ECP);
 				if (bootverbose)
-					device_printf(dev, "ECP\n");
+					device_printf(ppc->ppc_dev, "ECP\n");
 			}
 		} else {
 			/* select EPP_SPP otherwise */
 			outb(efdr, inb(efdr) | WINB_EPP_SPP);
 			if (bootverbose)
-				device_printf(dev, "EPP SPP\n");
+				device_printf(ppc->ppc_dev, "EPP SPP\n");
 		}
 		ppc->ppc_avm = chipset_mode;
 	}
