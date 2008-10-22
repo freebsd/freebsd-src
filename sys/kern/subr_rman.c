@@ -866,7 +866,8 @@ sysctl_rman(SYSCTL_HANDLER_ARGS)
 	if (res_idx == -1) {
 		bzero(&urm, sizeof(urm));
 		urm.rm_handle = (uintptr_t)rm;
-		strlcpy(urm.rm_descr, rm->rm_descr, RM_TEXTLEN);
+		if (rm->rm_descr != NULL)
+			strlcpy(urm.rm_descr, rm->rm_descr, RM_TEXTLEN);
 		urm.rm_start = rm->rm_start;
 		urm.rm_size = rm->rm_end - rm->rm_start + 1;
 		urm.rm_type = rm->rm_type;
