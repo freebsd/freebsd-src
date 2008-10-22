@@ -244,7 +244,7 @@ mac_partition_check_socket_visible(struct ucred *cred, struct socket *socket,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, socketlabel);
+	error = label_on_label(cred->cr_label, socket->so_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
