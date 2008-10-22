@@ -399,7 +399,7 @@ lpt_attach(device_t dev)
 	sc->cdev_bypass = make_dev(&lpt_cdevsw, unit,
 	    UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", unit);
 	sc->cdev_bypass->si_drv1 = sc;
-	sc->cdev_bypass->si_drv2 = LP_BYPASS;
+	sc->cdev_bypass->si_drv2 = (void *)LP_BYPASS;
 	return (0);
 }
 
@@ -476,7 +476,7 @@ lptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	} else
 		sc->sc_state |= LPTINIT;
 
-	sc->sc_flags = dev->si_drv2;
+	sc->sc_flags = (uintptr_t)dev->si_drv2;
 
 	/* Check for open with BYPASS flag set. */
 	if (sc->sc_flags & LP_BYPASS) {
