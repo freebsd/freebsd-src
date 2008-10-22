@@ -2093,12 +2093,8 @@ process_ACK:
 
 		/*
 		 * When new data is acked, open the congestion window.
-		 * If the window gives us less than ssthresh packets
-		 * in flight, open exponentially (maxseg per packet).
-		 * Otherwise open linearly: maxseg per window
-		 * (maxseg^2 / cwnd per packet).
-		 * If cwnd > maxseg^2, fix the cwnd increment at 1 byte
-		 * to avoid capping cwnd (as suggested in RFC2581).
+		 * The specifics of how this is achieved are up to the
+		 * congestion control algorithm in use for this connection.
 		 */
 		if (!IN_FASTRECOVERY(tp)) {
 			if (CC_ALGO(tp)->ack_received)

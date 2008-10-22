@@ -333,8 +333,15 @@ newreno_ack_received(struct tcpcb *tp, struct tcphdr *th)
 	u_int cw = tp->snd_cwnd;
 	u_int incr = tp->t_maxseg;
 
+	/*
+	 * If cwnd <= ssthresh, open exponentially (maxseg per packet).
+	 * Otherwise, open linearly (approx. maxseg per RTT
+	 * i.e. maxseg^2 / cwnd per ACK received).
+	 * If cwnd > maxseg^2, fix the cwnd increment at 1 byte
+	 * to avoid capping cwnd (as suggested in RFC2581).
+	 */
 	if (cw > tp->snd_ssthresh)
-		incr = incr * incr / cw;
+		incr = max((incr * incr / cw), 1);
 
 	tp->snd_cwnd = min(cw+incr, TCP_MAXWIN<<tp->snd_scale);
 }
