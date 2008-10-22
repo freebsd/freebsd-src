@@ -171,7 +171,7 @@ ppi_attach(device_t dev)
 		 UID_ROOT, GID_WHEEL,
 		 0600, "ppi%d", device_get_unit(dev));
 	if (ppi->ppi_cdev == NULL) {
-		device_printf("Failed to create character device\n");
+		device_printf(dev, "Failed to create character device\n");
 		return (ENXIO);
 	}
 	ppi->ppi_cdev->si_drv1 = ppi;
@@ -496,6 +496,7 @@ ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 {
 	struct ppi_data *ppi = dev->si_drv1;
 	device_t ppidev = ppi->ppi_device;
+	device_t ppbus = device_get_parent(ppidev);
 	int error = 0;
 	u_int8_t *val = (u_int8_t *)data;
 
