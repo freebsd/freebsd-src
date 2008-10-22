@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <sys/domain.h>
 #endif
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
@@ -86,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_offload.h>
+#include <netinet/cc.h>
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
@@ -218,6 +221,7 @@ static void	tcp_isn_tick(void *);
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
+	struct	tcp_cc		cc;
 };
 
 static uma_zone_t tcpcb_zone;
@@ -267,6 +271,8 @@ tcp_init(void)
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
+
+	cc_init();
 
 	INP_INFO_LOCK_INIT(&tcbinfo, "tcp");
 	LIST_INIT(&tcb);
@@ -592,6 +598,23 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+
+	/*
+	 * use the current system default cc algorithm, which is always
+	 * the first algorithm in cc_list
+	 */
+	CC_STRUCT(tp) = &tm->cc;
+	CC_LIST_RLOCK();
+	CC_ALGO(tp) = STAILQ_FIRST(&cc_list);
+	CC_LIST_RUNLOCK();
+
+	/* if the cc module fails to init, stop building the control block */
+	if (CC_ALGO(tp)->init(tp) > 0) {
+		uma_zfree(tcpcb_zone, CC_STRUCT(tp));
+		uma_zfree(tcpcb_zone, tp);
+		return NULL;
+	}
+
 	tp->t_timers = &tm->tt;
 	/*	LIST_INIT(&tp->t_segq); */	/* XXX covered by M_ZERO */
 	tp->t_maxseg = tp->t_maxopd =
@@ -752,8 +775,13 @@ tcp_discardcb(struct tcpcb *tp)
 	}
 	/* Disconnect offload device, if any. */
 	tcp_offload_detach(tp);
-		
 	tcp_free_sackholes(tp);
+
+	/* Allow the cc algorithm in use for this cb to clean up after itself */
+	if (CC_ALGO(tp)->deinit)
+		CC_ALGO(tp)->deinit(tp);
+
+	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(tcpcb_zone, tp);
