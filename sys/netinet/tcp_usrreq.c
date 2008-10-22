@@ -1490,7 +1490,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 		case TCP_CONGESTION:
 			bzero(buf, sizeof(buf));
-			memcpy(&(CC_ALGO(tp)->name), buf, TCP_CA_NAME_MAX);
+			strlcpy(buf, CC_ALGO(tp)->name, TCP_CA_NAME_MAX);
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
 			break;
