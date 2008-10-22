@@ -1762,6 +1762,24 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	return (ftruncate(td, &ap));
 }
 
+int
+freebsd32_getdirentries(struct thread *td,
+    struct freebsd32_getdirentries_args *uap)
+{
+	long base;
+	int32_t base32;
+	int error;
+
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	if (error)
+		return (error);
+	if (uap->basep != NULL) {
+		base32 = base;
+		error = copyout(&base32, uap->basep, sizeof(int32_t));
+	}
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD6
 /* versions with the 'int pad' argument */
 int
