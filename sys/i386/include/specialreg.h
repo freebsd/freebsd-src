@@ -150,6 +150,23 @@
 #define	AMDID2_PREFETCH	0x00000100
 
 /*
+ * CPUID instruction 1 eax info
+ */
+#define	CPUID_STEPPING		0x0000000f
+#define	CPUID_MODEL		0x000000f0
+#define	CPUID_FAMILY		0x00000f00
+#define	CPUID_EXT_MODEL		0x000f0000
+#define	CPUID_EXT_FAMILY	0x0ff00000
+#define	I386_CPU_MODEL(id) \
+    ((((id) & CPUID_MODEL) >> 4) | \
+    ((((id) & CPUID_FAMILY) >= 0x600) ? \
+    (((id) & CPUID_EXT_MODEL) >> 12) : 0))
+#define	I386_CPU_FAMILY(id) \
+    ((((id) & CPUID_FAMILY) >> 8) + \
+    ((((id) & CPUID_FAMILY) == 0xf00) ? \
+    (((id) & CPUID_EXT_FAMILY) >> 20) : 0))
+
+/*
  * CPUID instruction 1 ebx info
  */
 #define	CPUID_BRAND_INDEX	0x000000ff

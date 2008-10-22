@@ -348,7 +348,9 @@ printcpuinfo(void)
 				cpu_feature &= ~CPUID_HTT;
 
 			if (!tsc_is_invariant &&
-			    (amd_pminfo & AMDPM_TSC_INVARIANT)) {
+			    (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			    ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+			    AMD64_CPU_FAMILY(cpu_id) >= 0x10))) {
 				tsc_is_invariant = 1;
 				printf("\n  P-state invariant TSC");
 			}
