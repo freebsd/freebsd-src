@@ -841,12 +841,17 @@ printcpuinfo(void)
 			    "AuthenticAMD") == 0)
 				cpu_feature &= ~CPUID_HTT;
 
+			/*
+			 * If this CPU supports P-state invariant TSC then
+			 * mention the capability.
+			 */
 			if (!tsc_is_invariant &&
-			    ((strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
-			    (amd_pminfo & AMDPM_TSC_INVARIANT) != 0) ||
-			    I386_CPU_FAMILY(cpu_id) >= 0x10)) {
+			    (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			    ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+			    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
+			    cpu_id == 0x60fb2))) {
 				tsc_is_invariant = 1;
-				printf("\n  P-state invariant TSC");
+				printf("\n  TSC: P-state invariant");
 			}
 
 			/*
