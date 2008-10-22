@@ -164,7 +164,7 @@ cc_init()
 	cc_register_algorithm(&newreno_cc_algo);
 
 	/* set newreno to the system default */
-	strncpy(cc_algorithm, newreno_cc_algo.name, sizeof(cc_algorithm));
+	strlcpy(cc_algorithm, newreno_cc_algo.name, TCP_CA_NAME_MAX);
 }
 
 /*
