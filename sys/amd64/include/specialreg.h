@@ -162,12 +162,10 @@
 #define	CPUID_EXT_FAMILY	0x0ff00000
 #define	AMD64_CPU_MODEL(id) \
     ((((id) & CPUID_MODEL) >> 4) | \
-    ((((id) & CPUID_FAMILY) >= 0x600) ? \
-    (((id) & CPUID_EXT_MODEL) >> 12) : 0))
+    (((id) & CPUID_EXT_MODEL) >> 12))
 #define	AMD64_CPU_FAMILY(id) \
     ((((id) & CPUID_FAMILY) >> 8) + \
-    ((((id) & CPUID_FAMILY) == 0xf00) ? \
-    (((id) & CPUID_EXT_FAMILY) >> 20) : 0))
+    (((id) & CPUID_EXT_FAMILY) >> 20))
 
 /*
  * CPUID instruction 1 ebx info
