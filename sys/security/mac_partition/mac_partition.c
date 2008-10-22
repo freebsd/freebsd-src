@@ -46,6 +46,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -221,7 +222,7 @@ partition_check_socket_visible(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, solabel);
+	error = label_on_label(cred->cr_label, so->so_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
