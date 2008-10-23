@@ -988,7 +988,7 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *new, *pol;
 
-	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
+	new = malloc(sizeof(*new), M_IFADDR,
 	       M_WAITOK);
 	ADDRSEL_XLOCK();
 	ADDRSEL_LOCK();
@@ -1001,7 +1001,7 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 				       &pol->ape_policy.addrmask.sin6_addr)) {
 			ADDRSEL_UNLOCK();
 			ADDRSEL_XUNLOCK();
-			FREE(new, M_IFADDR);
+			free(new, M_IFADDR);
 			return (EEXIST);	/* or override it? */
 		}
 	}

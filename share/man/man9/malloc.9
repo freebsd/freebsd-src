@@ -36,14 +36,12 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2003
+.Dd October 23, 2008
 .Dt MALLOC 9
 .Os
 .Sh NAME
 .Nm malloc ,
-.Nm MALLOC ,
 .Nm free ,
-.Nm FREE ,
 .Nm realloc ,
 .Nm reallocf ,
 .Nm MALLOC_DEFINE ,
@@ -54,10 +52,8 @@
 .In sys/malloc.h
 .Ft void *
 .Fn malloc "unsigned long size" "struct malloc_type *type" "int flags"
-.Fn MALLOC space cast "unsigned long size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
-.Fn FREE "void *addr" "struct malloc_type *type"
 .Ft void *
 .Fn realloc "void *addr" "unsigned long size" "struct malloc_type *type" "int flags"
 .Ft void *
@@ -122,20 +118,6 @@ function is identical to
 .Fn realloc
 except that it
 will free the passed pointer when the requested memory cannot be allocated.
-.Pp
-The
-.Fn MALLOC
-macro variant is functionally equivalent to
-.Bd -literal -offset indent
-(space) = (cast)malloc((u_long)(size), type, flags)
-.Ed
-.Pp
-and the
-.Fn FREE
-macro variant is equivalent to
-.Bd -literal -offset indent
-free((addr), type)
-.Ed
 .Pp
 Unlike its standard C library counterpart
 .Pq Xr malloc 3 ,
@@ -219,7 +201,7 @@ MALLOC_DEFINE(M_FOOBUF, "foobuffers", "Buffers to foo data into the ether");
 /* sys/something/foo_subr.c */
 
 \&...
-MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
+buf = malloc(sizeof *buf, M_FOOBUF, M_NOWAIT);
 
 .Ed
 .Pp

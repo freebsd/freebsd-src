@@ -281,8 +281,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 * if there is no nfsowner table yet, allocate one.
 	 */
 	if (p->p_nlminfo == NULL) {
-		MALLOC(p->p_nlminfo, struct nlminfo *,
-			sizeof(struct nlminfo), M_NLMINFO, M_WAITOK | M_ZERO);
+		p->p_nlminfo = malloc(			sizeof(struct nlminfo), M_NLMINFO, M_WAITOK | M_ZERO);
 		p->p_nlminfo->pid_start = p->p_stats->p_start;
 		timevaladd(&p->p_nlminfo->pid_start, &boottime);
 	}

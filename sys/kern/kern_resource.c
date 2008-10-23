@@ -1268,7 +1268,7 @@ uifree(uip)
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
-		FREE(uip, M_UIDINFO);
+		free(uip, M_UIDINFO);
 		return;
 	}
 	/*

@@ -99,7 +99,7 @@ acl_attach(struct ieee80211vap *vap)
 {
 	struct aclstate *as;
 
-	MALLOC(as, struct aclstate *, sizeof(struct aclstate),
+	as = malloc(sizeof(struct aclstate),
 		M_80211_ACL, M_NOWAIT | M_ZERO);
 	if (as == NULL)
 		return 0;
@@ -123,7 +123,7 @@ acl_detach(struct ieee80211vap *vap)
 	acl_free_all(vap);
 	vap->iv_as = NULL;
 	ACL_LOCK_DESTROY(as);
-	FREE(as, M_80211_ACL);
+	free(as, M_80211_ACL);
 }
 
 static __inline struct acl *
@@ -147,7 +147,7 @@ _acl_free(struct aclstate *as, struct acl *acl)
 
 	TAILQ_REMOVE(&as->as_list, acl, acl_list);
 	LIST_REMOVE(acl, acl_hash);
-	FREE(acl, M_80211_ACL);
+	free(acl, M_80211_ACL);
 	as->as_nacls--;
 }
 
@@ -175,7 +175,7 @@ acl_add(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	struct acl *acl, *new;
 	int hash;
 
-	MALLOC(new, struct acl *, sizeof(struct acl), M_80211_ACL, M_NOWAIT | M_ZERO);
+	new = malloc(sizeof(struct acl), M_80211_ACL, M_NOWAIT | M_ZERO);
 	if (new == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ACL,
 			"ACL: add %s failed, no memory\n", ether_sprintf(mac));
@@ -188,7 +188,7 @@ acl_add(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	LIST_FOREACH(acl, &as->as_hash[hash], acl_hash) {
 		if (IEEE80211_ADDR_EQ(acl->acl_macaddr, mac)) {
 			ACL_UNLOCK(as);
-			FREE(new, M_80211_ACL);
+			free(new, M_80211_ACL);
 			IEEE80211_DPRINTF(vap, IEEE80211_MSG_ACL,
 				"ACL: add %s failed, already present\n",
 				ether_sprintf(mac));
@@ -301,7 +301,7 @@ acl_getioctl(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			ireq->i_len = space;	/* return required space */
 			return 0;		/* NB: must not error */
 		}
-		MALLOC(ap, struct ieee80211req_maclist *, space,
+		ap = malloc(space,
 		    M_TEMP, M_NOWAIT);
 		if (ap == NULL)
 			return ENOMEM;
@@ -317,7 +317,7 @@ acl_getioctl(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			ireq->i_len = space;
 		} else
 			error = copyout(ap, ireq->i_data, ireq->i_len);
-		FREE(ap, M_TEMP);
+		free(ap, M_TEMP);
 		return error;
 	}
 	return EINVAL;

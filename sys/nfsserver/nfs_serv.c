@@ -940,7 +940,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				m2 = m;
 			}
 		}
-		MALLOC(iv, struct iovec *, i * sizeof (struct iovec),
+		iv = malloc(i * sizeof (struct iovec),
 		       M_TEMP, M_WAITOK);
 		uiop->uio_iov = iv2 = iv;
 		m = mb;
@@ -968,7 +968,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
 		off = uiop->uio_offset;
 		nh->nh_nextr = off;
-		FREE((caddr_t)iv2, M_TEMP);
+		free((caddr_t)iv2, M_TEMP);
 		if (error || (getret = VOP_GETATTR(vp, vap, cred))) {
 			if (!error)
 				error = getret;
@@ -1141,7 +1141,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	if (len > 0) {
-	    MALLOC(ivp, struct iovec *, cnt * sizeof (struct iovec), M_TEMP,
+	    ivp = malloc(cnt * sizeof (struct iovec), M_TEMP,
 		M_WAITOK);
 	    uiop->uio_iov = iv = ivp;
 	    uiop->uio_iovcnt = cnt;
@@ -1176,7 +1176,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    error = VOP_WRITE(vp, uiop, ioflags, cred);
 	    /* Unlocked write. */
 	    nfsrvstats.srvvop_writes++;
-	    FREE((caddr_t)iv, M_TEMP);
+	    free((caddr_t)iv, M_TEMP);
 	}
 	aftat_ret = VOP_GETATTR(vp, vap, cred);
 	vput(vp);
@@ -1465,7 +1465,7 @@ loop1:
 			mp = mp->m_next;
 		    }
 		    uiop->uio_iovcnt = i;
-		    MALLOC(iov, struct iovec *, i * sizeof (struct iovec),
+		    iov = malloc(i * sizeof (struct iovec),
 			M_TEMP, M_WAITOK);
 		    uiop->uio_iov = ivp = iov;
 		    mp = mrep;
@@ -1493,7 +1493,7 @@ loop1:
 			vn_finished_write(mntp);
 		    }
 		    VFS_UNLOCK_GIANT(mvfslocked);
-		    FREE((caddr_t)iov, M_TEMP);
+		    free((caddr_t)iov, M_TEMP);
 		}
 		m_freem(mrep);
 		if (vp) {
@@ -2676,7 +2676,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	if (error)
 		goto out;
-	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, M_WAITOK);
+	pathcp = malloc(len2 + 1, M_TEMP, M_WAITOK);
 	iv.iov_base = pathcp;
 	iv.iov_len = len2;
 	io.uio_resid = len2;
@@ -2754,7 +2754,7 @@ out:
 	 * make any sense? XXX can nfsm_reply() block?
 	 */
 	if (pathcp) {
-		FREE(pathcp, M_TEMP);
+		free(pathcp, M_TEMP);
 		pathcp = NULL;
 	}
 	if (dirp) {
@@ -2792,7 +2792,7 @@ nfsmout:
 	if (dirp)
 		vrele(dirp);
 	if (pathcp)
-		FREE(pathcp, M_TEMP);
+		free(pathcp, M_TEMP);
 
 	vn_finished_write(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -3221,7 +3221,7 @@ nfsrv_readdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * end section.  Allocate rbuf and continue
 	 */
-	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
+	rbuf = malloc(siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
@@ -3281,8 +3281,8 @@ again:
 				tl = nfsm_build(u_int32_t *, 2 * NFSX_UNSIGNED);
 			*tl++ = nfsrv_nfs_false;
 			*tl = nfsrv_nfs_true;
-			FREE((caddr_t)rbuf, M_TEMP);
-			FREE((caddr_t)cookies, M_TEMP);
+			free((caddr_t)rbuf, M_TEMP);
+			free((caddr_t)cookies, M_TEMP);
 			error = 0;
 			goto nfsmout;
 		}
@@ -3409,8 +3409,8 @@ again:
 			mp->m_len = bp - mtod(mp, caddr_t);
 	} else
 		mp->m_len += bp - bpos;
-	FREE((caddr_t)rbuf, M_TEMP);
-	FREE((caddr_t)cookies, M_TEMP);
+	free((caddr_t)rbuf, M_TEMP);
+	free((caddr_t)cookies, M_TEMP);
 
 nfsmout:
 	if (vp)
@@ -3503,7 +3503,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		goto nfsmout;
 	}
 	VOP_UNLOCK(vp, 0);
-	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
+	rbuf = malloc(siz, M_TEMP, M_WAITOK);
 again:
 	iv.iov_base = rbuf;
 	iv.iov_len = fullsiz;
@@ -3557,8 +3557,8 @@ again:
 			tl += 2;
 			*tl++ = nfsrv_nfs_false;
 			*tl = nfsrv_nfs_true;
-			FREE((caddr_t)cookies, M_TEMP);
-			FREE((caddr_t)rbuf, M_TEMP);
+			free((caddr_t)cookies, M_TEMP);
+			free((caddr_t)rbuf, M_TEMP);
 			error = 0;
 			goto nfsmout;
 		}
@@ -3756,8 +3756,8 @@ invalid:
 			mp->m_len = bp - mtod(mp, caddr_t);
 	} else
 		mp->m_len += bp - bpos;
-	FREE((caddr_t)cookies, M_TEMP);
-	FREE((caddr_t)rbuf, M_TEMP);
+	free((caddr_t)cookies, M_TEMP);
+	free((caddr_t)rbuf, M_TEMP);
 nfsmout:
 	if (vp)
 		vrele(vp);

@@ -149,7 +149,7 @@ retry:
 	++pfs_vncache_misses;
 
 	/* nope, get a new one */
-	MALLOC(pvd, struct pfs_vdata *, sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
+	pvd = malloc(sizeof *pvd, M_PFSVNCACHE, M_WAITOK);
 	mtx_lock(&pfs_vncache_mutex);
 	if (++pfs_vncache_entries > pfs_vncache_maxentries)
 		pfs_vncache_maxentries = pfs_vncache_entries;
@@ -159,7 +159,7 @@ retry:
 		mtx_lock(&pfs_vncache_mutex);
 		--pfs_vncache_entries;
 		mtx_unlock(&pfs_vncache_mutex);
-		FREE(pvd, M_PFSVNCACHE);
+		free(pvd, M_PFSVNCACHE);
 		return (error);
 	}
 	pvd->pvd_pn = pn;
@@ -203,7 +203,7 @@ retry:
 		mtx_lock(&pfs_vncache_mutex);
 		--pfs_vncache_entries;
 		mtx_unlock(&pfs_vncache_mutex);
-		FREE(pvd, M_PFSVNCACHE);
+		free(pvd, M_PFSVNCACHE);
 		*vpp = NULLVP;
 		return (error);
 	}
@@ -237,7 +237,7 @@ pfs_vncache_free(struct vnode *vp)
 	--pfs_vncache_entries;
 	mtx_unlock(&pfs_vncache_mutex);
 
-	FREE(pvd, M_PFSVNCACHE);
+	free(pvd, M_PFSVNCACHE);
 	vp->v_data = NULL;
 	return (0);
 }

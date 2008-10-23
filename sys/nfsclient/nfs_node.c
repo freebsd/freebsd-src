@@ -161,7 +161,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
 	if (fhsize > NFS_SMALLFH) {
-		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
+		np->n_fhp = malloc(fhsize, M_NFSBIGFH, M_WAITOK);
 	} else
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
@@ -171,7 +171,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	if (error != 0) {
 		*npp = NULL;
 		if (np->n_fhsize > NFS_SMALLFH) {
-			FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
+			free((caddr_t)np->n_fhp, M_NFSBIGFH);
 		}
 		mtx_destroy(&np->n_mtx);
 		uma_zfree(nfsnode_zone, np);
@@ -214,7 +214,7 @@ nfs_inactive(struct vop_inactive_args *ap)
 		(sp->s_removeit)(sp);
 		crfree(sp->s_cred);
 		vrele(sp->s_dvp);
-		FREE((caddr_t)sp, M_NFSREQ);
+		free((caddr_t)sp, M_NFSREQ);
 	}
 	np->n_flag &= NMODIFIED;
 	return (0);
@@ -257,11 +257,11 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 		while (dp) {
 			dp2 = dp;
 			dp = LIST_NEXT(dp, ndm_list);
-			FREE((caddr_t)dp2, M_NFSDIROFF);
+			free((caddr_t)dp2, M_NFSDIROFF);
 		}
 	}
 	if (np->n_fhsize > NFS_SMALLFH) {
-		FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
+		free((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}
 	mtx_destroy(&np->n_mtx);
 	uma_zfree(nfsnode_zone, vp->v_data);

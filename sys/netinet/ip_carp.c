@@ -388,10 +388,10 @@ carp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct carp_softc *sc;
 	struct ifnet *ifp;
 
-	MALLOC(sc, struct carp_softc *, sizeof(*sc), M_CARP, M_WAITOK|M_ZERO);
+	sc = malloc(sizeof(*sc), M_CARP, M_WAITOK|M_ZERO);
 	ifp = SC2IFP(sc) = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		FREE(sc, M_CARP);
+		free(sc, M_CARP);
 		return (ENOSPC);
 	}
 	
@@ -497,7 +497,7 @@ carpdetach(struct carp_softc *sc, int unlock)
 			ifpromisc(sc->sc_carpdev, 0);
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			FREE(cif, M_IFADDR);
+			free(cif, M_IFADDR);
 		} else if (unlock)
 			CARP_UNLOCK(cif);
 		sc->sc_carpdev = NULL;
@@ -1512,14 +1512,14 @@ carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 
 	if (!ifp->if_carp) {
 
-		MALLOC(cif, struct carp_if *, sizeof(*cif), M_CARP,
+		cif = malloc(sizeof(*cif), M_CARP,
 		    M_WAITOK|M_ZERO);
 		if (!cif) {
 			error = ENOBUFS;
 			goto cleanup;
 		}
 		if ((error = ifpromisc(ifp, 1))) {
-			FREE(cif, M_CARP);
+			free(cif, M_CARP);
 			goto cleanup;
 		}
 		
@@ -1606,7 +1606,7 @@ carp_del_addr(struct carp_softc *sc, struct sockaddr_in *sin)
 		if (!--cif->vhif_nvrs) {
 			sc->sc_carpdev->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
-			FREE(cif, M_IFADDR);
+			free(cif, M_IFADDR);
 		} else {
 			CARP_UNLOCK(cif);
 		}
@@ -1702,14 +1702,14 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 	}
 
 	if (!ifp->if_carp) {
-		MALLOC(cif, struct carp_if *, sizeof(*cif), M_CARP,
+		cif = malloc(sizeof(*cif), M_CARP,
 		    M_WAITOK|M_ZERO);
 		if (!cif) {
 			error = ENOBUFS;
 			goto cleanup;
 		}
 		if ((error = ifpromisc(ifp, 1))) {
-			FREE(cif, M_CARP);
+			free(cif, M_CARP);
 			goto cleanup;
 		}
 
@@ -1807,7 +1807,7 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		if (!--cif->vhif_nvrs) {
 			CARP_LOCK_DESTROY(cif);
 			sc->sc_carpdev->if_carp = NULL;
-			FREE(cif, M_IFADDR);
+			free(cif, M_IFADDR);
 		} else
 			CARP_UNLOCK(cif);
 	}

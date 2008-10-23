@@ -1866,7 +1866,7 @@ lomac_proc_destroy_label(struct label *label)
 {
 
 	mtx_destroy(&PSLOT(label)->mtx);
-	FREE(PSLOT(label), M_LOMAC);
+	free(PSLOT(label), M_LOMAC);
 	PSLOT_SET(label, NULL);
 }
 

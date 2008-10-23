@@ -185,7 +185,7 @@ ng_netflow_constructor(node_p node)
 	int error = 0, i;
 
 	/* Initialize private data */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT);
 	if (priv == NULL)
 		return (ENOMEM);
 	bzero(priv, sizeof(*priv));
@@ -708,7 +708,7 @@ ng_netflow_rmnode(node_p node)
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(priv->node);
 
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 
 	return (0);
 }

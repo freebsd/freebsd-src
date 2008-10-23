@@ -2299,14 +2299,14 @@ if_allocmulti(struct ifnet *ifp, struct sockaddr *sa, struct sockaddr *llsa,
 	struct ifmultiaddr *ifma;
 	struct sockaddr *dupsa;
 
-	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, mflags |
+	ifma = malloc(sizeof *ifma, M_IFMADDR, mflags |
 	    M_ZERO);
 	if (ifma == NULL)
 		return (NULL);
 
-	MALLOC(dupsa, struct sockaddr *, sa->sa_len, M_IFMADDR, mflags);
+	dupsa = malloc(sa->sa_len, M_IFMADDR, mflags);
 	if (dupsa == NULL) {
-		FREE(ifma, M_IFMADDR);
+		free(ifma, M_IFMADDR);
 		return (NULL);
 	}
 	bcopy(sa, dupsa, sa->sa_len);
@@ -2321,10 +2321,10 @@ if_allocmulti(struct ifnet *ifp, struct sockaddr *sa, struct sockaddr *llsa,
 		return (ifma);
 	}
 
-	MALLOC(dupsa, struct sockaddr *, llsa->sa_len, M_IFMADDR, mflags);
+	dupsa = malloc(llsa->sa_len, M_IFMADDR, mflags);
 	if (dupsa == NULL) {
-		FREE(ifma->ifma_addr, M_IFMADDR);
-		FREE(ifma, M_IFMADDR);
+		free(ifma->ifma_addr, M_IFMADDR);
+		free(ifma, M_IFMADDR);
 		return (NULL);
 	}
 	bcopy(llsa, dupsa, llsa->sa_len);
@@ -2349,9 +2349,9 @@ if_freemulti(struct ifmultiaddr *ifma)
 	    ("if_freemulti: protospec not NULL"));
 
 	if (ifma->ifma_lladdr != NULL)
-		FREE(ifma->ifma_lladdr, M_IFMADDR);
-	FREE(ifma->ifma_addr, M_IFMADDR);
-	FREE(ifma, M_IFMADDR);
+		free(ifma->ifma_lladdr, M_IFMADDR);
+	free(ifma->ifma_addr, M_IFMADDR);
+	free(ifma, M_IFMADDR);
 }
 
 /*
@@ -2469,13 +2469,13 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	}
 
 	if (llsa != NULL)
-		FREE(llsa, M_IFMADDR);
+		free(llsa, M_IFMADDR);
 
 	return (0);
 
 free_llsa_out:
 	if (llsa != NULL)
-		FREE(llsa, M_IFMADDR);
+		free(llsa, M_IFMADDR);
 
 unlock_out:
 	IF_ADDR_UNLOCK(ifp);

@@ -169,16 +169,16 @@ rescan:
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(np, struct nwnode *, sizeof *np, M_NWNODE, M_WAITOK | M_ZERO);
+	np = malloc(sizeof *np, M_NWNODE, M_WAITOK | M_ZERO);
 	error = getnewvnode("nwfs", mp, &nwfs_vnodeops, &vp);
 	if (error) {
 		*vpp = NULL;
-		FREE(np, M_NWNODE);
+		free(np, M_NWNODE);
 		return (error);
 	}
 	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
 	if (error != 0) {
-		FREE(np, M_NWNODE);
+		free(np, M_NWNODE);
 		*vpp = NULL;
 		return (error);
 	}
@@ -201,7 +201,7 @@ rescan:
 		vp->v_data = NULL;
 		np->n_vnode = NULL;
 		vrele(vp);
-		FREE(np, M_NWNODE);
+		free(np, M_NWNODE);
 		goto rescan;
 	}
 	*vpp = vp;
@@ -283,7 +283,7 @@ nwfs_reclaim(ap)
 		nmp->n_root = NULL;
 	}
 	vp->v_data = NULL;
-	FREE(np, M_NWNODE);
+	free(np, M_NWNODE);
 	if (dvp) {
 		vrele(dvp);
 	}

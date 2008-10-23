@@ -331,7 +331,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp) {
 	bo = &devvp->v_bufobj;
 
 	/* XXX: should be M_WAITOK */
-	MALLOC(udfmp, struct udf_mnt *, sizeof(struct udf_mnt), M_UDFMOUNT,
+	udfmp = malloc(sizeof(struct udf_mnt), M_UDFMOUNT,
 	    M_NOWAIT | M_ZERO);
 	if (udfmp == NULL) {
 		printf("Cannot allocate UDF mount struct\n");
@@ -488,7 +488,7 @@ udf_mountfs(struct vnode *devvp, struct mount *mp) {
 
 bail:
 	if (udfmp != NULL)
-		FREE(udfmp, M_UDFMOUNT);
+		free(udfmp, M_UDFMOUNT);
 	if (bp != NULL)
 		brelse(bp);
 	DROP_GIANT();
@@ -530,9 +530,9 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 	vrele(udfmp->im_devvp);
 
 	if (udfmp->s_table != NULL)
-		FREE(udfmp->s_table, M_UDFMOUNT);
+		free(udfmp->s_table, M_UDFMOUNT);
 
-	FREE(udfmp, M_UDFMOUNT);
+	free(udfmp, M_UDFMOUNT);
 
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
@@ -647,7 +647,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (ENOMEM);
 	}
 	size = UDF_FENTRY_SIZE + le32toh(fe->l_ea) + le32toh(fe->l_ad);
-	MALLOC(unode->fentry, struct file_entry *, size, M_UDFFENTRY,
+	unode->fentry = malloc(size, M_UDFFENTRY,
 	    M_NOWAIT | M_ZERO);
 	if (unode->fentry == NULL) {
 		printf("Cannot allocate file entry block\n");
@@ -757,8 +757,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 
 		pms = (struct part_map_spare *)pmap;
 		pmap += UDF_PMAP_TYPE2_SIZE;
-		MALLOC(udfmp->s_table, struct udf_sparing_table *,
-		    le32toh(pms->st_size), M_UDFMOUNT, M_NOWAIT | M_ZERO);
+		udfmp->s_table = malloc(		    le32toh(pms->st_size), M_UDFMOUNT, M_NOWAIT | M_ZERO);
 		if (udfmp->s_table == NULL)
 			return (ENOMEM);
 
@@ -776,7 +775,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 				brelse(bp);
 			printf("Failed to read Sparing Table at sector %d\n",
 			    le32toh(pms->st_loc[0]));
-			FREE(udfmp->s_table, M_UDFMOUNT);
+			free(udfmp->s_table, M_UDFMOUNT);
 			return (error);
 		}
 		bcopy(bp->b_data, udfmp->s_table, le32toh(pms->st_size));
@@ -784,7 +783,7 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 
 		if (udf_checktag(&udfmp->s_table->tag, 0)) {
 			printf("Invalid sparing table found\n");
-			FREE(udfmp->s_table, M_UDFMOUNT);
+			free(udfmp->s_table, M_UDFMOUNT);
 			return (EINVAL);
 		}
 

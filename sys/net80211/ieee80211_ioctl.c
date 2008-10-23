@@ -320,14 +320,14 @@ ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 
 		space = req.space;
 		/* XXX M_WAITOK after driver lock released */
-		MALLOC(p, void *, space, M_TEMP, M_NOWAIT | M_ZERO);
+		p = malloc(space, M_TEMP, M_NOWAIT | M_ZERO);
 		if (p == NULL)
 			return ENOMEM;
 		req.sr = p;
 		ieee80211_scan_iterate(vap, get_scan_result, &req);
 		ireq->i_len = space - req.space;
 		error = copyout(p, ireq->i_data, ireq->i_len);
-		FREE(p, M_TEMP);
+		free(p, M_TEMP);
 	} else
 		ireq->i_len = 0;
 
@@ -467,7 +467,7 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 	if (req.space > 0) {
 		space = req.space;
 		/* XXX M_WAITOK after driver lock released */
-		MALLOC(p, void *, space, M_TEMP, M_NOWAIT | M_ZERO);
+		p = malloc(space, M_TEMP, M_NOWAIT | M_ZERO);
 		if (p == NULL) {
 			error = ENOMEM;
 			goto bad;
@@ -479,7 +479,7 @@ getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
 			get_sta_info(&req, ni);
 		ireq->i_len = space - req.space;
 		error = copyout(p, (uint8_t *) ireq->i_data+off, ireq->i_len);
-		FREE(p, M_TEMP);
+		free(p, M_TEMP);
 	} else
 		ireq->i_len = 0;
 bad:
@@ -696,8 +696,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 
 	if (ireq->i_len != sizeof(struct ieee80211_devcaps_req))
 		return EINVAL;
-	MALLOC(dc, struct ieee80211_devcaps_req *,
-	    sizeof(struct ieee80211_devcaps_req), M_TEMP, M_NOWAIT | M_ZERO);
+	dc = malloc(	    sizeof(struct ieee80211_devcaps_req), M_TEMP, M_NOWAIT | M_ZERO);
 	if (dc == NULL)
 		return ENOMEM;
 	dc->dc_drivercaps = ic->ic_caps;
@@ -707,7 +706,7 @@ ieee80211_ioctl_getdevcaps(struct ieee80211com *ic,
 	ic->ic_getradiocaps(ic, &ci->ic_nchans, ci->ic_chans);
 	ieee80211_sort_channels(ci->ic_chans, ci->ic_nchans);
 	error = copyout(dc, ireq->i_data, sizeof(*dc));
-	FREE(dc, M_TEMP);
+	free(dc, M_TEMP);
 	return error;
 }
 
@@ -1993,14 +1992,13 @@ ieee80211_ioctl_setregdomain(struct ieee80211vap *vap,
 
 	if (ireq->i_len != sizeof(struct ieee80211_regdomain_req))
 		return EINVAL;
-	MALLOC(reg, struct ieee80211_regdomain_req *,
-	    sizeof(struct ieee80211_regdomain_req), M_TEMP, M_NOWAIT);
+	reg = malloc(	    sizeof(struct ieee80211_regdomain_req), M_TEMP, M_NOWAIT);
 	if (reg == NULL)
 		return ENOMEM;
 	error = copyin(ireq->i_data, reg, sizeof(*reg));
 	if (error == 0)
 		error = ieee80211_setregdomain(vap, reg);
-	FREE(reg, M_TEMP);
+	free(reg, M_TEMP);
 
 	return (error == 0 ? ENETRESET : error);
 }
@@ -2139,7 +2137,7 @@ setappie(struct ieee80211_appie **aie, const struct ieee80211req *ireq)
 	if (ireq->i_len == 0) {		/* delete any existing ie */
 		if (app != NULL) {
 			*aie = NULL;	/* XXX racey */
-			FREE(app, M_80211_NODE_IE);
+			free(app, M_80211_NODE_IE);
 		}
 		return 0;
 	}
@@ -2153,20 +2151,19 @@ setappie(struct ieee80211_appie **aie, const struct ieee80211req *ireq)
 	 *
 	 * XXX bad bad bad
 	 */
-	MALLOC(napp, struct ieee80211_appie *,
-	    sizeof(struct ieee80211_appie) + ireq->i_len, M_80211_NODE_IE, M_NOWAIT);
+	napp = malloc(	    sizeof(struct ieee80211_appie) + ireq->i_len, M_80211_NODE_IE, M_NOWAIT);
 	if (napp == NULL)
 		return ENOMEM;
 	/* XXX holding ic lock */
 	error = copyin(ireq->i_data, napp->ie_data, ireq->i_len);
 	if (error) {
-		FREE(napp, M_80211_NODE_IE);
+		free(napp, M_80211_NODE_IE);
 		return error;
 	}
 	napp->ie_len = ireq->i_len;
 	*aie = napp;
 	if (app != NULL)
-		FREE(app, M_80211_NODE_IE);
+		free(app, M_80211_NODE_IE);
 	return 0;
 }
 

@@ -183,23 +183,21 @@ nga_constructor(node_p node)
 {
 	sc_p sc;
 
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH_ASYNC, M_NOWAIT | M_ZERO);
+	sc = malloc(sizeof(*sc), M_NETGRAPH_ASYNC, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
 	sc->amode = MODE_HUNT;
 	sc->cfg.accm = ~0;
 	sc->cfg.amru = NG_ASYNC_DEFAULT_MRU;
 	sc->cfg.smru = NG_ASYNC_DEFAULT_MRU;
-	MALLOC(sc->abuf, u_char *,
-	    ASYNC_BUF_SIZE(sc->cfg.smru), M_NETGRAPH_ASYNC, M_NOWAIT);
+	sc->abuf = malloc(	    ASYNC_BUF_SIZE(sc->cfg.smru), M_NETGRAPH_ASYNC, M_NOWAIT);
 	if (sc->abuf == NULL)
 		goto fail;
-	MALLOC(sc->sbuf, u_char *,
-	    SYNC_BUF_SIZE(sc->cfg.amru), M_NETGRAPH_ASYNC, M_NOWAIT);
+	sc->sbuf = malloc(	    SYNC_BUF_SIZE(sc->cfg.amru), M_NETGRAPH_ASYNC, M_NOWAIT);
 	if (sc->sbuf == NULL) {
-		FREE(sc->abuf, M_NETGRAPH_ASYNC);
+		free(sc->abuf, M_NETGRAPH_ASYNC);
 fail:
-		FREE(sc, M_NETGRAPH_ASYNC);
+		free(sc, M_NETGRAPH_ASYNC);
 		return (ENOMEM);
 	}
 	NG_NODE_SET_PRIVATE(node, sc);
@@ -298,19 +296,19 @@ nga_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 			cfg->enabled = !!cfg->enabled;	/* normalize */
 			if (cfg->smru > sc->cfg.smru) {	/* reallocate buffer */
-				MALLOC(buf, u_char *, ASYNC_BUF_SIZE(cfg->smru),
+				buf = malloc(ASYNC_BUF_SIZE(cfg->smru),
 				    M_NETGRAPH_ASYNC, M_NOWAIT);
 				if (!buf)
 					ERROUT(ENOMEM);
-				FREE(sc->abuf, M_NETGRAPH_ASYNC);
+				free(sc->abuf, M_NETGRAPH_ASYNC);
 				sc->abuf = buf;
 			}
 			if (cfg->amru > sc->cfg.amru) {	/* reallocate buffer */
-				MALLOC(buf, u_char *, SYNC_BUF_SIZE(cfg->amru),
+				buf = malloc(SYNC_BUF_SIZE(cfg->amru),
 				    M_NETGRAPH_ASYNC, M_NOWAIT);
 				if (!buf)
 					ERROUT(ENOMEM);
-				FREE(sc->sbuf, M_NETGRAPH_ASYNC);
+				free(sc->sbuf, M_NETGRAPH_ASYNC);
 				sc->sbuf = buf;
 				sc->amode = MODE_HUNT;
 				sc->slen = 0;
@@ -349,10 +347,10 @@ nga_shutdown(node_p node)
 {
 	const sc_p sc = NG_NODE_PRIVATE(node);
 
-	FREE(sc->abuf, M_NETGRAPH_ASYNC);
-	FREE(sc->sbuf, M_NETGRAPH_ASYNC);
+	free(sc->abuf, M_NETGRAPH_ASYNC);
+	free(sc->sbuf, M_NETGRAPH_ASYNC);
 	bzero(sc, sizeof(*sc));
-	FREE(sc, M_NETGRAPH_ASYNC);
+	free(sc, M_NETGRAPH_ASYNC);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	return (0);

@@ -361,7 +361,7 @@ restart:
 	 * the suspension period.
 	 */
 	len = howmany(fs->fs_ncg, NBBY);
-	MALLOC(space, void *, len, M_DEVBUF, M_WAITOK|M_ZERO);
+	space = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	UFS_LOCK(ump);
 	fs->fs_active = space;
 	UFS_UNLOCK(ump);
@@ -626,7 +626,7 @@ loop:
 	 * keep us out of deadlock until the full one is ready.
 	 */
 	if (xp == NULL) {
-		MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
+		snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 		    M_UFSMNT, M_WAITOK);
 		blkp = &snapblklist[1];
 		*blkp++ = lblkno(fs, fs->fs_sblockloc);
@@ -707,7 +707,7 @@ out1:
 	/*
 	 * Allocate space for the full list of preallocated snapshot blocks.
 	 */
-	MALLOC(snapblklist, daddr_t *, snaplistsize * sizeof(daddr_t),
+	snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 	    M_UFSMNT, M_WAITOK);
 	ip->i_snapblklist = &snapblklist[1];
 	/*
@@ -721,7 +721,7 @@ out1:
 		error = expunge_ufs2(vp, ip, copy_fs, mapacct_ufs2, BLK_SNAP);
 	if (error) {
 		fs->fs_snapinum[snaploc] = 0;
-		FREE(snapblklist, M_UFSMNT);
+		free(snapblklist, M_UFSMNT);
 		goto done;
 	}
 	if (snaplistsize < ip->i_snapblklist - snapblklist)
@@ -743,7 +743,7 @@ out1:
 	auio.uio_td = td;
 	if ((error = VOP_WRITE(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
 		fs->fs_snapinum[snaploc] = 0;
-		FREE(snapblklist, M_UFSMNT);
+		free(snapblklist, M_UFSMNT);
 		goto done;
 	}
 	/*
@@ -758,7 +758,7 @@ out1:
 		if (error) {
 			brelse(nbp);
 			fs->fs_snapinum[snaploc] = 0;
-			FREE(snapblklist, M_UFSMNT);
+			free(snapblklist, M_UFSMNT);
 			goto done;
 		}
 		bcopy(space, nbp->b_data, fs->fs_bsize);
@@ -775,7 +775,7 @@ out1:
 	sn->sn_listsize = snaplistsize;
 	VI_UNLOCK(devvp);
 	if (space != NULL)
-		FREE(space, M_UFSMNT);
+		free(space, M_UFSMNT);
 	/*
 	 * If another process is currently writing the buffer containing
 	 * the inode for this snapshot then a deadlock can occur. Drop
@@ -793,7 +793,7 @@ out1:
 	else
 		vrele(vp);		/* Drop extra reference */
 done:
-	FREE(copy_fs->fs_csp, M_UFSMNT);
+	free(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
 out:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -807,7 +807,7 @@ out:
 	}
 	UFS_LOCK(ump);
 	if (fs->fs_active != 0) {
-		FREE(fs->fs_active, M_DEVBUF);
+		free(fs->fs_active, M_DEVBUF);
 		fs->fs_active = 0;
 	}
 	UFS_UNLOCK(ump);
@@ -1090,7 +1090,7 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	last = howmany(remblks, blksperindir);
 	if (last > NINDIR(fs))
 		last = NINDIR(fs);
-	MALLOC(bap, ufs1_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	bap = malloc(fs->fs_bsize, M_DEVBUF, M_WAITOK);
 	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
 	bqrelse(bp);
 	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs,
@@ -1112,7 +1112,7 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 		remblks -= blksperindir;
 	}
 out:
-	FREE(bap, M_DEVBUF);
+	free(bap, M_DEVBUF);
 	return (error);
 }
 
@@ -1370,7 +1370,7 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	last = howmany(remblks, blksperindir);
 	if (last > NINDIR(fs))
 		last = NINDIR(fs);
-	MALLOC(bap, ufs2_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
+	bap = malloc(fs->fs_bsize, M_DEVBUF, M_WAITOK);
 	bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
 	bqrelse(bp);
 	error = (*acctfunc)(snapvp, &bap[0], &bap[last], fs,
@@ -1392,7 +1392,7 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 		remblks -= blksperindir;
 	}
 out:
-	FREE(bap, M_DEVBUF);
+	free(bap, M_DEVBUF);
 	return (error);
 }
 
@@ -1979,7 +1979,7 @@ ffs_snapshot_mount(mp)
 		VOP_UNLOCK(vp, 0);
 		return;
 	}
-	MALLOC(snapblklist, void *, snaplistsize * sizeof(daddr_t),
+	snapblklist = malloc(snaplistsize * sizeof(daddr_t),
 	    M_UFSMNT, M_WAITOK);
 	auio.uio_iovcnt = 1;
 	aiov.iov_base = snapblklist;
@@ -1989,7 +1989,7 @@ ffs_snapshot_mount(mp)
 	if ((error = VOP_READ(vp, &auio, IO_UNIT, td->td_ucred)) != 0) {
 		printf("ffs_snapshot_mount: read_2 failed %d\n", error);
 		VOP_UNLOCK(vp, 0);
-		FREE(snapblklist, M_UFSMNT);
+		free(snapblklist, M_UFSMNT);
 		return;
 	}
 	VOP_UNLOCK(vp, 0);
@@ -2525,7 +2525,7 @@ try_free_snapdata(struct vnode *devvp)
 	sn->sn_listsize = 0;
 	lockmgr(&sn->sn_lock, LK_RELEASE, NULL);
 	if (snapblklist != NULL)
-		FREE(snapblklist, M_UFSMNT);
+		free(snapblklist, M_UFSMNT);
 	ffs_snapdata_free(sn);
 }
 

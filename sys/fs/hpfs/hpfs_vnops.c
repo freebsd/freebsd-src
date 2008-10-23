@@ -611,7 +611,7 @@ hpfs_reclaim(ap)
 
 	vp->v_data = NULL;
 
-	FREE(hp, M_HPFSNO);
+	free(hp, M_HPFSNO);
 
 	return (0);
 }
@@ -1003,7 +1003,7 @@ readdone:
 		dpStart = (struct dirent *)
 		     ((caddr_t)uio->uio_iov->iov_base -
 			 (uio->uio_offset - off));
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
+		cookies = malloc(ncookies * sizeof(u_long),
 		       M_TEMP, M_WAITOK);
 		for (dp = dpStart, cookiep = cookies, i=0;
 		     i < ncookies;

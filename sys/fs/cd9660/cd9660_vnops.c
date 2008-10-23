@@ -207,7 +207,7 @@ cd9660_getattr(ap)
 		struct uio auio;
 		char *cp;
 
-		MALLOC(cp, char *, MAXPATHLEN, M_TEMP, M_WAITOK);
+		cp = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 		aiov.iov_base = cp;
 		aiov.iov_len = MAXPATHLEN;
 		auio.uio_iov = &aiov;
@@ -222,7 +222,7 @@ cd9660_getattr(ap)
 		rdlnk.a_cred = ap->a_cred;
 		if (cd9660_readlink(&rdlnk) == 0)
 			vap->va_size = MAXPATHLEN - auio.uio_resid;
-		FREE(cp, M_TEMP);
+		free(cp, M_TEMP);
 	}
 	vap->va_flags	= 0;
 	vap->va_gen = 1;
@@ -470,7 +470,7 @@ cd9660_readdir(ap)
 	imp = dp->i_mnt;
 	bmask = imp->im_bmask;
 
-	MALLOC(idp, struct isoreaddir *, sizeof(*idp), M_TEMP, M_WAITOK);
+	idp = malloc(sizeof(*idp), M_TEMP, M_WAITOK);
 	idp->saveent.d_namlen = idp->assocent.d_namlen = 0;
 	/*
 	 * XXX
@@ -486,7 +486,7 @@ cd9660_readdir(ap)
 		 * Guess the number of cookies needed.
 		 */
 		ncookies = uio->uio_resid / 16;
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
+		cookies = malloc(ncookies * sizeof(u_long),
 		    M_TEMP, M_WAITOK);
 		idp->cookies = cookies;
 		idp->ncookies = ncookies;
@@ -497,7 +497,7 @@ cd9660_readdir(ap)
 
 	if ((entryoffsetinblock = idp->curroff & bmask) &&
 	    (error = cd9660_blkatoff(vdp, (off_t)idp->curroff, NULL, &bp))) {
-		FREE(idp, M_TEMP);
+		free(idp, M_TEMP);
 		return (error);
 	}
 	endsearch = dp->i_size;
@@ -620,7 +620,7 @@ cd9660_readdir(ap)
 	uio->uio_offset = idp->uio_off;
 	*ap->a_eofflag = idp->eofflag;
 
-	FREE(idp, M_TEMP);
+	free(idp, M_TEMP);
 
 	return (error);
 }

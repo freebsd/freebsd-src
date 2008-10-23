@@ -676,7 +676,7 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 		*vpp = NULLVP;
 		return (error);
 	}
-	MALLOC(ip, struct iso_node *, sizeof(struct iso_node), M_ISOFSNODE,
+	ip = malloc(sizeof(struct iso_node), M_ISOFSNODE,
 	    M_WAITOK | M_ZERO);
 	vp->v_data = ip;
 	ip->i_vnode = vp;

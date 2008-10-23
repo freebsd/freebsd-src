@@ -261,7 +261,7 @@ ngp_constructor(node_p node)
 {
 	priv_p priv;
 
-	MALLOC(priv, priv_p, sizeof(*priv), M_NG_PIPE, M_ZERO | M_NOWAIT);
+	priv = malloc(sizeof(*priv), M_NG_PIPE, M_ZERO | M_NOWAIT);
 	if (priv == NULL)
 		return (ENOMEM);
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -439,7 +439,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 	if (new->ber == -1) {
 		current->ber = 0;
 		if (hinfo->ber_p) {
-			FREE(hinfo->ber_p, M_NG_PIPE);
+			free(hinfo->ber_p, M_NG_PIPE);
 			hinfo->ber_p = NULL;
 		}
 	} else if (new->ber >= 1 && new->ber <= 1000000000000) {
@@ -448,7 +448,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 		uint32_t fsize, i;
 
 		if (hinfo->ber_p == NULL)
-			MALLOC(hinfo->ber_p, uint64_t *, \
+			hinfo->ber_p = malloc(\
 				(MAX_FSIZE + MAX_OHSIZE)*sizeof(uint64_t), \
 				M_NG_PIPE, M_NOWAIT);
 		current->ber = new->ber;
@@ -959,7 +959,7 @@ ngp_shutdown(node_p node)
 			ng_rmhook_self(priv->lower.hook);
 	}
 	NG_NODE_UNREF(node);
-	FREE(priv, M_NG_PIPE);
+	free(priv, M_NG_PIPE);
 	return (0);
 }
 
@@ -1014,7 +1014,7 @@ ngp_disconnect(hook_p hook)
 
 	/* Release the packet loss probability table (BER) */
 	if (hinfo->ber_p)
-		FREE(hinfo->ber_p, M_NG_PIPE);
+		free(hinfo->ber_p, M_NG_PIPE);
 
 	mtx_unlock(&ng_pipe_giant);
 

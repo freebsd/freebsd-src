@@ -56,8 +56,8 @@
 
 MALLOC_DEFINE(M_IDMAP, "idmap", "idmap");
 
-#define idmap_entry_get(ID) MALLOC((ID), struct idmap_entry, sizeof(struct idmap_entry), M_IDMAP, M_WAITOK | M_ZERO)
-#define idmap_entry_put(ID) FREE((ID), M_IDMAP)
+#define idmap_entry_get(ID) (ID) = malloc(sizeof(struct idmap_entry), M_IDMAP, M_WAITOK | M_ZERO)
+#define idmap_entry_put(ID) free((ID), M_IDMAP)
 
 
 
@@ -106,7 +106,7 @@ idmap_upcall_name(uint32_t type, char * name, struct idmap_entry ** found)
 		return EFAULT;	/* XXX */
 	}
 
-	MALLOC(e, struct idmap_entry *, sizeof(struct idmap_entry), M_IDMAP,
+	e = malloc(sizeof(struct idmap_entry), M_IDMAP,
 	    M_WAITOK | M_ZERO);
 
 	e->id_info.id_type = type;
@@ -144,7 +144,7 @@ idmap_upcall_id(uint32_t type, ident_t id, struct idmap_entry ** found)
 	if (type > IDMAP_MAX_TYPE)
 	 	panic("bad type"); /* XXX */
 
-	MALLOC(e, struct idmap_entry *, sizeof(struct idmap_entry), M_IDMAP,
+	e = malloc(sizeof(struct idmap_entry), M_IDMAP,
 	    M_WAITOK | M_ZERO);
 
 	e->id_info.id_type = type;
@@ -340,14 +340,14 @@ void idmap_uninit(void)
 			e = TAILQ_FIRST(&idmap_uid_hash.hash_name[i]);
 			TAILQ_REMOVE(&idmap_uid_hash.hash_name[i], e, id_entry_name);
 			TAILQ_REMOVE(&idmap_uid_hash.hash_id[i], e, id_entry_id);
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 		}
 
 		while(!TAILQ_EMPTY(&idmap_gid_hash.hash_name[i])) {
 			e = TAILQ_FIRST(&idmap_gid_hash.hash_name[i]);
 			TAILQ_REMOVE(&idmap_gid_hash.hash_name[i], e, id_entry_name);
 			TAILQ_REMOVE(&idmap_gid_hash.hash_id[i], e, id_entry_id);
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 		}
 
 	}
@@ -376,7 +376,7 @@ idmap_uid_to_name(uid_t uid, char ** name, size_t * len)
 
 		if (idmap_add(e) != 0) {
 			IDMAP_DEBUG("idmap_add failed\n");
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 			return EFAULT;
 		}
 	}
@@ -409,7 +409,7 @@ idmap_gid_to_name(gid_t gid, char ** name, size_t * len)
 
 		if (idmap_add(e) != 0) {
 			IDMAP_DEBUG("idmap_add failed\n");
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 		}
 	}
 
@@ -434,31 +434,31 @@ idmap_name_to_uid(char * name, size_t len, uid_t * id)
 	}
 
 	/* XXX hack */
-	MALLOC(namestr, char *, len + 1, M_TEMP, M_WAITOK);
+	namestr = malloc(len + 1, M_TEMP, M_WAITOK);
 	bcopy(name, namestr, len);
 	namestr[len] = '\0';
 
 
 	if ((e = idmap_name_lookup(IDMAP_TYPE_UID, namestr)) == NULL) {
 	  	if ((error = idmap_upcall_name(IDMAP_TYPE_UID, namestr, &e))) {
-			FREE(namestr, M_TEMP);
+			free(namestr, M_TEMP);
 			return error;
 		}
 
 		if (e == NULL) {
 			IDMAP_DEBUG("no error from upcall, but no data returned\n");
-			FREE(namestr, M_TEMP);
+			free(namestr, M_TEMP);
 			return EFAULT;
 		}
 
 		if (idmap_add(e) != 0) {
 			IDMAP_DEBUG("idmap_add failed\n");
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 		}
 	}
 
 	*id = e->id_info.id_id.uid;
-	FREE(namestr, M_TEMP);
+	free(namestr, M_TEMP);
 	return 0;
 }
 
@@ -479,7 +479,7 @@ idmap_name_to_gid(char * name, size_t len, gid_t * id)
 	}
 
 	/* XXX hack */
-	MALLOC(namestr, char *, len + 1, M_TEMP, M_WAITOK);
+	namestr = malloc(len + 1, M_TEMP, M_WAITOK);
 	bcopy(name, namestr, len);
 	namestr[len] = '\0';
 
@@ -487,23 +487,23 @@ idmap_name_to_gid(char * name, size_t len, gid_t * id)
 	if ((e = idmap_name_lookup(IDMAP_TYPE_GID, namestr)) == NULL) {
 	  	if ((error = idmap_upcall_name(IDMAP_TYPE_GID, namestr, &e)) != 0) {
 			IDMAP_DEBUG("error in upcall\n");
-			FREE(namestr, M_TEMP);
+			free(namestr, M_TEMP);
 			return error;
 		}
 
 		if (e == NULL) {
 			IDMAP_DEBUG("no error from upcall, but no data returned\n");
-			FREE(namestr, M_TEMP);
+			free(namestr, M_TEMP);
 			return EFAULT;
 		}
 
 		if (idmap_add(e) != 0) {
 			IDMAP_DEBUG("idmap_add failed\n");
-			FREE(e, M_IDMAP);
+			free(e, M_IDMAP);
 		}
 	}
 
 	*id = e->id_info.id_id.gid;
-	FREE(namestr, M_TEMP);
+	free(namestr, M_TEMP);
 	return 0;
 }

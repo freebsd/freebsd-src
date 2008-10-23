@@ -409,7 +409,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	}
 
 	bap = (int32_t *)bp->b_data;
-	MALLOC(copy, int32_t *, fs->s_blocksize, M_TEMP, M_WAITOK);
+	copy = malloc(fs->s_blocksize, M_TEMP, M_WAITOK);
 	bcopy((caddr_t)bap, (caddr_t)copy, (u_int)fs->s_blocksize);
 	bzero((caddr_t)&bap[last + 1],
 	  (u_int)(NINDIR(fs) - (last + 1)) * sizeof (int32_t));
@@ -451,7 +451,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			blocksreleased += blkcount;
 		}
 	}
-	FREE(copy, M_TEMP);
+	free(copy, M_TEMP);
 	*countp = blocksreleased;
 	return (allerror);
 }
@@ -521,7 +521,7 @@ ext2_reclaim(ap)
 		ext2_update(vp, 0);
 	}
 	vfs_hash_remove(vp);
-	FREE(vp->v_data, M_EXT2NODE);
+	free(vp->v_data, M_EXT2NODE);
 	vp->v_data = 0;
 	vnode_destroy_vobject(vp);
 	return (0);
