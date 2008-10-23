@@ -295,7 +295,8 @@ ng_mppc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				d->history = NULL;
 			}
 			if ((cfg->bits & MPPC_BIT) != 0) {
-				d->history = malloc(				    isComp ? MPPC_SizeOfCompressionHistory() :
+				d->history = malloc(isComp ?
+				    MPPC_SizeOfCompressionHistory() :
 				    MPPC_SizeOfDecompressionHistory(),
 				    M_NETGRAPH_MPPC, M_NOWAIT);
 				if (d->history == NULL)

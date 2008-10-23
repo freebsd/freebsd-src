@@ -588,7 +588,8 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	if (backing_vnode->v_type != VREG)
 		return (EINVAL);
 
-	attribute = malloc(	    sizeof(struct ufs_extattr_list_entry), M_UFS_EXTATTR, M_WAITOK);
+	attribute = malloc(sizeof(struct ufs_extattr_list_entry),
+	    M_UFS_EXTATTR, M_WAITOK);
 	if (attribute == NULL)
 		return (ENOMEM);
 

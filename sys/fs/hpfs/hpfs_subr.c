@@ -278,7 +278,8 @@ hpfs_cpinit (
 
 	cpicnt = hpmp->hpm_sp.sp_cpinum;
 
-	hpmp->hpm_cpdblk = malloc(		cpicnt * sizeof(struct cpdblk), M_HPFSMNT, M_WAITOK);
+	hpmp->hpm_cpdblk = malloc(cpicnt * sizeof(struct cpdblk),
+	    M_HPFSMNT, M_WAITOK);
 
 	cpdbp = hpmp->hpm_cpdblk;
 	lsn = hpmp->hpm_sp.sp_cpi;

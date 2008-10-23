@@ -647,8 +647,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (ENOMEM);
 	}
 	size = UDF_FENTRY_SIZE + le32toh(fe->l_ea) + le32toh(fe->l_ad);
-	unode->fentry = malloc(size, M_UDFFENTRY,
-	    M_NOWAIT | M_ZERO);
+	unode->fentry = malloc(size, M_UDFFENTRY, M_NOWAIT | M_ZERO);
 	if (unode->fentry == NULL) {
 		printf("Cannot allocate file entry block\n");
 		vgone(vp);
@@ -757,7 +756,8 @@ udf_find_partmaps(struct udf_mnt *udfmp, struct logvol_desc *lvd)
 
 		pms = (struct part_map_spare *)pmap;
 		pmap += UDF_PMAP_TYPE2_SIZE;
-		udfmp->s_table = malloc(		    le32toh(pms->st_size), M_UDFMOUNT, M_NOWAIT | M_ZERO);
+		udfmp->s_table = malloc(le32toh(pms->st_size),
+		    M_UDFMOUNT, M_NOWAIT | M_ZERO);
 		if (udfmp->s_table == NULL)
 			return (ENOMEM);
 

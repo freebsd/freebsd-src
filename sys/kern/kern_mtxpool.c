@@ -146,7 +146,8 @@ mtx_pool_create(const char *mtx_name, int pool_size, int opts)
 		    mtx_name);
 		pool_size = 128;
 	}
-	pool = malloc(	    sizeof (struct mtx_pool) + ((pool_size - 1) * sizeof (struct mtx)),
+	pool = malloc(sizeof (struct mtx_pool) +
+	    ((pool_size - 1) * sizeof (struct mtx)),
 	    M_MTXPOOL, M_WAITOK | M_ZERO);
 	mtx_pool_initialize(pool, mtx_name, pool_size, opts);
 	return pool;

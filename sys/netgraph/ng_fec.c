@@ -403,7 +403,7 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 	}
 
 	/* Allocate new list entry. */
-	new = malloc(	    sizeof(struct ng_fec_portlist), M_NETGRAPH, M_NOWAIT);
+	new = malloc(sizeof(struct ng_fec_portlist), M_NETGRAPH, M_NOWAIT);
 	if (new == NULL)
 		return(ENOMEM);
 
