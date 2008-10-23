@@ -664,7 +664,8 @@ sltstart(struct tty *tp)
 			register u_char *cp;
 
 			if (sc->bpfbuf == NULL)
-				sc->bpfbuf = malloc(				    SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
+				sc->bpfbuf = malloc(SLTMAX + SLIP_HDRLEN,
+				    M_SL, M_NOWAIT);
 
 			if (sc->bpfbuf) {
 				cp = sc->bpfbuf + SLIP_HDRLEN;

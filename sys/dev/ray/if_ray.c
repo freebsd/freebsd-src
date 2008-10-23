@@ -3177,7 +3177,7 @@ ray_com_malloc(ray_comqfn_t function, int flags, char *mesg)
 {
 	struct ray_comq_entry *com;
 
-	com = malloc(	    sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
+	com = malloc(sizeof(struct ray_comq_entry), M_RAYCOM, M_WAITOK);
     
 	return (ray_com_init(com, function, flags, mesg));
 }

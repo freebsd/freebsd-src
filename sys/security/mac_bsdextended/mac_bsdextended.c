@@ -152,7 +152,8 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_IN(req, &temprule, sizeof(temprule));
 		if (error)
 			return (error);
-		ruleptr = malloc(		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
+		ruleptr = malloc(sizeof(*ruleptr), M_MACBSDEXTENDED,
+		    M_WAITOK | M_ZERO);
 	}
 
 	mtx_lock(&ugidfw_mtx);

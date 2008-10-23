@@ -202,8 +202,7 @@ hfsc_add_altq(struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-	hif = malloc(sizeof(struct hfsc_if),
-	    M_DEVBUF, M_WAITOK);
+	hif = malloc(sizeof(struct hfsc_if), M_DEVBUF, M_WAITOK);
 	if (hif == NULL)
 		return (ENOMEM);
 	bzero(hif, sizeof(struct hfsc_if));
@@ -404,14 +403,12 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 	}
 #endif
 
-	cl = malloc(sizeof(struct hfsc_class),
-	       M_DEVBUF, M_WAITOK);
+	cl = malloc(sizeof(struct hfsc_class), M_DEVBUF, M_WAITOK);
 	if (cl == NULL)
 		return (NULL);
 	bzero(cl, sizeof(struct hfsc_class));
 
-	cl->cl_q = malloc(sizeof(class_queue_t),
-	       M_DEVBUF, M_WAITOK);
+	cl->cl_q = malloc(sizeof(class_queue_t), M_DEVBUF, M_WAITOK);
 	if (cl->cl_q == NULL)
 		goto err_ret;
 	bzero(cl->cl_q, sizeof(class_queue_t));
@@ -471,7 +468,8 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 #endif /* ALTQ_RED */
 
 	if (rsc != NULL && (rsc->m1 != 0 || rsc->m2 != 0)) {
-		cl->cl_rsc = malloc(		    sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		cl->cl_rsc = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (cl->cl_rsc == NULL)
 			goto err_ret;
 		sc2isc(rsc, cl->cl_rsc);
@@ -479,14 +477,16 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 		rtsc_init(&cl->cl_eligible, cl->cl_rsc, 0, 0);
 	}
 	if (fsc != NULL && (fsc->m1 != 0 || fsc->m2 != 0)) {
-		cl->cl_fsc = malloc(		    sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		cl->cl_fsc = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (cl->cl_fsc == NULL)
 			goto err_ret;
 		sc2isc(fsc, cl->cl_fsc);
 		rtsc_init(&cl->cl_virtual, cl->cl_fsc, 0, 0);
 	}
 	if (usc != NULL && (usc->m1 != 0 || usc->m2 != 0)) {
-		cl->cl_usc = malloc(		    sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		cl->cl_usc = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (cl->cl_usc == NULL)
 			goto err_ret;
 		sc2isc(usc, cl->cl_usc);
@@ -1740,8 +1740,7 @@ hfsc_attach(ifq, bandwidth)
 {
 	struct hfsc_if *hif;
 
-	hif = malloc(sizeof(struct hfsc_if),
-	       M_DEVBUF, M_WAITOK);
+	hif = malloc(sizeof(struct hfsc_if), M_DEVBUF, M_WAITOK);
 	if (hif == NULL)
 		return (NULL);
 	bzero(hif, sizeof(struct hfsc_if));
@@ -1801,19 +1800,22 @@ hfsc_class_modify(cl, rsc, fsc, usc)
 	rsc_tmp = fsc_tmp = usc_tmp = NULL;
 	if (rsc != NULL && (rsc->m1 != 0 || rsc->m2 != 0) &&
 	    cl->cl_rsc == NULL) {
-		rsc_tmp = malloc(		       sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		rsc_tmp = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (rsc_tmp == NULL)
 			return (ENOMEM);
 	}
 	if (fsc != NULL && (fsc->m1 != 0 || fsc->m2 != 0) &&
 	    cl->cl_fsc == NULL) {
-		fsc_tmp = malloc(		       sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		fsc_tmp = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (fsc_tmp == NULL)
 			return (ENOMEM);
 	}
 	if (usc != NULL && (usc->m1 != 0 || usc->m2 != 0) &&
 	    cl->cl_usc == NULL) {
-		usc_tmp = malloc(		       sizeof(struct internal_sc), M_DEVBUF, M_WAITOK);
+		usc_tmp = malloc(sizeof(struct internal_sc),
+		    M_DEVBUF, M_WAITOK);
 		if (usc_tmp == NULL)
 			return (ENOMEM);
 	}

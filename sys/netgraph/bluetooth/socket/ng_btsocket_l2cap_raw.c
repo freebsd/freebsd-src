@@ -377,7 +377,7 @@ ng_btsocket_l2cap_raw_input(void *context, int pending)
 			rt = (ng_btsocket_l2cap_rtentry_t *) 
 				NG_HOOK_PRIVATE(hook);
 			if (rt == NULL) {
-				rt = malloc(					sizeof(*rt),
+				rt = malloc(sizeof(*rt),
 					M_NETGRAPH_BTSOCKET_L2CAP_RAW,
 					M_NOWAIT|M_ZERO);
 				if (rt == NULL)

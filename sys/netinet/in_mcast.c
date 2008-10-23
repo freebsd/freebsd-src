@@ -817,7 +817,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * has asked for, but we always tell userland how big the
 		 * buffer really needs to be.
 		 */
-		tss = malloc(		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
+		tss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
 		    M_TEMP, M_NOWAIT);
 		if (tss == NULL) {
 			error = ENOBUFS;
@@ -1569,7 +1569,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * that we may copy them with a single copyin. This
 		 * allows us to deal with page faults up-front.
 		 */
-		kss = malloc(		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
+		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
 		    M_TEMP, M_WAITOK);
 		error = copyin(msfr.msfr_srcs, kss,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
@@ -1623,7 +1623,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * entries we are about to allocate, in case we
 		 * abruptly need to free them.
 		 */
-		pnims = malloc(		    sizeof(struct in_msource *) * msfr.msfr_nsrcs,
+		pnims = malloc(sizeof(struct in_msource *) * msfr.msfr_nsrcs,
 		    M_TEMP, M_WAITOK | M_ZERO);
 
 		/*
@@ -1634,8 +1634,8 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		pkss = kss;
 		nims = NULL;
 		for (i = 0; i < msfr.msfr_nsrcs; i++, pkss++) {
-			nims = malloc(			    sizeof(struct in_msource) * msfr.msfr_nsrcs,
-			    M_IPMSOURCE, M_WAITOK | M_ZERO);
+			nims = malloc(sizeof(struct in_msource) *
+			    msfr.msfr_nsrcs, M_IPMSOURCE, M_WAITOK | M_ZERO);
 			pnims[i] = nims;
 		}
 		if (i < msfr.msfr_nsrcs) {

@@ -267,7 +267,8 @@ cryptof_ioctl(
 				goto bail;
 			}
 
-			crie.cri_key = malloc(			    crie.cri_klen / 8, M_XDATA, M_WAITOK);
+			crie.cri_key = malloc(crie.cri_klen / 8,
+			    M_XDATA, M_WAITOK);
 			if ((error = copyin(sop->key, crie.cri_key,
 			    crie.cri_klen / 8)))
 				goto bail;
@@ -284,7 +285,8 @@ cryptof_ioctl(
 			}
 
 			if (cria.cri_klen) {
-				cria.cri_key = malloc(				    cria.cri_klen / 8, M_XDATA, M_WAITOK);
+				cria.cri_key = malloc(cria.cri_klen / 8,
+				    M_XDATA, M_WAITOK);
 				if ((error = copyin(sop->mackey, cria.cri_key,
 				    cria.cri_klen / 8)))
 					goto bail;
@@ -776,11 +778,9 @@ csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
 
 #ifdef INVARIANTS
 	/* NB: required when mtx_init is built with INVARIANTS */
-	cse = malloc(sizeof(struct csession),
-	    M_XDATA, M_NOWAIT | M_ZERO);
+	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT | M_ZERO);
 #else
-	cse = malloc(sizeof(struct csession),
-	    M_XDATA, M_NOWAIT);
+	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT);
 #endif
 	if (cse == NULL)
 		return NULL;
@@ -840,7 +840,7 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 	switch (cmd) {
 	case CRIOGET:
-		fcr = malloc(		    sizeof(struct fcrypt), M_XDATA, M_WAITOK);
+		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK);
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 

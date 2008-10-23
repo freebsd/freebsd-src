@@ -565,7 +565,7 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
 		return (error);
-	filter = malloc(	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
+	filter = malloc(sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
 	if (filter == NULL)
 		return (ENOMEM);
 	INP_INFO_WLOCK(&V_ripcbinfo);

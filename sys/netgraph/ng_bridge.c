@@ -304,7 +304,8 @@ ng_bridge_constructor(node_p node)
 	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
-	priv->tab = malloc(	    MIN_BUCKETS * sizeof(*priv->tab), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
+	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab),
+	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
 	if (priv->tab == NULL) {
 		free(priv, M_NETGRAPH_BRIDGE);
 		return (ENOMEM);
@@ -358,7 +359,8 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 			return (EINVAL);
 		if (priv->links[linkNum] != NULL)
 			return (EISCONN);
-		priv->links[linkNum] = malloc(		    sizeof(*priv->links[linkNum]), M_NETGRAPH_BRIDGE, M_NOWAIT|M_ZERO);
+		priv->links[linkNum] = malloc(sizeof(*priv->links[linkNum]),
+		    M_NETGRAPH_BRIDGE, M_NOWAIT|M_ZERO);
 		if (priv->links[linkNum] == NULL)
 			return (ENOMEM);
 		priv->links[linkNum]->hook = hook;
@@ -848,7 +850,7 @@ ng_bridge_put(priv_p priv, const u_char *addr, int linkNum)
 #endif
 
 	/* Allocate and initialize new hashtable entry */
-	hent = malloc(	    sizeof(*hent), M_NETGRAPH_BRIDGE, M_NOWAIT);
+	hent = malloc(sizeof(*hent), M_NETGRAPH_BRIDGE, M_NOWAIT);
 	if (hent == NULL)
 		return (0);
 	bcopy(addr, hent->host.addr, ETHER_ADDR_LEN);
@@ -892,7 +894,8 @@ ng_bridge_rehash(priv_p priv)
 	newMask = newNumBuckets - 1;
 
 	/* Allocate and initialize new table */
-	newTab = malloc(	    newNumBuckets * sizeof(*newTab), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
+	newTab = malloc(newNumBuckets * sizeof(*newTab),
+	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
 	if (newTab == NULL)
 		return;
 
