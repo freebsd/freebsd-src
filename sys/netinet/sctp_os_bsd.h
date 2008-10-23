@@ -248,17 +248,17 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  */
 #define SCTP_MALLOC(var, type, size, name) \
     do { \
-	MALLOC(var, type, size, name, M_NOWAIT); \
+	var = (type)malloc(size, name, M_NOWAIT); \
     } while (0)
 
-#define SCTP_FREE(var, type)	FREE(var, type)
+#define SCTP_FREE(var, type)	free(var, type)
 
 #define SCTP_MALLOC_SONAME(var, type, size) \
     do { \
-	MALLOC(var, type, size, M_SONAME, M_WAITOK | M_ZERO); \
+	var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
     } while (0)
 
-#define SCTP_FREE_SONAME(var)	FREE(var, M_SONAME)
+#define SCTP_FREE_SONAME(var)	free(var, M_SONAME)
 
 #define SCTP_PROCESS_STRUCT struct proc *
 

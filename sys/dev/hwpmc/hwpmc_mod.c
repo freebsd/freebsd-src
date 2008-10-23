@@ -331,7 +331,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 	int error, found, *newbits, tmp;
 	size_t kwlen;
 
-	MALLOC(tmpflags, struct pmc_debugflags *, sizeof(*tmpflags),
+	tmpflags = malloc(sizeof(*tmpflags),
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	p = newstr;
@@ -450,7 +450,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 	bcopy(tmpflags, &pmc_debugflags, sizeof(pmc_debugflags));
 
  done:
-	FREE(tmpflags, M_PMC);
+	free(tmpflags, M_PMC);
 	return error;
 }
 
@@ -464,7 +464,7 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	(void) arg1; (void) arg2; /* unused parameters */
 
 	n = sizeof(pmc_debugstr);
-	MALLOC(newstr, char *, n, M_PMC, M_ZERO|M_WAITOK);
+	newstr = malloc(n, M_PMC, M_ZERO|M_WAITOK);
 	(void) strlcpy(newstr, pmc_debugstr, n);
 
 	error = sysctl_handle_string(oidp, newstr, n, req);
@@ -477,7 +477,7 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
 			    sizeof(pmc_debugstr));
 	}
 
-	FREE(newstr, M_PMC);
+	free(newstr, M_PMC);
 
 	return error;
 }
@@ -777,7 +777,7 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 				__LINE__, pp, pm));
 #endif
 
-	MALLOC(pt, struct pmc_target *, sizeof(struct pmc_target),
+	pt = malloc(sizeof(struct pmc_target),
 	    M_PMC, M_ZERO|M_WAITOK);
 
 	pt->pt_process = pp;
@@ -849,7 +849,7 @@ pmc_unlink_target_process(struct pmc *pm, struct pmc_process *pp)
 		    "in pmc %p", __LINE__, pp->pp_proc, pp, pm));
 
 	LIST_REMOVE(ptgt, pt_next);
-	FREE(ptgt, M_PMC);
+	free(ptgt, M_PMC);
 
 	/* if the PMC now lacks targets, send the owner a SIGIO */
 	if (LIST_EMPTY(&pm->pm_targets)) {
@@ -972,7 +972,7 @@ pmc_attach_one_process(struct proc *p, struct pmc *pm)
 		} else
 			pmclog_process_pmcattach(pm, p->p_pid, fullpath);
 		if (freepath)
-			FREE(freepath, M_TEMP);
+			free(freepath, M_TEMP);
 		if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
 			pmc_log_process_mappings(pm->pm_owner, p);
 	}
@@ -1093,7 +1093,7 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 	pmc_remove_process_descriptor(pp);
 
 	if (flags & PMC_FLAG_REMOVE)
-		FREE(pp, M_PMC);
+		free(pp, M_PMC);
 
 	PROC_LOCK(p);
 	p->p_flag &= ~P_HWPMC;
@@ -1511,7 +1511,7 @@ pmc_process_mmap(struct thread *td, struct pmckern_map_in *pkm)
 
   done:
 	if (freepath)
-		FREE(freepath, M_TEMP);
+		free(freepath, M_TEMP);
 }
 
 
@@ -1575,7 +1575,7 @@ pmc_log_kernel_mappings(struct pmc *pm)
 		pmclog_process_map_in(po, (pid_t) -1, km->pm_address,
 		    km->pm_file);
 	}
-	FREE(kmbase, M_LINKER);
+	free(kmbase, M_LINKER);
 
 	po->po_flags |= PMC_PO_INITIAL_MAPPINGS_DONE;
 }
@@ -1692,7 +1692,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		if (!is_using_hwpmcs) {
 			if (freepath)
-				FREE(freepath, M_TEMP);
+				free(freepath, M_TEMP);
 			break;
 		}
 
@@ -1712,7 +1712,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		 */
 		if ((pp = pmc_find_process_descriptor(p, 0)) == NULL) {
 			if (freepath)
-				FREE(freepath, M_TEMP);
+				free(freepath, M_TEMP);
 			break;
 		}
 
@@ -1732,7 +1732,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 			}
 
 		if (freepath)
-			FREE(freepath, M_TEMP);
+			free(freepath, M_TEMP);
 
 
 		PMCDBG(PRC,EXC,1, "exec proc=%p (%d, %s) cred-changed=%d",
@@ -1765,7 +1765,7 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 
 		if (pp->pp_refcnt == 0) {
 			pmc_remove_process_descriptor(pp);
-			FREE(pp, M_PMC);
+			free(pp, M_PMC);
 			break;
 		}
 
@@ -1861,7 +1861,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 	poh = &pmc_ownerhash[hindex];
 
 	/* allocate space for N pointers and one descriptor struct */
-	MALLOC(po, struct pmc_owner *, sizeof(struct pmc_owner),
+	po = malloc(sizeof(struct pmc_owner),
 	    M_PMC, M_ZERO|M_WAITOK);
 
 	po->po_sscount = po->po_error = po->po_flags = 0;
@@ -1888,7 +1888,7 @@ pmc_destroy_owner_descriptor(struct pmc_owner *po)
 	    po, po->po_owner, po->po_owner->p_pid, po->po_owner->p_comm);
 
 	mtx_destroy(&po->po_mtx);
-	FREE(po, M_PMC);
+	free(po, M_PMC);
 }
 
 /*
@@ -1915,8 +1915,7 @@ pmc_find_process_descriptor(struct proc *p, uint32_t mode)
 
 	if (mode & PMC_FLAG_ALLOCATE) {
 		/* allocate additional space for 'n' pmc pointers */
-		MALLOC(ppnew, struct pmc_process *,
-		    sizeof(struct pmc_process) + md->pmd_npmc *
+		ppnew = malloc(		    sizeof(struct pmc_process) + md->pmd_npmc *
 		    sizeof(struct pmc_targetstate), M_PMC, M_ZERO|M_WAITOK);
 	}
 
@@ -1938,7 +1937,7 @@ pmc_find_process_descriptor(struct proc *p, uint32_t mode)
 	mtx_unlock_spin(&pmc_processhash_mtx);
 
 	if (pp != NULL && ppnew != NULL)
-		FREE(ppnew, M_PMC);
+		free(ppnew, M_PMC);
 
 	return pp;
 }
@@ -1997,7 +1996,7 @@ pmc_allocate_pmc_descriptor(void)
 {
 	struct pmc *pmc;
 
-	MALLOC(pmc, struct pmc *, sizeof(struct pmc), M_PMC, M_ZERO|M_WAITOK);
+	pmc = malloc(sizeof(struct pmc), M_PMC, M_ZERO|M_WAITOK);
 
 	if (pmc != NULL) {
 		pmc->pm_owner = NULL;
@@ -2187,7 +2186,7 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 
 			if (pp->pp_refcnt == 0) {
 				pmc_remove_process_descriptor(pp);
-				FREE(pp, M_PMC);
+				free(pp, M_PMC);
 			}
 		}
 
@@ -2819,7 +2818,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		npmc = md->pmd_npmc;
 
 		pmcinfo_size = npmc * sizeof(struct pmc_info);
-		MALLOC(pmcinfo, struct pmc_info *, pmcinfo_size, M_PMC,
+		pmcinfo = malloc(pmcinfo_size, M_PMC,
 		    M_WAITOK);
 
 		p = pmcinfo;
@@ -2863,7 +2862,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if (error == 0)
 			error = copyout(pmcinfo, &gpi->pm_pmcs, pmcinfo_size);
 
-		FREE(pmcinfo, M_PMC);
+		free(pmcinfo, M_PMC);
 	}
 	break;
 
@@ -3127,7 +3126,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if (n == (int) md->pmd_npmc) {
 			pmc_destroy_pmc_descriptor(pmc);
-			FREE(pmc, M_PMC);
+			free(pmc, M_PMC);
 			pmc = NULL;
 			error = EINVAL;
 			break;
@@ -3162,7 +3161,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			    (error = md->pmd_config_pmc(cpu, n, pmc)) != 0) {
 				(void) md->pmd_release_pmc(cpu, n, pmc);
 				pmc_destroy_pmc_descriptor(pmc);
-				FREE(pmc, M_PMC);
+				free(pmc, M_PMC);
 				pmc = NULL;
 				pmc_restore_cpu_binding(&pb);
 				error = EPERM;
@@ -3190,7 +3189,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error =
 		    pmc_register_owner(curthread->td_proc, pmc)) != 0) {
 			pmc_release_pmc_descriptor(pmc);
-			FREE(pmc, M_PMC);
+			free(pmc, M_PMC);
 			pmc = NULL;
 			break;
 		}
@@ -3432,7 +3431,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		pmc_release_pmc_descriptor(pm);
 		pmc_maybe_remove_owner(po);
 
-		FREE(pm, M_PMC);
+		free(pm, M_PMC);
 	}
 	break;
 
@@ -4167,7 +4166,7 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 					pmclog_process_procexit(pm, pp);
 				pmc_unlink_target_process(pm, pp);
 			}
-		FREE(pp, M_PMC);
+		free(pp, M_PMC);
 
 	} else
 		critical_exit(); /* pp == NULL */
@@ -4353,12 +4352,11 @@ pmc_initialize(void)
 	maxcpu = pmc_cpu_max();
 
 	/* allocate space for the per-cpu array */
-	MALLOC(pmc_pcpu, struct pmc_cpu **, maxcpu * sizeof(struct pmc_cpu *),
+	pmc_pcpu = malloc(maxcpu * sizeof(struct pmc_cpu *),
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	/* per-cpu 'saved values' for managing process-mode PMCs */
-	MALLOC(pmc_pcpu_saved, pmc_value_t *,
-	    sizeof(pmc_value_t) * maxcpu * md->pmd_npmc, M_PMC, M_WAITOK);
+	pmc_pcpu_saved = malloc(	    sizeof(pmc_value_t) * maxcpu * md->pmd_npmc, M_PMC, M_WAITOK);
 
 	/* Perform CPU-dependent initialization. */
 	pmc_save_cpu_binding(&pb);
@@ -4378,8 +4376,7 @@ pmc_initialize(void)
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (!pmc_cpu_is_active(cpu))
 			continue;
-		MALLOC(sb, struct pmc_samplebuffer *,
-		    sizeof(struct pmc_samplebuffer) +
+		sb = malloc(		    sizeof(struct pmc_samplebuffer) +
 		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
 		    M_WAITOK|M_ZERO);
 
@@ -4388,8 +4385,7 @@ pmc_initialize(void)
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
 
-		MALLOC(sb->ps_callchains, uintptr_t *,
-		    pmc_callchaindepth * pmc_nsamples * sizeof(uintptr_t),
+		sb->ps_callchains = malloc(		    pmc_callchaindepth * pmc_nsamples * sizeof(uintptr_t),
 		    M_PMC, M_WAITOK|M_ZERO);
 
 		for (n = 0, ps = sb->ps_samples; n < pmc_nsamples; n++, ps++)
@@ -4554,8 +4550,8 @@ pmc_cleanup(void)
 		KASSERT(pmc_pcpu[cpu]->pc_sb != NULL,
 		    ("[pmc,%d] Null cpu sample buffer cpu=%d", __LINE__,
 			cpu));
-		FREE(pmc_pcpu[cpu]->pc_sb->ps_callchains, M_PMC);
-		FREE(pmc_pcpu[cpu]->pc_sb, M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb->ps_callchains, M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb, M_PMC);
 		pmc_pcpu[cpu]->pc_sb = NULL;
 	}
 
@@ -4572,20 +4568,20 @@ pmc_cleanup(void)
 			if (md->pmd_cleanup)
 				md->pmd_cleanup(cpu);
 		}
-		FREE(md, M_PMC);
+		free(md, M_PMC);
 		md = NULL;
 		pmc_restore_cpu_binding(&pb);
 	}
 
 	/* deallocate per-cpu structures */
-	FREE(pmc_pcpu, M_PMC);
+	free(pmc_pcpu, M_PMC);
 	pmc_pcpu = NULL;
 
-	FREE(pmc_pcpu_saved, M_PMC);
+	free(pmc_pcpu_saved, M_PMC);
 	pmc_pcpu_saved = NULL;
 
 	if (pmc_pmcdisp) {
-		FREE(pmc_pmcdisp, M_PMC);
+		free(pmc_pmcdisp, M_PMC);
 		pmc_pmcdisp = NULL;
 	}
 

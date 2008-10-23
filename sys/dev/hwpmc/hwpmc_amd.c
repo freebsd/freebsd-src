@@ -838,7 +838,7 @@ amd_init(int cpu)
 
 	PMCDBG(MDP,INI,1,"amd-init cpu=%d", cpu);
 
-	MALLOC(pcs, struct amd_cpu *, sizeof(struct amd_cpu), M_PMC,
+	pcs = malloc(sizeof(struct amd_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
 
 	phw = &pcs->pc_amdpmcs[0];
@@ -911,7 +911,7 @@ amd_cleanup(int cpu)
 #endif
 
 	pmc_pcpu[cpu] = NULL;
-	FREE(pcs, M_PMC);
+	free(pcs, M_PMC);
 	return 0;
 }
 
@@ -960,7 +960,7 @@ pmc_amd_initialize(void)
 	amd_pmc_class = class;
 #endif
 
-	MALLOC(pmc_mdep, struct pmc_mdep *, sizeof(struct pmc_mdep),
+	pmc_mdep = malloc(sizeof(struct pmc_mdep),
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	pmc_mdep->pmd_cputype	   = cputype;

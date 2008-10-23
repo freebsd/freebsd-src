@@ -257,17 +257,17 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 	 * might cause a bogus v_data pointer to get dereferenced elsewhere
 	 * if MALLOC should block.
 	 */
-	MALLOC(unp, struct unionfs_node *, sizeof(struct unionfs_node),
+	unp = malloc(sizeof(struct unionfs_node),
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("unionfs", mp, &unionfs_vnodeops, &vp);
 	if (error != 0) {
-		FREE(unp, M_UNIONFSNODE);
+		free(unp, M_UNIONFSNODE);
 		return (error);
 	}
 	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
 	if (error != 0) {
-		FREE(unp, M_UNIONFSNODE);
+		free(unp, M_UNIONFSNODE);
 		return (error);
 	}
 	if (dvp != NULLVP)
@@ -415,7 +415,7 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 		LIST_REMOVE(unsp, uns_list);
 		free(unsp, M_TEMP);
 	}
-	FREE(unp, M_UNIONFSNODE);
+	free(unp, M_UNIONFSNODE);
 }
 
 /*
@@ -440,8 +440,7 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	}
 
 	/* create a new unionfs node status */
-	MALLOC(unsp, struct unionfs_node_status *,
-	    sizeof(struct unionfs_node_status), M_TEMP, M_WAITOK | M_ZERO);
+	unsp = malloc(	    sizeof(struct unionfs_node_status), M_TEMP, M_WAITOK | M_ZERO);
 
 	unsp->uns_pid = pid;
 	LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);

@@ -80,7 +80,7 @@ ng_atmllc_constructor(node_p node)
 {
 	struct	ng_atmllc_priv *priv;
 
-	MALLOC(priv, struct ng_atmllc_priv *, sizeof(*priv), M_NETGRAPH,
+	priv = malloc(sizeof(*priv), M_NETGRAPH,
 	    M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		return (ENOMEM);
@@ -111,7 +111,7 @@ ng_atmllc_shutdown(node_p node)
 
 	priv = NG_NODE_PRIVATE(node);
 
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 
 	NG_NODE_UNREF(node);
 

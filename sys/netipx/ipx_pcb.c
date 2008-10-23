@@ -91,7 +91,7 @@ ipx_pcballoc(struct socket *so, struct ipxpcbhead *head, struct thread *td)
 	KASSERT(so->so_pcb == NULL, ("ipx_pcballoc: so_pcb != NULL"));
 	IPX_LIST_LOCK_ASSERT();
 
-	MALLOC(ipxp, struct ipxpcb *, sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
+	ipxp = malloc(sizeof *ipxp, M_PCB, M_NOWAIT | M_ZERO);
 	if (ipxp == NULL)
 		return (ENOBUFS);
 	IPX_LOCK_INIT(ipxp);
@@ -317,7 +317,7 @@ ipx_pcbfree(struct ipxpcb *ipxp)
 		RTFREE(ipxp->ipxp_route.ro_rt);
 	LIST_REMOVE(ipxp, ipxp_list);
 	IPX_LOCK_DESTROY(ipxp);
-	FREE(ipxp, M_PCB);
+	free(ipxp, M_PCB);
 }
 
 void

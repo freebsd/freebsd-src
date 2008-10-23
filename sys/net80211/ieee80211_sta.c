@@ -1013,7 +1013,7 @@ sta_auth_shared(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 	switch (seq) {
 	case IEEE80211_AUTH_SHARED_PASS:
 		if (ni->ni_challenge != NULL) {
-			FREE(ni->ni_challenge, M_80211_NODE);
+			free(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		if (status != 0) {

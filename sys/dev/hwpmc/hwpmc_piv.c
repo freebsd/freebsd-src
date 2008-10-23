@@ -628,8 +628,7 @@ p4_init(int cpu)
 		if (pcs == NULL) /* decline to init */
 			return ENXIO;
 
-		MALLOC(plcs, struct p4_logicalcpu *,
-		    sizeof(struct p4_logicalcpu), M_PMC, M_WAITOK|M_ZERO);
+		plcs = malloc(		    sizeof(struct p4_logicalcpu), M_PMC, M_WAITOK|M_ZERO);
 
 		/* The TSC is architectural state and is not shared */
 		plcs->pc_hwpmcs[0] = &plcs->pc_tsc;
@@ -645,7 +644,7 @@ p4_init(int cpu)
 		return 0;
 	}
 
-	MALLOC(pcs, struct p4_cpu *, sizeof(struct p4_cpu), M_PMC,
+	pcs = malloc(sizeof(struct p4_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
 
 	if (pcs == NULL)
@@ -699,7 +698,7 @@ p4_cleanup(int cpu)
 	if (!P4_CPU_IS_HTT_SECONDARY(cpu))
 		mtx_destroy(&pcs->pc_mtx);
 
-	FREE(pcs, M_PMC);
+	free(pcs, M_PMC);
 
 	pmc_pcpu[cpu] = NULL;
 
@@ -1081,7 +1080,7 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	/*
 	 * If the system has HTT enabled, and the desired allocation
 	 * mode is process-private, and the PMC row disposition is not
-	 * FREE (0), decline the allocation.
+	 * free (0), decline the allocation.
 	 */
 
 	if (p4_system_has_htt &&

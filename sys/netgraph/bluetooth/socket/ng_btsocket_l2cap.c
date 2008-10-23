@@ -1563,7 +1563,7 @@ ng_btsocket_l2cap_default_msg_input(struct ng_mesg *msg, hook_p hook)
 
 		rt = (ng_btsocket_l2cap_rtentry_t *) NG_HOOK_PRIVATE(hook);
 		if (rt == NULL) {
-			MALLOC(rt, ng_btsocket_l2cap_rtentry_p, sizeof(*rt),
+			rt = malloc(sizeof(*rt),
 				M_NETGRAPH_BTSOCKET_L2CAP, M_NOWAIT|M_ZERO);
 			if (rt == NULL) {
 				mtx_unlock(&ng_btsocket_l2cap_rt_mtx);
@@ -1788,7 +1788,7 @@ ng_btsocket_l2cap_rtclean(void *context, int pending)
 			NG_HOOK_UNREF(rt->hook); /* Remove extra reference */
 
 			bzero(rt, sizeof(*rt));
-			FREE(rt, M_NETGRAPH_BTSOCKET_L2CAP);
+			free(rt, M_NETGRAPH_BTSOCKET_L2CAP);
 		}
 
 		rt = rt_next;
@@ -1930,7 +1930,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	/* Allocate the PCB */
-        MALLOC(pcb, ng_btsocket_l2cap_pcb_p, sizeof(*pcb),
+        pcb = malloc(sizeof(*pcb),
 		M_NETGRAPH_BTSOCKET_L2CAP, M_NOWAIT | M_ZERO);
         if (pcb == NULL)
                 return (ENOMEM);
@@ -2310,7 +2310,7 @@ ng_btsocket_l2cap_detach(struct socket *so)
 
 	mtx_destroy(&pcb->pcb_mtx);
 	bzero(pcb, sizeof(*pcb));
-	FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP);
+	free(pcb, M_NETGRAPH_BTSOCKET_L2CAP);
 
 	soisdisconnected(so);
 	so->so_pcb = NULL;

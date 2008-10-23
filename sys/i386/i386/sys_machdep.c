@@ -437,14 +437,14 @@ user_ldt_alloc(struct mdproc *mdp, int len)
  
         mtx_assert(&dt_lock, MA_OWNED); 
         mtx_unlock_spin(&dt_lock); 
-        MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt), 
+        new_ldt = malloc(sizeof(struct proc_ldt), 
                 M_SUBPROC, M_WAITOK); 
  
         new_ldt->ldt_len = len = NEW_MAX_LD(len); 
         new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map, 
                 round_page(len * sizeof(union descriptor))); 
         if (new_ldt->ldt_base == NULL) { 
-                FREE(new_ldt, M_SUBPROC);
+                free(new_ldt, M_SUBPROC);
 		mtx_lock_spin(&dt_lock);
                 return (NULL);
         } 
@@ -474,14 +474,14 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 
 	mtx_assert(&dt_lock, MA_OWNED);
 	mtx_unlock_spin(&dt_lock);
-	MALLOC(new_ldt, struct proc_ldt *, sizeof(struct proc_ldt),
+	new_ldt = malloc(sizeof(struct proc_ldt),
 		M_SUBPROC, M_WAITOK);
 
 	new_ldt->ldt_len = len = NEW_MAX_LD(len);
 	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
 		len * sizeof(union descriptor));
 	if (new_ldt->ldt_base == NULL) {
-		FREE(new_ldt, M_SUBPROC);
+		free(new_ldt, M_SUBPROC);
 		mtx_lock_spin(&dt_lock);
 		return (NULL);
 	}
@@ -538,7 +538,7 @@ user_ldt_deref(struct proc_ldt *pldt)
 		mtx_unlock_spin(&dt_lock);
 		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
 			pldt->ldt_len * sizeof(union descriptor));
-		FREE(pldt, M_SUBPROC);
+		free(pldt, M_SUBPROC);
 	} else
 		mtx_unlock_spin(&dt_lock);
 }
@@ -815,7 +815,7 @@ i386_ldt_grow(struct thread *td, int len)
 				kmem_free(kernel_map,
 				   (vm_offset_t)new_ldt->ldt_base,
 				   new_ldt->ldt_len * sizeof(union descriptor));
-				FREE(new_ldt, M_SUBPROC);
+				free(new_ldt, M_SUBPROC);
 				mtx_lock_spin(&dt_lock);
 				return (0);
 			}
@@ -848,7 +848,7 @@ i386_ldt_grow(struct thread *td, int len)
 		if (old_ldt_base != NULL_LDT_BASE) {
 			kmem_free(kernel_map, (vm_offset_t)old_ldt_base,
 			    old_ldt_len * sizeof(union descriptor));
-			FREE(new_ldt, M_SUBPROC);
+			free(new_ldt, M_SUBPROC);
 		}
 		mtx_lock_spin(&dt_lock);
 	}

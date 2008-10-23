@@ -158,7 +158,7 @@ find_rti(struct ifnet *ifp)
 			return (rti);
 		}
 	}
-	MALLOC(rti, struct router_info *, sizeof *rti, M_IGMP, M_NOWAIT);
+	rti = malloc(sizeof *rti, M_IGMP, M_NOWAIT);
 	if (rti == NULL) {
 		IGMP_PRINTF("[igmp.c, _find_rti] --> no memory for entry\n");
 		return (NULL);

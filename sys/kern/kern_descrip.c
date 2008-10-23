@@ -852,7 +852,7 @@ funsetown(struct sigio **sigiop)
 	}
 	SIGIO_UNLOCK();
 	crfree(sigio->sio_ucred);
-	FREE(sigio, M_SIGIO);
+	free(sigio, M_SIGIO);
 }
 
 /*
@@ -910,7 +910,7 @@ funsetownlst(struct sigiolst *sigiolst)
 		}
 		SIGIO_UNLOCK();
 		crfree(sigio->sio_ucred);
-		FREE(sigio, M_SIGIO);
+		free(sigio, M_SIGIO);
 		SIGIO_LOCK();
 	}
 	SIGIO_UNLOCK();
@@ -938,7 +938,7 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 	ret = 0;
 
 	/* Allocate and fill in the new sigio out of locks. */
-	MALLOC(sigio, struct sigio *, sizeof(struct sigio), M_SIGIO, M_WAITOK);
+	sigio = malloc(sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	sigio->sio_pgid = pgid;
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
@@ -1020,7 +1020,7 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 fail:
 	sx_sunlock(&proctree_lock);
 	crfree(sigio->sio_ucred);
-	FREE(sigio, M_SIGIO);
+	free(sigio, M_SIGIO);
 	return (ret);
 }
 
@@ -1287,11 +1287,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 
 	/* allocate a new table and (if required) new bitmaps */
 	FILEDESC_XUNLOCK(fdp);
-	MALLOC(ntable, struct file **, nnfiles * OFILESIZE,
+	ntable = malloc(nnfiles * OFILESIZE,
 	    M_FILEDESC, M_ZERO | M_WAITOK);
 	nfileflags = (char *)&ntable[nnfiles];
 	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles))
-		MALLOC(nmap, NDSLOTTYPE *, NDSLOTS(nnfiles) * NDSLOTSIZE,
+		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE,
 		    M_FILEDESC, M_ZERO | M_WAITOK);
 	else
 		nmap = NULL;
@@ -1521,7 +1521,7 @@ fddrop(struct filedesc *fdp)
 		return;
 
 	FILEDESC_LOCK_DESTROY(fdp);
-	FREE(fdp, M_FILEDESC);
+	free(fdp, M_FILEDESC);
 }
 
 /*
@@ -1696,7 +1696,7 @@ fdfree(struct thread *td)
 		td->td_proc->p_fdtol = NULL;
 		FILEDESC_XUNLOCK(fdp);
 		if (fdtol != NULL)
-			FREE(fdtol, M_FILEDESC_TO_LEADER);
+			free(fdtol, M_FILEDESC_TO_LEADER);
 	}
 	FILEDESC_XLOCK(fdp);
 	i = --fdp->fd_refcnt;
@@ -1720,9 +1720,9 @@ fdfree(struct thread *td)
 	mtx_unlock(&fdesc_mtx);
 
 	if (fdp->fd_nfiles > NDFILE)
-		FREE(fdp->fd_ofiles, M_FILEDESC);
+		free(fdp->fd_ofiles, M_FILEDESC);
 	if (NDSLOTS(fdp->fd_nfiles) > NDSLOTS(NDFILE))
-		FREE(fdp->fd_map, M_FILEDESC);
+		free(fdp->fd_map, M_FILEDESC);
 
 	fdp->fd_nfiles = 0;
 
@@ -2409,8 +2409,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 {
 	struct filedesc_to_leader *fdtol;
 
-	MALLOC(fdtol, struct filedesc_to_leader *,
-	       sizeof(struct filedesc_to_leader),
+	fdtol = malloc(	       sizeof(struct filedesc_to_leader),
 	       M_FILEDESC_TO_LEADER,
 	       M_WAITOK);
 	fdtol->fdl_refcount = 1;

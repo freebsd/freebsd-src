@@ -1893,14 +1893,13 @@ linker_hwpmc_list_objects(void)
 
  retry:
 	/* allocate nmappings+1 entries */
-	MALLOC(hc.kobase, struct pmckern_map_in *,
-	    (hc.nmappings + 1) * sizeof(struct pmckern_map_in), M_LINKER,
+	hc.kobase = malloc(	    (hc.nmappings + 1) * sizeof(struct pmckern_map_in), M_LINKER,
 	    M_WAITOK | M_ZERO);
 
 	hc.nobjects = 0;
 	if (linker_file_foreach(linker_hwpmc_list_object, &hc) != 0) {
 		hc.nmappings = hc.nobjects;
-		FREE(hc.kobase, M_LINKER);
+		free(hc.kobase, M_LINKER);
 		goto retry;
 	}
 

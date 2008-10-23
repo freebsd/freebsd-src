@@ -183,7 +183,7 @@ targopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		make_dev(&targ_cdevsw, dev2unit(dev), UID_ROOT, GID_WHEEL, 0600,
 			 "targ%d", dev2unit(dev));
 	}
-	MALLOC(softc, struct targ_softc *, sizeof(*softc), M_TARG,
+	softc = malloc(sizeof(*softc), M_TARG,
 	       M_WAITOK | M_ZERO);
 	dev->si_drv1 = softc;
 	softc->state = TARG_STATE_OPENED;
@@ -211,7 +211,7 @@ targclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	if ((softc->periph == NULL) ||
 	    (softc->state & TARG_STATE_LUN_ENABLED) == 0) {
 		destroy_dev(dev);
-		FREE(softc, M_TARG);
+		free(softc, M_TARG);
 		return (0);
 	}
 
@@ -230,7 +230,7 @@ targclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 			softc->periph = NULL;
 		}
 		destroy_dev(dev);
-		FREE(softc, M_TARG);
+		free(softc, M_TARG);
 	}
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
@@ -531,7 +531,7 @@ targdtor(struct cam_periph *periph)
 	}
 	while ((descr = TAILQ_FIRST(&softc->abort_queue)) != NULL) {
 		TAILQ_REMOVE(&softc->abort_queue, descr, tqe);
-		FREE(descr, M_TARG);
+		free(descr, M_TARG);
 	}
 
 	softc->periph = NULL;
@@ -966,7 +966,7 @@ targgetccb(struct targ_softc *softc, xpt_opcode type, int priority)
 	int ccb_len;
 
 	ccb_len = targccblen(type);
-	MALLOC(ccb, union ccb *, ccb_len, M_TARG, M_WAITOK);
+	ccb = malloc(ccb_len, M_TARG, M_WAITOK);
 	CAM_DEBUG(softc->path, CAM_DEBUG_PERIPH, ("getccb %p\n", ccb));
 
 	xpt_setup_ccb(&ccb->ccb_h, softc->path, priority);
@@ -981,13 +981,13 @@ targfreeccb(struct targ_softc *softc, union ccb *ccb)
 {
 	CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH, ("targfreeccb descr %p and\n",
 			ccb->ccb_h.targ_descr));
-	FREE(ccb->ccb_h.targ_descr, M_TARG);
+	free(ccb->ccb_h.targ_descr, M_TARG);
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
 	case XPT_IMMED_NOTIFY:
 		CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH, ("freeing ccb %p\n", ccb));
-		FREE(ccb, M_TARG);
+		free(ccb, M_TARG);
 		break;
 	default:
 		/* Send back CCB if we got it from the periph */
@@ -998,7 +998,7 @@ targfreeccb(struct targ_softc *softc, union ccb *ccb)
 		} else {
 			CAM_DEBUG_PRINT(CAM_DEBUG_PERIPH,
 					("freeing ccb %p\n", ccb));
-			FREE(ccb, M_TARG);
+			free(ccb, M_TARG);
 		}
 		break;
 	}
@@ -1009,7 +1009,7 @@ targgetdescr(struct targ_softc *softc)
 {
 	struct targ_cmd_descr *descr;
 
-	MALLOC(descr, struct targ_cmd_descr *, sizeof(*descr), M_TARG,
+	descr = malloc(sizeof(*descr), M_TARG,
 	       M_WAITOK);
 	descr->mapinfo.num_bufs_used = 0;
 	return (descr);

@@ -964,7 +964,7 @@ ext2_vget(mp, ino, flags, vpp)
 	dev = ump->um_dev;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode()
+	 * If this malloc() is performed after the getnewvnode()
 	 * it might block, leaving a vnode with a NULL v_data to be
 	 * found by ext2_sync() if a sync happens to fire right then,
 	 * which will cause a panic because ext2_sync() blindly

@@ -134,7 +134,7 @@ priq_add_altq(struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-	MALLOC(pif, struct priq_if *, sizeof(struct priq_if),
+	pif = malloc(sizeof(struct priq_if),
 	    M_DEVBUF, M_WAITOK);
 	if (pif == NULL)
 		return (ENOMEM);
@@ -160,7 +160,7 @@ priq_remove_altq(struct pf_altq *a)
 
 	(void)priq_clear_interface(pif);
 
-	FREE(pif, M_DEVBUF);
+	free(pif, M_DEVBUF);
 	return (0);
 }
 
@@ -320,13 +320,13 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 			red_destroy(cl->cl_red);
 #endif
 	} else {
-		MALLOC(cl, struct priq_class *, sizeof(struct priq_class),
+		cl = malloc(sizeof(struct priq_class),
 		       M_DEVBUF, M_WAITOK);
 		if (cl == NULL)
 			return (NULL);
 		bzero(cl, sizeof(struct priq_class));
 
-		MALLOC(cl->cl_q, class_queue_t *, sizeof(class_queue_t),
+		cl->cl_q = malloc(sizeof(class_queue_t),
 		       M_DEVBUF, M_WAITOK);
 		if (cl->cl_q == NULL)
 			goto err_ret;
@@ -397,8 +397,8 @@ priq_class_create(struct priq_if *pif, int pri, int qlimit, int flags, int qid)
 #endif
 	}
 	if (cl->cl_q != NULL)
-		FREE(cl->cl_q, M_DEVBUF);
-	FREE(cl, M_DEVBUF);
+		free(cl->cl_q, M_DEVBUF);
+	free(cl, M_DEVBUF);
 	return (NULL);
 }
 
@@ -447,8 +447,8 @@ priq_class_destroy(struct priq_class *cl)
 			red_destroy(cl->cl_red);
 #endif
 	}
-	FREE(cl->cl_q, M_DEVBUF);
-	FREE(cl, M_DEVBUF);
+	free(cl->cl_q, M_DEVBUF);
+	free(cl, M_DEVBUF);
 	return (0);
 }
 
@@ -666,7 +666,7 @@ priq_attach(ifq, bandwidth)
 {
 	struct priq_if *pif;
 
-	MALLOC(pif, struct priq_if *, sizeof(struct priq_if),
+	pif = malloc(sizeof(struct priq_if),
 	       M_DEVBUF, M_WAITOK);
 	if (pif == NULL)
 		return (NULL);
@@ -702,7 +702,7 @@ priq_detach(pif)
 		ASSERT(p != NULL);
 	}
 
-	FREE(pif, M_DEVBUF);
+	free(pif, M_DEVBUF);
 	return (0);
 }
 

@@ -529,7 +529,7 @@ filt_timerattach(struct knote *kn)
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
-	MALLOC(calloutp, struct callout *, sizeof(*calloutp),
+	calloutp = malloc(sizeof(*calloutp),
 	    M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
@@ -547,7 +547,7 @@ filt_timerdetach(struct knote *kn)
 
 	calloutp = (struct callout *)kn->kn_hook;
 	callout_drain(calloutp);
-	FREE(calloutp, M_KQUEUE);
+	free(calloutp, M_KQUEUE);
 	atomic_add_int(&kq_ncallouts, -1);
 	kn->kn_status |= KN_DETACHED;	/* knlist_remove usually clears it */
 }
@@ -1109,19 +1109,18 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			size = kq->kq_knlistsize;
 			while (size <= fd)
 				size += KQEXTENT;
-			MALLOC(list, struct klist *,
-			    size * sizeof list, M_KQUEUE, mflag);
+			list = malloc(			    size * sizeof list, M_KQUEUE, mflag);
 			if (list == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);
 			if (kq->kq_knlistsize > fd) {
-				FREE(list, M_KQUEUE);
+				free(list, M_KQUEUE);
 				list = NULL;
 			} else {
 				if (kq->kq_knlist != NULL) {
 					bcopy(kq->kq_knlist, list,
 					    kq->kq_knlistsize * sizeof list);
-					FREE(kq->kq_knlist, M_KQUEUE);
+					free(kq->kq_knlist, M_KQUEUE);
 					kq->kq_knlist = NULL;
 				}
 				bzero((caddr_t)list +

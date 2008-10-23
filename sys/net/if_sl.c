@@ -271,7 +271,7 @@ slmarkstatic(int unit)
 	if (slisstatic(unit))
 		return;
 
-	MALLOC(t, int *, sizeof(int) * (st_unit_max+1), M_SL, M_NOWAIT);
+	t = malloc(sizeof(int) * (st_unit_max+1), M_SL, M_NOWAIT);
 	if (t == NULL)
 		return;
 
@@ -291,7 +291,7 @@ slcreate(void)
 	int unit;
 	struct mbuf *m;
 
-	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
 	sc->sc_ifp = if_alloc(IFT_SLIP);
 	if (sc->sc_ifp == NULL) {
 		free(sc, M_SL);
@@ -664,8 +664,7 @@ sltstart(struct tty *tp)
 			register u_char *cp;
 
 			if (sc->bpfbuf == NULL)
-				MALLOC(sc->bpfbuf, u_char *,
-				    SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
+				sc->bpfbuf = malloc(				    SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
 
 			if (sc->bpfbuf) {
 				cp = sc->bpfbuf + SLIP_HDRLEN;

@@ -485,7 +485,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 						/* Free, if we allocated. */
 						if (alloc)
-							FREE(ptr, M_XDATA);
+							free(ptr, M_XDATA);
 						return EINVAL;
 					}
 
@@ -505,7 +505,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 						/* Free, if we allocated. */
 						if (alloc)
-							FREE(ptr, M_XDATA);
+							free(ptr, M_XDATA);
 						return EINVAL;
 					}
 				}
@@ -529,7 +529,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				DPRINTF(("%s: unexpected IPv6 header type %d",
 					__func__, off));
 				if (alloc)
-					FREE(ptr, M_XDATA);
+					free(ptr, M_XDATA);
 				m_freem(m);
 				return EINVAL;
 			}

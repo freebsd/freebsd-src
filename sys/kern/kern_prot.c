@@ -326,8 +326,8 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	error = 0;
 	pgrp = NULL;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newsess = malloc(sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
 
@@ -345,9 +345,9 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	sx_xunlock(&proctree_lock);
 
 	if (newpgrp != NULL)
-		FREE(newpgrp, M_PGRP);
+		free(newpgrp, M_PGRP);
 	if (newsess != NULL)
-		FREE(newsess, M_SESSION);
+		free(newsess, M_SESSION);
 
 	return (error);
 }
@@ -386,7 +386,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	error = 0;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
@@ -450,7 +450,7 @@ done:
 	KASSERT((error == 0) || (newpgrp != NULL),
 	    ("setpgid failed and newpgrp is NULL"));
 	if (newpgrp != NULL)
-		FREE(newpgrp, M_PGRP);
+		free(newpgrp, M_PGRP);
 	return (error);
 }
 
@@ -1778,7 +1778,7 @@ crget(void)
 {
 	register struct ucred *cr;
 
-	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
+	cr = malloc(sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	refcount_init(&cr->cr_ref, 1);
 #ifdef AUDIT
 	audit_cred_init(cr);
@@ -1830,7 +1830,7 @@ crfree(struct ucred *cr)
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
-		FREE(cr, M_CRED);
+		free(cr, M_CRED);
 	}
 }
 

@@ -165,7 +165,7 @@ linux_get_char_devices()
 	char formated[256];
 	int current_size = 0, string_size = 1024;
 
-	MALLOC(string, char *, string_size, M_LINUX, M_WAITOK);
+	string = malloc(string_size, M_LINUX, M_WAITOK);
 	string[0] = '\000';
 	last = "";
 	TAILQ_FOREACH(de, &devices, list) {
@@ -181,10 +181,10 @@ linux_get_char_devices()
 			if (strlen(formated) + current_size
 			    >= string_size) {
 				string_size *= 2;
-				MALLOC(string, char *, string_size,
+				string = malloc(string_size,
 				    M_LINUX, M_WAITOK);
 				bcopy(temp, string, current_size);
-				FREE(temp, M_LINUX);
+				free(temp, M_LINUX);
 			}
 			strcat(string, formated);
 			current_size = strlen(string);
@@ -197,7 +197,7 @@ linux_get_char_devices()
 void
 linux_free_get_char_devices(char *string)
 {
-	FREE(string, M_LINUX);
+	free(string, M_LINUX);
 }
 
 static int linux_major_starting = 200;
@@ -210,7 +210,7 @@ linux_device_register_handler(struct linux_device_handler *d)
 	if (d == NULL)
 		return (EINVAL);
 
-	MALLOC(de, struct device_element *, sizeof(*de),
+	de = malloc(sizeof(*de),
 	    M_LINUX, M_WAITOK);
 	if (d->linux_major < 0) {
 		d->linux_major = linux_major_starting++;
@@ -234,7 +234,7 @@ linux_device_unregister_handler(struct linux_device_handler *d)
 	TAILQ_FOREACH(de, &devices, list) {
 		if (bcmp(d, &de->entry, sizeof(*d)) == 0) {
 			TAILQ_REMOVE(&devices, de, list);
-			FREE(de, M_LINUX);
+			free(de, M_LINUX);
 			return (0);
 		}
 	}

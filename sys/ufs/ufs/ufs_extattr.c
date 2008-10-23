@@ -365,7 +365,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
 
-	MALLOC(dirbuf, char *, DIRBLKSIZ, M_TEMP, M_WAITOK);
+	dirbuf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK);
 
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
@@ -436,7 +436,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 				break;
 		}
 	}
-	FREE(dirbuf, M_TEMP);
+	free(dirbuf, M_TEMP);
 	
 	return (0);
 }
@@ -588,8 +588,7 @@ ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 	if (backing_vnode->v_type != VREG)
 		return (EINVAL);
 
-	MALLOC(attribute, struct ufs_extattr_list_entry *,
-	    sizeof(struct ufs_extattr_list_entry), M_UFS_EXTATTR, M_WAITOK);
+	attribute = malloc(	    sizeof(struct ufs_extattr_list_entry), M_UFS_EXTATTR, M_WAITOK);
 	if (attribute == NULL)
 		return (ENOMEM);
 
@@ -658,7 +657,7 @@ unlock_free_exit:
 	VOP_UNLOCK(backing_vnode, 0);
 
 free_exit:
-	FREE(attribute, M_UFS_EXTATTR);
+	free(attribute, M_UFS_EXTATTR);
 	return (error);
 }
 
@@ -687,7 +686,7 @@ ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
 	error = vn_close(uele->uele_backing_vnode, FREAD|FWRITE,
 	    td->td_ucred, td);
 
-	FREE(uele, M_UFS_EXTATTR);
+	free(uele, M_UFS_EXTATTR);
 
 	return (error);
 }

@@ -583,7 +583,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	else
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	if (lastbn != -1) {
-		MALLOC(copy, caddr_t, fs->fs_bsize, M_TEMP, M_WAITOK);
+		copy = malloc(fs->fs_bsize, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)bp->b_data, copy, (u_int)fs->fs_bsize);
 		for (i = last + 1; i < NINDIR(fs); i++)
 			if (ip->i_ump->um_fstype == UFS1)
@@ -637,7 +637,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		}
 	}
 	if (copy != NULL) {
-		FREE(copy, M_TEMP);
+		free(copy, M_TEMP);
 	} else {
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);

@@ -758,11 +758,14 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} ${CLEANDIR}
 .endif
+.if !defined(NO_KERNELOBJ)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; ${KMAKE} obj
+.endif
+.if !defined(NO_KERNELTOOLS)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.3: build tools"
@@ -778,6 +781,7 @@ buildkernel:
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
 	    ${MAKE} -DWITHOUT_SSP -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
+.endif
 .endif
 .if !defined(NO_KERNELDEPEND)
 	@echo

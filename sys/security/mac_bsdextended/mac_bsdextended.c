@@ -152,8 +152,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_IN(req, &temprule, sizeof(temprule));
 		if (error)
 			return (error);
-		MALLOC(ruleptr, struct mac_bsdextended_rule *,
-		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
+		ruleptr = malloc(		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
 	}
 
 	mtx_lock(&ugidfw_mtx);
@@ -194,7 +193,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 out:
 	mtx_unlock(&ugidfw_mtx);
 	if (ruleptr != NULL)
-		FREE(ruleptr, M_MACBSDEXTENDED);
+		free(ruleptr, M_MACBSDEXTENDED);
 	if (req->oldptr && error == 0)
 		error = SYSCTL_OUT(req, &temprule, sizeof(temprule));
 	return (error);

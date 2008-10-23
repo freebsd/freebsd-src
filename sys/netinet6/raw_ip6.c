@@ -565,15 +565,14 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
 		return (error);
-	MALLOC(filter, struct icmp6_filter *,
-	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
+	filter = malloc(	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
 	if (filter == NULL)
 		return (ENOMEM);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	error = in_pcballoc(so, &V_ripcbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
-		FREE(filter, M_PCB);
+		free(filter, M_PCB);
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
@@ -602,7 +601,7 @@ rip6_detach(struct socket *so)
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
-	FREE(inp->in6p_icmp6filt, M_PCB);
+	free(inp->in6p_icmp6filt, M_PCB);
 	in6_pcbdetach(inp);
 	in6_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);

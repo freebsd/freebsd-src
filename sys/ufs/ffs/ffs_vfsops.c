@@ -1404,7 +1404,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	fs = ump->um_fs;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode()
+	 * If this malloc() is performed after the getnewvnode()
 	 * it might block, leaving a vnode with a NULL v_data to be
 	 * found by ffs_sync() if a sync happens to fire right then,
 	 * which will cause a panic because ffs_sync() blindly

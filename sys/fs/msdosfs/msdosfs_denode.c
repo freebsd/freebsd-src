@@ -148,7 +148,7 @@ deget(pmp, dirclust, diroffset, depp)
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(ldep, struct denode *, sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
+	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
 
 	/*
 	 * Directory entry was not in cache, have to create a vnode and
@@ -158,7 +158,7 @@ deget(pmp, dirclust, diroffset, depp)
 	error = getnewvnode("msdosfs", mntp, &msdosfs_vnodeops, &nvp);
 	if (error) {
 		*depp = NULL;
-		FREE(ldep, M_MSDOSFSNODE);
+		free(ldep, M_MSDOSFSNODE);
 		return error;
 	}
 	bzero((caddr_t)ldep, sizeof *ldep);
@@ -173,7 +173,7 @@ deget(pmp, dirclust, diroffset, depp)
 	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL);
 	error = insmntque(nvp, mntp);
 	if (error != 0) {
-		FREE(ldep, M_MSDOSFSNODE);
+		free(ldep, M_MSDOSFSNODE);
 		*depp = NULL;
 		return (error);
 	}
@@ -567,7 +567,7 @@ msdosfs_reclaim(ap)
 #if 0 /* XXX */
 	dep->de_flag = 0;
 #endif
-	FREE(dep, M_MSDOSFSNODE);
+	free(dep, M_MSDOSFSNODE);
 	vp->v_data = NULL;
 
 	return (0);

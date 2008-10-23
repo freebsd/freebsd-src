@@ -1141,7 +1141,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	nmp = VFSTONFS(vp->v_mount);
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
-	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
+	rep = malloc(sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	bzero(rep, sizeof(struct nfsreq));
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
@@ -1382,7 +1382,7 @@ wait_for_pinned_req:
 		*dposp = dpos;
 		m_freem(rep->r_mreq);
 		mtx_destroy(&rep->r_mtx);
-		FREE((caddr_t)rep, M_NFSREQ);
+		free((caddr_t)rep, M_NFSREQ);
 		return (0);
 	}
 	m_freem(mrep);
