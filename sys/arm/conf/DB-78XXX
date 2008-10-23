@@ -4,7 +4,6 @@
 # $FreeBSD$
 #
 
-machine		arm
 ident		DB-88F78XX
 include		"../mv/discovery/std.db78xxx"
 
@@ -49,7 +48,6 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
 # Pseudo devices
 device		loop
-device		mem
 device		md
 device		pty
 device		random

@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		NSLU
 
 options 	PHYSADDR=0x10000000
@@ -76,7 +75,6 @@ options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=npe0
 options 	BOOTP_COMPAT
 
-device		mem			# Memory and kernel memory devices
 device		pci
 device		uart
 
