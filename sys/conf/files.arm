@@ -46,10 +46,10 @@ arm/arm/vm_machdep.c		standard
 arm/fpe-arm/armfpe_glue.S	optional	armfpe
 arm/fpe-arm/armfpe_init.c	optional	armfpe
 arm/fpe-arm/armfpe.S		optional	armfpe
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_mbr.c			standard
-geom/geom_mbr_enc.c		standard
+geom/geom_bsd.c			optional	geom_bsd
+geom/geom_bsd_enc.c		optional	geom_bsd
+geom/geom_mbr.c			optional	geom_mbr
+geom/geom_mbr_enc.c		optional	geom_mbr
 hal.o				optional	ath_hal		\
 	compile-with		"ATH_HAL_CPU=`echo ${CONF_CFLAGS}|sed 's/.*-mcpu=\([a-zA-Z0-9]*\).*/\1/'`; ATH_ENDIAN=`if (echo ${CC}|grep mbig-endian>/dev/null); then echo be; else echo le; fi;`; uudecode < $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.hal.o.uu" \
 	no-implicit-rule
