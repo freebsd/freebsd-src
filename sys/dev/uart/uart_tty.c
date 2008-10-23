@@ -327,6 +327,18 @@ uart_tty_intr(void *arg)
 	tty_unlock(tp);
 }
 
+static void
+uart_tty_free(void *arg)
+{
+
+	/*
+	 * XXX: uart(4) could reuse the device unit number before it is
+	 * being freed by the TTY layer. We should use this hook to free
+	 * the device unit number, but unfortunately newbus does not
+	 * seem to support such a construct.
+	 */
+}
+
 static struct ttydevsw uart_tty_class = {
 	.tsw_flags	= TF_INITLOCK|TF_CALLOUT,
 	.tsw_open	= uart_tty_open,
@@ -335,6 +347,7 @@ static struct ttydevsw uart_tty_class = {
 	.tsw_ioctl	= uart_tty_ioctl,
 	.tsw_param	= uart_tty_param,
 	.tsw_modem	= uart_tty_modem,
+	.tsw_free	= uart_tty_free,
 };
 
 int
