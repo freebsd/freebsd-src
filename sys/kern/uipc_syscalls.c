@@ -457,7 +457,7 @@ kern_accept(struct thread *td, int s, struct sockaddr **name,
 	}
 noconnection:
 	if (sa)
-		FREE(sa, M_SONAME);
+		free(sa, M_SONAME);
 
 	/*
 	 * close the new descriptor, assuming someone hasn't ripped it
@@ -720,7 +720,7 @@ sendit(td, s, mp, flags)
 
 bad:
 	if (to)
-		FREE(to, M_SONAME);
+		free(to, M_SONAME);
 	return (error);
 }
 
@@ -1068,7 +1068,7 @@ out:
 		ktrsockaddr(fromsa);
 #endif
 	if (fromsa)
-		FREE(fromsa, M_SONAME);
+		free(fromsa, M_SONAME);
 
 	if (error == 0 && controlp != NULL)  
 		*controlp = control;
@@ -1661,10 +1661,10 @@ getsockaddr(namp, uaddr, len)
 		return (ENAMETOOLONG);
 	if (len < offsetof(struct sockaddr, sa_data[0]))
 		return (EINVAL);
-	MALLOC(sa, struct sockaddr *, len, M_SONAME, M_WAITOK);
+	sa = malloc(len, M_SONAME, M_WAITOK);
 	error = copyin(uaddr, sa, len);
 	if (error) {
-		FREE(sa, M_SONAME);
+		free(sa, M_SONAME);
 	} else {
 #if defined(COMPAT_OLDSOCK) && BYTE_ORDER != BIG_ENDIAN
 		if (sa->sa_family == 0 && sa->sa_len < AF_MAX)

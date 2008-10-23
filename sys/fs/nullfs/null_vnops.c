@@ -677,7 +677,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 		vput(lowervp);
 	} else
 		panic("null_reclaim: reclaiming a node with no lowervp");
-	FREE(xp, M_NULLFSNODE);
+	free(xp, M_NULLFSNODE);
 
 	return (0);
 }

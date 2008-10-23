@@ -267,8 +267,7 @@ cryptof_ioctl(
 				goto bail;
 			}
 
-			MALLOC(crie.cri_key, u_int8_t *,
-			    crie.cri_klen / 8, M_XDATA, M_WAITOK);
+			crie.cri_key = malloc(			    crie.cri_klen / 8, M_XDATA, M_WAITOK);
 			if ((error = copyin(sop->key, crie.cri_key,
 			    crie.cri_klen / 8)))
 				goto bail;
@@ -285,8 +284,7 @@ cryptof_ioctl(
 			}
 
 			if (cria.cri_klen) {
-				MALLOC(cria.cri_key, u_int8_t *,
-				    cria.cri_klen / 8, M_XDATA, M_WAITOK);
+				cria.cri_key = malloc(				    cria.cri_klen / 8, M_XDATA, M_WAITOK);
 				if ((error = copyin(sop->mackey, cria.cri_key,
 				    cria.cri_klen / 8)))
 					goto bail;
@@ -322,9 +320,9 @@ cryptof_ioctl(
 bail:
 		if (error) {
 			if (crie.cri_key)
-				FREE(crie.cri_key, M_XDATA);
+				free(crie.cri_key, M_XDATA);
 			if (cria.cri_key)
-				FREE(cria.cri_key, M_XDATA);
+				free(cria.cri_key, M_XDATA);
 		}
 		break;
 	case CIOCFSESSION:
@@ -625,7 +623,7 @@ cryptodev_key(struct crypt_kop *kop)
 		size = (krp->krp_param[i].crp_nbits + 7) / 8;
 		if (size == 0)
 			continue;
-		MALLOC(krp->krp_param[i].crp_p, caddr_t, size, M_XDATA, M_WAITOK);
+		krp->krp_param[i].crp_p = malloc(size, M_XDATA, M_WAITOK);
 		if (i >= krp->krp_iparams)
 			continue;
 		error = copyin(kop->crk_param[i].crp_p, krp->krp_param[i].crp_p, size);
@@ -662,7 +660,7 @@ fail:
 		kop->crk_status = krp->krp_status;
 		for (i = 0; i < CRK_MAXPARAM; i++) {
 			if (krp->krp_param[i].crp_p)
-				FREE(krp->krp_param[i].crp_p, M_XDATA);
+				free(krp->krp_param[i].crp_p, M_XDATA);
 		}
 		free(krp, M_XDATA);
 	}
@@ -731,7 +729,7 @@ cryptof_close(struct file *fp, struct thread *td)
 		TAILQ_REMOVE(&fcr->csessions, cse, next);
 		(void)csefree(cse);
 	}
-	FREE(fcr, M_XDATA);
+	free(fcr, M_XDATA);
 	fp->f_data = NULL;
 	return 0;
 }
@@ -778,10 +776,10 @@ csecreate(struct fcrypt *fcr, u_int64_t sid, caddr_t key, u_int64_t keylen,
 
 #ifdef INVARIANTS
 	/* NB: required when mtx_init is built with INVARIANTS */
-	MALLOC(cse, struct csession *, sizeof(struct csession),
+	cse = malloc(sizeof(struct csession),
 	    M_XDATA, M_NOWAIT | M_ZERO);
 #else
-	MALLOC(cse, struct csession *, sizeof(struct csession),
+	cse = malloc(sizeof(struct csession),
 	    M_XDATA, M_NOWAIT);
 #endif
 	if (cse == NULL)
@@ -808,10 +806,10 @@ csefree(struct csession *cse)
 	error = crypto_freesession(cse->sid);
 	mtx_destroy(&cse->lock);
 	if (cse->key)
-		FREE(cse->key, M_XDATA);
+		free(cse->key, M_XDATA);
 	if (cse->mackey)
-		FREE(cse->mackey, M_XDATA);
-	FREE(cse, M_XDATA);
+		free(cse->mackey, M_XDATA);
+	free(cse, M_XDATA);
 	return (error);
 }
 
@@ -842,15 +840,14 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 
 	switch (cmd) {
 	case CRIOGET:
-		MALLOC(fcr, struct fcrypt *,
-		    sizeof(struct fcrypt), M_XDATA, M_WAITOK);
+		fcr = malloc(		    sizeof(struct fcrypt), M_XDATA, M_WAITOK);
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 
 		error = falloc(td, &f, &fd);
 
 		if (error) {
-			FREE(fcr, M_XDATA);
+			free(fcr, M_XDATA);
 			return (error);
 		}
 		/* falloc automatically provides an extra reference to 'f'. */

@@ -783,14 +783,10 @@ ng_btsocket_hci_raw_init(void)
 
 	/* 
 	 * Security filter
-	 * XXX never FREE()ed
+	 * XXX never free()ed
 	 */
-
-	ng_btsocket_hci_raw_sec_filter = NULL;
-
-	MALLOC(ng_btsocket_hci_raw_sec_filter, 
-		struct ng_btsocket_hci_raw_sec_filter *,
-		sizeof(struct ng_btsocket_hci_raw_sec_filter), 
+	ng_btsocket_hci_raw_sec_filter =
+	    malloc(sizeof(struct ng_btsocket_hci_raw_sec_filter), 
 		M_NETGRAPH_BTSOCKET_HCI_RAW, M_NOWAIT|M_ZERO);
 	if (ng_btsocket_hci_raw_sec_filter == NULL) {
 		printf("%s: Could not allocate security filter!\n", __func__);
@@ -914,7 +910,7 @@ ng_btsocket_hci_raw_attach(struct socket *so, int proto, struct thread *td)
 	if (error != 0)
 		return (error);
 
-	MALLOC(pcb, ng_btsocket_hci_raw_pcb_p, sizeof(*pcb), 
+	pcb = malloc(sizeof(*pcb), 
 		M_NETGRAPH_BTSOCKET_HCI_RAW, M_NOWAIT|M_ZERO);
 	if (pcb == NULL)
 		return (ENOMEM);
@@ -1493,7 +1489,7 @@ ng_btsocket_hci_raw_detach(struct socket *so)
 	mtx_destroy(&pcb->pcb_mtx);
 
 	bzero(pcb, sizeof(*pcb));
-	FREE(pcb, M_NETGRAPH_BTSOCKET_HCI_RAW);
+	free(pcb, M_NETGRAPH_BTSOCKET_HCI_RAW);
 
 	so->so_pcb = NULL;
 } /* ng_btsocket_hci_raw_detach */

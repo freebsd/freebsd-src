@@ -929,7 +929,7 @@ get_root_node(struct reiserfs_mount *rmp, struct reiserfs_node **root)
 
 	/* Allocate the node structure */
 	reiserfs_log(LOG_DEBUG, "malloc(struct reiserfs_node)\n");
-	MALLOC(ip, struct reiserfs_node *, sizeof(struct reiserfs_node),
+	ip = malloc(sizeof(struct reiserfs_node),
 	    M_REISERFSNODE, M_WAITOK | M_ZERO);
 
 	/* Fill the structure */

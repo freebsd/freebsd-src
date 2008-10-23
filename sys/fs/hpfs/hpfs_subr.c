@@ -85,8 +85,8 @@ hpfs_bmdeinit(
 		}
 	}
 
-	FREE(hpmp->hpm_bitmap,M_HPFSMNT);
-	FREE(hpmp->hpm_bmind,M_HPFSMNT);
+	free(hpmp->hpm_bitmap,M_HPFSMNT);
+	free(hpmp->hpm_bmind,M_HPFSMNT);
 
 	dprintf(("\n"));
 }
@@ -109,18 +109,18 @@ hpfs_bminit(
 
 	dprintf(("0x%lx data bands, ", hpmp->hpm_dbnum));
 
-	MALLOC(hpmp->hpm_bmind, lsn_t *, hpmp->hpm_dbnum * sizeof(lsn_t),
+	hpmp->hpm_bmind = malloc(hpmp->hpm_dbnum * sizeof(lsn_t),
 		M_HPFSMNT, M_WAITOK);
 
-	MALLOC(hpmp->hpm_bitmap, u_int8_t *, hpmp->hpm_dbnum * BMSIZE,
+	hpmp->hpm_bitmap = malloc(hpmp->hpm_dbnum * BMSIZE,
 		M_HPFSMNT, M_WAITOK);
 
 	error = bread(hpmp->hpm_devvp, hpmp->hpm_su.su_bitmap.lsn1,
 		((hpmp->hpm_dbnum + 0x7F) & ~(0x7F)) << 2, NOCRED, &bp);
 	if (error) {
 		brelse(bp);
-		FREE(hpmp->hpm_bitmap, M_HPFSMNT);
-		FREE(hpmp->hpm_bmind, M_HPFSMNT);
+		free(hpmp->hpm_bitmap, M_HPFSMNT);
+		free(hpmp->hpm_bmind, M_HPFSMNT);
 		dprintf((" error %d\n", error));
 		return (error);
 	}
@@ -138,8 +138,8 @@ hpfs_bminit(
 				BMSIZE, NOCRED, &bp);
 		if (error) {
 			brelse(bp);
-			FREE(hpmp->hpm_bitmap, M_HPFSMNT);
-			FREE(hpmp->hpm_bmind, M_HPFSMNT);
+			free(hpmp->hpm_bitmap, M_HPFSMNT);
+			free(hpmp->hpm_bmind, M_HPFSMNT);
 			dprintf((" error %d\n", error));
 			return (error);
 		}
@@ -278,8 +278,7 @@ hpfs_cpinit (
 
 	cpicnt = hpmp->hpm_sp.sp_cpinum;
 
-	MALLOC(hpmp->hpm_cpdblk, struct cpdblk *,	
-		cpicnt * sizeof(struct cpdblk), M_HPFSMNT, M_WAITOK);
+	hpmp->hpm_cpdblk = malloc(		cpicnt * sizeof(struct cpdblk), M_HPFSMNT, M_WAITOK);
 
 	cpdbp = hpmp->hpm_cpdblk;
 	lsn = hpmp->hpm_sp.sp_cpi;
@@ -317,7 +316,7 @@ hpfs_cpdeinit (
 	struct hpfsmount *hpmp)
 {
 	dprintf(("hpmp_cpdeinit: "));
-	FREE(hpmp->hpm_cpdblk,M_HPFSMNT);
+	free(hpmp->hpm_cpdblk,M_HPFSMNT);
 	return (0);
 }
 

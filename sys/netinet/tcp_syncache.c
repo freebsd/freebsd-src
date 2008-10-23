@@ -247,8 +247,7 @@ syncache_init(void)
 	    &V_tcp_syncache.cache_limit);
 
 	/* Allocate the hash table. */
-	MALLOC(V_tcp_syncache.hashbase, struct syncache_head *,
-	    V_tcp_syncache.hashsize * sizeof(struct syncache_head),
+	V_tcp_syncache.hashbase = malloc(	    V_tcp_syncache.hashsize * sizeof(struct syncache_head),
 	    M_SYNCACHE, M_WAITOK | M_ZERO);
 
 	/* Initialize the hash buckets. */

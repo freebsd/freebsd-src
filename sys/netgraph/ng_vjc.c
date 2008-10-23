@@ -243,7 +243,7 @@ ng_vjc_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -545,7 +545,7 @@ ng_vjc_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	bzero(priv, sizeof(*priv));
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	return (0);

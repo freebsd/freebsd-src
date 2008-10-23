@@ -159,7 +159,7 @@ ng_tcpmss_newhook(node_p node, hook_p hook, const char *name)
 {
 	hpriv_p priv;
 
-	MALLOC(priv, hpriv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -371,7 +371,7 @@ ng_tcpmss_disconnect(hook_p hook)
 			priv->outHook = NULL;
 	}
 
-	FREE(NG_HOOK_PRIVATE(hook), M_NETGRAPH);
+	free(NG_HOOK_PRIVATE(hook), M_NETGRAPH);
 
 	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
 		ng_rmnode_self(NG_HOOK_NODE(hook));
