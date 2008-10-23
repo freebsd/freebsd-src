@@ -2084,7 +2084,8 @@ struct faccessat_args {
 	int	flag;
 }
 #endif
-int faccessat(struct thread *td, struct faccessat_args *uap)
+int
+faccessat(struct thread *td, struct faccessat_args *uap)
 {
 
 	if (uap->flag & ~AT_EACCESS)
