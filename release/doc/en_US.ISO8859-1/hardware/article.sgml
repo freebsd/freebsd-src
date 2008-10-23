@@ -90,7 +90,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>&intel; 64-bit &xeon; (<quote>Nacona</quote>).  This
+	  <para>&intel; 64-bit &xeon; (<quote>Nocona</quote>).  This
 	    processor is fabricated on 90nm process technology, and
 	    operates with 2.80 to 3.60 GHz (FSB 800MHz) and &intel;
 	    E7520/E7525/E7320 chipsets.</para>
