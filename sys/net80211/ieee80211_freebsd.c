@@ -234,7 +234,7 @@ ieee80211_sysctl_vattach(struct ieee80211vap *vap)
 	struct sysctl_oid *oid;
 	char num[14];			/* sufficient for 32 bits */
 
-	ctx = malloc(sizeof(struct sysctl_ctx_list),
+	MALLOC(ctx, struct sysctl_ctx_list *, sizeof(struct sysctl_ctx_list),
 		M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (ctx == NULL) {
 		if_printf(ifp, "%s: cannot allocate sysctl context!\n",
@@ -310,7 +310,7 @@ ieee80211_sysctl_vdetach(struct ieee80211vap *vap)
 
 	if (vap->iv_sysctl != NULL) {
 		sysctl_ctx_free(vap->iv_sysctl);
-		free(vap->iv_sysctl, M_DEVBUF);
+		FREE(vap->iv_sysctl, M_DEVBUF);
 		vap->iv_sysctl = NULL;
 	}
 }
