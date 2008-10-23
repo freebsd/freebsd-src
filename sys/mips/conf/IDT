@@ -1,6 +1,5 @@
 # $FreeBSD$
 
-machine		mips
 cpu		CPU_MIPS4KC
 ident		RB532
 
@@ -38,7 +37,6 @@ device		miibus
 device		vr
 device		kr
 device		uart
-device		uart_ns8250
 device		md
 
 # Wireless NIC cards

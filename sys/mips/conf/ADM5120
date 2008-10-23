@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		mips
 ident		ADM5120
 
 #makeoptions	ARCH_FLAGS=-march=mips32
@@ -66,5 +65,3 @@ device		loop
 device		ether
 device		uart
 # device		md
-# device		mem
-# device		uart_ns8250

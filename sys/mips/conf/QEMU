@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		mips
 cpu		CPU_MIPS32
 ident		QEMU
 
@@ -53,5 +52,4 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 device		loop
 device		ether
-device		mem
 device		md
