@@ -509,7 +509,7 @@ pgdelete(pgrp)
 	}
 
 	mtx_destroy(&pgrp->pg_mtx);
-	FREE(pgrp, M_PGRP);
+	free(pgrp, M_PGRP);
 	sess_release(savesess);
 }
 
@@ -629,7 +629,7 @@ sess_release(struct session *s)
 			tty_rel_sess(s->s_ttyp, s);
 		}
 		mtx_destroy(&s->s_mtx);
-		FREE(s, M_SESSION);
+		free(s, M_SESSION);
 	}
 }
 
@@ -1173,7 +1173,7 @@ pargs_alloc(int len)
 {
 	struct pargs *pa;
 
-	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
+	pa = malloc(sizeof(struct pargs) + len, M_PARGS,
 		M_WAITOK);
 	refcount_init(&pa->ar_ref, 1);
 	pa->ar_length = len;
@@ -1184,7 +1184,7 @@ static void
 pargs_free(struct pargs *pa)
 {
 
-	FREE(pa, M_PARGS);
+	free(pa, M_PARGS);
 }
 
 void

@@ -189,7 +189,7 @@ imo_join_source(struct ip_moptions *imo, size_t gidx, sockunion_t *src)
 		return (EADDRNOTAVAIL);
 
 	/* Do not sleep with inp lock held. */
-	MALLOC(nims, struct in_msource *, sizeof(struct in_msource),
+	nims = malloc(sizeof(struct in_msource),
 	    M_IPMSOURCE, M_NOWAIT | M_ZERO);
 	if (nims == NULL)
 		return (ENOBUFS);
@@ -220,7 +220,7 @@ imo_leave_source(struct ip_moptions *imo, size_t gidx, sockunion_t *src)
 		return (EADDRNOTAVAIL);
 
 	TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-	FREE(ims, M_IPMSOURCE);
+	free(ims, M_IPMSOURCE);
 	imf->imf_nsources--;
 
 	return (0);
@@ -734,7 +734,7 @@ inp_freemoptions(struct ip_moptions *imo)
 			TAILQ_FOREACH_SAFE(ims, &imf->imf_sources,
 			    ims_next, tims) {
 				TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-				FREE(ims, M_IPMSOURCE);
+				free(ims, M_IPMSOURCE);
 				imf->imf_nsources--;
 			}
 			KASSERT(imf->imf_nsources == 0,
@@ -817,8 +817,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * has asked for, but we always tell userland how big the
 		 * buffer really needs to be.
 		 */
-		MALLOC(tss, struct sockaddr_storage *,
-		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
+		tss = malloc(		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
 		    M_TEMP, M_NOWAIT);
 		if (tss == NULL) {
 			error = ENOBUFS;
@@ -836,7 +835,7 @@ inp_get_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	if (tss != NULL) {
 		error = copyout(tss, msfr.msfr_srcs,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
-		FREE(tss, M_TEMP);
+		free(tss, M_TEMP);
 	}
 
 	if (error)
@@ -1375,7 +1374,7 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	if (imo->imo_mfilters != NULL) {
 		TAILQ_FOREACH_SAFE(ims, &imf->imf_sources, ims_next, tims) {
 			TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-			FREE(ims, M_IPMSOURCE);
+			free(ims, M_IPMSOURCE);
 			imf->imf_nsources--;
 		}
 		KASSERT(imf->imf_nsources == 0,
@@ -1536,7 +1535,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 	 */
 	TAILQ_FOREACH_SAFE(ims, &imf->imf_sources, ims_next, tims) {
 		TAILQ_REMOVE(&imf->imf_sources, ims, ims_next);
-		FREE(ims, M_IPMSOURCE);
+		free(ims, M_IPMSOURCE);
 		imf->imf_nsources--;
 	}
 	KASSERT(imf->imf_nsources == 0,
@@ -1570,13 +1569,12 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * that we may copy them with a single copyin. This
 		 * allows us to deal with page faults up-front.
 		 */
-		MALLOC(kss, struct sockaddr_storage *,
-		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
+		kss = malloc(		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,
 		    M_TEMP, M_WAITOK);
 		error = copyin(msfr.msfr_srcs, kss,
 		    sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs);
 		if (error) {
-			FREE(kss, M_TEMP);
+			free(kss, M_TEMP);
 			return (error);
 		}
 
@@ -1616,7 +1614,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 				break;
 		}
 		if (error) {
-			FREE(kss, M_TEMP);
+			free(kss, M_TEMP);
 			return (error);
 		}
 
@@ -1625,8 +1623,7 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		 * entries we are about to allocate, in case we
 		 * abruptly need to free them.
 		 */
-		MALLOC(pnims, struct in_msource **,
-		    sizeof(struct in_msource *) * msfr.msfr_nsrcs,
+		pnims = malloc(		    sizeof(struct in_msource *) * msfr.msfr_nsrcs,
 		    M_TEMP, M_WAITOK | M_ZERO);
 
 		/*
@@ -1637,18 +1634,17 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		pkss = kss;
 		nims = NULL;
 		for (i = 0; i < msfr.msfr_nsrcs; i++, pkss++) {
-			MALLOC(nims, struct in_msource *,
-			    sizeof(struct in_msource) * msfr.msfr_nsrcs,
+			nims = malloc(			    sizeof(struct in_msource) * msfr.msfr_nsrcs,
 			    M_IPMSOURCE, M_WAITOK | M_ZERO);
 			pnims[i] = nims;
 		}
 		if (i < msfr.msfr_nsrcs) {
 			for (j = 0; j < i; j++) {
 				if (pnims[j] != NULL)
-					FREE(pnims[j], M_IPMSOURCE);
+					free(pnims[j], M_IPMSOURCE);
 			}
-			FREE(pnims, M_TEMP);
-			FREE(kss, M_TEMP);
+			free(pnims, M_TEMP);
+			free(kss, M_TEMP);
 			return (ENOBUFS);
 		}
 
@@ -1667,8 +1663,8 @@ inp_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 			    ims_next);
 			imf->imf_nsources++;
 		}
-		FREE(pnims, M_TEMP);
-		FREE(kss, M_TEMP);
+		free(pnims, M_TEMP);
+		free(kss, M_TEMP);
 	}
 
 	/*

@@ -160,7 +160,7 @@ ngt_constructor(node_p node)
 	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
 
 	/* Allocate private structure */
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
 
@@ -250,7 +250,7 @@ ngt_shutdown(node_p node)
 	IF_DRAIN(&sc->outq);
 	mtx_destroy(&(sc)->outq.ifq_mtx);
 	NG_NODE_UNREF(sc->node);
-	FREE(sc, M_NETGRAPH);
+	free(sc, M_NETGRAPH);
 
 	return (0);
 }

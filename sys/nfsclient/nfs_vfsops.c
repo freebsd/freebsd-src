@@ -987,7 +987,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 			error = ENAMETOOLONG;
 			goto out;
 		}
-		MALLOC(nam, struct sockaddr *, args.addrlen, M_SONAME,
+		nam = malloc(args.addrlen, M_SONAME,
 		    M_WAITOK);
 		bcopy(args.addr, nam, args.addrlen);
 		nam->sa_len = args.addrlen;
@@ -1119,7 +1119,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
-		FREE(nam, M_SONAME);
+		free(nam, M_SONAME);
 		return (0);
 	} else {
 		nmp = uma_zalloc(nfsmount_zone, M_WAITOK);
@@ -1226,7 +1226,7 @@ bad:
 	nfs_disconnect(nmp);
 	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);
-	FREE(nam, M_SONAME);
+	free(nam, M_SONAME);
 	return (error);
 }
 
@@ -1263,7 +1263,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	 * We are now committed to the unmount.
 	 */
 	nfs_disconnect(nmp);
-	FREE(nmp->nm_nam, M_SONAME);
+	free(nmp->nm_nam, M_SONAME);
 
 	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);

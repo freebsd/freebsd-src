@@ -137,7 +137,7 @@ jail(struct thread *td, struct jail_args *uap)
 	if (j.version != 0)
 		return (EINVAL);
 
-	MALLOC(pr, struct prison *, sizeof(*pr), M_PRISON, M_WAITOK | M_ZERO);
+	pr = malloc(sizeof(*pr), M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
 	pr->pr_ref = 1;
 	error = copyinstr(j.path, &pr->pr_path, sizeof(pr->pr_path), 0);
@@ -211,13 +211,13 @@ e_dropprref:
 	sx_sunlock(&allprison_lock);
 e_dropvnref:
 	if (pr->pr_slots != NULL)
-		FREE(pr->pr_slots, M_PRISON);
+		free(pr->pr_slots, M_PRISON);
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
 	VFS_UNLOCK_GIANT(vfslocked);
 e_killmtx:
 	mtx_destroy(&pr->pr_mtx);
-	FREE(pr, M_PRISON);
+	free(pr, M_PRISON);
 	return (error);
 }
 
@@ -343,7 +343,7 @@ prison_complete(void *context, int pending)
 	}
 	sx_sunlock(&allprison_lock);
 	if (pr->pr_slots != NULL)
-		FREE(pr->pr_slots, M_PRISON);
+		free(pr->pr_slots, M_PRISON);
 
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
@@ -351,8 +351,8 @@ prison_complete(void *context, int pending)
 
 	mtx_destroy(&pr->pr_mtx);
 	if (pr->pr_linux != NULL)
-		FREE(pr->pr_linux, M_PRISON);
-	FREE(pr, M_PRISON);
+		free(pr->pr_linux, M_PRISON);
+	free(pr, M_PRISON);
 }
 
 void

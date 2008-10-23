@@ -411,10 +411,10 @@ udbp_attach(device_t self)
 bad:
 #if 0 /* probably done in udbp_detach() */
 		if (sc->sc_bulkout_buffer) {
-			FREE(sc->sc_bulkout_buffer, M_USBDEV);
+			free(sc->sc_bulkout_buffer, M_USBDEV);
 		}
 		if (sc->sc_bulkin_buffer) {
-			FREE(sc->sc_bulkin_buffer, M_USBDEV);
+			free(sc->sc_bulkin_buffer, M_USBDEV);
 		}
 		if (sc->sc_bulkout_xfer) {
 			usbd_free_xfer(sc->sc_bulkout_xfer);

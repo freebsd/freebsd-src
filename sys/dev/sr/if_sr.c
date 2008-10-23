@@ -305,8 +305,7 @@ sr_attach(device_t device)
 	int unit;		/* index: channel w/in card */
 
 	hc = (struct sr_hardc *)device_get_softc(device);
-	MALLOC(sc, struct sr_softc *,
-		hc->numports * sizeof(struct sr_softc),
+	sc = malloc(		hc->numports * sizeof(struct sr_softc),
 		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sc == NULL)
 		goto errexit;
@@ -478,7 +477,7 @@ sr_detach(device_t device)
 	 * deallocate any system resources we may have
 	 * allocated on behalf of this driver.
 	 */
-	FREE(hc->sc, M_DEVBUF);
+	free(hc->sc, M_DEVBUF);
 	hc->sc = NULL;
 	hc->mem_start = NULL;
 	return (sr_deallocate_resources(device));

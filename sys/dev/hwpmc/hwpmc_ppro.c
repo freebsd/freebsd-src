@@ -349,7 +349,7 @@ p6_init(int cpu)
 
 	PMCDBG(MDP,INI,0,"p6-init cpu=%d", cpu);
 
-	MALLOC(pcs, struct p6_cpu *, sizeof(struct p6_cpu), M_PMC,
+	pcs = malloc(sizeof(struct p6_cpu), M_PMC,
 	    M_WAITOK|M_ZERO);
 
 	phw = pcs->pc_p6pmcs;
@@ -380,7 +380,7 @@ p6_cleanup(int cpu)
 	PMCDBG(MDP,INI,0,"p6-cleanup cpu=%d", cpu);
 
 	if ((pcs = pmc_pcpu[cpu]) != NULL)
-		FREE(pcs, M_PMC);
+		free(pcs, M_PMC);
 	pmc_pcpu[cpu] = NULL;
 
 	return 0;

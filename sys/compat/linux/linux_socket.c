@@ -120,7 +120,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	}
 #endif
 
-	MALLOC(kosa, struct osockaddr *, alloclen, mtype, M_WAITOK);
+	kosa = malloc(alloclen, mtype, M_WAITOK);
 
 	if ((error = copyin(osa, kosa, *osalen)))
 		goto out;
@@ -168,7 +168,7 @@ do_sa_get(struct sockaddr **sap, const struct osockaddr *osa, int *osalen,
 	return (0);
 
 out:
-	FREE(kosa, mtype);
+	free(kosa, mtype);
 	return (error);
 }
 
@@ -458,7 +458,7 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 
 bad:
 	if (to)
-		FREE(to, M_SONAME);
+		free(to, M_SONAME);
 	return (error);
 }
 

@@ -70,7 +70,7 @@ smb_rq_alloc(struct smb_connobj *layer, u_char cmd, struct smb_cred *scred,
 	struct smb_rq *rqp;
 	int error;
 
-	MALLOC(rqp, struct smb_rq *, sizeof(*rqp), M_SMBRQ, M_WAITOK);
+	rqp = malloc(sizeof(*rqp), M_SMBRQ, M_WAITOK);
 	if (rqp == NULL)
 		return ENOMEM;
 	error = smb_rq_init(rqp, layer, cmd, scred);
@@ -383,7 +383,7 @@ smb_t2_alloc(struct smb_connobj *layer, u_short setup, struct smb_cred *scred,
 	struct smb_t2rq *t2p;
 	int error;
 
-	MALLOC(t2p, struct smb_t2rq *, sizeof(*t2p), M_SMBRQ, M_WAITOK);
+	t2p = malloc(sizeof(*t2p), M_SMBRQ, M_WAITOK);
 	if (t2p == NULL)
 		return ENOMEM;
 	error = smb_t2_init(t2p, layer, setup, scred);

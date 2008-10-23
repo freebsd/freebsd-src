@@ -67,7 +67,7 @@ ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
 	struct ncp_rq *rqp;
 	int error;
 
-	MALLOC(rqp, struct ncp_rq *, sizeof(*rqp), M_NCPRQ, M_WAITOK);
+	rqp = malloc(sizeof(*rqp), M_NCPRQ, M_WAITOK);
 	error = ncp_rq_init_any(rqp, ptype, fn, ncp, td, cred);
 	rqp->nr_flags |= NCPR_ALLOCED;
 	if (error) {

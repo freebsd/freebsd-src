@@ -494,7 +494,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 				    waitflag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
 				if (!rec) {
 					if (nam)
-						FREE(nam, M_SONAME);
+						free(nam, M_SONAME);
 					m_freem(mp);
 					NFSD_LOCK();
 					continue;
@@ -693,7 +693,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	m = rec->nr_packet;
 	free(rec, M_NFSRVDESC);
 	NFSD_UNLOCK();
-	MALLOC(nd, struct nfsrv_descript *, sizeof (struct nfsrv_descript),
+	nd = malloc(sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
 	nd->nd_cr = crget();
 	NFSD_LOCK();
@@ -703,7 +703,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	error = nfs_getreq(nd, nfsd, TRUE);
 	if (error) {
 		if (nam) {
-			FREE(nam, M_SONAME);
+			free(nam, M_SONAME);
 		}
 		if (nd->nd_cr != NULL)
 			crfree(nd->nd_cr);

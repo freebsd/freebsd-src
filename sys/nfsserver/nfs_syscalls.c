@@ -202,7 +202,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 		tslp = nfs_udpsock;
 		if (tslp->ns_flag & SLP_VALID) {
 			if (mynam != NULL)
-				FREE(mynam, M_SONAME);
+				free(mynam, M_SONAME);
 			return (EPERM);
 		}
 	}
@@ -211,7 +211,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 	error = soreserve(so, siz, siz);
 	if (error) {
 		if (mynam != NULL)
-			FREE(mynam, M_SONAME);
+			free(mynam, M_SONAME);
 		return (error);
 	}
 
@@ -459,7 +459,7 @@ nfssvc_nfsd()
 				nfsrvstats.srv_errs++;
 				nfsrv_updatecache(nd, FALSE, mreq);
 				if (nd->nd_nam2)
-					FREE(nd->nd_nam2, M_SONAME);
+					free(nd->nd_nam2, M_SONAME);
 				break;
 			}
 			nfsrvstats.srvrpccnt[nd->nd_procnum]++;
@@ -496,7 +496,7 @@ nfssvc_nfsd()
 			    m_freem(m);
 			}
 			if (nd->nd_nam2)
-				FREE(nd->nd_nam2, M_SONAME);
+				free(nd->nd_nam2, M_SONAME);
 			if (nd->nd_mrep)
 				m_freem(nd->nd_mrep);
 			if (error == EPIPE)
@@ -515,13 +515,13 @@ nfssvc_nfsd()
 		    case RC_DROPIT:
 			m_freem(nd->nd_mrep);
 			if (nd->nd_nam2)
-				FREE(nd->nd_nam2, M_SONAME);
+				free(nd->nd_nam2, M_SONAME);
 			break;
 		    };
 		    if (nd) {
 			if (nd->nd_cr != NULL)
 				crfree(nd->nd_cr);
-			FREE((caddr_t)nd, M_NFSRVDESC);
+			free((caddr_t)nd, M_NFSRVDESC);
 			nd = NULL;
 		    }
 
@@ -596,12 +596,12 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		closef(fp, NULL);
 		NFSD_LOCK();
 		if (slp->ns_nam)
-			FREE(slp->ns_nam, M_SONAME);
+			free(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
 		while ((rec = STAILQ_FIRST(&slp->ns_rec)) != NULL) {
 			STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
 			if (rec->nr_address)
-				FREE(rec->nr_address, M_SONAME);
+				free(rec->nr_address, M_SONAME);
 			m_freem(rec->nr_packet);
 			free(rec, M_NFSRVDESC);
 		}

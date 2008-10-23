@@ -113,7 +113,7 @@ ng_l2cap_constructor(node_p node)
 	ng_l2cap_p	l2cap = NULL;
 
 	/* Create new L2CAP node */
-	MALLOC(l2cap, ng_l2cap_p, sizeof(*l2cap),
+	l2cap = malloc(sizeof(*l2cap),
 		M_NETGRAPH_L2CAP, M_NOWAIT|M_ZERO);
 	if (l2cap == NULL)
 		return (ENOMEM);
@@ -148,7 +148,7 @@ ng_l2cap_shutdown(node_p node)
 	ng_l2cap_cleanup(l2cap);
 
 	bzero(l2cap, sizeof(*l2cap));
-	FREE(l2cap, M_NETGRAPH_L2CAP);
+	free(l2cap, M_NETGRAPH_L2CAP);
 
 	return (0);
 } /* ng_l2cap_shutdown */

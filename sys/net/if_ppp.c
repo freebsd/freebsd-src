@@ -348,7 +348,7 @@ pppalloc(pid)
     sc->sc_relinq = NULL;
     bzero((char *)&sc->sc_stats, sizeof(sc->sc_stats));
 #ifdef VJC
-    MALLOC(sc->sc_comp, struct slcompress *, sizeof(struct slcompress),
+    sc->sc_comp = malloc(sizeof(struct slcompress),
 	   M_DEVBUF, M_NOWAIT);
     if (sc->sc_comp)
 	sl_compress_init(sc->sc_comp, -1);
@@ -614,7 +614,7 @@ pppioctl(sc, cmd, data, flag, td)
 	}
 	newcodelen = nbp->bf_len * sizeof(struct bpf_insn);
 	if (newcodelen != 0) {
-	    MALLOC(newcode, struct bpf_insn *, newcodelen, M_DEVBUF, M_WAITOK);
+	    newcode = malloc(newcodelen, M_DEVBUF, M_WAITOK);
 	    if (newcode == 0) {
 		error = EINVAL;		/* or sumpin */
 		break;

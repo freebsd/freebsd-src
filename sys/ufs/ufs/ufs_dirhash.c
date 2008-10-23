@@ -176,7 +176,7 @@ ufsdirhash_create(struct inode *ip)
 	for (;;) {
 		/* Racy check for i_dirhash to prefetch an dirhash structure. */
 		if (ip->i_dirhash == NULL && ndh == NULL) {
-			MALLOC(ndh, struct dirhash *, sizeof *dh, M_DIRHASH,
+			ndh = malloc(sizeof *dh, M_DIRHASH,
 			    M_NOWAIT | M_ZERO);
 			if (ndh == NULL)
 				return (NULL);
@@ -377,11 +377,11 @@ ufsdirhash_build(struct inode *ip)
 	 * Use non-blocking mallocs so that we will revert to a linear
 	 * lookup on failure rather than potentially blocking forever.
 	 */
-	MALLOC(dh->dh_hash, doff_t **, narrays * sizeof(dh->dh_hash[0]),
+	dh->dh_hash = malloc(narrays * sizeof(dh->dh_hash[0]),
 	    M_DIRHASH, M_NOWAIT | M_ZERO);
 	if (dh->dh_hash == NULL)
 		goto fail;
-	MALLOC(dh->dh_blkfree, u_int8_t *, nblocks * sizeof(dh->dh_blkfree[0]),
+	dh->dh_blkfree = malloc(nblocks * sizeof(dh->dh_blkfree[0]),
 	    M_DIRHASH, M_NOWAIT);
 	if (dh->dh_blkfree == NULL)
 		goto fail;
@@ -485,9 +485,9 @@ ufsdirhash_free_locked(struct inode *ip)
 		for (i = 0; i < dh->dh_narrays; i++)
 			if (dh->dh_hash[i] != NULL)
 				DIRHASH_BLKFREE(dh->dh_hash[i]);
-		FREE(dh->dh_hash, M_DIRHASH);
+		free(dh->dh_hash, M_DIRHASH);
 		if (dh->dh_blkfree != NULL)
-			FREE(dh->dh_blkfree, M_DIRHASH);
+			free(dh->dh_blkfree, M_DIRHASH);
 	}
 
 	/*
@@ -1174,8 +1174,8 @@ ufsdirhash_recycle(int wanted)
 		DIRHASHLIST_UNLOCK();
 		for (i = 0; i < narrays; i++)
 			DIRHASH_BLKFREE(hash[i]);
-		FREE(hash, M_DIRHASH);
-		FREE(blkfree, M_DIRHASH);
+		free(hash, M_DIRHASH);
+		free(blkfree, M_DIRHASH);
 
 		/* Account for the returned memory, and repeat if necessary. */
 		DIRHASHLIST_LOCK();

@@ -377,8 +377,7 @@ ng_btsocket_l2cap_raw_input(void *context, int pending)
 			rt = (ng_btsocket_l2cap_rtentry_t *) 
 				NG_HOOK_PRIVATE(hook);
 			if (rt == NULL) {
-				MALLOC(rt, ng_btsocket_l2cap_rtentry_p, 
-					sizeof(*rt),
+				rt = malloc(					sizeof(*rt),
 					M_NETGRAPH_BTSOCKET_L2CAP_RAW,
 					M_NOWAIT|M_ZERO);
 				if (rt == NULL)
@@ -496,7 +495,7 @@ ng_btsocket_l2cap_raw_rtclean(void *context, int pending)
 			NG_HOOK_UNREF(rt->hook); /* Remove extra reference */
 
 			bzero(rt, sizeof(*rt));
-			FREE(rt, M_NETGRAPH_BTSOCKET_L2CAP_RAW);
+			free(rt, M_NETGRAPH_BTSOCKET_L2CAP_RAW);
 		}
 
 		rt = rt_next;
@@ -618,7 +617,7 @@ ng_btsocket_l2cap_raw_attach(struct socket *so, int proto, struct thread *td)
 		return (error);
 
 	/* Allocate the PCB */
-        MALLOC(pcb, ng_btsocket_l2cap_raw_pcb_p, sizeof(*pcb),
+        pcb = malloc(sizeof(*pcb),
 		M_NETGRAPH_BTSOCKET_L2CAP_RAW, M_NOWAIT|M_ZERO);
         if (pcb == NULL)
                 return (ENOMEM);
@@ -1129,7 +1128,7 @@ ng_btsocket_l2cap_raw_detach(struct socket *so)
 	mtx_destroy(&pcb->pcb_mtx);
 
 	bzero(pcb, sizeof(*pcb));
-	FREE(pcb, M_NETGRAPH_BTSOCKET_L2CAP_RAW);
+	free(pcb, M_NETGRAPH_BTSOCKET_L2CAP_RAW);
 
 	so->so_pcb = NULL;
 } /* ng_btsocket_l2cap_raw_detach */

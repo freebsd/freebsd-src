@@ -1890,7 +1890,7 @@ ufs_readdir(ap)
 			auio.uio_iovcnt = 1;
 			auio.uio_segflg = UIO_SYSSPACE;
 			aiov.iov_len = count;
-			MALLOC(dirbuf, caddr_t, count, M_TEMP, M_WAITOK);
+			dirbuf = malloc(count, M_TEMP, M_WAITOK);
 			aiov.iov_base = dirbuf;
 			error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
 			if (error == 0) {
@@ -1911,7 +1911,7 @@ ufs_readdir(ap)
 				if (dp >= edp)
 					error = uiomove(dirbuf, readcnt, uio);
 			}
-			FREE(dirbuf, M_TEMP);
+			free(dirbuf, M_TEMP);
 		}
 #	else
 		error = VOP_READ(ap->a_vp, uio, 0, ap->a_cred);
@@ -1933,7 +1933,7 @@ ufs_readdir(ap)
 		     dp < dpEnd;
 		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen))
 			ncookies++;
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
+		cookies = malloc(ncookies * sizeof(u_long), M_TEMP,
 		    M_WAITOK);
 		for (dp = dpStart, cookiep = cookies;
 		     dp < dpEnd;

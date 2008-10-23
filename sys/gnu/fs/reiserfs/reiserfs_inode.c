@@ -157,7 +157,7 @@ reiserfs_reclaim(struct vop_reclaim_args *ap)
 	vfs_hash_remove(vp);
 
 	reiserfs_log(LOG_DEBUG, "free private data\n");
-	FREE(vp->v_data, M_REISERFSNODE);
+	free(vp->v_data, M_REISERFSNODE);
 	vp->v_data = NULL;
 	vnode_destroy_vobject(vp);
 
@@ -764,7 +764,7 @@ reiserfs_iget(
 	dev = rmp->rm_dev;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode() it might
+	 * If this malloc() is performed after the getnewvnode() it might
 	 * block, leaving a vnode with a NULL v_data to be found by
 	 * reiserfs_sync() if a sync happens to fire right then, which
 	 * will cause a panic because reiserfs_sync() blindly dereferences

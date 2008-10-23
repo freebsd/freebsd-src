@@ -91,7 +91,7 @@ npcb_free(struct natmpcb *npcb, int op)
 		if (npcb->npcb_inq) {
 			npcb->npcb_flags = NPCB_DRAIN;	/* flag for distruct. */
 		} else {
-			FREE(npcb, M_PCB);		/* kill it! */
+			free(npcb, M_PCB);		/* kill it! */
 		}
 	}
 }

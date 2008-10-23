@@ -265,7 +265,7 @@ loop:
 		if (rp->rc_flag & RC_REPMBUF)
 			m_freem(rp->rc_reply);
 		if (rp->rc_flag & RC_NAM)
-			FREE(rp->rc_nam, M_SONAME);
+			free(rp->rc_nam, M_SONAME);
 		rp->rc_flag &= (RC_LOCKED | RC_WANTED);
 	}
 	TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);

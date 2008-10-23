@@ -233,7 +233,7 @@ red_alloc(int weight, int inv_pmax, int th_min, int th_max, int flags,
 	int	 w, i;
 	int	 npkts_per_sec;
 
-	MALLOC(rp, red_t *, sizeof(red_t), M_DEVBUF, M_WAITOK);
+	rp = malloc(sizeof(red_t), M_DEVBUF, M_WAITOK);
 	if (rp == NULL)
 		return (NULL);
 	bzero(rp, sizeof(red_t));
@@ -321,7 +321,7 @@ red_destroy(red_t *rp)
 #endif
 #endif /* ALTQ3_COMPAT */
 	wtab_destroy(rp->red_wtab);
-	FREE(rp, M_DEVBUF);
+	free(rp, M_DEVBUF);
 }
 
 void
@@ -646,7 +646,7 @@ wtab_alloc(int weight)
 			return (w);
 		}
 
-	MALLOC(w, struct wtab *, sizeof(struct wtab), M_DEVBUF, M_WAITOK);
+	w = malloc(sizeof(struct wtab), M_DEVBUF, M_WAITOK);
 	if (w == NULL)
 		panic("wtab_alloc: malloc failed!");
 	bzero(w, sizeof(struct wtab));
@@ -682,7 +682,7 @@ wtab_destroy(struct wtab *w)
 			break;
 		}
 
-	FREE(w, M_DEVBUF);
+	free(w, M_DEVBUF);
 	return (0);
 }
 
@@ -816,17 +816,17 @@ redioctl(dev, cmd, addr, flag, p)
 		}
 
 		/* allocate and initialize red_queue_t */
-		MALLOC(rqp, red_queue_t *, sizeof(red_queue_t), M_DEVBUF, M_WAITOK);
+		rqp = malloc(sizeof(red_queue_t), M_DEVBUF, M_WAITOK);
 		if (rqp == NULL) {
 			error = ENOMEM;
 			break;
 		}
 		bzero(rqp, sizeof(red_queue_t));
 
-		MALLOC(rqp->rq_q, class_queue_t *, sizeof(class_queue_t),
+		rqp->rq_q = malloc(sizeof(class_queue_t),
 		       M_DEVBUF, M_WAITOK);
 		if (rqp->rq_q == NULL) {
-			FREE(rqp, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			error = ENOMEM;
 			break;
 		}
@@ -834,8 +834,8 @@ redioctl(dev, cmd, addr, flag, p)
 
 		rqp->rq_red = red_alloc(0, 0, 0, 0, 0, 0);
 		if (rqp->rq_red == NULL) {
-			FREE(rqp->rq_q, M_DEVBUF);
-			FREE(rqp, M_DEVBUF);
+			free(rqp->rq_q, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			error = ENOMEM;
 			break;
 		}
@@ -854,8 +854,8 @@ redioctl(dev, cmd, addr, flag, p)
 				    NULL, NULL);
 		if (error) {
 			red_destroy(rqp->rq_red);
-			FREE(rqp->rq_q, M_DEVBUF);
-			FREE(rqp, M_DEVBUF);
+			free(rqp->rq_q, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			break;
 		}
 
@@ -1016,8 +1016,8 @@ red_detach(rqp)
 	}
 
 	red_destroy(rqp->rq_red);
-	FREE(rqp->rq_q, M_DEVBUF);
-	FREE(rqp, M_DEVBUF);
+	free(rqp->rq_q, M_DEVBUF);
+	free(rqp, M_DEVBUF);
 	return (error);
 }
 
@@ -1297,16 +1297,16 @@ fv_alloc(rp)
 	int i, num;
 
 	num = FV_FLOWLISTSIZE;
-	MALLOC(fv, struct flowvalve *, sizeof(struct flowvalve),
+	fv = malloc(sizeof(struct flowvalve),
 	       M_DEVBUF, M_WAITOK);
 	if (fv == NULL)
 		return (NULL);
 	bzero(fv, sizeof(struct flowvalve));
 
-	MALLOC(fv->fv_fves, struct fve *, sizeof(struct fve) * num,
+	fv->fv_fves = malloc(sizeof(struct fve) * num,
 	       M_DEVBUF, M_WAITOK);
 	if (fv->fv_fves == NULL) {
-		FREE(fv, M_DEVBUF);
+		free(fv, M_DEVBUF);
 		return (NULL);
 	}
 	bzero(fv->fv_fves, sizeof(struct fve) * num);
@@ -1323,11 +1323,11 @@ fv_alloc(rp)
 	fv->fv_pthresh = (FV_PSCALE(1) << FP_SHIFT) / rp->red_inv_pmax;
 
 	/* initialize drop rate to fraction table */
-	MALLOC(fv->fv_p2ftab, int *, sizeof(int) * BRTT_SIZE,
+	fv->fv_p2ftab = malloc(sizeof(int) * BRTT_SIZE,
 	       M_DEVBUF, M_WAITOK);
 	if (fv->fv_p2ftab == NULL) {
-		FREE(fv->fv_fves, M_DEVBUF);
-		FREE(fv, M_DEVBUF);
+		free(fv->fv_fves, M_DEVBUF);
+		free(fv, M_DEVBUF);
 		return (NULL);
 	}
 	/*
@@ -1348,9 +1348,9 @@ fv_alloc(rp)
 static void fv_destroy(fv)
 	struct flowvalve *fv;
 {
-	FREE(fv->fv_p2ftab, M_DEVBUF);
-	FREE(fv->fv_fves, M_DEVBUF);
-	FREE(fv, M_DEVBUF);
+	free(fv->fv_p2ftab, M_DEVBUF);
+	free(fv->fv_fves, M_DEVBUF);
+	free(fv, M_DEVBUF);
 }
 
 static __inline int

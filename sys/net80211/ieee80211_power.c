@@ -80,7 +80,7 @@ ieee80211_power_latevattach(struct ieee80211vap *vap)
 	 */
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP) {
 		vap->iv_tim_len = howmany(vap->iv_max_aid,8) * sizeof(uint8_t);
-		MALLOC(vap->iv_tim_bitmap, uint8_t *, vap->iv_tim_len,
+		vap->iv_tim_bitmap = malloc(vap->iv_tim_len,
 			M_80211_POWER, M_NOWAIT | M_ZERO);
 		if (vap->iv_tim_bitmap == NULL) {
 			printf("%s: no memory for TIM bitmap!\n", __func__);
@@ -94,7 +94,7 @@ void
 ieee80211_power_vdetach(struct ieee80211vap *vap)
 {
 	if (vap->iv_tim_bitmap != NULL) {
-		FREE(vap->iv_tim_bitmap, M_80211_POWER);
+		free(vap->iv_tim_bitmap, M_80211_POWER);
 		vap->iv_tim_bitmap = NULL;
 	}
 }

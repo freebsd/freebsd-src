@@ -422,7 +422,7 @@ natmintr(struct mbuf *m)
 
 	if (npcb->npcb_flags & NPCB_DRAIN) {
 		if (npcb->npcb_inq == 0)
-			FREE(npcb, M_PCB);			/* done! */
+			free(npcb, M_PCB);			/* done! */
 		NATM_UNLOCK();
 		m_freem(m);
 		return;

@@ -293,7 +293,7 @@ pmc_intel_initialize(void)
 		return NULL;
 	}
 
-	MALLOC(pmc_mdep, struct pmc_mdep *, sizeof(struct pmc_mdep),
+	pmc_mdep = malloc(sizeof(struct pmc_mdep),
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	pmc_mdep->pmd_cputype 	    = cputype;
@@ -346,7 +346,7 @@ pmc_intel_initialize(void)
 	}
 
 	if (error) {
-		FREE(pmc_mdep, M_PMC);
+		free(pmc_mdep, M_PMC);
 		pmc_mdep = NULL;
 	}
 

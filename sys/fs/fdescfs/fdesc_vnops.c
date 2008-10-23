@@ -186,11 +186,11 @@ loop:
 	}
 	mtx_unlock(&fdesc_hashmtx);
 
-	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
+	fd = malloc(sizeof(struct fdescnode), M_TEMP, M_WAITOK);
 
 	error = getnewvnode("fdescfs", mp, &fdesc_vnodeops, &vp);
 	if (error) {
-		FREE(fd, M_TEMP);
+		free(fd, M_TEMP);
 		return (error);
 	}
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -616,7 +616,7 @@ fdesc_reclaim(ap)
  	vp = ap->a_vp;
  	fd = VTOFDESC(vp);
 	fdesc_remove_entry(fd);
-	FREE(vp->v_data, M_TEMP);
+	free(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	return (0);
 }
