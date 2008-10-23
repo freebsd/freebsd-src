@@ -173,7 +173,7 @@ init_runtime_env(struct configuration *config)
 
 	memset(&serv_addr, 0, sizeof(struct sockaddr_un));
 	serv_addr.sun_family = PF_LOCAL;
-	strncpy(serv_addr.sun_path, config->socket_path,
+	strlcpy(serv_addr.sun_path, config->socket_path,
 		sizeof(serv_addr.sun_path));
 	serv_addr_len = sizeof(serv_addr.sun_family) +
 		strlen(serv_addr.sun_path) + 1;
