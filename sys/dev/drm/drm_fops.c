@@ -44,7 +44,7 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    struct drm_device *dev)
 {
 	struct drm_file *priv;
-	int m = minor(kdev);
+	int m = dev2unit(kdev);
 	int retcode;
 
 	if (flags & O_EXCL)
