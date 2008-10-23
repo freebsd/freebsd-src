@@ -543,7 +543,6 @@ thread_single(int mode)
 			p->p_flag &= ~P_SINGLE_BOUNDARY;
 	}
 	p->p_flag |= P_STOPPED_SINGLE;
-	PROC_SLOCK(p);
 	p->p_singlethread = td;
 	if (mode == SINGLE_EXIT)
 		remaining = p->p_numthreads;
@@ -642,7 +641,6 @@ stopme:
 		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
 		thread_unthread(td);
 	}
-	PROC_SUNLOCK(p);
 	return (0);
 }
 
@@ -716,15 +714,16 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
 			sigqueue_flush(&td->td_sigqueue);
 
-		PROC_SLOCK(p);
 		thread_stopped(p);
 		/*
 		 * If the process is waiting for us to exit,
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
+		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
+			PROC_SLOCK(p);
 			thread_exit();
+		}
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			if (p->p_numthreads == p->p_suspcount + 1) {
 				thread_lock(p->p_singlethread);
@@ -735,8 +734,8 @@ thread_suspend_check(int return_instead)
 					kick_proc0();
 			}
 		}
-		PROC_UNLOCK(p);
 		thread_lock(td);
+		PROC_UNLOCK(p);
 		/*
 		 * When a thread suspends, it just
 		 * gets taken off all queues.
@@ -746,7 +745,6 @@ thread_suspend_check(int return_instead)
 			p->p_boundary_count++;
 			td->td_flags |= TDF_BOUNDARY;
 		}
-		PROC_SUNLOCK(p);
 		mi_switch(SW_INVOL | SWT_SUSPEND, NULL);
 		if (return_instead == 0)
 			td->td_flags &= ~TDF_BOUNDARY;
@@ -766,25 +764,22 @@ thread_suspend_switch(struct thread *td)
 	p = td->td_proc;
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * We implement thread_suspend_one in stages here to avoid
 	 * dropping the proc lock while the thread lock is owned.
 	 */
 	thread_stopped(p);
 	p->p_suspcount++;
-	PROC_UNLOCK(p);
 	thread_lock(td);
+	PROC_UNLOCK(p);
 	td->td_flags &= ~TDF_NEEDSUSPCHK;
 	TD_SET_SUSPENDED(td);
 	sched_sleep(td, 0);
-	PROC_SUNLOCK(p);
 	DROP_GIANT();
 	mi_switch(SW_VOL | SWT_SUSPEND, NULL);
 	thread_unlock(td);
 	PICKUP_GIANT();
 	PROC_LOCK(p);
-	PROC_SLOCK(p);
 }
 
 void
@@ -792,7 +787,6 @@ thread_suspend_one(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
@@ -806,7 +800,6 @@ thread_unsuspend_one(struct thread *td)
 {
 	struct proc *p = td->td_proc;
 
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(TD_IS_SUSPENDED(td), ("Thread not suspended"));
 	TD_CLR_SUSPENDED(td);
@@ -824,7 +817,6 @@ thread_unsuspend(struct proc *p)
 	int wakeup_swapper;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	wakeup_swapper = 0;
 	if (!P_SHOULDSTOP(p)) {
                 FOREACH_THREAD_IN_PROC(p, td) {
@@ -863,7 +855,6 @@ thread_single_end(void)
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY);
-	PROC_SLOCK(p);
 	p->p_singlethread = NULL;
 	wakeup_swapper = 0;
 	/*
@@ -881,7 +872,6 @@ thread_single_end(void)
 			thread_unlock(td);
 		}
 	}
-	PROC_SUNLOCK(p);
 	if (wakeup_swapper)
 		kick_proc0();
 }
