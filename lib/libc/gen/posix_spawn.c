@@ -444,7 +444,7 @@ posix_spawnattr_setpgroup(posix_spawnattr_t *sa, pid_t pgroup)
 }
 
 int
-posix_spawnattr_setschedparam(posix_spawnattr_t *sa __restrict,
+posix_spawnattr_setschedparam(posix_spawnattr_t * __restrict sa,
     const struct sched_param * __restrict schedparam)
 {
 	(*sa)->sa_schedparam = *schedparam;
