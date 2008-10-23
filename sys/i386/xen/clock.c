@@ -154,19 +154,6 @@ SYSCTL_INT(_machdep, OID_AUTO, xen_disable_rtc_set,
 })
 
 
-/* These are peridically updated in shared_info, and then copied here. */
-struct shadow_time_info {
-	uint64_t tsc_timestamp;     /* TSC at last update of time vals.  */
-	uint64_t system_timestamp;  /* Time, in nanosecs, since boot.    */
-	uint32_t tsc_to_nsec_mul;
-	uint32_t tsc_to_usec_mul;
-	int tsc_shift;
-	uint32_t version;
-};
-static DEFINE_PER_CPU(uint64_t, processed_system_time);
-static DEFINE_PER_CPU(struct shadow_time_info, shadow_time);
-
-
 #define NS_PER_TICK (1000000000ULL/hz)
 
 #define rdtscll(val) \
@@ -300,10 +287,11 @@ static struct timecounter xen_timecounter = {
 	0			/* quality */
 };
 
-static void 
-clkintr(struct trapframe *frame)
+static int
+clkintr(void *arg)
 {
 	int64_t delta_cpu, delta;
+	struct trapframe *frame = (struct trapframe *)arg;
 	int cpu = smp_processor_id();
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
 
@@ -319,7 +307,7 @@ clkintr(struct trapframe *frame)
 	
 	if (unlikely(delta < (int64_t)0) || unlikely(delta_cpu < (int64_t)0)) {
 		printf("Timer ISR: Time went backwards: %lld\n", delta);
-		return;
+		return (FILTER_HANDLED);
 	}
 	
 	/* Process elapsed ticks since last call. */
@@ -341,6 +329,54 @@ clkintr(struct trapframe *frame)
 	}
 	
 	/* XXX TODO */
+	return (FILTER_HANDLED);
+}
+
+int clkintr2(void *arg);
+
+int 
+clkintr2(void *arg)
+{
+	int64_t delta_cpu, delta;
+	struct trapframe *frame = (struct trapframe *)arg;
+	int cpu = smp_processor_id();
+	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
+
+	do {
+		__get_time_values_from_xen();
+		
+		delta = delta_cpu = 
+			shadow->system_timestamp + get_nsec_offset(shadow);
+		delta     -= processed_system_time;
+		delta_cpu -= per_cpu(processed_system_time, cpu);
+
+	} while (!time_values_up_to_date(cpu));
+	
+	if (unlikely(delta < (int64_t)0) || unlikely(delta_cpu < (int64_t)0)) {
+		printf("Timer ISR: Time went backwards: %lld\n", delta);
+		return (FILTER_HANDLED);
+	}
+	
+	/* Process elapsed ticks since last call. */
+	if (delta >= NS_PER_TICK) {
+		processed_system_time += (delta / NS_PER_TICK) * NS_PER_TICK;
+		per_cpu(processed_system_time, cpu) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
+	}
+	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+
+	/*
+	 * Take synchronised time from Xen once a minute if we're not
+	 * synchronised ourselves, and we haven't chosen to keep an independent
+	 * time base.
+	 */
+	
+	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
+		update_wallclock();
+		tc_setclock(&shadow_tv);
+	}
+	
+	/* XXX TODO */
+	return (FILTER_HANDLED);
 }
 
 static uint32_t
@@ -760,7 +796,7 @@ cpu_initclocks(void)
 			   &xen_set_periodic_tick);
 
         if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-						(driver_filter_t *)clkintr, NULL,
+		                                clkintr, NULL,
 						INTR_TYPE_CLK | INTR_FAST)) < 0) {
 		panic("failed to register clock interrupt\n");
 	}
@@ -780,7 +816,7 @@ ap_cpu_initclocks(int cpu)
 			   &xen_set_periodic_tick);
 
         if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, "clk", 
-						(driver_filter_t *)clkintr, NULL,
+						clkintr2, NULL,
 						INTR_TYPE_CLK | INTR_FAST)) < 0) {
 		panic("failed to register clock interrupt\n");
 	}
