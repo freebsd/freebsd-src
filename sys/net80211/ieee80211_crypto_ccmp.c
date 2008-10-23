@@ -96,7 +96,7 @@ ccmp_attach(struct ieee80211vap *vap, struct ieee80211_key *k)
 {
 	struct ccmp_ctx *ctx;
 
-	ctx = malloc(sizeof(struct ccmp_ctx),
+	MALLOC(ctx, struct ccmp_ctx *, sizeof(struct ccmp_ctx),
 		M_80211_CRYPTO, M_NOWAIT | M_ZERO);
 	if (ctx == NULL) {
 		vap->iv_stats.is_crypto_nomem++;
@@ -113,7 +113,7 @@ ccmp_detach(struct ieee80211_key *k)
 {
 	struct ccmp_ctx *ctx = k->wk_private;
 
-	free(ctx, M_80211_CRYPTO);
+	FREE(ctx, M_80211_CRYPTO);
 	KASSERT(nrefs > 0, ("imbalanced attach/detach"));
 	nrefs--;			/* NB: we assume caller locking */
 }
