@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine	arm
 ident		EP80219
 
 options 	PHYSADDR=0xa0000000
@@ -69,7 +68,6 @@ options	BOOTP_COMPAT
 #options	PREEMPTION
 device		loop
 device		ether
-device		mem			# Memory and kernel memory devices
 #device		saarm
 device		miibus
 device		fxp
