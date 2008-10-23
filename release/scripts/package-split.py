@@ -26,13 +26,12 @@ else:
 # List of packages for disc1.  This just includes packages sysinstall can
 # install as a distribution
 def disc1_packages():
-    pkgs = ['lang/perl5.8']
-    pkgs.extend(['x11/xorg',
-		 'x11-drivers/xorg-drivers',
-		 'x11-fonts/xorg-fonts',
-		 'x11-servers/xorg-nestserver',
-		 'x11-servers/xorg-vfbserver',
-                 'devel/imake'])
+    pkgs = ['archivers/unzip',
+            'emulators/mtools',
+            'lang/perl5.8',
+            'misc/compat5x',
+            'net/cvsup-without-gui',
+            'net/rsync']
     if arch == 'alpha':
         pkgs.append('emulators/osf1_base')
     elif arch == 'i386':
@@ -49,42 +48,45 @@ def disc2_packages():
 		'x11/kde-lite']
     else:
 	pkgs = ['x11/gnome2',
-		'x11/kde3']
+		'x11/kdebase3',
+		'x11/kdelibs3']
+    pkgs.extend(['x11/xorg',
+		 'x11-drivers/xorg-drivers',
+		 'x11-fonts/xorg-fonts',
+		 'x11-servers/xorg-nestserver',
+		 'x11-servers/xorg-vfbserver',
+                 'devel/imake'])
     return pkgs
 
 def disc3_packages():
-    pkgs = ['x11-wm/afterstep',
+    pkgs = ['x11/kde3',
+	    'x11-wm/afterstep',
             'x11-wm/windowmaker',
             'x11-wm/fvwm2',
             # "Nice to have"
-            'archivers/unzip',
             'astro/xearth',                 
             'devel/gmake',
             'editors/emacs',
             'editors/vim-lite',
             'editors/xemacs',
-            'emulators/mtools',
             'graphics/png',
             'graphics/xv',
             'irc/xchat',
             'lang/php5',
+            'mail/alpine',
             'mail/exim',
             'mail/fetchmail',
             'mail/mutt',
-            'mail/pine4',
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
-            'misc/compat5x',
-            'net/cvsup-without-gui',
-            'net/rsync',
             'net/samba3',
             'news/slrn',
             'news/tin',
             'ports-mgmt/portupgrade',
             'print/a2ps-letter',
             'print/apsfilter',
-            'print/ghostscript-gnu-nox11',
+            'print/ghostscript7-nox11',
             'print/gv',
             'print/psutils-letter',
             'print/teTeX',
