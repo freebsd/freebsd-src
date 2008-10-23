@@ -499,7 +499,7 @@ int
 ieee80211_alloc_challenge(struct ieee80211_node *ni)
 {
 	if (ni->ni_challenge == NULL)
-		ni->ni_challenge = malloc(IEEE80211_CHALLENGE_LEN,
+		MALLOC(ni->ni_challenge, uint32_t*, IEEE80211_CHALLENGE_LEN,
 		    M_80211_NODE, M_NOWAIT);
 	if (ni->ni_challenge == NULL) {
 		IEEE80211_NOTE(ni->ni_vap,

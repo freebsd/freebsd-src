@@ -902,7 +902,7 @@ hostap_auth_open(struct ieee80211_node *ni, struct ieee80211_frame *wh,
 		 * open auth is attempted.
 		 */
 		if (ni->ni_challenge != NULL) {
-			free(ni->ni_challenge, M_80211_NODE);
+			FREE(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		/* XXX hack to workaround calling convention */
@@ -1986,7 +1986,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		/* discard challenge after association */
 		if (ni->ni_challenge != NULL) {
-			free(ni->ni_challenge, M_80211_NODE);
+			FREE(ni->ni_challenge, M_80211_NODE);
 			ni->ni_challenge = NULL;
 		}
 		/* NB: 802.11 spec says to ignore station's privacy bit */
