@@ -529,8 +529,7 @@ filt_timerattach(struct knote *kn)
 
 	kn->kn_flags |= EV_CLEAR;		/* automatically set */
 	kn->kn_status &= ~KN_DETACHED;		/* knlist_add usually sets it */
-	calloutp = malloc(sizeof(*calloutp),
-	    M_KQUEUE, M_WAITOK);
+	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
 	callout_reset_curcpu(calloutp, timertoticks(kn->kn_sdata),
@@ -1109,7 +1108,7 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 			size = kq->kq_knlistsize;
 			while (size <= fd)
 				size += KQEXTENT;
-			list = malloc(			    size * sizeof list, M_KQUEUE, mflag);
+			list = malloc(size * sizeof list, M_KQUEUE, mflag);
 			if (list == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);

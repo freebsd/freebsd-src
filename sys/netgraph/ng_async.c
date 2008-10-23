@@ -190,10 +190,12 @@ nga_constructor(node_p node)
 	sc->cfg.accm = ~0;
 	sc->cfg.amru = NG_ASYNC_DEFAULT_MRU;
 	sc->cfg.smru = NG_ASYNC_DEFAULT_MRU;
-	sc->abuf = malloc(	    ASYNC_BUF_SIZE(sc->cfg.smru), M_NETGRAPH_ASYNC, M_NOWAIT);
+	sc->abuf = malloc(ASYNC_BUF_SIZE(sc->cfg.smru),
+	    M_NETGRAPH_ASYNC, M_NOWAIT);
 	if (sc->abuf == NULL)
 		goto fail;
-	sc->sbuf = malloc(	    SYNC_BUF_SIZE(sc->cfg.amru), M_NETGRAPH_ASYNC, M_NOWAIT);
+	sc->sbuf = malloc(SYNC_BUF_SIZE(sc->cfg.amru),
+	    M_NETGRAPH_ASYNC, M_NOWAIT);
 	if (sc->sbuf == NULL) {
 		free(sc->abuf, M_NETGRAPH_ASYNC);
 fail:

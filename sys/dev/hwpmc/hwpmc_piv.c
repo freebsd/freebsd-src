@@ -628,7 +628,8 @@ p4_init(int cpu)
 		if (pcs == NULL) /* decline to init */
 			return ENXIO;
 
-		plcs = malloc(		    sizeof(struct p4_logicalcpu), M_PMC, M_WAITOK|M_ZERO);
+		plcs = malloc(sizeof(struct p4_logicalcpu),
+		    M_PMC, M_WAITOK|M_ZERO);
 
 		/* The TSC is architectural state and is not shared */
 		plcs->pc_hwpmcs[0] = &plcs->pc_tsc;
@@ -644,8 +645,7 @@ p4_init(int cpu)
 		return 0;
 	}
 
-	pcs = malloc(sizeof(struct p4_cpu), M_PMC,
-	    M_WAITOK|M_ZERO);
+	pcs = malloc(sizeof(struct p4_cpu), M_PMC, M_WAITOK|M_ZERO);
 
 	if (pcs == NULL)
 		return ENOMEM;

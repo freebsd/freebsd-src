@@ -2235,8 +2235,7 @@ nfs4_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	if (vp->v_type == VDIR)
 		panic("nfs: sillyrename dir");
 #endif
-	sp = malloc(sizeof (struct sillyrename),
-		M_NFSREQ, M_WAITOK);
+	sp = malloc(sizeof (struct sillyrename), M_NFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);
 	sp->s_dvp = dvp;
 	sp->s_removeit = nfs4_removeit;
@@ -2352,7 +2351,7 @@ nfs4_lookitup(struct vnode *dvp, const char *name, int len, struct ucred *cred,
 			np->n_namelen = len;
 			if (np->n_name != NULL)
 				free(np->n_name, M_NFSREQ);
-			np->n_name = malloc(			    np->n_namelen + 1, M_NFSREQ, M_WAITOK);
+			np->n_name = malloc(np->n_namelen + 1, M_NFSREQ, M_WAITOK);
 			memcpy(np->n_name, name, len);
 			np->n_name[len] = '\0';
 		}

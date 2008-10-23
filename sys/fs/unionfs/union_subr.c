@@ -440,7 +440,8 @@ unionfs_get_node_status(struct unionfs_node *unp, struct thread *td,
 	}
 
 	/* create a new unionfs node status */
-	unsp = malloc(	    sizeof(struct unionfs_node_status), M_TEMP, M_WAITOK | M_ZERO);
+	unsp = malloc(sizeof(struct unionfs_node_status),
+	    M_TEMP, M_WAITOK | M_ZERO);
 
 	unsp->uns_pid = pid;
 	LIST_INSERT_HEAD(&(unp->un_unshead), unsp, uns_list);

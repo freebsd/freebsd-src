@@ -708,7 +708,7 @@ witness_initialize(void *dummy __unused)
 	struct witness *w, *w1;
 	int i;
 
-	w_data = malloc(	    sizeof (struct witness) * WITNESS_COUNT, M_WITNESS,
+	w_data = malloc(sizeof (struct witness) * WITNESS_COUNT, M_WITNESS,
 	    M_NOWAIT | M_ZERO);
 
 	/*

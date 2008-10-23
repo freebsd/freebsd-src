@@ -331,7 +331,7 @@ ng_netflow_cache_init(priv_p priv)
 	uma_zone_set_max(priv->zone, CACHESIZE);
 
 	/* Allocate hash. */
-	priv->hash = malloc(	    NBUCKETS * sizeof(struct flow_hash_entry),
+	priv->hash = malloc(NBUCKETS * sizeof(struct flow_hash_entry),
 	    M_NETFLOW_HASH, M_WAITOK | M_ZERO);
 
 	if (priv->hash == NULL) {

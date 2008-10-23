@@ -2409,7 +2409,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, s
 {
 	struct filedesc_to_leader *fdtol;
 
-	fdtol = malloc(	       sizeof(struct filedesc_to_leader),
+	fdtol = malloc(sizeof(struct filedesc_to_leader),
 	       M_FILEDESC_TO_LEADER,
 	       M_WAITOK);
 	fdtol->fdl_refcount = 1;
