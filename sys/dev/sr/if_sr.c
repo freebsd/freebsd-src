@@ -305,7 +305,7 @@ sr_attach(device_t device)
 	int unit;		/* index: channel w/in card */
 
 	hc = (struct sr_hardc *)device_get_softc(device);
-	sc = malloc(		hc->numports * sizeof(struct sr_softc),
+	sc = malloc(hc->numports * sizeof(struct sr_softc),
 		M_DEVBUF, M_WAITOK | M_ZERO);
 	if (sc == NULL)
 		goto errexit;

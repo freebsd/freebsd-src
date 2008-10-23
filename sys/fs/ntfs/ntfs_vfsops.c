@@ -416,7 +416,7 @@ ntfs_mountfs(devvp, mp, td)
 		}
 
 		/* Alloc memory for attribute definitions */
-		ntmp->ntm_ad = malloc(			num * sizeof(struct ntvattrdef),
+		ntmp->ntm_ad = malloc(num * sizeof(struct ntvattrdef),
 			M_NTFSMNT, M_WAITOK);
 
 		ntmp->ntm_adnum = num;

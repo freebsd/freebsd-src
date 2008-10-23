@@ -3920,7 +3920,8 @@ initiate_write_inodeblock_ufs1(inodedep, bp)
 		if (inodedep->id_savedino1 != NULL)
 			panic("initiate_write_inodeblock_ufs1: I/O underway");
 		FREE_LOCK(&lk);
-		sip = malloc(		    sizeof(struct ufs1_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
+		sip = malloc(sizeof(struct ufs1_dinode),
+		    M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
 		inodedep->id_savedino1 = sip;
 		*inodedep->id_savedino1 = *dp;
@@ -4065,7 +4066,8 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if (inodedep->id_savedino2 != NULL)
 			panic("initiate_write_inodeblock_ufs2: I/O underway");
 		FREE_LOCK(&lk);
-		sip = malloc(		    sizeof(struct ufs2_dinode), M_SAVEDINO, M_SOFTDEP_FLAGS);
+		sip = malloc(sizeof(struct ufs2_dinode),
+		    M_SAVEDINO, M_SOFTDEP_FLAGS);
 		ACQUIRE_LOCK(&lk);
 		inodedep->id_savedino2 = sip;
 		*inodedep->id_savedino2 = *dp;

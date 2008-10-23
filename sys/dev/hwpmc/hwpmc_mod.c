@@ -331,8 +331,7 @@ pmc_debugflags_parse(char *newstr, char *fence)
 	int error, found, *newbits, tmp;
 	size_t kwlen;
 
-	tmpflags = malloc(sizeof(*tmpflags),
-	    M_PMC, M_WAITOK|M_ZERO);
+	tmpflags = malloc(sizeof(*tmpflags), M_PMC, M_WAITOK|M_ZERO);
 
 	p = newstr;
 	error = 0;
@@ -777,8 +776,7 @@ pmc_link_target_process(struct pmc *pm, struct pmc_process *pp)
 				__LINE__, pp, pm));
 #endif
 
-	pt = malloc(sizeof(struct pmc_target),
-	    M_PMC, M_ZERO|M_WAITOK);
+	pt = malloc(sizeof(struct pmc_target), M_PMC, M_ZERO|M_WAITOK);
 
 	pt->pt_process = pp;
 
@@ -1861,8 +1859,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 	poh = &pmc_ownerhash[hindex];
 
 	/* allocate space for N pointers and one descriptor struct */
-	po = malloc(sizeof(struct pmc_owner),
-	    M_PMC, M_ZERO|M_WAITOK);
+	po = malloc(sizeof(struct pmc_owner), M_PMC, M_ZERO|M_WAITOK);
 
 	po->po_sscount = po->po_error = po->po_flags = 0;
 	po->po_file  = NULL;
@@ -1915,7 +1912,7 @@ pmc_find_process_descriptor(struct proc *p, uint32_t mode)
 
 	if (mode & PMC_FLAG_ALLOCATE) {
 		/* allocate additional space for 'n' pmc pointers */
-		ppnew = malloc(		    sizeof(struct pmc_process) + md->pmd_npmc *
+		ppnew = malloc(sizeof(struct pmc_process) + md->pmd_npmc *
 		    sizeof(struct pmc_targetstate), M_PMC, M_ZERO|M_WAITOK);
 	}
 
@@ -2818,8 +2815,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		npmc = md->pmd_npmc;
 
 		pmcinfo_size = npmc * sizeof(struct pmc_info);
-		pmcinfo = malloc(pmcinfo_size, M_PMC,
-		    M_WAITOK);
+		pmcinfo = malloc(pmcinfo_size, M_PMC, M_WAITOK);
 
 		p = pmcinfo;
 
@@ -4356,7 +4352,8 @@ pmc_initialize(void)
 	    M_PMC, M_WAITOK|M_ZERO);
 
 	/* per-cpu 'saved values' for managing process-mode PMCs */
-	pmc_pcpu_saved = malloc(	    sizeof(pmc_value_t) * maxcpu * md->pmd_npmc, M_PMC, M_WAITOK);
+	pmc_pcpu_saved = malloc(sizeof(pmc_value_t) * maxcpu * md->pmd_npmc,
+	    M_PMC, M_WAITOK);
 
 	/* Perform CPU-dependent initialization. */
 	pmc_save_cpu_binding(&pb);
@@ -4376,7 +4373,7 @@ pmc_initialize(void)
 	for (cpu = 0; cpu < maxcpu; cpu++) {
 		if (!pmc_cpu_is_active(cpu))
 			continue;
-		sb = malloc(		    sizeof(struct pmc_samplebuffer) +
+		sb = malloc(sizeof(struct pmc_samplebuffer) +
 		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
 		    M_WAITOK|M_ZERO);
 
@@ -4385,7 +4382,8 @@ pmc_initialize(void)
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
 
-		sb->ps_callchains = malloc(		    pmc_callchaindepth * pmc_nsamples * sizeof(uintptr_t),
+		sb->ps_callchains = malloc(pmc_callchaindepth *
+		    pmc_nsamples * sizeof(uintptr_t),
 		    M_PMC, M_WAITOK|M_ZERO);
 
 		for (n = 0, ps = sb->ps_samples; n < pmc_nsamples; n++, ps++)

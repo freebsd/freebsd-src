@@ -428,7 +428,8 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 			return (EINVAL);
 
 		/* Create hook private structure */
-		hpriv = malloc(		    sizeof(*hpriv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
+		hpriv = malloc(sizeof(*hpriv),
+		    M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL)
 			return (ENOMEM);
 		hpriv->conf.session_id = session_id;
