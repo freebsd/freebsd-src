@@ -45,6 +45,24 @@
  */
 
 #ifdef XEN
+#ifndef NR_VIRQS
+#define	NR_VIRQS	24
+#endif
+#ifndef NR_IPIS
+#define	NR_IPIS		2
+#endif
+
+/* These are peridically updated in shared_info, and then copied here. */
+struct shadow_time_info {
+	uint64_t tsc_timestamp;     /* TSC at last update of time vals.  */
+	uint64_t system_timestamp;  /* Time, in nanosecs, since boot.    */
+	uint32_t tsc_to_nsec_mul;
+	uint32_t tsc_to_usec_mul;
+	int tsc_shift;
+	uint32_t version;
+};
+
+
 #define	PCPU_MD_FIELDS							\
 	char	pc_monitorbuf[128] __aligned(128); /* cache line */	\
 	struct	pcpu *pc_prvspace;	/* Self-reference */		\
@@ -62,7 +80,14 @@
         u_int     pc_pdir;                                              \
         u_int     pc_lazypmap;                                          \
         u_int     pc_rendezvous;                                        \
-        u_int     pc_cpuast						
+        u_int     pc_cpuast;						\
+	uint64_t  pc_processed_system_time;				\
+	struct shadow_time_info pc_shadow_time;				\
+	int	pc_resched_irq;						\
+	int	pc_callfunc_irq;					\
+        int	pc_virq_to_irq[NR_VIRQS];				\
+	int	pc_ipi_to_irq[NR_IPIS]
+	
 
 	
 #else
@@ -88,7 +113,7 @@
 extern struct pcpu *pcpup;
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
-#define	PCPU_ADD(member, val)	(pcpu->pc_ ## member += (val))
+#define	PCPU_ADD(member, val)	(pcpup->pc_ ## member += (val))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member, val)	(pcpup->pc_ ## member = (val))
