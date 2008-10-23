@@ -101,8 +101,6 @@ extern	struct pcpu __pcpu[];
 static int bootAP;
 static union descriptor *bootAPgdt;
 
-static DEFINE_PER_CPU(int, resched_irq);
-static DEFINE_PER_CPU(int, callfunc_irq);
 static char resched_name[NR_CPUS][15];
 static char callfunc_name[NR_CPUS][15];
 
@@ -311,12 +309,14 @@ static void
 iv_invltlb(uintptr_t a, uintptr_t b)
 {
 	xen_tlb_flush();
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 static void
 iv_invlpg(uintptr_t a, uintptr_t b)
 {
 	xen_invlpg(a);
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 static void
@@ -329,6 +329,7 @@ iv_invlrng(uintptr_t a, uintptr_t b)
 		xen_invlpg(start);
 		start += PAGE_SIZE;
 	}
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 
@@ -337,6 +338,7 @@ iv_invlcache(uintptr_t a, uintptr_t b)
 {
 
 	wbinvd();
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 static void
@@ -349,7 +351,24 @@ static void
 iv_bitmap_vector(uintptr_t a, uintptr_t b)
 {
 
-	
+	int cpu = PCPU_GET(cpuid);
+	u_int ipi_bitmap;
+
+	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+#ifdef COUNT_IPIS
+		(*ipi_preempt_counts[cpu])++;
+#endif
+		sched_preempt(curthread);
+	}
+
+	if (ipi_bitmap & (1 << IPI_AST)) {
+#ifdef COUNT_IPIS
+		(*ipi_ast_counts[cpu])++;
+#endif
+		/* Nothing to do for AST */
+	}	
 }
 
 
@@ -368,9 +387,10 @@ static call_data_func_t *ipi_vectors[IPI_BITMAP_VECTOR + 1] =
  * all the work is done automatically when
  * we return from the interrupt.
  */
-static void
+static int
 smp_reschedule_interrupt(void *unused)
 {
+	return (FILTER_HANDLED);
 }
 
 struct _call_data {
@@ -384,7 +404,7 @@ struct _call_data {
 
 static struct _call_data *call_data;
 
-static void
+static int
 smp_call_function_interrupt(void *unused)
 {	
 	call_data_func_t *func = call_data->func;
@@ -407,6 +427,7 @@ smp_call_function_interrupt(void *unused)
 		mb();
 		atomic_inc(&call_data->finished);
 	}
+	return (FILTER_HANDLED);
 }
 
 /*
@@ -432,7 +453,6 @@ cpu_mp_announce(void)
 	}
 }
 
-
 static int
 xen_smp_intr_init(unsigned int cpu)
 {
@@ -445,8 +465,11 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    resched_name[cpu],
 				    smp_reschedule_interrupt,
-				    INTR_FAST);
+				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
 
+	printf("cpu=%d irq=%d vector=%d\n",
+	    cpu, rc, RESCHEDULE_VECTOR);
+	
 	per_cpu(resched_irq, cpu) = rc;
 
 	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
@@ -454,11 +477,15 @@ xen_smp_intr_init(unsigned int cpu)
 				    cpu,
 				    callfunc_name[cpu],
 				    smp_call_function_interrupt,
-				    INTR_FAST);
+				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
 	if (rc < 0)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = rc;
 
+	printf("cpu=%d irq=%d vector=%d\n",
+	    cpu, rc, CALL_FUNCTION_VECTOR);
+
+	
 	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
 		goto fail;
 
@@ -470,6 +497,15 @@ xen_smp_intr_init(unsigned int cpu)
 	if (per_cpu(callfunc_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
 	return rc;
+}
+
+static void
+xen_smp_intr_init_cpus(void *unused)
+{
+	int i;
+	    
+	for (i = 0; i < mp_ncpus; i++)
+		xen_smp_intr_init(i);
 }
 
 #define MTOPSIZE (1<<(14 + PAGE_SHIFT))
@@ -581,7 +617,6 @@ init_secondary(void)
 		smp_active = 1;	 /* historic */
 	}
 
-	xen_smp_intr_init(bootAP);
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* wait until all the AP's are up */
@@ -689,7 +724,6 @@ start_all_aps(void)
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
 
-	xen_smp_intr_init(0);
 	/* start each AP */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
 		apic_id = cpu_apic_ids[cpu];
@@ -923,14 +957,16 @@ static void
 smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	u_int ncpu;
+	struct _call_data data;
 
+	call_data = &data;
+	
 	ncpu = mp_ncpus - 1;	/* does not shootdown self */
 	if (ncpu < 1)
 		return;		/* no other cpus */
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	call_data->func = ipi_vectors[vector];
 	call_data->arg1 = addr1;
 	call_data->arg2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
@@ -1052,7 +1088,10 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 	u_int bitmap = 0;
 	u_int old_pending;
 	u_int new_pending;
+	struct _call_data data;
 
+	call_data = &data;
+	
 	if (IPI_IS_BITMAPED(ipi)) { 
 		bitmap = 1 << ipi;
 		ipi = IPI_BITMAP_VECTOR;
@@ -1082,7 +1121,7 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 				continue;
 		}
 		call_data->func = ipi_vectors[ipi];
-		ipi_pcpu(cpu, ipi);
+		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 	}
 }
 
@@ -1098,7 +1137,7 @@ ipi_all_but_self(u_int ipi)
 		return;
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	ipi_selected(((int)-1 & ~(1 << curcpu)), ipi);
+	ipi_selected((all_cpus & ~(1 << curcpu)), ipi);
 }
 
 #ifdef STOP_NMI
@@ -1194,4 +1233,5 @@ release_aps(void *dummy __unused)
 		ia32_pause();
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
+SYSINIT(start_ipis, SI_SUB_INTR, SI_ORDER_ANY, xen_smp_intr_init_cpus, NULL);
 
