@@ -795,10 +795,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * you should use PT_SUSPEND to suspend it before
 			 * continuing process.
 			 */
-			PROC_SLOCK(p);
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
-			PROC_SUNLOCK(p);
 		} else {
 			if (data)
 				psignal(p, data);
