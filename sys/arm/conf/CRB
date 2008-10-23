@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		CRB
 
 options 	PHYSADDR=0x00000000
@@ -67,7 +66,6 @@ options		BOOTP_COMPAT
 #options		PREEMPTION
 device		loop
 device		ether
-device		mem			# Memory and kernel memory devices
 #device		saarm
 device		miibus
 device		rl
