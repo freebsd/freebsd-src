@@ -24,7 +24,6 @@
 #   will be necessary to support multi-user boot.
 #
 
-machine		mips
 ident		SENTRY5
 cpu		CPU_MIPS4KC
 options		CPU_NOFPU
@@ -91,9 +90,7 @@ device		ehci			# EHCI PCI->USB interface (USB 2.0)
 
 # XXX notyet; need to be auto probed children of siba_cc.
 #device		uart
-#device		uart_ns8250
 
 device		loop
 device		ether
 device		md
-device		mem
