@@ -253,7 +253,7 @@ iwn_attach(device_t dev)
 	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
-	int i, error;
+	int i, error, result;
 
 	sc->sc_dev = dev;
 
@@ -282,6 +282,9 @@ iwn_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 	sc->irq_rid = 0;
+	if ((result = pci_msi_count(dev)) == 1 &&
+	    pci_alloc_msi(dev, &result) == 0)
+		sc->irq_rid = 1;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
 					 RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
@@ -487,6 +490,8 @@ iwn_cleanup(device_t dev)
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+		if (sc->irq_rid == 1)
+			pci_release_msi(dev);
 	}
 	if (sc->mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
