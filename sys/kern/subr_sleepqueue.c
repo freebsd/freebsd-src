@@ -396,7 +396,6 @@ sleepq_catch_signals(void *wchan, int pri)
 		return (0);
 	}
 
-catch_sig:
 	thread_unlock(td);
 	mtx_unlock_spin(&sc->sc_lock);
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
@@ -416,19 +415,15 @@ catch_sig:
 			ret = ERESTART;
 		mtx_unlock(&ps->ps_mtx);
 	}
-	PROC_UNLOCK(p);
 
 	mtx_lock_spin(&sc->sc_lock);
 	thread_lock(td);
-	if (ret != 0)
-		goto out;
-	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) != 0)
-		goto catch_sig;
+	PROC_UNLOCK(p);
+	if (ret == 0) {
+		sleepq_switch(wchan, pri);
+		return (0);
+	}
 
-	sleepq_switch(wchan, pri);
-	return (0);
-
-out:
 	/*
 	 * There were pending signals and this thread is still
 	 * on the sleep queue, remove it from the sleep queue.
