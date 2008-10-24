@@ -1064,6 +1064,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 			if (url->offset == size && url->length == 0) {
 				/* asked for 0 bytes; fake it */
 				offset = url->offset;
+				clength = -1;
 				conn->err = HTTP_OK;
 				break;
 			} else {
