@@ -86,8 +86,8 @@ int	ipi_nmi_handler(void);
 #ifdef XEN
 void ipi_to_irq_init(void);
 
-#define CALL_FUNCTION_VECTOR	0
-#define RESCHEDULE_VECTOR	1
+#define RESCHEDULE_VECTOR	0
+#define CALL_FUNCTION_VECTOR	1
 #define NR_IPIS			2
 
 #endif
