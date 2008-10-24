@@ -309,14 +309,12 @@ static void
 iv_invltlb(uintptr_t a, uintptr_t b)
 {
 	xen_tlb_flush();
-	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 static void
 iv_invlpg(uintptr_t a, uintptr_t b)
 {
 	xen_invlpg(a);
-	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 static void
@@ -329,7 +327,6 @@ iv_invlrng(uintptr_t a, uintptr_t b)
 		xen_invlpg(start);
 		start += PAGE_SIZE;
 	}
-	atomic_add_int(&smp_tlb_wait, 1);
 }
 
 
@@ -345,12 +342,36 @@ static void
 iv_lazypmap(uintptr_t a, uintptr_t b)
 {
 	pmap_lazyfix_action();
+	atomic_add_int(&smp_tlb_wait, 1);
 }
 
-static void
-iv_bitmap_vector(uintptr_t a, uintptr_t b)
-{
 
+static void
+iv_noop(uintptr_t a, uintptr_t b)
+{
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+static call_data_func_t *ipi_vectors[IPI_BITMAP_VECTOR] = 
+{
+  iv_noop,
+  iv_noop,
+  iv_rendezvous,
+  iv_invltlb,
+  iv_invlpg,
+  iv_invlrng,
+  iv_invlcache,
+  iv_lazypmap,
+};
+
+/*
+ * Reschedule call back. Nothing to do,
+ * all the work is done automatically when
+ * we return from the interrupt.
+ */
+static int
+smp_reschedule_interrupt(void *unused)
+{
 	int cpu = PCPU_GET(cpuid);
 	u_int ipi_bitmap;
 
@@ -369,37 +390,16 @@ iv_bitmap_vector(uintptr_t a, uintptr_t b)
 #endif
 		/* Nothing to do for AST */
 	}	
-}
-
-
-static call_data_func_t *ipi_vectors[IPI_BITMAP_VECTOR + 1] = 
-{ iv_rendezvous,
-  iv_invltlb,
-  iv_invlpg,
-  iv_invlrng,
-  iv_invlcache,
-  iv_lazypmap,
-  iv_bitmap_vector
-};
-
-/*
- * Reschedule call back. Nothing to do,
- * all the work is done automatically when
- * we return from the interrupt.
- */
-static int
-smp_reschedule_interrupt(void *unused)
-{
 	return (FILTER_HANDLED);
 }
 
 struct _call_data {
-	call_data_func_t *func;
+	uint16_t func_id;
+	uint16_t wait;
 	uintptr_t arg1;
 	uintptr_t arg2;
 	atomic_t started;
 	atomic_t finished;
-	int wait;
 };
 
 static struct _call_data *call_data;
@@ -407,17 +407,23 @@ static struct _call_data *call_data;
 static int
 smp_call_function_interrupt(void *unused)
 {	
-	call_data_func_t *func = call_data->func;
+	call_data_func_t *func;
 	uintptr_t arg1 = call_data->arg1;
 	uintptr_t arg2 = call_data->arg2;
 	int wait = call_data->wait;
+	atomic_t *started = &call_data->started;
+	atomic_t *finished = &call_data->finished;
 
+	if (call_data->func_id > IPI_BITMAP_VECTOR)
+		panic("invalid function id %u", call_data->func_id);
+	
+	func = ipi_vectors[call_data->func_id];
 	/*
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function
 	 */
 	mb();
-	atomic_inc(&call_data->started);
+	atomic_inc(started);
 	/*
 	 * At this point the info structure may be out of scope unless wait==1
 	 */
@@ -425,8 +431,9 @@ smp_call_function_interrupt(void *unused)
 
 	if (wait) {
 		mb();
-		atomic_inc(&call_data->finished);
+		atomic_inc(finished);
 	}
+	atomic_add_int(&smp_tlb_wait, 1);
 	return (FILTER_HANDLED);
 }
 
@@ -967,12 +974,14 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
+	call_data->func_id = vector;
 	call_data->arg1 = addr1;
 	call_data->arg2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	call_data = NULL;
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -980,6 +989,7 @@ static void
 smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	int ncpu, othercpus;
+	struct _call_data data;
 
 	othercpus = mp_ncpus - 1;
 	if (mask == (u_int)-1) {
@@ -1004,8 +1014,10 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
-	smp_tlb_addr2 = addr2;
+	call_data = &data;		
+	call_data->func_id = vector;
+	call_data->arg1 = addr1;
+	call_data->arg2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	if (mask == (u_int)-1)
 		ipi_all_but_self(vector);
@@ -1013,6 +1025,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		ipi_selected(mask, vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	call_data = NULL;
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -1082,20 +1095,17 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int32_t cpus, u_int ipi)
+ipi_selected(uint32_t cpus, u_int ipi)
 {
 	int cpu;
 	u_int bitmap = 0;
 	u_int old_pending;
 	u_int new_pending;
-	struct _call_data data;
-
-	call_data = &data;
 	
 	if (IPI_IS_BITMAPED(ipi)) { 
 		bitmap = 1 << ipi;
 		ipi = IPI_BITMAP_VECTOR;
-	}
+	} 
 
 #ifdef STOP_NMI
 	if (ipi == IPI_STOP && stop_cpus_with_nmi) {
@@ -1117,10 +1127,13 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 				new_pending = old_pending | bitmap;
 			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
 
-			if (old_pending)
-				continue;
+			if (!old_pending)
+				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
+			continue;
+			
 		}
-		call_data->func = ipi_vectors[ipi];
+		
+		KASSERT(call_data != NULL, ("call_data not set"));
 		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 	}
 }
@@ -1137,7 +1150,7 @@ ipi_all_but_self(u_int ipi)
 		return;
 	}
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	ipi_selected((all_cpus & ~(1 << curcpu)), ipi);
+	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
 
 #ifdef STOP_NMI
