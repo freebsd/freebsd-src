@@ -48,6 +48,7 @@
 
 #include "usbdevs.h"
 
+//#define U3G_DEBUG
 #ifdef U3G_DEBUG
 #define DPRINTF(x...)		do { if (u3gdebug) device_printf(self, ##x); } while (0)
 #define DPRINTFN(n, x...)	do { if (u3gdebug > (n)) device_printf(self, ##x); } while (0)
@@ -57,7 +58,6 @@ int	u3gdebug = 1;
 #define DPRINTFN(n, x...)	/* nop */
 #endif
 
-#define U3G_BUFSIZ		10240
 #define U3G_MAXPORTS		4
 #define U3G_CONFIG_INDEX	0
 
@@ -85,25 +85,42 @@ struct ucom_callback u3g_callback = {
 };
 
 
+struct u3g_speeds_s {
+	u_int32_t		ispeed;
+	u_int32_t		ospeed;
+};
+
+static const struct u3g_speeds_s u3g_speeds[] = {
+#define U3GSP_GPRS		0
+	{64000,   64000},
+#define U3GSP_EDGE		1
+	{384000,  64000},
+#define U3GSP_CDMA		2
+	{384000,  64000},
+#define U3GSP_UMTS		3
+	{384000,  64000},
+#define U3GSP_HSDPA		4
+	{1200000, 384000},
+#define U3GSP_HSUPA		5
+	{1200000, 384000},
+#define U3GSP_HSPA		6
+	{7200000, 384000},
+};
+
 /*
  * Various supported device vendors/products.
  */
 struct u3g_dev_type_s {
 	struct usb_devno	devno;
 	u_int8_t		speed;
-#define U3GSP_GPRS		1
-#define U3GSP_EDGE		2
-#define U3GSP_UMTS		3
-#define U3GSP_HSDPA		4
-#define U3GSP_HSUPA		5
-#define U3GSP_HSPA		6
-
 	u_int8_t		flags;
 #define U3GFL_NONE		0x00
 #define U3GFL_HUAWEI_INIT	0x01		// Requires init (Huawei cards)
 #define U3GFL_STUB_WAIT		0x02		// Device reappears after a short delay
 };
 
+// Note: The entries marked with XXX should be checked for the correct speed
+// indication to set the buffer sizes.
 static const struct u3g_dev_type_s u3g_devs[] = {
 	/* OEM: Option */
 	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },		U3GSP_UMTS,	U3GFL_NONE },
@@ -113,12 +130,12 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA },		U3GSP_HSDPA,	U3GFL_NONE },
 	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GSP_UMTS,	U3GFL_NONE },
 	/* OEM: Qualcomm, Inc. */
-	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_UMTS,	U3GFL_STUB_WAIT },	// XXX
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GFL_STUB_WAIT },
 	/* OEM: Huawei */
 	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
 	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
 	/* OEM: Novatel */
-	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GSP_UMTS,	U3GFL_STUB_WAIT },	// XXX
+	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GSP_CDMA,	U3GFL_STUB_WAIT },
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GSP_UMTS,	U3GFL_STUB_WAIT },	// XXX
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_MC950D },		U3GSP_HSUPA,	U3GFL_STUB_WAIT },
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720 },		U3GSP_UMTS,	U3GFL_STUB_WAIT },	// XXX
@@ -242,6 +259,7 @@ u3g_attach(device_t self)
 		}
 
 		int bulkin_no = -1, bulkout_no = -1;
+		int claim_iface = 0;
 		for (n = 0; n < id->bNumEndpoints; n++) {
 			ed = usbd_interface2endpoint_descriptor(uaa->ifaces[i], n);
 			if (ed == NULL)
@@ -264,10 +282,11 @@ u3g_attach(device_t self)
 				ucom->sc_udev = dev;
 				ucom->sc_iface = uaa->ifaces[i];
 				ucom->sc_bulkin_no = bulkin_no;
-				ucom->sc_ibufsize = U3G_BUFSIZ;
-				ucom->sc_ibufsizepad = U3G_BUFSIZ;	// XXX What's this?
 				ucom->sc_bulkout_no = bulkout_no;
-				ucom->sc_obufsize = U3G_BUFSIZ;
+				// Allocate a buffer enough for 10ms worth of data
+				ucom->sc_ibufsize = u3g_speeds[sc->sc_speed].ispeed/USB_FRAMES_PER_SECOND*10;
+				ucom->sc_ibufsizepad = ucom->sc_ibufsize;
+				ucom->sc_obufsize = u3g_speeds[sc->sc_speed].ospeed/USB_FRAMES_PER_SECOND*10;
 				ucom->sc_opkthdrlen = 0;
 
 				ucom->sc_callback = &u3g_callback;
@@ -284,12 +303,13 @@ u3g_attach(device_t self)
 				ucom_attach_tty(ucom, devnamefmt, portno);
 #endif
 
-				uaa->ifaces[i] = NULL;
+				claim_iface = 1;
 				portno++;
 				bulkin_no = bulkout_no = -1;
 			}
 		}
-
+		if (claim_iface)
+			uaa->ifaces[i] = NULL;		// claim the interface
 	}
 	sc->sc_numports = portno;
 
@@ -327,37 +347,17 @@ u3g_open(void *addr, int portno)
 	 * anyway.
 	 * Note: We abuse the fact that ucom sets the speed through
 	 * ispeed/ospeed, not through ispeedwat/ospeedwat.
+	 * XXX Are the speeds correct?
 	 */
 	if (portno == 0) {
 		struct u3g_softc *sc = addr;
 		struct ucom_softc *ucom = &sc->sc_ucom[portno];
 		struct tty *tp = ucom->sc_tty;
-#ifdef U3G_DEBUG
-		device_t self = sc->sc_dev;
-#endif
 
-		if (sc->sc_speed&U3GSP_HSPA) {
-			tp->t_ispeedwat = 7200000;
-			tp->t_ospeedwat = 384000;
-		} else if (sc->sc_speed&U3GSP_HSUPA) {
-			tp->t_ispeedwat = 1200000;
-			tp->t_ospeedwat = 384000;
-		} else if (sc->sc_speed&U3GSP_HSDPA) {
-			tp->t_ispeedwat = 1200000;
-			tp->t_ospeedwat = 384000;
-		} else if (sc->sc_speed&U3GSP_UMTS) {
-			tp->t_ispeedwat = 384000;
-			tp->t_ospeedwat = 64000;
-		} else if (sc->sc_speed&U3GSP_EDGE) {
-			tp->t_ispeedwat = 384000;
-			tp->t_ospeedwat = 64000;
-		} else {
-			tp->t_ispeedwat = 64000;
-			tp->t_ospeedwat = 64000;
-		}
+		tp->t_ispeedwat = u3g_speeds[sc->sc_speed].ispeed;
+		tp->t_ospeedwat = u3g_speeds[sc->sc_speed].ospeed;
 
-		/* Avoid excessive buffer sizes. On modern fast machines this is
-		 * not needed.
+		/* Avoid excessive buffer sizes.
 		 * XXX The values here should be checked. Lower them and see
 		 * whether 'lost chars' messages appear.
 		 */
@@ -366,8 +366,6 @@ u3g_open(void *addr, int portno)
 		if (tp->t_ospeedwat > 384000)
 		    tp->t_ospeedwat = 384000;
 
-		DPRINTF("ispeedwat = %d, ospeedwat = %d\n",
-			tp->t_ispeedwat, tp->t_ospeedwat);
 		ttsetwater(tp);
 	}
 #endif
@@ -391,7 +389,6 @@ u3g_close(void *addr, int portno)
 		tp->t_ispeedwat = (speed_t)-1;
 		tp->t_ospeedwat = (speed_t)-1;
 
-		DPRINTF("ispeedwat = default, ospeedwat = default\n");
 		ttsetwater(tp);
 	}
 #endif
@@ -415,6 +412,7 @@ static driver_t u3g_driver = {
 DRIVER_MODULE(u3g, uhub, u3g_driver, ucom_devclass, usbd_driver_load, 0);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 MODULE_DEPEND(u3g, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
+MODULE_VERSION(u3g, 1);
 
 /*******************************************************************
  ****** Stub driver to hide devices that need to reinitialise ******
