@@ -46,6 +46,7 @@
 
 #include <dev/usb/ucomvar.h>
 
+#include "opt_u3g.h"
 #include "usbdevs.h"
 
 //#define U3G_DEBUG
