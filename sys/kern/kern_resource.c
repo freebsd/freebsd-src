@@ -638,7 +638,8 @@ lim_cb(void *arg)
 			psignal(p, SIGXCPU);
 		}
 	}
-	callout_reset(&p->p_limco, hz, lim_cb, p);
+	if ((p->p_flag & P_WEXIT) == 0)
+		callout_reset(&p->p_limco, hz, lim_cb, p);
 }
 
 int
