@@ -610,7 +610,6 @@ hint.sr.0.at="isa"
 hint.sr.0.port="0x300"
 hint.sr.0.irq="5"
 hint.sr.0.maddr="0xd0000"
-device		ural
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
