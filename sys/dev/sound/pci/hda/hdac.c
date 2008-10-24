@@ -4510,6 +4510,24 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				    ~HDA_QUIRK_EAPDINV;
 		}
 		break;
+	case HDA_CODEC_AD1981HD:
+		/*
+		 * This codec has very unusual design with several
+		 * points unappropriate for the present parser.
+		 */
+		/* Disable recording from mono playback mix. */
+		w = hdac_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		/* Disable rear to front mic mixer, use separately. */
+		w = hdac_widget_get(devinfo, 31);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable playback mixer, use direct bypass. */
+		w = hdac_widget_get(devinfo, 14);
+		if (w != NULL)
+			w->enable = 0;
+		break;
 	}
 }
 
