@@ -46,7 +46,9 @@
 
 #include <dev/usb/ucomvar.h>
 
+#if __FreeBSD_version >= 800000
 #include "opt_u3g.h"
+#endif
 #include "usbdevs.h"
 
 //#define U3G_DEBUG
@@ -134,7 +136,7 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GFL_STUB_WAIT },
 	/* OEM: Huawei */
 	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
-	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
+	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSPA,	U3GFL_HUAWEI_INIT },
 	/* OEM: Novatel */
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },	U3GSP_CDMA,	U3GFL_STUB_WAIT },
 	{{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },		U3GSP_UMTS,	U3GFL_STUB_WAIT },	// XXX
@@ -298,7 +300,9 @@ u3g_attach(device_t self)
 					 portno, i,
 					 ucom->sc_bulkin_no,
 					 ucom->sc_bulkout_no);
-#if __FreeBSD_version < 800000
+#if __FreeBSD_version < 700000
+				ucom_attach_tty(ucom, MINOR_CALLOUT, devnamefmt, portno);
+#elif __FreeBSD_version < 800000
 				ucom_attach_tty(ucom, TS_CALLOUT, devnamefmt, portno);
 #else
 				ucom_attach_tty(ucom, devnamefmt, portno);
