@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 17, 2008
+.Dd Sep 24, 2008
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -129,6 +129,8 @@ If you have no sound or sound volume is not adequate you may need to find a
 GPIO combination required for your system.
 ivrefX/ovrefX options controls voltage used to power external microphones
 and so on.
+.It Va hint.hdac.%d.msi
+Controls MSI (Message Signaled Interrupts) support.
 .It Va hint.hdac.%d.cad%d.nid%d.config
 Overrides codec pin configuration set by BIOS.
 May be specified as a 32bit HEX value with a leading "0x" or as a set of
