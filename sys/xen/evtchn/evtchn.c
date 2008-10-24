@@ -101,18 +101,48 @@ enum {
 	IRQT_VIRQ,
 	IRQT_IPI,
 	IRQT_LOCAL_PORT,
-	IRQT_CALLER_PORT
+	IRQT_CALLER_PORT,
+	_IRQT_COUNT
+	
 };
 
+
+#define _IRQT_BITS 4
+#define _EVTCHN_BITS 12
+#define _INDEX_BITS (32 - _IRQT_BITS - _EVTCHN_BITS)
+
 /* Constructor for packed IRQ information. */
-#define mk_irq_info(type, index, evtchn)				\
-	(((uint32_t)(type) << 24) | ((uint32_t)(index) << 16) | (uint32_t)(evtchn))
+static inline uint32_t
+mk_irq_info(uint32_t type, uint32_t index, uint32_t evtchn)
+{
+
+	return ((type << (32 - _IRQT_BITS)) | (index << _EVTCHN_BITS) | evtchn);
+}
+
+/* Constructor for packed IRQ information. */
+
 /* Convenient shorthand for packed representation of an unbound IRQ. */
 #define IRQ_UNBOUND	mk_irq_info(IRQT_UNBOUND, 0, 0)
-/* Accessor macros for packed IRQ information. */
-#define evtchn_from_irq(irq) ((uint16_t)(irq_info[irq]))
-#define index_from_irq(irq)  ((uint8_t)(irq_info[irq] >> 16))
-#define type_from_irq(irq)   ((uint8_t)(irq_info[irq] >> 24))
+
+/*
+ * Accessors for packed IRQ information.
+ */
+
+static inline unsigned int evtchn_from_irq(int irq)
+{
+	return irq_info[irq] & ((1U << _EVTCHN_BITS) - 1);
+}
+
+static inline unsigned int index_from_irq(int irq)
+{
+	return (irq_info[irq] >> _EVTCHN_BITS) & ((1U << _INDEX_BITS) - 1);
+}
+
+static inline unsigned int type_from_irq(int irq)
+{
+	return irq_info[irq] >> (32 - _IRQT_BITS);
+}
+
 
 /* IRQ <-> VIRQ mapping. */ 
  
@@ -132,9 +162,9 @@ static int irq_bindcount[NR_IRQS];
 
 #define VALID_EVTCHN(_chn) ((_chn) != 0)
 
-#ifdef CONFIG_SMP
+#ifdef SMP
 
-static u8 cpu_evtchn[NR_EVENT_CHANNELS];
+static uint8_t cpu_evtchn[NR_EVENT_CHANNELS];
 static unsigned long cpu_evtchn_mask[NR_CPUS][NR_EVENT_CHANNELS/BITS_PER_LONG];
 
 #define active_evtchns(cpu,sh,idx)		\
@@ -228,7 +258,6 @@ ipi_pcpu(unsigned int cpu, int vector)
         int irq;
 
 	irq = per_cpu(ipi_to_irq, cpu)[vector]; 
-	irq = (pcpu_find((cpu))->pc_ipi_to_irq)[vector];
 	
         notify_remote_via_irq(irq); 
 } 
@@ -362,7 +391,10 @@ out:
 	return irq;
 }
 
-static int 
+
+extern int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu);
+
+int 
 bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 {
 	struct evtchn_bind_ipi bind_ipi;
@@ -1047,7 +1079,10 @@ evtchn_init(void *dummy __unused)
 	int i, cpu;
 	struct xenpic_intsrc *pin, *tpin;
 
-	/* No VIRQ or IPI bindings. */
+
+	init_evtchn_cpu_bindings();
+	
+         /* No VIRQ or IPI bindings. */
 	for (cpu = 0; cpu < mp_ncpus; cpu++) {
 		for (i = 0; i < NR_VIRQS; i++)
 			per_cpu(virq_to_irq, cpu)[i] = -1;
