@@ -618,6 +618,7 @@ BUS_DEBUG		opt_bus.h
 # options for USB support
 USB_DEBUG		opt_usb.h
 USBVERBOSE		opt_usb.h
+U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h

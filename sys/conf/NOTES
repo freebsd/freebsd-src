@@ -2419,7 +2419,7 @@ device		uscanner
 #
 # USB serial support
 device		ucom
-# USB support for 3G modem cards by Option, Huawei and Sierra
+# USB support for 3G modem cards by Option, Novatel, Huawei and Sierra
 device		u3g
 # USB support for Technologies ARK3116 based serial adapters
 device		uark
@@ -2486,6 +2486,7 @@ device		rum
 # debugging options for the USB subsystem
 #
 options 	USB_DEBUG
+options		U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
