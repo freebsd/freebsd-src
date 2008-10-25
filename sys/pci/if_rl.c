@@ -1354,8 +1354,6 @@ rl_txeof(struct rl_softc *sc)
 
 	if (RL_LAST_TXMBUF(sc) == NULL)
 		sc->rl_watchdog_timer = 0;
-	else if (sc->rl_watchdog_timer == 0)
-		sc->rl_watchdog_timer = 5;
 }
 
 static void
