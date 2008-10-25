@@ -203,24 +203,19 @@ ieee80211_start(struct ifnet *ifp)
 			continue;
 		}
 		/* XXX AUTH'd */
-		if (ni->ni_associd == 0) {
-			/*
-			 * Destination is not associated; must special
-			 * case DWDS where we point iv_bss at the node
-			 * for the associated station.
-			 * XXX adhoc mode?
-			 */
-			if (ni != vap->iv_bss || IS_DWDS(vap)) {
-				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
-				    eh->ether_dhost, NULL,
-				    "sta not associated (type 0x%04x)",
-				    htons(eh->ether_type));
-				vap->iv_stats.is_tx_notassoc++;
-				ifp->if_oerrors++;
-				m_freem(m);
-				ieee80211_free_node(ni);
-				continue;
-			}
+		/* XXX mark vap to identify if associd is required */
+		if (ni->ni_associd == 0 &&
+		    (vap->iv_opmode == IEEE80211_M_STA ||
+		     vap->iv_opmode == IEEE80211_M_HOSTAP || IS_DWDS(vap))) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_OUTPUT,
+			    eh->ether_dhost, NULL,
+			    "sta not associated (type 0x%04x)",
+			    htons(eh->ether_type));
+			vap->iv_stats.is_tx_notassoc++;
+			ifp->if_oerrors++;
+			m_freem(m);
+			ieee80211_free_node(ni);
+			continue;
 		}
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    (m->m_flags & M_PWR_SAV) == 0) {
