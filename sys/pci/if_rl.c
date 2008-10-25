@@ -182,12 +182,14 @@ static struct rl_type rl_devs[] = {
 
 static int rl_attach(device_t);
 static int rl_detach(device_t);
-static void rl_dma_map_rxbuf(void *, bus_dma_segment_t *, int, int);
-static void rl_dma_map_txbuf(void *, bus_dma_segment_t *, int, int);
+static void rl_dmamap_cb(void *, bus_dma_segment_t *, int, int);
+static int rl_dma_alloc(struct rl_softc *);
+static void rl_dma_free(struct rl_softc *);
 static void rl_eeprom_putbyte(struct rl_softc *, int);
 static void rl_eeprom_getword(struct rl_softc *, int, uint16_t *);
-static int rl_encap(struct rl_softc *, struct mbuf * );
+static int rl_encap(struct rl_softc *, struct mbuf **);
 static int rl_list_tx_init(struct rl_softc *);
+static int rl_list_rx_init(struct rl_softc *);
 static int rl_ifmedia_upd(struct ifnet *);
 static void rl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int rl_ioctl(struct ifnet *, u_long, caddr_t);
@@ -268,22 +270,6 @@ DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 #define EE_CLR(x)					\
 	CSR_WRITE_1(sc, RL_EECMD,			\
 		CSR_READ_1(sc, RL_EECMD) & ~x)
-
-static void
-rl_dma_map_rxbuf(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct rl_softc *sc = arg;
-
-	CSR_WRITE_4(sc, RL_RXADDR, segs->ds_addr & 0xFFFFFFFF);
-}
-
-static void
-rl_dma_map_txbuf(void *arg, bus_dma_segment_t *segs, int nseg, int error)
-{
-	struct rl_softc *sc = arg;
-
-	CSR_WRITE_4(sc, RL_CUR_TXADDR(sc), segs->ds_addr & 0xFFFFFFFF);
-}
 
 /*
  * Send a read command and address to the EEPROM, check for ACK.
@@ -756,6 +742,24 @@ rl_probe(device_t dev)
 	return (ENXIO);
 }
 
+struct rl_dmamap_arg {
+	bus_addr_t	rl_busaddr;
+};
+
+static void
+rl_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+	struct rl_dmamap_arg	*ctx;
+
+	if (error != 0)
+		return;
+
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+        ctx = (struct rl_dmamap_arg *)arg;
+        ctx->rl_busaddr = segs[0].ds_addr;
+}
+
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
@@ -862,58 +866,8 @@ rl_attach(device_t dev)
 		goto fail;
 	}
 
-	/*
-	 * Allocate the parent bus DMA tag appropriate for PCI.
-	 */
-#define RL_NSEG_NEW 32
-	error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, RL_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,	/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->rl_parent_tag);
-	if (error)
+	if ((error = rl_dma_alloc(sc)) != 0)
 		goto fail;
-
-	/*
-	 * Now allocate a tag for the DMA descriptor lists.
-	 * All of our lists are allocated as a contiguous block
-	 * of memory.
-	 */
-	error = bus_dma_tag_create(sc->rl_parent_tag,	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR,	/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			RL_RXBUFLEN + 1518, 1,	/* maxsize,nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,		/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->rl_tag);
-	if (error)
-		goto fail;
-
-	/*
-	 * Now allocate a chunk of DMA-able memory based on the
-	 * tag we just created.
-	 */
-	error = bus_dmamem_alloc(sc->rl_tag,
-	    (void **)&sc->rl_cdata.rl_rx_buf, BUS_DMA_NOWAIT | BUS_DMA_ZERO,
-	    &sc->rl_cdata.rl_rx_dmamap);
-	if (error) {
-		device_printf(dev, "no memory for list buffers!\n");
-		bus_dma_tag_destroy(sc->rl_tag);
-		sc->rl_tag = NULL;
-		goto fail;
-	}
-
-	/* Leave a few bytes before the start of the RX ring buffer. */
-	sc->rl_cdata.rl_rx_buf_ptr = sc->rl_cdata.rl_rx_buf;
-	sc->rl_cdata.rl_rx_buf += sizeof(uint64_t);
 
 	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -1013,18 +967,153 @@ rl_detach(device_t dev)
 	if (ifp)
 		if_free(ifp);
 
-	if (sc->rl_tag) {
-		bus_dmamap_unload(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap);
-		bus_dmamem_free(sc->rl_tag, sc->rl_cdata.rl_rx_buf,
-		    sc->rl_cdata.rl_rx_dmamap);
-		bus_dma_tag_destroy(sc->rl_tag);
-	}
-	if (sc->rl_parent_tag)
-		bus_dma_tag_destroy(sc->rl_parent_tag);
+	rl_dma_free(sc);
 
 	mtx_destroy(&sc->rl_mtx);
 
 	return (0);
+}
+
+static int
+rl_dma_alloc(struct rl_softc *sc)
+{
+	struct rl_dmamap_arg	ctx;
+	int			error, i;
+
+	/*
+	 * Allocate the parent bus DMA tag appropriate for PCI.
+	 */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->rl_dev),	/* parent */
+	    1, 0,			/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    BUS_SPACE_MAXSIZE_32BIT, 0,	/* maxsize, nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rl_parent_tag);
+	if (error) {
+                device_printf(sc->rl_dev,
+		    "failed to create parent DMA tag.\n");
+		goto fail;
+	}
+	/* Create DMA tag for Rx memory block. */
+	error = bus_dma_tag_create(sc->rl_parent_tag,	/* parent */
+	    RL_RX_8139_BUF_ALIGN, 0,	/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    RL_RXBUFLEN + RL_RX_8139_BUF_GUARD_SZ, 1,	/* maxsize,nsegments */
+	    RL_RXBUFLEN + RL_RX_8139_BUF_GUARD_SZ,	/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rl_cdata.rl_rx_tag);
+	if (error) {
+                device_printf(sc->rl_dev,
+		    "failed to create Rx memory block DMA tag.\n");
+		goto fail;
+	}
+	/* Create DMA tag for Tx buffer. */
+	error = bus_dma_tag_create(sc->rl_parent_tag,	/* parent */
+	    RL_TX_8139_BUF_ALIGN, 0,	/* alignment, boundary */
+	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,		/* highaddr */
+	    NULL, NULL,			/* filter, filterarg */
+	    MCLBYTES, 1,		/* maxsize, nsegments */
+	    MCLBYTES,			/* maxsegsize */
+	    0,				/* flags */
+	    NULL, NULL,			/* lockfunc, lockarg */
+	    &sc->rl_cdata.rl_tx_tag);
+	if (error) {
+                device_printf(sc->rl_dev, "failed to create Tx DMA tag.\n");
+		goto fail;
+	}
+
+	/*
+	 * Allocate DMA'able memory and load DMA map for Rx memory block.
+	 */
+	error = bus_dmamem_alloc(sc->rl_cdata.rl_rx_tag,
+	    (void **)&sc->rl_cdata.rl_rx_buf, BUS_DMA_WAITOK |
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->rl_cdata.rl_rx_dmamap);
+	if (error != 0) {
+		device_printf(sc->rl_dev,
+		    "failed to allocate Rx DMA memory block.\n");
+		goto fail;
+	}
+	ctx.rl_busaddr = 0;
+	error = bus_dmamap_load(sc->rl_cdata.rl_rx_tag,
+	    sc->rl_cdata.rl_rx_dmamap, sc->rl_cdata.rl_rx_buf,
+	    RL_RXBUFLEN + RL_RX_8139_BUF_GUARD_SZ, rl_dmamap_cb, &ctx,
+	    BUS_DMA_NOWAIT);
+	if (error != 0 || ctx.rl_busaddr == 0) {
+		device_printf(sc->rl_dev,
+		    "could not load Rx DMA memory block.\n");
+		goto fail;
+	}
+	sc->rl_cdata.rl_rx_buf_paddr = ctx.rl_busaddr;
+
+	/* Create DMA maps for Tx buffers. */
+	for (i = 0; i < RL_TX_LIST_CNT; i++) {
+		sc->rl_cdata.rl_tx_chain[i] = NULL;
+		sc->rl_cdata.rl_tx_dmamap[i] = NULL;
+		error = bus_dmamap_create(sc->rl_cdata.rl_tx_tag, 0,
+		    &sc->rl_cdata.rl_tx_dmamap[i]);
+		if (error != 0) {
+			device_printf(sc->rl_dev,
+			    "could not create Tx dmamap.\n");
+			goto fail;
+		}
+	}
+
+	/* Leave a few bytes before the start of the RX ring buffer. */
+	sc->rl_cdata.rl_rx_buf_ptr = sc->rl_cdata.rl_rx_buf;
+	sc->rl_cdata.rl_rx_buf += RL_RX_8139_BUF_RESERVE;
+
+fail:
+	return (error);
+}
+
+static void
+rl_dma_free(struct rl_softc *sc)
+{
+	int			i;
+
+	/* Rx memory block. */
+	if (sc->rl_cdata.rl_rx_tag != NULL) {
+		if (sc->rl_cdata.rl_rx_dmamap != NULL)
+			bus_dmamap_unload(sc->rl_cdata.rl_rx_tag,
+			    sc->rl_cdata.rl_rx_dmamap);
+		if (sc->rl_cdata.rl_rx_dmamap != NULL &&
+		    sc->rl_cdata.rl_rx_buf_ptr != NULL)
+			bus_dmamem_free(sc->rl_cdata.rl_rx_tag,
+			    sc->rl_cdata.rl_rx_buf_ptr,
+			    sc->rl_cdata.rl_rx_dmamap);
+		sc->rl_cdata.rl_rx_buf_ptr = NULL;
+		sc->rl_cdata.rl_rx_buf = NULL;
+		sc->rl_cdata.rl_rx_dmamap = NULL;
+		bus_dma_tag_destroy(sc->rl_cdata.rl_rx_tag);
+		sc->rl_cdata.rl_tx_tag = NULL;
+	}
+
+	/* Tx buffers. */
+	if (sc->rl_cdata.rl_tx_tag != NULL) {
+		for (i = 0; i < RL_TX_LIST_CNT; i++) {
+			if (sc->rl_cdata.rl_tx_dmamap[i] != NULL) {
+				bus_dmamap_destroy(
+				    sc->rl_cdata.rl_tx_tag,
+				    sc->rl_cdata.rl_tx_dmamap[i]);
+				sc->rl_cdata.rl_tx_dmamap[i] = NULL;
+			}
+		bus_dma_tag_destroy(sc->rl_cdata.rl_tx_tag);
+		sc->rl_cdata.rl_tx_tag = NULL;
+		}
+	}
+
+	if (sc->rl_parent_tag != NULL) {
+		bus_dma_tag_destroy(sc->rl_parent_tag);
+		sc->rl_parent_tag = NULL;
+	}
 }
 
 /*
@@ -1047,6 +1136,20 @@ rl_list_tx_init(struct rl_softc *sc)
 
 	sc->rl_cdata.cur_tx = 0;
 	sc->rl_cdata.last_tx = 0;
+
+	return (0);
+}
+
+static int
+rl_list_rx_init(struct rl_softc *sc)
+{
+
+	RL_LOCK_ASSERT(sc);
+
+	bzero(sc->rl_cdata.rl_rx_buf_ptr,
+	    RL_RXBUFLEN + RL_RX_8139_BUF_GUARD_SZ);
+	bus_dmamap_sync(sc->rl_cdata.rl_tx_tag, sc->rl_cdata.rl_rx_dmamap,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
@@ -1087,8 +1190,8 @@ rl_rxeof(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	bus_dmamap_sync(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
-	    BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(sc->rl_cdata.rl_rx_tag, sc->rl_cdata.rl_rx_dmamap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	cur_rx = (CSR_READ_2(sc, RL_CURRXADDR) + 16) % RL_RXBUFLEN;
 
@@ -1186,6 +1289,8 @@ rl_rxeof(struct rl_softc *sc)
 		(*ifp->if_input)(ifp, m);
 		RL_LOCK(sc);
 	}
+
+	/* No need to sync Rx memory block as we didn't mofify it. */
 }
 
 /*
@@ -1214,8 +1319,9 @@ rl_txeof(struct rl_softc *sc)
 
 		ifp->if_collisions += (txstat & RL_TXSTAT_COLLCNT) >> 24;
 
-		bus_dmamap_unload(sc->rl_tag, RL_LAST_DMAMAP(sc));
-		bus_dmamap_destroy(sc->rl_tag, RL_LAST_DMAMAP(sc));
+		bus_dmamap_sync(sc->rl_cdata.rl_tx_tag, RL_LAST_DMAMAP(sc),
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->rl_cdata.rl_tx_tag, RL_LAST_DMAMAP(sc));
 		m_freem(RL_LAST_TXMBUF(sc));
 		RL_LAST_TXMBUF(sc) = NULL;
 		/*
@@ -1363,41 +1469,64 @@ done_locked:
  * pointers to the fragment pointers.
  */
 static int
-rl_encap(struct rl_softc *sc, struct mbuf *m_head)
+rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 {
-	struct mbuf		*m_new = NULL;
+	struct mbuf		*m;
+	bus_dma_segment_t	txsegs[1];
+	int			error, nsegs, padlen;
 
 	RL_LOCK_ASSERT(sc);
 
+	m = *m_head;
+	padlen = 0;
+	/*
+	 * Hardware doesn't auto-pad, so we have to make sure
+	 * pad short frames out to the minimum frame length.
+	 */
+	if (m->m_pkthdr.len < RL_MIN_FRAMELEN)
+		padlen = RL_MIN_FRAMELEN - m->m_pkthdr.len;
 	/*
 	 * The RealTek is brain damaged and wants longword-aligned
 	 * TX buffers, plus we can only have one fragment buffer
 	 * per packet. We have to copy pretty much all the time.
 	 */
-	m_new = m_defrag(m_head, M_DONTWAIT);
-
-	if (m_new == NULL) {
-		m_freem(m_head);
-		return (1);
+	if (m->m_next != NULL || (mtod(m, uintptr_t) & 3) != 0 ||
+	    (padlen > 0 && M_TRAILINGSPACE(m) < padlen)) {
+		m = m_defrag(*m_head, M_DONTWAIT);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
+		}
 	}
-	m_head = m_new;
+	*m_head = m;
 
-	/* Pad frames to at least 60 bytes. */
-	if (m_head->m_pkthdr.len < RL_MIN_FRAMELEN) {
+	if (padlen > 0) {
 		/*
 		 * Make security concious people happy: zero out the
 		 * bytes in the pad area, since we don't know what
 		 * this mbuf cluster buffer's previous user might
 		 * have left in it.
 		 */
-		bzero(mtod(m_head, char *) + m_head->m_pkthdr.len,
-		     RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
-		m_head->m_pkthdr.len +=
-		    (RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
-		m_head->m_len = m_head->m_pkthdr.len;
+		bzero(mtod(m, char *) + m->m_pkthdr.len, padlen);
+		m->m_pkthdr.len += padlen;
+		m->m_len = m->m_pkthdr.len;
 	}
 
-	RL_CUR_TXMBUF(sc) = m_head;
+	error = bus_dmamap_load_mbuf_sg(sc->rl_cdata.rl_tx_tag,
+	    RL_CUR_DMAMAP(sc), m, txsegs, &nsegs, 0);
+	if (error != 0)
+		return (error);
+	if (nsegs == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
+	}
+
+	RL_CUR_TXMBUF(sc) = m;
+	bus_dmamap_sync(sc->rl_cdata.rl_tx_tag, RL_CUR_DMAMAP(sc),
+	    BUS_DMASYNC_PREWRITE);
+	CSR_WRITE_4(sc, RL_CUR_TXADDR(sc), RL_ADDR_LO(txsegs[0].ds_addr));
 
 	return (0);
 }
@@ -1430,19 +1559,18 @@ rl_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-		if (rl_encap(sc, m_head))
+		if (rl_encap(sc, &m_head)) {
+			if (m_head == NULL)
+				break;
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
+		}
 
 		/* Pass a copy of this mbuf chain to the bpf subsystem. */
 		BPF_MTAP(ifp, RL_CUR_TXMBUF(sc));
 
 		/* Transmit the frame. */
-		bus_dmamap_create(sc->rl_tag, 0, &RL_CUR_DMAMAP(sc));
-		bus_dmamap_load(sc->rl_tag, RL_CUR_DMAMAP(sc),
-		    mtod(RL_CUR_TXMBUF(sc), void *),
-		    RL_CUR_TXMBUF(sc)->m_pkthdr.len, rl_dma_map_txbuf, sc, 0);
-		bus_dmamap_sync(sc->rl_tag, RL_CUR_DMAMAP(sc),
-		    BUS_DMASYNC_PREREAD);
 		CSR_WRITE_4(sc, RL_CUR_TXSTAT(sc),
 		    RL_TXTHRESH(sc->rl_txthresh) |
 		    RL_CUR_TXMBUF(sc)->m_pkthdr.len);
@@ -1501,14 +1629,13 @@ rl_init_locked(struct rl_softc *sc)
 	CSR_WRITE_STREAM_4(sc, RL_IDR4, eaddr[1]);
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	/* Init the RX buffer pointer register. */
-	bus_dmamap_load(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
-	    sc->rl_cdata.rl_rx_buf, RL_RXBUFLEN, rl_dma_map_rxbuf, sc, 0);
-	bus_dmamap_sync(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
-
+	/* Init the RX memory block pointer register. */
+	CSR_WRITE_4(sc, RL_RXADDR, sc->rl_cdata.rl_rx_buf_paddr +
+	    RL_RX_8139_BUF_RESERVE);
 	/* Init TX descriptors. */
 	rl_list_tx_init(sc);
+	/* Init Rx memory block. */
+	rl_list_rx_init(sc);
 
 	/*
 	 * Enable transmit and receive.
@@ -1712,19 +1839,21 @@ rl_stop(struct rl_softc *sc)
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
-	bus_dmamap_unload(sc->rl_tag, sc->rl_cdata.rl_rx_dmamap);
 
 	/*
 	 * Free the TX list buffers.
 	 */
 	for (i = 0; i < RL_TX_LIST_CNT; i++) {
 		if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
-			bus_dmamap_unload(sc->rl_tag,
-			    sc->rl_cdata.rl_tx_dmamap[i]);
-			bus_dmamap_destroy(sc->rl_tag,
-			    sc->rl_cdata.rl_tx_dmamap[i]);
-			m_freem(sc->rl_cdata.rl_tx_chain[i]);
-			sc->rl_cdata.rl_tx_chain[i] = NULL;
+			if (sc->rl_cdata.rl_tx_chain[i] != NULL) {
+				bus_dmamap_sync(sc->rl_cdata.rl_tx_tag,
+				    sc->rl_cdata.rl_tx_dmamap[i],
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(sc->rl_cdata.rl_tx_tag,
+				    sc->rl_cdata.rl_tx_dmamap[i]);
+				m_freem(sc->rl_cdata.rl_tx_chain[i]);
+				sc->rl_cdata.rl_tx_chain[i] = NULL;
+			}
 			CSR_WRITE_4(sc, RL_TXADDR0 + (i * sizeof(uint32_t)),
 			    0x0000000);
 		}
