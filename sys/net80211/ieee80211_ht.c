@@ -86,6 +86,8 @@ int	ieee80211_recv_bar_ena = 1;
 int	ieee80211_addba_timeout = -1;	/* timeout waiting for ADDBA response */
 int	ieee80211_addba_backoff = -1;	/* backoff after max ADDBA requests */
 int	ieee80211_addba_maxtries = 3;	/* max ADDBA requests before backoff */
+int	ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
+int	ieee80211_bar_maxtries = 50;	/* max BAR requests before DELBA */
 
 /*
  * Setup HT parameters that depends on the clock frequency.
@@ -98,6 +100,7 @@ ieee80211_ht_setup(void)
 #endif
 	ieee80211_addba_timeout = msecs_to_ticks(250);
 	ieee80211_addba_backoff = msecs_to_ticks(10*1000);
+	ieee80211_bar_timeout = msecs_to_ticks(250);
 }
 SYSINIT(wlan_ht, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_ht_setup, NULL);
 
@@ -113,6 +116,10 @@ static void ieee80211_addba_stop(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap);
 static void ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 	const uint8_t *frm, const uint8_t *efrm);
+static void ieee80211_bar_response(struct ieee80211_node *ni,
+	struct ieee80211_tx_ampdu *tap, int status);
+static void ampdu_tx_stop(struct ieee80211_tx_ampdu *tap);
+static void bar_stop_timer(struct ieee80211_tx_ampdu *tap);
 
 void
 ieee80211_ht_attach(struct ieee80211com *ic)
@@ -124,6 +131,7 @@ ieee80211_ht_attach(struct ieee80211com *ic)
 	ic->ic_addba_request = ieee80211_addba_request;
 	ic->ic_addba_response = ieee80211_addba_response;
 	ic->ic_addba_stop = ieee80211_addba_stop;
+	ic->ic_bar_response = ieee80211_bar_response;
 
 	ic->ic_htprotmode = IEEE80211_PROT_RTSCTS;
 	ic->ic_curhtprotmode = IEEE80211_HTINFO_OPMODE_PURE;
@@ -534,7 +542,6 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m)
 		 */
 		return PROCESS;
 	}
-
 	if ((wh->i_fc[1] & IEEE80211_FC1_DIR_MASK) == IEEE80211_FC1_DIR_DSTODS)
 		tid = ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0];
 	else
@@ -803,6 +810,7 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 	for (ac = 0; ac < WME_NUM_AC; ac++) {
 		tap = &ni->ni_tx_ampdu[ac];
 		tap->txa_ac = ac;
+		tap->txa_ni = ni;
 		/* NB: further initialization deferred */
 	}
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -815,7 +823,6 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 void
 ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = ni->ni_ic;
 	int i;
 
 	KASSERT(ni->ni_flags & IEEE80211_NODE_HT, ("not an HT node"));
@@ -823,18 +830,8 @@ ieee80211_ht_node_cleanup(struct ieee80211_node *ni)
 	/* XXX optimize this */
 	for (i = 0; i < WME_NUM_AC; i++) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[i];
-		if (tap->txa_flags & IEEE80211_AGGR_SETUP) {
-			/*
-			 * Stop BA stream if setup so driver has a chance
-			 * to reclaim any resources it might have allocated.
-			 */
-			ic->ic_addba_stop(ni, &ni->ni_tx_ampdu[i]);
-			tap->txa_lastsample = 0;
-			tap->txa_avgpps = 0;
-			/* NB: clearing NAK means we may re-send ADDBA */ 
-			tap->txa_flags &=
-			    ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
-		}
+		if (tap->txa_flags & IEEE80211_AGGR_SETUP)
+			ampdu_tx_stop(tap);
 	}
 	for (i = 0; i < WME_NUM_TID; i++)
 		ampdu_rx_stop(&ni->ni_rx_ampdu[i]);
@@ -1422,6 +1419,38 @@ ieee80211_setup_basic_htrates(struct ieee80211_node *ni, const uint8_t *ie)
 }
 
 static void
+ampdu_tx_setup(struct ieee80211_tx_ampdu *tap)
+{
+	callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
+	tap->txa_flags |= IEEE80211_AGGR_SETUP;
+}
+
+static void
+ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
+{
+	struct ieee80211_node *ni = tap->txa_ni;
+	struct ieee80211com *ic = ni->ni_ic;
+
+	KASSERT(tap->txa_flags & IEEE80211_AGGR_SETUP,
+	    ("txa_flags 0x%x ac %d", tap->txa_flags, tap->txa_ac));
+
+	/*
+	 * Stop BA stream if setup so driver has a chance
+	 * to reclaim any resources it might have allocated.
+	 */
+	ic->ic_addba_stop(ni, tap);
+	/*
+	 * Stop any pending BAR transmit.
+	 */
+	bar_stop_timer(tap);
+
+	tap->txa_lastsample = 0;
+	tap->txa_avgpps = 0;
+	/* NB: clearing NAK means we may re-send ADDBA */ 
+	tap->txa_flags &= ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
+}
+
+static void
 addba_timeout(void *arg)
 {
 	struct ieee80211_tx_ampdu *tap = arg;
@@ -1483,7 +1512,7 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap,
 	int status, int baparamset, int batimeout)
 {
-	int bufsiz;
+	int bufsiz, tid;
 
 	/* XXX locking */
 	addba_stop_timeout(tap);
@@ -1492,7 +1521,10 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 		/* XXX override our request? */
 		tap->txa_wnd = (bufsiz == 0) ?
 		    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
+		/* XXX AC/TID */
+		tid = MS(baparamset, IEEE80211_BAPS_TID);
 		tap->txa_flags |= IEEE80211_AGGR_RUNNING;
+		tap->txa_attempts = 0;
 	} else {
 		/* mark tid so we don't try again */
 		tap->txa_flags |= IEEE80211_AGGR_NAK;
@@ -1648,7 +1680,6 @@ ieee80211_aggr_recv_action(struct ieee80211_node *ni,
 				return;
 			}
 #endif
-
 			IEEE80211_NOTE(vap,
 			    IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 			    "recv ADDBA response: dialogtoken %u code %d "
@@ -1817,8 +1848,7 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	/* XXX locking */
 	if ((tap->txa_flags & IEEE80211_AGGR_SETUP) == 0) {
 		/* do deferred setup of state */
-		callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
-		tap->txa_flags |= IEEE80211_AGGR_SETUP;
+		ampdu_tx_setup(tap);
 	}
 	/* XXX hack for not doing proper locking */
 	tap->txa_flags &= ~IEEE80211_AGGR_NAK;
@@ -1827,7 +1857,6 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 	tid = WME_AC_TO_TID(tap->txa_ac);
 	tap->txa_start = ni->ni_txseqs[tid];
 
-	tid = WME_AC_TO_TID(tap->txa_ac);
 	args[0] = dialogtoken;
 	args[1]	= IEEE80211_BAPS_POLICY_IMMEDIATE
 		| SM(tid, IEEE80211_BAPS_TID)
@@ -1869,6 +1898,7 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	uint16_t args[4];
 
 	/* XXX locking */
+	tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
 	if (IEEE80211_AMPDU_RUNNING(tap)) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N,
 		    ni, "%s: stop BA stream for AC %d (reason %d)",
@@ -1889,72 +1919,171 @@ ieee80211_ampdu_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	}
 }
 
+static void
+bar_timeout(void *arg)
+{
+	struct ieee80211_tx_ampdu *tap = arg;
+	struct ieee80211_node *ni = tap->txa_ni;
+
+	KASSERT((tap->txa_flags & IEEE80211_AGGR_XCHGPEND) == 0,
+	    ("bar/addba collision, flags 0x%x", tap->txa_flags));
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni, "%s: tid %u flags 0x%x attempts %d", __func__,
+	    tap->txa_ac, tap->txa_flags, tap->txa_attempts);
+
+	/* guard against race with bar_tx_complete */
+	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
+		return;
+	/* XXX ? */
+	if (tap->txa_attempts >= ieee80211_bar_maxtries)
+		ieee80211_ampdu_stop(ni, tap, IEEE80211_REASON_TIMEOUT);
+	else
+		ieee80211_send_bar(ni, tap, tap->txa_seqpending);
+}
+
+static void
+bar_start_timer(struct ieee80211_tx_ampdu *tap)
+{
+	callout_reset(&tap->txa_timer, ieee80211_bar_timeout, bar_timeout, tap);
+}
+
+static void
+bar_stop_timer(struct ieee80211_tx_ampdu *tap)
+{
+	callout_stop(&tap->txa_timer);
+}
+
+static void
+bar_tx_complete(struct ieee80211_node *ni, void *arg, int status)
+{
+	struct ieee80211_tx_ampdu *tap = arg;
+
+	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+	    ni, "%s: tid %u flags 0x%x pending %d status %d",
+	    __func__, tap->txa_ac, tap->txa_flags,
+	    callout_pending(&tap->txa_timer), status);
+
+	/* XXX locking */
+	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) &&
+	    callout_pending(&tap->txa_timer)) {
+		struct ieee80211com *ic = ni->ni_ic;
+
+		if (status)		/* ACK'd */
+			bar_stop_timer(tap);
+		ic->ic_bar_response(ni, tap, status);
+		/* NB: just let timer expire so we pace requests */
+	}
+}
+
+static void
+ieee80211_bar_response(struct ieee80211_node *ni,
+	struct ieee80211_tx_ampdu *tap, int status)
+{
+
+	if (status != 0) {		/* got ACK */
+		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N,
+		    ni, "BAR moves BA win <%u:%u> (%u frames) txseq %u tid %u",
+		    tap->txa_start,
+		    IEEE80211_SEQ_ADD(tap->txa_start, tap->txa_wnd-1),
+		    tap->txa_qframes, tap->txa_seqpending,
+		    WME_AC_TO_TID(tap->txa_ac));
+
+		/* NB: timer already stopped in bar_tx_complete */
+		tap->txa_start = tap->txa_seqpending;
+		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
+	}
+}
+
 /*
  * Transmit a BAR frame to the specified node.  The
  * BAR contents are drawn from the supplied aggregation
  * state associated with the node.
+ *
+ * NB: we only handle immediate ACK w/ compressed bitmap.
  */
 int
 ieee80211_send_bar(struct ieee80211_node *ni,
-	const struct ieee80211_tx_ampdu *tap)
+	struct ieee80211_tx_ampdu *tap, ieee80211_seq seq)
 {
 #define	senderr(_x, _v)	do { vap->iv_stats._v++; ret = _x; goto bad; } while (0)
-#define	ADDSHORT(frm, v) do {			\
-	frm[0] = (v) & 0xff;			\
-	frm[1] = (v) >> 8;			\
-	frm += 2;				\
-} while (0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
-	struct ieee80211_frame_min *wh;
+	struct ieee80211_frame_bar *bar;
 	struct mbuf *m;
-	uint8_t *frm;
 	uint16_t barctl, barseqctl;
+	uint8_t *frm;
 	int tid, ret;
+
+	if ((tap->txa_flags & IEEE80211_AGGR_RUNNING) == 0) {
+		/* no ADDBA response, should not happen */
+		/* XXX stat+msg */
+		return EINVAL;
+	}
+	/* XXX locking */
+	bar_stop_timer(tap);
 
 	ieee80211_ref_node(ni);
 
-	m = ieee80211_getmgtframe(&frm,
-		ic->ic_headroom + sizeof(struct ieee80211_frame_min),
-		sizeof(struct ieee80211_ba_request)
-	);
+	m = ieee80211_getmgtframe(&frm, ic->ic_headroom, sizeof(*bar));
 	if (m == NULL)
 		senderr(ENOMEM, is_tx_nobuf);
 
-	wh = mtod(m, struct ieee80211_frame_min *);
-	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 |
+	if (!ieee80211_add_callback(m, bar_tx_complete, tap)) {
+		m_freem(m);
+		senderr(ENOMEM, is_tx_nobuf);	/* XXX */
+		/* NOTREACHED */
+	}
+
+	bar = mtod(m, struct ieee80211_frame_bar *);
+	bar->i_fc[0] = IEEE80211_FC0_VERSION_0 |
 		IEEE80211_FC0_TYPE_CTL | IEEE80211_FC0_SUBTYPE_BAR;
-	wh->i_fc[1] = 0;
-	IEEE80211_ADDR_COPY(wh->i_addr1, ni->ni_macaddr);
-	IEEE80211_ADDR_COPY(wh->i_addr2, vap->iv_myaddr);
+	bar->i_fc[1] = 0;
+	IEEE80211_ADDR_COPY(bar->i_ra, ni->ni_macaddr);
+	IEEE80211_ADDR_COPY(bar->i_ta, vap->iv_myaddr);
 
 	tid = WME_AC_TO_TID(tap->txa_ac);
 	barctl 	= (tap->txa_flags & IEEE80211_AGGR_IMMEDIATE ?
-			IEEE80211_BAPS_POLICY_IMMEDIATE :
-			IEEE80211_BAPS_POLICY_DELAYED)
-		| SM(tid, IEEE80211_BAPS_TID)
-		| SM(tap->txa_wnd, IEEE80211_BAPS_BUFSIZ)
+			0 : IEEE80211_BAR_NOACK)
+		| IEEE80211_BAR_COMP
+		| SM(tid, IEEE80211_BAR_TID)
 		;
-	barseqctl = SM(tap->txa_start, IEEE80211_BASEQ_START)
-		| SM(0, IEEE80211_BASEQ_FRAG)
-		;
-	ADDSHORT(frm, barctl);
-	ADDSHORT(frm, barseqctl);
-	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
+	barseqctl = SM(seq, IEEE80211_BAR_SEQ_START);
+	/* NB: known to have proper alignment */
+	bar->i_ctl = htole16(barctl);
+	bar->i_seq = htole16(barseqctl);
+	m->m_pkthdr.len = m->m_len = sizeof(struct ieee80211_frame_bar);
 
 	M_WME_SETAC(m, WME_AC_VO);
 
 	IEEE80211_NODE_STAT(ni, tx_mgmt);	/* XXX tx_ctl? */
 
-	IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS,
-	    ni, "send bar frame (tid %u start %u) on channel %u",
-	    tid, tap->txa_start, ieee80211_chan2ieee(ic, ic->ic_curchan));
+	/* XXX locking */
+	/* init/bump attempts counter */
+	if ((tap->txa_flags & IEEE80211_AGGR_BARPEND) == 0)
+		tap->txa_attempts = 1;
+	else
+		tap->txa_attempts++;
+	tap->txa_seqpending = seq;
+	tap->txa_flags |= IEEE80211_AGGR_BARPEND;
 
-	return ic->ic_raw_xmit(ni, m, NULL);
+	IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_11N,
+	    ni, "send BAR: tid %u ctl 0x%x start %u (attempt %d)",
+	    tid, barctl, seq, tap->txa_attempts);
+
+	ret = ic->ic_raw_xmit(ni, m, NULL);
+	if (ret != 0) {
+		/* xmit failed, clear state flag */
+		tap->txa_flags &= ~IEEE80211_AGGR_BARPEND;
+		goto bad;
+	}
+	/* XXX hack against tx complete happening before timer is started */
+	if (tap->txa_flags & IEEE80211_AGGR_BARPEND)
+		bar_start_timer(tap);
+	return 0;
 bad:
 	ieee80211_free_node(ni);
 	return ret;
-#undef ADDSHORT
 #undef senderr
 }
 
