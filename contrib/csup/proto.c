@@ -768,6 +768,7 @@ proto_printf(struct stream *wr, const char *format, ...)
 	va_list ap;
 	char *cp, *s, *attr;
 	ssize_t n;
+	size_t size;
 	off_t off;
 	int rv, val, ignore;
 	char c;
@@ -834,6 +835,11 @@ proto_printf(struct stream *wr, const char *format, ...)
 			rv = proto_escape(wr, attr);
 			free(attr);
 			break;
+		case 'z':
+			size = va_arg(ap, size_t);
+			rv = stream_printf(wr, "%zu", size);
+			break;
+
 		case '%':
 			n = stream_write(wr, "%", 1);
 			if (n == -1)
