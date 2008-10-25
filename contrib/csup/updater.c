@@ -115,6 +115,8 @@ static int	 updater_rcsedit(struct updater *, struct file_update *, char *,
 		     char *);
 int		 updater_append_file(struct updater *, struct file_update *,
 		     off_t);
+static int	 updater_rsync(struct updater *, struct file_update *, size_t);
+static int	 updater_read_checkout(struct stream *, struct stream *);
 
 static struct file_update *
 fup_new(struct coll *coll, struct status *st)
@@ -345,7 +347,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 	struct coll *coll;
 	struct statusrec srbuf, *sr;
 	struct fattr *rcsattr, *tmp;
-	char *cmd, *line, *msg, *attr;
+	char *cmd, *blocksize, *line, *msg, *attr;
 	char *name, *tag, *date, *revdate;
 	char *expand, *wantmd5, *revnum;
 	char *optstr, *rcsopt, *pos;
@@ -601,7 +603,30 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (error)
 				return (error);
 			break;
-		case 'r': /* XXX: rsync support. */
+		case 'r':
+			name = proto_get_ascii(&line);
+			attr = proto_get_ascii(&line);
+			blocksize = proto_get_ascii(&line);
+			wantmd5 = proto_get_ascii(&line);
+			if (name == NULL || attr == NULL || blocksize == NULL ||
+			    wantmd5 == NULL) {
+				return (UPDATER_ERR_PROTO);
+			}
+			error = fup_prepare(fup, name, 0);
+			if (error)
+				return (UPDATER_ERR_PROTO);
+			sr->sr_type = SR_FILELIVE;
+			fup->wantmd5 = xstrdup(wantmd5);
+			fup->temppath = tempname(fup->destpath);
+			sr = &fup->srbuf;
+			sr->sr_file = xstrdup(name);
+			sr->sr_serverattr = fattr_decode(attr);
+			if (sr->sr_serverattr == NULL)
+				return (UPDATER_ERR_PROTO);
+			error = updater_rsync(up, fup, strtol(blocksize, NULL,
+			    10));
+			if (error)
+				return (error);
 			break;
 
 		case 'I':
@@ -1457,8 +1482,6 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr)
 		remains -= nread;
 		stream_write(to, buf, nread);
 	} while (remains > 0);
-	stream_flush(to);
-	stream_filter_stop(to);
 	stream_close(to);
 	line = stream_getln(up->rd, NULL);
 	if (line == NULL)
@@ -1749,8 +1772,6 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	}
 	stream_filter_start(dest, STREAM_FILTER_MD5RCS, md5);
 	error = rcsfile_write(rf, dest);
-	stream_flush(dest);
-	stream_filter_stop(dest);
 	stream_close(dest);
 	rcsfile_free(rf);
 	if (error)
@@ -1927,8 +1948,6 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 		bytes -= nread;
 		stream_write(to, buf, nread);
 	} while (bytes > 0);
-	stream_flush(to);
-	stream_filter_stop(to);
 	stream_close(to);
 
 	line = stream_getln(up->rd, NULL);
@@ -1958,4 +1977,143 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	if (error)
 		return (error);
 	return (0);
+}
+
+/*
+ * Read file data from stream of checkout commands, and write it to the
+ * destination.
+ */
+static int
+updater_read_checkout(struct stream *src, struct stream *dest)
+{
+	char *line;
+	size_t size;
+	ssize_t nbytes;
+	int error, first;
+
+	first = 1;
+	line = stream_getln(src, &size);
+	while (line != NULL) {
+		if (line[size - 1] == '\n')
+			size--;
+		if ((size == 1 && *line == '.') ||
+		    (size == 2 && strncmp(line, ".+", 2) == 0))
+			break;
+		if (size >= 2 && strncmp(line, "..", 2) == 0) {
+			size--;
+			line++;
+		}
+		if (!first) {
+			nbytes = stream_write(dest, "\n", 1);
+			if (nbytes == -1)
+				return (UPDATER_ERR_MSG);
+		}
+		nbytes = stream_write(dest, line, size);
+		if (nbytes == -1)
+			return (UPDATER_ERR_MSG);
+		line = stream_getln(src, &size);
+		first = 0;
+	}
+	if (line == NULL)
+		return (UPDATER_ERR_READ);
+	if (size == 1 && *line == '.') {
+		nbytes = stream_write(dest, "\n", 1);
+		if (nbytes == -1)
+			return (UPDATER_ERR_MSG);
+	}
+	return (0);
+}
+
+/* Update file using the rsync protocol. */
+static int
+updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
+{
+	struct statusrec *sr;
+	struct coll *coll;
+	struct stream *to;
+	char md5[MD5_DIGEST_SIZE];
+	char *buf, *line;
+	int error, orig;
+	size_t size, blocknum, blockstart, blockcount;
+	ssize_t nbytes;
+
+	sr = &fup->srbuf;
+
+	lprintf(1, " Rsync %s\n", fup->coname);
+	/* First open all files that we are going to work on. */
+	to = stream_open_file(fup->temppath, O_WRONLY | O_CREAT | O_TRUNC,
+	    0600);
+	if (to == NULL) {
+		xasprintf(&up->errmsg, "%s: Cannot create: %s",
+		    fup->temppath, strerror(errno));
+		return (UPDATER_ERR_MSG);
+	}
+	orig = open(fup->destpath, O_RDONLY);
+	if (orig < 0) {
+		xasprintf(&up->errmsg, "%s: Cannot open: %s",
+		    fup->destpath, strerror(errno));
+		return (UPDATER_ERR_MSG);
+	}
+	stream_filter_start(to, STREAM_FILTER_MD5, md5);
+
+	error = updater_read_checkout(up->rd, to);
+	if (error) {
+		xasprintf(&up->errmsg, "%s: Cannot write: %s", fup->temppath,
+		    strerror(errno));
+		return (error);
+	}
+
+	/* Buffer must contain blocksize bytes. */
+	buf = xmalloc(blocksize);
+	/* Done with the initial text, read and write chunks. */
+	line = stream_getln(up->rd, NULL);
+	while (line != NULL) {
+		if (strcmp(line, ".") == 0)
+			break;
+		error = UPDATER_ERR_PROTO;
+		if (proto_get_sizet(&line, &blockstart, 10) != 0)
+			goto bad;
+		if (proto_get_sizet(&line, &blockcount, 10) != 0)
+			goto bad;
+		/* Read blocks from original file. */
+		lseek(orig, SEEK_SET, (blocksize * blockstart));
+		blocknum = 0;
+		error = UPDATER_ERR_MSG;
+		for (blocknum = 0; blocknum < blockcount; blocknum++) {
+			nbytes = read(orig, buf, blocksize);
+			if (nbytes < 0) {
+				xasprintf(&up->errmsg, "%s: Cannot read: %s",
+				    fup->destpath, strerror(errno));
+				goto bad;
+			}
+			nbytes = stream_write(to, buf, nbytes);
+			if (nbytes == -1) {
+				xasprintf(&up->errmsg, "%s: Cannot write: %s",
+				    fup->temppath, strerror(errno));
+				goto bad;
+			}
+		}
+		/* Get the remaining text from the server. */
+		error = updater_read_checkout(up->rd, to);
+		if (error) {
+			xasprintf(&up->errmsg, "%s: Cannot write: %s",
+			    fup->temppath, strerror(errno));
+			goto bad;
+		}
+		line = stream_getln(up->rd, NULL);
+	}
+	stream_close(to);
+	close(orig);
+
+	sr->sr_clientattr = fattr_frompath(fup->destpath, FATTR_NOFOLLOW);
+	if (sr->sr_clientattr == NULL)
+		return (UPDATER_ERR_PROTO);
+	fattr_override(sr->sr_clientattr, sr->sr_serverattr,
+	    FA_MODTIME | FA_MASK);
+
+	error = updater_updatefile(up, fup, md5, 0);
+	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
+bad:
+	free(buf);
+	return (error);
 }
