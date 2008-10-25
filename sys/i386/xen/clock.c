@@ -161,19 +161,6 @@ SYSCTL_INT(_machdep, OID_AUTO, xen_disable_rtc_set,
 })
 
 
-/* These are peridically updated in shared_info, and then copied here. */
-struct shadow_time_info {
-	uint64_t tsc_timestamp;     /* TSC at last update of time vals.  */
-	uint64_t system_timestamp;  /* Time, in nanosecs, since boot.    */
-	uint32_t tsc_to_nsec_mul;
-	uint32_t tsc_to_usec_mul;
-	int tsc_shift;
-	uint32_t version;
-};
-static DEFINE_PER_CPU(uint64_t, processed_system_time);
-static DEFINE_PER_CPU(struct shadow_time_info, shadow_time);
-
-
 #define NS_PER_TICK (1000000000ULL/hz)
 
 #define rdtscll(val) \
@@ -868,25 +855,26 @@ cpu_initclocks(void)
 	/* should fast clock be enabled ? */
 }
 
-/*
- *
- * XXX 
- */
-#if 0 && defined(SMP)
-void
-ap_cpu_initclocks(void)
-{
-	int irq;
-	int cpu = smp_processor_id();
-	
-	per_cpu(processed_system_time, cpu) = processed_system_time;
 
-	irq = bind_virq_to_irq(VIRQ_TIMER);
-	PCPU_SET(time_irq, irq);
-	PANIC_IF(intr_add_handler("clk", irq, (driver_intr_t *)clkintr, NULL,
-				  NULL, INTR_TYPE_CLK | INTR_FAST, NULL));
+int
+ap_cpu_initclocks(int cpu)
+{
+	int time_irq;
+
+	xen_set_periodic_tick.period_ns = NS_PER_TICK;
+
+	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, cpu,
+			   &xen_set_periodic_tick);
+
+        if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, "clk", 
+		    (driver_intr_t *)clkintr, 
+						INTR_TYPE_CLK | INTR_FAST)) < 0) {
+		panic("failed to register clock interrupt\n");
+	}
+
+	return (0);
 }
-#endif
+
 
 void
 cpu_startprofclock(void)
