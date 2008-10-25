@@ -172,6 +172,10 @@ ocpbus_write_law(int trgt, int type, u_long *startp, u_long *countp)
 			addr = 0xA0000000;
 			size = 0x10000000;
 			break;
+		case OCP85XX_TGTIF_LBC:
+			addr = 0xff800000;
+			size = 0x00800000;
+			break;
 		default:
 			return (EINVAL);
 		}
