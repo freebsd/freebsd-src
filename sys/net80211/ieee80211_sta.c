@@ -406,8 +406,8 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 	default:
 	invalid:
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ANY,
-		    "%s: invalid state transition %s -> %s\n", __func__,
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+		    "%s: unexpected state transition %s -> %s\n", __func__,
 		    ieee80211_state_name[ostate], ieee80211_state_name[nstate]);
 		break;
 	}
