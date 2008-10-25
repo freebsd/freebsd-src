@@ -1342,7 +1342,6 @@ rl_txeof(struct rl_softc *sc)
 				CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
 			oldthresh = sc->rl_txthresh;
 			/* error recovery */
-			rl_reset(sc);
 			rl_init_locked(sc);
 			/* restore original threshold */
 			sc->rl_txthresh = oldthresh;
@@ -1409,10 +1408,8 @@ rl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		/* XXX We should check behaviour on receiver stalls. */
 
-		if (status & RL_ISR_SYSTEM_ERR) {
-			rl_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			rl_init_locked(sc);
-		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -1449,10 +1446,8 @@ rl_intr(void *arg)
 			rl_rxeof(sc);
 		if ((status & RL_ISR_TX_OK) || (status & RL_ISR_TX_ERR))
 			rl_txeof(sc);
-		if (status & RL_ISR_SYSTEM_ERR) {
-			rl_reset(sc);
+		if (status & RL_ISR_SYSTEM_ERR)
 			rl_init_locked(sc);
-		}
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1614,6 +1609,8 @@ rl_init_locked(struct rl_softc *sc)
 	 * Cancel pending I/O and free all RX/TX buffers.
 	 */
 	rl_stop(sc);
+
+	rl_reset(sc);
 
 	/*
 	 * Init our MAC address.  Even though the chipset
