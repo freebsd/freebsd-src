@@ -1065,8 +1065,7 @@ ieee80211_announce_channels(struct ieee80211com *ic)
 }
 
 static int
-media2mode(const struct ieee80211com *ic,
-	const struct ifmedia_entry *ime, enum ieee80211_phymode *mode)
+media2mode(const struct ifmedia_entry *ime, uint32_t flags, uint16_t *mode)
 {
 	switch (IFM_MODE(ime->ifm_media)) {
 	case IFM_IEEE80211_11A:
@@ -1099,7 +1098,7 @@ media2mode(const struct ieee80211com *ic,
 	 */
 	if (ime->ifm_media & IFM_IEEE80211_TURBO) {
 		if (*mode == IEEE80211_MODE_11A) {
-			if (ic->ic_flags & IEEE80211_F_TURBOP)
+			if (flags & IEEE80211_F_TURBOP)
 				*mode = IEEE80211_MODE_TURBO_A;
 			else
 				*mode = IEEE80211_MODE_STURBO_A;
@@ -1113,51 +1112,12 @@ media2mode(const struct ieee80211com *ic,
 }
 
 /*
- * Handle a media change request on the underlying
- * interface; we accept mode changes only.
+ * Handle a media change request on the underlying interface.
  */
 int
 ieee80211com_media_change(struct ifnet *ifp)
 {
-	struct ieee80211com *ic = ifp->if_l2com;
-	struct ifmedia_entry *ime = ic->ic_media.ifm_cur;
-	enum ieee80211_phymode newphymode;
-	int error = 0;
-
-	/*
-	 * First, identify the phy mode.
-	 */
-	if (!media2mode(ic, ime, &newphymode))
-		return EINVAL;
-	/* NB: mode must be supported, no need to check */
-
-	/*
-	 * Handle phy mode change.
-	 */
-	IEEE80211_LOCK(ic);
-	if (ic->ic_curmode != newphymode) {		/* change phy mode */
-		struct ieee80211vap *vap;
-
-		(void) ieee80211_setmode(ic, newphymode);
-		/*
-		 * Propagate new state to each vap.
-		 */
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		}
-	}
-	IEEE80211_UNLOCK(ic);
-	return error;
-}
-
-static int
-findrate(const struct ieee80211com *ic, enum ieee80211_phymode m, int r)
-{
-	int i, nrates;
-
-	for (i = 0, nrates = ic->ic_sup_rates[m].rs_nrates; i < nrates; i++)
-		if ((ic->ic_sup_rates[m].rs_rates[i] & IEEE80211_RATE_VAL) == r)
-			return i;
-	return -1;
+	return EINVAL;
 }
 
 /*
@@ -1168,26 +1128,12 @@ ieee80211_media_change(struct ifnet *ifp)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ifmedia_entry *ime = vap->iv_media.ifm_cur;
-	struct ieee80211com *ic = vap->iv_ic;
-	int newrate;
+	uint16_t newmode;
 
-	/* XXX this won't work unless ic_curmode is != IEEE80211_MODE_AUTO */
-	if (ic->ic_curmode == IEEE80211_MODE_AUTO)
+	if (!media2mode(ime, vap->iv_flags, &newmode))
 		return EINVAL;
-	if (IFM_SUBTYPE(ime->ifm_media) != IFM_AUTO) {
-		/*
-		 * NB: this can only be used to specify a legacy rate.
-		 */
-		newrate = ieee80211_media2rate(ime->ifm_media);
-		if (newrate == 0)
-			return EINVAL;
-		if (findrate(ic, ic->ic_curmode, newrate) == -1)
-			return EINVAL;
-	} else {
-		newrate = IEEE80211_FIXED_RATE_NONE;
-	}
-	if (newrate != vap->iv_txparms[ic->ic_curmode].ucastrate) {
-		vap->iv_txparms[ic->ic_curmode].ucastrate = newrate;
+	if (vap->iv_des_mode != newmode) {
+		vap->iv_des_mode = newmode;
 		return ENETRESET;
 	}
 	return 0;
