@@ -10,7 +10,7 @@ PROG=	csup
 SRCS=	attrstack.c config.c detailer.c diff.c fattr.c fixups.c fnmatch.c \
 	globtree.c idcache.c keyword.c lister.c main.c misc.c mux.c parse.y \
 	pathcomp.c proto.c status.c stream.c threads.c token.l updater.c \
-	rcsfile.c rcsparse.c lex.rcs.c
+	rcsfile.c rcsparse.c lex.rcs.c rsyncfile.c
 
 CFLAGS+=	-I. -I${.CURDIR} -g -pthread -DHAVE_FFLAGS -DNDEBUG
 WARNS?=		1
