@@ -8,6 +8,7 @@ SUBDIR=	${_3dfx} \
 	accf_data \
 	accf_http \
 	${_acpi} \
+	ae \
 	age \
 	${_agp} \
 	aha \
