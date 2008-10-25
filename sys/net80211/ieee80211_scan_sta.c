@@ -992,8 +992,8 @@ select_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap, int debug)
 	    "macaddr          bssid         chan  rssi  rate flag  wep  essid");
 	mtx_lock(&st->st_lock);
 	TAILQ_FOREACH(se, &st->st_entry, se_list) {
+		ieee80211_ies_expand(&se->base.se_ies);
 		if (match_bss(vap, ss, se, debug) == 0) {
-			ieee80211_ies_expand(&se->base.se_ies);
 			if (selbs == NULL)
 				selbs = se;
 			else if (sta_compare(se, selbs) > 0)
