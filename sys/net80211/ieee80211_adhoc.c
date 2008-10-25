@@ -66,6 +66,8 @@ static int adhoc_input(struct ieee80211_node *, struct mbuf *,
 	int rssi, int noise, uint32_t rstamp);
 static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, int rssi, int noise, uint32_t rstamp);
+static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
+	int subtype, int rssi, int noise, uint32_t rstamp);
 
 void
 ieee80211_adhoc_attach(struct ieee80211com *ic)
@@ -89,7 +91,10 @@ adhoc_vattach(struct ieee80211vap *vap)
 {
 	vap->iv_newstate = adhoc_newstate;
 	vap->iv_input = adhoc_input;
-	vap->iv_recv_mgmt = adhoc_recv_mgmt;
+	if (vap->iv_opmode == IEEE80211_M_IBSS)
+		vap->iv_recv_mgmt = adhoc_recv_mgmt;
+	else
+		vap->iv_recv_mgmt = ahdemo_recv_mgmt;
 	vap->iv_opdetach = adhoc_vdetach;
 }
 
@@ -609,9 +614,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 		}
 		if (bpf_peers_present(vap->iv_rawbpf))
 			bpf_mtap(vap->iv_rawbpf, m);
-		/* NB: only IBSS mode gets mgt frames */
-		if (vap->iv_opmode == IEEE80211_M_IBSS)
-			vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
+		vap->iv_recv_mgmt(ni, m, subtype, rssi, noise, rstamp);
 		m_freem(m);
 		return IEEE80211_FC0_TYPE_MGT;
 
@@ -879,3 +882,20 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 }
 #undef IEEE80211_VERIFY_LENGTH
 #undef IEEE80211_VERIFY_ELEMENT
+
+static void
+ahdemo_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
+	int subtype, int rssi, int noise, uint32_t rstamp)
+{
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211com *ic = ni->ni_ic;
+
+	/*
+	 * Process management frames when scanning; useful for doing
+	 * a site-survey.
+	 */
+	if (ic->ic_flags & IEEE80211_F_SCAN)
+		adhoc_recv_mgmt(ni, m0, subtype, rssi, noise, rstamp);
+	else
+		vap->iv_stats.is_rx_mgtdiscard++;
+}
