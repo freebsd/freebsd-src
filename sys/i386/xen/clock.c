@@ -315,7 +315,10 @@ clkintr(void *arg)
 		processed_system_time += (delta / NS_PER_TICK) * NS_PER_TICK;
 		per_cpu(processed_system_time, cpu) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
 	}
-	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	if (PCPU_GET(cpuid) == 0)
+		hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	else
+		hardclock_cpu(TRAPF_USERMODE(frame));
 
 	/*
 	 * Take synchronised time from Xen once a minute if we're not
