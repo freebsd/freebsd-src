@@ -1834,6 +1834,14 @@ rl_stop(struct rl_softc *sc)
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
+	for (i = 0; i < RL_TIMEOUT; i++) {
+		DELAY(10);
+		if ((CSR_READ_1(sc, RL_COMMAND) &
+		    (RL_CMD_RX_ENB | RL_CMD_TX_ENB)) == 0)
+			break;
+	}
+	if (i == RL_TIMEOUT)
+		device_printf(sc->rl_dev, "Unable to stop Tx/Rx MAC\n");
 
 	/*
 	 * Free the TX list buffers.
