@@ -282,7 +282,7 @@ void	ieee80211_sync_curchan(struct ieee80211com *);
 void	ieee80211_setcurchan(struct ieee80211com *, struct ieee80211_channel *);
 int	ieee80211_ibss_merge(struct ieee80211_node *);
 struct ieee80211_scan_entry;
-int	ieee80211_sta_join(struct ieee80211vap *,
+int	ieee80211_sta_join(struct ieee80211vap *, struct ieee80211_channel *,
 		const struct ieee80211_scan_entry *);
 void	ieee80211_sta_leave(struct ieee80211_node *);
 void	ieee80211_node_deauth(struct ieee80211_node *, int);
