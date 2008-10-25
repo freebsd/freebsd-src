@@ -28,6 +28,7 @@ opt_ah.h			optional	ath_hal			\
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/bm/if_bm.c			optional	bm powermac
+dev/cfi/cfi_bus_lbc.c		optional	cfi
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
