@@ -950,6 +950,26 @@ proto_get_int(char **s, int *val, int base)
 }
 
 /*
+ * Get a size_t token.
+ */
+int
+proto_get_sizet(char **s, size_t *val, int base)
+{
+	unsigned long long tmp;
+	char *cp, *end;
+
+	cp = proto_get_ascii(s);
+	if (cp == NULL)
+		return (-1);
+	errno = 0;
+	tmp = strtoll(cp, &end, base);
+	if (errno || *end != '\0')
+		return (-1);
+	*val = (size_t)tmp;
+	return (0);
+}
+
+/*
  * Get a time_t token.
  *
  * Ideally, we would use an intmax_t and strtoimax() here, but strtoll()
