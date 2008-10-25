@@ -501,6 +501,11 @@
 #define RL_RXBUFLEN		(1 << ((RL_RX_BUF_SZ >> 11) + 13))
 #define RL_TX_LIST_CNT		4
 #define RL_MIN_FRAMELEN		60
+#define	RL_TX_8139_BUF_ALIGN	4
+#define	RL_RX_8139_BUF_ALIGN	8
+#define	RL_RX_8139_BUF_RESERVE	sizeof(int64_t)
+#define	RL_RX_8139_BUF_GUARD_SZ	\
+	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + RL_RX_8139_BUF_RESERVE)	
 #define RL_TXTHRESH(x)		((x) << 11)
 #define RL_TX_THRESH_INIT	96
 #define RL_RX_FIFOTHRESH	RL_RXFIFO_NOTHRESH
@@ -522,10 +527,13 @@ struct rl_chain_data {
 	uint16_t		cur_rx;
 	uint8_t			*rl_rx_buf;
 	uint8_t			*rl_rx_buf_ptr;
-	bus_dmamap_t		rl_rx_dmamap;
 
 	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
 	bus_dmamap_t		rl_tx_dmamap[RL_TX_LIST_CNT];
+	bus_dma_tag_t		rl_tx_tag;
+	bus_dma_tag_t		rl_rx_tag;
+	bus_dmamap_t		rl_rx_dmamap;
+	bus_addr_t		rl_rx_buf_paddr;
 	uint8_t			last_tx;
 	uint8_t			cur_tx;
 };
@@ -813,7 +821,6 @@ struct rl_softc {
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
-	bus_dma_tag_t		rl_tag;
 	uint8_t			rl_type;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
