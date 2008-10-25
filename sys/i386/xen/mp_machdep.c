@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include <machine/xen/hypervisor.h>
+#include <machine/xen/xen_intr.h>
 #include <machine/xen/evtchn.h>
 #include <xen/interface/vcpu.h>
 
@@ -126,6 +127,9 @@ char *bootSTK;
 static int bootAP;
 static union descriptor *bootAPgdt;
 
+static char resched_name[NR_CPUS][15];
+static char callfunc_name[NR_CPUS][15];
+
 /* Free these after use */
 void *bootstacks[MAXCPU];
 
@@ -138,6 +142,9 @@ struct pcb stoppcbs[MAXCPU];
 vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
+
+typedef void call_data_func_t(uintptr_t , uintptr_t);
+
 
 #ifdef COUNT_IPIS
 /* Interrupt counts. */
@@ -191,6 +198,7 @@ static u_int	hyperthreading_cpus;
 static cpumask_t	hyperthreading_cpus_mask;
 extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
+extern void pmap_lazyfix_action(void);
 
 void
 mp_topology(void)
@@ -376,6 +384,151 @@ cpu_mp_start(void)
 	set_interrupt_apic_ids();
 }
 
+
+static void
+iv_rendezvous(uintptr_t a, uintptr_t b)
+{
+	smp_rendezvous_action();
+}
+
+static void
+iv_invltlb(uintptr_t a, uintptr_t b)
+{
+	xen_tlb_flush();
+}
+
+static void
+iv_invlpg(uintptr_t a, uintptr_t b)
+{
+	xen_invlpg(a);
+}
+
+static void
+iv_invlrng(uintptr_t a, uintptr_t b)
+{
+	vm_offset_t start = (vm_offset_t)a;
+	vm_offset_t end = (vm_offset_t)b;
+
+	while (start < end) {
+		xen_invlpg(start);
+		start += PAGE_SIZE;
+	}
+}
+
+
+static void
+iv_invlcache(uintptr_t a, uintptr_t b)
+{
+
+	wbinvd();
+}
+
+static void
+iv_lazypmap(uintptr_t a, uintptr_t b)
+{
+	pmap_lazyfix_action();
+}
+
+
+static void
+iv_noop(uintptr_t a, uintptr_t b)
+{
+}
+
+static call_data_func_t *ipi_vectors[IPI_BITMAP_VECTOR] = 
+{
+  iv_noop,
+  iv_noop,
+  iv_rendezvous,
+  iv_invltlb,
+  iv_invlpg,
+  iv_invlrng,
+  iv_invlcache,
+  iv_lazypmap,
+};
+
+/*
+ * Reschedule call back. Nothing to do,
+ * all the work is done automatically when
+ * we return from the interrupt.
+ */
+static void
+smp_reschedule_interrupt(void *unused)
+{
+	int cpu = PCPU_GET(cpuid);
+	u_int ipi_bitmap;
+
+	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
+
+#ifdef IPI_PREEMPTION
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+#ifdef COUNT_IPIS
+		*ipi_preempt_counts[cpu]++;
+#endif
+		mtx_lock_spin(&sched_lock);
+		/* Don't preempt the idle thread */
+		if (curthread != PCPU_GET(idlethread)) {
+			struct thread *running_thread = curthread;
+			if (running_thread->td_critnest > 1) 
+				running_thread->td_owepreempt = 1;
+			else 		
+				mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+		}
+		mtx_unlock_spin(&sched_lock);
+	}
+#endif
+
+	if (ipi_bitmap & (1 << IPI_AST)) {
+#ifdef COUNT_IPIS
+		*ipi_ast_counts[cpu]++;
+#endif
+		/* Nothing to do for AST */
+	}
+}
+
+struct _call_data {
+	uint16_t func_id;
+	uint16_t wait;
+	uintptr_t arg1;
+	uintptr_t arg2;
+	atomic_t started;
+	atomic_t finished;
+};
+
+static struct _call_data *call_data;
+
+static void
+smp_call_function_interrupt(void *arg)
+{	
+	call_data_func_t *func;
+	uintptr_t arg1 = call_data->arg1;
+	uintptr_t arg2 = call_data->arg2;
+	int wait = call_data->wait;
+	atomic_t *started = &call_data->started;
+	atomic_t *finished = &call_data->finished;
+
+	if (call_data->func_id > IPI_BITMAP_VECTOR)
+		panic("invalid function id %u", call_data->func_id);
+	
+	func = ipi_vectors[call_data->func_id];
+	/*
+	 * Notify initiating CPU that I've grabbed the data and am
+	 * about to execute the function
+	 */
+	mb();
+	atomic_inc(started);
+	/*
+	 * At this point the info structure may be out of scope unless wait==1
+	 */
+	(*func)(arg1, arg2);
+
+	if (wait) {
+		mb();
+		atomic_inc(finished);
+	}
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
 /*
  * Print various information about the SMP system hardware and setup.
  */
@@ -397,6 +550,61 @@ cpu_mp_announce(void)
 			printf(" cpu%d (AP): APIC ID: %2d\n", i++, x);
 		}
 	}
+}
+
+static int
+xen_smp_intr_init(unsigned int cpu)
+{
+	int rc;
+
+	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
+
+	sprintf(resched_name[cpu], "resched%u", cpu);
+	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
+				    cpu,
+				    resched_name[cpu],
+				    smp_reschedule_interrupt,
+				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+
+	printf("cpu=%d irq=%d vector=%d\n",
+	    cpu, rc, RESCHEDULE_VECTOR);
+	
+	per_cpu(resched_irq, cpu) = rc;
+
+	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
+	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
+				    cpu,
+				    callfunc_name[cpu],
+				    smp_call_function_interrupt,
+				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	if (rc < 0)
+		goto fail;
+	per_cpu(callfunc_irq, cpu) = rc;
+
+	printf("cpu=%d irq=%d vector=%d\n",
+	    cpu, rc, CALL_FUNCTION_VECTOR);
+
+	
+	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
+		goto fail;
+
+	return 0;
+
+ fail:
+	if (per_cpu(resched_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
+	if (per_cpu(callfunc_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	return rc;
+}
+
+static void
+xen_smp_intr_init_cpus(void *unused)
+{
+	int i;
+	    
+	for (i = 0; i < mp_ncpus; i++)
+		xen_smp_intr_init(i);
 }
 
 #define MTOPSIZE (1<<(14 + PAGE_SHIFT))
@@ -881,19 +1089,24 @@ static void
 smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	u_int ncpu;
+	struct _call_data data;
 
+	call_data = &data;
+	
 	ncpu = mp_ncpus - 1;	/* does not shootdown self */
 	if (ncpu < 1)
 		return;		/* no other cpus */
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
-	smp_tlb_addr2 = addr2;
+	call_data->func_id = vector;
+	call_data->arg1 = addr1;
+	call_data->arg2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	ipi_all_but_self(vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	call_data = NULL;
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -901,6 +1114,7 @@ static void
 smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
 	int ncpu, othercpus;
+	struct _call_data data;
 
 	othercpus = mp_ncpus - 1;
 	if (mask == (u_int)-1) {
@@ -925,8 +1139,10 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 	if (!(read_eflags() & PSL_I))
 		panic("%s: interrupts disabled", __func__);
 	mtx_lock_spin(&smp_ipi_mtx);
-	smp_tlb_addr1 = addr1;
-	smp_tlb_addr2 = addr2;
+	call_data = &data;		
+	call_data->func_id = vector;
+	call_data->arg1 = addr1;
+	call_data->arg2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
 	if (mask == (u_int)-1)
 		ipi_all_but_self(vector);
@@ -934,6 +1150,7 @@ smp_targeted_tlb_shootdown(u_int mask, u_int vector, vm_offset_t addr1, vm_offse
 		ipi_selected(mask, vector);
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
+	call_data = NULL;
 	mtx_unlock_spin(&smp_ipi_mtx);
 }
 
@@ -1019,6 +1236,8 @@ smp_masked_invlpg_range(u_int mask, vm_offset_t addr1, vm_offset_t addr2)
 	}
 }
 
+void
+ipi_bitmap_handler(struct clockframe frame);
 
 void
 ipi_bitmap_handler(struct clockframe frame)
@@ -1058,17 +1277,17 @@ ipi_bitmap_handler(struct clockframe frame)
  * send an IPI to a set of cpus.
  */
 void
-ipi_selected(u_int32_t cpus, u_int ipi)
+ipi_selected(uint32_t cpus, u_int ipi)
 {
 	int cpu;
 	u_int bitmap = 0;
 	u_int old_pending;
 	u_int new_pending;
-
+	
 	if (IPI_IS_BITMAPED(ipi)) { 
 		bitmap = 1 << ipi;
 		ipi = IPI_BITMAP_VECTOR;
-	}
+	} 
 
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
@@ -1084,11 +1303,15 @@ ipi_selected(u_int32_t cpus, u_int ipi)
 				new_pending = old_pending | bitmap;
 			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
 
-			if (old_pending)
-				continue;
+			if (!old_pending)
+				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
+			continue;
+			
 		}
 		
-		ipi_pcpu(cpu, ipi);
+		KASSERT(call_data != NULL, ("call_data not set"));
+
+		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 	}
 
 }
@@ -1101,7 +1324,7 @@ ipi_all(u_int ipi)
 {
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
-	ipi_selected(all_cpus, ipi);
+	ipi_selected(PCPU_GET(other_cpus), ipi);
 }
 
 /*
@@ -1143,6 +1366,7 @@ release_aps(void *dummy __unused)
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
+SYSINIT(start_ipis, SI_SUB_INTR, SI_ORDER_ANY, xen_smp_intr_init_cpus, NULL);
 
 #ifdef COUNT_IPIS
 /*

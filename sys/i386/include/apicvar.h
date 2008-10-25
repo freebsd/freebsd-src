@@ -113,6 +113,17 @@
 #define	APIC_THERMAL_INT (APIC_LOCAL_INTS + 1)
 
 #define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
+#ifdef XEN
+#define	IPI_RENDEZVOUS		(2)	/* Inter-CPU rendezvous. */
+#define	IPI_INVLTLB		(3)	/* TLB Shootdown IPIs */
+#define	IPI_INVLPG		(4)
+#define	IPI_INVLRNG		(5)
+#define	IPI_INVLCACHE		(6)
+#define	IPI_LAZYPMAP		(7)	/* Lazy pmap release. */
+/* Vector to handle bitmap based IPIs */
+#define	IPI_BITMAP_VECTOR	(8)
+
+#else
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
 #define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
@@ -121,6 +132,7 @@
 #define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
 /* Vector to handle bitmap based IPIs */
 #define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
+#endif
 
 /* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
 #define	IPI_AST		0 	/* Generate software trap. */
