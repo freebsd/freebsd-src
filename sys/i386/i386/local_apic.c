@@ -1068,7 +1068,9 @@ apic_setup_io(void *dummy __unused)
 	if (retval != 0)
 		printf("%s: Failed to setup I/O APICs: returned %d\n",
 		    best_enum->apic_name, retval);
-
+#ifdef XEN
+	return;
+#endif	
 	/*
 	 * Finish setting up the local APIC on the BSP once we know how to
 	 * properly program the LINT pins.

@@ -299,6 +299,7 @@ IDTVEC(invlcache)
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
  */
+#ifndef XEN
 	.text
 	SUPERALIGN_TEXT
 IDTVEC(ipi_intr_bitmap_handler)	
@@ -320,7 +321,7 @@ IDTVEC(ipi_intr_bitmap_handler)
 	addl	$4, %esp	/* XXX convert clockframe to trapframe */
 	MEXITCOUNT
 	jmp	doreti
-
+#endif
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
  *
