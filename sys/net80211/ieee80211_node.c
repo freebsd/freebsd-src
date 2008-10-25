@@ -135,6 +135,11 @@ ieee80211_node_vattach(struct ieee80211vap *vap)
 	vap->iv_inact_auth = IEEE80211_INACT_AUTH;
 	vap->iv_inact_run = IEEE80211_INACT_RUN;
 	vap->iv_inact_probe = IEEE80211_INACT_PROBE;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_INACT,
+	    "%s: init %u auth %u run %u probe %u\n", __func__,
+	    vap->iv_inact_init, vap->iv_inact_auth,
+	    vap->iv_inact_run, vap->iv_inact_probe);
 }
 
 void
@@ -187,18 +192,29 @@ ieee80211_node_vdetach(struct ieee80211vap *vap)
 void
 ieee80211_node_authorize(struct ieee80211_node *ni)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+
 	ni->ni_flags |= IEEE80211_NODE_AUTH;
-	ni->ni_inact_reload = ni->ni_vap->iv_inact_run;
+	ni->ni_inact_reload = vap->iv_inact_run;
 	ni->ni_inact = ni->ni_inact_reload;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+	    "%s: inact_reload %u", __func__, ni->ni_inact_reload);
 }
 
 void
 ieee80211_node_unauthorize(struct ieee80211_node *ni)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
+
 	ni->ni_flags &= ~IEEE80211_NODE_AUTH;
-	ni->ni_inact_reload = ni->ni_vap->iv_inact_auth;
+	ni->ni_inact_reload = vap->iv_inact_auth;
 	if (ni->ni_inact > ni->ni_inact_reload)
 		ni->ni_inact = ni->ni_inact_reload;
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+	    "%s: inact_reload %u inact %u", __func__,
+	    ni->ni_inact_reload, ni->ni_inact);
 }
 
 /*
@@ -1022,6 +1038,9 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_vap = vap;
 	ni->ni_ic = ic;
 	IEEE80211_NODE_UNLOCK(nt);
+
+	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+	    "%s: inact_reload %u", __func__, ni->ni_inact_reload);
 
 	return ni;
 }
@@ -1903,8 +1922,13 @@ restart:
 			m_freem(ni->ni_rxfrag[0]);
 			ni->ni_rxfrag[0] = NULL;
 		}
-		if (ni->ni_inact > 0)
+		if (ni->ni_inact > 0) {
 			ni->ni_inact--;
+			IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
+			    "%s: inact %u inact_reload %u nrates %u",
+			    __func__, ni->ni_inact, ni->ni_inact_reload,
+			    ni->ni_rates.rs_nrates);
+		}
 		/*
 		 * Special case ourself; we may be idle for extended periods
 		 * of time and regardless reclaiming our state is wrong.
@@ -2119,8 +2143,8 @@ ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 		ether_sprintf(ni->ni_bssid),
 		ni->ni_esslen, ni->ni_essid,
 		ni->ni_chan->ic_freq, ni->ni_chan->ic_flags);
-	printf("\tinact %u txrate %u\n",
-		ni->ni_inact, ni->ni_txrate);
+	printf("\tinact %u inact_reload %u txrate %u\n",
+		ni->ni_inact, ni->ni_inact_reload, ni->ni_txrate);
 	printf("\thtcap %x htparam %x htctlchan %u ht2ndchan %u\n",
 		ni->ni_htcap, ni->ni_htparam,
 		ni->ni_htctlchan, ni->ni_ht2ndchan);
