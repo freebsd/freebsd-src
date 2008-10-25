@@ -687,7 +687,7 @@ ieee80211_sta_join1(struct ieee80211_node *selbs)
 }
 
 int
-ieee80211_sta_join(struct ieee80211vap *vap,
+ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	const struct ieee80211_scan_entry *se)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -709,7 +709,7 @@ ieee80211_sta_join(struct ieee80211vap *vap,
 	ni->ni_tstamp.tsf = se->se_tstamp.tsf;
 	ni->ni_intval = se->se_intval;
 	ni->ni_capinfo = se->se_capinfo;
-	ni->ni_chan = se->se_chan;
+	ni->ni_chan = chan;
 	ni->ni_timoff = se->se_timoff;
 	ni->ni_fhdwell = se->se_fhdwell;
 	ni->ni_fhindex = se->se_fhindex;
