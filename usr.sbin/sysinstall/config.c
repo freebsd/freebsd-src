@@ -785,6 +785,7 @@ configPackages(dialogMenuItem *self)
 
     while (1) {
 	int ret, pos, scroll;
+	int current, low, high;
 
 	/* Bring up the packages menu */
 	pos = scroll = 0;
@@ -799,8 +800,14 @@ configPackages(dialogMenuItem *self)
 	    else if (DITEM_STATUS(ret) != DITEM_FAILURE) {
 		dialog_clear();
 		restoreflag = 1;
-		for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
-		    (void)index_extract(mediaDevice, &Top, tmp, FALSE);
+		if (have_volumes) {
+		    low = low_volume;
+		    high = high_volume;
+		} else
+		    low = high = 0;
+		for (current = low; current <= high; current++)
+		    for (tmp = Plist.kids; tmp && tmp->name; tmp = tmp->next)
+		        (void)index_extract(mediaDevice, &Top, tmp, FALSE, current);
 		break;
 	    }
 	}
