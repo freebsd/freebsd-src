@@ -4513,7 +4513,7 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	case HDA_CODEC_AD1981HD:
 		/*
 		 * This codec has very unusual design with several
-		 * points unappropriate for the present parser.
+		 * points inappropriate for the present parser.
 		 */
 		/* Disable recording from mono playback mix. */
 		w = hdac_widget_get(devinfo, 21);
