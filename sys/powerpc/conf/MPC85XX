@@ -50,6 +50,7 @@ options 	WITNESS_SKIPSPIN
 device		ata
 device		atadisk
 device		bpf
+device		cfi
 device		da
 device		em
 device		ether
