@@ -349,6 +349,9 @@ void
 xen_restore_flags(u_int eflags)
 {
 
+	if (eflags > 1)
+		eflags = ((eflags & PSL_I) == 0);
+
 	__restore_flags(eflags);
 }
 
