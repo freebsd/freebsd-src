@@ -749,6 +749,9 @@ ieee80211_sta_join(struct ieee80211vap *vap, struct ieee80211_channel *chan,
 	/* NB: must be after ni_chan is setup */
 	ieee80211_setup_rates(ni, se->se_rates, se->se_xrates,
 		IEEE80211_F_DOSORT);
+	if (ieee80211_iserp_rateset(&ni->ni_rates))
+		ni->ni_flags |= IEEE80211_NODE_ERP;
+	node_setuptxparms(ni);
 
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
