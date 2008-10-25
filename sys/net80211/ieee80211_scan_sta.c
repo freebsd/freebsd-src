@@ -1014,6 +1014,7 @@ sta_pick_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 {
 	struct sta_table *st = ss->ss_priv;
 	struct sta_entry *selbs;
+	struct ieee80211_channel *chan;
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_STA,
 		("wrong mode %u", vap->iv_opmode));
@@ -1056,7 +1057,10 @@ notfound:
 	selbs = select_bss(ss, vap, IEEE80211_MSG_SCAN);
 	if (ss->ss_flags & IEEE80211_SCAN_NOJOIN)
 		return (selbs != NULL);
-	if (selbs == NULL || !ieee80211_sta_join(vap, &selbs->base))
+	if (selbs == NULL)
+		goto notfound;
+	chan = selbs->base.se_chan;
+	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
 }
@@ -1138,12 +1142,16 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		se->base.se_rssi = curRssi;
 		selbs = select_bss(ss, vap, IEEE80211_MSG_ROAM);
 		if (selbs != NULL && selbs != se) {
+			struct ieee80211_channel *chan;
+
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_ROAM | IEEE80211_MSG_DEBUG,
 			    "%s: ROAM: curRate %u, roamRate %u, "
 			    "curRssi %d, roamRssi %d\n", __func__,
 			    curRate, roamRate, curRssi, roamRssi);
-			ieee80211_sta_join(vap, &selbs->base);
+
+			chan = selbs->base.se_chan;
+			(void) ieee80211_sta_join(vap, chan, &selbs->base);
 		}
 	}
 }
@@ -1419,7 +1427,10 @@ notfound:
 	selbs = select_bss(ss, vap, IEEE80211_MSG_SCAN);
 	if (ss->ss_flags & IEEE80211_SCAN_NOJOIN)
 		return (selbs != NULL);
-	if (selbs == NULL || !ieee80211_sta_join(vap, &selbs->base))
+	if (selbs == NULL)
+		goto notfound;
+	chan = selbs->base.se_chan;
+	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
 }
