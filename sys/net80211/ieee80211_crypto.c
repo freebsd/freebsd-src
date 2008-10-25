@@ -267,6 +267,10 @@ ieee80211_crypto_newkey(struct ieee80211vap *vap,
 	void *keyctx;
 	int oflags;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_CRYPTO,
+	    "%s: cipher %u flags 0x%x keyix %u\n",
+	    __func__, cipher, flags, key->wk_keyix);
+
 	/*
 	 * Validate cipher and set reference to cipher routines.
 	 */
