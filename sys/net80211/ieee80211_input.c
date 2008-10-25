@@ -603,6 +603,7 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 			break;
 		case IEEE80211_ELEMID_IBSSPARMS:
 		case IEEE80211_ELEMID_CFPARMS:
+		case IEEE80211_ELEMID_PWRCNSTR:
 			/* NB: avoid debugging complaints */
 			break;
 		case IEEE80211_ELEMID_XRATES:
