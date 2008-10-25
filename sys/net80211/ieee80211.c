@@ -350,11 +350,6 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	vap->iv_opmode = opmode;
 	vap->iv_caps |= ieee80211_opcap[opmode];
 	switch (opmode) {
-	case IEEE80211_M_STA:
-		/* auto-enable s/w beacon miss support */
-		if (flags & IEEE80211_CLONE_NOBEACONS)
-			vap->iv_flags_ext |= IEEE80211_FEXT_SWBMISS;
-		break;
 	case IEEE80211_M_WDS:
 		/*
 		 * WDS links must specify the bssid of the far end.
@@ -370,6 +365,9 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 			vap->iv_flags_ext |= IEEE80211_FEXT_WDSLEGACY;
 		break;
 	}
+	/* auto-enable s/w beacon miss support */
+	if (flags & IEEE80211_CLONE_NOBEACONS)
+		vap->iv_flags_ext |= IEEE80211_FEXT_SWBMISS;
 	/*
 	 * Enable various functionality by default if we're
 	 * capable; the driver can override us if it knows better.
