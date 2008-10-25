@@ -209,8 +209,8 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		break;
 	default:
 	invalid:
-		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ANY,
-		    "%s: invalid state transition %s -> %s\n", __func__,
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_STATE,
+		    "%s: unexpected state transition %s -> %s\n", __func__,
 		    ieee80211_state_name[ostate], ieee80211_state_name[nstate]);
 		break;
 	}
@@ -735,11 +735,16 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 
 	case IEEE80211_FC0_SUBTYPE_PROBE_REQ:
 		if (vap->iv_state != IEEE80211_S_RUN) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;
 		}
 		if (IEEE80211_IS_MULTICAST(wh->i_addr2)) {
 			/* frame must be directed */
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "%s", "not unicast");
 			vap->iv_stats.is_rx_mgtdiscard++;	/* XXX stat */
 			return;
 		}
@@ -798,6 +803,9 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		const struct ieee80211_action *ia;
 
 		if (vap->iv_state != IEEE80211_S_RUN) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, NULL, "wrong state %s",
+			    ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_rx_mgtdiscard++;
 			return;
 		}
@@ -857,6 +865,8 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	case IEEE80211_FC0_SUBTYPE_REASSOC_RESP:
 	case IEEE80211_FC0_SUBTYPE_DEAUTH:
 	case IEEE80211_FC0_SUBTYPE_DISASSOC:
+		IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+		     wh, NULL, "%s", "not handled");
 		vap->iv_stats.is_rx_mgtdiscard++;
 		return;
 
