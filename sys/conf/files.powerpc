@@ -28,6 +28,11 @@ opt_ah.h			optional	ath_hal			\
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/bm/if_bm.c			optional	bm powermac
+dev/adb/adb_bus.c		optional	adb
+dev/adb/adb_kbd.c		optional	adb
+dev/adb/adb_mouse.c		optional	adb
+dev/adb/adb_hb_if.m		optional	adb
+dev/adb/adb_if.m		optional	adb
 dev/cfi/cfi_bus_lbc.c		optional	cfi
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
@@ -119,6 +124,9 @@ powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/uninorth.c	optional	powermac pci
+powerpc/powermac/cuda.c		optional	powermac cuda
+powerpc/powermac/pmu.c		optional	powermac pmu 
+powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
