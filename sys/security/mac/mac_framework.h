@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -60,6 +60,7 @@ struct ifnet;
 struct ifreq;
 struct image_params;
 struct inpcb;
+struct ip6q;
 struct ipq;
 struct ksem;
 struct label;
@@ -137,6 +138,13 @@ void	mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m);
 void	mac_inpcb_destroy(struct inpcb *);
 int	mac_inpcb_init(struct inpcb *, int);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
+
+void	mac_ip6q_create(struct mbuf *m, struct ip6q *q6);
+void	mac_ip6q_destroy(struct ip6q *q6);
+int	mac_ip6q_init(struct ip6q *q6, int);
+int	mac_ip6q_match(struct mbuf *m, struct ip6q *q6);
+void	mac_ip6q_reassemble(struct ip6q *q6, struct mbuf *m);
+void	mac_ip6q_update(struct mbuf *m, struct ip6q *q6);
 
 void	mac_ipq_create(struct mbuf *m, struct ipq *q);
 void	mac_ipq_destroy(struct ipq *q);
