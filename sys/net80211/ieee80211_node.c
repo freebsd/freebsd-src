@@ -598,8 +598,8 @@ gethtadjustflags(struct ieee80211com *ic)
 
 /*
  * Check if the current channel needs to change based on whether
- * any vap's are using HT20/HT40.  This is used sync the state of
- * ic_curchan after a channel width change on a running vap.
+ * any vap's are using HT20/HT40.  This is used to sync the state
+ * of ic_curchan after a channel width change on a running vap.
  */
 void
 ieee80211_sync_curchan(struct ieee80211com *ic)
@@ -952,9 +952,9 @@ static void
 node_age(struct ieee80211_node *ni)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
-#if 0
-	IEEE80211_NODE_LOCK_ASSERT(&ic->ic_sta);
-#endif
+
+	IEEE80211_NODE_LOCK_ASSERT(&vap->iv_ic->ic_sta);
+
 	/*
 	 * Age frames on the power save queue.
 	 */
