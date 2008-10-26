@@ -208,7 +208,7 @@ gv_rebuild_raid5(struct gv_plex *p, struct gv_raid5_packet *wp, struct bio *bp,
 		if (!(bp->bio_cflags & GV_BIO_REBUILD))
 			return (ENXIO);
 
-		printf("GEOM_VINUM: sd %s is reviving\n", broken->name);
+		G_VINUM_DEBUG(1, "sd %s is reviving", broken->name);
 		gv_set_sd_state(broken, GV_SD_REVIVING, GV_SETSTATE_FORCE);
 		break;
 

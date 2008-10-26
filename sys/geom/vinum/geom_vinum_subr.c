@@ -113,7 +113,7 @@ gv_parse_config(struct gv_softc *sc, u_char *buf, int merge)
 			if (!strcmp(token[0], "volume")) {
 				v = gv_new_volume(tokens, token);
 				if (v == NULL) {
-					printf("geom_vinum: failed volume\n");
+					G_VINUM_DEBUG(0, "failed volume");
 					break;
 				}
 
@@ -132,7 +132,7 @@ gv_parse_config(struct gv_softc *sc, u_char *buf, int merge)
 			} else if (!strcmp(token[0], "plex")) {
 				p = gv_new_plex(tokens, token);
 				if (p == NULL) {
-					printf("geom_vinum: failed plex\n");
+					G_VINUM_DEBUG(0, "failed plex");
 					break;
 				}
 
@@ -152,7 +152,7 @@ gv_parse_config(struct gv_softc *sc, u_char *buf, int merge)
 				s = gv_new_sd(tokens, token);
 
 				if (s == NULL) {
-					printf("geom_vinum: failed subdisk\n");
+					G_VINUM_DEBUG(0, "failed subdisk");
 					break;
 				}
 
@@ -265,8 +265,8 @@ gv_sd_to_plex(struct gv_plex *p, struct gv_sd *s, int check)
 	/* Check correct size of this subdisk. */
 	s2 = LIST_FIRST(&p->subdisks);
 	if (s2 != NULL && gv_is_striped(p) && (s2->size != s->size)) {
-		printf("GEOM_VINUM: need equal sized subdisks for "
-		    "this plex organisation - %s (%jd) <-> %s (%jd)\n",
+		G_VINUM_DEBUG(0, "need equal sized subdisks for "
+		    "this plex organisation - %s (%jd) <-> %s (%jd)",
 		    s2->name, s2->size, s->name, s->size);
 		return (-1);
 	}
@@ -439,8 +439,8 @@ gv_update_plex_config(struct gv_plex *p)
 		s = LIST_FIRST(&p->subdisks);
 		LIST_FOREACH(s2, &p->subdisks, in_plex) {
 			if (s->size != s2->size) {
-				printf("geom_vinum: subdisk size mismatch "
-				    "%s (%jd) <> %s (%jd)\n", s->name, s->size,
+				G_VINUM_DEBUG(0, "subdisk size mismatch %s"
+				    "(%jd) <> %s (%jd)", s->name, s->size,
 				    s2->name, s2->size);
 				state = GV_PLEX_DOWN;
 			}
@@ -450,10 +450,9 @@ gv_update_plex_config(struct gv_plex *p)
 		LIST_FOREACH(s, &p->subdisks, in_plex) {
 			remainder = s->size % p->stripesize;
 			if (remainder) {
-				printf("gvinum: size of sd %s is not a "
+				G_VINUM_DEBUG(1, "size of sd %s is not a "
 				    "multiple of plex stripesize, taking off "
-				    "%jd bytes\n", s->name,
-				    (intmax_t)remainder);
+				    "%jd bytes", s->name, (intmax_t)remainder);
 				gv_adjust_freespace(s, remainder);
 			}
 		}
@@ -544,7 +543,7 @@ gv_sd_to_drive(struct gv_softc *sc, struct gv_drive *d, struct gv_sd *s,
 
 		/* No good slot found? */
 		if (s->size == -1) {
-			snprintf(errstr, errlen, "couldn't autosize '%s' on "
+			snprintf(errstr, errlen, "could not autosize '%s' on "
 			    "'%s'", s->name, d->name);
 			return (-1);
 		}
