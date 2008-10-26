@@ -73,8 +73,7 @@ struct sta_entry {
 	uint8_t		se_seen;		/* seen during current scan */
 	uint8_t		se_notseen;		/* not seen in previous scans */
 	uint8_t		se_flags;
-#define	STA_SSID_MATCH	0x01
-#define	STA_BSSID_MATCH	0x02
+#define	STA_DEMOTE11B	0x01			/* match w/ demoted 11b chan */
 	uint32_t	se_avgrssi;		/* LPF rssi state */
 	unsigned long	se_lastupdate;		/* time of last update */
 	unsigned long	se_lastfail;		/* time of last failure */
@@ -107,16 +106,16 @@ static void sta_flush_table(struct sta_table *);
  * contents explains why.  The following flags are or'd to to this
  * mask and can be used to figure out why the entry was rejected.
  */
-#define	MATCH_CHANNEL	0x001	/* channel mismatch */
-#define	MATCH_CAPINFO	0x002	/* capabilities mismatch, e.g. no ess */
-#define	MATCH_PRIVACY	0x004	/* privacy mismatch */
-#define	MATCH_RATE	0x008	/* rate set mismatch */
-#define	MATCH_SSID	0x010	/* ssid mismatch */
-#define	MATCH_BSSID	0x020	/* bssid mismatch */
-#define	MATCH_FAILS	0x040	/* too many failed auth attempts */
-#define	MATCH_NOTSEEN	0x080	/* not seen in recent scans */
-#define	MATCH_RSSI	0x100	/* rssi deemed too low to use */
-#define	MATCH_CC	0x200	/* country code mismatch */
+#define	MATCH_CHANNEL		0x0001	/* channel mismatch */
+#define	MATCH_CAPINFO		0x0002	/* capabilities mismatch, e.g. no ess */
+#define	MATCH_PRIVACY		0x0004	/* privacy mismatch */
+#define	MATCH_RATE		0x0008	/* rate set mismatch */
+#define	MATCH_SSID		0x0010	/* ssid mismatch */
+#define	MATCH_BSSID		0x0020	/* bssid mismatch */
+#define	MATCH_FAILS		0x0040	/* too many failed auth attempts */
+#define	MATCH_NOTSEEN		0x0080	/* not seen in recent scans */
+#define	MATCH_RSSI		0x0100	/* rssi deemed too low to use */
+#define	MATCH_CC		0x0200	/* country code mismatch */
 static int match_bss(struct ieee80211vap *,
 	const struct ieee80211_scan_state *, struct sta_entry *, int);
 static void adhoc_age(struct ieee80211_scan_state *);
@@ -675,6 +674,26 @@ sta_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	((uint16_t)					\
 	 ((((const uint8_t *)(p))[0]      ) |		\
 	  (((const uint8_t *)(p))[1] <<  8)))
+ 
+/*
+ * Demote any supplied 11g channel to 11b.  There should
+ * always be an 11b channel but we check anyway...
+ */
+static struct ieee80211_channel *
+demote11b(struct ieee80211vap *vap, struct ieee80211_channel *chan)
+{
+	struct ieee80211_channel *c;
+
+	if (IEEE80211_IS_CHAN_ANYG(chan) &&
+	    vap->iv_des_mode == IEEE80211_MODE_AUTO) {
+		c = ieee80211_find_channel(vap->iv_ic, chan->ic_freq,
+		    (chan->ic_flags &~ (IEEE80211_CHAN_PUREG | IEEE80211_CHAN_G)) |
+		    IEEE80211_CHAN_B);
+		if (c != NULL)
+			chan = c;
+	}
+	return chan;
+}
 
 static int
 maxrate(const struct ieee80211_scan_entry *se)
@@ -774,7 +793,8 @@ sta_compare(const struct sta_entry *a, const struct sta_entry *b)
  * XXX inspect MCS for HT
  */
 static int
-check_rate(struct ieee80211vap *vap, const struct ieee80211_scan_entry *se)
+check_rate(struct ieee80211vap *vap, const struct ieee80211_channel *chan,
+    const struct ieee80211_scan_entry *se)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	const struct ieee80211_rateset *srs;
@@ -783,11 +803,11 @@ check_rate(struct ieee80211vap *vap, const struct ieee80211_scan_entry *se)
 
 	okrate = badrate = 0;
 
-	srs = ieee80211_get_suprates(vap->iv_ic, se->se_chan);
+	srs = ieee80211_get_suprates(vap->iv_ic, chan);
 	nrs = se->se_rates[1];
 	rs = se->se_rates+2;
 	/* XXX MCS */
-	ucastrate = vap->iv_txparms[ieee80211_chan2mode(se->se_chan)].ucastrate;
+	ucastrate = vap->iv_txparms[ieee80211_chan2mode(chan)].ucastrate;
 	fixedrate = IEEE80211_FIXED_RATE_NONE;
 again:
 	for (i = 0; i < nrs; i++) {
@@ -903,9 +923,38 @@ match_bss(struct ieee80211vap *vap,
 		if (se->se_capinfo & IEEE80211_CAPINFO_PRIVACY)
 			fail |= MATCH_PRIVACY;
 	}
-	rate = check_rate(vap, se);
-	if (rate & IEEE80211_RATE_BASIC)
+	se0->se_flags &= ~STA_DEMOTE11B;
+	rate = check_rate(vap, se->se_chan, se);
+	if (rate & IEEE80211_RATE_BASIC) {
 		fail |= MATCH_RATE;
+		/*
+		 * An 11b-only ap will give a rate mismatch if there is an
+		 * OFDM fixed tx rate for 11g.  Try downgrading the channel
+		 * in the scan list to 11b and retry the rate check.
+		 */
+		if (IEEE80211_IS_CHAN_ANYG(se->se_chan)) {
+			rate = check_rate(vap, demote11b(vap, se->se_chan), se);
+			if ((rate & IEEE80211_RATE_BASIC) == 0) {
+				fail &= ~MATCH_RATE;
+				se0->se_flags |= STA_DEMOTE11B;
+			}
+		}
+	} else if (rate < 2*24) {
+		/*
+		 * This is an 11b-only ap.  Check the desired mode in
+		 * case that needs to be honored (mode 11g filters out
+		 * 11b-only ap's).  Otherwise force any 11g channel used
+		 * in scanning to be demoted.
+		 *
+		 * NB: we cheat a bit here by looking at the max rate;
+		 *     we could/should check the rates.
+		 */
+		if (!(vap->iv_des_mode == IEEE80211_MODE_AUTO ||
+		      vap->iv_des_mode == IEEE80211_MODE_11B))
+			fail |= MATCH_RATE;
+		else
+			se0->se_flags |= STA_DEMOTE11B;
+	}
 	if (ss->ss_nssid != 0 &&
 	    !match_ssid(se->se_ssid, ss->ss_nssid, ss->ss_ssid))
 		fail |= MATCH_SSID;
@@ -1060,6 +1109,8 @@ notfound:
 	if (selbs == NULL)
 		goto notfound;
 	chan = selbs->base.se_chan;
+	if (selbs->se_flags & STA_DEMOTE11B)
+		chan = demote11b(vap, chan);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
@@ -1151,6 +1202,8 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 			    curRate, roamRate, curRssi, roamRssi);
 
 			chan = selbs->base.se_chan;
+			if (selbs->se_flags & STA_DEMOTE11B)
+				chan = demote11b(vap, chan);
 			(void) ieee80211_sta_join(vap, chan, &selbs->base);
 		}
 	}
@@ -1430,6 +1483,8 @@ notfound:
 	if (selbs == NULL)
 		goto notfound;
 	chan = selbs->base.se_chan;
+	if (selbs->se_flags & STA_DEMOTE11B)
+		chan = demote11b(vap, chan);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
 	return 1;				/* terminate scan */
