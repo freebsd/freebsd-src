@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -84,6 +84,7 @@ SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
 #define	MAGIC_DEVFS	0x9ee79c32
 #define	MAGIC_IFNET	0xc218b120
 #define	MAGIC_INPCB	0x4440f7bb
+#define	MAGIC_IP6Q	0x0870e1b7
 #define	MAGIC_IPQ	0x206188ef
 #define	MAGIC_MBUF	0xbbefa5bb
 #define	MAGIC_MOUNT	0xc7c46e47
@@ -562,6 +563,76 @@ test_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	LABEL_CHECK(solabel, MAGIC_SOCKET);
 	LABEL_CHECK(inplabel, MAGIC_INPCB);
 	COUNTER_INC(inpcb_sosetlabel);
+}
+
+COUNTER_DECL(ip6q_create);
+static void
+test_ip6q_create(struct mbuf *fragment, struct label *fragmentlabel,
+    struct ip6q *q6, struct label *q6label)
+{
+
+	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
+	LABEL_CHECK(q6label, MAGIC_IP6Q);
+	COUNTER_INC(ip6q_create);
+}
+
+COUNTER_DECL(ip6q_destroy_label);
+static void
+test_ip6q_destroy_label(struct label *label)
+{
+
+	LABEL_DESTROY(label, MAGIC_IP6Q);
+	COUNTER_INC(ip6q_destroy_label);
+}
+
+COUNTER_DECL(ip6q_init_label);
+static int
+test_ip6q_init_label(struct label *label, int flag)
+{
+
+	if (flag & M_WAITOK)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "test_ip6q_init_label() at %s:%d", __FILE__,
+		    __LINE__);
+
+	LABEL_INIT(label, MAGIC_IP6Q);
+	COUNTER_INC(ip6q_init_label);
+	return (0);
+}
+
+COUNTER_DECL(ip6q_match);
+static int
+test_ip6q_match(struct mbuf *fragment, struct label *fragmentlabel,
+    struct ip6q *q6, struct label *q6label)
+{
+
+	LABEL_CHECK(fragmentlabel, MAGIC_MBUF);
+	LABEL_CHECK(q6label, MAGIC_IP6Q);
+	COUNTER_INC(ip6q_match);
+
+	return (1);
+}
+
+COUNTER_DECL(ip6q_reassemble);
+static void
+test_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+   struct label *mlabel)
+{
+
+	LABEL_CHECK(q6label, MAGIC_IP6Q);
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
+	COUNTER_INC(ip6q_reassemble);
+}
+
+COUNTER_DECL(ip6q_update);
+static void
+test_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	LABEL_CHECK(mlabel, MAGIC_MBUF);
+	LABEL_CHECK(q6label, MAGIC_IP6Q);
+	COUNTER_INC(ip6q_update);
 }
 
 COUNTER_DECL(ipq_create);
@@ -2859,6 +2930,13 @@ static struct mac_policy_ops test_ops =
 	.mpo_inpcb_destroy_label = test_inpcb_destroy_label,
 	.mpo_inpcb_init_label = test_inpcb_init_label,
 	.mpo_inpcb_sosetlabel = test_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = test_ip6q_create,
+	.mpo_ip6q_destroy_label = test_ip6q_destroy_label,
+	.mpo_ip6q_init_label = test_ip6q_init_label,
+	.mpo_ip6q_match = test_ip6q_match,
+	.mpo_ip6q_reassemble = test_ip6q_reassemble,
+	.mpo_ip6q_update = test_ip6q_update,
 
 	.mpo_ipq_create = test_ipq_create,
 	.mpo_ipq_destroy_label = test_ipq_destroy_label,
