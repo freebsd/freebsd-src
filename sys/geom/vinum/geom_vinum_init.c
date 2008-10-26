@@ -420,15 +420,15 @@ gv_rebuild_td(void *arg)
 	error = g_access(cp, 1, 1, 0);
 	if (error) {
 		g_topology_unlock();
-		printf("GEOM_VINUM: rebuild of %s failed to access consumer: "
-		    "%d\n", p->name, error);
+		G_VINUM_DEBUG(0, "rebuild of %s failed to access consumer: "
+		    "%d", p->name, error);
 		kproc_exit(error);
 	}
 	g_topology_unlock();
 
 	buf = g_malloc(sync->syncsize, M_WAITOK);
 
-	printf("GEOM_VINUM: rebuild of %s started\n", p->name);
+	G_VINUM_DEBUG(1, "rebuild of %s started", p->name);
 	i = 0;
 	for (i = 0; i < p->size; i += (p->stripesize * (p->sdcount - 1))) {
 /*
@@ -437,8 +437,8 @@ gv_rebuild_td(void *arg)
 */
 		bp = g_new_bio();
 		if (bp == NULL) {
-			printf("GEOM_VINUM: rebuild of %s failed creating bio: "
-			    "out of memory\n", p->name);
+			G_VINUM_DEBUG(0, "rebuild of %s failed creating bio: "
+			    "out of memory", p->name);
 			break;
 		}
 		bp->bio_cmd = BIO_WRITE;
@@ -454,8 +454,8 @@ gv_rebuild_td(void *arg)
 		/* ... and wait for the result. */
 		error = biowait(bp, "gwrite");
 		if (error) {
-			printf("GEOM_VINUM: rebuild of %s failed at offset %jd "
-			    "errno: %d\n", p->name, i, error);
+			G_VINUM_DEBUG(0, "rebuild of %s failed at offset %jd "
+			    "errno: %d", p->name, i, error);
 			break;
 		}
 		g_destroy_bio(bp);
@@ -477,7 +477,7 @@ gv_rebuild_td(void *arg)
 
 	/* Successful initialization. */
 	if (!error)
-		printf("GEOM_VINUM: rebuild of %s finished\n", p->name);
+		G_VINUM_DEBUG(1, "rebuild of %s finished", p->name);
 
 	g_free(sync);
 	kproc_exit(error);
@@ -508,8 +508,8 @@ gv_sync_td(void *arg)
 	error = g_access(from, 1, 0, 0);
 	if (error) {
 		g_topology_unlock();
-		printf("GEOM_VINUM: sync from '%s' failed to access "
-		    "consumer: %d\n", sync->from->name, error);
+		G_VINUM_DEBUG(0, "sync from '%s' failed to access "
+		    "consumer: %d", sync->from->name, error);
 		g_free(sync);
 		kproc_exit(error);
 	}
@@ -517,21 +517,21 @@ gv_sync_td(void *arg)
 	if (error) {
 		g_access(from, -1, 0, 0);
 		g_topology_unlock();
-		printf("GEOM_VINUM: sync to '%s' failed to access "
-		    "consumer: %d\n", p->name, error);
+		G_VINUM_DEBUG(0, "sync to '%s' failed to access "
+		    "consumer: %d", p->name, error);
 		g_free(sync);
 		kproc_exit(error);
 	}
 	g_topology_unlock();
 
-	printf("GEOM_VINUM: plex sync %s -> %s started\n", sync->from->name,
+	G_VINUM_DEBUG(1, "plex sync %s -> %s started", sync->from->name,
 	    sync->to->name);
 	for (i = 0; i < p->size; i+= sync->syncsize) {
 		/* Read some bits from the good plex. */
 		buf = g_read_data(from, i, sync->syncsize, &error);
 		if (buf == NULL) {
-			printf("GEOM_VINUM: sync read from '%s' failed at "
-			    "offset %jd; errno: %d\n", sync->from->name, i,
+			G_VINUM_DEBUG(0, "sync read from '%s' failed at "
+			    "offset %jd; errno: %d", sync->from->name, i,
 			    error);
 			break;
 		}
@@ -544,8 +544,8 @@ gv_sync_td(void *arg)
 		 */
 		bp = g_new_bio();
 		if (bp == NULL) {
-			printf("GEOM_VINUM: sync write to '%s' failed at "
-			    "offset %jd; out of memory\n", p->name, i);
+			G_VINUM_DEBUG(0, "sync write to '%s' failed at "
+			    "offset %jd; out of memory", p->name, i);
 			g_free(buf);
 			break;
 		}
@@ -569,7 +569,7 @@ gv_sync_td(void *arg)
 		g_destroy_bio(bp);
 		g_free(buf);
 		if (error) {
-			printf("GEOM_VINUM: sync write to '%s' failed at "
+			G_VINUM_DEBUG(0, "sync write to '%s' failed at "
 			    "offset %jd; errno: %d\n", p->name, i, error);
 			break;
 		}
@@ -586,7 +586,7 @@ gv_sync_td(void *arg)
 
 	/* Successful initialization. */
 	if (!error)
-		printf("GEOM_VINUM: plex sync %s -> %s finished\n",
+		G_VINUM_DEBUG(1, "plex sync %s -> %s finished",
 		    sync->from->name, sync->to->name);
 
 	p->flags &= ~GV_PLEX_SYNCING;
@@ -630,8 +630,8 @@ gv_init_td(void *arg)
 	if (error) {
 		s->init_error = error;
 		g_topology_unlock();
-		printf("GEOM_VINUM: subdisk '%s' init: failed to access "
-		    "consumer; error: %d\n", s->name, error);
+		G_VINUM_DEBUG(0, "subdisk '%s' init: failed to access "
+		    "consumer; error: %d", s->name, error);
 		kproc_exit(error);
 	}
 	g_topology_unlock();
@@ -639,8 +639,8 @@ gv_init_td(void *arg)
 	for (i = start; i < offset + length; i += init_size) {
 		error = g_write_data(cp, i, buf, init_size);
 		if (error) {
-			printf("GEOM_VINUM: subdisk '%s' init: write failed"
-			    " at offset %jd (drive offset %jd); error %d\n",
+			G_VINUM_DEBUG(0, "subdisk '%s' init: write failed"
+			    " at offset %jd (drive offset %jd); error %d",
 			    s->name, (intmax_t)s->initialized, (intmax_t)i,
 			    error);
 			break;
@@ -664,7 +664,7 @@ gv_init_td(void *arg)
 		gv_set_sd_state(s, GV_SD_UP, GV_SETSTATE_CONFIG);
 		g_topology_unlock();
 		s->initialized = 0;
-		printf("GEOM_VINUM: subdisk '%s' init: finished successfully\n",
+		G_VINUM_DEBUG(1, "subdisk '%s' init: finished successfully",
 		    s->name);
 	}
 	kproc_exit(error);
