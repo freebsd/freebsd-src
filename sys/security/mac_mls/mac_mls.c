@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -1085,6 +1085,51 @@ mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	dest = SLOT(inplabel);
 
 	mls_copy(source, dest);
+}
+
+static void
+mls_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(q6label);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_mls *a, *b;
+
+	a = SLOT(q6label);
+	b = SLOT(mlabel);
+
+	return (mls_equal_effective(a, b));
+}
+
+static void
+mls_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(q6label);
+	dest = SLOT(mlabel);
+
+	/* Just use the head, since we require them all to match. */
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	/* NOOP: we only accept matching labels, so no need to update */
 }
 
 static void
@@ -2947,6 +2992,13 @@ static struct mac_policy_ops mls_ops =
 	.mpo_inpcb_destroy_label = mls_destroy_label,
 	.mpo_inpcb_init_label = mls_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = mls_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = mls_ip6q_create,
+	.mpo_ip6q_destroy_label = mls_destroy_label,
+	.mpo_ip6q_init_label = mls_init_label_waitcheck,
+	.mpo_ip6q_match = mls_ip6q_match,
+	.mpo_ip6q_reassemble = mls_ip6q_reassemble,
+	.mpo_ip6q_update = mls_ip6q_update,
 
 	.mpo_ipq_create = mls_ipq_create,
 	.mpo_ipq_destroy_label = mls_destroy_label,

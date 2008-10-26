@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -1296,6 +1296,51 @@ lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	dest = SLOT(inplabel);
 
 	lomac_copy_single(source, dest);
+}
+
+static void
+lomac_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(q6label);
+
+	lomac_copy_single(source, dest);
+}
+
+static int
+lomac_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_lomac *a, *b;
+
+	a = SLOT(q6label);
+	b = SLOT(mlabel);
+
+	return (lomac_equal_single(a, b));
+}
+
+static void
+lomac_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(q6label);
+	dest = SLOT(mlabel);
+
+	/* Just use the head, since we require them all to match. */
+	lomac_copy_single(source, dest);
+}
+
+static void
+lomac_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	/* NOOP: we only accept matching labels, so no need to update */
 }
 
 static void
@@ -2885,6 +2930,13 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_inpcb_destroy_label = lomac_destroy_label,
 	.mpo_inpcb_init_label = lomac_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = lomac_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = lomac_ip6q_create,
+	.mpo_ip6q_destroy_label = lomac_destroy_label,
+	.mpo_ip6q_init_label = lomac_init_label_waitcheck,
+	.mpo_ip6q_match = lomac_ip6q_match,
+	.mpo_ip6q_reassemble = lomac_ip6q_reassemble,
+	.mpo_ip6q_update = lomac_ip6q_update,
 
 	.mpo_ipq_create = lomac_ipq_create,
 	.mpo_ipq_destroy_label = lomac_destroy_label,
