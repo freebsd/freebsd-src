@@ -530,7 +530,9 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 }
 
 /*
- * Send a null data frame to the specified node.
+ * Send a null data frame to the specified node.  If the station
+ * is setup for QoS then a QoS Null Data frame is constructed.
+ * If this is a WDS station then a 4-address frame is constructed.
  *
  * NB: the caller is assumed to have setup a node reference
  *     for use; this is necessary to deal with a race condition
@@ -546,6 +548,8 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct mbuf *m;
 	struct ieee80211_frame *wh;
+	int hdrlen;
+	uint8_t *frm;
 
 	if (vap->iv_state == IEEE80211_S_CAC) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_OUTPUT | IEEE80211_MSG_DOTH,
@@ -555,37 +559,70 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 		return EIO;		/* XXX */
 	}
 
-	m = m_gethdr(M_NOWAIT, MT_HEADER);
+	if (ni->ni_flags & (IEEE80211_NODE_QOS|IEEE80211_NODE_HT))
+		hdrlen = sizeof(struct ieee80211_qosframe);
+	else
+		hdrlen = sizeof(struct ieee80211_frame);
+	/* NB: only WDS vap's get 4-address frames */
+	if (vap->iv_opmode == IEEE80211_M_WDS)
+		hdrlen += IEEE80211_ADDR_LEN;
+	if (ic->ic_flags & IEEE80211_F_DATAPAD)
+		hdrlen = roundup(hdrlen, sizeof(uint32_t));
+
+	m = ieee80211_getmgtframe(&frm, ic->ic_headroom + hdrlen, 0);
 	if (m == NULL) {
 		/* XXX debug msg */
 		ieee80211_unref_node(&ni);
 		vap->iv_stats.is_tx_nobuf++;
 		return ENOMEM;
 	}
-	MH_ALIGN(m, sizeof(struct ieee80211_frame));
+	KASSERT(M_LEADINGSPACE(m) >= hdrlen,
+	    ("leading space %zd", M_LEADINGSPACE(m)));
+	M_PREPEND(m, hdrlen, M_DONTWAIT);
+	if (m == NULL) {
+		/* NB: cannot happen */
+		ieee80211_free_node(ni);
+		return ENOMEM;
+	}
 
-	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh,
-	    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
-	    IEEE80211_NONQOS_TID,
-	    vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
+	wh = mtod(m, struct ieee80211_frame *);		/* NB: a little lie */
+	if (ni->ni_flags & IEEE80211_NODE_QOS) {
+		const int tid = WME_AC_TO_TID(WME_AC_BE);
+		uint8_t *qos;
+
+		ieee80211_send_setup(ni, wh,
+		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_QOS_NULL,
+		    tid, vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
+
+		if (vap->iv_opmode == IEEE80211_M_WDS)
+			qos = ((struct ieee80211_qosframe_addr4 *) wh)->i_qos;
+		else
+			qos = ((struct ieee80211_qosframe *) wh)->i_qos;
+		qos[0] = tid & IEEE80211_QOS_TID;
+		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[WME_AC_BE].wmep_noackPolicy)
+			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
+		qos[1] = 0;
+	} else {
+		ieee80211_send_setup(ni, wh,
+		    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
+		    IEEE80211_NONQOS_TID,
+		    vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
+	}
 	if (vap->iv_opmode != IEEE80211_M_WDS) {
 		/* NB: power management bit is never sent by an AP */
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 		    vap->iv_opmode != IEEE80211_M_HOSTAP)
 			wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
-		m->m_len = m->m_pkthdr.len = sizeof(struct ieee80211_frame);
-	} else {
-		/* NB: 4-address frame */
-		m->m_len = m->m_pkthdr.len =
-		    sizeof(struct ieee80211_frame_addr4);
 	}
+	m->m_len = m->m_pkthdr.len = hdrlen;
+
 	M_WME_SETAC(m, WME_AC_BE);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_DEBUG | IEEE80211_MSG_DUMPPKTS, ni,
-	    "send null data frame on channel %u, pwr mgt %s",
+	    "send %snull data frame on channel %u, pwr mgt %s",
+	    ni->ni_flags & IEEE80211_NODE_QOS ? "QoS " : "",
 	    ieee80211_chan2ieee(ic, ic->ic_curchan),
 	    wh->i_fc[1] & IEEE80211_FC1_PWR_MGT ? "ena" : "dis");
 
