@@ -115,9 +115,9 @@ in_localip(struct in_addr in)
 
 	LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash) {
 		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr)
-			return 1;
+			return (1);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -177,7 +177,7 @@ in_mask2len(mask)
 				break;
 		}
 	}
-	return x * 8 + y;
+	return (x * 8 + y);
 }
 
 static void
@@ -205,7 +205,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 {
 	INIT_VNET_INET(curvnet); /* both so and ifp can be NULL here! */
 	register struct ifreq *ifr = (struct ifreq *)data;
-	register struct in_ifaddr *ia = 0, *iap;
+	register struct in_ifaddr *ia, *iap;
 	register struct ifaddr *ifa;
 	struct in_addr allhosts_addr;
 	struct in_addr dst;
@@ -215,6 +215,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	int error, hostIsNew, iaIsNew, maskIsNew, s;
 	int iaIsFirst;
 
+	ia = NULL;
 	iaIsFirst = 0;
 	iaIsNew = 0;
 	allhosts_addr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
@@ -226,8 +227,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			if (error)
 				return (error);
 		}
-		if (!ifp)
-			return EINVAL;
+		if (ifp == NULL)
+			return (EINVAL);
 		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
 
 	case SIOCDLIFADDR:
@@ -236,13 +237,13 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			if (error)
 				return (error);
 		}
-		if (!ifp)
-			return EINVAL;
+		if (ifp == NULL)
+			return (EINVAL);
 		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
 
 	case SIOCGLIFADDR:
-		if (!ifp)
-			return EINVAL;
+		if (ifp == NULL)
+			return (EINVAL);
 		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
 	}
 
@@ -252,7 +253,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 * If an alias address was specified, find that one instead of
 	 * the first one on the interface, if possible.
 	 */
-	if (ifp) {
+	if (ifp != NULL) {
 		dst = ((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr;
 		LIST_FOREACH(iap, INADDR_HASH(dst.s_addr), ia_hash)
 			if (iap->ia_ifp == ifp &&
@@ -276,7 +277,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	case SIOCAIFADDR:
 	case SIOCDIFADDR:
-		if (ifp == 0)
+		if (ifp == NULL)
 			return (EADDRNOTAVAIL);
 		if (ifra->ifra_addr.sin_family == AF_INET) {
 			for (oia = ia; ia; ia = TAILQ_NEXT(ia, ia_link)) {
@@ -289,10 +290,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			    && (cmd == SIOCAIFADDR)
 			    && (ifra->ifra_dstaddr.sin_addr.s_addr
 				== INADDR_ANY)) {
-				return EDESTADDRREQ;
+				return (EDESTADDRREQ);
 			}
 		}
-		if (cmd == SIOCDIFADDR && ia == 0)
+		if (cmd == SIOCDIFADDR && ia == NULL)
 			return (EADDRNOTAVAIL);
 		/* FALLTHROUGH */
 	case SIOCSIFADDR:
@@ -305,12 +306,12 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 				return (error);
 		}
 
-		if (ifp == 0)
+		if (ifp == NULL)
 			return (EADDRNOTAVAIL);
-		if (ia == (struct in_ifaddr *)0) {
+		if (ia == NULL) {
 			ia = (struct in_ifaddr *)
 				malloc(sizeof *ia, M_IFADDR, M_WAITOK | M_ZERO);
-			if (ia == (struct in_ifaddr *)NULL)
+			if (ia == NULL)
 				return (ENOBUFS);
 			/*
 			 * Protect from ipintr() traversing address list
@@ -351,7 +352,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCGIFNETMASK:
 	case SIOCGIFDSTADDR:
 	case SIOCGIFBRDADDR:
-		if (ia == (struct in_ifaddr *)0)
+		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		break;
 	}
@@ -382,7 +383,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			return (EINVAL);
 		oldaddr = ia->ia_dstaddr;
 		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
-		if (ifp->if_ioctl) {
+		if (ifp->if_ioctl != NULL) {
 			IFF_LOCKGIANT(ifp);
 			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
 			    (caddr_t)ia);
@@ -483,7 +484,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 
 	default:
-		if (ifp == 0 || ifp->if_ioctl == 0)
+		if (ifp == NULL || ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
 		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
@@ -549,7 +550,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 	struct ifaddr *ifa;
 
 	/* sanity checks */
-	if (!data || !ifp) {
+	if (data == NULL || ifp == NULL) {
 		panic("invalid argument to in_lifaddr_ioctl");
 		/*NOTRECHED*/
 	}
@@ -564,22 +565,22 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 	case SIOCDLIFADDR:
 		/* address must be specified on ADD and DELETE */
 		if (iflr->addr.ss_family != AF_INET)
-			return EINVAL;
+			return (EINVAL);
 		if (iflr->addr.ss_len != sizeof(struct sockaddr_in))
-			return EINVAL;
+			return (EINVAL);
 		/* XXX need improvement */
 		if (iflr->dstaddr.ss_family
 		 && iflr->dstaddr.ss_family != AF_INET)
-			return EINVAL;
+			return (EINVAL);
 		if (iflr->dstaddr.ss_family
 		 && iflr->dstaddr.ss_len != sizeof(struct sockaddr_in))
-			return EINVAL;
+			return (EINVAL);
 		break;
 	default: /*shouldn't happen*/
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
 	if (sizeof(struct in_addr) * 8 < iflr->prefixlen)
-		return EINVAL;
+		return (EINVAL);
 
 	switch (cmd) {
 	case SIOCALIFADDR:
@@ -587,7 +588,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		struct in_aliasreq ifra;
 
 		if (iflr->flags & IFLR_PREFIX)
-			return EINVAL;
+			return (EINVAL);
 
 		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR_IN6). */
 		bzero(&ifra, sizeof(ifra));
@@ -605,7 +606,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		ifra.ifra_mask.sin_len = sizeof(struct sockaddr_in);
 		in_len2mask(&ifra.ifra_mask.sin_addr, iflr->prefixlen);
 
-		return in_control(so, SIOCAIFADDR, (caddr_t)&ifra, ifp, td);
+		return (in_control(so, SIOCAIFADDR, (caddr_t)&ifra, ifp, td));
 	    }
 	case SIOCGLIFADDR:
 	case SIOCDLIFADDR:
@@ -626,7 +627,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 
 			/* if you set extra bits, that's wrong */
 			if (match.s_addr != sin->sin_addr.s_addr)
-				return EINVAL;
+				return (EINVAL);
 
 		} else {
 			/* on getting an address, take the 1st match */
@@ -648,8 +649,8 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (candidate.s_addr == match.s_addr)
 				break;
 		}
-		if (!ifa)
-			return EADDRNOTAVAIL;
+		if (ifa == NULL)
+			return (EADDRNOTAVAIL);
 		ia = (struct in_ifaddr *)ifa;
 
 		if (cmd == SIOCGLIFADDR) {
@@ -667,7 +668,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 
 			iflr->flags = 0;	/*XXX*/
 
-			return 0;
+			return (0);
 		} else {
 			struct in_aliasreq ifra;
 
@@ -685,13 +686,13 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			bcopy(&ia->ia_sockmask, &ifra.ifra_dstaddr,
 				ia->ia_sockmask.sin_len);
 
-			return in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
-					  ifp, td);
+			return (in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
+			    ifp, td));
 		}
 	    }
 	}
 
-	return EOPNOTSUPP;	/*just for safety*/
+	return (EOPNOTSUPP);	/*just for safety*/
 }
 
 /*
@@ -729,7 +730,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl) {
+	if (ifp->if_ioctl != NULL) {
 		IFF_LOCKGIANT(ifp);
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		IFF_UNLOCKGIANT(ifp);
@@ -865,7 +866,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	error = rtinit(&target->ia_ifa, (int)RTM_ADD, flags);
 	if (!error)
 		target->ia_flags |= IFA_ROUTE;
-	return error;
+	return (error);
 }
 
 /*
@@ -882,7 +883,7 @@ in_scrubprefix(struct in_ifaddr *target)
 	int error;
 
 	if ((target->ia_flags & IFA_ROUTE) == 0)
-		return 0;
+		return (0);
 
 	if (rtinitflags(target))
 		prefix = target->ia_dstaddr.sin_addr;
@@ -923,7 +924,7 @@ in_scrubprefix(struct in_ifaddr *target)
 			    rtinitflags(ia) | RTF_UP);
 			if (error == 0)
 				ia->ia_flags |= IFA_ROUTE;
-			return error;
+			return (error);
 		}
 	}
 
@@ -932,7 +933,7 @@ in_scrubprefix(struct in_ifaddr *target)
 	 */
 	rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
 	target->ia_flags &= ~IFA_ROUTE;
-	return 0;
+	return (0);
 }
 
 #undef rtinitflags
@@ -948,9 +949,9 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 
 	if (in.s_addr == INADDR_BROADCAST ||
 	    in.s_addr == INADDR_ANY)
-		return 1;
+		return (1);
 	if ((ifp->if_flags & IFF_BROADCAST) == 0)
-		return 0;
+		return (0);
 	t = ntohl(in.s_addr);
 	/*
 	 * Look through the list of addresses for a match
@@ -971,7 +972,7 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 		      * address.
 		      */
 		     ia->ia_subnetmask != (u_long)0xffffffff)
-			    return 1;
+			    return (1);
 	return (0);
 #undef ia
 }
