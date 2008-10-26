@@ -409,7 +409,7 @@ static void
 ieee80211_send_setup(
 	struct ieee80211_node *ni,
 	struct ieee80211_frame *wh,
-	int type,
+	int type, int tid,
 	const uint8_t sa[IEEE80211_ADDR_LEN],
 	const uint8_t da[IEEE80211_ADDR_LEN],
 	const uint8_t bssid[IEEE80211_ADDR_LEN])
@@ -457,11 +457,9 @@ ieee80211_send_setup(
 		IEEE80211_ADDR_COPY(wh->i_addr3, bssid);
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
-	/* XXX probe response use per-vap seq#? */
-	/* NB: use non-QoS tid */
 	*(uint16_t *)&wh->i_seq[0] =
-	    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
+	ni->ni_txseqs[tid]++;
 #undef WH4
 }
 
@@ -474,7 +472,8 @@ ieee80211_send_setup(
  * otherwise deal with reclaiming any reference (on error).
  */
 int
-ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type)
+ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
+	struct ieee80211_bpf_params *params)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -501,20 +500,18 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type)
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	ieee80211_send_setup(ni, wh, 
-		IEEE80211_FC0_TYPE_MGT | type,
-		vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
-	if ((m->m_flags & M_LINK0) != 0 && ni->ni_challenge != NULL) {
-		m->m_flags &= ~M_LINK0;
+	ieee80211_send_setup(ni, wh,
+	     IEEE80211_FC0_TYPE_MGT | type, IEEE80211_NONQOS_TID,
+	     vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_AUTH, wh->i_addr1,
 		    "encrypting frame (%s)", __func__);
 		wh->i_fc[1] |= IEEE80211_FC1_WEP;
 	}
-	if (type != IEEE80211_FC0_SUBTYPE_PROBE_RESP) {
-		/* NB: force non-ProbeResp frames to the highest queue */
-		M_WME_SETAC(m, WME_AC_VO);
-	} else
-		M_WME_SETAC(m, WME_AC_BE);
+
+	KASSERT(type != IEEE80211_FC0_SUBTYPE_PROBE_RESP, ("probe response?"));
+	M_WME_SETAC(m, params->ibp_pri);
+
 #ifdef IEEE80211_DEBUG
 	/* avoid printing too many frames */
 	if ((ieee80211_msg_debug(vap) && doprint(vap, type)) ||
@@ -529,7 +526,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type)
 #endif
 	IEEE80211_NODE_STAT(ni, tx_mgmt);
 
-	return ic->ic_raw_xmit(ni, m, NULL);
+	return ic->ic_raw_xmit(ni, m, params);
 }
 
 /*
@@ -569,8 +566,9 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, wh,
-		IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
-		vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
+	    IEEE80211_FC0_TYPE_DATA | IEEE80211_FC0_SUBTYPE_NODATA,
+	    IEEE80211_NONQOS_TID,
+	    vap->iv_myaddr, ni->ni_macaddr, ni->ni_bssid);
 	if (vap->iv_opmode != IEEE80211_M_WDS) {
 		/* NB: power management bit is never sent by an AP */
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
@@ -1726,8 +1724,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, wh,
-		IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
-		sa, da, bssid);
+	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
+	     IEEE80211_NONQOS_TID, sa, da, bssid);
 	/* XXX power management? */
 
 	M_WME_SETAC(m, WME_AC_BE);
@@ -1785,6 +1783,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_node *bss = vap->iv_bss;
+	struct ieee80211_bpf_params params;
 	struct mbuf *m;
 	uint8_t *frm;
 	uint16_t capinfo;
@@ -1804,6 +1803,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		ieee80211_node_refcnt(ni)+1);
 	ieee80211_ref_node(ni);
 
+	memset(&params, 0, sizeof(params));
 	switch (type) {
 
 	case IEEE80211_FC0_SUBTYPE_AUTH:
@@ -1826,7 +1826,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		      bss->ni_authmode == IEEE80211_AUTH_SHARED);
 
 		m = ieee80211_getmgtframe(&frm,
-			 ic->ic_headroom + sizeof(struct ieee80211_frame),
+			  ic->ic_headroom + sizeof(struct ieee80211_frame),
 			  3 * sizeof(uint16_t)
 			+ (has_challenge && status == IEEE80211_STATUS_SUCCESS ?
 				sizeof(uint16_t)+IEEE80211_CHALLENGE_LEN : 0)
@@ -1851,7 +1851,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 			if (arg == IEEE80211_AUTH_SHARED_RESPONSE) {
 				IEEE80211_NOTE(vap, IEEE80211_MSG_AUTH, ni,
 				    "request encrypt frame (%s)", __func__);
-				m->m_flags |= M_LINK0; /* WEP-encrypt, please */
+				/* mark frame for encryption */
+				params.ibp_flags |= IEEE80211_BPF_CRYPTO;
 			}
 		} else
 			m->m_pkthdr.len = m->m_len = 3 * sizeof(uint16_t);
@@ -2092,7 +2093,13 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		/* NOTREACHED */
 	}
 
-	return ieee80211_mgmt_output(ni, m, type);
+	/* NB: force non-ProbeResp frames to the highest queue */
+	params.ibp_pri = WME_AC_VO;
+	params.ibp_rate0 = bss->ni_txparms->mgmtrate;
+	/* NB: we know all frames are unicast */
+	params.ibp_try0 = bss->ni_txparms->maxretry;
+	params.ibp_power = bss->ni_txpower;
+	return ieee80211_mgmt_output(ni, m, type, &params);
 bad:
 	ieee80211_free_node(ni);
 	return ret;
@@ -2296,8 +2303,8 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(bss, wh,
-		IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
-		vap->iv_myaddr, da, bss->ni_bssid);
+	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
+	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);
 	/* XXX power management? */
 
 	M_WME_SETAC(m, WME_AC_BE);

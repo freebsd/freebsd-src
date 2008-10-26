@@ -64,7 +64,8 @@ void	ieee80211_syncflag_ext(struct ieee80211vap *, int flag);
 	((ni)->ni_vap->iv_input(ni, m, rssi, noise, rstamp))
 int	ieee80211_input_all(struct ieee80211com *, struct mbuf *,
 		int, int, uint32_t);
-int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int);
+int	ieee80211_mgmt_output(struct ieee80211_node *, struct mbuf *, int,
+		struct ieee80211_bpf_params *);
 struct ieee80211_bpf_params;
 int	ieee80211_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);

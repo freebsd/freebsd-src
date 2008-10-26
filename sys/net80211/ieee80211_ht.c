@@ -2104,6 +2104,7 @@ ieee80211_send_action(struct ieee80211_node *ni,
 } while (0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_bpf_params params;
 	struct mbuf *m;
 	uint8_t *frm;
 	uint16_t baparamset;
@@ -2207,7 +2208,14 @@ ieee80211_send_action(struct ieee80211_node *ni,
 	}
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
-	return ieee80211_mgmt_output(ni, m, IEEE80211_FC0_SUBTYPE_ACTION);
+	memset(&params, 0, sizeof(params));
+	params.ibp_pri = WME_AC_VO;
+	params.ibp_rate0 = ni->ni_txparms->mgmtrate;
+	/* NB: we know all frames are unicast */
+	params.ibp_try0 = ni->ni_txparms->maxretry;
+	params.ibp_power = ni->ni_txpower;
+	return ieee80211_mgmt_output(ni, m, IEEE80211_FC0_SUBTYPE_ACTION,
+	     &params);
 bad:
 	ieee80211_free_node(ni);
 	if (m != NULL)
