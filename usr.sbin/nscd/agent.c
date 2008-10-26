@@ -60,9 +60,8 @@ init_agent_table()
    	struct agent_table	*retval;
 
 	TRACE_IN(init_agent_table);
-	retval = (struct agent_table *)malloc(sizeof(struct agent_table));
+	retval = (struct agent_table *)calloc(1, sizeof(struct agent_table));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct agent_table));
 
 	TRACE_OUT(init_agent_table);
 	return (retval);
