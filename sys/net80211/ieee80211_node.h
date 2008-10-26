@@ -185,7 +185,7 @@ struct ieee80211_node {
 	short			ni_inact;	/* inactivity mark count */
 	short			ni_inact_reload;/* inactivity reload value */
 	int			ni_txrate;	/* legacy rate/MCS */
-	struct ifqueue		ni_savedq;	/* ps-poll queue */
+	struct ieee80211_psq	ni_psq;		/* power save queue */
 	struct ieee80211_nodestats ni_stats;	/* per-node statistics */
 
 	struct ieee80211vap	*ni_wdsvap;	/* associated WDS vap */
