@@ -925,7 +925,6 @@ drop:
 		free(s, M_TCPLOG);
 	if (m != NULL)
 		m_freem(m);
-	return;
 }
 
 static void
@@ -2529,7 +2528,6 @@ drop:
 	if (headlocked)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 	m_freem(m);
-	return;
 }
 
 /*
@@ -2588,7 +2586,6 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 	return;
 drop:
 	m_freem(m);
-	return;
 }
 
 /*
