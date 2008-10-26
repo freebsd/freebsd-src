@@ -534,8 +534,10 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
-		rman_set_bustag(rle->res, &at91_bs_tag);
-		rman_set_bushandle(rle->res, start);
+		if (rle->res != NULL) {
+			rman_set_bustag(rle->res, &at91_bs_tag);
+			rman_set_bushandle(rle->res, start);
+		}
 		break;
 	}
 	if (rle->res) {
