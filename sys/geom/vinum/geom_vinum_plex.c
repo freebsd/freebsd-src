@@ -189,7 +189,7 @@ gv_plexbuffer(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff, off_t
 		if (!(bp->bio_cflags & GV_BIO_SYNCREQ))
 			return (ENXIO);
 
-		printf("GEOM_VINUM: sd %s is initializing\n", s->name);
+		G_VINUM_DEBUG(1, "sd %s is initializing", s->name);
 		gv_set_sd_state(s, GV_SD_INITIALIZING, GV_SETSTATE_FORCE);
 		break;
 
@@ -558,9 +558,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 			 * clean up a lot.
  			 */
  			if (err) {
-				printf("GEOM_VINUM: plex request failed for ");
-				g_print_bio(bp);
-				printf("\n");
+				G_VINUM_LOGREQ(0, bp, "plex request failed.");
 				TAILQ_FOREACH_SAFE(bq, &wp->bits, queue, bq2) {
 					TAILQ_REMOVE(&wp->bits, bq, queue);
 					g_free(bq);
@@ -620,9 +618,7 @@ gv_plex_normal_request(struct gv_plex *p, struct bio *bp)
 
 			/* Building the sub-request failed. */
 			if (err) {
-				printf("GEOM_VINUM: plex request failed for ");
-				g_print_bio(bp);
-				printf("\n");
+				G_VINUM_LOGREQ(0, bp, "plex request failed.");
 				cbp = bp->bio_driver1;
 				while (cbp != NULL) {
 					pbp = cbp->bio_caller1;
@@ -719,7 +715,7 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/* Now find the correct plex where this subdisk belongs to. */
 	p = gv_find_plex(sc, s->plex);
 	if (p == NULL) {
-		printf("gv_plex_taste: NULL p for '%s'\n", s->name);
+		G_VINUM_DEBUG(0, "%s: NULL p for '%s'", __func__, s->name);
 		return (NULL);
 	}
 
@@ -740,7 +736,7 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		cp = g_new_consumer(gp);
 		error = g_attach(cp, pp);
 		if (error) {
-			printf("geom_vinum: couldn't attach consumer to %s\n",
+			G_VINUM_DEBUG(0, "unable to attach consumer to %s",
 			    pp->name);
 			g_destroy_consumer(cp);
 			return (NULL);
@@ -749,8 +745,8 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if ((cp2 != NULL) && (cp2->acr || cp2->acw || cp2->ace)) {
 			error = g_access(cp, cp2->acr, cp2->acw, cp2->ace);
 			if (error) {
-				printf("geom_vinum: couldn't set access counts"
-				    " for consumer on %s\n", pp->name);
+				G_VINUM_DEBUG(0, "unable to set access counts"
+				    " for consumer on %s", pp->name);
 				g_detach(cp);
 				g_destroy_consumer(cp);
 				return (NULL);

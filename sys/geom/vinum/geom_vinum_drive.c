@@ -172,7 +172,7 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 		g_free(d_hdr);
 		return (-1);
 	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_SPARC64) {
-		printf("VINUM: detected legacy sparc64 header\n");
+		G_VINUM_DEBUG(1, "detected legacy sparc64 header");
 		m_hdr->magic = GV_MAGIC;
 		/* Legacy sparc64 on-disk header */
 		m_hdr->config_length = GV_GET64(be);
@@ -186,7 +186,7 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 		m_hdr->label.last_update.tv_usec = GV_GET64(be);
 		m_hdr->label.drive_size = GV_GET64(be);
 	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_POWERPC) {
-		printf("VINUM: detected legacy PowerPC header\n");
+		G_VINUM_DEBUG(1, "detected legacy PowerPC header");
 		m_hdr->magic = GV_MAGIC;
 		/* legacy 32-bit big endian on-disk header */
 		m_hdr->config_length = GV_GET32(be);
@@ -200,7 +200,7 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 		m_hdr->label.last_update.tv_usec = GV_GET32(be);
 		m_hdr->label.drive_size = GV_GET64(be);
 	} else if (gv_legacy_header_type(d_hdr, be) == GV_LEGACY_I386) {
-		printf("VINUM: detected legacy i386 header\n");
+		G_VINUM_DEBUG(1, "detected legacy i386 header");
 		m_hdr->magic = GV_MAGIC;
 		/* legacy i386 on-disk header */
 		m_hdr->config_length = GV_GET32(le);
@@ -214,7 +214,7 @@ gv_read_header(struct g_consumer *cp, struct gv_hdr *m_hdr)
 		m_hdr->label.last_update.tv_usec = GV_GET32(le);
 		m_hdr->label.drive_size = GV_GET64(le);
 	} else {
-		printf("VINUM: detected legacy amd64 header\n");
+		G_VINUM_DEBUG(1, "detected legacy amd64 header");
 		m_hdr->magic = GV_MAGIC;
 		/* legacy amd64 on-disk header */
 		m_hdr->config_length = GV_GET64(le);
@@ -354,7 +354,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 
 	hdr = d->hdr;
 	if (hdr == NULL) {
-		printf("GEOM_VINUM: drive %s has NULL hdr\n", d->name);
+		G_VINUM_DEBUG(0, "drive %s has NULL hdr", d->name);
 		g_free(vhdr);
 		return;
 	}
@@ -367,7 +367,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 
 	error = g_access(cp2, 0, 1, 0);
 	if (error) {
-		printf("GEOM_VINUM: g_access failed on drive %s, errno %d\n",
+		G_VINUM_DEBUG(0, "g_access failed on drive %s, errno %d",
 		    d->name, error);
 		sbuf_delete(sb);
 		g_free(vhdr);
@@ -378,7 +378,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 	do {
 		error = gv_write_header(cp2, vhdr);
 		if (error) {
-			printf("GEOM_VINUM: writing vhdr failed on drive %s, "
+			G_VINUM_DEBUG(0, "writing vhdr failed on drive %s, "
 			    "errno %d", d->name, error);
 			break;
 		}
@@ -386,7 +386,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 		error = g_write_data(cp2, GV_CFG_OFFSET, sbuf_data(sb),
 		    GV_CFG_LEN);
 		if (error) {
-			printf("GEOM_VINUM: writing first config copy failed "
+			G_VINUM_DEBUG(0, "writing first config copy failed "
 			    "on drive %s, errno %d", d->name, error);
 			break;
 		}
@@ -394,7 +394,7 @@ gv_save_config(struct g_consumer *cp, struct gv_drive *d, struct gv_softc *sc)
 		error = g_write_data(cp2, GV_CFG_OFFSET + GV_CFG_LEN,
 		    sbuf_data(sb), GV_CFG_LEN);
 		if (error)
-			printf("GEOM_VINUM: writing second config copy failed "
+			G_VINUM_DEBUG(0, "writing second config copy failed "
 			    "on drive %s, errno %d", d->name, error);
 	} while (0);
 
@@ -836,8 +836,8 @@ gv_drive_dead(void *arg, int flag)
 
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		if (cp->nstart != cp->nend) {
-			printf("GEOM_VINUM: dead drive '%s' has still "
-			    "active requests, can't detach consumer\n",
+			G_VINUM_DEBUG(0, "dead drive '%s' still has "
+			    "active requests, cannot detach consumer",
 			    d->name);
 			g_post_event(gv_drive_dead, d, M_WAITOK, d,
 			    NULL);
@@ -847,7 +847,7 @@ gv_drive_dead(void *arg, int flag)
 			g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	}
 
-	printf("GEOM_VINUM: lost drive '%s'\n", d->name);
+	G_VINUM_DEBUG(1, "lost drive '%s'", d->name);
 	d->geom = NULL;
 	LIST_FOREACH(s, &d->subdisks, from_drive) {
 		s->provider = NULL;
