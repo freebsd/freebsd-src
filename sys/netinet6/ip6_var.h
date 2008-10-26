@@ -83,6 +83,7 @@ struct	ip6q {
 	u_char		*ip6q_nxtp;
 #endif
 	int		ip6q_nfrag;	/* # of fragments */
+	struct label	*ip6q_label;
 };
 
 struct	ip6asfrag {
