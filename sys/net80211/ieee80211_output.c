@@ -1083,7 +1083,6 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 			    htole16(ni->ni_txseqs[tid] << IEEE80211_SEQ_SEQ_SHIFT);
 			ni->ni_txseqs[tid]++;
 		}
-		ni->ni_txseqs[tid]++;
 	} else {
 		*(uint16_t *)wh->i_seq =
 		    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
