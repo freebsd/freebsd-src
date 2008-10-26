@@ -225,7 +225,7 @@ ieee80211_start(struct ifnet *ifp)
 			 * the frame back when the time is right.
 			 * XXX lose WDS vap linkage?
 			 */
-			ieee80211_pwrsave(ni, m);
+			(void) ieee80211_pwrsave(ni, m);
 			ieee80211_free_node(ni);
 			continue;
 		}

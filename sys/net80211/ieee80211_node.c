@@ -904,7 +904,7 @@ node_cleanup(struct ieee80211_node *ni)
 	/*
 	 * Drain power save queue and, if needed, clear TIM.
 	 */
-	if (ieee80211_node_saveq_drain(ni) != 0 && vap->iv_set_tim != NULL)
+	if (ieee80211_node_psq_drain(ni) != 0 && vap->iv_set_tim != NULL)
 		vap->iv_set_tim(ni, 0);
 
 	ni->ni_associd = 0;
@@ -943,7 +943,7 @@ node_free(struct ieee80211_node *ni)
 
 	ic->ic_node_cleanup(ni);
 	ieee80211_ies_cleanup(&ni->ni_ies);
-	IEEE80211_NODE_SAVEQ_DESTROY(ni);
+	ieee80211_psq_cleanup(&ni->ni_psq);
 	IEEE80211_NODE_WDSQ_DESTROY(ni);
 	FREE(ni, M_80211_NODE);
 }
@@ -958,9 +958,8 @@ node_age(struct ieee80211_node *ni)
 	/*
 	 * Age frames on the power save queue.
 	 */
-	if (ieee80211_node_saveq_age(ni) != 0 &&
-	    IEEE80211_NODE_SAVEQ_QLEN(ni) == 0 &&
-	    vap->iv_set_tim != NULL)
+	if (ieee80211_node_psq_age(ni) != 0 &&
+	    ni->ni_psq.psq_len == 0 && vap->iv_set_tim != NULL)
 		vap->iv_set_tim(ni, 0);
 	/*
 	 * Age frames on the wds pending queue.
@@ -1031,7 +1030,7 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_inact_reload = nt->nt_inact_init;
 	ni->ni_inact = ni->ni_inact_reload;
 	ni->ni_ath_defkeyix = 0x7fff;
-	IEEE80211_NODE_SAVEQ_INIT(ni, "unknown");
+	ieee80211_psq_init(&ni->ni_psq, "unknown");
 	IEEE80211_NODE_WDSQ_INIT(ni, "unknown");
 
 	IEEE80211_NODE_LOCK(nt);
@@ -1081,7 +1080,7 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 			IEEE80211_KEYIX_NONE);
 		ni->ni_txpower = bss->ni_txpower;
 		/* XXX optimize away */
-		IEEE80211_NODE_SAVEQ_INIT(ni, "unknown");
+		ieee80211_psq_init(&ni->ni_psq, "unknown");
 		IEEE80211_NODE_WDSQ_INIT(ni, "unknown");
 	} else {
 		/* XXX msg */

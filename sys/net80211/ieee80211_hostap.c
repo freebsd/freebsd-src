@@ -2171,7 +2171,7 @@ hostap_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame_min *wh;
-	struct ifnet *ifp = vap->iv_ifp;
+	struct ifnet *ifp;
 	struct mbuf *m;
 	uint16_t aid;
 	int qlen;
@@ -2208,7 +2208,7 @@ hostap_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 	}
 
 	/* Okay, take the first queued packet and put it out... */
-	IEEE80211_NODE_SAVEQ_DEQUEUE(ni, m, qlen);
+	m = ieee80211_node_psq_dequeue(ni, &qlen);
 	if (m == NULL) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_POWER, wh->i_addr2,
 		    "%s", "recv ps-poll, but queue empty");
@@ -2234,6 +2234,11 @@ hostap_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 			vap->iv_set_tim(ni, 0);
 	}
 	m->m_flags |= M_PWR_SAV;		/* bypass PS handling */
+
+	if (m->m_flags & M_ENCAP)
+		ifp = vap->iv_ic->ic_ifp;
+	else
+		ifp = vap->iv_ifp;
 	IF_ENQUEUE(&ifp->if_snd, m);
 	if_start(ifp);
 }
