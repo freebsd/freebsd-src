@@ -1688,6 +1688,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	const struct ieee80211_txparam *tp;
+	struct ieee80211_bpf_params params;
 	struct ieee80211_frame *wh;
 	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
@@ -1755,9 +1757,14 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 		frm = add_appie(frm, vap->iv_appie_probereq);
 	m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 
+	KASSERT(M_LEADINGSPACE(m) >= sizeof(struct ieee80211_frame),
+	    ("leading space %zd", M_LEADINGSPACE(m)));
 	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
-	if (m == NULL)
+	if (m == NULL) {
+		/* NB: cannot happen */
+		ieee80211_free_node(ni);
 		return ENOMEM;
+	}
 
 	wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_send_setup(ni, wh,
@@ -1775,7 +1782,17 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	    ieee80211_chan2ieee(ic, ic->ic_curchan), ether_sprintf(bssid),
 	    ssidlen, ssid);
 
-	return ic->ic_raw_xmit(ni, m, NULL);
+	memset(&params, 0, sizeof(params));
+	params.ibp_pri = M_WME_GETAC(m);
+	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
+	params.ibp_rate0 = tp->mgmtrate;
+	if (IEEE80211_IS_MULTICAST(da)) {
+		params.ibp_flags |= IEEE80211_BPF_NOACK;
+		params.ibp_try0 = 1;
+	} else
+		params.ibp_try0 = tp->maxretry;
+	params.ibp_power = ni->ni_txpower;
+	return ic->ic_raw_xmit(ni, m, &params);
 }
 
 /*
