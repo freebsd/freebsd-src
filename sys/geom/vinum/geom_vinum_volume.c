@@ -385,8 +385,8 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if ((ocp != NULL) && (ocp->acr > 0 || ocp->acw > 0 || ocp->ace > 0)) {
 		error = g_access(cp, ocp->acr, ocp->acw, ocp->ace);
 		if (error) {
-			printf("GEOM_VINUM: failed g_access %s -> %s; "
-			    "errno %d\n", v->name, p->name, error);
+			G_VINUM_DEBUG(0, "failed g_access %s -> %s; "
+			    "errno %d", v->name, p->name, error);
 			g_detach(cp);
 			g_destroy_consumer(cp);
 			if (first)

@@ -96,4 +96,30 @@ void	gv_update_vol_size(struct gv_volume *, off_t);
 off_t	gv_vol_size(struct gv_volume *);
 off_t	gv_plex_size(struct gv_plex *);
 
+extern	u_int	g_vinum_debug;
+
+#define	G_VINUM_DEBUG(lvl, ...)	do {					\
+	if (g_vinum_debug >= (lvl)) {					\
+		printf("GEOM_VINUM");					\
+		if (g_vinum_debug > 0)					\
+			printf("[%u]", lvl);				\
+		printf(": ");						\
+		printf(__VA_ARGS__);					\
+		printf("\n");						\
+	}								\
+} while (0)
+
+#define	G_VINUM_LOGREQ(lvl, bp, ...)	do {				\
+	if (g_vinum_debug >= (lvl)) {					\
+		printf("GEOM_VINUM");					\
+		if (g_vinum_debug > 0)					\
+			printf("[%u]", lvl);				\
+		printf(": ");						\
+		printf(__VA_ARGS__);					\
+		printf(" ");						\
+		g_print_bio(bp);					\
+		printf("\n");						\
+	}								\
+} while (0)
+
 #endif /* !_GEOM_VINUM_H_ */
