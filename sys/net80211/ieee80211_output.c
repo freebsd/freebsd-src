@@ -401,9 +401,8 @@ bad:
 
 /*
  * Set the direction field and address fields of an outgoing
- * non-QoS frame.  Note this should be called early on in
- * constructing a frame as it sets i_fc[1]; other bits can
- * then be or'd in.
+ * frame.  Note this should be called early on in constructing
+ * a frame as it sets i_fc[1]; other bits can then be or'd in.
  */
 static void
 ieee80211_send_setup(
