@@ -237,14 +237,20 @@ invalid:
 int
 unlockpt(int fildes)
 {
+	const char *slave;
 
 	/*
-	 * Unlocking a master/slave pseudo-terminal pair has no meaning in a
-	 * non-streams PTY environment.  However, we do ensure fildes is a
-	 * valid master pseudo-terminal device.
+	 * Even though unlocking a PTY has no meaning in a non-streams
+	 * PTY environment, make this function call revoke() to ensure
+	 * the PTY slave device is not being evesdropped.
 	 */
-	if (ptsname(fildes) == NULL)
+	if ((slave = ptsname(fildes)) == NULL)
 		return (-1);
+
+	if (revoke(slave) == -1) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	return (0);
 }
