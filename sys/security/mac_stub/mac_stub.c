@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -303,6 +303,35 @@ stub_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 static void
 stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
+{
+
+}
+
+static void
+stub_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+}
+
+static int
+stub_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	return (1);
+}
+
+static void
+stub_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+
+}
+
+static void
+stub_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
 {
 
 }
@@ -1545,6 +1574,13 @@ static struct mac_policy_ops stub_ops =
 	.mpo_inpcb_destroy_label = stub_destroy_label,
 	.mpo_inpcb_init_label = stub_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = stub_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = stub_ip6q_create,
+	.mpo_ip6q_destroy_label = stub_destroy_label,
+	.mpo_ip6q_init_label = stub_init_label_waitcheck,
+	.mpo_ip6q_match = stub_ip6q_match,
+	.mpo_ip6q_update = stub_ip6q_update,
+	.mpo_ip6q_reassemble = stub_ip6q_reassemble,
 
 	.mpo_ipq_create = stub_ipq_create,
 	.mpo_ipq_destroy_label = stub_destroy_label,
