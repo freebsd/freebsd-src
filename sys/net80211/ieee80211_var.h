@@ -47,8 +47,8 @@
 #include <net80211/ieee80211_crypto.h>
 #include <net80211/ieee80211_dfs.h>
 #include <net80211/ieee80211_ioctl.h>		/* for ieee80211_stats */
-#include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_power.h>
+#include <net80211/ieee80211_node.h>
 #include <net80211/ieee80211_proto.h>
 #include <net80211/ieee80211_scan.h>
 
