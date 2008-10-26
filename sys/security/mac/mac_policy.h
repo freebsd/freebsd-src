@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -72,6 +72,7 @@ struct devfs_dirent;
 struct ifnet;
 struct image_params;
 struct inpcb;
+struct ip6q;
 struct ipq;
 struct ksem;
 struct label;
@@ -200,6 +201,17 @@ typedef int	(*mpo_inpcb_init_label_t)(struct label *label, int flag);
 typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 		    struct label *label, struct inpcb *inp,
 		    struct label *inplabel);
+
+typedef void	(*mpo_ip6q_create_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
+typedef void	(*mpo_ip6q_destroy_label_t)(struct label *label);
+typedef int	(*mpo_ip6q_init_label_t)(struct label *label, int flag);
+typedef int	(*mpo_ip6q_match_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
+typedef void	(*mpo_ip6q_reassemble)(struct ip6q *q6, struct label *q6label,
+		    struct mbuf *m, struct label *mlabel);
+typedef void	(*mpo_ip6q_update_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
 
 typedef void	(*mpo_ipq_create_t)(struct mbuf *m, struct label *mlabel,
 		    struct ipq *q, struct label *qlabel);
@@ -698,6 +710,13 @@ struct mac_policy_ops {
 	mpo_inpcb_init_label_t			mpo_inpcb_init_label;
 	mpo_inpcb_sosetlabel_t			mpo_inpcb_sosetlabel;
 
+	mpo_ip6q_create_t			mpo_ip6q_create;
+	mpo_ip6q_destroy_label_t		mpo_ip6q_destroy_label;
+	mpo_ip6q_init_label_t			mpo_ip6q_init_label;
+	mpo_ip6q_match_t			mpo_ip6q_match;
+	mpo_ip6q_reassemble			mpo_ip6q_reassemble;
+	mpo_ip6q_update_t			mpo_ip6q_update;
+
 	mpo_ipq_create_t			mpo_ipq_create;
 	mpo_ipq_destroy_label_t			mpo_ipq_destroy_label;
 	mpo_ipq_init_label_t			mpo_ipq_init_label;
@@ -970,6 +989,7 @@ struct mac_policy_conf {
 #define	MPC_OBJECT_SYSVSEM		0x0000000000010000
 #define	MPC_OBJECT_SYSVSHM		0x0000000000020000
 #define	MPC_OBJECT_SYNCACHE		0x0000000000040000
+#define	MPC_OBJECT_IP6Q			0x0000000000080000
 
 /*-
  * The TrustedBSD MAC Framework has a major version number, MAC_VERSION,
