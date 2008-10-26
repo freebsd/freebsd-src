@@ -507,6 +507,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 		    "encrypting frame (%s)", __func__);
 		wh->i_fc[1] |= IEEE80211_FC1_WEP;
 	}
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	KASSERT(type != IEEE80211_FC0_SUBTYPE_PROBE_RESP, ("probe response?"));
 	M_WME_SETAC(m, params->ibp_pri);
@@ -614,6 +615,7 @@ ieee80211_send_nulldata(struct ieee80211_node *ni)
 			wh->i_fc[1] |= IEEE80211_FC1_PWR_MGT;
 	}
 	m->m_len = m->m_pkthdr.len = hdrlen;
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	M_WME_SETAC(m, WME_AC_BE);
 
@@ -1150,6 +1152,8 @@ ieee80211_encap(struct ieee80211_node *ni, struct mbuf *m)
 	if (txfrag && !ieee80211_fragment(vap, m, hdrsize,
 	    key != NULL ? key->wk_cipher->ic_header : 0, vap->iv_fragthreshold))
 		goto bad;
+
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
@@ -1770,6 +1774,7 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_REQ,
 	     IEEE80211_NONQOS_TID, sa, da, bssid);
 	/* XXX power management? */
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	M_WME_SETAC(m, WME_AC_BE);
 
@@ -2359,6 +2364,7 @@ ieee80211_send_proberesp(struct ieee80211vap *vap,
 	     IEEE80211_FC0_TYPE_MGT | IEEE80211_FC0_SUBTYPE_PROBE_RESP,
 	     IEEE80211_NONQOS_TID, vap->iv_myaddr, da, bss->ni_bssid);
 	/* XXX power management? */
+	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
 	M_WME_SETAC(m, WME_AC_BE);
 
