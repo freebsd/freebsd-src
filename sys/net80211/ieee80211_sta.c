@@ -400,6 +400,11 @@ sta_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 */
 		if (ni->ni_authmode != IEEE80211_AUTH_8021X)
 			ieee80211_node_authorize(ni);
+		/*
+		 * Fake association when joining an existing bss.
+		 */
+		if (ic->ic_newassoc != NULL)
+			ic->ic_newassoc(vap->iv_bss, ostate != IEEE80211_S_RUN);
 		break;
 	case IEEE80211_S_SLEEP:
 		ieee80211_sta_pwrsave(vap, 0);

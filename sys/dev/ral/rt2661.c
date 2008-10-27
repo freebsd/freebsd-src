@@ -830,13 +830,8 @@ rt2661_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			if (error != 0)
 				return error;
 		}
-		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-			if (vap->iv_opmode == IEEE80211_M_STA) {
-				/* fake a join to init the tx rate */
-				rt2661_newassoc(ni, 1);
-			}
+		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rt2661_enable_tsf_sync(sc);
-		}
 	}
 	return error;
 }
