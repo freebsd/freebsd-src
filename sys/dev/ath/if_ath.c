@@ -6243,7 +6243,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		sc->sc_hwmap[i].ieeerate =
 			rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
 		if (rt->info[ix].phy == IEEE80211_T_HT)
-			sc->sc_hwmap[i].ieeerate |= 0x80;	/* MCS */
+			sc->sc_hwmap[i].ieeerate |= IEEE80211_RATE_MCS;
 		sc->sc_hwmap[i].txflags = IEEE80211_RADIOTAP_F_DATAPAD;
 		if (rt->info[ix].shortPreamble ||
 		    rt->info[ix].phy == IEEE80211_T_OFDM)
