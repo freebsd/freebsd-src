@@ -3978,6 +3978,7 @@ ath_rx_proc(void *arg, int npending)
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ngood = 0;
 	nf = ath_hal_getchannoise(ah, &sc->sc_curchan);
+	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
 		bf = STAILQ_FIRST(&sc->sc_rxbuf);
@@ -5034,9 +5035,6 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				sc->sc_ant_tx[txant]++;
 				if (ts->ts_rate & HAL_TXSTAT_ALTRATE)
 					sc->sc_stats.ast_tx_altrate++;
-				sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
-				ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
-					ts->ts_rssi);
 				pri = M_WME_GETAC(bf->bf_m);
 				if (pri >= WME_AC_VO)
 					ic->ic_wme.wme_hipri_traffic++;
@@ -5062,11 +5060,16 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
 			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
 				/*
-				 * If frame was ack'd update the last rx time
-				 * used to workaround phantom bmiss interrupts.
+				 * If frame was ack'd update statistics,
+				 * including the last rx time used to
+				 * workaround phantom bmiss interrupts.
 				 */
-				if (ts->ts_status == 0)
+				if (ts->ts_status == 0) {
 					nacked++;
+					sc->sc_stats.ast_tx_rssi = ts->ts_rssi;
+					ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
+						ts->ts_rssi);
+				}
 				ath_rate_tx_complete(sc, an, bf);
 			}
 			/*
@@ -6372,6 +6375,7 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ifreq *ifr = (struct ifreq *)data;
+	const HAL_RATE_TABLE *rt;
 	int error = 0;
 
 	switch (cmd) {
@@ -6414,10 +6418,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		/* NB: embed these numbers to get a consistent view */
 		sc->sc_stats.ast_tx_packets = ifp->if_opackets;
 		sc->sc_stats.ast_rx_packets = ifp->if_ipackets;
-#if 0
-		ieee80211_getsignal(ic, &sc->sc_stats.ast_rx_rssi,
-			&sc->sc_stats.ast_rx_noise);
-#endif
+		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
+		sc->sc_stats.ast_rx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgrssi);
+		rt = sc->sc_currates;
 		sc->sc_stats.ast_tx_rate = sc->sc_hwmap[sc->sc_txrate].ieeerate;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
