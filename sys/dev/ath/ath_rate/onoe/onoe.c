@@ -251,8 +251,7 @@ static void
 ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 {
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
-	struct ath_node *an = ATH_NODE(ni);
-	const struct ieee80211_txparam *tp = an->an_tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	int srate;
 
 	KASSERT(ni->ni_rates.rs_nrates > 0, ("no rates"));

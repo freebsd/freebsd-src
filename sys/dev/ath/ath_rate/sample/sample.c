@@ -654,7 +654,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 {
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
 	struct ath_node *an = ATH_NODE(ni);
-	const struct ieee80211_txparam *tp = an->an_tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int x, y, srate;
