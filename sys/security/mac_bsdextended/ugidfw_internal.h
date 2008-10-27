@@ -2,6 +2,8 @@
  * Copyright (c) 2008 Robert N. M. Watson
  * All rights reserved.
  *
+ * This software was developed by Robert Watson for the TrustedBSD Project.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
