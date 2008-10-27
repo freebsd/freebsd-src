@@ -8,7 +8,7 @@ SUBDIR=	sendmail
 .endif
 
 BIN1=	auth.conf \
-	crontab csh.cshrc csh.login csh.logout devd.conf devfs.conf \
+	crontab devd.conf devfs.conf \
 	ddb.conf dhclient.conf disktab fbtab \
 	ftpusers gettytab group \
 	hosts hosts.allow hosts.equiv \
@@ -84,6 +84,10 @@ BIN1+= portsnap.conf
 BIN1+= pf.os
 .endif
 
+.if ${MK_TCSH} != "no"
+BIN1+= csh.cshrc csh.login csh.logout
+.endif
+
 .if ${MK_WIRELESS} != "no"
 BIN1+= regdomain.xml
 .endif
@@ -148,9 +152,12 @@ distribution:
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 755 \
 		${BIN2} ${DESTDIR}/etc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
-		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc; \
-	    pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
-		${DESTDIR}/etc/master.passwd
+		master.passwd nsmb.conf opieaccess ${DESTDIR}/etc;
+.if ${MK_TCSH} == "no"
+	sed -i "" -e 's;/bin/csh;;' ${DESTDIR}/etc/master.passwd
+.endif
+	pwd_mkdb ${PWD_MKDB_ENDIAN} -i -p -d ${DESTDIR}/etc \
+	    ${DESTDIR}/etc/master.passwd
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -195,14 +202,18 @@ distribution:
 .endif
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.profile ${DESTDIR}/root/.profile; \
+	    rm -f ${DESTDIR}/.profile; \
+	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+.if ${MK_TCSH} != "no"
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.profile ${DESTDIR}/root/.profile; \
-	    rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
-	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
-	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
+	    rm -f ${DESTDIR}/.cshrc; \
+	    ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc
+.endif
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
 .if ${MK_PPP} != "no"
