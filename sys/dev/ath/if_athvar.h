@@ -106,7 +106,7 @@ struct ath_buf {
 	TAILQ_ENTRY(ath_buf)	bf_stagelist;	/* stage queue list */
 	u_int32_t		bf_age;		/* age when placed on stageq */
 	int			bf_nseg;
-	int			bf_flags;	/* tx descriptor flags */
+	int			bf_txflags;	/* tx descriptor flags */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */

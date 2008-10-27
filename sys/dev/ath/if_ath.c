@@ -4958,7 +4958,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		, ctsrate		/* rts/cts rate */
 		, ctsduration		/* rts/cts duration */
 	);
-	bf->bf_flags = flags;
+	bf->bf_txflags = flags;
 	/*
 	 * Setup the multi-rate retry state only when we're
 	 * going to use it.  This assumes ath_hal_setuptxdesc
@@ -5054,7 +5054,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 * Hand the descriptor to the rate control algorithm.
 			 */
 			if ((ts->ts_status & HAL_TXERR_FILT) == 0 &&
-			    (bf->bf_flags & HAL_TXDESC_NOACK) == 0) {
+			    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0) {
 				/*
 				 * If frame was ack'd update the last rx time
 				 * used to workaround phantom bmiss interrupts.
@@ -6220,7 +6220,7 @@ ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done)
 		printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:04%x%s\n"
 		       "        %08x %08x %08x %08x %08x %08x\n",
 		    ds, (const struct ath_desc *)bf->bf_daddr + i,
-		    ds->ds_link, ds->ds_data, bf->bf_flags,
+		    ds->ds_link, ds->ds_data, bf->bf_txflags,
 		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
@@ -6863,7 +6863,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		, ctsrate		/* rts/cts rate */
 		, ctsduration		/* rts/cts duration */
 	);
-	bf->bf_flags = flags;
+	bf->bf_txflags = flags;
 
 	if (ismrr) {
 		rix = ath_tx_findrix(rt, params->ibp_rate1);
