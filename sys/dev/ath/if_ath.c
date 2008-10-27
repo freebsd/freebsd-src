@@ -6625,6 +6625,19 @@ ath_sysctl_tpcts(SYSCTL_HANDLER_ARGS)
 	return !ath_hal_settpcts(sc->sc_ah, tpcts) ? EINVAL : 0;
 }
 
+static int
+ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int intmit, error;
+
+	intmit = ath_hal_getintmit(sc->sc_ah);
+	error = sysctl_handle_int(oidp, &intmit, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return !ath_hal_setintmit(sc->sc_ah, intmit) ? EINVAL : 0;
+}
+
 static void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -6712,6 +6725,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"rfkill", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
+	}
+	if (ath_hal_hasintmit(ah)) {
+		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+			ath_sysctl_intmit, "I", "interference mitigation");
 	}
 	sc->sc_monpass = HAL_RXERR_DECRYPT | HAL_RXERR_MIC;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
