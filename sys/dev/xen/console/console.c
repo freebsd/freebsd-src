@@ -107,7 +107,6 @@ static void
 xccnprobe(struct consdev *cp)
 {
 	cp->cn_pri = CN_REMOTE;
-	cp->cn_tp = xccons;
 	sprintf(cp->cn_name, "%s0", driver_name);
 }
 
