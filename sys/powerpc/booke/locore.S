@@ -41,11 +41,14 @@
 
 #define TMPSTACKSZ	16384
 
+	.text
+	.globl	btext
+btext:
+
 /*
  * This symbol is here for the benefit of kvm_mkdb, and is supposed to
  * mark the start of kernel text.
  */
-	.text
 	.globl	kernel_text
 kernel_text:
 
