@@ -12435,7 +12435,7 @@ sctp_lower_sosend(struct socket *so,
 		goto out_unlocked;
 	}
 	if (user_marks_eor) {
-		local_add_more = SCTP_BASE_SYSCTL(sctp_add_more_threshold);
+		local_add_more = min(SCTP_SB_LIMIT_SND(so), SCTP_BASE_SYSCTL(sctp_add_more_threshold));
 	} else {
 		/*-
 		 * For non-eeor the whole message must fit in
@@ -12454,9 +12454,15 @@ sctp_lower_sosend(struct socket *so,
 		/* No room right now ! */
 		SOCKBUF_LOCK(&so->so_snd);
 		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
-		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + SCTP_BASE_SYSCTL(sctp_add_more_threshold))) ||
-		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue) /* while */ )) {
-
+		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + local_add_more)) ||
+		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue)) /* while */ ) {
+			SCTPDBG(SCTP_DEBUG_OUTPUT1, "pre_block limit:%d <(inq:%d + %d) || (%d+%d > %d)\n",
+			    SCTP_SB_LIMIT_SND(so),
+			    inqueue_bytes,
+			    local_add_more,
+			    stcb->asoc.stream_queue_cnt,
+			    stcb->asoc.chunks_on_out_queue,
+			    SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue));
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA,
 				    so, asoc, sndlen);
