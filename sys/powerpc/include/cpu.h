@@ -69,6 +69,9 @@ get_cyclecount(void)
 #define	cpu_getstack(td)	((td)->td_frame->fixreg[1])
 #define	cpu_spinwait()		/* nothing */
 
+extern char btext[];
+extern char etext[];
+
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
