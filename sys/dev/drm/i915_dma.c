@@ -914,7 +914,8 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pci_device;
 		break;
 	case I915_PARAM_HAS_GEM:
-		value = 1;
+		/* We need to reset this to 1 once we have GEM */
+		value = 0;
 		break;
 	default:
 		DRM_ERROR("Unknown parameter %d\n", param->param);
