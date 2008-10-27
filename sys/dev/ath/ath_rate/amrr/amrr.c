@@ -321,49 +321,6 @@ ath_rate_ctl_start(struct ath_softc *sc, struct ieee80211_node *ni)
 #undef RATE
 }
 
-static void
-ath_rate_cb(void *arg, struct ieee80211_node *ni)
-{
-	struct ath_softc *sc = arg;
-
-	ath_rate_update(sc, ni, 0);
-}
-
-/*
- * Reset the rate control state for each 802.11 state transition.
- */
-void
-ath_rate_newstate(struct ieee80211vap *vap, enum ieee80211_state state)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
-	struct ieee80211_node *ni;
-
-	if (state == IEEE80211_S_INIT)
-		return;
-	if (vap->iv_opmode == IEEE80211_M_STA) {
-		/*
-		 * Reset local xmit state; this is really only
-		 * meaningful when operating in station mode.
-		 */
-		ni = vap->iv_bss;
-		if (state == IEEE80211_S_RUN) {
-			ath_rate_ctl_start(sc, ni);
-		} else {
-			ath_rate_update(sc, ni, 0);
-		}
-	} else {
-		/*
-		 * When operating as a station the node table holds
-		 * the AP's that were discovered during scanning.
-		 * For any other operating mode we want to reset the
-		 * tx rate state of each node.
-		 */
-		ieee80211_iterate_nodes(&ic->ic_sta, ath_rate_cb, sc);
-		ath_rate_update(sc, vap->iv_bss, 0);
-	}
-}
-
 /* 
  * Examine and potentially adjust the transmit rate.
  */
