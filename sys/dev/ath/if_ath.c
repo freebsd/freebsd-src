@@ -1566,7 +1566,23 @@ ath_reset(struct ifnet *ifp)
 static int
 ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 {
-	return ath_reset(vap->iv_ic->ic_ifp);
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ifnet *ifp = ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
+	struct ath_hal *ah = sc->sc_ah;
+
+	switch (cmd) {
+	case IEEE80211_IOC_TXPOWER:
+		/*
+		 * If per-packet TPC is enabled, then we have nothing
+		 * to do; otherwise we need to force the global limit.
+		 * All this can happen directly; no need to reset.
+		 */
+		if (!ath_hal_gettpc(ah))
+			ath_hal_settxpowlimit(ah, ic->ic_txpowlimit);
+		return 0;
+	}
+	return ath_reset(ifp);
 }
 
 static int 
