@@ -283,7 +283,7 @@ char *argv[];
 	    optind = 1;
 	}
 
-	while ((i = getopt(ac, av, "CSIHPbijnpquvs:d:U:m:o:t")) != EOF)
+	while ((i = getopt(ac, av, "CSIHPbijnquvs:d:U:m:o:t")) != EOF)
 	{
 	    switch(i)
 	    {
@@ -408,14 +408,10 @@ char *argv[];
 		pcpu_stats = Yes;
 		break;
 
-	      case 'p':
-		pcpu_stats = No;
-		break;
-
 	      default:
 		fprintf(stderr,
 "Top version %s\n"
-"Usage: %s [-bCHIijnqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
+"Usage: %s [-bCHIijnPqStuv] [-d count] [-m io | cpu] [-o field] [-s time]\n"
 "       [-U username] [number]\n",
 			version_string(), myname);
 		exit(1);

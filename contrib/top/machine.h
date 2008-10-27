@@ -44,7 +44,6 @@ struct system_info
     int    *memory;
     int    *swap;
     struct timeval boottime;
-    unsigned long cpumask;	/* bitfield of cpu states represented */
     int    ncpus;
 };
 
