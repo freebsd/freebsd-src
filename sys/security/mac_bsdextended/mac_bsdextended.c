@@ -214,7 +214,12 @@ ugidfw_init(struct mac_policy_conf *mpc)
 static void
 ugidfw_destroy(struct mac_policy_conf *mpc)
 {
+	int i;
 
+	for (i = 0; i < MAC_BSDEXTENDED_MAXRULES; i++) {
+		if (rules[i] != NULL)
+			free(rules[i], M_MACBSDEXTENDED);
+	}
 	mtx_destroy(&ugidfw_mtx);
 }
 
