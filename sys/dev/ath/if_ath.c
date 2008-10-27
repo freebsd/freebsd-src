@@ -5820,29 +5820,10 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
-	const struct ieee80211_txparam *tp;
-	enum ieee80211_phymode mode;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 
-	/*
-	 * Deduce netband of station to simplify setting up xmit
-	 * parameters.  Note this allows us to assign different
-	 * parameters to each station in a mixed bss (b/g, n/[abg]).
-	 */
-	if (ni->ni_flags & IEEE80211_NODE_HT) {
-		if (IEEE80211_IS_CHAN_5GHZ(ni->ni_chan))
-			mode = IEEE80211_MODE_11NA;
-		else
-			mode = IEEE80211_MODE_11NG;
-	} else if (IEEE80211_IS_CHAN_A(ni->ni_chan))
-		mode = IEEE80211_MODE_11A;
-	else if (ni->ni_flags & IEEE80211_NODE_ERP)
-		mode = IEEE80211_MODE_11G;
-	else
-		mode = IEEE80211_MODE_11B;
-	tp = &vap->iv_txparms[mode];
-	an->an_tp = tp;
-	an->an_mcastrix = ath_tx_findrix(sc->sc_rates[mode], tp->mcastrate);
-	an->an_mgmtrix = ath_tx_findrix(sc->sc_rates[mode], tp->mgmtrate);
+	an->an_mcastrix = ath_tx_findrix(sc->sc_currates, tp->mcastrate);
+	an->an_mgmtrix = ath_tx_findrix(sc->sc_currates, tp->mgmtrate);
 
 	ath_rate_newassoc(sc, an, isnew);
 	if (isnew && 
