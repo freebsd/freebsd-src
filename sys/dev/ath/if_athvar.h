@@ -82,7 +82,6 @@ struct ath_buf;
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
-	const struct ieee80211_txparam *an_tp;
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
