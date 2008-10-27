@@ -57,6 +57,13 @@ __FBSDID("$FreeBSD$");
 #  else
 #    define	HZ 100
 #  endif
+#  ifndef HZ_VM
+#    define	HZ_VM 10
+#  endif
+#else
+#  ifndef HZ_VM
+#    define	HZ_VM HZ
+#  endif
 #endif
 #define	NPROC (20 + 16 * maxusers)
 #ifndef NBUF
@@ -111,6 +118,30 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
  */
 struct	buf *swbuf;
 
+char *vm_pnames[] = {
+	"VMware Virtual Platform",	/* VMWare VM */
+	"Virtual Machine",		/* Microsoft VirtualPC */
+	"VirtualBox",			/* Sun xVM VirtualBox */
+	"Parallels Virtual Platform",	/* Parallels VM */
+	NULL
+};
+
+static int
+detect_virtual(void)
+{
+	char *sysenv;
+	int i;
+
+	sysenv = getenv("smbios.system.product");
+	if (sysenv != NULL) {
+		for (i = 0; vm_pnames[i] != NULL; i++) {
+			if (strcmp(sysenv, vm_pnames[i]) == 0)
+				return 1;
+		}
+	}
+	return 0;
+}
+
 /*
  * Boot time overrides that are not scaled against main memory
  */
@@ -118,8 +149,15 @@ void
 init_param1(void)
 {
 
-	hz = HZ;
+	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
+	if (hz == -1) {
+		if (detect_virtual()) {
+			hz = HZ_VM;
+		} else {
+			hz = HZ;
+		}
+	}
 	tick = 1000000 / hz;
 
 #ifdef VM_SWZONE_SIZE_MAX
