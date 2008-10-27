@@ -137,41 +137,39 @@ copy_file(const FTSENT *entp, int dne)
 		 * Mmap and write if less than 8M (the limit is so we don't totally
 		 * trash memory on big files.  This is really a minor hack, but it
 		 * wins some CPU back.
+		 * Some filesystems, such as smbnetfs, don't support mmap,
+		 * so this is a best-effort attempt.
 		 */
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 		if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
-	    	fs->st_size <= 8 * 1048576) {
-			if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    	MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
+	    	    fs->st_size <= 8 * 1024 * 1024 &&
+		    (p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
+		    MAP_SHARED, from_fd, (off_t)0)) != MAP_FAILED) {
+			wtotal = 0;
+			for (bufp = p, wresid = fs->st_size; ;
+			bufp += wcount, wresid -= (size_t)wcount) {
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount <= 0)
+					break;
+				wtotal += wcount;
+				if (info) {
+					info = 0;
+					(void)fprintf(stderr,
+					    "%s -> %s %3d%%\n",
+					    entp->fts_path, to.p_path,
+					    cp_pct(wtotal, fs->st_size));
+				}
+				if (wcount >= (ssize_t)wresid)
+					break;
+			}
+			if (wcount != (ssize_t)wresid) {
+				warn("%s", to.p_path);
+				rval = 1;
+			}
+			/* Some systems don't unmap on close(2). */
+			if (munmap(p, fs->st_size) < 0) {
 				warn("%s", entp->fts_path);
 				rval = 1;
-			} else {
-				wtotal = 0;
-				for (bufp = p, wresid = fs->st_size; ;
-			    	bufp += wcount, wresid -= (size_t)wcount) {
-					wcount = write(to_fd, bufp, wresid);
-					if (wcount <= 0)
-						break;
-					wtotal += wcount;
-					if (info) {
-						info = 0;
-						(void)fprintf(stderr,
-						    "%s -> %s %3d%%\n",
-						    entp->fts_path, to.p_path,
-						    cp_pct(wtotal, fs->st_size));
-					}
-					if (wcount >= (ssize_t)wresid)
-						break;
-				}
-				if (wcount != (ssize_t)wresid) {
-					warn("%s", to.p_path);
-					rval = 1;
-				}
-				/* Some systems don't unmap on close(2). */
-				if (munmap(p, fs->st_size) < 0) {
-					warn("%s", entp->fts_path);
-					rval = 1;
-				}
 			}
 		} else
 #endif
