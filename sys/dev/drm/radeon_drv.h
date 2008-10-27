@@ -442,11 +442,11 @@ extern int r300_do_cp_cmdbuf(struct drm_device *dev,
  * handling, not bus mastering itself.
  */
 #define RADEON_BUS_CNTL			0x0030
-/* r1xx, r2xx, r300, r(v)350, r420/r481, rs480 */
+/* r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
 #	define RADEON_BUS_MASTER_DIS		(1 << 6)
-/* rs400, rs690/rs740 */
-#	define RS400_BUS_MASTER_DIS		(1 << 14)
-#	define RS400_MSI_REARM		        (1 << 20)
+/* rs600/rs690/rs740 */
+#	define RS600_BUS_MASTER_DIS		(1 << 14)
+#	define RS600_MSI_REARM		        (1 << 20)
 /* see RS480_MSI_REARM in AIC_CNTL for rs480 */
 
 #define RADEON_BUS_CNTL1		0x0034
@@ -939,7 +939,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device *dev,
 
 #define RADEON_AIC_CNTL			0x01d0
 #	define RADEON_PCIGART_TRANSLATE_EN	(1 << 0)
-#	define RS480_MSI_REARM	                (1 << 3)
+#	define RS400_MSI_REARM	                (1 << 3)
 #define RADEON_AIC_STAT			0x01d4
 #define RADEON_AIC_PT_BASE		0x01d8
 #define RADEON_AIC_LO_ADDR		0x01dc
