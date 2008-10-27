@@ -66,3 +66,11 @@ uart4|com5:dv=/dev/cuau4:br#9600:pa=none:
 uart5|com6:dv=/dev/cuau5:br#9600:pa=none:
 uart6|com7:dv=/dev/cuau6:br#9600:pa=none:
 uart7|com8:dv=/dev/cuau7:br#9600:pa=none:
+ucom1:dv=/dev/cuaU0:br#9600:pa=none:
+ucom2:dv=/dev/cuaU1:br#9600:pa=none:
+ucom3:dv=/dev/cuaU2:br#9600:pa=none:
+ucom4:dv=/dev/cuaU3:br#9600:pa=none:
+ucom5:dv=/dev/cuaU4:br#9600:pa=none:
+ucom6:dv=/dev/cuaU5:br#9600:pa=none:
+ucom7:dv=/dev/cuaU6:br#9600:pa=none:
+ucom8:dv=/dev/cuaU7:br#9600:pa=none:
