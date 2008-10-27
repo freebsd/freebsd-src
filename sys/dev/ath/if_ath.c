@@ -5078,7 +5078,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			 */
 			if (bf->bf_m->m_flags & M_TXCB)
 				ieee80211_process_callback(ni, bf->bf_m,
-					ts->ts_status);
+				    (bf->bf_txflags & HAL_TXDESC_NOACK) == 0 ?
+				        ts->ts_status : HAL_TXERR_XRETRY);
 			/*
 			 * Reclaim reference to node.
 			 *
