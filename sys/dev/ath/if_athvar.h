@@ -601,6 +601,12 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_TPC_CTS, 0, _ptpcts) == HAL_OK)
 #define	ath_hal_settpcts(_ah, _tpcts) \
 	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
+#define	ath_hal_hasintmit(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 0, NULL) == HAL_OK)
+#define	ath_hal_getintmit(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 1, NULL) == HAL_OK)
+#define	ath_hal_setintmit(_ah, _v) \
+	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #if HAL_ABI_VERSION < 0x05122200
