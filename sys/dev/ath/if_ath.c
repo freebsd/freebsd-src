@@ -6225,8 +6225,13 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 	memset(sc->sc_rixmap, 0xff, sizeof(sc->sc_rixmap));
 	rt = sc->sc_rates[mode];
 	KASSERT(rt != NULL, ("no h/w rate set for phy mode %u", mode));
-	for (i = 0; i < rt->rateCount; i++)
-		sc->sc_rixmap[rt->info[i].dot11Rate & IEEE80211_RATE_VAL] = i;
+	for (i = 0; i < rt->rateCount; i++) {
+		uint8_t ieeerate = rt->info[i].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[i].phy != IEEE80211_T_HT)
+			sc->sc_rixmap[ieeerate] = i;
+		else
+			sc->sc_rixmap[ieeerate | IEEE80211_RATE_MCS] = i;
+	}
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
 	for (i = 0; i < 32; i++) {
 		u_int8_t ix = rt->rateCodeToIndex[i];
