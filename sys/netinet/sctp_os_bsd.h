@@ -61,9 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 800044
 #include <sys/vimage.h>
-#endif
 #include <machine/cpu.h>
 
 #include <net/if.h>
