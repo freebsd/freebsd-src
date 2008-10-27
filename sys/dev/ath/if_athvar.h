@@ -506,12 +506,18 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_CIPHER, _cipher, NULL) == HAL_OK)
 #define	ath_hal_getregdomain(_ah, _prd) \
 	(ath_hal_getcapability(_ah, HAL_CAP_REG_DMN, 0, (_prd)) == HAL_OK)
+#if HAL_ABI_VERSION < 0x08090100
+/* XXX wrong for anything but amd64 and i386 */
 #if defined(__LP64__)
 #define	ath_hal_setregdomain(_ah, _rd) \
 	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 176) = (_rd))
 #else
 #define	ath_hal_setregdomain(_ah, _rd) \
 	(*(uint16_t *)(((uint8_t *)&(_ah)[1]) + 128) = (_rd))
+#endif
+#else
+#define	ath_hal_setregdomain(_ah, _rd) \
+	ath_hal_setcapability(_ah, HAL_CAP_REG_DMN, 0, _rd, NULL)
 #endif
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
