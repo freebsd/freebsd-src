@@ -238,10 +238,6 @@ SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 
 #ifdef ATH_DEBUG
-static	int ath_debug = 0;
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
-	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
 enum {
 	ATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	ATH_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -266,6 +262,11 @@ enum {
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
+static	int ath_debug = 0;
+SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
+	    0, "control debugging printfs");
+TUNABLE_INT("hw.ath.debug", &ath_debug);
+
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_debug & (m)) || \
 	    (sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
@@ -331,6 +332,9 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	}
 	sc->sc_ah = ah;
 	sc->sc_invalid = 0;	/* ready to go, enable interrupt handling */
+#ifdef	ATH_DEBUG
+	sc->sc_debug = ath_debug;
+#endif
 
 	/*
 	 * Check if the MAC has multi-rate retry support.
@@ -6635,7 +6639,6 @@ ath_sysctlattach(struct ath_softc *sc)
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
 #ifdef	ATH_DEBUG
-	sc->sc_debug = ath_debug;
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug, 0,
 		"control debugging printfs");
