@@ -2328,10 +2328,11 @@ bge_can_use_msi(struct bge_softc *sc)
 	int can_use_msi = 0;
 
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5714:
 		/*
-		 * Apparently, MSI doesn't work when this chip is configured
-		 * in single-port mode.
+		 * Apparently, MSI doesn't work when these chips are
+		 * configured in single-port mode.
 		 */
 		if (bge_has_multiple_ports(sc))
 			can_use_msi = 1;
@@ -2341,10 +2342,9 @@ bge_can_use_msi(struct bge_softc *sc)
 		    sc->bge_chiprev != BGE_CHIPREV_5750_BX)
 			can_use_msi = 1;
 		break;
-	case BGE_ASICREV_BCM5752:
-	case BGE_ASICREV_BCM5780:
-		can_use_msi = 1;
-		break;
+	default:
+		if (BGE_IS_575X_PLUS(sc))
+			can_use_msi = 1;
 	}
 	return (can_use_msi);
 }
