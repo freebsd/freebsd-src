@@ -5722,10 +5722,6 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			break;
 		case IEEE80211_M_STA:
 			/*
-			 * Fakeup since we're not called by net80211.
-			 */
-			ath_newassoc(ni, 1);
-			/*
 			 * Defer beacon timer configuration to the next
 			 * beacon frame so we have a current TSF to use
 			 * (any TSF collected when scanning is likely old).
