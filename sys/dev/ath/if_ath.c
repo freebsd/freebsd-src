@@ -5664,11 +5664,6 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			if (ath_hal_keyisvalid(ah, i))
 				ath_hal_keysetmac(ah, i, ni->ni_bssid);
 	}
-	/*
-	 * Notify the rate control algorithm so rates
-	 * are setup should ath_beacon_alloc be called.
-	 */
-	ath_rate_newstate(vap, nstate);
 
 	/*
 	 * Invoke the parent method to do net80211 work.
