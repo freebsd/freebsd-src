@@ -99,8 +99,6 @@ void sctp_audit_retranmission_queue(struct sctp_association *);
 
 void sctp_iterator_timer(struct sctp_iterator *it);
 
-void sctp_recover_sent_list(struct sctp_tcb *stcb);
-
 
 #endif
 #endif
