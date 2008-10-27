@@ -120,6 +120,8 @@ enum {
 	ATH_LED_POLL,
 };
 
+#define	CTRY_XR9	5001		/* Ubiquiti XR9 */
+
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
 		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
@@ -1317,7 +1319,8 @@ ath_bmiss_proc(void *arg, int pending)
  * the frequency possibly mapped for GSM channels.
  */
 static void
-ath_mapchan(HAL_CHANNEL *hc, const struct ieee80211_channel *chan)
+ath_mapchan(const struct ieee80211com *ic,
+	HAL_CHANNEL *hc, const struct ieee80211_channel *chan)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	static const u_int modeflags[IEEE80211_MODE_MAX] = {
@@ -1348,8 +1351,13 @@ ath_mapchan(HAL_CHANNEL *hc, const struct ieee80211_channel *chan)
 	if (IEEE80211_IS_CHAN_HT40U(chan))
 		hc->channelFlags |= CHANNEL_HT40PLUS;
 
-	hc->channel = IEEE80211_IS_CHAN_GSM(chan) ?
-		2422 + (922 - chan->ic_freq) : chan->ic_freq;
+	if (IEEE80211_IS_CHAN_GSM(chan)) {
+		if (ic->ic_regdomain.country == CTRY_XR9)
+			hc->channel = 2427 + (chan->ic_freq - 907);
+		else
+			hc->channel = 2422 + (922 - chan->ic_freq);
+	} else
+		hc->channel = chan->ic_freq;
 #undef N
 }
 
@@ -1402,7 +1410,7 @@ ath_init(void *arg)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	ath_mapchan(&sc->sc_curchan, ic->ic_curchan);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 	ath_settkipmic(sc);
 	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
@@ -1539,7 +1547,7 @@ ath_reset(struct ifnet *ifp)
 	 * Convert to a HAL channel description with the flags
 	 * constrained to reflect the current operating mode.
 	 */
-	ath_mapchan(&sc->sc_curchan, ic->ic_curchan);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
@@ -3723,7 +3731,7 @@ ath_node_getsignal(const struct ieee80211_node *ni, int8_t *rssi, int8_t *noise)
 
 	*rssi = ic->ic_node_getrssi(ni);
 	if (ni->ni_chan != IEEE80211_CHAN_ANYC) {
-		ath_mapchan(&hchan, ni->ni_chan);
+		ath_mapchan(ic, &hchan, ni->ni_chan);
 		*noise = ath_hal_getchannoise(ah, &hchan);
 	} else
 		*noise = -95;		/* nominally correct */
@@ -5435,7 +5443,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * the flags constrained to reflect the current
 	 * operating mode.
 	 */
-	ath_mapchan(&hchan, chan);
+	ath_mapchan(ic, &hchan, chan);
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: %u (%u MHz, hal flags 0x%x) -> %u (%u MHz, hal flags 0x%x)\n",
@@ -5918,8 +5926,15 @@ getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
 		}
 
 		if (ath_hal_isgsmsku(ah)) {
-			/* remap to true frequencies */
-			ichan->ic_freq = 922 + (2422 - ichan->ic_freq);
+			/*
+			 * Remap to true frequencies: Ubiquiti XR9 cards use a
+			 * frequency mapping different from their SR9 cards.
+			 * We define special country codes to deal with this. 
+			 */
+			if (cc == CTRY_XR9)
+				ichan->ic_freq = 907 + (ichan->ic_freq - 2427);
+			else
+				ichan->ic_freq = 922 + (2422 - ichan->ic_freq);
 			ichan->ic_flags |= IEEE80211_CHAN_GSM;
 			ichan->ic_ieee = ieee80211_mhz2ieee(ichan->ic_freq,
 						    ichan->ic_flags);
