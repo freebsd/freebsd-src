@@ -292,7 +292,7 @@ _moused=	moused
 _vidcontrol=	vidcontrol
 .endif
 
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 .if ${MK_PPP} != "no"
 _pppctl=	pppctl
 .endif
