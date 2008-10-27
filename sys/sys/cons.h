@@ -61,10 +61,8 @@ struct consdev {
 				/* kernel "return char if available" interface */
 	cn_putc_t	*cn_putc;
 				/* kernel putchar interface */
-	struct	tty *cn_tp;	/* tty structure for console device */
 	short	cn_pri;		/* pecking order; the higher the better */
 	void	*cn_arg;	/* drivers method argument */
-	int	cn_unit;	/* some drivers prefer this */
 	int	cn_flags;	/* capabilities of this console */
 	char	cn_name[SPECNAMELEN + 1];	/* console (device) name */
 };
