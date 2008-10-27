@@ -3648,11 +3648,6 @@ iwn_run(struct iwn_softc *sc)
 		return error;
 	}
 
-	if (ic->ic_opmode == IEEE80211_M_STA) {
-		/* fake a join to init the tx rate */
-		iwn_newassoc(ni, 1);
-	}
-
 	error = iwn_init_sensitivity(sc);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
