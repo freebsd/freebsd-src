@@ -5873,7 +5873,11 @@ getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
 	}
 	error = 0;
 	if (!ath_hal_init_channels(ah, halchans, IEEE80211_CHAN_MAX, &nhalchans,
-	    NULL, 0, NULL, CTRY_DEFAULT, HAL_MODE_ALL, AH_FALSE, AH_TRUE)) {
+	    NULL, 0, NULL, cc, HAL_MODE_ALL, outdoor, ecm)) {
+		u_int32_t rd;
+		(void) ath_hal_getregdomain(ah, &rd);
+		device_printf(sc->sc_dev, "ath_hal_init_channels failed, "
+		    "rd %d cc %u outdoor %u ecm %u\n", rd, cc, outdoor, ecm);
 		error = EINVAL;
 		goto done;
 	}
@@ -5926,25 +5930,47 @@ done:
 	return error;
 }
 
+/* XXX hard to include ieee80211_regdomain.h right now */
+#define	SKU_DEBUG	0x1ff
+
+static void
+ath_maprd(const struct ieee80211_regdomain *rd,
+	u_int32_t *ath_rd, u_int32_t *ath_cc)
+{
+	/* map SKU's to Atheros sku's */
+	switch (rd->regdomain) {
+	case SKU_DEBUG:
+		if (rd->country == 0) {
+			*ath_rd = 0;
+			*ath_cc = CTRY_DEBUG;
+			return;
+		}
+		break;
+	}
+	*ath_rd = rd->regdomain;
+	*ath_cc = rd->country;
+}
+
 static int
 ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 	int nchans, struct ieee80211_channel chans[])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
-	u_int32_t ord;
+	u_int32_t ord, regdomain, cc;
 	int error;
 
 	(void) ath_hal_getregdomain(ah, &ord);
-	/* XXX map sku->rd */
+	ath_maprd(rd, &regdomain, &cc);
 	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
-	    "%s: rd %u cc %u location %c ecm %u\n",
-	    __func__, rd->regdomain, rd->country, rd->location, rd->ecm);
-	ath_hal_setregdomain(ah, rd->regdomain);
+	    "%s: rd %u cc %u location %c ecm %u (mapped rd %u cc %u)\n",
+	    __func__, rd->regdomain, rd->country, rd->location, rd->ecm,
+	    regdomain, cc);
+	ath_hal_setregdomain(ah, regdomain);
 
-	error = getchannels(sc, &nchans, chans, rd->country,
+	error = getchannels(sc, &nchans, chans, cc,
 	     rd->ecm ? AH_TRUE : AH_FALSE,
-	     rd->location == 'O' ? AH_TRUE : AH_FALSE);
+	     rd->location != 'I' ? AH_TRUE : AH_FALSE);
 	if (error != 0) {
 		/*
 		 * Restore previous state.
@@ -5952,7 +5978,7 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 		ath_hal_setregdomain(ah, ord);
 		(void) getchannels(sc, NULL, NULL, ic->ic_regdomain.country,
 		     ic->ic_regdomain.ecm ? AH_TRUE : AH_FALSE,
-		     ic->ic_regdomain.location == 'O' ? AH_TRUE : AH_FALSE);
+		     ic->ic_regdomain.location != 'I' ? AH_TRUE : AH_FALSE);
 		return error;
 	}
 	return 0;
@@ -5979,14 +6005,28 @@ ath_getradiocaps(struct ieee80211com *ic,
 	ath_hal_setregdomain(ah, ord);
 	(void) getchannels(sc, NULL, NULL, ic->ic_regdomain.country,
 	     ic->ic_regdomain.ecm ? AH_TRUE : AH_FALSE,
-	     ic->ic_regdomain.location == 'O' ? AH_TRUE : AH_FALSE);
+	     ic->ic_regdomain.location != 'I' ? AH_TRUE : AH_FALSE);
 }
 
-static int
-ath_mapregdomain(struct ath_softc *sc, u_int32_t rd)
+static void
+ath_mapsku(u_int32_t ath_rd, u_int32_t ath_cc, struct ieee80211_regdomain *rd)
 {
-	/* map Atheros rd's to SKU's */
-	return rd;
+	rd->isocc[0] = ' ';	/* XXX don't know */
+	rd->isocc[1] = ' ';
+
+	/* map Atheros sku's to SKU's */
+	switch (ath_rd) {
+	case 0:
+		if (ath_cc == CTRY_DEBUG) {
+			rd->regdomain = SKU_DEBUG;
+			rd->country = 0;
+			return;
+		}
+		break;
+	}
+	/* XXX net80211 types too small */
+	rd->regdomain = (uint16_t) ath_rd;
+	rd->country = (uint16_t) ath_cc;
 }
 
 static int
@@ -6013,12 +6053,9 @@ ath_getchannels(struct ath_softc *sc)
 		}
 		return error;
 	}
-	ic->ic_regdomain.regdomain = ath_mapregdomain(sc, sc->sc_eerd);
-	ic->ic_regdomain.country = sc->sc_eecc;
 	ic->ic_regdomain.ecm = 1;
 	ic->ic_regdomain.location = 'I';
-	ic->ic_regdomain.isocc[0] = ' ';	/* XXX don't know */
-	ic->ic_regdomain.isocc[1] = ' ';
+	ath_mapsku(sc->sc_eerd, sc->sc_eecc, &ic->ic_regdomain);
 
 	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
 	    "%s: eeprom rd %u cc %u (mapped rd %u cc %u) location %c ecm %u\n",
