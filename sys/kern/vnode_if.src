@@ -216,7 +216,7 @@ vop_ioctl {
 };
 
 
-%% poll	vp	U U U
+%% poll		vp	U U U
 
 vop_poll {
 	IN struct vnode *vp;
@@ -589,7 +589,7 @@ vop_setlabel {
 };
 
 
-%% setlabel	vp	= = =
+%% vptofh	vp	= = =
 
 vop_vptofh {
 	IN struct vnode *vp;
