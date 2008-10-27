@@ -393,11 +393,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	size_bin = size_to_bin(frame_size);
 	size = bin_to_size(size_bin);
 
-	if (!(0 <= ndx0 && ndx0 < sn->num_rates)) {
-		printf("%s: bogus ndx0 %d, max %u, mode %u\n",
-		    __func__, ndx0, sn->num_rates, sc->sc_curmode);
+	if (!(0 <= ndx0 && ndx0 < sn->num_rates))
 		return;
-	}
 	rate = sn->rates[ndx0].rate;
 
 	tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx0].rix, 
@@ -405,11 +402,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 					MIN(tries0, tries) - 1);
 	tries_so_far += tries0;
 	if (tries1 && tries0 < tries) {
-		if (!(0 <= ndx1 && ndx1 < sn->num_rates)) {
-			printf("%s: bogus ndx1 %d, max %u, mode %u\n",
-			    __func__, ndx1, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx1 && ndx1 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx1].rix, 
 						short_tries,
 						MIN(tries1 + tries_so_far, tries) - tries_so_far - 1);
@@ -417,11 +411,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	tries_so_far += tries1;
 
 	if (tries2 && tries0 + tries1 < tries) {
-		if (!(0 <= ndx2 && ndx2 < sn->num_rates)) {
-			printf("%s: bogus ndx2 %d, max %u, mode %u\n",
-			    __func__, ndx2, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx2 && ndx2 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx2].rix, 
 					       short_tries,
 						MIN(tries2 + tries_so_far, tries) - tries_so_far - 1);
@@ -430,11 +421,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	tries_so_far += tries2;
 
 	if (tries3 && tries0 + tries1 + tries2 < tries) {
-		if (!(0 <= ndx3 && ndx3 < sn->num_rates)) {
-			printf("%s: bogus ndx3 %d, max %u, mode %u\n",
-			    __func__, ndx3, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx3 && ndx3 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx3].rix, 
 						short_tries,
 						MIN(tries3 + tries_so_far, tries) - tries_so_far - 1);
@@ -488,6 +476,13 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	}
 }
 
+static void
+badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
+{
+	if_printf(ifp, "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
+	    series, hwrate, tries, status);
+}
+
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_buf *bf)
@@ -521,6 +516,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
 		int ndx = rate_to_ndx(sn, final_rate);
 
+		if (ndx < 0) {
+			badrate(ifp, 0, ts->ts_rate, long_tries, ts->ts_status);
+			return;
+		}
 		/*
 		 * Only one rate was used; optimize work.
 		 */
@@ -573,6 +572,15 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		rate3 = sc->sc_hwmap[hwrate3].ieeerate;
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
+
+		if (tries0 && ndx0 < 0)
+			badrate(ifp, 0, hwrate0, tries0, ts->ts_status);
+		if (tries1 && ndx1 < 0)
+			badrate(ifp, 1, hwrate1, tries1, ts->ts_status);
+		if (tries2 && ndx2 < 0)
+			badrate(ifp, 2, hwrate2, tries2, ts->ts_status);
+		if (tries3 && ndx3 < 0)
+			badrate(ifp, 3, hwrate3, tries3, ts->ts_status);
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
