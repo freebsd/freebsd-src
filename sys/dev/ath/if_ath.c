@@ -259,6 +259,7 @@ enum {
 	ATH_DEBUG_LED		= 0x00100000,	/* led management */
 	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
 	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
+	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -5860,6 +5861,9 @@ getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
 	HAL_CHANNEL *halchans;
 	int i, nhalchans, error;
 
+	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: cc %u outdoor %u ecm %u\n",
+	    __func__, cc, outdoor, ecm);
+
 	halchans = malloc(IEEE80211_CHAN_MAX * sizeof(HAL_CHANNEL),
 			M_TEMP, M_NOWAIT | M_ZERO);
 	if (halchans == NULL) {
@@ -5933,7 +5937,11 @@ ath_setregdomain(struct ieee80211com *ic, struct ieee80211_regdomain *rd,
 
 	(void) ath_hal_getregdomain(ah, &ord);
 	/* XXX map sku->rd */
+	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
+	    "%s: rd %u cc %u location %c ecm %u\n",
+	    __func__, rd->regdomain, rd->country, rd->location, rd->ecm);
 	ath_hal_setregdomain(ah, rd->regdomain);
+
 	error = getchannels(sc, &nchans, chans, rd->country,
 	     rd->ecm ? AH_TRUE : AH_FALSE,
 	     rd->location == 'O' ? AH_TRUE : AH_FALSE);
@@ -5959,6 +5967,10 @@ ath_getradiocaps(struct ieee80211com *ic,
 	u_int32_t ord;
 
 	(void) ath_hal_getregdomain(ah, &ord);
+
+	DPRINTF(sc, ATH_DEBUG_REGDOMAIN, "%s: use rd %u cc %d, ord %u\n",
+	    __func__, 0, CTRY_DEBUG, ord);
+
 	ath_hal_setregdomain(ah, 0);
 	/* XXX not quite right but close enough for now */
 	getchannels(sc, nchans, chans, CTRY_DEBUG, AH_TRUE, AH_FALSE);
@@ -6007,6 +6019,12 @@ ath_getchannels(struct ath_softc *sc)
 	ic->ic_regdomain.location = 'I';
 	ic->ic_regdomain.isocc[0] = ' ';	/* XXX don't know */
 	ic->ic_regdomain.isocc[1] = ' ';
+
+	DPRINTF(sc, ATH_DEBUG_REGDOMAIN,
+	    "%s: eeprom rd %u cc %u (mapped rd %u cc %u) location %c ecm %u\n",
+	    __func__, sc->sc_eerd, sc->sc_eecc,
+	    ic->ic_regdomain.regdomain, ic->ic_regdomain.country,
+	    ic->ic_regdomain.location, ic->ic_regdomain.ecm);
 	return 0;
 }
 
