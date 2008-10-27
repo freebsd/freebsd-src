@@ -114,12 +114,6 @@ CTASSERT(ATH_BCBUF <= 8);
 	 ((((u_int8_t *)(p))[0]      ) | (((u_int8_t *)(p))[1] <<  8) |	\
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
-enum {
-	ATH_LED_TX,
-	ATH_LED_RX,
-	ATH_LED_POLL,
-};
-
 #define	CTRY_XR9	5001		/* Ubiquiti XR9 */
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
@@ -3898,12 +3892,13 @@ static int
 ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	const struct ath_rx_status *rs, u_int64_t tsf, int16_t nf)
 {
-#define	CHAN_HT		htole32(CHANNEL_HT20|CHANNEL_HT40PLUS|CHANNEL_HT40MINUS)
 #define	CHAN_HT20	htole32(IEEE80211_CHAN_HT20)
 #define	CHAN_HT40U	htole32(IEEE80211_CHAN_HT40U)
 #define	CHAN_HT40D	htole32(IEEE80211_CHAN_HT40D)
+#define	CHAN_HT		(CHAN_HT20|CHAN_HT40U|CHAN_HT40D)
 	struct ath_softc *sc = ifp->if_softc;
-	u_int8_t rix;
+	const HAL_RATE_TABLE *rt;
+	uint8_t rix;
 
 	/*
 	 * Discard anything shorter than an ack or cts.
@@ -3914,12 +3909,14 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 		sc->sc_stats.ast_rx_tooshort++;
 		return 0;
 	}
-	rix = rs->rs_rate;
+	rt = sc->sc_currates;
+	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
+	rix = rt->rateCodeToIndex[rs->rs_rate];
 	sc->sc_rx_th.wr_rate = sc->sc_hwmap[rix].ieeerate;
 	sc->sc_rx_th.wr_flags = sc->sc_hwmap[rix].rxflags;
-#if HAL_ABI_VERSION >= 0x07050400
+#ifdef AH_SUPPORT_AR5416
 	sc->sc_rx_th.wr_chan_flags &= ~CHAN_HT;
-	if (sc->sc_rx_th.wr_rate & 0x80) {		/* HT rate */
+	if (sc->sc_rx_th.wr_rate & IEEE80211_RATE_MCS) {	/* HT rate */
 		if ((rs->rs_flags & HAL_RX_2040) == 0)
 			sc->sc_rx_th.wr_chan_flags |= CHAN_HT20;
 		else if (sc->sc_curchan.channelFlags & CHANNEL_HT40PLUS)
@@ -3941,10 +3938,10 @@ ath_rx_tap(struct ifnet *ifp, struct mbuf *m,
 	bpf_mtap2(ifp->if_bpf, &sc->sc_rx_th, sc->sc_rx_th_len, m);
 
 	return 1;
+#undef CHAN_HT
 #undef CHAN_HT20
 #undef CHAN_HT40U
 #undef CHAN_HT40D
-#undef CHAN_HT
 }
 
 static void
@@ -4175,9 +4172,11 @@ rx_accept:
 		}
 
 		if (IFF_DUMPPKTS(sc, ATH_DEBUG_RECV)) {
+			const HAL_RATE_TABLE *rt = sc->sc_currates;
+			uint8_t rix = rt->rateCodeToIndex[rs->rs_rate];
+
 			ieee80211_dump_pkt(ic, mtod(m, caddr_t), len,
-				   sc->sc_hwmap[rs->rs_rate].ieeerate,
-				   rs->rs_rssi);
+			    sc->sc_hwmap[rix].ieeerate, rs->rs_rssi);
 		}
 
 		m_adj(m, -IEEE80211_CRC_LEN);
@@ -4235,10 +4234,11 @@ rx_accept:
 			 * periodic beacon frames to trigger the poll event.
 			 */
 			if (type == IEEE80211_FC0_TYPE_DATA) {
-				sc->sc_rxrate = rs->rs_rate;
-				ath_led_event(sc, ATH_LED_RX);
+				const HAL_RATE_TABLE *rt = sc->sc_currates;
+				ath_led_event(sc, 
+				    rt->rateCodeToIndex[rs->rs_rate]);
 			} else if (ticks - sc->sc_ledevent >= sc->sc_ledidle)
-				ath_led_event(sc, ATH_LED_POLL);
+				ath_led_event(sc, 0);
 		}
 rx_next:
 		STAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
@@ -4759,7 +4759,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		} else {
 			ath_rate_findrate(sc, an, shortPreamble, pktlen,
 				&rix, &try0, &txrate);
-			sc->sc_txrate = txrate;		/* for LED blinking */
+			sc->sc_txrix = rix;		/* for LED blinking */
 			sc->sc_lastdatarix = rix;	/* for fast frames */
 			if (try0 != ATH_TXMAXTRY)
 				ismrr = 1;
@@ -4916,18 +4916,18 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
 		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
-			sc->sc_hwmap[txrate].ieeerate, -1);
+			sc->sc_hwmap[rix].ieeerate, -1);
 
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
 		sc->sc_tx_th.wt_tsf = htole64(tsf);
-		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].txflags;
+		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
 		if (iswep)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (isfrag)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_FRAG;
-		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate].ieeerate;
+		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
@@ -5143,7 +5143,7 @@ ath_tx_proc_q0(void *arg, int npending)
 	ifp->if_timer = 0;
 
 	if (sc->sc_softled)
-		ath_led_event(sc, ATH_LED_TX);
+		ath_led_event(sc, sc->sc_txrix);
 
 	ath_start(ifp);
 }
@@ -5180,7 +5180,7 @@ ath_tx_proc_q0123(void *arg, int npending)
 	ifp->if_timer = 0;
 
 	if (sc->sc_softled)
-		ath_led_event(sc, ATH_LED_TX);
+		ath_led_event(sc, sc->sc_txrix);
 
 	ath_start(ifp);
 }
@@ -5209,7 +5209,7 @@ ath_tx_proc(void *arg, int npending)
 	ifp->if_timer = 0;
 
 	if (sc->sc_softled)
-		ath_led_event(sc, ATH_LED_TX);
+		ath_led_event(sc, sc->sc_txrix);
 
 	ath_start(ifp);
 }
@@ -6121,26 +6121,12 @@ ath_led_blink(struct ath_softc *sc, int on, int off)
 }
 
 static void
-ath_led_event(struct ath_softc *sc, int event)
+ath_led_event(struct ath_softc *sc, int rix)
 {
-
 	sc->sc_ledevent = ticks;	/* time of last event */
 	if (sc->sc_blinking)		/* don't interrupt active blink */
 		return;
-	switch (event) {
-	case ATH_LED_POLL:
-		ath_led_blink(sc, sc->sc_hwmap[0].ledon,
-			sc->sc_hwmap[0].ledoff);
-		break;
-	case ATH_LED_TX:
-		ath_led_blink(sc, sc->sc_hwmap[sc->sc_txrate].ledon,
-			sc->sc_hwmap[sc->sc_txrate].ledoff);
-		break;
-	case ATH_LED_RX:
-		ath_led_blink(sc, sc->sc_hwmap[sc->sc_rxrate].ledon,
-			sc->sc_hwmap[sc->sc_rxrate].ledoff);
-		break;
-	}
+	ath_led_blink(sc, sc->sc_hwmap[rix].ledon, sc->sc_hwmap[rix].ledoff);
 }
 
 static int
@@ -6233,20 +6219,19 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 			sc->sc_rixmap[ieeerate | IEEE80211_RATE_MCS] = i;
 	}
 	memset(sc->sc_hwmap, 0, sizeof(sc->sc_hwmap));
-	for (i = 0; i < 32; i++) {
-		u_int8_t ix = rt->rateCodeToIndex[i];
-		if (ix == 0xff) {
+	for (i = 0; i < N(sc->sc_hwmap); i++) {
+		if (i >= rt->rateCount) {
 			sc->sc_hwmap[i].ledon = (500 * hz) / 1000;
 			sc->sc_hwmap[i].ledoff = (130 * hz) / 1000;
 			continue;
 		}
 		sc->sc_hwmap[i].ieeerate =
-			rt->info[ix].dot11Rate & IEEE80211_RATE_VAL;
-		if (rt->info[ix].phy == IEEE80211_T_HT)
+			rt->info[i].dot11Rate & IEEE80211_RATE_VAL;
+		if (rt->info[i].phy == IEEE80211_T_HT)
 			sc->sc_hwmap[i].ieeerate |= IEEE80211_RATE_MCS;
 		sc->sc_hwmap[i].txflags = IEEE80211_RADIOTAP_F_DATAPAD;
-		if (rt->info[ix].shortPreamble ||
-		    rt->info[ix].phy == IEEE80211_T_OFDM)
+		if (rt->info[i].shortPreamble ||
+		    rt->info[i].phy == IEEE80211_T_OFDM)
 			sc->sc_hwmap[i].txflags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 		/* NB: receive frames include FCS */
 		sc->sc_hwmap[i].rxflags = sc->sc_hwmap[i].txflags |
@@ -6443,7 +6428,9 @@ ath_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_stats.ast_tx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgtxrssi);
 		sc->sc_stats.ast_rx_rssi = ATH_RSSI(sc->sc_halstats.ns_avgrssi);
 		rt = sc->sc_currates;
-		sc->sc_stats.ast_tx_rate = sc->sc_hwmap[sc->sc_txrate].ieeerate;
+		/* XXX HT rates */
+		sc->sc_stats.ast_tx_rate =
+		    rt->info[sc->sc_txrix].dot11Rate &~ IEEE80211_RATE_BASIC;
 		return copyout(&sc->sc_stats,
 		    ifr->ifr_data, sizeof (sc->sc_stats));
 #ifdef ATH_DIAGAPI
@@ -6894,7 +6881,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	txrate = rt->info[rix].rateCode;
 	if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 		txrate |= rt->info[rix].shortPreamble;
-	sc->sc_txrate = txrate;
+	sc->sc_txrix = rix;
 	try0 = params->ibp_try0;
 	ismrr = (params->ibp_try1 != 0);
 	txantenna = params->ibp_pri >> 2;
@@ -6932,16 +6919,16 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	if (IFF_DUMPPKTS(sc, ATH_DEBUG_XMIT))
 		ieee80211_dump_pkt(ic, mtod(m0, caddr_t), m0->m_len,
-			sc->sc_hwmap[txrate].ieeerate, -1);
+			sc->sc_hwmap[rix].ieeerate, -1);
 	
 	if (bpf_peers_present(ifp->if_bpf)) {
 		u_int64_t tsf = ath_hal_gettsf64(ah);
 
 		sc->sc_tx_th.wt_tsf = htole64(tsf);
-		sc->sc_tx_th.wt_flags = sc->sc_hwmap[txrate].txflags;
+		sc->sc_tx_th.wt_flags = sc->sc_hwmap[rix].txflags;
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
-		sc->sc_tx_th.wt_rate = sc->sc_hwmap[txrate].ieeerate;
+		sc->sc_tx_th.wt_rate = sc->sc_hwmap[rix].ieeerate;
 		sc->sc_tx_th.wt_txpower = ni->ni_txpower;
 		sc->sc_tx_th.wt_antenna = sc->sc_txantenna;
 
