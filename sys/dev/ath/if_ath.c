@@ -5218,7 +5218,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 
 	/*
 	 * NB: this assumes output has been stopped and
-	 *     we do not need to block ath_tx_tasklet
+	 *     we do not need to block ath_tx_proc
 	 */
 	for (ix = 0;; ix++) {
 		ATH_TXQ_LOCK(txq);
