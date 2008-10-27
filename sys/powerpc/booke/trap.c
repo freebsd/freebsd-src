@@ -103,9 +103,6 @@ int	badaddr_read(void *, size_t, int *);
 
 extern char	*syscallnames[];
 
-extern char interrupt_vector_base[];
-extern char interrupt_vector_top[];
-
 struct powerpc_exception {
 	u_int	vector;
 	char	*name;
