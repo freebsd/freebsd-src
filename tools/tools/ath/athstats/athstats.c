@@ -55,6 +55,12 @@
 
 #include "athstats.h"
 
+#ifdef ATH_SUPPORT_ANI
+#define HAL_EP_RND(x,mul) \
+	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
+#define HAL_RSSI(x)     HAL_EP_RND(x, HAL_RSSI_EP_MULTIPLIER)
+#endif
+
 #define	NOTPRESENT	{ 0, "", "" }
 
 #define	AFTER(prev)	((prev)+1)
@@ -85,7 +91,7 @@ static const struct fmt athstats[] = {
 #else
 #define	S_RATE		AFTER(S_MIB)
 #endif
-	{ 4,	"rate",		"rate",		"current transmit rate" },
+	{ 5,	"rate",		"rate",		"current transmit rate" },
 #define	S_WATCHDOG	AFTER(S_RATE)
 	{ 5,	"wdog",		"wdog",		"watchdog timeouts" },
 #define	S_FATAL		AFTER(S_WATCHDOG)
@@ -155,21 +161,21 @@ static const struct fmt athstats[] = {
 #define	S_RX_PHY_ERR	AFTER(S_RX_CTL)
 	{ 7,	"phyerr",	"phyerr",	"rx failed 'cuz of PHY err" },
 #define	S_RX_PHY_UNDERRUN		AFTER(S_RX_PHY_ERR)
-	{ 6,	"phyund",	"phyund",	"transmit underrun" },
+	{ 4,	"phyund",	"TUnd",	"transmit underrun" },
 #define	S_RX_PHY_TIMING			AFTER(S_RX_PHY_UNDERRUN)
-	{ 6,	"phytim",	"phytim",	"timing error" },
+	{ 4,	"phytim",	"Tim",	"timing error" },
 #define	S_RX_PHY_PARITY			AFTER(S_RX_PHY_TIMING)
-	{ 6,	"phypar",	"phypar",	"illegal parity" },
+	{ 4,	"phypar",	"IPar",	"illegal parity" },
 #define	S_RX_PHY_RATE			AFTER(S_RX_PHY_PARITY)
-	{ 6,	"phyrate",	"phyrate",	"illegal rate" },
+	{ 4,	"phyrate",	"IRate",	"illegal rate" },
 #define	S_RX_PHY_LENGTH			AFTER(S_RX_PHY_RATE)
-	{ 6,	"phylen",	"phylen",	"illegal length" },
+	{ 4,	"phylen",	"ILen",		"illegal length" },
 #define	S_RX_PHY_RADAR			AFTER(S_RX_PHY_LENGTH)
-	{ 6,	"phyradar",	"phyradar",	"radar detect" },
+	{ 4,	"phyradar",	"Radar",	"radar detect" },
 #define	S_RX_PHY_SERVICE		AFTER(S_RX_PHY_RADAR)
-	{ 6,	"physervice",	"physervice",	"illegal service" },
+	{ 4,	"physervice",	"Service",	"illegal service" },
 #define	S_RX_PHY_TOR			AFTER(S_RX_PHY_SERVICE)
-	{ 6,	"phytor",	"phytor",	"transmit override receive" },
+	{ 4,	"phytor",	"TOR",		"transmit override receive" },
 #define	S_RX_PHY_OFDM_TIMING		AFTER(S_RX_PHY_TOR)
 	{ 6,	"ofdmtim",	"ofdmtim",	"OFDM timing" },
 #define	S_RX_PHY_OFDM_SIGNAL_PARITY	AFTER(S_RX_PHY_OFDM_TIMING)
@@ -258,7 +264,71 @@ static const struct fmt athstats[] = {
 	{ 5,	"defsw",	"defsw",	"switched default/rx antenna" },
 #define	S_ANT_TXSWITCH	AFTER(S_ANT_DEFSWITCH)
 	{ 5,	"txsw",		"txsw",		"tx used alternate antenna" },
+#ifdef ATH_SUPPORT_ANI
+#define	S_ANI_NOISE	AFTER(S_ANT_TXSWITCH)
+	{ 2,	"ni",	"NI",		"noise immunity level" },
+#define	S_ANI_SPUR	AFTER(S_ANI_NOISE)
+	{ 2,	"si",	"SI",		"spur immunity level" },
+#define	S_ANI_STEP	AFTER(S_ANI_SPUR)
+	{ 2,	"step",	"ST",		"first step level" },
+#define	S_ANI_OFDM	AFTER(S_ANI_STEP)
+	{ 4,	"owsd",	"OWSD",		"OFDM weak signal detect" },
+#define	S_ANI_CCK	AFTER(S_ANI_OFDM)
+	{ 4,	"cwst",	"CWST",		"CCK weak signal threshold" },
+#define	S_ANI_MAXSPUR	AFTER(S_ANI_CCK)
+	{ 3,	"maxsi","MSI",		"max spur immunity level" },
+#define	S_ANI_LISTEN	AFTER(S_ANI_MAXSPUR)
+	{ 6,	"listen","LISTEN",	"listen time" },
+#define	S_ANI_NIUP	AFTER(S_ANI_LISTEN)
+	{ 4,	"ni+",	"NI-",		"ANI increased noise immunity" },
+#define	S_ANI_NIDOWN	AFTER(S_ANI_NIUP)
+	{ 4,	"ni-",	"NI-",		"ANI decrease noise immunity" },
+#define	S_ANI_SIUP	AFTER(S_ANI_NIDOWN)
+	{ 4,	"si+",	"SI+",		"ANI increased spur immunity" },
+#define	S_ANI_SIDOWN	AFTER(S_ANI_SIUP)
+	{ 4,	"si-",	"SI-",		"ANI decrease spur immunity" },
+#define	S_ANI_OFDMON	AFTER(S_ANI_SIDOWN)
+	{ 5,	"ofdm+","OFDM+",	"ANI enabled OFDM weak signal detect" },
+#define	S_ANI_OFDMOFF	AFTER(S_ANI_OFDMON)
+	{ 5,	"ofdm-","OFDM-",	"ANI disabled OFDM weak signal detect" },
+#define	S_ANI_CCKHI	AFTER(S_ANI_OFDMOFF)
+	{ 5,	"cck+",	"CCK+",		"ANI enabled CCK weak signal threshold" },
+#define	S_ANI_CCKLO	AFTER(S_ANI_CCKHI)
+	{ 5,	"cck-",	"CCK-",		"ANI disabled CCK weak signal threshold" },
+#define	S_ANI_STEPUP	AFTER(S_ANI_CCKLO)
+	{ 5,	"step+","STEP+",	"ANI increased first step level" },
+#define	S_ANI_STEPDOWN	AFTER(S_ANI_STEPUP)
+	{ 5,	"step-","STEP-",	"ANI decreased first step level" },
+#define	S_ANI_OFDMERRS	AFTER(S_ANI_STEPDOWN)
+	{ 8,	"ofdm",	"OFDM",		"cumulative ofdm phy error count" },
+#define	S_ANI_CCKERRS	AFTER(S_ANI_OFDMERRS)
+	{ 8,	"cck",	"CCK",		"cumulative cck phy error count" },
+#define	S_ANI_RESET	AFTER(S_ANI_CCKERRS)
+	{ 5,	"reset","RESET",	"ANI parameters zero'd for non-STA operation" },
+#define	S_ANI_LZERO	AFTER(S_ANI_RESET)
+	{ 5,	"lzero","LZERO",	"ANI forced listen time to zero" },
+#define	S_ANI_LNEG	AFTER(S_ANI_LZERO)
+	{ 5,	"lneg",	"LNEG",		"ANI calculated listen time < 0" },
+#define	S_MIB_ACKBAD	AFTER(S_ANI_LNEG)
+	{ 5,	"ackbad","ACKBAD",	"bad ACK's" },
+#define	S_MIB_RTSBAD	AFTER(S_MIB_ACKBAD)
+	{ 5,	"rtsbad","RTSBAD",	"bad RTS" },
+#define	S_MIB_RTSGOOD	AFTER(S_MIB_RTSBAD)
+	{ 5,	"rtsgood","RTSGOOD",	"good RTS" },
+#define	S_MIB_FCSBAD	AFTER(S_MIB_RTSGOOD)
+	{ 5,	"fcsbad","FCSBAD",	"bad FCS" },
+#define	S_MIB_BEACONS	AFTER(S_MIB_FCSBAD)
+	{ 5,	"beacons","beacons",	"beacons received" },
+#define	S_NODE_AVGBRSSI	AFTER(S_MIB_BEACONS)
+	{ 3,	"avgbrssi","BSI",	"average rssi (beacons only)" },
+#define	S_NODE_AVGRSSI	AFTER(S_NODE_AVGBRSSI)
+	{ 3,	"avgrssi","DSI",	"average rssi (all rx'd frames)" },
+#define	S_NODE_AVGARSSI	AFTER(S_NODE_AVGRSSI)
+	{ 3,	"avgtxrssi","TSI",	"average rssi (ACKs only)" },
+#define	S_ANT_TX0	AFTER(S_NODE_AVGARSSI)
+#else
 #define	S_ANT_TX0	AFTER(S_ANT_TXSWITCH)
+#endif /* ATH_SUPPORT_ANI */
 	{ 8,	"tx0",	"ant0(tx)",	"frames tx on antenna 0" },
 #define	S_ANT_TX1	AFTER(S_ANT_TX0)
 	{ 8,	"tx1",	"ant1(tx)",	"frames tx on antenna 1"  },
@@ -302,12 +372,41 @@ static const struct fmt athstats[] = {
 
 struct _athstats {
 	struct ath_stats ath;
+#ifdef ATH_SUPPORT_ANI
+	struct {
+		uint32_t ast_ani_niup;		/* increased noise immunity */
+		uint32_t ast_ani_nidown;	/* decreased noise immunity */
+		uint32_t ast_ani_spurup;	/* increased spur immunity */
+		uint32_t ast_ani_spurdown;	/* descreased spur immunity */
+		uint32_t ast_ani_ofdmon;	/* OFDM weak signal detect on */
+		uint32_t ast_ani_ofdmoff;	/* OFDM weak signal detect off*/
+		uint32_t ast_ani_cckhigh;	/* CCK weak signal thr high */
+		uint32_t ast_ani_ccklow;	/* CCK weak signal thr low */
+		uint32_t ast_ani_stepup;	/* increased first step level */
+		uint32_t ast_ani_stepdown;	/* decreased first step level */
+		uint32_t ast_ani_ofdmerrs;	/* cumulative ofdm phy err cnt*/
+		uint32_t ast_ani_cckerrs;	/* cumulative cck phy err cnt */
+		uint32_t ast_ani_reset;	/* params zero'd for non-STA */
+		uint32_t ast_ani_lzero;	/* listen time forced to zero */
+		uint32_t ast_ani_lneg;		/* listen time calculated < 0 */
+		HAL_MIB_STATS ast_mibstats;	/* MIB counter stats */
+		HAL_NODE_STATS ast_nodestats;	/* latest rssi stats */
+	} ani_stats;
+	struct {
+		uint8_t	noiseImmunityLevel;
+		uint8_t	spurImmunityLevel;
+		uint8_t	firstepLevel;
+		uint8_t	ofdmWeakSigDetectOff;
+		uint32_t listenTime;
+	} ani_state;
+#endif
 };
 
 struct athstatfoo_p {
 	struct athstatfoo base;
 	int s;
 	int optstats;
+#define	ATHSTATS_ANI	0x0001
 	struct ifreq ifr;
 	struct ath_diag atd;
 	struct _athstats cur;
@@ -320,6 +419,10 @@ ath_setifname(struct athstatfoo *wf0, const char *ifname)
 	struct athstatfoo_p *wf = (struct athstatfoo_p *) wf0;
 
 	strncpy(wf->ifr.ifr_name, ifname, sizeof (wf->ifr.ifr_name));
+#ifdef ATH_SUPPORT_ANI
+	strncpy(wf->atd.ad_name, ifname, sizeof (wf->atd.ad_name));
+	wf->optstats |= ATHSTATS_ANI;
+#endif
 }
 
 static void
@@ -328,6 +431,22 @@ ath_collect(struct athstatfoo_p *wf, struct _athstats *stats)
 	wf->ifr.ifr_data = (caddr_t) &stats->ath;
 	if (ioctl(wf->s, SIOCGATHSTATS, &wf->ifr) < 0)
 		err(1, wf->ifr.ifr_name);
+#ifdef ATH_SUPPORT_ANI
+	if (wf->optstats & ATHSTATS_ANI) {
+		wf->atd.ad_id = 5;
+		wf->atd.ad_out_data = (caddr_t) &stats->ani_state;
+		wf->atd.ad_out_size = sizeof(stats->ani_state);
+		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0) {
+			warn(wf->atd.ad_name);
+			wf->optstats &= ~ATHSTATS_ANI;
+		}
+		wf->atd.ad_id = 8;
+		wf->atd.ad_out_data = (caddr_t) &stats->ani_stats;
+		wf->atd.ad_out_size = sizeof(stats->ani_stats);
+		if (ioctl(wf->s, SIOCGATHDIAG, &wf->atd) < 0)
+			warn(wf->atd.ad_name);
+	}
+#endif /* ATH_SUPPORT_ANI */
 }
 
 static void
@@ -354,6 +473,17 @@ ath_update_tot(struct statfoo *sf)
 	wf->total = wf->cur;
 }
 
+static void
+snprintrate(char b[], size_t bs, int rate)
+{
+	if (rate & IEEE80211_RATE_MCS)
+		snprintf(b, bs, "MCS%u", rate &~ IEEE80211_RATE_MCS);
+	else if (rate & 1)
+		snprintf(b, bs, "%u.5M", rate / 2);
+	else
+		snprintf(b, bs, "%uM", rate / 2);
+}
+
 static int
 ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 {
@@ -362,6 +492,12 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	snprintf(b, bs, "%u", wf->cur.ath.ast_##x - wf->total.ath.ast_##x); return 1
 #define	PHY(x) \
 	snprintf(b, bs, "%u", wf->cur.ath.ast_rx_phy[x] - wf->total.ath.ast_rx_phy[x]); return 1
+#define	ANI(x) \
+	snprintf(b, bs, "%u", wf->cur.ani_state.x); return 1
+#define	ANISTAT(x) \
+	snprintf(b, bs, "%u", wf->cur.ani_stats.ast_ani_##x - wf->total.ani_stats.ast_ani_##x); return 1
+#define	MIBSTAT(x) \
+	snprintf(b, bs, "%u", wf->cur.ani_stats.ast_mibstats.x - wf->total.ani_stats.ast_mibstats.x); return 1
 #define	TXANT(x) \
 	snprintf(b, bs, "%u", wf->cur.ath.ast_ant_tx[x] - wf->total.ath.ast_ant_tx[x]); return 1
 #define	RXANT(x) \
@@ -378,7 +514,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 		    wf->cur.ath.ast_tx_packets - wf->total.ath.ast_tx_packets);
 		return 1;
 	case S_RATE:
-		snprintf(b, bs, "%uM", wf->cur.ath.ast_tx_rate / 2);
+		snprintrate(b, bs, wf->cur.ath.ast_tx_rate);
 		return 1;
 	case S_WATCHDOG:	STAT(watchdog);
 	case S_FATAL:		STAT(hardware);
@@ -472,6 +608,45 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RATE_DROP:	STAT(rate_drop);
 	case S_ANT_DEFSWITCH:	STAT(ant_defswitch);
 	case S_ANT_TXSWITCH:	STAT(ant_txswitch);
+#ifdef S_ANI_NOISE
+	case S_ANI_NOISE:	ANI(noiseImmunityLevel);
+	case S_ANI_SPUR:	ANI(spurImmunityLevel);
+	case S_ANI_STEP:	ANI(firstepLevel);
+	case S_ANI_OFDM:	ANI(ofdmWeakSigDetectOff);
+	case S_ANI_LISTEN:	ANI(listenTime);
+	case S_ANI_NIUP:	ANISTAT(niup);
+	case S_ANI_NIDOWN:	ANISTAT(nidown);
+	case S_ANI_SIUP:	ANISTAT(spurup);
+	case S_ANI_SIDOWN:	ANISTAT(spurdown);
+	case S_ANI_OFDMON:	ANISTAT(ofdmon);
+	case S_ANI_OFDMOFF:	ANISTAT(ofdmoff);
+	case S_ANI_CCKHI:	ANISTAT(cckhigh);
+	case S_ANI_CCKLO:	ANISTAT(ccklow);
+	case S_ANI_STEPUP:	ANISTAT(stepup);
+	case S_ANI_STEPDOWN:	ANISTAT(stepdown);
+	case S_ANI_OFDMERRS:	ANISTAT(ofdmerrs);
+	case S_ANI_CCKERRS:	ANISTAT(cckerrs);
+	case S_ANI_RESET:	ANISTAT(reset);
+	case S_ANI_LZERO:	ANISTAT(lzero);
+	case S_ANI_LNEG:	ANISTAT(lneg);
+	case S_MIB_ACKBAD:	MIBSTAT(ackrcv_bad);
+	case S_MIB_RTSBAD:	MIBSTAT(rts_bad);
+	case S_MIB_RTSGOOD:	MIBSTAT(rts_good);
+	case S_MIB_FCSBAD:	MIBSTAT(fcs_bad);
+	case S_MIB_BEACONS:	MIBSTAT(beacons);
+	case S_NODE_AVGBRSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->cur.ani_stats.ast_nodestats.ns_avgbrssi));
+		return 1;
+	case S_NODE_AVGRSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->cur.ani_stats.ast_nodestats.ns_avgrssi));
+		return 1;
+	case S_NODE_AVGARSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->cur.ani_stats.ast_nodestats.ns_avgtxrssi));
+		return 1;
+#endif
 	case S_ANT_TX0:		TXANT(0);
 	case S_ANT_TX1:		TXANT(1);
 	case S_ANT_TX2:		TXANT(2);
@@ -513,6 +688,9 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	return 0;
 #undef RXANT
 #undef TXANT
+#undef ANI
+#undef ANISTAT
+#undef MIBSTAT
 #undef PHY
 #undef STAT
 }
@@ -525,6 +703,12 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	snprintf(b, bs, "%u", wf->total.ath.ast_##x); return 1
 #define	PHY(x) \
 	snprintf(b, bs, "%u", wf->total.ath.ast_rx_phy[x]); return 1
+#define	ANI(x) \
+	snprintf(b, bs, "%u", wf->total.ani_state.x); return 1
+#define	ANISTAT(x) \
+	snprintf(b, bs, "%u", wf->total.ani_stats.ast_ani_##x); return 1
+#define	MIBSTAT(x) \
+	snprintf(b, bs, "%u", wf->total.ani_stats.ast_mibstats.x); return 1
 #define	TXANT(x) \
 	snprintf(b, bs, "%u", wf->total.ath.ast_ant_tx[x]); return 1
 #define	RXANT(x) \
@@ -539,7 +723,7 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 		snprintf(b, bs, "%lu", wf->total.ath.ast_tx_packets);
 		return 1;
 	case S_RATE:
-		snprintf(b, bs, "%uM", wf->total.ath.ast_tx_rate / 2);
+		snprintrate(b, bs, wf->total.ath.ast_tx_rate);
 		return 1;
 	case S_WATCHDOG:	STAT(watchdog);
 	case S_FATAL:		STAT(hardware);
@@ -633,6 +817,44 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RATE_DROP:	STAT(rate_drop);
 	case S_ANT_DEFSWITCH:	STAT(ant_defswitch);
 	case S_ANT_TXSWITCH:	STAT(ant_txswitch);
+#ifdef S_ANI_NOISE
+	case S_ANI_NOISE:	ANI(noiseImmunityLevel);
+	case S_ANI_SPUR:	ANI(spurImmunityLevel);
+	case S_ANI_STEP:	ANI(firstepLevel);
+	case S_ANI_LISTEN:	ANI(listenTime);
+	case S_ANI_NIUP:	ANISTAT(niup);
+	case S_ANI_NIDOWN:	ANISTAT(nidown);
+	case S_ANI_SIUP:	ANISTAT(spurup);
+	case S_ANI_SIDOWN:	ANISTAT(spurdown);
+	case S_ANI_OFDMON:	ANISTAT(ofdmon);
+	case S_ANI_OFDMOFF:	ANISTAT(ofdmoff);
+	case S_ANI_CCKHI:	ANISTAT(cckhigh);
+	case S_ANI_CCKLO:	ANISTAT(ccklow);
+	case S_ANI_STEPUP:	ANISTAT(stepup);
+	case S_ANI_STEPDOWN:	ANISTAT(stepdown);
+	case S_ANI_OFDMERRS:	ANISTAT(ofdmerrs);
+	case S_ANI_CCKERRS:	ANISTAT(cckerrs);
+	case S_ANI_RESET:	ANISTAT(reset);
+	case S_ANI_LZERO:	ANISTAT(lzero);
+	case S_ANI_LNEG:	ANISTAT(lneg);
+	case S_MIB_ACKBAD:	MIBSTAT(ackrcv_bad);
+	case S_MIB_RTSBAD:	MIBSTAT(rts_bad);
+	case S_MIB_RTSGOOD:	MIBSTAT(rts_good);
+	case S_MIB_FCSBAD:	MIBSTAT(fcs_bad);
+	case S_MIB_BEACONS:	MIBSTAT(beacons);
+	case S_NODE_AVGBRSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->total.ani_stats.ast_nodestats.ns_avgbrssi));
+		return 1;
+	case S_NODE_AVGRSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->total.ani_stats.ast_nodestats.ns_avgrssi));
+		return 1;
+	case S_NODE_AVGARSSI:
+		snprintf(b, bs, "%u",
+		    HAL_RSSI(wf->total.ani_stats.ast_nodestats.ns_avgtxrssi));
+		return 1;
+#endif
 	case S_ANT_TX0:		TXANT(0);
 	case S_ANT_TX1:		TXANT(1);
 	case S_ANT_TX2:		TXANT(2);
@@ -674,6 +896,9 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	return 0;
 #undef RXANT
 #undef TXANT
+#undef ANI
+#undef ANISTAT
+#undef MIBSTAT
 #undef PHY
 #undef STAT
 }

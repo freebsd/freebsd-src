@@ -49,8 +49,30 @@
 
 #include "athstats.h"
 
-#define	S_DEFAULT \
-	"input,output,altrate,short,long,xretry,crcerr,crypt,phyerr,rssi,rate"
+static struct {
+	const char *tag;
+	const char *fmt;
+} tags[] = {
+  { "default",
+    "input,output,altrate,short,long,xretry,crcerr,crypt,phyerr,rssi,rate"
+  },
+  { "ani",
+    "avgbrssi,avgrssi,avgtxrssi,NI,SI,step,owsd,cwst,NI+,NI-,SI+,SI-,OFDM,CCK,LISTEN"
+  },
+};
+
+static const char *
+getfmt(const char *tag)
+{
+#define	N(a)	(sizeof(a)/sizeof(a[0]))
+	int i;
+	for (i = 0; i < N(tags); i++)
+		if (strcasecmp(tags[i].tag, tag) == 0)
+			return tags[i].fmt;
+	errx(-1, "unknown tag \%s\"", tag);
+	/*NOTREACHED*/
+#undef N
+}
 
 static int signalled;
 
@@ -70,7 +92,7 @@ main(int argc, char *argv[])
 	ifname = getenv("ATH");
 	if (ifname == NULL)
 		ifname = "ath0";
-	wf = athstats_new(ifname, S_DEFAULT);
+	wf = athstats_new(ifname, getfmt("default"));
 	while ((c = getopt(argc, argv, "i:lo:")) != -1) {
 		switch (c) {
 		case 'i':
@@ -80,7 +102,7 @@ main(int argc, char *argv[])
 			wf->print_fields(wf, stdout);
 			return 0;
 		case 'o':
-			wf->setfmt(wf, optarg);
+			wf->setfmt(wf, getfmt(optarg));
 			break;
 		default:
 			errx(-1, "usage: %s [-a] [-i ifname] [-l] [-o fmt] [interval]\n", argv[0]);
