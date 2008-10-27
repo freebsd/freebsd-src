@@ -11682,7 +11682,12 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->put_last_out = 0;
 	resv_in_first = sizeof(struct sctp_data_chunk);
 	sp->data = sp->tail_mbuf = NULL;
+	if (sp->length == 0) {
+		*error = 0;
+		goto skip_copy;
+	}
 	*error = sctp_copy_one(sp, uio, resv_in_first);
+skip_copy:
 	if (*error) {
 		sctp_free_a_strmoq(stcb, sp);
 		sp = NULL;
@@ -12443,7 +12448,8 @@ sctp_lower_sosend(struct socket *so,
 		goto skip_preblock;
 	}
 	if (((max_len <= local_add_more) &&
-	    (SCTP_SB_LIMIT_SND(so) > local_add_more)) ||
+	    (SCTP_SB_LIMIT_SND(so) >= local_add_more)) ||
+	    (max_len == 0) ||
 	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue))) {	/* if */
 		/* No room right now ! */
 		SOCKBUF_LOCK(&so->so_snd);
@@ -13058,7 +13064,7 @@ skip_out_eof:
 		(void)sctp_med_chunk_output(inp, stcb, &stcb->asoc, &num_out,
 		    &reason, 1, &cwnd_full, 1, &now, &now_filled, frag_point, SCTP_SO_LOCKED);
 	}
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "USR Send complete qo:%d prw:%d unsent:%d tf:%d cooq:%d toqs:%d err:%d",
+	SCTPDBG(SCTP_DEBUG_OUTPUT1, "USR Send complete qo:%d prw:%d unsent:%d tf:%d cooq:%d toqs:%d err:%d\n",
 	    queue_only, stcb->asoc.peers_rwnd, un_sent,
 	    stcb->asoc.total_flight, stcb->asoc.chunks_on_out_queue,
 	    stcb->asoc.total_output_queue_size, error);
