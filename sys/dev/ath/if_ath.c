@@ -2588,7 +2588,7 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_MONITOR || (ifp->if_flags & IFF_PROMISC))
 		rfilt |= HAL_RX_FILTER_PROM;
 	if (ic->ic_opmode == IEEE80211_M_STA ||
-	    sc->sc_opmode == HAL_M_IBSS ||
+	    ic->ic_opmode == IEEE80211_M_IBSS ||
 	    sc->sc_swbmiss || sc->sc_scanning)
 		rfilt |= HAL_RX_FILTER_BEACON;
 	/*
