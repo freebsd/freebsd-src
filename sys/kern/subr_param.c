@@ -118,7 +118,7 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
  */
 struct	buf *swbuf;
 
-char *vm_pnames[] = {
+static char *vm_pnames[] = {
 	"VMware Virtual Platform",	/* VMWare VM */
 	"Virtual Machine",		/* Microsoft VirtualPC */
 	"VirtualBox",			/* Sun xVM VirtualBox */
