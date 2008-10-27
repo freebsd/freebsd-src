@@ -298,6 +298,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	struct ath_hal *ah = NULL;
 	HAL_STATUS status;
 	int error = 0, i;
+	u_int wmodes;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -605,7 +606,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	sc->sc_hastsfadd = ath_hal_hastsfadjust(ah);
 	if (ath_hal_hasfastframes(ah))
 		ic->ic_caps |= IEEE80211_C_FF;
-	if (ath_hal_getwirelessmodes(ah, ic->ic_regdomain.country) & (HAL_MODE_108G|HAL_MODE_TURBO))
+	wmodes = ath_hal_getwirelessmodes(ah, ic->ic_regdomain.country);
+	if (wmodes & (HAL_MODE_108G|HAL_MODE_TURBO))
 		ic->ic_caps |= IEEE80211_C_TURBOP;
 
 	/*
@@ -2550,10 +2552,10 @@ ath_key_update_end(struct ieee80211vap *vap)
  *
  * o always accept unicast, broadcast, and multicast traffic
  * o accept PHY error frames when hardware doesn't have MIB support
- *   to count and we need them for ANI (sta mode only at the moment)
+ *   to count and we need them for ANI (sta mode only until recently)
  *   and we are not scanning (ANI is disabled)
- *   NB: only with recent hal's; older hal's add rx filter bits out
- *       of sight and we need to blindly preserve them
+ *   NB: older hal's add rx filter bits out of sight and we need to
+ *	 blindly preserve them
  * o probe request frames are accepted only when operating in
  *   hostap, adhoc, or monitor modes
  * o enable promiscuous mode
@@ -2580,14 +2582,16 @@ ath_calcrxfilter(struct ath_softc *sc)
 	struct ieee80211com *ic = ifp->if_l2com;
 	u_int32_t rfilt;
 
-#if HAL_ABI_VERSION < 0x08011600
-	rfilt = (ath_hal_getrxfilter(sc->sc_ah) &
-		(HAL_RX_FILTER_PHYRADAR | HAL_RX_FILTER_PHYERR))
-	      | HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
-#else
 	rfilt = HAL_RX_FILTER_UCAST | HAL_RX_FILTER_BCAST | HAL_RX_FILTER_MCAST;
+#if HAL_ABI_VERSION < 0x08011600
+	rfilt |= (ath_hal_getrxfilter(sc->sc_ah) &
+		(HAL_RX_FILTER_PHYRADAR | HAL_RX_FILTER_PHYERR));
+#elif HAL_ABI_VERSION < 0x08060100
 	if (ic->ic_opmode == IEEE80211_M_STA &&
 	    !sc->sc_needmib && !sc->sc_scanning)
+		rfilt |= HAL_RX_FILTER_PHYERR;
+#else
+	if (!sc->sc_needmib && !sc->sc_scanning)
 		rfilt |= HAL_RX_FILTER_PHYERR;
 #endif
 	if (ic->ic_opmode != IEEE80211_M_STA)
