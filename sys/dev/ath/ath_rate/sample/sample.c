@@ -493,9 +493,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 	const struct ath_desc *ds0 = &bf->bf_desc[0];
 	int final_rate, short_tries, long_tries, frame_size;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int mrr;
 
-	final_rate = sc->sc_hwmap[ts->ts_rate &~ HAL_TXSTAT_ALTRATE].ieeerate;
+	final_rate = sc->sc_hwmap[
+	    rt->rateCodeToIndex[ts->ts_rate &~ HAL_TXSTAT_ALTRATE]].ieeerate;
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
 	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
@@ -557,19 +559,19 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			hwrate3 = MS(ds0->ds_ctl3, AR5416_XmitRate3);
 		}
 
-		rate0 = sc->sc_hwmap[hwrate0].ieeerate;
+		rate0 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate0]].ieeerate;
 		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
 		ndx0 = rate_to_ndx(sn, rate0);
 
-		rate1 = sc->sc_hwmap[hwrate1].ieeerate;
+		rate1 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate1]].ieeerate;
 		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
 		ndx1 = rate_to_ndx(sn, rate1);
 
-		rate2 = sc->sc_hwmap[hwrate2].ieeerate;
+		rate2 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate2]].ieeerate;
 		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
 		ndx2 = rate_to_ndx(sn, rate2);
 
-		rate3 = sc->sc_hwmap[hwrate3].ieeerate;
+		rate3 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate3]].ieeerate;
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
 
