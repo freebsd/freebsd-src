@@ -5040,7 +5040,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 				pri = M_WME_GETAC(bf->bf_m);
 				if (pri >= WME_AC_VO)
 					ic->ic_wme.wme_hipri_traffic++;
-				ni->ni_inact = ni->ni_inact_reload;
+				if ((bf->bf_txflags & HAL_TXDESC_NOACK) == 0)
+					ni->ni_inact = ni->ni_inact_reload;
 			} else {
 				if (ts->ts_status & HAL_TXERR_XRETRY)
 					sc->sc_stats.ast_tx_xretries++;
