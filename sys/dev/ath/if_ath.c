@@ -5673,6 +5673,7 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	ni = vap->iv_bss;
 	rfilt = ath_calcrxfilter(sc);
 	stamode = (vap->iv_opmode == IEEE80211_M_STA ||
+		   vap->iv_opmode == IEEE80211_M_AHDEMO ||
 		   vap->iv_opmode == IEEE80211_M_IBSS);
 	if (stamode && nstate == IEEE80211_S_RUN) {
 		sc->sc_curaid = ni->ni_associd;
