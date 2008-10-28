@@ -2175,6 +2175,7 @@ security/audit/audit_trigger.c	optional audit
 security/audit/audit_worker.c	optional audit
 security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
+security/mac/mac_cred.c		optional mac
 security/mac/mac_framework.c	optional mac
 security/mac/mac_inet.c		optional mac inet
 security/mac/mac_inet6.c	optional mac inet6
