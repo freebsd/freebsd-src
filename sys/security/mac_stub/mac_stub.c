@@ -1020,38 +1020,6 @@ stub_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
 	return (0);
 }
 
-static int
-stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
-{
-
-	return (0);
-}
-
 static void
 stub_sysvmsg_cleanup(struct label *msglabel)
 {
@@ -1243,6 +1211,38 @@ stub_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
     struct vnode *vp, struct label *vplabel)
 {
 
+}
+
+static int
+stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
+    struct label *vplabel, int acc_mode)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
+{
+
+	return (0);
 }
 
 static int
