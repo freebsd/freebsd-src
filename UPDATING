@@ -22,6 +22,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20081028:
+	dummynet(4) ABI has changed. ipfw(8) needs to be recompiled.
+
 20081009:
 	The uhci, ohci, ehci and slhci USB Host controller drivers have
 	been put into separate modules. If you load the usb module
