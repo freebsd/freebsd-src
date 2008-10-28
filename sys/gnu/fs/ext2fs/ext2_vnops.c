@@ -90,7 +90,6 @@ static vop_close_t	ext2_close;
 static vop_create_t	ext2_create;
 static vop_fsync_t	ext2_fsync;
 static vop_getattr_t	ext2_getattr;
-static vop_kqfilter_t	ext2_kqfilter;
 static vop_link_t	ext2_link;
 static vop_mkdir_t	ext2_mkdir;
 static vop_mknod_t	ext2_mknod;
@@ -109,10 +108,6 @@ static vop_write_t	ext2_write;
 static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
-static int filt_ext2read(struct knote *kn, long hint);
-static int filt_ext2write(struct knote *kn, long hint);
-static int filt_ext2vnode(struct knote *kn, long hint);
-static void filt_ext2detach(struct knote *kn);
 
 /* Global vfs data structures for ext2. */
 struct vop_vector ext2_vnodeops = {
@@ -132,7 +127,6 @@ struct vop_vector ext2_vnodeops = {
 	.vop_open =		ext2_open,
 	.vop_pathconf =		ext2_pathconf,
 	.vop_poll =		vop_stdpoll,
-	.vop_kqfilter =		ext2_kqfilter,
 	.vop_print =		ext2_print,
 	.vop_read =		ext2_read,
 	.vop_readdir =		ext2_readdir,
@@ -1475,7 +1469,7 @@ ext2fifo_kqfilter(ap)
 
 	error = fifo_specops.vop_kqfilter(ap);
 	if (error)
-		error = ext2_kqfilter(ap);
+		error = vfs_kqfilter(ap);
 	return (error);
 }
 
@@ -1649,104 +1643,4 @@ bad:
 	ip->i_flag |= IN_CHANGE;
 	vput(tvp);
 	return (error);
-}
-
-static struct filterops ext2read_filtops = 
-	{ 1, NULL, filt_ext2detach, filt_ext2read };
-static struct filterops ext2write_filtops = 
-	{ 1, NULL, filt_ext2detach, filt_ext2write };
-static struct filterops ext2vnode_filtops = 
-	{ 1, NULL, filt_ext2detach, filt_ext2vnode };
-
-static int
-ext2_kqfilter(ap)
-	struct vop_kqfilter_args /* {
-		struct vnode *a_vp;
-		struct knote *a_kn;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct knote *kn = ap->a_kn;
-
-	switch (kn->kn_filter) {
-	case EVFILT_READ:
-		kn->kn_fop = &ext2read_filtops;
-		break;
-	case EVFILT_WRITE:
-		kn->kn_fop = &ext2write_filtops;
-		break;
-	case EVFILT_VNODE:
-		kn->kn_fop = &ext2vnode_filtops;
-		break;
-	default:
-		return (1);
-	}
-
-	kn->kn_hook = (caddr_t)vp;
-
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
-	if (vp->v_pollinfo == NULL)
-		return ENOMEM;
-	knlist_add(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
-
-	return (0);
-}
-
-static void
-filt_ext2detach(struct knote *kn)
-{
-	struct vnode *vp = (struct vnode *)kn->kn_hook;
-
-	KASSERT(vp->v_pollinfo != NULL, ("Mising v_pollinfo"));
-	knlist_remove(&vp->v_pollinfo->vpi_selinfo.si_note, kn, 0);
-}
-
-/*ARGSUSED*/
-static int
-filt_ext2read(struct knote *kn, long hint)
-{
-	struct vnode *vp = (struct vnode *)kn->kn_hook;
-	struct inode *ip = VTOI(vp);
-
-	/*
-	 * filesystem is gone, so set the EOF flag and schedule 
-	 * the knote for deletion.
-	 */
-	if (hint == NOTE_REVOKE) {
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-		return (1);
-	}
-
-        kn->kn_data = ip->i_size - kn->kn_fp->f_offset;
-        return (kn->kn_data != 0);
-}
-
-/*ARGSUSED*/
-static int
-filt_ext2write(struct knote *kn, long hint)
-{
-
-	/*
-	 * filesystem is gone, so set the EOF flag and schedule 
-	 * the knote for deletion.
-	 */
-	if (hint == NOTE_REVOKE)
-		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
-
-        kn->kn_data = 0;
-        return (1);
-}
-
-static int
-filt_ext2vnode(struct knote *kn, long hint)
-{
-
-	if (kn->kn_sfflags & hint)
-		kn->kn_fflags |= hint;
-	if (hint == NOTE_REVOKE) {
-		kn->kn_flags |= EV_EOF;
-		return (1);
-	}
-	return (kn->kn_fflags != 0);
 }
