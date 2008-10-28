@@ -61,6 +61,7 @@
  * alphabetically.
  */
 #include <sys/acl.h>	/* XXX acl_type_t */
+#include <sys/types.h>	/* XXX accmode_t */
 
 struct acl;
 struct auditinfo;
@@ -530,7 +531,8 @@ typedef void	(*mpo_vnode_associate_singlelabel_t)(struct mount *mp,
 		    struct label *mplabel, struct vnode *vp,
 		    struct label *vplabel);
 typedef int	(*mpo_vnode_check_access_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vplabel, int acc_mode);
+		    struct vnode *vp, struct label *vplabel,
+		    accmode_t accmode);
 typedef int	(*mpo_vnode_check_chdir_t)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_vnode_check_chroot_t)(struct ucred *cred,
@@ -571,7 +573,8 @@ typedef void	(*mpo_vnode_check_mmap_downgrade_t)(struct ucred *cred,
 typedef int	(*mpo_vnode_check_mprotect_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel, int prot);
 typedef int	(*mpo_vnode_check_open_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vplabel, int acc_mode);
+		    struct vnode *vp, struct label *vplabel,
+		    accmode_t accmode);
 typedef int	(*mpo_vnode_check_poll_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *vplabel);

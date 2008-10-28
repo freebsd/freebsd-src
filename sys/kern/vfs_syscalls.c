@@ -2032,25 +2032,26 @@ vn_access(vp, user_flags, cred, td)
 	struct ucred	*cred;
 	struct thread	*td;
 {
-	int error, flags;
+	int error;
+	accmode_t accmode;
 
 	/* Flags == 0 means only check for existence. */
 	error = 0;
 	if (user_flags) {
-		flags = 0;
+		accmode = 0;
 		if (user_flags & R_OK)
-			flags |= VREAD;
+			accmode |= VREAD;
 		if (user_flags & W_OK)
-			flags |= VWRITE;
+			accmode |= VWRITE;
 		if (user_flags & X_OK)
-			flags |= VEXEC;
+			accmode |= VEXEC;
 #ifdef MAC
-		error = mac_vnode_check_access(cred, vp, flags);
+		error = mac_vnode_check_access(cred, vp, accmode);
 		if (error)
 			return (error);
 #endif
-		if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
-			error = VOP_ACCESS(vp, flags, cred, td);
+		if ((accmode & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
+			error = VOP_ACCESS(vp, accmode, cred, td);
 	}
 	return (error);
 }
@@ -4349,7 +4350,8 @@ fhopen(td, uap)
 	struct flock lf;
 	struct file *fp;
 	register struct filedesc *fdp = p->p_fd;
-	int fmode, mode, error, type;
+	int fmode, error, type;
+	accmode_t accmode;
 	struct file *nfp;
 	int vfslocked;
 	int indx;
@@ -4391,7 +4393,7 @@ fhopen(td, uap)
 		error = EOPNOTSUPP;
 		goto bad;
 	}
-	mode = 0;
+	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
 		if (vp->v_type == VDIR) {
 			error = EISDIR;
@@ -4400,19 +4402,19 @@ fhopen(td, uap)
 		error = vn_writechk(vp);
 		if (error)
 			goto bad;
-		mode |= VWRITE;
+		accmode |= VWRITE;
 	}
 	if (fmode & FREAD)
-		mode |= VREAD;
+		accmode |= VREAD;
 	if (fmode & O_APPEND)
-		mode |= VAPPEND;
+		accmode |= VAPPEND;
 #ifdef MAC
-	error = mac_vnode_check_open(td->td_ucred, vp, mode);
+	error = mac_vnode_check_open(td->td_ucred, vp, accmode);
 	if (error)
 		goto bad;
 #endif
-	if (mode) {
-		error = VOP_ACCESS(vp, mode, td->td_ucred, td);
+	if (accmode) {
+		error = VOP_ACCESS(vp, accmode, td->td_ucred, td);
 		if (error)
 			goto bad;
 	}
