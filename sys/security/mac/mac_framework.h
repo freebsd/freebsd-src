@@ -103,8 +103,11 @@ void	mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m);
 void	mac_bpfdesc_destroy(struct bpf_d *);
 void	mac_bpfdesc_init(struct bpf_d *);
 
+void	mac_cred_associate_nfsd(struct ucred *cred);
 int	mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_copy(struct ucred *cr1, struct ucred *cr2);
+void	mac_cred_create_init(struct ucred *cred);
+void	mac_cred_create_swapper(struct ucred *cred);
 void	mac_cred_destroy(struct ucred *);
 void	mac_cred_init(struct ucred *);
 
@@ -227,7 +230,6 @@ void	mac_posixshm_init(struct shmfd *);
 int	mac_priv_check(struct ucred *cred, int priv);
 int	mac_priv_grant(struct ucred *cred, int priv);
 
-void	mac_proc_associate_nfsd(struct ucred *cred);
 int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
 int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
 int	mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai);
@@ -255,8 +257,6 @@ int	mac_proc_check_setuid(struct proc *p,  struct ucred *cred,
 int	mac_proc_check_signal(struct ucred *cred, struct proc *p,
 	    int signum);
 int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
-void	mac_proc_create_init(struct ucred *cred);
-void	mac_proc_create_swapper(struct ucred *cred);
 void	mac_proc_destroy(struct proc *);
 void	mac_proc_init(struct proc *);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);

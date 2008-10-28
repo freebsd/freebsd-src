@@ -242,6 +242,24 @@ test_cred_copy_label(struct label *src, struct label *dest)
 	COUNTER_INC(cred_copy_label);
 }
 
+COUNTER_DECL(cred_create_init);
+static void
+test_cred_create_init(struct ucred *cred)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_create_init);
+}
+
+COUNTER_DECL(cred_create_swapper);
+static void
+test_cred_create_swapper(struct ucred *cred)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	COUNTER_INC(cred_create_swapper);
+}
+
 COUNTER_DECL(cred_destroy_label);
 static void
 test_cred_destroy_label(struct label *label)
@@ -1478,24 +1496,6 @@ test_proc_check_wait(struct ucred *cred, struct proc *p)
 	COUNTER_INC(proc_check_wait);
 
 	return (0);
-}
-
-COUNTER_DECL(proc_create_init);
-static void
-test_proc_create_init(struct ucred *cred)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_create_init);
-}
-
-COUNTER_DECL(proc_create_swapper);
-static void
-test_proc_create_swapper(struct ucred *cred)
-{
-
-	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
-	COUNTER_INC(proc_create_swapper);
 }
 
 COUNTER_DECL(proc_destroy_label);
@@ -2883,6 +2883,8 @@ static struct mac_policy_ops test_ops =
 	.mpo_cred_check_relabel = test_cred_check_relabel,
 	.mpo_cred_check_visible = test_cred_check_visible,
 	.mpo_cred_copy_label = test_cred_copy_label,
+	.mpo_cred_create_init = test_cred_create_init,
+	.mpo_cred_create_swapper = test_cred_create_swapper,
 	.mpo_cred_destroy_label = test_cred_destroy_label,
 	.mpo_cred_externalize_label = test_cred_externalize_label,
 	.mpo_cred_init_label = test_cred_init_label,
@@ -3022,8 +3024,6 @@ static struct mac_policy_ops test_ops =
 	.mpo_proc_check_setuid = test_proc_check_setuid,
 	.mpo_proc_check_signal = test_proc_check_signal,
 	.mpo_proc_check_wait = test_proc_check_wait,
-	.mpo_proc_create_init = test_proc_create_init,
-	.mpo_proc_create_swapper = test_proc_create_swapper,
 	.mpo_proc_destroy_label = test_proc_destroy_label,
 	.mpo_proc_init_label = test_proc_init_label,
 

@@ -815,6 +815,17 @@ biba_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
 	biba_copy_effective(source, dest);
 }
 
+static void
+biba_cred_associate_nfsd(struct ucred *cred)
+{
+	struct mac_biba *label;
+
+	label = SLOT(cred->cr_label);
+	biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
+	biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
+	    0, NULL);
+}
+
 static int
 biba_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -892,6 +903,30 @@ biba_cred_check_visible(struct ucred *u1, struct ucred *u2)
 		return (ESRCH);
 
 	return (0);
+}
+
+static void
+biba_cred_create_init(struct ucred *cred)
+{
+	struct mac_biba *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	biba_set_effective(dest, MAC_BIBA_TYPE_HIGH, 0, NULL);
+	biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
+	    0, NULL);
+}
+
+static void
+biba_cred_create_swapper(struct ucred *cred)
+{
+	struct mac_biba *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
+	biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
+	    0, NULL);
 }
 
 static void
@@ -1818,17 +1853,6 @@ biba_priv_check(struct ucred *cred, int priv)
 	return (0);
 }
 
-static void
-biba_proc_associate_nfsd(struct ucred *cred)
-{
-	struct mac_biba *label;
-
-	label = SLOT(cred->cr_label);
-	biba_set_effective(label, MAC_BIBA_TYPE_LOW, 0, NULL);
-	biba_set_range(label, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
-	    0, NULL);
-}
-
 static int
 biba_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -1902,30 +1926,6 @@ biba_socket_check_deliver(struct socket *so, struct label *solabel,
 	s = SLOT(solabel);
 
 	return (biba_equal_effective(p, s) ? 0 : EACCES);
-}
-
-static void
-biba_proc_create_init(struct ucred *cred)
-{
-	struct mac_biba *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	biba_set_effective(dest, MAC_BIBA_TYPE_HIGH, 0, NULL);
-	biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
-	    0, NULL);
-}
-
-static void
-biba_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_biba *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	biba_set_effective(dest, MAC_BIBA_TYPE_EQUAL, 0, NULL);
-	biba_set_range(dest, MAC_BIBA_TYPE_LOW, 0, NULL, MAC_BIBA_TYPE_HIGH,
-	    0, NULL);
 }
 
 static int
@@ -3334,9 +3334,12 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_bpfdesc_destroy_label = biba_destroy_label,
 	.mpo_bpfdesc_init_label = biba_init_label,
 
+	.mpo_cred_associate_nfsd = biba_cred_associate_nfsd,
 	.mpo_cred_check_relabel = biba_cred_check_relabel,
 	.mpo_cred_check_visible = biba_cred_check_visible,
 	.mpo_cred_copy_label = biba_copy_label,
+	.mpo_cred_create_init = biba_cred_create_init,
+	.mpo_cred_create_swapper = biba_cred_create_swapper,
 	.mpo_cred_destroy_label = biba_destroy_label,
 	.mpo_cred_externalize_label = biba_externalize_label,
 	.mpo_cred_init_label = biba_init_label,
@@ -3432,12 +3435,9 @@ static struct mac_policy_ops mac_biba_ops =
 
 	.mpo_priv_check = biba_priv_check,
 
-	.mpo_proc_associate_nfsd = biba_proc_associate_nfsd,
 	.mpo_proc_check_debug = biba_proc_check_debug,
 	.mpo_proc_check_sched = biba_proc_check_sched,
 	.mpo_proc_check_signal = biba_proc_check_signal,
-	.mpo_proc_create_init = biba_proc_create_init,
-	.mpo_proc_create_swapper = biba_proc_create_swapper,
 
 	.mpo_socket_check_deliver = biba_socket_check_deliver,
 	.mpo_socket_check_relabel = biba_socket_check_relabel,
