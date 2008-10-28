@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2008 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Samy Al Bahra
@@ -160,6 +160,44 @@ mac_proc_destroy(struct proc *p)
 	}
 }
 
+/*
+ * When a thread becomes an NFS server daemon, its credential may need to be
+ * updated to reflect this so that policies can recognize when file system
+ * operations originate from the network.
+ *
+ * At some point, it would be desirable if the credential used for each NFS
+ * RPC could be set based on the RPC context (i.e., source system, etc) to
+ * provide more fine-grained access control.
+ */
+void
+mac_cred_associate_nfsd(struct ucred *cred)
+{
+
+	MAC_PERFORM(cred_associate_nfsd, cred);
+}
+
+/*
+ * Initialize MAC label for the first kernel process, from which other kernel
+ * processes and threads are spawned.
+ */
+void
+mac_cred_create_swapper(struct ucred *cred)
+{
+
+	MAC_PERFORM(cred_create_swapper, cred);
+}
+
+/*
+ * Initialize MAC label for the first userland process, from which other
+ * userland processes and threads are spawned.
+ */
+void
+mac_cred_create_init(struct ucred *cred)
+{
+
+	MAC_PERFORM(cred_create_init, cred);
+}
+
 int
 mac_cred_externalize_label(struct label *label, char *elements,
     char *outbuf, size_t outbuflen)
@@ -179,44 +217,6 @@ mac_cred_internalize_label(struct label *label, char *string)
 	MAC_INTERNALIZE(cred, label, string);
 
 	return (error);
-}
-
-/*
- * Initialize MAC label for the first kernel process, from which other kernel
- * processes and threads are spawned.
- */
-void
-mac_proc_create_swapper(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_create_swapper, cred);
-}
-
-/*
- * Initialize MAC label for the first userland process, from which other
- * userland processes and threads are spawned.
- */
-void
-mac_proc_create_init(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_create_init, cred);
-}
-
-/*
- * When a thread becomes an NFS server daemon, its credential may need to be
- * updated to reflect this so that policies can recognize when file system
- * operations originate from the network.
- *
- * At some point, it would be desirable if the credential used for each NFS
- * RPC could be set based on the RPC context (i.e., source system, etc) to
- * provide more fine-grained access control.
- */
-void
-mac_proc_associate_nfsd(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_associate_nfsd, cred);
 }
 
 void

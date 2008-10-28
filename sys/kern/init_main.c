@@ -456,7 +456,7 @@ proc0_init(void *dummy __unused)
 	audit_cred_kproc0(p->p_ucred);
 #endif
 #ifdef MAC
-	mac_proc_create_swapper(p->p_ucred);
+	mac_cred_create_swapper(p->p_ucred);
 #endif
 	td->td_ucred = crhold(p->p_ucred);
 
@@ -736,7 +736,7 @@ create_init(const void *udata __unused)
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
-	mac_proc_create_init(newcred);
+	mac_cred_create_init(newcred);
 #endif
 #ifdef AUDIT
 	audit_cred_proc1(newcred);

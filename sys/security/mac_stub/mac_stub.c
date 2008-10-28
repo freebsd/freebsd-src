@@ -185,6 +185,12 @@ stub_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
 
 }
 
+static void
+stub_cred_associate_nfsd(struct ucred *cred)
+{
+
+}
+
 static int
 stub_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -197,6 +203,18 @@ stub_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
 	return (0);
+}
+
+static void
+stub_cred_create_init(struct ucred *cred)
+{
+
+}
+
+static void
+stub_cred_create_swapper(struct ucred *cred)
+{
+
 }
 
 static void
@@ -668,12 +686,6 @@ stub_priv_grant(struct ucred *cred, int priv)
 	return (EPERM);
 }
 
-static void
-stub_proc_associate_nfsd(struct ucred *cred)
-{
-
-}
-
 static int
 stub_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -787,18 +799,6 @@ stub_proc_check_wait(struct ucred *cred, struct proc *p)
 {
 
 	return (0);
-}
-
-static void
-stub_proc_create_init(struct ucred *cred)
-{
-
-}
-
-static void
-stub_proc_create_swapper(struct ucred *cred)
-{
-
 }
 
 static int
@@ -1539,9 +1539,12 @@ static struct mac_policy_ops stub_ops =
 	.mpo_bpfdesc_destroy_label = stub_destroy_label,
 	.mpo_bpfdesc_init_label = stub_init_label,
 
+	.mpo_cred_associate_nfsd = stub_cred_associate_nfsd,
 	.mpo_cred_check_relabel = stub_cred_check_relabel,
 	.mpo_cred_check_visible = stub_cred_check_visible,
 	.mpo_cred_copy_label = stub_copy_label,
+	.mpo_cred_create_init = stub_cred_create_init,
+	.mpo_cred_create_swapper = stub_cred_create_swapper,
 	.mpo_cred_destroy_label = stub_destroy_label,
 	.mpo_cred_externalize_label = stub_externalize_label,
 	.mpo_cred_init_label = stub_init_label,
@@ -1655,7 +1658,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
 
-	.mpo_proc_associate_nfsd = stub_proc_associate_nfsd,
 	.mpo_proc_check_debug = stub_proc_check_debug,
 	.mpo_proc_check_sched = stub_proc_check_sched,
 	.mpo_proc_check_setaudit = stub_proc_check_setaudit,
@@ -1672,8 +1674,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_proc_check_setuid = stub_proc_check_setuid,
 	.mpo_proc_check_signal = stub_proc_check_signal,
 	.mpo_proc_check_wait = stub_proc_check_wait,
-	.mpo_proc_create_init = stub_proc_create_init,
-	.mpo_proc_create_swapper = stub_proc_create_swapper,
 
 	.mpo_socket_check_accept = stub_socket_check_accept,
 	.mpo_socket_check_bind = stub_socket_check_bind,
