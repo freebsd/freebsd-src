@@ -175,7 +175,6 @@ struct schizo_dmasync {
 	driver_filter_t		*sds_handler;
 	void			*sds_arg;
 	void			*sds_cookie;
-	bus_size_t		sds_syncreg;
 	uint64_t		sds_syncval;
 	u_int			sds_bswar;
 };
@@ -955,25 +954,25 @@ schizo_dmasync(void *arg)
 	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
 	struct schizo_dmasync *sds = arg;
 	struct schizo_softc *sc = sds->sds_sc;
-	uint64_t reg;
+	register_t reg, s;
 	int timeout;
 
-	SCHIZO_PCI_WRITE_8(sc, sds->sds_syncreg, sds->sds_syncval);
+	SCHIZO_PCI_WRITE_8(sc, TOMXMS_PCI_DMA_SYNC_PEND, sds->sds_syncval);
 	timeout = 1000000;
-	for (; (SCHIZO_PCI_READ_8(sc, sds->sds_syncreg) &
+	for (; (SCHIZO_PCI_READ_8(sc, TOMXMS_PCI_DMA_SYNC_PEND) &
 	    sds->sds_syncval) != 0;)
 		if (--timeout < 0)
 			panic("%s: DMA does not sync", __func__);
 
 	if (sds->sds_bswar != 0) {
-		critical_enter();
+		s = intr_disable();
 		reg = rd(fprs);
 		wr(fprs, reg | FPRS_FEF, 0);
-		__asm__ __volatile__("stda %%f0, [%0] %1"
+		__asm __volatile("stda %%f0, [%0] %1"
 		    : : "r" (buf), "n" (ASI_BLK_COMMIT_S));
-		wr(fprs, reg, 0);
 		membar(Sync);
-		critical_exit();
+		wr(fprs, reg, 0);
+		intr_restore(s);
 	}
 	return (sds->sds_handler(sds->sds_arg));
 }
@@ -1039,8 +1038,8 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 	}
 
 	/*
-	 * Schizo revision >= 2.3 (i.e. version >= 5) and Tomatillo bridges
-	 * need to be manually told to sync DMA writes.
+	 * Tomatillo and XMITS bridges need to be told to sync DMA writes
+	 * based on the INO of the respective device.
 	 * Tomatillo revision <= 2.3 (i.e. version <= 4) bridges additionally
 	 * need a block store as a workaround for a hardware bug.
 	 * XXX setup of the wrapper and the contents of schizo_dmasync()
@@ -1049,15 +1048,12 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 	 * is newbus'ified, so the wrapper isn't only applied for interrupt
 	 * handlers but also for polling(4) callbacks.
 	 */
-	if ((sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 5) ||
-	    sc->sc_mode == SCHIZO_MODE_TOM) {
+	if (sc->sc_mode == SCHIZO_MODE_TOM || sc->sc_mode == SCHIZO_MODE_XMS) {
 		sds = malloc(sizeof(*sds), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (sds == NULL)
 			return (ENOMEM);
 		sds->sds_sc = sc;
 		sds->sds_arg = arg;
-		sds->sds_syncreg = sc->sc_mode == SCHIZO_MODE_SCZ ?
-		    SCZ_PCI_DMA_SYNC : TOMXMS_PCI_DMA_SYNC_PEND;
 		sds->sds_syncval = 1ULL << INTINO(vec);
 		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
 			sds->sds_bswar = 1;
