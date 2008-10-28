@@ -3252,12 +3252,12 @@ vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 		vp->v_pollinfo->vpi_revents &= ~events;
 
 		mtx_unlock(&vp->v_pollinfo->vpi_lock);
-		return events;
+		return (events);
 	}
 	vp->v_pollinfo->vpi_events |= events;
 	selrecord(td, &vp->v_pollinfo->vpi_selinfo);
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
-	return 0;
+	return (0);
 }
 
 /*
