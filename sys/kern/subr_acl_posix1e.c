@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  */
 int
 vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
-    struct acl *acl, accmode_t acc_mode, struct ucred *cred, int *privused)
+    struct acl *acl, accmode_t accmode, struct ucred *cred, int *privused)
 {
 	struct acl_entry *acl_other, *acl_mask;
 	accmode_t dac_granted;
@@ -81,23 +81,23 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	priv_granted = 0;
 
 	if (type == VDIR) {
-		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
+		if ((accmode & VEXEC) && !priv_check_cred(cred,
 		     PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
+		if ((accmode & VEXEC) && !priv_check_cred(cred,
 		    PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
-	if ((acc_mode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ, 0))
+	if ((accmode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ, 0))
 		priv_granted |= VREAD;
 
-	if (((acc_mode & VWRITE) || (acc_mode & VAPPEND)) &&
+	if (((accmode & VWRITE) || (accmode & VAPPEND)) &&
 	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
 		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
+	if ((accmode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
 		priv_granted |= VADMIN;
 
 	/*
@@ -120,14 +120,14 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= VREAD;
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= (VWRITE | VAPPEND);
-			if ((acc_mode & dac_granted) == acc_mode)
+			if ((accmode & dac_granted) == accmode)
 				return (0);
 
 			/*
 			 * XXXRW: Do privilege lookup here.
 			 */
-			if ((acc_mode & (dac_granted | priv_granted)) ==
-			    acc_mode) {
+			if ((accmode & (dac_granted | priv_granted)) ==
+			    accmode) {
 				if (privused != NULL)
 					*privused = 1;
 				return (0);
@@ -197,13 +197,13 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
 				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted &= acl_mask_granted;
-			if ((acc_mode & dac_granted) == acc_mode)
+			if ((accmode & dac_granted) == accmode)
 				return (0);
 			/*
 			 * XXXRW: Do privilege lookup here.
 			 */
-			if ((acc_mode & (dac_granted | priv_granted)) !=
-			    acc_mode)
+			if ((accmode & (dac_granted | priv_granted)) !=
+			    accmode)
 				goto error;
 
 			if (privused != NULL)
@@ -234,7 +234,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted  &= acl_mask_granted;
 
-			if ((acc_mode & dac_granted) == acc_mode)
+			if ((accmode & dac_granted) == accmode)
 				return (0);
 
 			group_matched = 1;
@@ -252,7 +252,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= (VWRITE | VAPPEND);
 			dac_granted  &= acl_mask_granted;
 
-			if ((acc_mode & dac_granted) == acc_mode)
+			if ((accmode & dac_granted) == accmode)
 				return (0);
 
 			group_matched = 1;
@@ -285,8 +285,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				/*
 				 * XXXRW: Do privilege lookup here.
 				 */
-				if ((acc_mode & (dac_granted | priv_granted))
-				    != acc_mode)
+				if ((accmode & (dac_granted | priv_granted))
+				    != accmode)
 					break;
 
 				if (privused != NULL)
@@ -309,8 +309,8 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				/*
 				 * XXXRW: Do privilege lookup here.
 				 */
-				if ((acc_mode & (dac_granted | priv_granted))
-				    != acc_mode)
+				if ((accmode & (dac_granted | priv_granted))
+				    != accmode)
 					break;
 
 				if (privused != NULL)
@@ -339,19 +339,19 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	if (acl_other->ae_perm & ACL_WRITE)
 		dac_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & dac_granted) == acc_mode)
+	if ((accmode & dac_granted) == accmode)
 		return (0);
 	/*
 	 * XXXRW: Do privilege lookup here.
 	 */
-	if ((acc_mode & (dac_granted | priv_granted)) == acc_mode) {
+	if ((accmode & (dac_granted | priv_granted)) == accmode) {
 		if (privused != NULL)
 			*privused = 1;
 		return (0);
 	}
 
 error:
-	return ((acc_mode & VADMIN) ? EPERM : EACCES);
+	return ((accmode & VADMIN) ? EPERM : EACCES);
 }
 
 /*
