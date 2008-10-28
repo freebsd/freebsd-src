@@ -114,7 +114,13 @@ partition_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 
 	error = 0;
 
-	/* Treat "0" as a no-op request. */
+	/*
+	 * Treat "0" as a no-op request because it reflects an unset
+	 * partition label.  If we ever want to support switching back to an
+	 * unpartitioned state for a process, we'll need to differentiate the
+	 * "not in a partition" and "no partition defined during internalize"
+	 * conditions.
+	 */
 	if (SLOT(newlabel) != 0) {
 		/*
 		 * Require BSD privilege in order to change the partition.
