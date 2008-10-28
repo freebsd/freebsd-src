@@ -47,7 +47,6 @@ static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
-#include <unistd.h>
 
 int
 openpty(int *amaster, int *aslave, char *name, struct termios *termp,
@@ -68,9 +67,6 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 
 	slavename = ptsname(master);
 	if (slavename == NULL)
-		goto bad;
-
-	if (revoke(slavename) == -1)
 		goto bad;
 
 	slave = open(slavename, O_RDWR);
