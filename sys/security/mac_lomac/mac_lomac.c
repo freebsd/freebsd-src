@@ -993,6 +993,29 @@ lomac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 
 	return (0);
 }
+
+static void
+lomac_cred_create_init(struct ucred *cred)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
+}
+
+static void
+lomac_cred_create_swapper(struct ucred *cred)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
+}
+
 static void
 lomac_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -1882,28 +1905,6 @@ lomac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 		return (EACCES);
 
 	return (0);
-}
-
-static void
-lomac_proc_create_init(struct ucred *cred)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
-	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
-}
-
-static void
-lomac_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
 }
 
 static void
@@ -2894,6 +2895,8 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_cred_check_relabel = lomac_cred_check_relabel,
 	.mpo_cred_check_visible = lomac_cred_check_visible,
 	.mpo_cred_copy_label = lomac_copy_label,
+	.mpo_cred_create_swapper = lomac_cred_create_swapper,
+	.mpo_cred_create_init = lomac_cred_create_init,
 	.mpo_cred_destroy_label = lomac_destroy_label,
 	.mpo_cred_externalize_label = lomac_externalize_label,
 	.mpo_cred_init_label = lomac_init_label,
@@ -2983,8 +2986,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_proc_check_debug = lomac_proc_check_debug,
 	.mpo_proc_check_sched = lomac_proc_check_sched,
 	.mpo_proc_check_signal = lomac_proc_check_signal,
-	.mpo_proc_create_swapper = lomac_proc_create_swapper,
-	.mpo_proc_create_init = lomac_proc_create_init,
 	.mpo_proc_destroy_label = lomac_proc_destroy_label,
 	.mpo_proc_init_label = lomac_proc_init_label,
 

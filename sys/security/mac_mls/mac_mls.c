@@ -776,6 +776,17 @@ mls_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
 	mls_copy_effective(source, dest);
 }
 
+static void
+mls_cred_associate_nfsd(struct ucred *cred) 
+{
+	struct mac_mls *label;
+
+	label = SLOT(cred->cr_label);
+	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
 static int
 mls_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -852,6 +863,30 @@ mls_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 		return (ESRCH);
 
 	return (0);
+}
+
+static void
+mls_cred_create_init(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
+static void
+mls_cred_create_swapper(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
 }
 
 static void
@@ -1523,17 +1558,6 @@ mls_posixsem_create(struct ucred *cred, struct ksem *ks,
 	mls_copy_effective(source, dest);
 }
 
-static void
-mls_proc_associate_nfsd(struct ucred *cred) 
-{
-	struct mac_mls *label;
-
-	label = SLOT(cred->cr_label);
-	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
 static int
 mls_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -1592,30 +1616,6 @@ mls_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 		return (EACCES);
 
 	return (0);
-}
-
-static void
-mls_proc_create_init(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
-static void
-mls_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
 }
 
 static int
@@ -2957,9 +2957,12 @@ static struct mac_policy_ops mls_ops =
 	.mpo_bpfdesc_destroy_label = mls_destroy_label,
 	.mpo_bpfdesc_init_label = mls_init_label,
 
+	.mpo_cred_associate_nfsd = mls_cred_associate_nfsd,
 	.mpo_cred_check_relabel = mls_cred_check_relabel,
 	.mpo_cred_check_visible = mls_cred_check_visible,
 	.mpo_cred_copy_label = mls_copy_label,
+	.mpo_cred_create_init = mls_cred_create_init,
+	.mpo_cred_create_swapper = mls_cred_create_swapper,
 	.mpo_cred_destroy_label = mls_destroy_label,
 	.mpo_cred_externalize_label = mls_externalize_label,
 	.mpo_cred_init_label = mls_init_label,
@@ -3051,12 +3054,9 @@ static struct mac_policy_ops mls_ops =
 	.mpo_posixsem_destroy_label = mls_destroy_label,
 	.mpo_posixsem_init_label = mls_init_label,
 
-	.mpo_proc_associate_nfsd = mls_proc_associate_nfsd,
 	.mpo_proc_check_debug = mls_proc_check_debug,
 	.mpo_proc_check_sched = mls_proc_check_sched,
 	.mpo_proc_check_signal = mls_proc_check_signal,
-	.mpo_proc_create_init = mls_proc_create_init,
-	.mpo_proc_create_swapper = mls_proc_create_swapper,
 
 	.mpo_socket_check_deliver = mls_socket_check_deliver,
 	.mpo_socket_check_relabel = mls_socket_check_relabel,

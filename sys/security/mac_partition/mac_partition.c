@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -155,6 +155,20 @@ partition_cred_copy_label(struct label *src, struct label *dest)
 }
 
 static void
+partition_cred_create_init(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
+}
+
+static void
+partition_cred_create_swapper(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
+}
+
+static void
 partition_cred_destroy_label(struct label *label)
 {
 
@@ -251,20 +265,6 @@ partition_proc_check_signal(struct ucred *cred, struct proc *p,
 	return (error ? ESRCH : 0);
 }
 
-static void
-partition_proc_create_init(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
-}
-
-static void
-partition_proc_create_swapper(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
-}
-
 static int
 partition_socket_check_visible(struct ucred *cred, struct socket *so,
     struct label *solabel)
@@ -300,6 +300,8 @@ static struct mac_policy_ops partition_ops =
 	.mpo_cred_check_relabel = partition_cred_check_relabel,
 	.mpo_cred_check_visible = partition_cred_check_visible,
 	.mpo_cred_copy_label = partition_cred_copy_label,
+	.mpo_cred_create_init = partition_cred_create_init,
+	.mpo_cred_create_swapper = partition_cred_create_swapper,
 	.mpo_cred_destroy_label = partition_cred_destroy_label,
 	.mpo_cred_externalize_label = partition_cred_externalize_label,
 	.mpo_cred_init_label = partition_cred_init_label,
@@ -309,8 +311,6 @@ static struct mac_policy_ops partition_ops =
 	.mpo_proc_check_debug = partition_proc_check_debug,
 	.mpo_proc_check_sched = partition_proc_check_sched,
 	.mpo_proc_check_signal = partition_proc_check_signal,
-	.mpo_proc_create_init = partition_proc_create_init,
-	.mpo_proc_create_swapper = partition_proc_create_swapper,
 	.mpo_socket_check_visible = partition_socket_check_visible,
 	.mpo_vnode_check_exec = partition_vnode_check_exec,
 };

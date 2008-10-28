@@ -128,12 +128,15 @@ typedef void	(*mpo_bpfdesc_create_mbuf_t)(struct bpf_d *d,
 typedef void	(*mpo_bpfdesc_destroy_label_t)(struct label *label);
 typedef void	(*mpo_bpfdesc_init_label_t)(struct label *label);
 
+typedef void	(*mpo_cred_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_cred_check_relabel_t)(struct ucred *cred,
 		    struct label *newlabel);
 typedef int	(*mpo_cred_check_visible_t)(struct ucred *cr1,
 		    struct ucred *cr2);
 typedef void	(*mpo_cred_copy_label_t)(struct label *src,
 		    struct label *dest);
+typedef void	(*mpo_cred_create_init_t)(struct ucred *cred);
+typedef void	(*mpo_cred_create_swapper_t)(struct ucred *cred);
 typedef void	(*mpo_cred_destroy_label_t)(struct label *label);
 typedef int	(*mpo_cred_externalize_label_t)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
@@ -345,7 +348,6 @@ typedef void	(*mpo_posixshm_init_label_t)(struct label *label);
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
 
-typedef void	(*mpo_proc_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_proc_check_debug_t)(struct ucred *cred,
 		    struct proc *p);
 typedef int	(*mpo_proc_check_sched_t)(struct ucred *cred,
@@ -373,8 +375,6 @@ typedef int	(*mpo_proc_check_signal_t)(struct ucred *cred,
 		    struct proc *proc, int signum);
 typedef int	(*mpo_proc_check_wait_t)(struct ucred *cred,
 		    struct proc *proc);
-typedef void	(*mpo_proc_create_init_t)(struct ucred *cred);
-typedef void	(*mpo_proc_create_swapper_t)(struct ucred *cred);
 typedef void	(*mpo_proc_destroy_label_t)(struct label *label);
 typedef void	(*mpo_proc_init_label_t)(struct label *label);
 
@@ -674,9 +674,12 @@ struct mac_policy_ops {
 	mpo_bpfdesc_destroy_label_t		mpo_bpfdesc_destroy_label;
 	mpo_bpfdesc_init_label_t		mpo_bpfdesc_init_label;
 
+	mpo_cred_associate_nfsd_t		mpo_cred_associate_nfsd;
 	mpo_cred_check_relabel_t		mpo_cred_check_relabel;
 	mpo_cred_check_visible_t		mpo_cred_check_visible;
 	mpo_cred_copy_label_t			mpo_cred_copy_label;
+	mpo_cred_create_swapper_t		mpo_cred_create_swapper;
+	mpo_cred_create_init_t			mpo_cred_create_init;
 	mpo_cred_destroy_label_t		mpo_cred_destroy_label;
 	mpo_cred_externalize_label_t		mpo_cred_externalize_label;
 	mpo_cred_init_label_t			mpo_cred_init_label;
@@ -790,7 +793,6 @@ struct mac_policy_ops {
 	mpo_priv_check_t			mpo_priv_check;
 	mpo_priv_grant_t			mpo_priv_grant;
 
-	mpo_proc_associate_nfsd_t		mpo_proc_associate_nfsd;
 	mpo_proc_check_debug_t			mpo_proc_check_debug;
 	mpo_proc_check_sched_t			mpo_proc_check_sched;
 	mpo_proc_check_setaudit_t		mpo_proc_check_setaudit;
@@ -807,8 +809,6 @@ struct mac_policy_ops {
 	mpo_proc_check_setresgid_t		mpo_proc_check_setresgid;
 	mpo_proc_check_signal_t			mpo_proc_check_signal;
 	mpo_proc_check_wait_t			mpo_proc_check_wait;
-	mpo_proc_create_swapper_t		mpo_proc_create_swapper;
-	mpo_proc_create_init_t			mpo_proc_create_init;
 	mpo_proc_destroy_label_t		mpo_proc_destroy_label;
 	mpo_proc_init_label_t			mpo_proc_init_label;
 
