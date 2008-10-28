@@ -69,9 +69,8 @@ static int
 pmtimer_probe(device_t dev)
 {
 
-	if (ISA_PNP_PROBE(device_get_parent(dev), dev, pmtimer_ids) == ENXIO) {
+	if (ISA_PNP_PROBE(device_get_parent(dev), dev, pmtimer_ids) == ENXIO)
 		return (ENXIO);
-	}
 
 	/* only one instance always */
 	return (device_get_unit(dev));
