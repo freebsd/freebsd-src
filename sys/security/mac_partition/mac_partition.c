@@ -77,7 +77,7 @@ static int	partition_slot;
 #define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
 static int
-label_on_label(struct label *subject, struct label *object)
+partition_check(struct label *subject, struct label *object)
 {
 
 	if (partition_enabled == 0)
@@ -133,7 +133,7 @@ partition_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
-	error = label_on_label(cr1->cr_label, cr2->cr_label);
+	error = partition_check(cr1->cr_label, cr2->cr_label);
 
 	return (error == 0 ? 0 : ESRCH);
 }
@@ -209,7 +209,7 @@ partition_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, inp->inp_cred->cr_label);
+	error = partition_check(cred->cr_label, inp->inp_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
@@ -219,7 +219,7 @@ partition_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -229,7 +229,7 @@ partition_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -240,7 +240,7 @@ partition_proc_check_signal(struct ucred *cred, struct proc *p,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -265,7 +265,7 @@ partition_socket_check_visible(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, so->so_cred->cr_label);
+	error = partition_check(cred->cr_label, so->so_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
