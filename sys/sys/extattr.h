@@ -58,13 +58,14 @@
 	EXTATTR_NAMESPACE_SYSTEM_STRING }
 
 #ifdef _KERNEL
+#include <sys/types.h>
 
 #define	EXTATTR_MAXNAMELEN	NAME_MAX
 struct thread;
 struct ucred;
 struct vnode;
 int	extattr_check_cred(struct vnode *vp, int attrnamespace,
-	    struct ucred *cred, struct thread *td, int access);
+	    struct ucred *cred, struct thread *td, accmode_t accmode);
 
 #else
 #include <sys/cdefs.h>

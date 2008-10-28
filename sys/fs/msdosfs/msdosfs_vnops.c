@@ -249,7 +249,7 @@ static int
 msdosfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
@@ -257,7 +257,8 @@ msdosfs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(ap->a_vp);
 	struct msdosfsmount *pmp = dep->de_pmp;
-	mode_t file_mode, mode = ap->a_mode;
+	mode_t file_mode;
+	accmode_t accmode = ap->a_accmode;
 
 	file_mode = (S_IXUSR|S_IXGRP|S_IXOTH) | (S_IRUSR|S_IRGRP|S_IROTH) |
 	    ((dep->de_Attributes & ATTR_READONLY) ? 0 : (S_IWUSR|S_IWGRP|S_IWOTH));
@@ -267,7 +268,7 @@ msdosfs_access(ap)
 	 * Disallow writing to directories and regular files if the
 	 * filesystem is read-only.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VREG:
@@ -280,7 +281,7 @@ msdosfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, file_mode, pmp->pm_uid, pmp->pm_gid,
-	    ap->a_mode, ap->a_cred, NULL));
+	    ap->a_accmode, ap->a_cred, NULL));
 }
 
 static int

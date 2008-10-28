@@ -237,14 +237,14 @@ static int
 zfsctl_common_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
-	int mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 
-	if (mode & VWRITE)
+	if (accmode & VWRITE)
 		return (EACCES);
 
 	return (0);

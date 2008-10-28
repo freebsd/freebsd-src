@@ -583,7 +583,7 @@ unionfs_close_abort:
  * Check the access mode toward shadow file/dir.
  */
 static int
-unionfs_check_corrected_access(u_short mode,
+unionfs_check_corrected_access(accmode_t accmode,
 			     struct vattr *va,
 			     struct ucred *cred)
 {
@@ -601,11 +601,11 @@ unionfs_check_corrected_access(u_short mode,
 
 	/* check owner */
 	if (cred->cr_uid == uid) {
-		if (mode & VEXEC)
+		if (accmode & VEXEC)
 			mask |= S_IXUSR;
-		if (mode & VREAD)
+		if (accmode & VREAD)
 			mask |= S_IRUSR;
-		if (mode & VWRITE)
+		if (accmode & VWRITE)
 			mask |= S_IWUSR;
 		return ((vmode & mask) == mask ? 0 : EACCES);
 	}
@@ -615,22 +615,22 @@ unionfs_check_corrected_access(u_short mode,
 	gp = cred->cr_groups;
 	for (; count < cred->cr_ngroups; count++, gp++) {
 		if (gid == *gp) {
-			if (mode & VEXEC)
+			if (accmode & VEXEC)
 				mask |= S_IXGRP;
-			if (mode & VREAD)
+			if (accmode & VREAD)
 				mask |= S_IRGRP;
-			if (mode & VWRITE)
+			if (accmode & VWRITE)
 				mask |= S_IWGRP;
 			return ((vmode & mask) == mask ? 0 : EACCES);
 		}
 	}
 
 	/* check other */
-	if (mode & VEXEC)
+	if (accmode & VEXEC)
 		mask |= S_IXOTH;
-	if (mode & VREAD)
+	if (accmode & VREAD)
 		mask |= S_IROTH;
-	if (mode & VWRITE)
+	if (accmode & VWRITE)
 		mask |= S_IWOTH;
 
 	return ((vmode & mask) == mask ? 0 : EACCES);
@@ -645,7 +645,7 @@ unionfs_access(struct vop_access_args *ap)
 	struct vnode   *lvp;
 	struct thread  *td;
 	struct vattr	va;
-	int		mode;
+	accmode_t	accmode;
 	int		error;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_access: enter\n");
@@ -655,10 +655,10 @@ unionfs_access(struct vop_access_args *ap)
 	uvp = unp->un_uppervp;
 	lvp = unp->un_lowervp;
 	td = ap->a_td;
-	mode = ap->a_mode;
+	accmode = ap->a_accmode;
 	error = EACCES;
 
-	if ((mode & VWRITE) &&
+	if ((accmode & VWRITE) &&
 	    (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (ap->a_vp->v_type) {
 		case VREG:
@@ -671,7 +671,7 @@ unionfs_access(struct vop_access_args *ap)
 	}
 
 	if (uvp != NULLVP) {
-		error = VOP_ACCESS(uvp, mode, ap->a_cred, td);
+		error = VOP_ACCESS(uvp, accmode, ap->a_cred, td);
 
 		UNIONFS_INTERNAL_DEBUG("unionfs_access: leave (%d)\n", error);
 
@@ -679,7 +679,7 @@ unionfs_access(struct vop_access_args *ap)
 	}
 
 	if (lvp != NULLVP) {
-		if (mode & VWRITE) {
+		if (accmode & VWRITE) {
 			if (ump->um_uppervp->v_mount->mnt_flag & MNT_RDONLY) {
 				switch (ap->a_vp->v_type) {
 				case VREG:
@@ -698,15 +698,15 @@ unionfs_access(struct vop_access_args *ap)
 						return (error);
 
 					error = unionfs_check_corrected_access(
-					    mode, &va, ap->a_cred);
+					    accmode, &va, ap->a_cred);
 					if (error != 0)
 						return (error);
 				}
 			}
-			mode &= ~VWRITE;
-			mode |= VREAD; /* will copy to upper */
+			accmode &= ~VWRITE;
+			accmode |= VREAD; /* will copy to upper */
 		}
-		error = VOP_ACCESS(lvp, mode, ap->a_cred, td);
+		error = VOP_ACCESS(lvp, accmode, ap->a_cred, td);
 	}
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_access: leave (%d)\n", error);

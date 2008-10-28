@@ -46,7 +46,7 @@ int	secpolicy_basic_link(struct ucred  *cred);
 int	secpolicy_vnode_stky_modify(struct ucred *cred);
 int	secpolicy_vnode_remove(struct ucred *cred);
 int	secpolicy_vnode_access(struct ucred *cred, struct vnode *vp,
-	    uint64_t owner, int mode);
+	    uint64_t owner, accmode_t accmode);
 int	secpolicy_vnode_setdac(struct ucred *cred, uid_t owner);
 int	secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp,
 	    struct vattr *vap, const struct vattr *ovap, int flags,

@@ -1120,7 +1120,7 @@ mqfs_close(struct vop_close_args *ap)
 struct vop_access_args {
 	struct vop_generic_args a_gen;
 	struct vnode *a_vp;
-	int a_mode;
+	accmode_t a_accmode;
 	struct ucred *a_cred;
 	struct thread *a_td;
 };
@@ -1140,7 +1140,7 @@ mqfs_access(struct vop_access_args *ap)
 	if (error)
 		return (error);
 	error = vaccess(vp->v_type, vattr.va_mode, vattr.va_uid,
-	    vattr.va_gid, ap->a_mode, ap->a_cred, NULL);
+	    vattr.va_gid, ap->a_accmode, ap->a_cred, NULL);
 	return (error);
 }
 
@@ -2003,14 +2003,14 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
 		if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) {
 			error = EEXIST;
 		} else {
-			int acc_mode = 0;
+			accmode_t accmode = 0;
 
 			if (flags & FREAD)
-				acc_mode |= VREAD;
+				accmode |= VREAD;
 			if (flags & FWRITE)
-				acc_mode |= VWRITE;
+				accmode |= VWRITE;
 			error = vaccess(VREG, pn->mn_mode, pn->mn_uid,
-				    pn->mn_gid, acc_mode, td->td_ucred, NULL);
+				    pn->mn_gid, accmode, td->td_ucred, NULL);
 		}
 	}
 

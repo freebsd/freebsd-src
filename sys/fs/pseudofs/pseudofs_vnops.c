@@ -132,7 +132,7 @@ pfs_access(struct vop_access_args *va)
 	if (error)
 		PFS_RETURN (error);
 	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid,
-	    vattr.va_gid, va->a_mode, va->a_cred, NULL);
+	    vattr.va_gid, va->a_accmode, va->a_cred, NULL);
 	PFS_RETURN (error);
 }
 

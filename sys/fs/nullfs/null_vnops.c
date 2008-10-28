@@ -451,14 +451,14 @@ static int
 null_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 
 	/*
 	 * Disallow write attempts on read-only layers;
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:

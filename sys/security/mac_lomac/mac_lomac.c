@@ -2430,7 +2430,7 @@ lomac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 
 static int
 lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -2441,7 +2441,7 @@ lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
 		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}

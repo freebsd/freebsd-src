@@ -41,7 +41,7 @@
 .Fa "uid_t file_uid"
 .Fa "gid_t file_gid"
 .Fa "struct acl *acl"
-.Fa "mode_t acc_mode"
+.Fa "accmode_t accmode"
 .Fa "struct ucred *cred"
 .Fa "int *privused"
 .Fc
@@ -59,7 +59,7 @@ owning GID
 access ACL for the file
 .Fa acl ,
 desired access mode
-.Fa acc_mode ,
+.Fa accmode ,
 requesting credential
 .Fa cred ,
 and an optional call-by-reference

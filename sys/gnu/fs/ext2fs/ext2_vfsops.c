@@ -137,7 +137,7 @@ ext2_mount(mp, td)
 	struct ext2_sb_info *fs;
 	char *path, *fspec;
 	int error, flags, len;
-	mode_t accessmode;
+	accmode_t accmode;
 	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
@@ -265,10 +265,10 @@ ext2_mount(mp, td)
 	 *
 	 * XXXRW: VOP_ACCESS() enough?
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {

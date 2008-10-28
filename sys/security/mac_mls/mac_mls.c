@@ -2505,7 +2505,7 @@ mls_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
 
 static int
 mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 	struct mac_mls *subj, *obj;
 
@@ -2516,11 +2516,11 @@ mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (acc_mode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT)) {
 		if (!mls_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
 		if (!mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}

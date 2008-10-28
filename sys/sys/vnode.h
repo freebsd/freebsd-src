@@ -309,7 +309,7 @@ struct vattr {
 #define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
 
 /*
- *  Modes.  Some values same as Ixxx entries from inode.h for now.
+ *  Flags for accmode_t.
  */
 #define	VEXEC	000100		/* execute/search permission */
 #define	VWRITE	000200		/* write permission */
@@ -584,10 +584,10 @@ int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
-	    gid_t file_gid, mode_t acc_mode, struct ucred *cred,
+	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
 int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
-	    gid_t file_gid, struct acl *acl, mode_t acc_mode,
+	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred, int *privused);
 void	vattr_null(struct vattr *vap);
 int	vcount(struct vnode *vp);
