@@ -81,7 +81,7 @@ SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
 
-static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
+static void	mac_proc_vm_revoke_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
 
 struct label *
@@ -314,13 +314,20 @@ mac_execve_interpreter_exit(struct label *interpvplabel)
  * The process lock is not held here.
  */
 void
-mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred)
+mac_proc_vm_revoke(struct thread *td)
 {
+	struct ucred *cred;
+
+	PROC_LOCK(td->td_proc);
+	cred = crhold(td->td_proc->p_ucred);
+	PROC_UNLOCK(td->td_proc);
 
 	/* XXX freeze all other threads */
-	mac_cred_mmapped_drop_perms_recurse(td, cred,
+	mac_proc_vm_revoke_recurse(td, cred,
 	    &td->td_proc->p_vmspace->vm_map);
 	/* XXX allow other threads to continue */
+
+	crfree(cred);
 }
 
 static __inline const char *
@@ -348,7 +355,7 @@ prot2str(vm_prot_t prot)
 }
 
 static void
-mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
+mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
 	struct vm_map_entry *vme;
@@ -365,7 +372,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 	vm_map_lock_read(map);
 	for (vme = map->header.next; vme != &map->header; vme = vme->next) {
 		if (vme->eflags & MAP_ENTRY_IS_SUB_MAP) {
-			mac_cred_mmapped_drop_perms_recurse(td, cred,
+			mac_proc_vm_revoke_recurse(td, cred,
 			    vme->object.sub_map);
 			continue;
 		}

@@ -203,17 +203,9 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	mac_cred_relabel(newcred, intlabel);
 	p->p_ucred = newcred;
 
-	/*
-	 * Grab additional reference for use while revoking mmaps, prior to
-	 * releasing the proc lock and sharing the cred.
-	 */
-	crhold(newcred);
 	PROC_UNLOCK(p);
-
-	mac_cred_mmapped_drop_perms(td, newcred);
-
-	crfree(newcred);	/* Free revocation reference. */
 	crfree(oldcred);
+	mac_proc_vm_revoke(td);
 
 out:
 	mac_cred_label_free(intlabel);
