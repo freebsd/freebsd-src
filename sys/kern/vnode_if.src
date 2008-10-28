@@ -147,7 +147,7 @@ vop_close {
 
 vop_access {
 	IN struct vnode *vp;
-	IN int mode;
+	IN accmode_t accmode;
 	IN struct ucred *cred;
 	IN struct thread *td;
 };

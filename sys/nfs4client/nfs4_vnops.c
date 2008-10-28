@@ -301,7 +301,7 @@ nfs4_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((ap->a_accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -321,20 +321,20 @@ nfs4_access(struct vop_access_args *ap)
 	 */
 	/* XXX Disable this for now; needs fixing of _access_otw() */
 	if (0 && v3) {
-		if (ap->a_mode & VREAD)
+		if (ap->a_accmode & VREAD)
 			mode = NFSV3ACCESS_READ;
 		else
 			mode = 0;
 		if (vp->v_type != VDIR) {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_EXECUTE;
 		} else {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
 				    NFSV3ACCESS_DELETE);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_LOOKUP;
 		}
 		/* XXX safety belt, only make blanket request if caching */
@@ -370,16 +370,16 @@ nfs4_access(struct vop_access_args *ap)
 	}
 
 	/* XXX use generic access code here? */
-	mode = ap->a_mode & VREAD ? NFSV4ACCESS_READ : 0;
+	mode = ap->a_accmode & VREAD ? NFSV4ACCESS_READ : 0;
 	if (vp->v_type == VDIR) {
-		if (ap->a_mode & VWRITE)
+		if (ap->a_accmode & VWRITE)
 			mode |= NFSV4ACCESS_MODIFY | NFSV4ACCESS_EXTEND | NFSV4ACCESS_DELETE;
-		if (ap->a_mode & VEXEC)
+		if (ap->a_accmode & VEXEC)
 			mode |= NFSV4ACCESS_LOOKUP;
 	} else {
-		if (ap->a_mode & VWRITE)
+		if (ap->a_accmode & VWRITE)
 			mode |= NFSV4ACCESS_MODIFY | NFSV4ACCESS_EXTEND;
-		if (ap->a_mode & VEXEC)
+		if (ap->a_accmode & VEXEC)
 			mode |= NFSV4ACCESS_EXECUTE;
 	}
 

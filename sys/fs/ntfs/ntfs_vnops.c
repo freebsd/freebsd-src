@@ -386,14 +386,14 @@ int
 ntfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct ntnode *ip = VTONT(vp);
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 #ifdef QUOTA
 	int error;
 #endif
@@ -405,7 +405,7 @@ ntfs_access(ap)
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch ((int)vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -421,7 +421,7 @@ ntfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, ip->i_mp->ntm_mode, ip->i_mp->ntm_uid,
-	    ip->i_mp->ntm_gid, ap->a_mode, ap->a_cred, NULL));
+	    ip->i_mp->ntm_gid, ap->a_accmode, ap->a_cred, NULL));
 } 
 
 /*

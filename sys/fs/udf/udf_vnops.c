@@ -139,13 +139,14 @@ udf_access(struct vop_access_args *a)
 {
 	struct vnode *vp;
 	struct udf_node *node;
-	mode_t a_mode, mode;
+	accmode_t accmode;
+	mode_t mode;
 
 	vp = a->a_vp;
 	node = VTON(vp);
-	a_mode = a->a_mode;
+	accmode = a->a_accmode;
 
-	if (a_mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -160,7 +161,7 @@ udf_access(struct vop_access_args *a)
 	mode = udf_permtomode(node);
 
 	return (vaccess(vp->v_type, mode, node->fentry->uid, node->fentry->gid,
-	    a_mode, a->a_cred, NULL));
+	    accmode, a->a_cred, NULL));
 }
 
 static int

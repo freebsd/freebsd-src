@@ -282,7 +282,7 @@ int
 tmpfs_access(struct vop_access_args *v)
 {
 	struct vnode *vp = v->a_vp;
-	int mode = v->a_mode;
+	accmode_t accmode = v->a_accmode;
 	struct ucred *cred = v->a_cred;
 
 	int error;
@@ -298,7 +298,7 @@ tmpfs_access(struct vop_access_args *v)
 	case VLNK:
 		/* FALLTHROUGH */
 	case VREG:
-		if (mode & VWRITE && vp->v_mount->mnt_flag & MNT_RDONLY) {
+		if (accmode & VWRITE && vp->v_mount->mnt_flag & MNT_RDONLY) {
 			error = EROFS;
 			goto out;
 		}
@@ -318,13 +318,13 @@ tmpfs_access(struct vop_access_args *v)
 		goto out;
 	}
 
-	if (mode & VWRITE && node->tn_flags & IMMUTABLE) {
+	if (accmode & VWRITE && node->tn_flags & IMMUTABLE) {
 		error = EPERM;
 		goto out;
 	}
 
 	error = vaccess(vp->v_type, node->tn_mode, node->tn_uid,
-	    node->tn_gid, mode, cred, NULL);
+	    node->tn_gid, accmode, cred, NULL);
 
 out:
 	MPASS(VOP_ISLOCKED(vp));

@@ -2326,7 +2326,7 @@ test_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
 COUNTER_DECL(vnode_check_access);
 static int
 test_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
@@ -2500,7 +2500,7 @@ test_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
 COUNTER_DECL(vnode_check_open);
 static int
 test_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);

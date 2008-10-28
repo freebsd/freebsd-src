@@ -133,7 +133,7 @@ xfs_blkdev_get(
 	struct vnode		*devvp;
 	struct g_consumer	*cp;
 	struct g_provider	*pp;
-	mode_t			accessmode;
+	accmode_t		accmode;
 
 	td = curthread;
 
@@ -151,10 +151,10 @@ xfs_blkdev_get(
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 
 	ronly = ((XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY) != 0);
-	accessmode = VREAD;
+	accmode = VREAD;
 	if (!ronly)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {

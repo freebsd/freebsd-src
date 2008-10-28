@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
  */
 int
 vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
-    struct acl *acl, mode_t acc_mode, struct ucred *cred, int *privused)
+    struct acl *acl, accmode_t acc_mode, struct ucred *cred, int *privused)
 {
 	struct acl_entry *acl_other, *acl_mask;
-	mode_t dac_granted;
-	mode_t priv_granted;
-	mode_t acl_mask_granted;
+	accmode_t dac_granted;
+	accmode_t priv_granted;
+	accmode_t acl_mask_granted;
 	int group_matched, i;
 
 	/*

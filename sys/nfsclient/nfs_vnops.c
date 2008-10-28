@@ -318,7 +318,7 @@ nfs_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((ap->a_accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -337,20 +337,20 @@ nfs_access(struct vop_access_args *ap)
 	 * client uid-->server uid mapping that we do not know about.
 	 */
 	if (v3) {
-		if (ap->a_mode & VREAD)
+		if (ap->a_accmode & VREAD)
 			mode = NFSV3ACCESS_READ;
 		else
 			mode = 0;
 		if (vp->v_type != VDIR) {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_EXECUTE;
 		} else {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
 					 NFSV3ACCESS_DELETE);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_LOOKUP;
 		}
 		/* XXX safety belt, only make blanket request if caching */
@@ -399,7 +399,7 @@ nfs_access(struct vop_access_args *ap)
 		 * file size cached.
 		 */
 		mtx_lock(&np->n_mtx);
-		if (ap->a_cred->cr_uid == 0 && (ap->a_mode & VREAD)
+		if (ap->a_cred->cr_uid == 0 && (ap->a_accmode & VREAD)
 		    && VTONFS(vp)->n_size > 0) {
 			struct iovec aiov;
 			struct uio auio;
@@ -3200,7 +3200,7 @@ nfsspec_access(struct vop_access_args *ap)
 	struct vattr *vap;
 	struct ucred *cred = ap->a_cred;
 	struct vnode *vp = ap->a_vp;
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 	struct vattr vattr;
 	int error;
 
@@ -3209,7 +3209,7 @@ nfsspec_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -3224,7 +3224,7 @@ nfsspec_access(struct vop_access_args *ap)
 	if (error)
 		goto out;
 	error  = vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
-			 mode, cred, NULL);
+			 accmode, cred, NULL);
 out:
 	return error;
 }

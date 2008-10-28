@@ -52,7 +52,7 @@ int	ugidfw_system_check_swapon(struct ucred *cred, struct vnode *vp,
  * Vnode access control checks.
  */
 int	ugidfw_vnode_check_access(struct ucred *cred, struct vnode *vp,
-	    struct label *vplabel, int acc_mode);
+	    struct label *vplabel, accmode_t accmode);
 int	ugidfw_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
 	    struct label *dvplabel);
 int	ugidfw_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
@@ -81,7 +81,7 @@ int	ugidfw_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
 int	ugidfw_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
 	    struct label *dvplabel, struct componentname *cnp);
 int	ugidfw_vnode_check_open(struct ucred *cred, struct vnode *vp,
-	    struct label *vplabel, int acc_mode);
+	    struct label *vplabel, accmode_t accmode);
 int	ugidfw_vnode_check_readdir(struct ucred *cred, struct vnode *dvp,
 	    struct label *dvplabel);
 int	ugidfw_vnode_check_readdlink(struct ucred *cred, struct vnode *vp,

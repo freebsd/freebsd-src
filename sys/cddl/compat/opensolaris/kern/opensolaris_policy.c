@@ -91,17 +91,17 @@ secpolicy_vnode_remove(struct ucred *cred)
 
 int
 secpolicy_vnode_access(struct ucred *cred, struct vnode *vp, uint64_t owner,
-    int mode)
+    accmode_t accmode)
 {
 
-	if ((mode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0) {
+	if ((accmode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0) {
 		return (EACCES);
 	}
-	if ((mode & VWRITE) &&
+	if ((accmode & VWRITE) &&
 	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) != 0) {
 		return (EACCES);
 	}
-	if (mode & VEXEC) {
+	if (accmode & VEXEC) {
 		if (vp->v_type == VDIR) {
 			if (priv_check_cred(cred, PRIV_VFS_LOOKUP, 0) != 0) {
 				return (EACCES);

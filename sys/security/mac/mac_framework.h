@@ -88,6 +88,7 @@ struct vnode;
 struct vop_setlabel_args;
 
 #include <sys/acl.h>			/* XXX acl_type_t */
+#include <sys/types.h>			/* accmode_t */
 
 /*
  * Entry points to the TrustedBSD MAC Framework from the remainder of the
@@ -365,7 +366,7 @@ void	mac_thread_userret(struct thread *td);
 int	mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp);
 void	mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp);
 int	mac_vnode_check_access(struct ucred *cred, struct vnode *vp,
-	    int acc_mode);
+	    accmode_t accmode);
 int	mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
@@ -391,7 +392,7 @@ int	mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
 int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
 int	mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
-	    int acc_mode);
+	    accmode_t accmode);
 int	mac_vnode_check_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_vnode_check_read(struct ucred *active_cred,
