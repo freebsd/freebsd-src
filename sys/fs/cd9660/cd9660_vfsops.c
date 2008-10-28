@@ -128,7 +128,7 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	struct vnode *devvp;
 	char *fspec;
 	int error;
-	mode_t accessmode;
+	accmode_t accmode;
 	struct nameidata ndp;
 	struct iso_mnt *imp = 0;
 
@@ -168,9 +168,9 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * Verify that user has necessary permissions on the device,
 	 * or has superuser abilities
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {

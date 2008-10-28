@@ -115,7 +115,8 @@ vn_open_cred(ndp, flagp, cmode, cred, fp)
 	struct thread *td = ndp->ni_cnd.cn_thread;
 	struct vattr vat;
 	struct vattr *vap = &vat;
-	int mode, fmode, error;
+	int fmode, error;
+	accmode_t accmode;
 	int vfslocked, mpsafe;
 
 	mpsafe = ndp->ni_cnd.cn_flags & MPSAFE;
@@ -202,33 +203,33 @@ restart:
 		error = EOPNOTSUPP;
 		goto bad;
 	}
-	mode = 0;
+	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
 		if (vp->v_type == VDIR) {
 			error = EISDIR;
 			goto bad;
 		}
-		mode |= VWRITE;
+		accmode |= VWRITE;
 	}
 	if (fmode & FREAD)
-		mode |= VREAD;
+		accmode |= VREAD;
 	if (fmode & FEXEC)
-		mode |= VEXEC;
+		accmode |= VEXEC;
 	if (fmode & O_APPEND)
-		mode |= VAPPEND;
+		accmode |= VAPPEND;
 #ifdef MAC
-	error = mac_vnode_check_open(cred, vp, mode);
+	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
 		goto bad;
 #endif
 	if ((fmode & O_CREAT) == 0) {
-		if (mode & VWRITE) {
+		if (accmode & VWRITE) {
 			error = vn_writechk(vp);
 			if (error)
 				goto bad;
 		}
-		if (mode) {
-		        error = VOP_ACCESS(vp, mode, cred, td);
+		if (accmode) {
+		        error = VOP_ACCESS(vp, accmode, cred, td);
 			if (error)
 				goto bad;
 		}

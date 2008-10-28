@@ -125,14 +125,14 @@ static int
 cd9660_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 
 	if (vp->v_type == VCHR || vp->v_type == VBLK)
 		return (EOPNOTSUPP);
@@ -142,7 +142,7 @@ cd9660_access(ap)
 	 * fifo, or a block or character device resident on the
 	 * filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -155,7 +155,7 @@ cd9660_access(ap)
 	}
 
 	return (vaccess(vp->v_type, ip->inode.iso_mode, ip->inode.iso_uid,
-	    ip->inode.iso_gid, ap->a_mode, ap->a_cred, NULL));
+	    ip->inode.iso_gid, ap->a_accmode, ap->a_cred, NULL));
 }
 
 static int

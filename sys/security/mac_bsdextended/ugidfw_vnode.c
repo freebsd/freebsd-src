@@ -62,10 +62,14 @@
 
 int
 ugidfw_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
-	return (ugidfw_check_vp(cred, vp, acc_mode));
+	/*
+	 * XXX: We pass accmode_t variable containing V* constants
+	 *	as an int containing MBI_* constants.
+	 */
+	return (ugidfw_check_vp(cred, vp, (int)accmode));
 }
 
 int
@@ -168,10 +172,14 @@ ugidfw_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
 
 int
 ugidfw_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
-	return (ugidfw_check_vp(cred, vp, acc_mode));
+	/*
+	 * XXX: We pass accmode_t variable containing V* constants
+	 *	as an int containing MBI_* constants.
+	 */
+	return (ugidfw_check_vp(cred, vp, (int)accmode));
 }
 
 int

@@ -1337,7 +1337,7 @@ stub_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 
 static int
 stub_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
 	return (0);

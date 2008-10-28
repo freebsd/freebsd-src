@@ -3459,10 +3459,10 @@ vn_isdisk(struct vnode *vp, int *errp)
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
-    mode_t acc_mode, struct ucred *cred, int *privused)
+    accmode_t accmode, struct ucred *cred, int *privused)
 {
-	mode_t dac_granted;
-	mode_t priv_granted;
+	accmode_t dac_granted;
+	accmode_t priv_granted;
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -3484,7 +3484,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		if (file_mode & S_IWUSR)
 			dac_granted |= (VWRITE | VAPPEND);
 
-		if ((acc_mode & dac_granted) == acc_mode)
+		if ((accmode & dac_granted) == accmode)
 			return (0);
 
 		goto privcheck;
@@ -3499,7 +3499,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		if (file_mode & S_IWGRP)
 			dac_granted |= (VWRITE | VAPPEND);
 
-		if ((acc_mode & dac_granted) == acc_mode)
+		if ((accmode & dac_granted) == accmode)
 			return (0);
 
 		goto privcheck;
@@ -3512,7 +3512,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		dac_granted |= VREAD;
 	if (file_mode & S_IWOTH)
 		dac_granted |= (VWRITE | VAPPEND);
-	if ((acc_mode & dac_granted) == acc_mode)
+	if ((accmode & dac_granted) == accmode)
 		return (0);
 
 privcheck:
@@ -3529,35 +3529,35 @@ privcheck:
 		 * For directories, use PRIV_VFS_LOOKUP to satisfy VEXEC
 		 * requests, instead of PRIV_VFS_EXEC.
 		 */
-		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
 		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
-	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
+	if ((accmode & VREAD) && ((dac_granted & VREAD) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_READ, 0))
 		priv_granted |= VREAD;
 
-	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
+	if ((accmode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
 		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
+	if ((accmode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
 		priv_granted |= VADMIN;
 
-	if ((acc_mode & (priv_granted | dac_granted)) == acc_mode) {
+	if ((accmode & (priv_granted | dac_granted)) == accmode) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;
 		return (0);
 	}
 
-	return ((acc_mode & VADMIN) ? EPERM : EACCES);
+	return ((accmode & VADMIN) ? EPERM : EACCES);
 }
 
 /*
@@ -3566,7 +3566,7 @@ privcheck:
  */
 int
 extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
-    struct thread *td, int access)
+    struct thread *td, accmode_t accmode)
 {
 
 	/*
@@ -3584,7 +3584,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 		/* Potentially should be: return (EPERM); */
 		return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM, 0));
 	case EXTATTR_NAMESPACE_USER:
-		return (VOP_ACCESS(vp, access, cred, td));
+		return (VOP_ACCESS(vp, accmode, cred, td));
 	default:
 		return (EPERM);
 	}

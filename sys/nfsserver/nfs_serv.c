@@ -138,7 +138,8 @@ struct nfsrvstats nfsrvstats;
 SYSCTL_STRUCT(_vfs_nfsrv, NFS_NFSRVSTATS, nfsrvstats, CTLFLAG_RW,
 	&nfsrvstats, nfsrvstats, "S,nfsrvstats");
 
-static int	nfsrv_access(struct vnode *, int, struct ucred *, int, int);
+static int	nfsrv_access(struct vnode *, accmode_t, struct ucred *,
+		    int, int);
 static void	nfsrvw_coalesce(struct nfsrv_descript *,
 		    struct nfsrv_descript *);
 
@@ -4234,8 +4235,8 @@ nfsmout:
  * will return EPERM instead of EACCESS. EPERM is always an error.
  */
 static int
-nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
-    int override)
+nfsrv_access(struct vnode *vp, accmode_t accmode, struct ucred *cred,
+    int rdonly, int override)
 {
 	struct vattr vattr;
 	int error;
@@ -4244,7 +4245,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 
-	if (flags & VWRITE) {
+	if (accmode & VWRITE) {
 		/* Just vn_writechk() changed to check rdonly */
 		/*
 		 * Disallow write attempts on read-only filesystems;
@@ -4272,7 +4273,7 @@ nfsrv_access(struct vnode *vp, int flags, struct ucred *cred, int rdonly,
 	error = VOP_GETATTR(vp, &vattr, cred);
 	if (error)
 		return (error);
-	error = VOP_ACCESS(vp, flags, cred, curthread);
+	error = VOP_ACCESS(vp, accmode, cred, curthread);
 	/*
 	 * Allow certain operations for the owner (reads and writes
 	 * on files that are already open).
