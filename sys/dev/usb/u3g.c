@@ -53,7 +53,7 @@
 
 //#define U3G_DEBUG
 #ifdef U3G_DEBUG
-#define DPRINTF(x...)		do { if (u3gdebug) device_printf(sc->dev, ##x); } while (0)
+#define DPRINTF(x...)		do { if (u3gdebug) device_printf(sc->sc_dev, ##x); } while (0)
 #define DPRINTFN(n, x...)	do { if (u3gdebug > (n)) device_printf(self, ##x); } while (0)
 int	u3gdebug = 1;
 #else
@@ -453,9 +453,6 @@ static int
 u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 {
 	unsigned char cmd[31];
-#ifdef U3G_DEBUG
-	device_t self = uaa->device;
-#endif
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed = NULL;
 	int i;
