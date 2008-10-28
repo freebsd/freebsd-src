@@ -259,6 +259,7 @@ int	mac_proc_check_signal(struct ucred *cred, struct proc *p,
 int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
 void	mac_proc_destroy(struct proc *);
 void	mac_proc_init(struct proc *);
+void	mac_proc_vm_revoke(struct thread *td);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
 void	mac_execve_interpreter_enter(struct vnode *interpvp,
@@ -433,8 +434,6 @@ int	mac_vnode_execve_will_transition(struct ucred *cred,
 	    struct image_params *imgp);
 void	mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
-
-void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
 
 /*
  * Calls to help various file systems implement labeling functionality using
