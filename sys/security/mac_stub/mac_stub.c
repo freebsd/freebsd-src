@@ -1215,7 +1215,7 @@ stub_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
 
 static int
 stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
 	return (0);
