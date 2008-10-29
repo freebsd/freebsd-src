@@ -300,9 +300,9 @@ static const struct fmt athstats[] = {
 #define	S_ANI_STEPDOWN	AFTER(S_ANI_STEPUP)
 	{ 5,	"step-","STEP-",	"ANI decreased first step level" },
 #define	S_ANI_OFDMERRS	AFTER(S_ANI_STEPDOWN)
-	{ 8,	"ofdm",	"OFDM",		"cumulative ofdm phy error count" },
+	{ 8,	"ofdm",	"OFDM",		"cumulative OFDM phy error count" },
 #define	S_ANI_CCKERRS	AFTER(S_ANI_OFDMERRS)
-	{ 8,	"cck",	"CCK",		"cumulative cck phy error count" },
+	{ 8,	"cck",	"CCK",		"cumulative CCK phy error count" },
 #define	S_ANI_RESET	AFTER(S_ANI_CCKERRS)
 	{ 5,	"reset","RESET",	"ANI parameters zero'd for non-STA operation" },
 #define	S_ANI_LZERO	AFTER(S_ANI_RESET)
@@ -310,11 +310,11 @@ static const struct fmt athstats[] = {
 #define	S_ANI_LNEG	AFTER(S_ANI_LZERO)
 	{ 5,	"lneg",	"LNEG",		"ANI calculated listen time < 0" },
 #define	S_MIB_ACKBAD	AFTER(S_ANI_LNEG)
-	{ 5,	"ackbad","ACKBAD",	"bad ACK's" },
+	{ 5,	"ackbad","ACKBAD",	"missing ACK's" },
 #define	S_MIB_RTSBAD	AFTER(S_MIB_ACKBAD)
-	{ 5,	"rtsbad","RTSBAD",	"bad RTS" },
+	{ 5,	"rtsbad","RTSBAD",	"RTS without CTS" },
 #define	S_MIB_RTSGOOD	AFTER(S_MIB_RTSBAD)
-	{ 5,	"rtsgood","RTSGOOD",	"good RTS" },
+	{ 5,	"rtsgood","RTSGOOD",	"successful RTS" },
 #define	S_MIB_FCSBAD	AFTER(S_MIB_RTSGOOD)
 	{ 5,	"fcsbad","FCSBAD",	"bad FCS" },
 #define	S_MIB_BEACONS	AFTER(S_MIB_FCSBAD)
@@ -397,6 +397,7 @@ struct _athstats {
 		uint8_t	spurImmunityLevel;
 		uint8_t	firstepLevel;
 		uint8_t	ofdmWeakSigDetectOff;
+		uint8_t	cckWeakSigThreshold;
 		uint32_t listenTime;
 	} ani_state;
 #endif
@@ -613,6 +614,7 @@ ath_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_ANI_SPUR:	ANI(spurImmunityLevel);
 	case S_ANI_STEP:	ANI(firstepLevel);
 	case S_ANI_OFDM:	ANI(ofdmWeakSigDetectOff);
+	case S_ANI_CCK:		ANI(cckWeakSigThreshold);
 	case S_ANI_LISTEN:	ANI(listenTime);
 	case S_ANI_NIUP:	ANISTAT(niup);
 	case S_ANI_NIDOWN:	ANISTAT(nidown);
@@ -821,6 +823,8 @@ ath_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_ANI_NOISE:	ANI(noiseImmunityLevel);
 	case S_ANI_SPUR:	ANI(spurImmunityLevel);
 	case S_ANI_STEP:	ANI(firstepLevel);
+	case S_ANI_OFDM:	ANI(ofdmWeakSigDetectOff);
+	case S_ANI_CCK:		ANI(cckWeakSigThreshold);
 	case S_ANI_LISTEN:	ANI(listenTime);
 	case S_ANI_NIUP:	ANISTAT(niup);
 	case S_ANI_NIDOWN:	ANISTAT(nidown);
