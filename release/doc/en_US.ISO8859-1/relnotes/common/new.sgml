@@ -114,17 +114,88 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>An error that could allow &man.sendfile.2; to
-      inappropriately access the contents of a file has been fixed.
-      For more information, see security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">FreeBSD-SA-08:03.sendfile</ulink>.</para>
+    <para>Problems described in the following security advisories has
+      been fixed.  For more information, consult the individual
+      advisories available from <ulink
+	url="http://security.FreeBSD.org/"></ulink>.</para>
 
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">SA-08:03.sendfile</ulink></entry>
+	    <entry>14&nbsp;February&nbsp;2008</entry>
+	    <entry><para>&man.sendfile.2; write-only file permission bypass</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>17&nbsp;April&nbsp;2008</entry>
+	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
+		>SA-08:06.bind</ulink></entry>
+	    <entry>13&nbsp;July&nbsp;2008</entry>
+	    <entry><para>DNS cache poisoning</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:07.amd64.asc"
+		>SA-08:07.amd64</ulink></entry>
+	    <entry>3&nbsp;September&nbsp;2008</entry>
+	    <entry><para>amd64 swapgs local privilege escalation</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:09.icmp6.asc"
+		>SA-08:09.icmp6</ulink></entry>
+	    <entry>3&nbsp;September&nbsp;2008</entry>
+	    <entry><para>Remote kernel panics on IPv6 connections</entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:10.nd6.asc"
+		>SA-08:10.nd6</ulink></entry>
+	    <entry>1&nbsp;October&nbsp;2008</entry>
+	    <entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
   </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para>The opencrypto framework (&man.crypto.9;) and &man.ipsec.4;
+      subsystem now support Camellia block cipher.</para>
+
+    <para>The &os; kernel &man.malloc.9; now supports buffer corruption
+      protection (RedZone).  This detects both buffer underflow and buffer
+      overflow bugs at runtime on &man.free.9; and &man.realloc.9; and
+      prints backtraces from where memory was allocated and from where it
+      was freed.  For more details, see <literal>DEBUG_REDZONE</literal>
+      kernel option.</para>
+
+    <para>The client side functionality of &man.rpc.lockd.8; has been
+      implemented in &os; kernel.  This implementation provides the
+      correct semantics for &man.flock.2; style locks which are used
+      by the &man.lockf.1; command line tool and the &man.pidfile.3;
+      library.  It also implements recovery from server restarts and
+      ensures that dirty cache blocks are written to the server before
+      obtaining locks (allowing multiple clients to use file locking
+      to safely share data).  Also, a new kernel option
+      <literal>options NFSLOCKD</literal> has been added and enabled
+      by default.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -133,89 +204,235 @@
 
       <!-- Above this line, order boot loader changes by keyword-->
 
+      <para>&os; now support booting from GPT-labeled disks from the BIOS.</para>
+
       <para arch="i386,amd64">The BTX kernel used by the boot
 	loader has been changed to invoke BIOS routines from real
 	mode.  This change makes it possible to boot &os; from USB
 	devices.</para>
-
     </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para></para>
+      <para>The &man.acpi.asus.4; driver now supports Asus EeePC backlight control.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para> 
+	<para>The <filename>DRM</filename> driver now supports i915 GME device.</para>
       </sect4>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
-
+	<para>The &man.bge.4; driver now supports BCM5906-based adapters.</para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The &man.dummynet.4; subsystem now supports
+	<literal>fast</literal> mode operation which allows certain
+	packets to bypass the dummynet scheduler.  This can achieve
+	lower latency and lower overhead when the packet flow is under
+	the pipe bandwidth, and eliminate recursion in the subsystem.
+	The new sysctl variable
+	<varname>net.inet.ip.dummynet.io_fast</varname> has been
+	added to enable this feature.</para>
 
+      <para>The &man.resolver.3; now allows underscore in domain
+	names.  Although this is a violation of RFC 1034 [STD 13], it is
+	accepted by certain name servers as well as other popular operating
+	systems' resolver library.</para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.aac.4; driver now supports 64-bit array support
+	for RAIDs larger than 2TB and simultaneous opens of the device
+	for issuing commands to the controller.</para>
 
+      <para>A data corruption problem of the &man.ata.4; driver on
+	ServerWorks HT1000 chipsets has been fixed.</para>
+
+      <para>Stability of the &man.iir.4; driver has been improved.</para>
+
+      <para>The &man.mpt.4; driver now supports <literal>mpt_user</literal>
+	personality.</para>
     </sect3>
-
-    <sect3 id="fs">
-      <title>File Systems</title>
-
-      <para></para>
-
-    </sect3>
-
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>The &man.bsdtar.1; utility now supports the following options:
+      <option>--numeric-owner</option>, <option>-S</option>, and
+      <option>-s</option>.</para>
 
-    <sect3 id="rc-scripts"> 
+    <para>A bug in &man.cp.1; utility which prevents POSIX.1e ACL (see
+      also &man.acl.3;) from copying properly has been fixed.</para>
+
+    <para>The &man.cron.8; utility now supports <option>-m</option> flag which
+      overrides the default mail recipient for cron mails unless explicitly
+      provided by <literal>MAILTO=</literal> line in <filename>crontab</filename>
+      file.</para>
+
+    <para>The &man.cvs.1; now supports <option>-n</option> flag which
+      is the opposite of <option>-N</option> flag.</para>
+
+    <para>The &man.dump.8; and &man.restore.8; utility now support
+      extended attributes (see also &man.extattr.9;).</para>
+
+    <para>The &man.fortune.6; program now supports
+      <varname>FORTUNE_PATH</varname> environment variable to specify
+      search path of the fortune files.</para>
+
+    <para>A bug in the &man.fortune.6; program that prevents
+      <option>-e</option> option with multiple files from working has
+      been fixed.</para>
+
+    <para>The &man.freebsd-update.conf.5; now supports
+      <literal>IDSIgnorePaths</literal> statement.</para>
+
+    <para>The &man.fwcontrol.8; utility now supports <option>-f
+	<replaceable>node</replaceable></option> option which specifies
+      <replaceable>node</replaceable> as the root node on the next bus
+      reset.</para>
+
+    <para>The &man.make.1; utility now supports <literal>:u</literal>
+      variable modifier which removes adjacent duplicate words.</para>
+
+    <para>The incorrect output grammer of &man.morse.6; program has
+      been fixed.</para>
+
+    <para>The &man.mountd.8; utility now supports <option>-h
+	<replaceable>bindip</replaceable></option> option which
+      specifies IP addresses to bind to for TCP and UDP requests.
+      This option may be specified multiple times.  If no
+      <option>-h</option> option is specified,
+      <literal>INADDR_ANY</literal> will be used.  Note that when
+      specifying IP addresses with this option, it will
+      automatically add <literal>127.0.0.1</literal> and if IPv6 is
+      enabled, <literal>::1</literal> to the list.</para>
+
+    <para>The &man.moused.8; utility now supports <option>-L</option>
+      flag which changes the speed of scrolling and changes
+      <option>-U</option> option behavior to only affect the scroll
+      threshold.</para>
+
+    <para>The &man.mv.1; now support POSIX specification when moving a
+      directory to an existing directory across devices.</para>
+
+    <para>The &man.periodic.8; now supports
+      <varname>daily_status_mail_rejects_shorten</varname>
+      configuration variable in &man.periodic.conf.5;.  This allows
+      the rejected mail reports to tally the rejects per blacklist
+      without providing details about individual sender hosts.  The
+      default configuration keeps the reports in their original
+      form.</para>
+
+    <para>The &man.ping6.8; now uses exit status of
+      <literal>0</literal> and <literal>2</literal> in the same manner
+      as &man.ping.8;.</para>
+
+    <para>A bug in &man.telnetd.8; that it attempts authentication
+      even when <option>-a all</option> option is specified has been
+      fixed.</para>
+
+    <para>The &man.top.1; and &man.vmstat.8; now support
+      <option>-P</option> flag which displays per-CPU statistics.</para>
+
+    <para>The &man.watch.8; utility now supports more than 10
+      &man.snp.4; devices at a time.</para>
+
+    <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para>The <filename>ike</filename> &man.rc.8; script has been
+	removed.</para>
 
+      <para>The &man.rc.conf.5; now supports
+	<varname>dummynet_enable</varname> variable which allow
+	&man.dummynet.4; kernel module to be loaded when
+	<varname>firewall_enable</varname> is <literal>YES</literal>.</para>
+
+      <para>The <filename>ppp</filename> &man.rc.8; script now
+	supports multiple instances.  For more details, see description of
+	<varname>ppp_profile</varname> variable in &man.rc.conf.5;.</para>
+
+      <para>The <filename>rfcomm_pppd_server</filename> &man.rc.8;
+	script which allows start &man.rfcomm.pppd.8; in server mode
+	at boot time, has been added.  Multiple profiles can be
+	started at the same time.  For more details, see
+	&man.rc.conf.5;.</para>
+
+      <para>The <filename>sysctl</filename> &man.rc.8; script now
+	supports loading <filename>/etc/sysctl.conf.local</filename> in
+	addition to <filename>/etc/sysctl.conf</filename>.</para>
+
+      <para>The &man.rc.conf.5; now supports configuration of
+	interfaces and attached networks for firewall rule set by
+	<filename>rc.firewall</filename> when
+	<varname>firewall_type</varname> is <literal>simple</literal> or
+	<literal>client</literal>.  See
+	<varname>firewall_client_net</varname>,
+	<varname>firewall_simple_iif</varname>,
+	<varname>firewall_simple_inet</varname>,
+	<varname>firewall_simple_oif</varname>, and
+	<varname>firewall_simple_onet</varname>.</para>
     </sect3>
-
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
+    <para><application>am-utils</application> has been updated to
+      version 6.1.5.</para>
+
+    <para><application>ISC BIND</application> has been updated to
+      version 9.3.5-P2.</para>
+
     <para><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
+
+    <para><application>NTP</application> has been updated to version
+      4.2.4p5.</para>
+
+    <para><application>FILE</application> has been updated to version
+      4.21.</para>
+
+    <para><filename>libarchive</filename> has been virtually updated
+      to 2.5.4b.  Note that the internal version number remains 1.9.25
+      because the API/ABI compatibility is preserved.</para>
+
+    <para><application>ncurses</application> library has been updated
+      to version 5.6-20080503.</para>
+
+    <para><application>OpenPAM</application> has been updated to
+      Hydrangea release.</para>
 
     <para><application>sendmail</application> has been updated from
       8.14.2 to 8.14.3.</para>
 
+    <para><application>tcsh</application> has been updated to version
+      6.15.00.</para>
+
     <para>The timezone database has been updated from
       the <application>tzdata2007k</application> release to
-      the <application>tzdata2008b</application> release.</para>
-
+      the <application>tzdata2008e</application> release.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>The <filename>pkg_install</filename> utilities have been upgraded to
+      snapshot on 8.0-CURRENT as of May 30, 2008.</para>
 
+    <para>The &man.pkg.sign.1; and the &man.pkg.check.1; utility
+      have been removed.</para>
   </sect2>
 
   <sect2 id="releng">
@@ -224,15 +441,12 @@
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.20.1 to 2.22.</para>
+      updated from 2.20.1 to 2.22.3.</para>
 
-  </sect2>
-
-  <sect2 id="doc">
-    <title>Documentation</title>
-
-    <para></para>
-
+    <para>The supported version of
+      the <application>KDE</application> desktop environment
+      (<filename role="package">x11/kde3</filename>) has been
+      updated from 3.5.8 to 3.5.10.</para>
   </sect2>
 </sect1>
 
