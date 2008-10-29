@@ -1440,6 +1440,9 @@ sdhci_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case MMCBR_IVAR_TIMING:
 		*(int *)result = slot->host.ios.timing;
 		break;
+	case MMCBR_IVAR_MAX_DATA:
+		*(int *)result = 65535;
+		break;
 	}
 	return (0);
 }
@@ -1494,6 +1497,7 @@ sdhci_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 	case MMCBR_IVAR_HOST_OCR:
 	case MMCBR_IVAR_F_MIN:
 	case MMCBR_IVAR_F_MAX:
+	case MMCBR_IVAR_MAX_DATA:
 		return (EINVAL);
 	}
 	return (0);
