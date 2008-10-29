@@ -37,7 +37,7 @@
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
 <!ENTITY release.manpath.xorg          "7.3">
-<!ENTITY release.manpath.netbsd        "4.0">
+<!ENTITY release.manpath.netbsd        "4.0.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
 <!ENTITY release.manpath.freebsd       "6.4-RELEASE">
 
