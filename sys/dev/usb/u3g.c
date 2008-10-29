@@ -51,14 +51,12 @@
 #endif
 #include "usbdevs.h"
 
-//#define U3G_DEBUG
+#define U3G_DEBUG
 #ifdef U3G_DEBUG
 #define DPRINTF(x...)		do { if (u3gdebug) device_printf(sc->sc_dev, ##x); } while (0)
-#define DPRINTFN(n, x...)	do { if (u3gdebug > (n)) device_printf(self, ##x); } while (0)
 int	u3gdebug = 1;
 #else
 #define DPRINTF(x...)		/* nop */
-#define DPRINTFN(n, x...)	/* nop */
 #endif
 
 #define U3G_MAXPORTS		4
@@ -135,7 +133,8 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA },		U3GSP_HSDPA,	U3GFL_NONE },
 	{{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },	U3GSP_UMTS,	U3GFL_NONE },
 	/* OEM: Qualcomm, Inc. */
-	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GFL_STUB_WAIT },
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_STOR },	U3GSP_CDMA,	U3GFL_SCSI_EJECT },
+	{{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },	U3GSP_CDMA,	U3GFL_SCSI_EJECT },
 	/* OEM: Huawei */
 	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },		U3GSP_HSDPA,	U3GFL_HUAWEI_INIT },
 	{{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220 },		U3GSP_HSPA,	U3GFL_HUAWEI_INIT },
