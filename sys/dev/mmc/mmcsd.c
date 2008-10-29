@@ -81,8 +81,6 @@ struct mmcsd_softc {
 	int running;
 };
 
-#define	MULTI_BLOCK_BROKEN
-
 /* bus entry points */
 static int mmcsd_probe(device_t dev);
 static int mmcsd_attach(device_t dev);
@@ -235,12 +233,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 	while (block < end) {
 		char *vaddr = bp->bio_data +
 		    (block - bp->bio_pblkno) * sz;
-		int numblocks;
-#ifdef MULTI_BLOCK
-		numblocks = end - block;
-#else
-		numblocks = 1;
-#endif
+		int numblocks = min(end - block, mmc_get_max_data(dev));
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
