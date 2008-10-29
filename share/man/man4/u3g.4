@@ -2,7 +2,7 @@
 .\" Copyright (c) 2008 AnyWi Technologies
 .\" All rights reserved.
 .\"
-.\" This code is derived from uark.c 
+.\" This code is derived from uark.c
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -76,18 +76,26 @@ Novatal MC950D
 .It
 Sierra cards
 .El
-(See /sys/dev/u3g.c for the complete list of supported cards for each vendor
-mentioned above).
+.Pp
+See /sys/dev/u3g.c for the complete list of supported cards for each vendor
+mentioned above.
 .Pp
 The supported 3G cards provide the necessary modem port for ppp,
 pppd, or mpd connections as well as extra ports (depending on the specific
 device) to provide other functions (diagnostic port, SIM toolkit port)
 .Pp
-In some of these devices a mass storage device supported by the 
+In some of these devices a mass storage device supported by the
 .Xr umass 4
 driver is present which contains Windows and Mac OSX drivers. This device is
 hidden, unless the machine was booted in verbose (see
 .Xr boot 8 ).
+To temporarily unhide the device, set
+.Va debug.bootverbose
+to 1 using
+.Xr sysctl 8
+and replug the device. The
+.Xr u3gstub 4
+device will attach temporarily and detach within seconds.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
