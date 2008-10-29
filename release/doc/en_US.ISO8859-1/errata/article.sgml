@@ -62,7 +62,8 @@
       &os;.</para>
 
     <para>This errata document for &os; &release.bugfix;
-      will be maintained until the release of &os; &release.next;.</para>
+      will be maintained until the end of 6.4-STABLE development
+      line support.</para>
   </abstract>
 
   <sect1 id="intro">
