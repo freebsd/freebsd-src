@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/umtx.h>
 #include <sys/vmmeter.h>
 #include <sys/cpuset.h>
+#include <sys/sbuf.h>
 #ifdef KTRACE
 #include <sys/uio.h>
 #include <sys/ktrace.h>
@@ -223,7 +224,7 @@ struct tdq {
 #define	TDQ_IDLE	2
 
 #ifdef SMP
-struct cpu_group *cpu_top;
+struct cpu_group *cpu_top;		/* CPU topology */
 
 #define	SCHED_AFFINITY_DEFAULT	(max(1, hz / 1000))
 #define	SCHED_AFFINITY(ts, t)	((ts)->ts_rltick > ticks - ((t) * affinity))
@@ -293,6 +294,9 @@ static inline struct tdq *sched_setcpu(struct thread *, int, int);
 static inline struct mtx *thread_block_switch(struct thread *);
 static inline void thread_unblock_switch(struct thread *, struct mtx *);
 static struct mtx *sched_switch_migrate(struct tdq *, struct thread *, int);
+static int sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, 
+    struct cpu_group *cg, int indent);
 #endif
 
 static void sched_setup(void *dummy);
@@ -2601,6 +2605,83 @@ sched_fork_exit(struct thread *td)
 	    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
 }
 
+#ifdef SMP
+
+/*
+ * Build the CPU topology dump string. Is recursively called to collect
+ * the topology tree.
+ */
+static int
+sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
+    int indent)
+{
+	int i, first;
+
+	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
+	    "", indent, cg->cg_level);
+	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
+	    cg->cg_count, cg->cg_mask);
+	first = TRUE;
+	for (i = 0; i < MAXCPU; i++) {
+		if ((cg->cg_mask & (1 << i)) != 0) {
+			if (!first)
+				sbuf_printf(sb, ", ");
+			else
+				first = FALSE;
+			sbuf_printf(sb, "%d", i);
+		}
+	}
+	sbuf_printf(sb, "</cpu>\n");
+
+	sbuf_printf(sb, "%*s <flags>", indent, "");
+	if (cg->cg_flags != 0) {
+		if ((cg->cg_flags & CG_FLAG_HTT) != 0)
+			sbuf_printf(sb, "<flag name=\"HTT\">HTT group</flag>");
+		if ((cg->cg_flags & CG_FLAG_THREAD) != 0)
+			sbuf_printf(sb, "<flag name=\"THREAD\">SMT group</flag>");
+	}
+	sbuf_printf(sb, "</flags>\n");
+
+	if (cg->cg_children > 0) {
+		sbuf_printf(sb, "%*s <children>\n", indent, "");
+		for (i = 0; i < cg->cg_children; i++)
+			sysctl_kern_sched_topology_spec_internal(sb, 
+			    &cg->cg_child[i], indent+2);
+		sbuf_printf(sb, "%*s </children>\n", indent, "");
+	}
+	sbuf_printf(sb, "%*s</group>\n", indent, "");
+	return (0);
+}
+
+/*
+ * Sysctl handler for retrieving topology dump. It's a wrapper for
+ * the recursive sysctl_kern_smp_topology_spec_internal().
+ */
+static int
+sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf *topo;
+	int err;
+
+	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
+
+	topo = sbuf_new(NULL, NULL, 100, SBUF_AUTOEXTEND);
+	if (topo == NULL)
+		return (ENOMEM);
+
+	sbuf_printf(topo, "<groups>\n");
+	err = sysctl_kern_sched_topology_spec_internal(topo, cpu_top, 1);
+	sbuf_printf(topo, "</groups>\n");
+
+	if (err == 0) {
+		sbuf_finish(topo);
+		err = SYSCTL_OUT(req, sbuf_data(topo), sbuf_len(topo));
+	}
+	sbuf_delete(topo);
+	return (err);
+}
+#endif
+
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ULE", 0,
     "Scheduler name");
@@ -2630,6 +2711,11 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
     "Minimum load on remote cpu before we'll steal");
+
+/* Retrieve SMP topology */
+SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
+    CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
+    "XML dump of detected CPU topology");
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */
