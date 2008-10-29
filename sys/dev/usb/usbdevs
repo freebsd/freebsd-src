@@ -1996,6 +1996,7 @@ product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
+product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
