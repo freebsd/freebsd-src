@@ -591,8 +591,6 @@ pmu_adb_autopoll(device_t dev, uint16_t mask)
 {
 	struct pmu_softc *sc = device_get_softc(dev);
 
-	mask = 0xffff;
-
 	/* magical incantation to re-enable autopolling */
 	uint8_t cmd[] = {0, PMU_SET_POLL_MASK, (mask >> 8) & 0xff, mask & 0xff};
 	uint8_t resp[16];
