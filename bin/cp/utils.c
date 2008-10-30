@@ -57,10 +57,22 @@ __FBSDID("$FreeBSD$");
 
 #define	cp_pct(x, y)	((y == 0) ? 0 : (int)(100.0 * (x) / (y)))
 
+/* Memory strategy threshold, in pages: if physmem is larger then this, use a 
+ * large buffer */
+#define PHYSPAGES_THRESHOLD (32*1024)
+
+/* Maximum buffer size in bytes - do not allow it to grow larger than this */
+#define BUFSIZE_MAX (2*1024*1024)
+
+/* Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS */
+#define BUFSIZE_SMALL (MAXPHYS)
+
 int
 copy_file(const FTSENT *entp, int dne)
 {
-	static char buf[MAXBSIZE];
+	static char *buf = NULL;
+	static size_t bufsize;
 	struct stat *fs;
 	ssize_t wcount;
 	size_t wresid;
@@ -174,8 +186,23 @@ copy_file(const FTSENT *entp, int dne)
 		} else
 #endif
 		{
+			if (buf == NULL) {
+				/*
+				 * Note that buf and bufsize are static. If
+				 * malloc() fails, it will fail at the start
+				 * and not copy only some files. 
+				 */ 
+				if (sysconf(_SC_PHYS_PAGES) > 
+				    PHYSPAGES_THRESHOLD)
+					bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+				else
+					bufsize = BUFSIZE_SMALL;
+				buf = malloc(bufsize);
+				if (buf == NULL)
+					err(1, "Not enough memory");
+			}
 			wtotal = 0;
-			while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
+			while ((rcount = read(from_fd, buf, bufsize)) > 0) {
 				for (bufp = buf, wresid = rcount; ;
 			    	bufp += wcount, wresid -= wcount) {
 					wcount = write(to_fd, bufp, wresid);
