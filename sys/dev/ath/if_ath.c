@@ -1999,7 +1999,7 @@ ath_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		pri = M_WME_GETAC(m);
 		txq = sc->sc_ac2q[pri];
-		if (ni->ni_ath_flags & IEEE80211_NODE_FF) {
+		if (IEEE80211_ATH_CAP(ni->ni_vap, ni, IEEE80211_NODE_FF)) {
 			/*
 			 * Check queue length; if too deep drop this
 			 * frame (tail drop considered good).
