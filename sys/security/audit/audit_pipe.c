@@ -424,16 +424,21 @@ audit_pipe_preselect(au_id_t auid, au_event_t event, au_class_t class,
 
 /*
  * Append individual record to a queue -- allocate queue-local buffer, and
- * add to the queue.  We try to drop from the head of the queue so that more
- * recent events take precedence over older ones, but if allocation fails we
- * do drop the new event.
+ * add to the queue.  If the queue is full or we can't allocate memory, drop
+ * the newest record.
  */
 static void
 audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 {
-	struct audit_pipe_entry *ape, *ape_remove;
+	struct audit_pipe_entry *ape;
 
 	AUDIT_PIPE_LOCK_ASSERT(ap);
+
+	if (ap->ap_qlen >= ap->ap_qlimit) {
+		ap->ap_drops++;
+		audit_pipe_drops++;
+		return;
+	}
 
 	ape = malloc(sizeof(*ape), M_AUDIT_PIPE_ENTRY, M_NOWAIT | M_ZERO);
 	if (ape == NULL) {
@@ -452,15 +457,6 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 
 	bcopy(record, ape->ape_record, record_len);
 	ape->ape_record_len = record_len;
-
-	if (ap->ap_qlen >= ap->ap_qlimit) {
-		ape_remove = TAILQ_FIRST(&ap->ap_queue);
-		TAILQ_REMOVE(&ap->ap_queue, ape_remove, ape_queue);
-		audit_pipe_entry_free(ape_remove);
-		ap->ap_qlen--;
-		ap->ap_drops++;
-		audit_pipe_drops++;
-	}
 
 	TAILQ_INSERT_TAIL(&ap->ap_queue, ape, ape_queue);
 	ap->ap_inserts++;
