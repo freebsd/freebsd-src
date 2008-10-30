@@ -156,8 +156,8 @@ IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 
 #ifdef SMP
 	.globl	KPTphys
-	.globl	gdtset
 #endif
+	.globl	gdtset
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 gdtset:		.long	0
 	
