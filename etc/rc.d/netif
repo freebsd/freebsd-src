@@ -141,7 +141,9 @@ network_common()
 		esac
 		echo "${_str} Network:${_ok}."
 		if [ -z "${rc_quiet}" ]; then
-			/sbin/ifconfig ${_ok}
+			for ifn in ${_ok}; do
+				/sbin/ifconfig ${ifn}
+			done
 		fi
 	fi
 
