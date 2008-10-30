@@ -51,7 +51,7 @@
 #endif
 #include "usbdevs.h"
 
-/* #define U3G_DEBUG */
+//#define U3G_DEBUG
 #ifdef U3G_DEBUG
 #define DPRINTF(x...)		do { if (u3gdebug) device_printf(sc->sc_dev, ##x); } while (0)
 int	u3gdebug = 1;
@@ -483,8 +483,10 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 			break;
 	}
 
-	if (i == id->bNumEndpoints)
+	if (i == id->bNumEndpoints) {
+		DPRINTF("failed to find bulk-out pipe\n");
 		return 0;
+	}
 
 	if (usbd_open_pipe(uaa->iface, ed->bEndpointAddress,
 			   USBD_EXCLUSIVE_USE, &sc->sc_pipe) != USBD_NORMAL_COMPLETION) {
@@ -501,7 +503,8 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 
 	usbd_setup_xfer(sc->sc_xfer, sc->sc_pipe, NULL, cmd, sizeof(cmd),
 			0, USBD_DEFAULT_TIMEOUT, NULL);
-	if (usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION) {
+	int err = usbd_transfer(sc->sc_xfer) != USBD_NORMAL_COMPLETION;
+	if (err != USBD_NORMAL_COMPLETION && err != USBD_IN_PROGRESS) {
 		DPRINTF("failed to start transfer\n");
 		return 0;
 	}
@@ -545,8 +548,8 @@ u3gstub_match(device_t self)
 		return UMATCH_NONE;
 
 	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT
-	    || u3g_dev_type->flags&U3GFL_SIERRA_INIT
 	    || u3g_dev_type->flags&U3GFL_SCSI_EJECT
+	    || u3g_dev_type->flags&U3GFL_SIERRA_INIT
 	    || u3g_dev_type->flags&U3GFL_STUB_WAIT) {
 		/* We assume that if the first interface is still a mass
 		 * storage device the device has not yet changed appearance.
@@ -574,9 +577,8 @@ u3gstub_attach(device_t self)
 	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 
-	if (uaa->iface)
-		for (i = 0; i < uaa->nifaces; i++)
-			uaa->ifaces[i] = NULL;		// claim all interfaces
+	for (i = 0; i < uaa->nifaces; i++)
+		uaa->ifaces[i] = NULL;		// claim all interfaces
 
 	u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
 	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT) {
@@ -584,7 +586,7 @@ u3gstub_attach(device_t self)
 		if (!u3gstub_huawei_init(sc, uaa))
 			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_SCSI_EJECT) {
-		DPRINTF("sending CD eject command to change to modem mode \n");
+		DPRINTF("sending CD eject command to change to modem mode\n");
 		if (!u3gstub_scsi_eject(sc, uaa))
 			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_SIERRA_INIT) {
