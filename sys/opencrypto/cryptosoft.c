@@ -352,6 +352,10 @@ swcr_encdec(struct cryptodesc *crd, struct swcr_data *sw, caddr_t buf,
 				k += blks;
 				i -= blks;
 			}
+			if (k == iov->iov_len) {
+				iov++;
+				k = 0;
+			}
 		}
 
 		return 0; /* Done with iovec encryption/decryption */
