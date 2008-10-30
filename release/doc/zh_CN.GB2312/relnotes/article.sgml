@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 182188 -->
+<!-- Original Revision: 183702 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -129,7 +129,7 @@
     <title>对内核的改动</title>
     
     <para>为内核调试器 &man.ddb.4; 新增了输出捕捉机制。
-      来自 &man.ddb.4; 的輸入和输出内容会自动捕捉到一个内存缓冲区，
+      来自 &man.ddb.4; 的输入和输出内容会自动捕捉到一个内存缓冲区，
       以便在随后通过 &man.sysctl.8; 或 textdump 来读取和分析。
       新增的 <command>capture</command> 命令可以控制这个功能。</para>
 
@@ -252,6 +252,12 @@
 
     <para><application>OpenPAM</application> 从
       Figwort 版升级到了 Hydrangea 版。</para>
+
+    <para><application>OpenSSH</application> 从
+      4.5p1 版升级到了 5.1p1 版。</para>
+
+    <para><application>sendmail</application> 从
+      8.14.2 版升级到了 8.14.3 版。</para>
 
     <para>时区数据库从
       <application>tzdata2007h</application> 版升级到了
