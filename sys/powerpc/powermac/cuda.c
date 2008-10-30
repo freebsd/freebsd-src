@@ -341,10 +341,7 @@ cuda_send(void *cookie, int poll, int length, uint8_t *msg)
 
 	mtx_lock(&sc->sc_mutex);
 
-	if ((sc->sc_state == CUDA_IDLE) /*&& 
-	    ((cuda_read_reg(sc, vBufB) & vPB3) == vPB3)*/) {
-		/* fine */
-	} else {
+	if (sc->sc_state != CUDA_IDLE) {
 		if (sc->sc_waiting == 0) {
 			sc->sc_waiting = 1;
 		} else {
@@ -381,12 +378,12 @@ cuda_poll(device_t dev)
 {
 	struct cuda_softc *sc = device_get_softc(dev);
 
-	while ((sc->sc_state != CUDA_IDLE) ||
-	       (cuda_intr_state(sc)) ||
-	       (sc->sc_waiting == 1)) {
-		if ((cuda_read_reg(sc, vIFR) & vSR_INT) == vSR_INT)
-			cuda_intr(dev);
-	}
+	if (sc->sc_state == CUDA_IDLE && !cuda_intr_state(sc) && 
+	    !sc->sc_waiting)
+		return;
+
+	if ((cuda_read_reg(sc, vIFR) & vSR_INT) == vSR_INT)
+		cuda_intr(dev);
 }
 
 static void
@@ -615,6 +612,7 @@ cuda_adb_autopoll(device_t dev, uint16_t mask) {
 	uint8_t cmd[] = {CUDA_PSEUDO, CMD_AUTOPOLL, mask != 0};
 
 	mtx_lock(&sc->sc_mutex);
+
 	if (cmd[2] == sc->sc_autopoll) {
 		mtx_unlock(&sc->sc_mutex);
 		return 0;
@@ -624,18 +622,10 @@ cuda_adb_autopoll(device_t dev, uint16_t mask) {
 		mtx_sleep(dev,&sc->sc_mutex,0,"cuda",1);
 
 	sc->sc_autopoll = -1;
-	mtx_unlock(&sc->sc_mutex);
-
 	cuda_send(sc, 0, 3, cmd);
-	
-	mtx_lock(&sc->sc_mutex);
-	while(sc->sc_autopoll == -1) {
-		mtx_sleep(dev,&sc->sc_mutex,0,"cuda",100);
-		cuda_poll(dev);
-	}
 
 	mtx_unlock(&sc->sc_mutex);
-
+	
 	return 0;
 }
 
