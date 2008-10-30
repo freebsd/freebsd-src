@@ -553,7 +553,7 @@ adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if ((ni->ni_ath_flags & IEEE80211_NODE_FF) &&
+		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
 #define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
 		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
 			struct llc *llc;
