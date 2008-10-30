@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Tom Rhodes
  * Copyright (c) 2006 SPARTA, Inc.
@@ -65,11 +65,7 @@ ugidfw_vnode_check_access(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, accmode_t accmode)
 {
 
-	/*
-	 * XXX: We pass accmode_t variable containing V* constants
-	 *	as an int containing MBI_* constants.
-	 */
-	return (ugidfw_check_vp(cred, vp, (int)accmode));
+	return (ugidfw_check_vp(cred, vp, ugidfw_accmode2mbi(accmode)));
 }
 
 int
@@ -175,11 +171,7 @@ ugidfw_vnode_check_open(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, accmode_t accmode)
 {
 
-	/*
-	 * XXX: We pass accmode_t variable containing V* constants
-	 *	as an int containing MBI_* constants.
-	 */
-	return (ugidfw_check_vp(cred, vp, (int)accmode));
+	return (ugidfw_check_vp(cred, vp, ugidfw_accmode2mbi(accmode)));
 }
 
 int

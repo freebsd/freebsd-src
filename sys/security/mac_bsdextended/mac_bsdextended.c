@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Tom Rhodes
  * Copyright (c) 2006 SPARTA, Inc.
@@ -463,6 +463,27 @@ ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 	if (error)
 		return (error);
 	return (ugidfw_check(cred, vp, &vap, acc_mode));
+}
+
+int
+ugidfw_accmode2mbi(accmode_t accmode)
+{
+	int mbi;
+
+	mbi = 0;
+	if (accmode & VEXEC)
+		mbi |= MBI_EXEC;
+	if (accmode & VWRITE)
+		mbi |= MBI_WRITE;
+	if (accmode & VREAD)
+		mbi |= MBI_READ;
+	if (accmode & VADMIN)
+		mbi |= MBI_ADMIN;
+	if (accmode & VSTAT)
+		mbi |= MBI_STAT;
+	if (accmode & VAPPEND)
+		mbi |= MBI_APPEND;
+	return (mbi);
 }
 
 static struct mac_policy_ops ugidfw_ops =
