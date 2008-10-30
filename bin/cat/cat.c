@@ -77,6 +77,17 @@ static void raw_cat(int);
 static int udom_open(const char *path, int flags);
 #endif
 
+/* Memory strategy threshold, in pages: if physmem is larger then this, use a 
+ * large buffer */
+#define PHYSPAGES_THRESHOLD (32*1024)
+
+/* Maximum buffer size in bytes - do not allow it to grow larger than this */
+#define BUFSIZE_MAX (2*1024*1024)
+
+/* Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS */
+#define BUFSIZE_SMALL (MAXPHYS)
+
 int
 main(int argc, char *argv[])
 {
@@ -247,9 +258,17 @@ raw_cat(int rfd)
 	if (buf == NULL) {
 		if (fstat(wfd, &sbuf))
 			err(1, "%s", filename);
-		bsize = MAX(sbuf.st_blksize, 1024);
+		if (S_ISREG(sbuf.st_mode)) {
+			/* If there's plenty of RAM, use a large copy buffer */
+			if (sysconf(_SC_PHYS_PAGES) > PHYSPAGES_THRESHOLD)
+				bsize = MIN(BUFSIZE_MAX, MAXPHYS*8);
+			else
+				bsize = BUFSIZE_SMALL;
+		} else
+			bsize = MAX(sbuf.st_blksize, 
+					(blksize_t)sysconf(_SC_PAGESIZE));
 		if ((buf = malloc(bsize)) == NULL)
-			err(1, "buffer");
+			err(1, "malloc() failure of IO buffer");
 	}
 	while ((nr = read(rfd, buf, bsize)) > 0)
 		for (off = 0; nr; nr -= nw, off += nw)
