@@ -325,7 +325,7 @@ usbd_transfer(usbd_xfer_handle xfer)
 	}
 
 	if (!(xfer->flags & USBD_SYNCHRONOUS))
-		return (xfer->done ? 0 : USBD_IN_PROGRESS);
+		return (xfer->done ? USBD_NORMAL_COMPLETION : USBD_IN_PROGRESS);
 
 	/* Sync transfer, wait for completion. */
 	s = splusb();
