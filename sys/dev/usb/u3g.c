@@ -227,6 +227,13 @@ u3g_attach(device_t self)
 	usb_config_descriptor_t *cd;
 	char devnamefmt[32];
 
+#if __FreeBSD_version < 700000
+	char *devinfo = malloc(1024, M_USBDEV, M_WAITOK);
+	usbd_devinfo(dev, 0, devinfo);
+	device_printf(self, "%s\n", devinfo);
+	free(devinfo, M_USBDEV);
+#endif
+
 	/* get the config descriptor */
 	cd = usbd_get_config_descriptor(dev);
 	if (cd == NULL) {
