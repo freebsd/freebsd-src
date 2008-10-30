@@ -155,15 +155,18 @@ stack_sbuf_print_ddb(struct sbuf *sb, struct stack *st)
 		    name, offset);
 	}
 }
+#endif
 
 #ifdef KTR
 void
 stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
     int cheap)
 {
+#ifdef DDB
 	const char *name;
 	long offset;
 	int i;
+#endif
 
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	if (cheap) {
@@ -180,6 +183,7 @@ stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
 		ktr_tracepoint(mask, file, line, "#2 %p %p %p %p %p %p",
 		    st->pcs[12], st->pcs[13], st->pcs[14], st->pcs[15],
 		    st->pcs[16], st->pcs[17]);
+#ifdef DDB
 	} else {
 		if (depth == 0 || st->depth < depth)
 			depth = st->depth;
@@ -188,9 +192,9 @@ stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
 			ktr_tracepoint(mask, file, line, "#%d %p at %s+%#lx",
 			    i, st->pcs[i], (u_long)name, offset, 0, 0);
 		}
+#endif
 	}
 }
-#endif
 #endif
 
 /*
