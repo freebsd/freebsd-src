@@ -44,6 +44,7 @@
 static int adb_bus_probe(device_t dev);
 static int adb_bus_attach(device_t dev);
 static int adb_bus_detach(device_t dev);
+static void adb_bus_enumerate(void *xdev);
 static void adb_probe_nomatch(device_t dev, device_t child);
 static int adb_print_child(device_t dev, device_t child);
 
@@ -87,6 +88,27 @@ adb_bus_probe(device_t dev)
 static int
 adb_bus_attach(device_t dev)
 {
+	struct adb_softc *sc = device_get_softc(dev);
+	sc->enum_hook.ich_func = adb_bus_enumerate;
+	sc->enum_hook.ich_arg = dev;
+
+	/*
+	 * We should wait until interrupts are enabled to try to probe
+	 * the bus. Enumerating the ADB involves receiving packets,
+	 * which works best with interrupts enabled.
+	 */
+	
+	if (config_intrhook_establish(&sc->enum_hook) != 0)
+		return (ENOMEM);
+
+	return (0);
+}
+	
+static void
+adb_bus_enumerate(void *xdev)
+{
+	device_t dev = (device_t)xdev;
+
 	struct adb_softc *sc = device_get_softc(dev);
 	uint8_t i, next_free;
 	uint16_t r3;
@@ -165,7 +187,9 @@ adb_bus_attach(device_t dev)
 		}
 	}
 
-	return (bus_generic_attach(dev));
+	bus_generic_attach(dev);
+
+	config_intrhook_disestablish(&sc->enum_hook);
 }
 
 static int adb_bus_detach(device_t dev)
@@ -315,10 +339,13 @@ adb_send_raw_packet_sync(device_t dev, uint8_t to, uint8_t command,
 	ADB_HB_SEND_RAW_PACKET(sc->parent, command_byte, len, data, 1);
 
 	while (!atomic_fetchadd_int(&sc->packet_reply,0)) {
-		/* Sometimes CUDA controllers hang up during cold boots.
-		   Try poking them. */
-		if (i > 10)
-			ADB_HB_CONTROLLER_POLL(sc->parent);
+		/*
+		 * Maybe the command got lost? Try resending and polling the 
+		 * controller.
+		 */
+		if (i > 40)
+			ADB_HB_SEND_RAW_PACKET(sc->parent, command_byte, 
+			    len, data, 1);
 
 		DELAY(100);
 		i++;
