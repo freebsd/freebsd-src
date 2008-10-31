@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_rl.h"
 #endif
 
 #include <sys/param.h>
@@ -1383,19 +1384,143 @@ rl_txeof(struct rl_softc *sc)
 		sc->rl_watchdog_timer = 0;
 }
 
+#ifdef RL_TWISTER_ENABLE
+static void
+rl_twister_update(struct rl_softc *sc)
+{
+	uint16_t linktest;
+	/*
+	 * Table provided by RealTek (Kinston <shangh@realtek.com.tw>) for
+	 * Linux driver.  Values undocumented otherwise.
+	 */
+	static const uint32_t param[4][4] = {
+		{0xcb39de43, 0xcb39ce43, 0xfb38de03, 0xcb38de43},
+		{0xcb39de43, 0xcb39ce43, 0xcb39ce83, 0xcb39ce83},
+		{0xcb39de43, 0xcb39ce43, 0xcb39ce83, 0xcb39ce83},
+		{0xbb39de43, 0xbb39ce43, 0xbb39ce83, 0xbb39ce83}
+	};
+
+	/*
+	 * Tune the so-called twister registers of the RTL8139.  These
+	 * are used to compensate for impendence mismatches.  The
+	 * method for tuning these registes is undocumented and the
+	 * following proceedure is collected from public sources.
+	 */
+	switch (sc->rl_twister)
+	{
+	case CHK_LINK:
+		/*
+		 * If we have a sufficent link, then we can proceed in
+		 * the state machine to the next stage.  If not, then
+		 * disable further tuning after writing sane defaults.
+		 */
+		if (CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_LINK_OK) {
+			CSR_WRITE_2(sc, RL_CSCFG, RL_CSCFG_LINK_DOWN_OFF_CMD);
+			sc->rl_twister = FIND_ROW;
+		} else {
+			CSR_WRITE_2(sc, RL_CSCFG, RL_CSCFG_LINK_DOWN_CMD);
+			CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_CBL_TEST);
+			CSR_WRITE_4(sc, RL_PARA78, RL_PARA78_DEF);
+			CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_DEF);
+			sc->rl_twister = DONE;
+		}
+		break;
+	case FIND_ROW:
+		/*
+		 * Read how long it took to see the echo to find the tuning
+		 * row to use.
+		 */
+		linktest = CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_STATUS;
+		if (linktest == RL_CSCFG_ROW3)
+			sc->rl_twist_row = 3;
+		else if (linktest == RL_CSCFG_ROW2)
+			sc->rl_twist_row = 2;
+		else if (linktest == RL_CSCFG_ROW1)
+			sc->rl_twist_row = 1;
+		else
+			sc->rl_twist_row = 0;
+		sc->rl_twist_col = 0;
+		sc->rl_twister = SET_PARAM;
+		break;
+	case SET_PARAM:
+		if (sc->rl_twist_col == 0)
+			CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_RESET);
+		CSR_WRITE_4(sc, RL_PARA7C,
+		    param[sc->rl_twist_row][sc->rl_twist_col]);
+		if (++sc->rl_twist_col == 4) {
+			if (sc->rl_twist_row == 3)
+				sc->rl_twister = RECHK_LONG;
+			else
+				sc->rl_twister = DONE;
+		}
+		break;
+	case RECHK_LONG:
+		/*
+		 * For long cables, we have to double check to make sure we
+		 * don't mistune.
+		 */
+		linktest = CSR_READ_2(sc, RL_CSCFG) & RL_CSCFG_STATUS;
+		if (linktest == RL_CSCFG_ROW3)
+			sc->rl_twister = DONE;
+		else {
+			CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_RETUNE);
+			sc->rl_twister = RETUNE;
+		}
+		break;
+	case RETUNE:
+		/* Retune for a shorter cable (try column 2) */
+		CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_CBL_TEST);
+		CSR_WRITE_4(sc, RL_PARA78, RL_PARA78_DEF);
+		CSR_WRITE_4(sc, RL_PARA7C, RL_PARA7C_DEF);
+		CSR_WRITE_4(sc, RL_NWAYTST, RL_NWAYTST_RESET);
+		sc->rl_twist_row--;
+		sc->rl_twist_col = 0;
+		sc->rl_twister = SET_PARAM;
+		break;
+
+	case DONE:
+		break;
+	}
+	
+}
+#endif
+
 static void
 rl_tick(void *xsc)
 {
 	struct rl_softc		*sc = xsc;
 	struct mii_data		*mii;
+	int ticks;
 
 	RL_LOCK_ASSERT(sc);
+	/*
+	 * If we're doing the twister cable calibration, then we need to defer
+	 * watchdog timeouts.  This is a no-op in normal operations, but
+	 * can falsely trigger when the cable calibration takes a while and
+	 * there was traffic ready to go when rl was started.
+	 *
+	 * We don't defer mii_tick since that updates the mii status, which
+	 * helps the twister process, at least according to similar patches
+	 * for the Linux driver I found online while doing the fixes.  Worst
+	 * case is a few extra mii reads during calibration.
+	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
-
+#ifdef RL_TWISTER_ENABLE
+	if (sc->rl_twister == DONE)
+		rl_watchdog(sc);
+	else
+		rl_twister_update(sc);
+	if (sc->rl_twister == DONE)
+		ticks = hz;
+	else
+		ticks = hz / 10;
+#else
 	rl_watchdog(sc);
+	ticks = hz;
+#endif
 
-	callout_reset(&sc->rl_stat_callout, hz, rl_tick, sc);
+	callout_reset(&sc->rl_stat_callout, ticks, rl_tick, sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1643,6 +1768,14 @@ rl_init_locked(struct rl_softc *sc)
 	rl_stop(sc);
 
 	rl_reset(sc);
+#ifdef RL_TWISTER_ENABLE
+	/*
+	 * Reset twister register tuning state.  The twister registers
+	 * and their tuning are undocumented, but are necessary to cope
+	 * with bad links.  rl_twister = DONE here will disable this entirely.
+	 */
+	sc->rl_twister = CHK_LINK;
+#endif
 
 	/*
 	 * Init our MAC address.  Even though the chipset
