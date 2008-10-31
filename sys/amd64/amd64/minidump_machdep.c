@@ -104,7 +104,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 	int error, i, c;
 	u_int maxdumpsz;
 
-	maxdumpsz = di->maxiosize;
+	maxdumpsz = min(di->maxiosize, MAXDUMPPGS * PAGE_SIZE);
 	if (maxdumpsz == 0)	/* seatbelt */
 		maxdumpsz = PAGE_SIZE;
 	error = 0;
