@@ -1540,6 +1540,24 @@ mls_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
+mls_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (ENOENT);
+
+	return (0);
+}
+
+static int
 mls_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
 {
@@ -2957,6 +2975,7 @@ static struct mac_policy_ops mls_ops =
 	.mpo_check_ifnet_relabel = mls_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mls_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = mls_check_inpcb_deliver,
+	.mpo_check_inpcb_visible = mls_check_inpcb_visible,
 	.mpo_check_sysv_msgrcv = mls_check_sysv_msgrcv,
 	.mpo_check_sysv_msgrmid = mls_check_sysv_msgrmid,
 	.mpo_check_sysv_msqget = mls_check_sysv_msqget,

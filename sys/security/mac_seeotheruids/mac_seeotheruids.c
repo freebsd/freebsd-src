@@ -47,8 +47,13 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 
 #include <security/mac/mac_policy.h>
 
@@ -129,6 +134,14 @@ seeotheruids_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
+seeotheruids_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+
+	return (seeotheruids_check(cred, inp->inp_cred));
+}
+
+static int
 seeotheruids_check_proc_signal(struct ucred *cred, struct proc *p,
     int signum)
 {
@@ -161,6 +174,7 @@ seeotheruids_check_socket_visible(struct ucred *cred, struct socket *so,
 static struct mac_policy_ops seeotheruids_ops =
 {
 	.mpo_check_cred_visible = seeotheruids_check_cred_visible,
+	.mpo_check_inpcb_visible = seeotheruids_check_inpcb_visible,
 	.mpo_check_proc_debug = seeotheruids_check_proc_debug,
 	.mpo_check_proc_sched = seeotheruids_check_proc_sched,
 	.mpo_check_proc_signal = seeotheruids_check_proc_signal,

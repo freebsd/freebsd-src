@@ -46,9 +46,14 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
+
+#include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_partition/mac_partition.h>
@@ -186,6 +191,17 @@ partition_check_cred_visible(struct ucred *cr1, struct ucred *cr2)
 }
 
 static int
+partition_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	int error;
+
+	error = label_on_label(cred->cr_label, inp->inp_cred->cr_label);
+
+	return (error ? ENOENT : 0);
+}
+
+static int
 partition_check_proc_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
@@ -258,6 +274,7 @@ static struct mac_policy_ops partition_ops =
 	.mpo_relabel_cred = partition_relabel_cred,
 	.mpo_check_cred_relabel = partition_check_cred_relabel,
 	.mpo_check_cred_visible = partition_check_cred_visible,
+	.mpo_check_inpcb_visible = partition_check_inpcb_visible,
 	.mpo_check_proc_debug = partition_check_proc_debug,
 	.mpo_check_proc_sched = partition_check_proc_sched,
 	.mpo_check_proc_signal = partition_check_proc_signal,
