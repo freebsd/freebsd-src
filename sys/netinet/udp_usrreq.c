@@ -696,7 +696,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0)
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0)
 			inp_list[i++] = inp;
 		INP_RUNLOCK(inp);
 	}
@@ -765,8 +765,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
-			error = cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket);
+			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
 			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
