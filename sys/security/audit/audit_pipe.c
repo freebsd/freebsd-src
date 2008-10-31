@@ -144,7 +144,6 @@ struct audit_pipe {
 	u_int64_t			 ap_inserts;	/* Records added. */
 	u_int64_t			 ap_reads;	/* Records read. */
 	u_int64_t			 ap_drops;	/* Records dropped. */
-	u_int64_t			 ap_truncates;	/* Records too long. */
 
 	/*
 	 * Fields relating to pipe interest: global masks for unmatched
@@ -920,7 +919,7 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 		break;
 
 	case AUDITPIPE_GET_TRUNCATES:
-		*(u_int *)data = ap->ap_truncates;
+		*(u_int *)data = 0;
 		error = 0;
 		break;
 
