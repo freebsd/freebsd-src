@@ -250,6 +250,7 @@ int	mac_check_bpfdesc_receive(struct bpf_d *d, struct ifnet *ifp);
 int	mac_check_cred_visible(struct ucred *cr1, struct ucred *cr2);
 int	mac_check_ifnet_transmit(struct ifnet *ifp, struct mbuf *m);
 int	mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m);
+int	mac_check_inpcb_visible(struct ucred *cred, struct inpcb *inp);
 int	mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
 	    struct msqid_kernel *msqkptr);
 int	mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr);
