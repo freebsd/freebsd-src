@@ -178,15 +178,16 @@ or a null pointer
 Display the current errno information string and exit:
 .Bd -literal -offset indent
 if ((p = malloc(size)) == NULL)
-	err(1, NULL);
+	err(EX_OSERR, NULL);
 if ((fd = open(file_name, O_RDONLY, 0)) == -1)
-	err(1, "%s", file_name);
+	err(EX_NOINPUT, "%s", file_name);
 .Ed
 .Pp
 Display an error message and exit:
 .Bd -literal -offset indent
 if (tm.tm_hour < START_TIME)
-	errx(1, "too early, wait until %s", start_time_string);
+	errx(EX_DATAERR, "too early, wait until %s",
+	    start_time_string);
 .Ed
 .Pp
 Warn of an error:
@@ -195,7 +196,7 @@ if ((fd = open(raw_device, O_RDONLY, 0)) == -1)
 	warnx("%s: %s: trying the block device",
 	    raw_device, strerror(errno));
 if ((fd = open(block_device, O_RDONLY, 0)) == -1)
-	err(1, "%s", block_device);
+	err(EX_OSFILE, "%s", block_device);
 .Ed
 .Pp
 Warn of an error without using the global variable
