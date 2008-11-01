@@ -187,7 +187,7 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 
 	client_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	client_address.sun_family = PF_LOCAL;
-	strncpy(client_address.sun_path, params->socket_path,
+	strlcpy(client_address.sun_path, params->socket_path,
 		sizeof(client_address.sun_path));
 	client_address_len = sizeof(client_address.sun_family) +
 		strlen(client_address.sun_path) + 1;
@@ -201,9 +201,8 @@ open_nscd_connection__(struct nscd_connection_params const *params)
 	}
 	fcntl(client_socket, F_SETFL, O_NONBLOCK);
 
-	retval = malloc(sizeof(struct nscd_connection_));
+	retval = calloc(1, sizeof(struct nscd_connection_));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct nscd_connection_));
 
 	retval->sockfd = client_socket;
 

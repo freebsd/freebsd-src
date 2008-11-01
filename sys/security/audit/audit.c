@@ -609,7 +609,8 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	else
 		sorf = AU_PRS_SUCCESS;
 	class = au_event_class(AUE_CORE);
-	if (au_preselect(AUE_CORE, class, aumask, sorf) == 0)
+	if (au_preselect(AUE_CORE, class, aumask, sorf) == 0 &&
+	    audit_pipe_preselect(auid, AUE_CORE, class, sorf, 0) == 0)
 		return;
 	/*
 	 * If we are interested in seeing this audit record, allocate it.

@@ -2151,6 +2151,7 @@ product SONY CLIE_41		0x009a	Sony Clie v4.1
 product SONY CLIE_NX60		0x00da	Sony Clie nx60
 product SONY CLIE_TH55		0x0144	Sony Clie th55
 product SONY CLIE_TJ37		0x0169	Sony Clie tj37
+product SONY RF_RECEIVER	0x01db	Sony RF mouse/kbd Receiver VGP-WRC1
 
 /* Sony Ericsson products */
 product SONYERICSSON DCU10	0x0528	USB Cable
@@ -2393,3 +2394,4 @@ product ZYXEL G200V2		0x3407	G-200 v2
 product ZYXEL AG225H		0x3409	AG-225H
 product ZYXEL M202		0x340a	M-202
 product ZYXEL G220V2		0x340f	G-220 v2
+product ZYXEL G202		0x3410	G-202

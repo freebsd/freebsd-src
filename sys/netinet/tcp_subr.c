@@ -344,7 +344,7 @@ tcpip_fillheaders(struct inpcb *inp, void *ip_ptr, void *tcp_ptr)
 		ip6->ip6_vfc = (ip6->ip6_vfc & ~IPV6_VERSION_MASK) |
 			(IPV6_VERSION & IPV6_VERSION_MASK);
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = sizeof(struct tcphdr);
+		ip6->ip6_plen = htons(sizeof(struct tcphdr));
 		ip6->ip6_src = inp->in6p_laddr;
 		ip6->ip6_dst = inp->in6p_faddr;
 	} else
@@ -956,8 +956,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				else
 					error = EINVAL;	/* Skip this inp. */
 			} else
-				error = cr_canseesocket(req->td->td_ucred,
-				    inp->inp_socket);
+				error = cr_canseeinpcb(req->td->td_ucred, inp);
 			if (error == 0)
 				inp_list[i++] = inp;
 		}
@@ -1044,10 +1043,9 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
-			error = cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket);
+			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
-			cru2x(inp->inp_socket->so_cred, &xuc);
+			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
 	} else {
 		INP_INFO_RUNLOCK(&tcbinfo);
@@ -1106,10 +1104,9 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 		if (inp->inp_socket == NULL)
 			error = ENOENT;
 		if (error == 0)
-			error = cr_canseesocket(req->td->td_ucred,
-			    inp->inp_socket);
+			error = cr_canseeinpcb(req->td->td_ucred, inp);
 		if (error == 0)
-			cru2x(inp->inp_socket->so_cred, &xuc);
+			cru2x(inp->inp_cred, &xuc);
 		INP_RUNLOCK(inp);
 	} else {
 		INP_INFO_RUNLOCK(&tcbinfo);

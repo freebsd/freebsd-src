@@ -1742,6 +1742,24 @@ lomac_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 }
 
 static int
+lomac_check_inpcb_visible(struct ucred *cred, struct inpcb *inp,
+    struct label *inplabel)
+{
+	struct mac_lomac *subj, *obj;
+
+	if (!lomac_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(inplabel);
+
+	if (!lomac_dominate_single(obj, subj))
+		return (ENOENT);
+
+	return (0);
+}
+
+static int
 lomac_check_kld_load(struct ucred *cred, struct vnode *vp,
     struct label *vplabel)
 {
@@ -2893,6 +2911,7 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_check_ifnet_relabel = lomac_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = lomac_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = lomac_check_inpcb_deliver,
+	.mpo_check_inpcb_visible = lomac_check_inpcb_visible,
 	.mpo_check_kld_load = lomac_check_kld_load,
 	.mpo_check_pipe_ioctl = lomac_check_pipe_ioctl,
 	.mpo_check_pipe_read = lomac_check_pipe_read,

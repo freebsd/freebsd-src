@@ -197,7 +197,7 @@ portal_connect(so, so2)
 		    M_NOWAIT);
 	so2 = so3;
 
-	return (uipc_connect2(so, so2));
+	return (soconnect2(so, so2));
 }
 
 static int
@@ -280,7 +280,6 @@ portal_open(ap)
 	 * will happen if the server dies.  Sleep for 5 second intervals
 	 * and keep polling the reference count.   XXX.
 	 */
-	/* XXXRW: Locking? */
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {

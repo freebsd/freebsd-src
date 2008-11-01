@@ -184,7 +184,7 @@ rtld_lock_t	rtld_phdr_lock = &rtld_locks[2];
 int
 rlock_acquire(rtld_lock_t lock)
 {
-	if (thread_mask_set(lock->mask)) {
+	if (thread_mask_set(lock->mask) & lock->mask) {
 	    dbg("rlock_acquire: recursed");
 	    return (0);
 	}
@@ -195,7 +195,7 @@ rlock_acquire(rtld_lock_t lock)
 int
 wlock_acquire(rtld_lock_t lock)
 {
-	if (thread_mask_set(lock->mask)) {
+	if (thread_mask_set(lock->mask) & lock->mask) {
 	    dbg("wlock_acquire: recursed");
 	    return (0);
 	}

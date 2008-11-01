@@ -259,7 +259,7 @@ main(int argc, char **argv)
 	}
     }
     /* If no packages, yelp */
-    else if (!ch) {
+    if (!ch) {
 	warnx("missing package name(s)");
 	usage();
     }

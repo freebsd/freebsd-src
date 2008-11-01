@@ -77,7 +77,6 @@ static void destroy_cache_(cache);
 static void destroy_runtime_env(struct runtime_env *);
 static cache init_cache_(struct configuration *);
 static struct runtime_env *init_runtime_env(struct configuration *);
-static void print_version_info(void);
 static void processing_loop(cache, struct runtime_env *,
 	struct configuration *);
 static void process_socket_event(struct kevent *, struct runtime_env *,
@@ -88,14 +87,6 @@ static void *processing_thread(void *);
 static void usage(void);
 
 void get_time_func(struct timeval *);
-
-static void
-print_version_info(void)
-{
-	TRACE_IN(print_version_info);
-	printf("nscd v0.2 (20 Oct 2005)\nwas developed during SoC 2005\n");
-	TRACE_OUT(print_version_info);
-}
 
 static void
 usage(void)
@@ -172,9 +163,8 @@ init_runtime_env(struct configuration *config)
 	struct runtime_env *retval;
 
 	TRACE_IN(init_runtime_env);
-	retval = (struct runtime_env *)malloc(sizeof(struct runtime_env));
+	retval = (struct runtime_env *)calloc(1, sizeof(struct runtime_env));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct runtime_env));
 
 	retval->sockfd = socket(PF_LOCAL, SOCK_STREAM, 0);
 
@@ -183,7 +173,7 @@ init_runtime_env(struct configuration *config)
 
 	memset(&serv_addr, 0, sizeof(struct sockaddr_un));
 	serv_addr.sun_family = PF_LOCAL;
-	strncpy(serv_addr.sun_path, config->socket_path,
+	strlcpy(serv_addr.sun_path, config->socket_path,
 		sizeof(serv_addr.sun_path));
 	serv_addr_len = sizeof(serv_addr.sun_family) +
 		strlen(serv_addr.sun_path) + 1;
@@ -417,10 +407,9 @@ process_socket_event(struct kevent *event_data, struct runtime_env *env,
 			if (qstate->io_buffer != NULL)
 				free(qstate->io_buffer);
 
-			qstate->io_buffer = (char *)malloc(
+			qstate->io_buffer = (char *)calloc(1,
 				qstate->kevent_watermark);
 			assert(qstate->io_buffer != NULL);
-			memset(qstate->io_buffer, 0, qstate->kevent_watermark);
 
 			qstate->io_buffer_p = qstate->io_buffer;
 			qstate->io_buffer_size = qstate->kevent_watermark;
@@ -621,9 +610,6 @@ main(int argc, char *argv[])
 
 	/* by default all debug messages are omitted */
 	TRACE_OFF();
-
-	/* startup output */
-	print_version_info();
 
 	/* parsing command line arguments */
 	trace_mode_enabled = 0;
@@ -841,10 +827,8 @@ main(int argc, char *argv[])
 	}
 
 	if (s_configuration->threads_num > 1) {
-		threads = (pthread_t *)malloc(sizeof(pthread_t) *
+		threads = (pthread_t *)calloc(1, sizeof(pthread_t) *
 			s_configuration->threads_num);
-		memset(threads, 0, sizeof(pthread_t) *
-	    		s_configuration->threads_num);
 		for (i = 0; i < s_configuration->threads_num; ++i) {
 			thread_args = (struct processing_thread_args *)malloc(
 				sizeof(struct processing_thread_args));

@@ -332,27 +332,21 @@ on_write_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		write_request->entry = (char *)malloc(
+		write_request->entry = (char *)calloc(1,
 			write_request->entry_length + 1);
 		assert(write_request->entry != NULL);
-		memset(write_request->entry, 0,
-			write_request->entry_length + 1);
 
-		write_request->cache_key = (char *)malloc(
+		write_request->cache_key = (char *)calloc(1,
 			write_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(write_request->cache_key != NULL);
 		memcpy(write_request->cache_key, qstate->eid_str,
 			qstate->eid_str_length);
-		memset(write_request->cache_key + qstate->eid_str_length, 0,
-			write_request->cache_key_size);
 
 		if (write_request->data_size != 0) {
-			write_request->data = (char *)malloc(
+			write_request->data = (char *)calloc(1,
 				write_request->data_size);
 			assert(write_request->data != NULL);
-			memset(write_request->data, 0,
-				write_request->data_size);
 		}
 
 		qstate->kevent_watermark = write_request->entry_length +
@@ -611,19 +605,16 @@ on_read_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		read_request->entry = (char *)malloc(
+		read_request->entry = (char *)calloc(1,
 			read_request->entry_length + 1);
 		assert(read_request->entry != NULL);
-		memset(read_request->entry, 0, read_request->entry_length + 1);
 
-		read_request->cache_key = (char *)malloc(
+		read_request->cache_key = (char *)calloc(1,
 			read_request->cache_key_size +
 			qstate->eid_str_length);
 		assert(read_request->cache_key != NULL);
 		memcpy(read_request->cache_key, qstate->eid_str,
 			qstate->eid_str_length);
-		memset(read_request->cache_key + qstate->eid_str_length, 0,
-			read_request->cache_key_size);
 
 		qstate->kevent_watermark = read_request->entry_length +
 			read_request->cache_key_size;
@@ -936,11 +927,9 @@ on_transform_request_read1(struct query_state *qstate)
 				return (-1);
 			}
 
-			transform_request->entry = (char *)malloc(
+			transform_request->entry = (char *)calloc(1,
 				transform_request->entry_length + 1);
 			assert(transform_request->entry != NULL);
-			memset(transform_request->entry, 0,
-				transform_request->entry_length + 1);
 
 			qstate->process_func = on_transform_request_read2;
 		} else
@@ -1228,9 +1217,8 @@ init_query_state(int sockfd, size_t kevent_watermark, uid_t euid, gid_t egid)
 	struct query_state	*retval;
 
 	TRACE_IN(init_query_state);
-	retval = (struct query_state *)malloc(sizeof(struct query_state));
+	retval = (struct query_state *)calloc(1, sizeof(struct query_state));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct query_state));
 
 	retval->sockfd = sockfd;
 	retval->kevent_filter = EVFILT_READ;

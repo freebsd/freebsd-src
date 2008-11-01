@@ -93,6 +93,7 @@ static struct _devname {
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
     SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
+    NETWORK("ae",	"Attansic/Atheros L2 FastEthernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
     NETWORK("an",	"Aironet 4500/4800 802.11 wireless adapter"),
     NETWORK("ath",	"Atheros IEEE 802.11 wireless adapter"),
