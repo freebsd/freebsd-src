@@ -94,45 +94,12 @@ vop_access(struct vnode *vp, accmode_t accmode, struct ucred *cred, struct threa
 
     /* If immutable bit set, nobody gets to write it. */
     if ((accmode & VWRITE) && vp has immutable bit set)
-	return EPERM;
+	return (EPERM);
 
-    /* Otherwise, user id 0 always gets access. */
-    if (cred->cr_uid == 0)
-	return 0;
+    error = vaccess(vp->v_type, mode of vp, owner of vp,
+        group of vp, ap->a_accmode, ap->a_cred, NULL);
 
-    mask = 0;
-
-    /* Otherwise, check the owner. */
-    if (cred->cr_uid == owner of vp) {
-	if (accmode & VEXEC)
-	    mask |= S_IXUSR;
-	if (accmode & VREAD)
-	    mask |= S_IRUSR;
-	if (accmode & VWRITE)
-	    mask |= S_IWUSR;
-	return (((mode of vp) & mask) == mask ? 0 : EACCES);
-    }
-
-    /* Otherwise, check the groups. */
-    for (i = 0, gp = cred->cr_groups; i < cred->cr_ngroups; i++, gp++)
-	if (group of vp == *gp) {
-	    if (accmode & VEXEC)
-		mask |= S_IXGRP;
-	    if (accmode & VREAD)
-		mask |= S_IRGRP;
-	    if (accmode & VWRITE)
-		mask |= S_IWGRP;
-	    return (((mode of vp) & mask) == mask ? 0 : EACCES);
-	}
-
-    /* Otherwise, check everyone else. */
-    if (accmode & VEXEC)
-	mask |= S_IXOTH;
-    if (accmode & VREAD)
-	mask |= S_IROTH;
-    if (accmode & VWRITE)
-	mask |= S_IWOTH;
-    return (((mode of vp) & mask) == mask ? 0 : EACCES);
+    return (error);
 }
 .Ed
 .Sh ERRORS
