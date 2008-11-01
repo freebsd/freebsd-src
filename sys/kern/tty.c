@@ -73,6 +73,10 @@ static struct sx tty_list_sx;
 SX_SYSINIT(tty_list, &tty_list_sx, "tty list");
 static unsigned int tty_list_count = 0;
 
+/* Character device of /dev/console. */
+static struct cdev	*dev_console;
+static const char	*dev_console_filename;
+
 /*
  * Flags that are supported and stored by this implementation.
  */
@@ -86,7 +90,7 @@ static unsigned int tty_list_count = 0;
 			HUPCL|CLOCAL|CCTS_OFLOW|CRTS_IFLOW|CDTR_IFLOW|\
 			CDSR_OFLOW|CCAR_OFLOW)
 
-#define TTY_CALLOUT(tp,d) ((tp)->t_dev != (d))
+#define	TTY_CALLOUT(tp,d) ((d) != (tp)->t_dev && (d) != dev_console)
 
 /*
  * Set TTY buffer sizes.
@@ -1189,11 +1193,7 @@ tty_wait(struct tty *tp, struct cv *cv)
 	int error;
 	int revokecnt = tp->t_revokecnt;
 
-#if 0
-	/* XXX: /dev/console also picks up Giant. */
 	tty_lock_assert(tp, MA_OWNED|MA_NOTRECURSED);
-#endif
-	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
 	error = cv_wait_sig(cv, tp->t_mtx);
@@ -1215,11 +1215,7 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 	int error;
 	int revokecnt = tp->t_revokecnt;
 
-#if 0
-	/* XXX: /dev/console also picks up Giant. */
 	tty_lock_assert(tp, MA_OWNED|MA_NOTRECURSED);
-#endif
-	tty_lock_assert(tp, MA_OWNED);
 	MPASS(!tty_gone(tp));
 
 	error = cv_timedwait_sig(cv, tp->t_mtx, hz);
@@ -1662,6 +1658,10 @@ tty_hiwat_in_unblock(struct tty *tp)
 		ttydevsw_inwakeup(tp);
 }
 
+/*
+ * TTY hooks interface.
+ */
+
 static int
 ttyhook_defrint(struct tty *tp, char c, int flags)
 {
@@ -1744,6 +1744,84 @@ ttyhook_unregister(struct tty *tp)
 	/* Maybe deallocate the TTY as well. */
 	tty_rel_free(tp);
 }
+
+/*
+ * /dev/console handling.
+ */
+
+static int
+ttyconsdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	struct tty *tp;
+
+	/* System has no console device. */
+	if (dev_console_filename == NULL)
+		return (ENXIO);
+
+	/* Look up corresponding TTY by device name. */
+	sx_slock(&tty_list_sx);
+	TAILQ_FOREACH(tp, &tty_list, t_list) {
+		if (strcmp(dev_console_filename, tty_devname(tp)) == 0) {
+			dev_console->si_drv1 = tp;
+			break;
+		}
+	}
+	sx_sunlock(&tty_list_sx);
+
+	/* System console has no TTY associated. */
+	if (dev_console->si_drv1 == NULL)
+		return (ENXIO);
+	
+	return (ttydev_open(dev, oflags, devtype, td));
+}
+
+static int
+ttyconsdev_write(struct cdev *dev, struct uio *uio, int ioflag)
+{
+
+	log_console(uio);
+
+	return (ttydev_write(dev, uio, ioflag));
+}
+
+/*
+ * /dev/console is a little different than normal TTY's. Unlike regular
+ * TTY device nodes, this device node will not revoke the entire TTY
+ * upon closure and all data written to it will be logged.
+ */
+static struct cdevsw ttyconsdev_cdevsw = {
+	.d_version	= D_VERSION,
+	.d_open		= ttyconsdev_open,
+	.d_read		= ttydev_read,
+	.d_write	= ttyconsdev_write,
+	.d_ioctl	= ttydev_ioctl,
+	.d_kqfilter	= ttydev_kqfilter,
+	.d_poll		= ttydev_poll,
+	.d_mmap		= ttydev_mmap,
+	.d_name		= "ttyconsdev",
+	.d_flags	= D_TTY,
+};
+
+static void
+ttyconsdev_init(void *unused)
+{
+
+	dev_console = make_dev(&ttyconsdev_cdevsw, 0, UID_ROOT, GID_WHEEL,
+	    0600, "console");
+}
+
+SYSINIT(tty, SI_SUB_DRIVERS, SI_ORDER_FIRST, ttyconsdev_init, NULL);
+
+void
+ttyconsdev_select(const char *name)
+{
+
+	dev_console_filename = name;
+}
+
+/*
+ * Debugging routines.
+ */
 
 #include "opt_ddb.h"
 #ifdef DDB

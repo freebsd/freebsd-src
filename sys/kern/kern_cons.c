@@ -68,30 +68,8 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_TTYCONS, "tty console", "tty console handling");
 
-static	d_open_t	cnopen;
-static	d_close_t	cnclose;
-static	d_read_t	cnread;
-static	d_write_t	cnwrite;
-static	d_ioctl_t	cnioctl;
-static	d_poll_t	cnpoll;
-static	d_kqfilter_t	cnkqfilter;
-
-static struct cdevsw cn_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	cnopen,
-	.d_close =	cnclose,
-	.d_read =	cnread,
-	.d_write =	cnwrite,
-	.d_ioctl =	cnioctl,
-	.d_poll =	cnpoll,
-	.d_name =	"console",
-	.d_flags =	D_TTY | D_NEEDGIANT,
-	.d_kqfilter =	cnkqfilter,
-};
-
 struct cn_device {
 	STAILQ_ENTRY(cn_device) cnd_next;
-	struct		vnode *cnd_vp;
 	struct		consdev *cnd_cn;
 };
 
@@ -101,22 +79,12 @@ static struct cn_device cn_devtab[CNDEVTAB_SIZE];
 static STAILQ_HEAD(, cn_device) cn_devlist =
     STAILQ_HEAD_INITIALIZER(cn_devlist);
 
-#define CND_INVALID(cnd, td) 						\
-	(cnd == NULL || cnd->cnd_vp == NULL ||				\
-	    (cnd->cnd_vp->v_type == VBAD && !cn_devopen(cnd, td, 1)))
-
-static dev_t	cn_udev_t;
-SYSCTL_OPAQUE(_machdep, OID_AUTO, consdev, CTLFLAG_RD,
-	&cn_udev_t, sizeof cn_udev_t, "T,struct cdev *", "");
-
 int	cons_avail_mask = 0;	/* Bit mask. Each registered low level console
 				 * which is currently unavailable for inpit
 				 * (i.e., if it is in graphics mode) will have
 				 * this bit cleared.
 				 */
 static int cn_mute;
-static int openflag;			/* how /dev/console was opened */
-static int cn_is_open;
 static char *consbuf;			/* buffer used by `consmsgbuf' */
 static struct callout conscallout;	/* callout for outputting to constty */
 struct msgbuf consmsgbuf;		/* message buffer for console tty */
@@ -214,6 +182,8 @@ cnadd(struct consdev *cn)
 		printf("WARNING: console at %p has no name\n", cn);
 	}
 	STAILQ_INSERT_TAIL(&cn_devlist, cnd, cnd_next);
+	if (STAILQ_FIRST(&cn_devlist) == cnd)
+		ttyconsdev_select(cnd->cnd_cn->cn_name);
 
 	/* Add device to the active mask. */
 	cnavailable(cn, (cn->cn_flags & CN_FLAG_NOAVAIL) == 0);
@@ -230,10 +200,9 @@ cnremove(struct consdev *cn)
 	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
 		if (cnd->cnd_cn != cn)
 			continue;
+		if (STAILQ_FIRST(&cn_devlist) == cnd)
+			ttyconsdev_select(NULL);
 		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
-		if (cnd->cnd_vp != NULL)
-			vn_close(cnd->cnd_vp, openflag, NOCRED, NULL);
-		cnd->cnd_vp = NULL;
 		cnd->cnd_cn = NULL;
 
 		/* Remove this device from available mask. */
@@ -267,6 +236,7 @@ cnselect(struct consdev *cn)
 			return;
 		STAILQ_REMOVE(&cn_devlist, cnd, cn_device, cnd_next);
 		STAILQ_INSERT_HEAD(&cn_devlist, cnd, cnd_next);
+		ttyconsdev_select(cnd->cnd_cn->cn_name);
 		return;
 	}
 }
@@ -368,209 +338,11 @@ sysctl_kern_consmute(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &cn_mute, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (ocn_mute && !cn_mute && cn_is_open)
-		error = cnopen(NULL, openflag, 0, curthread);
-	else if (!ocn_mute && cn_mute && cn_is_open) {
-		error = cnclose(NULL, openflag, 0, curthread);
-		cn_is_open = 1;		/* XXX hack */
-	}
 	return (error);
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof(cn_mute), sysctl_kern_consmute, "I", "");
-
-static int
-cn_devopen(struct cn_device *cnd, struct thread *td, int forceopen)
-{
-	char path[CNDEVPATHMAX];
-	struct nameidata nd;
-	struct vnode *vp;
-	struct cdev *dev;
-	struct cdevsw *csw;
-	int error;
-
-	if ((vp = cnd->cnd_vp) != NULL) {
-		if (!forceopen && vp->v_type != VBAD) {
-			dev = vp->v_rdev;
-			csw = dev_refthread(dev);
-			if (csw == NULL)
-				return (ENXIO);
-			error = (*csw->d_open)(dev, openflag, 0, td);
-			dev_relthread(dev);
-			return (error);
-		}
-		cnd->cnd_vp = NULL;
-		vn_close(vp, openflag, td->td_ucred, td);
-	}
-	snprintf(path, sizeof(path), "/dev/%s", cnd->cnd_cn->cn_name);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, td);
-	error = vn_open(&nd, &openflag, 0, NULL);
-	if (error == 0) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		VOP_UNLOCK(nd.ni_vp, 0);
-		if (nd.ni_vp->v_type == VCHR)
-			cnd->cnd_vp = nd.ni_vp;
-		else
-			vn_close(nd.ni_vp, openflag, td->td_ucred, td);
-	}
-	return (cnd->cnd_vp != NULL);
-}
-
-static int
-cnopen(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	struct cn_device *cnd;
-
-	openflag = flag | FWRITE;	/* XXX */
-	cn_is_open = 1;			/* console is logically open */
-	if (cn_mute)
-		return (0);
-	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next)
-		cn_devopen(cnd, td, 0);
-	return (0);
-}
-
-static int
-cnclose(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	struct cn_device *cnd;
-	struct vnode *vp;
-
-	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
-		if ((vp = cnd->cnd_vp) == NULL)
-			continue; 
-		cnd->cnd_vp = NULL;
-		vn_close(vp, openflag, td->td_ucred, td);
-	}
-	cn_is_open = 0;
-	return (0);
-}
-
-static int
-cnread(struct cdev *dev, struct uio *uio, int flag)
-{
-	struct cn_device *cnd;
-	struct cdevsw *csw;
-	int error;
-
-	cnd = STAILQ_FIRST(&cn_devlist);
-	if (cn_mute || CND_INVALID(cnd, curthread))
-		return (0);
-	dev = cnd->cnd_vp->v_rdev;
-	csw = dev_refthread(dev);
-	if (csw == NULL)
-		return (ENXIO);
-	error = (csw->d_read)(dev, uio, flag);
-	dev_relthread(dev);
-	return (error);
-}
-
-static int
-cnwrite(struct cdev *dev, struct uio *uio, int flag)
-{
-	struct cn_device *cnd;
-	struct cdevsw *csw;
-	int error;
-
-	cnd = STAILQ_FIRST(&cn_devlist);
-	if (cn_mute || CND_INVALID(cnd, curthread))
-		goto done;
-	if (constty)
-		dev = constty->t_dev;
-	else
-		dev = cnd->cnd_vp->v_rdev;
-	if (dev != NULL) {
-		log_console(uio);
-		csw = dev_refthread(dev);
-		if (csw == NULL)
-			return (ENXIO);
-		error = (csw->d_write)(dev, uio, flag);
-		dev_relthread(dev);
-		return (error);
-	}
-done:
-	uio->uio_resid = 0; /* dump the data */
-	return (0);
-}
-
-static int
-cnioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-{
-	struct cn_device *cnd;
-	struct cdevsw *csw;
-	int error;
-
-	cnd = STAILQ_FIRST(&cn_devlist);
-	if (cn_mute || CND_INVALID(cnd, td))
-		return (0);
-	/*
-	 * Superuser can always use this to wrest control of console
-	 * output from the "virtual" console.
-	 */
-	if (cmd == TIOCCONS && constty) {
-		error = priv_check(td, PRIV_TTY_CONSOLE);
-		if (error)
-			return (error);
-		constty = NULL;
-		return (0);
-	}
-	dev = cnd->cnd_vp->v_rdev;
-	if (dev == NULL)
-		return (0);	/* XXX : ENOTTY ? */
-	csw = dev_refthread(dev);
-	if (csw == NULL)
-		return (ENXIO);
-	error = (csw->d_ioctl)(dev, cmd, data, flag, td);
-	dev_relthread(dev);
-	return (error);
-}
-
-/*
- * XXX
- * poll/kqfilter do not appear to be correct
- */
-static int
-cnpoll(struct cdev *dev, int events, struct thread *td)
-{
-	struct cn_device *cnd;
-	struct cdevsw *csw;
-	int error;
-
-	cnd = STAILQ_FIRST(&cn_devlist);
-	if (cn_mute || CND_INVALID(cnd, td))
-		return (0);
-	dev = cnd->cnd_vp->v_rdev;
-	if (dev == NULL)
-		return (0);
-	csw = dev_refthread(dev);
-	if (csw == NULL)
-		return (ENXIO);
-	error = (csw->d_poll)(dev, events, td);
-	dev_relthread(dev);
-	return (error);
-}
-
-static int
-cnkqfilter(struct cdev *dev, struct knote *kn)
-{
-	struct cn_device *cnd;
-	struct cdevsw *csw;
-	int error;
-
-	cnd = STAILQ_FIRST(&cn_devlist);
-	if (cn_mute || CND_INVALID(cnd, curthread))
-		return (EINVAL);
-	dev = cnd->cnd_vp->v_rdev;
-	if (dev == NULL)
-		return (ENXIO);
-	csw = dev_refthread(dev);
-	if (csw == NULL)
-		return (ENXIO);
-	error = (csw->d_kqfilter)(dev, kn);
-	dev_relthread(dev);
-	return (error);
-}
 
 /*
  * Low level console routines.
@@ -736,8 +508,6 @@ constty_timeout(void *arg)
 static void
 cn_drvinit(void *unused)
 {
-
-	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
 
 	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN | MTX_NOWITNESS);
 	use_cnputs_mtx = 1;
