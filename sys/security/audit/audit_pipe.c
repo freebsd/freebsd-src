@@ -930,19 +930,8 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 }
 
 /*
- * Audit pipe read.  Pull one record off the queue and copy to user space.
- * On error, the record is dropped.
- *
- * Providing more sophisticated behavior, such as partial reads, is tricky
- * due to the potential for parallel I/O.  If partial read support is
- * required, it will require a per-pipe "current record being read" along
- * with an offset into that trecord which has already been read.  Threads
- * performing partial reads will need to allocate per-thread copies of the
- * data so that if another thread completes the read of the record, it can be
- * freed without adding reference count logic.  If this is added, a flag to
- * indicate that only atomic record reads are desired would be useful, as if
- * different threads are all waiting for records on the pipe, they will want
- * independent record reads, which is currently the behavior.
+ * Audit pipe read.  Read one or more partial or complete records to user
+ * memory.
  */
 static int
 audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
@@ -978,40 +967,43 @@ audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
 
 	/*
 	 * Copy as many remaining bytes from the current record to userspace
-	 * as we can.
+	 * as we can.  Keep processing records until we run out of records in
+	 * the queue, or until the user buffer runs out of space.
 	 *
 	 * Note: we rely on the SX lock to maintain ape's stability here.
 	 */
 	ap->ap_reads++;
-	ape = TAILQ_FIRST(&ap->ap_queue);
-	toread = MIN(ape->ape_record_len - ape->ape_record_offset,
-	    uio->uio_resid);
-	AUDIT_PIPE_UNLOCK(ap);
-	error = uiomove((char *)ape->ape_record + ape->ape_record_offset,
-	    toread, uio);
-	if (error) {
-		AUDIT_PIPE_SX_XUNLOCK(ap);
-		return (error);
-	}
+	while ((ape = TAILQ_FIRST(&ap->ap_queue)) != NULL &&
+	    uio->uio_resid > 0) {
+		AUDIT_PIPE_LOCK_ASSERT(ap);
 
-	/*
-	 * If the copy succeeded, update book-keeping, and if no bytes remain
-	 * in the current record, free it.
-	 */
-	AUDIT_PIPE_LOCK(ap);
-	KASSERT(TAILQ_FIRST(&ap->ap_queue) == ape,
-	    ("audit_pipe_read: queue out of sync after uiomove"));
-	ape->ape_record_offset += toread;
-	if (ape->ape_record_offset == ape->ape_record_len) {
-		TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
-		ap->ap_qlen--;
-	} else
-		ape = NULL;
+		toread = MIN(ape->ape_record_len - ape->ape_record_offset,
+		    uio->uio_resid);
+		AUDIT_PIPE_UNLOCK(ap);
+		error = uiomove((char *)ape->ape_record +
+		    ape->ape_record_offset, toread, uio);
+		if (error) {
+			AUDIT_PIPE_SX_XUNLOCK(ap);
+			return (error);
+		}
+
+		/*
+		 * If the copy succeeded, update book-keeping, and if no
+		 * bytes remain in the current record, free it.
+		 */
+		AUDIT_PIPE_LOCK(ap);
+		KASSERT(TAILQ_FIRST(&ap->ap_queue) == ape,
+		    ("audit_pipe_read: queue out of sync after uiomove"));
+		ape->ape_record_offset += toread;
+		if (ape->ape_record_offset == ape->ape_record_len) {
+			TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
+			audit_pipe_entry_free(ape);
+			ap->ap_qlen--;
+		}
+	}
 	AUDIT_PIPE_UNLOCK(ap);
 	AUDIT_PIPE_SX_XUNLOCK(ap);
-	if (ape != NULL)
-		audit_pipe_entry_free(ape);
-	return (error);
+	return (0);
 }
 
 /*
