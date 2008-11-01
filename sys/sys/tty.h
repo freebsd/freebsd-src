@@ -192,6 +192,9 @@ dev_t	tty_udev(struct tty *tp);
 /* Status line printing. */
 void	tty_info(struct tty *tp);
 
+/* /dev/console selection. */
+void	ttyconsdev_select(const char *name);
+
 /* Pseudo-terminal hooks. */
 int	pts_alloc_external(int fd, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name);
