@@ -382,6 +382,7 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 	struct adb_mouse_softc *sc;
 	size_t len;
 	int8_t outpacket[8];
+	int error;
 
 	sc = CDEV_GET_SOFTC(dev);
 	if (sc == NULL)
@@ -403,7 +404,11 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 
 	
 			/* Otherwise, block on new data */
-			cv_wait(&sc->sc_cv,&sc->sc_mtx);
+			error = cv_wait_sig(&sc->sc_cv, &sc->sc_mtx);
+			if (error) {
+				mtx_unlock(&sc->sc_mtx);
+				return (error);
+			}
 		}
 
 		sc->packet[0] = 1 << 7;
