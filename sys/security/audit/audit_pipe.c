@@ -149,6 +149,9 @@ struct audit_pipe {
 	u_int				 ap_qbyteslen;
 	u_int				 ap_qoffset;
 
+	/*
+	 * Per-pipe operation statistics.
+	 */
 	u_int64_t			 ap_inserts;	/* Records added. */
 	u_int64_t			 ap_reads;	/* Records read. */
 	u_int64_t			 ap_drops;	/* Records dropped. */
