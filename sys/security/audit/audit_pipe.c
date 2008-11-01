@@ -85,7 +85,6 @@ static MALLOC_DEFINE(M_AUDIT_PIPE_PRESELECT, "audit_pipe_presel",
 struct audit_pipe_entry {
 	void				*ape_record;
 	u_int				 ape_record_len;
-	u_int				 ape_record_offset;
 	TAILQ_ENTRY(audit_pipe_entry)	 ape_queue;
 };
 
@@ -138,8 +137,17 @@ struct audit_pipe {
 	 */
 	struct cv			 ap_cv;
 
+	/*
+	 * Various queue-reated variables: qlen and qlimit are a count of
+	 * records in the queue; qbyteslen is the number of bytes of data
+	 * across all records, and qoffset is the amount read so far of the
+	 * first record in the queue.  The number of bytes available for
+	 * reading in the queue is qbyteslen - qoffset.
+	 */
 	u_int				 ap_qlen;
 	u_int				 ap_qlimit;
+	u_int				 ap_qbyteslen;
+	u_int				 ap_qoffset;
 
 	u_int64_t			 ap_inserts;	/* Records added. */
 	u_int64_t			 ap_reads;	/* Records read. */
@@ -474,11 +482,11 @@ audit_pipe_append(struct audit_pipe *ap, void *record, u_int record_len)
 
 	bcopy(record, ape->ape_record, record_len);
 	ape->ape_record_len = record_len;
-	ape->ape_record_offset = 0;
 
 	TAILQ_INSERT_TAIL(&ap->ap_queue, ape, ape_queue);
 	ap->ap_inserts++;
 	ap->ap_qlen++;
+	ap->ap_qbyteslen += ape->ape_record_len;
 	selwakeuppri(&ap->ap_selinfo, PSOCK);
 	KNOTE_LOCKED(&ap->ap_selinfo.si_note, 0);
 	if (ap->ap_flags & AUDIT_PIPE_ASYNC)
@@ -603,10 +611,14 @@ audit_pipe_flush(struct audit_pipe *ap)
 
 	while ((ape = TAILQ_FIRST(&ap->ap_queue)) != NULL) {
 		TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
+		ap->ap_qbyteslen -= ape->ape_record_len;
 		audit_pipe_entry_free(ape);
 		ap->ap_qlen--;
 	}
-	KASSERT(ap->ap_qlen == 0, ("audit_pipe_free: ap_qlen"));
+	ap->ap_qoffset = 0;
+
+	KASSERT(ap->ap_qlen == 0, ("audit_pipe_free: ap_qbyteslen"));
+	KASSERT(ap->ap_qbyteslen == 0, ("audit_pipe_flush: ap_qbyteslen"));
 }
 
 /*
@@ -752,12 +764,7 @@ audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 
 	case FIONREAD:
 		AUDIT_PIPE_LOCK(ap);
-		if (TAILQ_FIRST(&ap->ap_queue) != NULL)
-			*(int *)data =
-			    TAILQ_FIRST(&ap->ap_queue)->ape_record_len -
-			    TAILQ_FIRST(&ap->ap_queue)->ape_record_offset;
-		else
-			*(int *)data = 0;
+		*(int *)data = ap->ap_qbyteslen - ap->ap_qoffset;
 		AUDIT_PIPE_UNLOCK(ap);
 		error = 0;
 		break;
@@ -977,11 +984,13 @@ audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
 	    uio->uio_resid > 0) {
 		AUDIT_PIPE_LOCK_ASSERT(ap);
 
-		toread = MIN(ape->ape_record_len - ape->ape_record_offset,
+		KASSERT(ape->ape_record_len > ap->ap_qoffset,
+		    ("audit_pipe_read: record_len > qoffset (1)"));
+		toread = MIN(ape->ape_record_len - ap->ap_qoffset,
 		    uio->uio_resid);
 		AUDIT_PIPE_UNLOCK(ap);
-		error = uiomove((char *)ape->ape_record +
-		    ape->ape_record_offset, toread, uio);
+		error = uiomove((char *)ape->ape_record + ap->ap_qoffset,
+		    toread, uio);
 		if (error) {
 			AUDIT_PIPE_SX_XUNLOCK(ap);
 			return (error);
@@ -994,11 +1003,15 @@ audit_pipe_read(struct cdev *dev, struct uio *uio, int flag)
 		AUDIT_PIPE_LOCK(ap);
 		KASSERT(TAILQ_FIRST(&ap->ap_queue) == ape,
 		    ("audit_pipe_read: queue out of sync after uiomove"));
-		ape->ape_record_offset += toread;
-		if (ape->ape_record_offset == ape->ape_record_len) {
+		ap->ap_qoffset += toread;
+		KASSERT(ape->ape_record_len >= ap->ap_qoffset,
+		    ("audit_pipe_read: record_len >= qoffset (2)"));
+		if (ap->ap_qoffset == ape->ape_record_len) {
 			TAILQ_REMOVE(&ap->ap_queue, ape, ape_queue);
+			ap->ap_qbyteslen -= ape->ape_record_len;
 			audit_pipe_entry_free(ape);
 			ap->ap_qlen--;
+			ap->ap_qoffset = 0;
 		}
 	}
 	AUDIT_PIPE_UNLOCK(ap);
@@ -1071,7 +1084,7 @@ audit_pipe_kqread(struct knote *kn, long hint)
 		ape = TAILQ_FIRST(&ap->ap_queue);
 		KASSERT(ape != NULL, ("audit_pipe_kqread: ape == NULL"));
 
-		kn->kn_data = ape->ape_record_len - ape->ape_record_offset;
+		kn->kn_data = ap->ap_qbyteslen - ap->ap_qoffset;
 		return (1);
 	} else {
 		kn->kn_data = 0;
