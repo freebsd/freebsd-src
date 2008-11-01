@@ -1596,6 +1596,7 @@ kern/kern_alq.c			optional alq
 kern/kern_clock.c		standard
 kern/kern_condvar.c		standard
 kern/kern_conf.c		standard
+kern/kern_cons.c		standard
 kern/kern_cpu.c			standard
 kern/kern_cpuset.c		standard
 kern/kern_context.c		standard
@@ -1708,7 +1709,6 @@ kern/sysv_sem.c			optional sysvsem
 kern/sysv_shm.c			optional sysvshm
 kern/tty.c			standard
 kern/tty_compat.c		optional compat_43tty
-kern/tty_cons.c			standard
 kern/tty_info.c			standard
 kern/tty_inq.c			standard
 kern/tty_outq.c			standard
