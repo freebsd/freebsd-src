@@ -334,7 +334,7 @@ ttyprt(struct xtty *xt)
 	    xt->xt_insize, xt->xt_incc, xt->xt_inlc,
 	    (xt->xt_insize - xt->xt_inlow), xt->xt_outsize,
 	    xt->xt_outcc, (xt->xt_outsize - xt->xt_outlow),
-	    xt->xt_column, xt->xt_sid, xt->xt_pgid);
+	    MIN(xt->xt_column, 99999), xt->xt_sid, xt->xt_pgid);
 	for (i = j = 0; ttystates[i].flag; i++)
 		if (xt->xt_flags & ttystates[i].flag) {
 			putchar(ttystates[i].val);
