@@ -156,7 +156,7 @@ static struct rl_type rl_devs[] = {
 	{ DELTA_VENDORID, DELTA_DEVICEID_8139, RL_8139,
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139, RL_8139,
-		"Addtron Technolgy 8139 10/100BaseTX" },
+		"Addtron Technology 8139 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS, RL_8139,
 		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_690TXD, RL_8139,
@@ -1319,7 +1319,7 @@ rl_rxeof(struct rl_softc *sc)
 		RL_LOCK(sc);
 	}
 
-	/* No need to sync Rx memory block as we didn't mofify it. */
+	/* No need to sync Rx memory block as we didn't modify it. */
 }
 
 /*
@@ -1402,15 +1402,15 @@ rl_twister_update(struct rl_softc *sc)
 
 	/*
 	 * Tune the so-called twister registers of the RTL8139.  These
-	 * are used to compensate for impendence mismatches.  The
-	 * method for tuning these registes is undocumented and the
-	 * following proceedure is collected from public sources.
+	 * are used to compensate for impedance mismatches.  The
+	 * method for tuning these registers is undocumented and the
+	 * following procedure is collected from public sources.
 	 */
 	switch (sc->rl_twister)
 	{
 	case CHK_LINK:
 		/*
-		 * If we have a sufficent link, then we can proceed in
+		 * If we have a sufficient link, then we can proceed in
 		 * the state machine to the next stage.  If not, then
 		 * disable further tuning after writing sane defaults.
 		 */
@@ -1649,7 +1649,7 @@ rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 
 	if (padlen > 0) {
 		/*
-		 * Make security concious people happy: zero out the
+		 * Make security-conscious people happy: zero out the
 		 * bytes in the pad area, since we don't know what
 		 * this mbuf cluster buffer's previous user might
 		 * have left in it.
