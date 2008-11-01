@@ -2007,7 +2007,7 @@ DB_SHOW_ALL_COMMAND(ttys, db_show_all_ttys)
 		    osiz,
 		    tp->t_outq.to_end - tp->t_outq.to_begin,
 		    osiz - tp->t_outlow,
-		    tp->t_column,
+		    MIN(tp->t_column, 99999),
 		    tp->t_session ? tp->t_session->s_sid : 0,
 		    tp->t_pgrp ? tp->t_pgrp->pg_id : 0);
 
