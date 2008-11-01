@@ -32,7 +32,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd Apri 13, 2008
+.Dd November 1, 2008
 .Dt ZYD 4
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ driver:
 .It Airlink+ AWLL3025
 .It Airlink 101 AWLL3026
 .It AOpen 802.11g WL54
-.It Asus A9T integrated wirless
+.It Asus A9T integrated wireless
 .It Asus WL-159g
 .It Belkin F5D7050 v.4000
 .It Billion BiPAC 3011G
@@ -98,6 +98,7 @@ driver:
 .It Linksys WUSBF54G
 .It Longshine LCS-8131G3
 .It MSI US54SE
+.It MyTek MWU-201 USB adapter
 .It Philips SNU5600
 .It Planet WL-U356
 .It Planex GW-US54GZ
@@ -124,7 +125,7 @@ driver:
 .El
 .Sh EXAMPLES
 The following
-examples configures zyd0 to join any BSS network using WEP key
+example configures zyd0 to join any BSS network using WEP key
 .Dq 0x1deadbeef1 ,
 channel 11:
 .Bd -literal -offset indent
@@ -167,7 +168,7 @@ This should not happen.
 .Xr wlan_tkip 4 ,
 .Xr wlan_wep 4 ,
 .Xr ifconfig 8 ,
-.Xr wpa_supplicant 8 .
+.Xr wpa_supplicant 8
 .Sh AUTHORS
 .An -nosplit
 The original
