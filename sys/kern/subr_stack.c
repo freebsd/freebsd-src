@@ -45,8 +45,7 @@ static MALLOC_DEFINE(M_STACK, "stack", "Stack Traces");
 static void stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen,
 	    long *offset);
 #ifdef DDB
-static void stack_symbol_ddb(vm_offset_t pc, char *namebuf, u_int buflen,
-	    long *offset);
+static void stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset);
 #endif
 
 struct stack *
@@ -109,16 +108,15 @@ stack_print(struct stack *st)
 void
 stack_print_ddb(struct stack *st)
 {
-	char namebuf[64];
+	const char *name;
 	long offset;
 	int i;
 
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
-		stack_symbol_ddb(st->pcs[i], namebuf, sizeof(namebuf),
-		    &offset);
+		stack_symbol_ddb(st->pcs[i], &name, &offset);
 		printf("#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
-		    namebuf, offset);
+		    name, offset);
 	}
 }
 #endif
@@ -146,16 +144,15 @@ stack_sbuf_print(struct sbuf *sb, struct stack *st)
 void
 stack_sbuf_print_ddb(struct sbuf *sb, struct stack *st)
 {
-	char namebuf[64];
+	const char *name;
 	long offset;
 	int i;
 
 	KASSERT(st->depth <= STACK_MAX, ("bogus stack"));
 	for (i = 0; i < st->depth; i++) {
-		stack_symbol_ddb(st->pcs[i], namebuf, sizeof(namebuf),
-		    &offset);
+		stack_symbol_ddb(st->pcs[i], &name, &offset);
 		sbuf_printf(sb, "#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
-		    namebuf, offset);
+		    name, offset);
 	}
 }
 
@@ -164,7 +161,7 @@ void
 stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
     int cheap)
 {
-	char namebuf[64];
+	const char *name;
 	long offset;
 	int i;
 
@@ -187,10 +184,9 @@ stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
 		if (depth == 0 || st->depth < depth)
 			depth = st->depth;
 		for (i = 0; i < depth; i++) {
-			stack_symbol_ddb(st->pcs[i], namebuf,
-			    sizeof(namebuf), &offset);
+			stack_symbol_ddb(st->pcs[i], &name, &offset);
 			ktr_tracepoint(mask, file, line, "#%d %p at %s+%#lx",
-			    i, st->pcs[i], (u_long)namebuf, offset, 0, 0);
+			    i, st->pcs[i], (u_long)name, offset, 0, 0);
 		}
 	}
 }
@@ -214,13 +210,21 @@ stack_symbol(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
 
 #ifdef DDB
 static void
-stack_symbol_ddb(vm_offset_t pc, char *namebuf, u_int buflen, long *offset)
+stack_symbol_ddb(vm_offset_t pc, const char **name, long *offset)
 {
+	linker_symval_t symval;
+	c_linker_sym_t sym;
 
-	if (linker_ddb_search_symbol_name((caddr_t)pc, namebuf, buflen,
-	    offset) != 0) {
-		*offset = 0;
-		strlcpy(namebuf, "??", buflen);
-	};
+	if (linker_ddb_search_symbol((caddr_t)pc, &sym, offset) != 0)
+		goto out;
+	if (linker_ddb_symbol_values(sym, &symval) != 0)
+		goto out;
+	if (symval.name != NULL) {
+		*name = symval.name;
+		return;
+	}
+ out:
+	*offset = 0;
+	*name = "??";
 }
 #endif

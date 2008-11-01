@@ -1177,7 +1177,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    uiop->uio_td = NULL;
 	    uiop->uio_offset = off;
 	    error = VOP_WRITE(vp, uiop, ioflags, cred);
-	    /* XXXRW: unlocked write. */
+	    /* Unlocked write. */
 	    nfsrvstats.srvvop_writes++;
 	    FREE((caddr_t)iv, M_TEMP);
 	}
@@ -1492,7 +1492,7 @@ loop1:
 		    }
 		    if (!error) {
 			error = VOP_WRITE(vp, uiop, ioflags, cred);
-			/* XXXRW: unlocked write. */
+			/* Unlocked write. */
 			nfsrvstats.srvvop_writes++;
 			vn_finished_write(mntp);
 		    }

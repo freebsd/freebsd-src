@@ -56,8 +56,8 @@ dbdma_phys_callback(void *chan, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 int
-dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
-    int slots, dbdma_channel_t **chan)
+dbdma_allocate_channel(struct resource *dbdma_regs, u_int offset,
+    bus_dma_tag_t parent_dma, int slots, dbdma_channel_t **chan)
 {
 	int error = 0;
 	dbdma_channel_t *channel;
@@ -65,8 +65,8 @@ dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
 	channel = *chan = malloc(sizeof(struct dbdma_channel), M_DBDMA, 
 	    M_WAITOK | M_ZERO);
 
-	channel->sc_bt = rman_get_bustag(dbdma_regs);
-	channel->sc_bh = rman_get_bushandle(dbdma_regs);
+	channel->sc_regs = dbdma_regs;
+	channel->sc_off = offset;
 	dbdma_stop(channel);
 
 	channel->sc_slots_pa = 0;
@@ -82,6 +82,8 @@ dbdma_allocate_channel(struct resource *dbdma_regs, bus_dma_tag_t parent_dma,
 	error = bus_dmamap_load(channel->sc_dmatag, channel->sc_dmamap,
 	    channel->sc_slots, PAGE_SIZE, dbdma_phys_callback, channel, 0);
 
+	dbdma_write_reg(channel, CHAN_CMDPTR_HI, 0);
+
 	channel->sc_nslots = slots;
 
 	return (error);
@@ -91,7 +93,7 @@ int
 dbdma_resize_channel(dbdma_channel_t *chan, int newslots)
 {
 
-	if (newslots > (PAGE_SIZE / 16))
+	if (newslots > (PAGE_SIZE / sizeof(struct dbdma_command)))
 		return (-1);
 	
 	chan->sc_nslots = newslots;
@@ -125,6 +127,13 @@ dbdma_get_cmd_status(dbdma_channel_t *chan, int slot)
 	return (le16toh(chan->sc_slots[slot].resCount));
 }
 
+void
+dbdma_clear_cmd_status(dbdma_channel_t *chan, int slot)
+{
+	/* See endian note above */
+	chan->sc_slots[slot].resCount = 0;
+}
+
 uint16_t
 dbdma_get_residuals(dbdma_channel_t *chan, int slot)
 {
@@ -150,7 +159,8 @@ dbdma_run(dbdma_channel_t *chan)
 
 	control_reg = DBDMA_STATUS_RUN | DBDMA_STATUS_PAUSE |
 	    DBDMA_STATUS_WAKE | DBDMA_STATUS_DEAD;
-	control_reg <<= 16;
+	control_reg <<= DBDMA_REG_MASK_SHIFT;
+
 	control_reg |= DBDMA_STATUS_RUN;
 	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 }
@@ -161,7 +171,8 @@ dbdma_pause(dbdma_channel_t *chan)
 	uint32_t control_reg;
 
 	control_reg = DBDMA_STATUS_PAUSE;
-	control_reg <<= 16;
+	control_reg <<= DBDMA_REG_MASK_SHIFT;
+
 	control_reg |= DBDMA_STATUS_PAUSE;
 	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 }
@@ -173,7 +184,8 @@ dbdma_wake(dbdma_channel_t *chan)
 
 	control_reg = DBDMA_STATUS_WAKE | DBDMA_STATUS_PAUSE |
 	    DBDMA_STATUS_RUN | DBDMA_STATUS_DEAD;
-	control_reg <<= 16;
+	control_reg <<= DBDMA_REG_MASK_SHIFT;
+
 	control_reg |= DBDMA_STATUS_WAKE | DBDMA_STATUS_RUN;
 	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 }
@@ -184,7 +196,8 @@ dbdma_stop(dbdma_channel_t *chan)
 	uint32_t control_reg;
 
 	control_reg = DBDMA_STATUS_RUN;
-	control_reg <<= 16;
+	control_reg <<= DBDMA_REG_MASK_SHIFT;
+
 	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 
 	while (dbdma_read_reg(chan, CHAN_STATUS_REG) & DBDMA_STATUS_ACTIVE)
@@ -196,7 +209,7 @@ dbdma_set_current_cmd(dbdma_channel_t *chan, int slot)
 {
 	uint32_t cmd;
 
-	cmd = chan->sc_slots_pa + slot * 16;
+	cmd = chan->sc_slots_pa + slot * sizeof(struct dbdma_command);
 	dbdma_write_reg(chan, CHAN_CMDPTR, cmd);
 }
 
@@ -210,10 +223,21 @@ dbdma_get_chan_status(dbdma_channel_t *chan)
 }
 
 uint8_t
-dbdma_get_chan_device_status(dbdma_channel_t *chan)
+dbdma_get_device_status(dbdma_channel_t *chan)
 {
-
 	return (dbdma_get_chan_status(chan) & 0x00ff);
+}
+
+void
+dbdma_set_device_status(dbdma_channel_t *chan, uint8_t mask, uint8_t value)
+{
+	uint32_t control_reg;
+	
+	control_reg = mask;
+	control_reg <<= DBDMA_REG_MASK_SHIFT;
+	control_reg |= value;
+
+	dbdma_write_reg(chan, CHAN_CONTROL_REG, control_reg);
 }
 
 void
@@ -222,7 +246,8 @@ dbdma_set_interrupt_selector(dbdma_channel_t *chan, uint8_t mask, uint8_t val)
 	uint32_t intr_select;
 
 	intr_select = mask;
-	intr_select <<= 16;
+	intr_select <<= DBDMA_REG_MASK_SHIFT;
+
 	intr_select |= val;
 	dbdma_write_reg(chan, CHAN_INTR_SELECT, intr_select);
 }
@@ -233,7 +258,8 @@ dbdma_set_branch_selector(dbdma_channel_t *chan, uint8_t mask, uint8_t val)
 	uint32_t br_select;
 
 	br_select = mask;
-	br_select <<= 16;
+	br_select <<= DBDMA_REG_MASK_SHIFT;
+
 	br_select |= val;
 	dbdma_write_reg(chan, CHAN_BRANCH_SELECT, br_select);
 }
@@ -244,7 +270,7 @@ dbdma_set_wait_selector(dbdma_channel_t *chan, uint8_t mask, uint8_t val)
 	uint32_t wait_select;
 
 	wait_select = mask;
-	wait_select <<= 16;
+	wait_select <<= DBDMA_REG_MASK_SHIFT;
 	wait_select |= val;
 	dbdma_write_reg(chan, CHAN_WAIT_SELECT, wait_select);
 }
@@ -266,7 +292,8 @@ dbdma_insert_command(dbdma_channel_t *chan, int slot, int command, int stream,
 	cmd.reqCount = count;
 	cmd.address = (uint32_t)(data);
 	if (command != DBDMA_STORE_QUAD && command != DBDMA_LOAD_QUAD)
-		cmd.cmdDep = chan->sc_slots_pa + branch_slot * 16;
+		cmd.cmdDep = chan->sc_slots_pa + 
+		    branch_slot * sizeof(struct dbdma_command);
 	else
 		cmd.cmdDep = branch_slot;
 
@@ -320,12 +347,12 @@ static uint32_t
 dbdma_read_reg(dbdma_channel_t *chan, u_int offset)
 {
 
-	return (bus_space_read_4(chan->sc_bt, chan->sc_bh, offset));
+	return (bus_read_4(chan->sc_regs, chan->sc_off + offset));
 }
 
 static void
 dbdma_write_reg(dbdma_channel_t *chan, u_int offset, uint32_t val)
 {
 
-	bus_space_write_4(chan->sc_bt, chan->sc_bh, offset, val);
+	bus_write_4(chan->sc_regs, chan->sc_off + offset, val);
 }

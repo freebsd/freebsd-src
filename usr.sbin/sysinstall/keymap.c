@@ -82,6 +82,10 @@ keymapMenuSelect(dialogMenuItem *self)
 	{"se", "swedish"},
 	{"ch", "swiss"},
 	{"gb", "uk"},
+	{"gg", "uk"},
+	{"ie", "uk"},
+	{"im", "uk"},
+	{"je", "uk"},
 	{NULL, NULL}
     };
     const char *country, *lang;

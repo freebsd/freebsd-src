@@ -293,7 +293,7 @@ g_part_bsd_probe(struct g_part_table *table, struct g_consumer *cp)
 	magic2 = le32dec(buf + 132);
 	g_free(buf);
 	return ((magic1 == DISKMAGIC && magic2 == DISKMAGIC)
-	    ? G_PART_PROBE_PRI_NORM : ENXIO);
+	    ? G_PART_PROBE_PRI_HIGH : ENXIO);
 }
 
 static int

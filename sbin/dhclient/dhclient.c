@@ -2317,12 +2317,16 @@ check_option(struct client_lease *l, int option)
 	case DHO_NETBIOS_DD_SERVER:
 	case DHO_FONT_SERVERS:
 	case DHO_DHCP_SERVER_IDENTIFIER:
+	case DHO_NISPLUS_SERVERS:
+	case DHO_MOBILE_IP_HOME_AGENT:
 	case DHO_SMTP_SERVER:
 	case DHO_POP_SERVER:
 	case DHO_NNTP_SERVER:
 	case DHO_WWW_SERVER:
 	case DHO_FINGER_SERVER:
 	case DHO_IRC_SERVER:
+	case DHO_STREETTALK_SERVER:
+	case DHO_STREETTALK_DA_SERVER:
 		if (!ipv4addrs(opbuf)) {
 			warning("Invalid IP address in option: %s", opbuf);
 			return (0);
@@ -2330,6 +2334,8 @@ check_option(struct client_lease *l, int option)
 		return (1)  ;
 	case DHO_HOST_NAME:
 	case DHO_NIS_DOMAIN:
+	case DHO_NISPLUS_DOMAIN:
+	case DHO_TFTP_SERVER_NAME:
 		if (!res_hnok(sbuf)) {
 			warning("Bogus Host Name option %d: %s (%s)", option,
 			    sbuf, opbuf);
@@ -2388,6 +2394,7 @@ check_option(struct client_lease *l, int option)
 	case DHO_DHCP_REBINDING_TIME:
 	case DHO_DHCP_CLASS_IDENTIFIER:
 	case DHO_DHCP_CLIENT_IDENTIFIER:
+	case DHO_BOOTFILE_NAME:
 	case DHO_DHCP_USER_CLASS_ID:
 	case DHO_END:
 		return (1);

@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
+#include <sys/cpuset.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -1730,22 +1731,57 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 }
 
 /*
- * XXX: fake one.. waiting for real implementation of affinity mask.
+ * Get affinity of a process.
  */
 int
 linux_sched_getaffinity(struct thread *td,
     struct linux_sched_getaffinity_args *args)
 {
 	int error;
-	cpumask_t i = ~0;
+	struct cpuset_getaffinity_args cga;
 
-	if (args->len < sizeof(cpumask_t))
+#ifdef DEBUG
+	if (ldebug(sched_getaffinity))
+		printf(ARGS(sched_getaffinity, "%d, %d, *"), args->pid,
+		    args->len);
+#endif
+	if (args->len < sizeof(cpuset_t))
 		return (EINVAL);
 
-	error = copyout(&i, args->user_mask_ptr, sizeof(cpumask_t));
-	if (error)
-		return (EFAULT);
+	cga.level = CPU_LEVEL_WHICH;
+	cga.which = CPU_WHICH_PID;
+	cga.id = args->pid;
+	cga.cpusetsize = sizeof(cpuset_t);
+	cga.mask = (cpuset_t *) args->user_mask_ptr;
 
-	td->td_retval[0] = sizeof(cpumask_t);
-	return (0);
+	if ((error = cpuset_getaffinity(td, &cga)) == 0)
+		td->td_retval[0] = sizeof(cpuset_t);
+
+	return (error);
+}
+
+/*
+ *  Set affinity of a process.
+ */
+int
+linux_sched_setaffinity(struct thread *td,
+    struct linux_sched_setaffinity_args *args)
+{
+	struct cpuset_setaffinity_args csa;
+
+#ifdef DEBUG
+	if (ldebug(sched_setaffinity))
+		printf(ARGS(sched_setaffinity, "%d, %d, *"), args->pid,
+		    args->len);
+#endif
+	if (args->len < sizeof(cpuset_t))
+		return (EINVAL);
+
+	csa.level = CPU_LEVEL_WHICH;
+	csa.which = CPU_WHICH_PID;
+	csa.id = args->pid;
+	csa.cpusetsize = sizeof(cpuset_t);
+	csa.mask = (cpuset_t *) args->user_mask_ptr;
+
+	return (cpuset_setaffinity(td, &csa));
 }

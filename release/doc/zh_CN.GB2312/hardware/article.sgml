@@ -88,7 +88,7 @@
     </listitem>
 
     <listitem>
-      <para>&intel; 64-位 &xeon; (<quote>Nacona</quote>)。
+      <para>&intel; 64-位 &xeon; (<quote>Nocona</quote>)。
 	这类处理器采用 90nm 制程工艺制造， 配合 &intel; E7520/E7525/E7320 芯片组，
 	能够运行于 2.80 到 3.60 GHz (FSB 800MHz)。</para>
     </listitem>
@@ -392,7 +392,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 175946
+	Original Revision: 184311
 -->
 
 <!--
