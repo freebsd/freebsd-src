@@ -684,7 +684,7 @@ unionlookup:
 	 */
 	while (dp->v_type == VDIR && (mp = dp->v_mountedhere) &&
 	       (cnp->cn_flags & NOCROSSMOUNT) == 0) {
-		if (vfs_busy(mp, 0, 0))
+		if (vfs_busy(mp, 0))
 			continue;
 		vput(dp);
 		VFS_UNLOCK_GIANT(vfslocked);
