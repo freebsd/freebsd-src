@@ -62,3 +62,4 @@ ENTRY(__sys_setlogin)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(__sys_setlogin)
