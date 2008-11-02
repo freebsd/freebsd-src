@@ -204,7 +204,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		if (error)
 			break;
 		sdp->sd_vc = vcp;
-		smb_vc_unlock(vcp, 0, td);
+		smb_vc_unlock(vcp, 0);
 		sdp->sd_level = SMBL_VC;
 		break;
 	    case SMBIOC_OPENSHARE:
@@ -217,7 +217,7 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		if (error)
 			break;
 		sdp->sd_share = ssp;
-		smb_share_unlock(ssp, 0, td);
+		smb_share_unlock(ssp, 0);
 		sdp->sd_level = SMBL_SHARE;
 		break;
 	    case SMBIOC_REQUEST:
@@ -287,12 +287,12 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 			break;
 		if (vcp) {
 			sdp->sd_vc = vcp;
-			smb_vc_unlock(vcp, 0, td);
+			smb_vc_unlock(vcp, 0);
 			sdp->sd_level = SMBL_VC;
 		}
 		if (ssp) {
 			sdp->sd_share = ssp;
-			smb_share_unlock(ssp, 0, td);
+			smb_share_unlock(ssp, 0);
 			sdp->sd_level = SMBL_SHARE;
 		}
 		break;
