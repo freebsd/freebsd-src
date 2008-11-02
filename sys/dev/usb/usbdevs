@@ -944,6 +944,7 @@ product BELKIN F5D5055		0x5055	F5D5055
 product BELKIN F5D7050		0x7050	F5D7050 Wireless Adapter
 product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
 product BELKIN F5D7050A		0x705a	F5D7050A Wireless Adapter
+/* Also sold as 'Ativa 802.11g wireless card' */
 product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 Wireless Adapter
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
@@ -1424,6 +1425,7 @@ product HP P2000U		0x1801	Inkjet P-2000U
 product HP 640C			0x2004	DeskJet 640c
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
+product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
 
