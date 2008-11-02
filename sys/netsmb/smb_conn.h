@@ -363,8 +363,8 @@ void smb_co_ref(struct smb_connobj *cp);
 void smb_co_rele(struct smb_connobj *cp, struct smb_cred *scred);
 int  smb_co_get(struct smb_connobj *cp, int flags, struct smb_cred *scred);
 void smb_co_put(struct smb_connobj *cp, struct smb_cred *scred);
-int  smb_co_lock(struct smb_connobj *cp, int flags, struct thread *td);
-void smb_co_unlock(struct smb_connobj *cp, int flags, struct thread *td);
+int  smb_co_lock(struct smb_connobj *cp, int flags);
+void smb_co_unlock(struct smb_connobj *cp, int flags);
 
 /*
  * session level functions
@@ -377,8 +377,8 @@ int  smb_vc_get(struct smb_vc *vcp, int flags, struct smb_cred *scred);
 void smb_vc_put(struct smb_vc *vcp, struct smb_cred *scred);
 void smb_vc_ref(struct smb_vc *vcp);
 void smb_vc_rele(struct smb_vc *vcp, struct smb_cred *scred);
-int  smb_vc_lock(struct smb_vc *vcp, int flags, struct thread *td);
-void smb_vc_unlock(struct smb_vc *vcp, int flags, struct thread *td);
+int  smb_vc_lock(struct smb_vc *vcp, int flags);
+void smb_vc_unlock(struct smb_vc *vcp, int flags);
 int  smb_vc_lookupshare(struct smb_vc *vcp, struct smb_sharespec *shspec,
 	struct smb_cred *scred, struct smb_share **sspp);
 const char * smb_vc_getpass(struct smb_vc *vcp);
@@ -394,8 +394,8 @@ void smb_share_ref(struct smb_share *ssp);
 void smb_share_rele(struct smb_share *ssp, struct smb_cred *scred);
 int  smb_share_get(struct smb_share *ssp, int flags, struct smb_cred *scred);
 void smb_share_put(struct smb_share *ssp, struct smb_cred *scred);
-int  smb_share_lock(struct smb_share *ssp, int flags, struct thread *td);
-void smb_share_unlock(struct smb_share *ssp, int flags, struct thread *td);
+int  smb_share_lock(struct smb_share *ssp, int flags);
+void smb_share_unlock(struct smb_share *ssp, int flags);
 void smb_share_invalidate(struct smb_share *ssp);
 int  smb_share_valid(struct smb_share *ssp);
 const char * smb_share_getpass(struct smb_share *ssp);
