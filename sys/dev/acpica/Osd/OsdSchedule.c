@@ -187,13 +187,9 @@ AcpiOsStall(UINT32 Microseconds)
 ACPI_THREAD_ID
 AcpiOsGetThreadId(void)
 {
-    struct proc *p;
 
     /* XXX do not add ACPI_FUNCTION_TRACE here, results in recursive call. */
 
-    p = curproc;
-    KASSERT(p != NULL, ("%s: curproc is NULL!", __func__));
-
     /* Returning 0 is not allowed. */
-    return (p->p_pid + 1);
+    return (curthread->td_tid + 1);
 }
