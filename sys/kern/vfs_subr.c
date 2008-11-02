@@ -335,42 +335,36 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
- * unmounting. Interlock is not released on failure.
+ * unmounting. Eventually, mountlist_mtx is not released on failure.
  */
 int
-vfs_busy(struct mount *mp, int flags, struct mtx *interlkp)
+vfs_busy(struct mount *mp, int flags)
 {
-	int lkflags;
+
+	MPASS((flags & ~MBF_MASK) == 0);
 
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & LK_NOWAIT) {
+		if (flags & MBF_NOWAIT) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
 		}
-		if (interlkp)
-			mtx_unlock(interlkp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		/*
-		 * Since all busy locks are shared except the exclusive
-		 * lock granted when unmounting, the only place that a
-		 * wakeup needs to be done is at the release of the
-		 * exclusive lock at the end of dounmount.
-		 */
 		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		if (interlkp)
-			mtx_lock(interlkp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_lock(&mountlist_mtx);
 		return (ENOENT);
 	}
-	if (interlkp)
-		mtx_unlock(interlkp);
-	lkflags = LK_SHARED | LK_INTERLOCK | LK_NOWAIT;
-	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp)))
-		panic("vfs_busy: unexpected lock failure");
+	if (flags & MBF_MNTLSTLOCK)
+		mtx_unlock(&mountlist_mtx);
+	mp->mnt_lockref++;
+	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -381,8 +375,15 @@ void
 vfs_unbusy(struct mount *mp)
 {
 
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
-	vfs_rel(mp);
+	MNT_ILOCK(mp);
+	MNT_REL(mp);
+	mp->mnt_lockref--;
+	if (mp->mnt_lockref == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
+		MPASS(mp->mnt_kern_flag & MNTK_UNMOUNT);
+		mp->mnt_kern_flag &= ~MNTK_DRAINING;
+		wakeup(&mp->mnt_lockref);
+	}
+	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -747,7 +748,7 @@ vnlru_proc(void)
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			int vfsunlocked;
-			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
+			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
@@ -2837,7 +2838,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
-	db_printf("    mnt_markercnt = %d\n", mp->mnt_markercnt);
 	db_printf("    mnt_holdcnt = %d\n", mp->mnt_holdcnt);
 	db_printf("    mnt_holdcntwaiters = %d\n", mp->mnt_holdcntwaiters);
 	db_printf("    mnt_secondary_writes = %d\n", mp->mnt_secondary_writes);
@@ -2999,7 +2999,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	n = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 			continue;
 		MNT_ILOCK(mp);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
@@ -3361,7 +3361,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	 * not already on the sync list.
 	 */
 	mtx_lock(&mountlist_mtx);
-	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx) != 0) {
+	if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK) != 0) {
 		mtx_unlock(&mountlist_mtx);
 		return (0);
 	}
