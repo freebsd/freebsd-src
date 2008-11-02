@@ -957,9 +957,18 @@ vn_start_write(vp, mpp, flags)
 	}
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	/*
+	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
+	 * a vfs_ref().
+	 * As long as a vnode is not provided we need to acquire a
+	 * refcount for the provided mountpoint too, in order to
+	 * emulate a vfs_ref().
+	 */
 	MNT_ILOCK(mp);
 	if (vp == NULL)
 		MNT_REF(mp);
+
 	/*
 	 * Check on status of suspension.
 	 */
@@ -1021,6 +1030,14 @@ vn_start_secondary_write(vp, mpp, flags)
 	 */
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	/*
+	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
+	 * a vfs_ref().
+	 * As long as a vnode is not provided we need to acquire a
+	 * refcount for the provided mountpoint too, in order to
+	 * emulate a vfs_ref().
+	 */
 	MNT_ILOCK(mp);
 	if (vp == NULL)
 		MNT_REF(mp);

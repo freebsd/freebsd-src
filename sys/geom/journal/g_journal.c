@@ -2879,7 +2879,7 @@ g_journal_do_switch(struct g_class *classp)
 		desc = g_journal_find_desc(mp->mnt_stat.f_fstypename);
 		if (desc == NULL)
 			continue;
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 			continue;
 		/* mtx_unlock(&mountlist_mtx) was done inside vfs_busy() */
 

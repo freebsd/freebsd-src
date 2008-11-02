@@ -124,7 +124,7 @@ sync(td, uap)
 
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -197,7 +197,7 @@ quotactl(td, uap)
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	mp = nd.ni_vp->v_mount;
-	if ((error = vfs_busy(mp, 0, NULL))) {
+	if ((error = vfs_busy(mp, 0))) {
 		vrele(nd.ni_vp);
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
@@ -479,7 +479,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 			continue;
 		}
 #endif
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -741,7 +741,7 @@ fchdir(td, uap)
 	error = change_dir(vp, td);
 	while (!error && (mp = vp->v_mountedhere) != NULL) {
 		int tvfslocked;
-		if (vfs_busy(mp, 0, 0))
+		if (vfs_busy(mp, 0))
 			continue;
 		tvfslocked = VFS_LOCK_GIANT(mp);
 		error = VFS_ROOT(mp, LK_EXCLUSIVE, &tdp, td);
