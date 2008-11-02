@@ -50,6 +50,7 @@ struct g_part_apm_table {
 	struct g_part_table	base;
 	struct apm_ddr		ddr;
 	struct apm_ent		self;
+	int			tivo_series1;
 };
 
 struct g_part_apm_entry {
@@ -99,6 +100,19 @@ static struct g_part_scheme g_part_apm_scheme = {
 };
 G_PART_SCHEME_DECLARE(g_part_apm);
 
+static void
+swab(char *buf, size_t bufsz)
+{
+	int i;
+	char ch;
+
+	for (i = 0; i < bufsz; i += 2) {
+		ch = buf[i];
+		buf[i] = buf[i + 1];
+		buf[i + 1] = ch;
+	}
+}
+
 static int
 apm_parse_type(const char *type, char *buf, size_t bufsz)
 {
@@ -143,7 +157,8 @@ apm_parse_type(const char *type, char *buf, size_t bufsz)
 }
 
 static int
-apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent)
+apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent,
+    int tivo_series1)
 {
 	struct g_provider *pp;
 	char *buf;
@@ -153,6 +168,8 @@ apm_read_ent(struct g_consumer *cp, uint32_t blk, struct apm_ent *ent)
 	buf = g_read_data(cp, pp->sectorsize * blk, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
+	if (tivo_series1)
+		swab(buf, pp->sectorsize);
 	ent->ent_sig = be16dec(buf);
 	ent->ent_pmblkcnt = be32dec(buf + 4);
 	ent->ent_start = be32dec(buf + 8);
@@ -316,6 +333,7 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		return (ENXIO);
 
 	table = (struct g_part_apm_table *)basetable;
+	table->tivo_series1 = 0;
 	pp = cp->provider;
 
 	/* Sanity-check the provider. */
@@ -323,21 +341,38 @@ g_part_apm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 		return (ENOSPC);
 
 	/* Check that there's a Driver Descriptor Record (DDR). */
-	/* XXX Tivo APM drives do not have a DDR */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
-	table->ddr.ddr_sig = be16dec(buf);
-	table->ddr.ddr_blksize = be16dec(buf + 2);
-	table->ddr.ddr_blkcount = be32dec(buf + 4);
-	g_free(buf);
-	if (table->ddr.ddr_sig != APM_DDR_SIG)
-		return (ENXIO);
-	if (table->ddr.ddr_blksize != pp->sectorsize)
-		return (ENXIO);
+	if (be16dec(buf) == be16toh(APM_DDR_SIG)) {
+		/* Normal Apple DDR */
+		table->ddr.ddr_sig = be16dec(buf);
+		table->ddr.ddr_blksize = be16dec(buf + 2);
+		table->ddr.ddr_blkcount = be32dec(buf + 4);
+		g_free(buf);
+		if (table->ddr.ddr_blksize != pp->sectorsize)
+			return (ENXIO);
+	} else {
+		/*
+		 * Check for Tivo drives, which have no DDR and a different
+		 * signature.  Those whose first two bytes are 14 92 are
+		 * Series 2 drives, and aren't supported.  Those that start
+		 * with 92 14 are series 1 drives and are supported.
+		 */
+		if (be16dec(buf) != 0x9214) {
+			/* If this is 0x1492 it could be a series 2 drive */
+			g_free(buf);
+			return (ENXIO);
+		}
+		table->ddr.ddr_sig = APM_DDR_SIG;		/* XXX */
+		table->ddr.ddr_blksize = pp->sectorsize;	/* XXX */
+		table->ddr.ddr_blkcount = pp->mediasize / pp->sectorsize;/* XXX */
+		table->tivo_series1 = 1;
+		g_free(buf);
+	}
 
 	/* Check that there's a Partition Map. */
-	error = apm_read_ent(cp, 1, &table->self);
+	error = apm_read_ent(cp, 1, &table->self, table->tivo_series1);
 	if (error)
 		return (error);
 	if (table->self.ent_sig != APM_ENT_SIG)
@@ -364,7 +399,7 @@ g_part_apm_read(struct g_part_table *basetable, struct g_consumer *cp)
 	basetable->gpt_entries = table->self.ent_pmblkcnt - 1;
 
 	for (index = table->self.ent_pmblkcnt - 1; index > 0; index--) {
-		error = apm_read_ent(cp, index + 1, &ent);
+		error = apm_read_ent(cp, index + 1, &ent, table->tivo_series1);
 		if (error)
 			continue;
 		if (!strcmp(ent.ent_type, APM_ENT_TYPE_UNUSED))
@@ -414,6 +449,11 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 	int error, index;
 
 	table = (struct g_part_apm_table *)basetable;
+	/*
+	 * Tivo Series 1 disk partitions are currently read-only.
+	 */
+	if (table->tivo_series1)
+		return (EOPNOTSUPP);
 	bzero(buf, sizeof(buf));
 
 	/* Write the DDR and 'self' entry only when we're newly created. */
