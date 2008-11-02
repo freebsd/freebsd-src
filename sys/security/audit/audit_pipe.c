@@ -732,9 +732,6 @@ audit_pipe_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 /*
  * Audit pipe ioctl() routine.  Handle file descriptor and audit pipe layer
  * commands.
- *
- * Would be desirable to support filtering, although perhaps something simple
- * like an event mask, as opposed to something complicated like BPF.
  */
 static int
 audit_pipe_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
