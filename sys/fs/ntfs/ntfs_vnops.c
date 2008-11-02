@@ -394,9 +394,6 @@ ntfs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct ntnode *ip = VTONT(vp);
 	accmode_t accmode = ap->a_accmode;
-#ifdef QUOTA
-	int error;
-#endif
 
 	dprintf(("ntfs_access: %d\n",ip->i_number));
 
@@ -412,10 +409,6 @@ ntfs_access(ap)
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-#ifdef QUOTA
-			if (error = getinoquota(ip))
-				return (error);
-#endif
 			break;
 		}
 	}
