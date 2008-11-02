@@ -745,7 +745,7 @@ softdep_flush(void)
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			if ((mp->mnt_flag & MNT_SOFTDEP) == 0)
 				continue;
-			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
+			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 				continue;
 			vfslocked = VFS_LOCK_GIANT(mp);
 			softdep_process_worklist(mp, 0);

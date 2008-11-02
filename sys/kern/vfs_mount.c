@@ -450,7 +450,6 @@ mount_init(void *mem, int size, int flags)
 
 	mp = (struct mount *)mem;
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
-	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
 	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
 	return (0);
 }
@@ -462,7 +461,6 @@ mount_fini(void *mem, int size)
 
 	mp = (struct mount *)mem;
 	lockdestroy(&mp->mnt_explock);
-	lockdestroy(&mp->mnt_lock);
 	mtx_destroy(&mp->mnt_mtx);
 }
 
@@ -481,7 +479,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_nvnodelistsize = 0;
 	mp->mnt_ref = 0;
-	(void) vfs_busy(mp, LK_NOWAIT, 0);
+	(void) vfs_busy(mp, MBF_NOWAIT);
 	mp->mnt_op = vfsp->vfc_vfsops;
 	mp->mnt_vfc = vfsp;
 	vfsp->vfc_refcount++;	/* XXX Unlocked */
@@ -507,19 +505,10 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 void
 vfs_mount_destroy(struct mount *mp)
 {
-	int i;
 
 	MNT_ILOCK(mp);
-	for (i = 0; mp->mnt_ref && i < 3; i++)
-		msleep(mp, MNT_MTX(mp), PVFS, "mntref", hz);
-	/*
-	 * This will always cause a 3 second delay in rebooting due to
-	 * refs on the root mountpoint that never go away.  Most of these
-	 * are held by init which never exits.
-	 */
-	if (i == 3 && (!rebooting || bootverbose))
-		printf("Mount point %s had %d dangling refs\n",
-		    mp->mnt_stat.f_mntonname, mp->mnt_ref);
+	while (mp->mnt_ref)
+		msleep(mp, MNT_MTX(mp), PVFS, "mntref", 0);
 	if (mp->mnt_holdcnt != 0) {
 		printf("Waiting for mount point to be unheld\n");
 		while (mp->mnt_holdcnt != 0) {
@@ -928,7 +917,7 @@ vfs_domount(
 			vput(vp);
 			return (error);
 		}
-		if (vfs_busy(mp, LK_NOWAIT, 0)) {
+		if (vfs_busy(mp, MBF_NOWAIT)) {
 			vput(vp);
 			return (EBUSY);
 		}
@@ -1245,19 +1234,31 @@ dounmount(mp, flags, td)
 	/* Allow filesystems to detect that a forced unmount is in progress. */
 	if (flags & MNT_FORCE)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
-	error = lockmgr(&mp->mnt_lock, LK_DRAIN | LK_INTERLOCK |
-	    ((flags & MNT_FORCE) ? 0 : LK_NOWAIT), MNT_MTX(mp));
-	if (error) {
-		MNT_ILOCK(mp);
-		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
-		    MNTK_UNMOUNTF);
-		if (mp->mnt_kern_flag & MNTK_MWAIT)
-			wakeup(mp);
-		MNT_IUNLOCK(mp);
-		if (coveredvp)
-			VOP_UNLOCK(coveredvp, 0);
-		return (error);
+	error = 0;
+	if (mp->mnt_lockref) {
+		if (flags & MNT_FORCE) {
+			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
+			    MNTK_UNMOUNTF);
+			if (mp->mnt_kern_flag & MNTK_MWAIT) {
+				mp->mnt_kern_flag &= ~MNTK_MWAIT;
+				wakeup(mp);
+			}
+			MNT_IUNLOCK(mp);
+			if (coveredvp)
+				VOP_UNLOCK(coveredvp, 0);
+			return (EBUSY);
+		}
+		mp->mnt_kern_flag |= MNTK_DRAINING;
+		error = msleep(&mp->mnt_lockref, MNT_MTX(mp), PVFS,
+		    "mount drain", 0);
 	}
+	MNT_IUNLOCK(mp);
+	KASSERT(mp->mnt_lockref == 0,
+	    ("%s: invalid lock refcount in the drain path @ %s:%d",
+	    __func__, __FILE__, __LINE__));
+	KASSERT(error == 0,
+	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
+	    __func__, __FILE__, __LINE__));
 	vn_start_write(NULL, &mp, V_WAIT);
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
@@ -1321,9 +1322,10 @@ dounmount(mp, flags, td)
 		mp->mnt_flag |= async_flag;
 		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
-		lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
-		if (mp->mnt_kern_flag & MNTK_MWAIT)
+		if (mp->mnt_kern_flag & MNTK_MWAIT) {
+			mp->mnt_kern_flag &= ~MNTK_MWAIT;
 			wakeup(mp);
+		}
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);
@@ -1337,7 +1339,6 @@ dounmount(mp, flags, td)
 		vput(coveredvp);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
 	vfs_mount_destroy(mp);
 	return (0);
 }
@@ -2070,7 +2071,6 @@ __mnt_vnode_first(struct vnode **mvp, struct mount *mp)
 			wakeup(&mp->mnt_holdcnt);
 		return (NULL);
 	}
-	mp->mnt_markercnt++;
 	(*mvp)->v_mount = mp;
 	TAILQ_INSERT_AFTER(&mp->mnt_nvnodelist, vp, *mvp, v_nmntvnodes);
 	return (vp);
@@ -2093,7 +2093,6 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 	MNT_ILOCK(mp);
 	*mvp = NULL;
 
-	mp->mnt_markercnt--;
 	mp->mnt_holdcnt--;
 	if (mp->mnt_holdcnt == 0 && mp->mnt_holdcntwaiters != 0)
 		wakeup(&mp->mnt_holdcnt);

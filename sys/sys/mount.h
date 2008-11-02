@@ -142,13 +142,11 @@ struct vfsopt;
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
- *	l - mnt_lock
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
  */
 struct mount {
-	struct lock	mnt_lock;		/* mount structure lock */
 	struct mtx	mnt_mtx;		/* mount structure interlock */
 	int		mnt_gen;		/* struct mount generation */
 #define	mnt_startzero	mnt_list
@@ -175,7 +173,7 @@ struct mount {
 	struct netexport *mnt_export;		/* export list */
 	struct label	*mnt_label;		/* MAC label for the fs */
 	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
-	int		mnt_markercnt;		/* marker vnodes in use */
+	int		mnt_lockref;		/* (i) Lock reference count */
 	int		mnt_holdcnt;		/* hold count */
 	int		mnt_holdcntwaiters;	/* waits on hold count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
@@ -319,6 +317,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define MNTK_ASYNC	0x00000002	/* filtered async flag */
 #define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
 #define MNTK_NOINSMNTQ	0x00000008	/* insmntque is not allowed */
+#define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
@@ -506,6 +505,13 @@ struct uio;
 
 #ifdef _KERNEL
 
+/*
+ * vfs_busy specific flags and mask.
+ */
+#define	MBF_NOWAIT	0x01
+#define	MBF_MNTLSTLOCK	0x02
+#define	MBF_MASK	(MBF_NOWAIT | MBF_MNTLSTLOCK)
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MOUNT);
 #endif
@@ -686,7 +692,7 @@ int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_msync(struct mount *, int);
-int	vfs_busy(struct mount *, int, struct mtx *);
+int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
 int	vfs_allocate_syncvnode(struct mount *);

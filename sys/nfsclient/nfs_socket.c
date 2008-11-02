@@ -1429,8 +1429,8 @@ nfs_timer(void *arg)
 			/*
 			 * Terminate request if force-unmount in progress.
 			 * Note that NFS could have vfs_busy'ed the mount,
-			 * causing the unmount to wait for the mnt_lock, making
-			 * this bit of logic necessary.
+			 * causing the unmount to wait and making this bit
+			 * of logic necessary.
 			 */
 			if (rep->r_nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
 				nfs_softterm(rep);
