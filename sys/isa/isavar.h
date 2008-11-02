@@ -48,7 +48,7 @@ typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
 #define ISA_ORDER_PNPBIOS	10 /* plug-and-play BIOS inflexible hardware */
 #define ISA_ORDER_SENSITIVE	20 /* legacy sensitive hardware */
 #define ISA_ORDER_SPECULATIVE	30 /* legacy non-sensitive hardware */
-#define ISA_ORDER_PNP		40 /* plug-and-play hardware */
+#define ISA_ORDER_PNP		40 /* plug-and-play flexible hardware */
 
 /*
  * Limits on resources that we can manage
@@ -125,7 +125,10 @@ enum isa_device_ivars {
 	ISA_IVAR_SERIAL,
 	ISA_IVAR_LOGICALID,
 	ISA_IVAR_COMPATID,
-	ISA_IVAR_CONFIGATTR
+	ISA_IVAR_CONFIGATTR,
+	ISA_IVAR_PNP_CSN,
+	ISA_IVAR_PNP_LDN,
+	ISA_IVAR_PNPBIOS_HANDLE
 };
 
 /*
@@ -152,6 +155,9 @@ ISA_ACCESSOR(serial, SERIAL, int)
 ISA_ACCESSOR(logicalid, LOGICALID, int)
 ISA_ACCESSOR(compatid, COMPATID, int)
 ISA_ACCESSOR(configattr, CONFIGATTR, int)
+ISA_ACCESSOR(pnp_csn, PNP_CSN, int)
+ISA_ACCESSOR(pnp_ldn, PNP_LDN, int)
+ISA_ACCESSOR(pnpbios_handle, PNPBIOS_HANDLE, int)
 
 /* Device class for ISA bridges. */
 extern devclass_t isab_devclass;

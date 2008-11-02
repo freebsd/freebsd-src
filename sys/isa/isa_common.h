@@ -56,6 +56,9 @@ struct isa_device {
 	isa_config_cb		*id_config_cb; /* callback function */
 	void			*id_config_arg;	/* callback argument */
 	int			id_config_attr;	/* pnp config attributes */
+	int			id_pnpbios_handle; /* pnp handle, if any */
+	int			id_pnp_csn; /* pnp Card Number */
+	int			id_pnp_ldn; /* pnp Logical device on card */
 };
 
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))
