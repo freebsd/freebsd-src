@@ -67,7 +67,9 @@ struct adb_mouse_softc {
 	struct mtx sc_mtx;
 	struct cv  sc_cv;
 
-	int extended;
+	int flags;
+#define	AMS_EXTENDED	0x1
+#define	AMS_TOUCHPAD	0x2
 	uint16_t dpi;
 
 	mousehw_t hw;
@@ -150,7 +152,7 @@ adb_mouse_attach(device_t dev)
 	mtx_init(&sc->sc_mtx,"ams",MTX_DEF,0);
 	cv_init(&sc->sc_cv,"ams");
 
-	sc->extended = 0;
+	sc->flags = 0;
 
 	sc->hw.buttons = 2;
 	sc->hw.iftype = MOUSE_IF_UNKNOWN;
@@ -183,7 +185,7 @@ adb_mouse_attach(device_t dev)
 		if (r1_len < 8)
 			break;
 
-		sc->extended = 1;
+		sc->flags |= AMS_EXTENDED;
 		memcpy(&sc->hw.hwid,r1,4);
 		sc->mode.resolution = (r1[4] << 8) | r1[5];
 
@@ -199,6 +201,11 @@ adb_mouse_attach(device_t dev)
 		case 2:
 			sc->hw.type = MOUSE_TRACKBALL;
 			description = "Trackball";
+			break;
+		case 3:
+			sc->flags |= AMS_TOUCHPAD;
+			sc->hw.type = MOUSE_PAD;
+			description = "Touchpad";
 			break;
 		}
 
@@ -219,7 +226,7 @@ adb_mouse_attach(device_t dev)
 
 			if (adb_get_device_handler(dev) == 0x42) {
 				device_printf(dev, "MacAlly 2-Button Mouse\n");
-				sc->extended = 0;
+				sc->flags &= ~AMS_EXTENDED;
 			}
 		}
 			
@@ -272,7 +279,7 @@ adb_mouse_receive_packet(device_t dev, u_char status, u_char command,
 	buttons |= !(data[0] & 0x80);
 	buttons |= !(data[1] & 0x80) << 1;
 
-	if (sc->extended) {
+	if (sc->flags & AMS_EXTENDED) {
 		for (i = 2; i < len && i < 5; i++) {
 			xdelta |= (data[i] & 0x07) << (3*i + 1);
 			ydelta |= (data[i] & 0x70) << (3*i - 3);
@@ -294,12 +301,16 @@ adb_mouse_receive_packet(device_t dev, u_char status, u_char command,
 	 * Some mice report high-numbered buttons on the wrong button number,
 	 * so set the highest-numbered real button as pressed if there are
 	 * mysterious high-numbered ones set.
+	 *
+	 * Don't do this for touchpads, because touchpads also trigger
+	 * high button events when they are touched.
 	 */
 
-	if (buttons & ~((1 << sc->hw.buttons) - 1)) {
+	if (buttons & ~((1 << sc->hw.buttons) - 1)
+	    && !(sc->flags & AMS_TOUCHPAD)) {
 		buttons |= 1 << (sc->hw.buttons - 1);
-		buttons &= (1 << sc->hw.buttons) - 1;
 	}
+	buttons &= (1 << sc->hw.buttons) - 1;
 
 	mtx_lock(&sc->sc_mtx);
 
