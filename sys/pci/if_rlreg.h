@@ -830,9 +830,7 @@ struct rl_list_data {
 	bus_addr_t		rl_tx_list_addr;
 };
 
-#ifdef RL_TWISTER_ENABLE
 enum rl_twist { DONE, CHK_LINK, FIND_ROW, SET_PARAM, RECHK_LONG, RETUNE };
-#endif
 
 struct rl_softc {
 	struct ifnet		*rl_ifp;	/* interface info */
@@ -862,11 +860,10 @@ struct rl_softc {
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			rl_if_flags;
-#ifdef RL_TWISTER_ENABLE
+	int			rl_twister_enable;
 	enum rl_twist		rl_twister;
 	int			rl_twist_row;
 	int			rl_twist_col;
-#endif
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
 	int			rxcycles;
