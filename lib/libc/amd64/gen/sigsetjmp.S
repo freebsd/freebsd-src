@@ -77,6 +77,7 @@ ENTRY(sigsetjmp)
 	fnstcw	64(%rcx)		/* 8; fpu cw */
 	xorq	%rax,%rax
 	ret
+END(sigsetjmp)
 
 	.weak CNAME(siglongjmp)
 	.set CNAME(siglongjmp),CNAME(__siglongjmp)
@@ -109,3 +110,4 @@ ENTRY(__siglongjmp)
 	incq	%rax
 1:	movq	%rcx,0(%rsp)
 	ret
+END(__siglongjmp)

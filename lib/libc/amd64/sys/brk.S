@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 ENTRY(_brk)
 	pushq	%rdi
 	jmp	ok
+END(_brk)
 
 ENTRY(brk)
 	pushq	%rdi
@@ -81,3 +82,4 @@ err:
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(brk)
