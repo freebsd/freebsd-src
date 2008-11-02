@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
-#include "opt_rl.h"
 #endif
 
 #include <sys/param.h>
@@ -97,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -801,13 +801,24 @@ rl_attach(device_t dev)
 	struct ifnet		*ifp;
 	struct rl_softc		*sc;
 	struct rl_type		*t;
+	struct sysctl_ctx_list	*ctx;
+	struct sysctl_oid_list	*children;
 	int			error = 0, i, rid;
 	int			unit;
 	uint16_t		rl_did = 0;
+	char			tn[32];
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	sc->rl_dev = dev;
+
+	sc->rl_twister_enable = 0;
+	snprintf(tn, sizeof(tn), "dev.rl.%d.twister_enable", unit);
+	TUNABLE_INT_FETCH(tn, &sc->rl_twister_enable);
+	ctx = device_get_sysctl_ctx(sc->rl_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "twister_enable", CTLFLAG_RD,
+	   &sc->rl_twister_enable, 0, "");
 
 	mtx_init(&sc->rl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -1384,7 +1395,6 @@ rl_txeof(struct rl_softc *sc)
 		sc->rl_watchdog_timer = 0;
 }
 
-#ifdef RL_TWISTER_ENABLE
 static void
 rl_twister_update(struct rl_softc *sc)
 {
@@ -1483,7 +1493,6 @@ rl_twister_update(struct rl_softc *sc)
 	}
 	
 }
-#endif
 
 static void
 rl_tick(void *xsc)
@@ -1506,19 +1515,19 @@ rl_tick(void *xsc)
 	 */
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
-#ifdef RL_TWISTER_ENABLE
-	if (sc->rl_twister == DONE)
+	if (sc->rl_twister_enable) {
+		if (sc->rl_twister == DONE)
+			rl_watchdog(sc);
+		else
+			rl_twister_update(sc);
+		if (sc->rl_twister == DONE)
+			ticks = hz;
+		else
+			ticks = hz / 10;
+	} else {
 		rl_watchdog(sc);
-	else
-		rl_twister_update(sc);
-	if (sc->rl_twister == DONE)
 		ticks = hz;
-	else
-		ticks = hz / 10;
-#else
-	rl_watchdog(sc);
-	ticks = hz;
-#endif
+	}
 
 	callout_reset(&sc->rl_stat_callout, ticks, rl_tick, sc);
 }
@@ -1768,14 +1777,15 @@ rl_init_locked(struct rl_softc *sc)
 	rl_stop(sc);
 
 	rl_reset(sc);
-#ifdef RL_TWISTER_ENABLE
-	/*
-	 * Reset twister register tuning state.  The twister registers
-	 * and their tuning are undocumented, but are necessary to cope
-	 * with bad links.  rl_twister = DONE here will disable this entirely.
-	 */
-	sc->rl_twister = CHK_LINK;
-#endif
+	if (sc->rl_twister_enable) {
+		/*
+		 * Reset twister register tuning state.  The twister
+		 * registers and their tuning are undocumented, but
+		 * are necessary to cope with bad links.  rl_twister =
+		 * DONE here will disable this entirely.
+		 */
+		sc->rl_twister = CHK_LINK;
+	}
 
 	/*
 	 * Init our MAC address.  Even though the chipset
