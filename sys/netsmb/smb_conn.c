@@ -218,8 +218,10 @@ out:
 	smb_sm_unlockvclist(td);
 	if (error == 0)
 		*vcpp = vcp;
-	else if (vcp)
+	else if (vcp) {
+		smb_vc_lock(vcp, LK_EXCLUSIVE, scred->scr_td);
 		smb_vc_put(vcp, scred);
+	}
 	return error;
 }
 
