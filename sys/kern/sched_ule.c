@@ -2665,7 +2665,7 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(cpu_top != NULL, ("cpu_top isn't initialized"));
 
-	topo = sbuf_new(NULL, NULL, 100, SBUF_AUTOEXTEND);
+	topo = sbuf_new(NULL, NULL, 500, SBUF_AUTOEXTEND);
 	if (topo == NULL)
 		return (ENOMEM);
 
