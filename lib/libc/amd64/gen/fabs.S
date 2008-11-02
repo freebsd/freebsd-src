@@ -37,6 +37,7 @@ ENTRY(fabs)
 	movsd	signbit(%rip), %xmm0
 	andnpd  %xmm1, %xmm0
 	ret
+END(fabs)
 
 	.data
 signbit:
