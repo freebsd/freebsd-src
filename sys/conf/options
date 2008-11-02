@@ -672,9 +672,6 @@ ED_SIC			opt_ed.h
 # bce driver
 BCE_DEBUG		opt_bce.h
 
-# rl driver
-RL_TWISTER_ENABLE	opt_rl.h
-
 SOCKBUF_DEBUG		opt_global.h
 
 # options for ubsec driver
