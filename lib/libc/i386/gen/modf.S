@@ -82,3 +82,4 @@ ENTRY(modf)
 	fdivp	/* return +/- 0 for +/- Inf, NaN for NaN */
 	leave
 	ret
+END(modf)
