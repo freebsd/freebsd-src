@@ -61,3 +61,4 @@ L1:
 	popl	%esi
 	popl	%edi
 	ret
+END(bcmp)
