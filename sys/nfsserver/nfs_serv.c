@@ -130,8 +130,10 @@ SYSCTL_NODE(_vfs, OID_AUTO, nfsrv, CTLFLAG_RW, 0, "NFS server");
 static int nfs_async;
 static int nfs_commit_blks;
 static int nfs_commit_miss;
-SYSCTL_INT(_vfs_nfsrv, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
-SYSCTL_INT(_vfs_nfsrv, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0, "");
+SYSCTL_INT(_vfs_nfsrv, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0,
+    "Tell client that writes were synced even though they were not");
+SYSCTL_INT(_vfs_nfsrv, OID_AUTO, commit_blks, CTLFLAG_RW, &nfs_commit_blks, 0,
+    "Number of completed commits");
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, commit_miss, CTLFLAG_RW, &nfs_commit_miss, 0, "");
 
 struct nfsrvstats nfsrvstats;

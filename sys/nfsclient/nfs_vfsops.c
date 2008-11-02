@@ -92,18 +92,22 @@ SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RW,
 	&nfsstats, nfsstats, "S,nfsstats");
 static int nfs_ip_paranoia = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
-    &nfs_ip_paranoia, 0, "");
+    &nfs_ip_paranoia, 0,
+    "Disallow accepting replies from IPs which differ from those sent");
 #ifdef NFS_DEBUG
 int nfs_debug;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0,
+    "Toggle debug flag");
 #endif
 static int nfs_tprintf_initial_delay = NFS_TPRINTF_INITIAL_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
-        downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0, "");
+    downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0,
+    "Delay before printing \"nfs server not responding\" messages");
 /* how long between console messages "nfs server foo not responding" */
 static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
-        downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
+    downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0,
+    "Delay between printing \"nfs server not responding\" messages");
 
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *hostname);
@@ -158,14 +162,15 @@ struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
 int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
-	&nfs_diskless_valid, 0, "");
+    &nfs_diskless_valid, 0,
+    "Has the diskless struct been filled correctly");
 
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-	nfsv3_diskless.root_hostnam, 0, "");
+    nfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
 SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-	&nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
-	"%Ssockaddr_in", "");
+    &nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
+    "%Ssockaddr_in", "Diskless root nfs address");
 
 
 void		nfsargs_ntoh(struct nfs_args *);
