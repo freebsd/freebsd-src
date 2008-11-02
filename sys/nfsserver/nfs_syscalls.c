@@ -89,11 +89,14 @@ static int	notstarted = 1;
 
 static int	nfs_privport = 0;
 SYSCTL_INT(_vfs_nfsrv, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW,
-	    &nfs_privport, 0, "");
+    &nfs_privport, 0,
+    "Only allow clients using a privileged port");
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay, CTLFLAG_RW,
-	    &nfsrvw_procrastinate, 0, "");
+    &nfsrvw_procrastinate, 0,
+    "Delay value for write gathering");
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
-	    &nfsrvw_procrastinate_v3, 0, "");
+    &nfsrvw_procrastinate_v3, 0,
+    "Delay in seconds for NFSv3 write gathering");
 
 static int	nfssvc_addsock(struct file *, struct sockaddr *);
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
