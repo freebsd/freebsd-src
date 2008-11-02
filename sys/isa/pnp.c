@@ -522,6 +522,8 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			csnldn->ldn = ldn;
 			ISA_SET_CONFIG_CALLBACK(parent, dev, pnp_set_config,
 			    csnldn);
+			isa_set_pnp_csn(dev, csn);
+			isa_set_pnp_ldn(dev, ldn);
 			ldn++;
 			startres = resp;
 			break;
