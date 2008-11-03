@@ -369,6 +369,10 @@ ffs_lock(ap)
 				VI_LOCK(vp);
 				flags |= LK_INTERLOCK;
 			}
+#ifdef DEBUG_VFS_LOCKS
+			KASSERT(vp->v_holdcnt != 0,
+			    ("ffs_lock %p: zero hold count", vp));
+#endif
 			lkp = vp->v_vnlock;
 			result = _lockmgr(lkp, flags, VI_MTX(vp), ap->a_td, ap->a_file, ap->a_line);
 			if (lkp == vp->v_vnlock || result != 0)
