@@ -1241,7 +1241,7 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	if (vp != NULL) {
 		int vfslocked;
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
