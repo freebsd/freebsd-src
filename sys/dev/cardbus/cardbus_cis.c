@@ -511,7 +511,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 				device_printf(cbdev, "Bad header in rom %d: "
 				    "[%x] %04x\n", romnum, imagebase +
 				    CARDBUS_EXROM_SIGNATURE, romsig);
-				bus_release_resource(cbdev, SYS_RES_MEMORY,
+				bus_release_resource(child, SYS_RES_MEMORY,
 				    *rid, res);
 				*rid = 0;
 				return (NULL);
@@ -548,7 +548,7 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 			    CARDBUS_EXROM_DATA_INDICATOR) & 0x80) != 0) {
 				device_printf(cbdev, "Cannot find CIS in "
 				    "Option ROM\n");
-				bus_release_resource(cbdev, SYS_RES_MEMORY,
+				bus_release_resource(child, SYS_RES_MEMORY,
 				    *rid, res);
 				*rid = 0;
 				return (NULL);
@@ -559,6 +559,8 @@ cardbus_read_tuple_init(device_t cbdev, device_t child, uint32_t *start,
 	} else {
 		*start = *start & PCIM_CIS_ADDR_MASK;
 	}
+	if (cardbus_cis_debug)
+		device_printf(cbdev, "CIS offset is %#x\n", *start);
 
 	return (res);
 }
