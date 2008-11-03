@@ -10,9 +10,6 @@ SUBDIR+= amr_linux
 KMOD=	amr
 SRCS=	amr.c amr_pci.c amr_disk.c device_if.h bus_if.h pci_if.h
 
-# SCSI passthrough support for non-disk devices
-#SRCS+=	amr_cam.c opt_cam.h opt_scsi.h
-
 # Enable a questionable optimisation for newer adapters
 #CFLAGS+= -DAMR_QUARTZ_GOFASTER
 
