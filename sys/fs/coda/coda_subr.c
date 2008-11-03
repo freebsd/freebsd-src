@@ -195,7 +195,7 @@ coda_acccache_purge(struct mount *mnt)
 				CODADEBUG(CODA_FLUSH, myprintf(("acccache "
 				    "purge fid %s uid %d mode 0x%x\n",
 				    coda_f2s(&cp->c_fid), cp->c_cached_uid,
-				    cp->c_cached_mode)););
+				    (int)cp->c_cached_mode)););
 				cp->c_flags &= ~C_ACCCACHE;
 			}
 		}
@@ -223,7 +223,7 @@ coda_acccache_purgeuser(struct mount *mnt, uid_t uid)
 				CODADEBUG(CODA_PURGEUSER, myprintf((
 				    "acccache purgeuser fid %s uid %d mode "
 				    "0x%x\n", coda_f2s(&cp->c_fid),
-				    cp->c_cached_uid, cp->c_cached_mode)););
+				    cp->c_cached_uid, (int)cp->c_cached_mode)););
 				cp->c_flags &= ~C_ACCCACHE;
 			}
 		}
