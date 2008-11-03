@@ -71,9 +71,6 @@ function add_debug_code(name, arg, pos, ind)
 	else
 		star = "";
 	if (lockdata[name, arg, pos] && (lockdata[name, arg, pos] != "-")) {
-		if (arg ~ /^\*/) {
-			printc(ind"if ("substr(arg, 2)" != NULL) {");
-		}
 		printc(ind"ASSERT_VI_UNLOCKED("star"a->a_"arg", \""uname"\");");
 		# Add assertions for locking
 		if (lockdata[name, arg, pos] == "L")
@@ -84,9 +81,6 @@ function add_debug_code(name, arg, pos, ind)
 			printc(ind"ASSERT_VOP_ELOCKED(" star "a->a_"arg", \""uname"\");");
 		else if (0) {
 			# XXX More checks!
-		}
-		if (arg ~ /^\*/) {
-			printc("ind}");
 		}
 	}
 }
