@@ -191,5 +191,5 @@ AcpiOsGetThreadId(void)
     /* XXX do not add ACPI_FUNCTION_TRACE here, results in recursive call. */
 
     /* Returning 0 is not allowed. */
-    return (curthread->td_tid + 1);
+    return (curthread->td_tid);
 }
