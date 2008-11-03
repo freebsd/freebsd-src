@@ -286,8 +286,8 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, td);
 	error = namei(&nd);
 	if (error)
 		return (error);
@@ -368,7 +368,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 		return (error);
 	vp = fp->f_vnode;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 #ifdef AUDIT
 	AUDIT_ARG(vnode, vp, ARG_VNODE1);
 #endif
@@ -800,8 +800,8 @@ kern_chdir(struct thread *td, char *path, enum uio_seg pathseg)
 	struct vnode *vp;
 	int vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1 | MPSAFE,
-	    pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | AUDITVNODE1 |
+	    MPSAFE, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -886,8 +886,8 @@ chroot(td, uap)
 	error = priv_check(td, PRIV_VFS_CHROOT);
 	if (error)
 		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, UIO_USERSPACE, uap->path, td);
 	error = namei(&nd);
 	if (error)
 		goto error;
@@ -1938,7 +1938,7 @@ lseek(td, uap)
 		offset += fp->f_offset;
 		break;
 	case L_XTND:
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, cred);
 		VOP_UNLOCK(vp, 0);
 		if (error)
@@ -2125,8 +2125,8 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
-	NDINIT_AT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_AT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, fd, td);
 	if ((error = namei(&nd)) != 0)
 		goto out1;
 	vfslocked = NDHASGIANT(&nd);
@@ -2492,8 +2492,8 @@ kern_pathconf(struct thread *td, char *path, enum uio_seg pathseg, int name)
 	struct nameidata nd;
 	int error, vfslocked;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -2568,8 +2568,8 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, fd, td);
 
 	if ((error = namei(&nd)) != 0)
 		return (error);
