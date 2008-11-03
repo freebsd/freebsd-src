@@ -214,6 +214,10 @@ PSEUDOFS_TRACE	opt_pseudofs.h
 # Broken - ffs_snapshot() dependency from ufs_lookup() :-(
 FFS		opt_ffs_broken_fixme.h
 
+# In-kernel GSS-API
+KGSSAPI		opt_kgssapi.h
+KGSSAPI_DEBUG	opt_kgssapi.h
+
 # These static filesystems have one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
 # statically compiled into the kernel, code for mounting them as root
@@ -221,6 +225,11 @@ FFS		opt_ffs_broken_fixme.h
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
 NFS4CLIENT	opt_nfs.h
+
+# Use this option to compile both NFS client and server using the
+# legacy RPC implementation instead of the newer KRPC system (which
+# supports modern features such as RPCSEC_GSS
+NFS_LEGACYRPC	opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h

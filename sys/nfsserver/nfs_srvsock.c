@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef NFS_LEGACYRPC
+
 #define	TRUE	1
 #define	FALSE	0
 
@@ -383,6 +385,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		if (len > 0)
 			nfsm_adv(nfsm_rndup(len));
+		nd->nd_credflavor = RPCAUTH_UNIX;
 	} else {
 		nd->nd_repstat = (NFSERR_AUTHERR | AUTH_REJECTCRED);
 		nd->nd_procnum = NFSPROC_NOOP;
@@ -809,3 +812,5 @@ nfsrv_timer(void *arg)
 	NFSD_UNLOCK();
 	callout_reset(&nfsrv_callout, nfsrv_ticks, nfsrv_timer, NULL);
 }
+
+#endif /* NFS_LEGACYRPC */

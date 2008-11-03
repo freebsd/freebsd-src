@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
@@ -719,6 +720,139 @@ __rpc_sockisbound(struct socket *so)
 	free(sa, M_SONAME);
 
 	return bound;
+}
+
+/*
+ * Implement XDR-style API for RPC call.
+ */
+enum clnt_stat
+clnt_call_private(
+	CLIENT		*cl,		/* client handle */
+	struct rpc_callextra *ext,	/* call metadata */
+	rpcproc_t	proc,		/* procedure number */
+	xdrproc_t	xargs,		/* xdr routine for args */
+	void		*argsp,		/* pointer to args */
+	xdrproc_t	xresults,	/* xdr routine for results */
+	void		*resultsp,	/* pointer to results */
+	struct timeval	utimeout)	/* seconds to wait before giving up */
+{
+	XDR xdrs;
+	struct mbuf *mreq;
+	struct mbuf *mrep;
+	enum clnt_stat stat;
+
+	MGET(mreq, M_WAIT, MT_DATA);
+	MCLGET(mreq, M_WAIT);
+	mreq->m_len = 0;
+
+	xdrmbuf_create(&xdrs, mreq, XDR_ENCODE);
+	if (!xargs(&xdrs, argsp)) {
+		m_freem(mreq);
+		return (RPC_CANTENCODEARGS);
+	}
+	XDR_DESTROY(&xdrs);
+
+	stat = CLNT_CALL_MBUF(cl, ext, proc, mreq, &mrep, utimeout);
+	m_freem(mreq);
+
+	if (stat == RPC_SUCCESS) {
+		xdrmbuf_create(&xdrs, mrep, XDR_DECODE);
+		if (!xresults(&xdrs, resultsp)) {
+			XDR_DESTROY(&xdrs);
+			return (RPC_CANTDECODERES);
+		}
+		XDR_DESTROY(&xdrs);
+	}
+
+	return (stat);
+}
+
+/*
+ * Bind a socket to a privileged IP port
+ */
+int
+bindresvport(struct socket *so, struct sockaddr *sa)
+{
+	int old, error, af;
+	bool_t freesa = FALSE;
+	struct sockaddr_in *sin;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
+	struct sockopt opt;
+	int proto, portrange, portlow;
+	u_int16_t *portp;
+	socklen_t salen;
+
+	if (sa == NULL) {
+		error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
+		if (error)
+			return (error);
+		freesa = TRUE;
+		af = sa->sa_family;
+		salen = sa->sa_len;
+		memset(sa, 0, sa->sa_len);
+	} else {
+		af = sa->sa_family;
+		salen = sa->sa_len;
+	}
+
+	switch (af) {
+	case AF_INET:
+		proto = IPPROTO_IP;
+		portrange = IP_PORTRANGE;
+		portlow = IP_PORTRANGE_LOW;
+		sin = (struct sockaddr_in *)sa;
+		portp = &sin->sin_port;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		proto = IPPROTO_IPV6;
+		portrange = IPV6_PORTRANGE;
+		portlow = IPV6_PORTRANGE_LOW;
+		sin6 = (struct sockaddr_in6 *)sa;
+		portp = &sin6->sin6_port;
+		break;
+#endif
+	default:
+		return (EPFNOSUPPORT);
+	}
+
+	sa->sa_family = af;
+	sa->sa_len = salen;
+
+	if (*portp == 0) {
+		bzero(&opt, sizeof(opt));
+		opt.sopt_dir = SOPT_GET;
+		opt.sopt_level = proto;
+		opt.sopt_name = portrange;
+		opt.sopt_val = &old;
+		opt.sopt_valsize = sizeof(old);
+		error = sogetopt(so, &opt);
+		if (error)
+			goto out;
+
+		opt.sopt_dir = SOPT_SET;
+		opt.sopt_val = &portlow;
+		error = sosetopt(so, &opt);
+		if (error)
+			goto out;
+	}
+
+	error = sobind(so, sa, curthread);
+
+	if (*portp == 0) {
+		if (error) {
+			opt.sopt_dir = SOPT_SET;
+			opt.sopt_val = &old;
+			sosetopt(so, &opt);
+		}
+	}
+out:
+	if (freesa)
+		free(sa, M_SONAME);
+
+	return (error);
 }
 
 /*

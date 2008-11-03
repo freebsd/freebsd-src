@@ -78,6 +78,51 @@ xdrmbuf_create(XDR *xdrs, struct mbuf *m, enum xdr_op op)
 	}
 }
 
+void
+xdrmbuf_append(XDR *xdrs, struct mbuf *madd)
+{
+	struct mbuf *m;
+
+	KASSERT(xdrs->x_ops == &xdrmbuf_ops && xdrs->x_op == XDR_ENCODE,
+	    ("xdrmbuf_append: invalid XDR stream"));
+
+	if (m_length(madd, NULL) == 0) {
+		m_freem(madd);
+		return;
+	}
+	
+	m = (struct mbuf *) xdrs->x_private;
+	m->m_next = madd;
+
+	m = m_last(madd);
+	xdrs->x_private = m;
+	xdrs->x_handy = m->m_len;
+}
+
+struct mbuf *
+xdrmbuf_getall(XDR *xdrs)
+{
+	struct mbuf *m0, *m;
+
+	KASSERT(xdrs->x_ops == &xdrmbuf_ops && xdrs->x_op == XDR_DECODE,
+	    ("xdrmbuf_append: invalid XDR stream"));
+
+	m0 = (struct mbuf *) xdrs->x_base;
+	m = (struct mbuf *) xdrs->x_private;
+	if (m0 != m) {
+		while (m0->m_next != m)
+			m0 = m0->m_next;
+		m0->m_next = NULL;
+		xdrs->x_private = NULL;
+	} else {
+		xdrs->x_base = NULL;
+		xdrs->x_private = NULL;
+	}
+
+	m_adj(m, xdrs->x_handy);
+	return (m);
+}
+
 static void
 xdrmbuf_destroy(XDR *xdrs)
 {
@@ -92,9 +137,16 @@ xdrmbuf_destroy(XDR *xdrs)
 static bool_t
 xdrmbuf_getlong(XDR *xdrs, long *lp)
 {
+	int32_t *p;
 	int32_t t;
 
-	xdrmbuf_getbytes(xdrs, (char *) &t, sizeof(int32_t));
+	p = xdrmbuf_inline(xdrs, sizeof(int32_t));
+	if (p) {
+		t = *p;
+	} else {
+		xdrmbuf_getbytes(xdrs, (char *) &t, sizeof(int32_t));
+	}
+
 	*lp = ntohl(t);
 	return (TRUE);
 }
@@ -104,10 +156,16 @@ xdrmbuf_putlong(xdrs, lp)
 	XDR *xdrs;
 	const long *lp;
 {
+	int32_t *p;
 	int32_t t = htonl(*lp);
 
-	xdrmbuf_putbytes(xdrs, (char *) &t, sizeof(int32_t));
-	return (TRUE);
+	p = xdrmbuf_inline(xdrs, sizeof(int32_t));
+	if (p) {
+		*p = t;
+		return (TRUE);
+	} else {
+		return (xdrmbuf_putbytes(xdrs, (char *) &t, sizeof(int32_t)));
+	}
 }
 
 static bool_t
@@ -130,7 +188,7 @@ xdrmbuf_getbytes(XDR *xdrs, char *addr, u_int len)
 		sz = m->m_len - xdrs->x_handy;
 		if (sz > len)
 			sz = len;
-		memcpy(addr, mtod(m, const char *) + xdrs->x_handy, sz);
+		bcopy(mtod(m, const char *) + xdrs->x_handy, addr, sz);
 
 		addr += sz;
 		xdrs->x_handy += sz;
@@ -157,7 +215,7 @@ xdrmbuf_putbytes(XDR *xdrs, const char *addr, u_int len)
 		sz = M_TRAILINGSPACE(m) + (m->m_len - xdrs->x_handy);
 		if (sz > len)
 			sz = len;
-		memcpy(mtod(m, char *) + xdrs->x_handy, addr, sz);
+		bcopy(addr, mtod(m, char *) + xdrs->x_handy, sz);
 		addr += sz;
 		xdrs->x_handy += sz;
 		if (xdrs->x_handy > m->m_len)
@@ -167,6 +225,8 @@ xdrmbuf_putbytes(XDR *xdrs, const char *addr, u_int len)
 		if (xdrs->x_handy == m->m_len && M_TRAILINGSPACE(m) == 0) {
 			if (!m->m_next) {
 				MGET(n, M_TRYWAIT, m->m_type);
+				if (m->m_flags & M_EXT)
+					MCLGET(n, M_TRYWAIT);
 				m->m_next = n;
 			}
 			m = m->m_next;

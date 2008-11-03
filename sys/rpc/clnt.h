@@ -118,6 +118,15 @@ struct rpc_err {
 typedef void rpc_feedback(int cmd, int procnum, void *);
 
 /*
+ * Timers used for the pseudo-transport protocol when using datagrams
+ */
+struct rpc_timers {
+	u_short		rt_srtt;	/* smoothed round-trip time */
+	u_short		rt_deviate;	/* estimated deviation */
+	u_long		rt_rtxcur;	/* current (backed-off) rto */
+};
+
+/*
  * A structure used with CLNT_CALL_EXT to pass extra information used
  * while processing an RPC call.
  */
@@ -125,6 +134,8 @@ struct rpc_callextra {
 	AUTH		*rc_auth;	/* auth handle to use for this call */
 	rpc_feedback	*rc_feedback;	/* callback for retransmits etc. */
 	void		*rc_feedback_arg; /* argument for callback */
+	struct rpc_timers *rc_timers;	  /* optional RTT timers */
+	struct rpc_err	rc_err;		/* detailed call status */
 };
 #endif
 
@@ -140,8 +151,8 @@ typedef struct __rpc_client {
 	struct clnt_ops {
 		/* call remote procedure */
 		enum clnt_stat	(*cl_call)(struct __rpc_client *,
-		    struct rpc_callextra *, rpcproc_t, xdrproc_t, void *,
-		    xdrproc_t, void *, struct timeval);
+		    struct rpc_callextra *, rpcproc_t,
+		    struct mbuf *, struct mbuf **, struct timeval);
 		/* abort a call */
 		void		(*cl_abort)(struct __rpc_client *);
 		/* get specific error code */
@@ -150,6 +161,8 @@ typedef struct __rpc_client {
 		/* frees results */
 		bool_t		(*cl_freeres)(struct __rpc_client *,
 					xdrproc_t, void *);
+		/* close the connection and terminate pending RPCs */
+		void		(*cl_close)(struct __rpc_client *);
 		/* destroy this structure */
 		void		(*cl_destroy)(struct __rpc_client *);
 		/* the ioctl() of rpc */
@@ -183,15 +196,6 @@ typedef struct __rpc_client {
 	char			*cl_tp;		/* device name */
 } CLIENT;
 
-/*
- * Timers used for the pseudo-transport protocol when using datagrams
- */
-struct rpc_timers {
-	u_short		rt_srtt;	/* smoothed round-trip time */
-	u_short		rt_deviate;	/* estimated deviation */
-	u_long		rt_rtxcur;	/* current (backed-off) rto */
-};
-
 /*      
  * Feedback values used for possible congestion and rate control
  */
@@ -222,6 +226,32 @@ struct rpc_timers {
 		CLNT_DESTROY(rh)
 
 /*
+ * void
+ * CLNT_CLOSE(rh);
+ * 	CLIENT *rh;
+ */
+#define	CLNT_CLOSE(rh)	((*(rh)->cl_ops->cl_close)(rh))
+
+enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
+    xdrproc_t, void *, xdrproc_t, void *, struct timeval);
+
+/*
+ * enum clnt_stat
+ * CLNT_CALL_MBUF(rh, ext, proc, mreq, mrepp, timeout)
+ * 	CLIENT *rh;
+ *	struct rpc_callextra *ext;
+ *	rpcproc_t proc;
+ *	struct mbuf *mreq;
+ *	struct mbuf **mrepp;
+ *	struct timeval timeout;
+ *
+ * Call arguments in mreq which is consumed by the call (even if there
+ * is an error). Results returned in *mrepp.
+ */
+#define	CLNT_CALL_MBUF(rh, ext, proc, mreq, mrepp, secs)	\
+	((*(rh)->cl_ops->cl_call)(rh, ext, proc, mreq, mrepp, secs))
+
+/*
  * enum clnt_stat
  * CLNT_CALL_EXT(rh, ext, proc, xargs, argsp, xres, resp, timeout)
  * 	CLIENT *rh;
@@ -234,8 +264,8 @@ struct rpc_timers {
  *	struct timeval timeout;
  */
 #define	CLNT_CALL_EXT(rh, ext, proc, xargs, argsp, xres, resp, secs)	\
-	((*(rh)->cl_ops->cl_call)(rh, ext, proc, xargs,		\
-		argsp, xres, resp, secs))
+	clnt_call_private(rh, ext, proc, xargs,				\
+		argsp, xres, resp, secs)
 #endif
 
 /*
@@ -250,12 +280,12 @@ struct rpc_timers {
  *	struct timeval timeout;
  */
 #ifdef _KERNEL
-#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)		\
-	((*(rh)->cl_ops->cl_call)(rh, NULL, proc, xargs,	\
-		argsp, xres, resp, secs))
-#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)		\
-	((*(rh)->cl_ops->cl_call)(rh, NULL, proc, xargs,	\
-		argsp, xres, resp, secs))
+#define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)	\
+	clnt_call_private(rh, NULL, proc, xargs,		\
+		argsp, xres, resp, secs)
+#define	clnt_call(rh, proc, xargs, argsp, xres, resp, secs)	\
+	clnt_call_private(rh, NULL, proc, xargs,		\
+		argsp, xres, resp, secs)
 #else
 #define	CLNT_CALL(rh, proc, xargs, argsp, xres, resp, secs)		\
 	((*(rh)->cl_ops->cl_call)(rh, proc, xargs,	\
@@ -340,6 +370,8 @@ struct rpc_timers {
 #define CLGET_INTERRUPTIBLE	24	/* set interruptible flag */
 #define CLSET_RETRIES		25	/* set retry count for reconnect */
 #define CLGET_RETRIES		26	/* get retry count for reconnect */
+#define CLSET_PRIVPORT		27	/* set privileged source port flag */
+#define CLGET_PRIVPORT		28	/* get privileged source port flag */
 #endif
 
 

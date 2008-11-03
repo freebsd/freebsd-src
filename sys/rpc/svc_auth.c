@@ -52,6 +52,13 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 
+static enum auth_stat (*_svcauth_rpcsec_gss)(struct svc_req *,
+    struct rpc_msg *) = NULL;
+static int (*_svcauth_rpcsec_gss_getcred)(struct svc_req *,
+    struct ucred **, int *);
+
+static struct svc_auth_ops svc_auth_null_ops;
+
 /*
  * The call rpc message, msg has been obtained from the wire.  The msg contains
  * the raw form of credentials and verifiers.  authenticate returns AUTH_OK
@@ -77,8 +84,8 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 	enum auth_stat dummy;
 
 	rqst->rq_cred = msg->rm_call.cb_cred;
-	rqst->rq_xprt->xp_verf.oa_flavor = _null_auth.oa_flavor;
-	rqst->rq_xprt->xp_verf.oa_length = 0;
+	rqst->rq_auth.svc_ah_ops = &svc_auth_null_ops;
+	rqst->rq_auth.svc_ah_private = NULL;
 	cred_flavor = rqst->rq_cred.oa_flavor;
 	switch (cred_flavor) {
 	case AUTH_NULL:
@@ -90,6 +97,11 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 	case AUTH_SHORT:
 		dummy = _svcauth_short(rqst, msg);
 		return (dummy);
+	case RPCSEC_GSS:
+		if (!_svcauth_rpcsec_gss)
+			return (AUTH_REJECTEDCRED);
+		dummy = _svcauth_rpcsec_gss(rqst, msg);
+		return (dummy);
 	default:
 		break;
 	}
@@ -97,20 +109,64 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 	return (AUTH_REJECTEDCRED);
 }
 
+/*
+ * A set of null auth methods used by any authentication protocols
+ * that don't need to inspect or modify the message body.
+ */
+static bool_t
+svcauth_null_wrap(SVCAUTH *auth, struct mbuf **mp)
+{
+
+	return (TRUE);
+}
+
+static bool_t
+svcauth_null_unwrap(SVCAUTH *auth, struct mbuf **mp)
+{
+
+	return (TRUE);
+}
+
+static void
+svcauth_null_release(SVCAUTH *auth)
+{
+
+}
+
+static struct svc_auth_ops svc_auth_null_ops = {
+	svcauth_null_wrap,
+	svcauth_null_unwrap,
+	svcauth_null_release,
+};
+
 /*ARGSUSED*/
 enum auth_stat
 _svcauth_null(struct svc_req *rqst, struct rpc_msg *msg)
 {
+
+	rqst->rq_verf = _null_auth;
 	return (AUTH_OK);
 }
 
 int
-svc_getcred(struct svc_req *rqst, struct ucred *cr, int *flavorp)
+svc_auth_reg(int flavor,
+    enum auth_stat (*svcauth)(struct svc_req *, struct rpc_msg *),
+    int (*getcred)(struct svc_req *, struct ucred **, int *))
 {
+
+	if (flavor == RPCSEC_GSS) {
+		_svcauth_rpcsec_gss = svcauth;
+		_svcauth_rpcsec_gss_getcred = getcred;
+	}
+	return (TRUE);
+}
+
+int
+svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
+{
+	struct ucred *cr = NULL;
 	int flavor, i;
 	struct xucred *xcr;
-
-	KASSERT(!crshared(cr), ("svc_getcred with shared cred"));
 
 	flavor = rqst->rq_cred.oa_flavor;
 	if (flavorp)
@@ -119,12 +175,19 @@ svc_getcred(struct svc_req *rqst, struct ucred *cr, int *flavorp)
 	switch (flavor) {
 	case AUTH_UNIX:
 		xcr = (struct xucred *) rqst->rq_clntcred;
+		cr = crget();
 		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xcr->cr_uid;
 		cr->cr_ngroups = xcr->cr_ngroups;
 		for (i = 0; i < xcr->cr_ngroups; i++)
 			cr->cr_groups[i] = xcr->cr_groups[i];
-		cr->cr_rgid = cr->cr_groups[0];
+		cr->cr_rgid = cr->cr_svgid = cr->cr_groups[0];
+		*crp = cr;
 		return (TRUE);
+
+	case RPCSEC_GSS:
+		if (!_svcauth_rpcsec_gss_getcred)
+			return (FALSE);
+		return (_svcauth_rpcsec_gss_getcred(rqst, crp, flavorp));
 
 	default:
 		return (FALSE);

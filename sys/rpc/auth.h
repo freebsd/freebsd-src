@@ -132,7 +132,7 @@ enum auth_stat {
 	 * failed locally
 	*/
 	AUTH_INVALIDRESP=6,		/* bogus response verifier */
-	AUTH_FAILED=7			/* some unknown reason */
+	AUTH_FAILED=7,			/* some unknown reason */
 #ifdef KERBEROS
 	/*
 	 * kerberos errors
@@ -142,8 +142,14 @@ enum auth_stat {
 	AUTH_TIMEEXPIRE = 9,		/* time of credential expired */
 	AUTH_TKT_FILE = 10,		/* something wrong with ticket file */
 	AUTH_DECODE = 11,			/* can't decode authenticator */
-	AUTH_NET_ADDR = 12		/* wrong net address in ticket */
+	AUTH_NET_ADDR = 12,		/* wrong net address in ticket */
 #endif /* KERBEROS */
+	/*
+	 * RPCSEC_GSS errors
+	 */
+	RPCSEC_GSS_CREDPROBLEM = 13,
+	RPCSEC_GSS_CTXPROBLEM = 14,
+	RPCSEC_GSS_NODISPATCH = 0x8000000
 };
 
 union des_block {
@@ -171,6 +177,7 @@ struct opaque_auth {
 /*
  * Auth handle, interface to client side authenticators.
  */
+struct rpc_err;
 typedef struct __auth {
 	struct	opaque_auth	ah_cred;
 	struct	opaque_auth	ah_verf;
@@ -178,10 +185,11 @@ typedef struct __auth {
 	struct auth_ops {
 		void	(*ah_nextverf) (struct __auth *);
 		/* nextverf & serialize */
-		int	(*ah_marshal) (struct __auth *, XDR *);
+		int	(*ah_marshal) (struct __auth *, uint32_t, XDR *,
+		    struct mbuf *);
 		/* validate verifier */
-		int	(*ah_validate) (struct __auth *,
-			    struct opaque_auth *);
+		int	(*ah_validate) (struct __auth *, uint32_t,
+		    struct opaque_auth *, struct mbuf **);
 		/* refresh credentials */
 		int	(*ah_refresh) (struct __auth *, void *);
 		/* destroy this structure */
@@ -201,29 +209,18 @@ typedef struct __auth {
  */
 #define AUTH_NEXTVERF(auth)		\
 		((*((auth)->ah_ops->ah_nextverf))(auth))
-#define auth_nextverf(auth)		\
-		((*((auth)->ah_ops->ah_nextverf))(auth))
 
-#define AUTH_MARSHALL(auth, xdrs)	\
-		((*((auth)->ah_ops->ah_marshal))(auth, xdrs))
-#define auth_marshall(auth, xdrs)	\
-		((*((auth)->ah_ops->ah_marshal))(auth, xdrs))
+#define AUTH_MARSHALL(auth, xid, xdrs, args)	\
+		((*((auth)->ah_ops->ah_marshal))(auth, xid, xdrs, args))
 
-#define AUTH_VALIDATE(auth, verfp)	\
-		((*((auth)->ah_ops->ah_validate))((auth), verfp))
-#define auth_validate(auth, verfp)	\
-		((*((auth)->ah_ops->ah_validate))((auth), verfp))
+#define AUTH_VALIDATE(auth, xid, verfp, resultsp) \
+		((*((auth)->ah_ops->ah_validate))((auth), xid, verfp, resultsp))
 
 #define AUTH_REFRESH(auth, msg)		\
-		((*((auth)->ah_ops->ah_refresh))(auth, msg))
-#define auth_refresh(auth, msg)		\
 		((*((auth)->ah_ops->ah_refresh))(auth, msg))
 
 #define AUTH_DESTROY(auth)		\
 		((*((auth)->ah_ops->ah_destroy))(auth))
-#define auth_destroy(auth)		\
-		((*((auth)->ah_ops->ah_destroy))(auth))
-
 
 __BEGIN_DECLS
 extern struct opaque_auth _null_auth;
@@ -357,5 +354,13 @@ __END_DECLS
 #define AUTH_DH		3		/* for Diffie-Hellman mechanism */
 #define AUTH_DES	AUTH_DH		/* for backward compatibility */
 #define AUTH_KERB	4		/* kerberos style */
+#define RPCSEC_GSS	6		/* RPCSEC_GSS */
+
+/*
+ * Pseudo auth flavors for RPCSEC_GSS.
+ */
+#define	RPCSEC_GSS_KRB5		390003
+#define	RPCSEC_GSS_KRB5I	390004
+#define	RPCSEC_GSS_KRB5P	390005
 
 #endif /* !_RPC_AUTH_H */

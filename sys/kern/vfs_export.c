@@ -68,6 +68,8 @@ struct netcred {
 	struct	radix_node netc_rnodes[2];
 	int	netc_exflags;
 	struct	ucred netc_anon;
+	int	netc_numsecflavors;
+	int	netc_secflavors[MAXSECFLAVORS];
 };
 
 /*
@@ -120,6 +122,9 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
 		bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
 		    sizeof(np->netc_anon.cr_groups));
+		np->netc_numsecflavors = argp->ex_numsecflavors;
+		bcopy(argp->ex_secflavors, np->netc_secflavors,
+		    sizeof(np->netc_secflavors));
 		refcount_init(&np->netc_anon.cr_ref, 1);
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_DEFEXPORTED;
@@ -203,6 +208,9 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
 	bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
 	    sizeof(np->netc_anon.cr_groups));
+	np->netc_numsecflavors = argp->ex_numsecflavors;
+	bcopy(argp->ex_secflavors, np->netc_secflavors,
+	    sizeof(np->netc_secflavors));
 	refcount_init(&np->netc_anon.cr_ref, 1);
 	return (0);
 out:
@@ -252,6 +260,10 @@ vfs_export(struct mount *mp, struct export_args *argp)
 {
 	struct netexport *nep;
 	int error;
+
+	if (argp->ex_numsecflavors < 0
+	    || argp->ex_numsecflavors >= MAXSECFLAVORS)
+		return (EINVAL);
 
 	nep = mp->mnt_export;
 	error = 0;
@@ -441,7 +453,7 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 
 int 
 vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
-    struct ucred **credanonp)
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
 {
 	struct netcred *np;
 
@@ -452,6 +464,10 @@ vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
 		return (EACCES);
 	*extflagsp = np->netc_exflags;
 	*credanonp = &np->netc_anon;
+	if (numsecflavors)
+		*numsecflavors = np->netc_numsecflavors;
+	if (secflavors)
+		*secflavors = np->netc_secflavors;
 	return (0);
 }
 

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
+#include <rpc/clnt.h>
 
 #define MAX_MARSHAL_SIZE 20
 
@@ -61,9 +62,10 @@ __FBSDID("$FreeBSD$");
  * Authenticator operations routines
  */
 
-static bool_t authnone_marshal (AUTH *, XDR *);
+static bool_t authnone_marshal (AUTH *, uint32_t, XDR *, struct mbuf *);
 static void authnone_verf (AUTH *);
-static bool_t authnone_validate (AUTH *, struct opaque_auth *);
+static bool_t authnone_validate (AUTH *, uint32_t, struct opaque_auth *,
+    struct mbuf **);
 static bool_t authnone_refresh (AUTH *, void *);
 static void authnone_destroy (AUTH *);
 
@@ -72,7 +74,7 @@ static struct auth_ops authnone_ops = {
 	.ah_marshal =		authnone_marshal,
 	.ah_validate =		authnone_validate,
 	.ah_refresh =		authnone_refresh,
-	.ah_destroy =		authnone_destroy
+	.ah_destroy =		authnone_destroy,
 };
 
 struct authnone_private {
@@ -109,13 +111,18 @@ authnone_create()
 
 /*ARGSUSED*/
 static bool_t
-authnone_marshal(AUTH *client, XDR *xdrs)
+authnone_marshal(AUTH *client, uint32_t xid, XDR *xdrs, struct mbuf *args)
 {
 	struct authnone_private *ap = &authnone_private;
 
 	KASSERT(xdrs != NULL, ("authnone_marshal: xdrs is null"));
 
-	return (xdrs->x_ops->x_putbytes(xdrs, ap->mclient, ap->mcnt));
+	if (!XDR_PUTBYTES(xdrs, ap->mclient, ap->mcnt))
+		return (FALSE);
+
+	xdrmbuf_append(xdrs, args);
+
+	return (TRUE);
 }
 
 /* All these unused parameters are required to keep ANSI-C from grumbling */
@@ -127,7 +134,8 @@ authnone_verf(AUTH *client)
 
 /*ARGSUSED*/
 static bool_t
-authnone_validate(AUTH *client, struct opaque_auth *opaque)
+authnone_validate(AUTH *client, uint32_t xid, struct opaque_auth *opaque,
+    struct mbuf **mrepp)
 {
 
 	return (TRUE);
