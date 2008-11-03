@@ -89,10 +89,23 @@
  * Structures for the nfssvc(2) syscall. Not that anyone but nfsd and mount_nfs
  * should ever try and use it.
  */
-struct nfsd_args {
+
+/*
+ * Add a socket to monitor for NFS requests.
+ */
+struct nfsd_addsock_args {
 	int	sock;		/* Socket to serve */
 	caddr_t	name;		/* Client addr for connection based sockets */
 	int	namelen;	/* Length of name */
+};
+
+/*
+ * Start processing requests.
+ */
+struct nfsd_nfsd_args {
+	const char *principal;	/* GSS-API service principal name */
+	int	minthreads;	/* minimum service thread count */
+	int	maxthreads;	/* maximum service thread count */
 };
 
 /*
@@ -105,8 +118,9 @@ struct nfsd_args {
 /*
  * Flags for nfssvc() system call.
  */
-#define	NFSSVC_NFSD	0x004
+#define	NFSSVC_OLDNFSD	0x004
 #define	NFSSVC_ADDSOCK	0x008
+#define	NFSSVC_NFSD	0x010
 
 /*
  * vfs.nfsrv sysctl(3) identifiers
@@ -167,6 +181,7 @@ extern int32_t (*nfsrv3_procs[NFS_NPROCS])(struct nfsrv_descript *nd,
 #define	NWDELAYHASH(sock, f) \
 	(&(sock)->ns_wdelayhashtbl[(*((u_int32_t *)(f))) % NFS_WDELAYHASHSIZ])
 
+#ifdef NFS_LEGACYRPC
 /*
  * Network address hash list element
  */
@@ -257,10 +272,36 @@ struct nfsrv_descript {
 	struct timeval		nd_starttime;	/* Time RPC initiated */
 	fhandle_t		nd_fh;		/* File handle */
 	struct ucred		*nd_cr;		/* Credentials */
+	int			nd_credflavor;	/* Security flavor */
 };
+
+#else
+
+/*
+ * This structure is used by the server for describing each request.
+ */
+struct nfsrv_descript {
+	struct mbuf		*nd_mrep;	/* Request mbuf list */
+	struct mbuf		*nd_md;		/* Current dissect mbuf */
+	struct mbuf		*nd_mreq;	/* Reply mbuf list */
+	struct sockaddr		*nd_nam;	/* and socket addr */
+	struct sockaddr		*nd_nam2;	/* return socket addr */
+	caddr_t			nd_dpos;	/* Current dissect pos */
+	u_int32_t		nd_procnum;	/* RPC # */
+	int			nd_stable;	/* storage type */
+	int			nd_flag;	/* nd_flag */
+	int			nd_repstat;	/* Reply status */
+	fhandle_t		nd_fh;		/* File handle */
+	struct ucred		*nd_cr;		/* Credentials */
+	int			nd_credflavor;	/* Security flavor */
+};
+
+#endif
 
 /* Bits for "nd_flag" */
 #define ND_NFSV3	0x08
+
+#ifdef NFS_LEGACYRPC
 
 extern TAILQ_HEAD(nfsd_head, nfsd) nfsd_head;
 extern int nfsd_head_flag;
@@ -272,6 +313,8 @@ extern int nfsd_head_flag;
 #define NFSW_CONTIG(o, n) \
 		((o)->nd_eoff >= (n)->nd_off && \
 		 !bcmp((caddr_t)&(o)->nd_fh, (caddr_t)&(n)->nd_fh, NFSX_V3FH))
+
+#endif
 
 /*
  * Defines for WebNFS
@@ -315,38 +358,42 @@ extern int nfs_debug;
 
 #endif
 
+#ifdef NFS_LEGACYRPC
+int	netaddr_match(int, union nethostaddr *, struct sockaddr *);
 int	nfs_getreq(struct nfsrv_descript *, struct nfsd *, int);
 int	nfsrv_send(struct socket *, struct sockaddr *, struct mbuf *);
-struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
-	    caddr_t *);
+int	nfsrv_dorec(struct nfssvc_sock *, struct nfsd *,
+	    struct nfsrv_descript **);
 int	nfs_slplock(struct nfssvc_sock *, int);
 void	nfs_slpunlock(struct nfssvc_sock *);
+void	nfsrv_initcache(void);
+void	nfsrv_destroycache(void);
+void	nfsrv_timer(void *);
+int	nfsrv_getcache(struct nfsrv_descript *, struct mbuf **);
+void	nfsrv_updatecache(struct nfsrv_descript *, int, struct mbuf *);
+void	nfsrv_cleancache(void);
+void	nfsrv_rcv(struct socket *so, void *arg, int waitflag);
+void	nfsrv_slpderef(struct nfssvc_sock *slp);
+void	nfsrv_wakenfsd(struct nfssvc_sock *slp);
+int	nfsrv_writegather(struct nfsrv_descript **, struct nfssvc_sock *,
+	    struct mbuf **);
+#endif
+struct mbuf *nfs_rephead(int, struct nfsrv_descript *, int, struct mbuf **,
+	    caddr_t *);
 void	nfsm_srvfattr(struct nfsrv_descript *, struct vattr *,
 	    struct nfs_fattr *);
 void	nfsm_srvwcc(struct nfsrv_descript *, int, struct vattr *, int,
 	    struct vattr *, struct mbuf **, char **);
 void	nfsm_srvpostopattr(struct nfsrv_descript *, int, struct vattr *,
 	    struct mbuf **, char **);
-int	netaddr_match(int, union nethostaddr *, struct sockaddr *);
-int	nfs_namei(struct nameidata *, fhandle_t *, int,
-	    struct nfssvc_sock *, struct sockaddr *, struct mbuf **,
+int	nfs_namei(struct nameidata *, struct nfsrv_descript *, fhandle_t *,
+	    int, struct nfssvc_sock *, struct sockaddr *, struct mbuf **,
 	    caddr_t *, struct vnode **, int, struct vattr *, int *, int);
 void	nfsm_adj(struct mbuf *, int, int);
 int	nfsm_mbuftouio(struct mbuf **, struct uio *, int, caddr_t *);
-void	nfsrv_initcache(void);
-void	nfsrv_destroycache(void);
-void	nfsrv_timer(void *);
-int	nfsrv_dorec(struct nfssvc_sock *, struct nfsd *,
-	    struct nfsrv_descript **);
-int	nfsrv_getcache(struct nfsrv_descript *, struct mbuf **);
-void	nfsrv_updatecache(struct nfsrv_descript *, int, struct mbuf *);
-void	nfsrv_cleancache(void);
 void	nfsrv_init(int);
 int	nfsrv_errmap(struct nfsrv_descript *, int);
 void	nfsrvw_sort(gid_t *, int);
-void	nfsrv_wakenfsd(struct nfssvc_sock *slp);
-int	nfsrv_writegather(struct nfsrv_descript **, struct nfssvc_sock *,
-	    struct mbuf **);
 
 int	nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
@@ -354,8 +401,9 @@ int	nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
-int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *, struct ucred *,
-	    struct nfssvc_sock *, struct sockaddr *, int *, int);
+int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *,
+	    struct nfsrv_descript *, struct nfssvc_sock *, struct sockaddr *,
+	    int *, int);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,
 	    struct export_args *);
 int	nfs_ispublicfh(fhandle_t *);
@@ -399,8 +447,6 @@ int	nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
 int	nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct mbuf **mrq);
-void	nfsrv_rcv(struct socket *so, void *arg, int waitflag);
-void	nfsrv_slpderef(struct nfssvc_sock *slp);
 #endif	/* _KERNEL */
 
 #endif

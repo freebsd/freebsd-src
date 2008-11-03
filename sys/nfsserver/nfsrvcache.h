@@ -44,6 +44,8 @@
 #define NFSRVCACHE_MAX_SIZE	2048
 #define NFSRVCACHE_MIN_SIZE	  64
 
+#ifdef NFS_LEGACYRPC
+
 struct nfsrvcache {
 	TAILQ_ENTRY(nfsrvcache) rc_lru;		/* LRU chain */
 	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
@@ -81,5 +83,7 @@ struct nfsrvcache {
 /* free 0x10 */
 #define	RC_INETADDR	0x20
 #define	RC_NAM		0x40
+
+#endif
 
 #endif

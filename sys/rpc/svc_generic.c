@@ -178,99 +178,10 @@ svc_tp_create(
 		"svc_tp_create: Could not register prog %u vers %u on %s\n",
 				(unsigned)prognum, (unsigned)versnum,
 				nconf->nc_netid);
-		SVC_DESTROY(xprt);
+		xprt_unregister(xprt);
 		return (NULL);
 	}
 	return (xprt);
-}
-
-/*
- * Bind a socket to a privileged IP port
- */
-int bindresvport(struct socket *so, struct sockaddr *sa);
-int
-bindresvport(struct socket *so, struct sockaddr *sa)
-{
-	int old, error, af;
-	bool_t freesa = FALSE;
-	struct sockaddr_in *sin;
-#ifdef INET6
-	struct sockaddr_in6 *sin6;
-#endif
-	struct sockopt opt;
-	int proto, portrange, portlow;
-	u_int16_t *portp;
-	socklen_t salen;
-
-	if (sa == NULL) {
-		error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
-		if (error)
-			return (error);
-		freesa = TRUE;
-		af = sa->sa_family;
-		salen = sa->sa_len;
-		memset(sa, 0, sa->sa_len);
-	} else {
-		af = sa->sa_family;
-		salen = sa->sa_len;
-	}
-
-	switch (af) {
-	case AF_INET:
-		proto = IPPROTO_IP;
-		portrange = IP_PORTRANGE;
-		portlow = IP_PORTRANGE_LOW;
-		sin = (struct sockaddr_in *)sa;
-		portp = &sin->sin_port;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		proto = IPPROTO_IPV6;
-		portrange = IPV6_PORTRANGE;
-		portlow = IPV6_PORTRANGE_LOW;
-		sin6 = (struct sockaddr_in6 *)sa;
-		portp = &sin6->sin6_port;
-		break;
-#endif
-	default:
-		return (EPFNOSUPPORT);
-	}
-
-	sa->sa_family = af;
-	sa->sa_len = salen;
-
-	if (*portp == 0) {
-		bzero(&opt, sizeof(opt));
-		opt.sopt_dir = SOPT_GET;
-		opt.sopt_level = proto;
-		opt.sopt_name = portrange;
-		opt.sopt_val = &old;
-		opt.sopt_valsize = sizeof(old);
-		error = sogetopt(so, &opt);
-		if (error)
-			goto out;
-
-		opt.sopt_dir = SOPT_SET;
-		opt.sopt_val = &portlow;
-		error = sosetopt(so, &opt);
-		if (error)
-			goto out;
-	}
-
-	error = sobind(so, sa, curthread);
-
-	if (*portp == 0) {
-		if (error) {
-			opt.sopt_dir = SOPT_SET;
-			opt.sopt_val = &old;
-			sosetopt(so, &opt);
-		}
-	}
-out:
-	if (freesa)
-		free(sa, M_SONAME);
-
-	return (error);
 }
 
 /*
@@ -401,7 +312,7 @@ freedata:
 	if (xprt) {
 		if (!madeso) /* so that svc_destroy doesnt close fd */
 			xprt->xp_socket = NULL;
-		SVC_DESTROY(xprt);
+		xprt_unregister(xprt);
 	}
 	return (NULL);
 }

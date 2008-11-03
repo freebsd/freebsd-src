@@ -6,11 +6,11 @@
 KMOD=	nfsclient
 SRCS=	vnode_if.h \
 	nfs_bio.c nfs_lock.c nfs_node.c nfs_socket.c nfs_subs.c nfs_nfsiod.c \
-	nfs_vfsops.c nfs_vnops.c nfs_common.c \
+	nfs_vfsops.c nfs_vnops.c nfs_common.c nfs_krpc.c \
 	opt_inet.h opt_nfs.h opt_bootp.h opt_nfsroot.h
 SRCS+=	nfs4_dev.c nfs4_idmap.c nfs4_socket.c nfs4_subs.c \
 	nfs4_vfs_subs.c  nfs4_vfsops.c nfs4_vn_subs.c nfs4_vnops.c
-SRCS+=	opt_inet6.h
+SRCS+=	opt_inet6.h opt_kgssapi.h
 
 # USE THE RPCCLNT:
 CFLAGS+= -DRPCCLNT_DEBUG
