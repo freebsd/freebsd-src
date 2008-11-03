@@ -1,28 +1,10 @@
 #
-# GENERIC -- Generic kernel configuration file for FreeBSD/i386
-#
-# For more information on this file, please read the handbook section on
-# Kernel Configuration Files:
-#
-#    http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/kernelconfig-config.html
-#
-# The handbook is also available locally in /usr/share/doc/handbook
-# if you've installed the doc distribution, otherwise always see the
-# FreeBSD World Wide Web server (http://www.FreeBSD.org/) for the
-# latest information.
-#
-# An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files.
-# If you are in doubt as to the purpose or necessity of a line, check first
-# in NOTES.
+# XEN -- Kernel configuration for i386 XEN DomU
 #
 # $FreeBSD$
 
 cpu		I686_CPU
-ident		GENERIC
-
-# To statically compile in device wiring instead of /boot/device.hints
-#hints		"GENERIC.hints"		# Default places to look for devices.
+ident		XEN
 
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 makeoptions	MODULES_OVERRIDE=""
@@ -39,7 +21,6 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
-options 	MD_ROOT			# MD is a potential root device
 options 	NFSCLIENT		# Network Filesystem Client
 options 	NFSSERVER		# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
@@ -55,7 +36,6 @@ options 	COMPAT_FREEBSD4		# Compatible with FreeBSD4
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
-options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
 options 	SYSVSHM			# SYSV-style shared memory
@@ -63,7 +43,6 @@ options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-options  	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
 
 # Debugging for use in -current
@@ -86,52 +65,7 @@ options		MCLSHIFT=12
 options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
-# CPU frequency control
-#device		cpufreq
-
-# atkbdc0 controls both the keyboard and the PS/2 mouse
-device		atkbdc		# AT keyboard controller
-device		atkbd		# AT keyboard
-device		psm		# PS/2 mouse
-
 device		kbdmux		# keyboard multiplexer
-
-#device		vga		# VGA video card driver
-
-device		splash		# Splash screen and screen saver support
-
-# syscons is the default console driver, resembling an SCO console
-#device		sc
-
-# Power management support (see NOTES for more options)
-#device		apm
-# Add suspend/resume support for the i8254.
-device		pmtimer
-
-
-device		pci
-
-# PCCARD (PCMCIA) support
-# PCMCIA and cardbus bridge support
-#device		cbb		# cardbus (yenta) bridge
-#device		pccard		# PC Card (16-bit) bus
-#device		cardbus		# CardBus (32-bit) bus
-
-# Serial (COM) ports
-device		uart		# Generic UART driver
-
-# Parallel port
-device		ppc
-device		ppbus		# Parallel port bus (required)
-device		lpt		# Printer
-device		plip		# TCP/IP over parallel
-device		ppi		# Parallel port interface device
-#device		vpo		# Requires scbus and da
-
-# If you've got a "dumb" serial or parallel PCI card that is
-# supported by the puc(4) glue driver, uncomment the following
-# line to enable it (connects to sio, uart and/or ppc drivers):
-#device		puc
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -142,7 +76,6 @@ device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying (translation)
-device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
