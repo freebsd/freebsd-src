@@ -44,9 +44,3 @@
 #define	CARDBUS_EXROM_DATA_DATA_REV	0x12 /* Revision Level of Code/Data */
 #define	CARDBUS_EXROM_DATA_CODE_TYPE	0x14 /* Code Type */
 #define	CARDBUS_EXROM_DATA_INDICATOR	0x15 /* Indicator */
-
-#define	CARDBUS_MAPREG_MEM_ADDR_MASK	0xfffffff0
-#define	CARDBUS_MAPREG_MEM_ADDR(mr)					\
-	((mr) & CARDBUS_MAPREG_MEM_ADDR_MASK)
-#define	CARDBUS_MAPREG_MEM_SIZE(mr)					\
-	(CARDBUS_MAPREG_MEM_ADDR(mr) & (~CARDBUS_MAPREG_MEM_ADDR(mr) + 1))
