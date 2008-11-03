@@ -63,6 +63,7 @@ SUBDIR=	${_ac} \
 	getfmac \
 	getpmac \
 	gstat \
+	${_gssd} \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -254,6 +255,10 @@ _fdwrite=	fdwrite
 
 .if ${MK_FREEBSD_UPDATE} != "no"
 _freebsd-update= freebsd-update
+.endif
+
+.if ${MK_GSSAPI} != no
+_gssd=		gssd
 .endif
 
 .if ${MK_INET6} != "no"

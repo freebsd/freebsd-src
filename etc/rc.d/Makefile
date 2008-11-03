@@ -11,7 +11,7 @@ FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	dmesg dumpon \
 	early.sh encswap \
 	fsck ftp-proxy ftpd \
-	gbde geli geli2 \
+	gbde geli geli2 gssd \
 	hcsecd \
 	hostapd hostid hostname \
 	idmapd inetd initrandom \

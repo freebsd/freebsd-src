@@ -149,6 +149,17 @@ option is given,
 all users (including root) will be mapped to that credential in
 place of their own.
 .Pp
+.Sm off
+.Fl sec Li = Sy flavor1:flavor2...
+.Sm on
+specifies a colon separated list of acceptable security flavors to be
+used for remote access.
+Supported security flavors are sys, krb5, krb5i and krb5p.
+If multiple flavors are listed, they should be ordered with the most
+preferred flavor first.
+If this option is not present,
+the default security flavor list of just sys is used.
+.Pp
 The
 .Fl ro
 option specifies that the file system should be exported read-only
@@ -305,6 +316,8 @@ the default remote mount-point file
 /u2 -maproot=root friends
 /u2 -alldirs -network cis-net -mask cis-mask
 /cdrom -alldirs,quiet,ro -network 192.168.33.0 -mask 255.255.255.0
+/private -sec=krb5i
+/secret -sec=krb5p
 .Ed
 .Pp
 Given that
@@ -411,6 +424,15 @@ While there is no CD-ROM medium mounted under
 it would export the (normally empty) directory
 .Pa /cdrom
 of the root file system instead.
+.Pp
+The file system rooted at
+.Pa /private
+will be exported using Kerberos 5 authentication and will require
+integrity protected messages for all accesses.
+The file system rooted at
+.Pa /secret
+will also be exported using Kerberos 5 authentication and all messages
+used to access it will be encrypted.
 .Sh SEE ALSO
 .Xr netgroup 5 ,
 .Xr mountd 8 ,

@@ -93,7 +93,7 @@ extern void nlm_host_release(struct nlm_host *host);
  * Return an RPC client handle that can be used to talk to the NLM
  * running on the given host.
  */
-extern CLIENT *nlm_host_get_rpc(struct nlm_host *host);
+extern CLIENT *nlm_host_get_rpc(struct nlm_host *host, bool_t isserver);
 
 /*
  * Return the system ID for a host.

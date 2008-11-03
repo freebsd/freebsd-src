@@ -827,6 +827,7 @@ vfs_domount(
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
+	struct oexport_args oexport;
 	struct export_args export;
 	int error, flag = 0;
 	struct vattr va;
@@ -1010,6 +1011,19 @@ vfs_domount(
 		if (vfs_copyopt(mp->mnt_optnew, "export", &export,
 		    sizeof(export)) == 0)
 			error = vfs_export(mp, &export);
+		else if (vfs_copyopt(mp->mnt_optnew, "export", &oexport,
+			sizeof(oexport)) == 0) {
+			export.ex_flags = oexport.ex_flags;
+			export.ex_root = oexport.ex_root;
+			export.ex_anon = oexport.ex_anon;
+			export.ex_addr = oexport.ex_addr;
+			export.ex_addrlen = oexport.ex_addrlen;
+			export.ex_mask = oexport.ex_mask;
+			export.ex_masklen = oexport.ex_masklen;
+			export.ex_indexfile = oexport.ex_indexfile;
+			export.ex_numsecflavors = 0;
+			error = vfs_export(mp, &export);
+		}
 	}
 
 	if (!error) {

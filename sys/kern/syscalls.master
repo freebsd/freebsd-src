@@ -895,5 +895,7 @@
 				     char *path2); }
 503	AUE_UNLINKAT	STD	{ int unlinkat(int fd, char *path, int flag); }
 504	AUE_POSIX_OPENPT	STD	{ int posix_openpt(int flags); }
+; 505 is initialised by the kgssapi code, if present.
+505	AUE_NULL	NOSTD	{ int gssd_syscall(char *path); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
