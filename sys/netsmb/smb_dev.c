@@ -89,28 +89,38 @@ int smb_dev_queue(struct smb_dev *ndp, struct smb_rq *rqp, int prio);
 
 static struct cdevsw nsmb_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
+	.d_flags =	D_NEEDGIANT | D_NEEDMINOR,
 	.d_open =	nsmb_dev_open,
 	.d_close =	nsmb_dev_close,
 	.d_ioctl =	nsmb_dev_ioctl,
 	.d_name =	NSMB_NAME
 };
 
-static eventhandler_tag nsmb_dev_tag;
+static eventhandler_tag	 nsmb_dev_tag;
+static struct clonedevs	*nsmb_clones;
 
 static void
 nsmb_dev_clone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
 {
-	int u;
+	int i, u;
 
 	if (*dev != NULL)
 		return;
-	if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
+
+	if (strcmp(name, NSMB_NAME) == 0)
+		u = -1;
+	else if (dev_stdclone(name, NULL, NSMB_NAME, &u) != 1)
 		return;
-	*dev = make_dev(&nsmb_cdevsw, u, 0, 0, 0600,
-	    NSMB_NAME"%d", u);
-	dev_ref(*dev);
+	i = clone_create(&nsmb_clones, &nsmb_cdevsw, &u, dev, 0);
+	if (i) {
+		*dev = make_dev(&nsmb_cdevsw, u, UID_ROOT, GID_WHEEL, 0600,
+		    "%s%d", NSMB_NAME, u);
+		if (*dev != NULL) {
+			dev_ref(*dev);
+			(*dev)->si_flags |= SI_CHEAPCLONE;
+		}
+	}
 }
 
 static int
@@ -340,6 +350,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			smb_sm_done();
 			break;
 		}
+		clone_setup(&nsmb_clones);
 		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
 		printf("netsmb_dev: loaded\n");
 		break;
@@ -350,6 +361,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			break;
 		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
 		drain_dev_clone_events();
+		clone_cleanup(&nsmb_clones);
 		destroy_dev_drain(&nsmb_cdevsw);
 		printf("netsmb_dev: unloaded\n");
 		break;
