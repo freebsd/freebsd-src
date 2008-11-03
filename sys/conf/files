@@ -339,7 +339,7 @@ crypto/camellia/camellia.c	optional crypto | ipsec
 crypto/camellia/camellia-api.c	optional crypto | ipsec 
 crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
 crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
-crypto/rc4/rc4.c		optional netgraph_mppc_encryption
+crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
 crypto/rijndael/rijndael-api-fst.c optional geom_bde | random
@@ -1746,6 +1746,56 @@ kern/vfs_subr.c			standard
 kern/vfs_syscalls.c		standard
 kern/vfs_vnops.c		standard
 #
+# Kernel GSS-API
+#
+gssd.h				optional kgssapi			\
+	dependency		"$S/kgssapi/gssd.x"			\
+	compile-with		"rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h" \
+	no-obj no-implicit-rule before-depend local			\
+	clean			"gssd.h"
+gssd_xdr.c			optional kgssapi			\
+	dependency		"$S/kgssapi/gssd.x gssd.h"		\
+	compile-with		"rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
+	no-implicit-rule before-depend local				\
+	clean			"gssd_xdr.c"
+gssd_clnt.c			optional kgssapi			\
+	dependency		"$S/kgssapi/gssd.x gssd.h"		\
+	compile-with		"rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
+	no-implicit-rule before-depend local				\
+	clean			"gssd_clnt.c"
+kgssapi/gss_accept_sec_context.c optional kgssapi
+kgssapi/gss_add_oid_set_member.c optional kgssapi
+kgssapi/gss_acquire_cred.c	optional kgssapi
+kgssapi/gss_canonicalize_name.c	optional kgssapi
+kgssapi/gss_create_empty_oid_set.c optional kgssapi
+kgssapi/gss_delete_sec_context.c optional kgssapi
+kgssapi/gss_display_status.c	optional kgssapi
+kgssapi/gss_export_name.c	optional kgssapi
+kgssapi/gss_get_mic.c		optional kgssapi
+kgssapi/gss_init_sec_context.c	optional kgssapi
+kgssapi/gss_impl.c		optional kgssapi
+kgssapi/gss_import_name.c	optional kgssapi
+kgssapi/gss_names.c		optional kgssapi
+kgssapi/gss_pname_to_uid.c	optional kgssapi
+kgssapi/gss_release_buffer.c	optional kgssapi
+kgssapi/gss_release_cred.c	optional kgssapi
+kgssapi/gss_release_name.c	optional kgssapi
+kgssapi/gss_release_oid_set.c	optional kgssapi
+kgssapi/gss_set_cred_option.c	optional kgssapi
+kgssapi/gss_test_oid_set_member.c optional kgssapi
+kgssapi/gss_unwrap.c		optional kgssapi
+kgssapi/gss_verify_mic.c	optional kgssapi
+kgssapi/gss_wrap.c		optional kgssapi
+kgssapi/gss_wrap_size_limit.c	optional kgssapi
+kgssapi/gssd_prot.c		optional kgssapi
+kgssapi/krb5/krb5_mech.c	optional kgssapi
+kgssapi/krb5/kcrypto.c		optional kgssapi
+kgssapi/krb5/kcrypto_aes.c	optional kgssapi
+kgssapi/krb5/kcrypto_arcfour.c	optional kgssapi
+kgssapi/krb5/kcrypto_des.c	optional kgssapi
+kgssapi/krb5/kcrypto_des3.c	optional kgssapi
+kgssapi/kgss_if.m		optional kgssapi
+kgssapi/gsstest.c		optional kgssapi_debug
 # These files in libkern/ are those needed by all architectures.  Some
 # of the files in libkern/ are only needed on some architectures, e.g.,
 # libkern/divdi3.c is needed by i386 but not alpha.  Also, some of these
@@ -2106,18 +2156,21 @@ nfsclient/krpc_subr.c		optional bootp nfsclient
 nfsclient/nfs_bio.c		optional nfsclient
 nfsclient/nfs_diskless.c	optional nfsclient nfs_root
 nfsclient/nfs_node.c		optional nfsclient
-nfsclient/nfs_socket.c		optional nfsclient
+nfsclient/nfs_socket.c		optional nfsclient nfs_legacyrpc
+nfsclient/nfs_krpc.c		optional nfsclient
 nfsclient/nfs_subs.c		optional nfsclient
 nfsclient/nfs_nfsiod.c		optional nfsclient
 nfsclient/nfs_vfsops.c		optional nfsclient
 nfsclient/nfs_vnops.c		optional nfsclient
 nfsclient/nfs_lock.c		optional nfsclient
+nfsserver/nfs_fha.c		optional nfsserver
 nfsserver/nfs_serv.c		optional nfsserver
-nfsserver/nfs_srvsock.c		optional nfsserver
-nfsserver/nfs_srvcache.c	optional nfsserver
+nfsserver/nfs_srvkrpc.c		optional nfsserver
+nfsserver/nfs_srvsock.c		optional nfsserver nfs_legacyrpc
+nfsserver/nfs_srvcache.c	optional nfsserver nfs_legacyrpc
 nfsserver/nfs_srvsubs.c		optional nfsserver
-nfsserver/nfs_syscalls.c	optional nfsserver
-nlm/nlm_advlock.c		optional nfslockd
+nfsserver/nfs_syscalls.c	optional nfsserver nfs_legacyrpc
+nlm/nlm_advlock.c		optional nfslockd nfsclient
 nlm/nlm_prot_clnt.c		optional nfslockd
 nlm/nlm_prot_impl.c		optional nfslockd
 nlm/nlm_prot_server.c		optional nfslockd
@@ -2143,27 +2196,33 @@ pci/intpm.c			optional intpm pci
 pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
-rpc/auth_none.c			optional krpc | nfslockd
-rpc/auth_unix.c			optional krpc | nfslockd
-rpc/authunix_prot.c		optional krpc | nfslockd
-rpc/clnt_dg.c			optional krpc | nfslockd
-rpc/clnt_rc.c			optional krpc | nfslockd
-rpc/clnt_vc.c			optional krpc | nfslockd
-rpc/getnetconfig.c		optional krpc | nfslockd
-rpc/inet_ntop.c			optional krpc | nfslockd
-rpc/inet_pton.c			optional krpc | nfslockd
-rpc/rpc_callmsg.c		optional krpc | nfslockd
-rpc/rpc_generic.c		optional krpc | nfslockd
-rpc/rpc_prot.c			optional krpc | nfslockd
-rpc/rpcb_clnt.c			optional krpc | nfslockd
-rpc/rpcb_prot.c			optional krpc | nfslockd
+rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/auth_unix.c			optional krpc | nfslockd | nfsclient
+rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver
+rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient
+rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient
+rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver
+rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/replay.c			optional krpc | nfslockd | nfsserver
+rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver
+rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver
+rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver
+rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver
 rpc/rpcclnt.c			optional nfsclient
-rpc/svc.c			optional krpc | nfslockd
-rpc/svc_auth.c			optional krpc | nfslockd
-rpc/svc_auth_unix.c		optional krpc | nfslockd
-rpc/svc_dg.c			optional krpc | nfslockd
-rpc/svc_generic.c		optional krpc | nfslockd
-rpc/svc_vc.c			optional krpc | nfslockd
+rpc/svc.c			optional krpc | nfslockd | nfsserver
+rpc/svc_auth.c			optional krpc | nfslockd | nfsserver
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver
+rpc/svc_dg.c			optional krpc | nfslockd | nfsserver
+rpc/svc_generic.c		optional krpc | nfslockd | nfsserver
+rpc/svc_vc.c			optional krpc | nfslockd | nfsserver
+rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi
+rpc/rpcsec_gss/rpcsec_gss_prot.c optional krpc kgssapi | nfslockd kgssapi
+rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
@@ -2251,12 +2310,12 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional krpc | nfslockd
-xdr/xdr_array.c			optional krpc | nfslockd
-xdr/xdr_mbuf.c			optional krpc | nfslockd
-xdr/xdr_mem.c			optional krpc | nfslockd
-xdr/xdr_reference.c		optional krpc | nfslockd
-xdr/xdr_sizeof.c		optional krpc | nfslockd
+xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \

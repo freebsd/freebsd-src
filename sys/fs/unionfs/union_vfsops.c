@@ -521,7 +521,7 @@ unionfs_fhtovp(struct mount *mp, struct fid *fidp, struct vnode **vpp)
 
 static int
 unionfs_checkexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
-		 struct ucred **credanonp)
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
 {
 	return (EOPNOTSUPP);
 }
