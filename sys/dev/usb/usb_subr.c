@@ -930,7 +930,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 			usbd_devinfo(dev, 1, devinfo);
 			device_set_desc_copy(bdev, devinfo);
 			if (device_probe_and_attach(bdev) == 0) {
-				ifaces[i] = 0; /* consumed */
+				ifaces[i] = NULL; /* consumed */
 				found++;
 				/* create another child for the next iface */
 				bdev = device_add_child(parent, NULL, -1);
