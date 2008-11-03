@@ -102,7 +102,7 @@ struct cnode {
 	char		*c_symlink;	/* pointer to symbolic link */
 	u_short		 c_symlen;	/* length of symbolic link */
 	uid_t		 c_cached_uid;	/* cached uid */
-	mode_t		 c_cached_mode;	/* cached access mode */
+	accmode_t	 c_cached_mode;	/* cached access mode */
 	struct cnode	*c_next;	/* links if on FreeBSD machine */
 };
 #define	VTOC(vp)	((struct cnode *)(vp)->v_data)
