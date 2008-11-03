@@ -673,7 +673,7 @@ vn_statfile(fp, sb, active_cred, td)
 	int error;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
