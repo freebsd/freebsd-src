@@ -509,16 +509,6 @@ vfs_mount_destroy(struct mount *mp)
 	MNT_ILOCK(mp);
 	while (mp->mnt_ref)
 		msleep(mp, MNT_MTX(mp), PVFS, "mntref", 0);
-	if (mp->mnt_holdcnt != 0) {
-		printf("Waiting for mount point to be unheld\n");
-		while (mp->mnt_holdcnt != 0) {
-			mp->mnt_holdcntwaiters++;
-			msleep(&mp->mnt_holdcnt, MNT_MTX(mp),
-			       PZERO, "mntdestroy", 0);
-			mp->mnt_holdcntwaiters--;
-		}
-		printf("mount point unheld\n");
-	}
 	if (mp->mnt_writeopcount > 0) {
 		printf("Waiting for mount point write ops\n");
 		while (mp->mnt_writeopcount > 0) {
@@ -2062,7 +2052,7 @@ __mnt_vnode_first(struct vnode **mvp, struct mount *mp)
 		*mvp = NULL;
 		return (NULL);
 	}
-	mp->mnt_holdcnt++;
+	MNT_REF(mp);
 	MNT_IUNLOCK(mp);
 	*mvp = (struct vnode *) malloc(sizeof(struct vnode),
 				       M_VNODE_MARKER,
@@ -2080,9 +2070,7 @@ __mnt_vnode_first(struct vnode **mvp, struct mount *mp)
 		free(*mvp, M_VNODE_MARKER);
 		MNT_ILOCK(mp);
 		*mvp = NULL;
-		mp->mnt_holdcnt--;
-		if (mp->mnt_holdcnt == 0 && mp->mnt_holdcntwaiters != 0)
-			wakeup(&mp->mnt_holdcnt);
+		MNT_REL(mp);
 		return (NULL);
 	}
 	(*mvp)->v_mount = mp;
@@ -2106,10 +2094,7 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 	free(*mvp, M_VNODE_MARKER);
 	MNT_ILOCK(mp);
 	*mvp = NULL;
-
-	mp->mnt_holdcnt--;
-	if (mp->mnt_holdcnt == 0 && mp->mnt_holdcntwaiters != 0)
-		wakeup(&mp->mnt_holdcnt);
+	MNT_REL(mp);
 }
 
 
