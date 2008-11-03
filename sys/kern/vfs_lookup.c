@@ -331,12 +331,13 @@ namei(struct nameidata *ndp)
 static int
 compute_cn_lkflags(struct mount *mp, int lkflags)
 {
+
 	if (mp == NULL || 
 	    ((lkflags & LK_SHARED) && !(mp->mnt_kern_flag & MNTK_LOOKUP_SHARED))) {
 		lkflags &= ~LK_SHARED;
 		lkflags |= LK_EXCLUSIVE;
 	}
-	return lkflags;
+	return (lkflags);
 }
 
 /*
