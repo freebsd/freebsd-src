@@ -3056,6 +3056,13 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* gssd_syscall */
+	case 505: {
+		struct gssd_syscall_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* char * */
+		*n_args = 1;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8107,6 +8114,16 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* gssd_syscall */
+	case 505:
+		switch(ndx) {
+		case 0:
+			p = "char *";
 			break;
 		default:
 			break;
