@@ -64,6 +64,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#ifdef XEN
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#endif
+
 static void synch_setup(void *dummy);
 SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
@@ -436,6 +442,9 @@ mi_switch(int flags, struct thread *newtd)
 #ifdef KSE
 	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
 		newtd = thread_switchout(td, flags, newtd);
+#endif
+#ifdef XEN
+	PT_UPDATES_FLUSH();
 #endif
 	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",

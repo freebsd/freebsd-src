@@ -922,13 +922,13 @@ int xs_init(void)
 		if (err)
 				return err;
 
-		err = kproc_create(xenwatch_thread, NULL, &p,
+		err = kthread_create(xenwatch_thread, NULL, &p,
 							 RFHIGHPID, 0, "xenwatch");
 		if (err)
 				return err;
 		xenwatch_pid = p->p_pid;
 
-		err = kproc_create(xenbus_thread, NULL, NULL, 
+		err = kthread_create(xenbus_thread, NULL, NULL, 
 							 RFHIGHPID, 0, "xenbus");
 	
 		return err;
