@@ -117,10 +117,14 @@ vfork(td, uap)
 	struct thread *td;
 	struct vfork_args *uap;
 {
-	int error;
+	int error, flags;
 	struct proc *p2;
 
-	error = fork1(td, RFFDG | RFPROC | RFPPWAIT | RFMEM, 0, &p2);
+	flags = RFFDG | RFPROC; /* validate that this is still an issue */
+#ifndef XEN
+	flags |= RFPPWAIT | RFMEM;
+#endif
+	error = fork1(td, flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;

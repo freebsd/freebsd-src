@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+
 
 #include <sys/param.h>
 #include <sys/module.h>
@@ -18,8 +18,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/xen_intr.h>
 #include <sys/cons.h>
-#include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/priv.h>
 
 #include <dev/xen/console/xencons_ring.h>
 #include <xen/interface/io/console.h>
@@ -32,7 +32,9 @@ __FBSDID("$FreeBSD$");
 
 static char driver_name[] = "xc";
 devclass_t xc_devclass; /* do not make static */
-static void	xcoutwakeup(struct tty *);
+static void	xcstart (struct tty *);
+static int	xcparam (struct tty *, struct termios *);
+static void	xcstop (struct tty *, int);
 static void	xc_timeout(void *);
 static void __xencons_tx_flush(void);
 static boolean_t xcons_putc(int c);
@@ -42,7 +44,7 @@ static void xc_shutdown(void *arg, int howto);
 static int xc_mute;
 
 static void xcons_force_flush(void);
-static void xencons_priv_interrupt(void *);
+static int xencons_priv_interrupt(void *);
 
 static cn_probe_t       xccnprobe;
 static cn_init_t        xccninit;
@@ -72,7 +74,7 @@ static unsigned int cnsl_evt_reg;
 static unsigned int wc, wp; /* write_cons, write_prod */
 
 #define CDEV_MAJOR 12
-#define	XCUNIT(x)	(dev2unit(x))
+#define	XCUNIT(x)	(minor(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
 #define CN_LOCK_INIT(x, _name) \
         mtx_init(&x, _name, NULL, MTX_SPIN|MTX_RECURSE)
@@ -93,20 +95,34 @@ static unsigned int wc, wp; /* write_cons, write_prod */
 
 static struct tty *xccons;
 
-static tsw_open_t	xcopen;
-static tsw_close_t	xcclose;
+struct xc_softc {
+	int    xc_unit;
+	struct cdev *xc_dev;
+};
 
-static struct ttydevsw xc_ttydevsw = {
-        .tsw_flags	= TF_NOPREFIX,
-        .tsw_open	= xcopen,
-        .tsw_close	= xcclose,
-        .tsw_outwakeup	= xcoutwakeup,
+
+static d_open_t  xcopen;
+static d_close_t xcclose;
+static d_ioctl_t xcioctl;
+
+static struct cdevsw xc_cdevsw = {
+	.d_version =    D_VERSION,
+        .d_flags =      D_TTY | D_NEEDGIANT,
+        .d_name =       driver_name,
+        .d_open =       xcopen,
+        .d_close =      xcclose,
+        .d_read =       ttyread,
+        .d_write =      ttywrite,
+        .d_ioctl =      xcioctl,
+        .d_poll =       ttypoll,
+        .d_kqfilter =   ttykqfilter,
 };
 
 static void
 xccnprobe(struct consdev *cp)
 {
 	cp->cn_pri = CN_REMOTE;
+	cp->cn_tp = xccons;
 	sprintf(cp->cn_name, "%s0", driver_name);
 }
 
@@ -209,20 +225,32 @@ xc_identify(driver_t *driver, device_t parent)
 static int
 xc_probe(device_t dev)
 {
+	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
 
+	sc->xc_unit = device_get_unit(dev);
 	return (0);
 }
 
 static int
 xc_attach(device_t dev) 
 {
+	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
+
 
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		xc_consdev.cn_putc = xccnputc_dom0;
 	} 
 
-	xccons = tty_alloc(&xc_ttydevsw, NULL, NULL);
-	tty_makedev(xccons, NULL, "xc%r", 0);
+	sc->xc_dev = make_dev(&xc_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "xc%r", 0);
+	xccons = ttyalloc();
+
+	sc->xc_dev->si_drv1 = (void *)sc;
+	sc->xc_dev->si_tty = xccons;
+			     
+	xccons->t_oproc = xcstart;
+	xccons->t_param = xcparam;
+	xccons->t_stop = xcstop;
+	xccons->t_dev = sc->xc_dev;
 
 	callout_init(&xc_callout, 0);
 
@@ -236,9 +264,8 @@ xc_attach(device_t dev)
 				 VIRQ_CONSOLE,
 				 0,
 				 "console",
-				 NULL,
 				 xencons_priv_interrupt,
-				 INTR_TYPE_TTY) < 0);
+					 NULL, INTR_TYPE_TTY) < 0);
 		
 	}
 
@@ -266,15 +293,11 @@ xencons_rx(char *buf, unsigned len)
 {
 	int           i;
 	struct tty *tp = xccons;
-
-	if (xen_console_up) {
-		tty_lock(tp);
-		for (i = 0; i < len; i++)
-			ttydisc_rint(tp, buf[i], 0);
-		ttydisc_rint_done(tp);
-		tty_unlock(tp);
-	} else {
-		for (i = 0; i < len; i++)
+	
+	for (i = 0; i < len; i++) {
+		if (xen_console_up) 
+			(*linesw[tp->t_line]->l_rint)(buf[i], tp);
+		else
 			rbuf[RBUF_MASK(rp++)] = buf[i];
 	}
 }
@@ -282,7 +305,7 @@ xencons_rx(char *buf, unsigned len)
 static void 
 __xencons_tx_flush(void)
 {
-	int        sz;
+	int        sz, work_done = 0;
 
 	CN_LOCK(cn_mtx);
 	while (wc != wp) {
@@ -299,8 +322,16 @@ __xencons_tx_flush(void)
 				break;
 			wc += sent;
 		}
+		work_done = 1;
 	}
 	CN_UNLOCK(cn_mtx);
+
+	/*
+	 * ttwakeup calls routines using blocking locks
+	 *
+	 */
+	if (work_done && xen_console_up && curthread->td_critnest == 0)
+		ttwakeup(xccons);
 }
 
 void
@@ -309,7 +340,7 @@ xencons_tx(void)
 	__xencons_tx_flush();
 }
 
-static void
+static int
 xencons_priv_interrupt(void *arg)
 {
 
@@ -320,21 +351,79 @@ xencons_priv_interrupt(void *arg)
 		xencons_rx(rbuf, l);
 
 	xencons_tx();
+	return (FILTER_HANDLED);
 }
 
-static int
-xcopen(struct tty *tp)
+int
+xcopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
+	struct xc_softc *sc;
+	int unit = XCUNIT(dev);
+	struct tty *tp;
+	int s, error;
+
+	sc = (struct xc_softc *)device_get_softc(
+		devclass_get_device(xc_devclass, unit));
+	if (sc == NULL)
+		return (ENXIO);
+    
+	tp = dev->si_tty;
+	s = spltty();
+	if (!ISTTYOPEN(tp)) {
+		tp->t_state |= TS_CARR_ON;
+		ttychars(tp);
+		tp->t_iflag = TTYDEF_IFLAG;
+		tp->t_oflag = TTYDEF_OFLAG;
+		tp->t_cflag = TTYDEF_CFLAG|CLOCAL;
+		tp->t_lflag = TTYDEF_LFLAG;
+		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		xcparam(tp, &tp->t_termios);
+		ttsetwater(tp);
+	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
+		splx(s);
+		return (EBUSY);
+	}
+	splx(s);
 
 	xen_console_up = 1;
+
+	error =  (*linesw[tp->t_line]->l_open)(dev, tp);
+	return error;
+}
+
+int
+xcclose(struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	struct tty *tp = dev->si_tty;
+    
+	if (tp == NULL)
+		return (0);
+	xen_console_up = 0;
+    
+	spltty();
+	(*linesw[tp->t_line]->l_close)(tp, flag);
+	tty_close(tp);
+	spl0();
 	return (0);
 }
 
-static void
-xcclose(struct tty *tp)
-{
 
-	xen_console_up = 0;
+int
+xcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	struct tty *tp = dev->si_tty;
+	int error;
+    
+	error = (*linesw[tp->t_line]->l_ioctl)(tp, cmd, data, flag, td);
+	if (error != ENOIOCTL)
+		return (error);
+
+	error = ttioctl(tp, cmd, data, flag);
+
+	if (error != ENOIOCTL)
+		return (error);
+
+	return (ENOTTY);
 }
 
 static inline int 
@@ -349,19 +438,46 @@ __xencons_put_char(int ch)
 
 
 static void
-xcoutwakeup(struct tty *tp)
+xcstart(struct tty *tp)
 {
 	boolean_t cons_full = FALSE;
-	char c;
 
-	while (ttydisc_getc(tp, &c, 1) == 1 && !cons_full)
-		cons_full = xcons_putc(c);
+	CN_LOCK(cn_mtx);
+	if (tp->t_state & (TS_TIMEOUT | TS_TTSTOP)) {
+			CN_UNLOCK(cn_mtx);
 
-	if (cons_full) {
+		ttwwakeup(tp);
+		return;
+	}
+
+	tp->t_state |= TS_BUSY;
+	CN_UNLOCK(cn_mtx);
+
+	while (tp->t_outq.c_cc != 0 && !cons_full)
+		cons_full = xcons_putc(getc(&tp->t_outq));
+
+	/* if the console is close to full leave our state as busy */
+	if (!cons_full) {
+			CN_LOCK(cn_mtx);
+			tp->t_state &= ~TS_BUSY;
+			CN_UNLOCK(cn_mtx);
+			ttwwakeup(tp);
+	} else {
 	    	/* let the timeout kick us in a bit */
 	    	xc_start_needed = TRUE;
 	}
 
+}
+
+static void
+xcstop(struct tty *tp, int flag)
+{
+
+	if (tp->t_state & TS_BUSY) {
+		if ((tp->t_state & TS_TTSTOP) == 0) {
+			tp->t_state |= TS_FLUSH;
+		}
+	}
 }
 
 static void
@@ -372,18 +488,32 @@ xc_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock(tp);
-	while ((c = xccncheckc(NULL)) != -1)
-		ttydisc_rint(tp, c, 0);
+	while ((c = xccncheckc(NULL)) != -1) {
+		if (tp->t_state & TS_ISOPEN) {
+			(*linesw[tp->t_line]->l_rint)(c, tp);
+		}
+	}
 
 	if (xc_start_needed) {
 	    	xc_start_needed = FALSE;
-		xcoutwakeup(tp);
+		xcstart(tp);
 	}
-	tty_unlock(tp);
 
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, tp);
 }
+
+/*
+ * Set line parameters.
+ */
+int
+xcparam(struct tty *tp, struct termios *t)
+{
+	tp->t_ispeed = t->c_ispeed;
+	tp->t_ospeed = t->c_ospeed;
+	tp->t_cflag = t->c_cflag;
+	return (0);
+}
+
 
 static device_method_t xc_methods[] = {
 	DEVMETHOD(device_identify, xc_identify),
@@ -395,7 +525,7 @@ static device_method_t xc_methods[] = {
 static driver_t xc_driver = {
 	driver_name,
 	xc_methods,
-	0,
+	sizeof(struct xc_softc),
 };
 
 /*** Forcibly flush console data before dying. ***/

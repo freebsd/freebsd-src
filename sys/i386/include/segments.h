@@ -47,7 +47,11 @@
  */
 
 #define	ISPL(s)	((s)&3)		/* what is the priority level of a selector */
+#ifdef XEN
+#define	SEL_KPL	1		/* kernel priority level */
+#else
 #define	SEL_KPL	0		/* kernel priority level */
+#endif
 #define	SEL_UPL	3		/* user priority level */
 #define	ISLDT(s)	((s)&SEL_LDT)	/* is it local or global */
 #define	SEL_LDT	4		/* local descriptor table */
@@ -222,7 +226,11 @@ struct region_descriptor {
 #define	GBIOSARGS_SEL	17	/* BIOS interface (Arguments) */
 #define	GNDIS_SEL	18	/* For the NDIS layer */
 
+#ifdef XEN
+#define	NGDT 		9
+#else
 #define	NGDT 		19
+#endif
 
 /*
  * Entries in the Local Descriptor Table (LDT)
@@ -240,10 +248,15 @@ struct region_descriptor {
 
 #ifdef _KERNEL
 extern int	_default_ldt;
+#ifdef XEN
+extern union descriptor *gdt;
+extern union descriptor *ldt;
+#else
 extern union descriptor gdt[];
+extern union descriptor ldt[NLDT];
+#endif
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
-extern union descriptor ldt[NLDT];
 extern struct region_descriptor r_gdt, r_idt;
 
 void	lgdt(struct region_descriptor *rdp);

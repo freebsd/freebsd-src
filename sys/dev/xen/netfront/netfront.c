@@ -28,6 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
+#include <sys/lock.h>
 #include <sys/sx.h>
 
 #include <net/if.h>
@@ -347,7 +348,7 @@ makembuf (struct mbuf *buf)
         m->m_len = buf->m_len;
 		m_copydata(buf, 0, buf->m_pkthdr.len, mtod(m,caddr_t) );
 
-		m->m_ext.ext_arg1 = (caddr_t *)(uintptr_t)(vtophys(mtod(m,caddr_t)) >> PAGE_SHIFT);
+		m->m_ext.ext_args = (caddr_t *)(uintptr_t)(vtophys(mtod(m,caddr_t)) >> PAGE_SHIFT);
 	
        	return m;
 }
@@ -749,7 +750,7 @@ refill:
 		if ((m_new = mbufq_dequeue(&sc->xn_rx_batch)) == NULL)
 			break;
 
-		m_new->m_ext.ext_arg1 = (vm_paddr_t *)(uintptr_t)(
+		m_new->m_ext.ext_args = (vm_paddr_t *)(uintptr_t)(
 				vtophys(m_new->m_ext.ext_buf) >> PAGE_SHIFT);
 
 		id = xennet_rxidx(req_prod + i);
@@ -1214,7 +1215,7 @@ xennet_get_responses(struct netfront_info *np,
 				MULTI_update_va_mapping(mcl, (u_long)vaddr,
 				    (((vm_paddr_t)mfn) << PAGE_SHIFT) | PG_RW |
 				    PG_V | PG_M | PG_A, 0);
-				pfn = (uint32_t)m->m_ext.ext_arg1;
+				pfn = (uint32_t)m->m_ext.ext_args;
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
