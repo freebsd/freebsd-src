@@ -458,26 +458,30 @@ u3gstub_huawei_init(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 static int
 u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 {
-	unsigned char cmd[31];
+	/* See definition of umass_bbb_cbw_t in sys/dev/usb/umass.c and struct
+	 * scsi_start_stop_unit in sys/cam/scsi/scsi_all.h .
+         */
+	unsigned char cmd[31] = {
+	    0x55, 0x53, 0x42, 0x43,	/* 0..3: Command Block Wrapper (CBW) signature */
+	    0x01, 0x00, 0x00, 0x00,	/* 4..7: CBW Tag, unique 32-bit number */
+	    0x00, 0x00, 0x00, 0x00,	/* 8..11: CBW Transfer Length, no data here */
+	    0x00,			/* 12: CBW Flag: output, so 0 */
+	    0x00,			/* 13: CBW Lun */
+	    0x06,			/* 14: CBW Length */
+
+	    0x1b,			/* 15+0: opcode: SCSI START/STOP */
+	    0x00,			/* 15+1: byte2: Not immediate */
+	    0x00, 0x00,			/* 15+2..3: reserved */
+	    0x02,			/* 15+4: Load/Eject command */
+	    0x00,			/* 15+5: control */
+	    0x00, 0x00, 0x00, 0x00,	/* 15+6..15: unused */
+	    0x00, 0x00, 0x00, 0x00,
+	    0x00, 0x00
+	};
+
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed = NULL;
 	int i;
-
-	memset(cmd, 0, sizeof(cmd));
-	cmd[0] = 0x55;		/* Byte 0..3: Command Block Wrapper (CBW) signature */
-	cmd[1] = 0x53;
-	cmd[2] = 0x42;
-	cmd[3] = 0x43;
-	cmd[4] = 0x01;		/* 4..7: CBW Tag, has to unique, but only a single transfer used. */
-				/* 8..11: CBW Transfer Length, no data here */
-				/* 12: CBW Flag: output, so 0 */
-				/* 13: CBW Lun: 0 */
-				/* 14: CBW Length */
-	cmd[14] = 0x06;
-	cmd[15] = 0x1b;		/* 0: SCSI START/STOP opcode */
-				/* 1..3 unused */
-	cmd[15+4] = 0x02;	/* 4 Load/Eject command */
-				/* 5: unused */
 
 
 	/* Find the bulk-out endpoints */
@@ -485,7 +489,7 @@ u3gstub_scsi_eject(struct u3gstub_softc *sc, struct usb_attach_arg *uaa)
 	for (i = 0 ; i < id->bNumEndpoints ; i++) {
 		ed = usbd_interface2endpoint_descriptor(uaa->iface, i);
 		if (ed != NULL
-		    && UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_OUT
+		    && UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_OUT
 		    && (ed->bmAttributes & UE_XFERTYPE) == UE_BULK)
 			break;
 	}
