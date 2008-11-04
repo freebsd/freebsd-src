@@ -586,7 +586,7 @@ dovmstat(unsigned int interval, int reps)
 	/*
 	 * If our standard output is a tty, then install a SIGWINCH handler
 	 * and set wresized so that our first iteration through the main
-	 * iostat loop will peek at the terminal's current rows to find out
+	 * vmstat loop will peek at the terminal's current rows to find out
 	 * how many lines can fit in a screenful of output.
 	 */
 	if (isatty(fileno(stdout)) != 0) {
