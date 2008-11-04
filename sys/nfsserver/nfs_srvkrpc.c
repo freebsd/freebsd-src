@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
+#include <sys/eventhandler.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
