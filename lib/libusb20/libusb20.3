@@ -1,0 +1,893 @@
+.\"
+.\" Copyright (c) 2008 Hans Petter Selasky
+.\"
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Oct 23, 2008
+.Dt LIBUSB20 3
+.Os
+.Sh NAME
+.Nm libusb20
+.
+.Nd "USB access library"
+.
+.
+.Sh LIBRARY
+.
+.
+USB access library (libusb20 -lusb20)
+.
+.
+.
+.Sh SYNOPSIS
+.
+.
+.In libusb20.h
+.
+.
+.Sh DESCRIPTION
+.
+The
+.Nm
+library implements functions to be able to easily access and control
+USB through the USB file system interface.
+.
+.
+.Sh USB TRANSFER OPERATIONS
+.
+.Pp
+.
+.Fn libusb20_tr_close
+This function will release all kernel resources associated with an USB
+.Fa xfer .
+.
+This function returns zero upon success.
+.
+Non-zero return values indicate a LIBUSB20_ERROR value.
+.
+.Pp
+.
+.Fn libusb20_tr_open
+This function will allocate kernel resources like
+.Fa MaxBufSize
+and
+.Fa MaxFrameCount
+associated with an USB
+.Fa xfer
+and bind the transfer to the specified
+.Fa ep_no .
+.
+This function returns zero upon success.
+.
+Non-zero return values indicate a LIBUSB20_ERROR value.
+.
+.Pp
+.
+.Fn libusb20_tr_get_pointer
+This function will return a pointer to the allocated USB transfer according to the
+.Fa pdev
+and
+.Fa tr_index
+arguments.
+.
+This function returns NULL in case of failure.
+.
+.Pp
+.
+.Fn libusb20_tr_get_time_complete
+This function will return the completion time of an USB transfer in
+millisecond units. This function is most useful for isochronous USB
+transfers when doing echo cancelling.
+.
+.Pp
+.
+.Fn libusb20_tr_get_actual_frames
+This function will return the actual number of USB frames after an USB
+transfer completed. A value of zero means that no data was transferred.
+.
+.Pp
+.
+.Fn libusb20_tr_get_actual_length
+This function will return the sum of the actual length for all
+transferred USB frames for the given USB transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_get_max_frames
+This function will return the maximum number of USB frames that were
+allocated when an USB transfer was setup for the given USB transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_get_max_packet_length
+This function will return the maximum packet length in bytes
+associated with the given USB transfer.
+.
+The packet length can be used round up buffer sizes so that short USB
+packets are avoided for proxy buffers.
+.
+.
+.Pp
+.
+.Fn libusb20_tr_get_max_total_length
+This function will return the maximum value for the length sum of all
+USB frames associated with an USB transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_get_status
+This function will return the status of an USB transfer.
+.
+Status values are defined by a set of LIBUSB20_TRANSFER_XXX enums.
+.
+.Pp
+.
+.Fn libusb20_tr_pending
+This function will return non-zero if the given USB transfer is
+pending for completion.
+.
+Else this function returns zero.
+.
+.Pp
+.
+.Fn libusb20_tr_callback_wrapper
+This is an internal function used to wrap asynchronous USB callbacks.
+.
+.Pp
+.
+.Fn libusb20_tr_clear_stall_sync
+This is an internal function used to synchronously clear the stall on
+the given USB transfer.
+.
+Please see the USB specification for more information on stall
+clearing.
+.
+If the given USB transfer is pending when this function is called, the
+USB transfer will complete with an error after that this function has
+been called.
+.
+.Pp
+.
+.Fn libusb20_tr_drain
+This function will stop the given USB transfer and will not return
+until the USB transfer has been stopped in hardware.
+.
+.Pp
+.
+.Fn libusb20_tr_set_buffer
+This function is used to set the
+.Fa buffer
+pointer for the given USB transfer and
+.Fa fr_index .
+.
+Typically the frame index is zero.
+.
+.
+.Pp
+.
+.Fn libusb20_tr_set_callback
+This function is used to set the USB callback for asynchronous USB
+transfers.
+.
+The callback type is defined by libusb20_tr_callback_t.
+.
+.Pp
+.
+.Fn libusb20_tr_set_flags
+This function is used to set various USB flags for the given USB transfer.
+.Bl -tag
+.It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
+Report a short frame as error.
+.It LIBUSB20_TRANSFER_MULTI_SHORT_NOT_OK
+Multiple short frames are not allowed.
+.It LIBUSB20_TRANSFER_FORCE_SHORT
+All transmitted frames are short terminated.
+.It LIBUSB20_TRANSFER_DO_CLEAR_STALL
+Will do a clear-stall before starting the transfer.
+.El
+.
+.Pp
+.
+.Fn libusb20_tr_set_length
+This function sets the length of a given USB transfer and frame index.
+.
+.Pp
+.
+.Fn libusb20_tr_set_priv_sc0
+This function sets private driver pointer number zero.
+.
+.Pp
+.
+.Fn libusb20_tr_set_priv_sc1
+This function sets private driver pointer number one.
+.
+.Pp
+.
+.Fn libusb20_tr_set_timeout
+This function sets the timeout for the given USB transfer.
+.
+A timeout value of zero means no timeout.
+.
+The timeout is given in milliseconds.
+.
+.Pp
+.
+.Fn libusb20_tr_set_total_frames
+This function sets the total number of frames that should be executed when the USB transfer is submitted.
+.
+The total number of USB frames must be less than the maximum number of USB frames associated with the given USB transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_setup_bulk
+This function is a helper function for setting up a single frame USB BULK transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_setup_control
+This function is a helper function for setting up a single or dual
+frame USB CONTROL transfer depending on the control transfer length.
+.
+.Pp
+.
+.Fn libusb20_tr_setup_intr
+This function is a helper function for setting up a single frame USB INTERRUPT transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_setup_isoc
+This function is a helper function for setting up a multi frame USB ISOCHRONOUS transfer.
+.
+.Pp
+.
+.Fn libusb20_tr_start
+This function will get the USB transfer started, if not already
+started.
+.
+This function will not get the transfer queued in hardware.
+.
+This function is non-blocking.
+.
+.Pp
+.
+.Fn libusb20_tr_stop
+This function will get the USB transfer stopped, if not already stopped.
+.
+This function is non-blocking, which means that the actual stop can
+happen after the return of this function.
+.
+.Pp
+.
+.Fn libusb20_tr_submit
+This function will get the USB transfer queued in hardware.
+.
+.
+.Pp
+.
+.Fn libusb20_tr_get_priv_sc0
+This function returns private driver pointer number zero associated
+with an USB transfer.
+.
+.
+.Pp
+.
+.Fn libusb20_tr_get_priv_sc1
+This function returns private driver pointer number one associated
+with an USB transfer.
+.
+.
+.Sh USB DEVICE OPERATIONS
+.
+.Pp
+.
+.Fn libusb20_dev_get_backend_name
+This function returns a zero terminated string describing the backend used.
+.
+.Pp
+.
+.Fn libusb20_dev_get_desc
+This function returns a zero terminated string describing the given USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_claim_interface
+This function will try to claim the given USB interface given by
+.Fa iface_index .
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_close
+This function will close the given USB device.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_detach_kernel_driver
+This function will try to detach the kernel driver for the USB interface given by
+.Fa iface_index .
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_config_index
+This function will try to set the configuration index on an USB
+device.
+.
+The first configuration index is zero.
+.
+The un-configure index is 255.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_debug
+This function returns the debug level of an USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_get_fd
+This function returns the file descriptor of the given USB device.
+.
+A negative value is returned when no file descriptor is present.
+.
+The file descriptor can be used for polling purposes.
+.
+.Pp
+.
+.Fn libusb20_dev_kernel_driver_active
+This function returns a non-zero value if a kernel driver is active on
+the given USB interface.
+.
+Else zero is returned.
+.
+.Pp
+.
+.Fn libusb20_dev_open
+This function opens an USB device so that setting up USB transfers
+becomes possible.
+.
+The number of USB transfers can be zero which means only control
+transfers are allowed.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+A return value of LIBUSB20_ERROR_BUSY means that the device is already
+opened.
+.
+.Pp
+.
+.Fn libusb20_dev_process
+This function is called to sync kernel USB transfers with userland USB
+transfers.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned typically indicating that the given USB device has been
+detached.
+.
+.Pp
+.
+.Fn libusb20_dev_release_interface
+This function will try to release a claimed USB interface for the specified USB device.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_request_sync
+This function will perform a synchronous control request on the given
+USB device.
+.
+Before this call will succeed the USB device must be opened.
+.
+.Fa setup
+is a pointer to a decoded and host endian SETUP packet.
+.Fa data
+is a pointer to a data transfer buffer associated with the control transaction. This argument can be NULL.
+.Fa pactlen
+is a pointer to a variable that will hold the actual transfer length after the control transaction is complete.
+.Fa timeout
+is the transaction timeout given in milliseconds.
+A timeout of zero means no timeout.
+.Fa flags
+is used to specify transaction flags, for example LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_req_string_sync
+This function will synchronously request an USB string by language ID
+and string index into the given buffer limited by a maximum length.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_req_string_simple_sync
+This function will synchronously request an USB string using the
+default language ID and convert the string into ASCII before storing
+the string into the given buffer limited by a maximum length which
+includes the terminating zero.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.
+.Pp
+.
+.Fn libusb20_dev_reset
+This function will try to BUS reset the given USB device and restore
+the last set USB configuration.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_power_mode
+This function sets the power mode of the USB device.
+.
+Valid power modes:
+.Bl -tag
+.It LIBUSB20_POWER_OFF
+.It LIBUSB20_POWER_ON
+.It LIBUSB20_POWER_SAVE
+.It LIBUSB20_POWER_SUSPEND
+.It LIBUSB20_POWER_RESUME
+.El
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_power_mode
+This function returns the currently selected power mode for the given
+USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_set_alt_index
+This function will try to set the given alternate index for the given
+USB interface index.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_owner
+This function will set the ownership of the given USB device.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_perm
+This function will set the permissions of the given USB device.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_iface_owner
+This function will set the ownership of the given USB interface.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_set_iface_perm
+This function will set the permissions of the given USB interface.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_owner
+This function will retrieve the current USB device ownership.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_perm
+This function will retrieve the current USB device permissions.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_iface_owner
+This function will retrieve the current USB interface ownership for
+the given USB interface.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_iface_perm
+This function will retrieve the current USB interface permissions for
+the given USB interface.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_get_device_desc
+This function returns a pointer to the decoded and host endian version
+of the device descriptor.
+.
+The USB device need not be opened when calling this function.
+.
+.Pp
+.
+.Fn libusb20_dev_alloc_config
+This function will read out and decode the USB config descriptor for
+the given USB device and config index. This function returns a pointer
+to the decoded configuration which must eventually be passed to
+free(). NULL is returned in case of failure.
+.
+.Pp
+.
+.Fn libusb20_dev_alloc(void)
+This is an internal function to allocate a new USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_get_address
+This function returns the internal and not necessarily the real
+hardware address of the given USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_get_bus_number
+This function return the internal bus number which the given USB
+device belongs to.
+.
+.Pp
+.
+.Fn libusb20_dev_get_mode
+This function returns the current operation mode of the USB entity.
+.
+Valid return values are:
+.Bl -tag
+.It LIBUSB20_MODE_HOST
+.It LIBUSB20_MODE_DEVICE
+.El
+.
+.Pp
+.
+.Fn libusb20_dev_get_speed
+This function returns the current speed of the given USB device.
+.
+.Bl -tag
+.It LIBUSB20_SPEED_UNKNOWN
+.It LIBUSB20_SPEED_LOW
+.It LIBUSB20_SPEED_FULL
+.It LIBUSB20_SPEED_HIGH
+.It LIBUSB20_SPEED_VARIABLE
+.It LIBUSB20_SPEED_SUPER
+.El
+.
+.Pp
+.
+.Fn libusb20_dev_get_config_index
+This function returns the currently select config index for the given
+USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_free
+This function will free the given USB device and all associated USB
+transfers.
+.
+.Pp
+.
+.Fn libusb20_dev_set_debug
+This function will set the debug level for the given USB device.
+.
+.Pp
+.
+.Fn libusb20_dev_wait_process
+This function will wait until a pending USB transfer has completed on
+the given USB device.
+.
+A timeout value can be specified which is passed on to the
+.Xr 2 poll
+function.
+.
+.Sh USB BUS OPERATIONS
+.
+.Fn libusb20_bus_set_owner
+This function will set the ownership for the given USB bus.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_bus_set_perm
+This function will set the permissions for the given USB bus.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_bus_get_owner
+This function will retrieve the ownership for the given USB bus.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_bus_get_perm
+This function will retrieve the permissions for the given USB bus.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.
+.Sh USB BACKEND OPERATIONS
+.
+.Fn libusb20_be_get_dev_quirk
+This function will return the device quirk according to
+.Fa index
+into the libusb20_quirk structure pointed to by
+.Fa pq .
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_get_quirk_name
+This function will return the quirk name according to
+.Fa index
+into the libusb20_quirk structure pointed to by
+.Fa pq .
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_add_dev_quirk
+This function will add the libusb20_quirk structure pointed to by the
+.Fa pq
+argument into the device quirk list.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+If the given quirk cannot be added LIBUSB20_ERROR_NO_MEM is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_remove_dev_quirk
+This function will remove the quirk matching the libusb20_quirk structure pointed to by the
+.Fa pq
+argument from the device quirk list.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+If the given quirk does not exist LIBUSB20_ERROR_NOT_FOUND is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_set_owner
+This function will set the ownership for the given backend.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_set_perm
+This function will set the permissions for the given backend.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_get_owner
+This function will retrieve the ownership of the given backend.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_get_perm
+This function will retrieve the permissions of the given backend.
+.
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_be_alloc
+This is an internal function to allocate a USB backend.
+.
+.Pp
+.Fn libusb20_be_alloc_default
+.Fn libusb20_be_alloc_freebsd
+.Fn libusb20_be_alloc_linux
+These functions are used to allocate a specific USB backend or the
+operating system default USB backend. Allocating a backend is a way to
+scan for currently present USB devices.
+.
+.Pp
+.
+.Fn libusb20_be_device_foreach
+This function is used to iterate USB devices present in a USB backend.
+.
+The starting value of
+.Fa pdev
+is NULL.
+.
+This function returns the next USB device in the list.
+.
+If NULL is returned the end of the USB device list has been reached.
+.
+.Pp
+.
+.Fn libusb20_be_dequeue_device
+This function will dequeue the given USB device pointer from the
+backend USB device list.
+.
+Dequeued USB devices will not be freed when the backend is freed.
+.
+.Pp
+.
+.Fn libusb20_be_enqueue_device
+This function will enqueue the given USB device pointer in the backend USB device list.
+.
+Enqueued USB devices will get freed when the backend is freed.
+.
+.Pp
+.
+.Fn libusb20_be_free
+This function will free the given backend and all USB devices in its device list.
+.
+.
+.Sh USB DESCRIPTOR PARSING
+.
+.Fn libusb20_me_get_1
+This function will return a byte at the given byte offset of a message
+entity.
+.
+This function is safe against invalid offsets.
+.
+.Pp
+.
+.Fn libusb20_me_get_2
+This function will return a little endian 16-bit value at the given byte offset of a message
+entity.
+.
+This function is safe against invalid offsets.
+.
+.Pp
+.
+.Fn libusb20_me_encode
+This function will encode a so-called *DECODED structure into binary
+format.
+.
+The total encoded length that will fit in the given buffer is
+returned.
+.
+If the buffer pointer is NULL no data will be written to the buffer
+location.
+.
+.Pp
+.
+.Fn libusb20_me_decode
+This function will decode a binary structure into a so-called *DECODED
+structure.
+.
+The total decoded length is returned.
+.
+The buffer pointer cannot be NULL.
+.
+.
+.Sh LIBUSB VERSION 0.1 COMPATIBILITY
+.
+.Fn usb_open
+.Fn usb_close
+.Fn usb_get_string
+.Fn usb_get_string_simple
+.Fn usb_get_descriptor_by_endpoint
+.Fn usb_get_descriptor
+.Fn usb_parse_descriptor
+.Fn usb_parse_configuration
+.Fn usb_destroy_configuration
+.Fn usb_fetch_and_parse_descriptors
+.Fn usb_bulk_write
+.Fn usb_bulk_read
+.Fn usb_interrupt_write
+.Fn usb_interrupt_read
+.Fn usb_control_msg
+.Fn usb_set_configuration
+.Fn usb_claim_interface
+.Fn usb_release_interface
+.Fn usb_set_altinterface
+.Fn usb_resetep
+.Fn usb_clear_halt
+.Fn usb_reset
+.Fn usb_strerror
+.Fn usb_init
+.Fn usb_set_debug
+.Fn usb_find_busses
+.Fn usb_find_devices
+.Fn usb_device
+.Fn usb_get_busses
+These functions are compliant with LibUSB version 0.1.12.
+.
+.Sh FILES
+.
+.
+/dev/usb
+.Sh SEE ALSO
+.Xr usb2_core 4 ,
+.Xr usbconfig 8
+.
+.
+.Sh HISTORY
+.
+.
+Some parts of the
+.Nm
+API derives from the libusb project at sourceforge.

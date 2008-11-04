@@ -1366,6 +1366,145 @@ dev/usb/uscanner.c		optional uscanner
 dev/usb/uslcom.c		optional uslcom
 dev/usb/uvisor.c		optional uvisor
 dev/usb/uvscom.c		optional uvscom
+#
+# USB2 controller drivers
+#
+dev/usb2/controller/at91dci.c		optional usb2_core usb2_controller usb2_controller_at91dci
+dev/usb2/controller/at91dci_atmelarm.c	optional usb2_core usb2_controller usb2_controller_at91dci at91rm9200
+dev/usb2/controller/musb2_otg.c		optional usb2_core usb2_controller usb2_controller_musb
+dev/usb2/controller/musb2_otg_atmelarm.c optional usb2_core usb2_controller usb2_controller_musb at91rm9200
+dev/usb2/controller/ehci2.c		optional usb2_core usb2_controller usb2_controller_ehci
+dev/usb2/controller/ehci2_pci.c		optional usb2_core usb2_controller usb2_controller_ehci pci
+dev/usb2/controller/ohci2.c		optional usb2_core usb2_controller usb2_controller_ohci
+dev/usb2/controller/ohci2_atmelarm.c	optional usb2_core usb2_controller usb2_controller_ohci at91rm9200
+dev/usb2/controller/ohci2_pci.c		optional usb2_core usb2_controller usb2_controller_ohci pci
+dev/usb2/controller/uhci2.c		optional usb2_core usb2_controller usb2_controller_uhci
+dev/usb2/controller/uhci2_pci.c		optional usb2_core usb2_controller usb2_controller_uhci pci
+dev/usb2/controller/uss820dci.c		optional usb2_core usb2_controller usb2_controller_uss820dci
+dev/usb2/controller/uss820dci_atmelarm.c	optional usb2_core usb2_controller usb2_controller_uss820dci at91rm9200
+dev/usb2/controller/usb2_controller.c	optional usb2_core usb2_controller
+#
+# USB2 storage drivers
+#
+dev/usb2/storage/ata-usb2.c		optional usb2_core usb2_storage usb2_storage_ata
+dev/usb2/storage/umass2.c		optional usb2_core usb2_storage usb2_storage_mass
+dev/usb2/storage/urio2.c		optional usb2_core usb2_storage usb2_storage_rio
+dev/usb2/storage/usb2_storage.c		optional usb2_core usb2_storage
+dev/usb2/storage/ustorage2_fs.c		optional usb2_core usb2_storage usb2_storage_fs
+#
+# USB2 NDIS driver
+#
+dev/usb2/ndis/if_ndis_usb2.c		optional usb2_core usb2_ndis
+dev/usb2/ndis/usb2_ndis.c		optional usb2_core usb2_ndis
+#
+# USB2 core
+#
+dev/usb2/core/usb2_busdma.c		optional usb2_core
+dev/usb2/core/usb2_compat_linux.c	optional usb2_core
+dev/usb2/core/usb2_config_td.c		optional usb2_core
+dev/usb2/core/usb2_core.c		optional usb2_core
+dev/usb2/core/usb2_debug.c		optional usb2_core
+dev/usb2/core/usb2_dev.c		optional usb2_core
+dev/usb2/core/usb2_device.c		optional usb2_core
+dev/usb2/core/usb2_dynamic.c		optional usb2_core
+dev/usb2/core/usb2_error.c		optional usb2_core
+dev/usb2/core/usb2_generic.c		optional usb2_core
+dev/usb2/core/usb2_handle_request.c	optional usb2_core
+dev/usb2/core/usb2_hid.c		optional usb2_core
+dev/usb2/core/usb2_hub.c		optional usb2_core
+dev/usb2/core/usb2_if.m			optional usb2_core
+dev/usb2/core/usb2_lookup.c		optional usb2_core
+dev/usb2/core/usb2_mbuf.c		optional usb2_core
+dev/usb2/core/usb2_msctest.c		optional usb2_core
+dev/usb2/core/usb2_parse.c		optional usb2_core
+dev/usb2/core/usb2_process.c		optional usb2_core
+dev/usb2/core/usb2_request.c		optional usb2_core
+dev/usb2/core/usb2_sw_transfer.c	optional usb2_core
+dev/usb2/core/usb2_transfer.c		optional usb2_core
+dev/usb2/core/usb2_util.c		optional usb2_core
+#
+# USB2 ethernet drivers
+#
+dev/usb2/ethernet/if_aue2.c		optional usb2_core usb2_ethernet usb2_ethernet_aue
+dev/usb2/ethernet/if_axe2.c		optional usb2_core usb2_ethernet usb2_ethernet_axe
+dev/usb2/ethernet/if_cdce2.c		optional usb2_core usb2_ethernet usb2_ethernet_cdce
+dev/usb2/ethernet/if_cue2.c		optional usb2_core usb2_ethernet usb2_ethernet_cue
+dev/usb2/ethernet/if_kue2.c		optional usb2_core usb2_ethernet usb2_ethernet_kue
+dev/usb2/ethernet/if_rue2.c		optional usb2_core usb2_ethernet usb2_ethernet_rue
+dev/usb2/ethernet/if_udav2.c		optional usb2_core usb2_ethernet usb2_ethernet_udav
+dev/usb2/ethernet/usb2_ethernet.c	optional usb2_core usb2_ethernet
+#
+# USB2 WLAN drivers
+#
+dev/usb2/wlan/if_rum2.c		optional usb2_core usb2_wlan usb2_wlan_rum
+dev/usb2/wlan/if_ural2.c	optional usb2_core usb2_wlan usb2_wlan_ral
+dev/usb2/wlan/if_zyd2.c		optional usb2_core usb2_wlan usb2_wlan_zyd
+dev/usb2/wlan/usb2_wlan.c	optional usb2_core usb2_wlan
+#
+# USB2 serial and parallel port drivers
+#
+dev/usb2/serial/uark2.c		optional usb2_core usb2_serial usb2_serial_ark
+dev/usb2/serial/ubsa2.c		optional usb2_core usb2_serial usb2_serial_bsa
+dev/usb2/serial/ubser2.c	optional usb2_core usb2_serial usb2_serial_bser
+dev/usb2/serial/uchcom2.c	optional usb2_core usb2_serial usb2_serial_chcom
+dev/usb2/serial/ucycom2.c	optional usb2_core usb2_serial usb2_serial_cycom
+dev/usb2/serial/ufoma2.c	optional usb2_core usb2_serial usb2_serial_foma
+dev/usb2/serial/uftdi2.c	optional usb2_core usb2_serial usb2_serial_ftdi
+dev/usb2/serial/ugensa2.c	optional usb2_core usb2_serial usb2_serial_gensa
+dev/usb2/serial/uipaq2.c	optional usb2_core usb2_serial usb2_serial_ipaq
+dev/usb2/serial/ulpt2.c		optional usb2_core usb2_serial usb2_serial_lpt
+dev/usb2/serial/umct2.c		optional usb2_core usb2_serial usb2_serial_mct
+dev/usb2/serial/umodem2.c	optional usb2_core usb2_serial usb2_serial_modem
+dev/usb2/serial/umoscom2.c	optional usb2_core usb2_serial usb2_serial_moscom
+dev/usb2/serial/uplcom2.c	optional usb2_core usb2_serial usb2_serial_plcom
+dev/usb2/serial/usb2_serial.c	optional usb2_core usb2_serial
+dev/usb2/serial/uvisor2.c	optional usb2_core usb2_serial usb2_serial_visor
+dev/usb2/serial/uvscom2.c	optional usb2_core usb2_serial usb2_serial_vscom
+#
+# USB2 bluetooth drivers
+#
+dev/usb2/bluetooth/usb2_bluetooth.c	optional usb2_core usb2_bluetooth
+dev/usb2/bluetooth/ng_ubt2.c		optional usb2_core usb2_bluetooth usb2_bluetooth_ng
+dev/usb2/bluetooth/ubtbcmfw2.c		optional usb2_core usb2_bluetooth usb2_bluetooth_fw
+
+#
+# USB2 misc drivers
+#
+dev/usb2/misc/usb2_misc.c	optional usb2_core usb2_misc
+dev/usb2/misc/ufm2.c		optional usb2_core usb2_misc usb2_misc_fm
+dev/usb2/misc/udbp2.c		optional usb2_core usb2_misc usb2_misc_dbp
+#
+# USB2 input drivers
+#
+dev/usb2/input/uhid2.c		optional usb2_core usb2_input usb2_input_hid
+dev/usb2/input/ukbd2.c		optional usb2_core usb2_input usb2_input_kbd
+dev/usb2/input/ums2.c		optional usb2_core usb2_input usb2_input_ms
+dev/usb2/input/usb2_input.c	optional usb2_core usb2_input
+#
+# USB2 quirks
+#
+dev/usb2/quirk/usb2_quirk.c	optional usb2_core usb2_quirk
+#
+# USB2 templates
+#
+dev/usb2/template/usb2_template.c	optional usb2_core usb2_template
+dev/usb2/template/usb2_template_cdce.c	optional usb2_core usb2_template
+dev/usb2/template/usb2_template_msc.c	optional usb2_core usb2_template
+dev/usb2/template/usb2_template_mtp.c	optional usb2_core usb2_template
+#
+# USB2 image drivers
+#
+dev/usb2/image/usb2_image.c	optional usb2_core usb2_image
+dev/usb2/image/uscanner2.c	optional usb2_core usb2_image usb2_scanner
+#
+# USB2 sound and MIDI drivers
+#
+dev/usb2/sound/usb2_sound.c	optional usb2_core usb2_sound
+dev/usb2/sound/uaudio2.c	optional usb2_core usb2_sound
+dev/usb2/sound/uaudio2_pcm.c	optional usb2_core usb2_sound
+#
+# USB2 END
+#
 dev/utopia/idtphy.c		optional utopia
 dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
