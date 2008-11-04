@@ -680,22 +680,25 @@ sleepq_resume_thread(struct sleepqueue *sq, struct thread *td, int pri)
 	td->td_wchan = NULL;
 	td->td_flags &= ~TDF_SINTR;
 
-	/*
-	 * Note that thread td might not be sleeping if it is running
-	 * sleepq_catch_signals() on another CPU or is blocked on
-	 * its proc lock to check signals.  It doesn't hurt to clear
-	 * the sleeping flag if it isn't set though, so we just always
-	 * do it.  However, we can't assert that it is set.
-	 */
 	CTR3(KTR_PROC, "sleepq_wakeup: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, td->td_name);
-	TD_CLR_SLEEPING(td);
 
 	/* Adjust priority if requested. */
 	MPASS(pri == 0 || (pri >= PRI_MIN && pri <= PRI_MAX));
 	if (pri != 0 && td->td_priority > pri)
 		sched_prio(td, pri);
-	return (setrunnable(td));
+
+	/*
+	 * Note that thread td might not be sleeping if it is running
+	 * sleepq_catch_signals() on another CPU or is blocked on its
+	 * proc lock to check signals.  There's no need to mark the
+	 * thread runnable in that case.
+	 */
+	if (TD_IS_SLEEPING(td)) {
+		TD_CLR_SLEEPING(td);
+		return (setrunnable(td));
+	}
+	return (0);
 }
 
 #ifdef INVARIANTS
