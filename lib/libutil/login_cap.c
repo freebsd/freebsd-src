@@ -61,8 +61,6 @@ static char * internal_string = NULL;
 static size_t internal_arraysz = 0;
 static const char ** internal_array = NULL;
 
-static char path_login_conf[] = _PATH_LOGIN_CONF;
-
 static char *
 allocstr(const char *str)
 {
@@ -217,14 +215,15 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 
 	if (dir && snprintf(userpath, MAXPATHLEN, "%s/%s", dir,
 			    _FILE_LOGIN_CONF) < MAXPATHLEN) {
+	    login_dbarray[i] = userpath;
 	    if (_secure_path(userpath, pwd->pw_uid, pwd->pw_gid) != -1)
-		login_dbarray[i++] = userpath;
+		i++;		/* only use 'secure' data */
 	}
 	/*
 	 * XXX: Why to add the system database if the class is `me'?
 	 */
-	if (_secure_path(path_login_conf, 0, 0) != -1)
-	    login_dbarray[i++] = path_login_conf;
+	if (_secure_path(_PATH_LOGIN_CONF, 0, 0) != -1)
+	    login_dbarray[i++] = _PATH_LOGIN_CONF;
 	login_dbarray[i] = NULL;
 
 	memset(lc, 0, sizeof(login_cap_t));
