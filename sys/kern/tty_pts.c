@@ -701,13 +701,8 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 static int
 ptmx_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *fp)
 {
-	int error;
 
-	error = pts_alloc(fflags & (FREAD|FWRITE), td, fp);
-	if (error != 0)
-		return (error);
-
-	return (0);
+	return (pts_alloc(fflags & (FREAD|FWRITE), td, fp));
 }
 
 static struct cdevsw ptmx_cdevsw = {
