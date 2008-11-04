@@ -1,39 +1,35 @@
 /*
  * by Manuel Bouyer (bouyer@ensta.fr)
- * 
+ *
  * There is no copyright, you can use it as you want.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
-#include <signal.h>
-
-#include <ctype.h>
-#include <errno.h>
-#include <fstab.h>
-#include <grp.h>
-#include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-#include <syslog.h>
 
 #include <ufs/ufs/quota.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/rquota.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <fstab.h>
+#include <grp.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <unistd.h>
 
 void rquota_service(struct svc_req *request, SVCXPRT *transp);
 void sendquota(struct svc_req *request, SVCXPRT *transp);
@@ -56,15 +52,17 @@ struct fs_stat *fs_begin = NULL;
 
 int from_inetd = 1;
 
-void 
+static void
 cleanup(int sig)
 {
+
+	(void) sig;
 	(void) rpcb_unset(RQUOTAPROG, RQUOTAVERS, NULL);
 	exit(0);
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	SVCXPRT *transp;
 	int ok;
@@ -101,19 +99,22 @@ main(int argc, char *argv[])
 		ok = svc_create(rquota_service,
 				RQUOTAPROG, RQUOTAVERS, "udp");
 	if (!ok) {
-		syslog(LOG_ERR, "unable to register (RQUOTAPROG, RQUOTAVERS, %s)", (!from_inetd)?"udp":"(inetd)");
+		syslog(LOG_ERR,
+		    "unable to register (RQUOTAPROG, RQUOTAVERS, %s)",
+		    from_inetd ? "(inetd)" : "udp");
 		exit(1);
 	}
 
-	initfs();		/* init the fs_stat list */
+	initfs();
 	svc_run();
 	syslog(LOG_ERR, "svc_run returned");
 	exit(1);
 }
 
-void 
+void
 rquota_service(struct svc_req *request, SVCXPRT *transp)
 {
+
 	switch (request->rq_proc) {
 	case NULLPROC:
 		(void)svc_sendreply(transp, (xdrproc_t)xdr_void, (char *)NULL);
@@ -133,7 +134,7 @@ rquota_service(struct svc_req *request, SVCXPRT *transp)
 }
 
 /* read quota for the specified id, and send it */
-void 
+void
 sendquota(struct svc_req *request, SVCXPRT *transp)
 {
 	struct getquota_args getq_args;
@@ -183,7 +184,7 @@ sendquota(struct svc_req *request, SVCXPRT *transp)
 	}
 }
 
-void 
+void
 printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 {
 	char name[INET6_ADDRSTRLEN];
@@ -203,7 +204,7 @@ printerr_reply(SVCXPRT *transp)	/* when a reply to a request failed */
 }
 
 /* initialise the fs_tab list from entries in /etc/fstab */
-void 
+void
 initfs(void)
 {
 	struct fs_stat *fs_current = NULL;
@@ -222,10 +223,12 @@ initfs(void)
 		fs_current = (struct fs_stat *) malloc(sizeof(struct fs_stat));
 		fs_current->fs_next = fs_next;	/* next element */
 
-		fs_current->fs_file = malloc(sizeof(char) * (strlen(fs->fs_file) + 1));
+		fs_current->fs_file =
+		    malloc(sizeof(char) * (strlen(fs->fs_file) + 1));
 		strcpy(fs_current->fs_file, fs->fs_file);
 
-		fs_current->qfpathname = malloc(sizeof(char) * (strlen(qfpathname) + 1));
+		fs_current->qfpathname =
+		    malloc(sizeof(char) * (strlen(qfpathname) + 1));
 		strcpy(fs_current->qfpathname, qfpathname);
 
 		stat(fs_current->fs_file, &st);
@@ -242,7 +245,7 @@ initfs(void)
  * Return 0 if fail, 1 otherwise
  */
 int
-getfsquota(long id, char   *path, struct dqblk *dqblk)
+getfsquota(long id, char *path, struct dqblk *dqblk)
 {
 	struct stat st_path;
 	struct fs_stat *fs;
@@ -301,8 +304,8 @@ hasquota(struct fstab *fs, char  **qfnamep)
 {
 	static char initname, usrname[100];
 	static char buf[BUFSIZ];
-	char	*opt, *cp;
-	char	*qfextension[] = INITQFNAMES;
+	char *opt, *cp;
+	const char *qfextension[] = INITQFNAMES;
 
 	if (!initname) {
 		sprintf(usrname, "%s%s", qfextension[USRQUOTA], QUOTAFILENAME);
@@ -321,7 +324,8 @@ hasquota(struct fstab *fs, char  **qfnamep)
 		*qfnamep = cp;
 		return (1);
 	}
-	sprintf(buf, "%s/%s.%s", fs->fs_file, QUOTAFILENAME, qfextension[USRQUOTA]);
+	sprintf(buf, "%s/%s.%s", fs->fs_file, QUOTAFILENAME,
+	    qfextension[USRQUOTA]);
 	*qfnamep = buf;
 	return (1);
 }
