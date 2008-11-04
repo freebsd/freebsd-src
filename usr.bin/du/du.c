@@ -73,12 +73,12 @@ struct ignentry {
 
 static int	linkchk(FTSENT *);
 static void	usage(void);
-void		prthumanval(int64_t);
-void		ignoreadd(const char *);
-void		ignoreclean(void);
-int		ignorep(FTSENT *);
+static void	prthumanval(int64_t);
+static void	ignoreadd(const char *);
+static void	ignoreclean(void);
+static int	ignorep(FTSENT *);
 
-int		nodumpflag = 0;
+static int	nodumpflag = 0;
 
 int
 main(int argc, char *argv[])
@@ -443,7 +443,7 @@ linkchk(FTSENT *p)
 	return (0);
 }
 
-void
+static void
 prthumanval(int64_t bytes)
 {
 	char buf[5];
@@ -465,7 +465,7 @@ usage(void)
 	exit(EX_USAGE);
 }
 
-void
+static void
 ignoreadd(const char *mask)
 {
 	struct ignentry *ign;
@@ -479,7 +479,7 @@ ignoreadd(const char *mask)
 	SLIST_INSERT_HEAD(&ignores, ign, next);
 }
 
-void
+static void
 ignoreclean(void)
 {
 	struct ignentry *ign;
@@ -492,7 +492,7 @@ ignoreclean(void)
 	}
 }
 
-int
+static int
 ignorep(FTSENT *ent)
 {
 	struct ignentry *ign;
