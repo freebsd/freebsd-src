@@ -93,6 +93,9 @@ struct acpi_asus_model {
 	char	*wlan_set;
 
 	void	(*n_func)(ACPI_HANDLE, UINT32, void *);
+
+	char	*lcdd;
+	void	(*lcdd_n_func)(ACPI_HANDLE, UINT32, void *);
 };
 
 struct acpi_asus_led {
@@ -113,6 +116,7 @@ struct acpi_asus_led {
 struct acpi_asus_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
+	ACPI_HANDLE		lcdd_handle;
 
 	struct acpi_asus_model	*model;
 	struct sysctl_ctx_list	sysctl_ctx;
@@ -132,6 +136,9 @@ struct acpi_asus_softc {
 	int			s_crd;
 	int			s_wlan;
 };
+
+static void	acpi_asus_lcdd_notify(ACPI_HANDLE h, UINT32 notify,
+    void *context);
 
 /*
  * We can identify Asus laptops from the string they return
@@ -203,6 +210,20 @@ static struct acpi_asus_model acpi_asus_models[] = {
 		.brn_set	= "SPLV",
 		.disp_get	= "\\_SB.PCI0.P0P3.VGA.GETD",
 		.disp_set	= "SDSP"
+	},
+	{
+		.name		= "A8SR",
+		.bled_set	= "BLED",
+		.mled_set	= "MLED",
+		.wled_set	= "WLED",
+		.lcd_get	= NULL,
+		.lcd_set	= "\\_SB.PCI0.SBRG.EC0._Q10",
+		.brn_get	= "GPLV",
+		.brn_set	= "SPLV",
+		.disp_get	= "\\_SB.PCI0.P0P1.VGA.GETD",
+		.disp_set	= "SDSP",
+		.lcdd		= "\\_SB.PCI0.P0P1.VGA.LCDD",
+		.lcdd_n_func	= acpi_asus_lcdd_notify
 	},
 	{
 		.name		= "D1x",
@@ -762,6 +783,22 @@ acpi_asus_attach(device_t dev)
 	AcpiInstallNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
 	    sc->model->n_func, dev);
 
+	/* Find and hook the 'LCDD' object */
+	if (sc->model->lcdd != NULL && sc->model->lcdd_n_func != NULL) {
+		ACPI_STATUS res;
+
+		sc->lcdd_handle = NULL;
+		res = AcpiGetHandle((sc->model->lcdd[0] == '\\' ?
+		    NULL : sc->handle), sc->model->lcdd, &(sc->lcdd_handle));
+		if (ACPI_SUCCESS(res)) {
+			AcpiInstallNotifyHandler((sc->lcdd_handle),
+			    ACPI_DEVICE_NOTIFY, sc->model->lcdd_n_func, dev);
+	    	} else {
+	    		printf("%s: unable to find LCD device '%s'\n",
+	    		    __func__, sc->model->lcdd);
+	    	}
+	}
+
 	return (0);
 }
 
@@ -796,6 +833,13 @@ acpi_asus_detach(device_t dev)
 	/* Remove notify handler */
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
 	    acpi_asus_notify);
+	
+	if (sc->lcdd_handle) {
+		KASSERT(sc->model->lcdd_n_func != NULL,
+		    ("model->lcdd_n_func is NULL, but lcdd_handle is non-zero"));
+		AcpiRemoveNotifyHandler((sc->lcdd_handle),
+		    ACPI_DEVICE_NOTIFY, sc->model->lcdd_n_func);
+	}
 
 	/* Free sysctl tree */
 	sysctl_ctx_free(&sc->sysctl_ctx);
@@ -1165,9 +1209,40 @@ acpi_asus_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 	} else if (notify == 0x34) {
 		sc->s_lcd = 0;
 		ACPI_VPRINT(sc->dev, acpi_sc, "LCD turned off\n");
+	} else if (notify == 0x86) {
+		acpi_asus_sysctl_set(sc, ACPI_ASUS_METHOD_BRN, sc->s_brn-1);
+		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness decreased\n");
+	} else if (notify == 0x87) {
+		acpi_asus_sysctl_set(sc, ACPI_ASUS_METHOD_BRN, sc->s_brn+1);
+		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness increased\n");
 	} else {
 		/* Notify devd(8) */
 		acpi_UserNotify("ASUS", h, notify);
+	}
+	ACPI_SERIAL_END(asus);
+}
+
+static void
+acpi_asus_lcdd_notify(ACPI_HANDLE h, UINT32 notify, void *context)
+{
+	struct acpi_asus_softc	*sc;
+	struct acpi_softc	*acpi_sc;
+
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
+	sc = device_get_softc((device_t)context);
+	acpi_sc = acpi_device_get_parent_softc(sc->dev);
+
+	ACPI_SERIAL_BEGIN(asus);
+	switch (notify) {
+	case 0x87:
+		acpi_asus_sysctl_set(sc, ACPI_ASUS_METHOD_BRN, sc->s_brn-1);
+		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness decreased\n");
+		break;
+	case 0x86:
+		acpi_asus_sysctl_set(sc, ACPI_ASUS_METHOD_BRN, sc->s_brn+1);
+		ACPI_VPRINT(sc->dev, acpi_sc, "Brightness increased\n");
+		break;
 	}
 	ACPI_SERIAL_END(asus);
 }
