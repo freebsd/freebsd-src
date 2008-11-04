@@ -318,11 +318,13 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
 	error = namei(&nd);
-	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
-	if (error != 0 || vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
-		lep = linux_emul_path;
-	else
-		lep = dlep;
+	lep = linux_emul_path;
+	if (error == 0) {
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+			lep = dlep;
+		vrele(nd.ni_vp);
+		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
+	}
 	lep_len = strlen(lep);
 
 	mtx_lock(&mountlist_mtx);
