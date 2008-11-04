@@ -492,7 +492,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
-	int error, cwir, locked;
+	int error, cwir;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
@@ -539,17 +539,8 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * in the future.
 	 */
 	if (rvnp != NULL) {
-		/*
-		 * Although unlikely, it is possible for filesystems to define
-		 * their own VOP_LOCK, so strictly speaking, we need to
-		 * conditionally pickup Giant around calls to vn_lock(9)
-		 */
-		locked = VFS_LOCK_GIANT(rvnp->v_mount);
-		vn_lock(rvnp, LK_EXCLUSIVE | LK_RETRY);
-		vdrop(rvnp);
 		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
-		VOP_UNLOCK(rvnp, 0);
-		VFS_UNLOCK_GIANT(locked);
+		vdrop(rvnp);
 		if (error) {
 			cpath[0] = '\0';
 			if (cvnp != NULL)
@@ -560,12 +551,8 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 		free(fbuf, M_TEMP);
 	}
 	if (cvnp != NULL) {
-		locked = VFS_LOCK_GIANT(cvnp->v_mount);
-		vn_lock(cvnp, LK_EXCLUSIVE | LK_RETRY);
-		vdrop(cvnp);
 		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
-		VOP_UNLOCK(cvnp, 0);
-		VFS_UNLOCK_GIANT(locked);
+		vdrop(cvnp);
 		if (error) {
 			cpath[0] = '\0';
 			return;
