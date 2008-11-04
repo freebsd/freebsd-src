@@ -392,7 +392,7 @@ zyd_intr_read_callback(struct usb2_xfer *xfer)
 		usb2_copy_out(xfer->frbuffers, 0,
 		    &sc->sc_intr_ibuf, actlen);
 
-		switch (htole16(cmd->code)) {
+		switch (le16toh(cmd->code)) {
 		case ZYD_NOTIF_RETRYSTATUS:
 			goto handle_notif_retrystatus;
 		case ZYD_NOTIF_IORD:
