@@ -268,7 +268,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	/*
 	 * Find upper node
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW | WANTPARENT | LOCKLEAF, UIO_SYSSPACE, target, td);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, target, td);
 	if ((error = namei(ndp)))
 		return (error);
 
@@ -277,9 +277,6 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	/* get root vnodes */
 	lowerrootvp = mp->mnt_vnodecovered;
 	upperrootvp = ndp->ni_vp;
-
-	vrele(ndp->ni_dvp);
-	ndp->ni_dvp = NULLVP;
 
 	/* create unionfs_mount */
 	ump = (struct unionfs_mount *)malloc(sizeof(struct unionfs_mount),
