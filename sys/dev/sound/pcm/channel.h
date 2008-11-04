@@ -258,11 +258,13 @@ int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
 #endif
 
 #ifdef	USING_MUTEX
+#define CHN_LOCK_OWNED(c) mtx_owned((struct mtx *)((c)->lock))
 #define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
 #define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
 #define CHN_TRYLOCK(c) mtx_trylock((struct mtx *)((c)->lock))
 #define CHN_LOCKASSERT(c) mtx_assert((struct mtx *)((c)->lock), MA_OWNED)
 #else
+#define CHN_LOCK_OWNED(c) 0
 #define CHN_LOCK(c)
 #define CHN_UNLOCK(c)
 #define CHN_TRYLOCK(c)
