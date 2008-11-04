@@ -142,14 +142,13 @@ substvar(const char * var, const struct passwd * pwd, int hlen, int pch, int nle
 	int	tildes = 0;
 	int	dollas = 0;
 	char	*p;
+	const char *q;
 
 	if (pwd != NULL) {
-	    /* Count the number of ~'s in var to substitute */
-	    for (p = (char *)var; (p = strchr(p, '~')) != NULL; p++)
-		++tildes;
-	    /* Count the number of $'s in var to substitute */
-	    for (p = (char *)var; (p = strchr(p, '$')) != NULL; p++)
-		++dollas;
+	    for (q = var; *q != '\0'; ++q) {
+		tildes += (*q == '~');
+		dollas += (*q == '$');
+	    }
 	}
 
 	np = malloc(strlen(var) + (dollas * nlen)
