@@ -1440,11 +1440,11 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = obj->shadow_count;
 			VM_OBJECT_UNLOCK(obj);
 			if (vp != NULL) {
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
 				cred = curthread->td_ucred;
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
 					kve->kve_fsid = va.va_fsid;
