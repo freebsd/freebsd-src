@@ -2537,10 +2537,9 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	freepath = NULL;
 	fullpath = "-";
 	FILEDESC_SUNLOCK(fdp);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vn_fullpath(curthread, vp, &fullpath, &freepath);
-	vput(vp);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	vrele(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
 	if (freepath != NULL)
@@ -2708,10 +2707,9 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			freepath = NULL;
 			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
-			vput(vp);
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			vrele(vp);
 			VFS_UNLOCK_GIANT(vfslocked);
 			strlcpy(kif->kf_path, fullpath,
 			    sizeof(kif->kf_path));
