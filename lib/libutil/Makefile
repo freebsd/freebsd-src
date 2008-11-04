@@ -15,6 +15,8 @@ SRCS=	_secure_path.c auth.c gr_util.c expand_number.c flopen.c fparseln.c \
 	stub.c trimdomain.c uucplock.c
 INCS=	libutil.h login_cap.h
 
+WARNS?=	6
+
 CFLAGS+= -DLIBC_SCCS
 
 .if ${MK_INET6_SUPPORT} != "no"
