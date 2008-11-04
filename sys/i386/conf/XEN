@@ -80,6 +80,7 @@ option		XEN
 nodevice	atpic
 nodevice	isa
 options		MCLSHIFT=12
+device		genclock
 
 # To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
