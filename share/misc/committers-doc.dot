@@ -66,6 +66,7 @@ nik [label="Nik Clayton\nnik@FreeBSD.org\n1998/02/26"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
 pgj [label="Gabor Pali\npgj@FreeBSD.org\n2008/04/21"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
+rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
@@ -116,6 +117,7 @@ nik -> bmah
 nik -> keramida
 
 remko -> jkois
+remko -> rene
 
 simon -> josef
 simon -> remko
