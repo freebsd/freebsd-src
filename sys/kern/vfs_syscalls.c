@@ -2734,7 +2734,7 @@ fchflags(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
@@ -2896,7 +2896,7 @@ fchmod(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
@@ -3074,7 +3074,7 @@ fchown(td, uap)
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
@@ -3311,7 +3311,7 @@ kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 		return (error);
 	vfslocked = VFS_LOCK_GIANT(fp->f_vnode->v_mount);
 #ifdef AUDIT
-	vn_lock(fp->f_vnode, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(fp->f_vnode, LK_SHARED | LK_RETRY);
 	AUDIT_ARG(vnode, fp->f_vnode, ARG_VNODE1);
 	VOP_UNLOCK(fp->f_vnode, 0);
 #endif
