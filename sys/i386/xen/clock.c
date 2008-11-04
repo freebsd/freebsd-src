@@ -908,27 +908,3 @@ idle_block(void)
 	PANIC_IF(HYPERVISOR_set_timer_op(processed_system_time + NS_PER_TICK) != 0);
 	HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
-
-int
-timer_spkr_acquire(void)
-{
-
-	return (0);
-}
-
-int
-timer_spkr_release(void)
-{
-
-	return (0);
-}
-
-void
-timer_spkr_setfreq(int freq)
-{
-
-}
-
-
-	
-	

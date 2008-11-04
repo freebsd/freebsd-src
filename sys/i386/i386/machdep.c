@@ -1218,7 +1218,7 @@ void
 cpu_idle(void)
 {
 
-#ifdef SMP
+#if defined(SMP) && !defined(XEN)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif

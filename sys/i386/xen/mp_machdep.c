@@ -154,40 +154,6 @@ extern void Xhypervisor_callback(void);
 extern void failsafe_callback(void);
 extern void pmap_lazyfix_action(void);
 
-struct cpu_group *
-cpu_topo(void)
-{
-	if (cpu_cores == 0)
-		cpu_cores = 1;
-	if (cpu_logical == 0)
-		cpu_logical = 1;
-	if (mp_ncpus % (cpu_cores * cpu_logical) != 0) {
-		printf("WARNING: Non-uniform processors.\n");
-		printf("WARNING: Using suboptimal topology.\n");
-		return (smp_topo_none());
-	}
-	/*
-	 * No multi-core or hyper-threaded.
-	 */
-	if (cpu_logical * cpu_cores == 1)
-		return (smp_topo_none());
-	/*
-	 * Only HTT no multi-core.
-	 */
-	if (cpu_logical > 1 && cpu_cores == 1)
-		return (smp_topo_1level(CG_SHARE_L1, cpu_logical, CG_FLAG_HTT));
-	/*
-	 * Only multi-core no HTT.
-	 */
-	if (cpu_cores > 1 && cpu_logical == 1)
-		return (smp_topo_1level(CG_SHARE_NONE, cpu_cores, 0));
-	/*
-	 * Both HTT and multi-core.
-	 */
-	return (smp_topo_2level(CG_SHARE_NONE, cpu_cores,
-	    CG_SHARE_L1, cpu_logical, CG_FLAG_HTT));
-}
-
 /*
  * Calculate usable address in base memory for AP trampoline code.
  */
@@ -381,7 +347,12 @@ smp_reschedule_interrupt(void *unused)
 #ifdef COUNT_IPIS
 		(*ipi_preempt_counts[cpu])++;
 #endif
-		sched_preempt(curthread);
+		thread_lock(curthread);
+		if (curthread->td_critnest > 1) 
+			curthread->td_owepreempt = 1;
+		else 		
+			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
+		thread_unlock(curthread);
 	}
 
 	if (ipi_bitmap & (1 << IPI_AST)) {
