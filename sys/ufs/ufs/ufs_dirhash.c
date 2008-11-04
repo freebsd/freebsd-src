@@ -181,7 +181,16 @@ ufsdirhash_create(struct inode *ip)
 			if (ndh == NULL)
 				return (NULL);
 			refcount_init(&ndh->dh_refcount, 1);
-			sx_init(&ndh->dh_lock, "dirhash");
+
+			/*
+			 * The DUPOK is to prevent warnings from the
+			 * sx_slock() a few lines down which is safe
+			 * since the duplicate lock in that case is
+			 * the one for this dirhash we are creating
+			 * now which has no external references until
+			 * after this function returns.
+			 */
+			sx_init_flags(&ndh->dh_lock, "dirhash", SX_DUPOK);
 			sx_xlock(&ndh->dh_lock);
 		}
 		/*
