@@ -392,10 +392,10 @@ zyd_intr_read_callback(struct usb2_xfer *xfer)
 		usb2_copy_out(xfer->frbuffers, 0,
 		    &sc->sc_intr_ibuf, actlen);
 
-		switch (cmd->code) {
-		case htole16(ZYD_NOTIF_RETRYSTATUS):
+		switch (htole16(cmd->code)) {
+		case ZYD_NOTIF_RETRYSTATUS:
 			goto handle_notif_retrystatus;
-		case htole16(ZYD_NOTIF_IORD):
+		case ZYD_NOTIF_IORD:
 			goto handle_notif_iord;
 		default:
 			DPRINTFN(2, "unknown indication: 0x%04x\n",
