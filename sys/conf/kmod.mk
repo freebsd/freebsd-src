@@ -331,6 +331,7 @@ MFILES?= dev/acpica/acpi_if.m dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if
 	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m \
 	dev/sound/midi/mpu_if.m dev/sound/midi/mpufoi_if.m \
 	dev/sound/midi/synth_if.m dev/usb/usb_if.m isa/isa_if.m \
+	dev/usb2/core/usb2_if.m \
 	kern/bus_if.m kern/clock_if.m \
 	kern/cpufreq_if.m kern/device_if.m kern/serdev_if.m \
 	libkern/iconv_converter_if.m opencrypto/cryptodev_if.m \
