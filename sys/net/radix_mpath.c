@@ -36,6 +36,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/param.h>
@@ -308,6 +309,7 @@ rtalloc_mpath_fib(struct route *ro, u_int32_t hash, u_int fibnum)
 extern int	in6_inithead(void **head, int off);
 extern int	in_inithead(void **head, int off);
 
+#ifdef INET
 int
 rn4_mpath_inithead(void **head, int off)
 {
@@ -321,6 +323,7 @@ rn4_mpath_inithead(void **head, int off)
 	} else
 		return 0;
 }
+#endif
 
 #ifdef INET6
 int
