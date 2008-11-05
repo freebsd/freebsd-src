@@ -1103,6 +1103,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	int credflavor;
 	int vfslocked;
 	int numsecflavors, *secflavors;
+	int authsys;
 	int v3 = nfsd->nd_flag & ND_NFSV3;
 	int mountreq;
 
@@ -1123,6 +1124,15 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
 	    &numsecflavors, &secflavors);
 	if (error)
 		goto out;
+	if (numsecflavors == 0) {
+		/*
+		 * This can happen if the system is running with an
+		 * old mountd that doesn't pass in a secflavor list.
+		 */
+		numsecflavors = 1;
+		authsys = RPCAUTH_UNIX;
+		secflavors = &authsys;
+	}
 	credflavor = nfsd->nd_credflavor;
 	for (i = 0; i < numsecflavors; i++) {
 		if (secflavors[i] == credflavor)
