@@ -15,6 +15,7 @@ CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/head
 CFLAGS+= -I${.CURDIR}/..
+CFLAGS+= -DNEED_SOLARIS_BOOLEAN
 
 all: ${OBJS}
 CLEANFILES= ${OBJS}
