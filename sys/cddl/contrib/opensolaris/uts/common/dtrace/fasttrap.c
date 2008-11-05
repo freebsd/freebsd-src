@@ -2044,13 +2044,6 @@ err:
 			    tp->ftt_proc->ftpc_acount != 0)
 				break;
 
-			/*
-			 * The count of active providers can only be
-			 * decremented (i.e. to zero) during exec, exit, and
-			 * removal of a meta provider so it should be
-			 * impossible to drop the count during this operation().
-			 */
-			ASSERT(tp->ftt_proc->ftpc_acount != 0);
 			tp = tp->ftt_next;
 		}
 

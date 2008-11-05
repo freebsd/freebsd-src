@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 
+#define KMEM_DEBUG
+
 #ifdef KMEM_DEBUG
 #include <sys/queue.h>
 #include <sys/stack.h>
@@ -93,6 +95,10 @@ void
 zfs_kmem_free(void *buf, size_t size __unused)
 {
 #ifdef KMEM_DEBUG
+	if (buf == NULL) {
+		printf("%s: attempt to free NULL\n",__func__);
+		return;
+	}
 	struct kmem_item *i;
 
 	buf = (u_char *)buf - sizeof(struct kmem_item);
@@ -236,7 +242,8 @@ calloc(size_t n, size_t s)
 }
 
 #ifdef KMEM_DEBUG
-static void
+void kmem_show(void *);
+void
 kmem_show(void *dummy __unused)
 {
 	struct kmem_item *i;
@@ -248,12 +255,10 @@ kmem_show(void *dummy __unused)
 		printf("KMEM_DEBUG: Leaked elements:\n\n");
 		LIST_FOREACH(i, &kmem_items, next) {
 			printf("address=%p\n", i);
-			stack_print(&i->stack);
-			printf("\n");
 		}
 	}
 	mtx_unlock(&kmem_items_mtx);
 }
 
-SYSUNINIT(sol_kmem, SI_SUB_DRIVERS, SI_ORDER_FIRST, kmem_show, NULL);
+SYSUNINIT(sol_kmem, SI_SUB_CPU, SI_ORDER_FIRST, kmem_show, NULL);
 #endif	/* KMEM_DEBUG */
