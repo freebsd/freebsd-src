@@ -3007,6 +3007,9 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 	case DIF_VAR_EXECARGS: {
 		struct pargs *p_args = curthread->td_proc->p_args;
 
+		if (p_args == NULL)
+			return(0);
+
 		return (dtrace_dif_varstrz(
 		    (uintptr_t) p_args->ar_args, p_args->ar_length, state, mstate));
 	}
@@ -10598,7 +10601,6 @@ dtrace_buffer_alloc(dtrace_buffer_t *bufs, size_t size, int flags,
 		/*
 		 * If there is already a buffer allocated for this CPU, it
 		 * is only possible that this is a DR event.  In this case,
-		 * the buffer size must match our specified size.
 		 */
 		if (buf->dtb_tomax != NULL) {
 			ASSERT(buf->dtb_size == size);
@@ -12815,11 +12817,7 @@ dtrace_state_create(struct cdev *dev)
 	state = ddi_get_soft_state(dtrace_softstate, minor);
 #else
 	if (dev != NULL) {
-		/*
-		 * Disable this until we have the ability to set user
-		 * credentials for DTrace.
-		 * cr = dev->si_cred;
-		 */
+		cr = dev->si_cred;
 		m = dev2unit(dev);
 		}
 
@@ -15241,6 +15239,15 @@ dtrace_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 }
 #endif
 
+#if !defined(sun)
+#if __FreeBSD_version >= 800039
+static void
+dtrace_dtr(void *data __unused)
+{
+}
+#endif
+#endif
+
 /*ARGSUSED*/
 static int
 #if defined(sun)
@@ -15266,6 +15273,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #else
 	cred_t *cred_p = NULL;
 
+#if __FreeBSD_version < 800039
 	/*
 	 * The first minor device is the one that is cloned so there is
 	 * nothing more to do here.
@@ -15281,6 +15289,7 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	 */
 	if (dev->si_drv1 != NULL)
 		return (EBUSY);
+#endif
 
 	cred_p = dev->si_cred;
 #endif
@@ -15292,8 +15301,10 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	dtrace_cred2priv(cred_p, &priv, &uid, &zoneid);
 	if (priv == DTRACE_PRIV_NONE) {
 #if !defined(sun)
+#if __FreeBSD_version < 800039
 		/* Destroy the cloned device. */
                 destroy_dev(dev);
+#endif
 #endif
 
 		return (EACCES);
@@ -15326,7 +15337,11 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	state = dtrace_state_create(devp, cred_p);
 #else
 	state = dtrace_state_create(dev);
+#if __FreeBSD_version < 800039
 	dev->si_drv1 = state;
+#else
+	devfs_set_cdevpriv(state, dtrace_dtr);
+#endif
 #endif
 
 	mutex_exit(&cpu_lock);
@@ -15340,8 +15355,10 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #endif
 		mutex_exit(&dtrace_lock);
 #if !defined(sun)
+#if __FreeBSD_version < 800039
 		/* Destroy the cloned device. */
                 destroy_dev(dev);
+#endif
 #endif
 		return (EAGAIN);
 	}
@@ -15368,11 +15385,16 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 
 	state = ddi_get_soft_state(dtrace_softstate, minor);
 #else
+#if __FreeBSD_version < 800039
 	dtrace_state_t *state = dev->si_drv1;
 
 	/* Check if this is not a cloned device. */
 	if (dev2unit(dev) == 0)
 		return (0);
+#else
+	dtrace_state_t *state;
+	devfs_get_cdevpriv((void **) &state);
+#endif
 
 #endif
 
@@ -15392,7 +15414,11 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 
 #if !defined(sun)
 		kmem_free(state, 0);
+#if __FreeBSD_version < 800039
 		dev->si_drv1 = NULL;
+#else
+		devfs_clear_cdevpriv();
+#endif
 #endif
 	}
 
@@ -15407,8 +15433,10 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&cpu_lock);
 
+#if __FreeBSD_version < 800039
 	/* Schedule this cloned device to be destroyed. */
 	destroy_dev_sched(dev);
+#endif
 
 	return (0);
 }
@@ -16442,16 +16470,20 @@ _fini(void)
 static d_ioctl_t	dtrace_ioctl;
 static void		dtrace_load(void *);
 static int		dtrace_unload(void);
+#if __FreeBSD_version < 800039
 static void		dtrace_clone(void *, struct ucred *, char *, int , struct cdev **);
 static struct clonedevs	*dtrace_clones;		/* Ptr to the array of cloned devices. */
 static eventhandler_tag	eh_tag;			/* Event handler tag. */
+#else
+static struct cdev	*dtrace_dev;
+#endif
 
 void dtrace_invop_init(void);
 void dtrace_invop_uninit(void);
 
 static struct cdevsw dtrace_cdevsw = {
 	.d_version	= D_VERSION,
-	.d_flags	= D_NEEDMINOR,
+	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
 	.d_close	= dtrace_close,
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
@@ -16459,7 +16491,9 @@ static struct cdevsw dtrace_cdevsw = {
 };
 
 #include <dtrace_anon.c>
+#if __FreeBSD_version < 800039
 #include <dtrace_clone.c>
+#endif
 #include <dtrace_ioctl.c>
 #include <dtrace_load.c>
 #include <dtrace_modevent.c>
