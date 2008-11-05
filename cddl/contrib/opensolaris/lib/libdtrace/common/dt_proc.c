@@ -955,7 +955,8 @@ dt_proc_create_thread(dtrace_hdl_t *dtp, dt_proc_t *dpr, uint_t stop)
 }
 
 struct ps_prochandle *
-dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv)
+dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
+    proc_child_func *pcf, void *child_arg)
 {
 	dt_proc_hash_t *dph = dtp->dt_procs;
 	dt_proc_t *dpr;
@@ -981,7 +982,7 @@ dt_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv)
 #else
 	(void) proc_clearflags(dpr->dpr_proc, PR_RLC);
 	(void) proc_setflags(dpr->dpr_proc, PR_KLC);
-	if ((err = proc_create(file, argv, &dpr->dpr_proc)) != 0)
+	if ((err = proc_create(file, argv, pcf, child_arg, &dpr->dpr_proc)) != 0)
 		return (dt_proc_error(dtp, dpr,
 		    "failed to execute %s: %s\n", file, strerror(err)));
 	dpr->dpr_hdl = dtp;
@@ -1183,10 +1184,11 @@ dt_proc_hash_destroy(dtrace_hdl_t *dtp)
 }
 
 struct ps_prochandle *
-dtrace_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv)
+dtrace_proc_create(dtrace_hdl_t *dtp, const char *file, char *const *argv,
+    proc_child_func *pcf, void *child_arg)
 {
 	dt_ident_t *idp = dt_idhash_lookup(dtp->dt_macros, "target");
-	struct ps_prochandle *P = dt_proc_create(dtp, file, argv);
+	struct ps_prochandle *P = dt_proc_create(dtp, file, argv, pcf, child_arg);
 
 	if (P != NULL && idp != NULL && idp->di_id == 0)
 #if defined(sun)
