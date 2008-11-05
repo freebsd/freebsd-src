@@ -494,7 +494,7 @@ test_assert_empty_file(const char *f1fmt, ...)
 	if (fd < 0) {
 		fprintf(stderr, "    Unable to open %s\n", f1);
 	} else {
-		s = (sizeof(buff) < (size_t)st.st_size) ?
+		s = ((off_t)sizeof(buff) < st.st_size) ?
 		    (ssize_t)sizeof(buff) : (ssize_t)st.st_size;
 		s = read(fd, buff, s);
 		hexdump(buff, NULL, s, 0);
