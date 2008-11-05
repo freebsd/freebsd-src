@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2008
+.Dd November 5, 2008
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -266,9 +266,12 @@ capabilities and jack sense status to console and syslog.
 .Sh EXAMPLES
 Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example. It has two
 audio connectors on a front side, three audio connectors on a rear side and one
-internal speaker. Codec has five stereo DACs and two ADCs, all are routable to
-any pin. All codec pins are reversible.
+internal speaker. According to verbose driver output and codec datasheet,
+codec has five stereo DACs and two stereo ADCs, all of them are routable to
+any codec pin (external connector). All codec pins are reversible.
 .Pp
+So high codec uniformity and flexibility allow driver to configure it in many
+deferent ways, depending on requested pins usage decribed by pins configuration.
 Driver reports such default pin configuration when verbose messages enabled:
 .Bd -literal
 hdac0: nid 20 0x01014020 as  2 seq  0   Line-out  Jack jack 1 loc  1 color   Green misc 0
@@ -284,9 +287,15 @@ hdac0: nid 30 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Bla
 hdac0: nid 31 0x411111f0 as 15 seq  0    Speaker  None jack 1 loc  1 color   Black misc 1
 .Ed
 .Pp
-Pins with nid 21,23,28,30 and 31 are disabled due to "None" connectivity, so
-total pin count matches - six. All present pins by default are grouped into 3
-associations:
+Here we can see, that the nodes with ID (nid) 25 and 27 are front pannel
+connectors (Jack, loc 2), nids 20, 24 and 26 are rear pannel connectors
+(Jack, loc 1) and nid 21 is a built-in speaker (Fixed, loc 25).
+Pins with nids 22, 23, 28, 30 and 31 will be disabled by driver due to "None"
+connectivity. So the pin count and description matches to connectors that
+we have.
+.Pp
+Using association (as) and sequence (seq) fields values pins are grouped into
+3 associations:
 .Bd -literal
 hdac0: Association 0 (1) out:
 hdac0:   Pin nid=21 seq=0
@@ -299,10 +308,21 @@ hdac0:   Pin nid=26 seq=1
 hdac0:   Pin nid=25 seq=15
 .Ed
 .Pp
-It means that by default pcm0 device will play to the internal speaker and
-headphones jack with speaker automute on headphones connection.
-Recording on pcm0 will go from two external microphones and line-in jack.
-pcm1 playback will go to the Line-out jack.
+Each pcm device uses two associations: one for playback and one for recording.
+Associations processed and assigned to pcm devices in order of their numbers.
+It means that association #0 (1) will become pcm0 device playback, using
+internal speaker and headphones jack with speaker automute on headphones
+connection.
+Association #1 (2) will become pcm1 playback, using the Line-out jack.
+Association #2 (3) will become pcm0 recording, using external microphones and
+line-in jack.
+.Pp
+Driver provides extensive set of verbose messages to diagnose it's operation
+logic and description of resulted codec configuration.
+.Pp
+Using device.hints it is possible to modify existing pins configuration to
+create broad range of different audio setups. Here is examples of some setups
+possible for the described hardware:
 .Ss Example 1
 Setting
 .Bd -literal
