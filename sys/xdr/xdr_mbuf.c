@@ -119,7 +119,10 @@ xdrmbuf_getall(XDR *xdrs)
 		xdrs->x_private = NULL;
 	}
 
-	m_adj(m, xdrs->x_handy);
+	if (m)
+		m_adj(m, xdrs->x_handy);
+	else
+		MGET(m, M_WAITOK, MT_DATA);
 	return (m);
 }
 
