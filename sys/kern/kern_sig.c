@@ -2115,15 +2115,19 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 			 * Otherwise, process goes back to sleep state.
 			 */
 			p->p_flag &= ~P_STOPPED_SIG;
+			PROC_SLOCK(p);
 			if (p->p_numthreads == p->p_suspcount) {
+				PROC_SUNLOCK(p);
 				p->p_flag |= P_CONTINUED;
 				p->p_xstat = SIGCONT;
 				PROC_LOCK(p->p_pptr);
 				childproc_continued(p);
 				PROC_UNLOCK(p->p_pptr);
+				PROC_SLOCK(p);
 			}
 			if (action == SIG_DFL) {
 				thread_unsuspend(p);
+				PROC_SUNLOCK(p);
 				sigqueue_delete(sigqueue, sig);
 				goto out;
 			}
@@ -2132,12 +2136,14 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 * The process wants to catch it so it needs
 				 * to run at least one thread, but which one?
 				 */
+				PROC_SUNLOCK(p);
 				goto runfast;
 			}
 			/*
 			 * The signal is not ignored or caught.
 			 */
 			thread_unsuspend(p);
+			PROC_SUNLOCK(p);
 			goto out;
 		}
 
@@ -2161,10 +2167,12 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 * It may run a bit until it hits a thread_suspend_check().
 		 */
 		wakeup_swapper = 0;
+		PROC_SLOCK(p);
 		thread_lock(td);
 		if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR))
 			wakeup_swapper = sleepq_abort(td, intrval);
 		thread_unlock(td);
+		PROC_SUNLOCK(p);
 		if (wakeup_swapper)
 			kick_proc0();
 		goto out;
@@ -2185,6 +2193,7 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
+			PROC_SLOCK(p);
 			sig_suspend_threads(td, p, 1);
 			if (p->p_numthreads == p->p_suspcount) {
 				/*
@@ -2195,8 +2204,10 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 				 * should never be equal to p_suspcount.
 				 */
 				thread_stopped(p);
+				PROC_SUNLOCK(p);
 				sigqueue_delete_proc(p, p->p_xstat);
-			}
+			} else
+				PROC_SUNLOCK(p);
 			goto out;
 		}
 	} else {
@@ -2211,8 +2222,12 @@ tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 runfast:
 	tdsigwakeup(td, sig, action, intrval);
+	PROC_SLOCK(p);
 	thread_unsuspend(p);
+	PROC_SUNLOCK(p);
 out:
+	/* If we jump here, proc slock should not be owned. */
+	PROC_SLOCK_ASSERT(p, MA_NOTOWNED);
 	return (ret);
 }
 
@@ -2232,6 +2247,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	prop = sigprop(sig);
 
+	PROC_SLOCK(p);
 	thread_lock(td);
 	/*
 	 * Bring the priority of a thread up if we want it to get
@@ -2255,6 +2271,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 		 */
 		if ((prop & SA_CONT) && action == SIG_DFL) {
 			thread_unlock(td);
+			PROC_SUNLOCK(p);
 			sigqueue_delete(&p->p_sigqueue, sig);
 			/*
 			 * It may be on either list in this state.
@@ -2283,6 +2300,7 @@ tdsigwakeup(struct thread *td, int sig, sig_t action, int intrval)
 #endif
 	}
 out:
+	PROC_SUNLOCK(p);
 	thread_unlock(td);
 	if (wakeup_swapper)
 		kick_proc0();
@@ -2294,6 +2312,7 @@ sig_suspend_threads(struct thread *td, struct proc *p, int sending)
 	struct thread *td2;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 
 	FOREACH_THREAD_IN_PROC(p, td2) {
 		thread_lock(td2);
@@ -2325,9 +2344,11 @@ ptracestop(struct thread *td, int sig)
 
 	td->td_dbgflags |= TDB_XSIG;
 	td->td_xsig = sig;
+	PROC_SLOCK(p);
 	while ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_XSIG)) {
 		if (p->p_flag & P_SINGLE_EXIT) {
 			td->td_dbgflags &= ~TDB_XSIG;
+			PROC_SUNLOCK(p);
 			return (sig);
 		}
 		/*
@@ -2349,6 +2370,7 @@ stopme:
 			goto stopme;
 		}
 	}
+	PROC_SUNLOCK(p);
 	return (td->td_xsig);
 }
 
@@ -2489,8 +2511,10 @@ issignal(td)
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
 				p->p_flag |= P_STOPPED_SIG;
 				p->p_xstat = sig;
+				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
 				thread_suspend_switch(td);
+				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
 				break;
 			} else if (prop & SA_IGNORE) {
@@ -2532,15 +2556,18 @@ thread_stopped(struct proc *p)
 	int n;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	n = p->p_suspcount;
 	if (p == curproc)
 		n++;
 	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
+		PROC_SUNLOCK(p);
 		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
 		childproc_stopped(p, (p->p_flag & P_TRACED) ?
 			CLD_TRAPPED : CLD_STOPPED);
 		PROC_UNLOCK(p->p_pptr);
+		PROC_SLOCK(p);
 	}
 }
  
