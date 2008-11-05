@@ -372,8 +372,10 @@ static void sppp_chap_scr(struct sppp *sp);
 
 static const char *sppp_auth_type_name(u_short proto, u_char type);
 static const char *sppp_cp_type_name(u_char type);
+#ifdef INET
 static const char *sppp_dotted_quad(u_long addr);
 static const char *sppp_ipcp_opt_name(u_char opt);
+#endif
 #ifdef INET6
 static const char *sppp_ipv6cp_opt_name(u_char opt);
 #endif
@@ -388,7 +390,9 @@ static void sppp_phase_network(struct sppp *sp);
 static void sppp_print_bytes(const u_char *p, u_short len);
 static void sppp_print_string(const char *p, u_short len);
 static void sppp_qflush(struct ifqueue *ifq);
+#ifdef INET
 static void sppp_set_ip_addr(struct sppp *sp, u_long src);
+#endif
 #ifdef INET6
 static void sppp_get_ip6_addrs(struct sppp *sp, struct in6_addr *src,
 			       struct in6_addr *dst, struct in6_addr *srcmask);
@@ -523,9 +527,11 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct ppp_header *h;
 	int isr = -1;
 	struct sppp *sp = IFP2SP(ifp);
+	int debug, do_account = 0;
+#ifdef INET
+	int hlen, vjlen;
 	u_char *iphdr;
-	int hlen, vjlen, do_account = 0;
-	int debug;
+#endif
 
 	SPPP_LOCK(sp);
 	debug = ifp->if_flags & IFF_DEBUG;
@@ -800,7 +806,9 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct ppp_header *h;
 	struct ifqueue *ifq = NULL;
 	int s, error, rv = 0;
+#ifdef INET
 	int ipproto = PPP_IP;
+#endif
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
@@ -2884,6 +2892,7 @@ sppp_lcp_check_and_close(struct sppp *sp)
  *--------------------------------------------------------------------------*
  */
 
+#ifdef INET
 static void
 sppp_ipcp_init(struct sppp *sp)
 {
@@ -3362,6 +3371,78 @@ sppp_ipcp_scr(struct sppp *sp)
 	sp->confid[IDX_IPCP] = ++sp->pp_seq[IDX_IPCP];
 	sppp_cp_send(sp, PPP_IPCP, CONF_REQ, sp->confid[IDX_IPCP], i, &opt);
 }
+#else /* !INET */
+static void
+sppp_ipcp_init(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_up(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_down(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_open(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_close(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_TO(void *cookie)
+{
+}
+
+static int
+sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
+{
+	return (0);
+}
+
+static void
+sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
+{
+}
+
+static void
+sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
+{
+}
+
+static void
+sppp_ipcp_tlu(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_tld(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_tls(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_tlf(struct sppp *sp)
+{
+}
+
+static void
+sppp_ipcp_scr(struct sppp *sp)
+{
+}
+#endif
 
 /*
  *--------------------------------------------------------------------------*
@@ -4869,6 +4950,7 @@ sppp_get_ip_addrs(struct sppp *sp, u_long *src, u_long *dst, u_long *srcmask)
 	if (src) *src = ntohl(ssrc);
 }
 
+#ifdef INET
 /*
  * Set my IP address.  Must be called at splimp.
  */
@@ -4922,6 +5004,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		}
 	}
 }
+#endif
 
 #ifdef INET6
 /*
@@ -5292,6 +5375,7 @@ sppp_lcp_opt_name(u_char opt)
 	return buf;
 }
 
+#ifdef INET
 static const char *
 sppp_ipcp_opt_name(u_char opt)
 {
@@ -5304,6 +5388,7 @@ sppp_ipcp_opt_name(u_char opt)
 	snprintf (buf, sizeof(buf), "ipcp/0x%x", opt);
 	return buf;
 }
+#endif
 
 #ifdef INET6
 static const char *
@@ -5389,6 +5474,7 @@ sppp_print_string(const char *p, u_short len)
 	}
 }
 
+#ifdef INET
 static const char *
 sppp_dotted_quad(u_long addr)
 {
@@ -5400,6 +5486,7 @@ sppp_dotted_quad(u_long addr)
 		(int)(addr & 0xff));
 	return s;
 }
+#endif
 
 static int
 sppp_strnlen(u_char *p, int max)
