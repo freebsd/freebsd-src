@@ -48,7 +48,7 @@ typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
  * Used by loaded syscalls to convert arguments to a DTrace array
  * of 64-bit arguments.
  */
-typedef	void (*systrace_args_func_t)(void *, u_int64_t *, int *);
+typedef	void (*systrace_args_func_t)(int, void *, u_int64_t *, int *);
 
 extern systrace_probe_func_t	systrace_probe_func;
 

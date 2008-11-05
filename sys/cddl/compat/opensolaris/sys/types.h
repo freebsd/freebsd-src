@@ -64,12 +64,13 @@ typedef	void		pathname_t;
 typedef	int64_t		rlim64_t;
 
 #else
-
+#ifdef NEED_SOLARIS_BOOLEAN
 #if defined(__XOPEN_OR_POSIX)
 typedef enum { _B_FALSE, _B_TRUE }	boolean_t;
 #else
 typedef enum { B_FALSE, B_TRUE }	boolean_t;
 #endif /* defined(__XOPEN_OR_POSIX) */
+#endif
 
 typedef	longlong_t	offset_t;
 typedef	u_longlong_t	u_offset_t;
