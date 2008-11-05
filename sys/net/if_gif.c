@@ -207,7 +207,9 @@ static void
 gif_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
+#if defined(INET) || defined(INET6)
 	int err;
+#endif
 	struct gif_softc *sc = ifp->if_softc;
 
 	mtx_lock(&gif_mtx);
