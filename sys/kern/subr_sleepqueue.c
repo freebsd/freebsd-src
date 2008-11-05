@@ -395,7 +395,6 @@ sleepq_catch_signals(void *wchan, int pri)
 		sleepq_switch(wchan, pri);
 		return (0);
 	}
-
 	thread_unlock(td);
 	mtx_unlock_spin(&sc->sc_lock);
 	CTR3(KTR_PROC, "sleepq catching signals: thread %p (pid %ld, %s)",
@@ -415,15 +414,16 @@ sleepq_catch_signals(void *wchan, int pri)
 			ret = ERESTART;
 		mtx_unlock(&ps->ps_mtx);
 	}
-
+	/*
+	 * Lock the per-process spinlock prior to dropping the PROC_LOCK
+	 * to avoid a signal delivery race.  PROC_LOCK, PROC_SLOCK, and
+	 * thread_lock() are currently held in tdsignal().
+	 */
+	PROC_SLOCK(p);
 	mtx_lock_spin(&sc->sc_lock);
-	thread_lock(td);
 	PROC_UNLOCK(p);
-	if (ret == 0) {
-		sleepq_switch(wchan, pri);
-		return (0);
-	}
-
+	thread_lock(td);
+	PROC_SUNLOCK(p);
 	/*
 	 * There were pending signals and this thread is still
 	 * on the sleep queue, remove it from the sleep queue.

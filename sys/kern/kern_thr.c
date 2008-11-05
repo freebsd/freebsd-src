@@ -286,6 +286,7 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 
 	PROC_LOCK(p);
 	sigqueue_flush(&td->td_sigqueue);
+	PROC_SLOCK(p);
 
 	/*
 	 * Shutting down last thread in the proc.  This will actually
@@ -293,10 +294,10 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 	 */
 	if (p->p_numthreads != 1) {
 		thread_stopped(p);
-		PROC_SLOCK(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
+	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	return (0);
 }
