@@ -1278,6 +1278,7 @@ options 	SES_ENABLE_PASSTHROUGH
 device		pty		#BSD-style compatibility pseudo ttys
 device		nmdm		#back-to-back tty devices
 device		md		#Memory/malloc disk
+device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd		#Concatenated disk driver
 device		firmware	#firmware(9) support
 

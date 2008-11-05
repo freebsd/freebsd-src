@@ -1,609 +1,318 @@
 /*-
- * Copyright (c) 1995 Ugen J.S.Antsilevich
+ * Copyright (c) 2008 Ed Schouten <ed@FreeBSD.org>
+ * All rights reserved.
  *
- * Redistribution and use in source forms, with and without modification,
- * are permitted provided that this entire comment appears intact.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * Redistribution in binary form may occur without any restrictions.
- * Obviously, it would be nice if you gave credit where credit is due
- * but requiring it would be too onerous.
- *
- * This software is provided ``AS IS'' without any warranties of any kind.
- *
- * Snoop stuff.
- *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
-#include <sys/malloc.h>
-#include <sys/tty.h>
-#include <sys/conf.h>
-#include <sys/poll.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/queue.h>
+#include <sys/poll.h>
 #include <sys/snoop.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
+#include <sys/tty.h>
 #include <sys/uio.h>
-#include <sys/file.h>
-#include <sys/vnode.h>
 
-static	l_close_t	snplclose;
-static	l_write_t	snplwrite;
-static	d_open_t	snpopen;
-static	d_read_t	snpread;
-static	d_write_t	snpwrite;
-static	d_ioctl_t	snpioctl;
-static	d_poll_t	snppoll;
+static struct cdev	*snp_dev;
+/* XXX: should be mtx, but TTY can be locked by Giant. */
+static struct sx	snp_register_lock;
+SX_SYSINIT(snp_register_lock, &snp_register_lock,
+    "tty snoop registration");
+static MALLOC_DEFINE(M_SNP, "snp", "tty snoop device");
+
+/*
+ * There is no need to have a big input buffer. In most typical setups,
+ * we won't inject much data into the TTY, because users can't type
+ * really fast.
+ */
+#define SNP_INPUT_BUFSIZE	16
+/*
+ * The output buffer has to be really big. Right now we don't support
+ * any form of flow control, which means we lost any data we can't
+ * accept. We set the output buffer size to about twice the size of a
+ * pseudo-terminal/virtual console's output buffer.
+ */
+#define SNP_OUTPUT_BUFSIZE	16384
+
+static d_open_t		snp_open;
+static d_read_t		snp_read;
+static d_write_t	snp_write;
+static d_ioctl_t	snp_ioctl;
+static d_poll_t		snp_poll;
 
 static struct cdevsw snp_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDGIANT,
-	.d_open =	snpopen,
-	.d_read =	snpread,
-	.d_write =	snpwrite,
-	.d_ioctl =	snpioctl,
-	.d_poll =	snppoll,
-	.d_name =	"snp",
+	.d_version	= D_VERSION,
+	.d_open		= snp_open,
+	.d_read		= snp_read,
+	.d_write	= snp_write,
+	.d_ioctl	= snp_ioctl,
+	.d_poll		= snp_poll,
+	.d_name		= "snp",
 };
 
-static struct linesw snpdisc = {
-	.l_open =	tty_open,
-	.l_close =	snplclose,
-	.l_read =	ttread,
-	.l_write =	snplwrite,
-	.l_ioctl =	l_nullioctl,
-	.l_rint =	ttyinput,
-	.l_start =	ttstart,
-	.l_modem =	ttymodem
+static th_getc_capture_t	snp_getc_capture;
+
+static struct ttyhook snp_hook = {
+	.th_getc_capture	= snp_getc_capture,
 };
 
 /*
- * This is the main snoop per-device structure.
+ * Per-instance structure.
+ *
+ * List of locks
+ * (r)	locked by snp_register_lock on assignment
+ * (t)	locked by tty_lock
  */
-struct snoop {
-	LIST_ENTRY(snoop)	snp_list;	/* List glue. */
-	struct cdev *snp_target;	/* Target tty device. */
-	struct tty		*snp_tty;	/* Target tty pointer. */
-	u_long			 snp_len;	/* Possible length. */
-	u_long			 snp_base;	/* Data base. */
-	u_long			 snp_blen;	/* Used length. */
-	caddr_t			 snp_buf;	/* Allocation pointer. */
-	int			 snp_flags;	/* Flags. */
-	struct selinfo		 snp_sel;	/* Select info. */
-	int			 snp_olddisc;	/* Old line discipline. */
+struct snp_softc {
+	struct tty	*snp_tty;	/* (r) TTY we're snooping. */
+	struct ttyoutq	snp_outq;	/* (t) Output queue. */
+	struct cv	snp_outwait;	/* (t) Output wait queue. */
+	struct selinfo	snp_outpoll;	/* (t) Output polling. */
 };
-
-/*
- * Possible flags.
- */
-#define SNOOP_ASYNC		0x0002
-#define SNOOP_OPEN		0x0004
-#define SNOOP_RWAIT		0x0008
-#define SNOOP_OFLOW		0x0010
-#define SNOOP_DOWN		0x0020
-
-/*
- * Other constants.
- */
-#define SNOOP_MINLEN		(4*1024)	/* This should be power of 2.
-						 * 4K tested to be the minimum
-						 * for which on normal tty
-						 * usage there is no need to
-						 * allocate more.
-						 */
-#define SNOOP_MAXLEN		(64*1024)	/* This one also,64K enough
-						 * If we grow more,something
-						 * really bad in this world..
-						 */
-
-static MALLOC_DEFINE(M_SNP, "snp", "Snoop device data");
-/*
- * The number of the "snoop" line discipline.  This gets determined at
- * module load time.
- */
-static int snooplinedisc;
-static struct cdev *snoopdev;
-
-static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
-
-static struct tty	*snpdevtotty(struct cdev *dev);
-static void		snp_detach(void *arg);
-static int		snp_down(struct snoop *snp);
-static int		snp_in(struct snoop *snp, char *buf, int n);
-static int		snp_modevent(module_t mod, int what, void *arg);
-static struct snoop	*ttytosnp(struct tty *);
-
-static struct snoop *
-ttytosnp(struct tty *tp)
-{
-	struct snoop *snp;
-	
-	LIST_FOREACH(snp, &snp_sclist, snp_list) {
-		if (snp->snp_tty == tp)
-			return (snp);
-	}
-	return (NULL);
-}
-
-static int
-snplclose(struct tty *tp, int flag)
-{
-	struct snoop *snp;
-	int error;
-
-	snp = ttytosnp(tp);
-	error = snp_down(snp);
-	if (error != 0)
-		return (error);
-	error = ttylclose(tp, flag);
-	return (error);
-}
-
-static int
-snplwrite(struct tty *tp, struct uio *uio, int flag)
-{
-	struct iovec iov;
-	struct uio uio2;
-	struct snoop *snp;
-	int error, ilen;
-	char *ibuf;
-
-	error = 0;
-	ibuf = NULL;
-	snp = ttytosnp(tp);
-	while (uio->uio_resid > 0) {
-		ilen = imin(512, uio->uio_resid);
-		ibuf = malloc(ilen, M_SNP, M_WAITOK);
-		error = uiomove(ibuf, ilen, uio);
-		if (error != 0)
-			break;
-		snp_in(snp, ibuf, ilen);
-		/* Hackish, but probably the least of all evils. */
-		iov.iov_base = ibuf;
-		iov.iov_len = ilen;
-		uio2.uio_iov = &iov;
-		uio2.uio_iovcnt = 1;
-		uio2.uio_offset = 0;
-		uio2.uio_resid = ilen;
-		uio2.uio_segflg = UIO_SYSSPACE;
-		uio2.uio_rw = UIO_WRITE;
-		uio2.uio_td = uio->uio_td;
-		error = ttwrite(tp, &uio2, flag);
-		if (error != 0)
-			break;
-		free(ibuf, M_SNP);
-		ibuf = NULL;
-	}
-	if (ibuf != NULL)
-		free(ibuf, M_SNP);
-	return (error);
-}
-
-static struct tty *
-snpdevtotty(struct cdev *dev)
-{
-	struct cdevsw *cdp;
-	struct tty *tp;
-
-	cdp = dev_refthread(dev);
-	if (cdp == NULL)
-		return (NULL);
-	if (!(cdp->d_flags & D_TTY))
-		tp = NULL;
-	else
-		tp = dev->si_tty;
-	dev_relthread(dev);
-	return (tp);
-}
-
-#define SNP_INPUT_BUF	5	/* This is even too much, the maximal
-				 * interactive mode write is 3 bytes
-				 * length for function keys...
-				 */
-
-static int
-snpwrite(struct cdev *dev, struct uio *uio, int flag)
-{
-	struct snoop *snp;
-	struct tty *tp;
-	int error, i, len;
-	unsigned char c[SNP_INPUT_BUF];
-
-	error = devfs_get_cdevpriv((void **)&snp);
-	if (error != 0)
-		return (error);
-
-	tp = snp->snp_tty;
-	if (tp == NULL)
-		return (EIO);
-	if ((tp->t_state & TS_SNOOP) && tp->t_line == snooplinedisc)
-		goto tty_input;
-
-	printf("snp: attempt to write to bad tty\n");
-	return (EIO);
-
-tty_input:
-	if (!(tp->t_state & TS_ISOPEN))
-		return (EIO);
-
-	while (uio->uio_resid > 0) {
-		len = imin(uio->uio_resid, SNP_INPUT_BUF);
-		if ((error = uiomove(c, len, uio)) != 0)
-			return (error);
-		for (i=0; i < len; i++) {
-			if (ttyinput(c[i], tp))
-				return (EIO);
-		}
-	}
-	return (0);
-}
-
-
-static int
-snpread(struct cdev *dev, struct uio *uio, int flag)
-{
-	struct snoop *snp;
-	int error, len, n, nblen, s;
-	caddr_t from;
-	char *nbuf;
-
-	error = devfs_get_cdevpriv((void **)&snp);
-	if (error != 0)
-		return (error);
-
-	KASSERT(snp->snp_len + snp->snp_base <= snp->snp_blen,
-	    ("snoop buffer error"));
-
-	if (snp->snp_tty == NULL)
-		return (EIO);
-
-	snp->snp_flags &= ~SNOOP_RWAIT;
-
-	do {
-		if (snp->snp_len == 0) {
-			if (flag & O_NONBLOCK)
-				return (EWOULDBLOCK);
-			snp->snp_flags |= SNOOP_RWAIT;
-			error = tsleep(snp, (PZERO + 1) | PCATCH,
-			    "snprd", 0);
-			if (error != 0)
-				return (error);
-		}
-	} while (snp->snp_len == 0);
-
-	n = snp->snp_len;
-
-	error = 0;
-	while (snp->snp_len > 0 && uio->uio_resid > 0 && error == 0) {
-		len = min((unsigned)uio->uio_resid, snp->snp_len);
-		from = (caddr_t)(snp->snp_buf + snp->snp_base);
-		if (len == 0)
-			break;
-
-		error = uiomove(from, len, uio);
-		snp->snp_base += len;
-		snp->snp_len -= len;
-	}
-	if ((snp->snp_flags & SNOOP_OFLOW) && (n < snp->snp_len)) {
-		snp->snp_flags &= ~SNOOP_OFLOW;
-	}
-	s = spltty();
-	nblen = snp->snp_blen;
-	if (((nblen / 2) >= SNOOP_MINLEN) && (nblen / 2) >= snp->snp_len) {
-		while (nblen / 2 >= snp->snp_len && nblen / 2 >= SNOOP_MINLEN)
-			nblen = nblen / 2;
-		if ((nbuf = malloc(nblen, M_SNP, M_NOWAIT)) != NULL) {
-			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
-			free(snp->snp_buf, M_SNP);
-			snp->snp_buf = nbuf;
-			snp->snp_blen = nblen;
-			snp->snp_base = 0;
-		}
-	}
-	splx(s);
-
-	return (error);
-}
-
-static int
-snp_in(struct snoop *snp, char *buf, int n)
-{
-	int s_free, s_tail;
-	int s, len, nblen;
-	caddr_t from, to;
-	char *nbuf;
-
-	KASSERT(n >= 0, ("negative snoop char count"));
-
-	if (n == 0)
-		return (0);
-
-	if (snp->snp_flags & SNOOP_DOWN) {
-		printf("snp: more data to down interface\n");
-		return (0);
-	}
-
-	if (snp->snp_flags & SNOOP_OFLOW) {
-		printf("snp: buffer overflow\n");
-		/*
-		 * On overflow we just repeat the standart close
-		 * procedure...yes , this is waste of space but.. Then next
-		 * read from device will fail if one would recall he is
-		 * snooping and retry...
-		 */
-
-		return (snp_down(snp));
-	}
-	s_tail = snp->snp_blen - (snp->snp_len + snp->snp_base);
-	s_free = snp->snp_blen - snp->snp_len;
-
-
-	if (n > s_free) {
-		s = spltty();
-		nblen = snp->snp_blen;
-		while ((n > s_free) && ((nblen * 2) <= SNOOP_MAXLEN)) {
-			nblen = snp->snp_blen * 2;
-			s_free = nblen - (snp->snp_len + snp->snp_base);
-		}
-		if ((n <= s_free) && (nbuf = malloc(nblen, M_SNP, M_NOWAIT))) {
-			bcopy(snp->snp_buf + snp->snp_base, nbuf, snp->snp_len);
-			free(snp->snp_buf, M_SNP);
-			snp->snp_buf = nbuf;
-			snp->snp_blen = nblen;
-			snp->snp_base = 0;
-		} else {
-			snp->snp_flags |= SNOOP_OFLOW;
-			if (snp->snp_flags & SNOOP_RWAIT) {
-				snp->snp_flags &= ~SNOOP_RWAIT;
-				wakeup(snp);
-			}
-			splx(s);
-			return (0);
-		}
-		splx(s);
-	}
-	if (n > s_tail) {
-		from = (caddr_t)(snp->snp_buf + snp->snp_base);
-		to = (caddr_t)(snp->snp_buf);
-		len = snp->snp_len;
-		bcopy(from, to, len);
-		snp->snp_base = 0;
-	}
-	to = (caddr_t)(snp->snp_buf + snp->snp_base + snp->snp_len);
-	bcopy(buf, to, n);
-	snp->snp_len += n;
-
-	if (snp->snp_flags & SNOOP_RWAIT) {
-		snp->snp_flags &= ~SNOOP_RWAIT;
-		wakeup(snp);
-	}
-	selwakeuppri(&snp->snp_sel, PZERO + 1);
-
-	return (n);
-}
 
 static void
 snp_dtor(void *data)
 {
-	struct snoop *snp = data;
-
-	snp->snp_blen = 0;
-	LIST_REMOVE(snp, snp_list);
-	free(snp->snp_buf, M_SNP);
-	snp->snp_flags &= ~SNOOP_OPEN;
-	snp_detach(snp);
-}
-
-static int
-snpopen(struct cdev *dev, int flag, int mode, struct thread *td)
-{
-	struct snoop *snp;
-	int error;
-
-	snp = malloc(sizeof(*snp), M_SNP, M_WAITOK | M_ZERO);
-	error = devfs_set_cdevpriv(snp, snp_dtor);
-	if (error != 0) {
-		free(snp, M_SNP);
-		return (error);
-	}
-
-	/*
-	 * We intentionally do not OR flags with SNOOP_OPEN, but set them so
-	 * all previous settings (especially SNOOP_OFLOW) will be cleared.
-	 */
-	snp->snp_flags = SNOOP_OPEN;
-
-	snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
-	snp->snp_blen = SNOOP_MINLEN;
-	snp->snp_base = 0;
-	snp->snp_len = 0;
-
-	/*
-	 * snp_tty == NULL  is for inactive snoop devices.
-	 */
-	snp->snp_tty = NULL;
-	snp->snp_target = NULL;
-
-	LIST_INSERT_HEAD(&snp_sclist, snp, snp_list);
-	return (0);
-}
-
-
-static void
-snp_detach(void *arg)
-{
-	struct snoop *snp;
+	struct snp_softc *ss = data;
 	struct tty *tp;
 
-	snp = (struct snoop *)arg;
-	snp->snp_base = 0;
-	snp->snp_len = 0;
+	tp = ss->snp_tty;
+	if (tp != NULL) {
+		tty_lock(tp);
+		ttyoutq_free(&ss->snp_outq);
+		ttyhook_unregister(tp);
+	}
 
-	/*
-	 * If line disc. changed we do not touch this pointer, SLIP/PPP will
-	 * change it anyway.
-	 */
-	tp = snp->snp_tty;
-	if (tp == NULL)
-		goto detach_notty;
-
-	if ((tp->t_state & TS_SNOOP) && tp->t_line == snooplinedisc) {
-		tp->t_state &= ~TS_SNOOP;
-		tp->t_line = snp->snp_olddisc;
-	} else
-		printf("snp: bad attached tty data\n");
-
-	snp->snp_tty = NULL;
-	snp->snp_target = NULL;
-
-detach_notty:
-	selwakeuppri(&snp->snp_sel, PZERO + 1);
-	if ((snp->snp_flags & SNOOP_OPEN) == 0) 
-		free(snp, M_SNP);
+	cv_destroy(&ss->snp_outwait);
+	free(ss, M_SNP);
 }
 
-static int
-snp_down(struct snoop *snp)
-{
+/*
+ * Snoop device node routines.
+ */
 
-	if (snp->snp_blen != SNOOP_MINLEN) {
-		free(snp->snp_buf, M_SNP);
-		snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
-		snp->snp_blen = SNOOP_MINLEN;
-	}
-	snp->snp_flags |= SNOOP_DOWN;
-	snp_detach(snp);
+static int
+snp_open(struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	struct snp_softc *ss;
+
+	/* Allocate per-snoop data. */
+	ss = malloc(sizeof(struct snp_softc), M_SNP, M_WAITOK|M_ZERO);
+	ttyoutq_init(&ss->snp_outq);
+	cv_init(&ss->snp_outwait, "snp out");
+
+	devfs_set_cdevpriv(ss, snp_dtor);
 
 	return (0);
 }
 
 static int
-snpioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
+snp_read(struct cdev *dev, struct uio *uio, int flag)
+{
+	int error, oresid = uio->uio_resid;
+	struct snp_softc *ss;
+	struct tty *tp;
+
+	if (uio->uio_resid == 0)
+		return (0);
+
+	error = devfs_get_cdevpriv((void **)&ss);
+	if (error != 0)
+		return (error);
+	
+	tp = ss->snp_tty;
+	if (tp == NULL || tty_gone(tp))
+		return (EIO);
+
+	tty_lock(tp);
+	for (;;) {
+		error = ttyoutq_read_uio(&ss->snp_outq, tp, uio);
+		if (error != 0 || uio->uio_resid != oresid)
+			break;
+
+		/* Wait for more data. */
+		if (flag & O_NONBLOCK) {
+			error = EWOULDBLOCK;
+			break;
+		}
+		error = cv_wait_sig(&ss->snp_outwait, tp->t_mtx);
+		if (error != 0)
+			break;
+		if (tty_gone(tp)) {
+			error = EIO;
+			break;
+		}
+	}
+	tty_unlock(tp);
+
+	return (error);
+}
+
+static int
+snp_write(struct cdev *dev, struct uio *uio, int flag)
+{
+	struct snp_softc *ss;
+	struct tty *tp;
+	int error, len, i;
+	char in[SNP_INPUT_BUFSIZE];
+
+	error = devfs_get_cdevpriv((void **)&ss);
+	if (error != 0)
+		return (error);
+	
+	tp = ss->snp_tty;
+	if (tp == NULL || tty_gone(tp))
+		return (EIO);
+
+	while (uio->uio_resid > 0) {
+		/* Read new data. */
+		len = imin(uio->uio_resid, sizeof in);
+		error = uiomove(in, len, uio);
+		if (error != 0)
+			return (error);
+
+		tty_lock(tp);
+
+		/* Driver could have abandoned the TTY in the mean time. */
+		if (tty_gone(tp)) {
+			tty_unlock(tp);
+			return (ENXIO);
+		}
+
+		/*
+		 * Deliver data to the TTY. Ignore errors for now,
+		 * because we shouldn't bail out when we're running
+		 * close to the watermarks.
+		 */
+		if (ttydisc_can_bypass(tp)) {
+			ttydisc_rint_bypass(tp, in, len);
+		} else {
+			for (i = 0; i < len; i++)
+				ttydisc_rint(tp, in[i], 0);
+		}
+
+		ttydisc_rint_done(tp);
+		tty_unlock(tp);
+	}
+
+	return (0);
+}
+
+static int
+snp_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
-	struct snoop *snp;
+	struct snp_softc *ss;
 	struct tty *tp;
-	struct cdev *tdev;
-	struct file *fp;
-	int error, s;
+	int error;
 
-	error = devfs_get_cdevpriv((void **)&snp);
+	error = devfs_get_cdevpriv((void **)&ss);
 	if (error != 0)
 		return (error);
 
 	switch (cmd) {
 	case SNPSTTY:
-		s = *(int *)data;
-		if (s < 0)
-			return (snp_down(snp));
-
-		if (fget(td, s, &fp) != 0)
-			return (EINVAL);
-		if (fp->f_type != DTYPE_VNODE ||
-		    fp->f_vnode->v_type != VCHR ||
-		    fp->f_vnode->v_rdev == NULL) {
-			fdrop(fp, td);
-			return (EINVAL);
+		/* Bind TTY to snoop instance. */
+		sx_xlock(&snp_register_lock);
+		if (ss->snp_tty != NULL) {
+			sx_xunlock(&snp_register_lock);
+			return (EBUSY);
 		}
-		tdev = fp->f_vnode->v_rdev;
-		fdrop(fp, td);
+		error = ttyhook_register(&ss->snp_tty, td, *(int *)data,
+		    &snp_hook, ss);
+		sx_xunlock(&snp_register_lock);
+		if (error != 0)
+			return (error);
 
-		if (snp->snp_tty != NULL)
-			return (EBUSY);
+		/* Now that went okay, allocate a buffer for the queue. */
+		tp = ss->snp_tty;
+		tty_lock(tp);
+		ttyoutq_setsize(&ss->snp_outq, tp, SNP_OUTPUT_BUFSIZE);
+		tty_unlock(tp);
 
-		tp = snpdevtotty(tdev);
-		if (!tp)
-			return (EINVAL);
-		if (tp->t_state & TS_SNOOP)
-			return (EBUSY);
-
-		s = spltty();
-		tp->t_state |= TS_SNOOP;
-		snp->snp_olddisc = tp->t_line;
-		tp->t_line = snooplinedisc;
-		snp->snp_tty = tp;
-		snp->snp_target = tdev;
-
-		/*
-		 * Clean overflow and down flags -
-		 * we'll have a chance to get them in the future :)))
-		 */
-		snp->snp_flags &= ~SNOOP_OFLOW;
-		snp->snp_flags &= ~SNOOP_DOWN;
-		splx(s);
-		break;
-
+		return (0);
 	case SNPGTTY:
-		/*
-		 * We keep snp_target field specially to make
-		 * SNPGTTY happy, else we can't know what is device
-		 * major/minor for tty.
-		 */
-		*((dev_t *)data) = dev2udev(snp->snp_target);
-		break;
-
-	case FIONBIO:
-		break;
-
-	case FIOASYNC:
-		if (*(int *)data)
-			snp->snp_flags |= SNOOP_ASYNC;
+		/* Obtain device number of associated TTY. */
+		if (ss->snp_tty == NULL)
+			*(dev_t *)data = NODEV;
 		else
-			snp->snp_flags &= ~SNOOP_ASYNC;
-		break;
-
+			*(dev_t *)data = tty_udev(ss->snp_tty);
+		return (0);
 	case FIONREAD:
-		s = spltty();
-		if (snp->snp_tty != NULL)
-			*(int *)data = snp->snp_len;
-		else
-			if (snp->snp_flags & SNOOP_DOWN) {
-				if (snp->snp_flags & SNOOP_OFLOW)
-					*(int *)data = SNP_OFLOW;
-				else
-					*(int *)data = SNP_TTYCLOSE;
-			} else {
-				*(int *)data = SNP_DETACH;
-			}
-		splx(s);
-		break;
-
+		tp = ss->snp_tty;
+		if (tp != NULL) {
+			tty_lock(tp);
+			*(int *)data = ttyoutq_bytesused(&ss->snp_outq);
+			tty_unlock(tp);
+		} else {
+			*(int *)data = 0;
+		}
+		return (0);
 	default:
 		return (ENOTTY);
 	}
-	return (0);
 }
 
 static int
-snppoll(struct cdev *dev, int events, struct thread *td)
+snp_poll(struct cdev *dev, int events, struct thread *td)
 {
-	struct snoop *snp;
+	struct snp_softc *ss;
+	struct tty *tp;
 	int revents;
 
-	if (devfs_get_cdevpriv((void **)&snp) != 0)
+	if (devfs_get_cdevpriv((void **)&ss) != 0)
 		return (events &
 		    (POLLHUP|POLLIN|POLLRDNORM|POLLOUT|POLLWRNORM));
 
 	revents = 0;
-	/*
-	 * If snoop is down, we don't want to poll() forever so we return 1.
-	 * Caller should see if we down via FIONREAD ioctl().  The last should
-	 * return -1 to indicate down state.
-	 */
+
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (snp->snp_flags & SNOOP_DOWN || snp->snp_len > 0)
-			revents |= events & (POLLIN | POLLRDNORM);
-		else
-			selrecord(td, &snp->snp_sel);
+		tp = ss->snp_tty;
+		if (tp != NULL) {
+			tty_lock(tp);
+			if (ttyoutq_bytesused(&ss->snp_outq) > 0)
+				revents |= events & (POLLIN | POLLRDNORM);
+			tty_unlock(tp);
+		}
 	}
+
+	if (revents == 0)
+		selrecord(td, &ss->snp_outpoll);
+
 	return (revents);
 }
+
+/*
+ * TTY hook events.
+ */
 
 static int
 snp_modevent(module_t mod, int type, void *data)
@@ -611,28 +320,33 @@ snp_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		snooplinedisc = ldisc_register(LDISC_LOAD, &snpdisc);
-		snoopdev = make_dev(&snp_cdevsw, 0, UID_ROOT, GID_WHEEL,
-		    0600, "snp");
-		/* For compatibility */
-		make_dev_alias(snoopdev, "snp0");
-		break;
+		snp_dev = make_dev(&snp_cdevsw, 0,
+		    UID_ROOT, GID_WHEEL, 0600, "snp");
+		return (0);
 	case MOD_UNLOAD:
-		if (!LIST_EMPTY(&snp_sclist))
-			return (EBUSY);
-		destroy_dev(snoopdev);
-		ldisc_deregister(snooplinedisc);
-		break;
+		/* XXX: Make existing users leave. */
+		destroy_dev(snp_dev);
+		return (0);
 	default:
 		return (EOPNOTSUPP);
-		break;
 	}
-	return (0);
+}
+
+static void
+snp_getc_capture(struct tty *tp, const void *buf, size_t len)
+{
+	struct snp_softc *ss = ttyhook_softc(tp);
+
+	ttyoutq_write(&ss->snp_outq, buf, len);
+
+	cv_broadcast(&ss->snp_outwait);
+	selwakeup(&ss->snp_outpoll);
 }
 
 static moduledata_t snp_mod = {
-        "snp",
-        snp_modevent,
-        NULL
+	"snp",
+	snp_modevent,
+	NULL
 };
+
 DECLARE_MODULE(snp, snp_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
