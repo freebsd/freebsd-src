@@ -51,6 +51,7 @@ typedef	struct iovec	iovec_t;
 
 #define	uio_loffset	uio_offset
 
+#ifdef BUILDING_ZFS
 static __inline int
 zfs_uiomove(void *cp, size_t n, enum uio_rw dir, uio_t *uio)
 {
@@ -59,5 +60,6 @@ zfs_uiomove(void *cp, size_t n, enum uio_rw dir, uio_t *uio)
 	return (uiomove(cp, (int)n, uio));
 }
 #define	uiomove(cp, n, dir, uio)	zfs_uiomove((cp), (n), (dir), (uio))
+#endif
 
 #endif	/* !_OPENSOLARIS_SYS_UIO_H_ */

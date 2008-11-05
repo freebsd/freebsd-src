@@ -154,11 +154,15 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
+#if __FreeBSD_version < 800039
 	/* Enable device cloning. */
 	clone_setup(&dtrace_clones);
 
 	/* Setup device cloning events. */
 	eh_tag = EVENTHANDLER_REGISTER(dev_clone, dtrace_clone, 0, 1000);
+#else
+	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "dtrace/dtrace");
+#endif
 
 	return;
 }
