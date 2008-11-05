@@ -83,6 +83,18 @@ realhostname(char *host, size_t hsize, const struct in_addr *ip)
 	return result;
 }
 
+/*
+ * struct sockaddr has very lax alignment requirements, since all its
+ * members are char or equivalent.  This is a problem when trying to
+ * dereference a struct sockaddr_in6 * that was passed in as a struct
+ * sockaddr *.  Although we know (or trust) that the passed-in struct was
+ * properly aligned, the compiler doesn't, and (rightly) complains.  These
+ * macros perform the cast in a way that the compiler will accept.
+ */
+#define SOCKADDR_IN6(p) ((struct sockaddr_in6 *)(void *)(p))
+#define SOCKADDR_IN(p) ((struct sockaddr_in *)(void *)(p))
+#define SOCKINET(p) ((struct sockinet *)(void *)(p))
+
 int
 realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 {
@@ -96,10 +108,10 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 	/* IPv4 mapped IPv6 addr consideraton, specified in rfc2373. */
 	if (addr->sa_family == AF_INET6 &&
 	    addrlen == sizeof(struct sockaddr_in6) &&
-	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)addr)->sin6_addr)) {
+	    IN6_IS_ADDR_V4MAPPED(&SOCKADDR_IN6(addr)->sin6_addr)) {
 		struct sockaddr_in6 *sin6;
 
-		sin6 = (struct sockaddr_in6 *)addr;
+		sin6 = SOCKADDR_IN6(addr);
 
 		memset(&lsin, 0, sizeof(lsin));
 		lsin.sin_len = sizeof(struct sockaddr_in);
@@ -142,15 +154,16 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 			}
 			if (sa->sa_len == addrlen &&
 			    sa->sa_family == addr->sa_family) {
-				((struct sockinet *)sa)->si_port = ((struct sockinet *)addr)->si_port;
+				SOCKINET(sa)->si_port = SOCKINET(addr)->si_port;
 #ifdef INET6
 				/*
 				 * XXX: sin6_socpe_id may not been
 				 * filled by DNS
 				 */
 				if (sa->sa_family == AF_INET6 &&
-				    ((struct sockaddr_in6 *)sa)->sin6_scope_id == 0)
-					((struct sockaddr_in6 *)sa)->sin6_scope_id = ((struct sockaddr_in6 *)addr)->sin6_scope_id;
+				    SOCKADDR_IN6(sa)->sin6_scope_id == 0)
+					SOCKADDR_IN6(sa)->sin6_scope_id =
+					    SOCKADDR_IN6(addr)->sin6_scope_id;
 #endif
 				if (!memcmp(sa, addr, sa->sa_len)) {
 					result = HOSTNAME_FOUND;
