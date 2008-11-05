@@ -90,7 +90,8 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 }
 
 int
-proc_create(const char *file, char * const *argv, struct proc_handle **pphdl)
+proc_create(const char *file, char * const *argv, proc_child_func *pcf,
+    void *child_arg, struct proc_handle **pphdl)
 {
 	struct proc_handle *phdl;
 	struct kevent kev;
@@ -106,12 +107,15 @@ proc_create(const char *file, char * const *argv, struct proc_handle **pphdl)
 		return (ENOMEM);
 
 	/* Fork a new process. */
-	if ((pid = fork()) == -1)
+	if ((pid = vfork()) == -1)
 		error = errno;
 	else if (pid == 0) {
 		/* The child expects to be traced. */
 		if (ptrace(PT_TRACE_ME, 0, 0, 0) != 0)
 			_exit(1);
+
+		if (pcf != NULL)
+			(*pcf)(child_arg);
 
 		/* Execute the specified file: */
 		execvp(file, argv);
