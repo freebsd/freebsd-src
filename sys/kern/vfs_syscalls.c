@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
 
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/limits.h>
 #include <sys/linker.h>
+#include <sys/sdt.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
@@ -81,6 +83,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/uma.h>
+
+SDT_PROVIDER_DEFINE(vfs);
+SDT_PROBE_DEFINE(vfs, , stat, mode);
+SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
+SDT_PROBE_ARGTYPE(vfs, , stat, mode, 1, "int");
+SDT_PROBE_DEFINE(vfs, , stat, reg);
+SDT_PROBE_ARGTYPE(vfs, , stat, reg, 0, "char *");
+SDT_PROBE_ARGTYPE(vfs, , stat, reg, 1, "int");
 
 static int chroot_refuse_vdir_fds(struct filedesc *fdp);
 static int getutimes(const struct timeval *, enum uio_seg, struct timespec *);
@@ -2334,6 +2344,11 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
+	if (!error) {
+		SDT_PROBE(vfs, , stat, mode, path, sb.st_mode, 0, 0, 0);
+		if (S_ISREG(sb.st_mode))
+			SDT_PROBE(vfs, , stat, reg, path, pathseg, 0, 0, 0);
+	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
 	VFS_UNLOCK_GIANT(vfslocked);
