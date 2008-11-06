@@ -237,7 +237,6 @@ static driver_t umct_driver = {
 DRIVER_MODULE(umct, ushub, umct_driver, umct_devclass, NULL, 0);
 MODULE_DEPEND(umct, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(umct, usb2_core, 1, 1, 1);
-MODULE_DEPEND(umct, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 
 static int
 umct_probe(device_t dev)

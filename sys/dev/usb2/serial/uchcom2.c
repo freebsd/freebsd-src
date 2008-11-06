@@ -1035,4 +1035,3 @@ static devclass_t uchcom_devclass;
 DRIVER_MODULE(uchcom, ushub, uchcom_driver, uchcom_devclass, NULL, 0);
 MODULE_DEPEND(uchcom, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(uchcom, usb2_core, 1, 1, 1);
-MODULE_DEPEND(uchcom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
