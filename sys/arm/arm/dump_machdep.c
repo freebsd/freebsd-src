@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kerneldump.h>
@@ -43,6 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
+
+int do_minidump = 1;
+TUNABLE_INT("debug.minidump", &do_minidump);
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &do_minidump, 0,
+    "Enable mini crash dumps");
 
 /*
  * Don't touch the first SIZEOF_METADATA bytes on the dump device. This
@@ -155,11 +161,10 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	vm_offset_t va;
 	uint32_t pgs;
 	size_t counter, sz, chunk;
-	int c, error, twiddle;
+	int c, error;
 
 	error = 0;	/* catch case in which chunk size is 0 */
-	counter = 0;	/* Update twiddle every 16MB */
-	twiddle = 0;
+	counter = 0;
 	va = 0;
 	pgs = mdp->md_size / PAGE_SIZE;
 	pa = mdp->md_start;
@@ -264,7 +269,12 @@ dumpsys(struct dumperinfo *di)
 	off_t hdrgap;
 	size_t hdrsz;
 	int error;
-	
+
+	if (do_minidump) {
+		minidumpsys(di);
+		return;
+	}
+
 	bzero(&ehdr, sizeof(ehdr));
 	ehdr.e_ident[EI_MAG0] = ELFMAG0;
 	ehdr.e_ident[EI_MAG1] = ELFMAG1;

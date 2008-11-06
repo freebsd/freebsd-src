@@ -52,10 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <kvm.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "kvm_private.h"
 
+/* minidump must be the first item! */
 struct vmstate {
+	int minidump;		/* 1 = minidump mode */
 	pd_entry_t *l1pt;
 	void *mmapbase;
 	size_t mmapsize;
@@ -107,6 +110,8 @@ void
 _kvm_freevtop(kvm_t *kd)
 {
 	if (kd->vmst != 0) {
+		if (kd->vmst->minidump)
+			return (_kvm_minidump_freevtop(kd));
 		if (kd->vmst->mmapbase != NULL)
 			munmap(kd->vmst->mmapbase, kd->vmst->mmapsize);
 		free(kd->vmst);
@@ -117,13 +122,25 @@ _kvm_freevtop(kvm_t *kd)
 int
 _kvm_initvtop(kvm_t *kd)
 {
-	struct vmstate *vm = _kvm_malloc(kd, sizeof(*vm));
+	struct vmstate *vm;
 	struct nlist nlist[2];
 	u_long kernbase, physaddr, pa;
 	pd_entry_t *l1pt;
 	Elf32_Ehdr *ehdr;
 	size_t hdrsz;
-	
+	char minihdr[8];
+
+	if (!kd->rawdump) {
+		if (pread(kd->pmfd, &minihdr, 8, 0) == 8) {
+			if (memcmp(&minihdr, "minidump", 8) == 0)
+				return (_kvm_minidump_initvtop(kd));
+		} else {
+			_kvm_err(kd, kd->program, "cannot read header");
+			return (-1);
+		}
+	}
+
+	vm = _kvm_malloc(kd, sizeof(*vm));
 	if (vm == 0) {
 		_kvm_err(kd, kd->program, "cannot allocate vm");
 		return (-1);
@@ -192,6 +209,9 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	pd_entry_t pd;
 	pt_entry_t pte;
 	u_long pte_pa;
+
+	if (kd->vmst->minidump)
+		return (_kvm_minidump_kvatop(kd, va, pa));
 
 	if (vm->l1pt == NULL)
 		return (_kvm_pa2off(kd, va, pa, PAGE_SIZE));
