@@ -259,8 +259,7 @@ iso88025_output(ifp, m, dst, rt0)
 	/* Calculate routing info length based on arp table entry */
 	/* XXX any better way to do this ? */
 	if (rt0 != NULL) {
-/* XXX MRT *//* Guess only */
-		error = rt_check_fib(&rt, &rt0, dst, rt0->rt_fibnum);
+		error = rt_check(&rt, &rt0, dst);
 		if (error)
 			goto bad;
 		RT_UNLOCK(rt);
