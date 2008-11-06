@@ -93,9 +93,6 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-#define KERNEL_PT_SYS	0	/* Page table for mapping proc0 zero page */
-#define KERNEL_PT_KERN	1
-
 /*
  * This is the number of L2 page tables required for covering max
  * (hypothetical) memsize of 4GB and all kernel mappings (vectors, msgbuf,
@@ -366,7 +363,7 @@ initarm(void *mdp, void *unused __unused)
 	struct bi_mem_region *mr;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0;
+	int i = 0, j = 0;
 
 	kmdp = NULL;
 	lastaddr = 0;
@@ -465,13 +462,14 @@ initarm(void *mdp, void *unused __unused)
 		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
 			valloc_pages(kernel_pt_table[i],
 			    L2_TABLE_SIZE / PAGE_SIZE);
+			j = i;
 		} else {
-			kernel_pt_table[i].pv_va = freemempos -
-			    (i % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
-			    L2_TABLE_SIZE_REAL;
+			kernel_pt_table[i].pv_va = kernel_pt_table[j].pv_va +
+			    L2_TABLE_SIZE_REAL * (i - j);
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
+
 		}
 	}
 	/*
@@ -506,7 +504,7 @@ initarm(void *mdp, void *unused __unused)
 	l2_start = lastaddr & ~(L1_S_OFFSET);
 	for (i = 0 ; i < l2size - 1; i++)
 		pmap_link_l2pt(l1pagetable, l2_start + i * L1_S_SIZE,
-		    &kernel_pt_table[KERNEL_PT_KERN + i]);
+		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
 	
@@ -532,7 +530,7 @@ initarm(void *mdp, void *unused __unused)
 
 	/* Link and map the vector page */
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
-	    &kernel_pt_table[KERNEL_PT_SYS]);
+	    &kernel_pt_table[l2size - 1]);
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
@@ -603,8 +601,8 @@ initarm(void *mdp, void *unused __unused)
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
-	dump_avail[0] = KERNPHYSADDR;
-	dump_avail[1] = KERNPHYSADDR + memsize;
+	dump_avail[0] = 0;
+	dump_avail[1] = memsize;
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 
