@@ -173,7 +173,6 @@ static driver_t ucycom_driver = {
 DRIVER_MODULE(ucycom, ushub, ucycom_driver, ucycom_devclass, NULL, 0);
 MODULE_DEPEND(ucycom, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(ucycom, usb2_core, 1, 1, 1);
-MODULE_DEPEND(ucycom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 
 /*
  * Supported devices

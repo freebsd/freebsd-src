@@ -283,7 +283,6 @@ static driver_t uvscom_driver = {
 DRIVER_MODULE(uvscom, ushub, uvscom_driver, uvscom_devclass, NULL, 0);
 MODULE_DEPEND(uvscom, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(uvscom, usb2_core, 1, 1, 1);
-MODULE_DEPEND(uvscom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(uvscom, UVSCOM_MODVER);
 
 static int

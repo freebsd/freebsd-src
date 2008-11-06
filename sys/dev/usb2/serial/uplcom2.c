@@ -331,7 +331,6 @@ static driver_t uplcom_driver = {
 DRIVER_MODULE(uplcom, ushub, uplcom_driver, uplcom_devclass, NULL, 0);
 MODULE_DEPEND(uplcom, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(uplcom, usb2_core, 1, 1, 1);
-MODULE_DEPEND(uplcom, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(uplcom, UPLCOM_MODVER);
 
 static int
