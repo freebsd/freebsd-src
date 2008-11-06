@@ -206,6 +206,7 @@ extern vm_offset_t virtual_end;
 void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
+void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);

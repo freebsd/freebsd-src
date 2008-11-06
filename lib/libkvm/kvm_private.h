@@ -79,7 +79,7 @@ void	 _kvm_syserr (kvm_t *kd, const char *program, const char *fmt, ...)
 	    __printflike(3, 4);
 int	 _kvm_uvatop(kvm_t *, const struct proc *, u_long, u_long *);
 
-#if defined(__amd64__) || defined(__i386__)
+#if defined(__amd64__) || defined(__i386__) || defined(__arm__)
 void	 _kvm_minidump_freevtop(kvm_t *);
 int	 _kvm_minidump_initvtop(kvm_t *);
 int	 _kvm_minidump_kvatop(kvm_t *, u_long, off_t *);
