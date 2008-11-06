@@ -60,6 +60,7 @@
 #include <machine/stdarg.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
