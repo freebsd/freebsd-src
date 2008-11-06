@@ -56,6 +56,7 @@
 #include <net/if_llc.h>
 #include <net/if_types.h>
 
+#include <net/ethernet.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
@@ -695,7 +696,9 @@ fddi_resolvemulti(ifp, llsa, sa)
 	struct sockaddr *sa;
 {
 	struct sockaddr_dl *sdl;
+#ifdef INET
 	struct sockaddr_in *sin;
+#endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 #endif
