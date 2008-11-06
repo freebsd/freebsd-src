@@ -136,7 +136,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	}
 
 	switch (dst->sa_family) {
-#ifdef AF_INET
+#ifdef INET
 	case AF_INET:
 		/*
 		 * Only bother with arp for unicast. Allocation of
