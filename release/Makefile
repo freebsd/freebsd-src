@@ -1109,7 +1109,7 @@ CD_DISC2_PKGS=	${CD_PACKAGE_TREE}/disc2
 CD_DISC3_PKGS=	${CD_PACKAGE_TREE}/disc3
 .endif
 .if exists(${CD_PACKAGE_TREE}/dvd1)
-CD_DVD_PKGS=	${CD_PACKAGE_TREE}/dvd1
+CD_DVD1_PKGS=	${CD_PACKAGE_TREE}/dvd1
 .endif
 .endif
 .endif
