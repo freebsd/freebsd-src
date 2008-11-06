@@ -138,6 +138,7 @@ parse_args(argc, argv)
 
 	if (!(pw = getpwuid(getuid())))
 		errx(ERROR_EXIT, "your UID isn't in the passwd file, bailing out");
+	bzero(pw->pw_passwd, strlen(pw->pw_passwd));
 	(void) strncpy(User, pw->pw_name, (sizeof User)-1);
 	User[(sizeof User)-1] = '\0';
 	strcpy(RealUser, User);
@@ -154,6 +155,7 @@ parse_args(argc, argv)
 				errx(ERROR_EXIT, "must be privileged to use -u");
 			if (!(pw = getpwnam(optarg)))
 				errx(ERROR_EXIT, "user `%s' unknown", optarg);
+			bzero(pw->pw_passwd, strlen(pw->pw_passwd));
 			(void) strncpy(User, pw->pw_name, (sizeof User)-1);
 			User[(sizeof User)-1] = '\0';
 			break;
