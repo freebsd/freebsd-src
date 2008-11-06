@@ -596,7 +596,9 @@ DECLARE_MODULE(nfsserver, nfsserver_mod, SI_SUB_VFS, SI_ORDER_ANY);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfsserver, 1);
+#ifndef NFS_LEGACYRPC
 MODULE_DEPEND(nfsserver, krpc, 1, 1, 1);
+#endif
 
 /*
  * Set up nameidata for a lookup() call and do it.
