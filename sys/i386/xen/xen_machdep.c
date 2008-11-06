@@ -974,6 +974,7 @@ initvalues(start_info_t *startinfo)
 	/* unmap remaining pages from initial 4MB chunk
 	 *
 	 */
+	printk("unmapping remaining pages\n");
 	for (tmpva = cur_space; (tmpva & ((1<<22)-1)) != 0; tmpva += PAGE_SIZE) {
 		bzero((char *)tmpva, PAGE_SIZE);
 		PT_SET_MA(tmpva, (vm_paddr_t)0);
@@ -985,13 +986,17 @@ initvalues(start_info_t *startinfo)
 	    ((uint8_t *)IdlePTD) + ((KERNBASE >> 18) & PAGE_MASK),
 	    l1_pages*sizeof(pt_entry_t));
 
+	printk("installing recursive mappings\n");
 	for (i = 0; i < 4; i++) {
 		PT_SET_MA((uint8_t *)IdlePTDnew + i*PAGE_SIZE,
 		    IdlePTDnewma[i] | PG_V);
 	}
+	printk("installing new cr3\n");
 	xen_load_cr3(VTOP(IdlePDPTnew));
+	printk("installed new cr3\n");
 	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
-
+	printk("pinned new pdpt\n");
+	
 	/* allocate remainder of nkpt pages */
 	cur_space_pt = cur_space;
 	for (offset = (KERNBASE >> PDRSHIFT), i = l1_pages; i < nkpt;
