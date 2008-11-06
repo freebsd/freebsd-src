@@ -313,7 +313,6 @@ static driver_t ubsa_driver = {
 DRIVER_MODULE(ubsa, ushub, ubsa_driver, ubsa_devclass, NULL, 0);
 MODULE_DEPEND(ubsa, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(ubsa, usb2_core, 1, 1, 1);
-MODULE_DEPEND(ubsa, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 
 static int
 ubsa_probe(device_t dev)
