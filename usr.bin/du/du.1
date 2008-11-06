@@ -32,7 +32,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2008
+.Dd November 6, 2008
 .Dt DU 1
 .Os
 .Sh NAME
@@ -40,11 +40,12 @@
 .Nd display disk usage statistics
 .Sh SYNOPSIS
 .Nm
+.Op Fl A
 .Op Fl H | L | P
 .Op Fl a | s | d Ar depth
 .Op Fl c
 .Op Fl l
-.Op Fl h | k | m
+.Op Fl h | k | m | B Ar blocksize
 .Op Fl n
 .Op Fl x
 .Op Fl I Ar mask
@@ -60,6 +61,25 @@ the current directory is displayed.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl A
+Display the apparent size instead of the disk usage.
+This can be helpful when operating on compressed volumes or sparse files.
+.It Fl B Ar blocksize
+Calculate block counts in
+.Ar blocksize
+byte blocks.
+This is different from the
+.Fl k, m
+options or setting
+.Ev BLOCKSIZE
+and gives an estimate of how much space the examined file hierachy would
+require on a filesystem with the given
+.Ar blocksize .
+Unless in
+.Fl A
+mode,
+.Ar blocksize
+is rounded up to the next multiple of 512.
 .It Fl H
 Symbolic links on the command line are followed, symbolic links in file
 hierarchies are not followed.
@@ -136,14 +156,19 @@ followed is not counted or displayed.
 If the environment variable
 .Ev BLOCKSIZE
 is set, and the
-.Fl k
-option is not specified, the block counts will be displayed in units of that
-size block.
+.Fl k, m
+or
+.Fl h
+options are not specified, the block counts will be displayed in units of
+that block size.
 If
 .Ev BLOCKSIZE
 is not set, and the
-.Fl k
-option is not specified, the block counts will be displayed in 512-byte blocks.
+.Fl k, m
+or
+.Fl h
+options are not specified, the block counts will be displayed in 512-byte
+blocks.
 .El
 .Sh SEE ALSO
 .Xr df 1 ,
