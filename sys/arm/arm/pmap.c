@@ -270,6 +270,11 @@ union pmap_cache_state *pmap_cache_state;
 
 struct msgbuf *msgbufp = 0;
 
+/*
+ * Crashdump maps.
+ */
+static caddr_t crashdumpmap;
+
 extern void bcopy_page(vm_offset_t, vm_offset_t);
 extern void bzero_page(vm_offset_t);
 
@@ -2455,6 +2460,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 
 	pmap_alloc_specials(&virtual_avail,
 	    1, (vm_offset_t*)&_tmppt, NULL);
+	pmap_alloc_specials(&virtual_avail,
+	    MAXDUMPPGS, (vm_offset_t *)&crashdumpmap, NULL);
 	SLIST_INIT(&l1_list);
 	TAILQ_INIT(&l1_lru_list);
 	mtx_init(&l1_lru_lock, "l1 list lock", NULL, MTX_DEF);
@@ -2790,6 +2797,20 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
 		l1->l1_kva[L1_IDX(va)] = pd;
 		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
 	}
+}
+
+/*
+ * Make a temporary mapping for a physical address.  This is only intended
+ * to be used for panic dumps.
+ */
+void *
+pmap_kenter_temp(vm_paddr_t pa, int i)
+{
+	vm_offset_t va;
+
+	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
+	pmap_kenter(va, pa);
+	return ((void *)crashdumpmap);
 }
 
 /*

@@ -35,6 +35,8 @@
 
 extern char sigcode[];
 extern int szsigcode;
+extern uint32_t *vm_page_dump;
+extern int vm_page_dump_size;
 
 extern int (*_arm_memcpy)(void *, void *, int, int);
 extern int (*_arm_bzero)(void *, int, int);
@@ -46,7 +48,11 @@ extern int _min_bzero_size;
 #define SRC_IS_USER	0x2
 #define IS_PHYSICAL	0x4
 
+struct dumperinfo;
 extern int busdma_swi_pending;
 void busdma_swi(void);
+void dump_add_page(vm_paddr_t);
+void dump_drop_page(vm_paddr_t);
+void minidumpsys(struct dumperinfo *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
