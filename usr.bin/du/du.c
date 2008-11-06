@@ -273,8 +273,9 @@ main(int argc, char *argv[])
 					(void)printf("\t%s\n", p->fts_path);
 				} else {
 					(void)printf("%jd\t%s\n",
-					    howmany(p->fts_bignum * cblocksize,
-					    blocksize), p->fts_path);
+					    (intmax_t)howmany(p->fts_bignum *
+					    cblocksize, blocksize),
+					    p->fts_path);
 				}
 			}
 			break;
@@ -304,8 +305,9 @@ main(int argc, char *argv[])
 					(void)printf("\t%s\n", p->fts_path);
 				} else {
 					(void)printf("%jd\t%s\n",
-					    howmany(curblocks * cblocksize,
-					    blocksize), p->fts_path);
+					    (intmax_t)howmany(curblocks *
+					    cblocksize, blocksize),
+					    p->fts_path);
 				}
 			}
 
