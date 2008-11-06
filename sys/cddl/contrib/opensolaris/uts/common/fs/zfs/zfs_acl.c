@@ -1580,7 +1580,14 @@ zfs_zaccess_rename(znode_t *sdzp, znode_t *szp, znode_t *tdzp,
 	/*
 	 * Rename permissions are combination of delete permission +
 	 * add file/subdir permission.
+	 *
+	 * BSD operating systems also require write permission
+	 * on the directory being moved.
 	 */
+	if (ZTOV(szp)->v_type == VDIR) {
+		if (error = zfs_zaccess(szp, ACE_WRITE_DATA, cr))
+			return (error);
+	}
 
 	/*
 	 * first make sure we do the delete portion.
