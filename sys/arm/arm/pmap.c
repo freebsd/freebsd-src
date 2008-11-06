@@ -1214,7 +1214,7 @@ pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
 		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
 		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-		    cpu_l2cache_wb_range(va, rest);
+			cpu_l2cache_wb_range(va, rest);
 
 		len -= rest;
 		va += rest;
@@ -1246,7 +1246,7 @@ pmap_l2cache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
 		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
 		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-		    cpu_l2cache_wb_range(va, rest);
+			cpu_l2cache_wb_range(va, rest);
 
 		len -= rest;
 		va += rest;
@@ -1281,6 +1281,7 @@ static PMAP_INLINE void
 pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
     boolean_t rd_only)
 {
+
 	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
 	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
 	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
@@ -1295,8 +1296,7 @@ pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
 				cpu_dcache_wbinv_range(va, len);
 				pmap_l2cache_wbinv_range(pm, va, len);
 			}
-		} else
-		if (!rd_only) {
+		} else if (!rd_only) {
 			cpu_dcache_wb_range(va, len);
 			pmap_l2cache_wb_range(pm, va, len);
 		}
@@ -3979,7 +3979,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	 * Hook in the page, zero it, invalidate the TLB as needed.
 	 *
 	 * Note the temporary zero-page mapping must be a non-cached page in
-	 * ordert to work without corruption when write-allocate is enabled.
+	 * order to work without corruption when write-allocate is enabled.
 	 */
 	*cdst_pte = L2_S_PROTO | phys | L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE);
 	cpu_tlb_flushD_SE(cdstp);
