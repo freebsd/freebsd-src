@@ -1584,9 +1584,9 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route
- * is found and it cannot be allocated, then return NULL.  This routine
- * is called by TCP routines that access the rmx structure and by tcp_mss
- * to get the interface MTU.
+ * is found and it cannot be allocated, then return 0.  This routine
+ * is called by TCP routines that access the rmx structure and by
+ * tcp_mss_update to get the peer/interface MTU.
  */
 u_long
 tcp_maxmtu(struct in_conninfo *inc, int *flags)
