@@ -278,7 +278,6 @@ static driver_t umodem_driver = {
 DRIVER_MODULE(umodem, ushub, umodem_driver, umodem_devclass, NULL, 0);
 MODULE_DEPEND(umodem, usb2_serial, 1, 1, 1);
 MODULE_DEPEND(umodem, usb2_core, 1, 1, 1);
-MODULE_DEPEND(umodem, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(umodem, UMODEM_MODVER);
 
 static int

@@ -147,8 +147,7 @@ static struct ttydevsw usb2_com_class = {
 	.tsw_free = usb2_com_free,
 };
 
-MODULE_DEPEND(ucom, usb2_core, 1, 1, 1);
-MODULE_VERSION(ucom, UCOM_MODVER);
+MODULE_DEPEND(usb2_serial, usb2_core, 1, 1, 1);
 MODULE_VERSION(usb2_serial, 1);
 
 #define	UCOM_UNIT_MAX 0x1000		/* exclusive */
