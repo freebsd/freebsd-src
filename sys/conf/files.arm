@@ -30,6 +30,7 @@ arm/arm/intr.c			standard
 arm/arm/locore.S		standard	no-obj
 arm/arm/machdep.c		standard
 arm/arm/mem.c			optional	mem
+arm/arm/minidump_machdep.c	optional	mem
 arm/arm/nexus.c			standard
 arm/arm/pmap.c			standard
 arm/arm/setcpsr.S		standard
