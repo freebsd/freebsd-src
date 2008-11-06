@@ -79,14 +79,15 @@ static void	ignoreclean(void);
 static int	ignorep(FTSENT *);
 
 static int	nodumpflag = 0;
+static int	Aflag;
+static long	blocksize, cblocksize;
 
 int
 main(int argc, char *argv[])
 {
 	FTS		*fts;
 	FTSENT		*p;
-	off_t		savednumber;
-	long		blocksize;
+	off_t		savednumber, curblocks;
 	int		ftsoptions;
 	int		listall;
 	int		depth;
@@ -98,16 +99,30 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag =
-	    lflag = 0;
+	    lflag = Aflag = 0;
 
 	save = argv;
 	ftsoptions = 0;
 	savednumber = 0;
+	cblocksize = DEV_BSIZE;
+	blocksize = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "HI:LPasd:chklmnrx")) != -1)
+	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrx")) != -1)
 		switch (ch) {
+		case 'A':
+			Aflag = 1;
+			break;
+		case 'B':
+			errno = 0;
+			cblocksize = atoi(optarg);
+			if (errno == ERANGE || cblocksize <= 0) {
+				warnx("invalid argument to option B: %s",
+				    optarg);
+				usage();
+			}
+			break;
 		case 'H':
 			Hflag = 1;
 			break;
@@ -144,22 +159,18 @@ main(int argc, char *argv[])
 			cflag = 1;
 			break;
 		case 'h':
-			if (setenv("BLOCKSIZE", "512", 1) == -1)
-				warn("setenv: cannot set BLOCKSIZE=512");
 			hflag = 1;
 			break;
 		case 'k':
 			hflag = 0;
-			if (setenv("BLOCKSIZE", "1024", 1) == -1)
-				warn("setenv: cannot set BLOCKSIZE=1024");
+			blocksize = 1024;
 			break;
 		case 'l':
 			lflag = 1;
 			break;
 		case 'm':
 			hflag = 0;
-			if (setenv("BLOCKSIZE", "1048576", 1) == -1)
-				warn("setenv: cannot set BLOCKSIZE=1048576");
+			blocksize = 1048576;
 			break;
 		case 'n':
 			nodumpflag = 1;
@@ -206,6 +217,9 @@ main(int argc, char *argv[])
 	if (Pflag)
 		ftsoptions |= FTS_PHYSICAL;
 
+	if (!Aflag && (cblocksize % DEV_BSIZE) != 0)
+		cblocksize = howmany(cblocksize, DEV_BSIZE) * DEV_BSIZE;
+
 	listall = 0;
 
 	if (aflag) {
@@ -224,8 +238,13 @@ main(int argc, char *argv[])
 		argv[1] = NULL;
 	}
 
-	(void)getbsize(&notused, &blocksize);
-	blocksize /= 512;
+	if (blocksize == 0)
+		(void)getbsize(&notused, &blocksize);
+
+	if (!Aflag) {
+		cblocksize /= DEV_BSIZE;
+		blocksize /= DEV_BSIZE;
+	}
 
 	rval = 0;
 
@@ -242,17 +261,19 @@ main(int argc, char *argv[])
 			if (ignorep(p))
 				break;
 
+			curblocks = Aflag ?
+			    howmany(p->fts_statp->st_size, cblocksize) :
+			    howmany(p->fts_statp->st_blocks, cblocksize);
 			p->fts_parent->fts_bignum += p->fts_bignum +=
-			    p->fts_statp->st_blocks;
+			    curblocks;
 
 			if (p->fts_level <= depth) {
 				if (hflag) {
-					prthumanval(howmany(p->fts_bignum,
-					    blocksize));
+					prthumanval(p->fts_bignum);
 					(void)printf("\t%s\n", p->fts_path);
 				} else {
 					(void)printf("%jd\t%s\n",
-					    (intmax_t)howmany(p->fts_bignum,
+					    howmany(p->fts_bignum * cblocksize,
 					    blocksize), p->fts_path);
 				}
 			}
@@ -273,21 +294,22 @@ main(int argc, char *argv[])
 			    linkchk(p))
 				break;
 
+			curblocks = Aflag ?
+			    howmany(p->fts_statp->st_size, cblocksize) :
+			    howmany(p->fts_statp->st_blocks, cblocksize);
+
 			if (listall || p->fts_level == 0) {
 				if (hflag) {
-					prthumanval(howmany(
-					    p->fts_statp->st_blocks,
-					    blocksize));
+					prthumanval(curblocks);
 					(void)printf("\t%s\n", p->fts_path);
 				} else {
 					(void)printf("%jd\t%s\n",
-					    (intmax_t)howmany(
-					    p->fts_statp->st_blocks,
-					    blocksize),	p->fts_path);
+					    howmany(curblocks * cblocksize,
+					    blocksize), p->fts_path);
 				}
 			}
 
-			p->fts_parent->fts_bignum += p->fts_statp->st_blocks;
+			p->fts_parent->fts_bignum += curblocks;
 		}
 		savednumber = p->fts_parent->fts_bignum;
 	}
@@ -297,11 +319,11 @@ main(int argc, char *argv[])
 
 	if (cflag) {
 		if (hflag) {
-			prthumanval(howmany(savednumber, blocksize));
+			prthumanval(savednumber);
 			(void)printf("\ttotal\n");
 		} else {
 			(void)printf("%jd\ttotal\n", (intmax_t)howmany(
-			    savednumber, blocksize));
+			    savednumber * cblocksize, blocksize));
 		}
 	}
 
@@ -448,7 +470,9 @@ prthumanval(int64_t bytes)
 {
 	char buf[5];
 
-	bytes *= DEV_BSIZE;
+	bytes *= cblocksize;
+	if (!Aflag)
+		bytes *= DEV_BSIZE;
 
 	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
 	    HN_B | HN_NOSPACE | HN_DECIMAL);
@@ -460,8 +484,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m] [-n] [-x] [-I mask] [file ...]\n");
+		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
+		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
+		"[file ...]\n");
 	exit(EX_USAGE);
 }
 
