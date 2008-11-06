@@ -2847,8 +2847,16 @@ tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
 	/*
 	 * No route to sender, stay with default mss and return.
 	 */
-	if (maxmtu == 0)
+	if (maxmtu == 0) {
+		/*
+		 * In case we return early we need to intialize metrics
+		 * to a defined state as tcp_hc_get() would do for us
+		 * if there was no cache hit.
+		 */
+		if (metricptr != NULL)
+			bzero(metricptr, sizeof(struct hc_metrics_lite));
 		return;
+	}
 
 	/* Check the interface for TSO capabilities. */
 	if (mtuflags & CSUM_TSO)
