@@ -429,17 +429,17 @@ age_get_macaddr(struct age_softc *sc)
 			ea[1] &= 0xFFFF;
 			if ((ea[0] == 0 && ea[1] == 0) ||
 			    (ea[0] == 0xFFFFFFFF && ea[1] == 0xFFFF)) {
-				if (1 || bootverbose)
+				if (bootverbose)
 					device_printf(sc->age_dev,
 					    "invalid ethernet address "
 					    "returned from VPD.\n");
 				vpd_error = EINVAL;
 			}
 		}
-		if (vpd_error != 0 && (1 || bootverbose))
+		if (vpd_error != 0 && (bootverbose))
 			device_printf(sc->age_dev, "VPD access failure!\n");
 	} else {
-		if (1 || bootverbose)
+		if (bootverbose)
 			device_printf(sc->age_dev,
 			    "PCI VPD capability not found!\n");
 	}
@@ -538,7 +538,7 @@ age_attach(device_t dev)
 	sc->age_rev = pci_get_revid(dev);
 	sc->age_chip_rev = CSR_READ_4(sc, AGE_MASTER_CFG) >>
 	    MASTER_CHIP_REV_SHIFT;
-	if (1 || bootverbose) {
+	if (bootverbose) {
 		device_printf(dev, "PCI device revision : 0x%04x\n", sc->age_rev);
 		device_printf(dev, "Chip id/revision : 0x%04x\n",
 		    sc->age_chip_rev);
@@ -565,7 +565,7 @@ age_attach(device_t dev)
 	/* Allocate IRQ resources. */
 	msixc = pci_msix_count(dev);
 	msic = pci_msi_count(dev);
-	if (1 || bootverbose) {
+	if (bootverbose) {
 		device_printf(dev, "MSIX count : %d\n", msixc);
 		device_printf(dev, "MSI count : %d\n", msic);
 	}
@@ -612,7 +612,7 @@ age_attach(device_t dev)
 		/* Max payload size. */
 		sc->age_dma_wr_burst = ((burst >> 5) & 0x07) <<
 		    DMA_CFG_WR_BURST_SHIFT;
-		if (1 || bootverbose) {
+		if (bootverbose) {
 			device_printf(dev, "Read request size : %d bytes.\n",
 			    128 << ((burst >> 12) & 0x07));
 			device_printf(dev, "TLP payload size : %d bytes.\n",
@@ -2685,7 +2685,7 @@ age_init_locked(struct age_softc *sc)
 	else
 		reg |= MASTER_ITIMER_ENB;
 	CSR_WRITE_4(sc, AGE_MASTER_CFG, reg);
-	if (1 || bootverbose)
+	if (bootverbose)
 		device_printf(sc->age_dev, "interrupt moderation is %d us.\n",
 		    sc->age_int_mod);
 	CSR_WRITE_2(sc, AGE_INTR_CLR_TIMER, AGE_USECS(1000));
