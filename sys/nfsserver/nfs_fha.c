@@ -180,11 +180,16 @@ fha_extract_info(struct svc_req *req, struct fha_info *i)
 	i->locktype = LK_EXCLUSIVE;
 	
 	/*
-	 * Extract the procnum and convert to v3 form if necessary.
+	 * Extract the procnum and convert to v3 form if necessary,
+	 * taking care to deal with out-of-range procnums. Caller will
+	 * ensure that rq_vers is either 2 or 3.
 	 */
 	procnum = req->rq_proc;
-	if (!v3)
+	if (!v3) {
+		if (procnum > NFSV2PROC_STATFS)
+			goto out;
 		procnum = nfsrv_nfsv3_procid[procnum];
+	}
 
 	/* 
 	 * We do affinity for most. However, we divide a realm of affinity 
