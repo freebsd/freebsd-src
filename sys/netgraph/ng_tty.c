@@ -94,8 +94,6 @@ struct ngt_softc {
 };
 typedef struct ngt_softc *sc_p;
 
-static int ngt_unit;
-
 /* Flags */
 #define FLG_DEBUG		0x0002
 
@@ -157,7 +155,6 @@ static int
 ngt_constructor(node_p node)
 {
 	sc_p sc;
-	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
 
 	/* Allocate private structure */
 	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
@@ -170,14 +167,6 @@ ngt_constructor(node_p node)
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
 	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
 
-	atomic_add_int(&ngt_unit, 1);
-	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit);
-
-	/* Assign node its name */
-	if (ng_name_node(node, name))
-		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __func__, name);
-	/* Done */
 	return (0);
 }
 
