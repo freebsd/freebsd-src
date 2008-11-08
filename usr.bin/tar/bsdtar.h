@@ -80,6 +80,7 @@ struct bsdtar {
 	const char	 *progname;
 	int		  argc;
 	char		**argv;
+	const char	 *optarg;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
 	uid_t		  user_uid; /* UID running this program */
@@ -102,8 +103,36 @@ struct bsdtar {
 	struct substitution	*substitution;	/* for subst.c */
 };
 
+/* Fake short equivalents for long options that otherwise lack them. */
+enum {
+	OPTION_CHECK_LINKS = 1,
+	OPTION_CHROOT,
+	OPTION_EXCLUDE,
+	OPTION_FORMAT,
+	OPTION_HELP,
+	OPTION_INCLUDE,
+	OPTION_KEEP_NEWER_FILES,
+	OPTION_NEWER_CTIME,
+	OPTION_NEWER_CTIME_THAN,
+	OPTION_NEWER_MTIME,
+	OPTION_NEWER_MTIME_THAN,
+	OPTION_NODUMP,
+	OPTION_NO_SAME_OWNER,
+	OPTION_NO_SAME_PERMISSIONS,
+	OPTION_NULL,
+	OPTION_NUMERIC_OWNER,
+	OPTION_ONE_FILE_SYSTEM,
+	OPTION_POSIX,
+	OPTION_STRIP_COMPONENTS,
+	OPTION_TOTALS,
+	OPTION_USE_COMPRESS_PROGRAM,
+	OPTION_VERSION
+};
+
+
 void	bsdtar_errc(struct bsdtar *, int _eval, int _code,
 	    const char *fmt, ...) __dead2;
+int	bsdtar_getopt(struct bsdtar *);
 void	bsdtar_warnc(struct bsdtar *, int _code, const char *fmt, ...);
 void	cleanup_exclusions(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
