@@ -802,7 +802,7 @@ ttydevsw_defparam(struct tty *tp, struct termios *t)
 {
 
 	/* Use a fake baud rate, we're not a real device. */
-	t->c_ispeed = t->c_ospeed = TTYDEF_SPEED_PSEUDO;
+	t->c_ispeed = t->c_ospeed = TTYDEF_SPEED;
 
 	return (0);
 }
