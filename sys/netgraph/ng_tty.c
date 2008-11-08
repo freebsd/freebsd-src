@@ -73,6 +73,7 @@
 #include <sys/syslog.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -250,7 +251,8 @@ ngt_shutdown(node_p node)
 static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct thread *td = curthread;	/* XXX */
+	struct proc *p;
+	struct thread *td;
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -262,8 +264,14 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_TTY_SET_TTY:
 			if (sc->tp != NULL)
 				return (EBUSY);
-			error = ttyhook_register(&sc->tp, td, *(int *)msg->data,
+			
+			p = pfind(((int *)msg->data)[0]);
+			if (p == NULL)
+				return (ESRCH);
+			td = FIRST_THREAD_IN_PROC(p);
+			error = ttyhook_register(&sc->tp, td, ((int *)msg->data)[1],
 			    &ngt_hook, sc);
+			PROC_UNLOCK(p);
 			if (error != 0)
 				return (error);
 			break;
