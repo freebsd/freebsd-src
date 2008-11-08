@@ -52,7 +52,6 @@
 #define	TTYDEF_LFLAG TTYDEF_LFLAG_ECHO
 #define	TTYDEF_CFLAG	(CREAD | CS8 | HUPCL)
 #define	TTYDEF_SPEED	(B9600)
-#define	TTYDEF_SPEED_PSEUDO (B38400)
 
 /*
  * Control Character Defaults
