@@ -188,7 +188,9 @@ dev/hptrr/hptrr_os_bsd.c	optional	hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
+dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
+dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/k8temp/k8temp.c		optional	k8temp
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd

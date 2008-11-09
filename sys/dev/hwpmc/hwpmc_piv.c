@@ -153,11 +153,6 @@ __FBSDID("$FreeBSD$");
  * the two logical processors in the package.  We keep track of config
  * and de-config operations using the CFGFLAGS fields of the per-physical
  * cpu state.
- *
- * Handling TSCs
- *
- * TSCs are architectural state and each CPU in a HTT pair has its own
- * TSC register.
  */
 
 #define	P4_PMCS()				\
@@ -364,28 +359,6 @@ struct p4pmc_descr {
 };
 
 static struct p4pmc_descr p4_pmcdesc[P4_NPMCS] = {
-
-	/*
-	 * TSC descriptor
-	 */
-
-	{
-		.pm_descr =
-		{
-			.pd_name  = "TSC",
-			.pd_class = PMC_CLASS_TSC,
-			.pd_caps  = PMC_CAP_READ | PMC_CAP_WRITE,
-			.pd_width = 64
-		},
-		.pm_pmcnum   = ~0,
-		.pm_cccr_msr = ~0,
-		.pm_pmc_msr  = 0x10,
-	},
-
-	/*
-	 * P4 PMCS
-	 */
-
 #define	P4_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | PMC_CAP_SYSTEM |  \
 	PMC_CAP_EDGE | PMC_CAP_THRESHOLD | PMC_CAP_READ | PMC_CAP_WRITE | \
 	PMC_CAP_INVERT | PMC_CAP_QUALIFIER | PMC_CAP_PRECISE |            \
@@ -435,8 +408,6 @@ static int p4_system_has_htt;
 /*
  * Per-CPU data structure for P4 class CPUs
  *
- * [common stuff]
- * [19 struct pmc_hw pointers]
  * [19 struct pmc_hw structures]
  * [45 ESCRs status bytes]
  * [per-cpu spin mutex]
@@ -448,8 +419,6 @@ static int p4_system_has_htt;
  */
 
 struct p4_cpu {
-	struct pmc_cpu	pc_common;
-	struct pmc_hw	*pc_hwpmcs[P4_NPMCS];
 	struct pmc_hw	pc_p4pmcs[P4_NPMCS];
 	char		pc_escrs[P4_NESCR];
 	struct mtx	pc_mtx;		/* spin lock */
@@ -463,19 +432,7 @@ struct p4_cpu {
 	pmc_value_t	pc_pmc_values[P4_NPMCS * P4_NHTT];
 };
 
-/*
- * A 'logical' CPU shares PMC resources with partner 'physical' CPU,
- * except the TSC, which is architectural and hence seperate.  The
- * 'logical' CPU descriptor thus has pointers to the physical CPUs
- * descriptor state except for the TSC (rowindex 0) which is not
- * shared.
- */
-
-struct p4_logicalcpu {
-	struct pmc_cpu	pc_common;
-	struct pmc_hw	*pc_hwpmcs[P4_NPMCS];
-	struct pmc_hw	pc_tsc;
-};
+static struct p4_cpu **p4_pcpu;
 
 #define	P4_PCPU_PMC_VALUE(PC,RI,CPU) 	(PC)->pc_pmc_values[(RI)*((CPU) & 1)]
 #define	P4_PCPU_HW_VALUE(PC,RI,CPU)	(PC)->pc_si.pc_hw[(RI)*((CPU) & 1)]
@@ -579,8 +536,8 @@ p4_find_event(enum pmc_event ev)
 		if (p4_events[n].pm_event == ev)
 			break;
 	if (n == P4_NEVENTS)
-		return NULL;
-	return &p4_events[n];
+		return (NULL);
+	return (&p4_events[n]);
 }
 
 /*
@@ -588,19 +545,21 @@ p4_find_event(enum pmc_event ev)
  */
 
 static int
-p4_init(int cpu)
+p4_pcpu_init(struct pmc_mdep *md, int cpu)
 {
-	int n, phycpu;
 	char *pescr;
-	struct p4_cpu *pcs;
-	struct p4_logicalcpu *plcs;
+	int n, first_ri, phycpu;
 	struct pmc_hw *phw;
+	struct p4_cpu *p4c;
+	struct pmc_cpu *pc, *plc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p4,%d] insane cpu number %d", __LINE__, cpu));
 
 	PMCDBG(MDP,INI,0, "p4-init cpu=%d is-primary=%d", cpu,
 	    pmc_cpu_is_primary(cpu) != 0);
+
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P4].pcd_ri;
 
 	/*
 	 * The two CPUs in an HT pair share their per-cpu state.
@@ -619,56 +578,50 @@ p4_init(int cpu)
 		p4_system_has_htt = 1;
 
 		phycpu = P4_TO_HTT_PRIMARY(cpu);
-		pcs = (struct p4_cpu *) pmc_pcpu[phycpu];
-		PMCDBG(MDP,INI,1, "p4-init cpu=%d phycpu=%d pcs=%p",
-		    cpu, phycpu, pcs);
-		KASSERT(pcs,
-		    ("[p4,%d] Null Per-Cpu state cpu=%d phycpu=%d", __LINE__,
-			cpu, phycpu));
-		if (pcs == NULL) /* decline to init */
-			return ENXIO;
+		pc = pmc_pcpu[phycpu];
+		plc = pmc_pcpu[cpu];
 
-		plcs = malloc(sizeof(struct p4_logicalcpu),
-		    M_PMC, M_WAITOK|M_ZERO);
+		KASSERT(plc != pc, ("[p4,%d] per-cpu config error", __LINE__));
 
-		/* The TSC is architectural state and is not shared */
-		plcs->pc_hwpmcs[0] = &plcs->pc_tsc;
-		plcs->pc_tsc.phw_state = PMC_PHW_FLAG_IS_ENABLED |
-		    PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(0) |
-		    PMC_PHW_FLAG_IS_SHAREABLE;
+		PMCDBG(MDP,INI,1, "p4-init cpu=%d phycpu=%d pc=%p", cpu,
+		    phycpu, pc);
+		KASSERT(pc, ("[p4,%d] Null Per-Cpu state cpu=%d phycpu=%d",
+		    __LINE__, cpu, phycpu));
 
-		/* Other PMCs are shared with the physical CPU */
-		for (n = 1; n < P4_NPMCS; n++)
-			plcs->pc_hwpmcs[n] = pcs->pc_hwpmcs[n];
+		/* PMCs are shared with the physical CPU. */
+		for (n = 0; n < P4_NPMCS; n++)
+			plc->pc_hwpmcs[n + first_ri] =
+			    pc->pc_hwpmcs[n + first_ri];
 
-		pmc_pcpu[cpu] = (struct pmc_cpu *) plcs;
-		return 0;
+		return (0);
 	}
 
-	pcs = malloc(sizeof(struct p4_cpu), M_PMC, M_WAITOK|M_ZERO);
+	p4c = malloc(sizeof(struct p4_cpu), M_PMC, M_WAITOK|M_ZERO);
 
-	if (pcs == NULL)
-		return ENOMEM;
-	phw = pcs->pc_p4pmcs;
+	if (p4c == NULL)
+		return (ENOMEM);
+
+	pc = pmc_pcpu[cpu];
+
+	KASSERT(pc != NULL, ("[p4,%d] cpu %d null per-cpu", __LINE__, cpu));
+
+	p4_pcpu[cpu] = p4c;
+	phw = p4c->pc_p4pmcs;
 
 	for (n = 0; n < P4_NPMCS; n++, phw++) {
 		phw->phw_state   = PMC_PHW_FLAG_IS_ENABLED |
 		    PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(n);
 		phw->phw_pmc     = NULL;
-		pcs->pc_hwpmcs[n] = phw;
+		pc->pc_hwpmcs[n + first_ri] = phw;
 	}
 
-	/* Mark the TSC as shareable */
-	pcs->pc_hwpmcs[0]->phw_state |= PMC_PHW_FLAG_IS_SHAREABLE;
-
-	pescr = pcs->pc_escrs;
+	pescr = p4c->pc_escrs;
 	for (n = 0; n < P4_NESCR; n++)
 		*pescr++ = P4_INVALID_PMC_INDEX;
-	pmc_pcpu[cpu] = (struct pmc_cpu *) pcs;
 
-	mtx_init(&pcs->pc_mtx, "p4-pcpu", "pmc-leaf", MTX_SPIN);
+	mtx_init(&p4c->pc_mtx, "p4-pcpu", "pmc-leaf", MTX_SPIN);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -676,74 +629,39 @@ p4_init(int cpu)
  */
 
 static int
-p4_cleanup(int cpu)
+p4_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
-	int i;
-	struct p4_cpu *pcs;
+	int first_ri, i;
+	struct p4_cpu *p4c;
+	struct pmc_cpu *pc;
 
 	PMCDBG(MDP,INI,0, "p4-cleanup cpu=%d", cpu);
 
-	if ((pcs = (struct p4_cpu *) pmc_pcpu[cpu]) == NULL)
-		return 0;
+	pc = pmc_pcpu[cpu];
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P4].pcd_ri;
+
+	for (i = 0; i < P4_NPMCS; i++)
+		pc->pc_hwpmcs[i + first_ri] = NULL;
+
+	if (!pmc_cpu_is_primary(cpu) && (cpu & 1))
+		return (0);
+
+	p4c = p4_pcpu[cpu];
+
+	KASSERT(p4c != NULL, ("[p4,%d] NULL pcpu", __LINE__));
 
 	/* Turn off all PMCs on this CPU */
 	for (i = 0; i < P4_NPMCS - 1; i++)
 		wrmsr(P4_CCCR_MSR_FIRST + i,
 		    rdmsr(P4_CCCR_MSR_FIRST + i) & ~P4_CCCR_ENABLE);
 
-	/*
-	 * If the CPU is physical we need to teardown the
-	 * full MD state.
-	 */
-	if (!P4_CPU_IS_HTT_SECONDARY(cpu))
-		mtx_destroy(&pcs->pc_mtx);
+	mtx_destroy(&p4c->pc_mtx);
 
-	free(pcs, M_PMC);
+	free(p4c, M_PMC);
 
-	pmc_pcpu[cpu] = NULL;
+	p4_pcpu[cpu] = NULL;
 
-	return 0;
-}
-
-/*
- * Context switch in.
- */
-
-static int
-p4_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-	(void) pc;
-
-	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
-	    (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS) != 0);
-
-	/* enable the RDPMC instruction */
-	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
-		load_cr4(rcr4() | CR4_PCE);
-
-	PMCDBG(MDP,SWI,2, "cr4=0x%x", (uint32_t) rcr4());
-
-	return 0;
-}
-
-/*
- * Context switch out.
- */
-
-static int
-p4_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-	(void) pc;
-	(void) pp;		/* can be null */
-
-	PMCDBG(MDP,SWO,1, "pc=%p pp=%p", pc, pp);
-
-	/* always disallow the RDPMC instruction */
-	load_cr4(rcr4() & ~CR4_PCE);
-
-	PMCDBG(MDP,SWO,2, "cr4=0x%x", (uint32_t) rcr4());
-
-	return 0;
+	return (0);
 }
 
 /*
@@ -753,50 +671,27 @@ p4_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
 static int
 p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 {
+	struct pmc *pm;
+	pmc_value_t tmp;
+	struct p4_cpu *pc;
 	enum pmc_mode mode;
 	struct p4pmc_descr *pd;
-	struct pmc *pm;
-	struct p4_cpu *pc;
-	struct pmc_hw *phw;
-	pmc_value_t tmp;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p4,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
-
-	if (ri == 0) {	/* TSC */
-#ifdef	DEBUG
-		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
-		phw = pc->pc_hwpmcs[ri];
-		pm  = phw->phw_pmc;
-
-		KASSERT(pm, ("[p4,%d] cpu=%d ri=%d not configured", __LINE__,
-			    cpu, ri));
-		KASSERT(PMC_TO_CLASS(pm) == PMC_CLASS_TSC,
-		    ("[p4,%d] cpu=%d ri=%d not a TSC (%d)", __LINE__, cpu, ri,
-			PMC_TO_CLASS(pm)));
-		KASSERT(PMC_IS_COUNTING_MODE(PMC_TO_MODE(pm)),
-		    ("[p4,%d] TSC counter in non-counting mode", __LINE__));
-#endif
-		*v = rdtsc();
-		PMCDBG(MDP,REA,2, "p4-read -> %jx", *v);
-		return 0;
-	}
-
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
-	pd  = &p4_pmcdesc[ri];
-	pm  = phw->phw_pmc;
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	pm = pc->pc_p4pmcs[ri].phw_pmc;
+	pd = &p4_pmcdesc[ri];
 
 	KASSERT(pm != NULL,
-	    ("[p4,%d] No owner for HWPMC [cpu%d,pmc%d]", __LINE__,
-		cpu, ri));
+	    ("[p4,%d] No owner for HWPMC [cpu%d,pmc%d]", __LINE__, cpu, ri));
 
 	KASSERT(pd->pm_descr.pd_class == PMC_TO_CLASS(pm),
 	    ("[p4,%d] class mismatch pd %d != id class %d", __LINE__,
-		pd->pm_descr.pd_class, PMC_TO_CLASS(pm)));
+	    pd->pm_descr.pd_class, PMC_TO_CLASS(pm)));
 
 	mode = PMC_TO_MODE(pm);
 
@@ -822,7 +717,8 @@ p4_read_pmc(int cpu, int ri, pmc_value_t *v)
 		*v = tmp;
 
 	PMCDBG(MDP,REA,2, "p4-read -> %jx", *v);
-	return 0;
+
+	return (0);
 }
 
 /*
@@ -843,29 +739,8 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[amd,%d] illegal row-index %d", __LINE__, ri));
 
-
-	/*
-	 * The P4's TSC register is writeable, but we don't allow a
-	 * write as changing the TSC's value could interfere with
-	 * timekeeping and other system functions.
-	 */
-	if (ri == 0) {
-#ifdef	DEBUG
-		pc  = (struct p4_cpu *) pmc_pcpu[cpu];
-		phw = pc->pc_hwpmcs[ri];
-		pm  = phw->phw_pmc;
-		KASSERT(pm, ("[p4,%d] cpu=%d ri=%d not configured", __LINE__,
-			    cpu, ri));
-		KASSERT(PMC_TO_CLASS(pm) == PMC_CLASS_TSC,
-		    ("[p4,%d] cpu=%d ri=%d not a TSC (%d)", __LINE__,
-			cpu, ri, PMC_TO_CLASS(pm)));
-#endif
-		return 0;
-	}
-
-	/* Shared PMCs */
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
+	pc  = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	phw = &pc->pc_p4pmcs[ri];
 	pm  = phw->phw_pmc;
 	pd  = &p4_pmcdesc[ri];
 
@@ -891,7 +766,7 @@ p4_write_pmc(int cpu, int ri, pmc_value_t v)
 	else
 		P4_PCPU_PMC_VALUE(pc,ri,cpu) = v;
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -914,25 +789,14 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p4,%d] illegal CPU %d", __LINE__, cpu));
+
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
 	PMCDBG(MDP,CFG,1, "cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
-	if (ri == 0) {		/* TSC */
-		pc = (struct p4_cpu *) pmc_pcpu[cpu];
-		phw = pc->pc_hwpmcs[ri];
-
-		KASSERT(pm == NULL || phw->phw_pmc == NULL,
-		    ("[p4,%d] hwpmc doubly config'ed", __LINE__));
-		phw->phw_pmc = pm;
-		return 0;
-	}
-
-	/* Shared PMCs */
-
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
+	pc  = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	phw = &pc->pc_p4pmcs[ri];
 
 	KASSERT(pm == NULL || phw->phw_pmc == NULL ||
 	    (p4_system_has_htt && phw->phw_pmc == pm),
@@ -975,7 +839,7 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 
 	mtx_unlock_spin(&pc->pc_mtx);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -985,19 +849,22 @@ p4_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 p4_get_config(int cpu, int ri, struct pmc **ppm)
 {
-	struct p4_cpu *pc;
-	struct pmc_hw *phw;
 	int cfgflags;
+	struct p4_cpu *pc;
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p4,%d] illegal CPU %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < P4_NPMCS,
+	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
+
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
 	mtx_lock_spin(&pc->pc_mtx);
 	cfgflags = P4_PCPU_GET_CFGFLAGS(pc,ri);
 	mtx_unlock_spin(&pc->pc_mtx);
 
 	if (cfgflags & P4_CPU_TO_FLAG(cpu))
-		*ppm = phw->phw_pmc; /* PMC config'ed on this CPU */
+		*ppm = pc->pc_p4pmcs[ri].phw_pmc; /* PMC config'ed on this CPU */
 	else
 		*ppm = NULL;
 
@@ -1062,31 +929,23 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	/* check class */
 	if (pd->pm_descr.pd_class != a->pm_class)
-		return EINVAL;
+		return (EINVAL);
 
 	/* check requested capabilities */
 	caps = a->pm_caps;
 	if ((pd->pm_descr.pd_caps & caps) != caps)
-		return EPERM;
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC) {
-		/* TSC's are always allocated in system-wide counting mode */
-		if (a->pm_ev != PMC_EV_TSC_TSC ||
-		    a->pm_mode != PMC_MODE_SC)
-			return EINVAL;
-		return 0;
-	}
+		return (EPERM);
 
 	/*
 	 * If the system has HTT enabled, and the desired allocation
 	 * mode is process-private, and the PMC row disposition is not
-	 * free (0), decline the allocation.
+	 * FREE (0), decline the allocation.
 	 */
 
 	if (p4_system_has_htt &&
 	    PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)) &&
 	    pmc_getrowdisp(ri) != 0)
-		return EBUSY;
+		return (EBUSY);
 
 	KASSERT(pd->pm_descr.pd_class == PMC_CLASS_P4,
 	    ("[p4,%d] unknown PMC class %d", __LINE__,
@@ -1094,10 +953,10 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	if (pm->pm_event < PMC_EV_P4_FIRST ||
 	    pm->pm_event > PMC_EV_P4_LAST)
-		return EINVAL;
+		return (EINVAL);
 
 	if ((pevent = p4_find_event(pm->pm_event)) == NULL)
-		return ESRCH;
+		return (ESRCH);
 
 	PMCDBG(MDP,ALL,2, "pevent={ev=%d,escrsel=0x%x,cccrsel=0x%x,isti=%d}",
 	    pevent->pm_event, pevent->pm_escr_eventselect,
@@ -1112,9 +971,9 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (P4_EVENT_IS_TI(pevent) &&
 	    PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)) &&
 	    p4_system_has_htt)
-		return EINVAL;
+		return (EINVAL);
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
 	found   = 0;
 
@@ -1170,7 +1029,7 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	}
 
 	if (found == 0)
-		return ESRCH;
+		return (ESRCH);
 
 	KASSERT((int) escr >= 0 && escr < P4_NESCR,
 	    ("[p4,%d] illegal ESCR value %d", __LINE__, escr));
@@ -1243,7 +1102,7 @@ p4_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	    "escr=%d escrmsr=0x%x escrval=0x%x", pevent->pm_cccr_select,
 	    cccrvalue, escr, pm->pm_md.pm_p4.pm_p4_escrmsr, escrvalue);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1254,21 +1113,19 @@ static int
 p4_release_pmc(int cpu, int ri, struct pmc *pm)
 {
 	enum pmc_p4escr escr;
-	struct pmc_hw *phw;
 	struct p4_cpu *pc;
 
-	if (p4_pmcdesc[ri].pm_descr.pd_class == PMC_CLASS_TSC)
-		return 0;
+	KASSERT(ri >= 0 && ri < P4_NPMCS,
+	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
 	escr = pm->pm_md.pm_p4.pm_p4_escr;
 
 	PMCDBG(MDP,REL,1, "p4-release cpu=%d ri=%d escr=%d", cpu, ri, escr);
 
 	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pm))) {
-		pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-		phw = pc->pc_hwpmcs[ri];
+		pc  = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
-		KASSERT(phw->phw_pmc == NULL,
+		KASSERT(pc->pc_p4pmcs[ri].phw_pmc == NULL,
 		    ("[p4,%d] releasing configured PMC ri=%d", __LINE__, ri));
 
 		P4_ESCR_UNMARK_ROW_STANDALONE(escr);
@@ -1279,7 +1136,7 @@ p4_release_pmc(int cpu, int ri, struct pmc *pm)
 	} else
 		P4_ESCR_UNMARK_ROW_THREAD(escr);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1290,30 +1147,24 @@ static int
 p4_start_pmc(int cpu, int ri)
 {
 	int rc;
-	uint32_t cccrvalue, cccrtbits, escrvalue, escrmsr, escrtbits;
 	struct pmc *pm;
 	struct p4_cpu *pc;
-	struct pmc_hw *phw;
 	struct p4pmc_descr *pd;
+	uint32_t cccrvalue, cccrtbits, escrvalue, escrmsr, escrtbits;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p4,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row-index %d", __LINE__, ri));
 
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
-	pm  = phw->phw_pmc;
-	pd  = &p4_pmcdesc[ri];
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	pm = pc->pc_p4pmcs[ri].phw_pmc;
+	pd = &p4_pmcdesc[ri];
 
 	KASSERT(pm != NULL,
-	    ("[p4,%d] starting cpu%d,pmc%d with null pmc", __LINE__,
-		cpu, ri));
+	    ("[p4,%d] starting cpu%d,pmc%d with null pmc", __LINE__, cpu, ri));
 
 	PMCDBG(MDP,STA,1, "p4-start cpu=%d ri=%d", cpu, ri);
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC) /* TSC are always on */
-		return 0;
 
 	KASSERT(pd->pm_descr.pd_class == PMC_CLASS_P4,
 	    ("[p4,%d] wrong PMC class %d", __LINE__,
@@ -1430,7 +1281,7 @@ p4_start_pmc(int cpu, int ri)
 	    ri, pm->pm_md.pm_p4.pm_p4_escr, escrmsr, escrvalue,
 	    cccrvalue, P4_PCPU_HW_VALUE(pc,ri,cpu));
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1444,7 +1295,6 @@ p4_stop_pmc(int cpu, int ri)
 	uint32_t cccrvalue, cccrtbits, escrvalue, escrmsr, escrtbits;
 	struct pmc *pm;
 	struct p4_cpu *pc;
-	struct pmc_hw *phw;
 	struct p4pmc_descr *pd;
 	pmc_value_t tmp;
 
@@ -1453,18 +1303,9 @@ p4_stop_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P4_NPMCS,
 	    ("[p4,%d] illegal row index %d", __LINE__, ri));
 
-	pd  = &p4_pmcdesc[ri];
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
-		return 0;
-
-	pc  = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
-	phw = pc->pc_hwpmcs[ri];
-
-	KASSERT(phw != NULL,
-	    ("[p4,%d] null phw for cpu%d, ri%d", __LINE__, cpu, ri));
-
-	pm  = phw->phw_pmc;
+	pd = &p4_pmcdesc[ri];
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	pm = pc->pc_p4pmcs[ri].phw_pmc;
 
 	KASSERT(pm != NULL,
 	    ("[p4,%d] null pmc for cpu%d, ri%d", __LINE__, cpu, ri));
@@ -1474,7 +1315,7 @@ p4_stop_pmc(int cpu, int ri)
 	if (PMC_IS_SYSTEM_MODE(PMC_TO_MODE(pm))) {
 		wrmsr(pd->pm_cccr_msr,
 		    pm->pm_md.pm_p4.pm_p4_cccrvalue & ~P4_CCCR_ENABLE);
-		return 0;
+		return (0);
 	}
 
 	/*
@@ -1569,8 +1410,7 @@ static int
 p4_intr(int cpu, struct trapframe *tf)
 {
 	uint32_t cccrval, ovf_mask, ovf_partner;
-	int i, did_interrupt, error, ri;
-	struct pmc_hw *phw;
+	int did_interrupt, error, ri;
 	struct p4_cpu *pc;
 	struct pmc *pm;
 	pmc_value_t v;
@@ -1578,7 +1418,7 @@ p4_intr(int cpu, struct trapframe *tf)
 	PMCDBG(MDP,INT, 1, "cpu=%d tf=0x%p um=%d", cpu, (void *) tf,
 	    TRAPF_USERMODE(tf));
 
-	pc = (struct p4_cpu *) pmc_pcpu[P4_TO_HTT_PRIMARY(cpu)];
+	pc = p4_pcpu[P4_TO_HTT_PRIMARY(cpu)];
 
 	ovf_mask = P4_CPU_IS_HTT_SECONDARY(cpu) ?
 	    P4_CCCR_OVF_PMI_T1 : P4_CCCR_OVF_PMI_T0;
@@ -1597,9 +1437,7 @@ p4_intr(int cpu, struct trapframe *tf)
 	 * Loop through all CCCRs, looking for ones that have
 	 * interrupted this CPU.
 	 */
-	for (i = 0; i < P4_NPMCS-1; i++) {
-
-		ri = i + 1;	/* row index */
+	for (ri = 0; ri < P4_NPMCS; ri++) {
 
 		/*
 		 * Check if our partner logical CPU has already marked
@@ -1615,8 +1453,7 @@ p4_intr(int cpu, struct trapframe *tf)
 			 * Ignore de-configured or stopped PMCs.
 			 * Ignore PMCs not in sampling mode.
 			 */
-			phw = pc->pc_hwpmcs[ri];
-			pm  = phw->phw_pmc;
+			pm = pc->pc_p4pmcs[ri].phw_pmc;
 			if (pm == NULL ||
 			    pm->pm_state != PMC_STATE_RUNNING ||
 			    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
@@ -1632,7 +1469,7 @@ p4_intr(int cpu, struct trapframe *tf)
 		 * and the OVF_Tx bit for this logical
 		 * processor being set.
 		 */
-		cccrval = rdmsr(P4_CCCR_MSR_FIRST + i);
+		cccrval = rdmsr(P4_CCCR_MSR_FIRST + ri);
 
 		if ((cccrval & ovf_mask) != ovf_mask)
 			continue;
@@ -1646,13 +1483,13 @@ p4_intr(int cpu, struct trapframe *tf)
 		if (p4_system_has_htt && (cccrval & ovf_partner))
 			P4_PCPU_SET_INTRFLAG(pc, ri, 1);
 
-		v = rdmsr(P4_PERFCTR_MSR_FIRST + i);
+		v = rdmsr(P4_PERFCTR_MSR_FIRST + ri);
 
 		PMCDBG(MDP,INT, 2, "ri=%d v=%jx", ri, v);
 
 		/* Stop the counter, and reset the overflow  bit */
 		cccrval &= ~(P4_CCCR_OVF | P4_CCCR_ENABLE);
-		wrmsr(P4_CCCR_MSR_FIRST + i, cccrval);
+		wrmsr(P4_CCCR_MSR_FIRST + ri, cccrval);
 
 		did_interrupt = 1;
 
@@ -1660,8 +1497,7 @@ p4_intr(int cpu, struct trapframe *tf)
 		 * Ignore de-configured or stopped PMCs.  Ignore PMCs
 		 * not in sampling mode.
 		 */
-		phw = pc->pc_hwpmcs[ri];
-		pm  = phw->phw_pmc;
+		pm = pc->pc_p4pmcs[ri].phw_pmc;
 
 		if (pm == NULL ||
 		    pm->pm_state != PMC_STATE_RUNNING ||
@@ -1683,9 +1519,9 @@ p4_intr(int cpu, struct trapframe *tf)
 		 */
 		v = P4_RELOAD_COUNT_TO_PERFCTR_VALUE(
 			pm->pm_sc.pm_reloadcount);
-		wrmsr(P4_PERFCTR_MSR_FIRST + i, v);
+		wrmsr(P4_PERFCTR_MSR_FIRST + ri, v);
 		if (error == 0)
-			wrmsr(P4_CCCR_MSR_FIRST + i,
+			wrmsr(P4_CCCR_MSR_FIRST + ri,
 			    cccrval | P4_CCCR_ENABLE);
 	}
 
@@ -1718,7 +1554,6 @@ p4_describe(int cpu, int ri, struct pmc_info *pi,
 {
 	int error;
 	size_t copied;
-	struct pmc_hw *phw;
 	const struct p4pmc_descr *pd;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -1729,26 +1564,25 @@ p4_describe(int cpu, int ri, struct pmc_info *pi,
 	PMCDBG(MDP,OPS,1,"p4-describe cpu=%d ri=%d", cpu, ri);
 
 	if (P4_CPU_IS_HTT_SECONDARY(cpu))
-		return EINVAL;
+		return (EINVAL);
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 	pd  = &p4_pmcdesc[ri];
 
 	if ((error = copystr(pd->pm_descr.pd_name, pi->pm_name,
-		 PMC_NAME_MAX, &copied)) != 0)
-		return error;
+	    PMC_NAME_MAX, &copied)) != 0)
+		return (error);
 
 	pi->pm_class = pd->pm_descr.pd_class;
 
-	if (phw->phw_state & PMC_PHW_FLAG_IS_ENABLED) {
+	if (p4_pcpu[cpu]->pc_p4pmcs[ri].phw_state & PMC_PHW_FLAG_IS_ENABLED) {
 		pi->pm_enabled = TRUE;
-		*ppmc          = phw->phw_pmc;
+		*ppmc          = p4_pcpu[cpu]->pc_p4pmcs[ri].phw_pmc;
 	} else {
 		pi->pm_enabled = FALSE;
 		*ppmc          = NULL;
 	}
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -1770,41 +1604,52 @@ p4_get_msr(int ri, uint32_t *msr)
 
 
 int
-pmc_initialize_p4(struct pmc_mdep *pmc_mdep)
+pmc_p4_initialize(struct pmc_mdep *md, int ncpus)
 {
+	struct pmc_classdep *pcd;
 	struct p4_event_descr *pe;
 
+	KASSERT(md != NULL, ("[p4,%d] md is NULL", __LINE__));
 	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
 	    ("[p4,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,1, "%s", "p4-initialize");
 
-	switch (pmc_mdep->pmd_cputype) {
+	/* Allocate space for pointers to per-cpu descriptors. */
+	p4_pcpu = malloc(sizeof(struct p4_cpu **) * ncpus, M_PMC,
+	    M_ZERO|M_WAITOK);
+
+	/* Fill in the class dependent descriptor. */
+	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P4];
+
+	switch (md->pmd_cputype) {
 	case PMC_CPU_INTEL_PIV:
 
-		pmc_mdep->pmd_npmc	    = P4_NPMCS;
-		pmc_mdep->pmd_classes[1].pm_class = PMC_CLASS_P4;
-		pmc_mdep->pmd_classes[1].pm_caps  = P4_PMC_CAPS;
-		pmc_mdep->pmd_classes[1].pm_width = 40;
-		pmc_mdep->pmd_nclasspmcs[1] = 18;
+		pcd->pcd_caps		= P4_PMC_CAPS;
+		pcd->pcd_class		= PMC_CLASS_P4;
+		pcd->pcd_num		= P4_NPMCS;
+		pcd->pcd_ri		= md->pmd_npmc;
+		pcd->pcd_width		= 40;
 
-		pmc_mdep->pmd_init    	    = p4_init;
-		pmc_mdep->pmd_cleanup 	    = p4_cleanup;
-		pmc_mdep->pmd_switch_in     = p4_switch_in;
-		pmc_mdep->pmd_switch_out    = p4_switch_out;
-		pmc_mdep->pmd_read_pmc 	    = p4_read_pmc;
-		pmc_mdep->pmd_write_pmc     = p4_write_pmc;
-		pmc_mdep->pmd_config_pmc    = p4_config_pmc;
-		pmc_mdep->pmd_get_config    = p4_get_config;
-		pmc_mdep->pmd_allocate_pmc  = p4_allocate_pmc;
-		pmc_mdep->pmd_release_pmc   = p4_release_pmc;
-		pmc_mdep->pmd_start_pmc     = p4_start_pmc;
-		pmc_mdep->pmd_stop_pmc      = p4_stop_pmc;
-		pmc_mdep->pmd_intr	    = p4_intr;
-		pmc_mdep->pmd_describe      = p4_describe;
-		pmc_mdep->pmd_get_msr  	    = p4_get_msr; /* i386 */
+		pcd->pcd_allocate_pmc	= p4_allocate_pmc;
+		pcd->pcd_config_pmc	= p4_config_pmc;
+		pcd->pcd_describe	= p4_describe;
+		pcd->pcd_get_config	= p4_get_config;
+		pcd->pcd_get_msr	= p4_get_msr;
+		pcd->pcd_pcpu_fini 	= p4_pcpu_fini;
+		pcd->pcd_pcpu_init    	= p4_pcpu_init;
+		pcd->pcd_read_pmc	= p4_read_pmc;
+		pcd->pcd_release_pmc	= p4_release_pmc;
+		pcd->pcd_start_pmc	= p4_start_pmc;
+		pcd->pcd_stop_pmc	= p4_stop_pmc;
+		pcd->pcd_write_pmc	= p4_write_pmc;
 
-		/* model specific munging */
+		md->pmd_pcpu_fini	= NULL;
+		md->pmd_pcpu_init	= NULL;
+		md->pmd_intr	    	= p4_intr;
+		md->pmd_npmc	       += P4_NPMCS;
+
+		/* model specific configuration */
 		if ((cpu_id & 0xFFF) < 0xF27) {
 
 			/*
@@ -1824,5 +1669,26 @@ pmc_initialize_p4(struct pmc_mdep *pmc_mdep)
 		return ENOSYS;
 	}
 
-	return 0;
+	return (0);
+}
+
+void
+pmc_p4_finalize(struct pmc_mdep *md)
+{
+#if	defined(INVARIANTS)
+	int i, ncpus;
+#endif
+
+	KASSERT(p4_pcpu != NULL,
+	    ("[p4,%d] NULL p4_pcpu", __LINE__));
+
+#if	defined(INVARIANTS)
+	ncpus = pmc_cpu_max();
+	for (i = 0; i < ncpus; i++)
+		KASSERT(p4_pcpu[i] == NULL, ("[p4,%d] non-null pcpu %d",
+		    __LINE__, i));
+#endif
+
+	free(p4_pcpu, M_PMC);
+	p4_pcpu = NULL;
 }

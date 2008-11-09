@@ -35,8 +35,34 @@
 #ifndef _MACHINE_PMC_MDEP_H
 #define	_MACHINE_PMC_MDEP_H 1
 
+#ifdef	_KERNEL
+struct pmc_mdep;
+#endif
+
 #include <dev/hwpmc/hwpmc_amd.h>
 #include <dev/hwpmc/hwpmc_piv.h>
+#include <dev/hwpmc/hwpmc_tsc.h>
+
+/*
+ * Intel processors implementing V2 and later of the Intel performance
+ * measurement architecture have PMCs of the following classes: TSC,
+ * IAF and IAP.
+ */
+#define	PMC_MDEP_CLASS_INDEX_TSC	0
+#define	PMC_MDEP_CLASS_INDEX_K8		1
+#define	PMC_MDEP_CLASS_INDEX_P4		1
+#define	PMC_MDEP_CLASS_INDEX_IAF	1
+#define	PMC_MDEP_CLASS_INDEX_IAP	2
+
+/*
+ * On the amd64 platform we support the following PMCs.
+ *
+ * TSC		The timestamp counter
+ * K8		AMD Athlon64 and Opteron PMCs in 64 bit mode.
+ * PIV		Intel P4/HTT and P4/EMT64
+ * IAP		Intel Core/Core2/Atom CPUs in 64 bits mode.
+ * IAF		Intel fixed-function PMCs in Core2 and later CPUs.
+ */
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
@@ -54,8 +80,6 @@ union pmc_md_pmc {
 	struct pmc_md_amd_pmc	pm_amd;
 	struct pmc_md_p4_pmc	pm_p4;
 };
-
-struct pmc;
 
 #define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_rip)
 #define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_rbp)
@@ -88,5 +112,10 @@ struct pmc;
 void	start_exceptions(void), end_exceptions(void);
 void	pmc_x86_lapic_enable_pmc_interrupt(void);
 
-#endif
+struct pmc_mdep *pmc_amd_initialize(void);
+void	pmc_amd_finalize(struct pmc_mdep *_md);
+struct pmc_mdep *pmc_intel_initialize(void);
+void	pmc_intel_finalize(struct pmc_mdep *_md);
+
+#endif /* _KERNEL */
 #endif /* _MACHINE_PMC_MDEP_H */

@@ -110,9 +110,11 @@ dev/ed/if_ed_wd80x3.c		optional ed isa
 dev/fb/fb.c			optional fb | gdc
 dev/fe/if_fe_cbus.c		optional fe isa
 dev/hwpmc/hwpmc_amd.c		optional hwpmc
+dev/hwpmc/hwpmc_intel.c		optional hwpmc
 dev/hwpmc/hwpmc_pentium.c	optional hwpmc
 dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
+dev/hwpmc/hwpmc_tsc.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
 dev/io/iodev.c			optional io
 dev/kbd/kbd.c			optional pckbd | sc | ukbd
