@@ -947,6 +947,20 @@ for COMPFILE in `find . -type f -size +0`; do
       echo " *** Temp ${COMPFILE} and installed have the same CVS Id, deleting"
       rm "${COMPFILE}"
       ;;
+
+    *)
+      tempfoo=`basename $0`
+      TMPFILE1=`mktemp -t ${tempfoo}` || break
+      TMPFILE2=`mktemp -t ${tempfoo}` || break
+      sed "s/[$]${CVS_ID_TAG}:.*[$]//g" "${DESTDIR}${COMPFILE#.}" > "${TMPFILE1}"
+      sed "s/[$]${CVS_ID_TAG}:.*[$]//g" "${COMPFILE}" > "${TMPFILE2}"
+      if diff -q ${DIFF_OPTIONS} "${TMPFILE1}" "${TMPFILE2}" > \
+        /dev/null 2>&1; then
+        echo " *** Temp ${COMPFILE} and installed are the same except CVS Id, deleting"
+        rm "${COMPFILE}"
+      fi
+      rm -f "${TMPFILE1}" "${TMPFILE2}"
+      ;;
     esac
     ;;
   esac
