@@ -133,21 +133,33 @@ pmcc_init_debug(void)
 static int
 pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 {
-	unsigned char op;
 	int c, error, i, j, ncpu, npmc, t;
-	int cpu, pmc;
+	cpumask_t haltedcpus, cpumask;
 	struct pmcc_op *np;
 	unsigned char *map;
+	unsigned char op;
+	int cpu, pmc;
+	size_t dummy;
 
 	if ((ncpu = pmc_ncpu()) < 0)
 		err(EX_OSERR, "Unable to determine the number of cpus");
 
-	/* determine the maximum number of PMCs in any CPU */
+	/* Determine the set of active CPUs. */
+	cpumask = (1 << ncpu) - 1;
+	dummy = sizeof(int);
+	haltedcpus = (cpumask_t) 0;
+	if (ncpu > 1 && sysctlbyname("machdep.hlt_cpus", &haltedcpus,
+	    &dummy, NULL, 0) < 0)
+		err(EX_OSERR, "ERROR: Cannot determine which CPUs are "
+		    "halted");
+	cpumask &= ~haltedcpus;
+
+	/* Determine the maximum number of PMCs in any CPU. */
 	npmc = 0;
 	for (c = 0; c < ncpu; c++) {
 		if ((t = pmc_npmc(c)) < 0)
-			err(EX_OSERR, "Unable to determine the number of PMCs in "
-			    "CPU %d", c);
+			err(EX_OSERR, "Unable to determine the number of "
+			    "PMCs in CPU %d", c);
 		npmc = t > npmc ? t : npmc;
 	}
 
@@ -187,8 +199,10 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 #define MAP(M,C,P)	(*((M) + (C)*npmc + (P)))
 
 		if (cpu == PMCC_CPU_ALL)
-			for (i = 0; i < ncpu; i++)
-				SET_PMCS(i, pmc, op);
+			for (i = 0; i < ncpu; i++) {
+				if ((1 << i) & cpumask)
+					SET_PMCS(i, pmc, op);
+			}
 		else
 			SET_PMCS(cpu, pmc, op);
 	}
