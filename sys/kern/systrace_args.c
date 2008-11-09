@@ -864,29 +864,6 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* getdomainname */
-	case 162: {
-		struct getdomainname_args *p = params;
-		uarg[0] = (intptr_t) p->domainname; /* char * */
-		iarg[1] = p->len; /* int */
-		*n_args = 2;
-		break;
-	}
-	/* setdomainname */
-	case 163: {
-		struct setdomainname_args *p = params;
-		uarg[0] = (intptr_t) p->domainname; /* char * */
-		iarg[1] = p->len; /* int */
-		*n_args = 2;
-		break;
-	}
-	/* uname */
-	case 164: {
-		struct uname_args *p = params;
-		uarg[0] = (intptr_t) p->name; /* struct utsname * */
-		*n_args = 1;
-		break;
-	}
 	/* sysarch */
 	case 165: {
 		struct sysarch_args *p = params;
@@ -4436,42 +4413,6 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "struct fhandle *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* getdomainname */
-	case 162:
-		switch(ndx) {
-		case 0:
-			p = "char *";
-			break;
-		case 1:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* setdomainname */
-	case 163:
-		switch(ndx) {
-		case 0:
-			p = "char *";
-			break;
-		case 1:
-			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* uname */
-	case 164:
-		switch(ndx) {
-		case 0:
-			p = "struct utsname *";
 			break;
 		default:
 			break;
