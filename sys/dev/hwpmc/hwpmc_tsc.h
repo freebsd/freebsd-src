@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2005 Joseph Koshy
+ * Copyright (c) 2008 Joseph Koshy
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,36 +22,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _DEV_HWPMC_TSC_H_
+#define	_DEV_HWPMC_TSC_H_ 1
 
-#include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/pmc.h>
-#include <sys/pmckern.h>
-#include <sys/smp.h>
-#include <sys/systm.h>
+#ifdef	_KERNEL
 
-#include <machine/cpufunc.h>
-#include <machine/md_var.h>
-#include <machine/pmc_mdep.h>
+#define	TSC_NPMCS	1
 
 /*
- * Intel Pentium PMCs
+ * Prototypes.
  */
 
-int
-pmc_p5_initialize(struct pmc_mdep *pmc_mdep, int ncpus)
-{
-	(void) pmc_mdep; (void) ncpus;
-	return (ENOSYS);		/* nothing here yet */
-}
-
-void
-pmc_p5_finalize(struct pmc_mdep *pmc_mdep)
-{
-	(void) pmc_mdep;
-}
+int	pmc_tsc_initialize(struct pmc_mdep *_md, int _maxcpu);
+void	pmc_tsc_finalize(struct pmc_mdep *_md);
+#endif	/* _KERNEL */
+#endif	/* _DEV_HWPMC_TSC_H */

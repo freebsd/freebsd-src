@@ -9,7 +9,7 @@ KMOD=	hwpmc
 SRCS=	hwpmc_mod.c hwpmc_logging.c vnode_if.h
 
 .if ${MACHINE_ARCH} == "amd64"
-SRCS+=	hwpmc_amd.c hwpmc_piv.c hwpmc_x86.c
+SRCS+=	hwpmc_amd.c hwpmc_intel.c hwpmc_piv.c hwpmc_tsc.c hwpmc_x86.c
 SRCS+=	device_if.h bus_if.h
 .endif
 
@@ -18,7 +18,8 @@ SRCS+=	hwpmc_arm.c
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-SRCS+=	hwpmc_amd.c hwpmc_piv.c hwpmc_ppro.c hwpmc_pentium.c hwpmc_x86.c
+SRCS+=	hwpmc_amd.c hwpmc_intel.c hwpmc_piv.c hwpmc_ppro.c hwpmc_pentium.c
+SRCS+=	hwpmc_tsc.c hwpmc_x86.c
 SRCS+=	device_if.h bus_if.h
 .endif
 

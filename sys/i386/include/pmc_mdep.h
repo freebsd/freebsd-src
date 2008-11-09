@@ -33,21 +33,43 @@
 #ifndef _MACHINE_PMC_MDEP_H
 #define	_MACHINE_PMC_MDEP_H 1
 
+#ifdef	_KERNEL
+struct pmc_mdep;
+#endif
+
 /*
  * On the i386 platform we support the following PMCs.
  *
+ * TSC		The timestamp counter
  * K7		AMD Athlon XP/MP and other 32 bit processors.
  * K8		AMD Athlon64 and Opteron PMCs in 32 bit mode.
  * PIV		Intel P4/HTT and P4/EMT64
  * PPRO		Intel Pentium Pro, Pentium-II, Pentium-III, Celeron and
  *		Pentium-M processors
  * PENTIUM	Intel Pentium MMX.
+ * IAP		Intel Core/Core2/Atom programmable PMCs.
+ * IAF		Intel fixed-function PMCs.
  */
 
 #include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
 #include <dev/hwpmc/hwpmc_piv.h>
 #include <dev/hwpmc/hwpmc_ppro.h>
 #include <dev/hwpmc/hwpmc_pentium.h>
+#include <dev/hwpmc/hwpmc_tsc.h>
+
+/*
+ * Intel processors implementing V2 and later of the Intel performance
+ * measurement architecture have PMCs of the following classes: TSC,
+ * IAF and IAP.
+ */
+#define	PMC_MDEP_CLASS_INDEX_TSC	0
+#define	PMC_MDEP_CLASS_INDEX_K7		1
+#define	PMC_MDEP_CLASS_INDEX_K8		1
+#define	PMC_MDEP_CLASS_INDEX_P4		1
+#define	PMC_MDEP_CLASS_INDEX_P5		1
+#define	PMC_MDEP_CLASS_INDEX_P6		1
+#define	PMC_MDEP_CLASS_INDEX_IAF	1
+#define	PMC_MDEP_CLASS_INDEX_IAP	2
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
@@ -76,6 +98,7 @@ union pmc_md_pmc  {
 };
 
 struct pmc;
+struct pmc_mdep;
 
 #define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->tf_eip)
 #define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->tf_ebp)
@@ -123,6 +146,11 @@ struct pmc;
 
 void	start_exceptions(void), end_exceptions(void);
 void	pmc_x86_lapic_enable_pmc_interrupt(void);
+
+struct pmc_mdep *pmc_amd_initialize(void);
+void	pmc_amd_finalize(struct pmc_mdep *_md);
+struct pmc_mdep *pmc_intel_initialize(void);
+void	pmc_intel_finalize(struct pmc_mdep *_md);
 
 #endif /* _KERNEL */
 #endif /* _MACHINE_PMC_MDEP_H */

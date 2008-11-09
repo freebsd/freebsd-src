@@ -73,19 +73,6 @@ struct p6pmc_descr {
 
 static struct p6pmc_descr p6_pmcdesc[P6_NPMCS] = {
 
-	/* TSC */
-	{
-		.pm_descr =
-		{
-			.pd_name  = "TSC",
-			.pd_class = PMC_CLASS_TSC,
-			.pd_caps  = PMC_CAP_READ,
-			.pd_width = 64
-		},
-		.pm_pmc_msr   = 0x10,
-		.pm_evsel_msr = ~0
-	},
-
 #define	P6_PMC_CAPS (PMC_CAP_INTERRUPT | PMC_CAP_USER | PMC_CAP_SYSTEM | \
     PMC_CAP_EDGE | PMC_CAP_THRESHOLD | PMC_CAP_READ | PMC_CAP_WRITE |	 \
     PMC_CAP_INVERT | PMC_CAP_QUALIFIER)
@@ -306,11 +293,11 @@ p6_find_event(enum pmc_event ev)
  */
 
 struct p6_cpu {
-	struct pmc_cpu	pc_common;
-	struct pmc_hw	*pc_hwpmcs[P6_NPMCS];
 	struct pmc_hw	pc_p6pmcs[P6_NPMCS];
 	uint32_t	pc_state;
 };
+
+static struct p6_cpu **p6_pcpu;
 
 /*
  * If CTR1 is active, we need to keep the 'EN' bit if CTR0 set,
@@ -338,10 +325,11 @@ struct p6_cpu {
 	} while (0)
 
 static int
-p6_init(int cpu)
+p6_pcpu_init(struct pmc_mdep *md, int cpu)
 {
-	int n;
-	struct p6_cpu *pcs;
+	int first_ri, n;
+	struct p6_cpu *p6c;
+	struct pmc_cpu *pc;
 	struct pmc_hw *phw;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -349,93 +337,70 @@ p6_init(int cpu)
 
 	PMCDBG(MDP,INI,0,"p6-init cpu=%d", cpu);
 
-	pcs = malloc(sizeof(struct p6_cpu), M_PMC,
-	    M_WAITOK|M_ZERO);
+	p6c = malloc(sizeof (struct p6_cpu), M_PMC, M_WAITOK|M_ZERO);
+	pc = pmc_pcpu[cpu];
 
-	phw = pcs->pc_p6pmcs;
+	KASSERT(pc != NULL, ("[p6,%d] cpu %d null per-cpu", __LINE__, cpu));
+
+	phw = p6c->pc_p6pmcs;
+	p6_pcpu[cpu] = p6c;
+
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P6].pcd_ri;
 
 	for (n = 0; n < P6_NPMCS; n++, phw++) {
 		phw->phw_state   = PMC_PHW_FLAG_IS_ENABLED |
 		    PMC_PHW_CPU_TO_STATE(cpu) | PMC_PHW_INDEX_TO_STATE(n);
 		phw->phw_pmc     = NULL;
-		pcs->pc_hwpmcs[n] = phw;
+		pc->pc_hwpmcs[n + first_ri] = phw;
 	}
 
-	/* Mark the TSC as shareable */
-	pcs->pc_hwpmcs[0]->phw_state |= PMC_PHW_FLAG_IS_SHAREABLE;
-
-	pmc_pcpu[cpu] = (struct pmc_cpu *) pcs;
-
-	return 0;
+	return (0);
 }
 
 static int
-p6_cleanup(int cpu)
+p6_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
-	struct pmc_cpu *pcs;
+	int first_ri, n;
+	struct p6_cpu *p6c;
+	struct pmc_cpu *pc;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] bad cpu %d", __LINE__, cpu));
 
 	PMCDBG(MDP,INI,0,"p6-cleanup cpu=%d", cpu);
 
-	if ((pcs = pmc_pcpu[cpu]) != NULL)
-		free(pcs, M_PMC);
-	pmc_pcpu[cpu] = NULL;
+	p6c = p6_pcpu[cpu];
+	p6_pcpu[cpu] = NULL;
 
-	return 0;
-}
+	KASSERT(p6c != NULL, ("[p6,%d] null pcpu", __LINE__));
 
-static int
-p6_switch_in(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-	(void) pc;
+	free(p6c, M_PMC);
 
-	PMCDBG(MDP,SWI,1, "pc=%p pp=%p enable-msr=%d", pc, pp,
-	    pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS);
+	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P6].pcd_ri;
+	pc = pmc_pcpu[cpu];
+	for (n = 0; n < P6_NPMCS; n++)
+		pc->pc_hwpmcs[n + first_ri] = NULL;
 
-	/* allow the RDPMC instruction if needed */
-	if (pp->pp_flags & PMC_PP_ENABLE_MSR_ACCESS)
-		load_cr4(rcr4() | CR4_PCE);
-
-	PMCDBG(MDP,SWI,1, "cr4=0x%x", rcr4());
-
-	return 0;
-}
-
-static int
-p6_switch_out(struct pmc_cpu *pc, struct pmc_process *pp)
-{
-	(void) pc;
-	(void) pp;		/* can be NULL */
-
-	PMCDBG(MDP,SWO,1, "pc=%p pp=%p cr4=0x%x", pc, pp, rcr4());
-
-	/* always turn off the RDPMC instruction */
- 	load_cr4(rcr4() & ~CR4_PCE);
-
-	return 0;
+	return (0);
 }
 
 static int
 p6_read_pmc(int cpu, int ri, pmc_value_t *v)
 {
-	struct pmc_hw *phw;
 	struct pmc *pm;
 	struct p6pmc_descr *pd;
 	pmc_value_t tmp;
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
-	pm  = phw->phw_pmc;
-	pd  = &p6_pmcdesc[ri];
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p6,%d] illegal cpu value %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < P6_NPMCS,
+	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
+
+	pm = p6_pcpu[cpu]->pc_p6pmcs[ri].phw_pmc;
+	pd = &p6_pmcdesc[ri];
 
 	KASSERT(pm,
 	    ("[p6,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC) {
-		*v = rdtsc();
-		return 0;
-	}
 
 	tmp = rdmsr(pd->pm_pmc_msr) & P6_PERFCTR_READ_MASK;
 	if (PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
@@ -446,25 +411,25 @@ p6_read_pmc(int cpu, int ri, pmc_value_t *v)
 	PMCDBG(MDP,REA,1, "p6-read cpu=%d ri=%d msr=0x%x -> v=%jx", cpu, ri,
 	    pd->pm_pmc_msr, *v);
 
-	return 0;
+	return (0);
 }
 
 static int
 p6_write_pmc(int cpu, int ri, pmc_value_t v)
 {
-	struct pmc_hw *phw;
 	struct pmc *pm;
 	struct p6pmc_descr *pd;
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
-	pm  = phw->phw_pmc;
-	pd  = &p6_pmcdesc[ri];
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p6,%d] illegal cpu value %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < P6_NPMCS,
+	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
+
+	pm = p6_pcpu[cpu]->pc_p6pmcs[ri].phw_pmc;
+	pd = &p6_pmcdesc[ri];
 
 	KASSERT(pm,
 	    ("[p6,%d] cpu %d ri %d pmc not configured", __LINE__, cpu, ri));
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
-		return 0;
 
 	PMCDBG(MDP,WRI,1, "p6-write cpu=%d ri=%d msr=0x%x v=%jx", cpu, ri,
 	    pd->pm_pmc_msr, v);
@@ -474,20 +439,26 @@ p6_write_pmc(int cpu, int ri, pmc_value_t v)
 
 	wrmsr(pd->pm_pmc_msr, v & P6_PERFCTR_WRITE_MASK);
 
-	return 0;
+	return (0);
 }
 
 static int
 p6_config_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc_hw *phw;
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p6,%d] illegal CPU %d", __LINE__, cpu));
+
+	KASSERT(ri >= 0 && ri < P6_NPMCS,
+	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
 
 	PMCDBG(MDP,CFG,1, "p6-config cpu=%d ri=%d pm=%p", cpu, ri, pm);
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
-	phw->phw_pmc = pm;
+	KASSERT(p6_pcpu[cpu] != NULL, ("[p6,%d] null per-cpu %d", __LINE__,
+	    cpu));
 
-	return 0;
+	p6_pcpu[cpu]->pc_p6pmcs[ri].phw_pmc = pm;
+
+	return (0);
 }
 
 /*
@@ -497,9 +468,15 @@ p6_config_pmc(int cpu, int ri, struct pmc *pm)
 static int
 p6_get_config(int cpu, int ri, struct pmc **ppm)
 {
-	*ppm = pmc_pcpu[cpu]->pc_hwpmcs[ri]->phw_pmc;
 
-	return 0;
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p6,%d] illegal CPU %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < P6_NPMCS,
+	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
+
+	*ppm = p6_pcpu[cpu]->pc_p6pmcs[ri].phw_pmc;
+
+	return (0);
 }
 
 
@@ -521,9 +498,9 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	(void) cpu;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
-	    ("[p4,%d] illegal CPU %d", __LINE__, cpu));
+	    ("[p6,%d] illegal CPU %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
-	    ("[p4,%d] illegal row-index value %d", __LINE__, ri));
+	    ("[p6,%d] illegal row-index value %d", __LINE__, ri));
 
 	pd = &p6_pmcdesc[ri];
 
@@ -533,36 +510,24 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	/* check class */
 	if (pd->pm_descr.pd_class != a->pm_class)
-		return EINVAL;
+		return (EINVAL);
 
 	/* check requested capabilities */
 	caps = a->pm_caps;
 	if ((pd->pm_descr.pd_caps & caps) != caps)
-		return EPERM;
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC) {
-		/* TSC's are always allocated in system-wide counting mode */
-		if (a->pm_ev != PMC_EV_TSC_TSC ||
-		    a->pm_mode != PMC_MODE_SC)
-			return EINVAL;
-		return 0;
-	}
-
-	/*
-	 * P6 class events
-	 */
+		return (EPERM);
 
 	ev = pm->pm_event;
 
 	if (ev < PMC_EV_P6_FIRST || ev > PMC_EV_P6_LAST)
-		return EINVAL;
+		return (EINVAL);
 
 	if ((pevent = p6_find_event(ev)) == NULL)
-		return ESRCH;
+		return (ESRCH);
 
 	if (!P6_EVENT_VALID_FOR_CPU(pevent, p6_cputype) ||
 	    !P6_EVENT_VALID_FOR_CTR(pevent, (ri-1)))
-		return EINVAL;
+		return (EINVAL);
 
 	/* For certain events, Pentium M differs from the stock P6 */
 	allowed_unitmask = 0;
@@ -577,7 +542,7 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	unitmask = a->pm_md.pm_ppro.pm_ppro_config & P6_EVSEL_UMASK_MASK;
 	if (unitmask & ~allowed_unitmask) /* disallow reserved bits */
-		return EINVAL;
+		return (EINVAL);
 
 	if (ev == PMC_EV_P6_MMX_UOPS_EXEC) /* hardcoded mask */
 		unitmask = P6_EVSEL_TO_UMASK(0x0F);
@@ -612,14 +577,12 @@ p6_allocate_pmc(int cpu, int ri, struct pmc *pm,
 
 	PMCDBG(MDP,ALL,2, "p6-allocate config=0x%x", config);
 
-	return 0;
+	return (0);
 }
 
 static int
 p6_release_pmc(int cpu, int ri, struct pmc *pm)
 {
-	struct pmc_hw *phw;
-
 	(void) pm;
 
 	PMCDBG(MDP,REL,1, "p6-release cpu=%d ri=%d pm=%p", cpu, ri, pm);
@@ -629,12 +592,10 @@ p6_release_pmc(int cpu, int ri, struct pmc *pm)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
 
-	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
+	KASSERT(p6_pcpu[cpu]->pc_p6pmcs[ri].phw_pmc == NULL,
+	    ("[p6,%d] PHW pmc non-NULL", __LINE__));
 
-	KASSERT(phw->phw_pmc == NULL,
-	    ("[p6,%d] PHW pmc %p != pmc %p", __LINE__, phw->phw_pmc, pm));
-
-	return 0;
+	return (0);
 }
 
 static int
@@ -643,7 +604,6 @@ p6_start_pmc(int cpu, int ri)
 	uint32_t config;
 	struct pmc *pm;
 	struct p6_cpu *pc;
-	struct pmc_hw *phw;
 	const struct p6pmc_descr *pd;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -651,23 +611,15 @@ p6_start_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row-index %d", __LINE__, ri));
 
-	pc  = (struct p6_cpu *) pmc_pcpu[cpu];
-	phw = pc->pc_common.pc_hwpmcs[ri];
-	pm  = phw->phw_pmc;
-	pd  = &p6_pmcdesc[ri];
+	pc = p6_pcpu[cpu];
+	pm = pc->pc_p6pmcs[ri].phw_pmc;
+	pd = &p6_pmcdesc[ri];
 
 	KASSERT(pm,
 	    ("[p6,%d] starting cpu%d,ri%d with no pmc configured",
 		__LINE__, cpu, ri));
 
 	PMCDBG(MDP,STA,1, "p6-start cpu=%d ri=%d", cpu, ri);
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
-		return 0;	/* TSC are always running */
-
-	KASSERT(pd->pm_descr.pd_class == PMC_CLASS_P6,
-	    ("[p6,%d] unknown PMC class %d", __LINE__,
-		pd->pm_descr.pd_class));
 
 	config = pm->pm_md.pm_ppro.pm_ppro_evsel;
 
@@ -679,7 +631,7 @@ p6_start_pmc(int cpu, int ri)
 
 	P6_SYNC_CTR_STATE(pc);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -687,7 +639,6 @@ p6_stop_pmc(int cpu, int ri)
 {
 	struct pmc *pm;
 	struct p6_cpu *pc;
-	struct pmc_hw *phw;
 	struct p6pmc_descr *pd;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -695,21 +646,13 @@ p6_stop_pmc(int cpu, int ri)
 	KASSERT(ri >= 0 && ri < P6_NPMCS,
 	    ("[p6,%d] illegal row index %d", __LINE__, ri));
 
-	pc  = (struct p6_cpu *) pmc_pcpu[cpu];
-	phw = pc->pc_common.pc_hwpmcs[ri];
-	pm  = phw->phw_pmc;
-	pd  = &p6_pmcdesc[ri];
+	pc = p6_pcpu[cpu];
+	pm = pc->pc_p6pmcs[ri].phw_pmc;
+	pd = &p6_pmcdesc[ri];
 
 	KASSERT(pm,
 	    ("[p6,%d] cpu%d ri%d no configured PMC to stop", __LINE__,
 		cpu, ri));
-
-	if (pd->pm_descr.pd_class == PMC_CLASS_TSC)
-		return 0;
-
-	KASSERT(pd->pm_descr.pd_class == PMC_CLASS_P6,
-	    ("[p6,%d] unknown PMC class %d", __LINE__,
-		pd->pm_descr.pd_class));
 
 	PMCDBG(MDP,STO,1, "p6-stop cpu=%d ri=%d", cpu, ri);
 
@@ -719,38 +662,35 @@ p6_stop_pmc(int cpu, int ri)
 	P6_SYNC_CTR_STATE(pc);		/* restart CTR1 if need be */
 
 	PMCDBG(MDP,STO,2, "p6-stop/2 cpu=%d ri=%d", cpu, ri);
-	return 0;
+
+	return (0);
 }
 
 static int
 p6_intr(int cpu, struct trapframe *tf)
 {
-	int i, error, retval, ri;
+	int error, retval, ri;
 	uint32_t perf0cfg;
 	struct pmc *pm;
 	struct p6_cpu *pc;
-	struct pmc_hw *phw;
 	pmc_value_t v;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[p6,%d] CPU %d out of range", __LINE__, cpu));
 
 	retval = 0;
-	pc = (struct p6_cpu *) pmc_pcpu[cpu];
+	pc = p6_pcpu[cpu];
 
 	/* stop both PMCs */
 	perf0cfg = rdmsr(P6_MSR_EVSEL0);
 	wrmsr(P6_MSR_EVSEL0, perf0cfg & ~P6_EVSEL_EN);
 
-	for (i = 0; i < P6_NPMCS-1; i++) {
-		ri = i + 1;
+	for (ri = 0; ri < P6_NPMCS; ri++) {
 
-		if (!P6_PMC_HAS_OVERFLOWED(i))
+		if (!P6_PMC_HAS_OVERFLOWED(ri))
 			continue;
 
-		phw = pc->pc_common.pc_hwpmcs[ri];
-
-		if ((pm = phw->phw_pmc) == NULL ||
+		if ((pm = pc->pc_p6pmcs[ri].phw_pmc) == NULL ||
 		    pm->pm_state != PMC_STATE_RUNNING ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
@@ -765,7 +705,7 @@ p6_intr(int cpu, struct trapframe *tf)
 
 		/* reload sampling count */
 		v = pm->pm_sc.pm_reloadcount;
-		wrmsr(P6_MSR_PERFCTR0 + i,
+		wrmsr(P6_MSR_PERFCTR0 + ri,
 		    P6_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
 	}
@@ -783,7 +723,7 @@ p6_intr(int cpu, struct trapframe *tf)
 	/* restart counters that can be restarted */
 	P6_SYNC_CTR_STATE(pc);
 
-	return retval;
+	return (retval);
 }
 
 static int
@@ -795,12 +735,20 @@ p6_describe(int cpu, int ri, struct pmc_info *pi,
 	struct pmc_hw *phw;
 	struct p6pmc_descr *pd;
 
+	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
+	    ("[p6,%d] illegal CPU %d", __LINE__, cpu));
+	KASSERT(ri >= 0 && ri < P6_NPMCS,
+	    ("[p6,%d] row-index %d out of range", __LINE__, ri));
+
 	phw = pmc_pcpu[cpu]->pc_hwpmcs[ri];
 	pd  = &p6_pmcdesc[ri];
 
+	KASSERT(phw == &p6_pcpu[cpu]->pc_p6pmcs[ri],
+	    ("[p6,%d] phw mismatch", __LINE__));
+
 	if ((error = copystr(pd->pm_descr.pd_name, pi->pm_name,
 		 PMC_NAME_MAX, &copied)) != 0)
-		return error;
+		return (error);
 
 	pi->pm_class = pd->pm_descr.pd_class;
 
@@ -812,7 +760,7 @@ p6_describe(int cpu, int ri, struct pmc_info *pi,
 		*ppmc          = NULL;
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -822,58 +770,91 @@ p6_get_msr(int ri, uint32_t *msr)
 	    ("[p6,%d ri %d out of range", __LINE__, ri));
 
 	*msr = p6_pmcdesc[ri].pm_pmc_msr - P6_MSR_PERFCTR0;
-	return 0;
+
+	return (0);
 }
 
 int
-pmc_initialize_p6(struct pmc_mdep *pmc_mdep)
+pmc_p6_initialize(struct pmc_mdep *md, int ncpus)
 {
+	struct pmc_classdep *pcd;
+
 	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
 	    ("[p6,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,1, "%s", "p6-initialize");
 
-	switch (pmc_mdep->pmd_cputype) {
+	/* Allocate space for pointers to per-cpu descriptors. */
+	p6_pcpu = malloc(sizeof(struct p6_cpu **) * ncpus, M_PMC,
+	    M_ZERO|M_WAITOK);
+
+	/* Fill in the class dependent descriptor. */
+	pcd = &md->pmd_classdep[PMC_MDEP_CLASS_INDEX_P6];
+
+	switch (md->pmd_cputype) {
 
 		/*
 		 * P6 Family Processors
 		 */
-
 	case PMC_CPU_INTEL_P6:
 	case PMC_CPU_INTEL_CL:
 	case PMC_CPU_INTEL_PII:
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 
-		p6_cputype = pmc_mdep->pmd_cputype;
+		p6_cputype = md->pmd_cputype;
 
-		pmc_mdep->pmd_npmc          = P6_NPMCS;
-		pmc_mdep->pmd_classes[1].pm_class = PMC_CLASS_P6;
-		pmc_mdep->pmd_classes[1].pm_caps  = P6_PMC_CAPS;
-		pmc_mdep->pmd_classes[1].pm_width = 40;
-		pmc_mdep->pmd_nclasspmcs[1] = 2;
+		pcd->pcd_caps		= P6_PMC_CAPS;
+		pcd->pcd_class		= PMC_CLASS_P6;
+		pcd->pcd_num		= P6_NPMCS;
+		pcd->pcd_ri		= md->pmd_npmc;
+		pcd->pcd_width		= 40;
 
-		pmc_mdep->pmd_init    	    = p6_init;
-		pmc_mdep->pmd_cleanup 	    = p6_cleanup;
-		pmc_mdep->pmd_switch_in     = p6_switch_in;
-		pmc_mdep->pmd_switch_out    = p6_switch_out;
-		pmc_mdep->pmd_read_pmc 	    = p6_read_pmc;
-		pmc_mdep->pmd_write_pmc     = p6_write_pmc;
-		pmc_mdep->pmd_config_pmc    = p6_config_pmc;
-		pmc_mdep->pmd_get_config    = p6_get_config;
-		pmc_mdep->pmd_allocate_pmc  = p6_allocate_pmc;
-		pmc_mdep->pmd_release_pmc   = p6_release_pmc;
-		pmc_mdep->pmd_start_pmc     = p6_start_pmc;
-		pmc_mdep->pmd_stop_pmc      = p6_stop_pmc;
-		pmc_mdep->pmd_intr	    = p6_intr;
-		pmc_mdep->pmd_describe      = p6_describe;
-		pmc_mdep->pmd_get_msr  	    = p6_get_msr; /* i386 */
+		pcd->pcd_allocate_pmc	= p6_allocate_pmc;
+		pcd->pcd_config_pmc	= p6_config_pmc;
+		pcd->pcd_describe	= p6_describe;
+		pcd->pcd_get_config	= p6_get_config;
+		pcd->pcd_get_msr	= p6_get_msr;
+		pcd->pcd_pcpu_fini	= p6_pcpu_fini;
+		pcd->pcd_pcpu_init	= p6_pcpu_init;
+		pcd->pcd_read_pmc	= p6_read_pmc;
+		pcd->pcd_release_pmc	= p6_release_pmc;
+		pcd->pcd_start_pmc	= p6_start_pmc;
+		pcd->pcd_stop_pmc	= p6_stop_pmc;
+		pcd->pcd_write_pmc	= p6_write_pmc;
+
+		md->pmd_pcpu_fini	= NULL;
+		md->pmd_pcpu_init	= NULL;
+		md->pmd_intr		= p6_intr;
+
+		md->pmd_npmc	       += P6_NPMCS;
 
 		break;
+
 	default:
 		KASSERT(0,("[p6,%d] Unknown CPU type", __LINE__));
 		return ENOSYS;
 	}
 
-	return 0;
+	return (0);
+}
+
+void
+pmc_p6_finalize(struct pmc_mdep *md)
+{
+#if	defined(INVARIANTS)
+	int i, ncpus;
+#endif
+
+	KASSERT(p6_pcpu != NULL, ("[p6,%d] NULL p6_pcpu", __LINE__));
+
+#if	defined(INVARIANTS)
+	ncpus = pmc_cpu_max();
+	for (i = 0; i < ncpus; i++)
+		KASSERT(p6_pcpu[i] == NULL, ("[p6,%d] non-null pcpu %d",
+		    __LINE__, i));
+#endif
+
+	free(p6_pcpu, M_PMC);
+	p6_pcpu = NULL;
 }
