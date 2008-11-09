@@ -2,7 +2,7 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.30 2008/01/05 23:21:10 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.34 2008/08/30 19:20:50 tom Exp $)
 #
 ##############################################################################
 # Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
@@ -152,7 +152,7 @@ cat >$ED3 <<EOF3
 	s/ )/)/g
 	s/ gen_/ /
 	s/^M_/#undef /
-	s/^[ 	]*%[ 	]*%[ 	]*/	/
+	s/^[ 	]*@[ 	]*@[ 	]*/	/
 :done
 EOF3
 
@@ -252,7 +252,7 @@ $0 !~ /^P_/ {
 		dotrace = 0;
 	}
 
-	call = "%%T((T_CALLED(\""
+	call = "@@T((T_CALLED(\""
 	args = ""
 	comma = ""
 	num = 0;
@@ -338,7 +338,7 @@ $0 !~ /^P_/ {
 	else if (dotrace)
 		call = sprintf("return%s( ", returnType);
 	else
-		call = "%%return ";
+		call = "@@return ";
 
 	call = call $myfunc "(";
 	for (i = 1; i < argcount; i++) {
@@ -358,7 +358,7 @@ $0 !~ /^P_/ {
 	print call ";"
 
 	if (match($0, "^void"))
-		print "%%returnVoid;"
+		print "@@returnVoid;"
 	print "}";
 }
 EOF1
@@ -416,11 +416,14 @@ $preprocessor $TMP 2>/dev/null \
 | sed \
 	-e 's/  / /g' \
 	-e 's/^ //' \
-	-e 's/^_Bool/bool/' \
+	-e 's/_Bool/NCURSES_BOOL/g' \
 | $AWK -f $AW2 \
 | sed -f $ED3 \
 | sed \
 	-e 's/^.*T_CALLED.*returnCode( \([a-z].*) \));/	return \1;/' \
 	-e 's/^.*T_CALLED.*returnCode( \((wmove.*) \));/	return \1;/' \
 	-e 's/gen_//' \
+	-e 's/^[ 	]*#/#/' \
+	-e '/#ident/d' \
+	-e '/#line/d' \
 | sed -f $ED4

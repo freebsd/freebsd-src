@@ -42,7 +42,7 @@
 
 #include <dump_entry.h>
 
-MODULE_ID("$Id: infocmp.c,v 1.96 2008/01/19 21:08:07 tom Exp $")
+MODULE_ID("$Id: infocmp.c,v 1.103 2008/08/16 22:04:56 tom Exp $")
 
 #define L_CURL "{"
 #define R_CURL "}"
@@ -221,7 +221,7 @@ static bool
 useeq(ENTRY * e1, ENTRY * e2)
 /* are the use references in two entries equivalent? */
 {
-    int i, j;
+    unsigned i, j;
 
     if (e1->nuses != e2->nuses)
 	return (FALSE);
@@ -271,7 +271,7 @@ static void
 print_uses(ENTRY * ep, FILE *fp)
 /* print an entry's use references */
 {
-    int i;
+    unsigned i;
 
     if (!ep->nuses)
 	fputs("NULL", fp);
@@ -568,37 +568,41 @@ same_param(const char *table, const char *param, unsigned length)
 static char *
 lookup_params(const assoc * table, char *dst, char *src)
 {
+    char *result = 0;
     const char *ep = strtok(src, ";");
-    const assoc *ap;
 
-    do {
-	bool found = FALSE;
+    if (ep != 0) {
+	const assoc *ap;
 
-	for (ap = table; ap->from; ap++) {
-	    size_t tlen = strlen(ap->from);
+	do {
+	    bool found = FALSE;
 
-	    if (same_param(ap->from, ep, tlen)) {
-		(void) strcat(dst, ap->to);
-		found = TRUE;
-		break;
+	    for (ap = table; ap->from; ap++) {
+		size_t tlen = strlen(ap->from);
+
+		if (same_param(ap->from, ep, tlen)) {
+		    (void) strcat(dst, ap->to);
+		    found = TRUE;
+		    break;
+		}
 	    }
-	}
 
-	if (!found)
-	    (void) strcat(dst, ep);
-	(void) strcat(dst, ";");
-    } while
-	((ep = strtok((char *) 0, ";")));
+	    if (!found)
+		(void) strcat(dst, ep);
+	    (void) strcat(dst, ";");
+	} while
+	    ((ep = strtok((char *) 0, ";")));
 
-    dst[strlen(dst) - 1] = '\0';
+	dst[strlen(dst) - 1] = '\0';
 
-    return dst;
+	result = dst;
+    }
+    return result;
 }
 
 static void
 analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 {
-    char buf[MAX_TERMINFO_LENGTH];
     char buf2[MAX_TERMINFO_LENGTH];
     const char *sp;
     const assoc *ap;
@@ -608,7 +612,6 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	return;
     (void) printf("%s: ", name);
 
-    buf[0] = '\0';
     for (sp = cap; *sp; sp++) {
 	int i;
 	int csi;
@@ -656,7 +659,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	if (!expansion) {
 	    csi = skip_csi(sp);
 	    for (ap = std_caps; ap->from; ap++) {
-		size_t adj = csi ? 2 : 0;
+		size_t adj = (size_t) (csi ? 2 : 0);
 
 		len = strlen(ap->from);
 		if (csi && skip_csi(ap->from) != csi)
@@ -665,7 +668,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 		    && strncmp(ap->from + adj, sp + csi, len - adj) == 0) {
 		    expansion = ap->to;
 		    len -= adj;
-		    len += csi;
+		    len += (size_t) csi;
 		    break;
 		}
 	    }
@@ -675,13 +678,14 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	if (!expansion
 	    && (csi = skip_csi(sp)) != 0
 	    && (len = strspn(sp + csi, "0123456789;"))
-	    && (next = csi + len)
+	    && (len < sizeof(buf3))
+	    && (next = (size_t) csi + len)
 	    && ((sp[next] == 'h') || (sp[next] == 'l'))) {
 
 	    (void) strcpy(buf2, (sp[next] == 'h') ? "ECMA+" : "ECMA-");
 	    (void) strncpy(buf3, sp + csi, len);
 	    buf3[len] = '\0';
-	    len += csi + 1;
+	    len += (size_t) csi + 1;
 
 	    expansion = lookup_params(std_modes, buf2, buf3);
 	}
@@ -691,13 +695,14 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	    && (csi = skip_csi(sp)) != 0
 	    && sp[csi] == '?'
 	    && (len = strspn(sp + csi + 1, "0123456789;"))
-	    && (next = csi + 1 + len)
+	    && (len < sizeof(buf3))
+	    && (next = (size_t) csi + 1 + len)
 	    && ((sp[next] == 'h') || (sp[next] == 'l'))) {
 
 	    (void) strcpy(buf2, (sp[next] == 'h') ? "DEC+" : "DEC-");
 	    (void) strncpy(buf3, sp + csi + 1, len);
 	    buf3[len] = '\0';
-	    len += csi + 2;
+	    len += (size_t) csi + 2;
 
 	    expansion = lookup_params(private_modes, buf2, buf3);
 	}
@@ -706,13 +711,14 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	if (!expansion
 	    && (csi = skip_csi(sp)) != 0
 	    && (len = strspn(sp + csi, "0123456789;")) != 0
-	    && (next = csi + len)
+	    && (len < sizeof(buf3))
+	    && (next = (size_t) csi + len)
 	    && sp[next] == 'm') {
 
 	    (void) strcpy(buf2, "SGR:");
 	    (void) strncpy(buf3, sp + csi, len);
 	    buf3[len] = '\0';
-	    len += csi + 1;
+	    len += (size_t) csi + 1;
 
 	    expansion = lookup_params(ecma_highlights, buf2, buf3);
 	}
@@ -720,7 +726,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 	if (!expansion
 	    && (csi = skip_csi(sp)) != 0
 	    && sp[csi] == 'm') {
-	    len = csi + 1;
+	    len = (size_t) csi + 1;
 	    (void) strcpy(buf2, "SGR:");
 	    strcat(buf2, ecma_highlights[0].to);
 	    expansion = buf2;
@@ -738,7 +744,7 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 		if (strncmp(buf2, sp + csi, len) == 0)
 		    expansion = "RSR";
 	    }
-	    len += csi;
+	    len += (size_t) csi;
 	}
 
 	/* now check for home-down */
@@ -755,22 +761,21 @@ analyze_string(const char *name, const char *cap, TERMTYPE *tp)
 		    expansion = "LL";
 		}
 	    }
-	    len += csi;
+	    len += (size_t) csi;
 	}
 
 	/* now look at the expansion we got, if any */
 	if (expansion) {
-	    (void) sprintf(buf + strlen(buf), "{%s}", expansion);
+	    printf("{%s}", expansion);
 	    sp += len - 1;
-	    continue;
 	} else {
 	    /* couldn't match anything */
 	    buf2[0] = *sp;
 	    buf2[1] = '\0';
-	    (void) strcat(buf, TIC_EXPAND(buf2));
+	    fputs(TIC_EXPAND(buf2), stdout);
 	}
     }
-    (void) printf("%s\n", buf);
+    putchar('\n');
 }
 
 /***************************************************************************
@@ -789,6 +794,7 @@ file_comparison(int argc, char *argv[])
     ENTRY *qp, *rp;
     int i, n;
 
+    memset(heads, 0, sizeof(heads));
     dump_init((char *) 0, F_LITERAL, S_TERMINFO, 0, itrace, FALSE);
 
     for (n = 0; n < argc && n < MAXCOMPARE; n++) {
@@ -1059,7 +1065,6 @@ static void
 dump_initializers(TERMTYPE *term)
 {
     unsigned n;
-    int size;
     const char *str = 0;
 
     printf("\nstatic char %s[] = \"%s\";\n\n",
@@ -1137,10 +1142,6 @@ dump_initializers(TERMTYPE *term)
 		      ExtNumname(term, n, numnames), str);
     }
     (void) printf("%s;\n", R_CURL);
-
-    size = (sizeof(TERMTYPE)
-	    + (NUM_BOOLEANS(term) * sizeof(term->Booleans[0]))
-	    + (NUM_NUMBERS(term) * sizeof(term->Numbers[0])));
 
     (void) printf("static char * %s[] = %s\n", name_initializer("string"), L_CURL);
 
@@ -1283,8 +1284,8 @@ main(int argc, char *argv[])
     _nc_progname = _nc_rootname(argv[0]);
 
     /* make sure we have enough space to add two terminal entries */
-    myargv = typeCalloc(char *, argc + 3);
-    memcpy(myargv, argv, sizeof(char *) * argc);
+    myargv = typeCalloc(char *, (size_t) (argc + 3));
+    memcpy(myargv, argv, (sizeof(char *) * (size_t) argc));
     argv = myargv;
 
     while ((c = getopt(argc,

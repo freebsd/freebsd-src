@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -50,7 +50,7 @@
 #define DEBUG(level, params)	/*nothing */
 #endif
 
-MODULE_ID("$Id: comp_hash.c,v 1.33 2007/08/18 21:42:25 tom Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.36 2008/08/16 17:06:53 tom Exp $")
 
 static int hash_function(const char *);
 
@@ -73,7 +73,7 @@ static void
 _nc_make_hash_table(struct name_table_entry *table,
 		    short *hash_table)
 {
-    int i;
+    short i;
     int hashvalue;
     int collisions = 0;
 
@@ -215,8 +215,9 @@ parse_columns(char *buffer)
 		if ((s - buffer) > 1
 		    && (*buffer == '"')
 		    && (s[-1] == '"')) {	/* strip the quotes */
-		    buffer++;
+		    assert(s > buffer + 1);
 		    s[-1] = '\0';
+		    buffer++;
 		}
 		list[col] = buffer;
 		col++;
@@ -258,7 +259,9 @@ main(int argc, char **argv)
 	|| (column = atoi(argv[1])) <= 0
 	|| (column >= MAX_COLUMNS)
 	|| *(root_name = argv[2]) == 0
-	|| (bigstring = atoi(argv[3])) < 0) {
+	|| (bigstring = atoi(argv[3])) < 0
+	|| name_table == 0
+	|| hash_table == 0) {
 	fprintf(stderr, "usage: make_hash column root_name bigstring\n");
 	exit(EXIT_FAILURE);
     }
@@ -301,7 +304,7 @@ main(int argc, char **argv)
 
 	printf("static const char %s_names_text[] = \\\n", root_name);
 	for (n = 0; n < CAPTABSIZE; n++) {
-	    nxt = strlen(name_table[n].nte_name) + 5;
+	    nxt = (int) strlen(name_table[n].nte_name) + 5;
 	    if (nxt + len > 72) {
 		printf("\\\n");
 		len = 0;
@@ -322,7 +325,7 @@ main(int argc, char **argv)
 		   name_table[n].nte_index,
 		   name_table[n].nte_link,
 		   n < CAPTABSIZE - 1 ? ',' : ' ');
-	    len += strlen(name_table[n].nte_name) + 1;
+	    len += (int) strlen(name_table[n].nte_name) + 1;
 	}
 	printf("};\n\n");
 	printf("static struct name_table_entry *_nc_%s_table = 0;\n\n", root_name);
@@ -361,6 +364,7 @@ main(int argc, char **argv)
     printf("#error\t--> numbers of booleans, numbers and/or strings <--\n");
     printf("#endif\n\n");
 
+    free(hash_table);
     return EXIT_SUCCESS;
 }
 #endif

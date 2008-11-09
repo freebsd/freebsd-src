@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -53,7 +53,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.68 2007/11/03 20:41:46 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.69 2008/08/16 21:58:16 tom Exp $")
 
 static void sanity_check2(TERMTYPE *, bool);
 NCURSES_IMPEXP void NCURSES_API(*_nc_check_termtype2) (TERMTYPE *, bool) = sanity_check2;
@@ -183,7 +183,8 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 {
     ENTRY *qp, *rp, *lastread = 0;
     bool keepgoing;
-    int i, unresolved, total_unresolved, multiples;
+    unsigned i;
+    int unresolved, total_unresolved, multiples;
 
     DEBUG(2, ("RESOLUTION BEGINNING"));
 

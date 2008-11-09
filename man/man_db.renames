@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: man_db.renames,v 0.40 2008/01/19 18:28:50 tom Exp $
+# $Id: man_db.renames,v 0.41 2008/10/25 23:24:03 tom Exp $
 # Manual-page renamings for the man_db program
 #
 # Files:
@@ -68,6 +68,7 @@ curs_instr.3x			instr.3ncurses
 curs_inwstr.3x			inwstr.3ncurses
 curs_kernel.3x			kernel.3ncurses
 curs_legacy.3x			legacy.3ncurses
+curs_memleaks.3x		memleaks.3ncurses
 curs_mouse.3x			mouse.3ncurses
 curs_move.3x			move.3ncurses
 curs_opaque.3x			opaque.3ncurses
