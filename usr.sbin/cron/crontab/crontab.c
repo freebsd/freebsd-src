@@ -263,7 +263,7 @@ list_cmd() {
 	FILE	*f;
 
 	log_it(RealUser, Pid, "LIST", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (!(f = fopen(n, "r"))) {
 		if (errno == ENOENT)
 			errx(ERROR_EXIT, "no crontab for %s", User);
@@ -293,7 +293,7 @@ delete_cmd() {
 	}
 
 	log_it(RealUser, Pid, "DELETE", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (unlink(n)) {
 		if (errno == ENOENT)
 			errx(ERROR_EXIT, "no crontab for %s", User);
@@ -327,7 +327,7 @@ edit_cmd() {
 	char		new_md5[MD5_SIZE];
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (!(f = fopen(n, "r"))) {
 		if (errno != ENOENT)
 			err(ERROR_EXIT, "%s", n);
@@ -337,7 +337,7 @@ edit_cmd() {
 	}
 
 	um = umask(077);
-	(void) sprintf(Filename, "/tmp/crontab.XXXXXXXXXX");
+	(void) snprintf(Filename, sizeof(Filename), "/tmp/crontab.XXXXXXXXXX");
 	if ((t = mkstemp(Filename)) == -1) {
 		warn("%s", Filename);
 		(void) umask(um);
@@ -504,8 +504,8 @@ replace_cmd() {
 		return (-2);
 	}
 
-	(void) sprintf(n, "tmp.%d", Pid);
-	(void) sprintf(tn, CRON_TAB(n));
+	(void) snprintf(n, sizeof(n), "tmp.%d", Pid);
+	(void) snprintf(tn, sizeof(n), CRON_TAB(n));
 	if (!(tmp = fopen(tn, "w+"))) {
 		warn("%s", tn);
 		return (-2);
@@ -592,7 +592,7 @@ replace_cmd() {
 		return (-2);
 	}
 
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (rename(tn, n)) {
 		warn("error renaming %s to %s", tn, n);
 		unlink(tn);
