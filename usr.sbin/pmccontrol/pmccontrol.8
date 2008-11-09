@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003 Joseph Koshy.  All rights reserved.
+.\" Copyright (c) 2003,2008 Joseph Koshy.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2003
+.Dd November 9, 2008
 .Os
 .Dt PMCCONTROL 8
 .Sh NAME
@@ -52,13 +52,13 @@ The following options are available:
 .Bl -tag -width indent
 .It Fl c Ar cpu
 Subsequent enable and disable options affect the CPU
-denoted by
+denoted by argument
 .Ar cpu .
 The argument
 .Ar cpu
-is either a number denoting a CPU number in the system, or the string
+is a number denoting a CPU in the system, or
 .Dq Li * ,
-denoting all CPUs in the system.
+denoting all unhalted CPUs in the system.
 .It Fl d Ar pmc
 Disable PMC number
 .Ar pmc
@@ -67,7 +67,7 @@ on the CPU specified by
 preventing it from being used till subsequently re-enabled.
 The argument
 .Ar pmc
-is either a number denoting a specified PMC, or the string
+is a number denoting a specific PMC, or
 .Dq Li *
 denoting all the PMCs on the specified CPU.
 .Pp
@@ -81,7 +81,7 @@ on the CPU specified by
 allowing it to be used in the future.
 The argument
 .Ar pmc
-is either a number denoting a specified PMC, or the string
+is a number denoting a specific PMC, or
 .Dq Li *
 denoting all the PMCs on the specified CPU.
 If PMC
