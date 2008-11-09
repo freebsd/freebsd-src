@@ -349,8 +349,10 @@
 ./doc/html/man/curs_instr.3x.html
 ./doc/html/man/curs_inwstr.3x.html
 ./doc/html/man/curs_kernel.3x.html
+./doc/html/man/curs_legacy.3x.html
 ./doc/html/man/curs_mouse.3x.html
 ./doc/html/man/curs_move.3x.html
+./doc/html/man/curs_opaque.3x.html
 ./doc/html/man/curs_outopts.3x.html
 ./doc/html/man/curs_overlay.3x.html
 ./doc/html/man/curs_pad.3x.html
@@ -364,6 +366,7 @@
 ./doc/html/man/curs_termattrs.3x.html
 ./doc/html/man/curs_termcap.3x.html
 ./doc/html/man/curs_terminfo.3x.html
+./doc/html/man/curs_threads.3x.html
 ./doc/html/man/curs_touch.3x.html
 ./doc/html/man/curs_trace.3x.html
 ./doc/html/man/curs_util.3x.html
@@ -555,6 +558,7 @@
 ./man/curs_inwstr.3x
 ./man/curs_kernel.3x
 ./man/curs_legacy.3x
+./man/curs_memleaks.3x
 ./man/curs_mouse.3x
 ./man/curs_move.3x
 ./man/curs_opaque.3x
@@ -700,6 +704,7 @@
 ./misc/ncurses-config.in
 ./misc/ncurses.def
 ./misc/ncurses.ref
+./misc/ncurses.supp
 ./misc/panel.def
 ./misc/panel.ref
 ./misc/run_tic.in

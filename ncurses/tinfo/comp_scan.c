@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -51,7 +51,7 @@
 #include <term_entry.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_scan.c,v 1.78 2006/12/16 19:17:01 tom Exp $")
+MODULE_ID("$Id: comp_scan.c,v 1.83 2008/08/16 19:22:55 tom Exp $")
 
 /*
  * Maximum length of string capability we'll accept before raising an error.
@@ -203,6 +203,7 @@ next_char(void)
 		    result = typeRealloc(char, allocated, result);
 		    if (result == 0)
 			return (EOF);
+		    bufstart = result;
 		}
 		if (used == 0)
 		    _nc_curr_file_pos = ftell(yyin);
@@ -293,6 +294,15 @@ eat_escaped_newline(int ch)
     return ch;
 }
 
+#define TOK_BUF_SIZE MAX_ENTRY_SIZE
+
+#define OkToAdd() \
+	((tok_ptr - tok_buf) < (TOK_BUF_SIZE - 2))
+
+#define AddCh(ch) \
+	*tok_ptr++ = (char) ch; \
+	*tok_ptr = '\0'
+
 /*
  *	int
  *	get_token()
@@ -330,12 +340,12 @@ NCURSES_EXPORT(int)
 _nc_get_token(bool silent)
 {
     static const char terminfo_punct[] = "@%&*!#";
-    static char *buffer;
+    static char *tok_buf;
 
     char *after_list;
     char *after_name;
     char *numchk;
-    char *ptr;
+    char *tok_ptr;
     char *s;
     char numbuf[80];
     int ch;
@@ -367,10 +377,10 @@ _nc_get_token(bool silent)
     if (end_of_stream()) {
 	yyin = 0;
 	next_char();		/* frees its allocated memory */
-	if (buffer != 0) {
-	    if (_nc_curr_token.tk_name == buffer)
+	if (tok_buf != 0) {
+	    if (_nc_curr_token.tk_name == tok_buf)
 		_nc_curr_token.tk_name = 0;
-	    FreeAndNull(buffer);
+	    FreeAndNull(tok_buf);
 	}
 	return (EOF);
     }
@@ -426,15 +436,15 @@ _nc_get_token(bool silent)
 	    goto start_token;
 	}
 
-	if (buffer == 0)
-	    buffer = typeMalloc(char, MAX_ENTRY_SIZE);
+	if (tok_buf == 0)
+	    tok_buf = typeMalloc(char, TOK_BUF_SIZE);
 
 #ifdef TRACE
 	old_line = _nc_curr_line;
 	old_col = _nc_curr_col;
 #endif
-	ptr = buffer;
-	*(ptr++) = ch;
+	tok_ptr = tok_buf;
+	AddCh(ch);
 
 	if (first_column) {
 	    _nc_comment_start = token_start;
@@ -448,9 +458,9 @@ _nc_get_token(bool silent)
 		if (ch == EOF) {
 		    _nc_err_abort(MSG_NO_INPUTS);
 		} else if (ch == '|') {
-		    after_list = ptr;
+		    after_list = tok_ptr;
 		    if (after_name == 0)
-			after_name = ptr;
+			after_name = tok_ptr;
 		} else if (ch == ':' && last_char() != ',') {
 		    _nc_syntax = SYN_TERMCAP;
 		    separator = ':';
@@ -474,9 +484,14 @@ _nc_get_token(bool silent)
 		} else
 		    ch = eat_escaped_newline(ch);
 
-		*ptr++ = ch;
+		if (OkToAdd()) {
+		    AddCh(ch);
+		} else {
+		    ch = EOF;
+		    break;
+		}
 	    }
-	    ptr[0] = '\0';
+	    *tok_ptr = '\0';
 	    if (_nc_syntax == ERR) {
 		/*
 		 * Grrr...what we ought to do here is barf, complaining that
@@ -488,9 +503,11 @@ _nc_get_token(bool silent)
 		separator = ':';
 	    } else if (_nc_syntax == SYN_TERMINFO) {
 		/* throw away trailing /, *$/ */
-		for (--ptr; iswhite(*ptr) || *ptr == ','; ptr--)
+		for (--tok_ptr;
+		     iswhite(*tok_ptr) || *tok_ptr == ',';
+		     tok_ptr--)
 		    continue;
-		ptr[1] = '\0';
+		tok_ptr[1] = '\0';
 	    }
 
 	    /*
@@ -501,8 +518,8 @@ _nc_get_token(bool silent)
 	    if (after_name != 0) {
 		ch = *after_name;
 		*after_name = '\0';
-		_nc_set_type(buffer);
-		*after_name = ch;
+		_nc_set_type(tok_buf);
+		*after_name = (char) ch;
 	    }
 
 	    /*
@@ -517,7 +534,7 @@ _nc_get_token(bool silent)
 			_nc_warning("older tic versions may treat the description field as an alias");
 		}
 	    } else {
-		after_list = buffer + strlen(buffer);
+		after_list = tok_buf + strlen(tok_buf);
 		DEBUG(1, ("missing description"));
 	    }
 
@@ -526,7 +543,7 @@ _nc_get_token(bool silent)
 	     * rdist and some termcap tools.  Slashes are a no-no.  Other
 	     * special characters can be dangerous due to shell expansion.
 	     */
-	    for (s = buffer; s < after_list; ++s) {
+	    for (s = tok_buf; s < after_list; ++s) {
 		if (isspace(UChar(*s))) {
 		    if (!silent)
 			_nc_warning("whitespace in name or alias field");
@@ -542,7 +559,7 @@ _nc_get_token(bool silent)
 		}
 	    }
 
-	    _nc_curr_token.tk_name = buffer;
+	    _nc_curr_token.tk_name = tok_buf;
 	    type = NAMES;
 	} else {
 	    if (had_newline && _nc_syntax == SYN_TERMCAP) {
@@ -559,30 +576,35 @@ _nc_get_token(bool silent)
 			    break;
 		    }
 		}
-		*(ptr++) = ch;
+		if (OkToAdd()) {
+		    AddCh(ch);
+		} else {
+		    ch = EOF;
+		    break;
+		}
 	    }
 
-	    *ptr++ = '\0';
+	    *tok_ptr++ = '\0';	/* separate name/value in buffer */
 	    switch (ch) {
 	    case ',':
 	    case ':':
 		if (ch != separator)
 		    _nc_err_abort("Separator inconsistent with syntax");
-		_nc_curr_token.tk_name = buffer;
+		_nc_curr_token.tk_name = tok_buf;
 		type = BOOLEAN;
 		break;
 	    case '@':
 		if ((ch = next_char()) != separator && !silent)
 		    _nc_warning("Missing separator after `%s', have %s",
-				buffer, unctrl((chtype) ch));
-		_nc_curr_token.tk_name = buffer;
+				tok_buf, unctrl((chtype) ch));
+		_nc_curr_token.tk_name = tok_buf;
 		type = CANCEL;
 		break;
 
 	    case '#':
 		found = 0;
 		while (isalnum(ch = next_char())) {
-		    numbuf[found++] = ch;
+		    numbuf[found++] = (char) ch;
 		    if (found >= sizeof(numbuf) - 1)
 			break;
 		}
@@ -590,21 +612,21 @@ _nc_get_token(bool silent)
 		number = strtol(numbuf, &numchk, 0);
 		if (!silent) {
 		    if (numchk == numbuf)
-			_nc_warning("no value given for `%s'", buffer);
+			_nc_warning("no value given for `%s'", tok_buf);
 		    if ((*numchk != '\0') || (ch != separator))
 			_nc_warning("Missing separator");
 		}
-		_nc_curr_token.tk_name = buffer;
+		_nc_curr_token.tk_name = tok_buf;
 		_nc_curr_token.tk_valnumber = number;
 		type = NUMBER;
 		break;
 
 	    case '=':
-		ch = _nc_trans_string(ptr, buffer + MAX_ENTRY_SIZE);
+		ch = _nc_trans_string(tok_ptr, tok_buf + TOK_BUF_SIZE);
 		if (!silent && ch != separator)
 		    _nc_warning("Missing separator");
-		_nc_curr_token.tk_name = buffer;
-		_nc_curr_token.tk_valstring = ptr;
+		_nc_curr_token.tk_name = tok_buf;
+		_nc_curr_token.tk_valstring = tok_ptr;
 		type = STRING;
 		break;
 
@@ -713,8 +735,15 @@ _nc_trans_string(char *ptr, char *last)
     bool long_warning = FALSE;
 
     while ((ch = c = next_char()) != (chtype) separator && c != EOF) {
-	if (ptr == (last - 1))
+	if (ptr >= (last - 1)) {
+	    if (c != EOF) {
+		while ((c = next_char()) != separator && c != EOF) {
+		    ;
+		}
+		ch = c;
+	    }
 	    break;
+	}
 	if ((_nc_syntax == SYN_TERMCAP) && c == '\n')
 	    break;
 	if (ch == '^' && last_ch != '%') {
@@ -839,7 +868,7 @@ _nc_trans_string(char *ptr, char *last)
 
 	if (!ignored) {
 	    if (_nc_curr_col <= 1) {
-		push_back(ch);
+		push_back((char) ch);
 		ch = '\n';
 		break;
 	    }
