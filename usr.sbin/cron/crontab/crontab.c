@@ -63,7 +63,6 @@ static	FILE		*NewCrontab;
 static	int		CheckErrorCount;
 static	enum opt_t	Option;
 static	struct passwd	*pw;
-static	char 		*tmp_path;
 static	void		list_cmd(void),
 			delete_cmd(void),
 			edit_cmd(void),
@@ -487,16 +486,6 @@ edit_cmd() {
 }
 
 
-void
-static remove_tmp(int sig)
-{
-	if (tmp_path) {
-		unlink(tmp_path);
-	}
-	exit(ERROR_EXIT);
-}
-
-
 /* returns	0	on success
  *		-1	on syntax error
  *		-2	on install error
@@ -518,12 +507,6 @@ replace_cmd() {
 
 	(void) snprintf(n, sizeof(n), "tmp.%d", Pid);
 	(void) snprintf(tn, sizeof(n), CRON_TAB(n));
-
-	/* Set up to remove the temp file if interrupted by a signal. */
-	f[0] = signal(SIGHUP, remove_tmp);
-	f[1] = signal(SIGINT, remove_tmp);
-	f[2] = signal(SIGTERM, remove_tmp);
-	tmp_path = tn;
 
 	if (!(tmp = fopen(tn, "w+"))) {
 		warn("%s", tn);
@@ -617,12 +600,6 @@ replace_cmd() {
 		unlink(tn);
 		return (-2);
 	}
-
-	/* Restore the default signal handlers. */
-	tmp_path = NULL;
-	signal(SIGHUP, f[0]);
-	signal(SIGINT, f[1]);
-	signal(SIGTERM, f[2]);
 
 	log_it(RealUser, Pid, "REPLACE", User);
 
