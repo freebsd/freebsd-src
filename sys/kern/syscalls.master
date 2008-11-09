@@ -320,11 +320,11 @@
 				    struct fhandle *fhp); }
 161	AUE_NFS_GETFH	STD	{ int getfh(char *fname, \
 				    struct fhandle *fhp); }
-162	AUE_SYSCTL	STD	{ int getdomainname(char *domainname, \
+162	AUE_SYSCTL	COMPAT4	{ int getdomainname(char *domainname, \
 				    int len); }
-163	AUE_SYSCTL	STD	{ int setdomainname(char *domainname, \
+163	AUE_SYSCTL	COMPAT4	{ int setdomainname(char *domainname, \
 				    int len); }
-164	AUE_NULL	STD	{ int uname(struct utsname *name); }
+164	AUE_NULL	COMPAT4	{ int uname(struct utsname *name); }
 165	AUE_SYSARCH	STD	{ int sysarch(int op, char *parms); }
 166	AUE_RTPRIO	STD	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
