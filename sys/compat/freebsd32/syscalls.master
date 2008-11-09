@@ -295,11 +295,9 @@
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(char *fname, \
 				    struct fhandle *fhp); }
-162	AUE_SYSCTL	NOPROTO	{ int getdomainname(char *domainname, \
-				    int len); }
-163	AUE_SYSCTL	NOPROTO	{ int setdomainname(char *domainname, \
-				    int len); }
-164	AUE_NULL	NOPROTO	{ int uname(struct utsname *name); }
+162	AUE_NULL	OBSOL	getdomainname
+163	AUE_NULL	OBSOL	setdomainname
+164	AUE_NULL	OBSOL	uname
 165	AUE_SYSARCH	NOPROTO	{ int sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
