@@ -1803,14 +1803,14 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->addr.sin_len = ent->mask.sin_len = 8;
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
-	IPFW_WLOCK(&V_layer3_chain);
+	IPFW_WLOCK(ch);
 	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
 	    NULL) {
-		IPFW_WUNLOCK(&V_layer3_chain);
+		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
 	}
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(ch);
 	return (0);
 }
 
