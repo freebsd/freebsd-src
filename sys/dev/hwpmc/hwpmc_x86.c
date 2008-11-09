@@ -240,120 +240,6 @@ pmc_save_kernel_callchain(uintptr_t *cc, int nframes, struct trapframe *tf)
 	return (n);
 }
 
-static struct pmc_mdep *
-pmc_intel_initialize(void)
-{
-	struct pmc_mdep *pmc_mdep;
-	enum pmc_cputype cputype;
-	int error, model;
-
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
-	    ("[intel,%d] Initializing non-intel processor", __LINE__));
-
-	PMCDBG(MDP,INI,0, "intel-initialize cpuid=0x%x", cpu_id);
-
-	cputype = -1;
-
-	switch (cpu_id & 0xF00) {
-#if	defined(__i386__)
-	case 0x500:		/* Pentium family processors */
-		cputype = PMC_CPU_INTEL_P5;
-		break;
-	case 0x600:		/* Pentium Pro, Celeron, Pentium II & III */
-		switch ((cpu_id & 0xF0) >> 4) { /* model number field */
-		case 0x1:
-			cputype = PMC_CPU_INTEL_P6;
-			break;
-		case 0x3: case 0x5:
-			cputype = PMC_CPU_INTEL_PII;
-			break;
-		case 0x6:
-			cputype = PMC_CPU_INTEL_CL;
-			break;
-		case 0x7: case 0x8: case 0xA: case 0xB:
-			cputype = PMC_CPU_INTEL_PIII;
-			break;
-		case 0x9: case 0xD:
-			cputype = PMC_CPU_INTEL_PM;
-			break;
-		}
-		break;
-#endif
-#if	defined(__i386__) || defined(__amd64__)
-	case 0xF00:		/* P4 */
-		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-		if (model >= 0 && model <= 6) /* known models */
-			cputype = PMC_CPU_INTEL_PIV;
-		break;
-	}
-#endif
-
-	if ((int) cputype == -1) {
-		printf("pmc: Unknown Intel CPU.\n");
-		return NULL;
-	}
-
-	pmc_mdep = malloc(sizeof(struct pmc_mdep),
-	    M_PMC, M_WAITOK|M_ZERO);
-
-	pmc_mdep->pmd_cputype 	    = cputype;
-	pmc_mdep->pmd_nclass	    = 2;
-	pmc_mdep->pmd_classes[0].pm_class    = PMC_CLASS_TSC;
-	pmc_mdep->pmd_classes[0].pm_caps     = PMC_CAP_READ;
-	pmc_mdep->pmd_classes[0].pm_width    = 64;
-	pmc_mdep->pmd_nclasspmcs[0] = 1;
-
-	error = 0;
-
-	switch (cputype) {
-
-#if	defined(__i386__) || defined(__amd64__)
-
-		/*
-		 * Intel Pentium 4 Processors, and P4/EMT64 processors.
-		 */
-
-	case PMC_CPU_INTEL_PIV:
-		error = pmc_initialize_p4(pmc_mdep);
-		break;
-#endif
-
-#if	defined(__i386__)
-		/*
-		 * P6 Family Processors
-		 */
-
-	case PMC_CPU_INTEL_P6:
-	case PMC_CPU_INTEL_CL:
-	case PMC_CPU_INTEL_PII:
-	case PMC_CPU_INTEL_PIII:
-	case PMC_CPU_INTEL_PM:
-
-		error = pmc_initialize_p6(pmc_mdep);
-		break;
-
-		/*
-		 * Intel Pentium PMCs.
-		 */
-
-	case PMC_CPU_INTEL_P5:
-		error = pmc_initialize_p5(pmc_mdep);
-		break;
-#endif
-
-	default:
-		KASSERT(0,("[intel,%d] Unknown CPU type", __LINE__));
-	}
-
-	if (error) {
-		free(pmc_mdep, M_PMC);
-		pmc_mdep = NULL;
-	}
-
-	return pmc_mdep;
-}
-
-
 /*
  * Machine dependent initialization for x86 class platforms.
  */
@@ -370,11 +256,24 @@ pmc_md_initialize()
 		md = pmc_amd_initialize();
 	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
 		md = pmc_intel_initialize();
+	else
+		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));
 
 	/* disallow sampling if we do not have an LAPIC */
 	if (md != NULL && lapic == NULL)
 		for (i = 1; i < md->pmd_nclass; i++)
-			md->pmd_classes[i].pm_caps &= ~PMC_CAP_INTERRUPT;
+			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 
-	return md;
+	return (md);
+}
+
+void
+pmc_md_finalize(struct pmc_mdep *md)
+{
+	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+		pmc_amd_finalize(md);
+	else if (strcmp(cpu_vendor, "GenuineIntel") == 0)
+		pmc_intel_finalize(md);
+	else
+		KASSERT(0, ("[x86,%d] Unknown vendor", __LINE__));
 }
