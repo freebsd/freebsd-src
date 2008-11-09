@@ -956,8 +956,14 @@ for COMPFILE in `find . -type f -size +0`; do
       sed "s/[$]${CVS_ID_TAG}:.*[$]//g" "${COMPFILE}" > "${TMPFILE2}"
       if diff -q ${DIFF_OPTIONS} "${TMPFILE1}" "${TMPFILE2}" > \
         /dev/null 2>&1; then
-        echo " *** Temp ${COMPFILE} and installed are the same except CVS Id, deleting"
-        rm "${COMPFILE}"
+        echo " *** Temp ${COMPFILE} and installed are the same except CVS Id, replacing"
+        if mm_install "${COMPFILE}"; then
+          echo "   *** ${COMPFILE} upgraded successfully"
+          echo ''
+          rm "${COMPFILE}"
+        else
+          echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
+        fi
       fi
       rm -f "${TMPFILE1}" "${TMPFILE2}"
       ;;
