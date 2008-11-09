@@ -973,8 +973,8 @@ pmclog_initialize()
 
 	/* create global pool of log buffers */
 	for (n = 0; n < pmc_nlogbuffers; n++) {
-		plb = malloc(1024 * pmclog_buffer_size,
-		    M_PMC, M_ZERO|M_WAITOK);
+		plb = malloc(1024 * pmclog_buffer_size, M_PMC,
+		    M_WAITOK|M_ZERO);
 		PMCLOG_INIT_BUFFER_DESCRIPTOR(plb);
 		TAILQ_INSERT_HEAD(&pmc_bufferlist, plb, plb_next);
 	}
