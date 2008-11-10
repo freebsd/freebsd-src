@@ -63,15 +63,44 @@ DEFINE_TEST(test_strip_components)
 	assertEqualInt(-1, lstat("target/d0", &st));
 	failure("d0/d1/ is too short and should not get restored");
 	assertEqualInt(-1, lstat("target/d1", &st));
+	failure("d0/d1/s2 is a symlink to something that won't be extracted");
+	assertEqualInt(-1, stat("target/s2", &st));
+	assertEqualInt(0, lstat("target/s2", &st));
+	failure("d0/d1/d2 should be extracted");
+	assertEqualInt(0, lstat("target/d2", &st));
+
+	/*
+	 * This next is a complicated case.  d0/l1, d0/d1/l2, and
+	 * d0/d1/d2/f1 are all hardlinks to the same file; d0/l1 can't
+	 * be extracted with --strip-components=2 and the other two
+	 * can.  Remember that tar normally stores the first file with
+	 * a body and the other as hardlink entries to the first
+	 * appearance.  So the final result depends on the order in
+	 * which these three names get archived.  If d0/l1 is first,
+	 * none of the three can be restored.  If either of the longer
+	 * names are first, then the two longer ones can both be
+	 * restored.
+	 *
+	 * The tree-walking code used by bsdtar always visits files
+	 * before subdirectories, so bsdtar's behavior is fortunately
+	 * deterministic:  d0/l1 will always get stored first and the
+	 * other two will be stored as hardlinks to d0/l1.  Since
+	 * d0/l1 can't be extracted, none of these three will be
+	 * extracted.
+	 *
+	 * It may be worth extending this test to force a particular
+	 * archiving order so as to exercise both of the cases described
+	 * above.
+	 *
+	 * Of course, this is all totally different for cpio and newc
+	 * formats because the hardlink management is different.
+	 * TODO: Rename this to test_strip_components_tar and create
+	 * parallel tests for cpio and newc formats.
+	 */
 	failure("d0/l1 is too short and should not get restored");
 	assertEqualInt(-1, lstat("target/l1", &st));
 	failure("d0/d1/l2 is a hardlink to file whose name was too short");
 	assertEqualInt(-1, lstat("target/l2", &st));
-	assertEqualInt(0, lstat("target/s2", &st));
-	failure("d0/d1/s2 is a symlink to something that won't be extracted");
-	assertEqualInt(-1, stat("target/s2", &st));
-	failure("d0/d1/d2 should be extracted");
-	assertEqualInt(0, lstat("target/d2", &st));
 	failure("d0/d1/d2/f1 is a hardlink to file whose name was too short");
 	assertEqualInt(-1, lstat("target/d2/f1", &st));
 }
