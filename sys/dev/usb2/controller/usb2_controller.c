@@ -144,7 +144,7 @@ usb2_detach(device_t dev)
 	}
 	/* Let the USB explore process detach all devices. */
 
-	mtx_lock(&bus->mtx);
+	USB_BUS_LOCK(bus);
 	if (usb2_proc_msignal(&bus->explore_proc,
 	    &bus->detach_msg[0], &bus->detach_msg[1])) {
 		/* ignore */
@@ -154,7 +154,7 @@ usb2_detach(device_t dev)
 	usb2_proc_mwait(&bus->explore_proc,
 	    &bus->detach_msg[0], &bus->detach_msg[1]);
 
-	mtx_unlock(&bus->mtx);
+	USB_BUS_UNLOCK(bus);
 
 	/* Get rid of USB explore process */
 
@@ -187,7 +187,7 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 			/* avoid zero, hence that is memory default */
 			bus->driver_added_refcount = 1;
 		}
-		mtx_unlock(&bus->mtx);
+		USB_BUS_UNLOCK(bus);
 
 		mtx_lock(&Giant);
 
@@ -199,7 +199,7 @@ usb2_bus_explore(struct usb2_proc_msg *pm)
 
 		mtx_unlock(&Giant);
 
-		mtx_lock(&bus->mtx);
+		USB_BUS_LOCK(bus);
 	}
 	return;
 }
@@ -221,7 +221,7 @@ usb2_bus_detach(struct usb2_proc_msg *pm)
 	dev = bus->bdev;
 	/* clear the softc */
 	device_set_softc(dev, NULL);
-	mtx_unlock(&bus->mtx);
+	USB_BUS_UNLOCK(bus);
 
 	mtx_lock(&Giant);
 
@@ -236,7 +236,7 @@ usb2_bus_detach(struct usb2_proc_msg *pm)
 	usb2_free_device(udev);
 
 	mtx_unlock(&Giant);
-	mtx_lock(&bus->mtx);
+	USB_BUS_LOCK(bus);
 	/* clear bdev variable last */
 	bus->bdev = NULL;
 	return;
@@ -320,7 +320,7 @@ usb2_attach_sub(device_t dev, struct usb2_bus *bus)
 
 	/* Create a new USB process */
 	if (usb2_proc_setup(&bus->explore_proc,
-	    &bus->mtx, USB_PRI_MED)) {
+	    &bus->bus_mtx, USB_PRI_MED)) {
 		printf("WARNING: Creation of USB explore process failed.\n");
 	}
 	/* set softc - we are ready */
@@ -432,13 +432,13 @@ usb2_bus_mem_alloc_all(struct usb2_bus *bus, bus_dma_tag_t dmat,
 
 	bus->devices_max = USB_MAX_DEVICES;
 
-	mtx_init(&bus->mtx, "USB lock",
+	mtx_init(&bus->bus_mtx, "USB bus lock",
 	    NULL, MTX_DEF | MTX_RECURSE);
 
 	TAILQ_INIT(&bus->intr_q.head);
 
 	usb2_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
-	    dmat, &bus->mtx, NULL, NULL, 32, USB_BUS_DMA_TAG_MAX);
+	    dmat, &bus->bus_mtx, NULL, NULL, 32, USB_BUS_DMA_TAG_MAX);
 
 	if (cb) {
 		cb(bus, &usb2_bus_mem_alloc_all_cb);
@@ -471,7 +471,7 @@ usb2_bus_mem_free_all(struct usb2_bus *bus, usb2_bus_mem_cb_t *cb)
 	}
 	usb2_dma_tag_unsetup(bus->dma_parent_tag);
 
-	mtx_destroy(&bus->mtx);
+	mtx_destroy(&bus->bus_mtx);
 
 	return;
 }

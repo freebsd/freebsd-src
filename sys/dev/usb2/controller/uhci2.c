@@ -265,7 +265,7 @@ uhci_reset(uhci_softc_t *sc)
 	struct usb2_page_search buf_res;
 	uint16_t n;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	DPRINTF("resetting the HC\n");
 
@@ -279,7 +279,7 @@ uhci_reset(uhci_softc_t *sc)
 
 	/* wait */
 
-	usb2_pause_mtx(&sc->sc_bus.mtx,
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 	    USB_BUS_RESET_DELAY);
 
 	/* terminate all transfers */
@@ -292,7 +292,7 @@ uhci_reset(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 
 		if (!(UREAD2(sc, UHCI_CMD) & UHCI_CMD_HCRESET)) {
 			goto done_1;
@@ -308,7 +308,7 @@ done_1:
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 
 		/* check if HC is stopped */
 		if (UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) {
@@ -332,7 +332,7 @@ done_2:
 static void
 uhci_start(uhci_softc_t *sc)
 {
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	DPRINTFN(2, "enabling\n");
 
@@ -355,7 +355,7 @@ uhci_start(uhci_softc_t *sc)
 	while (n--) {
 		/* wait one millisecond */
 
-		usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 
 		/* check that controller has started */
 
@@ -416,7 +416,7 @@ uhci_init(uhci_softc_t *sc)
 	uint16_t x;
 	uint16_t y;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTF("start\n");
 
@@ -613,7 +613,7 @@ uhci_init(uhci_softc_t *sc)
 	/* start the controller */
 	uhci_start(sc);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch lost interrupts */
 	uhci_do_poll(&sc->sc_bus);
@@ -628,7 +628,7 @@ uhci_init(uhci_softc_t *sc)
 void
 uhci_suspend(uhci_softc_t *sc)
 {
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 #if USB_DEBUG
 	if (uhcidebug > 2) {
@@ -648,16 +648,16 @@ uhci_suspend(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_EGSM);
 
-	usb2_pause_mtx(&sc->sc_bus.mtx, USB_RESUME_WAIT);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_WAIT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
 void
 uhci_resume(uhci_softc_t *sc)
 {
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* reset the controller */
 
@@ -667,7 +667,7 @@ uhci_resume(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_FGR);
 
-	usb2_pause_mtx(&sc->sc_bus.mtx,
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 	    USB_RESUME_DELAY);
 
 	/* and start traffic again */
@@ -680,7 +680,7 @@ uhci_resume(uhci_softc_t *sc)
 	}
 #endif
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch lost interrupts */
 	uhci_do_poll(&sc->sc_bus);
@@ -1448,7 +1448,7 @@ uhci_interrupt(uhci_softc_t *sc)
 {
 	uint32_t status;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTFN(16, "real interrupt\n");
 
@@ -1506,7 +1506,7 @@ uhci_interrupt(uhci_softc_t *sc)
 	uhci_interrupt_poll(sc);
 
 done:
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1521,12 +1521,12 @@ uhci_timeout(void *arg)
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* transfer is transferred */
 	uhci_device_done(xfer, USB_ERR_TIMEOUT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1536,10 +1536,10 @@ uhci_do_poll(struct usb2_bus *bus)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(bus);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	uhci_interrupt_poll(sc);
 	uhci_root_ctrl_poll(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1857,7 +1857,7 @@ uhci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	uhci_softc_t *sc = xfer->usb2_sc;
 	uhci_qh_t *qh;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
@@ -2437,7 +2437,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		/* polling */
 		DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 	} else {
-		usb2_pause_mtx(&sc->sc_bus.mtx,
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 		    USB_PORT_ROOT_RESET_DELAY);
 	}
 
@@ -2451,7 +2451,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 		/* polling */
 		DELAY(1000);
 	} else {
-		usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 	}
 
 	DPRINTFN(4, "uhci port %d reset, status1 = 0x%04x\n",
@@ -2466,7 +2466,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index, uint8_t use_polling)
 			/* polling */
 			DELAY(USB_PORT_RESET_DELAY * 1000);
 		} else {
-			usb2_pause_mtx(&sc->sc_bus.mtx,
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 			    USB_PORT_RESET_DELAY);
 		}
 
@@ -2560,7 +2560,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t change;
 	uint8_t use_polling;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_SETUP) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -2576,7 +2576,7 @@ uhci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -2913,7 +2913,7 @@ uhci_root_intr_done(struct usb2_xfer *xfer,
 {
 	uhci_softc_t *sc = xfer->usb2_sc;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_PRE_DATA) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -2941,7 +2941,7 @@ uhci_root_intr_check(void *arg)
 
 	DPRINTFN(21, "\n");
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	sc->sc_hub_idata[0] = 0;
 
@@ -2960,7 +2960,7 @@ uhci_root_intr_check(void *arg)
 		usb2_sw_transfer(&sc->sc_root_intr,
 		    &uhci_root_intr_done);
 	}
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 

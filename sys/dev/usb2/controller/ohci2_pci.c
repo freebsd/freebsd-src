@@ -280,7 +280,7 @@ ohci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
-	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.mtx,
+	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.bus_mtx,
 	    NULL, 0, 4);
 	if (err) {
 		device_printf(self, "could not setup config thread!\n");

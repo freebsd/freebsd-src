@@ -111,7 +111,7 @@ ohci_atmelarm_attach(device_t dev)
 	strlcpy(sc->sc_ohci.sc_vendor, "Atmel", sizeof(sc->sc_ohci.sc_vendor));
 
 	err = usb2_config_td_setup(&sc->sc_ohci.sc_config_td, sc,
-	    &sc->sc_ohci.sc_bus.mtx, NULL, 0, 4);
+	    &sc->sc_ohci.sc_bus.bus_mtx, NULL, 0, 4);
 	if (err) {
 		device_printf(dev, "could not setup config thread!\n");
 		goto error;

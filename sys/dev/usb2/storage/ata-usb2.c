@@ -778,11 +778,11 @@ atausb2_t_bbb_status_callback(struct usb2_xfer *xfer)
 
 		sc->ata_request = NULL;
 
-		mtx_unlock(xfer->priv_mtx);
+		USB_XFER_UNLOCK(xfer);
 
 		ata_interrupt(device_get_softc(request->parent));
 
-		mtx_lock(xfer->priv_mtx);
+		USB_XFER_LOCK(xfer);
 		return;
 
 	case USB_ST_SETUP:

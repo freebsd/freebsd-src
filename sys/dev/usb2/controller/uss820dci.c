@@ -235,7 +235,7 @@ uss820dci_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
 
 	DPRINTFN(5, "is_on=%u\n", is_on);
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	sc = USS820_DCI_BUS2SC(udev->bus);
 
@@ -755,7 +755,7 @@ uss820dci_interrupt(struct uss820dci_softc *sc)
 	uint8_t ssr;
 	uint8_t event;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	ssr = USS820_READ_1(sc, USS820_SSR);
 
@@ -826,7 +826,7 @@ uss820dci_interrupt(struct uss820dci_softc *sc)
 	/* poll all active transfers */
 	uss820dci_interrupt_poll(sc);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -993,12 +993,12 @@ uss820dci_timeout(void *arg)
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* transfer is transferred */
 	uss820dci_device_done(xfer, USB_ERR_TIMEOUT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1078,7 +1078,7 @@ uss820dci_root_intr_done(struct usb2_xfer *xfer,
 
 	DPRINTFN(9, "\n");
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_PRE_DATA) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1215,7 +1215,7 @@ done:
 static void
 uss820dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 {
-	mtx_assert(xfer->usb2_mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
@@ -1238,7 +1238,7 @@ uss820dci_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
 	uint8_t ep_dir;
 	uint8_t temp;
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
@@ -1324,7 +1324,7 @@ uss820dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 	struct uss820dci_softc *sc;
 	struct usb2_endpoint_descriptor *ed;
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
@@ -1361,7 +1361,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 	sc->sc_bus.usbrev = USB_REV_1_1;
 	sc->sc_bus.methods = &uss820dci_bus_methods;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* we always have VBUS */
 	sc->sc_flags.status_vbus = 1;
@@ -1380,7 +1380,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 			break;
 		}
 		if (n == 100) {
-			mtx_unlock(&sc->sc_bus.mtx);
+			USB_BUS_UNLOCK(&sc->sc_bus);
 			return (USB_ERR_INVAL);
 		}
 		/* wait a little for things to stabilise */
@@ -1391,13 +1391,13 @@ uss820dci_init(struct uss820dci_softc *sc)
 	uss820dci_pull_down(sc);
 
 	/* wait 10ms for pulldown to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.mtx, 10);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 10);
 
 	/* check hardware revision */
 	temp = USS820_READ_1(sc, USS820_REV);
 
 	if (temp < 0x13) {
-		mtx_unlock(&sc->sc_bus.mtx);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 		return (USB_ERR_INVAL);
 	}
 	/* enable interrupts */
@@ -1503,7 +1503,7 @@ uss820dci_init(struct uss820dci_softc *sc)
 		uss820dci_update_shared_1(sc, USS820_EPCON, 0xFF, temp);
 	}
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch any lost interrupts */
 
@@ -1517,7 +1517,7 @@ uss820dci_uninit(struct uss820dci_softc *sc)
 {
 	uint8_t temp;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* disable all interrupts */
 	temp = USS820_READ_1(sc, USS820_SCR);
@@ -1532,7 +1532,7 @@ uss820dci_uninit(struct uss820dci_softc *sc)
 	sc->sc_flags.change_connect = 1;
 
 	uss820dci_pull_down(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1554,10 +1554,10 @@ uss820dci_do_poll(struct usb2_bus *bus)
 {
 	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(bus);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	uss820dci_interrupt_poll(sc);
 	uss820dci_root_ctrl_poll(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1919,7 +1919,7 @@ uss820dci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t index;
 	uint8_t use_polling;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_SETUP) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1935,7 +1935,7 @@ uss820dci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
