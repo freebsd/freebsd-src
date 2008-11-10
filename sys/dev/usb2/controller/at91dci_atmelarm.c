@@ -210,7 +210,7 @@ at91_udp_attach(device_t dev)
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
 	err = usb2_config_td_setup(&sc->sc_dci.sc_config_td, sc,
-	    &sc->sc_dci.sc_bus.mtx, NULL, 0, 4);
+	    &sc->sc_dci.sc_bus.bus_mtx, NULL, 0, 4);
 	if (err) {
 		device_printf(dev, "could not setup config thread!\n");
 		goto error;

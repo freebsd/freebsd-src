@@ -173,7 +173,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("SMM active, request owner change\n");
 		OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_OCR);
 		for (i = 0; (i < 100) && (ctl & OHCI_IR); i++) {
-			usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+			usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 			ctl = OREAD4(sc, OHCI_CONTROL);
 		}
 		if (ctl & OHCI_IR) {
@@ -186,7 +186,7 @@ ohci_controller_init(ohci_softc_t *sc)
 		DPRINTF("cold started\n");
 reset:
 		/* controller was cold started */
-		usb2_pause_mtx(&sc->sc_bus.mtx,
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 		    USB_BUS_RESET_DELAY);
 	}
 
@@ -197,7 +197,7 @@ reset:
 	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
-	usb2_pause_mtx(&sc->sc_bus.mtx,
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 	    USB_BUS_RESET_DELAY);
 
 	/* we now own the host controller and the bus has been reset */
@@ -260,7 +260,7 @@ reset:
 	desca = OREAD4(sc, OHCI_RH_DESCRIPTOR_A);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca | OHCI_NOCP);
 	OWRITE4(sc, OHCI_RH_STATUS, OHCI_LPSC);	/* Enable port power */
-	usb2_pause_mtx(&sc->sc_bus.mtx,
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 	    OHCI_ENABLE_POWER_DELAY);
 	OWRITE4(sc, OHCI_RH_DESCRIPTOR_A, desca);
 
@@ -270,7 +270,7 @@ reset:
 	 */
 	sc->sc_noport = 0;
 	for (i = 0; (i < 10) && (sc->sc_noport == 0); i++) {
-		usb2_pause_mtx(&sc->sc_bus.mtx,
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 		    OHCI_READ_DESC_DELAY);
 		sc->sc_noport = OHCI_GET_NDP(OREAD4(sc, OHCI_RH_DESCRIPTOR_A));
 	}
@@ -309,7 +309,7 @@ ohci_init(ohci_softc_t *sc)
 	uint16_t x;
 	uint16_t y;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	DPRINTF("start\n");
 
@@ -391,7 +391,7 @@ ohci_init(ohci_softc_t *sc)
 	/* set up the bus struct */
 	sc->sc_bus.methods = &ohci_bus_methods;
 
-	usb2_callout_init_mtx(&sc->sc_tmo_rhsc, &sc->sc_bus.mtx,
+	usb2_callout_init_mtx(&sc->sc_tmo_rhsc, &sc->sc_bus.bus_mtx,
 	    CALLOUT_RETURNUNLOCKED);
 
 #if USB_DEBUG
@@ -408,10 +408,10 @@ ohci_init(ohci_softc_t *sc)
 	sc->sc_bus.usbrev = USB_REV_1_0;
 
 	if (ohci_controller_init(sc)) {
-		mtx_unlock(&sc->sc_bus.mtx);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 		return (USB_ERR_INVAL);
 	} else {
-		mtx_unlock(&sc->sc_bus.mtx);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 		/* catch any lost interrupts */
 		ohci_do_poll(&sc->sc_bus);
 		return (USB_ERR_NORMAL_COMPLETION);
@@ -424,7 +424,7 @@ ohci_init(ohci_softc_t *sc)
 void
 ohci_detach(struct ohci_softc *sc)
 {
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	usb2_callout_stop(&sc->sc_tmo_rhsc);
 
@@ -432,9 +432,9 @@ ohci_detach(struct ohci_softc *sc)
 	OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_RESET);
 
 	/* XXX let stray task complete */
-	usb2_pause_mtx(&sc->sc_bus.mtx, 50);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 50);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	usb2_callout_drain(&sc->sc_tmo_rhsc);
 
@@ -449,7 +449,7 @@ ohci_suspend(ohci_softc_t *sc)
 {
 	uint32_t ctl;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 #if USB_DEBUG
 	DPRINTF("\n");
@@ -470,10 +470,10 @@ ohci_suspend(ohci_softc_t *sc)
 	ctl |= OHCI_HCFS_SUSPEND;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
 
-	usb2_pause_mtx(&sc->sc_bus.mtx,
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 	    USB_RESUME_WAIT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -482,7 +482,7 @@ ohci_resume(ohci_softc_t *sc)
 {
 	uint32_t ctl;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 #if USB_DEBUG
 	DPRINTF("\n");
@@ -503,13 +503,13 @@ ohci_resume(ohci_softc_t *sc)
 		ctl = OREAD4(sc, OHCI_CONTROL);
 	ctl |= OHCI_HCFS_RESUME;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.mtx, USB_RESUME_DELAY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_DELAY);
 	ctl = (ctl & ~OHCI_HCFS_MASK) | OHCI_HCFS_OPERATIONAL;
 	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb2_pause_mtx(&sc->sc_bus.mtx, USB_RESUME_RECOVERY);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, USB_RESUME_RECOVERY);
 	sc->sc_control = sc->sc_intre = 0;
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch any lost interrupts */
 	ohci_do_poll(&sc->sc_bus);
@@ -699,7 +699,7 @@ _ohci_append_qh(ohci_ed_t *sed, uint32_t td_self, ohci_ed_t *last)
 {
 	DPRINTFN(11, "%p to %p\n", sed, last);
 
-	/* (sc->sc_bus.mtx) must be locked */
+	/* (sc->sc_bus.bus_mtx) must be locked */
 
 	sed->next = last->next;
 	sed->ed_next = last->ed_next;
@@ -728,7 +728,7 @@ _ohci_remove_qh(ohci_ed_t *sed, ohci_ed_t *last)
 {
 	DPRINTFN(11, "%p from %p\n", sed, last);
 
-	/* (sc->sc_bus.mtx) must be locked */
+	/* (sc->sc_bus.bus_mtx) must be locked */
 
 	/* only remove if not removed from a queue */
 	if (sed->prev) {
@@ -1099,7 +1099,7 @@ ohci_rhsc_enable(ohci_softc_t *sc)
 {
 	DPRINTFN(5, "\n");
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	sc->sc_eintrs |= OHCI_RHSC;
 	OWRITE4(sc, OHCI_INTERRUPT_ENABLE, OHCI_RHSC);
@@ -1110,7 +1110,7 @@ ohci_rhsc_enable(ohci_softc_t *sc)
 	usb2_sw_transfer(&sc->sc_root_intr,
 	    &ohci_root_intr_done);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1146,7 +1146,7 @@ ohci_interrupt(ohci_softc_t *sc)
 	uint32_t status;
 	uint32_t done;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	hcca = ohci_get_hcca(sc);
 
@@ -1246,7 +1246,7 @@ ohci_interrupt(ohci_softc_t *sc)
 	ohci_interrupt_poll(sc);
 
 done:
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1261,12 +1261,12 @@ ohci_timeout(void *arg)
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* transfer is transferred */
 	ohci_device_done(xfer, USB_ERR_TIMEOUT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1276,10 +1276,10 @@ ohci_do_poll(struct usb2_bus *bus)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	ohci_interrupt_poll(sc);
 	ohci_root_ctrl_poll(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1617,7 +1617,7 @@ ohci_root_intr_done(struct usb2_xfer *xfer,
 	uint16_t i;
 	uint16_t m;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_PRE_DATA) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1663,7 +1663,7 @@ ohci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	ohci_softc_t *sc = xfer->usb2_sc;
 	ohci_ed_t *ed;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
@@ -2198,7 +2198,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint8_t l;
 	uint8_t use_polling;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_SETUP) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -2214,7 +2214,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	DPRINTFN(3, "type=0x%02x request=0x%02x wLen=0x%04x "
 	    "wValue=0x%04x wIndex=0x%04x\n",
@@ -2375,7 +2375,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 			/* enable RHSC interrupt if condition is cleared. */
 			if ((OREAD4(sc, port) >> 16) == 0) {
 				ohci_rhsc_enable(sc);
-				mtx_lock(&sc->sc_bus.mtx);
+				USB_BUS_LOCK(&sc->sc_bus);
 			}
 			break;
 		default:
@@ -2456,7 +2456,7 @@ ohci_root_ctrl_done(struct usb2_xfer *xfer,
 						/* polling */
 						DELAY(USB_PORT_ROOT_RESET_DELAY * 1000);
 					} else {
-						usb2_pause_mtx(&sc->sc_bus.mtx,
+						usb2_pause_mtx(&sc->sc_bus.bus_mtx,
 						    USB_PORT_ROOT_RESET_DELAY);
 					}
 

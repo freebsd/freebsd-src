@@ -295,9 +295,9 @@ usb2_fill_pipe_data(struct usb2_device *udev, uint8_t iface_index,
 
 	/* clear stall, if any */
 	if (udev->bus->methods->clear_stall) {
-		mtx_lock(&udev->bus->mtx);
+		USB_BUS_LOCK(udev->bus);
 		(udev->bus->methods->clear_stall) (udev, pipe);
-		mtx_unlock(&udev->bus->mtx);
+		USB_BUS_UNLOCK(udev->bus);
 	}
 	return;
 }
@@ -730,7 +730,7 @@ usb2_set_endpoint_stall(struct usb2_device *udev, struct usb2_pipe *pipe,
 		DPRINTF("Invalid endpoint\n");
 		return (0);
 	}
-	mtx_lock(&udev->bus->mtx);
+	USB_BUS_LOCK(udev->bus);
 
 	/* store current stall state */
 	was_stalled = pipe->is_stalled;
@@ -738,7 +738,7 @@ usb2_set_endpoint_stall(struct usb2_device *udev, struct usb2_pipe *pipe,
 	/* check for no change */
 	if (was_stalled && do_stall) {
 		/* if the pipe is already stalled do nothing */
-		mtx_unlock(&udev->bus->mtx);
+		USB_BUS_UNLOCK(udev->bus);
 		DPRINTF("No change\n");
 		return (0);
 	}
@@ -769,7 +769,7 @@ usb2_set_endpoint_stall(struct usb2_device *udev, struct usb2_pipe *pipe,
 		/* start up the current or next transfer, if any */
 		usb2_command_wrapper(&pipe->pipe_q, pipe->pipe_q.curr);
 	}
-	mtx_unlock(&udev->bus->mtx);
+	USB_BUS_UNLOCK(udev->bus);
 	return (0);
 }
 
@@ -1207,15 +1207,15 @@ usb2_suspend_resume(struct usb2_device *udev, uint8_t do_suspend)
 
 	sx_assert(udev->default_sx + 1, SA_LOCKED);
 
-	mtx_lock(&udev->bus->mtx);
+	USB_BUS_LOCK(udev->bus);
 	/* filter the suspend events */
 	if (udev->flags.suspended == do_suspend) {
-		mtx_unlock(&udev->bus->mtx);
+		USB_BUS_UNLOCK(udev->bus);
 		/* nothing to do */
 		return (0);
 	}
 	udev->flags.suspended = do_suspend;
-	mtx_unlock(&udev->bus->mtx);
+	USB_BUS_UNLOCK(udev->bus);
 
 	/* do the suspend or resume */
 
@@ -1243,7 +1243,7 @@ usb2_clear_stall_proc(struct usb2_proc_msg *_pm)
 	struct usb2_device *udev = pm->udev;
 
 	/* Change lock */
-	mtx_unlock(&udev->bus->mtx);
+	USB_BUS_UNLOCK(udev->bus);
 	mtx_lock(udev->default_mtx);
 
 	/* Start clear stall callback */
@@ -1251,7 +1251,7 @@ usb2_clear_stall_proc(struct usb2_proc_msg *_pm)
 
 	/* Change lock */
 	mtx_unlock(udev->default_mtx);
-	mtx_lock(&udev->bus->mtx);
+	USB_BUS_LOCK(udev->bus);
 	return;
 }
 
