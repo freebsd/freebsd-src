@@ -130,7 +130,7 @@ usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 	 * We need to protect against other threads doing probe and
 	 * attach:
 	 */
-	mtx_unlock(xfer->priv_mtx);
+	USB_XFER_UNLOCK(xfer);
 	mtx_lock(&Giant);		/* XXX */
 	sx_xlock(xfer->udev->default_sx + 1);
 
@@ -157,7 +157,7 @@ usb2_handle_set_config(struct usb2_xfer *xfer, uint8_t conf_no)
 done:
 	mtx_unlock(&Giant);		/* XXX */
 	sx_unlock(xfer->udev->default_sx + 1);
-	mtx_lock(xfer->priv_mtx);
+	USB_XFER_LOCK(xfer);
 	return (err);
 }
 
@@ -189,7 +189,7 @@ usb2_handle_iface_request(struct usb2_xfer *xfer,
 	 * We need to protect against other threads doing probe and
 	 * attach:
 	 */
-	mtx_unlock(xfer->priv_mtx);
+	USB_XFER_UNLOCK(xfer);
 	mtx_lock(&Giant);		/* XXX */
 	sx_xlock(udev->default_sx + 1);
 
@@ -310,13 +310,13 @@ tr_repeat:
 tr_valid:
 	mtx_unlock(&Giant);
 	sx_unlock(udev->default_sx + 1);
-	mtx_lock(xfer->priv_mtx);
+	USB_XFER_LOCK(xfer);
 	return (0);
 
 tr_stalled:
 	mtx_unlock(&Giant);
 	sx_unlock(udev->default_sx + 1);
-	mtx_lock(xfer->priv_mtx);
+	USB_XFER_LOCK(xfer);
 	return (USB_ERR_STALLED);
 }
 
@@ -332,10 +332,10 @@ usb2_handle_set_stall(struct usb2_xfer *xfer, uint8_t ep, uint8_t do_stall)
 {
 	usb2_error_t err;
 
-	mtx_unlock(xfer->priv_mtx);
+	USB_XFER_UNLOCK(xfer);
 	err = usb2_set_endpoint_stall(xfer->udev,
 	    usb2_get_pipe_by_addr(xfer->udev, ep), do_stall);
-	mtx_lock(xfer->priv_mtx);
+	USB_XFER_LOCK(xfer);
 	return (err);
 }
 
@@ -357,9 +357,9 @@ usb2_handle_get_stall(struct usb2_device *udev, uint8_t ea_val)
 		/* nothing to do */
 		return (0);
 	}
-	mtx_lock(&udev->bus->mtx);
+	USB_BUS_LOCK(udev->bus);
 	halted = pipe->is_stalled;
-	mtx_unlock(&udev->bus->mtx);
+	USB_BUS_UNLOCK(udev->bus);
 
 	return (halted);
 }
@@ -380,7 +380,7 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 	udev = xfer->udev;
 	bus = udev->bus;
 
-	mtx_lock(&bus->mtx);
+	USB_BUS_LOCK(bus);
 
 	if (is_on) {
 		udev->flags.remote_wakeup = 1;
@@ -390,7 +390,7 @@ usb2_handle_remote_wakeup(struct usb2_xfer *xfer, uint8_t is_on)
 
 	(bus->methods->rem_wakeup_set) (xfer->udev, is_on);
 
-	mtx_unlock(&bus->mtx);
+	USB_BUS_UNLOCK(bus);
 
 	return (0);			/* success */
 }
@@ -604,14 +604,14 @@ tr_handle_get_status:
 
 	wValue = 0;
 
-	mtx_lock(&udev->bus->mtx);
+	USB_BUS_LOCK(udev->bus);
 	if (udev->flags.remote_wakeup) {
 		wValue |= UDS_REMOTE_WAKEUP;
 	}
 	if (udev->flags.self_powered) {
 		wValue |= UDS_SELF_POWERED;
 	}
-	mtx_unlock(&udev->bus->mtx);
+	USB_BUS_UNLOCK(udev->bus);
 
 	USETW(temp.wStatus, wValue);
 	src_mcopy = temp.wStatus;

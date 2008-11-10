@@ -52,7 +52,6 @@ struct usb2_xfer_root {
 	struct usb2_process done_p;
 	void   *memory_base;
 	struct mtx *priv_mtx;
-	struct mtx *usb2_mtx;
 	struct usb2_page_cache *dma_page_cache_start;
 	struct usb2_page_cache *dma_page_cache_end;
 	struct usb2_page_cache *xfer_page_cache_start;

@@ -321,7 +321,7 @@ uhci_pci_attach(device_t self)
 		break;
 	}
 
-	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.mtx,
+	err = usb2_config_td_setup(&sc->sc_config_td, sc, &sc->sc_bus.bus_mtx,
 	    NULL, 0, 4);
 	if (err) {
 		device_printf(self, "could not setup config thread!\n");
@@ -390,12 +390,12 @@ uhci_pci_detach(device_t self)
 	 * uhci_init.
 	 */
 	if (sc->sc_io_res) {
-		mtx_lock(&sc->sc_bus.mtx);
+		USB_BUS_LOCK(&sc->sc_bus);
 
 		/* stop the controller */
 		uhci_reset(sc);
 
-		mtx_unlock(&sc->sc_bus.mtx);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 	}
 	pci_disable_busmaster(self);
 

@@ -27,6 +27,7 @@
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_standard.h>
 #include <dev/usb2/include/usb2_error.h>
+#include <dev/usb2/include/usb2_defs.h>
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -35,7 +36,11 @@
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_transfer.h>
 #include <dev/usb2/core/usb2_sw_transfer.h>
+#include <dev/usb2/core/usb2_device.h>
 #include <dev/usb2/core/usb2_debug.h>
+
+#include <dev/usb2/controller/usb2_controller.h>
+#include <dev/usb2/controller/usb2_bus.h>
 
 /*------------------------------------------------------------------------*
  *	usb2_sw_transfer - factored out code
@@ -67,7 +72,7 @@ usb2_sw_transfer(struct usb2_sw_transfer *std,
 		DPRINTF("xfer gone\n");
 		return;
 	}
-	mtx_assert(xfer->usb2_mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(xfer->udev->bus, MA_OWNED);
 
 	std->xfer = NULL;
 

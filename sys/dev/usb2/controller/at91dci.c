@@ -291,7 +291,7 @@ at91dci_rem_wakeup_set(struct usb2_device *udev, uint8_t is_on)
 
 	DPRINTFN(5, "is_on=%u\n", is_on);
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	sc = AT9100_DCI_BUS2SC(udev->bus);
 
@@ -766,7 +766,7 @@ at91dci_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -791,7 +791,7 @@ at91dci_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 		}
 	}
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -801,13 +801,13 @@ at91dci_interrupt(struct at91dci_softc *sc)
 {
 	uint32_t status;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = AT91_UDP_READ_4(sc, AT91_UDP_ISR);
 	status &= AT91_UDP_INT_DEFAULT;
 
 	if (!status) {
-		mtx_unlock(&sc->sc_bus.mtx);
+		USB_BUS_UNLOCK(&sc->sc_bus);
 		return;
 	}
 	/* acknowledge interrupts */
@@ -879,7 +879,7 @@ at91dci_interrupt(struct at91dci_softc *sc)
 
 		at91dci_interrupt_poll(sc);
 	}
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1065,12 +1065,12 @@ at91dci_timeout(void *arg)
 
 	DPRINTF("xfer=%p\n", xfer);
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* transfer is transferred */
 	at91dci_device_done(xfer, USB_ERR_TIMEOUT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1115,7 +1115,7 @@ at91dci_root_intr_done(struct usb2_xfer *xfer,
 
 	DPRINTFN(9, "\n");
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_PRE_DATA) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1255,7 +1255,7 @@ at91dci_device_done(struct usb2_xfer *xfer, usb2_error_t error)
 	struct at91dci_softc *sc = xfer->usb2_sc;
 	uint8_t ep_no;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	DPRINTFN(2, "xfer=%p, pipe=%p, error=%d\n",
 	    xfer, xfer->pipe, error);
@@ -1281,7 +1281,7 @@ at91dci_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
 	uint32_t csr_val;
 	uint8_t csr_reg;
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
@@ -1405,7 +1405,7 @@ at91dci_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 
 	DPRINTFN(5, "pipe=%p\n", pipe);
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
 	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
@@ -1438,7 +1438,7 @@ at91dci_init(struct at91dci_softc *sc)
 	sc->sc_bus.usbrev = USB_REV_1_1;
 	sc->sc_bus.methods = &at91dci_bus_methods;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* turn on clocks */
 
@@ -1446,7 +1446,7 @@ at91dci_init(struct at91dci_softc *sc)
 		(sc->sc_clocks_on) (sc->sc_clocks_arg);
 	}
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 
 	/* disable and clear all interrupts */
 
@@ -1483,7 +1483,7 @@ at91dci_init(struct at91dci_softc *sc)
 
 	at91dci_clocks_off(sc);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch any lost interrupts */
 
@@ -1495,7 +1495,7 @@ at91dci_init(struct at91dci_softc *sc)
 void
 at91dci_uninit(struct at91dci_softc *sc)
 {
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* disable and clear all interrupts */
 	AT91_UDP_WRITE_4(sc, AT91_UDP_IDR, 0xFFFFFFFF);
@@ -1510,7 +1510,7 @@ at91dci_uninit(struct at91dci_softc *sc)
 
 	at91dci_pull_down(sc);
 	at91dci_clocks_off(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1532,10 +1532,10 @@ at91dci_do_poll(struct usb2_bus *bus)
 {
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	at91dci_interrupt_poll(sc);
 	at91dci_root_ctrl_poll(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -1897,7 +1897,7 @@ at91dci_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t index;
 	uint8_t use_polling;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_SETUP) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1913,7 +1913,7 @@ at91dci_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 
