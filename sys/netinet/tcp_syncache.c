@@ -1297,7 +1297,6 @@ done:
 #endif
 	*lsop = NULL;
 	m_freem(m);
-	return;
 }
 
 static int
@@ -1624,7 +1623,6 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 	}
 
 	tcpstat.tcps_sc_sendcookie++;
-	return;
 }
 
 static struct syncache *
