@@ -48,6 +48,7 @@ static const char rcsid[] =
 
 
 static int		LogFD = ERR;
+void mkprint(register char*, register unsigned char*, register int);
 
 
 int
@@ -324,9 +325,7 @@ skip_comments(file)
  *	FALSE otherwise.
  */
 static int
-in_file(string, file)
-	char *string;
-	FILE *file;
+in_file(char *string, FILE *file)
 {
 	char line[MAX_TEMPSTR];
 
@@ -521,10 +520,7 @@ first_word(s, t)
  *	heavily ascii-dependent.
  */
 void
-mkprint(dst, src, len)
-	register char *dst;
-	register unsigned char *src;
-	register int len;
+mkprint(register char *dst, register unsigned char *src, register int len)
 {
 	while (len-- > 0)
 	{

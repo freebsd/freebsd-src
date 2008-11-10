@@ -73,8 +73,7 @@ static	int		replace_cmd(void);
 
 
 static void
-usage(msg)
-	char *msg;
+usage(char *msg)
 {
 	fprintf(stderr, "crontab: usage error: %s\n", msg);
 	fprintf(stderr, "%s\n%s\n",
@@ -85,9 +84,7 @@ usage(msg)
 
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int	exitstatus;
 
@@ -219,7 +216,7 @@ parse_args(argc, argv)
 				err(ERROR_EXIT, "swapping uids");
 			if (!(NewCrontab = fopen(Filename, "r")))
 				err(ERROR_EXIT, "%s", Filename);
-			if (swap_uids() < OK)
+			if (swap_uids_back() < OK)
 				err(ERROR_EXIT, "swapping uids back");
 		}
 	}
@@ -414,14 +411,14 @@ edit_cmd() {
 
 	/* parent */
 	{
-	void (*f[4])();
-	f[0] = signal(SIGHUP, SIG_IGN);
-	f[1] = signal(SIGINT, SIG_IGN);
-	f[2] = signal(SIGTERM, SIG_IGN);
+	void (*sig[3])(int signal);
+	sig[0] = signal(SIGHUP, SIG_IGN);
+	sig[1] = signal(SIGINT, SIG_IGN);
+	sig[2] = signal(SIGTERM, SIG_IGN);
 	xpid = wait(&waiter);
-	signal(SIGHUP, f[0]);
-	signal(SIGINT, f[1]);
-	signal(SIGTERM, f[2]);
+	signal(SIGHUP, sig[0]);
+	signal(SIGINT, sig[1]);
+	signal(SIGTERM, sig[2]);
 	}
 	if (xpid != pid) {
 		warnx("wrong PID (%d != %d) from \"%s\"", xpid, pid, editor);
@@ -498,7 +495,6 @@ replace_cmd() {
 	entry	*e;
 	time_t	now = time(NULL);
 	char	**envp = env_init();
-	void (*f[3])();
 
 	if (envp == NULL) {
 		warnx("cannot allocate memory");
