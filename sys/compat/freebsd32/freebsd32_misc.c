@@ -2442,7 +2442,7 @@ siginfo_to_siginfo32(siginfo_t *src, struct siginfo32 *dst)
 	dst->si_pid = src->si_pid;
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
-	dst->si_addr = src->si_addr;
+	dst->si_addr = (uintptr_t)src->si_addr;
 	dst->si_value.sigval_int = src->si_value.sival_int;
 	dst->si_timerid = src->si_timerid;
 	dst->si_overrun = src->si_overrun;
