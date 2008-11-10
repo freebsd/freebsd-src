@@ -221,7 +221,7 @@ musbotg_wakeup_peer(struct usb2_xfer *xfer)
 	if (!(sc->sc_flags.status_suspend)) {
 		return;
 	}
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
 	temp |= MUSB2_MASK_RESUME;
@@ -233,7 +233,7 @@ musbotg_wakeup_peer(struct usb2_xfer *xfer)
 		DELAY(8000);
 	} else {
 		/* Wait for reset to complete. */
-		usb2_pause_mtx(&sc->sc_bus.mtx, 8);
+		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 8);
 	}
 
 	temp = MUSB2_READ_1(sc, MUSB2_REG_POWER);
@@ -982,7 +982,7 @@ musbotg_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 
 	DPRINTFN(4, "vbus = %u\n", is_on);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -1007,7 +1007,7 @@ musbotg_vbus_interrupt(struct usb2_bus *bus, uint8_t is_on)
 		}
 	}
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1021,7 +1021,7 @@ musbotg_interrupt(struct musbotg_softc *sc)
 	uint8_t temp;
 	uint8_t to = 2;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 repeat:
 
@@ -1116,7 +1116,7 @@ repeat:
 	if (--to)
 		goto repeat;
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1273,12 +1273,12 @@ musbotg_timeout(void *arg)
 
 	DPRINTFN(1, "xfer=%p\n", xfer);
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	/* transfer is transferred */
 	musbotg_device_done(xfer, USB_ERR_TIMEOUT);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1356,7 +1356,7 @@ musbotg_root_intr_done(struct usb2_xfer *xfer,
 
 	DPRINTFN(8, "\n");
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_PRE_DATA) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -1516,7 +1516,7 @@ musbotg_set_stall(struct usb2_device *udev, struct usb2_xfer *xfer,
 	struct musbotg_softc *sc;
 	uint8_t ep_no;
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	DPRINTFN(4, "pipe=%p\n", pipe);
 
@@ -1702,7 +1702,7 @@ musbotg_clear_stall(struct usb2_device *udev, struct usb2_pipe *pipe)
 
 	DPRINTFN(4, "pipe=%p\n", pipe);
 
-	mtx_assert(&udev->bus->mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
 
 	/* check mode */
 	if (udev->flags.usb2_mode != USB_MODE_DEVICE) {
@@ -1741,7 +1741,7 @@ musbotg_init(struct musbotg_softc *sc)
 	sc->sc_bus.usbrev = USB_REV_2_0;
 	sc->sc_bus.methods = &musbotg_bus_methods;
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* turn on clocks */
 
@@ -1749,7 +1749,7 @@ musbotg_init(struct musbotg_softc *sc)
 		(sc->sc_clocks_on) (sc->sc_clocks_arg);
 	}
 	/* wait a little for things to stabilise */
-	usb2_pause_mtx(&sc->sc_bus.mtx, 1);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 
 	/* disable all interrupts */
 
@@ -1762,7 +1762,7 @@ musbotg_init(struct musbotg_softc *sc)
 	musbotg_pull_common(sc, 0);
 
 	/* wait a little bit (10ms) */
-	usb2_pause_mtx(&sc->sc_bus.mtx, 10);
+	usb2_pause_mtx(&sc->sc_bus.bus_mtx, 10);
 
 	/* disable double packet buffering */
 	MUSB2_WRITE_2(sc, MUSB2_REG_RXDBDIS, 0xFFFF);
@@ -1871,7 +1871,7 @@ musbotg_init(struct musbotg_softc *sc)
 
 	musbotg_clocks_off(sc);
 
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	/* catch any lost interrupts */
 
@@ -1883,7 +1883,7 @@ musbotg_init(struct musbotg_softc *sc)
 void
 musbotg_uninit(struct musbotg_softc *sc)
 {
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* disable all interrupts */
 	MUSB2_WRITE_1(sc, MUSB2_REG_INTUSBE, 0);
@@ -1899,7 +1899,7 @@ musbotg_uninit(struct musbotg_softc *sc)
 
 	musbotg_pull_down(sc);
 	musbotg_clocks_off(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 
 	return;
 }
@@ -1921,10 +1921,10 @@ musbotg_do_poll(struct usb2_bus *bus)
 {
 	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
 
-	mtx_lock(&sc->sc_bus.mtx);
+	USB_BUS_LOCK(&sc->sc_bus);
 	musbotg_interrupt_poll(sc);
 	musbotg_root_ctrl_poll(sc);
-	mtx_unlock(&sc->sc_bus.mtx);
+	USB_BUS_UNLOCK(&sc->sc_bus);
 	return;
 }
 
@@ -2293,7 +2293,7 @@ musbotg_root_ctrl_done(struct usb2_xfer *xfer,
 	uint16_t index;
 	uint8_t use_polling;
 
-	mtx_assert(&sc->sc_bus.mtx, MA_OWNED);
+	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
 
 	if (std->state != USB_SW_TR_SETUP) {
 		if (std->state == USB_SW_TR_PRE_CALLBACK) {
@@ -2309,7 +2309,7 @@ musbotg_root_ctrl_done(struct usb2_xfer *xfer,
 	value = UGETW(std->req.wValue);
 	index = UGETW(std->req.wIndex);
 
-	use_polling = mtx_owned(xfer->priv_mtx) ? 1 : 0;
+	use_polling = mtx_owned(xfer->xfer_mtx) ? 1 : 0;
 
 	/* demultiplex the control request */
 

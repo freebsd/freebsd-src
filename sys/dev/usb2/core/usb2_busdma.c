@@ -24,15 +24,20 @@
  * SUCH DAMAGE.
  */
 
+#include <dev/usb2/include/usb2_mfunc.h>
+#include <dev/usb2/include/usb2_error.h>
+#include <dev/usb2/include/usb2_standard.h>
+#include <dev/usb2/include/usb2_defs.h>
+
 #include <dev/usb2/core/usb2_core.h>
 #include <dev/usb2/core/usb2_busdma.h>
 #include <dev/usb2/core/usb2_process.h>
 #include <dev/usb2/core/usb2_transfer.h>
+#include <dev/usb2/core/usb2_device.h>
 #include <dev/usb2/core/usb2_util.h>
 
-#include <dev/usb2/include/usb2_mfunc.h>
-#include <dev/usb2/include/usb2_error.h>
-#include <dev/usb2/include/usb2_standard.h>
+#include <dev/usb2/controller/usb2_controller.h>
+#include <dev/usb2/controller/usb2_bus.h>
 
 static void usb2_dma_tag_create(struct usb2_dma_tag *udt, uint32_t size, uint32_t align);
 static void usb2_dma_tag_destroy(struct usb2_dma_tag *udt);
@@ -1196,9 +1201,9 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 
 	if (xfer->error) {
 		/* some error happened */
-		mtx_lock(xfer->usb2_mtx);
+		USB_BUS_LOCK(xfer->udev->bus);
 		usb2_transfer_done(xfer, 0);
-		mtx_unlock(xfer->usb2_mtx);
+		USB_BUS_UNLOCK(xfer->udev->bus);
 		return;
 	}
 	if (!xfer->flags_int.bdma_setup) {
@@ -1270,9 +1275,9 @@ usb2_bdma_work_loop(struct usb2_xfer_queue *pq)
 
 	}
 	if (info->dma_error) {
-		mtx_lock(xfer->usb2_mtx);
+		USB_BUS_LOCK(xfer->udev->bus);
 		usb2_transfer_done(xfer, USB_ERR_DMA_LOAD_FAILED);
-		mtx_unlock(xfer->usb2_mtx);
+		USB_BUS_UNLOCK(xfer->udev->bus);
 		return;
 	}
 	if (info->dma_currframe != info->dma_nframes) {
