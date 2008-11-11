@@ -1292,6 +1292,51 @@ au_to_exec_env(char **envp)
 /*
  * token ID                1 byte
  * record byte count       4 bytes
+ * version #               1 byte
+ * event type              2 bytes
+ * event modifier          2 bytes
+ * address type/length     4 bytes
+ * machine address         4 bytes/16 bytes (IPv4/IPv6 address)
+ * seconds of time         4 bytes/8 bytes  (32/64-bits)
+ * milliseconds of time    4 bytes/8 bytes  (32/64-bits) 
+ */
+token_t *
+au_to_header32_ex_tm(int rec_size, au_event_t e_type, au_emod_t e_mod,
+    struct timeval tm, struct auditinfo_addr *aia)
+{
+	token_t *t;  
+	u_char *dptr = NULL;
+	u_int32_t timems;
+	struct au_tid_addr *tid;
+
+	tid = &aia->ai_termid;
+	KASSERT(tid->at_type == AU_IPv4 || tid->at_type == AU_IPv6,
+	    ("au_to_header32_ex_tm: invalid address family"));
+
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + sizeof(u_int32_t) +
+	    sizeof(u_char) + 2 * sizeof(u_int16_t) + 3 * sizeof(u_int32_t) +
+	    tid->at_type);
+
+	ADD_U_CHAR(dptr, AUT_HEADER32_EX);
+	ADD_U_INT32(dptr, rec_size);
+	ADD_U_CHAR(dptr, AUDIT_HEADER_VERSION_OPENBSM);
+	ADD_U_INT16(dptr, e_type);
+	ADD_U_INT16(dptr, e_mod);
+	ADD_U_INT32(dptr, tid->at_type);
+	if (tid->at_type == AU_IPv6)
+		ADD_MEM(dptr, &tid->at_addr[0], 4 * sizeof(u_int32_t));
+	else
+		ADD_MEM(dptr, &tid->at_addr[0], sizeof(u_int32_t));
+	timems = tm.tv_usec / 1000;
+	/* Add the timestamp */
+	ADD_U_INT32(dptr, tm.tv_sec);
+	ADD_U_INT32(dptr, timems);      /* We need time in ms. */
+	return (t);
+}
+
+/*
+ * token ID                1 byte
+ * record byte count       4 bytes
  * version #               1 byte    [2]
  * event type              2 bytes
  * event modifier          2 bytes
