@@ -2591,6 +2591,10 @@ ndis_get_assoc(sc, assoc)
 	struct ndis_softc	*sc;
 	ndis_wlan_bssid_ex	**assoc;
 {
+	struct ifnet *ifp = sc->ifp;
+	struct ieee80211com *ic = ifp->if_l2com;
+	struct ieee80211vap     *vap;
+	struct ieee80211_node   *ni;
 	ndis_80211_bssid_list_ex	*bl;
 	ndis_wlan_bssid_ex	*bs;
 	ndis_80211_macaddr	bssid;
@@ -2605,6 +2609,9 @@ ndis_get_assoc(sc, assoc)
 		device_printf(sc->ndis_dev, "failed to get bssid\n");
 		return(ENOENT);
 	}
+
+	vap = TAILQ_FIRST(&ic->ic_vaps);
+	ni = vap->iv_bss;
 
 	len = sizeof(uint32_t) + (sizeof(ndis_wlan_bssid_ex) * 16);
 	bl = malloc(len, M_TEMP, M_NOWAIT | M_ZERO);
@@ -2636,8 +2643,10 @@ ndis_get_assoc(sc, assoc)
 			}
 			bcopy((char *)bs, (char *)*assoc, bs->nwbx_len);
 			free(bl, M_TEMP);
+			if (ic->ic_opmode == IEEE80211_M_STA)
+				ni->ni_associd = 1 | 0xc000; /* fake associd */
 			return(0);
-		}	
+		}
 		bs = (ndis_wlan_bssid_ex *)((char *)bs + bs->nwbx_len);
 	}
 
