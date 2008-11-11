@@ -813,29 +813,19 @@ int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
 {
 	int error;
-	int reg_edx;
+	int fildes[2];
 
 #ifdef DEBUG
 	if (ldebug(pipe))
 		printf(ARGS(pipe, "*"));
 #endif
 
-	reg_edx = td->td_retval[1];
-	error = pipe(td, 0);
-	if (error) {
-		td->td_retval[1] = reg_edx;
+	error = kern_pipe(td, fildes);
+	if (error)
 		return (error);
-	}
 
-	error = copyout(td->td_retval, args->pipefds, 2*sizeof(int));
-	if (error) {
-		td->td_retval[1] = reg_edx;
-		return (error);
-	}
-
-	td->td_retval[1] = reg_edx;
-	td->td_retval[0] = 0;
-	return (0);
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof fildes));
 }
 
 int
