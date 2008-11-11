@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/pipe.h>
@@ -307,13 +308,8 @@ pipe_zone_fini(void *mem, int size)
  * The pipe system call for the DTYPE_PIPE type of pipes.  If we fail, let
  * the zone pick up the pieces via pipeclose().
  */
-/* ARGSUSED */
 int
-pipe(td, uap)
-	struct thread *td;
-	struct pipe_args /* {
-		int	dummy;
-	} */ *uap;
+kern_pipe(struct thread *td, int fildes[2])
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *rf, *wf;
@@ -357,7 +353,7 @@ pipe(td, uap)
 		return (error);
 	}
 	/* An extra reference on `rf' has been held for us by falloc(). */
-	td->td_retval[0] = fd;
+	fildes[0] = fd;
 
 	/*
 	 * Warning: once we've gotten past allocation of the fd for the
@@ -368,7 +364,7 @@ pipe(td, uap)
 	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
 	error = falloc(td, &wf, &fd);
 	if (error) {
-		fdclose(fdp, rf, td->td_retval[0], td);
+		fdclose(fdp, rf, fildes[0], td);
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
@@ -377,8 +373,25 @@ pipe(td, uap)
 	/* An extra reference on `wf' has been held for us by falloc(). */
 	finit(wf, FREAD | FWRITE, DTYPE_PIPE, wpipe, &pipeops);
 	fdrop(wf, td);
-	td->td_retval[1] = fd;
+	fildes[1] = fd;
 	fdrop(rf, td);
+
+	return (0);
+}
+
+/* ARGSUSED */
+int
+pipe(struct thread *td, struct pipe_args *uap)
+{
+	int error;
+	int fildes[2];
+
+	error = kern_pipe(td, fildes);
+	if (error)
+		return (error);
+	
+	td->td_retval[0] = fildes[0];
+	td->td_retval[1] = fildes[1];
 
 	return (0);
 }
