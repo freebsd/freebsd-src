@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 /*
  * give some jitter to hash, to avoid synchronization between routers
  */
-static u_int32_t hashjitter;
+static uint32_t hashjitter;
 
 int
 rn_mpath_capable(struct radix_node_head *rnh)
@@ -267,7 +267,7 @@ rtalloc_mpath_fib(struct route *ro, u_int32_t hash, u_int fibnum)
 	 */
 	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
 		return;				 /* XXX */
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, 0UL, fibnum);
+	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, RTF_CLONING, fibnum);
 
 	/* if the route does not exist or it is not multipath, don't care */
 	if (ro->ro_rt == NULL)
@@ -299,7 +299,7 @@ rtalloc_mpath_fib(struct route *ro, u_int32_t hash, u_int fibnum)
 		return;
 	}
 	
-	rtfree(ro->ro_rt);
+	RTFREE_LOCKED(ro->ro_rt);
 	ro->ro_rt = (struct rtentry *)rn;
 	RT_LOCK(ro->ro_rt);
 	RT_ADDREF(ro->ro_rt);
