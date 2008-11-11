@@ -166,7 +166,8 @@ static struct cv	audit_fail_cv;
 static struct auditinfo_addr	audit_kinfo;
 static struct rwlock		audit_kinfo_lock;
 
-#define	KINFO_LOCK_INIT()	rw_init(&audit_kinfo_lock, "kernel audit info lock")
+#define	KINFO_LOCK_INIT()	rw_init(&audit_kinfo_lock, \
+				    "audit_kinfo_lock")
 #define	KINFO_RLOCK()		rw_rlock(&audit_kinfo_lock)
 #define	KINFO_WLOCK()		rw_wlock(&audit_kinfo_lock)
 #define	KINFO_RUNLOCK()		rw_runlock(&audit_kinfo_lock)
@@ -179,6 +180,7 @@ audit_set_kinfo(struct auditinfo_addr *ak)
 	KASSERT(ak->ai_termid.at_type == AU_IPv4 ||
 	    ak->ai_termid.at_type == AU_IPv6,
 	    ("audit_set_kinfo: invalid address type"));
+
 	KINFO_WLOCK();
 	audit_kinfo = *ak;
 	KINFO_WUNLOCK();
@@ -191,6 +193,7 @@ audit_get_kinfo(struct auditinfo_addr *ak)
 	KASSERT(audit_kinfo.ai_termid.at_type == AU_IPv4 ||
 	    audit_kinfo.ai_termid.at_type == AU_IPv6,
 	    ("audit_set_kinfo: invalid address type"));
+
 	KINFO_RLOCK();
 	*ak = audit_kinfo;
 	KINFO_RUNLOCK();
