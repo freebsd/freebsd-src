@@ -132,6 +132,7 @@ union auditon_udata {
 	au_qctrl_t		au_qctrl;
 	au_stat_t		au_stat;
 	au_fstat_t		au_fstat;
+	auditinfo_addr_t	au_kau_info;
 };
 
 struct posix_ipc_perm {

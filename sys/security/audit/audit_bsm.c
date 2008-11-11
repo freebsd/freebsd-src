@@ -113,13 +113,34 @@ kau_close(struct au_record *rec, struct timespec *ctime, short event)
 	size_t tot_rec_size;
 	token_t *cur, *hdr, *trail;
 	struct timeval tm;
+	size_t hdrsize;
+	struct auditinfo_addr ak;
+	struct in6_addr *ap;
 
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
+	audit_get_kinfo(&ak);
+	hdrsize = 0;
+	switch (ak.ai_termid.at_type) {
+	case AU_IPv4:
+		hdrsize = (ak.ai_termid.at_addr[0] == INADDR_ANY) ?
+		    AUDIT_HEADER_SIZE : AUDIT_HEADER_EX_SIZE(&ak);
+		break;
+	case AU_IPv6:
+		ap = (struct in6_addr *)&ak.ai_termid.at_addr[0];
+		hdrsize = (IN6_IS_ADDR_UNSPECIFIED(ap)) ? AUDIT_HEADER_SIZE :
+		    AUDIT_HEADER_EX_SIZE(&ak);
+		break;
+	default:
+		panic("kau_close: invalid address family");
+	}
+	tot_rec_size = rec->len + hdrsize + AUDIT_TRAILER_SIZE;
 	rec->data = malloc(tot_rec_size, M_AUDITBSM, M_WAITOK | M_ZERO);
 
 	tm.tv_usec = ctime->tv_nsec / 1000;
 	tm.tv_sec = ctime->tv_sec;
-	hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
+	if (hdrsize != AUDIT_HEADER_SIZE)
+		hdr = au_to_header32_ex_tm(tot_rec_size, event, 0, tm, &ak);
+	else
+		hdr = au_to_header32_tm(tot_rec_size, event, 0, tm);
 	TAILQ_INSERT_HEAD(&rec->token_q, hdr, tokens);
 
 	trail = au_to_trailer(tot_rec_size);
