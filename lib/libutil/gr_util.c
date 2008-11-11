@@ -28,18 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+
 #include <grp.h>
 #include <inttypes.h>
+#include <libutil.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <libutil.h>
-
-
 static const char GroupLineFormat[] = "%s:%s:%ju:";
-
 
 /*
  * Compares two struct group's.
@@ -47,10 +45,10 @@ static const char GroupLineFormat[] = "%s:%s:%ju:";
 int
 gr_equal(const struct group *gr1, const struct group *gr2)
 {
-	bool found;
-	bool equal;
 	int gr1Ndx;
 	int gr2Ndx;
+	bool equal;
+	bool found;
 
 	/* Check that the non-member information is the same. */
 	equal = strcmp(gr1->gr_name, gr2->gr_name) == 0 &&
@@ -81,7 +79,6 @@ gr_equal(const struct group *gr1, const struct group *gr2)
 	return (equal);
 }
 
-
 /*
  * Make a group line out of a struct group.
  */
@@ -89,8 +86,8 @@ char *
 gr_make(const struct group *gr)
 {
 	char *line;
-	int ndx;
 	size_t lineSize;
+	int ndx;
 
 	/* Calculate the length of the group line. */
 	lineSize = snprintf(NULL, 0, GroupLineFormat, gr->gr_name,
@@ -114,17 +111,16 @@ gr_make(const struct group *gr)
 	return (line);
 }
 
-
 /*
  * Duplicate a struct group.
  */
 struct group *
 gr_dup(const struct group *gr)
 {
-	int ndx;
-	int numMem;
 	size_t len;
 	struct group *ngr;
+	int ndx;
+	int numMem;
 
 	/* Calculate size of group. */
 	len = sizeof(*gr) +
@@ -134,7 +130,7 @@ gr_dup(const struct group *gr)
 	if (gr->gr_mem != NULL) {
 		for (; gr->gr_mem[numMem] != NULL; numMem++)
 			len += strlen(gr->gr_mem[numMem]) + 1;
-		len += (numMem + 1) * sizeof(*(gr->gr_mem));
+		len += (numMem + 1) * sizeof(*gr->gr_mem);
 	}
 
 	/* Create new group and copy old group into it. */
@@ -152,7 +148,7 @@ gr_dup(const struct group *gr)
 	}
 	if (gr->gr_mem != NULL) {
 		ngr->gr_mem = (char **)((char *)ngr + len);
-		len += (numMem + 1) * sizeof(*(ngr->gr_mem));
+		len += (numMem + 1) * sizeof(*ngr->gr_mem);
 		for (ndx = 0; gr->gr_mem[ndx] != NULL; ndx++) {
 			ngr->gr_mem[ndx] = (char *)ngr + len;
 			len += sprintf(ngr->gr_mem[ndx], "%s",
@@ -163,7 +159,6 @@ gr_dup(const struct group *gr)
 
 	return (ngr);
 }
-
 
 /*
  * Scan a line and place it into a group structure.
@@ -180,14 +175,14 @@ __gr_scan(char *line, struct group *gr)
 		return (false);
 	*loc = '\0';
 	gr->gr_passwd = loc + 1;
-	if (*(gr->gr_passwd) == ':')
-		*(gr->gr_passwd) = '\0';
+	if (*gr->gr_passwd == ':')
+		*gr->gr_passwd = '\0';
 	else {
 		if ((loc = strchr(loc + 1, ':')) == NULL)
 			return (false);
 		*loc = '\0';
 	}
-	if (sscanf(loc + 1, "%u", &(gr->gr_gid)) != 1)
+	if (sscanf(loc + 1, "%u", &gr->gr_gid) != 1)
 		return (false);
 
 	/* Assign member information to structure. */
@@ -199,7 +194,7 @@ __gr_scan(char *line, struct group *gr)
 		ndx = 0;
 		do {
 			if ((gr->gr_mem = reallocf(gr->gr_mem,
-			    sizeof(*(gr->gr_mem)) * (ndx + 1))) == NULL)
+			    sizeof(*gr->gr_mem) * (ndx + 1))) == NULL)
 				return (false);
 			gr->gr_mem[ndx] = strsep(&line, ",");
 		} while (gr->gr_mem[ndx++] != NULL);
@@ -208,16 +203,15 @@ __gr_scan(char *line, struct group *gr)
 	return (true);
 }
 
-
 /*
  * Create a struct group from a line.
  */
 struct group *
 gr_scan(const char *line)
 {
+	struct group gr;
 	char *lineCopy;
 	struct group *newGr;
-	struct group gr;
 
 	if ((lineCopy = strdup(line)) == NULL)
 		return (NULL);
