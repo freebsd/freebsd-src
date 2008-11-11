@@ -180,6 +180,8 @@ void	 audit_cred_proc1(struct ucred *cred);
 void	 audit_proc_coredump(struct thread *td, char *path, int errcode);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
+void	 audit_set_kinfo(struct auditinfo_addr *);
+void	 audit_get_kinfo(struct auditinfo_addr *);
 
 /*
  * Define a macro to wrap the audit_arg_* calls by checking the global
