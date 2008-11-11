@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
-.Fn pipe "int *fildes"
+.Fn pipe "int fildes[2]"
 .Sh DESCRIPTION
 The
 .Fn pipe
@@ -96,11 +96,6 @@ Too many descriptors are active.
 The system file table is full.
 .It Bq Er ENOMEM
 Not enough kernel memory to establish a pipe.
-.It Bq Er EFAULT
-The
-.Fa fildes
-buffer is in an invalid area of the process's address
-space.
 .El
 .Sh SEE ALSO
 .Xr sh 1 ,

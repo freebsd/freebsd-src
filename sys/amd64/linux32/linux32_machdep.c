@@ -977,33 +977,20 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
 {
-	int pip[2];
 	int error;
-	register_t reg_rdx;
+	int fildes[2];
 
 #ifdef DEBUG
 	if (ldebug(pipe))
 		printf(ARGS(pipe, "*"));
 #endif
 
-	reg_rdx = td->td_retval[1];
-	error = pipe(td, 0);
-	if (error) {
-		td->td_retval[1] = reg_rdx;
+	error = kern_pipe(td, fildes);
+	if (error)
 		return (error);
-	}
 
-	pip[0] = td->td_retval[0];
-	pip[1] = td->td_retval[1];
-	error = copyout(pip, args->pipefds, 2 * sizeof(int));
-	if (error) {
-		td->td_retval[1] = reg_rdx;
-		return (error);
-	}
-
-	td->td_retval[1] = reg_rdx;
-	td->td_retval[0] = 0;
-	return (0);
+	/* XXX: Close descriptors on error. */
+	return (copyout(fildes, args->pipefds, sizeof fildes));
 }
 
 int
