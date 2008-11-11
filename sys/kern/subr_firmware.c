@@ -325,9 +325,13 @@ firmware_get(const char *imagename)
 	 * may do filesystem i/o which requires root & current dirs, etc.
 	 * Also we must not hold any mtx's over this call which is problematic.
 	 */
-	TASK_INIT(&fwload_task, 0, loadimage, __DECONST(void *, imagename));
-	taskqueue_enqueue(firmware_tq, &fwload_task);
-	msleep(__DECONST(void *, imagename), &firmware_mtx, 0, "fwload", 0);
+	if (!cold) {
+		TASK_INIT(&fwload_task, 0, loadimage, __DECONST(void *,
+		    imagename));
+		taskqueue_enqueue(firmware_tq, &fwload_task);
+		msleep(__DECONST(void *, imagename), &firmware_mtx, 0,
+		    "fwload", 0);
+	}
 	/*
 	 * After attempting to load the module, see if the image is registered.
 	 */
