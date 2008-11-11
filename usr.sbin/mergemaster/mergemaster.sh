@@ -960,7 +960,6 @@ for COMPFILE in `find . -type f -size +0`; do
         if mm_install "${COMPFILE}"; then
           echo "   *** ${COMPFILE} upgraded successfully"
           echo ''
-          rm "${COMPFILE}"
         else
           echo "   *** Problem upgrading ${COMPFILE}, it will remain to merge by hand"
         fi
