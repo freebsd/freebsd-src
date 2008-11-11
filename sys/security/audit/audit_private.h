@@ -319,6 +319,12 @@ void		 audit_trigger_init(void);
 int		 audit_send_trigger(unsigned int trigger);
 
 /*
+ * Accessor functions to manage global audit state.
+ */
+void	 audit_set_kinfo(struct auditinfo_addr *);
+void	 audit_get_kinfo(struct auditinfo_addr *);
+
+/*
  * General audit related functions.
  */
 struct kaudit_record	*currecord(void);
