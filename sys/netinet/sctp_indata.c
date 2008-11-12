@@ -2766,8 +2766,8 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 	struct sctp_sack *sack;
 	struct sctp_gap_ack_block *frag, block;
 	struct sctp_tmit_chunk *tp1;
-	int i;
-	unsigned int j;
+	int i, j;
+	unsigned int theTSN;
 	int num_frs = 0;
 
 	uint16_t frag_strt, frag_end, primary_flag_set;
@@ -2835,7 +2835,8 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 			}
 			last_frag_high = frag_end + last_tsn;
 		}
-		for (j = frag_strt + last_tsn; (compare_with_wrap((frag_end + last_tsn), j, MAX_TSN)); j++) {
+		for (j = frag_strt; j <= frag_end; j++) {
+			theTSN = j + last_tsn;
 			while (tp1) {
 				if (tp1->rec.data.doing_fast_retransmit)
 					num_frs++;
@@ -2858,7 +2859,7 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 					tp1->whoTo->rtx_pseudo_cumack = tp1->rec.data.TSN_seq;
 					tp1->whoTo->find_rtx_pseudo_cumack = 0;
 				}
-				if (tp1->rec.data.TSN_seq == j) {
+				if (tp1->rec.data.TSN_seq == theTSN) {
 					if (tp1->sent != SCTP_DATAGRAM_UNSENT) {
 						/*
 						 * must be held until
@@ -3030,8 +3031,8 @@ sctp_handle_segments(struct mbuf *m, int *offset, struct sctp_tcb *stcb, struct 
 						}
 					}
 					break;
-				}	/* if (tp1->TSN_seq == j) */
-				if (compare_with_wrap(tp1->rec.data.TSN_seq, j,
+				}	/* if (tp1->TSN_seq == theTSN) */
+				if (compare_with_wrap(tp1->rec.data.TSN_seq, theTSN,
 				    MAX_TSN))
 					break;
 

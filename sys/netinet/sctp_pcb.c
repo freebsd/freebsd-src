@@ -4196,6 +4196,7 @@ sctp_is_in_timewait(uint32_t tag)
 	int found = 0;
 	int i;
 
+	SCTP_INP_INFO_WLOCK();
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	if (!SCTP_LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
@@ -4209,6 +4210,7 @@ sctp_is_in_timewait(uint32_t tag)
 				break;
 		}
 	}
+	SCTP_INP_INFO_WUNLOCK();
 	return (found);
 }
 
@@ -4241,8 +4243,8 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 					twait_block->vtag_block[i].v_tag = 0;
 					if (set == 0) {
 						/* Reuse it for my new tag */
-						twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
-						twait_block->vtag_block[0].v_tag = tag;
+						twait_block->vtag_block[i].tv_sec_at_expire = now.tv_sec + time;
+						twait_block->vtag_block[i].v_tag = tag;
 						set = 1;
 					}
 				}
@@ -4261,6 +4263,9 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 		SCTP_MALLOC(twait_block, struct sctp_tagblock *,
 		    sizeof(struct sctp_tagblock), SCTP_M_TIMW);
 		if (twait_block == NULL) {
+#ifdef INVARIANTS
+			panic("Can not alloc tagblock");
+#endif
 			return;
 		}
 		memset(twait_block, 0, sizeof(struct sctp_tagblock));
@@ -5397,7 +5402,7 @@ sctp_pcb_init()
 	SCTP_OS_TIMER_INIT(&SCTP_BASE_INFO(addr_wq_timer.timer));
 
 	/* Init the TIMEWAIT list */
-	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE_A; i++) {
+	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		LIST_INIT(&SCTP_BASE_INFO(vtag_timewait[i]));
 	}
 
@@ -5467,7 +5472,7 @@ sctp_pcb_finish(void)
 	 * free the TIMEWAIT list elements malloc'd in the function
 	 * sctp_add_vtag_to_timewait()...
 	 */
-	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE_A; i++) {
+	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		chain = &SCTP_BASE_INFO(vtag_timewait)[i];
 		if (!SCTP_LIST_EMPTY(chain)) {
 			prev_twait_block = NULL;
