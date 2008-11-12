@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2008
+.Dd November 12, 2008
 .Os
 .Dt PMC.ATOM 3
 .Sh NAME
@@ -273,13 +273,17 @@ The number of branch instructions decoded.
 The number of branches executed, but not necessarily retired.
 .It Li BR_INST_RETIRED.ANY
 .Pq Event C4H , Umask 00H
+.Pq Alias Qq "Branch Instruction Retired"
 The number of branch instructions retired.
+This is an architectural performance event.
 .It Li BR_INST_RETIRED.ANY1
 .Pq Event C4H , Umask 0FH
 The number of branch instructions retired that were mispredicted.
 .It Li BR_INST_RETIRED.MISPRED
 .Pq Event C5, Umask 00H
+.Pq Alias Qq "Branch Misses Retired"
 The number of mispredicted branch instructions retired.
+This is an architectural performance event.
 .It Li BR_INST_RETIRED.MISPRED_NOT_TAKEN
 .Pq Event C4H , Umask 02H
 The number of not taken branch instructions retired that were
@@ -458,10 +462,14 @@ The number of times the L1 data cache is snooped by the other core in
 the same processor.
 .It Li CPU_CLK_UNHALTED.BUS
 .Pq Event 3CH , Umask 01H
+.Pq Alias Qq "Unhalted Reference Cycles"
 The number of bus cycles when the core is not in the halt state.
+This is an architectural performance event.
 .It Li CPU_CLK_UNHALTED.CORE_P
 .Pq Event 3CH , Umask 00H
+.Pq Alias Qq "Unhalted Core Cycles"
 The number of core cycles while the core is not in a halt state.
+This is an architectural performance event.
 .It Li CPU_CLK_UNHALTED.NO_OTHER
 .Pq Event 3CH , Umask 02H
 The number of bus cycles during which the core remains unhalted and
@@ -597,7 +605,9 @@ length changing prefix.
 The number of cycles during which the instruction queue is full.
 .It Li INST_RETIRED.ANY_P
 .Pq Event C0H , Umask 00H
+.Pq Alias Qq "Instruction Retired"
 The number of instructions retired.
+This is an architectural performance event.
 .It Li INST_RETIRED.LOADS
 .Pq Event C0H , Umask 01H
 The number of instructions retired that contained a load operation.
@@ -744,10 +754,13 @@ The number of L2 cache requests that were rejected.
 The number of completed L2 cache requests.
 .It Li L2_RQSTS.SELF.DEMAND.I_STATE
 .Pq Event 2EH , Umask 41H
+.Pq Alias Qq "LLC Misses"
 The number of completed L2 cache demand requests from this core that
 missed the L2 cache.
+This is an architectural performance event.
 .It Li L2_RQSTS.SELF.DEMAND.MESI
 .Pq Event 2EH , Umask 4FH
+.Pq Alias Qq "LLC References"
 The number of completed L2 cache demand requests from this core.
 .It Li L2_ST Xo
 .Op ,cachestate= Ns Ar state
@@ -1154,16 +1167,15 @@ instructions retired.
 The following table shows the mapping between the PMC-independent
 aliases supported by
 .Lb libpmc
-and the underlying hardware events used.
-.Bl -column "branch-mispredicts" "Description"
-.It Em Alias Ta Em Event
-.It Li branches Ta Li BR_INST_RETIRED.ANY
-.It Li branch-mispredicts Ta Li BR_INST_RETIRED.MISPRED
-.It Li dc-misses Ta Li L2_ST,core=this,cachestate=mesi
-.It Li ic-misses Ta Li ICACHE.MISSES
-.It Li instructions Ta Li INST_RETIRED.ANY_P
-.It Li interrupts Ta Li HW_INT_RCV
-.It Li unhalted-cycles Ta Li CPU_CLK_UNHALTED.CORE_P
+and the underlying hardware events used on these CPUs.
+.Bl -column "branch-mispredicts" "cpu_clk_unhalted.core_p" "PMC Class"
+.It Em Alias Ta Em Event Ta Em PMC Class
+.It Li branches Ta Li BR_INST_RETIRED.ANY Ta Li PMC_CLASS_IAP
+.It Li branch-mispredicts Ta Li BR_INST_RETIRED.MISPRED Ta Li PMC_CLASS_IAP
+.It Li ic-misses Ta Li ICACHE.MISSES Ta Li PMC_CLASS_IAP
+.It Li instructions Ta Li INST_RETIRED.ANY_P Ta Li PMC_CLASS_IAF
+.It Li interrupts Ta Li HW_INT_RCV Ta Li PMC_CLASS_IAP
+.It Li unhalted-cycles Ta Li CPU_CLK_UNHALTED.CORE_P Ta Li PMC_CLASS_IAF
 .El
 .Sh SEE ALSO
 .Xr pmc 3 ,
