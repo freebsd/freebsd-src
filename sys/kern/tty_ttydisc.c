@@ -460,17 +460,15 @@ ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 		MPASS(oblen == 0);
 
 		/* Step 1: read data. */
-
-		tty_unlock(tp);
-
 		obstart = ob;
 		nlen = MIN(uio->uio_resid, sizeof ob);
+		tty_unlock(tp);
 		error = uiomove(ob, nlen, uio);
+		tty_lock(tp);
 		if (error != 0)
 			break;
 		oblen = nlen;
 
-		tty_lock(tp);
 		if (tty_gone(tp)) {
 			error = ENXIO;
 			break;
