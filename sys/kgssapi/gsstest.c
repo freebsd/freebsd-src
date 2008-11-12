@@ -970,6 +970,7 @@ server_program_1(struct svc_req *rqstp, register SVCXPRT *transp)
 	}
 
 out:
+	svc_freereq(rqstp);
 	return;
 }
 
