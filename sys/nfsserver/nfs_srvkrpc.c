@@ -388,8 +388,13 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		svc_freereq(rqst);
 		return;
 	}
-	if (!svc_sendreply_mbuf(rqst, mrep))
-		svcerr_systemerr(rqst);
+	if (nd.nd_repstat & NFSERR_AUTHERR) {
+		svcerr_auth(rqst, nd.nd_repstat & ~NFSERR_AUTHERR);
+		m_freem(mrep);
+	} else {
+		if (!svc_sendreply_mbuf(rqst, mrep))
+			svcerr_systemerr(rqst);
+	}
 	svc_freereq(rqst);
 }
 
