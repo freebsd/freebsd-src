@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2008
+.Dd November 12, 2008
 .Os
 .Dt PMC.CORE 3
 .Sh NAME
@@ -234,11 +234,15 @@ The number of branch instructions executed including speculative branches.
 .Pq Event E0H
 The number of branch instructions decoded.
 .It Li Br_Instr_Ret
-.Pq Event C4H
+.Pq Event C4H, Umask 00H
+.Pq Alias Qq "Branch Instruction Retired"
 The number of branch instructions retired.
+This is an architectural performance event.
 .It Li Br_MisPred_Ret
-.Pq Event C5H
+.Pq Event C5H, Umask 00H
+.Pq Alias Qq "Branch Misses Retired"
 The number of mispredicted branch instructions retired.
+This is an architectural performance event.
 .It Li Br_MisPred_Taken_Ret
 .Pq Event CAH
 The number of taken and mispredicted branches retired.
@@ -475,7 +479,9 @@ The number of instruction TLB misses.
 The number of instructions decoded.
 .It Li Instr_Ret
 .Pq Event C0H
+.Pq Alias Qq "Instruction Retired"
 The number of instructions retired.
+This is an architectural performance event.
 .It Li L1_Pref_Req
 .Pq Event 4FH
 The number of L1 prefetch request due to data cache misses.
@@ -546,6 +552,17 @@ The number of L2 cache writes including speculative writes.
 .It Li LD_Blocks
 .Pq Event 03H
 The number of load operations delayed due to store buffer blocks.
+.It Li LLC_Misses
+.Pq Event 2EH, Umask 41H
+The number of cache misses for references to the last level cache,
+excluding misses due to hardware prefetches.
+This is an architectural performance event.
+.It Li LLC_Reference
+The number of references to the last level cache,
+excluding those due to hardware prefetches.
+This is an architectural performance event.
+.Pq Event 2EH, Umask 4FH
+This is an architectural performance event.
 .It Li MMX_Assist
 .Pq Event CDH
 The number of EMMX instructions executed.
@@ -573,7 +590,9 @@ and integer multiplies.
 This event is available on PMC1 only.
 .It Li NonHlt_Ref_Cycles
 .Pq Event 3CH , Umask 01H
+.Pq Alias Qq "Unhalted Reference Cycles"
 The number of non-halted bus cycles.
+This is an architectural performance event.
 .It Li Pref_Rqsts_Dn
 .Pq Event F8H
 The number of hardware prefetch requests issued in backward streams.
@@ -690,6 +709,11 @@ The duration in a thermal trip based on the current core clock.
 .It Li Unfusion
 .Pq Event DBH
 The number of unfusion events.
+.It Li "Unhalted_Core_Cycles"
+.Pq Event 3CH , Umask 00H
+The number of core clock cycles when the clock signal on a specific
+core is not halted.
+This is an architectural performance event.
 .It Li Uops_Ret
 .Pq Event C2H
 The number of micro-ops retired.
