@@ -578,44 +578,24 @@ bt_free(struct backoff_timer *bt)
 int
 rcsnum_cmp(char *revision1, char *revision2)
 {
-	char *rev1, *rev2, *rev1orig, *rev2orig;
-	char *tmp1, *tmp2;
-	long num1, num2;
-	int retval;
+	char *ptr1, *ptr2;
+	
+	ptr1 = revision1;
+	ptr2 = revision2; 
+	while (*ptr1 != '\0' && *ptr2 != '\0') {
+		if (*ptr1 > *ptr2)
+			return (1);
+		else if (*ptr1 < *ptr2)
+			return (-1);
+		ptr1++;
+		ptr2++;
+	};
 
-	rev1orig = xstrdup(revision1);
-	rev2orig = xstrdup(revision2);
-	retval = 0;
-
-	rev1 = rev1orig;
-	rev2 = rev2orig;
-	tmp1 = strsep(&rev1, ".");
-	tmp2 = strsep(&rev2, ".");
-	while (tmp1 != NULL && tmp2 != NULL) {
-		num1 = strtol(tmp1, NULL, 10);
-		num2 = strtol(tmp2, NULL, 10);
-		if (num1 > num2) {
-			retval = 1;
-			goto done;
-		} else if (num1 < num2) {
-			retval = -1;
-			goto done;
-		}
-		tmp1 = strsep(&rev1, ".");
-		tmp2 = strsep(&rev2, ".");
-	}
-
-	/* If one of them is longer (not null), the shortest is the highest
-	 * ranked. */
-	if (tmp2 != NULL && tmp1 == NULL)
-		retval = -1;
-	else if (tmp2 == NULL && tmp1 != NULL)
-		retval = 1;
-
-done:
-	free(rev1orig);
-	free(rev2orig);
-	return (retval);
+	if (*ptr1 != '\0' && *ptr2 == '\0')
+		return (1);
+	if (*ptr1 == '\0' && *ptr2 != '\0')
+		return (-1);
+	return (0);
 }
 
 /* Returns 0 if a rcsrev is not a trunk revision number. */
