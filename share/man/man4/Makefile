@@ -23,6 +23,7 @@ MAN=	aac.4 \
 	ahc.4 \
 	ahd.4 \
 	aio.4 \
+	ale.4 \
 	altq.4 \
 	amd.4 \
 	${_amdsmb.4} \
