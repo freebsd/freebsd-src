@@ -83,11 +83,11 @@ nlm_prog_0(struct svc_req *rqstp, SVCXPRT *transp)
 	if (retval > 0 && !svc_sendreply(rqstp, xdr_result, (char *)&result)) {
 		svcerr_systemerr(rqstp);
 	}
-	svc_freereq(rqstp);
 	if (!svc_freeargs(rqstp, xdr_argument, (char *)(caddr_t) &argument)) {
 		printf("unable to free arguments");
 		//exit(1);
 	}
+	svc_freereq(rqstp);
 
 	return;
 }
