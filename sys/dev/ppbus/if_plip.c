@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Update for ppbus, PLIP support only - Nicolas Souchu
- */ 
+ */
 
 #include "opt_plip.h"
 
@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ppbus/ppbio.h>
 
 #ifndef LPMTU			/* MTU for the lp# interfaces */
-#define	LPMTU	1500
+#define	LPMTU		1500
 #endif
 
 #ifndef LPMAXSPIN1		/* DELAY factor for the lp# interfaces */
@@ -156,14 +156,14 @@ struct lp_data {
 
 /* Tables for the lp# interface */
 static u_char *txmith;
-#define txmitl (txmith+(1*LPIPTBLSIZE))
-#define trecvh (txmith+(2*LPIPTBLSIZE))
-#define trecvl (txmith+(3*LPIPTBLSIZE))
+#define txmitl (txmith + (1 * LPIPTBLSIZE))
+#define trecvh (txmith + (2 * LPIPTBLSIZE))
+#define trecvl (txmith + (3 * LPIPTBLSIZE))
 
 static u_char *ctxmith;
-#define ctxmitl (ctxmith+(1*LPIPTBLSIZE))
-#define ctrecvh (ctxmith+(2*LPIPTBLSIZE))
-#define ctrecvl (ctxmith+(3*LPIPTBLSIZE))
+#define ctxmitl (ctxmith + (1 * LPIPTBLSIZE))
+#define ctrecvh (ctxmith + (2 * LPIPTBLSIZE))
+#define ctrecvl (ctxmith + (3 * LPIPTBLSIZE))
 
 /* Functions for the lp# interface */
 static int lpinittables(void);
@@ -186,9 +186,7 @@ lp_identify(driver_t *driver, device_t parent)
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "plip", -1);
 }
-/*
- * lpprobe()
- */
+
 static int
 lp_probe(device_t dev)
 {
@@ -199,7 +197,7 @@ lp_probe(device_t dev)
 }
 
 static int
-lp_attach (device_t dev)
+lp_attach(device_t dev)
 {
 	struct lp_data *lp = DEVTOSOFTC(dev);
 	struct ifnet *ifp;
@@ -211,7 +209,7 @@ lp_attach (device_t dev)
 	 * Reserve the interrupt resource.  If we don't have one, the
 	 * attach fails.
 	 */
-	lp->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	lp->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE);
 	if (lp->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt, failed.\n");
@@ -245,190 +243,191 @@ lp_attach (device_t dev)
  * precalculate them when we initialize.
  */
 static int
-lpinittables (void)
+lpinittables(void)
 {
-    int i;
+	int i;
 
-    if (!txmith)
-	txmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
+	if (txmith == NULL)
+		txmith = malloc(4 * LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
 
-    if (!txmith)
-	return 1;
+	if (txmith == NULL)
+		return (1);
 
-    if (!ctxmith)
+	if (ctxmith == NULL)
 	ctxmith = malloc(4*LPIPTBLSIZE, M_DEVBUF, M_NOWAIT);
 
-    if (!ctxmith)
-	return 1;
+	if (ctxmith == NULL)
+		return (1);
 
-    for (i=0; i < LPIPTBLSIZE; i++) {
-	ctxmith[i] = (i & 0xF0) >> 4;
-	ctxmitl[i] = 0x10 | (i & 0x0F);
-	ctrecvh[i] = (i & 0x78) << 1;
-	ctrecvl[i] = (i & 0x78) >> 3;
-    }
+	for (i = 0; i < LPIPTBLSIZE; i++) {
+		ctxmith[i] = (i & 0xF0) >> 4;
+		ctxmitl[i] = 0x10 | (i & 0x0F);
+		ctrecvh[i] = (i & 0x78) << 1;
+		ctrecvl[i] = (i & 0x78) >> 3;
+	}
 
-    for (i=0; i < LPIPTBLSIZE; i++) {
-	txmith[i] = ((i & 0x80) >> 3) | ((i & 0x70) >> 4) | 0x08;
-	txmitl[i] = ((i & 0x08) << 1) | (i & 0x07);
-	trecvh[i] = ((~i) & 0x80) | ((i & 0x38) << 1);
-	trecvl[i] = (((~i) & 0x80) >> 4) | ((i & 0x38) >> 3);
-    }
+	for (i = 0; i < LPIPTBLSIZE; i++) {
+		txmith[i] = ((i & 0x80) >> 3) | ((i & 0x70) >> 4) | 0x08;
+		txmitl[i] = ((i & 0x08) << 1) | (i & 0x07);
+		trecvh[i] = ((~i) & 0x80) | ((i & 0x38) << 1);
+		trecvl[i] = (((~i) & 0x80) >> 4) | ((i & 0x38) >> 3);
+	}
 
-    return 0;
+	return (0);
 }
 
 /*
  * Process an ioctl request.
  */
-
 static int
-lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
+lpioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    struct lp_data *sc = ifp->if_softc;
-    device_t dev = sc->sc_dev;
-    device_t ppbus = device_get_parent(dev);
-    struct ifaddr *ifa = (struct ifaddr *)data;
-    struct ifreq *ifr = (struct ifreq *)data;
-    u_char *ptr;
-    void *ih;
-    int error;
+	struct lp_data *sc = ifp->if_softc;
+	device_t dev = sc->sc_dev;
+	device_t ppbus = device_get_parent(dev);
+	struct ifaddr *ifa = (struct ifaddr *)data;
+	struct ifreq *ifr = (struct ifreq *)data;
+	u_char *ptr;
+	void *ih;
+	int error;
 
-    switch (cmd) {
+	switch (cmd) {
+	case SIOCSIFDSTADDR:
+	case SIOCAIFADDR:
+	case SIOCSIFADDR:
+		if (ifa->ifa_addr->sa_family != AF_INET)
+			return (EAFNOSUPPORT);
 
-    case SIOCSIFDSTADDR:
-    case SIOCAIFADDR:
-    case SIOCSIFADDR:
-	if (ifa->ifa_addr->sa_family != AF_INET)
-	    return EAFNOSUPPORT;
+		ifp->if_flags |= IFF_UP;
+		/* FALLTHROUGH */
+	case SIOCSIFFLAGS:
+		if ((!(ifp->if_flags & IFF_UP)) &&
+		    (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 
-	ifp->if_flags |= IFF_UP;
-	/* FALLTHROUGH */
-    case SIOCSIFFLAGS:
-	if ((!(ifp->if_flags & IFF_UP)) &&
-	  (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+			ppb_wctr(ppbus, 0x00);
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
-	    ppb_wctr(ppbus, 0x00);
-	    ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			/* IFF_UP is not set, try to release the bus anyway */
+			ppb_release_bus(ppbus, dev);
+			break;
+		}
+		if (((ifp->if_flags & IFF_UP)) &&
+		    (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 
-	    /* IFF_UP is not set, try to release the bus anyway */
-	    ppb_release_bus(ppbus, dev);
-	    break;
-	}
-	if (((ifp->if_flags & IFF_UP)) &&
-	  (!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
+			/* XXX
+			 * Should the request be interruptible?
+			 */
+			if ((error = ppb_request_bus(ppbus, dev, PPB_WAIT |
+			    PPB_INTR)))
+				return (error);
 
-	    /* XXX
-	     * Should the request be interruptible?
-	     */
-	    if ((error = ppb_request_bus(ppbus, dev, PPB_WAIT|PPB_INTR)))
-		return (error);
+			/* Now IFF_UP means that we own the bus */
+			ppb_set_mode(ppbus, PPB_COMPATIBLE);
 
-	    /* Now IFF_UP means that we own the bus */
+			if (lpinittables()) {
+				ppb_release_bus(ppbus, dev);
+				return (ENOBUFS);
+			}
 
-	    ppb_set_mode(ppbus, PPB_COMPATIBLE);
+			sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
+			    M_DEVBUF, M_WAITOK);
+			if (sc->sc_ifbuf == NULL) {
+				ppb_release_bus(ppbus, dev);
+				return (ENOBUFS);
+			}
 
-	    if (lpinittables()) {
-		ppb_release_bus(ppbus, dev);
-		return ENOBUFS;
-	    }
+			/*
+			 * Attach our interrupt handler.  It is
+			 * detached later when the bus is released.
+			 */
+			if ((error = bus_setup_intr(dev, sc->res_irq,
+			    INTR_TYPE_NET, NULL, lp_intr, dev, &ih))) {
+				ppb_release_bus(ppbus, dev);
+				return (error);
+			}
 
-	    sc->sc_ifbuf = malloc(sc->sc_ifp->if_mtu + MLPIPHDRLEN,
-				  M_DEVBUF, M_WAITOK);
-	    if (!sc->sc_ifbuf) {
-		ppb_release_bus(ppbus, dev);
-		return ENOBUFS;
-	    }
+			ppb_wctr(ppbus, IRQENABLE);
+			ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		}
+		break;
 
-	    /* attach our interrupt handler, later detached when the bus is released */
-	    if ((error = bus_setup_intr(dev, sc->res_irq,
-					INTR_TYPE_NET, NULL, lp_intr, dev, &ih))) {
-		ppb_release_bus(ppbus, dev);
-		return (error);
-	    }
+	case SIOCSIFMTU:
+		ptr = sc->sc_ifbuf;
+		sc->sc_ifbuf = malloc(ifr->ifr_mtu + MLPIPHDRLEN, M_DEVBUF,
+		    M_NOWAIT);
+		if (sc->sc_ifbuf == NULL) {
+			sc->sc_ifbuf = ptr;
+			return (ENOBUFS);
+		}
+		if (ptr)
+			free(ptr, M_DEVBUF);
+		sc->sc_ifp->if_mtu = ifr->ifr_mtu;
+		break;
 
-	    ppb_wctr(ppbus, IRQENABLE);
-	    ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	}
-	break;
+	case SIOCGIFMTU:
+		ifr->ifr_mtu = sc->sc_ifp->if_mtu;
+		break;
 
-    case SIOCSIFMTU:
-	ptr = sc->sc_ifbuf;
-	sc->sc_ifbuf = malloc(ifr->ifr_mtu+MLPIPHDRLEN, M_DEVBUF, M_NOWAIT);
-	if (!sc->sc_ifbuf) {
-	    sc->sc_ifbuf = ptr;
-	    return ENOBUFS;
-	}
-	if (ptr)
-	    free(ptr,M_DEVBUF);
-	sc->sc_ifp->if_mtu = ifr->ifr_mtu;
-	break;
+	case SIOCADDMULTI:
+	case SIOCDELMULTI:
+		if (ifr == 0) {
+			return (EAFNOSUPPORT);		/* XXX */
+		}
+		switch (ifr->ifr_addr.sa_family) {
+		case AF_INET:
+			break;
+		default:
+			return (EAFNOSUPPORT);
+		}
+		break;
 
-    case SIOCGIFMTU:
-	ifr->ifr_mtu = sc->sc_ifp->if_mtu;
-	break;
-
-    case SIOCADDMULTI:
-    case SIOCDELMULTI:
-	if (ifr == 0) {
-	    return EAFNOSUPPORT;		/* XXX */
-	}
-	switch (ifr->ifr_addr.sa_family) {
-
-	case AF_INET:
-	    break;
+	case SIOCGIFMEDIA:
+		/*
+		 * No ifmedia support at this stage; maybe use it
+		 * in future for eg. protocol selection.
+		 */
+		return (EINVAL);
 
 	default:
-	    return EAFNOSUPPORT;
+		lprintf("LP:ioctl(0x%lx)\n", cmd);
+		return (EINVAL);
 	}
-	break;
-
-    case SIOCGIFMEDIA:
-	/*
-	 * No ifmedia support at this stage; maybe use it
-	 * in future for eg. protocol selection.
-	 */
-	return EINVAL;
-
-    default:
-	lprintf("LP:ioctl(0x%lx)\n", cmd);
-	return EINVAL;
-    }
-    return 0;
+	return (0);
 }
 
 static __inline int
-clpoutbyte (u_char byte, int spin, device_t ppbus)
+clpoutbyte(u_char byte, int spin, device_t ppbus)
 {
+
 	ppb_wdtr(ppbus, ctxmitl[byte]);
 	while (ppb_rstr(ppbus) & CLPIP_SHAKE)
 		if (--spin == 0) {
-			return 1;
+			return (1);
 		}
 	ppb_wdtr(ppbus, ctxmith[byte]);
 	while (!(ppb_rstr(ppbus) & CLPIP_SHAKE))
 		if (--spin == 0) {
-			return 1;
+			return (1);
 		}
-	return 0;
+	return (0);
 }
 
 static __inline int
-clpinbyte (int spin, device_t ppbus)
+clpinbyte(int spin, device_t ppbus)
 {
 	u_char c, cl;
 
 	while((ppb_rstr(ppbus) & CLPIP_SHAKE))
-	    if(!--spin) {
-		return -1;
-	    }
+		if (!--spin) {
+			return (-1);
+		}
 	cl = ppb_rstr(ppbus);
 	ppb_wdtr(ppbus, 0x10);
 
 	while(!(ppb_rstr(ppbus) & CLPIP_SHAKE))
-	    if(!--spin) {
-		return -1;
-	    }
+		if (!--spin) {
+			return (-1);
+		}
 	c = ppb_rstr(ppbus);
 	ppb_wdtr(ppbus, 0x00);
 
@@ -439,11 +438,12 @@ static void
 lptap(struct ifnet *ifp, struct mbuf *m)
 {
 	u_int32_t af = AF_INET;
+
 	bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 }
 
 static void
-lp_intr (void *arg)
+lp_intr(void *arg)
 {
 	device_t dev = (device_t)arg;
         device_t ppbus = device_get_parent(dev);
@@ -457,96 +457,105 @@ lp_intr (void *arg)
 
 	if (sc->sc_ifp->if_flags & IFF_LINK0) {
 
-	    /* Ack. the request */
-	    ppb_wdtr(ppbus, 0x01);
+		/* Ack. the request */
+		ppb_wdtr(ppbus, 0x01);
 
-	    /* Get the packet length */
-	    j = clpinbyte(LPMAXSPIN2, ppbus);
-	    if (j == -1)
-		goto err;
-	    len = j;
-	    j = clpinbyte(LPMAXSPIN2, ppbus);
-	    if (j == -1)
-		goto err;
-	    len = len + (j << 8);
-	    if (len > sc->sc_ifp->if_mtu + MLPIPHDRLEN)
-		goto err;
+		/* Get the packet length */
+		j = clpinbyte(LPMAXSPIN2, ppbus);
+		if (j == -1)
+			goto err;
+		len = j;
+		j = clpinbyte(LPMAXSPIN2, ppbus);
+		if (j == -1)
+			goto err;
+		len = len + (j << 8);
+		if (len > sc->sc_ifp->if_mtu + MLPIPHDRLEN)
+			goto err;
 
-	    bp  = sc->sc_ifbuf;
-	
-	    while (len--) {
-	        j = clpinbyte(LPMAXSPIN2, ppbus);
-	        if (j == -1) {
-		    goto err;
-	        }
-	        *bp++ = j;
-	    }
-	    /* Get and ignore checksum */
-	    j = clpinbyte(LPMAXSPIN2, ppbus);
-	    if (j == -1) {
-	        goto err;
-	    }
+		bp = sc->sc_ifbuf;
 
-	    len = bp - sc->sc_ifbuf;
-	    if (len <= CLPIPHDRLEN)
-	        goto err;
+		while (len--) {
+			j = clpinbyte(LPMAXSPIN2, ppbus);
+			if (j == -1) {
+				goto err;
+			}
+			*bp++ = j;
+		}
 
-	    sc->sc_iferrs = 0;
+		/* Get and ignore checksum */
+		j = clpinbyte(LPMAXSPIN2, ppbus);
+		if (j == -1) {
+			goto err;
+		}
 
-	    len -= CLPIPHDRLEN;
-	    sc->sc_ifp->if_ipackets++;
-	    sc->sc_ifp->if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, sc->sc_ifp, 0);
-	    if (top) {
-		if (bpf_peers_present(sc->sc_ifp->if_bpf))
-		    lptap(sc->sc_ifp, top);
-		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
-	    }
-	    goto done;
+		len = bp - sc->sc_ifbuf;
+		if (len <= CLPIPHDRLEN)
+			goto err;
+
+		sc->sc_iferrs = 0;
+
+		len -= CLPIPHDRLEN;
+		sc->sc_ifp->if_ipackets++;
+		sc->sc_ifp->if_ibytes += len;
+		top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, sc->sc_ifp,
+		    0);
+		if (top) {
+			if (bpf_peers_present(sc->sc_ifp->if_bpf))
+				lptap(sc->sc_ifp, top);
+
+			/* mbuf is free'd on failure. */
+			netisr_queue(NETISR_IP, top);
+		}
+		goto done;
 	}
 	while ((ppb_rstr(ppbus) & LPIP_SHAKE)) {
-	    len = sc->sc_ifp->if_mtu + LPIPHDRLEN;
-	    bp  = sc->sc_ifbuf;
-	    while (len--) {
+		len = sc->sc_ifp->if_mtu + LPIPHDRLEN;
+		bp  = sc->sc_ifbuf;
+		while (len--) {
 
-		cl = ppb_rstr(ppbus);
-		ppb_wdtr(ppbus, 8);
+			cl = ppb_rstr(ppbus);
+			ppb_wdtr(ppbus, 8);
 
-		j = LPMAXSPIN2;
-		while((ppb_rstr(ppbus) & LPIP_SHAKE))
-		    if(!--j) goto err;
+			j = LPMAXSPIN2;
+			while((ppb_rstr(ppbus) & LPIP_SHAKE))
+				if (!--j)
+					goto err;
 
-		c = ppb_rstr(ppbus);
-		ppb_wdtr(ppbus, 0);
+			c = ppb_rstr(ppbus);
+			ppb_wdtr(ppbus, 0);
 
-		*bp++= trecvh[cl] | trecvl[c];
+			*bp++= trecvh[cl] | trecvl[c];
 
-		j = LPMAXSPIN2;
-		while (!((cl=ppb_rstr(ppbus)) & LPIP_SHAKE)) {
-		    if (cl != c &&
-			(((cl = ppb_rstr(ppbus)) ^ 0xb8) & 0xf8) ==
-			  (c & 0xf8))
-			goto end;
-		    if (!--j) goto err;
+			j = LPMAXSPIN2;
+			while (!((cl = ppb_rstr(ppbus)) & LPIP_SHAKE)) {
+				if (cl != c &&
+				    (((cl = ppb_rstr(ppbus)) ^ 0xb8) & 0xf8) ==
+				    (c & 0xf8))
+					goto end;
+				if (!--j)
+					goto err;
+			}
 		}
-	    }
 
 	end:
-	    len = bp - sc->sc_ifbuf;
-	    if (len <= LPIPHDRLEN)
-		goto err;
+		len = bp - sc->sc_ifbuf;
+		if (len <= LPIPHDRLEN)
+			goto err;
 
-	    sc->sc_iferrs = 0;
+		sc->sc_iferrs = 0;
 
-	    len -= LPIPHDRLEN;
-	    sc->sc_ifp->if_ipackets++;
-	    sc->sc_ifp->if_ibytes += len;
-	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, sc->sc_ifp, 0);
-	    if (top) {
-		if (bpf_peers_present(sc->sc_ifp->if_bpf))
-		    lptap(sc->sc_ifp, top);
-		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
-	    }
+		len -= LPIPHDRLEN;
+		sc->sc_ifp->if_ipackets++;
+		sc->sc_ifp->if_ibytes += len;
+		top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, sc->sc_ifp,
+		    0);
+		if (top) {
+			if (bpf_peers_present(sc->sc_ifp->if_bpf))
+				lptap(sc->sc_ifp, top);
+
+			/* mbuf is free'd on failure. */
+			netisr_queue(NETISR_IP, top);
+		}
 	}
 	goto done;
 
@@ -561,182 +570,181 @@ lp_intr (void *arg)
 	 * so stop wasting our time
 	 */
 	if (sc->sc_iferrs > LPMAXERRS) {
-	    if_printf(sc->sc_ifp, "Too many errors, Going off-line.\n");
-	    ppb_wctr(ppbus, 0x00);
-	    sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	    sc->sc_iferrs=0;
+		if_printf(sc->sc_ifp, "Too many errors, Going off-line.\n");
+		ppb_wctr(ppbus, 0x00);
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		sc->sc_iferrs = 0;
 	}
 
     done:
 	splx(s);
-	return;
 }
 
 static __inline int
 lpoutbyte (u_char byte, int spin, device_t ppbus)
 {
-    ppb_wdtr(ppbus, txmith[byte]);
-    while (!(ppb_rstr(ppbus) & LPIP_SHAKE))
-	if (--spin == 0)
-		return 1;
-    ppb_wdtr(ppbus, txmitl[byte]);
-    while (ppb_rstr(ppbus) & LPIP_SHAKE)
-	if (--spin == 0)
-		return 1;
-    return 0;
+
+	ppb_wdtr(ppbus, txmith[byte]);
+	while (!(ppb_rstr(ppbus) & LPIP_SHAKE))
+		if (--spin == 0)
+			return (1);
+	ppb_wdtr(ppbus, txmitl[byte]);
+	while (ppb_rstr(ppbus) & LPIP_SHAKE)
+		if (--spin == 0)
+			return (1);
+	return (0);
 }
 
 static int
-lpoutput (struct ifnet *ifp, struct mbuf *m,
-	  struct sockaddr *dst, struct rtentry *rt)
+lpoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt)
 {
-    struct lp_data *sc = ifp->if_softc;
-    device_t dev = sc->sc_dev;
-    device_t ppbus = device_get_parent(dev);
-    int s, err;
-    struct mbuf *mm;
-    u_char *cp = "\0\0";
-    u_char chksum = 0;
-    int count = 0;
-    int i, len, spin;
+	struct lp_data *sc = ifp->if_softc;
+	device_t dev = sc->sc_dev;
+	device_t ppbus = device_get_parent(dev);
+	int s, err;
+	struct mbuf *mm;
+	u_char *cp = "\0\0";
+	u_char chksum = 0;
+	int count = 0;
+	int i, len, spin;
 
-    /* We need a sensible value if we abort */
-    cp++;
-    ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	/* We need a sensible value if we abort */
+	cp++;
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
-    err = 1;			/* assume we're aborting because of an error */
+	err = 1;		/* assume we're aborting because of an error */
 
-    s = splhigh();
+	s = splhigh();
 
-    /* Suspend (on laptops) or receive-errors might have taken us offline */
-    ppb_wctr(ppbus, IRQENABLE);
+	/* Suspend (on laptops) or receive-errors might have taken us offline */
+	ppb_wctr(ppbus, IRQENABLE);
 
-    if (ifp->if_flags & IFF_LINK0) {
-
-	if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
-	    lprintf("&");
-	    lp_intr(dev);
-	}
-
-	/* Alert other end to pending packet */
-	spin = LPMAXSPIN1;
-	ppb_wdtr(ppbus, 0x08);
-	while ((ppb_rstr(ppbus) & 0x08) == 0)
-		if (--spin == 0) {
-			goto nend;
+	if (ifp->if_flags & IFF_LINK0) {
+		if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
+			lprintf("&");
+			lp_intr(dev);
 		}
 
-	/* Calculate length of packet, then send that */
+		/* Alert other end to pending packet */
+		spin = LPMAXSPIN1;
+		ppb_wdtr(ppbus, 0x08);
+		while ((ppb_rstr(ppbus) & 0x08) == 0)
+			if (--spin == 0) {
+				goto nend;
+			}
 
-	count += 14;		/* Ethernet header len */
+		/* Calculate length of packet, then send that */
 
-	mm = m;
-	for (mm = m; mm; mm = mm->m_next) {
-		count += mm->m_len;
-	}
-	if (clpoutbyte(count & 0xFF, LPMAXSPIN1, ppbus))
-		goto nend;
-	if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, ppbus))
-		goto nend;
+		count += 14;		/* Ethernet header len */
 
-	/* Send dummy ethernet header */
-	for (i = 0; i < 12; i++) {
-		if (clpoutbyte(i, LPMAXSPIN1, ppbus))
+		mm = m;
+		for (mm = m; mm; mm = mm->m_next) {
+			count += mm->m_len;
+		}
+		if (clpoutbyte(count & 0xFF, LPMAXSPIN1, ppbus))
 			goto nend;
-		chksum += i;
+		if (clpoutbyte((count >> 8) & 0xFF, LPMAXSPIN1, ppbus))
+			goto nend;
+
+		/* Send dummy ethernet header */
+		for (i = 0; i < 12; i++) {
+			if (clpoutbyte(i, LPMAXSPIN1, ppbus))
+				goto nend;
+			chksum += i;
+		}
+
+		if (clpoutbyte(0x08, LPMAXSPIN1, ppbus))
+			goto nend;
+		if (clpoutbyte(0x00, LPMAXSPIN1, ppbus))
+			goto nend;
+		chksum += 0x08 + 0x00;		/* Add into checksum */
+
+		mm = m;
+		do {
+			cp = mtod(mm, u_char *);
+			len = mm->m_len;
+			while (len--) {
+				chksum += *cp;
+				if (clpoutbyte(*cp++, LPMAXSPIN2, ppbus))
+					goto nend;
+			}
+		} while ((mm = mm->m_next));
+
+		/* Send checksum */
+		if (clpoutbyte(chksum, LPMAXSPIN2, ppbus))
+			goto nend;
+
+		/* Go quiescent */
+		ppb_wdtr(ppbus, 0);
+
+		err = 0;			/* No errors */
+
+	nend:
+		if (err)  {			/* if we didn't timeout... */
+			ifp->if_oerrors++;
+			lprintf("X");
+		} else {
+			ifp->if_opackets++;
+			ifp->if_obytes += m->m_pkthdr.len;
+			if (bpf_peers_present(ifp->if_bpf))
+				lptap(ifp, m);
+		}
+
+		m_freem(m);
+
+		if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
+			lprintf("^");
+			lp_intr(dev);
+		}
+		(void) splx(s);
+		return (0);
 	}
 
-	if (clpoutbyte(0x08, LPMAXSPIN1, ppbus))
-		goto nend;
-	if (clpoutbyte(0x00, LPMAXSPIN1, ppbus))
-		goto nend;
-	chksum += 0x08 + 0x00;		/* Add into checksum */
+	if (ppb_rstr(ppbus) & LPIP_SHAKE) {
+		lprintf("&");
+		lp_intr(dev);
+	}
+
+	if (lpoutbyte(0x08, LPMAXSPIN1, ppbus))
+		goto end;
+	if (lpoutbyte(0x00, LPMAXSPIN2, ppbus))
+		goto end;
 
 	mm = m;
 	do {
 		cp = mtod(mm, u_char *);
 		len = mm->m_len;
-		while (len--) {
-			chksum += *cp;
-			if (clpoutbyte(*cp++, LPMAXSPIN2, ppbus))
-				goto nend;
-		}
+		while (len--)
+			if (lpoutbyte(*cp++, LPMAXSPIN2, ppbus))
+				goto end;
 	} while ((mm = mm->m_next));
 
-	/* Send checksum */
-	if (clpoutbyte(chksum, LPMAXSPIN2, ppbus))
-		goto nend;
+	err = 0;			/* no errors were encountered */
 
-	/* Go quiescent */
-	ppb_wdtr(ppbus, 0);
+end:
+	--cp;
+	ppb_wdtr(ppbus, txmitl[*cp] ^ 0x17);
 
-	err = 0;			/* No errors */
-
-	nend:
-	if (err)  {				/* if we didn't timeout... */
+	if (err)  {			/* if we didn't timeout... */
 		ifp->if_oerrors++;
 		lprintf("X");
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
 		if (bpf_peers_present(ifp->if_bpf))
-		    lptap(ifp, m);
+			lptap(ifp, m);
 	}
 
 	m_freem(m);
 
-	if (!(ppb_rstr(ppbus) & CLPIP_SHAKE)) {
+	if (ppb_rstr(ppbus) & LPIP_SHAKE) {
 		lprintf("^");
 		lp_intr(dev);
 	}
+
 	(void) splx(s);
-	return 0;
-    }
-
-    if (ppb_rstr(ppbus) & LPIP_SHAKE) {
-        lprintf("&");
-        lp_intr(dev);
-    }
-
-    if (lpoutbyte(0x08, LPMAXSPIN1, ppbus))
-        goto end;
-    if (lpoutbyte(0x00, LPMAXSPIN2, ppbus))
-        goto end;
-
-    mm = m;
-    do {
-        cp = mtod(mm,u_char *);
-	len = mm->m_len;
-        while (len--)
-	    if (lpoutbyte(*cp++, LPMAXSPIN2, ppbus))
-	        goto end;
-    } while ((mm = mm->m_next));
-
-    err = 0;				/* no errors were encountered */
-
-    end:
-    --cp;
-    ppb_wdtr(ppbus, txmitl[*cp] ^ 0x17);
-
-    if (err)  {				/* if we didn't timeout... */
-	ifp->if_oerrors++;
-        lprintf("X");
-    } else {
-	ifp->if_opackets++;
-	ifp->if_obytes += m->m_pkthdr.len;
-	if (bpf_peers_present(ifp->if_bpf))
-	    lptap(ifp, m);
-    }
-
-    m_freem(m);
-
-    if (ppb_rstr(ppbus) & LPIP_SHAKE) {
-	lprintf("^");
-	lp_intr(dev);
-    }
-
-    (void) splx(s);
-    return 0;
+	return (0);
 }
 
 static device_method_t lp_methods[] = {
@@ -749,9 +757,9 @@ static device_method_t lp_methods[] = {
 };
 
 static driver_t lp_driver = {
-  "plip",
-  lp_methods,
-  sizeof(struct lp_data),
+	"plip",
+	lp_methods,
+	sizeof(struct lp_data),
 };
 
 DRIVER_MODULE(plip, ppbus, lp_driver, lp_devclass, 0, 0);
