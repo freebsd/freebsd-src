@@ -3449,9 +3449,7 @@ process_pass_accept_req(struct socket *so, struct mbuf *m, struct toedev *tdev,
 				V_TF_DDP_OFF(1) |
 		    TP_DDP_TIMER_WORKAROUND_VAL, 1);
 	} else
-		printf("not offloading\n");
-	
-	
+		DPRINTF("no DDP\n");
 
 	return;
 reject:

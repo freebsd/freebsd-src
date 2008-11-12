@@ -740,7 +740,8 @@ enum {
 	SF_ERASE_SECTOR = 0xd8,    /* erase sector */
 
 	FW_FLASH_BOOT_ADDR = 0x70000, /* start address of FW in flash */
-	FW_VERS_ADDR = 0x77ffc,    /* flash address holding FW version */
+	OLD_FW_VERS_ADDR = 0x77ffc,   /* flash address holding FW version */
+	FW_VERS_ADDR = 0x7fffc,    /* flash address holding FW version */
 	FW_MIN_SIZE = 8,           /* at least version and csum */
 	FW_MAX_SIZE = FW_VERS_ADDR - FW_FLASH_BOOT_ADDR,
 
@@ -1027,7 +1028,12 @@ enum fw_version_type {
  */
 int t3_get_fw_version(adapter_t *adapter, u32 *vers)
 {
-	return t3_read_flash(adapter, FW_VERS_ADDR, 1, vers, 0);
+	int ret = t3_read_flash(adapter, FW_VERS_ADDR, 1, vers, 0);
+
+	if (!ret && *vers != 0xffffffff)
+		return 0;
+	else
+		return t3_read_flash(adapter, OLD_FW_VERS_ADDR, 1, vers, 0);
 }
 
 /**
