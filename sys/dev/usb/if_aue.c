@@ -630,6 +630,15 @@ aue_match(device_t self)
 	if (uaa->iface != NULL)
 		return (UMATCH_NONE);
 
+	/*
+	 * Belkin USB Bluetooth dongles of the F8T012xx1 model series conflict
+	 * with older Belkin USB2LAN adapters.  Skip if_aue if we detect one of
+	 * the devices that look like Bluetooth adapters.
+	 */
+	if (uaa->vendor == USB_VENDOR_BELKIN &&
+	    uaa->product == USB_PRODUCT_BELKIN_F8T012 && uaa->release == 0x0413)
+		return (UMATCH_NONE);
+
 	return (aue_lookup(uaa->vendor, uaa->product) != NULL ?
 		UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
