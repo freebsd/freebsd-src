@@ -134,7 +134,7 @@ adb_bus_enumerate(void *xdev)
 	/* Enumerate bus */
 	next_free = 8;
 
-	for (i = 1; i < 7; i++) {
+	for (i = 1; i <= 7; i++) {
 	    int8_t first_relocated = -1;
 	    int reply = 0;
 
