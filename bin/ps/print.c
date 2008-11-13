@@ -196,9 +196,8 @@ tdnam(KINFO *k, VARENT *ve)
 	v = ve->var;
 	if (showthreads && k->ki_p->ki_numthreads > 1)
 		(void)printf("%-*s", v->width, k->ki_p->ki_ocomm);
-        else
-		(void)printf("%-*s", v->width, "      " );
-		
+	else
+		(void)printf("%-*s", v->width, "      ");
 }
 
 void
