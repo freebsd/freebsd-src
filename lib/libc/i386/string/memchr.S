@@ -56,3 +56,4 @@ ENTRY(memchr)
 L1:	xorl	%eax,%eax
 	popl	%edi
 	ret
+END(memchr)
