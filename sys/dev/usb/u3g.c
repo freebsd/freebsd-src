@@ -566,8 +566,15 @@ u3gstub_match(device_t self)
 		 * storage device the device has not yet changed appearance.
 		 */
 		id = usbd_get_interface_descriptor(uaa->iface);
-		if (id && id->bInterfaceNumber == 0 && id->bInterfaceClass == UICLASS_MASS)
+		if (id && id->bInterfaceNumber == 0
+		    && id->bInterfaceClass == UICLASS_MASS) {
+#ifndef U3G_DEBUG
+			if (!bootverbose)
+				device_quiet(self);
+#endif
+
 			return UMATCH_VENDOR_PRODUCT;
+		}
 	}
 
 	return UMATCH_NONE;
@@ -580,8 +587,9 @@ u3gstub_attach(device_t self)
 	struct usb_attach_arg *uaa = device_get_ivars(self);
 	const struct u3g_dev_type_s *u3g_dev_type;
 	int i;
+
 #ifndef U3G_DEBUG
-	if (!bootverbose)				// hide the stub attachment
+	if (!bootverbose)
 		device_quiet(self);
 #endif
 
@@ -593,18 +601,27 @@ u3gstub_attach(device_t self)
 
 	u3g_dev_type = u3g_lookup(uaa->vendor, uaa->product);
 	if (u3g_dev_type->flags&U3GFL_HUAWEI_INIT) {
-		DPRINTF("changing Huawei modem to modem mode\n");
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing Huawei modem to modem mode\n");
 		if (!u3gstub_huawei_init(sc, uaa))
 			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_SCSI_EJECT) {
-		DPRINTF("sending CD eject command to change to modem mode\n");
+		if (bootverbose)
+			device_printf(sc->sc_dev, "sending CD eject command to "
+				      "change to modem mode\n");
 		if (!u3gstub_scsi_eject(sc, uaa))
 			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_SIERRA_INIT) {
-		DPRINTF("changing Sierra modem to modem mode\n");
+		if (bootverbose)
+			device_printf(sc->sc_dev,
+				      "changing Sierra modem to modem mode\n");
 		if (!u3gstub_sierra_init(sc, uaa))
 			return ENXIO;
 	} else if (u3g_dev_type->flags&U3GFL_STUB_WAIT) {
+		if (bootverbose)
+			device_printf(sc->sc_dev, "waiting for modem to change "
+				      "to modem mode\n");
 		/* nop  */
 	}
 
@@ -637,7 +654,7 @@ static device_method_t u3gstub_methods[] = {
 };
 
 static driver_t u3gstub_driver = {
-	"u3gstub",
+	"u3g",
 	u3gstub_methods,
 	sizeof (struct u3gstub_softc)
 };
