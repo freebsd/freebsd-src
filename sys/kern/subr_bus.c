@@ -2476,7 +2476,8 @@ device_detach(device_t dev)
 	if ((error = DEVICE_DETACH(dev)) != 0)
 		return (error);
 	devremoved(dev);
-	device_printf(dev, "detached\n");
+	if (!device_is_quiet(dev))
+		device_printf(dev, "detached\n");
 	if (dev->parent)
 		BUS_CHILD_DETACHED(dev->parent, dev);
 
