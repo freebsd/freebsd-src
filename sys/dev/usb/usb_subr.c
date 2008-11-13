@@ -679,11 +679,11 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 		DPRINTF(("power exceeded %d %d\n", power,dev->powersrc->power));
 		/* XXX print nicer message. */
 		if (msg)
-			printf("%s: device addr %d (config %d) exceeds power "
-				 "budget, %d mA > %d mA\n",
-			       device_get_nameunit(dev->bus->bdev), dev->address,
-			       cdp->bConfigurationValue,
-			       power, dev->powersrc->power);
+			device_printf(dev->bus->bdev,
+				      "device addr %d (config %d) exceeds "
+				      "power budget, %d mA > %d mA\n",
+				      dev->address, cdp->bConfigurationValue,
+				      power, dev->powersrc->power);
 		err = USBD_NO_POWER;
 		goto bad;
 	}
@@ -1017,8 +1017,7 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 		 bus, port, depth, speed));
 	addr = usbd_getnewaddr(bus);
 	if (addr < 0) {
-		printf("%s: No free USB addresses, new device ignored.\n",
-		       device_get_nameunit(bus->bdev));
+		device_printf(bus->bdev, "No free USB addresses\n");
 		return (USBD_NO_ADDR);
 	}
 
@@ -1364,11 +1363,14 @@ usb_disconnect_port(struct usbd_port *up, device_t parent)
 	if (dev->subdevs != NULL) {
 		DPRINTFN(3,("usb_disconnect_port: disconnect subdevs\n"));
 		for (i = 0; dev->subdevs[i]; i++) {
-			printf("%s: at %s", device_get_nameunit(dev->subdevs[i]),
-			       hubname);
-			if (up->portno != 0)
-				printf(" port %d", up->portno);
-			printf(" (addr %d) disconnected\n", dev->address);
+			if (!device_is_quiet(dev->subdevs[i])) {
+				device_printf(dev->subdevs[i],
+						  "at %s", hubname);
+				if (up->portno != 0)
+					printf(" port %d", up->portno);
+				printf(" (addr %d) disconnected\n", dev->address);
+			}
+
 			struct usb_attach_arg *uaap =
 			    device_get_ivars(dev->subdevs[i]);
 			device_detach(dev->subdevs[i]);
