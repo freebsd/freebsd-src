@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2005 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.h#11 $
  */
 
 #ifndef _AUDITD_H_
@@ -46,8 +46,10 @@
  */
 #define	AUDIT_REVIEW_GROUP	"audit"
 
-#define	POSTFIX_LEN		16
-#define	NOT_TERMINATED	".not_terminated"
+#define	NOT_TERMINATED		"not_terminated"
+#define	POSTFIX_LEN	(sizeof("YYYYMMDDhhmmss") - 1)
+#define	FILENAME_LEN	((2 * POSTFIX_LEN) + 2)
+#define	TIMESTAMP_LEN	(POSTFIX_LEN + 1)	
 
 struct dir_ent {
 	char			*dirname;

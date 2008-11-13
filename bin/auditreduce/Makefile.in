@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/Makefile.in#4 $
+# $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/Makefile.in#8 $
 #
 
 VPATH = @srcdir@
@@ -113,6 +113,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
+MIG = @MIG@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -179,7 +180,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-INCLUDES = -I$(top_srcdir)
+@USE_NATIVE_INCLUDES_FALSE@INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
+@USE_NATIVE_INCLUDES_TRUE@INCLUDES = -I$(top_builddir) -I$(top_srcdir)
 auditreduce_SOURCES = auditreduce.c
 auditreduce_LDADD = $(top_builddir)/libbsm/libbsm.la
 man1_MANS = auditreduce.1

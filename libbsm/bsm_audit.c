@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#28 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_audit.c#31 $
  */
 
 #include <sys/types.h>
@@ -44,6 +44,8 @@
 
 #include <bsm/audit_internal.h>
 #include <bsm/libbsm.h>
+
+#include <netinet/in.h>
 
 #include <errno.h>
 #include <pthread.h>
@@ -204,12 +206,55 @@ static int
 au_assemble(au_record_t *rec, short event)
 {
 	token_t *header, *tok, *trailer;
-	size_t tot_rec_size;
+	size_t tot_rec_size, hdrsize;
 	u_char *dptr;
+	struct in6_addr *aptr;
 	int error;
+	struct auditinfo_addr aia;
+	struct timeval tm;
 
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
-	header = au_to_header32(tot_rec_size, event, 0);
+#ifdef HAVE_AUDIT_SYSCALLS
+	/*
+	 * Grab the size of the address family stored in the kernel's audit
+	 * state.
+	 */
+	aia.ai_termid.at_type = AU_IPv4;
+	aia.ai_termid.at_addr[0] = INADDR_ANY;
+	if (auditon(A_GETKAUDIT, &aia, sizeof(aia)) < 0) {
+		if (errno != ENOSYS)
+			return (-1);
+#endif /* HAVE_AUDIT_SYSCALLS */
+		tot_rec_size = rec->len + AUDIT_HEADER_SIZE +
+		    AUDIT_TRAILER_SIZE;
+		header = au_to_header(tot_rec_size, event, 0);
+#ifdef HAVE_AUDIT_SYSCALLS
+	} else {
+		if (gettimeofday(&tm, NULL) < 0)
+			return (-1);
+		switch (aia.ai_termid.at_type) {
+		case AU_IPv4:
+			hdrsize = (aia.ai_termid.at_addr[0] == INADDR_ANY) ?
+			    AUDIT_HEADER_SIZE : AUDIT_HEADER_EX_SIZE(&aia);
+			break;
+		case AU_IPv6:
+			aptr = (struct in6_addr *)&aia.ai_termid.at_addr[0];
+			hdrsize =
+			    (IN6_IS_ADDR_UNSPECIFIED(aptr)) ?
+			    AUDIT_HEADER_SIZE : AUDIT_HEADER_EX_SIZE(&aia);
+			break;
+		}
+		tot_rec_size = rec->len + hdrsize + AUDIT_TRAILER_SIZE;
+		/*
+		 * A header size greater then AUDIT_HEADER_SIZE means
+		 * that we are using an extended header.
+		 */
+		if (hdrsize > AUDIT_HEADER_SIZE)
+			header = au_to_header32_ex_tm(tot_rec_size, event,
+			    0, tm, &aia);
+		else
+			header = au_to_header(tot_rec_size, event, 0);
+	}
+#endif /* HAVE_AUDIT_SYSCALLS */
 	if (header == NULL)
 		return (-1);
 
@@ -285,7 +330,7 @@ au_close(int d, int keep, short event)
 		goto cleanup;
 	}
 
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
+	tot_rec_size = rec->len + MAX_AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 
 	if (tot_rec_size > MAX_AUDIT_RECORD_SIZE) {
 		/*
@@ -335,7 +380,7 @@ au_close_buffer(int d, short event, u_char *buffer, size_t *buflen)
 	}
 
 	retval = 0;
-	tot_rec_size = rec->len + AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
+	tot_rec_size = rec->len + MAX_AUDIT_HEADER_SIZE + AUDIT_TRAILER_SIZE;
 	if ((tot_rec_size > MAX_AUDIT_RECORD_SIZE) ||
 	    (tot_rec_size > *buflen)) {
 		/*

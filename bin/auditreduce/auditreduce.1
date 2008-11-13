@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Apple Computer, Inc.
+.\" Copyright (c) 2004 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -9,7 +9,7 @@
 .\" 2.  Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
 .\"     documentation and/or other materials provided with the distribution.
-.\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 .\"     its contributors may be used to endorse or promote products derived
 .\"     from this software without specific prior written permission.
 .\"
@@ -25,7 +25,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#14 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#17 $
 .\"
 .Dd January 24, 2004
 .Dt AUDITREDUCE 1
@@ -48,6 +48,7 @@
 .Op Fl o Ar object Ns = Ns Ar value
 .Op Fl r Ar ruid
 .Op Fl u Ar auid
+.Op Fl v
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -93,7 +94,8 @@ Select records with the given real group ID or name.
 .It Fl j Ar id
 Select records having a subject token with matching ID.
 .It Fl m Ar event
-Select records with the given event name or number.
+Select records with the given event name or number. This option can
+be used more then once to select records of multiple event types.
 See
 .Xr audit_event 5
 for a description of audit event names and numbers.
@@ -127,6 +129,8 @@ Select records containing the given shared memory ID.
 Select records with the given real user ID or name.
 .It Fl u Ar auid
 Select records with the given audit ID.
+.It Fl v
+Invert sense of matching, to select records that do not match.
 .El
 .Sh EXAMPLES
 To select all records associated with effective user ID root from the audit

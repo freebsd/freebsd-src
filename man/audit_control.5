@@ -1,4 +1,4 @@
-.\" Copyright (c) 2004 Apple Computer, Inc.
+.\" Copyright (c) 2004 Apple Inc.
 .\" Copyright (c) 2006 Robert N. M. Watson
 .\" All rights reserved.
 .\"
@@ -10,7 +10,7 @@
 .\" 2.  Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
 .\"     documentation and/or other materials provided with the distribution.
-.\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+.\" 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 .\"     its contributors may be used to endorse or promote products derived
 .\"     from this software without specific prior written permission.
 .\"
@@ -26,7 +26,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#17 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/audit_control.5#20 $
 .\"
 .Dd January 4, 2006
 .Dt AUDIT_CONTROL 5
@@ -57,13 +57,26 @@ Specifies which audit event classes are audited for all users.
 .Xr audit_user 5
 describes how to audit events for individual users.
 See the information below for the format of the audit flags.
+.It Va host
+Specify the hostname or IP address to be used when setting the local
+systems's audit host information.
+This hostname will be converted into an IP or IPv6 address and will
+be included in the header of each audit record.
+Due to the possibility of transient errors coupled with the
+security issues in the DNS protocol itself, the use of DNS
+should be avoided.
+Instead, it is strongly recommended that the hostname be
+specified in the /etc/hosts file.
+For more information see
+.Xr hosts 5 .
 .It Va naflags
 Contains the audit flags that define what classes of events are audited when
 an action cannot be attributed to a specific user.
 .It Va minfree
 The minimum free space required on the file system audit logs are being written to.
 When the free space falls below this limit a warning will be issued.
-Not currently used as the value of 20 percent is chosen by the kernel.
+If no value for the minimum free space is set, the default of 20 percent is
+applied by the kernel.
 .It Va policy
 A list of global audit policy flags specifying various behaviors, such as
 fail stop, auditing of paths and arguments, etc.
@@ -185,6 +198,7 @@ file size.
 .It Pa /etc/security/audit_control
 .El
 .Sh SEE ALSO
+.Xr auditon 2 ,
 .Xr audit 4 ,
 .Xr audit_class 5 ,
 .Xr audit_event 5 ,
