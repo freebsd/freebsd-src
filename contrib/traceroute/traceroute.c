@@ -263,6 +263,7 @@ static const char rcsid[] =
 
 #include "findsaddr.h"
 #include "ifaddrlist.h"
+#include "as.h"
 #include "traceroute.h"
 
 /* Maximum number of gateways (include room for one noop) */
@@ -350,6 +351,9 @@ int options;			/* socket options */
 int verbose;
 int waittime = 5;		/* time to wait for response (in seconds) */
 int nflag;			/* print addresses numerically */
+int as_path;			/* print as numbers for each hop */
+char *as_server = NULL;
+void *asn;
 #ifdef CANT_HACK_IPCKSUM
 int doipcksum = 0;		/* don't calculate ip checksums by default */
 #else
@@ -535,9 +539,17 @@ main(int argc, char **argv)
 		prog = argv[0];
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "edDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
+	while ((op = getopt(argc, argv, "aA:edDFInrSvxf:g:i:M:m:P:p:q:s:t:w:z:")) != EOF)
 		switch (op) {
-
+		case 'a':
+			as_path = 1;
+			break;
+			
+		case 'A':
+			as_path = 1;
+			as_server = optarg;
+			break;
+			    
 		case 'd':
 			options |= SO_DEBUG;
 			break;
@@ -913,6 +925,16 @@ main(int argc, char **argv)
 		exit (1);
 	}
 
+	if (as_path) {
+		asn = as_setup(as_server);
+		if (asn == NULL) {
+			Fprintf(stderr, "%s: as_setup failed, AS# lookups"
+			    " disabled\n", prog);
+			(void)fflush(stderr);
+			as_path = 0;
+		}
+	}
+	
 #if	defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	if (setpolicy(sndsock, "in bypass") < 0)
 		errx(1, "%s", ipsec_strerror());
@@ -1118,6 +1140,8 @@ main(int argc, char **argv)
 		    (unreachable > 0 && unreachable >= nprobes - 1))
 			break;
 	}
+	if (as_path)
+		as_shutdown(asn);
 	exit(0);
 }
 
@@ -1458,6 +1482,9 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 	hlen = ip->ip_hl << 2;
 	cc -= hlen;
 
+	if (as_path)
+		Printf(" [AS%d]", as_lookup(asn, &from->sin_addr));
+
 	if (nflag)
 		Printf(" %s", inet_ntoa(from->sin_addr));
 	else
@@ -1764,8 +1791,8 @@ usage(void)
 
 	Fprintf(stderr, "Version %s\n", version);
 	Fprintf(stderr,
-	    "Usage: %s [-dDeFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
+	    "Usage: %s [-adDeFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
 	    "\t[-m max_ttl] [-p port] [-P proto] [-q nqueries] [-s src_addr]\n"
-	    "\t[-t tos] [-w waittime] [-z pausemsecs] host [packetlen]\n", prog);
+	    "\t[-t tos] [-w waittime] [-A as_server] [-z pausemsecs] host [packetlen]\n", prog);
 	exit(1);
 }
