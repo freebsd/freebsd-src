@@ -414,7 +414,8 @@ getpty(int *ptynum __unused)
 	if (pn == NULL)
 		return (-1);
 	
-	strcpy(line, pn);
+	if (strlcpy(line, pn, sizeof line) >= sizeof line)
+		return (-1);
 
 	return (p);
 }
