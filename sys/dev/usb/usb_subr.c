@@ -322,16 +322,10 @@ usbd_delay_ms(usbd_device_handle dev, u_int ms)
 usbd_status
 usbd_reset_port(usbd_device_handle dev, int port, usb_port_status_t *ps)
 {
-	usb_device_request_t req;
 	usbd_status err;
 	int n;
 
-	req.bmRequestType = UT_WRITE_CLASS_OTHER;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UHF_PORT_RESET);
-	USETW(req.wIndex, port);
-	USETW(req.wLength, 0);
-	err = usbd_do_request(dev, &req, 0);
+	err = usbd_set_port_feature(dev, port, UHF_PORT_RESET);
 	DPRINTFN(1,("usbd_reset_port: port %d reset done, error=%s\n",
 		    port, usbd_errstr(err)));
 	if (err)
