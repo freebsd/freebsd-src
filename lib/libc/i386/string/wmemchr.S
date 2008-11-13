@@ -103,3 +103,4 @@ no:	xorl	%eax,%eax
 	popl	%ebx
 	popl	%edi
 	ret
+END(wmemchr)

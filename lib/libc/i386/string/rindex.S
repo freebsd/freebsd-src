@@ -62,3 +62,4 @@ L2:
 	jne	L1
 	popl	%ebx
 	ret
+END(rindex)

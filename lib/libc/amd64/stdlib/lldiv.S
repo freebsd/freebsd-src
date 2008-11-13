@@ -13,3 +13,4 @@ ENTRY(lldiv)
 	cqto
 	idivq	%rsi
 	ret
+END(lldiv)
