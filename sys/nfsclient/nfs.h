@@ -40,6 +40,10 @@
 #include "opt_nfs.h"
 #endif
 
+#if !defined(NFS_NEWRPC) && !defined(NFS_LEGACYRPC)
+#define NFS_LEGACYRPC
+#endif
+
 #include <nfsclient/nfsargs.h>
 
 /*
