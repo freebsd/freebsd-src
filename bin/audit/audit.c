@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2005 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2005-2008 Apple Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#8 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.c#11 $
  */
 /*
  * Program to trigger the audit daemon with a message that is either:
@@ -37,7 +37,12 @@
  */
 
 #include <sys/types.h>
+#include <config/config.h>
+#ifdef HAVE_FULL_QUEUE_H
 #include <sys/queue.h>
+#else /* !HAVE_FULL_QUEUE_H */
+#include <compat/queue.h>
+#endif /* !HAVE_FULL_QUEUE_H */
 #include <sys/uio.h>
 
 #include <bsm/libbsm.h>
@@ -46,6 +51,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+
+static int send_trigger(unsigned int);
+
+#ifdef USE_MACH_IPC
+#include <mach/mach.h>
+#include <servers/netname.h>
+#include <mach/message.h>
+#include <mach/port.h>
+#include <mach/mach_error.h>
+#include <mach/host_special_ports.h>
+#include <servers/bootstrap.h>
+
+#include "auditd_control_user.h"
+
+static int
+send_trigger(unsigned int trigger)
+{
+	mach_port_t     serverPort;
+	kern_return_t	error;
+
+	error = host_get_audit_control_port(mach_host_self(), &serverPort);
+	if (error != KERN_SUCCESS) {
+		mach_error("Cannot get auditd_control Mach port: ", error);
+		return (-1);
+	}
+
+	error = auditd_control(serverPort, trigger);
+	if (error != KERN_SUCCESS) {
+		mach_error("Error sending trigger: ", error);
+		return (-1);
+	}
+	
+	return (0);
+}
+
+#else /* ! USE_MACH_IPC */
+
+static int
+send_trigger(unsigned int trigger)
+{
+	int error;
+
+	error = auditon(A_SENDTRIGGER, &trigger, sizeof(trigger));
+	if (error != 0) {
+		perror("Error sending trigger");
+		return (-1);
+	}
+
+	return (0);
+}
+#endif /* ! USE_MACH_IPC */
 
 static void
 usage(void)
@@ -88,11 +145,9 @@ main(int argc, char **argv)
 			break;
 		}
 	}
-	if (auditon(A_SENDTRIGGER, &trigger, sizeof(trigger)) < 0) {
-		perror("Error sending trigger");
+	if (send_trigger(trigger) < 0) 
 		exit(-1);
-	} else {
-		printf("Trigger sent.\n");
-		exit (0);
-	}
+
+	printf("Trigger sent.\n");
+	exit (0);
 }

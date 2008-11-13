@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,8 +27,10 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#15 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_user.c#18 $
  */
+
+#include <config/config.h>
 
 #include <bsm/libbsm.h>
 
@@ -36,6 +38,10 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
 
 /*
  * Parse the contents of the audit_user file into au_user_ent structures.
@@ -66,7 +72,7 @@ userfromstr(char *str, struct au_user_ent *u)
 	if (strlen(username) >= AU_USER_NAME_MAX)
 		return (NULL);
 
-	strcpy(u->au_name, username);
+	strlcpy(u->au_name, username, AU_USER_NAME_MAX);
 	if (getauditflagsbin(always, &(u->au_always)) == -1)
 		return (NULL);
 

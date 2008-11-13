@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/compat/clock_gettime.h#2 $
+ * $P4: //depot/projects/trustedbsd/openbsm/compat/clock_gettime.h#3 $
  */
 
 /*
