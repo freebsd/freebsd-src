@@ -699,6 +699,7 @@ struct usb_event {
 #define USB_GET_DEVICEINFO	_IOR ('U', 112, struct usb_device_info)
 #define USB_SET_SHORT_XFER	_IOW ('U', 113, int)
 #define USB_SET_TIMEOUT		_IOW ('U', 114, int)
+#define USB_RESET_DEVICE	_IO  ('U', 115)
 
 /* Modem device */
 #define USB_GET_CM_OVER_DATA	_IOR ('U', 130, int)

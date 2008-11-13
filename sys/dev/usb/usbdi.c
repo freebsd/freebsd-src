@@ -1235,6 +1235,15 @@ usbd_set_polling(usbd_device_handle dev, int on)
 		dev->bus->methods->soft_intr(dev->bus);
 }
 
+usbd_status
+usbd_reset_device(usbd_device_handle dev)
+{
+	usbd_device_handle parent = dev->myhub;
+	struct usbd_port *up = dev->powersrc;
+
+	return usbd_reset_port(parent, up->portno, &up->status);
+}
+
 
 usb_endpoint_descriptor_t *
 usbd_get_endpoint_descriptor(usbd_interface_handle iface, u_int8_t address)
