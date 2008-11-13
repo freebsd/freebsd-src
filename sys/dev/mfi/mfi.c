@@ -2069,6 +2069,11 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
 
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
+
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
 		if (error) {
@@ -2304,6 +2309,11 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
+
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
 
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
