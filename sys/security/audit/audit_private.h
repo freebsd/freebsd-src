@@ -275,8 +275,8 @@ extern struct mtx		audit_mtx;
 extern struct cv		audit_watermark_cv;
 extern struct cv		audit_worker_cv;
 extern struct kaudit_queue	audit_q;
-extern int			audit_q_len;
-extern int			audit_pre_q_len;
+extern size_t			audit_q_len;
+extern size_t			audit_pre_q_len;
 extern int			audit_in_failure;
 
 /*
