@@ -234,12 +234,12 @@ The number of branch instructions executed including speculative branches.
 .Pq Event E0H , Umask 00H
 The number of branch instructions decoded.
 .It Li Br_Instr_Ret
-.Pq Event C4H, Umask 00H
+.Pq Event C4H , Umask 00H
 .Pq Alias Qq "Branch Instruction Retired"
 The number of branch instructions retired.
 This is an architectural performance event.
 .It Li Br_MisPred_Ret
-.Pq Event C5H, Umask 00H
+.Pq Event C5H , Umask 00H
 .Pq Alias Qq "Branch Misses Retired"
 The number of mispredicted branch instructions retired.
 This is an architectural performance event.
@@ -553,7 +553,7 @@ The number of L2 cache writes including speculative writes.
 .Pq Event 03H , Umask 00H
 The number of load operations delayed due to store buffer blocks.
 .It Li LLC_Misses
-.Pq Event 2EH, Umask 41H
+.Pq Event 2EH , Umask 41H
 The number of cache misses for references to the last level cache,
 excluding misses due to hardware prefetches.
 This is an architectural performance event.
@@ -561,7 +561,7 @@ This is an architectural performance event.
 The number of references to the last level cache,
 excluding those due to hardware prefetches.
 This is an architectural performance event.
-.Pq Event 2EH, Umask 4FH
+.Pq Event 2EH , Umask 4FH
 This is an architectural performance event.
 .It Li MMX_Assist
 .Pq Event CDH , Umask 00H

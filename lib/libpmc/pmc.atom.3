@@ -930,7 +930,7 @@ The number of cycles micro-ops were dispatched for execution on port
 The number of cycles micro-ops were dispatched for execution on port
 4.
 .It Li RS_UOPS_DISPATCHED.PORT5
-.Pq Event A1H , Umask 20
+.Pq Event A1H , Umask 20H
 The number of cycles micro-ops were dispatched for execution on port
 5.
 .It Li SB_DRAIN_CYCLES
@@ -1116,7 +1116,7 @@ globally observed.
 The number of cycles while a store was blocked due to a conflict with
 an internal or external snoop.
 .It Li STORE_FORWARDS.GOOD
-.Pq Event 02, Umask 81H
+.Pq Event 02H , Umask 81H
 The number of times stored data was forwarded directly to a load.
 .It Li THERMAL_TRIP
 .Pq Event 3BH , Umask C0H
