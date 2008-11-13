@@ -392,46 +392,31 @@ spcset(int func, cc_t *valp, cc_t **valpp)
  *
  * Returns the file descriptor of the opened pty.
  */
-char alpha[] = "0123456789abcdefghijklmnopqrstuv";
-char line[16];
+char line[32];
 
 int
 getpty(int *ptynum __unused)
 {
 	int p;
-	const char *cp;
-	char *p1, *p2;
-	int i;
+	const char *pn;
 
-	(void) strcpy(line, _PATH_DEV);
-	(void) strcat(line, "ptyXX");
-	p1 = &line[8];
-	p2 = &line[9];
+	p = posix_openpt(O_RDWR|O_NOCTTY);
+	if (p < 0)
+		return (-1);
+	
+	if (grantpt(p) == -1)
+		return (-1);
 
-	for (cp = "pqrsPQRS"; *cp; cp++) {
-		struct stat stb;
+	if (unlockpt(p) == -1)
+		return (-1);
+	
+	pn = ptsname(p);
+	if (pn == NULL)
+		return (-1);
+	
+	strcpy(line, pn);
 
-		*p1 = *cp;
-		*p2 = '0';
-		/*
-		 * This stat() check is just to keep us from
-		 * looping through all 256 combinations if there
-		 * aren't that many ptys available.
-		 */
-		if (stat(line, &stb) < 0)
-			break;
-		for (i = 0; i < 32; i++) {
-			*p2 = alpha[i];
-			p = open(line, 2);
-			if (p > 0) {
-				line[5] = 't';
-				chown(line, 0, 0);
-				chmod(line, 0600);
-					return(p);
-			}
-		}
-	}
-	return(-1);
+	return (p);
 }
 
 #ifdef	LINEMODE
