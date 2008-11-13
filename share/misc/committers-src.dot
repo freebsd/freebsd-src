@@ -174,6 +174,7 @@ trasz [label="Edward Tomasz Napierala\ntrasz@FreeBSD.org\n2008/08/22"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/05/28"]
 ume [label="Hajimu UMEMOTO\nume@FreeBSD.org\n2000/02/26"]
 vanhu [label="Yvan Vanhullebus\nvanhu@FreeBSD.org\n2008/07/21"]
+versus [label="Konrad Jankowski\nversus@FreeBSD.org\n2008/10/27"]
 weongyo [label="Weongyo Jeong\nweongyo@FreeBSD.org\n2007/12/21"]
 wes [label="Wes Peters\nwes@FreeBSD.org\n1998/11/25"]
 wilko [label="Wilko Bulte\nwilko@FreeBSD.org\n2000/01/13"]
@@ -232,6 +233,8 @@ des -> hmp
 des -> mike
 des -> olli
 des -> ru
+
+dds -> versus
 
 dwmalone -> fanf
 dwmalone -> peadar
