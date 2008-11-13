@@ -160,6 +160,7 @@ usb_endpoint_descriptor_t *usbd_find_edesc(usb_config_descriptor_t *,
 
 void usbd_dopoll(usbd_interface_handle);
 void usbd_set_polling(usbd_device_handle, int);
+usbd_status usbd_reset_device(usbd_device_handle);
 
 const char *usbd_errstr(usbd_status);
 
