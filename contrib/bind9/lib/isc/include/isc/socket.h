@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.h,v 1.57.18.6 2006/06/07 00:29:45 marka Exp $ */
+/* $Id: socket.h,v 1.57.18.6.46.4 2008/07/23 23:16:43 marka Exp $ */
 
 #ifndef ISC_SOCKET_H
 #define ISC_SOCKET_H 1
@@ -76,6 +76,12 @@ ISC_LANG_BEGINDECLS
  * system in use must support at least this number (plus one on some.)
  */
 #define ISC_SOCKET_MAXSCATTERGATHER	8
+
+/*%
+ * In isc_socket_bind() set socket option SO_REUSEADDR prior to calling
+ * bind() if a non zero port is specified (AF_INET and AF_INET6).
+ */
+#define ISC_SOCKET_REUSEADDRESS		0x01U
 
 /***
  *** Types
@@ -312,7 +318,8 @@ isc_socket_detach(isc_socket_t **socketp);
  */
 
 isc_result_t
-isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp);
+isc_socket_bind(isc_socket_t *sock, isc_sockaddr_t *addressp,
+	        unsigned int options);
 /*%<
  * Bind 'socket' to '*addressp'.
  *
@@ -745,6 +752,12 @@ isc_socket_permunix(isc_sockaddr_t *sockaddr, isc_uint32_t perm,
  * Returns:
  * \li	#ISC_R_SUCCESS
  * \li	#ISC_R_FAILURE
+ */
+
+void
+isc__socketmgr_setreserved(isc_socketmgr_t *mgr, isc_uint32_t);
+/*%<
+ * Temporary.  For use by named only.
  */
 
 ISC_LANG_ENDDECLS

@@ -1,3 +1,47 @@
+	--- 9.4.2-P2 released ---
+
+2406.   [bug]           Some operating systems have FD_SETSIZE set to a
+			low value by default, which can cause resource
+			exhaustion when many simultaneous connections are
+			open.  Linux in particular makes it difficult to
+			increase this value.  To use more sockets with
+			select(), set ISC_SOCKET_FDSETSIZE.  Example:
+			STD_CDEFINES="-DISC_SOCKET_FDSETSIZE=4096" ./configure
+			(This should not be necessary in most cases, and
+			never for an authoritative-only server.) [RT #18328]
+
+2404.	[port]		hpux: files unlimited support.
+
+2403.	[bug]		TSIG context leak. [RT #18341]
+
+2402.	[port]		Support Solaris 2.11 and over. [RT #18362]
+
+2401.	[bug]		Expect to get E[MN]FILE errno internal_accept()
+			(from accept() or fcntl() system calls). [RT #18358]
+
+2399.	[bug]		Abort timeout queries to reduce the number of open
+			UDP sockets. [RT #18367]
+
+2398.	[bug]           Improve file descriptor management.  New,
+			temporary, named.conf option reserved-sockets,
+			default 512. [RT #18344]
+
+2396.	[bug]		Don't set SO_REUSEADDR for randomized ports.
+			[RT #18336]
+
+2395.	[port]		Avoid warning and no effect from "files unlimited"
+			on Linux when running as root. [RT #18335]
+
+2394.	[bug]		Default configuration options set the limit for
+			open files to 'unlimited' as described in the
+			documentation. [RT #18331]
+
+2392.	[bug]		remove 'grep -q' from acl test script, some platforms
+			don't support it. [RT #18253]
+
+2322.	[port]		MacOS: work around the limitation of setrlimit()
+			for RLIMIT_NOFILE. [RT #17526]
+
 	--- 9.4.2-P1 released ---
 
 2375.   [security]      Fully randomize UDP query ports to improve
@@ -33,7 +77,7 @@
 			[RT #17113]
 
 2249.   [bug]           Only set Authentic Data bit if client requested
-                        DNSSEC, per RFC 3655 [RT #17175]
+			DNSSEC, per RFC 3655 [RT #17175]
 
 2248.   [cleanup]       Fix several errors reported by Coverity. [RT #17160]
 

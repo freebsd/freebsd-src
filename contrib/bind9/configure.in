@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.355.18.71 $)
+AC_REVISION($Revision: 1.355.18.71.8.2 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.59)
@@ -1839,7 +1839,7 @@ case "$host" in
 	[*-solaris2.[89]])
 		hack_shutup_pthreadonceinit=yes
 		;;
-	*-solaris2.10)
+	*-solaris2.1[0-9])
 		hack_shutup_pthreadonceinit=yes
 		;;
 esac

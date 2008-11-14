@@ -1,8 +1,8 @@
 /*
- * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: interfacemgr.c,v 1.76.18.8 2006/07/20 01:10:30 marka Exp $ */
+/* $Id: interfacemgr.c,v 1.76.18.8.44.3 2008/07/23 23:16:43 marka Exp $ */
 
 /*! \file */
 
@@ -307,7 +307,8 @@ ns_interface_accepttcp(ns_interface_t *ifp) {
 #ifndef ISC_ALLOW_MAPPED
 	isc_socket_ipv6only(ifp->tcpsocket, ISC_TRUE);
 #endif
-	result = isc_socket_bind(ifp->tcpsocket, &ifp->addr);
+	result = isc_socket_bind(ifp->tcpsocket, &ifp->addr,
+				 ISC_SOCKET_REUSEADDRESS);
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(IFMGR_COMMON_LOGARGS, ISC_LOG_ERROR,
 				 "binding TCP socket: %s",
