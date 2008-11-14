@@ -2130,6 +2130,14 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    ->mfi_frame.raw[ioc->mfi_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			if (cmd != MFI_CMD) {
+				/*
+				 * not 64bit native so zero out any address
+				 * over 32bit */
+				sense_ptr.high = 0;
+			}
+#endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    ioc->mfi_sense_len);
 			if (error != 0) {
@@ -2353,6 +2361,13 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
                             ->lioc_frame.raw[l_ioc.lioc_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			/*
+			 * only 32bit Linux support so zero out any
+			 * address over 32bit
+			 */
+			sense_ptr.high = 0;
+#endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    l_ioc.lioc_sense_len);
 			if (error != 0) {
