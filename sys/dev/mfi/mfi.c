@@ -2135,7 +2135,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 				/*
 				 * not 64bit native so zero out any address
 				 * over 32bit */
-				sense_ptr.high = 0;
+				sense_ptr.addr.high = 0;
 			}
 #endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
@@ -2366,7 +2366,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			 * only 32bit Linux support so zero out any
 			 * address over 32bit
 			 */
-			sense_ptr.high = 0;
+			sense_ptr.addr.high = 0;
 #endif
 			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    l_ioc.lioc_sense_len);
