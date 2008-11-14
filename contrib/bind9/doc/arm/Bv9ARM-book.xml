@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.82.8.1 2008/05/22 21:28:04 each Exp $ -->
+<!-- File: $Id: Bv9ARM-book.xml,v 1.241.18.82.8.3 2008/07/23 12:04:32 marka Exp $ -->
 <book xmlns:xi="http://www.w3.org/2001/XInclude">
   <title>BIND 9 Administrator Reference Manual</title>
 
@@ -28,6 +28,7 @@
       <year>2005</year>
       <year>2006</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -4441,6 +4442,7 @@ category notify { null; };
     <optional> max-transfer-idle-in <replaceable>number</replaceable>; </optional>
     <optional> max-transfer-idle-out <replaceable>number</replaceable>; </optional>
     <optional> tcp-clients <replaceable>number</replaceable>; </optional>
+    <optional> reserved-sockets <replaceable>number</replaceable>; </optional>
     <optional> recursive-clients <replaceable>number</replaceable>; </optional>
     <optional> serial-query-rate <replaceable>number</replaceable>; </optional>
     <optional> serial-queries <replaceable>number</replaceable>; </optional>
@@ -6601,6 +6603,23 @@ query-source-v6 address * port *;
                   The maximum number of simultaneous client TCP
                   connections that the server will accept.
                   The default is <literal>100</literal>.
+                </para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><command>reserved-sockets</command></term>
+              <listitem>
+                <para>
+		  The number of file descriptors reserved for TCP, stdio,
+		  etc.  This needs to be big enough to cover the number of
+		  interfaces named listens on, tcp-clients as well as
+		  to provide room for outgoing TCP queries and incoming zone
+		  transfers.  The default is <literal>512</literal>.
+		  The minimum value is <literal>128</literal> and the
+		  maximum value is <literal>128</literal> less than
+		  'files' or FD_SETSIZE (whichever is smaller).  This
+		  option may be removed in the future.
                 </para>
               </listitem>
             </varlistentry>

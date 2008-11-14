@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.47.18.32 2007/09/13 05:04:01 each Exp $ */
+/* $Id: config.c,v 1.47.18.32.10.3 2008/07/23 23:48:17 tbox Exp $ */
 
 /*! \file */
 
@@ -52,7 +52,7 @@ options {\n\
 #ifndef WIN32
 "	coresize default;\n\
 	datasize default;\n\
-	files default;\n\
+	files unlimited;\n\
 	stacksize default;\n"
 #endif
 "	deallocate-on-exit true;\n\
@@ -99,6 +99,7 @@ options {\n\
 	use-ixfr true;\n\
 	edns-udp-size 4096;\n\
 	max-udp-size 4096;\n\
+	reserved-sockets 512;\n\
 \n\
 	/* view */\n\
 	allow-notify {none;};\n\
