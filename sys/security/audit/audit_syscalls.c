@@ -157,7 +157,7 @@ free_out:
 int
 auditon(struct thread *td, struct auditon_args *uap)
 {
-	struct ucred *newcred, *oldcred;
+	struct ucred *cred, *newcred, *oldcred;
 	int error;
 	union auditon_udata udata;
 	struct proc *tp;
@@ -321,22 +321,21 @@ auditon(struct thread *td, struct auditon_args *uap)
 			PROC_UNLOCK(tp);
 			return (error);
 		}
-		if (tp->p_ucred->cr_audit.ai_termid.at_type == AU_IPv6) {
+		cred = tp->p_ucred;
+		if (cred->cr_audit.ai_termid.at_type == AU_IPv6) {
 			PROC_UNLOCK(tp);
 			return (EINVAL);
 		}
-		udata.au_aupinfo.ap_auid =
-		    tp->p_ucred->cr_audit.ai_auid;
+		udata.au_aupinfo.ap_auid = cred->cr_audit.ai_auid;
 		udata.au_aupinfo.ap_mask.am_success =
-		    tp->p_ucred->cr_audit.ai_mask.am_success;
+		    cred->cr_audit.ai_mask.am_success;
 		udata.au_aupinfo.ap_mask.am_failure =
-		    tp->p_ucred->cr_audit.ai_mask.am_failure;
+		    cred->cr_audit.ai_mask.am_failure;
 		udata.au_aupinfo.ap_termid.machine =
-		    tp->p_ucred->cr_audit.ai_termid.at_addr[0];
+		    cred->cr_audit.ai_termid.at_addr[0];
 		udata.au_aupinfo.ap_termid.port =
-		    (dev_t)tp->p_ucred->cr_audit.ai_termid.at_port;
-		udata.au_aupinfo.ap_asid =
-		    tp->p_ucred->cr_audit.ai_asid;
+		    (dev_t)cred->cr_audit.ai_termid.at_port;
+		udata.au_aupinfo.ap_asid = cred->cr_audit.ai_asid;
 		PROC_UNLOCK(tp);
 		break;
 
@@ -381,16 +380,14 @@ auditon(struct thread *td, struct auditon_args *uap)
 			return (ESRCH);
 		if ((tp = pfind(udata.au_aupinfo_addr.ap_pid)) == NULL)
 			return (ESRCH);
-		udata.au_aupinfo_addr.ap_auid =
-		    tp->p_ucred->cr_audit.ai_auid;
+		cred = tp->p_ucred;
+		udata.au_aupinfo_addr.ap_auid = cred->cr_audit.ai_auid;
 		udata.au_aupinfo_addr.ap_mask.am_success =
-		    tp->p_ucred->cr_audit.ai_mask.am_success;
+		    cred->cr_audit.ai_mask.am_success;
 		udata.au_aupinfo_addr.ap_mask.am_failure =
-		    tp->p_ucred->cr_audit.ai_mask.am_failure;
-		udata.au_aupinfo_addr.ap_termid =
-		    tp->p_ucred->cr_audit.ai_termid;
-		udata.au_aupinfo_addr.ap_asid =
-		    tp->p_ucred->cr_audit.ai_asid;
+		    cred->cr_audit.ai_mask.am_failure;
+		udata.au_aupinfo_addr.ap_termid = cred->cr_audit.ai_termid;
+		udata.au_aupinfo_addr.ap_asid = cred->cr_audit.ai_asid;
 		PROC_UNLOCK(tp);
 		break;
 
@@ -503,21 +500,23 @@ int
 getaudit(struct thread *td, struct getaudit_args *uap)
 {
 	struct auditinfo ai;
+	struct ucred *cred;
 	int error;
 
-	if (jailed(td->td_ucred))
+	cred = td->td_ucred;
+	if (jailed(cred))
 		return (ENOSYS);
 	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
-	if (td->td_ucred->cr_audit.ai_termid.at_type == AU_IPv6)
+	if (cred->cr_audit.ai_termid.at_type == AU_IPv6)
 		return (ERANGE);
 	bzero(&ai, sizeof(ai));
-	ai.ai_auid = td->td_ucred->cr_audit.ai_auid;
-	ai.ai_mask = td->td_ucred->cr_audit.ai_mask;
-	ai.ai_asid = td->td_ucred->cr_audit.ai_asid;
-	ai.ai_termid.machine = td->td_ucred->cr_audit.ai_termid.at_addr[0];
-	ai.ai_termid.port = td->td_ucred->cr_audit.ai_termid.at_port;
+	ai.ai_auid = cred->cr_audit.ai_auid;
+	ai.ai_mask = cred->cr_audit.ai_mask;
+	ai.ai_asid = cred->cr_audit.ai_asid;
+	ai.ai_termid.machine = cred->cr_audit.ai_termid.at_addr[0];
+	ai.ai_termid.port = cred->cr_audit.ai_termid.at_port;
 	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
 }
 
