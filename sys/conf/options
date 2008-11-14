@@ -230,7 +230,6 @@ NFS4CLIENT	opt_nfs.h
 # legacy RPC implementation instead of the newer KRPC system (which
 # supports modern features such as RPCSEC_GSS
 NFS_LEGACYRPC	opt_nfs.h
-NFS_NEWRPC	opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
