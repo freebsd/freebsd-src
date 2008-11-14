@@ -107,7 +107,7 @@ struct xs_handle {
 		struct sx request_mutex;
 
 		/* Protect transactions against save/restore. */
-		struct rw_semaphore suspend_mutex;
+		struct sx suspend_mutex;
 };
 
 static struct xs_handle xs_state;
@@ -231,7 +231,7 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 		int err;
 
 		if (req_msg.type == XS_TRANSACTION_START)
-				down_read(&xs_state.suspend_mutex);
+				sx_slock(&xs_state.suspend_mutex);
 
 		sx_xlock(&xs_state.request_mutex);
 
@@ -248,10 +248,12 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 		if ((msg->type == XS_TRANSACTION_END) ||
 			((req_msg.type == XS_TRANSACTION_START) &&
 			 (msg->type == XS_ERROR)))
-				up_read(&xs_state.suspend_mutex);
+				sx_sunlock(&xs_state.suspend_mutex);
 
 		return ret;
 }
+
+static int xenwatch_inline;
 
 /* Send message to xs, get kmalloc'ed reply.  ERR_PTR() on error. */
 static void *xs_talkv(struct xenbus_transaction t,
@@ -305,17 +307,24 @@ static void *xs_talkv(struct xenbus_transaction t,
 				return ERR_PTR(-err);
 		}
 
-		if (xenwatch_running == 0) {
-				while (!TAILQ_EMPTY(&watch_events)) {
+		if ((xenwatch_running == 0) && (xenwatch_inline == 0)) {
+				xenwatch_inline = 1;
+				while (!TAILQ_EMPTY(&watch_events) 
+						&& xenwatch_running == 0) {
+						
 						struct xs_stored_msg *wmsg = TAILQ_FIRST(&watch_events);
 						list_del(&watch_events, wmsg);
-						wmsg->u.watch.handle->callback(
+						printf("handling %p ...", wmsg->u.watch.handle->callback);
+						
+							   wmsg->u.watch.handle->callback(
 								wmsg->u.watch.handle,
 								(const char **)wmsg->u.watch.vec,
 								wmsg->u.watch.vec_size);
-						kfree(wmsg->u.watch.vec);
+						printf("... %p done\n", wmsg->u.watch.handle->callback);
+							   kfree(wmsg->u.watch.vec);
 						kfree(wmsg);
 				}
+				xenwatch_inline = 0;
 		}
 		BUG_ON(msg.type != type);		
 
@@ -521,11 +530,10 @@ int xenbus_transaction_start(struct xenbus_transaction *t)
 {
 		char *id_str;
 
-		down_read(&xs_state.suspend_mutex);
-
+		sx_slock(&xs_state.suspend_mutex);
 		id_str = xs_single(XBT_NIL, XS_TRANSACTION_START, "", NULL);
 		if (IS_ERR(id_str)) {
-				up_read(&xs_state.suspend_mutex);
+				sx_sunlock(&xs_state.suspend_mutex);
 				return PTR_ERR(id_str);
 		}
 
@@ -551,8 +559,8 @@ int xenbus_transaction_end(struct xenbus_transaction t, int abort)
 
 		printf("xenbus_transaction_end ");
 		err = xs_error(xs_single(t, XS_TRANSACTION_END, abortstr, NULL));
-
-		up_read(&xs_state.suspend_mutex);
+		
+		sx_sunlock(&xs_state.suspend_mutex);
 
 		return err;
 }
@@ -691,7 +699,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 
 		sprintf(token, "%lX", (long)watch);
 
-		down_read(&xs_state.suspend_mutex);
+		sx_slock(&xs_state.suspend_mutex);
 
 		mtx_lock(&watches_lock);
 		BUG_ON(find_watch(token) != NULL);
@@ -699,7 +707,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 		mtx_unlock(&watches_lock);
 
 		err = xs_watch(watch->node, token);
-
+		
 		/* Ignore errors due to multiple registration. */
 		if ((err != 0) && (err != -EEXIST)) {
 				mtx_lock(&watches_lock);
@@ -707,7 +715,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 				mtx_unlock(&watches_lock);
 		}
 
-		up_read(&xs_state.suspend_mutex);
+		sx_sunlock(&xs_state.suspend_mutex);
 
 		return err;
 }
@@ -720,8 +728,8 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 		int err;
 
 		sprintf(token, "%lX", (long)watch);
-
-		down_read(&xs_state.suspend_mutex);
+		
+		sx_slock(&xs_state.suspend_mutex);
 
 		mtx_lock(&watches_lock);
 		BUG_ON(!find_watch(token));
@@ -733,7 +741,7 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 				log(LOG_WARNING, "XENBUS Failed to release watch %s: %i\n",
 					   watch->node, err);
 
-		up_read(&xs_state.suspend_mutex);
+		sx_sunlock(&xs_state.suspend_mutex);
 
 		/* Cancel pending watch events. */
 		mtx_lock(&watch_events_lock);
@@ -755,8 +763,8 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 EXPORT_SYMBOL(unregister_xenbus_watch);
 
 void xs_suspend(void)
-{
-		down_write(&xs_state.suspend_mutex);
+{	
+		sx_xlock(&xs_state.suspend_mutex);
 		sx_xlock(&xs_state.request_mutex);
 }
 
@@ -773,15 +781,22 @@ void xs_resume(void)
 				xs_watch(watch->node, token);
 		}
 
-		up_write(&xs_state.suspend_mutex);
+		sx_xunlock(&xs_state.suspend_mutex);
 }
 
 static void xenwatch_thread(void *unused)
 {
 		struct xs_stored_msg *msg;
 
-		DELAY(10000);
 		xenwatch_running = 1;
+
+		DELAY(100000);
+		while (xenwatch_inline) {
+				printf("xenwatch inline still running\n");
+				DELAY(100000);
+		}
+		
+		
 		for (;;) {
 
 				while (list_empty(&watch_events))
@@ -797,7 +812,6 @@ static void xenwatch_thread(void *unused)
 				mtx_unlock(&watch_events_lock);
 
 				if (msg != NULL) {
-						printf("handling watch\n");
 						msg->u.watch.handle->callback(
 								msg->u.watch.handle,
 								(const char **)msg->u.watch.vec,
@@ -906,7 +920,7 @@ int xs_init(void)
 		
 		mtx_init(&xs_state.reply_lock, "state reply", NULL, MTX_DEF);
 		sx_init(&xs_state.request_mutex, "xenstore request");
-		sema_init(&xs_state.suspend_mutex, 1, "xenstore suspend");
+		sx_init(&xs_state.suspend_mutex, "xenstore suspend");
 
 		
 #if 0
