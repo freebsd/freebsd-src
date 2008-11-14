@@ -207,6 +207,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct kaudit_record *ar;
 	struct thread *td;
+	struct ucred *cred;
 
 	KASSERT(sizeof(*ar) == size, ("audit_record_ctor: wrong size"));
 
@@ -219,15 +220,16 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	/*
 	 * Export the subject credential.
 	 */
-	cru2x(td->td_ucred, &ar->k_ar.ar_subj_cred);
-	ar->k_ar.ar_subj_ruid = td->td_ucred->cr_ruid;
-	ar->k_ar.ar_subj_rgid = td->td_ucred->cr_rgid;
-	ar->k_ar.ar_subj_egid = td->td_ucred->cr_groups[0];
-	ar->k_ar.ar_subj_auid = td->td_ucred->cr_audit.ai_auid;
-	ar->k_ar.ar_subj_asid = td->td_ucred->cr_audit.ai_asid;
+	cred = td->td_ucred;
+	cru2x(cred, &ar->k_ar.ar_subj_cred);
+	ar->k_ar.ar_subj_ruid = cred->cr_ruid;
+	ar->k_ar.ar_subj_rgid = cred->cr_rgid;
+	ar->k_ar.ar_subj_egid = cred->cr_groups[0];
+	ar->k_ar.ar_subj_auid = cred->cr_audit.ai_auid;
+	ar->k_ar.ar_subj_asid = cred->cr_audit.ai_asid;
 	ar->k_ar.ar_subj_pid = td->td_proc->p_pid;
-	ar->k_ar.ar_subj_amask = td->td_ucred->cr_audit.ai_mask;
-	ar->k_ar.ar_subj_term_addr = td->td_ucred->cr_audit.ai_termid;
+	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
+	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
 	return (0);
 }
 
@@ -631,6 +633,7 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 {
 	struct kaudit_record *ar;
 	struct au_mask *aumask;
+	struct ucred *cred;
 	au_class_t class;
 	int ret, sorf;
 	char **pathp;
@@ -641,11 +644,12 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	/*
 	 * Make sure we are using the correct preselection mask.
 	 */
-	auid = td->td_ucred->cr_audit.ai_auid;
+	cred = td->td_ucred;
+	auid = cred->cr_audit.ai_auid;
 	if (auid == AU_DEFAUDITID)
 		aumask = &audit_nae_mask;
 	else
-		aumask = &td->td_ucred->cr_audit.ai_mask;
+		aumask = &cred->cr_audit.ai_mask;
 	/*
 	 * It's possible for coredump(9) generation to fail.  Make sure that
 	 * we handle this case correctly for preselection.
@@ -658,6 +662,7 @@ audit_proc_coredump(struct thread *td, char *path, int errcode)
 	if (au_preselect(AUE_CORE, class, aumask, sorf) == 0 &&
 	    audit_pipe_preselect(auid, AUE_CORE, class, sorf, 0) == 0)
 		return;
+
 	/*
 	 * If we are interested in seeing this audit record, allocate it.
 	 * Where possible coredump records should contain a pathname and arg32
