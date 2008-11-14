@@ -181,11 +181,11 @@ xfs_swap_extents(
 	locked = 1;
 
 	/* Check permissions */
-	error = xfs_iaccess(ip, S_IWUSR, NULL);
+	error = xfs_iaccess(ip, VWRITE, NULL);
 	if (error)
 		goto error0;
 
-	error = xfs_iaccess(tip, S_IWUSR, NULL);
+	error = xfs_iaccess(tip, VWRITE, NULL);
 	if (error)
 		goto error0;
 
