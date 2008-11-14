@@ -402,7 +402,7 @@ ipmi_ioctl(struct cdev *cdev, u_long cmd, caddr_t data,
 		if (recv->msg.data_len < len &&
 		    (cmd == IPMICTL_RECEIVE_MSG
 #ifdef IPMICTL_RECEIVE_MSG_32
-		     || cmd == IPMICTL_RECEIVE_MSG
+		     || cmd == IPMICTL_RECEIVE_MSG_32
 #endif
 		    )) {
 			IPMI_UNLOCK(sc);
