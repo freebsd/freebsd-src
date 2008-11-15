@@ -958,7 +958,7 @@ pmc_amd_initialize(void)
 	for (i = 0; i < AMD_NPMCS; i++) {
 		(void) snprintf(amd_pmcdesc[i].pm_descr.pd_name,
 		    sizeof(amd_pmcdesc[i].pm_descr.pd_name), "%s-%d",
-		    name, i-1);
+		    name, i);
 		amd_pmcdesc[i].pm_descr.pd_class = class;
 	}
 
