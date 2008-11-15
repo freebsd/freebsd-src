@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: use_screen.c,v 1.4 2008/03/29 21:19:58 tom Exp $")
+MODULE_ID("$Id: use_screen.c,v 1.6 2008/06/07 19:16:56 tom Exp $")
 
 NCURSES_EXPORT(int)
 use_screen(SCREEN *screen, NCURSES_SCREEN_CB func, void *data)
@@ -46,15 +46,13 @@ use_screen(SCREEN *screen, NCURSES_SCREEN_CB func, void *data)
      * FIXME - add a flag so a given thread can check if _it_ has already
      * recurred through this point, return an error if so.
      */
-    _nc_lock_global(use_screen);
+    _nc_lock_global(curses);
     save_SP = SP;
     set_term(screen);
 
     code = func(screen, data);
 
     set_term(save_SP);
-    _nc_unlock_global(use_screen);
+    _nc_unlock_global(curses);
     returnCode(code);
-
-    return 0;
 }

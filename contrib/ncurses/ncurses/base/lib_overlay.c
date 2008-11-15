@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_overlay.c,v 1.25 2008/04/12 17:21:59 tom Exp $")
+MODULE_ID("$Id: lib_overlay.c,v 1.27 2008/06/07 23:30:34 tom Exp $")
 
 static int
 overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
@@ -55,8 +55,7 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
     T((T_CALLED("overlap(%p,%p,%d)"), src, dst, flag));
 
     if (src != 0 && dst != 0) {
-	_nc_lock_window(src);
-	_nc_lock_window(dst);
+	_nc_lock_global(curses);
 
 	T(("src : begy %ld, begx %ld, maxy %ld, maxx %ld",
 	   (long) src->_begy,
@@ -93,8 +92,7 @@ overlap(const WINDOW *const src, WINDOW *const dst, int const flag)
 			 dmaxrow, dmaxcol,
 			 flag);
 	}
-	_nc_unlock_window(dst);
-	_nc_unlock_window(src);
+	_nc_unlock_global(curses);
     }
     returnCode(rc);
 }
@@ -150,9 +148,7 @@ copywin(const WINDOW *src, WINDOW *dst,
        src, dst, sminrow, smincol, dminrow, dmincol, dmaxrow, dmaxcol, over));
 
     if (src && dst) {
-
-	_nc_lock_window(src);
-	_nc_lock_window(dst);
+	_nc_lock_global(curses);
 
 	bk = AttrOf(dst->_nc_bkgd);
 	mask = ~(attr_t) ((bk & A_COLOR) ? A_COLOR : 0);
@@ -204,8 +200,7 @@ copywin(const WINDOW *src, WINDOW *dst,
 		rc = OK;
 	    }
 	}
-	_nc_unlock_window(dst);
-	_nc_unlock_window(src);
+	_nc_unlock_global(curses);
     }
     returnCode(rc);
 }
