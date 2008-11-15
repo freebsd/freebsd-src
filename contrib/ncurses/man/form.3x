@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form.3x,v 1.21 2008/04/26 17:11:52 tom Exp $
+.\" $Id: form.3x,v 1.22 2008/10/11 20:48:11 tom Exp $
 .TH form 3X ""
 .SH NAME
 \fBform\fR - curses extension for programming forms
@@ -41,10 +41,18 @@ routines, which create and modify form fields; and form routines, which group
 fields into forms, display forms on the screen, and handle interaction with the
 user.
 .PP
-The \fBform\fR library uses the \fBcurses\fR libraries, and a curses
-initialization routine such as \fBinitscr\fR must be called before using any of
-these functions.  To use the \fBform\fR library, link with the options
+The \fBform\fR library uses the \fBcurses\fR libraries.
+To use the \fBform\fR library, link with the options
 \fB-lform -lcurses\fR.
+.PP
+Your program should set up the locale, e.g.,
+.sp
+     \fBsetlocale(LC_ALL, "");\fP
+.sp
+so that input/output processing will work.
+.PP
+A curses initialization routine such as \fBinitscr\fR must be called
+before using any of these functions.
 .
 .SS Current Default Values for Field Attributes
 .

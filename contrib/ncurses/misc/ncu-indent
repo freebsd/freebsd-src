@@ -1,6 +1,6 @@
 #!/bin/sh
 #****************************************************************************
-#* Copyright (c) 2001-2005,2006 Thomas E. Dickey                            *
+#* Copyright (c) 2001-2006,2008 Thomas E. Dickey                            *
 #*                                                                          *
 #* Permission is hereby granted, free of charge, to any person obtaining a  *
 #* copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 #* sale, use or other dealings in this Software without prior written       *
 #* authorization.                                                           *
 #****************************************************************************/
-# $Id: ncu-indent,v 1.16 2006/02/18 17:02:22 tom Exp $
+# $Id: ncu-indent,v 1.17 2008/08/03 15:46:44 tom Exp $
 NOOP=no
 OPTS='
 --blank-lines-after-procedures
@@ -87,6 +87,7 @@ do
 		rm -f "$save" "$test"
 		mv "$name" "$save"
 		sed \
+			-e '/EMPTY_MODULE(/s/)$/);/' \
 			-e '/MODULE_ID(/s/)$/);/' \
 			-e 's,\<GCC_NORETURN;,;//GCC_NORETURN;,' \
 			-e 's,\<GCC_PRINTFLIKE(,;//GCC_PRINTFLIKE(,' \
@@ -98,6 +99,7 @@ do
 		# ${INDENT_PROG-indent} --version
 		${INDENT_PROG-indent} -npro $OPTS "$name"
 		sed \
+			-e '/EMPTY_MODULE(/s/);$/)/' \
 			-e '/MODULE_ID(/s/);$/)/' \
 			-e 's,;[ 	]*//GCC_NORETURN;, GCC_NORETURN;,' \
 			-e 's,;[ 	]*//GCC_PRINTFLIKE(, GCC_PRINTFLIKE(,' \

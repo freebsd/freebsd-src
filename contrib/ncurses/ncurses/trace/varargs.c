@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2003,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.6 2007/07/14 15:51:27 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.7 2008/08/03 15:42:49 tom Exp $")
 
 #ifdef TRACE
 
@@ -180,5 +180,5 @@ _nc_varargs(const char *fmt, va_list ap)
     return (MyBuffer);
 }
 #else
-empty_module(_nc_varargs)
+EMPTY_MODULE(_nc_varargs)
 #endif

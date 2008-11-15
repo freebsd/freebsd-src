@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+dnl Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -28,14 +28,14 @@ dnl***************************************************************************
 dnl
 dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: configure.in,v 1.433 2008/04/12 23:39:06 tom Exp $
+dnl $Id: configure.in,v 1.454 2008/10/18 14:53:32 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://invisible-island.net/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
 AC_PREREQ(2.13.20020210)
-AC_REVISION($Revision: 1.433 $)
+AC_REVISION($Revision: 1.454 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -361,12 +361,7 @@ AC_MSG_RESULT($LD_MODEL)
 
 case $DFT_LWR_MODEL in
 shared)
-AC_MSG_CHECKING(if rpath option should be used)
-AC_ARG_ENABLE(rpath,
-[  --enable-rpath          use rpath option when generating shared libraries],
-[cf_cv_ld_rpath=$enableval],
-[cf_cv_ld_rpath=no])
-AC_MSG_RESULT($cf_cv_ld_rpath)
+CF_ENABLE_RPATH
 AC_MSG_CHECKING(if shared libraries should be relinked during install)
 AC_ARG_ENABLE(relink,
 [  --disable-relink        relink shared libraries during install],
@@ -428,6 +423,8 @@ if test "$use_database" != no ; then
 		[  --with-hashed-db        specify hashed-database library],,
 		[with_hashed_db=no])
 	AC_MSG_RESULT($with_hashed_db)
+else
+	with_hashed_db=no
 fi
 
 AC_MSG_CHECKING(for list of fallback descriptions)
@@ -504,12 +501,13 @@ AC_MSG_RESULT($with_big_core)
 test "$with_big_core" = "yes" && AC_DEFINE(HAVE_BIG_CORE)
 
 ### ISO C only guarantees 512-char strings, we have tables which load faster
-### when constructed using "big" strings.
+### when constructed using "big" strings.  More than the C compiler, the awk
+### program is a limit on most vendor UNIX systems.  Check that we can build.
 AC_MSG_CHECKING(if big-strings option selected)
 AC_ARG_ENABLE(big-strings,
 	[  --disable-big-strings   assume compiler has only standard-size strings],
-	[with_big_strings=no],
-	[with_big_strings=yes])
+	[with_big_strings=$enableval],
+	[CF_AWK_BIG_PRINTF(12000,with_big_strings)])
 AC_MSG_RESULT($with_big_strings)
 
 USE_BIG_STRINGS=0
@@ -681,10 +679,10 @@ if test "$with_widec" = yes ; then
 	CF_PREDEFINE(_XOPEN_SOURCE_EXTENDED)
 	# with_overwrite=no
 	NCURSES_CH_T=cchar_t
-	AC_CHECK_FUNCS(putwc btowc wctob mbtowc wctomb mblen mbrlen mbrtowc)
+	AC_CHECK_FUNCS(putwc btowc wctob mbtowc wctomb mblen mbrlen mbrtowc wcsrtombs mbsrtowcs wcstombs mbstowcs)
 	if test "$ac_cv_func_putwc" != yes ; then
-		CF_LIBUTF8
-		if test "$cf_cv_libutf8" = yes ; then
+		CF_UTF8_LIB
+		if test "$cf_cv_utf8_lib" != no ; then
 			NCURSES_LIBUTF8=1
 		fi
 	fi
@@ -743,6 +741,18 @@ AC_MSG_RESULT($with_tparm_varargs)
 NCURSES_TPARM_VARARGS=0
 test "$with_tparm_varargs" = yes && NCURSES_TPARM_VARARGS=1
 AC_SUBST(NCURSES_TPARM_VARARGS)
+
+###   use option --disable-tic-depends to make libtic not explicitly depend on ncurses/ncursesw
+if test "$with_ticlib" != no ; then
+AC_MSG_CHECKING(if you want tic library to use explicit dependency on ncurses$LIB_SUFFIX library)
+AC_ARG_ENABLE(tic-depends,
+	[  --disable-tic-depends   link tic library without explicit dependency on ncurses library],
+	[with_tic_depends=$enableval],
+	[with_tic_depends=yes])
+AC_MSG_RESULT($with_tic_depends)
+else
+	with_tic_depends=no
+fi
 
 ###   use option --with-bool to override bool's type
 AC_MSG_CHECKING(for type of bool)
@@ -835,6 +845,40 @@ if test "$with_ext_const" = yes ; then
 	NCURSES_CONST=const
 fi
 AC_SUBST(NCURSES_CONST)
+
+###   use option --enable-ext-colors to turn on use of colors beyond 16.
+AC_MSG_CHECKING(if you want to use extended colors)
+AC_ARG_ENABLE(ext-colors,
+	[  --enable-ext-colors     compile for 256-color support],
+	[with_ext_colors=$enableval],
+	[with_ext_colors=no])
+AC_MSG_RESULT($with_ext_colors)
+NCURSES_EXT_COLORS=0
+if test "$with_ext_colors" = yes ; then
+	if test "$with_widec" != yes ; then
+		AC_MSG_ERROR(This option applies only to wide-character library)
+	else
+		# cannot be ABI 5 since it changes sizeof(cchar_t)
+		CF_NCURSES_ABI_6
+	fi
+	NCURSES_EXT_COLORS=1
+	AC_DEFINE(NCURSES_EXT_COLORS)
+fi
+AC_SUBST(NCURSES_EXT_COLORS)
+
+###   use option --enable-ext-mouse to modify coding to support 5-button mice
+AC_MSG_CHECKING(if you want to use extended mouse encoding)
+AC_ARG_ENABLE(ext-mouse,
+	[  --enable-ext-mouse      compile for extended mouse-encoding],
+	[with_ext_mouse=$enableval],
+	[with_ext_mouse=no])
+AC_MSG_RESULT($with_ext_mouse)
+NCURSES_MOUSE_VERSION=1
+if test "$with_ext_mouse" = yes ; then
+	NCURSES_MOUSE_VERSION=2
+	CF_NCURSES_ABI_6
+fi
+AC_SUBST(NCURSES_MOUSE_VERSION)
 
 AC_MSG_CHECKING(if you want \$NCURSES_NO_PADDING code)
 AC_ARG_ENABLE(no-padding,
@@ -935,47 +979,35 @@ AC_ARG_ENABLE(colorfgbg,
 AC_MSG_RESULT($with_colorfgbg)
 test "$with_colorfgbg" = yes && AC_DEFINE(USE_COLORFGBG)
 
-###   use option --enable-ext-colors to turn on use of colors beyond 16.
-AC_MSG_CHECKING(if you want to use experimental extended colors)
-AC_ARG_ENABLE(ext-colors,
-	[  --enable-ext-colors     compile for experimental 256-color support],
-	[with_ext_colors=$enableval],
-	[with_ext_colors=no])
-AC_MSG_RESULT($with_ext_colors)
-NCURSES_EXT_COLORS=0
-if test "$with_ext_colors" = yes ; then
-	if test "$with_widec" != yes ; then
-		AC_MSG_ERROR(This option applies only to wide-character library)
-	else
-		# cannot be ABI 5 since it changes sizeof(cchar_t)
-		CF_NCURSES_ABI_6
-	fi
-	NCURSES_EXT_COLORS=1
-	AC_DEFINE(NCURSES_EXT_COLORS)
-fi
-AC_SUBST(NCURSES_EXT_COLORS)
-
-###   use option --enable-ext-mouse to modify coding to support 5-button mice
-AC_MSG_CHECKING(if you want to use experimental extended mouse encoding)
-AC_ARG_ENABLE(ext-mouse,
-	[  --enable-ext-mouse      compile for experimental mouse-encoding],
-	[with_ext_mouse=$enableval],
-	[with_ext_mouse=no])
-AC_MSG_RESULT($with_ext_mouse)
-NCURSES_MOUSE_VERSION=1
-if test "$with_ext_mouse" = yes ; then
-	NCURSES_MOUSE_VERSION=2
-	CF_NCURSES_ABI_6
-fi
-AC_SUBST(NCURSES_MOUSE_VERSION)
-
 # This is still experimental (20080329), but should ultimately be moved to
 # the script-block --with-normal, etc.
 CF_WITH_PTHREAD
+
+AC_MSG_CHECKING(if you want to use weak-symbols for pthreads)
+AC_ARG_ENABLE(weak-symbols,
+    [  --enable-weak-symbols   enable weak-symbols for pthreads],
+    [use_weak_symbols=$withval],
+    [use_weak_symbols=no])
+AC_MSG_RESULT($use_weak_symbols)
+if test "$use_weak_symbols" = yes ; then
+    CF_WEAK_SYMBOLS
+else
+    cf_cv_weak_symbols=no
+fi
+
+if test $cf_cv_weak_symbols = yes ; then
+    AC_DEFINE(USE_WEAK_SYMBOLS)
+fi
+
+PTHREAD=
 if test "$with_pthread" = "yes" ; then
     AC_DEFINE(USE_PTHREADS)
     enable_reentrant=yes
+    if test $cf_cv_weak_symbols = yes ; then
+        PTHREAD=-lpthread
+    fi
 fi
+AC_SUBST(PTHREAD)
 
 # Reentrant code has to be opaque; there's little advantage to making ncurses
 # opaque outside of that, so there is no --enable-opaque option.  We can use
@@ -992,7 +1024,11 @@ if test "$with_reentrant" = yes ; then
 	cf_cv_enable_opaque="NCURSES_INTERNALS"
 	NCURSES_OPAQUE=1
 	NCURSES_SIZE_T=int
-	LIB_SUFFIX="t${LIB_SUFFIX}"
+    if test $cf_cv_weak_symbols = yes ; then
+        CF_REMOVE_LIB(LIBS,$LIBS,pthread)
+    else
+        LIB_SUFFIX="t${LIB_SUFFIX}"
+    fi
 	AC_DEFINE(USE_REENTRANT)
 	CF_NCURSES_ABI_6
 else
@@ -1297,6 +1333,20 @@ if test -n "$CXX" ; then
 
 	AC_CHECK_HEADERS(iostream typeinfo)
 
+    if test x"$ac_cv_header_iostream" = xyes ; then
+        AC_MSG_CHECKING(if iostream uses std-namespace)
+        AC_TRY_COMPILE([
+#include <iostream>
+using std::endl;
+using std::cerr;],[
+cerr << "testing" << endl;
+],[cf_iostream_namespace=yes],[cf_iostream_namespace=no])
+        AC_MSG_RESULT($cf_iostream_namespace)
+        if test "$cf_iostream_namespace" = yes ; then
+            AC_DEFINE(IOSTREAM_NAMESPACE)
+        fi
+    fi
+
 	CF_BOOL_DECL
 	CF_BOOL_SIZE
 	CF_ETIP_DEFINES
@@ -1527,16 +1577,7 @@ AC_SUBST(DFT_ARG_SUFFIX)dnl the string to append to "-lncurses" ("")
 AC_MSG_RESULT($DFT_ARG_SUFFIX)
 
 AC_MSG_CHECKING(default library-dependency suffix)
-CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_DEP_SUFFIX)dnl
-DFT_LIB_SUFFIX=$DFT_DEP_SUFFIX
-if test $DFT_LWR_MODEL = shared ; then
-	case $cf_cv_system_name in #(vi
-	cygwin*)
-		DFT_DEP_SUFFIX=".dll.a"
-		DFT_LIB_SUFFIX=".dll"
-		;;
-	esac
-fi
+CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_LIB_SUFFIX,DFT_DEP_SUFFIX)dnl
 AC_SUBST(DFT_DEP_SUFFIX)dnl the corresponding library-suffix (".a")
 AC_MSG_RESULT($DFT_DEP_SUFFIX)
 
@@ -1551,7 +1592,7 @@ AC_MSG_CHECKING(c++ library-dependency suffix)
 if test "$with_libtool" != "no"; then
 	CXX_LIB_SUFFIX=$DFT_DEP_SUFFIX
 else
-	CF_LIB_SUFFIX(normal,CXX_LIB_SUFFIX)dnl we normally make a static library
+	CF_LIB_SUFFIX(normal,CXX_LIB_SUFFIX,CXX_DEP_SUFFIX)dnl we normally make a static library
 fi
 AC_MSG_RESULT($CXX_LIB_SUFFIX)
 AC_SUBST(CXX_LIB_SUFFIX)
@@ -1627,7 +1668,11 @@ else
 	TINFO_NAME=${LIB_NAME}
 	TINFO_SUFFIX=${DFT_LIB_SUFFIX}
 	TINFO_ARG_SUFFIX=${LIB_NAME}${DFT_ARG_SUFFIX}
-	TICS_LIST="$SHLIB_LIST -l${LIB_NAME}${DFT_ARG_SUFFIX}"
+	if test "$with_tic_depends" = yes ; then
+		TICS_LIST="$SHLIB_LIST -l${LIB_NAME}${DFT_ARG_SUFFIX}"
+	else
+		TICS_LIST="$SHLIB_LIST"
+	fi
 
 	TINFO_ARGS="-L${LIB_DIR} -l${LIB_NAME}${DFT_ARG_SUFFIX}"
 fi
@@ -1771,6 +1816,7 @@ cf_cv_prog_CC_c_o=$cf_cv_prog_CC_c_o
 cf_cv_prog_CXX_c_o=$cf_cv_prog_CXX_c_o
 cf_cv_rel_version="$cf_cv_rel_version"
 cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
+cf_cv_shared_soname='$cf_cv_shared_soname'
 cf_cv_shlib_version="$cf_cv_shlib_version"
 cf_cv_shlib_version_infix="$cf_cv_shlib_version_infix"
 cf_cv_system_name="$cf_cv_system_name"

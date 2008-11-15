@@ -40,7 +40,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.46 2008/05/03 14:13:51 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.54 2008/09/27 13:09:57 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -58,10 +58,13 @@ _nc_freeall(void)
 	if (SP->_oldnum_list != 0) {
 	    FreeAndNull(SP->_oldnum_list);
 	}
+	if (SP->_panelHook.destroy != 0) {
+	    SP->_panelHook.destroy(SP->_panelHook.stdscr_pseudo_panel);
+	}
     }
 #endif
     if (SP != 0) {
-	_nc_lock_global(windowlist);
+	_nc_lock_global(curses);
 
 	while (_nc_windows != 0) {
 	    bool deleted = FALSE;
@@ -93,23 +96,18 @@ _nc_freeall(void)
 		break;
 	}
 	delscreen(SP);
-	_nc_unlock_global(windowlist);
+	_nc_unlock_global(curses);
     }
     if (cur_term != 0)
 	del_curterm(cur_term);
 
-#if USE_WIDEC_SUPPORT
-    FreeIfNeeded(_nc_wacs);
-#endif
     (void) _nc_printf_string(0, empty_va);
 #ifdef TRACE
     (void) _nc_trace_buf(-1, 0);
 #endif
-
-#if BROKEN_LINKER || USE_REENTRANT
-    FreeIfNeeded(_nc_prescreen.real_acs_map);
+#if USE_WIDEC_SUPPORT
+    FreeIfNeeded(_nc_wacs);
 #endif
-
     _nc_leaks_tinfo();
 
 #if HAVE_LIBDBMALLOC
@@ -131,7 +129,10 @@ _nc_free_and_exit(int code)
     _nc_freeall();
 #ifdef TRACE
     trace(0);			/* close trace file, freeing its setbuf */
-    free(_nc_varargs("?", 0));
+    {
+	static va_list fake;
+	free(_nc_varargs("?", fake));
+    }
 #endif
     fclose(stdout);
     FreeIfNeeded(last_setbuf);
@@ -142,5 +143,15 @@ _nc_free_and_exit(int code)
 NCURSES_EXPORT(void)
 _nc_freeall(void)
 {
+}
+
+NCURSES_EXPORT(void)
+_nc_free_and_exit(int code)
+{
+    if (SP)
+	delscreen(SP);
+    if (cur_term != 0)
+	del_curterm(cur_term);
+    exit(code);
 }
 #endif

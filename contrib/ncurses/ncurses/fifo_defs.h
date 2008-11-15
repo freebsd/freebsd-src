@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2002,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 /*
  * Common macros for lib_getch.c, lib_ungetch.c
  *
- * $Id: fifo_defs.h,v 1.5 2008/05/03 20:08:16 tom Exp $
+ * $Id: fifo_defs.h,v 1.6 2008/06/28 15:52:32 tom Exp $
  */
 
 #ifndef FIFO_DEFS_H

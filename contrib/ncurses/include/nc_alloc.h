@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,9 +27,9 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1996,1997                   *
+ *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.15 2007/02/03 18:40:23 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.16 2008/09/27 22:30:33 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
@@ -39,6 +39,8 @@ extern "C" {
 #endif
 
 #if HAVE_LIBDMALLOC
+#include <string.h>
+#undef strndup		/* workaround for #define in GLIBC 2.7 */
 #include <dmalloc.h>    /* Gray Watson's library */
 #else
 #undef  HAVE_LIBDMALLOC

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* ena_acs, acs_chars */
 
-MODULE_ID("$Id: lib_acs.c,v 1.34 2007/09/29 20:37:13 tom Exp $")
+MODULE_ID("$Id: lib_acs.c,v 1.36 2008/08/16 19:22:55 tom Exp $")
 
 #if BROKEN_LINKER || USE_REENTRANT
 #define MyBuffer _nc_prescreen.real_acs_map
@@ -72,7 +72,8 @@ _nc_init_acs(void)
 	for (j = 1; j < ACS_LEN; ++j) {
 	    real_map[j] = 0;
 	    fake_map[j] = A_ALTCHARSET | j;
-	    SP->_screen_acs_map[j] = FALSE;
+	    if (SP)
+		SP->_screen_acs_map[j] = FALSE;
 	}
     } else {
 	for (j = 1; j < ACS_LEN; ++j) {
@@ -172,7 +173,7 @@ _nc_init_acs(void)
 	for (n = 1, m = 0; n < ACS_LEN; n++) {
 	    if (real_map[n] != 0) {
 		show[m++] = (char) n;
-		show[m++] = ChCharOf(real_map[n]);
+		show[m++] = (char) ChCharOf(real_map[n]);
 	    }
 	}
 	show[m] = 0;
