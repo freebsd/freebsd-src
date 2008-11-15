@@ -4656,6 +4656,9 @@ pmc_cleanup(void)
 			if (md->pmd_pcpu_fini)
 				md->pmd_pcpu_fini(cpu);
 		}
+
+		pmc_md_finalize(md);
+
 		free(md, M_PMC);
 		md = NULL;
 		pmc_restore_cpu_binding(&pb);
