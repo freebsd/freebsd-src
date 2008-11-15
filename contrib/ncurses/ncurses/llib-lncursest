@@ -926,7 +926,7 @@ int	vw_printw(
 #undef vw_scanw
 int	vw_scanw(
 		WINDOW	*a1, 
-		const char *a2, 
+		char	*a2, 
 		va_list	z)
 		{ return(*(int *)0); }
 
@@ -1131,7 +1131,7 @@ int	wgetscrreg(
 NCURSES_BOOL mouse_trafo(
 		int	*a1, 
 		int	*a2, 
-		NCURSES_BOOL	z)
+		NCURSES_BOOL z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./base/lib_getch.c */
@@ -1357,7 +1357,7 @@ void	nofilter(void)
 
 #undef newterm
 SCREEN	*newterm(
-		const char *name, 
+		char	*name, 
 		FILE	*ofp, 
 		FILE	*ifp)
 		{ return(*(SCREEN **)0); }
@@ -1403,6 +1403,11 @@ WINDOW	*_nc_makenew(
 		int	begx, 
 		int	flags)
 		{ return(*(WINDOW **)0); }
+
+#undef _nc_screen_of
+SCREEN	*_nc_screen_of(
+		WINDOW	*win)
+		{ return(*(SCREEN **)0); }
 
 /* ./base/lib_nl.c */
 
@@ -1550,7 +1555,7 @@ int	wnoutrefresh(
 
 #undef restartterm
 int	restartterm(
-		const char *termp, 
+		char	*termp, 
 		int	filenum, 
 		int	*errret)
 		{ return(*(int *)0); }
@@ -1560,20 +1565,20 @@ int	restartterm(
 #undef vwscanw
 int	vwscanw(
 		WINDOW	*win, 
-		const char *fmt, 
+		char	*fmt, 
 		va_list	argp)
 		{ return(*(int *)0); }
 
 #undef scanw
 int	scanw(
-		const char *fmt, 
+		char	*fmt, 
 		...)
 		{ return(*(int *)0); }
 
 #undef wscanw
 int	wscanw(
 		WINDOW	*win, 
-		const char *fmt, 
+		char	*fmt, 
 		...)
 		{ return(*(int *)0); }
 
@@ -1581,7 +1586,7 @@ int	wscanw(
 int	mvscanw(
 		int	y, 
 		int	x, 
-		const char *fmt, 
+		char	*fmt, 
 		...)
 		{ return(*(int *)0); }
 
@@ -1590,7 +1595,7 @@ int	mvwscanw(
 		WINDOW	*win, 
 		int	y, 
 		int	x, 
-		const char *fmt, 
+		char	*fmt, 
 		...)
 		{ return(*(int *)0); }
 
@@ -1699,9 +1704,6 @@ int	ripoffline(
 		{ return(*(int *)0); }
 
 /* ./base/lib_slk.c */
-
-#undef _nc_slk_format
-int	_nc_slk_format;
 
 #undef _nc_slk_initialize
 int	_nc_slk_initialize(
@@ -1832,6 +1834,12 @@ void	_tracedump(
 
 /* ./trace/lib_tracemse.c */
 
+#undef _nc_tracemouse
+char	*_nc_tracemouse(
+		SCREEN	*sp, 
+		MEVENT const *ep)
+		{ return(*(char **)0); }
+
 #undef _tracemouse
 char	*_tracemouse(
 		MEVENT const *ep)
@@ -1849,8 +1857,15 @@ void	_nc_signal_handler(
 /* ./base/lib_ungetch.c */
 
 #undef _nc_fifo_dump
-void	_nc_fifo_dump(void)
+void	_nc_fifo_dump(
+		SCREEN	*sp)
 		{ /* void */ }
+
+#undef _nc_ungetch
+int	_nc_ungetch(
+		SCREEN	*sp, 
+		int	ch)
+		{ return(*(int *)0); }
 
 #undef ungetch
 int	ungetch(
@@ -1992,6 +2007,11 @@ void	_nc_screen_init(void)
 void	_nc_screen_wrap(void)
 		{ /* void */ }
 
+#undef _nc_do_xmc_glitch
+void	_nc_do_xmc_glitch(
+		attr_t	previous)
+		{ /* void */ }
+
 /* ./trace/varargs.c */
 
 typedef enum {
@@ -2031,8 +2051,31 @@ void	_nc_free_and_exit(
 
 /* ./expanded.c */
 
-#undef _nc_expanded
-void	_nc_expanded(void)
+#undef _nc_toggle_attr_on
+void	_nc_toggle_attr_on(
+		attr_t	*S, 
+		attr_t	at)
+		{ /* void */ }
+
+#undef _nc_toggle_attr_off
+void	_nc_toggle_attr_off(
+		attr_t	*S, 
+		attr_t	at)
+		{ /* void */ }
+
+#undef _nc_DelCharCost
+int	_nc_DelCharCost(
+		int	count)
+		{ return(*(int *)0); }
+
+#undef _nc_InsCharCost
+int	_nc_InsCharCost(
+		int	count)
+		{ return(*(int *)0); }
+
+#undef _nc_UpdateAttrs
+void	_nc_UpdateAttrs(
+		chtype	c)
 		{ /* void */ }
 
 /* ./base/legacy_coding.c */
@@ -2094,26 +2137,16 @@ void	_nc_trace_xnames(
 #undef use_screen
 int	use_screen(
 		SCREEN	*screen, 
-		NCURSES_CALLBACK func, 
+		NCURSES_SCREEN_CB func, 
 		void	*data)
 		{ return(*(int *)0); }
 
 /* ./base/use_window.c */
 
-#undef _nc_lock_window
-void	_nc_lock_window(
-		WINDOW	*win)
-		{ /* void */ }
-
-#undef _nc_unlock_window
-void	_nc_unlock_window(
-		WINDOW	*win)
-		{ /* void */ }
-
 #undef use_window
 int	use_window(
 		WINDOW	*win, 
-		NCURSES_CALLBACK func, 
+		NCURSES_WINDOW_CB func, 
 		void	*data)
 		{ return(*(int *)0); }
 
@@ -2167,6 +2200,10 @@ NCURSES_BOOL _nc_is_file_path(
 		const char *path)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef _nc_env_access
+int	_nc_env_access(void)
+		{ return(*(int *)0); }
+
 /* ./tinfo/add_tries.c */
 
 #undef _nc_add_to_try
@@ -2193,20 +2230,16 @@ void	_nc_copy_termtype(
 /* ./codes.c */
 
 #undef _nc_boolcodes
-const char *const *_nc_boolcodes(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_boolcodes(void)
+		{ return(*(char **)0); }
 
 #undef _nc_numcodes
-const char *const *_nc_numcodes(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_numcodes(void)
+		{ return(*(char **)0); }
 
 #undef _nc_strcodes
-const char *const *_nc_strcodes(void)
-		{ return(*(const char **)0); }
-
-#undef _nc_codes_leaks
-void	_nc_codes_leaks(void)
-		{ /* void */ }
+char	*const *_nc_strcodes(void)
+		{ return(*(char **)0); }
 
 /* ./tinfo/comp_error.c */
 
@@ -2318,11 +2351,6 @@ ENTRY	*_nc_delink_entry(
 void	_nc_leaks_tinfo(void)
 		{ /* void */ }
 
-#undef _nc_free_tinfo
-void	_nc_free_tinfo(
-		int	code)
-		{ /* void */ }
-
 /* ./fallback.c */
 
 #undef _nc_fallback
@@ -2370,7 +2398,8 @@ const struct tinfo_fkeys _nc_tinfo_fkeys[] = {0};
 #endif
 
 #undef _nc_init_keytry
-void	_nc_init_keytry(void)
+void	_nc_init_keytry(
+		SCREEN	*sp)
 		{ /* void */ }
 
 /* ./tinfo/lib_acs.c */
@@ -2408,8 +2437,9 @@ int	baudrate(void)
 
 /* ./tinfo/lib_cur_term.c */
 
-#undef cur_term
-TERMINAL *cur_term;
+#undef _nc_cur_term
+TERMINAL *_nc_cur_term(void)
+		{ return(*(TERMINAL **)0); }
 
 #undef set_curterm
 TERMINAL *set_curterm(
@@ -2443,6 +2473,15 @@ SCREEN	*SP;
 NCURSES_GLOBALS _nc_globals;
 #undef _nc_prescreen
 NCURSES_PRESCREEN _nc_prescreen;
+
+#undef _nc_init_pthreads
+void	_nc_init_pthreads(void)
+		{ /* void */ }
+
+#undef _nc_mutex_init
+void	_nc_mutex_init(
+		pthread_mutex_t *obj)
+		{ /* void */ }
 
 #undef _nc_mutex_lock
 int	_nc_mutex_lock(
@@ -2487,14 +2526,16 @@ int	flushinp(void)
 
 struct kn { short offset; int code; };
 
-#undef keyname
-const char *keyname(
+#undef _nc_keyname
+char	*_nc_keyname(
+		SCREEN	*sp, 
 		int	c)
-		{ return(*(const char **)0); }
+		{ return(*(char **)0); }
 
-#undef _nc_keyname_leaks
-void	_nc_keyname_leaks(void)
-		{ /* void */ }
+#undef keyname
+char	*keyname(
+		int	c)
+		{ return(*(char **)0); }
 
 /* ./tinfo/lib_longname.c */
 
@@ -2503,8 +2544,6 @@ char	*longname(void)
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_napms.c */
-
-#include <time.h>
 
 #undef napms
 int	napms(
@@ -2577,6 +2616,7 @@ int	has_key(
 
 #undef _nc_keypad
 int	_nc_keypad(
+		SCREEN	*sp, 
 		NCURSES_BOOL flag)
 		{ return(*(int *)0); }
 
@@ -2622,9 +2662,17 @@ int	intrflush(
 char	*_nc_ttytype(void)
 		{ return(*(char **)0); }
 
+#undef _nc_ptr_Lines
+int	*_nc_ptr_Lines(void)
+		{ return(*(int **)0); }
+
 #undef _nc_LINES
 int	_nc_LINES(void)
 		{ return(*(int *)0); }
+
+#undef _nc_ptr_Cols
+int	*_nc_ptr_Cols(void)
+		{ return(*(int **)0); }
 
 #undef _nc_COLS
 int	_nc_COLS(void)
@@ -2641,7 +2689,7 @@ int	set_tabsize(
 
 #undef _nc_handle_sigwinch
 int	_nc_handle_sigwinch(
-		int	update)
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef use_env
@@ -2651,12 +2699,14 @@ void	use_env(
 
 #undef _nc_get_screensize
 void	_nc_get_screensize(
+		SCREEN	*sp, 
 		int	*linep, 
 		int	*colp)
 		{ /* void */ }
 
 #undef _nc_update_screensize
-void	_nc_update_screensize(void)
+void	_nc_update_screensize(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef _nc_get_locale
@@ -2668,12 +2718,13 @@ int	_nc_unicode_locale(void)
 		{ return(*(int *)0); }
 
 #undef _nc_locale_breaks_acs
-int	_nc_locale_breaks_acs(void)
+int	_nc_locale_breaks_acs(
+		TERMINAL *termp)
 		{ return(*(int *)0); }
 
 #undef _nc_setupterm
 int	_nc_setupterm(
-		const char *tname, 
+		char	*tname, 
 		int	Filedes, 
 		int	*errret, 
 		NCURSES_BOOL reuse)
@@ -2681,7 +2732,7 @@ int	_nc_setupterm(
 
 #undef setupterm
 int	setupterm(
-		const char *tname, 
+		char	*tname, 
 		int	Filedes, 
 		int	*errret)
 		{ return(*(int *)0); }
@@ -2707,23 +2758,19 @@ int	tgetent(
 
 #undef tgetflag
 int	tgetflag(
-		const char *id)
+		char	*id)
 		{ return(*(int *)0); }
 
 #undef tgetnum
 int	tgetnum(
-		const char *id)
+		char	*id)
 		{ return(*(int *)0); }
 
 #undef tgetstr
 char	*tgetstr(
-		const char *id, 
+		char	*id, 
 		char	**area)
 		{ return(*(char **)0); }
-
-#undef _nc_tgetent_leaks
-void	_nc_tgetent_leaks(void)
-		{ /* void */ }
 
 /* ./tinfo/lib_termname.c */
 
@@ -2744,27 +2791,23 @@ char	*tgoto(
 
 #undef tigetflag
 int	tigetflag(
-		const char *str)
+		char	*str)
 		{ return(*(int *)0); }
 
 #undef tigetnum
 int	tigetnum(
-		const char *str)
+		char	*str)
 		{ return(*(int *)0); }
 
 #undef tigetstr
 char	*tigetstr(
-		const char *str)
+		char	*str)
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_tparm.c */
 
 #undef _nc_tparm_err
 int	_nc_tparm_err;
-
-#undef _nc_free_tparm
-void	_nc_free_tparm(void)
-		{ /* void */ }
 
 #undef _nc_tparm_analyze
 int	_nc_tparm_analyze(
@@ -2775,7 +2818,7 @@ int	_nc_tparm_analyze(
 
 #undef tparm
 char	*tparm(
-		const char *string, 
+		char	*string, 
 		...)
 		{ return(*(char **)0); }
 
@@ -2787,6 +2830,11 @@ char	PC;
 NCURSES_OSPEED	ospeed;
 #undef _nc_nulls_sent
 int	_nc_nulls_sent;
+
+#undef _nc_set_no_padding
+void	_nc_set_no_padding(
+		SCREEN	*sp)
+		{ /* void */ }
 
 #undef delay_output
 int	delay_output(
@@ -2875,9 +2923,9 @@ const char *_nc_retrace_cptr(
 		{ return(*(const char **)0); }
 
 #undef _nc_retrace_cvoid_ptr
-const void *_nc_retrace_cvoid_ptr(
-		const void *code)
-		{ return(*(const void **)0); }
+void	*_nc_retrace_cvoid_ptr(
+		void	*code)
+		{ return(*(void **)0); }
 
 #undef _nc_retrace_void_ptr
 void	*_nc_retrace_void_ptr(
@@ -2963,6 +3011,12 @@ char	*_nc_tracebits(void)
 
 /* ./trace/lib_tracechr.c */
 
+#undef _nc_tracechar
+char	*_nc_tracechar(
+		SCREEN	*sp, 
+		int	ch)
+		{ return(*(char **)0); }
+
 #undef _tracechar
 char	*_tracechar(
 		int	ch)
@@ -3008,6 +3062,7 @@ int	resetty(void)
 
 #undef _nc_timed_wait
 int	_nc_timed_wait(
+		SCREEN	*sp, 
 		int	mode, 
 		int	milliseconds, 
 		int	*timeleft)
@@ -3030,32 +3085,28 @@ int	_nc_name_match(
 /* ./names.c */
 
 #undef _nc_boolnames
-const char *const *_nc_boolnames(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_boolnames(void)
+		{ return(*(char **)0); }
 
 #undef _nc_boolfnames
-const char *const *_nc_boolfnames(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_boolfnames(void)
+		{ return(*(char **)0); }
 
 #undef _nc_numnames
-const char *const *_nc_numnames(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_numnames(void)
+		{ return(*(char **)0); }
 
 #undef _nc_numfnames
-const char *const *_nc_numfnames(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_numfnames(void)
+		{ return(*(char **)0); }
 
 #undef _nc_strnames
-const char *const *_nc_strnames(void)
-		{ return(*(const char **)0); }
+char	*const *_nc_strnames(void)
+		{ return(*(char **)0); }
 
 #undef _nc_strfnames
-const char *const *_nc_strfnames(void)
-		{ return(*(const char **)0); }
-
-#undef _nc_names_leaks
-void	_nc_names_leaks(void)
-		{ /* void */ }
+char	*const *_nc_strfnames(void)
+		{ return(*(char **)0); }
 
 /* ./tinfo/read_entry.c */
 
@@ -3085,9 +3136,11 @@ int	_nc_read_entry(
 
 #include <sys/types.h>
 
-#undef _nc_read_termcap
-void	_nc_read_termcap(void)
-		{ /* void */ }
+#undef _nc_read_termcap_entry
+int	_nc_read_termcap_entry(
+		const char *const tn, 
+		TERMTYPE *const tp)
+		{ return(*(int *)0); }
 
 /* ./tinfo/setbuf.c */
 
@@ -3182,10 +3235,16 @@ char	*_nc_trim_sgr0(
 
 /* ./unctrl.c */
 
+#undef _nc_unctrl
+char	*_nc_unctrl(
+		SCREEN	*sp, 
+		chtype	ch)
+		{ return(*(char **)0); }
+
 #undef unctrl
-const char *unctrl(
-		 chtype	ch)
-		{ return(*(const char **)0); }
+char	*unctrl(
+		chtype	ch)
+		{ return(*(char **)0); }
 
 /* ./trace/visbuf.c */
 
@@ -3248,10 +3307,6 @@ void	_nc_merge_entry(
 		TERMTYPE *const from)
 		{ /* void */ }
 
-#undef _nc_alloc_entry_leaks
-void	_nc_alloc_entry_leaks(void)
-		{ /* void */ }
-
 /* ./tinfo/captoinfo.c */
 
 #undef _nc_captoinfo
@@ -3267,10 +3322,6 @@ char	*_nc_infotocap(
 		const char *str, 
 		int const parameterized)
 		{ return(*(char **)0); }
-
-#undef _nc_captoinfo_leaks
-void	_nc_captoinfo_leaks(void)
-		{ /* void */ }
 
 /* ./comp_captab.c */
 
@@ -3290,10 +3341,6 @@ const short *_nc_get_hash_table(
 const struct alias *_nc_get_alias_table(
 		NCURSES_BOOL termcap)
 		{ return(*(const struct alias **)0); }
-
-#undef _nc_comp_captab_leaks
-void	_nc_comp_captab_leaks(void)
-		{ /* void */ }
 
 /* ./tinfo/comp_expand.c */
 
@@ -3356,15 +3403,6 @@ int	_nc_resolve_uses(
 		NCURSES_BOOL fullresolve)
 		{ return(*(int *)0); }
 
-#undef _nc_leaks_tic
-void	_nc_leaks_tic(void)
-		{ /* void */ }
-
-#undef _nc_free_tic
-void	_nc_free_tic(
-		int	code)
-		{ /* void */ }
-
 /* ./tinfo/comp_scan.c */
 
 #undef _nc_syntax
@@ -3407,10 +3445,6 @@ void	_nc_push_token(
 #undef _nc_panic_mode
 void	_nc_panic_mode(
 		char	ch)
-		{ /* void */ }
-
-#undef _nc_comp_scan_leaks
-void	_nc_comp_scan_leaks(void)
 		{ /* void */ }
 
 /* ./tinfo/parse_entry.c */

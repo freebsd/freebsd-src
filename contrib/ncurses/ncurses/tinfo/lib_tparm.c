@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.74 2007/09/29 20:37:13 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.76 2008/08/16 19:22:55 tom Exp $")
 
 /*
  *	char *
@@ -166,7 +166,7 @@ save_char(int c)
     if (c == 0)
 	c = 0200;
     get_space(1);
-    TPS(out_buff)[TPS(out_used)++] = c;
+    TPS(out_buff)[TPS(out_used)++] = (char) c;
 }
 
 static NCURSES_INLINE void
@@ -504,8 +504,12 @@ tparam_internal(const char *string, va_list ap)
     TPS(stack_ptr) = 0;
     if (popcount == 0) {
 	popcount = number;
-	for (i = number - 1; i >= 0; i--)
-	    npush(param[i]);
+	for (i = number - 1; i >= 0; i--) {
+	    if (p_is_s[i])
+		spush(p_is_s[i]);
+	    else
+		npush(param[i]);
+	}
     }
 #ifdef TRACE
     if (USE_TRACEF(TRACE_CALLS)) {
