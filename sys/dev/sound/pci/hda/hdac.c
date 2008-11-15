@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081030_0115"
+#define HDA_DRV_TEST_REV	"20081115_0116"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -4255,9 +4255,9 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	struct hdac_widget *w;
 	int i, j, cnt, max, type, dir, assoc, seq, first, hpredir;
 
-	/* XXX This is redundant */
+	/* Count present associations */
 	max = 0;
-	for (j = 0; j < 16; j++) {
+	for (j = 1; j < 16; j++) {
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 			w = hdac_widget_get(devinfo, i);
 			if (w == NULL || w->enable == 0)
@@ -5123,17 +5123,27 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 		w = hdac_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
-		    (w->wclass.pin.config &
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE) {
-			w->enable = 0;
-			HDA_BOOTHVERBOSE(
-				device_printf(devinfo->codec->sc->dev, 
-				    " Disabling pin nid %d due"
-				    " to None connectivity.\n",
-				    w->nid);
-			);
+		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE) {
+				w->enable = 0;
+				HDA_BOOTHVERBOSE(
+					device_printf(devinfo->codec->sc->dev, 
+					    " Disabling pin nid %d due"
+					    " to None connectivity.\n",
+					    w->nid);
+				);
+			} else if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_ASSOCIATION_MASK) == 0) {
+				w->enable = 0;
+				HDA_BOOTHVERBOSE(
+					device_printf(devinfo->codec->sc->dev, 
+					    " Disabling unassociated"
+					    " pin nid %d.\n",
+					    w->nid);
+				);
+			}
 		}
 	}
 	do {
