@@ -151,8 +151,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PIV:
 		error = pmc_p4_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + P4_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P4_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    pmc_mdep->pmd_npmc));
 		break;
 #endif
 
@@ -168,8 +169,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_PM:
 		error = pmc_p6_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + P6_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + P6_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    pmc_mdep->pmd_npmc));
 		break;
 
 		/*
@@ -179,8 +181,9 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_P5:
 		error = pmc_p5_initialize(pmc_mdep, ncpus);
 
-		KASSERT(md->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS, ("[intel,%d] "
-		    "incorrect npmc count %d", __LINE__, md->pmd_npmc));
+		KASSERT(pmc_mdep->pmd_npmc == TSC_NPMCS + PENTIUM_NPMCS,
+		    ("[intel,%d] incorrect npmc count %d", __LINE__,
+		    md->pmd_npmc));
 		break;
 #endif
 
