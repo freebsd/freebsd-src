@@ -6,33 +6,21 @@ ncurses
 	The beta version can be found at ftp://invisible-island.net/ncurses/
 	or ftp://dickey.his.com/ncurses/
 
-The instructions for importing new release and merge to HEAD can be found
-at FreeBSD wiki:
-
-	http://wiki.freebsd.org/SubversionPrimer/VendorImports
-
 For the import files and directories were pruned by:
 
 	tar -X FREEBSD-Xlist -zxf ncurses-5.7.tar.gz
 
 check if there are any new bits that we don't want.
 
-then imported by:
+The instructions for importing new release and merging to HEAD can be found
+at FreeBSD wiki:
 
-	cvs import -m 'Import ncurses 5.6-20061217 onto the vendor branch' \
-		src/contrib/ncurses NCURSES v5_6_20061217
+	http://wiki.freebsd.org/SubversionPrimer/VendorImports
 
-The date in the tag can be obtained from contrib/ncurses/dist.mk.
-If the version is a snapshot,
+The version tag can be obtained from contrib/ncurses/dist.mk.
 
-	cvs import -m 'Import ncurses 5.6-20080503 snapshot onto the vendor branch' \
-		src/contrib/ncurses NCURSES v5_6_20080503
-
-Remove files that are removed in this release in vendor branch (NCURSES)
-instead of HEAD.
-
-To make local changes to ncurses, simply patch and commit to the main
-branch (aka HEAD).  Never make local changes on the vendor (NCURSES) branch.
+To make local changes to ncurses, simply patch and commit to the trunk
+branch (aka HEAD).  Never make local changes on the vendor branch.
 
 All local changes should be submitted to Thomas Dickey for inclusion in
 the next vendor release. The author is very willing to help us.
@@ -44,19 +32,20 @@ ncurses, go to /usr/ports/devel/ncurses and
 
 Update ncurses_cfg.h and necessary Makefile glues from ${WRKSRC}/build.nowidec.
 Directory for wide character support is ${WRKSRC}/build.widec
-You may have to update ncurses-specific glue in termcap.c.
+You may have to update ncurses-specific glue in termcap.c (check if 
+ncurses/tinfo/read_termcap.c has been changed since last import).
 
 Current local changes:
 
 ncurses/tinfo/comp_scan.c
-  rev 1.2: native termcap tweaking
+  r50620: native termcap tweaking      (cvs r1.2)
 
 ncurses/tinfo/lib_termcap.c
-  rev 1.2: native termcap tweaking
-  rev 1.4: remove GCC_UNUSED for rev 1.2
+  r50620: native termcap tweaking      (cvs r1.2)
+  r50850: remove GCC_UNUSED for r50620 (cvs r1.4)
 
 ncurses/tinfo/read_termcap.c
   This is not used. We have our own src/lib/ncurses/termcap.c
 
 rafan@FreeBSD.org
-9-Jan-2007
+15-Nov-2008
