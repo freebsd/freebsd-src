@@ -38,7 +38,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.16 2008/05/03 22:39:03 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.18 2008/08/03 22:10:44 tom Exp $")
 
 NCURSES_EXPORT(int)
 _nc_get_tty_mode(TTY * buf)
@@ -65,7 +65,8 @@ _nc_get_tty_mode(TTY * buf)
 	    memset(buf, 0, sizeof(*buf));
 
 	TR(TRACE_BITS, ("_nc_get_tty_mode(%d): %s",
-			cur_term->Filedes, _nc_trace_ttymode(buf)));
+			cur_term ? cur_term->Filedes : -1,
+			_nc_trace_ttymode(buf)));
     }
     return (result);
 }
@@ -93,7 +94,8 @@ _nc_set_tty_mode(TTY * buf)
 	    }
 	}
 	TR(TRACE_BITS, ("_nc_set_tty_mode(%d): %s",
-			cur_term->Filedes, _nc_trace_ttymode(buf)));
+			cur_term ? cur_term->Filedes : -1,
+			_nc_trace_ttymode(buf)));
     }
     return (result);
 }
@@ -101,41 +103,49 @@ _nc_set_tty_mode(TTY * buf)
 NCURSES_EXPORT(int)
 def_shell_mode(void)
 {
+    int rc = ERR;
+
     T((T_CALLED("def_shell_mode()")));
 
-    /*
-     * If XTABS was on, remove the tab and backtab capabilities.
-     */
-
-    if (_nc_get_tty_mode(&cur_term->Ottyb) != OK)
-	returnCode(ERR);
+    if (cur_term != 0) {
+	/*
+	 * If XTABS was on, remove the tab and backtab capabilities.
+	 */
+	if (_nc_get_tty_mode(&cur_term->Ottyb) == OK) {
 #ifdef TERMIOS
-    if (cur_term->Ottyb.c_oflag & OFLAGS_TABS)
-	tab = back_tab = NULL;
+	    if (cur_term->Ottyb.c_oflag & OFLAGS_TABS)
+		tab = back_tab = NULL;
 #else
-    if (cur_term->Ottyb.sg_flags & XTABS)
-	tab = back_tab = NULL;
+	    if (cur_term->Ottyb.sg_flags & XTABS)
+		tab = back_tab = NULL;
 #endif
-    returnCode(OK);
+	    rc = OK;
+	}
+    }
+    returnCode(rc);
 }
 
 NCURSES_EXPORT(int)
 def_prog_mode(void)
 {
+    int rc = ERR;
+
     T((T_CALLED("def_prog_mode()")));
 
-    /*
-     * Turn off the XTABS bit in the tty structure if it was on.
-     */
-
-    if (_nc_get_tty_mode(&cur_term->Nttyb) != OK)
-	returnCode(ERR);
+    if (cur_term != 0) {
+	/*
+	 * Turn off the XTABS bit in the tty structure if it was on.
+	 */
+	if (_nc_get_tty_mode(&cur_term->Nttyb) == OK) {
 #ifdef TERMIOS
-    cur_term->Nttyb.c_oflag &= ~OFLAGS_TABS;
+	    cur_term->Nttyb.c_oflag &= ~OFLAGS_TABS;
 #else
-    cur_term->Nttyb.sg_flags &= ~XTABS;
+	    cur_term->Nttyb.sg_flags &= ~XTABS;
 #endif
-    returnCode(OK);
+	    rc = OK;
+	}
+    }
+    returnCode(rc);
 }
 
 NCURSES_EXPORT(int)

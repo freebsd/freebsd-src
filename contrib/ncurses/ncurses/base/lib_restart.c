@@ -36,8 +36,6 @@
  * Terminfo-only terminal setup routines:
  *
  *		int restartterm(const char *, int, int *)
- *		TERMINAL *set_curterm(TERMINAL *)
- *		int del_curterm(TERMINAL *)
  */
 
 #include <curses.priv.h>
@@ -48,7 +46,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_restart.c,v 1.9 2008/05/03 22:43:52 tom Exp $")
+MODULE_ID("$Id: lib_restart.c,v 1.10 2008/06/21 17:31:22 tom Exp $")
 
 NCURSES_EXPORT(int)
 restartterm(NCURSES_CONST char *termp, int filenum, int *errret)

@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: NEWS,v 1.1233 2008/05/03 23:14:39 tom Exp $
+-- $Id: NEWS,v 1.1320 2008/11/02 00:56:22 tom Exp $
 -------------------------------------------------------------------------------
 
 This is a log of changes that ncurses has gone through since Zeyd started
@@ -44,6 +44,238 @@ See the AUTHORS file for the corresponding full names.
 
 Changes through 1.9.9e did not credit all contributions;
 it is not possible to add this information.
+
+20081102 5.7 release for upload to ftp.gnu.org
+
+20081025
+	+ add a manpage to discuss memory leaks.
+	+ add support for shared libraries for QNX (other than libtool, which
+	  does not work well on that platform).
+	+ build-fix for QNX C++ binding.
+
+20081018
+	+ build-fixes for OS/2 EMX.
+	+ modify form library to accept control characters such as newline
+	  in set_field_buffer(), which is compatible with Solaris (report by
+	  Nit Khair).
+	+ modify configure script to assume --without-hashed-db when
+	  --disable-database is used.
+	+ add "-e" option in ncurses/Makefile.in when generating source-files
+	  to force earlier exit if the build environment fails unexpectedly
+	  (prompted by patch by Adrian Bunk).
+	+ change configure script to use CF_UTF8_LIB, improved variant of
+	  CF_LIBUTF8.
+
+20081012
+	+ add teraterm4.59 terminfo entry, use that as primary teraterm entry, rename
+	  original to teraterm2.3 -TD
+	+ update "gnome" terminfo to 2.22.3 -TD
+	+ update "konsole" terminfo to 1.6.6, needs today's fix for tic -TD
+	+ add "aterm" terminfo -TD
+	+ add "linux2.6.26" terminfo -TD
+	+ add logic to tic for cancelling strings in user-defined capabilities,
+	  overlooked til now.
+
+20081011
+	+ update html documentation.
+	+ add -m and -s options to test/keynames.c and test/key_names.c to test
+	  the meta() function with keyname() or key_name(), respectively.
+	+ correct return value of key_name() on error; it is null.
+	+ document some unresolved issues for rpath and pthreads in TO-DO.
+	+ fix a missing prototype for ioctl() on OpenBSD in tset.c
+	+ add configure option --disable-tic-depends to make explicit whether
+	  tic library depends on ncurses/ncursesw library, amends change from
+	  20080823 (prompted by Debian #501421).
+
+20081004
+	+ some build-fixes for configure --disable-ext-funcs (incomplete, but
+	  works for C/C++ parts).
+	+ improve configure-check for awks unable to handle large strings, e.g.
+	  AIX 5.1 whose awk silently gives up on large printf's.
+
+20080927
+	+ fix build for --with-dmalloc by workaround for redefinition of
+	  strndup between string.h and dmalloc.h
+	+ fix build for --disable-sigwinch
+	+ add environment variable NCURSES_GPM_TERMS to allow override to use
+	  GPM on terminals other than "linux", etc.
+	+ disable GPM mouse support when $TERM does not happen to contain
+	  "linux", since Gpm_Open() no longer limits its assertion to terminals
+	  that it might handle, e.g., within "screen" in xterm.
+	+ reset mouse file-descriptor when unloading GPM library (report by
+	  Miroslav Lichvar).
+	+ fix build for --disable-leaks --enable-widec --with-termlib
+	> patch by Juergen Pfeifer:
+	+ use improved initialization for soft-label keys in Ada95 sample code.
+	+ discard internal symbol _nc_slk_format (unused since 20080112).
+	+ move call of slk_paint_info() from _nc_slk_initialize() to
+	  slk_intern_refresh(), improving initialization.
+
+20080925
+	+ fix bug in mouse code for GPM from 20080920 changes (reported in
+	  Debian #500103, also Miroslav Lichvar).
+
+20080920
+	+ fix shared-library rules for cygwin with tic- and tinfo-libraries.
+	+ fix a memory leak when failure to connect to GPM.
+	+ correct check for notimeout() in wgetch() (report on linux.redhat
+	  newsgroup by FurtiveBertie).
+	+ add an example warning-suppression file for valgrind,
+	  misc/ncurses.supp (based on example from Reuben Thomas)
+
+20080913
+	+ change shared-library configuration for OpenBSD, make rpath work.
+	+ build-fixes for using libutf8, e.g., on OpenBSD 3.7
+
+20080907
+	+ corrected fix for --enable-weak-symbols (report by Frederic L W
+	  Meunier).
+
+20080906
+	+ corrected gcc options for building shared libraries on IRIX64.
+	+ add configure check for awk programs unable to handle big-strings,
+	  use that to improve the default for --enable-big-strings option.
+	+ makefile-fixes for --enable-weak-symbols (report by Frederic L W
+	  Meunier).
+	+ update test/configure script.
+	+ adapt ifdef's from library to make test/view.c build when mbrtowc()
+	  is unavailable, e.g., with HPUX 10.20.
+	+ add configure check for wcsrtombs, mbsrtowcs, which are used in
+	  test/ncurses.c, and use wcstombs, mbstowcs instead if available,
+	  fixing build of ncursew for HPUX 11.00
+
+20080830
+	+ fixes to make Ada95 demo_panels() example work.
+	+ modify Ada95 'rain' test program to accept keyboard commands like the
+	  C-version.
+	+ modify BeOS-specific ifdef's to build on Haiku (patch by Scott
+	  Mccreary).
+	+ add configure-check to see if the std namespace is legal for cerr
+	  and endl, to fix a build issue with Tru64.
+	+ consistently use NCURSES_BOOL in lib_gen.c
+	+ filter #line's from lib_gen.c
+	+ change delimiter in MKlib_gen.sh from '%' to '@', to avoid
+	  substitution by IBM xlc to '#' as part of its extensions to digraphs.
+	+ update config.guess, config.sub from
+		http://savannah.gnu.org/projects/config
+	  (caveat - its maintainer removed support for older Linux systems).
+
+20080823
+	+ modify configure check for pthread library to work with OSF/1 5.1,
+	  which uses #define's to associate its header and library.
+	+ use pthread_mutexattr_init() for initializing pthread_mutexattr_t,
+	  makes threaded code work on HPUX 11.23
+	+ fix a bug in demo_menus in freeing menus (cf: 20080804).
+	+ modify configure script for the case where tic library is used (and
+	  possibly renamed) to remove its dependency upon ncurses/ncursew
+	  library (patch by Dr Werner Fink).
+	+ correct manpage for menu_fore() which gave wrong default for
+	  the attribute used to display a selected entry (report by Mike Gran).
+	+ add Eterm-256color, Eterm-88color and rxvt-88color (prompted by
+	  Debian #495815) -TD
+
+20080816
+	+ add configure option --enable-weak-symbols to turn on new feature.
+	+ add configure-check for availability of weak symbols.
+	+ modify linkage with pthread library to use weak symbols so that
+	  applications not linked to that library will not use the mutexes,
+	  etc.  This relies on gcc, and may be platform-specific (patch by Dr
+	  Werner Fink).
+	+ add note to INSTALL to document limitation of renaming of tic library
+	  using the --with-ticlib configure option (report by Dr Werner Fink).
+	+ document (in manpage) why tputs does not detect I/O errors (prompted
+	  by comments by Samuel Thibault).
+	+ fix remaining warnings from Klocwork report.
+
+20080804
+	+ modify _nc_panelhook() data to account for a permanent memory leak.
+	+ fix memory leaks in test/demo_menus
+	+ fix most warnings from Klocwork tool (report by Larry Zhou).
+	+ modify configure script CF_XOPEN_SOURCE macro to add case for
+	  "dragonfly" from xterm #236 changes.
+	+ modify configure script --with-hashed-db to let $LIBS override the
+	  search for the db library (prompted by report by Samson Pierre).
+
+20080726
+	+ build-fixes for gcc 4.3.1 (changes to gnat "warnings", and C inlining
+	  thresholds).
+
+20080713
+	+ build-fix (reports by Christian Ebert, Funda Wang).
+
+20080712
+	+ compiler-warning fixes for Solaris.
+
+20080705
+	+ use NCURSES_MOUSE_MASK() in definition of BUTTON_RELEASE(), etc., to
+	  make those work properly with the "--enable-ext-mouse" configuration
+	  (cf: 20050205).
+	+ improve documentation of build-cc options in INSTALL.
+	+ work-around a bug in gcc 4.2.4 on AIX, which does not pass the
+	  -static/-dynamic flags properly to linker, causing test/bs to
+	  not link.
+
+20080628
+	+ correct some ifdef's needed for the broken-linker configuration.
+	+ make debugging library's $BAUDRATE feature work for termcap
+	  interface.
+	+ make $NCURSES_NO_PADDING feature work for termcap interface (prompted
+	  by comment on FreeBSD mailing list).
+	+ add screen.mlterm terminfo entry -TD
+	+ improve mlterm and mlterm+pcfkeys terminfo entries -TD
+
+20080621
+	+ regenerated html documentation.
+	+ expand manpage description of parameters for form_driver() and
+	  menu_driver() (prompted by discussion with Adam Spragg).
+	+ add null-pointer checks for cur_term in baudrate() and
+	  def_shell_mode(), def_prog_mode()
+	+ fix some memory leaks in delscreen() and wide acs.
+
+20080614
+	+ modify test/ditto.c to illustrate multi-threaded use_screen().
+	+ change CC_SHARED_OPTS from -KPIC to -xcode=pic32 for Solaris.
+	+ add "-shared" option to MK_SHARED_LIB for gcc on Solaris (report
+	  by Poor Yorick).
+
+20080607
+	+ finish changes to wgetch(), making it switch as needed to the
+	  window's actual screen when calling wrefresh() and wgetnstr().  That
+	  allows wgetch() to get used concurrently in different threads with
+	  some minor restrictions, e.g., the application should not delete a
+	  window which is being used in a wgetch().
+	+ simplify mutex's, combining the window- and screen-mutex's.
+
+20080531
+	+ modify wgetch() to use the screen which corresponds to its window
+	  parameter rather than relying on SP; some dependent functions still
+	  use SP internally.
+	+ factor out most use of SP in lib_mouse.c, using parameter.
+	+ add internal _nc_keyname(), replacing keyname() to associate with a
+	  particular SCREEN rather than the global SP.
+	+ add internal _nc_unctrl(), replacing unctrl() to associate with a
+	  particular SCREEN rather than the global SP.
+	+ add internal _nc_tracemouse(), replacing _tracemouse() to eliminate
+	  its associated global buffer _nc_globals.tracemse_buf now in SCREEN.
+	+ add internal _nc_tracechar(), replacing _tracechar() to use SCREEN in
+	  preference to the global _nc_globals.tracechr_buf buffer.
+
+20080524
+	+ modify _nc_keypad() to make it switch temporarily as needed to the
+	  screen which must be updated.
+	+ wrap cur_term variable to help make _nc_keymap() thread-safe, and
+	  always set the screen's copy of this variable in set_curterm().
+	+ restore curs_set() state after endwin()/refresh() (report/patch
+	  Miroslav Lichvar)
+
+20080517
+	+ modify configure script to note that --enable-ext-colors and
+	  --enable-ext-mouse are not experimental, but extensions from
+	  the ncurses ABI 5.
+	+ corrected manpage description of setcchar() (discussion with
+	  Emanuele Giaquinta).
+	+ fix for adding a non-spacing character at the beginning of a line
+	  (report/patch by Miroslav Lichvar).
 
 20080503
 	+ modify screen.* terminfo entries using new screen+fkeys to fix
@@ -375,7 +607,7 @@ it is not possible to add this information.
 
 20070609
 	+ add test/key_name.c
-	+ add stdscr cases to test/inchs.c and test_inch_wide.c
+	+ add stdscr cases to test/inchs.c and test/inch_wide.c
 	+ update test/configure
 	+ correct formatting of DEL (0x7f) in _nc_vischar().
 	+ null-terminate result of wunctrl().
@@ -596,7 +828,7 @@ it is not possible to add this information.
 	  shared libraries on Darwin (report by Michail Vidiassov).
 
 20070210
-	+ add test/inchs.c, test_inch_wide.c, to test win_wchnstr().
+	+ add test/inchs.c, test/inch_wide.c, to test win_wchnstr().
 	+ remove libdl from library list for termlib (report by Miroslav
 	  Lichvar).
 	+ fix configure.in to allow --without-progs --with-termlib (patch by
