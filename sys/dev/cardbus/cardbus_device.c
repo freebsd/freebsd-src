@@ -96,18 +96,34 @@ cardbus_build_cis(device_t cbdev, device_t child, int id,
 	 * CISTPL_END is a special case, it has no length field.
 	 */
 	if (id == CISTPL_END) {
-		if (cis->len + 1 > sizeof(cis->buffer))
+		if (cis->len + 1 > sizeof(cis->buffer)) {
+			cis->len = 0;
 			return (ENOSPC);
+		}
 		cis->buffer[cis->len++] = id;
 		return (0);
 	}
-	if (cis->len + 2 + len > sizeof(cis->buffer))
+	if (cis->len + 2 + len > sizeof(cis->buffer)) {
+		cis->len = 0;
 		return (ENOSPC);
+	}
 	cis->buffer[cis->len++] = id;
 	cis->buffer[cis->len++] = len;
 	for (i = 0; i < len; i++)
 		cis->buffer[cis->len++] = tupledata[i];
 	return (0);
+}
+
+static int
+cardbus_device_buffer_cis(device_t parent, device_t child)
+{
+	struct cardbus_softc *sc;
+	struct tuple_callbacks cb[] = {
+		{CISTPL_GENERIC, "GENERIC", cardbus_build_cis}
+	};
+
+	sc = device_get_softc(parent);
+	return (cardbus_parse_cis(parent, child, cb, &sc->sc_cis));
 }
 
 static	int
@@ -117,9 +133,6 @@ cardbus_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	device_t *kids;
 	int cnt, err;
 	struct cardbus_softc *sc;
-	struct tuple_callbacks cb[] = {
-		{CISTPL_GENERIC, "GENERIC", cardbus_build_cis}
-	};
 
 	sc = dev->si_drv1;
 	if (sc->sc_cis_open)
@@ -128,21 +141,17 @@ cardbus_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	err = device_get_children(parent, &kids, &cnt);
 	if (err)
 		return err;
+	sc->sc_cis.len = 0;
 	if (cnt == 0) {
 		free(kids, M_TEMP);
 		sc->sc_cis_open++;
-		sc->sc_cis = NULL;
 		return (0);
 	}
 	child = kids[0];
 	free(kids, M_TEMP);
-	sc->sc_cis = malloc(sizeof(*sc->sc_cis), M_TEMP, M_ZERO | M_WAITOK);
-	err = cardbus_parse_cis(parent, child, cb, sc->sc_cis);
-	if (err) {
-		free(sc->sc_cis, M_TEMP);
-		sc->sc_cis = NULL;
+	err = cardbus_device_buffer_cis(parent, child);
+	if (err)
 		return (err);
-	}
 	sc->sc_cis_open++;
 	return (0);
 }
@@ -153,8 +162,6 @@ cardbus_close(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct cardbus_softc *sc;
 
 	sc = dev->si_drv1;
-	free(sc->sc_cis, M_TEMP);
-	sc->sc_cis = NULL;
 	sc->sc_cis_open = 0;
 	return (0);
 }
@@ -173,8 +180,8 @@ cardbus_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	sc = dev->si_drv1;
 	/* EOF */
-	if (sc->sc_cis == NULL || uio->uio_offset > sc->sc_cis->len)
+	if (uio->uio_offset >= sc->sc_cis.len)
 		return (0);
-	return (uiomove(sc->sc_cis->buffer + uio->uio_offset,
-	  MIN(uio->uio_resid, sc->sc_cis->len - uio->uio_offset), uio));
+	return (uiomove(sc->sc_cis.buffer + uio->uio_offset,
+	  MIN(uio->uio_resid, sc->sc_cis.len - uio->uio_offset), uio));
 }
