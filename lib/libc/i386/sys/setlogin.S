@@ -52,4 +52,4 @@ SYSCALL(setlogin)
 	movl	$0,CNAME(_logname_valid)
 #endif
 	ret				/* setlogin(name) */
-END(setlogin)
+END(__sys_setlogin)
