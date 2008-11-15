@@ -34,7 +34,6 @@ struct cardbus_devinfo
 	struct pci_devinfo pci;
 	uint8_t        mprefetchable; /* bit mask of prefetchable BARs */
 	uint8_t        mbelow1mb; /* bit mask of BARs which require below 1Mb */
-	uint8_t        ibelow1mb; /* bit mask of BARs which require below 1Mb */
 	uint16_t	mfrid;		/* manufacturer id */
 	uint16_t	prodid;		/* product id */
 	u_int		funcid;		/* function id */
@@ -54,10 +53,10 @@ struct cis_buffer
 
 struct cardbus_softc 
 {
-	/* XXX need mutex XXX */
 	device_t	sc_dev;
+	/* The following fields should in be in struct cardbus_devinfo */
 	struct cdev 	*sc_cisdev;
-	struct cis_buffer *sc_cis;
+	struct cis_buffer sc_cis;
 	int		sc_cis_open;
 };
 
