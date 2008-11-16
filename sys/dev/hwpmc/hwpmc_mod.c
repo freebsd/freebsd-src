@@ -4539,9 +4539,10 @@ pmc_initialize(void)
 		printf(PMC_MODULE_NAME ":");
 		for (n = 0; n < (int) md->pmd_nclass; n++) {
 			pcd = &md->pmd_classdep[n];
-			printf(" %s/%d/0x%b",
+			printf(" %s/%d/%d/0x%b",
 			    pmc_name_of_pmcclass[pcd->pcd_class],
 			    pcd->pcd_num,
+			    pcd->pcd_width,
 			    pcd->pcd_caps,
 			    "\20"
 			    "\1INT\2USR\3SYS\4EDG\5THR"
