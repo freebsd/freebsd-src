@@ -652,7 +652,7 @@ release_futexes(struct proc *p)
 	struct linux_robust_list *entry, *next_entry, *pending;
 	unsigned int limit = 2048, pi, next_pi, pip;
 	struct linux_emuldata *em;
-	l_ulong futex_offset;
+	l_long futex_offset;
 	int rc;
 
 	em = em_find(p, EMUL_DONTLOCK);
@@ -664,7 +664,7 @@ release_futexes(struct proc *p)
 	if (fetch_robust_entry(&entry, PTRIN(&head->list.next), &pi))
 		return;
 
-	if (copyin(&head->futex_offset, &futex_offset, sizeof(l_ulong)))
+	if (copyin(&head->futex_offset, &futex_offset, sizeof(futex_offset)))
 		return;
 
 	if (fetch_robust_entry(&pending, PTRIN(&head->pending_list), &pip))
