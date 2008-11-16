@@ -39,7 +39,7 @@
 typedef	void (*cdevpriv_dtr_t)(void *data);
 .Ed
 .Ft int
-.Fn devfs_get_cdevpriv void **datap
+.Fn devfs_get_cdevpriv "void **datap"
 .Ft int
 .Fn devfs_set_cdevpriv "void *priv" "cdevpriv_dtr_t dtr"
 .Ft void
