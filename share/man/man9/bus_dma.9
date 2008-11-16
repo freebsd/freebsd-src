@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd March 6, 2007
+.Dd November 16, 2008
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -483,9 +483,23 @@ Arguments are as follows:
 .It Fa dmat
 DMA tag.
 .It Fa flags
-The value of this argument is currently undefined and should be
-specified as
-.Ql 0 .
+Are as follows:
+.Bl -tag -width ".Dv BUS_DMA_COHERENT"
+.It Dv BUS_DMA_COHERENT
+Attempt to map the memory loaded with this map such that cache sync
+operations are as cheap as possible.
+This flag is typically set on maps when the memory loaded with these will
+be accessed by both a CPU and a DMA engine, frequently such as control data
+and as opposed to streamable data such as receive and transmit buffers.
+Use of this flag does not remove the requirement of using
+.Fn bus_dmamap_sync ,
+but it may reduce the cost of performing these operations.
+For
+.Fn bus_dmamap_create ,
+the
+.Dv BUS_DMA_COHERENT
+flag is currently implemented on sparc64.
+.El
 .It Fa mapp
 Pointer to a
 .Vt bus_dmamap_t
@@ -551,9 +565,11 @@ and instead should return immediately with an appropriate error.
 The allocated memory will not be cached in the processor caches.
 All memory accesses appear on the bus and are executed
 without reordering.
-Currently the flag is implemented for i386 and amd64 architectures
-only, where it results in the Strong Uncacheable
-PAT to be set for the allocated virtual address range.
+On the amd64 and i386 architectures this flag results in the
+Strong Uncacheable PAT to be set for the allocated virtual address range.
+The
+.Dv BUS_DMA_NOCACHE
+flag is currently implemented on amd64, i386 and sparc64.
 .El
 .El
 .Pp
@@ -758,16 +774,15 @@ If resources are not available,
 .Dv ENOMEM
 is returned.
 .It Dv BUS_DMA_COHERENT
-Attempt to map this memory such that cache sync operations are
-as cheap as possible.
-This flag is typically set on memory that will be accessed by both
-a CPU and a DMA engine, frequently.
-Use of this flag does not remove the requirement of using
-bus_dmamap_sync, but it may reduce the cost of performing
-these operations.
-The
+Attempt to map this memory in a coherent fashion.
+See
+.Fn bus_dmamap_create
+above for a description of this flag.
+For
+.Fn bus_dmamem_alloc ,
+the
 .Dv BUS_DMA_COHERENT
-flag is currently implemented on sparc64 and arm.
+flag is currently implemented on arm and sparc64.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
 .El
