@@ -34,15 +34,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <dev/ppbus/ppbconf.h>
-  
+
 #include "ppbus_if.h"
 
 #include <dev/ppbus/ppbio.h>
-  
+
 MODULE_VERSION(ppbus, 1);
 
 #define DEVTOSOFTC(dev) ((struct ppb_data *)device_get_softc(dev))
- 
+
 /*
  * ppb_poll_bus()
  *
@@ -133,7 +133,7 @@ ppb_set_mode(device_t bus, int mode)
 	int old_mode = ppb_get_mode(bus);
 
 	if (PPBUS_SETMODE(device_get_parent(bus), mode))
-		return -1;
+		return (-1);
 
 	/* XXX yet device mode = ppbus mode = chipset mode */
 	ppb->mode = (mode & PPB_MASK);
