@@ -27,7 +27,7 @@
  *
  */
 #ifndef __PPI_H
-#define __PPI_H
+#define	__PPI_H
 
 #ifndef _KERNEL
 # include <sys/types.h>

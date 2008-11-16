@@ -210,7 +210,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 				__func__, param);
 
 #if 0
-		printf("%s: param = %d, ins = %d, arg = %d, type = %d\n", 
+		printf("%s: param = %d, ins = %d, arg = %d, type = %d\n",
 			__func__, param, ins, arg, type);
 #endif
 
@@ -272,7 +272,7 @@ ppb_MS_microseq(device_t bus, device_t dev, struct ppb_microseq *msq, int *ret)
 
 	mi = msq;
 	for (;;) {
-		switch (mi->opcode) {                                           
+		switch (mi->opcode) {
 		case MS_OP_PUT:
 		case MS_OP_GET:
 
@@ -315,11 +315,10 @@ ppb_MS_microseq(device_t bus, device_t dev, struct ppb_microseq *msq, int *ret)
 			INCR_PC;
 			break;
 
-                case MS_OP_RET:
+		case MS_OP_RET:
 			if (ret)
 				*ret = mi->arg[0].i;	/* return code */
 			return (0);
-                        break;
 
 		default:
 			/* executing microinstructions at ppc level is

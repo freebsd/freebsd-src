@@ -178,29 +178,30 @@ vpo_attach(device_t dev)
 static void
 vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
-        free(ccb, M_TEMP);
+
+	free(ccb, M_TEMP);
 }
 
 static void
 vpo_cam_rescan(struct vpo_data *vpo)
 {
-        struct cam_path *path;
-        union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
+	struct cam_path *path;
+	union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
 
-        if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
-            != CAM_REQ_CMP) {
+	if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
+	    != CAM_REQ_CMP) {
 		/* A failure is benign as the user can do a manual rescan */
 		free(ccb, M_TEMP);
-                return;
+		return;
 	}
 
-        xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-        ccb->ccb_h.func_code = XPT_SCAN_BUS;
-        ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
-        ccb->crcn.flags = CAM_FLAG_NONE;
-        xpt_action(ccb);
+	xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
+	ccb->ccb_h.func_code = XPT_SCAN_BUS;
+	ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
+	ccb->crcn.flags = CAM_FLAG_NONE;
+	xpt_action(ccb);
 
-        /* The scan is in progress now. */
+	/* The scan is in progress now. */
 }
 
 /*
@@ -232,7 +233,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 	}
 
 #ifdef VP0_DEBUG
-	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n",
 		 errno, vpo->vpo_stat, vpo->vpo_count, vpo->vpo_error);
 
 	/* dump of command */
@@ -286,10 +287,10 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
 				&vpo->vpo_error);
 		}
-			
+
 
 #ifdef VP0_DEBUG
-		printf("(sense) vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+		printf("(sense) vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n",
 			errno, vpo->vpo_sense.stat, vpo->vpo_sense.count, vpo->vpo_error);
 #endif
 
@@ -313,7 +314,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		}
 	   } else {
 		/* no sense */
-		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;			
+		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 	   }
 
 	   goto error;
@@ -345,7 +346,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
 			csio->cdb_io.cdb_bytes[0]);
 #endif
-		
+
 		vpo_intr(vpo, csio);
 
 		xpt_done(ccb);
@@ -404,7 +405,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
-		
+
 #ifdef VP0_DEBUG
 		device_printf(vpo->vpo_dev, "XPT_PATH_INQ request\n");
 #endif
@@ -438,9 +439,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 
 static void
 vpo_poll(struct cam_sim *sim)
-{       
-	/* The ZIP is actually always polled throw vpo_action() */
-	return;
+{
+
+	/* The ZIP is actually always polled throw vpo_action(). */
 }
 
 static devclass_t vpo_devclass;
