@@ -218,7 +218,7 @@ static struct ppb_microseq ps2_inbyte_submicroseq[] = {
 static struct ppb_microseq spp_outbyte_submicroseq[] = {
 
 /* loop: */
-	  MS_RASSERT_P(1, MS_REG_DTR), 
+	  MS_RASSERT_P(1, MS_REG_DTR),
 	  MS_CASS(H_nAUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_DELAY(VP0_PULSE),
@@ -233,7 +233,7 @@ static struct ppb_microseq epp17_outstr_body[] = {
 	  MS_CASS(H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
-	  MS_RASSERT_P(1, MS_REG_EPP_D), 
+	  MS_RASSERT_P(1, MS_REG_EPP_D),
 	  MS_BRSET(TIMEOUT, 3 /* error */),	/* EPP timeout? */
 	  MS_DBRA(-3 /* loop */),
 
@@ -248,7 +248,7 @@ static struct ppb_microseq epp17_instr_body[] = {
 	  MS_CASS(PCD | H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
-	  MS_RFETCH_P(1, MS_REG_EPP_D, MS_FETCH_ALL), 
+	  MS_RFETCH_P(1, MS_REG_EPP_D, MS_FETCH_ALL),
 	  MS_BRSET(TIMEOUT, 3 /* error */),	/* EPP timeout? */
 	  MS_DBRA(-3 /* loop */),
 
@@ -297,7 +297,7 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 #ifdef VP0_DEBUG
 		printf("%s: can't request bus!\n", __func__);
 #endif
-		return error;
+		return (error);
 	}
 
 	if (PPB_IN_EPP_MODE(ppbus))
@@ -314,7 +314,7 @@ vpoio_connect(struct vpoio_data *vpo, int how)
  * SCSI reset signal, the drive must be in disk mode
  */
 static void
-vpoio_reset (struct vpoio_data *vpo)
+vpoio_reset(struct vpoio_data *vpo)
 {
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int ret;
@@ -363,7 +363,7 @@ vpoio_detect(struct vpoio_data *vpo)
 
 	/* allocate the bus, then apply microsequences */
 	if ((error = ppb_request_bus(ppbus, vpo->vpo_dev, PPB_DONTWAIT)))
-                return (error);
+		return (error);
 
 	/* Force disconnection */
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
@@ -416,7 +416,7 @@ vpoio_detect(struct vpoio_data *vpo)
 
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq, &ret);
 
-	/* ensure we are disconnected or daisy chained peripheral 
+	/* ensure we are disconnected or daisy chained peripheral
 	 * may cause serious problem to the disk */
 	if (vpoio_in_disk_mode(vpo)) {
 		if (bootverbose)
@@ -499,7 +499,7 @@ vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 	ppb_MS_init_msq(select_microseq, 2,
 			SELECT_TARGET, 1 << target,
 			SELECT_INITIATOR, 1 << initiator);
-				
+
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, select_microseq, &ret);
 
 	if (ret)
@@ -545,7 +545,7 @@ vpoio_wait(struct vpoio_data *vpo, int tmo)
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, wait_microseq, &err);
 
 	if (err)
-		return (0);	 /* command timed out */	
+		return (0);	 /* command timed out */
 
 	return(ret);
 }
@@ -586,7 +586,7 @@ vpoio_probe(device_t dev, struct vpoio_data *vpo)
 int
 vpoio_attach(struct vpoio_data *vpo)
 {
-	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;	
+	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error = 0;
 
@@ -604,7 +604,7 @@ vpoio_attach(struct vpoio_data *vpo)
 		INB_NIBBLE_H, (void *)&(vpo)->vpo_nibble.h,
 		INB_NIBBLE_L, (void *)&(vpo)->vpo_nibble.l,
 		INB_NIBBLE_F, nibble_inbyte_hook,
-		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble); 
+		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble);
 
 	/*
 	 * Initialize mode dependent in/out microsequences
@@ -672,7 +672,7 @@ vpoio_reset_bus(struct vpoio_data *vpo)
  * Send an SCSI command
  *
  */
-int 
+int
 vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count,
 		int *ret)
@@ -695,7 +695,8 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		return (error);
 
 	if (!vpoio_in_disk_mode(vpo)) {
-		*ret = VP0_ECONNECT; goto error;
+		*ret = VP0_ECONNECT;
+		goto error;
 	}
 
 	if ((*ret = vpoio_select(vpo,host,target)))
@@ -719,15 +720,16 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		}
 	}
 
-	/* 
-	 * Completion ... 
+	/*
+	 * Completion ...
 	 */
 
 	*count = 0;
 	for (;;) {
 
 		if (!(r = vpoio_wait(vpo, VP0_LOW_SPINTMO))) {
-			*ret = VP0_ESTATUS_TIMEOUT; goto error;
+			*ret = VP0_ESTATUS_TIMEOUT;
+			goto error;
 		}
 
 		/* stop when the ZIP wants to send status */
@@ -763,13 +765,15 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	}
 
 	if (vpoio_instr(vpo, &l, 1)) {
-		*ret = VP0_EOTHER; goto error;
+		*ret = VP0_EOTHER;
+		goto error;
 	}
 
 	/* check if the ZIP wants to send more status */
 	if (vpoio_wait(vpo, VP0_FAST_SPINTMO) == (char)0xf0)
 		if (vpoio_instr(vpo, &h, 1)) {
-			*ret = VP0_EOTHER+2; goto error;
+			*ret = VP0_EOTHER + 2;
+			goto error;
 		}
 
 	*result = ((int) h << 8) | ((int) l & 0xff);

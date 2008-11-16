@@ -115,7 +115,7 @@ static void
 ppi_disable_intr(device_t ppidev)
 {
 	char r;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 
 	r = ppb_rctr(ppbus);
 	ppb_wctr(ppbus, r & ~IRQENABLE);
@@ -197,7 +197,7 @@ static void
 ppiintr(void *arg)
 {
 	device_t ppidev = (device_t)arg;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 	struct ppi_data *ppi = DEVTOSOFTC(ppidev);
 
 	ppi_disable_intr(ppidev);
@@ -256,7 +256,7 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct ppi_data *ppi = dev->si_drv1;
 	device_t ppidev = ppi->ppi_device;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 	int res;
 
 	if (!(ppi->ppi_flags & HAVE_PPBUS)) {
@@ -270,7 +270,7 @@ ppiopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 #ifdef PERIPH_1284
 		if (ppi->intr_resource) {
 			/* register our interrupt handler */
-			bus_setup_intr(ppidev, ppi->intr_resource, 
+			bus_setup_intr(ppidev, ppi->intr_resource,
 				       INTR_TYPE_TTY, NULL, ppiintr, dev,
 				       &ppi->intr_cookie);
 		}
@@ -286,7 +286,7 @@ ppiclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct ppi_data *ppi = dev->si_drv1;
 	device_t ppidev = ppi->ppi_device;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 
 	ppi->ppi_count --;
 	if (!ppi->ppi_count) {
@@ -328,7 +328,7 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef PERIPH_1284
 	struct ppi_data *ppi = dev->si_drv1;
 	device_t ppidev = ppi->ppi_device;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0;
 
 	switch (ppb_1284_get_state(ppbus)) {
@@ -347,7 +347,7 @@ ppiread(struct cdev *dev, struct uio *uio, int ioflag)
 			 * time to terminate its interrupt
 			 */
 			tsleep(ppi, PPBPRI, "ppiread", 2*hz);
-			
+
 			if ((error = ppb_1284_negociate(ppbus,
 				ppi->ppi_mode = PPB_BYTE, 0)))
 				return (error);
@@ -411,7 +411,7 @@ ppiwrite(struct cdev *dev, struct uio *uio, int ioflag)
 #ifdef PERIPH_1284
 	struct ppi_data *ppi = dev->si_drv1;
 	device_t ppidev = ppi->ppi_device;
-        device_t ppbus = device_get_parent(ppidev);
+	device_t ppbus = device_get_parent(ppidev);
 	int len, error = 0, sent;
 
 #if 0
@@ -548,7 +548,7 @@ ppiioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = ENOTTY;
 		break;
 	}
-    
+
 	return (error);
 }
 
