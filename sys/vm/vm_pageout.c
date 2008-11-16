@@ -944,8 +944,7 @@ rescan0:
 				vp = object->handle;
 				if (vp->v_type == VREG &&
 				    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
-					KASSERT(mp == NULL,
-					    ("vm_pageout_scan: mp != NULL"));
+					mp = NULL;
 					++pageout_lock_miss;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
