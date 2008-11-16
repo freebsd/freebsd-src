@@ -110,9 +110,9 @@
  * ECB. Holds additional information for each SCSI command Comments: We
  * need a separate scsi command block because we may need to overwrite it
  * with a request sense command.  Basicly, we refrain from fiddling with
- * the scsipi_xfer struct (except do the expected updating of return values).
- * We'll generally update: xs->{flags,resid,error,sense,status} and
- * occasionally xs->retries.
+ * the ccb union (except do the expected updating of return values).
+ * We'll generally update: ccb->ccb_h.status and ccb->csio.{resid,
+ * scsi_status,sense_data}.
  */
 struct ncr53c9x_ecb {
 	/* These fields are preserved between alloc and free */
@@ -130,6 +130,7 @@ struct ncr53c9x_ecb {
 #define	ECB_RESET		0x80
 #define	ECB_TENTATIVE_DONE	0x100
 	int timeout;
+	struct callout ch;
 
 	struct {
 		u_char	msg[3];			/* Selection Id msg and tags */
@@ -180,6 +181,12 @@ struct ncr53c9x_linfo {
 	struct ncr53c9x_ecb	*queued[NCR_TAG_DEPTH];
 };
 
+struct ncr53c9x_xinfo {
+	u_char	period;
+	u_char	offset;
+	u_char	width;
+};
+
 struct ncr53c9x_tinfo {
 	int	cmds;		/* # of commands processed */
 	int	dconns;		/* # of disconnects */
@@ -187,18 +194,13 @@ struct ncr53c9x_tinfo {
 	int	perrs;		/* # of parity errors */
 	int	senses;		/* # of request sense commands sent */
 	u_char	flags;
-#define	T_NEGOTIATE	0x02	/* (Re)Negotiate synchronous options */
-#define	T_SYNCMODE	0x08	/* SYNC mode has been negotiated */
-#define	T_SYNCHOFF	0x10	/* SYNC mode for is permanently off */
-#define	T_RSELECTOFF	0x20	/* RE-SELECT mode is off */
-#define	T_TAG		0x40	/* Turn on TAG QUEUEs */
-#define	T_WIDE		0x80	/* Negotiate wide options */
-#define	T_WDTRSENT	0x04	/* WDTR message has been sent to */
-	u_char  period;		/* Period suggestion */
-	u_char  offset;		/* Offset suggestion */
-	u_char  cfg3;		/* per target config 3  */
-	u_char	nextag;		/* Next available tag */
-	u_char  width;		/* width suggesion */
+#define	T_SYNCHOFF	0x01	/* SYNC mode is permanently off */
+#define	T_RSELECTOFF	0x02	/* RE-SELECT mode is off */
+#define	T_TAG		0x04	/* Turn on TAG QUEUEs */
+#define	T_SDTRSENT	0x08	/* SDTR message has been sent to */
+#define	T_WDTRSENT	0x10	/* WDTR message has been sent to */
+	struct ncr53c9x_xinfo curr;
+	struct ncr53c9x_xinfo goal;
 	LIST_HEAD(lun_list, ncr53c9x_linfo) luns;
 	struct ncr53c9x_linfo *lun[NCR_NLUN]; /* For speedy lookups */
 };
@@ -352,7 +354,6 @@ struct ncr53c9x_softc {
 	int sc_features;	/* Chip features */
 	int sc_minsync;		/* Minimum sync period / 4 */
 	int sc_maxxfer;		/* Maximum transfer size */
-	int sc_maxsync;		/* Maximum sync period */
 	int sc_maxoffset;	/* Maximum offset */
 	int sc_maxwidth;	/* Maximum width */
 	int sc_extended_geom;	/* Should we return extended geometry */
@@ -377,12 +378,10 @@ struct ncr53c9x_softc {
 /* values for sc_flags */
 #define	NCR_DROP_MSGI	0x01	/* Discard all msgs (parity err detected) */
 #define	NCR_ABORTING	0x02	/* Bailing out */
-#define	NCR_DOINGDMA	0x04	/* The FIFO data path is active! */
-#define	NCR_SYNCHNEGO	0x08	/* Synch negotiation in progress. */
-#define	NCR_ICCS	0x10	/* Expect status phase results */
-#define	NCR_WAITI	0x20	/* Waiting for non-DMA data to arrive */
-#define	NCR_ATN		0x40	/* ATN asserted */
-#define	NCR_EXPECT_ILLCMD	0x80	/* Expect Illegal Command Interrupt */
+#define	NCR_ICCS	0x04	/* Expect status phase results */
+#define	NCR_WAITI	0x08	/* Waiting for non-DMA data to arrive */
+#define	NCR_ATN		0x10	/* ATN asserted */
+#define	NCR_EXPECT_ILLCMD	0x20	/* Expect Illegal Command Interrupt */
 
 /* values for sc_features */
 #define	NCR_F_HASCFG3	0x01	/* chip has CFG3 register */
@@ -397,9 +396,9 @@ struct ncr53c9x_softc {
 #define	SEND_REJECT		0x0008
 #define	SEND_IDENTIFY		0x0010
 #define	SEND_ABORT		0x0020
-#define	SEND_WDTR		0x0040
-#define	SEND_SDTR		0x0080
-#define	SEND_TAG		0x0100
+#define	SEND_TAG		0x0040
+#define	SEND_WDTR		0x0080
+#define	SEND_SDTR		0x0100
 
 /* SCSI Status codes */
 #define	ST_MASK			0x3e /* bit 0,6,7 is reserved */
@@ -444,6 +443,17 @@ struct ncr53c9x_softc {
 #endif
 
 /*
+ * Macros for locking
+ */
+#define	NCR_LOCK_INIT(_sc)						\
+	mtx_init(&(_sc)->sc_lock, "ncr", "ncr53c9x lock", MTX_DEF);
+#define	NCR_LOCK_INITIALIZED(_sc)	mtx_initialized(&(_sc)->sc_lock)
+#define	NCR_LOCK(_sc)			mtx_lock(&(_sc)->sc_lock)
+#define	NCR_UNLOCK(_sc)			mtx_unlock(&(_sc)->sc_lock)
+#define	NCR_LOCK_ASSERT(_sc, _what)	mtx_assert(&(_sc)->sc_lock, (_what))
+#define	NCR_LOCK_DESTROY(_sc)		mtx_destroy(&(_sc)->sc_lock)
+
+/*
  * DMA macros for NCR53c9x
  */
 #define	NCRDMA_ISINTR(sc)	(*(sc)->sc_glue->gl_dma_isintr)((sc))
@@ -452,6 +462,7 @@ struct ncr53c9x_softc {
 #define	NCRDMA_SETUP(sc, addr, len, datain, dmasize)			\
 	(*(sc)->sc_glue->gl_dma_setup)((sc), (addr), (len), (datain), (dmasize))
 #define	NCRDMA_GO(sc)		(*(sc)->sc_glue->gl_dma_go)((sc))
+#define	NCRDMA_STOP(sc)		(*(sc)->sc_glue->gl_dma_stop)((sc))
 #define	NCRDMA_ISACTIVE(sc)	(*(sc)->sc_glue->gl_dma_isactive)((sc))
 
 /*
@@ -463,9 +474,6 @@ struct ncr53c9x_softc {
 
 int	ncr53c9x_attach(struct ncr53c9x_softc *sc);
 int	ncr53c9x_detach(struct ncr53c9x_softc *sc);
-void	ncr53c9x_action(struct cam_sim *sim, union ccb *ccb);
-void	ncr53c9x_reset(struct ncr53c9x_softc *sc);
 void	ncr53c9x_intr(void *arg);
-void	ncr53c9x_init(struct ncr53c9x_softc *sc, int doreset);
 
 #endif /* _DEV_IC_NCR53C9XVAR_H_ */
