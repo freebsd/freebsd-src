@@ -256,9 +256,12 @@ pmcc_do_list_state(void)
 		    (logical_cpus_mask & (1 << cpu)))
 			continue; /* skip P4-style 'logical' cpus */
 #endif
-		if (pmc_pmcinfo(cpu, &pi) < 0)
+		if (pmc_pmcinfo(cpu, &pi) < 0) {
+			if (errno == ENXIO)
+				continue;
 			err(EX_OSERR, "Unable to get PMC status for CPU %d",
 			    cpu);
+		}
 
 		printf("#CPU %d:\n", c++);
 		npmc = pmc_npmc(cpu);
