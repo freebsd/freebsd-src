@@ -862,7 +862,7 @@ struct linux_robust_list {
 
 struct linux_robust_list_head {
 	struct linux_robust_list	list;
-	l_ulong				futex_offset;
+	l_long				futex_offset;
 	struct linux_robust_list	*pending_list;
 };
 
