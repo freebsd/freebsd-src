@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005, M. Warner Losh
+ * Copyright (c) 2005-2008, M. Warner Losh
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,26 +63,6 @@ static struct cdevsw cardbus_cdevsw = {
 	.d_name =	"cardbus"
 };
 
-int
-cardbus_device_create(struct cardbus_softc *sc)
-{
-	uint32_t minor;
-
-	minor = device_get_unit(sc->sc_dev) << 16;
-	sc->sc_cisdev = make_dev(&cardbus_cdevsw, minor, 0, 0, 0666,
-	    "cardbus%u.cis", device_get_unit(sc->sc_dev));
-	sc->sc_cisdev->si_drv1 = sc;
-	return (0);
-}
-
-int
-cardbus_device_destroy(struct cardbus_softc *sc)
-{
-	if (sc->sc_cisdev)
-		destroy_dev(sc->sc_cisdev);
-	return (0);
-}
-
 static int
 cardbus_build_cis(device_t cbdev, device_t child, int id,
     int len, uint8_t *tupledata, uint32_t start, uint32_t *off,
@@ -115,7 +95,8 @@ cardbus_build_cis(device_t cbdev, device_t child, int id,
 }
 
 static int
-cardbus_device_buffer_cis(device_t parent, device_t child)
+cardbus_device_buffer_cis(device_t parent, device_t child,
+    struct cis_buffer *cbp)
 {
 	struct cardbus_softc *sc;
 	struct tuple_callbacks cb[] = {
@@ -123,46 +104,44 @@ cardbus_device_buffer_cis(device_t parent, device_t child)
 	};
 
 	sc = device_get_softc(parent);
-	return (cardbus_parse_cis(parent, child, cb, &sc->sc_cis));
+	return (cardbus_parse_cis(parent, child, cb, cbp));
+}
+
+int
+cardbus_device_create(struct cardbus_softc *sc, struct cardbus_devinfo *devi,
+    device_t parent, device_t child)
+{
+	uint32_t minor;
+
+	cardbus_device_buffer_cis(parent, child, &devi->sc_cis);
+	minor = (device_get_unit(sc->sc_dev) << 8) + devi->pci.cfg.func;
+	devi->sc_cisdev = make_dev(&cardbus_cdevsw, minor, 0, 0, 0666,
+	    "cardbus%d.%d.cis", device_get_unit(sc->sc_dev),
+	    devi->pci.cfg.func);
+	/* XXX need cardbus%d.cis compat layer here ? */
+	devi->sc_cisdev->si_drv1 = devi;
+	return (0);
+}
+
+int
+cardbus_device_destroy(struct cardbus_devinfo *devi)
+{
+	if (devi->sc_cisdev)
+		destroy_dev(devi->sc_cisdev);
+	return (0);
 }
 
 static	int
 cardbus_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	device_t parent, child;
-	device_t *kids;
-	int cnt, err;
-	struct cardbus_softc *sc;
 
-	sc = dev->si_drv1;
-	if (sc->sc_cis_open)
-		return (EBUSY);
-	parent = sc->sc_dev;
-	err = device_get_children(parent, &kids, &cnt);
-	if (err)
-		return err;
-	sc->sc_cis.len = 0;
-	if (cnt == 0) {
-		free(kids, M_TEMP);
-		sc->sc_cis_open++;
-		return (0);
-	}
-	child = kids[0];
-	free(kids, M_TEMP);
-	err = cardbus_device_buffer_cis(parent, child);
-	if (err)
-		return (err);
-	sc->sc_cis_open++;
 	return (0);
 }
 
 static	int
 cardbus_close(struct cdev *dev, int fflags, int devtype, struct thread *td)
 {
-	struct cardbus_softc *sc;
 
-	sc = dev->si_drv1;
-	sc->sc_cis_open = 0;
 	return (0);
 }
 
@@ -176,12 +155,12 @@ cardbus_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 static	int
 cardbus_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	struct cardbus_softc *sc;
+	struct cardbus_devinfo *devi;
 
-	sc = dev->si_drv1;
+	devi = dev->si_drv1;
 	/* EOF */
-	if (uio->uio_offset >= sc->sc_cis.len)
+	if (uio->uio_offset >= devi->sc_cis.len)
 		return (0);
-	return (uiomove(sc->sc_cis.buffer + uio->uio_offset,
-	  MIN(uio->uio_resid, sc->sc_cis.len - uio->uio_offset), uio));
+	return (uiomove(devi->sc_cis.buffer + uio->uio_offset,
+	  MIN(uio->uio_resid, devi->sc_cis.len - uio->uio_offset), uio));
 }
