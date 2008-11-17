@@ -45,6 +45,7 @@ SUBDIR=	${_ac} \
 	diskinfo \
 	${_dnssec-keygen} \
 	${_dnssec-signzone} \
+	dumpcis \
 	${_editmap} \
 	${_edquota} \
 	${_eeprom} \
@@ -115,7 +116,6 @@ SUBDIR=	${_ac} \
 	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
-	pccard \
 	pciconf \
 	periodic \
 	${_pkg_install} \
