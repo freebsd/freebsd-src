@@ -46,12 +46,6 @@ static const char rcsid[] =
 
 #include "readcis.h"
 
-#ifdef RATOCLAN
-static int	rex5588 = 0;
-#endif
-int isdumpcisfile = 0;
-
-static int read_attr(int, char *, int);
 static int ck_linktarget(int, off_t, int);
 static void cis_info(struct cis *, unsigned char *, int);
 static void device_desc(unsigned char *, int, struct dev_mem *);
@@ -104,6 +98,21 @@ static struct tuple_info tuple_info[] = {
 	{"Terminator", 0xFF, 0},
 	{0, 0, 0}
 };
+
+
+static void *
+xmalloc(int sz)
+{
+	void   *p;
+
+	sz = (sz + 7) & ~7;
+	p = malloc(sz);
+	if (p)
+		bzero(p, sz);
+	else
+		errx(1, "malloc");
+	return (p);
+}
 
 /*
  *	After reading the tuples, decode the relevant ones.
@@ -261,14 +270,14 @@ cis_manuf_id(struct cis *cp, unsigned char *p, int len)
  *	Fills in CIS function ID.
  */
 static void
-cis_func_id(struct cis *cp, unsigned char *p, int len)
+cis_func_id(struct cis *cp, unsigned char *p, int len __unused)
 {
 	cp->func_id1 = *p++;
 	cp->func_id2 = *p++;
 }
 
 static void
-cis_network_ext(struct cis *cp, unsigned char *p, int len)
+cis_network_ext(struct cis *cp, unsigned char *p, int len __unused)
 {
 	int i;
 
@@ -286,68 +295,6 @@ cis_network_ext(struct cis *cp, unsigned char *p, int len)
 		break;
 	}
 }
-
-/*
- *	"FUJITSU LAN Card (FMV-J182)" has broken CIS
- */
-static int
-fmvj182_check(unsigned char *p)
-{
-	char    manuf[BUFSIZ], vers[BUFSIZ];
-
-	p++;			/* major version */
-	p++;			/* minor version */
-	strncpy(manuf, p, sizeof(manuf) - 1);
-	while (*p++);
-	strncpy(vers, p, sizeof(vers) - 1);
-	if (!strcmp(manuf, "FUJITSU") && !strcmp(vers, "LAN Card(FMV-J182)"))
-		return 1;
-	else
-		return 0;
-}
-
-#ifdef RATOCLAN
-/*
- *	"RATOC LAN Card (REX-5588)" has broken CIS
- */
-static int
-rex5588_check(unsigned char *p)
-{
-	char    manuf[BUFSIZ], vers[BUFSIZ];
-
-	p++;			/* major version */
-	p++;			/* minor version */
-	strncpy(manuf, p, sizeof(manuf) - 1);
-	while (*p++);
-	strncpy(vers, p, sizeof(manuf) - 1);
-	if (!strcmp(manuf, "PCMCIA LAN MBH10304  ES"))
-		return 1;
-	else
-		return 0;
-}
-#endif
-
-#ifdef HSSYNTH
-/*
- *	Broken CIS for "HITACHI MICROCOMPUTER SYSTEM LTD." "MSSHVPC02"
- */
-static int
-hss_check(unsigned char *p)
-{
-	char    manuf[BUFSIZ], vers[BUFSIZ];
-
-	p++;			/* major version */
-	p++;			/* minor version */
-	strncpy(manuf, p, sizeof(manuf) - 1);
-	while (*p++);
-	strncpy(vers, p, sizeof(vers) - 1);
-	if (!strcmp(manuf, "HITACHI MICROCOMPUTER SYSTEMS LTD.")
-	 && !strcmp(vers, "MSSHVPC02"))
-		return 1;
-	else
-		return 0;
-}
-#endif	/* HSSYNTH */
 
 /*
  *	device_desc - decode device descriptor.
@@ -374,7 +321,7 @@ device_desc(unsigned char *p, int len, struct dev_mem *dp)
  *	configuration map of card control register.
  */
 static void
-config_map(struct cis *cp, unsigned char *p, int len)
+config_map(struct cis *cp, unsigned char *p, int len __unused)
 {
 	unsigned char *p1;
 	int rlen = (*p & 3) + 1;
@@ -425,7 +372,7 @@ parse_num(int sz, u_char *p, u_char **q, int ofs)
  *	CIS config entry - Decode and build configuration entry.
  */
 static void
-cis_config(struct cis *cp, unsigned char *p, int len)
+cis_config(struct cis *cp, unsigned char *p, int len __unused)
 {
 	int     x;
 	int     i, j;
@@ -440,10 +387,6 @@ cis_config(struct cis *cp, unsigned char *p, int len)
 	} else
 		cp->conf = conf;
  	conf->id = *p & 0x3F;	/* Config index */
-#ifdef RATOCLAN
-	if (rex5588 && conf->id >= 0x08 && conf->id <= 0x1d)
-		conf->id |= 0x20;
-#endif
  	if (*p & 0x40)		/* Default flag */
 		cp->def_config = conf;
 	if (*p++ & 0x80)
@@ -638,7 +581,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	ioctl(fd, PIOCRWFLAG, &flags);
 	lseek(fd, offs, SEEK_SET);
 	do {
-		if (read_attr(fd, &code, 1) != 1) {
+		if (read(fd, &code, 1) != 1) {
 			warn("CIS code read");
 			break;
 		}
@@ -650,7 +593,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		if (code == CIS_END)
 			length = 0;
 		else {
-			if (read_attr(fd, &length, 1) != 1) {
+			if (read(fd, &length, 1) != 1) {
 				warn("CIS len read");
 				break;
 			}
@@ -669,7 +612,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		if (length != 0) {
 			total += length;
 			tp->data = xmalloc(length);
-			if (read_attr(fd, tp->data, length) != length) {
+			if (read(fd, tp->data, length) != length) {
 				warn("CIS read");
 				break;
 			}
@@ -680,18 +623,6 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		 * or the length is illegal.
 		 */
 		tinfo = get_tuple_info(code);
-		if (code == CIS_INFO_V1) {
-			/* Hack for broken CIS of FMV-J182 Ethernet card */
-			fmvj182 = fmvj182_check(tp->data);
-#ifdef RATOCLAN
-			/* Hack for RATOC LAN card */
-			rex5588 = rex5588_check(tp->data);
-#endif /* RATOCLAN */
-#ifdef	HSSYNTH
-			/* Hack for Hitachi Speech Synthesis card */
-			hss = hss_check(tp->data);
-#endif	/* HSSYNTH */
-		}
 		if (tinfo != NULL && (tinfo->length != 255 && tinfo->length > length)) {
 			printf("code %s ignored\n", tuple_name(code));
 			tp->code = CIS_NULL;
@@ -715,7 +646,7 @@ ck_linktarget(int fd, off_t offs, int flag)
 
 	ioctl(fd, PIOCRWFLAG, &flag);
 	lseek(fd, offs, SEEK_SET);
-	if (read_attr(fd, blk, 5) != 5)
+	if (read(fd, blk, 5) != 5)
 		return (0);
 	if (blk[0] == 0x13 &&
 	    blk[1] == 0x3 &&
@@ -741,29 +672,6 @@ find_tuple_in_list(struct tuple_list *tl, unsigned char code)
 	return (tp);
 }
 
-static int
-read_attr(int fd, char *bp, int len)
-{
-	char    blk[1024], *p = blk;
-	int     i, l;
-	
-	if (isdumpcisfile)
-		return (read(fd, bp, len));
-	if (len > sizeof(blk) / 2)
-		len = sizeof(blk) / 2;
-	l = i = read(fd, blk, len * 2);
-	if (i <= 0) {
-		printf("Read return %d bytes (expected %d)\n", i, len * 2);
-		return (i);
-	}
-	while (i > 0) {
-		*bp++ = *p++;
-		p++;
-		i -= 2;
-	}
-	return (l / 2);
-}
-
 /*
  *	return table entry for code.
  */
@@ -778,7 +686,7 @@ get_tuple_info(unsigned char code)
 	return (0);
 }
 
-char *
+const char *
 tuple_name(unsigned char code)
 {
 	struct tuple_info *tp;
