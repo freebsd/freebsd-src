@@ -189,14 +189,21 @@ namei(struct nameidata *ndp)
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
 
-	if (cnp->cn_pnbuf[0] != '/' && ndp->ni_dirfd != AT_FDCWD) {
-		error = fgetvp(td, ndp->ni_dirfd, &dp);
-		FILEDESC_SUNLOCK(fdp);
-		if (error == 0 && dp->v_type != VDIR) {
-			vfslocked = VFS_LOCK_GIANT(dp->v_mount);
-			vrele(dp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			error = ENOTDIR;
+	dp = NULL;
+	if (cnp->cn_pnbuf[0] != '/') {
+		if (ndp->ni_startdir != NULL) {
+			dp = ndp->ni_startdir;
+			error = 0;
+		} else if (ndp->ni_dirfd != AT_FDCWD)
+			error = fgetvp(td, ndp->ni_dirfd, &dp);
+		if (error != 0 || dp != NULL) {
+			FILEDESC_SUNLOCK(fdp);
+			if (error == 0 && dp->v_type != VDIR) {
+				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
+				vrele(dp);
+				VFS_UNLOCK_GIANT(vfslocked);
+				error = ENOTDIR;
+			}
 		}
 		if (error) {
 			uma_zfree(namei_zone, cnp->cn_pnbuf);
@@ -206,10 +213,16 @@ namei(struct nameidata *ndp)
 #endif
 			return (error);
 		}
-	} else {
+	}
+	if (dp == NULL) {
 		dp = fdp->fd_cdir;
 		VREF(dp);
 		FILEDESC_SUNLOCK(fdp);
+		if (ndp->ni_startdir != NULL) {
+			vfslocked = VFS_LOCK_GIANT(ndp->ni_startdir->v_mount);
+			vrele(ndp->ni_startdir);
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 	}
 	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	for (;;) {

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/cred.h>
 #include <sys/vfs.h>
@@ -110,60 +111,12 @@ vfs_optionisset(const vfs_t *vfsp, const char *opt, char **argp)
 }
 
 int
-traverse(vnode_t **cvpp, int lktype)
-{
-	kthread_t *td = curthread;
-	vnode_t *cvp;
-	vnode_t *tvp;
-	vfs_t *vfsp;
-	int error;
-
-	cvp = *cvpp;
-	tvp = NULL;
-
-	/*
-	 * If this vnode is mounted on, then we transparently indirect
-	 * to the vnode which is the root of the mounted file system.
-	 * Before we do this we must check that an unmount is not in
-	 * progress on this vnode.
-	 */
-
-	for (;;) {
-		/*
-		 * Reached the end of the mount chain?
-		 */
-		vfsp = vn_mountedvfs(cvp);
-		if (vfsp == NULL)
-			break;
-		/*
-		 * tvp is NULL for *cvpp vnode, which we can't unlock.
-		 */
-		if (tvp != NULL)
-			vput(cvp);
-		else
-			vrele(cvp);
-
-		/*
-		 * The read lock must be held across the call to VFS_ROOT() to
-		 * prevent a concurrent unmount from destroying the vfs.
-		 */
-		error = VFS_ROOT(vfsp, lktype, &tvp, td);
-		if (error != 0)
-			return (error);
-		cvp = tvp;
-	}
-
-	*cvpp = cvp;
-	return (0);
-}
-
-int
 domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
     char *fspec, int fsflags)
 {
 	struct mount *mp;
 	struct vfsconf *vfsp;
-	struct ucred *newcr, *oldcr;
+	struct ucred *cr;
 	int error;
 
 	/*
@@ -203,29 +156,31 @@ domount(kthread_t *td, vnode_t *vp, const char *fstype, char *fspath,
 
 	/*
 	 * Set the mount level flags.
-	 * crdup() can sleep, so do it before acquiring a mutex.
 	 */
-	newcr = crdup(kcred);
-	MNT_ILOCK(mp);
 	if (fsflags & MNT_RDONLY)
 		mp->mnt_flag |= MNT_RDONLY;
 	mp->mnt_flag &=~ MNT_UPDATEMASK;
 	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
 	/*
 	 * Unprivileged user can trigger mounting a snapshot, but we don't want
-	 * him to unmount it, so we switch to privileged credentials.
+	 * him to unmount it, so we switch to privileged of original mount.
 	 */
-	oldcr = mp->mnt_cred;
-	mp->mnt_cred = newcr;
+	crfree(mp->mnt_cred);
+	mp->mnt_cred = crdup(vp->v_mount->mnt_cred);
 	mp->mnt_stat.f_owner = mp->mnt_cred->cr_uid;
-	MNT_IUNLOCK(mp);
-	crfree(oldcr);
 	/*
 	 * Mount the filesystem.
 	 * XXX The final recipients of VFS_MOUNT just overwrite the ndp they
 	 * get.  No freeing of cn_pnbuf.
 	 */
+	/*
+	 * XXX: This is evil, but we can't mount a snapshot as a regular user.
+	 * XXX: Is is safe when snapshot is mounted from within a jail?
+	 */
+	cr = td->td_ucred;
+	td->td_ucred = kcred;
 	error = VFS_MOUNT(mp, td);
+	td->td_ucred = cr;
 
 	if (!error) {
 		if (mp->mnt_opt != NULL)

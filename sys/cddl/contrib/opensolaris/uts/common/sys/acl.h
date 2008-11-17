@@ -17,25 +17,30 @@
  * information: Portions Copyright [yyyy] [name of copyright owner]
  *
  * CDDL HEADER END
- *
- * $FreeBSD$
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#ifndef _OPENSOLARIS_SYS_ACL_H_
-#define	_OPENSOLARIS_SYS_ACL_H_
+#ifndef _SYS_ACL_H
+#define	_SYS_ACL_H
 
-#include_next <sys/acl.h>
+#pragma ident	"%Z%%M%	%I%	%E% SMI"
+
+#include <sys/types.h>
+#include <sys/acl_impl.h>
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 #define	MAX_ACL_ENTRIES		(1024)	/* max entries of each type */
-
-typedef struct acl_entry	aclent_t;
-#define	a_type	ae_tag
-#define	a_id	ae_id
-#define	a_perm	ae_perm
+typedef struct acl {
+	int		a_type;		/* the type of ACL entry */
+	uid_t		a_id;		/* the entry in -uid or gid */
+	o_mode_t	a_perm;		/* the permission field */
+} aclent_t;
 
 typedef struct ace {
 	uid_t		a_who;		/* uid or gid */
@@ -44,7 +49,8 @@ typedef struct ace {
 	uint16_t	a_type;		/* allow or deny */
 } ace_t;
 
-#if 0
+typedef struct acl_info acl_t;
+
 /*
  * The following are Defined types for an aclent_t.
  */
@@ -57,7 +63,7 @@ typedef struct ace {
 #define	ACL_DEFAULT	(0x1000)	/* default flag */
 /* default object owner */
 #define	DEF_USER_OBJ	(ACL_DEFAULT | USER_OBJ)
-/* defalut additional users */
+/* default additional users */
 #define	DEF_USER	(ACL_DEFAULT | USER)
 /* default owning group */
 #define	DEF_GROUP_OBJ	(ACL_DEFAULT | GROUP_OBJ)
@@ -67,7 +73,6 @@ typedef struct ace {
 #define	DEF_CLASS_OBJ	(ACL_DEFAULT | CLASS_OBJ)
 /* default other entry */
 #define	DEF_OTHER_OBJ	(ACL_DEFAULT | OTHER_OBJ)
-#endif
 
 /*
  * The following are defined for ace_t.
@@ -97,6 +102,7 @@ typedef struct ace {
 #define	ACE_SUCCESSFUL_ACCESS_ACE_FLAG	0x0010
 #define	ACE_FAILED_ACCESS_ACE_FLAG	0x0020
 #define	ACE_IDENTIFIER_GROUP		0x0040
+#define	ACE_INHERITED_ACE		0x0080
 #define	ACE_OWNER			0x1000
 #define	ACE_GROUP			0x2000
 #define	ACE_EVERYONE			0x4000
@@ -106,12 +112,60 @@ typedef struct ace {
 #define	ACE_SYSTEM_AUDIT_ACE_TYPE	0x0002
 #define	ACE_SYSTEM_ALARM_ACE_TYPE	0x0003
 
+#define	ACL_AUTO_INHERIT		0x0001
+#define	ACL_PROTECTED			0x0002
+#define	ACL_DEFAULTED			0x0004
+#define	ACL_FLAGS_ALL			(ACL_AUTO_INHERIT|ACL_PROTECTED| \
+    ACL_DEFAULTED)
+
+#ifdef _KERNEL
+
+/*
+ * These are only applicable in a CIFS context.
+ */
+#define	ACE_ACCESS_ALLOWED_COMPOUND_ACE_TYPE		0x04
+#define	ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE		0x05
+#define	ACE_ACCESS_DENIED_OBJECT_ACE_TYPE		0x06
+#define	ACE_SYSTEM_AUDIT_OBJECT_ACE_TYPE		0x07
+#define	ACE_SYSTEM_ALARM_OBJECT_ACE_TYPE		0x08
+#define	ACE_ACCESS_ALLOWED_CALLBACK_ACE_TYPE		0x09
+#define	ACE_ACCESS_DENIED_CALLBACK_ACE_TYPE		0x0A
+#define	ACE_ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE	0x0B
+#define	ACE_ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE	0x0C
+#define	ACE_SYSTEM_AUDIT_CALLBACK_ACE_TYPE		0x0D
+#define	ACE_SYSTEM_ALARM_CALLBACK_ACE_TYPE		0x0E
+#define	ACE_SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE	0x0F
+#define	ACE_SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE	0x10
+
+#define	ACE_ALL_TYPES	0x001F
+
+typedef struct ace_object {
+	uid_t		a_who;		/* uid or gid */
+	uint32_t	a_access_mask;	/* read,write,... */
+	uint16_t	a_flags;	/* see below */
+	uint16_t	a_type;		/* allow or deny */
+	uint8_t		a_obj_type[16];	/* obj type */
+	uint8_t		a_inherit_obj_type[16];  /* inherit obj */
+} ace_object_t;
+
+#endif
+
 #define	ACE_ALL_PERMS	(ACE_READ_DATA|ACE_LIST_DIRECTORY|ACE_WRITE_DATA| \
     ACE_ADD_FILE|ACE_APPEND_DATA|ACE_ADD_SUBDIRECTORY|ACE_READ_NAMED_ATTRS| \
     ACE_WRITE_NAMED_ATTRS|ACE_EXECUTE|ACE_DELETE_CHILD|ACE_READ_ATTRIBUTES| \
     ACE_WRITE_ATTRIBUTES|ACE_DELETE|ACE_READ_ACL|ACE_WRITE_ACL| \
     ACE_WRITE_OWNER|ACE_SYNCHRONIZE)
 
+#define	ACE_READ_PERMS	(ACE_READ_DATA|ACE_READ_ACL|ACE_READ_ATTRIBUTES| \
+    ACE_READ_NAMED_ATTRS)
+
+#define	ACE_WRITE_PERMS	(ACE_WRITE_DATA|ACE_APPEND_DATA|ACE_WRITE_ATTRIBUTES| \
+    ACE_WRITE_NAMED_ATTRS)
+
+#define	ACE_MODIFY_PERMS (ACE_READ_DATA|ACE_LIST_DIRECTORY|ACE_WRITE_DATA| \
+    ACE_ADD_FILE|ACE_APPEND_DATA|ACE_ADD_SUBDIRECTORY|ACE_READ_NAMED_ATTRS| \
+    ACE_WRITE_NAMED_ATTRS|ACE_EXECUTE|ACE_DELETE_CHILD|ACE_READ_ATTRIBUTES| \
+    ACE_WRITE_ATTRIBUTES|ACE_DELETE|ACE_READ_ACL|ACE_SYNCHRONIZE)
 /*
  * The following flags are supported by both NFSv4 ACLs and ace_t.
  */
@@ -121,21 +175,21 @@ typedef struct ace {
     ACE_INHERIT_ONLY_ACE | \
     ACE_IDENTIFIER_GROUP)
 
-#define	ACE_TYPE_FLAGS	(ACE_OWNER|ACE_GROUP|ACE_EVERYONE|ACE_IDENTIFIER_GROUP)
+#define	ACE_TYPE_FLAGS		(ACE_OWNER|ACE_GROUP|ACE_EVERYONE| \
+    ACE_IDENTIFIER_GROUP)
+#define	ACE_INHERIT_FLAGS	(ACE_FILE_INHERIT_ACE| \
+    ACE_DIRECTORY_INHERIT_ACE|ACE_NO_PROPAGATE_INHERIT_ACE|ACE_INHERIT_ONLY_ACE)
 
-#if 0
 /* cmd args to acl(2) for aclent_t  */
 #define	GETACL			1
 #define	SETACL			2
 #define	GETACLCNT		3
-#endif
 
 /* cmd's to manipulate ace acls. */
 #define	ACE_GETACL		4
 #define	ACE_SETACL		5
 #define	ACE_GETACLCNT		6
 
-#if 0
 /* minimal acl entries from GETACLCNT */
 #define	MIN_ACL_ENTRIES		4
 
@@ -175,6 +229,7 @@ typedef struct ace {
 #define	ACL_APPEND_ID	0x1 	/* append uid/gid to user/group entries */
 #define	ACL_COMPACT_FMT	0x2 	/* build ACL in ls -V format */
 #define	ACL_NORESOLVE	0x4	/* don't do name service lookups */
+#define	ACL_SID_FMT	0x8	/* use usersid/groupsid when appropriate */
 
 /*
  * Legacy aclcheck errors for aclent_t ACLs
@@ -238,6 +293,8 @@ extern int acl();
 extern int facl();
 #endif	/* defined(__STDC__) */
 
+#ifdef	__cplusplus
+}
 #endif
 
-#endif /* _OPENSOLARIS_SYS_ACL_H */
+#endif /* _SYS_ACL_H */

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -30,8 +30,7 @@
 #include <sys/unique.h>
 
 static avl_tree_t unique_avl;
-static kmutex_t unique_mtx;	/* Lock never initialized. */
-SX_SYSINIT(unique, &unique_mtx, "unique lock");
+static kmutex_t unique_mtx;
 
 typedef struct unique {
 	avl_node_t un_link;
@@ -58,12 +57,22 @@ unique_init(void)
 {
 	avl_create(&unique_avl, unique_compare,
 	    sizeof (unique_t), offsetof(unique_t, un_link));
+	mutex_init(&unique_mtx, NULL, MUTEX_DEFAULT, NULL);
+}
+
+void
+unique_fini(void)
+{
+	avl_destroy(&unique_avl);
+	mutex_destroy(&unique_mtx);
 }
 
 uint64_t
 unique_create(void)
 {
-	return (unique_insert(0));
+	uint64_t value = unique_insert(0);
+	unique_remove(value);
+	return (value);
 }
 
 uint64_t

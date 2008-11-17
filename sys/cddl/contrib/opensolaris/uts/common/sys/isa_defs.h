@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions
  * and limitations under the License.
  *
+ *
  * When distributing Covered Code, include this CDDL HEADER in each
  * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
  * If applicable, add the following below this CDDL HEADER, with the
@@ -20,14 +21,12 @@
  */
 
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef	_SYS_ISA_DEFS_H
 #define	_SYS_ISA_DEFS_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * This header file serves to group a set of well known defines and to
@@ -209,6 +208,10 @@
  *
  * _OBP
  *	This indicates the firmware interface is OBP.
+ *
+ * _SOFT_HOSTID
+ *	This indicates that the implementation obtains the hostid
+ *	from the file /etc/hostid, rather than from hardware.
  */
 
 #ifdef	__cplusplus
@@ -277,6 +280,7 @@ extern "C" {
 #define	__i386_COMPAT
 #define	_PSM_MODULES
 #define	_RTC_CONFIG
+#define	_SOFT_HOSTID
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
@@ -336,53 +340,11 @@ extern "C" {
 #define	_FIRMWARE_NEEDS_FDISK
 #define	_PSM_MODULES
 #define	_RTC_CONFIG
+#define	_SOFT_HOSTID
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
 #elif defined(__arm__)
-
-/*
- * Define the appropriate "processor characteristics"
- */
-#define	_STACK_GROWS_DOWNWARD
-#define	_LONG_LONG_LTOH
-#define	_BIT_FIELDS_LTOH
-#define	_IEEE_754
-#define	_CHAR_IS_SIGNED
-#define	_BOOL_ALIGNMENT			1
-#define	_CHAR_ALIGNMENT			1
-#define	_SHORT_ALIGNMENT		2
-#define	_INT_ALIGNMENT			4
-#define	_FLOAT_ALIGNMENT		4
-#define	_FLOAT_COMPLEX_ALIGNMENT	4
-#define	_LONG_ALIGNMENT			4
-#define	_LONG_LONG_ALIGNMENT		4
-#define	_DOUBLE_ALIGNMENT		4
-#define	_DOUBLE_COMPLEX_ALIGNMENT	4
-#define	_LONG_DOUBLE_ALIGNMENT		4
-#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	4
-#define	_POINTER_ALIGNMENT		4
-#define	_MAX_ALIGNMENT			4
-#define	_ALIGNMENT_REQUIRED		0
-
-#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
-
-/*
- * Define the appropriate "implementation choices".
- */
-#define	_ILP32
-#if !defined(_I32LPx) && defined(_KERNEL)
-#define	_I32LPx
-#endif
-#define	_SUNOS_VTOC_16
-#define	_DMA_USES_PHYSADDR
-#define	_FIRMWARE_NEEDS_FDISK
-#define	_PSM_MODULES
-#define	_RTC_CONFIG
-#define	_DONT_USE_1275_GENERIC_NAMES
-#define	_HAVE_CPUID_INSN
-
-#elif defined(__mips__)
 
 /*
  * Define the appropriate "processor characteristics"
@@ -541,7 +503,7 @@ extern "C" {
 #define	_POINTER_ALIGNMENT		8
 #define	_MAX_ALIGNMENT			16
 
-#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGMENT
+#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
 
 /*
  * Define the appropriate "implementation choices"

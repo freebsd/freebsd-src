@@ -39,6 +39,10 @@
 extern "C" {
 #endif
 
+#ifndef ABS
+#define	ABS(a)	((a) < 0 ? -(a) : (a))
+#endif
+
 /*
  * Macro for checking power of 2 address alignment.
  */

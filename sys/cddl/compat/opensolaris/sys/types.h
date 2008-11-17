@@ -44,13 +44,15 @@ typedef u_char		uchar_t;
 typedef u_short		ushort_t;
 typedef u_long		ulong_t;
 typedef long long	longlong_t;  
-typedef unsigned long long	u_longlong_t;
+typedef unsigned long long u_longlong_t;
 typedef off_t		off64_t;
 typedef id_t		taskid_t;
 typedef id_t		projid_t;
 typedef id_t		poolid_t;
 typedef id_t		zoneid_t;
 typedef id_t		ctid_t;
+typedef	mode_t		o_mode_t;
+typedef	uint64_t	pgcnt_t;
 
 #ifdef _KERNEL
 
@@ -60,8 +62,8 @@ typedef id_t		ctid_t;
 typedef	short		index_t;
 typedef	off_t		offset_t;
 typedef	long		ptrdiff_t;	/* pointer difference */
-typedef	void		pathname_t;
 typedef	int64_t		rlim64_t;
+typedef	int		major_t;
 
 #else
 #ifdef NEED_SOLARIS_BOOLEAN
@@ -80,7 +82,6 @@ typedef	short		pri_t;
 typedef	int32_t		daddr32_t;
 typedef	int32_t		time32_t;
 typedef	u_longlong_t	diskaddr_t;
-typedef	ushort_t	o_mode_t;	/* old file attribute type */
 
 #endif	/* !_KERNEL */
 

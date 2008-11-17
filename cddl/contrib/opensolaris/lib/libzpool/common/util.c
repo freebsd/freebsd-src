@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <assert.h>
 #include <sys/zfs_context.h>
@@ -67,46 +65,58 @@ nicenum(uint64_t num, char *buf)
 }
 
 static void
-show_vdev_stats(const char *desc, nvlist_t *nv, int indent)
+show_vdev_stats(const char *desc, const char *ctype, nvlist_t *nv, int indent)
 {
+	vdev_stat_t *vs;
+	vdev_stat_t v0 = { 0 };
+	uint64_t sec;
+	uint64_t is_log = 0;
 	nvlist_t **child;
 	uint_t c, children;
-	vdev_stat_t *vs;
-	uint64_t sec;
 	char used[6], avail[6];
 	char rops[6], wops[6], rbytes[6], wbytes[6], rerr[6], werr[6], cerr[6];
+	char *prefix = "";
 
-	if (indent == 0) {
-		(void) printf("                     "
+	if (indent == 0 && desc != NULL) {
+		(void) printf("                           "
 		    " capacity   operations   bandwidth  ---- errors ----\n");
-		(void) printf("description          "
+		(void) printf("description                "
 		    "used avail  read write  read write  read write cksum\n");
 	}
 
-	VERIFY(nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_STATS,
-	    (uint64_t **)&vs, &c) == 0);
+	if (desc != NULL) {
+		(void) nvlist_lookup_uint64(nv, ZPOOL_CONFIG_IS_LOG, &is_log);
 
-	sec = MAX(1, vs->vs_timestamp / NANOSEC);
+		if (is_log)
+			prefix = "log ";
 
-	nicenum(vs->vs_alloc, used);
-	nicenum(vs->vs_space - vs->vs_alloc, avail);
-	nicenum(vs->vs_ops[ZIO_TYPE_READ] / sec, rops);
-	nicenum(vs->vs_ops[ZIO_TYPE_WRITE] / sec, wops);
-	nicenum(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes);
-	nicenum(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes);
-	nicenum(vs->vs_read_errors, rerr);
-	nicenum(vs->vs_write_errors, werr);
-	nicenum(vs->vs_checksum_errors, cerr);
+		if (nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_STATS,
+		    (uint64_t **)&vs, &c) != 0)
+			vs = &v0;
 
-	(void) printf("%*s%*s%*s%*s %5s %5s %5s %5s %5s %5s %5s\n",
-	    indent, "",
-	    indent - 19 - (vs->vs_space ? 0 : 12), desc,
-	    vs->vs_space ? 6 : 0, vs->vs_space ? used : "",
-	    vs->vs_space ? 6 : 0, vs->vs_space ? avail : "",
-	    rops, wops, rbytes, wbytes, rerr, werr, cerr);
+		sec = MAX(1, vs->vs_timestamp / NANOSEC);
 
-	if (nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN,
-	    &child, &children) != 0)
+		nicenum(vs->vs_alloc, used);
+		nicenum(vs->vs_space - vs->vs_alloc, avail);
+		nicenum(vs->vs_ops[ZIO_TYPE_READ] / sec, rops);
+		nicenum(vs->vs_ops[ZIO_TYPE_WRITE] / sec, wops);
+		nicenum(vs->vs_bytes[ZIO_TYPE_READ] / sec, rbytes);
+		nicenum(vs->vs_bytes[ZIO_TYPE_WRITE] / sec, wbytes);
+		nicenum(vs->vs_read_errors, rerr);
+		nicenum(vs->vs_write_errors, werr);
+		nicenum(vs->vs_checksum_errors, cerr);
+
+		(void) printf("%*s%s%*s%*s%*s %5s %5s %5s %5s %5s %5s %5s\n",
+		    indent, "",
+		    prefix,
+		    indent + strlen(prefix) - 25 - (vs->vs_space ? 0 : 12),
+		    desc,
+		    vs->vs_space ? 6 : 0, vs->vs_space ? used : "",
+		    vs->vs_space ? 6 : 0, vs->vs_space ? avail : "",
+		    rops, wops, rbytes, wbytes, rerr, werr, cerr);
+	}
+
+	if (nvlist_lookup_nvlist_array(nv, ctype, &child, &children) != 0)
 		return;
 
 	for (c = 0; c < children; c++) {
@@ -120,7 +130,7 @@ show_vdev_stats(const char *desc, nvlist_t *nv, int indent)
 		(void) strcpy(tname, cname);
 		if (nvlist_lookup_uint64(cnv, ZPOOL_CONFIG_NPARITY, &np) == 0)
 			tname[strlen(tname)] = '0' + np;
-		show_vdev_stats(tname, cnv, indent + 2);
+		show_vdev_stats(tname, ctype, cnv, indent + 2);
 		free(tname);
 	}
 }
@@ -131,14 +141,16 @@ show_pool_stats(spa_t *spa)
 	nvlist_t *config, *nvroot;
 	char *name;
 
-	spa_config_enter(spa, RW_READER, FTAG);
-	config = spa_config_generate(spa, NULL, -1ULL, B_TRUE);
-	spa_config_exit(spa, FTAG);
+	VERIFY(spa_get_stats(spa_name(spa), &config, NULL, 0) == 0);
 
 	VERIFY(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
 	    &nvroot) == 0);
 	VERIFY(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
 	    &name) == 0);
 
-	show_vdev_stats(name, nvroot, 0);
+	show_vdev_stats(name, ZPOOL_CONFIG_CHILDREN, nvroot, 0);
+	show_vdev_stats(NULL, ZPOOL_CONFIG_L2CACHE, nvroot, 0);
+	show_vdev_stats(NULL, ZPOOL_CONFIG_SPARES, nvroot, 0);
+
+	nvlist_free(config);
 }

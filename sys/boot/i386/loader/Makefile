@@ -17,6 +17,12 @@ CFLAGS+=	-DLOADER_FIREWIRE_SUPPORT
 LIBFIREWIRE=	${.OBJDIR}/../libfirewire/libfirewire.a
 .endif
 
+# Put LOADER_ZFS_SUPPORT=yes in /etc/make.conf for ZFS support
+.if defined(LOADER_ZFS_SUPPORT)
+CFLAGS+=	-DLOADER_ZFS_SUPPORT
+LIBZFS=		${.OBJDIR}/../../zfs/libzfsboot.a
+.endif
+
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
@@ -98,8 +104,8 @@ FILES+=	loader.rc
 # XXX crt0.o needs to be first for pxeboot(8) to work
 OBJS=	${BTXCRT} 
 
-DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBI386} ${LIBSTAND}
-LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBI386} -lstand
+DPADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
+LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} -lstand
 
 .include <bsd.prog.mk>
 
