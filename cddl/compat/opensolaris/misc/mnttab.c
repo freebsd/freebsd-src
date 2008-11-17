@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mntent.h>
 #include <sys/mnttab.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static char *
 mntopt(char **p)

@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/txg_impl.h>
@@ -37,9 +35,18 @@
 
 static void txg_sync_thread(void *arg);
 static void txg_quiesce_thread(void *arg);
-static void txg_timelimit_thread(void *arg);
 
-int txg_time = 5;	/* max 5 seconds worth of delta per txg */
+int zfs_txg_timeout = 30;	/* max seconds worth of delta per txg */
+extern int zfs_txg_synctime;
+
+SYSCTL_DECL(_vfs_zfs);
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, txg, CTLFLAG_RW, 0, "ZFS TXG");
+TUNABLE_INT("vfs.zfs.txg.timeout", &zfs_txg_timeout);
+SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, timeout, CTLFLAG_RDTUN, &zfs_txg_timeout, 0,
+    "Maximum seconds worth of delta per txg");
+TUNABLE_INT("vfs.zfs.txg.synctime", &zfs_txg_synctime);
+SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime, CTLFLAG_RDTUN, &zfs_txg_synctime,
+    0, "Target seconds to sync a txg");
 
 /*
  * Prepare the txg subsystem.
@@ -48,14 +55,19 @@ void
 txg_init(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
-	int c, i;
+	int c;
 	bzero(tx, sizeof (tx_state_t));
 
 	tx->tx_cpu = kmem_zalloc(max_ncpus * sizeof (tx_cpu_t), KM_SLEEP);
+
 	for (c = 0; c < max_ncpus; c++) {
+		int i;
+
 		mutex_init(&tx->tx_cpu[c].tc_lock, NULL, MUTEX_DEFAULT, NULL);
-		for (i = 0; i < TXG_SIZE; i++)
-			cv_init(&tx->tx_cpu[c].tc_cv[i], NULL, CV_DEFAULT, NULL);
+		for (i = 0; i < TXG_SIZE; i++) {
+			cv_init(&tx->tx_cpu[c].tc_cv[i], NULL, CV_DEFAULT,
+			    NULL);
+		}
 	}
 
 	rw_init(&tx->tx_suspend, NULL, RW_DEFAULT, NULL);
@@ -64,7 +76,6 @@ txg_init(dsl_pool_t *dp, uint64_t txg)
 	cv_init(&tx->tx_sync_done_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tx->tx_quiesce_more_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tx->tx_quiesce_done_cv, NULL, CV_DEFAULT, NULL);
-	cv_init(&tx->tx_timeout_exit_cv, NULL, CV_DEFAULT, NULL);
 	cv_init(&tx->tx_exit_cv, NULL, CV_DEFAULT, NULL);
 
 	tx->tx_open_txg = txg;
@@ -77,12 +88,11 @@ void
 txg_fini(dsl_pool_t *dp)
 {
 	tx_state_t *tx = &dp->dp_tx;
-	int c, i;
+	int c;
 
 	ASSERT(tx->tx_threads == 0);
 
 	cv_destroy(&tx->tx_exit_cv);
-	cv_destroy(&tx->tx_timeout_exit_cv);
 	cv_destroy(&tx->tx_quiesce_done_cv);
 	cv_destroy(&tx->tx_quiesce_more_cv);
 	cv_destroy(&tx->tx_sync_done_cv);
@@ -91,9 +101,11 @@ txg_fini(dsl_pool_t *dp)
 	mutex_destroy(&tx->tx_sync_lock);
 
 	for (c = 0; c < max_ncpus; c++) {
+		int i;
+
+		mutex_destroy(&tx->tx_cpu[c].tc_lock);
 		for (i = 0; i < TXG_SIZE; i++)
 			cv_destroy(&tx->tx_cpu[c].tc_cv[i]);
-		mutex_destroy(&tx->tx_cpu[c].tc_lock);
 	}
 
 	kmem_free(tx->tx_cpu, max_ncpus * sizeof (tx_cpu_t));
@@ -115,15 +127,17 @@ txg_sync_start(dsl_pool_t *dp)
 
 	ASSERT(tx->tx_threads == 0);
 
-	tx->tx_threads = 3;
+	tx->tx_threads = 2;
 
 	tx->tx_quiesce_thread = thread_create(NULL, 0, txg_quiesce_thread,
 	    dp, 0, &p0, TS_RUN, minclsyspri);
 
-	tx->tx_sync_thread = thread_create(NULL, 0, txg_sync_thread,
-	    dp, 0, &p0, TS_RUN, minclsyspri);
-
-	tx->tx_timelimit_thread = thread_create(NULL, 0, txg_timelimit_thread,
+	/*
+	 * The sync thread can need a larger-than-default stack size on
+	 * 32-bit x86.  This is due in part to nested pools and
+	 * scrub_visitbp() recursion.
+	 */
+	tx->tx_sync_thread = thread_create(NULL, 12<<10, txg_sync_thread,
 	    dp, 0, &p0, TS_RUN, minclsyspri);
 
 	mutex_exit(&tx->tx_sync_lock);
@@ -148,12 +162,12 @@ txg_thread_exit(tx_state_t *tx, callb_cpr_t *cpr, kthread_t **tpp)
 }
 
 static void
-txg_thread_wait(tx_state_t *tx, callb_cpr_t *cpr, kcondvar_t *cv, int secmax)
+txg_thread_wait(tx_state_t *tx, callb_cpr_t *cpr, kcondvar_t *cv, uint64_t time)
 {
 	CALLB_CPR_SAFE_BEGIN(cpr);
 
-	if (secmax)
-		(void) cv_timedwait(cv, &tx->tx_sync_lock, secmax * hz);
+	if (time)
+		(void) cv_timedwait(cv, &tx->tx_sync_lock, time);
 	else
 		cv_wait(cv, &tx->tx_sync_lock);
 
@@ -172,22 +186,21 @@ txg_sync_stop(dsl_pool_t *dp)
 	/*
 	 * Finish off any work in progress.
 	 */
-	ASSERT(tx->tx_threads == 3);
+	ASSERT(tx->tx_threads == 2);
 	txg_wait_synced(dp, 0);
 
 	/*
-	 * Wake all 3 sync threads (one per state) and wait for them to die.
+	 * Wake all sync threads and wait for them to die.
 	 */
 	mutex_enter(&tx->tx_sync_lock);
 
-	ASSERT(tx->tx_threads == 3);
+	ASSERT(tx->tx_threads == 2);
 
 	tx->tx_exiting = 1;
 
 	cv_broadcast(&tx->tx_quiesce_more_cv);
 	cv_broadcast(&tx->tx_quiesce_done_cv);
 	cv_broadcast(&tx->tx_sync_more_cv);
-	cv_broadcast(&tx->tx_timeout_exit_cv);
 
 	while (tx->tx_threads != 0)
 		cv_wait(&tx->tx_exit_cv, &tx->tx_sync_lock);
@@ -279,22 +292,29 @@ txg_sync_thread(void *arg)
 	dsl_pool_t *dp = arg;
 	tx_state_t *tx = &dp->dp_tx;
 	callb_cpr_t cpr;
+	uint64_t start, delta;
 
 	txg_thread_enter(tx, &cpr);
 
+	start = delta = 0;
 	for (;;) {
+		uint64_t timer, timeout = zfs_txg_timeout * hz;
 		uint64_t txg;
 
 		/*
 		 * We sync when there's someone waiting on us, or the
-		 * quiesce thread has handed off a txg to us.
+		 * quiesce thread has handed off a txg to us, or we have
+		 * reached our timeout.
 		 */
-		while (!tx->tx_exiting &&
+		timer = (delta >= timeout ? 0 : timeout - delta);
+		while (!tx->tx_exiting && timer > 0 &&
 		    tx->tx_synced_txg >= tx->tx_sync_txg_waiting &&
 		    tx->tx_quiesced_txg == 0) {
 			dprintf("waiting; tx_synced=%llu waiting=%llu dp=%p\n",
 			    tx->tx_synced_txg, tx->tx_sync_txg_waiting, dp);
-			txg_thread_wait(tx, &cpr, &tx->tx_sync_more_cv, 0);
+			txg_thread_wait(tx, &cpr, &tx->tx_sync_more_cv, timer);
+			delta = LBOLT - start;
+			timer = (delta > timeout ? 0 : timeout - delta);
 		}
 
 		/*
@@ -325,10 +345,13 @@ txg_sync_thread(void *arg)
 		rw_exit(&tx->tx_suspend);
 
 		dprintf("txg=%llu quiesce_txg=%llu sync_txg=%llu\n",
-			txg, tx->tx_quiesce_txg_waiting,
-			tx->tx_sync_txg_waiting);
+		    txg, tx->tx_quiesce_txg_waiting, tx->tx_sync_txg_waiting);
 		mutex_exit(&tx->tx_sync_lock);
+
+		start = LBOLT;
 		spa_sync(dp->dp_spa, txg);
+		delta = LBOLT - start;
+
 		mutex_enter(&tx->tx_sync_lock);
 		rw_enter(&tx->tx_suspend, RW_WRITER);
 		tx->tx_synced_txg = txg;
@@ -383,13 +406,43 @@ txg_quiesce_thread(void *arg)
 	}
 }
 
+/*
+ * Delay this thread by 'ticks' if we are still in the open transaction
+ * group and there is already a waiting txg quiesing or quiesced.  Abort
+ * the delay if this txg stalls or enters the quiesing state.
+ */
+void
+txg_delay(dsl_pool_t *dp, uint64_t txg, int ticks)
+{
+	tx_state_t *tx = &dp->dp_tx;
+	int timeout = LBOLT + ticks;
+
+	/* don't delay if this txg could transition to quiesing immediately */
+	if (tx->tx_open_txg > txg ||
+	    tx->tx_syncing_txg == txg-1 || tx->tx_synced_txg == txg-1)
+		return;
+
+	mutex_enter(&tx->tx_sync_lock);
+	if (tx->tx_open_txg > txg || tx->tx_synced_txg == txg-1) {
+		mutex_exit(&tx->tx_sync_lock);
+		return;
+	}
+
+	while (LBOLT < timeout &&
+	    tx->tx_syncing_txg < txg-1 && !txg_stalled(dp))
+		(void) cv_timedwait(&tx->tx_quiesce_more_cv, &tx->tx_sync_lock,
+		    timeout - LBOLT);
+
+	mutex_exit(&tx->tx_sync_lock);
+}
+
 void
 txg_wait_synced(dsl_pool_t *dp, uint64_t txg)
 {
 	tx_state_t *tx = &dp->dp_tx;
 
 	mutex_enter(&tx->tx_sync_lock);
-	ASSERT(tx->tx_threads == 3);
+	ASSERT(tx->tx_threads == 2);
 	if (txg == 0)
 		txg = tx->tx_open_txg;
 	if (tx->tx_sync_txg_waiting < txg)
@@ -412,7 +465,7 @@ txg_wait_open(dsl_pool_t *dp, uint64_t txg)
 	tx_state_t *tx = &dp->dp_tx;
 
 	mutex_enter(&tx->tx_sync_lock);
-	ASSERT(tx->tx_threads == 3);
+	ASSERT(tx->tx_threads == 2);
 	if (txg == 0)
 		txg = tx->tx_open_txg + 1;
 	if (tx->tx_quiesce_txg_waiting < txg)
@@ -426,37 +479,20 @@ txg_wait_open(dsl_pool_t *dp, uint64_t txg)
 	mutex_exit(&tx->tx_sync_lock);
 }
 
-static void
-txg_timelimit_thread(void *arg)
-{
-	dsl_pool_t *dp = arg;
-	tx_state_t *tx = &dp->dp_tx;
-	callb_cpr_t cpr;
-
-	txg_thread_enter(tx, &cpr);
-
-	while (!tx->tx_exiting) {
-		uint64_t txg = tx->tx_open_txg + 1;
-
-		txg_thread_wait(tx, &cpr, &tx->tx_timeout_exit_cv, txg_time);
-
-		if (tx->tx_quiesce_txg_waiting < txg)
-			tx->tx_quiesce_txg_waiting = txg;
-
-		while (!tx->tx_exiting && tx->tx_open_txg < txg) {
-			dprintf("pushing out %llu\n", txg);
-			cv_broadcast(&tx->tx_quiesce_more_cv);
-			txg_thread_wait(tx, &cpr, &tx->tx_quiesce_done_cv, 0);
-		}
-	}
-	txg_thread_exit(tx, &cpr, &tx->tx_timelimit_thread);
-}
-
-int
+boolean_t
 txg_stalled(dsl_pool_t *dp)
 {
 	tx_state_t *tx = &dp->dp_tx;
 	return (tx->tx_quiesce_txg_waiting > tx->tx_open_txg);
+}
+
+boolean_t
+txg_sync_waiting(dsl_pool_t *dp)
+{
+	tx_state_t *tx = &dp->dp_tx;
+
+	return (tx->tx_syncing_txg <= tx->tx_sync_txg_waiting ||
+	    tx->tx_quiesced_txg != 0);
 }
 
 void

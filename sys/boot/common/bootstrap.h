@@ -43,6 +43,7 @@ struct devdesc
 #define DEVT_DISK	1
 #define DEVT_NET	2
 #define	DEVT_CD		3
+#define DEVT_ZFS	4
     int			d_unit;
 };
 

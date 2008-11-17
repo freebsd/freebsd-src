@@ -33,30 +33,44 @@
 
 #ifdef _KERNEL
 
+#include <sys/vnode.h>
+
 struct mount;
 struct ucred;
 struct vattr;
 struct vnode;
 
-int	secpolicy_zfs(struct ucred  *cred);
-int	secpolicy_sys_config(struct ucred  *cred, int checkonly);
-int	secpolicy_zinject(struct ucred  *cred);
-int	secpolicy_fs_unmount(struct ucred  *cred, struct mount *vfsp);
-int	secpolicy_basic_link(struct ucred  *cred);
+int	secpolicy_nfs(struct ucred *cred);
+int	secpolicy_zfs(struct ucred *cred);
+int	secpolicy_sys_config(struct ucred *cred, int checkonly);
+int	secpolicy_zinject(struct ucred *cred);
+int	secpolicy_fs_unmount(struct ucred *cred, struct mount *vfsp);
+int	secpolicy_basic_link(struct vnode *vp, struct ucred *cred);
+int	secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner);
+int	secpolicy_vnode_chown(struct vnode *vp, cred_t *cred,
+	    boolean_t check_self);
 int	secpolicy_vnode_stky_modify(struct ucred *cred);
-int	secpolicy_vnode_remove(struct ucred *cred);
+int	secpolicy_vnode_remove(struct vnode *vp, struct ucred *cred);
 int	secpolicy_vnode_access(struct ucred *cred, struct vnode *vp,
 	    uint64_t owner, accmode_t accmode);
-int	secpolicy_vnode_setdac(struct ucred *cred, uid_t owner);
+int	secpolicy_vnode_setdac(struct vnode *vp, struct ucred *cred,
+	    uid_t owner);
 int	secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp,
 	    struct vattr *vap, const struct vattr *ovap, int flags,
 	    int unlocked_access(void *, int, struct ucred *), void *node);
 int	secpolicy_vnode_create_gid(struct ucred *cred);
-int	secpolicy_vnode_setids_setgids(struct ucred *cred, gid_t gid);
-int	secpolicy_vnode_setid_retain(struct ucred *cred, boolean_t issuidroot);
-void	secpolicy_setid_clear(struct vattr *vap, struct ucred *cred);
+int	secpolicy_vnode_setids_setgids(struct vnode *vp, struct ucred *cred,
+	    gid_t gid);
+int	secpolicy_vnode_setid_retain(struct vnode *vp, struct ucred *cred,
+	    boolean_t issuidroot);
+void	secpolicy_setid_clear(struct vattr *vap, struct vnode *vp,
+	    struct ucred *cred);
 int	secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
 	    const struct vattr *ovap, struct ucred *cred);
+int	secpolicy_fs_owner(struct mount *vfsp, struct ucred *cred);
+int	secpolicy_fs_mount(cred_t *cr, vnode_t *mvp, struct mount *vfsp);
+void	secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp);
+int	secpolicy_xvattr(xvattr_t *xvap, uid_t owner, cred_t *cr, vtype_t vtype);
 
 #endif	/* _KERNEL */
 

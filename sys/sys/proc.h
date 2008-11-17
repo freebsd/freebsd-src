@@ -47,6 +47,7 @@
 #include <sys/_lock.h>
 #include <sys/lock_profile.h>
 #include <sys/_mutex.h>
+#include <sys/osd.h>
 #include <sys/priority.h>
 #include <sys/rtprio.h>			/* XXX. */
 #include <sys/runq.h>
@@ -233,6 +234,7 @@ struct thread {
 	char		td_name[MAXCOMLEN + 1];	/* (*) Thread name. */
 	struct file	*td_fpop;	/* (k) file referencing cdev under op */
 	int		td_dbgflags;	/* (c) Userland debugger flags */
+	struct osd	td_osd;		/* (k) Object specific data. */
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */

@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -37,6 +37,8 @@
 #include <sys/zap_leaf.h>
 #include <sys/spa.h>
 #include <sys/dmu.h>
+
+static uint16_t *zap_leaf_rehash_entry(zap_leaf_t *l, uint16_t entry);
 
 #define	CHAIN_END 0xffff /* end of the chunk chain */
 
@@ -150,7 +152,7 @@ zap_leaf_byteswap(zap_leaf_phys_t *buf, int size)
 }
 
 void
-zap_leaf_init(zap_leaf_t *l)
+zap_leaf_init(zap_leaf_t *l, boolean_t sort)
 {
 	int i;
 
@@ -165,6 +167,8 @@ zap_leaf_init(zap_leaf_t *l)
 	l->l_phys->l_hdr.lh_block_type = ZBT_LEAF;
 	l->l_phys->l_hdr.lh_magic = ZAP_LEAF_MAGIC;
 	l->l_phys->l_hdr.lh_nfree = ZAP_LEAF_NUMCHUNKS(l);
+	if (sort)
+		l->l_phys->l_hdr.lh_flags |= ZLF_ENTRIES_CDSORTED;
 }
 
 /*
@@ -327,19 +331,30 @@ zap_leaf_array_read(zap_leaf_t *l, uint16_t chunk,
 /*
  * Only to be used on 8-bit arrays.
  * array_len is actual len in bytes (not encoded le_value_length).
- * buf is null-terminated.
+ * namenorm is null-terminated.
  */
-static int
-zap_leaf_array_equal(zap_leaf_t *l, int chunk,
-    int array_len, const char *buf)
+static boolean_t
+zap_leaf_array_match(zap_leaf_t *l, zap_name_t *zn, int chunk, int array_len)
 {
 	int bseen = 0;
 
+	if (zn->zn_matchtype == MT_FIRST) {
+		char *thisname = kmem_alloc(array_len, KM_SLEEP);
+		boolean_t match;
+
+		zap_leaf_array_read(l, chunk, 1, array_len, 1,
+		    array_len, thisname);
+		match = zap_match(zn, thisname);
+		kmem_free(thisname, array_len);
+		return (match);
+	}
+
+	/* Fast path for exact matching */
 	while (bseen < array_len) {
 		struct zap_leaf_array *la = &ZAP_LEAF_CHUNK(l, chunk).l_array;
 		int toread = MIN(array_len - bseen, ZAP_LEAF_ARRAY_BYTES);
 		ASSERT3U(chunk, <, ZAP_LEAF_NUMCHUNKS(l));
-		if (bcmp(la->la_array, buf + bseen, toread))
+		if (bcmp(la->la_array, zn->zn_name_orij + bseen, toread))
 			break;
 		chunk = la->la_next;
 		bseen += toread;
@@ -352,15 +367,15 @@ zap_leaf_array_equal(zap_leaf_t *l, int chunk,
  */
 
 int
-zap_leaf_lookup(zap_leaf_t *l,
-    const char *name, uint64_t h, zap_entry_handle_t *zeh)
+zap_leaf_lookup(zap_leaf_t *l, zap_name_t *zn, zap_entry_handle_t *zeh)
 {
 	uint16_t *chunkp;
 	struct zap_leaf_entry *le;
 
 	ASSERT3U(l->l_phys->l_hdr.lh_magic, ==, ZAP_LEAF_MAGIC);
 
-	for (chunkp = LEAF_HASH_ENTPTR(l, h);
+again:
+	for (chunkp = LEAF_HASH_ENTPTR(l, zn->zn_hash);
 	    *chunkp != CHAIN_END; chunkp = &le->le_next) {
 		uint16_t chunk = *chunkp;
 		le = ZAP_LEAF_ENTRY(l, chunk);
@@ -368,11 +383,18 @@ zap_leaf_lookup(zap_leaf_t *l,
 		ASSERT3U(chunk, <, ZAP_LEAF_NUMCHUNKS(l));
 		ASSERT3U(le->le_type, ==, ZAP_CHUNK_ENTRY);
 
-		if (le->le_hash != h)
+		if (le->le_hash != zn->zn_hash)
 			continue;
 
-		if (zap_leaf_array_equal(l, le->le_name_chunk,
-		    le->le_name_length, name)) {
+		/*
+		 * NB: the entry chain is always sorted by cd on
+		 * normalized zap objects, so this will find the
+		 * lowest-cd match for MT_FIRST.
+		 */
+		ASSERT(zn->zn_matchtype == MT_EXACT ||
+		    (l->l_phys->l_hdr.lh_flags & ZLF_ENTRIES_CDSORTED));
+		if (zap_leaf_array_match(l, zn, le->le_name_chunk,
+		    le->le_name_length)) {
 			zeh->zeh_num_integers = le->le_value_length;
 			zeh->zeh_integer_size = le->le_int_size;
 			zeh->zeh_cd = le->le_cd;
@@ -381,6 +403,15 @@ zap_leaf_lookup(zap_leaf_t *l,
 			zeh->zeh_leaf = l;
 			return (0);
 		}
+	}
+
+	/*
+	 * NB: we could of course do this in one pass, but that would be
+	 * a pain.  We'll see if MT_BEST is even used much.
+	 */
+	if (zn->zn_matchtype == MT_BEST) {
+		zn->zn_matchtype = MT_FIRST;
+		goto again;
 	}
 
 	return (ENOENT);
@@ -539,22 +570,41 @@ zap_entry_create(zap_leaf_t *l, const char *name, uint64_t h, uint32_t cd,
 		return (E2BIG);
 
 	if (cd == ZAP_MAXCD) {
-		for (cd = 0; cd < ZAP_MAXCD; cd++) {
+		/* find the lowest unused cd */
+		if (l->l_phys->l_hdr.lh_flags & ZLF_ENTRIES_CDSORTED) {
+			cd = 0;
+
 			for (chunk = *LEAF_HASH_ENTPTR(l, h);
 			    chunk != CHAIN_END; chunk = le->le_next) {
 				le = ZAP_LEAF_ENTRY(l, chunk);
-				if (le->le_hash == h &&
-				    le->le_cd == cd) {
+				if (le->le_cd > cd)
 					break;
+				if (le->le_hash == h) {
+					ASSERT3U(cd, ==, le->le_cd);
+					cd++;
 				}
 			}
-			/* If this cd is not in use, we are good. */
-			if (chunk == CHAIN_END)
-				break;
+		} else {
+			/* old unsorted format; do it the O(n^2) way */
+			for (cd = 0; cd < ZAP_MAXCD; cd++) {
+				for (chunk = *LEAF_HASH_ENTPTR(l, h);
+				    chunk != CHAIN_END; chunk = le->le_next) {
+					le = ZAP_LEAF_ENTRY(l, chunk);
+					if (le->le_hash == h &&
+					    le->le_cd == cd) {
+						break;
+					}
+				}
+				/* If this cd is not in use, we are good. */
+				if (chunk == CHAIN_END)
+					break;
+			}
 		}
-		/* If we tried all the cd's, we lose. */
-		if (cd == ZAP_MAXCD)
-			return (ENOSPC);
+		/*
+		 * we would run out of space in a block before we could
+		 * have ZAP_MAXCD entries
+		 */
+		ASSERT3U(cd, <, ZAP_MAXCD);
 	}
 
 	if (l->l_phys->l_hdr.lh_nfree < numchunks)
@@ -574,9 +624,8 @@ zap_entry_create(zap_leaf_t *l, const char *name, uint64_t h, uint32_t cd,
 	le->le_cd = cd;
 
 	/* link it into the hash chain */
-	chunkp = LEAF_HASH_ENTPTR(l, h);
-	le->le_next = *chunkp;
-	*chunkp = chunk;
+	/* XXX if we did the search above, we could just use that */
+	chunkp = zap_leaf_rehash_entry(l, chunk);
 
 	l->l_phys->l_hdr.lh_nentries++;
 
@@ -591,16 +640,76 @@ zap_entry_create(zap_leaf_t *l, const char *name, uint64_t h, uint32_t cd,
 }
 
 /*
+ * Determine if there is another entry with the same normalized form.
+ * For performance purposes, either zn or name must be provided (the
+ * other can be NULL).  Note, there usually won't be any hash
+ * conflicts, in which case we don't need the concatenated/normalized
+ * form of the name.  But all callers have one of these on hand anyway,
+ * so might as well take advantage.  A cleaner but slower interface
+ * would accept neither argument, and compute the normalized name as
+ * needed (using zap_name_alloc(zap_entry_read_name(zeh))).
+ */
+boolean_t
+zap_entry_normalization_conflict(zap_entry_handle_t *zeh, zap_name_t *zn,
+    const char *name, zap_t *zap)
+{
+	uint64_t chunk;
+	struct zap_leaf_entry *le;
+	boolean_t allocdzn = B_FALSE;
+
+	if (zap->zap_normflags == 0)
+		return (B_FALSE);
+
+	for (chunk = *LEAF_HASH_ENTPTR(zeh->zeh_leaf, zeh->zeh_hash);
+	    chunk != CHAIN_END; chunk = le->le_next) {
+		le = ZAP_LEAF_ENTRY(zeh->zeh_leaf, chunk);
+		if (le->le_hash != zeh->zeh_hash)
+			continue;
+		if (le->le_cd == zeh->zeh_cd)
+			continue;
+
+		if (zn == NULL) {
+			zn = zap_name_alloc(zap, name, MT_FIRST);
+			allocdzn = B_TRUE;
+		}
+		if (zap_leaf_array_match(zeh->zeh_leaf, zn,
+		    le->le_name_chunk, le->le_name_length)) {
+			if (allocdzn)
+				zap_name_free(zn);
+			return (B_TRUE);
+		}
+	}
+	if (allocdzn)
+		zap_name_free(zn);
+	return (B_FALSE);
+}
+
+/*
  * Routines for transferring entries between leafs.
  */
 
-static void
+static uint16_t *
 zap_leaf_rehash_entry(zap_leaf_t *l, uint16_t entry)
 {
 	struct zap_leaf_entry *le = ZAP_LEAF_ENTRY(l, entry);
-	uint16_t *ptr = LEAF_HASH_ENTPTR(l, le->le_hash);
-	le->le_next = *ptr;
-	*ptr = entry;
+	struct zap_leaf_entry *le2;
+	uint16_t *chunkp;
+
+	/*
+	 * keep the entry chain sorted by cd
+	 * NB: this will not cause problems for unsorted leafs, though
+	 * it is unnecessary there.
+	 */
+	for (chunkp = LEAF_HASH_ENTPTR(l, le->le_hash);
+	    *chunkp != CHAIN_END; chunkp = &le2->le_next) {
+		le2 = ZAP_LEAF_ENTRY(l, *chunkp);
+		if (le2->le_cd > le->le_cd)
+			break;
+	}
+
+	le->le_next = *chunkp;
+	*chunkp = entry;
+	return (chunkp);
 }
 
 static uint16_t
@@ -644,7 +753,7 @@ zap_leaf_transfer_entry(zap_leaf_t *l, int entry, zap_leaf_t *nl)
 	nle = ZAP_LEAF_ENTRY(nl, chunk);
 	*nle = *le; /* structure assignment */
 
-	zap_leaf_rehash_entry(nl, chunk);
+	(void) zap_leaf_rehash_entry(nl, chunk);
 
 	nle->le_name_chunk = zap_leaf_transfer_array(l, le->le_name_chunk, nl);
 	nle->le_value_chunk =
@@ -660,7 +769,7 @@ zap_leaf_transfer_entry(zap_leaf_t *l, int entry, zap_leaf_t *nl)
  * Transfer the entries whose hash prefix ends in 1 to the new leaf.
  */
 void
-zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl)
+zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl, boolean_t sort)
 {
 	int i;
 	int bit = 64 - 1 - l->l_phys->l_hdr.lh_prefix_len;
@@ -673,6 +782,9 @@ zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl)
 
 	/* break existing hash chains */
 	zap_memset(l->l_phys->l_hash, CHAIN_END, 2*ZAP_LEAF_HASH_NUMENTRIES(l));
+
+	if (sort)
+		l->l_phys->l_hdr.lh_flags |= ZLF_ENTRIES_CDSORTED;
 
 	/*
 	 * Transfer entries whose hash bit 'bit' is set to nl; rehash
@@ -691,7 +803,7 @@ zap_leaf_split(zap_leaf_t *l, zap_leaf_t *nl)
 		if (le->le_hash & (1ULL << bit))
 			zap_leaf_transfer_entry(l, i, nl);
 		else
-			zap_leaf_rehash_entry(l, i);
+			(void) zap_leaf_rehash_entry(l, i);
 	}
 }
 
@@ -726,7 +838,7 @@ zap_leaf_stats(zap_t *zap, zap_leaf_t *l, zap_stats_t *zs)
 
 			n = 1 + ZAP_LEAF_ARRAY_NCHUNKS(le->le_name_length) +
 			    ZAP_LEAF_ARRAY_NCHUNKS(le->le_value_length *
-				le->le_int_size);
+			    le->le_int_size);
 			n = MIN(n, ZAP_HISTOGRAM_SIZE-1);
 			zs->zs_entries_using_n_chunks[n]++;
 

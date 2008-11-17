@@ -108,7 +108,6 @@ static void	v_decr_useonly(struct vnode *);
 static void	v_upgrade_usecount(struct vnode *);
 static void	vfree(struct vnode *);
 static void	vnlru_free(int);
-static void	vdestroy(struct vnode *);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
@@ -419,7 +418,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 	 * If the thread is jailed, but this is not a jail-friendly file
 	 * system, deny immediately.
 	 */
-	if (jailed(td->td_ucred) && !(mp->mnt_vfc->vfc_flags & VFCF_JAIL))
+	if (!(mp->mnt_vfc->vfc_flags & VFCF_JAIL) && jailed(td->td_ucred))
 		return (EPERM);
 
 	/*
@@ -438,7 +437,14 @@ vfs_suser(struct mount *mp, struct thread *td)
 		return (EPERM);
 	}
 
-	if ((mp->mnt_flag & MNT_USER) == 0 ||
+	/*
+	 * If file system supports delegated administration, we don't check
+	 * for the PRIV_VFS_MOUNT_OWNER privilege - it will be better verified
+	 * by the file system itself.
+	 * If this is not the user that did original mount, we check for
+	 * the PRIV_VFS_MOUNT_OWNER privilege.
+	 */
+	if (!(mp->mnt_vfc->vfc_flags & VFCF_DELEGADMIN) &&
 	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 		if ((error = priv_check(td, PRIV_VFS_MOUNT_OWNER)) != 0)
 			return (error);
@@ -793,7 +799,7 @@ SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
  * Routines having to do with the management of the vnode table.
  */
 
-static void
+void
 vdestroy(struct vnode *vp)
 {
 	struct bufobj *bo;

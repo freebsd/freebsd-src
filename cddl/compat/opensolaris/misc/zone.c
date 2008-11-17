@@ -32,7 +32,7 @@
 #include <sys/sysctl.h>
 #include <sys/zone.h>
 
-int
+zoneid_t
 getzoneid(void)
 {
 	size_t size;
@@ -42,5 +42,5 @@ getzoneid(void)
 	size = sizeof(jailid);
 	if (sysctlbyname("security.jail.jailed", &jailid, &size, NULL, 0) == -1)
 		assert(!"No security.jail.jailed sysctl!");
-	return (jailid);
+	return ((zoneid_t)jailid);
 }

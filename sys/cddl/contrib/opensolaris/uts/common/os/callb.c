@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -109,14 +108,24 @@ void
 callb_fini(void *dummy __unused)
 {
 	callb_t *cp;
+	int i;
 
 	mutex_enter(&ct->ct_lock);
-	while ((cp = ct->ct_freelist) != NULL) {
-		ct->ct_freelist = cp->c_next;
-		ct->ct_ncallb--;
-		kmem_free(cp, sizeof (callb_t));
+	for (i = 0; i < 16; i++) {
+		while ((cp = ct->ct_freelist) != NULL) {
+			ct->ct_freelist = cp->c_next;
+			ct->ct_ncallb--;
+			kmem_free(cp, sizeof (callb_t));
+		}
+		if (ct->ct_ncallb == 0)
+			break;
+		/* Not all callbacks finished, waiting for the rest. */
+		mutex_exit(&ct->ct_lock);
+		tsleep(ct, 0, "callb", hz / 4);
+		mutex_enter(&ct->ct_lock);
 	}
-	ASSERT(ct->ct_ncallb == 0);
+	if (ct->ct_ncallb > 0)
+		printf("%s: Leaked %d callbacks!\n", __func__, ct->ct_ncallb);
 	mutex_exit(&ct->ct_lock);
 	mutex_destroy(&callb_safe_mutex);
 	mutex_destroy(&callb_table.ct_lock);
@@ -268,7 +277,7 @@ callb_execute_class(int class, int code)
 
 #ifdef CALLB_DEBUG
 		printf("callb_execute: name=%s func=%p arg=%p\n",
-			cp->c_name, (void *)cp->c_func, (void *)cp->c_arg);
+		    cp->c_name, (void *)cp->c_func, (void *)cp->c_arg);
 #endif /* CALLB_DEBUG */
 
 		mutex_exit(&ct->ct_lock);
@@ -307,12 +316,14 @@ callb_generic_cpr(void *arg, int code)
 	switch (code) {
 	case CB_CODE_CPR_CHKPT:
 		cp->cc_events |= CALLB_CPR_START;
+#ifdef CPR_NOT_THREAD_SAFE
 		while (!(cp->cc_events & CALLB_CPR_SAFE))
 			/* cv_timedwait() returns -1 if it times out. */
 			if ((ret = cv_timedwait(&cp->cc_callb_cv,
 			    cp->cc_lockp,
 			    callb_timeout_sec * hz)) == -1)
 				break;
+#endif
 		break;
 
 	case CB_CODE_CPR_RESUME:

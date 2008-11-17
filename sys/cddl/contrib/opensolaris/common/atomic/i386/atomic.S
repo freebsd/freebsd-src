@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,18 +18,54 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-	.ident	"%Z%%M%	%I%	%E% SMI"
-
-	.file	"%M%"
+	.file	"atomic.s"
 
 #define	_ASM
 #include <sys/asm_linkage.h>
 
+	/*
+	 * NOTE: If atomic_dec_64 and atomic_dec_64_nv are ever
+	 * separated, it is important to edit the libc i386 platform
+	 * specific mapfile and remove the NODYNSORT attribute
+	 * from atomic_dec_64_nv.
+	 */
+	ENTRY(atomic_dec_64)
+	ALTENTRY(atomic_dec_64_nv)
+	pushl	%edi
+	pushl	%ebx
+	movl	12(%esp), %edi	// %edi = target address
+	movl	(%edi), %eax
+	movl	4(%edi), %edx	// %edx:%eax = old value
+1:
+	xorl	%ebx, %ebx
+	xorl	%ecx, %ecx
+	not	%ecx
+	not	%ebx		// %ecx:%ebx = -1
+	addl	%eax, %ebx
+	adcl	%edx, %ecx	// add in the carry from inc
+	lock
+	cmpxchg8b (%edi)	// try to stick it in
+	jne	1b
+	movl	%ebx, %eax
+	movl	%ecx, %edx	// return new value
+	popl	%ebx
+	popl	%edi
+	ret
+	SET_SIZE(atomic_dec_64_nv)
+	SET_SIZE(atomic_dec_64)
+
+	/*
+	 * NOTE: If atomic_add_64 and atomic_add_64_nv are ever
+	 * separated, it is important to edit the libc i386 platform
+	 * specific mapfile and remove the NODYNSORT attribute
+	 * from atomic_add_64_nv.
+	 */
 	ENTRY(atomic_add_64)
 	ALTENTRY(atomic_add_64_nv)
 	pushl	%edi

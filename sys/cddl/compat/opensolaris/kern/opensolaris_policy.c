@@ -30,9 +30,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/priv.h>
 #include <sys/vnode.h>
+#include <sys/mntent.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/jail.h>
 #include <sys/policy.h>
+#include <sys/zfs_vfsops.h>
+
+int
+secpolicy_nfs(struct ucred *cred)
+{
+
+	/* TODO: Change PRIV_ROOT! */
+	return (priv_check_cred(cred, PRIV_ROOT, 0));
+}
 
 int
 secpolicy_zfs(struct ucred *cred)
@@ -62,15 +73,31 @@ secpolicy_fs_unmount(struct ucred *cred, struct mount *vfsp __unused)
 	return (priv_check_cred(cred, PRIV_VFS_UNMOUNT, 0));
 }
 
+int
+secpolicy_fs_owner(struct mount *mp, struct ucred *cred)
+{
+
+	if (zfs_super_owner) {
+		if (cred->cr_uid == mp->mnt_cred->cr_uid &&
+		    (!jailed(cred) ||
+		     cred->cr_prison == mp->mnt_cred->cr_prison)) {
+			return (0);
+		}
+	}
+	return (priv_check_cred(cred, PRIV_VFS_MOUNT_OWNER, 0));
+}
+
 /*
  * This check is done in kern_link(), so we could just return 0 here.
  */
 extern int hardlink_check_uid;
 int
-secpolicy_basic_link(struct ucred *cred)
+secpolicy_basic_link(struct vnode *vp, struct ucred *cred)
 {
 
 	if (!hardlink_check_uid)
+		return (0);
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
 		return (0);
 	return (priv_check_cred(cred, PRIV_VFS_LINK, 0));
 }
@@ -83,9 +110,11 @@ secpolicy_vnode_stky_modify(struct ucred *cred)
 }
 
 int
-secpolicy_vnode_remove(struct ucred *cred)
+secpolicy_vnode_remove(struct vnode *vp, struct ucred *cred)
 {
 
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
 	return (priv_check_cred(cred, PRIV_VFS_ADMIN, 0));
 }
 
@@ -94,9 +123,11 @@ secpolicy_vnode_access(struct ucred *cred, struct vnode *vp, uint64_t owner,
     accmode_t accmode)
 {
 
-	if ((accmode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0) {
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
+
+	if ((accmode & VREAD) && priv_check_cred(cred, PRIV_VFS_READ, 0) != 0)
 		return (EACCES);
-	}
 	if ((accmode & VWRITE) &&
 	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) != 0) {
 		return (EACCES);
@@ -116,10 +147,12 @@ secpolicy_vnode_access(struct ucred *cred, struct vnode *vp, uint64_t owner,
 }
 
 int
-secpolicy_vnode_setdac(struct ucred *cred, uid_t owner)
+secpolicy_vnode_setdac(struct vnode *vp, struct ucred *cred, uid_t owner)
 {
 
 	if (owner == cred->cr_uid)
+		return (0);
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
 		return (0);
 	return (priv_check_cred(cred, PRIV_VFS_ADMIN, 0));
 }
@@ -148,7 +181,7 @@ secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		 * In the specific case of creating a set-uid root
 		 * file, we need even more permissions.
 		 */
-		error = secpolicy_vnode_setdac(cred, ovap->va_uid);
+		error = secpolicy_vnode_setdac(vp, cred, ovap->va_uid);
 		if (error)
 			return (error);
 		error = secpolicy_setid_setsticky_clear(vp, vap, ovap, cred);
@@ -158,7 +191,7 @@ secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		vap->va_mode = ovap->va_mode;
 	}
 	if (mask & (AT_UID | AT_GID)) {
-		error = secpolicy_vnode_setdac(cred, ovap->va_uid);
+		error = secpolicy_vnode_setdac(vp, cred, ovap->va_uid);
 		if (error)
 			return (error);
 
@@ -170,14 +203,16 @@ secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		if (((mask & AT_UID) && vap->va_uid != ovap->va_uid) ||
 		    ((mask & AT_GID) && vap->va_gid != ovap->va_gid &&
 		     !groupmember(vap->va_gid, cred))) {
-			error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
-			if (error)
-				return (error);
+			if (secpolicy_fs_owner(vp->v_mount, cred) != 0) {
+				error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
+				if (error)
+					return (error);
+			}
 		}
 
 		if (((mask & AT_UID) && vap->va_uid != ovap->va_uid) ||
 		    ((mask & AT_GID) && vap->va_gid != ovap->va_gid)) {
-			secpolicy_setid_clear(vap, cred);
+			secpolicy_setid_clear(vap, vp, cred);
 		}
 	}
 	if (mask & (AT_ATIME | AT_MTIME)) {
@@ -189,7 +224,7 @@ secpolicy_vnode_setattr(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 		 * If times is non-NULL, ... The caller must be the owner of
 		 * the file or be the super-user.
 		 */
-		error = secpolicy_vnode_setdac(cred, ovap->va_uid);
+		error = secpolicy_vnode_setdac(vp, cred, ovap->va_uid);
 		if (error && (vap->va_vaflags & VA_UTIMES_NULL))
 			error = unlocked_access(node, VWRITE, cred);
 		if (error)
@@ -206,24 +241,32 @@ secpolicy_vnode_create_gid(struct ucred *cred)
 }
 
 int
-secpolicy_vnode_setids_setgids(struct ucred *cred, gid_t gid)
+secpolicy_vnode_setids_setgids(struct vnode *vp, struct ucred *cred, gid_t gid)
 {
 
-	if (!groupmember(gid, cred))
-		return (priv_check_cred(cred, PRIV_VFS_SETGID, 0));
-	return (0);
+	if (groupmember(gid, cred))
+		return (0);
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
+	return (priv_check_cred(cred, PRIV_VFS_SETGID, 0));
 }
 
 int
-secpolicy_vnode_setid_retain(struct ucred *cred, boolean_t issuidroot __unused)
+secpolicy_vnode_setid_retain(struct vnode *vp, struct ucred *cred,
+    boolean_t issuidroot __unused)
 {
 
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
 	return (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0));
 }
 
 void
-secpolicy_setid_clear(struct vattr *vap, struct ucred *cred)
+secpolicy_setid_clear(struct vattr *vap, struct vnode *vp, struct ucred *cred)
 {
+
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return;
 
 	if ((vap->va_mode & (S_ISUID | S_ISGID)) != 0) {
 		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
@@ -239,6 +282,9 @@ secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
 {
         int error;
 
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
+
 	/*
 	 * Privileged processes may set the sticky bit on non-directories,
 	 * as well as set the setgid bit on a file with a group that the process
@@ -253,9 +299,61 @@ secpolicy_setid_setsticky_clear(struct vnode *vp, struct vattr *vap,
 	 * group-id bit.
 	 */
 	if ((vap->va_mode & S_ISGID) != 0) {
-		error = secpolicy_vnode_setids_setgids(cred, ovap->va_gid);
+		error = secpolicy_vnode_setids_setgids(vp, cred, ovap->va_gid);
 		if (error)
 			return (error);
 	}
 	return (0);
+}
+
+int
+secpolicy_fs_mount(cred_t *cr, vnode_t *mvp, struct mount *vfsp)
+{
+
+	return (priv_check_cred(cr, PRIV_VFS_MOUNT, 0));
+}
+
+int
+secpolicy_vnode_owner(struct vnode *vp, cred_t *cred, uid_t owner)
+{
+
+	if (owner == cred->cr_uid)
+		return (0);
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
+
+	/* XXX: vfs_suser()? */
+	return (priv_check_cred(cred, PRIV_VFS_MOUNT_OWNER, 0));
+}
+
+int
+secpolicy_vnode_chown(struct vnode *vp, cred_t *cred, boolean_t check_self)
+{
+
+	if (secpolicy_fs_owner(vp->v_mount, cred) == 0)
+		return (0);
+	return (priv_check_cred(cred, PRIV_VFS_CHOWN, 0));
+}
+
+void
+secpolicy_fs_mount_clearopts(cred_t *cr, struct mount *vfsp)
+{
+
+	if (priv_check_cred(cr, PRIV_VFS_MOUNT_NONUSER, 0) != 0) {
+		MNT_ILOCK(vfsp);
+		vfsp->vfs_flag |= VFS_NOSETUID | MNT_USER;
+		vfs_clearmntopt(vfsp, MNTOPT_SETUID);
+		vfs_setmntopt(vfsp, MNTOPT_NOSETUID, NULL, 0);
+		MNT_IUNLOCK(vfsp);
+	}
+}
+
+/*
+ * Check privileges for setting xvattr attributes
+ */
+int
+secpolicy_xvattr(xvattr_t *xvap, uid_t owner, cred_t *cr, vtype_t vtype)
+{
+
+	return (priv_check_cred(cr, PRIV_VFS_SYSFLAGS, 0));
 }

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vimage.h>
+#include <sys/osd.h>
 #include <net/if.h>
 #include <netinet/in.h>
 
@@ -86,22 +87,6 @@ struct	sx allprison_lock;
 int	lastprid = 0;
 int	prisoncount = 0;
 
-/*
- * List of jail services. Protected by allprison_lock.
- */
-TAILQ_HEAD(prison_services_head, prison_service);
-static struct prison_services_head prison_services =
-    TAILQ_HEAD_INITIALIZER(prison_services);
-static int prison_service_slots = 0;
-
-struct prison_service {
-	prison_create_t ps_create;
-	prison_destroy_t ps_destroy;
-	int		ps_slotno;
-	TAILQ_ENTRY(prison_service) ps_next;
-	char	ps_name[0];
-};
-
 static void		 init_prison(void *);
 static void		 prison_complete(void *context, int pending);
 static int		 sysctl_jail_list(SYSCTL_HANDLER_ARGS);
@@ -126,7 +111,6 @@ jail(struct thread *td, struct jail_args *uap)
 {
 	struct nameidata nd;
 	struct prison *pr, *tpr;
-	struct prison_service *psrv;
 	struct jail j;
 	struct jail_attach_args jaa;
 	int vfslocked, error, tryprid;
@@ -159,12 +143,7 @@ jail(struct thread *td, struct jail_args *uap)
 	pr->pr_ip = j.ip_number;
 	pr->pr_linux = NULL;
 	pr->pr_securelevel = securelevel;
-	if (prison_service_slots == 0)
-		pr->pr_slots = NULL;
-	else {
-		pr->pr_slots = malloc(sizeof(*pr->pr_slots) * prison_service_slots,
-		    M_PRISON, M_ZERO | M_WAITOK);
-	}
+	bzero(&pr->pr_osd, sizeof(pr->pr_osd));
 
 	/* Determine next pr_id and add prison to allprison list. */
 	sx_xlock(&allprison_lock);
@@ -186,11 +165,7 @@ next:
 	pr->pr_id = jaa.jid = lastprid = tryprid;
 	LIST_INSERT_HEAD(&allprison, pr, pr_list);
 	prisoncount++;
-	sx_downgrade(&allprison_lock);
-	TAILQ_FOREACH(psrv, &prison_services, ps_next) {
-		psrv->ps_create(psrv, pr);
-	}
-	sx_sunlock(&allprison_lock);
+	sx_xunlock(&allprison_lock);
 
 	error = jail_attach(td, &jaa);
 	if (error)
@@ -204,14 +179,8 @@ e_dropprref:
 	sx_xlock(&allprison_lock);
 	LIST_REMOVE(pr, pr_list);
 	prisoncount--;
-	sx_downgrade(&allprison_lock);
-	TAILQ_FOREACH(psrv, &prison_services, ps_next) {
-		psrv->ps_destroy(psrv, pr);
-	}
-	sx_sunlock(&allprison_lock);
+	sx_xunlock(&allprison_lock);
 e_dropvnref:
-	if (pr->pr_slots != NULL)
-		free(pr->pr_slots, M_PRISON);
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -311,10 +280,10 @@ prison_find(int prid)
 }
 
 void
-prison_free(struct prison *pr)
+prison_free_locked(struct prison *pr)
 {
 
-	mtx_lock(&pr->pr_mtx);
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	pr->pr_ref--;
 	if (pr->pr_ref == 0) {
 		mtx_unlock(&pr->pr_mtx);
@@ -325,10 +294,17 @@ prison_free(struct prison *pr)
 	mtx_unlock(&pr->pr_mtx);
 }
 
+void
+prison_free(struct prison *pr)
+{
+
+	mtx_lock(&pr->pr_mtx);
+	prison_free_locked(pr);
+}
+
 static void
 prison_complete(void *context, int pending)
 {
-	struct prison_service *psrv;
 	struct prison *pr;
 	int vfslocked;
 
@@ -337,13 +313,10 @@ prison_complete(void *context, int pending)
 	sx_xlock(&allprison_lock);
 	LIST_REMOVE(pr, pr_list);
 	prisoncount--;
-	sx_downgrade(&allprison_lock);
-	TAILQ_FOREACH(psrv, &prison_services, ps_next) {
-		psrv->ps_destroy(psrv, pr);
-	}
-	sx_sunlock(&allprison_lock);
-	if (pr->pr_slots != NULL)
-		free(pr->pr_slots, M_PRISON);
+	sx_xunlock(&allprison_lock);
+
+	/* Free all OSD associated to this jail. */
+	osd_jail_exit(pr);
 
 	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vrele(pr->pr_root);
@@ -356,13 +329,21 @@ prison_complete(void *context, int pending)
 }
 
 void
+prison_hold_locked(struct prison *pr)
+{
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	KASSERT(pr->pr_ref > 0,
+	    ("Trying to hold dead prison (id=%d).", pr->pr_id));
+	pr->pr_ref++;
+}
+
+void
 prison_hold(struct prison *pr)
 {
 
 	mtx_lock(&pr->pr_mtx);
-	KASSERT(pr->pr_ref > 0,
-	    ("Trying to hold dead prison (id=%d).", pr->pr_id));
-	pr->pr_ref++;
+	prison_hold_locked(pr);
 	mtx_unlock(&pr->pr_mtx);
 }
 
@@ -760,193 +741,6 @@ prison_priv_check(struct ucred *cred, int priv)
 		 */
 		return (EPERM);
 	}
-}
-
-/*
- * Register jail service. Provides 'create' and 'destroy' methods.
- * 'create' method will be called for every existing jail and all
- * jails in the future as they beeing created.
- * 'destroy' method will be called for every jail going away and
- * for all existing jails at the time of service deregistration.
- */
-struct prison_service *
-prison_service_register(const char *name, prison_create_t create,
-    prison_destroy_t destroy)
-{
-	struct prison_service *psrv, *psrv2;
-	struct prison *pr;
-	int reallocate = 1, slotno = 0;
-	void **slots, **oldslots;
-
-	psrv = malloc(sizeof(*psrv) + strlen(name) + 1, M_PRISON,
-	    M_WAITOK | M_ZERO);
-	psrv->ps_create = create;
-	psrv->ps_destroy = destroy;
-	strcpy(psrv->ps_name, name);
-	/*
-	 * Grab the allprison_lock here, so we won't miss any jail
-	 * creation/destruction.
-	 */
-	sx_xlock(&allprison_lock);
-#ifdef INVARIANTS
-	/*
-	 * Verify if service is not already registered.
-	 */
-	TAILQ_FOREACH(psrv2, &prison_services, ps_next) {
-		KASSERT(strcmp(psrv2->ps_name, name) != 0,
-		    ("jail service %s already registered", name));
-	}
-#endif
-	/*
-	 * Find free slot. When there is no existing free slot available,
-	 * allocate one at the end.
-	 */
-	TAILQ_FOREACH(psrv2, &prison_services, ps_next) {
-		if (psrv2->ps_slotno != slotno) {
-			KASSERT(slotno < psrv2->ps_slotno,
-			    ("Invalid slotno (slotno=%d >= ps_slotno=%d",
-			    slotno, psrv2->ps_slotno));
-			/* We found free slot. */
-			reallocate = 0;
-			break;
-		}
-		slotno++;
-	}
-	psrv->ps_slotno = slotno;
-	/*
-	 * Keep the list sorted by slot number.
-	 */
-	if (psrv2 != NULL) {
-		KASSERT(reallocate == 0, ("psrv2 != NULL && reallocate != 0"));
-		TAILQ_INSERT_BEFORE(psrv2, psrv, ps_next);
-	} else {
-		KASSERT(reallocate == 1, ("psrv2 == NULL && reallocate == 0"));
-		TAILQ_INSERT_TAIL(&prison_services, psrv, ps_next);
-	}
-	prison_service_slots++;
-	sx_downgrade(&allprison_lock);
-	/*
-	 * Allocate memory for new slot if we didn't found empty one.
-	 * Do not use realloc(9), because pr_slots is protected with a mutex,
-	 * so we can't sleep.
-	 */
-	LIST_FOREACH(pr, &allprison, pr_list) {
-		if (reallocate) {
-			/* First allocate memory with M_WAITOK. */
-			slots = malloc(sizeof(*slots) * prison_service_slots,
-			    M_PRISON, M_WAITOK);
-			/* Now grab the mutex and replace pr_slots. */
-			mtx_lock(&pr->pr_mtx);
-			oldslots = pr->pr_slots;
-			if (psrv->ps_slotno > 0) {
-				bcopy(oldslots, slots,
-				    sizeof(*slots) * (prison_service_slots - 1));
-			}
-			slots[psrv->ps_slotno] = NULL;
-			pr->pr_slots = slots;
-			mtx_unlock(&pr->pr_mtx);
-			if (oldslots != NULL)
-				free(oldslots, M_PRISON);
-		}
-		/*
-		 * Call 'create' method for each existing jail.
-		 */
-		psrv->ps_create(psrv, pr);
-	}
-	sx_sunlock(&allprison_lock);
-
-	return (psrv);
-}
-
-void
-prison_service_deregister(struct prison_service *psrv)
-{
-	struct prison *pr;
-	void **slots, **oldslots;
-	int last = 0;
-
-	sx_xlock(&allprison_lock);
-	if (TAILQ_LAST(&prison_services, prison_services_head) == psrv)
-		last = 1;
-	TAILQ_REMOVE(&prison_services, psrv, ps_next);
-	prison_service_slots--;
-	sx_downgrade(&allprison_lock);
-	LIST_FOREACH(pr, &allprison, pr_list) {
-		/*
-		 * Call 'destroy' method for every currently existing jail.
-		 */
-		psrv->ps_destroy(psrv, pr);
-		/*
-		 * If this is the last slot, free the memory allocated for it.
-		 */
-		if (last) {
-			if (prison_service_slots == 0)
-				slots = NULL;
-			else {
-				slots = malloc(sizeof(*slots) * prison_service_slots,
-				    M_PRISON, M_WAITOK);
-			}
-			mtx_lock(&pr->pr_mtx);
-			oldslots = pr->pr_slots;
-			/*
-			 * We require setting slot to NULL after freeing it,
-			 * this way we can check for memory leaks here.
-			 */
-			KASSERT(oldslots[psrv->ps_slotno] == NULL,
-			    ("Slot %d (service %s, jailid=%d) still contains data?",
-			     psrv->ps_slotno, psrv->ps_name, pr->pr_id));
-			if (psrv->ps_slotno > 0) {
-				bcopy(oldslots, slots,
-				    sizeof(*slots) * prison_service_slots);
-			}
-			pr->pr_slots = slots;
-			mtx_unlock(&pr->pr_mtx);
-			KASSERT(oldslots != NULL, ("oldslots == NULL"));
-			free(oldslots, M_PRISON);
-		}
-	}
-	sx_sunlock(&allprison_lock);
-	free(psrv, M_PRISON);
-}
-
-/*
- * Function sets data for the given jail in slot assigned for the given
- * jail service.
- */
-void
-prison_service_data_set(struct prison_service *psrv, struct prison *pr,
-    void *data)
-{
-
-	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	pr->pr_slots[psrv->ps_slotno] = data;
-}
-
-/*
- * Function clears slots assigned for the given jail service in the given
- * prison structure and returns current slot data.
- */
-void *
-prison_service_data_del(struct prison_service *psrv, struct prison *pr)
-{
-	void *data;
-
-	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	data = pr->pr_slots[psrv->ps_slotno];
-	pr->pr_slots[psrv->ps_slotno] = NULL;
-	return (data);
-}
-
-/*
- * Function returns current data from the slot assigned to the given jail
- * service for the given jail.
- */
-void *
-prison_service_data_get(struct prison_service *psrv, struct prison *pr)
-{
-
-	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	return (pr->pr_slots[psrv->ps_slotno]);
 }
 
 static int

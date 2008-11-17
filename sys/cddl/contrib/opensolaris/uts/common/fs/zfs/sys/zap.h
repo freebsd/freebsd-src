@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -31,7 +31,7 @@
 /*
  * ZAP - ZFS Attribute Processor
  *
- * The ZAP is a module which sits on top of the DMU (Data Managemnt
+ * The ZAP is a module which sits on top of the DMU (Data Management
  * Unit) and implements a higher-level storage primitive using DMU
  * objects.  Its primary consumer is the ZPL (ZFS Posix Layer).
  *
@@ -91,9 +91,37 @@ extern "C" {
 #define	ZAP_MAXVALUELEN 1024
 
 /*
+ * The matchtype specifies which entry will be accessed.
+ * MT_EXACT: only find an exact match (non-normalized)
+ * MT_FIRST: find the "first" normalized (case and Unicode
+ *     form) match; the designated "first" match will not change as long
+ *     as the set of entries with this normalization doesn't change
+ * MT_BEST: if there is an exact match, find that, otherwise find the
+ *     first normalized match
+ */
+typedef enum matchtype
+{
+	MT_EXACT,
+	MT_BEST,
+	MT_FIRST
+} matchtype_t;
+
+/*
  * Create a new zapobj with no attributes and return its object number.
+ * MT_EXACT will cause the zap object to only support MT_EXACT lookups,
+ * otherwise any matchtype can be used for lookups.
+ *
+ * normflags specifies what normalization will be done.  values are:
+ * 0: no normalization (legacy on-disk format, supports MT_EXACT matching
+ *     only)
+ * U8_TEXTPREP_TOLOWER: case normalization will be performed.
+ *     MT_FIRST/MT_BEST matching will find entries that match without
+ *     regard to case (eg. looking for "foo" can find an entry "Foo").
+ * Eventually, other flags will permit unicode normalization as well.
  */
 uint64_t zap_create(objset_t *ds, dmu_object_type_t ot,
+    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
+uint64_t zap_create_norm(objset_t *ds, int normflags, dmu_object_type_t ot,
     dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
 
 /*
@@ -101,6 +129,9 @@ uint64_t zap_create(objset_t *ds, dmu_object_type_t ot,
  * object number.
  */
 int zap_create_claim(objset_t *ds, uint64_t obj, dmu_object_type_t ot,
+    dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
+int zap_create_claim_norm(objset_t *ds, uint64_t obj,
+    int normflags, dmu_object_type_t ot,
     dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *tx);
 
 /*
@@ -140,9 +171,20 @@ int zap_destroy(objset_t *ds, uint64_t zapobj, dmu_tx_t *tx);
  * If the attribute is longer than the buffer, as many integers as will
  * fit will be transferred to 'buf'.  If the entire attribute was not
  * transferred, the call will return EOVERFLOW.
+ *
+ * If rn_len is nonzero, realname will be set to the name of the found
+ * entry (which may be different from the requested name if matchtype is
+ * not MT_EXACT).
+ *
+ * If normalization_conflictp is not NULL, it will be set if there is
+ * another name with the same case/unicode normalized form.
  */
 int zap_lookup(objset_t *ds, uint64_t zapobj, const char *name,
     uint64_t integer_size, uint64_t num_integers, void *buf);
+int zap_lookup_norm(objset_t *ds, uint64_t zapobj, const char *name,
+    uint64_t integer_size, uint64_t num_integers, void *buf,
+    matchtype_t mt, char *realname, int rn_len,
+    boolean_t *normalization_conflictp);
 
 /*
  * Create an attribute with the given name and value.
@@ -182,6 +224,8 @@ int zap_length(objset_t *ds, uint64_t zapobj, const char *name,
  * return ENOENT.
  */
 int zap_remove(objset_t *ds, uint64_t zapobj, const char *name, dmu_tx_t *tx);
+int zap_remove_norm(objset_t *ds, uint64_t zapobj, const char *name,
+    matchtype_t mt, dmu_tx_t *tx);
 
 /*
  * Returns (in *count) the number of attributes in the specified zap
@@ -191,11 +235,28 @@ int zap_count(objset_t *ds, uint64_t zapobj, uint64_t *count);
 
 
 /*
- * Returns (in name) the name of the entry whose value
+ * Returns (in name) the name of the entry whose (value & mask)
  * (za_first_integer) is value, or ENOENT if not found.  The string
- * pointed to by name must be at least 256 bytes long.
+ * pointed to by name must be at least 256 bytes long.  If mask==0, the
+ * match must be exact (ie, same as mask=-1ULL).
  */
-int zap_value_search(objset_t *os, uint64_t zapobj, uint64_t value, char *name);
+int zap_value_search(objset_t *os, uint64_t zapobj,
+    uint64_t value, uint64_t mask, char *name);
+
+/*
+ * Transfer all the entries from fromobj into intoobj.  Only works on
+ * int_size=8 num_integers=1 values.  Fails if there are any duplicated
+ * entries.
+ */
+int zap_join(objset_t *os, uint64_t fromobj, uint64_t intoobj, dmu_tx_t *tx);
+
+/*
+ * Manipulate entries where the name + value are the "same" (the name is
+ * a stringified version of the value).
+ */
+int zap_add_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx);
+int zap_remove_int(objset_t *os, uint64_t obj, uint64_t value, dmu_tx_t *tx);
+int zap_lookup_int(objset_t *os, uint64_t obj, uint64_t value);
 
 struct zap;
 struct zap_leaf;
@@ -211,6 +272,11 @@ typedef struct zap_cursor {
 
 typedef struct {
 	int za_integer_length;
+	/*
+	 * za_normalization_conflict will be set if there are additional
+	 * entries with this normalized form (eg, "foo" and "Foo").
+	 */
+	boolean_t za_normalization_conflict;
 	uint64_t za_num_integers;
 	uint64_t za_first_integer;	/* no sign extension for <8byte ints */
 	char za_name[MAXNAMELEN];

@@ -19,14 +19,12 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
 #define	_SYS_ZFS_CONTEXT_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #ifdef	__cplusplus
 extern "C" {
@@ -64,6 +62,7 @@ extern "C" {
 #include <fsshare.h>
 #include <sys/note.h>
 #include <sys/types.h>
+#include <sys/cred.h>
 #include <sys/atomic.h>
 #include <sys/sysmacros.h>
 #include <sys/bitmap.h>
@@ -78,8 +77,10 @@ extern "C" {
 #include <sys/debug.h>
 #include <sys/sdt.h>
 #include <sys/kstat.h>
+#include <sys/u8_textprep.h>
 #include <sys/kernel.h>
 #include <sys/disk.h>
+#include <sys/sysevent/eventdefs.h>
 #include <machine/atomic.h>
 
 #define	ZFS_EXPORTS_PATH	"/etc/zfs/exports"
@@ -116,11 +117,12 @@ extern void vcmn_err(int, const char *, __va_list);
 extern void panic(const char *, ...);
 extern void vpanic(const char *, __va_list);
 
+#define	fm_panic	panic
+
 /* This definition is copied from assert.h. */
 #if defined(__STDC__)
 #if __STDC_VERSION__ - 0 >= 199901L
-#define	verify(EX) (void)((EX) || \
-	(__assert_c99(#EX, __FILE__, __LINE__, __func__), 0))
+#define	verify(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
 #else
 #define	verify(EX) (void)((EX) || (__assert(#EX, __FILE__, __LINE__), 0))
 #endif /* __STDC_VERSION__ - 0 >= 199901L */
@@ -167,10 +169,15 @@ _NOTE(CONSTCOND) } while (0)
 #endif
 
 /*
- * Dtrace SDT probes have different signatures in userland than they do in
+ * DTrace SDT probes have different signatures in userland than they do in
  * kernel.  If they're being used in kernel code, re-define them out of
  * existence for their counterparts in libzpool.
  */
+
+#ifdef DTRACE_PROBE
+#undef	DTRACE_PROBE
+#define	DTRACE_PROBE(a)	((void)0)
+#endif	/* DTRACE_PROBE */
 
 #ifdef DTRACE_PROBE1
 #undef	DTRACE_PROBE1
@@ -212,8 +219,9 @@ extern kthread_t *zk_thread_create(void (*func)(), void *arg);
  * Mutexes
  */
 typedef struct kmutex {
-	void	*m_owner;
-	mutex_t	m_lock;
+	void		*m_owner;
+	boolean_t	initialized;
+	mutex_t		m_lock;
 } kmutex_t;
 
 #define	MUTEX_DEFAULT	USYNC_THREAD
@@ -243,6 +251,7 @@ extern void *mutex_owner(kmutex_t *mp);
 typedef struct krwlock {
 	int		rw_count;
 	void		*rw_owner;
+	boolean_t	initialized;
 	rwlock_t	rw_lock;
 } krwlock_t;
 
@@ -253,6 +262,7 @@ typedef int krw_t;
 #define	RW_DEFAULT	USYNC_THREAD
 
 #undef RW_READ_HELD
+#define RW_READ_HELD(x)		((x)->rw_owner == NULL && (x)->rw_count > 0)
 
 #undef RW_WRITE_HELD
 #define	RW_WRITE_HELD(x)	((x)->rw_owner == curthread)
@@ -266,6 +276,11 @@ extern int rw_tryupgrade(krwlock_t *rwlp);
 extern void rw_exit(krwlock_t *rwlp);
 extern int rw_lock_held(krwlock_t *rwlp);
 #define	rw_downgrade(rwlp) do { } while (0)
+
+extern uid_t crgetuid(cred_t *cr);
+extern gid_t crgetgid(cred_t *cr);
+extern int crgetngroups(cred_t *cr);
+extern gid_t *crgetgroups(cred_t *cr);
 
 /*
  * Condition variables
@@ -285,6 +300,7 @@ extern void cv_broadcast(kcondvar_t *cv);
  * Kernel memory
  */
 #define	KM_SLEEP		UMEM_NOFAIL
+#define	KM_PUSHPAGE		KM_SLEEP
 #define	KM_NOSLEEP		UMEM_DEFAULT
 #define	KMC_NODEBUG		UMC_NODEBUG
 #define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
@@ -322,6 +338,9 @@ extern void	taskq_destroy(taskq_t *);
 extern void	taskq_wait(taskq_t *);
 extern int	taskq_member(taskq_t *, void *);
 
+#define	XVA_MAPSIZE	3
+#define	XVA_MAGIC	0x78766174
+
 /*
  * vnodes
  */
@@ -331,44 +350,93 @@ typedef struct vnode {
 	char		*v_path;
 } vnode_t;
 
+
+typedef struct xoptattr {
+	timestruc_t	xoa_createtime;	/* Create time of file */
+	uint8_t		xoa_archive;
+	uint8_t		xoa_system;
+	uint8_t		xoa_readonly;
+	uint8_t		xoa_hidden;
+	uint8_t		xoa_nounlink;
+	uint8_t		xoa_immutable;
+	uint8_t		xoa_appendonly;
+	uint8_t		xoa_nodump;
+	uint8_t		xoa_settable;
+	uint8_t		xoa_opaque;
+	uint8_t		xoa_av_quarantined;
+	uint8_t		xoa_av_modified;
+} xoptattr_t;
+
 typedef struct vattr {
 	uint_t		va_mask;	/* bit-mask of attributes */
 	u_offset_t	va_size;	/* file size in bytes */
 } vattr_t;
 
-#define	AT_TYPE		0x0001
-#define	AT_MODE		0x0002
-#define	AT_UID		0x0004
-#define	AT_GID		0x0008
-#define	AT_FSID		0x0010
-#define	AT_NODEID	0x0020
-#define	AT_NLINK	0x0040
-#define	AT_SIZE		0x0080
-#define	AT_ATIME	0x0100
-#define	AT_MTIME	0x0200
-#define	AT_CTIME	0x0400
-#define	AT_RDEV		0x0800
-#define	AT_BLKSIZE	0x1000
-#define	AT_NBLOCKS	0x2000
-#define	AT_SEQ		0x8000
+
+typedef struct xvattr {
+	vattr_t		xva_vattr;	/* Embedded vattr structure */
+	uint32_t	xva_magic;	/* Magic Number */
+	uint32_t	xva_mapsize;	/* Size of attr bitmap (32-bit words) */
+	uint32_t	*xva_rtnattrmapp;	/* Ptr to xva_rtnattrmap[] */
+	uint32_t	xva_reqattrmap[XVA_MAPSIZE];	/* Requested attrs */
+	uint32_t	xva_rtnattrmap[XVA_MAPSIZE];	/* Returned attrs */
+	xoptattr_t	xva_xoptattrs;	/* Optional attributes */
+} xvattr_t;
+
+typedef struct vsecattr {
+	uint_t		vsa_mask;	/* See below */
+	int		vsa_aclcnt;	/* ACL entry count */
+	void		*vsa_aclentp;	/* pointer to ACL entries */
+	int		vsa_dfaclcnt;	/* default ACL entry count */
+	void		*vsa_dfaclentp;	/* pointer to default ACL entries */
+	size_t		vsa_aclentsz;	/* ACE size in bytes of vsa_aclentp */
+} vsecattr_t;
+
+#define	AT_TYPE		0x00001
+#define	AT_MODE		0x00002
+#define	AT_UID		0x00004
+#define	AT_GID		0x00008
+#define	AT_FSID		0x00010
+#define	AT_NODEID	0x00020
+#define	AT_NLINK	0x00040
+#define	AT_SIZE		0x00080
+#define	AT_ATIME	0x00100
+#define	AT_MTIME	0x00200
+#define	AT_CTIME	0x00400
+#define	AT_RDEV		0x00800
+#define	AT_BLKSIZE	0x01000
+#define	AT_NBLOCKS	0x02000
+#define	AT_SEQ		0x08000
+#define	AT_XVATTR	0x10000
 
 #define	CRCREAT		0
 
-#define	VOP_CLOSE(vp, f, c, o, cr)	0
-#define	VOP_PUTPAGE(vp, of, sz, fl, cr)	0
-#define	VOP_GETATTR(vp, vap, fl)	((vap)->va_size = (vp)->v_size, 0)
+#define	VOP_CLOSE(vp, f, c, o, cr, ct)	0
+#define	VOP_PUTPAGE(vp, of, sz, fl, cr, ct)	0
+#define	VOP_GETATTR(vp, vap, cr)	((vap)->va_size = (vp)->v_size, 0)
 
-#define	VOP_FSYNC(vp, f, cr)	fsync((vp)->v_fd)
+#define	VOP_FSYNC(vp, f, cr, ct)	fsync((vp)->v_fd)
 
-#define	VN_RELE(vp)	vn_close(vp)
+#define	VN_RELE(vp)	vn_close(vp, 0, NULL, NULL)
+
+#define	vn_lock(vp, type)
+#define	VOP_UNLOCK(vp, type)
+#ifdef VFS_LOCK_GIANT
+#undef VFS_LOCK_GIANT
+#endif
+#define	VFS_LOCK_GIANT(mp)	0
+#ifdef VFS_UNLOCK_GIANT
+#undef VFS_UNLOCK_GIANT
+#endif
+#define	VFS_UNLOCK_GIANT(vfslocked)
 
 extern int vn_open(char *path, int x1, int oflags, int mode, vnode_t **vpp,
     int x2, int x3);
 extern int vn_openat(char *path, int x1, int oflags, int mode, vnode_t **vpp,
-    int x2, int x3, vnode_t *vp);
+    int x2, int x3, vnode_t *vp, int fd);
 extern int vn_rdwr(int uio, vnode_t *vp, void *addr, ssize_t len,
     offset_t offset, int x1, int x2, rlim64_t x3, void *x4, ssize_t *residp);
-extern void vn_close(vnode_t *vp);
+extern void vn_close(vnode_t *vp, int openflag, cred_t *cr, kthread_t *td);
 
 #define	vn_remove(path, x1, x2)		remove(path)
 #define	vn_rename(from, to, seg)	rename((from), (to))
@@ -397,8 +465,9 @@ extern void delay(clock_t ticks);
 
 #define	CPU_SEQID	(thr_self() & (max_ncpus - 1))
 
-#define	kcred		NULL
-#define	CRED()		NULL
+#ifndef ptob
+#define	ptob(x)		((x) * PAGESIZE)
+#endif
 
 extern uint64_t physmem;
 
@@ -455,11 +524,31 @@ struct bootstat {
 	uint64_t st_size;
 };
 
+typedef struct ace_object {
+	uid_t		a_who;
+	uint32_t	a_access_mask;
+	uint16_t	a_flags;
+	uint16_t	a_type;
+	uint8_t		a_obj_type[16];
+	uint8_t		a_inherit_obj_type[16];
+} ace_object_t;
+
+
+#define	ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE	0x05
+#define	ACE_ACCESS_DENIED_OBJECT_ACE_TYPE	0x06
+#define	ACE_SYSTEM_AUDIT_OBJECT_ACE_TYPE	0x07
+#define	ACE_SYSTEM_ALARM_OBJECT_ACE_TYPE	0x08
+
 extern struct _buf *kobj_open_file(char *name);
 extern int kobj_read_file(struct _buf *file, char *buf, unsigned size,
     unsigned off);
 extern void kobj_close_file(struct _buf *file);
 extern int kobj_get_filesize(struct _buf *file, uint64_t *size);
+extern int zfs_secpolicy_snapshot_perms(const char *name, cred_t *cr);
+extern int zfs_secpolicy_rename_perms(const char *from, const char *to,
+    cred_t *cr);
+extern int zfs_secpolicy_destroy_perms(const char *name, cred_t *cr);
+extern zoneid_t getzoneid(void);
 /* Random compatibility stuff. */
 #define	lbolt	(gethrtime() >> 23)
 #define	lbolt64	(gethrtime() >> 23)
@@ -482,18 +571,32 @@ struct file {
 #define	FCREAT	O_CREAT
 #define	FOFFMAX	0x0
 
+/* SID stuff */
+typedef struct ksiddomain {
+	uint_t	kd_ref;
+	uint_t	kd_len;
+	char	*kd_name;
+} ksiddomain_t;
+
+ksiddomain_t *ksid_lookupdomain(const char *);
+void ksiddomain_rele(ksiddomain_t *);
+
 #define	SX_SYSINIT(name, lock, desc)
 
 #define	SYSCTL_DECL(...)
 #define	SYSCTL_NODE(...)
 #define	SYSCTL_INT(...)
+#define	SYSCTL_UINT(...)
 #define	SYSCTL_ULONG(...)
+#define	SYSCTL_QUAD(...)
 #ifdef TUNABLE_INT
 #undef TUNABLE_INT
 #undef TUNABLE_ULONG
+#undef TUNABLE_QUAD
 #endif
 #define	TUNABLE_INT(...)
 #define	TUNABLE_ULONG(...)
+#define	TUNABLE_QUAD(...)
 
 /* Errors */
 
