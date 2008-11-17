@@ -20,7 +20,7 @@
  */
 /* Portions Copyright 2007 Shivakumar GN */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -35,6 +35,7 @@
 #include <sys/mutex.h>
 #include <sys/sysmacros.h>
 #include <sys/systm.h>
+#include <sys/sunddi.h>
 #include <sys/uio.h>
 #include <sys/vfs.h>
 #include <sys/vnode.h>
@@ -60,7 +61,7 @@
  *
  *    These routines are designed to play a support role for existing
  *    pseudo-filesystems (such as procfs).  They simplify common tasks,
- *    without enforcing the filesystem to hand over management to GFS.  The
+ *    without forcing the filesystem to hand over management to GFS.  The
  *    routines covered are:
  *
  *	gfs_readdir_init()
@@ -116,6 +117,42 @@
  */
 
 /*
+ * gfs_get_parent_ino: used to obtain a parent inode number and the
+ * inode number of the given vnode in preparation for calling gfs_readdir_init.
+ */
+int
+gfs_get_parent_ino(vnode_t *dvp, cred_t *cr, caller_context_t *ct,
+    ino64_t *pino, ino64_t *ino)
+{
+	vnode_t *parent;
+	gfs_dir_t *dp = dvp->v_data;
+	int error;
+
+	*ino = dp->gfsd_file.gfs_ino;
+	parent = dp->gfsd_file.gfs_parent;
+
+	if (parent == NULL) {
+		*pino = *ino;		/* root of filesystem */
+	} else if (dvp->v_flag & V_XATTRDIR) {
+#ifdef TODO
+		vattr_t va;
+
+		va.va_mask = AT_NODEID;
+		error = VOP_GETATTR(parent, &va, 0, cr, ct);
+		if (error)
+			return (error);
+		*pino = va.va_nodeid;
+#else
+		panic("%s:%u: not implemented", __func__, __LINE__);
+#endif
+	} else {
+		*pino = ((gfs_file_t *)(parent->v_data))->gfs_ino;
+	}
+
+	return (0);
+}
+
+/*
  * gfs_readdir_init: initiate a generic readdir
  *   st		- a pointer to an uninitialized gfs_readdir_state_t structure
  *   name_max	- the directory's maximum file name length
@@ -123,6 +160,7 @@
  *   uiop	- the uiop passed to readdir
  *   parent	- the parent directory's inode
  *   self	- this directory's inode
+ *   flags	- flags from VOP_READDIR
  *
  * Returns 0 or a non-zero errno.
  *
@@ -153,8 +191,10 @@
  */
 int
 gfs_readdir_init(gfs_readdir_state_t *st, int name_max, int ureclen,
-    uio_t *uiop, ino64_t parent, ino64_t self)
+    uio_t *uiop, ino64_t parent, ino64_t self, int flags)
 {
+	size_t dirent_size;
+
 	if (uiop->uio_loffset < 0 || uiop->uio_resid <= 0 ||
 	    (uiop->uio_loffset % ureclen) != 0)
 		return (EINVAL);
@@ -162,9 +202,14 @@ gfs_readdir_init(gfs_readdir_state_t *st, int name_max, int ureclen,
 	st->grd_ureclen = ureclen;
 	st->grd_oresid = uiop->uio_resid;
 	st->grd_namlen = name_max;
-	st->grd_dirent = kmem_zalloc(DIRENT64_RECLEN(st->grd_namlen), KM_SLEEP);
+	if (flags & V_RDDIR_ENTFLAGS)
+		dirent_size = EDIRENT_RECLEN(st->grd_namlen);
+	else
+		dirent_size = DIRENT64_RECLEN(st->grd_namlen);
+	st->grd_dirent = kmem_zalloc(dirent_size, KM_SLEEP);
 	st->grd_parent = parent;
 	st->grd_self = self;
+	st->grd_flags = flags;
 
 	return (0);
 }
@@ -172,8 +217,8 @@ gfs_readdir_init(gfs_readdir_state_t *st, int name_max, int ureclen,
 /*
  * gfs_readdir_emit_int: internal routine to emit directory entry
  *
- *   st		- the current readdir state, which must have d_ino and d_name
- *                set
+ *   st		- the current readdir state, which must have d_ino/ed_ino
+ *		  and d_name/ed_name set
  *   uiop	- caller-supplied uio pointer
  *   next	- the offset of the next entry
  */
@@ -182,9 +227,18 @@ gfs_readdir_emit_int(gfs_readdir_state_t *st, uio_t *uiop, offset_t next,
     int *ncookies, u_long **cookies)
 {
 	int reclen, namlen;
+	dirent64_t *dp;
+	edirent_t *edp;
 
-	namlen = strlen(st->grd_dirent->d_name);
-	reclen = DIRENT64_RECLEN(namlen);
+	if (st->grd_flags & V_RDDIR_ENTFLAGS) {
+		edp = st->grd_dirent;
+		namlen = strlen(edp->ed_name);
+		reclen = EDIRENT_RECLEN(namlen);
+	} else {
+		dp = st->grd_dirent;
+		namlen = strlen(dp->d_name);
+		reclen = DIRENT64_RECLEN(namlen);
+	}
 
 	if (reclen > uiop->uio_resid) {
 		/*
@@ -195,10 +249,15 @@ gfs_readdir_emit_int(gfs_readdir_state_t *st, uio_t *uiop, offset_t next,
 		return (-1);
 	}
 
-	/* XXX: This can change in the future. */
-	st->grd_dirent->d_type = DT_DIR;
-	st->grd_dirent->d_reclen = (ushort_t)reclen;
-	st->grd_dirent->d_namlen = namlen;
+	if (st->grd_flags & V_RDDIR_ENTFLAGS) {
+		edp->ed_off = next;
+		edp->ed_reclen = (ushort_t)reclen;
+	} else {
+		/* XXX: This can change in the future. */
+		dp->d_reclen = (ushort_t)reclen;
+		dp->d_type = DT_DIR;
+		dp->d_namlen = namlen;
+	}
 
 	if (uiomove((caddr_t)st->grd_dirent, reclen, UIO_READ, uiop))
 		return (EFAULT);
@@ -219,6 +278,7 @@ gfs_readdir_emit_int(gfs_readdir_state_t *st, uio_t *uiop, offset_t next,
  *   voff       - the virtual offset (obtained from gfs_readdir_pred)
  *   ino        - the entry's inode
  *   name       - the entry's name
+ *   eflags	- value for ed_eflags (if processing edirent_t)
  *
  * Returns a 0 on success, a non-zero errno on failure, or -1 if the
  * readdir loop should terminate.  A non-zero result (either errno or
@@ -227,12 +287,22 @@ gfs_readdir_emit_int(gfs_readdir_state_t *st, uio_t *uiop, offset_t next,
  */
 int
 gfs_readdir_emit(gfs_readdir_state_t *st, uio_t *uiop, offset_t voff,
-    ino64_t ino, const char *name, int *ncookies, u_long **cookies)
+    ino64_t ino, const char *name, int eflags, int *ncookies, u_long **cookies)
 {
 	offset_t off = (voff + 2) * st->grd_ureclen;
 
-	st->grd_dirent->d_ino = ino;
-	(void) strncpy(st->grd_dirent->d_name, name, st->grd_namlen);
+	if (st->grd_flags & V_RDDIR_ENTFLAGS) {
+		edirent_t *edp = st->grd_dirent;
+
+		edp->ed_ino = ino;
+		(void) strncpy(edp->ed_name, name, st->grd_namlen);
+		edp->ed_eflags = eflags;
+	} else {
+		dirent64_t *dp = st->grd_dirent;
+
+		dp->d_ino = ino;
+		(void) strncpy(dp->d_name, name, st->grd_namlen);
+	}
 
 	/*
 	 * Inter-entry offsets are invalid, so we assume a record size of
@@ -266,11 +336,11 @@ top:
 	voff = off - 2;
 	if (off == 0) {
 		if ((error = gfs_readdir_emit(st, uiop, voff, st->grd_self,
-		    ".", ncookies, cookies)) == 0)
+		    ".", 0, ncookies, cookies)) == 0)
 			goto top;
 	} else if (off == 1) {
 		if ((error = gfs_readdir_emit(st, uiop, voff, st->grd_parent,
-		    "..", ncookies, cookies)) == 0)
+		    "..", 0, ncookies, cookies)) == 0)
 			goto top;
 	} else {
 		*voffp = voff;
@@ -292,7 +362,13 @@ top:
 int
 gfs_readdir_fini(gfs_readdir_state_t *st, int error, int *eofp, int eof)
 {
-	kmem_free(st->grd_dirent, DIRENT64_RECLEN(st->grd_namlen));
+	size_t dirent_size;
+
+	if (st->grd_flags & V_RDDIR_ENTFLAGS)
+		dirent_size = EDIRENT_RECLEN(st->grd_namlen);
+	else
+		dirent_size = DIRENT64_RECLEN(st->grd_namlen);
+	kmem_free(st->grd_dirent, dirent_size);
 	if (error > 0)
 		return (error);
 	if (eofp)
@@ -485,7 +561,7 @@ gfs_file_inactive(vnode_t *vp)
 	gfs_dir_t *dp = NULL;
 	void *data;
 
-	if (fp->gfs_parent == NULL)
+	if (fp->gfs_parent == NULL || (vp->v_flag & V_XATTRDIR))
 		goto found;
 
 	dp = fp->gfs_parent->v_data;
@@ -511,6 +587,8 @@ gfs_file_inactive(vnode_t *vp)
 	ge = NULL;
 
 found:
+	if (vp->v_flag & V_XATTRDIR)
+		VI_LOCK(fp->gfs_parent);
 	VI_LOCK(vp);
 	ASSERT(vp->v_count < 2);
 	/*
@@ -535,7 +613,8 @@ found:
 	 * Free vnode and release parent
 	 */
 	if (fp->gfs_parent) {
-		gfs_dir_unlock(dp);
+		if (dp)
+			gfs_dir_unlock(dp);
 		VI_LOCK(fp->gfs_parent);
 		fp->gfs_parent->v_usecount--;
 		VI_UNLOCK(fp->gfs_parent);
@@ -543,6 +622,8 @@ found:
 		ASSERT(vp->v_vfsp != NULL);
 		VFS_RELE(vp->v_vfsp);
 	}
+	if (vp->v_flag & V_XATTRDIR)
+		VI_UNLOCK(fp->gfs_parent);
 
 	return (data);
 }
@@ -570,42 +651,102 @@ gfs_dir_inactive(vnode_t *vp)
 }
 
 /*
- * gfs_dir_lookup()
+ * gfs_dir_lookup_dynamic()
  *
- * Looks up the given name in the directory and returns the corresponding vnode,
- * if found.
+ * This routine looks up the provided name amongst the dynamic entries
+ * in the gfs directory and returns the corresponding vnode, if found.
  *
- * First, we search statically defined entries, if any.  If a match is found,
- * and GFS_CACHE_VNODE is set and the vnode exists, we simply return the
- * existing vnode.  Otherwise, we call the static entry's callback routine,
- * caching the result if necessary.
+ * The gfs directory is expected to be locked by the caller prior to
+ * calling this function.  The directory will be unlocked during the
+ * execution of this function, but will be locked upon return from the
+ * function.  This function returns 0 on success, non-zero on error.
  *
- * If no static entry is found, we invoke the lookup callback, if any.  The
- * arguments to this callback are:
+ * The dynamic lookups are performed by invoking the lookup
+ * callback, which is passed to this function as the first argument.
+ * The arguments to the callback are:
  *
- *	int gfs_lookup_cb(vnode_t *pvp, const char *nm, vnode_t **vpp);
+ * int gfs_lookup_cb(vnode_t *pvp, const char *nm, vnode_t **vpp, cred_t *cr,
+ *     int flags, int *deflgs, pathname_t *rpnp);
  *
  *	pvp	- parent vnode
  *	nm	- name of entry
  *	vpp	- pointer to resulting vnode
+ *	cr	- pointer to cred
+ *	flags	- flags value from lookup request
+ *		ignored here; currently only used to request
+ *		insensitive lookups
+ *	direntflgs - output parameter, directory entry flags
+ *		ignored here; currently only used to indicate a lookup
+ *		has more than one possible match when case is not considered
+ *	realpnp	- output parameter, real pathname
+ *		ignored here; when lookup was performed case-insensitively,
+ *		this field contains the "real" name of the file.
  *
  * 	Returns 0 on success, non-zero on error.
  */
-int
-gfs_dir_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp)
+static int
+gfs_dir_lookup_dynamic(gfs_lookup_cb callback, gfs_dir_t *dp,
+    const char *nm, vnode_t *dvp, vnode_t **vpp, cred_t *cr, int flags,
+    int *direntflags, pathname_t *realpnp)
 {
-	int i;
-	gfs_dirent_t *ge;
-	vnode_t *vp;
-	gfs_dir_t *dp = dvp->v_data;
-	int ret = 0;
+	gfs_file_t *fp;
+	ino64_t ino;
+	int ret;
 
-	ASSERT(dvp->v_type == VDIR);
+	ASSERT(GFS_DIR_LOCKED(dp));
 
-	if (gfs_lookup_dot(vpp, dvp, dp->gfsd_file.gfs_parent, nm) == 0)
-		return (0);
-
+	/*
+	 * Drop the directory lock, as the lookup routine
+	 * will need to allocate memory, or otherwise deadlock on this
+	 * directory.
+	 */
+	gfs_dir_unlock(dp);
+	ret = callback(dvp, nm, vpp, &ino, cr, flags, direntflags, realpnp);
 	gfs_dir_lock(dp);
+
+	/*
+	 * The callback for extended attributes returns a vnode
+	 * with v_data from an underlying fs.
+	 */
+	if (ret == 0 && !IS_XATTRDIR(dvp)) {
+		fp = (gfs_file_t *)((*vpp)->v_data);
+		fp->gfs_index = -1;
+		fp->gfs_ino = ino;
+	}
+
+	return (ret);
+}
+
+/*
+ * gfs_dir_lookup_static()
+ *
+ * This routine looks up the provided name amongst the static entries
+ * in the gfs directory and returns the corresponding vnode, if found.
+ * The first argument to the function is a pointer to the comparison
+ * function this function should use to decide if names are a match.
+ *
+ * If a match is found, and GFS_CACHE_VNODE is set and the vnode
+ * exists, we simply return the existing vnode.  Otherwise, we call
+ * the static entry's callback routine, caching the result if
+ * necessary.  If the idx pointer argument is non-NULL, we use it to
+ * return the index of the matching static entry.
+ *
+ * The gfs directory is expected to be locked by the caller prior to calling
+ * this function.  The directory may be unlocked during the execution of
+ * this function, but will be locked upon return from the function.
+ *
+ * This function returns 0 if a match is found, ENOENT if not.
+ */
+static int
+gfs_dir_lookup_static(int (*compare)(const char *, const char *),
+    gfs_dir_t *dp, const char *nm, vnode_t *dvp, int *idx,
+    vnode_t **vpp, pathname_t *rpnp)
+{
+	gfs_dirent_t *ge;
+	vnode_t *vp = NULL;
+	int i;
+
+	ASSERT(GFS_DIR_LOCKED(dp));
 
 	/*
 	 * Search static entries.
@@ -613,12 +754,16 @@ gfs_dir_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp)
 	for (i = 0; i < dp->gfsd_nstatic; i++) {
 		ge = &dp->gfsd_static[i];
 
-		if (strcmp(ge->gfse_name, nm) == 0) {
+		if (compare(ge->gfse_name, nm) == 0) {
+			if (rpnp)
+				(void) strlcpy(rpnp->pn_buf, ge->gfse_name,
+				    rpnp->pn_bufsize);
+
 			if (ge->gfse_vnode) {
 				ASSERT(ge->gfse_flags & GFS_CACHE_VNODE);
 				vp = ge->gfse_vnode;
 				VN_HOLD(vp);
-				goto out;
+				break;
 			}
 
 			/*
@@ -626,8 +771,8 @@ gfs_dir_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp)
 			 * need to do KM_SLEEP allocations.  If we return from
 			 * the constructor only to find that a parallel
 			 * operation has completed, and GFS_CACHE_VNODE is set
-			 * for this entry, we discard the result in favor of the
-			 * cached vnode.
+			 * for this entry, we discard the result in favor of
+			 * the cached vnode.
 			 */
 			gfs_dir_unlock(dp);
 			vp = ge->gfse_ctor(dvp);
@@ -660,49 +805,94 @@ gfs_dir_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp)
 					gfs_dir_lock(dp);
 				}
 			}
-
-			goto out;
+			break;
 		}
 	}
 
-	/*
-	 * See if there is a dynamic constructor.
-	 */
-	if (dp->gfsd_lookup) {
-		ino64_t ino;
-		gfs_file_t *fp;
+	if (vp == NULL)
+		return (ENOENT);
+	else if (idx)
+		*idx = i;
+	*vpp = vp;
+	return (0);
+}
 
-		/*
-		 * Once again, drop the directory lock, as the lookup routine
-		 * will need to allocate memory, or otherwise deadlock on this
-		 * directory.
-		 */
-		gfs_dir_unlock(dp);
-		ret = dp->gfsd_lookup(dvp, nm, &vp, &ino);
-		gfs_dir_lock(dp);
-		if (ret != 0)
-			goto out;
+/*
+ * gfs_dir_lookup()
+ *
+ * Looks up the given name in the directory and returns the corresponding
+ * vnode, if found.
+ *
+ * First, we search statically defined entries, if any, with a call to
+ * gfs_dir_lookup_static().  If no static entry is found, and we have
+ * a callback function we try a dynamic lookup via gfs_dir_lookup_dynamic().
+ *
+ * This function returns 0 on success, non-zero on error.
+ */
+int
+gfs_dir_lookup(vnode_t *dvp, const char *nm, vnode_t **vpp, cred_t *cr,
+    int flags, int *direntflags, pathname_t *realpnp)
+{
+	gfs_dir_t *dp = dvp->v_data;
+	boolean_t casecheck;
+	vnode_t *dynvp = NULL;
+	vnode_t *vp = NULL;
+	int (*compare)(const char *, const char *);
+	int error, idx;
 
-		fp = (gfs_file_t *)vp->v_data;
-		fp->gfs_index = -1;
-		fp->gfs_ino = ino;
-	} else {
-		/*
-		 * No static entry found, and there is no lookup callback, so
-		 * return ENOENT.
-		 */
-		ret = ENOENT;
+	ASSERT(dvp->v_type == VDIR);
+
+	if (gfs_lookup_dot(vpp, dvp, dp->gfsd_file.gfs_parent, nm) == 0)
+		return (0);
+
+	casecheck = (flags & FIGNORECASE) != 0 && direntflags != NULL;
+	if (vfs_has_feature(dvp->v_vfsp, VFSFT_NOCASESENSITIVE) ||
+	    (flags & FIGNORECASE))
+		compare = strcasecmp;
+	else
+		compare = strcmp;
+
+	gfs_dir_lock(dp);
+
+	error = gfs_dir_lookup_static(compare, dp, nm, dvp, &idx, &vp, realpnp);
+
+	if (vp && casecheck) {
+		gfs_dirent_t *ge;
+		int i;
+
+		for (i = idx + 1; i < dp->gfsd_nstatic; i++) {
+			ge = &dp->gfsd_static[i];
+
+			if (strcasecmp(ge->gfse_name, nm) == 0) {
+				*direntflags |= ED_CASE_CONFLICT;
+				goto out;
+			}
+		}
+	}
+
+	if ((error || casecheck) && dp->gfsd_lookup)
+		error = gfs_dir_lookup_dynamic(dp->gfsd_lookup, dp, nm, dvp,
+		    &dynvp, cr, flags, direntflags, vp ? NULL : realpnp);
+
+	if (vp && dynvp) {
+		/* static and dynamic entries are case-insensitive conflict */
+		ASSERT(casecheck);
+		*direntflags |= ED_CASE_CONFLICT;
+		VN_RELE(dynvp);
+	} else if (vp == NULL) {
+		vp = dynvp;
+	} else if (error == ENOENT) {
+		error = 0;
+	} else if (error) {
+		VN_RELE(vp);
+		vp = NULL;
 	}
 
 out:
 	gfs_dir_unlock(dp);
 
-	if (ret == 0)
-		*vpp = vp;
-	else
-		*vpp = NULL;
-
-	return (ret);
+	*vpp = vp;
+	return (error);
 }
 
 /*
@@ -731,13 +921,15 @@ out:
  * This is significantly more complex, thanks to the particulars of
  * VOP_READDIR().
  *
- *	int gfs_readdir_cb(vnode_t *vp, struct dirent64 *dp, int *eofp,
- *	    offset_t *off, offset_t *nextoff, void *data)
+ *	int gfs_readdir_cb(vnode_t *vp, void *dp, int *eofp,
+ *	    offset_t *off, offset_t *nextoff, void *data, int flags)
  *
  *	vp	- directory vnode
  *	dp	- directory entry, sized according to maxlen given to
  *		  gfs_dir_create().  callback must fill in d_name and
- *		  d_ino.
+ *		  d_ino (if a dirent64_t), or ed_name, ed_ino, and ed_eflags
+ *		  (if an edirent_t). edirent_t is used if V_RDDIR_ENTFLAGS
+ *		  is set in 'flags'.
  *	eofp	- callback must set to 1 when EOF has been reached
  *	off	- on entry, the last offset read from the directory.  Callback
  *		  must set to the offset of the current entry, typically left
@@ -745,12 +937,13 @@ out:
  *	nextoff	- callback must set to offset of next entry.  Typically
  *		  (off + 1)
  *	data	- caller-supplied data
+ *	flags	- VOP_READDIR flags
  *
  *	Return 0 on success, or error on failure.
  */
 int
 gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
-    u_long **cookies, void *data)
+    u_long **cookies, void *data, cred_t *cr, int flags)
 {
 	gfs_readdir_state_t gstate;
 	int error, eof = 0;
@@ -758,16 +951,12 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 	offset_t off, next;
 	gfs_dir_t *dp = dvp->v_data;
 
-	ino = dp->gfsd_file.gfs_ino;
-
-	if (dp->gfsd_file.gfs_parent == NULL)
-		pino = ino;		/* root of filesystem */
-	else
-		pino = ((gfs_file_t *)
-		    (dp->gfsd_file.gfs_parent->v_data))->gfs_ino;
+	error = gfs_get_parent_ino(dvp, cr, NULL, &pino, &ino);
+	if (error)
+		return (error);
 
 	if ((error = gfs_readdir_init(&gstate, dp->gfsd_maxlen, 1, uiop,
-	    pino, ino)) != 0)
+	    pino, ino, flags)) != 0)
 		return (error);
 
 	while ((error = gfs_readdir_pred(&gstate, uiop, &off, ncookies,
@@ -777,8 +966,8 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 			ino = dp->gfsd_inode(dvp, off);
 
 			if ((error = gfs_readdir_emit(&gstate, uiop,
-			    off, ino, dp->gfsd_static[off].gfse_name, ncookies,
-			    cookies)) != 0)
+			    off, ino, dp->gfsd_static[off].gfse_name, 0,
+			    ncookies, cookies)) != 0)
 				break;
 
 		} else if (dp->gfsd_readdir) {
@@ -786,7 +975,7 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 
 			if ((error = dp->gfsd_readdir(dvp,
 			    gstate.grd_dirent, &eof, &off, &next,
-			    data)) != 0 || eof)
+			    data, flags)) != 0 || eof)
 				break;
 
 			off += dp->gfsd_nstatic + 2;
@@ -805,6 +994,21 @@ gfs_dir_readdir(vnode_t *dvp, uio_t *uiop, int *eofp, int *ncookies,
 	}
 
 	return (gfs_readdir_fini(&gstate, error, eofp, eof));
+}
+
+/*
+ * gfs_vop_lookup: VOP_LOOKUP() entry point
+ *
+ * For use directly in vnode ops table.  Given a GFS directory, calls
+ * gfs_dir_lookup() as necessary.
+ */
+/* ARGSUSED */
+int
+gfs_vop_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, pathname_t *pnp,
+    int flags, vnode_t *rdir, cred_t *cr, caller_context_t *ct,
+    int *direntflags, pathname_t *realpnp)
+{
+	return (gfs_dir_lookup(dvp, nm, vpp, cr, flags, direntflags, realpnp));
 }
 
 /*
@@ -827,6 +1031,7 @@ gfs_vop_readdir(ap)
 {
 	vnode_t *vp = ap->a_vp;
 	uio_t *uiop = ap->a_uio;
+	cred_t *cr = ap->a_cred;
 	int *eofp = ap->a_eofflag;
 	int ncookies = 0;
 	u_long *cookies = NULL;
@@ -842,7 +1047,8 @@ gfs_vop_readdir(ap)
 		*ap->a_ncookies = ncookies;
 	}
 
-	error = gfs_dir_readdir(vp, uiop, eofp, &ncookies, &cookies, NULL);
+	error = gfs_dir_readdir(vp, uiop, eofp, &ncookies, &cookies, NULL,
+	    cr, 0);
 
 	if (error == 0) {
 		/* Subtract unused cookies */
@@ -882,6 +1088,9 @@ gfs_vop_inactive(ap)
 
 	if (data != NULL)
 		kmem_free(data, fp->gfs_size);
+
+	VI_LOCK(vp);
 	vp->v_data = NULL;
+	VI_UNLOCK(vp);
 	return (0);
 }

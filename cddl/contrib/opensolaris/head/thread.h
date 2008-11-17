@@ -30,6 +30,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <pthread.h>
+#include <pthread_np.h>
 #include <assert.h>
 
 /*
@@ -52,6 +53,7 @@ typedef pthread_rwlock_t rwlock_t;
 #define	mutex_lock(l)		pthread_mutex_lock(l)
 #define	mutex_trylock(l)	pthread_mutex_trylock(l)
 #define	mutex_unlock(l)		pthread_mutex_unlock(l)
+#define	mutex_owned(l)		pthread_mutex_isowned_np(l)
 #define	rwlock_init(l,f,a)	pthread_rwlock_init(l,NULL)
 #define	rwlock_destroy(l)	pthread_rwlock_destroy(l)
 #define	rw_rdlock(l)		pthread_rwlock_rdlock(l)

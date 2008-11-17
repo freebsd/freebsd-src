@@ -268,7 +268,7 @@
 #define	PRIV_VFS_MKNOD_DEV	331	/* Can mknod() to create dev nodes. */
 #define	PRIV_VFS_MKNOD_WHT	332	/* Can mknod() to create whiteout. */
 #define	PRIV_VFS_MOUNT		333	/* Can mount(). */
-#define	PRIV_VFS_MOUNT_OWNER	334	/* Override owner on user mounts. */
+#define	PRIV_VFS_MOUNT_OWNER	334	/* Can manage other users' file systems. */
 #define	PRIV_VFS_MOUNT_EXPORTED	335	/* Can set MNT_EXPORTED on mount. */
 #define	PRIV_VFS_MOUNT_PERM	336	/* Override dev node perms at mount. */
 #define	PRIV_VFS_MOUNT_SUIDDIR	337	/* Can set MNT_SUIDDIR on mount. */

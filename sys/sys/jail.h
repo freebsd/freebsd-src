@@ -48,6 +48,10 @@ MALLOC_DECLARE(M_PRISON);
 #endif
 #endif /* _KERNEL */
 
+#if defined(_KERNEL) || defined(_WANT_PRISON)
+
+#include <sys/osd.h>
+
 /*
  * This structure describes a prison.  It is pointed to by all struct
  * ucreds's of the inmates.  pr_ref keeps track of them and is used to
@@ -60,7 +64,6 @@ MALLOC_DECLARE(M_PRISON);
  *       required to read
  *   (d) set only during destruction of jail, no mutex needed
  */
-#if defined(_KERNEL) || defined(_WANT_PRISON)
 struct prison {
 	LIST_ENTRY(prison) pr_list;			/* (a) all prisons */
 	int		 pr_id;				/* (c) prison id */
@@ -73,7 +76,7 @@ struct prison {
 	int		 pr_securelevel;		/* (p) securelevel */
 	struct task	 pr_task;			/* (d) destroy task */
 	struct mtx	 pr_mtx;
-	void		**pr_slots;			/* (p) additional data */
+	struct osd	 pr_osd;			/* (p) additional data */
 };
 #endif /* _KERNEL || _WANT_PRISON */
 
@@ -109,8 +112,10 @@ void prison_enforce_statfs(struct ucred *cred, struct mount *mp,
     struct statfs *sp);
 struct prison *prison_find(int prid);
 void prison_free(struct prison *pr);
+void prison_free_locked(struct prison *pr);
 u_int32_t prison_getip(struct ucred *cred);
 void prison_hold(struct prison *pr);
+void prison_hold_locked(struct prison *pr);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_ip(struct ucred *cred, int flag, u_int32_t *ip);
 int prison_priv_check(struct ucred *cred, int priv);
