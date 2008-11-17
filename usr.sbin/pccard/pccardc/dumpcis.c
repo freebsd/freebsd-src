@@ -44,8 +44,7 @@ static const char rcsid[] =
 int     nocards;
 
 static void
-scan(slot)
-	int     slot;
+scan(int slot)
 {
 	int     fd;
 	char    name[64];
@@ -71,9 +70,7 @@ scan(slot)
 }
 
 void
-dump(p, sz)
-	unsigned char *p;
-	int     sz;
+dump(unsigned char *p, int sz)
 {
 	int     ad = 0, i;
 
