@@ -358,7 +358,8 @@ glxsb_detach(device_t dev)
 			return (EBUSY);
 		}
 	}
-	while ((ses = TAILQ_FIRST(&sc->sc_sessions)) != NULL) {
+	while (!TAILQ_EMPTY(&sc->sc_sessions)) {
+		ses = TAILQ_FIRST(&sc->sc_sessions);
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 		free(ses, M_GLXSB);
 	}
@@ -867,8 +868,11 @@ glxsb_crypto_process(device_t dev, struct cryptop *crp, int hint)
 
 	enccrd = maccrd = NULL;
 
-	if (crp == NULL ||
-	    crp->crp_callback == NULL || crp->crp_desc == NULL) {
+	/* Sanity check. */
+	if (crp == NULL)
+		return (EINVAL);
+
+	if (crp->crp_callback == NULL || crp->crp_desc == NULL) {
 		error = EINVAL;
 		goto fail;
 	}
