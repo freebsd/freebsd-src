@@ -814,7 +814,7 @@ handle_sign:
 			else if (lflag)
 				num = va_arg(ap, long);
 			else if (zflag)
-				num = va_arg(ap, size_t);
+				num = va_arg(ap, ssize_t);
 			else if (hflag)
 				num = (short)va_arg(ap, int);
 			else if (cflag)
