@@ -175,10 +175,9 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			shadow_count = obj->shadow_count;
 			VM_OBJECT_UNLOCK(obj);
 			if (vp != NULL) {
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				vn_fullpath(td, vp, &fullpath, &freepath);
-				vput(vp);
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vrele(vp);
 				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {

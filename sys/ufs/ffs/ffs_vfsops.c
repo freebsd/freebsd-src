@@ -139,7 +139,7 @@ ffs_mount(struct mount *mp, struct thread *td)
 	struct fs *fs;
 	int error, flags;
 	u_int mntorflags, mntandnotflags;
-	mode_t accessmode;
+	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
 
@@ -384,10 +384,10 @@ ffs_mount(struct mount *mp, struct thread *td)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
@@ -483,7 +483,7 @@ ffs_reload(struct mount *mp, struct thread *td)
 	 */
 	devvp = VFSTOUFS(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
+	if (vinvalbuf(devvp, 0, 0, 0) != 0)
 		panic("ffs_reload: dirty1");
 	VOP_UNLOCK(devvp, 0);
 
@@ -570,7 +570,7 @@ loop:
 			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, td, 0, 0))
+		if (vinvalbuf(vp, 0, 0, 0))
 			panic("ffs_reload: dirty2");
 		/*
 		 * Step 5: re-read inode data for all active vnodes.
@@ -907,7 +907,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -1098,7 +1098,7 @@ ffs_unmount(mp, mntflags, td)
 	}
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(ump->um_cp, td);
+	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
@@ -1404,7 +1404,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	fs = ump->um_fs;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode()
+	 * If this malloc() is performed after the getnewvnode()
 	 * it might block, leaving a vnode with a NULL v_data to be
 	 * found by ffs_sync() if a sync happens to fire right then,
 	 * which will cause a panic because ffs_sync() blindly

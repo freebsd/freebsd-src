@@ -323,9 +323,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_ucontext = &fp->sf_sc;
 
 	/* Fill in POSIX parts */
-	frame.sf_si.lsi_signo = sig;
-	frame.sf_si.lsi_code = code;
-	frame.sf_si.lsi_addr = ksi->ksi_addr;
+	ksiginfo_to_lsiginfo(ksi, &frame.sf_si, sig);
 
 	/*
 	 * Build the signal context to be used by sigreturn.

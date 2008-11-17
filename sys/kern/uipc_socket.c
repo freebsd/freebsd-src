@@ -2194,6 +2194,8 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_TIMESTAMP:
 		case SO_BINTIME:
 		case SO_NOSIGPIPE:
+		case SO_NO_DDP:
+		case SO_NO_OFFLOAD:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)

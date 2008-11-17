@@ -34,6 +34,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_inet.h"
 #endif
 
 #include <sys/param.h>
@@ -1033,7 +1034,9 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	int error = 0;
 
 	if (adapter->in_detach)
@@ -1041,6 +1044,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFADDR:
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			/*
 			 * XXX
@@ -1057,6 +1061,7 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 			arp_ifinit(ifp, ifa);
 		} else
+#endif
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:

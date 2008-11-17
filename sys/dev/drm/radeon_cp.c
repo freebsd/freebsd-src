@@ -73,7 +73,8 @@ static u32 RS690_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 
 static u32 IGP_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 {
-        if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 	    return RS690_READ_MCIND(dev_priv, addr);
 	else
 	    return RS480_READ_MCIND(dev_priv, addr);
@@ -84,7 +85,8 @@ u32 radeon_read_fb_location(drm_radeon_private_t *dev_priv)
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		return R500_READ_MCIND(dev_priv, RV515_MC_FB_LOCATION);
-	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		return RS690_READ_MCIND(dev_priv, RS690_MC_FB_LOCATION);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		return R500_READ_MCIND(dev_priv, R520_MC_FB_LOCATION);
@@ -96,7 +98,8 @@ static void radeon_write_fb_location(drm_radeon_private_t *dev_priv, u32 fb_loc)
 {
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		R500_WRITE_MCIND(RV515_MC_FB_LOCATION, fb_loc);
-	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		RS690_WRITE_MCIND(RS690_MC_FB_LOCATION, fb_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		R500_WRITE_MCIND(R520_MC_FB_LOCATION, fb_loc);
@@ -108,7 +111,8 @@ static void radeon_write_agp_location(drm_radeon_private_t *dev_priv, u32 agp_lo
 {
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515)
 		R500_WRITE_MCIND(RV515_MC_AGP_LOCATION, agp_loc);
-	else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+	else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		 ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 		RS690_WRITE_MCIND(RS690_MC_AGP_LOCATION, agp_loc);
 	else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515)
 		R500_WRITE_MCIND(R520_MC_AGP_LOCATION, agp_loc);
@@ -124,7 +128,8 @@ static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV515) {
 		R500_WRITE_MCIND(RV515_MC_AGP_BASE, agp_base_lo);
 		R500_WRITE_MCIND(RV515_MC_AGP_BASE_2, agp_base_hi);
-	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) {
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
 		RS690_WRITE_MCIND(RS690_MC_AGP_BASE, agp_base_lo);
 		RS690_WRITE_MCIND(RS690_MC_AGP_BASE_2, agp_base_hi);
 	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) > CHIP_RV515) {
@@ -361,6 +366,7 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 				     R300_cp_microcode[i][0]);
 		}
 	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R423) ||
 		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV410)) {
 		DRM_INFO("Loading R400 Microcode\n");
 		for (i = 0; i < 256; i++) {
@@ -369,8 +375,9 @@ static void radeon_cp_load_microcode(drm_radeon_private_t * dev_priv)
 			RADEON_WRITE(RADEON_CP_ME_RAM_DATAL,
 				     R420_cp_microcode[i][0]);
 		}
-	} else if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) {
-		DRM_INFO("Loading RS690 Microcode\n");
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
+		DRM_INFO("Loading RS690/RS740 Microcode\n");
 		for (i = 0; i < 256; i++) {
 			RADEON_WRITE(RADEON_CP_ME_RAM_DATAH,
 				     RS690_cp_microcode[i][1]);
@@ -648,8 +655,19 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 	RADEON_WRITE(RADEON_SCRATCH_UMSK, 0x7);
 
 	/* Turn on bus mastering */
-	tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-	RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
+		/* rs600/rs690/rs740 */
+		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
+		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV350) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
+		/* r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
+		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+	} /* PCIE cards appears to not need this */
 
 	dev_priv->sarea_priv->last_frame = dev_priv->scratch[0] = 0;
 	RADEON_WRITE(RADEON_LAST_FRAME_REG, dev_priv->sarea_priv->last_frame);
@@ -721,7 +739,8 @@ static void radeon_set_igpgart(drm_radeon_private_t * dev_priv, int on)
 
 		temp = IGP_READ_MCIND(dev_priv, RS480_MC_MISC_CNTL);
 
-		if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690)
+		if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740))
 			IGP_WRITE_MCIND(RS480_MC_MISC_CNTL, (RS480_GART_INDEX_REG_EN |
 							     RS690_BLOCK_GFX_D3_EN));
 		else
@@ -814,6 +833,7 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 	u32 tmp;
 
 	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740) ||
 	    (dev_priv->flags & RADEON_IS_IGPGART)) {
 		radeon_set_igpgart(dev_priv, on);
 		return;
@@ -1710,6 +1730,7 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	case CHIP_R300:
 	case CHIP_R350:
 	case CHIP_R420:
+	case CHIP_R423:
 	case CHIP_RV410:
 	case CHIP_RV515:
 	case CHIP_R520:

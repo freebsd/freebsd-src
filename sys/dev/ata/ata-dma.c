@@ -78,10 +78,10 @@ ata_dmainit(device_t dev)
     ch->dma.unload = ata_dmaunload;
     ch->dma.alignment = 2;
     ch->dma.boundary = 65536;
-    ch->dma.segsize = 63536;
+    ch->dma.segsize = 65536;
     ch->dma.max_iosize = 128 * DEV_BSIZE;
     ch->dma.max_address = BUS_SPACE_MAXADDR_32BIT;
-    ch->dma.dma_slots = 2;
+    ch->dma.dma_slots = 6;
 
     if (bus_dma_tag_create(bus_get_dma_tag(dev), ch->dma.alignment, 0,
 			   ch->dma.max_address, BUS_SPACE_MAXADDR,

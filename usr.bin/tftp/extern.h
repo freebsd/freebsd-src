@@ -34,5 +34,5 @@
  * $FreeBSD$
  */
 
-void	recvfile(int, char *, char *);
-void	xmitfile(int, char *, char *);
+void	recvfile(int, const char *, const char *);
+void	xmitfile(int, const char *, const char *);

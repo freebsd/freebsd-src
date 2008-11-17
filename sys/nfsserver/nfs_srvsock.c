@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef NFS_LEGACYRPC
+
 #define	TRUE	1
 #define	FALSE	0
 
@@ -360,7 +362,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		nd->nd_cr->cr_groups[0] = nd->nd_cr->cr_rgid =
 		    nd->nd_cr->cr_svgid = fxdr_unsigned(gid_t, *tl++);
 #ifdef MAC
-		mac_proc_associate_nfsd(nd->nd_cr);
+		mac_cred_associate_nfsd(nd->nd_cr);
 #endif
 		len = fxdr_unsigned(int, *tl);
 		if (len < 0 || len > RPCAUTH_UNIXGIDS) {
@@ -383,6 +385,7 @@ nfs_getreq(struct nfsrv_descript *nd, struct nfsd *nfsd, int has_header)
 		}
 		if (len > 0)
 			nfsm_adv(nfsm_rndup(len));
+		nd->nd_credflavor = RPCAUTH_UNIX;
 	} else {
 		nd->nd_repstat = (NFSERR_AUTHERR | AUTH_REJECTCRED);
 		nd->nd_procnum = NFSPROC_NOOP;
@@ -494,7 +497,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 				    waitflag == M_DONTWAIT ? M_NOWAIT : M_WAITOK);
 				if (!rec) {
 					if (nam)
-						FREE(nam, M_SONAME);
+						free(nam, M_SONAME);
 					m_freem(mp);
 					NFSD_LOCK();
 					continue;
@@ -693,7 +696,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	m = rec->nr_packet;
 	free(rec, M_NFSRVDESC);
 	NFSD_UNLOCK();
-	MALLOC(nd, struct nfsrv_descript *, sizeof (struct nfsrv_descript),
+	nd = malloc(sizeof (struct nfsrv_descript),
 		M_NFSRVDESC, M_WAITOK);
 	nd->nd_cr = crget();
 	NFSD_LOCK();
@@ -703,7 +706,7 @@ nfsrv_dorec(struct nfssvc_sock *slp, struct nfsd *nfsd,
 	error = nfs_getreq(nd, nfsd, TRUE);
 	if (error) {
 		if (nam) {
-			FREE(nam, M_SONAME);
+			free(nam, M_SONAME);
 		}
 		if (nd->nd_cr != NULL)
 			crfree(nd->nd_cr);
@@ -809,3 +812,5 @@ nfsrv_timer(void *arg)
 	NFSD_UNLOCK();
 	callout_reset(&nfsrv_callout, nfsrv_ticks, nfsrv_timer, NULL);
 }
+
+#endif /* NFS_LEGACYRPC */

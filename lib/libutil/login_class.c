@@ -25,14 +25,16 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/cpuset.h>
 #include <sys/mac.h>
+#include <sys/resource.h>
 #include <sys/rtprio.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <login_cap.h>
@@ -92,7 +94,7 @@ setclassresources(login_cap_t *lc)
 	if (getrlimit(lr->why, &rlim) != 0)
 	    syslog(LOG_ERR, "getting %s resource limit: %m", lr->what);
 	else {
-	    char  	name_cur[40];
+	    char	name_cur[40];
 	    char	name_max[40];
 	    rlim_t	rcur = rlim.rlim_cur;
 	    rlim_t	rmax = rlim.rlim_max;
@@ -104,7 +106,7 @@ setclassresources(login_cap_t *lc)
 	    rmax = (*lr->who)(lc, lr->what, rmax, rmax);
 	    rlim.rlim_cur = (*lr->who)(lc, name_cur, rcur, rcur);
 	    rlim.rlim_max = (*lr->who)(lc, name_max, rmax, rmax);
-    
+
 	    if (setrlimit(lr->why, &rlim) == -1)
 		syslog(LOG_WARNING, "set class '%s' resource limit %s: %m", lc->lc_class, lr->what);
 	}
@@ -140,14 +142,13 @@ substvar(const char * var, const struct passwd * pwd, int hlen, int pch, int nle
 	int	tildes = 0;
 	int	dollas = 0;
 	char	*p;
+	const char *q;
 
 	if (pwd != NULL) {
-	    /* Count the number of ~'s in var to substitute */
-	    for (p = (char *)var; (p = strchr(p, '~')) != NULL; p++)
-		++tildes;
-	    /* Count the number of $'s in var to substitute */
-	    for (p = (char *)var; (p = strchr(p, '$')) != NULL; p++)
-		++dollas;
+	    for (q = var; *q != '\0'; ++q) {
+		tildes += (*q == '~');
+		dollas += (*q == '$');
+	    }
 	}
 
 	np = malloc(strlen(var) + (dollas * nlen)
@@ -185,7 +186,7 @@ substvar(const char * var, const struct passwd * pwd, int hlen, int pch, int nle
 	}
     }
 
-    return np;
+    return (np);
 }
 
 
@@ -309,7 +310,7 @@ list2cpuset(const char *list, cpuset_t *mask)
 		case DASH:
 			return (0);
 	}
-	return 1;
+	return (1);
 }
 
 
@@ -368,7 +369,7 @@ setclasscontext(const char *classname, unsigned int flags)
 
     rc = lc ? setusercontext(lc, NULL, 0, flags) : -1;
     login_close(lc);
-    return rc;
+    return (rc);
 }
 
 
@@ -398,7 +399,7 @@ setlogincontext(login_cap_t *lc, const struct passwd *pwd,
 	if (flags & LOGIN_SETCPUMASK)
 	    setclasscpumask(lc);
     }
-    return mymask;
+    return (mymask);
 }
 
 
@@ -468,13 +469,13 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	if (setgid(pwd->pw_gid) != 0) {
 	    syslog(LOG_ERR, "setgid(%lu): %m", (u_long)pwd->pw_gid);
 	    login_close(llc);
-	    return -1;
+	    return (-1);
 	}
 	if (initgroups(pwd->pw_name, pwd->pw_gid) == -1) {
 	    syslog(LOG_ERR, "initgroups(%s,%lu): %m", pwd->pw_name,
 		   (u_long)pwd->pw_gid);
 	    login_close(llc);
-	    return -1;
+	    return (-1);
 	}
     }
 
@@ -488,7 +489,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	    if (mac_from_text(&label, label_string) == -1) {
 		syslog(LOG_ERR, "mac_from_text('%s') for %s: %m",
 		    pwd->pw_name, label_string);
-		    return -1;
+		return (-1);
 	    }
 	    if (mac_set_proc(label) == -1)
 		error = errno;
@@ -498,7 +499,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
 	    if (error != 0) {
 		syslog(LOG_ERR, "mac_set_proc('%s') for %s: %s",
 		    label_string, pwd->pw_name, strerror(error));
-		return -1;
+		return (-1);
 	    }
 	}
     }
@@ -507,7 +508,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     if ((flags & LOGIN_SETLOGIN) && setlogin(pwd->pw_name) != 0) {
 	syslog(LOG_ERR, "setlogin(%s): %m", pwd->pw_name);
 	login_close(llc);
-	return -1;
+	return (-1);
     }
 
     mymask = (flags & LOGIN_SETUMASK) ? umask(LOGIN_DEFUMASK) : 0;
@@ -517,7 +518,7 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     /* This needs to be done after anything that needs root privs */
     if ((flags & LOGIN_SETUSER) && setuid(uid) != 0) {
 	syslog(LOG_ERR, "setuid(%lu): %m", (u_long)uid);
-	return -1;	/* Paranoia again */
+	return (-1);	/* Paranoia again */
     }
 
     /*
@@ -532,6 +533,5 @@ setusercontext(login_cap_t *lc, const struct passwd *pwd, uid_t uid, unsigned in
     if (flags & LOGIN_SETUMASK)
 	umask(mymask);
 
-    return 0;
+    return (0);
 }
-

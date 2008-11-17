@@ -14,7 +14,7 @@ CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mno-sse3
 .endif
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE} == "pc98"

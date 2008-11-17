@@ -185,7 +185,7 @@ uark_attach(device_t self)
 	return 0;
 
 bad:
-	DPRINTF(("uftdi_attach: ATTACH ERROR\n"));
+	DPRINTF(("uark_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
 	return ENXIO;
 }

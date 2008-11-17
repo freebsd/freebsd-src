@@ -33,15 +33,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
+#include <ctype.h>
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 
-void usage(void);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
@@ -93,7 +95,7 @@ main(int argc, char *argv[])
 	err(errno == ENOENT ? 127 : 126, "%s", *argv);
 }
 
-void
+static void
 usage(void)
 {
 

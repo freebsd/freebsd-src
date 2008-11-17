@@ -611,7 +611,7 @@ hpfs_reclaim(ap)
 
 	vp->v_data = NULL;
 
-	FREE(hp, M_HPFSNO);
+	free(hp, M_HPFSNO);
 
 	return (0);
 }
@@ -683,14 +683,14 @@ int
 hpfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct hpfsnode *hp = VTOHP(vp);
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 
 	dprintf(("hpfs_access(0x%x):\n", hp->h_no));
 
@@ -699,7 +699,7 @@ hpfs_access(ap)
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch ((int)vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -711,7 +711,7 @@ hpfs_access(ap)
 	}
 
 	return (vaccess(vp->v_type, hp->h_mode, hp->h_uid, hp->h_gid,
-	    ap->a_mode, ap->a_cred, NULL));
+	    ap->a_accmode, ap->a_cred, NULL));
 }
 
 /*
@@ -1003,7 +1003,7 @@ readdone:
 		dpStart = (struct dirent *)
 		     ((caddr_t)uio->uio_iov->iov_base -
 			 (uio->uio_offset - off));
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
+		cookies = malloc(ncookies * sizeof(u_long),
 		       M_TEMP, M_WAITOK);
 		for (dp = dpStart, cookiep = cookies, i=0;
 		     i < ncookies;

@@ -277,7 +277,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 	int error;
 
 	/* Create hook private structure */
-	MALLOC(hip, hinfo_p, sizeof(*hip), M_NETGRAPH_BPF, M_NOWAIT | M_ZERO);
+	hip = malloc(sizeof(*hip), M_NETGRAPH_BPF, M_NOWAIT | M_ZERO);
 	if (hip == NULL)
 		return (ENOMEM);
 	hip->hook = hook;
@@ -288,7 +288,7 @@ ng_bpf_newhook(node_p node, hook_p hook, const char *name)
 
 	/* Attach the default BPF program */
 	if ((error = ng_bpf_setprog(hook, &ng_bpf_default_prog)) != 0) {
-		FREE(hip, M_NETGRAPH_BPF);
+		free(hip, M_NETGRAPH_BPF);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 		return (error);
 	}
@@ -445,7 +445,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	/* Need to put packet in contiguous memory for bpf */
 	if (m->m_next != NULL && totlen > MHLEN) {
 		if (usejit) {
-			MALLOC(data, u_char *, totlen, M_NETGRAPH_BPF, M_NOWAIT);
+			data = malloc(totlen, M_NETGRAPH_BPF, M_NOWAIT);
 			if (data == NULL) {
 				NG_FREE_ITEM(item);
 				return (ENOMEM);
@@ -475,7 +475,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	else
 		len = bpf_filter(hip->prog->bpf_prog, (u_char *)m, totlen, 0);
 	if (needfree)
-		FREE(data, M_NETGRAPH_BPF);
+		free(data, M_NETGRAPH_BPF);
 ready:
 	/* See if we got a match and find destination hook */
 	if (len > 0) {
@@ -532,12 +532,12 @@ ng_bpf_disconnect(hook_p hook)
 	/* Remove our reference from other hooks data. */
 	NG_NODE_FOREACH_HOOK(node, ng_bpf_remrefs, hook, tmp);
 
-	FREE(hip->prog, M_NETGRAPH_BPF);
+	free(hip->prog, M_NETGRAPH_BPF);
 #ifdef BPF_JITTER
 	if (hip->jit_prog != NULL)
 		bpf_destroy_jit_filter(hip->jit_prog);
 #endif
-	FREE(hip, M_NETGRAPH_BPF);
+	free(hip, M_NETGRAPH_BPF);
 	if ((NG_NODE_NUMHOOKS(node) == 0) &&
 	    (NG_NODE_IS_VALID(node))) {
 		ng_rmnode_self(node);
@@ -569,7 +569,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 
 	/* Make a copy of the program */
 	size = NG_BPF_HOOKPROG_SIZE(hp0->bpf_prog_len);
-	MALLOC(hp, struct ng_bpf_hookprog *, size, M_NETGRAPH_BPF, M_NOWAIT);
+	hp = malloc(size, M_NETGRAPH_BPF, M_NOWAIT);
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
@@ -579,7 +579,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 
 	/* Free previous program, if any, and assign new one */
 	if (hip->prog != NULL)
-		FREE(hip->prog, M_NETGRAPH_BPF);
+		free(hip->prog, M_NETGRAPH_BPF);
 	hip->prog = hp;
 #ifdef BPF_JITTER
 	if (hip->jit_prog != NULL)

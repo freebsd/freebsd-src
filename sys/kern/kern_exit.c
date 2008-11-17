@@ -438,7 +438,11 @@ exit1(struct thread *td, int rv)
 		 * since their existence means someone is screwing up.
 		 */
 		if (q->p_flag & P_TRACED) {
+			struct thread *temp;
+
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
+			FOREACH_THREAD_IN_PROC(q, temp)
+				temp->td_dbgflags &= ~TDB_SUSPEND;
 			psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);

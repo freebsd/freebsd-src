@@ -129,8 +129,8 @@ struct mtx		audit_mtx;
  * outstanding in the system.
  */
 struct kaudit_queue	audit_q;
-int			audit_q_len;
-int			audit_pre_q_len;
+size_t			audit_q_len;
+size_t			audit_pre_q_len;
 
 /*
  * Audit queue control settings (minimum free, low/high water marks, etc.)
@@ -156,6 +156,48 @@ struct cv		audit_watermark_cv;
  * again.
  */
 static struct cv	audit_fail_cv;
+
+/*
+ * Kernel audit information.  This will store the current audit address
+ * or host information that the kernel will use when it's generating
+ * audit records.  This data is modified by the A_GET{SET}KAUDIT auditon(2)
+ * command.
+ */
+static struct auditinfo_addr	audit_kinfo;
+static struct rwlock		audit_kinfo_lock;
+
+#define	KINFO_LOCK_INIT()	rw_init(&audit_kinfo_lock, \
+				    "audit_kinfo_lock")
+#define	KINFO_RLOCK()		rw_rlock(&audit_kinfo_lock)
+#define	KINFO_WLOCK()		rw_wlock(&audit_kinfo_lock)
+#define	KINFO_RUNLOCK()		rw_runlock(&audit_kinfo_lock)
+#define	KINFO_WUNLOCK()		rw_wunlock(&audit_kinfo_lock)
+
+void
+audit_set_kinfo(struct auditinfo_addr *ak)
+{
+
+	KASSERT(ak->ai_termid.at_type == AU_IPv4 ||
+	    ak->ai_termid.at_type == AU_IPv6,
+	    ("audit_set_kinfo: invalid address type"));
+
+	KINFO_WLOCK();
+	audit_kinfo = *ak;
+	KINFO_WUNLOCK();
+}
+
+void
+audit_get_kinfo(struct auditinfo_addr *ak)
+{
+
+	KASSERT(audit_kinfo.ai_termid.at_type == AU_IPv4 ||
+	    audit_kinfo.ai_termid.at_type == AU_IPv6,
+	    ("audit_set_kinfo: invalid address type"));
+
+	KINFO_RLOCK();
+	*ak = audit_kinfo;
+	KINFO_RUNLOCK();
+}
 
 /*
  * Construct an audit record for the passed thread.
@@ -241,7 +283,11 @@ audit_init(void)
 	audit_qctrl.aq_bufsz = AQ_BUFSZ;
 	audit_qctrl.aq_minfree = AU_FS_MINFREE;
 
+	audit_kinfo.ai_termid.at_type = AU_IPv4;
+	audit_kinfo.ai_termid.at_addr[0] = INADDR_ANY;
+
 	mtx_init(&audit_mtx, "audit_mtx", NULL, MTX_DEF);
+	KINFO_LOCK_INIT();
 	cv_init(&audit_worker_cv, "audit_worker_cv");
 	cv_init(&audit_watermark_cv, "audit_watermark_cv");
 	cv_init(&audit_fail_cv, "audit_fail_cv");

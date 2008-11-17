@@ -115,11 +115,9 @@ on_mp_read_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_rs_request->entry = (char *)malloc(
+		c_mp_rs_request->entry = (char *)calloc(1,
 			c_mp_rs_request->entry_length + 1);
 		assert(c_mp_rs_request->entry != NULL);
-		memset(c_mp_rs_request->entry, 0,
-			c_mp_rs_request->entry_length + 1);
 
 		qstate->kevent_watermark = c_mp_rs_request->entry_length;
 		qstate->process_func = on_mp_read_session_request_read2;

@@ -234,9 +234,9 @@ MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
 /* Should not be visible outside this file */
 
 #define _NG_ALLOC_HOOK(hook) \
-	MALLOC(hook, hook_p, sizeof(*hook), M_NETGRAPH_HOOK, M_NOWAIT | M_ZERO)
+	hook = malloc(sizeof(*hook), M_NETGRAPH_HOOK, M_NOWAIT | M_ZERO)
 #define _NG_ALLOC_NODE(node) \
-	MALLOC(node, node_p, sizeof(*node), M_NETGRAPH_NODE, M_NOWAIT | M_ZERO)
+	node = malloc(sizeof(*node), M_NETGRAPH_NODE, M_NOWAIT | M_ZERO)
 
 #define	NG_QUEUE_LOCK_INIT(n)			\
 	mtx_init(&(n)->q_mtx, "ng_node", NULL, MTX_DEF)
@@ -339,8 +339,8 @@ ng_alloc_node(void)
 #define NG_ALLOC_HOOK(hook) _NG_ALLOC_HOOK(hook)
 #define NG_ALLOC_NODE(node) _NG_ALLOC_NODE(node)
 
-#define NG_FREE_HOOK(hook) do { FREE((hook), M_NETGRAPH_HOOK); } while (0)
-#define NG_FREE_NODE(node) do { FREE((node), M_NETGRAPH_NODE); } while (0)
+#define NG_FREE_HOOK(hook) do { free((hook), M_NETGRAPH_HOOK); } while (0)
+#define NG_FREE_NODE(node) do { free((node), M_NETGRAPH_NODE); } while (0)
 
 #endif /* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 

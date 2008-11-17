@@ -55,6 +55,8 @@
 #ifndef DEV_MMC_MMCVAR_H
 #define DEV_MMC_MMCVAR_H
 
+#include <dev/mmc/bridge.h>
+
 enum mmc_device_ivars {
     MMC_IVAR_DSR_IMP,
     MMC_IVAR_MEDIA_SIZE,
@@ -63,6 +65,10 @@ enum mmc_device_ivars {
     MMC_IVAR_TRAN_SPEED,
     MMC_IVAR_READ_ONLY,
     MMC_IVAR_HIGH_CAP,
+    MMC_IVAR_CARD_TYPE,
+    MMC_IVAR_BUS_WIDTH,
+    MMC_IVAR_ERASE_SECTOR,
+    MMC_IVAR_MAX_DATA,
 //    MMC_IVAR_,
 };
 
@@ -79,5 +85,9 @@ MMC_ACCESSOR(sector_size, SECTOR_SIZE, int)
 MMC_ACCESSOR(tran_speed, TRAN_SPEED, int)
 MMC_ACCESSOR(read_only, READ_ONLY, int)
 MMC_ACCESSOR(high_cap, HIGH_CAP, int)
+MMC_ACCESSOR(card_type, CARD_TYPE, int)
+MMC_ACCESSOR(bus_width, BUS_WIDTH, int)
+MMC_ACCESSOR(erase_sector, ERASE_SECTOR, int)
+MMC_ACCESSOR(max_data, MAX_DATA, int)
 
 #endif /* DEV_MMC_MMCVAR_H */

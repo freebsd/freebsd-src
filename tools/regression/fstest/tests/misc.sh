@@ -27,7 +27,7 @@ expect()
 	if [ $? -eq 0 ]; then
 		echo "ok ${ntest}"
 	else
-		echo "not ok ${ntest}"
+		echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
 	fi
 	ntest=`expr $ntest + 1`
 }
@@ -43,7 +43,7 @@ jexpect()
 	if [ $? -eq 0 ]; then
 		echo "ok ${ntest}"
 	else
-		echo "not ok ${ntest}"
+		echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
 	fi
 	ntest=`expr $ntest + 1`
 }

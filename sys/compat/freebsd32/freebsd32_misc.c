@@ -1762,6 +1762,24 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	return (ftruncate(td, &ap));
 }
 
+int
+freebsd32_getdirentries(struct thread *td,
+    struct freebsd32_getdirentries_args *uap)
+{
+	long base;
+	int32_t base32;
+	int error;
+
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	if (error)
+		return (error);
+	if (uap->basep != NULL) {
+		base32 = base;
+		error = copyout(&base32, uap->basep, sizeof(int32_t));
+	}
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD6
 /* versions with the 'int pad' argument */
 int
@@ -2424,7 +2442,7 @@ siginfo_to_siginfo32(siginfo_t *src, struct siginfo32 *dst)
 	dst->si_pid = src->si_pid;
 	dst->si_uid = src->si_uid;
 	dst->si_status = src->si_status;
-	dst->si_addr = dst->si_addr;
+	dst->si_addr = (uintptr_t)src->si_addr;
 	dst->si_value.sigval_int = src->si_value.sival_int;
 	dst->si_timerid = src->si_timerid;
 	dst->si_overrun = src->si_overrun;

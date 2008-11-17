@@ -57,7 +57,6 @@
 
 struct bufobj;
 struct buf_ops;
-struct thread;
 
 extern struct buf_ops buf_ops_bio;
 
@@ -72,7 +71,7 @@ struct bufv {
 
 typedef void b_strategy_t(struct bufobj *, struct buf *);
 typedef int b_write_t(struct buf *);
-typedef int b_sync_t(struct bufobj *, int waitfor, struct thread *td);
+typedef int b_sync_t(struct bufobj *, int waitfor);
 typedef void b_bdflush_t(struct bufobj *, struct buf *);
 
 struct buf_ops {
@@ -84,7 +83,7 @@ struct buf_ops {
 };
 
 #define BO_STRATEGY(bo, bp)	((bo)->bo_ops->bop_strategy((bo), (bp)))
-#define BO_SYNC(bo, w, td)	((bo)->bo_ops->bop_sync((bo), (w), (td)))
+#define BO_SYNC(bo, w)		((bo)->bo_ops->bop_sync((bo), (w)))
 #define BO_WRITE(bo, bp)	((bo)->bo_ops->bop_write((bp)))
 #define BO_BDFLUSH(bo, bp)	((bo)->bo_ops->bop_bdflush((bo), (bp)))
 
@@ -123,9 +122,9 @@ struct bufobj {
 void bufobj_wdrop(struct bufobj *bo);
 void bufobj_wref(struct bufobj *bo);
 void bufobj_wrefl(struct bufobj *bo);
-int bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag, int slptimeo);
+int bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo);
 int bufobj_wwait(struct bufobj *bo, int slpflag, int timeo);
-int bufsync(struct bufobj *bo, int waitfor, struct thread *td);
+int bufsync(struct bufobj *bo, int waitfor);
 void bufbdflush(struct bufobj *bo, struct buf *bp);
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */

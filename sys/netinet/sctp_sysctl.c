@@ -426,6 +426,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			xstcb.cumulative_tsn = stcb->asoc.last_acked_seq;
 			xstcb.cumulative_tsn_ack = stcb->asoc.cumulative_tsn;
 			xstcb.mtu = stcb->asoc.smallest_mtu;
+			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
 			xstcb.refcnt = stcb->asoc.refcnt;
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_INP_INFO_RUNLOCK();

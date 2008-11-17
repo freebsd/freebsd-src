@@ -37,6 +37,16 @@ struct uninorth_range {
 	u_int32_t	size_lo;
 };
 
+struct uninorth_range64 {
+	u_int32_t	pci_hi;
+	u_int32_t	pci_mid;
+	u_int32_t	pci_lo;
+	u_int32_t	host_hi;
+	u_int32_t	host_lo;
+	u_int32_t	size_hi;
+	u_int32_t	size_lo;
+};
+
 struct uninorth_softc {
 	device_t		sc_dev;
 	phandle_t		sc_node;
@@ -51,6 +61,8 @@ struct uninorth_softc {
 	bus_space_tag_t		sc_iot;
 	bus_space_tag_t		sc_memt;
 	bus_dma_tag_t		sc_dmat;
+
+	int			sc_u3;
 };
 
 struct unin_chip_softc {

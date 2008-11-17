@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20080916_0112"
+#define HDA_DRV_TEST_REV	"20081030_0115"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -148,6 +148,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
 #define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
 #define HDA_INTEL_82801I	HDA_MODEL_CONSTRUCT(INTEL, 0x293e)
+#define HDA_INTEL_82801J	HDA_MODEL_CONSTRUCT(INTEL, 0x3a3e)
+#define HDA_INTEL_SCH		HDA_MODEL_CONSTRUCT(INTEL, 0x811b)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
 /* Nvidia */
@@ -202,6 +204,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define DELL_VENDORID		0x1028
 #define DELL_D630_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01f9)
 #define DELL_D820_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01cc)
+#define DELL_V1400_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x0227)
 #define DELL_V1500_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x0228)
 #define DELL_I1300_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01c9)
 #define DELL_XPSM1210_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01d7)
@@ -450,6 +453,8 @@ static const struct {
 	{ HDA_INTEL_82801G,  "Intel 82801G" },
 	{ HDA_INTEL_82801H,  "Intel 82801H" },
 	{ HDA_INTEL_82801I,  "Intel 82801I" },
+	{ HDA_INTEL_82801J,  "Intel 82801J" },
+	{ HDA_INTEL_SCH,     "Intel SCH" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
 	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
@@ -579,14 +584,54 @@ static const struct {
 #define HDA_CODEC_STAC9228D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7617)
 #define HDA_CODEC_STAC9227X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7618)
 #define HDA_CODEC_STAC9227D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7619)
+#define HDA_CODEC_STAC9274	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7620)
+#define HDA_CODEC_STAC9274D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7621)
+#define HDA_CODEC_STAC9273X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7622)
+#define HDA_CODEC_STAC9273D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7623)
+#define HDA_CODEC_STAC9272X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7624)
+#define HDA_CODEC_STAC9272D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7625)
+#define HDA_CODEC_STAC9271X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7626)
 #define HDA_CODEC_STAC9271D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7627)
+#define HDA_CODEC_STAC9274X5NH	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7628)
+#define HDA_CODEC_STAC9274D5NH	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7629)
+#define HDA_CODEC_STAC9250	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7634)
+#define HDA_CODEC_STAC9251	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7636)
+#define HDA_CODEC_IDT92HD700X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7638)
+#define HDA_CODEC_IDT92HD700D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7639)
+#define HDA_CODEC_IDT92HD206X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7645)
+#define HDA_CODEC_IDT92HD206D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7646)
 #define HDA_CODEC_STAC9872AK	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7662)
 #define HDA_CODEC_STAC9221	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7680)
 #define HDA_CODEC_STAC922XD	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7681)
+#define HDA_CODEC_STAC9221_A2	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7682)
 #define HDA_CODEC_STAC9221D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7683)
 #define HDA_CODEC_STAC9220	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7690)
-#define HDA_CODEC_STAC9205	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a0)
+#define HDA_CODEC_STAC9200D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7691)
+#define HDA_CODEC_IDT92HD005	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7698)
+#define HDA_CODEC_IDT92HD005D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7699)
+#define HDA_CODEC_STAC9205X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a0)
+#define HDA_CODEC_STAC9205D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a1)
+#define HDA_CODEC_STAC9204X	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a2)
+#define HDA_CODEC_STAC9204D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x76a3)
+#define HDA_CODEC_STAC9220_A2	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7880)
+#define HDA_CODEC_STAC9220_A1	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7882)
 #define HDA_CODEC_STACXXXX	HDA_CODEC_CONSTRUCT(SIGMATEL, 0xffff)
+
+/* IDT */
+#define IDT_VENDORID		0x111d
+#define HDA_CODEC_IDT92HD75BX	HDA_CODEC_CONSTRUCT(IDT, 0x7603)
+#define HDA_CODEC_IDT92HD83C1X	HDA_CODEC_CONSTRUCT(IDT, 0x7604)
+#define HDA_CODEC_IDT92HD81B1X	HDA_CODEC_CONSTRUCT(IDT, 0x7605)
+#define HDA_CODEC_IDT92HD75B3	HDA_CODEC_CONSTRUCT(IDT, 0x7608)
+#define HDA_CODEC_IDT92HD73D1	HDA_CODEC_CONSTRUCT(IDT, 0x7674)
+#define HDA_CODEC_IDT92HD73C1	HDA_CODEC_CONSTRUCT(IDT, 0x7675)
+#define HDA_CODEC_IDT92HD73E1	HDA_CODEC_CONSTRUCT(IDT, 0x7676)
+#define HDA_CODEC_IDT92HD71B8	HDA_CODEC_CONSTRUCT(IDT, 0x76b0)
+#define HDA_CODEC_IDT92HD71B7	HDA_CODEC_CONSTRUCT(IDT, 0x76b2)
+#define HDA_CODEC_IDT92HD71B5	HDA_CODEC_CONSTRUCT(IDT, 0x76b6)
+#define HDA_CODEC_IDT92HD83C1C	HDA_CODEC_CONSTRUCT(IDT, 0x76d4)
+#define HDA_CODEC_IDT92HD81B1C	HDA_CODEC_CONSTRUCT(IDT, 0x76d5)
+#define HDA_CODEC_IDTXXXX	HDA_CODEC_CONSTRUCT(IDT, 0xffff)
 
 /* Silicon Image */
 #define SII_VENDORID	0x1095
@@ -632,6 +677,9 @@ static const struct {
 /* NVIDIA */
 #define HDA_CODEC_NVIDIAXXXX	HDA_CODEC_CONSTRUCT(NVIDIA, 0xffff)
 
+/* INTEL */
+#define HDA_CODEC_INTELXXXX	HDA_CODEC_CONSTRUCT(INTEL, 0xffff)
+
 /* Codecs */
 static const struct {
 	uint32_t id;
@@ -661,21 +709,57 @@ static const struct {
 	{ HDA_CODEC_AD1988,    "Analog Devices AD1988" },
 	{ HDA_CODEC_AD1988B,   "Analog Devices AD1988B" },
 	{ HDA_CODEC_CMI9880,   "CMedia CMI9880" },
-	{ HDA_CODEC_STAC9221,  "Sigmatel STAC9221" },
-	{ HDA_CODEC_STAC9221D, "Sigmatel STAC9221D" },
+	{ HDA_CODEC_STAC9200D, "Sigmatel STAC9200D" },
+	{ HDA_CODEC_STAC9204X, "Sigmatel STAC9204X" },
+	{ HDA_CODEC_STAC9204D, "Sigmatel STAC9204D" },
+	{ HDA_CODEC_STAC9205X, "Sigmatel STAC9205X" },
+	{ HDA_CODEC_STAC9205D, "Sigmatel STAC9205D" },
 	{ HDA_CODEC_STAC9220,  "Sigmatel STAC9220" },
+	{ HDA_CODEC_STAC9220_A1, "Sigmatel STAC9220_A1" },
+	{ HDA_CODEC_STAC9220_A2, "Sigmatel STAC9220_A2" },
+	{ HDA_CODEC_STAC9221,  "Sigmatel STAC9221" },
+	{ HDA_CODEC_STAC9221_A2, "Sigmatel STAC9221_A2" },
+	{ HDA_CODEC_STAC9221D, "Sigmatel STAC9221D" },
 	{ HDA_CODEC_STAC922XD, "Sigmatel STAC9220D/9223D" },
-	{ HDA_CODEC_STAC9230X, "Sigmatel STAC9230X" },
-	{ HDA_CODEC_STAC9230D, "Sigmatel STAC9230D" },
-	{ HDA_CODEC_STAC9229X, "Sigmatel STAC9229X" },
-	{ HDA_CODEC_STAC9229D, "Sigmatel STAC9229D" },
-	{ HDA_CODEC_STAC9228X, "Sigmatel STAC9228X" },
-	{ HDA_CODEC_STAC9228D, "Sigmatel STAC9228D" },
 	{ HDA_CODEC_STAC9227X, "Sigmatel STAC9227X" },
 	{ HDA_CODEC_STAC9227D, "Sigmatel STAC9227D" },
+	{ HDA_CODEC_STAC9228X, "Sigmatel STAC9228X" },
+	{ HDA_CODEC_STAC9228D, "Sigmatel STAC9228D" },
+	{ HDA_CODEC_STAC9229X, "Sigmatel STAC9229X" },
+	{ HDA_CODEC_STAC9229D, "Sigmatel STAC9229D" },
+	{ HDA_CODEC_STAC9230X, "Sigmatel STAC9230X" },
+	{ HDA_CODEC_STAC9230D, "Sigmatel STAC9230D" },
+	{ HDA_CODEC_STAC9250,  "Sigmatel STAC9250" },
+	{ HDA_CODEC_STAC9251,  "Sigmatel STAC9251" },
+	{ HDA_CODEC_STAC9271X, "Sigmatel STAC9271X" },
 	{ HDA_CODEC_STAC9271D, "Sigmatel STAC9271D" },
-	{ HDA_CODEC_STAC9205,  "Sigmatel STAC9205" },
-	{ HDA_CODEC_STAC9872AK,"Sigmatel STAC9872AK" },
+	{ HDA_CODEC_STAC9272X, "Sigmatel STAC9272X" },
+	{ HDA_CODEC_STAC9272D, "Sigmatel STAC9272D" },
+	{ HDA_CODEC_STAC9273X, "Sigmatel STAC9273X" },
+	{ HDA_CODEC_STAC9273D, "Sigmatel STAC9273D" },
+	{ HDA_CODEC_STAC9274,  "Sigmatel STAC9274" },
+	{ HDA_CODEC_STAC9274D, "Sigmatel STAC9274D" },
+	{ HDA_CODEC_STAC9274X5NH, "Sigmatel STAC9274X5NH" },
+	{ HDA_CODEC_STAC9274D5NH, "Sigmatel STAC9274D5NH" },
+	{ HDA_CODEC_STAC9872AK, "Sigmatel STAC9872AK" },
+	{ HDA_CODEC_IDT92HD005, "IDT 92HD005" },
+	{ HDA_CODEC_IDT92HD005D, "IDT 92HD005D" },
+	{ HDA_CODEC_IDT92HD206X, "IDT 92HD206X" },
+	{ HDA_CODEC_IDT92HD206D, "IDT 92HD206D" },
+	{ HDA_CODEC_IDT92HD700X, "IDT 92HD700X" },
+	{ HDA_CODEC_IDT92HD700D, "IDT 92HD700D" },
+	{ HDA_CODEC_IDT92HD71B5, "IDT 92HD71B5" },
+	{ HDA_CODEC_IDT92HD71B7, "IDT 92HD71B7" },
+	{ HDA_CODEC_IDT92HD71B8, "IDT 92HD71B8" },
+	{ HDA_CODEC_IDT92HD73C1, "IDT 92HD73C1" },
+	{ HDA_CODEC_IDT92HD73D1, "IDT 92HD73D1" },
+	{ HDA_CODEC_IDT92HD73E1, "IDT 92HD73E1" },
+	{ HDA_CODEC_IDT92HD75B3, "IDT 92HD75B3" },
+	{ HDA_CODEC_IDT92HD75BX, "IDT 92HD75BX" },
+	{ HDA_CODEC_IDT92HD81B1C, "IDT 92HD81B1C" },
+	{ HDA_CODEC_IDT92HD81B1X, "IDT 92HD81B1X" },
+	{ HDA_CODEC_IDT92HD83C1C, "IDT 92HD83C1C" },
+	{ HDA_CODEC_IDT92HD83C1X, "IDT 92HD83C1X" },
 	{ HDA_CODEC_CXVENICE,  "Conexant Venice" },
 	{ HDA_CODEC_CXWAIKIKI, "Conexant Waikiki" },
 	{ HDA_CODEC_VT1708_8,  "VIA VT1708_8" },
@@ -701,6 +785,8 @@ static const struct {
 	{ HDA_CODEC_VTXXXX,    "VIA (Unknown)" },
 	{ HDA_CODEC_ATIXXXX,   "ATI (Unknown)" },
 	{ HDA_CODEC_NVIDIAXXXX,"NVidia (Unknown)" },
+	{ HDA_CODEC_INTELXXXX, "Intel (Unknown)" },
+	{ HDA_CODEC_IDTXXXX,   "IDT (Unknown)" },
 };
 #define HDAC_CODECS_LEN	(sizeof(hdac_codecs) / sizeof(hdac_codecs[0]))
 
@@ -1773,7 +1859,7 @@ hdac_probe_codec(struct hdac_codec *codec)
 	nid_t cad = codec->cad;
 
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "Probing codec %d...\n", cad);
+		device_printf(sc->dev, "Probing codec #%d...\n", cad);
 	);
 	vendorid = hdac_command(sc,
 	    HDA_CMD_GET_PARAMETER(cad, 0x0, HDA_PARAM_VENDOR_ID),
@@ -1792,10 +1878,10 @@ hdac_probe_codec(struct hdac_codec *codec)
 		return;
 	}
 
-	device_printf(sc->dev, "<HDA Codec #%d: %s>\n",
+	device_printf(sc->dev, "HDA Codec #%d: %s\n",
 	    cad, hdac_codec_name(codec));
 	HDA_BOOTVERBOSE(
-		device_printf(sc->dev, "<HDA Codec ID: 0x%08x>\n",
+		device_printf(sc->dev, " HDA Codec ID: 0x%08x\n",
 		    hdac_codec_id(codec));
 		device_printf(sc->dev, "       Vendor: 0x%04x\n",
 		    codec->vendor_id);
@@ -3745,7 +3831,7 @@ hdac_attach(device_t dev)
 	uint16_t vendor;
 	uint8_t v;
 
-	device_printf(dev, "<HDA Driver Revision: %s>\n", HDA_DRV_TEST_REV);
+	device_printf(dev, "HDA Driver Revision: %s\n", HDA_DRV_TEST_REV);
 
 	sc = device_get_softc(dev);
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
@@ -4340,9 +4426,11 @@ static const struct {
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_OVREF50, 0},
 	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
-	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205,
+	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X,
 	    HDA_QUIRK_GPIO0, 0 },
-	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205,
+	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X,
+	    HDA_QUIRK_GPIO2, 0 },
+	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205X,
 	    HDA_QUIRK_GPIO0, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
 	    HDA_QUIRK_IVREF80, HDA_QUIRK_IVREF50 | HDA_QUIRK_IVREF100 },
@@ -4424,6 +4512,24 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				devinfo->function.audio.quirks &=
 				    ~HDA_QUIRK_EAPDINV;
 		}
+		break;
+	case HDA_CODEC_AD1981HD:
+		/*
+		 * This codec has very unusual design with several
+		 * points inappropriate for the present parser.
+		 */
+		/* Disable recording from mono playback mix. */
+		w = hdac_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		/* Disable rear to front mic mixer, use separately. */
+		w = hdac_widget_get(devinfo, 31);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable playback mixer, use direct bypass. */
+		w = hdac_widget_get(devinfo, 14);
+		if (w != NULL)
+			w->enable = 0;
 		break;
 	}
 }
@@ -4945,7 +5051,7 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		}
 	} else {
 		sc->chans = (struct hdac_chan *)realloc(sc->chans, 
-		    sizeof(struct hdac_chan) * cnt,
+		    sizeof(struct hdac_chan) * (sc->num_chans + cnt),
 		    M_HDAC, M_ZERO | M_NOWAIT);
 		if (sc->chans == NULL) {
 			sc->num_chans = 0;
@@ -4963,7 +5069,6 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 	}
 
 	/* Assign associations in order of their numbers, */
-	free = 0;
 	for (j = 0; j < devinfo->function.audio.ascnt; j++) {
 		if (as[j].enable == 0)
 			continue;
@@ -7472,6 +7577,21 @@ hdac_detach(device_t dev)
 	return (0);
 }
 
+static int
+hdac_print_child(device_t dev, device_t child)
+{
+	struct hdac_pcm_devinfo *pdevinfo =
+	    (struct hdac_pcm_devinfo *)device_get_ivars(child);
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	retval += printf(" at cad %d nid %d",
+	    pdevinfo->devinfo->codec->cad, pdevinfo->devinfo->nid);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
 static device_method_t hdac_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		hdac_probe),
@@ -7479,6 +7599,8 @@ static device_method_t hdac_methods[] = {
 	DEVMETHOD(device_detach,	hdac_detach),
 	DEVMETHOD(device_suspend,	hdac_suspend),
 	DEVMETHOD(device_resume,	hdac_resume),
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	hdac_print_child),
 	{ 0, 0 }
 };
 
@@ -7501,8 +7623,7 @@ hdac_pcm_probe(device_t dev)
 	    (struct hdac_pcm_devinfo *)device_get_ivars(dev);
 	char buf[128];
 
-	snprintf(buf, sizeof(buf), "HDA codec #%d %s PCM #%d",
-	    pdevinfo->devinfo->codec->cad,
+	snprintf(buf, sizeof(buf), "HDA %s PCM #%d",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
 	    pdevinfo->index);
 	device_set_desc_copy(dev, buf);
@@ -7593,9 +7714,9 @@ hdac_pcm_attach(device_t dev)
 	if (pdevinfo->rec >= 0)
 		pcm_addchan(dev, PCMDIR_REC, &hdac_channel_class, pdevinfo);
 
-	snprintf(status, SND_STATUSLEN, "at %s cad %d %s [%s]",
-	    device_get_nameunit(sc->dev), pdevinfo->devinfo->codec->cad,
-	    PCM_KLDSTRING(snd_hda), HDA_DRV_TEST_REV);
+	snprintf(status, SND_STATUSLEN, "at cad %d nid %d on %s %s",
+	    pdevinfo->devinfo->codec->cad, pdevinfo->devinfo->nid,
+	    device_get_nameunit(sc->dev), PCM_KLDSTRING(snd_hda));
 	pcm_setstatus(dev, status);
 
 	return (0);

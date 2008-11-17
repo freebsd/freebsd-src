@@ -33,6 +33,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <gelf.h>
+#include <libproc.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -413,7 +414,7 @@ extern int dtrace_aggregate_walk_valvarrevsorted(dtrace_hdl_t *,
  */
 
 extern struct ps_prochandle *dtrace_proc_create(dtrace_hdl_t *,
-    const char *, char *const *);
+    const char *, char *const *, proc_child_func *, void *);
 
 extern struct ps_prochandle *dtrace_proc_grab(dtrace_hdl_t *, pid_t, int);
 extern void dtrace_proc_release(dtrace_hdl_t *, struct ps_prochandle *);

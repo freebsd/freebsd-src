@@ -40,7 +40,7 @@
 
 #define	PMC_MODULE_NAME		"hwpmc"
 #define	PMC_NAME_MAX		16 /* HW counter name size */
-#define	PMC_CLASS_MAX		4  /* #classes of PMCs in a system */
+#define	PMC_CLASS_MAX		4  /* max #classes of PMCs per-system */
 
 /*
  * Kernel<->userland API version number [MMmmpppp]
@@ -62,31 +62,36 @@
 	PMC_VERSION_MINOR << 16 | PMC_VERSION_PATCH)
 
 /*
- * Kinds of CPUs known
+ * Kinds of CPUs known.
+ *
+ * We keep track of CPU variants that need to be distinguished in
+ * some way for PMC operations.  CPU names are grouped by manufacturer
+ * and numbered sparsely in order to minimize changes to the ABI involved
+ * when new CPUs are added.
  */
 
-#define	__PMC_CPUS()					\
-	__PMC_CPU(AMD_K7,     "AMD K7")			\
-	__PMC_CPU(AMD_K8,     "AMD K8")			\
-	__PMC_CPU(INTEL_P5,   "Intel Pentium")		\
-	__PMC_CPU(INTEL_P6,   "Intel Pentium Pro")	\
-	__PMC_CPU(INTEL_CL,   "Intel Celeron")		\
-	__PMC_CPU(INTEL_PII,  "Intel Pentium II")	\
-	__PMC_CPU(INTEL_PIII, "Intel Pentium III")	\
-	__PMC_CPU(INTEL_PM,   "Intel Pentium M")	\
-	__PMC_CPU(INTEL_PIV,  "Intel Pentium IV")	\
-	__PMC_CPU(INTEL_CORE, "Intel Core Solo/Duo")	\
-	__PMC_CPU(INTEL_CORE2,"Intel Core2")		\
-	__PMC_CPU(INTEL_ATOM, "Intel Atom")
+#define	__PMC_CPUS()						\
+	__PMC_CPU(AMD_K7,	0x00,	"AMD K7")		\
+	__PMC_CPU(AMD_K8,	0x01,	"AMD K8")		\
+	__PMC_CPU(INTEL_P5,	0x80,	"Intel Pentium")	\
+	__PMC_CPU(INTEL_P6,	0x81,	"Intel Pentium Pro")	\
+	__PMC_CPU(INTEL_CL,	0x82,	"Intel Celeron")	\
+	__PMC_CPU(INTEL_PII,	0x83,	"Intel Pentium II")	\
+	__PMC_CPU(INTEL_PIII,	0x84,	"Intel Pentium III")	\
+	__PMC_CPU(INTEL_PM,	0x85,	"Intel Pentium M")	\
+	__PMC_CPU(INTEL_PIV,	0x86,	"Intel Pentium IV")	\
+	__PMC_CPU(INTEL_CORE,	0x87,	"Intel Core Solo/Duo")	\
+	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
+	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
-#define	__PMC_CPU(S,D)	PMC_CPU_##S ,
+#define	__PMC_CPU(S,V,D)	PMC_CPU_##S = V,
 	__PMC_CPUS()
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_INTEL_PIV
+#define	PMC_CPU_LAST	PMC_CPU_INTEL_ATOM
 
 /*
  * Classes of PMCs
@@ -109,7 +114,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_P4
+#define	PMC_CLASS_LAST	PMC_CLASS_IAP
 
 /*
  * A PMC can be in the following states:
@@ -257,12 +262,11 @@ enum pmc_caps
 
 enum pmc_event {
 #undef	__PMC_EV
-#define	__PMC_EV(C,N,D) PMC_EV_ ## C ## _ ## N ,
+#undef	__PMC_EV_BLOCK
+#define	__PMC_EV_BLOCK(C,V)	PMC_EV_ ## C ## __BLOCK_START = (V) - 1 ,
+#define	__PMC_EV(C,N)		PMC_EV_ ## C ## _ ## N ,
 	__PMC_EVENTS()
 };
-
-#define	PMC_EVENT_FIRST	PMC_EV_TSC_TSC
-#define	PMC_EVENT_LAST	PMC_EV_P5_LAST
 
 /*
  * PMC SYSCALL INTERFACE
@@ -290,6 +294,7 @@ enum pmc_event {
 	__PMC_OP(PMCSTART, "Start a PMC")				\
 	__PMC_OP(PMCSTOP, "Start a PMC")				\
 	__PMC_OP(WRITELOG, "Write a cookie to the log file")
+
 
 enum pmc_ops {
 #undef	__PMC_OP
@@ -467,9 +472,10 @@ struct pmc_op_getpmcinfo {
  */
 
 struct pmc_classinfo {
-	enum pmc_class	pm_class; 	/* class id */
+	enum pmc_class	pm_class;	/* class id */
 	uint32_t	pm_caps;	/* counter capabilities */
 	uint32_t	pm_width;	/* width of the PMC */
+	uint32_t	pm_num;		/* number of PMCs in class */
 };
 
 struct pmc_op_getcpuinfo {
@@ -629,7 +635,7 @@ struct pmc_target {
 
 struct pmc {
 	LIST_HEAD(,pmc_target)	pm_targets;	/* list of target processes */
-	LIST_ENTRY(pmc)       	pm_next;	/* owner's list */
+	LIST_ENTRY(pmc)		pm_next;	/* owner's list */
 
 	/*
 	 * System-wide PMCs are allocated on a CPU and are not moved
@@ -673,7 +679,7 @@ struct pmc {
 	 * mode, class and the CPU# associated with the PMC.
 	 */
 
-	pmc_id_t	pm_id; 		/* allocated PMC id */
+	pmc_id_t	pm_id;		/* allocated PMC id */
 
 	/* md extensions */
 	union pmc_md_pmc	pm_md;
@@ -716,7 +722,7 @@ struct pmc_targetstate {
 struct pmc_process {
 	LIST_ENTRY(pmc_process) pp_next;	/* hash chain */
 	int		pp_refcnt;		/* reference count */
-	uint32_t	pp_flags; 		/* flags PMC_PP_* */
+	uint32_t	pp_flags;		/* flags PMC_PP_* */
 	struct proc	*pp_proc;		/* target thread */
 	struct pmc_targetstate pp_pmcs[];       /* NHWPMCs */
 };
@@ -834,7 +840,6 @@ struct pmc_cpu {
 	uint32_t	pc_state;	/* physical cpu number + flags */
 	struct pmc_samplebuffer *pc_sb; /* space for samples */
 	struct pmc_hw	*pc_hwpmcs[];	/* 'npmc' pointers */
-	/* other machine dependent fields come here */
 };
 
 #define	PMC_PCPU_CPU_MASK		0x000000FF
@@ -857,6 +862,48 @@ struct pmc_binding {
 	int	pb_cpu;		/* if so, to which CPU */
 };
 
+
+struct pmc_mdep;
+
+/*
+ * struct pmc_classdep
+ *
+ * PMC class-dependent operations.
+ */
+struct pmc_classdep {
+	uint32_t	pcd_caps;	/* class capabilities */
+	enum pmc_class	pcd_class;	/* class id */
+	int		pcd_num;	/* number of PMCs */
+	int		pcd_ri;		/* row index of the first PMC in class */
+	int		pcd_width;	/* width of the PMC */
+
+	/* configuring/reading/writing the hardware PMCs */
+	int (*pcd_config_pmc)(int _cpu, int _ri, struct pmc *_pm);
+	int (*pcd_get_config)(int _cpu, int _ri, struct pmc **_ppm);
+	int (*pcd_read_pmc)(int _cpu, int _ri, pmc_value_t *_value);
+	int (*pcd_write_pmc)(int _cpu, int _ri, pmc_value_t _value);
+
+	/* pmc allocation/release */
+	int (*pcd_allocate_pmc)(int _cpu, int _ri, struct pmc *_t,
+		const struct pmc_op_pmcallocate *_a);
+	int (*pcd_release_pmc)(int _cpu, int _ri, struct pmc *_pm);
+
+	/* starting and stopping PMCs */
+	int (*pcd_start_pmc)(int _cpu, int _ri);
+	int (*pcd_stop_pmc)(int _cpu, int _ri);
+
+	/* description */
+	int (*pcd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
+		struct pmc **_ppmc);
+
+	/* class-dependent initialization & finalization */
+	int (*pcd_pcpu_init)(struct pmc_mdep *_md, int _cpu);
+	int (*pcd_pcpu_fini)(struct pmc_mdep *_md, int _cpu);
+
+	/* machine-specific interface */
+	int (*pcd_get_msr)(int _ri, uint32_t *_msr);
+};
+
 /*
  * struct pmc_mdep
  *
@@ -865,45 +912,28 @@ struct pmc_binding {
 
 struct pmc_mdep  {
 	uint32_t	pmd_cputype;    /* from enum pmc_cputype */
-	uint32_t	pmd_npmc;	/* max PMCs per CPU */
-	uint32_t	pmd_nclass;	/* # PMC classes supported */
-	struct pmc_classinfo  pmd_classes[PMC_CLASS_MAX];
-	int		pmd_nclasspmcs[PMC_CLASS_MAX];
+	uint32_t	pmd_npmc;	/* number of PMCs per CPU */
+	uint32_t	pmd_nclass;	/* number of PMC classes present */
 
 	/*
-	 * Methods
+	 * Machine dependent methods.
 	 */
 
-	int (*pmd_init)(int _cpu);    /* machine dependent initialization */
-	int (*pmd_cleanup)(int _cpu); /* machine dependent cleanup  */
+	/* per-cpu initialization and finalization */
+	int (*pmd_pcpu_init)(int _cpu); /* initialization */
+	int (*pmd_pcpu_fini)(int _cpu); /* finalization */
 
 	/* thread context switch in/out */
 	int (*pmd_switch_in)(struct pmc_cpu *_p, struct pmc_process *_pp);
 	int (*pmd_switch_out)(struct pmc_cpu *_p, struct pmc_process *_pp);
 
-	/* configuring/reading/writing the hardware PMCs */
-	int (*pmd_config_pmc)(int _cpu, int _ri, struct pmc *_pm);
-	int (*pmd_get_config)(int _cpu, int _ri, struct pmc **_ppm);
-	int (*pmd_read_pmc)(int _cpu, int _ri, pmc_value_t *_value);
-	int (*pmd_write_pmc)(int _cpu, int _ri, pmc_value_t _value);
-
-	/* pmc allocation/release */
-	int (*pmd_allocate_pmc)(int _cpu, int _ri, struct pmc *_t,
-		const struct pmc_op_pmcallocate *_a);
-	int (*pmd_release_pmc)(int _cpu, int _ri, struct pmc *_pm);
-
-	/* starting and stopping PMCs */
-	int (*pmd_start_pmc)(int _cpu, int _ri);
-	int (*pmd_stop_pmc)(int _cpu, int _ri);
-
 	/* handle a PMC interrupt */
 	int (*pmd_intr)(int _cpu, struct trapframe *_tf);
 
-	int (*pmd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
-		struct pmc **_ppmc);
-
-	int (*pmd_get_msr)(int _ri, uint32_t *_msr);
-
+	/*
+	 * PMC class dependent information.
+	 */
+	struct pmc_classdep pmd_classdep[];
 };
 
 /*
@@ -963,7 +993,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_FND		4 /* find */
 
 /* MODULE */
-#define	PMC_DEBUG_MIN_PMH 	       14 /* pmc_hook */
+#define	PMC_DEBUG_MIN_PMH	       14 /* pmc_hook */
 #define	PMC_DEBUG_MIN_PMS	       15 /* pmc_syscall */
 
 /* OWN */
@@ -996,7 +1026,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_INT	       13 /* interrupts */
 
 /* CPU */
-#define	PMC_DEBUG_MIN_BND	       	8 /* bind */
+#define	PMC_DEBUG_MIN_BND		8 /* bind */
 #define	PMC_DEBUG_MIN_SEL		9 /* select */
 
 /* LOG */
@@ -1017,6 +1047,7 @@ MALLOC_DECLARE(M_PMC);
  */
 
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
+void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
 int	pmc_process_interrupt(int _cpu, struct pmc *_pm,
     struct trapframe *_tf, int _inuserspace);

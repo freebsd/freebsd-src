@@ -247,9 +247,8 @@ syncache_init(void)
 	    &V_tcp_syncache.cache_limit);
 
 	/* Allocate the hash table. */
-	MALLOC(V_tcp_syncache.hashbase, struct syncache_head *,
-	    V_tcp_syncache.hashsize * sizeof(struct syncache_head),
-	    M_SYNCACHE, M_WAITOK | M_ZERO);
+	V_tcp_syncache.hashbase = malloc(V_tcp_syncache.hashsize *
+	    sizeof(struct syncache_head), M_SYNCACHE, M_WAITOK | M_ZERO);
 
 	/* Initialize the hash buckets. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
@@ -1244,7 +1243,6 @@ done:
 		*lsop = NULL;
 		m_freem(m);
 	}
-	return;
 }
 
 static int
@@ -1577,7 +1575,6 @@ syncookie_generate(struct syncache_head *sch, struct syncache *sc,
 	}
 
 	V_tcpstat.tcps_sc_sendcookie++;
-	return;
 }
 
 static struct syncache *

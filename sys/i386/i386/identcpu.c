@@ -842,6 +842,19 @@ printcpuinfo(void)
 				cpu_feature &= ~CPUID_HTT;
 
 			/*
+			 * If this CPU supports P-state invariant TSC then
+			 * mention the capability.
+			 */
+			if (!tsc_is_invariant &&
+			    (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			    ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
+			    I386_CPU_FAMILY(cpu_id) >= 0x10 ||
+			    cpu_id == 0x60fb2))) {
+				tsc_is_invariant = 1;
+				printf("\n  TSC: P-state invariant");
+			}
+
+			/*
 			 * If this CPU supports HTT or CMP then mention the
 			 * number of physical/logical cores it contains.
 			 */
@@ -1059,8 +1072,11 @@ identifycyrix(void)
 static void
 tsc_freq_changed(void *arg, const struct cf_level *level, int status)
 {
-	/* If there was an error during the transition, don't do anything. */
-	if (status != 0)
+	/*
+	 * If there was an error during the transition or
+	 * TSC is P-state invariant, don't do anything.
+	 */
+	if (status != 0 || tsc_is_invariant)
 		return;
 
 	/* Total setting for this level gives the new frequency in MHz. */
@@ -1088,6 +1104,10 @@ finishidentcpu(void)
 			do_cpuid(0x80000001, regs);
 			amd_feature = regs[3] & ~(cpu_feature & 0x0183f3ff);
 			amd_feature2 = regs[2];
+		}
+		if (cpu_exthigh >= 0x80000007) {
+			do_cpuid(0x80000007, regs);
+			amd_pminfo = regs[3];
 		}
 		if (cpu_exthigh >= 0x80000008) {
 			do_cpuid(0x80000008, regs);

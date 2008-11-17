@@ -161,8 +161,6 @@ SYSCTL_INT(_hw_usb_ubsa, OID_AUTO, debug, CTLFLAG_RW,
 struct	ubsa_softc {
 	struct ucom_softc	sc_ucom;
 
-	int			sc_huawei;
-
 	int			sc_iface_number;	/* interface number */
 
 	usbd_interface_handle	sc_intr_iface;	/* interrupt interface */
@@ -228,93 +226,6 @@ static const struct ubsa_product {
 	{ USB_VENDOR_GOHUBS, USB_PRODUCT_GOHUBS_GOCOM232 },
 	/* Peracom */
 	{ USB_VENDOR_PERACOM, USB_PRODUCT_PERACOM_SERIAL1 },
-	/* Dell version of the Novatel 740 */
-	{ USB_VENDOR_DELL, USB_PRODUCT_DELL_U740 },
-	/* Option Vodafone MC3G */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G },
-	/* Option GlobeTrotter 3G */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G },
-	/* Option GlobeTrotter 3G QUAD */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD },
-	/* Option GlobeTrotter 3G+ */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS },
-	/* Option GlobeTrotter Max 3.6 */
-	{ USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36 },
-	/* Huawei Mobile */
-	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE },
-	{ USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E270 },
-	{ USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620 },
-	/* Qualcomm, Inc. ZTE CDMA */
-	{ USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM },
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM },
-	/* Novatel Wireless Merlin ES620 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620 },
-	/* Novatel Wireless Merlin U720 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720 },
-	/* Novatel Wireless Merlin U727 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727 },
-	/* Novatel Wireless Merlin U740 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740 },
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2 },
-	/* Novatel Wireless Merlin U950D */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U950D },
-	/* Novatel Wireless Merlin V620 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620 },
-	/* Novatel Wireless Merlin V640 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640 },
-	/* Novatel Wireless Merlin V720 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720 },
-	/* Novatel Wireless Merlin V740 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740 },
-	/* Novatel Wireless Merlin X950D */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D },
-	/* Novatel Wireless Merlin U870 */
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870 },
-	{ USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870 },
-	/* Sierra Wireless AirCard 580 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD580 },
-	/* Sierra Wireless AirCard 595 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD595 },
-	/* Sierra Wireless AirCard 595U */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC595U },
-	/* Sierra Wireless AirCard 597E */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC597E },
-	/* Sierra Wireless Compass 597 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_C597 },
-	/* Sierra Wireless AirCard 880 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880 },
-	/* Sierra Wireless AirCard 880E */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880E },
-	/* Sierra Wireless AirCard 880U */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880U },
-	/* Sierra Wireless AirCard 881 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881 },
-	/* Sierra Wireless AirCard 881E */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881E },
-	/* Sierra Wireless AirCard 881U */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881U },
-	/* Sierra Wireless EM5625 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_EM5625 },
-	/* Sierra Wireless MC5720 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720 },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720_2 },
-	/* Sierra Wireless MC5725 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5725 },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MINI5725 },
-	/* Sierra Wireless MC8755 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD875 },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755 },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_2 },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3 },
-	/* Sierra Wireless MC8765 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765 },
-	/* Sierra Wireless MC8775 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U },
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },
-	/* Sierra Wireless MC8780 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780 },
-	/* Sierra Wireless MC8781 */
-	{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781 },
 	{ 0, 0 }
 };
 
@@ -341,52 +252,6 @@ MODULE_DEPEND(ubsa, usb, 1, 1, 1);
 MODULE_DEPEND(ubsa, ucom, UCOM_MINVER, UCOM_PREFVER, UCOM_MAXVER);
 MODULE_VERSION(ubsa, UBSA_MODVER);
 
-/*
- * Huawei Exxx radio devices have a built in flash disk which is their
- * default power up configuration.  This allows the device to carry its
- * own installation software.
- *
- * Instead of following the USB spec, and create multiple configuration
- * descriptors for this, the devices expects the driver to send
- * UF_DEVICE_REMOTE_WAKEUP to endpoint 2 to reset the device, so it
- * reprobes, now with the radio exposed.
- */
-
-static usbd_status
-ubsa_huawei(device_t self, struct usb_attach_arg *uaa) {
-	usb_device_request_t req; usbd_device_handle dev;
-	usb_config_descriptor_t *cdesc;
-
-	if (self == NULL)
-		return (UMATCH_NONE);
-	if (uaa == NULL)
-		return (UMATCH_NONE);
-	dev = uaa->device;
-	if (dev == NULL)
-		return (UMATCH_NONE);
-	/* get the config descriptor */
-	cdesc = usbd_get_config_descriptor(dev);
-	if (cdesc == NULL)
-		return (UMATCH_NONE);
-
-	if (cdesc->bNumInterface > 1)
-		return (0);
-
-	/* Bend it like Beckham */
-	device_printf(self, "Kicking Huawei device into radio mode\n");
-	memset(&req, 0, sizeof req);
-	req.bmRequestType = UT_WRITE_DEVICE;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
-	USETW(req.wIndex, 2);
-	USETW(req.wLength, 0);
-
-	/* We get error return, but it works */
-	(void)usbd_do_request(dev, &req, 0);
-	return (UMATCH_NONE);
-}
-
-
 static int
 ubsa_match(device_t self)
 {
@@ -399,9 +264,6 @@ ubsa_match(device_t self)
 	for (i = 0; ubsa_products[i].vendor != 0; i++) {
 		if (ubsa_products[i].vendor == uaa->vendor &&
 		    ubsa_products[i].product == uaa->product) {
-			if (uaa->vendor == USB_VENDOR_HUAWEI &&
-			    ubsa_huawei(self, uaa))
-				break;
 			return (UMATCH_VENDOR_PRODUCT);
 		}
 	}
@@ -423,9 +285,6 @@ ubsa_attach(device_t self)
 
 	dev = uaa->device;
 	ucom = &sc->sc_ucom;
-
-	if (uaa->vendor == USB_VENDOR_HUAWEI)
-		sc->sc_huawei = 1;
 
 	/*
 	 * initialize rts, dtr variables to something
@@ -574,9 +433,6 @@ ubsa_request(struct ubsa_softc *sc, u_int8_t request, u_int16_t value)
 	usb_device_request_t req;
 	usbd_status err;
 
-	/* The huawei Exxx devices support none of these tricks */
-	if (sc->sc_huawei)
-		return (0);
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = request;
 	USETW(req.wValue, value);

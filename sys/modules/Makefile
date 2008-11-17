@@ -18,6 +18,7 @@ SUBDIR=	${_3dfx} \
 	aic7xxx \
 	aio \
 	${_amd} \
+	ale \
 	amr \
 	${_an} \
 	${_aout} \
@@ -80,6 +81,7 @@ SUBDIR=	${_3dfx} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
+	ehci \
 	${_elink} \
 	${_em} \
 	en \
@@ -179,6 +181,8 @@ SUBDIR=	${_3dfx} \
 	mii \
 	mlx \
 	${_mly} \
+	mmc \
+	mmcsd \
 	mpt \
 	mqueue \
 	msdosfs \
@@ -206,6 +210,7 @@ SUBDIR=	${_3dfx} \
 	${_nwfs} \
 	${_nxge} \
 	${_opensolaris} \
+	ohci \
 	${_padlock} \
 	patm \
 	${_pccard} \
@@ -240,13 +245,16 @@ SUBDIR=	${_3dfx} \
 	scc \
 	scd \
 	${_scsi_low} \
+	sdhci \
 	sem \
 	sf \
+	slhci \
 	sis \
 	sk \
 	${_smbfs} \
 	sn \
 	${_snc} \
+	snp \
 	${_sound} \
 	${_speaker} \
 	${_splash} \
@@ -267,6 +275,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
+	u3g \
 	uark \
 	uart \
 	ubsa \
@@ -281,6 +290,7 @@ SUBDIR=	${_3dfx} \
 	ufoma \
 	uftdi \
 	ugen \
+	uhci \
 	uhid \
 	uipaq \
 	ukbd \
@@ -295,6 +305,7 @@ SUBDIR=	${_3dfx} \
 	ural \
 	urio \
 	usb \
+	usb2 \
 	uscanner \
 	uslcom \
 	utopia \

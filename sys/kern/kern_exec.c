@@ -388,8 +388,6 @@ do_execve(td, args, mac_p)
 
 	imgp->image_header = NULL;
 
-	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
-
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
 	 *	in ni_vp amoung other things.
@@ -402,6 +400,8 @@ do_execve(td, args, mac_p)
 		NDINIT(ndp, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
 		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
+
+	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
 
 interpret:
 	if (args->fname != NULL) {
@@ -800,8 +800,9 @@ interpret:
 
 	vfs_mark_atime(imgp->vp, td->td_ucred);
 
-done1:
+	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
 
+done1:
 	/*
 	 * Free any resources malloc'd earlier that we didn't use.
 	 */
@@ -811,8 +812,6 @@ done1:
 	else
 		crfree(newcred);
 	VOP_UNLOCK(imgp->vp, 0);
-
-	SDT_PROBE(proc, kernel, , exec_success, args->fname, 0, 0, 0, 0);
 
 	/*
 	 * Handle deferred decrement of ref counts.

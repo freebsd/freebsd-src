@@ -395,11 +395,14 @@ auditon(struct thread *td, struct auditon_args *uap)
 		break;
 
 	case A_GETKAUDIT:
-		return (ENOSYS);
+		audit_get_kinfo(&udata.au_kau_info);
 		break;
 
 	case A_SETKAUDIT:
-		return (ENOSYS);
+		if (udata.au_kau_info.ai_termid.at_type != AU_IPv4 &&
+		    udata.au_kau_info.ai_termid.at_type != AU_IPv6)
+			return (EINVAL);
+		audit_set_kinfo(&udata.au_kau_info);
 		break;
 
 	case A_SENDTRIGGER:

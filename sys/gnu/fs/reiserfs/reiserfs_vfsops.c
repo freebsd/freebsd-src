@@ -74,7 +74,7 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 {
 	size_t size;
 	int error, len;
-	mode_t accessmode;
+	accmode_t accmode;
 	char *path, *fspec;
 	struct vnode *devvp;
 	struct vfsoptlist *opts;
@@ -124,10 +124,10 @@ reiserfs_mount(struct mount *mp, struct thread *td)
 
 	/* If mount by non-root, then verify that user has necessary
 	 * permissions on the device. */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
@@ -929,7 +929,7 @@ get_root_node(struct reiserfs_mount *rmp, struct reiserfs_node **root)
 
 	/* Allocate the node structure */
 	reiserfs_log(LOG_DEBUG, "malloc(struct reiserfs_node)\n");
-	MALLOC(ip, struct reiserfs_node *, sizeof(struct reiserfs_node),
+	ip = malloc(sizeof(struct reiserfs_node),
 	    M_REISERFSNODE, M_WAITOK | M_ZERO);
 
 	/* Fill the structure */

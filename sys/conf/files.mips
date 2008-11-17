@@ -71,10 +71,10 @@ mips/mips/stack_machdep.c	optional	ddb | stack
 mips/mips/support.S		standard
 mips/mips/swtch.S		standard
 mips/mips/uio_machdep.c		standard
-geom/geom_bsd.c			standard
-geom/geom_bsd_enc.c		standard
-geom/geom_mbr.c			standard
-geom/geom_mbr_enc.c		standard
+geom/geom_bsd.c			optional	geom_bsd
+geom/geom_bsd_enc.c		optional	geom_bsd
+geom/geom_mbr.c			optional	geom_mbr
+geom/geom_mbr_enc.c		optional	geom_mbr
 hal.o				optional	ath_hal		\
 	compile-with		"ATH_HAL_CPU=mips; ATH_ENDIAN=`if ([ x${TARGET_BIG_ENDIAN} = x ]); then echo le; else echo be; fi;`; uudecode < $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.hal.o.uu" \
 	no-implicit-rule

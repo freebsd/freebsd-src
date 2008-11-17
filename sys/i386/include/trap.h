@@ -49,9 +49,6 @@
 #define	T_PAGEFLT	12	/* page fault */
 #define	T_ALIGNFLT	14	/* alignment fault */
 
-#ifdef XEN
-#define	T_HYPCALLBACK	17	/* hypervisor upcall */
-#endif
 #define	T_DIVIDE	18	/* integer divide fault */
 #define	T_NMI		19	/* non-maskable trap */
 #define	T_OFLOW		20	/* overflow trap */

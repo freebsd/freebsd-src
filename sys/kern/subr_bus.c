@@ -1344,20 +1344,22 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	 * this one.
 	 */
 	if (unit >= dc->maxunit) {
-		device_t *newlist;
+		device_t *newlist, *oldlist;
 		int newsize;
 
+		oldlist = dc->devices;
 		newsize = roundup((unit + 1), MINALLOCSIZE / sizeof(device_t));
 		newlist = malloc(sizeof(device_t) * newsize, M_BUS, M_NOWAIT);
 		if (!newlist)
 			return (ENOMEM);
-		bcopy(dc->devices, newlist, sizeof(device_t) * dc->maxunit);
+		if (oldlist != NULL)
+			bcopy(oldlist, newlist, sizeof(device_t) * dc->maxunit);
 		bzero(newlist + dc->maxunit,
 		    sizeof(device_t) * (newsize - dc->maxunit));
-		if (dc->devices)
-			free(dc->devices, M_BUS);
 		dc->devices = newlist;
 		dc->maxunit = newsize;
+		if (oldlist != NULL)
+			free(oldlist, M_BUS);
 	}
 	PDEBUG(("now: unit %d in devclass %s", unit, DEVCLANAME(dc)));
 

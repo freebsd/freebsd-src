@@ -619,7 +619,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	struct bpf_d *d;
 	int error;
 
-	MALLOC(d, struct bpf_d *, sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
+	d = malloc(sizeof(*d), M_BPF, M_WAITOK | M_ZERO);
 	error = devfs_set_cdevpriv(d, bpf_dtor);
 	if (error != 0) {
 		free(d, M_BPF);

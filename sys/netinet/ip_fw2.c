@@ -1803,14 +1803,14 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->addr.sin_len = ent->mask.sin_len = 8;
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
-	IPFW_WLOCK(&V_layer3_chain);
+	IPFW_WLOCK(ch);
 	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
 	    NULL) {
-		IPFW_WUNLOCK(&V_layer3_chain);
+		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
 	}
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(ch);
 	return (0);
 }
 
@@ -4385,49 +4385,44 @@ ipfw_ctl(struct sockopt *sopt)
 		break;
 
 	case IP_FW_NAT_CFG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_cfg_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_CFG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_CFG: %s\n",
+			    "ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_DEL:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_del_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_DEL: ipfw_nat not present, please load it.\n");
-			printf("ipfw_nat not loaded: %d\n", sopt->sopt_name);
+			printf("IP_FW_NAT_DEL: %s\n",
+			    "ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_CONFIG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_get_cfg_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_GET_CFG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_GET_CFG: %s\n",
+			    "ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	case IP_FW_NAT_GET_LOG:
-	{
 		if (IPFW_NAT_LOADED)
 			error = ipfw_nat_get_log_ptr(sopt);
 		else {
-			printf("IP_FW_NAT_GET_LOG: ipfw_nat not present, please load it.\n");
+			printf("IP_FW_NAT_GET_LOG: %s\n",
+			    "ipfw_nat not present, please load it");
 			error = EINVAL;
 		}
-	}
-	break;
+		break;
 
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);

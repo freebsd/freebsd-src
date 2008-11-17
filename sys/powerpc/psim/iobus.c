@@ -44,6 +44,7 @@
 #include <machine/bus.h>
 #include <sys/rman.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/vmparam.h>
@@ -52,7 +53,6 @@
 #include <machine/pmap.h>
 
 #include <machine/resource.h>
-#include <machine/nexusvar.h>
 
 #include <powerpc/psim/iobusvar.h>
 
@@ -121,7 +121,7 @@ DRIVER_MODULE(iobus, nexus, iobus_driver, iobus_devclass, 0, 0);
 static int
 iobus_probe(device_t dev)
 {
-	char *type = nexus_get_name(dev);
+	const char *type = ofw_bus_get_name(dev);
 
 	if (strcmp(type, "psim-iobus") != 0)
 		return (ENXIO);
@@ -190,7 +190,7 @@ iobus_attach(device_t dev)
 	int size;
 
 	sc = device_get_softc(dev);
-	sc->sc_node = nexus_get_node(dev);
+	sc->sc_node = ofw_bus_get_node(dev);
 
 	/*
 	 * Find the base addr/size of the iobus, and initialize the

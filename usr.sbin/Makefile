@@ -63,6 +63,7 @@ SUBDIR=	${_ac} \
 	getfmac \
 	getpmac \
 	gstat \
+	${_gssd} \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -256,6 +257,10 @@ _fdwrite=	fdwrite
 _freebsd-update= freebsd-update
 .endif
 
+.if ${MK_GSSAPI} != no
+_gssd=		gssd
+.endif
+
 .if ${MK_INET6} != "no"
 _faithd=	faithd
 _ip6addrctl=	ip6addrctl
@@ -292,7 +297,7 @@ _moused=	moused
 _vidcontrol=	vidcontrol
 .endif
 
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 .if ${MK_PPP} != "no"
 _pppctl=	pppctl
 .endif

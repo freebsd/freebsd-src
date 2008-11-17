@@ -70,13 +70,13 @@
 #define	MEMZALLOC(PTR, CAST, SIZE)					\
 	((PTR) = (CAST)malloc((SIZE), M_NG_SSCFU_INS, M_NOWAIT | M_ZERO))
 #define	MEMFREE(PTR)							\
-	FREE(PTR, M_NG_SSCFU_INS)
+	free(PTR, M_NG_SSCFU_INS)
 
 #define	SIG_ALLOC(PTR)							\
 	((PTR) = malloc(sizeof(struct sscfu_sig),			\
 	    M_NG_SSCFU_SIG, M_NOWAIT | M_ZERO))
 #define	SIG_FREE(PTR)							\
-	FREE(PTR, M_NG_SSCFU_SIG)
+	free(PTR, M_NG_SSCFU_SIG)
 
 #endif
 

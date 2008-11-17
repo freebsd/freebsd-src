@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2001
+.Dd October 20, 2008
 .Dt VINVALBUF 9
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn vinvalbuf "struct vnode *vp" "int flags" "struct ucred *cred" "struct thread *td" "int slpflag" "int slptimeo"
+.Fn vinvalbuf "struct vnode *vp" "int flags" "struct ucred *cred" "int slpflag" "int slptimeo"
 .Sh DESCRIPTION
 The
 .Fn vinvalbuf
@@ -62,8 +62,6 @@ The user credentials that are used to
 buffers if
 .Dv V_SAVE
 is set.
-.It Fa td
-The thread responsible for this call.
 .It Fa slpflag
 The slp flag that will be used in the priority of any sleeps in the function.
 .It Fa slptimeo
@@ -78,9 +76,9 @@ must be held by prior to the call and remains locked upon return.
 A 0 value is returned on success.
 .Sh PSEUDOCODE
 .Bd -literal -offset indent
-vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-error = vinvalbuf(devvp, V_SAVE, cred, td, 0, 0);
-VOP_UNLOCK(devvp, 0, td);
+vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
+error = vinvalbuf(devvp, V_SAVE, cred, 0, 0);
+VOP_UNLOCK(devvp, 0);
 if (error)
 	return (error);
 .Ed

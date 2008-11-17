@@ -87,6 +87,8 @@ struct dbdma_channel {
 /* Channel control is the write channel to channel status, the upper 16 bits
    are a mask of which bytes to change */
 
+#define	DBDMA_REG_MASK_SHIFT	16
+
 /* Status bits 0-7 are device dependent status bits */
 
 /*

@@ -509,7 +509,7 @@ pgdelete(pgrp)
 	}
 
 	mtx_destroy(&pgrp->pg_mtx);
-	FREE(pgrp, M_PGRP);
+	free(pgrp, M_PGRP);
 	sess_release(savesess);
 }
 
@@ -629,7 +629,7 @@ sess_release(struct session *s)
 			tty_rel_sess(s->s_ttyp, s);
 		}
 		mtx_destroy(&s->s_mtx);
-		FREE(s, M_SESSION);
+		free(s, M_SESSION);
 	}
 }
 
@@ -1173,7 +1173,7 @@ pargs_alloc(int len)
 {
 	struct pargs *pa;
 
-	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
+	pa = malloc(sizeof(struct pargs) + len, M_PARGS,
 		M_WAITOK);
 	refcount_init(&pa->ar_ref, 1);
 	pa->ar_length = len;
@@ -1184,7 +1184,7 @@ static void
 pargs_free(struct pargs *pa)
 {
 
-	FREE(pa, M_PARGS);
+	free(pa, M_PARGS);
 }
 
 void
@@ -1341,6 +1341,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	unsigned int last_timestamp;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
+	struct vattr va;
+	struct ucred *cred;
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
@@ -1400,6 +1402,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_fileid = 0;
+		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
@@ -1436,10 +1440,15 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = obj->shadow_count;
 			VM_OBJECT_UNLOCK(obj);
 			if (vp != NULL) {
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
+				cred = curthread->td_ucred;
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vn_lock(vp, LK_SHARED | LK_RETRY);
+				if (VOP_GETATTR(vp, &va, cred) == 0) {
+					kve->kve_fileid = va.va_fileid;
+					kve->kve_fsid = va.va_fsid;
+				}
 				vput(vp);
 				VFS_UNLOCK_GIANT(vfslocked);
 			}
@@ -1451,6 +1460,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 		kve->kve_start = (void*)entry->start;
 		kve->kve_end = (void*)entry->end;
+		kve->kve_offset = (off_t)entry->offset;
 
 		if (entry->protection & VM_PROT_READ)
 			kve->kve_protection |= KVME_PROT_READ;

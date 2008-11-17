@@ -48,6 +48,8 @@
 #define	DEVICEID_JMC260		0x0260
 #define	DEVICEREVID_JMC260_A0	0x00
 
+#define	DEVICEID_JMC2XX_MASK	0x0FF0
+
 /* JMC250 PCI configuration register. */
 #define	JME_PCI_BAR0		0x10	/* 16KB memory window. */
 

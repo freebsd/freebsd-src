@@ -246,7 +246,7 @@ _xfs_mount(struct mount		*mp,
 		if (cp != NULL) {
 			DROP_GIANT();
 			g_topology_lock();
-			g_vfs_close(cp, td);
+			g_vfs_close(cp);
 			g_topology_unlock();
 			PICKUP_GIANT();
 		}
@@ -283,7 +283,7 @@ _xfs_unmount(mp, mntflags, td)
 		if (cp != NULL) {
 			DROP_GIANT();
 			g_topology_lock();
-			g_vfs_close(cp, td);
+			g_vfs_close(cp);
 			g_topology_unlock();
 			PICKUP_GIANT();
 		}
@@ -483,9 +483,10 @@ xfs_geom_bufwrite(struct buf *bp)
 }
 
 static int
-xfs_geom_bufsync(struct bufobj *bo, int waitfor, struct thread *td)
+xfs_geom_bufsync(struct bufobj *bo, int waitfor)
 {
-	return bufsync(bo,waitfor,td);
+
+	return (bufsync(bo, waitfor));
 }
 
 static void

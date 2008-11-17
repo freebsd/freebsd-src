@@ -114,8 +114,7 @@ static void drm_vblank_cleanup(struct drm_device *dev)
 
 	vblank_disable_fn((void *)dev);
 
-	drm_free(dev->vblank, sizeof(struct drm_vblank_info) * dev->num_crtcs,
-	    DRM_MEM_DRIVER);
+	free(dev->vblank, DRM_MEM_DRIVER);
 
 	dev->num_crtcs = 0;
 }
@@ -128,8 +127,8 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	atomic_set(&dev->vbl_signal_pending, 0);
 	dev->num_crtcs = num_crtcs;
 
-	dev->vblank = drm_calloc(num_crtcs, sizeof(struct drm_vblank_info),
-	    DRM_MEM_DRIVER);
+	dev->vblank = malloc(sizeof(struct drm_vblank_info) * num_crtcs,
+	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 	if (!dev->vblank)
 	    goto err;
 
@@ -432,8 +431,8 @@ int drm_wait_vblank(struct drm_device *dev, void *data, struct drm_file *file_pr
 
 	if (flags & _DRM_VBLANK_SIGNAL) {
 #if 0 /* disabled */
-		drm_vbl_sig_t *vbl_sig = malloc(sizeof(drm_vbl_sig_t), M_DRM,
-		    M_NOWAIT | M_ZERO);
+		drm_vbl_sig_t *vbl_sig = malloc(sizeof(drm_vbl_sig_t),
+		    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
 		if (vbl_sig == NULL)
 			return ENOMEM;
 

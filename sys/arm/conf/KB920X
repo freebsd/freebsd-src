@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		KB920X
 
 include		"../at91/std.kb920x"
@@ -80,7 +79,6 @@ device		lxtphy
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
-device		mem			# Memory and kernel memory devices
 device		md
 device		at91_twi		# TWI: Two Wire Interface
 device		at91_spi		# SPI:

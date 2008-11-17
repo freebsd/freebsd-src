@@ -69,9 +69,9 @@ struct nfs4dev_upcall {
 };
 
 
-#define nfs4dev_upcall_get(MP) MALLOC((MP), struct nfs4dev_upcall *, sizeof(struct nfs4dev_upcall), M_NFS4DEV, M_WAITOK | M_ZERO)
+#define nfs4dev_upcall_get(MP) (MP) = malloc(sizeof(struct nfs4dev_upcall), M_NFS4DEV, M_WAITOK | M_ZERO)
 
-#define nfs4dev_upcall_put(MP) FREE((MP), M_NFS4DEV)
+#define nfs4dev_upcall_put(MP) free((MP), M_NFS4DEV)
 
 static int nfs4dev_nopen = 0;
 static struct thread * nfs4dev_reader = NULL;

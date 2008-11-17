@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -55,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
+
+#include <security/mac/mac_framework.h>
 
 /*
  * Define it to get a correct behavior on per-interface statistics.
@@ -228,7 +232,11 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	for (q6 = V_ip6q.ip6q_next; q6 != &V_ip6q; q6 = q6->ip6q_next)
 		if (ip6f->ip6f_ident == q6->ip6q_ident &&
 		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &q6->ip6q_src) &&
-		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &q6->ip6q_dst))
+		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &q6->ip6q_dst)
+#ifdef MAC
+		    && mac_ip6q_match(m, q6)
+#endif
+		    )
 			break;
 
 	if (q6 == &V_ip6q) {
@@ -254,7 +262,13 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 		if (q6 == NULL)
 			goto dropfrag;
 		bzero(q6, sizeof(*q6));
-
+#ifdef MAC
+		if (mac_ip6q_init(q6, M_NOWAIT) != 0) {
+			free(q6, M_FTABLE);
+			goto dropfrag;
+		}
+		mac_ip6q_create(m, q6);
+#endif
 		frag6_insque(q6, &V_ip6q);
 
 		/* ip6q_nxt will be filled afterwards, from 1st fragment */
@@ -461,6 +475,10 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 #endif
 
 insert:
+#ifdef MAC
+	if (!first_frag)
+		mac_ip6q_update(m, q6);
+#endif
 
 	/*
 	 * Stick new segment in its place;
@@ -533,6 +551,9 @@ insert:
 		if ((t = m_split(m, offset, M_DONTWAIT)) == NULL) {
 			frag6_remque(q6);
 			V_frag6_nfrags -= q6->ip6q_nfrag;
+#ifdef MAC
+			mac_ip6q_destroy(q6);
+#endif
 			free(q6, M_FTABLE);
 			V_frag6_nfragpackets--;
 			goto dropfrag;
@@ -551,6 +572,10 @@ insert:
 
 	frag6_remque(q6);
 	V_frag6_nfrags -= q6->ip6q_nfrag;
+#ifdef MAC
+	mac_ip6q_reassemble(q6, m);
+	mac_ip6q_destroy(q6);
+#endif
 	free(q6, M_FTABLE);
 	V_frag6_nfragpackets--;
 
@@ -623,6 +648,9 @@ frag6_freef(struct ip6q *q6)
 	}
 	frag6_remque(q6);
 	V_frag6_nfrags -= q6->ip6q_nfrag;
+#ifdef MAC
+	mac_ip6q_destroy(q6);
+#endif
 	free(q6, M_FTABLE);
 	V_frag6_nfragpackets--;
 }

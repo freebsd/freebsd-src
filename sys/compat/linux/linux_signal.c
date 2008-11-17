@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 
+#include <security/audit/audit.h>
+
 #include "opt_compat.h"
 
 #ifdef COMPAT_LINUX32
@@ -535,45 +537,75 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 	return (kill(td, &tmp));
 }
 
+static int
+linux_do_tkill(struct thread *td, l_int tgid, l_int pid, l_int signum)
+{
+	struct proc *proc = td->td_proc;
+	struct linux_emuldata *em;
+	struct proc *p;
+	ksiginfo_t ksi;
+	int error;
+
+	AUDIT_ARG(signum, signum);
+	AUDIT_ARG(pid, pid);
+
+	/*
+	 * Allow signal 0 as a means to check for privileges
+	 */
+	if (!LINUX_SIG_VALID(signum) && signum != 0)
+		return (EINVAL);
+
+	if (signum > 0 && signum <= LINUX_SIGTBLSZ)
+		signum = linux_to_bsd_signal[_SIG_IDX(signum)];
+
+	if ((p = pfind(pid)) == NULL) {
+		if ((p = zpfind(pid)) == NULL)
+			return (ESRCH);
+	}
+
+	AUDIT_ARG(process, p);
+	error = p_cansignal(td, p, signum);
+	if (error)
+		goto out;
+
+	error = ESRCH;
+	em = em_find(p, EMUL_DONTLOCK);
+
+	if (em == NULL) {
+#ifdef DEBUG
+		printf("emuldata not found in do_tkill.\n");
+#endif
+		goto out;
+	}
+	if (tgid > 0 && em->shared->group_pid != tgid)
+		goto out;
+
+	ksiginfo_init(&ksi);
+	ksi.ksi_signo = signum;
+	ksi.ksi_code = LINUX_SI_TKILL;
+	ksi.ksi_errno = 0;
+	ksi.ksi_pid = proc->p_pid;
+	ksi.ksi_uid = proc->p_ucred->cr_ruid;
+
+	error = tdsignal(p, NULL, ksi.ksi_signo, &ksi);
+
+out:
+	PROC_UNLOCK(p);
+	return (error);
+}
+
 int
 linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 {
-   	struct linux_emuldata *em;
-	struct linux_kill_args ka;
-	struct proc *p;
 
 #ifdef DEBUG
 	if (ldebug(tgkill))
 		printf(ARGS(tgkill, "%d, %d, %d"), args->tgid, args->pid, args->sig);
 #endif
+	if (args->pid <= 0 || args->tgid <=0)
+		return (EINVAL);
 
-	ka.pid = args->pid;
-	ka.signum = args->sig;
-
-	if (args->tgid == -1)
-	   	return linux_kill(td, &ka);
-
-	if ((p = pfind(args->pid)) == NULL)
-	      	return ESRCH;
-
-	if (p->p_sysent != &elf_linux_sysvec)
-		return ESRCH;
-
-	PROC_UNLOCK(p);
-
-	em = em_find(p, EMUL_DONTLOCK);
-
-	if (em == NULL) {
-#ifdef DEBUG
-		printf("emuldata not found in tgkill.\n");
-#endif
-		return ESRCH;
-	}
-
-	if (em->shared->group_pid != args->tgid)
-	   	return ESRCH;
-
-	return linux_kill(td, &ka);
+	return (linux_do_tkill(td, args->tgid, args->pid, args->sig));
 }
 
 int
@@ -583,6 +615,39 @@ linux_tkill(struct thread *td, struct linux_tkill_args *args)
 	if (ldebug(tkill))
 		printf(ARGS(tkill, "%i, %i"), args->tid, args->sig);
 #endif
+	if (args->tid <= 0)
+		return (EINVAL);
 
-	return (linux_kill(td, (struct linux_kill_args *) args));
+	return (linux_do_tkill(td, 0, args->tid, args->sig));
+}
+
+void
+ksiginfo_to_lsiginfo(ksiginfo_t *ksi, l_siginfo_t *lsi, l_int sig)
+{
+
+	lsi->lsi_signo = sig;
+	lsi->lsi_code = ksi->ksi_code;
+
+	switch (sig) {
+	case LINUX_SIGPOLL:
+		/* XXX si_fd? */
+		lsi->lsi_band = ksi->ksi_band;
+		break;
+	case LINUX_SIGCHLD:
+		lsi->lsi_pid = ksi->ksi_pid;
+		lsi->lsi_uid = ksi->ksi_uid;
+		lsi->lsi_status = ksi->ksi_status;
+		break;
+	case LINUX_SIGBUS:
+	case LINUX_SIGILL:
+	case LINUX_SIGFPE:
+	case LINUX_SIGSEGV:
+		lsi->lsi_addr = PTROUT(ksi->ksi_addr);
+		break;
+	default:
+		/* XXX SI_TIMER etc... */
+		lsi->lsi_pid = ksi->ksi_pid;
+		lsi->lsi_uid = ksi->ksi_uid;
+		break;
+	}
 }

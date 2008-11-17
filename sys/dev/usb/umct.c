@@ -314,7 +314,7 @@ umct_request(struct umct_softc *sc, uint8_t request, int len, uint32_t value)
 
 	err = usbd_do_request(sc->sc_ucom.sc_udev, &req, oval);
 	if (err)
-		printf("%s: ubsa_request: %s\n",
+		printf("%s: umct_request: %s\n",
 		    device_get_nameunit(sc->sc_ucom.sc_dev), usbd_errstr(err));
 	return (err);
 }

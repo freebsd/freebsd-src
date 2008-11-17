@@ -28,6 +28,7 @@ dtrace_unload()
 	dtrace_state_t *state;
 	int error = 0;
 
+#if __FreeBSD_version < 800039
 	/*
 	 * Check if there is still an event handler callback
 	 * registered.
@@ -40,6 +41,9 @@ dtrace_unload()
 		/* Stop device cloning. */
 		clone_cleanup(&dtrace_clones);
 	}
+#else
+	destroy_dev(dtrace_dev);
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 	mutex_enter(&dtrace_lock);

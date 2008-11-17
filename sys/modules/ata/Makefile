@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR = ata
+SUBDIR = atacore
 SUBDIR += atacard
 .if ${MACHINE} == "pc98"
 SUBDIR += atacbus

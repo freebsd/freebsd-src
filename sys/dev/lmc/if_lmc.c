@@ -5070,8 +5070,8 @@ ng_rcvmsg(node_p node, struct ng_mesg *msg,
   if (rptr != NULL)
     *rptr = resp;
   else if (resp != NULL)
-    FREE(resp, M_NETGRAPH);
-  FREE(msg, M_NETGRAPH);
+    free(resp, M_NETGRAPH);
+  free(msg, M_NETGRAPH);
 # endif
 
   return error;

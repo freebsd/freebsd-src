@@ -33,10 +33,10 @@
 console	none				unknown	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
-ttyU0	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyU1	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyU2	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyU3	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyu0	"/usr/libexec/getty std.115200"	dialup	on  secure
+ttyu1	"/usr/libexec/getty std.115200"	dialup	off secure
+ttyu2	"/usr/libexec/getty std.115200"	dialup	off secure
+ttyu3	"/usr/libexec/getty std.115200"	dialup	off secure
 # Pseudo terminals
 ttyp0	none			network
 ttyp1	none			network

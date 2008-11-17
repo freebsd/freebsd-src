@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		BWCT
 
 options	VERBOSE_INIT_ARM
@@ -85,7 +84,6 @@ device		rlswitch
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options		DIAGNOSTIC
 
-device		mem			# Memory and kernel memory devices
 device		md
 device		at91_twi		# TWI: Two Wire Interface
 device		at91_spi		# SPI:

@@ -106,9 +106,8 @@ options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
-#device		mpt		# LSI-Logic MPT-Fusion
-#device		ncr		# NCR/Symbios Logic
-device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
+device		mpt		# LSI-Logic MPT-Fusion
+device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
 device		esp		# NCR53c9x (FEPS/FAS366)
 
 # SCSI peripherals

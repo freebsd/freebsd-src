@@ -5,6 +5,8 @@
 KMOD=	slhci
 SRCS=	sl811hs.c slhci_pccard.c
 
-SRCS+= opt_slhci.h opt_usb.h device_if.h bus_if.h usbdevs.h card_if.h power_if.h pccarddevs.h
+SRCS+=	bus_if.h device_if.h card_if.h power_if.h \
+	usbdevs.h pccarddevs.h \
+	opt_slhci.h opt_usb.h \
 
 .include <bsd.kmod.mk>

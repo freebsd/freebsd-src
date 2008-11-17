@@ -70,7 +70,6 @@
 #include <machine/bus.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/nexusvar.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
@@ -89,6 +88,13 @@
  */
 
 static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
+
+enum nexus_ivars {
+	NEXUS_IVAR_NODE,
+	NEXUS_IVAR_NAME,
+	NEXUS_IVAR_DEVICE_TYPE,
+	NEXUS_IVAR_COMPATIBLE,
+};
 
 struct nexus_devinfo {
 	phandle_t	ndi_node;

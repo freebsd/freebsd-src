@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -185,6 +185,12 @@ stub_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
 
 }
 
+static void
+stub_cred_associate_nfsd(struct ucred *cred)
+{
+
+}
+
 static int
 stub_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -197,6 +203,18 @@ stub_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 
 	return (0);
+}
+
+static void
+stub_cred_create_init(struct ucred *cred)
+{
+
+}
+
+static void
+stub_cred_create_swapper(struct ucred *cred)
+{
+
 }
 
 static void
@@ -303,6 +321,35 @@ stub_inpcb_create_mbuf(struct inpcb *inp, struct label *inplabel,
 static void
 stub_inpcb_sosetlabel(struct socket *so, struct label *solabel,
     struct inpcb *inp, struct label *inplabel)
+{
+
+}
+
+static void
+stub_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+}
+
+static int
+stub_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	return (1);
+}
+
+static void
+stub_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+
+}
+
+static void
+stub_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
 {
 
 }
@@ -639,12 +686,6 @@ stub_priv_grant(struct ucred *cred, int priv)
 	return (EPERM);
 }
 
-static void
-stub_proc_associate_nfsd(struct ucred *cred)
-{
-
-}
-
 static int
 stub_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -760,18 +801,6 @@ stub_proc_check_wait(struct ucred *cred, struct proc *p)
 	return (0);
 }
 
-static void
-stub_proc_create_init(struct ucred *cred)
-{
-
-}
-
-static void
-stub_proc_create_swapper(struct ucred *cred)
-{
-
-}
-
 static int
 stub_socket_check_accept(struct ucred *cred, struct socket *so,
     struct label *solabel)
@@ -853,6 +882,14 @@ stub_socket_check_send(struct ucred *cred, struct socket *so,
 static int
 stub_socket_check_stat(struct ucred *cred, struct socket *so,
     struct label *solabel)
+{
+
+	return (0);
+}
+
+static int
+stub_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
+   struct label *inplabel)
 {
 
 	return (0);
@@ -978,38 +1015,6 @@ stub_system_check_swapon(struct ucred *cred, struct vnode *vp,
 static int
 stub_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
     void *arg1, int arg2, struct sysctl_req *req)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (0);
-}
-
-static int
-stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
 {
 
 	return (0);
@@ -1209,6 +1214,38 @@ stub_vnode_associate_singlelabel(struct mount *mp, struct label *mplabel,
 }
 
 static int
+stub_vnode_check_access(struct ucred *cred, struct vnode *vp,
+    struct label *vplabel, accmode_t accmode)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel)
+{
+
+	return (0);
+}
+
+static int
+stub_vnode_check_create(struct ucred *cred, struct vnode *dvp,
+    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
+{
+
+	return (0);
+}
+
+static int
 stub_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
     struct label *vplabel, acl_type_t type)
 {
@@ -1300,7 +1337,7 @@ stub_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 
 static int
 stub_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 
 	return (0);
@@ -1502,9 +1539,12 @@ static struct mac_policy_ops stub_ops =
 	.mpo_bpfdesc_destroy_label = stub_destroy_label,
 	.mpo_bpfdesc_init_label = stub_init_label,
 
+	.mpo_cred_associate_nfsd = stub_cred_associate_nfsd,
 	.mpo_cred_check_relabel = stub_cred_check_relabel,
 	.mpo_cred_check_visible = stub_cred_check_visible,
 	.mpo_cred_copy_label = stub_copy_label,
+	.mpo_cred_create_init = stub_cred_create_init,
+	.mpo_cred_create_swapper = stub_cred_create_swapper,
 	.mpo_cred_destroy_label = stub_destroy_label,
 	.mpo_cred_externalize_label = stub_externalize_label,
 	.mpo_cred_init_label = stub_init_label,
@@ -1531,11 +1571,19 @@ static struct mac_policy_ops stub_ops =
 	.mpo_ifnet_relabel = stub_ifnet_relabel,
 
 	.mpo_inpcb_check_deliver = stub_inpcb_check_deliver,
+	.mpo_inpcb_check_visible = stub_inpcb_check_visible,
 	.mpo_inpcb_create = stub_inpcb_create,
 	.mpo_inpcb_create_mbuf = stub_inpcb_create_mbuf,
 	.mpo_inpcb_destroy_label = stub_destroy_label,
 	.mpo_inpcb_init_label = stub_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = stub_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = stub_ip6q_create,
+	.mpo_ip6q_destroy_label = stub_destroy_label,
+	.mpo_ip6q_init_label = stub_init_label_waitcheck,
+	.mpo_ip6q_match = stub_ip6q_match,
+	.mpo_ip6q_update = stub_ip6q_update,
+	.mpo_ip6q_reassemble = stub_ip6q_reassemble,
 
 	.mpo_ipq_create = stub_ipq_create,
 	.mpo_ipq_destroy_label = stub_destroy_label,
@@ -1610,7 +1658,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
 
-	.mpo_proc_associate_nfsd = stub_proc_associate_nfsd,
 	.mpo_proc_check_debug = stub_proc_check_debug,
 	.mpo_proc_check_sched = stub_proc_check_sched,
 	.mpo_proc_check_setaudit = stub_proc_check_setaudit,
@@ -1627,8 +1674,6 @@ static struct mac_policy_ops stub_ops =
 	.mpo_proc_check_setuid = stub_proc_check_setuid,
 	.mpo_proc_check_signal = stub_proc_check_signal,
 	.mpo_proc_check_wait = stub_proc_check_wait,
-	.mpo_proc_create_init = stub_proc_create_init,
-	.mpo_proc_create_swapper = stub_proc_create_swapper,
 
 	.mpo_socket_check_accept = stub_socket_check_accept,
 	.mpo_socket_check_bind = stub_socket_check_bind,

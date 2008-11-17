@@ -868,15 +868,19 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	/*
 	 * We may have already processed this object file in an earlier linker
 	 * invocation. Check to see if the present instruction sequence matches
-	 * the one we would install.
+	 * the one we would install below.
 	 */
 	if (isenabled) {
-		if (ip[0] == DT_OP_CLR_O0)
+		if (ip[0] == DT_OP_NOP) {
+			(*off) += sizeof (ip[0]);
 			return (0);
+		}
 	} else {
 		if (DT_IS_RESTORE(ip[1])) {
-			if (ip[0] == DT_OP_RET)
+			if (ip[0] == DT_OP_RET) {
+				(*off) += sizeof (ip[0]);
 				return (0);
+			}
 		} else if (DT_IS_MOV_O7(ip[1])) {
 			if (DT_IS_RETL(ip[0]))
 				return (0);
@@ -910,7 +914,17 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 			return (-1);
 		}
 
-		ip[0] = DT_OP_CLR_O0;
+
+		/*
+		 * On SPARC, we take advantage of the fact that the first
+		 * argument shares the same register as for the return value.
+		 * The macro handles the work of zeroing that register so we
+		 * don't need to do anything special here. We instrument the
+		 * instruction in the delay slot as we'll need to modify the
+		 * return register after that instruction has been emulated.
+		 */
+		ip[0] = DT_OP_NOP;
+		(*off) += sizeof (ip[0]);
 	} else {
 		/*
 		 * If the call is followed by a restore, it's a tail call so
@@ -919,11 +933,16 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 		 * so change the call to a retl-like instruction that returns
 		 * to that register value + 8 (rather than the typical %o7 +
 		 * 8); the delay slot instruction is left, but should have no
-		 * effect. Otherwise we change the call to be a nop. In the
-		 * first and the last case we adjust the offset to land on what
-		 * was once the delay slot of the call so we correctly get all
-		 * the arguments as they would have been passed in a normal
-		 * function call.
+		 * effect. Otherwise we change the call to be a nop. We
+		 * identify the subsequent instruction as the probe point in
+		 * all but the leaf tail-call case to ensure that arguments to
+		 * the probe are complete and consistent. An astute, though
+		 * largely hypothetical, observer would note that there is the
+		 * possibility of a false-positive probe firing if the function
+		 * contained a branch to the instruction in the delay slot of
+		 * the call. Fixing this would require significant in-kernel
+		 * modifications, and isn't worth doing until we see it in the
+		 * wild.
 		 */
 		if (DT_IS_RESTORE(ip[1])) {
 			ip[0] = DT_OP_RET;

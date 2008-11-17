@@ -942,7 +942,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	     inp = LIST_NEXT(inp, inp_list)) {
 		INP_RLOCK(inp);
 		if (inp->inp_gencnt <= gencnt &&
-		    cr_canseesocket(req->td->td_ucred, inp->inp_socket) == 0) {
+		    cr_canseeinpcb(req->td->td_ucred, inp) == 0) {
 			/* XXX held references? */
 			inp_list[i++] = inp;
 		}

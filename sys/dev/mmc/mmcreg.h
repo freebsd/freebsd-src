@@ -288,11 +288,14 @@ struct mmc_request {
  * EXT_CSD fields
  */
 
+#define EXT_CSD_ERASE_GRP_DEF	175	/* R/W */
 #define EXT_CSD_BUS_WIDTH	183	/* R/W */
 #define EXT_CSD_HS_TIMING	185	/* R/W */
 #define EXT_CSD_CARD_TYPE	196	/* RO */
 #define EXT_CSD_REV		192	/* RO */
 #define EXT_CSD_SEC_CNT		212	/* RO, 4 bytes */
+#define EXT_CSD_ERASE_TO_MULT	223	/* RO */
+#define EXT_CSD_ERASE_GRP_SIZE	224	/* RO */
 
 /*
  * EXT_CSD field definitions
@@ -379,7 +382,7 @@ struct mmc_csd
 	uint32_t vdd_w_curr_min;
 	uint32_t vdd_w_curr_max;
 	uint32_t wp_grp_size;
-	uint32_t sector_size;	/* Erase sector size! */
+	uint32_t erase_sector;
 	uint64_t capacity;
 	unsigned int read_bl_partial:1,
 	    read_blk_misalign:1,
@@ -396,6 +399,20 @@ struct mmc_scr
 	unsigned char		bus_widths;
 #define SD_SCR_BUS_WIDTH_1	(1<<0)
 #define SD_SCR_BUS_WIDTH_4	(1<<2)
+};
+
+struct mmc_sd_status
+{
+	uint8_t			bus_width;
+	uint8_t			secured_mode;
+	uint16_t		card_type;
+	uint16_t		prot_area;
+	uint8_t			speed_class;
+	uint8_t			perf_move;
+	uint8_t			au_size;
+	uint16_t		erase_size;
+	uint8_t			erase_timeout;
+	uint8_t			erase_offset;
 };
 
 /*

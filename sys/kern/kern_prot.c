@@ -45,6 +45,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -67,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+
+#if defined(INET) || defined(INET6)
+#include <netinet/in.h>
+#include <netinet/in_pcb.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -319,8 +326,8 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	error = 0;
 	pgrp = NULL;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
-	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
+	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newsess = malloc(sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
 
@@ -338,9 +345,9 @@ setsid(register struct thread *td, struct setsid_args *uap)
 	sx_xunlock(&proctree_lock);
 
 	if (newpgrp != NULL)
-		FREE(newpgrp, M_PGRP);
+		free(newpgrp, M_PGRP);
 	if (newsess != NULL)
-		FREE(newsess, M_SESSION);
+		free(newsess, M_SESSION);
 
 	return (error);
 }
@@ -379,7 +386,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 
 	error = 0;
 
-	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
@@ -443,7 +450,7 @@ done:
 	KASSERT((error == 0) || (newpgrp != NULL),
 	    ("setpgid failed and newpgrp is NULL"));
 	if (newpgrp != NULL)
-		FREE(newpgrp, M_PGRP);
+		free(newpgrp, M_PGRP);
 	return (error);
 }
 
@@ -1704,6 +1711,34 @@ cr_canseesocket(struct ucred *cred, struct socket *so)
 	return (0);
 }
 
+#if defined(INET) || defined(INET6)
+/*-
+ * Determine whether the subject represented by cred can "see" a socket.
+ * Returns: 0 for permitted, ENOENT otherwise.
+ */
+int
+cr_canseeinpcb(struct ucred *cred, struct inpcb *inp)
+{
+	int error;
+
+	error = prison_check(cred, inp->inp_cred);
+	if (error)
+		return (ENOENT);
+#ifdef MAC
+	INP_LOCK_ASSERT(inp);
+	error = mac_inpcb_check_visible(cred, inp);
+	if (error)
+		return (error);
+#endif
+	if (cr_seeotheruids(cred, inp->inp_cred))
+		return (ENOENT);
+	if (cr_seeothergids(cred, inp->inp_cred))
+		return (ENOENT);
+
+	return (0);
+}
+#endif
+
 /*-
  * Determine whether td can wait for the exit of p.
  * Returns: 0 for permitted, an errno value otherwise
@@ -1743,7 +1778,7 @@ crget(void)
 {
 	register struct ucred *cr;
 
-	MALLOC(cr, struct ucred *, sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
+	cr = malloc(sizeof(*cr), M_CRED, M_WAITOK | M_ZERO);
 	refcount_init(&cr->cr_ref, 1);
 #ifdef AUDIT
 	audit_cred_init(cr);
@@ -1795,7 +1830,7 @@ crfree(struct ucred *cr)
 #ifdef MAC
 		mac_cred_destroy(cr);
 #endif
-		FREE(cr, M_CRED);
+		free(cr, M_CRED);
 	}
 }
 

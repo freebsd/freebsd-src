@@ -216,7 +216,7 @@
 ; linux uses some strange calling convention here so we have to use the dummy arg
 120	AUE_RFORK	STD	{ int linux_clone(l_int flags, void *stack, \
 				    void *parent_tidptr, int dummy, void * child_tidptr); }
-121	AUE_SYSCTL	NOPROTO	{ int setdomainname(char *name, \
+121	AUE_SYSCTL	STD	{ int linux_setdomainname(char *name, \
 				    int len); }
 122	AUE_NULL	STD	{ int linux_newuname( \
 				    struct l_new_utsname *buf); }

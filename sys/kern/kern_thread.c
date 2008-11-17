@@ -563,8 +563,6 @@ thread_single(int mode)
 			if (TD_IS_INHIBITED(td2)) {
 				switch (mode) {
 				case SINGLE_EXIT:
-					if (td->td_flags & TDF_DBSUSPEND)
-						td->td_flags &= ~TDF_DBSUSPEND;
 					if (TD_IS_SUSPENDED(td2))
 						wakeup_swapper |=
 						    thread_unsuspend_one(td2);
@@ -574,8 +572,16 @@ thread_single(int mode)
 						    sleepq_abort(td2, EINTR);
 					break;
 				case SINGLE_BOUNDARY:
+					if (TD_IS_SUSPENDED(td2) &&
+					    !(td2->td_flags & TDF_BOUNDARY))
+						wakeup_swapper |=
+						    thread_unsuspend_one(td2);
+					if (TD_ON_SLEEPQ(td2) &&
+					    (td2->td_flags & TDF_SINTR))
+						wakeup_swapper |=
+						    sleepq_abort(td2, ERESTART);
 					break;
-				default:	
+				default:
 					if (TD_IS_SUSPENDED(td2)) {
 						thread_unlock(td2);
 						continue;
@@ -685,7 +691,7 @@ thread_suspend_check(int return_instead)
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	while (P_SHOULDSTOP(p) ||
-	      ((p->p_flag & P_TRACED) && (td->td_flags & TDF_DBSUSPEND))) {
+	      ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_SUSPEND))) {
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			KASSERT(p->p_singlethread != NULL,
 			    ("singlethread not set"));

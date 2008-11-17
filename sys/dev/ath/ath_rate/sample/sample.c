@@ -393,11 +393,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	size_bin = size_to_bin(frame_size);
 	size = bin_to_size(size_bin);
 
-	if (!(0 <= ndx0 && ndx0 < sn->num_rates)) {
-		printf("%s: bogus ndx0 %d, max %u, mode %u\n",
-		    __func__, ndx0, sn->num_rates, sc->sc_curmode);
+	if (!(0 <= ndx0 && ndx0 < sn->num_rates))
 		return;
-	}
 	rate = sn->rates[ndx0].rate;
 
 	tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx0].rix, 
@@ -405,11 +402,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 					MIN(tries0, tries) - 1);
 	tries_so_far += tries0;
 	if (tries1 && tries0 < tries) {
-		if (!(0 <= ndx1 && ndx1 < sn->num_rates)) {
-			printf("%s: bogus ndx1 %d, max %u, mode %u\n",
-			    __func__, ndx1, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx1 && ndx1 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx1].rix, 
 						short_tries,
 						MIN(tries1 + tries_so_far, tries) - tries_so_far - 1);
@@ -417,11 +411,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	tries_so_far += tries1;
 
 	if (tries2 && tries0 + tries1 < tries) {
-		if (!(0 <= ndx2 && ndx2 < sn->num_rates)) {
-			printf("%s: bogus ndx2 %d, max %u, mode %u\n",
-			    __func__, ndx2, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx2 && ndx2 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx2].rix, 
 					       short_tries,
 						MIN(tries2 + tries_so_far, tries) - tries_so_far - 1);
@@ -430,11 +421,8 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	tries_so_far += tries2;
 
 	if (tries3 && tries0 + tries1 + tries2 < tries) {
-		if (!(0 <= ndx3 && ndx3 < sn->num_rates)) {
-			printf("%s: bogus ndx3 %d, max %u, mode %u\n",
-			    __func__, ndx3, sn->num_rates, sc->sc_curmode);
+		if (!(0 <= ndx3 && ndx3 < sn->num_rates))
 			return;
-		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx3].rix, 
 						short_tries,
 						MIN(tries3 + tries_so_far, tries) - tries_so_far - 1);
@@ -488,6 +476,13 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	}
 }
 
+static void
+badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
+{
+	if_printf(ifp, "bad series%d hwrate 0x%x, tries %u ts_status 0x%x\n",
+	    series, hwrate, tries, status);
+}
+
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_buf *bf)
@@ -498,9 +493,11 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 	const struct ath_desc *ds0 = &bf->bf_desc[0];
 	int final_rate, short_tries, long_tries, frame_size;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int mrr;
 
-	final_rate = sc->sc_hwmap[ts->ts_rate &~ HAL_TXSTAT_ALTRATE].ieeerate;
+	final_rate = sc->sc_hwmap[
+	    rt->rateCodeToIndex[ts->ts_rate &~ HAL_TXSTAT_ALTRATE]].ieeerate;
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
 	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
@@ -521,6 +518,10 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
 		int ndx = rate_to_ndx(sn, final_rate);
 
+		if (ndx < 0) {
+			badrate(ifp, 0, ts->ts_rate, long_tries, ts->ts_status);
+			return;
+		}
 		/*
 		 * Only one rate was used; optimize work.
 		 */
@@ -558,21 +559,30 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			hwrate3 = MS(ds0->ds_ctl3, AR5416_XmitRate3);
 		}
 
-		rate0 = sc->sc_hwmap[hwrate0].ieeerate;
+		rate0 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate0]].ieeerate;
 		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
 		ndx0 = rate_to_ndx(sn, rate0);
 
-		rate1 = sc->sc_hwmap[hwrate1].ieeerate;
+		rate1 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate1]].ieeerate;
 		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
 		ndx1 = rate_to_ndx(sn, rate1);
 
-		rate2 = sc->sc_hwmap[hwrate2].ieeerate;
+		rate2 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate2]].ieeerate;
 		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
 		ndx2 = rate_to_ndx(sn, rate2);
 
-		rate3 = sc->sc_hwmap[hwrate3].ieeerate;
+		rate3 = sc->sc_hwmap[rt->rateCodeToIndex[hwrate3]].ieeerate;
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
+
+		if (tries0 && ndx0 < 0)
+			badrate(ifp, 0, hwrate0, tries0, ts->ts_status);
+		if (tries1 && ndx1 < 0)
+			badrate(ifp, 1, hwrate1, tries1, ts->ts_status);
+		if (tries2 && ndx2 < 0)
+			badrate(ifp, 2, hwrate2, tries2, ts->ts_status);
+		if (tries3 && ndx3 < 0)
+			badrate(ifp, 3, hwrate3, tries3, ts->ts_status);
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
@@ -654,7 +664,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 {
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
 	struct ath_node *an = ATH_NODE(ni);
-	const struct ieee80211_txparam *tp = an->an_tp;
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	int x, y, srate;
@@ -756,34 +766,6 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 	else
 		ni->ni_txrate = sn->rates[0].rate;
 #undef RATE
-}
-
-static void
-rate_cb(void *arg, struct ieee80211_node *ni)
-{
-	struct ath_softc *sc = arg;
-
-	ath_rate_newassoc(sc, ATH_NODE(ni), 1);
-}
-
-/*
- * Reset the rate control state for each 802.11 state transition.
- */
-void
-ath_rate_newstate(struct ieee80211vap *vap, enum ieee80211_state state)
-{
-	struct ieee80211com *ic = vap->iv_ic;
-	struct ath_softc *sc = ic->ic_ifp->if_softc;
-
-	if (state == IEEE80211_S_RUN) {
-		if (vap->iv_opmode != IEEE80211_M_STA) {
-			/*
-			 * Sync rates for associated stations and neighbors.
-			 */
-			ieee80211_iterate_nodes(&ic->ic_sta, rate_cb, sc);
-		}
-		ath_rate_newassoc(sc, ATH_NODE(vap->iv_bss), 1);
-	}
 }
 
 static void

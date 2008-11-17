@@ -5,7 +5,7 @@
 # contains the master INDEX, it's assigned list of packages, and the
 # appropriate tree of category symlinks.
 #
-# Usage: package-tress.sh <copy method> <INDEX> <package tree> <destination>
+# Usage: package-trees.sh <copy method> <INDEX> <package tree> <destination>
 #
 # $FreeBSD$
 

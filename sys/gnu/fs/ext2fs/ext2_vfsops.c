@@ -82,7 +82,7 @@
 #include <gnu/fs/ext2fs/ext2_fs_sb.h>
 
 static int ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
-static int ext2_mountfs(struct vnode *, struct mount *, struct thread *);
+static int ext2_mountfs(struct vnode *, struct mount *);
 static int ext2_reload(struct mount *mp, struct thread *td);
 static int ext2_sbupdate(struct ext2mount *, int);
 
@@ -137,7 +137,7 @@ ext2_mount(mp, td)
 	struct ext2_sb_info *fs;
 	char *path, *fspec;
 	int error, flags, len;
-	mode_t accessmode;
+	accmode_t accmode;
 	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
@@ -171,7 +171,7 @@ ext2_mount(mp, td)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp, LK_NOWAIT, 0))
+			if (vfs_busy(mp, MBF_NOWAIT))
 				return (EBUSY);
 			error = ext2_flushfiles(mp, flags, td);
 			vfs_unbusy(mp);
@@ -265,10 +265,10 @@ ext2_mount(mp, td)
 	 *
 	 * XXXRW: VOP_ACCESS() enough?
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
@@ -277,7 +277,7 @@ ext2_mount(mp, td)
 	}
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
-		error = ext2_mountfs(devvp, mp, td);
+		error = ext2_mountfs(devvp, mp);
 	} else {
 		if (devvp != ump->um_devvp) {
 			vput(devvp);
@@ -518,7 +518,7 @@ ext2_reload(struct mount *mp, struct thread *td)
 	 */
 	devvp = VFSTOEXT2(mp)->um_devvp;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
-	if (vinvalbuf(devvp, 0, td, 0, 0) != 0)
+	if (vinvalbuf(devvp, 0, 0, 0) != 0)
 		panic("ext2_reload: dirty1");
 	VOP_UNLOCK(devvp, 0);
 
@@ -562,7 +562,7 @@ loop:
 			MNT_VNODE_FOREACH_ABORT(mp, mvp);
 			goto loop;
 		}
-		if (vinvalbuf(vp, 0, td, 0, 0))
+		if (vinvalbuf(vp, 0, 0, 0))
 			panic("ext2_reload: dirty2");
 		/*
 		 * Step 5: re-read inode data for all active vnodes.
@@ -592,10 +592,9 @@ loop:
  * Common code for mount and mountroot
  */
 static int
-ext2_mountfs(devvp, mp, td)
+ext2_mountfs(devvp, mp)
 	struct vnode *devvp;
 	struct mount *mp;
-	struct thread *td;
 {
 	struct ext2mount *ump;
 	struct buf *bp;
@@ -623,7 +622,7 @@ ext2_mountfs(devvp, mp, td)
 	    (SBSIZE < cp->provider->sectorsize)) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 		return (EINVAL);
@@ -714,7 +713,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_vfs_close(cp, td);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}
@@ -773,7 +772,7 @@ ext2_unmount(mp, mntflags, td)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(ump->um_cp, td);
+	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
@@ -965,7 +964,7 @@ ext2_vget(mp, ino, flags, vpp)
 	dev = ump->um_dev;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode()
+	 * If this malloc() is performed after the getnewvnode()
 	 * it might block, leaving a vnode with a NULL v_data to be
 	 * found by ext2_sync() if a sync happens to fire right then,
 	 * which will cause a panic because ext2_sync() blindly

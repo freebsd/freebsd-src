@@ -932,6 +932,7 @@ product BELKIN FBT003V		0x0084	FBT003v2 Bluetooth
 product BELKIN F5U103		0x0103	F5U103 Serial
 product BELKIN F5U109		0x0109	F5U109 Serial
 product BELKIN USB2SCSI		0x0115	USB to SCSI
+product BELKIN F8T012		0x0121	F8T012xx1 Bluetooth USB Adapter
 product BELKIN USB2LAN		0x0121	USB to LAN
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
 product BELKIN F5U237		0x0237	F5U237 USB 2.0 7-Port Hub
@@ -944,6 +945,7 @@ product BELKIN F5D5055		0x5055	F5D5055
 product BELKIN F5D7050		0x7050	F5D7050 Wireless Adapter
 product BELKIN F5D7051		0x7051	F5D7051 54g USB Network Adapter
 product BELKIN F5D7050A		0x705a	F5D7050A Wireless Adapter
+/* Also sold as 'Ativa 802.11g wireless card' */
 product BELKIN F5D7050_V4000	0x705c	F5D7050 v4000 Wireless Adapter
 product BELKIN F5D9050V3	0x905b	F5D9050 ver 3 Wireless Adapter
 product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
@@ -1424,6 +1426,7 @@ product HP P2000U		0x1801	Inkjet P-2000U
 product HP 640C			0x2004	DeskJet 640c
 product HP 4670V		0x3005	ScanJet 4670v
 product HP P1100		0x3102	Photosmart P1100
+product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
 
@@ -1434,7 +1437,7 @@ product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
-product HUAWEI E270		0x1003	Huawei HSPA modem
+product HUAWEI E220		0x1003	Huawei HSDPA modem
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -1700,6 +1703,7 @@ product MICROSOFT MN510		0x006e	MN510 Wireless
 product MICROSOFT MN110		0x007a	10/100 USB NIC
 product MICROSOFT WLINTELLIMOUSE 0x008c	Wireless Optical IntelliMouse
 product MICROSOFT WLNOTEBOOK	0x00b9	Wireless Optical Mouse (Model 1023)
+product MICROSOFT COMFORT3000	0x00d1	Comfort Optical Mouse 3000 (Model 1043)
 product MICROSOFT WLNOTEBOOK2	0x00e1	Wireless Optical Mouse 3000 (Model 1056)
 product MICROSOFT WLNOTEBOOK3	0x00d2	Wireless Optical Mouse 3000 (Model 1049)
 product MICROSOFT WLUSBMOUSE	0x00b9	Wireless USB Mouse
@@ -1839,7 +1843,7 @@ product NOVATEL X950D		0x1450	Merlin X950D
 product NOVATEL ES620		0x2100	ES620 CDMA
 product NOVATEL U720		0x2110	Merlin U720
 product NOVATEL U727		0x4100	Merlin U727 CDMA
-product NOVATEL U950D		0x4400	Novatel MC950D HSUPA
+product NOVATEL MC950D		0x4400	Novatel MC950D HSUPA
 product NOVATEL ZEROCD		0x5010	Novatel ZeroCD
 product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
@@ -1872,6 +1876,7 @@ product OPTION GT3G		0x6000	GlobeTrotter 3G datacard
 product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 product OPTION GT3GPLUS		0x6600	GlobeTrotter 3G+ datacard
 product OPTION GTMAX36		0x6701	GlobeTrotter Max 3.6 Modem
+product OPTION GTMAXHSUPA	0x7001	GlobeTrotter HSUPA
 
 /* OQO */
 product OQO WIFI01		0x0002	model 01 WiFi interface
@@ -1995,6 +2000,7 @@ product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
+product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 
 /* Qtronix products */
 product QTRONIX 980N		0x2011	Scorpion-980N keyboard
@@ -2231,6 +2237,7 @@ product SONY CLIE_41		0x009a	Sony Clie v4.1
 product SONY CLIE_NX60		0x00da	Sony Clie nx60
 product SONY CLIE_TH55		0x0144	Sony Clie th55
 product SONY CLIE_TJ37		0x0169	Sony Clie tj37
+product SONY RF_RECEIVER	0x01db	Sony RF mouse/kbd Receiver VGP-WRC1
 
 /* Sony Ericsson products */
 product SONYERICSSON DCU10	0x0528	USB Cable

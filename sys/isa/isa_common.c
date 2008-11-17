@@ -467,9 +467,6 @@ isa_assign_resources(device_t child)
 	return (0);
 }
 
-/*
- * Called after other devices have initialised to probe for isa devices.
- */
 void
 isa_probe_children(device_t dev)
 {
@@ -762,6 +759,18 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 		*result = idev->id_config_attr;
 		break;
 
+	case ISA_IVAR_PNP_CSN:
+		*result = idev->id_pnp_csn;
+		break;
+
+	case ISA_IVAR_PNP_LDN:
+		*result = idev->id_pnp_ldn;
+		break;
+
+	case ISA_IVAR_PNPBIOS_HANDLE:
+		*result = idev->id_pnpbios_handle;
+		break;
+
 	default:
 		return (ENOENT);
 	}
@@ -1026,6 +1035,13 @@ static int
 isa_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
+#if 0
+	/* id_pnphandle isn't there yet */
+	struct isa_device *idev = DEVTOISA(child);
+
+	if (idev->id_vendorid)
+		snprintf(buf, buflen, "pnphandle=%d", idev->id_pnphandle);
+#endif
 	/* Nothing here yet */
 	*buf = '\0';
 	return (0);

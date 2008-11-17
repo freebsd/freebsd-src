@@ -32,6 +32,9 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-m32 -I.
 .endif
+.if ${MACHINE_ARCH} == "arm"
+CFLAGS+=	-msoft-float -DSOFTFLOAT -D_STANDALONE
+.endif
 
 # standalone components and stuff we have modified locally
 SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
@@ -48,11 +51,16 @@ SRCS+= ntoh.c
 # string functions from libc
 .PATH: ${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64"
+	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64" || \
+	${MACHINE_ARCH} == "arm"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
         memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
 	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
+.endif
+.if ${MACHINE_ARCH} == "arm"
+.PATH: ${.CURDIR}/../libc/arm/gen
+SRCS+= divsi3.S
 .endif
 .if ${MACHINE_ARCH} == "ia64"
 .PATH: ${.CURDIR}/../libc/ia64/string

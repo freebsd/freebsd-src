@@ -111,7 +111,7 @@ cd9660_reclaim(ap)
 	 */
 	if (ip->i_mnt->im_devvp)
 		vrele(ip->i_mnt->im_devvp);
-	FREE(vp->v_data, M_ISOFSNODE);
+	free(vp->v_data, M_ISOFSNODE);
 	vp->v_data = NULL;
 	return (0);
 }

@@ -2820,7 +2820,7 @@ ip6_setpktopts(struct mbuf *control, struct ip6_pktopts *opt,
 	if (control->m_next)
 		return (EINVAL);
 
-	for (; control->m_len; control->m_data += CMSG_ALIGN(cm->cmsg_len),
+	for (; control->m_len > 0; control->m_data += CMSG_ALIGN(cm->cmsg_len),
 	    control->m_len -= CMSG_ALIGN(cm->cmsg_len)) {
 		int error;
 

@@ -85,17 +85,21 @@ struct mmc_ivars {
 	uint32_t raw_csd[4];	/* Raw bits of the CSD */
 	uint32_t raw_scr[2];	/* Raw bits of the SCR */
 	uint8_t raw_ext_csd[512];	/* Raw bits of the EXT_CSD */
+	uint32_t raw_sd_status[16];	/* Raw bits of the SD_STATUS */
 	uint16_t rca;
 	enum mmc_card_mode mode;
 	struct mmc_cid cid;	/* cid decoded */
 	struct mmc_csd csd;	/* csd decoded */
 	struct mmc_scr scr;	/* scr decoded */
+	struct mmc_sd_status sd_status;	/* SD_STATUS decoded */
 	u_char read_only;	/* True when the device is read-only */
 	u_char bus_width;	/* Bus width to use */
 	u_char timing;		/* Bus timing support */
-	u_char high_cap;	/* High Capacity card */
+	u_char high_cap;	/* High Capacity card (block addressed) */
+	uint32_t sec_count;	/* Card capacity in 512byte blocks */
 	uint32_t tran_speed;	/* Max speed in normal mode */
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
+	uint32_t erase_sector;	/* Card native erase sector size */
 };
 
 #define CMD_RETRIES	3
@@ -114,6 +118,7 @@ static int mmc_detach(device_t dev);
 #define MMC_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define MMC_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
+static int mmc_calculate_clock(struct mmc_softc *sc);
 static void mmc_delayed_attach(void *);
 static void mmc_power_down(struct mmc_softc *sc);
 static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
@@ -121,7 +126,7 @@ static int mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd,
 static int mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
     uint32_t arg, uint32_t flags, uint32_t *resp, int retries);
 static int mmc_select_card(struct mmc_softc *sc, uint16_t rca);
-static int mmc_set_bus_width(struct mmc_softc *sc, uint16_t rca, int width);
+static int mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width);
 static int mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr);
 static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
 static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
@@ -214,11 +219,13 @@ mmc_acquire_bus(device_t busdev, device_t dev)
 			sc->last_rca = rca;
 			/* Prepare bus width for the new card. */
 			ivar = device_get_ivars(dev);
-			device_printf(busdev,
-			    "setting bus width to %d bits\n",
-			    (ivar->bus_width == bus_width_4)?4:
-			    (ivar->bus_width == bus_width_8)?8:1);
-			mmc_set_bus_width(sc, rca, ivar->bus_width);
+			if (bootverbose) {
+				device_printf(busdev,
+				    "setting bus width to %d bits\n",
+				    (ivar->bus_width == bus_width_4) ? 4 :
+				    (ivar->bus_width == bus_width_8) ? 8 : 1);
+			}
+			mmc_set_card_bus_width(sc, rca, ivar->bus_width);
 			mmcbr_set_bus_width(busdev, ivar->bus_width);
 			mmcbr_update_ios(busdev);
 		}
@@ -521,8 +528,11 @@ mmc_power_down(struct mmc_softc *sc)
 static int
 mmc_select_card(struct mmc_softc *sc, uint16_t rca)
 {
-	return (mmc_wait_for_command(sc, MMC_SELECT_CARD, ((uint32_t)rca) << 16,
-	    MMC_RSP_R1B | MMC_CMD_AC, NULL, CMD_RETRIES));
+	int flags;
+
+	flags = (rca ? MMC_RSP_R1B : MMC_RSP_NONE) | MMC_CMD_AC;
+	return (mmc_wait_for_command(sc, MMC_SELECT_CARD, (uint32_t)rca << 16,
+	    flags, NULL, CMD_RETRIES));
 }
 
 static int
@@ -570,7 +580,7 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value, ui
 }
 
 static int
-mmc_set_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
+mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 {
 	int err;
 
@@ -716,9 +726,9 @@ mmc_test_bus_width(struct mmc_softc *sc)
 }
 
 static uint32_t
-mmc_get_bits(uint32_t *bits, int start, int size)
+mmc_get_bits(uint32_t *bits, int bit_len, int start, int size)
 {
-	const int i = 3 - (start / 32);
+	const int i = (bit_len / 32) - (start / 32) - 1;
 	const int shift = start & 31;
 	uint32_t retval = bits[i] >> shift;
 	if (size + shift > 32)
@@ -727,31 +737,37 @@ mmc_get_bits(uint32_t *bits, int start, int size)
 }
 
 static void
-mmc_decode_cid(int is_sd, uint32_t *raw_cid, struct mmc_cid *cid)
+mmc_decode_cid_sd(uint32_t *raw_cid, struct mmc_cid *cid)
 {
 	int i;
 
+	/* There's no version info, so we take it on faith */
 	memset(cid, 0, sizeof(*cid));
-	if (is_sd) {
-		/* There's no version info, so we take it on faith */
-		cid->mid = mmc_get_bits(raw_cid, 120, 8);
-		cid->oid = mmc_get_bits(raw_cid, 104, 16);
-		for (i = 0; i < 5; i++)
-			cid->pnm[i] = mmc_get_bits(raw_cid, 96 - i * 8, 8);
-		cid->prv = mmc_get_bits(raw_cid, 56, 8);
-		cid->psn = mmc_get_bits(raw_cid, 24, 32);
-		cid->mdt_year = mmc_get_bits(raw_cid, 12, 8) + 2001;
-		cid->mdt_month = mmc_get_bits(raw_cid, 8, 4);
-	} else {
-		cid->mid = mmc_get_bits(raw_cid, 120, 8);
-		cid->oid = mmc_get_bits(raw_cid, 104, 8);
-		for (i = 0; i < 6; i++)
-			cid->pnm[i] = mmc_get_bits(raw_cid, 96 - i * 8, 8);
-		cid->prv = mmc_get_bits(raw_cid, 48, 8);
-		cid->psn = mmc_get_bits(raw_cid, 16, 32);
-		cid->mdt_month = mmc_get_bits(raw_cid, 12, 4);
-		cid->mdt_year = mmc_get_bits(raw_cid, 8, 4) + 1997;
-	}
+	cid->mid = mmc_get_bits(raw_cid, 128, 120, 8);
+	cid->oid = mmc_get_bits(raw_cid, 128, 104, 16);
+	for (i = 0; i < 5; i++)
+		cid->pnm[i] = mmc_get_bits(raw_cid, 128, 96 - i * 8, 8);
+	cid->prv = mmc_get_bits(raw_cid, 128, 56, 8);
+	cid->psn = mmc_get_bits(raw_cid, 128, 24, 32);
+	cid->mdt_year = mmc_get_bits(raw_cid, 128, 12, 8) + 2001;
+	cid->mdt_month = mmc_get_bits(raw_cid, 128, 8, 4);
+}
+
+static void
+mmc_decode_cid_mmc(uint32_t *raw_cid, struct mmc_cid *cid)
+{
+	int i;
+
+	/* There's no version info, so we take it on faith */
+	memset(cid, 0, sizeof(*cid));
+	cid->mid = mmc_get_bits(raw_cid, 128, 120, 8);
+	cid->oid = mmc_get_bits(raw_cid, 128, 104, 8);
+	for (i = 0; i < 6; i++)
+		cid->pnm[i] = mmc_get_bits(raw_cid, 128, 96 - i * 8, 8);
+	cid->prv = mmc_get_bits(raw_cid, 128, 48, 8);
+	cid->psn = mmc_get_bits(raw_cid, 128, 16, 32);
+	cid->mdt_month = mmc_get_bits(raw_cid, 128, 12, 4);
+	cid->mdt_year = mmc_get_bits(raw_cid, 128, 8, 4) + 1997;
 }
 
 static const int exp[8] = {
@@ -768,120 +784,142 @@ static const int cur_max[8] = {
 };
 
 static void
-mmc_decode_csd(int is_sd, uint32_t *raw_csd, struct mmc_csd *csd)
+mmc_decode_csd_sd(uint32_t *raw_csd, struct mmc_csd *csd)
 {
 	int v;
 	int m;
 	int e;
 
 	memset(csd, 0, sizeof(*csd));
-	if (is_sd) {
-		csd->csd_structure = v = mmc_get_bits(raw_csd, 126, 2);
-		if (v == 0) {
-			m = mmc_get_bits(raw_csd, 115, 4);
-			e = mmc_get_bits(raw_csd, 112, 3);
-			csd->tacc = exp[e] * mant[m] + 9 / 10;
-			csd->nsac = mmc_get_bits(raw_csd, 104, 8) * 100;
-			m = mmc_get_bits(raw_csd, 99, 4);
-			e = mmc_get_bits(raw_csd, 96, 3);
-			csd->tran_speed = exp[e] * 10000 * mant[m];
-			csd->ccc = mmc_get_bits(raw_csd, 84, 12);
-			csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 80, 4);
-			csd->read_bl_partial = mmc_get_bits(raw_csd, 79, 1);
-			csd->write_blk_misalign = mmc_get_bits(raw_csd, 78, 1);
-			csd->read_blk_misalign = mmc_get_bits(raw_csd, 77, 1);
-			csd->dsr_imp = mmc_get_bits(raw_csd, 76, 1);
-			csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 59, 3)];
-			csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 56, 3)];
-			csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 53, 3)];
-			csd->vdd_w_curr_max = cur_max[mmc_get_bits(raw_csd, 50, 3)];
-			m = mmc_get_bits(raw_csd, 62, 12);
-			e = mmc_get_bits(raw_csd, 47, 3);
-			csd->capacity = ((1 + m) << (e + 2)) * csd->read_bl_len;
-			csd->erase_blk_en = mmc_get_bits(raw_csd, 46, 1);
-			csd->sector_size = mmc_get_bits(raw_csd, 39, 7);
-			csd->wp_grp_size = mmc_get_bits(raw_csd, 32, 7);
-			csd->wp_grp_enable = mmc_get_bits(raw_csd, 31, 1);
-			csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 26, 3);
-			csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 22, 4);
-			csd->write_bl_partial = mmc_get_bits(raw_csd, 21, 1);
-		} else if (v == 1) {
-			m = mmc_get_bits(raw_csd, 115, 4);
-			e = mmc_get_bits(raw_csd, 112, 3);
-			csd->tacc = exp[e] * mant[m] + 9 / 10;
-			csd->nsac = mmc_get_bits(raw_csd, 104, 8) * 100;
-			m = mmc_get_bits(raw_csd, 99, 4);
-			e = mmc_get_bits(raw_csd, 96, 3);
-			csd->tran_speed = exp[e] * 10000 * mant[m];
-			csd->ccc = mmc_get_bits(raw_csd, 84, 12);
-			csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 80, 4);
-			csd->read_bl_partial = mmc_get_bits(raw_csd, 79, 1);
-			csd->write_blk_misalign = mmc_get_bits(raw_csd, 78, 1);
-			csd->read_blk_misalign = mmc_get_bits(raw_csd, 77, 1);
-			csd->dsr_imp = mmc_get_bits(raw_csd, 76, 1);
-			csd->capacity = ((uint64_t)mmc_get_bits(raw_csd, 48, 22) + 1) *
-			    512 * 1024;
-			csd->erase_blk_en = mmc_get_bits(raw_csd, 46, 1);
-			csd->sector_size = mmc_get_bits(raw_csd, 39, 7);
-			csd->wp_grp_size = mmc_get_bits(raw_csd, 32, 7);
-			csd->wp_grp_enable = mmc_get_bits(raw_csd, 31, 1);
-			csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 26, 3);
-			csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 22, 4);
-			csd->write_bl_partial = mmc_get_bits(raw_csd, 21, 1);
-		} else 
-			panic("unknown SD CSD version");
-	} else {
-		csd->csd_structure = mmc_get_bits(raw_csd, 126, 2);
-		csd->spec_vers = mmc_get_bits(raw_csd, 122, 4);
-		m = mmc_get_bits(raw_csd, 115, 4);
-		e = mmc_get_bits(raw_csd, 112, 3);
+	csd->csd_structure = v = mmc_get_bits(raw_csd, 128, 126, 2);
+	if (v == 0) {
+		m = mmc_get_bits(raw_csd, 128, 115, 4);
+		e = mmc_get_bits(raw_csd, 128, 112, 3);
 		csd->tacc = exp[e] * mant[m] + 9 / 10;
-		csd->nsac = mmc_get_bits(raw_csd, 104, 8) * 100;
-		m = mmc_get_bits(raw_csd, 99, 4);
-		e = mmc_get_bits(raw_csd, 96, 3);
+		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
+		m = mmc_get_bits(raw_csd, 128, 99, 4);
+		e = mmc_get_bits(raw_csd, 128, 96, 3);
 		csd->tran_speed = exp[e] * 10000 * mant[m];
-		csd->ccc = mmc_get_bits(raw_csd, 84, 12);
-		csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 80, 4);
-		csd->read_bl_partial = mmc_get_bits(raw_csd, 79, 1);
-		csd->write_blk_misalign = mmc_get_bits(raw_csd, 78, 1);
-		csd->read_blk_misalign = mmc_get_bits(raw_csd, 77, 1);
-		csd->dsr_imp = mmc_get_bits(raw_csd, 76, 1);
-		csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 59, 3)];
-		csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 56, 3)];
-		csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 53, 3)];
-		csd->vdd_w_curr_max = cur_max[mmc_get_bits(raw_csd, 50, 3)];
-		m = mmc_get_bits(raw_csd, 62, 12);
-		e = mmc_get_bits(raw_csd, 47, 3);
+		csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
+		csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
+		csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
+		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
+		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
+		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
+		csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 59, 3)];
+		csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 56, 3)];
+		csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 53, 3)];
+		csd->vdd_w_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 50, 3)];
+		m = mmc_get_bits(raw_csd, 128, 62, 12);
+		e = mmc_get_bits(raw_csd, 128, 47, 3);
 		csd->capacity = ((1 + m) << (e + 2)) * csd->read_bl_len;
-//		csd->erase_blk_en = mmc_get_bits(raw_csd, 46, 1);
-//		csd->sector_size = mmc_get_bits(raw_csd, 39, 7);
-		csd->wp_grp_size = mmc_get_bits(raw_csd, 32, 5);
-		csd->wp_grp_enable = mmc_get_bits(raw_csd, 31, 1);
-		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 26, 3);
-		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 22, 4);
-		csd->write_bl_partial = mmc_get_bits(raw_csd, 21, 1);
-	}
+		csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
+		csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
+		csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
+		csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
+		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
+		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
+		csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
+	} else if (v == 1) {
+		m = mmc_get_bits(raw_csd, 128, 115, 4);
+		e = mmc_get_bits(raw_csd, 128, 112, 3);
+		csd->tacc = exp[e] * mant[m] + 9 / 10;
+		csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
+		m = mmc_get_bits(raw_csd, 128, 99, 4);
+		e = mmc_get_bits(raw_csd, 128, 96, 3);
+		csd->tran_speed = exp[e] * 10000 * mant[m];
+		csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
+		csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
+		csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
+		csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
+		csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
+		csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
+		csd->capacity = ((uint64_t)mmc_get_bits(raw_csd, 128, 48, 22) + 1) *
+		    512 * 1024;
+		csd->erase_blk_en = mmc_get_bits(raw_csd, 128, 46, 1);
+		csd->erase_sector = mmc_get_bits(raw_csd, 128, 39, 7) + 1;
+		csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 7);
+		csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
+		csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
+		csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
+		csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
+	} else 
+		panic("unknown SD CSD version");
+}
+
+static void
+mmc_decode_csd_mmc(uint32_t *raw_csd, struct mmc_csd *csd)
+{
+	int m;
+	int e;
+
+	memset(csd, 0, sizeof(*csd));
+	csd->csd_structure = mmc_get_bits(raw_csd, 128, 126, 2);
+	csd->spec_vers = mmc_get_bits(raw_csd, 128, 122, 4);
+	m = mmc_get_bits(raw_csd, 128, 115, 4);
+	e = mmc_get_bits(raw_csd, 128, 112, 3);
+	csd->tacc = exp[e] * mant[m] + 9 / 10;
+	csd->nsac = mmc_get_bits(raw_csd, 128, 104, 8) * 100;
+	m = mmc_get_bits(raw_csd, 128, 99, 4);
+	e = mmc_get_bits(raw_csd, 128, 96, 3);
+	csd->tran_speed = exp[e] * 10000 * mant[m];
+	csd->ccc = mmc_get_bits(raw_csd, 128, 84, 12);
+	csd->read_bl_len = 1 << mmc_get_bits(raw_csd, 128, 80, 4);
+	csd->read_bl_partial = mmc_get_bits(raw_csd, 128, 79, 1);
+	csd->write_blk_misalign = mmc_get_bits(raw_csd, 128, 78, 1);
+	csd->read_blk_misalign = mmc_get_bits(raw_csd, 128, 77, 1);
+	csd->dsr_imp = mmc_get_bits(raw_csd, 128, 76, 1);
+	csd->vdd_r_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 59, 3)];
+	csd->vdd_r_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 56, 3)];
+	csd->vdd_w_curr_min = cur_min[mmc_get_bits(raw_csd, 128, 53, 3)];
+	csd->vdd_w_curr_max = cur_max[mmc_get_bits(raw_csd, 128, 50, 3)];
+	m = mmc_get_bits(raw_csd, 128, 62, 12);
+	e = mmc_get_bits(raw_csd, 128, 47, 3);
+	csd->capacity = ((1 + m) << (e + 2)) * csd->read_bl_len;
+	csd->erase_blk_en = 0;
+	csd->erase_sector = (mmc_get_bits(raw_csd, 128, 42, 5) + 1) *
+	    (mmc_get_bits(raw_csd, 128, 37, 5) + 1);
+	csd->wp_grp_size = mmc_get_bits(raw_csd, 128, 32, 5);
+	csd->wp_grp_enable = mmc_get_bits(raw_csd, 128, 31, 1);
+	csd->r2w_factor = 1 << mmc_get_bits(raw_csd, 128, 26, 3);
+	csd->write_bl_len = 1 << mmc_get_bits(raw_csd, 128, 22, 4);
+	csd->write_bl_partial = mmc_get_bits(raw_csd, 128, 21, 1);
 }
 
 static void
 mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr)
 {
 	unsigned int scr_struct;
-	uint32_t tmp[4];
-
-	tmp[3] = raw_scr[1];
-	tmp[2] = raw_scr[0];
 
 	memset(scr, 0, sizeof(*scr));
-	
-	scr_struct = mmc_get_bits(tmp, 60, 4);
+
+	scr_struct = mmc_get_bits(raw_scr, 64, 60, 4);
 	if (scr_struct != 0) {
 		printf("Unrecognised SCR structure version %d\n",
 		    scr_struct);
 		return;
 	}
-	scr->sda_vsn = mmc_get_bits(tmp, 56, 4);
-	scr->bus_widths = mmc_get_bits(tmp, 48, 4);
+	scr->sda_vsn = mmc_get_bits(raw_scr, 64, 56, 4);
+	scr->bus_widths = mmc_get_bits(raw_scr, 64, 48, 4);
+}
+
+static void
+mmc_app_decode_sd_status(uint32_t *raw_sd_status,
+    struct mmc_sd_status *sd_status)
+{
+
+	memset(sd_status, 0, sizeof(*sd_status));
+
+	sd_status->bus_width = mmc_get_bits(raw_sd_status, 512, 510, 2);
+	sd_status->secured_mode = mmc_get_bits(raw_sd_status, 512, 509, 1);
+	sd_status->card_type = mmc_get_bits(raw_sd_status, 512, 480, 16);
+	sd_status->prot_area = mmc_get_bits(raw_sd_status, 512, 448, 12);
+	sd_status->speed_class = mmc_get_bits(raw_sd_status, 512, 440, 8);
+	sd_status->perf_move = mmc_get_bits(raw_sd_status, 512, 432, 8);
+	sd_status->au_size = mmc_get_bits(raw_sd_status, 512, 428, 4);
+	sd_status->erase_size = mmc_get_bits(raw_sd_status, 512, 408, 16);
+	sd_status->erase_timeout = mmc_get_bits(raw_sd_status, 512, 402, 6);
+	sd_status->erase_offset = mmc_get_bits(raw_sd_status, 512, 400, 2);
 }
 
 static int
@@ -965,6 +1003,32 @@ mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd)
 }
 
 static int
+mmc_app_sd_status(struct mmc_softc *sc, uint16_t rca, uint32_t *rawsdstatus)
+{
+	int err, i;
+	struct mmc_command cmd;
+	struct mmc_data data;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	memset(rawsdstatus, 0, 64);
+	cmd.opcode = ACMD_SD_STATUS;
+	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
+	cmd.arg = 0;
+	cmd.data = &data;
+
+	data.data = rawsdstatus;
+	data.len = 64;
+	data.flags = MMC_DATA_READ;
+
+	err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
+	for (i = 0; i < 16; i++)
+	    rawsdstatus[i] = be32toh(rawsdstatus[i]);
+	return (err);
+}
+
+static int
 mmc_set_relative_addr(struct mmc_softc *sc, uint16_t resp)
 {
 	struct mmc_command cmd;
@@ -998,7 +1062,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 {
 	struct mmc_ivars *ivar;
 	int err;
-	uint32_t resp;
+	uint32_t resp, sec_count;
 	device_t child;
 	uint16_t rca = 2;
 	u_char switch_res[64];
@@ -1020,15 +1084,18 @@ mmc_discover_cards(struct mmc_softc *sc)
 		ivar->bus_width = bus_width_1;
 		ivar->mode = mmcbr_get_mode(sc->dev);
 		if (ivar->mode == mode_sd) {
-			mmc_decode_cid(1, ivar->raw_cid, &ivar->cid);
+			mmc_decode_cid_sd(ivar->raw_cid, &ivar->cid);
 			mmc_send_relative_addr(sc, &resp);
 			ivar->rca = resp >> 16;
 			/* Get card CSD. */
 			mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
-			mmc_decode_csd(1, ivar->raw_csd, &ivar->csd);
+			mmc_decode_csd_sd(ivar->raw_csd, &ivar->csd);
+			ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 			if (ivar->csd.csd_structure > 0)
 				ivar->high_cap = 1;
 			ivar->tran_speed = ivar->csd.tran_speed;
+			ivar->erase_sector = ivar->csd.erase_sector * 
+			    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
 			/* Get card SCR. Card must be selected to fetch it. */
 			mmc_select_card(sc, ivar->rca);
 			mmc_app_send_scr(sc, ivar->rca, ivar->raw_scr);
@@ -1042,6 +1109,13 @@ mmc_discover_cards(struct mmc_softc *sc)
 					ivar->hs_tran_speed = 50000000;
 				}
 			}
+			mmc_app_sd_status(sc, ivar->rca, ivar->raw_sd_status);
+			mmc_app_decode_sd_status(ivar->raw_sd_status,
+			    &ivar->sd_status);
+			if (ivar->sd_status.au_size != 0) {
+				ivar->erase_sector =
+				    16 << ivar->sd_status.au_size;
+			}
 			mmc_select_card(sc, 0);
 			/* Find max supported bus width. */
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
@@ -1052,24 +1126,36 @@ mmc_discover_cards(struct mmc_softc *sc)
 			device_set_ivars(child, ivar);
 			return;
 		}
-		mmc_decode_cid(0, ivar->raw_cid, &ivar->cid);
+		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid);
 		ivar->rca = rca++;
 		mmc_set_relative_addr(sc, ivar->rca);
 		/* Get card CSD. */
 		mmc_send_csd(sc, ivar->rca, ivar->raw_csd);
-		mmc_decode_csd(0, ivar->raw_csd, &ivar->csd);
+		mmc_decode_csd_mmc(ivar->raw_csd, &ivar->csd);
+		ivar->sec_count = ivar->csd.capacity / MMC_SECTOR_SIZE;
 		ivar->tran_speed = ivar->csd.tran_speed;
+		ivar->erase_sector = ivar->csd.erase_sector * 
+		    ivar->csd.write_bl_len / MMC_SECTOR_SIZE;
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
 			/* Card must be selected to fetch EXT_CSD. */
 			mmc_select_card(sc, ivar->rca);
 			mmc_send_ext_csd(sc, ivar->raw_ext_csd);
+			/* Handle extended capacity from EXT_CSD */
+			sec_count = ivar->raw_ext_csd[EXT_CSD_SEC_CNT] +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 1] << 8) +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 2] << 16) +
+			    (ivar->raw_ext_csd[EXT_CSD_SEC_CNT + 3] << 24);
+			if (sec_count != 0) {
+				ivar->sec_count = sec_count;
+				ivar->high_cap = 1;
+			}
 			/* Get card speed in high speed mode. */
 			ivar->timing = bus_timing_hs;
-			if (((uint8_t *)(ivar->raw_ext_csd))[EXT_CSD_CARD_TYPE]
+			if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_52)
 				ivar->hs_tran_speed = 52000000;
-			else if (((uint8_t *)(ivar->raw_ext_csd))[EXT_CSD_CARD_TYPE]
+			else if (ivar->raw_ext_csd[EXT_CSD_CARD_TYPE]
 			    & EXT_CSD_CARD_TYPE_26)
 				ivar->hs_tran_speed = 26000000;
 			else
@@ -1077,6 +1163,13 @@ mmc_discover_cards(struct mmc_softc *sc)
 			/* Find max supported bus width. */
 			ivar->bus_width = mmc_test_bus_width(sc);
 			mmc_select_card(sc, 0);
+			/* Handle HC erase sector size. */
+			if (ivar->raw_ext_csd[EXT_CSD_ERASE_GRP_SIZE] != 0) {
+				ivar->erase_sector = 1024 *
+				    ivar->raw_ext_csd[EXT_CSD_ERASE_GRP_SIZE];
+				mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
+				    EXT_CSD_ERASE_GRP_DEF, 1);
+			}
 		} else {
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
@@ -1105,7 +1198,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		mmcbr_set_bus_mode(dev, pushpull);
 		mmc_idle_cards(sc);
 		err = mmc_send_if_cond(sc, 1);
-		if (mmc_send_app_op_cond(sc, err?0:MMC_OCR_CCS, &ocr) !=
+		if (mmc_send_app_op_cond(sc, err ? 0 : MMC_OCR_CCS, &ocr) !=
 		    MMC_ERR_NONE) {
 			/*
 			 * Failed, try MMC
@@ -1135,13 +1228,14 @@ mmc_go_discovery(struct mmc_softc *sc)
 	if (mmcbr_get_mode(dev) == mode_sd) {
 		err = mmc_send_if_cond(sc, 1);
 		mmc_send_app_op_cond(sc,
-		    (err?0:MMC_OCR_CCS)|mmcbr_get_ocr(dev), NULL);
+		    (err ? 0 : MMC_OCR_CCS) | mmcbr_get_ocr(dev), NULL);
 	} else
 		mmc_send_op_cond(sc, mmcbr_get_ocr(dev), NULL);
 	mmc_discover_cards(sc);
 
 	mmcbr_set_bus_mode(dev, pushpull);
 	mmcbr_update_ios(dev);
+	mmc_calculate_clock(sc);
 	bus_generic_attach(dev);
 /*	mmc_update_children_sysctl(dev);*/
 }
@@ -1183,9 +1277,12 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	free(kids, M_TEMP);
 	if (max_timing == bus_timing_hs)
 		max_dtr = max_hs_dtr;
-	device_printf(sc->dev, "setting transfer rate to %d.%03dMHz%s\n",
-	    max_dtr / 1000000, (max_dtr / 1000) % 1000,
-	    (max_timing == bus_timing_hs)?" with high speed timing":"");
+	if (bootverbose) {
+		device_printf(sc->dev,
+		    "setting transfer rate to %d.%03dMHz%s\n",
+		    max_dtr / 1000000, (max_dtr / 1000) % 1000,
+		    max_timing == bus_timing_hs ? " (high speed timing)" : "");
+	}
 	mmcbr_set_timing(sc->dev, max_timing);
 	mmcbr_set_clock(sc->dev, max_dtr);
 	mmcbr_update_ios(sc->dev);
@@ -1203,7 +1300,6 @@ mmc_scan(struct mmc_softc *sc)
 	if (mmcbr_get_power_mode(dev) == power_on)
 		mmc_rescan_cards(sc);
 	mmc_go_discovery(sc);
-	mmc_calculate_clock(sc);
 
 	mmc_release_bus(dev, dev);
 	/* XXX probe/attach/detach children? */
@@ -1221,7 +1317,7 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(int *)result = ivar->csd.dsr_imp;
 		break;
 	case MMC_IVAR_MEDIA_SIZE:
-		*(off_t *)result = ivar->csd.capacity / MMC_SECTOR_SIZE;
+		*(off_t *)result = ivar->sec_count;
 		break;
 	case MMC_IVAR_RCA:
 		*(int *)result = ivar->rca;
@@ -1230,13 +1326,25 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		*(int *)result = MMC_SECTOR_SIZE;
 		break;
 	case MMC_IVAR_TRAN_SPEED:
-		*(int *)result = ivar->csd.tran_speed;
+		*(int *)result = mmcbr_get_clock(bus);
 		break;
 	case MMC_IVAR_READ_ONLY:
 		*(int *)result = ivar->read_only;
 		break;
 	case MMC_IVAR_HIGH_CAP:
 		*(int *)result = ivar->high_cap;
+		break;
+	case MMC_IVAR_CARD_TYPE:
+		*(int *)result = ivar->mode;
+		break;
+	case MMC_IVAR_BUS_WIDTH:
+		*(int *)result = ivar->bus_width;
+		break;
+	case MMC_IVAR_ERASE_SECTOR:
+		*(int *)result = ivar->erase_sector;
+		break;
+	case MMC_IVAR_MAX_DATA:
+		*(int *)result = mmcbr_get_max_data(bus);
 		break;
 	}
 	return (0);

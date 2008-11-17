@@ -51,9 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/syscons/syscons.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_pci.h>
 #include <powerpc/ofw/ofw_syscons.h>
-#include <machine/nexusvar.h>
 
 static int ofwfb_ignore_mmap_checks;
 SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
@@ -841,19 +841,15 @@ ofwfb_scidentify(driver_t *driver, device_t parent)
 	 * the device list
 	 */
 	child = BUS_ADD_CHILD(parent, INT_MAX, SC_DRIVER_NAME, 0);
-	if (child != NULL)
-		nexus_set_device_type(child, "syscons");
 }
 
 static int
 ofwfb_scprobe(device_t dev)
 {
-	char *name;
-
-	name = nexus_get_name(dev);
-	if (strcmp(SC_DRIVER_NAME, name) != 0)
-		return (ENXIO);
-
+	/* This is a fake device, so make sure there is no OF node for it */
+	if (ofw_bus_get_node(dev) != -1)
+		return ENXIO;
+	
 	device_set_desc(dev, "System console");
 	return (sc_probe_unit(device_get_unit(dev), 
 	    device_get_flags(dev) | SC_AUTODETECT_KBD));

@@ -19,11 +19,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 1996
+.Dd October 20, 2008
 .Os
 .Dt LOGIN_CLASS 3
 .Sh NAME
 .Nm setclasscontext ,
+.Nm setclasscpumask ,
 .Nm setclassenvironment ,
 .Nm setclassresources ,
 .Nm setusercontext
@@ -35,12 +36,14 @@
 .In login_cap.h
 .Ft int
 .Fn setclasscontext "const char *classname" "unsigned int flags"
-.Ft int
-.Fn setusercontext "login_cap_t *lc" "const struct passwd *pwd" "uid_t uid" "unsigned int flags"
 .Ft void
-.Fn setclassresources "login_cap_t *lc"
+.Fn setclasscpumask "login_cap_t *lc"
 .Ft void
 .Fn setclassenvironment "login_cap_t *lc" "const struct passwd *pwd" "int paths"
+.Ft void
+.Fn setclassresources "login_cap_t *lc"
+.Ft int
+.Fn setusercontext "login_cap_t *lc" "const struct passwd *pwd" "uid_t uid" "unsigned int flags"
 .Sh DESCRIPTION
 These functions provide a higher level interface to the login class
 database than those documented in
@@ -162,7 +165,7 @@ and set the cpu affinity to the specified mask.
 The string may contain a comma separated list of numbers and/or number
 ranges as handled by the
 .Xr cpuset 1
-utility or the case-insensitive string 
+utility or the case-insensitive string
 .Ql default .
 If the string is
 .Ql default
@@ -182,6 +185,7 @@ are substituted for the user's home directory and login name
 respectively.
 .Pp
 The
+.Fn setclasscpumask ,
 .Fn setclassresources
 and
 .Fn setclassenvironment

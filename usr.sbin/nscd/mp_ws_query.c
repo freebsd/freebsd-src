@@ -121,11 +121,9 @@ on_mp_write_session_request_read1(struct query_state *qstate)
 			return (-1);
 		}
 
-		c_mp_ws_request->entry = (char *)malloc(
+		c_mp_ws_request->entry = (char *)calloc(1,
 			c_mp_ws_request->entry_length + 1);
 		assert(c_mp_ws_request->entry != NULL);
-		memset(c_mp_ws_request->entry, 0,
-			c_mp_ws_request->entry_length + 1);
 
 		qstate->kevent_watermark = c_mp_ws_request->entry_length;
 		qstate->process_func = on_mp_write_session_request_read2;
@@ -376,9 +374,8 @@ on_mp_write_session_write_request_read1(struct query_state *qstate)
 		return (-1);
 	}
 
-	write_request->data = (char *)malloc(write_request->data_size);
+	write_request->data = (char *)calloc(1, write_request->data_size);
 	assert(write_request->data != NULL);
-	memset(write_request->data, 0, write_request->data_size);
 
 	qstate->kevent_watermark = write_request->data_size;
 	qstate->process_func = on_mp_write_session_write_request_read2;

@@ -113,7 +113,7 @@ static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static int	vfs_knllocked(void *arg);
-
+static void	destroy_vpollinfo(struct vpollinfo *vi);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -335,42 +335,36 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
- * unmounting. Interlock is not released on failure.
+ * unmounting. Eventually, mountlist_mtx is not released on failure.
  */
 int
-vfs_busy(struct mount *mp, int flags, struct mtx *interlkp)
+vfs_busy(struct mount *mp, int flags)
 {
-	int lkflags;
+
+	MPASS((flags & ~MBF_MASK) == 0);
 
 	MNT_ILOCK(mp);
 	MNT_REF(mp);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
-		if (flags & LK_NOWAIT) {
+		if (flags & MBF_NOWAIT) {
 			MNT_REL(mp);
 			MNT_IUNLOCK(mp);
 			return (ENOENT);
 		}
-		if (interlkp)
-			mtx_unlock(interlkp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		/*
-		 * Since all busy locks are shared except the exclusive
-		 * lock granted when unmounting, the only place that a
-		 * wakeup needs to be done is at the release of the
-		 * exclusive lock at the end of dounmount.
-		 */
 		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		if (interlkp)
-			mtx_lock(interlkp);
+		if (flags & MBF_MNTLSTLOCK)
+			mtx_lock(&mountlist_mtx);
 		return (ENOENT);
 	}
-	if (interlkp)
-		mtx_unlock(interlkp);
-	lkflags = LK_SHARED | LK_INTERLOCK;
-	if (lockmgr(&mp->mnt_lock, lkflags, MNT_MTX(mp)))
-		panic("vfs_busy: unexpected lock failure");
+	if (flags & MBF_MNTLSTLOCK)
+		mtx_unlock(&mountlist_mtx);
+	mp->mnt_lockref++;
+	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -381,8 +375,15 @@ void
 vfs_unbusy(struct mount *mp)
 {
 
-	lockmgr(&mp->mnt_lock, LK_RELEASE, NULL);
-	vfs_rel(mp);
+	MNT_ILOCK(mp);
+	MNT_REL(mp);
+	mp->mnt_lockref--;
+	if (mp->mnt_lockref == 0 && (mp->mnt_kern_flag & MNTK_DRAINING) != 0) {
+		MPASS(mp->mnt_kern_flag & MNTK_UNMOUNT);
+		mp->mnt_kern_flag &= ~MNTK_DRAINING;
+		wakeup(&mp->mnt_lockref);
+	}
+	MNT_IUNLOCK(mp);
 }
 
 /*
@@ -747,7 +748,7 @@ vnlru_proc(void)
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 			int vfsunlocked;
-			if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx)) {
+			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK)) {
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
@@ -819,11 +820,8 @@ vdestroy(struct vnode *vp)
 #ifdef MAC
 	mac_vnode_destroy(vp);
 #endif
-	if (vp->v_pollinfo != NULL) {
-		knlist_destroy(&vp->v_pollinfo->vpi_selinfo.si_note);
-		mtx_destroy(&vp->v_pollinfo->vpi_lock);
-		uma_zfree(vnodepoll_zone, vp->v_pollinfo);
-	}
+	if (vp->v_pollinfo != NULL)
+		destroy_vpollinfo(vp->v_pollinfo);
 #ifdef INVARIANTS
 	/* XXX Elsewhere we can detect an already freed vnode via NULL v_op. */
 	vp->v_op = NULL;
@@ -1065,8 +1063,7 @@ insmntque(struct vnode *vp, struct mount *mp)
  * Called with the underlying object locked.
  */
 int
-bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
-    int slptimeo)
+bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 {
 	int error;
 
@@ -1079,7 +1076,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
 			BO_UNLOCK(bo);
-			if ((error = BO_SYNC(bo, MNT_WAIT, td)) != 0)
+			if ((error = BO_SYNC(bo, MNT_WAIT)) != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
@@ -1149,13 +1146,12 @@ bufobj_invalbuf(struct bufobj *bo, int flags, struct thread *td, int slpflag,
  * Called with the underlying object locked.
  */
 int
-vinvalbuf(struct vnode *vp, int flags, struct thread *td, int slpflag,
-    int slptimeo)
+vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
 {
 
 	CTR2(KTR_VFS, "vinvalbuf vp %p flags %d", vp, flags);
 	ASSERT_VOP_LOCKED(vp, "vinvalbuf");
-	return (bufobj_invalbuf(&vp->v_bufobj, flags, td, slpflag, slptimeo));
+	return (bufobj_invalbuf(&vp->v_bufobj, flags, slpflag, slptimeo));
 }
 
 /*
@@ -2505,8 +2501,8 @@ vgonel(struct vnode *vp)
 	mp = NULL;
 	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
 		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
-	if (vinvalbuf(vp, V_SAVE, td, 0, 0) != 0)
-		vinvalbuf(vp, 0, td, 0, 0);
+	if (vinvalbuf(vp, V_SAVE, 0, 0) != 0)
+		vinvalbuf(vp, 0, 0, 0);
 
 	/*
 	 * If purging an active vnode, it must be closed and
@@ -2842,9 +2838,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	db_printf("    mnt_maxsymlinklen = %d\n", mp->mnt_maxsymlinklen);
 	db_printf("    mnt_iosize_max = %d\n", mp->mnt_iosize_max);
 	db_printf("    mnt_hashseed = %u\n", mp->mnt_hashseed);
-	db_printf("    mnt_markercnt = %d\n", mp->mnt_markercnt);
-	db_printf("    mnt_holdcnt = %d\n", mp->mnt_holdcnt);
-	db_printf("    mnt_holdcntwaiters = %d\n", mp->mnt_holdcntwaiters);
 	db_printf("    mnt_secondary_writes = %d\n", mp->mnt_secondary_writes);
 	db_printf("    mnt_secondary_accwrites = %d\n",
 	    mp->mnt_secondary_accwrites);
@@ -3004,7 +2997,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 	n = 0;
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx))
+		if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 			continue;
 		MNT_ILOCK(mp);
 		TAILQ_FOREACH(vp, &mp->mnt_nvnodelist, v_nmntvnodes) {
@@ -3199,6 +3192,14 @@ vbusy(struct vnode *vp)
 	mtx_unlock(&vnode_free_list_mtx);
 }
 
+static void
+destroy_vpollinfo(struct vpollinfo *vi)
+{
+	knlist_destroy(&vi->vpi_selinfo.si_note);
+	mtx_destroy(&vi->vpi_lock);
+	uma_zfree(vnodepoll_zone, vi);
+}
+
 /*
  * Initalize per-vnode helper structure to hold poll-related state.
  */
@@ -3207,15 +3208,20 @@ v_addpollinfo(struct vnode *vp)
 {
 	struct vpollinfo *vi;
 
+	if (vp->v_pollinfo != NULL)
+		return;
 	vi = uma_zalloc(vnodepoll_zone, M_WAITOK);
+	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
+	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
+	    vfs_knlunlock, vfs_knllocked);
+	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
-		uma_zfree(vnodepoll_zone, vi);
+		VI_UNLOCK(vp);
+		destroy_vpollinfo(vi);
 		return;
 	}
 	vp->v_pollinfo = vi;
-	mtx_init(&vp->v_pollinfo->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
-	knlist_init(&vp->v_pollinfo->vpi_selinfo.si_note, vp, vfs_knllock,
-	    vfs_knlunlock, vfs_knllocked);
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -3230,8 +3236,7 @@ int
 vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 {
 
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
+	v_addpollinfo(vp);
 	mtx_lock(&vp->v_pollinfo->vpi_lock);
 	if (vp->v_pollinfo->vpi_revents & events) {
 		/*
@@ -3245,12 +3250,12 @@ vn_pollrecord(struct vnode *vp, struct thread *td, int events)
 		vp->v_pollinfo->vpi_revents &= ~events;
 
 		mtx_unlock(&vp->v_pollinfo->vpi_lock);
-		return events;
+		return (events);
 	}
 	vp->v_pollinfo->vpi_events |= events;
 	selrecord(td, &vp->v_pollinfo->vpi_selinfo);
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
-	return 0;
+	return (0);
 }
 
 /*
@@ -3354,7 +3359,7 @@ sync_fsync(struct vop_fsync_args *ap)
 	 * not already on the sync list.
 	 */
 	mtx_lock(&mountlist_mtx);
-	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx) != 0) {
+	if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK) != 0) {
 		mtx_unlock(&mountlist_mtx);
 		return (0);
 	}
@@ -3452,10 +3457,10 @@ vn_isdisk(struct vnode *vp, int *errp)
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
-    mode_t acc_mode, struct ucred *cred, int *privused)
+    accmode_t accmode, struct ucred *cred, int *privused)
 {
-	mode_t dac_granted;
-	mode_t priv_granted;
+	accmode_t dac_granted;
+	accmode_t priv_granted;
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -3477,7 +3482,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		if (file_mode & S_IWUSR)
 			dac_granted |= (VWRITE | VAPPEND);
 
-		if ((acc_mode & dac_granted) == acc_mode)
+		if ((accmode & dac_granted) == accmode)
 			return (0);
 
 		goto privcheck;
@@ -3492,7 +3497,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		if (file_mode & S_IWGRP)
 			dac_granted |= (VWRITE | VAPPEND);
 
-		if ((acc_mode & dac_granted) == acc_mode)
+		if ((accmode & dac_granted) == accmode)
 			return (0);
 
 		goto privcheck;
@@ -3505,7 +3510,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		dac_granted |= VREAD;
 	if (file_mode & S_IWOTH)
 		dac_granted |= (VWRITE | VAPPEND);
-	if ((acc_mode & dac_granted) == acc_mode)
+	if ((accmode & dac_granted) == accmode)
 		return (0);
 
 privcheck:
@@ -3522,35 +3527,35 @@ privcheck:
 		 * For directories, use PRIV_VFS_LOOKUP to satisfy VEXEC
 		 * requests, instead of PRIV_VFS_EXEC.
 		 */
-		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
 		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
 		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
-	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
+	if ((accmode & VREAD) && ((dac_granted & VREAD) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_READ, 0))
 		priv_granted |= VREAD;
 
-	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
+	if ((accmode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
 		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
+	if ((accmode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
 	    !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
 		priv_granted |= VADMIN;
 
-	if ((acc_mode & (priv_granted | dac_granted)) == acc_mode) {
+	if ((accmode & (priv_granted | dac_granted)) == accmode) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;
 		return (0);
 	}
 
-	return ((acc_mode & VADMIN) ? EPERM : EACCES);
+	return ((accmode & VADMIN) ? EPERM : EACCES);
 }
 
 /*
@@ -3559,7 +3564,7 @@ privcheck:
  */
 int
 extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
-    struct thread *td, int access)
+    struct thread *td, accmode_t accmode)
 {
 
 	/*
@@ -3577,7 +3582,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 		/* Potentially should be: return (EPERM); */
 		return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM, 0));
 	case EXTATTR_NAMESPACE_USER:
-		return (VOP_ACCESS(vp, access, cred, td));
+		return (VOP_ACCESS(vp, accmode, cred, td));
 	default:
 		return (EPERM);
 	}
@@ -4067,8 +4072,7 @@ vfs_kqfilter(struct vop_kqfilter_args *ap)
 
 	kn->kn_hook = (caddr_t)vp;
 
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
+	v_addpollinfo(vp);
 	if (vp->v_pollinfo == NULL)
 		return (ENOMEM);
 	knl = &vp->v_pollinfo->vpi_selinfo.si_note;

@@ -448,7 +448,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 {
 	int error, i;
 
-	memset(dma, 0, sizeof(dma));
+	memset(dma, 0, sizeof(*dma));
 
 	dma->name = name;
 	dma->nbuf = nbuf;

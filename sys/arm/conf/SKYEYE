@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		KB920X
 
 options		KERNPHYSADDR=0xc0000000	
@@ -79,7 +78,6 @@ device		uart
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
-device		mem			# Memory and kernel memory devices
 device md
 options		SKYEYE_WORKAROUNDS
 # Floppy drives

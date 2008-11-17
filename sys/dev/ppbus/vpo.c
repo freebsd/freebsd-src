@@ -63,8 +63,7 @@ struct vpo_sense {
 };
 
 struct vpo_data {
-	unsigned short vpo_unit;
-
+	device_t vpo_dev;
 	int vpo_stat;
 	int vpo_count;
 	int vpo_error;
@@ -94,7 +93,7 @@ vpo_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, "vpo", 0);
+	dev = device_find_child(parent, "vpo", -1);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "vpo", -1);
 }
@@ -109,12 +108,7 @@ vpo_probe(device_t dev)
 	int error;
 
 	vpo = DEVTOSOFTC(dev);
-
-	/* vpo dependent initialisation */
-	vpo->vpo_unit = device_get_unit(dev);
-
-	/* low level probe */
-	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
+	vpo->vpo_dev = dev;
 
 	/* check ZIP before ZIP+ or imm_probe() will send controls to
 	 * the printer or whatelse connected to the port */
@@ -257,8 +251,8 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 	/* if a timeout occured, no sense */
 	if (vpo->vpo_error) {
 		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
-			printf("vpo%d: VP0 error/timeout (%d)\n",
-				vpo->vpo_unit, vpo->vpo_error);
+			device_printf(vpo->vpo_dev, "VP0 error/timeout (%d)\n",
+				vpo->vpo_error);
 
 		csio->ccb_h.status = CAM_CMD_TIMEOUT;
 		goto error;
@@ -348,8 +342,8 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		csio = &ccb->csio;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_SCSI_IO (0x%x) request\n",
-			vpo->vpo_unit, csio->cdb_io.cdb_bytes[0]);
+		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
+			csio->cdb_io.cdb_bytes[0]);
 #endif
 		
 		vpo_intr(vpo, csio);
@@ -365,8 +359,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		ccg = &ccb->ccg;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_CALC_GEOMETRY (bs=%d,vs=%jd,c=%d,h=%d,spt=%d) request\n",
-			vpo->vpo_unit,
+		device_printf(vpo->vpo_dev, "XPT_CALC_GEOMETRY (bs=%d,vs=%jd,c=%d,h=%d,spt=%d) request\n",
 			ccg->block_size,
 			(intmax_t)ccg->volume_size,
 			ccg->cylinders,
@@ -387,7 +380,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	{
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_RESET_BUS request\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "XPT_RESET_BUS request\n");
 #endif
 
 		if (vpo->vpo_isplus) {
@@ -413,7 +406,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_PATH_INQ request\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "XPT_PATH_INQ request\n");
 #endif
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = 0;

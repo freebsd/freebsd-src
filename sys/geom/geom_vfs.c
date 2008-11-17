@@ -163,7 +163,7 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 }
 
 void
-g_vfs_close(struct g_consumer *cp, struct thread *td)
+g_vfs_close(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct bufobj *bo;
@@ -172,6 +172,6 @@ g_vfs_close(struct g_consumer *cp, struct thread *td)
 
 	gp = cp->geom;
 	bo = gp->softc;
-	bufobj_invalbuf(bo, V_SAVE, td, 0, 0);
+	bufobj_invalbuf(bo, V_SAVE, 0, 0);
 	g_wither_geom_close(gp, ENXIO);
 }

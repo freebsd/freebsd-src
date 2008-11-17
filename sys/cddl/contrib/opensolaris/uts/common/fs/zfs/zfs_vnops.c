@@ -3194,13 +3194,13 @@ static int
 zfs_freebsd_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 
-	return (zfs_access(ap->a_vp, ap->a_mode, 0, ap->a_cred));
+	return (zfs_access(ap->a_vp, ap->a_accmode, 0, ap->a_cred));
 }
 
 static int

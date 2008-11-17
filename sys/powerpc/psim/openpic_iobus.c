@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
-#include <machine/nexusvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 

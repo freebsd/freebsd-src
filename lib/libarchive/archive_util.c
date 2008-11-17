@@ -168,6 +168,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
+	va_end(ap);
 	if (error_number > 0) {
 		archive_strcat(&(a->error_string), ": ");
 #ifdef HAVE_STRERROR_R
@@ -184,7 +185,6 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 		archive_strcat(&(a->error_string), errp);
 	}
 	a->error = a->error_string.s;
-	va_end(ap);
 }
 
 void

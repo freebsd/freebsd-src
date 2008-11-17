@@ -741,9 +741,7 @@ MLINKS+=LOCK_PROFILING.9 MUTEX_PROFILING.9
 MLINKS+=make_dev.9 destroy_dev.9 \
 	make_dev.9 dev_depends.9 \
 	make_dev.9 make_dev_alias.9
-MLINKS+=malloc.9 FREE.9 \
-	malloc.9 free.9 \
-	malloc.9 MALLOC.9 \
+MLINKS+=malloc.9 free.9 \
 	malloc.9 MALLOC_DECLARE.9 \
 	malloc.9 MALLOC_DEFINE.9 \
 	malloc.9 realloc.9 \

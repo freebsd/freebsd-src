@@ -136,16 +136,6 @@ KERNend:	.long	0		/* phys addr end of kernel (just after bss) */
 		.globl physfree
 physfree:	.long	0		/* phys addr of next free page */
 
-#ifdef SMP
-		.globl	cpu0prvpage
-cpu0pp:		.long	0		/* phys addr cpu0 private pg */
-cpu0prvpage:	.long	0		/* relocated version */
-
-		.globl	SMPpt
-SMPptpa:	.long	0		/* phys addr SMP page table */
-SMPpt:		.long	0		/* relocated version */
-#endif /* SMP */
-
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
 

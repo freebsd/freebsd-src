@@ -75,9 +75,7 @@ typedef int hashtable_index_t;
 #define HASHTABLE_INIT(table, type, field, _entries_size)		\
 	do {								\
 		hashtable_index_t var;					\
-		(table)->entries = (void *)malloc(			\
-			sizeof(*(table)->entries) * (_entries_size));	\
-		memset((table)->entries, 0, 				\
+		(table)->entries = (void *)calloc(1,			\
 			sizeof(*(table)->entries) * (_entries_size));	\
 		(table)->entries_size = (_entries_size);		\
 		for (var = 0; var < HASHTABLE_ENTRIES_COUNT(table); ++var) {\

@@ -113,6 +113,8 @@ struct exportlist {
 	fsid_t		ex_fs;
 	char		*ex_fsdir;
 	char		*ex_indexfile;
+	int		ex_numsecflavors;
+	int		ex_secflavors[MAXSECFLAVORS];
 };
 /* ex_flag bits */
 #define	EX_LINKED	0x1
@@ -150,6 +152,8 @@ struct fhreturn {
 	int	fhr_flag;
 	int	fhr_vers;
 	nfsfh_t	fhr_fh;
+	int	fhr_numsecflavors;
+	int	*fhr_secflavors;
 };
 
 /* Global defs */
@@ -240,6 +244,7 @@ struct pidfh *pfh = NULL;
 #define	OP_HAVEMASK	0x80	/* A mask was specified or inferred. */
 #define	OP_QUIET	0x100
 #define OP_MASKLEN	0x200
+#define OP_SEC		0x400
 
 #ifdef DEBUG
 int debug = 1;
@@ -817,6 +822,8 @@ mntsrv(rqstp, transp)
 				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 				return;
 			}
+			fhr.fhr_numsecflavors = ep->ex_numsecflavors;
+			fhr.fhr_secflavors = ep->ex_secflavors;
 			if (!svc_sendreply(transp, (xdrproc_t)xdr_fhs,
 			    (caddr_t)&fhr))
 				syslog(LOG_ERR, "can't send reply");
@@ -934,6 +941,7 @@ xdr_fhs(xdrsp, cp)
 {
 	struct fhreturn *fhrp = (struct fhreturn *)cp;
 	u_long ok = 0, len, auth;
+	int i;
 
 	if (!xdr_long(xdrsp, &ok))
 		return (0);
@@ -946,11 +954,20 @@ xdr_fhs(xdrsp, cp)
 			return (0);
 		if (!xdr_opaque(xdrsp, (caddr_t)&fhrp->fhr_fh, len))
 			return (0);
-		auth = RPCAUTH_UNIX;
-		len = 1;
-		if (!xdr_long(xdrsp, &len))
-			return (0);
-		return (xdr_long(xdrsp, &auth));
+		if (fhrp->fhr_numsecflavors) {
+			if (!xdr_int(xdrsp, &fhrp->fhr_numsecflavors))
+				return (0);
+			for (i = 0; i < fhrp->fhr_numsecflavors; i++)
+				if (!xdr_int(xdrsp, &fhrp->fhr_secflavors[i]))
+					return (0);
+			return (1);
+		} else {
+			auth = AUTH_SYS;
+			len = 1;
+			if (!xdr_long(xdrsp, &len))
+				return (0);
+			return (xdr_long(xdrsp, &auth));
+		}
 	};
 	return (0);
 }
@@ -1765,6 +1782,57 @@ free_dir(dp)
 }
 
 /*
+ * Parse a colon separated list of security flavors
+ */
+int
+parsesec(seclist, ep)
+	char *seclist;
+	struct exportlist *ep;
+{
+	char *cp, savedc;
+	int flavor;
+
+	ep->ex_numsecflavors = 0;
+	for (;;) {
+		cp = strchr(seclist, ':');
+		if (cp) {
+			savedc = *cp;
+			*cp = '\0';
+		}
+
+		if (!strcmp(seclist, "sys"))
+			flavor = AUTH_SYS;
+		else if (!strcmp(seclist, "krb5"))
+			flavor = RPCSEC_GSS_KRB5;
+		else if (!strcmp(seclist, "krb5i"))
+			flavor = RPCSEC_GSS_KRB5I;
+		else if (!strcmp(seclist, "krb5p"))
+			flavor = RPCSEC_GSS_KRB5P;
+		else {
+			if (cp)
+				*cp = savedc;
+			syslog(LOG_ERR, "bad sec flavor: %s", seclist);
+			return (1);
+		}
+		if (ep->ex_numsecflavors == MAXSECFLAVORS) {
+			if (cp)
+				*cp = savedc;
+			syslog(LOG_ERR, "too many sec flavors: %s", seclist);
+			return (1);
+		}
+		ep->ex_secflavors[ep->ex_numsecflavors] = flavor;
+		ep->ex_numsecflavors++;
+		if (cp) {
+			*cp = savedc;
+			seclist = cp + 1;
+		} else {
+			break;
+		}
+	}
+	return (0);
+}
+
+/*
  * Parse the option string and update fields.
  * Option arguments may either be -<option>=<value> or
  * -<option> <value>
@@ -1859,6 +1927,11 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			ep->ex_indexfile = strdup(cpoptarg);
 		} else if (!strcmp(cpopt, "quiet")) {
 			opt_flags |= OP_QUIET;
+		} else if (!strcmp(cpopt, "sec")) {
+			if (parsesec(cpoptarg, ep))
+				return (1);
+			opt_flags |= OP_SEC;
+			usedarg++;
 		} else {
 			syslog(LOG_ERR, "bad opt %s", cpopt);
 			return (1);
@@ -2018,7 +2091,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 	int done;
 	char savedc;
 	struct iovec *iov;
-	int iovlen;
+	int i, iovlen;
 	int ret;
 
 	cp = NULL;
@@ -2036,6 +2109,13 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		ai = grp->gr_ptr.gt_addrinfo;
 	else
 		ai = NULL;
+	eap.ex_numsecflavors = ep->ex_numsecflavors;
+	for (i = 0; i < eap.ex_numsecflavors; i++)
+		eap.ex_secflavors[i] = ep->ex_secflavors[i];
+	if (eap.ex_numsecflavors == 0) {
+		eap.ex_numsecflavors = 1;
+		eap.ex_secflavors[0] = AUTH_SYS;
+	}
 	done = FALSE;
 
 	build_iovec(&iov, &iovlen, "fstype", NULL, 0);

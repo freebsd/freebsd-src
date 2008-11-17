@@ -503,7 +503,8 @@ ata_timeout(struct ata_request *request)
 	request->flags |= ATA_R_TIMEOUT;
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
-	ch->dma.unload(request);
+	if (ch->dma.unload)
+	    ch->dma.unload(request);
 	ata_finish(request);
     }
     else {

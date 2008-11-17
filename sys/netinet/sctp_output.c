@@ -4096,6 +4096,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	struct sctp_nets *net;
 	struct sctp_init_msg *initm;
 	struct sctp_supported_addr_param *sup_addr;
+	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
 	struct sctp_ecn_nonce_supported_param *ecn_nonce;
@@ -4193,21 +4194,13 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 #endif
 	SCTP_BUF_LEN(m) += sizeof(*sup_addr) + sizeof(uint16_t);
 
-	if (inp->sctp_ep.adaptation_layer_indicator) {
-		struct sctp_adaptation_layer_indication *ali;
-
-		ali = (struct sctp_adaptation_layer_indication *)(
-		    (caddr_t)sup_addr + sizeof(*sup_addr) + sizeof(uint16_t));
-		ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
-		ali->ph.param_length = htons(sizeof(*ali));
-		ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
-		SCTP_BUF_LEN(m) += sizeof(*ali);
-		ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali +
-		    sizeof(*ali));
-	} else {
-		ecn = (struct sctp_ecn_supported_param *)((caddr_t)sup_addr +
-		    sizeof(*sup_addr) + sizeof(uint16_t));
-	}
+	/* adaptation layer indication parameter */
+	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)sup_addr + sizeof(*sup_addr) + sizeof(uint16_t));
+	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
+	ali->ph.param_length = htons(sizeof(*ali));
+	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
+	SCTP_BUF_LEN(m) += sizeof(*ali);
+	ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali + sizeof(*ali));
 
 	/* now any cookie time extensions */
 	if (stcb->asoc.cookie_preserve_req) {
@@ -4889,6 +4882,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	struct sctp_association *asoc;
 	struct mbuf *m, *m_at, *m_tmp, *m_cookie, *op_err, *mp_last;
 	struct sctp_init_msg *initackm_out;
+	struct sctp_adaptation_layer_indication *ali;
 	struct sctp_ecn_supported_param *ecn;
 	struct sctp_prsctp_supported_param *prsctp;
 	struct sctp_ecn_nonce_supported_param *ecn_nonce;
@@ -5319,23 +5313,14 @@ do_a_abort:
 	/* tell him his limt. */
 	initackm_out->msg.init.num_inbound_streams =
 	    htons(inp->sctp_ep.max_open_streams_intome);
-	/* setup the ECN pointer */
 
-	if (inp->sctp_ep.adaptation_layer_indicator) {
-		struct sctp_adaptation_layer_indication *ali;
-
-		ali = (struct sctp_adaptation_layer_indication *)(
-		    (caddr_t)initackm_out + sizeof(*initackm_out));
-		ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
-		ali->ph.param_length = htons(sizeof(*ali));
-		ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
-		SCTP_BUF_LEN(m) += sizeof(*ali);
-		ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali +
-		    sizeof(*ali));
-	} else {
-		ecn = (struct sctp_ecn_supported_param *)(
-		    (caddr_t)initackm_out + sizeof(*initackm_out));
-	}
+	/* adaptation layer indication parameter */
+	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)initackm_out + sizeof(*initackm_out));
+	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
+	ali->ph.param_length = htons(sizeof(*ali));
+	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
+	SCTP_BUF_LEN(m) += sizeof(*ali);
+	ecn = (struct sctp_ecn_supported_param *)((caddr_t)ali + sizeof(*ali));
 
 	/* ECN parameter */
 	if (SCTP_BASE_SYSCTL(sctp_ecn_enable) == 1) {
@@ -6816,6 +6801,9 @@ re_look:
 	if (sp->sinfo_flags & SCTP_UNORDERED) {
 		rcv_flags |= SCTP_DATA_UNORDERED;
 	}
+	if (SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) && ((sp->sinfo_flags & SCTP_EOF) == SCTP_EOF)) {
+		rcv_flags |= SCTP_DATA_SACK_IMMEDIATELY;
+	}
 	/* clear out the chunk before setting up */
 	memset(chk, 0, sizeof(*chk));
 	chk->rec.data.rcv_flags = rcv_flags;
@@ -8061,6 +8049,13 @@ again_one_more_time:
 					SCTP_PRINTF("Warning chunk of %d bytes > mtu:%d and yet PMTU disc missed\n",
 					    chk->send_size, mtu);
 					chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
+				}
+				if (SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) &&
+				    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) == SCTP_STATE_SHUTDOWN_PENDING)) {
+					struct sctp_data_chunk *dchkh;
+
+					dchkh = mtod(chk->data, struct sctp_data_chunk *);
+					dchkh->ch.chunk_flags |= SCTP_DATA_SACK_IMMEDIATELY;
 				}
 				if (((chk->send_size <= mtu) && (chk->send_size <= r_mtu)) ||
 				    ((chk->flags & CHUNK_FLAGS_FRAGMENT_OK) && (chk->send_size <= asoc->peers_rwnd))) {
@@ -11687,7 +11682,12 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->put_last_out = 0;
 	resv_in_first = sizeof(struct sctp_data_chunk);
 	sp->data = sp->tail_mbuf = NULL;
+	if (sp->length == 0) {
+		*error = 0;
+		goto skip_copy;
+	}
 	*error = sctp_copy_one(sp, uio, resv_in_first);
+skip_copy:
 	if (*error) {
 		sctp_free_a_strmoq(stcb, sp);
 		sp = NULL;
@@ -11737,7 +11737,7 @@ sctp_sosend(struct socket *so,
 		}
 	}
 	addr_to_use = addr;
-#ifdef INET6
+#if defined(INET6)  && !defined(__Userspace__)	/* TODO port in6_sin6_2_sin */
 	if ((addr) && (addr->sa_family == AF_INET6)) {
 		struct sockaddr_in6 *sin6;
 
@@ -12435,7 +12435,7 @@ sctp_lower_sosend(struct socket *so,
 		goto out_unlocked;
 	}
 	if (user_marks_eor) {
-		local_add_more = SCTP_BASE_SYSCTL(sctp_add_more_threshold);
+		local_add_more = min(SCTP_SB_LIMIT_SND(so), SCTP_BASE_SYSCTL(sctp_add_more_threshold));
 	} else {
 		/*-
 		 * For non-eeor the whole message must fit in
@@ -12448,14 +12448,21 @@ sctp_lower_sosend(struct socket *so,
 		goto skip_preblock;
 	}
 	if (((max_len <= local_add_more) &&
-	    (SCTP_SB_LIMIT_SND(so) > local_add_more)) ||
+	    (SCTP_SB_LIMIT_SND(so) >= local_add_more)) ||
+	    (max_len == 0) ||
 	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue))) {	/* if */
 		/* No room right now ! */
 		SOCKBUF_LOCK(&so->so_snd);
 		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
-		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + SCTP_BASE_SYSCTL(sctp_add_more_threshold))) ||
-		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue) /* while */ )) {
-
+		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + local_add_more)) ||
+		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue)) /* while */ ) {
+			SCTPDBG(SCTP_DEBUG_OUTPUT1, "pre_block limit:%d <(inq:%d + %d) || (%d+%d > %d)\n",
+			    SCTP_SB_LIMIT_SND(so),
+			    inqueue_bytes,
+			    local_add_more,
+			    stcb->asoc.stream_queue_cnt,
+			    stcb->asoc.chunks_on_out_queue,
+			    SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue));
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA,
 				    so, asoc, sndlen);
@@ -13063,7 +13070,7 @@ skip_out_eof:
 		(void)sctp_med_chunk_output(inp, stcb, &stcb->asoc, &num_out,
 		    &reason, 1, &cwnd_full, 1, &now, &now_filled, frag_point, SCTP_SO_LOCKED);
 	}
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "USR Send complete qo:%d prw:%d unsent:%d tf:%d cooq:%d toqs:%d err:%d",
+	SCTPDBG(SCTP_DEBUG_OUTPUT1, "USR Send complete qo:%d prw:%d unsent:%d tf:%d cooq:%d toqs:%d err:%d\n",
 	    queue_only, stcb->asoc.peers_rwnd, un_sent,
 	    stcb->asoc.total_flight, stcb->asoc.chunks_on_out_queue,
 	    stcb->asoc.total_output_queue_size, error);

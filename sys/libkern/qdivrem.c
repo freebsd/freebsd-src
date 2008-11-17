@@ -59,7 +59,7 @@ typedef u_long digit;
  * We may assume len >= 0.  NOTE THAT THIS WRITES len+1 DIGITS.
  */
 static void
-shl(register digit *p, register int len, register int sh)
+__shl(register digit *p, register int len, register int sh)
 {
 	register int i;
 
@@ -182,8 +182,8 @@ __qdivrem(uq, vq, arq)
 	for (t = v[1]; t < B / 2; t <<= 1)
 		d++;
 	if (d > 0) {
-		shl(&u[0], m + n, d);		/* u <<= d */
-		shl(&v[1], n - 1, d);		/* v <<= d */
+		__shl(&u[0], m + n, d);		/* u <<= d */
+		__shl(&v[1], n - 1, d);		/* v <<= d */
 	}
 	/*
 	 * D2: j = 0.

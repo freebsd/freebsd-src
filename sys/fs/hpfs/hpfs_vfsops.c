@@ -325,7 +325,7 @@ failed:
 	mp->mnt_data = NULL;
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(cp, td);
+	g_vfs_close(cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	return (error);
@@ -356,10 +356,10 @@ hpfs_unmount(
 		return (error);
 	}
 
-	vinvalbuf(hpmp->hpm_devvp, V_SAVE, td, 0, 0);
+	vinvalbuf(hpmp->hpm_devvp, V_SAVE, 0, 0);
 	DROP_GIANT();
 	g_topology_lock();
-	g_vfs_close(hpmp->hpm_cp, td);
+	g_vfs_close(hpmp->hpm_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(hpmp->hpm_devvp);
@@ -371,7 +371,7 @@ hpfs_unmount(
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	FREE(hpmp, M_HPFSMNT);
+	free(hpmp, M_HPFSMNT);
 
 	return (0);
 }
@@ -476,13 +476,13 @@ hpfs_vget(
 	 * at that time is little, and anyway - we'll
 	 * check for it).
 	 */
-	MALLOC(hp, struct hpfsnode *, sizeof(struct hpfsnode), 
+	hp = malloc(sizeof(struct hpfsnode), 
 		M_HPFSNO, M_WAITOK);
 
 	error = getnewvnode("hpfs", mp, &hpfs_vnodeops, &vp);
 	if (error) {
 		printf("hpfs_vget: can't get new vnode\n");
-		FREE(hp, M_HPFSNO);
+		free(hp, M_HPFSNO);
 		return (error);
 	}
 

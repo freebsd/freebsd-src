@@ -17,17 +17,15 @@
 # $ cd ~/svn/vendor/tzdata
 # $ svn cp svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist \
 #	svn+ssh://svn.freebsd.org/base/vendor/tzdata/tzdata2008X
-# $ svn update
+# $ svn update	# Commit message: "Tag of tzdata2008X"
 #
 # Merge-from-vendor
 #
-# $ cd ~svn/head/share/zoneinfo
+# $ cd ~/svn/head/share/zoneinfo
 # $ svn update
-# $ svn merge --accept=postpone \
+# $ svn merge -c X --accept=postpone \
 #	svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist .
-# $ svn diff --no-diff-deleted \
-#	--old=svn+ssh://svn.freebsd.org/base/vendor/tzdata/dist --new=.
-# $ svn commit
+# $ svn update	# Commit message: "MFV of tzdata2008X"
 #
 
 CLEANFILES+=	yearistype

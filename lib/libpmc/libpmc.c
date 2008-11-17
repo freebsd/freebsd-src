@@ -59,6 +59,10 @@ static int p5_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
 static int p6_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
+#if defined(__amd64__) || defined(__i386__)
+static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+#endif
 
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
@@ -77,22 +81,95 @@ struct pmc_event_alias {
 static const struct pmc_event_alias *pmc_mdep_event_aliases;
 
 /*
- * The pmc_event_descr table maps symbolic names known to the user
+ * The pmc_event_descr structure maps symbolic names known to the user
  * to integer codes used by the PMC KLD.
  */
 struct pmc_event_descr {
 	const char	*pm_ev_name;
 	enum pmc_event	pm_ev_code;
-	enum pmc_class	pm_ev_class;
 };
 
-static const struct pmc_event_descr
-pmc_event_table[] =
-{
-#undef  __PMC_EV
-#define	__PMC_EV(C,N,EV) { #EV, PMC_EV_ ## C ## _ ## N, PMC_CLASS_ ## C },
-	__PMC_EVENTS()
+/*
+ * The pmc_class_descr structure maps class name prefixes for
+ * event names to event tables and other PMC class data.
+ */
+struct pmc_class_descr {
+	const char	*pm_evc_name;
+	size_t		pm_evc_name_size;
+	enum pmc_class	pm_evc_class;
+	const struct pmc_event_descr *pm_evc_event_table;
+	size_t		pm_evc_event_table_size;
+	int		(*pm_evc_allocate_pmc)(enum pmc_event _pe,
+			    char *_ctrspec, struct pmc_op_pmcallocate *_pa);
 };
+
+#define	PMC_TABLE_SIZE(N)	(sizeof(N)/sizeof(N[0]))
+#define	PMC_EVENT_TABLE_SIZE(N)	PMC_TABLE_SIZE(N##_event_table)
+
+#undef	__PMC_EV
+#define	__PMC_EV(C,N) { #N, PMC_EV_ ## C ## _ ## N },
+
+/*
+ * PMC_MDEP_TABLE(NAME, CLASS, ADDITIONAL_CLASSES...)
+ *
+ * Build an event descriptor table and a list of valid PMC classes.
+ */
+#define	PMC_MDEP_TABLE(N,C,...)				\
+	static const struct pmc_event_descr N##_event_table[] =	\
+	{							\
+		__PMC_EV_##C()					\
+	};							\
+	static const enum pmc_class N##_pmc_classes[] = {	\
+		PMC_CLASS_##C, __VA_ARGS__			\
+	}
+
+PMC_MDEP_TABLE(k7, K7, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
+
+static const struct pmc_event_descr tsc_event_table[] =
+{
+	__PMC_EV_TSC()
+};
+
+#undef	PMC_CLASS_TABLE_DESC
+#define	PMC_CLASS_TABLE_DESC(N, C)	{			\
+		.pm_evc_name  = #N "-",				\
+		.pm_evc_name_size = sizeof(#N "-") - 1,		\
+		.pm_evc_class = PMC_CLASS_##C ,			\
+		.pm_evc_event_table = N##_event_table ,		\
+		.pm_evc_event_table_size = 			\
+			PMC_EVENT_TABLE_SIZE(N),		\
+		.pm_evc_allocate_pmc = N##_allocate_pmc		\
+	}
+
+static const struct pmc_class_descr pmc_class_table[] =
+{
+#if	defined(__i386__)
+	PMC_CLASS_TABLE_DESC(k7, K7),
+#endif
+#if	defined(__i386__) || defined(__amd64__)
+	PMC_CLASS_TABLE_DESC(k8, K8),
+	PMC_CLASS_TABLE_DESC(p4, P4),
+#endif
+#if	defined(__i386__)
+	PMC_CLASS_TABLE_DESC(p5, P5),
+	PMC_CLASS_TABLE_DESC(p6, P6),
+#endif
+#if	defined(__i386__) || defined(__amd64__)
+	PMC_CLASS_TABLE_DESC(tsc, TSC)
+#endif
+};
+
+static size_t pmc_event_class_table_size =
+    PMC_TABLE_SIZE(pmc_class_table);
+
+#undef	PMC_CLASS_TABLE_DESC
+
+static const enum pmc_class *pmc_mdep_class_list;
+static size_t pmc_mdep_class_list_size;
 
 /*
  * Mapping tables, mapping enumeration values to human readable
@@ -111,9 +188,14 @@ static const char * pmc_class_names[] = {
 	__PMC_CLASSES()
 };
 
-static const char * pmc_cputype_names[] = {
+struct pmc_cputype_map {
+	enum pmc_class	pm_cputype;
+	const char	*pm_name;
+};
+
+static const struct pmc_cputype_map pmc_cputype_names[] = {
 #undef	__PMC_CPU
-#define	__PMC_CPU(S, D) #S ,
+#define	__PMC_CPU(S, V, D) { .pm_cputype = PMC_CPU_##S, .pm_name = #S } ,
 	__PMC_CPUS()
 };
 
@@ -139,11 +221,6 @@ static int pmc_syscall = -1;		/* filled in by pmc_init() */
 
 static struct pmc_cpuinfo cpu_info;	/* filled in by pmc_init() */
 
-
-/* Architecture dependent event parsing */
-static int (*pmc_mdep_allocate_pmc)(enum pmc_event _pe, char *_ctrspec,
-    struct pmc_op_pmcallocate *_pmc_config);
-
 /* Event masks for events */
 struct pmc_masks {
 	const char	*pm_name;
@@ -167,7 +244,8 @@ pmc_parse_mask(const struct pmc_masks *pmask, char *p, uint32_t *evmask)
 		return (-1);
 	c = 0;			/* count of mask keywords seen */
 	while ((r = strsep(&q, "+")) != NULL) {
-		for (pm = pmask; pm->pm_name && strcmp(r, pm->pm_name); pm++)
+		for (pm = pmask; pm->pm_name && strcasecmp(r, pm->pm_name);
+		    pm++)
 			;
 		if (pm->pm_name == NULL) /* not found */
 			return (-1);
@@ -215,14 +293,7 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	uint32_t	count, unitmask;
 
 	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
-	pmc_config->pm_caps |= PMC_CAP_READ;
-
-	if (pe == PMC_EV_TSC_TSC) {
-		/* TSC events must be unqualified. */
-		if (ctrspec && *ctrspec != '\0')
-			return (-1);
-		return (0);
-	}
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 
 	if (pe == PMC_EV_K7_DC_REFILLS_FROM_L2 ||
 	    pe == PMC_EV_K7_DC_REFILLS_FROM_SYSTEM ||
@@ -231,8 +302,6 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 		unitmask = AMD_PMC_UNITMASK_MOESI;
 	} else
 		unitmask = has_unitmask = 0;
-
-	pmc_config->pm_caps |= PMC_CAP_WRITE;
 
 	while ((p = strsep(&ctrspec, ",")) != NULL) {
 		if (KWPREFIXMATCH(p, K7_KW_COUNT "=")) {
@@ -514,15 +583,8 @@ k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	uint32_t	count, evmask;
 	const struct pmc_masks	*pm, *pmask;
 
-	pmc_config->pm_caps |= PMC_CAP_READ;
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
-
-	if (pe == PMC_EV_TSC_TSC) {
-		/* TSC events must be unqualified. */
-		if (ctrspec && *ctrspec != '\0')
-			return (-1);
-		return (0);
-	}
 
 	pmask = NULL;
 	evmask = 0;
@@ -596,8 +658,6 @@ k8_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	default:
 		break;		/* no options defined */
 	}
-
-	pmc_config->pm_caps |= PMC_CAP_WRITE;
 
 	while ((p = strsep(&ctrspec, ",")) != NULL) {
 		if (KWPREFIXMATCH(p, K8_KW_COUNT "=")) {
@@ -1005,22 +1065,14 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	uint32_t evmask, cccractivemask;
 	const struct pmc_masks *pm, *pmask;
 
-	pmc_config->pm_caps |= PMC_CAP_READ;
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	pmc_config->pm_md.pm_p4.pm_p4_cccrconfig =
 	    pmc_config->pm_md.pm_p4.pm_p4_escrconfig = 0;
-
-	if (pe == PMC_EV_TSC_TSC) {
-		/* TSC must not be further qualified */
-		if (ctrspec && *ctrspec != '\0')
-			return (-1);
-		return (0);
-	}
 
 	pmask   = NULL;
 	evmask  = 0;
 	cccractivemask = 0x3;
 	has_tag = has_busreqtype = 0;
-	pmc_config->pm_caps |= PMC_CAP_WRITE;
 
 #define	__P4SETMASK(M) do {				\
 	pmask = p4_mask_##M;				\
@@ -1166,13 +1218,13 @@ p4_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			if (*++q == '\0') /* skip '=' */
 				return (-1);
 
-			if (strcmp(q, P4_KW_ACTIVE_NONE) == 0)
+			if (strcasecmp(q, P4_KW_ACTIVE_NONE) == 0)
 				cccractivemask = 0x0;
-			else if (strcmp(q, P4_KW_ACTIVE_SINGLE) == 0)
+			else if (strcasecmp(q, P4_KW_ACTIVE_SINGLE) == 0)
 				cccractivemask = 0x1;
-			else if (strcmp(q, P4_KW_ACTIVE_BOTH) == 0)
+			else if (strcasecmp(q, P4_KW_ACTIVE_BOTH) == 0)
 				cccractivemask = 0x2;
-			else if (strcmp(q, P4_KW_ACTIVE_ANY) == 0)
+			else if (strcasecmp(q, P4_KW_ACTIVE_ANY) == 0)
 				cccractivemask = 0x3;
 			else
 				return (-1);
@@ -1442,16 +1494,9 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	int count, n;
 	const struct pmc_masks *pm, *pmask;
 
-	pmc_config->pm_caps |= PMC_CAP_READ;
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
 	pmc_config->pm_md.pm_ppro.pm_ppro_config = 0;
 
-	if (pe == PMC_EV_TSC_TSC) {
-		if (ctrspec && *ctrspec != '\0')
-			return (-1);
-		return (0);
-	}
-
-	pmc_config->pm_caps |= PMC_CAP_WRITE;
 	evmask = 0;
 
 #define	P6MASKSET(M)	pmask = p6_mask_ ## M
@@ -1638,6 +1683,93 @@ p6_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 #endif
 
+#if	defined(__i386__) || defined(__amd64__)
+static int
+tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	if (pe != PMC_EV_TSC_TSC)
+		return (-1);
+
+	/* TSC events must be unqualified. */
+	if (ctrspec && *ctrspec != '\0')
+		return (-1);
+
+	pmc_config->pm_md.pm_amd.pm_amd_config = 0;
+	pmc_config->pm_caps |= PMC_CAP_READ;
+
+	return (0);
+}
+#endif
+
+/*
+ * Match an event name `name' with its canonical form.
+ * 
+ * Matches are case insensitive and spaces, underscores and hyphen
+ * characters are considered to match each other.
+ *
+ * Returns 1 for a match, 0 otherwise.
+ */
+
+static int
+pmc_match_event_name(const char *name, const char *canonicalname)
+{
+	int cc, nc;
+	const unsigned char *c, *n;
+
+	c = (const unsigned char *) canonicalname;
+	n = (const unsigned char *) name;
+
+	for (; (nc = *n) && (cc = *c); n++, c++) {
+
+		if (toupper(nc) == cc)
+			continue;
+
+		if ((nc == ' ' || nc == '_' || nc == '-') &&
+		    (cc == ' ' || cc == '_' || cc == '-'))
+			continue;
+
+		return (0);
+	}
+
+	if (*n == '\0' && *c == '\0')
+		return (1);
+
+	return (0);
+}
+
+/*
+ * Match an event name against all the event named supported by a
+ * PMC class.
+ *
+ * Returns an event descriptor pointer on match or NULL otherwise.
+ */
+static const struct pmc_event_descr *
+pmc_match_event_class(const char *name,
+    const struct pmc_class_descr *pcd)
+{
+	size_t n;
+	const struct pmc_event_descr *ev;
+	
+	ev = pcd->pm_evc_event_table;
+	for (n = 0; n < pcd->pm_evc_event_table_size; n++, ev++)
+		if (pmc_match_event_name(name, ev->pm_ev_name))
+			return (ev);
+
+	return (NULL);
+}
+
+static int
+pmc_mdep_is_compatible_class(enum pmc_class pc)
+{
+	size_t n;
+
+	for (n = 0; n < pmc_mdep_class_list_size; n++)
+		if (pmc_mdep_class_list[n] == pc)
+			return (1);
+	return (0);
+}
+
 /*
  * API entry points
  */
@@ -1646,12 +1778,14 @@ int
 pmc_allocate(const char *ctrspec, enum pmc_mode mode,
     uint32_t flags, int cpu, pmc_id_t *pmcid)
 {
+	size_t n;
 	int retval;
-	enum pmc_event pe;
 	char *r, *spec_copy;
 	const char *ctrname;
-	const struct pmc_event_alias *p;
+	const struct pmc_event_descr *ev;
+	const struct pmc_event_alias *alias;
 	struct pmc_op_pmcallocate pmc_config;
+	const struct pmc_class_descr *pcd;
 
 	spec_copy = NULL;
 	retval    = -1;
@@ -1664,9 +1798,9 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 
 	/* replace an event alias with the canonical event specifier */
 	if (pmc_mdep_event_aliases)
-		for (p = pmc_mdep_event_aliases; p->pm_alias; p++)
-			if (!strcmp(ctrspec, p->pm_alias)) {
-				spec_copy = strdup(p->pm_spec);
+		for (alias = pmc_mdep_event_aliases; alias->pm_alias; alias++)
+			if (!strcasecmp(ctrspec, alias->pm_alias)) {
+				spec_copy = strdup(alias->pm_spec);
 				break;
 			}
 
@@ -1676,19 +1810,43 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	r = spec_copy;
 	ctrname = strsep(&r, ",");
 
-	/* look for the given counter name */
-	for (pe = PMC_EVENT_FIRST; pe < (PMC_EVENT_LAST+1); pe++)
-		if (!strcmp(ctrname, pmc_event_table[pe].pm_ev_name))
+	/*
+	 * If a explicit class prefix was given by the user, restrict the
+	 * search for the event to the specified PMC class.
+	 */
+	ev = NULL;
+	for (n = 0; n < pmc_event_class_table_size; n++) {
+		pcd = &pmc_class_table[n];
+		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class) &&
+		    strncasecmp(ctrname, pcd->pm_evc_name,
+				pcd->pm_evc_name_size) == 0) {
+			if ((ev = pmc_match_event_class(ctrname +
+			    pcd->pm_evc_name_size, pcd)) == NULL) {
+				errno = EINVAL;
+				goto out;
+			}
 			break;
+		}
+	}
 
-	if (pe > PMC_EVENT_LAST) {
+	/*
+	 * Otherwise, search for this event in all compatible PMC
+	 * classes.
+	 */
+	for (n = 0; ev == NULL && n < pmc_event_class_table_size; n++) {
+		pcd = &pmc_class_table[n];
+		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class))
+			ev = pmc_match_event_class(ctrname, pcd);
+	}
+
+	if (ev == NULL) {
 		errno = EINVAL;
 		goto out;
 	}
 
 	bzero(&pmc_config, sizeof(pmc_config));
-	pmc_config.pm_ev    = pmc_event_table[pe].pm_ev_code;
-	pmc_config.pm_class = pmc_event_table[pe].pm_ev_class;
+	pmc_config.pm_ev    = ev->pm_ev_code;
+	pmc_config.pm_class = pcd->pm_evc_class;
 	pmc_config.pm_cpu   = cpu;
 	pmc_config.pm_mode  = mode;
 	pmc_config.pm_flags = flags;
@@ -1696,7 +1854,7 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	if (PMC_IS_SAMPLING_MODE(mode))
 		pmc_config.pm_caps |= PMC_CAP_INTERRUPT;
 
-	if (pmc_mdep_allocate_pmc(pe, r, &pmc_config) < 0) {
+ 	if (pcd->pm_evc_allocate_pmc(ev->pm_ev_code, r, &pmc_config) < 0) {
 		errno = EINVAL;
 		goto out;
 	}
@@ -1817,28 +1975,28 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 	switch (cl)
 	{
 	case PMC_CLASS_TSC:
-		ev = &pmc_event_table[PMC_EV_TSC_TSC];
-		count = 1;
+		ev = tsc_event_table;
+		count = PMC_EVENT_TABLE_SIZE(tsc);
 		break;
 	case PMC_CLASS_K7:
-		ev = &pmc_event_table[PMC_EV_K7_FIRST];
-		count = PMC_EV_K7_LAST - PMC_EV_K7_FIRST + 1;
+		ev = k7_event_table;
+		count = PMC_EVENT_TABLE_SIZE(k7);
 		break;
 	case PMC_CLASS_K8:
-		ev = &pmc_event_table[PMC_EV_K8_FIRST];
-		count = PMC_EV_K8_LAST - PMC_EV_K8_FIRST + 1;
-		break;
-	case PMC_CLASS_P5:
-		ev = &pmc_event_table[PMC_EV_P5_FIRST];
-		count = PMC_EV_P5_LAST - PMC_EV_P5_FIRST + 1;
-		break;
-	case PMC_CLASS_P6:
-		ev = &pmc_event_table[PMC_EV_P6_FIRST];
-		count = PMC_EV_P6_LAST - PMC_EV_P6_FIRST + 1;
+		ev = k8_event_table;
+		count = PMC_EVENT_TABLE_SIZE(k8);
 		break;
 	case PMC_CLASS_P4:
-		ev = &pmc_event_table[PMC_EV_P4_FIRST];
-		count = PMC_EV_P4_LAST - PMC_EV_P4_FIRST + 1;
+		ev = p4_event_table;
+		count = PMC_EVENT_TABLE_SIZE(p4);
+		break;
+	case PMC_CLASS_P5:
+		ev = p5_event_table;
+		count = PMC_EVENT_TABLE_SIZE(p5);
+		break;
+	case PMC_CLASS_P6:
+		ev = p6_event_table;
+		count = PMC_EVENT_TABLE_SIZE(p6);
 		break;
 	default:
 		errno = EINVAL;
@@ -1937,33 +2095,35 @@ pmc_init(void)
 	for (n = 0; n < cpu_info.pm_nclass; n++)
 		cpu_info.pm_classes[n] = op_cpu_info.pm_classes[n];
 
-	/* set parser pointer */
+#define	PMC_MDEP_INIT(C) do {					\
+		pmc_mdep_event_aliases    = C##_aliases;	\
+		pmc_mdep_class_list  = C##_pmc_classes;		\
+		pmc_mdep_class_list_size =			\
+		    PMC_TABLE_SIZE(C##_pmc_classes);		\
+	} while (0)
+
+	/* Configure the event name parser. */
 	switch (cpu_info.pm_cputype) {
 #if defined(__i386__)
 	case PMC_CPU_AMD_K7:
-		pmc_mdep_event_aliases = k7_aliases;
-		pmc_mdep_allocate_pmc = k7_allocate_pmc;
+		PMC_MDEP_INIT(k7);
 		break;
 	case PMC_CPU_INTEL_P5:
-		pmc_mdep_event_aliases = p5_aliases;
-		pmc_mdep_allocate_pmc = p5_allocate_pmc;
+		PMC_MDEP_INIT(p5);
 		break;
 	case PMC_CPU_INTEL_P6:		/* P6 ... Pentium M CPUs have */
 	case PMC_CPU_INTEL_PII:		/* similar PMCs. */
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
-		pmc_mdep_event_aliases = p6_aliases;
-		pmc_mdep_allocate_pmc = p6_allocate_pmc;
+		PMC_MDEP_INIT(p6);
 		break;
 #endif
 #if defined(__amd64__) || defined(__i386__)
-	case PMC_CPU_INTEL_PIV:
-		pmc_mdep_event_aliases = p4_aliases;
-		pmc_mdep_allocate_pmc = p4_allocate_pmc;
-		break;
 	case PMC_CPU_AMD_K8:
-		pmc_mdep_event_aliases = k8_aliases;
-		pmc_mdep_allocate_pmc = k8_allocate_pmc;
+		PMC_MDEP_INIT(k8);
+		break;
+	case PMC_CPU_INTEL_PIV:
+		PMC_MDEP_INIT(p4);
 		break;
 #endif
 
@@ -2013,9 +2173,12 @@ pmc_name_of_class(enum pmc_class pc)
 const char *
 pmc_name_of_cputype(enum pmc_cputype cp)
 {
-	if ((int) cp >= PMC_CPU_FIRST &&
-	    cp <= PMC_CPU_LAST)
-		return (pmc_cputype_names[cp]);
+	size_t n;
+
+	for (n = 0; n < PMC_TABLE_SIZE(pmc_cputype_names); n++)
+		if (cp == pmc_cputype_names[n].pm_cputype)
+			return (pmc_cputype_names[n].pm_name);
+
 	errno = EINVAL;
 	return (NULL);
 }
@@ -2034,9 +2197,32 @@ pmc_name_of_disposition(enum pmc_disp pd)
 const char *
 pmc_name_of_event(enum pmc_event pe)
 {
-	if ((int) pe >= PMC_EVENT_FIRST &&
-	    pe <= PMC_EVENT_LAST)
-		return (pmc_event_table[pe].pm_ev_name);
+	const struct pmc_event_descr *ev, *evfence;
+
+	ev = evfence = NULL;
+	if (pe >= PMC_EV_K7_FIRST && pe <= PMC_EV_K7_LAST) {
+		ev = k7_event_table;
+		evfence = k7_event_table + PMC_EVENT_TABLE_SIZE(k7);
+	} else if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
+		ev = k8_event_table;
+		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
+	} else if (pe >= PMC_EV_P4_FIRST && pe <= PMC_EV_P4_LAST) {
+		ev = p4_event_table;
+		evfence = p4_event_table + PMC_EVENT_TABLE_SIZE(p4);
+	} else if (pe >= PMC_EV_P5_FIRST && pe <= PMC_EV_P5_LAST) {
+		ev = p5_event_table;
+		evfence = p5_event_table + PMC_EVENT_TABLE_SIZE(p5);
+	} else if (pe >= PMC_EV_P6_FIRST && pe <= PMC_EV_P6_LAST) {
+		ev = p6_event_table;
+		evfence = p6_event_table + PMC_EVENT_TABLE_SIZE(p6);
+	} else if (pe == PMC_EV_TSC_TSC) {
+		ev = tsc_event_table;
+		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
+	}
+
+	for (; ev != evfence; ev++)
+		if (pe == ev->pm_ev_code)
+			return (ev->pm_ev_name);
 
 	errno = EINVAL;
 	return (NULL);

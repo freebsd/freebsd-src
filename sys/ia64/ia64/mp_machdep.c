@@ -125,7 +125,7 @@ ia64_ap_startup(void)
 	ia64_mca_save_state(SAL_INFO_MCA);
 	ia64_mca_save_state(SAL_INFO_CMC);
 
-	ap_awake++;
+	atomic_add_int(&ap_awake, 1);
 	while (!smp_started)
 		cpu_spinwait();
 

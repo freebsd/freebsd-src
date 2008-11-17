@@ -399,8 +399,8 @@ vpoio_detect(struct vpoio_data *vpo)
 		if (!vpoio_in_disk_mode(vpo)) {
 			vpo->vpo_mode_found = VP0_MODE_UNDEFINED;
 			if (bootverbose)
-				printf("vpo%d: can't connect to the drive\n",
-					vpo->vpo_unit);
+				device_printf(vpo->vpo_dev,
+				    "can't connect to the drive\n");
 
 			/* disconnect and release the bus */
 			ppb_MS_microseq(ppbus, vpo->vpo_dev, disconnect_microseq,
@@ -420,8 +420,8 @@ vpoio_detect(struct vpoio_data *vpo)
 	 * may cause serious problem to the disk */
 	if (vpoio_in_disk_mode(vpo)) {
 		if (bootverbose)
-			printf("vpo%d: can't disconnect from the drive\n",
-				vpo->vpo_unit);
+			device_printf(vpo->vpo_dev,
+			    "can't disconnect from the drive\n");
 		goto error;
 	}
 
@@ -617,17 +617,17 @@ vpoio_attach(struct vpoio_data *vpo)
 	case VP0_MODE_EPP:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr_body);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr_body);
-		printf("vpo%d: EPP mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "EPP mode\n");
 		break;
 	case VP0_MODE_PS2:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, ps2_inbyte_submicroseq);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-		printf("vpo%d: PS2 mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "PS2 mode\n");
 		break;
 	case VP0_MODE_NIBBLE:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-		printf("vpo%d: NIBBLE mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "NIBBLE mode\n");
 		break;
 	default:
 		panic("vpo: unknown mode %d", vpo->vpo_mode_found);

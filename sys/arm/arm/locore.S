@@ -66,6 +66,13 @@ __FBSDID("$FreeBSD$");
 ENTRY_NP(btext)
 
 ASENTRY_NP(_start)
+
+/*
+ * Move metadata ptr to r12 (ip)
+ */
+
+	mov	ip, r0
+
 #if defined (FLASHADDR) && defined(LOADERRAMADDR)
 	/* Check if we're running from flash. */
 	ldr	r7, =FLASHADDR
@@ -170,6 +177,8 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
+	mov	r0, ip			/* Load argument: metadata ptr */
+
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -245,6 +254,8 @@ ENTRY_NP(cpu_halt)
 	ldr	r0, .Lcpufuncs
 	mov	lr, pc
 	ldr	pc, [r0, #CF_IDCACHE_WBINV_ALL]
+	mov	lr, pc
+	ldr	pc, [r0, #CF_L2CACHE_WBINV_ALL]
 
 	/*
 	 * Load the cpu_reset_needs_v4_MMU_disable flag to determine if it's

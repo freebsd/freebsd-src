@@ -41,7 +41,25 @@ __FBSDID("$FreeBSD$");
 
 #include "dev/drm/drmP.h"
 
-MALLOC_DEFINE(M_DRM, "drm", "DRM Data Structures");
+MALLOC_DEFINE(DRM_MEM_DMA, "drm_dma", "DRM DMA Data Structures");
+MALLOC_DEFINE(DRM_MEM_SAREA, "drm_sarea", "DRM SAREA Data Structures");
+MALLOC_DEFINE(DRM_MEM_DRIVER, "drm_driver", "DRM DRIVER Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAGIC, "drm_magic", "DRM MAGIC Data Structures");
+MALLOC_DEFINE(DRM_MEM_IOCTLS, "drm_ioctls", "DRM IOCTL Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAPS, "drm_maps", "DRM MAP Data Structures");
+MALLOC_DEFINE(DRM_MEM_BUFS, "drm_bufs", "DRM BUFFER Data Structures");
+MALLOC_DEFINE(DRM_MEM_SEGS, "drm_segs", "DRM SEGMENTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_PAGES, "drm_pages", "DRM PAGES Data Structures");
+MALLOC_DEFINE(DRM_MEM_FILES, "drm_files", "DRM FILE Data Structures");
+MALLOC_DEFINE(DRM_MEM_QUEUES, "drm_queues", "DRM QUEUE Data Structures");
+MALLOC_DEFINE(DRM_MEM_CMDS, "drm_cmds", "DRM COMMAND Data Structures");
+MALLOC_DEFINE(DRM_MEM_MAPPINGS, "drm_mapping", "DRM MAPPING Data Structures");
+MALLOC_DEFINE(DRM_MEM_BUFLISTS, "drm_buflists", "DRM BUFLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_AGPLISTS, "drm_agplists", "DRM AGPLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_CTXBITMAP, "drm_ctxbitmap",
+    "DRM CTXBITMAP Data Structures");
+MALLOC_DEFINE(DRM_MEM_SGLISTS, "drm_sglists", "DRM SGLISTS Data Structures");
+MALLOC_DEFINE(DRM_MEM_DRAWABLE, "drm_drawable", "DRM DRAWABLE Data Structures");
 
 void drm_mem_init(void)
 {
@@ -49,35 +67,6 @@ void drm_mem_init(void)
 
 void drm_mem_uninit(void)
 {
-}
-
-void *drm_alloc(size_t size, int area)
-{
-	return malloc(size, M_DRM, M_NOWAIT);
-}
-
-void *drm_calloc(size_t nmemb, size_t size, int area)
-{
-	return malloc(size * nmemb, M_DRM, M_NOWAIT | M_ZERO);
-}
-
-void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area)
-{
-	void *pt;
-
-	pt = malloc(size, M_DRM, M_NOWAIT);
-	if (pt == NULL)
-		return NULL;
-	if (oldpt && oldsize) {
-		memcpy(pt, oldpt, DRM_MIN(oldsize,size));
-		free(oldpt, M_DRM);
-	}
-	return pt;
-}
-
-void drm_free(void *pt, size_t size, int area)
-{
-	free(pt, M_DRM);
 }
 
 void *drm_ioremap_wc(struct drm_device *dev, drm_local_map_t *map)

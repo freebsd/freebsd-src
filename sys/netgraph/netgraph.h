@@ -915,7 +915,7 @@ _ngi_hook(item_p item, char *file, int line)
 #define NG_FREE_MSG(msg)						\
 	do {								\
 		if ((msg)) {						\
-			FREE((msg), M_NETGRAPH_MSG);			\
+			free((msg), M_NETGRAPH_MSG);			\
 			(msg) = NULL;					\
 		}	 						\
 	} while (0)

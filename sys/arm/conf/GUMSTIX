@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		GUMSTIX
 cpu		CPU_XSCALE_PXA2X0
 
@@ -71,7 +70,6 @@ options		BOOTP_BLOCKSIZE=4096
 options		PREEMPTION
 device		loop
 device		ether
-device		mem			# Memory and kernel memory devices
 device		mii
 device		smc
 device		smcphy

@@ -910,9 +910,6 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 #endif
 	asoc->sb_send_resv = 0;
 	if (override_tag) {
-		struct timeval now;
-
-		(void)SCTP_GETTIME_TIMEVAL(&now);
 		if (sctp_is_in_timewait(override_tag)) {
 			/*
 			 * It must be in the time-wait hash, we put it there
@@ -1466,6 +1463,9 @@ sctp_timeout_handler(void *t)
 		SCTP_INP_INCR_REF(inp);
 		if ((inp->sctp_socket == 0) &&
 		    ((tmr->type != SCTP_TIMER_TYPE_INPKILL) &&
+		    (tmr->type != SCTP_TIMER_TYPE_SEND) &&
+		    (tmr->type != SCTP_TIMER_TYPE_RECV) &&
+		    (tmr->type != SCTP_TIMER_TYPE_HEARTBEAT) &&
 		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWN) &&
 		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWNACK) &&
 		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWNGUARD) &&
@@ -5896,9 +5896,10 @@ release_unlocked:
 		    (no_rcv_needed == 0))
 			sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 	}
-	if (msg_flags)
-		*msg_flags = out_flags;
 out:
+	if (msg_flags) {
+		*msg_flags = out_flags;
+	}
 	if (((out_flags & MSG_EOR) == 0) &&
 	    ((in_flags & MSG_PEEK) == 0) &&
 	    (sinfo) &&

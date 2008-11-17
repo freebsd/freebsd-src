@@ -458,8 +458,9 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 		if (pcbinfo != &V_udbinfo)
 			V_ipport_tcpallocs++;
 		/*
-		 * Simple check to ensure all ports are not used up causing
-		 * a deadlock here.
+		 * Instead of having two loops further down counting up or down
+		 * make sure that first is always <= last and go with only one
+		 * code path implementing all logic.
 		 */
 		if (first > last) {
 			aux = first;
@@ -962,7 +963,7 @@ in_sockaddr(in_port_t port, struct in_addr *addr_p)
 {
 	struct sockaddr_in *sin;
 
-	MALLOC(sin, struct sockaddr_in *, sizeof *sin, M_SONAME,
+	sin = malloc(sizeof *sin, M_SONAME,
 		M_WAITOK | M_ZERO);
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
@@ -1300,7 +1301,7 @@ in_pcbinshash(struct inpcb *inp)
 	 * If none exists, malloc one and tack it on.
 	 */
 	if (phd == NULL) {
-		MALLOC(phd, struct inpcbport *, sizeof(struct inpcbport), M_PCB, M_NOWAIT);
+		phd = malloc(sizeof(struct inpcbport), M_PCB, M_NOWAIT);
 		if (phd == NULL) {
 			return (ENOBUFS); /* XXX */
 		}

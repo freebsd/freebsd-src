@@ -710,10 +710,6 @@ _archive_write_finish_entry(struct archive *_a)
 		int r2 = set_mode(a, a->mode);
 		if (r2 < ret) ret = r2;
 	}
-	if (a->todo & TODO_TIMES) {
-		int r2 = set_times(a);
-		if (r2 < ret) ret = r2;
-	}
 	if (a->todo & TODO_ACLS) {
 		int r2 = set_acls(a);
 		if (r2 < ret) ret = r2;
@@ -724,6 +720,10 @@ _archive_write_finish_entry(struct archive *_a)
 	}
 	if (a->todo & TODO_FFLAGS) {
 		int r2 = set_fflags(a);
+		if (r2 < ret) ret = r2;
+	}
+	if (a->todo & TODO_TIMES) {
+		int r2 = set_times(a);
 		if (r2 < ret) ret = r2;
 	}
 

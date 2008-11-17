@@ -85,9 +85,8 @@ static struct tftphdr *rw_init(int);
 struct tftphdr *w_init(void) { return rw_init(0); }         /* write-behind */
 struct tftphdr *r_init(void) { return rw_init(1); }         /* read-ahead */
 
-static struct tftphdr *
-rw_init(x)			/* init for either read-ahead or write-behind */
-	int x;			/* zero for write-behind, one for read-head */
+static struct tftphdr *		/* init for either read-ahead or write-behind */
+rw_init(int x)			/* zero for write-behind, one for read-head */
 {
 	newline = 0;		/* init crlf flag */
 	prevchar = -1;
@@ -103,10 +102,9 @@ rw_init(x)			/* init for either read-ahead or write-behind */
    Free it and return next buffer filled with data.
  */
 int
-readit(file, dpp, convert)
-	FILE *file;                     /* file opened for read */
-	struct tftphdr **dpp;
-	int convert;                    /* if true, convert to ascii */
+readit(FILE *file,			/* file opened for read */
+	struct tftphdr **dpp,
+	int convert)			/* if true, convert to ascii */
 {
 	struct bf *b;
 
@@ -126,9 +124,8 @@ readit(file, dpp, convert)
  * conversions are  lf -> cr,lf  and cr -> cr, nul
  */
 void
-read_ahead(file, convert)
-	FILE *file;                     /* file opened for read */
-	int convert;                    /* if true, convert to ascii */
+read_ahead(FILE *file,			/* file opened for read */
+	int convert)			/* if true, convert to ascii */
 {
 	register int i;
 	register char *p;
@@ -175,10 +172,7 @@ read_ahead(file, convert)
    available.
  */
 int
-writeit(file, dpp, ct, convert)
-	FILE *file;
-	struct tftphdr **dpp;
-	int ct, convert;
+writeit(FILE *file, struct tftphdr **dpp, int ct, int convert)
 {
 	bfs[current].counter = ct;      /* set size of data to write */
 	current = !current;             /* switch to other buffer */
@@ -196,9 +190,7 @@ writeit(file, dpp, ct, convert)
  * CR followed by anything else.  In this case we leave it alone.
  */
 int
-write_behind(file, convert)
-	FILE *file;
-	int convert;
+write_behind(FILE *file, int convert)
 {
 	char *buf;
 	int count;
@@ -255,8 +247,7 @@ skipit:
  */
 
 int
-synchnet(f)
-	int	f;		/* socket to flush */
+synchnet(int f)			/* socket to flush */
 {
 	int i, j = 0;
 	char rbuf[PKTSIZE];

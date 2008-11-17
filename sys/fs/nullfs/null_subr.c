@@ -173,7 +173,7 @@ null_insmntque_dtr(struct vnode *vp, void *xp)
 {
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	FREE(xp, M_NULLFSNODE);
+	free(xp, M_NULLFSNODE);
 	vp->v_op = &dead_vnodeops;
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
@@ -218,12 +218,12 @@ null_nodeget(mp, lowervp, vpp)
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(xp, struct null_node *, sizeof(struct null_node),
+	xp = malloc(sizeof(struct null_node),
 	    M_NULLFSNODE, M_WAITOK);
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
-		FREE(xp, M_NULLFSNODE);
+		free(xp, M_NULLFSNODE);
 		return (error);
 	}
 

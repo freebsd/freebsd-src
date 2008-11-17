@@ -313,7 +313,7 @@ des1_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	des_key_schedule *p;
 	int err;
 
-	MALLOC(p, des_key_schedule *, sizeof (des_key_schedule),
+	p = malloc(sizeof (des_key_schedule),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (p != NULL) {
 		des_set_key((des_cblock *) key, p[0]);
@@ -328,7 +328,7 @@ static void
 des1_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof (des_key_schedule));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -356,7 +356,7 @@ des3_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	des_key_schedule *p;
 	int err;
 
-	MALLOC(p, des_key_schedule *, 3*sizeof (des_key_schedule),
+	p = malloc(3*sizeof (des_key_schedule),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (p != NULL) {
 		des_set_key((des_cblock *)(key +  0), p[0]);
@@ -373,7 +373,7 @@ static void
 des3_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, 3*sizeof (des_key_schedule));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -412,7 +412,7 @@ blf_setkey(u_int8_t **sched, u_int8_t *key, int len)
 {
 	int err;
 
-	MALLOC(*sched, u_int8_t *, sizeof(BF_KEY),
+	*sched = malloc(sizeof(BF_KEY),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
 		BF_set_key((BF_KEY *) *sched, len, key);
@@ -426,7 +426,7 @@ static void
 blf_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof(BF_KEY));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -447,7 +447,7 @@ cast5_setkey(u_int8_t **sched, u_int8_t *key, int len)
 {
 	int err;
 
-	MALLOC(*sched, u_int8_t *, sizeof(cast_key), M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
+	*sched = malloc(sizeof(cast_key), M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
 		cast_setkey((cast_key *)*sched, key, len);
 		err = 0;
@@ -460,7 +460,7 @@ static void
 cast5_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof(cast_key));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -482,7 +482,7 @@ skipjack_setkey(u_int8_t **sched, u_int8_t *key, int len)
 	int err;
 
 	/* NB: allocate all the memory that's needed at once */
-	MALLOC(*sched, u_int8_t *, 10 * (sizeof(u_int8_t *) + 0x100),
+	*sched = malloc(10 * (sizeof(u_int8_t *) + 0x100),
 		M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
 		u_int8_t** key_tables = (u_int8_t**) *sched;
@@ -504,7 +504,7 @@ static void
 skipjack_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, 10 * (sizeof(u_int8_t *) + 0x100));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -528,7 +528,7 @@ rijndael128_setkey(u_int8_t **sched, u_int8_t *key, int len)
 
 	if (len != 16 && len != 24 && len != 32)
 		return (EINVAL);
-	MALLOC(*sched, u_int8_t *, sizeof(rijndael_ctx), M_CRYPTO_DATA,
+	*sched = malloc(sizeof(rijndael_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
 		rijndael_set_key((rijndael_ctx *) *sched, (u_char *) key,
@@ -543,7 +543,7 @@ static void
 rijndael128_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof(rijndael_ctx));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 
@@ -567,7 +567,7 @@ cml_setkey(u_int8_t **sched, u_int8_t *key, int len)
 
 	if (len != 16 && len != 24 && len != 32)
 		return (EINVAL);
-	MALLOC(*sched, u_int8_t *, sizeof(camellia_ctx), M_CRYPTO_DATA,
+	*sched = malloc(sizeof(camellia_ctx), M_CRYPTO_DATA,
 	    M_NOWAIT|M_ZERO);
 	if (*sched != NULL) {
 		camellia_set_key((camellia_ctx *) *sched, (u_char *) key,
@@ -582,7 +582,7 @@ static void
 cml_zerokey(u_int8_t **sched)
 {
 	bzero(*sched, sizeof(camellia_ctx));
-	FREE(*sched, M_CRYPTO_DATA);
+	free(*sched, M_CRYPTO_DATA);
 	*sched = NULL;
 }
 

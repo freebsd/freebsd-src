@@ -8974,7 +8974,6 @@ static int sym_cam_attach(hcb_p np)
 	struct cam_devq *devq = NULL;
 	struct cam_sim *sim = NULL;
 	struct cam_path *path = NULL;
-	struct ccb_setasync csa;
 	int err;
 
 	/*
@@ -9021,12 +9020,9 @@ static int sym_cam_attach(hcb_p np)
 	/*
 	 *  Establish our async notification handler.
 	 */
-	xpt_setup_ccb(&csa.ccb_h, np->path, 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable    = AC_LOST_DEVICE;
-	csa.callback	    = sym_async;
-	csa.callback_arg    = np->sim;
-	xpt_action((union ccb *)&csa);
+	if (xpt_register_async(AC_LOST_DEVICE, sym_async, sim, path) !=
+	    CAM_REQ_CMP)
+		goto fail;
 
 	/*
 	 *  Start the chip now, without resetting the BUS, since

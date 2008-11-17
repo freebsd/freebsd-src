@@ -529,9 +529,6 @@ uipc_close(struct socket *so)
 	UNP_GLOBAL_WUNLOCK();
 }
 
-/*
- * uipc_connect2() is not static as it is invoked directly by fifofs.
- */
 static int
 uipc_connect2(struct socket *so1, struct socket *so2)
 {
@@ -603,7 +600,7 @@ uipc_detach(struct socket *so)
 	unp->unp_refcount--;
 	freeunp = (unp->unp_refcount == 0);
 	if (saved_unp_addr != NULL)
-		FREE(saved_unp_addr, M_SONAME);
+		free(saved_unp_addr, M_SONAME);
 	if (freeunp) {
 		UNP_PCB_LOCK_DESTROY(unp);
 		uma_zfree(unp_zone, unp);

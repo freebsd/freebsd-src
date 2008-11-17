@@ -740,11 +740,6 @@ zyd_task(void *arg)
 			IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
 			zyd_set_bssid(sc, sc->sc_bssid);
 		}
-
-		if (vap->iv_opmode == IEEE80211_M_STA) {
-			/* fake a join to init the tx rate */
-			zyd_newassoc(ni, 1);
-		}
 		break;
 	}
 	default:

@@ -204,7 +204,7 @@ ffs_truncate(vp, length, flags, cred, td)
 #ifdef QUOTA
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
 #endif
-			vinvalbuf(vp, V_ALT, td, 0, 0);
+			vinvalbuf(vp, V_ALT, 0, 0);
 			ip->i_din2->di_extsize = 0;
 			for (i = 0; i < NXADDR; i++) {
 				oldblks[i] = ip->i_din2->di_extb[i];
@@ -280,7 +280,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			softdep_setup_freeblocks(ip, length, needextclean ?
 			    IO_EXT | IO_NORMAL : IO_NORMAL);
 			ASSERT_VOP_LOCKED(vp, "ffs_truncate1");
-			vinvalbuf(vp, needextclean ? 0 : V_NORMAL, td, 0, 0);
+			vinvalbuf(vp, needextclean ? 0 : V_NORMAL, 0, 0);
 			vnode_pager_setsize(vp, 0);
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 			return (ffs_update(vp, 0));
@@ -583,7 +583,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	else
 		bap2 = (ufs2_daddr_t *)bp->b_data;
 	if (lastbn != -1) {
-		MALLOC(copy, caddr_t, fs->fs_bsize, M_TEMP, M_WAITOK);
+		copy = malloc(fs->fs_bsize, M_TEMP, M_WAITOK);
 		bcopy((caddr_t)bp->b_data, copy, (u_int)fs->fs_bsize);
 		for (i = last + 1; i < NINDIR(fs); i++)
 			if (ip->i_ump->um_fstype == UFS1)
@@ -637,7 +637,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 		}
 	}
 	if (copy != NULL) {
-		FREE(copy, M_TEMP);
+		free(copy, M_TEMP);
 	} else {
 		bp->b_flags |= B_INVAL | B_NOCACHE;
 		brelse(bp);

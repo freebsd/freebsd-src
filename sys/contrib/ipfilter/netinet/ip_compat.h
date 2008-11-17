@@ -1662,12 +1662,23 @@ MALLOC_DECLARE(M_IPFILTER);
 #    endif /* M_IPFILTER */
 #   endif /* M_PFIL */
 #  endif /* IPFILTER_M_IPFILTER */
-#  define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), _M_IPF, M_NOWAIT)
-#  if !defined(KMALLOCS)
-#   define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), _M_IPF, M_NOWAIT)
+#  if defined(__FreeBSD__) && __FreeBSD_version >= 800051
+#   define	KMALLOC(a, b)	do {			\
+	a = (b)malloc(sizeof(*(a)), _M_IPF, M_NOWAIT); \
+    } while (0)
+#   define	KMALLOCS(a, b, c)	do { \
+	a = (b)malloc((c), _M_IPF, ((c) > 4096) ? M_WAITOK : M_NOWAIT); \
+    } while (0)
+#   define	KFREE(x)	free((x), _M_IPF)
+#   define	KFREES(x,s)	free((x), _M_IPF)
+#  else
+#   define	KMALLOC(a, b)	MALLOC((a), b, sizeof(*(a)), _M_IPF, M_NOWAIT)
+#   if !defined(KMALLOCS)
+#    define	KMALLOCS(a, b, c)	MALLOC((a), b, (c), _M_IPF, M_NOWAIT)
+#   endif
+#   define	KFREE(x)	FREE((x), _M_IPF)
+#   define	KFREES(x,s)	FREE((x), _M_IPF)
 #  endif
-#  define	KFREE(x)	FREE((x), _M_IPF)
-#  define	KFREES(x,s)	FREE((x), _M_IPF)
 #  define	UIOMOVE(a,b,c,d)	uiomove((caddr_t)a,b,d)
 #  define	SLEEP(id, n)	tsleep((id), PPAUSE|PCATCH, n, 0)
 #  define	WAKEUP(id,x)	wakeup(id+x)

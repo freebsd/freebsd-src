@@ -4280,7 +4280,6 @@ process_control_chunks:
 
 				if ((stcb == NULL) || (chk_length < sizeof(struct sctp_sack_chunk))) {
 					SCTPDBG(SCTP_DEBUG_INDATA1, "Bad size on sack chunk, too small\n");
-			ignore_sack:
 					*offset = length;
 					if (locked_tcb) {
 						SCTP_TCB_UNLOCK(locked_tcb);
@@ -4293,7 +4292,7 @@ process_control_chunks:
 					 * attention to a sack sent in to us since
 					 * we don't care anymore.
 					 */
-					goto ignore_sack;
+					break;
 				}
 				sack = (struct sctp_sack_chunk *)ch;
 				nonce_sum_flag = ch->chunk_flags & SCTP_SACK_NONCE_SUM;

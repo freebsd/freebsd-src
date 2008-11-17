@@ -789,8 +789,9 @@ acpi_print_child(device_t bus, device_t child)
 static void
 acpi_probe_nomatch(device_t bus, device_t child)
 {
-
-    /* pci_set_powerstate(child, PCI_POWERSTATE_D3); */
+#ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
+    pci_set_powerstate(child, PCI_POWERSTATE_D3);
+#endif
 }
 
 /*
@@ -810,9 +811,13 @@ acpi_driver_added(device_t dev, driver_t *driver)
     for (i = 0; i < numdevs; i++) {
 	child = devlist[i];
 	if (device_get_state(child) == DS_NOTPRESENT) {
-	    /* pci_set_powerstate(child, PCI_POWERSTATE_D0); */
+#ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
+	    pci_set_powerstate(child, PCI_POWERSTATE_D0);
 	    if (device_probe_and_attach(child) != 0)
-		; /* pci_set_powerstate(child, PCI_POWERSTATE_D3); */
+		pci_set_powerstate(child, PCI_POWERSTATE_D3);
+#else
+	    device_probe_and_attach(child);
+#endif
 	}
     }
     free(devlist, M_TEMP);

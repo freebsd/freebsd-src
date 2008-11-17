@@ -616,7 +616,6 @@ ata_getparam(struct ata_device *atadev, int init)
     if (!error && (isprint(atadev->param.model[0]) ||
 		   isprint(atadev->param.model[1]))) {
 	struct ata_params *atacap = &atadev->param;
-	char buffer[64];
 	int16_t *ptr;
 
 	for (ptr = (int16_t *)atacap;
@@ -648,6 +647,8 @@ ata_getparam(struct ata_device *atadev, int init)
 		   (atacap->hwres & ATA_CABLE_ID) ? "80":"40");
 
 	if (init) {
+	    char buffer[64];
+
 	    sprintf(buffer, "%.40s/%.8s", atacap->model, atacap->revision);
 	    device_set_desc_copy(atadev->dev, buffer);
 	    if ((atadev->param.config & ATA_PROTO_ATAPI) &&
@@ -677,8 +678,8 @@ int
 ata_identify(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_device *devices[ATA_PM];
-    device_t childdevs[ATA_PM];
+    struct ata_device *atadev;
+    device_t child;
     int i;
 
     if (bootverbose)
@@ -688,33 +689,26 @@ ata_identify(device_t dev)
 	if (ch->devices & (((ATA_ATA_MASTER | ATA_ATAPI_MASTER) << i))) {
 	    int unit = -1;
 
-	    if (!(devices[i] = malloc(sizeof(struct ata_device),
-				      M_ATA, M_NOWAIT | M_ZERO))) {
+	    if (!(atadev = malloc(sizeof(struct ata_device),
+				  M_ATA, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "out of memory\n");
 		return ENOMEM;
 	    }
-	    devices[i]->unit = i;
+	    atadev->unit = i;
 #ifdef ATA_STATIC_ID
 	    if (ch->devices & ((ATA_ATA_MASTER << i)))
 		unit = (device_get_unit(dev) << 1) + i;
 #endif
-	    if (!(childdevs[i] = ata_add_child(dev, devices[i], unit))) {
-		free(devices[i], M_ATA);
-		devices[i]=NULL;
-	    }
-	    else {
-		if (ata_getparam(devices[i], 1)) {
-		    device_delete_child(dev, childdevs[i]);
-		    free(devices[i], M_ATA);
-		    childdevs[i] = NULL;
-		    devices[i] = NULL;
+	    if ((child = ata_add_child(dev, atadev, unit))) {
+		if (ata_getparam(atadev, 1)) {
+		    device_delete_child(dev, child);
+		    free(atadev, M_ATA);
 		}
 	    }
+	    else
+		free(atadev, M_ATA);
 	}
-	devices[i] = NULL;
-	childdevs[i] = NULL;
     }
-
     bus_generic_probe(dev);
     bus_generic_attach(dev);
     return 0;
@@ -892,6 +886,16 @@ ata_mode2str(int mode)
 	else
 	    return "BIOSPIO";
     }
+}
+
+int
+ata_atapi(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_device *atadev = device_get_softc(dev);
+
+    return ((atadev->unit == ATA_MASTER && ch->devices & ATA_ATAPI_MASTER) ||
+            (atadev->unit == ATA_SLAVE && ch->devices & ATA_ATAPI_SLAVE));
 }
 
 int

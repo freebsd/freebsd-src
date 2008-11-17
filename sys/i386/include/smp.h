@@ -66,7 +66,9 @@ void	cpustop_handler(void);
 void	init_secondary(void);
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
+#ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
+#endif
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);
@@ -83,6 +85,11 @@ int	ipi_nmi_handler(void);
 #endif
 #ifdef XEN
 void ipi_to_irq_init(void);
+
+#define RESCHEDULE_VECTOR	0
+#define CALL_FUNCTION_VECTOR	1
+#define NR_IPIS			2
+
 #endif
 #endif /* !LOCORE */
 #endif /* SMP */

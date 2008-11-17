@@ -54,21 +54,22 @@ static MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
  * Device methods
  */
 
-static void
+static int
 ppbus_print_child(device_t bus, device_t dev)
 {
 	struct ppb_device *ppbdev;
+	int retval;
 
-	bus_print_child_header(bus, dev);
+	retval = bus_print_child_header(bus, dev);
 
 	ppbdev = (struct ppb_device *)device_get_ivars(dev);
 
 	if (ppbdev->flags != 0)
-		printf(" flags 0x%x", ppbdev->flags);
+		retval += printf(" flags 0x%x", ppbdev->flags);
 
-	printf(" on %s%d\n", device_get_name(bus), device_get_unit(bus));
+	retval += bus_print_child_footer(bus, dev);
 
-	return;
+	return (retval);
 }
 
 static int
@@ -110,16 +111,11 @@ ppbus_add_child(device_t dev, int order, const char *name, int unit)
 static int
 ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
 {
-	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
   
 	switch (index) {
 	case PPBUS_IVAR_MODE:
 		/* XXX yet device mode = ppbus mode = chipset mode */
 		*val = (u_long)ppb_get_mode(bus);
-		ppbdev->mode = (u_short)*val;
-		break;
-	case PPBUS_IVAR_AVM:
-		*val = (u_long)ppbdev->avm;
 		break;
 	default:
 		return (ENOENT);
@@ -131,13 +127,11 @@ ppbus_read_ivar(device_t bus, device_t dev, int index, uintptr_t* val)
 static int
 ppbus_write_ivar(device_t bus, device_t dev, int index, u_long val)
 {
-	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
 
 	switch (index) {
 	case PPBUS_IVAR_MODE:
 		/* XXX yet device mode = ppbus mode = chipset mode */
-		ppb_set_mode(bus,val);
-		ppbdev->mode = ppb_get_mode(bus);
+		ppb_set_mode(bus, val);
 		break;
 	default:
 		return (ENOENT);
@@ -212,16 +206,15 @@ ppb_pnp_detect(device_t bus)
 	int i, len, error;
 	int class_id = -1;
 	char str[PPB_PnP_STRING_SIZE+1];
-	int unit = device_get_unit(bus);
 
-	printf("Probing for PnP devices on ppbus%d:\n", unit);
+	device_printf(bus, "Probing for PnP devices:\n");
 	
 	if ((error = ppb_1284_read_id(bus, PPB_NIBBLE, str,
 					PPB_PnP_STRING_SIZE, &len)))
 		goto end_detect;
 
 #ifdef DEBUG_1284
-	printf("ppb: <PnP> %d characters: ", len);
+	device_printf(bus, "<PnP> %d characters: ", len);
 	for (i = 0; i < len; i++)
 		printf("%c(0x%x) ", str[i], str[i]);
 	printf("\n");
@@ -233,10 +226,10 @@ ppb_pnp_detect(device_t bus)
 
 	if ((token = search_token(str, len, "MFG")) != NULL ||
 		(token = search_token(str, len, "MANUFACTURER")) != NULL)
-		printf("ppbus%d: <%s", unit,
+		device_printf(bus, "<%s",
 			search_token(token, UNKNOWN_LENGTH, ":") + 1);
 	else
-		printf("ppbus%d: <unknown", unit);
+		device_printf(bus, "<unknown");
 
 	if ((token = search_token(str, len, "MDL")) != NULL ||
 		(token = search_token(str, len, "MODEL")) != NULL)
@@ -292,7 +285,6 @@ ppb_scan_bus(device_t bus)
 {
 	struct ppb_data * ppb = (struct ppb_data *)device_get_softc(bus);
 	int error = 0;
-	int unit = device_get_unit(bus);
 
 	/* try all IEEE1284 modes, for one device only
 	 * 
@@ -307,7 +299,7 @@ ppb_scan_bus(device_t bus)
 
 	ppb_1284_terminate(bus);
 
-	printf("ppbus%d: IEEE1284 device found ", unit);
+	device_printf(bus, "IEEE1284 device found ");
 
 	if (!(error = ppb_1284_negociate(bus, PPB_NIBBLE, 0))) {
 		printf("/NIBBLE");
@@ -395,14 +387,18 @@ ppbus_attach(device_t dev)
 	/* launch attachement of the added children */
 	bus_generic_attach(dev);
 
-	return 0;
+	return (0);
 }
 
 static int
 ppbus_detach(device_t dev)
 {
         device_t *children;
-        int nchildren, i;
+        int error, nchildren, i;
+
+	error = bus_generic_detach(dev);
+	if (error)
+		return (error);
 
 	/* detach & delete all children */
 	if (!device_get_children(dev, &children, &nchildren)) {

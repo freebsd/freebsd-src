@@ -831,13 +831,8 @@ rt2560_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* turn assocation led on */
 		rt2560_update_led(sc, 1, 0);
 
-		if (vap->iv_opmode != IEEE80211_M_MONITOR) {
-			if (vap->iv_opmode == IEEE80211_M_STA) {
-				/* fake a join to init the tx rate */
-				rt2560_newassoc(ni, 1);
-			}
+		if (vap->iv_opmode != IEEE80211_M_MONITOR)
 			rt2560_enable_tsf_sync(sc);
-		}
 	}
 	return error;
 }

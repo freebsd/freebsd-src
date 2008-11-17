@@ -24,7 +24,6 @@
 #   will be necessary to support multi-user boot.
 #
 
-machine		mips
 ident		SENTRY5
 cpu		CPU_MIPS4KC
 options		CPU_NOFPU
@@ -46,6 +45,8 @@ options		ALT_BREAK_TO_DEBUGGER
 # offsets in the linked elf image (see ldscript hack)
 # XXX can we conditionalize the linker stuff on options CFE?
 options		KERNVIRTADDR=0x80001000
+
+makeoptions	LDSCRIPT_NAME=	ldscript.mips.cfe
 
 #makeoptions	ARCH_FLAGS=-march=mips32
 makeoptions	MIPS_LITTLE_ENDIAN=defined
@@ -89,9 +90,7 @@ device		ehci			# EHCI PCI->USB interface (USB 2.0)
 
 # XXX notyet; need to be auto probed children of siba_cc.
 #device		uart
-#device		uart_ns8250
 
 device		loop
 device		ether
 device		md
-device		mem

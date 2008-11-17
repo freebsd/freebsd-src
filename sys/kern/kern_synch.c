@@ -65,6 +65,12 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 
+#ifdef XEN
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#endif
+
 static void synch_setup(void *dummy);
 SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup,
     NULL);
@@ -431,6 +437,9 @@ mi_switch(int flags, struct thread *newtd)
 		    "mi_switch: %p(%s) prio %d inhibit %d wmesg %s lock %s",
 		    td, td->td_name, td->td_priority,
 		    td->td_inhibitors, td->td_wmesg, td->td_lockname);
+#endif
+#ifdef XEN
+	PT_UPDATES_FLUSH();
 #endif
 	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",

@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		SIMICS
 
 options KERNPHYSADDR=0xc0000000
@@ -68,5 +67,4 @@ device		uart
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 #options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 
-device		mem			# Memory and kernel memory devices
 device md

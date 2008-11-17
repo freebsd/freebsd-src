@@ -205,6 +205,11 @@ typedef	__mode_t	mode_t;		/* permissions */
 #define	_MODE_T_DECLARED
 #endif
 
+#ifndef _ACCMODE_T_DECLARED
+typedef	__accmode_t	accmode_t;	/* access permissions */
+#define	_ACCMODE_T_DECLARED
+#endif
+
 #ifndef _NLINK_T_DECLARED
 typedef	__nlink_t	nlink_t;	/* link count */
 #define	_NLINK_T_DECLARED

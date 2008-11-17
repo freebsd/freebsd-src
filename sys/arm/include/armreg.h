@@ -148,6 +148,9 @@
 #define CPU_ID_SA110		0x4401a100
 #define CPU_ID_SA1100		0x4401a110
 #define	CPU_ID_TI925T		0x54029250
+#define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
+#define CPU_ID_MV88FR571_VD	0x56155710 /* Marvell Feroceon 88FR571-VD Core (ID from datasheet) */
+#define	CPU_ID_MV88FR571_41	0x41159260 /* Marvell Feroceon 88FR571-VD Core (actual ID from CPU reg) */
 #define	CPU_ID_FA526		0x66015260
 #define CPU_ID_SA1110		0x6901b110
 #define CPU_ID_IXP1200		0x6901c120
@@ -252,6 +255,18 @@
 
 /* Xscale Core 3 only */
 #define XSCALE_AUXCTL_LLR	0x00000400 /* Enable L2 for LLR Cache */
+
+/* Marvell Feroceon Extra Features Register (CP15 register 1, opcode2 0) */
+#define FC_DCACHE_REPL_LOCK	0x80000000 /* Replace DCache Lock */
+#define FC_DCACHE_STREAM_EN	0x20000000 /* DCache Streaming Switch */
+#define FC_WR_ALLOC_EN		0x10000000 /* Enable Write Allocate */
+#define FC_L2_PREF_DIS		0x01000000 /* L2 Cache Prefetch Disable */
+#define FC_L2_INV_EVICT_LINE	0x00800000 /* L2 Invalidates Uncorrectable Error Line Eviction */
+#define FC_L2CACHE_EN		0x00400000 /* L2 enable */
+#define FC_ICACHE_REPL_LOCK	0x00080000 /* Replace ICache Lock */
+#define FC_GLOB_HIST_REG_EN	0x00040000 /* Branch Global History Register Enable */
+#define FC_BRANCH_TARG_BUF_DIS	0x00020000 /* Branch Target Buffer Disable */
+#define FC_L1_PAR_ERR_EN	0x00010000 /* L1 Parity Error Enable */
 
 /* Cache type register definitions */
 #define	CPU_CT_ISIZE(x)		((x) & 0xfff)		/* I$ info */

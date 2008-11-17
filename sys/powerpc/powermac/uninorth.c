@@ -34,19 +34,18 @@
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#include <machine/nexusvar.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
 
-#include <powerpc/ofw/ofw_pci.h>
 #include <powerpc/powermac/uninorthvar.h>
 
 #include <vm/vm.h>
@@ -84,6 +83,12 @@ static void		uninorth_write_config(device_t, u_int, u_int, u_int,
 static int		uninorth_route_interrupt(device_t, device_t, int);
 
 /*
+ * OFW Bus interface
+ */
+
+static phandle_t	 uninorth_get_node(device_t bus, device_t dev);
+
+/*
  * Local routines.
  */
 static int		uninorth_enable_config(struct uninorth_softc *, u_int,
@@ -112,6 +117,9 @@ static device_method_t	uninorth_methods[] = {
 	DEVMETHOD(pcib_write_config,	uninorth_write_config),
 	DEVMETHOD(pcib_route_interrupt,	uninorth_route_interrupt),
 
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node,     uninorth_get_node),
+
 	{ 0, 0 }
 };
 
@@ -128,32 +136,40 @@ DRIVER_MODULE(uninorth, nexus, uninorth_driver, uninorth_devclass, 0, 0);
 static int
 uninorth_probe(device_t dev)
 {
-	char	*type, *compatible;
+	const char	*type, *compatible;
 
-	type = nexus_get_device_type(dev);
-	compatible = nexus_get_compatible(dev);
+	type = ofw_bus_get_type(dev);
+	compatible = ofw_bus_get_compat(dev);
 
 	if (type == NULL || compatible == NULL)
 		return (ENXIO);
 
-	if (strcmp(type, "pci") != 0 || strcmp(compatible, "uni-north") != 0)
+	if (strcmp(type, "pci") != 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "Apple UniNorth Host-PCI bridge");
-	return (0);
+	if (strcmp(compatible, "uni-north") == 0) {
+		device_set_desc(dev, "Apple UniNorth Host-PCI bridge");
+		return (0);
+	} else if (strcmp(compatible,"u3-agp") == 0) {
+		device_set_desc(dev, "Apple U3 Host-AGP bridge");
+		return (0);
+	}
+	
+	return (ENXIO);
 }
 
 static int
 uninorth_attach(device_t dev)
 {
 	struct		uninorth_softc *sc;
+	const char	*compatible;
 	phandle_t	node;
 	phandle_t	child;
 	u_int32_t	reg[2], busrange[2];
 	struct		uninorth_range *rp, *io, *mem[2];
 	int		nmem, i, error;
 
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
 
 	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
@@ -162,15 +178,48 @@ uninorth_attach(device_t dev)
 	if (OF_getprop(node, "bus-range", busrange, sizeof(busrange)) != 8)
 		return (ENXIO);
 
+	sc->sc_u3 = 0;
+	compatible = ofw_bus_get_compat(dev);
+	if (strcmp(compatible,"u3-agp") == 0)
+		sc->sc_u3 = 1;
+
 	sc->sc_dev = dev;
 	sc->sc_node = node;
-	sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[0] + 0x800000, PAGE_SIZE);
-	sc->sc_data = (vm_offset_t)pmap_mapdev(reg[0] + 0xc00000, PAGE_SIZE);
+	if (sc->sc_u3) {
+	   sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[1] + 0x800000, PAGE_SIZE);
+	   sc->sc_data = (vm_offset_t)pmap_mapdev(reg[1] + 0xc00000, PAGE_SIZE);
+	} else {
+	   sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[0] + 0x800000, PAGE_SIZE);
+	   sc->sc_data = (vm_offset_t)pmap_mapdev(reg[0] + 0xc00000, PAGE_SIZE);
+	}
 	sc->sc_bus = busrange[0];
 
 	bzero(sc->sc_range, sizeof(sc->sc_range));
-	sc->sc_nrange = OF_getprop(node, "ranges", sc->sc_range,
-	    sizeof(sc->sc_range));
+	if (sc->sc_u3) {
+		/*
+		 * On Apple U3 systems, we have an otherwise standard
+		 * Uninorth controller driving AGP. The one difference
+		 * is that it uses a new PCI ranges format, so do the
+		 * translation.
+		 */
+
+		struct uninorth_range64 range64[6];
+		bzero(range64, sizeof(range64));
+
+		sc->sc_nrange = OF_getprop(node, "ranges", range64,
+		    sizeof(range64));
+		for (i = 0; range64[i].pci_hi != 0; i++) {
+			sc->sc_range[i].pci_hi = range64[i].pci_hi;
+			sc->sc_range[i].pci_mid = range64[i].pci_mid;
+			sc->sc_range[i].pci_lo = range64[i].pci_lo;
+			sc->sc_range[i].host = range64[i].host_lo;
+			sc->sc_range[i].size_hi = range64[i].size_hi;
+			sc->sc_range[i].size_lo = range64[i].size_lo;
+		}
+	} else {
+		sc->sc_nrange = OF_getprop(node, "ranges", sc->sc_range,
+		    sizeof(sc->sc_range));
+	}
 
 	if (sc->sc_nrange == -1) {
 		device_printf(dev, "could not get ranges\n");
@@ -245,13 +294,6 @@ uninorth_attach(device_t dev)
 		}
 	}
 
-	/*
-	 * Write out the correct PIC interrupt values to config space
-	 * of all devices on the bus. This has to be done after the GEM
-	 * cell is enabled above.
-	 */
-	ofw_pci_fixup(dev, sc->sc_bus, node);
-
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
 }
@@ -275,7 +317,7 @@ uninorth_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	if (uninorth_enable_config(sc, bus, slot, func, reg) != 0) {
 		switch (width) {
-		case 1:
+		case 1: 
 			return (in8rb(caoff));
 			break;
 		case 2:
@@ -467,6 +509,17 @@ uninorth_enable_config(struct uninorth_softc *sc, u_int bus, u_int slot,
 	return (1);
 }
 
+static phandle_t
+uninorth_get_node(device_t bus, device_t dev)
+{
+	struct uninorth_softc *sc;
+
+	sc = device_get_softc(bus);
+	/* We only have one child, the PCI bus, which needs our own node. */
+
+	return sc->sc_node;
+}
+
 /*
  * Driver to swallow UniNorth host bridges from the PCI bus side.
  */
@@ -533,9 +586,9 @@ unin_enable_gmac(void)
 static int
 unin_chip_probe(device_t dev)
 {
-	char	*name;
+	const char	*name;
 
-	name = nexus_get_name(dev);
+	name = ofw_bus_get_name(dev);
 
 	if (name == NULL)
 		return (ENXIO);
@@ -554,7 +607,7 @@ unin_chip_attach(device_t dev)
 	u_int reg[2];
 
 	uncsc = device_get_softc(dev);
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 
 	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 8)
 		return (ENXIO);

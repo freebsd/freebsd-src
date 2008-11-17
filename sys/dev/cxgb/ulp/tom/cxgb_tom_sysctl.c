@@ -76,6 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <ulp/tom/cxgb_defs.h>
 #include <ulp/tom/cxgb_t3_ddp.h>
 
+/* Avoid clutter in the hw.* space, keep all toe tunables within hw.cxgb */
+SYSCTL_DECL(_hw_cxgb);
+SYSCTL_NODE(_hw_cxgb, OID_AUTO, toe, CTLFLAG_RD, 0, "TOE parameters");
+
 static struct tom_tunables default_tunable_vals = {
 	.max_host_sndbuf = 32 * 1024,
 	.tx_hold_thres = 0,
@@ -100,10 +104,23 @@ static struct tom_tunables default_tunable_vals = {
 	.activated = 1,
 };
 
+static int activated = 1;
+TUNABLE_INT("hw.cxgb.toe.activated", &activated);
+SYSCTL_UINT(_hw_cxgb_toe, OID_AUTO, activated, CTLFLAG_RDTUN, &activated, 0,
+    "enable TOE at init time");
+
+static int ddp = 1;
+TUNABLE_INT("hw.cxgb.toe.ddp", &ddp);
+SYSCTL_UINT(_hw_cxgb_toe, OID_AUTO, ddp, CTLFLAG_RDTUN, &ddp, 0, "enable DDP");
+
 void
 t3_init_tunables(struct tom_data *t)
 {
 	t->conf = default_tunable_vals;
+
+	/* Adjust tunables */
+	t->conf.activated = activated;
+	t->conf.ddp = ddp;
 
 	/* Now apply device specific fixups. */
 	t->conf.mss = T3C_DATA(t->cdev)->tx_max_chunk;

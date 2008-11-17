@@ -351,8 +351,8 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 	cp = LIST_FIRST(&gp->consumer);
 	err = g_access(cp, 0, 1, 0);
 	if (err) {
-		printf("GEOM_VINUM: gv_rm_drive: couldn't access '%s', errno: "
-		    "%d\n", cp->provider->name, err);
+		G_VINUM_DEBUG(0, "%s: unable to access '%s', errno: "
+		    "%d", __func__, cp->provider->name, err);
 		return (err);
 	}
 
@@ -361,8 +361,8 @@ gv_rm_drive(struct gv_softc *sc, struct gctl_req *req, struct gv_drive *d, int f
 	g_topology_unlock();
 	err = gv_write_header(cp, d->hdr);
 	if (err) {
-		printf("GEOM_VINUM: gv_rm_drive: couldn't write header to '%s'"
-		    ", errno: %d\n", cp->provider->name, err);
+		G_VINUM_DEBUG(0, "%s: unable to write header to '%s'"
+		    ", errno: %d", __func__, cp->provider->name, err);
 		d->hdr->magic = GV_MAGIC;
 	}
 	g_topology_lock();

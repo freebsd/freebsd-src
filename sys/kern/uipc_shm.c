@@ -367,15 +367,15 @@ shm_drop(struct shmfd *shmfd)
 static int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
-	int acc_mode;
+	accmode_t accmode;
 
-	acc_mode = 0;
+	accmode = 0;
 	if (flags & FREAD)
-		acc_mode |= VREAD;
+		accmode |= VREAD;
 	if (flags & FWRITE)
-		acc_mode |= VWRITE;
+		accmode |= VWRITE;
 	return (vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
-	    acc_mode, ucred, NULL));
+	    accmode, ucred, NULL));
 }
 
 /*

@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_pci.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -56,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/powerpc.h>
 #include <machine/ofw_machdep.h>
-#include <powerpc/ofw/ofw_pci.h>
 
 #define	OFMEM_REGIONS	32
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
@@ -282,7 +282,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
 {
 	phandle_t	node;
 
-	node = ofw_pci_find_node(dev);
+	node = ofw_bus_get_node(dev);
 	OF_getprop(node, "local-mac-address", addr, ETHER_ADDR_LEN);
 }
 

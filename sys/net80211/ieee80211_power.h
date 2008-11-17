@@ -28,6 +28,39 @@
 #define _NET80211_IEEE80211_POWER_H_
 
 struct ieee80211com;
+struct ieee80211vap;
+struct ieee80211_node;
+struct mbuf;
+
+/*
+ * Power save packet queues.  There are two queues, one
+ * for frames coming from the net80211 layer and the other
+ * for frames that come from the driver. Frames from the
+ * driver are expected to have M_ENCAP marked to indicate
+ * they have already been encapsulated and are treated as
+ * higher priority: they are sent first when flushing the
+ * queue on a power save state change or in response to a
+ * ps-poll frame.
+ *
+ * Note that frames sent from the high priority queue are
+ * fed directly to the driver without going through
+ * ieee80211_start again; drivers that send up encap'd
+ * frames are required to handle them when they come back.
+ */
+struct ieee80211_psq {
+	ieee80211_psq_lock_t psq_lock;
+	int	psq_len;
+	int	psq_maxlen;
+	int	psq_drops;
+	struct ieee80211_psq_head {
+		struct mbuf *head;
+		struct mbuf *tail;
+		int len;
+	} psq_head[2];			/* 2 priorities */
+};
+
+void	ieee80211_psq_init(struct ieee80211_psq *, const char *);
+void	ieee80211_psq_cleanup(struct ieee80211_psq *);
 
 void	ieee80211_power_attach(struct ieee80211com *);
 void	ieee80211_power_detach(struct ieee80211com *);
@@ -35,9 +68,10 @@ void	ieee80211_power_vattach(struct ieee80211vap *);
 void	ieee80211_power_vdetach(struct ieee80211vap *);
 void	ieee80211_power_latevattach(struct ieee80211vap *);
 
-int	ieee80211_node_saveq_drain(struct ieee80211_node *);
-int	ieee80211_node_saveq_age(struct ieee80211_node *);
-void	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
+struct mbuf *ieee80211_node_psq_dequeue(struct ieee80211_node *ni, int *qlen);
+int	ieee80211_node_psq_drain(struct ieee80211_node *);
+int	ieee80211_node_psq_age(struct ieee80211_node *);
+int	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
 void	ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);
 

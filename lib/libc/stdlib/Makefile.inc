@@ -48,3 +48,8 @@ MLINKS+=strtoul.3 strtoull.3 strtoul.3 strtouq.3 strtoul.3 strtoumax.3
 MLINKS+=malloc.3 calloc.3 malloc.3 free.3 malloc.3 malloc.conf.5 \
 	malloc.3 realloc.3 malloc.3 reallocf.3 malloc.3 malloc_usable_size.3
 MLINKS+=tsearch.3 tdelete.3 tsearch.3 tfind.3 tsearch.3 twalk.3
+
+.if defined(MALLOC_PRODUCTION)
+CFLAGS+=	-DMALLOC_PRODUCTION
+.endif
+

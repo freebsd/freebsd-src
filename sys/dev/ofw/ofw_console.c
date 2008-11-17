@@ -60,7 +60,6 @@ static struct ttydevsw ofw_ttydevsw = {
 	.tsw_outwakeup	= ofwtty_outwakeup,
 };
 
-static struct tty		*ofw_tp = NULL;
 static int			polltime;
 static struct callout_handle	ofw_timeouthandle
     = CALLOUT_HANDLE_INITIALIZER(&ofw_timeouthandle);
@@ -186,8 +185,7 @@ ofw_cninit(struct consdev *cp)
 {
 
 	/* XXX: This is the alias, but that should be good enough */
-	sprintf(cp->cn_name, "ofwcons");
-	cp->cn_tp = ofw_tp;
+	strcpy(cp->cn_name, "ofwcons");
 }
 
 static void

@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+arm/mv/orion/orion.c		standard
+arm/mv/orion/db88f5xxx.c	standard

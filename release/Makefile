@@ -192,6 +192,7 @@ MNT=			/mnt
 .undef MAKE_FLOPPIES
 .if ${TARGET_ARCH} == "i386"
 MAKE_FLOPPIES=		true
+MAKE_DVD=
 SEPARATE_LIVEFS=
 SPLIT_MFSROOT=
 .if ${TARGET} == "pc98"
@@ -210,6 +211,7 @@ MFSINODE=		8000
 MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "sparc64"
 DISKLABEL=		sunlabel
+MAKE_DVD=
 MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
@@ -222,6 +224,7 @@ MFSLABEL=		auto
 SEPARATE_LIVEFS=
 .elif ${TARGET_ARCH} == "amd64"
 MAKE_FLOPPIES=		true
+MAKE_DVD=
 FLOPPYSIZE=		1440
 FLOPPYSPLITSIZE=	1392
 FLOPPYINODE=		40000
@@ -262,6 +265,9 @@ CD=			${_R}/cdrom
 CD_BOOT=		${CD}/bootonly
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+.if defined(MAKE_DVD)
+CD_DVD1=		${CD}/dvd1
+.endif
 .if !defined(NODOC)
 CD_DOCS=		${CD}/docs
 .endif
@@ -480,6 +486,7 @@ release rerelease:
 	KERNELS \
 	KERNELS_BASE \
 	KERNEL_FLAGS \
+	MAKE_DVD \
 	MAKE_FLOPPIES \
 	MAKE_ISOS \
 	NOCDROM \
@@ -922,6 +929,18 @@ cdrom.1:
 			    find . -depth -print | cpio -dumpl ${CD_LIVEFS} ) ; \
 		fi \
 	done
+.if defined(MAKE_DVD)
+	@echo "Building DVD filesystem image as well as CDROM"
+	@mkdir -p ${CD_DVD1}/${BUILDNAME}
+	@for i in ${DISTRIBUTIONS} ; \
+	do \
+		if [ -d ${RD}/trees/$${i} ] ; then \
+			chflags -R noschg ${RD}/trees/$${i} || true ; \
+			( cd ${RD}/trees/$${i} && \
+			    find . -depth -print | cpio -dumpl ${CD_DVD1} ) ; \
+		fi \
+	done
+.endif
 	@echo "Copy GENERIC kernel to boot area"
 	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_LIVEFS}/boot/kernel
 	@rm -f ${CD_LIVEFS}/boot/kernel/*.symbols
@@ -940,6 +959,23 @@ cdrom.1:
 	@cp ${RD}/trees/base/boot/device.hints ${CD_LIVEFS}/boot/device.hints
 .endif
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
+.if defined(MAKE_DVD)
+	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_DVD1}/boot/kernel
+	@rm -f ${CD_DVD1}/boot/kernel/*.symbols
+	@rm -f ${CD_DVD1}/.profile
+	@cp ${.CURDIR}/fixit.profile ${CD_DVD1}/.profile
+	@ln -sf /rescue ${CD_DVD1}/stand
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DVD1}/cdrom.inf
+	@rm -f ${CD_DVD1}/boot/loader.conf
+	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DVD1}/boot/mfsroot.gz
+	@echo 'mfsroot_load="YES"' > ${CD_DVD1}/boot/loader.conf
+	@echo 'mfsroot_type="mfs_root"' >> ${CD_DVD1}/boot/loader.conf
+	@echo 'mfsroot_name="/boot/mfsroot"' >> ${CD_DVD1}/boot/loader.conf
+.if exists(${RD}/trees/base/boot/device.hints)
+	@rm -f ${CD_DVD1}/boot/device.hints
+	@cp ${RD}/trees/base/boot/device.hints ${CD_DVD1}/boot/device.hints
+.endif
+.endif
 	touch ${.TARGET}
 
 # Build disc1 and disc2 cdrom images
@@ -974,11 +1010,37 @@ cdrom.2:
 	@mkdir -p ${CD_DISC2}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@echo "CD_VOLUME = 2" >> ${CD_DISC2}/cdrom.inf
+.if defined(MAKE_DVD)
+.if defined(MAKE_FLOPPIES)
+	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DVD1}
+.endif
+	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DVD1}/${BUILDNAME}
 .if !defined(NODOC)
-	echo "Building CDROM docs filesystem image"
+	@for i in ${DIST_DOCS_ARCH_INDEP}; do \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.txt \
+	      ${CD_DVD1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/article.html \
+	      ${CD_DVD1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@for i in ${DIST_DOCS_ARCH_DEP}; do \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.txt \
+	      ${CD_DVD1}/`echo $${i} | tr 'a-z' 'A-Z'`.TXT; \
+	  cp ${RND}/${RELNOTES_LANG}/$$i/${TARGET}/article.html \
+	      ${CD_DVD1}/`echo $${i} | tr 'a-z' 'A-Z'`.HTM; \
+	done
+	@cp ${RND}/${RELNOTES_LANG}/readme/docbook.css ${CD_DVD1}
+.endif
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DVD1}/cdrom.inf
+	@echo "CD_VOLUME = 1" >> ${CD_DVD1}/cdrom.inf
+.endif
+.if !defined(NODOC)
+	@echo "Building CDROM docs filesystem image"
 	@mkdir -p ${CD_DOCS}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DOCS}/cdrom.inf
 	@mkdir -p ${CD_DOCS}/usr/share/doc
+.if defined(MAKE_DVD)
+	@mkdir -p ${CD_DVD1}/usr/share/doc
+.endif
 	@for i in `ls ${CD_LIVEFS}/usr/share/doc`; do \
 		if [ -L ${CD_LIVEFS}/usr/share/doc/$$i -o \
 		    -d /usr/doc/$$i ]; then \
@@ -986,6 +1048,10 @@ cdrom.2:
 			    ${CD_DOCS}/usr/share/doc; \
 		fi \
 	done
+.if defined(MAKE_DVD)
+	@cd ${CD_DOCS}/usr/share/doc && find . -print | \
+	    cpio -dumpl ${CD_DVD1}/usr/share/doc
+.endif
 .endif
 	touch ${.TARGET}
 
@@ -1016,6 +1082,9 @@ CD_DISC1_PKGS=	${CD_PACKAGE_TREE}/disc1
 .if exists(${CD_PACKAGE_TREE}/disc2)
 CD_DISC2_PKGS=	${CD_PACKAGE_TREE}/disc2
 .endif
+.if exists(${CD_PACKAGE_TREE}/dvd1)
+CD_DVD1_PKGS=	${CD_PACKAGE_TREE}/dvd1
+.endif
 .endif
 .endif
 
@@ -1035,6 +1104,12 @@ iso.1:
 	    FreeBSD_Packages \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
+.if defined(MAKE_DVD)
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
+	    FreeBSD_Install \
+	    ${CD}/${BUILDNAME}-${TARGET}-dvd1.iso ${CD_DVD1} \
+	    ${CD_DVD1_PKGS}
+.endif
 .if !defined(NODOC)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    FreeBSD_Documentation \

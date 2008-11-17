@@ -828,7 +828,7 @@ ng_btsocket_sco_default_msg_input(struct ng_mesg *msg, hook_p hook)
 			break;
 
 		if (rt == NULL) {
-			MALLOC(rt, ng_btsocket_sco_rtentry_p, sizeof(*rt),
+			rt = malloc(sizeof(*rt),
 				M_NETGRAPH_BTSOCKET_SCO, M_NOWAIT|M_ZERO);
 			if (rt == NULL)
 				break;
@@ -1083,7 +1083,7 @@ ng_btsocket_sco_rtclean(void *context, int pending)
 			NG_HOOK_UNREF(rt->hook); /* Remove extra reference */
 
 			bzero(rt, sizeof(*rt));
-			FREE(rt, M_NETGRAPH_BTSOCKET_SCO);
+			free(rt, M_NETGRAPH_BTSOCKET_SCO);
 		}
 
 		rt = rt_next;
@@ -1221,7 +1221,7 @@ ng_btsocket_sco_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	/* Allocate the PCB */
-        MALLOC(pcb, ng_btsocket_sco_pcb_p, sizeof(*pcb),
+        pcb = malloc(sizeof(*pcb),
 		M_NETGRAPH_BTSOCKET_SCO, M_NOWAIT | M_ZERO);
         if (pcb == NULL)
                 return (ENOMEM);
@@ -1538,7 +1538,7 @@ ng_btsocket_sco_detach(struct socket *so)
 
 	mtx_destroy(&pcb->pcb_mtx);
 	bzero(pcb, sizeof(*pcb));
-	FREE(pcb, M_NETGRAPH_BTSOCKET_SCO);
+	free(pcb, M_NETGRAPH_BTSOCKET_SCO);
 
 	soisdisconnected(so);
 	so->so_pcb = NULL;

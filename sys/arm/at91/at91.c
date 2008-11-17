@@ -168,6 +168,42 @@ struct bus_space at91_bs_tag = {
 	generic_armv4_bs_c_2,
 	NULL,
 	NULL,
+
+	/* read (single) stream */
+	generic_bs_r_1,
+	generic_armv4_bs_r_2,
+	generic_bs_r_4,
+	NULL,
+
+	/* read multiple stream */
+	generic_bs_rm_1,
+	generic_armv4_bs_rm_2,
+	generic_bs_rm_4,
+	NULL,
+
+	/* read region stream */
+	generic_bs_rr_1,
+	generic_armv4_bs_rr_2,
+	generic_bs_rr_4,
+	NULL,
+
+	/* write (single) stream */
+	generic_bs_w_1,
+	generic_armv4_bs_w_2,
+	generic_bs_w_4,
+	NULL,
+
+	/* write multiple stream */
+	generic_bs_wm_1,
+	generic_armv4_bs_wm_2,
+	generic_bs_wm_4,
+	NULL,
+
+	/* write region stream */
+	NULL,
+	generic_armv4_bs_wr_2,
+	generic_bs_wr_4,
+	NULL,
 };
 
 static int
@@ -534,8 +570,10 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
-		rman_set_bustag(rle->res, &at91_bs_tag);
-		rman_set_bushandle(rle->res, start);
+		if (rle->res != NULL) {
+			rman_set_bustag(rle->res, &at91_bs_tag);
+			rman_set_bushandle(rle->res, start);
+		}
 		break;
 	}
 	if (rle->res) {

@@ -157,6 +157,11 @@ device		fwe		# Ethernet over FireWire (non-standard!)
 # Misc
 device		powermac_nvram	# Open Firmware configuration NVRAM
 
+# ADB support
+device		adb
+device		cuda
+device		pmu
+
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
 #options 	KTR_MASK=KTR_SIG

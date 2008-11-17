@@ -1145,8 +1145,7 @@ inetname(struct in_addr *inp)
 	if (inp->s_addr == INADDR_ANY)
 		strcpy(line, "*");
 	else if (cp) {
-		strncpy(line, cp, sizeof(line) - 1);
-		line[sizeof(line) - 1] = '\0';
+		strlcpy(line, cp, sizeof(line));
 	} else {
 		inp->s_addr = ntohl(inp->s_addr);
 #define	C(x)	((u_int)((x) & 0xff))

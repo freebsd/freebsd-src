@@ -1242,6 +1242,12 @@ realtimer_delete(struct itimer *it)
 {
 	mtx_assert(&it->it_mtx, MA_OWNED);
 	
+	/*
+	 * clear timer's value and interval to tell realtimer_expire
+	 * to not rearm the timer.
+	 */
+	timespecclear(&it->it_time.it_value);
+	timespecclear(&it->it_time.it_interval);
 	ITIMER_UNLOCK(it);
 	callout_drain(&it->it_callout);
 	ITIMER_LOCK(it);
@@ -1391,9 +1397,11 @@ realtimer_expire(void *arg)
 			callout_reset(&it->it_callout, tvtohz(&tv),
 				 realtimer_expire, it);
 		}
+		itimer_enter(it);
 		ITIMER_UNLOCK(it);
 		itimer_fire(it);
 		ITIMER_LOCK(it);
+		itimer_leave(it);
 	} else if (timespecisset(&it->it_time.it_value)) {
 		ts = it->it_time.it_value;
 		timespecsub(&ts, &cts);

@@ -334,9 +334,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	frame.sf_ucontext = PTROUT(&fp->sf_sc);
 
 	/* Fill in POSIX parts */
-	frame.sf_si.lsi_signo = sig;
-	frame.sf_si.lsi_code = code;
-	frame.sf_si.lsi_addr = PTROUT(ksi->ksi_addr);
+	ksiginfo_to_lsiginfo(ksi, &frame.sf_si, sig);
 
 	/*
 	 * Build the signal context to be used by sigreturn.
@@ -843,7 +841,8 @@ exec_linux_setregs(td, entry, stack, ps_strings)
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
-	pcb->pcb_flags |= PCB_FULLCTX;
+	pcb->pcb_flags |= PCB_FULLCTX | PCB_32BIT;
+	pcb->pcb_flags &= ~PCB_GS32BIT;
 	td->td_retval[1] = 0;
 }
 

@@ -699,9 +699,10 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	    (!(pd->attrib & PNPATTR_NOCONFIG) && 
 		PNPATTR_CONFIG(pd->attrib) != PNPATTR_CONFIG_STATIC)
 		? ISACFGATTR_DYNAMIC : 0);
+	isa_set_pnpbios_handle(dev, pd->handle);
 	ISA_SET_CONFIG_CALLBACK(parent, dev, pnpbios_set_config, 0);
 	pnp_parse_resources(dev, &pd->devdata[0],
-			    pd->size - sizeof(struct pnp_sysdev), 0);
+	    pd->size - sizeof(struct pnp_sysdev), 0);
 	if (!device_get_desc(dev))
 	    device_set_desc_copy(dev, pnp_eisaformat(pd->devid));
 

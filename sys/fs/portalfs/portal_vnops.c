@@ -127,12 +127,12 @@ portal_lookup(ap)
 	 * might cause a bogus v_data pointer to get dereferenced
 	 * elsewhere if MALLOC should block.
 	 */
-	MALLOC(pt, struct portalnode *, sizeof(struct portalnode),
+	pt = malloc(sizeof(struct portalnode),
 		M_TEMP, M_WAITOK);
 
 	error = getnewvnode("portal", dvp->v_mount, &portal_vnodeops, &fvp);
 	if (error) {
-		FREE(pt, M_TEMP);
+		free(pt, M_TEMP);
 		goto bad;
 	}
 	fvp->v_type = VREG;
@@ -279,7 +279,6 @@ portal_open(ap)
 	 * will happen if the server dies.  Sleep for 5 second intervals
 	 * and keep polling the reference count.   XXX.
 	 */
-	/* XXXRW: Locking? */
 	SOCK_LOCK(so);
 	while ((so->so_state & SS_ISCONNECTING) && so->so_error == 0) {
 		if (fmp->pm_server->f_count == 1) {
@@ -543,7 +542,7 @@ portal_reclaim(ap)
 		free((caddr_t) pt->pt_arg, M_TEMP);
 		pt->pt_arg = 0;
 	}
-	FREE(ap->a_vp->v_data, M_TEMP);
+	free(ap->a_vp->v_data, M_TEMP);
 	ap->a_vp->v_data = 0;
 
 	return (0);

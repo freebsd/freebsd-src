@@ -66,7 +66,6 @@ struct vpo_nibble {
 #define VP0_MODE_EPP		0x3
 
 struct vpoio_data {
-	unsigned short int vpo_unit;
 	int vpo_mode_found;		/* Mode found during init */
 
 	struct vpo_nibble vpo_nibble;
@@ -76,8 +75,6 @@ struct vpoio_data {
 
 	device_t vpo_dev;
 };
-
-#define vpoio_set_unit(vpo,unit) ((vpo)->vpo_unit = unit)
 
 int vpoio_probe(device_t dev, struct vpoio_data *vpo);
 

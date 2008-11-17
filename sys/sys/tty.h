@@ -63,6 +63,7 @@ struct tty {
 	struct mtx	t_mtxobj;	/* Per-TTY lock (when not borrowing). */
 	TAILQ_ENTRY(tty) t_list;	/* (l) TTY list entry. */
 	unsigned int	t_flags;	/* (t) Terminal option flags. */
+/* Keep flags in sync with db_show_tty and pstat(8). */
 #define	TF_NOPREFIX	0x0001	/* Don't prepend "tty" to device name. */
 #define	TF_INITLOCK	0x0002	/* Create init/lock state devices. */
 #define	TF_CALLOUT	0x0004	/* Create "cua" devices. */
@@ -190,6 +191,9 @@ dev_t	tty_udev(struct tty *tp);
 
 /* Status line printing. */
 void	tty_info(struct tty *tp);
+
+/* /dev/console selection. */
+void	ttyconsdev_select(const char *name);
 
 /* Pseudo-terminal hooks. */
 int	pts_alloc_external(int fd, struct thread *td, struct file *fp,

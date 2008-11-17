@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -82,9 +83,31 @@ __FBSDID("$FreeBSD$");
 #include <dev/amr/amrreg.h>
 #include <dev/amr/amrvar.h>
 
+static int	amr_cam_probe(device_t dev);
+static int	amr_cam_attach(device_t dev);
+static int	amr_cam_detach(device_t dev);
 static void	amr_cam_action(struct cam_sim *sim, union ccb *ccb);
 static void	amr_cam_poll(struct cam_sim *sim);
 static void	amr_cam_complete(struct amr_command *ac);
+static int	amr_cam_command(struct amr_softc *sc, struct amr_command **acp);
+
+static devclass_t	amr_pass_devclass;
+
+static device_method_t	amr_pass_methods[] = {
+	DEVMETHOD(device_probe,		amr_cam_probe),
+	DEVMETHOD(device_attach,	amr_cam_attach),
+	DEVMETHOD(device_detach,	amr_cam_detach),
+	{ 0, 0 }
+};
+
+static driver_t	amr_pass_driver = {
+	"amrp",
+	amr_pass_methods,
+	0
+};
+
+DRIVER_MODULE(amrp, amr, amr_pass_driver, amr_pass_devclass, 0, 0);
+MODULE_DEPEND(amrp, cam, 1, 1, 1);
 
 MALLOC_DEFINE(M_AMRCAM, "amrcam", "AMR CAM memory");
 
@@ -115,14 +138,23 @@ amr_dequeue_ccb(struct amr_softc *sc)
 	return(ccb);
 }
 
+static int
+amr_cam_probe(device_t dev)
+{
+	return (0);
+}
+
 /********************************************************************************
  * Attach our 'real' SCSI channels to CAM
  */
-int
-amr_cam_attach(struct amr_softc *sc)
+static int
+amr_cam_attach(device_t dev)
 {
+	struct amr_softc *sc;
 	struct cam_devq	*devq;
-	int			chn, error;
+	int chn, error;
+
+	sc = device_get_softc(dev);
 
 	/* initialise the ccb queue */
 	TAILQ_INIT(&sc->amr_cam_ccbq);
@@ -134,7 +166,7 @@ amr_cam_attach(struct amr_softc *sc)
 	 * during detach.
 	 */
 	if ((devq = cam_simq_alloc(AMR_MAX_SCSI_CMDS)) == NULL)
-	return(ENOMEM);
+		return(ENOMEM);
 	sc->amr_cam_devq = devq;
 
 	/*
@@ -165,17 +197,20 @@ amr_cam_attach(struct amr_softc *sc)
 	 * XXX we should scan the config and work out which devices are
 	 * actually protected.
 	 */
+	sc->amr_cam_command = amr_cam_command;
 	return(0);
 }
 
 /********************************************************************************
  * Disconnect ourselves from CAM
  */
-void
-amr_cam_detach(struct amr_softc *sc)
+static int
+amr_cam_detach(device_t dev)
 {
+	struct amr_softc *sc;
 	int		chn;
 
+	sc = device_get_softc(dev);
 	mtx_lock(&sc->amr_list_lock);
 	for (chn = 0; chn < sc->amr_maxchan; chn++) {
 		/*
@@ -191,6 +226,8 @@ amr_cam_detach(struct amr_softc *sc)
 	/* Now free the devq */
 	if (sc->amr_cam_devq != NULL)
 		cam_simq_free(sc->amr_cam_devq);
+
+	return (0);
 }
 
 /***********************************************************************
@@ -379,7 +416,7 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
  * Convert a CAM CCB off the top of the CCB queue to a passthrough SCSI
  * command.
  */
-int
+static int
 amr_cam_command(struct amr_softc *sc, struct amr_command **acp)
 {
 	struct amr_command		*ac;

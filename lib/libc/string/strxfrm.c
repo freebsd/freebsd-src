@@ -45,18 +45,8 @@ strxfrm(char * __restrict dest, const char * __restrict src, size_t len)
 		return 0;
 	}
 
-	if (__collate_load_error) {
-		slen = strlen(src);
-		if (len > 0) {
-			if (slen < len)
-				strcpy(dest, src);
-			else {
-				strncpy(dest, src, len - 1);
-				dest[len - 1] = '\0';
-			}
-		}
-		return slen;
-	}
+	if (__collate_load_error)
+		return strlcpy(dest, src, len);
 
 	slen = 0;
 	prim = sec = 0;
