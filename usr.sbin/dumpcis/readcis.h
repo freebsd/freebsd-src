@@ -41,7 +41,7 @@ struct tuple_list {
 };
 
 struct tuple_info {
-	char   *name;
+	const char   *name;
 	unsigned char code;
 	unsigned char length;		/* 255 means variable length */
 };
@@ -136,13 +136,13 @@ struct cis {
 			 (*((tp) + 1) << 8)  | *(tp))
 #define	tpl16(tp)	((*((tp) + 1) << 8)  | *(tp))
 
-void   *xmalloc(int);
+int	dumpcisfile_main(int, char **);
 void    dump(unsigned char *, int);
 void    dumpcis(struct cis *);
 void    freecis(struct cis *);
 struct cis *readcis(int);
 
-char   *tuple_name(unsigned char);
+const char *tuple_name(unsigned char);
 u_int   parse_num(int, u_char *, u_char **, int);
 
 int isdumpcisfile;

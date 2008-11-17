@@ -41,34 +41,6 @@ static const char rcsid[] =
 #include <pccard/cis.h>
 #include "readcis.h"
 
-int     nocards;
-
-static void
-scan(int slot)
-{
-	int     fd;
-	char    name[64];
-	struct cis *cp;
-	struct slotstate st;
-
-	sprintf(name, CARD_DEVICE, slot);
-	fd = open(name, O_RDONLY);
-	if (fd < 0)
-		return;
-	nocards++;
-	if (ioctl(fd, PIOCGSTATE, &st))
-		err(1, "ioctl (PIOCGSTATE)");
-	if (st.state == filled) {
-		cp = readcis(fd);
-		if (cp) {
-			printf("Configuration data for card in slot %d\n",
-			    slot);
-			dumpcis(cp);
-			freecis(cp);
-		}
-	}
-}
-
 void
 dump(unsigned char *p, int sz)
 {
@@ -83,29 +55,4 @@ dump(unsigned char *p, int sz)
 		p += 16;
 		ad += 16;
 	}
-}
-
-void *
-xmalloc(int sz)
-{
-	void   *p;
-
-	sz = (sz + 7) & ~7;
-	p = malloc(sz);
-	if (p)
-		bzero(p, sz);
-	else
-		errx(1, "malloc");
-	return (p);
-}
-
-int
-dumpcis_main(int argc, char **argv)
-{
-	int     node;
-
-	for (node = 0; node < 8; node++)
-		scan(node);
-	printf("%d slots found\n", nocards);
-	return 0;
 }

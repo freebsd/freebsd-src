@@ -42,8 +42,7 @@ static const char rcsid[] =
 #include "readcis.h"
 
 static void
-scanfile(name)
-	char     *name;
+scanfile(char *name)
 {
 	int     fd;
 	struct cis *cp;
