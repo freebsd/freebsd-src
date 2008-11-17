@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
@@ -31,6 +29,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zio.h>
 #include <sys/fs/zfs.h>
+#include <sys/fm/fs/zfs.h>
 
 /*
  * Virtual device vector for files.
@@ -61,8 +60,8 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * to local zone users, so the underlying devices should be as well.
 	 */
 	ASSERT(vd->vdev_path != NULL && vd->vdev_path[0] == '/');
-	error = vn_openat(vd->vdev_path + 1, UIO_SYSSPACE, spa_mode | FOFFMAX,
-	    0, &vp, 0, 0, rootdir);
+	error = vn_openat(vd->vdev_path + 1, UIO_SYSSPACE,
+	    spa_mode | FOFFMAX, 0, &vp, 0, 0, rootdir, -1);
 
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
@@ -80,12 +79,13 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 		return (ENODEV);
 	}
 #endif
-
 	/*
 	 * Determine the physical size of the file.
 	 */
 	vattr.va_mask = AT_SIZE;
-	error = VOP_GETATTR(vp, &vattr, 0);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	error = VOP_GETATTR(vp, &vattr, kcred);
+	VOP_UNLOCK(vp, 0);
 	if (error) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
@@ -101,71 +101,46 @@ static void
 vdev_file_close(vdev_t *vd)
 {
 	vdev_file_t *vf = vd->vdev_tsd;
+	int vfslocked;
 
 	if (vf == NULL)
 		return;
 
 	if (vf->vf_vnode != NULL) {
-		(void) VOP_PUTPAGE(vf->vf_vnode, 0, 0, B_INVAL, kcred);
-		(void) VOP_CLOSE(vf->vf_vnode, spa_mode, 1, 0, kcred);
+		vfslocked = VFS_LOCK_GIANT(vf->vf_vnode->v_mount);
+		(void)vn_close(vf->vf_vnode, spa_mode, kcred, curthread);
 		VN_RELE(vf->vf_vnode);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 
 	kmem_free(vf, sizeof (vdev_file_t));
 	vd->vdev_tsd = NULL;
 }
 
-static void
+static int
 vdev_file_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
 	vdev_file_t *vf = vd->vdev_tsd;
 	ssize_t resid;
-	int error;
 
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
-		zio_vdev_io_bypass(zio);
-
 		/* XXPOLICY */
-		if (vdev_is_dead(vd)) {
+		if (!vdev_readable(vd)) {
 			zio->io_error = ENXIO;
-			zio_next_stage_async(zio);
-			return;
+			return (ZIO_PIPELINE_CONTINUE);
 		}
 
 		switch (zio->io_cmd) {
 		case DKIOCFLUSHWRITECACHE:
 			zio->io_error = VOP_FSYNC(vf->vf_vnode, FSYNC | FDSYNC,
-			    kcred);
-			dprintf("fsync(%s) = %d\n", vdev_description(vd),
-			    zio->io_error);
+			    kcred, NULL);
 			break;
 		default:
 			zio->io_error = ENOTSUP;
 		}
 
-		zio_next_stage_async(zio);
-		return;
-	}
-
-	/*
-	 * In the kernel, don't bother double-caching, but in userland,
-	 * we want to test the vdev_cache code.
-	 */
-#ifndef _KERNEL
-	if (zio->io_type == ZIO_TYPE_READ && vdev_cache_read(zio) == 0)
-		return;
-#endif
-
-	if ((zio = vdev_queue_io(zio)) == NULL)
-		return;
-
-	/* XXPOLICY */
-	error = vdev_is_dead(vd) ? ENXIO : vdev_error_inject(vd, zio);
-	if (error) {
-		zio->io_error = error;
-		zio_next_stage_async(zio);
-		return;
+		return (ZIO_PIPELINE_CONTINUE);
 	}
 
 	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
@@ -176,23 +151,15 @@ vdev_file_io_start(zio_t *zio)
 	if (resid != 0 && zio->io_error == 0)
 		zio->io_error = ENOSPC;
 
-	zio_next_stage_async(zio);
+	zio_interrupt(zio);
+
+	return (ZIO_PIPELINE_STOP);
 }
 
+/* ARGSUSED */
 static void
 vdev_file_io_done(zio_t *zio)
 {
-	vdev_queue_io_done(zio);
-
-#ifndef _KERNEL
-	if (zio->io_type == ZIO_TYPE_WRITE)
-		vdev_cache_write(zio);
-#endif
-
-	if (zio_injection_enabled && zio->io_error == 0)
-		zio->io_error = zio_handle_device_injection(zio->io_vd, EIO);
-
-	zio_next_stage(zio);
 }
 
 vdev_ops_t vdev_file_ops = {

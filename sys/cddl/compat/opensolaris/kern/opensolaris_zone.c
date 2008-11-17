@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/queue.h>
 #include <sys/jail.h>
+#include <sys/osd.h>
 #include <sys/priv.h>
 #include <sys/zone.h>
 
@@ -52,7 +53,7 @@ typedef struct zone_dataset {
 
 LIST_HEAD(zone_dataset_head, zone_dataset);
 
-static struct prison_service *zone_prison_service = NULL;
+static int zone_slot;
 
 int
 zone_dataset_attach(struct ucred *cred, const char *dataset, int jailid)
@@ -60,7 +61,7 @@ zone_dataset_attach(struct ucred *cred, const char *dataset, int jailid)
 	struct zone_dataset_head *head;
 	zone_dataset_t *zd, *zd2;
 	struct prison *pr;
-	int error;
+	int dofree, error;
 
 	if ((error = priv_check_cred(cred, PRIV_ZFS_JAIL, 0)) != 0)
 		return (error);
@@ -76,18 +77,33 @@ zone_dataset_attach(struct ucred *cred, const char *dataset, int jailid)
 		return (ENOENT);
 	}
 
-	head = prison_service_data_get(zone_prison_service, pr);
-	LIST_FOREACH(zd2, head, zd_next) {
-		if (strcmp(dataset, zd2->zd_dataset) == 0) {
-			free(zd, M_ZONES);
-			error = EEXIST;
-			goto failure;
+	head = osd_jail_get(pr, zone_slot);
+	if (head != NULL) {
+		dofree = 0;
+		LIST_FOREACH(zd2, head, zd_next) {
+			if (strcmp(dataset, zd2->zd_dataset) == 0) {
+				free(zd, M_ZONES);
+				error = EEXIST;
+				goto end;
+			}
 		}
+	} else {
+		dofree = 1;
+		prison_hold_locked(pr);
+		mtx_unlock(&pr->pr_mtx);
+		head = malloc(sizeof(*head), M_ZONES, M_WAITOK);
+		LIST_INIT(head);
+		mtx_lock(&pr->pr_mtx);
+		error = osd_jail_set(pr, zone_slot, head);
+		KASSERT(error == 0, ("osd_jail_set() failed (error=%d)", error));
 	}
 	strcpy(zd->zd_dataset, dataset);
 	LIST_INSERT_HEAD(head, zd, zd_next);
-failure:
-	mtx_unlock(&pr->pr_mtx);
+end:
+	if (dofree)
+		prison_free_locked(pr);
+	else
+		mtx_unlock(&pr->pr_mtx);
 	return (error);
 }
 
@@ -107,16 +123,25 @@ zone_dataset_detach(struct ucred *cred, const char *dataset, int jailid)
 	sx_sunlock(&allprison_lock);
 	if (pr == NULL)
 		return (ENOENT);
-	head = prison_service_data_get(zone_prison_service, pr);
-	LIST_FOREACH(zd, head, zd_next) {
-		if (strcmp(dataset, zd->zd_dataset) == 0) {
-			LIST_REMOVE(zd, zd_next);
-			free(zd, M_ZONES);
-			goto success;
-		}
+	head = osd_jail_get(pr, zone_slot);
+	if (head == NULL) {
+		error = ENOENT;
+		goto end;
 	}
-	error = ENOENT;
-success:
+	LIST_FOREACH(zd, head, zd_next) {
+		if (strcmp(dataset, zd->zd_dataset) == 0)
+			break;
+	}
+	if (zd == NULL)
+		error = ENOENT;
+	else {
+		LIST_REMOVE(zd, zd_next);
+		free(zd, M_ZONES);
+		if (LIST_EMPTY(head))
+			osd_jail_del(pr, zone_slot);
+		error = 0;
+	}
+end:
 	mtx_unlock(&pr->pr_mtx);
 	return (error);
 }
@@ -136,14 +161,16 @@ zone_dataset_visible(const char *dataset, int *write)
 
 	if (dataset[0] == '\0')
 		return (0);
-	if (INGLOBALZONE(curproc)) {
+	if (INGLOBALZONE(curthread)) {
 		if (write != NULL)
 			*write = 1;
 		return (1);
 	}
 	pr = curthread->td_ucred->cr_prison;
 	mtx_lock(&pr->pr_mtx);
-	head = prison_service_data_get(zone_prison_service, pr);
+	head = osd_jail_get(pr, zone_slot);
+	if (head == NULL)
+		goto end;
 
 	/*
 	 * Walk the list once, looking for datasets which match exactly, or
@@ -188,49 +215,32 @@ end:
 	return (ret);
 }
 
-static int
-zone_create(struct prison_service *psrv, struct prison *pr)
-{
-	struct zone_dataset_head *head;
-
-	head = malloc(sizeof(*head), M_ZONES, M_WAITOK);
-	LIST_INIT(head);
-	mtx_lock(&pr->pr_mtx);
-	prison_service_data_set(psrv, pr, head);
-	mtx_unlock(&pr->pr_mtx);
-	return (0);
-}
-
-static int
-zone_destroy(struct prison_service *psrv, struct prison *pr)
+static void
+zone_destroy(void *arg)
 {
 	struct zone_dataset_head *head;
 	zone_dataset_t *zd;
 
-	mtx_lock(&pr->pr_mtx);
-	head = prison_service_data_del(psrv, pr);
-	mtx_unlock(&pr->pr_mtx);
-	while ((zd = LIST_FIRST(head)) != NULL) {
-		LIST_REMOVE(zd, zd_next);
-		free(zd, M_ZONES);
-	}
-	free(head, M_ZONES);
-	return (0);
+	head = arg;
+        while ((zd = LIST_FIRST(head)) != NULL) {
+                LIST_REMOVE(zd, zd_next);
+                free(zd, M_ZONES);
+        }
+        free(head, M_ZONES);
 }
 
 static void
 zone_sysinit(void *arg __unused)
 {
 
-	zone_prison_service = prison_service_register("zfs", zone_create,
-	    zone_destroy);
+	zone_slot = osd_jail_register(zone_destroy);
 }
 
 static void
 zone_sysuninit(void *arg __unused)
 {
 
-	prison_service_deregister(zone_prison_service);
+	osd_jail_deregister(zone_slot);
 }
 
 SYSINIT(zone_sysinit, SI_SUB_DRIVERS, SI_ORDER_ANY, zone_sysinit, NULL);

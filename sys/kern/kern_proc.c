@@ -199,6 +199,9 @@ proc_dtor(void *mem, int size, void *arg)
 		    ("bad number of threads in exiting process"));
 		KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 #endif
+		/* Free all OSD associated to this thread. */
+		osd_thread_exit(td);
+
 		/* Dispose of an alternate kstack, if it exists.
 		 * XXX What if there are more than one thread in the proc?
 		 *     The first thread in the proc is special and not

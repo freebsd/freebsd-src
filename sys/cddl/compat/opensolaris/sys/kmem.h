@@ -38,15 +38,16 @@
 #include <vm/vm_extern.h>
 
 #define	KM_SLEEP		M_WAITOK
+#define	KM_PUSHPAGE		M_WAITOK
 #define	KM_NOSLEEP		M_NOWAIT
 #define	KMC_NODEBUG		0
 
 typedef struct kmem_cache {
 	char		kc_name[32];
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
 	uma_zone_t	kc_zone;
 #else
-	size_t		size;
+	size_t		kc_size;
 #endif
 	int		(*kc_constructor)(void *, void *, int);
 	void		(*kc_destructor)(void *, void *);
