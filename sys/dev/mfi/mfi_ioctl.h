@@ -50,6 +50,16 @@ union mfi_statrequest {
 	struct mfi_qstat	ms_qstat;
 };
 
+#define MAX_SPACE_FOR_SENSE_PTR		32
+union mfi_sense_ptr {
+	uint8_t		sense_ptr_data[MAX_SPACE_FOR_SENSE_PTR];
+	void 		*user_space;
+	struct {
+		uint32_t	low;
+		uint32_t	high;
+	} addr;
+} __packed;
+
 #define MAX_IOCTL_SGE	16
 
 struct mfi_ioc_packet {
