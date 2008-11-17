@@ -49,7 +49,7 @@ static const char rcsid[] =
 static void   dump_config_map(struct tuple *tp);
 static void   dump_cis_config(struct tuple *tp);
 static void   dump_other_cond(u_char *p, int len);
-static void   dump_device_desc(u_char *p, int len, char *type);
+static void   dump_device_desc(u_char *p, int len, const char *type);
 static void   dump_info_v1(u_char *p, int len);
 static void   dump_longlink_mfc(u_char *p, int len);
 static void   dump_bar(u_char *p, int len);
@@ -222,8 +222,8 @@ print_pwr_desc(u_char *p)
 {
 	int     len = 1, i;
 	u_char mask;
-	char  **expp;
-	static char *pname[] =
+	const char  **expp;
+	static const char *pname[] =
 	{"Nominal operating supply voltage",
 	 "Minimum operating supply voltage",
 	 "Maximum operating supply voltage",
@@ -233,11 +233,11 @@ print_pwr_desc(u_char *p)
 	 "Power down supply current",
 	 "Reserved"
 	};
-	static char *vexp[] =
+	static const char *vexp[] =
 	{"10uV", "100uV", "1mV", "10mV", "100mV", "1V", "10V", "100V"};
-	static char *cexp[] =
+	static const char *cexp[] =
 	{"10nA", "1uA", "10uA", "100uA", "1mA", "10mA", "100mA", "1A"};
-	static char *mant[] =
+	static const char *mant[] =
 	{"1", "1.2", "1.3", "1.5", "2", "2.5", "3", "3.5", "4", "4.5",
 	"5", "5.5", "6", "7", "8", "9"};
 
@@ -270,13 +270,13 @@ print_pwr_desc(u_char *p)
 static void
 print_ext_speed(u_char x, int scale)
 {
-	static char *mant[] =
+	static const char *mant[] =
 	{"Reserved", "1.0", "1.2", "1.3", "1.5", "2.0", "2.5", "3.0",
 	"3.5", "4.0", "4.5", "5.0", "5.5", "6.0", "7.0", "8.0"};
-	static char *exp[] =
+	static const char *exp[] =
 	{"1 ns", "10 ns", "100 ns", "1 us", "10 us", "100 us",
 	"1 ms", "10 ms"};
-	static char *scale_name[] =
+	static const char *scale_name[] =
 	{"None", "10", "100", "1,000", "10,000", "100,000",
 	"1,000,000", "10,000,000"};
 
@@ -290,7 +290,7 @@ print_ext_speed(u_char x, int scale)
  *	call from print_io_map(), print_mem_map()
  */
 static int
-print_num(int sz, char *fmt, u_char *p, int ofs)
+print_num(int sz, const char *fmt, u_char *p, int ofs)
 {
 	switch (sz) {
 	case 0:
@@ -695,14 +695,14 @@ dump_other_cond(u_char *p, int len)
  *		Common / Attribute memory descripter
  */
 static void
-dump_device_desc(u_char *p, int len, char *type)
+dump_device_desc(u_char *p, int len, const char *type)
 {
-	static char *un_name[] =
+	static const char *un_name[] =
 	{"512b", "2Kb", "8Kb", "32Kb", "128Kb", "512Kb", "2Mb", "reserved"};
-	static char *speed[] =
+	static const char *speed[] =
 	{"No speed", "250nS", "200nS", "150nS",
 	"100nS", "Reserved", "Reserved"};
-	static char *dev[] =
+	static const char *dev[] =
 	{"No device", "Mask ROM", "OTPROM", "UV EPROM",
 	 "EEPROM", "FLASH EEPROM", "SRAM", "DRAM",
 	 "Reserved", "Reserved", "Reserved", "Reserved",
@@ -778,7 +778,7 @@ dump_info_v1(u_char *p, int len)
 static void
 dump_func_id(u_char *p)
 {
-	static char *id[] = {
+	static const char *id[] = {
 		"Multifunction card",
 		"Memory card",
 		"Serial port/modem",
@@ -804,7 +804,7 @@ dump_func_id(u_char *p)
 static void
 dump_serial_ext(u_char *p, int len)
 {
-	static char *type[] = {
+	static const char *type[] = {
 		"", "Modem", "Data", "Fax", "Voice", "Data modem",
 		"Fax/modem", "Voice", " (Data)", " (Fax)", " (Voice)"
 	};
@@ -821,7 +821,7 @@ dump_serial_ext(u_char *p, int len)
 			goto err;
 		switch (p[1] & 0x1F) {
 		default:
-			printf("\t\tUnkn device");
+			printf("\t\tUnknown device");
 			break;
 		case 0:
 			printf("\t\t8250 UART");
