@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2008, M. Warner Losh
  * Copyright (c) 2000,2001 Jonathan Chen.
  * All rights reserved.
  *
@@ -29,6 +30,21 @@
 /*
  * Structure definitions for the Cardbus Bus driver
  */
+
+/*
+ * Static copy of the CIS buffer.  Technically, you aren't supposed
+ * to do this.  In practice, however, it works well.
+ */
+struct cis_buffer
+{
+	size_t	len;			/* Actual length of the CIS */
+	uint8_t buffer[2040];		/* small enough to be 2k */
+};
+
+/*
+ * Per child information for the PCI device.  Cardbus layers on some
+ * additional data.
+ */
 struct cardbus_devinfo
 {
 	struct pci_devinfo pci;
@@ -43,36 +59,33 @@ struct cardbus_devinfo
 		} lan;
 	} funce;
 	uint32_t	fepresent;	/* bit mask of funce values present */
+	struct cdev 	*sc_cisdev;
+	struct cis_buffer sc_cis;
 };
 
-struct cis_buffer
-{
-	size_t	len;			/* Actual length of the CIS */
-	uint8_t buffer[2040];		/* small enough to be 2k */
-};
-
+/*
+ * Per cardbus soft info.  Not sure why we even keep this around...
+ */
 struct cardbus_softc 
 {
 	device_t	sc_dev;
-	/* The following fields should in be in struct cardbus_devinfo */
-	struct cdev 	*sc_cisdev;
-	struct cis_buffer sc_cis;
-	int		sc_cis_open;
 };
 
+/*
+ * Per node callback structures.
+ */
 struct tuple_callbacks;
-
 typedef int (tuple_cb) (device_t cbdev, device_t child, int id, int len,
 		 uint8_t *tupledata, uint32_t start, uint32_t *off,
 		 struct tuple_callbacks *info, void *);
-
 struct tuple_callbacks {
 	int	id;
 	char	*name;
 	tuple_cb *func;
 };
 
-int	cardbus_device_create(struct cardbus_softc *);
-int	cardbus_device_destroy(struct cardbus_softc *);
+int	cardbus_device_create(struct cardbus_softc *sc,
+	    struct cardbus_devinfo *devi, device_t parent, device_t child);
+int	cardbus_device_destroy(struct cardbus_devinfo *devi);
 int	cardbus_parse_cis(device_t cbdev, device_t child,
 	    struct tuple_callbacks *callbacks, void *);
