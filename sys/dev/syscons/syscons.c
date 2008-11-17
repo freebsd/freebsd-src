@@ -1572,7 +1572,6 @@ sccngetch(int flags)
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
 
-    mtx_lock(&Giant);
     /* assert(sc_console != NULL) */
 
     /* 
@@ -1584,13 +1583,11 @@ sccngetch(int flags)
     sccnupdate(scp);
 
     if (fkeycp < fkey.len) {
-	mtx_unlock(&Giant);
 	splx(s);
 	return fkey.str[fkeycp++];
     }
 
     if (scp->sc->kbd == NULL) {
-	mtx_unlock(&Giant);
 	splx(s);
 	return -1;
     }
@@ -1613,7 +1610,6 @@ sccngetch(int flags)
     scp->kbd_mode = cur_mode;
     kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
     kbdd_disable(scp->sc->kbd);
-    mtx_unlock(&Giant);
     splx(s);
 
     switch (KEYFLAGS(c)) {
