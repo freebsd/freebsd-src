@@ -743,12 +743,6 @@ cd9660_strategy(ap)
 	if (bp->b_blkno == bp->b_lblkno) {
 		bp->b_blkno = (ip->iso_start + bp->b_lblkno) <<
 		    (ip->i_mnt->im_bshift - DEV_BSHIFT);
-		if ((long)bp->b_blkno == -1)	/* XXX: cut&paste junk ? */
-			clrbuf(bp);
-	}
-	if ((long)bp->b_blkno == -1) {	/* XXX: cut&paste junk ? */
-		bufdone(bp);
-		return (0);
 	}
 	bp->b_iooffset = dbtob(bp->b_blkno);
 	bo = ip->i_mnt->im_bo;
