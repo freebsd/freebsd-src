@@ -1315,11 +1315,17 @@ devclass_get_sysctl_tree(devclass_t dc)
  * @retval ENOMEM	memory allocation failure
  */
 static int
-devclass_alloc_unit(devclass_t dc, int *unitp)
+devclass_alloc_unit(devclass_t dc, device_t dev, int *unitp)
 {
+	const char *s;
 	int unit = *unitp;
 
 	PDEBUG(("unit %d in devclass %s", unit, DEVCLANAME(dc)));
+
+	/* Ask the parent bus if it wants to wire this device. */
+	if (unit == -1)
+		BUS_HINT_DEVICE_UNIT(device_get_parent(dev), dev, dc->name,
+		    &unit);
 
 	/* If we were given a wired unit number, check for existing device */
 	/* XXX imp XXX */
@@ -1334,8 +1340,18 @@ devclass_alloc_unit(devclass_t dc, int *unitp)
 	} else {
 		/* Unwired device, find the next available slot for it */
 		unit = 0;
-		while (unit < dc->maxunit && dc->devices[unit] != NULL)
-			unit++;
+		for (unit = 0;; unit++) {
+			/* If there is an "at" hint for a unit then skip it. */
+			if (resource_string_value(dc->name, unit, "at", &s) ==
+			    0)
+				continue;
+
+			/* If this device slot is already in use, skip it. */
+			if (unit < dc->maxunit && dc->devices[unit] != NULL)
+				continue;
+
+			break;
+		}
 	}
 
 	/*
@@ -1397,7 +1413,7 @@ devclass_add_device(devclass_t dc, device_t dev)
 	if (!dev->nameunit)
 		return (ENOMEM);
 
-	if ((error = devclass_alloc_unit(dc, &dev->unit)) != 0) {
+	if ((error = devclass_alloc_unit(dc, dev, &dev->unit)) != 0) {
 		free(dev->nameunit, M_BUS);
 		dev->nameunit = NULL;
 		return (error);
