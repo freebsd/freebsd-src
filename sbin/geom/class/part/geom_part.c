@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -203,21 +204,12 @@ find_provider(struct ggeom *gp, unsigned long long minsector)
 }
 
 static const char *
-fmtsize(long double rawsz)
+fmtsize(int64_t rawsz)
 {
-	static char buf[32];
-	static const char *sfx[] = { "B", "KB", "MB", "GB", "TB" };
-	long double sz;
-	int sfxidx;
+	static char buf[5];
 
-	sfxidx = 0;
-	sz = (long double)rawsz;
-	while (sfxidx < 4 && sz > 1099.0) {
-		sz /= 1000;
-		sfxidx++;
-	}
-
-	sprintf(buf, "%.1Lf%s", sz, sfx[sfxidx]);
+	humanize_number(buf, sizeof(buf), rawsz, "", HN_AUTOSCALE,
+	    HN_B | HN_NOSPACE | HN_DECIMAL);
 	return (buf);
 }
 
