@@ -1,9 +1,0 @@
-
-#------------------------------------------------------------------------------
-# file(1) magic for revision control files
-# From Hendrik Scholz <hendrik@scholz.net>
-0	string	/1\ :pserver:	cvs password text file
-
-# Conary changesets
-# From: Jonathan Smith <smithj@rpath.com>
-0	belong	0xea3f81bb	Conary changeset data
