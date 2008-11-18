@@ -393,6 +393,8 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	const char *s;
+	char *buf;
+	off_t bsize;
 	int error, fd;
 
 	s = gctl_get_ascii(req, "class");
@@ -428,8 +430,21 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 			errx(EXIT_FAILURE, "%s: not enough space", dsf);
 		if (lseek(fd, 0, SEEK_SET) != 0)
 			err(EXIT_FAILURE, "%s", dsf);
-		if (write(fd, code, size) != size)
+
+		/*
+		 * When writing to a disk device, the write must be
+		 * sector aligned and not write to any partial sectors,
+		 * so round up the buffer size to the next sector and zero it.
+		 */
+		bsize = (size + pp->lg_sectorsize - 1) /
+		    pp->lg_sectorsize * pp->lg_sectorsize;
+		buf = calloc(1, bsize);
+		if (buf == NULL)
 			err(EXIT_FAILURE, "%s", dsf);
+		bcopy(code, buf, size);
+		if (write(fd, buf, bsize) != bsize)
+			err(EXIT_FAILURE, "%s", dsf);
+		free(buf);
 		close(fd);
 	} else
 		errx(EXIT_FAILURE, "invalid partition index");
