@@ -422,7 +422,7 @@ main(int argc, char * argv[])
 	int nfds;
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
-	int freq, curfreq, *freqs, i, j, *mwatts, numfreqs, load;
+	int freq, curfreq, initfreq, *freqs, i, j, *mwatts, numfreqs, load;
 	int ch, mode, mode_ac, mode_battery, mode_none;
 	uint64_t mjoules_used;
 	size_t len;
@@ -536,7 +536,7 @@ main(int argc, char * argv[])
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
 
-	freq = get_freq();
+	freq = initfreq = get_freq();
 	if (freq < 1)
 		freq = 1;
 	/* Main loop. */
@@ -682,6 +682,8 @@ main(int argc, char * argv[])
 				    freqs[j]);
 		}
 	}
+	if (set_freq(initfreq))
+		warn("error setting CPU frequency %d", initfreq);
 	free(freqs);
 	free(mwatts);
 	devd_close();
