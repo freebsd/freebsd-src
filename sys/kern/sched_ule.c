@@ -946,7 +946,7 @@ tdq_idled(struct tdq *tdq)
 static void
 tdq_notify(struct tdq *tdq, struct thread *td)
 {
-	int cpri;
+	struct thread *ctd;
 	int pri;
 	int cpu;
 
@@ -954,10 +954,10 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		return;
 	cpu = td->td_sched->ts_cpu;
 	pri = td->td_priority;
-	cpri = pcpu_find(cpu)->pc_curthread->td_priority;
-	if (!sched_shouldpreempt(pri, cpri, 1))
+	ctd = pcpu_find(cpu)->pc_curthread;
+	if (!sched_shouldpreempt(pri, ctd->td_priority, 1))
 		return;
-	if (TD_IS_IDLETHREAD(td)) {
+	if (TD_IS_IDLETHREAD(ctd)) {
 		/*
 		 * If the idle thread is still 'running' it's probably
 		 * waiting on us to release the tdq spinlock already.  No
