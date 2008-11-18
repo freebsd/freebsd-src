@@ -1,0 +1,93 @@
+.\"
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified other than the possible
+.\"    addition of one or more copyright notices.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice(s), this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+.\" DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2005
+.Dt VFS_LOCK_GIANT 9
+.Os
+.Sh NAME
+.Nm VFS_LOCK_GIANT ,
+.Nm VFS_UNLOCK_GIANT
+.Nd "conditionally lock and unlock Giant around entry into VFS"
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.In sys/vnode.h
+.Ft int
+.Fn VFS_LOCK_GIANT "struct mount *mp"
+.Ft void
+.Fn VFS_UNLOCK_GIANT "int vfslocked"
+.Sh DESCRIPTION
+.Fn VFS_LOCK_GIANT
+will conditionally acquire the
+.Va Giant
+lock if the file system referenced by
+.Fa mp
+is marked as MPSAFE or not, returning a flag indicating whether
+.Va Giant
+was
+set, which may later be passed to
+.Fn VFS_UNLOCK_GIANT .
+The value of
+.Fa mp
+will typically be derived from the mount pointer in a
+.Vt vnode
+on which a VFS operation will be performed.
+.Pp
+.Fn VFS_UNLOCK_GIANT
+conditionally releases the
+.Va Giant
+lock if the passed
+.Fa vfslocked
+argument is non-zero.
+It is expected that the argument will be derived from the return values of
+.Fn VFS_LOCK_GIANT
+or
+.Xr NDHASGIANT 9 .
+.Sh RETURN VALUES
+.Fn VFS_LOCK_GIANT
+returns a boolean indicating whether or not
+.Va Giant
+was acquired.
+.Sh SEE ALSO
+.Xr mutex 9 ,
+.Xr NDHASGIANT 9 ,
+.Xr vnode 9
+.Sh AUTHORS
+.An -nosplit
+MPSAFE VFS support for
+.Fx
+was implemented by
+.An Jeff Roberson .
+.Pp
+This manual page was written by
+.An Robert Watson .
+.Sh BUGS
+Non-MPSAFE file systems exist, requiring callers conditional locking and
+unlocking of
+.Va Giant .

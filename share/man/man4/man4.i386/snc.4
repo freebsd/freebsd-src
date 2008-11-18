@@ -1,0 +1,142 @@
+.\"
+.\" Copyright (c) 2004 Tom Rhodes
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 4, 2004
+.Dt SNC 4 i386
+.Os
+.Sh NAME
+.Nm snc
+.Nd National Semiconductor DP8393X SONIC Ethernet adapter driver
+.Sh SYNOPSIS
+.Cd device isa
+.Cd device snc
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the
+.Tn National
+.Tn Semiconductor
+.Tn SONIC
+Ethernet adapters.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following cards:
+.Pp
+.Bl -bullet -compact
+.It
+National Semiconductor DP83934AVQB
+.It
+NEC PC-9801-83
+.It
+NEC PC-9801-84
+.It
+NEC PC-9801-103
+.It
+NEC PC-9801-104
+.It
+NEC PC-9801N-15
+.It
+NEC PC-9801N-25
+.It
+NEC PC-9801N-J02 PCMCIA
+.It
+NEC PC-9801N-J02R PCMCIA
+.El
+.Pp
+The
+.Nm
+driver also includes support for the
+.Tn National
+.Tn Semiconductor
+.Tn NS46C46
+as
+64 * 16 bits Microwave Serial
+.Tn EEPROM .
+.Sh IMPLEMENTATION NOTES
+Accessing
+.Tn SONIC
+card data structures and registers as 32 bit values
+makes code endianness independent.
+The
+.Tn SONIC
+is however always in big-endian mode so it is necessary to
+ensure that data structures shared
+between the
+.Tn CPU
+and the
+.Tn SONIC
+card are always in big-endian order.
+The
+.Nm
+driver supports the
+.Tn PC-98
+C-Bus,
+and
+.Tn PnP
+buses.
+Support is also provided for the legacy C-Bus.
+.Sh DIAGNOSTICS
+The following driver specific error messages
+may be reported:
+.Bl -diag
+.It "snc%d: snc_nec16_register_irq: unsupported irq (%d)"
+The card returned an
+.Tn IRQ
+which is not supported by the driver.
+.It "snc%d: invalid packet length %d bytes"
+An attempt to transfer a data packet failed due to an
+invalid packet length.
+.El
+.Sh SEE ALSO
+.Xr netintro 4 ,
+.Xr bus_alloc_resource_any 9
+.Sh HISTORY
+The
+.Nm
+driver was ported from
+.Nx
+by
+.An -nosplit
+.An Motomichi Matsuzaki Aq mzaki@e-mail.ne.jp
+and
+.An Hiroshi Yamashita Aq bluemoon@msj.biglobe.ne.jp .
+It first appeared in
+.Fx 4.2 .
+This manual page first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Tom Rhodes Aq trhodes@FreeBSD.org .
+.Sh BUGS
+Currently the
+.Nm
+driver only works on the
+.Tn PC-98
+architecture.
+It should probably work on the i386 architecture
+as well.

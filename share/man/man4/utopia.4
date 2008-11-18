@@ -1,0 +1,196 @@
+.\" Copyright (c) 2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 22, 2006
+.Dt UTOPIA 4
+.Os
+.Sh NAME
+.Nm utopia
+.Nd "driver module for ATM PHY chips"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device utopia"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+utopia_load="YES"
+.Ed
+.Sh DESCRIPTION
+This module is used by all ATM drivers for cards that use
+PMC-Sierra S/Uni and IDT77105/IDT77155
+chips to provide uniform functionality.
+The module implements status monitoring
+in either interrupt or polling mode, media option handling and application
+access to chip registers.
+.Pp
+The driver implements several sysctls that are accessible under the
+.Va hw.atm. Ns Ao Ar iface Ac Ns Va .\&
+tree, where
+.Ar iface
+is the name of the ATM interface:
+.Bl -tag -width indent
+.It Va phy_regs
+When reading this sysctl an array of 8-bit unsigned integers is returned
+containing all accessible chip registers starting at register 0.
+A register can be written by writing three 8-bit unsigned integers to the
+sysctl: the register number, the new value and a bit mask.
+This changes all bits in the register for which the corresponding bit in the
+mask is one to the bit values from value.
+Note that not all registers may
+be writeable.
+.It Va phy_loopback
+allows to put the interface in one of several loopback modes.
+Not all modes and all combinations of modes are supported on all chips.
+The possible modes are:
+.Bl -tag -width indent
+.It Dv UTP_LOOP_NONE Pq No 0x00
+No loopback, normal operation.
+.It Dv UTP_LOOP_TIME Pq No 0x01
+Timing source loopback.
+When this is set the transmitter's clock is
+derived from the receiver's clock.
+.It Dv UTP_LOOP_DIAG Pq No 0x02
+Diagnostic loopback.
+In this mode the receiver's input is connected to the
+transmitter's output.
+The receiver gets back everything that is sent.
+The
+transmitter operates normally.
+.It Dv UTP_LOOP_LINE Pq No 0x04
+Serial line loopback.
+This connects the line receiver to the line transmitter.
+The chip transmits all cells back that it receives.
+The receiver operates
+normally.
+.It Dv UTP_LOOP_PARAL Pq No 0x08
+Parallel diagnostic loopback.
+This feeds back all transmitted cells into the
+receiver between the parallel/serial converters.
+The transmitter
+operates normally.
+.It Dv UTP_LOOP_TWIST Pq No 0x10
+Twisted pair diagnostic loopback.
+Connects the high speed receive data to the
+high speed transmit data.
+All received data is sent back.
+The receiver
+operates normally.
+.It Dv UTP_LOOP_PATH Pq No 0x20
+Diagnostic path loopback.
+This connects the receiver input to the transmitter
+output just between the path overhead processor and the byte mux.
+The
+transmitter operates normally.
+.El
+.It Va phy_type
+This is the detected type of the phy chip.
+Currently the following chips are
+supported:
+.Bl -tag -width indent
+.It Dv UTP_TYPE_UNKNOWN Pq No 0
+The module could not determine the type of the PHY chip.
+.It Dv UTP_TYPE_SUNI_LITE Pq No 1
+PMC-5346 (S/Uni-Lite)
+.It Dv UTP_TYPE_SUNI_ULTRA Pq No 2
+PMC-5350 (S/Uni-Ultra)
+.It Dv UTP_TYPE_SUNI_622 Pq No 3
+PMC-5355 (S/Uni-622)
+.It Dv UTP_TYPE_IDT77105 Pq No 4
+IDT77105 (25.6MBit UTP interface)
+.It Dv UTP_TYPE_IDT77155 Pq No 5
+IDT77155 (155MBit interface)
+.El
+.It Va phy_name
+This is a string describing the type of the PHY chip.
+.It Va phy_stats
+Physical and some ATM layer statistics.
+These are the statistics usually
+provided by the chip.
+The data is a returned in the following structure:
+.Bd -literal
+struct utopia_stats1 {
+	uint32_t version;	/* version of this struct */
+	uint32_t fill;
+	uint64_t rx_sbip;	/* rx section BIP errors */
+	uint64_t rx_lbip;	/* rx line BIP errors */
+	uint64_t rx_lfebe;	/* rx line far end block errors */
+	uint64_t rx_pbip;	/* rx path BIP errors */
+	uint64_t rx_pfebe;	/* rx path far end block errors */
+	uint64_t rx_cells;	/* received cells */
+	uint64_t rx_corr;	/* correctable cell errors */
+	uint64_t rx_uncorr;	/* uncorrectable cell errors */
+	uint64_t rx_symerr;	/* symbol errors */
+	uint64_t tx_cells;	/* transmitted cells */
+};
+.Ed
+.Pp
+The current version is 1.
+The statistics are updated from the chip once
+a second.
+On overflow the counters wrap to zero.
+Note that not all counters
+are meaningful for all PHY chips.
+The statistics are cleared by writing an
+arbitrary new value (the value is ignored).
+.El
+.Pp
+The
+.Nm
+module also interfaces with the ifmedia system.
+The module reports the current state of the carrier and will issue a
+warning message when the carrier state changes.
+While the physical media itself cannot be changed, several media options can:
+.Bl -tag -width indent
+.It Cm SDH
+If the PHY is a Sonet/SDH chip this flag switches the interface into SDH mode.
+If this option is not set (the default) the interface is in Sonet mode.
+.It Cm noscramb
+If the PHY is a Sonet/SDH chip disable scrambling.
+This may be useful for debugging purposes.
+.It Cm unassigned
+Normally the interface emits idle cells when there are no other cells to
+transmit.
+This changes the default cell type to unassigned cells.
+This
+may be needed for interworking with public networks.
+.El
+.Sh SEE ALSO
+.Xr en 4 ,
+.Xr fatm 4 ,
+.Xr hatm 4 ,
+.Xr patm 4 ,
+.Xr utopia 9
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org
