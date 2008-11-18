@@ -153,14 +153,14 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(&ndp)))
 		return (error);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 
 	if (!vn_isdisk(devvp, &error)) {
-		vrele(devvp);
+		vput(devvp);
 		return (error);
 	}
 
@@ -169,7 +169,6 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	 * or has superuser abilities
 	 */
 	accmode = VREAD;
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
@@ -177,22 +176,20 @@ cd9660_mount(struct mount *mp, struct thread *td)
 		vput(devvp);
 		return (error);
 	}
-	VOP_UNLOCK(devvp, 0);
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = iso_mountfs(devvp, mp);
+		if (error)
+			vrele(devvp);
 	} else {
 		if (devvp != imp->im_devvp)
 			error = EINVAL;	/* needs translation */
-		else
-			vrele(devvp);
+		vput(devvp);
 	}
-	if (error) {
-		vrele(devvp);
-		return error;
-	}
+	if (error)
+		return (error);
 	vfs_mountedfrom(mp, fspec);
-	return 0;
+	return (0);
 }
 
 /*
@@ -222,7 +219,6 @@ iso_mountfs(devvp, mp)
 	struct bufobj *bo;
 	char *cs_local, *cs_disk;
 
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 	DROP_GIANT();
 	g_topology_lock();
 	error = g_vfs_open(devvp, &cp, "cd9660", 0);
