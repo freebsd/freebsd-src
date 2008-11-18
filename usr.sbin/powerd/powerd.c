@@ -50,13 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/apm_bios.h>
 #endif
 
-#define DEFAULT_ACTIVE_PERCENT	65
-#define DEFAULT_IDLE_PERCENT	90
-#define DEFAULT_POLL_INTERVAL	500	/* Poll interval in milliseconds */
+#define DEFAULT_ACTIVE_PERCENT	75
+#define DEFAULT_IDLE_PERCENT	50
+#define DEFAULT_POLL_INTERVAL	250	/* Poll interval in milliseconds */
 
 typedef enum {
 	MODE_MIN,
 	MODE_ADAPTIVE,
+	MODE_HIADAPTIVE,
 	MODE_MAX,
 } modes_t;
 
@@ -77,7 +78,7 @@ const char *modes[] = {
 #define DEVDPIPE	"/var/run/devd.pipe"
 #define DEVCTL_MAXBUF	1024
 
-static int	read_usage_times(long *idle, long *total);
+static int	read_usage_times(int *load);
 static int	read_freqs(int *numfreqs, int **freqs, int **power);
 static int	set_freq(int freq);
 static void	acline_init(void);
@@ -89,7 +90,7 @@ static void	parse_mode(char *arg, int *mode, int ch);
 static void	usage(void);
 
 /* Sysctl data structures. */
-static int	cp_time_mib[2];
+static int	cp_times_mib[2];
 static int	freq_mib[4];
 static int	levels_mib[4];
 static int	acline_mib[3];
@@ -119,27 +120,49 @@ static int	devd_pipe = -1;
 static struct timeval tried_devd;
 
 static int
-read_usage_times(long *idle, long *total)
+read_usage_times(int *load)
 {
-	static long idle_old, total_old;
-	long cp_time[CPUSTATES], i, total_new;
-	size_t cp_time_len;
-	int error;
+	static long *cp_times = NULL, *cp_times_old = NULL;
+	static int ncpus = 0;
+	size_t cp_times_len;
+	int error, cpu, i, total;
 
-	cp_time_len = sizeof(cp_time);
-	error = sysctl(cp_time_mib, 2, cp_time, &cp_time_len, NULL, 0);
+	if (cp_times == NULL) {
+		cp_times_len = 0;
+		error = sysctl(cp_times_mib, 2, NULL, &cp_times_len, NULL, 0);
+		if (error)
+			return (error);
+		if ((cp_times = malloc(cp_times_len)) == NULL)
+			return (errno);
+		if ((cp_times_old = malloc(cp_times_len)) == NULL) {
+			free(cp_times);
+			cp_times = NULL;
+			return (errno);
+		}
+		ncpus = cp_times_len / (sizeof(long) * CPUSTATES);
+	}
+
+	cp_times_len = sizeof(long) * CPUSTATES * ncpus;
+	error = sysctl(cp_times_mib, 2, cp_times, &cp_times_len, NULL, 0);
 	if (error)
 		return (error);
-	for (total_new = 0, i = 0; i < CPUSTATES; i++)
-		total_new += cp_time[i];
+		
+	if (load) {
+		*load = 0;
+		for (cpu = 0; cpu < ncpus; cpu++) {
+			total = 0;
+			for (i = 0; i < CPUSTATES; i++) {
+			    total += cp_times[cpu * CPUSTATES + i] -
+				cp_times_old[cpu * CPUSTATES + i];
+			}
+			if (total == 0)
+				continue;
+			*load += 100 - (cp_times[cpu * CPUSTATES + CP_IDLE] - 
+			    cp_times_old[cpu * CPUSTATES + CP_IDLE]) * 100 / total;
+		}
+	}
 
-	if (idle)
-		*idle = cp_time[CP_IDLE] - idle_old;
-	if (total)
-		*total = total_new - total_old;
-
-	idle_old = cp_time[CP_IDLE];
-	total_old = total_new;
+	memcpy(cp_times_old, cp_times, cp_times_len);
 
 	return (0);
 }
@@ -190,6 +213,21 @@ read_freqs(int *numfreqs, int **freqs, int **power)
 }
 
 static int
+get_freq(void)
+{
+	size_t len;
+	int curfreq;
+	
+	len = sizeof(curfreq);
+	if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
+		if (vflag)
+			warn("error reading current CPU frequency");
+		curfreq = 0;
+	}
+	return (curfreq);
+}
+
+static int
 set_freq(int freq)
 {
 
@@ -199,6 +237,19 @@ set_freq(int freq)
 	}
 
 	return (0);
+}
+
+static int
+get_freq_id(int freq, int *freqs, int numfreqs)
+{
+	int i = 1;
+	
+	while (i < numfreqs) {
+		if (freqs[i] < freq)
+			break;
+		i++;
+	}
+	return (i - 1);
 }
 
 /*
@@ -341,6 +392,8 @@ parse_mode(char *arg, int *mode, int ch)
 		*mode = MODE_MAX;
 	else if (strcmp(arg, "adaptive") == 0 || strcmp(arg, "adp") == 0)
 		*mode = MODE_ADAPTIVE;
+	else if (strcmp(arg, "hiadaptive") == 0 || strcmp(arg, "hadp") == 0)
+		*mode = MODE_HIADAPTIVE;
 	else
 		errx(1, "bad option: -%c %s", (char)ch, optarg);
 }
@@ -369,14 +422,14 @@ main(int argc, char * argv[])
 	int nfds;
 	struct pidfh *pfh = NULL;
 	const char *pidfile = NULL;
-	long idle, total;
-	int curfreq, *freqs, i, *mwatts, numfreqs;
+	int freq, curfreq, *freqs, i, j, *mwatts, numfreqs, load;
 	int ch, mode, mode_ac, mode_battery, mode_none;
 	uint64_t mjoules_used;
 	size_t len;
 
 	/* Default mode for all AC states is adaptive. */
-	mode_ac = mode_battery = mode_none = MODE_ADAPTIVE;
+	mode_ac = mode_none = MODE_HIADAPTIVE;
+	mode_battery = MODE_ADAPTIVE;
 	cpu_running_mark = DEFAULT_ACTIVE_PERCENT;
 	cpu_idle_mark = DEFAULT_IDLE_PERCENT;
 	poll_ival = DEFAULT_POLL_INTERVAL;
@@ -418,7 +471,7 @@ main(int argc, char * argv[])
 			break;
 		case 'r':
 			cpu_running_mark = atoi(optarg);
-			if (cpu_running_mark < 0 || cpu_running_mark > 100) {
+			if (cpu_running_mark <= 0 || cpu_running_mark > 100) {
 				warnx("%d is not a valid percent",
 				    cpu_running_mark);
 				usage();
@@ -438,8 +491,8 @@ main(int argc, char * argv[])
 
 	/* Look up various sysctl MIBs. */
 	len = 2;
-	if (sysctlnametomib("kern.cp_time", cp_time_mib, &len))
-		err(1, "lookup kern.cp_time");
+	if (sysctlnametomib("kern.cp_times", cp_times_mib, &len))
+		err(1, "lookup kern.cp_times");
 	len = 4;
 	if (sysctlnametomib("dev.cpu.0.freq", freq_mib, &len))
 		err(1, "lookup freq");
@@ -447,8 +500,8 @@ main(int argc, char * argv[])
 	if (sysctlnametomib("dev.cpu.0.freq_levels", levels_mib, &len))
 		err(1, "lookup freq_levels");
 
-	/* Check if we can read the idle time and supported freqs. */
-	if (read_usage_times(NULL, NULL))
+	/* Check if we can read the load and supported freqs. */
+	if (read_usage_times(NULL))
 		err(1, "read_usage_times");
 	if (read_freqs(&numfreqs, &freqs, &mwatts))
 		err(1, "error reading supported CPU frequencies");
@@ -483,6 +536,9 @@ main(int argc, char * argv[])
 	signal(SIGINT, handle_sigs);
 	signal(SIGTERM, handle_sigs);
 
+	freq = get_freq();
+	if (freq < 1)
+		freq = 1;
 	/* Main loop. */
 	for (;;) {
 		FD_ZERO(&fdset);
@@ -522,37 +578,30 @@ main(int argc, char * argv[])
 		}
 
 		/* Read the current frequency. */
-		len = sizeof(curfreq);
-		if (sysctl(freq_mib, 4, &curfreq, &len, NULL, 0) != 0) {
-			if (vflag)
-				warn("error reading current CPU frequency");
+		if ((curfreq = get_freq()) == 0)
 			continue;
-		}
 
+		i = get_freq_id(curfreq, freqs, numfreqs);
+	
 		if (vflag) {
-			for (i = 0; i < numfreqs; i++) {
-				if (freqs[i] == curfreq)
-					break;
-			}
-
 			/* Keep a sum of all power actually used. */
-			if (i < numfreqs && mwatts[i] != -1)
+			if (mwatts[i] != -1)
 				mjoules_used +=
 				    (mwatts[i] * (poll_ival / 1000)) / 1000;
 		}
 
 		/* Always switch to the lowest frequency in min mode. */
 		if (mode == MODE_MIN) {
-			if (curfreq != freqs[numfreqs - 1]) {
+			freq = freqs[numfreqs - 1];
+			if (curfreq != freq) {
 				if (vflag) {
 					printf("now operating on %s power; "
 					    "changing frequency to %d MHz\n",
-					    modes[acline_status],
-					    freqs[numfreqs - 1]);
+					    modes[acline_status], freq);
 				}
-				if (set_freq(freqs[numfreqs - 1]) != 0) {
+				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
-					    freqs[numfreqs - 1]);
+					    freq);
 					continue;
 				}
 			}
@@ -561,16 +610,16 @@ main(int argc, char * argv[])
 
 		/* Always switch to the highest frequency in max mode. */
 		if (mode == MODE_MAX) {
-			if (curfreq != freqs[0]) {
+			freq = freqs[0];
+			if (curfreq != freq) {
 				if (vflag) {
 					printf("now operating on %s power; "
 					    "changing frequency to %d MHz\n",
-					    modes[acline_status],
-					    freqs[0]);
+					    modes[acline_status], freq);
 				}
-				if (set_freq(freqs[0]) != 0) {
+				if (set_freq(freq) != 0) {
 					warn("error setting CPU freq %d",
-				    	    freqs[0]);
+				    	    freq);
 					continue;
 				}
 			}
@@ -578,44 +627,59 @@ main(int argc, char * argv[])
 		}
 
 		/* Adaptive mode; get the current CPU usage times. */
-		if (read_usage_times(&idle, &total)) {
+		if (read_usage_times(&load)) {
 			if (vflag)
 				warn("read_usage_times() failed");
 			continue;
 		}
-
-		/*
-		 * If we're idle less than the active mark, bump up two levels.
-		 * If we're idle more than the idle mark, drop down one level.
-		 */
-		for (i = 0; i < numfreqs - 1; i++) {
-			if (freqs[i] == curfreq)
-				break;
+		
+		if (mode == MODE_ADAPTIVE) {
+			if (load > cpu_running_mark) {
+				if (load > 95 || load > cpu_running_mark * 2)
+					freq *= 2;
+				else
+					freq = freq * load / cpu_running_mark;
+				if (freq > freqs[0])
+					freq = freqs[0];
+			} else if (load < cpu_idle_mark &&
+			    curfreq * load < freqs[get_freq_id(
+			    freq * 7 / 8, freqs, numfreqs)] * 
+			    cpu_running_mark) {
+				freq = freq * 7 / 8;
+				if (freq < freqs[numfreqs - 1])
+					freq = freqs[numfreqs - 1];
+			}
+		} else { /* MODE_HIADAPTIVE */
+			if (load > cpu_running_mark / 2) {
+				if (load > 95 || load > cpu_running_mark)
+					freq *= 4;
+				else
+					freq = freq * load * 2 / cpu_running_mark;
+				if (freq > freqs[0] * 2)
+					freq = freqs[0] * 2;
+			} else if (load < cpu_idle_mark / 2 &&
+			    curfreq * load < freqs[get_freq_id(
+			    freq * 31 / 32, freqs, numfreqs)] * 
+			    cpu_running_mark / 2) {
+				freq = freq * 31 / 32;
+				if (freq < freqs[numfreqs - 1])
+					freq = freqs[numfreqs - 1];
+			}
 		}
-		if (idle < (total * cpu_running_mark) / 100 &&
-		    curfreq < freqs[0]) {
-			i -= 2;
-			if (i < 0)
-				i = 0;
+		if (vflag) {
+		    printf("load %3d%%, current freq %4d MHz (%2d), wanted freq %4d MHz\n",
+			load, curfreq, i, freq);
+		}
+		j = get_freq_id(freq, freqs, numfreqs);
+		if (i != j) {
 			if (vflag) {
-				printf("idle time < %d%%, increasing clock"
+				printf("changing clock"
 				    " speed from %d MHz to %d MHz\n",
-				    cpu_running_mark, curfreq, freqs[i]);
+				    freqs[i], freqs[j]);
 			}
-			if (set_freq(freqs[i]))
+			if (set_freq(freqs[j]))
 				warn("error setting CPU frequency %d",
-				    freqs[i]);
-		} else if (idle > (total * cpu_idle_mark) / 100 &&
-		    curfreq > freqs[numfreqs - 1]) {
-			i++;
-			if (vflag) {
-				printf("idle time > %d%%, decreasing clock"
-				    " speed from %d MHz to %d MHz\n",
-				    cpu_idle_mark, curfreq, freqs[i]);
-			}
-			if (set_freq(freqs[i]) != 0)
-				warn("error setting CPU frequency %d",
-				    freqs[i]);
+				    freqs[j]);
 		}
 	}
 	free(freqs);
