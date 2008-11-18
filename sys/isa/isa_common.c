@@ -467,15 +467,41 @@ isa_assign_resources(device_t child)
 	return (0);
 }
 
+/*
+ * Claim any unallocated resources to keep other devices from using
+ * them.
+ */
+static void
+isa_claim_resources(device_t dev, device_t child)
+{
+	struct isa_device *idev = DEVTOISA(child);
+	struct resource_list *rl = &idev->id_resources;
+	struct resource_list_entry *rle;
+	int rid;
+
+	STAILQ_FOREACH(rle, rl, link) {
+		if (!rle->res) {
+			rid = rle->rid;
+			resource_list_alloc(rl, dev, child, rle->type, &rid,
+			    0ul, ~0ul, 1, 0);
+		}
+	}
+}
+
+/*
+ * Called after other devices have initialised to probe for isa devices.
+ */
 void
 isa_probe_children(device_t dev)
 {
-	device_t *children;
+	struct isa_device *idev;
+	device_t *children, child;
 	struct isa_config *cfg;
 	int nchildren, i;
 
 	/*
-	 * Create all the children by calling driver's identify methods.
+	 * Create all the non-hinted children by calling drivers'
+	 * identify methods.
 	 */
 	bus_generic_probe(dev);
 
@@ -496,8 +522,7 @@ isa_probe_children(device_t dev)
 	}
 
 	for (i = 0; i < nchildren; i++) {
-		device_t child = children[i];
-		struct isa_device *idev = DEVTOISA(child);
+		idev = DEVTOISA(children[i]);
 
 		bzero(cfg, sizeof(*cfg));
 		if (idev->id_config_cb)
@@ -507,16 +532,39 @@ isa_probe_children(device_t dev)
 	free(cfg, M_TEMP);
 
 	/*
-	 * Next probe all non-pnp devices so that they claim their
-	 * resources first.
+	 * Next, probe all the PnP BIOS devices so they can subsume any
+	 * hints.
 	 */
+	for (i = 0; i < nchildren; i++) {
+		child = children[i];
+		idev = DEVTOISA(child);
+
+		if (idev->id_order > ISA_ORDER_PNPBIOS)
+			continue;
+		if (!TAILQ_EMPTY(&idev->id_configs) &&
+		    !isa_assign_resources(child))
+			continue;
+
+		if (device_probe_and_attach(child) == 0)
+			isa_claim_resources(dev, child);
+	}
+	free(children, M_TEMP);
+
+	/*
+	 * Next, enumerate hinted devices and probe all non-pnp devices so
+	 * that they claim their resources first.
+	 */
+	bus_enumerate_hinted_children(dev);
+	if (device_get_children(dev, &children, &nchildren))
+		return;
 	if (bootverbose)
 		printf("isa_probe_children: probing non-PnP devices\n");
 	for (i = 0; i < nchildren; i++) {
-		device_t child = children[i];
-		struct isa_device *idev = DEVTOISA(child);
+		child = children[i];
+		idev = DEVTOISA(child);
 
-		if (TAILQ_FIRST(&idev->id_configs))
+		if (device_is_attached(child) ||
+		    !TAILQ_EMPTY(&idev->id_configs))
 			continue;
 
 		device_probe_and_attach(child);
@@ -528,31 +576,15 @@ isa_probe_children(device_t dev)
 	if (bootverbose)
 		printf("isa_probe_children: probing PnP devices\n");
 	for (i = 0; i < nchildren; i++) {
-		device_t child = children[i];
-		struct isa_device* idev = DEVTOISA(child);
+		child = children[i];
+		idev = DEVTOISA(child);
 
-		if (!TAILQ_FIRST(&idev->id_configs))
+		if (device_is_attached(child) || TAILQ_EMPTY(&idev->id_configs))
 			continue;
 
 		if (isa_assign_resources(child)) {
-			struct resource_list *rl = &idev->id_resources;
-			struct resource_list_entry *rle;
-
 			device_probe_and_attach(child);
-
-			/*
-			 * Claim any unallocated resources to keep other
-			 * devices from using them.
-			 */
-			STAILQ_FOREACH(rle, rl, link) {
-				if (!rle->res) {
-					int rid = rle->rid;
-					resource_list_alloc(rl, dev, child,
-							    rle->type,
-							    &rid,
-							    0, ~0, 1, 0);
-				}
-			}
+			isa_claim_resources(dev, child);
 		}
 	}
 
@@ -580,6 +612,7 @@ isa_add_child(device_t dev, int order, const char *name, int unit)
 
 	resource_list_init(&idev->id_resources);
 	TAILQ_INIT(&idev->id_configs);
+	idev->id_order = order;
 
 	device_set_ivars(child, idev);
 
@@ -833,23 +866,9 @@ static void
 isa_child_detached(device_t dev, device_t child)
 {
 	struct isa_device* idev = DEVTOISA(child);
-	struct resource_list *rl = &idev->id_resources;
-	struct resource_list_entry *rle;
 
-	if (TAILQ_FIRST(&idev->id_configs)) {
-		/*
-		 * Claim any unallocated resources to keep other
-		 * devices from using them.
-		 */
-		STAILQ_FOREACH(rle, rl, link) {
-			if (!rle->res) {
-				int rid = rle->rid;
-				resource_list_alloc(rl, dev, child,
-						    rle->type,
-						    &rid, 0, ~0, 1, 0);
-			}
-		}
-	}
+	if (TAILQ_FIRST(&idev->id_configs))
+		isa_claim_resources(dev, child);
 }
 
 static void
@@ -900,20 +919,8 @@ isa_driver_added(device_t dev, driver_t *driver)
 
 		device_probe_and_attach(child);
 
-		if (TAILQ_FIRST(&idev->id_configs)) {
-			/*
-			 * Claim any unallocated resources to keep other
-			 * devices from using them.
-			 */
-			STAILQ_FOREACH(rle, rl, link) {
-				if (!rle->res) {
-					int rid = rle->rid;
-					resource_list_alloc(rl, dev, child,
-							    rle->type,
-							    &rid, 0, ~0, 1, 0);
-				}
-			}
-		}
+		if (TAILQ_FIRST(&idev->id_configs))
+			isa_claim_resources(dev, child);
 	}
 
 	free(children, M_TEMP);
@@ -1077,6 +1084,8 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_child_pnpinfo_str, isa_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, isa_child_location_str),
+	DEVMETHOD(bus_hinted_child,	isa_hinted_child),
+	DEVMETHOD(bus_hint_device_unit,	isa_hint_device_unit),
 
 	/* ISA interface */
 	DEVMETHOD(isa_add_config,	isa_add_config),
@@ -1086,11 +1095,7 @@ static device_method_t isa_methods[] = {
 	{ 0, 0 }
 };
 
-driver_t isa_driver = {
-	"isa",
-	isa_methods,
-	1,			/* no softc */
-};
+DEFINE_CLASS_0(isa, isa_driver, isa_methods, 0);
 
 devclass_t isa_devclass;
 
