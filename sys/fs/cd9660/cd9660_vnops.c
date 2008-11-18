@@ -295,7 +295,6 @@ cd9660_read(ap)
 		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-	ip->i_flag |= IN_ACCESS;
 	imp = ip->i_mnt;
 	do {
 		lbn = lblkno(imp, uio->uio_offset);
