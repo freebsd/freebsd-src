@@ -345,6 +345,8 @@ restart:
 		if (error)
 			goto out;
 		bawrite(nbp);
+		if (cg % 10 == 0)
+			ffs_syncvnode(vp, MNT_WAIT);
 	}
 	/*
 	 * Copy all the cylinder group maps. Although the
@@ -366,6 +368,8 @@ restart:
 			goto out;
 		error = cgaccount(cg, vp, nbp, 1);
 		bawrite(nbp);
+		if (cg % 10 == 0)
+			ffs_syncvnode(vp, MNT_WAIT);
 		if (error)
 			goto out;
 	}
