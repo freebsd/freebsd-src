@@ -1,0 +1,223 @@
+#
+# Copyright (c) 2001-2003
+#	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+# 	All rights reserved.
+# Copyright (c) 2004
+#	Hartmut Brandt.
+# 	All rights reserved.
+#
+# Author: Hartmut Brandt <harti@freebsd.org>
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# Help file for the atmconfig utility
+#
+# $FreeBSD$
+#
+^0 intro
+ATM configuration utility.
+usage:
+	atmconfig [common-options] command [subcommand] [options]
+
+Use 'atmconfig help' for general help or 'atmconfig help <command>' for
+help on 'command' or 'atmconfig help commands' for a list of commands.
+
+^0 help
+^^  help		show help information
+Use one of the following commands to get help on atmconfig:
+
+  atmconfig help options
+	gives you help on common command line options
+  atmconfig help commands
+	prints a list of available commands (and help items)
+  atmconfig help <command>
+	prints help on the given command (including a list of subcommands)
+  atmconfig help <command> <subcommand>
+	gives help on the given subcommand
+
+^0 options
+^^  help options	list common options
+Common command line options can be specified for all commands. They
+are written immediately before the command. The following options are
+available:
+
+ -h		print short help
+ -t		don't print headings for 'show'-type commands
+ -v		be verbose about all actions.
+
+^0 commands
+^^  help commands	show available commands
+The following commands are available:
+
+$MAIN
+
+^0 diag
+^^  diag		show/modify ATM hardware interfaces
+This command shows information about the ATM hardware interfaces in the
+system. A list of ATM devices is obtained by:
+
+  atmconfig [common-options] diag list
+
+Information about the hardware configuration of the ATM interfaces is
+reported by:
+
+  atmconfig [common-options] diag config [options] [<device> ...]
+
+The phy chip can be access with:
+
+  atmconfig [common-options] diag phy print [options] <device>
+  atmconfig [common-options] diag phy show <device>
+  atmconfig [common-options] diag phy set <device> <reg> <msk> <val>
+  atmconfig [common-options] diag phy set stats [options] <device>
+
+A list of open VCCs can be obtained with:
+
+  atmconfig [common-options] diag vcc [<device> ...]
+
+Driver internal statistics are printed with
+
+  atmconfig [common-options] diag stats <device>
+
+^1 list
+usage: atmconfig [common-options] diag list
+
+List all known ATM devices in the system.
+
+^1 config
+usage: atmconfig [common-options] diag config [-hardware] [-atm] [device ...]
+options:
+  -hardware	print hardware related information
+  -atm		print ATM related information
+
+If now device is given as argument information about all devices is shown.
+The default is to print only ATM related information.
+
+^1 phy
+To show the type of the PHY and its state:
+
+  atmconfig [common-options] diag phy show <device>
+
+Change a PHY register (use with care):
+
+  atmconfig [common-options] diag phy set <device> <reg> <msk> <val>
+
+Print the PHY registers in a human readable form:
+
+  atmconfig [common-options] diag phy print [-numeric] <device>
+
+The PHY statistics can be printed with:
+
+  atmconfig [common-options] diag phy stats [-clear] <device>
+
+^2 show
+usage: atmconfig [common-options] diag phy show <device>
+
+Show configuration and state information about the PHY chip on the given
+ATM interface.
+
+^2 set
+usage: atmconfig [common-options] diag phy set <device> <reg> <msk> <val>
+
+Set the bits of given PHY chip register for which the corresponding bit in
+<msk> is one to the value of the corresponding bit in <val>. All register
+bits that have a zero in <msk> are written back with there original value.
+
+^2 print
+usage: atmconfig [common-options] diag phy print [-numeric] <device>
+options:
+  -numeric	print registers in hex
+
+Print the registers of the PHY chip in a human readable format.
+
+^2 stats
+usage: atmconfig [common-options] diag phy stats [-clear] <device>
+options:
+  -clear	clear the statistics atomically after reading them
+
+Prints the PHY layer statistics of the PHY chip and optionally clears them.
+
+^1 vcc
+usage: atmconfig [common-options] diag vcc [-abr] [-channel] [-traffic]
+		 [<device> ...]
+options:
+  -abr		print ABR specific traffic parameters
+  -channel	print VPI, VCI, AAL, traffic type and flags (default)
+  -traffic	print traffic parameters
+
+Prints a list of all open vccs. The default output is -channel.
+
+^1 stats
+usage: atmconfig [common-options] diag stats <device>
+
+Prints the driver-internal statistics.
+
+^0 natm
+^^  natm		simple IP over ATM management (see natmip(4))
+The group of CLIP commands is used to manage classical IP over ATM
+networking via NATM (see natm(4) and natmip(4)). A new PVC is added
+to a CLIP via:
+
+  atmconfig [common-options] natm add <dest> <device> <vpi> <vci>
+    <encaps> [<traffic> [<params> ...]]
+
+The PVC can be deleted with:
+
+  atmconfig [common-options] natm del <device> <vpi> <vci>
+
+The list of PVC that are currently active is retrieved with:
+
+  atmconfig [common-options] natm show
+
+^1 add
+usage: atmconfig [common-options] natm add [-printonly] <dest> <device>
+		 <vpi> <vci> <encaps> [<traffic> [<params> ...]]
+options:
+  -printonly	don't execute, print the route(8) command
+
+This subcommand adds a new CLIP PVC on the ATM interface <device>. The
+host on the other end of the PVC has IP address <addr>. <encaps> is one
+of llc/snap (LLC/SNAP encapsulated frames in AAL5) or aal5 (AAL5 frames
+without LLC/SNAP). <traffic> specifies the traffic type of the PVC
+and is one of UBR, CBR, VBR or ABR. If not given UBR is assumed. Depending
+on the traffic type none or more parameters can follow:
+
+  ubr [<pcr>]
+  cbr <pcr>
+  vbr <pcr> <scr> <mbs>
+  abr <pcr> <mcr> <icr> <tbe> <nrm> <trm> <adtf> <rif> <rdf> <cdf>
+
+^1 delete
+usage: atmconfig [common-options] natm delete [-printonly] <dest>
+   or: atmconfig [common-options] natm delete [-printonly] <device> <vpi> <vci>
+options:
+  -printonly	don't execute, print the route(8) command
+
+This subcommand deletes and existing CLIP PVC that can bei either identified
+by the destination address or by the <device><vpi><vci> triple.
+
+^1 show
+usage: atmconfig [common-options] natm show [-abr] [-numeric]
+options:
+  -abr		show ABR parameters for ABR connections
+  -numeric	print IP addresses numerically
+
+This subcommand prints all ATM routes.
