@@ -758,7 +758,7 @@ zcmd_read_dst_nvlist(libzfs_handle_t *hdl, zfs_cmd_t *zc, nvlist_t **nvlp)
 }
 
 int
-zfs_ioctl(libzfs_handle_t *hdl, int request, zfs_cmd_t *zc)
+zfs_ioctl(libzfs_handle_t *hdl, unsigned long request, zfs_cmd_t *zc)
 {
 	int error;
 
