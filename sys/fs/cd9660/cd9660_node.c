@@ -72,7 +72,6 @@ cd9660_inactive(ap)
 	if (prtactive && vrefcnt(vp) != 0)
 		vprint("cd9660_inactive: pushing active", vp);
 
-	ip->i_flag = 0;
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
