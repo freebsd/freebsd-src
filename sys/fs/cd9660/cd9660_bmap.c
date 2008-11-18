@@ -46,9 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <fs/cd9660/cd9660_node.h>
 
 /*
- * Bmap converts a the logical block number of a file to its physical block
- * number on the disk. The conversion is done by using the logical block
- * number to index into the data block (extent) for the file.
+ * Bmap converts the logical block number of a file to its physical
+ * block number on the disk. The conversion is done by using the
+ * logical block number to index into the data block (extent) for the
+ * file.
  */
 int
 cd9660_bmap(ap)

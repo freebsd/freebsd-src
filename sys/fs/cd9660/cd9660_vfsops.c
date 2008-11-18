@@ -501,11 +501,6 @@ cd9660_unmount(mp, mntflags, td)
 
 	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-#if 0
-	mntflushbuf(mp, 0);
-	if (mntinvalbuf(mp))
-		return EBUSY;
-#endif
 	if ((error = vflush(mp, 0, flags, td)))
 		return (error);
 
