@@ -158,6 +158,8 @@ static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 #if defined(__i386__) || defined(__amd64__)
 static void	acpi_enable_pcie(void);
 #endif
+static void	acpi_hint_device_unit(device_t acdev, device_t child,
+		    const char *name, int *unitp);
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -187,6 +189,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+    DEVMETHOD(bus_hint_device_unit,	acpi_hint_device_unit),
 
     /* ACPI bus */
     DEVMETHOD(acpi_id_probe,		acpi_device_id_probe),
@@ -947,6 +950,89 @@ acpi_get_rlist(device_t dev, device_t child)
 
     ad = device_get_ivars(child);
     return (&ad->ad_rl);
+}
+
+static int
+acpi_match_resource_hint(device_t dev, int type, long value)
+{
+    struct acpi_device *ad = device_get_ivars(dev);
+    struct resource_list *rl = &ad->ad_rl;
+    struct resource_list_entry *rle;
+
+    STAILQ_FOREACH(rle, rl, link) {
+	if (rle->type != type)
+	    continue;
+	if (rle->start <= value && rle->end >= value)
+	    return (1);
+    }
+    return (0);
+}
+
+/*
+ * Wire device unit numbers based on resource matches in hints.
+ */
+static void
+acpi_hint_device_unit(device_t acdev, device_t child, const char *name,
+    int *unitp)
+{
+    const char *s;
+    long value;
+    int line, matches, unit;
+
+    /*
+     * Iterate over all the hints for the devices with the specified
+     * name to see if one's resources are a subset of this device.
+     */
+    line = 0;
+    for (;;) {
+	if (resource_find_dev(&line, name, &unit, "at", NULL) != 0)
+	    break;
+
+	/* Must have an "at" for acpi or isa. */
+	resource_string_value(name, unit, "at", &s);
+	if (!(strcmp(s, "acpi0") == 0 || strcmp(s, "acpi") == 0 ||
+	    strcmp(s, "isa0") == 0 || strcmp(s, "isa") == 0))
+	    continue;
+
+	/*
+	 * Check for matching resources.  We must have at least one,
+	 * and all resources specified have to match.
+	 *
+	 * XXX: We may want to revisit this to be more lenient and wire
+	 * as long as it gets one match.
+	 */
+	matches = 0;
+	if (resource_long_value(name, unit, "port", &value) == 0) {
+	    if (acpi_match_resource_hint(child, SYS_RES_IOPORT, value))
+		matches++;
+	    else
+		continue;
+	}
+	if (resource_long_value(name, unit, "maddr", &value) == 0) {
+	    if (acpi_match_resource_hint(child, SYS_RES_MEMORY, value))
+		matches++;
+	    else
+		continue;
+	}
+	if (resource_long_value(name, unit, "irq", &value) == 0) {
+	    if (acpi_match_resource_hint(child, SYS_RES_IRQ, value))
+		matches++;
+	    else
+		continue;
+	}
+	if (resource_long_value(name, unit, "drq", &value) == 0) {
+	    if (acpi_match_resource_hint(child, SYS_RES_DRQ, value))
+		matches++;
+	    else
+		continue;
+	}
+
+	if (matches > 0) {
+	    /* We have a winner! */
+	    *unitp = unit;
+	    break;
+	}
+    }
 }
 
 /*
