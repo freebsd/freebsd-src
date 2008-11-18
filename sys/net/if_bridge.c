@@ -2938,6 +2938,10 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	struct ip *ip;
 	struct llc llc1;
 	u_int16_t ether_type;
+	int is_ip = 0;
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
+#endif
 
 	snap = 0;
 	error = -1;	/* Default error if not error == 0 */
@@ -2997,6 +3001,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 #endif /* INET6 */
+			is_ip = 1;
 			break;
 		default:
 			/*
@@ -3056,6 +3061,25 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 
 		if (*mp == NULL)
 			return (error);
+
+#ifdef IPFIREWALL_FORWARD
+		/*
+		 * Did the firewall want to forward it somewhere?
+		 * If so, let the ip stack handle it.
+		 */
+		if (i == 0 && args.next_hop != NULL && is_ip /* && src != NULL */) {
+			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD, sizeof(struct sockaddr_in),
+			    M_NOWAIT);
+			if (fwd_tag == NULL)
+				goto drop;
+			bcopy(args.next_hop, (fwd_tag+1), sizeof(struct sockaddr_in));
+			m_tag_prepend(*mp, fwd_tag);
+			if (in_localip(args.next_hop->sin_addr))
+				(*mp)->m_flags |= M_FASTFWD_OURS;
+			ether_demux(src, *mp);
+			return (NULL);
+		}
+#endif
 
 		if (DUMMYNET_LOADED && (i == IP_FW_DUMMYNET)) {
 

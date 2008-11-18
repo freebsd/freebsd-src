@@ -174,6 +174,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_TAG,   		/* arg1=tag number */
 	O_TAGGED,		/* arg1=tag number */
+	O_FOR_ME,		/* check for a PCB here for this packet */
 
 	O_SETFIB,		/* arg1=FIB number */
 	O_FIB,			/* arg1=FIB desired fib number */

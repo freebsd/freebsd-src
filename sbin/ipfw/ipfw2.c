@@ -301,6 +301,7 @@ enum tokens {
 	TOK_ANTISPOOF,
 	TOK_IPSEC,
 	TOK_COMMENT,
+	TOK_FOR_ME,
 
 	TOK_PLR,
 	TOK_NOERROR,
@@ -433,6 +434,7 @@ struct _s_x rule_options[] = {
 	{ "uid",		TOK_UID },
 	{ "gid",		TOK_GID },
 	{ "jail",		TOK_JAIL },
+	{ "for-me",		TOK_FOR_ME },
 	{ "in",			TOK_IN },
 	{ "limit",		TOK_LIMIT },
 	{ "keep-state",		TOK_KEEPSTATE },
@@ -2040,6 +2042,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				else
 					print_newports((ipfw_insn_u16 *)cmd, 0,
 					    O_TAGGED);
+				break;
+
+			case O_FOR_ME:
+				printf(" for-me");
 				break;
 
 			default:
@@ -5661,6 +5667,10 @@ read_options:
 			NEED1("fib requires fib number");
 			fill_cmd(cmd, O_FIB, 0, strtoul(*av, NULL, 0));
 			ac--; av++;
+			break;
+
+		case TOK_FOR_ME:
+			fill_cmd(cmd, O_FOR_ME, 0, 0);
 			break;
 
 		default:

@@ -292,6 +292,29 @@ cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVIF
 .Ed
 .Pp
+If the
+.Dv IP_NONLOCALOK
+options is set then the checking of local bind addresses against addresses
+assigned to local interfaces is disabled.
+The kernel must have been compiled with the
+.Dv IP_NONLOCALBIND option, and the sysctl
+.Va net.inet.ip.nonlocalok
+should be set to 1.
+The option needs to be set on the socket before the
+.Xr bind 2
+system call is used on it.
+.Bd -literal
+u_char spoofing = 1;   /* 0 = disable (default), 1 = enable */
+
+setsockopt(s, IPPROTO_IP, IP_NONLOCALOK, &spoofing, sizeof(spoofing));
+ret = bind (...);
+.Ed
+.Pp
+This behaviour is not for general use and is
+included for use in servers that are implementing fully
+transparent proxies. Use of this option on general purpose
+systems is strongly discouraged.
+.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.

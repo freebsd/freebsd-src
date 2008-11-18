@@ -2068,6 +2068,46 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
 }
 
 /*
+ * This function looks to see if the packet (regardless of direction)
+ * is destined for a socket on this machine.  This is regardless of
+ * whether the address of the socket is a legal address of this
+ * machine or not.  This is used for transparent proxying where
+ * the proxy masquerades as both the server and the client.
+ * It is not really needed if the IP_NONLOCALBIND is not dependent
+ * on that.  It is not quite the same as 'from any to me'.
+ * in that it checks ports too and doesn't check if the address
+ * is 'legally owned by this machine.  Do NOT insist there is still
+ * a socket..  It could be timing out.  It IS STILL OURS.
+ * XXX check whether we should only match if there is a
+ * socket on the pcb.
+ */
+static int
+packet_for_me(ipfw_insn_u32 *insn,
+    int proto,
+    struct in_addr dst_ip, u_int16_t dst_port,
+    struct in_addr src_ip, u_int16_t src_port )
+{
+	struct inpcbinfo *pi;
+	int wildcard;
+	struct inpcb *pcb;
+
+	if (proto == IPPROTO_TCP) {
+		wildcard = 0;
+		pi = &tcbinfo;
+	} else if (proto == IPPROTO_UDP) {
+		wildcard = INPLOOKUP_WILDCARD;
+		pi = &udbinfo;
+	} else {
+		return (0);
+	}
+	INP_INFO_RLOCK(pi);
+	pcb = in_pcblookup_hash(pi, src_ip, htons(src_port),
+	    dst_ip, htons(dst_port), wildcard, NULL);
+	INP_INFO_RUNLOCK(pi);
+	return (pcb?1:0);
+}
+
+/*
  * The main check routine for the firewall.
  *
  * All arguments are in args so we can modify them and return them
@@ -2090,6 +2130,7 @@ check_uidgid(ipfw_insn_u32 *insn, int proto, struct ifnet *oif,
  *	args->next_hop	Socket we are forwarding to (out).
  *	args->f_id	Addresses grabbed from the packet (out)
  * 	args->cookie	a cookie depending on rule action
+ *	args->inp	A pcb associated with a packet if known
  *
  * Return value:
  *
@@ -2602,6 +2643,24 @@ check_body:
 						    dst_ip, dst_port,
 						    src_ip, src_port, &fw_ugid_cache,
 						    &ugid_lookup, args->inp);
+				break;
+
+			case O_FOR_ME:
+				/*
+				 * We only check offset == 0 && TCP or UDP
+				 * as this ensures that we have a
+				 * packet with the ports info.
+				 */
+				if (offset!=0)
+					break;
+				if (is_ipv6) /* XXX to be fixed later */
+					break;
+				if (proto == IPPROTO_TCP || proto == IPPROTO_UDP)
+				match = packet_for_me(
+				    (ipfw_insn_u32 *)cmd,
+				    proto,
+				    dst_ip, dst_port,
+				    src_ip, src_port );
 				break;
 
 			case O_RECV:
@@ -3294,8 +3353,11 @@ check_body:
 			case O_FORWARD_IP: {
 				struct sockaddr_in *sa;
 				sa = &(((ipfw_insn_sa *)cmd)->sa);
+/* XXX julian's patch disabled this; "why" needs to be thought about. -adrian */
+#if 0
 				if (args->eh)	/* not valid on layer2 pkts */
 					break;
+#endif
 				if (!q || dyn_dir == MATCH_FORWARD) {
 					if (sa->sin_addr.s_addr == INADDR_ANY) {
 						bcopy(sa, &args->hopstore,
@@ -3814,6 +3876,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_PROBE_STATE:
 		case O_KEEP_STATE:
 		case O_PROTO:
+		case O_FOR_ME:
 		case O_IP_SRC_ME:
 		case O_IP_DST_ME:
 		case O_LAYER2:
