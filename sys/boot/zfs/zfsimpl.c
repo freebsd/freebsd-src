@@ -656,8 +656,9 @@ vdev_probe(vdev_read_t *read, void *read_priv, spa_t **spap)
 		return (EIO);
 	}
 
-	if (val != ZFS_VERSION) {
-		printf("ZFS: unsupported ZFS version %d\n", (int) val);
+	if (val > SPA_VERSION) {
+		printf("ZFS: unsupported ZFS version %u (should be %u)\n",
+		    (unsigned) val, (unsigned) SPA_VERSION);
 		return (EIO);
 	}
 
