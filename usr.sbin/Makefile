@@ -182,6 +182,7 @@ SUBDIR=	${_ac} \
 	tzsetup \
 	ugidfw \
 	${_usbdevs} \
+	${_usbconfig} \
 	${_vidcontrol} \
 	vipw \
 	watch \
@@ -402,6 +403,7 @@ _crunch=	crunch
 
 .if ${MK_USB} != "no"
 _usbdevs=	usbdevs
+_usbconfig=	usbconfig
 .endif
 
 .if ${MK_WIRELESS} != "no"

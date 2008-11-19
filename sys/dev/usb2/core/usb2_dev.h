@@ -39,11 +39,13 @@
 #define	USB_FIFO_RX 1
 
 struct usb2_fifo;
+struct usb2_mbuf;
 
 typedef int (usb2_fifo_open_t)(struct usb2_fifo *fifo, int fflags, struct thread *td);
 typedef void (usb2_fifo_close_t)(struct usb2_fifo *fifo, int fflags, struct thread *td);
 typedef int (usb2_fifo_ioctl_t)(struct usb2_fifo *fifo, u_long cmd, void *addr, int fflags, struct thread *td);
 typedef void (usb2_fifo_cmd_t)(struct usb2_fifo *fifo);
+typedef void (usb2_fifo_filter_t)(struct usb2_fifo *fifo, struct usb2_mbuf *m);
 
 struct usb2_symlink {
 	TAILQ_ENTRY(usb2_symlink) sym_entry;
@@ -57,17 +59,24 @@ struct usb2_symlink {
 
 /*
  * Locking note for the following functions.  All the
- * "usb2_fifo_cmd_t" functions are called locked. The others are
- * called unlocked.
+ * "usb2_fifo_cmd_t" and "usb2_fifo_filter_t" functions are called
+ * locked. The others are called unlocked.
  */
 struct usb2_fifo_methods {
 	usb2_fifo_open_t *f_open;
 	usb2_fifo_close_t *f_close;
 	usb2_fifo_ioctl_t *f_ioctl;
+	/*
+	 * NOTE: The post-ioctl callback is called after the USB reference
+	 * gets locked in the IOCTL handler:
+	 */
+	usb2_fifo_ioctl_t *f_ioctl_post;
 	usb2_fifo_cmd_t *f_start_read;
 	usb2_fifo_cmd_t *f_stop_read;
 	usb2_fifo_cmd_t *f_start_write;
 	usb2_fifo_cmd_t *f_stop_write;
+	usb2_fifo_filter_t *f_filter_read;
+	usb2_fifo_filter_t *f_filter_write;
 	const char *basename[4];
 	const char *postfix[4];
 };
@@ -98,7 +107,6 @@ struct usb2_fifo {
 	uint32_t bufsize;		/* BULK and INTERRUPT buffer size */
 	uint16_t nframes;		/* for isochronous mode */
 	uint16_t dev_ep_index;		/* our device endpoint index */
-	uint8_t	flag_no_uref;		/* set if FIFO is not control endpoint */
 	uint8_t	flag_sleeping;		/* set if FIFO is sleeping */
 	uint8_t	flag_iscomplete;	/* set if a USB transfer is complete */
 	uint8_t	flag_iserror;		/* set if FIFO error happened */
@@ -134,7 +142,6 @@ void	usb2_fifo_put_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_get_data(struct usb2_fifo *fifo, struct usb2_page_cache *pc, uint32_t offset, uint32_t len, uint32_t *actlen, uint8_t what);
 uint8_t	usb2_fifo_get_data_linear(struct usb2_fifo *fifo, void *ptr, uint32_t len, uint32_t *actlen, uint8_t what);
 uint8_t	usb2_fifo_get_data_buffer(struct usb2_fifo *f, void **pptr, uint32_t *plen);
-void	usb2_fifo_get_data_next(struct usb2_fifo *f);
 void	usb2_fifo_get_data_error(struct usb2_fifo *fifo);
 uint8_t	usb2_fifo_opened(struct usb2_fifo *fifo);
 void	usb2_fifo_free(struct usb2_fifo *f);

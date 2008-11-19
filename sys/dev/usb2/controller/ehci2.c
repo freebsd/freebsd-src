@@ -183,6 +183,8 @@ ehci_hc_reset(ehci_softc_t *sc)
 		usb2_pause_mtx(&sc->sc_bus.bus_mtx, 1);
 		hcr = EOREAD4(sc, EHCI_USBCMD);
 		if (!(hcr & EHCI_CMD_HCRESET)) {
+			if (sc->sc_flags & EHCI_SCFLG_SETMODE)
+				EOWRITE4(sc, 0x68, 0x3);
 			hcr = 0;
 			break;
 		}
@@ -3301,7 +3303,16 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 		}
 		v = EOREAD4(sc, EHCI_PORTSC(index));
 		DPRINTFN(9, "port status=0x%04x\n", v);
-		i = UPS_HIGH_SPEED;
+		if (sc->sc_flags & EHCI_SCFLG_FORCESPEED) {
+			if ((v & 0xc000000) == 0x8000000)
+				i = UPS_HIGH_SPEED;
+			else if ((v & 0xc000000) == 0x4000000)
+				i = UPS_LOW_SPEED;
+			else
+				i = 0;
+		} else {
+			i = UPS_HIGH_SPEED;
+		}
 		if (v & EHCI_PS_CS)
 			i |= UPS_CURRENT_CONNECT_STATUS;
 		if (v & EHCI_PS_PE)
@@ -3378,7 +3389,8 @@ ehci_root_ctrl_done(struct usb2_xfer *xfer,
 			}
 
 			/* Terminate reset sequence. */
-			EOWRITE4(sc, port, v);
+			if (!(sc->sc_flags & EHCI_SCFLG_NORESTERM))
+				EOWRITE4(sc, port, v);
 
 			if (use_polling) {
 				/* polling */

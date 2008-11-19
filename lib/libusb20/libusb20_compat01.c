@@ -131,7 +131,7 @@ usb_get_transfer_by_ep_no(usb_dev_handle * dev, uint8_t ep_no)
 	x = (ep_no & LIBUSB20_ENDPOINT_ADDRESS_MASK) * 2;
 
 	if (ep_no & LIBUSB20_ENDPOINT_DIR_MASK) {
-		/* this is a IN endpoint */
+		/* this is an IN endpoint */
 		x |= 1;
 	}
 	speed = libusb20_dev_get_speed(pdev);
@@ -194,13 +194,13 @@ usb_close(usb_dev_handle * dev)
 }
 
 int
-usb_get_string(usb_dev_handle * dev, int index,
+usb_get_string(usb_dev_handle * dev, int strindex,
     int langid, char *buf, size_t buflen)
 {
 	int err;
 
 	err = libusb20_dev_req_string_sync((void *)dev,
-	    index, langid, buf, buflen);
+	    strindex, langid, buf, buflen);
 
 	if (err)
 		return (-1);
@@ -209,13 +209,13 @@ usb_get_string(usb_dev_handle * dev, int index,
 }
 
 int
-usb_get_string_simple(usb_dev_handle * dev, int index,
+usb_get_string_simple(usb_dev_handle * dev, int strindex,
     char *buf, size_t buflen)
 {
 	int err;
 
 	err = libusb20_dev_req_string_simple_sync((void *)dev,
-	    index, buf, buflen);
+	    strindex, buf, buflen);
 
 	if (err)
 		return (-1);
@@ -225,23 +225,23 @@ usb_get_string_simple(usb_dev_handle * dev, int index,
 
 int
 usb_get_descriptor_by_endpoint(usb_dev_handle * udev, int ep, uint8_t type,
-    uint8_t index, void *buf, int size)
+    uint8_t ep_index, void *buf, int size)
 {
 	memset(buf, 0, size);
 
 	return (usb_control_msg(udev, ep | USB_ENDPOINT_IN,
-	    USB_REQ_GET_DESCRIPTOR, (type << 8) + index, 0,
+	    USB_REQ_GET_DESCRIPTOR, (type << 8) + ep_index, 0,
 	    buf, size, 1000));
 }
 
 int
-usb_get_descriptor(usb_dev_handle * udev, uint8_t type, uint8_t index,
+usb_get_descriptor(usb_dev_handle * udev, uint8_t type, uint8_t desc_index,
     void *buf, int size)
 {
 	memset(buf, 0, size);
 
 	return (usb_control_msg(udev, USB_ENDPOINT_IN, USB_REQ_GET_DESCRIPTOR,
-	    (type << 8) + index, 0, buf, size, 1000));
+	    (type << 8) + desc_index, 0, buf, size, 1000));
 }
 
 int
@@ -616,33 +616,37 @@ int
 usb_bulk_write(usb_dev_handle * dev, int ep, char *bytes,
     int size, int timeout)
 {
-	return (usb_std_io(dev, ep, bytes, size, timeout, 0));
+	return (usb_std_io(dev, ep & ~USB_ENDPOINT_DIR_MASK,
+	    bytes, size, timeout, 0));
 }
 
 int
 usb_bulk_read(usb_dev_handle * dev, int ep, char *bytes,
     int size, int timeout)
 {
-	return (usb_std_io(dev, ep, bytes, size, timeout, 0));
+	return (usb_std_io(dev, ep | USB_ENDPOINT_DIR_MASK,
+	    bytes, size, timeout, 0));
 }
 
 int
 usb_interrupt_write(usb_dev_handle * dev, int ep, char *bytes,
     int size, int timeout)
 {
-	return (usb_std_io(dev, ep, bytes, size, timeout, 1));
+	return (usb_std_io(dev, ep & ~USB_ENDPOINT_DIR_MASK,
+	    bytes, size, timeout, 1));
 }
 
 int
 usb_interrupt_read(usb_dev_handle * dev, int ep, char *bytes,
     int size, int timeout)
 {
-	return (usb_std_io(dev, ep, bytes, size, timeout, 1));
+	return (usb_std_io(dev, ep | USB_ENDPOINT_DIR_MASK,
+	    bytes, size, timeout, 1));
 }
 
 int
 usb_control_msg(usb_dev_handle * dev, int requesttype, int request,
-    int value, int index, char *bytes, int size, int timeout)
+    int value, int wIndex, char *bytes, int size, int timeout)
 {
 	struct LIBUSB20_CONTROL_SETUP_DECODED req;
 	int err;
@@ -653,7 +657,7 @@ usb_control_msg(usb_dev_handle * dev, int requesttype, int request,
 	req.bmRequestType = requesttype;
 	req.bRequest = request;
 	req.wValue = value;
-	req.wIndex = index;
+	req.wIndex = wIndex;
 	req.wLength = size;
 
 	err = libusb20_dev_request_sync((void *)dev, &req, bytes,
@@ -666,11 +670,40 @@ usb_control_msg(usb_dev_handle * dev, int requesttype, int request,
 }
 
 int
-usb_set_configuration(usb_dev_handle * dev, int configuration)
+usb_set_configuration(usb_dev_handle * udev, int bConfigurationValue)
 {
+	struct usb_device *dev;
 	int err;
+	uint8_t i;
 
-	err = libusb20_dev_set_config_index((void *)dev, configuration);
+	/*
+	 * Need to translate from "bConfigurationValue" to
+	 * configuration index:
+	 */
+
+	if (bConfigurationValue == 0) {
+		/* unconfigure */
+		i = 255;
+	} else {
+		/* lookup configuration index */
+		dev = usb_device(udev);
+
+		/* check if the configuration array is not there */
+		if (dev->config == NULL) {
+			return (-1);
+		}
+		for (i = 0;; i++) {
+			if (i == dev->descriptor.bNumConfigurations) {
+				/* "bConfigurationValue" not found */
+				return (-1);
+			}
+			if ((dev->config + i)->bConfigurationValue == bConfigurationValue) {
+				break;
+			}
+		}
+	}
+
+	err = libusb20_dev_set_config_index((void *)udev, i);
 
 	if (err)
 		return (-1);
@@ -754,7 +787,7 @@ usb_reset(usb_dev_handle * dev)
 	return (0);
 }
 
-char   *
+const char *
 usb_strerror(void)
 {
 	/* TODO */
