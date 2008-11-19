@@ -24,8 +24,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 
 20081117:
 	A new version of ZFS (version 13) has been merged to -HEAD.
-	This version would have zpool attribute "listsnapshots" off
-	by default, which means "zfs list" would not show snapshots,
+	This version has zpool attribute "listsnapshots" off by
+	default, which means "zfs list" does not show snapshots,
 	and is the same as Solaris behavior.
 
 20081028:
