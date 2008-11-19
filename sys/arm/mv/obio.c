@@ -99,7 +99,7 @@ mbus_attach(device_t dev)
 		resource_list_init(&od->od_resources);
 
 		resource_list_add(&od->od_resources, SYS_RES_MEMORY, 0,
-		    od->od_base, od->od_base + od->od_size, od->od_size);
+		    od->od_base, od->od_base + od->od_size - 1, od->od_size);
 
 		for (i = 0; od->od_irqs[i] != -1; i++) {
 			resource_list_add(&od->od_resources, SYS_RES_IRQ, i,
