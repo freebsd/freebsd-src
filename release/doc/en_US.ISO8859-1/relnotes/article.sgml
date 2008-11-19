@@ -228,7 +228,7 @@
 	<para>The &man.em.4; driver has been split into two drivers
 	  with some common parts.  The &man.em.4; driver will continue
 	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new igb driver
+	  client/desktop adapters.  A new &man.igb.4; driver
 	  will support new server adapters.</para>
 
 	<para>The &man.jme.4; driver has been added to provide support
