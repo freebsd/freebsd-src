@@ -57,7 +57,11 @@ __FBSDID("$FreeBSD$");
  * virtual_avail - 0xefff_ffff	: KVA (virtual_avail is typically < 0xc0a0_0000)
  * 0xf000_0000 - 0xf0ff_ffff	: no-cache allocation area (16MB)
  * 0xf100_0000 - 0xf10f_ffff	: SoC integrated devices registers range (1MB)
- * 0xf110_0000 - 0xfffe_ffff	: PCI, PCIE (MEM+IO) outbound windows (~238MB)
+ * 0xf110_0000 - 0xf11f_ffff	: PCI-Express I/O space (1MB)
+ * 0xf120_0000 - 0xf12f_ffff	: PCI I/O space (1MB)
+ * 0xf130_0000 - 0xf52f_ffff	: PCI-Express memory space (64MB)
+ * 0xf530_0000 - 0xf92f_ffff	: PCI memory space (64MB)
+ * 0xf930_0000 - 0xfffe_ffff	: unused (~108MB)
  * 0xffff_0000 - 0xffff_0fff	: 'high' vectors page (4KB)
  * 0xffff_1000 - 0xffff_1fff	: ARM_TP_ADDRESS/RAS page (4KB)
  * 0xffff_2000 - 0xffff_ffff	: unused (~55KB)
@@ -65,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 vm_offset_t pmap_bootstrap_lastaddr;
+int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin);
 
 /* Static device mappings. */
 static const struct pmap_devmap pmap_devmap[] = {
@@ -117,7 +122,6 @@ static const struct pmap_devmap pmap_devmap[] = {
 	{ 0, 0, 0, 0, 0, }
 };
 
-#if 0
 int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin)
 {
 	int irq;
@@ -145,9 +149,8 @@ int platform_pci_get_irq(u_int bus, u_int slot, u_int func, u_int pin)
 		mv_gpio_configure(IRQ2GPIO(irq), MV_GPIO_POLARITY |
 		    MV_GPIO_LEVEL, ~0u);
 
-	return(irq);
+	return (irq);
 }
-#endif
 
 int
 platform_pmap_init(void)

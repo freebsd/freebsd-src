@@ -325,17 +325,38 @@ mbus_activate_resource(device_t dev, device_t child, int type, int rid,
 	return (rman_activate_resource(r));
 }
 
+static device_t
+mbus_add_child(device_t bus, int order, const char *name, int unit)
+{
+	struct obio_device *od;
+	device_t child;
+
+	od = malloc(sizeof(struct obio_device), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (!od)
+		return (0);
+
+	resource_list_init(&od->od_resources);
+	od->od_name = name;
+
+	child = device_add_child_ordered(bus, order, name, unit);
+	device_set_ivars(child, od);
+
+	return (child);
+}
+
 static device_method_t mbus_methods[] = {
 	DEVMETHOD(device_identify,	mbus_identify),
 	DEVMETHOD(device_probe,		mbus_probe),
 	DEVMETHOD(device_attach,	mbus_attach),
 
+	DEVMETHOD(bus_add_child,        mbus_add_child),
 	DEVMETHOD(bus_print_child,	mbus_print_child),
 
 	DEVMETHOD(bus_read_ivar,	mbus_read_ivar),
 	DEVMETHOD(bus_setup_intr,	mbus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	mbus_teardown_intr),
 
+	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource_list,	mbus_get_resource_list),
 	DEVMETHOD(bus_alloc_resource,		mbus_alloc_resource),
 	DEVMETHOD(bus_release_resource,		mbus_release_resource),
