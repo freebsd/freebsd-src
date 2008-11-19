@@ -578,24 +578,41 @@ bt_free(struct backoff_timer *bt)
 int
 rcsnum_cmp(char *revision1, char *revision2)
 {
-	char *ptr1, *ptr2;
-	
-	ptr1 = revision1;
-	ptr2 = revision2; 
-	while (*ptr1 != '\0' && *ptr2 != '\0') {
-		if (*ptr1 > *ptr2)
-			return (1);
-		else if (*ptr1 < *ptr2)
-			return (-1);
-		ptr1++;
-		ptr2++;
-	};
+        char *ptr1, *ptr2, *dot1, *dot2;
+	int num1len, num2len, ret;
 
-	if (*ptr1 != '\0' && *ptr2 == '\0')
-		return (1);
-	if (*ptr1 == '\0' && *ptr2 != '\0')
-		return (-1);
-	return (0);
+        ptr1 = revision1;
+        ptr2 = revision2;
+        while (*ptr1 != '\0' && *ptr2 != '\0') {
+                dot1 = strchr(ptr1, '.');
+                dot2 = strchr(ptr2, '.');
+                if (dot1 == NULL)
+                        dot1 = strchr(ptr1, '\0');
+                if (dot2 == NULL)
+                        dot2 = strchr(ptr2, '\0');
+
+		num1len = dot1 - ptr1;
+		num2len = dot2 - ptr2;
+                /* Check the distance between each, showing how many digits */
+                if (num1len > num2len)
+                        return (1);
+                else if (num1len < num2len)
+                        return (-1);
+
+                /* Equal distance means we must check each character. */
+		ret = strncmp(ptr1, ptr2, num1len);
+		if (ret != 0)
+			return (ret);
+		ptr1 = (*dot1 == '.') ? (dot1 + 1) : dot1;
+		ptr2 = (*dot2 == '.') ? (dot2 + 1) : dot2;
+        } 
+
+        if (*ptr1 != '\0' && *ptr2 == '\0')
+                return (1);
+        if (*ptr1 == '\0' && *ptr2 != '\0')
+                return (-1);
+        return (0);
+
 }
 
 /* Returns 0 if a rcsrev is not a trunk revision number. */
