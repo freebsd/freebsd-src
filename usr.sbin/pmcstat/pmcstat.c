@@ -145,6 +145,9 @@ pmcstat_cleanup(struct pmcstat_args *a)
 	/* release allocated PMCs. */
 	STAILQ_FOREACH_SAFE(ev, &a->pa_events, ev_next, tmp)
 	    if (ev->ev_pmcid != PMC_ID_INVALID) {
+		if (pmc_stop(ev->ev_pmcid) < 0)
+			err(EX_OSERR, "ERROR: cannot stop pmc 0x%x "
+			    "\"%s\"", ev->ev_pmcid, ev->ev_name);
 		if (pmc_release(ev->ev_pmcid) < 0)
 			err(EX_OSERR, "ERROR: cannot release pmc "
 			    "0x%x \"%s\"", ev->ev_pmcid, ev->ev_name);
