@@ -72,6 +72,7 @@ struct uhub_softc {
 	struct usb2_device *sc_udev;	/* USB device */
 	struct usb2_xfer *sc_xfer[2];	/* interrupt xfer */
 	uint8_t	sc_flags;
+#define	UHUB_FLAG_DID_EXPLORE 0x01
 #define	UHUB_FLAG_INTR_STALL 0x02
 	char	sc_name[32];
 };
@@ -511,6 +512,14 @@ uhub_explore(struct usb2_device *udev)
 			/* most likely the HUB is gone */
 			break;
 		}
+		if (!(sc->sc_flags & UHUB_FLAG_DID_EXPLORE)) {
+			/*
+			 * Fake a connect status change so that the
+			 * status gets checked initially!
+			 */
+			sc->sc_st.port_change |=
+			    UPS_C_CONNECT_STATUS;
+		}
 		if (sc->sc_st.port_change & UPS_C_PORT_ENABLED) {
 			err = usb2_req_clear_port_feature(
 			    udev, &Giant, portno, UHF_C_PORT_ENABLE);
@@ -533,7 +542,8 @@ uhub_explore(struct usb2_device *udev)
 					DPRINTFN(0, "port error, giving up "
 					    "port %d\n", portno);
 				} else {
-					sc->sc_st.port_change |= UPS_C_CONNECT_STATUS;
+					sc->sc_st.port_change |=
+					    UPS_C_CONNECT_STATUS;
 					up->restartcnt++;
 				}
 			}
@@ -560,6 +570,11 @@ uhub_explore(struct usb2_device *udev)
 		/* explore succeeded - reset restart counter */
 		up->restartcnt = 0;
 	}
+
+	/* initial status checked */
+	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
+
+	/* return success */
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 

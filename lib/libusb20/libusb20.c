@@ -550,6 +550,9 @@ libusb20_dev_open(struct libusb20_device *pdev, uint16_t nTransferMax)
 		xfer->callback = &dummy_callback;
 	}
 
+	/* set "nTransfer" early */
+	pdev->nTransfer = nTransferMax;
+
 	error = (pdev->beMethods->open_device) (pdev, nTransferMax);
 
 	if (error) {
@@ -562,7 +565,6 @@ libusb20_dev_open(struct libusb20_device *pdev, uint16_t nTransferMax)
 		pdev->nTransfer = 0;
 	} else {
 		pdev->is_opened = 1;
-		pdev->nTransfer = nTransferMax;
 	}
 	return (error);
 }
@@ -647,7 +649,7 @@ libusb20_dev_request_sync(struct libusb20_device *pdev,
 
 int
 libusb20_dev_req_string_sync(struct libusb20_device *pdev,
-    uint8_t index, uint16_t langid, void *ptr, uint16_t len)
+    uint8_t str_index, uint16_t langid, void *ptr, uint16_t len)
 {
 	struct LIBUSB20_CONTROL_SETUP_DECODED req;
 	int error;
@@ -667,7 +669,7 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 	    LIBUSB20_RECIPIENT_DEVICE |
 	    LIBUSB20_ENDPOINT_IN;
 	req.bRequest = LIBUSB20_REQUEST_GET_DESCRIPTOR;
-	req.wValue = (LIBUSB20_DT_STRING << 8) | index;
+	req.wValue = (LIBUSB20_DT_STRING << 8) | str_index;
 	req.wIndex = langid;
 	req.wLength = 4;		/* bytes */
 
@@ -695,7 +697,7 @@ libusb20_dev_req_string_sync(struct libusb20_device *pdev,
 
 int
 libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev,
-    uint8_t index, void *ptr, uint16_t len)
+    uint8_t str_index, void *ptr, uint16_t len)
 {
 	char *buf;
 	int error;
@@ -712,26 +714,23 @@ libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev,
 		/* too short buffer */
 		return (LIBUSB20_ERROR_INVALID_PARAM);
 	}
-	/*
-	 * Make sure that there is sensible contents in the buffer in case
-	 * of an error:
-	 */
-	*(uint8_t *)ptr = 0;
-
 	error = libusb20_dev_req_string_sync(pdev,
 	    0, 0, temp, sizeof(temp));
-	if (error < 0)
+	if (error < 0) {
+		*(uint8_t *)ptr = 0;	/* zero terminate */
 		return (error);
-
+	}
 	langid = temp[2] | (temp[3] << 8);
 
-	error = libusb20_dev_req_string_sync(pdev, index,
+	error = libusb20_dev_req_string_sync(pdev, str_index,
 	    langid, temp, sizeof(temp));
-	if (error < 0)
+	if (error < 0) {
+		*(uint8_t *)ptr = 0;	/* zero terminate */
 		return (error);
-
+	}
 	if (temp[0] < 2) {
 		/* string length is too short */
+		*(uint8_t *)ptr = 0;	/* zero terminate */
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	/* reserve one byte for terminating zero */
@@ -762,14 +761,16 @@ libusb20_dev_req_string_simple_sync(struct libusb20_device *pdev,
 			*buf = c >> 8;
 			swap = 2;
 		} else {
-			*buf = '.';
+			/* skip invalid character */
+			continue;
 		}
 		/*
 		 * Filter by default - we don't allow greater and less than
 		 * signs because they might confuse the dmesg printouts!
 		 */
 		if ((*buf == '<') || (*buf == '>') || (!isprint(*buf))) {
-			*buf = '.';
+			/* skip invalid character */
+			continue;
 		}
 		buf++;
 	}
@@ -836,7 +837,7 @@ uint8_t
 libusb20_dev_get_config_index(struct libusb20_device *pdev)
 {
 	int error;
-	uint8_t index;
+	uint8_t cfg_index;
 	uint8_t do_close;
 
 	if (!pdev->is_opened) {
@@ -850,16 +851,16 @@ libusb20_dev_get_config_index(struct libusb20_device *pdev)
 		do_close = 0;
 	}
 
-	error = (pdev->methods->get_config_index) (pdev, &index);
+	error = (pdev->methods->get_config_index) (pdev, &cfg_index);
 	if (error) {
-		index = 0 - 1;		/* current config index */
+		cfg_index = 0 - 1;	/* current config index */
 	}
 	if (do_close) {
 		if (libusb20_dev_close(pdev)) {
 			/* ignore */
 		}
 	}
-	return (index);
+	return (cfg_index);
 }
 
 uint8_t
@@ -887,7 +888,7 @@ libusb20_dev_process(struct libusb20_device *pdev)
 void
 libusb20_dev_wait_process(struct libusb20_device *pdev, int timeout)
 {
-	struct pollfd pfd[2];
+	struct pollfd pfd[1];
 
 	if (!pdev->is_opened) {
 		return;
@@ -895,11 +896,8 @@ libusb20_dev_wait_process(struct libusb20_device *pdev, int timeout)
 	pfd[0].fd = pdev->file;
 	pfd[0].events = (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM);
 	pfd[0].revents = 0;
-	pfd[1].fd = 0;			/* standard input */
-	pfd[1].events = (POLLIN | POLLRDNORM);
-	pfd[1].revents = 0;
 
-	if (poll(pfd, 2, timeout)) {
+	if (poll(pfd, 1, timeout)) {
 		/* ignore any error */
 	}
 	return;
@@ -1071,16 +1069,16 @@ libusb20_bus_get_perm(struct libusb20_backend *pbe, uint8_t bus, mode_t *mode)
 
 int
 libusb20_be_get_dev_quirk(struct libusb20_backend *pbe,
-    uint16_t index, struct libusb20_quirk *pq)
+    uint16_t quirk_index, struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_get_dev_quirk) (pbe, index, pq));
+	return ((pbe->methods->root_get_dev_quirk) (pbe, quirk_index, pq));
 }
 
 int
 libusb20_be_get_quirk_name(struct libusb20_backend *pbe,
-    uint16_t index, struct libusb20_quirk *pq)
+    uint16_t quirk_index, struct libusb20_quirk *pq)
 {
-	return ((pbe->methods->root_get_quirk_name) (pbe, index, pq));
+	return ((pbe->methods->root_get_quirk_name) (pbe, quirk_index, pq));
 }
 
 int
