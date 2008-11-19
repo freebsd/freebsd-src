@@ -46,6 +46,8 @@ options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 #options		WITNESS_KDB
 
+device		pci
+
 # Pseudo devices
 device		md
 device		loop
