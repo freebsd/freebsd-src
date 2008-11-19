@@ -10,8 +10,8 @@ WARNS?=		1
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
 
-LOADER_DISK_SUPPORT?=	no
-LOADER_UFS_SUPPORT?=	no
+LOADER_DISK_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
 LOADER_NET_SUPPORT?=	yes
