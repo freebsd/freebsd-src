@@ -80,7 +80,7 @@ static int chkinf(FILE * fp, const char *path);
 static int report(const char *path, const char *name, int error);
 static const char *distname(const char *path, const char *name,
 	                    const char *ext);
-static char *stripath(const char *path);
+static const char *stripath(const char *path);
 static int distfile(const char *path);
 static int disttype(const char *name);
 static int fail(const char *path, const char *msg);
@@ -247,7 +247,7 @@ chkmd5(FILE * fp, const char *path)
 		    error = E_ERRNO;
 		else if (close(fd))
 		    err(2, "%s", dname);
-	    } else if (!MD5File((char *)dname, chk))
+	    } else if (!MD5File(dname, chk))
 		error = E_ERRNO;
 	    else if (strcmp(chk, sum))
 		error = E_CHKSUM;
@@ -393,12 +393,12 @@ distname(const char *path, const char *name, const char *ext)
     return buf;
 }
 
-static char *
+static const char *
 stripath(const char *path)
 {
     const char *s;
 
-    return (char *)((s = strrchr(path, '/')) != NULL && s[1] ? 
+    return ((s = strrchr(path, '/')) != NULL && s[1] ? 
 		    s + 1 : path);
 }
 
