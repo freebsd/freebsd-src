@@ -39,6 +39,7 @@
 #include "config.h"
 #include "detailer.h"
 #include "fixups.h"
+#include "globtree.h"
 #include "misc.h"
 #include "mux.h"
 #include "proto.h"
@@ -398,22 +399,21 @@ detailer_dofile_rsync(struct detailer *d, char *name, char *path)
 	struct stream *wr;
 	struct rsyncfile *rf;
 
+	wr = d->wr;
 	rf = rsync_open(path, 0, 1);
 	if (rf == NULL) {
 		/* Fallback if we fail in opening it. */
 		proto_printf(wr, "A %s\n", name);
 		return (0);
 	}
-	wr = d->wr;
 	proto_printf(wr, "r %s %z %z\n", name, rsync_filesize(rf),
 	    rsync_blocksize(rf));
 	/* Detail the blocks. */
-	while (rsync_nextblock(rf) != 0) {
+	while (rsync_nextblock(rf) != 0)
 		proto_printf(wr, "%s %s\n", rsync_rsum(rf), rsync_blockmd5(rf));
-		lprintf(-1, "%s %s\n", rsync_rsum(rf), rsync_blockmd5(rf));
-	}
 	proto_printf(wr, ".\n");
 	rsync_close(rf);
+	return (0);
 }
 
 /*
@@ -599,7 +599,7 @@ detailer_send_details(struct detailer *d, struct coll *coll, char *name,
 	} else if (fattr_type(fa) == FT_FILE) {
 		if (isrcs(name, &len) && !(coll->co_options & CO_NORCS)) {
 			detailer_dofile_rcs(d, coll, name, path);
-		} else if (!(coll->co_options & CO_NORSYNC) ||
+		} else if (!(coll->co_options & CO_NORSYNC) &&
 		    !globtree_test(coll->co_norsync, name)) {
 			detailer_dofile_rsync(d, name, path);
 		} else {

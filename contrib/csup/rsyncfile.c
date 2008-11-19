@@ -77,9 +77,7 @@ rsync_open(char *path, size_t blocksize, int read)
 	struct stat st;
 	int error;
 
-	rf = malloc(sizeof(*rf));
-	if (rf == NULL)
-		return (NULL);
+	rf = xmalloc(sizeof(*rf));
 	error = stat(path, &st);
 	if (error) {
 		free(rf);
