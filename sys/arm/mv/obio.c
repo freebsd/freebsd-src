@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvreg.h>
 
-static void	mbus_identify(driver_t *, device_t);
-static int	mbus_probe(device_t);
-static int	mbus_attach(device_t);
+static void mbus_identify(driver_t *, device_t);
+static int mbus_probe(device_t);
+static int mbus_attach(device_t);
 
 static void
 mbus_identify(driver_t *driver, device_t parent)
@@ -62,10 +62,10 @@ mbus_probe(device_t dev)
 static int
 mbus_attach(device_t dev)
 {
-	struct		obio_softc *sc;
-	struct		obio_device *od;
-	int		i;
-	device_t	child;
+	struct obio_softc *sc;
+	struct obio_device *od;
+	int i;
+	device_t child;
 
 	sc = device_get_softc(dev);
 
@@ -124,15 +124,14 @@ mbus_attach(device_t dev)
 static int
 mbus_print_child(device_t dev, device_t child)
 {
-	struct	obio_device *od;
-	int	rv;
+	struct obio_device *od;
+	int rv;
 
 	od = (struct obio_device *)device_get_ivars(child);
 	if (od == NULL)
 		panic("Unknown device on %s", device_get_nameunit(dev));
 
 	rv = 0;
-
 	rv += bus_print_child_header(dev, child);
 
 	rv += resource_list_print_type(&od->od_resources, "at mem",
@@ -153,7 +152,7 @@ static int
 mbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
-	struct	obio_softc *sc;
+	struct obio_softc *sc;
 	int error;
 
 	sc = (struct obio_softc *)device_get_softc(dev);
@@ -186,7 +185,7 @@ mbus_teardown_intr(device_t dev, device_t child, struct resource *ires, void *co
 static int
 mbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
-	struct	obio_device *od;
+	struct obio_device *od;
 
 	od = (struct obio_device *)device_get_ivars(child);
 
@@ -205,7 +204,7 @@ mbus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 static struct resource_list *
 mbus_get_resource_list(device_t dev, device_t child)
 {
-	struct	obio_device *od;
+	struct obio_device *od;
 
 	od = (struct obio_device *)device_get_ivars(child);
 
@@ -219,13 +218,13 @@ static struct resource *
 mbus_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct	obio_softc *sc;
-	struct	obio_device *od;
-	struct	resource *rv;
-	struct	resource_list *rl;
-	struct	resource_list_entry *rle = NULL;
-	struct	rman *rm;
-	int	needactivate;
+	struct obio_softc *sc;
+	struct obio_device *od;
+	struct resource *rv;
+	struct resource_list *rl;
+	struct resource_list_entry *rle = NULL;
+	struct rman *rm;
+	int needactivate;
 
 	sc = (struct obio_softc *)device_get_softc(dev);
 
@@ -293,9 +292,9 @@ static int
 mbus_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct	obio_device *od;
-	struct	resource_list *rl;
-	struct	resource_list_entry *rle;
+	struct obio_device *od;
+	struct resource_list *rl;
+	struct resource_list_entry *rle;
 
 	if (device_get_parent(child) == dev) {
 		od = (struct obio_device *)device_get_ivars(child);
