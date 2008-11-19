@@ -2555,7 +2555,7 @@ bce_get_media(struct bce_softc *sc)
 	} else if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
-	if (sc->bce_phy_flags && BCE_PHY_SERDES_FLAG) {
+	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			sc->bce_phy_addr = 2;
