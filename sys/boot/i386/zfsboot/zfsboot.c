@@ -19,6 +19,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/diskmbr.h>
+#ifdef GPT
+#include <sys/gpt.h>
+#endif
 #include <sys/reboot.h>
 #include <sys/queue.h>
 
@@ -32,7 +35,9 @@ __FBSDID("$FreeBSD$");
 
 #include <btxv86.h>
 
+#ifndef GPT
 #include "zfsboot.h"
+#endif
 #include "lib.h"
 
 #define IO_KEYBOARD	1
@@ -103,6 +108,9 @@ __FBSDID("$FreeBSD$");
 
 extern uint32_t _end;
 
+#ifdef GPT
+static const uuid_t freebsd_zfs_uuid = GPT_ENT_TYPE_FREEBSD_ZFS;
+#endif
 static const char optstr[NOPT] = "DhaCcdgmnpqrsv"; /* Also 'P', 'S' */
 static const unsigned char flags[NOPT] = {
     RBX_DUAL,
@@ -408,6 +416,12 @@ int13probe(int drive)
 static void
 probe_drive(struct dsk *dsk, spa_t **spap)
 {
+#ifdef GPT
+    struct gpt_hdr hdr;
+    struct gpt_ent *ent;
+    daddr_t slba, elba;
+    unsigned part, entries_per_sec;
+#endif
     struct dos_partition *dp;
     char *sec;
     unsigned i;
@@ -424,6 +438,63 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 
     sec = dmadat->secbuf;
     dsk->start = 0;
+
+#ifdef GPT
+    /*
+     * First check for GPT.
+     */
+    if (drvread(dsk, sec, 1, 1)) {
+	return;
+    }
+    memcpy(&hdr, sec, sizeof(hdr));
+    if (memcmp(hdr.hdr_sig, GPT_HDR_SIG, sizeof(hdr.hdr_sig)) != 0 ||
+	hdr.hdr_lba_self != 1 || hdr.hdr_revision < 0x00010000 ||
+	hdr.hdr_entsz < sizeof(*ent) || DEV_BSIZE % hdr.hdr_entsz != 0) {
+	goto trymbr;
+    }
+
+    /*
+     * Probe all GPT partitions for the presense of ZFS pools. We
+     * return the spa_t for the first we find (if requested). This
+     * will have the effect of booting from the first pool on the
+     * disk.
+     */
+    entries_per_sec = DEV_BSIZE / hdr.hdr_entsz;
+    slba = hdr.hdr_lba_table;
+    elba = slba + hdr.hdr_entries / entries_per_sec;
+    while (slba < elba) {
+	if (drvread(dsk, sec, slba, 1))
+	    return;
+	for (part = 0; part < entries_per_sec; part++) {
+	    ent = (struct gpt_ent *)(sec + part * hdr.hdr_entsz);
+	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
+		     sizeof(uuid_t)) == 0) {
+		dsk->start = ent->ent_lba_start;
+		if (vdev_probe(vdev_read, dsk, spap) == 0) {
+		    /*
+		     * We record the first pool we find (we will try
+		     * to boot from that one.
+		     */
+		    spap = 0;
+
+		    /*
+		     * This slice had a vdev. We need a new dsk
+		     * structure now since the vdev now owns this one.
+		     */
+		    struct dsk *newdsk;
+		    newdsk = malloc(sizeof(struct dsk));
+		    *newdsk = *dsk;
+		    dsk = newdsk;
+		}
+		break;
+	    }
+	}
+	slba++;
+    }
+    return;
+trymbr:
+#endif
+
     if (drvread(dsk, sec, DOSBBSECTOR, 1))
 	return;
     dp = (void *)(sec + DOSPARTOFF);
@@ -441,7 +512,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 
 	    /*
 	     * This slice had a vdev. We need a new dsk structure now
-	     * sice the vdev now owns this one.
+	     * since the vdev now owns this one.
 	     */
 	    struct dsk *newdsk;
 	    newdsk = malloc(sizeof(struct dsk));
@@ -859,9 +930,42 @@ putchar(int c)
     xputc(c);
 }
 
+#ifdef GPT
+static struct {
+	uint16_t len;
+	uint16_t count;
+	uint16_t seg;
+	uint16_t off;
+	uint64_t lba;
+} packet;
+#endif
+
 static int
 drvread(struct dsk *dsk, void *buf, unsigned lba, unsigned nblk)
 {
+#ifdef GPT
+   static unsigned c = 0x2d5c7c2f;
+
+    if (!OPT_CHECK(RBX_QUIET))
+	printf("%c\b", c = c << 8 | c >> 24);
+    packet.len = 0x10;
+    packet.count = nblk;
+    packet.seg = VTOPOFF(buf);
+    packet.off = VTOPSEG(buf);
+    packet.lba = lba + dsk->start;
+    v86.ctl = V86_FLAGS;
+    v86.addr = 0x13;
+    v86.eax = 0x4200;
+    v86.edx = dsk->drive;
+    v86.ds = VTOPSEG(&packet);
+    v86.esi = VTOPOFF(&packet);
+    v86int();
+    if (V86_CY(v86.efl)) {
+	printf("error %u lba %u\n", v86.eax >> 8 & 0xff, lba);
+	return -1;
+    }
+    return 0;
+#else
     static unsigned c = 0x2d5c7c2f;
 
     lba += dsk->start;
@@ -881,6 +985,7 @@ drvread(struct dsk *dsk, void *buf, unsigned lba, unsigned nblk)
 	return -1;
     }
     return 0;
+#endif
 }
 
 static int

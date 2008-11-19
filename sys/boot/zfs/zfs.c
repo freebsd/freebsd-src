@@ -414,10 +414,14 @@ zfs_dev_init(void)
 			close(fd);
 
 		for (slice = 1; slice <= 4; slice++) {
-			sprintf(devname, "disk%ds%d:", unit, slice);
+			sprintf(devname, "disk%dp%d:", unit, slice);
 			fd = open(devname, O_RDONLY);
-			if (fd == -1)
-				continue;
+			if (fd == -1) {
+				sprintf(devname, "disk%ds%d:", unit, slice);
+				fd = open(devname, O_RDONLY);
+				if (fd == -1)
+					continue;
+			}
 			if (vdev_probe(vdev_read, (void*) (uintptr_t) fd, 0))
 				close(fd);
 		}
