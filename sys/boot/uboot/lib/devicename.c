@@ -64,7 +64,7 @@ uboot_getdev(void **vdev, const char *devspec, const char **path)
 	/*
 	 * Try to parse the device name off the beginning of the devspec.
 	 */
-	return(uboot_parsedev(dev, devspec, path));
+	return (uboot_parsedev(dev, devspec, path));
 }
 
 /*
@@ -78,7 +78,7 @@ uboot_getdev(void **vdev, const char *devspec, const char **path)
  *
  * For disk-type devices, the syntax is:
  *
- * disk<unit>[s<slice>][<partition>]:
+ * disk<unit>[<partition>]:
  *
  */
 static int
@@ -86,10 +86,10 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
     const char **path)
 {
 	struct uboot_devdesc *idev;
-	struct devsw	*dv;
-	char		*cp;
-	const char		*np;
-	int			 i, unit, slice, partition, err;
+	struct devsw *dv;
+	char *cp;
+	const char *np;
+	int i, unit, partition, err;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
@@ -110,12 +110,11 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 	np = (devspec + strlen(dv->dv_name));
 
 	switch(dv->dv_type) {
-	case DEVT_NONE:			/* XXX what to do here?  Do we care? */
+	case DEVT_NONE:
 		break;
 
 	case DEVT_DISK:
 		unit = -1;
-		slice = -1;
 		partition = -1;
 		if (*np && (*np != ':')) {
 			/* next comes the unit number */
@@ -124,16 +123,8 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 				err = EUNIT;
 				goto fail;
 			}
-			if (*cp == 's') {		/* got a slice number */
-				np = cp + 1;
-				slice = strtol(np, &cp, 10);
-				if (cp == np) {
-					err = ESLICE;
-					goto fail;
-				}
-			}
 			if (*cp && (*cp != ':')) {
-				/* get a partition number */
+				/* get partition */
 				partition = *cp - 'a';
 				if ((partition < 0) ||
 				    (partition >= MAXPARTITIONS)) {
@@ -145,12 +136,12 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 		}
 		if (*cp && (*cp != ':')) {
 			err = EINVAL;
-		goto fail;
+			goto fail;
 		}
 
 		idev->d_unit = unit;
-		idev->d_kind.disk.slice = slice;
-		idev->d_kind.disk.partition = partition;
+		idev->d_disk.partition = partition;
+		idev->d_disk.data = NULL;
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
@@ -170,9 +161,7 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 			err = EINVAL;
 			goto fail;
 		}
-
-		if (dv->dv_type == DEVT_NET)
-			idev->d_unit = unit;
+		idev->d_unit = unit;
 
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
@@ -212,8 +201,6 @@ uboot_fmtdev(void *vdev)
 	case DEVT_DISK:
 		cp = buf;
 		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
-		if (dev->d_kind.disk.slice > 0)
-			cp += sprintf(cp, "s%d", dev->d_kind.disk.slice);
 		if (dev->d_kind.disk.partition >= 0)
 			cp += sprintf(cp, "%c", dev->d_kind.disk.partition +
 			    'a');
