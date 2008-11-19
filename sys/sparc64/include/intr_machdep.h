@@ -47,8 +47,9 @@
 #define	PIL_AST		4	/* ast ipi */
 #define	PIL_STOP	5	/* stop cpu ipi */
 #define	PIL_PREEMPT	6	/* preempt idle thread cpu ipi */
+#define	PIL_FILTER	12	/* filter interrupts */
 #define	PIL_FAST	13	/* fast interrupts */
-#define	PIL_TICK	14
+#define	PIL_TICK	14	/* tick interrupts */
 
 #ifndef LOCORE
 
