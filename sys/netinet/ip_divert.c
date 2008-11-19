@@ -322,6 +322,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	 */
 	m->m_pkthdr.rcvif = NULL;
 	m->m_nextpkt = NULL;
+	M_SETFIB(m, so->so_fibnum);
 
 	if (control)
 		m_freem(control);		/* XXX */

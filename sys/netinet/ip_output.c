@@ -134,8 +134,10 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		bzero(ro, sizeof (*ro));
 	}
 
-	if (inp != NULL)
+	if (inp != NULL) {
+		M_SETFIB(m, inp->inp_inc.inc_fibnum);
 		INP_LOCK_ASSERT(inp);
+	}
 
 	if (opt) {
 		len = 0;
@@ -824,6 +826,11 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
+		if ((sopt->sopt_level == SOL_SOCKET) &&
+		    (sopt->sopt_name == SO_SETFIB)) {
+			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			return (0);
+		}
 		return (EINVAL);
 	}
 
