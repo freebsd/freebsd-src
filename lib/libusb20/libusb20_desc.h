@@ -63,7 +63,7 @@ extern	"C" {
 #define	LIBUSB20_MIN(a,b) (((a) < (b)) ? (a) : (b))
 
 #define	LIBUSB20_ADD_BYTES(ptr,off) \
-  ((void *)(((const uint8_t *)(ptr)) + (off)))
+  ((void *)(((const uint8_t *)(ptr)) + (off) - ((const uint8_t *)0)))
 
 /* basic message elements */
 enum {
