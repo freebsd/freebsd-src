@@ -708,7 +708,6 @@ rcsfile_print(struct rcsfile *rf)
 			line = stream_getln(in, NULL);
 		}
 		stream_close(in);
-		printf("branches: ");
 		printf("\n");
 	}
 
@@ -761,6 +760,7 @@ rcsfile_free(struct rcsfile *rf)
 	/* Free all deltas in global list */
 	while (!LIST_EMPTY(&rf->deltatable)) {
 		d = LIST_FIRST(&rf->deltatable);
+		LIST_REMOVE(d, delta_next);
 		LIST_REMOVE(d, table_next);
 		rcsfile_freedelta(d);
 	}

@@ -615,12 +615,12 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			error = fup_prepare(fup, name, 0);
 			if (error)
 				return (UPDATER_ERR_PROTO);
-			sr->sr_type = SR_FILELIVE;
 			fup->wantmd5 = xstrdup(wantmd5);
 			fup->temppath = tempname(fup->destpath);
 			sr = &fup->srbuf;
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
+			sr->sr_type = SR_FILELIVE;
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
 			error = updater_rsync(up, fup, strtol(blocksize, NULL,
@@ -1841,8 +1841,10 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 
 	/* First add the delta so we have it. */
 	d = rcsfile_addelta(rf, revnum, revdate, author, diffbase);
-	if (d == NULL)
-		err(1, "Error adding delta %s\n", revnum);
+	if (d == NULL) {
+		lprintf(-1, "Error adding delta %s\n", revnum);
+		return (UPDATER_ERR_READ);
+	}
 	while ((line = stream_getln(rd, NULL)) != NULL) {
 		if (strcmp(line, ".") == 0)
 			break;
@@ -2077,7 +2079,6 @@ updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
 			goto bad;
 		/* Read blocks from original file. */
 		lseek(orig, SEEK_SET, (blocksize * blockstart));
-		blocknum = 0;
 		error = UPDATER_ERR_MSG;
 		for (blocknum = 0; blocknum < blockcount; blocknum++) {
 			nbytes = read(orig, buf, blocksize);
