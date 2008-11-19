@@ -83,7 +83,9 @@ __FBSDID("$FreeBSD$");
 				  (ntohl(a.s_addr)>>8)&0xFF,\
 				  (ntohl(a.s_addr))&0xFF, y);
 
+#ifdef VIMAGE_GLOBALS
 u_short ip_id;
+#endif
 
 #ifdef MBUF_STRESS_TEST
 int mbuf_frag_size = 0;

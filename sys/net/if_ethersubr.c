@@ -142,7 +142,9 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, int shared);
+#ifdef VIMAGE_GLOBALS
 static int ether_ipfw;
+#endif
 #endif
 
 /*

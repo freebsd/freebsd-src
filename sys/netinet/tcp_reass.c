@@ -74,25 +74,28 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
 
+#ifdef VIMAGE_GLOBALS
+static int tcp_reass_maxseg;
+int tcp_reass_qsize;
+static int tcp_reass_maxqlen;
+static int tcp_reass_overflows;
+#endif
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
-static int tcp_reass_maxseg = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, maxsegments,
     CTLFLAG_RDTUN, tcp_reass_maxseg, 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-int tcp_reass_qsize = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, cursegments,
     CTLFLAG_RD, tcp_reass_qsize, 0,
     "Global number of TCP Segments currently in Reassembly Queue");
 
-static int tcp_reass_maxqlen = 48;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, maxqlen,
     CTLFLAG_RW, tcp_reass_maxqlen, 0,
     "Maximum number of TCP Segments per individual Reassembly Queue");
 
-static int tcp_reass_overflows = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_reass, OID_AUTO, overflows,
     CTLFLAG_RD, tcp_reass_overflows, 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
@@ -113,6 +116,11 @@ void
 tcp_reass_init(void)
 {
 	INIT_VNET_INET(curvnet);
+
+	V_tcp_reass_maxseg = 0;
+	V_tcp_reass_qsize = 0;
+	V_tcp_reass_maxqlen = 48;
+	V_tcp_reass_overflows = 0;
 
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",

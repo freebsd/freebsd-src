@@ -70,13 +70,15 @@ struct key_cb {
 	int key_count;
 	int any_count;
 };
+
+#ifdef VIMAGE_GLOBALS
 static struct key_cb key_cb;
+struct pfkeystat pfkeystat;
+#endif
 
 static struct sockaddr key_src = { 2, PF_KEY, };
 
 static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
-
-struct pfkeystat pfkeystat;
 
 /*
  * key_output()
@@ -570,7 +572,9 @@ static void
 key_init0(void)
 {
 	INIT_VNET_IPSEC(curvnet);
+
 	bzero((caddr_t)&V_key_cb, sizeof(V_key_cb));
+	ipsec_init();
 	key_init();
 }
 

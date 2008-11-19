@@ -104,7 +104,9 @@ __FBSDID("$FreeBSD$");
  */
 #define MLD_UNSOLICITED_REPORT_INTERVAL	10
 
+#ifdef VIMAGE_GLOBALS
 static struct ip6_pktopts ip6_opts;
+#endif
 
 static void mld6_sendpkt(struct in6_multi *, int, const struct in6_addr *);
 static void mld_starttimer(struct in6_multi *);

@@ -517,7 +517,26 @@ extern	int path_mtu_discovery;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
 
+extern	int blackhole;
+extern	int drop_synfin;
+extern	int tcp_do_rfc3042;
+extern	int tcp_do_rfc3390;
+extern	int tcp_insecure_rst;
+extern	int tcp_do_autorcvbuf;
+extern	int tcp_autorcvbuf_inc;
+extern	int tcp_autorcvbuf_max;
+
+extern	int tcp_do_tso;
+extern	int tcp_do_autosndbuf;
+extern	int tcp_autosndbuf_inc;
+extern	int tcp_autosndbuf_max;
+
+extern	int nolocaltimewait;
+
 extern	int tcp_do_sack;		/* SACK enabled/disabled */
+extern	int tcp_sack_maxholes;
+extern	int tcp_sack_globalmaxholes;
+extern	int tcp_sack_globalholes;
 extern	int tcp_sc_rst_sock_fail;	/* RST on sock alloc failure */
 extern	int tcp_do_ecn;			/* TCP ECN enabled/disabled */
 extern	int tcp_ecn_maxretries;

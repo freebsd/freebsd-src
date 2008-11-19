@@ -85,7 +85,9 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
-static int ip_gif_ttl = GIF_TTL;
+#ifdef VIMAGE_GLOBALS
+extern int ip_gif_ttl;
+#endif
 SYSCTL_V_INT(V_NET, vnet_gif, _net_inet_ip, IPCTL_GIF_TTL, gifttl,
 	CTLFLAG_RW, ip_gif_ttl,	0, "");
 

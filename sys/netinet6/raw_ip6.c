@@ -117,7 +117,9 @@ extern struct	inpcbinfo ripcbinfo;
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
 
+#ifdef VIMAGE_GLOBALS
 struct rip6stat rip6stat;
+#endif
 
 /*
  * Hooks for multicast forwarding.
