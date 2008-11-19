@@ -369,8 +369,10 @@ pcib_mbus_identify(driver_t *driver, device_t parent)
 		    &sc->sc_rid, sc->sc_info->op_base, sc->sc_info->op_base +
 		    sc->sc_info->op_size - 1, sc->sc_info->op_size,
 		    RF_ACTIVE);
-		if (sc->sc_res == NULL)
+		if (sc->sc_res == NULL) {
 			device_printf(parent, "Could not map pcib memory\n");
+			break;
+		}
 
 		sc->sc_bst = rman_get_bustag(sc->sc_res);
 		sc->sc_bsh = rman_get_bushandle(sc->sc_res);
