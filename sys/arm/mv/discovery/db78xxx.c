@@ -57,7 +57,10 @@ __FBSDID("$FreeBSD$");
  * virtual_avail - 0xefff_ffff	: KVA (virtual_avail is typically < 0xc0a0_0000)
  * 0xf000_0000 - 0xf0ff_ffff	: no-cache allocation area (16MB)
  * 0xf100_0000 - 0xf10f_ffff	: SoC integrated devices registers range (1MB)
- * 0xf110_0000 - 0xfffe_ffff	: PCIE (MEM+IO) outbound windows (~238MB)
+ * 0xf110_0000 - 0xf11f_ffff	: PCI-Express I/O space (1MB)
+ * 0xf120_0000 - 0xf12f_ffff	: unused (1MB)
+ * 0xf130_0000 - 0xf52f_ffff	: PCI-Express memory space (64MB)
+ * 0xf930_0000 - 0xfffe_ffff	: unused (~172MB)
  * 0xffff_0000 - 0xffff_0fff	: 'high' vectors page (4KB)
  * 0xffff_1000 - 0xffff_1fff	: ARM_TP_ADDRESS/RAS page (4KB)
  * 0xffff_2000 - 0xffff_ffff	: unused (~55KB)
@@ -76,6 +79,20 @@ static const struct pmap_devmap pmap_devmap[] = {
 		MV_BASE,
 		MV_PHYS_BASE,
 		MV_SIZE,
+		VM_PROT_READ | VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{ /* PCIE I/O */
+		MV_PCIE_IO_BASE,
+		MV_PCIE_IO_PHYS_BASE,
+		MV_PCIE_IO_SIZE,
+		VM_PROT_READ | VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
+	{ /* PCIE Memory */
+		MV_PCIE_MEM_BASE,
+		MV_PCIE_MEM_PHYS_BASE,
+		MV_PCIE_MEM_SIZE,
 		VM_PROT_READ | VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
