@@ -167,7 +167,7 @@
     <para>Kernel support for M:N threading has been removed.  While
       the KSE (Kernel Scheduled Entities) project was quite successful
       in bringing threading to FreeBSD, the M:N approach taken by the
-      kse library was never developed to its full potential.
+      KSE library was never developed to its full potential.
       Backwards compatibility for applications using KSE threading
       will be provided via &man.libmap.conf.5; for dynamically linked
       binaries.  The &os; Project greatly appreciates the work of
