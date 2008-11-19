@@ -106,7 +106,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-static int ipfastforward_active = 0;
+#ifdef VIMAGE_GLOBALS
+static int ipfastforward_active;
+#endif
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, fastforwarding,
     CTLFLAG_RW, ipfastforward_active, 0, "Enable fast IP forwarding");
 

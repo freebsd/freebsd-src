@@ -61,15 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
 
-unsigned long in6_maxmtu = 0;
-
-#ifdef IP6_AUTO_LINKLOCAL
-int ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
-#else
-int ip6_auto_linklocal = 1;	/* enable by default */
-#endif
-
+#ifdef VIMAGE_GLOBALS
+unsigned long in6_maxmtu;
+int ip6_auto_linklocal;
 struct callout in6_tmpaddrtimer_ch;
+#endif
 
 extern struct inpcbinfo udbinfo;
 extern struct inpcbinfo ripcbinfo;

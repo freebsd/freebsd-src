@@ -134,21 +134,20 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
-int	if_index = 0;
-int	ifqmaxlen = IFQ_MAXLEN;
+#ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	ifgrouphead ifg_head;
+int	if_index;
+static	int if_indexlim;
+/* Table of ifnet/cdev by index.  Locked with ifnet_lock. */
+static struct ifindex_entry *ifindex_table;
+static struct	knlist ifklist;
+#endif
+
+int	ifqmaxlen = IFQ_MAXLEN;
 struct	mtx ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
-
-static int	if_indexlim = 8;
-static struct	knlist ifklist;
-
-/*
- * Table of ifnet/cdev by index.  Locked with ifnet_lock.
- */
-static struct ifindex_entry *ifindex_table = NULL;
 
 static void	filt_netdetach(struct knote *kn);
 static int	filt_netdev(struct knote *kn, long hint);
@@ -356,6 +355,10 @@ static void
 if_init(void *dummy __unused)
 {
 	INIT_VNET_NET(curvnet);
+
+	V_if_index = 0;
+	V_ifindex_table = NULL;
+	V_if_indexlim = 8;
 
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&V_ifnet);

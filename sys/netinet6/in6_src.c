@@ -119,9 +119,11 @@ static struct sx addrsel_sxlock;
 #define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
-struct in6_addrpolicy defaultaddrpolicy;
 
-int ip6_prefer_tempaddr = 0;
+#ifdef VIMAGE_GLOBALS
+struct in6_addrpolicy defaultaddrpolicy;
+int ip6_prefer_tempaddr;
+#endif
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -875,6 +877,8 @@ addrsel_policy_init(void)
 	ADDRSEL_SXLOCK_INIT();
 	INIT_VNET_INET6(curvnet);
 
+	V_ip6_prefer_tempaddr = 0;
+
 	init_policy_queue();
 
 	/* initialize the "last resort" policy */
@@ -972,7 +976,9 @@ struct addrsel_policyent {
 
 TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
 
+#ifdef VIMAGE_GLOBALS
 struct addrsel_policyhead addrsel_policytab;
+#endif
 
 static void
 init_policy_queue(void)

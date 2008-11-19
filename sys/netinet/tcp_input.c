@@ -99,7 +99,21 @@ __FBSDID("$FreeBSD$");
 
 static const int tcprexmtthresh = 3;
 
+#ifdef VIMAGE_GLOBALS
 struct	tcpstat tcpstat;
+int	blackhole;
+int	tcp_delack_enabled;
+int	drop_synfin;
+int	tcp_do_rfc3042;
+int	tcp_do_rfc3390;
+int	tcp_do_ecn;
+int	tcp_ecn_maxretries;
+int	tcp_insecure_rst;
+int	tcp_do_autorcvbuf;
+int	tcp_autorcvbuf_inc;
+int	tcp_autorcvbuf_max;
+#endif
+
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
     CTLFLAG_RW, tcpstat , tcpstat,
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
@@ -108,59 +122,50 @@ int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
-static int blackhole = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
     blackhole, 0, "Do not send RST on segments to closed ports");
 
-int tcp_delack_enabled = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, delayed_ack,
     CTLFLAG_RW, tcp_delack_enabled, 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
-static int drop_synfin = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, drop_synfin,
     CTLFLAG_RW, drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 
-static int tcp_do_rfc3042 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
-static int tcp_do_rfc3390 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-int	tcp_do_ecn = 0;
-int	tcp_ecn_maxretries = 1;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
     CTLFLAG_RW, tcp_do_ecn, 0, "TCP ECN support");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, maxretries,
     CTLFLAG_RW, tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
 
-static int tcp_insecure_rst = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, insecure_rst,
     CTLFLAG_RW, tcp_insecure_rst, 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
-int	tcp_do_autorcvbuf = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_auto,
     CTLFLAG_RW, tcp_do_autorcvbuf, 0,
     "Enable automatic receive buffer sizing");
 
-int	tcp_autorcvbuf_inc = 16*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_inc,
     CTLFLAG_RW, tcp_autorcvbuf_inc, 0,
     "Incrementor step size of automatic receive buffer");
 
-int	tcp_autorcvbuf_max = 256*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_max,
     CTLFLAG_RW, tcp_autorcvbuf_max, 0,
     "Max size of automatic receive buffer");
 
+#ifdef VIMAGE_GLOBALS
 struct inpcbhead tcb;
-#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
+#endif
+#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,

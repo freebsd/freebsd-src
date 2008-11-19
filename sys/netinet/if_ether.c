@@ -82,7 +82,12 @@ SYSCTL_DECL(_net_link_ether);
 SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 
 /* timer values */
-static int arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
+#ifdef VIMAGE_GLOBALS
+static int	arpt_keep; /* once resolved, good for 20 more minutes */
+static int	arp_maxtries;
+static int	useloopback; /* use loopback interface for local traffic */
+static int	arp_proxyall;
+#endif
 
 SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW, 
 	   &arpt_keep, 0, "ARP entry lifetime in seconds");
@@ -98,10 +103,6 @@ struct llinfo_arp {
 };
 
 static struct	ifqueue arpintrq;
-
-static int	arp_maxtries = 5;
-static int	useloopback = 1; /* use loopback interface for local traffic */
-static int	arp_proxyall = 0;
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_link_ether_inet, OID_AUTO, maxtries,
 	CTLFLAG_RW, arp_maxtries, 0,
@@ -1076,6 +1077,12 @@ arp_ifinit2(struct ifnet *ifp, struct ifaddr *ifa, u_char *enaddr)
 static void
 arp_init(void)
 {
+	INIT_VNET_INET(curvnet);
+
+	V_arpt_keep = (20*60); /* once resolved, good for 20 more minutes */
+	V_arp_maxtries = 5;
+	V_useloopback = 1; /* use loopback interface for local traffic */
+	V_arp_proxyall = 0;
 
 	arpintrq.ifq_maxlen = 50;
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);

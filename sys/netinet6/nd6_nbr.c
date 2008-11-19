@@ -86,8 +86,10 @@ static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
 
-static int dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
-static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
+#ifdef VIMAGE_GLOBALS
+int dad_ignore_ns;
+int dad_maxtry;
+#endif
 
 /*
  * Input a Neighbor Solicitation Message.
@@ -1096,8 +1098,10 @@ struct dadq {
 	struct callout dad_timer_ch;
 };
 
+#ifdef VIMAGE_GLOBALS
 static struct dadq_head dadq;
-static int dad_init = 0;
+int dad_init;
+#endif
 
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)

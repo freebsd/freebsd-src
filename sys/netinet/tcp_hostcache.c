@@ -146,9 +146,11 @@ struct tcp_hostcache {
 	int	prune;
 	int	purgeall;
 };
-static struct tcp_hostcache tcp_hostcache;
 
+#ifdef VIMAGE_GLOBALS
+static struct tcp_hostcache tcp_hostcache;
 static struct callout tcp_hc_callout;
+#endif
 
 static struct hc_metrics *tcp_hc_lookup(struct in_conninfo *);
 static struct hc_metrics *tcp_hc_insert(struct in_conninfo *);

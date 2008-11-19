@@ -80,7 +80,9 @@ static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 static struct router_info	*find_rti(struct ifnet *ifp);
 static void	igmp_sendpkt(struct in_multi *, int, unsigned long);
 
+#ifdef VIMAGE_GLOBALS
 static struct igmpstat igmpstat;
+#endif
 
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
     stats, CTLFLAG_RW, igmpstat, igmpstat, "");
@@ -92,8 +94,10 @@ SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
  * reference counting is used.  We allow unlocked reads of router_info data
  * when accessed via an in_multi read-only.
  */
-static struct mtx igmp_mtx;
+#ifdef VIMAGE_GLOBALS
 static SLIST_HEAD(, router_info) router_info_head;
+#endif
+static struct mtx igmp_mtx;
 static int igmp_timers_are_running;
 
 /*

@@ -96,7 +96,9 @@ int		looutput(struct ifnet *ifp, struct mbuf *m,
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
 static void	lo_clone_destroy(struct ifnet *);
 
-struct ifnet *loif = NULL;			/* Used externally */
+#ifdef VIMAGE_GLOBALS
+struct ifnet *loif;			/* Used externally */
+#endif
 
 IFC_SIMPLE_DECLARE(lo, 1);
 
@@ -142,6 +144,7 @@ loop_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		V_loif = NULL;
 		if_clone_attach(&lo_cloner);
 		break;
 

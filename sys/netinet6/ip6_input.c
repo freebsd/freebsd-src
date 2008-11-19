@@ -116,20 +116,33 @@ extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
 static struct ifqueue ip6intrq;
-static int ip6qmaxlen = IFQ_MAXLEN;
+
+#ifdef VIMAGE_GLOBALS
+static int ip6qmaxlen;
 struct in6_ifaddr *in6_ifaddr;
+struct ip6stat ip6stat;
+#endif
 
 extern struct callout in6_tmpaddrtimer_ch;
 
+extern int dad_init;
+extern int pmtu_expire;
+extern int pmtu_probe;
+extern u_long rip6_sendspace;
+extern u_long rip6_recvspace;
+extern int icmp6errppslim;
+extern int icmp6_nodeinfo;
+extern int udp6_sendspace;
+extern int udp6_recvspace;
+
+#ifdef VIMAGE_GLOBALS
 int ip6_forward_srcrt;			/* XXX */
 int ip6_sourcecheck;			/* XXX */
 int ip6_sourcecheck_interval;		/* XXX */
-
 int ip6_ours_check_algorithm;
+#endif
 
 struct pfil_head inet6_pfil_hook;
-
-struct ip6stat ip6stat;
 
 static void ip6_init2(void *);
 static struct ip6aux *ip6_setdstifaddr(struct mbuf *, struct in6_ifaddr *);
@@ -148,6 +161,72 @@ ip6_init(void)
 	INIT_VNET_INET6(curvnet);
 	struct ip6protosw *pr;
 	int i;
+
+	V_ip6qmaxlen = IFQ_MAXLEN;
+	V_in6_maxmtu = 0;
+#ifdef IP6_AUTO_LINKLOCAL
+	V_ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
+#else
+	V_ip6_auto_linklocal = 1;	/* enable by default */
+#endif
+
+#ifndef IPV6FORWARDING
+#ifdef GATEWAY6
+#define IPV6FORWARDING	1	/* forward IP6 packets not for us */
+#else
+#define IPV6FORWARDING	0	/* don't forward IP6 packets not for us */
+#endif /* GATEWAY6 */
+#endif /* !IPV6FORWARDING */
+
+#ifndef IPV6_SENDREDIRECTS
+#define IPV6_SENDREDIRECTS	1
+#endif
+
+	V_ip6_forwarding = IPV6FORWARDING; /* act as router? */
+	V_ip6_sendredirects = IPV6_SENDREDIRECTS;
+	V_ip6_defhlim = IPV6_DEFHLIM;
+	V_ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
+	V_ip6_accept_rtadv = 0;	 /* "IPV6FORWARDING ? 0 : 1" is dangerous */
+	V_ip6_log_interval = 5;
+	V_ip6_hdrnestlimit = 15; /* How many header options will we process? */
+	V_ip6_dad_count = 1;	 /* DupAddrDetectionTransmits */
+	V_ip6_auto_flowlabel = 1;
+	V_ip6_use_deprecated = 1;/* allow deprecated addr (RFC2462 5.5.4) */
+	V_ip6_rr_prune = 5;	 /* router renumbering prefix
+                                  * walk list every 5 sec. */
+	V_ip6_mcast_pmtu = 0;	 /* enable pMTU discovery for multicast? */
+	V_ip6_v6only = 1;
+	V_ip6_keepfaith = 0;
+	V_ip6_log_time = (time_t)0L;
+#ifdef IPSTEALTH
+	V_ip6stealth = 0;
+#endif
+	V_nd6_onlink_ns_rfc4861 = 0; /* allow 'on-link' nd6 NS (RFC 4861) */
+
+	V_pmtu_expire = 60*10;
+	V_pmtu_probe = 60*2;
+
+	/* raw IP6 parameters */
+	/*
+	 * Nominal space allocated to a raw ip socket.
+	 */
+#define RIPV6SNDQ	8192
+#define RIPV6RCVQ	8192
+	V_rip6_sendspace = RIPV6SNDQ;
+	V_rip6_recvspace = RIPV6RCVQ;
+
+	/* ICMPV6 parameters */
+	V_icmp6_rediraccept = 1;	/* accept and process redirects */
+	V_icmp6_redirtimeout = 10 * 60;	/* 10 minutes */
+	V_icmp6errppslim = 100;		/* 100pps */
+	/* control how to respond to NI queries */
+	V_icmp6_nodeinfo = (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
+
+	/* UDP on IP6 parameters */
+	V_udp6_sendspace = 9216;	/* really max datagram size */
+	V_udp6_recvspace = 40 * (1024 + sizeof(struct sockaddr_in6));
+					/* 40 1K datagrams */
+	V_dad_init = 0;
 
 #ifdef DIAGNOSTIC
 	if (sizeof(struct protosw) != sizeof(struct ip6protosw))

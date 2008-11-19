@@ -94,7 +94,18 @@
  */
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
+
+#ifdef VIMAGE_GLOBALS
 static LIST_HEAD(, gif_softc) gif_softc_list;
+static int max_gif_nesting;
+static int parallel_tunnels;
+#ifdef INET
+int ip_gif_ttl;
+#endif
+#ifdef INET6
+int ip6_gif_hlim;
+#endif
+#endif
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
@@ -123,9 +134,6 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-#ifndef VIMAGE
-static int max_gif_nesting = MAX_GIF_NEST;
-#endif
 SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, max_nesting,
     CTLFLAG_RW, max_gif_nesting, 0, "Max nested tunnels");
 
@@ -140,11 +148,6 @@ SYSCTL_V_INT(V_NET, vnet_gif, _net_inet6_ip6, IPV6CTL_GIF_HLIM,
  * pair of addresses.  Some applications require this functionality so
  * we allow control over this check here.
  */
-#ifdef XBONEHACK
-static int parallel_tunnels = 1;
-#else
-static int parallel_tunnels = 0;
-#endif
 SYSCTL_V_INT(V_NET, vnet_gif, _net_link_gif, OID_AUTO, parallel_tunnels,
     CTLFLAG_RW, parallel_tunnels, 0, "Allow parallel tunnels?");
 
@@ -251,12 +254,21 @@ gifmodevent(mod, type, data)
 	switch (type) {
 	case MOD_LOAD:
 		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
-		LIST_INIT(&V_gif_softc_list);
-		if_clone_attach(&gif_cloner);
 
+		LIST_INIT(&V_gif_softc_list);
+		V_max_gif_nesting = MAX_GIF_NEST;
+#ifdef XBONEHACK
+		V_parallel_tunnels = 1;
+#else
+		V_parallel_tunnels = 0;
+#endif
+#ifdef INET
+		V_ip_gif_ttl = GIF_TTL;
+#endif
 #ifdef INET6
 		V_ip6_gif_hlim = GIF_HLIM;
 #endif
+		if_clone_attach(&gif_cloner);
 
 		break;
 	case MOD_UNLOAD:

@@ -98,12 +98,17 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static int tcp_syncookies = 1;
+#ifdef VIMAGE_GLOBALS
+static struct tcp_syncache tcp_syncache;
+static int tcp_syncookies;
+static int tcp_syncookiesonly;
+int tcp_sc_rst_sock_fail;
+#endif
+
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
     &tcp_syncookies, 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-static int tcp_syncookiesonly = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
     &tcp_syncookiesonly, 0,
     "Use only TCP SYN cookies");
@@ -142,8 +147,6 @@ static struct syncache
 #define TCP_SYNCACHE_HASHSIZE		512
 #define TCP_SYNCACHE_BUCKETLIMIT	30
 
-static struct tcp_syncache tcp_syncache;
-
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0, "TCP SYN cache");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
@@ -166,7 +169,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
     rexmtlimit, CTLFLAG_RW,
     tcp_syncache.rexmt_limit, 0, "Limit on SYN/ACK retransmissions");
 
-int	tcp_sc_rst_sock_fail = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_syncache, OID_AUTO,
      rst_on_sock_fail, CTLFLAG_RW,
      tcp_sc_rst_sock_fail, 0, "Send reset on socket allocation failure");
@@ -222,6 +224,10 @@ syncache_init(void)
 {
 	INIT_VNET_INET(curvnet);
 	int i;
+
+	V_tcp_syncookies = 1;
+	V_tcp_syncookiesonly = 0;
+	V_tcp_sc_rst_sock_fail = 1;
 
 	V_tcp_syncache.cache_count = 0;
 	V_tcp_syncache.hashsize = TCP_SYNCACHE_HASHSIZE;

@@ -368,73 +368,56 @@ DOMAIN_SET(inet6);
 /*
  * Internet configuration info
  */
-#ifndef	IPV6FORWARDING
-#ifdef GATEWAY6
-#define	IPV6FORWARDING	1	/* forward IP6 packets not for us */
-#else
-#define	IPV6FORWARDING	0	/* don't forward IP6 packets not for us */
-#endif /* GATEWAY6 */
-#endif /* !IPV6FORWARDING */
-
-#ifndef	IPV6_SENDREDIRECTS
-#define	IPV6_SENDREDIRECTS	1
+#ifdef VIMAGE_GLOBALS
+int	ip6_forwarding;
+int	ip6_sendredirects;
+int	ip6_defhlim;
+int	ip6_defmcasthlim;
+int	ip6_accept_rtadv;
+int	ip6_maxfragpackets;
+int	ip6_maxfrags;
+int	ip6_log_interval;
+int	ip6_hdrnestlimit;
+int	ip6_dad_count;
+int	ip6_auto_flowlabel;
+int	ip6_use_deprecated;
+int	ip6_rr_prune;
+int	ip6_mcast_pmtu;
+int	ip6_v6only;
+int	ip6_keepfaith;
+time_t	ip6_log_time;
+int	ip6stealth;
+int	nd6_onlink_ns_rfc4861;
 #endif
 
-int	ip6_forwarding = IPV6FORWARDING;	/* act as router? */
-int	ip6_sendredirects = IPV6_SENDREDIRECTS;
-int	ip6_defhlim = IPV6_DEFHLIM;
-int	ip6_defmcasthlim = IPV6_DEFAULT_MULTICAST_HOPS;
-int	ip6_accept_rtadv = 0;	/* "IPV6FORWARDING ? 0 : 1" is dangerous */
-int	ip6_maxfragpackets;	/* initialized in frag6.c:frag6_init() */
-int	ip6_maxfrags;	/* initialized in frag6.c:frag6_init() */
-int	ip6_log_interval = 5;
-int	ip6_hdrnestlimit = 15;	/* How many header options will we process? */
-int	ip6_dad_count = 1;	/* DupAddrDetectionTransmits */
-int	ip6_auto_flowlabel = 1;
-int	ip6_gif_hlim = 0;
-int	ip6_use_deprecated = 1;	/* allow deprecated addr (RFC2462 5.5.4) */
-int	ip6_rr_prune = 5;	/* router renumbering prefix
-				 * walk list every 5 sec. */
-int	ip6_mcast_pmtu = 0;	/* enable pMTU discovery for multicast? */
-int	ip6_v6only = 1;
-
-int	ip6_keepfaith = 0;
-time_t	ip6_log_time = (time_t)0L;
-#ifdef IPSTEALTH
-int	ip6stealth = 0;
-#endif
-int	nd6_onlink_ns_rfc4861 = 0; /* allow 'on-link' nd6 NS (as in RFC 4861) */
-
+#ifdef VIMAGE_GLOBALS
 /* icmp6 */
 /*
  * BSDI4 defines these variables in in_proto.c...
  * XXX: what if we don't define INET? Should we define pmtu6_expire
  * or so? (jinmei@kame.net 19990310)
  */
-int pmtu_expire = 60*10;
-int pmtu_probe = 60*2;
+int pmtu_expire;
+int pmtu_probe;
 
 /* raw IP6 parameters */
 /*
  * Nominal space allocated to a raw ip socket.
  */
-#define	RIPV6SNDQ	8192
-#define	RIPV6RCVQ	8192
-
-u_long	rip6_sendspace = RIPV6SNDQ;
-u_long	rip6_recvspace = RIPV6RCVQ;
+u_long	rip6_sendspace;
+u_long	rip6_recvspace;
 
 /* ICMPV6 parameters */
-int	icmp6_rediraccept = 1;		/* accept and process redirects */
-int	icmp6_redirtimeout = 10 * 60;	/* 10 minutes */
-int	icmp6errppslim = 100;		/* 100pps */
+int	icmp6_rediraccept;
+int	icmp6_redirtimeout;
+int	icmp6errppslim;
 /* control how to respond to NI queries */
-int	icmp6_nodeinfo = (ICMP6_NODEINFO_FQDNOK|ICMP6_NODEINFO_NODEADDROK);
+int	icmp6_nodeinfo;
 
 /* UDP on IP6 parameters */
-int	udp6_sendspace = 9216;		/* really max datagram size */
-int	udp6_recvspace = 40 * (1024 + sizeof(struct sockaddr_in6));
-					/* 40 1K datagrams */
+int	udp6_sendspace;
+int	udp6_recvspace;
+#endif /* VIMAGE_GLOBALS */
 
 /*
  * sysctl related items.

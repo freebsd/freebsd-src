@@ -138,6 +138,15 @@ do { \
 #endif
 
 /*
+ * IP datagram reassembly.
+ */
+#define	IPREASS_NHASH_LOG2	6
+#define	IPREASS_NHASH		(1 << IPREASS_NHASH_LOG2)
+#define	IPREASS_HMASK		(IPREASS_NHASH - 1)
+#define	IPREASS_HASH(x,y) \
+	(((((x) & 0xF) | ((((x) >> 8) & 0xF) << 4)) ^ (y)) & IPREASS_HMASK)
+
+/*
  * This information should be part of the ifnet structure but we don't wish
  * to change that - as it might break a number of things
  */

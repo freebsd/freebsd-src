@@ -450,6 +450,8 @@ extern int	ipport_lastauto;
 extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 extern int	ipport_randomized;
+extern int	ipport_randomcps;
+extern int	ipport_randomtime;
 extern int	ipport_stoprandom;
 extern int	ipport_tcpallocs;
 extern struct callout ipport_tick_callout;
