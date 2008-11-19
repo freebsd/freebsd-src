@@ -31,6 +31,11 @@
 
 #include <sys/ioccom.h>
 
+/* Building "kdump" depends on these includes */
+
+#include <dev/usb2/include/usb2_endian.h>
+#include <dev/usb2/include/usb2_standard.h>
+
 #define	USB_DEVICE_NAME "usb"
 #define	USB_GENERIC_NAME "ugen"
 

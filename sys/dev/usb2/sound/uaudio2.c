@@ -3049,9 +3049,6 @@ uaudio_mixer_signext(uint8_t type, int val)
 static int
 uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
 {
-	DPRINTFN(6, "type=%03x val=%d min=%d max=%d ",
-	    mc->type, val, mc->minval, mc->maxval);
-
 	if (mc->type == MIX_ON_OFF) {
 		val = (val != 0);
 	} else if (mc->type == MIX_SELECTOR) {
@@ -3063,7 +3060,8 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int32_t val)
 		val = (((val + (mc->delta / 2)) * mc->mul) / 255) + mc->minval;
 	}
 
-	DPRINTFN(6, "val=%d\n", val);
+	DPRINTFN(6, "type=0x%03x val=%d min=%d max=%d val=%d\n",
+	    mc->type, val, mc->minval, mc->maxval, val);
 	return (val);
 }
 

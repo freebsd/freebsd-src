@@ -47,6 +47,7 @@
 #include <dev/usb2/core/usb2_mbuf.h>
 #include <dev/usb2/core/usb2_dev.h>
 #include <dev/usb2/core/usb2_msctest.h>
+#include <dev/usb2/core/usb2_generic.h>
 
 #include <dev/usb2/quirk/usb2_quirk.h>
 
@@ -66,7 +67,7 @@ static void usb2_clear_stall_proc(struct usb2_proc_msg *_pm);
 static void usb2_check_strings(struct usb2_device *udev);
 static usb2_error_t usb2_fill_iface_data(struct usb2_device *udev, uint8_t iface_index, uint8_t alt_index);
 static void usb2_notify_addq(const char *type, struct usb2_device *udev);
-static void usb2_fifo_free_wrap(struct usb2_device *udev, uint8_t iface_index, uint8_t free_all);
+static void usb2_fifo_free_wrap(struct usb2_device *udev, uint8_t iface_index, uint8_t flag);
 
 /* static structures */
 
@@ -672,7 +673,10 @@ usb2_set_alt_interface_index(struct usb2_device *udev,
 	if (udev->flags.usb2_mode == USB_MODE_DEVICE) {
 		usb2_detach_device(udev, iface_index, 1);
 	}
-	/* free all FIFOs for this interface */
+	/*
+	 * Free all generic FIFOs for this interface, except control
+	 * endpoint FIFOs:
+	 */
 	usb2_fifo_free_wrap(udev, iface_index, 0);
 
 	err = usb2_fill_iface_data(udev, iface_index, alt_index);
@@ -2077,14 +2081,20 @@ usb2_notify_addq(const char *type, struct usb2_device *udev)
 /*------------------------------------------------------------------------*
  *	usb2_fifo_free_wrap
  *
- * The function will free the FIFOs.
+ * This function will free the FIFOs.
+ *
+ * Flag values, if "iface_index" is equal to "USB_IFACE_INDEX_ANY".
+ * 0: Free all FIFOs except generic control endpoints.
+ * 1: Free all FIFOs.
+ *
+ * Flag values, if "iface_index" is not equal to "USB_IFACE_INDEX_ANY".
+ * Not used.
  *------------------------------------------------------------------------*/
 static void
 usb2_fifo_free_wrap(struct usb2_device *udev,
-    uint8_t iface_index, uint8_t free_all)
+    uint8_t iface_index, uint8_t flag)
 {
 	struct usb2_fifo *f;
-	struct usb2_pipe *pipe;
 	uint16_t i;
 
 	/*
@@ -2095,16 +2105,48 @@ usb2_fifo_free_wrap(struct usb2_device *udev,
 		if (f == NULL) {
 			continue;
 		}
-		pipe = f->priv_sc0;
-		if ((pipe == &udev->default_pipe) && (free_all == 0)) {
-			/* don't free UGEN control endpoint yet */
+		/* Check if the interface index matches */
+		if (iface_index == f->iface_index) {
+			if (f->methods != &usb2_ugen_methods) {
+				/*
+				 * Don't free any non-generic FIFOs in
+				 * this case.
+				 */
+				continue;
+			}
+			if (f->dev_ep_index == 0) {
+				/*
+				 * Don't free the generic control endpoint
+				 * yet and make sure that any USB-FS
+				 * activity is stopped!
+				 */
+				if (ugen_fs_uninit(f)) {
+					/* ignore any failures */
+					DPRINTFN(10, "udev=%p ugen_fs_uninit() "
+					    "failed! (ignored)\n", udev);
+				}
+				continue;
+			}
+		} else if (iface_index == USB_IFACE_INDEX_ANY) {
+			if ((f->methods == &usb2_ugen_methods) &&
+			    (f->dev_ep_index == 0) && (flag == 0)) {
+				/*
+				 * Don't free the generic control endpoint
+				 * yet, but make sure that any USB-FS
+				 * activity is stopped!
+				 */
+				if (ugen_fs_uninit(f)) {
+					/* ignore any failures */
+					DPRINTFN(10, "udev=%p ugen_fs_uninit() "
+					    "failed! (ignored)\n", udev);
+				}
+				continue;
+			}
+		} else {
 			continue;
 		}
-		/* Check if the interface index matches */
-		if ((iface_index == f->iface_index) ||
-		    (iface_index == USB_IFACE_INDEX_ANY)) {
-			usb2_fifo_free(f);
-		}
+		/* free the FIFO */
+		usb2_fifo_free(f);
 	}
 	return;
 }

@@ -89,7 +89,7 @@ device_set_usb2_desc(device_t dev)
 	}
 	uaa = device_get_ivars(dev);
 	if (uaa == NULL) {
-		/* can happend if called at the wrong time */
+		/* can happen if called at the wrong time */
 		return;
 	}
 	udev = uaa->device;

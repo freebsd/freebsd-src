@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
 #include <dev/usb2/include/usb2_ioctl.h>
-#include <dev/usb2/include/urio2_ioctl.h>
+#include <dev/usb/rio500_usb.h>
 
 #define	USB_DEBUG_VAR urio_debug
 

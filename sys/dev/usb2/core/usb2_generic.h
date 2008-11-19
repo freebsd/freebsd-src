@@ -29,5 +29,6 @@
 
 extern struct usb2_fifo_methods usb2_ugen_methods;
 int	ugen_do_request(struct usb2_fifo *f, struct usb2_ctl_request *ur);
+int	ugen_fs_uninit(struct usb2_fifo *f);
 
 #endif					/* _USB2_GENERIC_H_ */
