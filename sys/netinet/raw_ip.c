@@ -450,8 +450,14 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
 
-	if (sopt->sopt_level != IPPROTO_IP)
+	if (sopt->sopt_level != IPPROTO_IP) {
+		if ((sopt->sopt_level == SOL_SOCKET) &&
+		    (sopt->sopt_name == SO_SETFIB)) {
+			inp->inp_inc.inc_fibnum = so->so_fibnum;
+			return (0);
+		}
 		return (EINVAL);
+	}
 
 	error = 0;
 	switch (sopt->sopt_dir) {
