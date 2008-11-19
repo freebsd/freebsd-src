@@ -64,8 +64,7 @@ upper(const char *str)
 	static char buf[80];
 	char *s;
 
-	strncpy(buf, str, sizeof(buf));
-	buf[sizeof(buf) - 1] = '\0';
+	strlcpy(buf, str, sizeof(buf));
 	for (s = buf; *s; s++)
 		*s = toupper((unsigned char)*s);
 	return buf;
@@ -327,8 +326,7 @@ main(int ac, char **av)
 		if ((procs[i].ki_stat & SZOMB) == SZOMB && !zflag)
 			continue;
 		thispid = procs[i].ki_pid;
-		strncpy(thiscmd, procs[i].ki_comm, MAXCOMLEN);
-		thiscmd[MAXCOMLEN] = '\0';
+		strlcpy(thiscmd, procs[i].ki_comm, sizeof(thiscmd));
 		thistdev = procs[i].ki_tdev;
 		if (eflag)
 			thisuid = procs[i].ki_uid;	/* effective uid */
