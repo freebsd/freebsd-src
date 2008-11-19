@@ -88,7 +88,7 @@ struct intr_vector intr_vectors[IV_MAX];
 uint16_t intr_countp[IV_MAX];
 static u_long intr_stray_count[IV_MAX];
 
-static const char *pil_names[] = {
+static const char *const pil_names[] = {
 	"stray",
 	"low",		/* PIL_LOW */
 	"ithrd",	/* PIL_ITHREAD */
@@ -96,7 +96,8 @@ static const char *pil_names[] = {
 	"ast",		/* PIL_AST */
 	"stop",		/* PIL_STOP */
 	"preempt",	/* PIL_PREEMPT */
-	"stray", "stray", "stray", "stray", "stray", "stray",
+	"stray", "stray", "stray", "stray", "stray",
+	"filter",	/* PIL_FILTER */
 	"fast",		/* PIL_FAST */
 	"tick",		/* PIL_TICK */
 };
@@ -321,9 +322,15 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	struct intr_event *ie;
 	struct intr_handler *ih;
 	struct intr_vector *iv;
-	int error, fast;
+	int error, filter;
 
 	if (vec < 0 || vec >= IV_MAX)
+		return (EINVAL);
+	/*
+	 * INTR_FAST filters/handlers are special purpose only, allowing
+	 * them to be shared just would complicate things unnecessarily.
+	 */
+	if ((flags & INTR_FAST) != 0 && (flags & INTR_EXCL) == 0)
 		return (EINVAL);
 	sx_xlock(&intr_table_lock);
 	iv = &intr_vectors[vec];
@@ -341,24 +348,25 @@ inthand_add(const char *name, int vec, driver_filter_t *filt,
 	ic->ic_disable(iv);
 	iv->iv_refcnt++;
 	if (iv->iv_refcnt == 1)
-		intr_setup(filt != NULL ? PIL_FAST : PIL_ITHREAD, intr_fast,
+		intr_setup((flags & INTR_FAST) != 0 ? PIL_FAST :
+		    filt != NULL ? PIL_FILTER : PIL_ITHREAD, intr_fast,
 		    vec, intr_execute_handlers, iv);
 	else if (filt != NULL) {
 		/*
-		 * Check if we need to upgrade from PIL_ITHREAD to PIL_FAST.
+		 * Check if we need to upgrade from PIL_ITHREAD to PIL_FILTER.
 		 * Given that apart from the on-board SCCs and UARTs shared
 		 * interrupts are rather uncommon on sparc64 this sould be
 		 * pretty rare in practice.
 		 */
-		fast = 0;
+		filter = 0;
 		TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
 			if (ih->ih_filter != NULL && ih->ih_filter != filt) {
-				fast = 1;
+				filter = 1;
 				break;
 			}
 		}
-		if (fast == 0)
-			intr_setup(PIL_FAST, intr_fast, vec,
+		if (filter == 0)
+			intr_setup(PIL_FILTER, intr_fast, vec,
 			    intr_execute_handlers, iv);
 	}
 	intr_stray_count[vec] = 0;
