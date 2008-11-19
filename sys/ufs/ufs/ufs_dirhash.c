@@ -174,7 +174,7 @@ ufsdirhash_create(struct inode *ip)
 	ndh = dh = NULL;
 	vp = ip->i_vnode;
 	for (;;) {
-		/* Racy check for i_dirhash to prefetch an dirhash structure. */
+		/* Racy check for i_dirhash to prefetch a dirhash structure. */
 		if (ip->i_dirhash == NULL && ndh == NULL) {
 			ndh = malloc(sizeof *dh, M_DIRHASH,
 			    M_NOWAIT | M_ZERO);
