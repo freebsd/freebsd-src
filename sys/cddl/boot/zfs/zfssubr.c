@@ -162,7 +162,7 @@ zio_decompress_data(int cpfunc, void *src, uint64_t srcsize,
 
 	/* ASSERT((uint_t)cpfunc < ZIO_COMPRESS_FUNCTIONS); */
 	if (!ci->ci_decompress) {
-		printf("ZFS: unsupported compression algorithm %d\n", cpfunc);
+		printf("ZFS: unsupported compression algorithm %u\n", cpfunc);
 		return (EIO);
 	}
 
