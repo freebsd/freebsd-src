@@ -151,17 +151,20 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-static int rtq_reallyold = 60*60;		/* one hour is "really old" */
+#ifdef VIMAGE_GLOBALS
+static int rtq_reallyold;
+static int rtq_minreallyold;
+static int rtq_toomany;
+#endif
+
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTEXPIRE, rtexpire,
     CTLFLAG_RW, rtq_reallyold, 0,
     "Default expiration time on dynamically learned routes");
 
-static int rtq_minreallyold = 10;  /* never automatically crank down to less */
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMINEXPIRE,
     rtminexpire, CTLFLAG_RW, rtq_minreallyold, 0,
     "Minimum time to attempt to hold onto dynamically learned routes");
 
-static int rtq_toomany = 128;		/* 128 cached routes is "too many" */
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, IPCTL_RTMAXCACHE,
     rtmaxcache, CTLFLAG_RW, rtq_toomany, 0,
     "Upper limit on dynamically learned routes");
@@ -256,8 +259,10 @@ in_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static int rtq_timeout = RTQ_TIMEOUT;
+#ifdef VIMAGE_GLOBALS
+static int rtq_timeout;
 static struct callout rtq_timer;
+#endif
 
 static void in_rtqtimo_one(void *rock);
 
@@ -375,6 +380,11 @@ in_inithead(void **head, int off)
 
 	if (off == 0)		/* XXX MRT  see above */
 		return 1;	/* only do the rest for a real routing table */
+
+	V_rtq_reallyold = 60*60; /* one hour is "really old" */
+	V_rtq_minreallyold = 10; /* never automatically crank down to less */
+	V_rtq_toomany = 128;	 /* 128 cached routes is "too many" */
+	V_rtq_timeout = RTQ_TIMEOUT;
 
 	rnh = *head;
 	rnh->rnh_addaddr = in_addroute;

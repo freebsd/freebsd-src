@@ -124,23 +124,26 @@ __FBSDID("$FreeBSD$");
 
 extern struct uma_zone *sack_hole_zone;
 
+#ifdef VIMAGE_GLOBALS
+int tcp_do_sack;
+int tcp_sack_maxholes;
+int tcp_sack_globalmaxholes;
+int tcp_sack_globalholes;
+#endif
+
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
-int tcp_do_sack = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, enable,
     CTLFLAG_RW, tcp_do_sack, 0, "Enable/Disable TCP SACK support");
 TUNABLE_INT("net.inet.tcp.sack.enable", &tcp_do_sack);
 
-static int tcp_sack_maxholes = 128;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, maxholes,
     CTLFLAG_RW, tcp_sack_maxholes, 0, 
     "Maximum number of TCP SACK holes allowed per connection");
 
-static int tcp_sack_globalmaxholes = 65536;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, globalmaxholes,
     CTLFLAG_RW, tcp_sack_globalmaxholes, 0, 
     "Global maximum number of TCP SACK holes");
 
-static int tcp_sack_globalholes = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_sack, OID_AUTO, globalholes,
     CTLFLAG_RD, tcp_sack_globalholes, 0,
     "Global number of TCP SACK holes currently allocated");

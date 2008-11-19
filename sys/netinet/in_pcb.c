@@ -84,32 +84,34 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef VIMAGE_GLOBALS
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
  */
-int	ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
-int	ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
-int	ipport_firstauto = IPPORT_EPHEMERALFIRST;	/* 10000 */
-int	ipport_lastauto  = IPPORT_EPHEMERALLAST;	/* 65535 */
-int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
-int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
+int	ipport_lowfirstauto;
+int	ipport_lowlastauto;
+int	ipport_firstauto;
+int	ipport_lastauto;
+int	ipport_hifirstauto;
+int	ipport_hilastauto;
 
 /*
  * Reserved ports accessible only to root. There are significant
  * security considerations that must be accounted for when changing these,
  * but the security benefits can be great. Please be careful.
  */
-int	ipport_reservedhigh = IPPORT_RESERVED - 1;	/* 1023 */
-int	ipport_reservedlow = 0;
+int	ipport_reservedhigh;
+int	ipport_reservedlow;
 
 /* Variables dealing with random ephemeral port allocation. */
-int	ipport_randomized = 1;	/* user controlled via sysctl */
-int	ipport_randomcps = 10;	/* user controlled via sysctl */
-int	ipport_randomtime = 45;	/* user controlled via sysctl */
-int	ipport_stoprandom = 0;	/* toggled by ipport_tick */
+int	ipport_randomized;
+int	ipport_randomcps;
+int	ipport_randomtime;
+int	ipport_stoprandom;
 int	ipport_tcpallocs;
 int	ipport_tcplastcount;
+#endif
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \

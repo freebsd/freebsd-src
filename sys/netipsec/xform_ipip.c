@@ -91,8 +91,10 @@
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
-int	ipip_allow = 0;
+#ifdef VIMAGE_GLOBALS
+int	ipip_allow;
 struct	ipipstat ipipstat;
+#endif
 
 SYSCTL_DECL(_net_inet_ipip);
 SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
@@ -694,6 +696,9 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 static void
 ipe4_attach(void)
 {
+
+	V_ipip_allow = 0;
+
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */
 	/* XXX save return cookie for detach on module remove */

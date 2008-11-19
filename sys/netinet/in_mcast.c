@@ -86,7 +86,9 @@ static MALLOC_DEFINE(M_IPMSOURCE, "in_msource", "IPv4 multicast source filter");
  * ip_output() to send IGMP packets while holding the lock; this probably is
  * not quite desirable.
  */
+#ifdef VIMAGE_GLOBALS
 struct in_multihead in_multihead;	/* XXX BSS initialization */
+#endif
 struct mtx in_multi_mtx;
 MTX_SYSINIT(in_multi_mtx, &in_multi_mtx, "in_multi_mtx", MTX_DEF | MTX_RECURSE);
 

@@ -108,6 +108,7 @@ struct vnet_inet6 {
 	int				_ip6_keepfaith;
 	int				_ip6stealth;
 	time_t				_ip6_log_time;
+	int				_nd6_onlink_ns_rfc4861;
 
 	int				_pmtu_expire;
 	int				_pmtu_probe;
@@ -232,6 +233,7 @@ struct vnet_inet6 {
 #define	V_nd6_maxnudhint		VNET_INET6(nd6_maxnudhint)
 #define	V_nd6_maxqueuelen		VNET_INET6(nd6_maxqueuelen)
 #define	V_nd6_mmaxtries			VNET_INET6(nd6_mmaxtries)
+#define	V_nd6_onlink_ns_rfc4861		VNET_INET6(nd6_onlink_ns_rfc4861)
 #define	V_nd6_prune			VNET_INET6(nd6_prune)
 #define	V_nd6_recalc_reachtm_interval	VNET_INET6(nd6_recalc_reachtm_interval)
 #define	V_nd6_slowtimo_ch		VNET_INET6(nd6_slowtimo_ch)

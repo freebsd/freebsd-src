@@ -319,6 +319,8 @@ struct vnet_inet {
 #define	V_tcp_sack_maxholes	VNET_INET(tcp_sack_maxholes)
 #define	V_tcp_sc_rst_sock_fail	VNET_INET(tcp_sc_rst_sock_fail)
 #define	V_tcp_syncache		VNET_INET(tcp_syncache)
+#define	V_tcp_syncookies	VNET_INET(tcp_syncookies)
+#define	V_tcp_syncookiesonly	VNET_INET(tcp_syncookiesonly)
 #define	V_tcp_v6mssdflt		VNET_INET(tcp_v6mssdflt)
 #define	V_tcpstat		VNET_INET(tcpstat)
 #define	V_twq_2msl		VNET_INET(twq_2msl)
