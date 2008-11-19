@@ -580,7 +580,7 @@ decode_win_usb_setup(uint32_t ctrl)
 			 * field in the ctrl reg
 			 */
 			cr = (((ddr_size(i) - 1) & 0xffff0000) |
-			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1); 
+			    (ddr_attr(i) << 8) | (ddr_target(i) << 4) | 1);
 
 			/* Set the first free USB window */
 			for (j = 0; j < MV_WIN_USB_MAX; j++) {
@@ -663,7 +663,7 @@ decode_win_eth_setup(uint32_t base)
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i)) {
 
-			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i); 
+			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i);
 			sz = ((ddr_size(i) - 1) & 0xffff0000);
 
 			/* Set the first free ETH window */
@@ -808,7 +808,7 @@ win_idma_can_remap(int i)
 	/* IDMA decode windows 0-3 have remap capability */
 	if (i < 4)
 		return (1);
-	
+
 	return (0);
 }
 
@@ -837,7 +837,7 @@ decode_win_idma_setup(void)
 	 */
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i)) {
-			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i); 
+			br = ddr_base(i) | (ddr_attr(i) << 8) | ddr_target(i);
 			sz = ((ddr_size(i) - 1) & 0xffff0000);
 
 			/* Place DDR entries in non-remapped windows */
@@ -864,7 +864,7 @@ decode_win_idma_setup(void)
 	for (i = 0; i < idma_wins_no; i++)
 		if (idma_wins[i].target > 0) {
 			br = (idma_wins[i].base & 0xffff0000) |
-			    (idma_wins[i].attr << 8) | idma_wins[i].target; 
+			    (idma_wins[i].attr << 8) | idma_wins[i].target;
 			sz = ((idma_wins[i].size - 1) & 0xffff0000);
 
 			/* Set the first free IDMA window */
@@ -875,7 +875,8 @@ decode_win_idma_setup(void)
 				/* Configure window */
 				win_idma_br_write(j, br);
 				win_idma_sz_write(j, sz);
-				if (win_idma_can_remap(j) && idma_wins[j].remap >= 0)
+				if (win_idma_can_remap(j) &&
+				    idma_wins[j].remap >= 0)
 					win_idma_har_write(j, idma_wins[j].remap);
 
 				/* Set protection RW on all channels */
@@ -914,8 +915,8 @@ decode_win_idma_valid(void)
 	for (i = 0; i < idma_wins_no; i++, wintab++) {
 
 		if (wintab->target == 0) {
-			printf("IDMA window#%d: DDR target window is not supposed "
-			    "to be reprogrammed!\n", i);
+			printf("IDMA window#%d: DDR target window is not "
+			    "supposed to be reprogrammed!\n", i);
 			rv = 0;
 		}
 
@@ -929,7 +930,7 @@ decode_win_idma_valid(void)
 		b = wintab->base;
 		e = b + s - 1;
 		if (s > (0xFFFFFFFF - b + 1)) {
-			/* XXX this boundary check should accont for 64bit and
+			/* XXX this boundary check should account for 64bit and
 			 * remapping.. */
 			printf("IDMA window#%d: no space for size 0x%08x at "
 			    "0x%08x\n", i, s, b);
@@ -939,8 +940,8 @@ decode_win_idma_valid(void)
 
 		j = decode_win_overlap(i, idma_wins_no, &idma_wins[0]);
 		if (j >= 0) {
-			printf("IDMA window#%d: (0x%08x - 0x%08x) overlaps with "
-			    "#%d (0x%08x - 0x%08x)\n", i, b, e, j,
+			printf("IDMA window#%d: (0x%08x - 0x%08x) overlaps "
+			    "with " "#%d (0x%08x - 0x%08x)\n", i, b, e, j,
 			    idma_wins[j].base,
 			    idma_wins[j].base + idma_wins[j].size - 1);
 			rv = 0;
