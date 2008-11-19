@@ -108,15 +108,16 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct domain inet6domain;
-
-struct icmp6stat icmp6stat;
-
 extern struct inpcbinfo ripcbinfo;
 extern struct inpcbhead ripcb;
 extern int icmp6errppslim;
-static int icmp6errpps_count = 0;
-static struct timeval icmp6errppslim_last;
 extern int icmp6_nodeinfo;
+
+#ifdef VIMAGE_GLOBALS
+struct icmp6stat icmp6stat;
+static int icmp6errpps_count;
+static struct timeval icmp6errppslim_last;
+#endif
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -137,6 +138,8 @@ void
 icmp6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
+
+	V_icmp6errpps_count = 0;
 
 	mld6_init();
 }

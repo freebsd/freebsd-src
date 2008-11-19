@@ -79,34 +79,32 @@ __FBSDID("$FreeBSD$");
 #define SIN6(s) ((struct sockaddr_in6 *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
 
-/* timer values */
-int	nd6_prune	= 1;	/* walk list every 1 seconds */
-int	nd6_delay	= 5;	/* delay first probe time 5 second */
-int	nd6_umaxtries	= 3;	/* maximum unicast query */
-int	nd6_mmaxtries	= 3;	/* maximum multicast query */
-int	nd6_useloopback = 1;	/* use loopback interface for local traffic */
-int	nd6_gctimer	= (60 * 60 * 24); /* 1 day: garbage collection timer */
+#ifdef VIMAGE_GLOBALS
+int nd6_prune;
+int nd6_delay;
+int nd6_umaxtries;
+int nd6_mmaxtries;
+int nd6_useloopback;
+int nd6_gctimer;
 
 /* preventing too many loops in ND option parsing */
-int nd6_maxndopt = 10;	/* max # of ND options allowed */
+int nd6_maxndopt;
 
-int nd6_maxnudhint = 0;	/* max # of subsequent upper layer hints */
-int nd6_maxqueuelen = 1; /* max # of packets cached in unresolved ND entries */
+int nd6_maxnudhint;
+int nd6_maxqueuelen;
 
-#ifdef ND6_DEBUG
-int nd6_debug = 1;
-#else
-int nd6_debug = 0;
-#endif
+int nd6_debug;
 
 /* for debugging? */
 static int nd6_inuse, nd6_allocated;
+struct llinfo_nd6 llinfo_nd6;
 
-struct llinfo_nd6 llinfo_nd6 = {&llinfo_nd6, &llinfo_nd6};
 struct nd_drhead nd_defrouter;
-struct nd_prhead nd_prefix = { 0 };
+struct nd_prhead nd_prefix;
 
-int nd6_recalc_reachtm_interval = ND6_RECALC_REACHTM_INTERVAL;
+int nd6_recalc_reachtm_interval;
+#endif /* VIMAGE_GLOBALS */
+
 static struct sockaddr_in6 all1_sa;
 
 static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
@@ -118,9 +116,13 @@ static struct llinfo_nd6 *nd6_free(struct rtentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llinfo_nd6 *);
 
+#ifdef VIMAGE_GLOBALS
 struct callout nd6_slowtimo_ch;
 struct callout nd6_timer_ch;
 extern struct callout in6_tmpaddrtimer_ch;
+extern int dad_ignore_ns;
+extern int dad_maxtry;
+#endif
 
 void
 nd6_init(void)
@@ -133,6 +135,39 @@ nd6_init(void)
 		log(LOG_NOTICE, "nd6_init called more than once(ignored)\n");
 		return;
 	}
+
+	V_nd6_prune	= 1;	/* walk list every 1 seconds */
+	V_nd6_delay	= 5;	/* delay first probe time 5 second */
+	V_nd6_umaxtries	= 3;	/* maximum unicast query */
+	V_nd6_mmaxtries	= 3;	/* maximum multicast query */
+	V_nd6_useloopback = 1;	/* use loopback interface for local traffic */
+	V_nd6_gctimer	= (60 * 60 * 24); /* 1 day: garbage collection timer */
+
+	/* preventing too many loops in ND option parsing */
+	V_nd6_maxndopt = 10;	/* max # of ND options allowed */
+
+	V_nd6_maxnudhint = 0;	/* max # of subsequent upper layer hints */
+	V_nd6_maxqueuelen = 1;	/* max pkts cached in unresolved ND entries */
+
+#ifdef ND6_DEBUG
+	V_nd6_debug = 1;
+#else
+	V_nd6_debug = 0;
+#endif
+
+	V_nd6_recalc_reachtm_interval = ND6_RECALC_REACHTM_INTERVAL;
+
+	V_dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
+	V_dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
+
+	V_llinfo_nd6.ln_next = &V_llinfo_nd6;
+	V_llinfo_nd6.ln_prev = &V_llinfo_nd6;
+	LIST_INIT(&V_nd_prefix);
+
+	ip6_use_tempaddr = 0;
+	ip6_temp_preferred_lifetime = DEF_TEMP_PREFERRED_LIFETIME;
+	ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
+	ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
 
 	all1_sa.sin6_family = AF_INET6;
 	all1_sa.sin6_len = sizeof(struct sockaddr_in6);

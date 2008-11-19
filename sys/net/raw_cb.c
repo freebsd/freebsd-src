@@ -57,7 +57,9 @@
  */
 
 struct mtx rawcb_mtx;
+#ifdef VIMAGE_GLOBALS
 struct rawcb_list_head rawcb_list;
+#endif
 
 SYSCTL_NODE(_net, OID_AUTO, raw, CTLFLAG_RW, 0, "Raw socket infrastructure");
 

@@ -76,8 +76,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#ifdef VIMAGE_GLOBALS
 struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;
+#endif
 
 /* control hooks for ipfw and dummynet */
 ip_fw_ctl_t *ip_fw_ctl_ptr = NULL;
@@ -91,7 +93,9 @@ ip_dn_ctl_t *ip_dn_ctl_ptr = NULL;
 /*
  * The socket used to communicate with the multicast routing daemon.
  */
+#ifdef VIMAGE_GLOBALS
 struct socket  *ip_mrouter;
+#endif
 
 /*
  * The various mrouter and rsvp functions.

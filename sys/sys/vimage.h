@@ -33,6 +33,8 @@
 #ifndef	_SYS_VIMAGE_H_
 #define	_SYS_VIMAGE_H_
 
+#define VIMAGE_GLOBALS 1
+
 /* Non-VIMAGE null-macros */
 #define	CURVNET_SET(arg)
 #define	CURVNET_SET_QUIET(arg)

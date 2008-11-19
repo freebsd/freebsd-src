@@ -102,7 +102,10 @@ static int	maxtcptw;
  * queue pointers in each tcptw structure, are protected using the global
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
+#ifdef VIMAGE_GLOBALS
 static TAILQ_HEAD(, tcptw)	twq_2msl;
+int	nolocaltimewait;
+#endif
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);
 static void	tcp_tw_2msl_stop(struct tcptw *);
@@ -147,7 +150,6 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-static int	nolocaltimewait = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
     &nolocaltimewait, 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");

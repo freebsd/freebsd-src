@@ -97,23 +97,19 @@
 
 #include <opencrypto/cryptodev.h>
 
-#ifdef IPSEC_DEBUG
-int ipsec_debug = 1;
-#else
-int ipsec_debug = 0;
-#endif
-
+#ifdef VIMAGE_GLOBALS
 /* NB: name changed so netstat doesn't use it */
 struct ipsecstat ipsec4stat;
-int ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
-int ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
-int ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
-int ip4_esp_net_deflev = IPSEC_LEVEL_USE;
-int ip4_ah_trans_deflev = IPSEC_LEVEL_USE;
-int ip4_ah_net_deflev = IPSEC_LEVEL_USE;
 struct secpolicy ip4_def_policy;
-int ip4_ipsec_ecn = 0;		/* ECN ignore(-1)/forbidden(0)/allowed(1) */
-int ip4_esp_randpad = -1;
+int ipsec_debug;
+int ip4_ah_offsetmask;
+int ip4_ipsec_dfbit;
+int ip4_esp_trans_deflev;
+int ip4_esp_net_deflev;
+int ip4_ah_trans_deflev;
+int ip4_ah_net_deflev;
+int ip4_ipsec_ecn;
+int ip4_esp_randpad;
 /*
  * Crypto support requirements:
  *
@@ -121,7 +117,8 @@ int ip4_esp_randpad = -1;
  * -1	require software support
  *  0	take anything
  */
-int	crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+int	crypto_support;
+#endif /* VIMAGE_GLOBALS */
 
 SYSCTL_DECL(_net_inet_ipsec);
 
@@ -164,29 +161,33 @@ SYSCTL_V_STRUCT(V_NET, vnet_ipsec, _net_inet_ipsec, OID_AUTO,
 	"IPsec IPv4 statistics.");
 
 #ifdef REGRESSION
+#ifdef VIMAGE_GLOBALS
+int ipsec_replay;
+int ipsec_integrity;
+#endif
 /*
  * When set to 1, IPsec will send packets with the same sequence number.
  * This allows to verify if the other side has proper replay attacks detection.
  */
-int ipsec_replay = 0;
 SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_replay,
 	CTLFLAG_RW, ipsec_replay, 0, "Emulate replay attack");
 /*
  * When set 1, IPsec will send packets with corrupted HMAC.
  * This allows to verify if the other side properly detects modified packets.
  */
-int ipsec_integrity = 0;
 SYSCTL_V_INT(V_NET, vnet_ipsec,_net_inet_ipsec, OID_AUTO, test_integrity,
 	CTLFLAG_RW, ipsec_integrity, 0, "Emulate man-in-the-middle attack");
 #endif
 
 #ifdef INET6 
+#ifdef VIMAGE_GLOBALS
 struct ipsecstat ipsec6stat;
-int ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
-int ip6_esp_net_deflev = IPSEC_LEVEL_USE;
-int ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
-int ip6_ah_net_deflev = IPSEC_LEVEL_USE;
-int ip6_ipsec_ecn = 0;		/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+int ip6_esp_trans_deflev;
+int ip6_esp_net_deflev;
+int ip6_ah_trans_deflev;
+int ip6_ah_net_deflev;
+int ip6_ipsec_ecn;
+#endif
 
 SYSCTL_DECL(_net_inet6_ipsec6);
 
@@ -241,6 +242,40 @@ static void vshiftl __P((unsigned char *, int, int));
 static size_t ipsec_hdrsiz __P((struct secpolicy *));
 
 MALLOC_DEFINE(M_IPSEC_INPCB, "inpcbpolicy", "inpcb-resident ipsec policy");
+
+void
+ipsec_init(void)
+{
+	INIT_VNET_IPSEC(curvnet);
+
+#ifdef IPSEC_DEBUG
+	V_ipsec_debug = 1;
+#else
+	V_ipsec_debug = 0;
+#endif
+
+	V_ip4_ah_offsetmask = 0;	/* maybe IP_DF? */
+	V_ip4_ipsec_dfbit = 0;	/* DF bit on encap. 0: clear 1: set 2: copy */
+	V_ip4_esp_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip4_esp_net_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ah_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ah_net_deflev = IPSEC_LEVEL_USE;
+	V_ip4_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+	V_ip4_esp_randpad = -1;
+
+	V_crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+
+#ifdef REGRESSION
+	V_ipsec_replay = 0;
+	V_ipsec_integrity = 0;
+#endif
+
+	V_ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip6_esp_net_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
+	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+}
 
 /*
  * Return a held reference to the default SP.

@@ -113,20 +113,31 @@
  *   field hits 0 (= no external reference other than from SA header.
  */
 
-u_int32_t key_debug_level = 0;
-static u_int key_spi_trycnt = 1000;
-static u_int32_t key_spi_minval = 0x100;
-static u_int32_t key_spi_maxval = 0x0fffffff;	/* XXX */
-static u_int32_t policy_id = 0;
-static u_int key_int_random = 60;	/*interval to initialize randseed,1(m)*/
-static u_int key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
-static int key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
-static int key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
-static int key_preferred_oldsa = 1;	/* preferred old sa rather than new sa.*/
+#ifdef VIMAGE_GLOBALS
+u_int32_t key_debug_level;
+static u_int key_spi_trycnt;
+static u_int32_t key_spi_minval;
+static u_int32_t key_spi_maxval;
+static u_int32_t policy_id;
+static u_int key_int_random;
+static u_int key_larval_lifetime;
+static int key_blockacq_count;
+static int key_blockacq_lifetime;
+static int key_preferred_oldsa;
 
-static u_int32_t acq_seq = 0;
+static u_int32_t acq_seq;
+
+static int ipsec_esp_keymin;
+static int ipsec_esp_auth;
+static int ipsec_ah_keymin;
 
 static LIST_HEAD(_sptree, secpolicy) sptree[IPSEC_DIR_MAX];	/* SPD */
+static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
+static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
+static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
+static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
+#endif /* VIMAGE_GLOBALS */
+
 static struct mtx sptree_lock;
 #define	SPTREE_LOCK_INIT() \
 	mtx_init(&sptree_lock, "sptree", \
@@ -136,7 +147,6 @@ static struct mtx sptree_lock;
 #define	SPTREE_UNLOCK()	mtx_unlock(&sptree_lock)
 #define	SPTREE_LOCK_ASSERT()	mtx_assert(&sptree_lock, MA_OWNED)
 
-static LIST_HEAD(_sahtree, secashead) sahtree;			/* SAD */
 static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_INIT() \
 	mtx_init(&sahtree_lock, "sahtree", \
@@ -147,7 +157,6 @@ static struct mtx sahtree_lock;
 #define	SAHTREE_LOCK_ASSERT()	mtx_assert(&sahtree_lock, MA_OWNED)
 
 							/* registed list */
-static LIST_HEAD(_regtree, secreg) regtree[SADB_SATYPE_MAX + 1];
 static struct mtx regtree_lock;
 #define	REGTREE_LOCK_INIT() \
 	mtx_init(&regtree_lock, "regtree", "fast ipsec regtree", MTX_DEF)
@@ -156,7 +165,6 @@ static struct mtx regtree_lock;
 #define	REGTREE_UNLOCK()	mtx_unlock(&regtree_lock)
 #define	REGTREE_LOCK_ASSERT()	mtx_assert(&regtree_lock, MA_OWNED)
 
-static LIST_HEAD(_acqtree, secacq) acqtree;		/* acquiring list */
 static struct mtx acq_lock;
 #define	ACQ_LOCK_INIT() \
 	mtx_init(&acq_lock, "acqtree", "fast ipsec acquire list", MTX_DEF)
@@ -165,7 +173,6 @@ static struct mtx acq_lock;
 #define	ACQ_UNLOCK()		mtx_unlock(&acq_lock)
 #define	ACQ_LOCK_ASSERT()	mtx_assert(&acq_lock, MA_OWNED)
 
-static LIST_HEAD(_spacqtree, secspacq) spacqtree;	/* SP acquiring list */
 static struct mtx spacq_lock;
 #define	SPACQ_LOCK_INIT() \
 	mtx_init(&spacq_lock, "spacqtree", \
@@ -235,10 +242,6 @@ static const int maxsize[] = {
 	0,				/* SADB_X_EXT_POLICY */
 	sizeof(struct sadb_x_sa2),	/* SADB_X_SA2 */
 };
-
-static int ipsec_esp_keymin = 256;
-static int ipsec_esp_auth = 0;
-static int ipsec_ah_keymin = 128;
 
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_key);
@@ -7183,6 +7186,23 @@ key_init(void)
 {
 	INIT_VNET_IPSEC(curvnet);
 	int i;
+
+	V_key_debug_level = 0;
+	V_key_spi_trycnt = 1000;
+	V_key_spi_minval = 0x100;
+	V_key_spi_maxval = 0x0fffffff;	/* XXX */
+	V_policy_id = 0;
+	V_key_int_random = 60;		/*interval to initialize randseed,1(m)*/
+	V_key_larval_lifetime = 30;	/* interval to expire acquiring, 30(s)*/
+	V_key_blockacq_count = 10;	/* counter for blocking SADB_ACQUIRE.*/
+	V_key_blockacq_lifetime = 20;	/* lifetime for blocking SADB_ACQUIRE.*/
+	V_key_preferred_oldsa = 1;	/* preferred old sa rather than new sa*/
+
+	V_acq_seq = 0;
+
+	V_ipsec_esp_keymin = 256;
+	V_ipsec_esp_auth = 0;
+	V_ipsec_ah_keymin = 128;
 
 	SPTREE_LOCK_INIT();
 	REGTREE_LOCK_INIT();

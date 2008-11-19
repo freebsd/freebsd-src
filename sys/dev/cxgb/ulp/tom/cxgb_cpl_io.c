@@ -154,11 +154,6 @@ static unsigned int mbuf_wrs[TX_MAX_SEGS + 1] __read_mostly;
 #define TCP_CLOSE	2
 #define TCP_DROP	3
 
-extern int tcp_do_autorcvbuf;
-extern int tcp_do_autosndbuf;
-extern int tcp_autorcvbuf_max;
-extern int tcp_autosndbuf_max;
-
 static void t3_send_reset(struct toepcb *toep);
 static void send_abort_rpl(struct mbuf *m, struct toedev *tdev, int rst_status);
 static inline void free_atid(struct t3cdev *cdev, unsigned int tid);

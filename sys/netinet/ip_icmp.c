@@ -77,47 +77,51 @@ __FBSDID("$FreeBSD$");
  * host table maintenance routines.
  */
 
-struct	icmpstat icmpstat;
+#ifdef VIMAGE_GLOBALS
+struct icmpstat	icmpstat;
+static int	icmpmaskrepl;
+static u_int	icmpmaskfake;
+static int	drop_redirect;
+static int	log_redirect;
+static int	icmplim;
+static int	icmplim_output;
+static char	reply_src[IFNAMSIZ];
+static int	icmp_rfi;
+static int	icmp_quotelen;
+static int	icmpbmcastecho;
+#endif
+
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_STATS, stats,
 	CTLFLAG_RW, icmpstat, icmpstat, "");
 
-static int	icmpmaskrepl = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_MASKREPL, maskrepl,
 	CTLFLAG_RW, icmpmaskrepl, 0,
 	"Reply to ICMP Address Mask Request packets.");
 
-static u_int	icmpmaskfake = 0;
 SYSCTL_V_UINT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_RW,
 	icmpmaskfake, 0, "Fake reply to ICMP Address Mask Request packets.");
 
-static int	drop_redirect = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, drop_redirect,
 	CTLFLAG_RW, drop_redirect, 0, "Ignore ICMP redirects");
 
-static int	log_redirect = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, log_redirect,
 	CTLFLAG_RW, log_redirect, 0, "Log ICMP redirects to the console");
 
-static int      icmplim = 200;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, ICMPCTL_ICMPLIM, icmplim,
 	CTLFLAG_RW, icmplim, 0, "Maximum number of ICMP responses per second");
 
-static int	icmplim_output = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, icmplim_output,
 	CTLFLAG_RW, icmplim_output, 0,
 	"Enable rate limiting of ICMP responses");
 
-static char	reply_src[IFNAMSIZ];
 SYSCTL_V_STRING(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, reply_src,
 	CTLFLAG_RW, reply_src, IFNAMSIZ,
 	"icmp reply source for non-local packets.");
 
-static int	icmp_rfi = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, reply_from_interface,
 	CTLFLAG_RW, icmp_rfi, 0, "ICMP reply from incoming interface for "
 	"non-local packets");
 
-static int	icmp_quotelen = 8;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
 	icmp_quotelen, 0, "Number of bytes from original packet to "
 	"quote in ICMP reply");
@@ -126,7 +130,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, quotelen, CTLFLAG_RW,
  * ICMP broadcast echo sysctl
  */
 
-static int	icmpbmcastecho = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_icmp, OID_AUTO, bmcastecho,
 	CTLFLAG_RW, icmpbmcastecho, 0, "");
 
@@ -139,6 +142,22 @@ static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
 
 extern	struct protosw inetsw[];
+
+void
+icmp_init(void)
+{
+	INIT_VNET_INET(curvnet);
+
+	V_icmpmaskrepl = 0;
+	V_icmpmaskfake = 0;
+	V_drop_redirect = 0;
+	V_log_redirect = 0;
+	V_icmplim = 200;
+	V_icmplim_output = 1;
+	V_icmp_rfi = 0;
+	V_icmp_quotelen = 8;
+	V_icmpbmcastecho = 0;
+}
 
 /*
  * Generate an error packet of type error

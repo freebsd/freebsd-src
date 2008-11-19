@@ -87,39 +87,42 @@ __FBSDID("$FreeBSD$");
 extern struct mbuf *m_copypack();
 #endif
 
-int path_mtu_discovery = 1;
+#ifdef VIMAGE_GLOBALS
+int path_mtu_discovery;
+int ss_fltsz;
+int ss_fltsz_local;
+int tcp_do_newreno;
+int tcp_do_tso;
+int tcp_do_autosndbuf;
+int tcp_autosndbuf_inc;
+int tcp_autosndbuf_max;
+#endif
+
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, path_mtu_discovery,
 	CTLFLAG_RW, path_mtu_discovery, 1, "Enable Path MTU Discovery");
 
-int ss_fltsz = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO,
 	slowstart_flightsize, CTLFLAG_RW,
 	ss_fltsz, 1, "Slow start flight size");
 
-int ss_fltsz_local = 4;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO,
 	local_slowstart_flightsize, CTLFLAG_RW,
 	ss_fltsz_local, 1, "Slow start flight size for local networks");
 
-int     tcp_do_newreno = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
 	tcp_do_newreno, 0, "Enable NewReno Algorithms");
 
-int	tcp_do_tso = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
 	tcp_do_tso, 0, "Enable TCP Segmentation Offload");
 
-int	tcp_do_autosndbuf = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_auto,
 	CTLFLAG_RW,
 	tcp_do_autosndbuf, 0, "Enable automatic send buffer sizing");
 
-int	tcp_autosndbuf_inc = 8*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_inc,
 	CTLFLAG_RW, tcp_autosndbuf_inc, 0,
 	"Incrementor step size of automatic send buffer");
 
-int	tcp_autosndbuf_max = 256*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, sendbuf_max,
 	CTLFLAG_RW, tcp_autosndbuf_max, 0,
 	"Max size of automatic send buffer");
