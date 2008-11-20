@@ -58,7 +58,7 @@
 #define	UPDATER_ERR_READ	(-3)	/* Error reading from server. */
 #define	UPDATER_ERR_DELETELIM	(-4)	/* File deletion limit exceeded. */
 
-#define BUFSIZE 1024
+#define BUFSIZE 4096
 
 /* Everything needed to update a file. */
 struct file_update {
@@ -347,13 +347,13 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 	struct coll *coll;
 	struct statusrec srbuf, *sr;
 	struct fattr *rcsattr, *tmp;
-	char *cmd, *blocksize, *line, *msg, *attr;
+	char *attr, *cmd, *blocksize, *line, *msg;
 	char *name, *tag, *date, *revdate;
 	char *expand, *wantmd5, *revnum;
 	char *optstr, *rcsopt, *pos;
 	time_t t;
 	off_t position;
-	int error, needfixupmsg;
+	int attic, error, needfixupmsg;
 
 	error = 0;
 	rd = up->rd;
@@ -410,7 +410,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (UPDATER_ERR_PROTO);
 			/* Theoritically, the file does not exist on the client.
 			   Just to make sure, we'll delete it here, if it
-			   exists. */ 
+			   exists. */
 			if (access(fup->destpath, F_OK) == 0) {
 				error = updater_delete(up, fup);
 				if (error)
@@ -560,45 +560,29 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (UPDATER_ERR_MSG);
 			}
 			break;
-		case 'a':
-			name = proto_get_ascii(&line);
-			attr = proto_get_ascii(&line);
-			if (name == NULL || attr == NULL || line != NULL)
-				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 1);
-			if (error)
-				return (UPDATER_ERR_PROTO);
-			fup->temppath = tempname(fup->destpath);
-			sr = &fup->srbuf;
-			sr->sr_type = SR_FILEDEAD;
-			sr->sr_file = xstrdup(name);
-			sr->sr_serverattr = fattr_decode(attr);
-			if (sr->sr_serverattr == NULL)
-				return (UPDATER_ERR_PROTO);
-			lprintf(1, " Create %s -> Attic\n", name);
-			error = updater_addfile(up, fup, attr, 0);
-			if (error)
-				return (error);
-			break;
-
 		case 'A':
-		case 'R': // XXX
+		case 'a':
+		case 'R':
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
 			if (name == NULL || attr == NULL || line != NULL)
 				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 0);
+			attic = (cmd[0] == 'a');
+			error = fup_prepare(fup, name, attic);
 			if (error)
 				return (UPDATER_ERR_PROTO);
 
 			fup->temppath = tempname(fup->destpath);
 			sr = &fup->srbuf;
-			sr->sr_type = SR_FILELIVE;
+			sr->sr_type = attic ? SR_FILEDEAD : SR_FILELIVE;
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
-			lprintf(1, " Create %s\n", name);
+			if (attic)
+				lprintf(1, " Create %s -> Attic\n", name);
+			else
+				lprintf(1, " Create %s\n", name);
 			error = updater_addfile(up, fup, attr, 0);
 			if (error)
 				return (error);
@@ -628,7 +612,6 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (error)
 				return (error);
 			break;
-
 		case 'I':
 			/* 
 			 * Create directory and add DirDown entry in status
@@ -714,13 +697,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (UPDATER_ERR_MSG);
 			}
 			break;
-#if 0
-		case 'h':
-			/* XXX: SR_LINKFILEDEAD. */
-		case 'H':
-			lprintf(1, "Got 'H'\n");
-			break;
-#endif
+		case 'L':
 		case 'l':
 			name = proto_get_ascii(&line);
 			if (name == NULL)
@@ -728,9 +705,9 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			attr = proto_get_ascii(&line);
 			if (attr == NULL || line != NULL)
 				return (UPDATER_ERR_PROTO);
-
+			attic = (cmd[0] == 'l');
 			sr = &fup->srbuf;
-			sr->sr_type = SR_FILEDEAD;
+			sr->sr_type = attic ? SR_FILEDEAD : SR_FILELIVE;
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
 			sr->sr_clientattr = fattr_decode(attr);
@@ -750,62 +727,18 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 				return (UPDATER_ERR_MSG);
 			}
 			break;
-		case 'L':
-			name = proto_get_ascii(&line);
-			if (name == NULL)
-				return (UPDATER_ERR_PROTO);
-			attr = proto_get_ascii(&line);
-			if (attr == NULL || line != NULL)
-				return (UPDATER_ERR_PROTO);
-
-			sr = &fup->srbuf;
-			sr->sr_type = SR_FILELIVE;
-			sr->sr_file = xstrdup(name);
-			sr->sr_serverattr = fattr_decode(attr);
-			sr->sr_clientattr = fattr_decode(attr);
-			if (sr->sr_serverattr == NULL ||
-			    sr->sr_clientattr == NULL)
-				return (UPDATER_ERR_PROTO);
-			/* Save space. Described in detail in updatefile. */
-			if (!(fattr_getmask(sr->sr_clientattr) & FA_LINKCOUNT)
-			    || fattr_getlinkcount(sr->sr_clientattr) <= 1)
-				fattr_maskout(sr->sr_clientattr,
-				    FA_DEV | FA_INODE);
-			fattr_maskout(sr->sr_clientattr, FA_FLAGS);
-			error = status_put(fup->st, sr);
-			if (error) {
-				up->errmsg = status_errmsg(fup->st);
-				return (UPDATER_ERR_MSG);
-			}
-			break;
+		case 'N':
 		case 'n':
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
 			if (name == NULL || attr == NULL || line != NULL)
 				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 1);
+			attic = (cmd[0] == 'n');
+			error = fup_prepare(fup, name, attic);
 			if (error)
 				return (UPDATER_ERR_PROTO);
 			sr = &fup->srbuf;
-			sr->sr_type = SR_FILEDEAD;
-			sr->sr_file = xstrdup(name);
-			sr->sr_serverattr = fattr_decode(attr);
-			sr->sr_clientattr = fattr_new(FT_SYMLINK, -1);
-			fattr_mergedefault(sr->sr_clientattr);
-			error = updater_updatenode(up, coll, fup, name, attr);
-			if (error)
-				return (error);
-			break;
-		case 'N':
-			name = proto_get_ascii(&line);
-			attr = proto_get_ascii(&line);
-			if (name == NULL || attr == NULL || line != NULL)
-				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 0);
-			if (error)
-				return (UPDATER_ERR_PROTO);
-			sr = &fup->srbuf;
-			sr->sr_type = SR_FILELIVE;
+			sr->sr_type = (attic ? SR_FILEDEAD : SR_FILELIVE);
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
 			sr->sr_clientattr = fattr_new(FT_SYMLINK, -1);
@@ -815,21 +748,23 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (error)
 				return (error);
 			break;
+		case 'V':
 		case 'v':
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
 			optstr = proto_get_ascii(&line);
 			wantmd5 = proto_get_ascii(&line);
-			rcsopt = NULL; /*rcs_decode(optstr);*/
+			rcsopt = NULL; /* XXX: Not supported. */
 			if (attr == NULL || line != NULL || wantmd5 == NULL)
 				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 1);
+			attic = (cmd[0] == 'v');
+			error = fup_prepare(fup, name, attic);
 			if (error)
 				return (UPDATER_ERR_PROTO);
 			fup->temppath = tempname(fup->destpath);
 			fup->wantmd5 = xstrdup(wantmd5);
 			sr = &fup->srbuf;
-			sr->sr_type = SR_FILEDEAD;
+			sr->sr_type = attic ? SR_FILEDEAD : SR_FILELIVE;
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
 			if (sr->sr_serverattr == NULL)
@@ -840,68 +775,25 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (error)
 				return (error);
 			break;
-		case 'V':
-			name = proto_get_ascii(&line);
-			attr = proto_get_ascii(&line);
-			optstr = proto_get_ascii(&line);
-			wantmd5 = proto_get_ascii(&line);
-			rcsopt = NULL; /*rcs_decode(optstr);*/
-			if (attr == NULL || line != NULL || wantmd5 == NULL)
-				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 0);
-			if (error)
-				return (UPDATER_ERR_PROTO);
-			fup->temppath = tempname(fup->destpath);
-			fup->wantmd5 = xstrdup(wantmd5);
-			sr = &fup->srbuf;
-			sr->sr_type = SR_FILELIVE;
-			sr->sr_file = xstrdup(name);
-			sr->sr_serverattr = fattr_decode(attr);
-			if (sr->sr_serverattr == NULL)
-				return (UPDATER_ERR_PROTO);
-
-			error = updater_rcsedit(up, fup, name, rcsopt);
-			if (error)
-				return (error);
-			break;
 		case 'X':
-			name = proto_get_ascii(&line);
-			attr = proto_get_ascii(&line);
-			if (name == NULL || attr == NULL || line != NULL)
-				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 0);
-			if (error)
-				return (UPDATER_ERR_PROTO);
-
-			fup->temppath = tempname(fup->destpath);
-			sr = &fup->srbuf;
-			sr->sr_type = SR_FILELIVE;
-			sr->sr_file = xstrdup(name);
-			sr->sr_serverattr = fattr_decode(attr);
-			if (sr->sr_serverattr == NULL)
-				return (UPDATER_ERR_PROTO);
-			lprintf(1, " Fixup %s\n", name);
-			error = updater_addfile(up, fup, attr, 1);
-			if (error)
-				return (error);
-			break;
 		case 'x':
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
 			if (name == NULL || attr == NULL || line != NULL)
 				return (UPDATER_ERR_PROTO);
-			error = fup_prepare(fup, name, 1);
+			attic = (cmd[0] == 'x');
+			error = fup_prepare(fup, name, attic);
 			if (error)
 				return (UPDATER_ERR_PROTO);
 
 			fup->temppath = tempname(fup->destpath);
 			sr = &fup->srbuf;
-			sr->sr_type = SR_FILEDEAD;
+			sr->sr_type = attic ? SR_FILEDEAD : SR_FILELIVE;
 			sr->sr_file = xstrdup(name);
 			sr->sr_serverattr = fattr_decode(attr);
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
-			lprintf(1, " Fixup %s -> Attic\n", name);
+			lprintf(1, " Fixup %s\n", name);
 			error = updater_addfile(up, fup, attr, 1);
 			if (error)
 				return (error);
@@ -933,7 +825,6 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			lprintf(-1, "Server warning: %s\n", msg);
 			break;
 		default:
-			lprintf(-1, "Unknown command: %s\n", cmd);
 			return (UPDATER_ERR_PROTO);
 		}
 		fup_cleanup(fup);
@@ -1123,8 +1014,6 @@ updater_updatefile(struct updater *up, struct file_update *fup,
 	if (coll->co_options & CO_CHECKOUTMODE)
 		fattr_maskout(sr->sr_clientattr, FA_COIGNORE);
 
-	/* XXX: Mask out chflags for now. Cvsup doesn't record them. */
-	/*fattr_maskout(sr->sr_clientattr, FA_FLAGS);*/
 	error = status_put(st, sr);
 	if (error) {
 		up->errmsg = status_errmsg(st);
@@ -1408,7 +1297,10 @@ updater_updatenode(struct updater *up, struct coll *coll, struct file_update *fu
 	    "\"%s\": %s", fup->destpath, strerror(errno));
 		return (UPDATER_ERR_MSG);
 	}
-	/* XXX Executes */
+	/*
+	 * XXX: Executes not implemented. Have not encountered much use for it
+	 * yet.
+	 */
 	/*
 	 * We weren't necessarily able to set all the file attributes to the
 	 * desired values, and any executes may have altered the attributes.
@@ -1462,21 +1354,19 @@ static int
 updater_addfile(struct updater *up, struct file_update *fup, char *attr,
     int isfixup)
 {
-	char md5[MD5_DIGEST_SIZE];
 	struct coll *coll;
 	struct stream *to;
 	struct statusrec *sr;
 	struct fattr *fa;
-	char *path, *line, *cmd;
-	int error; 
-	off_t fsize;
 	char buf[BUFSIZE];
+	char md5[MD5_DIGEST_SIZE];
 	ssize_t nread;
-	off_t remains;
+	off_t fsize, remains;
+	char *cmd, *line, *path;
+	int error; 
 
 	coll = fup->coll;
 	path = fup->destpath;
-	nread = 0;
 	sr = &fup->srbuf;
 	fa = fattr_decode(attr);
 	fsize = fattr_filesize(fa);
@@ -1484,7 +1374,6 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr,
 	error = mkdirhier(path, coll->co_umask);
 	if (error)
 		return (UPDATER_ERR_PROTO);
-
 	to = stream_open_file(fup->temppath, O_WRONLY | O_CREAT | O_TRUNC, 0755);
 	if (to == NULL) {
 		xasprintf(&up->errmsg, "%s: Cannot create: %s",
@@ -1515,7 +1404,6 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr,
 	if (fup->wantmd5 == NULL || line != NULL || strcmp(cmd, "5") != 0)
 		return (UPDATER_ERR_PROTO);
 
-	/* UPDATE FILE. */
 	sr->sr_clientattr = fattr_frompath(fup->temppath, FATTR_NOFOLLOW);
 	if (sr->sr_clientattr == NULL)
 		return (UPDATER_ERR_PROTO);
@@ -1523,7 +1411,6 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr,
 	    FA_MODTIME | FA_MASK);
 	error = updater_updatefile(up, fup, md5, isfixup);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
-	/* UPDATE IT. */
 	if (error)
 		return (error);
 	return (0);
@@ -1536,9 +1423,9 @@ updater_checkout(struct updater *up, struct file_update *fup, int isfixup)
 	struct statusrec *sr;
 	struct coll *coll;
 	struct stream *to;
-	char *cmd, *path, *line;
-	size_t size;
 	ssize_t nbytes;
+	size_t size;
+	char *cmd, *path, *line;
 	int error, first;
 
 	coll = fup->coll;
@@ -1558,7 +1445,7 @@ updater_checkout(struct updater *up, struct file_update *fup, int isfixup)
 	}
 
 	to = stream_open_file(fup->temppath,
-	    O_WRONLY | O_CREAT | O_TRUNC, 0600); /*XXX: Change to correct perm*/
+	    O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (to == NULL) {
 		xasprintf(&up->errmsg, "%s: Cannot create: %s",
 		    fup->temppath, strerror(errno));
@@ -1650,15 +1537,13 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	struct fattr *oldfattr;
 	char md5[MD5_DIGEST_SIZE];
 	char *branch, *cmd, *expand, *line, *path, *revnum, *tag, *temppath;
-	int error, changed;
+	int error;
 
-	rcsopt = NULL; /* XXX: just for now. */
 	coll = fup->coll;
 	sr = &fup->srbuf;
 	st = fup->st;
 	temppath = fup->temppath;
 	path = fup->origpath != NULL ? fup->origpath : fup->destpath;
-	changed = 0;
 	error = 0;
 
 	/* If the path is new, we must create the Attic dir if needed. */
@@ -1674,11 +1559,6 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	 * XXX: we could avoid parsing overhead if we're reading ahead before we
 	 * parse the file.
 	 */
-	rf = rcsfile_frompath(path, name, coll->co_cvsroot, coll->co_tag);
-	if (rf == NULL) {
-		xasprintf(&up->errmsg, "Error reading rcsfile %s\n", name);
-		return (UPDATER_ERR_MSG);
-	}
 	oldfattr = fattr_frompath(path, FATTR_NOFOLLOW);
 	if (oldfattr == NULL) {
 		xasprintf(&up->errmsg, "%s: Cannot get attributes: %s", path,
@@ -1686,83 +1566,91 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 		return (UPDATER_ERR_MSG);
 	}
 	fattr_merge(sr->sr_serverattr, oldfattr);
+	rf = NULL;
+
+	/* Macro for making touching an RCS file faster. */
+#define UPDATER_OPENRCS(rf, up, path, name, cvsroot, tag) do {		\
+	if ((rf) == NULL) {						\
+		(rf) = rcsfile_frompath((path), (name), (cvsroot),	\
+		    (tag));						\
+		if ((rf) == NULL) {					\
+			xasprintf(&(up)->errmsg,			\
+			    "Error reading rcsfile %s\n", (name));	\
+			return (UPDATER_ERR_MSG);			\
+		}							\
+	}								\
+} while (0)
 
 	while ((line = stream_getln(up->rd, NULL)) != NULL) {
 		if (strcmp(line, ".") == 0)
 			break;
 		cmd = proto_get_ascii(&line);
 		if (cmd == NULL) {
-			fprintf(stderr, "Error when adding delta\n");
+			lprintf(-1, "Error editing %s\n", name);
 			return (UPDATER_ERR_PROTO);
 		}
 		switch(cmd[0]) {
 			case 'B':
 				branch = proto_get_ascii(&line);
-				if (branch == NULL || line != NULL) {
-					fprintf(stderr, "problems with branch\n");
+				if (branch == NULL || line != NULL)
 					return (UPDATER_ERR_PROTO);
-				}
-				rcsfile_setval(rf, RCSFILE_BRANCH, branch);
-				changed = 1;
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				break;
 			case 'b':
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				rcsfile_setval(rf, RCSFILE_BRANCH, NULL);
-				changed = 1;
 				break;
 			case 'D':
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				error = updater_addelta(rf, up->rd, line);
-				changed = 1;
 				if (error)
 					return (error);
 				break;
 			case 'd':
 				revnum = proto_get_ascii(&line);
-				if (revnum == NULL || line != NULL) {
-					fprintf(stderr, "Problems with delta\n");
+				if (revnum == NULL || line != NULL)
 					return (UPDATER_ERR_PROTO);
-				}
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				rcsfile_deleterev(rf, revnum);
-				changed = 1;
 				break;
 			case 'E':
 				expand = proto_get_ascii(&line);
-				if (expand == NULL || line != NULL) {
-					fprintf(stderr, "Expand\n");
+				if (expand == NULL || line != NULL)
 					return (UPDATER_ERR_PROTO);
-				}
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				rcsfile_setval(rf, RCSFILE_EXPAND, expand);
-				changed = 1;
 				break;
 			case 'T':
 				tag = proto_get_ascii(&line);
 				revnum = proto_get_ascii(&line);
 				if (tag == NULL || revnum == NULL ||
-				    line != NULL) {
-				    	fprintf(stderr, "Add tag\n");
+				    line != NULL)
 					return (UPDATER_ERR_PROTO);
-				}
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				rcsfile_addtag(rf, tag, revnum);
-				changed = 1;
 				break;
 			case 't':
 				tag = proto_get_ascii(&line);
 				revnum = proto_get_ascii(&line);
 				if (tag == NULL || revnum == NULL ||
-				    line != NULL) {
-				    	fprintf(stderr, "Delete tag\n");
+				    line != NULL)
 					return (UPDATER_ERR_PROTO);
-				}
+				UPDATER_OPENRCS(rf, up, path, name,
+				    coll->co_cvsroot, coll->co_tag);
 				rcsfile_deletetag(rf, tag, revnum);
-				changed = 1;
 				break;
 			default:
-				fprintf(stderr, "Unknown %s\n", line);
 				return (UPDATER_ERR_PROTO);
-				break;
 		}
 	}
 
-	if (!changed) {
+	if (rf == NULL) {
 		fattr_maskout(oldfattr, ~FA_MODTIME);
 		if (fattr_equal(oldfattr, sr->sr_serverattr) == 0)
 		 	lprintf(1, " SetAttrs %s", fup->coname);
@@ -1803,7 +1691,7 @@ finish:
 	}
 	fattr_override(sr->sr_clientattr, sr->sr_serverattr,
 	    FA_MODTIME | FA_MASK);
-	if (changed) {
+	if (rf != NULL) {
 		error = updater_updatefile(up, fup, md5, 0);
 		fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
 		if (error)
@@ -1825,13 +1713,8 @@ finish:
 	 * this is a problem, since if a file is moved, it should be edited to
 	 * show if it's dead or not.
 	 */
-	if (fup->origpath != NULL) {
-		/* 
-		 * XXX: Should we track delete count or is this a "silent"
-		 * delete? 
-		 */
+	if (fup->origpath != NULL)
 		updater_deletefile(fup->origpath);
-	}
 	return (0);
 }
 
@@ -1842,13 +1725,13 @@ int
 updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 {
 	struct delta *d;
-	char *author, *cmd, *diffbase, *line, *logline, *revdate, *revnum, *state,
-	    *textline;
 	size_t size;
 	int stop;
+	char *author, *cmd, *diffbase, *line, *logline;
+	char *revdate, *revnum, *state, *textline;
 
 	revnum = proto_get_ascii(&cmdline);
-	diffbase = proto_get_ascii(&cmdline); /* XXX: diffBase. */
+	diffbase = proto_get_ascii(&cmdline);
 	revdate = proto_get_ascii(&cmdline);
 	author = proto_get_ascii(&cmdline);
 	size = 0;
@@ -1889,7 +1772,7 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 			break;
 			case 'N':
 			case 'n':
-				/* XXX: Not implemented. */
+				/* XXX: Not supported. */
 			break;
 			case 'S':
 				state = proto_get_ascii(&line);
@@ -1932,11 +1815,11 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	struct fattr *fa;
 	struct stream *to;
 	struct statusrec *sr;
-	char buf[BUFSIZE], *line, *cmd;
-	char md5[MD5_DIGEST_SIZE];
-	int error, fd;
-	off_t bytes;
 	ssize_t nread;
+	off_t bytes;
+	char buf[BUFSIZE], md5[MD5_DIGEST_SIZE];
+	char *line, *cmd;
+	int error, fd;
 
 	sr = &fup->srbuf;
 	fa = sr->sr_serverattr;
@@ -1963,7 +1846,8 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	bytes = fattr_filesize(fa) - pos;
 	/* Append the new data. */
 	do {
-		nread = stream_read(up->rd, buf, (BUFSIZE > bytes) ? bytes : BUFSIZE);
+		nread = stream_read(up->rd, buf,
+		    (BUFSIZE > bytes) ? bytes : BUFSIZE);
 		bytes -= nread;
 		stream_write(to, buf, nread);
 	} while (bytes > 0);
@@ -1984,7 +1868,6 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	if (fup->wantmd5 == NULL || line != NULL || strcmp(cmd, "5") != 0)
 		return (UPDATER_ERR_PROTO);
 
-	/* UPDATE FILE. */
 	sr->sr_clientattr = fattr_frompath(fup->destpath, FATTR_NOFOLLOW);
 	if (sr->sr_clientattr == NULL)
 		return (UPDATER_ERR_PROTO);
@@ -1992,7 +1875,6 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 	    FA_MODTIME | FA_MASK);
 	error = updater_updatefile(up, fup, md5, 0);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
-	/* UPDATE IT. */
 	if (error)
 		return (error);
 	return (0);
@@ -2005,9 +1887,9 @@ updater_append_file(struct updater *up, struct file_update *fup, off_t pos)
 static int
 updater_read_checkout(struct stream *src, struct stream *dest)
 {
-	char *line;
-	size_t size;
 	ssize_t nbytes;
+	size_t size;
+	char *line;
 	int first;
 
 	first = 1;
@@ -2050,10 +1932,10 @@ updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
 	struct statusrec *sr;
 	struct stream *to;
 	char md5[MD5_DIGEST_SIZE];
+	ssize_t nbytes;
+	size_t blocknum, blockstart, blockcount;
 	char *buf, *line;
 	int error, orig;
-	size_t blocknum, blockstart, blockcount;
-	ssize_t nbytes;
 
 	sr = &fup->srbuf;
 

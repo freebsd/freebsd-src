@@ -147,9 +147,8 @@ detailer_batch(struct detailer *d)
 		error = proto_get_time(&line, &coll->co_scantime);
 		if (error || line != NULL || strcmp(cmd, "COLL") != 0 ||
 		    strcmp(collname, coll->co_name) != 0 ||
-		    strcmp(release, coll->co_release) != 0){ 
+		    strcmp(release, coll->co_release) != 0)
 			return (DETAILER_ERR_PROTO);
-		}
 		error = proto_printf(wr, "COLL %s %s\n", coll->co_name,
 		    coll->co_release);
 		if (error)
@@ -164,9 +163,8 @@ detailer_batch(struct detailer *d)
 			return (DETAILER_ERR_MSG);
 		error = detailer_coll(d, coll, st);
 		status_close(st, NULL);
-		if (error) {
+		if (error)
 			return (error);
-		}
 		if (coll->co_options & CO_COMPRESS) {
 			stream_filter_stop(rd);
 			stream_filter_stop(wr);
@@ -174,12 +172,10 @@ detailer_batch(struct detailer *d)
 		stream_flush(wr);
 	}
 	line = stream_getln(rd, NULL);
-	if (line == NULL) {
+	if (line == NULL)
 		return (DETAILER_ERR_READ);
-	}
-	if (strcmp(line, ".") != 0) {
+	if (strcmp(line, ".") != 0)
 		return (DETAILER_ERR_PROTO);
-	}
 	error = proto_printf(wr, ".\n");
 	if (error)
 		return (DETAILER_ERR_WRITE);
@@ -235,28 +231,25 @@ detailer_coll(struct detailer *d, struct coll *coll, struct status *st)
 {
 	struct fattr *rcsattr;
 	struct stream *rd, *wr;
-	char *attr, *cmd, *file, *line, *msg, *target, *path;
+	char *attr, *cmd, *file, *line, *msg, *path, *target;
 	int error, attic;
 
 	rd = d->rd;
 	wr = d->wr;
 	attic = 0;
 	line = stream_getln(rd, NULL);
-	if (line == NULL) {
+	if (line == NULL)
 		return (DETAILER_ERR_READ);
-	}
 	while (strcmp(line, ".") != 0) {
 		cmd = proto_get_ascii(&line);
-		if (cmd == NULL || strlen(cmd) != 1) {
+		if (cmd == NULL || strlen(cmd) != 1)
 			return (DETAILER_ERR_PROTO);
-		}
 		switch (cmd[0]) {
 		case 'D':
 			/* Delete file. */
 			file = proto_get_ascii(&line);
-			if (file == NULL || line != NULL) {
+			if (file == NULL || line != NULL)
 				return (DETAILER_ERR_PROTO); 
-			}
 			error = proto_printf(wr, "D %s\n", file);
 			if (error)
 				return (DETAILER_ERR_WRITE);
@@ -370,7 +363,6 @@ detailer_dofile_regular(struct detailer *d, char *name, char *path)
 	int error;
 	
 	wr = d->wr;
-
 	error = stat(path, &st);
 	/* If we don't have it or it's unaccessible, we want it again. */
 	if (error) {
@@ -429,7 +421,6 @@ detailer_dofile_rcs(struct detailer *d, struct coll *coll, char *name,
 	int error;
 
 	wr = d->wr;
-
 	path = atticpath(coll->co_prefix, name);
 	fa = fattr_frompath(path, FATTR_NOFOLLOW);
 	if (fa == NULL) {
@@ -444,7 +435,6 @@ detailer_dofile_rcs(struct detailer *d, struct coll *coll, char *name,
 	rf = rcsfile_frompath(path, name, coll->co_cvsroot, coll->co_tag);
 	free(path);
 	if (rf == NULL) {
-		lprintf(-1, "Error parsing, resend file.\n");
 		error = proto_printf(wr, "A %s\n", name);
 		if (error)
 			return (DETAILER_ERR_WRITE);
@@ -461,18 +451,17 @@ static int
 detailer_dofile_co(struct detailer *d, struct coll *coll, struct status *st,
     char *file)
 {
-	char md5[MD5_DIGEST_SIZE];
 	struct stream *wr;
 	struct fattr *fa;
 	struct statusrec *sr;
+	char md5[MD5_DIGEST_SIZE];
 	char *path;
 	int error, ret;
 
 	wr = d->wr;
 	path = checkoutpath(coll->co_prefix, file);
-	if (path == NULL) {
+	if (path == NULL)
 		return (DETAILER_ERR_PROTO);
-	}
 	fa = fattr_frompath(path, FATTR_NOFOLLOW);
 	if (fa == NULL) {
 		/* We don't have the file, so the only option at this

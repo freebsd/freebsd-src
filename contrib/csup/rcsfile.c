@@ -27,19 +27,22 @@
  */
 
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <err.h>
-#include <errno.h>
+
 #include "diff.h"
-#include "misc.h"
 #include "keyword.h"
+#include "misc.h"
+#include "proto.h"
+#include "queue.h"
 #include "rcsfile.h"
 #include "rcsparse.h"
 #include "stream.h"
-#include "proto.h"
-#include "queue.h"
+
+#define BUF_SIZE_DEFAULT	128
 
 /*
  * RCS parser library. This is the part of the library that handles the
@@ -137,6 +140,7 @@ static void		 rcsfile_insertsorteddelta(struct rcsfile *,
 			     struct delta *);
 static struct stream 	*rcsfile_getdeltatext(struct rcsfile *, struct delta *,
 			     struct buf **);
+static void		 rcsdelta_writestring(char *, size_t, struct stream *);
 
 
 /* Space formatting of RCS file. */
@@ -160,10 +164,10 @@ print_stream(struct stream *s)
 
 	line = stream_getln(s, NULL);
 	while (line != NULL) {
-		fprintf(stderr, "%s\n", line);
+		lprintf(-1, "%s\n", line);
 		line = stream_getln(s, NULL);
 	}
-	fprintf(stderr, "\n");
+	lprintf(-1, "\n");
 }
 
 /*
@@ -172,9 +176,8 @@ print_stream(struct stream *s)
 struct rcsfile *
 rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
 {
-	FILE *infp;
 	struct rcsfile *rf;
-	char one[10] = "1";
+	FILE *infp;
 	int error;
 
 	if (path == NULL || name == NULL || cvsroot == NULL || colltag == NULL)
@@ -184,11 +187,10 @@ rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
 	rf->name = xstrdup(name);
 	rf->cvsroot = xstrdup(cvsroot);
 	rf->colltag = xstrdup(colltag);
-	/*fprintf(stderr, "Doing file %s\n", rf->name);*/
 
 	/* Initialize head branch. */
 	rf->trunk = xmalloc(sizeof(struct branch));
-	rf->trunk->revnum = xstrdup(one);
+	rf->trunk->revnum = xstrdup("1");
 	LIST_INIT(&rf->trunk->deltalist);
 	/* Initialize delta list. */
 	LIST_INIT(&rf->deltatable);
@@ -262,7 +264,8 @@ rcsfile_send_details(struct rcsfile *rf, struct stream *wr)
 		return(error);
 	/* Write expand. */
 	if (rf->expand >= 0) {
-		error = proto_printf(wr, "E %s\n", keyword_encode_expand(rf->expand));
+		error = proto_printf(wr, "E %s\n",
+		    keyword_encode_expand(rf->expand));
 		if (error)
 			return(error);
 	}
@@ -339,7 +342,7 @@ rcsfile_write(struct rcsfile *rf, struct stream *dest)
 
 	stream_printf(dest, "\n\n");
 
-	/* 
+	/*
 	 * Write out deltas. We use a stack where we push the appropriate deltas
 	 * that is to be written out during the loop.
 	 */
@@ -414,11 +417,11 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 {
 	STAILQ_HEAD(, delta) deltastack;
 	LIST_HEAD(, delta) branchlist_datesorted;
-	struct stream *in;
 	struct delta *d, *d_tmp, *d_next, *d_tmp2, *d_tmp3;
+	struct stream *in;
 	struct branch *b;
-	char *line;
 	size_t size;
+	char *line;
 	int error;
 
 	error = 0;
@@ -457,7 +460,8 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 			 * it like a child.
 			 */
 			if (rcsrev_istrunk(d_next->revnum))
-				STAILQ_INSERT_HEAD(&deltastack, d_next, stack_next);
+				STAILQ_INSERT_HEAD(&deltastack, d_next,
+				    stack_next);
 			else
 				LIST_INSERT_HEAD(&branchlist_datesorted, d_next,
 				    branch_next_date);
@@ -477,7 +481,8 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 
 			d_tmp2 = LIST_FIRST(&branchlist_datesorted);
 			if (rcsnum_cmp(d_tmp->revdate, d_tmp2->revdate) < 0) {
-				LIST_INSERT_BEFORE(d_tmp2, d_tmp, branch_next_date);
+				LIST_INSERT_BEFORE(d_tmp2, d_tmp,
+				    branch_next_date);
 				continue;
 			}
 			while ((d_tmp3 = LIST_NEXT(d_tmp2, branch_next_date))
@@ -489,7 +494,7 @@ rcsfile_write_deltatext(struct rcsfile *rf, struct stream *dest)
 			}
 			LIST_INSERT_AFTER(d_tmp2, d_tmp, branch_next_date);
 		}
-		/* 
+		/*
 		 * Invert the deltalist of a branch, since we're writing them
 		 * the opposite way. 
 		 */
@@ -512,9 +517,9 @@ rcsfile_puttext(struct rcsfile *rf, struct stream *dest, struct delta *d,
 	struct keyword *k;
 	struct diffinfo dibuf, *di;
 	struct buf *b;
+	size_t size;
 	char *line;
 	int error;
-	size_t size;
 
 	di = &dibuf;
 	b = NULL;
@@ -545,7 +550,7 @@ rcsfile_puttext(struct rcsfile *rf, struct stream *dest, struct delta *d,
 			line = stream_getln(orig, &size);
 		}
 		stream_close(orig);
-	/* 
+	/*
 	 * A new head was probably added, and now the previous HEAD must be
 	 * changed to include the diff instead.
 	 */
@@ -570,8 +575,7 @@ rcsfile_puttext(struct rcsfile *rf, struct stream *dest, struct delta *d,
 		rd = stream_open_buf(diffbase->text);
 		error = diff_reverse(rd, orig, dest, k, di);
 		if (error) {
-			fprintf(stderr, "Error applying reverse diff: %d\n",
-			    error);
+			lprintf(-1, "Error applying reverse diff: %d\n", error);
 			goto cleanup;
 		}
 		keyword_free(k);
@@ -601,7 +605,10 @@ rcsfile_getdeltatext(struct rcsfile *rf, struct delta *d, struct buf **buf_dest)
 	buf_orig = NULL;
 	error = 0;
 
-	/* If diffbase is NULL or we are head (the old head), we have a normal complete deltatext. */
+	/*
+	 * If diffbase is NULL or we are head (the old head), we have a normal
+	 * complete deltatext.
+	 */
 	if (d->diffbase == NULL && !strcmp(rf->head, d->revnum)) {
 		orig = stream_open_buf(d->text);
 		return (orig);
@@ -617,7 +624,7 @@ rcsfile_getdeltatext(struct rcsfile *rf, struct delta *d, struct buf **buf_dest)
 	 * Now that we are sure we have a complete deltatext in ret, let's apply
 	 * our diff to it.
 	 */
-	*buf_dest = buf_new(128);
+	*buf_dest = buf_new(BUF_SIZE_DEFAULT);
 	dest = stream_open_buf(*buf_dest);
 
 	di->di_rcsfile = rf->name;
@@ -655,52 +662,51 @@ rcsfile_print(struct rcsfile *rf)
 	struct delta *d;
 	struct tag *t;
 	struct string *s;
-	char *line;
 	struct stream *in;
+	char *line;
 
-	printf("\n");
+	lprintf(1, "\n");
 	if (rf->name != NULL)
-		printf("name: '%s'\n", rf->name);
+		lprintf(1, "name: '%s'\n", rf->name);
 	if (rf->head != NULL)
-		printf("head: '%s'\n", rf->head);
+		lprintf(1, "head: '%s'\n", rf->head);
 	if (rf->branch != NULL)
-		printf("branch: '%s'\n", rf->branch);
-	printf("Access: ");
-	STAILQ_FOREACH(s, &rf->accesslist, string_next) {
-		printf("'%s' ", s->str);
-	}
-	printf("\n");
+		lprintf(1, "branch: '%s'\n", rf->branch);
+	lprintf(1, "Access: ");
+	STAILQ_FOREACH(s, &rf->accesslist, string_next)
+		lprintf(1, "'%s' ", s->str);
+	lprintf(1, "\n");
 
 	/* Print all tags. */
 	STAILQ_FOREACH(t, &rf->taglist, tag_next) {
-		printf("Tag: ");
+		lprintf(1, "Tag: ");
 		if (t->tag != NULL)
-			printf("name: %s ", t->tag);
+			lprintf(1, "name: %s ", t->tag);
 		if (t->revnum != NULL)
-			printf("rev: %s", t->revnum);
-		printf("\n");
+			lprintf(1, "rev: %s", t->revnum);
+		lprintf(1, "\n");
 	}
 
 	if (rf->strictlock)
-		printf("Strict!\n");
+		lprintf(1, "Strict!\n");
 	if (rf->comment != NULL)
-		printf("comment: '%s'\n", rf->comment);
+		lprintf(1, "comment: '%s'\n", rf->comment);
 	if (rf->expand >= 0)
-		printf("expand: '%s'\n", keyword_encode_expand(rf->expand));
+		lprintf(1, "expand: '%s'\n", keyword_encode_expand(rf->expand));
 	
 	/* Print all deltas. */
 	LIST_FOREACH(d, &rf->deltatable, table_next) {
-		printf("Delta: ");
+		lprintf(1, "Delta: ");
 		if (d->revdate != NULL)
-			printf("date: %s ", d->revdate);
+			lprintf(1, "date: %s ", d->revdate);
 		if (d->revnum != NULL)
-			printf("rev: %s", d->revnum);
+			lprintf(1, "rev: %s", d->revnum);
 		if (d->author != NULL)
-			printf("author: %s", d->author);
+			lprintf(1, "author: %s", d->author);
 		if (d->state != NULL)
-			printf("state: %s", d->state);
+			lprintf(1, "state: %s", d->state);
 
-		printf("Text:\n");
+		lprintf(1, "Text:\n");
 		in = stream_open_buf(d->text);
 		line = stream_getln(in, NULL);
 		while (line != NULL) {
@@ -708,11 +714,11 @@ rcsfile_print(struct rcsfile *rf)
 			line = stream_getln(in, NULL);
 		}
 		stream_close(in);
-		printf("\n");
+		lprintf(1, "\n");
 	}
 
 	if (rf->desc != NULL)
-		printf("desc: '%s'\n", rf->desc);
+		lprintf(1, "desc: '%s'\n", rf->desc);
 }
 
 /* Free all memory associated with a struct rcsfile. */
@@ -950,9 +956,8 @@ rcsfile_createdelta(char *revnum)
 	d->revdate = NULL;
 	d->state = NULL;
 	d->author = NULL;
-	/* XXX: default. */
-	d->log = buf_new(128);
-	d->text = buf_new(128);
+	d->log = buf_new(BUF_SIZE_DEFAULT);
+	d->text = buf_new(BUF_SIZE_DEFAULT);
 	d->diffbase = NULL;
 
 	STAILQ_INIT(&d->branchlist);
@@ -982,8 +987,8 @@ rcsfile_addelta(struct rcsfile *rf, char *revnum, char *revdate, char *author,
 	d->diffbase = rcsfile_getdelta(rf, diffbase);
 
 	/* If it's trunk, insert it in the head branch list. */
-	b = rcsrev_istrunk(d->revnum) ? rf->trunk : rcsfile_getbranch(rf,
-	    d->revnum);
+	b = rcsrev_istrunk(d->revnum) ? rf->trunk :
+	    rcsfile_getbranch(rf, d->revnum);
 
 	/*
 	 * We didn't find a branch, check if we can find a branchpoint and
@@ -1086,7 +1091,6 @@ rcsfile_importdelta(struct rcsfile *rf, char *revnum, char *revdate, char *autho
 
 	/* Insert if not a placeholder. */ 
 	if (!d->placeholder) {
-		/*fprintf(stderr, "Insert %s\n", d->revnum);*/
 		/* Insert both into the tree, and into the lookup list. */
 		if (rcsrev_istrunk(d->revnum))
 			rcsfile_insertdelta(b, d, 1);
@@ -1129,8 +1133,7 @@ rcsfile_getbranch(struct rcsfile *rf, char *revnum)
 {
 	struct branch *b;
 	struct delta *d;
-	char *branchrev;
-	char *bprev;
+	char *branchrev, *bprev;
 
 	branchrev = rcsrev_prefix(revnum);
 	bprev = rcsrev_prefix(branchrev);
@@ -1145,49 +1148,6 @@ rcsfile_getbranch(struct rcsfile *rf, char *revnum)
 	free(branchrev);
 	return (NULL);
 }
-
-#if 0
-/* Add a new branch to a delta. */
-void
-rcsfile_addbranch(struct rcsfile *rf, char *branch)
-{
-	struct delta *d;
-	struct branch *b;
-	char *branchrev, *deltarev;
-	int trunk;
-
-	/* 
-	 * Branchrev is our branches revision, the delta actual delta will be
-	 * taken care of later.
-	 */
-	branchrev = rcsrev_prefix(branch);
-	deltarev = rcsrev_prefix(branchrev);
-
-	/* XXX: Could we refer to a delta that is not added yet? If we're
-	 * refferring to branches without having been added before, this could
-	 * happen in the head branch.
-	 */
-	/*fprintf(stderr, "Add branch %s to delta %s\n", branchrev, deltarev);*/
-	d = rcsfile_getdelta(rf, deltarev);
-	if (d == NULL) {
-		/* We must create a placeholder for the delta holding the
-		 * branch. */
-		d = rcsfile_createdelta(deltarev);
-		d->placeholder = 1;
-		/* XXX: Can we assume this branch exists? */
-		trunk = rcsrev_istrunk(d->revnum);
-		b = trunk ? rf->trunk : rcsfile_getbranch(rf, d->revnum);
-		rcsfile_insertdelta(b, d, trunk);
-		rcsfile_insertsorteddelta(rf, d);
-	}
-	b = xmalloc(sizeof(struct branch));
-	b->revnum = branchrev;
-	LIST_INIT(&b->deltalist);
-	STAILQ_INSERT_HEAD(&d->branchlist, b, branch_next);
-	/* Free only deltarev, branchrev is used by branch. */
-	free(deltarev);
-}
-#endif
 
 /*
  * Insert a delta into the correct place in the table of the rcsfile. Sorted by
@@ -1240,8 +1200,6 @@ rcsfile_insertdelta(struct branch *b, struct delta *d, int trunk)
 	 */
 	LIST_FOREACH(d2, &b->deltalist, delta_next) {
 		if (trunk) {
-			/*fprintf(stderr, "Comparing %s and %s\n", d->revnum,
-			 * d2->revnum);*/
 			if (rcsnum_cmp(d->revnum, d2->revnum) >= 0) {
 				LIST_INSERT_BEFORE(d2, d, delta_next);
 				return;
@@ -1299,24 +1257,10 @@ void
 rcsdelta_appendlog(struct delta *d, char *logline, size_t size)
 {
 	struct stream *dest;
-	char buf[3];
-	size_t i;
-	int count;
 
 	assert(d != NULL);
 	dest = stream_open_buf(d->log);
-	for (i = 0; i < size; i++) {
-		buf[0] = logline[i];
-		buf[1] = '\0';
-		count = 1;
-		/* Expand @'s */
-		if (buf[0] == '@') {
-			buf[1] = '@';
-			buf[2] = '\0';
-			count = 2;
-		}
-		stream_write(dest, buf, count);
-	}
+	rcsdelta_writestring(logline, size, dest);
 	stream_close(dest);
 }
 
@@ -1325,13 +1269,20 @@ void
 rcsdelta_appendtext(struct delta *d, char *textline, size_t size)
 {
 	struct stream *dest;
+
+	assert(d != NULL);
+	dest = stream_open_buf(d->text);
+	rcsdelta_writestring(textline, size, dest);
+	stream_close(dest);
+}
+
+static void
+rcsdelta_writestring(char *textline, size_t size, struct stream *dest)
+{
 	char buf[3];
 	size_t i;
 	int count;
 
-	assert(d != NULL);
-	dest = stream_open_buf(d->text);
-	/* XXX: code reuse. */
 	for (i = 0; i < size; i++) {
 		buf[0] = textline[i];
 		buf[1] = '\0';
@@ -1344,10 +1295,7 @@ rcsdelta_appendtext(struct delta *d, char *textline, size_t size)
 		}
 		stream_write(dest, buf, count);
 	}
-
-	stream_close(dest);
 }
-
 
 /* Set delta state. */
 void
@@ -1364,7 +1312,6 @@ rcsdelta_setstate(struct delta *d, char *state)
 }
 
 /* Truncate the deltalog with a certain offset. */
-/* XXX: error values for these. */
 void
 rcsdelta_truncatelog(struct delta *d, off_t offset)
 {

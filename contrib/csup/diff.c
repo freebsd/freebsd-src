@@ -31,9 +31,9 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "diff.h"
 #include "keyword.h"
@@ -45,7 +45,7 @@ typedef long lineno_t;
 
 #define	EC_ADD	0
 #define	EC_DEL	1
-#define MAXKEY LONG_MAX
+#define	MAXKEY	LONG_MAX
 
 /* Editing command and state. */
 struct editcmd {
@@ -75,7 +75,7 @@ static int	diff_copyln(struct editcmd *, lineno_t);
 static int	diff_ignoreln(struct editcmd *, lineno_t);
 static void	diff_write(struct editcmd *, void *, size_t);
 static int	diff_insert_edit(struct diffstart *, struct editcmd *);
-static int	diff_free(struct diffstart *);
+static void	diff_free(struct diffstart *);
 
 int
 diff_apply(struct stream *rd, struct stream *orig, struct stream *dest,
@@ -83,8 +83,8 @@ diff_apply(struct stream *rd, struct stream *orig, struct stream *dest,
 {
 	struct editcmd ec;
 	lineno_t i;
-	char *line;
 	size_t size;
+	char *line;
 	int empty, error, noeol;
 
 	memset(&ec, 0, sizeof(ec));
@@ -159,13 +159,16 @@ diff_apply(struct stream *rd, struct stream *orig, struct stream *dest,
 	return (0);
 }
 
+/*
+ * Reverse a diff using the same algorithm as in cvsup.
+ */
 static int
 diff_write_reverse(struct stream *dest, struct diffstart *ds)
 {
-	long firstoutputlinedeleted, endline, startline, editline, num_deleted,
-	    num_added;
-	int num;
 	struct editcmd *ec, *nextec;
+	long editline, endline, firstoutputlinedeleted;
+	long num_added, num_deleted, startline;
+	int num;
 
 	nextec = LIST_FIRST(&ds->dhead);
 	editline = 0;
@@ -220,7 +223,6 @@ diff_insert_edit(struct diffstart *ds, struct editcmd *ec)
 	}
 
 	/* Insertion sort based on key. */
-	/* XXX: check if this gets too slow. */
 	LIST_FOREACH(curec, &ds->dhead, next) {
 		if (ec->key < curec->key) {
 			LIST_INSERT_BEFORE(curec, ec, next);
@@ -234,19 +236,16 @@ diff_insert_edit(struct diffstart *ds, struct editcmd *ec)
 	return (0);
 }
 
-static int
+static void 
 diff_free(struct diffstart *ds)
 {
 	struct editcmd *ec;
-	int freecount = 0;
 
 	while(!LIST_EMPTY(&ds->dhead)) {
 		ec = LIST_FIRST(&ds->dhead);
 		LIST_REMOVE(ec, next);
 		free(ec);
-		freecount++;
 	}
-	return freecount;
 }
 
 /*
@@ -262,7 +261,6 @@ diff_reverse(struct stream *rd, struct stream *orig, struct stream *dest,
 	lineno_t i;
 	char *line;
 	int error, offset;
-	int malloccount = 0, freecount = 0;
 
 	memset(&ec, 0, sizeof(ec));
 	ec.orig = orig;
@@ -280,32 +278,28 @@ diff_reverse(struct stream *rd, struct stream *orig, struct stream *dest,
 	/* First we build up the list of diffs from input. */
 	while (line != NULL) {
 		error = diff_geteditcmd(&ec, line);
-		/*fprintf(stderr, "Diff line '%s'\n", line);*/
 		if (error)
 			break;
 		if (ec.cmd == EC_ADD) {
 			addec = xmalloc(sizeof(struct editcmd));
-			malloccount++;
 			*addec = ec;
 			addec->havetext = 1;
 			/* Ignore the lines we was supposed to add. */
 			for (i = 0; i < ec.count; i++) {
 				line = stream_getln(rd, NULL);
-				/*fprintf(stderr, "Diff line '%s'\n", line);*/
 				if (line == NULL)
 					return (-1);
 			}
 
 			/* Get the next diff command if we have one. */
 			addec->key = addec->where + addec->count - offset;
-			if (delec != NULL && delec->key == addec->key - addec->count) {
+			if (delec != NULL &&
+			    delec->key == addec->key - addec->count) {
 				delec->key = addec->key;
 				delec->havetext = addec->havetext;
 				delec->count = addec->count;
-
 				diff_insert_edit(&ds, delec);
 				free(addec);
-				freecount++;
 				delec = NULL;
 				addec = NULL;
 			} else {
@@ -325,7 +319,6 @@ diff_reverse(struct stream *rd, struct stream *orig, struct stream *dest,
 				delec = NULL;
 			}
 			delec = xmalloc(sizeof(struct editcmd));
-			malloccount++;
 			*delec = ec;
 			delec->key = delec->where - 1 - offset;
 			delec->offset = offset;
@@ -337,18 +330,14 @@ diff_reverse(struct stream *rd, struct stream *orig, struct stream *dest,
 		line = stream_getln(rd, NULL);
 	}
 
-	while (line != NULL) {
-		/*fprintf(stderr, "Diff line '%s'\n", line);*/
+	while (line != NULL)
 		line = stream_getln(rd, NULL);
-	}
-	/*fprintf(stderr, "Done with diff\n");*/
 	if (delec != NULL) {
 		diff_insert_edit(&ds, delec);
 		delec = NULL;
 	}
 
 	addec = xmalloc(sizeof(struct editcmd));
-	malloccount++;
 	/* Should be filesize, but we set it to max value. */
 	addec->key = MAXKEY;
 	addec->offset = offset;
@@ -356,12 +345,8 @@ diff_reverse(struct stream *rd, struct stream *orig, struct stream *dest,
 	addec->count = 0;
 	diff_insert_edit(&ds, addec);
 	addec = NULL;
-
-	/*fprintf(stderr, "Done with last diff\n");*/
 	diff_write_reverse(dest, &ds);
-	freecount += diff_free(&ds);
-	/*fprintf(stderr, "Diff did a total of %d mallocs\n", malloccount);
-	fprintf(stderr, "Diff did a total of %d frees\n", freecount);*/
+	diff_free(&ds);
 	stream_flush(dest);
 	return (0);
 }
@@ -404,8 +389,8 @@ diff_geteditcmd(struct editcmd *ec, char *line)
 static int
 diff_copyln(struct editcmd *ec, lineno_t to)
 {
-	char *line;
 	size_t size;
+	char *line;
 
 	while (ec->editline < to) {
 		line = stream_getln(ec->orig, &size);
@@ -421,8 +406,8 @@ diff_copyln(struct editcmd *ec, lineno_t to)
 static int
 diff_ignoreln(struct editcmd *ec, lineno_t to)
 {
-	char *line;
 	size_t size;
+	char *line;
 
 	while (ec->editline < to) {
 		line = stream_getln(ec->orig, &size);
@@ -437,8 +422,8 @@ diff_ignoreln(struct editcmd *ec, lineno_t to)
 static void
 diff_write(struct editcmd *ec, void *buf, size_t size)
 {
-	char *line, *newline;
 	size_t newsize;
+	char *line, *newline;
 	int ret;
 
 	line = buf;

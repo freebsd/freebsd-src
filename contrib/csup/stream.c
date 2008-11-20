@@ -1209,8 +1209,8 @@ md5rcsfilter_flush(struct stream *stream, struct buf *buf, stream_flush_t how)
 	int error;
 
 	mf = stream->fdata;
-	space[1] = '\0';
 	space[0] = ' ';
+	space[1] = '\0';
 	ptr = buf->buf + buf->off;
 	end = buf->buf + buf->off + buf->in;
 

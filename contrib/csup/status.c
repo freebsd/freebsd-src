@@ -170,7 +170,6 @@ status_rd(struct status *st)
 	error = statusrec_cook(sr, line);
 	if (error) {
 		st->error = STATUS_ERR_PARSE;
-		printf("ERROR HERE\n");
 		return (NULL);
 	}
 	return (sr);

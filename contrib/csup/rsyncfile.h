@@ -30,13 +30,12 @@
 #define _RSYNCFILE_H_
 
 struct rsyncfile;
-
-struct rsyncfile *rsync_open(char *, size_t, int);
-int		  rsync_nextblock(struct rsyncfile *);
-char		 *rsync_rsum(struct rsyncfile *);
-char		 *rsync_blockmd5(struct rsyncfile *);
-int		  rsync_close(struct rsyncfile *);
-size_t		  rsync_blocksize(struct rsyncfile *);
-size_t		  rsync_filesize(struct rsyncfile *);
+struct rsyncfile	*rsync_open(char *, size_t, int);
+int			 rsync_nextblock(struct rsyncfile *);
+char			*rsync_rsum(struct rsyncfile *);
+char			*rsync_blockmd5(struct rsyncfile *);
+int			 rsync_close(struct rsyncfile *);
+size_t			 rsync_blocksize(struct rsyncfile *);
+size_t			rsync_filesize(struct rsyncfile *);
 
 #endif /* !_RSYNCFILE_H_ */
