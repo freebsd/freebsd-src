@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/rman.h>
+#include <sys/time.h>
 #include <sys/timetc.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -79,11 +80,13 @@ __FBSDID("$FreeBSD$");
 static const struct schizo_desc *schizo_get_desc(device_t);
 static void schizo_set_intr(struct schizo_softc *, u_int, u_int,
     driver_filter_t);
-static driver_filter_t schizo_dmasync;
+static driver_filter_t schizo_dma_sync_stub;
+static driver_filter_t ichip_dma_sync_stub;
 static void schizo_intr_enable(void *);
 static void schizo_intr_disable(void *);
 static void schizo_intr_assign(void *);
 static void schizo_intr_clear(void *);
+static int schizo_intr_register(struct schizo_softc *sc, u_int ino);
 static int schizo_get_intrmap(struct schizo_softc *, u_int,
     bus_addr_t *, bus_addr_t *);
 static bus_space_tag_t schizo_alloc_bus_tag(struct schizo_softc *, int);
@@ -94,6 +97,7 @@ static driver_filter_t schizo_pci_bus;
 static driver_filter_t schizo_ue;
 static driver_filter_t schizo_ce;
 static driver_filter_t schizo_host_bus;
+static driver_filter_t schizo_cdma;
 
 /* IOMMU support */
 static void schizo_iommu_init(struct schizo_softc *, int, uint32_t);
@@ -170,13 +174,16 @@ struct schizo_icarg {
 	bus_addr_t		sica_clr;
 };
 
-struct schizo_dmasync {
+struct schizo_dma_sync {
 	struct schizo_softc	*sds_sc;
 	driver_filter_t		*sds_handler;
 	void			*sds_arg;
 	void			*sds_cookie;
 	uint64_t		sds_syncval;
-	u_int			sds_bswar;
+	device_t		sds_ppb;	/* farest PCI-PCI bridge */
+	uint8_t			sds_bus;	/* bus of farest PCI device */
+	uint8_t			sds_slot;	/* slot of farest PCI device */
+	uint8_t			sds_func;	/* func. of farest PCI device */
 };
 
 #define	SCHIZO_PERF_CNT_QLTY	100
@@ -211,7 +218,7 @@ struct schizo_desc {
 	const char	*sd_name;
 };
 
-static const struct schizo_desc schizo_compats[] = {
+static const struct schizo_desc const schizo_compats[] = {
 	{ "pci108e,8001",	SCHIZO_MODE_SCZ,	"Schizo" },
 	{ "pci108e,a801",	SCHIZO_MODE_TOM,	"Tomatillo" },
 	{ NULL,			0,			NULL }
@@ -251,10 +258,8 @@ schizo_attach(device_t dev)
 {
 	struct ofw_pci_ranges *range;
 	const struct schizo_desc *desc;
-	struct schizo_icarg *sica;
 	struct schizo_softc *asc, *sc, *osc;
 	struct timecounter *tc;
-	bus_addr_t intrclr, intrmap;
 	uint64_t ino_bitmap, reg;
 	phandle_t node;
 	uint32_t prop, prop_array[2];
@@ -268,6 +273,7 @@ schizo_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_node = node;
 	sc->sc_mode = mode;
+	sc->sc_flags = 0;
 
 	/*
 	 * The Schizo has three register banks:
@@ -321,6 +327,8 @@ schizo_attach(device_t dev)
 			panic("%s: could not malloc mutex", __func__);
 		mtx_init(sc->sc_mtx, "pcib_mtx", NULL, MTX_SPIN);
 	} else {
+		if (sc->sc_mode != SCHIZO_MODE_SCZ)
+			panic("%s: no partner expected", __func__);
 		if (mtx_initialized(osc->sc_mtx) == 0)
 			panic("%s: mutex not initialized", __func__);
 		sc->sc_mtx = osc->sc_mtx;
@@ -402,24 +410,10 @@ schizo_attach(device_t dev)
 		if (n == STX_FB0_INO || n == STX_FB1_INO)
 			/* Leave for upa(4). */
 			continue;
-		if (schizo_get_intrmap(sc, n, &intrmap, &intrclr) == 0)
-			continue;
-		sica = malloc(sizeof(*sica), M_DEVBUF, M_NOWAIT);
-		if (sica == NULL)
-			panic("%s: could not allocate interrupt controller "
-			    "argument", __func__);
-		sica->sica_sc = sc;
-		sica->sica_map = intrmap;
-		sica->sica_clr = intrclr;
-#ifdef SCHIZO_DEBUG
-		device_printf(dev, "intr map (INO %d) %#lx: %#lx, clr: %#lx\n",
-		    n, (u_long)intrmap, (u_long)SCHIZO_PCI_READ_8(sc, intrmap),
-		    (u_long)intrclr);
-#endif
-		if (intr_controller_register(INTMAP_VEC(sc->sc_ign, n),
-		    &schizo_ic, sica) != 0)
+		i = schizo_intr_register(sc, n);
+		if (i != 0)
 			panic("%s: could not register interrupt controller "
-			    "for INO %d", __func__, n);
+			    "for INO %d (%d)", __func__, n, i);
 	}
 
 	/*
@@ -459,8 +453,10 @@ schizo_attach(device_t dev)
 	sc->sc_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
 	sc->sc_is.is_sb[0] = 0;
 	sc->sc_is.is_sb[1] = 0;
+#ifdef notyet
 	if (OF_getproplen(node, "no-streaming-cache") < 0)
 		sc->sc_is.is_sb[0] = STX_PCI_STRBUF;
+#endif
 
 #define	TSBCASE(x)							\
 	case (IOTSB_BASESZ << (x)) << (IO_PAGE_SHIFT - IOTTE_SHIFT):	\
@@ -488,6 +484,7 @@ schizo_attach(device_t dev)
 		}
 		schizo_iommu_init(sc, tsbsize, prop_array[0]);
 	}
+
 #undef TSBCASE
 
 	/* Initialize memory and I/O rmans. */
@@ -626,6 +623,39 @@ schizo_attach(device_t dev)
 		schizo_set_intr(sc, 3, STX_BUS_INO, schizo_host_bus);
 
 	/*
+	 * According to the Schizo Errata I-13, consistent DMA flushing/
+	 * syncing is FUBAR in version < 5 (i.e. revision < 2.3) bridges,
+	 * so we can't use it and need to live with the consequences.
+	 * With Schizo version >= 5, CDMA flushing/syncing is usable
+	 * but requires the the workaround described in Schizo Errata
+	 * I-23.  With Tomatillo and XMITS, CDMA flushing/syncing works
+	 * as expected, Tomatillo version <= 4 (i.e. revision <= 2.3)
+	 * bridges additionally require a block store after a write to
+	 * TOMXMS_PCI_DMA_SYNC_PEND though.
+	 */
+	if ((sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver >= 5) ||
+	    sc->sc_mode == SCHIZO_MODE_TOM || sc->sc_mode == SCHIZO_MODE_XMS) {
+		sc->sc_flags |= SCHIZO_FLAGS_CDMA;
+		if (sc->sc_mode == SCHIZO_MODE_SCZ) {
+			n = STX_CDMA_A_INO + sc->sc_half;
+			if (bus_set_resource(dev, SYS_RES_IRQ, 5,
+			    INTMAP_VEC(sc->sc_ign, n), 1) != 0)
+				panic("%s: failed to add CDMA interrupt",
+				    __func__);
+			i = schizo_intr_register(sc, n);
+			if (i != 0)
+				panic("%s: could not register interrupt "
+				    "controller for CDMA (%d)", __func__, i);
+			(void)schizo_get_intrmap(sc, n, NULL,
+			   &sc->sc_cdma_clr);
+			sc->sc_cdma_state = SCHIZO_CDMA_STATE_DONE;
+			schizo_set_intr(sc, 5, n, schizo_cdma);
+		}
+		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
+			sc->sc_flags |= SCHIZO_FLAGS_BSWAR;
+	}
+
+	/*
 	 * Set the latency timer register as this isn't always done by the
 	 * firmware.
 	 */
@@ -652,9 +682,37 @@ schizo_set_intr(struct schizo_softc *sc, u_int index, u_int ino,
 	    INTIGN(vec = rman_get_start(sc->sc_irq_res[index])) != sc->sc_ign ||
 	    INTINO(vec) != ino ||
 	    intr_vectors[vec].iv_ic != &schizo_ic ||
-	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index], INTR_TYPE_MISC,
-	    handler, NULL, sc, &sc->sc_ihand[index]) != 0)
+	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
+	    INTR_TYPE_MISC | INTR_FAST, handler, NULL, sc,
+	    &sc->sc_ihand[index]) != 0)
 		panic("%s: failed to set up interrupt %d", __func__, index);
+}
+
+static int
+schizo_intr_register(struct schizo_softc *sc, u_int ino)
+{
+	struct schizo_icarg *sica;
+	bus_addr_t intrclr, intrmap;
+	int error;
+
+	if (schizo_get_intrmap(sc, ino, &intrmap, &intrclr) == 0)
+		return (ENXIO);
+	sica = malloc(sizeof(*sica), M_DEVBUF, M_NOWAIT);
+	if (sica == NULL)
+		return (ENOMEM);
+	sica->sica_sc = sc;
+	sica->sica_map = intrmap;
+	sica->sica_clr = intrclr;
+#ifdef SCHIZO_DEBUG
+	device_printf(sc->sc_dev, "intr map (INO %d) %#lx: %#lx, clr: %#lx\n",
+	    ino, (u_long)intrmap, (u_long)SCHIZO_PCI_READ_8(sc, intrmap),
+	    (u_long)intrclr);
+#endif
+	error = (intr_controller_register(INTMAP_VEC(sc->sc_ign, ino),
+	    &schizo_ic, sica));
+	if (error != 0)
+		free(sica, M_DEVBUF);
+	return (error);
 }
 
 static int
@@ -797,6 +855,15 @@ schizo_host_bus(void *arg)
 	panic("%s: %s error %#llx", device_get_name(sc->sc_dev),
 	    sc->sc_mode == SCHIZO_MODE_TOM ? "JBus" : "Safari",
 	    (unsigned long long)errlog);
+	return (FILTER_HANDLED);
+}
+
+static int
+schizo_cdma(void *arg)
+{
+	struct schizo_softc *sc = arg;
+
+	atomic_store_rel_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_DONE);
 	return (FILTER_HANDLED);
 }
 
@@ -946,25 +1013,57 @@ schizo_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return (ENOENT);
 }
 
+static int
+schizo_dma_sync_stub(void *arg)
+{
+	struct timeval cur, end;
+	struct schizo_dma_sync *sds = arg;
+	struct schizo_softc *sc = sds->sds_sc;
+	uint32_t state;
+
+	(void)PCIB_READ_CONFIG(sds->sds_ppb, sds->sds_bus, sds->sds_slot,
+	    sds->sds_func, PCIR_VENDOR, 2);
+	for (; atomic_cmpset_acq_32(&sc->sc_cdma_state, SCHIZO_CDMA_STATE_DONE,
+	    SCHIZO_CDMA_STATE_PENDING) == 0;)
+		;
+	SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, 1);
+	microuptime(&cur);
+	end.tv_sec = 1;
+	end.tv_usec = 0;
+	timevaladd(&end, &cur);
+	for (; (state = atomic_load_32(&sc->sc_cdma_state)) !=
+	    SCHIZO_CDMA_STATE_DONE && timevalcmp(&cur, &end, <=);)
+		microuptime(&cur);
+	if (state != SCHIZO_CDMA_STATE_DONE)
+		panic("%s: DMA does not sync", __func__);
+	return (sds->sds_handler(sds->sds_arg));
+}
+
 #define	VIS_BLOCKSIZE	64
 
 static int
-schizo_dmasync(void *arg)
+ichip_dma_sync_stub(void *arg)
 {
 	static u_char buf[VIS_BLOCKSIZE] __aligned(VIS_BLOCKSIZE);
-	struct schizo_dmasync *sds = arg;
+	struct timeval cur, end;
+	struct schizo_dma_sync *sds = arg;
 	struct schizo_softc *sc = sds->sds_sc;
 	register_t reg, s;
-	int timeout;
 
+	(void)PCIB_READ_CONFIG(sds->sds_ppb, sds->sds_bus, sds->sds_slot,
+	    sds->sds_func, PCIR_VENDOR, 2);
 	SCHIZO_PCI_WRITE_8(sc, TOMXMS_PCI_DMA_SYNC_PEND, sds->sds_syncval);
-	timeout = 1000000;
-	for (; (SCHIZO_PCI_READ_8(sc, TOMXMS_PCI_DMA_SYNC_PEND) &
-	    sds->sds_syncval) != 0;)
-		if (--timeout < 0)
-			panic("%s: DMA does not sync", __func__);
+	microuptime(&cur);
+	end.tv_sec = 1;
+	end.tv_usec = 0;
+	timevaladd(&end, &cur);
+	for (; ((reg = SCHIZO_PCI_READ_8(sc, TOMXMS_PCI_DMA_SYNC_PEND)) &
+	    sds->sds_syncval) != 0 && timevalcmp(&cur, &end, <=);)
+		microuptime(&cur);
+	if ((reg & sds->sds_syncval) != 0)
+		panic("%s: DMA does not sync", __func__);
 
-	if (sds->sds_bswar != 0) {
+	if ((sc->sc_flags & SCHIZO_FLAGS_BSWAR) != 0) {
 		s = intr_disable();
 		reg = rd(fprs);
 		wr(fprs, reg | FPRS_FEF, 0);
@@ -1020,10 +1119,12 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
-	struct schizo_dmasync *sds;
+	devclass_t pci_devclass;
+	device_t cdev, pdev, pcidev;
+	struct schizo_dma_sync *sds;
 	struct schizo_softc *sc;
 	u_long vec;
-	int error;
+	int error, found;
 
 	sc = device_get_softc(dev);
 	/*
@@ -1038,35 +1139,64 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 	}
 
 	/*
-	 * Tomatillo and XMITS bridges need to be told to sync DMA writes
-	 * based on the INO of the respective device.
-	 * Tomatillo revision <= 2.3 (i.e. version <= 4) bridges additionally
-	 * need a block store as a workaround for a hardware bug.
-	 * XXX setup of the wrapper and the contents of schizo_dmasync()
-	 * should be moved to schizo(4)-specific bus_dma_tag_create() and
-	 * bus_dmamap_sync() methods, respectively, once DMA tag creation
-	 * is newbus'ified, so the wrapper isn't only applied for interrupt
-	 * handlers but also for polling(4) callbacks.
+	 * Install a a wrapper for CDMA flushing/syncing for devices
+	 * behind PCI-PCI bridges if possible.
 	 */
-	if (sc->sc_mode == SCHIZO_MODE_TOM || sc->sc_mode == SCHIZO_MODE_XMS) {
+	pcidev = NULL;
+	found = 0;
+	pci_devclass = devclass_find("pci");
+	for (cdev = child; cdev != dev; cdev = pdev) {
+		pdev = device_get_parent(cdev);
+		if (pcidev == NULL) {
+			if (device_get_devclass(pdev) != pci_devclass)
+				continue;
+			pcidev = cdev;
+			continue;
+		}
+		if (pci_get_class(cdev) == PCIC_BRIDGE &&
+		    pci_get_subclass(cdev) == PCIS_BRIDGE_PCI)
+			found = 1;
+	}
+	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0) {
 		sds = malloc(sizeof(*sds), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (sds == NULL)
 			return (ENOMEM);
-		sds->sds_sc = sc;
-		sds->sds_arg = arg;
-		sds->sds_syncval = 1ULL << INTINO(vec);
-		if (sc->sc_mode == SCHIZO_MODE_TOM && sc->sc_ver <= 4)
-			sds->sds_bswar = 1;
-		if (intr == NULL) {
-			sds->sds_handler = filt;
+		if (found != 0 && pcidev != NULL) {
+			sds->sds_sc = sc;
+			sds->sds_arg = arg;
+			sds->sds_ppb =
+			    device_get_parent(device_get_parent(pcidev));
+			sds->sds_bus = pci_get_bus(pcidev);
+			sds->sds_slot = pci_get_slot(pcidev);
+			sds->sds_func = pci_get_function(pcidev);
+			sds->sds_syncval = 1ULL << INTINO(vec);
+			if (bootverbose)
+				device_printf(dev, "installed DMA sync "
+				    "wrapper for device %d.%d on bus %d\n",
+				    sds->sds_slot, sds->sds_func,
+				    sds->sds_bus);
+
+#define	DMA_SYNC_STUB							\
+	(sc->sc_mode == SCHIZO_MODE_SCZ ? schizo_dma_sync_stub :	\
+	ichip_dma_sync_stub)
+
+			if (intr == NULL) {
+				sds->sds_handler = filt;
+				error = bus_generic_setup_intr(dev, child,
+				    ires, flags, DMA_SYNC_STUB, intr, sds,
+				    cookiep);
+			} else {
+				sds->sds_handler = (driver_filter_t *)intr;
+				error = bus_generic_setup_intr(dev, child,
+				    ires, flags, filt, (driver_intr_t *)
+				    DMA_SYNC_STUB, sds, cookiep);
+			}
+
+#undef DMA_SYNC_STUB
+
+		} else
 			error = bus_generic_setup_intr(dev, child, ires,
-			    flags, schizo_dmasync, intr, sds, cookiep);
-		} else {
-			sds->sds_handler = (driver_filter_t *)intr;
-			error = bus_generic_setup_intr(dev, child, ires,
-			    flags, filt, (driver_intr_t *)schizo_dmasync,
-			    sds, cookiep);
-		}
+			    flags, filt, intr, arg, cookiep);
 		if (error != 0) {
 			free(sds, M_DEVBUF);
 			return (error);
@@ -1074,7 +1204,9 @@ schizo_setup_intr(device_t dev, device_t child, struct resource *ires,
 		sds->sds_cookie = *cookiep;
 		*cookiep = sds;
 		return (error);
-	}
+	} else if (found != 0)
+		device_printf(dev, "WARNING: using devices behind PCI-PCI "
+		    "bridges may cause data corruption");
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, intr,
 	    arg, cookiep));
 }
@@ -1083,12 +1215,12 @@ static int
 schizo_teardown_intr(device_t dev, device_t child, struct resource *vec,
     void *cookie)
 {
-	struct schizo_dmasync *sds;
+	struct schizo_dma_sync *sds;
 	struct schizo_softc *sc;
 	int error;
 
 	sc = device_get_softc(dev);
-	if (sc->sc_mode == SCHIZO_MODE_TOM) {
+	if ((sc->sc_flags & SCHIZO_FLAGS_CDMA) != 0) {
 		sds = cookie;
 		error = bus_generic_teardown_intr(dev, child, vec,
 		    sds->sds_cookie);
@@ -1172,8 +1304,8 @@ schizo_activate_resource(device_t bus, device_t child, int type, int rid,
 		    type, rid, r));
 	if (type == SYS_RES_MEMORY) {
 		/*
-		 * Need to memory-map the device space, as some drivers depend
-		 * on the virtual address being set and useable.
+		 * Need to memory-map the device space, as some drivers
+		 * depend on the virtual address being set and usable.
 		 */
 		error = sparc64_bus_mem_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, 0, &p);
