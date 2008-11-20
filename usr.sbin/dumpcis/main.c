@@ -25,10 +25,50 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-int dumpcisfile_main(int, char **);
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "readcis.h"
+
+void
+dump(unsigned char *p, int sz)
+{
+	int     ad = 0, i;
+
+	while (sz > 0) {
+		printf("%03x: ", ad);
+		for (i = 0; i < ((sz < 16) ? sz : 16); i++)
+			printf(" %02x", p[i]);
+		printf("\n");
+		sz -= 16;
+		p += 16;
+		ad += 16;
+	}
+}
+
+static void
+scanfile(char *name)
+{
+	int     fd;
+	struct cis *cp;
+
+	fd = open(name, O_RDONLY);
+	if (fd < 0)
+		return;
+	cp = readcis(fd);
+	if (cp) {
+		printf("Configuration data for file %s\n",
+		    name);
+		dumpcis(cp);
+		freecis(cp);
+	}
+	close(fd);
+}
 
 int
 main(int argc, char **argv)
 {
-	return dumpcisfile_main(argc, argv);
+	for (argc--, argv++; argc; argc--, argv++)
+		scanfile(*argv);
+	return 0;
 }
