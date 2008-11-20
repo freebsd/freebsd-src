@@ -46,89 +46,6 @@ struct tuple_info {
 	unsigned char length;		/* 255 means variable length */
 };
 
-/*
- *	Memory device descriptor.
- */
-struct dev_mem {
-	unsigned char valid;
-	unsigned char type;
-	unsigned char speed;
-	unsigned char wps;
-	unsigned char addr;
-	unsigned char units;
-};
-
-/*
- *	One I/O structure describing a possible I/O map
- *	of the card.
- */
-struct cis_ioblk {
-	struct cis_ioblk *next;
-	unsigned int addr;
-	unsigned int size;
-};
-
-/*
- *	A structure storing a memory map for the card.
- */
-struct cis_memblk {
-	struct cis_memblk *next;
-	unsigned int address;
-	unsigned int length;
-	unsigned int host_address;
-};
-
-/*
- *	One configuration entry for the card.
- */
-struct cis_config {
-	struct cis_config *next;
-	unsigned int pwr:1;		/* Which values are defined. */
-	unsigned int timing:1;
-	unsigned int iospace:1;
-	unsigned int irq:1;
-	unsigned int memspace:1;
-	unsigned int misc_valid:1;
-	unsigned char id;
-	unsigned char io_blks;
-	unsigned char io_addr;
-	unsigned char io_bus;
-	struct cis_ioblk *io;
-	unsigned char irqlevel;
-	unsigned char irq_flags;
-	unsigned irq_mask;
-	unsigned char memwins;
-	struct cis_memblk *mem;
-	unsigned char misc;
-};
-
-/*
- *	Structure holding all data retrieved from the
- *	CIS block on the card.
- *	The default configuration contains interface defaults
- *	not listed in each separate configuration.
- */
-struct cis {
-	struct tuple_list *tlist;
-	char    *manuf;
-	char    *vers;
-	char    *add_info1;
-	char    *add_info2;
-	unsigned char maj_v, min_v;
-	unsigned char last_config;
-	unsigned char ccrs;
-	unsigned long reg_addr;
-	u_int manufacturer;
-	u_int product;
-	u_int prodext;
-	unsigned char func_id1, func_id2;
-	struct dev_mem attr_mem;
-	struct dev_mem common_mem;
-	struct cis_config *def_config;
-	struct cis_config *conf;
-	unsigned char *lan_nid;
-};
-
 #define	tpl32(tp)	((*((tp) + 3) << 24) | \
 			 (*((tp) + 2) << 16) | \
 			 (*((tp) + 1) << 8)  | *(tp))
@@ -136,9 +53,9 @@ struct cis {
 			 (*((tp) + 1) << 8)  | *(tp))
 #define	tpl16(tp)	((*((tp) + 1) << 8)  | *(tp))
 
-void    dumpcis(struct cis *);
-void    freecis(struct cis *);
-struct cis *readcis(int);
+void    dumpcis(struct tuple_list *);
+void    freecis(struct tuple_list *);
+struct tuple_list *readcis(int);
 
 const char *tuple_name(unsigned char);
 u_int   parse_num(int, u_char *, u_char **, int);
