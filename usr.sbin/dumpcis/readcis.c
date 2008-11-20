@@ -52,42 +52,42 @@ static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
 static struct tuple_info *get_tuple_info(unsigned char);
 
 static struct tuple_info tuple_info[] = {
-	{"Null tuple", 0x00, 0},
-	{"Common memory descriptor", 0x01, 255},
-	{"Long link to next chain for CardBus", 0x02, 255},
-	{"Indirect access", 0x03, 255},
-	{"Configuration map for CardBus", 0x04, 255},
-	{"Configuration entry for CardBus", 0x05, 255},
-	{"Long link to next chain for MFC", 0x06, 255},
-	{"Base address register for CardBus", 0x07, 6},
-	{"Checksum", 0x10, 5},
-	{"Long link to attribute memory", 0x11, 4},
-	{"Long link to common memory", 0x12, 4},
-	{"Link target", 0x13, 3},
-	{"No link", 0x14, 0},
-	{"Version 1 info", 0x15, 255},
-	{"Alternate language string", 0x16, 255},
-	{"Attribute memory descriptor", 0x17, 255},
-	{"JEDEC descr for common memory", 0x18, 255},
-	{"JEDEC descr for attribute memory", 0x19, 255},
-	{"Configuration map", 0x1A, 255},
-	{"Configuration entry", 0x1B, 255},
-	{"Other conditions for common memory", 0x1C, 255},
-	{"Other conditions for attribute memory", 0x1D, 255},
-	{"Geometry info for common memory", 0x1E, 255},
-	{"Geometry info for attribute memory", 0x1F, 255},
-	{"Manufacturer ID", 0x20, 4},
-	{"Functional ID", 0x21, 2},
-	{"Functional EXT", 0x22, 255},
-	{"Software interleave", 0x23, 2},
-	{"Version 2 Info", 0x40, 255},
-	{"Data format", 0x41, 255},
-	{"Geometry", 0x42, 4},
-	{"Byte order", 0x43, 2},
-	{"Card init date", 0x44, 4},
-	{"Battery replacement", 0x45, 4},
-	{"Organization", 0x46, 255},
-	{"Terminator", 0xFF, 0},
+	{"Null tuple", CIS_NULL, 0},
+	{"Common memory descriptor", CIS_MEM_COMMON, 255},
+	{"Long link to next chain for CardBus", CIS_LONGLINK_CB, 255},
+	{"Indirect access", CIS_INDIRECT, 255},
+	{"Configuration map for CardBus", CIS_CONF_MAP_CB, 255},
+	{"Configuration entry for CardBus", CIS_CONFIG_CB, 255},
+	{"Long link to next chain for MFC", CIS_LONGLINK_MFC, 255},
+	{"Base address register for CardBus", CIS_BAR, 6},
+	{"Checksum", CIS_CHECKSUM, 5},
+	{"Long link to attribute memory", CIS_LONGLINK_A, 4},
+	{"Long link to common memory", CIS_LONGLINK_C, 4},
+	{"Link target", CIS_LINKTARGET, 3},
+	{"No link", CIS_NOLINK, 0},
+	{"Version 1 info", CIS_INFO_V1, 255},
+	{"Alternate language string", CIS_ALTSTR, 255},
+	{"Attribute memory descriptor", CIS_MEM_ATTR, 255},
+	{"JEDEC descr for common memory", CIS_JEDEC_C, 255},
+	{"JEDEC descr for attribute memory", CIS_JEDEC_A, 255},
+	{"Configuration map", CIS_CONF_MAP, 255},
+	{"Configuration entry", CIS_CONFIG, 255},
+	{"Other conditions for common memory", CIS_DEVICE_OC, 255},
+	{"Other conditions for attribute memory", CIS_DEVICE_OA, 255},
+	{"Geometry info for common memory", CIS_DEVICEGEO, 255},
+	{"Geometry info for attribute memory", CIS_DEVICEGEO_A, 255},
+	{"Manufacturer ID", CIS_MANUF_ID, 4},
+	{"Functional ID", CIS_FUNC_ID, 2},
+	{"Functional EXT", CIS_FUNC_EXT, 255},
+	{"Software interleave", CIS_SW_INTERLV, 2},
+	{"Version 2 Info", CIS_VERS_2, 255},
+	{"Data format", CIS_FORMAT, 255},
+	{"Geometry", CIS_GEOMETRY, 4},
+	{"Byte order", CIS_BYTEORDER, 2},
+	{"Card init date", CIS_DATE, 4},
+	{"Battery replacement", CIS_BATTERY, 4},
+	{"Organization", CIS_ORG, 255},
+	{"Terminator", CIS_END, 0},
 	{0, 0, 0}
 };
 
@@ -228,7 +228,8 @@ read_tuples(int fd)
 	 * If the primary list had no NOLINK tuple, and no LINKTARGET,
 	 * then try to read a tuple list at common memory (offset 0).
 	 */
-	if (find_tuple_in_list(tlist, CIS_NOLINK) == 0 && tlist->next == 0 &&
+	if (find_tuple_in_list(tlist, CIS_NOLINK) == 0 &&
+	    find_tuple_in_list(tlist, CIS_LINKTARGET) == 0 &&
 	    ck_linktarget(fd, (off_t) 0, 0)) {
 		offs = 0;
 #ifdef	DEBUG
@@ -327,7 +328,7 @@ ck_linktarget(int fd, off_t offs, int flag)
 	lseek(fd, offs, SEEK_SET);
 	if (read(fd, blk, 5) != 5)
 		return (0);
-	if (blk[0] == 0x13 &&
+	if (blk[0] == CIS_LINKTARGET &&
 	    blk[1] == 0x3 &&
 	    blk[2] == 'C' &&
 	    blk[3] == 'I' &&
