@@ -2078,7 +2078,7 @@ updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
 		if (proto_get_sizet(&line, &blockcount, 10) != 0)
 			goto bad;
 		/* Read blocks from original file. */
-		lseek(orig, SEEK_SET, (blocksize * blockstart));
+		lseek(orig, (blocksize * blockstart), SEEK_SET);
 		error = UPDATER_ERR_MSG;
 		for (blocknum = 0; blocknum < blockcount; blocknum++) {
 			nbytes = read(orig, buf, blocksize);

@@ -140,7 +140,7 @@ rsync_chooseblocksize(size_t fsize)
 	}
 
 	bestrem = MAXBLOCKSIZE;
-	for (bs = losearch; bs <= hisearch;) {
+	for (bs = losearch; bs <= hisearch; bs++) {
 		rem = fsize % bs;
 		if (rem < bestrem) {
 			bestrem = rem;
