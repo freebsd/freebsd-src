@@ -24,16 +24,17 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * 
  */
 
-#include <stdlib.h>
 #include <assert.h>
-#include "rcstokenizer.h"
-#include "rcsparse.h"
-#include "rcsfile.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "misc.h"
 #include "queue.h"
+#include "rcsfile.h"
+#include "rcsparse.h"
+#include "rcstokenizer.h"
 
 /*
  * This is an RCS-parser using lex for tokenizing and makes sure the RCS syntax
@@ -108,13 +109,7 @@ rcsparse_run(struct rcsfile *rf, FILE *infp)
 static int
 parse_admin(struct rcsfile *rf, yyscan_t *sp)
 {
-	char *head;
-	char *branch;
-	char *comment;
-	char *id;
-	char *expand;
-	char *tag, *revnum;
-	char *tmp;
+	char *branch, *comment, *expand, *head, *id, *revnum, *tag, *tmp;
 	int strict, token;
 
 	strict = 0;
@@ -169,7 +164,7 @@ parse_admin(struct rcsfile *rf, yyscan_t *sp)
 	asserttoken(sp, KEYWORD);
 	token = rcslex(*sp);
 	while (token == ID) {
-		/* XXX: skip locks */
+		/* XXX: locks field is skipped */
 		asserttoken(sp, COLON);
 		asserttoken(sp, NUM);
 		token = rcslex(*sp);
@@ -206,7 +201,7 @@ parse_admin(struct rcsfile *rf, yyscan_t *sp)
 		token = rcslex(*sp);
 		while (token == ID) {
 			token = rcslex(*sp);
-			/* XXX: ignore for now. */
+			/* XXX: newphrases ignored */
 			while (token == ID || token == NUM || token == STRING ||
 			    token == COLON) {
 				token = rcslex(*sp);
@@ -274,7 +269,7 @@ parse_deltas(struct rcsfile *rf, yyscan_t *sp, int token)
 		token = rcslex(*sp);
 		while (token == ID) {
 			token = rcslex(*sp);
-			/* XXX: ignore for now. */
+			/* XXX: newphrases ignored. */
 			while (token == ID || token == NUM || token == STRING ||
 			    token == COLON) {
 				token = rcslex(*sp);
@@ -302,15 +297,13 @@ static int
 parse_deltatexts(struct rcsfile *rf, yyscan_t *sp, int token)
 {
 	struct delta *d;
-	char *revnum, *log, *text;
+	char *log, *revnum, *text;
 	int error;
 
 	error = 0;
 	/* In case we don't have deltatexts. */
-	if (token != NUM) {
-		fprintf(stderr, "Tokens Was %d\n", token);
+	if (token != NUM)
 		return (token);
-	}
 	do {
 		/* num */
 		assert(token == NUM);
@@ -331,7 +324,7 @@ parse_deltatexts(struct rcsfile *rf, yyscan_t *sp, int token)
 		token = rcslex(*sp);
 		while (token == ID) {
 			token = rcslex(*sp);
-			/* XXX: ignore for now. */
+			/* XXX: newphrases ignored. */
 			while (token == ID || token == NUM || token == STRING ||
 			    token == COLON) {
 				token = rcslex(*sp);
@@ -344,7 +337,7 @@ parse_deltatexts(struct rcsfile *rf, yyscan_t *sp, int token)
 		asserttoken(sp, STRING);
 		text = duptext(sp);
 		error = rcsdelta_addtext(d, text);
-		/* 
+		/*
 		 * If this happens, something is wrong with the RCS file, and it
 		 * should be resent.
 		 */

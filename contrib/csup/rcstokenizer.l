@@ -24,7 +24,6 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * 
  */
 
 /*
@@ -32,6 +31,7 @@
  */
 %{
 #include <string.h>
+
 #include "misc.h"
 #include "rcsparse.h"
 
