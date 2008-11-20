@@ -34,17 +34,17 @@ static void
 scanfile(char *name)
 {
 	int     fd;
-	struct cis *cp;
+	struct tuple_list *tl;
 
 	fd = open(name, O_RDONLY);
 	if (fd < 0)
 		return;
-	cp = readcis(fd);
-	if (cp) {
+	tl = readcis(fd);
+	if (tl) {
 		printf("Configuration data for file %s\n",
 		    name);
-		dumpcis(cp);
-		freecis(cp);
+		dumpcis(tl);
+		freecis(tl);
 	}
 	close(fd);
 }
