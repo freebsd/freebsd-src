@@ -136,8 +136,6 @@ struct cis {
 			 (*((tp) + 1) << 8)  | *(tp))
 #define	tpl16(tp)	((*((tp) + 1) << 8)  | *(tp))
 
-int	dumpcisfile_main(int, char **);
-void    dump(unsigned char *, int);
 void    dumpcis(struct cis *);
 void    freecis(struct cis *);
 struct cis *readcis(int);
