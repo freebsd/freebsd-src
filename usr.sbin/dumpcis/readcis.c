@@ -259,6 +259,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	tl = xmalloc(sizeof(*tl));
 	tl->offs = offs;
 	tl->flags = flags & MDF_ATTR;
+	ioctl(fd, PIOCRWFLAG, &flags);
 	lseek(fd, offs, SEEK_SET);
 	do {
 		if (read(fd, &code, 1) != 1) {
