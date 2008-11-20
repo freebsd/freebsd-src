@@ -66,8 +66,8 @@ struct rsyncfile {
 	uint32_t rsum;
 };
 
-static size_t	rsync_chooseblocksize(size_t);
-static uint32_t	rsync_rollsum(char *, size_t);
+static size_t		rsync_chooseblocksize(size_t);
+static uint32_t		rsync_rollsum(char *, size_t);
 
 /* Open a file and initialize variable for rsync operation. */
 struct rsyncfile *

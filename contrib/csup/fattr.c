@@ -44,7 +44,7 @@
 /*
  * Include the appropriate definition for the file attributes we support.
  * There are two different files: fattr_bsd.h for BSD-like systems that
- * support the extended file flags ? la chflags() and fattr_posix.h for
+ * support the extended file flags a la chflags() and fattr_posix.h for
  * bare POSIX systems that don't.
  */
 #ifdef HAVE_FFLAGS
@@ -764,7 +764,8 @@ fattr_makenode(const struct fattr *fa, const char *path)
 	return (error);
 }
 
-int fattr_delete(const char *path)
+int
+fattr_delete(const char *path)
 {
 	struct fattr *fa;
 	int error;
@@ -846,9 +847,8 @@ fattr_install(struct fattr *fa, const char *topath, const char *frompath)
 				error = rmdir(topath);
 			else
 				error = unlink(topath);
-			if (error) {
+			if (error)
 				goto bad;
-			}
 		}
 	}
 
@@ -859,9 +859,8 @@ fattr_install(struct fattr *fa, const char *topath, const char *frompath)
 		tv[1].tv_sec = fa->modtime;	/* Modification time. */
 		tv[1].tv_usec = 0;
 		error = utimes(frompath, tv);
-		if (error) {
+		if (error)
 			goto bad;
-		}
 	}
 	if (mask & FA_OWNER || mask & FA_GROUP) {
 		uid = -1;
