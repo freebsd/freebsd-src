@@ -99,7 +99,6 @@ static struct tuple_info tuple_info[] = {
 	{0, 0, 0}
 };
 
-
 static void *
 xmalloc(int sz)
 {
@@ -131,10 +130,6 @@ readcis(int fd)
 
 	for (tl = cp->tlist; tl; tl = tl->next)
 		for (tp = tl->tuples; tp; tp = tp->next) {
-#if 0
-			printf("tuple code = 0x%02x, data is\n", tp->code);
-			dump(tp->data, tp->length);
-#endif
 			switch (tp->code) {
 			case CIS_MEM_COMMON:	/* 0x01 */
 				device_desc(tp->data, tp->length, &cp->common_mem);
