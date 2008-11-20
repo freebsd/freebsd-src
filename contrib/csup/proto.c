@@ -805,7 +805,7 @@ proto_printf(struct stream *wr, const char *format, ...)
 			break;
 		case 'O':
 			off = va_arg(ap, off_t);
-			rv = stream_printf(wr, "%lu", off);
+			rv = stream_printf(wr, "%llu", off);
 			break;
 		case 'S':
 			s = va_arg(ap, char *);
