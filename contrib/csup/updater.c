@@ -97,7 +97,7 @@ static int	 updater_delete(struct updater *, struct file_update *);
 static void	 updater_deletefile(const char *);
 static int	 updater_checkout(struct updater *, struct file_update *, int);
 static int	 updater_addfile(struct updater *, struct file_update *,
-		     char *);
+		     char *, int);
 int		 updater_addelta(struct rcsfile *, struct stream *, char *);
 static int	 updater_setattrs(struct updater *, struct file_update *,
 		     char *, char *, char *, char *, char *, struct fattr *);
@@ -576,7 +576,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
 			lprintf(1, " Create %s -> Attic\n", name);
-			error = updater_addfile(up, fup, attr);
+			error = updater_addfile(up, fup, attr, 0);
 			if (error)
 				return (error);
 			break;
@@ -599,7 +599,7 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (sr->sr_serverattr == NULL)
 				return (UPDATER_ERR_PROTO);
 			lprintf(1, " Create %s\n", name);
-			error = updater_addfile(up, fup, attr);
+			error = updater_addfile(up, fup, attr, 0);
 			if (error)
 				return (error);
 			break;
@@ -864,32 +864,48 @@ updater_docoll(struct updater *up, struct file_update *fup, int isfixups)
 			if (error)
 				return (error);
 			break;
-/*
-  X <file> <attr>
-    Receive the live RCS file <file> in its entirety, as a fixup.
-    Set its attributes to <attr>.  The data follows, in the same
-    format as for the "A" command.  CVS mode only.
-
-  x <file> <attr>
-    Like "X", but put the file into the Attic.  CVS mode only.
-*/
-#if 0
 		case 'X':
-		case 'x':
-			lprintf(1, "Got X\n");
+			name = proto_get_ascii(&line);
+			attr = proto_get_ascii(&line);
+			if (name == NULL || attr == NULL || line != NULL)
+				return (UPDATER_ERR_PROTO);
+			error = fup_prepare(fup, name, 0);
+			if (error)
+				return (UPDATER_ERR_PROTO);
+
+			fup->temppath = tempname(fup->destpath);
+			sr = &fup->srbuf;
+			sr->sr_type = SR_FILELIVE;
+			sr->sr_file = xstrdup(name);
+			sr->sr_serverattr = fattr_decode(attr);
+			if (sr->sr_serverattr == NULL)
+				return (UPDATER_ERR_PROTO);
+			lprintf(1, " Fixup %s\n", name);
+			error = updater_addfile(up, fup, attr, 1);
+			if (error)
+				return (error);
 			break;
-#endif
-/*
-  Z <file> <attr> <pos>
-    Append some new data to the end of the existing file <file>,
-    and set its attributes to <attr>.  The data should be written
-    to the file starting at file offset <pos>, which should be
-    exactly at the end of the file.  Exactly n bytes of data follow,
-    where n is the size attribute minus <pos>.  After the data
-    comes a terminating line, as in the "A" command.  The number
-    of bytes n can be 0, in which case the file's attributes are
-    simply updated.
-*/
+		case 'x':
+			name = proto_get_ascii(&line);
+			attr = proto_get_ascii(&line);
+			if (name == NULL || attr == NULL || line != NULL)
+				return (UPDATER_ERR_PROTO);
+			error = fup_prepare(fup, name, 1);
+			if (error)
+				return (UPDATER_ERR_PROTO);
+
+			fup->temppath = tempname(fup->destpath);
+			sr = &fup->srbuf;
+			sr->sr_type = SR_FILEDEAD;
+			sr->sr_file = xstrdup(name);
+			sr->sr_serverattr = fattr_decode(attr);
+			if (sr->sr_serverattr == NULL)
+				return (UPDATER_ERR_PROTO);
+			lprintf(1, " Fixup %s -> Attic\n", name);
+			error = updater_addfile(up, fup, attr, 1);
+			if (error)
+				return (error);
+			break;
 		case 'Z':
 			name = proto_get_ascii(&line);
 			attr = proto_get_ascii(&line);
@@ -1443,7 +1459,8 @@ updater_updatenode(struct updater *up, struct coll *coll, struct file_update *fu
  * Fetches a new file in CVS mode.
  */
 static int
-updater_addfile(struct updater *up, struct file_update *fup, char *attr)
+updater_addfile(struct updater *up, struct file_update *fup, char *attr,
+    int isfixup)
 {
 	char md5[MD5_DIGEST_SIZE];
 	struct coll *coll;
@@ -1504,7 +1521,7 @@ updater_addfile(struct updater *up, struct file_update *fup, char *attr)
 		return (UPDATER_ERR_PROTO);
 	fattr_override(sr->sr_clientattr, sr->sr_serverattr,
 	    FA_MODTIME | FA_MASK);
-	error = updater_updatefile(up, fup, md5, 0);
+	error = updater_updatefile(up, fup, md5, isfixup);
 	fup->wantmd5 = NULL;	/* So that it doesn't get freed. */
 	/* UPDATE IT. */
 	if (error)
