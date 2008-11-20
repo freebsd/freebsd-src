@@ -251,10 +251,6 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	struct tuple_info *tinfo;
 	int     total = 0;
 	unsigned char code, length;
-	int     fmvj182 = 0;
-#ifdef HSSYNTH
-	int     hss = 0;
-#endif	/* HSSYNTH */
 
 	/* Check to see if this memory has already been scanned. */
 	for (tl = tlist; tl; tl = tl->next)
@@ -282,8 +278,6 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 				break;
 			}
 			total++;
-			if (fmvj182 && (code == 0x1b) && (length == 25))
-				length = 31;
 		}
 		tp->length = length;
 #ifdef	DEBUG
