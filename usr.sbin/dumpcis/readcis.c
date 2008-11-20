@@ -39,7 +39,6 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/ioctl.h>
 
 #include <pccard/cardinfo.h>
 #include <pccard/cis.h>
@@ -47,13 +46,6 @@ static const char rcsid[] =
 #include "readcis.h"
 
 static int ck_linktarget(int, off_t, int);
-static void cis_info(struct cis *, unsigned char *, int);
-static void device_desc(unsigned char *, int, struct dev_mem *);
-static void config_map(struct cis *, unsigned char *, int);
-static void cis_config(struct cis *, unsigned char *, int);
-static void cis_manuf_id(struct cis *, unsigned char *, int);
-static void cis_func_id(struct cis *, unsigned char *, int);
-static void cis_network_ext(struct cis *, unsigned char *, int);
 static struct tuple_list *read_one_tuplelist(int, int, off_t);
 static struct tuple_list *read_tuples(int);
 static struct tuple *find_tuple_in_list(struct tuple_list *, unsigned char);
@@ -116,215 +108,31 @@ xmalloc(int sz)
 /*
  *	After reading the tuples, decode the relevant ones.
  */
-struct cis *
+struct tuple_list *
 readcis(int fd)
 {
-	struct tuple_list *tl;
-	struct tuple *tp;
-	struct cis *cp;
 
-	cp = xmalloc(sizeof(*cp));
-	cp->tlist = read_tuples(fd);
-	if (cp->tlist == 0)
-		return (NULL);
-
-	for (tl = cp->tlist; tl; tl = tl->next)
-		for (tp = tl->tuples; tp; tp = tp->next) {
-			switch (tp->code) {
-			case CIS_MEM_COMMON:	/* 0x01 */
-				device_desc(tp->data, tp->length, &cp->common_mem);
-				break;
-			case CIS_INFO_V1:	/* 0x15 */
-				cis_info(cp, tp->data, tp->length);
-				break;
-			case CIS_MEM_ATTR:	/* 0x17 */
-				device_desc(tp->data, tp->length, &cp->attr_mem);
-				break;
-			case CIS_CONF_MAP:	/* 0x1A */
-				config_map(cp, tp->data, tp->length);
-				break;
-			case CIS_CONFIG:	/* 0x1B */
-				cis_config(cp, tp->data, tp->length);
-				break;
-			case CIS_MANUF_ID:	/* 0x20 */
-				cis_manuf_id(cp, tp->data, tp->length);
-				break;
-			case CIS_FUNC_ID:	/* 0x21 */
-				cis_func_id(cp, tp->data, tp->length);
-				break;
-			case CIS_FUNC_EXT:	/* 0x22 */
-				if (cp->func_id1 == 6)	/* LAN adaptor */
-					cis_network_ext(cp, tp->data, tp->length);
-				break;
-			}
-		}
-	return (cp);
+	return (read_tuples(fd));
 }
 
 /*
  *	free_cis - delete cis entry.
  */
 void
-freecis(struct cis *cp)
+freecis(struct tuple_list *tlist)
 {
-	struct cis_ioblk *io;
-	struct cis_memblk *mem;
-	struct cis_config *conf;
-	struct tuple *tp;
 	struct tuple_list *tl;
+	struct tuple *tp;
 
-	while ((tl = cp->tlist) != 0) {
-		cp->tlist = tl->next;
+	while ((tl = tlist) != 0) {
+		tlist = tl->next;
 		while ((tp = tl->tuples) != 0) {
 			tl->tuples = tp->next;
-			if (tp->data)
-				free(tp->data);
+			free(tp->data);
+			free(tp);
 		}
+		free(tl);
 	}
-
-	while ((conf = cp->conf) != 0) {
-		cp->conf = conf->next;
-		while ((io = conf->io) != 0) {
-			conf->io = io->next;
-			free(io);
-		}
-		while ((mem = conf->mem) != 0) {
-			conf->mem = mem->next;
-			free(mem);
-		}
-		free(conf);
-	}
-	free(cp);
-}
-
-/*
- *	Fills in CIS version data.
- */
-static void
-cis_info(struct cis *cp, unsigned char *p, int len)
-{
-	cp->maj_v = *p++;
-	cp->min_v = *p++;
-	len -= 2;
-	if (cp->manuf) {
-		free(cp->manuf);
-		cp->manuf = NULL;
-	}
-	if (len > 1 && *p != 0xff) {
-		cp->manuf = strdup(p);
-		len -= strlen(p) + 1;
-		p += strlen(p) + 1;
-	}
-	if (cp->vers) {
-		free(cp->vers);
-		cp->vers = NULL;
-	}
-	if (len > 1 && *p != 0xff) {
-		cp->vers = strdup(p);
-		len -= strlen(p) + 1;
-		p += strlen(p) + 1;
-	} else {
-		cp->vers = strdup("[none]");
-	}
-	if (cp->add_info1) {
-		free(cp->add_info1);
-		cp->add_info1 = NULL;
-	}
-	if (len > 1 && *p != 0xff) {
-		cp->add_info1 = strdup(p);
-		len -= strlen(p) + 1;
-		p += strlen(p) + 1;
-	} else {
-		cp->add_info1 = strdup("[none]");
-	}
-	if (cp->add_info2) {
-		free(cp->add_info2);
-		cp->add_info2 = NULL;
-	}
-	if (len > 1 && *p != 0xff)
-		cp->add_info2 = strdup(p);
-	else
-		cp->add_info2 = strdup("[none]");
-}
-
-static void
-cis_manuf_id(struct cis *cp, unsigned char *p, int len)
-{
-	if (len >= 4) {
-		cp->manufacturer = tpl16(p);
-		cp->product = tpl16(p+2);
-		if (len == 5)
-			cp->prodext = *(p+4); /* For xe driver */
-	} else {
-		cp->manufacturer=0;
-		cp->product=0;
-		cp->prodext=0;
-	}
-}
-/*
- *	Fills in CIS function ID.
- */
-static void
-cis_func_id(struct cis *cp, unsigned char *p, int len __unused)
-{
-	cp->func_id1 = *p++;
-	cp->func_id2 = *p++;
-}
-
-static void
-cis_network_ext(struct cis *cp, unsigned char *p, int len __unused)
-{
-	int i;
-
-	switch (p[0]) {
-	case 4:		/* Node ID */
-		if (len <= 2 || len < p[1] + 2)
-			return;
-
-		if (cp->lan_nid)
-			free(cp->lan_nid);
-		cp->lan_nid = xmalloc(p[1]);
-
-		for (i = 0; i <= p[1]; i++)
-			cp->lan_nid[i] = p[i + 1];
-		break;
-	}
-}
-
-/*
- *	device_desc - decode device descriptor.
- */
-static void
-device_desc(unsigned char *p, int len, struct dev_mem *dp)
-{
-	while (len > 0 && *p != 0xFF) {
-		dp->valid = 1;
-		dp->type = (*p & 0xF0) >> 4;
-		dp->wps = !!(*p & 0x8);
-		dp->speed = *p & 7;
-		p++;
-		if (*p != 0xFF) {
-			dp->addr = (*p >> 3) & 0xF;
-			dp->units = *p & 7;
-		}
-		p++;
-		len -= 2;
-	}
-}
-
-/*
- *	configuration map of card control register.
- */
-static void
-config_map(struct cis *cp, unsigned char *p, int len __unused)
-{
-	unsigned char *p1;
-	int rlen = (*p & 3) + 1;
-
-	p1 = p + 1;
-	cp->last_config = *p1++ & 0x3F;
-	cp->reg_addr = parse_num(rlen | 0x10, p1, &p1, 0);
-	cp->ccrs = *p1;
 }
 
 /*
@@ -361,125 +169,6 @@ parse_num(int sz, u_char *p, u_char **q, int ofs)
 	if (q)
 		*q = p;
 	return num;
-}
-
-/*
- *	CIS config entry - Decode and build configuration entry.
- */
-static void
-cis_config(struct cis *cp, unsigned char *p, int len __unused)
-{
-	int     x;
-	int     i, j;
-	struct cis_config *conf, *last;
-	unsigned char feat;
-
-	conf = xmalloc(sizeof(*conf));
-	if ((last = cp->conf) != 0) {
-		while (last->next)
-			last = last->next;
-		last->next = conf;
-	} else
-		cp->conf = conf;
- 	conf->id = *p & 0x3F;	/* Config index */
- 	if (*p & 0x40)		/* Default flag */
-		cp->def_config = conf;
-	if (*p++ & 0x80)
- 		p++;		/* Interface byte skip */
- 	feat = *p++;		/* Features byte */
-	for (i = 0; i < CIS_FEAT_POWER(feat); i++) {
-		unsigned char parms = *p++;
-
-		conf->pwr = 1;
-		for (j = 0; j < 8; j++)
-			if (parms & (1 << j))
-				while (*p++ & 0x80);
-	}
-	if (feat & CIS_FEAT_TIMING) {
-		conf->timing = 1;
-		i = *p++;
-		if (CIS_WAIT_SCALE(i) != 3)
-			p++;
-		if (CIS_READY_SCALE(i) != 7)
-			p++;
-		if (CIS_RESERVED_SCALE(i) != 7)
-			p++;
-	}
-	if (feat & CIS_FEAT_I_O) {
-		conf->iospace = 1;
-		if (CIS_IO_RANGE & *p)
-			conf->io_blks = CIS_IO_BLKS(p[1]) + 1;
-		conf->io_addr = CIS_IO_ADDR(*p);
-		conf->io_bus = (*p >> 5) & 3; /* CIS_IO_8BIT | CIS_IO_16BIT */
-		if (*p++ & CIS_IO_RANGE) {
-			struct cis_ioblk *io;
-			struct cis_ioblk *last_io = NULL;
-
-			i = CIS_IO_ADSZ(*p);
-			j = CIS_IO_BLKSZ(*p++);
-			for (x = 0; x < conf->io_blks; x++) {
-				io = xmalloc(sizeof(*io));
-				if (last_io)
-					last_io->next = io;
-				else
-					conf->io = io;
-				last_io = io;
-				io->addr = parse_num(i, p, &p, 0);
-				io->size = parse_num(j, p, &p, 1);
-			}
-		}
-	}
-	if (feat & CIS_FEAT_IRQ) {
-		conf->irq = 1;
-		conf->irqlevel = *p & 0xF;
-		conf->irq_flags = *p & 0xF0;
-		if (*p++ & CIS_IRQ_MASK) {
-			conf->irq_mask = tpl16(p);
-			p += 2;
-		}
-	}
-	switch (CIS_FEAT_MEMORY(feat)) {
-	case CIS_FEAT_MEM_NONE:
-		break;
-	case CIS_FEAT_MEM_LEN:
-		conf->memspace = 1;
-		conf->mem = xmalloc(sizeof(*conf->mem));
-		conf->mem->length = tpl16(p) << 8;
-		break;
-	case CIS_FEAT_MEM_ADDR:
-		conf->memspace = 1;
-		conf->mem = xmalloc(sizeof(*conf->mem));
-		conf->mem->length = tpl16(p) << 8;
-		conf->mem->address = tpl16(p + 2) << 8;
-		break;
-	case CIS_FEAT_MEM_WIN: {
-		struct cis_memblk *mem;
-		struct cis_memblk *last_mem = NULL;
-
-		conf->memspace = 1;
-		x = *p++;
-		conf->memwins = CIS_MEM_WINS(x);
-		for (i = 0; i < conf->memwins; i++) {
-			mem = xmalloc(sizeof(*mem));
-			if (last_mem)
-				last_mem->next = mem;
-			else
-				conf->mem = mem;
-			last_mem = mem;
-			mem->length = parse_num(CIS_MEM_LENSZ(x) | 0x10, p, &p, 0) << 8;
-			mem->address = parse_num(CIS_MEM_ADDRSZ(x) | 0x10, p, &p, 0) << 8;
-			if (x & CIS_MEM_HOST) {
-				mem->host_address = parse_num(CIS_MEM_ADDRSZ(x) | 0x10,
-							      p, &p, 0) << 8;
-			}
-		}
-		break;
-	    }
-	}
-	if (feat & CIS_FEAT_MISC) {
-		conf->misc_valid = 1;
-		conf->misc = *p++;
-	}
 }
 
 /*
@@ -522,7 +211,7 @@ read_tuples(int fd)
 		if (tp && tp->length == 4) {
 			offs = tpl32(tp->data);
 #ifdef	DEBUG
-			printf("Checking long link at %qd (%s memory)\n",
+			printf("Checking long link at %zd (%s memory)\n",
 			    offs, flag ? "Attribute" : "Common");
 #endif
 			/* If a link was found, read the tuple list from it. */
@@ -541,11 +230,12 @@ read_tuples(int fd)
 	 */
 	if (find_tuple_in_list(tlist, CIS_NOLINK) == 0 && tlist->next == 0 &&
 	    ck_linktarget(fd, (off_t) 0, 0)) {
+		offs = 0;
 #ifdef	DEBUG
-		printf("Reading long link at %qd (%s memory)\n",
+		printf("Reading long link at %zd (%s memory)\n",
 		    offs, flag ? "Attribute" : "Common");
 #endif
-		tlist->next = read_one_tuplelist(fd, 0, (off_t) 0);
+		tlist->next = read_one_tuplelist(fd, 0, offs);
 	}
 	return (tlist);
 }
@@ -573,7 +263,6 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 	tl = xmalloc(sizeof(*tl));
 	tl->offs = offs;
 	tl->flags = flags & MDF_ATTR;
-	ioctl(fd, PIOCRWFLAG, &flags);
 	lseek(fd, offs, SEEK_SET);
 	do {
 		if (read(fd, &code, 1) != 1) {
@@ -619,7 +308,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 		 */
 		tinfo = get_tuple_info(code);
 		if (tinfo != NULL && (tinfo->length != 255 && tinfo->length > length)) {
-			printf("code %s ignored\n", tuple_name(code));
+			printf("code %s (%d) ignored\n", tuple_name(code), code);
 			tp->code = CIS_NULL;
 		}
 		if (tl->tuples == NULL)
