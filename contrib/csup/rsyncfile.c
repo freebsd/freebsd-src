@@ -67,11 +67,11 @@ struct rsyncfile {
 };
 
 static size_t	rsync_chooseblocksize(size_t);
-static uint32_t	rsync_rollsum(uint8_t *, size_t);
+static uint32_t	rsync_rollsum(char *, size_t);
 
 /* Open a file and initialize variable for rsync operation. */
 struct rsyncfile *
-rsync_open(char *path, size_t blocksize, int read)
+rsync_open(char *path, size_t blocksize, int rdonly)
 {
 	struct rsyncfile *rf;
 	struct stat st;
@@ -86,7 +86,7 @@ rsync_open(char *path, size_t blocksize, int read)
 	rf->fsize = st.st_size;
 	rf->fa = fattr_fromstat(&st);
 
-	rf->fd = open(path, read ? O_RDONLY : O_RDWR);
+	rf->fd = open(path, rdonly ? O_RDONLY : O_RDWR);
 	if (rf->fd < 0) {
 		free(rf);
 		return (NULL);
@@ -116,6 +116,7 @@ rsync_close(struct rsyncfile *rf)
 		return (error);
 	close(rf->fd);
 	free(rf);
+	return (0);
 }
 
 /*
@@ -154,14 +155,12 @@ rsync_chooseblocksize(size_t fsize)
 int
 rsync_nextblock(struct rsyncfile *rf)
 {
-	uint32_t rolling;
-	char *ptr;
 	MD5_CTX ctx;
-	size_t blocksize, i;
+	size_t blocksize;
 
 	if (rf->blockptr >= rf->end)
 		return (0);
-	blocksize = min((rf->end - rf->blockptr), rf->blocksize);
+	blocksize = min((size_t)(rf->end - rf->blockptr), rf->blocksize);
 	/* Calculate MD5 of the block. */
 	MD5_Init(&ctx);
 	MD5_Update(&ctx, rf->blockptr, blocksize);
@@ -176,10 +175,10 @@ rsync_nextblock(struct rsyncfile *rf)
 
 /* Get the rolling checksum of a file. */
 static uint32_t
-rsync_rollsum(uint8_t *buf, size_t len)
+rsync_rollsum(char *buf, size_t len)
 {
 	uint32_t a, b;
-	uint8_t *ptr, *limit;
+	char *ptr, *limit;
 
 	a = b = 0;
 	ptr = buf;

@@ -64,8 +64,10 @@ static int	lister_dofile(struct lister *, struct coll *,
 		    struct statusrec *);
 static int	lister_dodead(struct lister *, struct coll *,
 		    struct statusrec *);
+#if 0
 static int	lister_dorcsfile(struct lister *, struct coll *,
 		    struct statusrec *, int);
+#endif
 
 void *
 lister(void *arg)
@@ -400,6 +402,7 @@ send:
 	return (0);
 }
 
+#if 0
 /* Handle a file live or file dead entry found in the status file. */
 static int
 lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
@@ -449,6 +452,7 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
 		return (LISTER_ERR_WRITE);
 	return (0);
 }
+#endif
 
 /* Handle a checkout dead entry found in the status file. */
 static int

@@ -1991,7 +1991,7 @@ updater_read_checkout(struct stream *src, struct stream *dest)
 	char *line;
 	size_t size;
 	ssize_t nbytes;
-	int error, first;
+	int first;
 
 	first = 1;
 	line = stream_getln(src, &size);
@@ -2031,12 +2031,11 @@ static int
 updater_rsync(struct updater *up, struct file_update *fup, size_t blocksize)
 {
 	struct statusrec *sr;
-	struct coll *coll;
 	struct stream *to;
 	char md5[MD5_DIGEST_SIZE];
 	char *buf, *line;
 	int error, orig;
-	size_t size, blocknum, blockstart, blockcount;
+	size_t blocknum, blockstart, blockcount;
 	ssize_t nbytes;
 
 	sr = &fup->srbuf;
