@@ -30,22 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "readcis.h"
 
-void
-dump(unsigned char *p, int sz)
-{
-	int     ad = 0, i;
-
-	while (sz > 0) {
-		printf("%03x: ", ad);
-		for (i = 0; i < ((sz < 16) ? sz : 16); i++)
-			printf(" %02x", p[i]);
-		printf("\n");
-		sz -= 16;
-		p += 16;
-		ad += 16;
-	}
-}
-
 static void
 scanfile(char *name)
 {
