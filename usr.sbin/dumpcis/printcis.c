@@ -62,7 +62,7 @@ static void   dump_info_v2(u_char *p, int len);
 static void   dump_org(u_char *p, int len);
 
 void
-dumpcis(struct cis *cp)
+dumpcis(struct tuple_list *tlist)
 {
 	struct tuple *tp;
 	struct tuple_list *tl;
@@ -70,7 +70,7 @@ dumpcis(struct cis *cp)
 	u_char *p;
 	int func = 0;
 
-	for (tl = cp->tlist; tl; tl = tl->next)
+	for (tl = tlist; tl; tl = tl->next)
 		for (tp = tl->tuples; tp; tp = tp->next) {
 			printf("Tuple #%d, code = 0x%x (%s), length = %d\n",
 			    ++count, tp->code, tuple_name(tp->code), tp->length);
