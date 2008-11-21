@@ -191,7 +191,21 @@ int t3_ael1002_phy_prep(struct cphy *phy, adapter_t *adapter, int phy_addr,
 
 static int ael1006_reset(struct cphy *phy, int wait)
 {
-	return t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	u32 gpio_out;
+	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	/* Hack to reset the phy correctly */
+	/* Read out the current value */
+	gpio_out = t3_read_reg(phy->adapter, A_T3DBG_GPIO_EN);
+	/* Reset the phy */
+	gpio_out &= ~F_GPIO6_OUT_VAL;
+	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out); 
+	msleep(125);
+	/* Take the phy out of reset */
+	gpio_out |= F_GPIO6_OUT_VAL;
+	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out);
+	msleep(125);
+	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+	return 0;
 }
 
 static int ael1006_power_down(struct cphy *phy, int enable)
