@@ -228,6 +228,15 @@ TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
 
+/*
+ * Tune the size of the output queue.
+ */
+int cxgb_snd_queue_len = IFQ_MAXLEN;
+TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
+    &cxgb_snd_queue_len, 0, "send queue size ");
+
+
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
 	MAX_CTRL_TXQ_ENTRIES = 1024,
@@ -359,8 +368,8 @@ cxgb_controller_probe(device_t dev)
 		ports = "ports";
 
 	snprintf(buf, sizeof(buf), "%s %sNIC, rev: %d nports: %d %s",
-	    ai->desc, is_offload(sc) ? "R" : "",
-	    sc->params.rev, nports, ports);
+		 ai->desc, is_offload(sc) ? "R" : "",
+		 sc->params.rev, nports, ports);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
@@ -406,6 +415,8 @@ cxgb_controller_attach(device_t dev)
 	int msi_needed, reg;
 #endif
 	int must_load = 0;
+	char buf[80];
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
@@ -617,6 +628,11 @@ cxgb_controller_attach(device_t dev)
 	snprintf(&sc->fw_version[0], sizeof(sc->fw_version), "%d.%d.%d",
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
+
+	snprintf(buf, sizeof(buf), "%s\t E/C: %s S/N: %s", 
+		 ai->desc,
+		 sc->params.vpd.ec, sc->params.vpd.sn);
+	device_set_desc_copy(dev, buf);
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
@@ -934,7 +950,7 @@ cxgb_port_attach(device_t dev)
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_drv_maxlen = cxgb_snd_queue_len;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
