@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 183702 -->
+<!-- Original Revision: 185110 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -182,6 +182,10 @@
 
       <sect4 id="net-if">
 	<title>网络接口支持</title>
+
+	<para>将 &man.em.4; 驱动程序分拆成了两个共享部分代码的驱动程序。
+	  &man.em.4; 驱动程序将继续支持高至 82575 的网卡以及新的针对客户机/桌面的网卡。
+	  新增的 &man.igb.4; 驱动程序则用于支持新的服务器网卡。</para>
 
 	<para>[&arch.amd64;、 &arch.i386;] 对 &man.wpi.4; 驱动程序进行了更新，
 	  修正了一系列可靠性问题。</para>

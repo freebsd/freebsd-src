@@ -392,7 +392,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 184311
+	Original Revision: 185110
 -->
 
 <!--
@@ -621,6 +621,8 @@
     &hwlist.hme;
 
     &hwlist.ie;
+
+    &hwlist.igb;
 
     &hwlist.ixgb;
 
