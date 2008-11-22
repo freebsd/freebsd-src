@@ -279,6 +279,8 @@ struct mxge_media_type
 /* implement our own memory barriers, since bus_space_barrier
    cannot handle write-combining regions */
 
+#if __FreeBSD_version < 800053
+
 #if defined (__GNUC__)
   #if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
     #define mb()  __asm__ __volatile__ ("sfence;": : :"memory")
@@ -291,6 +293,8 @@ struct mxge_media_type
   #endif
 #else
   #error "unknown compiler"
+#endif
+
 #endif
 
 static inline void

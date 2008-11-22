@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20081121:
+	__FreeBSD_version 800054 adds memory barriers to 
+	<machine/atomic.h>, new interfaces to ifnet to facilitate 
+	multiple hardware transmit queues for cards that support
+	them, and a lock-less ring-buffer implementation to
+	enable drivers to more efficiently manage queueing of 
+	packets.
+
 20081117:
 	A new version of ZFS (version 13) has been merged to -HEAD.
 	This version has zpool attribute "listsnapshots" off by
