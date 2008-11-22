@@ -249,7 +249,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		 */
 		enc->ul[0] = htonl(enc->ul[0]);
 
-		IFQ_HANDOFF(ifp, m, error);
+		error = (ifp->if_transmit)(ifp, m);
 		return (error);
 	} else {
 		/*
@@ -309,7 +309,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 			enc->ul[0] = htonl(enc->ul[0]);
 			enc->ul[1] = htonl(enc->ul[1]);
 
-			IFQ_HANDOFF(ifp, m, error);
+			error = (ifp->if_transmit)(ifp, m);
 			if (error) {
 				if (mtail)
 					m_freem(mtail);

@@ -868,7 +868,7 @@ vlan_start(struct ifnet *ifp)
 		 * Send it, precisely as ether_output() would have.
 		 * We are already running at splimp.
 		 */
-		IFQ_HANDOFF(p, m, error);
+		error = (p->if_transmit)(p, m);
 		if (!error)
 			ifp->if_opackets++;
 		else

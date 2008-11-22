@@ -383,7 +383,7 @@ ng_iface_output(struct ifnet *ifp, struct mbuf *m,
 			return (ENOBUFS);
 		}
 		*(sa_family_t *)m->m_data = dst->sa_family;
-		IFQ_HANDOFF(ifp, m, error);
+		error = (ifp->if_transmit)(ifp, m);
 	} else
 		error = ng_iface_send(ifp, m, dst->sa_family);
 
