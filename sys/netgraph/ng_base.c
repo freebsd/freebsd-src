@@ -2853,8 +2853,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 	 */
 out:
 	NG_RESPOND_MSG(error, here, item, resp);
-	if (msg)
-		NG_FREE_MSG(msg);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
