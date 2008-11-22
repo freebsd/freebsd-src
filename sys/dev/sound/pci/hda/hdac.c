@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081115_0116"
+#define HDA_DRV_TEST_REV	"20081122_0117"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -4762,7 +4762,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 	nid_t min, res;
 
 	/* Find next pin */
-	for (i = seq; ases[as].pins[i] == 0 && i < 16; i++)
+	for (i = seq; i < 16 && ases[as].pins[i] == 0; i++)
 		;
 	/* Check if there is no any left. If so - we succeded. */
 	if (i == 16)
