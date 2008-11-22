@@ -7571,17 +7571,20 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc;
-	device_t *devlist = NULL;
-	int i, devcount;
+	device_t *devlist;
+	int i, devcount, error;
+
+	if ((error = device_get_children(dev, &devlist, &devcount)) != 0)
+		return (error);
+	for (i = 0; i < devcount; i++) {
+		if ((error = device_delete_child(dev, devlist[i])) != 0) {
+			free(devlist, M_TEMP);                                                            
+	                return (error);                                                                   
+	        }                                                                                         
+	}
+	free(devlist, M_TEMP);
 
 	sc = device_get_softc(dev);
-
-	device_get_children(dev, &devlist, &devcount);
-	for (i = 0; devlist != NULL && i < devcount; i++)
-		device_delete_child(dev, devlist[i]);
-	if (devlist != NULL)
-		free(devlist, M_TEMP);
-
 	hdac_release_resources(sc);
 
 	return (0);
