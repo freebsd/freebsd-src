@@ -657,7 +657,7 @@ tunoutput(
 		}
 	}
 
-	IFQ_HANDOFF(ifp, m0, error);
+	error = (ifp->if_transmit)(ifp, m0);
 	if (error) {
 		ifp->if_collisions++;
 		return (ENOBUFS);
