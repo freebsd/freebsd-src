@@ -113,10 +113,11 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
-static void	if_qflush(struct ifaltq *);
+static void	if_qflush(struct ifnet *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static void	if_slowtimo(void *);
+static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
@@ -126,6 +127,7 @@ static void	if_start_deferred(void *context, int pending);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
+
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -481,6 +483,28 @@ if_free_type(struct ifnet *ifp, u_char type)
 	free(ifp, M_IFNET);
 };
 
+void
+ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
+{
+	
+	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
+
+	if (ifq->ifq_maxlen == 0) 
+		ifq->ifq_maxlen = ifqmaxlen;
+
+	ifq->altq_type = 0;
+	ifq->altq_disc = NULL;
+	ifq->altq_flags &= ALTQF_CANTCHANGE;
+	ifq->altq_tbr  = NULL;
+	ifq->altq_ifp  = ifp;
+}
+
+void
+ifq_detach(struct ifaltq *ifq)
+{
+	mtx_destroy(&ifq->ifq_mtx);
+}
+
 /*
  * Perform generic interface initalization tasks and attach the interface
  * to the list of "active" interfaces.
@@ -522,7 +546,8 @@ if_attach(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
 	ifp->if_data.ifi_datalen = sizeof(struct if_data);
-
+	ifp->if_transmit = if_transmit;
+	ifp->if_qflush = if_qflush;
 #ifdef MAC
 	mac_ifnet_init(ifp);
 	mac_ifnet_create(ifp);
@@ -534,7 +559,7 @@ if_attach(struct ifnet *ifp)
 	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 	    net_cdevsw.d_name, ifp->if_index);
 
-	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
+	ifq_attach(&ifp->if_snd, ifp);
 
 	/*
 	 * create a Link Level name for this device
@@ -572,19 +597,6 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
 
-	/*
-	 * XXX: why do we warn about this? We're correcting it and most
-	 * drivers just set the value the way we do.
-	 */
-	if (ifp->if_snd.ifq_maxlen == 0) {
-		if_printf(ifp, "XXX: driver didn't set ifq_maxlen\n");
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	}
-	ifp->if_snd.altq_type = 0;
-	ifp->if_snd.altq_disc = NULL;
-	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
-	ifp->if_snd.altq_tbr  = NULL;
-	ifp->if_snd.altq_ifp  = ifp;
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
@@ -826,7 +838,7 @@ if_detach(struct ifnet *ifp)
 	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
 	knlist_clear(&ifp->if_klist, 0);
 	knlist_destroy(&ifp->if_klist);
-	mtx_destroy(&ifp->if_snd.ifq_mtx);
+	ifq_detach(&ifp->if_snd);
 	IF_AFDATA_DESTROY(ifp);
 	splx(s);
 }
@@ -1377,7 +1389,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
-	if_qflush(&ifp->if_snd);
+	ifp->if_qflush(ifp);
+	
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
@@ -1507,10 +1520,12 @@ if_up(struct ifnet *ifp)
  * Flush an interface queue.
  */
 static void
-if_qflush(struct ifaltq *ifq)
+if_qflush(struct ifnet *ifp)
 {
 	struct mbuf *m, *n;
-
+	struct ifaltq *ifq;
+	
+	ifq = &ifp->if_snd;
 	IFQ_LOCK(ifq);
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(ifq))
@@ -2799,6 +2814,19 @@ if_start_deferred(void *context, int pending)
 
 	ifp = context;
 	(ifp->if_start)(ifp);
+}
+
+/*
+ * Backwards compatibility interface for drivers 
+ * that have not implemented it
+ */
+static int
+if_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	int error;
+
+	IFQ_HANDOFF(ifp, m, error);
+	return (error);
 }
 
 int
