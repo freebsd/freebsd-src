@@ -260,7 +260,9 @@ struct sge_txq {
 	 */
 	struct mbuf_head cleanq;	
 	struct buf_ring *txq_mr;
+	struct ifaltq	*txq_ifq;
 	struct mbuf     *immpkt;
+
 	uint32_t        txq_drops;
 	uint32_t        txq_skipped;
 	uint32_t        txq_coalesced;
@@ -604,7 +606,7 @@ static inline int offload_running(adapter_t *adapter)
 }
 
 int cxgb_pcpu_enqueue_packet(struct ifnet *ifp, struct mbuf *m);
-int cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *m);
+int cxgb_pcpu_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_pcpu_shutdown_threads(struct adapter *sc);
 void cxgb_pcpu_startup_threads(struct adapter *sc);
 

@@ -206,17 +206,17 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, ofld_disable, CTLFLAG_RDTUN, &ofld_disable, 0,
 
 /*
  * The driver uses an auto-queue algorithm by default.
- * To disable it and force a single queue-set per port, use singleq = 1.
+ * To disable it and force a single queue-set per port, use multiq = 0
  */
-static int singleq = 0;
-TUNABLE_INT("hw.cxgb.singleq", &singleq);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, singleq, CTLFLAG_RDTUN, &singleq, 0,
-    "use a single queue-set per port");
-
+static int multiq = 1;
+TUNABLE_INT("hw.cxgb.multiq", &multiq);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
+    "use min(ncpus/ports, 8) queue-sets per port");
 
 /*
- * The driver uses an auto-queue algorithm by default.
- * To disable it and force a single queue-set per port, use singleq = 1.
+ * By default the driver will not update the firmware unless
+ * it was compiled against a newer version
+ * 
  */
 static int force_fw_update = 0;
 TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
@@ -227,15 +227,6 @@ int cxgb_use_16k_clusters = 1;
 TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_UINT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
-
-/*
- * Tune the size of the output queue.
- */
-int cxgb_snd_queue_len = IFQ_MAXLEN;
-TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
-    &cxgb_snd_queue_len, 0, "send queue size ");
-
 
 enum {
 	MAX_TXQ_ENTRIES      = 16384,
@@ -368,8 +359,8 @@ cxgb_controller_probe(device_t dev)
 		ports = "ports";
 
 	snprintf(buf, sizeof(buf), "%s %sNIC, rev: %d nports: %d %s",
-		 ai->desc, is_offload(sc) ? "R" : "",
-		 sc->params.rev, nports, ports);
+	    ai->desc, is_offload(sc) ? "R" : "",
+	    sc->params.rev, nports, ports);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
@@ -415,8 +406,6 @@ cxgb_controller_attach(device_t dev)
 	int msi_needed, reg;
 #endif
 	int must_load = 0;
-	char buf[80];
-
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
@@ -537,7 +526,7 @@ cxgb_controller_attach(device_t dev)
 		sc->cxgb_intr = t3b_intr;
 	}
 
-	if ((sc->flags & USING_MSIX) && !singleq)
+	if ((sc->flags & USING_MSIX) && multiq)
 		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
 	
 	/* Create a private taskqueue thread for handling driver events */
@@ -628,11 +617,6 @@ cxgb_controller_attach(device_t dev)
 	snprintf(&sc->fw_version[0], sizeof(sc->fw_version), "%d.%d.%d",
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
-
-	snprintf(buf, sizeof(buf), "%s\t E/C: %s S/N: %s", 
-		 ai->desc,
-		 sc->params.vpd.ec, sc->params.vpd.sn);
-	device_set_desc_copy(dev, buf);
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
@@ -843,15 +827,18 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 				device_printf(sc->dev, "Cannot set up "
 				    "interrupt for message %d\n", rid);
 				return (EINVAL);
+				
 			}
+#if 0			
 #ifdef IFNET_MULTIQUEUE			
-			if (singleq == 0) {
+			if (multiq) {
 				int vector = rman_get_start(sc->msix_irq_res[k]);
 				if (bootverbose)
 					device_printf(sc->dev, "binding vector=%d to cpu=%d\n", vector, k % mp_ncpus);
 				intr_bind(vector, k % mp_ncpus);
 			}
-#endif			
+#endif
+#endif
 		}
 	}
 
@@ -941,16 +928,11 @@ cxgb_port_attach(device_t dev)
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_start = cxgb_start;
 
-#if 0	
-#ifdef IFNET_MULTIQUEUE
-	ifp->if_flags |= IFF_MULTIQ;
-	ifp->if_mq_start = cxgb_pcpu_start;
-#endif
-#endif	
+
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
-	ifp->if_snd.ifq_drv_maxlen = cxgb_snd_queue_len;
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
@@ -968,6 +950,8 @@ cxgb_port_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, p->hw_addr);
+
+	ifp->if_transmit = cxgb_pcpu_transmit;
 	/*
 	 * Only default to jumbo frames on 10GigE
 	 */
