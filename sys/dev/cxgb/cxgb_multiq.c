@@ -129,7 +129,7 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 		return (ENXIO);
 	}
 	txq = &qs->txq[TXQ_ETH];
-	err = buf_ring_enqueue(&txq->txq_mr, m);
+	err = buf_ring_enqueue(txq->txq_mr, m);
 	if (err) {
 		txq->txq_drops++;
 		m_freem(m);
@@ -194,14 +194,11 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 	}
 	sc = qs->port->adapter;
 
-	m = buf_ring_dequeue(&txq->txq_mr);
+	m = buf_ring_dequeue_sc(txq->txq_mr);
 	if (m == NULL) 
 		return (0);
 
 	count = 1;
-	KASSERT(m->m_type == MT_DATA,
-	    ("m=%p is bad mbuf type %d from ring cons=%d prod=%d", m,
-		m->m_type, txq->txq_mr.br_cons, txq->txq_mr.br_prod));
 	m_vec[0] = m;
 	if (m->m_pkthdr.tso_segsz > 0 || m->m_pkthdr.len > TX_WR_SIZE_MAX ||
 	    m->m_next != NULL || (cxgb_pcpu_tx_coalesce == 0)) {
@@ -209,14 +206,14 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 	}
 
 	size = m->m_pkthdr.len;
-	for (m = buf_ring_peek(&txq->txq_mr); m != NULL;
-	     m = buf_ring_peek(&txq->txq_mr)) {
+	for (m = buf_ring_peek(txq->txq_mr); m != NULL;
+	     m = buf_ring_peek(txq->txq_mr)) {
 
 		if (m->m_pkthdr.tso_segsz > 0 ||
 		    size + m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL)
 			break;
 
-		buf_ring_dequeue(&txq->txq_mr);
+		buf_ring_dequeue_sc(txq->txq_mr);
 		size += m->m_pkthdr.len;
 		m_vec[count++] = m;
 
@@ -367,7 +364,7 @@ cxgb_pcpu_free(struct sge_qset *qs)
 	mtx_lock(&txq->lock);
 	while ((m = mbufq_dequeue(&txq->sendq)) != NULL) 
 		m_freem(m);
-	while ((m = buf_ring_dequeue(&txq->txq_mr)) != NULL) 
+	while ((m = buf_ring_dequeue_sc(txq->txq_mr)) != NULL) 
 		m_freem(m);
 
 	t3_free_tx_desc_all(txq);
@@ -429,7 +426,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 		initerr = ENXIO;
 	else if (immpkt) {
 
-		if (!buf_ring_empty(&txq->txq_mr)) 
+		if (!buf_ring_empty(txq->txq_mr)) 
 			initerr = cxgb_pcpu_enqueue_packet_(qs, immpkt);
 		else
 			txq->immpkt = immpkt;
@@ -460,7 +457,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 	}
 
 	stopped = isset(&qs->txq_stopped, TXQ_ETH);
-	flush = (((!buf_ring_empty(&txq->txq_mr) || (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) && !stopped) || txq->immpkt); 
+	flush = (((!buf_ring_empty(txq->txq_mr) || (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) && !stopped) || txq->immpkt); 
 	max_desc = tx_flush ? TX_ETH_Q_SIZE : TX_START_MAX_DESC;
 
 	if (cxgb_debug)
@@ -471,7 +468,7 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 
 
 	if ((tx_flush && flush && err == 0) &&
-	    (!buf_ring_empty(&txq->txq_mr)  ||
+	    (!buf_ring_empty(txq->txq_mr)  ||
 		!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) {
 		struct thread *td = curthread;
 
@@ -521,7 +518,7 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 	txq = &qs->txq[TXQ_ETH];
 
 	if (((sc->tunq_coalesce == 0) ||
-		(buf_ring_count(&txq->txq_mr) >= TX_WR_COUNT_MAX) ||
+		(buf_ring_count(txq->txq_mr) >= TX_WR_COUNT_MAX) ||
 		(cxgb_pcpu_tx_coalesce == 0)) && mtx_trylock(&txq->lock)) {
 		if (cxgb_debug)
 			printf("doing immediate transmit\n");
@@ -529,12 +526,12 @@ cxgb_pcpu_start(struct ifnet *ifp, struct mbuf *immpkt)
 		txq->flags |= TXQ_TRANSMITTING;
 		err = cxgb_pcpu_start_(qs, immpkt, FALSE);
 		txq->flags &= ~TXQ_TRANSMITTING;
-		resid = (buf_ring_count(&txq->txq_mr) > 64) || (desc_reclaimable(txq) > 64);
+		resid = (buf_ring_count(txq->txq_mr) > 64) || (desc_reclaimable(txq) > 64);
 		mtx_unlock(&txq->lock);
 	} else if (immpkt) {
 		if (cxgb_debug)
 			printf("deferred coalesce=%jx ring_count=%d mtx_owned=%d\n",
-			    sc->tunq_coalesce, buf_ring_count(&txq->txq_mr), mtx_owned(&txq->lock));
+			    sc->tunq_coalesce, buf_ring_count(txq->txq_mr), mtx_owned(&txq->lock));
 		err = cxgb_pcpu_enqueue_packet_(qs, immpkt);
 	}
 	
@@ -586,7 +583,7 @@ cxgb_pcpu_start_proc(void *arg)
 
 		if ((qs->port->ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 			idleticks = hz;
-			if (!buf_ring_empty(&txq->txq_mr) ||
+			if (!buf_ring_empty(txq->txq_mr) ||
 			    !mbufq_empty(&txq->sendq))
 				cxgb_pcpu_free(qs);
 			goto done;
@@ -611,11 +608,13 @@ cxgb_pcpu_start_proc(void *arg)
 			mtx_unlock(&qs->rspq.lock);
 		}
 #endif		
-		if ((!buf_ring_empty(&txq->txq_mr)) && err == 0) {
+		if ((!buf_ring_empty(txq->txq_mr)) && err == 0) {
+#if 0
 			if (cxgb_debug)
 				printf("head=%p cons=%d prod=%d\n",
 				    txq->sendq.head, txq->txq_mr.br_cons,
 				    txq->txq_mr.br_prod);
+#endif			
 			continue;
 		}
 	done:	

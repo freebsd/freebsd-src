@@ -1807,6 +1807,7 @@ kern/subr_acl_posix1e.c		standard
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
+kern/subr_bufring.c		standard
 kern/subr_clist.c		standard
 kern/subr_clock.c		standard
 kern/subr_devstat.c		standard

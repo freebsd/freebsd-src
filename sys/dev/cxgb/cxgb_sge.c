@@ -1719,10 +1719,8 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	t3_free_tx_desc_all(&q->txq[TXQ_ETH]);
 	
 	for (i = 0; i < SGE_TXQ_PER_SET; i++) 
-		if (q->txq[i].txq_mr.br_ring != NULL) {
-			free(q->txq[i].txq_mr.br_ring, M_DEVBUF);
-			mtx_destroy(&q->txq[i].txq_mr.br_lock);
-		}
+		if (q->txq[i].txq_mr != NULL) 
+			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i) {
 		if (q->fl[i].desc) {
 			mtx_lock_spin(&sc->sge.reg_lock);
@@ -1885,7 +1883,6 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 				txsd->flags &= ~TX_SW_DESC_MAPPED;
 			}
 			m_freem_iovec(&txsd->mi);	
-			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
 			txsd->mi.mi_base = NULL;
 			/*
 			 * XXX check for cache hit rate here
@@ -2285,14 +2282,12 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 	int i, header_size, ret = 0;
 
 	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
-		if ((q->txq[i].txq_mr.br_ring = malloc(cxgb_txq_buf_ring_size*sizeof(struct mbuf *),
-			    M_DEVBUF, M_WAITOK|M_ZERO)) == NULL) {
+		
+		if ((q->txq[i].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
+			    M_DEVBUF, M_WAITOK, &q->txq[i].lock)) == NULL) {
 			device_printf(sc->dev, "failed to allocate mbuf ring\n");
 			goto err;
 		}
-		q->txq[i].txq_mr.br_prod = q->txq[i].txq_mr.br_cons = 0;
-		q->txq[i].txq_mr.br_size = cxgb_txq_buf_ring_size;
-		mtx_init(&q->txq[i].txq_mr.br_lock, "txq mbuf ring", NULL, MTX_DEF);
 	}
 
 	init_qset_cntxt(q, id);
@@ -3509,12 +3504,14 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "sendqlen",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].sendq.qlen,
 			    0, "#tunneled packets waiting to be sent");
+#if 0			
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_pidx",
 			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_prod,
 			    0, "#tunneled packets queue producer index");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "queue_cidx",
 			    CTLFLAG_RD, (uint32_t *)(uintptr_t)&qs->txq[TXQ_ETH].txq_mr.br_cons,
 			    0, "#tunneled packets queue consumer index");
+#endif			
 			SYSCTL_ADD_INT(ctx, txqpoidlist, OID_AUTO, "processed",
 			    CTLFLAG_RD, &qs->txq[TXQ_ETH].processed,
 			    0, "#tunneled packets processed by the card");
