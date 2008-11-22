@@ -1026,6 +1026,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32
 };
 
 static Elf32_Brandinfo linux_brand = {
