@@ -7578,9 +7578,9 @@ hdac_detach(device_t dev)
 		return (error);
 	for (i = 0; i < devcount; i++) {
 		if ((error = device_delete_child(dev, devlist[i])) != 0) {
-			free(devlist, M_TEMP);                                                            
-	                return (error);                                                                   
-	        }                                                                                         
+			free(devlist, M_TEMP);
+			return (error);
+		}
 	}
 	free(devlist, M_TEMP);
 
