@@ -26,8 +26,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-#define DEBUG_BUFRING
-
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -86,9 +84,9 @@ extern int cxgb_pcpu_cache_enable;
 extern int nmbjumbo4;
 extern int nmbjumbo9;
 extern int nmbjumbo16;
-
-
-
+extern int multiq_tx_enable;
+extern int coalesce_tx_enable;
+extern int wakeup_tx_thread;
 
 #define USE_GTS 0
 
@@ -1275,7 +1273,6 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	KASSERT(txsd->mi.mi_base == NULL,
 	    ("overwriting valid entry mi_base==%p", txsd->mi.mi_base));
 	if (count > 1) {
-		panic("count > 1 not support in CVS\n");
 		if ((err = busdma_map_sg_vec(m, &m0, segs, count)))
 			return (err);
 		nsegs = count;
@@ -1286,7 +1283,7 @@ t3_encap(struct sge_qset *qs, struct mbuf **m, int count)
 	} 
 	KASSERT(m0->m_pkthdr.len, ("empty packet nsegs=%d count=%d", nsegs, count));
 
-	if (!(m0->m_pkthdr.len <= PIO_LEN)) {
+	if ((m0->m_pkthdr.len > PIO_LEN) || (count > 1)) {
 		mi_collapse_mbuf(&txsd->mi, m0);
 		mi = &txsd->mi;
 	}
@@ -1718,9 +1715,15 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
 	
 	t3_free_tx_desc_all(&q->txq[TXQ_ETH]);
 	
-	for (i = 0; i < SGE_TXQ_PER_SET; i++) 
+	for (i = 0; i < SGE_TXQ_PER_SET; i++) {
 		if (q->txq[i].txq_mr != NULL) 
 			buf_ring_free(q->txq[i].txq_mr, M_DEVBUF);
+		if (q->txq[i].txq_ifq != NULL) {
+			ifq_detach(q->txq[i].txq_ifq);
+			free(q->txq[i].txq_ifq, M_DEVBUF);
+		}
+	}
+	
 	for (i = 0; i < SGE_RXQ_PER_SET; ++i) {
 		if (q->fl[i].desc) {
 			mtx_lock_spin(&sc->sge.reg_lock);
@@ -1882,19 +1885,16 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 				bus_dmamap_unload(q->entry_tag, txsd->map);
 				txsd->flags &= ~TX_SW_DESC_MAPPED;
 			}
-			m_freem_iovec(&txsd->mi);	
+			m_freem_iovec(&txsd->mi);
+#if 0
+			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
+#endif
 			txsd->mi.mi_base = NULL;
 			/*
 			 * XXX check for cache hit rate here
 			 *
 			 */
 			q->port->ifp->if_opackets++;
-#if defined(DIAGNOSTIC) && 0
-			if (m_get_priority(txsd->m[0]) != cidx) 
-				printf("pri=%d cidx=%d\n",
-				    (int)m_get_priority(txsd->m[0]), cidx);
-#endif			
-
 		} else
 			q->txq_skipped++;
 		
@@ -2288,11 +2288,16 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			device_printf(sc->dev, "failed to allocate mbuf ring\n");
 			goto err;
 		}
+		if ((q->txq[i].txq_ifq =
+			malloc(sizeof(struct ifaltq), M_DEVBUF, M_NOWAIT|M_ZERO))
+		    == NULL) {
+			device_printf(sc->dev, "failed to allocate ifq\n");
+			goto err;
+		}
+		ifq_attach(q->txq[i].txq_ifq, pi->ifp);
 	}
-
 	init_qset_cntxt(q, id);
 	q->idx = id;
-	
 	if ((ret = alloc_ring(sc, p->fl_size, sizeof(struct rx_desc),
 		    sizeof(struct rx_sw_desc), &q->fl[0].phys_addr,
 		    &q->fl[0].desc, &q->fl[0].sdesc,
@@ -2880,7 +2885,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			eop = get_packet(adap, drop_thresh, qs, &rspq->rspq_mbuf, r);
 #endif
 #ifdef IFNET_MULTIQUEUE
-			rspq->rspq_mh.mh_head->m_pkthdr.rss_hash = rss_hash;
+			rspq->rspq_mh.mh_head->m_pkthdr.flowid = rss_hash;
 #endif			
 			ethpad = 2;
 		} else {
@@ -3364,6 +3369,18 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    "pcpu_cache_enable",
 	    CTLFLAG_RW, &cxgb_pcpu_cache_enable,
 	    0, "#enable driver local pcpu caches");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "multiq_tx_enable",
+	    CTLFLAG_RW, &multiq_tx_enable,
+	    0, "enable transmit by multiple tx queues");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "coalesce_tx_enable",
+	    CTLFLAG_RW, &coalesce_tx_enable,
+	    0, "coalesce small packets in work requests - WARNING ALPHA");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+	    "wakeup_tx_thread",
+	    CTLFLAG_RW, &wakeup_tx_thread,
+	    0, "wakeup tx thread if no transmitter running");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "cache_alloc",
 	    CTLFLAG_RD, &cxgb_cached_allocations,
