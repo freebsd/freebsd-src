@@ -157,6 +157,8 @@ ufs_lookup(ap)
 	int nameiop = cnp->cn_nameiop;
 	ino_t ino;
 	int ltype;
+	int pdoomed;
+	struct mount *mp;
 
 	bp = NULL;
 	slotoffset = -1;
@@ -578,9 +580,32 @@ found:
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
 		ltype = VOP_ISLOCKED(pdp);
+		mp = pdp->v_mount;
+		for (;;) {
+			error = vfs_busy(mp, MBF_NOWAIT);
+			if (error == 0)
+				break;
+			VOP_UNLOCK(pdp, 0);
+			pause("ufs_dd", 1);
+			vn_lock(pdp, ltype | LK_RETRY);
+			VI_LOCK(pdp);
+			pdoomed = pdp->v_iflag & VI_DOOMED;
+			VI_UNLOCK(pdp);
+			if (pdoomed)
+				return (ENOENT);
+		}
 		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
-		error = VFS_VGET(pdp->v_mount, ino, cnp->cn_lkflags, &tdp);
+		error = VFS_VGET(mp, ino, cnp->cn_lkflags, &tdp);
+		vfs_unbusy(mp);
 		vn_lock(pdp, ltype | LK_RETRY);
+		VI_LOCK(pdp);
+		pdoomed = pdp->v_iflag & VI_DOOMED;
+		VI_UNLOCK(pdp);
+		if (pdoomed) {
+			if (error == 0)
+				vput(tdp);
+			error = ENOENT;
+		}
 		if (error)
 			return (error);
 		*vpp = tdp;
