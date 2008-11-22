@@ -41,6 +41,7 @@ $FreeBSD$
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/condvar.h>
+#include <sys/buf_ring.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -258,7 +259,7 @@ struct sge_txq {
 	 * mbuf touches
 	 */
 	struct mbuf_head cleanq;	
-	struct buf_ring txq_mr;
+	struct buf_ring *txq_mr;
 	struct mbuf     *immpkt;
 	uint32_t        txq_drops;
 	uint32_t        txq_skipped;

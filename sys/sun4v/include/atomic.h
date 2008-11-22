@@ -33,6 +33,10 @@
 
 #include <machine/cpufunc.h>
 
+#define mb()	__asm__ __volatile__ ("membar #MemIssue": : :"memory")
+#define wmb()	mb()
+#define rmb()	mb()
+
 /* Userland needs different ASI's. */
 #ifdef _KERNEL
 #define	__ASI_ATOMIC	ASI_N

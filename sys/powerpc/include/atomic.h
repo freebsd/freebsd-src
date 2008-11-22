@@ -39,6 +39,10 @@
 #define	__ATOMIC_BARRIER					\
     __asm __volatile("sync" : : : "memory")
 
+#define mb()	__ATOMIC_BARRIER
+#define	wmb()	mb()
+#define	rmb()	mb()
+
 /*
  * atomic_add(p, v)
  * { *p += v; }
