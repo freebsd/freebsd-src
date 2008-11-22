@@ -73,13 +73,18 @@ quick_exit()
 supported()
 {
 	case "${1}" in
-	chflags)
-		if [ ${os} != "FreeBSD" -o ${fs} != "UFS" ]; then
+	lchmod)
+		if [ "${os}" != "FreeBSD" ]; then
 			return 1
 		fi
 		;;
-	lchmod)
-		if [ ${os} != "FreeBSD" ]; then
+	chflags)
+		if [ "${os}" != "FreeBSD" ]; then
+			return 1
+		fi
+		;;
+	chflags_SF_SNAPSHOT)
+		if [ "${os}" != "FreeBSD" -o "${fs}" != "UFS" ]; then
 			return 1
 		fi
 		;;
