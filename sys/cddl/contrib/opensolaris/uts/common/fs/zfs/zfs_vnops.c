@@ -3955,6 +3955,19 @@ zfs_freebsd_access(ap)
 	} */ *ap;
 {
 
+	/*
+	 * ZFS itself only knowns about VREAD, VWRITE and VEXEC, the rest
+	 * we have to handle by calling vaccess().
+	 */
+	if ((ap->a_accmode & ~(VREAD|VWRITE|VEXEC)) != 0) {
+		vnode_t *vp = ap->a_vp;
+		znode_t *zp = VTOZ(vp);
+		znode_phys_t *zphys = zp->z_phys;
+
+		return (vaccess(vp->v_type, zphys->zp_mode, zphys->zp_uid,
+		    zphys->zp_gid, ap->a_accmode, ap->a_cred, NULL));
+	}
+
 	return (zfs_access(ap->a_vp, ap->a_accmode, 0, ap->a_cred, NULL));
 }
 
@@ -4132,7 +4145,9 @@ zfs_freebsd_setattr(ap)
 		struct thread *a_td;
 	} */ *ap;
 {
+	vnode_t *vp = ap->a_vp;
 	vattr_t *vap = ap->a_vap;
+	cred_t *cred = ap->a_cred;
 	xvattr_t xvap;
 	u_long fflags;
 	uint64_t zflags;
@@ -4143,11 +4158,47 @@ zfs_freebsd_setattr(ap)
 	xva_init(&xvap);
 	xvap.xva_vattr = *vap;
 
+	zflags = VTOZ(vp)->z_phys->zp_flags;
+
 	if (vap->va_flags != VNOVAL) {
+		int error;
+
 		fflags = vap->va_flags;
 		if ((fflags & ~(SF_IMMUTABLE|SF_APPEND|SF_NOUNLINK|UF_NODUMP)) != 0)
 			return (EOPNOTSUPP);
-		zflags = VTOZ(ap->a_vp)->z_phys->zp_flags;
+		/*
+		 * Callers may only modify the file flags on objects they
+		 * have VADMIN rights for.
+		 */
+		if ((error = VOP_ACCESS(vp, VADMIN, cred, curthread)) != 0)
+			return (error);
+		/*
+		 * Unprivileged processes are not permitted to unset system
+		 * flags, or modify flags if any system flags are set.
+		 * Privileged non-jail processes may not modify system flags
+		 * if securelevel > 0 and any existing system flags are set.
+		 * Privileged jail processes behave like privileged non-jail
+		 * processes if the security.jail.chflags_allowed sysctl is
+		 * is non-zero; otherwise, they behave like unprivileged
+		 * processes.
+		 */
+		if (priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0) == 0) {
+			if (zflags &
+			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
+				error = securelevel_gt(cred, 0);
+				if (error)
+					return (error);
+			}
+		} else {
+			if (zflags &
+			    (ZFS_IMMUTABLE | ZFS_APPENDONLY | ZFS_NOUNLINK)) {
+				return (EPERM);
+			}
+			if (fflags &
+			    (SF_IMMUTABLE | SF_APPEND | SF_NOUNLINK)) {
+				return (EPERM);
+			}
+		}
 
 #define	FLAG_CHANGE(fflag, zflag, xflag, xfield)	do {		\
 	if (((fflags & (fflag)) && !(zflags & (zflag))) ||		\
@@ -4165,10 +4216,10 @@ zfs_freebsd_setattr(ap)
 		FLAG_CHANGE(SF_NOUNLINK, ZFS_NOUNLINK, XAT_NOUNLINK,
 		    xvap.xva_xoptattrs.xoa_nounlink);
 		FLAG_CHANGE(UF_NODUMP, ZFS_NODUMP, XAT_NODUMP,
-		    xvap.xva_xoptattrs.xoa_nounlink);
+		    xvap.xva_xoptattrs.xoa_nodump);
 #undef	FLAG_CHANGE
 	}
-	return (zfs_setattr(ap->a_vp, (vattr_t *)&xvap, 0, ap->a_cred, NULL));
+	return (zfs_setattr(vp, (vattr_t *)&xvap, 0, cred, NULL));
 }
 
 static int
