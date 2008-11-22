@@ -268,7 +268,7 @@ ieee80211_start(struct ifnet *ifp)
 		m->m_pkthdr.rcvif = (void *)ni;
 
 		/* XXX defer if_start calls? */
-		IFQ_HANDOFF(parent, m, error);
+		error = (parent->if_transmit)(parent, m);
 		if (error != 0) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
