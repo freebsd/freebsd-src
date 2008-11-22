@@ -88,11 +88,9 @@ spa_config_load(void)
 
 	file = kobj_open_file(pathname);
 
-	kmem_free(pathname, MAXPATHLEN);
-
 	if (file == (struct _buf *)-1) {
 		ZFS_LOG(1, "Cannot open %s.", pathname);
-		return;
+		goto out;
 	}
 
 	if (kobj_get_filesize(file, &fsize) != 0) {
@@ -146,10 +144,11 @@ spa_config_load(void)
 	nvlist_free(nvlist);
 
 out:
+	kmem_free(pathname, MAXPATHLEN);
 	if (buf != NULL)
 		kmem_free(buf, fsize);
-
-	kobj_close_file(file);
+	if (file != (struct _buf *)-1)
+		kobj_close_file(file);
 }
 
 static void
