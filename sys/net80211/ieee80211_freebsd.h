@@ -197,9 +197,10 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_LINK0		M_PROTO1		/* WEP requested */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
 #define	M_MORE_DATA	M_PROTO5		/* more data frames to follow */
-#define	M_FF		0x20000			/* fast frame */
-#define	M_TXCB		0x40000			/* do tx complete callback */
-#define	M_80211_TX	(0x60000|M_PROTO1|M_WME_AC_MASK|M_PROTO4|M_PROTO5)
+#define	M_FF		M_PROTO6		/* fast frame */
+#define	M_TXCB		M_PROTO7		/* do tx complete callback */
+#define	M_80211_TX \
+	(M_LINK0|M_WME_AC_MASK|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB)
 
 /* rx path usage */
 #define	M_AMPDU		M_PROTO1		/* A-MPDU processing done */
