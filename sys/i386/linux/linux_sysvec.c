@@ -837,7 +837,8 @@ struct sysentvec linux_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_LINUX | SV_AOUT | SV_IA32 | SV_ILP32
 };
 
 struct sysentvec elf_linux_sysvec = {
@@ -867,7 +868,8 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_LINUX | SV_IA32 | SV_ILP32
 };
 
 static Elf32_Brandinfo linux_brand = {

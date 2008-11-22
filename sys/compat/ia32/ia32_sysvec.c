@@ -135,7 +135,8 @@ struct sysentvec ia32_freebsd_sysvec = {
 	.sv_copyout_strings	= ia32_copyout_strings,
 	.sv_setregs	= ia32_setregs,
 	.sv_fixlimit	= ia32_fixlimit,
-	.sv_maxssiz	= &ia32_maxssiz
+	.sv_maxssiz	= &ia32_maxssiz,
+	.sv_flags	= SV_ABI_FREEBSD | SV_IA32 | SV_ILP32
 };
 
 

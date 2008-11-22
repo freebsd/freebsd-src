@@ -136,9 +136,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_IA32
 #include <sys/mount.h>
+#include <sys/sysent.h>
 #include <compat/freebsd32/freebsd32.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
 #endif
 
 static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
@@ -2280,7 +2279,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
 #ifdef COMPAT_IA32
-			if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
 				error = sooptcopyin(sopt, &tv32, sizeof tv32,
@@ -2461,7 +2460,7 @@ integer:
 			tv.tv_sec = optval / hz;
 			tv.tv_usec = (optval % hz) * tick;
 #ifdef COMPAT_IA32
-			if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
 				CP(tv, tv32, tv_sec);
