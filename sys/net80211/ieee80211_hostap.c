@@ -355,7 +355,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		if (mcopy != NULL) {
 			int len, err;
 			len = mcopy->m_pkthdr.len;
-			IFQ_HANDOFF(ifp, mcopy, err);
+			err = (ifp->if_transmit)(ifp, mcopy);
 			if (err) {
 				/* NB: IFQ_HANDOFF reclaims mcopy */
 			} else {
