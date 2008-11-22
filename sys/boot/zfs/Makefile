@@ -9,10 +9,20 @@ CFLAGS+=	-I${.CURDIR}/../common -I${.CURDIR}/../.. -I.
 CFLAGS+=	-I${.CURDIR}/../../../lib/libstand
 CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
 
-# XXX need arch-specific bootstrap CFLAGS here
-# 
-CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2 \
-		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3
+CFLAGS+=	-ffreestanding
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
+.endif
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=	-mno-sse3
+.endif
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "arm"
+CFLAGS+=	-msoft-float
+.endif
+.if ${MACHINE_ARCH} == "amd64"
+CFLAGS+=	-m32 -march=i386
+.endif
 
 CFLAGS+=	-Wformat -Wall
 
