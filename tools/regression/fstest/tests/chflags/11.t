@@ -6,7 +6,7 @@ desc="chflags returns EPERM if a user tries to set or remove the SF_SNAPSHOT fla
 dir=`dirname $0`
 . ${dir}/../misc.sh
 
-require chflags
+require chflags_SF_SNAPSHOT
 
 echo "1..46"
 
