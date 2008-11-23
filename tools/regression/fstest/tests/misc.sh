@@ -27,7 +27,12 @@ expect()
 	if [ $? -eq 0 ]; then
 		echo "ok ${ntest}"
 	else
-		echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+			todomsg=""
+		fi
 	fi
 	ntest=`expr $ntest + 1`
 }
@@ -43,7 +48,12 @@ jexpect()
 	if [ $? -eq 0 ]; then
 		echo "ok ${ntest}"
 	else
-		echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+			todomsg=""
+		fi
 	fi
 	ntest=`expr $ntest + 1`
 }
@@ -53,14 +63,27 @@ test_check()
 	if [ $* ]; then
 		echo "ok ${ntest}"
 	else
-		echo "not ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+			todomsg=""
+		fi
 	fi
 	ntest=`expr $ntest + 1`
 }
 
+todo()
+{
+	echo "${os}" | grep -iq "${1}"
+	if [ $? -eq 0 ]; then
+		todomsg="${2}"
+	fi
+}
+
 namegen()
 {
-	echo "fstest_`dd if=/dev/random bs=1k count=1 2>/dev/null | openssl md5`"
+	echo "fstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5`"
 }
 
 quick_exit()
