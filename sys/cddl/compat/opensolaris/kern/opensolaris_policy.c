@@ -41,8 +41,7 @@ int
 secpolicy_nfs(struct ucred *cred)
 {
 
-	/* TODO: Change PRIV_ROOT! */
-	return (priv_check_cred(cred, PRIV_ROOT, 0));
+	return (priv_check_cred(cred, PRIV_NFS_DAEMON, 0));
 }
 
 int
