@@ -82,10 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #endif
 
-#ifdef IFNET_MULTIQUEUE
-#include <machine/intr_machdep.h>
-#endif
-
 static int cxgb_setup_msix(adapter_t *, int);
 static void cxgb_teardown_msix(adapter_t *);
 static void cxgb_init(void *);
