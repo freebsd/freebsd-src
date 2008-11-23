@@ -1346,6 +1346,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	unsigned int last_timestamp;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
+	struct vattr va;
+	struct ucred *cred;
 	int error, *name;
 	struct vnode *vp;
 	struct proc *p;
@@ -1405,6 +1407,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_fileid = 0;
+		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
@@ -1446,6 +1450,11 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				    curthread);
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
+				cred = curthread->td_ucred;
+				if (VOP_GETATTR(vp, &va, cred, curthread) == 0) {
+					kve->kve_fileid = va.va_fileid;
+					kve->kve_fsid = va.va_fsid;
+				}
 				vput(vp);
 				VFS_UNLOCK_GIANT(vfslocked);
 			}
@@ -1457,6 +1466,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 		kve->kve_start = (void*)entry->start;
 		kve->kve_end = (void*)entry->end;
+		kve->kve_offset = (off_t)entry->offset;
 
 		if (entry->protection & VM_PROT_READ)
 			kve->kve_protection |= KVME_PROT_READ;

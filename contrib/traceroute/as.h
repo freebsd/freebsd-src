@@ -1,11 +1,12 @@
-/*	$NetBSD: lsi64854var.h,v 1.6 2005/02/04 02:10:36 perry Exp $ */
+/* $FreeBSD$ */
+/*	$NetBSD: as.h,v 1.1 2001/11/04 23:14:36 atatat Exp $	*/
 
-/*-
- * Copyright (c) 1998 The NetBSD Foundation, Inc.
+/*
+ * Copyright (c) 2001 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Paul Kranenburg.
+ * by Andrew Brown.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -36,65 +37,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*	$FreeBSD$ */
-
-struct lsi64854_softc {
-	device_t		sc_dev;
-
-	struct resource		*sc_res;
-	u_int			sc_rev;		/* revision */
-	int			sc_burst;	/* max suported burst size */
-
-	int			sc_channel;
-#define L64854_CHANNEL_SCSI	1
-#define L64854_CHANNEL_ENET	2
-#define L64854_CHANNEL_PP	3
-	void			*sc_client;
-
-	int			sc_active;	/* DMA active? */
-	bus_dmamap_t		sc_dmamap;	/* DMA map for bus_dma_* */
-
-	bus_dma_tag_t		sc_parent_dmat;
-	bus_dma_tag_t		sc_buffer_dmat;
-	int			sc_datain;
-	size_t			sc_dmasize;
-	caddr_t			*sc_dmaaddr;
-	size_t			*sc_dmalen;
-
-	void	(*reset)(struct lsi64854_softc *);/* reset routine */
-	int	(*setup)(struct lsi64854_softc *, caddr_t *, size_t *,
-			 int, size_t *);	/* DMA setup */
-	int	(*intr)(void *);		/* interrupt handler */
-
-	u_int 			sc_dmactl;
-	int			sc_dodrain;
-};
-
-#define L64854_GCSR(sc)		bus_read_4((sc)->sc_res, L64854_REG_CSR)
-#define L64854_SCSR(sc, csr)	bus_write_4((sc)->sc_res, L64854_REG_CSR, csr)
-
-/*
- * DMA engine interface functions.
- */
-#define DMA_RESET(sc)			(((sc)->reset)(sc))
-#define DMA_INTR(sc)			(((sc)->intr)(sc))
-#define DMA_SETUP(sc, a, l, d, s)	(((sc)->setup)(sc, a, l, d, s))
-#define DMA_ISACTIVE(sc)		((sc)->sc_active)
-
-#define DMA_ENINTR(sc) do {			\
-	uint32_t csr = L64854_GCSR(sc);		\
-	csr |= L64854_INT_EN;			\
-	L64854_SCSR(sc, csr);			\
-} while (0)
-
-#define DMA_ISINTR(sc)	(L64854_GCSR(sc) & (D_INT_PEND|D_ERR_PEND))
-
-#define DMA_GO(sc) do {				\
-	uint32_t csr = L64854_GCSR(sc);		\
-	csr |= D_EN_DMA;			\
-	L64854_SCSR(sc, csr);			\
-	sc->sc_active = 1;			\
-} while (0)
-
-int	lsi64854_attach(struct lsi64854_softc *);
-int	lsi64854_detach(struct lsi64854_softc *);
+void	*as_setup __P((char *));
+int	as_lookup __P((void *, struct in_addr *));
+void	as_shutdown __P((void *));

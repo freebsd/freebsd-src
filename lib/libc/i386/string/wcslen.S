@@ -66,3 +66,4 @@ found2:	incl	%eax
 found1:	incl	%eax
 found0:	popl	%ebx
 	ret
+END(wcslen)

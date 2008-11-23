@@ -57,3 +57,4 @@ ENTRY(__sys_pipe)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(__sys_pipe)

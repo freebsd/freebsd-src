@@ -40,3 +40,4 @@ __FBSDID("$FreeBSD$");
 
 SYSCALL(reboot)
 	iret
+END(reboot)

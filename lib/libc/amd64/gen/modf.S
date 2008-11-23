@@ -86,3 +86,4 @@ ENTRY(modf)
 	movsd   -8(%rsp),%xmm0
 
 	ret
+END(modf)

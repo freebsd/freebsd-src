@@ -314,7 +314,6 @@ void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 in_rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-int	 in_rt_check(struct rtentry **, struct rtentry **, struct sockaddr *, u_int);
 
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);
