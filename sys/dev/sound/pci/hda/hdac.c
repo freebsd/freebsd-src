@@ -6035,7 +6035,6 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 			    val), cad);
 
 		}
-		DELAY(1000);
 	}
 }
 
