@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 extern int txq_fills;
 int multiq_tx_enable = 1;
-int coalesce_tx_enable = 0;
+int coalesce_tx_enable = 1;
 int wakeup_tx_thread = 0;
 
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
