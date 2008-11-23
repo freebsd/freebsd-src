@@ -238,6 +238,7 @@ ctime1=`${fstest} stat ${n0} ctime`
 sleep 1
 expect 0 -- chown ${n0} -1 -1
 ctime2=`${fstest} stat ${n0} ctime`
+todo Linux "According to POSIX: If both owner and group are -1, the times need not be updated."
 test_check $ctime1 -eq $ctime2
 expect 0 unlink ${n0}
 # 158
@@ -246,6 +247,7 @@ ctime1=`${fstest} stat ${n0} ctime`
 sleep 1
 expect 0 -- chown ${n0} -1 -1
 ctime2=`${fstest} stat ${n0} ctime`
+todo Linux "According to POSIX: If both owner and group are -1, the times need not be updated."
 test_check $ctime1 -eq $ctime2
 expect 0 rmdir ${n0}
 # 162
@@ -254,6 +256,7 @@ ctime1=`${fstest} stat ${n0} ctime`
 sleep 1
 expect 0 -- chown ${n0} -1 -1
 ctime2=`${fstest} stat ${n0} ctime`
+todo Linux "According to POSIX: If both owner and group are -1, the times need not be updated."
 test_check $ctime1 -eq $ctime2
 expect 0 unlink ${n0}
 # 166
@@ -262,6 +265,7 @@ ctime1=`${fstest} lstat ${n0} ctime`
 sleep 1
 expect 0 -- lchown ${n0} -1 -1
 ctime2=`${fstest} lstat ${n0} ctime`
+todo Linux "According to POSIX: If both owner and group are -1, the times need not be updated."
 test_check $ctime1 -eq $ctime2
 expect 0 unlink ${n0}
 
