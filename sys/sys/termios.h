@@ -234,7 +234,7 @@ struct termios {
 #ifndef _KERNEL
 
 #ifndef _POSIX_SOURCE
-#define	CCEQ(val, c)	((c) != _POSIX_VDISABLE && (c) == (val))
+#define	CCEQ(val, c)	((c) == (val) && (val) != _POSIX_VDISABLE)
 #endif
 
 /*
