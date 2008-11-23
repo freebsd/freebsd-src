@@ -955,7 +955,7 @@ const struct puc_device_description puc_devices[] = {
 
 	/* NetMos 4S0P PCI: 4S, 0P */
 	{   "NetMos NM9845 Quad UART",
-	    {	0x9710,	0x9845,	0,	0x0014	},
+	    {	0x9710,	0x9845,	0,	0x0004	},
 	    {	0xffff,	0xffff,	0,	0xffff	},
 	    {
 		{ PUC_PORT_TYPE_COM, 0x10, 0x00, COM_FREQ },
