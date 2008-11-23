@@ -64,10 +64,10 @@ static int	lister_dofile(struct lister *, struct coll *,
 		    struct statusrec *);
 static int	lister_dodead(struct lister *, struct coll *,
 		    struct statusrec *);
-#if 0
 static int	lister_dorcsfile(struct lister *, struct coll *,
-		    struct statusrec *, int);
-#endif
+		    struct statusrec *);
+static int	lister_dorcsdead(struct lister *, struct coll *,
+		    struct statusrec *);
 
 void *
 lister(void *arg)
@@ -150,14 +150,13 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 	struct statusrec *sr;
 	struct fattr *fa;
 	size_t i;
-	int depth, error, ret, prunedepth, attic;
+	int depth, error, ret, prunedepth;
 
 	wr = l->wr;
 	depth = 0;
 	prunedepth = INT_MAX;
 	as = attrstack_new();
 	while ((ret = status_get(st, NULL, 0, 0, &sr)) == 1) {
-		attic = 0;
 		switch (sr->sr_type) {
 		case SR_DIRDOWN:
 			depth++;
@@ -194,20 +193,24 @@ lister_coll(struct lister *l, struct coll *coll, struct status *st)
 					goto bad;
 			}
 			break;
-#if 0
 		case SR_FILEDEAD:
-			attic = 1;
-		case SR_FILELIVE:
 			if (depth < prunedepth) {
 				if (!(coll->co_options & CO_CHECKOUTMODE)) {
-					error = lister_dorcsfile(l, coll, sr,
-					    attic);
+					error = lister_dorcsdead(l, coll, sr);
 					if (error)
 						goto bad;
 				}
 			}
 			break;
-#endif
+		case SR_FILELIVE:
+			if (depth < prunedepth) {
+				if (!(coll->co_options & CO_CHECKOUTMODE)) {
+					error = lister_dorcsfile(l, coll, sr);
+					if (error)
+						goto bad;
+				}
+			}
+			break;
 		}
 	}
 	if (ret == -1) {
@@ -402,18 +405,15 @@ send:
 	return (0);
 }
 
-#if 0
-/* Handle a file live or file dead entry found in the status file. */
+/* Handle a rcs file live entry found in the status file. */
 static int
-lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
-    int attic)
+lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr)
 {
 	struct config *config;
 	struct stream *wr;
 	const struct fattr *sendattr;
 	struct fattr *fa;
 	char *path, *spath;
-	char cmd;
 	size_t len;
 	int error;
 
@@ -422,7 +422,7 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
 	config = l->config;
 	wr = l->wr;
 	if (!coll->co_options & CO_TRUSTSTATUSFILE) {
-		path = cvspath(coll->co_prefix, sr->sr_file, attic);
+		path = cvspath(coll->co_prefix, sr->sr_file, 0);
 		if (path == NULL) {
 			spath = coll_statuspath(coll);
 			xasprintf(&l->errmsg, "Error in \"%s\": "
@@ -434,9 +434,11 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
 		free(path);
 	} else 
 		fa = sr->sr_clientattr;
-	/* XXX: Perhaps check attic path name here. */
-	cmd = attic ? 'F' : 'f';
 	if (fattr_equal(fa, sr->sr_clientattr)) {
+		/*
+		 * If the file is an RCS file, we use "loose" equality, so sizes
+		 * may disagress because of differences in whitespace.
+		 */
 		if (isrcs(sr->sr_file, &len) &&
 		    !(coll->co_options & CO_NORCS) &&
 		    !(coll->co_options & CO_STRICTCHECKRCS)) {
@@ -444,15 +446,18 @@ lister_dorcsfile(struct lister *l, struct coll *coll, struct statusrec *sr,
 		}
 		sendattr = fa;
 	} else {
+		/*
+		 * If different, the user may have changed it, so we report
+		 * bogus attributes to force a full comparison.
+		 */
 		sendattr = fattr_bogus;
 	}
-	error = proto_printf(wr, "%c %s %F\n", cmd, pathlast(sr->sr_file), fa,
+	error = proto_printf(wr, "F %s %F\n", pathlast(sr->sr_file), sendattr,
 	    config->fasupport, coll->co_attrignore);
 	if (error)
 		return (LISTER_ERR_WRITE);
 	return (0);
 }
-#endif
 
 /* Handle a checkout dead entry found in the status file. */
 static int
@@ -502,6 +507,60 @@ lister_dodead(struct lister *l, struct coll *coll, struct statusrec *sr)
 		sendattr = fattr_bogus;
 	else
 		sendattr = sr->sr_serverattr;
+	error = proto_printf(wr, "f %s %F\n", pathlast(sr->sr_file), sendattr,
+	    config->fasupport, coll->co_attrignore);
+	if (error)
+		return (LISTER_ERR_WRITE);
+	return (0);
+}
+
+/* Handle a rcs file dead entry found in the status file. */
+static int
+lister_dorcsdead(struct lister *l, struct coll *coll, struct statusrec *sr)
+{
+	struct config *config;
+	struct stream *wr;
+	const struct fattr *sendattr;
+	struct fattr *fa;
+	char *path, *spath;
+	size_t len;
+	int error;
+
+	if (!globtree_test(coll->co_filefilter, sr->sr_file))
+		return (0);
+	config = l->config;
+	wr = l->wr;
+	if (!coll->co_options & CO_TRUSTSTATUSFILE) {
+		path = cvspath(coll->co_prefix, sr->sr_file, 1);
+		if (path == NULL) {
+			spath = coll_statuspath(coll);
+			xasprintf(&l->errmsg, "Error in \"%s\": "
+			    "Invalid filename \"%s\"", spath, sr->sr_file);
+			free(spath);
+			return (LISTER_ERR_STATUS);
+		}
+		fa = fattr_frompath(path, FATTR_NOFOLLOW);
+		free(path);
+	} else 
+		fa = sr->sr_clientattr;
+	if (fattr_equal(fa, sr->sr_clientattr)) {
+		/*
+		 * If the file is an RCS file, we use "loose" equality, so sizes
+		 * may disagress because of differences in whitespace.
+		 */
+		if (isrcs(sr->sr_file, &len) &&
+		    !(coll->co_options & CO_NORCS) &&
+		    !(coll->co_options & CO_STRICTCHECKRCS)) {
+			fattr_maskout(fa, FA_SIZE);
+		}
+		sendattr = fa;
+	} else {
+		/*
+		 * If different, the user may have changed it, so we report
+		 * bogus attributes to force a full comparison.
+		 */
+		sendattr = fattr_bogus;
+	}
 	error = proto_printf(wr, "f %s %F\n", pathlast(sr->sr_file), sendattr,
 	    config->fasupport, coll->co_attrignore);
 	if (error)
