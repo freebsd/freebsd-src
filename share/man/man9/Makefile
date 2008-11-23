@@ -256,7 +256,6 @@ MAN=	accept_filter.9 \
 	VFS_MOUNT.9 \
 	vfs_mount.9 \
 	vfs_mountedfrom.9 \
-	vfs_mountedon.9 \
 	VFS_QUOTACTL.9 \
 	VFS_ROOT.9 \
 	vfs_rootmountalloc.9 \
