@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081122_0117"
+#define HDA_DRV_TEST_REV	"20081123_0118"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -3549,8 +3549,8 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		}
 	}
 
-	/* Declare soft PCM and master volume if needed. */
-	if (pdevinfo->play >= 0) {
+	/* Declare soft PCM volume if needed. */
+	if (pdevinfo->play >= 0 && !pdevinfo->digital) {
 		ctl = NULL;
 		if ((mask & SOUND_MASK_PCM) == 0 ||
 		    (devinfo->function.audio.quirks & HDA_QUIRK_SOFTPCMVOL)) {
@@ -3580,8 +3580,12 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 				    (softpcmvol == 1) ? "Forcing" : "Enabling");
 			);
 		}
+	}
 
-		if ((mask & SOUND_MASK_VOLUME) == 0) {
+	/* Declare master volume if needed. */
+	if (pdevinfo->play >= 0) {
+		if ((mask & (SOUND_MASK_VOLUME | SOUND_MASK_PCM)) ==
+		    SOUND_MASK_PCM) {
 			mask |= SOUND_MASK_VOLUME;
 			mix_setparentchild(m, SOUND_MIXER_VOLUME,
 			    SOUND_MASK_PCM);
