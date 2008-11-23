@@ -216,7 +216,10 @@ buf_ring_peek(struct buf_ring *br)
 		panic("lock not held on single consumer dequeue");
 #endif	
 	mb();
-	return (br->br_ring[br->br_cons_tail]);
+	if (br->br_cons_head == br->br_prod_tail)
+		return (NULL);
+	
+	return (br->br_ring[br->br_cons_head]);
 }
 
 static __inline int
