@@ -840,6 +840,19 @@ fattr_install(struct fattr *fa, const char *topath, const char *frompath)
 		}
 #endif
 
+		/*
+		 * If it is changed from a file to a symlink, remove the file
+		 * and create the symlink.
+		 */
+		if (inplace && (fa->type == FT_SYMLINK) &&
+		    (old->type == FT_FILE)) {
+			error = unlink(topath);
+			if (error)
+				goto bad;
+			error = symlink(fa->linktarget, topath);
+			if (error)
+				goto bad;
+		}
 		/* Determine whether we need to remove the target first. */
 		if (!inplace && (fa->type == FT_DIRECTORY) !=
 		    (old->type == FT_DIRECTORY)) {
@@ -919,6 +932,9 @@ fattr_equal(const struct fattr *fa1, const struct fattr *fa2)
 	mask = fa1->mask & fa2->mask;
 	if (fa1->type == FT_UNKNOWN || fa2->type == FT_UNKNOWN)
 		return (0);
+	if (mask & FA_FILETYPE)
+		if (fa1->type != fa2->type)
+			return (0);
 	if (mask & FA_MODTIME)
 		if (fa1->modtime != fa2->modtime)
 			return (0);
