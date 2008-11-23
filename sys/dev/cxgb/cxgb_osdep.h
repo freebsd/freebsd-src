@@ -117,6 +117,30 @@ struct t3_mbuf_hdr {
 #define TOE_SUPPORTED
 #endif
 
+#if __FreeBSD_version < 800054
+#if defined (__GNUC__)
+  #if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
+    #define mb()  __asm__ __volatile__ ("mfence;": : :"memory")
+    #define wmb()  __asm__ __volatile__ ("sfence;": : :"memory")
+    #define rmb()  __asm__ __volatile__ ("lfence;": : :"memory")
+  #elif #cpu(sparc64) || defined sparc64 || defined __sparcv9 
+    #define mb()  __asm__ __volatile__ ("membar #MemIssue": : :"memory")
+    #define wmb() mb()
+    #define rmb() mb()
+  #elif #cpu(sparc) || defined sparc || defined __sparc__
+    #define mb()  __asm__ __volatile__ ("stbar;": : :"memory")
+    #define wmb() mb()
+    #define rmb() mb()
+#else
+    #define wmb() mb()
+    #define rmb() mb()
+    #define mb() 	/* XXX just to make this compile */
+  #endif
+#else
+  #error "unknown compiler"
+#endif
+#endif
+
 #define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
 /*
