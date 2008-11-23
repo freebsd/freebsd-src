@@ -58,3 +58,4 @@ L1:	rep
 	movq	%r11,%rax
 
 	ret
+END(memset)

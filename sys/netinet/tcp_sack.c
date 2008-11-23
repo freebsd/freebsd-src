@@ -677,5 +677,4 @@ tcp_sack_adjust(struct tcpcb *tp)
 	if (SEQ_LT(tp->snd_nxt, cur->end))
 		return;
 	tp->snd_nxt = tp->snd_fack;
-	return;
 }

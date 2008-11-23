@@ -86,3 +86,12 @@ ENTRY(bcopy)
 	movsq
 	cld
 	ret
+#ifdef MEMCOPY
+END(memcpy)
+#else
+#ifdef MEMMOVE
+END(memmove)
+#else
+END(bcopy)
+#endif
+#endif

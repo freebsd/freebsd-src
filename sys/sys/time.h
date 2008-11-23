@@ -246,6 +246,7 @@ struct clockinfo {
 #define CLOCK_MONOTONIC_PRECISE	11	/* FreeBSD-specific. */
 #define CLOCK_MONOTONIC_FAST	12	/* FreeBSD-specific. */
 #define CLOCK_SECOND	13		/* FreeBSD-specific. */
+#define CLOCK_THREAD_CPUTIME_ID	14
 #endif
 
 #ifndef TIMER_ABSTIME

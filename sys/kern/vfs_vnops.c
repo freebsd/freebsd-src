@@ -800,6 +800,10 @@ _vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
 	do {
 		if ((flags & LK_INTERLOCK) == 0)
 			VI_LOCK(vp);
+#ifdef DEBUG_VFS_LOCKS
+		KASSERT(vp->v_holdcnt != 0,
+		    ("vn_lock %p: zero hold count", vp));
+#endif
 		if ((flags & LK_NOWAIT || (flags & LK_TYPE_MASK) == 0) &&
 		    vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);

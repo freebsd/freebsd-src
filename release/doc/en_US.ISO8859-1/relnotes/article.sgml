@@ -198,6 +198,12 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.em.4; driver has been split into two drivers
+	  with some common parts.  The &man.em.4; driver will continue
+	  to support adapters up to the 82575, as well as new
+	  client/desktop adapters.  A new &man.igb.4; driver
+	  will support new server adapters.</para>
+
 	<para>[&arch.amd64;, &arch.i386;] The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
 

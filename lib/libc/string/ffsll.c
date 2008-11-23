@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 1990, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +10,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -24,32 +27,22 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <SYS.h>
+#include <strings.h>
 
 /*
- * This has to be magic to handle the multiple returns.
- * Otherwise, the setcontext() syscall will return here and we'll
- * pop off the return address and go to the *setcontext* call.
+ * Find First Set bit
  */
-	.weak	_getcontext
-	.set	_getcontext,__sys_getcontext
-	.weak	getcontext
-	.set	getcontext,__sys_getcontext
-ENTRY(__sys_getcontext)
-	movq	(%rsp),%rsi	/* save getcontext return address */
-	mov	$SYS_getcontext,%rax
-	KERNCALL
-	jb	1f
-	addq	$8,%rsp		/* remove stale (setcontext) return address */
-	jmp	*%rsi		/* restore return address */
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
-END(__sys_getcontext)
+int
+ffsll(long long mask)
+{
+	int bit;
+
+	if (mask == 0)
+		return (0);
+	for (bit = 1; !(mask & 1); bit++)
+		mask = (unsigned long long)mask >> 1;
+	return (bit);
+}

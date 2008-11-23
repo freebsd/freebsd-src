@@ -99,3 +99,4 @@ ENTRY(rfork_thread)
 #else
 	jmp	HIDENAME(cerror)
 #endif
+END(rfork_thread)
