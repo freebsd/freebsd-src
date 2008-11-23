@@ -33,6 +33,8 @@ $FreeBSD$
 #define _CXGB_CONFIG_H_
 
 #define	CONFIG_CHELSIO_T3_CORE
-#define	IFNET_MULTIQUEUE
 
+#if __FreeBSD_version > 800053
+#define	IFNET_MULTIQUEUE
+#endif
 #endif
