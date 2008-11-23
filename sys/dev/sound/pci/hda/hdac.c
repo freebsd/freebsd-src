@@ -4291,6 +4291,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	for (i = 0; i < max; i++) {
 		as[i].hpredir = -1;
 		as[i].chan = -1;
+		as[i].digital = 1;
 	}
 
 	/* Scan associations skipping as=0. */
@@ -4345,6 +4346,8 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 				    __func__, w->nid, j);
 				as[cnt].enable = 0;
 			}
+			if (!HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
+				as[cnt].digital = 0;
 			/* Headphones with seq=15 may mean redirection. */
 			if (type == HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT &&
 			    seq == 15)
@@ -5075,13 +5078,8 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		
 		as[j].chan = free;
 		devinfo->codec->sc->chans[free].as = j;
-		if (as[j].dir == HDA_CTL_IN) {
-			devinfo->codec->sc->chans[free].dir = PCMDIR_REC;
-			devinfo->function.audio.reccnt++;
-		} else {
-			devinfo->codec->sc->chans[free].dir = PCMDIR_PLAY;
-			devinfo->function.audio.playcnt++;
-		}
+		devinfo->codec->sc->chans[free].dir =
+		    (as[j].dir == HDA_CTL_IN) ? PCMDIR_REC : PCMDIR_PLAY;
 		hdac_pcmchannel_setup(&devinfo->codec->sc->chans[free]);
 		free++;
 	}
@@ -6214,6 +6212,82 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 }
 
 static void
+hdac_create_pcms(struct hdac_devinfo *devinfo)
+{
+	struct hdac_softc *sc = devinfo->codec->sc;
+	struct hdac_audio_as *as = devinfo->function.audio.as;
+	int i, j, apdev = 0, ardev = 0, dpdev = 0, drdev = 0;
+
+	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
+		if (as[i].enable == 0)
+			continue;
+		if (as[i].dir == HDA_CTL_IN) {
+			if (as[i].digital)
+				drdev++;
+			else
+				ardev++;
+		} else {
+			if (as[i].digital)
+				dpdev++;
+			else
+				apdev++;
+		}
+	}
+	devinfo->function.audio.num_devs =
+	    max(ardev, apdev) + max(drdev, dpdev);
+	devinfo->function.audio.devs =
+	    (struct hdac_pcm_devinfo *)malloc(
+	    devinfo->function.audio.num_devs * sizeof(struct hdac_pcm_devinfo),
+	    M_HDAC, M_ZERO | M_NOWAIT);
+	if (devinfo->function.audio.devs == NULL) {
+		device_printf(sc->dev,
+		    "Unable to allocate memory for devices\n");
+		return;
+	}
+	for (i = 0; i < devinfo->function.audio.num_devs; i++) {
+		devinfo->function.audio.devs[i].index = i;
+		devinfo->function.audio.devs[i].devinfo = devinfo;
+		devinfo->function.audio.devs[i].play = -1;
+		devinfo->function.audio.devs[i].rec = -1;
+		devinfo->function.audio.devs[i].digital = 2;
+	}
+	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
+		if (as[i].enable == 0)
+			continue;
+		for (j = 0; j < devinfo->function.audio.num_devs; j++) {
+			if (devinfo->function.audio.devs[j].digital != 2 &&
+			    devinfo->function.audio.devs[j].digital !=
+			    as[i].digital)
+				continue;
+			if (as[i].dir == HDA_CTL_IN) {
+				if (devinfo->function.audio.devs[j].rec >= 0)
+					continue;
+				devinfo->function.audio.devs[j].rec
+				    = as[i].chan;
+			} else {
+				if (devinfo->function.audio.devs[j].play >= 0)
+					continue;
+				devinfo->function.audio.devs[j].play
+				    = as[i].chan;
+			}
+			sc->chans[as[i].chan].pdevinfo =
+			    &devinfo->function.audio.devs[j];
+			devinfo->function.audio.devs[j].digital =
+			    as[i].digital;
+			break;
+		}
+	}
+	for (i = 0; i < devinfo->function.audio.num_devs; i++) {
+		struct hdac_pcm_devinfo *pdevinfo = 
+		    &devinfo->function.audio.devs[i];
+		pdevinfo->dev =
+		    device_add_child(sc->dev, "pcm", -1);
+		device_set_ivars(pdevinfo->dev,
+		     (void *)pdevinfo);
+	}
+}
+
+static void
 hdac_dump_ctls(struct hdac_pcm_devinfo *pdevinfo, const char *banner, uint32_t flag)
 {
 	struct hdac_devinfo *devinfo = pdevinfo->devinfo;
@@ -7063,7 +7137,7 @@ hdac_attach2(void *arg)
 	struct hdac_audio_ctl *ctl;
 	uint32_t quirks_on, quirks_off;
 	int codec_index, fg_index;
-	int i, pdev, rdev, dmaalloc = 0;
+	int i, dmaalloc = 0;
 	struct hdac_devinfo *devinfo;
 
 	sc = (struct hdac_softc *)arg;
@@ -7245,53 +7319,10 @@ hdac_attach2(void *arg)
 					dmaalloc = 1;
 			}
 			
-			i = devinfo->function.audio.playcnt;
-			if (devinfo->function.audio.reccnt > i)
-				i = devinfo->function.audio.reccnt;
-			devinfo->function.audio.devs =
-			    (struct hdac_pcm_devinfo *)malloc(
-			    sizeof(struct hdac_pcm_devinfo) * i,
-			    M_HDAC, M_ZERO | M_NOWAIT);
-			if (devinfo->function.audio.devs == NULL) {
-				device_printf(sc->dev,
-				    "Unable to allocate memory for devices\n");
-				continue;
-			}
-			devinfo->function.audio.num_devs = i;
-			for (i = 0; i < devinfo->function.audio.num_devs; i++) {
-				devinfo->function.audio.devs[i].index = i;
-				devinfo->function.audio.devs[i].devinfo = devinfo;
-				devinfo->function.audio.devs[i].play = -1;
-				devinfo->function.audio.devs[i].rec = -1;
-			}
-			pdev = 0;
-			rdev = 0;
-			for (i = 0; i < devinfo->function.audio.ascnt; i++) {
-				if (devinfo->function.audio.as[i].enable == 0)
-					continue;
-				if (devinfo->function.audio.as[i].dir ==
-				    HDA_CTL_IN) {
-					devinfo->function.audio.devs[rdev].rec
-					    = devinfo->function.audio.as[i].chan;
-					sc->chans[devinfo->function.audio.as[i].chan].pdevinfo = 
-					    &devinfo->function.audio.devs[rdev];
-					rdev++;
-				} else {
-					devinfo->function.audio.devs[pdev].play
-					    = devinfo->function.audio.as[i].chan;
-					sc->chans[devinfo->function.audio.as[i].chan].pdevinfo = 
-					    &devinfo->function.audio.devs[pdev];
-					pdev++;
-				}
-			}
-			for (i = 0; i < devinfo->function.audio.num_devs; i++) {
-				struct hdac_pcm_devinfo *pdevinfo = 
-				    &devinfo->function.audio.devs[i];
-				pdevinfo->dev =
-				    device_add_child(sc->dev, "pcm", -1);
-				device_set_ivars(pdevinfo->dev,
-				     (void *)pdevinfo);
-			}
+		    	HDA_BOOTHVERBOSE(
+				device_printf(sc->dev, "Creating PCM devices...\n");
+			);
+			hdac_create_pcms(devinfo);
 
 			HDA_BOOTVERBOSE(
 				if (devinfo->function.audio.quirks != 0) {
@@ -7636,9 +7667,10 @@ hdac_pcm_probe(device_t dev)
 	    (struct hdac_pcm_devinfo *)device_get_ivars(dev);
 	char buf[128];
 
-	snprintf(buf, sizeof(buf), "HDA %s PCM #%d",
+	snprintf(buf, sizeof(buf), "HDA %s PCM #%d %s",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
-	    pdevinfo->index);
+	    pdevinfo->index,
+	    pdevinfo->digital?"Digital":"Analog");
 	device_set_desc_copy(dev, buf);
 	return (0);
 }
