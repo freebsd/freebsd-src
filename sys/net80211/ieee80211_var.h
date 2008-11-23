@@ -478,9 +478,9 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_TSN 	 0x00000020	/* CONF: TSN enabled */
 #define	IEEE80211_FEXT_SCANREQ	 0x00000040	/* STATUS: scan req params */
 #define	IEEE80211_FEXT_RESUME	 0x00000080	/* STATUS: start on resume */
-#define	IEEE80211_FEXT_DFS	 0x00000800	/* CONF: DFS enabled */
 #define	IEEE80211_FEXT_NONERP_PR 0x00000200	/* STATUS: non-ERP sta present*/
 #define	IEEE80211_FEXT_SWBMISS	 0x00000400	/* CONF: do bmiss in s/w */
+#define	IEEE80211_FEXT_DFS	 0x00000800	/* CONF: DFS enabled */
 #define	IEEE80211_FEXT_DOTD	 0x00001000	/* CONF: 11d enabled */
 /* NB: immutable: should be set only when creating a vap */
 #define	IEEE80211_FEXT_WDSLEGACY 0x00010000	/* CONF: legacy WDS operation */
