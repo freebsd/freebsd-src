@@ -23,6 +23,7 @@ SRCS=	attrstack.c \
 	proto.c \
 	rcsfile.c \
 	rcsparse.c \
+	rsyncfile.c \
 	status.c \
 	stream.c \
 	threads.c \
@@ -31,7 +32,7 @@ SRCS=	attrstack.c \
 
 CFLAGS+= -I. -I${.CURDIR}/../../contrib/csup
 CFLAGS+= -DHAVE_FFLAGS -DNDEBUG
-WARNS?=	6
+WARNS?=	1
 
 DPADD=	${LIBCRYPTO} ${LIBZ} ${LIBPTHREAD}
 LDADD=	-lcrypto -lz -lpthread
