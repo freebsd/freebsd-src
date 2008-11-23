@@ -75,6 +75,7 @@ enum action {
 	ACTION_TRUNCATE,
 	ACTION_STAT,
 	ACTION_LSTAT,
+	ACTION_PATHCONF
 };
 
 #define	TYPE_NONE	0x0000
@@ -116,6 +117,7 @@ static struct syscall_desc syscalls[] = {
 	{ "truncate", ACTION_TRUNCATE, { TYPE_STRING, TYPE_NUMBER, TYPE_NONE } },
 	{ "stat", ACTION_STAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "lstat", ACTION_LSTAT, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+	{ "pathconf", ACTION_PATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ NULL, -1, { TYPE_NONE } }
 };
 
@@ -209,6 +211,27 @@ static struct flag chflags_flags[] = {
 };
 #endif
 
+struct name {
+	int	 n_name;
+	char	*n_str;
+};
+
+static struct name pathconf_names[] = {
+#ifdef _PC_LINK_MAX
+	{ _PC_LINK_MAX, "_PC_LINK_MAX" },
+#endif
+#ifdef _PC_NAME_MAX
+	{ _PC_NAME_MAX, "_PC_NAME_MAX" },
+#endif
+#ifdef _PC_PATH_MAX
+	{ _PC_PATH_MAX, "_PC_PATH_MAX" },
+#endif
+#ifdef _PC_SYMLINK_MAX
+	{ _PC_SYMLINK_MAX, "_PC_SYMLINK_MAX" },
+#endif
+	{ 0, NULL }
+};
+
 static const char *err2str(int error);
 
 static void
@@ -263,6 +286,18 @@ flags2str(struct flag *tflags, long long flags)
 	return (sflags);
 }
 #endif
+
+static int
+str2name(struct name *names, char *name)
+{
+	unsigned int i;
+
+	for (i = 0; names[i].n_str != NULL; i++) {
+		if (strcmp(names[i].n_str, name) == 0)
+			return (names[i].n_name);
+	}
+	return (-1);
+}
 
 static struct syscall_desc *
 find_syscall(const char *name)
@@ -357,7 +392,7 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 	long long flags;
 	unsigned int i;
 	char *endp;
-	int rval;
+	int name, rval;
 	union {
 		char *str;
 		long long num;
@@ -484,6 +519,27 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 			return (i);
 		}
 		break;
+	case ACTION_PATHCONF:
+	    {
+		long lrval;
+
+		name = str2name(pathconf_names, STR(1));
+		if (name == -1) {
+			fprintf(stderr, "unknown name %s", STR(1));
+			exit(1);
+		}
+		errno = 0;
+		lrval = pathconf(STR(0), name);
+		if (lrval == -1 && errno == 0) {
+			printf("unlimited\n");
+			return (i);
+		} else if (lrval >= 0) {
+			printf("%ld\n", lrval);
+			return (i);
+		}
+		rval = -1;
+		break;
+	    }
 	default:
 		fprintf(stderr, "unsupported syscall\n");
 		exit(1);
