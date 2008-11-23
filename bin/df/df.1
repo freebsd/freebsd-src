@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2004
+.Dd November 23, 2008
 .Dt DF 1
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl b | g | H | h | k | m | P
-.Op Fl aciln
+.Op Fl acilnT
 .Op Fl t Ar type
 .Op Ar file | filesystem ...
 .Sh DESCRIPTION
@@ -140,6 +140,8 @@ The
 .Xr lsvfs 1
 command can be used to find out the types of file systems
 that are available on the system.
+.It Fl T
+Include file system type.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
