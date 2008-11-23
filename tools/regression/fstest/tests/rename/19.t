@@ -1,7 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-desc="rename returns EINVAL when an attempt is made to rename '.' or '..'"
+desc="rename returns EINVAL/EBUSY when an attempt is made to rename '.' or '..'"
 
 dir=`dirname $0`
 . ${dir}/../misc.sh
@@ -15,8 +15,8 @@ n2=`namegen`
 expect 0 mkdir ${n0} 0755
 expect 0 mkdir ${n0}/${n1} 0755
 
-expect EINVAL rename ${n0}/${n1}/. ${n2}
-expect EINVAL rename ${n0}/${n1}/.. ${n2}
+expect "EINVAL|EBUSY" rename ${n0}/${n1}/. ${n2}
+expect "EINVAL|EBUSY" rename ${n0}/${n1}/.. ${n2}
 
 expect 0 rmdir ${n0}/${n1}
 expect 0 rmdir ${n0}
