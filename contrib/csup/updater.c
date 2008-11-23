@@ -1255,13 +1255,13 @@ updater_diff_apply(struct updater *up, struct file_update *fup, char *state)
 
 /* Update or create a node. */
 static int
-updater_updatenode(struct updater *up, struct coll *coll, struct file_update *fup, char *name, 
-    char *attr)
+updater_updatenode(struct updater *up, struct coll *coll,
+    struct file_update *fup, char *name, char *attr)
 {
 	struct fattr *fa, *fileattr;
 	struct status *st;
 	struct statusrec *sr;
-	int error, issymlink, rv;
+	int error, rv;
 
 	sr = &fup->srbuf;
 	st = fup->st;
@@ -1270,10 +1270,8 @@ updater_updatenode(struct updater *up, struct coll *coll, struct file_update *fu
 	if (fattr_type(fa) == FT_SYMLINK) {
 		lprintf(1, " Symlink %s -> %s\n", name, 
 		    fattr_getlinktarget(fa));
-		issymlink = 1;
 	} else {
 		lprintf(1, " Mknod %s\n", name);
-		issymlink = 0;
 	}
 
 	/* Create directory. */
@@ -1281,11 +1279,11 @@ updater_updatenode(struct updater *up, struct coll *coll, struct file_update *fu
 	if (error)
 		return (UPDATER_ERR_PROTO);
 
-	/* If it exists, update attributes. */
+	/* If it does not exist, create it. */
 	if (access(fup->destpath, F_OK) != 0)
 		fattr_makenode(fa, fup->destpath);
-  
-	/* 
+
+	/*
 	 * Coming from attic? I don't think this is a problem since we have
 	 * determined attic before we call this function (Look at UpdateNode in
 	 * cvsup).
