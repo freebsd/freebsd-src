@@ -220,6 +220,7 @@ struct hdac_audio_as {
 	u_char dir;
 	u_char pincnt;
 	u_char fakeredir;
+	u_char digital;
 	nid_t hpredir;
 	nid_t pins[16];
 	nid_t dacs[16];
@@ -236,6 +237,7 @@ struct hdac_pcm_devinfo {
 	u_char	right[SOUND_MIXER_NRDEVICES];
 	int	chan_size;
 	int	chan_blkcnt;
+	u_char	digital;
 };
 
 /****************************************************************************
@@ -262,7 +264,6 @@ struct hdac_devinfo {
 			struct hdac_audio_as *as;
 			uint32_t quirks;
 			uint32_t gpio;
-			int playcnt, reccnt;
 			struct hdac_pcm_devinfo *devs;
 			int num_devs;
 		} audio;
