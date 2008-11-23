@@ -27,19 +27,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/stat.h>
+
+#include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <libgeom.h>
+#include <libutil.h>
+#include <paths.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <libgeom.h>
-#include <paths.h>
-#include <errno.h>
-#include <assert.h>
-#include <sys/stat.h>
+#include <unistd.h>
 
 #include "core/geom.h"
 #include "misc/subr.h"
@@ -202,21 +204,12 @@ find_provider(struct ggeom *gp, unsigned long long minsector)
 }
 
 static const char *
-fmtsize(long double rawsz)
+fmtsize(int64_t rawsz)
 {
-	static char buf[32];
-	static const char *sfx[] = { "B", "KB", "MB", "GB", "TB" };
-	long double sz;
-	int sfxidx;
+	static char buf[5];
 
-	sfxidx = 0;
-	sz = (long double)rawsz;
-	while (sfxidx < 4 && sz > 1099.0) {
-		sz /= 1000;
-		sfxidx++;
-	}
-
-	sprintf(buf, "%.1Lf%s", sz, sfx[sfxidx]);
+	humanize_number(buf, sizeof(buf), rawsz, "", HN_AUTOSCALE,
+	    HN_B | HN_NOSPACE | HN_DECIMAL);
 	return (buf);
 }
 
@@ -386,6 +379,8 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	const char *s;
+	char *buf;
+	off_t bsize;
 	int error, fd;
 
 	s = gctl_get_ascii(req, "class");
@@ -421,8 +416,21 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 			errx(EXIT_FAILURE, "%s: not enough space", dsf);
 		if (lseek(fd, 0, SEEK_SET) != 0)
 			err(EXIT_FAILURE, "%s", dsf);
-		if (write(fd, code, size) != size)
+
+		/*
+		 * When writing to a disk device, the write must be
+		 * sector aligned and not write to any partial sectors,
+		 * so round up the buffer size to the next sector and zero it.
+		 */
+		bsize = (size + pp->lg_sectorsize - 1) /
+		    pp->lg_sectorsize * pp->lg_sectorsize;
+		buf = calloc(1, bsize);
+		if (buf == NULL)
 			err(EXIT_FAILURE, "%s", dsf);
+		bcopy(code, buf, size);
+		if (write(fd, buf, bsize) != bsize)
+			err(EXIT_FAILURE, "%s", dsf);
+		free(buf);
 		close(fd);
 	} else
 		errx(EXIT_FAILURE, "invalid partition index");
