@@ -401,7 +401,7 @@ vfs_setpublicfs(struct mount *mp, struct netexport *nep,
 
 /*
  * Used by the filesystems to determine if a given network address
- * (passed in 'nam') is present in thier exports list, returns a pointer
+ * (passed in 'nam') is present in their exports list, returns a pointer
  * to struct netcred so that the filesystem can examine it for
  * access rights (read/write/etc).
  */
