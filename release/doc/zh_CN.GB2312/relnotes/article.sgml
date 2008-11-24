@@ -6,7 +6,7 @@
 %release;
 
 <!-- The FreeBSD Simplified Chinese Project -->
-<!-- Original Revision: 185110 -->
+<!-- Original Revision: 185258 -->
 <!-- Text constants which probably don't need to be changed.-->
 
 <!-- The marker for MFCs. -->
@@ -182,6 +182,11 @@
 
       <sect4 id="net-if">
 	<title>网络接口支持</title>
+
+	<para>新增了用于支持
+	  Atheros AR8121/AR8113/AR8114 千兆/百兆以太网控制器的 &man.ale.4; 驱动程序。
+	  在这一版本中的 <filename>GENERIC</filename>
+	  内核中默认并不包含此驱动。</para>
 
 	<para>将 &man.em.4; 驱动程序分拆成了两个共享部分代码的驱动程序。
 	  &man.em.4; 驱动程序将继续支持高至 82575 的网卡以及新的针对客户机/桌面的网卡。
