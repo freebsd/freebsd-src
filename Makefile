@@ -3,7 +3,7 @@
 PROG=	makefs
 COMPAT_MTREE=	getid.c misc.c spec.c
 COMPAT=	fparseln.c getmode.c pack_dev.c pwcache.c stat_flags.c \
-	strsuftoll.c vis.c
+	strsuftoll.c
 SRCS=	ffs.c makefs.c walk.c \
 	buf.c ffs_alloc.c ffs_balloc.c mkfs.c ufs_bmap.c \
 	ffs_bswap.c ffs_subr.c ffs_tables.c \
