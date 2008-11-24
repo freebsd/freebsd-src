@@ -89,6 +89,7 @@ random_close(struct cdev *dev __unused, int flags, int fmt __unused,
 	    && (securelevel_gt(td->td_ucred, 0) == 0)) {
 		(*random_systat.reseed)();
 		random_systat.seeded = 1;
+		arc4rand(NULL, 0, 1);	/* Reseed arc4random as well. */
 	}
 
 	return (0);
