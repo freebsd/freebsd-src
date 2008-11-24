@@ -1010,10 +1010,10 @@ initvalues(start_info_t *startinfo)
 		 * make sure that all the initial page table pages
 		 * have been zeroed
 		 */
-		PT_SET_MA(cur_space_pt,
+		PT_SET_MA(cur_space,
 		    xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
-		bzero((char *)cur_space_pt, PAGE_SIZE);
-		PT_SET_MA(cur_space_pt, (vm_paddr_t)0);
+		bzero((char *)cur_space, PAGE_SIZE);
+		PT_SET_MA(cur_space, (vm_paddr_t)0);
 		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
 			curoffset*sizeof(vm_paddr_t)), 
