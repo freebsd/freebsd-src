@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20081124:	p6	FreeBSD-SA-08:11.arc4random
+	Make sure arc4random(9) is properly seeded when /etc/rc.d/initrandom
+	returns.
+
 20081002:	p5	FreeBSD-SA-08:10.nd6
 	Default to ignoring potentially evil IPv6 Neighbor Solicitation
 	messages.
