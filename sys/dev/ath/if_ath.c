@@ -274,8 +274,10 @@ TUNABLE_INT("hw.ath.debug", &ath_debug);
 	if (sc->sc_debug & ATH_DEBUG_KEYCACHE)			\
 		ath_keyprint(sc, __func__, ix, hk, mac);	\
 } while (0)
-static	void ath_printrxbuf(const struct ath_buf *bf, u_int ix, int);
-static	void ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done);
+static	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
+	u_int ix, int);
+static	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
+	u_int qnum, u_int ix, int done);
 #else
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
@@ -4016,7 +4018,7 @@ ath_rx_proc(void *arg, int npending)
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
-			ath_printrxbuf(bf, 0, status == HAL_OK);
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS)
 			break;
@@ -5015,7 +5017,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		status = ath_hal_txprocdesc(ah, ds, ts);
 #ifdef ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-			ath_printtxbuf(bf, txq->axq_qnum, 0, status == HAL_OK);
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
+			    status == HAL_OK);
 #endif
 		if (status == HAL_EINPROGRESS) {
 			ATH_TXQ_UNLOCK(txq);
@@ -5234,7 +5237,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		if (sc->sc_debug & ATH_DEBUG_RESET) {
 			struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 
-			ath_printtxbuf(bf, txq->axq_qnum, ix,
+			ath_printtxbuf(sc, bf, txq->axq_qnum, ix,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ic, mtod(bf->bf_m, caddr_t),
@@ -5302,7 +5305,7 @@ ath_draintxq(struct ath_softc *sc)
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = STAILQ_FIRST(&sc->sc_bbuf);
 		if (bf != NULL && bf->bf_m != NULL) {
-			ath_printtxbuf(bf, sc->sc_bhalq, 0,
+			ath_printtxbuf(sc, bf, sc->sc_bhalq, 0,
 				ath_hal_txprocdesc(ah, bf->bf_desc,
 				    &bf->bf_status.ds_txstat) == HAL_OK);
 			ieee80211_dump_pkt(ifp->if_l2com, mtod(bf->bf_m, caddr_t),
@@ -5343,7 +5346,7 @@ ath_stoprecv(struct ath_softc *sc)
 			HAL_STATUS status = ath_hal_rxprocdesc(ah, ds,
 				bf->bf_daddr, PA2DESC(sc, ds->ds_link), rs);
 			if (status == HAL_OK || (sc->sc_debug & ATH_DEBUG_FATAL))
-				ath_printrxbuf(bf, ix, status == HAL_OK);
+				ath_printrxbuf(sc, bf, ix, status == HAL_OK);
 			ix++;
 		}
 	}
@@ -6253,9 +6256,11 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 
 #ifdef ATH_DEBUG
 static void
-ath_printrxbuf(const struct ath_buf *bf, u_int ix, int done)
+ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	u_int ix, int done)
 {
 	const struct ath_rx_status *rs = &bf->bf_status.ds_rxstat;
+	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
 	int i;
 
@@ -6267,13 +6272,21 @@ ath_printrxbuf(const struct ath_buf *bf, u_int ix, int done)
 		    !done ? "" : (rs->rs_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1]);
+		if (ah->ah_magic == 0x20065416) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
+			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
+			    ds->ds_hw[8]);
+		}
 	}
 }
 
 static void
-ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done)
+ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	u_int qnum, u_int ix, int done)
 {
 	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
 	int i;
 
@@ -6286,6 +6299,16 @@ ath_printtxbuf(const struct ath_buf *bf, u_int qnum, u_int ix, int done)
 		    !done ? "" : (ts->ts_status == 0) ? " *" : " !",
 		    ds->ds_ctl0, ds->ds_ctl1,
 		    ds->ds_hw[0], ds->ds_hw[1], ds->ds_hw[2], ds->ds_hw[3]);
+		if (ah->ah_magic == 0x20065416) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[4], ds->ds_hw[5], ds->ds_hw[6],
+			    ds->ds_hw[7], ds->ds_hw[8], ds->ds_hw[9],
+			    ds->ds_hw[10],ds->ds_hw[11]);
+			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[12],ds->ds_hw[13],ds->ds_hw[14],
+			    ds->ds_hw[15],ds->ds_hw[16],ds->ds_hw[17],
+			    ds->ds_hw[18], ds->ds_hw[19]);
+		}
 	}
 }
 #endif /* ATH_DEBUG */
