@@ -131,7 +131,6 @@ static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(struct ifnet *);
 static int	ath_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ath_fatal_proc(void *, int);
-static void	ath_rxorn_proc(void *, int);
 static void	ath_bmiss_vap(struct ieee80211vap *);
 static void	ath_bmiss_proc(void *, int);
 static int	ath_keyset(struct ath_softc *, const struct ieee80211_key *,
@@ -409,7 +408,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		"%s taskq", ifp->if_xname);
 
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_proc, sc);
-	TASK_INIT(&sc->sc_rxorntask, 0, ath_rxorn_proc, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
 
@@ -1184,10 +1182,6 @@ ath_intr(void *arg)
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
 		ath_fatal_proc(sc, 0);
-	} else if (status & HAL_INT_RXORN) {
-		sc->sc_stats.ast_rxorn++;
-		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
-		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxorntask);
 	} else {
 		if (status & HAL_INT_SWBA) {
 			/*
@@ -1234,6 +1228,10 @@ ath_intr(void *arg)
 			ath_hal_mibevent(ah, &sc->sc_halstats);
 			ath_hal_intrset(ah, sc->sc_imask);
 		}
+		if (status & HAL_INT_RXORN) {
+			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
+			sc->sc_stats.ast_rxorn++;
+		}
 	}
 }
 
@@ -1259,16 +1257,6 @@ ath_fatal_proc(void *arg, int pending)
 		    state[0], state[1] , state[2], state[3],
 		    state[4], state[5]);
 	}
-	ath_reset(ifp);
-}
-
-static void
-ath_rxorn_proc(void *arg, int pending)
-{
-	struct ath_softc *sc = arg;
-	struct ifnet *ifp = sc->sc_ifp;
-
-	if_printf(ifp, "rx FIFO overrun; resetting\n");
 	ath_reset(ifp);
 }
 
