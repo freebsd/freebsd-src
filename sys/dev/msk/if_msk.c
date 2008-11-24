@@ -3966,7 +3966,7 @@ msk_stop(struct msk_if_softc *sc_if)
 		if ((val & (BMU_STOP | BMU_IDLE)) == 0) {
 			CSR_WRITE_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR),
 			    BMU_STOP);
-			CSR_READ_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR));
+			val = CSR_READ_4(sc, Q_ADDR(sc_if->msk_txq, Q_CSR));
 		} else
 			break;
 		DELAY(1);
