@@ -25,15 +25,19 @@ expect()
 	r=`${fstest} $* 2>/dev/null | tail -1`
 	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
 		if [ -z "${todomsg}" ]; then
 			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
 		else
 			echo "not ok ${ntest} # TODO ${todomsg}"
-			todomsg=""
 		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
 }
 
@@ -46,30 +50,38 @@ jexpect()
 	r=`jail -s ${s} / fstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
 	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
 		if [ -z "${todomsg}" ]; then
 			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
 		else
 			echo "not ok ${ntest} # TODO ${todomsg}"
-			todomsg=""
 		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
 }
 
 test_check()
 {
 	if [ $* ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
 		if [ -z "${todomsg}" ]; then
 			echo "not ok ${ntest}"
 		else
 			echo "not ok ${ntest} # TODO ${todomsg}"
-			todomsg=""
 		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
 }
 
