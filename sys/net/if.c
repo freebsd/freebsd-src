@@ -736,8 +736,7 @@ if_detach(struct ifnet *ifp)
 	INIT_VNET_NET(ifp->if_vnet);
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
-	int s;
-	int i;
+	int s, i, j;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -809,14 +808,13 @@ if_detach(struct ifnet *ifp)
 	 * to this interface...oh well...
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
-	    int j;
-	    for (j = 0; j < rt_numfibs; j++) {
-		if ((rnh = V_rt_tables[j][i]) == NULL)
-			continue;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	    }
+		for (j = 0; j < rt_numfibs; j++) {
+			if ((rnh = V_rt_tables[j][i]) == NULL)
+				continue;
+			RADIX_NODE_HEAD_LOCK(rnh);
+			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
 	}
 
 	/* Announce that the interface is gone. */
