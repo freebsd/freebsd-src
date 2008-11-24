@@ -274,6 +274,7 @@ noparent:		mtree_err("no parent node");
 	return (root);
 }
 
+#if 0
 /*
  * dump_nodes --
  *	dump the NODEs from `cur', based in the directory `dir'.
@@ -369,7 +370,7 @@ vispath(const char *path)
 	strsvis(pathbuf, path, VIS_CSTYLE, extra);
 	return(pathbuf);
 }
-
+#endif
 
 static dev_t
 parsedev(char *arg)
