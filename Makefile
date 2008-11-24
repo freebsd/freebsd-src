@@ -292,22 +292,28 @@ universe: universe_${target}
 universe_${target}:
 .if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
-	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
+	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
+	    ${MAKE} ${JFLAG} buildworld \
 	    TARGET=${target} \
-	    __MAKE_CONF=/dev/null \
-	    > _.${target}.buildworld 2>&1
+	    > _.${target}.buildworld 2>&1 || \
+	    echo "${target} world failed," \
+	    "check _.${target}.buildworld for details")
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
-	-cd ${.CURDIR}/sys/${target}/conf && ${MAKE} LINT \
-	    > ${.CURDIR}/_.${target}.makeLINT 2>&1
+	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
+	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
+	    echo "${target} 'make LINT' failed," \
+	    "check _.${target}.makeLINT for details")
 .endif
 .for kernel in ${KERNCONFS}
-	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
+	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
+	    ${MAKE} ${JFLAG} buildkernel \
 	    TARGET=${target} \
 	    KERNCONF=${kernel} \
-	    __MAKE_CONF=/dev/null \
-	    > _.${target}.${kernel} 2>&1
+	    > _.${target}.${kernel} 2>&1 || \
+	    echo "${target} ${kernel} kernel failed," \
+	    "check _.${target}.${kernel} for details")
 .endfor
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
