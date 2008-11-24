@@ -225,6 +225,9 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	<para>The &man.ale.4; driver has been added to provide support
+	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.</para>
+
 	<para>The &man.em.4; driver has been split into two drivers
 	  with some common parts.  The &man.em.4; driver will continue
 	  to support adapters up to the 82575, as well as new
