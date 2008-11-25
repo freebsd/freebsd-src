@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iscsi.h"
 #include "iscontrol.h"
-#include "pdu.h"
 
 static int
 chapMD5(char id, char *cp, char *chapSecret, unsigned char *digest)

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -293,6 +293,103 @@ typedef struct async {
      u_int	_____;
      
 } async_t;  
+
+typedef struct login_req {
+     char	cmd;	// 0x03
+
+     u_char	NSG:2;
+     u_char	CSG:2;
+     u_char	_:2;
+     u_char	C:1;
+     u_char	T:1;
+
+     char	v_max;
+     char	v_min;
+
+     int	len;	// remapped via standard bhs
+     char	isid[6];
+     short	tsih;
+     int	itt;	// Initiator Task Tag;
+
+     int	CID:16;
+     int	rsv:16;
+
+     int	cmdSN;
+     int	expStatSN;
+     int	unused[4];
+} login_req_t;
+
+typedef struct login_rsp {
+     char	cmd;	// 0x23
+     u_char	NSG:2;
+     u_char	CSG:2;
+     u_char	_1:2;
+     u_char	C:1;
+     u_char	T:1;
+
+     char	v_max;
+     char	v_act;
+
+     int	len;	// remapped via standard bhs
+     char	isid[6];
+     short	tsih;
+     int	itt;	// Initiator Task Tag;
+     int	_2;
+     rsp_sn_t	sn;
+     int	status:16;
+     int	_3:16;
+     int	_4[2];
+} login_rsp_t;
+
+typedef struct text_req {
+     char	cmd;	// 0x04
+
+     u_char	_1:6;
+     u_char	C:1;	// Continuation 
+     u_char	F:1;	// Final
+     char	_2[2];
+
+     int	len;
+     int	itt;		// Initiator Task Tag
+     int	LUN[2];
+     int	ttt;		// Target Transfer Tag
+     int	cmdSN;
+     int	expStatSN;
+     int	unused[4];
+} text_req_t;
+
+typedef struct logout_req {
+     char	cmd;	// 0x06
+     char	reason;	// 0 - close session
+     			// 1 - close connection
+     			// 2 - remove the connection for recovery
+     char	_2[2];
+
+     int	len;
+     int	_r[2];
+     int	itt;	// Initiator Task Tag;
+
+     u_int	CID:16;
+     u_int	rsv:16;
+
+     int	cmdSN;
+     int	expStatSN;
+     int	unused[4];
+} logout_req_t;
+
+typedef struct logout_rsp {
+     char	cmd;	// 0x26
+     char	cbits;
+     char	_1[2];
+     int	len;
+     int	_2[2];
+     int	itt;
+     int	_3;
+     rsp_sn_t	sn;
+     short	time2wait;
+     short	time2retain;
+     int	_4;
+} logout_rsp_t;
 
 union ipdu_u {
      bhs_t	bhs;
