@@ -1315,8 +1315,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 			if (m_head->m_pkthdr.len < 38) {
 				struct ip *ip;
 				m_head->m_data += ETHER_HDR_LEN;
-				ip = mtod(mb_head, struct ip *);
-				ip->ip_sum = in_cksum(mb_head, ip->ip_hl << 2);
+				ip = mtod(m_head, struct ip *);
+				ip->ip_sum = in_cksum(m_head, ip->ip_hl << 2);
 				m_head->m_data -= ETHER_HDR_LEN;
 			} else {
 				txp->tx_cb->ipcb_ip_activation_high =
