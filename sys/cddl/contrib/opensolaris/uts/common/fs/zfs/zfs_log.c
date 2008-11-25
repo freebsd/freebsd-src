@@ -60,7 +60,11 @@ zfs_log_create_txtype(zil_create_t type, vsecattr_t *vsecp, vattr_t *vap)
 		if (vsecp == NULL && !isxvattr)
 			return (TX_CREATE);
 		if (vsecp && isxvattr)
+#ifdef TODO
 			return (TX_CREATE_ACL_ATTR);
+#else
+			panic("%s:%u: unsupported condition", __func__, __LINE__);
+#endif
 		if (vsecp)
 			return (TX_CREATE_ACL);
 		else
@@ -70,7 +74,11 @@ zfs_log_create_txtype(zil_create_t type, vsecattr_t *vsecp, vattr_t *vap)
 		if (vsecp == NULL && !isxvattr)
 			return (TX_MKDIR);
 		if (vsecp && isxvattr)
+#ifdef TODO
 			return (TX_MKDIR_ACL_ATTR);
+#else
+			panic("%s:%u: unsupported condition", __func__, __LINE__);
+#endif
 		if (vsecp)
 			return (TX_MKDIR_ACL);
 		else
