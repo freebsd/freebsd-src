@@ -40,31 +40,27 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/endian.h>
-#include <sys/mbuf.h>
-		/* #include <sys/mutex.h> */
 #include <sys/kernel.h>
+#include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
+#include <net/bpf.h>
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <net/bpf.h>
-#include <sys/sockio.h>
-#include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-
-#include <net/ethernet.h>
-#include <net/if_arp.h>
-
-
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+
+#include <machine/bus.h>
+#include <machine/resource.h>
 
 #ifdef FXP_IP_CSUM_WAR
 #include <netinet/in.h>
