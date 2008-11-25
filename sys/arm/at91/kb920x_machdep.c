@@ -301,6 +301,7 @@ initarm(void *arg, void *arg2)
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	valloc_pages(msgbufpv, round_page(MSGBUF_SIZE) / PAGE_SIZE);
+
 	/*
 	 * Now we start construction of the L1 page table
 	 * We start by mapping the L2 page tables into the L1.
@@ -341,7 +342,6 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, msgbufpv.pv_va, msgbufpv.pv_pa,
 	    MSGBUF_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-
 	for (loop = 0; loop < NUM_KERNEL_PTS; ++loop) {
 		pmap_map_chunk(l1pagetable, kernel_pt_table[loop].pv_va,
 		    kernel_pt_table[loop].pv_pa, L2_TABLE_SIZE,
@@ -365,7 +365,6 @@ initarm(void *arg, void *arg2)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
 	set_stackptr(PSR_IRQ32_MODE,
 	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
@@ -373,8 +372,6 @@ initarm(void *arg, void *arg2)
 	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
 	set_stackptr(PSR_UND32_MODE,
 	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
-
-
 
 	/*
 	 * We must now clean the cache again....
@@ -406,6 +403,7 @@ initarm(void *arg, void *arg2)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
+
 	/*
 	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
 	 * calling pmap_bootstrap.
