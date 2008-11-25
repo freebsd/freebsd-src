@@ -1,9 +1,10 @@
 #$FreeBSD$
 include "../at91/std.at91"
-files	"../at91/files.kb920x"
 
 options		STARTUP_PAGETABLE_ADDR=0x20800000
 makeoptions	KERNPHYSADDR=0x20000000
 makeoptions	KERNVIRTADDR=0xc0000000
 options		KERNPHYSADDR=0x20000000	
 options		KERNVIRTADDR=0xc0000000
+
+device		at91_board_kb920x

@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
+#include <arm/at91/at91board.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91_piovar.h>
 #include <arm/at91/at91_pio_rm9200.h>
@@ -141,7 +142,7 @@ static void *boot_arg2;
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
-static const struct pmap_devmap kb920x_devmap[] = {
+static const struct pmap_devmap at91rm9200_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -187,8 +188,8 @@ static const struct pmap_devmap kb920x_devmap[] = {
 	}
 };
 
-static long
-ramsize(void)
+long
+at91_ramsize(void)
 {
 	uint32_t *SDRAMC = (uint32_t *)(AT91RM92_BASE + AT91RM92_SDRAMC_BASE);
 	uint32_t cr, mr;
@@ -201,50 +202,6 @@ ramsize(void)
 	rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
 	cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 	return (1 << (cols + rows + banks + bw));
-}
-
-static long
-board_init(void)
-{
-	/*
-	 * Since the USART supports RS-485 multidrop mode, it allows the
-	 * TX pins to float.  However, for RS-232 operations, we don't want
-	 * these pins to float.  Instead, they should be pulled up to avoid
-	 * mismatches.  Linux does something similar when it configures the
-	 * TX lines.  This implies that we also allow the RX lines to float
-	 * rather than be in the state they are left in by the boot loader.
-	 * Since they are input pins, I think that this is the right thing
-	 * to do.
-	 */
-
-	/* PIOA's A periph: Turn USART 0 and 2's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA18_RXD0 | AT91C_PA22_RXD2, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
-	    AT91C_PA17_TXD0 | AT91C_PA23_TXD2, 1);
-	/* PIOA's B periph: Turn USART 3's TX/RX pins */
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA6_RXD3, 0);
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA5_TXD3, 1);
-#ifdef AT91_TSC
-	/* We're using TC0's A1 and A2 input */
-	at91_pio_use_periph_b(AT91RM92_PIOA_BASE,
-	    AT91C_PA19_TIOA1 | AT91C_PA21_TIOA2, 0);
-#endif
-	/* PIOB's A periph: Turn USART 1's TX/RX pins */
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB21_RXD1, 0);
-	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
-
-	/* Pin assignment */
-#ifdef AT91_TSC
-	/* Assert PA24 low -- talk to rubidium */
-	at91_pio_use_gpio(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
-	at91_pio_gpio_output(AT91RM92_PIOA_BASE, AT91C_PIO_PA24, 0);
-	at91_pio_gpio_clear(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
-	at91_pio_use_gpio(AT91RM92_PIOB_BASE,
-	    AT91C_PIO_PB16 | AT91C_PIO_PB17 | AT91C_PIO_PB18 | AT91C_PIO_PB19);
-#endif
-
-	return (ramsize());
 }
 
 void *
@@ -353,7 +310,7 @@ initarm(void *arg, void *arg2)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, kb920x_devmap);
+	pmap_devmap_bootstrap(l1pagetable, at91rm9200_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
