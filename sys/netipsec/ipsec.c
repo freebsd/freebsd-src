@@ -270,11 +270,13 @@ ipsec_init(void)
 	V_ipsec_integrity = 0;
 #endif
 
+#ifdef INET6 
 	V_ip6_esp_trans_deflev = IPSEC_LEVEL_USE;
 	V_ip6_esp_net_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ah_trans_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ah_net_deflev = IPSEC_LEVEL_USE;
 	V_ip6_ipsec_ecn = 0;	/* ECN ignore(-1)/forbidden(0)/allowed(1) */
+#endif
 }
 
 /*
