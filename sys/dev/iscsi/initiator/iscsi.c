@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
 
-static char *iscsi_driver_version = "2.0.99";
+static char *iscsi_driver_version = "2.1.0";
 
 static struct isc_softc isc;
 
@@ -296,6 +296,15 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	       sprintf(buf, "%03d] '%s' '%s'\n", i++, sp->opt.targetAddress, sp->opt.targetName);
 	       uiomove(buf, strlen(buf), uio);
 	  }
+	  sprintf(buf, "%d/%d /---- free -----/\n", sc->npdu_alloc, sc->npdu_max);
+	  i = 0;
+	  uiomove(buf, strlen(buf), uio);
+	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
+	       if(uio->uio_resid == 0)
+		    return 0;
+	       sprintf(buf, "%03d] %06x\n", i++, ntohl(pq->pdu.ipdu.bhs.itt));
+	       uiomove(buf, strlen(buf), uio);
+	  }
      }
      else {
 	  int	i = 0;
@@ -421,27 +430,37 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      if(sp->soc == NULL)
 	  return ENOTCONN;
 
-     if((pq = pdu_alloc(sc, 0)) == NULL)
+     if((pq = pdu_alloc(sc, M_NOWAIT)) == NULL)
 	  return EAGAIN;
      pp = &pq->pdu;
-
      pq->pdu = *(pdu_t *)arg;
      if((error = i_prepPDU(sp, pq)) != 0)
-	  return error;
+	  goto out;
 
-     sdebug(4, "len=%d ahs_len=%d ds_len=%d", pq->len, pp->ahs_len, pp->ds_len);
+     sdebug(3, "len=%d ahs_len=%d ds_len=%d", pq->len, pp->ahs_len, pp->ds_len);
 
-     pq->buf = bp = malloc(pq->len - sizeof(union ipdu_u), M_ISCSI, M_WAITOK);
-
+     pq->buf = bp = malloc(pq->len - sizeof(union ipdu_u), M_ISCSI, M_NOWAIT);
+     if(pq->buf == NULL) {
+	  error = EAGAIN;
+	  goto out;
+     }
      if(pp->ahs_len) {
 	  n = pp->ahs_len;
-	  copyin(pp->ahs, bp, n);
+	  error = copyin(pp->ahs, bp, n);
+	  if(error != 0) {
+	       sdebug(3, "copyin ahs: error=%d", error);
+	       goto out;
+	  }
 	  pp->ahs = (ahs_t *)bp;
 	  bp += n;
      }
      if(pp->ds_len) {
 	  n = pp->ds_len;
-	  copyin(pp->ds, bp, n); // can fail ...
+	  error = copyin(pp->ds, bp, n);
+	  if(error != 0) {
+	       sdebug(3, "copyin ds: error=%d", error);
+	       goto out;
+	  }
 	  pp->ds = bp;
 	  bp += n;
 	  while(n & 03) {
@@ -451,6 +470,13 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      }
 
      error = isc_qout(sp, pq);
+#if 1
+     if(error == 0)
+	  wakeup(&sp->flags); // XXX: to 'push' proc_out ...
+#endif
+out:
+     if(error)
+	  pdu_free(sc, pq);
 
      return error;
 }
@@ -475,6 +501,7 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 
      if(sp->soc == NULL)
 	  return ENOTCONN;
+     sdebug(3, "");
      cnt = 6;     // XXX: maybe the user can request a time out?
      mtx_lock(&sp->rsp_mtx);
      while((pq = TAILQ_FIRST(&sp->rsp)) == NULL) {
@@ -487,7 +514,7 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
      }
      mtx_unlock(&sp->rsp_mtx);
 
-     sdebug(3, "cnt=%d", cnt);
+     sdebug(4, "cnt=%d", cnt);
 
      if(pq == NULL) {
 	  error = ENOTCONN;
@@ -600,10 +627,8 @@ i_create_session(struct cdev *dev, int *ndev)
 
      sp->opt.maxBurstLength = 65536;	// 64k
 
-     sdebug(2, "sessionID=%d", n);
+     sdebug(2, "sessionID=%d sp=%p", n, sp);
      error = ism_start(sp);
-
-     sdebug(2, "error=%d", error);
 
      return error;
 }
@@ -648,7 +673,7 @@ iscsi_shutdown(void *v)
 	  return;
      }
      if(sc->eh == NULL)
-	  debug(2, "sc->eh is NULL!");
+	  debug(2, "sc->eh is NULL");
      else {
 	  EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->eh);
 	  debug(2, "done n=%d", sc->nsess);
@@ -657,6 +682,42 @@ iscsi_shutdown(void *v)
      TAILQ_FOREACH(sp, &sc->isc_sess, sp_link) {
 	  debug(2, "%2d] sp->flags=0x%08x", n, sp->flags);
 	  n++;
+     }
+     debug(2, "done");
+}
+
+static int
+init_pdus(struct isc_softc *sc)
+{
+     debug_called(8);
+
+     sc->pdu_zone = uma_zcreate("pdu", sizeof(pduq_t),
+				NULL, NULL, NULL, NULL,
+				0, 0);
+     if(sc->pdu_zone == NULL) {
+	  printf("iscsi_initiator: uma_zcreate failed");
+	  return -1;
+     }
+     uma_zone_set_max(sc->pdu_zone, MAX_PDUS);
+     TAILQ_INIT(&sc->freepdu);
+
+     return 0;
+}
+
+static void
+free_pdus(struct isc_softc *sc)
+{
+     pduq_t	*pq;
+
+     debug_called(8);
+
+     if(sc->pdu_zone != NULL) {
+	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
+	       TAILQ_REMOVE(&sc->freepdu, pq, pq_link);
+	       uma_zfree(sc->pdu_zone, pq);
+	  }
+	  uma_zdestroy(sc->pdu_zone);
+	  sc->pdu_zone = NULL;
      }
 }
 
@@ -673,15 +734,9 @@ iscsi_start(void)
      sc->dev->si_drv1 = sc;
 
      TAILQ_INIT(&sc->isc_sess);
+     if(init_pdus(sc) != 0)
+	  xdebug("pdu zone init failed!"); // XXX: should cause terminal failure ...
      
-     sc->pdu_zone = uma_zcreate("pdu", sizeof(pduq_t),
-				NULL, NULL, NULL, NULL,
-				0, 0);
-     if(sc->pdu_zone == NULL) {
-	  printf("iscsi_initiator: uma_zcreate failed");
-	  // XXX: and now what?
-     }
-     uma_zone_set_max(sc->pdu_zone, MAX_PDUS*2+1);
      mtx_init(&sc->mtx, "iscsi", NULL, MTX_DEF);
      mtx_init(&sc->pdu_mtx, "iscsi pdu pool", NULL, MTX_DEF);
 
@@ -693,9 +748,12 @@ iscsi_start(void)
 #else
      sc->cam_sim = NULL;
 #endif
+
+#ifdef DO_EVENTHANDLER
      if((sc->eh = EVENTHANDLER_REGISTER(shutdown_pre_sync, iscsi_shutdown,
 					sc, SHUTDOWN_PRI_DEFAULT-1)) == NULL)
 	  xdebug("shutdown event registration failed\n");
+#endif
      /*
       | sysctl stuff
       */
@@ -734,6 +792,8 @@ iscsi_start(void)
 		    &sc->nsess,
 		    sizeof(sc->nsess),
 		    "number of active session");
+
+     printf("iscsi: version %s\n", iscsi_driver_version);
 }
 
 /*
@@ -762,13 +822,15 @@ iscsi_stop(void)
 
      mtx_destroy(&sc->mtx);
      mtx_destroy(&sc->pdu_mtx);
-     uma_zdestroy(sc->pdu_zone);
+     free_pdus(sc);
 
      if(sc->dev)
 	  destroy_dev(sc->dev);
 
      if(sysctl_ctx_free(&sc->clist))
 	  xdebug("sysctl_ctx_free failed");
+
+     iscsi_shutdown(sc); // XXX: check EVENTHANDLER_ ...
 }
 
 static int
@@ -801,11 +863,27 @@ iscsi_modevent(module_t mod, int what, void *arg)
      }
      return 0;
 }
+
 moduledata_t iscsi_mod = {
          "iscsi",
          (modeventhand_t) iscsi_modevent,
          0
 };
+
+#ifdef ISCSI_ROOT
+static void
+iscsi_rootconf(void)
+{
+#if 0
+	nfs_setup_diskless();
+	if (nfs_diskless_valid)
+		rootdevnames[0] = "nfs:";
+#endif
+	printf("** iscsi_rootconf **\n");
+}
+
+SYSINIT(cpu_rootconf1, SI_SUB_ROOT_CONF, SI_ORDER_FIRST, iscsi_rootconf, NULL)
+#endif
 
 DECLARE_MODULE(iscsi, iscsi_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_DEPEND(iscsi, cam, 1, 1, 1);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iscsi.h"
 #include "iscontrol.h"
-#include "pdu.h"
 
 static char *status_class1[] = {
      "Initiator error",
@@ -173,16 +172,18 @@ processParams(isess_t *sess, pdu_t *pp)
 	       klen = eq - ptr;
 	  if(klen > 0) {
 	       if(strncmp(ptr, "TargetAddress", klen) == 0) {
-		    char	*p, *q;
+		    char	*p, *q, *ta = NULL;
 
 		    // TargetAddress=domainname[:port][,portal-group-tag]
 		    // XXX: if(op->targetAddress) free(op->targetAddress);
 		    q = op->targetAddress = strdup(eq+1);
 		    if(*q == '[') {
 			 // bracketed IPv6
-			 if((q = strchr(q, ']')) != NULL)
-			      q++;
-			 else
+			 if((q = strchr(q, ']')) != NULL) {
+			      *q++ = '\0';
+			      ta = op->targetAddress;
+			      op->targetAddress = strdup(ta+1);
+			 } else
 			      q = op->targetAddress;
 		    }
 		    if((p = strchr(q, ',')) != NULL) {
@@ -193,6 +194,8 @@ processParams(isess_t *sess, pdu_t *pp)
 			 *p++ = 0;
 			 op->port = atoi(p);
 		    }
+		    if(ta)
+			 free(ta);
 	       } else if(strncmp(ptr, "MaxRecvDataSegmentLength", klen) == 0) {
 		    // danny's RFC
 		    op->maxXmitDataSegmentLength = strtol(eq+1, (char **)NULL, 0);
