@@ -216,6 +216,7 @@ struct ata_connect_task {
 #define ATA_M88SX6041           0x604111ab
 #define ATA_M88SX6081           0x608111ab
 #define ATA_M88SX6101           0x610111ab
+#define ATA_M88SX6121           0x612111ab
 #define ATA_M88SX6145           0x614511ab
 
 #define ATA_MICRON_ID           0x1042
