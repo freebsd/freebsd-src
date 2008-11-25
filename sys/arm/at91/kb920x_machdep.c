@@ -312,7 +312,7 @@ initarm(void *arg, void *arg2)
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	for (i = 0; i < KERNEL_PT_KERN_NUM; i++)
-		pmap_link_l2pt(l1pagetable, KERNBASE + i * 0x100000,
+		pmap_link_l2pt(l1pagetable, KERNBASE + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_KERN + i]);
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
@@ -320,7 +320,7 @@ initarm(void *arg, void *arg2)
 	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
 	    - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
-		pmap_link_l2pt(l1pagetable, afterkern + i * 0x00100000,
+		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
 	}
 
@@ -406,7 +406,7 @@ initarm(void *arg, void *arg2)
 	
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
-	pmap_curmaxkvaddr = afterkern + 0x100000 * (KERNEL_PT_KERN_NUM - 1);
+	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
 	/*
 	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
 	 * calling pmap_bootstrap.
