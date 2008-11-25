@@ -62,6 +62,10 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 	}
 
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "no flags given");
+		return;
+	}
 
 	sc = gp->softc;
 
@@ -69,6 +73,10 @@ gv_list(struct g_geom *gp, struct gctl_req *req)
 
 	/* Figure out which command was given. */
 	cmd = gctl_get_param(req, "cmd", NULL);
+	if (cmd == NULL) {
+		gctl_error(req, "no command given");
+		return;
+	}
 
 	/* List specific objects or everything. */
 	if (!strcmp(cmd, "list") || !strcmp(cmd, "l")) {
