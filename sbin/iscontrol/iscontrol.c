@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iscsi.h"
 #include "iscontrol.h"
-//#include "pdu.h"
 
 #define USAGE "[-v] [-d] [-c config] [-n name] [-t target] "
 #define OPTIONS	"vdc:t:n:"
@@ -129,7 +128,7 @@ int
 main(int cc, char **vv)
 {
      int	ch, disco;
-     char	*pname, *p, *ta, *kw;
+     char	*pname, *p, *q, *ta, *kw;
      isc_opt_t	*op;
      FILE	*fd;
 
@@ -191,12 +190,18 @@ main(int cc, char **vv)
 	  fprintf(stderr, "No target!\n");
 	  goto badu;
      }
-     if((p = strchr(op->targetAddress, ':')) != NULL) {
+     q = op->targetAddress;
+     if(*q == '[' && (q = strchr(q, ']')) != NULL) {
+	  *q++ = '\0';
+	  op->targetAddress++;
+     } else
+	  q = op->targetAddress;
+     if((p = strchr(q, ':')) != NULL) {
 	  *p++ = 0;
 	  op->port = atoi(p);
 	  p = strchr(p, ',');
      }
-     if(p || ((p = strchr(op->targetAddress, ',')) != NULL)) {
+     if(p || ((p = strchr(q, ',')) != NULL)) {
 	  *p++ = 0;
 	  op->targetPortalGroupTag = atoi(p);
      }
