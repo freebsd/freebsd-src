@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2007 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,11 +93,20 @@ iscsi_r2t(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 	       sdebug(4, "edtl=%x ddtl=%x bo=%x dsn=%x bs=%x maxX=%x",
 		      edtl, ddtl, bo, dsn, bs, sp->opt.maxXmitDataSegmentLength);
 	       while(bleft > 0) {
-		    wpq = pdu_alloc(sp->isc, 1);
+		    wpq = pdu_alloc(sp->isc, M_NOWAIT); // testing ...
 		    if(wpq == NULL) {
-			 // should not happen if above is 1
-			 sdebug(1, "now what?");
-			 return;
+			 sdebug(3, "itt=%x r2tSN=%d bo=%x ddtl=%x W=%d", ntohl(r2t->itt),
+				ntohl(r2t->r2tSN), ntohl(r2t->bo), ntohl(r2t->ddtl), opp->ipdu.scsi_req.W);
+			 sdebug(1, "npdu_max=%d npdu_alloc=%d", sp->isc->npdu_max, sp->isc->npdu_alloc);
+
+			 while((wpq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
+			      sdebug(2, "waiting...");
+#if __FreeBSD_version >= 700000
+			      pause("isc_r2t", 5*hz);
+#else
+			      tsleep(sp->isc, 0, "isc_r2t", 5*hz);
+#endif
+			 }
 		    }
 		    cmd = &wpq->pdu.ipdu.data_out;
 		    cmd->opcode = ISCSI_WRITE_DATA;
@@ -220,7 +229,7 @@ _scsi_done(struct isc_softc *isp, u_int response, u_int status, union ccb *ccb, 
 	       //case 0x22: // Command Terminated
 	       //case 0x30: // ACA Active
 	       //case 0x40: // Task Aborted
-	       ccb_h->status = CAM_REQ_ABORTED;
+	       ccb_h->status = CAM_REQ_CMP_ERR; //CAM_REQ_ABORTED;
 	  }
 	  break;
 
@@ -249,6 +258,7 @@ iscsi_requeue(isc_session_t *sp)
      debug_called(8);
      last = -1;
      i = 0;
+     sp->flags |= ISC_HOLD;
      while((pq = i_dqueue_hld(sp)) != NULL) {
 	  i++;
 	  _scsi_done(sp->isc, 0, 0x28, pq->ccb, NULL);
@@ -258,6 +268,7 @@ iscsi_requeue(isc_session_t *sp)
 	  sdebug(2, "last=%x n=%x", last, n);
 	  pdu_free(sp->isc, pq);
      }
+     sp->flags &= ~ISC_HOLD;
      return i? last: sp->sn.cmd;
 }
 
@@ -281,6 +292,10 @@ i_pdu_flush(isc_session_t *sp)
 	  n++;
      }
      while((pq = i_dqueue_hld(sp)) != NULL) {
+	  pdu_free(sp->isc, pq);
+	  n++;
+     }
+     while((pq = i_dqueue_wsnd(sp)) != NULL) {
 	  pdu_free(sp->isc, pq);
 	  n++;
      }
@@ -329,6 +344,14 @@ iscsi_done(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 }
 
 // see RFC 3720, 10.9.1 page 146
+/*
+ | NOTE:
+ | the call to isc_stop_receiver is a kludge,
+ | instead, it should be handled by the userland controller,
+ | but that means that there should be a better way, other than
+ | sending a signal. Somehow, this packet should be supplied to
+ | the userland via read.
+ */
 void
 iscsi_async(isc_session_t *sp, pduq_t *pq)
 {
@@ -341,17 +364,22 @@ iscsi_async(isc_session_t *sp, pduq_t *pq)
      switch(cmd->asyncEvent) {
      case 0: // check status ...
 	  break;
+
      case 1: // target request logout
+	  isc_stop_receiver(sp);	// XXX: temporary solution
 	  break;
+
      case 2: // target indicates it wants to drop connection
+	  isc_stop_receiver(sp);	// XXX: temporary solution
 	  break;
 
      case 3: // target indicates it will drop all connections.
-	  isc_stop_receiver(sp);
+	  isc_stop_receiver(sp);	// XXX: temporary solution
 	  break;
 
      case 4: // target request parameter negotiation
 	  break;
+
      default:
 	  break;
      }
@@ -430,12 +458,26 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      debug(4, "ccb->sp=%p", ccb_h->spriv_ptr0);
      sp = ccb_h->spriv_ptr0;
 
-     if((pq = pdu_alloc(isp, 1)) == NULL) { // cannot happen
+     if((pq = pdu_alloc(isp, M_NOWAIT)) == NULL) {
+	  debug(2, "ccb->sp=%p", ccb_h->spriv_ptr0);
+	  sdebug(1, "pdu_alloc failed sc->npdu_max=%d npdu_alloc=%d",
+		 sp->isc->npdu_max, sp->isc->npdu_alloc);
+	  while((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL) {
+	       sdebug(3, "waiting...");
+#if __FreeBSD_version >= 700000
+	       pause("isc_encap", 5*hz);
+#else
+	       tsleep(sp->isc, 0, "isc_encap", 5*hz);
+#endif
+	  }
+#if 0
 	  sdebug(3, "freezing");
 	  ccb->ccb_h.status = CAM_REQUEUE_REQ;
 	  ic_freeze(sp);
 	  return 0;
+#endif
      }
+
 #if 0
      if((sp->flags & ISC_FFPHASE) == 0) {
 	  ccb->ccb_h.status = CAM_DEV_NOT_THERE; // CAM_NO_NEXUS;
@@ -523,20 +565,23 @@ scsi_decap(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
 	       switch(pq->pdu.ipdu.bhs.opcode) {
 	       case ISCSI_READ_DATA: // SCSI Data in
 	       {
-		    caddr_t	bp = mtod(pq->mp, caddr_t);
+		    caddr_t	bp = NULL; // = mtod(pq->mp, caddr_t);
 		    data_in_t 	*rcmd = &pq->pdu.ipdu.data_in;
 
 		    if(cmd->R) {
-			 sdebug(5, "copy to=%p from=%p l1=%d l2=%d",
-				csio->data_ptr, bp,
-				ntohl(cmd->edtlen), pq->pdu.ds_len);
+			 sdebug(5, "copy to=%p from=%p l1=%d l2=%d mp@%p",
+				csio->data_ptr, bp? mtod(pq->mp, caddr_t): 0,
+				ntohl(cmd->edtlen), pq->pdu.ds_len, pq->mp);
 			 if(ntohl(cmd->edtlen) >= pq->pdu.ds_len) {
 			      int		offset, len = pq->pdu.ds_len;
+
+			      if(pq->mp != NULL) {
 			      caddr_t		dp;
 
 			      offset = ntohl(rcmd->bo);
 			      dp = csio->data_ptr + offset;
 			      i_mbufcopy(pq->mp, dp, len);
+			 }
 			 }
 			 else {
 			      xdebug("edtlen=%d < ds_len=%d",
