@@ -100,7 +100,9 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 {
 	int result, error;
 	char buf[NI_MAXHOST];
+#ifdef INET6
 	struct sockaddr_in lsin;
+#endif
 
 	result = HOSTNAME_INVALIDADDR;
 
