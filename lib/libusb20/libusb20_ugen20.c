@@ -307,10 +307,27 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 	return (0);			/* success */
 }
 
+static void
+ugen20_tr_release(struct libusb20_device *pdev)
+{
+	struct usb2_fs_uninit fs_uninit;
+
+	if (pdev->nTransfer == 0) {
+		return;
+	}
+	/* release all pending USB transfers */
+	if (pdev->privBeData != NULL) {
+		memset(&fs_uninit, 0, sizeof(fs_uninit));
+		if (ioctl(pdev->file, USB_FS_UNINIT, &fs_uninit)) {
+			/* ignore any errors of this kind */
+		}
+	}
+	return;
+}
+
 static int
 ugen20_tr_renew(struct libusb20_device *pdev)
 {
-	struct usb2_fs_uninit fs_uninit;
 	struct usb2_fs_init fs_init;
 	struct usb2_fs_endpoint *pfse;
 	int error;
@@ -325,12 +342,7 @@ ugen20_tr_renew(struct libusb20_device *pdev)
 	}
 	size = nMaxTransfer * sizeof(*pfse);
 
-	if (pdev->privBeData != NULL) {
-		memset(&fs_uninit, 0, sizeof(fs_uninit));
-		if (ioctl(pdev->file, USB_FS_UNINIT, &fs_uninit)) {
-			/* ignore any errors of this kind */
-		}
-	} else {
+	if (pdev->privBeData == NULL) {
 		pfse = malloc(size);
 		if (pfse == NULL) {
 			error = LIBUSB20_ERROR_NO_MEM;
@@ -338,7 +350,6 @@ ugen20_tr_renew(struct libusb20_device *pdev)
 		}
 		pdev->privBeData = pfse;
 	}
-
 	/* reset endpoint data */
 	memset(pdev->privBeData, 0, size);
 
@@ -421,12 +432,11 @@ static int
 ugen20_close_device(struct libusb20_device *pdev)
 {
 	struct usb2_fs_uninit fs_uninit;
-	int error = 0;
 
 	if (pdev->privBeData) {
 		memset(&fs_uninit, 0, sizeof(fs_uninit));
 		if (ioctl(pdev->file, USB_FS_UNINIT, &fs_uninit)) {
-			error = LIBUSB20_ERROR_OTHER;
+			/* ignore this error */
 		}
 		free(pdev->privBeData);
 	}
@@ -436,7 +446,7 @@ ugen20_close_device(struct libusb20_device *pdev)
 	close(pdev->file_ctrl);
 	pdev->file = -1;
 	pdev->file_ctrl = -1;
-	return (error);
+	return (0);			/* success */
 }
 
 static void
@@ -509,6 +519,9 @@ ugen20_set_config_index(struct libusb20_device *pdev, uint8_t cfg_index)
 {
 	int temp = cfg_index;
 
+	/* release all active USB transfers */
+	ugen20_tr_release(pdev);
+
 	if (ioctl(pdev->file_ctrl, USB_SET_CONFIG, &temp)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
@@ -548,6 +561,9 @@ ugen20_set_alt_index(struct libusb20_device *pdev,
 	alt_iface.uai_interface_index = iface_index;
 	alt_iface.uai_alt_index = alt_index;
 
+	/* release all active USB transfers */
+	ugen20_tr_release(pdev);
+
 	if (ioctl(pdev->file_ctrl, USB_SET_ALTINTERFACE, &alt_iface)) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
@@ -558,6 +574,9 @@ static int
 ugen20_reset_device(struct libusb20_device *pdev)
 {
 	int temp = 0;
+
+	/* release all active USB transfers */
+	ugen20_tr_release(pdev);
 
 	if (ioctl(pdev->file_ctrl, USB_DEVICEENUMERATE, &temp)) {
 		return (LIBUSB20_ERROR_OTHER);

@@ -177,19 +177,42 @@ usb_open(struct usb_device *dev)
 	if (err)
 		return (NULL);
 
+	/*
+	 * Dequeue USB device from backend queue so that it does not get
+	 * freed when the backend is re-scanned:
+	 */
+	libusb20_be_dequeue_device(usb_backend, dev->dev);
+
 	return (dev->dev);
 }
 
 int
-usb_close(usb_dev_handle * dev)
+usb_close(usb_dev_handle * udev)
 {
+	struct usb_device *dev;
 	int err;
 
-	err = libusb20_dev_close((void *)dev);
+	err = libusb20_dev_close((void *)udev);
 
 	if (err)
 		return (-1);
 
+	if (usb_backend != NULL) {
+		/*
+		 * Enqueue USB device to backend queue so that it gets freed
+		 * when the backend is re-scanned:
+		 */
+		libusb20_be_enqueue_device(usb_backend, (void *)udev);
+	} else {
+		/*
+		 * The backend is gone. Free device data so that we
+		 * don't start leaking memory!
+		 */
+		dev = usb_device(udev);
+		libusb20_dev_free((void *)udev);
+		LIST_DEL(usb_global_bus.devices, dev);
+		free(dev);
+	}
 	return (0);
 }
 
@@ -697,7 +720,8 @@ usb_set_configuration(usb_dev_handle * udev, int bConfigurationValue)
 				/* "bConfigurationValue" not found */
 				return (-1);
 			}
-			if ((dev->config + i)->bConfigurationValue == bConfigurationValue) {
+			if ((dev->config + i)->bConfigurationValue ==
+			    bConfigurationValue) {
 				break;
 			}
 		}
@@ -821,36 +845,28 @@ usb_find_devices(void)
 	struct libusb20_device *pdev;
 	struct usb_device *udev;
 	struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
-	struct libusb20_backend *pold;
 	int err;
 
 	/* cleanup after last device search */
+	/* close all opened devices, if any */
 
-	pold = usb_backend;
-
-	pdev = NULL;
-	while ((pdev = libusb20_be_device_foreach(pold, pdev))) {
-		if (!pdev->is_opened) {
-			/*
-			 * if the device has not been opened we free the
-			 * device data
-			 */
-			udev = pdev->priv01Data;
-			libusb20_be_dequeue_device(pold, pdev);
-			libusb20_dev_free(pdev);
-			if (udev != NULL) {
-				LIST_DEL(usb_global_bus.devices, udev);
-				free(udev);
-			}
-			pdev = NULL;	/* restart search */
+	while ((pdev = libusb20_be_device_foreach(usb_backend, NULL))) {
+		udev = pdev->priv01Data;
+		libusb20_be_dequeue_device(usb_backend, pdev);
+		libusb20_dev_free(pdev);
+		if (udev != NULL) {
+			LIST_DEL(usb_global_bus.devices, udev);
+			free(udev);
 		}
 	}
 
-	/* do a new backend device search */
+	/* free old USB backend, if any */
 
+	libusb20_be_free(usb_backend);
+
+	/* do a new backend device search */
 	usb_backend = libusb20_be_alloc_default();
 	if (usb_backend == NULL) {
-		usb_backend = pold;	/* restore */
 		return (-1);
 	}
 	/* iterate all devices */
@@ -903,17 +919,6 @@ usb_find_devices(void)
 		}
 		LIST_ADD(usb_global_bus.devices, udev);
 	}
-
-	/* move old devices over to the new USB backend */
-
-	while ((pdev = libusb20_be_device_foreach(pold, pdev))) {
-		libusb20_be_dequeue_device(pold, pdev);
-		libusb20_be_enqueue_device(usb_backend, pdev);
-	}
-
-	/* free old backend, if any */
-
-	libusb20_be_free(pold);
 
 	return (0);			/* success */
 }
