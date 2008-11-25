@@ -41,7 +41,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	vdev_file_t *vf;
 	vnode_t *vp;
 	vattr_t vattr;
-	int error;
+	int error, vfslocked;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -75,6 +75,7 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * Make sure it's a regular file.
 	 */
 	if (vp->v_type != VREG) {
+		(void) VOP_CLOSE(vp, spa_mode, 1, 0, kcred, NULL);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (ENODEV);
 	}
@@ -83,10 +84,13 @@ vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
 	 * Determine the physical size of the file.
 	 */
 	vattr.va_mask = AT_SIZE;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &vattr, kcred);
 	VOP_UNLOCK(vp, 0);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
+		(void) VOP_CLOSE(vp, spa_mode, 1, 0, kcred, NULL);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
 		return (error);
 	}
@@ -101,18 +105,12 @@ static void
 vdev_file_close(vdev_t *vd)
 {
 	vdev_file_t *vf = vd->vdev_tsd;
-	int vfslocked;
 
 	if (vf == NULL)
 		return;
 
-	if (vf->vf_vnode != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vf->vf_vnode->v_mount);
-		(void)vn_close(vf->vf_vnode, spa_mode, kcred, curthread);
-		VN_RELE(vf->vf_vnode);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
-
+	if (vf->vf_vnode != NULL)
+		(void) VOP_CLOSE(vf->vf_vnode, spa_mode, 1, 0, kcred, NULL);
 	kmem_free(vf, sizeof (vdev_file_t));
 	vd->vdev_tsd = NULL;
 }
@@ -122,6 +120,7 @@ vdev_file_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
 	vdev_file_t *vf = vd->vdev_tsd;
+	vnode_t *vp = vf->vf_vnode;
 	ssize_t resid;
 
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
@@ -133,7 +132,7 @@ vdev_file_io_start(zio_t *zio)
 
 		switch (zio->io_cmd) {
 		case DKIOCFLUSHWRITECACHE:
-			zio->io_error = VOP_FSYNC(vf->vf_vnode, FSYNC | FDSYNC,
+			zio->io_error = VOP_FSYNC(vp, FSYNC | FDSYNC,
 			    kcred, NULL);
 			break;
 		default:
@@ -144,9 +143,8 @@ vdev_file_io_start(zio_t *zio)
 	}
 
 	zio->io_error = vn_rdwr(zio->io_type == ZIO_TYPE_READ ?
-	    UIO_READ : UIO_WRITE, vf->vf_vnode, zio->io_data,
-	    zio->io_size, zio->io_offset, UIO_SYSSPACE,
-	    0, RLIM64_INFINITY, kcred, &resid);
+	    UIO_READ : UIO_WRITE, vp, zio->io_data, zio->io_size,
+	    zio->io_offset, UIO_SYSSPACE, 0, RLIM64_INFINITY, kcred, &resid);
 
 	if (resid != 0 && zio->io_error == 0)
 		zio->io_error = ENOSPC;
