@@ -736,6 +736,17 @@ aue_probe(device_t dev)
 	if (uaa->info.bIfaceIndex != AUE_IFACE_IDX) {
 		return (ENXIO);
 	}
+	/*
+	 * Belkin USB Bluetooth dongles of the F8T012xx1 model series
+	 * conflict with older Belkin USB2LAN adapters. Skip if_aue if
+	 * we detect one of the devices that look like Bluetooth
+	 * adapters.
+	 */
+	if ((uaa->info.idVendor == USB_VENDOR_BELKIN) &&
+	    (uaa->info.idProduct == USB_PRODUCT_BELKIN_F8T012) &&
+	    (uaa->info.bcdDevice == 0x0413)) {
+		return (ENXIO);
+	}
 	return (usb2_lookup_id_by_uaa(aue_devs, sizeof(aue_devs), uaa));
 }
 
