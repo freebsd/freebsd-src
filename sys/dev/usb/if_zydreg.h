@@ -101,6 +101,7 @@
 #define ZYD_MAC_CONT_WIN_LIMIT	0x96f0 /* Contention window limit */
 #define ZYD_MAC_TX_PKT		0x96f4 /* Tx total packet count read */
 #define ZYD_MAC_DL_CTRL		0x96f8 /* Download control */
+#define ZYD_MAC_CAM_MODE	0x9700 /* CAM: Continuous Access Mode */
 #define ZYD_MACB_TXPWR_CTL1	0x9b00
 #define ZYD_MACB_TXPWR_CTL2	0x9b04
 #define ZYD_MACB_TXPWR_CTL3	0x9b08
@@ -127,8 +128,8 @@
 #define ZYD_EEPROM_PWR_CAL	0xf81f /* Calibration */
 #define ZYD_EEPROM_PWR_INT	0xf827 /* Calibration */
 #define ZYD_EEPROM_ALLOWEDCHAN	0xf82f /* Allowed CH mask, 1 bit each */
-#define ZYD_EEPROM_PHY_REG	0xf831 /* PHY registers */
 #define ZYD_EEPROM_DEVICE_VER	0xf837 /* Device version */
+#define ZYD_EEPROM_PHY_REG	0xf83c /* PHY registers */
 #define ZYD_EEPROM_36M_CAL	0xf83f /* Calibration */
 #define ZYD_EEPROM_11A_INT	0xf847 /* Interpolation */
 #define ZYD_EEPROM_48M_CAL	0xf84f /* Calibration */
@@ -147,8 +148,8 @@
 #define ZYD_FW_FLASH_CHK	0x0005
 
 /* possible flags for register ZYD_FW_LINK_STATUS */
-#define ZYD_LED1	(1 << 8)
-#define ZYD_LED2	(1 << 9)
+#define ZYD_LED1		(1 << 8)
+#define ZYD_LED2		(1 << 9)
 
 /*
  * RF IDs.
@@ -161,7 +162,7 @@
 #define ZYD_RF_AL2210		0x7
 #define ZYD_RF_MAXIM_NEW	0x8
 #define ZYD_RF_GCT		0x9
-#define ZYD_RF_PV2000		0xa	/* not supported yet */
+#define ZYD_RF_AL2230S		0xa	/* not supported yet */
 #define ZYD_RF_RALINK		0xb	/* not supported yet */
 #define ZYD_RF_INTERSIL		0xc	/* not supported yet */
 #define ZYD_RF_RFMD		0xd
@@ -171,257 +172,257 @@
 /*
  * PHY registers (8 bits, not documented).
  */
-#define ZYD_CR0		0x9000
-#define ZYD_CR1		0x9004
-#define ZYD_CR2		0x9008
-#define ZYD_CR3		0x900c
-#define ZYD_CR5		0x9010
-#define ZYD_CR6		0x9014
-#define ZYD_CR7		0x9018
-#define ZYD_CR8		0x901c
-#define ZYD_CR4		0x9020
-#define ZYD_CR9		0x9024
-#define ZYD_CR10	0x9028
-#define ZYD_CR11	0x902c
-#define ZYD_CR12	0x9030
-#define ZYD_CR13	0x9034
-#define ZYD_CR14	0x9038
-#define ZYD_CR15	0x903c
-#define ZYD_CR16	0x9040
-#define ZYD_CR17	0x9044
-#define ZYD_CR18	0x9048
-#define ZYD_CR19	0x904c
-#define ZYD_CR20	0x9050
-#define ZYD_CR21	0x9054
-#define ZYD_CR22	0x9058
-#define ZYD_CR23	0x905c
-#define ZYD_CR24	0x9060
-#define ZYD_CR25	0x9064
-#define ZYD_CR26	0x9068
-#define ZYD_CR27	0x906c
-#define ZYD_CR28	0x9070
-#define ZYD_CR29	0x9074
-#define ZYD_CR30	0x9078
-#define ZYD_CR31	0x907c
-#define ZYD_CR32	0x9080
-#define ZYD_CR33	0x9084
-#define ZYD_CR34	0x9088
-#define ZYD_CR35	0x908c
-#define ZYD_CR36	0x9090
-#define ZYD_CR37	0x9094
-#define ZYD_CR38	0x9098
-#define ZYD_CR39	0x909c
-#define ZYD_CR40	0x90a0
-#define ZYD_CR41	0x90a4
-#define ZYD_CR42	0x90a8
-#define ZYD_CR43	0x90ac
-#define ZYD_CR44	0x90b0
-#define ZYD_CR45	0x90b4
-#define ZYD_CR46	0x90b8
-#define ZYD_CR47	0x90bc
-#define ZYD_CR48	0x90c0
-#define ZYD_CR49	0x90c4
-#define ZYD_CR50	0x90c8
-#define ZYD_CR51	0x90cc
-#define ZYD_CR52	0x90d0
-#define ZYD_CR53	0x90d4
-#define ZYD_CR54	0x90d8
-#define ZYD_CR55	0x90dc
-#define ZYD_CR56	0x90e0
-#define ZYD_CR57	0x90e4
-#define ZYD_CR58	0x90e8
-#define ZYD_CR59	0x90ec
-#define ZYD_CR60	0x90f0
-#define ZYD_CR61	0x90f4
-#define ZYD_CR62	0x90f8
-#define ZYD_CR63	0x90fc
-#define ZYD_CR64	0x9100
-#define ZYD_CR65	0x9104
-#define ZYD_CR66	0x9108
-#define ZYD_CR67	0x910c
-#define ZYD_CR68	0x9110
-#define ZYD_CR69	0x9114
-#define ZYD_CR70	0x9118
-#define ZYD_CR71	0x911c
-#define ZYD_CR72	0x9120
-#define ZYD_CR73	0x9124
-#define ZYD_CR74	0x9128
-#define ZYD_CR75	0x912c
-#define ZYD_CR76	0x9130
-#define ZYD_CR77	0x9134
-#define ZYD_CR78	0x9138
-#define ZYD_CR79	0x913c
-#define ZYD_CR80	0x9140
-#define ZYD_CR81	0x9144
-#define ZYD_CR82	0x9148
-#define ZYD_CR83	0x914c
-#define ZYD_CR84	0x9150
-#define ZYD_CR85	0x9154
-#define ZYD_CR86	0x9158
-#define ZYD_CR87	0x915c
-#define ZYD_CR88	0x9160
-#define ZYD_CR89	0x9164
-#define ZYD_CR90	0x9168
-#define ZYD_CR91	0x916c
-#define ZYD_CR92	0x9170
-#define ZYD_CR93	0x9174
-#define ZYD_CR94	0x9178
-#define ZYD_CR95	0x917c
-#define ZYD_CR96	0x9180
-#define ZYD_CR97	0x9184
-#define ZYD_CR98	0x9188
-#define ZYD_CR99	0x918c
-#define ZYD_CR100	0x9190
-#define ZYD_CR101	0x9194
-#define ZYD_CR102	0x9198
-#define ZYD_CR103	0x919c
-#define ZYD_CR104	0x91a0
-#define ZYD_CR105	0x91a4
-#define ZYD_CR106	0x91a8
-#define ZYD_CR107	0x91ac
-#define ZYD_CR108	0x91b0
-#define ZYD_CR109	0x91b4
-#define ZYD_CR110	0x91b8
-#define ZYD_CR111	0x91bc
-#define ZYD_CR112	0x91c0
-#define ZYD_CR113	0x91c4
-#define ZYD_CR114	0x91c8
-#define ZYD_CR115	0x91cc
-#define ZYD_CR116	0x91d0
-#define ZYD_CR117	0x91d4
-#define ZYD_CR118	0x91d8
-#define ZYD_CR119	0x91dc
-#define ZYD_CR120	0x91e0
-#define ZYD_CR121	0x91e4
-#define ZYD_CR122	0x91e8
-#define ZYD_CR123	0x91ec
-#define ZYD_CR124	0x91f0
-#define ZYD_CR125	0x91f4
-#define ZYD_CR126	0x91f8
-#define ZYD_CR127	0x91fc
-#define ZYD_CR128	0x9200
-#define ZYD_CR129	0x9204
-#define ZYD_CR130	0x9208
-#define ZYD_CR131	0x920c
-#define ZYD_CR132	0x9210
-#define ZYD_CR133	0x9214
-#define ZYD_CR134	0x9218
-#define ZYD_CR135	0x921c
-#define ZYD_CR136	0x9220
-#define ZYD_CR137	0x9224
-#define ZYD_CR138	0x9228
-#define ZYD_CR139	0x922c
-#define ZYD_CR140	0x9230
-#define ZYD_CR141	0x9234
-#define ZYD_CR142	0x9238
-#define ZYD_CR143	0x923c
-#define ZYD_CR144	0x9240
-#define ZYD_CR145	0x9244
-#define ZYD_CR146	0x9248
-#define ZYD_CR147	0x924c
-#define ZYD_CR148	0x9250
-#define ZYD_CR149	0x9254
-#define ZYD_CR150	0x9258
-#define ZYD_CR151	0x925c
-#define ZYD_CR152	0x9260
-#define ZYD_CR153	0x9264
-#define ZYD_CR154	0x9268
-#define ZYD_CR155	0x926c
-#define ZYD_CR156	0x9270
-#define ZYD_CR157	0x9274
-#define ZYD_CR158	0x9278
-#define ZYD_CR159	0x927c
-#define ZYD_CR160	0x9280
-#define ZYD_CR161	0x9284
-#define ZYD_CR162	0x9288
-#define ZYD_CR163	0x928c
-#define ZYD_CR164	0x9290
-#define ZYD_CR165	0x9294
-#define ZYD_CR166	0x9298
-#define ZYD_CR167	0x929c
-#define ZYD_CR168	0x92a0
-#define ZYD_CR169	0x92a4
-#define ZYD_CR170	0x92a8
-#define ZYD_CR171	0x92ac
-#define ZYD_CR172	0x92b0
-#define ZYD_CR173	0x92b4
-#define ZYD_CR174	0x92b8
-#define ZYD_CR175	0x92bc
-#define ZYD_CR176	0x92c0
-#define ZYD_CR177	0x92c4
-#define ZYD_CR178	0x92c8
-#define ZYD_CR179	0x92cc
-#define ZYD_CR180	0x92d0
-#define ZYD_CR181	0x92d4
-#define ZYD_CR182	0x92d8
-#define ZYD_CR183	0x92dc
-#define ZYD_CR184	0x92e0
-#define ZYD_CR185	0x92e4
-#define ZYD_CR186	0x92e8
-#define ZYD_CR187	0x92ec
-#define ZYD_CR188	0x92f0
-#define ZYD_CR189	0x92f4
-#define ZYD_CR190	0x92f8
-#define ZYD_CR191	0x92fc
-#define ZYD_CR192	0x9300
-#define ZYD_CR193	0x9304
-#define ZYD_CR194	0x9308
-#define ZYD_CR195	0x930c
-#define ZYD_CR196	0x9310
-#define ZYD_CR197	0x9314
-#define ZYD_CR198	0x9318
-#define ZYD_CR199	0x931c
-#define ZYD_CR200	0x9320
-#define ZYD_CR201	0x9324
-#define ZYD_CR202	0x9328
-#define ZYD_CR203	0x932c
-#define ZYD_CR204	0x9330
-#define ZYD_CR205	0x9334
-#define ZYD_CR206	0x9338
-#define ZYD_CR207	0x933c
-#define ZYD_CR208	0x9340
-#define ZYD_CR209	0x9344
-#define ZYD_CR210	0x9348
-#define ZYD_CR211	0x934c
-#define ZYD_CR212	0x9350
-#define ZYD_CR213	0x9354
-#define ZYD_CR214	0x9358
-#define ZYD_CR215	0x935c
-#define ZYD_CR216	0x9360
-#define ZYD_CR217	0x9364
-#define ZYD_CR218	0x9368
-#define ZYD_CR219	0x936c
-#define ZYD_CR220	0x9370
-#define ZYD_CR221	0x9374
-#define ZYD_CR222	0x9378
-#define ZYD_CR223	0x937c
-#define ZYD_CR224	0x9380
-#define ZYD_CR225	0x9384
-#define ZYD_CR226	0x9388
-#define ZYD_CR227	0x938c
-#define ZYD_CR228	0x9390
-#define ZYD_CR229	0x9394
-#define ZYD_CR230	0x9398
-#define ZYD_CR231	0x939c
-#define ZYD_CR232	0x93a0
-#define ZYD_CR233	0x93a4
-#define ZYD_CR234	0x93a8
-#define ZYD_CR235	0x93ac
-#define ZYD_CR236	0x93b0
-#define ZYD_CR240	0x93c0
-#define ZYD_CR241	0x93c4
-#define ZYD_CR242	0x93c8
-#define ZYD_CR243	0x93cc
-#define ZYD_CR244	0x93d0
-#define ZYD_CR245	0x93d4
-#define ZYD_CR251	0x93ec
-#define ZYD_CR252	0x93f0
-#define ZYD_CR253	0x93f4
-#define ZYD_CR254	0x93f8
-#define ZYD_CR255	0x93fc
+#define ZYD_CR0			0x9000
+#define ZYD_CR1			0x9004
+#define ZYD_CR2			0x9008
+#define ZYD_CR3			0x900c
+#define ZYD_CR5			0x9010
+#define ZYD_CR6			0x9014
+#define ZYD_CR7			0x9018
+#define ZYD_CR8			0x901c
+#define ZYD_CR4			0x9020
+#define ZYD_CR9			0x9024
+#define ZYD_CR10		0x9028
+#define ZYD_CR11		0x902c
+#define ZYD_CR12		0x9030
+#define ZYD_CR13		0x9034
+#define ZYD_CR14		0x9038
+#define ZYD_CR15		0x903c
+#define ZYD_CR16		0x9040
+#define ZYD_CR17		0x9044
+#define ZYD_CR18		0x9048
+#define ZYD_CR19		0x904c
+#define ZYD_CR20		0x9050
+#define ZYD_CR21		0x9054
+#define ZYD_CR22		0x9058
+#define ZYD_CR23		0x905c
+#define ZYD_CR24		0x9060
+#define ZYD_CR25		0x9064
+#define ZYD_CR26		0x9068
+#define ZYD_CR27		0x906c
+#define ZYD_CR28		0x9070
+#define ZYD_CR29		0x9074
+#define ZYD_CR30		0x9078
+#define ZYD_CR31		0x907c
+#define ZYD_CR32		0x9080
+#define ZYD_CR33		0x9084
+#define ZYD_CR34		0x9088
+#define ZYD_CR35		0x908c
+#define ZYD_CR36		0x9090
+#define ZYD_CR37		0x9094
+#define ZYD_CR38		0x9098
+#define ZYD_CR39		0x909c
+#define ZYD_CR40		0x90a0
+#define ZYD_CR41		0x90a4
+#define ZYD_CR42		0x90a8
+#define ZYD_CR43		0x90ac
+#define ZYD_CR44		0x90b0
+#define ZYD_CR45		0x90b4
+#define ZYD_CR46		0x90b8
+#define ZYD_CR47		0x90bc
+#define ZYD_CR48		0x90c0
+#define ZYD_CR49		0x90c4
+#define ZYD_CR50		0x90c8
+#define ZYD_CR51		0x90cc
+#define ZYD_CR52		0x90d0
+#define ZYD_CR53		0x90d4
+#define ZYD_CR54		0x90d8
+#define ZYD_CR55		0x90dc
+#define ZYD_CR56		0x90e0
+#define ZYD_CR57		0x90e4
+#define ZYD_CR58		0x90e8
+#define ZYD_CR59		0x90ec
+#define ZYD_CR60		0x90f0
+#define ZYD_CR61		0x90f4
+#define ZYD_CR62		0x90f8
+#define ZYD_CR63		0x90fc
+#define ZYD_CR64		0x9100
+#define ZYD_CR65		0x9104
+#define ZYD_CR66		0x9108
+#define ZYD_CR67		0x910c
+#define ZYD_CR68		0x9110
+#define ZYD_CR69		0x9114
+#define ZYD_CR70		0x9118
+#define ZYD_CR71		0x911c
+#define ZYD_CR72		0x9120
+#define ZYD_CR73		0x9124
+#define ZYD_CR74		0x9128
+#define ZYD_CR75		0x912c
+#define ZYD_CR76		0x9130
+#define ZYD_CR77		0x9134
+#define ZYD_CR78		0x9138
+#define ZYD_CR79		0x913c
+#define ZYD_CR80		0x9140
+#define ZYD_CR81		0x9144
+#define ZYD_CR82		0x9148
+#define ZYD_CR83		0x914c
+#define ZYD_CR84		0x9150
+#define ZYD_CR85		0x9154
+#define ZYD_CR86		0x9158
+#define ZYD_CR87		0x915c
+#define ZYD_CR88		0x9160
+#define ZYD_CR89		0x9164
+#define ZYD_CR90		0x9168
+#define ZYD_CR91		0x916c
+#define ZYD_CR92		0x9170
+#define ZYD_CR93		0x9174
+#define ZYD_CR94		0x9178
+#define ZYD_CR95		0x917c
+#define ZYD_CR96		0x9180
+#define ZYD_CR97		0x9184
+#define ZYD_CR98		0x9188
+#define ZYD_CR99		0x918c
+#define ZYD_CR100		0x9190
+#define ZYD_CR101		0x9194
+#define ZYD_CR102		0x9198
+#define ZYD_CR103		0x919c
+#define ZYD_CR104		0x91a0
+#define ZYD_CR105		0x91a4
+#define ZYD_CR106		0x91a8
+#define ZYD_CR107		0x91ac
+#define ZYD_CR108		0x91b0
+#define ZYD_CR109		0x91b4
+#define ZYD_CR110		0x91b8
+#define ZYD_CR111		0x91bc
+#define ZYD_CR112		0x91c0
+#define ZYD_CR113		0x91c4
+#define ZYD_CR114		0x91c8
+#define ZYD_CR115		0x91cc
+#define ZYD_CR116		0x91d0
+#define ZYD_CR117		0x91d4
+#define ZYD_CR118		0x91d8
+#define ZYD_CR119		0x91dc
+#define ZYD_CR120		0x91e0
+#define ZYD_CR121		0x91e4
+#define ZYD_CR122		0x91e8
+#define ZYD_CR123		0x91ec
+#define ZYD_CR124		0x91f0
+#define ZYD_CR125		0x91f4
+#define ZYD_CR126		0x91f8
+#define ZYD_CR127		0x91fc
+#define ZYD_CR128		0x9200
+#define ZYD_CR129		0x9204
+#define ZYD_CR130		0x9208
+#define ZYD_CR131		0x920c
+#define ZYD_CR132		0x9210
+#define ZYD_CR133		0x9214
+#define ZYD_CR134		0x9218
+#define ZYD_CR135		0x921c
+#define ZYD_CR136		0x9220
+#define ZYD_CR137		0x9224
+#define ZYD_CR138		0x9228
+#define ZYD_CR139		0x922c
+#define ZYD_CR140		0x9230
+#define ZYD_CR141		0x9234
+#define ZYD_CR142		0x9238
+#define ZYD_CR143		0x923c
+#define ZYD_CR144		0x9240
+#define ZYD_CR145		0x9244
+#define ZYD_CR146		0x9248
+#define ZYD_CR147		0x924c
+#define ZYD_CR148		0x9250
+#define ZYD_CR149		0x9254
+#define ZYD_CR150		0x9258
+#define ZYD_CR151		0x925c
+#define ZYD_CR152		0x9260
+#define ZYD_CR153		0x9264
+#define ZYD_CR154		0x9268
+#define ZYD_CR155		0x926c
+#define ZYD_CR156		0x9270
+#define ZYD_CR157		0x9274
+#define ZYD_CR158		0x9278
+#define ZYD_CR159		0x927c
+#define ZYD_CR160		0x9280
+#define ZYD_CR161		0x9284
+#define ZYD_CR162		0x9288
+#define ZYD_CR163		0x928c
+#define ZYD_CR164		0x9290
+#define ZYD_CR165		0x9294
+#define ZYD_CR166		0x9298
+#define ZYD_CR167		0x929c
+#define ZYD_CR168		0x92a0
+#define ZYD_CR169		0x92a4
+#define ZYD_CR170		0x92a8
+#define ZYD_CR171		0x92ac
+#define ZYD_CR172		0x92b0
+#define ZYD_CR173		0x92b4
+#define ZYD_CR174		0x92b8
+#define ZYD_CR175		0x92bc
+#define ZYD_CR176		0x92c0
+#define ZYD_CR177		0x92c4
+#define ZYD_CR178		0x92c8
+#define ZYD_CR179		0x92cc
+#define ZYD_CR180		0x92d0
+#define ZYD_CR181		0x92d4
+#define ZYD_CR182		0x92d8
+#define ZYD_CR183		0x92dc
+#define ZYD_CR184		0x92e0
+#define ZYD_CR185		0x92e4
+#define ZYD_CR186		0x92e8
+#define ZYD_CR187		0x92ec
+#define ZYD_CR188		0x92f0
+#define ZYD_CR189		0x92f4
+#define ZYD_CR190		0x92f8
+#define ZYD_CR191		0x92fc
+#define ZYD_CR192		0x9300
+#define ZYD_CR193		0x9304
+#define ZYD_CR194		0x9308
+#define ZYD_CR195		0x930c
+#define ZYD_CR196		0x9310
+#define ZYD_CR197		0x9314
+#define ZYD_CR198		0x9318
+#define ZYD_CR199		0x931c
+#define ZYD_CR200		0x9320
+#define ZYD_CR201		0x9324
+#define ZYD_CR202		0x9328
+#define ZYD_CR203		0x932c
+#define ZYD_CR204		0x9330
+#define ZYD_CR205		0x9334
+#define ZYD_CR206		0x9338
+#define ZYD_CR207		0x933c
+#define ZYD_CR208		0x9340
+#define ZYD_CR209		0x9344
+#define ZYD_CR210		0x9348
+#define ZYD_CR211		0x934c
+#define ZYD_CR212		0x9350
+#define ZYD_CR213		0x9354
+#define ZYD_CR214		0x9358
+#define ZYD_CR215		0x935c
+#define ZYD_CR216		0x9360
+#define ZYD_CR217		0x9364
+#define ZYD_CR218		0x9368
+#define ZYD_CR219		0x936c
+#define ZYD_CR220		0x9370
+#define ZYD_CR221		0x9374
+#define ZYD_CR222		0x9378
+#define ZYD_CR223		0x937c
+#define ZYD_CR224		0x9380
+#define ZYD_CR225		0x9384
+#define ZYD_CR226		0x9388
+#define ZYD_CR227		0x938c
+#define ZYD_CR228		0x9390
+#define ZYD_CR229		0x9394
+#define ZYD_CR230		0x9398
+#define ZYD_CR231		0x939c
+#define ZYD_CR232		0x93a0
+#define ZYD_CR233		0x93a4
+#define ZYD_CR234		0x93a8
+#define ZYD_CR235		0x93ac
+#define ZYD_CR236		0x93b0
+#define ZYD_CR240		0x93c0
+#define ZYD_CR241		0x93c4
+#define ZYD_CR242		0x93c8
+#define ZYD_CR243		0x93cc
+#define ZYD_CR244		0x93d0
+#define ZYD_CR245		0x93d4
+#define ZYD_CR251		0x93ec
+#define ZYD_CR252		0x93f0
+#define ZYD_CR253		0x93f4
+#define ZYD_CR254		0x93f8
+#define ZYD_CR255		0x93fc
 
 /* copied nearly verbatim from the Linux driver rewrite */
-#define ZYD_DEF_PHY							\
+#define	ZYD_DEF_PHY							\
 {									\
 	{ ZYD_CR0,   0x0a }, { ZYD_CR1,   0x06 }, { ZYD_CR2,   0x26 },	\
 	{ ZYD_CR3,   0x38 }, { ZYD_CR4,   0x80 }, { ZYD_CR9,   0xa0 },	\
@@ -437,7 +438,7 @@
 	{ ZYD_CR37,  0x00 }, { ZYD_CR38,  0x38 }, { ZYD_CR39,  0x0c },	\
 	{ ZYD_CR40,  0x84 }, { ZYD_CR41,  0x2a }, { ZYD_CR42,  0x80 },	\
 	{ ZYD_CR43,  0x10 }, { ZYD_CR44,  0x12 }, { ZYD_CR46,  0xff },	\
-	{ ZYD_CR47,  0x08 }, { ZYD_CR48,  0x26 }, { ZYD_CR49,  0x5b },	\
+	{ ZYD_CR47,  0x1e }, { ZYD_CR48,  0x26 }, { ZYD_CR49,  0x5b },	\
 	{ ZYD_CR64,  0xd0 }, { ZYD_CR65,  0x04 }, { ZYD_CR66,  0x58 },	\
 	{ ZYD_CR67,  0xc9 }, { ZYD_CR68,  0x88 }, { ZYD_CR69,  0x41 },	\
 	{ ZYD_CR70,  0x23 }, { ZYD_CR71,  0x10 }, { ZYD_CR72,  0xff },	\
@@ -459,7 +460,7 @@
 	{ ZYD_CR5,   0x00 }, { ZYD_CR6,   0x00 }, { ZYD_CR7,   0x00 },	\
 	{ ZYD_CR8,   0x00 }, { ZYD_CR9,   0x20 }, { ZYD_CR12,  0xf0 },	\
 	{ ZYD_CR20,  0x0e }, { ZYD_CR21,  0x0e }, { ZYD_CR27,  0x10 },	\
-	{ ZYD_CR44,  0x33 }, { ZYD_CR47,  0x30 }, { ZYD_CR83,  0x24 },	\
+	{ ZYD_CR44,  0x33 }, { ZYD_CR47,  0x1E }, { ZYD_CR83,  0x24 },	\
 	{ ZYD_CR84,  0x04 }, { ZYD_CR85,  0x00 }, { ZYD_CR86,  0x0C },	\
 	{ ZYD_CR87,  0x12 }, { ZYD_CR88,  0x0C }, { ZYD_CR89,  0x00 },	\
 	{ ZYD_CR90,  0x10 }, { ZYD_CR91,  0x08 }, { ZYD_CR93,  0x00 },	\
@@ -470,19 +471,18 @@
 	{ ZYD_CR111, 0x27 }, { ZYD_CR112, 0x27 }, { ZYD_CR113, 0x27 },	\
 	{ ZYD_CR114, 0x27 }, { ZYD_CR115, 0x26 }, { ZYD_CR116, 0x24 },	\
 	{ ZYD_CR117, 0xfc }, { ZYD_CR118, 0xfa }, { ZYD_CR120, 0x4f },	\
-	{ ZYD_CR123, 0x27 }, { ZYD_CR125, 0xaa }, { ZYD_CR127, 0x03 },	\
-	{ ZYD_CR128, 0x14 }, { ZYD_CR129, 0x12 }, { ZYD_CR130, 0x10 },	\
-	{ ZYD_CR131, 0x0C }, { ZYD_CR136, 0xdf }, { ZYD_CR137, 0x40 },	\
-	{ ZYD_CR138, 0xa0 }, { ZYD_CR139, 0xb0 }, { ZYD_CR140, 0x99 },	\
-	{ ZYD_CR141, 0x82 }, { ZYD_CR142, 0x54 }, { ZYD_CR143, 0x1c },	\
-	{ ZYD_CR144, 0x6c }, { ZYD_CR147, 0x07 }, { ZYD_CR148, 0x4c },	\
-	{ ZYD_CR149, 0x50 }, { ZYD_CR150, 0x0e }, { ZYD_CR151, 0x18 },	\
-	{ ZYD_CR160, 0xfe }, { ZYD_CR161, 0xee }, { ZYD_CR162, 0xaa },	\
-	{ ZYD_CR163, 0xfa }, { ZYD_CR164, 0xfa }, { ZYD_CR165, 0xea },	\
-	{ ZYD_CR166, 0xbe }, { ZYD_CR167, 0xbe }, { ZYD_CR168, 0x6a },	\
-	{ ZYD_CR169, 0xba }, { ZYD_CR170, 0xba }, { ZYD_CR171, 0xba },	\
-	{ ZYD_CR204, 0x7d }, { ZYD_CR203, 0x30 }, 			\
-	{ 0, 0 }							\
+	{ ZYD_CR125, 0xaa }, { ZYD_CR127, 0x03 }, { ZYD_CR128, 0x14 },	\
+	{ ZYD_CR129, 0x12 }, { ZYD_CR130, 0x10 }, { ZYD_CR131, 0x0C },	\
+	{ ZYD_CR136, 0xdf }, { ZYD_CR137, 0x40 }, { ZYD_CR138, 0xa0 },	\
+	{ ZYD_CR139, 0xb0 }, { ZYD_CR140, 0x99 }, { ZYD_CR141, 0x82 },	\
+	{ ZYD_CR142, 0x54 }, { ZYD_CR143, 0x1c }, { ZYD_CR144, 0x6c },	\
+	{ ZYD_CR147, 0x07 }, { ZYD_CR148, 0x4c }, { ZYD_CR149, 0x50 },	\
+	{ ZYD_CR150, 0x0e }, { ZYD_CR151, 0x18 }, { ZYD_CR160, 0xfe },	\
+	{ ZYD_CR161, 0xee }, { ZYD_CR162, 0xaa }, { ZYD_CR163, 0xfa },	\
+	{ ZYD_CR164, 0xfa }, { ZYD_CR165, 0xea }, { ZYD_CR166, 0xbe },	\
+	{ ZYD_CR167, 0xbe }, { ZYD_CR168, 0x6a }, { ZYD_CR169, 0xba },	\
+	{ ZYD_CR170, 0xba }, { ZYD_CR171, 0xba }, { ZYD_CR204, 0x7d },	\
+	{ ZYD_CR203, 0x30 }, { 0, 0}					\
 }
 
 #define ZYD_DEF_PHYB							\
@@ -590,8 +590,6 @@
 	{ 0x181a60, 0x1c0000 }	\
 }
 
-
-
 #define ZYD_AL2230_PHY							\
 {									\
 	{ ZYD_CR15,  0x20 }, { ZYD_CR23,  0x40 }, { ZYD_CR24,  0x20 },	\
@@ -617,34 +615,73 @@
 
 #define ZYD_AL2230_PHY_B						\
 {									\
-	{ ZYD_CR10,  0x89 }, { ZYD_CR15,  0x20 }, { ZYD_CR17,  0x2b },	\
+	{ ZYD_CR10,  0x89 }, { ZYD_CR15,  0x20 }, { ZYD_CR17,  0x2B },	\
 	{ ZYD_CR23,  0x40 }, { ZYD_CR24,  0x20 }, { ZYD_CR26,  0x93 },	\
 	{ ZYD_CR28,  0x3e }, { ZYD_CR29,  0x00 }, { ZYD_CR33,  0x28 },	\
 	{ ZYD_CR34,  0x30 }, { ZYD_CR35,  0x3e }, { ZYD_CR41,  0x24 },	\
 	{ ZYD_CR44,  0x32 }, { ZYD_CR46,  0x99 }, { ZYD_CR47,  0x1e },	\
-	{ ZYD_CR48,  0x00 }, { ZYD_CR49,  0x00 }, { ZYD_CR51,  0x01 },	\
+	{ ZYD_CR48,  0x06 }, { ZYD_CR49,  0xf9 }, { ZYD_CR51,  0x01 },	\
 	{ ZYD_CR52,  0x80 }, { ZYD_CR53,  0x7e }, { ZYD_CR65,  0x00 },	\
 	{ ZYD_CR66,  0x00 }, { ZYD_CR67,  0x00 }, { ZYD_CR68,  0x00 },	\
 	{ ZYD_CR69,  0x28 }, { ZYD_CR79,  0x58 }, { ZYD_CR80,  0x30 },	\
 	{ ZYD_CR81,  0x30 }, { ZYD_CR87,  0x0a }, { ZYD_CR89,  0x04 },	\
 	{ ZYD_CR91,  0x00 }, { ZYD_CR92,  0x0a }, { ZYD_CR98,  0x8d },	\
-	{ ZYD_CR99,  0x00 }, { ZYD_CR101, 0x13 }, { ZYD_CR106, 0x24 },	\
-	{ ZYD_CR107, 0x2a }, { ZYD_CR109, 0x13 }, { ZYD_CR110, 0x1f },	\
-	{ ZYD_CR111, 0x1f }, { ZYD_CR114, 0x27 }, { ZYD_CR115, 0x26 },	\
+	{ ZYD_CR99,  0x00 }, { ZYD_CR101, 0x13 }, { ZYD_CR102, 0x27 },	\
+	{ ZYD_CR106, 0x24 }, { ZYD_CR107, 0x2a }, { ZYD_CR109, 0x13 },	\
+	{ ZYD_CR110, 0x1f }, { ZYD_CR111, 0x1f }, { ZYD_CR112, 0x1f },	\
+	{ ZYD_CR113, 0x27 }, { ZYD_CR114, 0x27 }, { ZYD_CR115, 0x26 },	\
 	{ ZYD_CR116, 0x24 }, { ZYD_CR117, 0xfa }, { ZYD_CR118, 0xfa },	\
 	{ ZYD_CR119, 0x10 }, { ZYD_CR120, 0x4f }, { ZYD_CR121, 0x6c },	\
 	{ ZYD_CR122, 0xfc }, { ZYD_CR123, 0x57 }, { ZYD_CR125, 0xad },	\
 	{ ZYD_CR126, 0x6c }, { ZYD_CR127, 0x03 }, { ZYD_CR137, 0x50 },	\
 	{ ZYD_CR138, 0xa8 }, { ZYD_CR144, 0xac }, { ZYD_CR150, 0x0d },	\
-	{ ZYD_CR252, 0x00 }, { ZYD_CR253, 0x00 }			\
+	{ ZYD_CR252, 0x34 }, { ZYD_CR253, 0x34 }			\
 }
 
-#define ZYD_AL2230_RF							\
+#define ZYD_AL2230_PHY_PART1						\
 {									\
-	0x03f790, 0x033331, 0x00000d, 0x0b3331, 0x03b812, 0x00fff3,	\
+	{ ZYD_CR240, 0x57 }, { ZYD_CR9,   0xe0 }			\
+}
+
+#define ZYD_AL2230_PHY_PART2						\
+{									\
+	{ ZYD_CR251, 0x2f }, { ZYD_CR251, 0x7f },			\
+}
+
+#define ZYD_AL2230_PHY_PART3						\
+{									\
+	{ ZYD_CR128, 0x14 }, { ZYD_CR129, 0x12 }, { ZYD_CR130, 0x10 },	\
+}
+
+#define	ZYD_AL2230S_PHY_INIT						\
+{									\
+	{ ZYD_CR47,  0x1e }, { ZYD_CR106, 0x22 }, { ZYD_CR107, 0x2a },	\
+	{ ZYD_CR109, 0x13 }, { ZYD_CR118, 0xf8 }, { ZYD_CR119, 0x12 },	\
+	{ ZYD_CR122, 0xe0 }, { ZYD_CR128, 0x10 }, { ZYD_CR129, 0x0e },	\
+	{ ZYD_CR130, 0x10 }						\
+}
+
+#define	ZYD_AL2230_PHY_FINI_PART1					\
+{									\
+	{ ZYD_CR80,  0x30 }, { ZYD_CR81,  0x30 }, { ZYD_CR79,  0x58 },	\
+	{ ZYD_CR12,  0xf0 }, { ZYD_CR77,  0x1b }, { ZYD_CR78,  0x58 },	\
+	{ ZYD_CR203, 0x06 }, { ZYD_CR240, 0x80 },			\
+}
+
+#define ZYD_AL2230_RF_PART1						\
+{									\
+	0x03f790, 0x033331, 0x00000d, 0x0b3331, 0x03b812, 0x00fff3	\
+}
+
+#define ZYD_AL2230_RF_PART2						\
+{									\
 	0x000da4, 0x0f4dc5, 0x0805b6, 0x011687, 0x000688, 0x0403b9,	\
-	0x00dbba, 0x00099b, 0x0bdffc, 0x00000d, 0x00500f, 0x00d00f,	\
-	0x004c0f, 0x00540f, 0x00700f, 0x00500f				\
+	0x00dbba, 0x00099b, 0x0bdffc, 0x00000d, 0x00500f		\
+}
+
+#define ZYD_AL2230_RF_PART3						\
+{									\
+	0x00d00f, 0x004c0f, 0x00540f, 0x00700f, 0x00500f		\
 }
 
 #define ZYD_AL2230_RF_B							\
@@ -652,6 +689,22 @@
 	0x03f790, 0x033331, 0x00000d, 0x0b3331, 0x03b812, 0x00fff3,	\
 	0x0005a4, 0x0f4dc5, 0x0805b6, 0x0146c7, 0x000688, 0x0403b9,	\
 	0x00dbba, 0x00099b, 0x0bdffc, 0x00000d, 0x00580f		\
+}
+
+#define ZYD_AL2230_RF_B_PART1						\
+{									\
+	0x8cccd0, 0x481dc0, 0xcfff00, 0x25a000				\
+}
+
+#define ZYD_AL2230_RF_B_PART2						\
+{									\
+	0x25a000, 0xa3b2f0, 0x6da010, 0xe36280, 0x116000, 0x9dc020,	\
+	0x5ddb00, 0xd99000, 0x3ffbd0, 0xb00000, 0xf01a00		\
+}
+
+#define ZYD_AL2230_RF_B_PART3						\
+{									\
+	0xf01b00, 0xf01e00, 0xf01a00					\
 }
 
 #define ZYD_AL2230_CHANTABLE			\
@@ -672,7 +725,23 @@
 	{ 0x03e7c0, 0x066661, 0x00000d }	\
 }
 
-
+#define ZYD_AL2230_CHANTABLE_B			\
+{						\
+	{ 0x09efc0, 0x8cccc0, 0xb00000 },	\
+	{ 0x09efc0, 0x8cccd0, 0xb00000 },	\
+	{ 0x09e7c0, 0x8cccc0, 0xb00000 },	\
+	{ 0x09e7c0, 0x8cccd0, 0xb00000 },	\
+	{ 0x05efc0, 0x8cccc0, 0xb00000 },	\
+	{ 0x05efc0, 0x8cccd0, 0xb00000 },	\
+	{ 0x05e7c0, 0x8cccc0, 0xb00000 },	\
+	{ 0x05e7c0, 0x8cccd0, 0xb00000 },	\
+	{ 0x0defc0, 0x8cccc0, 0xb00000 },	\
+	{ 0x0defc0, 0x8cccd0, 0xb00000 },	\
+	{ 0x0de7c0, 0x8cccc0, 0xb00000 },	\
+	{ 0x0de7c0, 0x8cccd0, 0xb00000 },	\
+	{ 0x03efc0, 0x8cccc0, 0xb00000 },	\
+	{ 0x03e7c0, 0x866660, 0xb00000 }	\
+}
 
 #define ZYD_AL7230B_PHY_1							\
 {									\
@@ -744,8 +813,6 @@
 	{ 0x03ec00, 0x866660 }	\
 }
 
-
-
 #define ZYD_AL2210_PHY							\
 {									\
 	{ ZYD_CR9,   0xe0 }, { ZYD_CR10, 0x91 }, { ZYD_CR12,  0x90 },	\
@@ -770,8 +837,6 @@
 	0x0198a0, 0x0198f0, 0x019940, 0x019990, 0x0199e0, 0x019a30,	\
 	0x019a80, 0x019b40 						\
 }
-
-
 
 #define ZYD_GCT_PHY							\
 {									\
@@ -800,8 +865,6 @@
 	0x1a6000, 0x1ae000, 0x1a1000, 0x1a9000, 0x1a5000, 0x1ad000,	\
 	0x1a3000, 0x1ab000						\
 }
-
-
 
 #define ZYD_MAXIM_PHY							\
 {									\
@@ -854,8 +917,6 @@
 	{ 0x0ccd4, 0x30a43 },	\
 	{ 0x199a4, 0x20a53 }	\
 }
-
-
 
 #define ZYD_MAXIM2_PHY							\
 {									\
@@ -917,17 +978,18 @@
 /*
  * Control pipe requests.
  */
-#define ZYD_DOWNLOADREQ	0x30
-#define ZYD_DOWNLOADSTS	0x31
+#define ZYD_DOWNLOADREQ		0x30
+#define ZYD_DOWNLOADSTS		0x31
+#define	ZYD_READFWDATAREQ	0x32
 
 /* possible values for register ZYD_CR_INTERRUPT */
-#define ZYD_HWINT_MASK	0x004f0000
+#define ZYD_HWINT_MASK		0x004f0000
 
 /* possible values for register ZYD_MAC_MISC */
 #define ZYD_UNLOCK_PHY_REGS	0x80
 
 /* possible values for register ZYD_MAC_ENCRYPTION_TYPE */
-#define ZYD_ENC_SNIFFER	8
+#define ZYD_ENC_SNIFFER		8
 
 /* flags for register ZYD_MAC_RXFILTER */
 #define ZYD_FILTER_ASS_REQ	(1 << 0)
@@ -951,23 +1013,27 @@
 /* helpers for register ZYD_MAC_RXFILTER */
 #define ZYD_FILTER_MONITOR	0xffffffff
 #define ZYD_FILTER_BSS							\
-	(ZYD_FILTER_ASS_RSP | ZYD_FILTER_REASS_RSP |			\
-	 ZYD_FILTER_PRB_RSP | ZYD_FILTER_BCN | ZYD_FILTER_DEASS |	\
-	 ZYD_FILTER_AUTH | ZYD_FILTER_DEAUTH)
+	(ZYD_FILTER_ASS_REQ | ZYD_FILTER_ASS_RSP |			\
+	 ZYD_FILTER_REASS_REQ | ZYD_FILTER_REASS_RSP |			\
+	 ZYD_FILTER_PRB_REQ | ZYD_FILTER_PRB_RSP |			\
+	 (0x3 << 6) |							\
+	 ZYD_FILTER_BCN | ZYD_FILTER_ATIM | ZYD_FILTER_DEASS |		\
+	 ZYD_FILTER_AUTH | ZYD_FILTER_DEAUTH |				\
+	 (0x7 << 13) |							\
+	 ZYD_FILTER_PS_POLL | ZYD_FILTER_ACK)
 #define ZYD_FILTER_HOSTAP						\
 	(ZYD_FILTER_ASS_REQ | ZYD_FILTER_REASS_REQ |			\
 	 ZYD_FILTER_PRB_REQ | ZYD_FILTER_DEASS | ZYD_FILTER_AUTH |	\
 	 ZYD_FILTER_DEAUTH | ZYD_FILTER_PS_POLL)
 
 struct zyd_tx_desc {
-	uint8_t		phy;
+	uint8_t			phy;
 #define ZYD_TX_PHY_SIGNAL(x)	((x) & 0xf)
 #define ZYD_TX_PHY_OFDM		(1 << 4)
 #define ZYD_TX_PHY_SHPREAMBLE	(1 << 5)	/* CCK */
 #define ZYD_TX_PHY_5GHZ		(1 << 5)	/* OFDM */
-
-	uint16_t	len;
-	uint8_t		flags;
+	uint16_t		len;
+	uint8_t			flags;
 #define ZYD_TX_FLAG_BACKOFF	(1 << 0)
 #define ZYD_TX_FLAG_MULTICAST	(1 << 1)
 #define ZYD_TX_FLAG_TYPE(x)	(((x) & 0x3) << 2)
@@ -979,26 +1045,24 @@ struct zyd_tx_desc {
 #define ZYD_TX_FLAG_RTS		(1 << 5)
 #define ZYD_TX_FLAG_ENCRYPT	(1 << 6)
 #define ZYD_TX_FLAG_CTS_TO_SELF	(1 << 7)
-
-	uint16_t	pktlen;
-	uint16_t	plcp_length;
-	uint8_t		plcp_service;
+	uint16_t		pktlen;
+	uint16_t		plcp_length;
+	uint8_t			plcp_service;
 #define ZYD_PLCP_LENGEXT	0x80
-
-	uint16_t	nextlen;
+	uint16_t		nextlen;
 } __packed;
 
 struct zyd_plcphdr {
-	uint8_t		signal;
-	uint8_t		reserved[2];
-	uint16_t	service;	/* unaligned! */
+	uint8_t			signal;
+	uint8_t			reserved[2];
+	uint16_t		service;	/* unaligned! */
 } __packed;
 
 struct zyd_rx_stat {
-	uint8_t	signal_cck;
-	uint8_t	rssi;
-	uint8_t signal_ofdm;
-	uint8_t cipher;
+	uint8_t			signal_cck;
+	uint8_t			rssi;
+	uint8_t			signal_ofdm;
+	uint8_t			cipher;
 #define ZYD_RX_CIPHER_WEP64	1
 #define ZYD_RX_CIPHER_TKIP	2
 #define ZYD_RX_CIPHER_AES	4
@@ -1006,8 +1070,7 @@ struct zyd_rx_stat {
 #define ZYD_RX_CIPHER_WEP256	6
 #define ZYD_RX_CIPHER_WEP	\
 	(ZYD_RX_CIPHER_WEP64 | ZYD_RX_CIPHER_WEP128 | ZYD_RX_CIPHER_WEP256)
-
-	uint8_t	flags;
+	uint8_t			flags;
 #define ZYD_RX_OFDM		(1 << 0)
 #define ZYD_RX_TIMEOUT		(1 << 1)
 #define ZYD_RX_OVERRUN		(1 << 2)
@@ -1021,54 +1084,48 @@ struct zyd_rx_stat {
 /* this structure may be unaligned */
 struct zyd_rx_desc {
 #define ZYD_MAX_RXFRAMECNT	3
-	uWord	len[ZYD_MAX_RXFRAMECNT];
-	uWord	tag;
+	uWord			len[ZYD_MAX_RXFRAMECNT];
+	uWord			tag;
 #define ZYD_TAG_MULTIFRAME	0x697e
 } __packed;
 
 /* I2C bus alike */
-struct zyd_rfwrite {
-	uint16_t	code;
-	uint16_t	width;
-	uint16_t	bit[32];
-#define ZYD_RF_IF_LE	(1 << 1)
-#define ZYD_RF_CLK	(1 << 2)
-#define ZYD_RF_DATA	(1 << 3)
+struct zyd_rfwrite_cmd {
+	uint16_t		code;
+	uint16_t		width;
+	uint16_t		bit[32];
+#define ZYD_RF_IF_LE		(1 << 1)
+#define ZYD_RF_CLK		(1 << 2)
+#define ZYD_RF_DATA		(1 << 3)
 } __packed;
 
 struct zyd_cmd {
-	uint16_t	code;
+	uint16_t		code;
 #define ZYD_CMD_IOWR		0x0021	/* write HMAC or PHY register */
 #define ZYD_CMD_IORD		0x0022	/* read HMAC or PHY register */
 #define ZYD_CMD_RFCFG		0x0023	/* write RF register */
 #define ZYD_NOTIF_IORD		0x9001	/* response for ZYD_CMD_IORD */
 #define ZYD_NOTIF_MACINTR	0x9001	/* interrupt notification */
 #define ZYD_NOTIF_RETRYSTATUS	0xa001	/* Tx retry notification */
-
-	uint8_t		data[64];
+	uint8_t			data[64];
 } __packed;
 
 /* structure for command ZYD_CMD_IOWR */
 struct zyd_pair {
-	uint16_t	reg;
+	uint16_t		reg;
 /* helpers macros to read/write 32-bit registers */
 #define ZYD_REG32_LO(reg)	(reg)
 #define ZYD_REG32_HI(reg)	\
 	((reg) + ((((reg) & 0xf000) == 0x9000) ? 2 : 1))
-
-	uint16_t	val;
+	uint16_t		val;
 } __packed;
 
 /* structure for notification ZYD_NOTIF_RETRYSTATUS */
 struct zyd_notif_retry {
-	uint16_t	rate;
-	uint8_t		macaddr[IEEE80211_ADDR_LEN];
-	uint16_t	count;
+	uint16_t		rate;
+	uint8_t			macaddr[IEEE80211_ADDR_LEN];
+	uint16_t		count;
 } __packed;
-
-
-#define ZYD_RX_LIST_CNT	1
-#define ZYD_TX_LIST_CNT	1
 
 #define ZYD_CONFIG_NO		1
 #define ZYD_IFACE_INDEX		0
@@ -1078,7 +1135,6 @@ struct zyd_notif_retry {
 
 #define ZYD_MAX_TXBUFSZ	\
 	(sizeof(struct zyd_tx_desc) + MCLBYTES)
-
 #define ZYD_MIN_FRAGSZ							\
 	(sizeof(struct zyd_plcphdr) + IEEE80211_MIN_LEN + 		\
 	 sizeof(struct zyd_rx_stat))
@@ -1087,21 +1143,22 @@ struct zyd_notif_retry {
 	((sizeof (struct zyd_plcphdr) + IEEE80211_MAX_LEN +		\
 	  sizeof (struct zyd_rx_stat)) * ZYD_MAX_RXFRAMECNT + 		\
 	 sizeof (struct zyd_rx_desc))
- 
 
+#define ZYD_RX_LIST_CNT		1
+#define ZYD_TX_LIST_CNT		5
 #define ZYD_CMD_FLAG_READ	(1 << 0)
 
 /* quickly determine if a given rate is CCK or OFDM */
 #define ZYD_RATE_IS_OFDM(rate)	((rate) >= 12 && (rate) != 22)
 
 struct zyd_phy_pair {
-	uint16_t	reg;
-	uint8_t		val;
+	uint16_t		reg;
+	uint8_t			val;
 };
 
 struct zyd_mac_pair {
-	uint16_t	reg;
-	uint32_t	val;
+	uint16_t		reg;
+	uint32_t		val;
 };
 
 struct zyd_tx_data {
@@ -1119,19 +1176,19 @@ struct zyd_rx_data {
 };
 
 struct zyd_node {
-	struct ieee80211_node		ni;	/* must be the first */
+	struct ieee80211_node	ni;	/* must be the first */
 	struct ieee80211_amrr_node	amn;
 };
 #define	ZYD_NODE(ni)	((struct zyd_node *)(ni))
 
 struct zyd_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
-	uint8_t		wr_flags;
-	uint8_t		wr_rate;
-	uint16_t	wr_chan_freq;
-	uint16_t	wr_chan_flags;
-	int8_t		wr_antsignal;
-	int8_t		wr_antnoise;
+	uint8_t			wr_flags;
+	uint8_t			wr_rate;
+	uint16_t		wr_chan_freq;
+	uint16_t		wr_chan_flags;
+	int8_t			wr_antsignal;
+	int8_t			wr_antnoise;
 } __packed;
 
 #define ZYD_RX_RADIOTAP_PRESENT						\
@@ -1143,10 +1200,10 @@ struct zyd_rx_radiotap_header {
 
 struct zyd_tx_radiotap_header {
 	struct ieee80211_radiotap_header wt_ihdr;
-	uint8_t		wt_flags;
-	uint8_t		wt_rate;
-	uint16_t	wt_chan_freq;
-	uint16_t	wt_chan_flags;
+	uint8_t			wt_flags;
+	uint8_t			wt_rate;
+	uint16_t		wt_chan_freq;
+	uint16_t		wt_chan_flags;
 } __packed;
 
 #define ZYD_TX_RADIOTAP_PRESENT						\
@@ -1158,20 +1215,21 @@ struct zyd_softc;	/* forward declaration */
 
 struct zyd_rf {
 	/* RF methods */
-	int	(*init)(struct zyd_rf *);
-	int	(*switch_radio)(struct zyd_rf *, int);
-	int	(*set_channel)(struct zyd_rf *, uint8_t);
-
+	int			(*init)(struct zyd_rf *);
+	int			(*switch_radio)(struct zyd_rf *, int);
+	int			(*set_channel)(struct zyd_rf *, uint8_t);
+	int			(*bandedge6)(struct zyd_rf *,
+				    struct ieee80211_channel *);
 	/* RF attributes */
-	struct	zyd_softc *rf_sc;	/* back-pointer */
-	int	width;
+	struct zyd_softc	*rf_sc;	/* back-pointer */
+	int			width;
 };
 
-struct rq {
-	const uint16_t *idata;
-	struct zyd_pair *odata;
-	int len;
-	STAILQ_ENTRY(rq) rq;
+struct zyd_rq {
+	const uint16_t		*idata;
+	struct zyd_pair		*odata;
+	int			len;
+	STAILQ_ENTRY(zyd_rq)	rq;
 };
 
 struct zyd_vap {
@@ -1184,73 +1242,81 @@ struct zyd_vap {
 #define	ZYD_VAP(vap)	((struct zyd_vap *)(vap))
 
 struct zyd_softc {
-	device_t			sc_dev;
-	struct ifnet			*sc_ifp;
-	struct zyd_rf			sc_rf;
+	device_t		sc_dev;
+	usbd_device_handle	sc_udev;
+	usbd_interface_handle	sc_iface;
+	struct ifnet		*sc_ifp;
 
-	struct usb_task			sc_task;
-	struct usb_task			sc_scantask;
-	int				sc_scan_action;
-#define ZYD_SCAN_START	0
-#define ZYD_SCAN_END	1
-#define ZYD_SET_CHANNEL	2
-	struct usb_task			sc_mcasttask;
-	usbd_device_handle		sc_udev;
-	usbd_interface_handle		sc_iface;
-	int				sc_flags;
-#define ZYD_FLAG_FWLOADED		(1 << 0)
-#define ZYD_FLAG_DETACHING		(1 << 1)
-	int				sc_if_flags;
-	uint8_t				sc_bssid[IEEE80211_ADDR_LEN];
+	enum ieee80211_state	sc_state;
+	int			sc_arg;
+	int			sc_flags;
+#define ZYD_FLAG_FWLOADED	(1 << 0)
+#define ZYD_FLAG_DETACHING	(1 << 1)
+#define ZYD_FLAG_INITONCE	(1 << 2)
+#define	ZYD_FLAG_INITDONE	(1 << 3)
+	int			sc_if_flags;
+	uint32_t		sc_debug;
 
-	enum ieee80211_state		sc_state;
-	int				sc_arg;
+	struct usb_task		sc_mcasttask;
+	struct usb_task		sc_scantask;
+	int			sc_scan_action;
+#define ZYD_SCAN_START		0
+#define ZYD_SCAN_END		1
+#define ZYD_SET_CHANNEL		2
+	struct usb_task		sc_task;
+	struct callout		sc_watchdog_ch;
 
-	struct mtx			sc_mtx;
-	struct callout			sc_watchdog_ch;
+	struct zyd_rf		sc_rf;
 
-	STAILQ_HEAD(rqh, rq) sc_rqh;
+	STAILQ_HEAD(, zyd_rq)	sc_rqh;
 
-	uint16_t			fwbase;
-	uint8_t				regdomain;
-	uint8_t				mac_rev;
-	uint16_t			fw_rev;
-	uint8_t				rf_rev;
-	uint8_t				pa_rev;
-	uint8_t				fix_cr47;
-	uint8_t				fix_cr157;
-	uint8_t				pwr_cal[14];
-	uint8_t				pwr_int[14];
-	uint8_t				ofdm36_cal[14];
-	uint8_t				ofdm48_cal[14];
-	uint8_t				ofdm54_cal[14];
+	uint8_t			sc_bssid[IEEE80211_ADDR_LEN];
+	uint16_t		sc_fwbase;
+	uint8_t			sc_regdomain;
+	uint8_t			sc_macrev;
+	uint16_t		sc_fwrev;
+	uint8_t			sc_rfrev;
+	uint8_t			sc_parev;
+	uint8_t			sc_al2230s;
+	uint8_t			sc_bandedge6;
+	uint8_t			sc_newphy;
+	uint8_t			sc_cckgain;
+	uint8_t			sc_fix_cr157;
+	uint8_t			sc_ledtype;
+	uint8_t			sc_txled;
 
-#define ZYD_ENDPT_BOUT	0
-#define ZYD_ENDPT_BIN	1
-#define ZYD_ENDPT_IIN	2
-#define ZYD_ENDPT_IOUT	3
-#define ZYD_ENDPT_CNT	4
-	usbd_pipe_handle		zyd_ep[ZYD_ENDPT_CNT];
-	uint8_t 			*ibuf;
+	uint32_t		sc_atim_wnd;
+	uint32_t		sc_pre_tbtt;
+	uint32_t		sc_bcn_int;
 
-	struct zyd_rx_data		rx_data[ZYD_RX_LIST_CNT];
-	struct zyd_tx_data		tx_data[ZYD_TX_LIST_CNT];
-	int				tx_queued;
+	uint8_t			sc_pwrcal[14];
+	uint8_t			sc_pwrint[14];
+	uint8_t			sc_ofdm36_cal[14];
+	uint8_t			sc_ofdm48_cal[14];
+	uint8_t			sc_ofdm54_cal[14];
+#define ZYD_ENDPT_BOUT		0
+#define ZYD_ENDPT_BIN		1
+#define ZYD_ENDPT_IIN		2
+#define ZYD_ENDPT_IOUT		3
+#define ZYD_ENDPT_CNT		4
+	usbd_pipe_handle	sc_ep[ZYD_ENDPT_CNT];
+	uint8_t 		*sc_ibuf;
 
-	int				tx_timer;
+	struct mtx		sc_txmtx;
+	struct zyd_rx_data	sc_rxdata[ZYD_RX_LIST_CNT];
+	struct zyd_tx_data	sc_txdata[ZYD_TX_LIST_CNT];
+	int			sc_txidx;
+	int			sc_txqueued;
+	int			sc_txtimer;
 
 	struct zyd_rx_radiotap_header	sc_rxtap;
-	int				sc_rxtap_len;
-
+	int			sc_rxtap_len;
 	struct zyd_tx_radiotap_header	sc_txtap;
-	int				sc_txtap_len;
+	int			sc_txtap_len;
 };
 
-#if 0
-#define ZYD_LOCK(sc)    mtx_lock(&(sc)->sc_mtx)
-#define ZYD_UNLOCK(sc)  mtx_unlock(&(sc)->sc_mtx)
-#else
-#define ZYD_LOCK(sc)    do { ((sc) = (sc)); mtx_lock(&Giant); } while (0)
-#define ZYD_UNLOCK(sc)  mtx_unlock(&Giant)
-#endif
+#define	ZYD_LOCK(sc)		do { ((sc) = (sc)); mtx_lock(&Giant); } while (0)
+#define	ZYD_UNLOCK(sc)		mtx_unlock(&Giant)
+#define	ZYD_TX_LOCK(sc)		mtx_lock(&(sc)->sc_txmtx)
+#define	ZYD_TX_UNLOCK(sc)	mtx_unlock(&(sc)->sc_txmtx)
 
