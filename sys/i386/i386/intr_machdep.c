@@ -230,10 +230,7 @@ void
 intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 {
 	struct intr_event *ie;
-	struct thread *td;
 	int vector;
-
-	td = curthread;
 
 	/*
 	 * We count software interrupts when we process them.  The
