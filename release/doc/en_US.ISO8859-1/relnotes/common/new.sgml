@@ -160,13 +160,19 @@
 	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:09.icmp6.asc"
 		>SA-08:09.icmp6</ulink></entry>
 	    <entry>3&nbsp;September&nbsp;2008</entry>
-	    <entry><para>Remote kernel panics on IPv6 connections</entry>
+	    <entry><para>Remote kernel panics on IPv6 connections</para></entry>
 	  </row>
 	  <row>
 	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:10.nd6.asc"
 		>SA-08:10.nd6</ulink></entry>
 	    <entry>1&nbsp;October&nbsp;2008</entry>
-	    <entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</entry>
+	    <entry><para>IPv6 Neighbor Discovery Protocol routing vulnerability</para></entry>
+	  </row>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:11.arc4random.asc"
+		>SA-08:11.arc4random</ulink></entry>
+	    <entry>24&nbsp;November&nbsp;2008</entry>
+	    <entry><para>&man.arc4random.9; predictable sequence vulnerability</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
@@ -195,7 +201,8 @@
       obtaining locks (allowing multiple clients to use file locking
       to safely share data).  Also, a new kernel option
       <literal>options NFSLOCKD</literal> has been added and enabled
-      by default.</para>
+      by default.  If the kernel support is enabled, &man.rpc.lockd.8;
+      automatically detects and uses the functionality.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
