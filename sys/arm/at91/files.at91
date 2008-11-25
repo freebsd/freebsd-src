@@ -1,6 +1,7 @@
 # $FreeBSD$
 arm/arm/cpufunc_asm_arm9.S	standard
 arm/arm/irq_dispatch.S		standard
+arm/at91/at91_machdep.c		standard
 arm/at91/at91.c			standard
 arm/at91/at91_st.c		standard
 arm/at91/at91_mci.c		optional	at91_mci
@@ -18,3 +19,8 @@ arm/at91/ohci_atmelarm.c	optional	ohci
 arm/at91/uart_bus_at91usart.c	optional	uart
 arm/at91/uart_cpu_at91rm9200usart.c	optional	uart
 arm/at91/uart_dev_at91usart.c	optional	uart
+#
+# All the boards we support
+#
+arm/at91/board_kb920x.c		optional	at91_board_kb920x
+arm/at91/board_tsc4370.c	optional	at91_board_tsc4370

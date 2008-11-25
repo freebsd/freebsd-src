@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Olivier Houchard.  All rights reserved.
+ * Copyright (c) 2008 Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,22 +25,17 @@
 
 /* $FreeBSD$ */
 
-#ifndef _AT91VAR_H_
-#define _AT91VAR_H_
+#ifndef _ARM_AT91_AT91BOARD_H_
+#define _ARM_AT91_AT91BOARD_H_
 
-#include <sys/rman.h>
+/*
+ * These routines are used by board init routines
+ */
+long at91_ramsize(void);
 
-struct at91_softc {
-	device_t dev;
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_sys_sh;
-	struct rman sc_irq_rman;
-	struct rman sc_mem_rman;
-};
+/*
+ * These routines are expected to be provided by the board files.
+ */
+long board_init(void);
 
-struct at91_ivar {
-	struct resource_list resources;
-};
-
-#endif /* _AT91VAR_H_ */
+#endif /* _ARM_AT91_AT91BOARD_H_ */
