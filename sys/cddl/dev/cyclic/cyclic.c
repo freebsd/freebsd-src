@@ -1341,12 +1341,11 @@ cyclic_mp_init(void)
 static void
 cyclic_uninit(void)
 {
-	struct pcpu *pc;
 	cpu_t *c;
 	int id;
 
 	for (id = 0; id <= mp_maxid; id++) {
-		if ((pc = pcpu_find(id)) == NULL)
+		if (pcpu_find(id) == NULL)
 			continue;
 
 		c = &solaris_cpu[id];
