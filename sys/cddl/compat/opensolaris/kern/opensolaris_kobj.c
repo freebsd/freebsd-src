@@ -67,17 +67,25 @@ static void *
 kobj_open_file_vnode(const char *file)
 {
 	struct thread *td = curthread;
+	struct filedesc *fd;
 	struct nameidata nd;
 	int error, flags;
 
-	if (td->td_proc->p_fd->fd_rdir == NULL)
-		td->td_proc->p_fd->fd_rdir = rootvnode;
-	if (td->td_proc->p_fd->fd_cdir == NULL)
-		td->td_proc->p_fd->fd_cdir = rootvnode;
+	fd = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fd);
+	if (fd->fd_rdir == NULL) {
+		fd->fd_rdir = rootvnode;
+		vref(fd->fd_rdir);
+	}
+	if (fd->fd_cdir == NULL) {
+		fd->fd_cdir = rootvnode;
+		vref(fd->fd_cdir);
+	}
+	FILEDESC_XUNLOCK(fd);
 
 	flags = FREAD;
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, file, td);
-	error = vn_open_cred(&nd, &flags, 0, curthread->td_ucred, NULL);
+	NDINIT(&nd, LOOKUP, MPSAFE, UIO_SYSSPACE, file, td);
+	error = vn_open_cred(&nd, &flags, O_NOFOLLOW, curthread->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0)
 		return (NULL);
@@ -120,13 +128,15 @@ kobj_get_filesize_vnode(struct _buf *file, uint64_t *size)
 {
 	struct vnode *vp = file->ptr;
 	struct vattr va;
-	int error;
+	int error, vfslocked;
 
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
 		*size = (uint64_t)va.va_size;
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -159,7 +169,7 @@ kobj_read_file_vnode(struct _buf *file, char *buf, unsigned size, unsigned off)
 	struct thread *td = curthread;
 	struct uio auio;
 	struct iovec aiov;
-	int error;
+	int error, vfslocked;
 
 	bzero(&aiov, sizeof(aiov));
 	bzero(&auio, sizeof(auio));
@@ -175,9 +185,11 @@ kobj_read_file_vnode(struct _buf *file, char *buf, unsigned size, unsigned off)
 	auio.uio_resid = size;
 	auio.uio_td = td;
 
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_READ(vp, &auio, IO_UNIT | IO_SYNC, td->td_ucred);
 	VOP_UNLOCK(vp, 0);
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (error != 0 ? -1 : size - auio.uio_resid);
 }
 
@@ -211,9 +223,11 @@ kobj_close_file(struct _buf *file)
 	if (file->mounted) {
 		struct vnode *vp = file->ptr;
 		struct thread *td = curthread;
-		int flags = FREAD;
+		int vfslocked;
 
-		vn_close(vp, flags, td->td_ucred, td);
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vn_close(vp, FREAD, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	kmem_free(file, sizeof(*file));
 }
