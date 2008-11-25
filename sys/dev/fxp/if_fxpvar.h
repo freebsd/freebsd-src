@@ -1,13 +1,13 @@
 /*-
  * Copyright (c) 1995, David Greenman
  * All rights reserved.
- *              
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
- * are met:             
+ * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice unmodified, this list of conditions, and the following
- *    disclaimer.  
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -86,16 +86,16 @@
 
 /*
  * Default maximum time, in microseconds, that an interrupt may be delayed
- * in an attempt to coalesce interrupts.  This is only effective if the Intel 
+ * in an attempt to coalesce interrupts.  This is only effective if the Intel
  * microcode is loaded, and may be changed via either loader tunables or
  * sysctl.  See also the CPUSAVER_DWORD entry in rcvbundl.h.
  */
 #define TUNABLE_INT_DELAY 1000
 
 /*
- * Default number of packets that will be bundled, before an interrupt is 
+ * Default number of packets that will be bundled, before an interrupt is
  * generated.  This is only effective if the Intel microcode is loaded, and
- * may be changed via either loader tunables or sysctl.  This may not be 
+ * may be changed via either loader tunables or sysctl.  This may not be
  * present in all microcode revisions, see also the CPUSAVER_BUNDLE_MAX_DWORD
  * entry in rcvbundl.h.
  */
