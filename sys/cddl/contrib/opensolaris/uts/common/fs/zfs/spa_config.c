@@ -154,11 +154,10 @@ out:
 static void
 spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
 {
-	size_t buflen;
-	char *buf;
-	vnode_t *vp;
 	int oflags = FWRITE | FTRUNC | FCREAT | FOFFMAX;
-	char *temp;
+	char *buf, *temp;
+	size_t buflen;
+	vnode_t *vp;
 
 	/*
 	 * If the nvlist is empty (NULL), then remove the old cachefile.
@@ -193,7 +192,6 @@ spa_config_write(spa_config_dirent_t *dp, nvlist_t *nvl)
 			(void) vn_rename(temp, dp->scd_path, UIO_SYSSPACE);
 		}
 		(void) VOP_CLOSE(vp, oflags, 1, 0, kcred, NULL);
-		VN_RELE(vp);
 	}
 
 	(void) vn_remove(temp, UIO_SYSSPACE, RMFILE);

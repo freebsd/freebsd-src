@@ -149,6 +149,7 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
     int fd)
 {
 	struct thread *td = curthread;
+	struct filedesc *fdc;
 	struct nameidata nd;
 	int error, operation;
 
@@ -164,20 +165,26 @@ vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
 	}
 	ASSERT(umask == 0);
 
-	if (td->td_proc->p_fd->fd_rdir == NULL)
-		td->td_proc->p_fd->fd_rdir = rootvnode;
-	if (td->td_proc->p_fd->fd_cdir == NULL)
-		td->td_proc->p_fd->fd_cdir = rootvnode;
+	fdc = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdc);
+	if (fdc->fd_rdir == NULL) {
+		fdc->fd_rdir = rootvnode;
+		vref(fdc->fd_rdir);
+	}
+	if (fdc->fd_cdir == NULL) {
+		fdc->fd_cdir = rootvnode;
+		vref(fdc->fd_rdir);
+	}
+	FILEDESC_XUNLOCK(fdc);
 
 	if (startvp != NULL)
 		vref(startvp);
-	NDINIT_ATVP(&nd, operation, NOFOLLOW | MPSAFE, UIO_SYSSPACE, pnamep,
-	    startvp, td);
+	NDINIT_ATVP(&nd, operation, MPSAFE, UIO_SYSSPACE, pnamep, startvp, td);
+	filemode |= O_NOFOLLOW;
 	error = vn_open_cred(&nd, &filemode, createmode, td->td_ucred, NULL);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error == 0) {
 		/* We just unlock so we hold a reference. */
-		VN_HOLD(nd.ni_vp);
 		VOP_UNLOCK(nd.ni_vp, 0);
 		*vpp = nd.ni_vp;
 	}
@@ -248,12 +255,16 @@ drop:
 static __inline int
 zfs_vop_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 {
+	int error, vfslocked;
 
 	ASSERT(flag == (FWRITE | FCREAT | FTRUNC | FOFFMAX));
 	ASSERT(count == 1);
 	ASSERT(offset == 0);
 
-	return (vn_close(vp, flag, cr, curthread));
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	error = vn_close(vp, flag, cr, curthread);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
 }
 #define	VOP_CLOSE(vp, oflags, count, offset, cr, ct)			\
 	zfs_vop_close((vp), (oflags), (count), (offset), (cr))
