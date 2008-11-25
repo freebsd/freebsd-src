@@ -594,7 +594,7 @@ main(int argc, char **argv)
 	}
 
 	while ((option = getopt(argc, argv,
-	    "CD:EG:M:NO:P:R:S:Wc:dgk:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EG:M:NO:P:R:S:Wc:dgk:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
@@ -642,6 +642,11 @@ main(int argc, char **argv)
 			args.pa_kernel = strdup(optarg);
 			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
+			break;
+
+		case 'm':
+			args.pa_flags |= FLAG_WANTS_MAPPINGS;
+			graphfilename = optarg;
 			break;
 
 		case 'E':	/* log process exit */
@@ -827,7 +832,8 @@ main(int argc, char **argv)
 	if (argc)	/* command line present */
 		args.pa_flags |= FLAG_HAS_COMMANDLINE;
 
-	if (args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS))
+	if (args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS |
+	    FLAG_WANTS_MAPPINGS))
 		args.pa_flags |= FLAG_DO_ANALYSIS;
 
 	/*
@@ -838,6 +844,16 @@ main(int argc, char **argv)
 	if (args.pa_outputpath && args.pa_inputpath)
 		errx(EX_USAGE, "ERROR: options -O and -R are mutually "
 		    "exclusive.");
+
+	/* -m option is allowed with -R only. */
+	if (args.pa_flags & FLAG_WANTS_MAPPINGS && args.pa_inputpath == NULL)
+		errx(EX_USAGE, "ERROR: option -m requires an input file");
+
+	/* -m option is not allowed combined with -g or -G. */
+	if (args.pa_flags & FLAG_WANTS_MAPPINGS &&
+	    args.pa_flags & (FLAG_DO_GPROF | FLAG_DO_CALLGRAPHS))
+		errx(EX_USAGE, "ERROR: option -m and -g | -G are mutually "
+		    "exclusive");
 
 	if (args.pa_flags & FLAG_READ_LOGFILE) {
 		errmsg = NULL;
@@ -979,6 +995,12 @@ main(int argc, char **argv)
 				err(EX_OSERR, "ERROR: cannot open \"%s\" "
 				    "for writing", graphfilename);
 		}
+	}
+	if (args.pa_flags & FLAG_WANTS_MAPPINGS) {
+		args.pa_graphfile = fopen(graphfilename, "w");
+		if (args.pa_graphfile == NULL)
+			err(EX_OSERR, "ERROR: cannot open \"%s\" for writing",
+			    graphfilename);
 	}
 
 	/* if we've been asked to process a log file, do that and exit */
