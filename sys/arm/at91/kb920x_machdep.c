@@ -38,7 +38,7 @@
  *
  * Machine dependant functions for kernel setup
  *
- * This file needs a lot of work. 
+ * This file needs a lot of work.
  *
  * Created      : 17/09/94
  */
@@ -96,7 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pio_rm9200.h>
 
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
-#define KERNEL_PT_KERN		1	
+#define KERNEL_PT_KERN		1
 #define KERNEL_PT_KERN_NUM	22
 #define KERNEL_PT_AFKERNEL	KERNEL_PT_KERN + KERNEL_PT_KERN_NUM	/* L2 table for mapping after kernel */
 #define	KERNEL_PT_AFKERNEL_NUM	5
@@ -139,7 +139,7 @@ static struct trapframe proc0_tf;
 
 /* Static device mappings. */
 static const struct pmap_devmap kb920x_devmap[] = {
-	/* 
+	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
 	 */
@@ -152,7 +152,7 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		0xdff00000,
 		0xfff00000,
 		0x100000,
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	/*
@@ -172,7 +172,7 @@ static const struct pmap_devmap kb920x_devmap[] = {
 		AT91RM92_OHCI_BASE,
 		AT91RM92_OHCI_PA_BASE,
 		AT91RM92_OHCI_SIZE,
-		VM_PROT_READ|VM_PROT_WRITE,                             
+		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
@@ -190,7 +190,7 @@ ramsize(void)
 	uint32_t *SDRAMC = (uint32_t *)(AT91RM92_BASE + AT91RM92_SDRAMC_BASE);
 	uint32_t cr, mr;
 	int banks, rows, cols, bw;
-	
+
 	cr = SDRAMC[AT91RM92_SDRAMC_CR / 4];
 	mr = SDRAMC[AT91RM92_SDRAMC_MR / 4];
 	bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
@@ -282,7 +282,7 @@ initarm(void *arg, void *arg2)
 			kernel_pt_table[loop].pv_va = freemempos -
 			    (loop % (PAGE_SIZE / L2_TABLE_SIZE_REAL)) *
 			    L2_TABLE_SIZE_REAL;
-			kernel_pt_table[loop].pv_pa = 
+			kernel_pt_table[loop].pv_pa =
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
 			    KERNPHYSADDR;
 		}
@@ -317,8 +317,7 @@ initarm(void *arg, void *arg2)
 	pmap_map_chunk(l1pagetable, KERNBASE, PHYSADDR,
 	   (((uint32_t)lastaddr - KERNBASE) + PAGE_SIZE) & ~(PAGE_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE 
-	    - 1));
+	afterkern = round_page((lastaddr + L1_S_SIZE) & ~(L1_S_SIZE - 1));
 	for (i = 0; i < KERNEL_PT_AFKERNEL_NUM; i++) {
 		pmap_link_l2pt(l1pagetable, afterkern + i * L1_S_SIZE,
 		    &kernel_pt_table[KERNEL_PT_AFKERNEL + i]);
@@ -390,12 +389,12 @@ initarm(void *arg, void *arg2)
 	cpu_idcache_wbinv_all();
 
 	/* Set stack for exception handlers */
-	
+
 	data_abort_handler_address = (u_int)data_abort_handler;
 	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
-				
+
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
@@ -403,7 +402,7 @@ initarm(void *arg, void *arg2)
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
-	
+
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
@@ -415,16 +414,15 @@ initarm(void *arg, void *arg2)
 	dump_avail[1] = PHYSADDR + memsize;
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
-					
+
 	pmap_bootstrap(freemempos,
 	    KERNVIRTADDR + 3 * memsize,
 	    &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 	mutex_init();
-	
+
 	i = 0;
-	
 #if PHYSADDR != KERNPHYSADDR
 	phys_avail[i++] = PHYSADDR;
 	phys_avail[i++] = KERNPHYSADDR;
