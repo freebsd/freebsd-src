@@ -36,6 +36,7 @@
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
 #include <dev/usb2/include/usb2_standard.h>
+#include <dev/usb2/include/usb2_devid.h>
 
 #define	USB_DEBUG_VAR usb2_debug
 
@@ -49,6 +50,7 @@
 #include <dev/usb2/core/usb2_device.h>
 #include <dev/usb2/core/usb2_request.h>
 #include <dev/usb2/core/usb2_util.h>
+#include <dev/usb2/core/usb2_lookup.h>
 
 #include <dev/usb2/include/usb2_mfunc.h>
 #include <dev/usb2/include/usb2_error.h>
@@ -70,8 +72,7 @@ enum {
 	DIR_NONE,
 };
 
-#define	BULK_SIZE 64			/* dummy */
-
+#define	BULK_SIZE		64	/* dummy */
 
 /* Command Block Wrapper */
 struct bbb_cbw {
@@ -169,7 +170,7 @@ static const struct usb2_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.mh.bufsize = BULK_SIZE,
-		.mh.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.mh.flags = {.proxy_buffer = 1,},
 		.mh.callback = &bbb_data_write_callback,
 		.mh.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -272,6 +273,7 @@ bbb_command_callback(struct usb2_xfer *xfer)
 		USETDW(sc->cbw.dCBWDataTransferLength, sc->data_len);
 		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
 		sc->cbw.bCBWLUN = sc->lun;
+		sc->cbw.bCDBLength = sc->cmd_len;
 		if (sc->cbw.bCDBLength > sizeof(sc->cbw.CBWCDB)) {
 			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
 			DPRINTFN(0, "Truncating long command!\n");
@@ -474,7 +476,8 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
  * Else: Not an auto install disk.
  *------------------------------------------------------------------------*/
 usb2_error_t
-usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index)
+usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index,
+    uint8_t do_eject)
 {
 	struct usb2_interface *iface;
 	struct usb2_interface_descriptor *id;
@@ -534,22 +537,40 @@ usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index)
 repeat_inquiry:
 
 	sc->cbw.CBWCDB[0] = 0x12;	/* INQUIRY */
+	sc->cbw.CBWCDB[1] = 0;
+	sc->cbw.CBWCDB[2] = 0;
+	sc->cbw.CBWCDB[3] = 0;
+	sc->cbw.CBWCDB[4] = 0x24;	/* length */
+	sc->cbw.CBWCDB[5] = 0;
+	err = bbb_command_start(sc, DIR_IN, 0,
+	    sc->buffer, 0x24, 6, USB_MS_HZ);
 
-	err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 6, USB_MS_HZ);
-	if (err) {
-		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 12, USB_MS_HZ);
-		if (err) {
-			err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 256, 16, USB_MS_HZ);
-		}
-	}
 	if ((sc->actlen != 0) && (err == 0)) {
 		sid_type = sc->buffer[0] & 0x1F;
 		if (sid_type == 0x05) {
 			/* CD-ROM */
-			/* XXX could investigate more */
-			return (0);
+			if (do_eject) {
+				/* 0: opcode: SCSI START/STOP */
+				sc->cbw.CBWCDB[0] = 0x1b;
+				/* 1: byte2: Not immediate */
+				sc->cbw.CBWCDB[1] = 0x00;
+				/* 2..3: reserved */
+				sc->cbw.CBWCDB[2] = 0x00;
+				sc->cbw.CBWCDB[3] = 0x00;
+				/* 4: Load/Eject command */
+				sc->cbw.CBWCDB[4] = 0x02;
+				/* 5: control */
+				sc->cbw.CBWCDB[5] = 0x00;
+				err = bbb_command_start(sc, DIR_OUT, 0,
+				    NULL, 0, 6, USB_MS_HZ);
+
+				DPRINTFN(0, "Eject CD command "
+				    "status: %s\n", usb2_errstr(err));
+			}
+			err = 0;
+			goto done;
 		}
-	} else if (--timeout) {
+	} else if ((err != 2) && --timeout) {
 		usb2_pause_mtx(&sc->mtx, USB_MS_HZ);
 		goto repeat_inquiry;
 	}
@@ -566,28 +587,136 @@ done:
 }
 
 /*
- * Huawei Exxx radio devices have a built in flash disk which is their
- * default power up configuration. This allows the device to carry its
- * own installation software.
- *
- * Instead of following the USB spec, and create multiple
- * configuration descriptors for this, the devices expects the driver
- * to send UF_DEVICE_REMOTE_WAKEUP to endpoint 2 to reset the device,
- * so it reprobes, now with the radio exposed.
+ * NOTE: The entries marked with XXX should be checked for the correct
+ * speed indication to set the buffer sizes.
  */
+static const struct usb2_device_id u3g_devs[] = {
+	/* OEM: Option */
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3G, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GQUAD, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GT3GPLUS, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAX36, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_GTMAXHSUPA, U3GINFO(U3GSP_HSDPA, U3GFL_NONE))},
+	{USB_VPI(USB_VENDOR_OPTION, USB_PRODUCT_OPTION_VODAFONEMC3G, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},
+	/* OEM: Qualcomm, Inc. */
+	{USB_VPI(USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_ZTE_STOR, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_QUALCOMMINC, USB_PRODUCT_QUALCOMMINC_CDMA_MSM, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
+	/* OEM: Huawei */
+	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_MOBILE, U3GINFO(U3GSP_HSDPA, U3GFL_HUAWEI_INIT))},
+	{USB_VPI(USB_VENDOR_HUAWEI, USB_PRODUCT_HUAWEI_E220, U3GINFO(U3GSP_HSPA, U3GFL_HUAWEI_INIT))},
+	/* OEM: Novatel */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_CDMA_MODEM, U3GINFO(U3GSP_CDMA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ES620, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_MC950D, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U720, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U727, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U740_2, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_U870, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V620, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V640, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V720, U3GINFO(U3GSP_UMTS, U3GFL_SCSI_EJECT))},	/* XXX */
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_V740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_X950D, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_XU870, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_NOVATEL, USB_PRODUCT_NOVATEL_ZEROCD, U3GINFO(U3GSP_HSUPA, U3GFL_SCSI_EJECT))},
+	{USB_VPI(USB_VENDOR_DELL, USB_PRODUCT_DELL_U740, U3GINFO(U3GSP_HSDPA, U3GFL_SCSI_EJECT))},
+	/* OEM: Merlin */
+	{USB_VPI(USB_VENDOR_MERLIN, USB_PRODUCT_MERLIN_V620, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	/* OEM: Sierra Wireless: */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD580, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD595, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC595U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC597E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_C597, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC880U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881E, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC881U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_EM5625, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5720_2, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC5725, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MINI5725, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AIRCARD875, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_2, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781, U3GINFO(U3GSP_UMTS, U3GFL_NONE))},	/* XXX */
+	/* Sierra TruInstaller device ID */
+	{USB_VPI(USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL, U3GINFO(U3GSP_UMTS, U3GFL_SIERRA_INIT))},
+};
 
-usb2_error_t
-usb2_test_huawei(struct usb2_device *udev, uint8_t iface_index)
+static void
+u3g_sierra_init(struct usb2_device *udev)
 {
 	struct usb2_device_request req;
+
+	DPRINTFN(0, "\n");
+
+	req.bmRequestType = UT_VENDOR;
+	req.bRequest = UR_SET_INTERFACE;
+	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
+	USETW(req.wIndex, UHF_PORT_CONNECTION);
+	USETW(req.wLength, 0);
+
+	if (usb2_do_request_flags(udev, NULL, &req,
+	    NULL, 0, NULL, USB_MS_HZ)) {
+		/* ignore any errors */
+	}
+	return;
+}
+
+static void
+u3g_huawei_init(struct usb2_device *udev)
+{
+	struct usb2_device_request req;
+
+	DPRINTFN(0, "\n");
+
+	req.bmRequestType = UT_WRITE_DEVICE;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
+	USETW(req.wIndex, UHF_PORT_SUSPEND);
+	USETW(req.wLength, 0);
+
+	if (usb2_do_request_flags(udev, NULL, &req,
+	    NULL, 0, NULL, USB_MS_HZ)) {
+		/* ignore any errors */
+	}
+	return;
+}
+
+int
+usb2_lookup_huawei(struct usb2_attach_arg *uaa)
+{
+	/* Calling the lookup function will also set the driver info! */
+	return (usb2_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa));
+}
+
+/*
+ * The following function handles 3G modem devices (E220, Mobile,
+ * etc.) with auto-install flash disks for Windows/MacOSX on the first
+ * interface.  After some command or some delay they change appearance
+ * to a modem.
+ */
+usb2_error_t
+usb2_test_huawei(struct usb2_device *udev, struct usb2_attach_arg *uaa)
+{
 	struct usb2_interface *iface;
 	struct usb2_interface_descriptor *id;
-	usb2_error_t err;
+	uint32_t flags;
 
 	if (udev == NULL) {
 		return (USB_ERR_INVAL);
 	}
-	iface = usb2_get_iface(udev, iface_index);
+	iface = usb2_get_iface(udev, 0);
 	if (iface == NULL) {
 		return (USB_ERR_INVAL);
 	}
@@ -598,15 +727,21 @@ usb2_test_huawei(struct usb2_device *udev, uint8_t iface_index)
 	if (id->bInterfaceClass != UICLASS_MASS) {
 		return (USB_ERR_INVAL);
 	}
-	/* Bend it like Beckham */
-	req.bmRequestType = UT_WRITE_DEVICE;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UF_DEVICE_REMOTE_WAKEUP);
-	USETW(req.wIndex, 2);
-	USETW(req.wLength, 0);
+	if (usb2_lookup_huawei(uaa)) {
+		/* no device match */
+		return (USB_ERR_INVAL);
+	}
+	flags = USB_GET_DRIVER_INFO(uaa);
 
-	/* We get error at return, but it works */
-	err = usb2_do_request_flags(udev, NULL, &req, NULL, 0, NULL, 1 * USB_MS_HZ);
-
+	if (flags & U3GFL_HUAWEI_INIT) {
+		u3g_huawei_init(udev);
+	} else if (flags & U3GFL_SCSI_EJECT) {
+		return (usb2_test_autoinstall(udev, 0, 1));
+	} else if (flags & U3GFL_SIERRA_INIT) {
+		u3g_sierra_init(udev);
+	} else {
+		/* no quirks */
+		return (USB_ERR_INVAL);
+	}
 	return (0);			/* success */
 }

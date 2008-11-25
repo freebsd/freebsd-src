@@ -57,6 +57,7 @@ SUBDIR += ndis
 SUBDIR += quirk
 SUBDIR += scanner
 SUBDIR += serial
+SUBDIR += serial_3g
 SUBDIR += serial_ark
 SUBDIR += serial_bsa
 SUBDIR += serial_bser
