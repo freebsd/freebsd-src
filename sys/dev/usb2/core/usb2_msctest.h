@@ -27,7 +27,30 @@
 #ifndef _USB2_MSCTEST_H_
 #define	_USB2_MSCTEST_H_
 
-usb2_error_t usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index);
-usb2_error_t usb2_test_huawei(struct usb2_device *udev, uint8_t iface_index);
+usb2_error_t usb2_test_autoinstall(struct usb2_device *udev, uint8_t iface_index, uint8_t do_eject);
+usb2_error_t usb2_test_huawei(struct usb2_device *udev, struct usb2_attach_arg *uaa);
+int	usb2_lookup_huawei(struct usb2_attach_arg *uaa);
+
+/* Huawei specific defines */
+
+#define	U3GINFO(flag,speed) ((flag)|((speed) * 256))
+#define	U3G_GET_SPEED(uaa) (USB_GET_DRIVER_INFO(uaa) / 256)
+
+#define	U3GFL_NONE		0x00
+#define	U3GFL_HUAWEI_INIT	0x01	/* Requires init command (Huawei
+					 * cards) */
+#define	U3GFL_SCSI_EJECT	0x02	/* Requires SCSI eject command
+					 * (Novatel) */
+#define	U3GFL_SIERRA_INIT	0x04	/* Requires init command (Sierra
+					 * cards) */
+
+#define	U3GSP_GPRS		0
+#define	U3GSP_EDGE		1
+#define	U3GSP_CDMA		2
+#define	U3GSP_UMTS		3
+#define	U3GSP_HSDPA		4
+#define	U3GSP_HSUPA		5
+#define	U3GSP_HSPA		6
+#define	U3GSP_MAX		7
 
 #endif					/* _USB2_MSCTEST_H_ */

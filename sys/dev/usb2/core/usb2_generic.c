@@ -83,7 +83,7 @@ static int usb2_gen_fill_deviceinfo(struct usb2_fifo *f, struct usb2_device_info
 static int ugen_re_enumerate(struct usb2_fifo *f);
 static int ugen_iface_ioctl(struct usb2_fifo *f, u_long cmd, void *addr, int fflags);
 static uint8_t ugen_fs_get_complete(struct usb2_fifo *f, uint8_t *pindex);
-
+static int ugen_fs_uninit(struct usb2_fifo *f);
 
 /* structures */
 
@@ -192,6 +192,7 @@ ugen_close(struct usb2_fifo *f, int fflags, struct thread *td)
 
 	if (ugen_fs_uninit(f)) {
 		/* ignore any errors - we are closing */
+		DPRINTFN(6, "no FIFOs\n");
 	}
 	return;
 }
@@ -591,6 +592,12 @@ ugen_set_config(struct usb2_fifo *f, uint8_t index)
 		/* no change needed */
 		return (0);
 	}
+	/* make sure all FIFO's are gone */
+	/* else there can be a deadlock */
+	if (ugen_fs_uninit(f)) {
+		/* ignore any errors */
+		DPRINTFN(6, "no FIFOs\n");
+	}
 	/* change setting - will free generic FIFOs, if any */
 	if (usb2_set_config_index(f->udev, index)) {
 		return (EIO);
@@ -611,6 +618,12 @@ ugen_set_interface(struct usb2_fifo *f,
 	if (f->udev->flags.usb2_mode != USB_MODE_HOST) {
 		/* not possible in device side mode */
 		return (ENOTTY);
+	}
+	/* make sure all FIFO's are gone */
+	/* else there can be a deadlock */
+	if (ugen_fs_uninit(f)) {
+		/* ignore any errors */
+		DPRINTFN(6, "no FIFOs\n");
 	}
 	/* change setting - will free generic FIFOs, if any */
 	if (usb2_set_alt_interface_index(f->udev, iface_index, alt_index)) {
