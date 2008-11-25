@@ -1547,6 +1547,11 @@ fxp_txeof(struct fxp_softc *sc)
 	}
 	sc->fxp_desc.tx_first = txp;
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
+	if (sc->tx_queued == 0) {
+		sc->watchdog_timer = 0;
+		if (sc->need_mcsetup)
+			fxp_mc_setup(sc);
+	}
 }
 
 static void
@@ -1587,11 +1592,6 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
 		fxp_txeof(sc);
 
-		sc->watchdog_timer = 0;
-		if (sc->tx_queued == 0) {
-			if (sc->need_mcsetup)
-				fxp_mc_setup(sc);
-		}
 		/*
 		 * Try to start more packets transmitting.
 		 */
