@@ -135,6 +135,9 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
+static void *boot_arg1;
+static void *boot_arg2;
+
 static struct trapframe proc0_tf;
 
 /* Static device mappings. */
@@ -255,6 +258,8 @@ initarm(void *arg, void *arg2)
 	uint32_t memsize;
 	vm_offset_t lastaddr;
 
+	boot_arg1 = arg;
+	boot_arg2 = arg2;
 	set_cpufuncs();
 	lastaddr = fake_preload_metadata();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
