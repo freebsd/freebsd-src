@@ -220,7 +220,8 @@ static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
 static void 		fxp_start(struct ifnet *ifp);
 static void 		fxp_start_body(struct ifnet *ifp);
-static int		fxp_encap(struct fxp_softc *sc, struct mbuf *m_head);
+static int		fxp_encap(struct fxp_softc *sc, struct mbuf **m_head);
+static void		fxp_txeof(struct fxp_softc *sc);
 static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
 static int		fxp_ioctl(struct ifnet *ifp, u_long command,
@@ -1190,7 +1191,7 @@ fxp_start_body(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct mbuf *mb_head;
-	int error, txqueued;
+	int txqueued;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1202,6 +1203,8 @@ fxp_start_body(struct ifnet *ifp)
 	if (sc->need_mcsetup)
 		return;
 
+	if (sc->tx_queued > FXP_NTXCB_HIWAT)
+		fxp_txeof(sc);
 	/*
 	 * We're finished if there is nothing more to add to the list or if
 	 * we're all filled up with buffers to transmit.
@@ -1219,32 +1222,44 @@ fxp_start_body(struct ifnet *ifp)
 		if (mb_head == NULL)
 			break;
 
-		error = fxp_encap(sc, mb_head);
-		if (error)
-			break;
-		txqueued = 1;
+		if (fxp_encap(sc, &mb_head)) {
+			if (mb_head == NULL)
+				break;
+			IFQ_DRV_PREPEND(&ifp->if_snd, mb_head);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		}
+		txqueued++;
+		/*
+		 * Pass packet to bpf if there is a listener.
+		 */
+		BPF_MTAP(ifp, mb_head);
 	}
-	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * We're finished. If we added to the list, issue a RESUME to get DMA
 	 * going again if suspended.
 	 */
-	if (txqueued) {
+	if (txqueued > 0) {
+		bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
 		fxp_scb_wait(sc);
 		fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_RESUME);
+		/*
+		 * Set a 5 second timer just in case we don't hear
+		 * from the card again.
+		 */
+		sc->watchdog_timer = 5;
 	}
 }
 
 static int
-fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
+fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 {
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct fxp_tx *txp;
 	struct fxp_cb_tx *cbp;
 	bus_dma_segment_t segs[FXP_NTXSEG];
-	int chainlen, error, i, nseg;
+	int error, i, nseg;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	ifp = sc->ifp;
@@ -1271,6 +1286,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 		txp->tx_cb->ipcb_ip_activation_high =
 		    FXP_IPCB_HARDWAREPARSING_ENABLE;
 
+	m = *m_head;
 	/*
 	 * Deal with TCP/IP checksum offload. Note that
 	 * in order for TCP checksum offload to work,
@@ -1279,11 +1295,11 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 	 * in the TCP header. The stack should have
 	 * already done this for us.
 	 */
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+	if (m->m_pkthdr.csum_flags) {
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 			txp->tx_cb->ipcb_ip_schedule =
 			    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
-			if (m_head->m_pkthdr.csum_flags & CSUM_TCP)
+			if (m->m_pkthdr.csum_flags & CSUM_TCP)
 				txp->tx_cb->ipcb_ip_schedule |=
 				    FXP_IPCB_TCP_PACKET;
 		}
@@ -1311,13 +1327,13 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 		 * the header sizes/offsets vary.
 		 */
 
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP) {
-			if (m_head->m_pkthdr.len < 38) {
+		if (m->m_pkthdr.csum_flags & CSUM_IP) {
+			if (m->m_pkthdr.len < 38) {
 				struct ip *ip;
-				m_head->m_data += ETHER_HDR_LEN;
-				ip = mtod(m_head, struct ip *);
-				ip->ip_sum = in_cksum(m_head, ip->ip_hl << 2);
-				m_head->m_data -= ETHER_HDR_LEN;
+				m->m_data += ETHER_HDR_LEN;
+				ip = mtod(m, struct ip *);
+				ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
+				m->m_data -= ETHER_HDR_LEN;
 			} else {
 				txp->tx_cb->ipcb_ip_activation_high =
 				    FXP_IPCB_HARDWAREPARSING_ENABLE;
@@ -1328,40 +1344,33 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 #endif
 	}
 
-	chainlen = 0;
-	for (m = m_head; m != NULL && chainlen <= sc->maxtxseg; m = m->m_next)
-		chainlen++;
-	if (chainlen > sc->maxtxseg) {
-		struct mbuf *mn;
-
-		/*
-		 * We ran out of segments. We have to recopy this
-		 * mbuf chain first. Bail out if we can't get the
-		 * new buffers.
-		 */
-		mn = m_defrag(m_head, M_DONTWAIT);
-		if (mn == NULL) {
-			m_freem(m_head);
-			return (-1);
-		} else {
-			m_head = mn;
+	error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map, *m_head,
+	    segs, &nseg, 0);
+	if (error == EFBIG) {
+		m = m_collapse(*m_head, M_DONTWAIT, sc->maxtxseg);
+		if (m == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
 		}
-	}
-
-	/*
-	 * Go through each of the mbufs in the chain and initialize
-	 * the transmit buffer descriptors with the physical address
-	 * and size of the mbuf.
-	 */
-	error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map,
-	    m_head, segs, &nseg, 0);
-	if (error) {
-		device_printf(sc->dev, "can't map mbuf (error %d)\n", error);
-		m_freem(m_head);
-		return (-1);
+		*m_head = m;
+		error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map,
+	    	    *m_head, segs, &nseg, 0);
+		if (error != 0) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOMEM);
+		}
+	} else if (error != 0)
+		return (error);
+	if (nseg == 0) {
+		m_freem(*m_head);
+		*m_head = NULL;
+		return (EIO);
 	}
 
 	KASSERT(nseg <= sc->maxtxseg, ("too many DMA segments"));
+	bus_dmamap_sync(sc->fxp_mtag, txp->tx_map, BUS_DMASYNC_PREWRITE);
 
 	cbp = txp->tx_cb;
 	for (i = 0; i < nseg; i++) {
@@ -1389,24 +1398,17 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 	}
 	cbp->tbd_number = nseg;
 
-	bus_dmamap_sync(sc->fxp_mtag, txp->tx_map, BUS_DMASYNC_PREWRITE);
-	txp->tx_mbuf = m_head;
+	txp->tx_mbuf = m;
 	txp->tx_cb->cb_status = 0;
 	txp->tx_cb->byte_count = 0;
-	if (sc->tx_queued != FXP_CXINT_THRESH - 1) {
+	if (sc->tx_queued != FXP_CXINT_THRESH - 1)
 		txp->tx_cb->cb_command =
 		    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
 		    FXP_CB_COMMAND_S);
-	} else {
+	else
 		txp->tx_cb->cb_command =
 		    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
 		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-		/*
-		 * Set a 5 second timer just in case we don't hear
-		 * from the card again.
-		 */
-		sc->watchdog_timer = 5;
-	}
 	txp->tx_cb->tx_threshold = tx_threshold;
 
 	/*
@@ -1439,10 +1441,6 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 
 	sc->tx_queued++;
 
-	/*
-	 * Pass packet to bpf if there is a listener.
-	 */
-	BPF_MTAP(ifp, m_head);
 	return (0);
 }
 
@@ -1528,8 +1526,10 @@ fxp_intr(void *xsc)
 static void
 fxp_txeof(struct fxp_softc *sc)
 {
+	struct ifnet *ifp;
 	struct fxp_tx *txp;
 
+	ifp = sc->ifp;
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREREAD);
 	for (txp = sc->fxp_desc.tx_first; sc->tx_queued &&
 	    (le16toh(txp->tx_cb->cb_status) & FXP_CB_STATUS_C) != 0;
@@ -1544,6 +1544,7 @@ fxp_txeof(struct fxp_softc *sc)
 			txp->tx_cb->tbd[0].tb_addr = 0;
 		}
 		sc->tx_queued--;
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 	sc->fxp_desc.tx_first = txp;
 	bus_dmamap_sync(sc->cbl_tag, sc->cbl_map, BUS_DMASYNC_PREWRITE);
@@ -1589,15 +1590,14 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	 * packets go out onto the wire for about 5 to 10 seconds
 	 * after the interface is ifconfig'ed for the first time.
 	 */
-	if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
+	if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA))
 		fxp_txeof(sc);
 
-		/*
-		 * Try to start more packets transmitting.
-		 */
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			fxp_start_body(ifp);
-	}
+	/*
+	 * Try to start more packets transmitting.
+	 */
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		fxp_start_body(ifp);
 
 	/*
 	 * Just return if nothing happened on the receive side.
