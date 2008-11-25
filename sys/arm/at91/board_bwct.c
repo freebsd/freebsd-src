@@ -47,6 +47,7 @@ board_init(void)
 	 * Since they are input pins, I think that this is the right thing
 	 * to do.
 	 */
+
 	/* PIOA's A periph: Turn USART 0 and 2's TX/RX pins */
 	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
 	    AT91C_PA18_RXD0 | AT91C_PA22_RXD2, 0);
@@ -58,6 +59,8 @@ board_init(void)
 	/* PIOB's A periph: Turn USART 1's TX/RX pins */
 	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB21_RXD1, 0);
 	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
+
+	/* Pin assignment */
 
 	return (at91_ramsize());
 }

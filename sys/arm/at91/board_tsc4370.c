@@ -47,6 +47,7 @@ board_init(void)
 	 * Since they are input pins, I think that this is the right thing
 	 * to do.
 	 */
+
 	/* PIOA's A periph: Turn USART 0 and 2's TX/RX pins */
 	at91_pio_use_periph_a(AT91RM92_PIOA_BASE,
 	    AT91C_PA18_RXD0 | AT91C_PA22_RXD2, 0);
@@ -55,9 +56,20 @@ board_init(void)
 	/* PIOA's B periph: Turn USART 3's TX/RX pins */
 	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA6_RXD3, 0);
 	at91_pio_use_periph_b(AT91RM92_PIOA_BASE, AT91C_PA5_TXD3, 1);
+	/* We're using TC0's A1 and A2 input */
+	at91_pio_use_periph_b(AT91RM92_PIOA_BASE,
+	    AT91C_PA19_TIOA1 | AT91C_PA21_TIOA2, 0);
 	/* PIOB's A periph: Turn USART 1's TX/RX pins */
 	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB21_RXD1, 0);
 	at91_pio_use_periph_a(AT91RM92_PIOB_BASE, AT91C_PB20_TXD1, 1);
+
+	/* Pin assignment */
+	/* Assert PA24 low -- talk to rubidium */
+	at91_pio_use_gpio(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
+	at91_pio_gpio_output(AT91RM92_PIOA_BASE, AT91C_PIO_PA24, 0);
+	at91_pio_gpio_clear(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
+	at91_pio_use_gpio(AT91RM92_PIOB_BASE,
+	    AT91C_PIO_PB16 | AT91C_PIO_PB17 | AT91C_PIO_PB18 | AT91C_PIO_PB19);
 
 	return (at91_ramsize());
 }
