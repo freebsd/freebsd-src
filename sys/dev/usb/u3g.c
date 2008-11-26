@@ -87,8 +87,8 @@ struct ucom_callback u3g_callback = {
 
 
 struct u3g_speeds_s {
-	u_int32_t		ispeed;
-	u_int32_t		ospeed;
+	u_int32_t		ispeed;		// Speed in bits per second
+	u_int32_t		ospeed;		// Speed in bits per second
 };
 
 static const struct u3g_speeds_s u3g_speeds[] = {
@@ -180,7 +180,8 @@ static const struct u3g_dev_type_s u3g_devs[] = {
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8755_3 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8765 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_AC875U },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
-	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
+	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8775_2 },		U3GSP_HSDPA,	U3GFL_NONE },		// XXX
+	{{ USB_VENDOR_HP, USB_PRODUCT_HP_HS2300 },			U3GSP_HSDPA,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8780 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_MC8781 },		U3GSP_UMTS,	U3GFL_NONE },		// XXX
 	{{ USB_VENDOR_SIERRA, USB_PRODUCT_SIERRA_TRUINSTALL },		U3GSP_UMTS,	U3GFL_SIERRA_INIT },	// Sierra TruInstaller device ID
@@ -272,7 +273,7 @@ u3g_attach(device_t self)
 
 		int bulkin_no = -1, bulkout_no = -1;
 		int claim_iface = 0;
-		for (n = 0; n < id->bNumEndpoints; n++) {
+		for (n = 0; n < id->bNumEndpoints && portno < U3G_MAXPORTS; n++) {
 			ed = usbd_interface2endpoint_descriptor(uaa->ifaces[i], n);
 			if (ed == NULL)
 				continue;
@@ -296,9 +297,9 @@ u3g_attach(device_t self)
 				ucom->sc_bulkin_no = bulkin_no;
 				ucom->sc_bulkout_no = bulkout_no;
 				// Allocate a buffer enough for 10ms worth of data
-				ucom->sc_ibufsize = u3g_speeds[sc->sc_speed].ispeed/USB_FRAMES_PER_SECOND*10;
+				ucom->sc_ibufsize = u3g_speeds[sc->sc_speed].ispeed/10/USB_FRAMES_PER_SECOND*10;
 				ucom->sc_ibufsizepad = ucom->sc_ibufsize;
-				ucom->sc_obufsize = u3g_speeds[sc->sc_speed].ospeed/USB_FRAMES_PER_SECOND*10;
+				ucom->sc_obufsize = u3g_speeds[sc->sc_speed].ospeed/10/USB_FRAMES_PER_SECOND*10;
 				ucom->sc_opkthdrlen = 0;
 
 				ucom->sc_callback = &u3g_callback;
