@@ -360,14 +360,20 @@ printcpuinfo(void)
 			 * If this CPU supports P-state invariant TSC then
 			 * mention the capability.
 			 */
-			if (!tsc_is_invariant &&
-			    (cpu_vendor_id == CPU_VENDOR_AMD &&
-			    ((amd_pminfo & AMDPM_TSC_INVARIANT) != 0 ||
-			    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
-			    cpu_id == 0x60fb2))) {
-				tsc_is_invariant = 1;
-				printf("\n  TSC: P-state invariant");
+			switch (cpu_vendor_id) {
+			case CPU_VENDOR_AMD:
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
+				    cpu_id == 0x60fb2)
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_INTEL:
+				if (amd_pminfo & AMDPM_TSC_INVARIANT)
+					tsc_is_invariant = 1;
+				break;
 			}
+			if (tsc_is_invariant)
+				printf("\n  TSC: P-state invariant");
 
 			/*
 			 * If this CPU supports HTT or CMP then mention the
