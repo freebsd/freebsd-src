@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 #include <machine/clock.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -54,6 +55,10 @@ __FBSDID("$FreeBSD$");
 #define MSR_MISC_ENABLE		0x1a0
 #define MSR_SS_ENABLE		(1<<16)
 
+#ifndef CPU_VENDOR_CENTAUR
+#define	CPU_VENDOR_CENTAUR	0x111d
+#endif
+
 /* Frequency and MSR control values. */
 typedef struct {
 	uint16_t	freq;
@@ -64,7 +69,7 @@ typedef struct {
 
 /* Identifying characteristics of a processor and supported frequencies. */
 typedef struct {
-	const char	*vendor;
+	const u_int	vendor_id;
 	uint32_t	id32;
 	freq_info	*freqtab;
 } cpu_info;
@@ -88,12 +93,10 @@ struct est_softc {
 #define FREQ_INFO(MHz, mV, bus_clk)			\
 	FREQ_INFO_PWR(MHz, mV, bus_clk, CPUFREQ_VAL_UNKNOWN)
 #define INTEL(tab, zhi, vhi, zlo, vlo, bus_clk)		\
-	{ intel_id, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
+	{ CPU_VENDOR_INTEL, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
 #define CENTAUR(tab, zhi, vhi, zlo, vlo, bus_clk)	\
-	{ centaur_id, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
+	{ CPU_VENDOR_CENTAUR, ID32(zhi, vhi, zlo, vlo, bus_clk), tab }
 
-const char intel_id[] = "GenuineIntel";
-const char centaur_id[] = "CentaurHauls";
 static int msr_info_enabled = 0;
 TUNABLE_INT("hw.est.msr_info", &msr_info_enabled);
 
@@ -891,7 +894,7 @@ static cpu_info ESTprocs[] = {
 	CENTAUR(C7M_772_ULV,	1200,  844, 400, 796, 100),
 	CENTAUR(C7M_779_ULV,	1000,  796, 400, 796, 100),
 	CENTAUR(C7M_770_ULV,	1000,  844, 400, 796, 100),
-	{ NULL, 0, NULL },
+	{ 0, 0, NULL },
 };
 
 static void	est_identify(driver_t *driver, device_t parent);
@@ -958,8 +961,8 @@ est_identify(driver_t *driver, device_t parent)
 		return;
 
 	/* Check that CPUID is supported and the vendor is Intel.*/
-	if (cpu_high == 0 || (strcmp(cpu_vendor, intel_id) != 0 &&
-	    strcmp(cpu_vendor, centaur_id) != 0))
+	if (cpu_high == 0 || (cpu_vendor_id != CPU_VENDOR_INTEL &&
+	    cpu_vendor_id != CPU_VENDOR_CENTAUR))
 		return;
 
 	/*
@@ -1159,7 +1162,7 @@ est_table_info(device_t dev, uint64_t msr, freq_info **freqs)
 	/* Find a table which matches (vendor, id32). */
 	id = msr >> 32;
 	for (p = ESTprocs; p->id32 != 0; p++) {
-		if (strcmp(p->vendor, cpu_vendor) == 0 && p->id32 == id)
+		if (p->vendor_id == cpu_vendor_id && p->id32 == id)
 			break;
 	}
 	if (p->id32 == 0)

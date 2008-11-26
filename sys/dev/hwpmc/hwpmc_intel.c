@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpu.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -79,7 +80,7 @@ pmc_intel_initialize(void)
 	enum pmc_cputype cputype;
 	int error, model, nclasses, ncpus;
 
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
+	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,0, "intel-initialize cpuid=0x%x", cpu_id);

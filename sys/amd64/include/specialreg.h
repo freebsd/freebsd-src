@@ -196,8 +196,8 @@
 /*
  * CPUID manufacturers identifiers
  */
-#define	INTEL_VENDOR_ID	"GenuineIntel"
-#define	AMD_VENDOR_ID	"AuthenticAMD"
+#define	AMD_VENDOR_ID		"AuthenticAMD"
+#define	INTEL_VENDOR_ID		"GenuineIntel"
 
 /*
  * Model-specific registers for the i386 family
