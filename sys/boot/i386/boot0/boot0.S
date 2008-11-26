@@ -320,7 +320,7 @@ main.15:	movw $LOAD,%bx			# Address for read
 		cmpw $MAGIC,0x1fe(%bx)		# Bootable?
 		jne main.10			# No
 		pushw %si			# Save ptr to selected part.
-		callw puts			# Leave some space
+		callw putn			# Leave some space
 		popw %si			# Restore, next stage uses it
 		jmp *%bx			# Invoke bootstrap
 
