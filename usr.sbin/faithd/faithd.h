@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/faithd/faithd.h,v 1.5.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 extern char logname[];

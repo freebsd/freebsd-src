@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/sys/i386_clr_watch.c,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <machine/reg.h>
 #include <machine/sysarch.h>

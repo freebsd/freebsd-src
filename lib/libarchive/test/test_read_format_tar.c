@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_read_format_tar.c,v 1.3.2.2.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Each of these archives is a short archive with a single entry.  The

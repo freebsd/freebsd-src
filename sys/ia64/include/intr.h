@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/include/intr.h,v 1.3.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _MACHINE_INTR_H_

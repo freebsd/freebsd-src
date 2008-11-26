@@ -22,7 +22,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libftpio/ftpio.h,v 1.17.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* Internal housekeeping data structure for FTP sessions */

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/cdboot/Makefile,v 1.13.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	cdboot
 STRIP=

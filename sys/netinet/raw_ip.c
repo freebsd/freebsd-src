@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/raw_ip.c,v 1.150.2.7.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "opt_inet6.h"

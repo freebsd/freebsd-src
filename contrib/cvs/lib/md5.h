@@ -1,7 +1,7 @@
 /* See md5.c for explanation and copyright information.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/lib/md5.h,v 1.2.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef MD5_H

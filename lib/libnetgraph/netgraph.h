@@ -36,7 +36,7 @@
  *
  * Author: Archie Cobbs <archie@whistle.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libnetgraph/netgraph.h,v 1.4.24.1 2008/10/02 02:57:24 kensmith Exp $
  * $Whistle: netgraph.h,v 1.7 1999/01/20 00:57:23 archie Exp $
  */
 

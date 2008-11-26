@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/package.c,v 1.103.8.1.2.2 2008/10/25 01:25:29 kensmith Exp $
  */
 
 #include "sysinstall.h"

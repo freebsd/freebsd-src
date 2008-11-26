@@ -21,7 +21,7 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $Id: Makefile,v 1.5 1998/07/10 16:01:58 jpt Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/fore_dnld/Makefile,v 1.11.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	fore_dnld
 MAN=	fore_dnld.8

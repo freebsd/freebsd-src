@@ -1,5 +1,5 @@
 # $Id: hosts,v 1.1 2003/05/21 17:48:40 max Exp $
-# $FreeBSD$
+# $FreeBSD: src/etc/bluetooth/hosts,v 1.1.10.1.8.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # Bluetooth Host Database
 #

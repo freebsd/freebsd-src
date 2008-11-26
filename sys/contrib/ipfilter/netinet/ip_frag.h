@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.h,v 1.17.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*
  * Copyright (C) 1993-2001 by Darren Reed.
@@ -6,7 +6,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_frag.h,v 1.17.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $
  * Id: ip_frag.h,v 2.23.2.5 2006/12/23 11:11:47 darrenr Exp $
  */
 

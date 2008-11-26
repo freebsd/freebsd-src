@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)db.h	8.7 (Berkeley) 6/16/94
- * $FreeBSD$
+ * $FreeBSD: src/include/db.h,v 1.5.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _DB_H_

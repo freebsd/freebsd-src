@@ -32,7 +32,7 @@
  *		
  *      $Id: alias.c,v 1.8 1999/12/13 21:25:24 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/alias.c,v 1.7.26.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:45:19 1999]
  *

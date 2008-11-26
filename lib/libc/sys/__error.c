@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sys/__error.c,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 extern int errno;
 

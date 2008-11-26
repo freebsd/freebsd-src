@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/7/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/mklocale/Makefile,v 1.29.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	mklocale
 WARNS?=	6

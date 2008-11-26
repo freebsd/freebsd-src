@@ -39,7 +39,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/mount_std/mount_std.c,v 1.21.12.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -34,7 +34,7 @@ static char *sccsid2 = "from: @(#)svc_run.c 1.1 87/10/13 Copyr 1984 Sun Micro";
 static char *sccsid = "from: @(#)svc_run.c	2.1 88/07/29 4.0 RPCSRC";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/svc_run.c,v 1.19.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This is the rpc server side idle loop

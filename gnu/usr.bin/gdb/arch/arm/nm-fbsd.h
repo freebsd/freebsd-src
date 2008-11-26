@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/gdb/arch/arm/nm-fbsd.h,v 1.1.2.2.2.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /* Native-dependent definitions for ARM running NetBSD, for GDB.
    Copyright 1986, 1987, 1989, 1992, 1994, 1999 Free Software Foundation, Inc.

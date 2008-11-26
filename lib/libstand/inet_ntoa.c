@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/inet_ntoa.c,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)inet_ntoa.c	8.1 (Berkeley) 6/4/93";

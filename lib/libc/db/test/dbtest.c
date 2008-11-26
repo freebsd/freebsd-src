@@ -41,7 +41,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)dbtest.c	8.17 (Berkeley) 9/1/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/test/dbtest.c,v 1.10.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

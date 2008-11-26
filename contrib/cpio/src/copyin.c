@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/copyin.c,v 1.4.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /* copyin.c - extract or list a cpio archive
    Copyright (C) 1990,1991,1992,2001,2002,2003,2004 Free Software Foundation, Inc.

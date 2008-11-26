@@ -4,7 +4,7 @@
 # This file contains machine dependent kernel configuration notes.  For
 # machine independent notes, look in /sys/conf/NOTES.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/conf/NOTES,v 1.1202.2.17.2.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 #

@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif /* not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/cp/cp.c,v 1.51.2.2.6.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Cp copies source files to target files.

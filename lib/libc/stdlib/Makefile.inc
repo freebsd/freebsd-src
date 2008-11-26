@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.3 (Berkeley) 2/4/95
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/stdlib/Makefile.inc,v 1.48.8.3.8.1 2008/10/02 02:57:24 kensmith Exp $
 
 # machine-independent stdlib sources
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/stdlib ${.CURDIR}/stdlib

@@ -39,7 +39,7 @@
  *
  * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm.h#14 $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/aicasm/aicasm.h,v 1.17.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifdef __linux__

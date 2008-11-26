@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/bktr/bktr_mem/Makefile,v 1.3.14.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 .PATH: ${.CURDIR}/../../../dev/bktr
 

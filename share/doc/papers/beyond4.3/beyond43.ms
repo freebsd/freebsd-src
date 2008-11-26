@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)beyond43.ms	5.1 (Berkeley) 6/5/90
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/beyond4.3/beyond43.ms,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
 .\"
 .\" *troff -ms
 .rm CM

@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_rules.c,v 1.1.1.1.16.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*
 * Copyright (C) 1993-2000 by Darren Reed.

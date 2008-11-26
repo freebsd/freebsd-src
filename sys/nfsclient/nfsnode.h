@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.9 (Berkeley) 5/14/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/nfsclient/nfsnode.h,v 1.55.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _NFSCLIENT_NFSNODE_H_

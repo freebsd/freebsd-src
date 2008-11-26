@@ -1,5 +1,5 @@
 a note to committers about KAME tree
-$FreeBSD$
+$FreeBSD: src/sys/netinet6/README,v 1.2.28.1 2008/10/02 02:57:24 kensmith Exp $
 KAME project
 
 

@@ -2,7 +2,7 @@
  *
  * Simple sequence mode test.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/hello_s.c,v 1.1.32.1 2008/10/02 02:57:24 kensmith Exp $
  *
  ****************************************************************************/
 

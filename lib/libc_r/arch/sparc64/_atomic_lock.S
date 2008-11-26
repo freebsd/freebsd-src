@@ -28,7 +28,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc_r/arch/sparc64/_atomic_lock.S,v 1.1.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * long _atomic_lock(long *)

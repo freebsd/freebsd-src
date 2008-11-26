@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_write_format_cpio_empty.c,v 1.2.6.1.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Check that an "empty" cpio archive is correctly created.

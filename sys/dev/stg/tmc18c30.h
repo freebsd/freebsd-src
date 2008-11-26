@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/stg/tmc18c30.h,v 1.1.28.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 extern devclass_t stg_devclass;

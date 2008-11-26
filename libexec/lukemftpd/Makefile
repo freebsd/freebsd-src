@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-# $FreeBSD$
+# $FreeBSD: src/libexec/lukemftpd/Makefile,v 1.16.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 LUKEMFTPD=	${.CURDIR}/../../contrib/lukemftpd
 .PATH: ${LUKEMFTPD}/src ${LUKEMFTPD}/libnetbsd

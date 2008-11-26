@@ -33,7 +33,7 @@
 #
 #	@(#)shar.sh	8.1 (Berkeley) 6/6/93
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/shar/shar.sh,v 1.3.38.2.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 if [ $# -eq 0 ]; then
 	echo 'usage: shar file ...' 1>&2

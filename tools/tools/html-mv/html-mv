@@ -17,7 +17,7 @@
 # FAQ_Can_FreeBSD_handle_multiport_serial_cards_sharing_irqs_.html
 # [...]
 # 
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/html-mv/html-mv,v 1.2.50.1 2008/10/02 02:57:24 kensmith Exp $
 
 case $# in 0)
 	echo "usage `basename $0` file"

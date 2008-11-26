@@ -30,7 +30,7 @@
  *	i4b daemon - runtime configuration lexical analyzer
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rc_scan.l,v 1.13.30.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Sun Aug 11 12:27:50 2002]
  *

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pmcstat/pmcstat.h,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef	_PMCSTAT_H_

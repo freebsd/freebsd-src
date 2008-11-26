@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_pax_filename_encoding.c,v 1.3.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <locale.h>
 

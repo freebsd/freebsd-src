@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/ipsopt.c,v 1.2.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*
  * Copyright (C) 1995-1998 by Darren Reed.

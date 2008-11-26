@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthread_db/libpthread_db.h,v 1.3.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _LIBPTHREAD_DB_H_

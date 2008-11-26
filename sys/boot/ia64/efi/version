@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/boot/ia64/efi/version,v 1.6.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.

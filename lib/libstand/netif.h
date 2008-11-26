@@ -1,6 +1,6 @@
 /*	$NetBSD: netif.h,v 1.4 1995/09/14 23:45:30 pk Exp $	*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/netif.h,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #ifndef __SYS_LIBNETBOOT_NETIF_H
 #define __SYS_LIBNETBOOT_NETIF_H

@@ -1,2 +1,2 @@
-$FreeBSD$
+$FreeBSD: src/tools/regression/geom/Ref/disk.empty.flp.xml,v 1.1.28.1 2008/10/02 02:57:24 kensmith Exp $
 /dev/md34	512	1474560	2880	80	2	18

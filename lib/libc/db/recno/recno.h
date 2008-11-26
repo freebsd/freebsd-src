@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)recno.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/recno/recno.h,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 enum SRCHOP { SDELETE, SINSERT, SEARCH};	/* Rec_search operation. */

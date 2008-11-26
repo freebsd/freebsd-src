@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/ua.koi8-u.shift.alt.kbd,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # keyboard mapping for both Ukrainian and Russian languages, koi8-u charset.
 #   by sia@lot.cs.kiev.ua

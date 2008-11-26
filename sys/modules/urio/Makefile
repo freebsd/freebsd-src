@@ -1,4 +1,4 @@
-# $FreeBSD$ 
+# $FreeBSD: src/sys/modules/urio/Makefile,v 1.7.16.1 2008/10/02 02:57:24 kensmith Exp $ 
 
 MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
 

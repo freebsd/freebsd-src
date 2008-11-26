@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/arch/ia64/include/atomic_ops.h,v 1.1.22.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef	_ATOMIC_OPS_H_

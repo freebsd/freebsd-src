@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/syscons/scrnmaps/armscii8-2haik8,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 scrmap_t scrmap = {

@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/globals.c,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/param.h>
 #include <netinet/in.h>

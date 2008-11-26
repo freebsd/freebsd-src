@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode_pager.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/vnode_pager.h,v 1.20.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef	_VNODE_PAGER_

@@ -25,7 +25,7 @@
  * rights to redistribute these changes.
  *
  *	$NetBSD: setjmp.h,v 1.2 1997/04/06 08:47:41 cgd Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/setjmp.h,v 1.6.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

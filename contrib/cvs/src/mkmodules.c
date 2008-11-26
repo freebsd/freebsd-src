@@ -5,7 +5,7 @@
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS kit.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/mkmodules.c,v 1.13.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "cvs.h"

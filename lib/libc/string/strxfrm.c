@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strxfrm.c,v 1.15.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stdlib.h>
 #include <string.h>

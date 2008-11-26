@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/csup/lister.h,v 1.1.1.1.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #ifndef _LISTER_H_
 #define _LISTER_H_

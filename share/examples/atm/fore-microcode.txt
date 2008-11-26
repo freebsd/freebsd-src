@@ -90,4 +90,4 @@ file. The command syntax is:
 Move the resulting <out-file> in binary mode back to the HARP machine as
 /etc/pca200e.bin and try to initialize the ATM system again.
 
-	@(#) $FreeBSD$
+	@(#) $FreeBSD: src/share/examples/atm/fore-microcode.txt,v 1.2.24.1 2008/10/02 02:57:24 kensmith Exp $

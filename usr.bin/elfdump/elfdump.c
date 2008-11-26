@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/elfdump/elfdump.c,v 1.12.8.2.8.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/elf32.h>

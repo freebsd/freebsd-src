@@ -55,4 +55,4 @@ _fini:
 
 
 	.section .rodata
-.ascii "$FreeBSD$\0"
+.ascii "$FreeBSD: src/lib/csu/sparc64/crti.S,v 1.1.30.1 2008/10/02 02:57:24 kensmith Exp $\0"

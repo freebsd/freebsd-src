@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/130.clean-msgs,v 1.6.30.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # Remove system	messages
 #

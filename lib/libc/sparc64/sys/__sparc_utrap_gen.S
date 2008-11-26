@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/__sparc_utrap_gen.S,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore

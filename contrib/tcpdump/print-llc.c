@@ -21,7 +21,7 @@
  * Code by Matt Thomas, Digital Equipment Corporation
  *	with an awful lot of hacking by Jeffrey Mogul, DECWRL
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-llc.c,v 1.11.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef lint

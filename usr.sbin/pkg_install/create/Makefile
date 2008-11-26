@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/create/Makefile,v 1.22.24.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	pkg_create
 SRCS=	main.c perform.c pl.c

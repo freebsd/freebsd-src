@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mrouted/mrouted/Makefile,v 1.16.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 S=	${.CURDIR}/..
 .PATH: $S

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/fdisk/runtest.sh,v 1.2.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 set -e
 MD=`mdconfig -a -t malloc -s 4m -x 63 -y 16`

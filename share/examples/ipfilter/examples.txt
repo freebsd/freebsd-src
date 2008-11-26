@@ -512,4 +512,4 @@ pass in quick proto tcp from any to any port = WWW keep state group 100
 
   ------------------------------------------------------------------------
 Return to the IP Filter home page
-$FreeBSD$
+$FreeBSD: src/share/examples/ipfilter/examples.txt,v 1.2.28.1 2008/10/02 02:57:24 kensmith Exp $

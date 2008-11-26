@@ -1,5 +1,5 @@
 #!/usr/local/bin/tclsh8.3
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/vop_table/vop_table.tcl,v 1.5.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 set fo [open _.html w]
 

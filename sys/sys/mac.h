@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/mac.h,v 1.67.2.4.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 /*
  * Userland/kernel interface for Mandatory Access Control.

@@ -28,7 +28,7 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_l1.h,v 1.14.16.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Tue Jan 23 17:04:57 2001]
  *

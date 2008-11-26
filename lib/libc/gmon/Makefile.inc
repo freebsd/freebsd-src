@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/gmon/Makefile.inc,v 1.10.20.1 2008/10/02 02:57:24 kensmith Exp $
 
 # gmon sources
 .PATH: ${.CURDIR}/gmon

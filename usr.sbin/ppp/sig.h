@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/sig.h,v 1.14.52.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 typedef void (*sig_type)(int);

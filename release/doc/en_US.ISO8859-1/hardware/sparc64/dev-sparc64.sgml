@@ -1,6 +1,6 @@
 <sect1 id="support-dev">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/sparc64/dev-sparc64.sgml,v 1.5.12.1 2008/10/02 02:57:24 kensmith Exp $</pubdate>
   </sect1info>
 
   <title>Supported Devices</title>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/dec/mc146818reg.h,v 1.4.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	$NetBSD: mc146818reg.h,v 1.2 1997/03/12 06:53:42 cgd Exp $	*/
 
 /*-

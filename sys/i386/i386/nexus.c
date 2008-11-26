@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/nexus.c,v 1.62.2.5.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This code implements a `root nexus' for Intel Architecture

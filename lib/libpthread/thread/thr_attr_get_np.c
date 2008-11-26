@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_attr_get_np.c,v 1.4.22.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #include <errno.h>
 #include <string.h>

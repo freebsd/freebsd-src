@@ -1,6 +1,6 @@
 # $NetBSD: $
 # $OpenBSD: $
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ses/Makefile.inc,v 1.2.20.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # Copyright (c) 2000 by Matthew Jacob
 # All rights reserved.

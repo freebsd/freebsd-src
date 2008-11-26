@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/libexec/ypxfr/ypxfr_getmap.c,v 1.12.28.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stdio.h>
 #include <time.h>

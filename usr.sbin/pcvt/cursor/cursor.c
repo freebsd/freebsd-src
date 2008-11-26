@@ -34,7 +34,7 @@
  */
 
 static char *id =
-	"@(#)cursor.c, 3.20, Last Edit-Date: [Tue Apr  4 12:27:54 1995]\n$FreeBSD$";
+	"@(#)cursor.c, 3.20, Last Edit-Date: [Tue Apr  4 12:27:54 1995]\n$FreeBSD: src/usr.sbin/pcvt/cursor/cursor.c,v 1.10.26.1 2008/10/02 02:57:24 kensmith Exp $";
 
 /*---------------------------------------------------------------------------*
  *

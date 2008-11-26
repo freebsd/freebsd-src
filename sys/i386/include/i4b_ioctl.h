@@ -28,7 +28,7 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_ioctl.h,v 1.22.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Sun Aug 11 19:19:08 2002]
  *

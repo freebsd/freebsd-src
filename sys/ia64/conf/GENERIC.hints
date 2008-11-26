@@ -1,2 +1,2 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/ia64/conf/GENERIC.hints,v 1.8.16.1 2008/10/02 02:57:24 kensmith Exp $
 hw.uart.console="io:0x3f8"

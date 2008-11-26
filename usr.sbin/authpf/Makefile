@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/authpf/Makefile,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../contrib/pf/authpf
 .PATH:	${.CURDIR}/../../contrib/pf/pfctl

@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/net/htons.S,v 1.3.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define	ALIAS	htons
 #define	NAME	__htons

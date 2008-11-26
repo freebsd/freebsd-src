@@ -37,7 +37,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pcvt/keycap/keycap.c,v 1.5.26.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif
 
 static char *id =

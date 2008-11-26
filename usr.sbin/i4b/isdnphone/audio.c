@@ -29,7 +29,7 @@
  *
  *	$Id: audio.c,v 1.5 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnphone/audio.c,v 1.1.32.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Mon Dec 13 21:52:39 1999]
  *

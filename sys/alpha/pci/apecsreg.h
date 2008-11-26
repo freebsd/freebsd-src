@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/apecsreg.h,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* $NetBSD: apecsreg.h,v 1.7 1997/06/06 23:54:24 thorpej Exp $ */
 
 /*-

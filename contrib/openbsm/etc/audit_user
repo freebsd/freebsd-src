@@ -1,5 +1,5 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_user#3 $
-# $FreeBSD$
+# $FreeBSD: src/contrib/openbsm/etc/audit_user,v 1.2.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $
 #
 root:lo:no

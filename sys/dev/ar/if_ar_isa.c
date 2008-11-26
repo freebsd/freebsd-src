@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ar/if_ar_isa.c,v 1.55.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Programming assumptions and other issues.

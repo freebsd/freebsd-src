@@ -28,7 +28,7 @@
 
 /* $Header: /home/daffy/u0/vern/flex/RCS/nfa.c,v 2.17 95/03/04 16:11:42 vern Exp $ */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/lex/nfa.c,v 1.6.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "flexdef.h"
 

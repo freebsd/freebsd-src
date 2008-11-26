@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)gettytab.h	8.2 (Berkeley) 3/30/94
- * $FreeBSD$
+ * $FreeBSD: src/libexec/getty/gettytab.h,v 1.14.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

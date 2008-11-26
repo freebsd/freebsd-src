@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/KSE/rr/Makefile,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=		rr	
 NO_MAN=

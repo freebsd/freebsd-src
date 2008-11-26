@@ -32,7 +32,7 @@
  *
  *	@(#)extern.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tail/extern.h,v 1.9.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #define	WR(p, size) do { \

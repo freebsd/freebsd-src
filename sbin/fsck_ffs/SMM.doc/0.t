@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/sbin/fsck_ffs/SMM.doc/0.t,v 1.6.24.1 2008/10/02 02:57:24 kensmith Exp $
 .\"	@(#)0.t	8.1 (Berkeley) 6/8/93
 .\"
 .if n .ND

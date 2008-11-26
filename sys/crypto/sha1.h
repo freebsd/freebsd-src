@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/sha1.h,v 1.8.30.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$KAME: sha1.h,v 1.5 2000/03/27 04:36:23 sumikawa Exp $	*/
 
 /*

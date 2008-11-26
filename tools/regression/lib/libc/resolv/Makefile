@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.1 2004/05/13 19:17:12 christos Exp $
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/libc/resolv/Makefile,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 NOMAN=		# defined
 

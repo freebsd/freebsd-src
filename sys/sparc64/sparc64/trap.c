@@ -37,11 +37,11 @@
  *
  *	from: @(#)trap.c        7.4 (Berkeley) 5/13/91
  *	from: FreeBSD: src/sys/i386/i386/trap.c,v 1.197 2001/07/19
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/sparc64/trap.c,v 1.74.2.5.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/trap.c,v 1.74.2.5.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"

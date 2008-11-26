@@ -29,7 +29,7 @@
  *
  *	from: @(#)pmap_prot.h 1.14 88/02/08 SMI
  *	from: @(#)pmap_prot.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/pmap_prot.h,v 1.1.1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

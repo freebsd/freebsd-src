@@ -1,7 +1,7 @@
 -*- text -*-
 RELNOTESng README
 Bruce A. Mah <bmah@freebsd.org>
-$FreeBSD$
+$FreeBSD: src/release/doc/README,v 1.10.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 This is the top-level directory for RELNOTESng, a re-write of
 FreeBSD's *.TXT documentation files.  They have been converted to

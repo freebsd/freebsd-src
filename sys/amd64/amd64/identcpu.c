@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/identcpu.c,v 1.136.2.5.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_cpu.h"
 

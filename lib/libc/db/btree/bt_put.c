@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)bt_put.c	8.8 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_put.c,v 1.4.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 

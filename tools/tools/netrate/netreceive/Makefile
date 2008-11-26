@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/netrate/netreceive/Makefile,v 1.3.18.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 PROG=	netreceive

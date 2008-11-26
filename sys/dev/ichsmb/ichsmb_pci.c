@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ichsmb/ichsmb_pci.c,v 1.16.2.2.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Support for the SMBus controller logical device which is part of the

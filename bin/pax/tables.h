@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tables.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/tables.h,v 1.10.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

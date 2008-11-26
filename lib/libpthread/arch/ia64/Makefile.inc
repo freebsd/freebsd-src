@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpthread/arch/ia64/Makefile.inc,v 1.4.22.1 2008/10/02 02:57:24 kensmith Exp $
 
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}/${MACHINE_ARCH}
 

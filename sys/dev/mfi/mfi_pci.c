@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_pci.c,v 1.1.2.8.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* PCI/PCI-X/PCIe bus interface for the LSI MegaSAS controllers */
 

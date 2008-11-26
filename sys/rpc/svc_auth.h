@@ -30,7 +30,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	@(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- * $FreeBSD$
+ * $FreeBSD: src/sys/rpc/svc_auth.h,v 1.1.4.1.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from: BSDI: pmap.v9.h,v 1.10.2.6 1999/08/23 22:18:44 cp Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/include/tte.h,v 1.16.28.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef	_MACHINE_TTE_H_

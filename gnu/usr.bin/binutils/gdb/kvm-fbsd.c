@@ -20,7 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/binutils/gdb/kvm-fbsd.c,v 1.49.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This works like "remote" but, you use it like this:

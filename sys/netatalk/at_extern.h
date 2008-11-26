@@ -23,7 +23,7 @@
  *	+1-313-764-2278
  *	netatalk@umich.edu
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netatalk/at_extern.h,v 1.16.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 struct mbuf;
 struct sockaddr_at;

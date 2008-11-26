@@ -25,7 +25,7 @@ SOFTWARE.
 
 /*
  * Generalized hash table ADT
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/hash.h,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
  *
  * Provides multiple, dynamically-allocated, variable-sized hash tables on
  * various data and keys.

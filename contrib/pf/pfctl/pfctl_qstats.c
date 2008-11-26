@@ -17,7 +17,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pfctl_qstats.c,v 1.6.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 #include <sys/ioctl.h>

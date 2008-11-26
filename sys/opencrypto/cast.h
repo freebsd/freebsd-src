@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/opencrypto/cast.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*      $OpenBSD: cast.h,v 1.2 2002/03/14 01:26:51 millert Exp $       */
 
 /*-

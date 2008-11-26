@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/e_sqrt.c,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif
 
 /* __ieee754_sqrt(x)

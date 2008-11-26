@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/thread/thr_sigaltstack.c,v 1.2.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <errno.h>
 #include <signal.h>

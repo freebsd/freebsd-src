@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/msun/alpha/Makefile.inc,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 ARCH_SRCS = s_copysign.S s_copysignf.S
 LDBL_PREC = 53

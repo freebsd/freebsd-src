@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/mp_clock.c,v 1.19.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*-
  * Just when we thought life were beautiful, reality pops its grim face over

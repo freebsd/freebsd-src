@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hptmv/mvSata.h,v 1.2.2.1.10.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #ifndef __INCmvSatah
 #define __INCmvSatah

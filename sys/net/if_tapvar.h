@@ -34,7 +34,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_tapvar.h,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $
  * $Id: if_tapvar.h,v 0.6 2000/07/11 02:16:08 max Exp $
  */
 

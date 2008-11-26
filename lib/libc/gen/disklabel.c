@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/disklabel.c,v 1.16.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/param.h>
 #define DKTYPENAMES

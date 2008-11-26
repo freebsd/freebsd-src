@@ -1,5 +1,5 @@
 /*	$NetBSD: divrem.m4,v 1.7 1996/10/17 03:08:04 cgd Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/alpha/gen/divrem.m4,v 1.4.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Copyright (c) 1994, 1995 Carnegie-Mellon University.

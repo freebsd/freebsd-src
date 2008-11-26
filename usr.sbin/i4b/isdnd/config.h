@@ -27,7 +27,7 @@
  *	i4b daemon - compile time configuration header file
  *	---------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/config.h,v 1.8.30.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Mon May 21 11:21:15 2001]
  *

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/exca/excavar.h,v 1.7.16.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*-
  * Copyright (c) 2002 M Warner Losh.  All rights reserved.

@@ -32,7 +32,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/string/ffs.S,v 1.2.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 LEAF(ffs, 1)
 	addl	a0, 0, t0

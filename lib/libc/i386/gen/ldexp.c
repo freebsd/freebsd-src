@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)ldexp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/i386/gen/ldexp.c,v 1.11.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * ldexp(value, exp): return value * (2 ** exp).

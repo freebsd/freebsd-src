@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usb_subr.c,v 1.76.2.3.8.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

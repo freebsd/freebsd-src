@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/telnet/Makefile,v 1.28.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 TELNETDIR=	${.CURDIR}/../../contrib/telnet
 .PATH:		${TELNETDIR}/telnet

@@ -35,7 +35,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * 
  * Obtained from: $NetBSD: msgtest.c,v 1.7 2002/07/20 08:36:25 grant Exp $
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/sysvmsg/msgtest.c,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

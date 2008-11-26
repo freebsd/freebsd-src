@@ -9,7 +9,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/malloc.c,v 1.90.2.1.10.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Defining MALLOC_EXTRA_SANITY will enable extra checks which are related

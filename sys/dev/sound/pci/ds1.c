@@ -33,7 +33,7 @@
 #include <dev/sound/pci/ds1.h>
 #include <dev/sound/pci/ds1-fw.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/ds1.c,v 1.43.2.1.8.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* -------------------------------------------------------------------- */
 

@@ -40,7 +40,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/bcopyinout.S,v 1.6.12.1 2008/10/02 02:57:24 kensmith Exp $");
 #ifdef __XSCALE__
 #include <arm/arm/bcopyinout_xscale.S>
 #else

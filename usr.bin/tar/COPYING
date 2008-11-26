@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.bin/tar/COPYING,v 1.1.8.3.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 All of the C source code and documentation in this package is subject
 to the following:

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/Makefile,v 1.48.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 LOCALES=	am_ET.UTF-8 \
 		be_BY.CP1131 \

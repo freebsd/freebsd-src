@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/lnc/if_lncreg.h,v 1.7.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

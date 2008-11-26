@@ -35,7 +35,7 @@
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"	@(#)ssc	8.1 (Berkeley) 8/14/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/15.yacc/ssc,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 .SH
 Appendix C: An Advanced Example
 .PP

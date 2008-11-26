@@ -1,7 +1,7 @@
 /*
  * Croatian calendar files
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.croatian,v 1.5.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _calendar_croatian_

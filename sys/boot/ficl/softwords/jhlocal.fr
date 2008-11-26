@@ -14,7 +14,7 @@
 \
 \ revised 2 June 2000 - { | a -- } now works correctly
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/jhlocal.fr,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 hide
 0 constant zero

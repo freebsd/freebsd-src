@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sel_subs.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/pax/sel_subs.h,v 1.6.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

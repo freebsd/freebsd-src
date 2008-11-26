@@ -12,7 +12,7 @@
 #  3) If no label has been found, use MYADDR if it exists.
 #
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/ppp/ppp.linkup.sample,v 1.2.50.1 2008/10/02 02:57:24 kensmith Exp $
 #
 #########################################################################
 

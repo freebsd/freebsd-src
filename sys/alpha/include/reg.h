@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/reg.h,v 1.13.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* From: NetBSD: reg.h,v 1.3 1997/04/06 08:47:40 cgd Exp */
 
 /*-

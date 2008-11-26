@@ -1,5 +1,5 @@
 /* readfile.h */
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/readfile.h,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include "bptypes.h"
 #include "hash.h"

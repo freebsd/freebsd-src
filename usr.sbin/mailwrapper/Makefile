@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mailwrapper/Makefile,v 1.13.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 .if !defined(NO_MAILWRAPPER)
 PROG=	mailwrapper

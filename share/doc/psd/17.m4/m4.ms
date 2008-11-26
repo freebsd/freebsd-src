@@ -36,7 +36,7 @@
 .\" 
 .\"	@(#)m4.ms	6.3 (Berkeley) 6/5/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/17.m4/m4.ms,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
 .de MH
 Bell Laboratories, Murray Hill, NJ 07974.
 ..

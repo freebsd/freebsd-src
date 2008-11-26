@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/options.sparc64,v 1.13.2.2.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 GFB_DEBUG		opt_gfb.h
 GFB_NO_FONT_LOADING	opt_gfb.h

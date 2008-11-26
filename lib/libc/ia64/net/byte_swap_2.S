@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/net/byte_swap_2.S,v 1.5.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #if !defined(ALIAS) || !defined(NAME)
 #error ALIAS or NAME not defined

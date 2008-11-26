@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/btx/btxldr/btxldr.S,v 1.12.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

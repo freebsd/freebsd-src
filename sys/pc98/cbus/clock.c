@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/clock.c,v 1.148.2.1.10.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

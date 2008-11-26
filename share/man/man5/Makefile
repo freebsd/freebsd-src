@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$FreeBSD$
+#	$FreeBSD: src/share/man/man5/Makefile,v 1.58.2.6.4.1 2008/10/02 02:57:24 kensmith Exp $
 
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \

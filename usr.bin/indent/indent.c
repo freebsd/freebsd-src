@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/indent/indent.c,v 1.23.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/param.h>
 #include <err.h>

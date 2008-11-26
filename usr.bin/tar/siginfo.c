@@ -24,7 +24,7 @@
  */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/siginfo.c,v 1.2.4.2.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <errno.h>
 #include <signal.h>

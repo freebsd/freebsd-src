@@ -45,7 +45,7 @@
 #include <alpha/isa/isavar.h>
 #endif
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/isa/gusc.c,v 1.16.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define LOGICALID_NOPNP 0
 #define LOGICALID_PCM   0x0000561e

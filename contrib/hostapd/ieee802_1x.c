@@ -12,7 +12,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/ieee802_1x.c,v 1.3.2.2.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <stdlib.h>

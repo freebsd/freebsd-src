@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/netdb_private.h,v 1.9.4.2.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _NETDB_PRIVATE_H_

@@ -62,7 +62,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ray/if_ray.c,v 1.79.2.2.10.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Card configuration

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/random/randomize_fd.h,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef __RANDOMIZE_FD__

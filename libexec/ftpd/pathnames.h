@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/4/93
- * $FreeBSD$
+ * $FreeBSD: src/libexec/ftpd/pathnames.h,v 1.11.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <paths.h>

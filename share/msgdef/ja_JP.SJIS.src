@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/msgdef/ja_JP.SJIS.src,v 1.1.32.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # XXX: ja_JP.SJIS contains english messages only. Someone familiar with
 # this locale is wanted to complete it!

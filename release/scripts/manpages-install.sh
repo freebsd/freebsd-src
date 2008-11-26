@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/manpages-install.sh,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

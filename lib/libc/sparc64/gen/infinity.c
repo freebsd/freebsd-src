@@ -4,7 +4,7 @@
 __RCSID("$NetBSD: infinity.c,v 1.2 1998/11/14 19:31:02 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/gen/infinity.c,v 1.7.28.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* infinity.c */
 

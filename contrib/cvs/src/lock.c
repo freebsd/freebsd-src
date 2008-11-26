@@ -9,7 +9,7 @@
  * 
  * Lock file support for CVS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/lock.c,v 1.13.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* The node Concurrency in doc/cvs.texinfo has a brief introduction to

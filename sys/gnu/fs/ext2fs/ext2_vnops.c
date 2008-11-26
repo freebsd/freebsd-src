@@ -39,7 +39,7 @@
  *
  *	@(#)ufs_vnops.c	8.7 (Berkeley) 2/3/94
  *	@(#)ufs_vnops.c 8.27 (Berkeley) 5/27/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_vnops.c,v 1.103.2.3.8.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "opt_suiddir.h"

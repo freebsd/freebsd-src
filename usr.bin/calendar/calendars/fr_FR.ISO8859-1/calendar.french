@@ -1,7 +1,7 @@
 /*
  * French calendar file(s)
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/fr_FR.ISO8859-1/calendar.french,v 1.1.32.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _calendar_french_

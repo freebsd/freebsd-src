@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/libbinutils/config.h,v 1.12.24.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /* FreeBSD isn't any form of AIX. */
 #define bin_dummy_emulation bin_vanilla_emulation

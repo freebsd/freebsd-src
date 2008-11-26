@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/pxeldr/Makefile,v 1.16.24.1 2008/10/02 02:57:24 kensmith Exp $
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>

@@ -1,5 +1,5 @@
 .\" Startup file for troff.
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/troffrc,v 1.16.10.1.8.1 2008/10/02 02:57:24 kensmith Exp $
 .
 .\" This is tested by pic.
 .nr 0p 0

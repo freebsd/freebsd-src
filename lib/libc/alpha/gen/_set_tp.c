@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/alpha/gen/_set_tp.c,v 1.2.20.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/_set_tp.c,v 1.2.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 #include <machine/alpha_cpu.h>

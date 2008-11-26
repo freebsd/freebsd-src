@@ -16,7 +16,7 @@
 
     
     $Id: eui64.h,v 1.3 1999/09/30 19:56:37 masputra Exp $
-    $FreeBSD$
+    $FreeBSD: src/usr.sbin/pppd/eui64.h,v 1.1.1.1.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
 */
 
 #ifndef __EUI64_H__

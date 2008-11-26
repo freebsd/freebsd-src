@@ -14,7 +14,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/boot2/lib.h,v 1.2.34.1.8.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 void sio_init(int);

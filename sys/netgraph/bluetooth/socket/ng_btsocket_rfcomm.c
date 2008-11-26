@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  *
  * $Id: ng_btsocket_rfcomm.c,v 1.28 2003/09/14 23:29:06 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/bluetooth/socket/ng_btsocket_rfcomm.c,v 1.17.2.4.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/param.h>

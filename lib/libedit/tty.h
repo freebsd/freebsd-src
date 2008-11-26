@@ -31,7 +31,7 @@
  *
  *	@(#)tty.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: tty.h,v 1.11 2005/06/01 11:37:52 lukem Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/tty.h,v 1.4.14.1.10.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

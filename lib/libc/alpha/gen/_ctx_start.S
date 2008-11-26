@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/alpha/gen/_ctx_start.S,v 1.2.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * A0-A5 are the first 6 arguments to the start routine with the

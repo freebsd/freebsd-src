@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/i386/linux/linux_locore.s,v 1.11.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include "linux_assym.h"			/* system definitions */
 #include <machine/asmacros.h>			/* miscellaneous asm macros */

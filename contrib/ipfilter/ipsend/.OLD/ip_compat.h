@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/.OLD/ip_compat.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*
  * (C)opyright 1995 by Darren Reed.

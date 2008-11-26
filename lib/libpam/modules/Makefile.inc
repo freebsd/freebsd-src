@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/Makefile.inc,v 1.18.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 PAMDIR=		${.CURDIR}/../../../../contrib/openpam
 

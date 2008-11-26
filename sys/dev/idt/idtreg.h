@@ -37,7 +37,7 @@
  *
  ******************************************************************************
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/idt/idtreg.h,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #define	IDT_VERSION	"IDT 1.101"

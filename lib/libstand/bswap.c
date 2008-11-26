@@ -4,7 +4,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libstand/bswap.c,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *rcsid = "$NetBSD: bswap32.c,v 1.1 1997/10/09 15:42:33 bouyer Exp $";

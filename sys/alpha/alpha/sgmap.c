@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/sgmap.c,v 1.7.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

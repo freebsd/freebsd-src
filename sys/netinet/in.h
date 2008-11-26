@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in.h,v 1.90.2.6.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _NETINET_IN_H_

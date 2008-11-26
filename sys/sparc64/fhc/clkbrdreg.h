@@ -25,7 +25,7 @@
  *
  *	from: OpenBSD: clkbrdreg.h,v 1.2 2004/10/01 15:36:30 jason Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sparc64/fhc/clkbrdreg.h,v 1.1.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #define	CLK_CTRL	0x00

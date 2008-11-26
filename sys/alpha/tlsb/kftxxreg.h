@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/kftxxreg.h,v 1.5.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* $NetBSD: kftxxreg.h,v 1.5 1998/07/08 00:45:08 mjacob Exp $ */
 
 /*-

@@ -4,7 +4,7 @@
 \ john sadler  1 sep 98
 \ Needs oop.fr
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/classes.fr,v 1.4.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 also oop definitions
 

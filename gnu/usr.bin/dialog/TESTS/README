@@ -12,4 +12,4 @@ textbox		- simple text box
 treebox		- tree box
 yesno		- yes/no dialog
 
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/dialog/TESTS/README,v 1.1.52.1 2008/10/02 02:57:24 kensmith Exp $

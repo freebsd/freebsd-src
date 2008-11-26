@@ -28,7 +28,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/net/ntohs.S,v 1.4.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define	ALIAS	ntohs
 #define	NAME	__ntohs

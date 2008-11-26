@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/make.c,v 1.38.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * make.c

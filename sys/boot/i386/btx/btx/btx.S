@@ -12,7 +12,7 @@
  * warranties of merchantability and fitness for a particular
  * purpose.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/i386/btx/btx/btx.S,v 1.38.2.4.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/devps/Makefile,v 1.3.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 DEV=		ps
 DISTFILES=	text.enc download \

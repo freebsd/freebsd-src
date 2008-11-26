@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/jme/if_jme.c,v 1.2.2.6.2.2 2008/10/19 06:55:08 yongari Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

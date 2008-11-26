@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/usr.sbin/atm/scspd/scsp_if.h,v 1.2.50.1 2008/10/02 02:57:24 kensmith Exp $
  *
  */
 

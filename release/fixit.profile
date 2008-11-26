@@ -1,5 +1,5 @@
 :
-# $FreeBSD$
+# $FreeBSD: src/release/fixit.profile,v 1.10.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 export BLOCKSIZE=K
 export PS1="Fixit# "

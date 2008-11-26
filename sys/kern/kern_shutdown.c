@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/kern_shutdown.c,v 1.174.2.5.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_kdb.h"
 #include "opt_mac.h"

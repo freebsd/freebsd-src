@@ -26,7 +26,7 @@
 /*      $NetBSD: setlogin.S,v 1.3 1998/11/24 11:14:57 tsubai Exp $      */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/powerpc/sys/setlogin.S,v 1.1.22.1 2008/10/02 02:57:24 kensmith Exp $");
 	
 #include "SYS.h"
 

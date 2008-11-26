@@ -13,7 +13,7 @@
  * I have removed all of the ifdef spaghetti which is not relevant to
  * zic from this file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/zic/private.h,v 1.7.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

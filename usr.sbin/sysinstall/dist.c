@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/dist.c,v 1.239.2.9.2.2 2008/11/07 22:07:27 blackend Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

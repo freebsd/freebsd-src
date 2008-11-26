@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/smapi.h,v 1.2.28.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _MACHINE_SMAPI_H_

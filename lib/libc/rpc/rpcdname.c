@@ -32,7 +32,7 @@
 static char sccsid[] = "@(#)rpcdname.c 1.7 91/03/11 Copyr 1989 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/rpcdname.c,v 1.5.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * rpcdname.c

@@ -11,7 +11,7 @@
  * modified 03-25-03 for 12 hour option
  *     - Samy Al Bahra <samy@kerneled.com>
  *
- * $FreeBSD$
+ * $FreeBSD: src/games/grdc/grdc.c,v 1.12.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <err.h>

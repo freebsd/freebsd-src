@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/kmod_syms.awk,v 1.4.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 # Read global symbols from object file.
 BEGIN {

@@ -25,7 +25,7 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/filters.ru/koi2alt/koi2alt.c,v 1.3.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * KOI8-R -> CP866 conversion filter (Russian character sets)

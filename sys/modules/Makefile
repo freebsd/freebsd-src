@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/Makefile,v 1.450.2.40.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 # oldcard -- specialized use for debugging only.
 # owi -- totally unsupported for debugging only.

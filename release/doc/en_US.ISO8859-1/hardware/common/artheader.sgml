@@ -1,4 +1,4 @@
-<!-- $FreeBSD$ -->
+<!-- $FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/common/artheader.sgml,v 1.7.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ -->
 
 <articleinfo>
   <title>&os;/&arch; &release.current; Hardware Notes</title>

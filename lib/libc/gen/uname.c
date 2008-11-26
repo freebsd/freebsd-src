@@ -35,7 +35,7 @@
 static char sccsid[] = "From: @(#)uname.c	8.1 (Berkeley) 1/4/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gen/uname.c,v 1.9.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define uname wrapped_uname
 #include <sys/param.h>

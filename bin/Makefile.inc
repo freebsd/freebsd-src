@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/Makefile.inc,v 1.22.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 BINDIR?=	/bin
 WARNS?=		6

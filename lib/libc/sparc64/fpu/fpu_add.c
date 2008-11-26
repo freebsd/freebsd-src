@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_add.c,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Perform an FPU add (return x + y).

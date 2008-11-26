@@ -25,7 +25,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/ppp_defs.h,v 1.8.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _PPP_DEFS_H_

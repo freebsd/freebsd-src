@@ -31,7 +31,7 @@
  *	from: @(#)auth.h 1.17 88/02/08 SMI
  *	from: @(#)auth.h	2.3 88/08/07 4.0 RPCSRC
  *	from: @(#)auth.h	1.43 	98/02/02 SMI
- * $FreeBSD$
+ * $FreeBSD: src/sys/rpc/auth.h,v 1.1.4.1.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

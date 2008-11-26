@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sbsh/if_sbshreg.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* SBNI16 controller chip definitions */

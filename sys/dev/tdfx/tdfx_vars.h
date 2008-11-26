@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *   $FreeBSD$
+ *   $FreeBSD: src/sys/dev/tdfx/tdfx_vars.h,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* tdfx_vars.h -- constants and structs used in the tdfx driver

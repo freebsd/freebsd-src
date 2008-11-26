@@ -3,7 +3,7 @@
 \ John Sadler, 4 Oct 98
 \ Requires ficl 2.02 FORGET-WID !!
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/marker.fr,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 : marker   ( "name" -- )
     create  

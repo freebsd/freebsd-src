@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/common/Makefile.inc,v 1.21.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 SRCS+=	bcache.c boot.c commands.c console.c devopen.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 

@@ -54,7 +54,7 @@
 #include "atm.h"
 
 #ifndef lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/atm/atm_set.c,v 1.8.24.1 2008/10/02 02:57:24 kensmith Exp $");
 #endif
 
 

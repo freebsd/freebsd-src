@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libmd/sha256c.c,v 1.1.14.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/endian.h>
 #include <sys/types.h>

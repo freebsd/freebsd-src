@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/share/examples/ses/srcs/getencstat.c,v 1.1.50.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.

@@ -41,4 +41,4 @@ To compile:
 Note that rebuilds don't always work correctly; if you run into
 trouble, try 'make clean' before recompiling.
 
-$FreeBSD$
+$FreeBSD: src/rescue/README,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $

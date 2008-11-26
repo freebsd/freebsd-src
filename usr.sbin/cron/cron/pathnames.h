@@ -16,7 +16,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cron/cron/pathnames.h,v 1.5.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #if (defined(BSD)) && (BSD >= 199103) || defined(__linux) || defined(AIX)

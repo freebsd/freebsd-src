@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/arm/at91/std.at91,v 1.1.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 files	"../at91/files.at91"
 cpu	CPU_ARM9

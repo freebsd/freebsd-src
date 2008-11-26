@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/floatingpoint.h,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _FLOATINGPOINT_H_

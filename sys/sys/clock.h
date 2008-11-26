@@ -35,7 +35,7 @@
  *
  *	$NetBSD: clock_subr.h,v 1.7 2000/10/03 13:41:07 tsutsui Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/clock.h,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_CLOCK_H_

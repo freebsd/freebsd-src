@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/userspec.c,v 1.2.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /* userspec.c -- Parse a user and group string.
    Copyright (C) 1989, 1990, 1991, 1992, 2001, 2004 Free Software Foundation, Inc.

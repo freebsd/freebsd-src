@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arc/lib/arcconsole.c,v 1.3.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 

@@ -1,6 +1,6 @@
 # Lithuanian (backward compatible with ASCII)
 #
-# $FreeBSD$
+# $FreeBSD: src/share/colldef/lt_LT.ISO8859-4.src,v 1.2.32.1 2008/10/02 02:57:24 kensmith Exp $
 #
 charmap map.ISO8859-4
 order \

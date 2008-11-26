@@ -12,7 +12,7 @@
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rtsold/Makefile,v 1.11.22.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	rtsold
 MAN=	rtsold.8

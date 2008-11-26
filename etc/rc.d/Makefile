@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/Makefile,v 1.53.2.21.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \

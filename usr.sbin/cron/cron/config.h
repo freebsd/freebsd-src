@@ -17,7 +17,7 @@
 
 /* config.h - configurables for Vixie Cron
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cron/cron/config.h,v 1.8.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #if !defined(_PATH_SENDMAIL)

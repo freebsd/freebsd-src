@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/kgzip/Makefile,v 1.11.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	kgzip
 MAN=	kgzip.8

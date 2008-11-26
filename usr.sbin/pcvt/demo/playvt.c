@@ -36,7 +36,7 @@ static char *id =
 	"@(#)playvt.c, 1.00, Last Edit-Date: [Sun Jan  1 18:32:22 1995]";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pcvt/demo/playvt.c,v 1.6.26.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif /* not lint */
 
 /*---------------------------------------------------------------------------*

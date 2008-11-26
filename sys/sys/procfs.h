@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/procfs.h,v 1.5.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_PROCFS_H_

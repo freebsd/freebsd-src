@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/devd/Makefile,v 1.6.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG_CXX=devd
 SRCS=	devd.cc token.l parse.y y.tab.h

@@ -4,7 +4,7 @@
  * from the file `ctaug703.dat'
  *
  * Cronyx Id: ctaug7fw.h,v 1.1 2002/06/03 10:19:40 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/ctaug7fw.h,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 long ctaug703_fw_len = 323982;
 

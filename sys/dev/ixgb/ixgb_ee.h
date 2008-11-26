@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/ixgb_ee.h,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $*/
 #ifndef _IXGB_EE_H_
 #define _IXGB_EE_H_
 

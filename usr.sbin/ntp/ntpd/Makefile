@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/ntp/ntpd/Makefile,v 1.13.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 NO_MAN=
 

@@ -49,7 +49,7 @@
  * Based on recollection of the original options.h produced at the University
  * of Queensland by Ross Patterson (and possibly others).
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ctm/ctm_rmail/options.h,v 1.6.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 static char *O_usage;

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mail/aliases,v 1.21.16.1 2008/10/02 02:57:24 kensmith Exp $
 #	@(#)aliases	5.3 (Berkeley) 5/24/90
 #
 #  Aliases in this file will NOT be expanded in the header from

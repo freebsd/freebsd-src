@@ -38,7 +38,7 @@
 
 /* #pragma ident	"@(#)key_prot.x	1.7	94/04/29 SMI" */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/key_prot_xdr.c,v 1.5.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* 
  * Compiled from key_prot.x using rpcgen.

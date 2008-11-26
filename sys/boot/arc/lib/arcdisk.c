@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/arc/lib/arcdisk.c,v 1.7.20.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * ARC disk device handling.

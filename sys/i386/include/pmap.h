@@ -38,7 +38,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/pmap.h,v 1.117.2.5.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_

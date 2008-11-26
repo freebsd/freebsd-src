@@ -34,7 +34,7 @@
  * owners.  This software is not copyrighted and is intended for reference
  * only.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/boot0/arm_init.s,v 1.1.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 	.equ	ARM_MODE_USER,	0x10

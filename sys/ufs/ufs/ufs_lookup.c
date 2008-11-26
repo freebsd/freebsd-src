@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_lookup.c,v 1.77.2.7.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_ffs_broken_fixme.h"
 #include "opt_ufs.h"

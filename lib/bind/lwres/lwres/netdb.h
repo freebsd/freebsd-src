@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/lwres/lwres/netdb.h,v 1.1.14.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")

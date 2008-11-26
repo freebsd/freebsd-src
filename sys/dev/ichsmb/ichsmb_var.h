@@ -35,7 +35,7 @@
  *
  * Author: Archie Cobbs <archie@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ichsmb/ichsmb_var.h,v 1.4.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _DEV_ICHSMB_ICHSMB_VAR_H

@@ -30,7 +30,7 @@
 
 #include <machine/asm.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/ffs.S,v 1.3.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * ffs - find first set bit, this algorithm isolates the first set

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/src/s_fminf.c,v 1.1.24.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <math.h>
 

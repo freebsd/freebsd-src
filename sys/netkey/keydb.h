@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netkey/keydb.h,v 1.12.12.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$KAME: keydb.h,v 1.24 2003/09/07 15:12:10 itojun Exp $	*/
 
 /*-

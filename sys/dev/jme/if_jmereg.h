@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/jme/if_jmereg.h,v 1.1.4.3.2.2 2008/10/19 06:55:08 yongari Exp $
  */
 
 #ifndef	_IF_JMEREG_H

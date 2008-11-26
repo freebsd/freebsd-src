@@ -31,7 +31,7 @@
 static char *rcsid = "$OpenBSD: strlcat.c,v 1.2 1999/06/17 16:28:58 millert Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/strlcat.c,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 #include <string.h>

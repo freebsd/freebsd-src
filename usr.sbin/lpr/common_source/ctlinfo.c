@@ -32,7 +32,7 @@
  */
 
 #include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/lpr/common_source/ctlinfo.c,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * ctlinfo - This collection of routines will know everything there is to

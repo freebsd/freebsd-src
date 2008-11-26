@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/picobsd/mfs_tree/etc/shells,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 # List of acceptable shells for chpass(1).
 # Ftpd will not allow users to connect who are not using
 # one of these shells.

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.6 (Berkeley) 3/30/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_mount.h,v 1.31.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_GNU_EXT2FS_EXT2_MOUNT_H_

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/i386/efibind.h,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*++
 
 Copyright (c) 1998  Intel Corporation

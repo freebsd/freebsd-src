@@ -25,7 +25,7 @@
  *
  * 	last edit-date: [Mon Mar 27 16:37:27 2000]
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/fed/fed.h,v 1.5.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <ncurses.h>

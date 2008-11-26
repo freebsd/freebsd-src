@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/display.c,v 1.8.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* display.c -- readline redisplay facility. */
 
 /* Copyright (C) 1987-2006 Free Software Foundation, Inc.

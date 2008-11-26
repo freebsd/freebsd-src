@@ -1,5 +1,5 @@
 #	$NetBSD: Makefile,v 1.12 2000/08/07 16:23:31 thorpej Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.lockd/Makefile,v 1.19.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	rpc.lockd
 MAN=	rpc.lockd.8

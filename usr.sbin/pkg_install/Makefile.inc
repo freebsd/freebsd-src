@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/Makefile.inc,v 1.13.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIBINSTALL=	${.OBJDIR}/../lib/libinstall.a
 

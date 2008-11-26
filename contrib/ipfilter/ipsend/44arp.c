@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/44arp.c,v 1.2.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*
  * Based upon 4.4BSD's /usr/sbin/arp

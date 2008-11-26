@@ -15,7 +15,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/TESTS/radio2.c,v 1.8.28.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/efi/include/efipxebc.h,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $ */
 #ifndef _EFIPXEBC_H
 #define _EFIPXEBC_H
 

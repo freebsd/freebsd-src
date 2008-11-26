@@ -32,7 +32,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/usr.sbin/lastlogin/lastlogin.c,v 1.8.30.1 2008/10/02 02:57:24 kensmith Exp $");
 __RCSID("$NetBSD: lastlogin.c,v 1.4 1998/02/03 04:45:35 perry Exp $");
 #endif
 

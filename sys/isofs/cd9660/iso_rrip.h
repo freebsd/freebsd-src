@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso_rrip.h	8.2 (Berkeley) 1/23/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/isofs/cd9660/iso_rrip.h,v 1.8.20.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 

@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/udp_usrreq.c,v 1.175.2.11.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "opt_ipfw.h"

@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/test_acl_freebsd.c,v 1.1.6.1 2008/10/23 04:51:14 kientzle Exp $");
 
 #if defined(__FreeBSD__) && __FreeBSD__ > 4
 #include <sys/acl.h>

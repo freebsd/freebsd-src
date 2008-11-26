@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit.c,v 1.18.2.12.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/param.h>

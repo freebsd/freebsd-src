@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 6/8/95
- * $FreeBSD$
+ * $FreeBSD: src/bin/sh/exec.h,v 1.12.8.2.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* values of cmdtype */

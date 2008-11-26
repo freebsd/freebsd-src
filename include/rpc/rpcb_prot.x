@@ -1,5 +1,5 @@
 %/*
-% * $FreeBSD$
+% * $FreeBSD: src/include/rpc/rpcb_prot.x,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
 % *
 % * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
 % * unrestricted use provided that this legend is included on all tape

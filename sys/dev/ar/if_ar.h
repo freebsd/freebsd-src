@@ -33,7 +33,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ar/if_ar.h,v 1.4.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _I386_ISA_IF_AR_H_

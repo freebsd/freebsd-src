@@ -1,5 +1,5 @@
 /* $OpenBSD: auth.h,v 1.58 2006/08/18 09:15:20 markus Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/auth.h,v 1.15.2.3.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.

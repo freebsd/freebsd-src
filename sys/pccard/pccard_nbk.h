@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pccard/pccard_nbk.h,v 1.7.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef PCCARD_PCCARD_NBK_H

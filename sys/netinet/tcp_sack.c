@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_sack.c	8.12 (Berkeley) 5/24/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp_sack.c,v 1.26.2.3.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*-

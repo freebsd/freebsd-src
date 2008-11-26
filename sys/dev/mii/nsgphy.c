@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/nsgphy.c,v 1.19.2.4.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Driver for the National Semiconductor DP83891 and DP83861

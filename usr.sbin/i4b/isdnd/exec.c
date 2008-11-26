@@ -27,7 +27,7 @@
  *	exec.h - supplemental program/script execution
  *	----------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/exec.c,v 1.12.22.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Tue Mar 26 14:35:46 2002]
  *

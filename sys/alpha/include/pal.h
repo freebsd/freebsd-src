@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/pal.h,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* From: NetBSD: pal.h,v 1.1 1997/09/06 01:23:53 thorpej Exp */
 
 /*-

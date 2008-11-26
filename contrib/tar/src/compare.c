@@ -19,7 +19,7 @@
    with this program; if not, write to the Free Software Foundation, Inc.,
    59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tar/src/compare.c,v 1.3.28.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include "system.h"
 

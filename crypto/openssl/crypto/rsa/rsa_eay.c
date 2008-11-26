@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssl/crypto/rsa/rsa_eay.c,v 1.13.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include <stdio.h>
 #include "cryptlib.h"

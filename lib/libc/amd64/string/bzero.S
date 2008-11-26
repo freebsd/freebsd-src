@@ -5,7 +5,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/amd64/string/bzero.S,v 1.2.18.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #if 0
 	RCSID("$NetBSD: bzero.S,v 1.2 2003/07/26 19:24:38 salo Exp $")

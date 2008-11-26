@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sys/dev/firewire/00README,v 1.1.16.1.10.1 2008/10/02 02:57:24 kensmith Exp $
 
 IEEE 1394 support for FreeBSD-5.X and 4.X.
 

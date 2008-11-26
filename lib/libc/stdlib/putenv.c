@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)putenv.c	8.2 (Berkeley) 3/27/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/putenv.c,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stdlib.h>
 #include <string.h>

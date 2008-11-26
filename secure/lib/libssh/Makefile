@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libssh/Makefile,v 1.34.2.5.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIB=	ssh
 SHLIB_MAJOR=	3

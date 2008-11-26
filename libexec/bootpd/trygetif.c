@@ -1,7 +1,7 @@
 /*
  * trygetif.c - test program for getif.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/trygetif.c,v 1.5.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/types.h>

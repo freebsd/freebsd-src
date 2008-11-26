@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/raw_cb.h,v 1.19.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _NET_RAW_CB_H_

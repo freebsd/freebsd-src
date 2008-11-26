@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/ip1000phy.c,v 1.1.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Driver for the IC Plus IP1000A/IP1001 10/100/1000 PHY.

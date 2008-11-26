@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/usb/print-usb-if-vids.sh,v 1.1.24.1 2008/10/02 02:57:24 kensmith Exp $
 
 
 fetch -o /tmp/usb.if http://www.usb.org/app/pub/dump/comp_dump/

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/alpha/Makefile,v 1.24.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 .PATH: ${.CURDIR}/../common
 SRCS=	crt1.c crti.S crtn.S

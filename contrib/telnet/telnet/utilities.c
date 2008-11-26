@@ -37,7 +37,7 @@ static const char sccsid[] = "@(#)utilities.c	8.3 (Berkeley) 5/30/95";
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/telnet/telnet/utilities.c,v 1.8.28.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #define	TELOPTS
 #define	TELCMDS

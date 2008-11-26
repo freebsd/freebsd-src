@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/cam/scsi/scsi_dvcfg.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$NecBSD: scsi_dvcfg.h,v 1.4 1998/03/14 07:05:06 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
 

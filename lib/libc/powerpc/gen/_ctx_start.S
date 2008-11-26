@@ -26,7 +26,7 @@
 
  #include <machine/asm.h>
 
- __FBSDID("$FreeBSD$");
+ __FBSDID("$FreeBSD: src/lib/libc/powerpc/gen/_ctx_start.S,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 	.globl  CNAME(_ctx_done)
 	.globl  CNAME(abort)

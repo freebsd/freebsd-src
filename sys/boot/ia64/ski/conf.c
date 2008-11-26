@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/ia64/ski/conf.c,v 1.6.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stand.h>
 

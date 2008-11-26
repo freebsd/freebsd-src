@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ppc/Makefile,v 1.3.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 #.PATH:	${.CURDIR}/../../kern
 .PATH:	${.CURDIR}/../../dev/ppc

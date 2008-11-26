@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 3/27/94
-# $FreeBSD$
+# $FreeBSD: src/share/me/Makefile,v 1.8.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 MELIB=	${BINDIR}/me
 TMLIB=	${BINDIR}/tmac

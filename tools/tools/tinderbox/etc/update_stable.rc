@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/update_stable.rc,v 1.1.20.1 2008/10/02 02:57:24 kensmith Exp $
 branches	= RELENG_4
 platforms	= alpha, i386/i386, i386/pc98
 targets		= update

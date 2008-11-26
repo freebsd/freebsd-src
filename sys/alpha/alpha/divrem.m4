@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/divrem.m4,v 1.5.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	$NetBSD: divrem.m4,v 1.5 1996/10/17 04:26:25 cgd Exp $	*/
 
 /*-

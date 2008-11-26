@@ -22,7 +22,7 @@
  * Low-level routines relating to the user capabilities database
  *
  *	Was login_cap.h,v 1.9 1997/05/07 20:00:01 eivind Exp
- * $FreeBSD$
+ * $FreeBSD: src/lib/libutil/login_cap.h,v 1.9.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _LOGIN_CAP_H_

@@ -1,5 +1,5 @@
 /* $OpenBSD: monitor_wrap.h,v 1.20 2006/08/03 03:34:42 deraadt Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/monitor_wrap.h,v 1.8.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)hist.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint && not SCCSID */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libedit/hist.c,v 1.5.14.1.10.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * hist.c: History access functions

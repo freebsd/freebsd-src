@@ -3,7 +3,7 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
-# $FreeBSD$
+# $FreeBSD: src/contrib/ipfilter/man/Makefile,v 1.1.1.6.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 all:

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libstand/nfsv2.h,v 1.3.26.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	$NetBSD: nfsv2.h,v 1.2 1996/02/26 23:05:23 gwr Exp $	*/
 
 /*

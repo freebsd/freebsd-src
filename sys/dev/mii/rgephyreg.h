@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/rgephyreg.h,v 1.2.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _DEV_MII_RGEPHYREG_H_

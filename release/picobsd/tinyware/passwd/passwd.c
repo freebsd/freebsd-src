@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/release/picobsd/tinyware/passwd/passwd.c,v 1.1.30.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

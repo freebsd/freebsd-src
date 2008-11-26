@@ -23,7 +23,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/iicbus/ds1672.c,v 1.1.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $");
 /*
  * Dallas Semiconductor DS1672 RTC sitting on the I2C bus.
  */

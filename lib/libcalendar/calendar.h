@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcalendar/calendar.h,v 1.4.50.1 2008/10/02 02:57:24 kensmith Exp $
  */
 struct date {
 	int y;	/* year */

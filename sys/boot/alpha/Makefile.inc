@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/alpha/Makefile.inc,v 1.11.12.1 2008/10/02 02:57:24 kensmith Exp $
 # Options used when building app-specific libalpha components
 
 BINDIR?=		/boot

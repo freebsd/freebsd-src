@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/310.locate,v 1.6.14.1.4.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 # If there is a global system configuration file, suck it in.

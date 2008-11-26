@@ -1,5 +1,5 @@
 /*	$OpenBSD: 3c990img.h,v 1.2 2001/06/05 02:15:17 jason Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/dev/txp/3c990img.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*-
  * Copyright (C) 1999-2001 3Com, Inc.

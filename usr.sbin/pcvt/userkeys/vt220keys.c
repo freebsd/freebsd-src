@@ -24,7 +24,7 @@
 
  	-hm	minor modifications for pcvt 2.0 release
 
-$FreeBSD$
+$FreeBSD: src/usr.sbin/pcvt/userkeys/vt220keys.c,v 1.8.26.1 2008/10/02 02:57:24 kensmith Exp $
 */
 
 #include <stdio.h>

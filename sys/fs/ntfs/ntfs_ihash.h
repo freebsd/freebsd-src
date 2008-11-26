@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/ntfs/ntfs_ihash.h,v 1.8.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 extern struct lock ntfs_hashlock;

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/kadmind/Makefile,v 1.18.24.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	kadmind
 MAN=	kadmind.8

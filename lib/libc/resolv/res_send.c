@@ -73,7 +73,7 @@ static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.9 2006/10/16 23:00:50 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/resolv/res_send.c,v 1.2.2.5.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Send query to name server and wait for reply.

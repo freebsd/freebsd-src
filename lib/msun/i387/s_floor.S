@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/s_floor.S,v 1.7.50.1 2008/10/02 02:57:24 kensmith Exp $")
 
 ENTRY(floor)
 	pushl	%ebp

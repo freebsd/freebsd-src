@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libcalendar/Makefile,v 1.6.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIB=	calendar
 WARNS?=	2

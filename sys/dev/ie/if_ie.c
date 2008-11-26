@@ -51,7 +51,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ie/if_ie.c,v 1.102.2.3.10.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Intel 82586 Ethernet chip

@@ -15,7 +15,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/common/interp_backslash.c,v 1.6.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stand.h>
 #include <string.h>

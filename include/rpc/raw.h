@@ -1,5 +1,5 @@
 /*	$NetBSD: raw.h,v 1.1 2000/06/02 22:57:56 fvdl Exp $	*/
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/include/rpc/raw.h,v 1.1.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

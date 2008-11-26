@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libkvm/kvm_ia64.c,v 1.7.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	$NetBSD: kvm_alpha.c,v 1.7.2.1 1997/11/02 20:34:26 mellon Exp $	*/
 
 /*

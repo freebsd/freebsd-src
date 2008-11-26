@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)reloc.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/reloc.h,v 1.8.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _I386_MACHINE_RELOC_H_

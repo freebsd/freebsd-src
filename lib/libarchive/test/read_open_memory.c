@@ -24,7 +24,7 @@
  */
 
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/test/read_open_memory.c,v 1.2.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <errno.h>
 #include <stdlib.h>

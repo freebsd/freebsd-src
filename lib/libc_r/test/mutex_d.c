@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/test/mutex_d.c,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #include <stdlib.h>
 #include <unistd.h>

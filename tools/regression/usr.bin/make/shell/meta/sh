@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/make/shell/meta/sh,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $
 echo "$@"
 if ! test -t 0 ; then
 	cat

@@ -35,7 +35,7 @@
  *	    for(i=period-1; i>0; i--) printf "{ 0x%08x, %u },\n", \
  *		(i * 65536) + (period - i), i * linerate/period; }'
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fatm/if_fatm_rate.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 { 0x00000000, 353053 },
 { 0x00fe0001, 351668 },

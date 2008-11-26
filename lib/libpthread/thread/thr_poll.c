@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_poll.c,v 1.16.20.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #include <unistd.h>
 #include <errno.h>

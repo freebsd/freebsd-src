@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpt_raid.h,v 1.1.2.3.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*-
  * Definitions for the integrated RAID features LSI MPT Fusion adapters.
  *

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sn/if_sn.c,v 1.45.2.3.10.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This is a driver for SMC's 9000 series of Ethernet adapters.

@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/utopia/utopia.h,v 1.5.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #ifndef _DEV_UTOPIA_UTOPIA_H
 #define	_DEV_UTOPIA_UTOPIA_H

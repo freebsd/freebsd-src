@@ -34,7 +34,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i4b/layer1/ifpnp/i4b_ifpnp_isac.c,v 1.7.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_i4b.h"
 

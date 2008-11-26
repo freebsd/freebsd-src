@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libio/Makefile,v 1.4.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIB=		io
 SHLIB_MAJOR=	1

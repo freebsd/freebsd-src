@@ -38,7 +38,7 @@ static char sccsid[] = "@(#)sum1.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/cksum/sum1.c,v 1.8.28.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <sys/types.h>
 

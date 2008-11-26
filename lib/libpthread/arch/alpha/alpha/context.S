@@ -52,7 +52,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/alpha/alpha/context.S,v 1.2.22.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* #include <machine/frame.h> */
 #define	FRAME_V0		0

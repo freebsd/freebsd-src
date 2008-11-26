@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/i386_copy.c,v 1.10.10.1.6.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * MD primitives supporting placement of module data 

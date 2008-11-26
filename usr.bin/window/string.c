@@ -37,7 +37,7 @@
 #ifndef lint
 static char sccsid[] = "@(#)string.c	8.1 (Berkeley) 6/6/93";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/string.c,v 1.5.24.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif /* not lint */
 
 #include <string.h> /* System string definitions. */

@@ -1,5 +1,5 @@
 /* bootptest.h */
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/bootpd/tools/bootptest/bootptest.h,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*
  * Hacks for sharing print-bootp.c between tcpdump and bootptest.
  */

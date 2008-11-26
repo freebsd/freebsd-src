@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)svc_auth.c 1.26 89/02/07 Copyr 1984 Sun Micro";
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/svc_auth.c,v 1.12.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * svc_auth.c, Server-side rpc authenticator interface.

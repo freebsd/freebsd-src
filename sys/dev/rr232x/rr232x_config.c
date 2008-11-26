@@ -1,7 +1,7 @@
 #include <dev/rr232x/rr232x_config.h>
 /****************************************************************************
  * config.c - auto-generated file
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/rr232x_config.c,v 1.1.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  ****************************************************************************/
 #include <dev/rr232x/os_bsd.h>
 

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/defs.h,v 1.14.12.1 2008/10/02 02:57:24 kensmith Exp $
  * defs.h,v 3.8.4.15 1998/03/01 02:51:42 fenner Exp
  */
 

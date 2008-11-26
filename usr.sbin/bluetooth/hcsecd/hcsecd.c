@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: hcsecd.c,v 1.6 2003/08/18 19:19:55 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/hcsecd/hcsecd.c,v 1.3.8.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/queue.h>

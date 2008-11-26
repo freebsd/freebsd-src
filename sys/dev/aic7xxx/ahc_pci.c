@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic7xxx/ahc_pci.c,v 1.64.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <dev/aic7xxx/aic7xxx_osm.h>
 

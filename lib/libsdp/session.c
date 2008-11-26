@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: session.c,v 1.2 2003/09/04 22:12:13 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libsdp/session.c,v 1.3.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <bluetooth.h>

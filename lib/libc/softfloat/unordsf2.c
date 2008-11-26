@@ -9,7 +9,7 @@
 #include "softfloat.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/softfloat/unordsf2.c,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 flag __unordsf2(float32, float32);
 

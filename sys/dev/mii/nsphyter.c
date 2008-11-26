@@ -67,7 +67,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/nsphyter.c,v 1.1.4.1.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * driver for National Semiconductor's DP83843 `PHYTER' ethernet 10/100 PHY

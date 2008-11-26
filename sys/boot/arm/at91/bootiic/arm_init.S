@@ -20,7 +20,7 @@
  * only.
  * END_BLOCK
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/bootiic/arm_init.S,v 1.2.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
  ******************************************************************************/
 
 	.equ	TWI_EEPROM_SIZE,	0x2000

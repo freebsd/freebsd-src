@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_uzip/test-2.sh,v 1.1.20.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 #

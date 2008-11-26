@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioctl_compat.h	8.4 (Berkeley) 1/21/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ioctl_compat.h,v 1.8.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_IOCTL_COMPAT_H_

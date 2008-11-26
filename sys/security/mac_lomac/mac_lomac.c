@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/mac_lomac/mac_lomac.c,v 1.35.2.4.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

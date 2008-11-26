@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/tools/regression/ccd/layout/b.c,v 1.1.28.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include <unistd.h>
 #include <fcntl.h>

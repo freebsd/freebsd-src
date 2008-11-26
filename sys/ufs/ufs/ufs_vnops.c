@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ufs/ufs_vnops.c,v 1.271.2.15.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_mac.h"
 #include "opt_quota.h"

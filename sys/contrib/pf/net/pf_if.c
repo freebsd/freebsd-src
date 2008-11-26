@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_if.c,v 1.10.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	$OpenBSD: pf_if.c,v 1.23 2004/12/22 17:17:55 dhartmei Exp $ */
 
 /*

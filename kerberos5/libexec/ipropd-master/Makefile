@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/libexec/ipropd-master/Makefile,v 1.17.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	ipropd-master
 NO_MAN=

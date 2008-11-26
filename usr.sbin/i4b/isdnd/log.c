@@ -27,7 +27,7 @@
  *	i4b daemon - logging routines
  *	-----------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/log.c,v 1.9.26.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Wed Dec 26 12:49:45 2001]
  *

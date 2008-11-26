@@ -64,7 +64,7 @@
  * Author:		Brooks Davis <brooks@FreeBSD.org>
  * Derived from:	ng_hole.c
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_ip_input.c,v 1.4.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

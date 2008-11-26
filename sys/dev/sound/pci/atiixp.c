@@ -63,7 +63,7 @@
 
 #include <dev/sound/pci/atiixp.h>
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pci/atiixp.c,v 1.2.2.8.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 struct atiixp_dma_op {
 	volatile uint32_t addr;

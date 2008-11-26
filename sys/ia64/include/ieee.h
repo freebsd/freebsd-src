@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/ia64/include/ieee.h,v 1.3.16.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* From: NetBSD: ieee.h,v 1.2 1997/04/06 08:47:27 cgd Exp */
 
 /*-

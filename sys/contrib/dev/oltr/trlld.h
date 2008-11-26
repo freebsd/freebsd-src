@@ -14,7 +14,7 @@
  *---------------------------------------------------------------------------
  *
  * Description: PowerMACH Works header file
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/dev/oltr/trlld.h,v 1.4.30.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *---------------------------------------------------------------------------
  * $Log:   J:/usr/project/trlld/libsrc/include/trlld.h_v  $

@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/vidconsole.c,v 1.20.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stand.h>
 #include <bootstrap.h>

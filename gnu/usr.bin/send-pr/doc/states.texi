@@ -1,4 +1,4 @@
-@c $FreeBSD$
+@c $FreeBSD: src/gnu/usr.bin/send-pr/doc/states.texi,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 @node States
 @section States of Problem Reports

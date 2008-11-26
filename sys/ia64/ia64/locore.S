@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ia64/ia64/locore.S,v 1.38.2.1.8.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <machine/asm.h>

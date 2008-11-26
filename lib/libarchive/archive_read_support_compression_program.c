@@ -24,7 +24,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_read_support_compression_program.c,v 1.1.2.4.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 
 /* This capability is only available on POSIX systems. */

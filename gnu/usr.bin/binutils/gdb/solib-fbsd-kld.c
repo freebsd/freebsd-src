@@ -20,7 +20,7 @@
    Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/solib-fbsd-kld.c,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include <sys/param.h>
 #include <sys/queue.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/msun/alpha/s_copysignf.S,v 1.2.46.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*	From: NetBSD: s_copysignf.S,v 1.3 1997/07/30 23:58:41 jtc Exp */
 
 /*-

@@ -8,7 +8,7 @@
  *
  * $Id: dtmfdecode.c,v 1.6 1999/12/13 21:25:24 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/dtmfdecode/dtmfdecode.c,v 1.5.28.1 2008/10/02 02:57:24 kensmith Exp $
  *
  * Extract DTMF signalling from ISDN4BSD A-law coded audio data
  *

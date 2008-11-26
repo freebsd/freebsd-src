@@ -31,7 +31,7 @@
  *
  * 	edit.c, 3.00, last edit-date: [Mon Mar 27 16:35:47 2000]
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/fed/edit.c,v 1.5.26.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *---------------------------------------------------------------------------*/
 

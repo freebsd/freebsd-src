@@ -31,7 +31,7 @@
  *	$Id: i4b_ifpnp_ext.h,v 1.2 2000/06/02 16:14:36 hm Exp $
  *	$Ust: src/i4b/layer1-nb/ifpnp/i4b_ifpnp_ext.h,v 1.4 2000/04/18 08:03:05 ust Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/ifpnp/i4b_ifpnp_ext.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Fri Jun  2 14:54:57 2000]
  *

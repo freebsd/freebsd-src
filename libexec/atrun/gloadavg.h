@@ -25,5 +25,5 @@
 
 double gloadavg(void);
 #if 0
-static char atrun_h_rcsid[] = "$FreeBSD$";
+static char atrun_h_rcsid[] = "$FreeBSD: src/libexec/atrun/gloadavg.h,v 1.4.50.1 2008/10/02 02:57:24 kensmith Exp $";
 #endif

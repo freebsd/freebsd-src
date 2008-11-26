@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/devfs,v 1.10.2.2.8.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 # PROVIDE: devfs

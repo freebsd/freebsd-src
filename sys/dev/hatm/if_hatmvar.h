@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hatm/if_hatmvar.h,v 1.18.16.1 2008/10/02 02:57:24 kensmith Exp $
  *
  * Fore HE driver for NATM
  */

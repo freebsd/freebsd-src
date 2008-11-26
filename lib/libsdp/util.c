@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: util.c,v 1.5 2003/09/08 02:29:35 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libsdp/util.c,v 1.5.2.2.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <netinet/in.h>

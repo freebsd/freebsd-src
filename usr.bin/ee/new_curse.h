@@ -37,7 +37,7 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1995 Hugh Mahon
  |	All are rights reserved.
  |
- | $FreeBSD$
+ | $FreeBSD: src/usr.bin/ee/new_curse.h,v 1.3.30.1 2008/10/02 02:57:24 kensmith Exp $
  |
  */
 

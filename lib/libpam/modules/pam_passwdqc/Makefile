@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_passwdqc/Makefile,v 1.6.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 SRCDIR=	${.CURDIR}/../../../../contrib/pam_modules/pam_passwdqc
 .PATH: ${SRCDIR}

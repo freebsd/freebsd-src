@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/amd64/amd64/trap.c,v 1.289.2.7.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * AMD64 Trap and System call handling

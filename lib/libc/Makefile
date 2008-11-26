@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 2/3/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/Makefile,v 1.56.2.3.4.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # All library objects contain FreeBSD revision strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does

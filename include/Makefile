@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-# $FreeBSD$
+# $FreeBSD: src/include/Makefile,v 1.244.2.7.2.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # Doing a "make install" builds /usr/include.
 

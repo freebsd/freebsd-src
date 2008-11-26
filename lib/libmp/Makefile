@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libmp/Makefile,v 1.9.8.1.10.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIB=		mp
 SHLIB_MAJOR=	5

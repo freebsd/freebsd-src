@@ -39,7 +39,7 @@
  *
  *	Last Edit-Date: [Mon Mar 27 17:09:25 2000];
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pcvt/loadfont/loadfont.c,v 1.9.26.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *---------------------------------------------------------------------------*/
 

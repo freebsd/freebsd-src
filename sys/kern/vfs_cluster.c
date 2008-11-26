@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/vfs_cluster.c,v 1.166.2.3.8.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_debug_cluster.h"
 

@@ -1,7 +1,7 @@
 /*
  * USB support for sysinstall
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/usb.c,v 1.1.28.1 2008/10/02 02:57:24 kensmith Exp $
  *
  * Copyright (c) 2000 John Baldwin <jhb@FreeBSD.org>.  All rights reserved.
  *

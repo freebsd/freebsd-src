@@ -24,7 +24,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/share/examples/atm/atm-config.sh,v 1.2.50.1 2008/10/02 02:57:24 kensmith Exp $
 #
 #
 

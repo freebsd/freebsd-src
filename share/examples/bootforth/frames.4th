@@ -1,6 +1,6 @@
 \ Words implementing frame drawing
 \ XXX Filled boxes are left as an exercise for the reader... ;-/
-\ $FreeBSD$
+\ $FreeBSD: src/share/examples/bootforth/frames.4th,v 1.3.24.1 2008/10/02 02:57:24 kensmith Exp $
 
 marker task-frames.4th
 

@@ -21,6 +21,6 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $Id: Makefile.inc,v 1.5 1998/07/10 16:01:58 jpt Exp $
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/Makefile.inc,v 1.5.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 .include "../Makefile.inc"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mse/mse_isa.c,v 1.4.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*-

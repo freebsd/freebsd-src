@@ -1,7 +1,7 @@
 \ Simple greeting screen, presenting basic options.
 \ XXX This is far too trivial - I don't have time now to think
 \ XXX about something more fancy... :-/
-\ $FreeBSD$
+\ $FreeBSD: src/share/examples/bootforth/menuconf.4th,v 1.5.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 : title
 	f_single

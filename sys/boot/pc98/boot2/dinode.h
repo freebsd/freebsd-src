@@ -33,7 +33,7 @@
  *
  *	@(#)dinode.h	8.3 (Berkeley) 1/21/94
  * %FreeBSD: src/sys/ufs/ufs/dinode.h,v 1.7 1999/08/28 00:52:27 peter Exp %
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/pc98/boot2/dinode.h,v 1.4.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _UFS_UFS_DINODE_H_

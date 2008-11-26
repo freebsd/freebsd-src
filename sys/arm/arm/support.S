@@ -95,7 +95,7 @@
 
 #include <machine/asm.h>
 #include <machine/asmacros.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/support.S,v 1.9.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "assym.s"
 

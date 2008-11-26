@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)4.t	5.1 (Berkeley) 4/17/91
 .\"
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/share/doc/papers/sysperf/4.t,v 1.3.28.1 2008/10/02 02:57:24 kensmith Exp $
 .\"
 .ds RH Performance Improvements
 .NH

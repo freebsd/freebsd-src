@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.2 (Berkeley) 5/11/90
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/rpcinfo/Makefile,v 1.6.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	rpcinfo
 SRCS=	rpcinfo.c rpc_generic.c

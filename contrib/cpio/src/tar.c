@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/src/tar.c,v 1.2.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /* tar.c - read in write tar headers for cpio
    Copyright (C) 1992, 2001, 2004 Free Software Foundation, Inc.

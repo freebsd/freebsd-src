@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/fsinterface/fsinterface.ms,v 1.9.30.1 2008/10/02 02:57:24 kensmith Exp $
 .\"
 .nr UX 0
 .de UX

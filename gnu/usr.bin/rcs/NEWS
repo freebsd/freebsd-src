@@ -1,6 +1,6 @@
 Recent changes to RCS (and possible future changes)
 
- $FreeBSD$
+ $FreeBSD: src/gnu/usr.bin/rcs/NEWS,v 1.5.50.1 2008/10/02 02:57:24 kensmith Exp $
 
 	Copyright 1991, 1992, 1993, 1994, 1995 Paul Eggert
 	Distributed under license by the Free Software Foundation, Inc.

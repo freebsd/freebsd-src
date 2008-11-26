@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/ftp-proxy/Makefile,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 .PATH:	${.CURDIR}/../../contrib/pf/ftp-proxy
 

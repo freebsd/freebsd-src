@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/secure/lib/libcrypt/blowfish.c,v 1.4.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This code is derived from section 14.3 and the given source

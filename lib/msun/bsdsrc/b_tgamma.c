@@ -35,7 +35,7 @@
 static char sccsid[] = "@(#)gamma.c	8.1 (Berkeley) 6/4/93";
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/msun/bsdsrc/b_tgamma.c,v 1.6.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * This code by P. McIlroy, Oct 1992;

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/pim_var.h,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _NETINET_PIM_VAR_H_

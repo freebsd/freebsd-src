@@ -28,7 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/compat/linux/linux_util.h,v 1.25.2.2.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

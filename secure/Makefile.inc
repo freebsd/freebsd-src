@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/Makefile.inc,v 1.24.20.1 2008/10/02 02:57:24 kensmith Exp $
 
 .if exists(${.CURDIR}/../../lib/libcrypt/obj)
 CRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt/obj

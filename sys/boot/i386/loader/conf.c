@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/loader/conf.c,v 1.25.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stand.h>
 #include <bootstrap.h>

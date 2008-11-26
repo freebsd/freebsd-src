@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/queue.h,v 1.60.2.1.10.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_QUEUE_H_

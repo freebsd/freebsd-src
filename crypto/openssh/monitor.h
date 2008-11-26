@@ -1,5 +1,5 @@
 /* $OpenBSD: monitor.h,v 1.14 2006/03/25 22:22:43 djm Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssh/monitor.h,v 1.6.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>

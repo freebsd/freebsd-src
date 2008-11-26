@@ -27,7 +27,7 @@
 #
 # Help file for the atmconfig utility
 #
-# $FreeBSD$
+# $FreeBSD: src/sbin/atm/atmconfig/atmconfig_device.help,v 1.1.24.1 2008/10/02 02:57:24 kensmith Exp $
 #
 ^0 device
 ^^  device	show information about ATM hardware interfaces

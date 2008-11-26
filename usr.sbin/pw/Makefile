@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pw/Makefile,v 1.18.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	pw
 MAN=	pw.conf.5 pw.8

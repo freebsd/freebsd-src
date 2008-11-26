@@ -4,7 +4,7 @@
  * from the file `ctaue1.dat'
  *
  * Cronyx Id: ctaue1fw.h,v 1.1 2002/06/03 10:19:39 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/ctaue1fw.h,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 long ctaue1_fw_len = 323982;
 

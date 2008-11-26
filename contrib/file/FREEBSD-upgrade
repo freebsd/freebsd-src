@@ -1,5 +1,5 @@
 # ex:ts=8
-$FreeBSD$
+$FreeBSD: src/contrib/file/FREEBSD-upgrade,v 1.4.14.1.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 Christos Zoulas `file'
 	originals can be found at: ftp://ftp.astron.com/pub/file/

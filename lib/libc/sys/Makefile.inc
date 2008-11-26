@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-# $FreeBSD$
+# $FreeBSD: src/lib/libc/sys/Makefile.inc,v 1.113.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE_ARCH}/sys ${.CURDIR}/sys

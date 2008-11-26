@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/sbin/newfs/runtest01.sh,v 1.1.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 set -e
 

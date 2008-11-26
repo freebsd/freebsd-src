@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_setprio.c,v 1.9.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 #include <pthread.h>
 #include "pthread_private.h"

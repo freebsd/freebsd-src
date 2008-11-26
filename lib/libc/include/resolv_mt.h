@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/include/resolv_mt.h,v 1.1.1.1.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #ifndef _RESOLV_MT_H
 #define _RESOLV_MT_H

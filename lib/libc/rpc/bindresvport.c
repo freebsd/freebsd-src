@@ -35,7 +35,7 @@ static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";
 #endif
 /* from: $OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp $ */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/rpc/bindresvport.c,v 1.16.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Copyright (c) 1987 by Sun Microsystems, Inc.

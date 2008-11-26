@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/05.sysman/Makefile,v 1.7.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 VOLUME=		psd/05.sysman
 SRCS=		0.t 1.0.t 1.1.t 1.2.t 1.3.t 1.4.t 1.5.t 1.6.t 1.7.t \

@@ -1,7 +1,7 @@
 # Greek ISO 8859-7 keyboard for FreeBSD
 # by Basileios Anastasatos <B.Anastasatos@Freemail.gr>
 #
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/el.iso07.kbd,v 1.1.32.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # English/Greek keyboard lock:  (Left)Alt+(Left|Right)Shift
 # English/Greek keyboard shift: (Right)AltGr

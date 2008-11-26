@@ -19,7 +19,7 @@
 /* $Date: 2007/02/05 18:46:24 $ $RCSfile: version.h,v $ $Revision: 1.9 $ */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/cxgbtool/version.h,v 1.1.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef __CXGBTOOL_VERSION_H

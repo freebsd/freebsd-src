@@ -10,7 +10,7 @@
 # Note! This script uses strftime() which is a gawk-ism, and the
 # POSIX [[:space:]] character class.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/ficl/softwords/softcore.awk,v 1.8.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 BEGIN \
 {

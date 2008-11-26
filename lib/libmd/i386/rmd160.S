@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libmd/i386/rmd160.S,v 1.3.34.1.4.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* Run the C pre-processor over this file with one of the following defined
  * ELF - elf object files,
  * OUT - a.out object files,

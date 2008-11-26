@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_ioctl.c,v 1.20.2.6.2.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$OpenBSD: pf_ioctl.c,v 1.139 2005/03/03 07:13:39 dhartmei Exp $	*/
 /* add:	$OpenBSD: pf_ioctl.c,v 1.168 2006/07/21 01:21:17 dhartmei Exp $ */
 

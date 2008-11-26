@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/crypto/openssl/crypto/rsa/rsa.h,v 1.11.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #ifndef HEADER_RSA_H
 #define HEADER_RSA_H

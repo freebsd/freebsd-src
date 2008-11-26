@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/tar/test/test_copy.c,v 1.3.2.3.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 static void
 create_tree(void)

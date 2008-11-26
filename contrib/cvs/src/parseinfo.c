@@ -5,7 +5,7 @@
  * You may distribute under the terms of the GNU General Public License as
  * specified in the README file that comes with the CVS source distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/parseinfo.c,v 1.3.8.1.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "cvs.h"

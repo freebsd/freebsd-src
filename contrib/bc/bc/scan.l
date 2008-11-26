@@ -1,5 +1,5 @@
 %{
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/bc/bc/scan.l,v 1.6.30.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* scan.l: the (f)lex description file for the scanner. */
 
 /*  This file is part of GNU bc.

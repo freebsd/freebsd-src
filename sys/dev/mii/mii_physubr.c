@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/mii_physubr.c,v 1.22.2.5.4.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * Subroutines common to all PHYs.

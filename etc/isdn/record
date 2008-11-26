@@ -4,7 +4,7 @@
 #	answer and record message script for i4b isdnd
 #	----------------------------------------------
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/isdn/record,v 1.4.50.1 2008/10/02 02:57:24 kensmith Exp $
 #
 #	last edit-date: [Thu May 20 11:45:10 1999]
 #

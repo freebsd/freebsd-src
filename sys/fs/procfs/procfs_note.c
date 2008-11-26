@@ -32,7 +32,7 @@
  *
  *	@(#)procfs_note.c	8.2 (Berkeley) 1/21/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/procfs/procfs_note.c,v 1.9.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/param.h>

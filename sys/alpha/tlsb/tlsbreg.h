@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/tlsbreg.h,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* $NetBSD: tlsbreg.h,v 1.5 2000/01/27 22:27:50 mjacob Exp $ */
 
 /*-

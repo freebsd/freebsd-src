@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)DEFS.h	5.1 (Berkeley) 4/23/90
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/asm.h,v 1.13.20.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _MACHINE_ASM_H_

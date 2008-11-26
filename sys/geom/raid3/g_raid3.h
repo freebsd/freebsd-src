@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/raid3/g_raid3.h,v 1.11.2.3.6.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef	_G_RAID3_H_

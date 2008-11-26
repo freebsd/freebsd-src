@@ -19,7 +19,7 @@
  *     Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
  *     USA.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/dev/sound/pci/csaimg.h,v 1.2.16.1 2008/10/02 02:57:24 kensmith Exp $
  *
  ***************************************************************************/
 

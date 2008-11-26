@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_cksum.c	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_cksum.c,v 1.8.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/param.h>

@@ -51,7 +51,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/asmacros.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/exception.S,v 1.5.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 	.text	
 	.align	0

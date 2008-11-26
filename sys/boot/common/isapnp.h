@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/common/isapnp.h,v 1.7.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _I386_ISA_PNP_H_

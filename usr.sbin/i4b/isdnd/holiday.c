@@ -27,7 +27,7 @@
  *	isdnd - holiday file handling
  *      =============================
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/holiday.c,v 1.3.28.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Wed May  2 09:42:56 2001]
  *

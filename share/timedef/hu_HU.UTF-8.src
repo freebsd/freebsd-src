@@ -1,6 +1,6 @@
 # This is a Hungarian LC_TIME file for ISO 8859-2 code-table
 # Made by Gabor Zahemszky <zgabor@CoDe.hu>
-# $FreeBSD$
+# $FreeBSD: src/share/timedef/hu_HU.UTF-8.src,v 1.1.8.1.2.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # Short month names
 #

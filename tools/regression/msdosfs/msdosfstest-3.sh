@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/msdosfs/msdosfstest-3.sh,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $
 # A really simple script to create a swap-backed msdosfs filesystem, then
 # test to make sure the mbnambuf optimisation(msdosfs_conv.c rev 1.40)
 # doesn't break multi-byte characters.

@@ -21,7 +21,7 @@
 
 #if !defined(lint) && !defined(__GNUC__)
 static char rcsid[] =
-    "@(#) $FreeBSD$ (LBL)";
+    "@(#) $FreeBSD: src/usr.sbin/tcpdump/tcpslice/util.c,v 1.3.46.1 2008/10/02 02:57:24 kensmith Exp $ (LBL)";
 #endif
 
 #include "tcpslice.h"

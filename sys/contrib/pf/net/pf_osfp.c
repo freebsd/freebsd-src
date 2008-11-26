@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_osfp.c,v 1.5.12.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$OpenBSD: pf_osfp.c,v 1.10 2004/04/09 19:30:41 frantzen Exp $ */
 
 /*

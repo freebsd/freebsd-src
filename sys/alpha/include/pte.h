@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/pte.h,v 1.5.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* From: NetBSD: pte.h,v 1.10 1997/09/02 19:07:22 thorpej Exp */
 
 /*-

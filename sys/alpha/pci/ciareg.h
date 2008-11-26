@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/pci/ciareg.h,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* $NetBSD: ciareg.h,v 1.22 1998/06/06 20:40:14 thorpej Exp $ */
 
 /*-

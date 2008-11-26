@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/gnu/usr.bin/patch/common.h,v 1.9.30.1 2008/10/02 02:57:24 kensmith Exp $
  *
  * $Log: common.h,v $
  * Revision 2.0.1.2  88/06/22  20:44:53  lwall

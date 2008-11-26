@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/truss/extern.h,v 1.10.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 extern int setup_and_wait(char **);

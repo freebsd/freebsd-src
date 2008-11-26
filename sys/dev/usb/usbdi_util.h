@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi_util.h,v 1.31 2004/12/03 08:53:40 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usbdi_util.h,v 1.19.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

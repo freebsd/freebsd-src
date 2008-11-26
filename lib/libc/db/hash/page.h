@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)page.h	8.2 (Berkeley) 5/31/94
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/db/hash/page.h,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /*

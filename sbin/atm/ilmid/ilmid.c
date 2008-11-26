@@ -71,7 +71,7 @@
 #include <ctype.h>
 
 #ifndef	lint
-__RCSID("@(#) $FreeBSD$");
+__RCSID("@(#) $FreeBSD: src/sbin/atm/ilmid/ilmid.c,v 1.34.16.1 2008/10/02 02:57:24 kensmith Exp $");
 #endif
 
 

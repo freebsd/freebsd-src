@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/usr.bin/uuencode/regress.sh,v 1.7.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 echo 1..2
 

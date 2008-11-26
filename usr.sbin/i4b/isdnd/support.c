@@ -27,7 +27,7 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/support.c,v 1.16.22.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Thu Jul 31 11:05:16 2003]
  *

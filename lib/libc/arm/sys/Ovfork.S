@@ -32,7 +32,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/sys/Ovfork.S,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $");
 #include "SYS.h"
 
 WARN_REFERENCES(vfork, \

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/mpt/mpilib/mpi.h,v 1.6.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*-
  * Copyright (c) 2000-2005, LSI Logic Corporation and its contributors.
  * All rights reserved.

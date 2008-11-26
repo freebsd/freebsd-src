@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/Makefile.inc.docports,v 1.26.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # List of (dependent) ports that are minimally required to be
 # checked out from CVS in order to get ${DOCPORTS} built and

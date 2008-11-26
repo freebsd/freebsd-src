@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/util.c,v 1.10.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $ */
 /* util.c -- readline utility functions */
 
 /* Copyright (C) 1987-2005 Free Software Foundation, Inc.

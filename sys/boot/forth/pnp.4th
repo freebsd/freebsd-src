@@ -22,7 +22,7 @@
 \ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 \ SUCH DAMAGE.
 \
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/forth/pnp.4th,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 pnpdevices drop
 

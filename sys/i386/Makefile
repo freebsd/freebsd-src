@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/i386/Makefile,v 1.11.26.1 2008/10/02 02:57:24 kensmith Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/11/93
 
 # Makefile for i386 links, tags file

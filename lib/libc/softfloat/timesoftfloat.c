@@ -31,7 +31,7 @@ this code that are retained.
 */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/softfloat/timesoftfloat.c,v 1.1.16.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include <stdlib.h>
 #include <stdarg.h>

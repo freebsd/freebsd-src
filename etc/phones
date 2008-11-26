@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/phones,v 1.8.46.1 2008/10/02 02:57:24 kensmith Exp $
 #	From: @(#)phones	5.2 (Berkeley) 6/30/90
 #
 # phones -- remote host phone number data base

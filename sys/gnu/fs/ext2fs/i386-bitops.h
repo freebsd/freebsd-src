@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/fs/ext2fs/i386-bitops.h,v 1.7.16.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*
  * this is mixture of i386/bitops.h and asm/string.h
  * taken from the Linux source tree 

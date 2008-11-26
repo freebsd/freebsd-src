@@ -19,7 +19,7 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/c-opts.c,v 1.3.12.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #include "config.h"
 #include "system.h"

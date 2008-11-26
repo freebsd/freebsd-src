@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sbin/setkey/test-pfkey.c,v 1.2.18.1.8.1 2008/10/02 02:57:24 kensmith Exp $	*/
 /*	$KAME: test-pfkey.c,v 1.4 2000/06/07 00:29:14 itojun Exp $	*/
 
 /*

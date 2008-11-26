@@ -10,7 +10,7 @@
  * software, nor does the author assume any responsibility for damages
  * incurred with its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sade/termcap.c,v 1.35.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "sade.h"

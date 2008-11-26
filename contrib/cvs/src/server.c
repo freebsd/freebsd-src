@@ -9,7 +9,7 @@
    GNU General Public License for more details.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/server.c,v 1.24.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <assert.h>

@@ -26,7 +26,7 @@
  *
  * Copyright (c) 2000 Andrew Miklic
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fb/tga.h,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _FB_TGA_H_

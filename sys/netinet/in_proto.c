@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_proto.c	8.2 (Berkeley) 2/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/in_proto.c,v 1.77.2.3.8.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "opt_ipx.h"

@@ -1,5 +1,5 @@
 #	@(#)POSIX	8.1 (Berkeley) 6/6/93
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/sed/POSIX,v 1.1.1.1.46.1.4.1 2008/10/02 02:57:24 kensmith Exp $
 
 Comments on the IEEE P1003.2 Draft 12
      Part 2: Shell and Utilities

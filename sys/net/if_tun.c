@@ -13,7 +13,7 @@
  * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_tun.c,v 1.152.2.6.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include "opt_atalk.h"

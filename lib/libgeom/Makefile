@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libgeom/Makefile,v 1.10.20.1 2008/10/02 02:57:24 kensmith Exp $
 
 LIB=	geom
 SHLIBDIR?= /lib

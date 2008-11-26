@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/src/preproc/eqn/Makefile,v 1.4.28.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG_CXX=	eqn
 SRCS=		eqn.cpp eqn_tab.h main.cpp lex.cpp \

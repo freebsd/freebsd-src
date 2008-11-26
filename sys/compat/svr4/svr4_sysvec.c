@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_sysvec.c,v 1.41.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* XXX we use functions that might not exist. */
 #include "opt_compat.h"

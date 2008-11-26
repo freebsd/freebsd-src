@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/extattrctl/extattrctl.c,v 1.19.30.1 2008/10/02 02:57:24 kensmith Exp $
  */
 /*
  * Developed by the TrustedBSD Project.

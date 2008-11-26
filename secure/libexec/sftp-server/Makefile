@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/libexec/sftp-server/Makefile,v 1.13.2.1.6.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=   sftp-server
 SRCS=   sftp-server.c sftp-common.c

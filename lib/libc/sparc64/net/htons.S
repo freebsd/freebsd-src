@@ -45,7 +45,7 @@
 	RCSID("$NetBSD: htons.S,v 1.1 1998/09/11 04:56:30 eeh Exp $")
 #endif
 #endif /* LIBC_SCCS and not lint */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/net/htons.S,v 1.3.26.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /* netorder = htons(hostorder) */
         .weak CNAME(htons)

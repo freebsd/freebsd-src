@@ -27,7 +27,7 @@
  *	i4b daemon - message from kernel handling routines
  *	--------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/msghdl.c,v 1.12.26.1 2008/10/02 02:57:24 kensmith Exp $
  *
  *      last edit-date: [Sun Aug 11 12:37:16 2002]
  *

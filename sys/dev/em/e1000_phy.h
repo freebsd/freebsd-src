@@ -30,7 +30,7 @@
   POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/em/e1000_phy.h,v 1.3.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 
 #ifndef _E1000_PHY_H_

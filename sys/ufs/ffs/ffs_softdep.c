@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_softdep.c,v 1.181.2.25.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * For now we want the safety net that the DEBUG flag provides.

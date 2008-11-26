@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_mirror/test-5.sh,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
 
 name="test"
 base=`basename $0`

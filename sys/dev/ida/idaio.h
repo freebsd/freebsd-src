@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ida/idaio.h,v 1.1.24.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/ioccom.h>

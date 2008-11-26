@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/fs/ext2fs/ext2_subr.c,v 1.30.16.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #include <sys/param.h>

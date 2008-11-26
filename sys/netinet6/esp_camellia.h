@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet6/esp_camellia.h,v 1.2.2.1.2.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 size_t esp_camellia_schedlen __P((const struct esp_algorithm *));

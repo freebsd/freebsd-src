@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/gnu/dev/sound/pci/emu10k1-ac97.h,v 1.2.20.1 2008/10/02 02:57:24 kensmith Exp $ */
 
 #ifndef _AC97_CODEC_H_
 #define _AC97_CODEC_H_

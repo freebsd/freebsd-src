@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pc98/cbus/fdcvar.h,v 1.3.22.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 /* XXX should audit this file to see if additional copyrights needed */

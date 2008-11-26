@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/ia64/include/ia64_cpu.h,v 1.19.10.1.10.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _MACHINE_IA64_CPU_H_

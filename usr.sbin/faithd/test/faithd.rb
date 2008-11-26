@@ -4,7 +4,7 @@
 # functionality.
 #
 # $Id: faithd.rb,v 1.1.2.4 1999/05/10 17:06:30 itojun Exp $
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/faithd/test/faithd.rb,v 1.2.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 require "socket"
 require "thread"

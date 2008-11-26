@@ -7,7 +7,7 @@
 # Dag-Erling Smørgrav <des@freebsd.org> 09 January 2003
 #
 # $Id: whereintheworld,v 1.3 2000/01/28 00:42:32 fenner Exp $
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/whereintheworld/whereintheworld.pl,v 1.5.28.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 use strict;

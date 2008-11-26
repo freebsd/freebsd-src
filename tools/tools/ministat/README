@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/ministat/README,v 1.1.26.1 2008/10/02 02:57:24 kensmith Exp $
 
 A small tool to do the statistics legwork on benchmarks etc.
 

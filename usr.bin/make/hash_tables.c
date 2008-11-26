@@ -1,6 +1,6 @@
 /*
  * DO NOT EDIT
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/hash_tables.c,v 1.2.12.1 2008/10/02 02:57:24 kensmith Exp $
  * auto-generated from FreeBSD: src/usr.bin/make/parse.c,v 1.100 2005/04/29 15:15:28 harti Exp 
  * DO NOT EDIT
  */

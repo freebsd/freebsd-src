@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/NOTES,v 1.1325.2.45.2.1 2008/10/02 02:57:24 kensmith Exp $
 #
 # NOTES -- Lines that can be cut/pasted into kernel and hints configs.
 #

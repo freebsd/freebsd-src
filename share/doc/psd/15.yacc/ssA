@@ -36,7 +36,7 @@
 .\"
 .\"	@(#)ssA	8.1 (Berkeley) 6/8/93
 .\"
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/psd/15.yacc/ssA,v 1.2.30.1 2008/10/02 02:57:24 kensmith Exp $
 .SH
 10: Advanced Topics
 .PP

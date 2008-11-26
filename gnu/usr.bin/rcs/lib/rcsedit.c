@@ -201,7 +201,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(editId, "$FreeBSD$")
+libId(editId, "$FreeBSD: src/gnu/usr.bin/rcs/lib/rcsedit.c,v 1.12.30.1 2008/10/02 02:57:24 kensmith Exp $")
 
 static void editEndsPrematurely P((void)) exiting;
 static void editLineNumberOverflow P((void)) exiting;

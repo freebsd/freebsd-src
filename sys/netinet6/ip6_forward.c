@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netinet6/ip6_forward.c,v 1.28.2.4.2.1 2008/10/02 02:57:24 kensmith Exp $");
 
 #include "opt_ip6fw.h"
 #include "opt_inet.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/make/Makefile.dist,v 1.4.16.1 2008/10/02 02:57:24 kensmith Exp $
 # a very simple makefile...
 pmake:
 	@echo 'make started.'

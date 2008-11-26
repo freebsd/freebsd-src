@@ -19,7 +19,7 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
- $FreeBSD$
+ $FreeBSD: src/libexec/bootpd/readfile.c,v 1.11.30.1 2008/10/02 02:57:24 kensmith Exp $
 
 ************************************************************************/
 

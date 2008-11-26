@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/Makefile,v 1.84.2.2.4.1 2008/10/02 02:57:24 kensmith Exp $
 
 SUBDIR= bc \
 	${_binutils} \

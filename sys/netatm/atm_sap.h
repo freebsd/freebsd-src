@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/atm_sap.h,v 1.3.16.1 2008/10/02 02:57:24 kensmith Exp $
  *
  */
 

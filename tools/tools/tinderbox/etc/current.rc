@@ -1,7 +1,7 @@
 #
 # CURRENT tinderbox setup
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinderbox/etc/current.rc,v 1.8.20.1 2008/10/02 02:57:24 kensmith Exp $
 #
 
 branches	= CURRENT

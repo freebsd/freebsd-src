@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/arc/lib/arch/alpha/setjmp.S,v 1.2.46.1 2008/10/02 02:57:24 kensmith Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

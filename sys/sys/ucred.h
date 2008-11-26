@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ucred.h	8.4 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/ucred.h,v 1.52.2.1.4.1 2008/10/02 02:57:24 kensmith Exp $
  */
 
 #ifndef _SYS_UCRED_H_

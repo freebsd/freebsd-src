@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/less/Makefile,v 1.10.16.1 2008/10/02 02:57:24 kensmith Exp $
 
 PROG=	less
 SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c decode.c \

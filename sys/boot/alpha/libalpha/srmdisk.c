@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/alpha/libalpha/srmdisk.c,v 1.14.12.1 2008/10/02 02:57:24 kensmith Exp $");
 
 /*
  * SRM disk device handling.
