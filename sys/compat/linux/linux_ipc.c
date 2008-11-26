@@ -672,12 +672,28 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
 	return (error);
     }
 
+/* 
+ * TODO: implement this 
+ * case LINUX_MSG_STAT:
+ */
+    case LINUX_IPC_STAT:
+	/* NOTHING */
+	break;
+
     case LINUX_IPC_SET:
 	error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
 	    &linux_msqid, PTRIN(args->buf));
 	if (error)
 	    return (error);
 	linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
+	break;
+
+    case LINUX_IPC_RMID:
+	/* NOTHING */
+	break;
+
+    default:
+	return (EINVAL);
 	break;
     }
 
