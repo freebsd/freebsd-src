@@ -619,11 +619,15 @@ fxp_attach(device_t dev)
 	 * Allocate DMA tags and DMA safe memory.
 	 */
 	sc->maxtxseg = FXP_NTXSEG;
-	if (sc->flags & FXP_FLAG_EXT_RFA)
+	sc->maxsegsize = MCLBYTES;
+	if (sc->flags & FXP_FLAG_EXT_RFA) {
 		sc->maxtxseg--;
+		sc->maxsegsize = FXP_TSO_SEGSIZE;
+	}
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    MCLBYTES * sc->maxtxseg, sc->maxtxseg, MCLBYTES, 0,
+	    sc->maxsegsize * sc->maxtxseg + sizeof(struct ether_vlan_header),
+	    sc->maxtxseg, sc->maxsegsize, 0,
 	    busdma_lock_mutex, &Giant, &sc->fxp_mtag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -780,11 +784,11 @@ fxp_attach(device_t dev)
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
-	/* Enable checksum offload for 82550 or better chips */
+	/* Enable checksum offload/TSO for 82550 or better chips */
 	if (sc->flags & FXP_FLAG_EXT_RFA) {
-		ifp->if_hwassist = FXP_CSUM_FEATURES;
-		ifp->if_capabilities |= IFCAP_HWCSUM;
-		ifp->if_capenable |= IFCAP_HWCSUM;
+		ifp->if_hwassist = FXP_CSUM_FEATURES | CSUM_TSO;
+		ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO4;
+		ifp->if_capenable |= IFCAP_HWCSUM | IFCAP_TSO4;
 	}
 
 	if (sc->flags & FXP_FLAG_82559_RXCSUM) {
@@ -1275,12 +1279,15 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	struct mbuf *m;
 	struct fxp_tx *txp;
 	struct fxp_cb_tx *cbp;
+	struct tcphdr *tcp;
 	bus_dma_segment_t segs[FXP_NTXSEG];
-	int error, i, nseg;
+	int error, i, nseg, tcp_payload;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
 	ifp = sc->ifp;
 
+	tcp_payload = 0;
+	tcp = NULL;
 	/*
 	 * Get pointer to next available tx desc.
 	 */
@@ -1358,6 +1365,75 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 #endif
 	}
 
+	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		/*
+		 * 82550/82551 requires ethernet/IP/TCP headers must be
+		 * contained in the first active transmit buffer.
+		 */
+		struct ether_header *eh;
+		struct ip *ip;
+		uint32_t ip_off, poff;
+
+		if (M_WRITABLE(*m_head) == 0) {
+			/* Get a writable copy. */
+			m = m_dup(*m_head, M_DONTWAIT);
+			m_freem(*m_head);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+			*m_head = m;
+		}
+		ip_off = sizeof(struct ether_header);
+		m = m_pullup(*m_head, ip_off);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		eh = mtod(m, struct ether_header *);
+		/* Check the existence of VLAN tag. */
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m = m_pullup(m, ip_off);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
+		m = m_pullup(m, poff + sizeof(struct tcphdr));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
+		m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+
+		/*
+		 * Since 82550/82551 doesn't modify IP length and pseudo
+		 * checksum in the first frame driver should compute it.
+		 */
+		ip->ip_sum = 0;
+		ip->ip_len = htons(ifp->if_mtu);
+		tcp->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
+		    htons(IPPROTO_TCP + (tcp->th_off << 2) +
+		    m->m_pkthdr.tso_segsz));
+		/* Compute total TCP payload. */
+		tcp_payload = m->m_pkthdr.len - ip_off - (ip->ip_hl << 2);
+		tcp_payload -= tcp->th_off << 2;
+		*m_head = m;
+	}
+
 	error = bus_dmamap_load_mbuf_sg(sc->fxp_mtag, txp->tx_map, *m_head,
 	    segs, &nseg, 0);
 	if (error == EFBIG) {
@@ -1388,7 +1464,6 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 
 	cbp = txp->tx_cb;
 	for (i = 0; i < nseg; i++) {
-		KASSERT(segs[i].ds_len <= MCLBYTES, ("segment size too large"));
 		/*
 		 * If this is an 82550/82551, then we're using extended
 		 * TxCBs _and_ we're using checksum offload. This means
@@ -1403,14 +1478,28 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * the chip is an 82550/82551 or not.
 		 */
 		if (sc->flags & FXP_FLAG_EXT_RFA) {
-			cbp->tbd[i + 1].tb_addr = htole32(segs[i].ds_addr);
-			cbp->tbd[i + 1].tb_size = htole32(segs[i].ds_len);
+			cbp->tbd[i + 2].tb_addr = htole32(segs[i].ds_addr);
+			cbp->tbd[i + 2].tb_size = htole32(segs[i].ds_len);
 		} else {
 			cbp->tbd[i].tb_addr = htole32(segs[i].ds_addr);
 			cbp->tbd[i].tb_size = htole32(segs[i].ds_len);
 		}
 	}
-	cbp->tbd_number = nseg;
+	if (sc->flags & FXP_FLAG_EXT_RFA) {
+		/* Configure dynamic TBD for 82550/82551. */
+		cbp->tbd_number = 0xFF;
+		cbp->tbd[nseg + 1].tb_size |= htole32(0x8000);
+	} else
+		cbp->tbd_number = nseg;
+	/* Configure TSO. */
+	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+		cbp->tbd[-1].tb_size = htole32(m->m_pkthdr.tso_segsz << 16);
+		cbp->tbd[1].tb_size = htole32(tcp_payload << 16);
+		cbp->ipcb_ip_schedule |= FXP_IPCB_LARGESEND_ENABLE |
+		    FXP_IPCB_IP_CHECKSUM_ENABLE |
+		    FXP_IPCB_TCP_PACKET |
+		    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
+	}
 
 	txp->tx_mbuf = m;
 	txp->tx_cb->cb_status = 0;
@@ -1423,7 +1512,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		txp->tx_cb->cb_command =
 		    htole16(sc->tx_cmd | FXP_CB_COMMAND_SF |
 		    FXP_CB_COMMAND_S | FXP_CB_COMMAND_I);
-	txp->tx_cb->tx_threshold = tx_threshold;
+	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0)
+		txp->tx_cb->tx_threshold = tx_threshold;
 
 	/*
 	 * Advance the end of list forward.
@@ -2097,7 +2187,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->disc_short_rx =	!prm;	/* discard short packets */
 	cbp->underrun_retry =	1;	/* retry mode (once) on DMA underrun */
 	cbp->two_frames =	0;	/* do not limit FIFO to 2 frames */
-	cbp->dyn_tbd =		0;	/* (no) dynamic TBD mode */
+	cbp->dyn_tbd =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->ext_rfa =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
 	cbp->mediatype =	sc->flags & FXP_FLAG_SERIAL_MEDIA ? 0 : 1;
 	cbp->csma_dis =		0;	/* (don't) disable link */
@@ -2588,6 +2678,14 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 			if ((sc->flags & FXP_FLAG_82559_RXCSUM) != 0)
 				reinit++;
+		}
+		if ((mask & IFCAP_TSO4) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((ifp->if_capenable & IFCAP_TSO4) != 0)
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if ((mask & IFCAP_VLAN_MTU) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0) {

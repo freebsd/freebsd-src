@@ -41,6 +41,11 @@
 #define	FXP_NTXCB_HIWAT	((FXP_NTXCB * 7) / 10)
 
 /*
+ * Maximum size of a DMA segment.
+ */
+#define	FXP_TSO_SEGSIZE	4096
+
+/*
  * Size of the TxCB list.
  */
 #define FXP_TXCB_SZ	(FXP_NTXCB * sizeof(struct fxp_cb_tx))
@@ -157,6 +162,7 @@ struct fxp_softc {
 	bus_dmamap_t spare_map;		/* spare DMA map */
 	struct fxp_desc_list fxp_desc;	/* descriptors management struct */
 	int maxtxseg;			/* maximum # of TX segments */
+	int maxsegsize;			/* maximum size of a TX segment */
 	int tx_queued;			/* # of active TxCB's */
 	int need_mcsetup;		/* multicast filter needs programming */
 	struct fxp_stats *fxp_stats;	/* Pointer to interface stats */
