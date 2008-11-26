@@ -353,7 +353,7 @@ unit, excluding L2 writebacks.
 .It Li Cycles_Div_Busy
 .Pq Event 14H , Umask 00H
 The number of cycles the divider is busy.
-The event is only only available for on PMC0.
+The event is only available on PMC0.
 .It Li Cycles_Int_Masked
 .Pq Event C6H , Umask 00H
 The number of cycles while interrupts were disabled.
@@ -655,7 +655,7 @@ The number of SIMD integer saturating instructions executed.
 .Pq Event B3H , Umask 08H
 The number of SIMD integer unpack instructions executed.
 .It Li SMC_Detected
-.Pq Event C3H
+.Pq Event C3H , Umask 00H
 The number of times self-modifying code was detected.
 .It Li SSE_NTStores_Miss
 .Pq Event 4BH , Umask 03H
