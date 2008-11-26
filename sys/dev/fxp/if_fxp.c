@@ -227,8 +227,12 @@ static void 		fxp_release(struct fxp_softc *sc);
 static int		fxp_ioctl(struct ifnet *ifp, u_long command,
 			    caddr_t data);
 static void 		fxp_watchdog(struct fxp_softc *sc);
-static int		fxp_add_rfabuf(struct fxp_softc *sc,
-    			    struct fxp_rx *rxp, struct mbuf *oldm);
+static void		fxp_add_rfabuf(struct fxp_softc *sc,
+    			    struct fxp_rx *rxp);
+static void		fxp_discard_rfabuf(struct fxp_softc *sc,
+    			    struct fxp_rx *rxp);
+static int		fxp_new_rfabuf(struct fxp_softc *sc,
+    			    struct fxp_rx *rxp);
 static int		fxp_mc_addrs(struct fxp_softc *sc);
 static void		fxp_mc_setup(struct fxp_softc *sc);
 static uint16_t		fxp_eeprom_getword(struct fxp_softc *sc, int offset,
@@ -712,10 +716,11 @@ fxp_attach(device_t dev)
 			device_printf(dev, "can't create DMA map for RX\n");
 			goto fail;
 		}
-		if (fxp_add_rfabuf(sc, rxp, NULL) != 0) {
+		if (fxp_new_rfabuf(sc, rxp) != 0) {
 			error = ENOMEM;
 			goto fail;
 		}
+		fxp_add_rfabuf(sc, rxp);
 	}
 
 	/*
@@ -1560,7 +1565,6 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	struct fxp_rx *rxp;
 	struct fxp_rfa *rfa;
 	int rnr = (statack & FXP_SCB_STATACK_RNR) ? 1 : 0;
-	int fxp_rc = 0;
 	uint16_t status;
 
 	FXP_LOCK_ASSERT(sc, MA_OWNED);
@@ -1647,8 +1651,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 		 * If this fails, the old buffer is recycled
 		 * instead.
 		 */
-		fxp_rc = fxp_add_rfabuf(sc, rxp, m);
-		if (fxp_rc == 0) {
+		if (fxp_new_rfabuf(sc, rxp) == 0) {
 			int total_len;
 
 			/*
@@ -1700,10 +1703,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 			FXP_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			FXP_LOCK(sc);
-		} else if (fxp_rc == ENOBUFS) {
-			rnr = 0;
-			break;
+		} else {
+			/* Reuse RFA and loaded DMA map. */
+			ifp->if_iqdrops++;
+			fxp_discard_rfabuf(sc, rxp);
 		}
+		fxp_add_rfabuf(sc, rxp);
 	}
 	if (rnr) {
 		fxp_scb_wait(sc);
@@ -2234,32 +2239,21 @@ fxp_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 /*
  * Add a buffer to the end of the RFA buffer list.
  * Return 0 if successful, 1 for failure. A failure results in
- * adding the 'oldm' (if non-NULL) on to the end of the list -
- * tossing out its old contents and recycling it.
+ * reusing the RFA buffer.
  * The RFA struct is stuck at the beginning of mbuf cluster and the
  * data pointer is fixed up to point just past it.
  */
 static int
-fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
+fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 {
 	struct mbuf *m;
-	struct fxp_rfa *rfa, *p_rfa;
-	struct fxp_rx *p_rx;
+	struct fxp_rfa *rfa;
 	bus_dmamap_t tmp_map;
-	int error, reused_mbuf=0;
+	int error;
 
 	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-	if (m == NULL) {
-		if (oldm == NULL)
-			return ENOBUFS;
-		m = oldm;
-		m->m_data = m->m_ext.ext_buf;
-		/*
-		 * return error so the receive loop will
-		 * not pass the packet to upper layer
-		 */
-		reused_mbuf = EAGAIN;
-	}
+	if (m == NULL)
+		return (ENOBUFS);
 
 	/*
 	 * Move the data pointer up so that the incoming data packet
@@ -2278,6 +2272,8 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
 	rfa->rfa_status = 0;
 	rfa->rfa_control = htole16(FXP_RFA_CONTROL_EL);
 	rfa->actual_size = 0;
+	m->m_len = m->m_pkthdr.len = MCLBYTES - RFA_ALIGNMENT_FUDGE -
+	    sc->rfa_size;
 
 	/*
 	 * Initialize the rest of the RFA.  Note that since the RFA
@@ -2305,6 +2301,14 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
 
 	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	return (0);
+}
+
+static void
+fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
+{
+	struct fxp_rfa *p_rfa;
+	struct fxp_rx *p_rx;
 
 	/*
 	 * If there are other buffers already on the list, attach this
@@ -2324,7 +2328,45 @@ fxp_add_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp, struct mbuf *oldm)
 		sc->fxp_desc.rx_head = rxp;
 	}
 	sc->fxp_desc.rx_tail = rxp;
-	return (reused_mbuf);
+}
+
+static void
+fxp_discard_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
+{
+	struct mbuf *m;
+	struct fxp_rfa *rfa;
+
+	m = rxp->rx_mbuf;
+	m->m_data = m->m_ext.ext_buf;
+	/*
+	 * Move the data pointer up so that the incoming data packet
+	 * will be 32-bit aligned.
+	 */
+	m->m_data += RFA_ALIGNMENT_FUDGE;
+
+	/*
+	 * Get a pointer to the base of the mbuf cluster and move
+	 * data start past it.
+	 */
+	rfa = mtod(m, struct fxp_rfa *);
+	m->m_data += sc->rfa_size;
+	rfa->size = htole16(MCLBYTES - sc->rfa_size - RFA_ALIGNMENT_FUDGE);
+
+	rfa->rfa_status = 0;
+	rfa->rfa_control = htole16(FXP_RFA_CONTROL_EL);
+	rfa->actual_size = 0;
+
+	/*
+	 * Initialize the rest of the RFA.  Note that since the RFA
+	 * is misaligned, we cannot store values directly.  We're thus
+	 * using the le32enc() function which handles endianness and
+	 * is also alignment-safe.
+	 */
+	le32enc(&rfa->link_addr, 0xffffffff);
+	le32enc(&rfa->rbd_addr, 0xffffffff);
+
+	bus_dmamap_sync(sc->fxp_mtag, rxp->rx_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 static int
