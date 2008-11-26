@@ -54,8 +54,6 @@
 #define FLASH_GFPREG_BASE_MASK           0x1FFF
 #define FLASH_SECTOR_ADDR_SHIFT          12
 
-#define E1000_SHADOW_RAM_WORDS           2048
-
 #define ICH_FLASH_SEG_SIZE_256           256
 #define ICH_FLASH_SEG_SIZE_4K            4096
 #define ICH_FLASH_SEG_SIZE_8K            8192
