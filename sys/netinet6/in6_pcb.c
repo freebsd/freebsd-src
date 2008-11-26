@@ -411,16 +411,6 @@ in6_pcbdisconnect(struct inpcb *inp)
 }
 
 void
-in6_pcbdetach(struct inpcb *inp)
-{
-
-	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
-
-	inp->inp_socket->so_pcb = NULL;
-	inp->inp_socket = NULL;
-}
-
-void
 in6_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;

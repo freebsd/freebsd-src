@@ -604,7 +604,7 @@ rip6_detach(struct socket *so)
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	free(inp->in6p_icmp6filt, M_PCB);
-	in6_pcbdetach(inp);
+	in_pcbdetach(inp);
 	in6_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
