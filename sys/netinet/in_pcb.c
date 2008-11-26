@@ -877,7 +877,7 @@ void
 in_pcbdetach(struct inpcb *inp)
 {
 
-	KASSERT(inp->inp_socket != NULL, ("in_pcbdetach: inp_socket == NULL"));
+	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
 
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
@@ -892,14 +892,14 @@ in_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-	KASSERT(inp->inp_socket == NULL, ("in_pcbfree: inp_socket != NULL"));
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
 	ipsec4_delete_pcbpolicy(inp);
-#endif /*IPSEC*/
+#endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
 	if (inp->inp_options)
