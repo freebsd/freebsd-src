@@ -81,8 +81,6 @@ struct vnet_ipsec {
 	int			_key_preferred_oldsa;
 	u_int32_t		_acq_seq;
 
-	u_int			_saorder_state_alive[3];
-	u_int			_saorder_state_any[4];
 	int			_esp_enable;
 	struct espstat		_espstat;
 	int			_esp_max_ivlen;
@@ -98,7 +96,6 @@ struct vnet_ipsec {
 	int			_ip6_ah_trans_deflev;
 	int			_ip6_ah_net_deflev;
 	int			_ip6_ipsec_ecn;
-	int			_ip6_esp_randpad;
 
 	int			_ah_enable;
 	int			_ah_cleartos;
@@ -109,9 +106,6 @@ struct vnet_ipsec {
 
 	struct pfkeystat	_pfkeystat;
 	struct key_cb		_key_cb;
-	struct sockaddr		_key_dst;
-	struct sockaddr		_key_src;
-
 	LIST_HEAD(, secpolicy)	_sptree[IPSEC_DIR_MAX];
 	LIST_HEAD(, secashead)	_sahtree;
 	LIST_HEAD(, secreg)	_regtree[SADB_SATYPE_MAX + 1];
@@ -168,20 +162,16 @@ struct vnet_ipsec {
 #define	V_key_blockacq_lifetime		VNET_IPSEC(key_blockacq_lifetime)
 #define	V_key_cb			VNET_IPSEC(key_cb)
 #define	V_key_debug_level		VNET_IPSEC(key_debug_level)
-#define	V_key_dst			VNET_IPSEC(key_dst)
 #define	V_key_int_random		VNET_IPSEC(key_int_random)
 #define	V_key_larval_lifetime		VNET_IPSEC(key_larval_lifetime)
 #define	V_key_preferred_oldsa		VNET_IPSEC(key_preferred_oldsa)
 #define	V_key_spi_maxval		VNET_IPSEC(key_spi_maxval)	
 #define	V_key_spi_minval		VNET_IPSEC(key_spi_minval)
 #define	V_key_spi_trycnt		VNET_IPSEC(key_spi_trycnt)
-#define	V_key_src			VNET_IPSEC(key_src)
 #define	V_pfkeystat			VNET_IPSEC(pfkeystat)
 #define	V_policy_id			VNET_IPSEC(policy_id)
 #define	V_regtree			VNET_IPSEC(regtree)
 #define	V_sahtree			VNET_IPSEC(sahtree)
-#define	V_saorder_state_alive		VNET_IPSEC(saorder_state_alive)
-#define	V_saorder_state_any		VNET_IPSEC(saorder_state_any)
 #define	V_spacqtree			VNET_IPSEC(spacqtree)
 #define	V_sptree			VNET_IPSEC(sptree)
 

@@ -462,7 +462,6 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ifnet **retifp, struct rtentry **retrt, int clone,
     int norouteok)
 {
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	struct ifnet *ifp = NULL;

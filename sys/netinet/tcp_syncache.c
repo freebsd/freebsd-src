@@ -105,12 +105,12 @@ static int tcp_syncookiesonly;
 int tcp_sc_rst_sock_fail;
 #endif
 
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
-    &tcp_syncookies, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies,
+    CTLFLAG_RW, tcp_syncookies, 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
-    &tcp_syncookiesonly, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, syncookies_only,
+    CTLFLAG_RW, tcp_syncookiesonly, 0,
     "Use only TCP SYN cookies");
 
 #ifdef TCP_OFFLOAD_DISABLE
@@ -359,10 +359,12 @@ static void
 syncache_timer(void *xsch)
 {
 	struct syncache_head *sch = (struct syncache_head *)xsch;
-	INIT_VNET_INET(sch->sch_vnet);
 	struct syncache *sc, *nsc;
 	int tick = ticks;
 	char *s;
+
+	CURVNET_SET(sch->sch_vnet);
+	INIT_VNET_INET(sch->sch_vnet);
 
 	/* NB: syncache_head has already been locked by the callout. */
 	SCH_LOCK_ASSERT(sch);
@@ -412,6 +414,7 @@ syncache_timer(void *xsch)
 	if (!TAILQ_EMPTY(&(sch)->sch_bucket))
 		callout_reset(&(sch)->sch_timer, (sch)->sch_nextc - tick,
 			syncache_timer, (void *)(sch));
+	CURVNET_RESTORE();
 }
 
 /*
@@ -836,7 +839,7 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 *  B. check that the syncookie is valid.  If it is, then
 		 *     cobble up a fake syncache entry, and return.
 		 */
-		if (!tcp_syncookies) {
+		if (!V_tcp_syncookies) {
 			SCH_UNLOCK(sch);
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
 				log(LOG_DEBUG, "%s; %s: Spurious ACK, "
@@ -929,6 +932,7 @@ int
 tcp_offload_syncache_expand(struct in_conninfo *inc, struct tcpopt *to,
     struct tcphdr *th, struct socket **lsop, struct mbuf *m)
 {
+	INIT_VNET_INET(curvnet);
 	int rc;
 	
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -1097,7 +1101,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			syncache_drop(sc, sch);
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
-			if (tcp_syncookies) {
+			if (V_tcp_syncookies) {
 				bzero(&scs, sizeof(scs));
 				sc = &scs;
 			} else {
@@ -1206,7 +1210,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	if ((th->th_flags & (TH_ECE|TH_CWR)) && V_tcp_do_ecn)
 		sc->sc_flags |= SCF_ECN;
 
-	if (tcp_syncookies) {
+	if (V_tcp_syncookies) {
 		syncookie_generate(sch, sc, &flowtmp);
 #ifdef INET6
 		if (autoflowlabel)
@@ -1225,7 +1229,7 @@ _syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Do a standard 3-way handshake.
 	 */
 	if (TOEPCB_ISSET(sc) || syncache_respond(sc) == 0) {
-		if (tcp_syncookies && tcp_syncookiesonly && sc != &scs)
+		if (V_tcp_syncookies && V_tcp_syncookiesonly && sc != &scs)
 			syncache_free(sc);
 		else if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */

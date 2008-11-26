@@ -581,6 +581,7 @@ div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;

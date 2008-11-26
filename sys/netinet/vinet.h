@@ -89,12 +89,16 @@ struct vnet_inet {
 	struct	tcpstat _tcpstat;	/* tcp statistics */
 	struct	tcp_hostcache _tcp_hostcache;
 	struct  callout _tcp_hc_callout;
+
 	struct	tcp_syncache _tcp_syncache;
+	int	_tcp_syncookies;
+	int	_tcp_syncookiesonly;
+	int	_tcp_sc_rst_sock_fail;
+
 	struct	inpcbhead _divcb;
 	struct	inpcbinfo _divcbinfo;
 	TAILQ_HEAD(, tcptw) _twq_2msl;
 
-	int	_tcp_sc_rst_sock_fail;
 	int	_tcp_mssdflt;
 	int	_tcp_v6mssdflt;
 	int	_tcp_minmss;
@@ -206,7 +210,6 @@ struct vnet_inet {
 #define	V_arp_maxtries		VNET_INET(arp_maxtries)
 #define	V_arp_proxyall		VNET_INET(arp_proxyall)
 #define	V_arpt_keep		VNET_INET(arpt_keep)
-#define	V_arpt_prune		VNET_INET(arpt_prune)
 #define	V_blackhole		VNET_INET(blackhole)
 #define	V_divcb			VNET_INET(divcb)
 #define	V_divcbinfo		VNET_INET(divcbinfo)

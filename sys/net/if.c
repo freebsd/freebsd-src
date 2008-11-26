@@ -192,7 +192,6 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();

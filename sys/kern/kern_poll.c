@@ -521,6 +521,7 @@ ether_poll_deregister(struct ifnet *ifp)
 static int
 poll_switch(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	int error;
 	int val = polling;

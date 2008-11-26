@@ -2986,6 +2986,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	int isipv6;
 #endif
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
+	INIT_VNET_INET(tp->t_vnet);
 	
 	tcp_mss_update(tp, offer, &metrics, &mtuflags);
 
