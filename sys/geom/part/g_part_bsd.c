@@ -241,9 +241,10 @@ g_part_bsd_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_bsd_entry *entry;
 
-	/* Allow dumping to a swap partition only. */
+	/* Allow dumping to a swap partition or an unused partition. */
 	entry = (struct g_part_bsd_entry *)baseentry;
-	return ((entry->part.p_fstype == FS_SWAP) ? 1 : 0);
+	return ((entry->part.p_fstype == FS_UNUSED ||
+	    entry->part.p_fstype == FS_SWAP) ? 1 : 0);
 }
 
 static int
