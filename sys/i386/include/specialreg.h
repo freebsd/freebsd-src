@@ -195,8 +195,16 @@
 /*
  * CPUID manufacturers identifiers
  */
-#define	INTEL_VENDOR_ID	"GenuineIntel"
-#define	AMD_VENDOR_ID	"AuthenticAMD"
+#define	AMD_VENDOR_ID		"AuthenticAMD"
+#define	CENTAUR_VENDOR_ID	"CentaurHauls"
+#define	CYRIX_VENDOR_ID		"CyrixInstead"
+#define	INTEL_VENDOR_ID		"GenuineIntel"
+#define	NEXGEN_VENDOR_ID	"NexGenDriven"
+#define	NSC_VENDOR_ID		"Geode by NSC"
+#define	RISE_VENDOR_ID		"RiseRiseRise"
+#define	SIS_VENDOR_ID		"SiS SiS SiS "
+#define	TRANSMETA_VENDOR_ID	"GenuineTMx86"
+#define	UMC_VENDOR_ID		"UMC UMC UMC "
 
 /*
  * Model-specific registers for the i386 family
