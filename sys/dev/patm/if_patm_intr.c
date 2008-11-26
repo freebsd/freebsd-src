@@ -266,7 +266,7 @@ patm_feed_sbufs(struct patm_softc *sc)
 {
 	u_int feed;
 	bus_addr_t p0, p1;
-	void *v0, *v1;
+	void *v0;
 	uint32_t h0, h1;
 
 	feed = patm_feed_cnt(sc, 0);
@@ -274,7 +274,7 @@ patm_feed_sbufs(struct patm_softc *sc)
 	while (feed > 0) {
 		if ((v0 = mbp_alloc(sc->sbuf_pool, &p0, &h0)) == NULL)
 			break;
-		if ((v1 = mbp_alloc(sc->sbuf_pool, &p1, &h1)) == NULL) {
+		if (mbp_alloc(sc->sbuf_pool, &p1, &h1) == NULL) {
 			mbp_free(sc->sbuf_pool, v0);
 			break;
 		}
@@ -294,7 +294,7 @@ patm_feed_vbufs(struct patm_softc *sc)
 {
 	u_int feed;
 	bus_addr_t p0, p1;
-	void *v0, *v1;
+	void *v0;
 	uint32_t h0, h1;
 
 	feed = patm_feed_cnt(sc, 2);
@@ -302,7 +302,7 @@ patm_feed_vbufs(struct patm_softc *sc)
 	while (feed > 0) {
 		if ((v0 = mbp_alloc(sc->vbuf_pool, &p0, &h0)) == NULL)
 			break;
-		if ((v1 = mbp_alloc(sc->vbuf_pool, &p1, &h1)) == NULL) {
+		if (mbp_alloc(sc->vbuf_pool, &p1, &h1) == NULL) {
 			mbp_free(sc->vbuf_pool, v0);
 			break;
 		}
