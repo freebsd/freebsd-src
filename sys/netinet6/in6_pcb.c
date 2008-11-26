@@ -414,7 +414,8 @@ void
 in6_pcbdetach(struct inpcb *inp)
 {
 
-	KASSERT(inp->inp_socket != NULL, ("in6_pcbdetach: inp_socket == NULL"));
+	KASSERT(inp->inp_socket != NULL, ("%s: inp_socket == NULL", __func__));
+
 	inp->inp_socket->so_pcb = NULL;
 	inp->inp_socket = NULL;
 }
@@ -424,8 +425,9 @@ in6_pcbfree(struct inpcb *inp)
 {
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
-	KASSERT(inp->inp_socket == NULL, ("in6_pcbfree: inp_socket != NULL"));
-	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+
+	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
@@ -443,6 +445,7 @@ in6_pcbfree(struct inpcb *inp)
 		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
 	crfree(inp->inp_cred);
+
 #ifdef MAC
 	mac_inpcb_destroy(inp);
 #endif
