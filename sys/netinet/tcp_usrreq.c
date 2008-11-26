@@ -187,24 +187,15 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		if (inp->inp_vflag & INP_DROPPED) {
 			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
 			    "INP_DROPPED && tp != NULL"));
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
-		} else {
+			in_pcbdetach(inp);
 #ifdef INET6
 			if (isipv6)
-				in6_pcbdetach(inp);
+				in6_pcbfree(inp);
 			else
 #endif
-				in_pcbdetach(inp);
+				in_pcbfree(inp);
+		} else {
+			in_pcbdetach(inp);
 			INP_WUNLOCK(inp);
 		}
 	} else {
@@ -220,23 +211,14 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		if (inp->inp_vflag & INP_DROPPED ||
 		    tp->t_state < TCPS_SYN_SENT) {
 			tcp_discardcb(tp);
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
-		} else {
+			in_pcbdetach(inp);
 #ifdef INET6
 			if (isipv6)
-				in6_pcbdetach(inp);
+				in6_pcbfree(inp);
 			else
 #endif
+				in_pcbfree(inp);
+		} else {
 				in_pcbdetach(inp);
 		}
 	}
@@ -1496,17 +1478,13 @@ tcp_attach(struct socket *so)
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
+		in_pcbdetach(inp);
 #ifdef INET6
-		if (isipv6) {
-			in6_pcbdetach(inp);
+		if (isipv6)
 			in6_pcbfree(inp);
-		} else {
+		else
 #endif
-			in_pcbdetach(inp);
 			in_pcbfree(inp);
-#ifdef INET6
-		}
-#endif
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return (ENOBUFS);
 	}
