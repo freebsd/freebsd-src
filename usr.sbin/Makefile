@@ -119,6 +119,7 @@ SUBDIR=	${_ac} \
 	pciconf \
 	periodic \
 	${_pkg_install} \
+	${_pmcannotate} \
 	${_pmccontrol} \
 	${_pmcstat} \
 	${_pnpinfo} \
@@ -348,6 +349,7 @@ _pkg_install=	pkg_install
 
 # XXX MK_TOOLCHAIN?
 .if ${MK_PMC} != "no"
+_pmcannotate=	pmcannotate
 _pmccontrol=	pmccontrol
 _pmcstat=	pmcstat
 .endif
