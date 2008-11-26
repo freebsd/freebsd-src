@@ -365,6 +365,8 @@ proto_xchgcoll(struct config *config)
 	s = config->server;
 	lprintf(2, "Exchanging collection information\n");
 	STAILQ_FOREACH(coll, &config->colls, co_next) {
+		if (coll->co_options & CO_SKIP)
+			continue;
 		proto_printf(s, "COLL %s %s %o %d\n", coll->co_name,
 		    coll->co_release, coll->co_umask, coll->co_options);
 		for (i = 0; i < pattlist_size(coll->co_accepts); i++) {
