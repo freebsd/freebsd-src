@@ -65,10 +65,9 @@ __FBSDID("$FreeBSD$");
 unsigned long in6_maxmtu;
 int ip6_auto_linklocal;
 struct callout in6_tmpaddrtimer_ch;
-#endif
-
 extern struct inpcbinfo udbinfo;
 extern struct inpcbinfo ripcbinfo;
+#endif
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
 static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);

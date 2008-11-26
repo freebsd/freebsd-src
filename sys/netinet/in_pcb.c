@@ -120,6 +120,7 @@ int	ipport_tcplastcount;
 static int
 sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error;
 
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
@@ -1474,7 +1475,7 @@ inp_apply_all(void (*func)(struct inpcb *, void *), void *arg)
 	struct inpcb *inp;
 
 	INP_INFO_RLOCK(&V_tcbinfo);
-	LIST_FOREACH(inp, tcbinfo.ipi_listhead, inp_list) {
+	LIST_FOREACH(inp, V_tcbinfo.ipi_listhead, inp_list) {
 		INP_WLOCK(inp);
 		func(inp, arg);
 		INP_WUNLOCK(inp);
