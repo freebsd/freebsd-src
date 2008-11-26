@@ -34,7 +34,6 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
-#include "opt_inet.h"
 #endif
 
 #include <sys/param.h>
@@ -51,6 +50,7 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/eventhandler.h>
 #ifdef EM_TIMESYNC
 #include <sys/ioccom.h>
 #include <sys/time.h>
@@ -92,7 +92,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "6.9.5";
+char em_driver_version[] = "6.9.6";
 
 
 /*********************************************************************
@@ -277,7 +277,10 @@ static void	em_set_multi(struct adapter *);
 static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
 static int	em_get_buf(struct adapter *, int);
-static void	em_enable_hw_vlans(struct adapter *);
+
+static void	em_register_vlan(void *, struct ifnet *, u16);
+static void	em_unregister_vlan(void *, struct ifnet *, u16);
+
 static int	em_xmit(struct adapter *, struct mbuf **);
 static void	em_smartspeed(struct adapter *);
 static int	em_82547_fifo_workaround(struct adapter *, int);
@@ -784,6 +787,12 @@ em_attach(device_t dev)
 	else
 		adapter->pcix_82544 = FALSE;
 
+	/* Register for VLAN events */
+	adapter->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
+	    em_register_vlan, 0, EVENTHANDLER_PRI_FIRST);
+	adapter->vlan_detach = EVENTHANDLER_REGISTER(vlan_unconfig,
+	    em_unregister_vlan, 0, EVENTHANDLER_PRI_FIRST); 
+
 	/* Tell the stack that the interface is not active */
 	adapter->ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
@@ -796,7 +805,6 @@ err_rx_struct:
 err_tx_struct:
 err_hw_init:
 	em_release_hw_control(adapter);
-	e1000_remove_device(&adapter->hw);
 	em_dma_free(adapter, &adapter->rxdma);
 err_rx_desc:
 	em_dma_free(adapter, &adapter->txdma);
@@ -867,6 +875,12 @@ em_detach(device_t dev)
 	EM_TX_UNLOCK(adapter);
 	EM_CORE_UNLOCK(adapter);
 
+	/* Unregister VLAN events */
+	if (adapter->vlan_attach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_config, adapter->vlan_attach);
+	if (adapter->vlan_detach != NULL)
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, adapter->vlan_detach); 
+
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
 	callout_drain(&adapter->tx_fifo_timer);
@@ -875,7 +889,6 @@ em_detach(device_t dev)
 	bus_generic_detach(dev);
 	if_free(ifp);
 
-	e1000_remove_device(&adapter->hw);
 	em_free_transmit_structures(adapter);
 	em_free_receive_structures(adapter);
 
@@ -1448,8 +1461,16 @@ em_init_locked(struct adapter *adapter)
 
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-		em_enable_hw_vlans(adapter);
+
+	/* New register interface replaces this but
+	   waiting on kernel support to be added */
+	if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) &&
+	    ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)) {
+		u32 ctrl;
+		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+		ctrl |= E1000_CTRL_VME;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+	}
 
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
@@ -2547,6 +2568,8 @@ em_update_link_status(struct adapter *adapter)
 			/* Do the work to read phy */
 			e1000_check_for_link(hw);
 			link_check = !hw->mac.get_link_status;
+			if (link_check) /* ESB2 fix */
+				e1000_cfg_on_link_up(hw);
 		} else
 			link_check = TRUE;
 		break;
@@ -3060,7 +3083,7 @@ em_hardware_init(struct adapter *adapter)
 	else
 		adapter->hw.fc.pause_time = EM_FC_PAUSE_TIME;
 	adapter->hw.fc.send_xon = TRUE;
-	adapter->hw.fc.type = e1000_fc_full;
+	adapter->hw.fc.requested_mode = e1000_fc_full;
 
 	if (e1000_init_hw(&adapter->hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
@@ -4622,17 +4645,64 @@ em_receive_checksum(struct adapter *adapter,
 }
 
 /*
- * This turns on the hardware offload of the VLAN
- * tag insertion and strip
+ * This routine is run via an vlan
+ * config EVENT
  */
 static void
-em_enable_hw_vlans(struct adapter *adapter)
+em_register_vlan(void *unused, struct ifnet *ifp, u16 vtag)
 {
-	u32 ctrl;
+	struct adapter	*adapter = ifp->if_softc;
+	u32		ctrl, rctl, index, vfta;
 
 	ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
 	ctrl |= E1000_CTRL_VME;
 	E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
+
+	/* Setup for Hardware Filter */
+	rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+	rctl |= E1000_RCTL_VFE;
+	rctl &= ~E1000_RCTL_CFIEN;
+	E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
+
+	/* Make entry in the hardware filter table */
+	index = ((vtag >> 5) & 0x7F);
+	vfta = E1000_READ_REG_ARRAY(&adapter->hw, E1000_VFTA, index);
+	vfta |= (1 << (vtag & 0x1F));
+	E1000_WRITE_REG_ARRAY(&adapter->hw, E1000_VFTA, index, vfta);
+
+	/* Update the frame size */
+	E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
+	    adapter->max_frame_size + VLAN_TAG_SIZE);
+
+}
+
+/*
+ * This routine is run via an vlan
+ * unconfig EVENT
+ */
+static void
+em_unregister_vlan(void *unused, struct ifnet *ifp, u16 vtag)
+{
+	struct adapter	*adapter = ifp->if_softc;
+	u32		index, vfta;
+
+	/* Remove entry in the hardware filter table */
+	index = ((vtag >> 5) & 0x7F);
+	vfta = E1000_READ_REG_ARRAY(&adapter->hw, E1000_VFTA, index);
+	vfta &= ~(1 << (vtag & 0x1F));
+	E1000_WRITE_REG_ARRAY(&adapter->hw, E1000_VFTA, index, vfta);
+	/* Have all vlans unregistered? */
+	if (adapter->ifp->if_vlantrunk == NULL) {
+		u32 rctl;
+		/* Turn off the filter table */
+		rctl = E1000_READ_REG(&adapter->hw, E1000_RCTL);
+		rctl &= ~E1000_RCTL_VFE;
+		rctl |= E1000_RCTL_CFIEN;
+		E1000_WRITE_REG(&adapter->hw, E1000_RCTL, rctl);
+		/* Reset the frame size */
+		E1000_WRITE_REG(&adapter->hw, E1000_RLPML,
+		    adapter->max_frame_size);
+	}
 }
 
 static void

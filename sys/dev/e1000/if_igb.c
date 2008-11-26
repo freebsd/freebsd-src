@@ -95,7 +95,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.4.0";
+char igb_driver_version[] = "version - 1.4.1";
 
 
 /*********************************************************************
@@ -2442,9 +2442,9 @@ igb_hardware_init(struct adapter *adapter)
 
 	/* Set Flow control, use the tunable location if sane */
 	if ((igb_fc_setting >= 0) || (igb_fc_setting < 4))
-		adapter->hw.fc.type = igb_fc_setting;
+		adapter->hw.fc.requested_mode = igb_fc_setting;
 	else
-		adapter->hw.fc.type = e1000_fc_none;
+		adapter->hw.fc.requested_mode = e1000_fc_none;
 
 	if (e1000_init_hw(&adapter->hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
@@ -3483,7 +3483,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			device_printf(dev,"LRO Initialization failed!\n");
 			goto fail;
 		}
-		device_printf(dev,"RX LRO Initialized\n");
+		INIT_DEBUGOUT("RX LRO Initialized\n");
 		lro->ifp = adapter->ifp;
 	}
 
