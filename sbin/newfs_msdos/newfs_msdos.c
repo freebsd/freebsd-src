@@ -725,9 +725,20 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 
     /* Maybe it's a floppy drive */
     if (lp == NULL) {
-	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1)
-	    errx(1, "Cannot get disk size, %s", strerror(errno));
-	if (ioctl(fd, FD_GTYPE, &type) != -1) {
+	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1) {
+	    struct stat st;
+
+	    bzero(&st, sizeof(st));
+	    if (fstat(fd, &st))
+		err(1, "Cannot get disk size");
+	    /* create a fake geometry for a file image */
+	    ms = st.st_size;
+	    dlp.d_secsize = 512;
+	    dlp.d_nsectors = 64;
+	    dlp.d_ntracks = 32;
+	    dlp.d_secperunit = ms / dlp.d_secsize;
+	    lp = &dlp;
+	} else if (ioctl(fd, FD_GTYPE, &type) != -1) {
 	    dlp.d_secsize = 128 << type.secsize;
 	    dlp.d_nsectors = type.sectrac;
 	    dlp.d_ntracks = type.heads;
