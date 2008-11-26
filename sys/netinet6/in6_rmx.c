@@ -225,14 +225,14 @@ static int rtq_minreallyold6;
 static int rtq_toomany6;
 #endif
 
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire,
-	CTLFLAG_RW, &rtq_reallyold6 , 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTEXPIRE,
+    rtexpire, CTLFLAG_RW, rtq_reallyold6 , 0, "");
 
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire,
-	CTLFLAG_RW, &rtq_minreallyold6 , 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMINEXPIRE,
+    rtminexpire, CTLFLAG_RW, rtq_minreallyold6 , 0, "");
 
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache,
-	CTLFLAG_RW, &rtq_toomany6 , 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMAXCACHE,
+    rtmaxcache, CTLFLAG_RW, rtq_toomany6 , 0, "");
 
 
 /*

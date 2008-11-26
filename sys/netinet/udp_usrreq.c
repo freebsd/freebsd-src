@@ -113,7 +113,8 @@ int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
-SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW, &udp_blackhole, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_udp, OID_AUTO, blackhole,
+    CTLFLAG_RW, udp_blackhole, 0,
     "Do not send port unreachables for refused connects");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */

@@ -287,6 +287,7 @@ in_rtqtimo(void *rock)
 static void
 in_rtqtimo_one(void *rock)
 {
+	INIT_VNET_INET(curvnet);
 	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
 	static time_t last_adjusted_timeout = 0;
@@ -341,6 +342,7 @@ in_rtqdrain(void)
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
 		INIT_VNET_NET(vnet_iter);
+
 		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
 			rnh = V_rt_tables[fibnum][AF_INET];
 			arg.found = arg.killed = 0;

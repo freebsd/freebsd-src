@@ -108,12 +108,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 extern struct domain inet6domain;
+
+#ifdef VIMAGE_GLOBALS
 extern struct inpcbinfo ripcbinfo;
 extern struct inpcbhead ripcb;
 extern int icmp6errppslim;
 extern int icmp6_nodeinfo;
 
-#ifdef VIMAGE_GLOBALS
 struct icmp6stat icmp6stat;
 static int icmp6errpps_count;
 static struct timeval icmp6errppslim_last;

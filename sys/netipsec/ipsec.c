@@ -2009,7 +2009,7 @@ static void
 ipsec_attach(void)
 {
 	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
-	ip4_def_policy.refcnt = 1;			/* NB: disallow free */
+	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free */
 }
 SYSINIT(ipsec, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, ipsec_attach, NULL);
 

@@ -76,7 +76,7 @@ static struct key_cb key_cb;
 struct pfkeystat pfkeystat;
 #endif
 
-static struct sockaddr key_src = { 2, PF_KEY, };
+static struct sockaddr key_src = { 2, PF_KEY };
 
 static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
 
@@ -166,7 +166,7 @@ key_sendup0(rp, m, promisc)
 		V_pfkeystat.in_msgtype[pmsg->sadb_msg_type]++;
 	}
 
-	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&V_key_src,
+	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&key_src,
 	    m, NULL)) {
 		V_pfkeystat.in_nomem++;
 		m_freem(m);

@@ -150,8 +150,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
     &maxtcptw, 0, sysctl_maxtcptw, "IU",
     "Maximum number of compressed TCP TIME_WAIT entries");
 
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
-    &nolocaltimewait, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, nolocaltimewait,
+    CTLFLAG_RW, nolocaltimewait, 0,
     "Do not create compressed TCP TIME_WAIT entries for local connections");
 
 void
