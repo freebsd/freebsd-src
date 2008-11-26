@@ -1429,6 +1429,7 @@ product HP P1100		0x3102	Photosmart P1100
 product HP OJ4215		0x3d11	OfficeJet 4215
 product HP HN210E		0x811c	Ethernet HN210E
 product HP2 C500		0x6002	PhotoSmart C500
+product HP HS2300		0x1e1d  hs2300 HSDPA (aka MC8775)
 
 /* HTC products */
 product HTC WINMOBILE		0x00ce	HTC USB Sync
