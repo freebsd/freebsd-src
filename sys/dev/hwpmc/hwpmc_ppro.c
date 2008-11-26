@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/pmc_mdep.h>
 #include <machine/specialreg.h>
@@ -779,7 +780,7 @@ pmc_p6_initialize(struct pmc_mdep *md, int ncpus)
 {
 	struct pmc_classdep *pcd;
 
-	KASSERT(strcmp(cpu_vendor, "GenuineIntel") == 0,
+	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[p6,%d] Initializing non-intel processor", __LINE__));
 
 	PMCDBG(MDP,INI,1, "%s", "p6-initialize");
