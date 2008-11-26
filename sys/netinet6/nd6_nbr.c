@@ -153,7 +153,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			    "(wrong ip6 dst)\n"));
 			goto bad;
 		}
-	} else if (!nd6_onlink_ns_rfc4861) {
+	} else if (!V_nd6_onlink_ns_rfc4861) {
 		struct sockaddr_in6 src_sa6;
 
 		/*

@@ -112,14 +112,14 @@ __FBSDID("$FreeBSD$");
  * Raw interface to IP6 protocol.
  */
 
+#ifdef VIMAGE_GLOBALS
 extern struct	inpcbhead ripcb;
 extern struct	inpcbinfo ripcbinfo;
-extern u_long	rip_sendspace;
-extern u_long	rip_recvspace;
-
-#ifdef VIMAGE_GLOBALS
 struct rip6stat rip6stat;
 #endif
+
+extern u_long	rip_sendspace;
+extern u_long	rip_recvspace;
 
 /*
  * Hooks for multicast forwarding.
@@ -765,7 +765,6 @@ static int
 rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 tmp;
 	struct sockaddr_in6 *dst;

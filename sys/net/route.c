@@ -145,6 +145,7 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static void
 route_init(void)
 {
+	INIT_VNET_INET(curvnet);
 	int table;
 	struct domain *dom;
 	int fam;

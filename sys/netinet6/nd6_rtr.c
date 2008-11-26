@@ -85,9 +85,9 @@ static void in6_init_address_ltimes __P((struct nd_prefix *,
 
 static int rt6_deleteroute(struct radix_node *, void *);
 
+#ifdef VIMAGE_GLOBALS
 extern int nd6_recalc_reachtm_interval;
 
-#ifdef VIMAGE_GLOBALS
 static struct ifnet *nd6_defifp;
 int nd6_defifindex;
 

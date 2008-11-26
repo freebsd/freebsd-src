@@ -130,7 +130,7 @@ static int	tcp_inflight_stab;
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(TD_TO_VNET(curthread));
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -144,15 +144,16 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_mssdflt, 0, &sysctl_net_inet_tcp_mss_check, "I",
-	   "Default TCP Maximum Segment Size");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_check, "I",
+    "Default TCP Maximum Segment Size");
 
 #ifdef INET6
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(TD_TO_VNET(curthread));
+	INIT_VNET_INET6(curvnet);
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -166,9 +167,10 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_v6mssdflt, 0, &sysctl_net_inet_tcp_mss_v6_check, "I",
-	   "Default TCP Maximum Segment Size for IPv6");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_v6mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_v6_check, "I",
+   "Default TCP Maximum Segment Size for IPv6");
 #endif
 
 /*
@@ -225,9 +227,9 @@ static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
-SYSCTL_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks, "I",
-    "RTT threshold below which inflight will deactivate itself");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, rttthresh,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks,
+    "I", "RTT threshold below which inflight will deactivate itself");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, min,
     CTLFLAG_RW, tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
@@ -947,6 +949,9 @@ static struct inpcb *
 tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp;
+#ifdef INVARIANTS
+	INIT_VNET_INET(inp->inp_vnet); /* V_tcbinfo WLOCK ASSERT */
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -1940,6 +1945,7 @@ int
 tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
+	INIT_VNET_IPSEC(curvnet);
 	union sockaddr_union dst;
 	struct ippseudo ippseudo;
 	MD5_CTX ctx;
