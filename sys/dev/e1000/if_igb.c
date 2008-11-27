@@ -3490,12 +3490,11 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	return (0);
 fail:
 	/*
-	 * We need to clean up any buffers allocated so far
-	 * 'j' is the failing index, decrement it to get the
-	 * last success.
+	 * We need to clean up any buffers allocated
+	 * so far, 'j' is the failing index.
 	 */
-	for (--j; j < 0; j--) {
-		rxbuf = &rxr->rx_buffers[j];
+	for (int i = 0; i < j; i++) {
+		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head != NULL) {
 			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
 			    BUS_DMASYNC_POSTREAD);
@@ -3516,9 +3515,9 @@ static int
 igb_setup_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
-	int i, j;
+	int j;
 
-	for (i = 0; i < adapter->num_rx_queues; i++, rxr++)
+	for (j = 0; j < adapter->num_rx_queues; j++, rxr++)
 		if (igb_setup_receive_ring(rxr))
 			goto fail;
 
@@ -3527,14 +3526,13 @@ fail:
 	/*
 	 * Free RX buffers allocated so far, we will only handle
 	 * the rings that completed, the failing case will have
-	 * cleaned up for itself. The value of 'i' will be the
-	 * failed ring so we must pre-decrement it.
+	 * cleaned up for itself. Clean up til 'j', the failure.
 	 */
-	rxr = adapter->rx_rings;
-	for (--i; i > 0; i--, rxr++) {
-		for (j = 0; j < adapter->num_rx_desc; j++) {
+	for (int i = 0; i < j; i++) {
+		rxr = &adapter->rx_rings[i];
+		for (int n = 0; n < adapter->num_rx_desc; n++) {
 			struct igb_buffer *rxbuf;
-			rxbuf = &rxr->rx_buffers[j];
+			rxbuf = &rxr->rx_buffers[n];
 			if (rxbuf->m_head != NULL) {
 				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
 			  	  BUS_DMASYNC_POSTREAD);
