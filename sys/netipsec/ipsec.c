@@ -1216,7 +1216,7 @@ ipsec4_get_policy(inp, request, len, mp)
 
 /* delete policy in PCB */
 int
-ipsec4_delete_pcbpolicy(inp)
+ipsec_delete_pcbpolicy(inp)
 	struct inpcb *inp;
 {
 	IPSEC_ASSERT(inp != NULL, ("null inp"));
@@ -1307,27 +1307,6 @@ ipsec6_get_policy(in6p, request, len, mp)
 	}
 
 	return ipsec_get_policy(pcb_sp, mp);
-}
-
-int
-ipsec6_delete_pcbpolicy(in6p)
-	struct in6pcb *in6p;
-{
-	IPSEC_ASSERT(in6p != NULL, ("null in6p"));
-
-	if (in6p->in6p_sp == NULL)
-		return 0;
-
-	if (in6p->in6p_sp->sp_in != NULL)
-		KEY_FREESP(&in6p->in6p_sp->sp_in);
-
-	if (in6p->in6p_sp->sp_out != NULL)
-		KEY_FREESP(&in6p->in6p_sp->sp_out);
-
-	ipsec_delpcbpolicy(in6p->in6p_sp);
-	in6p->in6p_sp = NULL;
-
-	return 0;
 }
 #endif
 
