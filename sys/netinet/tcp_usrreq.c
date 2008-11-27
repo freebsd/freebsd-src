@@ -1256,7 +1256,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	INP_WLOCK(inp);
 	if (sopt->sopt_level != IPPROTO_TCP) {
 #ifdef INET6
-		if (INP_CHECK_SOCKAF(so, AF_INET6)) {
+		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
 		} else {
@@ -1436,9 +1436,6 @@ tcp_attach(struct socket *so)
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	int error;
-#ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
-#endif
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, tcp_sendspace, tcp_recvspace);
@@ -1455,7 +1452,7 @@ tcp_attach(struct socket *so)
 	}
 	inp = sotoinpcb(so);
 #ifdef INET6
-	if (isipv6) {
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		inp->inp_vflag |= INP_IPV6;
 		inp->in6p_hops = -1;	/* use kernel default */
 	}

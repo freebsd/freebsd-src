@@ -1254,8 +1254,7 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 					return (inp);
 				else if (inp->inp_laddr.s_addr == INADDR_ANY) {
 #ifdef INET6
-					if (INP_CHECK_SOCKAF(inp->inp_socket,
-							     AF_INET6))
+					if (inp->inp_vflag & INP_IPV6PROTO)
 						local_wild_mapped = inp;
 					else
 #endif
