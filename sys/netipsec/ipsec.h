@@ -380,7 +380,7 @@ extern int ipsec4_set_policy __P((struct inpcb *inp, int optname,
 	caddr_t request, size_t len, struct ucred *cred));
 extern int ipsec4_get_policy __P((struct inpcb *inpcb, caddr_t request,
 	size_t len, struct mbuf **mp));
-extern int ipsec4_delete_pcbpolicy __P((struct inpcb *));
+extern int ipsec_delete_pcbpolicy __P((struct inpcb *));
 extern int ipsec4_in_reject __P((struct mbuf *, struct inpcb *));
 
 struct secas;

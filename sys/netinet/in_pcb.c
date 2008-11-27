@@ -899,7 +899,7 @@ in_pcbfree(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
-	ipsec4_delete_pcbpolicy(inp);
+	ipsec_delete_pcbpolicy(inp);
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
