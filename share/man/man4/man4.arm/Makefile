@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN=	npe.4
+MAN=	mge.4 npe.4
 
 MANSUBDIR=/arm
 
