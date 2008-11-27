@@ -1172,7 +1172,7 @@ timer:
     {
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
-	if (INP_CHECK_SOCKAF(so, AF_INET6))
+	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
 #endif /* INET6 */
 	/*
