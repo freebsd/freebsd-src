@@ -40,6 +40,7 @@ struct pmc_mdep;
 #endif
 
 #include <dev/hwpmc/hwpmc_amd.h>
+#include <dev/hwpmc/hwpmc_core.h>
 #include <dev/hwpmc/hwpmc_piv.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
 
@@ -51,8 +52,8 @@ struct pmc_mdep;
 #define	PMC_MDEP_CLASS_INDEX_TSC	0
 #define	PMC_MDEP_CLASS_INDEX_K8		1
 #define	PMC_MDEP_CLASS_INDEX_P4		1
-#define	PMC_MDEP_CLASS_INDEX_IAF	1
-#define	PMC_MDEP_CLASS_INDEX_IAP	2
+#define	PMC_MDEP_CLASS_INDEX_IAP	1
+#define	PMC_MDEP_CLASS_INDEX_IAF	2
 
 /*
  * On the amd64 platform we support the following PMCs.
@@ -66,6 +67,8 @@ struct pmc_mdep;
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
+	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
+	struct pmc_md_iap_op_pmcallocate	pm_iap;
 	struct pmc_md_p4_op_pmcallocate		pm_p4;
 	uint64_t				__pad[4];
 };
@@ -78,6 +81,8 @@ union pmc_md_op_pmcallocate  {
 
 union pmc_md_pmc {
 	struct pmc_md_amd_pmc	pm_amd;
+	struct pmc_md_iaf_pmc	pm_iaf;
+	struct pmc_md_iap_pmc	pm_iap;
 	struct pmc_md_p4_pmc	pm_p4;
 };
 

@@ -287,8 +287,9 @@ pmclog_loop(void *arg)
 					wakeup_one(po->po_kthread);
 				}
 
-				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
-				    "pmcloop", 0);
+
+				(void) msleep(po, &pmc_kthread_mtx,
+				    PWAIT, "pmcloop", 0);
 				continue;
 			}
 
@@ -543,7 +544,7 @@ pmclog_stop_kthread(struct pmc_owner *po)
  */
 
 int
-pmclog_configure_log(struct pmc_owner *po, int logfd)
+pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 {
 	int error;
 	struct proc *p;

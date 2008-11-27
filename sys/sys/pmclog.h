@@ -239,7 +239,8 @@ union pmclog_entry {		/* only used to size scratch areas */
 /*
  * Prototypes
  */
-int	pmclog_configure_log(struct pmc_owner *_po, int _logfd);
+int	pmclog_configure_log(struct pmc_mdep *_md, struct pmc_owner *_po,
+    int _logfd);
 int	pmclog_deconfigure_log(struct pmc_owner *_po);
 int	pmclog_flush(struct pmc_owner *_po);
 void	pmclog_initialize(void);
