@@ -557,10 +557,9 @@ The number of snoop responses to bus transactions.
 .It Li FP_ASSIST
 .Pq Event 11H , Umask 01H
 The number of floating point operations executed that needed
-a microcode assist.
+a microcode assist, including speculatively executed instructions.
 .It Li FP_ASSIST.AR
 .Pq Event 11H , Umask 81H
-.\" XXX to be confirmed that this is an at-retirement event
 The number of floating point operations retired that needed
 a microcode assist.
 .It Li FP_COMP_OPS_EXE
