@@ -36,8 +36,7 @@
  *    * Supports very deep logical traversals.  The fts package
  *      uses "non-chdir" approach for logical traversals.  This
  *      package does use a chdir approach for logical traversals
- *      and can therefore handle pathnames much longer than
- *      PATH_MAX.
+ *      and can therefore handle pathnames much longer than PATH_MAX.
  *    * Supports deep physical traversals "out of the box."
  *      Due to the memory optimizations above, there's no need to
  *      limit dir names to 32k.
@@ -53,23 +52,31 @@ struct tree *tree_open(const char * /* pathname */);
 void tree_close(struct tree *);
 
 /*
- * tree_next() returns Zero if there is no next entry, non-zero if there is.
- * Note that directories are potentially visited three times.  The first
- * time as "regular" file.  If tree_descend() is invoked at that time,
- * the directory is added to a work list and will be visited two more
- * times:  once just after descending into the directory and again
- * just after ascending back to the parent.
+ * tree_next() returns Zero if there is no next entry, non-zero if
+ * there is.  Note that directories are potentially visited three
+ * times.  Directories are always visited first as part of enumerating
+ * their parent.  If tree_descend() is invoked at that time, the
+ * directory is added to a work list and will subsequently be visited
+ * two more times: once just after descending into the directory and
+ * again just after ascending back to the parent.
  *
- * TREE_ERROR is returned if the descent failed (because the
+ * TREE_ERROR_DIR is returned if the descent failed (because the
  * directory couldn't be opened, for instance).  This is returned
- * instead of TREE_PREVISIT/TREE_POSTVISIT.
+ * instead of TREE_PREVISIT/TREE_POSTVISIT.  TREE_ERROR_DIR is not a
+ * fatal error, but it does imply that the relevant subtree won't be
+ * visited.  TREE_ERROR_FATAL is returned for an error that left the
+ * traversal completely hosed.  Right now, this is only returned for
+ * chdir() failures during ascent.
  */
 #define	TREE_REGULAR	1
 #define	TREE_POSTDESCENT	2
 #define	TREE_POSTASCENT	3
 #define	TREE_ERROR_DIR	-1
+#define	TREE_ERROR_FATAL -2
+
 int tree_next(struct tree *);
 
+/* Errno value associated with the last traversal error. */
 int tree_errno(struct tree *);
 
 /*
@@ -85,7 +92,9 @@ void tree_descend(struct tree *);
  * Return information about the current entry.
  */
 
+/* Current depth in the traversal. */
 int tree_current_depth(struct tree *);
+
 /*
  * The current full pathname, length of the full pathname,
  * and a name that can be used to access the file.
@@ -95,6 +104,7 @@ int tree_current_depth(struct tree *);
 const char *tree_current_path(struct tree *);
 size_t tree_current_pathlen(struct tree *);
 const char *tree_current_access_path(struct tree *);
+
 /*
  * Request the lstat() or stat() data for the current path.  Since the
  * tree package needs to do some of this anyway, and caches the
@@ -103,7 +113,9 @@ const char *tree_current_access_path(struct tree *);
  */
 const struct stat *tree_current_stat(struct tree *);
 const struct stat *tree_current_lstat(struct tree *);
-/* The following tests may use mechanisms much faster than stat()/lstat(). */
+
+/* The following functions use tricks to avoid a certain number of
+ * stat()/lstat() calls. */
 /* "is_physical_dir" is equivalent to S_ISDIR(tree_current_lstat()->st_mode) */
 int tree_current_is_physical_dir(struct tree *);
 /* "is_physical_link" is equivalent to S_ISLNK(tree_current_lstat()->st_mode) */
