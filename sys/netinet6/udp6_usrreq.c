@@ -901,7 +901,7 @@ udp6_detach(struct socket *so)
 	INP_INFO_WLOCK(&V_udbinfo);
 	INP_WLOCK(inp);
 	in_pcbdetach(inp);
-	in6_pcbfree(inp);
+	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_udbinfo);
 }
 

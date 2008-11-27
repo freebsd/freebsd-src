@@ -899,10 +899,17 @@ in_pcbfree(struct inpcb *inp)
 	INP_WLOCK_ASSERT(inp);
 
 #ifdef IPSEC
-	ipsec_delete_pcbpolicy(inp);
+	if (inp->inp_sp != NULL)
+		ipsec_delete_pcbpolicy(inp);
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6PROTO) {
+		ip6_freepcbopts(inp->in6p_outputopts);
+		ip6_freemoptions(inp->in6p_moptions);
+	}
+#endif
 	if (inp->inp_options)
 		(void)m_free(inp->inp_options);
 	if (inp->inp_moptions != NULL)
