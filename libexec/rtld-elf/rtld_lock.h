@@ -44,6 +44,8 @@ struct RtldLockInfo
 };
 
 extern void _rtld_thread_init(struct RtldLockInfo *);
+extern void _rtld_atfork_pre(int *);
+extern void _rtld_atfork_post(int *);
 
 #ifdef IN_RTLD
 

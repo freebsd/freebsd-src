@@ -316,3 +316,19 @@ _rtld_thread_init(struct RtldLockInfo *pli)
 	thread_mask_set(flags);
 	dbg("_rtld_thread_init: done");
 }
+
+void
+_rtld_atfork_pre(int *locks)
+{
+
+	locks[2] = wlock_acquire(rtld_phdr_lock);
+	locks[0] = rlock_acquire(rtld_bind_lock);
+}
+
+void
+_rtld_atfork_post(int *locks)
+{
+
+	rlock_release(rtld_bind_lock, locks[0]);
+	wlock_release(rtld_phdr_lock, locks[2]);
+}
