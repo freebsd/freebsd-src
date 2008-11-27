@@ -128,7 +128,7 @@ static eventhandler_tag	pmc_exit_tag, pmc_fork_tag;
 struct pmc_op_getdriverstats pmc_stats;
 
 /* Machine/processor dependent operations */
-struct pmc_mdep  *md;
+static struct pmc_mdep  *md;
 
 /*
  * Hash tables mapping owner processes and target threads to PMCs.
@@ -2718,7 +2718,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 * de-configure it.
 		 */
 		if (cl.pm_logfd >= 0)
-			error = pmclog_configure_log(po, cl.pm_logfd);
+			error = pmclog_configure_log(md, po, cl.pm_logfd);
 		else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
 			error = pmclog_flush(po);
@@ -3966,7 +3966,7 @@ static void
 pmc_process_samples(int cpu)
 {
 	struct pmc *pm;
-	int adjri, n, ri;
+	int adjri, n;
 	struct thread *td;
 	struct pmc_owner *po;
 	struct pmc_sample *ps;
@@ -4066,7 +4066,6 @@ pmc_process_samples(int cpu)
 			continue;
 
 		pm->pm_stalled = 0;
-		ri = PMC_TO_ROWINDEX(pm);
 		(*pcd->pcd_start_pmc)(cpu, adjri);
 	}
 }
@@ -4458,7 +4457,7 @@ pmc_initialize(void)
 		    md->pmd_npmc * sizeof(struct pmc_hw *), M_PMC,
 		    M_WAITOK|M_ZERO);
 		if (md->pmd_pcpu_init)
-			error = md->pmd_pcpu_init(cpu);
+			error = md->pmd_pcpu_init(md, cpu);
 		for (n = 0; error == 0 && n < md->pmd_nclass; n++)
 			error = md->pmd_classdep[n].pcd_pcpu_init(md, cpu);
 	}
@@ -4655,7 +4654,7 @@ pmc_cleanup(void)
 			for (c = 0; c < md->pmd_nclass; c++)
 				md->pmd_classdep[c].pcd_pcpu_fini(md, cpu);
 			if (md->pmd_pcpu_fini)
-				md->pmd_pcpu_fini(cpu);
+				md->pmd_pcpu_fini(md, cpu);
 		}
 
 		pmc_md_finalize(md);
