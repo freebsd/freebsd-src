@@ -716,9 +716,9 @@ or
 do not roll your own.
 .Bd -literal
 	if ((four = malloc(sizeof(struct foo))) == NULL)
-		err(EX_OSERR, NULL);
+		err(1, (char *)NULL);
 	if ((six = (int *)overflow()) == NULL)
-		errx(EX_DATAERR, "number overflowed");
+		errx(1, "number overflowed");
 	return (eight);
 }
 .Ed
