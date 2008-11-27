@@ -103,12 +103,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
 
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/ipsec6.h>
-#include <netipsec/key.h>
-#endif /* IPSEC */
-
 #include <security/mac/mac_framework.h>
 
 struct	in6_addr zeroin6_addr;
@@ -408,39 +402,6 @@ in6_pcbdisconnect(struct inpcb *inp)
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
 	inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
 	in_pcbrehash(inp);
-}
-
-void
-in6_pcbfree(struct inpcb *inp)
-{
-	struct inpcbinfo *ipi = inp->inp_pcbinfo;
-
-	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
-
-	INP_INFO_WLOCK_ASSERT(ipi);
-	INP_WLOCK_ASSERT(inp);
-
-#ifdef IPSEC
-	if (inp->in6p_sp != NULL)
-		ipsec_delete_pcbpolicy(inp);
-#endif /* IPSEC */
-	inp->inp_gencnt = ++ipi->ipi_gencnt;
-	in_pcbremlists(inp);
-	ip6_freepcbopts(inp->in6p_outputopts);
-	ip6_freemoptions(inp->in6p_moptions);
-	/* Check and free IPv4 related resources in case of mapped addr */
-	if (inp->inp_options)
-		(void)m_free(inp->inp_options);
-	if (inp->inp_moptions != NULL)
-		inp_freemoptions(inp->inp_moptions);
-	inp->inp_vflag = 0;
-	crfree(inp->inp_cred);
-
-#ifdef MAC
-	mac_inpcb_destroy(inp);
-#endif
-	INP_WUNLOCK(inp);
-	uma_zfree(ipi->ipi_zone, inp);
 }
 
 struct sockaddr *
