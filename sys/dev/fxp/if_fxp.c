@@ -405,7 +405,7 @@ fxp_attach(device_t dev)
 	uint32_t val;
 	uint16_t data, myea[ETHER_ADDR_LEN / 2];
 	u_char eaddr[ETHER_ADDR_LEN];
-	int i, prefer_iomap;
+	int i, pmc, prefer_iomap;
 	int error;
 
 	error = 0;
@@ -481,6 +481,17 @@ fxp_attach(device_t dev)
 		sc->revision = FXP_REV_82557;
 	else
 		sc->revision = pci_get_revid(dev);
+
+	/*
+	 * Check availability of WOL. 82559ER does not support WOL.
+	 */
+	if (sc->revision >= FXP_REV_82558_A4 &&
+	    sc->revision != FXP_REV_82559S_A) {
+		fxp_read_eeprom(sc, &data, 10, 1);
+		if ((data & 0x20) != 0 &&
+		    pci_find_extcap(sc->dev, PCIY_PMG, &pmc) == 0)
+			sc->flags |= FXP_FLAG_WOLCAP;
+	}
 
 	/*
 	 * Determine whether we must use the 503 serial interface.
@@ -796,6 +807,11 @@ fxp_attach(device_t dev)
 		ifp->if_capenable |= IFCAP_RXCSUM;
 	}
 
+	if (sc->flags & FXP_FLAG_WOLCAP) {
+		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
+		ifp->if_capenable |= IFCAP_WOL_MAGIC;
+	}
+
 #ifdef DEVICE_POLLING
 	/* Inform the world we support polling. */
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -832,6 +848,19 @@ fxp_attach(device_t dev)
 		device_printf(dev, "could not setup irq\n");
 		ether_ifdetach(sc->ifp);
 		goto fail;
+	}
+
+	/*
+	 * Configure hardware to reject magic frames otherwise
+	 * system will hang on recipt of magic frames.
+	 */
+	if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
+		FXP_LOCK(sc);
+		/* Clear wakeup events. */
+		CSR_READ_1(sc, FXP_CSR_PMDR);
+		fxp_init_body(sc);
+		fxp_stop(sc);
+		FXP_UNLOCK(sc);
 	}
 
 fail:
@@ -956,17 +985,13 @@ fxp_detach(device_t dev)
 static int
 fxp_shutdown(device_t dev)
 {
-	struct fxp_softc *sc = device_get_softc(dev);
 
 	/*
 	 * Make sure that DMA is disabled prior to reboot. Not doing
 	 * do could allow DMA to corrupt kernel memory during the
 	 * reboot before the driver initializes.
 	 */
-	FXP_LOCK(sc);
-	fxp_stop(sc);
-	FXP_UNLOCK(sc);
-	return (0);
+	return (fxp_suspend(dev));
 }
 
 /*
@@ -978,9 +1003,25 @@ static int
 fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp;
+	int pmc;
+	uint16_t pmstat;
 
 	FXP_LOCK(sc);
 
+	ifp = sc->ifp;
+	if (pci_find_extcap(sc->dev, PCIY_PMG, &pmc) == 0) {
+		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
+		pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
+		if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0) {
+			/* Request PME. */
+			pmstat |= PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE;
+			sc->flags |= FXP_FLAG_WOL;
+			/* Reconfigure hardware to accept magic frames. */
+			fxp_init_body(sc);
+		}
+		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+	}
 	fxp_stop(sc);
 
 	sc->suspended = 1;
@@ -998,8 +1039,22 @@ fxp_resume(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->ifp;
+	int pmc;
+	uint16_t pmstat;
 
 	FXP_LOCK(sc);
+
+	if (pci_find_extcap(sc->dev, PCIY_PMG, &pmc) == 0) {
+		sc->flags &= ~FXP_FLAG_WOL;
+		pmstat = pci_read_config(sc->dev, pmc + PCIR_POWER_STATUS, 2);
+		/* Disable PME and clear PME status. */
+		pmstat &= ~PCIM_PSTAT_PMEENABLE;
+		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
+		if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
+			/* Clear wakeup events. */
+			CSR_READ_1(sc, FXP_CSR_PMDR);
+		}
+	}
 
 	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
 	DELAY(10);
@@ -2015,11 +2070,13 @@ fxp_stop(struct fxp_softc *sc)
 	callout_stop(&sc->stat_ch);
 
 	/*
-	 * Issue software reset, which also unloads the microcode.
+	 * Preserve PCI configuration, configure, IA/multicast
+	 * setup and put RU and CU into idle state.
 	 */
-	sc->flags &= ~FXP_FLAG_UCODE;
-	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
 	DELAY(50);
+	/* Disable interrupts. */
+	CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, FXP_SCB_INTR_DISABLE);
 
 	/*
 	 * Release any xmit buffers.
@@ -2098,6 +2155,13 @@ fxp_init_body(struct fxp_softc *sc)
 	 * Cancel any pending I/O
 	 */
 	fxp_stop(sc);
+
+	/*
+	 * Issue software reset, which also unloads the microcode.
+	 */
+	sc->flags &= ~FXP_FLAG_UCODE;
+	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SOFTWARE_RESET);
+	DELAY(50);
 
 	prm = (ifp->if_flags & IFF_PROMISC) ? 1 : 0;
 
@@ -2215,8 +2279,7 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->rcv_crc_xfer =	0;	/* (don't) xfer CRC to host */
 	cbp->long_rx_en =	sc->flags & FXP_FLAG_LONG_PKT_EN ? 1 : 0;
 	cbp->ia_wake_en =	0;	/* (don't) wake up on address match */
-	cbp->magic_pkt_dis =	0;	/* (don't) disable magic packet */
-					/* must set wake_en in PMCSR also */
+	cbp->magic_pkt_dis =	sc->flags & FXP_FLAG_WOL ? 0 : 1;
 	cbp->force_fdx =	0;	/* (don't) force full duplex */
 	cbp->fdx_pin_en =	1;	/* (enable) FDX# pin */
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
@@ -2687,6 +2750,9 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			else
 				ifp->if_hwassist &= ~CSUM_TSO;
 		}
+		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
+		    (ifp->if_capabilities & IFCAP_WOL_MAGIC) != 0)
+			ifp->if_capenable ^= IFCAP_WOL_MAGIC;
 		if ((mask & IFCAP_VLAN_MTU) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_MTU) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_MTU;
