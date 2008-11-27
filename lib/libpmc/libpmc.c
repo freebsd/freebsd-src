@@ -42,12 +42,18 @@ __FBSDID("$FreeBSD$");
 #include <strings.h>
 #include <unistd.h>
 
+#include "libpmcinternal.h"
+
 /* Function prototypes */
 #if defined(__i386__)
 static int k7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__amd64__) || defined(__i386__)
+static int iaf_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
+static int iap_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
+    struct pmc_op_pmcallocate *_pmc_config);
 static int k8_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 static int p4_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
@@ -110,19 +116,55 @@ struct pmc_class_descr {
 #define	__PMC_EV(C,N) { #N, PMC_EV_ ## C ## _ ## N },
 
 /*
- * PMC_MDEP_TABLE(NAME, CLASS, ADDITIONAL_CLASSES...)
+ * PMC_CLASSDEP_TABLE(NAME, CLASS)
  *
- * Build an event descriptor table and a list of valid PMC classes.
+ * Define a table mapping event names and aliases to HWPMC event IDs.
  */
-#define	PMC_MDEP_TABLE(N,C,...)				\
+#define	PMC_CLASSDEP_TABLE(N, C)				\
 	static const struct pmc_event_descr N##_event_table[] =	\
 	{							\
 		__PMC_EV_##C()					\
-	};							\
+	}
+
+PMC_CLASSDEP_TABLE(iaf, IAF);
+PMC_CLASSDEP_TABLE(k7, K7);
+PMC_CLASSDEP_TABLE(k8, K8);
+PMC_CLASSDEP_TABLE(p4, P4);
+PMC_CLASSDEP_TABLE(p5, P5);
+PMC_CLASSDEP_TABLE(p6, P6);
+
+#undef	__PMC_EV_ALIAS
+#define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
+
+static const struct pmc_event_descr atom_event_table[] =
+{
+	__PMC_EV_ALIAS_ATOM()
+};
+
+static const struct pmc_event_descr core_event_table[] =
+{
+	__PMC_EV_ALIAS_CORE()
+};
+
+
+static const struct pmc_event_descr core2_event_table[] =
+{
+	__PMC_EV_ALIAS_CORE2()
+};
+
+/*
+ * PMC_MDEP_TABLE(NAME, PRIMARYCLASS, ADDITIONAL_CLASSES...)
+ *
+ * Map a CPU to the PMC classes it supports.
+ */
+#define	PMC_MDEP_TABLE(N,C,...)				\
 	static const enum pmc_class N##_pmc_classes[] = {	\
 		PMC_CLASS_##C, __VA_ARGS__			\
 	}
 
+PMC_MDEP_TABLE(atom, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(core, IAP, PMC_CLASS_TSC);
+PMC_MDEP_TABLE(core2, IAP, PMC_CLASS_IAF, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k7, K7, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p4, P4, PMC_CLASS_TSC);
@@ -135,38 +177,43 @@ static const struct pmc_event_descr tsc_event_table[] =
 };
 
 #undef	PMC_CLASS_TABLE_DESC
-#define	PMC_CLASS_TABLE_DESC(N, C)	{			\
-		.pm_evc_name  = #N "-",				\
-		.pm_evc_name_size = sizeof(#N "-") - 1,		\
-		.pm_evc_class = PMC_CLASS_##C ,			\
-		.pm_evc_event_table = N##_event_table ,		\
+#define	PMC_CLASS_TABLE_DESC(NAME, CLASS, EVENTS, ALLOCATOR)	\
+static const struct pmc_class_descr NAME##_class_table_descr =	\
+	{							\
+		.pm_evc_name  = #CLASS "-",			\
+		.pm_evc_name_size = sizeof(#CLASS "-") - 1,	\
+		.pm_evc_class = PMC_CLASS_##CLASS ,		\
+		.pm_evc_event_table = EVENTS##_event_table ,	\
 		.pm_evc_event_table_size = 			\
-			PMC_EVENT_TABLE_SIZE(N),		\
-		.pm_evc_allocate_pmc = N##_allocate_pmc		\
+			PMC_EVENT_TABLE_SIZE(EVENTS),		\
+		.pm_evc_allocate_pmc = ALLOCATOR##_allocate_pmc	\
 	}
 
-static const struct pmc_class_descr pmc_class_table[] =
-{
-#if	defined(__i386__)
-	PMC_CLASS_TABLE_DESC(k7, K7),
-#endif
 #if	defined(__i386__) || defined(__amd64__)
-	PMC_CLASS_TABLE_DESC(k8, K8),
-	PMC_CLASS_TABLE_DESC(p4, P4),
+PMC_CLASS_TABLE_DESC(iaf, IAF, iaf, iaf);
+PMC_CLASS_TABLE_DESC(atom, IAP, atom, iap);
+PMC_CLASS_TABLE_DESC(core, IAP, core, iap);
+PMC_CLASS_TABLE_DESC(core2, IAP, core2, iap);
 #endif
 #if	defined(__i386__)
-	PMC_CLASS_TABLE_DESC(p5, P5),
-	PMC_CLASS_TABLE_DESC(p6, P6),
+PMC_CLASS_TABLE_DESC(k7, K7, k7, k7);
 #endif
 #if	defined(__i386__) || defined(__amd64__)
-	PMC_CLASS_TABLE_DESC(tsc, TSC)
+PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
+PMC_CLASS_TABLE_DESC(p4, P4, p4, p4);
 #endif
-};
-
-static size_t pmc_event_class_table_size =
-    PMC_TABLE_SIZE(pmc_class_table);
+#if	defined(__i386__)
+PMC_CLASS_TABLE_DESC(p5, P5, p5, p5);
+PMC_CLASS_TABLE_DESC(p6, P6, p6, p6);
+#endif
+#if	defined(__i386__) || defined(__amd64__)
+PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
+#endif
 
 #undef	PMC_CLASS_TABLE_DESC
+
+static const struct pmc_class_descr **pmc_class_table;
+#define	PMC_CLASS_TABLE_SIZE	cpu_info.pm_nclass
 
 static const enum pmc_class *pmc_mdep_class_list;
 static size_t pmc_mdep_class_list_size;
@@ -369,6 +416,237 @@ k7_allocate_pmc(enum pmc_event pe, char *ctrspec,
 #endif
 
 #if defined(__amd64__) || defined(__i386__)
+
+/*
+ * Intel Core (Family 6, Model E) PMCs.
+ */
+
+static struct pmc_event_alias core_aliases[] = {
+	EV_ALIAS("branches",		"iap-br-instr-ret"),
+	EV_ALIAS("branch-mispredicts",	"iap-br-mispred-ret"),
+	EV_ALIAS("cycles",		"tsc-tsc"),
+	EV_ALIAS("ic-misses",		"iap-icache-misses"),
+	EV_ALIAS("instructions",	"iap-instr-ret"),
+	EV_ALIAS("interrupts",		"iap-core-hw-int-rx"),
+	EV_ALIAS("unhalted-cycles",	"iap-unhalted-core-cycles"),
+	EV_ALIAS(NULL, NULL)
+};
+
+/*
+ * Intel Core2 (Family 6, Model F), Core2Extreme (Family 6, Model 17H)
+ * and Atom (Family 6, model 1CH) PMCs.
+ */
+
+static struct pmc_event_alias core2_aliases[] = {
+	EV_ALIAS("branches",		"iap-br-inst-retired.any"),
+	EV_ALIAS("branch-mispredicts",	"iap-br-inst-retired.mispred"),
+	EV_ALIAS("cycles",		"tsc-tsc"),
+	EV_ALIAS("ic-misses",		"iap-l1i-misses"),
+	EV_ALIAS("instructions",	"iaf-instr-retired.any"),
+	EV_ALIAS("interrupts",		"iap-hw-int-rcv"),
+	EV_ALIAS("unhalted-cycles",	"iaf-cpu-clk-unhalted.core"),
+	EV_ALIAS(NULL, NULL)
+};
+#define	atom_aliases	core2_aliases
+
+#define	IAF_KW_OS		"os"
+#define	IAF_KW_USR		"usr"
+#define	IAF_KW_ANYTHREAD	"anythread"
+
+/*
+ * Parse an event specifier for Intel fixed function counters.
+ */
+static int
+iaf_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	char *p;
+
+	(void) pe;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	pmc_config->pm_md.pm_iaf.pm_iaf_flags = 0;
+
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWMATCH(p, IAF_KW_OS))
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		else if (KWMATCH(p, IAF_KW_USR))
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		else if (KWMATCH(p, IAF_KW_ANYTHREAD))
+			pmc_config->pm_md.pm_iaf.pm_iaf_flags |= IAF_ANY;
+		else
+			return (-1);
+	}
+
+	return (0);
+}
+
+/*
+ * Core/Core2 support.
+ */
+
+#define	IAP_KW_AGENT		"agent"
+#define	IAP_KW_ANYTHREAD	"anythread"
+#define	IAP_KW_CACHESTATE	"cachestate"
+#define	IAP_KW_CMASK		"cmask"
+#define	IAP_KW_CORE		"core"
+#define	IAP_KW_EDGE		"edge"
+#define	IAP_KW_INV		"inv"
+#define	IAP_KW_OS		"os"
+#define	IAP_KW_PREFETCH		"prefetch"
+#define	IAP_KW_SNOOPRESPONSE	"snoopresponse"
+#define	IAP_KW_SNOOPTYPE	"snooptype"
+#define	IAP_KW_TRANSITION	"trans"
+#define	IAP_KW_USR		"usr"
+
+static struct pmc_masks iap_core_mask[] = {
+	PMCMASK(all,	(0x3 << 14)),
+	PMCMASK(this,	(0x1 << 14)),
+	NULLMASK
+};
+
+static struct pmc_masks iap_agent_mask[] = {
+	PMCMASK(this,	0),
+	PMCMASK(any,	(0x1 << 13)),
+	NULLMASK
+};
+
+static struct pmc_masks iap_prefetch_mask[] = {
+	PMCMASK(both,		(0x3 << 12)),
+	PMCMASK(only,		(0x1 << 12)),
+	PMCMASK(exclude,	0),
+	NULLMASK
+};
+
+static struct pmc_masks iap_cachestate_mask[] = {
+	PMCMASK(i,		(1 <<  8)),
+	PMCMASK(s,		(1 <<  9)),
+	PMCMASK(e,		(1 << 10)),
+	PMCMASK(m,		(1 << 11)),
+	NULLMASK
+};
+
+static struct pmc_masks iap_snoopresponse_mask[] = {
+	PMCMASK(clean,		(1 << 8)),
+	PMCMASK(hit,		(1 << 9)),
+	PMCMASK(hitm,		(1 << 11)),
+	NULLMASK
+};
+
+static struct pmc_masks iap_snooptype_mask[] = {
+	PMCMASK(cmp2s,		(1 << 8)),
+	PMCMASK(cmp2i,		(1 << 9)),
+	NULLMASK
+};
+
+static struct pmc_masks iap_transition_mask[] = {
+	PMCMASK(any,		0x00),
+	PMCMASK(frequency,	0x10),
+	NULLMASK
+};
+
+static int
+iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
+    struct pmc_op_pmcallocate *pmc_config)
+{
+	char *e, *p, *q;
+	uint32_t cachestate, evmask;
+	int count, n;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE |
+	    PMC_CAP_QUALIFIER);
+	pmc_config->pm_md.pm_iap.pm_iap_config = 0;
+
+	cachestate = evmask = 0;
+
+	/* Parse additional modifiers if present */
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+
+		n = 0;
+		if (KWPREFIXMATCH(p, IAP_KW_CMASK "=")) {
+			q = strchr(p, '=');
+			if (*++q == '\0') /* skip '=' */
+				return (-1);
+			count = strtol(q, &e, 0);
+			if (e == q || *e != '\0')
+				return (-1);
+			pmc_config->pm_caps |= PMC_CAP_THRESHOLD;
+			pmc_config->pm_md.pm_iap.pm_iap_config |=
+			    IAP_CMASK(count);
+		} else if (KWMATCH(p, IAP_KW_EDGE)) {
+			pmc_config->pm_caps |= PMC_CAP_EDGE;
+		} else if (KWMATCH(p, IAP_KW_INV)) {
+			pmc_config->pm_caps |= PMC_CAP_INVERT;
+		} else if (KWMATCH(p, IAP_KW_OS)) {
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		} else if (KWMATCH(p, IAP_KW_USR)) {
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		} else if (KWMATCH(p, IAP_KW_ANYTHREAD)) {
+			pmc_config->pm_md.pm_iap.pm_iap_config |= IAP_ANY;
+		} else if (KWMATCH(p, IAP_KW_CORE)) {
+			n = pmc_parse_mask(iap_core_mask, p, &evmask);
+			if (n != 1)
+				return (-1);
+		} else if (KWMATCH(p, IAP_KW_AGENT)) {
+			n = pmc_parse_mask(iap_agent_mask, p, &evmask);
+			if (n != 1)
+				return (-1);
+		} else if (KWMATCH(p, IAP_KW_PREFETCH)) {
+			n = pmc_parse_mask(iap_prefetch_mask, p, &evmask);
+			if (n != 1)
+				return (-1);
+		} else if (KWMATCH(p, IAP_KW_CACHESTATE)) {
+			n = pmc_parse_mask(iap_cachestate_mask, p, &cachestate);
+		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_CORE &&
+		    KWMATCH(p, IAP_KW_TRANSITION)) {
+			n = pmc_parse_mask(iap_transition_mask, p, &evmask);
+			if (n != 1)
+				return (-1);
+		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2) {
+			if (KWMATCH(p, IAP_KW_SNOOPRESPONSE)) {
+				n = pmc_parse_mask(iap_snoopresponse_mask, p,
+				    &evmask);
+			} else if (KWMATCH(p, IAP_KW_SNOOPTYPE)) {
+				n = pmc_parse_mask(iap_snooptype_mask, p,
+				    &evmask);
+			} else
+				return (-1);
+		} else
+			return (-1);
+
+		if (n < 0)	/* Parsing failed. */
+			return (-1);
+	}
+
+	pmc_config->pm_md.pm_iap.pm_iap_config |= evmask;
+
+	/*
+	 * If the event requires a 'cachestate' qualifier but was not
+	 * specified by the user, use a sensible default.
+	 */
+	switch (pe) {
+	case PMC_EV_IAP_EVENT_28H: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_29H: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_2AH: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_2BH: /* Atom, Core2 */
+	case PMC_EV_IAP_EVENT_2EH: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_30H: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_32H: /* Core */
+	case PMC_EV_IAP_EVENT_40H: /* Core */
+	case PMC_EV_IAP_EVENT_41H: /* Core */
+	case PMC_EV_IAP_EVENT_42H: /* Core, Core2, Atom */
+	case PMC_EV_IAP_EVENT_77H: /* Core */
+		if (cachestate == 0)
+			cachestate = (0xF << 8);
+	default:
+		break;
+	}
+
+	pmc_config->pm_md.pm_iap.pm_iap_config |= cachestate;
+
+	return (0);
+}
 
 /*
  * AMD K8 PMCs.
@@ -1704,9 +1982,9 @@ tsc_allocate_pmc(enum pmc_event pe, char *ctrspec,
 
 /*
  * Match an event name `name' with its canonical form.
- * 
- * Matches are case insensitive and spaces, underscores and hyphen
- * characters are considered to match each other.
+ *
+ * Matches are case insensitive and spaces, periods, underscores and
+ * hyphen characters are considered to match each other.
  *
  * Returns 1 for a match, 0 otherwise.
  */
@@ -1722,12 +2000,13 @@ pmc_match_event_name(const char *name, const char *canonicalname)
 
 	for (; (nc = *n) && (cc = *c); n++, c++) {
 
-		if (toupper(nc) == cc)
+		if ((nc == ' ' || nc == '_' || nc == '-' || nc == '.') &&
+		    (cc == ' ' || cc == '_' || cc == '-' || cc == '.'))
 			continue;
 
-		if ((nc == ' ' || nc == '_' || nc == '-') &&
-		    (cc == ' ' || cc == '_' || cc == '-'))
+		if (toupper(nc) == toupper(cc))
 			continue;
+
 
 		return (0);
 	}
@@ -1750,7 +2029,7 @@ pmc_match_event_class(const char *name,
 {
 	size_t n;
 	const struct pmc_event_descr *ev;
-	
+
 	ev = pcd->pm_evc_event_table;
 	for (n = 0; n < pcd->pm_evc_event_table_size; n++, ev++)
 		if (pmc_match_event_name(name, ev->pm_ev_name))
@@ -1815,8 +2094,8 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	 * search for the event to the specified PMC class.
 	 */
 	ev = NULL;
-	for (n = 0; n < pmc_event_class_table_size; n++) {
-		pcd = &pmc_class_table[n];
+	for (n = 0; n < PMC_CLASS_TABLE_SIZE; n++) {
+		pcd = pmc_class_table[n];
 		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class) &&
 		    strncasecmp(ctrname, pcd->pm_evc_name,
 				pcd->pm_evc_name_size) == 0) {
@@ -1833,8 +2112,8 @@ pmc_allocate(const char *ctrspec, enum pmc_mode mode,
 	 * Otherwise, search for this event in all compatible PMC
 	 * classes.
 	 */
-	for (n = 0; ev == NULL && n < pmc_event_class_table_size; n++) {
-		pcd = &pmc_class_table[n];
+	for (n = 0; ev == NULL && n < PMC_CLASS_TABLE_SIZE; n++) {
+		pcd = pmc_class_table[n];
 		if (pmc_mdep_is_compatible_class(pcd->pm_evc_class))
 			ev = pmc_match_event_class(ctrname, pcd);
 	}
@@ -1974,6 +2253,31 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 
 	switch (cl)
 	{
+	case PMC_CLASS_IAF:
+		ev = iaf_event_table;
+		count = PMC_EVENT_TABLE_SIZE(iaf);
+		break;
+	case PMC_CLASS_IAP:
+		/*
+		 * Return the most appropriate set of event name
+		 * spellings for the current CPU.
+		 */
+		switch (cpu_info.pm_cputype) {
+		default:
+		case PMC_CPU_INTEL_ATOM:
+			ev = atom_event_table;
+			count = PMC_EVENT_TABLE_SIZE(atom);
+			break;
+		case PMC_CPU_INTEL_CORE:
+			ev = core_event_table;
+			count = PMC_EVENT_TABLE_SIZE(core);
+			break;
+		case PMC_CPU_INTEL_CORE2:
+			ev = core2_event_table;
+			count = PMC_EVENT_TABLE_SIZE(core2);
+			break;
+		}
+		break;
 	case PMC_CLASS_TSC:
 		ev = tsc_event_table;
 		count = PMC_EVENT_TABLE_SIZE(tsc);
@@ -2095,6 +2399,21 @@ pmc_init(void)
 	for (n = 0; n < cpu_info.pm_nclass; n++)
 		cpu_info.pm_classes[n] = op_cpu_info.pm_classes[n];
 
+	pmc_class_table = malloc(PMC_CLASS_TABLE_SIZE *
+	    sizeof(struct pmc_class_descr *));
+
+	if (pmc_class_table == NULL)
+		return (-1);
+
+
+	/*
+	 * Fill in the class table.
+	 */
+	n = 0;
+#if defined(__amd64__) || defined(__i386__)
+	pmc_class_table[n++] = &tsc_class_table_descr;
+#endif
+
 #define	PMC_MDEP_INIT(C) do {					\
 		pmc_mdep_event_aliases    = C##_aliases;	\
 		pmc_mdep_class_list  = C##_pmc_classes;		\
@@ -2107,25 +2426,45 @@ pmc_init(void)
 #if defined(__i386__)
 	case PMC_CPU_AMD_K7:
 		PMC_MDEP_INIT(k7);
+		pmc_class_table[n] = &k7_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_P5:
 		PMC_MDEP_INIT(p5);
+		pmc_class_table[n]  = &p5_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_P6:		/* P6 ... Pentium M CPUs have */
 	case PMC_CPU_INTEL_PII:		/* similar PMCs. */
 	case PMC_CPU_INTEL_PIII:
 	case PMC_CPU_INTEL_PM:
 		PMC_MDEP_INIT(p6);
+		pmc_class_table[n] = &p6_class_table_descr;
 		break;
 #endif
 #if defined(__amd64__) || defined(__i386__)
 	case PMC_CPU_AMD_K8:
 		PMC_MDEP_INIT(k8);
+		pmc_class_table[n] = &k8_class_table_descr;
+		break;
+	case PMC_CPU_INTEL_ATOM:
+		PMC_MDEP_INIT(atom);
+		pmc_class_table[n++] = &iaf_class_table_descr;
+		pmc_class_table[n]   = &atom_class_table_descr;
+		break;
+	case PMC_CPU_INTEL_CORE:
+		PMC_MDEP_INIT(core);
+		pmc_class_table[n] = &core_class_table_descr;
+		break;
+	case PMC_CPU_INTEL_CORE2:
+		PMC_MDEP_INIT(core2);
+		pmc_class_table[n++] = &iaf_class_table_descr;
+		pmc_class_table[n]   = &core2_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_PIV:
 		PMC_MDEP_INIT(p4);
+		pmc_class_table[n] = &p4_class_table_descr;
 		break;
 #endif
+
 
 	default:
 		/*
@@ -2195,12 +2534,32 @@ pmc_name_of_disposition(enum pmc_disp pd)
 }
 
 const char *
-pmc_name_of_event(enum pmc_event pe)
+_pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 {
 	const struct pmc_event_descr *ev, *evfence;
 
 	ev = evfence = NULL;
-	if (pe >= PMC_EV_K7_FIRST && pe <= PMC_EV_K7_LAST) {
+	if (pe >= PMC_EV_IAF_FIRST && pe <= PMC_EV_IAF_LAST) {
+		ev = iaf_event_table;
+		evfence = iaf_event_table + PMC_EVENT_TABLE_SIZE(iaf);
+	} else if (pe >= PMC_EV_IAP_FIRST && pe <= PMC_EV_IAP_LAST) {
+		switch (cpu) {
+		case PMC_CPU_INTEL_ATOM:
+			ev = atom_event_table;
+			evfence = atom_event_table + PMC_EVENT_TABLE_SIZE(atom);
+			break;
+		case PMC_CPU_INTEL_CORE:
+			ev = core_event_table;
+			evfence = core_event_table + PMC_EVENT_TABLE_SIZE(core);
+			break;
+		case PMC_CPU_INTEL_CORE2:
+			ev = core2_event_table;
+			evfence = core2_event_table + PMC_EVENT_TABLE_SIZE(core2);
+			break;
+		default:	/* Unknown CPU type. */
+			break;
+		}
+	} if (pe >= PMC_EV_K7_FIRST && pe <= PMC_EV_K7_LAST) {
 		ev = k7_event_table;
 		evfence = k7_event_table + PMC_EVENT_TABLE_SIZE(k7);
 	} else if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
@@ -2223,6 +2582,17 @@ pmc_name_of_event(enum pmc_event pe)
 	for (; ev != evfence; ev++)
 		if (pe == ev->pm_ev_code)
 			return (ev->pm_ev_name);
+
+	return (NULL);
+}
+
+const char *
+pmc_name_of_event(enum pmc_event pe)
+{
+	const char *n;
+
+	if ((n = _pmc_name_of_event(pe, cpu_info.pm_cputype)) != NULL)
+		return (n);
 
 	errno = EINVAL;
 	return (NULL);

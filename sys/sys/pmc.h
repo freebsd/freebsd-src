@@ -55,7 +55,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x03
-#define	PMC_VERSION_MINOR	0x00
+#define	PMC_VERSION_MINOR	0x01
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -82,6 +82,7 @@
 	__PMC_CPU(INTEL_PIV,	0x86,	"Intel Pentium IV")	\
 	__PMC_CPU(INTEL_CORE,	0x87,	"Intel Core Solo/Duo")	\
 	__PMC_CPU(INTEL_CORE2,	0x88,	"Intel Core2")		\
+	__PMC_CPU(INTEL_CORE2EXTREME,	0x89,	"Intel Core2 Extreme")	\
 	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom")
 
 enum pmc_cputype {
@@ -920,8 +921,8 @@ struct pmc_mdep  {
 	 */
 
 	/* per-cpu initialization and finalization */
-	int (*pmd_pcpu_init)(int _cpu); /* initialization */
-	int (*pmd_pcpu_fini)(int _cpu); /* finalization */
+	int (*pmd_pcpu_init)(struct pmc_mdep *_md, int _cpu);
+	int (*pmd_pcpu_fini)(struct pmc_mdep *_md, int _cpu);
 
 	/* thread context switch in/out */
 	int (*pmd_switch_in)(struct pmc_cpu *_p, struct pmc_process *_pp);
@@ -942,7 +943,6 @@ struct pmc_mdep  {
  */
 
 extern struct pmc_cpu **pmc_pcpu;
-extern struct pmc_mdep *md;
 
 /* driver statistics */
 extern struct pmc_op_getdriverstats pmc_stats;
