@@ -52,6 +52,7 @@ struct pmc_mdep;
  */
 
 #include <dev/hwpmc/hwpmc_amd.h> /* K7 and K8 */
+#include <dev/hwpmc/hwpmc_core.h>
 #include <dev/hwpmc/hwpmc_piv.h>
 #include <dev/hwpmc/hwpmc_ppro.h>
 #include <dev/hwpmc/hwpmc_pentium.h>
@@ -68,8 +69,8 @@ struct pmc_mdep;
 #define	PMC_MDEP_CLASS_INDEX_P4		1
 #define	PMC_MDEP_CLASS_INDEX_P5		1
 #define	PMC_MDEP_CLASS_INDEX_P6		1
-#define	PMC_MDEP_CLASS_INDEX_IAF	1
-#define	PMC_MDEP_CLASS_INDEX_IAP	2
+#define	PMC_MDEP_CLASS_INDEX_IAP	1
+#define	PMC_MDEP_CLASS_INDEX_IAF	2
 
 /*
  * Architecture specific extensions to <sys/pmc.h> structures.
@@ -77,9 +78,11 @@ struct pmc_mdep;
 
 union pmc_md_op_pmcallocate  {
 	struct pmc_md_amd_op_pmcallocate	pm_amd;
- 	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
-	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
+	struct pmc_md_iaf_op_pmcallocate	pm_iaf;
+	struct pmc_md_iap_op_pmcallocate	pm_iap;
 	struct pmc_md_p4_op_pmcallocate		pm_p4;
+	struct pmc_md_pentium_op_pmcallocate	pm_pentium;
+	struct pmc_md_ppro_op_pmcallocate	pm_ppro;
 	uint64_t				__pad[4];
 };
 
@@ -92,9 +95,11 @@ union pmc_md_op_pmcallocate  {
 /* MD extension for 'struct pmc' */
 union pmc_md_pmc  {
 	struct pmc_md_amd_pmc	pm_amd;
-	struct pmc_md_ppro_pmc	pm_ppro;
-	struct pmc_md_pentium_pmc pm_pentium;
+	struct pmc_md_iaf_pmc	pm_iaf;
+	struct pmc_md_iap_pmc	pm_iap;
 	struct pmc_md_p4_pmc	pm_p4;
+	struct pmc_md_pentium_pmc pm_pentium;
+	struct pmc_md_ppro_pmc	pm_ppro;
 };
 
 struct pmc;
