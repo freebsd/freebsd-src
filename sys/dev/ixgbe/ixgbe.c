@@ -3244,7 +3244,7 @@ fail:
 	 * the rings that completed, the failing case will have
 	 * cleaned up for itself. 'j' failed, so its the terminus.
 	 */
-	for (int i = 0; i < j; ++i) {
+	for (int i = 0; i < j; i++) {
 		rxr = &adapter->rx_rings[i];
 		for (int n = 0; n < adapter->num_rx_desc; n++) {
 			struct ixgbe_rx_buf *rxbuf;
