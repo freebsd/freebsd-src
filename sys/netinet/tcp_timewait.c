@@ -514,14 +514,8 @@ tcp_twclose(struct tcptw *tw, int reuse)
 			 */
 			INP_WUNLOCK(inp);
 		}
-	} else {
-#ifdef INET6
-		if (inp->inp_vflag & INP_IPV6PROTO)
-			in6_pcbfree(inp);
-		else
-#endif
-			in_pcbfree(inp);
-	}
+	} else
+		in_pcbfree(inp);
 	V_tcpstat.tcps_closed++;
 	crfree(tw->tw_cred);
 	tw->tw_cred = NULL;
