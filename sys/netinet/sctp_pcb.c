@@ -3408,7 +3408,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	cnt = 0;
 	if (so) {
 #ifdef IPSEC
-		ipsec4_delete_pcbpolicy(ip_pcb);
+		ipsec_delete_pcbpolicy(ip_pcb);
 #endif				/* IPSEC */
 
 		/* Unlocks not needed since the socket is gone now */

@@ -422,7 +422,7 @@ in6_pcbfree(struct inpcb *inp)
 
 #ifdef IPSEC
 	if (inp->in6p_sp != NULL)
-		ipsec6_delete_pcbpolicy(inp);
+		ipsec_delete_pcbpolicy(inp);
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
