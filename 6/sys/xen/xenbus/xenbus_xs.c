@@ -153,9 +153,7 @@ static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 		struct xs_stored_msg *msg;
 		char *body;
 		int i, err;
-		enum xsd_sockmsg_type itype = *type;
 
-		printf("read_reply ");
 		if (xenbus_running == 0) {
 				/*
 				 * Give other domain time to run :-/
@@ -195,17 +193,12 @@ static void *read_reply(enum xsd_sockmsg_type *type, unsigned int *len)
 
 		mtx_unlock(&xs_state.reply_lock);
 
-		printf("itype=%d htype=%d ", itype, msg->hdr.type);
 		*type = msg->hdr.type;
 		if (len)
 				*len = msg->hdr.len;
 		body = msg->u.reply.body;
 
 		kfree(msg);
-		if (len)
-				printf("len=%d\n", *len);
-		else
-				printf("len=NULL\n");
 		return body;
 }
 
@@ -277,8 +270,6 @@ static void *xs_talkv(struct xenbus_transaction t,
 		for (i = 0; i < num_vecs; i++)
 				msg.len += iovec[i].iov_len;
 
-		printf("xs_talkv ");
-		
 		sx_xlock(&xs_state.request_mutex);
 
 		err = xb_write(&msg, sizeof(msg));
@@ -317,14 +308,12 @@ static void *xs_talkv(struct xenbus_transaction t,
 						
 						struct xs_stored_msg *wmsg = TAILQ_FIRST(&watch_events);
 						list_del(&watch_events, wmsg);
-						printf("handling %p ...", wmsg->u.watch.handle->callback);
 						
-							   wmsg->u.watch.handle->callback(
+						wmsg->u.watch.handle->callback(
 								wmsg->u.watch.handle,
 								(const char **)wmsg->u.watch.vec,
 								wmsg->u.watch.vec_size);
-						printf("... %p done\n", wmsg->u.watch.handle->callback);
-							   kfree(wmsg->u.watch.vec);
+						kfree(wmsg->u.watch.vec);
 						kfree(wmsg);
 				}
 				xenwatch_inline = 0;
@@ -342,7 +331,6 @@ static void *xs_single(struct xenbus_transaction t,
 {
 		struct kvec iovec;
 
-		printf("xs_single %s ", string);
 		iovec.iov_base = (const void *)string;
 		iovec.iov_len = strlen(string) + 1;
 		return xs_talkv(t, type, &iovec, 1, len);
@@ -460,7 +448,6 @@ void *xenbus_read(struct xenbus_transaction t,
 		if (IS_ERR(path))
 				return (void *)path;
 
-		printf("xs_read ");
 		ret = xs_single(t, XS_READ, path, len);
 		kfree(path);
 		return ret;
@@ -486,7 +473,6 @@ int xenbus_write(struct xenbus_transaction t,
 		iovec[1].iov_base = string;
 		iovec[1].iov_len = strlen(string);
 
-		printf("xenbus_write dir=%s val=%s ", dir, string);
 		ret = xs_error(xs_talkv(t, XS_WRITE, iovec, ARRAY_SIZE(iovec), NULL));
 		kfree(path);
 		return ret;
@@ -560,7 +546,6 @@ int xenbus_transaction_end(struct xenbus_transaction t, int abort)
 		else
 				strcpy(abortstr, "T");
 
-		printf("xenbus_transaction_end ");
 		err = xs_error(xs_single(t, XS_TRANSACTION_END, abortstr, NULL));
 		
 		sx_sunlock(&xs_state.suspend_mutex);
@@ -628,7 +613,6 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 		for (i = 0; i < 10000; i++)
 				HYPERVISOR_yield();
 		
-		printf("gather ");
 		va_start(ap, dir);
 		while (ret == 0 && (name = va_arg(ap, char *)) != NULL) {
 				const char *fmt = va_arg(ap, char *);
@@ -640,7 +624,6 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 						ret = PTR_ERR(p);
 						break;
 				}
-				printf(" %s ", p);
 				if (fmt) {
 						if (sscanf(p, fmt, result) == 0)
 								ret = -EINVAL;
@@ -649,7 +632,6 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 						*(char **)result = p;
 		}
 		va_end(ap);
-		printf("\n");
 		return ret;
 }
 EXPORT_SYMBOL(xenbus_gather);
@@ -880,15 +862,12 @@ static int xs_process_msg(enum xsd_sockmsg_type *type)
 				}
 				mtx_unlock(&watches_lock);
 		} else {
-				printf("event=%d ", *type);
 				msg->u.reply.body = body;
 				mtx_lock(&xs_state.reply_lock);
 				TAILQ_INSERT_TAIL(&xs_state.reply_list, msg, list);
 				wakeup(&xs_state.reply_waitq);
 				mtx_unlock(&xs_state.reply_lock);
 		}
-		if (*type == XS_WATCH_EVENT)
-				printf("\n");
 		
 		return 0;
 }
@@ -912,7 +891,6 @@ static void xenbus_thread(void *unused)
 }
 
 #ifdef XENHVM
-
 static unsigned long xen_store_mfn;
 char *xen_store;
 
