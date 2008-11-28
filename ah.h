@@ -656,7 +656,7 @@ struct ath_rx_status;
 struct ath_hal {
 	uint32_t	ah_magic;	/* consistency check magic number */
 	uint32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x08111400	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x08112800	/* YYMMDDnn */
 	uint16_t	ah_devid;	/* PCI device ID */
 	uint16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -908,13 +908,4 @@ extern HAL_BOOL ath_hal_isgsmsku(struct ath_hal *);
  * using the specified channel flags; e.g. CHANNEL_2GHZ.
  */
 extern	int __ahdecl ath_hal_mhz2ieee(struct ath_hal *, u_int mhz, u_int flags);
-
-/*
- * Return a version string for the HAL release.
- */
-extern	char ath_hal_version[];
-/*
- * Return a NULL-terminated array of build/configuration options.
- */
-extern	const char* ath_hal_buildopts[];
 #endif /* _ATH_AH_H_ */
