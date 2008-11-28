@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -2895,4 +2893,3 @@ ar5416GetChannelCenters(struct ath_hal *ah,
 		centers->ext_center = chan->channel;
 	}
 }
-#endif /* AH_SUPPORT_AR5416 */

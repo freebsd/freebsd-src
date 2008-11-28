@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -173,4 +171,3 @@ ar5211SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 		(bs->bs_sleepduration - SLEEP_SLOP) << 3);
 #undef SLEEP_SLOP
 }
-#endif /* AH_SUPPORT_AR5211 */

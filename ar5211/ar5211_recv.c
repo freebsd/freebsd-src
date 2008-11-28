@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_desc.h"
@@ -245,4 +243,3 @@ ar5211ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 	return HAL_OK;
 }
-#endif /* AH_SUPPORT_AR5211 */

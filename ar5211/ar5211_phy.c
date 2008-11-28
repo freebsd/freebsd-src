@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -104,4 +102,3 @@ ar5211GetRateTable(struct ath_hal *ah, u_int mode)
 	ath_hal_setupratetable(ah, rt);
 	return rt;
 }
-#endif /* AH_SUPPORT_AR5211 */

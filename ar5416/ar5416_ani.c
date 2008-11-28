@@ -18,7 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
 /*
  * XXX this is virtually the same code as for 5212; we reuse
  * storage in the 5212 state block; need to refactor.
@@ -885,4 +884,3 @@ ar5416AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
 		}
 	}
 }
-#endif /* AH_SUPPORT_AR5416 */

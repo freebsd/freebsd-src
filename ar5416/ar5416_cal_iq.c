@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -132,4 +130,3 @@ ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains)
 	OS_REG_SET_BIT(ah, AR_PHY_TIMING_CTRL4,
 	    AR_PHY_TIMING_CTRL4_IQCORR_ENABLE);
 }
-#endif /* AH_SUPPORT_AR5416 */

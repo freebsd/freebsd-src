@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_5413
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -759,7 +757,7 @@ ar5413RfDetach(struct ath_hal *ah)
  * Allocate memory for analog bank scratch buffers
  * Scratch Buffer will be reinitialized every reset so no need to zero now
  */
-HAL_BOOL
+static HAL_BOOL
 ar5413RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -790,4 +788,10 @@ ar5413RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_5413 */
+
+static HAL_BOOL
+ar5413Probe(struct ath_hal *ah)
+{
+	return IS_5413(ah);
+}
+AH_RF(ar5413, ar5413Probe, ar5413RfAttach);

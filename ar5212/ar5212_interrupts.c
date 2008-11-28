@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -206,4 +204,3 @@ ar5212SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 
 	return omask;
 }
-#endif /* AH_SUPPORT_AR5212 */

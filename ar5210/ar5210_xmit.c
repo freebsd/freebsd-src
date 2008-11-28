@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_desc.h"
@@ -623,4 +621,3 @@ ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *txqs)
 {
 	return;
 }
-#endif /* AH_SUPPORT_AR5210 */

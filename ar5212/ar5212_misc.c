@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -30,9 +28,6 @@
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
 #include "ar5212/ar5212phy.h"
-#ifdef AH_SUPPORT_AR5311
-#include "ar5212/ar5311reg.h"
-#endif
 
 #include "ah_eeprom_v3.h"
 
@@ -1077,4 +1072,3 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 	}
 	return AH_FALSE;
 }
-#endif /* AH_SUPPORT_AR5212 */

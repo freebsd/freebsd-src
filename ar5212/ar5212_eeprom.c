@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -30,9 +28,6 @@
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
 #include "ar5212/ar5212phy.h"
-#ifdef AH_SUPPORT_AR5311
-#include "ar5212/ar5311reg.h"
-#endif
 
 /*
  * Read 16 bits of data from offset into *data
@@ -53,4 +48,3 @@ ar5212EepromRead(struct ath_hal *ah, u_int off, uint16_t *data)
 	*data = OS_REG_READ(ah, AR_EEPROM_DATA) & 0xffff;
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR5212 */

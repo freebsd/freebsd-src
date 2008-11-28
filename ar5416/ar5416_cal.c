@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -29,9 +27,6 @@
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
-#ifdef AH_SUPPORT_AR9280
-#include "ar5416/ar9280.h"
-#endif
 
 /* Owl specific stuff */
 #define NUM_NOISEFLOOR_READINGS 6       /* 3 chains * (ctl + ext) */
@@ -666,4 +661,3 @@ ar5416GetNf(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 	}
 	return nf;
 }
-#endif /* AH_SUPPORT_AR5416 */

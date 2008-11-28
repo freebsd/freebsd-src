@@ -83,6 +83,42 @@ typedef enum {
  	HAL_CAP_AR		= 1,		/* AR capability */
 } HAL_PHYDIAG_CAPS;
 
+/*
+ * Each chip or class of chips registers to offer support.
+ */
+struct ath_hal_chip {
+	const char	*(*probe)(uint16_t vendorid, uint16_t devid);
+	struct ath_hal	*(*attach)(uint16_t devid, HAL_SOFTC,
+			    HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS *error);
+};
+#ifndef AH_CHIP
+#define	AH_CHIP(name, _probe, _attach)				\
+static struct ath_hal_chip name##_chip = {			\
+	.probe		= _probe,				\
+	.attach		= _attach				\
+};								\
+OS_DATA_SET(ah_chips, name##_chip)
+#endif
+
+/*
+ * Each RF backend registers to offer support; this is mostly
+ * used by multi-chip 5212 solutions.  Single-chip solutions
+ * have a fixed idea about which RF to use.
+ */
+struct ath_hal_rf {
+	HAL_BOOL	(*probe)(struct ath_hal *ah);
+	HAL_BOOL	(*attach)(struct ath_hal *ah, HAL_STATUS *ecode);
+};
+#ifndef AH_RF
+#define	AH_RF(name, _probe, _attach)				\
+static struct ath_hal_rf name##_rf = {				\
+	.probe		= _probe,				\
+	.attach		= _attach				\
+};								\
+OS_DATA_SET(ah_rfs, name##_rf)
+#endif
+
+struct ath_hal_rf *ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode);
 
 /*
  * Internal form of a HAL_CHANNEL.  Note that the structure

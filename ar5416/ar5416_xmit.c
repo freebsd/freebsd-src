@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_desc.h"
 #include "ah_internal.h"
@@ -698,4 +696,3 @@ ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_ctl2 |= SM(burstDuration, AR_BurstDur);
 }
 #endif
-#endif /* AH_SUPPORT_AR5416 */

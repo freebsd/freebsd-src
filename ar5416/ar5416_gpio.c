@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -112,4 +110,3 @@ ar5416GpioSetIntr(struct ath_hal *ah, u_int gpio, uint32_t ilevel)
 	val |= AR_GPIO_BIT(gpio);
 	OS_REG_RMW_FIELD(ah, AR_INTR_ASYNC_MASK, AR_INTR_GPIO, val);	
 }
-#endif  /* AH_SUPPORT_AR5416 */

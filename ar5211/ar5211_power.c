@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -136,4 +134,3 @@ ar5211GetPowerMode(struct ath_hal *ah)
 	/* Just so happens the h/w maps directly to the abstracted value */
 	return MS(OS_REG_READ(ah, AR_SCR), AR_SCR_SLE);
 }
-#endif /* AH_SUPPORT_AR5211 */

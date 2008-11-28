@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -173,4 +171,3 @@ ar5416GetPowerMode(struct ath_hal *ah)
 		return HAL_PM_UNDEFINED;	
 	}
 }
-#endif /* AH_SUPPORT_AR5416 */

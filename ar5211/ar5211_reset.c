@@ -18,7 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
 /*
  * Chips specific device attachment and device info collection
  * Connects Init Reg Vectors, EEPROM Data, and device Functions.
@@ -2137,4 +2136,3 @@ ar5211SetPCUConfig(struct ath_hal *ah)
 {
 	ar5211SetOperatingMode(ah, AH_PRIVATE(ah)->ah_opmode);
 }
-#endif /* AH_SUPPORT_AR5211 */

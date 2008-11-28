@@ -408,20 +408,10 @@ struct ath_hal_5212 {
 	}							\
 } while (0)
 
-extern	HAL_BOOL ar5111RfAttach(struct ath_hal *, HAL_STATUS *);
-extern	HAL_BOOL ar5112RfAttach(struct ath_hal *, HAL_STATUS *);
-extern	HAL_BOOL ar2413RfAttach(struct ath_hal *, HAL_STATUS *);
-extern  HAL_BOOL ar5413RfAttach(struct ath_hal *, HAL_STATUS *);
-extern	HAL_BOOL ar2316RfAttach(struct ath_hal *, HAL_STATUS *);
-extern	HAL_BOOL ar2317RfAttach(struct ath_hal *, HAL_STATUS *);
-extern	HAL_BOOL ar2425RfAttach(struct ath_hal *, HAL_STATUS *);
-
 struct ath_hal;
 
 extern	uint32_t ar5212GetRadioRev(struct ath_hal *ah);
 extern	void ar5212InitState(struct ath_hal_5212 *, uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
-extern	struct ath_hal * ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 		HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status);
 extern	void ar5212Detach(struct ath_hal *ah);
 extern  HAL_BOOL ar5212ChipTest(struct ath_hal *ah);
