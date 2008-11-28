@@ -124,21 +124,22 @@ static void queue_reply(struct xenbus_dev_data *u,
 static int 
 xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
-	int err = 0;
+	int error;
 	struct xenbus_dev_data *u = dev->si_drv1;
 	struct xenbus_dev_transaction *trans;
 	void *reply;
-	int len = uio->uio_iov[0].iov_len;
+	int len = uio->uio_resid;
 
 	if ((len + u->len) > sizeof(u->u.buffer))
 		return EINVAL;
 
-	if (copyin(u->u.buffer + u->len, uio->uio_iov[0].iov_base, len) != 0)
-		return EFAULT;
+	error = uiomove(u->u.buffer + u->len, len, uio);
+	if (error)
+		return (error);
 
 	u->len += len;
 	if (u->len < (sizeof(u->u.msg) + u->u.msg.len))
-		return len;
+		return (0);
 
 	switch (u->u.msg.type) {
 	case XS_TRANSACTION_START:
@@ -154,7 +155,7 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	case XS_SET_PERMS:
 		reply = xenbus_dev_request_and_reply(&u->u.msg);
 		if (IS_ERR(reply)) {
-			err = PTR_ERR(reply);
+			error = PTR_ERR(reply);
 		} else {
 			if (u->u.msg.type == XS_TRANSACTION_START) {
 				trans = kmalloc(sizeof(*trans), GFP_KERNEL);
@@ -179,23 +180,21 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		break;
 
 	default:
-		err = EINVAL;
+		error = EINVAL;
 		break;
 	}
 
-	if (err == 0) {
+	if (error == 0)
 		u->len = 0;
-		err = len;
-	}
 
-	return err;
+	return (error);
 }
 
 static int xenbus_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
 	struct xenbus_dev_data *u;
 
-	if (xen_start_info->store_evtchn == 0)
+	if (xen_store_evtchn == 0)
 		return ENOENT;
 #if 0 /* XXX figure out if equiv needed */
 	nonseekable_open(inode, filp);
@@ -239,7 +238,7 @@ static struct cdevsw xenbus_dev_cdevsw = {
 static int
 xenbus_dev_sysinit(void)
 {
-	make_dev(&xenbus_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400, "xenbus");
+	make_dev(&xenbus_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400, "xen/xenbus");
 
 	return 0;
 }
