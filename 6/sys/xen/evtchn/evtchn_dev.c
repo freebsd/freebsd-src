@@ -234,14 +234,14 @@ evtchn_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		__evtchn_reset_buffer_ring();
 		break;
 	case EVTCHN_BIND:
-		if ( !synch_test_and_set_bit((int)arg, &bound_ports[0]) )
-			unmask_evtchn((int)arg);
+		if ( !synch_test_and_set_bit((uintptr_t)arg, &bound_ports[0]) )
+			unmask_evtchn((uintptr_t)arg);
 		else
 			rc = EINVAL;
 		break;
 	case EVTCHN_UNBIND:
-		if ( synch_test_and_clear_bit((int)arg, &bound_ports[0]) )
-			mask_evtchn((int)arg);
+		if ( synch_test_and_clear_bit((uintptr_t)arg, &bound_ports[0]) )
+			mask_evtchn((uintptr_t)arg);
 		else
 			rc = EINVAL;
 		break;
