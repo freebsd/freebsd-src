@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211_misc.c,v 1.6 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5211_misc.c,v 1.7 2008/11/27 22:29:52 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -81,6 +81,55 @@ ar5211EepromRead(struct ath_hal *ah, u_int off, uint16_t *data)
 	}
 	*data = OS_REG_READ(ah, AR_EEPROM_DATA) & 0xffff;
 	return AH_TRUE;
+}
+
+#ifdef AH_SUPPORT_WRITE_EEPROM
+/*
+ * Write 16 bits of data to the specified EEPROM offset.
+ */
+HAL_BOOL
+ar5211EepromWrite(struct ath_hal *ah, u_int off, uint16_t data)
+{
+	return AH_FALSE;
+}
+#endif /* AH_SUPPORT_WRITE_EEPROM */
+
+/*
+ * Attempt to change the cards operating regulatory domain to the given value
+ */
+HAL_BOOL
+ar5211SetRegulatoryDomain(struct ath_hal *ah,
+	uint16_t regDomain, HAL_STATUS *status)
+{
+	HAL_STATUS ecode;
+
+	if (AH_PRIVATE(ah)->ah_currentRD == regDomain) {
+		ecode = HAL_EINVAL;
+		goto bad;
+	}
+	/*
+	 * Check if EEPROM is configured to allow this; must
+	 * be a proper version and the protection bits must
+	 * permit re-writing that segment of the EEPROM.
+	 */
+	if (ath_hal_eepromGetFlag(ah, AR_EEP_WRITEPROTECT)) {
+		ecode = HAL_EEWRITE;
+		goto bad;
+	}
+#ifdef AH_SUPPORT_WRITE_REGDOMAIN
+	if (ar5211EepromWrite(ah, AR_EEPROM_REG_DOMAIN, regDomain)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: set regulatory domain to %u (0x%x)\n",
+		    __func__, regDomain, regDomain);
+		AH_PRIVATE(ah)->ah_currentRD = regDomain;
+		return AH_TRUE;
+	}
+#endif
+	ecode = HAL_EIO;
+bad:
+	if (status)
+		*status = ecode;
+	return AH_FALSE;
 }
 
 /*
@@ -292,11 +341,10 @@ ar5211GetTsf64(struct ath_hal *ah)
 		 * then we re-reading AR_TSF_U32 does no good as the
 		 * low bits will be meaningless.  Likewise reading
 		 * L32, U32, U32, then comparing the last two reads
-		 * to check for rollover
-		 * doesn't help if preempted--so we take this approach
-		 * as it costs one less PCI read which can be noticeable
-		 * when doing things like timestamping packets in
-		 * monitor mode.
+		 * to check for rollover doesn't help if preempted--so
+		 * we take this approach as it costs one less PCI
+		 * read which can be noticeable when doing things
+		 * like timestamping packets in monitor mode.
 		 */
 		u32++;
 	}

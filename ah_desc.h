@@ -167,7 +167,8 @@ enum {
 
 /*
  * Definitions for the software frame/packet descriptors used by
- * the Atheros HAL. Drivers are expected to fillin the
+ * the Atheros HAL.  This definition obscures hardware-specific
+ * details from the driver.  Drivers are expected to fillin the
  * portions of a descriptor that are not opaque then use HAL calls
  * to complete the work.  Status for completed frames is returned
  * in a device-independent format.

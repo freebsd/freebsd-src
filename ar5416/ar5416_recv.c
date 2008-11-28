@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_recv.c,v 1.5 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5416_recv.c,v 1.7 2008/11/11 20:46:06 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -36,12 +36,15 @@ ar5416StartPcuReceive(struct ath_hal *ah)
 {
 	struct ath_hal_private *ahp = AH_PRIVATE(ah);
 
-	OS_REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT);
-
 	HALDEBUG(ah, HAL_DEBUG_RX, "%s: Start PCU Receive \n", __func__);
 	ar5212EnableMibCounters(ah);
 	/* NB: restore current settings */
-	ar5212AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, AH_TRUE);
+	ar5416AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, AH_TRUE);
+	/*
+	 * NB: must do after enabling phy errors to avoid rx
+	 *     frames w/ corrupted descriptor status.
+	 */
+	OS_REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT);
 }
 
 /*

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_phy.c,v 1.3 2008/11/10 01:19:39 sam Exp $
+ * $Id: ar5416_phy.c,v 1.4 2008/11/27 22:30:08 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -40,7 +40,7 @@ HAL_RATE_TABLE ar5416_11ng_table = {
 /*   2 Mb */ {  AH_TRUE, CCK,     2000,    0x1a,    0x04, (0x80| 4),   1 },
 /* 5.5 Mb */ {  AH_TRUE, CCK,     5500,    0x19,    0x04, (0x80|11),   2 },
 /*  11 Mb */ {  AH_TRUE, CCK,    11000,    0x18,    0x04, (0x80|22),   3 },
-/* We remove rates 6, 9 from rate ctrl */
+/* Remove rates 6, 9 from rate ctrl */
 /*   6 Mb */ { AH_FALSE, OFDM,    6000,    0x0b,    0x00,        12,   4 },
 /*   9 Mb */ { AH_FALSE, OFDM,    9000,    0x0f,    0x00,        18,   4 },
 /*  12 Mb */ {  AH_TRUE, OFDM,   12000,    0x0a,    0x00,        24,   6 },

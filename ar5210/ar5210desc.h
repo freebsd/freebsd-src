@@ -68,7 +68,7 @@ struct ar5210_desc {
 /* TX ds_ctl1 */
 #define	AR_BufLen		0x00000fff	/* data buffer length */
 #define	AR_More			0x00001000	/* more desc in this frame */
-#define	AR_EncryptKeyIdx	0x0007e000	/* encrypt key table index */
+#define	AR_EncryptKeyIdx	0x0007e000	/* ecnrypt key table index */
 #define	AR_EncryptKeyIdx_S	13
 #define	AR_RTSDuration		0xfff80000	/* lower 13bit of duration */
 

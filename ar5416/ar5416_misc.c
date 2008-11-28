@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_misc.c,v 1.9 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5416_misc.c,v 1.12 2008/11/27 22:30:07 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -277,7 +277,7 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		case HAL_BB_HANG_RIFS:
 			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_DFS:
-			return AR_SREV_SOWL(ah) ?  HAL_OK : HAL_ENOTSUPP;
+			return AR_SREV_SOWL(ah) ? HAL_OK : HAL_ENOTSUPP;
 		case HAL_BB_HANG_RX_CLEAR:
 			return AR_SREV_MERLIN(ah) ? HAL_OK : HAL_ENOTSUPP;
 		}
@@ -285,7 +285,8 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	case HAL_CAP_MAC_HANG:
 		return ((ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCI) ||
 		    (ah->ah_macVersion == AR_XSREV_VERSION_OWL_PCIE) ||
-		    AR_SREV_SOWL(ah)) ?  HAL_OK : HAL_ENOTSUPP;
+		    AR_SREV_SOWL(ah)) ?
+			HAL_OK : HAL_ENOTSUPP;
 	default:
 		break;
 	}
@@ -316,6 +317,7 @@ ar5416GetDiagState(struct ath_hal *ah, int request,
 		ahp->ah_hangs = 0;
 		if (hangs & HAL_BB_HANGS)
 			ahp->ah_hangs |= ar5416DetectBBHang(ah);
+		/* NB: if BB is hung MAC will be hung too so skip check */
 		if (ahp->ah_hangs == 0 && (hangs & HAL_MAC_HANGS))
 			ahp->ah_hangs |= ar5416DetectMacHang(ah);
 		*result = &ahp->ah_hangs;

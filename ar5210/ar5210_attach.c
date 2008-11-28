@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_attach.c,v 1.7 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5210_attach.c,v 1.9 2008/11/11 02:40:13 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -26,6 +26,8 @@
 #include "ar5210/ar5210.h"
 #include "ar5210/ar5210reg.h"
 #include "ar5210/ar5210phy.h"
+
+#include "ah_eeprom_v1.h"
 
 static	HAL_BOOL ar5210GetChannelEdges(struct ath_hal *,
 		uint16_t flags, uint16_t *low, uint16_t *high);
@@ -46,6 +48,8 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_disable			= ar5210Disable,
 	.ah_setPCUConfig		= ar5210SetPCUConfig,
 	.ah_perCalibration		= ar5210PerCalibration,
+	.ah_perCalibrationN		= ar5210PerCalibrationN,
+	.ah_resetCalValid		= ar5210ResetCalValid,
 	.ah_setTxPowerLimit		= ar5210SetTxPowerLimit,
 	.ah_getChanNoise		= ath_hal_getChanNoise,
 
@@ -93,6 +97,7 @@ static const struct ath_hal_private ar5210hal = {{
 	.ah_setMacAddress		= ar5210SetMacAddress,
 	.ah_getBssIdMask		= ar5210GetBssIdMask,
 	.ah_setBssIdMask		= ar5210SetBssIdMask,
+	.ah_setRegulatoryDomain		= ar5210SetRegulatoryDomain,
 	.ah_setLedState			= ar5210SetLedState,
 	.ah_writeAssocid		= ar5210WriteAssocid,
 	.ah_gpioCfgInput		= ar5210GpioCfgInput,
@@ -171,10 +176,10 @@ ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HA
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ath_hal_5210 *ahp;
 	struct ath_hal *ah;
-	u_int i, loc;
-	uint32_t revid, pcicfg, sum;
-	uint16_t athvals[AR_EEPROM_ATHEROS_MAX], eeval;
+	uint32_t revid, pcicfg;
+	uint16_t eeval;
 	HAL_STATUS ecode;
+	int i;
 
 	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH,
 	    "%s: devid 0x%x sc %p st %p sh %p\n", __func__, devid,
@@ -199,7 +204,7 @@ ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HA
 	AH_PRIVATE(ah)->ah_devid = devid;
 	AH_PRIVATE(ah)->ah_subvendorid = 0;	/* XXX */
 
-	AH_PRIVATE(ah)->ah_powerLimit = MAX_RATE_POWER;
+	AH_PRIVATE(ah)->ah_powerLimit = AR5210_MAX_RATE_POWER;
 	AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;	/* no scaling */
 
 	ahp->ah_powerMode = HAL_PM_UNDEFINED;
@@ -234,169 +239,40 @@ ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HA
 
 	/*
 	 * Read all the settings from the EEPROM and stash
-	 * ones we'll use later in our state block.
+	 * ones we'll use later.
 	 */
 	pcicfg = OS_REG_READ(ah, AR_PCICFG);
 	OS_REG_WRITE(ah, AR_PCICFG, pcicfg | AR_PCICFG_EEPROMSEL);
-
-	if (!ar5210EepromRead(ah, AR_EEPROM_MAGIC, &eeval)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: cannot read EEPROM magic number\n", __func__);
-		ecode = HAL_EEREAD;
+	ecode = ath_hal_v1EepromAttach(ah);
+	if (ecode != HAL_OK) {
 		goto eebad;
 	}
-	if (eeval != 0x5aa5) {
+	ecode = ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, &eeval);
+	if (ecode != HAL_OK) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: invalid EEPROM magic number 0x%x\n", __func__, eeval);
-		ecode = HAL_EEMAGIC;
-		goto eebad;
-	}
-
-	if (!ar5210EepromRead(ah, AR_EEPROM_PROTECT, &eeval)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: cannot read EEPROM protection bits; read locked?\n",
+		    "%s: cannot read regulatory domain from EEPROM\n",
 		    __func__);
-		ecode = HAL_EEREAD;
 		goto eebad;
-	}
-	HALDEBUG(ah, HAL_DEBUG_ATTACH, "EEPROM protect 0x%x\n", eeval);
-	ahp->ah_eeprotect	= eeval;
-	/* XXX check proper access before continuing */
-
-	if (!ar5210EepromRead(ah, AR_EEPROM_VERSION, &eeval)) {
+        }
+	AH_PRIVATE(ah)->ah_currentRD = eeval;
+	ecode = ath_hal_eepromGet(ah, AR_EEP_MACADDR, ahp->ah_macaddr);
+	if (ecode != HAL_OK) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: unable to read EEPROM version\n", __func__);
-		ecode = HAL_EEREAD;
+		    "%s: error getting mac address from EEPROM\n", __func__);
 		goto eebad;
-	}
-	ahp->ah_eeversion = (eeval>>12) & 0xf;
-	if (ahp->ah_eeversion != 1) {
-		/*
-		 * This driver only groks the version 1 EEPROM layout.
-		 */
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: unsupported EEPROM version %u (0x%x) found\n",
-		    __func__, ahp->ah_eeversion, eeval);
-		ecode = HAL_EEVERSION;
-		goto eebad;
-	}
+        }
+	OS_REG_WRITE(ah, AR_PCICFG, pcicfg);	/* disable EEPROM access */
 
-	/*
-	 * Read the Atheros EEPROM entries and calculate the checksum.
-	 */
-	sum = 0;
-	for (i = 0; i < AR_EEPROM_ATHEROS_MAX; i++) {
-		if (!ar5210EepromRead(ah, AR_EEPROM_ATHEROS(i), &athvals[i])) {
-			ecode = HAL_EEREAD;
-			goto eebad;
-		}
-		sum ^= athvals[i];
-	}
-	if (sum != 0xffff) {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: bad EEPROM checksum 0x%x\n",
-		    __func__, sum);
-		ecode = HAL_EEBADSUM;
-		goto eebad;
-	}
-
-	/*
-	 * Valid checksum, fetch the regulatory domain and save values.
-	 */
-	if (!ar5210EepromRead(ah, AR_EEPROM_REG_DOMAIN, &eeval)) {
-		HALDEBUG(ah, HAL_DEBUG_ANY,
-		    "%s: cannot read regdomain from EEPROM\n", __func__);
-		ecode = HAL_EEREAD;
-		goto eebad;
-	}
-
-	AH_PRIVATE(ah)->ah_currentRD = eeval & 0xff;
-	ahp->ah_antenna		= athvals[2];
-	ahp->ah_biasCurrents	= athvals[3];
-	ahp->ah_thresh62	= athvals[4] & 0xff;
-	ahp->ah_xlnaOn		= (athvals[4] >> 8) & 0xff;
-	ahp->ah_xpaOn		= athvals[5] & 0xff;
-	ahp->ah_xpaOff		= (athvals[5] >> 8) & 0xff;
-	ahp->ah_regDomain[0]	= (athvals[6] >> 8) & 0xff;
-	ahp->ah_regDomain[1]	= athvals[6] & 0xff;
-	ahp->ah_regDomain[2]	= (athvals[7] >> 8) & 0xff;
-	ahp->ah_regDomain[3]	= athvals[7] & 0xff;
-	ahp->ah_rfKill		= athvals[8] & 0x1;
-	ahp->ah_devType		= (athvals[8] >> 1) & 0x7;
 	AH_PRIVATE(ah)->ah_getNfAdjust = ar5210GetNfAdjust;
 
-	for (i = 0, loc = AR_EEPROM_ATHEROS_TP_SETTINGS; i < AR_CHANNELS_MAX; i++, loc += AR_TP_SETTINGS_SIZE) {
-		struct tpcMap *chan = &ahp->ah_tpc[i];
-
-		/* Copy pcdac and gain_f values from EEPROM */
-		chan->pcdac[0]	= (athvals[loc] >> 10) & 0x3F;
-		chan->gainF[0]	= (athvals[loc] >> 4) & 0x3F;
-		chan->pcdac[1]	= ((athvals[loc] << 2) & 0x3C)
-				| ((athvals[loc+1] >> 14) & 0x03);
-		chan->gainF[1]	= (athvals[loc+1] >> 8) & 0x3F;
-		chan->pcdac[2]	= (athvals[loc+1] >> 2) & 0x3F;
-		chan->gainF[2]	= ((athvals[loc+1] << 4) & 0x30)
-				| ((athvals[loc+2] >> 12) & 0x0F);
-		chan->pcdac[3]	= (athvals[loc+2] >> 6) & 0x3F;
-		chan->gainF[3]	= athvals[loc+2] & 0x3F;
-		chan->pcdac[4]	= (athvals[loc+3] >> 10) & 0x3F;
-		chan->gainF[4]	= (athvals[loc+3] >> 4) & 0x3F;
-		chan->pcdac[5]	= ((athvals[loc+3] << 2) & 0x3C)
-				| ((athvals[loc+4] >> 14) & 0x03);
-		chan->gainF[5]	= (athvals[loc+4] >> 8) & 0x3F;
-		chan->pcdac[6]	= (athvals[loc+4] >> 2) & 0x3F;
-		chan->gainF[6]	= ((athvals[loc+4] << 4) & 0x30)
-				| ((athvals[loc+5] >> 12) & 0x0F);
-		chan->pcdac[7]	= (athvals[loc+5] >> 6) & 0x3F;
-		chan->gainF[7]	= athvals[loc+5] & 0x3F;
-		chan->pcdac[8]	= (athvals[loc+6] >> 10) & 0x3F;
-		chan->gainF[8]	= (athvals[loc+6] >> 4) & 0x3F;
-		chan->pcdac[9]	= ((athvals[loc+6] << 2) & 0x3C)
-				| ((athvals[loc+7] >> 14) & 0x03);
-		chan->gainF[9]	= (athvals[loc+7] >> 8) & 0x3F;
-		chan->pcdac[10]	= (athvals[loc+7] >> 2) & 0x3F;
-		chan->gainF[10]	= ((athvals[loc+7] << 4) & 0x30)
-				| ((athvals[loc+8] >> 12) & 0x0F);
-
-		/* Copy Regulatory Domain and Rate Information from EEPROM */
-		chan->rate36	= (athvals[loc+8] >> 6) & 0x3F;
-		chan->rate48	= athvals[loc+8] & 0x3F;
-		chan->rate54	= (athvals[loc+9] >> 10) & 0x3F;
-		chan->regdmn[0]	= (athvals[loc+9] >> 4) & 0x3F;
-		chan->regdmn[1]	= ((athvals[loc+9] << 2) & 0x3C)
-				| ((athvals[loc+10] >> 14) & 0x03);
-		chan->regdmn[2]	= (athvals[loc+10] >> 8) & 0x3F;
-		chan->regdmn[3]	= (athvals[loc+10] >> 2) & 0x3F;
-	}
 	/*
 	 * Got everything we need now to setup the capabilities.
 	 */
 	(void) ar5210FillCapabilityInfo(ah);
 
-	sum = 0;
-	for (i = 0; i < 3; i++) {
-		if (!ar5210EepromRead(ah, AR_EEPROM_MAC(i), &eeval)) {
-			HALDEBUG(ah, HAL_DEBUG_ANY,
-			    "%s: cannot read EEPROM location %u\n", __func__, i);
-			ecode = HAL_EEREAD;
-			goto bad;
-		}
-		sum += eeval;
-		ahp->ah_macaddr[2*i + 0] = eeval >> 8;
-		ahp->ah_macaddr[2*i + 1] = eeval & 0xff;
-	}
-	if (sum == 0 || sum == 0xffff*3) {
-		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: mac address read failed: %s\n",
-		    __func__, ath_hal_ether_sprintf(ahp->ah_macaddr));
-		ecode = HAL_EEBADMAC;
-		goto eebad;
-	}
-
-	OS_REG_WRITE(ah, AR_PCICFG, pcicfg);	/* disable EEPROM access */
-
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
 
 	return ah;
-
 eebad:
 	OS_REG_WRITE(ah, AR_PCICFG, pcicfg);	/* disable EEPROM access */
 bad:
@@ -416,6 +292,7 @@ ar5210Detach(struct ath_hal *ah)
 	HALASSERT(ah != AH_NULL);
 	HALASSERT(ah->ah_magic == AR5210_MAGIC);
 
+	ath_hal_eepromDetach(ah);
 	ath_hal_free(ah);
 }
 
@@ -447,7 +324,7 @@ ar5210GetChipPowerLimits(struct ath_hal *ah, HAL_CHANNEL *chans, uint32_t nchans
 		HALDEBUG(ah, HAL_DEBUG_ATTACH,
 		    "%s: no min/max power for %u/0x%x\n",
 		    __func__, chan->channel, chan->channelFlags);
-		chan->maxTxPower = MAX_RATE_POWER;
+		chan->maxTxPower = AR5210_MAX_RATE_POWER;
 		chan->minTxPower = 0;
 	}
 	return AH_TRUE;
@@ -477,7 +354,7 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halChanHalfRate = AH_FALSE;
 	pCap->halChanQuarterRate = AH_FALSE;
 
-	if (AH5210(ah)->ah_rfKill) {
+	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL)) {
 		/*
 		 * Setup initial rfsilent settings based on the EEPROM
 		 * contents.  Pin 0, polarity 0 is fixed; record this

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah.h,v 1.13 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah.h,v 1.15 2008/11/15 03:43:50 sam Exp $
  */
 
 #ifndef _ATH_AH_H_
@@ -105,8 +105,8 @@ typedef enum {
 	HAL_CAP_TSF_ADJUST	= 20,	/* hardware has beacon tsf adjust */
 	/* 21 was HAL_CAP_XR */
 	HAL_CAP_WME_TKIPMIC 	= 22,   /* hardware can support TKIP MIC when WMM is turned on */
-	HAL_CAP_CHAN_HALFRATE 	= 23,	/* hardware can support half rate channels */
-	HAL_CAP_CHAN_QUARTERRATE = 24,	/* hardware can support quarter rate channels */
+	/* 23 was HAL_CAP_CHAN_HALFRATE */
+	/* 24 was HAL_CAP_CHAN_QUARTERRATE */
 	HAL_CAP_RFSILENT	= 25,	/* hardware has rfsilent support  */
 	HAL_CAP_TPC_ACK		= 26,	/* ack txpower with per-packet tpc */
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
@@ -466,8 +466,10 @@ enum {
 #endif
 	HAL_MODE_108G	= 0x020,		/* 11g+Turbo channels */
 	HAL_MODE_108A	= 0x040,		/* 11a+Turbo channels */
-	HAL_MODE_11A_HALF_RATE = 0x200,		/* 11A half rate channels */
-	HAL_MODE_11A_QUARTER_RATE = 0x400,	/* 11A quarter rate channels */
+	HAL_MODE_11A_HALF_RATE = 0x200,		/* 11a half width channels */
+	HAL_MODE_11A_QUARTER_RATE = 0x400,	/* 11a quarter width channels */
+	HAL_MODE_11G_HALF_RATE = 0x800,		/* 11g half width channels */
+	HAL_MODE_11G_QUARTER_RATE = 0x1000,	/* 11g quarter width channels */
 	HAL_MODE_11NG_HT20	= 0x008000,
 	HAL_MODE_11NA_HT20  	= 0x010000,
 	HAL_MODE_11NG_HT40PLUS	= 0x020000,
@@ -654,7 +656,7 @@ struct ath_rx_status;
 struct ath_hal {
 	uint32_t	ah_magic;	/* consistency check magic number */
 	uint32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x08110600	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x08111400	/* YYMMDDnn */
 	uint16_t	ah_devid;	/* PCI device ID */
 	uint16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -680,7 +682,11 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_phyDisable)(struct ath_hal *);
 	HAL_BOOL  __ahdecl(*ah_disable)(struct ath_hal *);
 	void	  __ahdecl(*ah_setPCUConfig)(struct ath_hal *);
-	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*, HAL_CHANNEL *, HAL_BOOL *);
+	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*, HAL_CHANNEL *,
+			HAL_BOOL *);
+	HAL_BOOL  __ahdecl(*ah_perCalibrationN)(struct ath_hal *, HAL_CHANNEL *,
+			u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
+	HAL_BOOL  __ahdecl(*ah_resetCalValid)(struct ath_hal *, HAL_CHANNEL *);
 	HAL_BOOL  __ahdecl(*ah_setTxPowerLimit)(struct ath_hal *, uint32_t);
 
 	/* Transmit functions */

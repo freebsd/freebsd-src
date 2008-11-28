@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar2133.c,v 1.10 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar2133.c,v 1.13 2008/11/11 00:11:30 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -330,6 +330,64 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah, HAL_CHANNEL *chan, int16_t *maxP
 #endif
 }
 
+static void 
+ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
+{
+	struct ath_hal_5416 *ahp = AH5416(ah);
+	int16_t nf;
+
+	switch (ahp->ah_rx_chainmask) {
+        case 0x7:
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH2_CCA), AR_PHY_CH2_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ctl] [chain 2] is %d\n", nf);
+		nfarray[4] = nf;
+
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ext] [chain 2] is %d\n", nf);
+		nfarray[5] = nf;
+		/* fall thru... */
+        case 0x3:
+        case 0x5:
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_CCA), AR_PHY_CH1_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
+		nfarray[2] = nf;
+
+
+		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ext] [chain 1] is %d\n", nf);
+		nfarray[3] = nf;
+		/* fall thru... */
+        case 0x1:
+		nf = MS(OS_REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ctl] [chain 0] is %d\n", nf);
+		nfarray[0] = nf;
+
+		nf = MS(OS_REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
+		if (nf & 0x100)
+			nf = 0 - ((nf ^ 0x1ff) + 1);
+		HALDEBUG(ah, HAL_DEBUG_NFCAL,
+		    "NF calibrated [ext] [chain 0] is %d\n", nf);
+		nfarray[1] = nf;
+
+		break;
+	}
+}
+
 /*
  * Adjust NF based on statistical values for 5GHz frequencies.
  * Stubbed:Not used by Fowl
@@ -404,6 +462,7 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 	 * direct call instead of thunking.
 	 */
 	AH_PRIVATE(ah)->ah_getNfAdjust = priv->base.getNfAdjust;
+	AH_PRIVATE(ah)->ah_getNoiseFloor = ar2133GetNoiseFloor;
 
 	return AH_TRUE;
 }

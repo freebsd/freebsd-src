@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312_reset.c,v 1.9 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5312_reset.c,v 1.10 2008/11/22 07:41:37 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -173,7 +173,7 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		 *  -channel change requested - so it's not the initial reset.
 		 *  -it's not a change to the current channel - often called when switching modes
 		 *   on a channel
-		 *  -the modes of the previous and requested channel are the same
+		 *  -the modes of the previous and requested channel are the same - some ugly code for XR
 		 */
 		if (bChannelChange &&
 		    (AH_PRIVATE(ah)->ah_curchan != AH_NULL) &&
@@ -406,8 +406,9 @@ ar5312Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5212SetRateDurationTable(ah, chan);
 
 	/* Set Tx frame start to tx data start delay */
-	if (IS_5112(ah) && (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan) ||
-			IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan))) {
+	if (IS_RAD5112_ANY(ah) &&
+	    (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan) ||
+	     IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan))) {
 		txFrm2TxDStart = 
 			(IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) ?
 					TX_FRAME_D_START_HALF_RATE:
@@ -679,7 +680,7 @@ ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 	if (chan != AH_NULL) {		/* NB: can be null during attach */
 		uint32_t rfMode, phyPLL = 0, curPhyPLL, turbo;
 
-		if (IS_5112(ah) || IS_2413(ah)) {
+		if (IS_RAD5112_ANY(ah)) {
 			rfMode = AR_PHY_MODE_AR5112;
 			if (!IS_5315(ah)) {
 				if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
@@ -694,31 +695,25 @@ ar5312ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 					}
 				}
 			} else {
-				if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+				if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
 					phyPLL = AR_PHY_PLL_CTL_44_5112;
-				} else {
-					if (IS_CHAN_HALF_RATE(chan)) {
-						phyPLL = AR_PHY_PLL_CTL_40_5112_HALF;
-					} else if (IS_CHAN_QUARTER_RATE(chan)) {
-						phyPLL = AR_PHY_PLL_CTL_40_5112_QUARTER;
-					} else {
-						phyPLL = AR_PHY_PLL_CTL_40_5112;
-					}
-				}
+				else
+					phyPLL = AR_PHY_PLL_CTL_40_5112;
+				if (IS_CHAN_HALF_RATE(chan))
+					phyPLL |= AR_PHY_PLL_CTL_HALF;
+				else if (IS_CHAN_QUARTER_RATE(chan))
+					phyPLL |= AR_PHY_PLL_CTL_QUARTER;
 			}
 		} else {
 			rfMode = AR_PHY_MODE_AR5111;
-			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
 				phyPLL = AR_PHY_PLL_CTL_44;
-			} else {
-				if (IS_CHAN_HALF_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_HALF;
-				} else if (IS_CHAN_QUARTER_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_QUARTER;
-				} else {
-					phyPLL = AR_PHY_PLL_CTL_40;
-				}
-			}
+			else
+				phyPLL = AR_PHY_PLL_CTL_40;
+			if (IS_CHAN_HALF_RATE(chan))
+				phyPLL = AR_PHY_PLL_CTL_HALF;
+			else if (IS_CHAN_QUARTER_RATE(chan))
+				phyPLL = AR_PHY_PLL_CTL_QUARTER;
 		}
 		if (IS_CHAN_OFDM(chan) && (IS_CHAN_CCK(chan) || 
 					   IS_CHAN_G(chan)))

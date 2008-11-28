@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_attach.c,v 1.12 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar5212_attach.c,v 1.18 2008/11/19 22:10:42 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -56,6 +56,8 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_disable			= ar5212Disable,
 	.ah_setPCUConfig		= ar5212SetPCUConfig,
 	.ah_perCalibration		= ar5212PerCalibration,
+	.ah_perCalibrationN		= ar5212PerCalibrationN,
+	.ah_resetCalValid		= ar5212ResetCalValid,
 	.ah_setTxPowerLimit		= ar5212SetTxPowerLimit,
 	.ah_getChanNoise		= ath_hal_getChanNoise,
 
@@ -103,6 +105,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_setMacAddress		= ar5212SetMacAddress,
 	.ah_getBssIdMask		= ar5212GetBssIdMask,
 	.ah_setBssIdMask		= ar5212SetBssIdMask,
+	.ah_setRegulatoryDomain		= ar5212SetRegulatoryDomain,
 	.ah_setLedState			= ar5212SetLedState,
 	.ah_writeAssocid		= ar5212WriteAssocid,
 	.ah_gpioCfgInput		= ar5212GpioCfgInput,
@@ -271,7 +274,8 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 	AH_PRIVATE(ah)->ah_powerLimit = MAX_RATE_POWER;
 	AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;	/* no scaling */
 
-	ahp->ah_diversityControl = HAL_ANT_VARIABLE;
+	ahp->ah_antControl = HAL_ANT_VARIABLE;
+	ahp->ah_diversity = AH_TRUE;
 	ahp->ah_bIQCalibration = AH_FALSE;
 	/*
 	 * Enable MIC handling.
@@ -279,6 +283,7 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_staId1Defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
 	ahp->ah_rssiThr = INIT_RSSI_THR;
 	ahp->ah_tpcEnabled = AH_FALSE;		/* disabled by default */
+	ahp->ah_phyPowerOn = AH_FALSE;
 	ahp->ah_macTPC = SM(MAX_RATE_POWER, AR_TPC_ACK)
 		       | SM(MAX_RATE_POWER, AR_TPC_CTS)
 		       | SM(MAX_RATE_POWER, AR_TPC_CHIRP);
@@ -289,11 +294,6 @@ ar5212InitState(struct ath_hal_5212 *ahp, uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_ctstimeout = (u_int) -1;
 	ahp->ah_sifstime = (u_int) -1;
 	OS_MEMCPY(&ahp->ah_bssidmask, defbssidmask, IEEE80211_ADDR_LEN);
-
-	/*
-	 * 11g-specific stuff
-	 */
-	ahp->ah_gBeaconRate = 0;		/* adhoc beacon fixed rate */
 #undef N
 }
 
@@ -444,15 +444,18 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 				break;
 			}
 			if (IS_2413(ah)) {		/* Griffin */
-				AH_PRIVATE(ah)->ah_analog5GhzRev = 0x51;
+				AH_PRIVATE(ah)->ah_analog5GhzRev =
+				    AR_RAD2413_SREV_MAJOR | 0x1;
 				break;
 			}
 			if (IS_5413(ah)) {		/* Eagle */	
-				AH_PRIVATE(ah)->ah_analog5GhzRev = 0x62;
+				AH_PRIVATE(ah)->ah_analog5GhzRev =
+				    AR_RAD5413_SREV_MAJOR | 0x2;
 				break;
 			}
 			if (IS_2425(ah) || IS_2417(ah)) {/* Swan or Nala */	
-				AH_PRIVATE(ah)->ah_analog5GhzRev = 0xA2;
+				AH_PRIVATE(ah)->ah_analog5GhzRev =
+				    AR_RAD5424_SREV_MAJOR | 0x2;
 				break;
 			}
 		}
@@ -465,7 +468,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 #endif
 	}
-	if (!IS_5413(ah) && IS_5112(ah) && IS_RAD5112_REV1(ah)) {
+	if (IS_RAD5112_REV1(ah)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 		    "%s: 5112 Rev 1 is not supported by this "
 		    "driver (analog5GhzRev 0x%x)\n", __func__,
@@ -565,7 +568,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 #else
 		ecode = HAL_ENOTSUPP;
 #endif
-	else if (IS_5112(ah))
+	else if (IS_RAD5112(ah))
 #ifdef AH_SUPPORT_5112
 		rfStatus = ar5112RfAttach(ah, &ecode);
 #else
@@ -577,7 +580,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 #else
 		ecode = HAL_ENOTSUPP;
 #endif
-	else
+	else if (IS_RAD5111(ah))
 #ifdef AH_SUPPORT_5111
 		rfStatus = ar5111RfAttach(ah, &ecode);
 #else
@@ -788,7 +791,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	}
 
 	pCap->halLow2GhzChan = 2312;
-	if (IS_5112(ah) || IS_2413(ah) || IS_5413(ah) || IS_2425(ah))
+	/* XXX 2417 too? */
+	if (IS_RAD5112_ANY(ah) || IS_5413(ah) || IS_2425(ah) ||  IS_2417(ah))
 		pCap->halHigh2GhzChan = 2500;
 	else
 		pCap->halHigh2GhzChan = 2732;
@@ -850,14 +854,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halKeyCacheSize = AR_KEYTABLE_SIZE;
 
-	if (IS_5112(ah)) {
-		pCap->halChanHalfRate = AH_TRUE;
-		pCap->halChanQuarterRate = AH_TRUE;
-	} else {
-		/* XXX not needed */
-		pCap->halChanHalfRate = AH_FALSE;
-		pCap->halChanQuarterRate = AH_FALSE;
-	}
+	pCap->halChanHalfRate = AH_TRUE;
+	pCap->halChanQuarterRate = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {

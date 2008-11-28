@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211.h,v 1.7 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5211.h,v 1.8 2008/11/10 22:08:47 sam Exp $
  */
 #ifndef _ATH_AR5211_H_
 #define _ATH_AR5211_H_
@@ -155,6 +155,9 @@ extern	HAL_BOOL ar5211PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5211Disable(struct ath_hal *);
 extern	HAL_BOOL ar5211ChipReset(struct ath_hal *, uint16_t);
 extern	HAL_BOOL ar5211PerCalibration(struct ath_hal *, HAL_CHANNEL *, HAL_BOOL *);
+extern	HAL_BOOL ar5211PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
+		u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
+extern	HAL_BOOL ar5211ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan);
 extern	HAL_BOOL ar5211SetTxPowerLimit(struct ath_hal *, uint32_t limit);
 extern	HAL_BOOL ar5211SetTransmitPower(struct ath_hal *, HAL_CHANNEL *);
 extern	HAL_BOOL ar5211CalNoiseFloor(struct ath_hal *, HAL_CHANNEL_INTERNAL *);
@@ -224,6 +227,9 @@ extern	HAL_BOOL ar5211SetMacAddress(struct ath_hal *ah, const uint8_t *);
 extern	void ar5211GetBssIdMask(struct ath_hal *, uint8_t *);
 extern	HAL_BOOL ar5211SetBssIdMask(struct ath_hal *, const uint8_t *);
 extern	HAL_BOOL ar5211EepromRead(struct ath_hal *, u_int off, uint16_t *data);
+extern	HAL_BOOL ar5211EepromWrite(struct ath_hal *, u_int off, uint16_t data);
+extern	HAL_BOOL ar5211SetRegulatoryDomain(struct ath_hal *,
+		uint16_t, HAL_STATUS *);
 extern	u_int ar5211GetWirelessModes(struct ath_hal *);
 extern	void ar5211EnableRfKill(struct ath_hal *);
 extern	uint32_t ar5211GpioGet(struct ath_hal *, uint32_t gpio);

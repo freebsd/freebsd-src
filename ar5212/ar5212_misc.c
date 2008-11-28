@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_misc.c,v 1.8 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar5212_misc.c,v 1.12 2008/11/27 22:30:00 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -80,11 +80,43 @@ ar5212SetBssIdMask(struct ath_hal *ah, const uint8_t *mask)
 }
 
 /*
+ * Attempt to change the cards operating regulatory domain to the given value
+ */
+HAL_BOOL
+ar5212SetRegulatoryDomain(struct ath_hal *ah,
+	uint16_t regDomain, HAL_STATUS *status)
+{
+	HAL_STATUS ecode;
+
+	if (AH_PRIVATE(ah)->ah_currentRD == regDomain) {
+		ecode = HAL_EINVAL;
+		goto bad;
+	}
+	if (ath_hal_eepromGetFlag(ah, AR_EEP_WRITEPROTECT)) {
+		ecode = HAL_EEWRITE;
+		goto bad;
+	}
+#ifdef AH_SUPPORT_WRITE_REGDOMAIN
+	if (ath_hal_eepromWrite(ah, AR_EEPROM_REG_DOMAIN, regDomain)) {
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+		    "%s: set regulatory domain to %u (0x%x)\n",
+		    __func__, regDomain, regDomain);
+		AH_PRIVATE(ah)->ah_currentRD = regDomain;
+		return AH_TRUE;
+	}
+#endif
+	ecode = HAL_EIO;
+bad:
+	if (status)
+		*status = ecode;
+	return AH_FALSE;
+}
+
+/*
  * Return the wireless modes (a,b,g,t) supported by hardware.
  *
  * This value is what is actually supported by the hardware
  * and is unaffected by regulatory/country code settings.
- *
  */
 u_int
 ar5212GetWirelessModes(struct ath_hal *ah)
@@ -95,6 +127,10 @@ ar5212GetWirelessModes(struct ath_hal *ah)
 		mode = HAL_MODE_11A;
 		if (!ath_hal_eepromGetFlag(ah, AR_EEP_TURBO5DISABLE))
 			mode |= HAL_MODE_TURBO | HAL_MODE_108A;
+		if (AH_PRIVATE(ah)->ah_caps.halChanHalfRate)
+			mode |= HAL_MODE_11A_HALF_RATE;
+		if (AH_PRIVATE(ah)->ah_caps.halChanQuarterRate)
+			mode |= HAL_MODE_11A_QUARTER_RATE;
 	}
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_BMODE))
 		mode |= HAL_MODE_11B;
@@ -103,6 +139,10 @@ ar5212GetWirelessModes(struct ath_hal *ah)
 		mode |= HAL_MODE_11G;
 		if (!ath_hal_eepromGetFlag(ah, AR_EEP_TURBO2DISABLE))
 			mode |= HAL_MODE_108G;
+		if (AH_PRIVATE(ah)->ah_caps.halChanHalfRate)
+			mode |= HAL_MODE_11G_HALF_RATE;
+		if (AH_PRIVATE(ah)->ah_caps.halChanQuarterRate)
+			mode |= HAL_MODE_11G_QUARTER_RATE;
 	}
 	return mode;
 }
@@ -212,11 +252,10 @@ ar5212GetTsf64(struct ath_hal *ah)
 		 * then we re-reading AR_TSF_U32 does no good as the
 		 * low bits will be meaningless.  Likewise reading
 		 * L32, U32, U32, then comparing the last two reads
-		 * to check for rollover
-		 * doesn't help if preempted--so we take this approach
-		 * as it costs one less PCI read which can be noticeable
-		 * when doing things like timestamping packets in
-		 * monitor mode.
+		 * to check for rollover doesn't help if preempted--so
+		 * we take this approach as it costs one less PCI read
+		 * which can be noticeable when doing things like
+		 * timestamping packets in monitor mode.
 		 */
 		u32++;
 	}
@@ -382,19 +421,22 @@ ar5212SetDefAntenna(struct ath_hal *ah, u_int antenna)
 HAL_ANT_SETTING
 ar5212GetAntennaSwitch(struct ath_hal *ah)
 {
-	return AH5212(ah)->ah_diversityControl;
+	return AH5212(ah)->ah_antControl;
 }
 
 HAL_BOOL
-ar5212SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
+ar5212SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING setting)
 {
-	const HAL_CHANNEL_INTERNAL *chan = AH_PRIVATE(ah)->ah_curchan;
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	const HAL_CHANNEL_INTERNAL *ichan = AH_PRIVATE(ah)->ah_curchan;
 
-	if (chan == AH_NULL) {
-		AH5212(ah)->ah_diversityControl = settings;
+	if (!ahp->ah_phyPowerOn || ichan == AH_NULL) {
+		/* PHY powered off, just stash settings */
+		ahp->ah_antControl = setting;
+		ahp->ah_diversity = (setting == HAL_ANT_VARIABLE);
 		return AH_TRUE;
 	}
-	return ar5212SetAntennaSwitchInternal(ah, settings, chan);
+	return ar5212SetAntennaSwitchInternal(ah, setting, ichan);
 }
 
 HAL_BOOL
@@ -632,7 +674,8 @@ ar5212SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		 * from A2.
 		 */
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_CONTROL, 0x1f);
-		OS_REG_WRITE(ah, AR_PHY_REFCLKPD, IS_5112(ah) ?  0x14 : 0x18);
+		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
+		    IS_RAD5112_ANY(ah) || IS_5413(ah) ? 0x14 : 0x18);
 		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32, 1);
 		OS_REG_WRITE(ah, AR_TSF_PARM, 61);  /* 32 KHz TSF incr */
 		OS_REG_RMW_FIELD(ah, AR_PCICFG, AR_PCICFG_SCLK_SEL, 1);
@@ -669,8 +712,9 @@ ar5212SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
-		    IS_5112(ah) || IS_2417(ah) ? 0x14 : 0x18);
-		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32, IS_5112(ah) ? 39 : 31);
+		    IS_RAD5112_ANY(ah) || IS_5413(ah) || IS_2417(ah) ? 0x14 : 0x18);
+		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32,
+		    IS_RAD5112_ANY(ah) || IS_5413(ah) ? 39 : 31);
 	}
 }
 
@@ -686,7 +730,8 @@ ar5212RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		OS_REG_RMW_FIELD(ah, AR_PCICFG, AR_PCICFG_SCLK_SEL, 0);
 
 		OS_REG_WRITE(ah, AR_TSF_PARM, 1);	/* 32 MHz TSF incr */
-		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32, IS_5112(ah) ? 39 : 31);
+		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32,
+		    IS_RAD5112_ANY(ah) || IS_5413(ah) ? 39 : 31);
 
 		/*
 		 * Restore BB registers to power-on defaults
@@ -696,7 +741,8 @@ ar5212RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0e);
 		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
-		OS_REG_WRITE(ah, AR_PHY_REFCLKPD, IS_5112(ah) ?  0x14 : 0x18);
+		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
+		    IS_RAD5112_ANY(ah) || IS_5413(ah) ?  0x14 : 0x18);
 	}
 }
 
@@ -782,9 +828,7 @@ ar5212GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		case 0:			/* hardware capability */
 			return HAL_OK;
 		case 1:			/* current setting */
-			return (OS_REG_READ(ah, AR_PHY_CCK_DETECT) &
-				AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV) ?
-				HAL_OK : HAL_ENXIO;
+			return ahp->ah_diversity ? HAL_OK : HAL_ENXIO;
 		}
 		return HAL_EINVAL;
 	case HAL_CAP_DIAG:
@@ -892,12 +936,15 @@ ar5212SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 		return AH_TRUE;
 	case HAL_CAP_DIVERSITY:
-		v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
-		if (setting)
-			v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-		else
-			v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
-		OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+		if (ahp->ah_phyPowerOn) {
+			v = OS_REG_READ(ah, AR_PHY_CCK_DETECT);
+			if (setting)
+				v |= AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+			else
+				v &= ~AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV;
+			OS_REG_WRITE(ah, AR_PHY_CCK_DETECT, v);
+		}
+		ahp->ah_diversity = (setting != 0);
 		return AH_TRUE;
 	case HAL_CAP_DIAG:		/* hardware diagnostic support */
 		/*

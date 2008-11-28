@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210.h,v 1.6 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5210.h,v 1.8 2008/11/11 02:40:13 sam Exp $
  */
 #ifndef _ATH_AR5210_H_
 #define _ATH_AR5210_H_
@@ -90,67 +90,7 @@
 #define INIT_PROTO_TIME_CNTRL_TURBO     ( (INIT_CARR_SENSE_EN << 26) | (INIT_EIFS_TURBO << 12) | \
                                           (INIT_ProgIFS_TURBO) )
 
-/*
- * EEPROM defines for Version 1 Crete EEPROM.
- *
- * The EEPROM is segmented into three sections:
- *
- *    PCI/Cardbus default configuration settings
- *    Cardbus CIS tuples and vendor-specific data
- *    Atheros-specific data
- *
- * EEPROM entries are read 32-bits at a time through the PCI bus
- * interface but are all 16-bit values.
- *
- * Access to the Atheros-specific data is controlled by protection
- * bits and the data is checksum'd.  The driver reads the Atheros
- * data from the EEPROM at attach and caches it in its private state.
- * This data includes the local regulatory domain, channel calibration
- * settings, and phy-related configuration settings.
- */
-#define	AR_EEPROM_MAC(i)	(0x1f-(i))/* MAC address word */
-#define	AR_EEPROM_MAGIC		0x3d	/* magic number */
-#define AR_EEPROM_PROTECT	0x3f	/* Atheros segment protect register */
-#define	AR_EEPROM_PROTOTECT_WP_128_191	0x80
-#define AR_EEPROM_REG_DOMAIN	0xbf	/* Current regulatory domain register */
-#define AR_EEPROM_ATHEROS_BASE	0xc0	/* Base of Atheros-specific data */
-#define AR_EEPROM_ATHEROS_MAX	64	/* 64x2=128 bytes of EEPROM settings */
-#define	AR_EEPROM_ATHEROS(n)	(AR_EEPROM_ATHEROS_BASE+(n))
-#define	AR_EEPROM_VERSION	AR_EEPROM_ATHEROS(1)
-#define AR_EEPROM_ATHEROS_TP_SETTINGS	0x09	/* Transmit power settings */
-#define AR_REG_DOMAINS_MAX	4	/* # of Regulatory Domains */
-#define AR_CHANNELS_MAX		5	/* # of Channel calibration groups */
-#define AR_TP_SETTINGS_SIZE	11	/* # locations/Channel group */
-#define AR_TP_SCALING_ENTRIES	11	/* # entries in transmit power dBm->pcdac */
-
-/*
- * NB: we store the rfsilent select+polarity data packed
- *     with the encoding used in later parts so values
- *     returned to applications are consistent.
- */
-#define AR_EEPROM_RFSILENT_GPIO_SEL	0x001c
-#define AR_EEPROM_RFSILENT_GPIO_SEL_S	2
-#define AR_EEPROM_RFSILENT_POLARITY	0x0002
-#define AR_EEPROM_RFSILENT_POLARITY_S	1
-
-#define AR_I2DBM(x)	((uint8_t)((x * 2) + 3))
-
-/*
- * Transmit power and channel calibration settings.
- */
-struct tpcMap {
-	uint8_t		pcdac[AR_TP_SCALING_ENTRIES];
-	uint8_t		gainF[AR_TP_SCALING_ENTRIES];
-	uint8_t		rate36;
-	uint8_t		rate48;
-	uint8_t		rate54;
-	uint8_t		regdmn[AR_REG_DOMAINS_MAX];
-};
-
-/* NB: this is in ah_eeprom.h which isn't used for 5210 support */
-#ifndef MAX_RATE_POWER
-#define	MAX_RATE_POWER	60
-#endif
+#define	AR5210_MAX_RATE_POWER	60
 
 #undef HAL_NUM_TX_QUEUES	/* from ah.h */
 #define	HAL_NUM_TX_QUEUES	3
@@ -158,22 +98,6 @@ struct tpcMap {
 struct ath_hal_5210 {
 	struct ath_hal_private ah_priv;	/* base definitions */
 
-	/*
-	 * Information retrieved from EEPROM
-	 */
-	uint16_t	ah_eeversion;		/* EEPROM Version field */
-	uint16_t	ah_eeprotect;		/* EEPROM protection settings */
-	uint16_t	ah_antenna;		/* Antenna Settings */
-	uint16_t	ah_biasCurrents;	/* OB, DB */
-	uint8_t		ah_thresh62;		/* thresh62 */
-	uint8_t		ah_xlnaOn;		/* External LNA timing */
-	uint8_t		ah_xpaOff;		/* Extern output stage timing */
-	uint8_t		ah_xpaOn;		/* Extern output stage timing */
-	uint8_t		ah_rfKill;		/* Single low bit signalling if RF Kill is implemented */
-	uint8_t		ah_devType;		/* Type: PCI, miniPCI, CB */
-	uint8_t		ah_regDomain[AR_REG_DOMAINS_MAX];
-						/* calibrated reg domains */
-	struct tpcMap	ah_tpc[AR_CHANNELS_MAX];
 	uint8_t		ah_macaddr[IEEE80211_ADDR_LEN];
 	/*
 	 * Runtime state.
@@ -213,6 +137,9 @@ extern	HAL_BOOL ar5210PhyDisable(struct ath_hal *);
 extern	HAL_BOOL ar5210Disable(struct ath_hal *);
 extern	HAL_BOOL ar5210ChipReset(struct ath_hal *, HAL_CHANNEL *);
 extern	HAL_BOOL ar5210PerCalibration(struct ath_hal *, HAL_CHANNEL *, HAL_BOOL *);
+extern	HAL_BOOL ar5210PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
+		u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
+extern	HAL_BOOL ar5210ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan);
 extern	int16_t ar5210GetNoiseFloor(struct ath_hal *);
 extern	int16_t ar5210GetNfAdjust(struct ath_hal *,
 		const HAL_CHANNEL_INTERNAL *);

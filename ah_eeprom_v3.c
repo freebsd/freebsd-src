@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom_v3.c,v 1.3 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah_eeprom_v3.c,v 1.4 2008/11/27 22:39:42 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -1765,9 +1765,8 @@ legacyEepromDetach(struct ath_hal *ah)
 }
 
 /*
- * TODO: Need to talk to Praveen about this, these are
- * not valid 2.4 channels, either we change these
- * or I need to change the beanie coding to accept these
+ * These are not valid 2.4 channels, either we change 'em
+ * or we need to change the coding to accept them.
  */
 static const uint16_t channels11b[] = { 2412, 2447, 2484 };
 static const uint16_t channels11g[] = { 2312, 2412, 2484 };

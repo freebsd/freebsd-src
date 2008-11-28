@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar9160_attach.c,v 1.10 2008/11/10 04:08:05 sam Exp $
+ * $Id: ar9160_attach.c,v 1.14 2008/11/27 22:30:08 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -129,11 +129,11 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	/* override 5416 methods for our needs */
 	ah->ah_detach			= ar9160Detach;
 
-	AH5416(ah)->ah_iqCalData.calData = &ar9160_iq_cal;
-	AH5416(ah)->ah_adcGainCalData.calData = &ar9160_adc_gain_cal;
-	AH5416(ah)->ah_adcDcCalData.calData = &ar9160_adc_dc_cal;
-	AH5416(ah)->ah_adcDcCalInitData.calData = &ar9160_adc_init_dc_cal;
-	AH5416(ah)->ah_suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
+	AH5416(ah)->ah_cal.iqCalData.calData = &ar9160_iq_cal;
+	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9160_adc_gain_cal;
+	AH5416(ah)->ah_cal.adcDcCalData.calData = &ar9160_adc_dc_cal;
+	AH5416(ah)->ah_cal.adcDcCalInitData.calData = &ar9160_adc_init_dc_cal;
+	AH5416(ah)->ah_cal.suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 
 	if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON)) {
 		/* reset chip */
@@ -255,14 +255,13 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
 	 * starting from griffin. Set here to make sure that
 	 * AR_MISC_MODE_MIC_NEW_LOC_ENABLE is set before a GTK is
-	 * placed into hardware
+	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
 
-	ar5212InitializeGainValues(ah);		/* gain ladder */
 	ar9160AniSetup(ah);			/* Anti Noise Immunity */
-	ar5416InitNfHistBuff(AH5416(ah)->ah_nfCalHist);
+	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
 

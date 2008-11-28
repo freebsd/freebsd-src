@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom_v14.c,v 1.3 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah_eeprom_v14.c,v 1.4 2008/11/10 19:04:26 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -37,10 +37,10 @@ v14EepromGet(struct ath_hal *ah, int param, void *val)
 
 	switch (param) {
         case AR_EEP_NFTHRESH_5:
-		*(int8_t *)val = pModal[0].noiseFloorThreshCh[0];
+		*(int16_t *)val = pModal[0].noiseFloorThreshCh[0];
 		return HAL_OK;
         case AR_EEP_NFTHRESH_2:
-		*(int8_t *)val = pModal[1].noiseFloorThreshCh[0];
+		*(int16_t *)val = pModal[1].noiseFloorThreshCh[0];
 		return HAL_OK;
         case AR_EEP_MACADDR:		/* Get MAC Address */
 		sum = 0;

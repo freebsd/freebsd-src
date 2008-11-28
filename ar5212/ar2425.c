@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar2425.c,v 1.7 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar2425.c,v 1.8 2008/11/16 21:33:05 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -160,12 +160,10 @@ ar2425SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIn
 	for (i = 0; i < N(ar5212Bank##_ix##_2425); i++)			    \
 		(_priv)->Bank##_ix##Data[i] = ar5212Bank##_ix##_2425[i][_col];\
 } while (0)
-
-    struct ath_hal_5212 *ahp = AH5212(ah);
-#if 0
-	uint16_t ob2GHz = 0, db2GHz = 0;
-#endif
+	struct ath_hal_5212 *ahp = AH5212(ah);
+	const HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
 	struct ar2425State *priv = AR2425(ah);
+	uint16_t ob2GHz = 0, db2GHz = 0;
 	int regWrites = 0;
 
 	HALDEBUG(ah, HAL_DEBUG_RFPARAM,
@@ -173,24 +171,24 @@ ar2425SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIn
 	    __func__, chan->channel, chan->channelFlags, modesIndex);
 
 	HALASSERT(priv);
-#if 0
+
 	/* Setup rf parameters */
-        switch (chan->channelFlags & CHANNEL_ALL) {
-        case CHANNEL_B:
-            ob2GHz = ahp->ah_obFor24;
-            db2GHz = ahp->ah_dbFor24;
-            break;
-        case CHANNEL_G:
-        case CHANNEL_108G:
-            ob2GHz = ahp->ah_obFor24g;
-            db2GHz = ahp->ah_dbFor24g;
-            break;
-        default:
-            HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
-		__func__, chan->channelFlags);
-            return AH_FALSE;
-        }
-#endif
+	switch (chan->channelFlags & CHANNEL_ALL) {
+	case CHANNEL_B:
+		ob2GHz = ee->ee_obFor24;
+		db2GHz = ee->ee_dbFor24;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_108G:
+		ob2GHz = ee->ee_obFor24g;
+		db2GHz = ee->ee_dbFor24g;
+		break;
+	default:
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel flags 0x%x\n",
+			__func__, chan->channelFlags);
+		return AH_FALSE;
+	}
+
 	/* Bank 1 Write */
 	RF_BANK_SETUP(priv, 1, 1);
 
@@ -202,10 +200,10 @@ ar2425SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIn
 
 	/* Bank 6 Write */
 	RF_BANK_SETUP(priv, 6, modesIndex);
-#if 0
+
         ar5212ModifyRfBuffer(priv->Bank6Data, ob2GHz, 3, 193, 0);
         ar5212ModifyRfBuffer(priv->Bank6Data, db2GHz, 3, 190, 0);
-#endif
+
 	/* Bank 7 Setup */
 	RF_BANK_SETUP(priv, 7, modesIndex);
 

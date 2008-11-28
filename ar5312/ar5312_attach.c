@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312_attach.c,v 1.6 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5312_attach.c,v 1.8 2008/11/27 22:30:03 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -38,13 +38,6 @@
 /* Add static register initialization vectors */
 #define AH_5212_COMMON
 #include "ar5212/ar5212.ini"
-
-/*
- * These are not valid 2.4 channels, either we change these
- * or we need to change the coding to accept these
- */
-static const uint16_t channels11b[] = { 2412, 2447, 2484 };
-static const uint16_t channels11g[] = { 2312, 2412, 2484 };
 
 static  HAL_BOOL ar5312GetMacAddr(struct ath_hal *ah);
 
@@ -217,7 +210,7 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 #endif
-	if (IS_5112(ah) && !IS_RADX112_REV2(ah)) {
+	if (IS_RAD5112(ah) && !IS_RADX112_REV2(ah)) {
 #ifdef AH_DEBUG
 		ath_hal_printf(ah, "%s: 5112 Rev 1 is not supported by this "
                          "driver (analog5GhzRev 0x%x)\n", __func__,
@@ -293,13 +286,13 @@ ar5312Attach(uint16_t devid, HAL_SOFTC sc,
 #else
 		ecode = HAL_ENOTSUPP;
 #endif
-	else if (IS_5112(ah))
+	else if (IS_RAD5112_ANY(ah))
 #ifdef AH_SUPPORT_5112
 		rfStatus = ar5112RfAttach(ah, &ecode);
 #else
 		ecode = HAL_ENOTSUPP;
 #endif
-	else
+	else if (IS_RAD5111(ah))
 #ifdef AH_SUPPORT_5111
 		rfStatus = ar5111RfAttach(ah, &ecode);
 #else
