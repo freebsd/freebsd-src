@@ -183,7 +183,6 @@ static struct mtx	ng_idhash_mtx;
 		}							\
 	} while (0)
 
-#define NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 static LIST_HEAD(, ng_node) ng_name_hash[NG_NAME_HASH_SIZE];
 static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\

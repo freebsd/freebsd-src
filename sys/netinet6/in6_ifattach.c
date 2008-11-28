@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 unsigned long in6_maxmtu;
 int ip6_auto_linklocal;
 struct callout in6_tmpaddrtimer_ch;
-extern struct inpcbinfo udbinfo;
 extern struct inpcbinfo ripcbinfo;
 #endif
 

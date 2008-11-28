@@ -121,7 +121,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #endif
 extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
-#if (__FreeBSD_version > 460000)
+#if (__FreeBSD_version > 460000) && (__FreeBSD_version < 800055)
 extern	int	path_mtu_discovery;
 #endif
 

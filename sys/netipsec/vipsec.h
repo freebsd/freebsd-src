@@ -33,7 +33,6 @@
 #ifndef _NETIPSEC_VIPSEC_H_
 #define _NETIPSEC_VIPSEC_H_
 
-#ifdef VIMAGE
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -112,7 +111,6 @@ struct vnet_ipsec {
 	LIST_HEAD(, secacq)	_acqtree;
 	LIST_HEAD(, secspacq)	_spacqtree;
 };
-#endif
 
 /*
  * Symbol translation macros
