@@ -108,9 +108,6 @@ const char* ath_hal_buildopts[] = {
 #ifdef AH_USE_INIPDGAIN
 	"INIPDGAIN",
 #endif
-#ifdef AH_DISABLE_WME
-	"DISABLE_WME",
-#endif
 #ifdef AH_SUPPORT_11D
 	"11D",
 #endif
