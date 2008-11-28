@@ -764,4 +764,4 @@ ar2316Probe(struct ath_hal *ah)
 {
 	return IS_2316(ah);
 }
-AH_RF(ar2316, ar2316Probe, ar2316RfAttach);
+AH_RF(RF2316, ar2316Probe, ar2316RfAttach);

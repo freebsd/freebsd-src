@@ -719,4 +719,4 @@ ar2425Probe(struct ath_hal *ah)
 {
 	return IS_2425(ah) || IS_2417(ah);
 }
-AH_RF(ar2425, ar2425Probe, ar2425RfAttach);
+AH_RF(RF2425, ar2425Probe, ar2425RfAttach);

@@ -513,4 +513,4 @@ ar5211Probe(uint16_t vendorid, uint16_t devid)
 	}
 	return AH_NULL;
 }
-AH_CHIP(ar5211, ar5211Probe, ar5211Attach);
+AH_CHIP(AR5211, ar5211Probe, ar5211Attach);

@@ -878,4 +878,4 @@ ar5112Probe(struct ath_hal *ah)
 {
 	return IS_RAD5112(ah);
 }
-AH_RF(ar5112, ar5112Probe, ar5112RfAttach);
+AH_RF(RF5112, ar5112Probe, ar5112RfAttach);
