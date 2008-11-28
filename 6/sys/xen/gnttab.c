@@ -452,6 +452,8 @@ unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 }
 #endif
 
+#ifndef XENHVM
+
 static int
 gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
@@ -484,6 +486,8 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 		PANIC_IF(area == 0);
 		shared = (grant_entry_t *)area;
 	}
+
+
 	for (i = 0; i < nr_gframes; i++)
 		PT_SET_MA(((caddr_t)shared) + i*PAGE_SIZE, 
 		    ((vm_paddr_t)frames[i]) << PAGE_SHIFT | PG_RW | PG_V);
@@ -513,6 +517,59 @@ gnttab_suspend(void)
 
 	return (0);
 }
+
+#else /* XENHVM */
+
+#include <dev/xen/xenpci/xenpcivar.h>
+
+static unsigned long resume_frames;
+
+static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
+{
+	struct xen_add_to_physmap xatp;
+	unsigned int i = end_idx;
+
+	/* Loop backwards, so that the first hypercall has the largest index,
+	 * ensuring that the table will grow only once.
+	 */
+	do {
+		xatp.domid = DOMID_SELF;
+		xatp.idx = i;
+		xatp.space = XENMAPSPACE_grant_table;
+		xatp.gpfn = (resume_frames >> PAGE_SHIFT) + i;
+		if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
+			panic("HYPERVISOR_memory_op failed to map gnttab");
+	} while (i-- > start_idx);
+
+	shared = pmap_mapdev(resume_frames, (end_idx + 1) * PAGE_SIZE);
+
+	return (0);
+}
+
+int
+gnttab_resume(void)
+{
+	int error;
+	unsigned int max_nr_gframes, nr_gframes;
+
+	nr_gframes = nr_grant_frames;
+	max_nr_gframes = max_nr_grant_frames();
+	if (max_nr_gframes < nr_gframes)
+		return -ENOSYS;
+
+	if (!resume_frames) {
+		error = xenpci_alloc_space(PAGE_SIZE * max_nr_gframes,
+		    &resume_frames);
+		if (error) {
+			printf("error mapping gnttab share frames\n");
+			return (error);
+		}
+	}
+
+	return (gnttab_map(0, nr_gframes - 1));
+}
+
+#endif
 
 static int
 gnttab_expand(unsigned int req_entries)
@@ -564,7 +621,7 @@ gnttab_init(void *unused)
 			goto ini_nomem;
 	}
 	
-	if (gnttab_resume() < 0)
+	if (gnttab_resume())
 		return -ENODEV;
 	
 	nr_init_grefs = nr_grant_frames * GREFS_PER_GRANT_FRAME;
@@ -576,7 +633,8 @@ gnttab_init(void *unused)
 	gnttab_free_count = nr_init_grefs - NR_RESERVED_ENTRIES;
 	gnttab_free_head  = NR_RESERVED_ENTRIES;
 
-	printk("Grant table initialized\n");
+	if (bootverbose)
+		printf("Grant table initialized\n");
 	return 0;
 
 ini_nomem:
