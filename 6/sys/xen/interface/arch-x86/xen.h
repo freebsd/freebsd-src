@@ -50,7 +50,7 @@
 #if defined(__i386__)
 #include <xen/interface/arch-x86/xen-x86_32.h>
 #elif defined(__x86_64__)
-#include "xen-x86_64.h"
+#include <xen/interface/arch-x86/xen-x86_64.h>
 #endif
 
 #ifndef __ASSEMBLY__
