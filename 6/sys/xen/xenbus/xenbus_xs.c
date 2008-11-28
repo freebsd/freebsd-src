@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <xen/xenbus/xenbus_comms.h>
+#include <xen/interface/hvm/params.h>
+
 static int xs_process_msg(enum xsd_sockmsg_type *type);
 
 #define kmalloc(size, unused) malloc(size, M_DEVBUF, M_WAITOK)
@@ -71,6 +73,7 @@ static int xs_process_msg(enum xsd_sockmsg_type *type);
 #define streq(a, b) (strcmp((a), (b)) == 0)
 int xenwatch_running = 0;
 int xenbus_running = 0;
+int xen_store_evtchn;
 
 struct kvec {
 		const void *iov_base;
@@ -908,10 +911,42 @@ static void xenbus_thread(void *unused)
 		}
 }
 
+#ifdef XENHVM
+
+static unsigned long xen_store_mfn;
+char *xen_store;
+
+static inline unsigned long
+hvm_get_parameter(int index)
+{
+		struct xen_hvm_param xhv;
+		int error;
+	
+		xhv.domid = DOMID_SELF;
+		xhv.index = index;
+		error = HYPERVISOR_hvm_op(HVMOP_get_param, &xhv);
+		if (error) {
+				printf("hvm_get_parameter: failed to get %d, error %d\n",
+					   index, error);
+				return (0);
+		}
+		return (xhv.value);
+}
+
+#endif
+
 int xs_init(void)
 {
 		int err;
 		struct proc *p;
+
+#ifdef XENHVM
+		xen_store_evtchn = hvm_get_parameter(HVM_PARAM_STORE_EVTCHN);
+		xen_store_mfn = hvm_get_parameter(HVM_PARAM_STORE_PFN);
+		xen_store = pmap_mapdev(xen_store_mfn * PAGE_SIZE, PAGE_SIZE);
+#else
+		xen_store_evtchn = xen_start_info->store_evtchn;
+#endif
 
 		TAILQ_INIT(&xs_state.reply_list);
 		TAILQ_INIT(&watch_events);
