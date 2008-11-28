@@ -34,7 +34,7 @@ ath_hal_probe(uint16_t vendorid, uint16_t devid)
 {
 	struct ath_hal_chip **pchip;
 
-	SET_FOREACH(pchip, ah_chips) {
+	OS_SET_FOREACH(pchip, ah_chips) {
 		const char *name = (*pchip)->probe(vendorid, devid);
 		if (name != AH_NULL)
 			return name;
@@ -55,7 +55,7 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 {
 	struct ath_hal_chip **pchip;
 
-	SET_FOREACH(pchip, ah_chips) {
+	OS_SET_FOREACH(pchip, ah_chips) {
 		struct ath_hal_chip *chip = *pchip;
 		struct ath_hal *ah;
 
@@ -90,7 +90,7 @@ ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode)
 {
 	struct ath_hal_rf **prf;
 
-	SET_FOREACH(prf, ah_rfs) {
+	OS_SET_FOREACH(prf, ah_rfs) {
 		struct ath_hal_rf *rf = *prf;
 		if (rf->probe(ah))
 			return rf;
