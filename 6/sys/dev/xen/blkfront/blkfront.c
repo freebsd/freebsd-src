@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenbus.h>
 #include <machine/xen/evtchn.h>
 #include <xen/interface/grant_table.h>
+#include <xen/interface/io/protocols.h>
 
 #include <geom/geom_disk.h>
 #include <machine/xen/xenfunc.h>
@@ -135,28 +136,96 @@ pfn_to_mfn(vm_paddr_t pfn)
 	return (phystomach(pfn << PAGE_SHIFT) >> PAGE_SHIFT);
 }
 
+/*
+ * Translate Linux major/minor to an appropriate name and unit
+ * number. For HVM guests, this allows us to use the same drive names
+ * with blkfront as the emulated drives, easing transition slightly.
+ */
+static void
+blkfront_vdevice_to_unit(int vdevice, int *unit, const char **name)
+{
+	static struct vdev_info {
+		int major;
+		int shift;
+		int base;
+		const char *name;
+	} info[] = {
+		{3,	6,	0,	"ad"},	/* ide0 */
+		{22,	6,	2,	"ad"},	/* ide1 */
+		{33,	6,	4,	"ad"},	/* ide2 */
+		{34,	6,	6,	"ad"},	/* ide3 */
+		{56,	6,	8,	"ad"},	/* ide4 */
+		{57,	6,	10,	"ad"},	/* ide5 */
+		{88,	6,	12,	"ad"},	/* ide6 */
+		{89,	6,	14,	"ad"},	/* ide7 */
+		{90,	6,	16,	"ad"},	/* ide8 */
+		{91,	6,	18,	"ad"},	/* ide9 */
+
+		{8,	4,	0,	"da"},	/* scsi disk0 */
+		{65,	4,	16,	"da"},	/* scsi disk1 */
+		{66,	4,	32,	"da"},	/* scsi disk2 */
+		{67,	4,	48,	"da"},	/* scsi disk3 */
+		{68,	4,	64,	"da"},	/* scsi disk4 */
+		{69,	4,	80,	"da"},	/* scsi disk5 */
+		{70,	4,	96,	"da"},	/* scsi disk6 */
+		{71,	4,	112,	"da"},	/* scsi disk7 */
+		{128,	4,	128,	"da"},	/* scsi disk8 */
+		{129,	4,	144,	"da"},	/* scsi disk9 */
+		{130,	4,	160,	"da"},	/* scsi disk10 */
+		{131,	4,	176,	"da"},	/* scsi disk11 */
+		{132,	4,	192,	"da"},	/* scsi disk12 */
+		{133,	4,	208,	"da"},	/* scsi disk13 */
+		{134,	4,	224,	"da"},	/* scsi disk14 */
+		{135,	4,	240,	"da"},	/* scsi disk15 */
+
+		{202,	4,	0,	"xbd"},	/* xbd */
+
+		{0,	0,	0,	NULL},
+	};
+	int major = vdevice >> 8;
+	int minor = vdevice & 0xff;
+	int i;
+
+	if (vdevice & (1 << 28)) {
+		*unit = (vdevice & ((1 << 28) - 1)) >> 8;
+		*name = "xbd";
+	}
+
+	for (i = 0; info[i].major; i++) {
+		if (info[i].major == major) {
+			*unit = info[i].base + (minor >> info[i].shift);
+			*name = info[i].name;
+			return;
+		}
+	}
+
+	*unit = minor >> 4;
+	*name = "xbd";
+}
 
 int
-xlvbd_add(blkif_sector_t capacity, int unit, uint16_t vdisk_info, uint16_t sector_size, 
+xlvbd_add(blkif_sector_t capacity, int vdevice, uint16_t vdisk_info, uint16_t sector_size, 
 	  struct blkfront_info *info)
 {
 	struct xb_softc	*sc;
-	int			error = 0;
-	int unitno = unit - 767;
+	int	unit, error = 0;
+	const char *name;
+
+	blkfront_vdevice_to_unit(vdevice, &unit, &name);
 
 	sc = (struct xb_softc *)malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
-	sc->xb_unit = unitno;
+	sc->xb_unit = unit;
 	sc->xb_info = info;
 	info->sc = sc;
 
 	memset(&sc->xb_disk, 0, sizeof(sc->xb_disk)); 
 	sc->xb_disk = disk_alloc();
-	sc->xb_disk->d_unit = unitno;
+	sc->xb_disk->d_unit = sc->xb_unit;
 	sc->xb_disk->d_open = blkif_open;
 	sc->xb_disk->d_close = blkif_close;
 	sc->xb_disk->d_ioctl = blkif_ioctl;
 	sc->xb_disk->d_strategy = xb_strategy;
-	sc->xb_disk->d_name = "xbd";
+	sc->xb_disk->d_name = name;
 	sc->xb_disk->d_drv1 = sc;
 	sc->xb_disk->d_sectorsize = sector_size;
 
@@ -330,6 +399,12 @@ static int talk_to_backend(struct xenbus_device *dev,
 		"event-channel", "%u", irq_to_evtchn_port(info->irq));
 	if (err) {
 		message = "writing event-channel";
+		goto abort_transaction;
+	}
+	err = xenbus_printf(xbt, dev->nodename,
+		"protocol", "%s", XEN_IO_PROTO_ABI_NATIVE);
+	if (err) {
+		message = "writing protocol";
 		goto abort_transaction;
 	}
 
