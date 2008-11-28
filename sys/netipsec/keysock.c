@@ -66,11 +66,6 @@
 
 #include <machine/stdarg.h>
 
-struct key_cb {
-	int key_count;
-	int any_count;
-};
-
 #ifdef VIMAGE_GLOBALS
 static struct key_cb key_cb;
 struct pfkeystat pfkeystat;
