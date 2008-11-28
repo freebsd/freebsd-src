@@ -794,4 +794,4 @@ ar5413Probe(struct ath_hal *ah)
 {
 	return IS_5413(ah);
 }
-AH_RF(ar5413, ar5413Probe, ar5413RfAttach);
+AH_RF(RF5413, ar5413Probe, ar5413RfAttach);

@@ -483,4 +483,4 @@ ar5416Probe(uint16_t vendorid, uint16_t devid)
 		return "Atheros 5416";
 	return AH_NULL;
 }
-AH_CHIP(ar5416, ar5416Probe, ar5416Attach);
+AH_CHIP(AR5416, ar5416Probe, ar5416Attach);

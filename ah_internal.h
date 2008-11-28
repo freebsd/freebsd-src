@@ -87,13 +87,15 @@ typedef enum {
  * Each chip or class of chips registers to offer support.
  */
 struct ath_hal_chip {
+	const char	*name;
 	const char	*(*probe)(uint16_t vendorid, uint16_t devid);
 	struct ath_hal	*(*attach)(uint16_t devid, HAL_SOFTC,
 			    HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS *error);
 };
 #ifndef AH_CHIP
-#define	AH_CHIP(name, _probe, _attach)				\
+#define	AH_CHIP(_name, _probe, _attach)				\
 static struct ath_hal_chip name##_chip = {			\
+	.name		= #_name,				\
 	.probe		= _probe,				\
 	.attach		= _attach				\
 };								\
@@ -106,12 +108,14 @@ OS_DATA_SET(ah_chips, name##_chip)
  * have a fixed idea about which RF to use.
  */
 struct ath_hal_rf {
+	const char	*name;
 	HAL_BOOL	(*probe)(struct ath_hal *ah);
 	HAL_BOOL	(*attach)(struct ath_hal *ah, HAL_STATUS *ecode);
 };
 #ifndef AH_RF
-#define	AH_RF(name, _probe, _attach)				\
+#define	AH_RF(_name, _probe, _attach)				\
 static struct ath_hal_rf name##_rf = {				\
+	.name		= #_name,				\
 	.probe		= _probe,				\
 	.attach		= _attach				\
 };								\
