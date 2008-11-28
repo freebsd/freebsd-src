@@ -407,19 +407,22 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (Lflag)
 				printf("%-5.5s %-14.14s %-22.22s\n",
 				    "Proto", "Listen", "Local Address");
-			printf((Aflag && !Wflag) ? 
-			       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
-			       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
-			       "Proto", "Recv-Q", "Send-Q",
-			       "Local Address", "Foreign Address");
-			if (xflag)
-				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
-				       "R-MBUF", "S-MBUF", "R-CLUS", "S-CLUS",
-				       "R-HIWA", "S-HIWA", "R-LOWA", "S-LOWA",
-				       "R-BCNT", "S-BCNT", "R-BMAX", "S-BMAX",
-				       "(state)");
-			else
-				printf("(state)\n");
+			else {
+				printf((Aflag && !Wflag) ? 
+				       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
+				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
+				       "Proto", "Recv-Q", "Send-Q",
+				       "Local Address", "Foreign Address");
+				if (xflag)
+					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %s\n",
+					       	"R-MBUF", "S-MBUF", "R-CLUS", 
+						"S-CLUS", "R-HIWA", "S-HIWA", 
+						"R-LOWA", "S-LOWA", "R-BCNT", 
+						"S-BCNT", "R-BMAX", "S-BMAX",
+					       "(state)");
+				else
+					printf("(state)\n");
+			}
 			first = 0;
 		}
 		if (Lflag && so->so_qlimit == 0)
