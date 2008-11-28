@@ -2061,3 +2061,22 @@ dev/xen/console/console.c      optional xen
 dev/xen/console/xencons_ring.c optional xen
 dev/xen/blkfront/blkfront.c    optional xen
 dev/xen/netfront/netfront.c    optional xen
+dev/xen/blkfront/blkfront.c    optional xenhvm
+dev/xen/netfront/netfront.c    optional xenhvm
+
+xen/gnttab.c                    optional xenhvm
+xen/features.c                  optional xenhvm
+dev/xen/xenpci/evtchn.c         optional xenhvm
+xen/evtchn/evtchn_dev.c         optional xenhvm
+xen/xenbus/xenbus_client.c      optional xenhvm
+xen/xenbus/xenbus_comms.c       optional xenhvm
+xen/xenbus/xenbus_dev.c         optional xenhvm
+#xen/xenbus/xenbus_newbus.c	optional xenhvm
+xen/xenbus/xenbus_probe.c       optional xenhvm
+xen/xenbus/xenbus_probe_backend.c optional xenhvm
+xen/xenbus/xenbus_xs.c          optional xenhvm
+#dev/xen/console/console.c      optional xenhvm
+#dev/xen/console/xencons_ring.c optional xenhvm
+#dev/xen/blkfront/blkfront.c    optional xenhvm
+#dev/xen/netfront/netfront.c    optional xenhvm
+dev/xen/xenpci/xenpci.c         optional xenpci
