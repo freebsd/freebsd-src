@@ -104,7 +104,7 @@ struct ipstat ipstat;
 static int ip_rsvp_on;
 struct socket *ip_rsvpd;
 int	rsvp_on;
-static TAILQ_HEAD(ipqhead, ipq) ipq[IPREASS_NHASH];
+static struct ipqhead ipq[IPREASS_NHASH];
 static int	maxnipq;	/* Administrative limit on # reass queues. */
 static int	maxfragsperpacket;
 int	ipstealth;

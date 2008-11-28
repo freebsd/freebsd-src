@@ -447,8 +447,6 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			caddr_t ptr;
 			int buflen;
 
-#define SA_SIZE(s)	((s)->sa_len<sizeof(*(s))? sizeof(*(s)):(s)->sa_len)
-
 			/* Determine size of response and allocate it */
 			buflen = 0;
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
@@ -474,7 +472,6 @@ ng_eiface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				buflen -= len;
 			}
 			break;
-#undef SA_SIZE
 		    }
 
 		default:

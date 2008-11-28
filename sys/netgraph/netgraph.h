@@ -1186,6 +1186,7 @@ typedef void *meta_p;
 
 /* Hash related definitions */
 #define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
+#define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 
 /* Virtualization macros */
 #define	INIT_VNET_NETGRAPH(vnet) \
@@ -1193,6 +1194,16 @@ typedef void *meta_p;
 	    struct vnet_netgraph, vnet_netgraph)
 
 #define	VNET_NETGRAPH(sym)	VSYM(vnet_netgraph, sym)
+
+struct vnet_netgraph {
+	LIST_HEAD(, ng_node)	 _ng_ID_hash[NG_ID_HASH_SIZE];
+	LIST_HEAD(, ng_node)	 _ng_name_hash[NG_NAME_HASH_SIZE];
+	LIST_HEAD(, ng_node)	 _ng_nodelist;
+	ng_ID_t			 _nextID;
+	struct unrhdr		*_ng_iface_unit;
+	struct unrhdr		*_ng_eiface_unit;
+	struct unrhdr		*_ng_wormhole_unit;
+};
 
 /* Symbol translation macros */
 #define	V_nextID		VNET_NETGRAPH(nextID)

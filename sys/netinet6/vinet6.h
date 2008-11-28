@@ -33,7 +33,6 @@
 #ifndef _NETINET6_VINET6_H_
 #define _NETINET6_VINET6_H_
 
-#ifdef VIMAGE
 #include <sys/socket.h>
 #include <netinet/ip6.h>
 #include <net/if.h>
@@ -154,14 +153,11 @@ struct vnet_inet6 {
 
 	struct ip6_pktopts		_ip6_opts;
 };
-#endif
-
 
 #define	INIT_VNET_INET6(vnet) \
 	INIT_FROM_VNET(vnet, VNET_MOD_INET6, struct vnet_inet6, vnet_inet6)
 
 #define	VNET_INET6(sym)		VSYM(vnet_inet6, sym)
-
 
 /*
  * Symbol translation macros

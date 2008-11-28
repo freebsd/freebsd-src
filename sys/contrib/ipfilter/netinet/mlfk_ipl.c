@@ -43,7 +43,9 @@ static int sysctl_ipf_int ( SYSCTL_HANDLER_ARGS );
 static int ipf_modload(void);
 static int ipf_modunload(void);
 
+#if __FreeBSD_version < 800055
 SYSCTL_DECL(_net_inet);
+#endif
 #define SYSCTL_IPF(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		   ptr, val, sysctl_ipf_int, "I", descr);

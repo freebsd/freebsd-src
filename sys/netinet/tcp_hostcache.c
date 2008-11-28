@@ -98,54 +98,11 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-
-TAILQ_HEAD(hc_qhead, hc_metrics);
-
-struct hc_head {
-	struct hc_qhead	hch_bucket;
-	u_int		hch_length;
-	struct mtx	hch_mtx;
-};
-
-struct hc_metrics {
-	/* housekeeping */
-	TAILQ_ENTRY(hc_metrics) rmx_q;
-	struct	hc_head *rmx_head; /* head of bucket tail queue */
-	struct	in_addr ip4;	/* IP address */
-	struct	in6_addr ip6;	/* IP6 address */
-	/* endpoint specific values for TCP */
-	u_long	rmx_mtu;	/* MTU for this path */
-	u_long	rmx_ssthresh;	/* outbound gateway buffer limit */
-	u_long	rmx_rtt;	/* estimated round trip time */
-	u_long	rmx_rttvar;	/* estimated rtt variance */
-	u_long	rmx_bandwidth;	/* estimated bandwidth */
-	u_long	rmx_cwnd;	/* congestion window */
-	u_long	rmx_sendpipe;	/* outbound delay-bandwidth product */
-	u_long	rmx_recvpipe;	/* inbound delay-bandwidth product */
-	/* TCP hostcache internal data */
-	int	rmx_expire;	/* lifetime for object */
-	u_long	rmx_hits;	/* number of hits */
-	u_long	rmx_updates;	/* number of updates */
-};
-
 /* Arbitrary values */
 #define TCP_HOSTCACHE_HASHSIZE		512
 #define TCP_HOSTCACHE_BUCKETLIMIT	30
 #define TCP_HOSTCACHE_EXPIRE		60*60	/* one hour */
 #define TCP_HOSTCACHE_PRUNE		5*60	/* every 5 minutes */
-
-struct tcp_hostcache {
-	struct	hc_head *hashbase;
-	uma_zone_t zone;
-	u_int	hashsize;
-	u_int	hashmask;
-	u_int	bucket_limit;
-	u_int	cache_count;
-	u_int	cache_limit;
-	int	expire;
-	int	prune;
-	int	purgeall;
-};
 
 #ifdef VIMAGE_GLOBALS
 static struct tcp_hostcache tcp_hostcache;

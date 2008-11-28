@@ -70,7 +70,6 @@ static void	in_purgemaddrs(struct ifnet *);
 static int subnetsarelocal;
 static int sameprefixcarponly;
 extern struct inpcbinfo ripcbinfo;
-extern struct inpcbinfo udbinfo;
 #endif
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_ip, OID_AUTO, subnets_are_local,

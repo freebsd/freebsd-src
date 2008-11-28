@@ -33,10 +33,11 @@
 #ifndef _NETINET_VINET_H_
 #define _NETINET_VINET_H_
 
-#ifdef VIMAGE
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/md5.h>
+
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -196,8 +197,6 @@ struct vnet_inet {
 	int	_icmp_quotelen;
 	int	_icmpbmcastecho;
 };
-#endif
-
 
 /*
  * Symbol translation macros
@@ -332,5 +331,17 @@ struct vnet_inet {
 #define	V_udp_blackhole		VNET_INET(udp_blackhole)
 #define	V_udpstat		VNET_INET(udpstat)
 #define	V_useloopback		VNET_INET(useloopback)
+
+static __inline uint16_t ip_newid(void);
+extern int ip_do_randomid;
+
+static __inline uint16_t
+ip_newid(void)
+{
+        if (V_ip_do_randomid)
+                return ip_randomid();
+
+        return htons(V_ip_id++);
+}
 
 #endif /* !_NETINET_VINET_H_ */
