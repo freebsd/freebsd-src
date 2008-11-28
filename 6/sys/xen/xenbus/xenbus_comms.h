@@ -30,6 +30,9 @@
 #ifndef _XENBUS_COMMS_H
 #define _XENBUS_COMMS_H
 
+extern int xen_store_evtchn;
+extern char *xen_store;
+
 int xs_init(void);
 int xb_init_comms(void);
 
