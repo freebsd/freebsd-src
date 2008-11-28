@@ -16,4 +16,4 @@
  *
  * $Id: version.h,v 1.64 2008/11/27 22:29:27 sam Exp $
  */
-#define	ATH_HAL_VERSION	"0.11.3.8"
+#define	ATH_HAL_VERSION	"0.11.3.9"

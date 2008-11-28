@@ -423,20 +423,6 @@ ar5212ResetTxQueue(struct ath_hal *ah, u_int q)
 		break;
 	}
 
-#ifndef AH_DISABLE_WME
-	/*
-	 * Yes, this is a hack and not the right way to do it, but
-	 * it does get the lockout bits and backoff set for the
-	 * high-pri WME queues for testing.  We need to either extend
-	 * the meaning of queueInfo->mode, or create something like
-	 * queueInfo->dcumode.
-	 */
-	if (qi->tqi_intFlags & HAL_TXQ_USE_LOCKOUT_BKOFF_DIS) {
-		dmisc |= SM(AR_D_MISC_ARB_LOCKOUT_CNTRL_GLOBAL,
-			    AR_D_MISC_ARB_LOCKOUT_CNTRL)
-		      |  AR_D_MISC_POST_FR_BKOFF_DIS;
-	}
-#endif
 	OS_REG_WRITE(ah, AR_QMISC(q), qmisc);
 	OS_REG_WRITE(ah, AR_DMISC(q), dmisc);
 
