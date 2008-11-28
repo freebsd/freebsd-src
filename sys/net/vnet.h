@@ -33,9 +33,10 @@
 #ifndef _NET_VNET_H_
 #define _NET_VNET_H_
 
-#ifdef VIMAGE
 #include "opt_route.h"
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -65,8 +66,6 @@ struct vnet_net {
 
 	int	_ether_ipfw;
 };
-
-#endif
 
 /*
  * Symbol translation macros
