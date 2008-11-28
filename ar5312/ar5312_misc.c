@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5312_misc.c,v 1.3 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5312_misc.c,v 1.4 2008/11/22 07:40:15 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -108,7 +108,8 @@ ar5312SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0c);
 		OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x03);
 		OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0x05);
-		OS_REG_WRITE(ah, AR_PHY_REFCLKPD, (IS_5112(ah) || IS_2413(ah)) ?  0x14 : 0x18);
+		OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
+		    IS_RAD5112_ANY(ah) ? 0x14 : 0x18);
 
 		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32, 1);
 		OS_REG_WRITE(ah, AR_TSF_PARM, 61);	/* 32 KHz TSF incr */
@@ -116,7 +117,7 @@ ar5312SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 	} else {
 		OS_REG_WRITE(ah, AR_TSF_PARM, 1);	/* 32 MHz TSF incr */
 		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32,
-				(IS_5112(ah) || IS_2413(ah)) ? 39 : 31);
+		    IS_RAD5112_ANY(ah) ? 39 : 31);
 
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_CONTROL, 0x1f);
 		OS_REG_WRITE(ah, AR_PHY_SLEEP_CTR_LIMIT,   0x7f);
@@ -128,7 +129,8 @@ ar5312SetupClock(struct ath_hal *ah, HAL_OPMODE opmode)
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0e);
 			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
 			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
-			OS_REG_WRITE(ah, AR_PHY_REFCLKPD, (IS_5112(ah) || IS_2413(ah)) ?  0x14 : 0x18);
+			OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
+			    IS_RAD5112_ANY(ah) ? 0x14 : 0x18);
 		}
 	}
 }
@@ -143,7 +145,7 @@ ar5312RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode)
 		/* # Set sleep clock rate back to 32 MHz. */
 		OS_REG_WRITE(ah, AR_TSF_PARM, 1);	/* 32 MHz TSF incr */
 		OS_REG_RMW_FIELD(ah, AR_USEC, AR_USEC_USEC32,
-				(IS_5112(ah) || IS_2413(ah)) ? 39 : 31);
+		    IS_RAD5112_ANY(ah) ? 39 : 31);
 
 		/*
 		 * Restore BB registers to power-on defaults
@@ -157,7 +159,8 @@ ar5312RestoreClock(struct ath_hal *ah, HAL_OPMODE opmode)
 			OS_REG_WRITE(ah, AR_PHY_SLEEP_SCAL,        0x0e);
 			OS_REG_WRITE(ah, AR_PHY_M_SLEEP,           0x0c);
 			OS_REG_WRITE(ah, AR_PHY_REFCLKDLY,         0xff);
-			OS_REG_WRITE(ah, AR_PHY_REFCLKPD, (IS_5112(ah) || IS_2413(ah)) ?  0x14 : 0x18);
+			OS_REG_WRITE(ah, AR_PHY_REFCLKPD,
+			    IS_RAD5112_ANY(ah) ? 0x14 : 0x18);
 		}
 	}
 }

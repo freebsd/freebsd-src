@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_internal.h,v 1.17 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah_internal.h,v 1.21 2008/11/27 22:29:27 sam Exp $
  */
 #ifndef _ATH_AH_INTERAL_H_
 #define _ATH_AH_INTERAL_H_
@@ -66,6 +66,9 @@ typedef struct {
 
 /*
  * Transmit power scale factor.
+ *
+ * NB: This is not public because we want to discourage the use of
+ *     scaling; folks should use the tx power limit interface.
  */
 typedef enum {
 	HAL_TP_SCALE_MAX	= 0,		/* no scaling (default) */
@@ -165,7 +168,23 @@ typedef struct {
 
 /*
  * The ``private area'' follows immediately after the ``public area''
- * in the data structure returned by ath_hal_attach.
+ * in the data structure returned by ath_hal_attach.  Private data are
+ * used by device-independent code such as the regulatory domain support.
+ * In general, code within the HAL should never depend on data in the
+ * public area.  Instead any public data needed internally should be
+ * shadowed here.
+ *
+ * When declaring a device-specific ath_hal data structure this structure
+ * is assumed to at the front; e.g.
+ *
+ *	struct ath_hal_5212 {
+ *		struct ath_hal_private	ah_priv;
+ *		...
+ *	};
+ *
+ * It might be better to manage the method pointers in this structure
+ * using an indirect pointer to a read-only data structure but this would
+ * disallow class-style method overriding.
  */
 struct ath_hal_private {
 	struct ath_hal	h;			/* public area */
@@ -189,6 +208,8 @@ struct ath_hal_private {
 				HAL_CHANNEL *, uint32_t);
 	int16_t		(*ah_getNfAdjust)(struct ath_hal *,
 				const HAL_CHANNEL_INTERNAL*);
+	void		(*ah_getNoiseFloor)(struct ath_hal *,
+				int16_t nfarray[]);
 
 	void		*ah_eeprom;		/* opaque EEPROM state */
 	uint16_t	ah_eeversion;		/* EEPROM version */
@@ -267,6 +288,8 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_getChipPowerLimits(_ah, _chans, _nchan)
 #define ath_hal_getNfAdjust(_ah, _c) \
 	AH_PRIVATE(_ah)->ah_getNfAdjust(_ah, _c)
+#define	ath_hal_getNoiseFloor(_ah, _nfArray) \
+	AH_PRIVATE(_ah)->ah_getNoiseFloor(_ah, _nfArray)
 
 #define	ath_hal_eepromDetach(_ah) \
 	AH_PRIVATE(_ah)->ah_eepromDetach(_ah)

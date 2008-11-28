@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah.c,v 1.13 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah.c,v 1.15 2008/11/15 22:15:44 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -46,6 +46,14 @@ extern	struct ath_hal *ar5416Attach(uint16_t, HAL_SOFTC,
 extern	struct ath_hal *ar9160Attach(uint16_t, HAL_SOFTC,
 	HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS*);
 #endif
+#ifdef AH_SUPPORT_AR9280
+extern	struct ath_hal *ar9280Attach(uint16_t, HAL_SOFTC,
+	HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS*);
+#endif
+#ifdef AH_SUPPORT_AR9285
+extern	struct ath_hal *ar9285Attach(uint16_t, HAL_SOFTC,
+	HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS*);
+#endif
 
 #include "version.h"
 char ath_hal_version[] = ATH_HAL_VERSION;
@@ -67,6 +75,12 @@ const char* ath_hal_buildopts[] = {
 #endif
 #ifdef AH_SUPPORT_AR9180
 	"AR9180",
+#endif
+#ifdef AH_SUPPORT_AR9280
+	"AR9280",
+#endif
+#ifdef AH_SUPPORT_AR9285
+	"AR9285",
 #endif
 #ifdef AH_SUPPORT_5111
 	"RF5111",
@@ -110,11 +124,20 @@ const char* ath_hal_buildopts[] = {
 #ifdef AH_PRIVATE_DIAG
 	"PRIVATE_DIAG",
 #endif
+#ifdef AH_SUPPORT_WRITE_EEPROM
+	"WRITE_EEPROM",
+#endif
+#ifdef AH_SUPPORT_WRITE_REGDOMAIN
+	"WRITE_REGDOMAIN",
+#endif
 #ifdef AH_DEBUG_COUNTRY
 	"DEBUG_COUNTRY",
 #endif
 #ifdef AH_NEED_DESC_SWAP
 	"TX_DESC_SWAP",
+#endif
+#ifdef AH_USE_INIPDGAIN
+	"INIPDGAIN",
 #endif
 #ifdef AH_DISABLE_WME
 	"DISABLE_WME",
@@ -169,6 +192,11 @@ ath_hal_devname(uint16_t devid)
 		return "Atheros 5416";
 	case AR9160_DEVID_PCI:
 		return "Atheros 9160";
+	case AR9280_DEVID_PCI:
+	case AR9280_DEVID_PCIE:
+		return "Atheros 9280";
+	case AR9285_DEVID_PCIE:
+		return "Atheros 9285";
 	}
 	return AH_NULL;
 }
@@ -245,6 +273,17 @@ ath_hal_attach(uint16_t devid, HAL_SOFTC sc,
 #ifdef AH_SUPPORT_AR9160
 	case AR9160_DEVID_PCI:
 		ah = ar9160Attach(devid, sc, st, sh, error);
+		break;
+#endif
+#ifdef AH_SUPPORT_AR9280
+	case AR9280_DEVID_PCI:
+	case AR9280_DEVID_PCIE:
+		ah = ar9280Attach(devid, sc, st, sh, error);
+		break;
+#endif
+#ifdef AH_SUPPORT_AR9285
+	case AR9285_DEVID_PCIE:
+		ah = ar9285Attach(devid, sc, st, sh, error);
 		break;
 #endif
 	default:
@@ -419,6 +458,19 @@ ath_hal_computetxtime(struct ath_hal *ah,
 }
 
 static __inline int
+mapgsm(u_int freq, u_int flags)
+{
+	freq *= 10;
+	if (flags & CHANNEL_QUARTER)
+		freq += 5;
+	else if (flags & CHANNEL_HALF)
+		freq += 10;
+	else
+		freq += 20;
+	return (freq - 24220) / 5;
+}
+
+static __inline int
 mappsb(u_int freq, u_int flags)
 {
 	return ((freq * 10) + (((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
@@ -434,6 +486,8 @@ ath_hal_mhz2ieee(struct ath_hal *ah, u_int freq, u_int flags)
 		if (freq == 2484)
 			return 14;
 		if (freq < 2484) {
+			if (ath_hal_isgsmsku(ah))
+				return mapgsm(freq, flags);
 			return ((int)freq - 2407) / 5;
 		} else
 			return 15 + ((freq - 2512) / 20);
@@ -450,6 +504,8 @@ ath_hal_mhz2ieee(struct ath_hal *ah, u_int freq, u_int flags)
 		if (freq == 2484)
 			return 14;
 		if (freq < 2484) {
+			if (ath_hal_isgsmsku(ah))
+				return mapgsm(freq, flags);
 			return ((int)freq - 2407) / 5;
 		}
 		if (freq < 5000) {
@@ -641,10 +697,6 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halMcastKeySrchSupport ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_TSF_ADJUST:	/* hardware has beacon tsf adjust */
 		return HAL_ENOTSUPP;
-	case HAL_CAP_CHAN_HALFRATE:
-		return pCap->halChanHalfRate ? HAL_OK : HAL_ENOTSUPP;
-	case HAL_CAP_CHAN_QUARTERRATE:
-		return pCap->halChanQuarterRate ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_RFSILENT:		/* rfsilent support  */
 		switch (capability) {
 		case 0:			/* facility is supported */
@@ -789,6 +841,15 @@ ath_hal_getdiagstate(struct ath_hal *ah, int request,
 		if (argsize != sizeof(uint16_t))
 			return AH_FALSE;
 		return ah->ah_resetKeyCacheEntry(ah, *(const uint16_t *)args);
+#ifdef AH_SUPPORT_WRITE_EEPROM
+	case HAL_DIAG_EEWRITE: {
+		const HAL_DIAG_EEVAL *ee;
+		if (argsize != sizeof(HAL_DIAG_EEVAL))
+			return AH_FALSE;
+		ee = (const HAL_DIAG_EEVAL *)args;
+		return ath_hal_eepromWrite(ah, ee->ee_off, ee->ee_data);
+	}
+#endif /* AH_SUPPORT_WRITE_EEPROM */
 #endif /* AH_PRIVATE_DIAG */
 	case HAL_DIAG_11NCOMPAT:
 		if (argsize == 0) {

@@ -23,8 +23,8 @@
 #define ATHEROS_VENDOR_ID	0x168c		/* Atheros PCI vendor ID */
 /*
  * NB: all Atheros-based devices should have a PCI vendor ID
- *     of 0x168c, but some vendors do not follow this so we
- *     must handle them specially.
+ *     of 0x168c, but some vendors, in their infinite wisdom
+ *     do not follow this so we must handle them specially.
  */
 #define	ATHEROS_3COM_VENDOR_ID	0xa727		/* 3Com 3CRPAG175 vendor ID */
 #define	ATHEROS_3COM2_VENDOR_ID	0x10b7		/* 3Com 3CRDAG675 vendor ID */

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212.h,v 1.9 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar5212.h,v 1.16 2008/11/22 07:42:00 sam Exp $
  */
 #ifndef _ATH_AR5212_H_
 #define _ATH_AR5212_H_
@@ -267,10 +267,12 @@ struct ath_hal_5212 {
 	uint32_t	ah_txEolInterruptMask;
 	uint32_t	ah_txUrnInterruptMask;
 	HAL_TX_QUEUE_INFO ah_txq[HAL_NUM_TX_QUEUES];
+	uint32_t	ah_intrTxqs;		/* tx q interrupt state */
 						/* decomp mask array */
-	uint8_t        ah_decompMask[HAL_DECOMP_MASK_SIZE];
+	uint8_t		ah_decompMask[HAL_DECOMP_MASK_SIZE];
 	HAL_POWER_MODE	ah_powerMode;
-	HAL_ANT_SETTING ah_diversityControl;	/* antenna setting */
+	HAL_ANT_SETTING ah_antControl;		/* antenna setting */
+	HAL_BOOL	ah_diversity;		/* fast diversity setting */
 	enum {
 		IQ_CAL_INACTIVE,
 		IQ_CAL_RUNNING,
@@ -283,6 +285,8 @@ struct ath_hal_5212 {
 	uint32_t	ah_rssiThr;		/* RSSI_THR settings */
 	HAL_BOOL	ah_cwCalRequire;	/* for ap51 */
 	HAL_BOOL	ah_tpcEnabled;		/* per-packet tpc enabled */
+	HAL_BOOL	ah_phyPowerOn;		/* PHY power state */
+	HAL_BOOL	ah_isHb63;		/* cached HB63 check */
 	uint32_t	ah_macTPC;		/* tpc register */
 	uint32_t	ah_beaconInterval;	/* XXX */
 	enum {
@@ -302,17 +306,11 @@ struct ath_hal_5212 {
 	u_int		ah_ctstimeout;		/* user-specified cts timeout */
 	u_int		ah_sifstime;		/* user-specified sifs time */
 	/*
-	 * XXX
-	 * 11g-specific stuff; belongs in the driver.
-	 */
-	uint8_t		ah_gBeaconRate;		/* fixed rate for G beacons */
-	/*
 	 * RF Silent handling; setup according to the EEPROM.
 	 */
 	uint32_t	ah_gpioSelect;		/* GPIO pin to use */
 	uint32_t	ah_polarity;		/* polarity to disable RF */
 	uint32_t	ah_gpioBit;		/* after init, prev value */
-	HAL_BOOL	ah_eepEnabled;		/* EEPROM bit for capability */
 	/*
 	 * ANI support.
 	 */
@@ -330,30 +328,16 @@ struct ath_hal_5212 {
 	uint16_t	*ah_pcdacTable;
 	u_int		ah_pcdacTableSize;
 	uint16_t	ah_ratesArray[16];
-
-	/*
-	 * Tx queue interrupt state.
-	 */
-	uint32_t	ah_intrTxqs;
-
-	HAL_BOOL	ah_isHb63;		/* cached HB63 check */
 };
 #define	AH5212(_ah)	((struct ath_hal_5212 *)(_ah))
 
-#define	IS_5112(ah) \
-	((AH_PRIVATE(ah)->ah_analog5GhzRev&0xf0) >= AR_RAD5112_SREV_MAJOR \
-	 && (AH_PRIVATE(ah)->ah_analog5GhzRev&0xf0) < AR_RAD2316_SREV_MAJOR )
-#define	IS_RAD5112_REV1(ah) \
-	((AH_PRIVATE(ah)->ah_analog5GhzRev&0x0f) < (AR_RAD5112_SREV_2_0&0x0f))
-#define IS_RADX112_REV2(ah) \
-        (IS_5112(ah) && \
-	  ((AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD5112_SREV_2_0) || \
-	   (AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD2112_SREV_2_0) || \
-	   (AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD2112_SREV_2_1) || \
-	   (AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD5112_SREV_2_1)))
-#define	IS_5312_2_X(ah) \
-	(((AH_PRIVATE(ah)->ah_macVersion) == AR_SREV_VERSION_VENICE) && \
-	 (((AH_PRIVATE(ah)->ah_macRev) == 2) || ((AH_PRIVATE(ah)->ah_macRev) == 7)))
+/*
+ * IS_XXXX macros test the MAC version
+ * IS_RADXXX macros test the radio/RF version (matching both 2G-only and 2/5G)
+ *
+ * Some single chip radios have equivalent radio/RF (e.g. 5112)
+ * for those use IS_RADXXX_ANY macros.
+ */
 #define IS_2317(ah) \
 	((AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV1) || \
 	 (AH_PRIVATE(ah)->ah_devid == AR5212_AR2317_REV2))
@@ -374,6 +358,29 @@ struct ath_hal_5212 {
 #define IS_HB63(ah)		(AH5212(ah)->ah_isHb63 == AH_TRUE)
 
 #define IS_PCIE(ah) (IS_5424(ah) || IS_2425(ah))
+
+#define	AH_RADIO_MAJOR(ah) \
+	(AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR)
+#define	AH_RADIO_MINOR(ah) \
+	(AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MINOR)
+#define	IS_RAD5111(ah) \
+	(AH_RADIO_MAJOR(ah) == AR_RAD5111_SREV_MAJOR || \
+	 AH_RADIO_MAJOR(ah) == AR_RAD2111_SREV_MAJOR)
+#define	IS_RAD5112(ah) \
+	(AH_RADIO_MAJOR(ah) == AR_RAD5112_SREV_MAJOR || \
+	 AH_RADIO_MAJOR(ah) == AR_RAD2112_SREV_MAJOR)
+/* NB: does not include 5413 as Atheros' IS_5112 macro does */
+#define	IS_RAD5112_ANY(ah) \
+	(AR_RAD5112_SREV_MAJOR <= AH_RADIO_MAJOR(ah) && \
+	 AH_RADIO_MAJOR(ah) <= AR_RAD2413_SREV_MAJOR)
+#define	IS_RAD5112_REV1(ah) \
+	(IS_RAD5112(ah) && \
+	 AH_RADIO_MINOR(ah) < (AR_RAD5112_SREV_2_0 & AR_RADIO_SREV_MINOR))
+#define IS_RADX112_REV2(ah) \
+	(AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD5112_SREV_2_0 || \
+	 AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD2112_SREV_2_0 || \
+	 AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD2112_SREV_2_1 || \
+	 AH_PRIVATE(ah)->ah_analog5GhzRev == AR_RAD5112_SREV_2_1)
 
 #define	ar5212RfDetach(ah) do {				\
 	if (AH5212(ah)->ah_rfHal != AH_NULL)		\
@@ -534,7 +541,11 @@ extern	void ar5212SetOperatingMode(struct ath_hal *ah, int opmode);
 extern	HAL_BOOL ar5212PhyDisable(struct ath_hal *ah);
 extern	HAL_BOOL ar5212Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5212ChipReset(struct ath_hal *ah, HAL_CHANNEL *);
-extern	HAL_BOOL ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone);
+extern	HAL_BOOL ar5212PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan,
+		HAL_BOOL *isIQdone);
+extern	HAL_BOOL ar5212PerCalibrationN(struct ath_hal *ah, HAL_CHANNEL *chan,
+		u_int chainMask, HAL_BOOL longCal, HAL_BOOL *isCalDone);
+extern	HAL_BOOL ar5212ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan);
 extern	int16_t ar5212GetNoiseFloor(struct ath_hal *ah);
 extern	void ar5212InitNfCalHistBuffer(struct ath_hal *);
 extern	int16_t ar5212GetNfHistMid(const int16_t calData[]);
@@ -546,6 +557,7 @@ extern	HAL_BOOL ar5212GetChipPowerLimits(struct ath_hal *ah,
 					  HAL_CHANNEL *chans, uint32_t nchans);
 extern	void ar5212InitializeGainValues(struct ath_hal *);
 extern	HAL_RFGAIN ar5212GetRfgain(struct ath_hal *ah);
+extern	void ar5212RequestRfgain(struct ath_hal *);
 
 extern	HAL_BOOL ar5212UpdateTxTrigLevel(struct ath_hal *,
 		HAL_BOOL IncTrigLevel);

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_phy.c,v 1.4 2008/11/10 01:19:38 sam Exp $
+ * $Id: ar5212_phy.c,v 1.5 2008/11/15 03:43:53 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -47,7 +47,7 @@ HAL_RATE_TABLE ar5212_11a_table = {
 	},
 };
 
-HAL_RATE_TABLE ar5212_11a_half_table = {
+HAL_RATE_TABLE ar5212_half_table = {
 	8,  /* number of rates */
 	{ 0 },
 	{
@@ -64,7 +64,7 @@ HAL_RATE_TABLE ar5212_11a_half_table = {
 	},
 };
 
-HAL_RATE_TABLE ar5212_11a_quarter_table = {
+HAL_RATE_TABLE ar5212_quarter_table = {
 	8,  /* number of rates */
 	{ 0 },
 	{
@@ -184,10 +184,12 @@ ar5212GetRateTable(struct ath_hal *ah, u_int mode)
 		rt =  &ar5212_turbog_table;
 		break;
 	case HAL_MODE_11A_HALF_RATE:
-		rt = &ar5212_11a_half_table;
+	case HAL_MODE_11G_HALF_RATE:
+		rt = &ar5212_half_table;
 		break;
 	case HAL_MODE_11A_QUARTER_RATE:
-		rt = &ar5212_11a_quarter_table;
+	case HAL_MODE_11G_QUARTER_RATE:
+		rt = &ar5212_quarter_table;
 		break;
 	default:
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid mode 0x%x\n",

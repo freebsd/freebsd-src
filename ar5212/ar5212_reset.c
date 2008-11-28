@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212_reset.c,v 1.12 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar5212_reset.c,v 1.20 2008/11/27 22:30:00 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -47,32 +47,23 @@ void		ar5212SetDeltaSlope(struct ath_hal *, HAL_CHANNEL *);
 HAL_BOOL	ar5212SetTransmitPower(struct ath_hal *ah,
 		HAL_CHANNEL_INTERNAL *chan, uint16_t *rfXpdGain);
 static HAL_BOOL ar5212SetRateTable(struct ath_hal *, 
-				   HAL_CHANNEL *, int16_t tpcScaleReduction, int16_t powerLimit, 
-				   HAL_BOOL commit,
-				   int16_t *minPower, int16_t *maxPower);
+		   HAL_CHANNEL *, int16_t tpcScaleReduction, int16_t powerLimit,
+		   HAL_BOOL commit, int16_t *minPower, int16_t *maxPower);
 static void ar5212CorrectGainDelta(struct ath_hal *, int twiceOfdmCckDelta);
 static void ar5212GetTargetPowers(struct ath_hal *, HAL_CHANNEL *,
-		const TRGT_POWER_INFO *pPowerInfo, uint16_t numChannels,
-		TRGT_POWER_INFO *pNewPower);
+		   const TRGT_POWER_INFO *pPowerInfo, uint16_t numChannels,
+		   TRGT_POWER_INFO *pNewPower);
 static uint16_t ar5212GetMaxEdgePower(uint16_t channel,
-		const RD_EDGES_POWER  *pRdEdgesPower);
-static void ar5212RequestRfgain(struct ath_hal *);
-static HAL_BOOL ar5212InvalidGainReadback(struct ath_hal *, GAIN_VALUES *);
-static HAL_BOOL ar5212IsGainAdjustNeeded(struct ath_hal *, const GAIN_VALUES *);
-static int32_t ar5212AdjustGain(struct ath_hal *, GAIN_VALUES *);
+		   const RD_EDGES_POWER  *pRdEdgesPower);
 void		ar5212SetRateDurationTable(struct ath_hal *, HAL_CHANNEL *);
-static uint32_t ar5212GetRfField(uint32_t *rfBuf, uint32_t numBits,
-		uint32_t firstBit, uint32_t column);
-static void ar5212GetGainFCorrection(struct ath_hal *ah);
-HAL_BOOL ar5212SetXrMode(struct ath_hal *ah, HAL_OPMODE opmode,HAL_CHANNEL *chan);
-void ar5212SetIFSTiming(struct ath_hal *, HAL_CHANNEL *);
+void		ar5212SetIFSTiming(struct ath_hal *, HAL_CHANNEL *);
 
 /* NB: public for RF backend use */
-void	ar5212GetLowerUpperValues(uint16_t value,
-		uint16_t *pList, uint16_t listSize,
-		uint16_t *pLowerValue, uint16_t *pUpperValue);
-void	ar5212ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32,
-		uint32_t numBits, uint32_t firstBit, uint32_t column);
+void		ar5212GetLowerUpperValues(uint16_t value,
+		   uint16_t *pList, uint16_t listSize,
+		   uint16_t *pLowerValue, uint16_t *pUpperValue);
+void		ar5212ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32,
+		   uint32_t numBits, uint32_t firstBit, uint32_t column);
 
 static int
 write_common(struct ath_hal *ah, const HAL_INI_ARRAY *ia,
@@ -463,8 +454,9 @@ ar5212Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	ar5212SetRateDurationTable(ah, chan);
 
 	/* Set Tx frame start to tx data start delay */
-	if (IS_5112(ah) && (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan) ||
-			IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan))) {
+	if (IS_RAD5112_ANY(ah) &&
+	    (IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan) ||
+	     IS_CHAN_QUARTER_RATE(AH_PRIVATE(ah)->ah_curchan))) {
 		txFrm2TxDStart = 
 			(IS_CHAN_HALF_RATE(AH_PRIVATE(ah)->ah_curchan)) ?
 					TX_FRAME_D_START_HALF_RATE:
@@ -906,7 +898,7 @@ ar5212ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 	if (chan != AH_NULL) {		/* NB: can be null during attach */
 		uint32_t rfMode, phyPLL = 0, curPhyPLL, turbo;
 
-		if (IS_5413(ah)) {
+		if (IS_5413(ah)) {	/* NB: =>'s 5424 also */
 			rfMode = AR_PHY_MODE_AR5112;
 			if (IS_CHAN_HALF_RATE(chan))
 				rfMode |= AR_PHY_MODE_HALF;
@@ -917,33 +909,26 @@ ar5212ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
 				phyPLL = AR_PHY_PLL_CTL_44_5112;
 			else
 				phyPLL = AR_PHY_PLL_CTL_40_5413;
-		}
-		else if (IS_5112(ah) || IS_2413(ah) || IS_2425(ah) || IS_2417(ah)) {
-			rfMode = AR_PHY_MODE_AR5112;
-			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
-				phyPLL = AR_PHY_PLL_CTL_44_5112;
-			} else {
-				if (IS_CHAN_HALF_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_5112_HALF;
-				} else if (IS_CHAN_QUARTER_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_5112_QUARTER;
-				} else {
-					phyPLL = AR_PHY_PLL_CTL_40_5112;
-				}
-			}
-		} else {
+		} else if (IS_RAD5111(ah)) {
 			rfMode = AR_PHY_MODE_AR5111;
-			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan)) {
+			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
 				phyPLL = AR_PHY_PLL_CTL_44;
-			} else {
-				if (IS_CHAN_HALF_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_HALF;
-				} else if (IS_CHAN_QUARTER_RATE(chan)) {
-					phyPLL = AR_PHY_PLL_CTL_40_QUARTER;
-				} else {
-					phyPLL = AR_PHY_PLL_CTL_40;
-				}
-			}
+			else
+				phyPLL = AR_PHY_PLL_CTL_40;
+			if (IS_CHAN_HALF_RATE(chan))
+				phyPLL = AR_PHY_PLL_CTL_HALF;
+			else if (IS_CHAN_QUARTER_RATE(chan))
+				phyPLL = AR_PHY_PLL_CTL_QUARTER;
+		} else {		/* 5112, 2413, 2316, 2317 */
+			rfMode = AR_PHY_MODE_AR5112;
+			if (IS_CHAN_CCK(chan) || IS_CHAN_G(chan))
+				phyPLL = AR_PHY_PLL_CTL_44_5112;
+			else
+				phyPLL = AR_PHY_PLL_CTL_40_5112;
+			if (IS_CHAN_HALF_RATE(chan))
+				phyPLL |= AR_PHY_PLL_CTL_HALF;
+			else if (IS_CHAN_QUARTER_RATE(chan))
+				phyPLL |= AR_PHY_PLL_CTL_QUARTER;
 		}
 		if (IS_CHAN_OFDM(chan) && (IS_CHAN_CCK(chan) || 
 					   IS_CHAN_G(chan)))
@@ -992,7 +977,8 @@ ar5212ChipReset(struct ath_hal *ah, HAL_CHANNEL *chan)
  * changes.
  */
 HAL_BOOL
-ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+ar5212PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
+	HAL_BOOL longCal, HAL_BOOL *isCalDone)
 {
 #define IQ_CAL_TRIES    10
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -1004,7 +990,7 @@ ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 	HAL_BOOL isBmode = AH_FALSE;
 
 	OS_MARK(ah, AH_MARK_PERCAL, chan->channel);
-	*isIQdone = AH_FALSE;
+	*isCalDone = AH_FALSE;
 	ichan = ath_hal_checkchannel(ah, chan);
 	if (ichan == AH_NULL) {
 		HALDEBUG(ah, HAL_DEBUG_ANY,
@@ -1015,10 +1001,9 @@ ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 	SAVE_CCK(ah, ichan, ichan_isBmode);
 	SAVE_CCK(ah, chan, isBmode);
 
-	/* XXX EAR */
-	if ((ahp->ah_bIQCalibration == IQ_CAL_DONE) ||
-	    (ahp->ah_bIQCalibration == IQ_CAL_INACTIVE))
-		*isIQdone = AH_TRUE;
+	if (ahp->ah_bIQCalibration == IQ_CAL_DONE ||
+	    ahp->ah_bIQCalibration == IQ_CAL_INACTIVE)
+		*isCalDone = AH_TRUE;
 
 	/* IQ calibration in progress. Check to see if it has finished. */
 	if (ahp->ah_bIQCalibration == IQ_CAL_RUNNING &&
@@ -1027,7 +1012,7 @@ ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 
 		/* IQ Calibration has finished. */
 		ahp->ah_bIQCalibration = IQ_CAL_INACTIVE;
-		*isIQdone = AH_TRUE;
+		*isCalDone = AH_TRUE;
 
 		/* workaround for misgated IQ Cal results */
 		i = 0;
@@ -1097,9 +1082,8 @@ ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 			ichan->iCoff = iCoff;
 			ichan->qCoff = qCoff;
 		}
-	} else if (!IS_CHAN_B(chan) &&
-		   ahp->ah_bIQCalibration == IQ_CAL_DONE &&
-		   !ichan->iqCalValid) {
+	} else if (!IS_CHAN_B(chan) && ahp->ah_bIQCalibration == IQ_CAL_DONE &&
+	    !ichan->iqCalValid) {
 		/*
 		 * Start IQ calibration if configured channel has changed.
 		 * Use a magic number of 15 based on default value.
@@ -1113,27 +1097,39 @@ ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 	}
 	/* XXX EAR */
 
-	/* Check noise floor results */
-	ar5212GetNf(ah, ichan);
-	if ((ichan->channelFlags & CHANNEL_CW_INT) == 0) {
-		/* Perform calibration for 5Ghz channels and any OFDM on 5112 */
-		if ((IS_CHAN_5GHZ(chan) ||
-			 (IS_5112(ah) && IS_CHAN_OFDM(chan))) &&
-			!(IS_2413(ah) || IS_5413(ah) || IS_2417(ah)))
-			ar5212RequestRfgain(ah);
+	if (longCal) {
+		/* Check noise floor results */
+		ar5212GetNf(ah, ichan);
 
-		/* XXX EAR */
-	} else {
-		/* report up and clear internal state */
-		chan->channelFlags |= CHANNEL_CW_INT;
-		ichan->channelFlags &= ~CHANNEL_CW_INT;
+		if ((ichan->channelFlags & CHANNEL_CW_INT) == 0) {
+			/* Perform cal for 5Ghz channels and any OFDM on 5112 */
+			if (IS_CHAN_5GHZ(chan) ||
+			    (IS_RAD5112(ah) && IS_CHAN_OFDM(chan)))
+				ar5212RequestRfgain(ah);
+		} else {
+			/* report up and clear internal state */
+			chan->channelFlags |= CHANNEL_CW_INT;
+			ichan->channelFlags &= ~CHANNEL_CW_INT;
+		}
 	}
-
 	RESTORE_CCK(ah, ichan, ichan_isBmode);
 	RESTORE_CCK(ah, chan, isBmode);
 
 	return AH_TRUE;
 #undef IQ_CAL_TRIES
+}
+
+HAL_BOOL
+ar5212PerCalibration(struct ath_hal *ah,  HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+{
+	return ar5212PerCalibrationN(ah, chan, 0x1, AH_TRUE, isIQdone);
+}
+
+HAL_BOOL
+ar5212ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
+{
+	/* XXX */
+	return AH_TRUE;
 }
 
 /*
@@ -1174,6 +1170,9 @@ ar5212SetResetReg(struct ath_hal *ah, uint32_t resetMask)
 		if (ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 			(void) OS_REG_READ(ah, AR_ISR_RAC);
 	}
+
+	/* track PHY power state so we don't try to r/w BB registers */
+	AH5212(ah)->ah_phyPowerOn = ((resetMask & AR_RC_BB) == 0);
 	return rt;
 }
 
@@ -1383,42 +1382,6 @@ ar5212SetCompRegs(struct ath_hal *ah)
 	}
 }
 
-#define	MAX_ANALOG_START	319		/* XXX */
-
-/*
- * Find analog bits of given parameter data and return a reversed value
- */
-static uint32_t
-ar5212GetRfField(uint32_t *rfBuf, uint32_t numBits, uint32_t firstBit, uint32_t column)
-{
-	uint32_t reg32 = 0, mask, arrayEntry, lastBit;
-	uint32_t bitPosition, bitsShifted;
-	int32_t bitsLeft;
-
-	HALASSERT(column <= 3);
-	HALASSERT(numBits <= 32);
-	HALASSERT(firstBit + numBits <= MAX_ANALOG_START);
-
-	arrayEntry = (firstBit - 1) / 8;
-	bitPosition = (firstBit - 1) % 8;
-	bitsLeft = numBits;
-	bitsShifted = 0;
-	while (bitsLeft > 0) {
-		lastBit = (bitPosition + bitsLeft > 8) ?
-			(8) : (bitPosition + bitsLeft);
-		mask = (((1 << lastBit) - 1) ^ ((1 << bitPosition) - 1)) <<
-			(column * 8);
-		reg32 |= (((rfBuf[arrayEntry] & mask) >> (column * 8)) >>
-			bitPosition) << bitsShifted;
-		bitsShifted += lastBit - bitPosition;
-		bitsLeft -= (8 - bitPosition);
-		bitPosition = 0;
-		arrayEntry++;
-	}
-	reg32 = ath_hal_reverseBits(reg32, numBits);
-	return reg32;
-}
-
 HAL_BOOL
 ar5212SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 	const HAL_CHANNEL_INTERNAL *chan)
@@ -1434,6 +1397,7 @@ ar5212SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 	HAL_CHANNEL_INTERNAL ichan = *chan;
 
 	HALASSERT(ah->ah_magic == AR5212_MAGIC);
+	HALASSERT(ahp->ah_phyPowerOn);
 
 	SAVE_CCK(ah, &ichan, isBmode);
 	switch (ichan.channelFlags & CHANNEL_ALL_NOTURBO) {
@@ -1482,13 +1446,15 @@ ar5212SetAntennaSwitchInternal(struct ath_hal *ah, HAL_ANT_SETTING settings,
 		    "%s: Setting fast diversity off.\n", __func__);
 		OS_REG_CLR_BIT(ah,AR_PHY_CCK_DETECT, 
 			       AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+		ahp->ah_diversity = AH_FALSE;
 	} else {
 		HALDEBUG(ah, HAL_DEBUG_RFPARAM,
 		    "%s: Setting fast diversity on.\n", __func__);
 		OS_REG_SET_BIT(ah,AR_PHY_CCK_DETECT, 
 			       AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV);
+		ahp->ah_diversity = AH_TRUE;
 	}
-	ahp->ah_diversityControl = settings;
+	ahp->ah_antControl = settings;
 
 	OS_REG_WRITE(ah, ANT_SWITCH_TABLE1, antSwitchA);
 	OS_REG_WRITE(ah, ANT_SWITCH_TABLE2, antSwitchB);
@@ -1502,7 +1468,7 @@ HAL_BOOL
 ar5212IsSpurChannel(struct ath_hal *ah, HAL_CHANNEL *chan)
 {
     uint32_t clockFreq =
-	((IS_5413(ah) || IS_2413(ah) || IS_5112(ah) || IS_2417(ah)) ? 40 : 32);
+	((IS_5413(ah) || IS_RAD5112_ANY(ah) || IS_2417(ah)) ? 40 : 32);
     return ( ((chan->channel % clockFreq) != 0)
           && (((chan->channel % clockFreq) < 10)
          || (((chan->channel) % clockFreq) > 22)) );
@@ -1534,7 +1500,7 @@ ar5212SetBoardValues(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 	case CHANNEL_A:
 	case CHANNEL_T:
 		arrayMode = headerInfo11A;
-		if (!IS_5112(ah) && !IS_2413(ah) && !IS_5413(ah))
+		if (!IS_RAD5112_ANY(ah) && !IS_2413(ah) && !IS_5413(ah))
 			OS_REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
 				AR_PHY_FRAME_CTL_TX_CLIP,
 				ahp->ah_gainValues.currStep->paramVal[GP_TXCLIP]);
@@ -1556,7 +1522,7 @@ ar5212SetBoardValues(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan)
 	AR_PHY_BIS(ah, 68, 0xFFFFFC06,
 		(ee->ee_antennaControl[0][arrayMode] << 4) | 0x1);
 
-	ar5212SetAntennaSwitchInternal(ah, ahp->ah_diversityControl, chan);
+	ar5212SetAntennaSwitchInternal(ah, ahp->ah_antControl, chan);
 
 	/* Set the Noise Floor Thresh on ar5211 devices */
 	OS_REG_WRITE(ah, AR_PHY(90),
@@ -2566,278 +2532,16 @@ ar5212GetLowerUpperValues(uint16_t v, uint16_t *lp, uint16_t listSize,
 	HALASSERT(AH_FALSE);		/* should not reach here */
 }
 
-static const GAIN_OPTIMIZATION_LADDER gainLadder = {
-	9,					/* numStepsInLadder */
-	4,					/* defaultStepNum */
-	{ { {4, 1, 1, 1},  6, "FG8"},
-	  { {4, 0, 1, 1},  4, "FG7"},
-	  { {3, 1, 1, 1},  3, "FG6"},
-	  { {4, 0, 0, 1},  1, "FG5"},
-	  { {4, 1, 1, 0},  0, "FG4"},	/* noJack */
-	  { {4, 0, 1, 0}, -2, "FG3"},	/* halfJack */
-	  { {3, 1, 1, 0}, -3, "FG2"},	/* clip3 */
-	  { {4, 0, 0, 0}, -4, "FG1"},	/* noJack */
-	  { {2, 1, 1, 0}, -6, "FG0"} 	/* clip2 */
-	}
-};
-
-const static GAIN_OPTIMIZATION_LADDER gainLadder5112 = {
-	8,					/* numStepsInLadder */
-	1,					/* defaultStepNum */
-	{ { {3, 0,0,0, 0,0,0},   6, "FG7"},	/* most fixed gain */
-	  { {2, 0,0,0, 0,0,0},   0, "FG6"},
-	  { {1, 0,0,0, 0,0,0},  -3, "FG5"},
-	  { {0, 0,0,0, 0,0,0},  -6, "FG4"},
-	  { {0, 1,1,0, 0,0,0},  -8, "FG3"},
-	  { {0, 1,1,0, 1,1,0}, -10, "FG2"},
-	  { {0, 1,0,1, 1,1,0}, -13, "FG1"},
-	  { {0, 1,0,1, 1,0,1}, -16, "FG0"},	/* least fixed gain */
-	}
-};
-
-/*
- * Initialize the gain structure to good values
- */
-void
-ar5212InitializeGainValues(struct ath_hal *ah)
-{
-	struct ath_hal_5212 *ahp = AH5212(ah);
-	GAIN_VALUES *gv = &ahp->ah_gainValues;
-
-	/* initialize gain optimization values */
-	if (IS_5112(ah)) {
-		gv->currStepNum = gainLadder5112.defaultStepNum;
-		gv->currStep =
-			&gainLadder5112.optStep[gainLadder5112.defaultStepNum];
-		gv->active = AH_TRUE;
-		gv->loTrig = 20;
-		gv->hiTrig = 85;
-	} else {
-		gv->currStepNum = gainLadder.defaultStepNum;
-		gv->currStep = &gainLadder.optStep[gainLadder.defaultStepNum];
-		gv->active = AH_TRUE;
-		gv->loTrig = 20;
-		gv->hiTrig = 35;
-	}
-}
-
-static HAL_BOOL
-ar5212InvalidGainReadback(struct ath_hal *ah, GAIN_VALUES *gv)
-{
-	uint32_t gStep, g, mixOvr;
-	uint32_t L1, L2, L3, L4;
-
-	if (IS_5112(ah)) {
-		mixOvr = ar5212GetRfField(ar5212GetRfBank(ah, 7), 1, 36, 0);
-		L1 = 0;
-		L2 = 107;
-		L3 = 0;
-		L4 = 107;
-		if (mixOvr == 1) {
-			L2 = 83;
-			L4 = 83;
-			gv->hiTrig = 55;
-		}
-	} else {
-		gStep = ar5212GetRfField(ar5212GetRfBank(ah, 7), 6, 37, 0);
-
-		L1 = 0;
-		L2 = (gStep == 0x3f) ? 50 : gStep + 4;
-		L3 = (gStep != 0x3f) ? 0x40 : L1;
-		L4 = L3 + 50;
-
-		gv->loTrig = L1 + (gStep == 0x3f ? DYN_ADJ_LO_MARGIN : 0);
-		/* never adjust if != 0x3f */
-		gv->hiTrig = L4 - (gStep == 0x3f ? DYN_ADJ_UP_MARGIN : -5);
-	}
-	g = gv->currGain;
-
-	return !((g >= L1 && g<= L2) || (g >= L3 && g <= L4));
-}
-
-/*
- * Enable the probe gain check on the next packet
- */
-static void
-ar5212RequestRfgain(struct ath_hal *ah)
-{
-	struct ath_hal_5212 *ahp = AH5212(ah);
-	uint32_t probePowerIndex;
-
-	/* Enable the gain readback probe */
-	probePowerIndex = ahp->ah_ofdmTxPower + ahp->ah_txPowerIndexOffset;
-	OS_REG_WRITE(ah, AR_PHY_PAPD_PROBE,
-		  SM(probePowerIndex, AR_PHY_PAPD_PROBE_POWERTX)
-		| AR_PHY_PAPD_PROBE_NEXT_TX);
-
-	ahp->ah_rfgainState = HAL_RFGAIN_READ_REQUESTED;
-}
-
-/*
- * Exported call to check for a recent gain reading and return
- * the current state of the thermal calibration gain engine.
- */
-HAL_RFGAIN
-ar5212GetRfgain(struct ath_hal *ah)
-{
-	struct ath_hal_5212 *ahp = AH5212(ah);
-	GAIN_VALUES *gv = &ahp->ah_gainValues;
-	uint32_t rddata, probeType;
-
-	if (!gv->active)
-		return HAL_RFGAIN_INACTIVE;
-
-	if (ahp->ah_rfgainState == HAL_RFGAIN_READ_REQUESTED) {
-		/* Caller had asked to setup a new reading. Check it. */
-		rddata = OS_REG_READ(ah, AR_PHY_PAPD_PROBE);
-
-		if ((rddata & AR_PHY_PAPD_PROBE_NEXT_TX) == 0) {
-			/* bit got cleared, we have a new reading. */
-			gv->currGain = rddata >> AR_PHY_PAPD_PROBE_GAINF_S;
-			probeType = MS(rddata, AR_PHY_PAPD_PROBE_TYPE);
-			if (probeType == AR_PHY_PAPD_PROBE_TYPE_CCK) {
-				const HAL_EEPROM *ee = AH_PRIVATE(ah)->ah_eeprom;
-
-				HALASSERT(IS_5112(ah));
-				HALASSERT(ah->ah_magic == AR5212_MAGIC);
-				if (AH_PRIVATE(ah)->ah_phyRev >= AR_PHY_CHIP_ID_REV_2)
-					gv->currGain += ee->ee_cckOfdmGainDelta;
-				else
-					gv->currGain += PHY_PROBE_CCK_CORRECTION;
-			}
-			if (IS_5112(ah)) {
-				ar5212GetGainFCorrection(ah);
-				if (gv->currGain >= gv->gainFCorrection)
-					gv->currGain -= gv->gainFCorrection;
-				else
-					gv->currGain = 0;
-			}
-			/* inactive by default */
-			ahp->ah_rfgainState = HAL_RFGAIN_INACTIVE;
-
-			if (!ar5212InvalidGainReadback(ah, gv) &&
-			    ar5212IsGainAdjustNeeded(ah, gv) &&
-			    ar5212AdjustGain(ah, gv) > 0) {
-				/*
-				 * Change needed. Copy ladder info
-				 * into eeprom info.
-				 */
-				ahp->ah_rfgainState = HAL_RFGAIN_NEED_CHANGE;
-				/* for ap51 */
-				ahp->ah_cwCalRequire = AH_TRUE;
-				/* Request IQ recalibration for temperature chang */
-				ahp->ah_bIQCalibration = IQ_CAL_INACTIVE;
-			}
-		}
-	}
-	return ahp->ah_rfgainState;
-}
-
-/*
- * Check to see if our readback gain level sits within the linear
- * region of our current variable attenuation window
- */
-static HAL_BOOL
-ar5212IsGainAdjustNeeded(struct ath_hal *ah, const GAIN_VALUES *gv)
-{
-	return (gv->currGain <= gv->loTrig || gv->currGain >= gv->hiTrig);
-}
-
-/*
- * Move the rabbit ears in the correct direction.
- */
-static int32_t 
-ar5212AdjustGain(struct ath_hal *ah, GAIN_VALUES *gv)
-{
-	const GAIN_OPTIMIZATION_LADDER *gl;
-
-	if (IS_5112(ah))
-		gl = &gainLadder5112;
-	else
-		gl = &gainLadder;
-	gv->currStep = &gl->optStep[gv->currStepNum];
-	if (gv->currGain >= gv->hiTrig) {
-		if (gv->currStepNum == 0) {
-			HALDEBUG(ah, HAL_DEBUG_ANY, "%s: Max gain limit.\n",
-			    __func__);
-			return -1;
-		}
-		HALDEBUG(ah, HAL_DEBUG_RFPARAM,
-		    "%s: Adding gain: currG=%d [%s] --> ",
-		    __func__, gv->currGain, gv->currStep->stepName);
-		gv->targetGain = gv->currGain;
-		while (gv->targetGain >= gv->hiTrig && gv->currStepNum > 0) {
-			gv->targetGain -= 2 * (gl->optStep[--(gv->currStepNum)].stepGain -
-				gv->currStep->stepGain);
-			gv->currStep = &gl->optStep[gv->currStepNum];
-		}
-		HALDEBUG(ah, HAL_DEBUG_RFPARAM, "targG=%d [%s]\n",
-		    gv->targetGain, gv->currStep->stepName);
-		return 1;
-	}
-	if (gv->currGain <= gv->loTrig) {
-		if (gv->currStepNum == gl->numStepsInLadder-1) {
-			HALDEBUG(ah, HAL_DEBUG_RFPARAM,
-			    "%s: Min gain limit.\n", __func__);
-			return -2;
-		}
-		HALDEBUG(ah, HAL_DEBUG_RFPARAM,
-		    "%s: Deducting gain: currG=%d [%s] --> ",
-		    __func__, gv->currGain, gv->currStep->stepName);
-		gv->targetGain = gv->currGain;
-		while (gv->targetGain <= gv->loTrig &&
-		      gv->currStepNum < (gl->numStepsInLadder - 1)) {
-			gv->targetGain -= 2 *
-				(gl->optStep[++(gv->currStepNum)].stepGain - gv->currStep->stepGain);
-			gv->currStep = &gl->optStep[gv->currStepNum];
-		}
-		HALDEBUG(ah, HAL_DEBUG_RFPARAM, "targG=%d [%s]\n",
-		    gv->targetGain, gv->currStep->stepName);
-		return 2;
-	}
-	return 0;		/* caller didn't call needAdjGain first */
-}
-
-/*
- * Read rf register to determine if gainF needs correction
- */
-static void
-ar5212GetGainFCorrection(struct ath_hal *ah)
-{
-	struct ath_hal_5212 *ahp = AH5212(ah);
-	GAIN_VALUES *gv = &ahp->ah_gainValues;
-
-	HALASSERT(IS_RADX112_REV2(ah));
-
-	gv->gainFCorrection = 0;
-	if (ar5212GetRfField(ar5212GetRfBank(ah, 7), 1, 36, 0) == 1) {
-		uint32_t mixGain = gv->currStep->paramVal[0];
-		uint32_t gainStep =
-			ar5212GetRfField(ar5212GetRfBank(ah, 7), 4, 32, 0);
-		switch (mixGain) {
-		case 0 :
-			gv->gainFCorrection = 0;
-			break;
-		case 1 :
-			gv->gainFCorrection = gainStep;
-			break;
-		case 2 :
-			gv->gainFCorrection = 2 * gainStep - 5;
-			break;
-		case 3 :
-			gv->gainFCorrection = 2 * gainStep;
-			break;
-		}
-	}
-}
-
 /*
  * Perform analog "swizzling" of parameters into their location
+ *
+ * NB: used by RF backends
  */
 void
 ar5212ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32, uint32_t numBits,
                      uint32_t firstBit, uint32_t column)
 {
+#define	MAX_ANALOG_START	319		/* XXX */
 	uint32_t tmp32, mask, arrayEntry, lastBit;
 	int32_t bitPosition, bitsLeft;
 
@@ -2862,6 +2566,7 @@ ar5212ModifyRfBuffer(uint32_t *rfBuf, uint32_t reg32, uint32_t numBits,
 		bitPosition = 0;
 		arrayEntry++;
 	}
+#undef MAX_ANALOG_START
 }
 
 /*
@@ -2881,6 +2586,7 @@ ar5212SetRateDurationTable(struct ath_hal *ah, HAL_CHANNEL *chan)
 	const HAL_RATE_TABLE *rt;
 	int i;
 
+	/* NB: band doesn't matter for 1/2 and 1/4 rate */
 	if (IS_CHAN_HALF_RATE(chan)) {
 		rt = ar5212GetRateTable(ah, HAL_MODE_11A_HALF_RATE);
 	} else if (IS_CHAN_QUARTER_RATE(chan)) {
@@ -2931,6 +2637,8 @@ ar5212SetIFSTiming(struct ath_hal *ah, HAL_CHANNEL *chan)
 {
 	uint32_t txLat, rxLat, usec, slot, refClock, eifs, init_usec;
 
+	HALASSERT(IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan));
+
 	refClock = OS_REG_READ(ah, AR_USEC) & AR_USEC_USEC32;
 	if (IS_CHAN_HALF_RATE(chan)) {
 		slot = IFS_SLOT_HALF_RATE;
@@ -2953,7 +2661,5 @@ ar5212SetIFSTiming(struct ath_hal *ah, HAL_CHANNEL *chan)
 	OS_REG_WRITE(ah, AR_D_GBL_IFS_EIFS, eifs);
 	OS_REG_RMW_FIELD(ah, AR_D_GBL_IFS_MISC,
 				AR_D_GBL_IFS_MISC_USEC_DURATION, init_usec);
-	return;
 }
-
 #endif /* AH_SUPPORT_AR5212 */

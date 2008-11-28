@@ -45,5 +45,6 @@
  * is controlled
  */
 #define	AR5311_D_MISC_SEQ_NUM_CONTROL	0x01000000 /* seq num local or global */
+#define	AR5311_DIAG_USE_ECO	0x00000400	/* "super secret" enable ECO */
 
 #endif /* _DEV_ATH_AR5311REG_H_ */

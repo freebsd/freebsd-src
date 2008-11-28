@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5413.c,v 1.7 2008/11/10 04:08:03 sam Exp $
+ * $Id: ar5413.c,v 1.8 2008/11/15 22:15:46 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -549,8 +549,11 @@ ar5413SetPowerTable(struct ath_hal *ah,
 	int16_t minCalPower5413_t2;
 	uint16_t *pdadcValues = ahp->ah_pcdacTable;
 	uint16_t gainBoundaries[4];
-	uint32_t i, reg32, regoffset, tpcrg1;
-	int numPdGainsUsed;
+	uint32_t reg32, regoffset;
+	int i, numPdGainsUsed;
+#ifndef AH_USE_INIPDGAIN
+	uint32_t tpcrg1;
+#endif
 
 	HALDEBUG(ah, HAL_DEBUG_RFPARAM, "%s: chan 0x%x flag 0x%x\n",
 	    __func__, chan->channel,chan->channelFlags);
@@ -572,10 +575,16 @@ ar5413SetPowerTable(struct ath_hal *ah,
 		&minCalPower5413_t2,gainBoundaries, rfXpdGain, pdadcValues);
 	HALASSERT(1 <= numPdGainsUsed && numPdGainsUsed <= 3);
 
-#if 0
+#ifdef AH_USE_INIPDGAIN
+	/*
+	 * Use pd_gains curve from eeprom; Atheros always uses
+	 * the default curve from the ini file but some vendors
+	 * (e.g. Zcomax) want to override this curve and not
+	 * honoring their settings results in tx power 5dBm low.
+	 */
 	OS_REG_RMW_FIELD(ah, AR_PHY_TPCRG1, AR_PHY_TPCRG1_NUM_PD_GAIN, 
 			 (pRawDataset->pDataPerChannel[0].numPdGains - 1));
-#endif
+#else
 	tpcrg1 = OS_REG_READ(ah, AR_PHY_TPCRG1);
 	tpcrg1 = (tpcrg1 &~ AR_PHY_TPCRG1_NUM_PD_GAIN)
 		  | SM(numPdGainsUsed-1, AR_PHY_TPCRG1_NUM_PD_GAIN);
@@ -600,6 +609,7 @@ ar5413SetPowerTable(struct ath_hal *ah,
 		    __func__, OS_REG_READ(ah, AR_PHY_TPCRG1), tpcrg1);
 #endif
 	OS_REG_WRITE(ah, AR_PHY_TPCRG1, tpcrg1);
+#endif
 
 	/*
 	 * Note the pdadc table may not start at 0 dBm power, could be

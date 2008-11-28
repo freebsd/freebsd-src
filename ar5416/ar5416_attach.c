@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416_attach.c,v 1.19 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5416_attach.c,v 1.27 2008/11/27 22:30:07 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -83,6 +83,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_phyDisable		= ar5416PhyDisable;
 	ah->ah_disable			= ar5416Disable;
 	ah->ah_perCalibration		= ar5416PerCalibration;
+	ah->ah_perCalibrationN		= ar5416PerCalibrationN,
+	ah->ah_resetCalValid		= ar5416ResetCalValid,
 	ah->ah_setTxPowerLimit		= ar5416SetTxPowerLimit;
 
 	/* Transmit functions */
@@ -97,6 +99,8 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
 	ah->ah_procRxDesc		= ar5416ProcRxDesc;
+	ah->ah_rxMonitor		= ar5416AniPoll,
+	ah->ah_procMibEvent		= ar5416ProcessMibIntr,
 
 	/* Misc Functions */
 	ah->ah_getDiagState		= ar5416GetDiagState;
@@ -157,24 +161,10 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ahp->ah_priv.ah_getChipPowerLimits = ar5416GetChipPowerLimits;
 
 	/*
-	 * XXX - Do we need a board specific chain mask?
 	 * Start by setting all Owl devices to 2x2
 	 */
 	AH5416(ah)->ah_rx_chainmask = AR5416_DEFAULT_RXCHAINMASK;
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
-	AH5416(ah)->ah_clksel = 0;		/* XXX */
-	/* NB: ah_keytype is initialized to zero which is ok */
-#if 0
-	ah->ah_descinfo.rxctl_numwords = RXCTL_NUMWORDS(ah);
-	ah->ah_descinfo.rxctl_offset = RXCTL_OFFSET(ah);
-	ah->ah_descinfo.rxstatus_numwords = RXSTATUS_NUMWORDS(ah);
-	ah->ah_descinfo.rxstatus_offset = RXSTATUS_OFFSET(ah);
-
-	ah->ah_descinfo.txctl_numwords = TXCTL_NUMWORDS(ah);
-	ah->ah_descinfo.txctl_offset = TXCTL_OFFSET(ah);
-	ah->ah_descinfo.txstatus_numwords = TXSTATUS_NUMWORDS(ah);
-	ah->ah_descinfo.txstatus_offset = TXSTATUS_OFFSET(ah);
-#endif
 }
 
 /*
@@ -330,7 +320,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
 	 * starting from griffin. Set here to make sure that
 	 * AR_MISC_MODE_MIC_NEW_LOC_ENABLE is set before a GTK is
-	 * placed into hardware
+	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
 		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
@@ -344,9 +334,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
-	ar5212InitializeGainValues(ah);		/* gain ladder */
 	ar5416AniSetup(ah);			/* Anti Noise Immunity */
-	ar5416InitNfHistBuff(AH5416(ah)->ah_nfCalHist);
+	ar5416InitNfHistBuff(AH5416(ah)->ah_cal.nfCalHist);
 
 	HALDEBUG(ah, HAL_DEBUG_ATTACH, "%s: return\n", __func__);
 
@@ -367,7 +356,7 @@ ar5416Detach(struct ath_hal *ah)
 	HALASSERT(ah != AH_NULL);
 	HALASSERT(ah->ah_magic == AR5416_MAGIC);
 
-	ar5212AniDetach(ah);
+	ar5416AniDetach(ah);
 	ar5212RfDetach(ah);
 	ah->ah_disable(ah);
 	ar5416SetPowerMode(ah, HAL_PM_FULL_SLEEP, AH_TRUE);

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5211_attach.c,v 1.8 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5211_attach.c,v 1.11 2008/11/27 22:29:52 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -49,6 +49,8 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_disable			= ar5211Disable,
 	.ah_setPCUConfig		= ar5211SetPCUConfig,
 	.ah_perCalibration		= ar5211PerCalibration,
+	.ah_perCalibrationN		= ar5211PerCalibrationN,
+	.ah_resetCalValid		= ar5211ResetCalValid,
 	.ah_setTxPowerLimit		= ar5211SetTxPowerLimit,
 	.ah_getChanNoise		= ath_hal_getChanNoise,
 
@@ -96,6 +98,7 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_setMacAddress		= ar5211SetMacAddress,
 	.ah_getBssIdMask		= ar5211GetBssIdMask,
 	.ah_setBssIdMask		= ar5211SetBssIdMask,
+	.ah_setRegulatoryDomain		= ar5211SetRegulatoryDomain,
 	.ah_setLedState			= ar5211SetLedState,
 	.ah_writeAssocid		= ar5211WriteAssocid,
 	.ah_gpioCfgInput		= ar5211GpioCfgInput,
@@ -329,7 +332,7 @@ ar5211Attach(uint16_t devid, HAL_SOFTC sc,
         }
 	AH_PRIVATE(ah)->ah_currentRD = eeval;
 	AH_PRIVATE(ah)->ah_getNfAdjust = ar5211GetNfAdjust;
-	
+
 	/*
 	 * Got everything we need now to setup the capabilities.
 	 */
@@ -458,9 +461,6 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 {
 	struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
 	HAL_CAPABILITIES *pCap = &ahpriv->ah_caps;
-
-        if (AH_PRIVATE(ah)->ah_currentRD == 1)
-		return AH_FALSE;
 
 	/* Construct wireless mode from EEPROM */
 	pCap->halWirelessModes = 0;

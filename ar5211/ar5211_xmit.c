@@ -364,7 +364,7 @@ ar5211ResetTxQueue(struct ath_hal *ah, u_int q)
 
 #ifndef AH_DISABLE_WME
 	/*
-	 * This is a really not the right way to do it, but
+	 * Yes, this is a hack and not the right way to do it, but
 	 * it does get the lockout bits and backoff set for the
 	 * high-pri WME queues for testing.  We need to either extend
 	 * the meaning of queueInfo->mode, or create something like

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5212phy.h,v 1.5 2008/11/04 01:08:40 sam Exp $
+ * $Id: ar5212phy.h,v 1.7 2008/11/19 21:23:01 sam Exp $
  */
 #ifndef _DEV_ATH_AR5212PHY_H_
 #define _DEV_ATH_AR5212PHY_H_
@@ -113,6 +113,7 @@
 #define	AR_PHY_AGC_CONTROL_CAL	0x00000001	/* do internal calibration */
 #define	AR_PHY_AGC_CONTROL_NF	0x00000002	/* do noise-floor calculation */
 #define AR_PHY_AGC_CONTROL_ENABLE_NF     0x00008000 /* Enable noise floor calibration to happen */
+#define	AR_PHY_AGC_CONTROL_FLTR_CAL	0x00010000  /* Allow Filter calibration */
 #define AR_PHY_AGC_CONTROL_NO_UPDATE_NF  0x00020000 /* Don't update noise floor automatically */
 
 #define	AR_PHY_SFCORR_LOW	 0x986C
@@ -136,16 +137,14 @@
 #define	AR_PHY_SLEEP_CTR_LIMIT		0x9874
 #define	AR_PHY_SLEEP_SCAL		0x9878
 
-#define	AR_PHY_PLL_CTL		0x987c		/* PLL control register */
-#define	AR_PHY_PLL_CTL_40	0xaa		/* 40 MHz */
-#define	AR_PHY_PLL_CTL_44	0xab		/* 44 MHz for 11b, 11g */
-#define AR_PHY_PLL_CTL_40_HALF  0x1aa		/* 40 MHz for 11a, turbos (Half)*/
-#define AR_PHY_PLL_CTL_40_QUARTER  0x2aa	/* 40 MHz for 11a, turbos (Quarter)*/
-#define	AR_PHY_PLL_CTL_44_5112	0xeb		/* 44 MHz for 11b, 11g */
-#define	AR_PHY_PLL_CTL_40_5112	0xea		/* 40 MHz for 11a, turbos */
-#define AR_PHY_PLL_CTL_40_5112_HALF  0x1ea	/* 40 MHz for 11a, turbos (Half)*/
-#define AR_PHY_PLL_CTL_40_5112_QUARTER  0x2ea	/* 40 MHz for 11a, turbos (Quarter)*/
-#define AR_PHY_PLL_CTL_40_5413  0x04        /* 40 MHz for 11a, turbos with 5413 */
+#define	AR_PHY_PLL_CTL		0x987c	/* PLL control register */
+#define	AR_PHY_PLL_CTL_40	0xaa	/* 40 MHz */
+#define	AR_PHY_PLL_CTL_44	0xab	/* 44 MHz for 11b, 11g */
+#define	AR_PHY_PLL_CTL_44_5112	0xeb	/* 44 MHz for 11b, 11g */
+#define	AR_PHY_PLL_CTL_40_5112	0xea	/* 40 MHz for 11a, turbos */
+#define	AR_PHY_PLL_CTL_40_5413  0x04	/* 40 MHz for 11a, turbos with 5413 */
+#define	AR_PHY_PLL_CTL_HALF	0x100	/* Half clock for 1/2 chan width */
+#define	AR_PHY_PLL_CTL_QUARTER	0x200	/* Quarter clock for 1/4 chan width */
 
 #define	AR_PHY_BIN_MASK_1	0x9900
 #define	AR_PHY_BIN_MASK_2	0x9904

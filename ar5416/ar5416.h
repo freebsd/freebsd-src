@@ -14,19 +14,20 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416.h,v 1.16 2008/11/10 04:08:04 sam Exp $
+ * $Id: ar5416.h,v 1.19 2008/11/11 21:38:13 sam Exp $
  */
 #ifndef _ATH_AR5416_H_
 #define _ATH_AR5416_H_
 
 #include "ar5212/ar5212.h"
+#include "ar5416_cal.h"
 
 #define	AR5416_MAGIC	0x20065416
 
 enum {
-    HAL_RESET_POWER_ON,
-    HAL_RESET_WARM,
-    HAL_RESET_COLD,
+	HAL_RESET_POWER_ON,
+	HAL_RESET_WARM,
+	HAL_RESET_COLD,
 };
 
 typedef struct {
@@ -40,70 +41,9 @@ typedef struct {
 #define	AR5416_MAX_RATE_POWER		63
 #define	AR5416_KEYTABLE_SIZE		128
 
-#define	AR5416_NUM_NF_READINGS		6	/* (3 chains * (ctl + ext) */
 #define	AR5416_CCA_MAX_GOOD_VALUE	-85
 #define	AR5416_CCA_MAX_HIGH_VALUE	-62
 #define	AR5416_CCA_MIN_BAD_VALUE	-140
-
-#define INIT_CAL(_perCal) do {				\
-	(_perCal)->calState = CAL_WAITING;		\
-	(_perCal)->calNext = AH_NULL;			\
-} while (0)
-
-#define INSERT_CAL(_ahp, _perCal) do {					\
-	if ((_ahp)->ah_cal_last == AH_NULL) {			\
-		(_ahp)->ah_cal_list = (_ahp)->ah_cal_last = (_perCal); \
-		((_ahp)->ah_cal_last)->calNext = (_perCal);	\
-	} else {							\
-		((_ahp)->ah_cal_last)->calNext = (_perCal);	\
-		(_ahp)->ah_cal_last = (_perCal);			\
-		(_perCal)->calNext = (_ahp)->ah_cal_list;		\
-	}								\
-} while (0)
- 
-typedef enum cal_types {
-	ADC_DC_INIT_CAL	= 0x1,
-	ADC_GAIN_CAL	= 0x2,
-	ADC_DC_CAL	= 0x4,
-	IQ_MISMATCH_CAL	= 0x8
-} HAL_CAL_TYPE;
-
-/* Calibrate state */
-typedef enum cal_state {
-	CAL_INACTIVE,
-	CAL_WAITING,
-	CAL_RUNNING,
-	CAL_DONE
-} HAL_CAL_STATE;
-
-typedef union {
-	uint32_t	u;
-	int32_t		s;
-} HAL_CAL_SAMPLE;
-
-#define	MIN_CAL_SAMPLES     1
-#define	MAX_CAL_SAMPLES    64
-#define	INIT_LOG_COUNT      5
-#define	PER_MIN_LOG_COUNT   2
-#define	PER_MAX_LOG_COUNT  10
-
-/* Per Calibration data structure */
-typedef struct per_cal_data {
-	const char	*calName;		/* for diagnostics */
-	HAL_CAL_TYPE	calType;		/* Type of calibration */
-	uint32_t	calNumSamples;		/* # SW samples to collect */
-	uint32_t	calCountMax;		/* # HW samples to collect */
-	void (*calCollect)(struct ath_hal *);	/* Accumulator function */
-						/* Post-processing function */
-	void (*calPostProc)(struct ath_hal *, uint8_t);
-} HAL_PERCAL_DATA;
-
-/* List structure for calibration data */
-typedef struct cal_list {
-	struct cal_list		*calNext;
-	HAL_CAL_STATE		calState;
-	const HAL_PERCAL_DATA	*calData;
-} HAL_CAL_LIST;
 
 struct ath_hal_5416 {
 	struct ath_hal_5212 ah_5212;
@@ -119,7 +59,6 @@ struct ath_hal_5416 {
 	HAL_INI_ARRAY	ah_ini_addac;
 
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
-	int		ah_clksel;
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
@@ -130,42 +69,10 @@ struct ath_hal_5416 {
 	uint32_t	ah_extBusy;
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
-	/*
-	 * Periodic calibration state.
-	 */
-	HAL_CAL_TYPE	ah_suppCals;
-	HAL_CAL_LIST	ah_iqCalData;
-	HAL_CAL_LIST	ah_adcGainCalData;
-	HAL_CAL_LIST	ah_adcDcCalInitData;
-	HAL_CAL_LIST	ah_adcDcCalData;
-	HAL_CAL_LIST	*ah_cal_list;
-	HAL_CAL_LIST	*ah_cal_last;
-	HAL_CAL_LIST	*ah_cal_curr;
-#define AR5416_MAX_CHAINS            	3	/* XXX dup's eeprom def */
-	HAL_CAL_SAMPLE	ah_caldata[4][AR5416_MAX_CHAINS];
-	int		ah_calSamples;
-	/*
-	 * Noise floor cal histogram support.
-	 * XXX be nice to re-use space in ar5212
-	 */
-	struct ar5212NfCalHist ah_nfCalHist[AR5416_NUM_NF_READINGS];
+
+	struct ar5416PerCal ah_cal;		/* periodic calibration state */
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
-
-/* IQ Cal aliases */
-#define	ah_totalPowerMeasI(i)		ah_caldata[0][i].u
-#define	ah_totalPowerMeasQ(i)		ah_caldata[1][i].u
-#define	ah_totalIqCorrMeas(i)		ah_caldata[2][i].s
-/* Adc Gain Cal aliases */
-#define	ah_totalAdcIOddPhase(i)		ah_caldata[0][i].u
-#define	ah_totalAdcIEvenPhase(i)	ah_caldata[1][i].u
-#define	ah_totalAdcQOddPhase(i)		ah_caldata[2][i].u
-#define	ah_totalAdcQEvenPhase(i)	ah_caldata[3][i].u
-/* Adc DC Offset Cal aliases */
-#define	ah_totalAdcDcOffsetIOddPhase(i)	 ah_caldata[0][i].s
-#define	ah_totalAdcDcOffsetIEvenPhase(i) ah_caldata[1][i].s
-#define	ah_totalAdcDcOffsetQOddPhase(i)	 ah_caldata[2][i].s
-#define	ah_totalAdcDcOffsetQEvenPhase(i) ah_caldata[3][i].s
 
 #define IS_5416_PCI(ah) ((AH_PRIVATE(ah)->ah_macVersion) == AR_SREV_VERSION_OWL_PCI)
 #define IS_5416_PCIE(ah) ((AH_PRIVATE(ah)->ah_macVersion) == AR_SREV_VERSION_OWL_PCIE)
@@ -187,8 +94,17 @@ extern	HAL_BOOL ar5416FillCapabilityInfo(struct ath_hal *ah);
 #define	IS_5GHZ_FAST_CLOCK_EN(_ah, _c) \
 	(IS_CHAN_5GHZ(_c) && ath_hal_eepromGetFlag(ah, AR_EEP_FSTCLK_5G))
 
-extern	HAL_BOOL ar5416AniAttach(struct ath_hal *ah);
-extern	void ar5416AniDetach(struct ath_hal *ah);
+extern	void ar5416AniAttach(struct ath_hal *, const struct ar5212AniParams *,
+		const struct ar5212AniParams *, HAL_BOOL ena);
+extern	void ar5416AniDetach(struct ath_hal *);
+extern	HAL_BOOL ar5416AniControl(struct ath_hal *, HAL_ANI_CMD cmd, int param);
+extern	HAL_BOOL ar5416AniSetParams(struct ath_hal *,
+		const struct ar5212AniParams *, const struct ar5212AniParams *);
+extern	void ar5416ProcessMibIntr(struct ath_hal *, const HAL_NODE_STATS *);
+extern	void ar5416AniPoll(struct ath_hal *, const HAL_NODE_STATS *,
+			     HAL_CHANNEL *);
+extern	void ar5416AniReset(struct ath_hal *, HAL_CHANNEL_INTERNAL *,
+		HAL_OPMODE, int);
 
 extern	void ar5416SetBeaconTimers(struct ath_hal *, const HAL_BEACON_TIMERS *);
 extern	void ar5416BeaconInit(struct ath_hal *ah,
@@ -250,17 +166,6 @@ extern	HAL_RFGAIN ar5416GetRfgain(struct ath_hal *ah);
 extern	HAL_BOOL ar5416Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5416ChipReset(struct ath_hal *ah, HAL_CHANNEL *);
 extern	HAL_BOOL ar5416SetResetReg(struct ath_hal *, uint32_t type);
-extern	HAL_BOOL ar5416PerCalibration(struct ath_hal *,  HAL_CHANNEL *,
-		HAL_BOOL *isIQdone);
-extern  void ar5416ResetCalValid(struct ath_hal *ah,  HAL_CHANNEL *chan,
-		HAL_BOOL *isIQdone);
-extern	void ar5416IQCalCollect(struct ath_hal *ah);
-extern	void ar5416IQCalibration(struct ath_hal *ah, uint8_t numChains);
-extern	void ar5416AdcGainCalCollect(struct ath_hal *ah);
-extern	void ar5416AdcGainCalibration(struct ath_hal *ah, uint8_t numChains);
-extern	void ar5416AdcDcCalCollect(struct ath_hal *ah);
-extern	void ar5416AdcDcCalibration(struct ath_hal *ah, uint8_t numChains);
-extern	void ar5416InitNfHistBuff(struct ar5212NfCalHist *h);
 extern	HAL_BOOL ar5416SetTxPowerLimit(struct ath_hal *ah, uint32_t limit);
 extern	HAL_BOOL ar5416GetChipPowerLimits(struct ath_hal *ah,
 		HAL_CHANNEL *chans, uint32_t nchans);

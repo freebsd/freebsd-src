@@ -14,11 +14,12 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ah_eeprom.h,v 1.6 2008/11/10 04:08:00 sam Exp $
+ * $Id: ah_eeprom.h,v 1.11 2008/11/27 22:32:48 sam Exp $
  */
 #ifndef _ATH_AH_EEPROM_H_
 #define _ATH_AH_EEPROM_H_
 
+#define	AR_EEPROM_VER1		0x1000	/* Version 1.0; 5210 only */
 /*
  * Version 3 EEPROMs are all 16K.
  * 3.1 adds turbo limit, antenna gain, 16 CTL's, 11g info,
@@ -34,15 +35,17 @@
 #define	AR_EEPROM_VER3_2	0x3002	/* Version 3.2 */
 #define	AR_EEPROM_VER3_3	0x3003	/* Version 3.3 */
 #define	AR_EEPROM_VER3_4	0x3004	/* Version 3.4 */
+#define	AR_EEPROM_VER4		0x4000	/* Version 4.x */
 #define	AR_EEPROM_VER4_0	0x4000	/* Version 4.0 */
 #define	AR_EEPROM_VER4_1	0x4001	/* Version 4.0 */
 #define	AR_EEPROM_VER4_2	0x4002	/* Version 4.0 */
 #define	AR_EEPROM_VER4_3	0x4003	/* Version 4.0 */
 #define	AR_EEPROM_VER4_6	0x4006	/* Version 4.0 */
 #define	AR_EEPROM_VER4_7	0x3007	/* Version 4.7 */
-#define AR_EEPROM_VER4_9	0x4009  /* EEPROM EAR futureproofing */
-#define AR_EEPROM_VER5_0	0x5000  /* Adds new 2413 cal powers and added params */
-#define AR_EEPROM_VER5_1	0x5001  /* Adds capability values */
+#define	AR_EEPROM_VER4_9	0x4009	/* EEPROM EAR futureproofing */
+#define	AR_EEPROM_VER5		0x5000	/* Version 5.x */
+#define	AR_EEPROM_VER5_0	0x5000	/* Adds new 2413 cal powers and added params */
+#define	AR_EEPROM_VER5_1	0x5001	/* Adds capability values */
 #define	AR_EEPROM_VER5_3	0x5003	/* Adds spur mitigation table */
 #define	AR_EEPROM_VER5_4	0x5004
 /*
@@ -50,7 +53,8 @@
  * 14.2 adds txFrameToPaOn, txFrameToDataStart, ht40PowerInc
  * 14.3 adds bswAtten, bswMargin, swSettle, and base OpFlags for HT20/40
  */
-#define	AR_EEPROM_VER14_1	0xE001	/* 11n support */
+#define	AR_EEPROM_VER14		0xE000	/* Version 14.x */
+#define	AR_EEPROM_VER14_1	0xE001	/* Adds 11n support */
 #define	AR_EEPROM_VER14_2	0xE002
 #define	AR_EEPROM_VER14_3	0xE003
 #define	AR_EEPROM_VER14_7	0xE007
@@ -75,8 +79,8 @@ enum {
 	AR_EEP_BURST,		/* use ath_hal_eepromGetFlag */
 	AR_EEP_MAXQCU,		/* uint16_t* */
 	AR_EEP_KCENTRIES,	/* uint16_t* */
-	AR_EEP_NFTHRESH_5,	/* uint8_t* */
-	AR_EEP_NFTHRESH_2,	/* uint8_t* */
+	AR_EEP_NFTHRESH_5,	/* int16_t* */
+	AR_EEP_NFTHRESH_2,	/* int16_t* */
 	AR_EEP_REGDMN_0,	/* uint16_t* */
 	AR_EEP_REGDMN_1,	/* uint16_t* */
 	AR_EEP_OPCAP,		/* uint16_t* */
@@ -122,6 +126,8 @@ typedef struct {
 /* XXX exposed to chip code */
 #define	MAX_RATE_POWER	63
 
+HAL_STATUS	ath_hal_v1EepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_legacyEepromAttach(struct ath_hal *ah);
 HAL_STATUS	ath_hal_v14EepromAttach(struct ath_hal *ah);
+HAL_STATUS	ath_hal_v4kEepromAttach(struct ath_hal *ah);
 #endif /* _ATH_AH_EEPROM_H_ */

@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5210_reset.c,v 1.5 2008/11/10 04:08:02 sam Exp $
+ * $Id: ar5210_reset.c,v 1.8 2008/11/11 17:25:16 sam Exp $
  */
 #include "opt_ah.h"
 
@@ -26,6 +26,8 @@
 #include "ar5210/ar5210.h"
 #include "ar5210/ar5210reg.h"
 #include "ar5210/ar5210phy.h"
+
+#include "ah_eeprom_v1.h"
 
 typedef struct {
 	uint32_t	Offset;
@@ -73,6 +75,7 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 #define	N(a)	(sizeof (a) /sizeof (a[0]))
 #define	FAIL(_code)	do { ecode = _code; goto bad; } while (0)
 	struct ath_hal_5210 *ahp = AH5210(ah);
+	const HAL_EEPROM_v1 *ee = AH_PRIVATE(ah)->ah_eeprom;
 	HAL_CHANNEL_INTERNAL *ichan;
 	HAL_STATUS ecode;
 	uint32_t ledstate;
@@ -214,22 +217,22 @@ ar5210Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	OS_REG_WRITE(ah, AR_PHY(10),
 		(OS_REG_READ(ah, AR_PHY(10)) & 0xFFFF00FF) |
-		(ahp->ah_xlnaOn << 8));
+		(ee->ee_xlnaOn << 8));
 	OS_REG_WRITE(ah, AR_PHY(13),
-		(ahp->ah_xpaOff << 24) | (ahp->ah_xpaOff << 16) |
-		(ahp->ah_xpaOn << 8) | ahp->ah_xpaOn);
+		(ee->ee_xpaOff << 24) | (ee->ee_xpaOff << 16) |
+		(ee->ee_xpaOn << 8) | ee->ee_xpaOn);
 	OS_REG_WRITE(ah, AR_PHY(17),
 		(OS_REG_READ(ah, AR_PHY(17)) & 0xFFFFC07F) |
-		((ahp->ah_antenna >> 1) & 0x3F80));
+		((ee->ee_antenna >> 1) & 0x3F80));
 	OS_REG_WRITE(ah, AR_PHY(18),
 		(OS_REG_READ(ah, AR_PHY(18)) & 0xFFFC0FFF) |
-		((ahp->ah_antenna << 10) & 0x3F000));
+		((ee->ee_antenna << 10) & 0x3F000));
 	OS_REG_WRITE(ah, AR_PHY(25),
 		(OS_REG_READ(ah, AR_PHY(25)) & 0xFFF80FFF) |
-		((ahp->ah_thresh62 << 12) & 0x7F000));
+		((ee->ee_thresh62 << 12) & 0x7F000));
 	OS_REG_WRITE(ah, AR_PHY(68),
 		(OS_REG_READ(ah, AR_PHY(68)) & 0xFFFFFFFC) |
-		(ahp->ah_antenna & 0x3));
+		(ee->ee_antenna & 0x3));
 
 	if (!ar5210SetChannel(ah, ichan)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: unable to set channel\n",
@@ -443,7 +446,8 @@ enum {
  * changes.
  */
 HAL_BOOL
-ar5210PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+ar5210PerCalibrationN(struct ath_hal *ah,  HAL_CHANNEL *chan, u_int chainMask,
+	HAL_BOOL longCal, HAL_BOOL *isCalDone)
 {
 	uint32_t regBeacon;
 	uint32_t reg9858, reg985c, reg9868;
@@ -559,8 +563,20 @@ ar5210PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
 	/* Re-enable Beacons */
 	OS_REG_WRITE(ah, AR_BEACON, regBeacon);
 
-	*isIQdone = AH_TRUE;
+	*isCalDone = AH_TRUE;
 
+	return AH_TRUE;
+}
+
+HAL_BOOL
+ar5210PerCalibration(struct ath_hal *ah, HAL_CHANNEL *chan, HAL_BOOL *isIQdone)
+{
+	return ar5210PerCalibrationN(ah,  chan, 0x1, AH_TRUE, isIQdone);
+}
+
+HAL_BOOL
+ar5210ResetCalValid(struct ath_hal *ah, HAL_CHANNEL *chan)
+{
 	return AH_TRUE;
 }
 
@@ -600,7 +616,7 @@ ar5210SetResetReg(struct ath_hal *ah, uint32_t resetMask, u_int delay)
  * Returns: the pcdac value
  */
 static uint8_t
-getPcdac(struct ath_hal *ah, struct tpcMap *pRD, uint8_t dBm)
+getPcdac(struct ath_hal *ah, const struct tpcMap *pRD, uint8_t dBm)
 {
 	int32_t	 i;
 	int useNextEntry = AH_FALSE;
@@ -643,7 +659,8 @@ getPcdac(struct ath_hal *ah, struct tpcMap *pRD, uint8_t dBm)
  * Find or interpolates the gainF value from the table ptr.
  */
 static uint8_t
-getGainF(struct ath_hal *ah, struct tpcMap *pRD, uint8_t pcdac, uint8_t *dBm)
+getGainF(struct ath_hal *ah, const struct tpcMap *pRD,
+	uint8_t pcdac, uint8_t *dBm)
 {
 	uint32_t interp;
 	int low, high, i;
@@ -705,7 +722,7 @@ getGainF(struct ath_hal *ah, struct tpcMap *pRD, uint8_t pcdac, uint8_t *dBm)
 HAL_BOOL
 ar5210SetTxPowerLimit(struct ath_hal *ah, uint32_t limit)
 {
-	AH_PRIVATE(ah)->ah_powerLimit = AH_MIN(limit, MAX_RATE_POWER);
+	AH_PRIVATE(ah)->ah_powerLimit = AH_MIN(limit, AR5210_MAX_RATE_POWER);
 	/* XXX flush to h/w */
 	return AH_TRUE;
 }
@@ -716,15 +733,15 @@ ar5210SetTxPowerLimit(struct ath_hal *ah, uint32_t limit)
 static HAL_BOOL
 setupPowerSettings(struct ath_hal *ah, HAL_CHANNEL *chan, uint8_t cp[17])
 {
-	struct ath_hal_5210 *ahp = AH5210(ah);
+	const HAL_EEPROM_v1 *ee = AH_PRIVATE(ah)->ah_eeprom;
 	uint8_t gainFRD, gainF36, gainF48, gainF54;
 	uint8_t dBmRD, dBm36, dBm48, dBm54, dontcare;
 	uint32_t rd, group;
-	struct tpcMap  *pRD;
+	const struct tpcMap  *pRD;
 
 	/* Set OB/DB Values regardless of channel */
-	cp[15] = (ahp->ah_biasCurrents >> 4) & 0x7;
-	cp[16] = ahp->ah_biasCurrents & 0x7;
+	cp[15] = (ee->ee_biasCurrents >> 4) & 0x7;
+	cp[16] = ee->ee_biasCurrents & 0x7;
 
 	if (chan->channel < 5170 || chan->channel > 5320) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: invalid channel %u\n",
@@ -732,11 +749,12 @@ setupPowerSettings(struct ath_hal *ah, HAL_CHANNEL *chan, uint8_t cp[17])
 		return AH_FALSE;
 	}
 
-	HALASSERT(ahp->ah_eeversion == 1);
+	HALASSERT(ee->ee_version >= AR_EEPROM_VER1 &&
+	    ee->ee_version < AR_EEPROM_VER3);
 
 	/* Match regulatory domain */
 	for (rd = 0; rd < AR_REG_DOMAINS_MAX; rd++)
-		if (AH_PRIVATE(ah)->ah_currentRD == ahp->ah_regDomain[rd])
+		if (AH_PRIVATE(ah)->ah_currentRD == ee->ee_regDomain[rd])
 			break;
 	if (rd == AR_REG_DOMAINS_MAX) {
 #ifdef AH_DEBUG
@@ -756,7 +774,7 @@ setupPowerSettings(struct ath_hal *ah, HAL_CHANNEL *chan, uint8_t cp[17])
 
 	/* Integer divide will set group from 0 to 4 */
 	group = group / 3;
-	pRD   = &ahp->ah_tpc[group];
+	pRD   = &ee->ee_tpc[group];
 
 	/* Set PC DAC Values */
 	cp[14] = pRD->regdmn[rd];
@@ -773,7 +791,7 @@ setupPowerSettings(struct ath_hal *ah, HAL_CHANNEL *chan, uint8_t cp[17])
 	/* Power Scale if requested */
 	if (AH_PRIVATE(ah)->ah_tpScale != HAL_TP_SCALE_MAX) {
 		static const uint16_t tpcScaleReductionTable[5] =
-			{ 0, 3, 6, 9, MAX_RATE_POWER };
+			{ 0, 3, 6, 9, AR5210_MAX_RATE_POWER };
 		uint16_t tpScale;
 
 		tpScale = tpcScaleReductionTable[AH_PRIVATE(ah)->ah_tpScale];
@@ -860,7 +878,7 @@ ar5210SetTransmitPower(struct ath_hal *ah, HAL_CHANNEL *chan)
 	for (i = 7; i < 15; i++)
 		cp[i] = ath_hal_reverseBits(cp[i], 6);
 
-	/* merge transmit power values into the register */
+	/* merge transmit power values into the register - quite gross */
 	pwr_regs[0] |= ((cp[1] << 5) & 0xE0) | (cp[0] & 0x1F);
 	pwr_regs[1] |= ((cp[3] << 7) & 0x80) | ((cp[2] << 2) & 0x7C) | 
 			((cp[1] >> 3) & 0x03);

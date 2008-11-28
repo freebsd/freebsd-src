@@ -14,7 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
- * $Id: ar5416reg.h,v 1.9 2008/11/06 22:07:22 sam Exp $
+ * $Id: ar5416reg.h,v 1.10 2008/11/11 00:11:30 sam Exp $
  */
 #ifndef _DEV_ATH_AR5416REG_H
 #define	_DEV_ATH_AR5416REG_H
@@ -444,10 +444,6 @@
 #define	IS_5416V1(_ah)	((_ah)->ah_macRev == AR_SREV_REVISION_OWL_10)  
 #define	IS_5416V2(_ah)	((_ah)->ah_macRev >= AR_SREV_REVISION_OWL_20)
 #define	IS_5416V2_2(_ah)	((_ah)->ah_macRev == AR_SREV_REVISION_OWL_22) 
-
-#define	AR_SREV_VERSION_HOWL		0x014
-#define	AR_SREV_HOWL(_ah) \
-	(AH_PRIVATE((_ah))->ah_macVersion == AR_SREV_VERSION_HOWL)
 
 /* Expanded Mac Silicon Rev (16 bits starting with Sowl) */
 #define	AR_XSREV_ID		0xFFFFFFFF	/* Chip ID */
