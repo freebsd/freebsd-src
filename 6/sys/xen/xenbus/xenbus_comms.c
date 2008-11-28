@@ -58,7 +58,6 @@ extern int xenstored_ready;
 static DECLARE_WORK(probe_work, xenbus_probe, NULL);
 #endif
 int xb_wait;
-extern char *xen_store;
 #define wake_up wakeup
 #define xb_waitq xb_wait
 #define pr_debug(a,b,c)
@@ -144,7 +143,7 @@ int xb_write(const void *tdata, unsigned len)
 				intf->req_prod += avail;
 
 				/* This implies mb() before other side sees interrupt. */
-				notify_remote_via_evtchn(xen_start_info->store_evtchn);
+				notify_remote_via_evtchn(xen_store_evtchn);
 		}
 
 		return 0;
@@ -205,7 +204,7 @@ int xb_read(void *tdata, unsigned len)
 				pr_debug("Finished read of %i bytes (%i to go)\n", avail, len);
 
 				/* Implies mb(): they will see new header. */
-				notify_remote_via_evtchn(xen_start_info->store_evtchn);
+				notify_remote_via_evtchn(xen_store_evtchn);
 		}
 
 		return 0;
@@ -228,7 +227,7 @@ int xb_init_comms(void)
 				unbind_from_irqhandler(xenbus_irq, &xb_waitq);
 
 		err = bind_caller_port_to_irqhandler(
-				xen_start_info->store_evtchn,
+				xen_store_evtchn,
 				"xenbus", wake_waiting, NULL, INTR_TYPE_NET, NULL);
 		if (err <= 0) {
 				log(LOG_WARNING, "XENBUS request irq failed %i\n", err);
