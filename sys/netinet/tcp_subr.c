@@ -201,7 +201,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, pcbcount,
-    CTLFLAG_RD, tcbinfo.ipi_count, 0, "Number of active PCBs");
+    CTLFLAG_RD, V_tcbinfo.ipi_count, 0, "Number of active PCBs");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, icmp_may_rst,
     CTLFLAG_RW, icmp_may_rst, 0,
