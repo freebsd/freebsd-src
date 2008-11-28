@@ -58,3 +58,5 @@ DEV_ATPIC		opt_atpic.h
 
 # Debugging
 KDB_STOP_NMI		opt_kdb.h
+
+XENHVM			opt_global.h
