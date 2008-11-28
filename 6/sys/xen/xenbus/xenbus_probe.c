@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/conf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <sys/proc.h>
@@ -929,7 +930,10 @@ void unregister_xenstore_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(unregister_xenstore_notifier);
 #endif
 
-
+SYSCTL_DECL(_dev);
+SYSCTL_NODE(_dev, OID_AUTO, xen, CTLFLAG_RD, NULL, "Xen");
+SYSCTL_INT(_dev_xen, OID_AUTO, xsd_port, CTLFLAG_RD, &xen_store_evtchn, 0, "");
+SYSCTL_ULONG(_dev_xen, OID_AUTO, xsd_kva, CTLFLAG_RD, (u_long *) &xen_store, 0, "");
 
 #ifdef DOM0
 static struct proc_dir_entry *xsd_mfn_intf;
@@ -983,13 +987,12 @@ xenbus_probe_sysinit(void *unused)
 	device_register(&xenbus_backend.dev);
 #endif
 
+#ifdef DOM0
 	/*
 	** Domain0 doesn't have a store_evtchn or store_mfn yet.
 	*/
-	dom0 = (xen_start_info->store_evtchn == 0);
+	dom0 = (xen_store_evtchn == 0);
 
-
-#ifdef DOM0
 	if (dom0) {
 
 		unsigned long page;
@@ -1025,6 +1028,8 @@ xenbus_probe_sysinit(void *unused)
 		if((xsd_port_intf = create_xen_proc_entry("xsd_port", 0400)))
 			xsd_port_intf->read_proc = xsd_port_read;
 	}
+#else
+	dom0 = FALSE;
 #endif
 	/* Initialize the interface to xenstore. */
 	err = xs_init(); 
