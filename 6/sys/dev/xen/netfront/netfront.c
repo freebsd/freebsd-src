@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xen_intr.h>
 #include <machine/xen/evtchn.h>
 #include <machine/xen/xenbus.h>
+#include <machine/xen/xenvar.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
 #include <dev/xen/netfront/mbufq.h>
@@ -327,9 +328,12 @@ xennet_get_rx_ref(struct netfront_info *np, RING_IDX ri)
     printf("[XEN] " fmt, ##args)
 #define WPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
+#if 0
 #define DPRINTK(fmt, args...) \
     printf("[XEN] " fmt, ##args)
-
+#else
+#define DPRINTK(fmt, args...)
+#endif
 
 static __inline struct mbuf* 
 makembuf (struct mbuf *buf)
@@ -395,8 +399,6 @@ netfront_probe(struct xenbus_device *dev, const struct xenbus_device_id *id)
 	struct ifnet *ifp;
 	struct netfront_info *info;
 
-	printf("netfront_probe() \n");
-	
 	err = create_netdev(dev, &ifp);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "creating netdev");
@@ -1215,7 +1217,7 @@ xennet_get_responses(struct netfront_info *np,
 				MULTI_update_va_mapping(mcl, (u_long)vaddr,
 				    (((vm_paddr_t)mfn) << PAGE_SHIFT) | PG_RW |
 				    PG_V | PG_M | PG_A, 0);
-				pfn = (uint32_t)m->m_ext.ext_args;
+				pfn = (uintptr_t)m->m_ext.ext_args;
 				mmu->ptr = ((vm_paddr_t)mfn << PAGE_SHIFT) |
 				    MMU_MACHPHYS_UPDATE;
 				mmu->val = pfn;
@@ -1549,8 +1551,6 @@ network_connect(struct ifnet *ifp)
 	netif_rx_request_t *req;
 	u_int feature_rx_copy, feature_rx_flip;
 
-	printf("network_connect\n");
-	
 	np = ifp->if_softc;
 	err = xenbus_scanf(XBT_NIL, np->xbdev->otherend,
 			   "feature-rx-copy", "%u", &feature_rx_copy);
@@ -1704,7 +1704,7 @@ create_netdev(struct xenbus_device *dev, struct ifnet **ifpp)
 	*ifpp = ifp = np->xn_ifp = if_alloc(IFT_ETHER);
     	ifp->if_softc = np;
     	if_initname(ifp, "xn",  ifno++/* ifno */);
-    	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
+    	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     	ifp->if_ioctl = xn_ioctl;
     	ifp->if_output = ether_output;
     	ifp->if_start = xn_start;
@@ -1831,7 +1831,7 @@ netif_init(void *unused)
 	if (is_initial_xendomain())
 		return;
 
-	IPRINTK("Initialising virtual ethernet driver.\n");
+	DPRINTK("Initialising virtual ethernet driver.\n");
 
 	xenbus_register_frontend(&netfront);
 }
