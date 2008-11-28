@@ -43,6 +43,7 @@
 
 #include <machine/xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
+#include <xen/interface/memory.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
 #include <machine/xen/features.h>
