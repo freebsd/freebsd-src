@@ -126,10 +126,7 @@ struct ath_hal_5210 {
 
 struct ath_hal;
 
-extern	struct ath_hal *ar5210Attach(uint16_t, HAL_SOFTC,
-	HAL_BUS_TAG, HAL_BUS_HANDLE, HAL_STATUS *);
-extern	void ar5210Detach(struct ath_hal *);
-
+extern	void ar5210Detach(struct ath_hal *ah);
 extern	HAL_BOOL ar5210Reset(struct ath_hal *, HAL_OPMODE,
 		HAL_CHANNEL *, HAL_BOOL bChannelChange, HAL_STATUS *);
 extern	void ar5210SetPCUConfig(struct ath_hal *);

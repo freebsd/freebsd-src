@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -1003,4 +1001,3 @@ ar5210GetRfgain(struct ath_hal *ah)
 {
 	return HAL_RFGAIN_INACTIVE;
 }
-#endif /* AH_SUPPORT_AR5210 */

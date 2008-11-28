@@ -18,15 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR9160
-
-#if !defined(AH_SUPPORT_AR5416)
-#error "No 5416 support defined"
-#endif
-#if !defined(AH_SUPPORT_2133)
-#error "No 2133 RF support defined"
-#endif
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -305,4 +296,12 @@ ar9160FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR9160 */
+
+static const char*
+ar9160Probe(uint16_t vendorid, uint16_t devid)
+{
+	if (vendorid == ATHEROS_VENDOR_ID && devid == AR9160_DEVID_PCI)
+		return "Atheros 9160";
+	return AH_NULL;
+}
+AH_CHIP(ar9160, ar9160Probe, ar9160Attach);

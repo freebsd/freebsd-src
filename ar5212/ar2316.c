@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_2316
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -727,7 +725,7 @@ ar2316RfDetach(struct ath_hal *ah)
  * Allocate memory for private state.
  * Scratch Buffer will be reinitialized every reset so no need to zero now
  */
-HAL_BOOL
+static HAL_BOOL
 ar2316RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -760,4 +758,10 @@ ar2316RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_2316 */
+
+static HAL_BOOL
+ar2316Probe(struct ath_hal *ah)
+{
+	return IS_2316(ah);
+}
+AH_RF(ar2316, ar2316Probe, ar2316RfAttach);

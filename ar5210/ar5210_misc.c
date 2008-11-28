@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -642,4 +640,3 @@ ar5210GetDiagState(struct ath_hal *ah, int request,
 	return ath_hal_getdiagstate(ah, request,
 		args, argsize, result, resultsize);
 }
-#endif /* AH_SUPPORT_AR5210 */

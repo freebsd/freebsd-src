@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -246,4 +244,3 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 #undef BEACON_TIMEOUT_VAL
 #undef SLEEP_SLOP
 }
-#endif /* AH_SUPPORT_AR5416 */

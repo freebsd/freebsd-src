@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_2425
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -30,9 +28,7 @@
 #include "ah_eeprom_v3.h"
 
 #define AH_5212_2425
-#ifdef AH_SUPPORT_2417
 #define AH_5212_2417
-#endif
 #include "ar5212/ar5212.ini"
 
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
@@ -211,13 +207,11 @@ ar2425SetRfRegs(struct ath_hal *ah, HAL_CHANNEL_INTERNAL *chan, uint16_t modesIn
 	HAL_INI_WRITE_BANK(ah, ar5212Bank1_2425, priv->Bank1Data, regWrites);
 	HAL_INI_WRITE_BANK(ah, ar5212Bank2_2425, priv->Bank2Data, regWrites);
 	HAL_INI_WRITE_BANK(ah, ar5212Bank3_2425, priv->Bank3Data, regWrites);
-#ifdef AH_SUPPORT_2417
 	if (IS_2417(ah)) {
 		HALASSERT(N(ar5212Bank6_2425) == N(ar5212Bank6_2417));
 		HAL_INI_WRITE_BANK(ah, ar5212Bank6_2417, priv->Bank6Data,
 		    regWrites);
 	} else
-#endif /* AH_SUPPORT_2417 */
 		HAL_INI_WRITE_BANK(ah, ar5212Bank6_2425, priv->Bank6Data,
 		    regWrites);
 	HAL_INI_WRITE_BANK(ah, ar5212Bank7_2425, priv->Bank7Data, regWrites);
@@ -688,7 +682,7 @@ ar2425RfDetach(struct ath_hal *ah)
  * Allocate memory for analog bank scratch buffers
  * Scratch Buffer will be reinitialized every reset so no need to zero now
  */
-HAL_BOOL
+static HAL_BOOL
 ar2425RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
@@ -719,4 +713,10 @@ ar2425RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_2425 */
+
+static HAL_BOOL
+ar2425Probe(struct ath_hal *ah)
+{
+	return IS_2425(ah) || IS_2417(ah);
+}
+AH_RF(ar2425, ar2425Probe, ar2425RfAttach);

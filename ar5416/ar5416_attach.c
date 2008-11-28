@@ -18,12 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
-#if !defined(AH_SUPPORT_2133)
-#error "No 5416 RF support defined"
-#endif
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -480,4 +474,13 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR5416 */
+
+static const char*
+ar5416Probe(uint16_t vendorid, uint16_t devid)
+{
+	if (vendorid == ATHEROS_VENDOR_ID &&
+	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
+		return "Atheros 5416";
+	return AH_NULL;
+}
+AH_CHIP(ar5416, ar5416Probe, ar5416Attach);

@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5211
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -502,4 +500,17 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR5211 */
+
+static const char*
+ar5211Probe(uint16_t vendorid, uint16_t devid)
+{
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR5211_DEVID || devid == AR5311_DEVID ||
+		    devid == AR5211_DEFAULT)
+			return "Atheros 5211";
+		if (devid == AR5211_FPGA11B)
+			return "Atheros 5211 (FPGA)";
+	}
+	return AH_NULL;
+}
+AH_CHIP(ar5211, ar5211Probe, ar5211Attach);

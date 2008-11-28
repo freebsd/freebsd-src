@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -44,4 +42,3 @@ ar5416EepromRead(struct ath_hal *ah, u_int off, uint16_t *data)
 		   AR_EEPROM_STATUS_DATA_VAL);
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR5416 */

@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_desc.h"
@@ -191,4 +189,3 @@ ar5210SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	OS_REG_WRITE(ah, AR_RSSI_THR, ahp->ah_rssiThr);
 #undef BMISS_MAX
 }
-#endif /* AH_SUPPORT_AR5210 */

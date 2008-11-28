@@ -18,16 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
-#if !defined(AH_SUPPORT_5112) && \
-    !defined(AH_SUPPORT_5111) && \
-    !defined(AH_SUPPORT_2413) && \
-    !defined(AH_SUPPORT_5413) && \
-    !defined(AH_SUPPORT_AR5312)
-#error "No 5212 RF support defined"
-#endif
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -35,9 +25,6 @@
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
 #include "ar5212/ar5212phy.h"
-#ifdef AH_SUPPORT_AR5311
-#include "ar5212/ar5311reg.h"
-#endif
 
 #define AH_5212_COMMON
 #include "ar5212/ar5212.ini"
@@ -334,7 +321,7 @@ ar5212IsMacSupported(uint8_t macVersion, uint8_t macRev)
 /*
  * Attach for an AR5212 part.
  */
-struct ath_hal *
+static struct ath_hal *
 ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
 {
@@ -342,10 +329,10 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 	(IS_PCIE(ah) ? AR_EEPROM_PROTECT_PCIE : AR_EEPROM_PROTECT)
 	struct ath_hal_5212 *ahp;
 	struct ath_hal *ah;
+	struct ath_hal_rf *rf;
 	uint32_t val;
 	uint16_t eeval;
 	HAL_STATUS ecode;
-	HAL_BOOL rfStatus;
 
 	HALDEBUG(AH_NULL, HAL_DEBUG_ATTACH, "%s: sc %p st %p sh %p\n",
 	    __func__, sc, (void*) st, (void*) sh);
@@ -417,6 +404,11 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 
 	/* Read Radio Chip Rev Extract */
 	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+
+	rf = ath_hal_rfprobe(ah, &ecode);
+	if (rf == AH_NULL)
+		goto bad;
+
 	/* NB: silently accept anything in release code per Atheros */
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
 	case AR_RAD5111_SREV_MAJOR:
@@ -554,39 +546,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 		goto bad;
 	}
 
-	rfStatus = AH_FALSE;
-	if (IS_5413(ah)) {
-#ifdef AH_SUPPORT_5413
-		rfStatus = ar5413RfAttach(ah, &ecode);
-#else
-		ecode = HAL_ENOTSUPP;
-#endif
-	}
-	else if (IS_2413(ah))
-#ifdef AH_SUPPORT_2413
-		rfStatus = ar2413RfAttach(ah, &ecode);
-#else
-		ecode = HAL_ENOTSUPP;
-#endif
-	else if (IS_RAD5112(ah))
-#ifdef AH_SUPPORT_5112
-		rfStatus = ar5112RfAttach(ah, &ecode);
-#else
-		ecode = HAL_ENOTSUPP;
-#endif
-	else if (IS_2425(ah) || IS_2417(ah))
-#ifdef AH_SUPPORT_2425
-		rfStatus = ar2425RfAttach(ah, &ecode);
-#else
-		ecode = HAL_ENOTSUPP;
-#endif
-	else if (IS_RAD5111(ah))
-#ifdef AH_SUPPORT_5111
-		rfStatus = ar5111RfAttach(ah, &ecode);
-#else
-		ecode = HAL_ENOTSUPP;
-#endif
-	if (!rfStatus) {
+	if (!rf->attach(ah, &ecode)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: RF setup failed, status %u\n",
 		    __func__, ecode);
 		goto bad;
@@ -881,4 +841,30 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 #undef IS_GRIFFIN_LITE
 #undef AR_KEYTABLE_SIZE
 }
-#endif /* AH_SUPPORT_AR5212 */
+
+static const char*
+ar5212Probe(uint16_t vendorid, uint16_t devid)
+{
+	if (vendorid == ATHEROS_VENDOR_ID ||
+	    vendorid == ATHEROS_3COM_VENDOR_ID ||
+	    vendorid == ATHEROS_3COM2_VENDOR_ID) {
+		switch (devid) {
+		case AR5212_FPGA:
+			return "Atheros 5212 (FPGA)";
+		case AR5212_DEVID:
+		case AR5212_DEVID_IBM:
+		case AR5212_DEFAULT:
+			return "Atheros 5212";
+		case AR5212_AR2413:
+			return "Atheros 2413";
+		case AR5212_AR2417:
+			return "Atheros 2417";
+		case AR5212_AR5413:
+			return "Atheros 5413";
+		case AR5212_AR5424:
+			return "Atheros 5424/2424";
+		}
+	}
+	return AH_NULL;
+}
+AH_CHIP(ar5212, ar5212Probe, ar5212Attach);

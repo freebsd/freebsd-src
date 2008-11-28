@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -330,4 +328,3 @@ ar5212GetRfgain(struct ath_hal *ah)
 	}
 	return ahp->ah_rfgainState;
 }
-#endif /* AH_SUPPORT_AR5212 */

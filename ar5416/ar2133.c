@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_2133
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -466,4 +464,3 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_2133 */

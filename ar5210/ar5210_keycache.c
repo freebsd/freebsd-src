@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -156,4 +154,3 @@ ar5210SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 	OS_REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
 	return ar5210SetKeyCacheEntryMac(ah, entry, mac);
 }
-#endif /* AH_SUPPORT_AR5210 */

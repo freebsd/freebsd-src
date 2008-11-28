@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5416
-
 #include "ah.h"
 #include "ah_internal.h"
 
@@ -66,4 +64,3 @@ ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 	} else
 		return AH_FALSE;
 }
-#endif /* AH_SUPPORT_AR5416 */

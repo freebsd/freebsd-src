@@ -18,10 +18,9 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5210
-
 #include "ah.h"
 #include "ah_internal.h"
+#include "ah_devid.h"
 
 #include "ar5210/ar5210.h"
 #include "ar5210/ar5210reg.h"
@@ -170,8 +169,9 @@ static HAL_BOOL ar5210FillCapabilityInfo(struct ath_hal *ah);
 /*
  * Attach for an AR5210 part.
  */
-struct ath_hal *
-ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh, HAL_STATUS *status)
+static struct ath_hal *
+ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
+	HAL_STATUS *status)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ath_hal_5210 *ahp;
@@ -371,4 +371,13 @@ ar5210FillCapabilityInfo(struct ath_hal *ah)
 	ahpriv->ah_rxornIsFatal = AH_TRUE;
 	return AH_TRUE;
 }
-#endif /* AH_SUPPORT_AR5210 */
+
+static const char*
+ar5210Probe(uint16_t vendorid, uint16_t devid)
+{
+	if (vendorid == ATHEROS_VENDOR_ID &&
+	    (devid == AR5210_PROD || devid == AR5210_DEFAULT))
+		return "Atheros 5210";
+	return AH_NULL;
+}
+AH_CHIP(ar5210, ar5210Probe, ar5210Attach);

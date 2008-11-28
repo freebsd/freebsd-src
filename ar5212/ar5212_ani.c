@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_desc.h"
@@ -1016,4 +1014,3 @@ ar5212AniPoll(struct ath_hal *ah, const HAL_NODE_STATS *stats,
 		}
 	}
 }
-#endif /* AH_SUPPORT_AR5212 */

@@ -18,8 +18,6 @@
  */
 #include "opt_ah.h"
 
-#ifdef AH_SUPPORT_AR5212
-
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
@@ -30,9 +28,6 @@
 #include "ar5212/ar5212.h"
 #include "ar5212/ar5212reg.h"
 #include "ar5212/ar5212phy.h"
-#ifdef AH_SUPPORT_AR5311
-#include "ar5212/ar5311reg.h"
-#endif
 
 #define	AR_NUM_GPIO	6		/* 6 GPIO pins */
 #define	AR_GPIOD_MASK	0x0000002F	/* GPIO data reg r/w mask */
@@ -127,5 +122,3 @@ ar5212GpioSetIntr(struct ath_hal *ah, u_int gpio, uint32_t ilevel)
 	/* Change the interrupt mask. */
 	(void) ar5212SetInterrupts(ah, AH5212(ah)->ah_maskReg | HAL_INT_GPIO);
 }
-
-#endif  /* AH_SUPPORT_AR5212 */
