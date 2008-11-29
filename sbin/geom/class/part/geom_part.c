@@ -63,10 +63,11 @@ static char index_param[] = "index";
 static char partcode_param[] = "partcode";
 
 static void gpart_bootcode(struct gctl_req *, unsigned int);
+static void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
-	{ "add", 0, NULL, {
+	{ "add", 0, gpart_issue, {
 		{ 'b', "start", NULL, G_TYPE_STRING },
 		{ 's', "size", NULL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
@@ -84,25 +85,25 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "commit", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "create", 0, NULL, {
+	{ "commit", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
 		{ 'n', "entries", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "provider", NULL
 	},
-	{ "delete", 0, NULL, {
+	{ "delete", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "destroy", 0, NULL, {
+	{ "destroy", 0, gpart_issue, {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL },
-	{ "modify", 0, NULL, {
+	{ "modify", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 't', "type", optional, G_TYPE_STRING },
@@ -110,7 +111,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "set", 0, NULL, {
+	{ "set", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -123,8 +124,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  NULL, "[-lr] [geom ...]"
 	},
-	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "unset", 0, NULL, {
+	{ "undo", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "unset", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -446,7 +447,7 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 }
 
 static void
-gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
+gpart_bootcode(struct gctl_req *req, unsigned int fl)
 {
 	const char *s;
 	char *sp;
@@ -501,9 +502,33 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
 			errx(EXIT_FAILURE, "no -b nor -p");
 	}
 
-	if (bootcode != NULL) {
-		s = gctl_issue(req);
-		if (s != NULL)
-			errx(EXIT_FAILURE, "%s", s);
+	if (bootcode != NULL)
+		gpart_issue(req, fl);
+}
+
+static void
+gpart_issue(struct gctl_req *req, unsigned int fl __unused)
+{
+	char buf[4096];
+	char *errmsg;
+	const char *errstr;
+	int error;
+
+	bzero(buf, sizeof(buf));
+	gctl_rw_param(req, "output", sizeof(buf), buf);
+	errstr = gctl_issue(req);
+	gctl_free(req);
+	if (errstr == NULL || errstr[0] == '\0') {
+		if (buf[0] != '\0')
+			printf("%s", buf);
+		exit(EXIT_SUCCESS);
 	}
+
+	error = strtol(errstr, &errmsg, 0);
+	while (errmsg[0] == ' ')
+		errmsg++;
+	if (errmsg[0] != '\0')
+		errc(EXIT_FAILURE, error, "%s", errmsg);
+	else
+		errc(EXIT_FAILURE, error, NULL);
 }
