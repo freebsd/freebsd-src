@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2008
+.Dd November 29, 2008
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -684,6 +684,15 @@ Dump the interrupt statistics.
 .Pp
 .It Ic show Cm irqs
 Show interrupt lines and their respective kernel threads.
+.\"
+.Pp
+.It Ic show Cm jails
+Show the list of
+.Xr jail 8
+instances.
+In addition to what
+.Xr jls 8
+shows, also list kernel internal details.
 .\"
 .Pp
 .It Ic show Cm lapic

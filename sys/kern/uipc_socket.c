@@ -98,6 +98,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_mac.h"
 #include "opt_zero.h"
 #include "opt_compat.h"
@@ -346,6 +347,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	if (jailed(cred) && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
+#ifdef INET6
+	    prp->pr_domain->dom_family != PF_INET6 &&
+#endif
 	    prp->pr_domain->dom_family != PF_ROUTE) {
 		return (EPROTONOSUPPORT);
 	}
