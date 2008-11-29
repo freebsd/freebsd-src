@@ -257,7 +257,6 @@ zfs_vop_close(vnode_t *vp, int flag, int count, offset_t offset, cred_t *cr)
 {
 	int error, vfslocked;
 
-	ASSERT(flag == (FWRITE | FCREAT | FTRUNC | FOFFMAX));
 	ASSERT(count == 1);
 	ASSERT(offset == 0);
 
