@@ -2051,6 +2051,7 @@ xen/gnttab.c                   optional xen
 xen/features.c                 optional xen
 xen/evtchn/evtchn.c            optional xen
 xen/evtchn/evtchn_dev.c                optional xen
+xen/reboot.c			optional xen
 xen/xenbus/xenbus_client.c     optional xen
 xen/xenbus/xenbus_comms.c      optional xen
 xen/xenbus/xenbus_dev.c                optional xen
@@ -2068,6 +2069,7 @@ xen/gnttab.c                    optional xenhvm
 xen/features.c                  optional xenhvm
 dev/xen/xenpci/evtchn.c         optional xenhvm
 xen/evtchn/evtchn_dev.c         optional xenhvm
+xen/reboot.c			optional xenhvm
 xen/xenbus/xenbus_client.c      optional xenhvm
 xen/xenbus/xenbus_comms.c       optional xenhvm
 xen/xenbus/xenbus_dev.c         optional xenhvm
