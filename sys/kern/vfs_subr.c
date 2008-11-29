@@ -407,6 +407,32 @@ vfs_getvfs(fsid_t *fsid)
 }
 
 /*
+ * Lookup a mount point by filesystem identifier, busying it before
+ * returning.
+ */
+struct mount *
+vfs_busyfs(fsid_t *fsid)
+{
+	struct mount *mp;
+	int error;
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
+		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
+			error = vfs_busy(mp, MBF_MNTLSTLOCK);
+			if (error) {
+				mtx_unlock(&mountlist_mtx);
+				return (NULL);
+			}
+			return (mp);
+		}
+	}
+	mtx_unlock(&mountlist_mtx);
+	return ((struct mount *) 0);
+}
+
+/*
  * Check if a user can access privileged mount options.
  */
 int

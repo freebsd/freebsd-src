@@ -4382,12 +4382,13 @@ fhopen(td, uap)
 	if (error)
 		return(error);
 	/* find the mount point */
-	mp = vfs_getvfs(&fhp.fh_fsid);
+	mp = vfs_busyfs(&fhp.fh_fsid);
 	if (mp == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	/* now give me my vnode, it gets returned to me locked */
 	error = VFS_FHTOVP(mp, &fhp.fh_fid, &vp);
+	vfs_unbusy(mp);
 	if (error)
 		goto out;
 	/*
@@ -4520,7 +4521,6 @@ fhopen(td, uap)
 bad:
 	vput(vp);
 out:
-	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -4555,17 +4555,17 @@ fhstat(td, uap)
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
 	if (error)
 		return (error);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
-	if ((error = VFS_FHTOVP(mp, &fh.fh_fid, &vp))) {
-		vfs_rel(mp);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
+	vfs_unbusy(mp);
+	if (error) {
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 	error = vn_stat(vp, &sb, td->td_ucred, NOCRED, td);
 	vput(vp);
-	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
@@ -4615,13 +4615,13 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	error = priv_check(td, PRIV_VFS_FHSTATFS);
 	if (error)
 		return (error);
-	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)
+	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
 		return (ESTALE);
 	vfslocked = VFS_LOCK_GIANT(mp);
 	error = VFS_FHTOVP(mp, &fh.fh_fid, &vp);
 	if (error) {
+		vfs_unbusy(mp);
 		VFS_UNLOCK_GIANT(vfslocked);
-		vfs_rel(mp);
 		return (error);
 	}
 	vput(vp);
@@ -4644,7 +4644,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	if (error == 0)
 		*buf = *sp;
 out:
-	vfs_rel(mp);
+	vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
