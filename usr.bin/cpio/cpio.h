@@ -65,6 +65,7 @@ struct cpio {
 	char		 *pass_destpath;
 	int		  uid_override;
 	int		  gid_override;
+	int		  day_first; /* true if locale prefers day/mon */
 
 	/* If >= 0, then close this when done. */
 	int		  fd;
@@ -75,6 +76,9 @@ struct cpio {
 	char		**argv;
 	int		  return_value; /* Value returned by main() */
 	struct archive_entry_linkresolver *linkresolver;
+
+	struct name_cache *uname_cache;
+	struct name_cache *gname_cache;
 
 	/* Work data. */
 	struct matching  *matching;
