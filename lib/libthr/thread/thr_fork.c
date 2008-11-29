@@ -172,6 +172,7 @@ _fork(void)
 
 		if (unlock_malloc) {
 			_rtld_atfork_post(rtld_locks);
+			_malloc_postfork();
 		}
 
 		/* Run down atfork child handlers. */
