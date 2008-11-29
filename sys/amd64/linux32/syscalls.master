@@ -252,10 +252,10 @@
 143	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
 144	AUE_MSYNC	STD	{ int linux_msync(l_ulong addr, \
 				    l_size_t len, l_int fl); }
-145	AUE_READV	STD { int linux_readv(int fd, struct iovec32 *iovp, \
-				    u_int iovcnt); }
-146	AUE_WRITEV	STD { int linux_writev(int fd, struct iovec32 *iovp, \
-				    u_int iovcnt); }
+145	AUE_READV	STD { int linux_readv(l_ulong fd, struct l_iovec32 *iovp, \
+				    l_ulong iovcnt); }
+146	AUE_WRITEV	STD { int linux_writev(l_ulong fd, struct l_iovec32 *iovp, \
+				    l_ulong iovcnt); }
 147	AUE_GETSID	STD	{ int linux_getsid(l_pid_t pid); }
 148	AUE_NULL	STD	{ int linux_fdatasync(l_uint fd); }
 149	AUE_SYSCTL	STD	{ int linux_sysctl( \
