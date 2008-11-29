@@ -693,6 +693,22 @@ struct l_sockaddr {
 	char		sa_data[14];
 };
 
+struct l_msghdr {
+	l_uintptr_t	msg_name;
+	l_int		msg_namelen;
+	l_uintptr_t	msg_iov;
+	l_size_t	msg_iovlen;
+	l_uintptr_t	msg_control;
+	l_size_t	msg_controllen;
+	l_uint		msg_flags;
+};
+
+struct l_cmsghdr {
+	l_size_t	cmsg_len;
+	l_int		cmsg_level;
+	l_int		cmsg_type;
+};
+
 struct l_ifmap {
 	l_ulong		mem_start;
 	l_ulong		mem_end;
