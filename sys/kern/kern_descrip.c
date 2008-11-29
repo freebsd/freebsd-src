@@ -2509,6 +2509,10 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
+#ifdef KINFO_FILE_SIZE
+CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
+#endif
+
 static int
 export_vnode_for_sysctl(struct vnode *vp, int type,
     struct kinfo_file *kif, struct filedesc *fdp, struct sysctl_req *req)

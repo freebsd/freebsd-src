@@ -1337,6 +1337,10 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_string(oidp, sv_name, 0, req));
 }
 
+#ifdef KINFO_VMENTRY_SIZE
+CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
+#endif
+
 static int
 sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 {
@@ -1461,9 +1465,9 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = 0;
 		}
 
-		kve->kve_start = (void*)entry->start;
-		kve->kve_end = (void*)entry->end;
-		kve->kve_offset = (off_t)entry->offset;
+		kve->kve_start = entry->start;
+		kve->kve_end = entry->end;
+		kve->kve_offset = entry->offset;
 
 		if (entry->protection & VM_PROT_READ)
 			kve->kve_protection |= KVME_PROT_READ;
