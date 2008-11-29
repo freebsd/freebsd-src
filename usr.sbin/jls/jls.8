@@ -25,20 +25,44 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2003
+.Dd November 29, 2008
 .Dt JLS 8
 .Os
 .Sh NAME
 .Nm jls
-.Nd "list active jails"
+.Nd "list jails"
 .Sh SYNOPSIS
 .Nm
+.Op Fl av
 .Sh DESCRIPTION
 The
 .Nm
-utility lists all active jails.
-Each jail is represented by one row which contains the following columns:
-jail identifier (JID), IP address, hostname, and path.
+utility lists all jails.
+By default only active jails are listed.
+.Pp
+The options are as follows:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Show jails in all states, not only active ones.
+.It Fl v
+Show more verbose information.
+This also lists cpusets, jail state, multi-IP, etc. instead of the
+classic single-IP jail output.
+.El
+.Pp
+Each jail is represented by rows which, depending on
+.Fl v ,
+contain the following columns:
+.Bl -item -offset indent -compact
+.It
+jail identifier (JID), hostname and path
+.It
+jail state and name
+.It
+jail cpuset
+.It
+followed by one IP adddress per line.
+.El
 .Sh SEE ALSO
 .Xr jail 2 ,
 .Xr jail 8 ,

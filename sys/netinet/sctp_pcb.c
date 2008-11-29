@@ -2553,7 +2553,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	struct inpcb *ip_inp;
 	int port_reuse_active = 0;
 	int bindall;
-	int prison = 0;
 	uint16_t lport;
 	int error;
 	uint32_t vrf_id;
@@ -2580,9 +2579,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	if (p == NULL)
 		panic("null proc/thread");
 #endif
-	if (p && jailed(p->td_ucred)) {
-		prison = 1;
-	}
 	if (addr != NULL) {
 		switch (addr->sa_family) {
 		case AF_INET:
@@ -2600,18 +2596,13 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				}
 				sin = (struct sockaddr_in *)addr;
 				lport = sin->sin_port;
-				if (prison) {
-					/*
-					 * For INADDR_ANY and  LOOPBACK the
-					 * prison_ip() call will transmute
-					 * the ip address to the proper
-					 * value (i.e. the IP address owned
-					 * by the jail).
-					 */
-					if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr)) {
-						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-						return (EINVAL);
-					}
+				/*
+				 * For LOOPBACK the prison_local_ip4() call will transmute the ip address
+				 * to the proper value.
+				 */
+				if (p && prison_local_ip4(p->td_ucred, &sin->sin_addr) != 0) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
 				}
 				if (sin->sin_addr.s_addr != INADDR_ANY) {
 					bindall = 0;
@@ -2634,12 +2625,16 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					return (EINVAL);
 				}
 				lport = sin6->sin6_port;
+
 				/*
-				 * Jail checks for IPv6 should go HERE! i.e.
-				 * add the prison_ip() equivilant in this
-				 * postion to transmute the addresses to the
-				 * proper one jailed.
+				 * For LOOPBACK the prison_local_ip6() call will transmute the ipv6 address
+				 * to the proper value.
 				 */
+				if (p && prison_local_ip6(p->td_ucred, &sin6->sin6_addr,
+				    (SCTP_IPV6_V6ONLY(inp) != 0)) != 0) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
+				}
 				if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					bindall = 0;
 					/* KAME hack: embed scopeid */
