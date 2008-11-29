@@ -2211,7 +2211,7 @@ again:
 			struct sockaddr *sa = ifa->ifa_addr;
 
 			if (jailed(curthread->td_ucred) &&
-			    prison_if(curthread->td_ucred, sa))
+			    !prison_if(curthread->td_ucred, sa))
 				continue;
 			addrs++;
 #ifdef COMPAT_43

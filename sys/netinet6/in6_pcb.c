@@ -143,6 +143,10 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 			return(error);
 
+		if (prison_local_ip6(cred, &sin6->sin6_addr,
+		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+			return (EINVAL);
+
 		lport = sin6->sin6_port;
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 			/*
@@ -217,6 +221,9 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 						return (EADDRINUSE);
 				}
 			}
+			if (prison_local_ip6(cred, &sin6->sin6_addr,
+			    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+				return (EADDRNOTAVAIL);
 			t = in6_pcblookup_local(pcbinfo, &sin6->sin6_addr,
 			    lport, wild, cred);
 			if (t && (reuseport & ((t->inp_vflag & INP_TIMEWAIT) ?
@@ -249,6 +256,9 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 		}
 		inp->in6p_laddr = sin6->sin6_addr;
 	}
+	if (prison_local_ip6(cred, &inp->in6p_laddr,
+	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+		return (EINVAL);
 	if (lport == 0) {
 		int e;
 		if ((e = in6_pcbsetport(&inp->in6p_laddr, inp, cred)) != 0)
@@ -308,6 +318,8 @@ in6_pcbladdr(register struct inpcb *inp, struct sockaddr *nam,
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 			sin6->sin6_addr = in6addr_loopback;
 	}
+	if (prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr) != 0)
+		return (EADDRNOTAVAIL);
 
 	/*
 	 * XXX: in6_selectsrc might replace the bound local address
@@ -649,15 +661,16 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
 			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
 			    IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr) &&
 			    inp->inp_lport == lport) {
-				/*
-				 * Found.
-				 */
-				return (inp);
+				/* Found. */
+				if (cred == NULL ||
+				    inp->inp_cred->cr_prison == cred->cr_prison)
+					return (inp);
 			}
 		}
 		/*
@@ -687,6 +700,10 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 			 */
 			LIST_FOREACH(inp, &phd->phd_pcblist, inp_portlist) {
 				wildcard = 0;
+				if (cred != NULL &&
+				    inp->inp_cred->cr_prison != cred->cr_prison)
+					continue;
+				/* XXX inp locking */
 				if ((inp->inp_vflag & INP_IPV6) == 0)
 					continue;
 				if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr))
@@ -696,7 +713,7 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 					if (IN6_IS_ADDR_UNSPECIFIED(laddr))
 						wildcard++;
 					else if (!IN6_ARE_ADDR_EQUAL(
-						&inp->in6p_laddr, laddr))
+					    &inp->in6p_laddr, laddr))
 						continue;
 				} else {
 					if (!IN6_IS_ADDR_UNSPECIFIED(laddr))
@@ -705,9 +722,8 @@ in6_pcblookup_local(struct inpcbinfo *pcbinfo, struct in6_addr *laddr,
 				if (wildcard < matchwild) {
 					match = inp;
 					matchwild = wildcard;
-					if (matchwild == 0) {
+					if (matchwild == 0)
 						break;
-					}
 				}
 			}
 		}
@@ -790,11 +806,11 @@ in6_rtchange(struct inpcb *inp, int errno)
  */
 struct inpcb *
 in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
-    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg,
-    int wildcard, struct ifnet *ifp)
+    u_int fport_arg, struct in6_addr *laddr, u_int lport_arg, int wildcard,
+    struct ifnet *ifp)
 {
 	struct inpcbhead *head;
-	register struct inpcb *inp;
+	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
 	int faith;
 
@@ -808,10 +824,12 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	/*
 	 * First look for an exact match.
 	 */
+	tmpinp = NULL;
 	head = &pcbinfo->ipi_hashbase[
 	    INP_PCBHASH(faddr->s6_addr32[3] /* XXX */, lport, fport,
 	    pcbinfo->ipi_hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
+		/* XXX inp locking */
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
@@ -819,32 +837,79 @@ in6_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 		    inp->inp_fport == fport &&
 		    inp->inp_lport == lport) {
 			/*
-			 * Found.
+			 * XXX We should be able to directly return
+			 * the inp here, without any checks.
+			 * Well unless both bound with SO_REUSEPORT?
 			 */
-			return (inp);
+			if (jailed(inp->inp_cred))
+				return (inp);
+			if (tmpinp == NULL)
+				tmpinp = inp;
 		}
 	}
-	if (wildcard) {
-		struct inpcb *local_wild = NULL;
+	if (tmpinp != NULL)
+		return (tmpinp);
 
+	/*
+	 * Then look for a wildcard match, if requested.
+	 */
+	if (wildcard == INPLOOKUP_WILDCARD) {
+		struct inpcb *local_wild = NULL, *local_exact = NULL;
+		struct inpcb *jail_wild = NULL;
+		int injail;
+
+		/*
+		 * Order of socket selection - we always prefer jails.
+		 *      1. jailed, non-wild.
+		 *      2. jailed, wild.
+		 *      3. non-jailed, non-wild.
+		 *      4. non-jailed, wild.
+		 */
 		head = &pcbinfo->ipi_hashbase[INP_PCBHASH(INADDR_ANY, lport,
 		    0, pcbinfo->ipi_hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
+			/* XXX inp locking */
 			if ((inp->inp_vflag & INP_IPV6) == 0)
 				continue;
-			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&
-			    inp->inp_lport == lport) {
-				if (faith && (inp->inp_flags & INP_FAITH) == 0)
+
+			if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) ||
+			    inp->inp_lport != lport) {
+				continue;
+			}
+
+			/* XXX inp locking */
+			if (faith && (inp->inp_flags & INP_FAITH) == 0)
+				continue;
+
+			injail = jailed(inp->inp_cred);
+			if (injail) {
+				if (!prison_check_ip6(inp->inp_cred, laddr))
 					continue;
-				if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr,
-						       laddr))
+			} else {
+				if (local_exact != NULL)
+					continue;
+			}
+
+			if (IN6_ARE_ADDR_EQUAL(&inp->in6p_laddr, laddr)) {
+				if (injail)
 					return (inp);
-				else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
+				else
+					local_exact = inp;
+			} else if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+				if (injail)
+					jail_wild = inp;
+				else
 					local_wild = inp;
 			}
-		}
-		return (local_wild);
-	}
+		} /* LIST_FOREACH */
+
+		if (jail_wild != NULL)
+			return (jail_wild);
+		if (local_exact != NULL)
+			return (local_exact);
+		if (local_wild != NULL)
+			return (local_wild);
+	} /* if (wildcard == INPLOOKUP_WILDCARD) */
 
 	/*
 	 * Not found.
