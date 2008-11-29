@@ -940,9 +940,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * Jail may rewrite the destination address, so let it do
 		 * that before we use it.
 		 */
-		if (jailed(td->td_ucred))
-			prison_remote_ip(td->td_ucred, 0,
-			    &sin->sin_addr.s_addr);
+		if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+			error = EINVAL;
+			goto release;
+		}
 
 		/*
 		 * If a local address or port hasn't yet been selected, or if
@@ -1194,8 +1195,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EISCONN);
 	}
 	sin = (struct sockaddr_in *)nam;
-	if (jailed(td->td_ucred))
-		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
+	if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&udbinfo);
+		return (EAFNOSUPPORT);
+	}
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0)
 		soisconnected(so);

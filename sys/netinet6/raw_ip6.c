@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -162,6 +163,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+		/* XXX inp locking */
 		if ((in6p->in6p_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->in6p_ip6_nxt &&
@@ -173,6 +175,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
+		if (jailed(in6p->inp_cred)) {
+			if (!prison_check_ip6(in6p->inp_cred, &ip6->ip6_dst))
+				continue;
+		}
 		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
@@ -401,6 +407,11 @@ rip6_output(m, va_alist)
 			error = EADDRNOTAVAIL;
 		goto bad;
 	}
+	if (jailed(in6p->inp_cred))
+		if (prison_getip6(in6p->inp_cred, in6a) != 0) {
+			error = EPERM;
+			goto bad;
+		}
 	ip6->ip6_src = *in6a;
 
 	if (oifp && scope_ambiguous) {
@@ -663,6 +674,8 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
+	if (!prison_check_ip6(td->td_ucred, &addr->sin6_addr))
+		return (EADDRNOTAVAIL);
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)

@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
+#include <sys/jail.h>
 #include <sys/tty.h>
 #include <sys/wait.h>
 #include <sys/vmmeter.h>
@@ -452,6 +453,10 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	p->p_xthread = td;
+
+	/* In case we are jailed tell the prison that we are gone. */
+	if (jailed(p->p_ucred))
+		prison_proc_free(p->p_ucred->cr_prison);
 
 #ifdef KDTRACE_HOOKS
 	/*

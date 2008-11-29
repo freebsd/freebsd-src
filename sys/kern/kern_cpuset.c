@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/jail.h>		/* Must come after sys/proc.h */
 
 #include <vm/uma.h>
 
@@ -208,7 +209,7 @@ cpuset_rel_complete(struct cpuset *set)
  * Find a set based on an id.  Returns it with a ref.
  */
 static struct cpuset *
-cpuset_lookup(cpusetid_t setid)
+cpuset_lookup(cpusetid_t setid, struct thread *td)
 {
 	struct cpuset *set;
 
@@ -221,6 +222,28 @@ cpuset_lookup(cpusetid_t setid)
 	if (set)
 		cpuset_ref(set);
 	mtx_unlock_spin(&cpuset_lock);
+
+	KASSERT(td != NULL, ("[%s:%d] td is NULL", __func__, __LINE__));
+	if (set != NULL && jailed(td->td_ucred)) {
+		struct cpuset *rset, *jset;
+		struct prison *pr;
+
+		rset = cpuset_refroot(set);
+
+		pr = td->td_ucred->cr_prison;
+		mtx_lock(&pr->pr_mtx);
+		cpuset_ref(pr->pr_cpuset);
+		jset = pr->pr_cpuset;
+		mtx_unlock(&pr->pr_mtx);
+
+		if (jset->cs_id != rset->cs_id) {
+			cpuset_rel(set);
+			set = NULL;
+		}
+		cpuset_rel(jset);
+		cpuset_rel(rset);
+	}
+
 	return (set);
 }
 
@@ -412,12 +435,38 @@ cpuset_which(cpuwhich_t which, id_t id, struct proc **pp, struct thread **tdp,
 			set = cpuset_refbase(curthread->td_cpuset);
 			thread_unlock(curthread);
 		} else
-			set = cpuset_lookup(id);
+			set = cpuset_lookup(id, curthread);
 		if (set) {
 			*setp = set;
 			return (0);
 		}
 		return (ESRCH);
+	case CPU_WHICH_JAIL:
+	{
+		/* Find `set' for prison with given id. */
+		struct prison *pr;
+
+		sx_slock(&allprison_lock);
+		pr = prison_find(id);
+		sx_sunlock(&allprison_lock);
+		if (pr == NULL)
+			return (ESRCH);
+		if (jailed(curthread->td_ucred)) {
+			if (curthread->td_ucred->cr_prison == pr) {
+				cpuset_ref(pr->pr_cpuset);
+				set = pr->pr_cpuset;
+			}
+		} else {
+			cpuset_ref(pr->pr_cpuset);
+			set = pr->pr_cpuset;
+		}
+		mtx_unlock(&pr->pr_mtx);
+		if (set) {
+			*setp = set;
+			return (0);
+		}
+		return (ESRCH);
+	}
 	case CPU_WHICH_IRQ:
 		return (0);
 	default:
@@ -664,6 +713,59 @@ cpuset_thread0(void)
 }
 
 /*
+ * Create a cpuset, which would be cpuset_create() but
+ * mark the new 'set' as root.
+ *
+ * We are not going to reparent the td to it. Use cpuset_reparentproc() for that.
+ *
+ * In case of no error, returns the set in *setp locked with a reference.
+ */
+int
+cpuset_create_root(struct thread *td, struct cpuset **setp)
+{
+	struct cpuset *root;
+	struct cpuset *set;
+	int error;
+
+	KASSERT(td != NULL, ("[%s:%d] invalid td", __func__, __LINE__));
+	KASSERT(setp != NULL, ("[%s:%d] invalid setp", __func__, __LINE__));
+
+	thread_lock(td);
+	root = cpuset_refroot(td->td_cpuset);
+	thread_unlock(td);
+
+	error = cpuset_create(setp, td->td_cpuset, &root->cs_mask);
+	cpuset_rel(root);
+	if (error)
+		return (error);
+
+	KASSERT(*setp != NULL, ("[%s:%d] cpuset_create returned invalid data",
+	    __func__, __LINE__));
+
+	/* Mark the set as root. */
+	set = *setp;
+	set->cs_flags |= CPU_SET_ROOT;
+
+	return (0);
+}
+
+int
+cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
+{
+	int error;
+
+	KASSERT(p != NULL, ("[%s:%d] invalid proc", __func__, __LINE__));
+	KASSERT(set != NULL, ("[%s:%d] invalid set", __func__, __LINE__));
+
+	cpuset_ref(set);
+	error = cpuset_setproc(p->p_pid, set, NULL);
+	if (error)
+		return (error);
+	cpuset_rel(set);
+	return (0);
+}
+
+/*
  * This is called once the final set of system cpus is known.  Modifies
  * the root set and all children and mark the root readonly.  
  */
@@ -728,7 +830,7 @@ cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
 	 */
 	if (uap->which != CPU_WHICH_PID)
 		return (EINVAL);
-	set = cpuset_lookup(uap->setid);
+	set = cpuset_lookup(uap->setid, td);
 	if (set == NULL)
 		return (ESRCH);
 	error = cpuset_setproc(uap->id, set, NULL);
@@ -767,6 +869,7 @@ cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 		PROC_UNLOCK(p);
 		break;
 	case CPU_WHICH_CPUSET:
+	case CPU_WHICH_JAIL:
 		break;
 	case CPU_WHICH_IRQ:
 		return (EINVAL);
@@ -829,6 +932,7 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			thread_unlock(ttd);
 			break;
 		case CPU_WHICH_CPUSET:
+		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
 			error = EINVAL;
@@ -856,6 +960,7 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			}
 			break;
 		case CPU_WHICH_CPUSET:
+		case CPU_WHICH_JAIL:
 			CPU_COPY(&set->cs_mask, mask);
 			break;
 		case CPU_WHICH_IRQ:
@@ -936,6 +1041,7 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 			PROC_UNLOCK(p);
 			break;
 		case CPU_WHICH_CPUSET:
+		case CPU_WHICH_JAIL:
 			break;
 		case CPU_WHICH_IRQ:
 			error = EINVAL;
@@ -958,7 +1064,8 @@ cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 			error = cpuset_setproc(uap->id, NULL, mask);
 			break;
 		case CPU_WHICH_CPUSET:
-			error = cpuset_which(CPU_WHICH_CPUSET, uap->id, &p,
+		case CPU_WHICH_JAIL:
+			error = cpuset_which(uap->which, uap->id, &p,
 			    &ttd, &set);
 			if (error == 0) {
 				error = cpuset_modify(set, mask);

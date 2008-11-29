@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -860,6 +861,12 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 				goto out;
 			}
 			in6_sin6_2_sin(&sin, sin6_p);
+			if (td && jailed(td->td_ucred))
+				if (prison_remote_ip4(td->td_ucred,
+				    &sin.sin_addr) != 0) {
+					error = EAFNOSUPPORT;
+					goto out;
+				}
 			error = in_pcbconnect(inp, (struct sockaddr *)&sin,
 			    td->td_ucred);
 			if (error == 0) {
@@ -873,6 +880,13 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr)) {
 		error = EISCONN;
 		goto out;
+	}
+	if (td && jailed(td->td_ucred)) {
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
+		if (prison_remote_ip6(td->td_ucred, &sin6->sin6_addr) != 0) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
 	}
 	error = in6_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0) {
