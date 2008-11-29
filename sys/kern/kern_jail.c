@@ -532,11 +532,13 @@ kern_jail(struct thread *td, struct jail *j)
 
 	sx_xlock(&allprison_lock);
 	/* Make sure we cannot run into problems with ambiguous bind()ings. */
+#if defined(INET) || defined(INET6)
 	error = prison_check_conflicting_ips(pr);
 	if (error) {
 		sx_xunlock(&allprison_lock);
 		goto e_dropcpuset;
 	}
+#endif
 
 	/* Determine next pr_id and add prison to allprison list. */
 	tryprid = lastprid + 1;
