@@ -421,10 +421,62 @@ linux_sa_put(struct osockaddr *osa)
 }
 
 static int
-linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
-    enum uio_seg segflg)
+linux_to_bsd_cmsg_type(int cmsg_type)
 {
-	struct mbuf *control;
+
+	switch (cmsg_type) {
+	case LINUX_SCM_RIGHTS:
+		return (SCM_RIGHTS);
+	}
+	return (-1);
+}
+
+static int
+bsd_to_linux_cmsg_type(int cmsg_type)
+{
+
+	switch (cmsg_type) {
+	case SCM_RIGHTS:
+		return (LINUX_SCM_RIGHTS);
+	}
+	return (-1);
+}
+
+
+
+static int
+linux_to_bsd_msghdr(struct msghdr *bhdr, const struct l_msghdr *lhdr)
+{
+	if (lhdr->msg_controllen > INT_MAX)
+		return (ENOBUFS);
+
+	bhdr->msg_name		= PTRIN(lhdr->msg_name);
+	bhdr->msg_namelen	= lhdr->msg_namelen;
+	bhdr->msg_iov		= PTRIN(lhdr->msg_iov);
+	bhdr->msg_iovlen	= lhdr->msg_iovlen;
+	bhdr->msg_control	= PTRIN(lhdr->msg_control);
+	bhdr->msg_controllen	= lhdr->msg_controllen;
+	bhdr->msg_flags		= linux_to_bsd_msg_flags(lhdr->msg_flags);
+	return (0);
+}
+
+static int
+bsd_to_linux_msghdr(const struct msghdr *bhdr, struct l_msghdr *lhdr)
+{
+	lhdr->msg_name		= PTROUT(bhdr->msg_name);
+	lhdr->msg_namelen	= bhdr->msg_namelen;
+	lhdr->msg_iov		= PTROUT(bhdr->msg_iov);
+	lhdr->msg_iovlen	= bhdr->msg_iovlen;
+	lhdr->msg_control	= PTROUT(bhdr->msg_control);
+	lhdr->msg_controllen	= bhdr->msg_controllen;
+	/* msg_flags skipped */
+	return (0);
+}
+
+static int
+linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+    struct mbuf *control, enum uio_seg segflg)
+{
 	struct sockaddr *to;
 	int error;
 
@@ -436,27 +488,9 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	} else
 		to = NULL;
 
-	if (mp->msg_control != NULL) {
-		struct cmsghdr *cmsg;
-
-		if (mp->msg_controllen < sizeof(struct cmsghdr)) {
-			error = EINVAL;
-			goto bad;
-		}
-		error = sockargs(&control, mp->msg_control,
-		    mp->msg_controllen, MT_CONTROL);
-		if (error)
-			goto bad;
-
-		cmsg = mtod(control, struct cmsghdr *);
-		cmsg->cmsg_level = linux_to_bsd_sockopt_level(cmsg->cmsg_level);
-	} else
-		control = NULL;
-
 	error = kern_sendit(td, s, mp, linux_to_bsd_msg_flags(flags), control,
 	    segflg);
 
-bad:
 	if (to)
 		free(to, M_SONAME);
 	return (error);
@@ -531,7 +565,7 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	aiov[0].iov_base = (char *)packet;
 	aiov[0].iov_len = linux_args->len;
 	error = linux_sendit(td, linux_args->s, &msg, linux_args->flags,
-	    UIO_SYSSPACE);
+	    NULL, UIO_SYSSPACE);
 goout:
 	free(packet, M_TEMP);
 	return (error);
@@ -900,7 +934,8 @@ linux_sendto(struct thread *td, struct linux_sendto_args *args)
 	msg.msg_flags = 0;
 	aiov.iov_base = PTRIN(args->msg);
 	aiov.iov_len = args->len;
-	error = linux_sendit(td, args->s, &msg, args->flags, UIO_USERSPACE);
+	error = linux_sendit(td, args->s, &msg, args->flags, NULL,
+	    UIO_USERSPACE);
 	return (error);
 }
 
@@ -962,13 +997,21 @@ struct linux_sendmsg_args {
 static int
 linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 {
+	struct cmsghdr *cmsg;
+	struct mbuf *control;
 	struct msghdr msg;
+	struct l_cmsghdr linux_cmsg;
+	struct l_cmsghdr *ptr_cmsg;
+	struct l_msghdr linux_msg;
 	struct iovec *iov;
+	socklen_t datalen;
+	void *data;
 	int error;
 
-	/* XXXTJR sendmsg is broken on amd64 */
-
-	error = copyin(PTRIN(args->msg), &msg, sizeof(msg));
+	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
+	if (error)
+		return (error);
+	error = linux_to_bsd_msghdr(&msg, &linux_msg);
 	if (error)
 		return (error);
 
@@ -981,13 +1024,68 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 	 */
 	if (msg.msg_control != NULL && msg.msg_controllen == 0)
 		msg.msg_control = NULL;
+
+#ifdef COMPAT_LINUX32
+	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
+	    &iov, EMSGSIZE);
+#else
 	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+#endif
 	if (error)
 		return (error);
+
+	if (msg.msg_control != NULL) {
+		error = ENOBUFS;
+		cmsg = malloc(CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
+		control = m_get(M_WAIT, MT_CONTROL);
+		if (control == NULL)
+			goto bad;
+		ptr_cmsg = LINUX_CMSG_FIRSTHDR(&msg);
+
+		do {
+			error = copyin(ptr_cmsg, &linux_cmsg,
+			    sizeof(struct l_cmsghdr));
+			if (error)
+				goto bad;
+
+			error = EINVAL;
+			if (linux_cmsg.cmsg_len < sizeof(struct l_cmsghdr))
+				goto bad;
+
+			/*
+			 * Now we support only SCM_RIGHTS, so return EINVAL
+			 * in any other cmsg_type
+			 */
+			if ((cmsg->cmsg_type =
+			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type)) == -1)
+				goto bad;
+			cmsg->cmsg_level =
+			    linux_to_bsd_sockopt_level(linux_cmsg.cmsg_level);
+
+			datalen = linux_cmsg.cmsg_len - L_CMSG_HDRSZ;
+			cmsg->cmsg_len = CMSG_LEN(datalen);
+			data = LINUX_CMSG_DATA(ptr_cmsg);
+
+			error = ENOBUFS;
+			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t) cmsg))
+				goto bad;
+			if (!m_append(control, datalen, (c_caddr_t) data))
+				goto bad;
+		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&msg, ptr_cmsg)));
+	} else {
+		control = NULL;
+		cmsg = NULL;
+	}
+
 	msg.msg_iov = iov;
 	msg.msg_flags = 0;
-	error = linux_sendit(td, args->s, &msg, args->flags, UIO_USERSPACE);
+	error = linux_sendit(td, args->s, &msg, args->flags, control,
+	    UIO_USERSPACE);
+
+bad:
 	free(iov, M_IOV);
+	if (cmsg)
+		free(cmsg, M_TEMP);
 	return (error);
 }
 
@@ -1000,44 +1098,132 @@ struct linux_recvmsg_args {
 static int
 linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 {
-	struct recvmsg_args /* {
-		int	s;
-		struct	msghdr *msg;
-		int	flags;
-	} */ bsd_args;
+	struct cmsghdr *cm;
 	struct msghdr msg;
-	struct cmsghdr *cmsg;
+	struct l_cmsghdr *linux_cmsg = NULL;
+	socklen_t datalen, outlen, clen;
+	struct l_msghdr linux_msg;
+	struct iovec *iov, *uiov;
+	struct mbuf *control = NULL;
+	struct mbuf **controlp;
+	caddr_t outbuf;
+	void *data;
 	int error;
 
-	/* XXXTJR recvmsg is broken on amd64 */
-
-	if ((error = copyin(PTRIN(args->msg), &msg, sizeof (msg))))
-		return (error);
-
-	bsd_args.s = args->s;
-	bsd_args.msg = PTRIN(args->msg);
-	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
-	if (msg.msg_name) {
-	   	linux_to_bsd_sockaddr((struct sockaddr *)msg.msg_name,
-		      msg.msg_namelen);
-		error = recvmsg(td, &bsd_args);
-		bsd_to_linux_sockaddr((struct sockaddr *)msg.msg_name);
-	} else
-	   	error = recvmsg(td, &bsd_args);
+	error = copyin(PTRIN(args->msg), &linux_msg, sizeof(linux_msg));
 	if (error)
 		return (error);
 
-	if (bsd_args.msg->msg_control != NULL &&
-	    bsd_args.msg->msg_controllen > 0) {
-		cmsg = (struct cmsghdr*)bsd_args.msg->msg_control;
-		cmsg->cmsg_level = bsd_to_linux_sockopt_level(cmsg->cmsg_level);
+	error = linux_to_bsd_msghdr(&msg, &linux_msg);
+	if (error)
+		return (error);
+
+#ifdef COMPAT_LINUX32
+	error = linux32_copyiniov(PTRIN(msg.msg_iov), msg.msg_iovlen,
+	    &iov, EMSGSIZE);
+#else
+	error = copyiniov(msg.msg_iov, msg.msg_iovlen, &iov, EMSGSIZE);
+#endif
+	if (error)
+		return (error);
+
+	if (msg.msg_name) {
+		error = linux_to_bsd_sockaddr((struct sockaddr *)msg.msg_name,
+		    msg.msg_namelen);
+		if (error)
+			goto bad;
 	}
 
-	error = copyin(PTRIN(args->msg), &msg, sizeof(msg));
+	uiov = msg.msg_iov;
+	msg.msg_iov = iov;
+	controlp = (msg.msg_control != NULL) ? &control : NULL;
+	error = kern_recvit(td, args->s, &msg, UIO_USERSPACE, controlp);
+	msg.msg_iov = uiov;
 	if (error)
-		return (error);
-	if (msg.msg_name && msg.msg_namelen > 2)
-		error = linux_sa_put(msg.msg_name);
+		goto bad;
+
+	error = bsd_to_linux_msghdr(&msg, &linux_msg);
+	if (error)
+		goto bad;
+
+	if (linux_msg.msg_name) {
+		error = bsd_to_linux_sockaddr((struct sockaddr *)
+		    PTRIN(linux_msg.msg_name));
+		if (error)
+			goto bad;
+	}
+	if (linux_msg.msg_name && linux_msg.msg_namelen > 2) {
+		error = linux_sa_put(PTRIN(linux_msg.msg_name));
+		if (error)
+			goto bad;
+	}
+
+	if (control) {
+
+		linux_cmsg = malloc(L_CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
+		outbuf = PTRIN(linux_msg.msg_control);
+		cm = mtod(control, struct cmsghdr *);
+		outlen = 0;
+		clen = control->m_len;
+
+		while (cm != NULL) {
+
+			if ((linux_cmsg->cmsg_type =
+			    bsd_to_linux_cmsg_type(cm->cmsg_type)) == -1)
+			{
+				error = EINVAL;
+				goto bad;
+			}
+			data = CMSG_DATA(cm);
+			datalen = (caddr_t)cm + cm->cmsg_len - (caddr_t)data;
+
+			if (outlen + LINUX_CMSG_LEN(datalen) >
+			    linux_msg.msg_controllen) {
+				if (outlen == 0) {
+					error = EMSGSIZE;
+					goto bad;
+				} else {
+					linux_msg.msg_flags |= LINUX_MSG_CTRUNC;
+					goto out;
+				}
+			}
+
+			linux_cmsg->cmsg_len = LINUX_CMSG_LEN(datalen);
+			linux_cmsg->cmsg_level =
+			    bsd_to_linux_sockopt_level(cm->cmsg_level);
+
+			error = copyout(linux_cmsg, outbuf, L_CMSG_HDRSZ);
+			if (error)
+				goto bad;
+			outbuf += L_CMSG_HDRSZ;
+
+			error = copyout(data, outbuf, datalen);
+			if (error)
+				goto bad;
+
+			outbuf += LINUX_CMSG_ALIGN(datalen);
+			outlen += LINUX_CMSG_LEN(datalen);
+			linux_msg.msg_controllen = outlen;
+
+			if (CMSG_SPACE(datalen) < clen) {
+				clen -= CMSG_SPACE(datalen);
+				cm = (struct cmsghdr *)
+				    ((caddr_t)cm + CMSG_SPACE(datalen));
+			} else
+				cm = NULL;
+		}
+	}
+
+out:
+	error = copyout(&linux_msg, PTRIN(args->msg), sizeof(linux_msg));
+
+bad:
+	free(iov, M_IOV);
+	if (control != NULL)
+		m_freem(control);
+	if (linux_cmsg != NULL)
+		free(linux_cmsg, M_TEMP);
+
 	return (error);
 }
 
