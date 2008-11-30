@@ -855,110 +855,112 @@ xn_rxeof(struct netfront_info *np)
 	multicall_entry_t *mcl;
 	struct mbuf *m;
 	struct mbuf_head rxq, errq;
-	int err, pages_flipped = 0;
+	int err, pages_flipped = 0, work_to_do;
 
-	XN_RX_LOCK_ASSERT(np);
-	if (!netfront_carrier_ok(np))
-		return;
+	do {
+		XN_RX_LOCK_ASSERT(np);
+		if (!netfront_carrier_ok(np))
+			return;
 
-	mbufq_init(&errq);
-	mbufq_init(&rxq);
+		mbufq_init(&errq);
+		mbufq_init(&rxq);
 
-	ifp = np->xn_ifp;
+		ifp = np->xn_ifp;
 	
-	rp = np->rx.sring->rsp_prod;
-	rmb();	/* Ensure we see queued responses up to 'rp'. */
+		rp = np->rx.sring->rsp_prod;
+		rmb();	/* Ensure we see queued responses up to 'rp'. */
 
-	i = np->rx.rsp_cons;
-	while ((i != rp)) {
-		memcpy(rx, RING_GET_RESPONSE(&np->rx, i), sizeof(*rx));
-		memset(extras, 0, sizeof(rinfo.extras));
+		i = np->rx.rsp_cons;
+		while ((i != rp)) {
+			memcpy(rx, RING_GET_RESPONSE(&np->rx, i), sizeof(*rx));
+			memset(extras, 0, sizeof(rinfo.extras));
 
-		m = NULL;
-		err = xennet_get_responses(np, &rinfo, rp, &m,
-		    &pages_flipped);
+			m = NULL;
+			err = xennet_get_responses(np, &rinfo, rp, &m,
+			    &pages_flipped);
 
-		if (unlikely(err)) {
+			if (unlikely(err)) {
 				if (m)
-						mbufq_tail(&errq, m);
-			np->stats.rx_errors++;
-			i = np->rx.rsp_cons;
-			continue;
-		}
+					mbufq_tail(&errq, m);
+				np->stats.rx_errors++;
+				i = np->rx.rsp_cons;
+				continue;
+			}
 
-		m->m_pkthdr.rcvif = ifp;
-		if ( rx->flags & NETRXF_data_validated ) {
-			/* Tell the stack the checksums are okay */
-			/*
-			 * XXX this isn't necessarily the case - need to add
-			 * check
-			 */
+			m->m_pkthdr.rcvif = ifp;
+			if ( rx->flags & NETRXF_data_validated ) {
+				/* Tell the stack the checksums are okay */
+				/*
+				 * XXX this isn't necessarily the case - need to add
+				 * check
+				 */
 				
-			m->m_pkthdr.csum_flags |=
-			    (CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID
-			    | CSUM_PSEUDO_HDR);
-			m->m_pkthdr.csum_data = 0xffff;
+				m->m_pkthdr.csum_flags |=
+					(CSUM_IP_CHECKED | CSUM_IP_VALID | CSUM_DATA_VALID
+					    | CSUM_PSEUDO_HDR);
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+
+			np->stats.rx_packets++;
+			np->stats.rx_bytes += m->m_pkthdr.len;
+
+			mbufq_tail(&rxq, m);
+			np->rx.rsp_cons = ++i;
 		}
 
-		np->stats.rx_packets++;
-		np->stats.rx_bytes += m->m_pkthdr.len;
-
-		mbufq_tail(&rxq, m);
-		np->rx.rsp_cons = ++i;
-	}
-
-	if (pages_flipped) {
-		/* Some pages are no longer absent... */
+		if (pages_flipped) {
+			/* Some pages are no longer absent... */
 #ifdef notyet
-		balloon_update_driver_allowance(-pages_flipped);
+			balloon_update_driver_allowance(-pages_flipped);
 #endif
-		/* Do all the remapping work, and M->P updates, in one big
-		 * hypercall.
-		 */
-		if (!!xen_feature(XENFEAT_auto_translated_physmap)) {
-			mcl = np->rx_mcl + pages_flipped;
-			mcl->op = __HYPERVISOR_mmu_update;
-			mcl->args[0] = (u_long)np->rx_mmu;
-			mcl->args[1] = pages_flipped;
-			mcl->args[2] = 0;
-			mcl->args[3] = DOMID_SELF;
-			(void)HYPERVISOR_multicall(np->rx_mcl,
-			    pages_flipped + 1);
+			/* Do all the remapping work, and M->P updates, in one big
+			 * hypercall.
+			 */
+			if (!!xen_feature(XENFEAT_auto_translated_physmap)) {
+				mcl = np->rx_mcl + pages_flipped;
+				mcl->op = __HYPERVISOR_mmu_update;
+				mcl->args[0] = (u_long)np->rx_mmu;
+				mcl->args[1] = pages_flipped;
+				mcl->args[2] = 0;
+				mcl->args[3] = DOMID_SELF;
+				(void)HYPERVISOR_multicall(np->rx_mcl,
+				    pages_flipped + 1);
+			}
 		}
-	}
 	
-	while ((m = mbufq_dequeue(&errq)))
-		m_freem(m);
+		while ((m = mbufq_dequeue(&errq)))
+			m_freem(m);
 
-	/* 
-	 * Process all the mbufs after the remapping is complete.
-	 * Break the mbuf chain first though.
-	 */
-	while ((m = mbufq_dequeue(&rxq)) != NULL) {
-		ifp->if_ipackets++;
-			
-		/*
-		 * Do we really need to drop the rx lock?
+		/* 
+		 * Process all the mbufs after the remapping is complete.
+		 * Break the mbuf chain first though.
 		 */
-		XN_RX_UNLOCK(np);
-		/* Pass it up. */
-		(*ifp->if_input)(ifp, m);
-		XN_RX_LOCK(np);
-	}
+		while ((m = mbufq_dequeue(&rxq)) != NULL) {
+			ifp->if_ipackets++;
+			
+			/*
+			 * Do we really need to drop the rx lock?
+			 */
+			XN_RX_UNLOCK(np);
+			/* Pass it up. */
+			(*ifp->if_input)(ifp, m);
+			XN_RX_LOCK(np);
+		}
 	
-	np->rx.rsp_cons = i;
+		np->rx.rsp_cons = i;
 
 #if 0
-	/* If we get a callback with very few responses, reduce fill target. */
-	/* NB. Note exponential increase, linear decrease. */
-	if (((np->rx.req_prod_pvt - np->rx.sring->rsp_prod) > 
-	    ((3*np->rx_target) / 4)) && (--np->rx_target < np->rx_min_target))
-		np->rx_target = np->rx_min_target;
+		/* If we get a callback with very few responses, reduce fill target. */
+		/* NB. Note exponential increase, linear decrease. */
+		if (((np->rx.req_prod_pvt - np->rx.sring->rsp_prod) > 
+			((3*np->rx_target) / 4)) && (--np->rx_target < np->rx_min_target))
+			np->rx_target = np->rx_min_target;
 #endif
 	
-	network_alloc_rx_buffers(np);
+		network_alloc_rx_buffers(np);
 
-	np->rx.sring->rsp_event = i + 1;
+		RING_FINAL_CHECK_FOR_RESPONSES(&np->rx, work_to_do);
+	} while (work_to_do);
 }
 
 static void 
@@ -1437,9 +1439,11 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) 
 				xn_ifinit_locked(sc);
 			arp_ifinit(ifp, ifa);
-		} else
+			XN_UNLOCK(sc);
+		} else {
+			XN_UNLOCK(sc);
 			error = ether_ioctl(ifp, cmd, data);
-		XN_UNLOCK(sc);
+		}
 		break;
 	case SIOCSIFMTU:
 		/* XXX can we alter the MTU on a VN ?*/
