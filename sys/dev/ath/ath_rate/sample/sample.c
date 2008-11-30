@@ -405,6 +405,9 @@ static const struct txschedule series_half[] = {
 };
 #undef H
 
+#ifdef Q
+#undef Q		/* sun4v bogosity */
+#endif
 #define Q(_r) \
     (((_r) == 1.5) ? 0 : (((_r) ==2.25) ? 1 : (((_r) == 3)  ? 2 : \
     (((_r) == 4.5) ? 3 : (((_r) ==  6)  ? 4 : (((_r) == 9)  ? 5 : \
