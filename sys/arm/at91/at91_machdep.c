@@ -44,7 +44,6 @@
  */
 
 #include "opt_msgbuf.h"
-#include "opt_at91.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
