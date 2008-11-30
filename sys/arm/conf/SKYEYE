@@ -26,6 +26,7 @@ options		PHYSADDR=0xc0000000
 include		"../at91/std.kb920x"
 #To statically compile in device wiring instead of /boot/device.hints
 #hints		"GENERIC.hints"		#Default places to look for devices.
+makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=arm9
