@@ -8,6 +8,7 @@ ident		DB-88F5XXX
 include		"../mv/orion/std.db88f5xxx"
 
 options		SOC_MV_ORION
+makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"

@@ -30,6 +30,7 @@ options 	STARTUP_PAGETABLE_ADDR=0x10000000
 include		"../xscale/ixp425/std.avila"
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"AVILA.hints"		#Default places to look for devices.
+makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
