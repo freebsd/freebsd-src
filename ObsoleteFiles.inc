@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20081123: vfs_mountedon.9 removed
+OLD_FILES+=usr/share/man/man9/vfs_mountedon.9.gz
+# 20081023: FREE.9 and MALLOC.9 removed
+OLD_FILES+=usr/share/man/man9/FREE.9.gz
+OLD_FILES+=usr/share/man/man9/MALLOC.9.gz
 # 20080928: removal of inaccurate device_ids(9) manual page
 OLD_FILES+=usr/share/man/man9/device_ids.9.gz
 OLD_FILES+=usr/share/man/man9/major.9.gz
