@@ -548,15 +548,6 @@ ar5212NumTxPending(struct ath_hal *ah, u_int q)
 		if (OS_REG_READ(ah, AR_Q_TXE) & (1 << q))
 			npend = 1;		/* arbitrarily return 1 */
 	}
-#ifdef AH_DEBUG
-	if (npend && (AH5212(ah)->ah_txq[q].tqi_type == HAL_TX_QUEUE_CAB)) {
-		if (OS_REG_READ(ah, AR_Q_RDYTIMESHDN) & (1 << q)) {
-			ath_hal_printf(ah, "RTSD on CAB queue\n");
-			/* Clear the ReadyTime shutdown status bits */
-			OS_REG_WRITE(ah, AR_Q_RDYTIMESHDN, 1 << q);
-		}
-	}
-#endif
 	return npend;
 }
 
