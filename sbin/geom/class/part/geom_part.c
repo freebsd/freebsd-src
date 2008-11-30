@@ -512,23 +512,29 @@ gpart_issue(struct gctl_req *req, unsigned int fl __unused)
 	char buf[4096];
 	char *errmsg;
 	const char *errstr;
-	int error;
+	int error, status;
 
 	bzero(buf, sizeof(buf));
 	gctl_rw_param(req, "output", sizeof(buf), buf);
 	errstr = gctl_issue(req);
-	gctl_free(req);
 	if (errstr == NULL || errstr[0] == '\0') {
 		if (buf[0] != '\0')
 			printf("%s", buf);
-		exit(EXIT_SUCCESS);
+		status = EXIT_SUCCESS;
+		goto done;
 	}
 
 	error = strtol(errstr, &errmsg, 0);
 	while (errmsg[0] == ' ')
 		errmsg++;
 	if (errmsg[0] != '\0')
-		errc(EXIT_FAILURE, error, "%s", errmsg);
+		warnc(error, "%s", errmsg);
 	else
-		errc(EXIT_FAILURE, error, NULL);
+		warnc(error, NULL);
+
+	status = EXIT_FAILURE;
+
+ done:
+	gctl_free(req);
+	exit(status);
 }
