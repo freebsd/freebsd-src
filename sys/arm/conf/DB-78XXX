@@ -8,6 +8,7 @@ ident		DB-88F78XX
 include		"../mv/discovery/std.db78xxx"
 
 options		SOC_MV_DISCOVERY
+makeoptions	MODULES_OVERRIDE=""
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WERROR="-Werror"
