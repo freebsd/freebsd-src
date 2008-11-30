@@ -115,6 +115,7 @@ CTASSERT(ATH_BCBUF <= 8);
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 #define	CTRY_XR9	5001		/* Ubiquiti XR9 */
+#define	CTRY_GZ901	5002		/* ZComax GZ-901 */
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
 		    const char name[IFNAMSIZ], int unit, int opmode,
@@ -1339,9 +1340,11 @@ ath_mapchan(const struct ieee80211com *ic,
 
 	if (IEEE80211_IS_CHAN_GSM(chan)) {
 		if (ic->ic_regdomain.country == CTRY_XR9)
-			hc->channel = 2427 + (chan->ic_freq - 907);
+			hc->channel = 1520 + chan->ic_freq;
+		else if (ic->ic_regdomain.country == CTRY_GZ901)
+			hc->channel = 1544 + chan->ic_freq;
 		else
-			hc->channel = 2422 + (922 - chan->ic_freq);
+			hc->channel = 3344 - chan->ic_freq;
 	} else
 		hc->channel = chan->ic_freq;
 #undef N
@@ -5927,9 +5930,11 @@ getchannels(struct ath_softc *sc, int *nchans, struct ieee80211_channel chans[],
 			 * We define special country codes to deal with this. 
 			 */
 			if (cc == CTRY_XR9)
-				ichan->ic_freq = 907 + (ichan->ic_freq - 2427);
+				ichan->ic_freq = ichan->ic_freq - 1520;
+			else if (cc == CTRY_GZ901)
+				ichan->ic_freq = ichan->ic_freq - 1544;
 			else
-				ichan->ic_freq = 922 + (2422 - ichan->ic_freq);
+				ichan->ic_freq = 3344 - ichan->ic_freq;
 			ichan->ic_flags |= IEEE80211_CHAN_GSM;
 			ichan->ic_ieee = ieee80211_mhz2ieee(ichan->ic_freq,
 						    ichan->ic_flags);
