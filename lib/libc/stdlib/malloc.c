@@ -1284,7 +1284,7 @@ malloc_spin_lock(pthread_mutex_t *lock)
 			 * inversion.
 			 */
 			_pthread_mutex_lock(lock);
-			assert((ret << BLOCK_COST_2POW) != 0);
+			assert((ret << BLOCK_COST_2POW) != 0 || ncpus == 1);
 			return (ret << BLOCK_COST_2POW);
 		}
 	}
