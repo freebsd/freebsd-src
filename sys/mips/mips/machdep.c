@@ -168,8 +168,6 @@ cpu_startup(void *dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	printf("%s", version);
-
 	printf("real memory  = %lu (%luK bytes)\n", ptoa(Maxmem),
 	    ptoa(Maxmem) / 1024);
 	realmem = Maxmem;
