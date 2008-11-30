@@ -1290,14 +1290,33 @@ ath_bmiss_vap(struct ieee80211vap *vap)
 		sc->sc_stats.ast_bmiss_phantom++;
 }
 
+static int
+ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask, uint32_t *hangs)
+{
+	uint32_t rsize;
+	void *sp;
+
+	if (!ath_hal_getdiagstate(ah, 32, &mask, sizeof(&mask), &sp, &rsize))
+		return 0;
+	KASSERT(rsize == sizeof(uint32_t), ("resultsize %u", rsize));
+	*hangs = *(uint32_t *)sp;
+	return 1;
+}
+
 static void
 ath_bmiss_proc(void *arg, int pending)
 {
 	struct ath_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
+	uint32_t hangs;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: pending %u\n", __func__, pending);
-	ieee80211_beacon_miss(ifp->if_l2com);
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
+		if_printf(ifp, "bb hang detected (0x%x), reseting\n", hangs); 
+		ath_reset(ifp);
+	} else
+		ieee80211_beacon_miss(ifp->if_l2com);
 }
 
 /*
@@ -6324,7 +6343,14 @@ ath_watchdog(struct ifnet *ifp)
 	struct ath_softc *sc = ifp->if_softc;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) && !sc->sc_invalid) {
-		if_printf(ifp, "device timeout\n");
+		uint32_t hangs;
+
+		if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) &&
+		    hangs != 0) {
+			if_printf(ifp, "%s hang detected (0x%x)\n",
+			    hangs & 0xff ? "bb" : "mac", hangs); 
+		} else
+			if_printf(ifp, "device timeout\n");
 		ath_reset(ifp);
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
