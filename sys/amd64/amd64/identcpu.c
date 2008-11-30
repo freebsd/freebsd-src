@@ -368,7 +368,11 @@ printcpuinfo(void)
 					tsc_is_invariant = 1;
 				break;
 			case CPU_VENDOR_INTEL:
-				if (amd_pminfo & AMDPM_TSC_INVARIANT)
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
 					tsc_is_invariant = 1;
 				break;
 			}
