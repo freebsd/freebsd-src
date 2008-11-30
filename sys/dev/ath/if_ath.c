@@ -1266,7 +1266,8 @@ ath_fatal_proc(void *arg, int pending)
 static void
 ath_bmiss_vap(struct ieee80211vap *vap)
 {
-	struct ath_softc *sc = vap->iv_ic->ic_ifp->if_softc;
+	struct ifnet *ifp = vap->iv_ic->ic_ifp;
+	struct ath_softc *sc = ifp->if_softc;
 	u_int64_t lastrx = sc->sc_lastrx;
 	u_int64_t tsf = ath_hal_gettsf64(sc->sc_ah);
 	u_int bmisstimeout =
