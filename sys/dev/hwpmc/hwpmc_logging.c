@@ -281,15 +281,18 @@ pmclog_loop(void *arg)
 			if ((lb = TAILQ_FIRST(&po->po_logbuffers)) == NULL) {
 				mtx_unlock_spin(&po->po_mtx);
 
-				/* wakeup any processes waiting for a FLUSH */
+				/*
+				 * Wakeup the thread waiting for the
+				 * PMC_OP_FLUSHLOG request to
+				 * complete.
+				 */
 				if (po->po_flags & PMC_PO_IN_FLUSH) {
 					po->po_flags &= ~PMC_PO_IN_FLUSH;
 					wakeup_one(po->po_kthread);
 				}
 
-
-				(void) msleep(po, &pmc_kthread_mtx,
-				    PWAIT, "pmcloop", 0);
+				(void) msleep(po, &pmc_kthread_mtx, PWAIT,
+				    "pmcloop", 0);
 				continue;
 			}
 
