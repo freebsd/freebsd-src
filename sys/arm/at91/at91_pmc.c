@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/time.h>
 #include <sys/bus.h>
@@ -54,7 +55,7 @@ static struct at91_pmc_softc {
 	bus_space_handle_t	sc_sh;
 	struct resource	*mem_res;	/* Memory resource */
 	device_t		dev;
-	int			main_clock_hz;
+	unsigned int		main_clock_hz;
 	uint32_t		pllb_init;
 } *pmc_softc;
 
@@ -144,6 +145,18 @@ static struct at91_pmc_clock *const clock_list[] = {
 	&udc_clk,
 	&ohci_clk
 };
+
+#if !defined(AT91C_MAIN_CLOCK)
+static const unsigned int at91_mainf_tbl[] = {
+	3000000, 3276800, 3686400, 3840000, 4000000,
+	4433619, 4915200, 5000000, 5242880, 6000000,
+	6144000, 6400000, 6553600, 7159090, 7372800,
+	7864320, 8000000, 9830400, 10000000, 11059200,
+	12000000, 12288000, 13560000, 14318180, 14745600,
+	16000000, 17344700, 18432000, 20000000
+};
+#define	MAINF_TBL_LEN	(sizeof(at91_mainf_tbl) / sizeof(*at91_mainf_tbl))
+#endif
 
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
@@ -301,7 +314,7 @@ fail:
 }
 
 static void
-at91_pmc_init_clock(struct at91_pmc_softc *sc, int main_clock)
+at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 {
 	uint32_t mckr;
 	int freq;
@@ -384,21 +397,52 @@ at91_pmc_probe(device_t dev)
 	return (0);
 }
 
+#if !defined(AT91C_MAIN_CLOCK)
+static unsigned int
+at91_pmc_sense_mainf(struct at91_pmc_softc *sc)
+{
+	unsigned int ckgr_val;
+	unsigned int diff, matchdiff;
+	int i, match;
+
+	ckgr_val = (RD4(sc, CKGR_MCFR) & CKGR_MCFR_MAINF_MASK) << 11;
+
+	/*
+	 * Try to find the standard frequency that match best.
+	 */
+	match = 0;
+	matchdiff = abs(ckgr_val - at91_mainf_tbl[0]);
+	for (i = 1; i < MAINF_TBL_LEN; i++) {
+		diff = abs(ckgr_val - at91_mainf_tbl[i]);
+		if (diff < matchdiff) {
+			match = i;
+			matchdiff = diff;
+		}
+	}
+	return (at91_mainf_tbl[match]);
+}
+#endif
+
 static int
 at91_pmc_attach(device_t dev)
 {
+	unsigned int mainf;
 	int err;
 
 	pmc_softc = device_get_softc(dev);
 	pmc_softc->dev = dev;
 	if ((err = at91_pmc_activate(dev)) != 0)
 		return err;
-#if defined(AT91_TSC) | defined (AT91_BWCT)
-	at91_pmc_init_clock(pmc_softc, 16000000);
-#else
-	at91_pmc_init_clock(pmc_softc, 10000000);
-#endif
 
+	/*
+	 * Configure main clock frequency.
+	 */
+#if !defined(AT91C_MAIN_CLOCK)
+	mainf = at91_pmc_sense_mainf(pmc_softc);
+#else
+	mainf = AT91C_MAIN_CLOCK;
+#endif
+	at91_pmc_init_clock(pmc_softc, mainf);
 	return (0);
 }
 
