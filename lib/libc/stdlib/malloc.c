@@ -1262,18 +1262,20 @@ malloc_spin_lock(pthread_mutex_t *lock)
 
 	if (__isthreaded) {
 		if (_pthread_mutex_trylock(lock) != 0) {
-			unsigned i;
-			volatile unsigned j;
+			/* Exponentially back off if there are multiple CPUs. */
+			if (ncpus > 1) {
+				unsigned i;
+				volatile unsigned j;
 
-			/* Exponentially back off. */
-			for (i = 1; i <= SPIN_LIMIT_2POW; i++) {
-				for (j = 0; j < (1U << i); j++) {
-					ret++;
-					CPU_SPINWAIT;
+				for (i = 1; i <= SPIN_LIMIT_2POW; i++) {
+					for (j = 0; j < (1U << i); j++) {
+						ret++;
+						CPU_SPINWAIT;
+					}
+
+					if (_pthread_mutex_trylock(lock) == 0)
+						return (ret);
 				}
-
-				if (_pthread_mutex_trylock(lock) == 0)
-					return (ret);
 			}
 
 			/*
