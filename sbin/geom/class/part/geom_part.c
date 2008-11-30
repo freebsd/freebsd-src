@@ -525,12 +525,15 @@ gpart_issue(struct gctl_req *req, unsigned int fl __unused)
 	}
 
 	error = strtol(errstr, &errmsg, 0);
-	while (errmsg[0] == ' ')
-		errmsg++;
-	if (errmsg[0] != '\0')
-		warnc(error, "%s", errmsg);
-	else
-		warnc(error, NULL);
+	if (errmsg != errstr) {
+		while (errmsg[0] == ' ')
+			errmsg++;
+		if (errmsg[0] != '\0')
+			warnc(error, "%s", errmsg);
+		else
+			warnc(error, NULL);
+	} else
+		warnx("%s", errmsg);
 
 	status = EXIT_FAILURE;
 
