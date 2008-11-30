@@ -2509,7 +2509,6 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
-
 /*
  * Sadly, the libgtop port has already been compiled for 7.1, but the code
  * does not do enough error checking and bad things might happen.  Even
@@ -2524,6 +2523,7 @@ SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
 CTASSERT(sizeof(struct kinfo_ofile) == KINFO_OFILE_SIZE);
 #endif
 
+#ifdef COMPAT_FREEBSD7
 static int
 export_vnode_for_osysctl(struct vnode *vp, int type,
     struct kinfo_ofile *kif, struct filedesc *fdp, struct sysctl_req *req)
@@ -2766,7 +2766,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_OFILEDESC, ofiledesc, CTLFLAG_RD,
     sysctl_kern_proc_ofiledesc, "Process ofiledesc entries");
-
+#endif	/* COMPAT_FREEBSD7 */
 
 #ifdef KINFO_FILE_SIZE
 CTASSERT(sizeof(struct kinfo_file) == KINFO_FILE_SIZE);
