@@ -28,18 +28,6 @@
  * reference as the first parameter.
  */
 
-/*
- * Bus i/o type definitions.  We define a platform-independent
- * set of types that are mapped to platform-dependent data for
- * register read/write operations.  We use types that are large
- * enough to hold a pointer; smaller data should fit and only
- * require type coercion to work.  Larger data can be stored
- * elsewhere and a reference passed for the bus tag and/or handle.
- */
-typedef void* HAL_SOFTC;		/* pointer to driver/OS state */
-typedef void* HAL_BUS_TAG;		/* opaque bus i/o id tag */
-typedef void* HAL_BUS_HANDLE;		/* opaque bus i/o handle */
-
 #include "ah_osdep.h"
 
 /*
