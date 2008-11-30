@@ -510,7 +510,7 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 	if (error)
 		return (error);
 	if (cred->cr_audit.ai_termid.at_type == AU_IPv6)
-		return (ERANGE);
+		return (E2BIG);
 	bzero(&ai, sizeof(ai));
 	ai.ai_auid = cred->cr_audit.ai_auid;
 	ai.ai_mask = cred->cr_audit.ai_mask;
