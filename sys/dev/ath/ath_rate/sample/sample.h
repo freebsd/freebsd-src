@@ -44,19 +44,15 @@
 
 /* per-device state */
 struct sample_softc {
-	struct ath_ratectrl arc;	/* base state */
-	int	ath_smoothing_rate;	/* ewma percentage (out of 100) */
-	int	ath_sample_rate;	/* send a different bit-rate 1/X packets */
+	struct ath_ratectrl arc;	/* base class */
+	int	smoothing_rate;		/* ewma percentage [0..99] */
+	int	smoothing_minpackets;
+	int	sample_rate;		/* %time to try different tx rates */
+	int	max_successive_failures;
+	int	stale_failure_timeout;	/* how long to honor max_successive_failures */
+	int	min_switch;		/* min time between rate changes */
 };
 #define	ATH_SOFTC_SAMPLE(sc)	((struct sample_softc *)sc->sc_rc)
-
-struct rate_info {
-	int rate;
-	int rix;
-	int rateCode;
-	int shortPreambleRateCode;
-};
-
 
 struct rate_stats {	
 	unsigned average_tx_time;
@@ -68,34 +64,41 @@ struct rate_stats {
 	int last_tx;
 };
 
+struct txschedule {
+	uint8_t	t0, r0;		/* series 0: tries, rate code */
+	uint8_t	t1, r1;		/* series 1: tries, rate code */
+	uint8_t	t2, r2;		/* series 2: tries, rate code */
+	uint8_t	t3, r3;		/* series 3: tries, rate code */
+};
+
 /*
  * for now, we track performance for three different packet
  * size buckets
  */
-#define NUM_PACKET_SIZE_BINS 3
-static int packet_size_bins[NUM_PACKET_SIZE_BINS] = {250, 1600, 3000};
+#define NUM_PACKET_SIZE_BINS 2
 
 /* per-node state */
 struct sample_node {
-	int static_rate_ndx;
-	int num_rates;
+	int static_rix;			/* rate index of fixed tx rate */
+#define	SAMPLE_MAXRATES	32		/* NB: corresponds to hal info[32] */
+	uint32_t ratemask;		/* bit mask of valid rate indices */
+	const struct txschedule *sched;	/* tx schedule table */
 
-	struct rate_info rates[IEEE80211_RATE_MAXSIZE];
-	
-	struct rate_stats stats[NUM_PACKET_SIZE_BINS][IEEE80211_RATE_MAXSIZE];
-	int last_sample_ndx[NUM_PACKET_SIZE_BINS];
+	struct rate_stats stats[NUM_PACKET_SIZE_BINS][SAMPLE_MAXRATES];
+	int last_sample_rix[NUM_PACKET_SIZE_BINS];
 
-	int current_sample_ndx[NUM_PACKET_SIZE_BINS];       
+	int current_sample_rix[NUM_PACKET_SIZE_BINS];       
 	int packets_sent[NUM_PACKET_SIZE_BINS];
 
-	int current_rate[NUM_PACKET_SIZE_BINS];
+	int current_rix[NUM_PACKET_SIZE_BINS];
 	int packets_since_switch[NUM_PACKET_SIZE_BINS];
 	unsigned ticks_since_switch[NUM_PACKET_SIZE_BINS];
 
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
 };
-#define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&an[1])
+#define	ATH_NODE_SAMPLE(an)	((struct sample_node *)&(an)[1])
+#define	IS_RATE_DEFINED(sn, rix)	(((sn)->ratemask & (1<<(rix))) != 0)
 
 #ifndef MIN
 #define	MIN(a,b)	((a) < (b) ? (a) : (b))
