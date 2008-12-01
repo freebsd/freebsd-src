@@ -2203,6 +2203,58 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->linkpoll_period)
 		check_link_status(sc);
 
+	
+	for (i = 0; i < sc->params.nports; i++) {
+		struct port_info *pi = &sc->port[i];
+		struct ifnet *ifp = pi->ifp;
+		struct mac_stats *mstats = &pi->mac.stats;
+		
+		ifp->if_opackets =
+		    mstats->tx_frames_64 +
+		    mstats->tx_frames_65_127 +
+		    mstats->tx_frames_128_255 +
+		    mstats->tx_frames_256_511 +
+		    mstats->tx_frames_512_1023 +
+		    mstats->tx_frames_1024_1518 +
+		    mstats->tx_frames_1519_max;
+		
+		ifp->if_ipackets =
+		    mstats->rx_frames_64 +
+		    mstats->rx_frames_65_127 +
+		    mstats->rx_frames_128_255 +
+		    mstats->rx_frames_256_511 +
+		    mstats->rx_frames_512_1023 +
+		    mstats->rx_frames_1024_1518 +
+		    mstats->rx_frames_1519_max;
+
+		ifp->if_obytes = mstats->tx_octets;
+		ifp->if_ibytes = mstats->rx_octets;
+		ifp->if_omcasts = mstats->tx_mcast_frames;
+		ifp->if_imcasts = mstats->rx_mcast_frames;
+		
+		ifp->if_collisions =
+		    mstats->tx_total_collisions;
+
+		ifp->if_iqdrops = mstats->rx_cong_drops;
+		
+		ifp->if_oerrors =
+		    mstats->tx_excess_collisions +
+		    mstats->tx_underrun +
+		    mstats->tx_len_errs +
+		    mstats->tx_mac_internal_errs +
+		    mstats->tx_excess_deferral +
+		    mstats->tx_fcs_errs;
+		ifp->if_ierrors =
+		    mstats->rx_jabber +
+		    mstats->rx_data_errs +
+		    mstats->rx_sequence_errs +
+		    mstats->rx_runt + 
+		    mstats->rx_too_long +
+		    mstats->rx_mac_internal_errs +
+		    mstats->rx_short +
+		    mstats->rx_fcs_errs;
+	}
+		
 	sc->check_task_cnt++;
 
 	/*
