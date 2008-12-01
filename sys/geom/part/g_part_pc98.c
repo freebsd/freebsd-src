@@ -209,9 +209,14 @@ static int
 g_part_pc98_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_pc98_table *table;
+	size_t codesz;
 
+	codesz = DOSMAGICOFFSET;
 	table = (struct g_part_pc98_table *)basetable;
-	bcopy(gpp->gpp_codeptr, table->boot, DOSMAGICOFFSET);
+	bzero(table->boot, codesz);
+	codesz = MIN(codesz, gpp->gpp_codesize);
+	if (codesz > 0)
+		bcopy(gpp->gpp_codeptr, table->boot, codesz);
 	return (0);
 }
 
