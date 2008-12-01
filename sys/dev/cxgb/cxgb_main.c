@@ -2185,7 +2185,7 @@ cxgb_tick(void *arg)
 	if(sc->flags & CXGB_SHUTDOWN)
 		return;
 
-	taskqueue_enqueue(sc->tq, &sc->tick_task);
+	taskqueue_enqueue(sc->tq, &sc->tick_task);	
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 }
 
@@ -2204,10 +2204,25 @@ cxgb_tick_handler(void *arg, int count)
 		check_link_status(sc);
 
 	
+	sc->check_task_cnt++;
+
+	/*
+	 * adapter lock can currently only be acquired after the
+	 * port lock
+	 */
+	ADAPTER_UNLOCK(sc);
+
+	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
+		check_t3b2_mac(sc);
+
 	for (i = 0; i < sc->params.nports; i++) {
 		struct port_info *pi = &sc->port[i];
 		struct ifnet *ifp = pi->ifp;
 		struct mac_stats *mstats = &pi->mac.stats;
+		PORT_LOCK(pi);
+		t3_mac_update_stats(&pi->mac);
+		PORT_UNLOCK(pi);
+
 		
 		ifp->if_opackets =
 		    mstats->tx_frames_64 +
@@ -2253,30 +2268,6 @@ cxgb_tick_handler(void *arg, int count)
 		    mstats->rx_mac_internal_errs +
 		    mstats->rx_short +
 		    mstats->rx_fcs_errs;
-	}
-		
-	sc->check_task_cnt++;
-
-	/*
-	 * adapter lock can currently only be acquired after the
-	 * port lock
-	 */
-	ADAPTER_UNLOCK(sc);
-
-	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
-		check_t3b2_mac(sc);
-
-	/* Update MAC stats if it's time to do so */
-	if (!p->linkpoll_period ||
-	    (sc->check_task_cnt * p->linkpoll_period) / 10 >=
-	    p->stats_update_period) {
-		for_each_port(sc, i) {
-			struct port_info *port = &sc->port[i];
-			PORT_LOCK(port);
-			t3_mac_update_stats(&port->mac);
-			PORT_UNLOCK(port);
-		}
-		sc->check_task_cnt = 0;
 	}
 }
 
