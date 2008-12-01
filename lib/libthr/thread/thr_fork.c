@@ -158,6 +158,9 @@ _fork(void)
 		/* clear other threads locked us. */
 		_thr_umutex_init(&curthread->lock);
 		_thr_umutex_init(&_thr_atfork_lock);
+
+		if (unlock_malloc)
+			_rtld_atfork_post(rtld_locks);
 		_thr_setthreaded(0);
 
 		/* reinitialize libc spinlocks. */
@@ -170,10 +173,8 @@ _fork(void)
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
 
-		if (unlock_malloc) {
-			_rtld_atfork_post(rtld_locks);
+		if (unlock_malloc)
 			_malloc_postfork();
-		}
 
 		/* Run down atfork child handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
