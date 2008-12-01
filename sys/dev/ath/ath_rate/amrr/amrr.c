@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_athvar.h>
 #include <dev/ath/ath_rate/amrr/amrr.h>
-#include <contrib/dev/ath/ah_desc.h>
+#include <dev/ath/ath_hal/ah_desc.h>
 
 static	int ath_rateinterval = 1000;		/* rate ctl interval (ms)  */
 static	int ath_rate_max_success_threshold = 10;

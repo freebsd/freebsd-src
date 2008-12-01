@@ -35,8 +35,8 @@
 #ifndef _DEV_ATH_ATHVAR_H
 #define _DEV_ATH_ATHVAR_H
 
-#include <contrib/dev/ath/ah.h>
-#include <contrib/dev/ath/ah_desc.h>
+#include <dev/ath/ath_hal/ah.h>
+#include <dev/ath/ath_hal/ah_desc.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/ath/if_athioctl.h>
 #include <dev/ath/if_athrate.h>
