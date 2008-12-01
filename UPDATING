@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	__FreeBSD_version 800057 marks the switchover from the
 	binary ath hal to source code. Users must add the line:
 
-	options	ATH_SUPPORT_AR5416
+	options	AH_SUPPORT_AR5416
 
 	to their kernel config files when specifying:
 
