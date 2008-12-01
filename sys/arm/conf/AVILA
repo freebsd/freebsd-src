@@ -128,6 +128,7 @@ device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 options 	ATH_DEBUG
 

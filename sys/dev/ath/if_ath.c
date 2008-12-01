@@ -77,8 +77,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/ath/if_athvar.h>
-#include <contrib/dev/ath/ah_desc.h>
-#include <contrib/dev/ath/ah_devid.h>		/* XXX for softled */
+#include <dev/ath/ath_hal/ah_devid.h>		/* XXX for softled */
 
 #ifdef ATH_TX99_DIAG
 #include <dev/ath/ath_tx99/ath_tx99.h>

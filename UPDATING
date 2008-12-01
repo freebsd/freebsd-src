@@ -22,6 +22,21 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20081130:
+	__FreeBSD_version 800057 marks the switchover from the
+	binary ath hal to source code. Users must add the line:
+
+	options	ATH_SUPPORT_AR5416
+
+	to their kernel config files when specifying:
+
+	device	ath_hal
+
+	The ath_hal module no longer exists; the code is now compiled
+	together with the driver in the ath module.  It is now
+	possible to tailor chip support (i.e. reduce the set of chips
+	and thereby the code size); consult ath_hal(4) for details.
+
 20081121:
 	__FreeBSD_version 800054 adds memory barriers to 
 	<machine/atomic.h>, new interfaces to ifnet to facilitate 

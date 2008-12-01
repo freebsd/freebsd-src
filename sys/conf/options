@@ -740,6 +740,21 @@ ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
 
+# options for the Atheros hal
+AH_SUPPORT_AR5416	opt_ah.h
+
+AH_DEBUG		opt_ah.h
+AH_ASSERT		opt_ah.h
+AH_DEBUG_ALQ		opt_ah.h
+AH_REGOPS_FUNC		opt_ah.h
+AH_WRITE_REGDOMAIN	opt_ah.h
+AH_DEBUG_COUNTRY	opt_ah.h
+AH_WRITE_EEPROM		opt_ah.h
+AH_PRIVATE_DIAG		opt_ah.h
+AH_NEED_DESC_SWAP	opt_ah.h
+AH_USE_INIPDGAIN	opt_ah.h
+AH_SUPPORT_11D		opt_ah.h
+
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h
 MALO_TXBUF		opt_malo.h
