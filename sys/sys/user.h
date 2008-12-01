@@ -348,6 +348,32 @@ struct kinfo_file {
 #define	KVME_FLAG_COW		0x00000001
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
 
+#if defined(__amd64__)
+#define	KINFO_OVMENTRY_SIZE	1168
+#endif
+#if defined(__i386__)
+#define	KINFO_OVMENTRY_SIZE	1128
+#endif
+
+struct kinfo_ovmentry {
+	int	 kve_structsize;		/* Size of kinfo_vmmapentry. */
+	int	 kve_type;			/* Type of map entry. */
+	void	*kve_start;			/* Starting address. */
+	void	*kve_end;			/* Finishing address. */
+	int	 kve_flags;			/* Flags on map entry. */
+	int	 kve_resident;			/* Number of resident pages. */
+	int	 kve_private_resident;		/* Number of private pages. */
+	int	 kve_protection;		/* Protection bitmask. */
+	int	 kve_ref_count;			/* VM obj ref count. */
+	int	 kve_shadow_count;		/* VM obj shadow count. */
+	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
+	void	*_kve_pspare[8];		/* Space for more stuff. */
+	off_t	 kve_offset;			/* Mapping offset in object */
+	uint64_t kve_fileid;			/* inode number if vnode */
+	dev_t	 kve_fsid;			/* dev_t of vnode location */
+	int	 _kve_ispare[3];		/* Space for more stuff. */
+};
+
 #if defined(__amd64__) || defined(__i386__)
 #define	KINFO_VMENTRY_SIZE	1160
 #endif

@@ -2806,6 +2806,7 @@ export_vnode_for_sysctl(struct vnode *vp, int type,
 	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
 	if (freepath != NULL)
 		free(freepath, M_TEMP);
+	/* Pack record size down */
 	kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 	    strlen(kif->kf_path) + 1;
 	kif->kf_structsize = roundup(kif->kf_structsize, sizeof(uint64_t));
@@ -3003,6 +3004,7 @@ sysctl_kern_proc_filedesc(SYSCTL_HANDLER_ARGS)
 			strlcpy(kif->kf_path, tty_devname(tp),
 			    sizeof(kif->kf_path));
 		}
+		/* Pack record size down */
 		kif->kf_structsize = offsetof(struct kinfo_file, kf_path) +
 		    strlen(kif->kf_path) + 1;
 		kif->kf_structsize = roundup(kif->kf_structsize,
