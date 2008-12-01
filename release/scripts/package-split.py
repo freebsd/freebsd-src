@@ -47,11 +47,18 @@ def disc2_packages():
 		'x11/kde-lite']
     else:
 	pkgs = ['x11/gnome2',
-		'x11/kde3']
+		'x11/kdebase3',
+		'x11/kdelibs3',
+		'games/kdegames3',
+		'graphics/kdegraphics3',
+		'misc/kdeutils3',
+		'multimedia/kdemultimedia3',
+		'net/kdenetwork3']
     return pkgs
 
 def disc3_packages():
-    pkgs = ['x11-wm/afterstep',
+    pkgs = ['x11/kde3',
+	    'x11-wm/afterstep',
             'x11-wm/windowmaker',
             'x11-wm/fvwm2',
             # "Nice to have"
@@ -66,10 +73,10 @@ def disc3_packages():
             'graphics/xv',
             'irc/xchat',
             'lang/php5',
+            'mail/alpine',
             'mail/exim',
             'mail/fetchmail',
             'mail/mutt',
-            'mail/pine4',
             'mail/popd',
             'mail/xfmail',
             'mail/postfix',
@@ -83,7 +90,7 @@ def disc3_packages():
             'ports-mgmt/portupgrade',
             'print/a2ps-letter',
             'print/apsfilter',
-            'print/ghostscript-gnu-nox11',
+            'print/ghostscript7-nox11',
             'print/gv',
             'print/psutils-letter',
             'print/teTeX',
@@ -100,9 +107,10 @@ def disc3_packages():
             'x11/rxvt',
             # Formerly on disc3
             'ports-mgmt/portaudit']
+    if arch == 'amd64' or arch == 'i386':
+        pkgs.extend(['www/opera'])
     if arch == 'i386':
-        pkgs.extend(['www/opera',
-            'misc/compat4x'])
+	pkgs.extend(['misc/compat4x'])
     return pkgs
 
 # The list of desired packages
