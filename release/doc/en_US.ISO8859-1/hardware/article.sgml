@@ -712,6 +712,8 @@
 
       &hwlist.ixgb;
 
+      &hwlist.ixgbe;
+
       &hwlist.jme;
 
       &hwlist.kue;
@@ -837,6 +839,8 @@
 	wireless adapters (&man.ray.4; driver)</para>
 
       &hwlist.rum;
+
+      &hwlist.upgt;
 
       &hwlist.ural;
 
