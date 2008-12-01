@@ -29,11 +29,10 @@ SUBDIR=	${_3dfx} \
 	${_asmc} \
 	${_asr} \
 	ata \
-	${_ath} \
-	${_ath_hal} \
-	${_ath_rate_amrr} \
-	${_ath_rate_onoe} \
-	${_ath_rate_sample} \
+	ath \
+	ath_rate_amrr \
+	ath_rate_onoe \
+	ath_rate_sample \
 	aue \
 	${_auxio} \
 	axe \
@@ -376,11 +375,6 @@ _aout=		aout
 _apm=		apm
 _ar=		ar
 _arcnet=	arcnet
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _bktr=		bktr
 _cardbus=	cardbus
 _cbb=		cbb
@@ -513,11 +507,6 @@ _agp=		agp
 _an=		an
 _arcmsr=	arcmsr
 _asmc=		asmc
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _cardbus=	cardbus
 _cbb=		cbb
 _cmx=		cmx
@@ -625,11 +614,6 @@ _xe=		xe
 
 .if ${MACHINE_ARCH} == "powerpc"
 _an=		an
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _bm=		bm
 _nvram=		powermac_nvram
 _smbfs=		smbfs
@@ -637,11 +621,6 @@ _upgt=		upgt
 .endif
 
 .if ${MACHINE_ARCH} == "sparc64"
-_ath=		ath
-_ath_hal=	ath_hal
-_ath_rate_amrr=	ath_rate_amrr
-_ath_rate_onoe=	ath_rate_onoe
-_ath_rate_sample=ath_rate_sample
 _auxio=		auxio
 _em=		em
 _i2c=		i2c

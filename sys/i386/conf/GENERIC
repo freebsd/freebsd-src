@@ -264,10 +264,11 @@ device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
 device		ath		# Atheros pci/cardbus NIC's
-device		ath_hal		# Atheros HAL (Hardware Access Layer)
+device		ath_hal		# pci/cardbus chip support
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ral		# Ralink Technology RT2500 wireless NICs.
-device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
+#device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices.
