@@ -38,16 +38,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-hal.o				optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/i386-elf.hal.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/ath/public/i386-elf.hal.o.uu" \
-	no-implicit-rule
-opt_ah.h			optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/i386-elf.opt_ah.h"	\
-	compile-with	"rm -f opt_ah.h; cp $S/contrib/dev/ath/public/i386-elf.opt_ah.h opt_ah.h" \
-	no-obj no-implicit-rule before-depend				\
-	clean		"opt_ah.h"
-#
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
 compat/linux/linux_emul.c	optional compat_linux

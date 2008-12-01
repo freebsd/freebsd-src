@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004 Sam Leffler, Errno Consulting
+# Copyright (c) 2004-2008 Sam Leffler, Errno Consulting
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -12,13 +12,6 @@
 #    similar to the "NO WARRANTY" disclaimer below ("Disclaimer") and any
 #    redistribution must be conditioned upon including a substantially
 #    similar Disclaimer requirement for further binary redistribution.
-# 3. Neither the names of the above-listed copyright holders nor the names
-#    of any contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
-#
-# Alternatively, this software may be distributed under the terms of the
-# GNU General Public License ("GPL") version 2 as published by the Free
-# Software Foundation.
 #
 # NO WARRANTY
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -40,29 +33,8 @@
 
 KMOD=	ath_rate
 SRCS=	amrr.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ah.h opt_wlan.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_route.h opt_ah.h opt_wlan.h
 
-HAL=	${.CURDIR}/../../contrib/dev/ath
-CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${HAL}
-
-# patch for hal naming difference
-.if ${MACHINE_ARCH} == "amd64"
-ATH_MODULE_ARCH=x86_64
-.elif ${MACHINE_ARCH} == "sparc64"
-ATH_MODULE_ARCH=sparc64-be
-.elif ${MACHINE_ARCH} == "powerpc"
-ATH_MODULE_ARCH=powerpc-be
-.else
-ATH_MODULE_ARCH=${MACHINE_ARCH}
-.endif
-
-opt_ah.h: ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h
-	cp ${HAL}/public/${ATH_MODULE_ARCH}-elf.opt_ah.h ${.TARGET}
-
-.if !defined(KERNBUILDDIR)
-opt_wlan.h:
-#	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
-	echo > ${.TARGET}
-.endif
+CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 
 .include <bsd.kmod.mk>
