@@ -32,7 +32,9 @@
 ******************************************************************************/
 /*$FreeBSD$*/
 
-/* e1000_80003es2lan
+/*
+ * 80003ES2LAN Gigabit Ethernet Controller (Copper)
+ * 80003ES2LAN Gigabit Ethernet Controller (Serdes)
  */
 
 #include "e1000_api.h"
@@ -41,7 +43,9 @@ static s32  e1000_init_phy_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_init_mac_params_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_acquire_phy_80003es2lan(struct e1000_hw *hw);
+static s32  e1000_acquire_mac_csr_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_phy_80003es2lan(struct e1000_hw *hw);
+static void e1000_release_mac_csr_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_acquire_nvm_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_nvm_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
@@ -64,6 +68,11 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw);
 static s32  e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask);
 static s32  e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex);
 static s32  e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw);
+static s32  e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw);
+static s32  e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                            u16 *data);
+static s32  e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                             u16 data);
 static s32  e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw);
 static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw);
 static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask);
@@ -84,8 +93,6 @@ static const u16 e1000_gg82563_cable_length_table[] =
 /**
  *  e1000_init_phy_params_80003es2lan - Init ESB2 PHY func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 {
@@ -122,6 +129,8 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 	phy->ops.read_reg           = e1000_read_phy_reg_gg82563_80003es2lan;
 	phy->ops.write_reg          = e1000_write_phy_reg_gg82563_80003es2lan;
 
+	phy->ops.cfg_on_link_up    = e1000_cfg_on_link_up_80003es2lan;
+
 	/* This can only be done after all function pointers are setup. */
 	ret_val = e1000_get_phy_id(hw);
 
@@ -138,8 +147,6 @@ out:
 /**
  *  e1000_init_nvm_params_80003es2lan - Init ESB2 NVM func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 {
@@ -197,8 +204,6 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 /**
  *  e1000_init_mac_params_80003es2lan - Init ESB2 MAC func ptrs.
  *  @hw: pointer to the HW structure
- *
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 {
@@ -280,8 +285,6 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	/* turn on/off LED */
 	mac->ops.led_on = e1000_led_on_generic;
 	mac->ops.led_off = e1000_led_off_generic;
-	/* remove device */
-	mac->ops.remove_device = e1000_remove_device_generic;
 	/* clear hardware counters */
 	mac->ops.clear_hw_cntrs = e1000_clear_hw_cntrs_80003es2lan;
 	/* link info */
@@ -295,8 +298,7 @@ out:
  *  e1000_init_function_pointers_80003es2lan - Init ESB2 func ptrs.
  *  @hw: pointer to the HW structure
  *
- *  The only function explicitly called by the api module to initialize
- *  all function pointers and parameters.
+ *  Called to initialize all function pointers and parameters.
  **/
 void e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw)
 {
@@ -305,14 +307,14 @@ void e1000_init_function_pointers_80003es2lan(struct e1000_hw *hw)
 	hw->mac.ops.init_params = e1000_init_mac_params_80003es2lan;
 	hw->nvm.ops.init_params = e1000_init_nvm_params_80003es2lan;
 	hw->phy.ops.init_params = e1000_init_phy_params_80003es2lan;
+	e1000_get_bus_info_pcie_generic(hw);
 }
 
 /**
  *  e1000_acquire_phy_80003es2lan - Acquire rights to access PHY
  *  @hw: pointer to the HW structure
  *
- *  A wrapper to acquire access rights to the correct PHY.  This is a
- *  function pointer entry point called by the api module.
+ *  A wrapper to acquire access rights to the correct PHY.
  **/
 static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 {
@@ -321,8 +323,6 @@ static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_acquire_phy_80003es2lan");
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
-	mask |= E1000_SWFW_CSR_SM;
-
 	return e1000_acquire_swfw_sync_80003es2lan(hw, mask);
 }
 
@@ -330,8 +330,7 @@ static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
  *  e1000_release_phy_80003es2lan - Release rights to access PHY
  *  @hw: pointer to the HW structure
  *
- *  A wrapper to release access rights to the correct PHY.  This is a
- *  function pointer entry point called by the api module.
+ *  A wrapper to release access rights to the correct PHY.
  **/
 static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 {
@@ -340,7 +339,41 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_release_phy_80003es2lan");
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
-	mask |= E1000_SWFW_CSR_SM;
+	e1000_release_swfw_sync_80003es2lan(hw, mask);
+}
+
+
+/**
+ *  e1000_acquire_mac_csr_80003es2lan - Acquire rights to access Kumeran register
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the semaphore to access the Kumeran interface.
+ *
+ **/
+static s32 e1000_acquire_mac_csr_80003es2lan(struct e1000_hw *hw)
+{
+	u16 mask;
+
+	DEBUGFUNC("e1000_acquire_mac_csr_80003es2lan");
+
+	mask = E1000_SWFW_CSR_SM;
+
+	return e1000_acquire_swfw_sync_80003es2lan(hw, mask);
+}
+
+/**
+ *  e1000_release_mac_csr_80003es2lan - Release rights to access Kumeran Register
+ *  @hw: pointer to the HW structure
+ *
+ *  Release the semaphore used to access the Kumeran interface
+ **/
+static void e1000_release_mac_csr_80003es2lan(struct e1000_hw *hw)
+{
+	u16 mask;
+
+	DEBUGFUNC("e1000_release_mac_csr_80003es2lan");
+
+	mask = E1000_SWFW_CSR_SM;
 
 	e1000_release_swfw_sync_80003es2lan(hw, mask);
 }
@@ -349,8 +382,7 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
  *  e1000_acquire_nvm_80003es2lan - Acquire rights to access NVM
  *  @hw: pointer to the HW structure
  *
- *  Acquire the semaphore to access the EEPROM.  This is a function
- *  pointer entry point called by the api module.
+ *  Acquire the semaphore to access the EEPROM.
  **/
 static s32 e1000_acquire_nvm_80003es2lan(struct e1000_hw *hw)
 {
@@ -375,8 +407,7 @@ out:
  *  e1000_release_nvm_80003es2lan - Relinquish rights to access NVM
  *  @hw: pointer to the HW structure
  *
- *  Release the semaphore used to access the EEPROM.  This is a
- *  function pointer entry point called by the api module.
+ *  Release the semaphore used to access the EEPROM.
  **/
 static void e1000_release_nvm_80003es2lan(struct e1000_hw *hw)
 {
@@ -400,7 +431,7 @@ static s32 e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 	u32 swmask = mask;
 	u32 fwmask = mask << 16;
 	s32 ret_val = E1000_SUCCESS;
-	s32 i = 0, timeout = 200;
+	s32 i = 0, timeout = 50;
 
 	DEBUGFUNC("e1000_acquire_swfw_sync_80003es2lan");
 
@@ -452,8 +483,8 @@ static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 
 	DEBUGFUNC("e1000_release_swfw_sync_80003es2lan");
 
-	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS);
-	/* Empty */
+	while (e1000_get_hw_semaphore_generic(hw) != E1000_SUCCESS)
+		; /* Empty */
 
 	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
 	swfw_sync &= ~mask;
@@ -468,8 +499,7 @@ static void e1000_release_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
  *  @offset: offset of the register to read
  *  @data: pointer to the data returned from the operation
  *
- *  Read the GG82563 PHY register.  This is a function pointer entry
- *  point called by the api module.
+ *  Read the GG82563 PHY register.
  **/
 static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
                                                   u32 offset, u16 *data)
@@ -520,9 +550,8 @@ static s32 e1000_read_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 
 	usec_delay(200);
 
-	ret_val = e1000_read_phy_reg_mdic(hw,
-	                                 MAX_PHY_REG_ADDRESS & offset,
-	                                 data);
+	ret_val = e1000_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+	                                   data);
 
 	usec_delay(200);
 	e1000_release_phy_80003es2lan(hw);
@@ -537,8 +566,7 @@ out:
  *  @offset: offset of the register to read
  *  @data: value to write to the register
  *
- *  Write to the GG82563 PHY register.  This is a function pointer entry
- *  point called by the api module.
+ *  Write to the GG82563 PHY register.
  **/
 static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
                                                    u32 offset, u16 data)
@@ -590,8 +618,7 @@ static s32 e1000_write_phy_reg_gg82563_80003es2lan(struct e1000_hw *hw,
 
 	usec_delay(200);
 
-	ret_val = e1000_write_phy_reg_mdic(hw,
-	                                  MAX_PHY_REG_ADDRESS & offset,
+	ret_val = e1000_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
 	                                  data);
 
 	usec_delay(200);
@@ -608,8 +635,7 @@ out:
  *  @words: number of words to write
  *  @data: buffer of data to write to the NVM
  *
- *  Write "words" of data to the ESB2 NVM.  This is a function
- *  pointer entry point called by the api module.
+ *  Write "words" of data to the ESB2 NVM.
  **/
 static s32 e1000_write_nvm_80003es2lan(struct e1000_hw *hw, u16 offset,
                             u16 words, u16 *data)
@@ -775,10 +801,17 @@ static s32 e1000_get_cable_length_80003es2lan(struct e1000_hw *hw)
 		goto out;
 
 	index = phy_data & GG82563_DSPD_CABLE_LENGTH;
-	phy->min_cable_length = e1000_gg82563_cable_length_table[index];
-	phy->max_cable_length = e1000_gg82563_cable_length_table[index+5];
 
-	phy->cable_length = (phy->min_cable_length + phy->max_cable_length) / 2;
+	if (index < GG82563_CABLE_LENGTH_TABLE_SIZE + 5) {
+		phy->min_cable_length = e1000_gg82563_cable_length_table[index];
+		phy->max_cable_length =
+		                 e1000_gg82563_cable_length_table[index+5];
+
+		phy->cable_length = (phy->min_cable_length +
+		                     phy->max_cable_length) / 2;
+	} else {
+		ret_val = E1000_ERR_PHY;
+	}
 
 out:
 	return ret_val;
@@ -791,7 +824,6 @@ out:
  *  @duplex: pointer to duplex buffer
  *
  *  Retrieve the current speed and duplex configuration.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
                                               u16 *duplex)
@@ -804,20 +836,13 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
 		ret_val = e1000_get_speed_and_duplex_copper_generic(hw,
 		                                                    speed,
 		                                                    duplex);
-		if (ret_val)
-			goto out;
-		if (*speed == SPEED_1000)
-			ret_val = e1000_cfg_kmrn_1000_80003es2lan(hw);
-		else
-			ret_val = e1000_cfg_kmrn_10_100_80003es2lan(hw,
-			                                      *duplex);
+		hw->phy.ops.cfg_on_link_up(hw);
 	} else {
 		ret_val = e1000_get_speed_and_duplex_fiber_serdes_generic(hw,
 		                                                  speed,
 		                                                  duplex);
 	}
 
-out:
 	return ret_val;
 }
 
@@ -826,7 +851,6 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Perform a global reset to the ESB2 controller.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
@@ -840,9 +864,8 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = e1000_disable_pcie_master_generic(hw);
-	if (ret_val) {
+	if (ret_val)
 		DEBUGOUT("PCI-E Master disable polling has failed.\n");
-	}
 
 	DEBUGOUT("Masking off all interrupts\n");
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
@@ -855,8 +878,10 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 
 	ctrl = E1000_READ_REG(hw, E1000_CTRL);
 
+	ret_val = e1000_acquire_phy_80003es2lan(hw);
 	DEBUGOUT("Issuing a global reset to MAC\n");
 	E1000_WRITE_REG(hw, E1000_CTRL, ctrl | E1000_CTRL_RST);
+	e1000_release_phy_80003es2lan(hw);
 
 	ret_val = e1000_get_auto_rd_done_generic(hw);
 	if (ret_val)
@@ -878,7 +903,6 @@ out:
  *  @hw: pointer to the HW structure
  *
  *  Initialize the hw bits, LED, VFTA, MTA, link and hw counters.
- *  This is a function pointer entry point called by the api module.
  **/
 static s32 e1000_init_hw_80003es2lan(struct e1000_hw *hw)
 {
@@ -969,9 +993,6 @@ static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_initialize_hw_bits_80003es2lan");
 
-	if (hw->mac.disable_hw_init_bits)
-		goto out;
-
 	/* Transmit Descriptor Control 0 */
 	reg = E1000_READ_REG(hw, E1000_TXDCTL(0));
 	reg |= (1 << 22);
@@ -997,7 +1018,6 @@ static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw)
 		reg |= (1 << 28);
 	E1000_WRITE_REG(hw, E1000_TARC(1), reg);
 
-out:
 	return;
 }
 
@@ -1012,8 +1032,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u32 ctrl_ext;
-	u32 i = 0;
-	u16 data, data2;
+	u16 data;
 
 	DEBUGFUNC("e1000_copper_link_setup_gg82563_80003es2lan");
 
@@ -1084,20 +1103,20 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	}
 
 	/* Bypass Rx and Tx FIFO's */
-	ret_val = e1000_write_kmrn_reg_generic(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 	                        E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
 	                        E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
 	                                E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
 	if (ret_val)
 		goto out;
 
-	ret_val = e1000_read_kmrn_reg_generic(hw,
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
 	                              E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
 	                              &data);
 	if (ret_val)
 		goto out;
 	data |= E1000_KMRNCTRLSTA_OPMODE_E_IDLE;
-	ret_val = e1000_write_kmrn_reg_generic(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 	                               E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
 	                               data);
 	if (ret_val)
@@ -1129,30 +1148,20 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		/* Enable Electrical Idle on the PHY */
 		data |= GG82563_PMCR_ENABLE_ELECTRICAL_IDLE;
 		ret_val = hw->phy.ops.write_reg(hw,
-		                             GG82563_PHY_PWR_MGMT_CTRL,
-		                             data);
+		                                GG82563_PHY_PWR_MGMT_CTRL,
+		                                data);
 		if (ret_val)
 			goto out;
-
-		do {
-			ret_val = hw->phy.ops.read_reg(hw,
-			                          GG82563_PHY_KMRN_MODE_CTRL,
-			                          &data);
+		ret_val = hw->phy.ops.read_reg(hw,
+			                       GG82563_PHY_KMRN_MODE_CTRL,
+			                       &data);
 			if (ret_val)
 				goto out;
-
-			ret_val = hw->phy.ops.read_reg(hw,
-			                          GG82563_PHY_KMRN_MODE_CTRL,
-			                          &data2);
-			if (ret_val)
-				goto out;
-			i++;
-		} while ((data != data2) && (i < GG82563_MAX_KMRN_RETRY));
 
 		data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 		ret_val = hw->phy.ops.write_reg(hw,
-		                             GG82563_PHY_KMRN_MODE_CTRL,
-		                             data);
+		                                GG82563_PHY_KMRN_MODE_CTRL,
+		                                data);
 
 		if (ret_val)
 			goto out;
@@ -1185,7 +1194,7 @@ out:
 static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 {
 	u32 ctrl;
-	s32  ret_val;
+	s32 ret_val;
 	u16 reg_data;
 
 	DEBUGFUNC("e1000_setup_copper_link_80003es2lan");
@@ -1200,26 +1209,26 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	 * iteration and increase the max iterations when
 	 * polling the phy; this fixes erroneous timeouts at 10Mbps.
 	 */
-	ret_val = e1000_write_kmrn_reg_generic(hw, GG82563_REG(0x34, 4),
-	                                       0xFFFF);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 4),
+	                                           0xFFFF);
 	if (ret_val)
 		goto out;
-	ret_val = e1000_read_kmrn_reg_generic(hw, GG82563_REG(0x34, 9),
-	                                      &reg_data);
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
+	                                          &reg_data);
 	if (ret_val)
 		goto out;
 	reg_data |= 0x3F;
-	ret_val = e1000_write_kmrn_reg_generic(hw, GG82563_REG(0x34, 9),
-	                                       reg_data);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
+	                                           reg_data);
 	if (ret_val)
 		goto out;
-	ret_val = e1000_read_kmrn_reg_generic(hw,
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
 	                              E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
 	                              &reg_data);
 	if (ret_val)
 		goto out;
 	reg_data |= E1000_KMRNCTRLSTA_INB_CTRL_DIS_PADDING;
-	ret_val = e1000_write_kmrn_reg_generic(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 	                               E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
 	                               reg_data);
 	if (ret_val)
@@ -1230,6 +1239,40 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 		goto out;
 
 	ret_val = e1000_setup_copper_link_generic(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_cfg_on_link_up_80003es2lan - es2 link configuration after link-up
+ *  @hw: pointer to the HW structure
+ *  @duplex: current duplex setting
+ *
+ *  Configure the KMRN interface by applying last minute quirks for
+ *  10/100 operation.
+ **/
+static s32 e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u16 speed;
+	u16 duplex;
+
+	DEBUGFUNC("e1000_configure_on_link_up");
+
+	if (hw->phy.media_type == e1000_media_type_copper) {
+
+		ret_val = e1000_get_speed_and_duplex_copper_generic(hw,
+		                                                    &speed,
+		                                                    &duplex);
+		if (ret_val)
+			goto out;
+
+		if (speed == SPEED_1000)
+			ret_val = e1000_cfg_kmrn_1000_80003es2lan(hw);
+		else
+			ret_val = e1000_cfg_kmrn_10_100_80003es2lan(hw, duplex);
+	}
 
 out:
 	return ret_val;
@@ -1253,7 +1296,7 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	DEBUGFUNC("e1000_configure_kmrn_for_10_100");
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT;
-	ret_val = e1000_write_kmrn_reg_generic(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
 	                               reg_data);
 	if (ret_val)
@@ -1268,12 +1311,12 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 
 	do {
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
-		                             &reg_data);
+		                               &reg_data);
 		if (ret_val)
 			goto out;
 
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
-		                             &reg_data2);
+		                               &reg_data2);
 		if (ret_val)
 			goto out;
 		i++;
@@ -1307,7 +1350,7 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_configure_kmrn_for_1000");
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT;
-	ret_val = e1000_write_kmrn_reg_generic(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
 	                               reg_data);
 	if (ret_val)
@@ -1322,12 +1365,12 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 
 	do {
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
-		                             &reg_data);
+		                               &reg_data);
 		if (ret_val)
 			goto out;
 
 		ret_val = hw->phy.ops.read_reg(hw, GG82563_PHY_KMRN_MODE_CTRL,
-		                             &reg_data2);
+		                               &reg_data2);
 		if (ret_val)
 			goto out;
 		i++;
@@ -1335,6 +1378,75 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 
 	reg_data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 	ret_val = hw->phy.ops.write_reg(hw, GG82563_PHY_KMRN_MODE_CTRL, reg_data);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_read_kmrn_reg_80003es2lan - Read kumeran register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Acquire semaphore, then read the PHY register at offset
+ *  using the kumeran interface.  The information retrieved is stored in data.
+ *  Release the semaphore before exiting.
+ **/
+s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	u32 kmrnctrlsta;
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_read_kmrn_reg_80003es2lan");
+
+	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
+	if (ret_val)
+		goto out;
+
+	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
+	               E1000_KMRNCTRLSTA_OFFSET) | E1000_KMRNCTRLSTA_REN;
+	E1000_WRITE_REG(hw, E1000_KMRNCTRLSTA, kmrnctrlsta);
+
+	usec_delay(2);
+
+	kmrnctrlsta = E1000_READ_REG(hw, E1000_KMRNCTRLSTA);
+	*data = (u16)kmrnctrlsta;
+
+	e1000_release_mac_csr_80003es2lan(hw);
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_write_kmrn_reg_80003es2lan - Write kumeran register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
+ *
+ *  Acquire semaphore, then write the data to PHY register
+ *  at the offset using the kumeran interface.  Release semaphore
+ *  before exiting.
+ **/
+s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	u32 kmrnctrlsta;
+	s32 ret_val = E1000_SUCCESS;
+
+	DEBUGFUNC("e1000_write_kmrn_reg_80003es2lan");
+
+	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
+	if (ret_val)
+		goto out;
+
+	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
+	               E1000_KMRNCTRLSTA_OFFSET) | data;
+	E1000_WRITE_REG(hw, E1000_KMRNCTRLSTA, kmrnctrlsta);
+
+	usec_delay(2);
+
+	e1000_release_mac_csr_80003es2lan(hw);
 
 out:
 	return ret_val;
@@ -1380,44 +1492,42 @@ static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw)
  **/
 static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 {
-	volatile u32 temp;
-
 	DEBUGFUNC("e1000_clear_hw_cntrs_80003es2lan");
 
 	e1000_clear_hw_cntrs_base_generic(hw);
 
-	temp = E1000_READ_REG(hw, E1000_PRC64);
-	temp = E1000_READ_REG(hw, E1000_PRC127);
-	temp = E1000_READ_REG(hw, E1000_PRC255);
-	temp = E1000_READ_REG(hw, E1000_PRC511);
-	temp = E1000_READ_REG(hw, E1000_PRC1023);
-	temp = E1000_READ_REG(hw, E1000_PRC1522);
-	temp = E1000_READ_REG(hw, E1000_PTC64);
-	temp = E1000_READ_REG(hw, E1000_PTC127);
-	temp = E1000_READ_REG(hw, E1000_PTC255);
-	temp = E1000_READ_REG(hw, E1000_PTC511);
-	temp = E1000_READ_REG(hw, E1000_PTC1023);
-	temp = E1000_READ_REG(hw, E1000_PTC1522);
+	E1000_READ_REG(hw, E1000_PRC64);
+	E1000_READ_REG(hw, E1000_PRC127);
+	E1000_READ_REG(hw, E1000_PRC255);
+	E1000_READ_REG(hw, E1000_PRC511);
+	E1000_READ_REG(hw, E1000_PRC1023);
+	E1000_READ_REG(hw, E1000_PRC1522);
+	E1000_READ_REG(hw, E1000_PTC64);
+	E1000_READ_REG(hw, E1000_PTC127);
+	E1000_READ_REG(hw, E1000_PTC255);
+	E1000_READ_REG(hw, E1000_PTC511);
+	E1000_READ_REG(hw, E1000_PTC1023);
+	E1000_READ_REG(hw, E1000_PTC1522);
 
-	temp = E1000_READ_REG(hw, E1000_ALGNERRC);
-	temp = E1000_READ_REG(hw, E1000_RXERRC);
-	temp = E1000_READ_REG(hw, E1000_TNCRS);
-	temp = E1000_READ_REG(hw, E1000_CEXTERR);
-	temp = E1000_READ_REG(hw, E1000_TSCTC);
-	temp = E1000_READ_REG(hw, E1000_TSCTFC);
+	E1000_READ_REG(hw, E1000_ALGNERRC);
+	E1000_READ_REG(hw, E1000_RXERRC);
+	E1000_READ_REG(hw, E1000_TNCRS);
+	E1000_READ_REG(hw, E1000_CEXTERR);
+	E1000_READ_REG(hw, E1000_TSCTC);
+	E1000_READ_REG(hw, E1000_TSCTFC);
 
-	temp = E1000_READ_REG(hw, E1000_MGTPRC);
-	temp = E1000_READ_REG(hw, E1000_MGTPDC);
-	temp = E1000_READ_REG(hw, E1000_MGTPTC);
+	E1000_READ_REG(hw, E1000_MGTPRC);
+	E1000_READ_REG(hw, E1000_MGTPDC);
+	E1000_READ_REG(hw, E1000_MGTPTC);
 
-	temp = E1000_READ_REG(hw, E1000_IAC);
-	temp = E1000_READ_REG(hw, E1000_ICRXOC);
+	E1000_READ_REG(hw, E1000_IAC);
+	E1000_READ_REG(hw, E1000_ICRXOC);
 
-	temp = E1000_READ_REG(hw, E1000_ICRXPTC);
-	temp = E1000_READ_REG(hw, E1000_ICRXATC);
-	temp = E1000_READ_REG(hw, E1000_ICTXPTC);
-	temp = E1000_READ_REG(hw, E1000_ICTXATC);
-	temp = E1000_READ_REG(hw, E1000_ICTXQEC);
-	temp = E1000_READ_REG(hw, E1000_ICTXQMTC);
-	temp = E1000_READ_REG(hw, E1000_ICRXDMTC);
+	E1000_READ_REG(hw, E1000_ICRXPTC);
+	E1000_READ_REG(hw, E1000_ICRXATC);
+	E1000_READ_REG(hw, E1000_ICTXPTC);
+	E1000_READ_REG(hw, E1000_ICTXATC);
+	E1000_READ_REG(hw, E1000_ICTXQEC);
+	E1000_READ_REG(hw, E1000_ICTXQMTC);
+	E1000_READ_REG(hw, E1000_ICRXDMTC);
 }
