@@ -213,9 +213,14 @@ static int
 g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_mbr_table *table;
+	size_t codesz;
 
+	codesz = DOSPARTOFF;
 	table = (struct g_part_mbr_table *)basetable;
-	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	bzero(table->mbr, codesz);
+	codesz = MIN(codesz,  gpp->gpp_codesize);
+	if (codesz > 0)
+		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
 	return (0);
 }
 
