@@ -449,8 +449,8 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(device_probe,     __CONCAT(dname,_probe)), \
     DEVMETHOD(device_attach,    ata_pci_attach), \
     DEVMETHOD(device_detach,    ata_pci_detach), \
-    DEVMETHOD(device_suspend,   bus_generic_suspend), \
-    DEVMETHOD(device_resume,    bus_generic_resume), \
+    DEVMETHOD(device_suspend,   ata_pci_suspend), \
+    DEVMETHOD(device_resume,    ata_pci_resume), \
     DEVMETHOD(device_shutdown,  bus_generic_shutdown), \
     DEVMETHOD(bus_alloc_resource,       ata_pci_alloc_resource), \
     DEVMETHOD(bus_release_resource,     ata_pci_release_resource), \
