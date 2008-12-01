@@ -293,7 +293,9 @@ retry:
 		/*
 		 * is an immediate mbuf or is from the packet zone
 		 */
-		n = n->m_next;
+		mhead = n->m_next;
+		n->m_next = NULL;
+		n = mhead;
 	}
 	*nsegs = seg_count;
 	*m = m0;
