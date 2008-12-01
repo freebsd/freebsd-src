@@ -1890,11 +1890,6 @@ t3_free_tx_desc(struct sge_txq *q, int reclaimable)
 			buf_ring_scan(&q->txq_mr, txsd->mi.mi_base, __FILE__, __LINE__);
 #endif
 			txsd->mi.mi_base = NULL;
-			/*
-			 * XXX check for cache hit rate here
-			 *
-			 */
-			q->port->ifp->if_opackets++;
 		} else
 			q->txq_skipped++;
 		
@@ -2509,7 +2504,6 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.header = mtod(m, uint8_t *) + sizeof(*cpl) + ethpad;
-	ifp->if_ipackets++;
 #ifndef DISABLE_MBUF_IOVEC
 	m_explode(m);
 #endif	
