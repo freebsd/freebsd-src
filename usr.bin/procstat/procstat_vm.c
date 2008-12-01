@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libutil.h>
 
 #include "procstat.h"
 
@@ -41,10 +42,9 @@ void
 procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 {
 	struct kinfo_vmentry *freep, *kve;
-	int error, name[4], ptrwidth;
-	unsigned int i;
+	int ptrwidth;
+	int i, cnt;
 	const char *str;
-	size_t len;
 
 	ptrwidth = 2*sizeof(void *) + 2;
 	if (!hflag)
@@ -52,38 +52,9 @@ procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 		    "PID", ptrwidth, "START", ptrwidth, "END", "PRT", "RES",
 		    "PRES", "REF", "SHD", "FL", "TP", "PATH");
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_VMMAP;
-	name[3] = pid;
-
-	len = 0;
-	error = sysctl(name, 4, NULL, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH && errno != EPERM) {
-		warn("sysctl: kern.proc.vmmap: %d", pid);
-		return;
-	}
-	if (error < 0)
-		return;
-
-	/*
-	 * Especially if running procstat -sv, we may need room for more
-	 * mappings when printing than were present when we queried, so pad
-	 * out the allocation a bit.
-	 */
-	len += sizeof(*kve) * 3;
-	freep = kve = malloc(len);
-	if (kve == NULL)
-		err(-1, "malloc");
-	if (sysctl(name, 4, kve, &len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.vmmap: %d", pid);
-		free(freep);
-		return;
-	}
-
-	for (i = 0; i < (len / sizeof(*kve)); i++, kve++) {
-		if (kve->kve_structsize != sizeof(*kve))
-			errx(-1, "kinfo_vmentry structure mismatch");
+	freep = kinfo_getvmmap(pid, &cnt);
+	for (i = 0; i < cnt; i++) {
+		kve = &freep[i];
 		printf("%5d ", pid);
 		printf("%*p ", ptrwidth, kve->kve_start);
 		printf("%*p ", ptrwidth, kve->kve_end);
