@@ -802,6 +802,31 @@ sdhci_detach(device_t dev)
 }
 
 static int
+sdhci_suspend(device_t dev)
+{
+	struct sdhci_softc *sc = device_get_softc(dev);
+	int i, err;
+
+	err = bus_generic_suspend(dev);
+	if (err)
+		return (err);
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_reset(&sc->slots[i], SDHCI_RESET_ALL);
+	return (0);
+}
+
+static int
+sdhci_resume(device_t dev)
+{
+	struct sdhci_softc *sc = device_get_softc(dev);
+	int i;
+
+	for (i = 0; i < sc->num_slots; i++)
+		sdhci_init(&sc->slots[i]);
+	return (bus_generic_resume(dev));
+}
+
+static int
 sdhci_update_ios(device_t brdev, device_t reqdev)
 {
 	struct sdhci_slot *slot = device_get_ivars(reqdev);
@@ -1508,6 +1533,8 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(device_probe, sdhci_probe),
 	DEVMETHOD(device_attach, sdhci_attach),
 	DEVMETHOD(device_detach, sdhci_detach),
+	DEVMETHOD(device_suspend, sdhci_suspend),
+	DEVMETHOD(device_resume, sdhci_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sdhci_read_ivar),
