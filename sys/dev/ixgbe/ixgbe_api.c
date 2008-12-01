@@ -47,7 +47,7 @@ extern s32 ixgbe_init_ops_82598(struct ixgbe_hw *hw);
  *  memset to 0 prior to calling this function.  The following fields in
  *  hw structure should be filled in prior to calling this function:
  *  hw_addr, back, device_id, vendor_id, subsystem_device_id,
- *   subsystem_vendor_id, and revision_id
+ *  subsystem_vendor_id, and revision_id
  **/
 s32 ixgbe_init_shared_code(struct ixgbe_hw *hw)
 {
@@ -85,13 +85,16 @@ s32 ixgbe_set_mac_type(struct ixgbe_hw *hw)
 
 	if (hw->vendor_id == IXGBE_INTEL_VENDOR_ID) {
 		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82598:
 		case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
 		case IXGBE_DEV_ID_82598AF_DUAL_PORT:
 		case IXGBE_DEV_ID_82598AT:
-		case IXGBE_DEV_ID_82598AT_DUAL_PORT:
 		case IXGBE_DEV_ID_82598EB_CX4:
 		case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
+		case IXGBE_DEV_ID_82598_DA_DUAL_PORT:
+		case IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM:
 		case IXGBE_DEV_ID_82598EB_XF_LR:
+		case IXGBE_DEV_ID_82598EB_SFP_LOM:
 			hw->mac.type = ixgbe_mac_82598EB;
 			break;
 		default:
@@ -279,9 +282,8 @@ s32 ixgbe_reset_phy(struct ixgbe_hw *hw)
 	s32 status = IXGBE_SUCCESS;
 
 	if (hw->phy.type == ixgbe_phy_unknown) {
-		if (ixgbe_identify_phy(hw) != IXGBE_SUCCESS) {
-		    status = IXGBE_ERR_PHY;
-		}
+		if (ixgbe_identify_phy(hw) != IXGBE_SUCCESS)
+			status = IXGBE_ERR_PHY;
 	}
 
 	if (status == IXGBE_SUCCESS) {
@@ -766,11 +768,38 @@ s32 ixgbe_write_analog_reg8(struct ixgbe_hw *hw, u32 reg, u8 val)
  *  ixgbe_init_uta_tables - Initializes Unicast Table Arrays.
  *  @hw: pointer to hardware structure
  *
- * Initializes the Unicast Table Arrays to zero on device load.  This
- * is part of the Rx init addr execution path.
+ *  Initializes the Unicast Table Arrays to zero on device load.  This
+ *  is part of the Rx init addr execution path.
  **/
 s32 ixgbe_init_uta_tables(struct ixgbe_hw *hw)
 {
 	return ixgbe_call_func(hw, hw->mac.ops.init_uta_tables, (hw),
 	                       IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_read_i2c_eeprom - Reads 8 bit EEPROM word over I2C interface
+ *  @hw: pointer to hardware structure
+ *  @byte_offset: EEPROM byte offset to read
+ *  @eeprom_data: value read
+ *
+ *  Performs byte read operation to SFP module's EEPROM over I2C interface.
+ **/
+s32 ixgbe_read_i2c_eeprom(struct ixgbe_hw *hw, u8 byte_offset, u8 *eeprom_data)
+{
+	return ixgbe_call_func(hw, hw->phy.ops.read_i2c_eeprom,
+	                      (hw, byte_offset, eeprom_data),
+	                      IXGBE_NOT_IMPLEMENTED);
+}
+
+/**
+ *  ixgbe_get_supported_physical_layer - Returns physical layer type
+ *  @hw: pointer to hardware structure
+ *
+ *  Determines physical layer capabilities of the current configuration.
+ **/
+u32 ixgbe_get_supported_physical_layer(struct ixgbe_hw *hw)
+{
+	return ixgbe_call_func(hw, hw->mac.ops.get_supported_physical_layer,
+	                       (hw), IXGBE_PHYSICAL_LAYER_UNKNOWN);
 }
