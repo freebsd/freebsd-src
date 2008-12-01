@@ -1240,7 +1240,7 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = 0;
 	if (mp->mnt_lockref) {
-		if (flags & MNT_FORCE) {
+		if ((flags & MNT_FORCE) == 0) {
 			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
 			    MNTK_UNMOUNTF);
 			if (mp->mnt_kern_flag & MNTK_MWAIT) {
