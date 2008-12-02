@@ -104,6 +104,7 @@ static int	sysctl_ip_id_change(SYSCTL_HANDLER_ARGS);
 
 MTX_SYSINIT(ip_id_mtx, &ip_id_mtx, "ip_id_mtx", MTX_DEF);
 
+SYSCTL_DECL(_net_inet_ip);
 SYSCTL_PROC(_net_inet_ip, OID_AUTO, random_id_period, CTLTYPE_INT|CTLFLAG_RW,
     &array_size, 0, sysctl_ip_id_change, "IU", "IP ID Array size");
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id_collisions, CTLFLAG_RD,

@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/route.h>
 #include <net/if_dl.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -100,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/vinet6.h>
 
 MALLOC_DEFINE(M_IP6MADDR, "in6_multi", "internet multicast address");
 

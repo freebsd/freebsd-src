@@ -128,6 +128,7 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <netinet6/ip6protosw.h>
+#include <netinet6/vinet6.h>
 
 /*
  * TCP/IP protocol family: IP6, ICMP6, UDP, TCP.
