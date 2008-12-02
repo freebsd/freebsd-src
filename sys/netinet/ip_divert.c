@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/vinet.h>
 
 #include <security/mac/mac_framework.h>
 

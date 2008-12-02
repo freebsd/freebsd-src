@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/mld6_var.h>
+#include <netinet6/vinet6.h>
 
 /*
  * Protocol constants

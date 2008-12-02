@@ -57,9 +57,11 @@
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
+#include <netinet/vinet.h>
 
 #include <vm/uma.h>
 

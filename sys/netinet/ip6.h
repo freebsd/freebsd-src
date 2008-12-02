@@ -347,8 +347,6 @@ do {									\
 	}								\
 } while (/*CONSTCOND*/ 0)
 
-#include <netinet6/vinet6.h>
-
 #endif /*_KERNEL*/
 
 #endif /* not _NETINET_IP6_H_ */

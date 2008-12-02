@@ -120,6 +120,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp_var.h>
 #include <netinet/icmp_var.h>
 #include <netinet/if_ether.h>
+#ifdef __FreeBSD__
+#include <netinet/vinet.h>
+#endif
 
 #ifndef __FreeBSD__
 #include <dev/rndvar.h>
@@ -139,6 +142,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __FreeBSD__
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_pcb.h>
+#include <netinet6/vinet6.h>
 #endif
 #endif /* INET6 */
 

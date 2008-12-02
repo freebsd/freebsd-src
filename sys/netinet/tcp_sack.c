@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
+#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 

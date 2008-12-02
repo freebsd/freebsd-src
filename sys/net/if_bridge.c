@@ -115,9 +115,11 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet/vinet.h>
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/vinet6.h>
 #endif
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>

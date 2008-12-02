@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

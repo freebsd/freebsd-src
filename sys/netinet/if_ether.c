@@ -61,10 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/if_llc.h>
 #include <net/ethernet.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
+#include <netinet/vinet.h>
 
 #include <net/if_arc.h>
 #include <net/iso88025.h>

@@ -33,7 +33,7 @@
 
 KMOD=	ath_rate
 SRCS=	amrr.c
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_route.h opt_ah.h opt_wlan.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ah.h opt_wlan.h
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 

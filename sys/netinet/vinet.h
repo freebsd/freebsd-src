@@ -37,8 +37,6 @@
 #include <sys/sysctl.h>
 #include <sys/md5.h>
 
-#include <net/vnet.h>
-
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>

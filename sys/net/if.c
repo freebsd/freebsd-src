@@ -67,6 +67,7 @@
 #include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
 /*XXX*/
@@ -79,6 +80,7 @@
 #endif
 #ifdef INET
 #include <netinet/if_ether.h>
+#include <netinet/vinet.h>
 #endif
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>

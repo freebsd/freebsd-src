@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/if_ether.h>
 #include <machine/in_cksum.h>
+#include <netinet/vinet.h>
 #endif
 
 #ifdef INET6
@@ -82,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 #endif
 
 #include <crypto/sha1.h>
