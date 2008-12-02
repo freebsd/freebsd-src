@@ -106,7 +106,7 @@ _fork(void)
 	pid_t ret;
 	int errsave;
 	int unlock_malloc;
-	int rtld_locks[16];
+	int rtld_locks[MAX_RTLD_LOCKS];
 
 	if (!_thr_is_inited())
 		return (__sys_fork());
