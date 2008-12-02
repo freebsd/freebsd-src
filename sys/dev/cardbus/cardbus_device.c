@@ -112,15 +112,15 @@ cardbus_device_create(struct cardbus_softc *sc, struct cardbus_devinfo *devi,
     device_t parent, device_t child)
 {
 	uint32_t minor;
+	int unit;
 
 	cardbus_device_buffer_cis(parent, child, &devi->sc_cis);
 	minor = (device_get_unit(sc->sc_dev) << 8) + devi->pci.cfg.func;
+	unit = device_get_unit(sc->sc_dev);
 	devi->sc_cisdev = make_dev(&cardbus_cdevsw, minor, 0, 0, 0666,
-	    "cardbus%d.%d.cis", device_get_unit(sc->sc_dev),
-	    devi->pci.cfg.func);
+	    "cardbus%d.%d.cis", unit, devi->pci.cfg.func);
 	if (devi->pci.cfg.func == 0)
-		devi->sc_cisdev_compat = make_dev_alias(devi->sc_cisdev,
-		    "cardbus%d.cis", device_get_unit(sc->sc_dev));
+		make_dev_alias(devi->sc_cisdev, "cardbus%d.cis", unit);
 	devi->sc_cisdev->si_drv1 = devi;
 	return (0);
 }
@@ -130,8 +130,6 @@ cardbus_device_destroy(struct cardbus_devinfo *devi)
 {
 	if (devi->sc_cisdev)
 		destroy_dev(devi->sc_cisdev);
-	if (devi->sc_cisdev_compat)
-		destroy_dev(devi->sc_cisdev_compat);
 	return (0);
 }
 

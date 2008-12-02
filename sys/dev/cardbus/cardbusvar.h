@@ -60,7 +60,6 @@ struct cardbus_devinfo
 	} funce;
 	uint32_t	fepresent;	/* bit mask of funce values present */
 	struct cdev 	*sc_cisdev;
-	struct cdev 	*sc_cisdev_compat;
 	struct cis_buffer sc_cis;
 };
 
