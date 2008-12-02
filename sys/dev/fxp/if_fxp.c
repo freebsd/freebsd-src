@@ -830,6 +830,12 @@ fxp_attach(device_t dev)
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
+	if ((sc->flags & FXP_FLAG_EXT_RFA) != 0) {
+		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_HWCSUM;
+		ifp->if_capenable |= IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_HWCSUM;
+	}
 
 	/*
 	 * Let the system queue as many packets as we have available
@@ -1554,6 +1560,12 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		    FXP_IPCB_TCP_PACKET |
 		    FXP_IPCB_TCPUDP_CHECKSUM_ENABLE;
 	}
+	/* Configure VLAN hardware tag insertion. */
+	if ((m->m_flags & M_VLANTAG) != 0) {
+		cbp->ipcb_vlan_id = htons(m->m_pkthdr.ether_vtag);
+		txp->tx_cb->ipcb_ip_activation_high |=
+		    FXP_IPCB_INSERTVLAN_ENABLE;
+	}
 
 	txp->tx_mbuf = m;
 	txp->tx_cb->cb_status = 0;
@@ -1913,6 +1925,12 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
                         /* Do IP checksum checking. */
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				fxp_rxcsum(sc, ifp, m, status, total_len);
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0 &&
+			    (status & FXP_RFA_STATUS_VLAN) != 0) {
+				m->m_pkthdr.ether_vtag =
+				    ntohs(rfa->rfax_vlan_id);
+				m->m_flags |= M_VLANTAG;
+			}
 			/*
 			 * Drop locks before calling if_input() since it
 			 * may re-enter fxp_start() in the netisr case.
@@ -2284,6 +2302,8 @@ fxp_init_body(struct fxp_softc *sc)
 	cbp->multi_ia =		0;	/* (don't) accept multiple IAs */
 	cbp->mc_all =		sc->flags & FXP_FLAG_ALL_MCAST ? 1 : 0;
 	cbp->gamla_rx =		sc->flags & FXP_FLAG_EXT_RFA ? 1 : 0;
+	cbp->vlan_strip_en =	((sc->flags & FXP_FLAG_EXT_RFA) != 0 &&
+	    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0) ? 1 : 0;
 
 	if (sc->tunable_noflow || sc->revision == FXP_REV_82557) {
 		/*
@@ -2763,9 +2783,15 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_flags & IFF_UP)
 				reinit++;
 		}
-		if (reinit > 0)
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+				reinit++;
+		}
+		if (reinit > 0 && ifp->if_flags & IFF_UP)
 			fxp_init_body(sc);
 		FXP_UNLOCK(sc);
+		VLAN_CAPABILITIES(ifp);
 		break;
 
 	default:
