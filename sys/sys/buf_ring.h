@@ -92,7 +92,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 		
 		if (prod_next == cons_tail) {
 			critical_exit();
-			return (ENOSPC);
+			return (ENOBUFS);
 		}
 		
 		success = atomic_cmpset_int(&br->br_prod_head, prod_head,
