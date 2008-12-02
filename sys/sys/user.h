@@ -316,7 +316,7 @@ struct kinfo_file {
 	int	kf_ref_count;			/* Reference count. */
 	int	kf_flags;			/* Flags. */
 	int	_kf_pad0;			/* Round to 64 bit alignment */
-	uint64_t kf_offset;			/* Seek location. */
+	int64_t	kf_offset;			/* Seek location. */
 	int	kf_vnode_type;			/* Vnode type. */
 	int	kf_sock_domain;			/* Socket domain. */
 	int	kf_sock_type;			/* Socket type. */
