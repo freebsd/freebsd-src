@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,8 +27,10 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#16 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#23 $
  */
+
+#include <config/config.h>
 
 #include <bsm/libbsm.h>
 
@@ -38,9 +40,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <config/config.h>
 #ifndef HAVE_STRLCAT
 #include <compat/strlcat.h>
+#endif
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
 #endif
 
 /*
@@ -363,11 +367,11 @@ getacdir(char *name, int len)
 		pthread_mutex_unlock(&mutex);
 		return (-1);
 	}
-	if (strlen(dir) >= len) {
+	if (strlen(dir) >= (size_t)len) {
 		pthread_mutex_unlock(&mutex);
 		return (-3);
 	}
-	strcpy(name, dir);
+	strlcpy(name, dir, len);
 	pthread_mutex_unlock(&mutex);
 	return (ret);
 }
@@ -453,11 +457,11 @@ getacflg(char *auditstr, int len)
 		pthread_mutex_unlock(&mutex);
 		return (1);
 	}
-	if (strlen(str) >= len) {
+	if (strlen(str) >= (size_t)len) {
 		pthread_mutex_unlock(&mutex);
 		return (-3);
 	}
-	strcpy(auditstr, str);
+	strlcpy(auditstr, str, len);
 	pthread_mutex_unlock(&mutex);
 	return (0);
 }
@@ -480,11 +484,12 @@ getacna(char *auditstr, int len)
 		pthread_mutex_unlock(&mutex);
 		return (1);
 	}
-	if (strlen(str) >= len) {
+	if (strlen(str) >= (size_t)len) {
 		pthread_mutex_unlock(&mutex);
 		return (-3);
 	}
-	strcpy(auditstr, str);
+	strlcpy(auditstr, str, len);
+	pthread_mutex_unlock(&mutex);
 	return (0);
 }
 
@@ -505,6 +510,30 @@ getacpol(char *auditstr, size_t len)
 	if (str == NULL) {
 		pthread_mutex_unlock(&mutex);
 		return (-1);
+	}
+	if (strlen(str) >= len) {
+		pthread_mutex_unlock(&mutex);
+		return (-3);
+	}
+	strlcpy(auditstr, str, len);
+	pthread_mutex_unlock(&mutex);
+	return (0);
+}
+
+int
+getachost(char *auditstr, size_t len)
+{
+	char *str;
+
+	pthread_mutex_lock(&mutex);
+	setac_locked();
+	if (getstrfromtype_locked(AUDIT_HOST_CONTROL_ENTRY, &str) < 0) {
+		pthread_mutex_unlock(&mutex);
+		return (-2);
+	}
+	if (str == NULL) {
+		pthread_mutex_unlock(&mutex);
+		return (1);
 	}
 	if (strlen(str) >= len) {
 		pthread_mutex_unlock(&mutex);
