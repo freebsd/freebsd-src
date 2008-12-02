@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004-2008 Apple Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  * 
@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#20 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.c#28 $
  */
 
 /* 
@@ -61,6 +61,10 @@
 #include <regex.h>
 #include <errno.h>
 
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
+
 #include "auditreduce.h"
 
 static TAILQ_HEAD(tailhead, re_entry) re_head =
@@ -72,13 +76,19 @@ extern int		 optind, optopt, opterr,optreset;
 static au_mask_t	 maskp;		/* Class. */
 static time_t		 p_atime;	/* Created after this time. */
 static time_t		 p_btime;	/* Created before this time. */
-static uint16_t		 p_evtype;	/* Event that we are searching for. */
 static int		 p_auid;	/* Audit id. */ 
 static int		 p_euid;	/* Effective user id. */
 static int		 p_egid;	/* Effective group id. */ 
 static int		 p_rgid;	/* Real group id. */ 
 static int		 p_ruid;	/* Real user id. */ 
 static int		 p_subid;	/* Subject id. */
+
+/*
+ * Maintain a dynamically sized array of events for -m
+ */
+static uint16_t		*p_evec;	/* Event type list */
+static int		 p_evec_used;	/* Number of events used */
+static int		 p_evec_alloc;	/* Number of events allocated */
 
 /*
  * Following are the objects (-o option) that we can select upon.
@@ -105,7 +115,7 @@ parse_regexp(char *re_string)
 	for (nstrs = 0, i = 0; i < len; i++) {
 		if (copy[i] == ',' && i > 0) {
 			if (copy[i - 1] == '\\')
-				strcpy(&copy[i - 1], &copy[i]);
+				strlcpy(&copy[i - 1], &copy[i], len);
 			else {
 				nstrs++;
 				copy[i] = '\0';
@@ -163,6 +173,7 @@ usage(const char *msg)
 	fprintf(stderr, "\t\t shmid=<ID>\n");
 	fprintf(stderr, "\t-r <uid|name> : real user\n");
 	fprintf(stderr, "\t-u <uid|name> : audit user\n");
+	fprintf(stderr, "\t-v : select non-matching records\n");
 	exit(EX_USAGE);
 }
 
@@ -265,7 +276,7 @@ select_pidobj(uint32_t pid)
 {
 
 	if (ISOPTSET(opttochk, OPT_op)) {
-		if (pid != strtol(p_pidobj, (char **)NULL, 10))
+		if (pid != (uint32_t)strtol(p_pidobj, (char **)NULL, 10))
 			return (0);
 	} 
 	return (1);
@@ -282,21 +293,22 @@ select_ipcobj(u_char type, uint32_t id, uint32_t *optchkd)
 	if (type == AT_IPC_MSG) {
 		SETOPT((*optchkd), OPT_om);
 		if (ISOPTSET(opttochk, OPT_om)) {
-			if (id != strtol(p_msgqobj, (char **)NULL, 10))
+			if (id != (uint32_t)strtol(p_msgqobj, (char **)NULL,
+			    10))
 				return (0);
 		}
 		return (1);
 	} else if (type == AT_IPC_SEM) {
 		SETOPT((*optchkd), OPT_ose);
 		if (ISOPTSET(opttochk, OPT_ose)) {
-			if (id != strtol(p_semobj, (char **)NULL, 10))
+			if (id != (uint32_t)strtol(p_semobj, (char **)NULL, 10))
 				return (0);
 		}
 		return (1);
 	} else if (type == AT_IPC_SHM) {
 		SETOPT((*optchkd), OPT_osh);
 		if (ISOPTSET(opttochk, OPT_osh)) {
-			if (id != strtol(p_shmobj, (char **)NULL, 10))
+			if (id != (uint32_t)strtol(p_shmobj, (char **)NULL, 10))
 				return (0);
 		}
 		return (1);
@@ -345,8 +357,10 @@ select_filepath(char *path, uint32_t *optchkd)
 static int
 select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 {
+	uint16_t *ev;
+	int match;
 
-	SETOPT((*optchkd), (OPT_A | OPT_a | OPT_b | OPT_c | OPT_m));
+	SETOPT((*optchkd), (OPT_A | OPT_a | OPT_b | OPT_c | OPT_m | OPT_v));
 
 	/* The A option overrides a, b and d. */
 	if (!ISOPTSET(opttochk, OPT_A)) {
@@ -377,7 +391,11 @@ select_hdr32(tokenstr_t tok, uint32_t *optchkd)
 
 	/* Check if event matches. */
 	if (ISOPTSET(opttochk, OPT_m)) {
-		if (tok.tt.hdr32.e_type != p_evtype)
+		match = 0;
+		for (ev = p_evec; ev < &p_evec[p_evec_used]; ev++)
+			if (tok.tt.hdr32.e_type == *ev)
+				match = 1;
+		if (match == 0)
 			return (0);
 	}
 		
@@ -476,6 +494,7 @@ select_records(FILE *fp)
 	int bytesread;
 	int selected;
 	uint32_t optchkd;
+	int print;
 
 	int err = 0;
 	while ((reclen = au_read_rec(fp, &buf)) != -1) {
@@ -495,75 +514,50 @@ select_records(FILE *fp)
 			 * selection criteria.
 			 */
 			switch(tok.id) {
-			case AU_HEADER_32_TOKEN:
+			case AUT_HEADER32:
 					selected = select_hdr32(tok,
 					    &optchkd);
 					bcopy(&tok, &tok_hdr32_copy,
 					    sizeof(tok));
 					break;
 
-			case AU_PROCESS_32_TOKEN:
+			case AUT_PROCESS32:
 					selected = select_proc32(tok,
 					    &optchkd);
 					break;
 
-			case AU_SUBJECT_32_TOKEN:
+			case AUT_SUBJECT32:
 					selected = select_subj32(tok,
 					    &optchkd);
 					break;
 
-			case AU_IPC_TOKEN:
+			case AUT_IPC:
 					selected = select_ipcobj(
 					    tok.tt.ipc.type, tok.tt.ipc.id,
 					    &optchkd); 
 					break;
 
-			case AU_FILE_TOKEN:
-					selected = select_filepath(
-					    tok.tt.file.name, &optchkd);
-					break;
-
-			case AU_PATH_TOKEN:
+			case AUT_PATH:
 					selected = select_filepath(
 					    tok.tt.path.path, &optchkd);
 					break;	
 
-			case AU_RETURN_32_TOKEN:
+			case AUT_RETURN32:
 				selected = select_return32(tok,
 				    tok_hdr32_copy, &optchkd);
 				break;
 
-			/* 
-			 * The following tokens dont have any relevant
-			 * attributes that we can select upon.
-			 */
-			case AU_TRAILER_TOKEN:
-			case AU_ARG32_TOKEN:
-			case AU_ATTR32_TOKEN:
-			case AU_EXIT_TOKEN:
-			case AU_NEWGROUPS_TOKEN:
-			case AU_IN_ADDR_TOKEN:
-			case AU_IP_TOKEN:
-			case AU_IPCPERM_TOKEN:
-			case AU_IPORT_TOKEN:
-			case AU_OPAQUE_TOKEN:
-			case AU_SEQ_TOKEN:
-			case AU_TEXT_TOKEN:
-			case AU_ARB_TOKEN:
-			case AU_SOCK_TOKEN:
 			default:
 				break;
 			}
 			bytesread += tok.len;
 		}
-		if ((selected == 1) && (!err)) {
-			/* Check if all the options were matched. */
-			if (!(opttochk & ~optchkd)) {
-				/* XXX Write this record to the output file. */
-				/* default to stdout */
-				fwrite(buf, 1, reclen, stdout);
-			}
-		}
+		/* Check if all the options were matched. */
+		print = ((selected == 1) && (!err) && (!(opttochk & ~optchkd)));
+		if (ISOPTSET(opttochk, OPT_v))
+			print = !print;
+		if (print)
+			(void) fwrite(buf, 1, reclen, stdout);
 		free(buf);
 	}
 	return (0);
@@ -615,10 +609,11 @@ main(int argc, char **argv)
 	int ch;
 	char timestr[128];
 	char *fname;
+	uint16_t *etp;
 
 	converr = NULL;
 
-	while ((ch = getopt(argc, argv, "Aa:b:c:d:e:f:g:j:m:o:r:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "Aa:b:c:d:e:f:g:j:m:o:r:u:v")) != -1) {
 		switch(ch) {
 		case 'A':
 			SETOPT(opttochk, OPT_A);
@@ -715,13 +710,26 @@ main(int argc, char **argv)
 			break;
 
 		case 'm':
-			p_evtype = strtol(optarg, (char **)NULL, 10);
-			if (p_evtype == 0) {
+			if (p_evec == NULL) {
+				p_evec_alloc = 32;
+				p_evec = malloc(sizeof(*etp) * p_evec_alloc);
+				if (p_evec == NULL)
+					err(1, "malloc");
+			} else if (p_evec_alloc == p_evec_used) {
+				p_evec_alloc <<= 1;
+				p_evec = realloc(p_evec,
+				    sizeof(*p_evec) * p_evec_alloc);
+				if (p_evec == NULL)
+					err(1, "realloc");
+			}
+			etp = &p_evec[p_evec_used++];
+			*etp = strtol(optarg, (char **)NULL, 10);
+			if (*etp == 0) {
 				/* Could be the string representation. */
 				n = getauevnonam(optarg);
 				if (n == NULL)
 					usage("Incorrect event name");
-				p_evtype = *n;
+				*etp = *n;
 			}
 			SETOPT(opttochk, OPT_m);
 			break;
@@ -753,6 +761,10 @@ main(int argc, char **argv)
 				p_auid = pw->pw_uid;
 			}
 			SETOPT(opttochk, OPT_u);
+			break;
+
+		case 'v':
+			SETOPT(opttochk, OPT_v);
 			break;
 
 		case '?':
