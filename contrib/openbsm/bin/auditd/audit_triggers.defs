@@ -1,0 +1,5 @@
+/*
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/audit_triggers.defs#1 $
+ */
+
+#include <mach/audit_triggers.defs>

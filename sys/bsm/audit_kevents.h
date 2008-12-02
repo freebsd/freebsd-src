@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2005 Apple Inc.
  * All rights reserved.
  *
@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#34
+ * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_kevents.h#3
  * $FreeBSD$
  */
 
@@ -308,6 +308,7 @@
 #define	AUE_PF_POLICY_FLIP	298	/* Solaris-specific. */
 #define	AUE_PF_POLICY_FLUSH	299	/* Solaris-specific. */
 #define	AUE_PF_POLICY_ALGS	300	/* Solaris-specific. */
+#define	AUE_PORTFS		301	/* Solaris-specific. */
 
 /*
  * Events added for Apple Darwin that potentially collide with future Solaris
@@ -516,17 +517,17 @@
 #define	AUE_READDIR		43118	/* Linux. */
 #define	AUE_IOPL		43119	/* Linux. */
 #define	AUE_VM86		43120	/* Linux. */
-#define	AUE_MAC_GET_PROC	43121	/* FreeBSD. */
-#define	AUE_MAC_SET_PROC	43122	/* FreeBSD. */
-#define	AUE_MAC_GET_FD		43123	/* FreeBSD. */
-#define	AUE_MAC_GET_FILE	43124	/* FreeBSD. */
-#define	AUE_MAC_SET_FD		43125	/* FreeBSD. */
-#define	AUE_MAC_SET_FILE	43126	/* FreeBSD. */
+#define	AUE_MAC_GET_PROC	43121	/* FreeBSD/Darwin. */
+#define	AUE_MAC_SET_PROC	43122	/* FreeBSD/Darwin. */
+#define	AUE_MAC_GET_FD		43123	/* FreeBSD/Darwin. */
+#define	AUE_MAC_GET_FILE	43124	/* FreeBSD/Darwin. */
+#define	AUE_MAC_SET_FD		43125	/* FreeBSD/Darwin. */
+#define	AUE_MAC_SET_FILE	43126	/* FreeBSD/Darwin. */
 #define	AUE_MAC_SYSCALL		43127	/* FreeBSD. */
-#define	AUE_MAC_GET_PID		43128	/* FreeBSD. */
-#define	AUE_MAC_GET_LINK	43129	/* FreeBSD. */
-#define	AUE_MAC_SET_LINK	43130	/* FreeBSD. */
-#define	AUE_MAC_EXECVE		43131	/* FreeBSD. */
+#define	AUE_MAC_GET_PID		43128	/* FreeBSD/Darwin. */
+#define	AUE_MAC_GET_LINK	43129	/* FreeBSD/Darwin. */
+#define	AUE_MAC_SET_LINK	43130	/* FreeBSD/Darwin. */
+#define	AUE_MAC_EXECVE		43131	/* FreeBSD/Darwin. */
 #define	AUE_GETPATH_FROMFD	43132	/* FreeBSD. */
 #define	AUE_GETPATH_FROMADDR	43133	/* FreeBSD. */
 #define	AUE_MQ_OPEN		43134	/* FreeBSD. */
@@ -548,7 +549,43 @@
 #define	AUE_MKNODAT		43150	/* FreeBSD. */
 #define	AUE_READLINKAT		43151	/* FreeBSD. */
 #define	AUE_SYMLINKAT		43152	/* FreeBSD. */
+#define	AUE_MAC_GETFSSTAT	43153	/* Darwin. */
+#define	AUE_MAC_GET_MOUNT	43154	/* Darwin. */
+#define	AUE_MAC_GET_LCID	43155	/* Darwin. */
+#define	AUE_MAC_GET_LCTX	43156	/* Darwin. */
+#define	AUE_MAC_SET_LCTX	43157	/* Darwin. */
+#define	AUE_MAC_MOUNT		43158	/* Darwin. */
+#define	AUE_GETLCID		43159	/* Darwin. */
+#define	AUE_SETLCID		43160	/* Darwin. */
+#define	AUE_TASKNAMEFORPID	43161	/* Darwin. */
+#define	AUE_ACCESS_EXTENDED	43162	/* Darwin. */
+#define	AUE_CHMOD_EXTENDED	43163	/* Darwin. */
+#define	AUE_FCHMOD_EXTENDED	43164	/* Darwin. */
+#define	AUE_FSTAT_EXTENDED	43165	/* Dariwn. */
+#define	AUE_LSTAT_EXTENDED	43166	/* Darwin. */
+#define	AUE_MKDIR_EXTENDED	43167	/* Darwin. */
+#define	AUE_MKFIFO_EXTENDED	43168	/* Darwin. */
+#define	AUE_OPEN_EXTENDED	43169	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_R	43170	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RC	43171	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RT	43172	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RTC	43173	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_W	43174	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_WC	43175	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_WT	43176	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_WTC	43177	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RW	43178	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RWC	43179	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RWT	43180	/* Darwin. */
+#define	AUE_OPEN_EXTENDED_RWTC	43181	/* Darwin. */
+#define	AUE_STAT_EXTENDED	43182	/* Darwin. */
+#define	AUE_UMASK_EXTENDED	43183	/* Darwin. */
+#define	AUE_OPENAT		43184	/* FreeBSD. */
 #define	AUE_POSIX_OPENPT	43185	/* FreeBSD. */
+#define	AUE_CAP_NEW		43186	/* TrustedBSD. */
+#define	AUE_CAP_GETRIGHTS	43187	/* TrustedBSD. */
+#define	AUE_CAP_ENTER		43188	/* TrustedBSD. */
+#define	AUE_CAP_GETMODE		43189	/* TrustedBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * Copyright (c) 2006 Martin Voros
@@ -32,7 +32,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#50 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_io.c#55 $
  */
 
 #include <sys/types.h>
@@ -77,48 +77,48 @@
 #include <bsm/audit_internal.h>
 
 #define	READ_TOKEN_BYTES(buf, len, dest, size, bytesread, err) do {	\
-	if (bytesread + size > len) {					\
-		err = 1;						\
+	if ((bytesread) + (size) > (u_int32_t)(len)) {			\
+		(err) = 1;						\
 	} else {							\
-		memcpy(dest, buf + bytesread, size);			\
+		memcpy((dest), (buf) + (bytesread), (size));		\
 		bytesread += size;					\
 	}								\
 } while (0)
 
 #define	READ_TOKEN_U_CHAR(buf, len, dest, bytesread, err) do {		\
-	if (bytesread + sizeof(u_char) <= len) {			\
-		dest = buf[bytesread];					\
-		bytesread += sizeof(u_char);				\
+	if ((bytesread) + sizeof(u_char) <= (u_int32_t)(len)) {		\
+		(dest) = buf[(bytesread)];				\
+		(bytesread) += sizeof(u_char);				\
 	} else								\
-		err = 1;						\
+		(err) = 1;						\
 } while (0)
 
 #define	READ_TOKEN_U_INT16(buf, len, dest, bytesread, err) do {		\
-	if (bytesread + sizeof(u_int16_t) <= len) {			\
-		dest = be16dec(buf + bytesread);			\
-		bytesread += sizeof(u_int16_t);				\
+	if ((bytesread) + sizeof(u_int16_t) <= (u_int32_t)(len)) {	\
+		(dest) = be16dec((buf) + (bytesread));			\
+		(bytesread) += sizeof(u_int16_t);			\
 	} else								\
-		err = 1;						\
+		(err) = 1;						\
 } while (0)
 
 #define	READ_TOKEN_U_INT32(buf, len, dest, bytesread, err) do {		\
-	if (bytesread + sizeof(u_int32_t) <= len) {			\
-		dest = be32dec(buf + bytesread);			\
-		bytesread += sizeof(u_int32_t);				\
+	if ((bytesread) + sizeof(u_int32_t) <= (u_int32_t)(len)) {	\
+		(dest) = be32dec((buf) + (bytesread));			\
+		(bytesread) += sizeof(u_int32_t);			\
 	} else								\
-		err = 1; 						\
+		(err) = 1; 						\
 } while (0)
 
 #define	READ_TOKEN_U_INT64(buf, len, dest, bytesread, err) do {		\
-	if (bytesread + sizeof(u_int64_t) <= len) {			\
-		dest = be64dec(buf + bytesread);			\
-		bytesread += sizeof(u_int64_t);				\
+	if ((bytesread) + sizeof(u_int64_t) <= (u_int32_t)(len)) {	\
+		dest = be64dec((buf) + (bytesread));			\
+		(bytesread) += sizeof(u_int64_t);			\
 	} else								\
-		err = 1; 						\
+		(err) = 1; 						\
 } while (0)
 
 #define	SET_PTR(buf, len, ptr, size, bytesread, err) do {		\
-	if ((bytesread) + (size) > (len))				\
+	if ((bytesread) + (size) > (u_int32_t)(len))			\
 		(err) = 1;						\
 	else {								\
 		(ptr) = (buf) + (bytesread);				\
@@ -188,7 +188,7 @@ print_8_bytes(FILE *fp, u_int64_t val, const char *format)
 static void
 print_mem(FILE *fp, u_char *data, size_t len)
 {
-	int i;
+	u_int32_t i;
 
 	if (len > 0) {
 		fprintf(fp, "0x");
@@ -203,7 +203,7 @@ print_mem(FILE *fp, u_char *data, size_t len)
 static void
 print_string(FILE *fp, const char *str, size_t len)
 {
-	int i;
+	u_int32_t i;
 
 	if (len > 0) {
 		for (i = 0; i < len; i++) {
@@ -996,12 +996,10 @@ print_header32_ex_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		open_attr(fp, "modifier");
 		print_evmod(fp, tok->tt.hdr32_ex.e_mod, raw);
 		close_attr(fp);
-		/*
-		 * No attribute for additional types.
-		 *
+		open_attr(fp, "host");
 		print_ip_ex_address(fp, tok->tt.hdr32_ex.ad_type,
 		    tok->tt.hdr32_ex.addr);
-		 */
+		close_attr(fp);
 		open_attr(fp, "time");
 		print_sec32(fp, tok->tt.hdr32_ex.s, raw);
 		close_attr(fp);
@@ -1188,12 +1186,10 @@ print_header64_ex_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		open_attr(fp, "modifier");
 		print_evmod(fp, tok->tt.hdr64_ex.e_mod, raw);
 		close_attr(fp);
-		/*
-		 * No attribute for additional types.
-		 *
+		open_attr(fp, "host");
 		print_ip_ex_address(fp, tok->tt.hdr64_ex.ad_type,
 		    tok->tt.hdr64_ex.addr);
-		 */
+		close_attr(fp);
 		open_attr(fp, "time");
 		print_sec64(fp, tok->tt.hdr64_ex.s, raw);
 		close_attr(fp);
@@ -1478,7 +1474,7 @@ print_arb_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		size = AUR_BYTE_SIZE;
 		if (xml) {
 			open_attr(fp, "type");
-			fprintf(fp, "%u", size);
+			fprintf(fp, "%zu", size);
 			close_attr(fp);
 			open_attr(fp, "count");
 			print_1_byte(fp, tok->tt.arb.uc, "%u");
@@ -1504,7 +1500,7 @@ print_arb_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		size = AUR_SHORT_SIZE;
 		if (xml) {
 			open_attr(fp, "type");
-			fprintf(fp, "%u", size);
+			fprintf(fp, "%zu", size);
 			close_attr(fp);
 			open_attr(fp, "count");
 			print_1_byte(fp, tok->tt.arb.uc, "%u");
@@ -1533,7 +1529,7 @@ print_arb_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		size = AUR_INT32_SIZE;
 		if (xml) {
 			open_attr(fp, "type");
-			fprintf(fp, "%u", size);
+			fprintf(fp, "%zu", size);
 			close_attr(fp);
 			open_attr(fp, "count");
 			print_1_byte(fp, tok->tt.arb.uc, "%u");
@@ -1561,7 +1557,7 @@ print_arb_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		size = AUR_INT64_SIZE;
 		if (xml) {
 			open_attr(fp, "type");
-			fprintf(fp, "%u", size);
+			fprintf(fp, "%zu", size);
 			close_attr(fp);
 			open_attr(fp, "count");
 			print_1_byte(fp, tok->tt.arb.uc, "%u");
@@ -1803,7 +1799,7 @@ static int
 fetch_execarg_tok(tokenstr_t *tok, u_char *buf, int len)
 {
 	int err = 0;
-	int i;
+	u_int32_t i;
 	u_char *bptr;
 
 	READ_TOKEN_U_INT32(buf, len, tok->tt.execarg.count, tok->len, err);
@@ -1817,7 +1813,7 @@ fetch_execarg_tok(tokenstr_t *tok, u_char *buf, int len)
 
 		/* Look for a null terminated string. */
 		while (bptr && (*bptr != '\0')) {
-			if (++tok->len >=len)
+			if (++tok->len >= (u_int32_t)len)
 				return (-1);
 			bptr = buf + tok->len;
 		}
@@ -1835,7 +1831,7 @@ static void
 print_execarg_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
     __unused char sfrm, int xml)
 {
-	int i;
+	u_int32_t i;
 
 	print_tok_type(fp, tok->id, "exec arg", raw, xml);
 	for (i = 0; i < tok->tt.execarg.count; i++) {
@@ -1862,7 +1858,7 @@ static int
 fetch_execenv_tok(tokenstr_t *tok, u_char *buf, int len)
 {
 	int err = 0;
-	int i;
+	u_int32_t i;
 	u_char *bptr;
 
 	READ_TOKEN_U_INT32(buf, len, tok->tt.execenv.count, tok->len, err);
@@ -1876,7 +1872,7 @@ fetch_execenv_tok(tokenstr_t *tok, u_char *buf, int len)
 
 		/* Look for a null terminated string. */
 		while (bptr && (*bptr != '\0')) {
-			if (++tok->len >=len)
+			if (++tok->len >= (u_int32_t)len)
 				return (-1);
 			bptr = buf + tok->len;
 		}
@@ -1894,7 +1890,7 @@ static void
 print_execenv_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
     __unused char sfrm, int xml)
 {
-	int i;
+	u_int32_t i;
 
 	print_tok_type(fp, tok->id, "exec env", raw, xml);
 	for (i = 0; i< tok->tt.execenv.count; i++) {
@@ -3817,7 +3813,7 @@ print_socketex32_tok(FILE *fp, tokenstr_t *tok, char *del, char raw,
 		print_ip_address(fp, tok->tt.socket_ex32.r_addr);
 		close_attr(fp);
 		open_attr(fp, "fport");
-		print_2_bytes(fp, tok->tt.socket_ex32.type, "%#x");
+		print_2_bytes(fp, ntohs(tok->tt.socket_ex32.r_port), "%#x");
 		close_attr(fp);
 		close_tag(fp, tok->id);
 	} else {

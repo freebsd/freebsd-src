@@ -1,5 +1,5 @@
-/*
- * Copyright (c) 2004 Apple Computer, Inc.
+/*-
+ * Copyright (c) 2004 Apple Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * All rights reserved.
  *
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -27,8 +27,10 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#13 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_event.c#16 $
  */
+
+#include <config/config.h>
 
 #include <bsm/libbsm.h>
 
@@ -36,6 +38,11 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifndef HAVE_STRLCPY
+#include <compat/strlcpy.h>
+#endif
+
 
 /*
  * Parse the contents of the audit_event file to return
@@ -68,13 +75,13 @@ eventfromstr(char *str, struct au_event_ent *e)
 	if (strlen(evname) >= AU_EVENT_NAME_MAX)
 		return (NULL);
 
-	strcpy(e->ae_name, evname);
+	strlcpy(e->ae_name, evname, AU_EVENT_NAME_MAX);
 	if (evdesc != NULL) {
 		if (strlen(evdesc) >= AU_EVENT_DESC_MAX)
 			return (NULL);
-		strcpy(e->ae_desc, evdesc);
+		strlcpy(e->ae_desc, evdesc, AU_EVENT_DESC_MAX);
 	} else
-		strcpy(e->ae_desc, "");
+		strlcpy(e->ae_desc, "", AU_EVENT_DESC_MAX);
 
 	e->ae_number = atoi(evno);
 
