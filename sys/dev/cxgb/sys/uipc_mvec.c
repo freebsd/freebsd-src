@@ -125,7 +125,7 @@ _mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 		mi->mi_ether_vtag = m->m_pkthdr.ether_vtag;
 		mi->mi_tso_segsz = m->m_pkthdr.tso_segsz;
 #ifdef IFNET_MULTIQUEUE		
-		mi->mi_rss_hash = m->m_pkthdr.rss_hash;
+		mi->mi_rss_hash = m->m_pkthdr.flowid;
 #endif		
 		if(!SLIST_EMPTY(&m->m_pkthdr.tags)) 
 			m_tag_delete_chain(m, NULL);
