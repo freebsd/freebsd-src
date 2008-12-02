@@ -157,7 +157,6 @@ ufs_lookup(ap)
 	int nameiop = cnp->cn_nameiop;
 	ino_t ino;
 	int ltype;
-	int pdoomed;
 	struct mount *mp;
 
 	bp = NULL;
@@ -588,20 +587,14 @@ found:
 			VOP_UNLOCK(pdp, 0);
 			pause("ufs_dd", 1);
 			vn_lock(pdp, ltype | LK_RETRY);
-			VI_LOCK(pdp);
-			pdoomed = pdp->v_iflag & VI_DOOMED;
-			VI_UNLOCK(pdp);
-			if (pdoomed)
+			if (pdp->v_iflag & VI_DOOMED)
 				return (ENOENT);
 		}
 		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
 		error = VFS_VGET(mp, ino, cnp->cn_lkflags, &tdp);
 		vfs_unbusy(mp);
 		vn_lock(pdp, ltype | LK_RETRY);
-		VI_LOCK(pdp);
-		pdoomed = pdp->v_iflag & VI_DOOMED;
-		VI_UNLOCK(pdp);
-		if (pdoomed) {
+		if (pdp->v_iflag & VI_DOOMED) {
 			if (error == 0)
 				vput(tdp);
 			error = ENOENT;
