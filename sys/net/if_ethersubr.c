@@ -63,6 +63,7 @@
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 #include <net/pf_mtag.h>
+#include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>

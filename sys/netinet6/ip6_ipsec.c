@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6_ipsec.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/vinet6.h>
 
 extern	struct protosw inet6sw[];
 

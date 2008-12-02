@@ -33,21 +33,18 @@
 #ifndef _NETIPSEC_VIPSEC_H_
 #define _NETIPSEC_VIPSEC_H_
 
-#include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/socket.h>
 
-#include <netipsec/ipsec.h>
-#include <netipsec/esp_var.h>
-#include <netipsec/ah_var.h>
-#include <netipsec/ipcomp_var.h>
-#include <netipsec/ipip_var.h>
-
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/route.h>
+#include <net/pfkeyv2.h>
 #include <net/raw_cb.h>
 
+#include <netinet/ipprotosw.h>
+
+#include <netipsec/ah_var.h>
+#include <netipsec/esp_var.h>
+#include <netipsec/ipcomp_var.h>
+#include <netipsec/ipip_var.h>
+#include <netipsec/ipsec.h>
 #include <netipsec/keysock.h>
 
 struct vnet_ipsec {

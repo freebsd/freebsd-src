@@ -107,10 +107,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
+#include <netinet/vinet.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -120,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
+#include <netinet6/vinet6.h>
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 

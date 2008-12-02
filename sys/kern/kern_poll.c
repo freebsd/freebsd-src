@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
+#include <net/vnet.h>
 
 #include <sys/proc.h>
 #include <sys/resourcevar.h>

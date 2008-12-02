@@ -75,9 +75,11 @@
 
 #ifdef INET
 #include <netinet/in_pcb.h>
+#include <netinet/vinet.h>
 #endif
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
+#include <netinet6/vinet6.h>
 #endif /* INET6 */
 
 #include <net/pfkeyv2.h>

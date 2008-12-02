@@ -33,17 +33,19 @@
 #ifndef _NETINET6_VINET6_H_
 #define _NETINET6_VINET6_H_
 
-#include <sys/socket.h>
-#include <netinet/ip6.h>
-#include <net/if.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/raw_ip6.h>
+#include <sys/callout.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+#include <net/if_var.h>
+
 #include <netinet/icmp6.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/in6_ifattach.h>
-#include <netinet6/in6_var.h>
+#include <netinet/in.h>
+
+#include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/in_pcb.h>
+#include <netinet6/raw_ip6.h>
+#include <netinet6/scope6_var.h>
 
 struct vnet_inet6 {
 	struct in6_ifaddr *		_in6_ifaddr;

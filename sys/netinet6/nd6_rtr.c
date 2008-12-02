@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/radix.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
 #define SDL(s)	((struct sockaddr_dl *)s)
 

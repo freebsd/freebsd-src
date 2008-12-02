@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 #include <netinet/tcp_offload.h>
+#include <netinet/vinet.h>
 
 /*
  * TCP protocol interface to socket abstraction.

@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/iso88025.h>
 #include <net/fddi.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -67,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 
 #include <sys/limits.h>
 #include <sys/vimage.h>

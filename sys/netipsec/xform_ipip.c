@@ -56,6 +56,7 @@
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -64,15 +65,15 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#ifdef MROUTING
+#include <netinet/ip_mroute.h>
+#endif
+#include <netinet/vinet.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
 #include <netipsec/ipip_var.h>
-
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif
 
 #ifdef INET6
 #include <netinet/ip6.h>

@@ -43,6 +43,7 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
+#include <net/route.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>

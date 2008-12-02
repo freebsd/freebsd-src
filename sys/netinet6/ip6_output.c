@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -94,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -104,6 +106,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
 static MALLOC_DEFINE(M_IP6MOPTS, "ip6_moptions", "internet multicast options");
 

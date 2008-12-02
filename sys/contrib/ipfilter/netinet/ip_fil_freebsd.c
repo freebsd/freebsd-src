@@ -112,6 +112,9 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #include "netinet/ip_scan.h"
 #endif
 #include "netinet/ip_pool.h"
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800056)
+# include <netinet/vinet.h>
+#endif
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 # include <sys/malloc.h>
 #endif
