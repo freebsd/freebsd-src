@@ -6,11 +6,29 @@ BINMODE=${NOBINMODE}
 NO_MAN=
 SRCS=	${PROG}.S
 
-# The default set of flags compiled into boot0.  This enables update (writing
-# the modified boot0 back to disk after running so that the selection made is
-# saved), packet mode (detect and use the BIOS EDD extensions if we try to
-# boot past the 1024 cylinder liimt), and booting from all valid slices.
-BOOT_BOOT0_FLAGS?=	0x8f
+# Additional options that you can specify with make OPTS="..."
+# (these only apply to boot0.S)
+#
+#	-DSIO		do I/O using COM1:
+#	-DPXE		fallback to INT18/PXE with F6
+#	-DCHECK_DRIVE	enable checking drive number
+#	-DONLY_F_KEYS	accept only Fx keys in console
+#	-DTEST		print drive number on entry
+#
+CFLAGS += ${OPTS}
+
+# Flags used in the boot0.S code:
+#   0x0f	all valid partitions enabled.
+#   0x80	'packet', use BIOS EDD (LBA) extensions instead of CHS
+#		to read from disk. boot0.S does not check that the extensions
+#		are supported, but all modern BIOSes should have them.
+#   0x40	'noupdate', disable writing boot0 back to disk so that
+#		the current selection is not preserved across reboots.
+#   0x20	'setdrv', override the drive number supplied by the bios
+#		with the one in the boot sector.
+
+# Default boot flags:
+BOOT_BOOT0_FLAGS?=	0xcf
 
 # The number of timer ticks to wait for a keypress before assuming the default
 # selection.  Since there are 18.2 ticks per second, the default value of
