@@ -688,16 +688,18 @@ p6_intr(int cpu, struct trapframe *tf)
 
 	for (ri = 0; ri < P6_NPMCS; ri++) {
 
-		if (!P6_PMC_HAS_OVERFLOWED(ri))
-			continue;
-
 		if ((pm = pc->pc_p6pmcs[ri].phw_pmc) == NULL ||
-		    pm->pm_state != PMC_STATE_RUNNING ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
 		}
 
+		if (!P6_PMC_HAS_OVERFLOWED(ri))
+			continue;
+
 		retval = 1;
+
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			continue;
 
 		error = pmc_process_interrupt(cpu, pm, tf,
 		    TRAPF_USERMODE(tf));
