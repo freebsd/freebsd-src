@@ -42,7 +42,7 @@ kinfo_getvmmap(pid_t pid, int *cntp)
 	bp = buf;
 	eb = buf + len;
 	while (bp < eb) {
-		kv = (struct kinfo_vmentry *)bp;
+		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
 		bp += kv->kve_structsize;
 		cnt++;
 	}
@@ -57,7 +57,7 @@ kinfo_getvmmap(pid_t pid, int *cntp)
 	kp = kiv;
 	/* Pass 2: unpack */
 	while (bp < eb) {
-		kv = (struct kinfo_vmentry *)bp;
+		kv = (struct kinfo_vmentry *)(uintptr_t)bp;
 		/* Copy/expand into pre-zeroed buffer */
 		memcpy(kp, kv, kv->kve_structsize);
 		/* Advance to next packed record */
