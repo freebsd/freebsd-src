@@ -2509,16 +2509,6 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
-/*
- * Sadly, the libgtop port has already been compiled for 7.1, but the code
- * does not do enough error checking and bad things might happen.  Even
- * though we've not made a release with this stuff in it, the packages have
- * apparently been built.
- *
- * This should be deleted shortly after 7.1 is released and we go back to
- * 7-stable again.  If the libgtop port can be rebuilt, then this can get
- * deleted before release.
- */
 #ifdef KINFO_OFILE_SIZE
 CTASSERT(sizeof(struct kinfo_ofile) == KINFO_OFILE_SIZE);
 #endif
