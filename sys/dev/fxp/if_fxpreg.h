@@ -224,7 +224,7 @@ struct fxp_cb_config {
 
 	/* Bytes 22 - 31 -- i82550 only */
 	u_int		__FXP_BITFIELD3(gamla_rx:1,
-			    vlan_drop_en:1,
+			    vlan_strip_en:1,
 			    :6);
 	uint8_t		pad[9];
 };
@@ -377,6 +377,7 @@ struct fxp_rfa {
 #define FXP_RFA_STATUS_RNR	0x0200	/* no resources */
 #define FXP_RFA_STATUS_ALIGN	0x0400	/* alignment error */
 #define FXP_RFA_STATUS_CRC	0x0800	/* CRC error */
+#define FXP_RFA_STATUS_VLAN	0x1000	/* VLAN tagged frame */
 #define FXP_RFA_STATUS_OK	0x2000	/* packet received okay */
 #define FXP_RFA_STATUS_C	0x8000	/* packet reception complete */
 #define FXP_RFA_CONTROL_SF	0x08	/* simple/flexible memory mode */
