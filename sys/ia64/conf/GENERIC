@@ -27,7 +27,7 @@ makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	AUDIT		# Security event auditing
 options 	CD9660		# ISO 9660 Filesystem
-options 	COMPAT_43TTY	# BSD 4.3 TTY compat [KEEP THIS!]
+options 	COMPAT_43TTY	# BSD 4.3 TTY compat (sgtty)
 options 	COMPAT_FREEBSD6	# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	DDB		# Support DDB
