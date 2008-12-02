@@ -277,20 +277,55 @@ struct user {
 #define	KF_FLAG_DIRECT		0x00000040
 #define	KF_FLAG_HASLOCK		0x00000080
 
-struct kinfo_file {
+/*
+ * Old format.  Has variable hidden padding due to alignment.
+ * This is a compatability hack for pre-build 7.1 packages.
+ */
+#if defined(__amd64__)
+#define	KINFO_OFILE_SIZE	1328
+#endif
+#if defined(__i386__)
+#define	KINFO_OFILE_SIZE	1324
+#endif
+
+struct kinfo_ofile {
 	int	kf_structsize;			/* Size of kinfo_file. */
 	int	kf_type;			/* Descriptor type. */
 	int	kf_fd;				/* Array index. */
 	int	kf_ref_count;			/* Reference count. */
 	int	kf_flags;			/* Flags. */
+	/* XXX Hidden alignment padding here on amd64 */
 	off_t	kf_offset;			/* Seek location. */
 	int	kf_vnode_type;			/* Vnode type. */
 	int	kf_sock_domain;			/* Socket domain. */
 	int	kf_sock_type;			/* Socket type. */
 	int	kf_sock_protocol;		/* Socket protocol. */
-	char	kf_path[PATH_MAX];		/* Path to file, if any. */
+	char	kf_path[PATH_MAX];	/* Path to file, if any. */
 	struct sockaddr_storage kf_sa_local;	/* Socket address. */
 	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
+};
+
+#if defined(__amd64__) || defined(__i386__)
+#define	KINFO_FILE_SIZE	1392
+#endif
+
+struct kinfo_file {
+	int	kf_structsize;			/* Variable size of record. */
+	int	kf_type;			/* Descriptor type. */
+	int	kf_fd;				/* Array index. */
+	int	kf_ref_count;			/* Reference count. */
+	int	kf_flags;			/* Flags. */
+	int	_kf_pad0;			/* Round to 64 bit alignment */
+	uint64_t kf_offset;			/* Seek location. */
+	int	kf_vnode_type;			/* Vnode type. */
+	int	kf_sock_domain;			/* Socket domain. */
+	int	kf_sock_type;			/* Socket type. */
+	int	kf_sock_protocol;		/* Socket protocol. */
+	struct sockaddr_storage kf_sa_local;	/* Socket address. */
+	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
+	int	_kf_ispare[16];			/* Space for more stuff. */
+	/* Truncated before copyout in sysctl */
+	char	kf_path[PATH_MAX];		/* Path to file, if any. */
 };
 
 /*
@@ -313,11 +348,18 @@ struct kinfo_file {
 #define	KVME_FLAG_COW		0x00000001
 #define	KVME_FLAG_NEEDS_COPY	0x00000002
 
-struct kinfo_vmentry {
+#if defined(__amd64__)
+#define	KINFO_OVMENTRY_SIZE	1168
+#endif
+#if defined(__i386__)
+#define	KINFO_OVMENTRY_SIZE	1128
+#endif
+
+struct kinfo_ovmentry {
 	int	 kve_structsize;		/* Size of kinfo_vmmapentry. */
 	int	 kve_type;			/* Type of map entry. */
-	void	*kve_start;			/* Starting pointer. */
-	void	*kve_end;			/* Finishing pointer. */
+	void	*kve_start;			/* Starting address. */
+	void	*kve_end;			/* Finishing address. */
 	int	 kve_flags;			/* Flags on map entry. */
 	int	 kve_resident;			/* Number of resident pages. */
 	int	 kve_private_resident;		/* Number of private pages. */
@@ -327,9 +369,33 @@ struct kinfo_vmentry {
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 	void	*_kve_pspare[8];		/* Space for more stuff. */
 	off_t	 kve_offset;			/* Mapping offset in object */
-	uint64_t kve_fileid;			/* inode number of vnode */
+	uint64_t kve_fileid;			/* inode number if vnode */
 	dev_t	 kve_fsid;			/* dev_t of vnode location */
 	int	 _kve_ispare[3];		/* Space for more stuff. */
+};
+
+#if defined(__amd64__) || defined(__i386__)
+#define	KINFO_VMENTRY_SIZE	1160
+#endif
+
+struct kinfo_vmentry {
+	int	 kve_structsize;		/* Variable size of record. */
+	int	 kve_type;			/* Type of map entry. */
+	uint64_t kve_start;			/* Starting address. */
+	uint64_t kve_end;			/* Finishing address. */
+	uint64_t kve_offset;			/* Mapping offset in object */
+	uint64_t kve_fileid;			/* inode number if vnode */
+	uint32_t kve_fsid;			/* dev_t of vnode location */
+	int	 kve_flags;			/* Flags on map entry. */
+	int	 kve_resident;			/* Number of resident pages. */
+	int	 kve_private_resident;		/* Number of private pages. */
+	int	 kve_protection;		/* Protection bitmask. */
+	int	 kve_ref_count;			/* VM obj ref count. */
+	int	 kve_shadow_count;		/* VM obj shadow count. */
+	int	 _kve_pad0;			/* 64bit align next field */
+	int	 _kve_ispare[16];		/* Space for more stuff. */
+	/* Truncated before copyout in sysctl */
+	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };
 
 /*
@@ -343,12 +409,15 @@ struct kinfo_vmentry {
 #define	KKST_STATE_SWAPPED	1		/* Stack swapped out. */
 #define	KKST_STATE_RUNNING	2		/* Stack ephemeral. */
 
+#if defined(__amd64__) || defined(__i386__)
+#define	KINFO_KSTACK_SIZE	1096
+#endif
+
 struct kinfo_kstack {
 	lwpid_t	 kkst_tid;			/* ID of thread. */
 	int	 kkst_state;			/* Validity of stack. */
 	char	 kkst_trace[KKST_MAXLEN];	/* String representing stack. */
-	void	*_kkst_pspare[8];		/* Space for more stuff. */
-	int	 _kkst_ispare[8];		/* Space for more stuff. */
+	int	 _kkst_ispare[16];		/* Space for more stuff. */
 };
 
 #endif
