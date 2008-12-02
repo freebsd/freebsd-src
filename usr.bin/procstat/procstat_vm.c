@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <libutil.h>
 
 #include "procstat.h"
@@ -56,8 +57,8 @@ procstat_vm(pid_t pid, struct kinfo_proc *kipp __unused)
 	for (i = 0; i < cnt; i++) {
 		kve = &freep[i];
 		printf("%5d ", pid);
-		printf("%*p ", ptrwidth, kve->kve_start);
-		printf("%*p ", ptrwidth, kve->kve_end);
+		printf("%#*jx ", ptrwidth, (uintmax_t)kve->kve_start);
+		printf("%#*jx ", ptrwidth, (uintmax_t)kve->kve_end);
 		printf("%s", kve->kve_protection & KVME_PROT_READ ? "r" : "-");
 		printf("%s", kve->kve_protection & KVME_PROT_WRITE ? "w" : "-");
 		printf("%s ", kve->kve_protection & KVME_PROT_EXEC ? "x" : "-");
