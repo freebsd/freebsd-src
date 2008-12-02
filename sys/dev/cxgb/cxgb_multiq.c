@@ -128,7 +128,8 @@ cxgb_pcpu_enqueue_packet_(struct sge_qset *qs, struct mbuf *m)
 		txq->txq_drops++;
 		m_freem(m);
 	}
-	if (wakeup_tx_thread && ((txq->flags & TXQ_TRANSMITTING) == 0))
+	if (wakeup_tx_thread && !err &&
+	    ((txq->flags & TXQ_TRANSMITTING) == 0))
 		wakeup(qs);
 	
 	return (err);
@@ -195,7 +196,6 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 		return (0);
 
 	if (txq->immpkt != NULL) {
-		DPRINTF("immediate packet\n");
 		m_vec[0] = txq->immpkt;
 		txq->immpkt = NULL;
 		return (1);
@@ -209,8 +209,10 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 	count = 1;
 
 	m_vec[0] = m;
-	if (m->m_pkthdr.tso_segsz > 0 || m->m_pkthdr.len > TX_WR_SIZE_MAX ||
-	    m->m_next != NULL || (coalesce_tx_enable == 0)) {
+	if (m->m_pkthdr.tso_segsz > 0 ||
+	    m->m_pkthdr.len > TX_WR_SIZE_MAX ||
+	    m->m_next != NULL ||
+	    (coalesce_tx_enable == 0)) {
 		return (count);
 	}
 
@@ -218,8 +220,9 @@ cxgb_dequeue_packet(struct sge_txq *txq, struct mbuf **m_vec)
 	for (m = buf_ring_peek(txq->txq_mr); m != NULL;
 	     m = buf_ring_peek(txq->txq_mr)) {
 
-		if (m->m_pkthdr.tso_segsz > 0 ||
-		    size + m->m_pkthdr.len > TX_WR_SIZE_MAX || m->m_next != NULL)
+		if (m->m_pkthdr.tso_segsz > 0
+		    || size + m->m_pkthdr.len > TX_WR_SIZE_MAX
+		    || m->m_next != NULL)
 			break;
 
 		m0 = buf_ring_dequeue_sc(txq->txq_mr);
@@ -315,39 +318,30 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 
 		immpkt = NULL;
 	}
-	if (initerr && initerr != ENOBUFS) {
-		if (cxgb_debug)
-			log(LOG_WARNING, "cxgb link down\n");
+	if (initerr) {
 		if (immpkt)
 			m_freem(immpkt);
+		if (initerr == ENOBUFS && !tx_flush)
+			wakeup(qs);
 		return (initerr);
 	}
 
 	if ((tx_flush && (desc_reclaimable(txq) > 0)) ||
-	    (desc_reclaimable(txq) > (TX_ETH_Q_SIZE>>1))) {
-		int reclaimed = 0;
-
-		if (cxgb_debug) {
-			device_printf(qs->port->adapter->dev,
-			    "cpuid=%d curcpu=%d reclaimable=%d txq=%p txq->cidx=%d txq->pidx=%d ",
-			    qs->qs_cpuid, curcpu, desc_reclaimable(txq),
-			    txq, txq->cidx, txq->pidx);
-		}
-		reclaimed = cxgb_pcpu_reclaim_tx(txq);
-		if (cxgb_debug)
-			printf("reclaimed=%d\n", reclaimed);
+	    (desc_reclaimable(txq) > (TX_ETH_Q_SIZE>>3))) {
+		cxgb_pcpu_reclaim_tx(txq);
 	}
 
 	stopped = isset(&qs->txq_stopped, TXQ_ETH);
-	flush = (((!buf_ring_empty(txq->txq_mr) || (!IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd))) && !stopped) || txq->immpkt); 
+	flush = ((
+#ifdef IFNET_MULTIQUEUE
+		 !buf_ring_empty(txq->txq_mr)
+#else			     
+		 !IFQ_DRV_IS_EMPTY(&pi->ifp->if_snd)
+#endif
+		 && !stopped) || txq->immpkt); 
 	max_desc = tx_flush ? TX_ETH_Q_SIZE : TX_START_MAX_DESC;
-
-	if (cxgb_debug)
-		DPRINTF("stopped=%d flush=%d max_desc=%d\n",
-		    stopped, flush, max_desc);
 	
-	err = flush ? cxgb_tx(qs, max_desc) : ENOSPC;
-
+	err = flush ? cxgb_tx(qs, max_desc) : 0;
 
 	if ((tx_flush && flush && err == 0) &&
 	    (!buf_ring_empty(txq->txq_mr)  ||
@@ -359,16 +353,13 @@ cxgb_pcpu_start_(struct sge_qset *qs, struct mbuf *immpkt, int tx_flush)
 			sched_prio(td, PRI_MIN_TIMESHARE);
 			thread_unlock(td);
 		}
-		if (i > 50) {
-			if (cxgb_debug)
-				device_printf(qs->port->adapter->dev,
+		if (i > 200) {
+			device_printf(qs->port->adapter->dev,
 				    "exceeded max enqueue tries\n");
 			return (EBUSY);
 		}
 		goto retry;
 	}
-	err = (initerr != 0) ? initerr : err;
-
 	return (err);
 }
 
@@ -391,32 +382,22 @@ cxgb_pcpu_transmit(struct ifnet *ifp, struct mbuf *immpkt)
 	if (immpkt && (immpkt->m_pkthdr.flowid != 0)) {
 		cookie = immpkt->m_pkthdr.flowid;
 		qidx = cxgb_pcpu_cookie_to_qidx(pi, cookie);
-		DPRINTF("hash=0x%x qidx=%d cpu=%d\n", immpkt->m_pkthdr.flowid, qidx, curcpu);
 		qs = &pi->adapter->sge.qs[qidx];
 	} else
 #endif		
 		qs = &pi->adapter->sge.qs[pi->first_qset];
 	
 	txq = &qs->txq[TXQ_ETH];
-
 	if (((sc->tunq_coalesce == 0) ||
 		(buf_ring_count(txq->txq_mr) >= TX_WR_COUNT_MAX) ||
 		(coalesce_tx_enable == 0)) && mtx_trylock(&txq->lock)) {
-		if (cxgb_debug)
-			printf("doing immediate transmit\n");
-		
 		txq->flags |= TXQ_TRANSMITTING;
 		err = cxgb_pcpu_start_(qs, immpkt, FALSE);
 		txq->flags &= ~TXQ_TRANSMITTING;
-		resid = (buf_ring_count(txq->txq_mr) > 64) || (desc_reclaimable(txq) > 64);
 		mtx_unlock(&txq->lock);
-	} else if (immpkt) {
-		if (cxgb_debug)
-			printf("deferred coalesce=%jx ring_count=%d mtx_owned=%d\n",
-			    sc->tunq_coalesce, buf_ring_count(txq->txq_mr), mtx_owned(&txq->lock));
-		err = cxgb_pcpu_enqueue_packet_(qs, immpkt);
-	}
-	return ((err == ENOSPC) ? 0 : err);
+	} else if (immpkt)
+		return (cxgb_pcpu_enqueue_packet_(qs, immpkt));
+	return ((err == EBUSY) ? 0 : err);
 }
 
 void
@@ -624,29 +605,23 @@ cxgb_tx(struct sge_qset *qs, uint32_t txmax)
 	txq = &qs->txq[TXQ_ETH];
 	ifp = qs->port->ifp;
 	in_use_init = txq->in_use;
-	err = 0;
-	
-	for (i = 0; i < TX_WR_COUNT_MAX; i++)
-		m_vec[i] = NULL;
+	count = err = 0;
 
 	mtx_assert(&txq->lock, MA_OWNED);
 	while ((txq->in_use - in_use_init < txmax) &&
 	    (txq->size > txq->in_use + TX_MAX_DESC)) {
 		check_pkt_coalesce(qs);
 		count = cxgb_dequeue_packet(txq, m_vec);
-		if (count == 0) {
-			err = ENOSPC;
+		if (count == 0) 
 			break;
-		}
-		ETHER_BPF_MTAP(ifp, m_vec[0]);
+		for (i = 0; i < count; i++)
+			ETHER_BPF_MTAP(ifp, m_vec[i]);
 		
 		if ((err = t3_encap(qs, m_vec, count)) != 0)
 			break;
 		txq->txq_enqueued += count;
-		m_vec[0] = NULL;
 	}
-	if ((err == 0) &&  (txq->size <= txq->in_use + TX_MAX_DESC)) {
-		err = ENOBUFS;
+	if (txq->size <= txq->in_use + TX_MAX_DESC) {
 		txq_fills++;
 		setbit(&qs->txq_stopped, TXQ_ETH);
 	}
