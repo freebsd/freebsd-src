@@ -857,7 +857,7 @@ fxp_attach(device_t dev)
 	if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
 		FXP_LOCK(sc);
 		/* Clear wakeup events. */
-		CSR_READ_1(sc, FXP_CSR_PMDR);
+		CSR_WRITE_1(sc, FXP_CSR_PMDR, CSR_READ_1(sc, FXP_CSR_PMDR));
 		fxp_init_body(sc);
 		fxp_stop(sc);
 		FXP_UNLOCK(sc);
@@ -1050,10 +1050,9 @@ fxp_resume(device_t dev)
 		/* Disable PME and clear PME status. */
 		pmstat &= ~PCIM_PSTAT_PMEENABLE;
 		pci_write_config(sc->dev, pmc + PCIR_POWER_STATUS, pmstat, 2);
-		if ((sc->flags & FXP_FLAG_WOLCAP) != 0) {
-			/* Clear wakeup events. */
-			CSR_READ_1(sc, FXP_CSR_PMDR);
-		}
+		if ((sc->flags & FXP_FLAG_WOLCAP) != 0)
+			CSR_WRITE_1(sc, FXP_CSR_PMDR,
+			    CSR_READ_1(sc, FXP_CSR_PMDR));
 	}
 
 	CSR_WRITE_4(sc, FXP_CSR_PORT, FXP_PORT_SELECTIVE_RESET);
