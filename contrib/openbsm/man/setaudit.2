@@ -1,5 +1,6 @@
 .\"-
 .\" Copyright (c) 2005 Robert N. M. Watson
+.\" Copyright (c) 2008 Apple Inc.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/setaudit.2#7 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/setaudit.2#10 $
 .\"
 .Dd April 19, 2005
 .Dt SETAUDIT 2
@@ -54,9 +55,115 @@ sets extended state via
 and
 .Fa length .
 .Pp
+The
+.Fa auditinfo_t
+data structure is defined as follows:
+.nf
+.in +4n
+
+struct auditinfo {
+	au_id_t        ai_auid;         /* Audit user ID */
+	au_mask_t      ai_mask;         /* Audit masks */
+	au_tid_t       ai_termid;       /* Terminal ID */
+	au_asid_t      ai_asid;         /* Audit session ID */
+};
+typedef struct auditinfo        auditinfo_t;
+.in
+.fi
+.Pp
+The
+.Fa ai_auid
+variable contains the audit identifier which is recorded in the audit log for 
+each event the process caused.
+.PP
+
+The
+.Fa au_mask_t
+data structure defines the bit mask for auditing successful and failed events 
+out of the predefined list of event classes. It is defined as follows:
+.nf
+.in +4n
+
+struct au_mask {
+	unsigned int    am_success;     /* success bits */
+	unsigned int    am_failure;     /* failure bits */
+};
+typedef struct au_mask  au_mask_t;
+.in
+.fi
+.PP
+
+The
+.Fa au_termid_t
+data structure defines the Terminal ID recorded with every event caused by the 
+process. It is defined as follows:
+.nf
+.in +4n
+
+struct au_tid {
+	dev_t           port;
+	u_int32_t       machine;
+};
+typedef struct au_tid   au_tid_t;
+
+.in
+.fi
+.PP
+The
+.Fa ai_asid
+variable contains the audit session ID which is recorded with every event 
+caused by the process.
+.Pp
+The
+.Fn setaudit_addr
+system call
+uses the expanded
+.Fa auditinfo_addr_t 
+data structure supports Terminal IDs with larger addresses such as those used
+in IP version 6.  It is defined as follows:
+.nf
+.in +4n
+
+struct auditinfo_addr {
+	au_id_t         ai_auid;        /* Audit user ID. */
+	au_mask_t       ai_mask;        /* Audit masks. */
+	au_tid_addr_t   ai_termid;      /* Terminal ID. */
+	au_asid_t       ai_asid;        /* Audit session ID. */
+};
+typedef struct auditinfo_addr   auditinfo_addr_t;
+.in
+.fi
+.Pp
+The 
+.Fa au_tid_addr_t
+data structure which includes a larger address storage field and an additional 
+field with the type of address stored:
+.nf
+.in +4n
+
+struct au_tid_addr {
+	dev_t           at_port;
+	u_int32_t       at_type;
+	u_int32_t       at_addr[4];
+};
+typedef struct au_tid_addr      au_tid_addr_t;
+.in
+.fi
+.Pp
 These system calls require an appropriate privilege to complete.
 .Sh RETURN VALUES
 .Rv -std setaudit setaudit_addr
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EFAULT
+A failure occurred while data transferred to or from
+the kernel failed.
+.It Bq Er EINVAL
+Illegal argument was passed by a system call.
+.It Bq Er EPERM
+The process does not have sufficient permission to complete
+the operation.
+.El
 .Sh SEE ALSO
 .Xr audit 2 ,
 .Xr auditon 2 ,

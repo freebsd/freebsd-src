@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.am#1 $
+# $P4: //depot/projects/trustedbsd/openbsm/test/Makefile.am#2 $
 #
 
 SUBDIRS =		\

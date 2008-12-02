@@ -1,3 +1,5 @@
+OpenBSM Copyrights and Licensing
+
 OpenBSM is covered by a number of copyrights, with licenses being either two
 or three clause BSD licenses.  Individual file headers should be consulted
 for specific copyrights on specific components.  The TrustedBSD Project would
@@ -30,4 +32,4 @@ substantially similar licenses:
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
 
-$P4: //depot/projects/trustedbsd/openbsm/LICENSE#4 $
+$P4: //depot/projects/trustedbsd/openbsm/LICENSE#5 $

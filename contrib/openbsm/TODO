@@ -1,5 +1,5 @@
-- Teach libbsm about any additional 64-bit token types that are present
-  in more recent Solaris versions.
+OpenBSM TODO
+
 - Build a regression test suite for libbsm that generates each token
   type and then compares the results with known good data.  Make sure to
   test that things work properly with respect to endianness of the local
@@ -18,5 +18,7 @@
   trailer context.
 - Put hostname in trail file name.
 - Document audit_warn event arguments.
+- Allow the path /etc/security to be configured at configure-time so that
+  alternative locations can be used.
 
-$P4: //depot/projects/trustedbsd/openbsm/TODO#9 $
+$P4: //depot/projects/trustedbsd/openbsm/TODO#11 $
