@@ -1569,6 +1569,10 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 	/* Macro for making touching an RCS file faster. */
 #define UPDATER_OPENRCS(rf, up, path, name, cvsroot, tag) do {		\
 	if ((rf) == NULL) {						\
+		lprintf(1, " Edit %s", fup->coname);			\
+		if (fup->attic)						\
+			lprintf(1, " -> Attic");			\
+		lprintf(1, "\n");					\
 		(rf) = rcsfile_frompath((path), (name), (cvsroot),	\
 		    (tag));						\
 		if ((rf) == NULL) {					\
@@ -1660,10 +1664,6 @@ updater_rcsedit(struct updater *up, struct file_update *fup, char *name,
 		fattr_free(oldfattr);
 		goto finish;
 	}
-	lprintf(1, " Edit %s", fup->coname);
-	if (fup->attic)
-		lprintf(1, " -> Attic");
-	lprintf(1, "\n");
 
 	/* Write and rename temp file. */
 	dest = stream_open_file(fup->temppath,
