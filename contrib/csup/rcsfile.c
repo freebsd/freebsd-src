@@ -1207,7 +1207,7 @@ rcsfile_insertdelta(struct branch *b, struct delta *d, int trunk)
 		} else {
 			/* XXX: here we depend on the date being set, but it
 			 * should be before this is called anyway. */
-			if (rcsnum_cmp(d->revdate, d2->revdate) <= 0) {
+			if (rcsnum_cmp(d->revdate, d2->revdate) < 0) {
 				LIST_INSERT_BEFORE(d2, d, delta_next);
 				return;
 			}
