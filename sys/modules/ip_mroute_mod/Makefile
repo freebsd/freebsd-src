@@ -7,7 +7,7 @@
 KMOD=	ip_mroute
 
 SRCS=	ip_mroute.c
-SRCS+=	opt_inet.h opt_mac.h opt_mrouting.h
+SRCS+=	opt_inet.h opt_mac.h opt_mrouting.h opt_route.h
 SRCS+=	opt_inet6.h
 
 .if ${MK_INET6_SUPPORT} != "no"

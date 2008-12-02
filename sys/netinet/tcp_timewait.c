@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 #include <netinet6/ip6protosw.h>
+#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 

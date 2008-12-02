@@ -96,12 +96,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/ip6.h>
 #include <netinet/ip_var.h>
+#include <netinet/vinet.h>
 
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 

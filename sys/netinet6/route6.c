@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 
 #if 0
 static int ip6_rthdr0 __P((struct mbuf *, struct ip6_hdr *,

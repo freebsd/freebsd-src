@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -94,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/tcp_var.h>
+#include <netinet/vinet.h>
+
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
@@ -101,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>

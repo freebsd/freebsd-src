@@ -66,7 +66,7 @@ SRCS+=	${AR5211_SRCS}
 SRCS+=	${AR5212_SRCS}
 SRCS+=	${AR5416_SRCS}
 SRCS+=	${AR9160_SRCS}
-SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_route.h opt_ath.h opt_ah.h
+SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 

@@ -46,6 +46,7 @@
 
 #include <net/if.h>
 #include <net/raw_cb.h>
+#include <net/vnet.h>
 
 /*
  * Routines to manage the raw protocol control blocks.

@@ -94,7 +94,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#include <netinet/vinet.h>
 #include <netinet6/ip6protosw.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>

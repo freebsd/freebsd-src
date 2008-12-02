@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>

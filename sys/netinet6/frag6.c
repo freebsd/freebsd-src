@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #include <netinet/in_systm.h>	/* for ECN definitions */
 #include <netinet/ip.h>		/* for ECN definitions */
+#include <netinet6/vinet6.h>
 
 #include <security/mac/mac_framework.h>
 

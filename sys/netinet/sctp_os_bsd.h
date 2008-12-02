@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
-
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>

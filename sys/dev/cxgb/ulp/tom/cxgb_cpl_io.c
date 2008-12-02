@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_timer.h>
+#if __FreeBSD_version >= 800056
+#include <netinet/vinet.h>
+#endif
 #include <net/route.h>
 
 #include <t3cdev.h>
