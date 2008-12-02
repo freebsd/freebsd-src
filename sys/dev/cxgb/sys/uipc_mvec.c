@@ -124,11 +124,11 @@ _mcl_collapse_mbuf(struct mbuf_iovec *mi, struct mbuf *m)
 	if (m->m_flags & M_PKTHDR) {
 		mi->mi_ether_vtag = m->m_pkthdr.ether_vtag;
 		mi->mi_tso_segsz = m->m_pkthdr.tso_segsz;
-#ifdef IFNET_MULTIQ		
+#ifdef IFNET_MULTIQUEUE		
 		mi->mi_rss_hash = m->m_pkthdr.rss_hash;
+#endif		
 		if(!SLIST_EMPTY(&m->m_pkthdr.tags)) 
 			m_tag_delete_chain(m, NULL);
-#endif		
 	}
 	if (m->m_type != MT_DATA) {
 		mi->mi_data = NULL;
