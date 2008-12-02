@@ -632,7 +632,6 @@ amd_intr(int cpu, struct trapframe *tf)
 	uint32_t config, evsel, perfctr;
 	struct pmc *pm;
 	struct amd_cpu *pac;
-	struct pmc_hw *phw;
 	pmc_value_t v;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
@@ -660,20 +659,18 @@ amd_intr(int cpu, struct trapframe *tf)
 
 	for (i = 0; retval == 0 && i < AMD_NPMCS; i++) {
 
-		if (!AMD_PMC_HAS_OVERFLOWED(i))
-			continue;
-
-		phw = &pac->pc_amdpmcs[i];
-
-		KASSERT(phw != NULL, ("[amd,%d] null PHW pointer", __LINE__));
-
-		if ((pm = phw->phw_pmc) == NULL ||
-		    pm->pm_state != PMC_STATE_RUNNING ||
+		if ((pm = pac->pc_amdpmcs[i].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
 			continue;
 		}
 
+		if (!AMD_PMC_HAS_OVERFLOWED(i))
+			continue;
+
 		retval = 1;	/* Found an interrupting PMC. */
+
+		if (pm->pm_state != PMC_STATE_RUNNING)
+			continue;
 
 		/* Stop the PMC, reload count. */
 		evsel   = AMD_PMC_EVSEL_0 + i;
