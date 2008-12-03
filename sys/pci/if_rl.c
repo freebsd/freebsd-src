@@ -1302,18 +1302,13 @@ rl_rxeof(struct rl_softc *sc)
 		if (total_len > wrap) {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL) {
-				ifp->if_ierrors++;
-			} else {
+			if (m != NULL)
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
 			m = m_devget(rxbufpos, total_len, RL_ETHER_ALIGN, ifp,
 			    NULL);
-			if (m == NULL)
-				ifp->if_ierrors++;
 			cur_rx += total_len + 4 + ETHER_CRC_LEN;
 		}
 
@@ -1321,8 +1316,10 @@ rl_rxeof(struct rl_softc *sc)
 		cur_rx = (cur_rx + 3) & ~3;
 		CSR_WRITE_2(sc, RL_CURRXADDR, cur_rx - 16);
 
-		if (m == NULL)
+		if (m == NULL) {
+			ifp->if_iqdrops++;
 			continue;
+		}
 
 		ifp->if_ipackets++;
 		RL_UNLOCK(sc);
