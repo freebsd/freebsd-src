@@ -2774,7 +2774,7 @@ syscall32_module_handler(struct module *mod, int what, void *arg)
 			if (error)
 				return (error);
 		}
-		error = syscall_deregister(data->offset, &data->old_sysent);
+		error = syscall32_deregister(data->offset, &data->old_sysent);
 		return (error);
 	default:
 		error = EOPNOTSUPP;
