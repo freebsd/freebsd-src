@@ -459,7 +459,7 @@ mkfs(struct partition *pp, char *fsys)
 	 * Wipe out old UFS1 superblock(s) if necessary.
 	 */
 	if (!Nflag && Oflag != 1) {
-		i = bread(&disk, SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
+		i = bread(&disk, part_ofs + SBLOCK_UFS1 / disk.d_bsize, chdummy, SBLOCKSIZE);
 		if (i == -1)
 			err(1, "can't read old UFS1 superblock: %s", disk.d_error);
 
@@ -872,7 +872,7 @@ alloc(int size, int mode)
 {
 	int i, d, blkno, frag;
 
-	bread(&disk, fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
+	bread(&disk, part_ofs + fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
 	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {
 		printf("cg 0: bad magic number\n");
@@ -925,7 +925,7 @@ iput(union dinode *ip, ino_t ino)
 	int c;
 
 	c = ino_to_cg(&sblock, ino);
-	bread(&disk, fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
+	bread(&disk, part_ofs + fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
 	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {
 		printf("cg 0: bad magic number\n");
@@ -942,7 +942,7 @@ iput(union dinode *ip, ino_t ino)
 		exit(32);
 	}
 	d = fsbtodb(&sblock, ino_to_fsba(&sblock, ino));
-	bread(&disk, d, (char *)iobuf, sblock.fs_bsize);
+	bread(&disk, part_ofs + d, (char *)iobuf, sblock.fs_bsize);
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		((struct ufs1_dinode *)iobuf)[ino_to_fsbo(&sblock, ino)] =
 		    ip->dp1;
