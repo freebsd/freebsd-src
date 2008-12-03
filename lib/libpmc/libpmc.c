@@ -603,7 +603,8 @@ iap_allocate_pmc(enum pmc_event pe, char *ctrspec,
 			if (n != 1)
 				return (-1);
 		} else if (cpu_info.pm_cputype == PMC_CPU_INTEL_ATOM ||
-		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2) {
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2 ||
+		    cpu_info.pm_cputype == PMC_CPU_INTEL_CORE2EXTREME) {
 			if (KWMATCH(p, IAP_KW_SNOOPRESPONSE)) {
 				n = pmc_parse_mask(iap_snoopresponse_mask, p,
 				    &evmask);
@@ -2273,6 +2274,7 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			count = PMC_EVENT_TABLE_SIZE(core);
 			break;
 		case PMC_CPU_INTEL_CORE2:
+		case PMC_CPU_INTEL_CORE2EXTREME:
 			ev = core2_event_table;
 			count = PMC_EVENT_TABLE_SIZE(core2);
 			break;
@@ -2455,6 +2457,7 @@ pmc_init(void)
 		pmc_class_table[n] = &core_class_table_descr;
 		break;
 	case PMC_CPU_INTEL_CORE2:
+	case PMC_CPU_INTEL_CORE2EXTREME:
 		PMC_MDEP_INIT(core2);
 		pmc_class_table[n++] = &iaf_class_table_descr;
 		pmc_class_table[n]   = &core2_class_table_descr;
@@ -2553,6 +2556,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 			evfence = core_event_table + PMC_EVENT_TABLE_SIZE(core);
 			break;
 		case PMC_CPU_INTEL_CORE2:
+		case PMC_CPU_INTEL_CORE2EXTREME:
 			ev = core2_event_table;
 			evfence = core2_event_table + PMC_EVENT_TABLE_SIZE(core2);
 			break;
