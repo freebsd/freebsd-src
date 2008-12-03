@@ -589,8 +589,8 @@ gnttab_expand(unsigned int req_entries)
 	return rc;
 }
 
-static int 
-gnttab_init(void *unused)
+int 
+gnttab_init()
 {
 	int i;
 	unsigned int max_nr_glist_frames;
@@ -646,4 +646,4 @@ ini_nomem:
 }
 
 MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
-SYSINIT(gnttab, SI_SUB_PSEUDO, SI_ORDER_FIRST, gnttab_init, NULL);
+//SYSINIT(gnttab, SI_SUB_PSEUDO, SI_ORDER_FIRST, gnttab_init, NULL);

@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
-#include <machine/xen/xenbus.h>
 #include <machine/stdarg.h>
 
+#include <xen/xenbus/xenbusvar.h>
 #include <xen/xenbus/xenbus_comms.h>
 #include <xen/interface/hvm/params.h>
 
@@ -773,8 +773,6 @@ static void xenwatch_thread(void *unused)
 {
 		struct xs_stored_msg *msg;
 
-		xenwatch_running = 1;
-
 		DELAY(100000);
 		while (xenwatch_inline) {
 				printf("xenwatch inline still running\n");
@@ -949,6 +947,7 @@ int xs_init(void)
 		if (err)
 				return err;
 
+		xenwatch_running = 1;
 		err = kthread_create(xenwatch_thread, NULL, &p,
 							 RFHIGHPID, 0, "xenwatch");
 		if (err)
