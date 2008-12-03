@@ -39,8 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenbus.h>
+#include <xen/xenbus/xenbusvar.h>
 
 static void 
 shutdown_handler(struct xenbus_watch *watch,

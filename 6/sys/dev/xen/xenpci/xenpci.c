@@ -90,6 +90,10 @@ static device_method_t xenpci_pci_methods[] = {
 	DEVMETHOD(device_attach,	xenpci_pci_attach),
 	DEVMETHOD(device_detach,	xenpci_pci_detach),
 	DEVMETHOD(device_resume,	xenpci_pci_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_add_child,	bus_generic_add_child),
+
 	{ 0, 0 }
 };
 
@@ -106,7 +110,7 @@ static struct _pcsid
 	u_int32_t	type;
 	const char	*desc;
 } pci_ids[] = {
-	{ 0x00015853,	"XenSource, Inc. Xen Platform Device"	},
+	{ 0x00015853,	"Xen Platform Device"			},
 	{ 0x00000000,	NULL					}
 };
 
@@ -120,7 +124,7 @@ xenpci_pci_probe (device_t device)
 		++ep;
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
-		return (0);
+		return (bus_generic_probe(device));
 	} else
 		return (ENXIO);
 }
@@ -271,8 +275,6 @@ xenpci_attach(device_t device, struct xenpci_softc * scp)
 	 */
 	xenpci_irq_init(device, scp);
 	xenpci_set_callback(device);
-
-	device_add_child(device, "xenbus", 0);
 
 	return (bus_generic_attach(device));
 

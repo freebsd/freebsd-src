@@ -36,8 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/reboot.h>
 #include <sys/sysproto.h>
@@ -61,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenpmap.h>
-#include <machine/xen/xenbus.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/memory.h>
 #include <machine/xen/features.h>

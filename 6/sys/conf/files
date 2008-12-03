@@ -2055,8 +2055,9 @@ xen/reboot.c			optional xen
 xen/xenbus/xenbus_client.c     optional xen
 xen/xenbus/xenbus_comms.c      optional xen
 xen/xenbus/xenbus_dev.c                optional xen
+xen/xenbus/xenbus_if.m		optional xen
 xen/xenbus/xenbus_probe.c      optional xen
-xen/xenbus/xenbus_probe_backend.c      optional xen
+#xen/xenbus/xenbus_probe_backend.c      optional xen
 xen/xenbus/xenbus_xs.c         optional xen
 dev/xen/console/console.c      optional xen
 dev/xen/console/xencons_ring.c optional xen
@@ -2073,12 +2074,8 @@ xen/reboot.c			optional xenhvm
 xen/xenbus/xenbus_client.c      optional xenhvm
 xen/xenbus/xenbus_comms.c       optional xenhvm
 xen/xenbus/xenbus_dev.c         optional xenhvm
-#xen/xenbus/xenbus_newbus.c	optional xenhvm
+xen/xenbus/xenbus_if.m		optional xenhvm
 xen/xenbus/xenbus_probe.c       optional xenhvm
-xen/xenbus/xenbus_probe_backend.c optional xenhvm
+#xen/xenbus/xenbus_probe_backend.c optional xenhvm
 xen/xenbus/xenbus_xs.c          optional xenhvm
-#dev/xen/console/console.c      optional xenhvm
-#dev/xen/console/xencons_ring.c optional xenhvm
-#dev/xen/blkfront/blkfront.c    optional xenhvm
-#dev/xen/netfront/netfront.c    optional xenhvm
 dev/xen/xenpci/xenpci.c         optional xenpci
