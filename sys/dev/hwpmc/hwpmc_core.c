@@ -527,8 +527,8 @@ struct iap_event_descr {
 };
 
 #define	IAP_F_CC	(1 << 0)	/* CPU: Core */
-#define	IAP_F_CC2	(1 << 1)	/* CPU: Core2 */
-#define	IAP_F_CC2E	(1 << 2)	/* CPU: Core2 Extreme */
+#define	IAP_F_CC2	(1 << 1)	/* CPU: Core2 family */
+#define	IAP_F_CC2E	(1 << 2)	/* CPU: Core2 Extreme only */
 #define	IAP_F_CA	(1 << 3)	/* CPU: Atom */
 #define	IAP_F_FM	(1 << 4)	/* Fixed mask */
 
@@ -1111,7 +1111,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		cpuflag = IAP_F_CC2;
 		break;
 	case PMC_CPU_INTEL_CORE2EXTREME:
-		cpuflag = IAP_F_CC2E;
+		cpuflag = IAP_F_CC2 | IAP_F_CC2E;
 		break;
 	}
 
