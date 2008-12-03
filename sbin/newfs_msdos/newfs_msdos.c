@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -364,7 +365,7 @@ main(int argc, char *argv[])
 	    errx(1, "failed to create %s", fname);
 	pos = lseek(fd, opt_create - 1, SEEK_SET);
 	if (write(fd, "\0", 1) != 1)
-	    errx(1, "failed to initialize %lld bytes", opt_create);
+	    errx(1, "failed to initialize %jd bytes", (intmax_t)opt_create);
 	pos = lseek(fd, 0, SEEK_SET);
     } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
 	fstat(fd, &sb))
@@ -374,7 +375,7 @@ main(int argc, char *argv[])
     if (!S_ISCHR(sb.st_mode))
 	warnx("warning, %s is not a character device", fname);
     if (opt_ofs && opt_ofs != lseek(fd, opt_ofs, SEEK_SET))
-	errx(1, "cannot seek to %lld", opt_ofs);
+	errx(1, "cannot seek to %jd", (intmax_t)opt_ofs);
     memset(&bpb, 0, sizeof(bpb));
     if (opt_f) {
 	getstdfmt(opt_f, &bpb);
