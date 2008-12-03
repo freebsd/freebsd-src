@@ -246,7 +246,7 @@ struct sysmaps {
 static struct sysmaps sysmaps_pcpu[MAXCPU];
 pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP3;
-caddr_t CADDR1 = 0, ptvmmap = 0;
+caddr_t ptvmmap = 0;
 static caddr_t CADDR3;
 struct msgbuf *msgbufp = 0;
 
@@ -459,9 +459,11 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 		mtx_init(&sysmaps->lock, "SYSMAPS", NULL, MTX_DEF);
 		SYSMAP(caddr_t, sysmaps->CMAP1, sysmaps->CADDR1, 1)
 		SYSMAP(caddr_t, sysmaps->CMAP2, sysmaps->CADDR2, 1)
+		PT_SET_MA(sysmaps->CADDR1, 0);
+		PT_SET_MA(sysmaps->CADDR2, 0);
 	}
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP3, CADDR3, 1)
+
 	PT_SET_MA(CADDR3, 0);
 
 	/*
@@ -488,7 +490,6 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	mtx_init(&PMAP2mutex, "PMAP2", NULL, MTX_DEF);
 
 	virtual_avail = va;
-	PT_SET_MA(CADDR1, 0);
 
 	/*
 	 * Leave in place an identity mapping (virt == phys) for the low 1 MB
