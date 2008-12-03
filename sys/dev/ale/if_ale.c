@@ -2786,10 +2786,8 @@ ale_init_locked(struct ale_softc *sc)
 		    TX_JUMBO_THRESH_UNIT_SHIFT);
 	}
 	/* Configure TxQ. */
-	reg = 0;
-	if ((sc->ale_flags & ALE_FLAG_JUMBO) != 0)
-		reg = (128 << (sc->ale_dma_rd_burst >> DMA_CFG_RD_BURST_SHIFT))
-		    << TXQ_CFG_TX_FIFO_BURST_SHIFT;
+	reg = (128 << (sc->ale_dma_rd_burst >> DMA_CFG_RD_BURST_SHIFT))
+	    << TXQ_CFG_TX_FIFO_BURST_SHIFT;
 	reg |= (TXQ_CFG_TPD_BURST_DEFAULT << TXQ_CFG_TPD_BURST_SHIFT) &
 	    TXQ_CFG_TPD_BURST_MASK;
 	CSR_WRITE_4(sc, ALE_TXQ_CFG, reg | TXQ_CFG_ENHANCED_MODE | TXQ_CFG_ENB);
