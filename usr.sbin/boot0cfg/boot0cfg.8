@@ -35,7 +35,9 @@
 .Op Fl Bv
 .Op Fl b Ar boot0
 .Op Fl d Ar drive
+.Op Fl e Ar bell character
 .Op Fl f Ar file
+.Op Fl i Ar volume-id
 .Op Fl m Ar mask
 .Op Fl o Ar options
 .Op Fl s Ar slice
@@ -96,10 +98,17 @@ which contains the specified
 Typically this will be 0x80 for the first hard drive, 0x81 for the
 second hard drive, and so on; however any integer between 0 and 0xff
 is acceptable here.
+.It Fl e Ar bell character
+Set the character to be printed in case of input error.
 .It Fl f Ar file
 Specify that a backup copy of the preexisting MBR should be written to
 .Ar file .
 This file is created if it does not exist, and replaced if it does.
+.It Fl i Ar volume-id
+Specifies a volume-id (in the form XXXX-XXXX) to be saved at location
+0x1b8 in the MBR. This information is sometimes used by NT, XP and Vista
+to identify the disk drive. The option is only compatible with version 2.00
+of the 512-byte boot block.
 .It Fl m Ar mask
 Specify slices to be enabled/disabled, where
 .Ar mask
