@@ -1669,13 +1669,12 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	caddr_t bpos;
 	int error = 0, rdev, len, tsize, dirfor_ret = 1, diraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3), how, exclusive_flag = 0;
-	caddr_t cp;
 	struct mbuf *mb, *mreq;
 	struct vnode *dirp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	u_quad_t tempsize;
-	u_char cverf[NFSX_V3CREATEVERF];
+	struct timespec cverf;
 	struct mount *mp = NULL;
 	int tvfslocked;
 	int vfslocked;
@@ -1754,8 +1753,11 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			nfsm_srvsattr(vap);
 			break;
 		case NFSV3CREATE_EXCLUSIVE:
-			cp = nfsm_dissect_nonblock(caddr_t, NFSX_V3CREATEVERF);
-			bcopy(cp, cverf, NFSX_V3CREATEVERF);
+			tl = nfsm_dissect_nonblock(u_int32_t *,
+			    NFSX_V3CREATEVERF);
+			/* Unique bytes, endianness is not important. */
+			cverf.tv_sec  = tl[0];
+			cverf.tv_nsec = tl[1];
 			exclusive_flag = 1;
 			break;
 		};
@@ -1801,8 +1803,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 				if (exclusive_flag) {
 					exclusive_flag = 0;
 					VATTR_NULL(vap);
-					bcopy(cverf, (caddr_t)&vap->va_atime,
-						NFSX_V3CREATEVERF);
+					vap->va_atime = cverf;
 					error = VOP_SETATTR(nd.ni_vp, vap,
 					    cred);
 				}
@@ -1886,7 +1887,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	if (v3) {
 		if (exclusive_flag && !error &&
-			bcmp(cverf, (caddr_t)&vap->va_atime, NFSX_V3CREATEVERF))
+		    bcmp(&cverf, &vap->va_atime, sizeof (cverf)))
 			error = EEXIST;
 		if (dirp == nd.ni_dvp)
 			diraft_ret = VOP_GETATTR(dirp, &diraft, cred);
