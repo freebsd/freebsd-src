@@ -34,7 +34,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl N
+.Op Fl @ Ar offset
 .Op Fl B Ar boot
+.Op Fl C Ar create-size
 .Op Fl F Ar FAT-type
 .Op Fl I Ar volid
 .Op Fl L Ar label
@@ -59,7 +61,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility creates a FAT12, FAT16, or FAT32 file system on device
+utility creates a FAT12, FAT16, or FAT32 file system on device or file named
 .Ar special ,
 using
 .Xr disktab 5
@@ -67,16 +69,39 @@ entry
 .Ar disktype
 to determine geometry, if required.
 .Pp
+If
+.Ar special
+does not contain a
+.Ar / ,
+it is assumed to be a device name and
+.Ar /dev
+is prepended to the name to construct the actual device name.
+To work a file in the current directory use
+.Ar ./filename
+.Pp
 The options are as follow:
 .Bl -tag -width indent
 .It Fl N
 Do not create a file system: just print out parameters.
+.It Fl @ Ar offset
+Build the filesystem at the specified offset in bytes in the device or file.
+A suffix s, k, m, g (lower or upper case)
+appended to the offset specifies that the
+number is in sectors, kilobytes, megabytes or gigabytes, respectively.
 .It Fl B Ar boot
 Get bootstrap from file.
+.It Fl C Ar create-size
+Create the image file with the specified size. A suffix character appended
+to the size is interpreted as for the
+.Fl @
+option. The file is created by truncating any existing file with the
+same name, seeking just before the required size and writing
+a single 0 byte. As a consequence, the space occupied on disk
+may be smaller than the size specified as a parameter.
 .It Fl F Ar FAT-type
 FAT type (one of 12, 16, or 32).
 .It Fl I Ar volid
-Volume ID.
+Volume ID, a 32 bit number in decimal or hexadecimal (0x...) format.
 .It Fl L Ar label
 Volume label (up to 11 characters).
 The label should consist of
@@ -99,6 +124,9 @@ acceptable number of sectors per cluster (see below).
 Sectors per cluster.
 Acceptable values are powers of 2 in the range
 1 through 128.
+If the block or cluster size are not specified, the code
+uses a cluster between 512 bytes and 32K depending on
+the filesystem size.
 .It Fl e Ar dirents
 Number of root directory entries (FAT12 and FAT16 only).
 .It Fl f Ar format
@@ -132,6 +160,15 @@ File system size.
 Number of sectors per track.
 .El
 .Sh NOTES
+If some parameters (e.g. size, number of sectors, etc.) are not specified
+through options or disktype, the program tries to generate them
+automatically. In particular, the size is determined as the
+device or file size minus the offset specified with the
+.Fl @
+option. When the geometry is not available, it is assumed to be
+63 sectors, 255 heads. The size is then rounded to become
+a multiple of the track size and avoid complaints by some filesystem code.
+.Pp
 FAT file system parameters occupy a "Boot Sector BPB (BIOS Parameter
 Block)" in the first of the "reserved" sectors which precede the actual
 file system.
@@ -167,20 +204,25 @@ The maximum file size is 4GB, even if the file system itself is bigger.
 .Sh EXIT STATUS
 Exit status is 0 on success and 1 on error.
 .Sh EXAMPLES
+Create a file system, using default parameters, on
+.Pa /dev/ad0s1 :
 .Bd -literal -offset indent
 newfs_msdos /dev/ad0s1
-.Ed
-.Pp
-Create a file system, using default parameters, on
-.Pa /dev/ad0s1 .
-.Bd -literal -offset indent
-newfs_msdos -f 1440 -L foo fd0
 .Ed
 .Pp
 Create a standard 1.44M file system, with volume label
 .Ar foo ,
 on
-.Pa /dev/fd0 .
+.Pa /dev/fd0 :
+.Bd -literal -offset indent
+newfs_msdos -f 1440 -L foo fd0
+.Ed
+.Pp
+Create a 30MB image file, with the FAT partition starting
+63 sectors within the image file:
+.Bd -literal -offset indent
+newfs_msdos -C 30M -@63s ./somefile
+.Ed
 .Sh SEE ALSO
 .Xr disktab 5 ,
 .Xr disklabel 8 ,

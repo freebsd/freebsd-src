@@ -219,6 +219,7 @@ static void getdiskinfo(int, const char *, const char *, int,
 static void print_bpb(struct bpb *);
 static u_int ckgeom(const char *, u_int, const char *);
 static u_int argtou(const char *, u_int, u_int, const char *);
+static off_t argtooff(const char *, const char *);
 static int oklabel(const char *);
 static void mklabel(u_int8_t *, const char *);
 static void setstr(u_int8_t *, const char *, size_t);
@@ -230,7 +231,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-    static char opts[] = "NB:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
+    static char opts[] = "@:NB:C:F:I:L:O:S:a:b:c:e:f:h:i:k:m:n:o:r:s:u:";
     static const char *opt_B, *opt_L, *opt_O, *opt_f;
     static u_int opt_F, opt_I, opt_S, opt_a, opt_b, opt_c, opt_e;
     static u_int opt_h, opt_i, opt_k, opt_m, opt_n, opt_o, opt_r;
@@ -253,14 +254,21 @@ main(int argc, char *argv[])
     time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
     int ch, fd, fd1;
+    static off_t opt_create=0, opt_ofs=0;
 
     while ((ch = getopt(argc, argv, opts)) != -1)
 	switch (ch) {
+	case '@':
+	    opt_ofs = argtooff(optarg, "offset");
+	    break;
 	case 'N':
 	    opt_N = 1;
 	    break;
 	case 'B':
 	    opt_B = optarg;
+	    break;
+	case 'C':
+	    opt_create = argtooff(optarg, "create size");
 	    break;
 	case 'F':
 	    if (strcmp(optarg, "12") &&
@@ -346,13 +354,27 @@ main(int argc, char *argv[])
 	    err(1, NULL);
     }
     dtype = *argv;
-    if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
+    if (opt_create) {
+	off_t pos;
+
+	if (opt_N)
+	    errx(1, "create (-C) is incompatible with -N");
+	fd = open(fname, O_RDWR | O_CREAT | O_TRUNC, 0644);
+	if (fd == -1)
+	    errx(1, "failed to create %s", fname);
+	pos = lseek(fd, opt_create - 1, SEEK_SET);
+	if (write(fd, "\0", 1) != 1)
+	    errx(1, "failed to initialize %lld bytes", opt_create);
+	pos = lseek(fd, 0, SEEK_SET);
+    } else if ((fd = open(fname, opt_N ? O_RDONLY : O_RDWR)) == -1 ||
 	fstat(fd, &sb))
 	err(1, "%s", fname);
     if (!opt_N)
 	check_mounted(fname, sb.st_mode);
     if (!S_ISCHR(sb.st_mode))
-	warnx("warning: %s is not a character device", fname);
+	warnx("warning, %s is not a character device", fname);
+    if (opt_ofs && opt_ofs != lseek(fd, opt_ofs, SEEK_SET))
+	errx(1, "cannot seek to %lld", opt_ofs);
     memset(&bpb, 0, sizeof(bpb));
     if (opt_f) {
 	getstdfmt(opt_f, &bpb);
@@ -371,8 +393,29 @@ main(int argc, char *argv[])
 	bpb.bsec = opt_s;
     if (oflag)
 	bpb.hid = opt_o;
-    if (!(opt_f || (opt_h && opt_u && opt_S && opt_s && oflag)))
+    if (!(opt_f || (opt_h && opt_u && opt_S && opt_s && oflag))) {
+	off_t delta;
 	getdiskinfo(fd, fname, dtype, oflag, &bpb);
+	bpb.bsec -= (opt_ofs / bpb.bps);
+	delta = bpb.bsec % bpb.spt;
+	if (delta != 0) {
+	    warnx("trim %d sectors to adjust to a multiple of %d",
+		(int)delta, bpb.spt);
+	    bpb.bsec -= delta;
+	}
+	if (bpb.spc == 0) {	/* set defaults */
+	    if (bpb.bsec <= 6000)	/* about 3MB -> 512 bytes */
+		bpb.spc = 1;
+	    else if (bpb.bsec <= (1<<17)) /* 64M -> 4k */
+		bpb.spc = 8;
+	    else if (bpb.bsec <= (1<<19)) /* 256M -> 8k */
+		bpb.spc = 16;
+	    else if (bpb.bsec <= (1<<21)) /* 1G -> 16k */
+		bpb.spc = 32;
+	    else
+		bpb.spc = 64;		/* otherwise 32k */
+	}
+    }
     if (!powerof2(bpb.bps))
 	errx(1, "bytes/sector (%u) is not a power of 2", bpb.bps);
     if (bpb.bps < MINBPS)
@@ -561,7 +604,7 @@ main(int argc, char *argv[])
 		fat == 32 && bpb.bkbs != MAXU16 &&
 		bss <= bpb.bkbs && x >= bpb.bkbs) {
 		x -= bpb.bkbs;
-		if (!x && lseek(fd1, 0, SEEK_SET))
+		if (!x && lseek(fd1, opt_ofs, SEEK_SET))
 		    err(1, "%s", bname);
 	    }
 	    if (opt_B && x < bss) {
@@ -728,14 +771,13 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	if (ioctl(fd, DIOCGMEDIASIZE, &ms) == -1) {
 	    struct stat st;
 
-	    bzero(&st, sizeof(st));
 	    if (fstat(fd, &st))
 		err(1, "Cannot get disk size");
 	    /* create a fake geometry for a file image */
 	    ms = st.st_size;
 	    dlp.d_secsize = 512;
-	    dlp.d_nsectors = 64;
-	    dlp.d_ntracks = 32;
+	    dlp.d_nsectors = 63;
+	    dlp.d_ntracks = 255;
 	    dlp.d_secperunit = ms / dlp.d_secsize;
 	    lp = &dlp;
 	} else if (ioctl(fd, FD_GTYPE, &type) != -1) {
@@ -829,6 +871,56 @@ argtou(const char *arg, u_int lo, u_int hi, const char *msg)
     x = strtoul(arg, &s, 0);
     if (errno || !*arg || *s || x < lo || x > hi)
 	errx(1, "%s: bad %s", arg, msg);
+    return x;
+}
+
+/*
+ * Same for off_t, with optional skmgpP suffix
+ */
+static off_t
+argtooff(const char *arg, const char *msg)
+{
+    char *s;
+    off_t x;
+
+    x = strtoll(arg, &s, 0);
+    /* allow at most one extra char */
+    if (errno || x < 0 || (s[0] && s[1]) )
+	errx(1, "%s: bad %s", arg, msg);
+    if (*s) {	/* the extra char is the multiplier */
+	switch (*s) {
+	default:
+	    errx(1, "%s: bad %s", arg, msg);
+	    /* notreached */
+	
+	case 's':	/* sector */
+	case 'S':
+	    x <<= 9;	/* times 512 */
+	    break;
+
+	case 'k':	/* kilobyte */
+	case 'K':
+	    x <<= 10;	/* times 1024 */
+	    break;
+
+	case 'm':	/* megabyte */
+	case 'M':
+	    x <<= 20;	/* times 1024*1024 */
+	    break;
+
+	case 'g':	/* gigabyte */
+	case 'G':
+	    x <<= 30;	/* times 1024*1024*1024 */
+	    break;
+
+	case 'p':	/* partition start */
+	case 'P':	/* partition start */
+	case 'l':	/* partition length */
+	case 'L':	/* partition length */
+	    errx(1, "%s: not supported yet %s", arg, msg);
+	    /* notreached */
+	}
+    }
     return x;
 }
 
