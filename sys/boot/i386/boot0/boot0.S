@@ -30,10 +30,16 @@
 #ifdef ONLY_F_KEYS	/* Only F1..F6, no digits on console */
 #endif
 
-#ifdef TEST		/* enable some test code */
-#ifndef ONLY_F_KEYS
-#define ONLY_F_KEYS	/* make room for the test code */
+#ifdef VOLUME_SERIAL	/* support Volume serial number */
+#define B0_BASE	0x1ae	/* move the internal data area */
+#define SAVE_MEMORY
+#else
+#define B0_BASE	0x1b2
 #endif
+
+#ifdef TEST		/* enable some test code */
+#define SAVE_MEMORY
+#define SAVE_MORE_MEMORY
 #endif
 
 /*
@@ -118,7 +124,7 @@
  * 	to change the value passed to the linker in the Makefile
  * PRT_OFF is the location of the partition table (from the MBR standard).
  * B0_OFF is the location of the data area, known to boot0cfg so
- *	it cannot be changed.
+ *	it cannot be changed. Computed as a negative offset from 0x200
  * MAGIC is the signature of a boot block.
  */
 
@@ -127,7 +133,7 @@
 		.set LOAD,0x7c00		# Load address
 
 		.set PRT_OFF,0x1be		# Partition table
-		.set B0_OFF,0x1b2		# Offset of boot0 data
+		.set B0_OFF,(B0_BASE-0x200)	# Offset of boot0 data
 
 		.set MAGIC,0xaa55		# Magic: bootable
 
@@ -144,15 +150,16 @@
  * We need to define them as constant as the assembler cannot
  * compute them in its single pass.
  */
-		.set _NXTDRV,	-0x48		# Next drive
-		.set _OPT,	-0x47 		# Default option
-		.set _SETDRV,	-0x46		# Drive to force
-		.set _FLAGS,	-0x45		# Flags
+		.set _NXTDRV,	B0_OFF+6	# Next drive
+		.set _OPT,	B0_OFF+7	# Default option
+		.set _SETDRV,	B0_OFF+8	# Drive to force
+		.set _FLAGS,	B0_OFF+9	# Flags
 		.set SETDRV,	0x20		# the 'setdrv' flag
 		.set NOUPDATE,	0x40		# the 'noupdate' flag
 		.set USEPACKET,	0x80		# the 'packet' flag
-		.set _TICKS,	-0x44		# Timeout ticks
-		.set _FAKE,0x0			# Fake partition table
+
+	/* ticks is at a fixed position */
+		.set _TICKS,	(PRT_OFF - 0x200 - 2)	# Timeout ticks
 		.set _MNUOPT, 0x10		# Saved menu entries
 
 		.set TLEN, (desc_ofs - bootable_ids)	# size of bootable ids
@@ -260,26 +267,16 @@ save_curdrive:	movb %dl, (%bp)			# Save drive number
 read_entry:	movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		btw %dx,_FLAGS(%bp)		# Entry enabled?
 		jnc next_entry			# No
-	/*
-	 * Lookup type in the 'non_bootable_ids' table, skip matching entries.
-	 * This is implemented is by setting %di to the start of the
-	 * exclude table, and %cl to the length of the table itself. After the
-	 * 'repne scasb' the zero flag is set if we found a match.
-	 * If not, %di points to the beginning of the 'valid' types,
-	 * which is what we need for the next check.
-	 */
 		movb (%bx),%al			# Load type
-		movw $non_bootable_ids,%di	# Lookup tables
-		movb $(bootable_ids-non_bootable_ids),%cl	# length
-		repne				# Exclude
-		scasb				#  partition?
-		je next_entry			# Yes, ignore it
+		test %al, %al			# skip empty partition
+		jz next_entry
 	/*
-	 * Now scan the table of bootable ids, which starts at %di and has
+	 * Scan the table of bootable ids, which starts at %di and has
 	 * length TLEN. On a match, %di points to the element following the
 	 * match; the corresponding offset to the description is $(TLEN-1)
 	 * bytes ahead. If we don't find a match, we hit the 'unknown' entry.
 	 */
+		movw $bootable_ids,%di		# Lookup tables
 		movb $(TLEN),%cl		# Number of entries
 		repne				# Locate
 		scasb				#  type
@@ -500,19 +497,10 @@ check_selection:
  *		the string at %si
  * putx:	print the option in %dl followed by the string at %di
  *		also record the drive as valid.
- * puts:	print the string at %si followed by a crlf
  * putn:	print a crlf
  * putstr:	print the string at %si
  * putchr:	print the char in al
  */
-putkey:
-#ifndef SIO
-		movb $'F',%al			# Display
-		callw putchr			#  'F'
-#endif
-		movb $'1',%al			# Prepare
-		addb %dl,%al			#  digit
-		jmp putstr.1			# Display the rest
 
 /*
  * Display the option and record the drive as valid in the options.
@@ -523,17 +511,24 @@ putx:		btsw %dx,_MNUOPT(%bp)		# Enable menu option
 		movw $item,%si			# Display
 		callw putkey			#  key
 		movw %di,%si			# Display the rest
-
-puts:		callw putstr			# Display string
+		callw putstr			# Display string
 
 putn:		movw $crlf,%si			# To next line
+		jmp putstr
 
+putkey:
+#ifndef SIO
+		movb $'F',%al			# Display
+		callw putchr			#  'F'
+#endif
+		movb $'1',%al			# Prepare
+		addb %dl,%al			#  digit
+
+putstr.1:	callw putchr			# Display char
 putstr:		lodsb				# Get byte
 		testb $0x80,%al 		# End of string?
-		jnz putstr.2			# Yes
-putstr.1:	callw putchr			# Display char
-		jmp putstr			# Continue
-putstr.2:	andb $~0x80,%al 		# Clear MSB
+		jz putstr.1			# No
+		andb $~0x80,%al 		# Clear MSB then print last 
 
 putchr:
 #ifndef SIO
@@ -601,38 +596,45 @@ crlf:		.ascii "\r";	     .byte '\n'|0x80
 
 /* Partition type tables */
 
-non_bootable_ids:
-	/*
-	 * These entries identify invalid or NON BOOT types and partitions.
-	 * 0: empty, 5: DOS3 ext. partition, 0xf: WIN95 ext partition
-	 */
-		.byte 0x0, 0x5, 0xf
 bootable_ids:
 	/*
-	 * These values indicate bootable types we know the names of.
-	 * 1: FAT12, 4: FAT16 <32M, 6: FAT16 > 32M, 7: NTFS
-	 * 0xb: FAT32, 0xc: FAT32-LBA, 0xe: FAT16-LBA, 
-	 * 0x83: linux, 0xa5: FreeBSD, 0xa6: netbsd, 0xa9:openbsd
+	 * These values indicate bootable types we know about.
+	 * Corresponding descriptions are at desc_ofs:
+	 * Entries don't need to be sorted.
 	 */
-		.byte 0x1, 0x6, 0x7, 0xb, 0xc, 0xe, 0x83
-		.byte 0xa5, 0xa6, 0xa9, 0x4
+		.byte 0x1, 0x6, 0x7, 0xb, 0xc
+#ifndef SAVE_MEMORY
+		.byte 0xe
+#endif
+		.byte 0x83, 0xa5, 0xa6, 0xa9, 0x4
+#ifndef SAVE_MORE_MEMORY
+		.byte 0x5, 0xf
+#endif
+
 desc_ofs:
 	/*
 	 * Offsets that match the known types above, used to point to the
 	 * actual partition name. The last entry must point to os_misc,
 	 * which is used for non-matching names.
 	 */
-		.byte os_dos-.			# 1, DOS
-		.byte os_dos-.			# 6, DOS/WIN
-		.byte os_win-.			# 7, Windows
-		.byte os_win-.			# 11, Windows
-		.byte os_win-.			# 12, Windows
-		.byte os_win-.			# 14, Windows
+		.byte os_dos-.			#   1, FAT12 DOS
+		.byte os_dos-.			#   6, FAT16 <32M, DOS/WIN
+		.byte os_win-.			#   7, FAT16 >=32M Windows
+		.byte os_win-.			#  11, FAT32
+		.byte os_win-.			#  12, FAT32-LBA
+#ifndef SAVE_MEMORY
+		.byte os_win-.			#  14, FAT16-LBA
+#endif
 		.byte os_linux-.		# 131, Linux
 		.byte os_freebsd-.		# 165, FreeBSD
 		.byte os_bsd-.			# 166, OpenBSD
 		.byte os_bsd-.			# 169, NetBSD
-		.byte os_dos-.			# 4, DOS
+		.byte os_dos-.			#   4, FAT16 < 32M
+#ifndef SAVE_MORE_MEMORY
+		.byte os_ext-.			#   5, DOS Ext
+		.byte os_ext-.			#  15, DOS Ext-LBA
+#endif
+
 		.byte os_misc-. 		# Unknown
 
 	/*
@@ -641,15 +643,18 @@ desc_ofs:
 	 */
 os_misc:	.byte '?'|0x80
 os_dos:
-#if !defined(TEST)	/* DOS string only if room */
+#ifndef SAVE_MEMORY	/* DOS string only if room */
 		.ascii "DO";   .byte 'S'|0x80
 #endif
 os_win:		.ascii "WI";   .byte 'N'|0x80
 os_linux:	.ascii "Linu"; .byte 'x'|0x80
 os_freebsd:	.ascii "Free"
 os_bsd:		.ascii "BS";   .byte 'D'|0x80
+#ifndef SAVE_MORE_MEMORY
+os_ext:		.ascii "EX";   .byte 'T'|0x80
+#endif
 
-		.org B0_OFF,0x90
+		.org (0x200 + B0_OFF),0x90
 /*
  * The boot0 version 1.0 parameter table.
  * Do not move it nor change the "Drive " string, boot0cfg
@@ -663,6 +668,9 @@ nxtdrv:		.byte 0x0			# Next drive number
 opt:		.byte 0x0			# Option
 setdrv_num:	.byte 0x80			# Drive to force
 flags:		.byte FLAGS			# Flags
+#ifdef VOLUME_SERIAL
+		.byte 0xa8,0xa8,0xa8,0xa8       # Volume Serial Number
+#endif
 ticks:		.word TICKS			# Delay
 
 		.org PRT_OFF
