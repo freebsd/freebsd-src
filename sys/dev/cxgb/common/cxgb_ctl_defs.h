@@ -85,7 +85,7 @@ struct ddp_params {
 
 struct adap_ports {
 	unsigned int nports;     /* number of ports on this adapter */
-	struct net_device *lldevs[2];
+	struct net_device *lldevs[MAX_NPORTS];
 };
 
 /*
