@@ -1724,7 +1724,6 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 {
 	struct delta *d;
 	size_t size;
-	int stop;
 	char *author, *cmd, *diffbase, *line, *logline;
 	char *revdate, *revnum, *state, *textline;
 
@@ -1780,15 +1779,15 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 			break;
 			case 'T':
 				/* Do the same as in 'C' command. */
-				stop = 0;
 				textline = stream_getln(rd, &size);
 				while (textline != NULL) {
 					if (size == 2 && *textline == '.')
-						stop = 1;
+						break;
 					if (size == 3 &&
 					    memcmp(textline, ".+", 2) == 0) {
 						/* Truncate newline. */
-						stop = 1;
+						rcsdelta_truncatetext(d, -1);
+						break;
 					}
 					if (size >= 3 &&
 					    memcmp(textline, "..", 2) == 0) {
@@ -1796,8 +1795,6 @@ updater_addelta(struct rcsfile *rf, struct stream *rd, char *cmdline)
 						textline++;
 					}
 					rcsdelta_appendtext(d, textline, size);
-					if (stop)
-						break;
 					textline = stream_getln(rd, &size);
 				}
 			break;

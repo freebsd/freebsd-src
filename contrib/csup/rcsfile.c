@@ -204,7 +204,7 @@ rcsfile_frompath(char *path, char *name, char *cvsroot, char *colltag)
 	rf->branch = NULL;
 	rf->strictlock = 0;
 	rf->comment = NULL;
-	rf->expand = -1;
+	rf->expand = EXPAND_DEFAULT;
 	rf->desc = NULL;
 
 	infp = fopen(path, "r");
@@ -263,7 +263,7 @@ rcsfile_send_details(struct rcsfile *rf, struct stream *wr)
 	if (error)
 		return(error);
 	/* Write expand. */
-	if (rf->expand >= 0) {
+	if (rf->expand != EXPAND_DEFAULT) {
 		error = proto_printf(wr, "E %s\n",
 		    keyword_encode_expand(rf->expand));
 		if (error)
@@ -561,7 +561,6 @@ rcsfile_puttext(struct rcsfile *rf, struct stream *dest, struct delta *d,
 			error = -1;
 			goto cleanup;
 		}
-		rd = stream_open_buf(diffbase->text);
 		di->di_rcsfile = rf->name;
 		di->di_cvsroot = rf->cvsroot;
 		di->di_revnum = d->revnum;
@@ -569,9 +568,9 @@ rcsfile_puttext(struct rcsfile *rf, struct stream *dest, struct delta *d,
 		di->di_author = d->author;
 		di->di_tag = rf->colltag;
 		di->di_state = d->state;
-		di->di_expand = rf->expand;
+		di->di_expand = EXPAND_OLD;
 		k = keyword_new();
-	
+
 		rd = stream_open_buf(diffbase->text);
 		error = diff_reverse(rd, orig, dest, k, di);
 		if (error) {
@@ -634,7 +633,7 @@ rcsfile_getdeltatext(struct rcsfile *rf, struct delta *d, struct buf **buf_dest)
 	di->di_author = d->author;
 	di->di_tag = rf->colltag;
 	di->di_state = d->state;
-	di->di_expand = rf->expand;
+	di->di_expand = EXPAND_OLD;
 	rd = stream_open_buf(d->text);
 	k = keyword_new();
 	error = diff_apply(rd, orig, dest, k, di, 0);
@@ -1010,7 +1009,7 @@ rcsfile_addelta(struct rcsfile *rf, char *revnum, char *revdate, char *author,
 		b = xmalloc(sizeof(struct branch));
 		b->revnum = brev;
 		LIST_INIT(&b->deltalist);
-		STAILQ_INSERT_HEAD(&d_bp->branchlist, b, branch_next);
+		STAILQ_INSERT_TAIL(&d_bp->branchlist, b, branch_next);
 	}
 
 	/* Insert both into the tree, and into the lookup list. */
@@ -1222,32 +1221,35 @@ rcsfile_insertdelta(struct branch *b, struct delta *d, int trunk)
 
 /* Add logtext to a delta. Assume the delta already exists. */
 int
-rcsdelta_addlog(struct delta *d, char *log)
+rcsdelta_addlog(struct delta *d, char *log, int len)
 {
 	struct stream *dest;
 
 	assert(d != NULL);
+	/* Strip away '@' at beginning and end. */
 	log++;
-	log[strlen(log) - 1] = '\0';
-
+	len--;
+	log[len - 1] = '\0';
 	dest = stream_open_buf(d->log);
-	stream_write(dest, log, strlen(log));
+	stream_write(dest, log, len - 1);
 	stream_close(dest);
 	return (0);
 }
 
 /* Add deltatext to a delta. Assume the delta already exists. */
 int
-rcsdelta_addtext(struct delta *d, char *text)
+rcsdelta_addtext(struct delta *d, char *text, int len)
 {
 	struct stream *dest;
 
 	assert(d != NULL);
+	/* Strip away '@' at beginning and end. */
 	text++;
-	text[strlen(text) - 1] = '\0';
+	len--;
+	text[len - 1] = '\0';
 
 	dest = stream_open_buf(d->text);
-	stream_write(dest, text, strlen(text));
+	stream_write(dest, text, len - 1);
 	stream_close(dest);
 	return (0);
 }

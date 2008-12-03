@@ -63,8 +63,8 @@ struct delta	*rcsfile_addelta(struct rcsfile *, char *, char *, char *,
 void		 rcsfile_importdelta(struct rcsfile *, char *, char *, char *,
 		    char *, char *);
 
-int		 rcsdelta_addlog(struct delta *, char *);
-int		 rcsdelta_addtext(struct delta *, char *);
+int		 rcsdelta_addlog(struct delta *, char *, int);
+int		 rcsdelta_addtext(struct delta *, char *, int);
 void		 rcsdelta_appendlog(struct delta *, char *, size_t);
 void		 rcsdelta_appendtext(struct delta *, char *, size_t);
 void		 rcsdelta_setstate(struct delta *, char *);
