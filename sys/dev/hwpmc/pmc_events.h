@@ -426,6 +426,11 @@ __PMC_EV(IAF, CPU_CLK_UNHALTED_REF)
 #define	PMC_EV_IAF_FIRST	PMC_EV_IAF_INSTR_RETIRED_ANY
 #define	PMC_EV_IAF_LAST		PMC_EV_IAF_CPU_CLK_UNHALTED_REF
 
+#define	__PMC_EV_ALIAS_IAF()						\
+__PMC_EV_ALIAS("instruction-retired",	IAF_INSTR_RETIRED_ANY)		\
+__PMC_EV_ALIAS("unhalted-core-cycles",	IAF_CPU_CLK_UNHALTED_CORE)	\
+__PMC_EV_ALIAS("unhalted-reference-cycles", IAF_CPU_CLK_UNHALTED_REF)
+
 /*
  * Events supported by programmable function counters present in
  * Intel Atom, Core and Core2 CPUs, from the "Intel 64 and IA-32
