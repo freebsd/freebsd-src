@@ -437,6 +437,7 @@ in6_pcbfree(struct inpcb *inp)
 	if (inp->inp_moptions != NULL)
 		inp_freemoptions(inp->inp_moptions);
 	inp->inp_vflag = 0;
+	crfree(inp->inp_cred);
 #ifdef MAC
 	mac_destroy_inpcb(inp);
 #endif

@@ -465,7 +465,8 @@ vr_set_filter(struct vr_softc *sc)
 
 	ifp = sc->vr_ifp;
 	rxfilt = CSR_READ_1(sc, VR_RXCFG);
-	rxfilt = ~(VR_RXCFG_RX_PROMISC | VR_RXCFG_RX_BROAD | VR_RXCFG_RX_MULTI);
+	rxfilt &= ~(VR_RXCFG_RX_PROMISC | VR_RXCFG_RX_BROAD |
+	    VR_RXCFG_RX_MULTI);
 	if (ifp->if_flags & IFF_BROADCAST)
 		rxfilt |= VR_RXCFG_RX_BROAD;
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {

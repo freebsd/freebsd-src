@@ -148,7 +148,8 @@ static void e1000_shift_out_eec_bits(struct e1000_hw *hw, u16 data, u16 count)
 	mask = 0x01 << (count - 1);
 	if (nvm->type == e1000_nvm_eeprom_microwire)
 		eecd &= ~E1000_EECD_DO;
-	else if (nvm->type == e1000_nvm_eeprom_spi)
+	else
+	if (nvm->type == e1000_nvm_eeprom_spi)
 		eecd |= E1000_EECD_DO;
 
 	do {
@@ -310,7 +311,8 @@ static void e1000_standby_nvm(struct e1000_hw *hw)
 		usec_delay(nvm->delay_usec);
 
 		e1000_lower_eec_clk(hw, &eecd);
-	} else if (nvm->type == e1000_nvm_eeprom_spi) {
+	} else
+	if (nvm->type == e1000_nvm_eeprom_spi) {
 		/* Toggle CS to flush commands */
 		eecd |= E1000_EECD_CS;
 		E1000_WRITE_REG(hw, E1000_EECD, eecd);
@@ -391,7 +393,8 @@ static s32 e1000_ready_nvm_eeprom(struct e1000_hw *hw)
 		/* Set CS */
 		eecd |= E1000_EECD_CS;
 		E1000_WRITE_REG(hw, E1000_EECD, eecd);
-	} else if (nvm->type == e1000_nvm_eeprom_spi) {
+	} else
+	if (nvm->type == e1000_nvm_eeprom_spi) {
 		/* Clear SK and CS */
 		eecd &= ~(E1000_EECD_CS | E1000_EECD_SK);
 		E1000_WRITE_REG(hw, E1000_EECD, eecd);
@@ -671,7 +674,7 @@ s32 e1000_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		}
 	}
 
-	msec_delay(nvm->semaphore_delay);
+	msec_delay(10);
 release:
 	nvm->ops.release(hw);
 
@@ -899,9 +902,8 @@ s32 e1000_update_nvm_checksum_generic(struct e1000_hw *hw)
 	}
 	checksum = (u16) NVM_SUM - checksum;
 	ret_val = hw->nvm.ops.write(hw, NVM_CHECKSUM_REG, 1, &checksum);
-	if (ret_val) {
+	if (ret_val)
 		DEBUGOUT("NVM Write Error while updating checksum.\n");
-	}
 
 out:
 	return ret_val;

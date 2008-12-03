@@ -392,7 +392,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 185110
+	Original Revision: 185258
 -->
 
 <!--
@@ -578,6 +578,8 @@
   </sect2>
   <sect2 id="ethernet">
     <title>ртл╚мЬ╫с©з</title>
+
+    &hwlist.ale;
 
     &hwlist.aue;
 
