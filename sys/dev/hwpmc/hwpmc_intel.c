@@ -168,6 +168,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_ATOM:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
+	case PMC_CPU_INTEL_CORE2EXTREME:
 		error = pmc_core_initialize(pmc_mdep, ncpus);
 		break;
 
@@ -238,6 +239,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_ATOM:
 	case PMC_CPU_INTEL_CORE:
 	case PMC_CPU_INTEL_CORE2:
+	case PMC_CPU_INTEL_CORE2EXTREME:
 		pmc_core_finalize(md);
 		break;
 
