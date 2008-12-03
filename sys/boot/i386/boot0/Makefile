@@ -9,12 +9,14 @@ SRCS=	${PROG}.S
 # Additional options that you can specify with make OPTS="..."
 # (these only apply to boot0.S)
 #
+#	-DVOLUME_SERIAL	support volume serial number (NT, XP, Vista)
 #	-DSIO		do I/O using COM1:
 #	-DPXE		fallback to INT18/PXE with F6
 #	-DCHECK_DRIVE	enable checking drive number
 #	-DONLY_F_KEYS	accept only Fx keys in console
 #	-DTEST		print drive number on entry
 #
+OPTS ?= -DVOLUME_SERIAL -DPXE
 CFLAGS += ${OPTS}
 
 # Flags used in the boot0.S code:
