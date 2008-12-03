@@ -140,10 +140,10 @@ diff_apply(struct stream *rd, struct stream *orig, struct stream *dest,
 		}
 		line = stream_getln(rd, NULL);
 	}
-	if (line == NULL)
+	if (comode && line == NULL)
 		return (-1);
 	/* If we got ".+", there's no ending newline. */
-	if (strcmp(line, ".+") == 0 && !empty)
+	if (comode && strcmp(line, ".+") == 0 && !empty)
 		noeol = 1;
 	ec.where = 0;
 	while ((line = stream_getln(orig, &size)) != NULL)
