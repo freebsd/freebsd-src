@@ -294,6 +294,12 @@ xencons_rx(char *buf, unsigned len)
 	int           i;
 	struct tty *tp = xccons;
 	
+#if 1
+	if (len > 0 && buf[0] == '`')
+			printf("%08lx %08lx\r",
+				HYPERVISOR_shared_info->evtchn_pending[0],
+				HYPERVISOR_shared_info->evtchn_mask[0]);
+#endif
 	for (i = 0; i < len; i++) {
 		if (xen_console_up) 
 			(*linesw[tp->t_line]->l_rint)(buf[i], tp);
