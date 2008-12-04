@@ -387,6 +387,49 @@ extern "C" {
 #define	_DONT_USE_1275_GENERIC_NAMES
 #define	_HAVE_CPUID_INSN
 
+#elif defined(__mips__)
+
+/*
+ * Define the appropriate "processor characteristics"
+ */
+#define	_STACK_GROWS_DOWNWARD
+#define	_LONG_LONG_LTOH
+#define	_BIT_FIELDS_LTOH
+#define	_IEEE_754
+#define	_CHAR_IS_SIGNED
+#define	_BOOL_ALIGNMENT			1
+#define	_CHAR_ALIGNMENT			1
+#define	_SHORT_ALIGNMENT		2
+#define	_INT_ALIGNMENT			4
+#define	_FLOAT_ALIGNMENT		4
+#define	_FLOAT_COMPLEX_ALIGNMENT	4
+#define	_LONG_ALIGNMENT			4
+#define	_LONG_LONG_ALIGNMENT		4
+#define	_DOUBLE_ALIGNMENT		4
+#define	_DOUBLE_COMPLEX_ALIGNMENT	4
+#define	_LONG_DOUBLE_ALIGNMENT		4
+#define	_LONG_DOUBLE_COMPLEX_ALIGNMENT	4
+#define	_POINTER_ALIGNMENT		4
+#define	_MAX_ALIGNMENT			4
+#define	_ALIGNMENT_REQUIRED		0
+
+#define	_LONG_LONG_ALIGNMENT_32		_LONG_LONG_ALIGNMENT
+
+/*
+ * Define the appropriate "implementation choices".
+ */
+#define	_ILP32
+#if !defined(_I32LPx) && defined(_KERNEL)
+#define	_I32LPx
+#endif
+#define	_SUNOS_VTOC_16
+#define	_DMA_USES_PHYSADDR
+#define	_FIRMWARE_NEEDS_FDISK
+#define	_PSM_MODULES
+#define	_RTC_CONFIG
+#define	_DONT_USE_1275_GENERIC_NAMES
+#define	_HAVE_CPUID_INSN
+
 #elif defined(__powerpc__)
 
 /*
