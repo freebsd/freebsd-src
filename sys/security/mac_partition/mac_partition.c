@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -77,7 +77,7 @@ static int	partition_slot;
 #define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
 static int
-label_on_label(struct label *subject, struct label *object)
+partition_check(struct label *subject, struct label *object)
 {
 
 	if (partition_enabled == 0)
@@ -114,7 +114,13 @@ partition_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 
 	error = 0;
 
-	/* Treat "0" as a no-op request. */
+	/*
+	 * Treat "0" as a no-op request because it reflects an unset
+	 * partition label.  If we ever want to support switching back to an
+	 * unpartitioned state for a process, we'll need to differentiate the
+	 * "not in a partition" and "no partition defined during internalize"
+	 * conditions.
+	 */
 	if (SLOT(newlabel) != 0) {
 		/*
 		 * Require BSD privilege in order to change the partition.
@@ -133,7 +139,7 @@ partition_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 {
 	int error;
 
-	error = label_on_label(cr1->cr_label, cr2->cr_label);
+	error = partition_check(cr1->cr_label, cr2->cr_label);
 
 	return (error == 0 ? 0 : ESRCH);
 }
@@ -146,6 +152,20 @@ partition_cred_copy_label(struct label *src, struct label *dest)
 		SLOT_SET(dest, SLOT(src));
 	else if (dest != NULL)
 		SLOT_SET(dest, 0);
+}
+
+static void
+partition_cred_create_init(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
+}
+
+static void
+partition_cred_create_swapper(struct ucred *cred)
+{
+
+	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
@@ -209,7 +229,7 @@ partition_inpcb_check_visible(struct ucred *cred, struct inpcb *inp,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, inp->inp_cred->cr_label);
+	error = partition_check(cred->cr_label, inp->inp_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
@@ -219,7 +239,7 @@ partition_proc_check_debug(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -229,7 +249,7 @@ partition_proc_check_sched(struct ucred *cred, struct proc *p)
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
 }
@@ -240,23 +260,9 @@ partition_proc_check_signal(struct ucred *cred, struct proc *p,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, p->p_ucred->cr_label);
+	error = partition_check(cred->cr_label, p->p_ucred->cr_label);
 
 	return (error ? ESRCH : 0);
-}
-
-static void
-partition_proc_create_init(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
-}
-
-static void
-partition_proc_create_swapper(struct ucred *cred)
-{
-
-	SLOT_SET(cred->cr_label, 0);
 }
 
 static int
@@ -265,7 +271,7 @@ partition_socket_check_visible(struct ucred *cred, struct socket *so,
 {
 	int error;
 
-	error = label_on_label(cred->cr_label, so->so_cred->cr_label);
+	error = partition_check(cred->cr_label, so->so_cred->cr_label);
 
 	return (error ? ENOENT : 0);
 }
@@ -294,6 +300,8 @@ static struct mac_policy_ops partition_ops =
 	.mpo_cred_check_relabel = partition_cred_check_relabel,
 	.mpo_cred_check_visible = partition_cred_check_visible,
 	.mpo_cred_copy_label = partition_cred_copy_label,
+	.mpo_cred_create_init = partition_cred_create_init,
+	.mpo_cred_create_swapper = partition_cred_create_swapper,
 	.mpo_cred_destroy_label = partition_cred_destroy_label,
 	.mpo_cred_externalize_label = partition_cred_externalize_label,
 	.mpo_cred_init_label = partition_cred_init_label,
@@ -303,8 +311,6 @@ static struct mac_policy_ops partition_ops =
 	.mpo_proc_check_debug = partition_proc_check_debug,
 	.mpo_proc_check_sched = partition_proc_check_sched,
 	.mpo_proc_check_signal = partition_proc_check_signal,
-	.mpo_proc_create_init = partition_proc_create_init,
-	.mpo_proc_create_swapper = partition_proc_create_swapper,
 	.mpo_socket_check_visible = partition_socket_check_visible,
 	.mpo_vnode_check_exec = partition_vnode_check_exec,
 };

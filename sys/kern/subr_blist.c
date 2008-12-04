@@ -554,7 +554,7 @@ blst_meta_free(
 	int next_skip = ((u_int)skip / BLIST_META_RADIX);
 
 #if 0
-	printf("FREE (%llx,%lld) FROM (%llx,%lld)\n",
+	printf("free (%llx,%lld) FROM (%llx,%lld)\n",
 	    (long long)freeBlk, (long long)count,
 	    (long long)blk, (long long)radix
 	);

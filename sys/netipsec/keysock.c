@@ -55,6 +55,7 @@
 #include <net/if.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 
@@ -66,17 +67,14 @@
 
 #include <machine/stdarg.h>
 
-struct key_cb {
-	int key_count;
-	int any_count;
-};
+#ifdef VIMAGE_GLOBALS
 static struct key_cb key_cb;
+struct pfkeystat pfkeystat;
+#endif
 
-static struct sockaddr key_src = { 2, PF_KEY, };
+static struct sockaddr key_src = { 2, PF_KEY };
 
 static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
-
-struct pfkeystat pfkeystat;
 
 /*
  * key_output()
@@ -164,7 +162,7 @@ key_sendup0(rp, m, promisc)
 		V_pfkeystat.in_msgtype[pmsg->sadb_msg_type]++;
 	}
 
-	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&V_key_src,
+	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&key_src,
 	    m, NULL)) {
 		V_pfkeystat.in_nomem++;
 		m_freem(m);
@@ -404,7 +402,7 @@ key_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	/* XXX */
-	MALLOC(kp, struct keycb *, sizeof *kp, M_PCB, M_WAITOK | M_ZERO); 
+	kp = malloc(sizeof *kp, M_PCB, M_WAITOK | M_ZERO); 
 	if (kp == 0)
 		return ENOBUFS;
 
@@ -570,7 +568,9 @@ static void
 key_init0(void)
 {
 	INIT_VNET_IPSEC(curvnet);
+
 	bzero((caddr_t)&V_key_cb, sizeof(V_key_cb));
+	ipsec_init();
 	key_init();
 }
 

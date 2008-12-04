@@ -357,7 +357,7 @@ ata_completed(void *context, int dummy)
 			      "\6MEDIA_CHANGED\5NID_NOT_FOUND"
 			      "\4MEDIA_CHANGE_REQEST"
 			      "\3ABORTED\2NO_MEDIA\1ILLEGAL_LENGTH");
-		if ((request->flags & ATA_R_DMA) &&
+		if ((request->flags & ATA_R_DMA) && request->dma &&
 		    (request->dma->status & ATA_BMSTAT_ERROR))
 		    printf(" dma=0x%02x", request->dma->status);
 		if (!(request->flags & (ATA_R_ATAPI | ATA_R_CONTROL)))
@@ -503,7 +503,8 @@ ata_timeout(struct ata_request *request)
 	request->flags |= ATA_R_TIMEOUT;
 	mtx_unlock(&ch->state_mtx);
 	ATA_LOCKING(ch->dev, ATA_LF_UNLOCK);
-	ch->dma.unload(request);
+	if (ch->dma.unload)
+	    ch->dma.unload(request);
 	ata_finish(request);
     }
     else {

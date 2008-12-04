@@ -540,13 +540,16 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_RGID		10	/* by real group id */
 #define	KERN_PROC_GID		11	/* by effective group id */
 #define	KERN_PROC_PATHNAME	12	/* path to executable */
-#define	KERN_PROC_VMMAP		13	/* VM map entries for process */
-#define	KERN_PROC_FILEDESC	14	/* File descriptors for process */
+#define	KERN_PROC_OVMMAP	13	/* Old VM map entries for process */
+#define	KERN_PROC_OFILEDESC	14	/* Old file descriptors for process */
 #define	KERN_PROC_KSTACK	15	/* Kernel stacks for process */
 #define	KERN_PROC_INC_THREAD	0x10	/*
 					 * modifier for pid, pgrp, tty,
 					 * uid, ruid, gid, rgid and proc
+					 * This effectively uses 16-31
 					 */
+#define	KERN_PROC_VMMAP		32	/* VM map entries for process */
+#define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
 
 /*
  * KERN_IPC identifiers

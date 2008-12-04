@@ -187,10 +187,6 @@ ogetpagesize(td, uap)
  * memory-based, such as a video framebuffer, can be mmap'd.  Otherwise
  * there would be no cache coherency between a descriptor and a VM mapping
  * both to the same character device.
- *
- * Block devices can be mmap'd no matter what they represent.  Cache coherency
- * is maintained as long as you do not write directly to the underlying
- * character device.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct mmap_args {

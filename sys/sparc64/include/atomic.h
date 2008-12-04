@@ -40,6 +40,10 @@
 #define	__ASI_ATOMIC	ASI_P
 #endif
 
+#define mb()	__asm__ __volatile__ ("membar #MemIssue": : :"memory")
+#define wmb()	mb()
+#define rmb()	mb()
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.  See atomic(9) for details.

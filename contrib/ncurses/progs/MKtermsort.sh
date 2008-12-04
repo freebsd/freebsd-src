@@ -1,10 +1,10 @@
 #!/bin/sh
-# $Id: MKtermsort.sh,v 1.9 2003/01/11 22:23:50 tom Exp $
+# $Id: MKtermsort.sh,v 1.10 2008/07/12 20:22:54 tom Exp $
 #
 # MKtermsort.sh -- generate indirection vectors for the various sort methods
 #
 ##############################################################################
-# Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2003,2008 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -56,7 +56,7 @@ echo " *";
 echo " * Note: this file is generated using MKtermsort.sh, do not edit by hand.";
 echo " */";
 
-echo "static const int bool_terminfo_sort[] = {";
+echo "static const PredIdx bool_terminfo_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -65,7 +65,7 @@ $3 == "bool"    {printf("%s\t%d\n", $2, i++);}
 echo "};";
 echo "";
 
-echo "static const int num_terminfo_sort[] = {";
+echo "static const PredIdx num_terminfo_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -74,7 +74,7 @@ $3 == "num"     {printf("%s\t%d\n", $2, i++);}
 echo "};";
 echo "";
 
-echo "static const int str_terminfo_sort[] = {";
+echo "static const PredIdx str_terminfo_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -83,7 +83,7 @@ $3 == "str"     {printf("%s\t%d\n", $2, i++);}
 echo "};";
 echo "";
 
-echo "static const int bool_variable_sort[] = {";
+echo "static const PredIdx bool_variable_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -92,7 +92,7 @@ $3 == "bool"    {printf("%s\t%d\n", $1, i++);}
 echo "};";
 echo "";
 
-echo "static const int num_variable_sort[] = {";
+echo "static const PredIdx num_variable_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -101,7 +101,7 @@ $3 == "num"     {printf("%s\t%d\n", $1, i++);}
 echo "};";
 echo "";
 
-echo "static const int str_variable_sort[] = {";
+echo "static const PredIdx str_variable_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -110,7 +110,7 @@ $3 == "str"     {printf("%s\t%d\n", $1, i++);}
 echo "};";
 echo "";
 
-echo "static const int bool_termcap_sort[] = {";
+echo "static const PredIdx bool_termcap_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -119,7 +119,7 @@ $3 == "bool"    {printf("%s\t%d\n", $4, i++);}
 echo "};";
 echo "";
 
-echo "static const int num_termcap_sort[] = {";
+echo "static const PredIdx num_termcap_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}
@@ -128,7 +128,7 @@ $3 == "num"     {printf("%s\t%d\n", $4, i++);}
 echo "};";
 echo "";
 
-echo "static const int str_termcap_sort[] = {";
+echo "static const PredIdx str_termcap_sort[] = {";
 $AWK <$DATA '
 BEGIN           {i = 0;}
 /^#/            {next;}

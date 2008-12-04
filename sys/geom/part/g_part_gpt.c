@@ -374,9 +374,14 @@ static int
 g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_part_gpt_table *table;
+	size_t codesz;
 
+	codesz = DOSPARTOFF;
 	table = (struct g_part_gpt_table *)basetable;
-	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
+	bzero(table->mbr, codesz);
+	codesz = MIN(codesz, gpp->gpp_codesize);
+	if (codesz > 0)
+		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
 	return (0);
 }
 
@@ -625,13 +630,16 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 	if (table->state[GPT_ELT_PRIHDR] == GPT_STATE_OK &&
 	    table->state[GPT_ELT_SECHDR] == GPT_STATE_OK &&
 	    !gpt_matched_hdrs(&prihdr, &sechdr)) {
-		if (table->state[GPT_ELT_PRITBL] == GPT_STATE_OK)
+		if (table->state[GPT_ELT_PRITBL] == GPT_STATE_OK) {
 			table->state[GPT_ELT_SECHDR] = GPT_STATE_INVALID;
-		else
+			table->state[GPT_ELT_SECTBL] = GPT_STATE_MISSING;
+		} else {
 			table->state[GPT_ELT_PRIHDR] = GPT_STATE_INVALID;
+			table->state[GPT_ELT_PRITBL] = GPT_STATE_MISSING;
+		}
 	}
 
-	if (table->state[GPT_ELT_PRIHDR] != GPT_STATE_OK) {
+	if (table->state[GPT_ELT_PRITBL] != GPT_STATE_OK) {
 		printf("GEOM: %s: the primary GPT table is corrupt or "
 		    "invalid.\n", pp->name);
 		printf("GEOM: %s: using the secondary instead -- recovery "
@@ -641,7 +649,7 @@ g_part_gpt_read(struct g_part_table *basetable, struct g_consumer *cp)
 		if (pritbl != NULL)
 			g_free(pritbl);
 	} else {
-		if (table->state[GPT_ELT_SECHDR] != GPT_STATE_OK) {
+		if (table->state[GPT_ELT_SECTBL] != GPT_STATE_OK) {
 			printf("GEOM: %s: the secondary GPT table is corrupt "
 			    "or invalid.\n", pp->name);
 			printf("GEOM: %s: using the primary only -- recovery "

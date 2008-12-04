@@ -112,6 +112,9 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #include "netinet/ip_scan.h"
 #endif
 #include "netinet/ip_pool.h"
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800056)
+# include <netinet/vinet.h>
+#endif
 #if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 # include <sys/malloc.h>
 #endif
@@ -121,7 +124,7 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #endif
 extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
-#if (__FreeBSD_version > 460000)
+#if (__FreeBSD_version > 460000) && (__FreeBSD_version < 800055)
 extern	int	path_mtu_discovery;
 #endif
 

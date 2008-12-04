@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs4client/nfs4.h>
 
+#ifdef NFS_LEGACYRPC
+
 #define	TRUE	1
 #define	FALSE	0
 
@@ -87,14 +89,18 @@ static int	fake_wchan;
 
 SYSCTL_DECL(_vfs_nfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0,
+    "Number of realign tests done");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0,
+    "Number of mbuf realignments done");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
+    "Buffer reservation size 2 < x < 64");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
-    "number of times the nfs client has had to reconnect");
+    "Number of times the nfs client has had to reconnect");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
-	   "number of seconds to delay a retry after receiving EJUKEBOX");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0, "");
+    "Number of seconds to delay a retry after receiving EJUKEBOX");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
+    "Disable weak cache consistency checking when server returns an error");
 
 /*
  * There is a congestion window for outstanding rpcs maintained per mount
@@ -1141,7 +1147,7 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	nmp = VFSTONFS(vp->v_mount);
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
-	MALLOC(rep, struct nfsreq *, sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
+	rep = malloc(sizeof(struct nfsreq), M_NFSREQ, M_WAITOK);
 	bzero(rep, sizeof(struct nfsreq));
 	rep->r_nmp = nmp;
 	rep->r_vp = vp;
@@ -1382,7 +1388,7 @@ wait_for_pinned_req:
 		*dposp = dpos;
 		m_freem(rep->r_mreq);
 		mtx_destroy(&rep->r_mtx);
-		FREE((caddr_t)rep, M_NFSREQ);
+		free((caddr_t)rep, M_NFSREQ);
 		return (0);
 	}
 	m_freem(mrep);
@@ -1429,8 +1435,8 @@ nfs_timer(void *arg)
 			/*
 			 * Terminate request if force-unmount in progress.
 			 * Note that NFS could have vfs_busy'ed the mount,
-			 * causing the unmount to wait for the mnt_lock, making
-			 * this bit of logic necessary.
+			 * causing the unmount to wait and making this bit
+			 * of logic necessary.
 			 */
 			if (rep->r_nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
 				nfs_softterm(rep);
@@ -1972,3 +1978,5 @@ nfs_up(rep, nmp, td, msg, flags)
 		mtx_unlock(&nmp->nm_mtx);
 #endif
 }
+
+#endif /* NFS_LEGACYRPC */

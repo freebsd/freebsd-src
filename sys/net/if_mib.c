@@ -38,6 +38,7 @@
 
 #include <net/if.h>
 #include <net/if_mib.h>
+#include <net/vnet.h>
 
 /*
  * A sysctl(3) MIB for generic interface information.  This information

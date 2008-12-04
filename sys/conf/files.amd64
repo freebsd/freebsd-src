@@ -47,16 +47,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-hal.o				optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/x86_64-elf.hal.o.uu"	\
-	compile-with	"uudecode < $S/contrib/dev/ath/public/x86_64-elf.hal.o.uu" \
-	no-implicit-rule
-opt_ah.h			optional	ath_hal			\
-	dependency	"$S/contrib/dev/ath/public/x86_64-elf.opt_ah.h"	\
-	compile-with	"rm -f opt_ah.h; cp $S/contrib/dev/ath/public/x86_64-elf.opt_ah.h opt_ah.h" \
-	no-obj no-implicit-rule before-depend				\
-	clean		"opt_ah.h"
-#
 nvenetlib.o			optional	nve pci			\
 	dependency	"$S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu"	\
 	compile-with	"uudecode $S/contrib/dev/nve/amd64/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
@@ -188,7 +178,10 @@ dev/hptrr/hptrr_os_bsd.c	optional	hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
+dev/hwpmc/hwpmc_intel.c		optional	hwpmc
+dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_piv.c		optional	hwpmc
+dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/k8temp/k8temp.c		optional	k8temp
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd

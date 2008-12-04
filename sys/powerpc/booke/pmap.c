@@ -2296,14 +2296,25 @@ mmu_booke_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 static void *
 mmu_booke_mapdev(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 {
+	void *res;
 	uintptr_t va;
+	vm_size_t sz;
 
 	va = (pa >= 0x80000000) ? pa : (0xe2000000 + pa);
-	if (bootverbose)
-		printf("Wiring VA=%x to PA=%x (size=%x), using TLB1[%d]\n",
-		    va, pa, size, tlb1_idx);
-	tlb1_set_entry(va, pa, size, _TLB_ENTRY_IO);
-	return ((void *)va);
+	res = (void *)va;
+
+	do {
+		sz = 1 << (ilog2(size) & ~1);
+		if (bootverbose)
+			printf("Wiring VA=%x to PA=%x (size=%x), "
+			    "using TLB1[%d]\n", va, pa, sz, tlb1_idx);
+		tlb1_set_entry(va, pa, sz, _TLB_ENTRY_IO);
+		size -= sz;
+		pa += sz;
+		va += sz;
+	} while (size > 0);
+
+	return (res);
 }
 
 /*

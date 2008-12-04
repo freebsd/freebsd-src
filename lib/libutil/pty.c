@@ -70,9 +70,6 @@ openpty(int *amaster, int *aslave, char *name, struct termios *termp,
 	if (slavename == NULL)
 		goto bad;
 
-	if (revoke(slavename) == -1)
-		goto bad;
-
 	slave = open(slavename, O_RDWR);
 	if (slave == -1)
 		goto bad;

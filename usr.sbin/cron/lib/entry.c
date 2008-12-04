@@ -87,7 +87,7 @@ free_entry(e)
 entry *
 load_entry(file, error_func, pw, envp)
 	FILE		*file;
-	void		(*error_func)();
+	void		(*error_func)(char *);
 	struct passwd	*pw;
 	char		**envp;
 {

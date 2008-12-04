@@ -139,7 +139,6 @@ static driver_t kr_driver = {
 static devclass_t kr_devclass;
 
 DRIVER_MODULE(kr, obio, kr_driver, kr_devclass, 0, 0);
-DRIVER_MODULE(kr, cardbus, kr_driver, kr_devclass, 0, 0);
 DRIVER_MODULE(miibus, kr, miibus_driver, miibus_devclass, 0, 0);
 
 static int 

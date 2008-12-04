@@ -27,19 +27,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <sys/stat.h>
+
+#include <assert.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <libgeom.h>
+#include <libutil.h>
+#include <paths.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
-#include <libgeom.h>
-#include <paths.h>
-#include <errno.h>
-#include <assert.h>
-#include <sys/stat.h>
+#include <unistd.h>
 
 #include "core/geom.h"
 #include "misc/subr.h"
@@ -61,10 +63,11 @@ static char index_param[] = "index";
 static char partcode_param[] = "partcode";
 
 static void gpart_bootcode(struct gctl_req *, unsigned int);
+static void gpart_issue(struct gctl_req *, unsigned int);
 static void gpart_show(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
-	{ "add", 0, NULL, {
+	{ "add", 0, gpart_issue, {
 		{ 'b', "start", NULL, G_TYPE_STRING },
 		{ 's', "size", NULL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
@@ -82,25 +85,25 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "commit", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "create", 0, NULL, {
+	{ "commit", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "create", 0, gpart_issue, {
 		{ 's', "scheme", NULL, G_TYPE_STRING },
 		{ 'n', "entries", optional, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "provider", NULL
 	},
-	{ "delete", 0, NULL, {
+	{ "delete", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "destroy", 0, NULL, {
+	{ "destroy", 0, gpart_issue, {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL },
-	{ "modify", 0, NULL, {
+	{ "modify", 0, gpart_issue, {
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'l', "label", optional, G_TYPE_STRING },
 		{ 't', "type", optional, G_TYPE_STRING },
@@ -108,7 +111,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "set", 0, NULL, {
+	{ "set", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -121,8 +124,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  NULL, "[-lr] [geom ...]"
 	},
-	{ "undo", 0, NULL, G_NULL_OPTS, "geom", NULL },
-	{ "unset", 0, NULL, {
+	{ "undo", 0, gpart_issue, G_NULL_OPTS, "geom", NULL },
+	{ "unset", 0, gpart_issue, {
 		{ 'a', "attrib", NULL, G_TYPE_STRING },
 		{ 'i', index_param, NULL, G_TYPE_STRING },
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -202,21 +205,12 @@ find_provider(struct ggeom *gp, unsigned long long minsector)
 }
 
 static const char *
-fmtsize(long double rawsz)
+fmtsize(int64_t rawsz)
 {
-	static char buf[32];
-	static const char *sfx[] = { "B", "KB", "MB", "GB", "TB" };
-	long double sz;
-	int sfxidx;
+	static char buf[5];
 
-	sfxidx = 0;
-	sz = (long double)rawsz;
-	while (sfxidx < 4 && sz > 1099.0) {
-		sz /= 1000;
-		sfxidx++;
-	}
-
-	sprintf(buf, "%.1Lf%s", sz, sfx[sfxidx]);
+	humanize_number(buf, sizeof(buf), rawsz, "", HN_AUTOSCALE,
+	    HN_B | HN_NOSPACE | HN_DECIMAL);
 	return (buf);
 }
 
@@ -393,6 +387,8 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	const char *s;
+	char *buf;
+	off_t bsize;
 	int error, fd;
 
 	s = gctl_get_ascii(req, "class");
@@ -428,8 +424,21 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 			errx(EXIT_FAILURE, "%s: not enough space", dsf);
 		if (lseek(fd, 0, SEEK_SET) != 0)
 			err(EXIT_FAILURE, "%s", dsf);
-		if (write(fd, code, size) != size)
+
+		/*
+		 * When writing to a disk device, the write must be
+		 * sector aligned and not write to any partial sectors,
+		 * so round up the buffer size to the next sector and zero it.
+		 */
+		bsize = (size + pp->lg_sectorsize - 1) /
+		    pp->lg_sectorsize * pp->lg_sectorsize;
+		buf = calloc(1, bsize);
+		if (buf == NULL)
 			err(EXIT_FAILURE, "%s", dsf);
+		bcopy(code, buf, size);
+		if (write(fd, buf, bsize) != bsize)
+			err(EXIT_FAILURE, "%s", dsf);
+		free(buf);
 		close(fd);
 	} else
 		errx(EXIT_FAILURE, "invalid partition index");
@@ -438,7 +447,7 @@ gpart_write_partcode(struct gctl_req *req, int idx, void *code, ssize_t size)
 }
 
 static void
-gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
+gpart_bootcode(struct gctl_req *req, unsigned int fl)
 {
 	const char *s;
 	char *sp;
@@ -493,9 +502,42 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl __unused)
 			errx(EXIT_FAILURE, "no -b nor -p");
 	}
 
-	if (bootcode != NULL) {
-		s = gctl_issue(req);
-		if (s != NULL)
-			errx(EXIT_FAILURE, "%s", s);
+	if (bootcode != NULL)
+		gpart_issue(req, fl);
+}
+
+static void
+gpart_issue(struct gctl_req *req, unsigned int fl __unused)
+{
+	char buf[4096];
+	char *errmsg;
+	const char *errstr;
+	int error, status;
+
+	bzero(buf, sizeof(buf));
+	gctl_rw_param(req, "output", sizeof(buf), buf);
+	errstr = gctl_issue(req);
+	if (errstr == NULL || errstr[0] == '\0') {
+		if (buf[0] != '\0')
+			printf("%s", buf);
+		status = EXIT_SUCCESS;
+		goto done;
 	}
+
+	error = strtol(errstr, &errmsg, 0);
+	if (errmsg != errstr) {
+		while (errmsg[0] == ' ')
+			errmsg++;
+		if (errmsg[0] != '\0')
+			warnc(error, "%s", errmsg);
+		else
+			warnc(error, NULL);
+	} else
+		warnx("%s", errmsg);
+
+	status = EXIT_FAILURE;
+
+ done:
+	gctl_free(req);
+	exit(status);
 }

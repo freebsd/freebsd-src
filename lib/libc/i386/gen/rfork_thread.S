@@ -115,3 +115,4 @@ ENTRY(rfork_thread)
 	popl	%ebp
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
+END(rfork_thread)

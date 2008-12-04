@@ -214,6 +214,10 @@ PSEUDOFS_TRACE	opt_pseudofs.h
 # Broken - ffs_snapshot() dependency from ufs_lookup() :-(
 FFS		opt_ffs_broken_fixme.h
 
+# In-kernel GSS-API
+KGSSAPI		opt_kgssapi.h
+KGSSAPI_DEBUG	opt_kgssapi.h
+
 # These static filesystems have one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
 # statically compiled into the kernel, code for mounting them as root
@@ -221,6 +225,11 @@ FFS		opt_ffs_broken_fixme.h
 NFSCLIENT	opt_nfs.h
 NFSSERVER	opt_nfs.h
 NFS4CLIENT	opt_nfs.h
+
+# Use this option to compile both NFS client and server using the
+# legacy RPC implementation instead of the newer KRPC system (which
+# supports modern features such as RPCSEC_GSS
+NFS_LEGACYRPC	opt_nfs.h
 
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
@@ -618,6 +627,7 @@ BUS_DEBUG		opt_bus.h
 # options for USB support
 USB_DEBUG		opt_usb.h
 USBVERBOSE		opt_usb.h
+U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
 UPLCOM_INTR_INTERVAL	opt_uplcom.h
 UVSCOM_DEFAULT_OPKTSIZE	opt_uvscom.h
@@ -729,6 +739,21 @@ ATH_TXBUF		opt_ath.h
 ATH_RXBUF		opt_ath.h
 ATH_DIAGAPI		opt_ath.h
 ATH_TX99_DIAG		opt_ath.h
+
+# options for the Atheros hal
+AH_SUPPORT_AR5416	opt_ah.h
+
+AH_DEBUG		opt_ah.h
+AH_ASSERT		opt_ah.h
+AH_DEBUG_ALQ		opt_ah.h
+AH_REGOPS_FUNC		opt_ah.h
+AH_WRITE_REGDOMAIN	opt_ah.h
+AH_DEBUG_COUNTRY	opt_ah.h
+AH_WRITE_EEPROM		opt_ah.h
+AH_PRIVATE_DIAG		opt_ah.h
+AH_NEED_DESC_SWAP	opt_ah.h
+AH_USE_INIPDGAIN	opt_ah.h
+AH_SUPPORT_11D		opt_ah.h
 
 # options for the Marvell 8335 wireless driver
 MALO_DEBUG		opt_malo.h

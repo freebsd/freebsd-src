@@ -67,6 +67,7 @@
 #include "un-namespace.h"
 
 #include "libc_private.h"
+#include "rtld_lock.h"
 #include "thr_private.h"
 
 __weak_reference(_pthread_atfork, pthread_atfork);
@@ -105,6 +106,7 @@ _fork(void)
 	pid_t ret;
 	int errsave;
 	int unlock_malloc;
+	int rtld_locks[MAX_RTLD_LOCKS];
 
 	if (!_thr_is_inited())
 		return (__sys_fork());
@@ -127,6 +129,7 @@ _fork(void)
 	if (_thr_isthreaded() != 0) {
 		unlock_malloc = 1;
 		_malloc_prefork();
+		_rtld_atfork_pre(rtld_locks);
 	} else {
 		unlock_malloc = 0;
 	}
@@ -155,6 +158,9 @@ _fork(void)
 		/* clear other threads locked us. */
 		_thr_umutex_init(&curthread->lock);
 		_thr_umutex_init(&_thr_atfork_lock);
+
+		if (unlock_malloc)
+			_rtld_atfork_post(rtld_locks);
 		_thr_setthreaded(0);
 
 		/* reinitialize libc spinlocks. */
@@ -166,6 +172,9 @@ _fork(void)
 
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
+
+		if (unlock_malloc)
+			_malloc_postfork();
 
 		/* Run down atfork child handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {
@@ -179,8 +188,10 @@ _fork(void)
 		/* Ready to continue, unblock signals. */ 
 		_thr_signal_unblock(curthread);
 
-		if (unlock_malloc)
+		if (unlock_malloc) {
+			_rtld_atfork_post(rtld_locks);
 			_malloc_postfork();
+		}
 
 		/* Run down atfork parent handlers. */
 		TAILQ_FOREACH(af, &_thr_atfork_list, qe) {

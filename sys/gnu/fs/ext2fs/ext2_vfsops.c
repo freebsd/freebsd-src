@@ -137,7 +137,7 @@ ext2_mount(mp, td)
 	struct ext2_sb_info *fs;
 	char *path, *fspec;
 	int error, flags, len;
-	mode_t accessmode;
+	accmode_t accmode;
 	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
@@ -171,7 +171,7 @@ ext2_mount(mp, td)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp, LK_NOWAIT, 0))
+			if (vfs_busy(mp, MBF_NOWAIT))
 				return (EBUSY);
 			error = ext2_flushfiles(mp, flags, td);
 			vfs_unbusy(mp);
@@ -265,10 +265,10 @@ ext2_mount(mp, td)
 	 *
 	 * XXXRW: VOP_ACCESS() enough?
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
@@ -964,7 +964,7 @@ ext2_vget(mp, ino, flags, vpp)
 	dev = ump->um_dev;
 
 	/*
-	 * If this MALLOC() is performed after the getnewvnode()
+	 * If this malloc() is performed after the getnewvnode()
 	 * it might block, leaving a vnode with a NULL v_data to be
 	 * found by ext2_sync() if a sync happens to fire right then,
 	 * which will cause a panic because ext2_sync() blindly

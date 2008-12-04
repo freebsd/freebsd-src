@@ -127,7 +127,6 @@ prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
 int
 acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 {
-    device_t			child;
     ACPI_STATUS			status;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -157,7 +156,7 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     /*
      * Attach the PCI bus proper.
      */
-    if ((child = device_add_child(dev, "pci", busno)) == NULL) {
+    if (device_add_child(dev, "pci", busno) == NULL) {
 	device_printf(device_get_parent(dev), "couldn't attach pci bus\n");
 	return_VALUE(ENXIO);
     }

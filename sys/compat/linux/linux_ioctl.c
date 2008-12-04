@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/vnet.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -2673,7 +2674,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 			break;
 	}
 	if (he == NULL) {
-		MALLOC(he, struct handler_element *, sizeof(*he),
+		he = malloc(sizeof(*he),
 		    M_LINUX, M_WAITOK);
 		he->func = h->func;
 	} else
@@ -2711,7 +2712,7 @@ linux_ioctl_unregister_handler(struct linux_ioctl_handler *h)
 		if (he->func == h->func) {
 			TAILQ_REMOVE(&handlers, he, list);
 			sx_xunlock(&linux_ioctl_sx);
-			FREE(he, M_LINUX);
+			free(he, M_LINUX);
 			return (0);
 		}
 	}

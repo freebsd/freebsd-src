@@ -81,6 +81,7 @@ int	debug = 0;
 #define	DEFNFSDCNT	 4
 pid_t	children[MAXNFSDCNT];	/* PIDs of children */
 int	nfsdcnt;		/* number of children */
+int	new_syscall;
 
 void	cleanup(int);
 void	child_cleanup(int);
@@ -116,7 +117,7 @@ void	usage(void);
 int
 main(int argc, char **argv)
 {
-	struct nfsd_args nfsdargs;
+	struct nfsd_addsock_args addsockargs;
 	struct addrinfo *ai_udp, *ai_tcp, *ai_udp6, *ai_tcp6, hints;
 	struct netconfig *nconf_udp, *nconf_tcp, *nconf_udp6, *nconf_tcp6;
 	struct netbuf nb_udp, nb_tcp, nb_udp6, nb_tcp6;
@@ -326,23 +327,54 @@ main(int argc, char **argv)
 
 	openlog("nfsd", LOG_PID, LOG_DAEMON);
 
-	/* If we use UDP only, we start the last server below. */
-	srvcnt = tcpflag ? nfsdcnt : nfsdcnt - 1;
-	for (i = 0; i < srvcnt; i++) {
-		switch ((pid = fork())) {
-		case -1:
+	/*
+	 * Figure out if the kernel supports the new-style
+	 * NFSSVC_NFSD. Old kernels will return ENXIO because they
+	 * don't recognise the flag value, new ones will return EINVAL
+	 * because argp is NULL.
+	 */
+	new_syscall = FALSE;
+	if (nfssvc(NFSSVC_NFSD, NULL) < 0 && errno == EINVAL)
+		new_syscall = TRUE;
+	new_syscall = FALSE;
+
+	if (!new_syscall) {
+		/* If we use UDP only, we start the last server below. */
+		srvcnt = tcpflag ? nfsdcnt : nfsdcnt - 1;
+		for (i = 0; i < srvcnt; i++) {
+			switch ((pid = fork())) {
+			case -1:
+				syslog(LOG_ERR, "fork: %m");
+				nfsd_exit(1);
+			case 0:
+				break;
+			default:
+				children[i] = pid;
+				continue;
+			}
+			(void)signal(SIGUSR1, child_cleanup);
+			setproctitle("server");
+
+			start_server(0);
+		}
+	} else if (tcpflag) {
+		/*
+		 * For TCP mode, we fork once to start the first
+		 * kernel nfsd thread. The kernel will add more
+		 * threads as needed.
+		 */
+		pid = fork();
+		if (pid == -1) {
 			syslog(LOG_ERR, "fork: %m");
 			nfsd_exit(1);
-		case 0:
-			break;
-		default:
-			children[i] = pid;
-			continue;
 		}
-		(void)signal(SIGUSR1, child_cleanup);
-		setproctitle("server");
-
-		start_server(0);
+		if (pid) {
+			children[0] = pid;
+		} else {
+			(void)signal(SIGUSR1, child_cleanup);
+			setproctitle("server");
+			start_server(0);
+		}
 	}
 
 	(void)signal(SIGUSR1, cleanup);
@@ -378,10 +410,10 @@ main(int argc, char **argv)
 					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_udp);
-				nfsdargs.sock = sock;
-				nfsdargs.name = NULL;
-				nfsdargs.namelen = 0;
-				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
+				addsockargs.sock = sock;
+				addsockargs.name = NULL;
+				addsockargs.namelen = 0;
+				if (nfssvc(NFSSVC_ADDSOCK, &addsockargs) < 0) {
 					syslog(LOG_ERR, "can't Add UDP socket");
 					nfsd_exit(1);
 				}
@@ -446,10 +478,10 @@ main(int argc, char **argv)
 					nfsd_exit(1);
 				}
 				freeaddrinfo(ai_udp6);
-				nfsdargs.sock = sock;
-				nfsdargs.name = NULL;
-				nfsdargs.namelen = 0;
-				if (nfssvc(NFSSVC_ADDSOCK, &nfsdargs) < 0) {
+				addsockargs.sock = sock;
+				addsockargs.name = NULL;
+				addsockargs.namelen = 0;
+				if (nfssvc(NFSSVC_ADDSOCK, &addsockargs) < 0) {
 					syslog(LOG_ERR,
 					    "can't add UDP6 socket");
 					nfsd_exit(1);
@@ -676,10 +708,10 @@ main(int argc, char **argv)
 					    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
 						syslog(LOG_ERR,
 						    "setsockopt SO_KEEPALIVE: %m");
-					nfsdargs.sock = msgsock;
-					nfsdargs.name = (caddr_t)&inetpeer;
-					nfsdargs.namelen = len;
-					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
+					addsockargs.sock = msgsock;
+					addsockargs.name = (caddr_t)&inetpeer;
+					addsockargs.namelen = len;
+					nfssvc(NFSSVC_ADDSOCK, &addsockargs);
 					(void)close(msgsock);
 				} else if (FD_ISSET(tcpsock, &v6bits)) {
 					len = sizeof(inet6peer);
@@ -698,10 +730,10 @@ main(int argc, char **argv)
 					    sizeof(on)) < 0)
 						syslog(LOG_ERR, "setsockopt "
 						    "SO_KEEPALIVE: %m");
-					nfsdargs.sock = msgsock;
-					nfsdargs.name = (caddr_t)&inet6peer;
-					nfsdargs.namelen = len;
-					nfssvc(NFSSVC_ADDSOCK, &nfsdargs);
+					addsockargs.sock = msgsock;
+					addsockargs.name = (caddr_t)&inet6peer;
+					addsockargs.namelen = len;
+					nfssvc(NFSSVC_ADDSOCK, &addsockargs);
 					(void)close(msgsock);
 				}
 			}
@@ -829,12 +861,27 @@ nfsd_exit(int status)
 void
 start_server(int master)
 {
+	char principal[128];
+	char hostname[128];
+	struct nfsd_nfsd_args nfsdargs;
 	int status;
 
 	status = 0;
-	if (nfssvc(NFSSVC_NFSD, NULL) < 0) {
-		syslog(LOG_ERR, "nfssvc: %m");
-		status = 1;
+	if (new_syscall) {
+		gethostname(hostname, sizeof(hostname));
+		snprintf(principal, sizeof(principal), "nfs@%s", hostname);
+		nfsdargs.principal = principal;
+		nfsdargs.minthreads = nfsdcnt;
+		nfsdargs.maxthreads = nfsdcnt;
+		if (nfssvc(NFSSVC_NFSD, &nfsdargs) < 0) {
+			syslog(LOG_ERR, "nfssvc: %m");
+			status = 1;
+		}
+	} else {
+		if (nfssvc(NFSSVC_OLDNFSD, NULL) < 0) {
+			syslog(LOG_ERR, "nfssvc: %m");
+			status = 1;
+		}
 	}
 	if (master)
 		nfsd_exit(status);

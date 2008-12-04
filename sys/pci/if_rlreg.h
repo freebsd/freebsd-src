@@ -157,6 +157,7 @@
 #define RL_HWREV_8169_8110SB	0x10000000
 #define RL_HWREV_8169_8110SC	0x18000000
 #define RL_HWREV_8102EL		0x24800000
+#define RL_HWREV_8168D		0x28000000
 #define RL_HWREV_8168_SPIN1	0x30000000
 #define RL_HWREV_8100E		0x30800000
 #define RL_HWREV_8101E		0x34000000
@@ -308,6 +309,27 @@
 #define RL_CMD_RX_ENB		0x0008
 #define RL_CMD_RESET		0x0010
 
+/*
+ * Twister register values.  These are completely undocumented and derived
+ * from public sources.
+ */
+#define RL_CSCFG_LINK_OK	0x0400
+#define RL_CSCFG_CHANGE		0x0800
+#define RL_CSCFG_STATUS		0xf000
+#define RL_CSCFG_ROW3		0x7000
+#define RL_CSCFG_ROW2		0x3000
+#define RL_CSCFG_ROW1		0x1000
+#define RL_CSCFG_LINK_DOWN_OFF_CMD 0x03c0
+#define RL_CSCFG_LINK_DOWN_CMD	0xf3c0
+
+#define RL_NWAYTST_RESET	0
+#define RL_NWAYTST_CBL_TEST	0x20
+
+#define RL_PARA78		0x78
+#define RL_PARA78_DEF		0x78fa8388
+#define RL_PARA7C		0x7C
+#define RL_PARA7C_DEF		0xcb38de43
+#define RL_PARA7C_RETUNE	0xfb38de03
 /*
  * EEPROM control register
  */
@@ -501,6 +523,11 @@
 #define RL_RXBUFLEN		(1 << ((RL_RX_BUF_SZ >> 11) + 13))
 #define RL_TX_LIST_CNT		4
 #define RL_MIN_FRAMELEN		60
+#define	RL_TX_8139_BUF_ALIGN	4
+#define	RL_RX_8139_BUF_ALIGN	8
+#define	RL_RX_8139_BUF_RESERVE	sizeof(int64_t)
+#define	RL_RX_8139_BUF_GUARD_SZ	\
+	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + RL_RX_8139_BUF_RESERVE)	
 #define RL_TXTHRESH(x)		((x) << 11)
 #define RL_TX_THRESH_INIT	96
 #define RL_RX_FIFOTHRESH	RL_RXFIFO_NOTHRESH
@@ -522,10 +549,13 @@ struct rl_chain_data {
 	uint16_t		cur_rx;
 	uint8_t			*rl_rx_buf;
 	uint8_t			*rl_rx_buf_ptr;
-	bus_dmamap_t		rl_rx_dmamap;
 
 	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
 	bus_dmamap_t		rl_tx_dmamap[RL_TX_LIST_CNT];
+	bus_dma_tag_t		rl_tx_tag;
+	bus_dma_tag_t		rl_rx_tag;
+	bus_dmamap_t		rl_rx_dmamap;
+	bus_addr_t		rl_rx_buf_paddr;
 	uint8_t			last_tx;
 	uint8_t			cur_tx;
 };
@@ -801,6 +831,8 @@ struct rl_list_data {
 	bus_addr_t		rl_tx_list_addr;
 };
 
+enum rl_twist { DONE, CHK_LINK, FIND_ROW, SET_PARAM, RECHK_LONG, RETUNE };
+
 struct rl_softc {
 	struct ifnet		*rl_ifp;	/* interface info */
 	bus_space_handle_t	rl_bhandle;	/* bus space handle */
@@ -813,7 +845,6 @@ struct rl_softc {
 	void			*rl_intrhand[RL_MSI_MESSAGES];
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
-	bus_dma_tag_t		rl_tag;
 	uint8_t			rl_type;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
@@ -830,6 +861,10 @@ struct rl_softc {
 	uint32_t		rl_rxlenmask;
 	int			rl_testmode;
 	int			rl_if_flags;
+	int			rl_twister_enable;
+	enum rl_twist		rl_twister;
+	int			rl_twist_row;
+	int			rl_twist_col;
 	int			suspended;	/* 0 = normal  1 = suspended */
 #ifdef DEVICE_POLLING
 	int			rxcycles;

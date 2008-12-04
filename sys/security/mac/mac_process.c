@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2008 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Samy Al Bahra
@@ -81,28 +81,8 @@ SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
 
-static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
+static void	mac_proc_vm_revoke_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
-
-struct label *
-mac_cred_label_alloc(void)
-{
-	struct label *label;
-
-	label = mac_labelzone_alloc(M_WAITOK);
-	MAC_PERFORM(cred_init_label, label);
-	return (label);
-}
-
-void
-mac_cred_init(struct ucred *cred)
-{
-
-	if (mac_labeled & MPC_OBJECT_CRED)
-		cred->cr_label = mac_cred_label_alloc();
-	else
-		cred->cr_label = NULL;
-}
 
 static struct label *
 mac_proc_label_alloc(void)
@@ -124,24 +104,6 @@ mac_proc_init(struct proc *p)
 		p->p_label = NULL;
 }
 
-void
-mac_cred_label_free(struct label *label)
-{
-
-	MAC_PERFORM(cred_destroy_label, label);
-	mac_labelzone_free(label);
-}
-
-void
-mac_cred_destroy(struct ucred *cred)
-{
-
-	if (cred->cr_label != NULL) {
-		mac_cred_label_free(cred->cr_label);
-		cred->cr_label = NULL;
-	}
-}
-
 static void
 mac_proc_label_free(struct label *label)
 {
@@ -160,82 +122,11 @@ mac_proc_destroy(struct proc *p)
 	}
 }
 
-int
-mac_cred_externalize_label(struct label *label, char *elements,
-    char *outbuf, size_t outbuflen)
-{
-	int error;
-
-	MAC_EXTERNALIZE(cred, label, elements, outbuf, outbuflen);
-
-	return (error);
-}
-
-int
-mac_cred_internalize_label(struct label *label, char *string)
-{
-	int error;
-
-	MAC_INTERNALIZE(cred, label, string);
-
-	return (error);
-}
-
-/*
- * Initialize MAC label for the first kernel process, from which other kernel
- * processes and threads are spawned.
- */
-void
-mac_proc_create_swapper(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_create_swapper, cred);
-}
-
-/*
- * Initialize MAC label for the first userland process, from which other
- * userland processes and threads are spawned.
- */
-void
-mac_proc_create_init(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_create_init, cred);
-}
-
-/*
- * When a thread becomes an NFS server daemon, its credential may need to be
- * updated to reflect this so that policies can recognize when file system
- * operations originate from the network.
- *
- * At some point, it would be desirable if the credential used for each NFS
- * RPC could be set based on the RPC context (i.e., source system, etc) to
- * provide more fine-grained access control.
- */
-void
-mac_proc_associate_nfsd(struct ucred *cred)
-{
-
-	MAC_PERFORM(proc_associate_nfsd, cred);
-}
-
 void
 mac_thread_userret(struct thread *td)
 {
 
 	MAC_PERFORM(thread_userret, td);
-}
-
-/*
- * When a new process is created, its label must be initialized.  Generally,
- * this involves inheritence from the parent process, modulo possible deltas.
- * This function allows that processing to take place.
- */
-void
-mac_cred_copy(struct ucred *src, struct ucred *dest)
-{
-
-	MAC_PERFORM(cred_copy_label, src->cr_label, dest->cr_label);
 }
 
 int
@@ -314,13 +205,20 @@ mac_execve_interpreter_exit(struct label *interpvplabel)
  * The process lock is not held here.
  */
 void
-mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred)
+mac_proc_vm_revoke(struct thread *td)
 {
+	struct ucred *cred;
+
+	PROC_LOCK(td->td_proc);
+	cred = crhold(td->td_proc->p_ucred);
+	PROC_UNLOCK(td->td_proc);
 
 	/* XXX freeze all other threads */
-	mac_cred_mmapped_drop_perms_recurse(td, cred,
+	mac_proc_vm_revoke_recurse(td, cred,
 	    &td->td_proc->p_vmspace->vm_map);
 	/* XXX allow other threads to continue */
+
+	crfree(cred);
 }
 
 static __inline const char *
@@ -348,7 +246,7 @@ prot2str(vm_prot_t prot)
 }
 
 static void
-mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
+mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
     struct vm_map *map)
 {
 	struct vm_map_entry *vme;
@@ -365,7 +263,7 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 	vm_map_lock_read(map);
 	for (vme = map->header.next; vme != &map->header; vme = vme->next) {
 		if (vme->eflags & MAP_ENTRY_IS_SUB_MAP) {
-			mac_cred_mmapped_drop_perms_recurse(td, cred,
+			mac_proc_vm_revoke_recurse(td, cred,
 			    vme->object.sub_map);
 			continue;
 		}
@@ -475,38 +373,6 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	vm_map_unlock_read(map);
-}
-
-/*
- * When the subject's label changes, it may require revocation of privilege
- * to mapped objects.  This can't be done on-the-fly later with a unified
- * buffer cache.
- */
-void
-mac_cred_relabel(struct ucred *cred, struct label *newlabel)
-{
-
-	MAC_PERFORM(cred_relabel, cred, newlabel);
-}
-
-int
-mac_cred_check_relabel(struct ucred *cred, struct label *newlabel)
-{
-	int error;
-
-	MAC_CHECK(cred_check_relabel, cred, newlabel);
-
-	return (error);
-}
-
-int
-mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
-{
-	int error;
-
-	MAC_CHECK(cred_check_visible, cr1, cr2);
-
-	return (error);
 }
 
 int

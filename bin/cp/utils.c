@@ -57,10 +57,22 @@ __FBSDID("$FreeBSD$");
 
 #define	cp_pct(x, y)	((y == 0) ? 0 : (int)(100.0 * (x) / (y)))
 
+/* Memory strategy threshold, in pages: if physmem is larger then this, use a 
+ * large buffer */
+#define PHYSPAGES_THRESHOLD (32*1024)
+
+/* Maximum buffer size in bytes - do not allow it to grow larger than this */
+#define BUFSIZE_MAX (2*1024*1024)
+
+/* Small (default) buffer size in bytes. It's inefficient for this to be
+ * smaller than MAXPHYS */
+#define BUFSIZE_SMALL (MAXPHYS)
+
 int
 copy_file(const FTSENT *entp, int dne)
 {
-	static char buf[MAXBSIZE];
+	static char *buf = NULL;
+	static size_t bufsize;
 	struct stat *fs;
 	ssize_t wcount;
 	size_t wresid;
@@ -137,47 +149,60 @@ copy_file(const FTSENT *entp, int dne)
 		 * Mmap and write if less than 8M (the limit is so we don't totally
 		 * trash memory on big files.  This is really a minor hack, but it
 		 * wins some CPU back.
+		 * Some filesystems, such as smbnetfs, don't support mmap,
+		 * so this is a best-effort attempt.
 		 */
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 		if (S_ISREG(fs->st_mode) && fs->st_size > 0 &&
-	    	fs->st_size <= 8 * 1048576) {
-			if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    	MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
+	    	    fs->st_size <= 8 * 1024 * 1024 &&
+		    (p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
+		    MAP_SHARED, from_fd, (off_t)0)) != MAP_FAILED) {
+			wtotal = 0;
+			for (bufp = p, wresid = fs->st_size; ;
+			bufp += wcount, wresid -= (size_t)wcount) {
+				wcount = write(to_fd, bufp, wresid);
+				if (wcount <= 0)
+					break;
+				wtotal += wcount;
+				if (info) {
+					info = 0;
+					(void)fprintf(stderr,
+					    "%s -> %s %3d%%\n",
+					    entp->fts_path, to.p_path,
+					    cp_pct(wtotal, fs->st_size));
+				}
+				if (wcount >= (ssize_t)wresid)
+					break;
+			}
+			if (wcount != (ssize_t)wresid) {
+				warn("%s", to.p_path);
+				rval = 1;
+			}
+			/* Some systems don't unmap on close(2). */
+			if (munmap(p, fs->st_size) < 0) {
 				warn("%s", entp->fts_path);
 				rval = 1;
-			} else {
-				wtotal = 0;
-				for (bufp = p, wresid = fs->st_size; ;
-			    	bufp += wcount, wresid -= (size_t)wcount) {
-					wcount = write(to_fd, bufp, wresid);
-					if (wcount <= 0)
-						break;
-					wtotal += wcount;
-					if (info) {
-						info = 0;
-						(void)fprintf(stderr,
-						    "%s -> %s %3d%%\n",
-						    entp->fts_path, to.p_path,
-						    cp_pct(wtotal, fs->st_size));
-					}
-					if (wcount >= (ssize_t)wresid)
-						break;
-				}
-				if (wcount != (ssize_t)wresid) {
-					warn("%s", to.p_path);
-					rval = 1;
-				}
-				/* Some systems don't unmap on close(2). */
-				if (munmap(p, fs->st_size) < 0) {
-					warn("%s", entp->fts_path);
-					rval = 1;
-				}
 			}
 		} else
 #endif
 		{
+			if (buf == NULL) {
+				/*
+				 * Note that buf and bufsize are static. If
+				 * malloc() fails, it will fail at the start
+				 * and not copy only some files. 
+				 */ 
+				if (sysconf(_SC_PHYS_PAGES) > 
+				    PHYSPAGES_THRESHOLD)
+					bufsize = MIN(BUFSIZE_MAX, MAXPHYS * 8);
+				else
+					bufsize = BUFSIZE_SMALL;
+				buf = malloc(bufsize);
+				if (buf == NULL)
+					err(1, "Not enough memory");
+			}
 			wtotal = 0;
-			while ((rcount = read(from_fd, buf, MAXBSIZE)) > 0) {
+			while ((rcount = read(from_fd, buf, bufsize)) > 0) {
 				for (bufp = buf, wresid = rcount; ;
 			    	bufp += wcount, wresid -= wcount) {
 					wcount = write(to_fd, bufp, wresid);

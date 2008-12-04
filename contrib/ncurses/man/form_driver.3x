@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_driver.3x,v 1.15 2007/06/02 22:56:49 tom Exp $
+.\" $Id: form_driver.3x,v 1.16 2008/06/21 21:55:39 tom Exp $
 .TH form_driver 3X ""
 .SH NAME
 \fBform_driver\fR - command-processing loop of the form system
@@ -37,8 +37,21 @@ int form_driver(FORM *form, int c);
 .br
 .SH DESCRIPTION
 Once a form has been posted (displayed), you should funnel input events to it
-through \fBform_driver\fR.  This routine has two major input cases; either
-the input is a form navigation request or it is a printable ASCII character.
+through \fBform_driver\fR.  This routine has three major input cases:
+.TP 3
+-
+The input is a form navigation request.
+Navigation request codes are constants defined in \fB<form.h>\fP,
+which are distinct from the key- and character codes returned by \fBwgetch\fP.
+.TP 3
+-
+The input is a printable character.
+Printable characters (which must be positive, less than 256) are
+checked according to the program's locale settings.
+.TP 3
+-
+The input is the KEY_MOUSE special key associated with an mouse event.
+.PP
 The form driver requests are as follows:
 .TP 5
 REQ_NEXT_PAGE
@@ -218,7 +231,7 @@ Display next field choice.
 REQ_PREV_CHOICE
 Display previous field choice.
 .PP
-If the second argument is a printable ASCII character, the driver places it
+If the second argument is a printable character, the driver places it
 in the current position in the current field.  If it is one of the forms
 requests listed above, that request is executed.
 .SS MOUSE HANDLING
@@ -269,11 +282,11 @@ If a translation
 into a request was done, \fBform_driver\fR returns the result of this request.
 .RE
 .PP
-If you clicked outside the user window or the mouse event couldn't be translated
+If you clicked outside the user window or the mouse event could not be translated
 into a form request an \fBE_REQUEST_DENIED\fR is returned.
 .SS APPLICATION-DEFINED COMMANDS
 .PP
-If the second argument is neither printable ASCII nor one of the above
+If the second argument is neither printable nor one of the above
 pre-defined form requests, the driver assumes it is an application-specific
 command and returns \fBE_UNKNOWN_COMMAND\fR.  Application-defined commands
 should be defined relative to \fBMAX_COMMAND\fR, the maximum value of these
@@ -306,7 +319,9 @@ System error occurred (see \fBerrno\fR).
 The form driver code saw an unknown request code.
 .
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBform\fR(3X).
+\fBcurses\fR(3X),
+\fBform\fR(3X),
+\fBwgetch\fR(3X).
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header files
 \fB<curses.h>\fR.

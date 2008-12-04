@@ -65,6 +65,10 @@ gv_rename(struct g_geom *gp, struct gctl_req *req)
 	sc = gp->softc;
 
 	flags = gctl_get_paraml(req, "flags", sizeof(*flags));
+	if (flags == NULL) {
+		gctl_error(req, "no flags given");
+		return;
+	}
 
 	newname = gctl_get_param(req, "newname", NULL);
 	if (newname == NULL) {

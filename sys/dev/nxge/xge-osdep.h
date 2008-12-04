@@ -242,8 +242,12 @@ typedef xge_pci_info_t             *pci_cfg_h;
 	mtx_unlock_flags(lockp, flags);                                        \
 }
 
+#if __FreeBSD_version > 800053
 /* Write memory barrier */
+#define xge_os_wmb()		wmb()	
+#else
 #define xge_os_wmb()
+#endif
 
 /* Delay (in micro seconds) */
 #define xge_os_udelay(us)            DELAY(us)

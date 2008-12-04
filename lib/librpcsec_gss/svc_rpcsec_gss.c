@@ -168,7 +168,7 @@ rpc_gss_set_callback(rpc_gss_callback_t *cb)
 {
 	struct svc_rpc_gss_callback *scb;
 
-	scb = malloc(sizeof(struct svc_rpc_gss_callback));
+	scb = mem_alloc(sizeof(struct svc_rpc_gss_callback));
 	if (!scb) {
 		_rpc_gss_set_error(RPC_GSS_ER_SYSTEMERROR, ENOMEM);
 		return (FALSE);
@@ -255,7 +255,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 		namelen += strlen(domain) + 1;
 	}
 
-	buf.value = malloc(namelen);
+	buf.value = mem_alloc(namelen);
 	buf.length = namelen;
 	strcpy((char *) buf.value, name);
 	if (node) {
@@ -273,7 +273,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 	 */
 	maj_stat = gss_import_name(&min_stat, &buf,
 	    GSS_C_NT_USER_NAME, &gss_name);
-	free(buf.value);
+	mem_free(buf.value, buf.length);
 	if (maj_stat != GSS_S_COMPLETE) {
 		log_status("gss_import_name", mech_oid, maj_stat, min_stat);
 		return (FALSE);
@@ -300,7 +300,7 @@ rpc_gss_get_principal_name(rpc_gss_principal_t *principal,
 	}
 	gss_release_name(&min_stat, &gss_mech_name);
 
-	result = malloc(sizeof(int) + buf.length);
+	result = mem_alloc(sizeof(int) + buf.length);
 	if (!result) {
 		gss_release_buffer(&min_stat, &buf);
 		return (FALSE);
@@ -443,7 +443,9 @@ svc_rpc_gss_destroy_client(struct svc_rpc_gss_client *client)
 		gss_release_name(&min_stat, &client->cl_cname);
 
 	if (client->cl_rawcred.client_principal)
-		free(client->cl_rawcred.client_principal);
+		mem_free(client->cl_rawcred.client_principal,
+		    sizeof(*client->cl_rawcred.client_principal)
+		    + client->cl_rawcred.client_principal->len);
 
 	if (client->cl_verf.value)
 		gss_release_buffer(&min_stat, &client->cl_verf);
@@ -527,7 +529,7 @@ gss_oid_to_str(OM_uint32 *minor_status, gss_OID oid, gss_buffer_t oid_str)
 	 * here for "{ " and "}\0".
 	 */
 	string_length += 4;
-	if ((bp = (char *) malloc(string_length))) {
+	if ((bp = (char *) mem_alloc(string_length))) {
 		strcpy(bp, "{ ");
 		number = (unsigned long) cp[0];
 		sprintf(numstr, "%ld ", number/40);
@@ -634,7 +636,14 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 					client->cl_sname = sname;
 					break;
 				}
+				client->cl_sname = sname;
+				break;
 			}
+		}
+		if (!sname) {
+			xdr_free((xdrproc_t) xdr_gss_buffer_desc,
+			    (char *) &recv_tok);
+			return (FALSE);
 		}
 	} else {
 		gr->gr_major = gss_accept_sec_context(
@@ -663,11 +672,11 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		log_status("accept_sec_context", client->cl_mech,
 		    gr->gr_major, gr->gr_minor);
 		client->cl_state = CLIENT_STALE;
-		return (FALSE);
+		return (TRUE);
 	}
 
 	gr->gr_handle.value = &client->cl_id;
-	gr->gr_handle.length = sizeof(uint32_t);
+	gr->gr_handle.length = sizeof(client->cl_id);
 	gr->gr_win = SVC_RPC_GSS_SEQWINDOW;
 	
 	/* Save client info. */
@@ -703,7 +712,7 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 			return (FALSE);
 		}
 		client->cl_rawcred.client_principal =
-			malloc(sizeof(*client->cl_rawcred.client_principal)
+			mem_alloc(sizeof(*client->cl_rawcred.client_principal)
 			    + export_name.length);
 		client->cl_rawcred.client_principal->len = export_name.length;
 		memcpy(client->cl_rawcred.client_principal->name,
@@ -718,6 +727,7 @@ svc_rpc_gss_accept_sec_context(struct svc_rpc_gss_client *client,
 		 * kerberos5, this uses krb5_aname_to_localname.
 		 */
 		svc_rpc_gss_build_ucred(client, client->cl_cname);
+		gss_release_name(&min_stat, &client->cl_cname);
 
 #ifdef DEBUG
 		{
@@ -892,13 +902,12 @@ svc_rpc_gss_check_replay(struct svc_rpc_gss_client *client, uint32_t seq)
 		 * discard it.
 		 */
 		offset = client->cl_seqlast - seq;
-		if (offset >= client->cl_win)
+		if (offset >= SVC_RPC_GSS_SEQWINDOW)
 			return (FALSE);
 		word = offset / 32;
 		bit = offset % 32;
 		if (client->cl_seqmask[word] & (1 << bit))
 			return (FALSE);
-		client->cl_seqmask[word] |= (1 << bit);
 	}
 
 	return (TRUE);
@@ -907,7 +916,7 @@ svc_rpc_gss_check_replay(struct svc_rpc_gss_client *client, uint32_t seq)
 static void
 svc_rpc_gss_update_seq(struct svc_rpc_gss_client *client, uint32_t seq)
 {
-	int offset, i;
+	int offset, i, word, bit;
 	uint32_t carry, newcarry;
 
 	if (seq > client->cl_seqlast) {
@@ -936,7 +945,13 @@ svc_rpc_gss_update_seq(struct svc_rpc_gss_client *client, uint32_t seq)
 		}
 		client->cl_seqmask[0] |= 1;
 		client->cl_seqlast = seq;
+	} else {
+		offset = client->cl_seqlast - seq;
+		word = offset / 32;
+		bit = offset % 32;
+		client->cl_seqmask[word] |= (1 << bit);
 	}
+
 }
 
 enum auth_stat
@@ -983,6 +998,10 @@ svc_rpc_gss(struct svc_req *rqst, struct rpc_msg *msg)
 
 	/* Check the proc and find the client (or create it) */
 	if (gc.gc_proc == RPCSEC_GSS_INIT) {
+		if (gc.gc_handle.length != 0) {
+			result = AUTH_BADCRED;
+			goto out;
+		}
 		client = svc_rpc_gss_create_client();
 	} else {
 		if (gc.gc_handle.length != sizeof(uint32_t)) {

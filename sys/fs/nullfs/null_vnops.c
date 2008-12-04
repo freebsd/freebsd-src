@@ -365,11 +365,10 @@ null_lookup(struct vop_lookup_args *ap)
 			vrele(lvp);
 		} else {
 			error = null_nodeget(dvp->v_mount, lvp, &vp);
-			if (error) {
-				/* XXX Cleanup needed... */
-				panic("null_nodeget failed");
-			}
-			*ap->a_vpp = vp;
+			if (error)
+				vput(lvp);
+			else
+				*ap->a_vpp = vp;
 		}
 	}
 	return (error);
@@ -451,14 +450,14 @@ static int
 null_access(struct vop_access_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 
 	/*
 	 * Disallow write attempts on read-only layers;
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -677,7 +676,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 		vput(lowervp);
 	} else
 		panic("null_reclaim: reclaiming a node with no lowervp");
-	FREE(xp, M_NULLFSNODE);
+	free(xp, M_NULLFSNODE);
 
 	return (0);
 }

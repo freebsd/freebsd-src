@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#include <netinet/vinet.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -112,8 +113,10 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Internal variables. */
+#ifdef VIMAGE_GLOBALS
 static struct inpcbhead divcb;
 static struct inpcbinfo divcbinfo;
+#endif
 
 static u_long	div_sendspace = DIVSNDQ;	/* XXX sysctl ? */
 static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
@@ -320,6 +323,7 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 	 */
 	m->m_pkthdr.rcvif = NULL;
 	m->m_nextpkt = NULL;
+	M_SETFIB(m, so->so_fibnum);
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -578,6 +582,7 @@ div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 static int
 div_pcblist(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_INET(curvnet);
 	int error, i, n;
 	struct inpcb *inp, **inp_list;
 	inp_gen_t gencnt;

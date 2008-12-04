@@ -48,7 +48,7 @@ typedef	void (*systrace_probe_func_t)(u_int32_t, int, struct sysent *, void *);
  * Used by loaded syscalls to convert arguments to a DTrace array
  * of 64-bit arguments.
  */
-typedef	void (*systrace_args_func_t)(void *, u_int64_t *, int *);
+typedef	void (*systrace_args_func_t)(int, void *, u_int64_t *, int *);
 
 extern systrace_probe_func_t	systrace_probe_func;
 
@@ -100,7 +100,21 @@ struct sysentvec {
 	void		(*sv_setregs)(struct thread *, u_long, u_long, u_long);
 	void		(*sv_fixlimit)(struct rlimit *, int);
 	u_long		*sv_maxssiz;
+	u_int		sv_flags;
 };
+
+#define	SV_ILP32	0x000100
+#define	SV_LP64		0x000200
+#define	SV_IA32		0x004000
+#define	SV_AOUT		0x008000
+
+#define	SV_ABI_MASK	0xff
+#define	SV_CURPROC_FLAG(x) (curproc->p_sysent->sv_flags & (x))
+#define	SV_CURPROC_ABI() (curproc->p_sysent->sv_flags & SV_ABI_MASK)
+/* same as ELFOSABI_XXX, to prevent header pollution */
+#define	SV_ABI_LINUX	3
+#define	SV_ABI_FREEBSD 	9
+#define	SV_ABI_UNDEF	255
 
 #ifdef _KERNEL
 extern struct sysentvec aout_sysvec;

@@ -29,6 +29,10 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define	_MACHINE_ATOMIC_H_
 
+#define	mb()	__asm __volatile("mf")
+#define	wmb()	mb()
+#define	rmb()	mb()
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.

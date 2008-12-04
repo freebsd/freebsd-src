@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <net/radix.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
+#include <net/vnet.h>
 
 #define	IPFW_INTERNAL	/* Access to protected data structures in ip_fw.h. */
 
@@ -91,6 +92,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
+#include <netinet/vinet.h>
+
 #include <netgraph/ng_ipfw.h>
 
 #include <altq/if_altq.h>
@@ -1803,14 +1806,14 @@ add_table_entry(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,
 	ent->addr.sin_len = ent->mask.sin_len = 8;
 	ent->mask.sin_addr.s_addr = htonl(mlen ? ~((1 << (32 - mlen)) - 1) : 0);
 	ent->addr.sin_addr.s_addr = addr & ent->mask.sin_addr.s_addr;
-	IPFW_WLOCK(&V_layer3_chain);
+	IPFW_WLOCK(ch);
 	if (rnh->rnh_addaddr(&ent->addr, &ent->mask, rnh, (void *)ent) ==
 	    NULL) {
-		IPFW_WUNLOCK(&V_layer3_chain);
+		IPFW_WUNLOCK(ch);
 		free(ent, M_IPFW_TBL);
 		return (EEXIST);
 	}
-	IPFW_WUNLOCK(&V_layer3_chain);
+	IPFW_WUNLOCK(ch);
 	return (0);
 }
 

@@ -77,10 +77,7 @@ static inline void rep_nop(void)
 #define __builtin_expect(x, expected_value) (x)
 #endif
 
-#define DEFINE_PER_CPU(type, name) \
-    __typeof__(type) per_cpu__##name
-
-#define per_cpu(var, cpu)           (*((void)cpu, &per_cpu__##var))
+#define per_cpu(var, cpu)           (pcpu_find((cpu))->pc_ ## var)
 
 /* crude memory allocator for memory allocation early in 
  *  boot
@@ -168,15 +165,6 @@ do {                                                                    \
 #define spin_unlock_irqrestore mtx_unlock_irqrestore
 
 
-#ifndef mb
-#define mb() __asm__ __volatile__("lock; addl $0, 0(%%esp)": : :"memory")
-#endif
-#ifndef rmb
-#define rmb() mb()
-#endif
-#ifndef wmb
-#define wmb() barrier()
-#endif
 #ifdef SMP
 #define smp_mb() mb() 
 #define smp_rmb() rmb()

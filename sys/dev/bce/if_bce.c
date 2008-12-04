@@ -2555,7 +2555,7 @@ bce_get_media(struct bce_softc *sc)
 	} else if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT)
 		sc->bce_phy_flags |= BCE_PHY_SERDES_FLAG;
 
-	if (sc->bce_phy_flags && BCE_PHY_SERDES_FLAG) {
+	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
 		sc->bce_flags |= BCE_NO_WOL_FLAG;
 		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
 			sc->bce_phy_addr = 2;
@@ -7030,13 +7030,14 @@ bce_intr(void *xsc)
 
 		/* Was it a link change interrupt? */
 		if ((status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) !=
-			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE))
+			(sc->status_block->status_attn_bits_ack & STATUS_ATTN_BITS_LINK_STATE)) {
 			bce_phy_intr(sc);
 
-		/* Clear any transient status updates during link state change. */
-		REG_WR(sc, BCE_HC_COMMAND,
-			sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
-		REG_RD(sc, BCE_HC_COMMAND);
+			/* Clear any transient status updates during link state change. */
+			REG_WR(sc, BCE_HC_COMMAND,
+				sc->hc_command | BCE_HC_COMMAND_COAL_NOW_WO_INT);
+			REG_RD(sc, BCE_HC_COMMAND);
+		}
 
 		/* If any other attention is asserted then the chip is toast. */
 		if (((status_attn_bits & ~STATUS_ATTN_BITS_LINK_STATE) !=

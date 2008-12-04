@@ -180,14 +180,14 @@ static int
 _xfs_access(
     	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap)
 {
 	int error;
 
-	XVOP_ACCESS(VPTOXFSVP(ap->a_vp), ap->a_mode, ap->a_cred, error);
+	XVOP_ACCESS(VPTOXFSVP(ap->a_vp), ap->a_accmode, ap->a_cred, error);
 	return (error);
 }
 

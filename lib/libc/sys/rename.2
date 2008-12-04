@@ -156,6 +156,11 @@ A component of either path prefix denies search permission.
 .It Bq Er EACCES
 The requested link requires writing in a directory with a mode
 that denies write permission.
+.It Bq Er EACCES
+The directory pointed at by the
+.Fa from
+argument denies write permission, and the operation would move
+it to another parent directory.
 .It Bq Er EPERM
 The file pointed at by the
 .Fa from

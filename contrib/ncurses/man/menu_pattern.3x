@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_pattern.3x,v 1.10 2006/11/04 18:25:24 tom Exp $
+.\" $Id: menu_pattern.3x,v 1.11 2008/06/21 21:58:20 tom Exp $
 .TH menu_pattern 3X ""
 .SH NAME
 \fBmenu_pattern\fR - get and set a menu's pattern buffer
@@ -39,7 +39,7 @@ char *menu_pattern(const MENU *menu);
 .br
 .SH DESCRIPTION
 Every menu has an associated pattern match buffer.  As input events that are
-printable ASCII characters come in, they are appended to this match buffer
+printable characters come in, they are appended to this match buffer
 and tested for a match, as described in \fBmenu_driver\fR(3X).
 .PP
 The function \fBset_menu_pattern\fR sets the pattern buffer for the given menu

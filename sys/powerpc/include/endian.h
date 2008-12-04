@@ -44,15 +44,29 @@
 #define	_QUAD_LOWWORD 1
 
 /*
+ * GCC defines _BIG_ENDIAN and _LITTLE_ENDIAN equal to __BIG_ENDIAN__
+ * and __LITTLE_ENDIAN__ (resp).
+ */
+#ifdef _BIG_ENDIAN
+#undef _BIG_ENDIAN
+#endif
+#ifdef _LITTLE_ENDIAN
+#undef _LITTLE_ENDIAN
+#endif
+
+/*
  * Definitions for byte order, according to byte significance from low
  * address to high.
  */
-#undef  _BIG_ENDIAN		/* GCC annoyingly defines this for PowerPC */
 #define	_LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
 #define	_BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	_PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
+#ifdef __LITTLE_ENDIAN__
+#define	_BYTE_ORDER	_LITTLE_ENDIAN
+#else
 #define	_BYTE_ORDER	_BIG_ENDIAN
+#endif
 
 /*
  * Deprecated variants that don't have enough underscores to be useful in more

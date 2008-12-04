@@ -2686,8 +2686,10 @@ an_init(void *xsc)
 		}
 	}
 
+#ifdef ANCACHE
 	if (sc->an_have_rssimap)
 		sc->an_config.an_rxmode |= AN_RXMODE_NORMALIZED_RSSI;
+#endif
 
 	/* Set the ssid list */
 	sc->an_ssidlist.an_type = AN_RID_SSIDLIST;

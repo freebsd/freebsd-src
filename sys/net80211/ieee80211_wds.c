@@ -278,7 +278,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		mcopy->m_flags |= M_MCAST | M_WDS;
 		mcopy->m_pkthdr.rcvif = (void *) ni;
 
-		IFQ_HANDOFF(parent, mcopy, err);
+		err = (parent->if_transmit)(parent, mcopy);
 		if (err) {
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ifp->if_oerrors++;
@@ -728,7 +728,7 @@ wds_input(struct ieee80211_node *ni, struct mbuf *m,
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
-		} else if ((ni->ni_ath_flags & IEEE80211_NODE_FF) &&
+		} else if (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF) &&
 #define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
 		    m->m_pkthdr.len >= 3*FF_LLC_SIZE) {
 			struct llc *llc;

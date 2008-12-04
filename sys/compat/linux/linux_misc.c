@@ -1682,6 +1682,7 @@ int
 linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 {
 	int name[2];
+	int error;
 
 #ifdef DEBUG
 	if (ldebug(sethostname))
@@ -1690,8 +1691,31 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
-	    args->len, 0, 0));
+	mtx_lock(&Giant);
+	error = userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
+	    args->len, 0, 0);
+	mtx_unlock(&Giant);
+	return (error);
+}
+
+int
+linux_setdomainname(struct thread *td, struct linux_setdomainname_args *args)
+{
+	int name[2];
+	int error;
+
+#ifdef DEBUG
+	if (ldebug(setdomainname))
+		printf(ARGS(setdomainname, "*, %i"), args->len);
+#endif
+
+	name[0] = CTL_KERN;
+	name[1] = KERN_NISDOMAINNAME;
+	mtx_lock(&Giant);
+	error = userland_sysctl(td, name, 2, 0, 0, 0, args->name,
+	    args->len, 0, 0);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 int

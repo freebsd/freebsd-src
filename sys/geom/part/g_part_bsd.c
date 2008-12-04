@@ -241,9 +241,10 @@ g_part_bsd_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_bsd_entry *entry;
 
-	/* Allow dumping to a swap partition only. */
+	/* Allow dumping to a swap partition or an unused partition. */
 	entry = (struct g_part_bsd_entry *)baseentry;
-	return ((entry->part.p_fstype == FS_SWAP) ? 1 : 0);
+	return ((entry->part.p_fstype == FS_UNUSED ||
+	    entry->part.p_fstype == FS_SWAP) ? 1 : 0);
 }
 
 static int
@@ -341,8 +342,13 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		printf("GEOM: %s: geometry does not match label.\n", pp->name);
 
 	chs = le32dec(buf + 60);
-	if (chs < 1 || chs > msize)
+	if (chs < 1)
 		goto invalid_label;
+	/* Fix-up a sysinstall bug. */
+	if (chs > msize) {
+		chs = msize;
+		le32enc(buf + 60, msize);
+	}
 	if (chs != msize)
 		printf("GEOM: %s: media size does not match label.\n",
 		    pp->name);
@@ -367,8 +373,6 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		part.p_cpg = le16dec(p + 14);
 		if (part.p_size == 0)
 			continue;
-		if (part.p_fstype == FS_UNUSED && index != RAW_PART)
-			continue;
 		if (part.p_offset < table->offset)
 			continue;
 		baseentry = g_part_new_entry(basetable, index + 1,
@@ -376,7 +380,7 @@ g_part_bsd_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    part.p_offset - table->offset + part.p_size - 1);
 		entry = (struct g_part_bsd_entry *)baseentry;
 		entry->part = part;
-		if (part.p_fstype == FS_UNUSED)
+		if (index == RAW_PART)
 			baseentry->gpe_internal = 1;
 	}
 

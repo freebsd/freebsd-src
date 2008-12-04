@@ -19,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -51,15 +51,13 @@ typedef struct lwb {
 } lwb_t;
 
 /*
- * Vdev flushing: We use a bit map of size ZIL_VDEV_BMAP bytes.
- * Any vdev numbers beyond that use a linked list of zil_vdev_t structures.
+ * Vdev flushing: during a zil_commit(), we build up an AVL tree of the vdevs
+ * we've touched so we know which ones need a write cache flush at the end.
  */
-
-#define	ZIL_VDEV_BMSZ 16 /* 16 * 8 = 128 vdevs */
-typedef struct zil_vdev {
-	uint64_t	vdev;		/* device written */
-	list_node_t	vdev_seq_node;	/* zilog->zl_vdev_list linkage */
-} zil_vdev_t;
+typedef struct zil_vdev_node {
+	uint64_t	zv_vdev;	/* vdev to be flushed */
+	avl_node_t	zv_node;	/* AVL tree linkage */
+} zil_vdev_node_t;
 
 /*
  * Stable storage intent log management structure.  One per dataset.
@@ -91,8 +89,8 @@ struct zilog {
 	uint64_t	zl_cur_used;	/* current commit log size used */
 	uint64_t	zl_prev_used;	/* previous commit log size used */
 	list_t		zl_lwb_list;	/* in-flight log write list */
-	list_t		zl_vdev_list;	/* list of [vdev, seq] pairs */
-	uint8_t		zl_vdev_bmap[ZIL_VDEV_BMSZ]; /* bitmap of vdevs */
+	kmutex_t	zl_vdev_lock;	/* protects zl_vdev_tree */
+	avl_tree_t	zl_vdev_tree;	/* vdevs to flush in zil_commit() */
 	taskq_t		*zl_clean_taskq; /* runs lwb and itx clean tasks */
 	avl_tree_t	zl_dva_tree;	/* track DVAs during log parse */
 	clock_t		zl_replay_time;	/* lbolt of when replay started */

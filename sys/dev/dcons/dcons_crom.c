@@ -229,7 +229,7 @@ dcons_crom_attach(device_t dev)
 		/*lockarg*/&Giant,
 #endif
 		&sc->dma_tag);
-	bus_dmamap_create(sc->dma_tag, 0, &sc->dma_map);
+	bus_dmamap_create(sc->dma_tag, BUS_DMA_COHERENT, &sc->dma_map);
 	bus_dmamap_load(sc->dma_tag, sc->dma_map,
 	    (void *)dcons_conf->buf, dcons_conf->size,
 	    dmamap_cb, sc, 0);

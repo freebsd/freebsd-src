@@ -8,8 +8,9 @@ SHLIBDIR?= /lib
 LIB=	util
 SHLIB_MAJOR= 7
 
-SRCS=	_secure_path.c auth.c gr_util.c expand_number.c flopen.c fparseln.c \
-	hexdump.c humanize_number.c kld.c login.c login_auth.c login_cap.c \
+SRCS=	_secure_path.c auth.c expand_number.c flopen.c fparseln.c gr_util.c \
+	hexdump.c humanize_number.c kinfo_getfile.c kinfo_getvmmap.c kld.c \
+	login.c login_auth.c login_cap.c \
 	login_class.c login_crypt.c login_ok.c login_times.c login_tty.c \
 	logout.c logwtmp.c pidfile.c property.c pty.c pw_util.c realhostname.c \
 	stub.c trimdomain.c uucplock.c

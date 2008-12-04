@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 struct devsw *devsw[] = {
 #if defined(LOADER_DISK_SUPPORT) || defined(LOADER_CD9660_SUPPORT)
-	&uboot_disk,
+	&uboot_storage,
 #endif
 #if defined(LOADER_NET_SUPPORT)
 	&netdev,

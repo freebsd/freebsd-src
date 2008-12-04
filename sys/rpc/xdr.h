@@ -348,6 +348,8 @@ extern void   xdrmem_create(XDR *, char *, u_int, enum xdr_op);
 /* XDR using mbufs */
 struct mbuf;
 extern void   xdrmbuf_create(XDR *, struct mbuf *, enum xdr_op);
+extern void   xdrmbuf_append(XDR *, struct mbuf *);
+extern struct mbuf * xdrmbuf_getall(XDR *);
 
 /* XDR pseudo records for tcp */
 extern void   xdrrec_create(XDR *, u_int, u_int, void *,

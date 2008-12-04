@@ -107,10 +107,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/icmp6.h>
+#include <netinet/vinet.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -120,6 +122,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6protosw.h>
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
+#include <netinet6/vinet6.h>
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
@@ -129,6 +132,7 @@ static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 static int ip6_mdq(struct mbuf *, struct ifnet *, struct mf6c *);
 static void phyint_send(struct ip6_hdr *, struct mif6 *, struct mbuf *);
 
+static void pim6_init(void);
 static int set_pim6(int *);
 static int socket_send __P((struct socket *, struct mbuf *,
 	    struct sockaddr_in6 *));
@@ -146,10 +150,13 @@ struct ip6protosw in6_pim_protosw = {
 	.pr_input =		pim6_input,
 	.pr_output =		rip6_output,
 	.pr_ctloutput =		rip6_ctloutput,
+	.pr_init =		pim6_init,
 	.pr_usrreqs =		&rip6_usrreqs
 };
 
-static int ip6_mrouter_ver = 0;
+#ifdef VIMAGE_GLOBALS
+static int ip6_mrouter_ver;
+#endif
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
@@ -177,7 +184,9 @@ SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
     "Multicast Interfaces (struct mif[MAXMIFS], netinet6/ip6_mroute.h)");
 
 #ifdef MRT6DEBUG
+#ifdef VIMAGE_GLOBALS
 static u_int mrt6debug = 0;		/* debug level */
+#endif
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
 #define DEBUG_EXPIRE	0x08
@@ -222,7 +231,9 @@ SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
     &pim6stat, pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
 
+#ifdef VIMAGE_GLOBALS
 static int pim6;
+#endif
 
 /*
  * Hash function for a source, group entry
@@ -301,6 +312,17 @@ int X_ip6_mrouter_done(void);
 int X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt);
 int X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt);
 int X_mrt6_ioctl(int cmd, caddr_t data);
+
+static void
+pim6_init(void)
+{
+	INIT_VNET_INET6(curvnet);
+
+	V_ip6_mrouter_ver = 0;
+#ifdef MRT6DEBUG
+	V_mrt6debug = 0;	/* debug level */
+#endif
+}
 
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.

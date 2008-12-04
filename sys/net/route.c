@@ -57,9 +57,11 @@
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
+#include <netinet/vinet.h>
 
 #include <vm/uma.h>
 
@@ -84,6 +86,7 @@ SYSCTL_INT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
     &rt_add_addr_allfibs, 0, "");
 TUNABLE_INT("net.add_addr_allfibs", &rt_add_addr_allfibs);
 
+#ifdef VIMAGE_GLOBALS
 static struct rtstat rtstat;
 
 /* by default only the first 'row' of tables will be accessed. */
@@ -96,6 +99,7 @@ static struct rtstat rtstat;
 struct radix_node_head *rt_tables[RT_MAXFIBS][AF_MAX+1];
 
 static int	rttrash;		/* routes not in table but not freed */
+#endif
 
 static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
@@ -143,6 +147,7 @@ SYSCTL_PROC(_net, OID_AUTO, my_fibnum, CTLTYPE_INT|CTLFLAG_RD,
 static void
 route_init(void)
 {
+	INIT_VNET_INET(curvnet);
 	int table;
 	struct domain *dom;
 	int fam;

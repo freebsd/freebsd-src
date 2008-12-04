@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 2001-2006                                      *
+ *  Author: Thomas E. Dickey 2001-2008                                      *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -1636,7 +1636,7 @@ int	wins_wstr(
 NCURSES_BOOL mouse_trafo(
 		int	*a1, 
 		int	*a2, 
-		NCURSES_BOOL	z)
+		NCURSES_BOOL z)
 		{ return(*(NCURSES_BOOL *)0); }
 
 /* ./base/lib_getch.c */
@@ -1645,6 +1645,11 @@ NCURSES_BOOL mouse_trafo(
 
 #undef ESCDELAY
 int	ESCDELAY;
+
+#undef set_escdelay
+int	set_escdelay(
+		int	value)
+		{ return(*(int *)0); }
 
 #undef _nc_wgetch
 int	_nc_wgetch(
@@ -1902,6 +1907,11 @@ WINDOW	*_nc_makenew(
 		int	begx, 
 		int	flags)
 		{ return(*(WINDOW **)0); }
+
+#undef _nc_screen_of
+SCREEN	*_nc_screen_of(
+		WINDOW	*win)
+		{ return(*(SCREEN **)0); }
 
 /* ./base/lib_nl.c */
 
@@ -2199,9 +2209,6 @@ int	ripoffline(
 
 /* ./base/lib_slk.c */
 
-#undef _nc_slk_format
-int	_nc_slk_format;
-
 #undef _nc_slk_initialize
 int	_nc_slk_initialize(
 		WINDOW	*stwin, 
@@ -2333,6 +2340,12 @@ void	_tracedump(
 
 /* ./trace/lib_tracemse.c */
 
+#undef _nc_tracemouse
+char	*_nc_tracemouse(
+		SCREEN	*sp, 
+		MEVENT const *ep)
+		{ return(*(char **)0); }
+
 #undef _tracemouse
 char	*_tracemouse(
 		MEVENT const *ep)
@@ -2350,8 +2363,15 @@ void	_nc_signal_handler(
 /* ./base/lib_ungetch.c */
 
 #undef _nc_fifo_dump
-void	_nc_fifo_dump(void)
+void	_nc_fifo_dump(
+		SCREEN	*sp)
 		{ /* void */ }
+
+#undef _nc_ungetch
+int	_nc_ungetch(
+		SCREEN	*sp, 
+		int	ch)
+		{ return(*(int *)0); }
 
 #undef ungetch
 int	ungetch(
@@ -2528,6 +2548,11 @@ void	_nc_vsscanf(void)
 
 #undef _nc_freeall
 void	_nc_freeall(void)
+		{ /* void */ }
+
+#undef _nc_free_and_exit
+void	_nc_free_and_exit(
+		int	code)
 		{ /* void */ }
 
 /* ./widechar/charable.c */
@@ -2849,6 +2874,24 @@ void	_nc_trace_xnames(
 		TERMTYPE *tp)
 		{ /* void */ }
 
+/* ./tinfo/use_screen.c */
+
+#undef use_screen
+int	use_screen(
+		SCREEN	*screen, 
+		NCURSES_SCREEN_CB func, 
+		void	*data)
+		{ return(*(int *)0); }
+
+/* ./base/use_window.c */
+
+#undef use_window
+int	use_window(
+		WINDOW	*win, 
+		NCURSES_WINDOW_CB func, 
+		void	*data)
+		{ return(*(int *)0); }
+
 /* ./base/wresize.c */
 
 #undef wresize
@@ -3091,7 +3134,8 @@ const struct tinfo_fkeys _nc_tinfo_fkeys[] = {0};
 #endif
 
 #undef _nc_init_keytry
-void	_nc_init_keytry(void)
+void	_nc_init_keytry(
+		SCREEN	*sp)
 		{ /* void */ }
 
 /* ./tinfo/lib_acs.c */
@@ -3186,6 +3230,12 @@ int	flushinp(void)
 
 struct kn { short offset; int code; };
 
+#undef _nc_keyname
+char	*_nc_keyname(
+		SCREEN	*sp, 
+		int	c)
+		{ return(*(char **)0); }
+
 #undef keyname
 char	*keyname(
 		int	c)
@@ -3272,6 +3322,7 @@ int	has_key(
 
 #undef _nc_keypad
 int	_nc_keypad(
+		SCREEN	*sp, 
 		NCURSES_BOOL flag)
 		{ return(*(int *)0); }
 
@@ -3322,9 +3373,14 @@ int	COLS;
 #undef TABSIZE
 int	TABSIZE;
 
+#undef set_tabsize
+int	set_tabsize(
+		int	value)
+		{ return(*(int *)0); }
+
 #undef _nc_handle_sigwinch
 int	_nc_handle_sigwinch(
-		int	update)
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef use_env
@@ -3334,12 +3390,14 @@ void	use_env(
 
 #undef _nc_get_screensize
 void	_nc_get_screensize(
+		SCREEN	*sp, 
 		int	*linep, 
 		int	*colp)
 		{ /* void */ }
 
 #undef _nc_update_screensize
-void	_nc_update_screensize(void)
+void	_nc_update_screensize(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef _nc_get_locale
@@ -3351,7 +3409,8 @@ int	_nc_unicode_locale(void)
 		{ return(*(int *)0); }
 
 #undef _nc_locale_breaks_acs
-int	_nc_locale_breaks_acs(void)
+int	_nc_locale_breaks_acs(
+		TERMINAL *termp)
 		{ return(*(int *)0); }
 
 #undef _nc_setupterm
@@ -3462,6 +3521,11 @@ char	PC;
 NCURSES_OSPEED	ospeed;
 #undef _nc_nulls_sent
 int	_nc_nulls_sent;
+
+#undef _nc_set_no_padding
+void	_nc_set_no_padding(
+		SCREEN	*sp)
+		{ /* void */ }
 
 #undef delay_output
 int	delay_output(
@@ -3624,6 +3688,12 @@ char	*_nc_tracebits(void)
 
 /* ./trace/lib_tracechr.c */
 
+#undef _nc_tracechar
+char	*_nc_tracechar(
+		SCREEN	*sp, 
+		int	ch)
+		{ return(*(char **)0); }
+
 #undef _tracechar
 char	*_tracechar(
 		int	ch)
@@ -3669,6 +3739,7 @@ int	resetty(void)
 
 #undef _nc_timed_wait
 int	_nc_timed_wait(
+		SCREEN	*sp, 
 		int	mode, 
 		int	milliseconds, 
 		int	*timeleft)
@@ -3830,9 +3901,15 @@ char	*_nc_trim_sgr0(
 
 /* ./unctrl.c */
 
+#undef _nc_unctrl
+char	*_nc_unctrl(
+		SCREEN	*sp, 
+		chtype	ch)
+		{ return(*(char **)0); }
+
 #undef unctrl
 char	*unctrl(
-		 chtype	ch)
+		chtype	ch)
 		{ return(*(char **)0); }
 
 /* ./trace/visbuf.c */

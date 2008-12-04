@@ -467,12 +467,15 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	/*
 	 * Avoid the common case of unlocking when inode has no locks.
 	 */
-	if ((*statep) == NULL || LIST_EMPTY(&(*statep)->ls_active)) {
+	VI_LOCK(vp);
+	if ((*statep) == NULL) {
 		if (ap->a_op != F_SETLK) {
 			fl->l_type = F_UNLCK;
+			VI_UNLOCK(vp);
 			return (0);
 		}
 	}
+	VI_UNLOCK(vp);
 
 	/*
 	 * Map our arguments to an existing lock owner or create one
@@ -1339,7 +1342,6 @@ static int
 lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
     void **cookiep)
 {
-	struct lockf_entry *block;
 	static char lockstr[] = "lockf";
 	int priority, error;
 
@@ -1359,7 +1361,7 @@ lf_setlock(struct lockf *state, struct lockf_entry *lock, struct vnode *vp,
 	/*
 	 * Scan lock list for this file looking for locks that would block us.
 	 */
-	while ((block = lf_getblock(state, lock))) {
+	while (lf_getblock(state, lock)) {
 		/*
 		 * Free the structure and return if nonblocking.
 		 */

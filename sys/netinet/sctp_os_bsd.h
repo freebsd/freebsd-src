@@ -61,9 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/limits.h>
 #include <sys/queue.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 800044
 #include <sys/vimage.h>
-#endif
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -79,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp_var.h>
-
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -248,17 +246,17 @@ MALLOC_DECLARE(SCTP_M_SOCKOPT);
  */
 #define SCTP_MALLOC(var, type, size, name) \
     do { \
-	MALLOC(var, type, size, name, M_NOWAIT); \
+	var = (type)malloc(size, name, M_NOWAIT); \
     } while (0)
 
-#define SCTP_FREE(var, type)	FREE(var, type)
+#define SCTP_FREE(var, type)	free(var, type)
 
 #define SCTP_MALLOC_SONAME(var, type, size) \
     do { \
-	MALLOC(var, type, size, M_SONAME, M_WAITOK | M_ZERO); \
+	var = (type)malloc(size, M_SONAME, M_WAITOK | M_ZERO); \
     } while (0)
 
-#define SCTP_FREE_SONAME(var)	FREE(var, M_SONAME)
+#define SCTP_FREE_SONAME(var)	free(var, M_SONAME)
 
 #define SCTP_PROCESS_STRUCT struct proc *
 

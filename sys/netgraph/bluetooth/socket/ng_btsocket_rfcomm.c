@@ -405,7 +405,7 @@ ng_btsocket_rfcomm_attach(struct socket *so, int proto, struct thread *td)
 	}
 
 	/* Allocate the PCB */
-        MALLOC(pcb, ng_btsocket_rfcomm_pcb_p, sizeof(*pcb),
+        pcb = malloc(sizeof(*pcb),
 		M_NETGRAPH_BTSOCKET_RFCOMM, M_NOWAIT | M_ZERO);
         if (pcb == NULL)
                 return (ENOMEM);
@@ -751,7 +751,7 @@ ng_btsocket_rfcomm_detach(struct socket *so)
 
 	mtx_destroy(&pcb->pcb_mtx);
 	bzero(pcb, sizeof(*pcb));
-	FREE(pcb, M_NETGRAPH_BTSOCKET_RFCOMM);
+	free(pcb, M_NETGRAPH_BTSOCKET_RFCOMM);
 
 	soisdisconnected(so);
 	so->so_pcb = NULL;
@@ -1069,7 +1069,7 @@ ng_btsocket_rfcomm_sessions_task(void *ctx, int pending)
 
 			mtx_destroy(&s->session_mtx);
 			bzero(s, sizeof(*s));
-			FREE(s, M_NETGRAPH_BTSOCKET_RFCOMM);
+			free(s, M_NETGRAPH_BTSOCKET_RFCOMM);
 		} else
 			mtx_unlock(&s->session_mtx);
 
@@ -1270,7 +1270,7 @@ ng_btsocket_rfcomm_session_create(ng_btsocket_rfcomm_session_p *sp,
 	mtx_assert(&ng_btsocket_rfcomm_sessions_mtx, MA_OWNED);
 
 	/* Allocate the RFCOMM session */
-        MALLOC(s, ng_btsocket_rfcomm_session_p, sizeof(*s),
+        s = malloc(sizeof(*s),
 		M_NETGRAPH_BTSOCKET_RFCOMM, M_NOWAIT | M_ZERO);
         if (s == NULL)
                 return (ENOMEM);
@@ -1390,7 +1390,7 @@ bad:
 
 	mtx_destroy(&s->session_mtx);
 	bzero(s, sizeof(*s));
-	FREE(s, M_NETGRAPH_BTSOCKET_RFCOMM);
+	free(s, M_NETGRAPH_BTSOCKET_RFCOMM);
 
 	return (error);
 } /* ng_btsocket_rfcomm_session_create */

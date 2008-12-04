@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_key_name.c,v 1.2 2007/06/12 21:01:13 tom Exp $")
+MODULE_ID("$Id: lib_key_name.c,v 1.3 2008/10/11 20:15:14 tom Exp $")
 
 NCURSES_EXPORT(NCURSES_CONST char *)
 key_name(wchar_t c)
@@ -54,7 +54,7 @@ key_name(wchar_t c)
     my_wchars = wunctrl(&my_cchar);
     len = wcstombs(result, my_wchars, sizeof(result) - 1);
     if (isEILSEQ(len) || (len == 0)) {
-	return "UNKNOWN KEY";
+	return 0;
     }
 
     result[len] = '\0';

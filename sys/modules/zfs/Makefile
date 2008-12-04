@@ -12,11 +12,14 @@ SRCS+=	acl_common.c
 SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
+.PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/unicode
+SRCS+=	u8_textprep.c
 
 .PATH:	${.CURDIR}/../../cddl/compat/opensolaris/kern
 SRCS+=	opensolaris_kmem.c
 SRCS+=	opensolaris_kobj.c
 SRCS+=	opensolaris_kstat.c
+SRCS+=	opensolaris_lookup.c
 SRCS+=	opensolaris_misc.c
 SRCS+=	opensolaris_policy.c
 SRCS+=	opensolaris_string.c
@@ -33,6 +36,7 @@ SRCS+=	opensolaris_atomic.c
 
 .PATH:	${SUNW}/uts/common/fs
 SRCS+=	gfs.c
+SRCS+=	vnode.c
 
 .PATH:	${SUNW}/uts/common/os
 SRCS+=	callb.c
@@ -78,6 +82,7 @@ CFLAGS+=-I${.CURDIR}/../..
 CFLAGS+=-I${SUNW}/common/zfs
 CFLAGS+=-I${SUNW}/common
 CFLAGS+=-I${.CURDIR}/../../../include
+CFLAGS+=-DBUILDING_ZFS
 
 #CFLAGS+=-DDEBUG=1
 #DEBUG_FLAGS=-g

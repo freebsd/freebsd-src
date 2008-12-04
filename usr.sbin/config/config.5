@@ -231,6 +231,7 @@ specifications.
 Each option specification has the form
 .Pp
 .D1 Ar MakeVariableName Ns Op = Ns Ar Value
+.D1 Ar MakeVariableName Ns += Ns Ar Value
 .Pp
 and results in the appropriate
 .Xr make 1
@@ -243,7 +244,8 @@ is assumed to be the empty string.
 .Pp
 Example:
 .Bd -literal -offset indent -compact
-makeoptions MYMAKEOPTION="foobar"
+makeoptions MYMAKEOPTION="foo"
+makeoptions MYMAKEOPTION+="bar"
 makeoptions MYNULLMAKEOPTION
 .Ed
 .\" -------- MAXUSERS --------

@@ -58,7 +58,6 @@ typedef	struct	{
 
 struct iso_node {
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
-	u_long	i_flag;		/* see below */
 	ino_t	i_number;	/* the identity of the inode */
 				/* we use the actual starting block of the file */
 	struct	iso_mnt *i_mnt;	/* filesystem associated with this inode */
@@ -77,9 +76,6 @@ struct iso_node {
 
 #define	i_forw		i_chain[0]
 #define	i_back		i_chain[1]
-
-/* flags */
-#define	IN_ACCESS	0x0020		/* inode access time to be updated */
 
 #define VTOI(vp) ((struct iso_node *)(vp)->v_data)
 #define ITOV(ip) ((ip)->i_vnode)

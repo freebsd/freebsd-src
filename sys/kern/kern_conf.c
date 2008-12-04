@@ -862,6 +862,7 @@ void
 destroy_dev(struct cdev *dev)
 {
 
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "destroy_dev");
 	dev_lock();
 	destroy_devl(dev);
 	dev_unlock_and_free();

@@ -438,7 +438,7 @@ smb_nbst_create(struct smb_vc *vcp, struct thread *td)
 {
 	struct nbpcb *nbp;
 
-	MALLOC(nbp, struct nbpcb *, sizeof *nbp, M_NBDATA, M_WAITOK);
+	nbp = malloc(sizeof *nbp, M_NBDATA, M_WAITOK);
 	bzero(nbp, sizeof *nbp);
 	nbp->nbp_timo.tv_sec = 15;	/* XXX: sysctl ? */
 	nbp->nbp_state = NBST_CLOSED;

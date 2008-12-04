@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <geom/geom.h>
@@ -42,12 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum.h>
 #include <geom/vinum/geom_vinum_share.h>
 
-#if 0
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW, 0, "GEOM_VINUM stuff");
-SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RW, &gv_debug, 0,
+u_int g_vinum_debug = 0;
+TUNABLE_INT("kern.geom.vinum.debug", &g_vinum_debug);
+SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RW, &g_vinum_debug, 0,
     "Debug level");
-#endif
 
 int	gv_create(struct g_geom *, struct gctl_req *);
 
@@ -164,12 +165,20 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 	plexes = gctl_get_paraml(req, "plexes", sizeof(*plexes));
 	subdisks = gctl_get_paraml(req, "subdisks", sizeof(*subdisks));
 	drives = gctl_get_paraml(req, "drives", sizeof(*drives));
+	if (volumes == NULL || plexes == NULL || subdisks == NULL ||
+	    drives == NULL) {
+		gctl_error(req, "number of objects not given");
+		return (-1);
+	}
 
 	/* First, handle drive definitions ... */
 	for (i = 0; i < *drives; i++) {
 		snprintf(buf, sizeof(buf), "drive%d", i);
 		d2 = gctl_get_paraml(req, buf, sizeof(*d2));
-
+		if (d2 == NULL) {
+			gctl_error(req, "no drive definition given");
+			return (-1);
+		}
 		d = gv_find_drive(sc, d2->name);
 		if (d != NULL) {
 			gctl_error(req, "drive '%s' is already known",
@@ -204,7 +213,10 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		error = 0;
 		snprintf(buf, sizeof(buf), "volume%d", i);
 		v2 = gctl_get_paraml(req, buf, sizeof(*v2));
-
+		if (v2 == NULL) {
+			gctl_error(req, "no volume definition given");
+			return (-1);
+		}
 		v = gv_find_vol(sc, v2->name);
 		if (v != NULL) {
 			gctl_error(req, "volume '%s' is already known",
@@ -225,7 +237,10 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		error = 0;
 		snprintf(buf, sizeof(buf), "plex%d", i);
 		p2 = gctl_get_paraml(req, buf, sizeof(*p2));
-
+		if (p2 == NULL) {
+			gctl_error(req, "no plex definition given");
+			return (-1);
+		}
 		p = gv_find_plex(sc, p2->name);
 		if (p != NULL) {
 			gctl_error(req, "plex '%s' is already known", p->name);
@@ -259,7 +274,10 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 		error = 0;
 		snprintf(buf, sizeof(buf), "sd%d", i);
 		s2 = gctl_get_paraml(req, buf, sizeof(*s2));
-
+		if (s2 == NULL) {
+			gctl_error(req, "no subdisk definition given");
+			return (-1);
+		}
 		s = gv_find_sd(sc, s2->name);
 		if (s != NULL) {
 			gctl_error(req, "subdisk '%s' is already known",
@@ -363,7 +381,7 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			 */
 			pp = g_provider_by_name(d->device);
 			if (pp == NULL) {
-				printf("geom_vinum: %s: drive disapeared?\n",
+				G_VINUM_DEBUG(0, "%s: drive disappeared?",
 				    d->device);
 				continue;
 			}
@@ -404,7 +422,10 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	/* Return configuration in string form. */
 	} else if (!strcmp(verb, "getconfig")) {
 		comment = gctl_get_param(req, "comment", NULL);
-
+		if (comment == NULL) {
+			gctl_error(req, "no comment parameter given");
+			return;
+		}
 		sb = sbuf_new(NULL, NULL, GV_CFG_LEN, SBUF_FIXEDLEN);
 		gv_format_config(sc, sb, 0, comment);
 		sbuf_finish(sb);

@@ -1,8 +1,8 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#26 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#30 $
 # $FreeBSD$
 #
-# The mapping between event identifiers and values is also hard-codedd in
+# The mapping between event identifiers and values is also hard-coded in
 # audit_kevents.h and audit_uevents.h, so changes must occur in both places,
 # and programs, such as the kernel, may need to be recompiled to recognize
 # those changes.  It is advisable not to change the numbering or naming of
@@ -277,9 +277,10 @@
 298:AUE_PF_POLICY_FLIP:Flip IPsec policy:ad
 299:AUE_PF_POLICY_FLUSH:Flush IPsec policy rules:ad
 300:AUE_PF_POLICY_ALGS:Update IPsec algorithms:ad
+301:AUE_PORTFS:portfs:fa
 #
-# What follows are deprecated Darwin event numbers that may soon conflict
-# with Solaris events.
+# What follows are deprecated Darwin event numbers that may soon^H^H^H^Hnow
+# conflict with Solaris events.
 #
 301:AUE_DARWIN_GETFSSTAT:getfsstat(2):fa
 302:AUE_DARWIN_PTRACE:ptrace(2):pc
@@ -497,6 +498,43 @@
 43150:AUE_MKNODAT:mknodat(2):fc
 43151:AUE_READLINKAT:readlinkat(2):fr
 43152:AUE_SYMLINKAT:symlinkat(2):fc
+43153:AUE_MAC_GETFSSTAT:mac_getfsstat(2):fa
+43154:AUE_MAC_GET_MOUNT:mac_get_mount(2):fa
+43155:AUE_MAC_GET_LCID:mac_get_lcid(2):pc
+43156:AUE_MAC_GET_LCTX:mac_get_lctx(2):pc
+43157:AUE_MAC_SET_LCTX:mac_set_lctx(2):pc
+43158:AUE_MAC_MOUNT:mac_mount(2):ad
+43159:AUE_GETLCID:getlcid(2):pc
+43160:AUE_SETLCID:setlcid(2):pc
+43161:AUE_TASKNAMEFORPID:taskname_for_pid():pc
+43162:AUE_ACCESS_EXTENDED:access_extended(2):fa
+43163:AUE_CHMOD_EXTENDED:chmod_extended(2):fm
+43164:AUE_FCHMOD_EXTENDED:fchmod_extended(2):fm
+43165:AUE_FSTAT_EXTENDED:fstat_extended(2):fa
+43166:AUE_LSTAT_EXTENDED:lstat_extended(2):fa
+43167:AUE_MKDIR_EXTENDED:mkdir_extended(2):fc
+43168:AUE_MKFIFO_EXTENDED:mkfifo_extended(2):fc
+43169:AUE_OPEN_EXTENDED:open_extended(2) - attr only:fa
+43170:AUE_OPEN_EXTENDED_R:open_extended(2) - read:fr
+43171:AUE_OPEN_EXTENDED_RC:open_extended(2) - read,creat:fc,fr,fa,fm
+43172:AUE_OPEN_EXTENDED_RT:open_extended(2) - read,trunc:fd,fr,fa,fm
+43173:AUE_OPEN_EXTENDED_RTC:open_extended(2) - read,creat,trunc:fc,fd,fr,fa,fm
+43174:AUE_OPEN_EXTENDED_W:open_extended(2) - write:fw
+43175:AUE_OPEN_EXTENDED_WC:open_extended(2) - write,creat:fc,fw,fa,fm
+43176:AUE_OPEN_EXTENDED_WT:open_extended(2) - write,trunc:fd,fw,fa,fm
+43177:AUE_OPEN_EXTENDED_WTC:open_extended(2) - write,creat,trunc:fc,fd,fw,fa,fm
+43178:AUE_OPEN_EXTENDED_RW:open_extended(2) - read,write:fr,fw
+43179:AUE_OPEN_EXTENDED_RWC:open_extended(2) - read,write,creat:fc,fw,fr,fa,fm
+43180:AUE_OPEN_EXTENDED_RWT:open_extended(2) - read,write,trunc:fd,fr,fw,fa,fm
+43181:AUE_OPEN_EXTENDED_RWTC:open_extended(2) - read,write,creat,trunc:fc,fd,fw,fr,fa,fm
+43182:AUE_STAT_EXTENDED:stat_extended(2):fa
+43183:AUE_UMASK_EXTENDED:umask_extended(2):pc
+43184:AUE_OPENAT:openat(2) - attr only:fa
+43185:AUE_POSIX_OPENPT:posix_openpt(2):ip
+43186:AUE_CAP_NEW:cap_new(2):fm
+43187:AUE_CAP_GETRIGHTS:cap_getrights(2):fm
+43188:AUE_CAP_ENTER:cap_enter(2):pc
+43189:AUE_CAP_GETMODE:cap_getmode(2):pc
 #
 # User space system events.
 #

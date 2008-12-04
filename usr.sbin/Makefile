@@ -45,6 +45,7 @@ SUBDIR=	${_ac} \
 	diskinfo \
 	${_dnssec-keygen} \
 	${_dnssec-signzone} \
+	dumpcis \
 	${_editmap} \
 	${_edquota} \
 	${_eeprom} \
@@ -63,6 +64,7 @@ SUBDIR=	${_ac} \
 	getfmac \
 	getpmac \
 	gstat \
+	${_gssd} \
 	ifmcstat \
 	inetd \
 	iostat \
@@ -114,10 +116,10 @@ SUBDIR=	${_ac} \
 	${_ntp} \
 	${_nvram} \
 	${_ofwdump} \
-	pccard \
 	pciconf \
 	periodic \
 	${_pkg_install} \
+	${_pmcannotate} \
 	${_pmccontrol} \
 	${_pmcstat} \
 	${_pnpinfo} \
@@ -181,6 +183,7 @@ SUBDIR=	${_ac} \
 	tzsetup \
 	ugidfw \
 	${_usbdevs} \
+	${_usbconfig} \
 	${_vidcontrol} \
 	vipw \
 	watch \
@@ -256,6 +259,10 @@ _fdwrite=	fdwrite
 _freebsd-update= freebsd-update
 .endif
 
+.if ${MK_GSSAPI} != no
+_gssd=		gssd
+.endif
+
 .if ${MK_INET6} != "no"
 _faithd=	faithd
 _ip6addrctl=	ip6addrctl
@@ -292,7 +299,7 @@ _moused=	moused
 _vidcontrol=	vidcontrol
 .endif
 
-.if ${MK_LIBTHR} != "no" || ${MK_LIBKSE} != "no"
+.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 .if ${MK_PPP} != "no"
 _pppctl=	pppctl
 .endif
@@ -342,6 +349,7 @@ _pkg_install=	pkg_install
 
 # XXX MK_TOOLCHAIN?
 .if ${MK_PMC} != "no"
+_pmcannotate=	pmcannotate
 _pmccontrol=	pmccontrol
 _pmcstat=	pmcstat
 .endif
@@ -397,6 +405,7 @@ _crunch=	crunch
 
 .if ${MK_USB} != "no"
 _usbdevs=	usbdevs
+_usbconfig=	usbconfig
 .endif
 
 .if ${MK_WIRELESS} != "no"

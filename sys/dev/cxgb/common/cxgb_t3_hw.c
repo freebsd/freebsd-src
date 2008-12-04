@@ -551,7 +551,7 @@ struct t3_vpd {
 	u8  vpdr_tag;
 	u8  vpdr_len[2];
 	VPD_ENTRY(pn, 16);                     /* part number */
-	VPD_ENTRY(ec, 16);                     /* EC level */
+	VPD_ENTRY(ec, ECNUM_LEN);              /* EC level */
 	VPD_ENTRY(sn, SERNUM_LEN);             /* serial number */
 	VPD_ENTRY(na, 12);                     /* MAC address base */
 	VPD_ENTRY(cclk, 6);                    /* core clock */
@@ -696,6 +696,7 @@ static int get_vpd_params(adapter_t *adapter, struct vpd_params *p)
 	p->mdc = simple_strtoul(vpd.mdc_data, NULL, 10);
 	p->mem_timing = simple_strtoul(vpd.mt_data, NULL, 10);
 	memcpy(p->sn, vpd.sn_data, SERNUM_LEN);
+	memcpy(p->ec, vpd.ec_data, ECNUM_LEN);
 
 	/* Old eeproms didn't have port information */
 	if (adapter->params.rev == 0 && !vpd.port0_data[0]) {
@@ -740,7 +741,8 @@ enum {
 	SF_ERASE_SECTOR = 0xd8,    /* erase sector */
 
 	FW_FLASH_BOOT_ADDR = 0x70000, /* start address of FW in flash */
-	FW_VERS_ADDR = 0x77ffc,    /* flash address holding FW version */
+	OLD_FW_VERS_ADDR = 0x77ffc,   /* flash address holding FW version */
+	FW_VERS_ADDR = 0x7fffc,    /* flash address holding FW version */
 	FW_MIN_SIZE = 8,           /* at least version and csum */
 	FW_MAX_SIZE = FW_VERS_ADDR - FW_FLASH_BOOT_ADDR,
 
@@ -1027,7 +1029,12 @@ enum fw_version_type {
  */
 int t3_get_fw_version(adapter_t *adapter, u32 *vers)
 {
-	return t3_read_flash(adapter, FW_VERS_ADDR, 1, vers, 0);
+	int ret = t3_read_flash(adapter, FW_VERS_ADDR, 1, vers, 0);
+
+	if (!ret && *vers != 0xffffffff)
+		return 0;
+	else
+		return t3_read_flash(adapter, OLD_FW_VERS_ADDR, 1, vers, 0);
 }
 
 /**

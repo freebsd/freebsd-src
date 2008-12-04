@@ -3,6 +3,6 @@
 .PATH: ${.CURDIR}/../../dev/snp
 
 KMOD=	snp
-SRCS=	snp.c vnode_if.h
+SRCS=	snp.c
 
 .include <bsd.kmod.mk>

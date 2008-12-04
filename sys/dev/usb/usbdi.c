@@ -325,7 +325,7 @@ usbd_transfer(usbd_xfer_handle xfer)
 	}
 
 	if (!(xfer->flags & USBD_SYNCHRONOUS))
-		return (xfer->done ? 0 : USBD_IN_PROGRESS);
+		return (xfer->done ? USBD_NORMAL_COMPLETION : USBD_IN_PROGRESS);
 
 	/* Sync transfer, wait for completion. */
 	s = splusb();
@@ -1233,6 +1233,15 @@ usbd_set_polling(usbd_device_handle dev, int on)
 	/* When polling we need to make sure there is nothing pending to do. */
 	if (dev->bus->use_polling)
 		dev->bus->methods->soft_intr(dev->bus);
+}
+
+usbd_status
+usbd_reset_device(usbd_device_handle dev)
+{
+	usbd_device_handle parent = dev->myhub;
+	struct usbd_port *up = dev->powersrc;
+
+	return usbd_reset_port(parent, up->portno, &up->status);
 }
 
 

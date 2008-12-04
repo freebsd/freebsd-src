@@ -238,7 +238,7 @@ ncp_conn_alloc(struct ncp_conn_args *cap, struct thread *td, struct ucred *cred,
 		owner->cr_uid = cap->owner;
 	} else
 		owner = crhold(cred);
-	MALLOC(ncp, struct ncp_conn *, sizeof(struct ncp_conn), 
+	ncp = malloc(sizeof(struct ncp_conn), 
 	    M_NCPDATA, M_WAITOK | M_ZERO);
 	error = 0;
 	lockinit(&ncp->nc_lock, PZERO, "ncplck", 0, 0);
@@ -317,7 +317,7 @@ ncp_conn_free(struct ncp_conn *ncp)
 	if (ncp->li.password)
 		free(ncp->li.password, M_NCPDATA);
 	crfree(ncp->nc_owner);
-	FREE(ncp, M_NCPDATA);
+	free(ncp, M_NCPDATA);
 	return (0);
 }
 
@@ -536,7 +536,7 @@ ncp_conn_gethandle(struct ncp_conn *conn, struct thread *td, struct ncp_handle *
 		lockmgr(&lhlock, LK_RELEASE, 0);
 		return 0;
 	}
-	MALLOC(refp,struct ncp_handle *,sizeof(struct ncp_handle),M_NCPDATA,
+	refp = malloc(sizeof(struct ncp_handle),M_NCPDATA,
 	    M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&lhlist,refp,nh_next);
 	refp->nh_ref++;
@@ -565,7 +565,7 @@ ncp_conn_puthandle(struct ncp_handle *handle, struct thread *td, int force)
 	}
 	if (refp->nh_ref == 0) {
 		SLIST_REMOVE(&lhlist, refp, ncp_handle, nh_next);
-		FREE(refp, M_NCPDATA);
+		free(refp, M_NCPDATA);
 	}
 	lockmgr(&lhlock, LK_RELEASE, 0);
 	return 0;
@@ -603,7 +603,7 @@ ncp_conn_putprochandles(struct thread *td)
 		haveone = 1;
 		hp->nh_conn->ref_cnt -= hp->nh_ref;
 		SLIST_REMOVE(&lhlist, hp, ncp_handle, nh_next);
-		FREE(hp, M_NCPDATA);
+		free(hp, M_NCPDATA);
 	}
 	lockmgr(&lhlock, LK_RELEASE, 0);
 	return haveone;

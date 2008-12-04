@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		mips
 ident		MALTA
 
 #makeoptions	ARCH_FLAGS=-march=mips32
@@ -66,6 +65,4 @@ device		ether
 device		le
 device		miibus
 device		md
-device		mem
 device		uart
-device		uart_ns8250

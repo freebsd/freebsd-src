@@ -94,7 +94,9 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif
+#include <netinet/vinet.h>
 #include <netinet6/ip6protosw.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -111,15 +113,26 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-int	tcp_mssdflt = TCP_MSS;
+#ifdef VIMAGE_GLOBALS
+int	tcp_mssdflt;
 #ifdef INET6
-int	tcp_v6mssdflt = TCP6_MSS;
+int	tcp_v6mssdflt;
+#endif
+int	tcp_minmss;
+int	tcp_do_rfc1323;
+static int	icmp_may_rst;
+static int	tcp_isn_reseed_interval;
+static int	tcp_inflight_enable;
+static int	tcp_inflight_rttthresh;
+static int	tcp_inflight_min;
+static int	tcp_inflight_max;
+static int	tcp_inflight_stab;
 #endif
 
 static int
 sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET(TD_TO_VNET(curthread));
+	INIT_VNET_INET(curvnet);
 	int error, new;
 
 	new = V_tcp_mssdflt;
@@ -133,15 +146,16 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_mssdflt, 0, &sysctl_net_inet_tcp_mss_check, "I",
-	   "Default TCP Maximum Segment Size");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_check, "I",
+    "Default TCP Maximum Segment Size");
 
 #ifdef INET6
 static int
 sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 {
-	INIT_VNET_INET6(TD_TO_VNET(curthread));
+	INIT_VNET_INET6(curvnet);
 	int error, new;
 
 	new = V_tcp_v6mssdflt;
@@ -155,9 +169,10 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
-	   &tcp_v6mssdflt, 0, &sysctl_net_inet_tcp_mss_v6_check, "I",
-	   "Default TCP Maximum Segment Size for IPv6");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_v6mssdflt, 0,
+    &sysctl_net_inet_tcp_mss_v6_check, "I",
+   "Default TCP Maximum Segment Size for IPv6");
 #endif
 
 /*
@@ -168,11 +183,9 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt, CTLTYPE_INT|CTLFLAG_RW,
  * with packet generation and sending. Set to zero to disable MINMSS
  * checking. This setting prevents us from sending too small packets.
  */
-int	tcp_minmss = TCP_MINMSS;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, minmss,
     CTLFLAG_RW, tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
 
-int	tcp_do_rfc1323 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
     CTLFLAG_RW, tcp_do_rfc1323, 0,
     "Enable rfc1323 (high performance TCP) extensions");
@@ -190,14 +203,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, pcbcount,
-    CTLFLAG_RD, tcbinfo.ipi_count, 0, "Number of active PCBs");
+    CTLFLAG_RD, V_tcbinfo.ipi_count, 0, "Number of active PCBs");
 
-static int	icmp_may_rst = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, icmp_may_rst,
     CTLFLAG_RW, icmp_may_rst, 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
-static int	tcp_isn_reseed_interval = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, isn_reseed_interval,
     CTLFLAG_RW, tcp_isn_reseed_interval, 0,
     "Seconds between reseeding of ISN secret");
@@ -210,7 +221,6 @@ SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, isn_reseed_interval,
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
     "TCP inflight data limiting");
 
-static int	tcp_inflight_enable = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, enable,
     CTLFLAG_RW, tcp_inflight_enable, 0,
     "Enable automatic TCP inflight data limiting");
@@ -219,20 +229,16 @@ static int	tcp_inflight_debug = 0;
 SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
     &tcp_inflight_debug, 0, "Debug TCP inflight calculations");
 
-static int	tcp_inflight_rttthresh;
-SYSCTL_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks, "I",
-    "RTT threshold below which inflight will deactivate itself");
+SYSCTL_V_PROC(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, rttthresh,
+    CTLTYPE_INT|CTLFLAG_RW, tcp_inflight_rttthresh, 0, sysctl_msec_to_ticks,
+    "I", "RTT threshold below which inflight will deactivate itself");
 
-static int	tcp_inflight_min = 6144;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, min,
     CTLFLAG_RW, tcp_inflight_min, 0, "Lower-bound for TCP inflight window");
 
-static int	tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, max,
     CTLFLAG_RW, tcp_inflight_max, 0, "Upper-bound for TCP inflight window");
 
-static int	tcp_inflight_stab = 20;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_inflight, OID_AUTO, stab,
     CTLFLAG_RW, tcp_inflight_stab, 0,
     "Inflight Algorithm Stabilization 20 = 2 packets");
@@ -297,8 +303,49 @@ void
 tcp_init(void)
 {
 	INIT_VNET_INET(curvnet);
+	int hashsize;
 
-	int hashsize = TCBHASHSIZE;
+	V_blackhole = 0;
+	V_tcp_delack_enabled = 1;
+	V_drop_synfin = 0;
+	V_tcp_do_rfc3042 = 1;
+	V_tcp_do_rfc3390 = 1;
+	V_tcp_do_ecn = 0;
+	V_tcp_ecn_maxretries = 1;
+	V_tcp_insecure_rst = 0;
+	V_tcp_do_autorcvbuf = 1;
+	V_tcp_autorcvbuf_inc = 16*1024;
+	V_tcp_autorcvbuf_max = 256*1024;
+
+	V_tcp_mssdflt = TCP_MSS;
+#ifdef INET6
+	V_tcp_v6mssdflt = TCP6_MSS;
+#endif
+	V_tcp_minmss = TCP_MINMSS;
+	V_tcp_do_rfc1323 = 1;
+	V_icmp_may_rst = 1;
+	V_tcp_isn_reseed_interval = 0;
+	V_tcp_inflight_enable = 1;
+	V_tcp_inflight_min = 6144;
+	V_tcp_inflight_max = TCP_MAXWIN << TCP_MAX_WINSHIFT;
+	V_tcp_inflight_stab = 20;
+
+	V_path_mtu_discovery = 1;
+	V_ss_fltsz = 1;
+	V_ss_fltsz_local = 4;
+	V_tcp_do_newreno = 1;
+	V_tcp_do_tso = 1;
+	V_tcp_do_autosndbuf = 1;
+	V_tcp_autosndbuf_inc = 8*1024;
+	V_tcp_autosndbuf_max = 256*1024;
+
+	V_nolocaltimewait = 0;
+
+	V_tcp_do_sack = 1;
+	V_tcp_sack_maxholes = 128;
+	V_tcp_sack_globalmaxholes = 65536;
+	V_tcp_sack_globalholes = 0;
+
 	tcp_delacktime = TCPTV_DELACK;
 	tcp_keepinit = TCPTV_KEEP_INIT;
 	tcp_keepidle = TCPTV_KEEP_IDLE;
@@ -315,6 +362,7 @@ tcp_init(void)
 	INP_INFO_LOCK_INIT(&V_tcbinfo, "tcp");
 	LIST_INIT(&V_tcb);
 	V_tcbinfo.ipi_listhead = &V_tcb;
+	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
 		printf("WARNING: TCB hash size not a power of 2\n");
@@ -903,6 +951,9 @@ static struct inpcb *
 tcp_notify(struct inpcb *inp, int error)
 {
 	struct tcpcb *tp;
+#ifdef INVARIANTS
+	INIT_VNET_INET(inp->inp_vnet); /* V_tcbinfo WLOCK ASSERT */
+#endif
 
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
 	INP_WLOCK_ASSERT(inp);
@@ -1429,10 +1480,12 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
+#ifdef VIMAGE_GLOBALS
 static u_char isn_secret[32];
 static int isn_last_reseed;
 static u_int32_t isn_offset, isn_offset_old;
 static MD5_CTX isn_ctx;
+#endif
 
 tcp_seq
 tcp_new_isn(struct tcpcb *tp)
@@ -1562,7 +1615,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tp = intotcpcb(inp);
 	KASSERT(tp != NULL, ("tcp_mtudisc: tp == NULL"));
 
-	tcp_mss_update(tp, -1, NULL);
+	tcp_mss_update(tp, -1, NULL, NULL);
   
 	so = inp->inp_socket;
 	SOCKBUF_LOCK(&so->so_snd);
@@ -1584,9 +1637,9 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route
- * is found and it cannot be allocated, then return NULL.  This routine
- * is called by TCP routines that access the rmx structure and by tcp_mss
- * to get the interface MTU.
+ * is found and it cannot be allocated, then return 0.  This routine
+ * is called by TCP routines that access the rmx structure and by
+ * tcp_mss_update to get the peer/interface MTU.
  */
 u_long
 tcp_maxmtu(struct in_conninfo *inc, int *flags)
@@ -1894,6 +1947,7 @@ int
 tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
     u_char *buf, u_int direction)
 {
+	INIT_VNET_IPSEC(curvnet);
 	union sockaddr_union dst;
 	struct ippseudo ippseudo;
 	MD5_CTX ctx;

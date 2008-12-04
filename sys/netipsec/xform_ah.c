@@ -88,9 +88,11 @@
 #define	AUTHSIZE(sav) \
 	((sav->flags & SADB_X_EXT_OLD) ? 16 : AH_HMAC_HASHLEN)
 
-int	ah_enable = 1;			/* control flow of packets with AH */
-int	ah_cleartos = 1;		/* clear ip_tos when doing AH calc */
+#ifdef VIMAGE_GLOBALS
+int	ah_enable;
+int	ah_cleartos;
 struct	ahstat ahstat;
+#endif
 
 SYSCTL_DECL(_net_inet_ah);
 SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ah, OID_AUTO,
@@ -485,7 +487,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 						/* Free, if we allocated. */
 						if (alloc)
-							FREE(ptr, M_XDATA);
+							free(ptr, M_XDATA);
 						return EINVAL;
 					}
 
@@ -505,7 +507,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 
 						/* Free, if we allocated. */
 						if (alloc)
-							FREE(ptr, M_XDATA);
+							free(ptr, M_XDATA);
 						return EINVAL;
 					}
 				}
@@ -529,7 +531,7 @@ ah_massage_headers(struct mbuf **m0, int proto, int skip, int alg, int out)
 				DPRINTF(("%s: unexpected IPv6 header type %d",
 					__func__, off));
 				if (alloc)
-					FREE(ptr, M_XDATA);
+					free(ptr, M_XDATA);
 				m_freem(m);
 				return EINVAL;
 			}
@@ -1217,6 +1219,10 @@ static struct xformsw ah_xformsw = {
 static void
 ah_attach(void)
 {
+
+	V_ah_enable = 1;	/* control flow of packets with AH */
+	V_ah_cleartos = 1;	/* clear ip_tos when doing AH calc */
+
 	xform_register(&ah_xformsw);
 }
 SYSINIT(ah_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, ah_attach, NULL);

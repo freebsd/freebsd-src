@@ -70,6 +70,7 @@ ENTRY(setjmp)
 	stmxcsr	68(%rcx)		/*    and mxcsr */
 	xorq	%rax,%rax
 	ret
+END(setjmp)
 
 	.weak CNAME(longjmp)
 	.set CNAME(longjmp),CNAME(__longjmp)
@@ -108,3 +109,4 @@ ENTRY(__longjmp)
 	incq	%rax
 1:	movq	%rcx,0(%rsp)
 	ret
+END(__longjmp)

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/auditfilter_noop.c#4 $
+ * $P4: //depot/projects/trustedbsd/openbsm/modules/auditfilter_noop/auditfilter_noop.c#6 $
  */
 
 /*
@@ -38,36 +38,42 @@
 #include <bsm/libbsm.h>
 #include <bsm/audit_filter.h>
 
+#ifndef __unused
+#define __unused
+#endif
+
 int
-AUDIT_FILTER_ATTACH(void *instance, int argc, char *argv[])
+AUDIT_FILTER_ATTACH(void *instance __unused, int argc __unused, 
+    char *argv[] __unused)
 {
 
 	return (0);
 }
 
 int
-AUDIT_FILTER_REINIT(void *instance, int argc, char *argv[])
+AUDIT_FILTER_REINIT(void *instance __unused, int argc __unused, 
+    char *argv[] __unused)
 {
 
 	return (0);
 }
 
 void
-AUDIT_FILTER_RECORD(void *instance, struct timespec *ts, int token_count,
-    const tokenstr_t *tok[])
+AUDIT_FILTER_RECORD(void *instance __unused, struct timespec *ts __unused,
+    int token_count __unused, const tokenstr_t *tok[] __unused)
 {
 
 }
 
 void
-AUDIT_FILTER_RAWRECORD(void *instance, struct timespec *ts, u_char *data,
-    u_int len)
+AUDIT_FILTER_RAWRECORD(void *instance __unused, struct timespec *ts __unused,
+    u_char *data __unused, u_int len __unused)
 {
 
 }
 
 void
-AUDIT_FILTER_DETACH(void *instance)
+AUDIT_FILTER_DETACH(void *instance __unused)
 {
 
 }

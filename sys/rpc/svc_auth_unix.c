@@ -120,8 +120,7 @@ _svcauth_unix(struct svc_req *rqst, struct rpc_msg *msg)
 		goto done;
 	}
 
-	rqst->rq_xprt->xp_verf.oa_flavor = AUTH_NULL;
-	rqst->rq_xprt->xp_verf.oa_length = 0;
+	rqst->rq_verf = _null_auth;
 	stat = AUTH_OK;
 done:
 	XDR_DESTROY(&xdrs);

@@ -430,6 +430,11 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 
 	case SYS_RES_IRQ:
+		/* Check for passthrough from subattachments like macgpio */
+		if (device_get_parent(child) != bus)
+			return BUS_ALLOC_RESOURCE(device_get_parent(bus), child,
+			    type, rid, start, end, count, flags);
+
 		rle = resource_list_find(&dinfo->mdi_resources, SYS_RES_IRQ,
 		    *rid);
 		if (rle == NULL) {

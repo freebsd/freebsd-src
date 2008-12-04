@@ -64,8 +64,8 @@ MALLOC_DEFINE(M_RPC, "rpc", "Remote Procedure Call");
 
 #define assert(exp)	KASSERT(exp, ("bad arguments"))
 
-static void accepted(enum accept_stat, struct rpc_err *);
-static void rejected(enum reject_stat, struct rpc_err *);
+static enum clnt_stat accepted(enum accept_stat, struct rpc_err *);
+static enum clnt_stat rejected(enum reject_stat, struct rpc_err *);
 
 /* * * * * * * * * * * * * * XDR Authentication * * * * * * * * * * * */
 
@@ -111,7 +111,11 @@ xdr_accepted_reply(XDR *xdrs, struct accepted_reply *ar)
 	switch (ar->ar_stat) {
 
 	case SUCCESS:
-		return ((*(ar->ar_results.proc))(xdrs, ar->ar_results.where));
+		if (ar->ar_results.proc != (xdrproc_t) xdr_void)
+			return ((*(ar->ar_results.proc))(xdrs,
+				ar->ar_results.where));
+		else
+			return (TRUE);
 
 	case PROG_MISMATCH:
 		if (! xdr_uint32_t(xdrs, &(ar->ar_vers.low)))
@@ -171,11 +175,33 @@ static const struct xdr_discrim reply_dscrm[3] = {
 bool_t
 xdr_replymsg(XDR *xdrs, struct rpc_msg *rmsg)
 {
+	int32_t *buf;
 	enum msg_type *prm_direction;
 	enum reply_stat *prp_stat;
 
 	assert(xdrs != NULL);
 	assert(rmsg != NULL);
+
+	if (xdrs->x_op == XDR_DECODE) {
+		buf = XDR_INLINE(xdrs, 3 * BYTES_PER_XDR_UNIT);
+		if (buf != NULL) {
+			rmsg->rm_xid = IXDR_GET_UINT32(buf);
+			rmsg->rm_direction = IXDR_GET_ENUM(buf, enum msg_type);
+			if (rmsg->rm_direction != REPLY) {
+				return (FALSE);
+			}
+			rmsg->rm_reply.rp_stat =
+				IXDR_GET_ENUM(buf, enum reply_stat);
+			if (rmsg->rm_reply.rp_stat == MSG_ACCEPTED)
+				return (xdr_accepted_reply(xdrs,
+					&rmsg->acpted_rply));
+			else if (rmsg->rm_reply.rp_stat == MSG_DENIED)
+				return (xdr_rejected_reply(xdrs,
+					&rmsg->rjcted_rply));
+			else
+				return (FALSE);
+		}
+	}
 
 	prm_direction = &rmsg->rm_direction;
 	prp_stat = &rmsg->rm_reply.rp_stat;
@@ -220,7 +246,7 @@ xdr_callhdr(XDR *xdrs, struct rpc_msg *cmsg)
 
 /* ************************** Client utility routine ************* */
 
-static void
+static enum clnt_stat
 accepted(enum accept_stat acpt_stat, struct rpc_err *error)
 {
 
@@ -230,36 +256,32 @@ accepted(enum accept_stat acpt_stat, struct rpc_err *error)
 
 	case PROG_UNAVAIL:
 		error->re_status = RPC_PROGUNAVAIL;
-		return;
+		return (RPC_PROGUNAVAIL);
 
 	case PROG_MISMATCH:
 		error->re_status = RPC_PROGVERSMISMATCH;
-		return;
+		return (RPC_PROGVERSMISMATCH);
 
 	case PROC_UNAVAIL:
-		error->re_status = RPC_PROCUNAVAIL;
-		return;
+		return (RPC_PROCUNAVAIL);
 
 	case GARBAGE_ARGS:
-		error->re_status = RPC_CANTDECODEARGS;
-		return;
+		return (RPC_CANTDECODEARGS);
 
 	case SYSTEM_ERR:
-		error->re_status = RPC_SYSTEMERROR;
-		return;
+		return (RPC_SYSTEMERROR);
 
 	case SUCCESS:
-		error->re_status = RPC_SUCCESS;
-		return;
+		return (RPC_SUCCESS);
 	}
 	/* NOTREACHED */
 	/* something's wrong, but we don't know what ... */
-	error->re_status = RPC_FAILED;
 	error->re_lb.s1 = (int32_t)MSG_ACCEPTED;
 	error->re_lb.s2 = (int32_t)acpt_stat;
+	return (RPC_FAILED);
 }
 
-static void 
+static enum clnt_stat
 rejected(enum reject_stat rjct_stat, struct rpc_err *error)
 {
 
@@ -267,26 +289,25 @@ rejected(enum reject_stat rjct_stat, struct rpc_err *error)
 
 	switch (rjct_stat) {
 	case RPC_MISMATCH:
-		error->re_status = RPC_VERSMISMATCH;
-		return;
+		return (RPC_VERSMISMATCH);
 
 	case AUTH_ERROR:
-		error->re_status = RPC_AUTHERROR;
-		return;
+		return (RPC_AUTHERROR);
 	}
 	/* something's wrong, but we don't know what ... */
 	/* NOTREACHED */
-	error->re_status = RPC_FAILED;
 	error->re_lb.s1 = (int32_t)MSG_DENIED;
 	error->re_lb.s2 = (int32_t)rjct_stat;
+	return (RPC_FAILED);
 }
 
 /*
  * given a reply message, fills in the error
  */
-void
+enum clnt_stat
 _seterr_reply(struct rpc_msg *msg, struct rpc_err *error)
 {
+	enum clnt_stat stat;
 
 	assert(msg != NULL);
 	assert(error != NULL);
@@ -296,22 +317,24 @@ _seterr_reply(struct rpc_msg *msg, struct rpc_err *error)
 
 	case MSG_ACCEPTED:
 		if (msg->acpted_rply.ar_stat == SUCCESS) {
-			error->re_status = RPC_SUCCESS;
-			return;
+			stat = RPC_SUCCESS;
+			return (stat);
 		}
-		accepted(msg->acpted_rply.ar_stat, error);
+		stat = accepted(msg->acpted_rply.ar_stat, error);
 		break;
 
 	case MSG_DENIED:
-		rejected(msg->rjcted_rply.rj_stat, error);
+		stat = rejected(msg->rjcted_rply.rj_stat, error);
 		break;
 
 	default:
-		error->re_status = RPC_FAILED;
+		stat = RPC_FAILED;
 		error->re_lb.s1 = (int32_t)(msg->rm_reply.rp_stat);
 		break;
 	}
-	switch (error->re_status) {
+	error->re_status = stat;
+
+	switch (stat) {
 
 	case RPC_VERSMISMATCH:
 		error->re_vers.low = msg->rjcted_rply.rj_vers.low;
@@ -345,4 +368,6 @@ _seterr_reply(struct rpc_msg *msg, struct rpc_err *error)
 	default:
 		break;
 	}
+
+	return (stat);
 }

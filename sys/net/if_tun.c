@@ -363,7 +363,7 @@ tuncreate(const char *name, struct cdev *dev)
 
 	dev->si_flags &= ~SI_CHEAPCLONE;
 
-	MALLOC(sc, struct tun_softc *, sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
+	sc = malloc(sizeof(*sc), M_TUN, M_WAITOK | M_ZERO);
 	mtx_init(&sc->tun_mtx, "tun_mtx", NULL, MTX_DEF);
 	sc->tun_flags = TUN_INITED;
 	sc->tun_dev = dev;
@@ -494,8 +494,10 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 static int
 tuninit(struct ifnet *ifp)
 {
+#ifdef INET
 	struct tun_softc *tp = ifp->if_softc;
 	struct ifaddr *ifa;
+#endif
 	int error = 0;
 
 	TUNDEBUG(ifp, "tuninit\n");
@@ -655,7 +657,7 @@ tunoutput(
 		}
 	}
 
-	IFQ_HANDOFF(ifp, m0, error);
+	error = (ifp->if_transmit)(ifp, m0);
 	if (error) {
 		ifp->if_collisions++;
 		return (ENOBUFS);

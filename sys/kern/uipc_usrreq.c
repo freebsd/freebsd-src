@@ -600,7 +600,7 @@ uipc_detach(struct socket *so)
 	unp->unp_refcount--;
 	freeunp = (unp->unp_refcount == 0);
 	if (saved_unp_addr != NULL)
-		FREE(saved_unp_addr, M_SONAME);
+		free(saved_unp_addr, M_SONAME);
 	if (freeunp) {
 		UNP_PCB_LOCK_DESTROY(unp);
 		uma_zfree(unp_zone, unp);

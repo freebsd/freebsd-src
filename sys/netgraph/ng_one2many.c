@@ -187,7 +187,7 @@ ng_one2many_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 	priv->conf.xmitAlg = NG_ONE2MANY_XMIT_ROUNDROBIN;
@@ -501,7 +501,7 @@ ng_one2many_shutdown(node_p node)
 
 	KASSERT(priv->numActiveMany == 0,
 	    ("%s: numActiveMany=%d", __func__, priv->numActiveMany));
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	return (0);

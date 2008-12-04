@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcodes.awk,v 1.4 2007/11/03 20:24:15 tom Exp $
+# $Id: MKcodes.awk,v 1.5 2008/06/28 23:13:25 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;
@@ -140,6 +140,7 @@ END	{
 		print  ""
 		print  "#define FREE_FIX(it) if (ptr_##it) { FreeAndNull(ptr_##it); }"
 		print  ""
+		print  "#if NO_LEAKS"
 		print  "NCURSES_EXPORT(void)"
 		print  "_nc_codes_leaks(void)"
 		print  "{"
@@ -149,6 +150,8 @@ END	{
 		print  "FREE_FIX(strcodes)"
 		}
 		print  "}"
+		print  "#endif"
+		print  ""
 		print  "#else"
 		print  ""
 		print  "#define DCL(it) NCURSES_EXPORT_VAR(IT) it[]"

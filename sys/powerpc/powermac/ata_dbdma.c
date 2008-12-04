@@ -275,6 +275,12 @@ ata_dbdma_dmainit(device_t dev)
 	sc->sc_ch.dma.load = ata_dbdma_load;
 	sc->sc_ch.dma.reset = ata_dbdma_reset;
 
+	/*
+	 * DBDMA's field for transfer size is 16 bits. This will overflow
+	 * if we try to do a 64K transfer, so stop short of 64K.
+	 */
+	sc->sc_ch.dma.segsize = 126 * DEV_BSIZE;
+
 	sc->sc_ch.hw.status = ata_dbdma_status;
 
 	mtx_init(&sc->dbdma_mtx, "ATA DBDMA", NULL, MTX_DEF);

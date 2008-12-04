@@ -65,6 +65,7 @@
 #include <netinet/in_pcb.h>
 #ifdef INET6
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 #endif
 
 #include <netipsec/ipsec.h>

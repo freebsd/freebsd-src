@@ -112,41 +112,14 @@ typedef struct {
 } while (0)
 
 /*
- * Per-node power-save queue definitions. 
+ * Power-save queue definitions. 
  */
-#define	IEEE80211_NODE_SAVEQ_INIT(_ni, _name) do {		\
-	mtx_init(&(_ni)->ni_savedq.ifq_mtx, _name, "802.11 ps queue", MTX_DEF);\
-	(_ni)->ni_savedq.ifq_maxlen = IEEE80211_PS_MAX_QUEUE;	\
-} while (0)
-#define	IEEE80211_NODE_SAVEQ_DESTROY(_ni) \
-	mtx_destroy(&(_ni)->ni_savedq.ifq_mtx)
-#define	IEEE80211_NODE_SAVEQ_QLEN(_ni) \
-	_IF_QLEN(&(_ni)->ni_savedq)
-#define	IEEE80211_NODE_SAVEQ_LOCK(_ni) do {	\
-	IF_LOCK(&(_ni)->ni_savedq);				\
-} while (0)
-#define	IEEE80211_NODE_SAVEQ_UNLOCK(_ni) do {	\
-	IF_UNLOCK(&(_ni)->ni_savedq);				\
-} while (0)
-#define	IEEE80211_NODE_SAVEQ_DEQUEUE(_ni, _m, _qlen) do {	\
-	IEEE80211_NODE_SAVEQ_LOCK(_ni);				\
-	_IF_DEQUEUE(&(_ni)->ni_savedq, _m);			\
-	(_qlen) = IEEE80211_NODE_SAVEQ_QLEN(_ni);		\
-	IEEE80211_NODE_SAVEQ_UNLOCK(_ni);			\
-} while (0)
-#define	IEEE80211_NODE_SAVEQ_DRAIN(_ni, _qlen) do {		\
-	IEEE80211_NODE_SAVEQ_LOCK(_ni);				\
-	(_qlen) = IEEE80211_NODE_SAVEQ_QLEN(_ni);		\
-	_IF_DRAIN(&(_ni)->ni_savedq);				\
-	IEEE80211_NODE_SAVEQ_UNLOCK(_ni);			\
-} while (0)
-/* XXX could be optimized */
-#define	_IEEE80211_NODE_SAVEQ_DEQUEUE_HEAD(_ni, _m) do {	\
-	_IF_DEQUEUE(&(_ni)->ni_savedq, m);			\
-} while (0)
-#define	_IEEE80211_NODE_SAVEQ_ENQUEUE(_ni, _m, _qlen, _age) do {\
-	_AGEQ_ENQUEUE(&ni->ni_savedq, _m, _qlen, _age);		\
-} while (0)
+typedef struct mtx ieee80211_psq_lock_t;
+#define	IEEE80211_PSQ_INIT(_psq, _name) \
+	mtx_init(&(_psq)->psq_lock, _name, "802.11 ps q", MTX_DEF);
+#define	IEEE80211_PSQ_DESTROY(_psq)	mtx_destroy(&(_psq)->psq_lock)
+#define	IEEE80211_PSQ_LOCK(_psq)	mtx_lock(&(_psq)->psq_lock)
+#define	IEEE80211_PSQ_UNLOCK(_psq)	mtx_unlock(&(_psq)->psq_lock)
 
 #ifndef IF_PREPEND_LIST
 #define _IF_PREPEND_LIST(ifq, mhead, mtail, mcount) do {	\
@@ -239,7 +212,7 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 
 /* tx path usage */
-#define	M_LINK0		M_PROTO1		/* WEP requested */
+#define	M_ENCAP		M_PROTO1		/* 802.11 encap done */
 #define	M_WDS		M_PROTO2		/* WDS frame */
 #define	M_EAPOL		M_PROTO3		/* PAE/EAPOL frame */
 #define	M_PWR_SAV	M_PROTO4		/* bypass PS handling */
@@ -248,7 +221,7 @@ struct mbuf *ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen);
 #define	M_TXCB		M_PROTO7		/* do tx complete callback */
 #define	M_AMPDU_MPDU	M_PROTO8		/* ok for A-MPDU aggregation */
 #define	M_80211_TX \
-	(M_LINK0|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
+	(M_ENCAP|M_WDS|M_EAPOL|M_PWR_SAV|M_MORE_DATA|M_FF|M_TXCB|M_AMPDU_MPDU)
 
 /* rx path usage */
 #define	M_AMPDU		M_PROTO1		/* A-MPDU subframe */

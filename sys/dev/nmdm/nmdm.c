@@ -109,12 +109,12 @@ nmdm_alloc(unsigned long unit)
 	ns->ns_part1.np_pair = ns;
 	ns->ns_part1.np_other = &ns->ns_part2;
 	TASK_INIT(&ns->ns_part1.np_task, 0, nmdm_task_tty, &ns->ns_part1);
-	callout_init(&ns->ns_part1.np_callout, 0);
+	callout_init(&ns->ns_part1.np_callout, CALLOUT_MPSAFE);
 
 	ns->ns_part2.np_pair = ns;
 	ns->ns_part2.np_other = &ns->ns_part1;
 	TASK_INIT(&ns->ns_part2.np_task, 0, nmdm_task_tty, &ns->ns_part2);
-	callout_init(&ns->ns_part2.np_callout, 0);
+	callout_init(&ns->ns_part2.np_callout, CALLOUT_MPSAFE);
 
 	/* Create device nodes. */
 	tp = ns->ns_part1.np_tty = tty_alloc(&nmdm_class, &ns->ns_part1,

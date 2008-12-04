@@ -71,44 +71,29 @@ fmt_flags(int flags)
    */
   static char buf[sizeof
     "static, network, read-only, synthetic, loopback, unicode, jail"];
-  int comma = 0;
+  size_t len;
 
   buf[0] = '\0';
 
-  if(flags & VFCF_STATIC) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "static");
-  }
-
-  if(flags & VFCF_NETWORK) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "network");
-  }
-
-  if(flags & VFCF_READONLY) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "read-only");
-  }
-
-  if(flags & VFCF_SYNTHETIC) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "synthetic");
-  }
-
-  if(flags & VFCF_LOOPBACK) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "loopback");
-  }
-
-  if(flags & VFCF_UNICODE) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "unicode");
-  }
-
-  if(flags & VFCF_JAIL) {
-    if(comma++) strcat(buf, ", ");
-    strcat(buf, "jail");
-  }
+  if(flags & VFCF_STATIC)
+    strlcat(buf, "static, ", sizeof(buf));
+  if(flags & VFCF_NETWORK)
+    strlcat(buf, "network, ", sizeof(buf));
+  if(flags & VFCF_READONLY)
+    strlcat(buf, "read-only, ", sizeof(buf));
+  if(flags & VFCF_SYNTHETIC)
+    strlcat(buf, "synthetic, ", sizeof(buf));
+  if(flags & VFCF_LOOPBACK)
+    strlcat(buf, "loopback, ", sizeof(buf));
+  if(flags & VFCF_UNICODE)
+    strlcat(buf, "unicode, ", sizeof(buf));
+  if(flags & VFCF_JAIL)
+    strlcat(buf, "jail, ", sizeof(buf));
+  if(flags & VFCF_DELEGADMIN)
+    strlcat(buf, "delegated-administration, ", sizeof(buf));
+  len = strlen(buf);
+  if (len > 2 && buf[len - 2] == ',')
+    buf[len - 2] = '\0';
 
   return buf;
 }

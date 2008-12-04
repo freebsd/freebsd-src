@@ -2642,7 +2642,7 @@ extern void	unsetenv __P((char *));
 
 /* update file system information: +/- some blocks */
 #if SM_CONF_SHM
-extern void	upd_qs __P((ENVELOPE *, bool, bool, char *));
+extern void	upd_qs __P((ENVELOPE *, int, int, char *));
 # define updfs(e, count, space, where) upd_qs(e, count, space, where)
 #else /* SM_CONF_SHM */
 # define updfs(e, count, space, where)

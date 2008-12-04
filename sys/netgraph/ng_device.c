@@ -163,7 +163,7 @@ ng_device_constructor(node_p node)
 
 	DBG;
 
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -186,7 +186,7 @@ ng_device_constructor(node_p node)
 		mtx_destroy(&priv->ngd_mtx);
 		mtx_destroy(&priv->readq.ifq_mtx);
 		free_unr(ngd_unit, priv->unit);
-		FREE(priv, M_NETGRAPH);
+		free(priv, M_NETGRAPH);
 		return(EINVAL);
 	}
 	/* XXX: race here? */
@@ -307,7 +307,7 @@ ng_device_disconnect(hook_p hook)
 
 	free_unr(ngd_unit, priv->unit);
 
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 
 	ng_rmnode_self(NG_HOOK_NODE(hook));
 
