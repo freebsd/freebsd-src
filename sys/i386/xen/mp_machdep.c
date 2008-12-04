@@ -966,7 +966,7 @@ cpu_initialize_context(unsigned int cpu)
 	    ctxt.ctrlreg[3] >> PAGE_SHIFT);
 
 	PANIC_IF(HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, &ctxt));
-	DELAY(3000);
+	DELAY(1000);
 	PANIC_IF(HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL));
 }
 
