@@ -205,6 +205,16 @@ static int ael1006_reset(struct cphy *phy, int wait)
 	t3_write_reg(phy->adapter, A_T3DBG_GPIO_EN, gpio_out);
 	msleep(125);
 	t3_phy_reset(phy, MDIO_DEV_PMA_PMD, wait);
+
+       /* Phy loopback work around for ael1006 */
+       /* Soft reset phy by toggling loopback  */
+       msleep(125);
+       /* Put phy into local loopback */
+       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 0, 1);
+       msleep(125);
+       /* Take phy out of local loopback */
+       t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, 1, 0);
+
 	return 0;
 }
 
