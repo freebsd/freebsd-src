@@ -651,6 +651,13 @@ jme_attach(device_t dev)
 		goto fail;
 	}
 
+	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 2) {
+		if ((sc->jme_rev & DEVICEID_JMC2XX_MASK) == DEVICEID_JMC260 &&
+		    CHIPMODE_REVFM(sc->jme_chip_rev) == 2)
+			sc->jme_flags |= JME_FLAG_DMA32BIT;
+		sc->jme_flags |= JME_FLAG_TXCLK;
+	}
+
 	/* Reset the ethernet controller. */
 	jme_reset(sc);
 
@@ -1007,6 +1014,8 @@ jme_dma_alloc(struct jme_softc *sc)
 	int error, i;
 
 	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->jme_flags & JME_FLAG_DMA32BIT) != 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 
 again:
 	/* Create parent ring tag. */
@@ -1106,25 +1115,32 @@ again:
 	}
 	sc->jme_rdata.jme_rx_ring_paddr = ctx.jme_busaddr;
 
-	/* Tx/Rx descriptor queue should reside within 4GB boundary. */
-	tx_ring_end = sc->jme_rdata.jme_tx_ring_paddr + JME_TX_RING_SIZE;
-	rx_ring_end = sc->jme_rdata.jme_rx_ring_paddr + JME_RX_RING_SIZE;
-	if ((JME_ADDR_HI(tx_ring_end) !=
-	    JME_ADDR_HI(sc->jme_rdata.jme_tx_ring_paddr)) ||
-	    (JME_ADDR_HI(rx_ring_end) !=
-	    JME_ADDR_HI(sc->jme_rdata.jme_rx_ring_paddr))) {
-		device_printf(sc->jme_dev, "4GB boundary crossed, "
-		    "switching to 32bit DMA address mode.\n");
-		jme_dma_free(sc);
-		/* Limit DMA address space to 32bit and try again. */
-		lowaddr = BUS_SPACE_MAXADDR_32BIT;
-		goto again;
+	if (lowaddr != BUS_SPACE_MAXADDR_32BIT) {
+		/* Tx/Rx descriptor queue should reside within 4GB boundary. */
+		tx_ring_end = sc->jme_rdata.jme_tx_ring_paddr +
+		    JME_TX_RING_SIZE;
+		rx_ring_end = sc->jme_rdata.jme_rx_ring_paddr +
+		    JME_RX_RING_SIZE;
+		if ((JME_ADDR_HI(tx_ring_end) !=
+		    JME_ADDR_HI(sc->jme_rdata.jme_tx_ring_paddr)) ||
+		    (JME_ADDR_HI(rx_ring_end) !=
+		     JME_ADDR_HI(sc->jme_rdata.jme_rx_ring_paddr))) {
+			device_printf(sc->jme_dev, "4GB boundary crossed, "
+			    "switching to 32bit DMA address mode.\n");
+			jme_dma_free(sc);
+			/* Limit DMA address space to 32bit and try again. */
+			lowaddr = BUS_SPACE_MAXADDR_32BIT;
+			goto again;
+		}
 	}
 
+	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->jme_flags & JME_FLAG_DMA32BIT) != 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/* Create parent buffer tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->jme_dev),/* parent */
 	    1, 0,			/* algnmnt, boundary */
-	    BUS_SPACE_MAXADDR,		/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -1445,6 +1461,11 @@ jme_setwol(struct jme_softc *sc)
 	JME_LOCK_ASSERT(sc);
 
 	if (pci_find_extcap(sc->jme_dev, PCIY_PMG, &pmc) != 0) {
+		/* Remove Tx MAC/offload clock to save more power. */
+		if ((sc->jme_flags & JME_FLAG_TXCLK) != 0)
+			CSR_WRITE_4(sc, JME_GHC, CSR_READ_4(sc, JME_GHC) &
+			    ~(GHC_TX_OFFLD_CLK_100 | GHC_TX_MAC_CLK_100 |
+			    GHC_TX_OFFLD_CLK_1000 | GHC_TX_MAC_CLK_1000));
 		/* No PME capability, PHY power down. */
 		jme_miibus_writereg(sc->jme_dev, sc->jme_phyaddr,
 		    MII_BMCR, BMCR_PDOWN);
@@ -1466,7 +1487,11 @@ jme_setwol(struct jme_softc *sc)
 
 	CSR_WRITE_4(sc, JME_PMCS, pmcs);
 	CSR_WRITE_4(sc, JME_GPREG0, gpr);
-
+	/* Remove Tx MAC/offload clock to save more power. */
+	if ((sc->jme_flags & JME_FLAG_TXCLK) != 0)
+		CSR_WRITE_4(sc, JME_GHC, CSR_READ_4(sc, JME_GHC) &
+		    ~(GHC_TX_OFFLD_CLK_100 | GHC_TX_MAC_CLK_100 |
+		    GHC_TX_OFFLD_CLK_1000 | GHC_TX_MAC_CLK_1000));
 	/* Request PME. */
 	pmstat = pci_read_config(sc->jme_dev, pmc + PCIR_POWER_STATUS, 2);
 	pmstat &= ~(PCIM_PSTAT_PME | PCIM_PSTAT_PMEENABLE);
@@ -1941,6 +1966,7 @@ jme_mac_config(struct jme_softc *sc)
 {
 	struct mii_data *mii;
 	uint32_t ghc, gpreg, rxmac, txmac, txpause;
+	uint32_t txclk;
 
 	JME_LOCK_ASSERT(sc);
 
@@ -1950,6 +1976,7 @@ jme_mac_config(struct jme_softc *sc)
 	DELAY(10);
 	CSR_WRITE_4(sc, JME_GHC, 0);
 	ghc = 0;
+	txclk = 0;
 	rxmac = CSR_READ_4(sc, JME_RXMAC);
 	rxmac &= ~RXMAC_FC_ENB;
 	txmac = CSR_READ_4(sc, JME_TXMAC);
@@ -1982,14 +2009,17 @@ jme_mac_config(struct jme_softc *sc)
 	switch (IFM_SUBTYPE(mii->mii_media_active)) {
 	case IFM_10_T:
 		ghc |= GHC_SPEED_10;
+		txclk |= GHC_TX_OFFLD_CLK_100 | GHC_TX_MAC_CLK_100;
 		break;
 	case IFM_100_TX:
 		ghc |= GHC_SPEED_100;
+		txclk |= GHC_TX_OFFLD_CLK_100 | GHC_TX_MAC_CLK_100;
 		break;
 	case IFM_1000_T:
 		if ((sc->jme_flags & JME_FLAG_FASTETH) != 0)
 			break;
 		ghc |= GHC_SPEED_1000;
+		txclk |= GHC_TX_OFFLD_CLK_1000 | GHC_TX_MAC_CLK_1000;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) == 0)
 			txmac |= TXMAC_CARRIER_EXT | TXMAC_FRAME_BURST;
 		break;
@@ -2019,6 +2049,8 @@ jme_mac_config(struct jme_softc *sc)
 			    0x1B, 0x0004);
 		}
 	}
+	if ((sc->jme_flags & JME_FLAG_TXCLK) != 0)
+		ghc |= txclk;
 	CSR_WRITE_4(sc, JME_GHC, ghc);
 	CSR_WRITE_4(sc, JME_RXMAC, rxmac);
 	CSR_WRITE_4(sc, JME_TXMAC, txmac);
@@ -2637,13 +2669,19 @@ jme_init_locked(struct jme_softc *sc)
 	 * decrease FIFO threshold to reduce the FIFO overruns for
 	 * frames larger than 4000 bytes.
 	 * For best performance of standard MTU sized frames use
-	 * maximum allowable FIFO threshold, 128QW.
+	 * maximum allowable FIFO threshold, 128QW. Note these do
+	 * not hold on chip full mask verion >=2. For these
+	 * controllers 64QW and 128QW are not valid value.
 	 */
-	if ((ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
-	    ETHER_CRC_LEN) > JME_RX_FIFO_SIZE)
+	if (CHIPMODE_REVFM(sc->jme_chip_rev) >= 2)
 		sc->jme_rxcsr |= RXCSR_FIFO_THRESH_16QW;
-	else
-		sc->jme_rxcsr |= RXCSR_FIFO_THRESH_128QW;
+	else {
+		if ((ifp->if_mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
+		    ETHER_CRC_LEN) > JME_RX_FIFO_SIZE)
+			sc->jme_rxcsr |= RXCSR_FIFO_THRESH_16QW;
+		else
+			sc->jme_rxcsr |= RXCSR_FIFO_THRESH_128QW;
+	}
 	sc->jme_rxcsr |= sc->jme_rx_dma_size | RXCSR_RXQ_N_SEL(RXCSR_RXQ0);
 	sc->jme_rxcsr |= RXCSR_DESC_RT_CNT(RXCSR_DESC_RT_CNT_DEFAULT);
 	sc->jme_rxcsr |= RXCSR_DESC_RT_GAP_256 & RXCSR_DESC_RT_GAP_MASK;
