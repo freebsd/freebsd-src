@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xen-os.h>
 #include <machine/xen/evtchn.h>
 #include <xen/gnttab.h>
-#include <machine/xen/xenbus.h>
+#include <xen/xenbus/xenbusvar.h>
 #include <machine/stdarg.h>
 
 
@@ -71,7 +71,7 @@ const char *xenbus_strstate(XenbusState state)
 }
 
 int 
-xenbus_watch_path(struct xenbus_device *dev, char *path,
+xenbus_watch_path(device_t dev, char *path,
 		  struct xenbus_watch *watch, 
 		  void (*callback)(struct xenbus_watch *,
 				   const char **, unsigned int))
@@ -94,7 +94,7 @@ xenbus_watch_path(struct xenbus_device *dev, char *path,
 EXPORT_SYMBOL(xenbus_watch_path);
 
 
-int xenbus_watch_path2(struct xenbus_device *dev, const char *path,
+int xenbus_watch_path2(device_t dev, const char *path,
 		       const char *path2, struct xenbus_watch *watch, 
 		       void (*callback)(struct xenbus_watch *,
 					const char **, unsigned int))
@@ -119,70 +119,27 @@ int xenbus_watch_path2(struct xenbus_device *dev, const char *path,
 }
 EXPORT_SYMBOL(xenbus_watch_path2);
 
-
-int xenbus_switch_state(struct xenbus_device *dev,
-			XenbusState state)
-{
-	/* We check whether the state is currently set to the given value, and
-	   if not, then the state is set.  We don't want to unconditionally
-	   write the given state, because we don't want to fire watches
-	   unnecessarily.  Furthermore, if the node has gone, we don't write
-	   to it, as the device will be tearing down, and we don't want to
-	   resurrect that directory.
-	*/
-
-	int current_state;
-	int err;
-	
-	if (state == dev->state)
-		return (0);
-
-	err = xenbus_scanf(XBT_NIL, dev->nodename, "state", "%d",
-			       &current_state);
-	if (err != 1)
-		return 0;
-
-	err = xenbus_printf(XBT_NIL, dev->nodename, "state", "%d", state);
-	if (err) {
-		if (state != XenbusStateClosing) /* Avoid looping */
-			xenbus_dev_fatal(dev, err, "writing new state");
-		return err;
-	}
-
-	dev->state = state;
-	return 0;
-
-}
-
-int xenbus_frontend_closed(struct xenbus_device *dev)
-{
-	xenbus_switch_state(dev, XenbusStateClosed);
-#if 0
-	complete(&dev->down);
-#endif	
-	return 0;
-}
-
 /**
  * Return the path to the error node for the given device, or NULL on failure.
  * If the value returned is non-NULL, then it is the caller's to kfree.
  */
-static char *error_path(struct xenbus_device *dev)
+static char *error_path(device_t dev)
 {
-	char *path_buffer = kmalloc(strlen("error/") + strlen(dev->nodename) +
+	char *path_buffer = kmalloc(strlen("error/")
+				    + strlen(xenbus_get_node(dev)) +
 				    1, GFP_KERNEL);
 	if (path_buffer == NULL) {
 		return NULL;
 	}
 
 	strcpy(path_buffer, "error/");
-	strcpy(path_buffer + strlen("error/"), dev->nodename);
+	strcpy(path_buffer + strlen("error/"), xenbus_get_node(dev));
 
 	return path_buffer;
 }
 
 
-static void _dev_error(struct xenbus_device *dev, int err, const char *fmt,
+static void _dev_error(device_t dev, int err, const char *fmt,
 		       va_list ap)
 {
 	int ret;
@@ -205,13 +162,13 @@ static void _dev_error(struct xenbus_device *dev, int err, const char *fmt,
 
 	if (path_buffer == NULL) {
 		printk("xenbus: failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
+		       xenbus_get_node(dev), printf_buffer);
 		goto fail;
 	}
 
 	if (xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer) != 0) {
 		printk("xenbus: failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
+		       xenbus_get_node(dev), printf_buffer);
 		goto fail;
 	}
 
@@ -223,7 +180,7 @@ static void _dev_error(struct xenbus_device *dev, int err, const char *fmt,
 }
 
 
-void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt,
+void xenbus_dev_error(device_t dev, int err, const char *fmt,
 		      ...)
 {
 	va_list ap;
@@ -235,7 +192,7 @@ void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt,
 EXPORT_SYMBOL(xenbus_dev_error);
 
 
-void xenbus_dev_fatal(struct xenbus_device *dev, int err, const char *fmt,
+void xenbus_dev_fatal(device_t dev, int err, const char *fmt,
 		      ...)
 {
 	va_list ap;
@@ -244,14 +201,15 @@ void xenbus_dev_fatal(struct xenbus_device *dev, int err, const char *fmt,
 	_dev_error(dev, err, fmt, ap);
 	va_end(ap);
 	
-	xenbus_switch_state(dev, XenbusStateClosing);
+	xenbus_set_state(dev, XenbusStateClosing);
 }
 EXPORT_SYMBOL(xenbus_dev_fatal);
 
 
-int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn)
+int xenbus_grant_ring(device_t dev, unsigned long ring_mfn)
 {
-	int err = gnttab_grant_foreign_access(dev->otherend_id, ring_mfn, 0);
+	int err = gnttab_grant_foreign_access(
+		xenbus_get_otherend_id(dev), ring_mfn, 0);
 	if (err < 0)
 		xenbus_dev_fatal(dev, err, "granting access to ring page");
 	return err;
@@ -259,13 +217,13 @@ int xenbus_grant_ring(struct xenbus_device *dev, unsigned long ring_mfn)
 EXPORT_SYMBOL(xenbus_grant_ring);
 
 
-int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port)
+int xenbus_alloc_evtchn(device_t dev, int *port)
 {
 	struct evtchn_alloc_unbound alloc_unbound;
 	int err;
 
 	alloc_unbound.dom        = DOMID_SELF;
-	alloc_unbound.remote_dom = dev->otherend_id;
+	alloc_unbound.remote_dom = xenbus_get_otherend_id(dev);
 
 	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
 					  &alloc_unbound);
@@ -279,7 +237,7 @@ int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port)
 EXPORT_SYMBOL(xenbus_alloc_evtchn);
 
 
-int xenbus_free_evtchn(struct xenbus_device *dev, int port)
+int xenbus_free_evtchn(device_t dev, int port)
 {
 	struct evtchn_close close;
 	int err;

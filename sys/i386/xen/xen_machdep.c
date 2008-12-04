@@ -867,9 +867,11 @@ initvalues(start_info_t *startinfo)
 	 * Note that only one page directory has been allocated at this point.
 	 * Thus, if KERNBASE
 	 */
+#if 0
 	for (i = 0; i < l2_pages; i++)
 		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
-
+#endif
+	
 	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
 #else	
 	l3_pages = 0;

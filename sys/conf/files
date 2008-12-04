@@ -2763,10 +2763,14 @@ xen/evtchn/evtchn_dev.c                optional xen
 xen/xenbus/xenbus_client.c     optional xen
 xen/xenbus/xenbus_comms.c      optional xen
 xen/xenbus/xenbus_dev.c                optional xen
+xen/xenbus/xenbus_if.m		optional xen
 xen/xenbus/xenbus_probe.c      optional xen
-xen/xenbus/xenbus_probe_backend.c      optional xen
+#xen/xenbus/xenbus_probe_backend.c      optional xen
 xen/xenbus/xenbus_xs.c         optional xen
 dev/xen/console/console.c      optional xen
 dev/xen/console/xencons_ring.c optional xen
 dev/xen/blkfront/blkfront.c    optional xen
 dev/xen/netfront/netfront.c    optional xen
+#dev/xen/xenpci/xenpci.c        optional xen
+#xen/xenbus/xenbus_newbus.c	optional xenhvm
+
