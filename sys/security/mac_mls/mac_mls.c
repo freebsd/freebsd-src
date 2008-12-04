@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -776,6 +776,17 @@ mls_bpfdesc_create_mbuf(struct bpf_d *d, struct label *dlabel,
 	mls_copy_effective(source, dest);
 }
 
+static void
+mls_cred_associate_nfsd(struct ucred *cred) 
+{
+	struct mac_mls *label;
+
+	label = SLOT(cred->cr_label);
+	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
 static int
 mls_cred_check_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -852,6 +863,30 @@ mls_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 		return (ESRCH);
 
 	return (0);
+}
+
+static void
+mls_cred_create_init(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
+}
+
+static void
+mls_cred_create_swapper(struct ucred *cred)
+{
+	struct mac_mls *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
+	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
+	    NULL);
 }
 
 static void
@@ -1085,6 +1120,51 @@ mls_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	dest = SLOT(inplabel);
 
 	mls_copy(source, dest);
+}
+
+static void
+mls_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(q6label);
+
+	mls_copy_effective(source, dest);
+}
+
+static int
+mls_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_mls *a, *b;
+
+	a = SLOT(q6label);
+	b = SLOT(mlabel);
+
+	return (mls_equal_effective(a, b));
+}
+
+static void
+mls_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(q6label);
+	dest = SLOT(mlabel);
+
+	/* Just use the head, since we require them all to match. */
+	mls_copy_effective(source, dest);
+}
+
+static void
+mls_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	/* NOOP: we only accept matching labels, so no need to update */
 }
 
 static void
@@ -1478,17 +1558,6 @@ mls_posixsem_create(struct ucred *cred, struct ksem *ks,
 	mls_copy_effective(source, dest);
 }
 
-static void
-mls_proc_associate_nfsd(struct ucred *cred) 
-{
-	struct mac_mls *label;
-
-	label = SLOT(cred->cr_label);
-	mls_set_effective(label, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(label, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
 static int
 mls_proc_check_debug(struct ucred *cred, struct proc *p)
 {
@@ -1547,30 +1616,6 @@ mls_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 		return (EACCES);
 
 	return (0);
-}
-
-static void
-mls_proc_create_init(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_LOW, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
-}
-
-static void
-mls_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-	mls_set_range(dest, MAC_MLS_TYPE_LOW, 0, NULL, MAC_MLS_TYPE_HIGH, 0,
-	    NULL);
 }
 
 static int
@@ -2460,7 +2505,7 @@ mls_vnode_check_mmap(struct ucred *cred, struct vnode *vp,
 
 static int
 mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 	struct mac_mls *subj, *obj;
 
@@ -2471,11 +2516,11 @@ mls_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (acc_mode & (VREAD | VEXEC | VSTAT)) {
+	if (accmode & (VREAD | VEXEC | VSTAT)) {
 		if (!mls_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
 		if (!mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}
@@ -2912,9 +2957,12 @@ static struct mac_policy_ops mls_ops =
 	.mpo_bpfdesc_destroy_label = mls_destroy_label,
 	.mpo_bpfdesc_init_label = mls_init_label,
 
+	.mpo_cred_associate_nfsd = mls_cred_associate_nfsd,
 	.mpo_cred_check_relabel = mls_cred_check_relabel,
 	.mpo_cred_check_visible = mls_cred_check_visible,
 	.mpo_cred_copy_label = mls_copy_label,
+	.mpo_cred_create_init = mls_cred_create_init,
+	.mpo_cred_create_swapper = mls_cred_create_swapper,
 	.mpo_cred_destroy_label = mls_destroy_label,
 	.mpo_cred_externalize_label = mls_externalize_label,
 	.mpo_cred_init_label = mls_init_label,
@@ -2947,6 +2995,13 @@ static struct mac_policy_ops mls_ops =
 	.mpo_inpcb_destroy_label = mls_destroy_label,
 	.mpo_inpcb_init_label = mls_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = mls_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = mls_ip6q_create,
+	.mpo_ip6q_destroy_label = mls_destroy_label,
+	.mpo_ip6q_init_label = mls_init_label_waitcheck,
+	.mpo_ip6q_match = mls_ip6q_match,
+	.mpo_ip6q_reassemble = mls_ip6q_reassemble,
+	.mpo_ip6q_update = mls_ip6q_update,
 
 	.mpo_ipq_create = mls_ipq_create,
 	.mpo_ipq_destroy_label = mls_destroy_label,
@@ -2999,12 +3054,9 @@ static struct mac_policy_ops mls_ops =
 	.mpo_posixsem_destroy_label = mls_destroy_label,
 	.mpo_posixsem_init_label = mls_init_label,
 
-	.mpo_proc_associate_nfsd = mls_proc_associate_nfsd,
 	.mpo_proc_check_debug = mls_proc_check_debug,
 	.mpo_proc_check_sched = mls_proc_check_sched,
 	.mpo_proc_check_signal = mls_proc_check_signal,
-	.mpo_proc_create_init = mls_proc_create_init,
-	.mpo_proc_create_swapper = mls_proc_create_swapper,
 
 	.mpo_socket_check_deliver = mls_socket_check_deliver,
 	.mpo_socket_check_relabel = mls_socket_check_relabel,

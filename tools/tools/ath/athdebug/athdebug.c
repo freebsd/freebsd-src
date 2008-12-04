@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <stdlib.h>
 
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 
@@ -68,6 +69,7 @@ enum {
 	ATH_DEBUG_FF		= 0x00200000,	/* fast frames */
 	ATH_DEBUG_DFS		= 0x00400000,	/* DFS processing */
 	ATH_DEBUG_TDMA		= 0x00800000,	/* TDMA processing */
+	ATH_DEBUG_REGDOMAIN	= 0x02000000,	/* regulatory processing */
 	ATH_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
 	ATH_DEBUG_ANY		= 0xffffffff
 };
@@ -97,6 +99,7 @@ static struct {
 	{ "ff",		ATH_DEBUG_FF },
 	{ "dfs",	ATH_DEBUG_DFS },
 	{ "tdma",	ATH_DEBUG_TDMA },
+	{ "regdomain",	ATH_DEBUG_REGDOMAIN },
 	{ "fatal",	ATH_DEBUG_FATAL },
 };
 

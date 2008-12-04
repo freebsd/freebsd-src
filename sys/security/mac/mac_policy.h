@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -61,6 +61,7 @@
  * alphabetically.
  */
 #include <sys/acl.h>	/* XXX acl_type_t */
+#include <sys/types.h>	/* XXX accmode_t */
 
 struct acl;
 struct auditinfo;
@@ -72,6 +73,7 @@ struct devfs_dirent;
 struct ifnet;
 struct image_params;
 struct inpcb;
+struct ip6q;
 struct ipq;
 struct ksem;
 struct label;
@@ -127,12 +129,15 @@ typedef void	(*mpo_bpfdesc_create_mbuf_t)(struct bpf_d *d,
 typedef void	(*mpo_bpfdesc_destroy_label_t)(struct label *label);
 typedef void	(*mpo_bpfdesc_init_label_t)(struct label *label);
 
+typedef void	(*mpo_cred_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_cred_check_relabel_t)(struct ucred *cred,
 		    struct label *newlabel);
 typedef int	(*mpo_cred_check_visible_t)(struct ucred *cr1,
 		    struct ucred *cr2);
 typedef void	(*mpo_cred_copy_label_t)(struct label *src,
 		    struct label *dest);
+typedef void	(*mpo_cred_create_init_t)(struct ucred *cred);
+typedef void	(*mpo_cred_create_swapper_t)(struct ucred *cred);
 typedef void	(*mpo_cred_destroy_label_t)(struct label *label);
 typedef int	(*mpo_cred_externalize_label_t)(struct label *label,
 		    char *element_name, struct sbuf *sb, int *claimed);
@@ -200,6 +205,17 @@ typedef int	(*mpo_inpcb_init_label_t)(struct label *label, int flag);
 typedef void	(*mpo_inpcb_sosetlabel_t)(struct socket *so,
 		    struct label *label, struct inpcb *inp,
 		    struct label *inplabel);
+
+typedef void	(*mpo_ip6q_create_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
+typedef void	(*mpo_ip6q_destroy_label_t)(struct label *label);
+typedef int	(*mpo_ip6q_init_label_t)(struct label *label, int flag);
+typedef int	(*mpo_ip6q_match_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
+typedef void	(*mpo_ip6q_reassemble)(struct ip6q *q6, struct label *q6label,
+		    struct mbuf *m, struct label *mlabel);
+typedef void	(*mpo_ip6q_update_t)(struct mbuf *m, struct label *mlabel,
+		    struct ip6q *q6, struct label *q6label);
 
 typedef void	(*mpo_ipq_create_t)(struct mbuf *m, struct label *mlabel,
 		    struct ipq *q, struct label *qlabel);
@@ -333,7 +349,6 @@ typedef void	(*mpo_posixshm_init_label_t)(struct label *label);
 typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
 typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
 
-typedef void	(*mpo_proc_associate_nfsd_t)(struct ucred *cred);
 typedef int	(*mpo_proc_check_debug_t)(struct ucred *cred,
 		    struct proc *p);
 typedef int	(*mpo_proc_check_sched_t)(struct ucred *cred,
@@ -361,8 +376,6 @@ typedef int	(*mpo_proc_check_signal_t)(struct ucred *cred,
 		    struct proc *proc, int signum);
 typedef int	(*mpo_proc_check_wait_t)(struct ucred *cred,
 		    struct proc *proc);
-typedef void	(*mpo_proc_create_init_t)(struct ucred *cred);
-typedef void	(*mpo_proc_create_swapper_t)(struct ucred *cred);
 typedef void	(*mpo_proc_destroy_label_t)(struct label *label);
 typedef void	(*mpo_proc_init_label_t)(struct label *label);
 
@@ -518,7 +531,8 @@ typedef void	(*mpo_vnode_associate_singlelabel_t)(struct mount *mp,
 		    struct label *mplabel, struct vnode *vp,
 		    struct label *vplabel);
 typedef int	(*mpo_vnode_check_access_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vplabel, int acc_mode);
+		    struct vnode *vp, struct label *vplabel,
+		    accmode_t accmode);
 typedef int	(*mpo_vnode_check_chdir_t)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dvplabel);
 typedef int	(*mpo_vnode_check_chroot_t)(struct ucred *cred,
@@ -559,7 +573,8 @@ typedef void	(*mpo_vnode_check_mmap_downgrade_t)(struct ucred *cred,
 typedef int	(*mpo_vnode_check_mprotect_t)(struct ucred *cred,
 		    struct vnode *vp, struct label *vplabel, int prot);
 typedef int	(*mpo_vnode_check_open_t)(struct ucred *cred,
-		    struct vnode *vp, struct label *vplabel, int acc_mode);
+		    struct vnode *vp, struct label *vplabel,
+		    accmode_t accmode);
 typedef int	(*mpo_vnode_check_poll_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *vplabel);
@@ -662,9 +677,12 @@ struct mac_policy_ops {
 	mpo_bpfdesc_destroy_label_t		mpo_bpfdesc_destroy_label;
 	mpo_bpfdesc_init_label_t		mpo_bpfdesc_init_label;
 
+	mpo_cred_associate_nfsd_t		mpo_cred_associate_nfsd;
 	mpo_cred_check_relabel_t		mpo_cred_check_relabel;
 	mpo_cred_check_visible_t		mpo_cred_check_visible;
 	mpo_cred_copy_label_t			mpo_cred_copy_label;
+	mpo_cred_create_swapper_t		mpo_cred_create_swapper;
+	mpo_cred_create_init_t			mpo_cred_create_init;
 	mpo_cred_destroy_label_t		mpo_cred_destroy_label;
 	mpo_cred_externalize_label_t		mpo_cred_externalize_label;
 	mpo_cred_init_label_t			mpo_cred_init_label;
@@ -697,6 +715,13 @@ struct mac_policy_ops {
 	mpo_inpcb_destroy_label_t		mpo_inpcb_destroy_label;
 	mpo_inpcb_init_label_t			mpo_inpcb_init_label;
 	mpo_inpcb_sosetlabel_t			mpo_inpcb_sosetlabel;
+
+	mpo_ip6q_create_t			mpo_ip6q_create;
+	mpo_ip6q_destroy_label_t		mpo_ip6q_destroy_label;
+	mpo_ip6q_init_label_t			mpo_ip6q_init_label;
+	mpo_ip6q_match_t			mpo_ip6q_match;
+	mpo_ip6q_reassemble			mpo_ip6q_reassemble;
+	mpo_ip6q_update_t			mpo_ip6q_update;
 
 	mpo_ipq_create_t			mpo_ipq_create;
 	mpo_ipq_destroy_label_t			mpo_ipq_destroy_label;
@@ -771,7 +796,6 @@ struct mac_policy_ops {
 	mpo_priv_check_t			mpo_priv_check;
 	mpo_priv_grant_t			mpo_priv_grant;
 
-	mpo_proc_associate_nfsd_t		mpo_proc_associate_nfsd;
 	mpo_proc_check_debug_t			mpo_proc_check_debug;
 	mpo_proc_check_sched_t			mpo_proc_check_sched;
 	mpo_proc_check_setaudit_t		mpo_proc_check_setaudit;
@@ -788,8 +812,6 @@ struct mac_policy_ops {
 	mpo_proc_check_setresgid_t		mpo_proc_check_setresgid;
 	mpo_proc_check_signal_t			mpo_proc_check_signal;
 	mpo_proc_check_wait_t			mpo_proc_check_wait;
-	mpo_proc_create_swapper_t		mpo_proc_create_swapper;
-	mpo_proc_create_init_t			mpo_proc_create_init;
 	mpo_proc_destroy_label_t		mpo_proc_destroy_label;
 	mpo_proc_init_label_t			mpo_proc_init_label;
 
@@ -970,6 +992,7 @@ struct mac_policy_conf {
 #define	MPC_OBJECT_SYSVSEM		0x0000000000010000
 #define	MPC_OBJECT_SYSVSHM		0x0000000000020000
 #define	MPC_OBJECT_SYNCACHE		0x0000000000040000
+#define	MPC_OBJECT_IP6Q			0x0000000000080000
 
 /*-
  * The TrustedBSD MAC Framework has a major version number, MAC_VERSION,

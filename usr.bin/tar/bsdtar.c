@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2008 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,18 +38,6 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_GETOPT_LONG
-#include <getopt.h>
-#else
-struct option {
-	const char *name;
-	int has_arg;
-	int *flag;
-	int val;
-};
-#define	no_argument 0
-#define	required_argument 1
-#endif
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
@@ -78,14 +66,6 @@ struct option {
 
 #include "bsdtar.h"
 
-#if !HAVE_DECL_OPTARG
-extern int optarg;
-#endif
-
-#if !HAVE_DECL_OPTIND
-extern int optind;
-#endif
-
 /*
  * Per POSIX.1-1988, tar defaults to reading/writing archives to/from
  * the default tape device for the system.  Pick something reasonable here.
@@ -101,132 +81,11 @@ extern int optind;
 /* External function to parse a date/time string (from getdate.y) */
 time_t get_date(const char *);
 
-static int		 bsdtar_getopt(struct bsdtar *, const char *optstring,
-    const struct option **poption);
 static void		 long_help(struct bsdtar *);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
-static char **		 rewrite_argv(struct bsdtar *,
-			     int *argc, char ** src_argv,
-			     const char *optstring);
 static void		 set_mode(struct bsdtar *, char opt);
 static void		 version(void);
-
-/*
- * The leading '+' here forces the GNU version of getopt() (as well as
- * both the GNU and BSD versions of getopt_long) to stop at the first
- * non-option.  Otherwise, GNU getopt() permutes the arguments and
- * screws up -C processing.
- */
-static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPpqrts:ST:UuvW:wX:xyZz";
-
-/*
- * Most of these long options are deliberately not documented.  They
- * are provided only to make life easier for people who also use GNU tar.
- * The only long options documented in the manual page are the ones
- * with no corresponding short option, such as --exclude, --nodump,
- * and --fast-read.
- *
- * On systems that lack getopt_long, long options can be specified
- * using -W longopt and -W longopt=value, e.g. "-W nodump" is the same
- * as "--nodump" and "-W exclude=pattern" is the same as "--exclude
- * pattern".  This does not rely the GNU getopt() "W;" extension, so
- * should work correctly on any system with a POSIX-compliant getopt().
- */
-
-/* Fake short equivalents for long options that otherwise lack them. */
-enum {
-	OPTION_CHECK_LINKS = 1,
-	OPTION_CHROOT,
-	OPTION_EXCLUDE,
-	OPTION_FORMAT,
-	OPTION_HELP,
-	OPTION_INCLUDE,
-	OPTION_KEEP_NEWER_FILES,
-	OPTION_NEWER_CTIME,
-	OPTION_NEWER_CTIME_THAN,
-	OPTION_NEWER_MTIME,
-	OPTION_NEWER_MTIME_THAN,
-	OPTION_NODUMP,
-	OPTION_NO_SAME_OWNER,
-	OPTION_NO_SAME_PERMISSIONS,
-	OPTION_NULL,
-	OPTION_NUMERIC_OWNER,
-	OPTION_ONE_FILE_SYSTEM,
-	OPTION_POSIX,
-	OPTION_STRIP_COMPONENTS,
-	OPTION_TOTALS,
-	OPTION_USE_COMPRESS_PROGRAM,
-	OPTION_VERSION
-};
-
-/*
- * If you add anything, be very careful to keep this list properly
- * sorted, as the -W logic relies on it.
- */
-static const struct option tar_longopts[] = {
-	{ "absolute-paths",     no_argument,       NULL, 'P' },
-	{ "append",             no_argument,       NULL, 'r' },
-	{ "block-size",         required_argument, NULL, 'b' },
-	{ "bunzip2",            no_argument,       NULL, 'j' },
-	{ "bzip",               no_argument,       NULL, 'j' },
-	{ "bzip2",              no_argument,       NULL, 'j' },
-	{ "cd",                 required_argument, NULL, 'C' },
-	{ "check-links",        no_argument,       NULL, OPTION_CHECK_LINKS },
-	{ "chroot",             no_argument,       NULL, OPTION_CHROOT },
-	{ "compress",           no_argument,       NULL, 'Z' },
-	{ "confirmation",       no_argument,       NULL, 'w' },
-	{ "create",             no_argument,       NULL, 'c' },
-	{ "dereference",	no_argument,	   NULL, 'L' },
-	{ "directory",          required_argument, NULL, 'C' },
-	{ "exclude",            required_argument, NULL, OPTION_EXCLUDE },
-	{ "exclude-from",       required_argument, NULL, 'X' },
-	{ "extract",            no_argument,       NULL, 'x' },
-	{ "fast-read",          no_argument,       NULL, 'q' },
-	{ "file",               required_argument, NULL, 'f' },
-	{ "files-from",         required_argument, NULL, 'T' },
-	{ "format",             required_argument, NULL, OPTION_FORMAT },
-	{ "gunzip",             no_argument,       NULL, 'z' },
-	{ "gzip",               no_argument,       NULL, 'z' },
-	{ "help",               no_argument,       NULL, OPTION_HELP },
-	{ "include",            required_argument, NULL, OPTION_INCLUDE },
-	{ "interactive",        no_argument,       NULL, 'w' },
-	{ "insecure",           no_argument,       NULL, 'P' },
-	{ "keep-newer-files",   no_argument,       NULL, OPTION_KEEP_NEWER_FILES },
-	{ "keep-old-files",     no_argument,       NULL, 'k' },
-	{ "list",               no_argument,       NULL, 't' },
-	{ "modification-time",  no_argument,       NULL, 'm' },
-	{ "newer",		required_argument, NULL, OPTION_NEWER_CTIME },
-	{ "newer-ctime",	required_argument, NULL, OPTION_NEWER_CTIME },
-	{ "newer-ctime-than",	required_argument, NULL, OPTION_NEWER_CTIME_THAN },
-	{ "newer-mtime",	required_argument, NULL, OPTION_NEWER_MTIME },
-	{ "newer-mtime-than",	required_argument, NULL, OPTION_NEWER_MTIME_THAN },
-	{ "newer-than",		required_argument, NULL, OPTION_NEWER_CTIME_THAN },
-	{ "nodump",             no_argument,       NULL, OPTION_NODUMP },
-	{ "norecurse",          no_argument,       NULL, 'n' },
-	{ "no-recursion",       no_argument,       NULL, 'n' },
-	{ "no-same-owner",	no_argument,	   NULL, OPTION_NO_SAME_OWNER },
-	{ "no-same-permissions",no_argument,	   NULL, OPTION_NO_SAME_PERMISSIONS },
-	{ "null",		no_argument,	   NULL, OPTION_NULL },
-	{ "numeric-owner",	no_argument,	   NULL, OPTION_NUMERIC_OWNER },
-	{ "one-file-system",	no_argument,	   NULL, OPTION_ONE_FILE_SYSTEM },
-	{ "posix",		no_argument,	   NULL, OPTION_POSIX },
-	{ "preserve-permissions", no_argument,     NULL, 'p' },
-	{ "read-full-blocks",	no_argument,	   NULL, 'B' },
-	{ "same-permissions",   no_argument,       NULL, 'p' },
-	{ "strip-components",	required_argument, NULL, OPTION_STRIP_COMPONENTS },
-	{ "to-stdout",          no_argument,       NULL, 'O' },
-	{ "totals",		no_argument,       NULL, OPTION_TOTALS },
-	{ "uncompress",         no_argument,       NULL, 'Z' },
-	{ "unlink",		no_argument,       NULL, 'U' },
-	{ "unlink-first",	no_argument,       NULL, 'U' },
-	{ "update",             no_argument,       NULL, 'u' },
-	{ "use-compress-program",
-				required_argument, NULL, OPTION_USE_COMPRESS_PROGRAM },
-	{ "verbose",            no_argument,       NULL, 'v' },
-	{ "version",            no_argument,       NULL, OPTION_VERSION },
-	{ NULL, 0, NULL, 0 }
-};
 
 /* A basic set of security flags to request from libarchive. */
 #define	SECURITY					\
@@ -237,7 +96,6 @@ int
 main(int argc, char **argv)
 {
 	struct bsdtar		*bsdtar, bsdtar_storage;
-	const struct option	*option;
 	int			 opt, t;
 	char			 option_o;
 	char			 possible_help_request;
@@ -295,33 +153,29 @@ main(int argc, char **argv)
 		bsdtar->extract_flags |= ARCHIVE_EXTRACT_FFLAGS;
 	}
 
-	/* Rewrite traditional-style tar arguments, if used. */
-	argv = rewrite_argv(bsdtar, &argc, argv, tar_opts);
-
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
 
-	/* Process all remaining arguments now. */
 	/*
 	 * Comments following each option indicate where that option
 	 * originated:  SUSv2, POSIX, GNU tar, star, etc.  If there's
 	 * no such comment, then I don't know of anyone else who
 	 * implements that option.
 	 */
-	while ((opt = bsdtar_getopt(bsdtar, tar_opts, &option)) != -1) {
+	while ((opt = bsdtar_getopt(bsdtar)) != -1) {
 		switch (opt) {
 		case 'B': /* GNU tar */
 			/* libarchive doesn't need this; just ignore it. */
 			break;
 		case 'b': /* SUSv2 */
-			t = atoi(optarg);
+			t = atoi(bsdtar->optarg);
 			if (t <= 0 || t > 1024)
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Argument to -b is out of range (1..1024)");
 			bsdtar->bytes_per_block = 512 * t;
 			break;
 		case 'C': /* GNU tar */
-			set_chdir(bsdtar, optarg);
+			set_chdir(bsdtar, bsdtar->optarg);
 			break;
 		case 'c': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -333,15 +187,15 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (exclude(bsdtar, optarg))
+			if (exclude(bsdtar, bsdtar->optarg))
 				bsdtar_errc(bsdtar, 1, 0,
-				    "Couldn't exclude %s\n", optarg);
+				    "Couldn't exclude %s\n", bsdtar->optarg);
 			break;
 		case OPTION_FORMAT: /* GNU tar, others */
-			bsdtar->create_format = optarg;
+			bsdtar->create_format = bsdtar->optarg;
 			break;
 		case 'f': /* SUSv2 */
-			bsdtar->filename = optarg;
+			bsdtar->filename = bsdtar->optarg;
 			if (strcmp(bsdtar->filename, "-") == 0)
 				bsdtar->filename = NULL;
 			break;
@@ -368,7 +222,7 @@ main(int argc, char **argv)
 			 * permissions without having to create those
 			 * permissions on disk.
 			 */
-			bsdtar->names_from_file = optarg;
+			bsdtar->names_from_file = bsdtar->optarg;
 			break;
 		case OPTION_INCLUDE:
 			/*
@@ -376,10 +230,10 @@ main(int argc, char **argv)
 			 * noone else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (include(bsdtar, optarg))
+			if (include(bsdtar, bsdtar->optarg))
 				bsdtar_errc(bsdtar, 1, 0,
 				    "Failed to add %s to inclusion list",
-				    optarg);
+				    bsdtar->optarg);
 			break;
 		case 'j': /* GNU tar */
 #if HAVE_LIBBZ2
@@ -389,7 +243,8 @@ main(int argc, char **argv)
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 #else
-			bsdtar_warnc(bsdtar, 0, "-j compression not supported by this version of bsdtar");
+			bsdtar_warnc(bsdtar, 0,
+			    "bzip2 compression not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
 			break;
@@ -420,28 +275,28 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			bsdtar->newer_ctime_sec = get_date(optarg);
+			bsdtar->newer_ctime_sec = get_date(bsdtar->optarg);
 			break;
 		case OPTION_NEWER_CTIME_THAN:
 			{
 				struct stat st;
-				if (stat(optarg, &st) != 0)
+				if (stat(bsdtar->optarg, &st) != 0)
 					bsdtar_errc(bsdtar, 1, 0,
-					    "Can't open file %s", optarg);
+					    "Can't open file %s", bsdtar->optarg);
 				bsdtar->newer_ctime_sec = st.st_ctime;
 				bsdtar->newer_ctime_nsec =
 				    ARCHIVE_STAT_CTIME_NANOS(&st);
 			}
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			bsdtar->newer_mtime_sec = get_date(optarg);
+			bsdtar->newer_mtime_sec = get_date(bsdtar->optarg);
 			break;
 		case OPTION_NEWER_MTIME_THAN:
 			{
 				struct stat st;
-				if (stat(optarg, &st) != 0)
+				if (stat(bsdtar->optarg, &st) != 0)
 					bsdtar_errc(bsdtar, 1, 0,
-					    "Can't open file %s", optarg);
+					    "Can't open file %s", bsdtar->optarg);
 				bsdtar->newer_mtime_sec = st.st_mtime;
 				bsdtar->newer_mtime_nsec =
 				    ARCHIVE_STAT_MTIME_NANOS(&st);
@@ -509,17 +364,18 @@ main(int argc, char **argv)
 			break;
 		case 's': /* NetBSD pax-as-tar */
 #if HAVE_REGEX_H
-			add_substitution(bsdtar, optarg);
+			add_substitution(bsdtar, bsdtar->optarg);
 #else
-			bsdtar_warnc(bsdtar, 0, "-s is not supported by this version of bsdtar");
+			bsdtar_warnc(bsdtar, 0,
+			    "-s is not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
-			bsdtar->strip_components = atoi(optarg);
+			bsdtar->strip_components = atoi(bsdtar->optarg);
 			break;
 		case 'T': /* GNU tar */
-			bsdtar->names_from_file = optarg;
+			bsdtar->names_from_file = bsdtar->optarg;
 			break;
 		case 't': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -544,19 +400,19 @@ main(int argc, char **argv)
 #if 0
 		/*
 		 * The -W longopt feature is handled inside of
-		 * bsdtar_getop(), so -W is not available here.
+		 * bsdtar_getopt(), so -W is not available here.
 		 */
-		case 'W': /* Obscure, but useful GNU convention. */
+		case 'W': /* Obscure GNU convention. */
 			break;
 #endif
 		case 'w': /* SUSv2 */
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (exclude_from_file(bsdtar, optarg))
+			if (exclude_from_file(bsdtar, bsdtar->optarg))
 				bsdtar_errc(bsdtar, 1, 0,
 				    "failed to process exclusions from file %s",
-				    optarg);
+				    bsdtar->optarg);
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -569,7 +425,8 @@ main(int argc, char **argv)
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 #else
-			bsdtar_warnc(bsdtar, 0, "-y compression not supported by this version of bsdtar");
+			bsdtar_warnc(bsdtar, 0,
+			    "bzip2 compression not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
 			break;
@@ -588,12 +445,13 @@ main(int argc, char **argv)
 				    bsdtar->create_compression);
 			bsdtar->create_compression = opt;
 #else
-			bsdtar_warnc(bsdtar, 0, "-z compression not supported by this version of bsdtar");
+			bsdtar_warnc(bsdtar, 0,
+			    "gzip compression not supported by this version of bsdtar");
 			usage(bsdtar);
 #endif
 			break;
 		case OPTION_USE_COMPRESS_PROGRAM:
-			bsdtar->compress_program = optarg;
+			bsdtar->compress_program = bsdtar->optarg;
 			break;
 		default:
 			usage(bsdtar);
@@ -668,9 +526,6 @@ main(int argc, char **argv)
 	if (bsdtar->strip_components != 0)
 		only_mode(bsdtar, "--strip-components", "xt");
 
-	bsdtar->argc -= optind;
-	bsdtar->argv += optind;
-
 	switch(bsdtar->mode) {
 	case 'c':
 		tar_mode_c(bsdtar);
@@ -722,72 +577,6 @@ only_mode(struct bsdtar *bsdtar, const char *opt, const char *valid_modes)
 }
 
 
-/*-
- * Convert traditional tar arguments into new-style.
- * For example,
- *     tar tvfb file.tar 32 --exclude FOO
- * will be converted to
- *     tar -t -v -f file.tar -b 32 --exclude FOO
- *
- * This requires building a new argv array.  The initial bundled word
- * gets expanded into a new string that looks like "-t\0-v\0-f\0-b\0".
- * The new argv array has pointers into this string intermingled with
- * pointers to the existing arguments.  Arguments are moved to
- * immediately follow their options.
- *
- * The optstring argument here is the same one passed to getopt(3).
- * It is used to determine which option letters have trailing arguments.
- */
-char **
-rewrite_argv(struct bsdtar *bsdtar, int *argc, char **src_argv,
-    const char *optstring)
-{
-	char **new_argv, **dest_argv;
-	const char *p;
-	char *src, *dest;
-
-	if (src_argv[0] == NULL || src_argv[1] == NULL ||
-	    src_argv[1][0] == '-' || src_argv[1][0] == '\0')
-		return (src_argv);
-
-	*argc += strlen(src_argv[1]) - 1;
-	new_argv = malloc((*argc + 1) * sizeof(new_argv[0]));
-	if (new_argv == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "No Memory");
-
-	dest_argv = new_argv;
-	*dest_argv++ = *src_argv++;
-
-	dest = malloc(strlen(*src_argv) * 3);
-	if (dest == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "No memory");
-	for (src = *src_argv++; *src != '\0'; src++) {
-		*dest_argv++ = dest;
-		*dest++ = '-';
-		*dest++ = *src;
-		*dest++ = '\0';
-		/* If option takes an argument, insert that into the list. */
-		for (p = optstring; p != NULL && *p != '\0'; p++) {
-			if (*p != *src)
-				continue;
-			if (p[1] != ':')	/* No arg required, done. */
-				break;
-			if (*src_argv == NULL)	/* No arg available? Error. */
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Option %c requires an argument",
-				    *src);
-			*dest_argv++ = *src_argv++;
-			break;
-		}
-	}
-
-	/* Copy remaining arguments, including trailing NULL. */
-	while ((*dest_argv++ = *src_argv++) != NULL)
-		;
-
-	return (new_argv);
-}
-
 void
 usage(struct bsdtar *bsdtar)
 {
@@ -799,11 +588,7 @@ usage(struct bsdtar *bsdtar)
 	fprintf(stderr, "  List:    %s -tf <archive-filename>\n", p);
 	fprintf(stderr, "  Extract: %s -xf <archive-filename>\n", p);
 	fprintf(stderr, "  Create:  %s -cf <archive-filename> [filenames...]\n", p);
-#ifdef HAVE_GETOPT_LONG
 	fprintf(stderr, "  Help:    %s --help\n", p);
-#else
-	fprintf(stderr, "  Help:    %s -h\n", p);
-#endif
 	exit(1);
 }
 
@@ -828,11 +613,7 @@ static const char *long_help_msg =
 	"  <file>, <dir>  add these items to archive\n"
 	"  -z, -j  Compress archive with gzip/bzip2\n"
 	"  --format {ustar|pax|cpio|shar}  Select archive format\n"
-#ifdef HAVE_GETOPT_LONG
 	"  --exclude <pattern>  Skip files that match pattern\n"
-#else
-	"  -W exclude=<pattern>  Skip files that match pattern\n"
-#endif
 	"  -C <dir>  Change to <dir> before processing remaining files\n"
 	"  @<archive>  Add entries from <archive> to output\n"
 	"List: %p -t [options] [<patterns>]\n"
@@ -879,81 +660,4 @@ long_help(struct bsdtar *bsdtar)
 			putchar(*p);
 	}
 	version();
-}
-
-static int
-bsdtar_getopt(struct bsdtar *bsdtar, const char *optstring,
-    const struct option **poption)
-{
-	char *p, *q;
-	const struct option *option;
-	int opt;
-	int option_index;
-	size_t option_length;
-
-	option_index = -1;
-	*poption = NULL;
-
-#ifdef HAVE_GETOPT_LONG
-	opt = getopt_long(bsdtar->argc, bsdtar->argv, optstring,
-	    tar_longopts, &option_index);
-	if (option_index > -1)
-		*poption = tar_longopts + option_index;
-#else
-	opt = getopt(bsdtar->argc, bsdtar->argv, optstring);
-#endif
-
-	/* Support long options through -W longopt=value */
-	if (opt == 'W') {
-		p = optarg;
-		q = strchr(optarg, '=');
-		if (q != NULL) {
-			option_length = (size_t)(q - p);
-			optarg = q + 1;
-		} else {
-			option_length = strlen(p);
-			optarg = NULL;
-		}
-		option = tar_longopts;
-		while (option->name != NULL &&
-		    (strlen(option->name) < option_length ||
-		    strncmp(p, option->name, option_length) != 0 )) {
-			option++;
-		}
-
-		if (option->name != NULL) {
-			*poption = option;
-			opt = option->val;
-
-			/* If the first match was exact, we're done. */
-			if (strncmp(p, option->name, strlen(option->name)) == 0) {
-				while (option->name != NULL)
-					option++;
-			} else {
-				/* Check if there's another match. */
-				option++;
-				while (option->name != NULL &&
-				    (strlen(option->name) < option_length ||
-				    strncmp(p, option->name, option_length) != 0)) {
-					option++;
-				}
-			}
-			if (option->name != NULL)
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Ambiguous option %s "
-				    "(matches both %s and %s)",
-				    p, (*poption)->name, option->name);
-
-			if ((*poption)->has_arg == required_argument
-			    && optarg == NULL)
-				bsdtar_errc(bsdtar, 1, 0,
-				    "Option \"%s\" requires argument", p);
-		} else {
-			opt = '?';
-			/* TODO: Set up a fake 'struct option' for
-			 * error reporting... ? ? ? */
-		}
-	}
-
-	return (opt);
 }

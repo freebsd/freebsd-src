@@ -51,13 +51,10 @@
 
 		
 #ifdef SMP
-#ifdef notyet	
-#define GET_VCPU_INFO		movl TI_cpu(%ebp),reg			; \
+#define GET_VCPU_INFO(reg)	movl PCPU(CPUID),reg			; \
 				shl  $sizeof_vcpu_shift,reg		; \
 				addl HYPERVISOR_shared_info,reg
 #else
-#endif	
-
 #define GET_VCPU_INFO(reg)	movl HYPERVISOR_shared_info,reg
 #endif
 

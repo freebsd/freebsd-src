@@ -273,7 +273,7 @@ cbq_add_altq(struct pf_altq *a)
 		return (ENODEV);
 
 	/* allocate and initialize cbq_state_t */
-	MALLOC(cbqp, cbq_state_t *, sizeof(cbq_state_t), M_DEVBUF, M_WAITOK);
+	cbqp = malloc(sizeof(cbq_state_t), M_DEVBUF, M_WAITOK);
 	if (cbqp == NULL)
 		return (ENOMEM);
 	bzero(cbqp, sizeof(cbq_state_t));
@@ -304,7 +304,7 @@ cbq_remove_altq(struct pf_altq *a)
 		cbq_class_destroy(cbqp, cbqp->ifnp.root_);
 
 	/* deallocate cbq_state_t */
-	FREE(cbqp, M_DEVBUF);
+	free(cbqp, M_DEVBUF);
 
 	return (0);
 }
@@ -927,7 +927,7 @@ cbq_ifattach(ifacep)
 		return (ENXIO);
 
 	/* allocate and initialize cbq_state_t */
-	MALLOC(new_cbqp, cbq_state_t *, sizeof(cbq_state_t), M_DEVBUF, M_WAITOK);
+	new_cbqp = malloc(sizeof(cbq_state_t), M_DEVBUF, M_WAITOK);
 	if (new_cbqp == NULL)
 		return (ENOMEM);
 	bzero(new_cbqp, sizeof(cbq_state_t));
@@ -943,7 +943,7 @@ cbq_ifattach(ifacep)
 			    cbq_enqueue, cbq_dequeue, cbq_request,
 			    &new_cbqp->cbq_classifier, acc_classify);
 	if (error) {
-		FREE(new_cbqp, M_DEVBUF);
+		free(new_cbqp, M_DEVBUF);
 		return (error);
 	}
 
@@ -987,7 +987,7 @@ cbq_ifdetach(ifacep)
 	}
 
 	/* deallocate cbq_state_t */
-	FREE(cbqp, M_DEVBUF);
+	free(cbqp, M_DEVBUF);
 
 	return (0);
 }

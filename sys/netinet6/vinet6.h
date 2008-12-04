@@ -33,18 +33,19 @@
 #ifndef _NETINET6_VINET6_H_
 #define _NETINET6_VINET6_H_
 
-#ifdef VIMAGE
-#include <sys/socket.h>
-#include <netinet/ip6.h>
-#include <net/if.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/raw_ip6.h>
+#include <sys/callout.h>
+#include <sys/queue.h>
+#include <sys/types.h>
+
+#include <net/if_var.h>
+
 #include <netinet/icmp6.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/in6_ifattach.h>
-#include <netinet6/in6_var.h>
+#include <netinet/in.h>
+
+#include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/in_pcb.h>
+#include <netinet6/raw_ip6.h>
+#include <netinet6/scope6_var.h>
 
 struct vnet_inet6 {
 	struct in6_ifaddr *		_in6_ifaddr;
@@ -108,6 +109,7 @@ struct vnet_inet6 {
 	int				_ip6_keepfaith;
 	int				_ip6stealth;
 	time_t				_ip6_log_time;
+	int				_nd6_onlink_ns_rfc4861;
 
 	int				_pmtu_expire;
 	int				_pmtu_probe;
@@ -153,14 +155,11 @@ struct vnet_inet6 {
 
 	struct ip6_pktopts		_ip6_opts;
 };
-#endif
-
 
 #define	INIT_VNET_INET6(vnet) \
 	INIT_FROM_VNET(vnet, VNET_MOD_INET6, struct vnet_inet6, vnet_inet6)
 
 #define	VNET_INET6(sym)		VSYM(vnet_inet6, sym)
-
 
 /*
  * Symbol translation macros
@@ -232,6 +231,7 @@ struct vnet_inet6 {
 #define	V_nd6_maxnudhint		VNET_INET6(nd6_maxnudhint)
 #define	V_nd6_maxqueuelen		VNET_INET6(nd6_maxqueuelen)
 #define	V_nd6_mmaxtries			VNET_INET6(nd6_mmaxtries)
+#define	V_nd6_onlink_ns_rfc4861		VNET_INET6(nd6_onlink_ns_rfc4861)
 #define	V_nd6_prune			VNET_INET6(nd6_prune)
 #define	V_nd6_recalc_reachtm_interval	VNET_INET6(nd6_recalc_reachtm_interval)
 #define	V_nd6_slowtimo_ch		VNET_INET6(nd6_slowtimo_ch)

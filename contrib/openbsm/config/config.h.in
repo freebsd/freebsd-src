@@ -39,6 +39,12 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define if ipc_perm._key instead of key */
+#undef HAVE_IPC_PERM__KEY
+
+/* Define if ipc_perm._seq instead of seq */
+#undef HAVE_IPC_PERM__SEQ
+
 /* Define if ipc_perm.__key instead of key */
 #undef HAVE_IPC_PERM___KEY
 
@@ -88,6 +94,9 @@
 
 /* Define to 1 if you have the `strlcat' function. */
 #undef HAVE_STRLCAT
+
+/* Define to 1 if you have the `strlcpy' function. */
+#undef HAVE_STRLCPY
 
 /* Define to 1 if you have the `strrchr' function. */
 #undef HAVE_STRRCHR
@@ -167,6 +176,12 @@
 
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
+
+/* Define if uses Mach IPC for Triggers messages */
+#undef USE_MACH_IPC
+
+/* Define to use native include files */
+#undef USE_NATIVE_INCLUDES
 
 /* Version number of package */
 #undef VERSION

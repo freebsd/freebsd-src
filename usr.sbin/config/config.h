@@ -121,6 +121,7 @@ struct opt {
 	char	*op_value;
 	int	op_ownfile;	/* true = own file, false = makefile */
 	SLIST_ENTRY(opt) op_next;
+	SLIST_ENTRY(opt) op_append;
 };
 
 SLIST_HEAD(opt_head, opt) opt, mkopt, rmopts;

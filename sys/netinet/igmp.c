@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_options.h>
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
+#include <netinet/vinet.h>
 
 #include <machine/in_cksum.h>
 
@@ -80,7 +82,9 @@ static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 static struct router_info	*find_rti(struct ifnet *ifp);
 static void	igmp_sendpkt(struct in_multi *, int, unsigned long);
 
+#ifdef VIMAGE_GLOBALS
 static struct igmpstat igmpstat;
+#endif
 
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
     stats, CTLFLAG_RW, igmpstat, igmpstat, "");
@@ -92,8 +96,10 @@ SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_igmp, IGMPCTL_STATS,
  * reference counting is used.  We allow unlocked reads of router_info data
  * when accessed via an in_multi read-only.
  */
-static struct mtx igmp_mtx;
+#ifdef VIMAGE_GLOBALS
 static SLIST_HEAD(, router_info) router_info_head;
+#endif
+static struct mtx igmp_mtx;
 static int igmp_timers_are_running;
 
 /*
@@ -158,7 +164,7 @@ find_rti(struct ifnet *ifp)
 			return (rti);
 		}
 	}
-	MALLOC(rti, struct router_info *, sizeof *rti, M_IGMP, M_NOWAIT);
+	rti = malloc(sizeof *rti, M_IGMP, M_NOWAIT);
 	if (rti == NULL) {
 		IGMP_PRINTF("[igmp.c, _find_rti] --> no memory for entry\n");
 		return (NULL);

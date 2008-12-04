@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,18 +39,20 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_tracechr.c,v 1.13 2007/04/21 23:16:37 tom Exp $")
+MODULE_ID("$Id: lib_tracechr.c,v 1.19 2008/08/03 15:39:29 tom Exp $")
 
 #ifdef TRACE
-#define MyBuffer _nc_globals.tracechr_buf
 
 NCURSES_EXPORT(char *)
-_tracechar(int ch)
+_nc_tracechar(SCREEN *sp, int ch)
 {
     NCURSES_CONST char *name;
+    char *MyBuffer = ((sp != 0)
+		      ? sp->tracechr_buf
+		      : _nc_globals.tracechr_buf);
 
     if (ch > KEY_MIN || ch < 0) {
-	name = keyname(ch);
+	name = _nc_keyname(sp, ch);
 	if (name == 0 || *name == '\0')
 	    name = "NULL";
 	(void) sprintf(MyBuffer, "'%.30s' = %#03o", name, ch);
@@ -62,13 +64,19 @@ _tracechar(int ch)
 	 */
 	(void) sprintf(MyBuffer, "%#03o", ch);
     } else {
-	name = unctrl((chtype) ch);
+	name = _nc_unctrl(sp, (chtype) ch);
 	if (name == 0 || *name == 0)
 	    name = "null";	/* shouldn't happen */
 	(void) sprintf(MyBuffer, "'%.30s' = %#03o", name, ch);
     }
     return (MyBuffer);
 }
+
+NCURSES_EXPORT(char *)
+_tracechar(int ch)
+{
+    return _nc_tracechar(SP, ch);
+}
 #else
-empty_module(_nc_lib_tracechr)
+EMPTY_MODULE(_nc_lib_tracechr)
 #endif

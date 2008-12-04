@@ -270,6 +270,11 @@ union pmap_cache_state *pmap_cache_state;
 
 struct msgbuf *msgbufp = 0;
 
+/*
+ * Crashdump maps.
+ */
+static caddr_t crashdumpmap;
+
 extern void bcopy_page(vm_offset_t, vm_offset_t);
 extern void bzero_page(vm_offset_t);
 
@@ -1209,7 +1214,7 @@ pmap_l2cache_wbinv_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 		CTR4(KTR_PMAP, "pmap_l2cache_wbinv_range: pmap %p is_kernel %d "
 		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
 		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-		    cpu_l2cache_wb_range(va, rest);
+			cpu_l2cache_wb_range(va, rest);
 
 		len -= rest;
 		va += rest;
@@ -1241,7 +1246,7 @@ pmap_l2cache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len)
 		CTR4(KTR_PMAP, "pmap_l2cache_wb_range: pmap %p is_kernel %d "
 		    "va 0x%08x len 0x%x ", pm, pm == pmap_kernel(), va, rest);
 		if (pmap_get_pde_pte(pm, va, &pde, &ptep) && l2pte_valid(*ptep))
-		    cpu_l2cache_wb_range(va, rest);
+			cpu_l2cache_wb_range(va, rest);
 
 		len -= rest;
 		va += rest;
@@ -1276,6 +1281,7 @@ static PMAP_INLINE void
 pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
     boolean_t rd_only)
 {
+
 	CTR4(KTR_PMAP, "pmap_dcache_wb_range: pmap %p is_kernel %d va 0x%08x "
 	    "len 0x%x ", pm, pm == pmap_kernel(), va, len);
 	CTR2(KTR_PMAP, " do_inv %d rd_only %d", do_inv, rd_only);
@@ -1290,8 +1296,7 @@ pmap_dcache_wb_range(pmap_t pm, vm_offset_t va, vm_size_t len, boolean_t do_inv,
 				cpu_dcache_wbinv_range(va, len);
 				pmap_l2cache_wbinv_range(pm, va, len);
 			}
-		} else
-		if (!rd_only) {
+		} else if (!rd_only) {
 			cpu_dcache_wb_range(va, len);
 			pmap_l2cache_wb_range(pm, va, len);
 		}
@@ -2455,6 +2460,8 @@ pmap_bootstrap(vm_offset_t firstaddr, vm_offset_t lastaddr, struct pv_addr *l1pt
 
 	pmap_alloc_specials(&virtual_avail,
 	    1, (vm_offset_t*)&_tmppt, NULL);
+	pmap_alloc_specials(&virtual_avail,
+	    MAXDUMPPGS, (vm_offset_t *)&crashdumpmap, NULL);
 	SLIST_INIT(&l1_list);
 	TAILQ_INIT(&l1_lru_list);
 	mtx_init(&l1_lru_lock, "l1 list lock", NULL, MTX_DEF);
@@ -2790,6 +2797,20 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
 		l1->l1_kva[L1_IDX(va)] = pd;
 		PTE_SYNC(&l1->l1_kva[L1_IDX(va)]);
 	}
+}
+
+/*
+ * Make a temporary mapping for a physical address.  This is only intended
+ * to be used for panic dumps.
+ */
+void *
+pmap_kenter_temp(vm_paddr_t pa, int i)
+{
+	vm_offset_t va;
+
+	va = (vm_offset_t)crashdumpmap + (i * PAGE_SIZE);
+	pmap_kenter(va, pa);
+	return ((void *)crashdumpmap);
 }
 
 /*
@@ -3958,7 +3979,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	 * Hook in the page, zero it, invalidate the TLB as needed.
 	 *
 	 * Note the temporary zero-page mapping must be a non-cached page in
-	 * ordert to work without corruption when write-allocate is enabled.
+	 * order to work without corruption when write-allocate is enabled.
 	 */
 	*cdst_pte = L2_S_PROTO | phys | L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE);
 	cpu_tlb_flushD_SE(cdstp);

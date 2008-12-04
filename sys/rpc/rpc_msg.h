@@ -208,7 +208,7 @@ extern bool_t	xdr_rejected_reply(XDR *, struct rejected_reply *);
  * 	struct rpc_msg *msg;
  * 	struct rpc_err *error;
  */
-extern void	_seterr_reply(struct rpc_msg *, struct rpc_err *);
+extern enum clnt_stat _seterr_reply(struct rpc_msg *, struct rpc_err *);
 __END_DECLS
 
 #endif /* !_RPC_RPC_MSG_H */

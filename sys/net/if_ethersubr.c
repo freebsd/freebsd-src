@@ -63,6 +63,7 @@
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 #include <net/pf_mtag.h>
+#include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -142,7 +143,9 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, int shared);
+#ifdef VIMAGE_GLOBALS
 static int ether_ipfw;
+#endif
 #endif
 
 /*
@@ -391,7 +394,6 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-	int error;
 #if defined(INET) || defined(INET6)
 	INIT_VNET_NET(ifp->if_vnet);
 	struct ip_fw *rule = ip_dn_claim_rule(m);
@@ -411,8 +413,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
 	 */
-	IFQ_HANDOFF(ifp, m, error);
-	return (error);
+	return ((ifp->if_transmit)(ifp, m));
 }
 
 #if defined(INET) || defined(INET6)
@@ -1124,7 +1125,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		sdl = malloc(sizeof *sdl, M_IFMADDR,
 		       M_NOWAIT|M_ZERO);
 		if (sdl == NULL)
 			return ENOMEM;
@@ -1153,7 +1154,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		MALLOC(sdl, struct sockaddr_dl *, sizeof *sdl, M_IFMADDR,
+		sdl = malloc(sizeof *sdl, M_IFMADDR,
 		       M_NOWAIT|M_ZERO);
 		if (sdl == NULL)
 			return (ENOMEM);

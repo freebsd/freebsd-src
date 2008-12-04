@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>			/* for IFF_* flags		*/
 #include <net/netisr.h>			/* for NETISR_POLL		*/
+#include <net/vnet.h>
 
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
@@ -521,6 +522,7 @@ ether_poll_deregister(struct ifnet *ifp)
 static int
 poll_switch(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_NET(curvnet);
 	struct ifnet *ifp;
 	int error;
 	int val = polling;

@@ -288,6 +288,7 @@ void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
 #define		UID_ROOT	0
 #define		UID_BIN		3
 #define		UID_UUCP	66
+#define		UID_NOBODY	65534
 
 #define		GID_WHEEL	0
 #define		GID_KMEM	2
@@ -296,6 +297,7 @@ void	devfs_fpdrop(struct file *fp);	/* XXX This is not public KPI */
 #define		GID_BIN		7
 #define		GID_GAMES	13
 #define		GID_DIALER	68
+#define		GID_NOBODY	65534
 
 typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
 	    int namelen, struct cdev **result);

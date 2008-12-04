@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
@@ -60,6 +60,7 @@ struct ifnet;
 struct ifreq;
 struct image_params;
 struct inpcb;
+struct ip6q;
 struct ipq;
 struct ksem;
 struct label;
@@ -87,6 +88,7 @@ struct vnode;
 struct vop_setlabel_args;
 
 #include <sys/acl.h>			/* XXX acl_type_t */
+#include <sys/types.h>			/* accmode_t */
 
 /*
  * Entry points to the TrustedBSD MAC Framework from the remainder of the
@@ -102,8 +104,11 @@ void	mac_bpfdesc_create_mbuf(struct bpf_d *d, struct mbuf *m);
 void	mac_bpfdesc_destroy(struct bpf_d *);
 void	mac_bpfdesc_init(struct bpf_d *);
 
+void	mac_cred_associate_nfsd(struct ucred *cred);
 int	mac_cred_check_visible(struct ucred *cr1, struct ucred *cr2);
 void	mac_cred_copy(struct ucred *cr1, struct ucred *cr2);
+void	mac_cred_create_init(struct ucred *cred);
+void	mac_cred_create_swapper(struct ucred *cred);
 void	mac_cred_destroy(struct ucred *);
 void	mac_cred_init(struct ucred *);
 
@@ -137,6 +142,13 @@ void	mac_inpcb_create_mbuf(struct inpcb *inp, struct mbuf *m);
 void	mac_inpcb_destroy(struct inpcb *);
 int	mac_inpcb_init(struct inpcb *, int);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
+
+void	mac_ip6q_create(struct mbuf *m, struct ip6q *q6);
+void	mac_ip6q_destroy(struct ip6q *q6);
+int	mac_ip6q_init(struct ip6q *q6, int);
+int	mac_ip6q_match(struct mbuf *m, struct ip6q *q6);
+void	mac_ip6q_reassemble(struct ip6q *q6, struct mbuf *m);
+void	mac_ip6q_update(struct mbuf *m, struct ip6q *q6);
 
 void	mac_ipq_create(struct mbuf *m, struct ipq *q);
 void	mac_ipq_destroy(struct ipq *q);
@@ -219,7 +231,6 @@ void	mac_posixshm_init(struct shmfd *);
 int	mac_priv_check(struct ucred *cred, int priv);
 int	mac_priv_grant(struct ucred *cred, int priv);
 
-void	mac_proc_associate_nfsd(struct ucred *cred);
 int	mac_proc_check_debug(struct ucred *cred, struct proc *p);
 int	mac_proc_check_sched(struct ucred *cred, struct proc *p);
 int	mac_proc_check_setaudit(struct ucred *cred, struct auditinfo *ai);
@@ -247,10 +258,9 @@ int	mac_proc_check_setuid(struct proc *p,  struct ucred *cred,
 int	mac_proc_check_signal(struct ucred *cred, struct proc *p,
 	    int signum);
 int	mac_proc_check_wait(struct ucred *cred, struct proc *p);
-void	mac_proc_create_init(struct ucred *cred);
-void	mac_proc_create_swapper(struct ucred *cred);
 void	mac_proc_destroy(struct proc *);
 void	mac_proc_init(struct proc *);
+void	mac_proc_vm_revoke(struct thread *td);
 int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p);
 void	mac_execve_exit(struct image_params *imgp);
 void	mac_execve_interpreter_enter(struct vnode *interpvp,
@@ -356,7 +366,7 @@ void	mac_thread_userret(struct thread *td);
 int	mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp);
 void	mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp);
 int	mac_vnode_check_access(struct ucred *cred, struct vnode *vp,
-	    int acc_mode);
+	    accmode_t accmode);
 int	mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
@@ -382,7 +392,7 @@ int	mac_vnode_check_mmap(struct ucred *cred, struct vnode *vp, int prot,
 int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
 int	mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
-	    int acc_mode);
+	    accmode_t accmode);
 int	mac_vnode_check_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 int	mac_vnode_check_read(struct ucred *active_cred,
@@ -425,8 +435,6 @@ int	mac_vnode_execve_will_transition(struct ucred *cred,
 	    struct image_params *imgp);
 void	mac_vnode_relabel(struct ucred *cred, struct vnode *vp,
 	    struct label *newlabel);
-
-void	mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred);
 
 /*
  * Calls to help various file systems implement labeling functionality using

@@ -47,7 +47,7 @@
 
 /* Node type name and magic cookie */
 #define NG_TTY_NODE_TYPE	"tty"
-#define NGM_TTY_COOKIE		886279262
+#define NGM_TTY_COOKIE		1226109660
 
 /* Default hot char */
 #define NG_TTY_DFL_HOTCHAR	0x7e	/* PPP flag byte */

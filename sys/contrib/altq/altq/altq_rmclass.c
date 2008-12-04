@@ -220,16 +220,16 @@ rmc_newclass(int pri, struct rm_ifdat *ifd, u_int nsecPerByte,
 	}
 #endif
 
-	MALLOC(cl, struct rm_class *, sizeof(struct rm_class),
+	cl = malloc(sizeof(struct rm_class),
 	       M_DEVBUF, M_WAITOK);
 	if (cl == NULL)
 		return (NULL);
 	bzero(cl, sizeof(struct rm_class));
 	CALLOUT_INIT(&cl->callout_);
-	MALLOC(cl->q_, class_queue_t *, sizeof(class_queue_t),
+	cl->q_ = malloc(sizeof(class_queue_t),
 	       M_DEVBUF, M_WAITOK);
 	if (cl->q_ == NULL) {
-		FREE(cl, M_DEVBUF);
+		free(cl, M_DEVBUF);
 		return (NULL);
 	}
 	bzero(cl->q_, sizeof(class_queue_t));
@@ -658,8 +658,8 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 			red_destroy(cl->red_);
 #endif
 	}
-	FREE(cl->q_, M_DEVBUF);
-	FREE(cl, M_DEVBUF);
+	free(cl->q_, M_DEVBUF);
+	free(cl, M_DEVBUF);
 }
 
 

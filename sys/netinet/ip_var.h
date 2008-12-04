@@ -234,18 +234,6 @@ extern	struct pfil_head inet_pfil_hook;	/* packet filter hooks */
 
 void	in_delayed_cksum(struct mbuf *m);
 
-static __inline uint16_t ip_newid(void);
-extern int ip_do_randomid;
-
-static __inline uint16_t
-ip_newid(void)
-{
-	if (V_ip_do_randomid)
-		return ip_randomid();
-
-	return htons(V_ip_id++);
-}
-
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IP_VAR_H_ */

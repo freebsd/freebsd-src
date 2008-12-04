@@ -92,7 +92,7 @@ perform(int argc, char *argv[])
 void
 interact(void)
 {
-    char	input[256];			/* big enough? */
+    static char	input[256];			/* big enough? */
 #ifndef BOOT_FORTH
     int		argc;
     char	**argv;
@@ -178,14 +178,21 @@ command_include(int argc, char *argv[])
     return(res);
 }
 
+/*
+ * Header prepended to each line. The text immediately follows the header.
+ * We try to make this short in order to save memory -- the loader has
+ * limited memory available, and some of the forth files are very long.
+ */
 struct includeline 
 {
-    char		*text;
+    struct includeline	*next;
+#ifndef BOOT_FORTH
     int			flags;
     int			line;
 #define SL_QUIET	(1<<0)
 #define SL_IGNOREERR	(1<<1)
-    struct includeline	*next;
+#endif
+    char		text[0];
 };
 
 int
@@ -236,13 +243,14 @@ include(const char *filename)
 	}
 #endif
 	/* Allocate script line structure and copy line, flags */
+	if (*cp == '\0')
+		continue;	/* ignore empty line, save memory */
 	sp = malloc(sizeof(struct includeline) + strlen(cp) + 1);
-	sp->text = (char *)sp + sizeof(struct includeline);
 	strcpy(sp->text, cp);
 #ifndef BOOT_FORTH
 	sp->flags = flags;
-#endif
 	sp->line = line;
+#endif
 	sp->next = NULL;
 	    
 	if (script == NULL) {

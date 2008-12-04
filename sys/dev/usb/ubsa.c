@@ -433,7 +433,6 @@ ubsa_request(struct ubsa_softc *sc, u_int8_t request, u_int16_t value)
 	usb_device_request_t req;
 	usbd_status err;
 
-	/* The huawei Exxx devices support none of these tricks */
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = request;
 	USETW(req.wValue, value);

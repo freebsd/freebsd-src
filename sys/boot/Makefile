@@ -26,6 +26,10 @@ SUBDIR+=		ofw
 SUBDIR+=		uboot
 .endif
 
+.if defined(LOADER_ZFS_SUPPORT)
+SUBDIR+=		zfs
+.endif
+
 # Pick the machine-dependent subdir based on the target architecture.
 ADIR=			${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
 .if exists(${.CURDIR}/${ADIR}/.)

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.89 2007/09/01 18:57:29 tom Exp $
+.\" $Id: ncurses.3x,v 1.92 2008/10/25 23:31:45 tom Exp $
 .hy 0
 .TH ncurses 3X ""
 .ds n 5
@@ -74,10 +74,23 @@ terminal and \fBcurses\fR input and output options; environment query
 routines; color manipulation; use of soft label keys; terminfo capabilities;
 and access to low-level terminal-manipulation routines.
 .PP
-To initialize the routines, the routine \fBinitscr\fR or \fBnewterm\fR
-must be called before any of the other routines that deal with windows
+The library uses the locale which the calling program has initialized.
+That is normally done with \fBsetlocale\fP:
+.sp
+      \fBsetlocale(LC_ALL, "");\fP
+.sp
+If the locale is not initialized,
+the library assumes that characters are printable as in ISO-8859-1,
+to work with certain legacy programs.
+You should initialize the locale and not rely on specific details of
+the library when the locale has not been setup.
+.PP
+The function \fBinitscr\fR or \fBnewterm\fR
+must be called to initialize the library
+before any of the other routines that deal with windows
 and screens are used.
 The routine \fBendwin\fR must be called before exiting.
+.PP
 To get character-at-a-time input without echoing (most
 interactive, screen oriented programs want this), the following
 sequence should be used:
@@ -280,6 +293,8 @@ l l .
 =
 COLOR_PAIR/\fBcurs_color\fR(3X)
 PAIR_NUMBER/\fBcurs_attr\fR(3X)
+_nc_free_and_exit/\fBcurs_memleaks\fR(3X)*
+_nc_freeall/\fBcurs_memleaks\fR(3X)*
 _nc_tracebits/\fBcurs_trace\fR(3X)*
 _traceattr/\fBcurs_trace\fR(3X)*
 _traceattr2/\fBcurs_trace\fR(3X)*
@@ -829,6 +844,18 @@ For example, to tell ncurses to not assume anything
 about the colors, set this to "-1,-1".
 To make it green-on-black, set it to "2,0".
 Any positive value from zero to the terminfo \fBmax_colors\fR value is allowed.
+.TP 5
+NCURSES_GPM_TERMS
+This applies only to ncurses configured to use the GPM interface.
+.IP
+If present,
+the environment variable is a list of one or more terminal names
+against which the TERM environment variable is matched.
+Setting it to an empty value disables the GPM interface;
+using the built-in support for xterm, etc.
+.IP
+If the environment variable is absent,
+ncurses will attempt to open GPM if TERM contains "linux".
 .TP 5
 NCURSES_NO_HARD_TABS
 \fBNcurses\fP may use tabs as part of the cursor movement optimization.

@@ -144,21 +144,21 @@ In c and r mode, this changes the directory before adding
 the following files.
 In x mode, change directories after opening the archive
 but before extracting entries from the archive.
-.It Fl -check-links ( Fl W Cm check-links )
+.It Fl -check-links
 (c and r modes only)
 Issue a warning message unless all links to each file are archived.
-.It Fl -chroot ( Fl W Cm chroot )
+.It Fl -chroot
 (x mode only)
 .Fn chroot
 to the current directory after processing any
 .Fl C
 options and before extracting any files.
-.It Fl -exclude Ar pattern ( Fl W Cm exclude Ns = Ns Ar pattern )
+.It Fl -exclude Ar pattern
 Do not process files or directories that match the
 specified pattern.
 Note that exclusions take precedence over patterns or filenames
 specified on the command line.
-.It Fl -format Ar format ( Fl W Cm format Ns = Ns Ar format )
+.It Fl -format Ar format
 (c, r, u mode only)
 Use the specified format for the created archive.
 Supported formats include
@@ -193,7 +193,7 @@ Synonym for
 .It Fl I
 Synonym for
 .Fl T .
-.It Fl -include Ar pattern ( Fl W Cm include Ns = Ns Ar pattern )
+.It Fl -include Ar pattern
 Process only files or directories that match the specified pattern.
 Note that exclusions specified with
 .Fl -exclude
@@ -225,7 +225,7 @@ automatically when reading archives.
 Do not overwrite existing files.
 In particular, if a file appears more than once in an archive,
 later copies will not overwrite earlier copies.
-.It Fl -keep-newer-files ( Fl W Cm keep-newer-files )
+.It Fl -keep-newer-files
 (x mode only)
 Do not overwrite existing files that are newer than the
 versions appearing in the archive being extracted.
@@ -245,28 +245,28 @@ By default, the modification time is set to the time stored in the archive.
 .It Fl n
 (c, r, u modes only)
 Do not recursively archive the contents of directories.
-.It Fl -newer Ar date ( Fl W Cm newer Ns = Ns Ar date )
+.It Fl -newer Ar date
 (c, r, u modes only)
 Only include files and directories newer than the specified date.
 This compares ctime entries.
-.It Fl -newer-mtime Ar date ( Fl W Cm newer-mtime Ns = Ns Ar date )
+.It Fl -newer-mtime Ar date
 (c, r, u modes only)
 Like
 .Fl -newer ,
 except it compares mtime entries instead of ctime entries.
-.It Fl -newer-than Pa file ( Fl W Cm newer-than Ns = Ns Pa file )
+.It Fl -newer-than Pa file
 (c, r, u modes only)
 Only include files and directories newer than the specified file.
 This compares ctime entries.
-.It Fl -newer-mtime-than Pa file ( Fl W Cm newer-mtime-than Ns = Ns Pa file )
+.It Fl -newer-mtime-than Pa file
 (c, r, u modes only)
 Like
 .Fl -newer-than ,
 except it compares mtime entries instead of ctime entries.
-.It Fl -nodump ( Fl W Cm nodump )
+.It Fl -nodump
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
-.It Fl -null ( Fl W Cm null )
+.It Fl -null
 (use with
 .Fl I ,
 .Fl T ,
@@ -302,7 +302,7 @@ the archive will be discarded.
 (c, r, u mode)
 A synonym for
 .Fl -format Ar ustar
-.It Fl -one-file-system ( Fl W Cm one-file-system )
+.It Fl -one-file-system
 (c, r, and u modes)
 Do not cross mount points.
 .It Fl P
@@ -345,8 +345,8 @@ Extract files as sparse files.
 For every block on disk, check first if it contains only NULL bytes and seek
 over it otherwise.
 This works similiar to the conv=sparse option of dd.
-.It Fl -strip-components Ar count ( Fl W Cm strip-components Ns = Ns Ar count )
-(x and t mode only)
+.It Fl -strip-components Ar count
+(x mode only)
 Remove the specified number of leading path elements.
 Pathnames with fewer elements will be silently skipped.
 Note that the pathname is edited after checking inclusion/exclusion patterns
@@ -418,16 +418,6 @@ Print version of
 and
 .Nm libarchive ,
 and exit.
-.It Fl W Ar longopt=value
-Long options (preceded by
-.Fl - )
-are only supported directly on systems that have the
-.Xr getopt_long 3
-function.
-The
-.Fl W
-option can be used to access long options on systems that
-do not support this function.
 .It Fl w
 Ask for confirmation for every action.
 .It Fl X Ar filename

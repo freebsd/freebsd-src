@@ -1343,6 +1343,9 @@ mmc_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case MMC_IVAR_ERASE_SECTOR:
 		*(int *)result = ivar->erase_sector;
 		break;
+	case MMC_IVAR_MAX_DATA:
+		*(int *)result = mmcbr_get_max_data(bus);
+		break;
 	}
 	return (0);
 }

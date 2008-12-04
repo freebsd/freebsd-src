@@ -267,6 +267,7 @@ nlm_advlock_internal(struct vnode *vp, void *id, int op, struct flock *fl,
 
 	ext.rc_feedback = nlm_feedback;
 	ext.rc_feedback_arg = &nf;
+	ext.rc_timers = NULL;
 
 	ns = NULL;
 	if (flags & F_FLOCK) {
@@ -753,7 +754,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 
 	retry = 5*hz;
 	for (;;) {
-		client = nlm_host_get_rpc(host);
+		client = nlm_host_get_rpc(host, FALSE);
 		if (!client)
 			return (ENOLCK); /* XXX retry? */
 
@@ -834,7 +835,7 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 				cancel.alock = args.alock;
 
 				do {
-					client = nlm_host_get_rpc(host);
+					client = nlm_host_get_rpc(host, FALSE);
 					if (!client)
 						/* XXX retry? */
 						return (ENOLCK);
@@ -942,7 +943,7 @@ nlm_clearlock(struct nlm_host *host, struct rpc_callextra *ext,
 		return (error);
 
 	for (;;) {
-		client = nlm_host_get_rpc(host);
+		client = nlm_host_get_rpc(host, FALSE);
 		if (!client)
 			return (ENOLCK); /* XXX retry? */
 
@@ -1023,7 +1024,7 @@ nlm_getlock(struct nlm_host *host, struct rpc_callextra *ext,
 	args.exclusive = exclusive;
 
 	for (;;) {
-		client = nlm_host_get_rpc(host);
+		client = nlm_host_get_rpc(host, FALSE);
 		if (!client)
 			return (ENOLCK); /* XXX retry? */
 

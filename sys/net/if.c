@@ -60,12 +60,14 @@
 #include <machine/stdarg.h>
 
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_clone.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
 /*XXX*/
@@ -78,6 +80,7 @@
 #endif
 #ifdef INET
 #include <netinet/if_ether.h>
+#include <netinet/vinet.h>
 #endif
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
@@ -112,10 +115,11 @@ static int	ifconf(u_long, caddr_t);
 static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
-static void	if_qflush(struct ifaltq *);
+static void	if_qflush(struct ifnet *);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
 static void	if_slowtimo(void *);
+static int	if_transmit(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
@@ -125,6 +129,7 @@ static void	if_start_deferred(void *context, int pending);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
 static int	if_getgroupmembers(struct ifgroupreq *);
+
 #ifdef INET6
 /*
  * XXX: declare here to avoid to include many inet6 related files..
@@ -133,21 +138,20 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 extern void	nd6_setmtu(struct ifnet *);
 #endif
 
-int	if_index = 0;
-int	ifqmaxlen = IFQ_MAXLEN;
+#ifdef VIMAGE_GLOBALS
 struct	ifnethead ifnet;	/* depend on static init XXX */
 struct	ifgrouphead ifg_head;
+int	if_index;
+static	int if_indexlim;
+/* Table of ifnet/cdev by index.  Locked with ifnet_lock. */
+static struct ifindex_entry *ifindex_table;
+static struct	knlist ifklist;
+#endif
+
+int	ifqmaxlen = IFQ_MAXLEN;
 struct	mtx ifnet_lock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
-
-static int	if_indexlim = 8;
-static struct	knlist ifklist;
-
-/*
- * Table of ifnet/cdev by index.  Locked with ifnet_lock.
- */
-static struct ifindex_entry *ifindex_table = NULL;
 
 static void	filt_netdetach(struct knote *kn);
 static int	filt_netdev(struct knote *kn, long hint);
@@ -190,7 +194,6 @@ ifnet_setbyindex(u_short idx, struct ifnet *ifp)
 struct ifaddr *
 ifaddr_byindex(u_short idx)
 {
-	INIT_VNET_NET(curvnet);
 	struct ifaddr *ifa;
 
 	IFNET_RLOCK();
@@ -356,6 +359,10 @@ if_init(void *dummy __unused)
 {
 	INIT_VNET_NET(curvnet);
 
+	V_if_index = 0;
+	V_ifindex_table = NULL;
+	V_if_indexlim = 8;
+
 	IFNET_LOCK_INIT();
 	TAILQ_INIT(&V_ifnet);
 	TAILQ_INIT(&V_ifg_head);
@@ -477,6 +484,28 @@ if_free_type(struct ifnet *ifp, u_char type)
 	free(ifp, M_IFNET);
 };
 
+void
+ifq_attach(struct ifaltq *ifq, struct ifnet *ifp)
+{
+	
+	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
+
+	if (ifq->ifq_maxlen == 0) 
+		ifq->ifq_maxlen = ifqmaxlen;
+
+	ifq->altq_type = 0;
+	ifq->altq_disc = NULL;
+	ifq->altq_flags &= ALTQF_CANTCHANGE;
+	ifq->altq_tbr  = NULL;
+	ifq->altq_ifp  = ifp;
+}
+
+void
+ifq_detach(struct ifaltq *ifq)
+{
+	mtx_destroy(&ifq->ifq_mtx);
+}
+
 /*
  * Perform generic interface initalization tasks and attach the interface
  * to the list of "active" interfaces.
@@ -518,7 +547,8 @@ if_attach(struct ifnet *ifp)
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_data.ifi_epoch = time_uptime;
 	ifp->if_data.ifi_datalen = sizeof(struct if_data);
-
+	ifp->if_transmit = if_transmit;
+	ifp->if_qflush = if_qflush;
 #ifdef MAC
 	mac_ifnet_init(ifp);
 	mac_ifnet_create(ifp);
@@ -530,7 +560,7 @@ if_attach(struct ifnet *ifp)
 	make_dev_alias(ifdev_byindex(ifp->if_index), "%s%d",
 	    net_cdevsw.d_name, ifp->if_index);
 
-	mtx_init(&ifp->if_snd.ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
+	ifq_attach(&ifp->if_snd, ifp);
 
 	/*
 	 * create a Link Level name for this device
@@ -568,19 +598,6 @@ if_attach(struct ifnet *ifp)
 	TAILQ_INSERT_HEAD(&ifp->if_addrhead, ifa, ifa_link);
 	ifp->if_broadcastaddr = NULL; /* reliably crash if used uninitialized */
 
-	/*
-	 * XXX: why do we warn about this? We're correcting it and most
-	 * drivers just set the value the way we do.
-	 */
-	if (ifp->if_snd.ifq_maxlen == 0) {
-		if_printf(ifp, "XXX: driver didn't set ifq_maxlen\n");
-		ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	}
-	ifp->if_snd.altq_type = 0;
-	ifp->if_snd.altq_disc = NULL;
-	ifp->if_snd.altq_flags &= ALTQF_CANTCHANGE;
-	ifp->if_snd.altq_tbr  = NULL;
-	ifp->if_snd.altq_ifp  = ifp;
 
 	IFNET_WLOCK();
 	TAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
@@ -720,8 +737,7 @@ if_detach(struct ifnet *ifp)
 	INIT_VNET_NET(ifp->if_vnet);
 	struct ifaddr *ifa;
 	struct radix_node_head	*rnh;
-	int s;
-	int i;
+	int s, i, j;
 	struct domain *dp;
  	struct ifnet *iter;
  	int found = 0;
@@ -793,14 +809,13 @@ if_detach(struct ifnet *ifp)
 	 * to this interface...oh well...
 	 */
 	for (i = 1; i <= AF_MAX; i++) {
-	    int j;
-	    for (j = 0; j < rt_numfibs; j++) {
-		if ((rnh = V_rt_tables[j][i]) == NULL)
-			continue;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	    }
+		for (j = 0; j < rt_numfibs; j++) {
+			if ((rnh = V_rt_tables[j][i]) == NULL)
+				continue;
+			RADIX_NODE_HEAD_LOCK(rnh);
+			(void) rnh->rnh_walktree(rnh, if_rtdel, ifp);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
 	}
 
 	/* Announce that the interface is gone. */
@@ -822,7 +837,7 @@ if_detach(struct ifnet *ifp)
 	KNOTE_UNLOCKED(&ifp->if_klist, NOTE_EXIT);
 	knlist_clear(&ifp->if_klist, 0);
 	knlist_destroy(&ifp->if_klist);
-	mtx_destroy(&ifp->if_snd.ifq_mtx);
+	ifq_detach(&ifp->if_snd);
 	IF_AFDATA_DESTROY(ifp);
 	splx(s);
 }
@@ -1373,7 +1388,8 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
-	if_qflush(&ifp->if_snd);
+	ifp->if_qflush(ifp);
+	
 #ifdef DEV_CARP
 	if (ifp->if_carp)
 		carp_carpdev_state(ifp->if_carp);
@@ -1503,10 +1519,12 @@ if_up(struct ifnet *ifp)
  * Flush an interface queue.
  */
 static void
-if_qflush(struct ifaltq *ifq)
+if_qflush(struct ifnet *ifp)
 {
 	struct mbuf *m, *n;
-
+	struct ifaltq *ifq;
+	
+	ifq = &ifp->if_snd;
 	IFQ_LOCK(ifq);
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(ifq))
@@ -2195,7 +2213,7 @@ again:
 			struct sockaddr *sa = ifa->ifa_addr;
 
 			if (jailed(curthread->td_ucred) &&
-			    prison_if(curthread->td_ucred, sa))
+			    !prison_if(curthread->td_ucred, sa))
 				continue;
 			addrs++;
 #ifdef COMPAT_43
@@ -2299,14 +2317,14 @@ if_allocmulti(struct ifnet *ifp, struct sockaddr *sa, struct sockaddr *llsa,
 	struct ifmultiaddr *ifma;
 	struct sockaddr *dupsa;
 
-	MALLOC(ifma, struct ifmultiaddr *, sizeof *ifma, M_IFMADDR, mflags |
+	ifma = malloc(sizeof *ifma, M_IFMADDR, mflags |
 	    M_ZERO);
 	if (ifma == NULL)
 		return (NULL);
 
-	MALLOC(dupsa, struct sockaddr *, sa->sa_len, M_IFMADDR, mflags);
+	dupsa = malloc(sa->sa_len, M_IFMADDR, mflags);
 	if (dupsa == NULL) {
-		FREE(ifma, M_IFMADDR);
+		free(ifma, M_IFMADDR);
 		return (NULL);
 	}
 	bcopy(sa, dupsa, sa->sa_len);
@@ -2321,10 +2339,10 @@ if_allocmulti(struct ifnet *ifp, struct sockaddr *sa, struct sockaddr *llsa,
 		return (ifma);
 	}
 
-	MALLOC(dupsa, struct sockaddr *, llsa->sa_len, M_IFMADDR, mflags);
+	dupsa = malloc(llsa->sa_len, M_IFMADDR, mflags);
 	if (dupsa == NULL) {
-		FREE(ifma->ifma_addr, M_IFMADDR);
-		FREE(ifma, M_IFMADDR);
+		free(ifma->ifma_addr, M_IFMADDR);
+		free(ifma, M_IFMADDR);
 		return (NULL);
 	}
 	bcopy(llsa, dupsa, llsa->sa_len);
@@ -2349,9 +2367,9 @@ if_freemulti(struct ifmultiaddr *ifma)
 	    ("if_freemulti: protospec not NULL"));
 
 	if (ifma->ifma_lladdr != NULL)
-		FREE(ifma->ifma_lladdr, M_IFMADDR);
-	FREE(ifma->ifma_addr, M_IFMADDR);
-	FREE(ifma, M_IFMADDR);
+		free(ifma->ifma_lladdr, M_IFMADDR);
+	free(ifma->ifma_addr, M_IFMADDR);
+	free(ifma, M_IFMADDR);
 }
 
 /*
@@ -2469,13 +2487,13 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	}
 
 	if (llsa != NULL)
-		FREE(llsa, M_IFMADDR);
+		free(llsa, M_IFMADDR);
 
 	return (0);
 
 free_llsa_out:
 	if (llsa != NULL)
-		FREE(llsa, M_IFMADDR);
+		free(llsa, M_IFMADDR);
 
 unlock_out:
 	IF_ADDR_UNLOCK(ifp);
@@ -2795,6 +2813,19 @@ if_start_deferred(void *context, int pending)
 
 	ifp = context;
 	(ifp->if_start)(ifp);
+}
+
+/*
+ * Backwards compatibility interface for drivers 
+ * that have not implemented it
+ */
+static int
+if_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	int error;
+
+	IFQ_HANDOFF(ifp, m, error);
+	return (error);
 }
 
 int

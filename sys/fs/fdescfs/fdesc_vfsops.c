@@ -85,7 +85,7 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	if (mp->mnt_flag & (MNT_UPDATE | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
-	MALLOC(fmp, struct fdescmount *, sizeof(struct fdescmount),
+	fmp = malloc(sizeof(struct fdescmount),
 				M_FDESCMNT, M_WAITOK);	/* XXX */
 
 	/*

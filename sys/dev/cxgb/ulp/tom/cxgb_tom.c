@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockopt.h>
 #include <sys/sockstate.h>
 #include <sys/sockbuf.h>
-#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/taskqueue.h>
 
@@ -88,13 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <ulp/tom/cxgb_t3_ddp.h>
 #include <ulp/tom/cxgb_toepcb.h>
 #include <ulp/tom/cxgb_tcp.h>
-
-
-static int activated = 1;
-TUNABLE_INT("hw.t3toe.activated", &activated);
-SYSCTL_NODE(_hw, OID_AUTO, t3toe, CTLFLAG_RD, 0, "T3 toe driver parameters");
-SYSCTL_UINT(_hw_t3toe, OID_AUTO, activated, CTLFLAG_RDTUN, &activated, 0,
-    "enable TOE at init time");
 
 
 TAILQ_HEAD(, adapter) adapter_list;
@@ -938,7 +930,7 @@ do_act_establish(struct t3cdev *dev, struct mbuf *m)
 	} else {
 	
 		log(LOG_ERR, "%s: received clientless CPL command 0x%x\n",
-			dev->name, CPL_PASS_ACCEPT_REQ);
+			dev->name, CPL_ACT_ESTABLISH);
 		return CPL_RET_BUF_DONE | CPL_RET_BAD_MSG;
 	}
 }
@@ -1360,8 +1352,6 @@ t3_toe_attach(struct toedev *dev, const struct offload_id *entry)
 	t3_init_tunables(t);
 	mtx_init(&t->listen_lock, "tom data listeners", NULL, MTX_DEF);
 	CTR2(KTR_TOM, "t3_toe_attach dev=%p entry=%p", dev, entry);
-	/* Adjust TOE activation for this module */
-	t->conf.activated = activated;
 
 	dev->tod_can_offload = can_offload;
 	dev->tod_connect = t3_connect;

@@ -561,7 +561,8 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 	}
 }
 
-void
+#ifndef INVARIANTS
+static void
 sctp_recover_sent_list(struct sctp_tcb *stcb)
 {
 	struct sctp_tmit_chunk *chk, *tp2;
@@ -603,6 +604,8 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 		SCTP_PRINTF("chk:%p TSN:%x\n", chk, chk->rec.data.TSN_seq);
 	}
 }
+
+#endif
 
 static int
 sctp_mark_all_for_resend(struct sctp_tcb *stcb,
@@ -679,7 +682,9 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	/* Now on to each chunk */
 	num_mk = cnt_mk = 0;
 	tsnfirst = tsnlast = 0;
+#ifndef INVARIANTS
 start_again:
+#endif
 	chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
 	for (; chk != NULL; chk = tp2) {
 		tp2 = TAILQ_NEXT(chk, sctp_next);
@@ -693,8 +698,6 @@ start_again:
 			recovery_cnt++;
 #ifdef INVARIANTS
 			panic("last acked >= chk on sent-Q");
-			/* to keep compiler happy */
-			goto start_again;
 #else
 			SCTP_PRINTF("Recover attempts a restart cnt:%d\n", recovery_cnt);
 			sctp_recover_sent_list(stcb);

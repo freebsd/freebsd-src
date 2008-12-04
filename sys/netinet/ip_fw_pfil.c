@@ -487,6 +487,7 @@ ipfw6_unhook(void)
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
+	INIT_VNET_IPFW(curvnet);
 	int enable = *(int *)arg1;
 	int error;
 

@@ -969,8 +969,10 @@ bd_open_gpt(struct open_disk *od, struct i386_devdesc *dev)
     od->od_boff = gp->gp_start;
 
 out:
-    if (error)
+    if (error) {
 	free(od->od_partitions);
+	od->od_flags &= ~BD_GPTOK;
+    }
     return (error);
 }
 
@@ -1058,7 +1060,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, siz
 
     switch(rw){
     case F_READ:
-	DEBUG("read %d from %d to %p", blks, dblk, buf);
+	DEBUG("read %d from %lld to %p", blks, dblk, buf);
 
 	if (blks && bd_read(od, dblk, blks, buf)) {
 	    DEBUG("read error");

@@ -73,6 +73,7 @@
 #include <sys/syslog.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
+#include <sys/proc.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -93,8 +94,6 @@ struct ngt_softc {
 	u_int		flags;		/* Flags */
 };
 typedef struct ngt_softc *sc_p;
-
-static int ngt_unit;
 
 /* Flags */
 #define FLG_DEBUG		0x0002
@@ -157,10 +156,9 @@ static int
 ngt_constructor(node_p node)
 {
 	sc_p sc;
-	char name[sizeof(NG_TTY_NODE_TYPE) + 8];
 
 	/* Allocate private structure */
-	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (sc == NULL)
 		return (ENOMEM);
 
@@ -170,14 +168,6 @@ ngt_constructor(node_p node)
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
 	IFQ_SET_MAXLEN(&sc->outq, IFQ_MAXLEN);
 
-	atomic_add_int(&ngt_unit, 1);
-	snprintf(name, sizeof(name), "%s%d", typestruct.name, ngt_unit);
-
-	/* Assign node its name */
-	if (ng_name_node(node, name))
-		log(LOG_WARNING, "%s: can't name node %s\n",
-		    __func__, name);
-	/* Done */
 	return (0);
 }
 
@@ -250,7 +240,7 @@ ngt_shutdown(node_p node)
 	IF_DRAIN(&sc->outq);
 	mtx_destroy(&(sc)->outq.ifq_mtx);
 	NG_NODE_UNREF(sc->node);
-	FREE(sc, M_NETGRAPH);
+	free(sc, M_NETGRAPH);
 
 	return (0);
 }
@@ -261,7 +251,8 @@ ngt_shutdown(node_p node)
 static int
 ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	struct thread *td = curthread;	/* XXX */
+	struct proc *p;
+	struct thread *td;
 	const sc_p sc = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg, *resp = NULL;
 	int error = 0;
@@ -273,8 +264,14 @@ ngt_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_TTY_SET_TTY:
 			if (sc->tp != NULL)
 				return (EBUSY);
-			error = ttyhook_register(&sc->tp, td, *(int *)msg->data,
+			
+			p = pfind(((int *)msg->data)[0]);
+			if (p == NULL)
+				return (ESRCH);
+			td = FIRST_THREAD_IN_PROC(p);
+			error = ttyhook_register(&sc->tp, td, ((int *)msg->data)[1],
 			    &ngt_hook, sc);
+			PROC_UNLOCK(p);
 			if (error != 0)
 				return (error);
 			break;

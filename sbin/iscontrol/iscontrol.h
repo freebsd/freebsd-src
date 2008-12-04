@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,12 @@ int vflag;
 
 typedef int auth_t(void *sess);
 
+typedef struct {
+     char      *address;
+     int       port;
+     int       pgt;
+} target_t;
+
 typedef struct isess {
      int	flags;
 #define SESS_CONNECTED		BIT(0)
@@ -61,6 +67,7 @@ typedef struct isess {
 
 
      isc_opt_t	*op;		// operational values
+     target_t  target;         // the Original target address
      int	fd;		// the session fd
      int	soc;		// the socket
      iscsi_cam_t	cam;

@@ -1463,7 +1463,7 @@ setmlme_assoc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN],
 	if (lookup.se == NULL)
 		return ENOENT;
 	mlmedebug(vap, mac, IEEE80211_MLME_ASSOC, 0);
-	if (!ieee80211_sta_join(vap, lookup.se))
+	if (!ieee80211_sta_join(vap, lookup.se->se_chan, lookup.se))
 		return EIO;		/* XXX unique but could be better */
 	return 0;
 }

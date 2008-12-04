@@ -292,15 +292,11 @@ ata_kauai_attach(device_t dev)
 #endif
 
 	/* Set up initial mode */
-	if (sc->shasta)
-		sc->pioconf[0] = sc->pioconf[1] = pio_timing_shasta[4];
-	else 
-		sc->pioconf[0] = sc->pioconf[1] = pio_timing_kauai[4];
+	sc->pioconf[0] = sc->pioconf[1] = 
+	    bus_read_4(sc->sc_memr, PIO_CONFIG_REG) & 0x0f000fff;
 
 	sc->udmaconf[0] = sc->udmaconf[1] = 0;
 	sc->wdmaconf[0] = sc->wdmaconf[1] = 0;
-
-	bus_write_4(sc->sc_memr, PIO_CONFIG_REG, sc->pioconf[0]);
 
 	/* Magic FCR value from Apple */
 	bus_write_4(sc->sc_memr, 0, 0x00000007);

@@ -211,6 +211,7 @@ MFSINODE=		8000
 MFSLABEL=		minimum3
 .elif ${TARGET_ARCH} == "sparc64"
 DISKLABEL=		sunlabel
+MAKE_DVD=
 MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
@@ -957,13 +958,13 @@ cdrom.1:
 	@rm -f ${CD_LIVEFS}/boot/device.hints
 	@cp ${RD}/trees/base/boot/device.hints ${CD_LIVEFS}/boot/device.hints
 .endif
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 .if defined(MAKE_DVD)
 	@cp -Rp ${RD}/kernels/GENERIC/ ${CD_DVD1}/boot/kernel
 	@rm -f ${CD_DVD1}/boot/kernel/*.symbols
 	@rm -f ${CD_DVD1}/.profile
 	@cp ${.CURDIR}/fixit.profile ${CD_DVD1}/.profile
 	@ln -sf /rescue ${CD_DVD1}/stand
-	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_LIVEFS}/cdrom.inf
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DVD1}/cdrom.inf
 	@rm -f ${CD_DVD1}/boot/loader.conf
 	@cp ${RD}/mfsroot/mfsroot.gz ${CD_DVD1}/boot/mfsroot.gz
@@ -1033,7 +1034,7 @@ cdrom.2:
 	@echo "CD_VOLUME = 1" >> ${CD_DVD1}/cdrom.inf
 .endif
 .if !defined(NODOC)
-	echo "Building CDROM docs filesystem image"
+	@echo "Building CDROM docs filesystem image"
 	@mkdir -p ${CD_DOCS}
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DOCS}/cdrom.inf
 	@mkdir -p ${CD_DOCS}/usr/share/doc

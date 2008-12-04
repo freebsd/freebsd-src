@@ -132,6 +132,7 @@ union auditon_udata {
 	au_qctrl_t		au_qctrl;
 	au_stat_t		au_stat;
 	au_fstat_t		au_fstat;
+	auditinfo_addr_t	au_kau_info;
 };
 
 struct posix_ipc_perm {
@@ -274,8 +275,8 @@ extern struct mtx		audit_mtx;
 extern struct cv		audit_watermark_cv;
 extern struct cv		audit_worker_cv;
 extern struct kaudit_queue	audit_q;
-extern int			audit_q_len;
-extern int			audit_pre_q_len;
+extern size_t			audit_q_len;
+extern size_t			audit_pre_q_len;
 extern int			audit_in_failure;
 
 /*
@@ -316,6 +317,12 @@ int		 auditon_command_event(int cmd);
  */
 void		 audit_trigger_init(void);
 int		 audit_send_trigger(unsigned int trigger);
+
+/*
+ * Accessor functions to manage global audit state.
+ */
+void	 audit_set_kinfo(struct auditinfo_addr *);
+void	 audit_get_kinfo(struct auditinfo_addr *);
 
 /*
  * General audit related functions.

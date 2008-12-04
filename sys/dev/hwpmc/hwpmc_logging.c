@@ -281,7 +281,11 @@ pmclog_loop(void *arg)
 			if ((lb = TAILQ_FIRST(&po->po_logbuffers)) == NULL) {
 				mtx_unlock_spin(&po->po_mtx);
 
-				/* wakeup any processes waiting for a FLUSH */
+				/*
+				 * Wakeup the thread waiting for the
+				 * PMC_OP_FLUSHLOG request to
+				 * complete.
+				 */
 				if (po->po_flags & PMC_PO_IN_FLUSH) {
 					po->po_flags &= ~PMC_PO_IN_FLUSH;
 					wakeup_one(po->po_kthread);
@@ -543,7 +547,7 @@ pmclog_stop_kthread(struct pmc_owner *po)
  */
 
 int
-pmclog_configure_log(struct pmc_owner *po, int logfd)
+pmclog_configure_log(struct pmc_mdep *md, struct pmc_owner *po, int logfd)
 {
 	int error;
 	struct proc *p;
@@ -973,8 +977,8 @@ pmclog_initialize()
 
 	/* create global pool of log buffers */
 	for (n = 0; n < pmc_nlogbuffers; n++) {
-		MALLOC(plb, struct pmclog_buffer *, 1024 * pmclog_buffer_size,
-		    M_PMC, M_ZERO|M_WAITOK);
+		plb = malloc(1024 * pmclog_buffer_size, M_PMC,
+		    M_WAITOK|M_ZERO);
 		PMCLOG_INIT_BUFFER_DESCRIPTOR(plb);
 		TAILQ_INSERT_HEAD(&pmc_bufferlist, plb, plb_next);
 	}
@@ -999,6 +1003,6 @@ pmclog_shutdown()
 
 	while ((plb = TAILQ_FIRST(&pmc_bufferlist)) != NULL) {
 		TAILQ_REMOVE(&pmc_bufferlist, plb, plb_next);
-		FREE(plb, M_PMC);
+		free(plb, M_PMC);
 	}
 }

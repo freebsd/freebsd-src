@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2008
+.Dd November 29, 2008
 .Dt CPUSET 1
 .Os
 .Sh NAME
@@ -43,10 +43,10 @@
 .Nm
 .Op Fl cr
 .Op Fl l Ar cpu-list
-.Op Fl p Ar pid | Fl r Ar tid | Fl s Ar setid
+.Op Fl j Ar jailid | Fl p Ar pid | Fl r Ar tid | Fl s Ar setid | Fl x Ar irq
 .Nm
 .Op Fl cgir
-.Op Fl p Ar pid | Fl r Ar tid | Fl s Ar setid
+.Op Fl j Ar jailid | Fl p Ar pid | Fl r Ar tid | Fl s Ar setid | Fl x Ar irq
 .Sh DESCRIPTION
 The
 .Nm
@@ -56,8 +56,8 @@ about processor binding, sets, and available processors in the system.
 .Pp
 .Nm
 requires a target to modify or query.
-The target may be specified as a command, process id, thread id, or a
-cpuset id.
+The target may be specified as a command, process id, thread id, a
+cpuset id, an irq or a jail id.
 Using
 .Fl g
 the target's set id or mask may be queried.
@@ -111,6 +111,8 @@ the id of the target.
 When used with the
 .Fl g
 option print the id rather than the valid mask of the target.
+.It Fl j Ar jailid
+Specifies a jail id as the target of the operation.
 .It Fl l Ar cpu-list
 Specifies a list of CPUs to apply to a target.
 Specification may include
@@ -124,6 +126,8 @@ The requested operation should reference the root set available via the
 target specifier.
 .It Fl t Ar tid
 Specifies a thread id as the target of the operation.
+.It Fl x Ar irq 
+Specifies an irq as the target of the operation.
 .El
 .Sh EXIT STATUS
 .Ex -std

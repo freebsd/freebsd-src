@@ -206,7 +206,7 @@ rio_alloc(int weight, struct redparams *params, int flags, int pkttime)
 	int	 w, i;
 	int	 npkts_per_sec;
 
-	MALLOC(rp, rio_t *, sizeof(rio_t), M_DEVBUF, M_WAITOK);
+	rp = malloc(sizeof(rio_t), M_DEVBUF, M_WAITOK);
 	if (rp == NULL)
 		return (NULL);
 	bzero(rp, sizeof(rio_t));
@@ -293,7 +293,7 @@ void
 rio_destroy(rio_t *rp)
 {
 	wtab_destroy(rp->rio_wtab);
-	FREE(rp, M_DEVBUF);
+	free(rp, M_DEVBUF);
 }
 
 void
@@ -572,17 +572,17 @@ rioioctl(dev, cmd, addr, flag, p)
 		}
 
 		/* allocate and initialize rio_queue_t */
-		MALLOC(rqp, rio_queue_t *, sizeof(rio_queue_t), M_DEVBUF, M_WAITOK);
+		rqp = malloc(sizeof(rio_queue_t), M_DEVBUF, M_WAITOK);
 		if (rqp == NULL) {
 			error = ENOMEM;
 			break;
 		}
 		bzero(rqp, sizeof(rio_queue_t));
 
-		MALLOC(rqp->rq_q, class_queue_t *, sizeof(class_queue_t),
+		rqp->rq_q = malloc(sizeof(class_queue_t),
 		       M_DEVBUF, M_WAITOK);
 		if (rqp->rq_q == NULL) {
-			FREE(rqp, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			error = ENOMEM;
 			break;
 		}
@@ -590,8 +590,8 @@ rioioctl(dev, cmd, addr, flag, p)
 
 		rqp->rq_rio = rio_alloc(0, NULL, 0, 0);
 		if (rqp->rq_rio == NULL) {
-			FREE(rqp->rq_q, M_DEVBUF);
-			FREE(rqp, M_DEVBUF);
+			free(rqp->rq_q, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			error = ENOMEM;
 			break;
 		}
@@ -610,8 +610,8 @@ rioioctl(dev, cmd, addr, flag, p)
 				    NULL, NULL);
 		if (error) {
 			rio_destroy(rqp->rq_rio);
-			FREE(rqp->rq_q, M_DEVBUF);
-			FREE(rqp, M_DEVBUF);
+			free(rqp->rq_q, M_DEVBUF);
+			free(rqp, M_DEVBUF);
 			break;
 		}
 
@@ -759,8 +759,8 @@ rio_detach(rqp)
 	}
 
 	rio_destroy(rqp->rq_rio);
-	FREE(rqp->rq_q, M_DEVBUF);
-	FREE(rqp, M_DEVBUF);
+	free(rqp->rq_q, M_DEVBUF);
+	free(rqp, M_DEVBUF);
 	return (error);
 }
 

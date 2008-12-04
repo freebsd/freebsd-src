@@ -177,7 +177,7 @@ ext2_readdir(ap)
 	auio.uio_resid = count;
 	auio.uio_segflg = UIO_SYSSPACE;
 	aiov.iov_len = count;
-	MALLOC(dirbuf, caddr_t, count, M_TEMP, M_WAITOK);
+	dirbuf = malloc(count, M_TEMP, M_WAITOK);
 	aiov.iov_base = dirbuf;
 	error = VOP_READ(ap->a_vp, &auio, 0, ap->a_cred);
 	if (error == 0) {
@@ -237,7 +237,7 @@ ext2_readdir(ap)
 
 			if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
 				panic("ext2_readdir: unexpected uio from NFS server");
-			MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
+			cookies = malloc(ncookies * sizeof(u_long), M_TEMP,
 			       M_WAITOK);
 			off = startoffset;
 			for (dp = (struct ext2_dir_entry_2 *)dirbuf,
@@ -251,7 +251,7 @@ ext2_readdir(ap)
 			*ap->a_cookies = cookies;
 		}
 	}
-	FREE(dirbuf, M_TEMP);
+	free(dirbuf, M_TEMP);
 	if (ap->a_eofflag)
 		*ap->a_eofflag = VTOI(ap->a_vp)->i_size <= uio->uio_offset;
 	return (error);

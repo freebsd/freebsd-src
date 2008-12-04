@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <libutil.h>
 
 #include "procstat.h"
 
@@ -134,42 +135,18 @@ void
 procstat_files(pid_t pid, struct kinfo_proc *kipp)
 {
 	struct kinfo_file *freep, *kif;
-	int error, name[4];
-	unsigned int i;
+	int i, cnt;
 	const char *str;
-	size_t len;
 
 	if (!hflag)
 		printf("%5s %-16s %4s %1s %1s %-8s %3s %7s %-3s %-12s\n",
 		    "PID", "COMM", "FD", "T", "V", "FLAGS", "REF", "OFFSET",
 		    "PRO", "NAME");
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_FILEDESC;
-	name[3] = pid;
-
-	error = sysctl(name, 4, NULL, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH && errno != EPERM) {
-		warn("sysctl: kern.proc.filedesc: %d", pid);
-		return;
-	}
-	if (error < 0)
-		return;
-
-	freep = kif = malloc(len);
-	if (kif == NULL)
-		err(-1, "malloc");
-
-	if (sysctl(name, 4, kif, &len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.filedesc %d", pid);
-		free(freep);
-		return;
-	}
-
-	for (i = 0; i < len / sizeof(*kif); i++, kif++) {
-		if (kif->kf_structsize != sizeof(*kif))
-			errx(-1, "kinfo_file mismatch");
+	freep = kinfo_getfile(pid, &cnt);
+	for (i = 0; i < cnt; i++) {
+		kif = &freep[i];
+		
 		printf("%5d ", pid);
 		printf("%-16s ", kipp->ki_comm);
 		switch (kif->kf_fd) {

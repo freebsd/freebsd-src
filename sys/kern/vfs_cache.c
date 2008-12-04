@@ -474,7 +474,7 @@ cache_enter(dvp, vp, cnp)
 	struct vnode *vp;
 	struct componentname *cnp;
 {
-	struct namecache *ncp;
+	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
 	u_int32_t hash;
 	int hold;
@@ -530,8 +530,6 @@ cache_enter(dvp, vp, cnp)
 	 * name.
 	 */
 	if (vp) {
-		struct namecache *n2;
-
 		TAILQ_FOREACH(n2, &vp->v_cache_dst, nc_dst) {
 			if (n2->nc_dvp == dvp &&
 			    n2->nc_nlen == cnp->cn_namelen &&
@@ -541,7 +539,16 @@ cache_enter(dvp, vp, cnp)
 				return;
 			}
 		}
-	}	
+	} else {
+		TAILQ_FOREACH(n2, &ncneg, nc_dst) {
+			if (n2->nc_nlen == cnp->cn_namelen &&
+			    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+				CACHE_UNLOCK();
+				cache_free(ncp);
+				return;
+			}
+		}
+	}
 
 	numcache++;
 	if (!vp) {
@@ -716,7 +723,8 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
-	int error;
+	struct vnode *cdir, *rdir;
+	int error, vfslocked;
 
 	if (disablecwd)
 		return (ENODEV);
@@ -728,9 +736,18 @@ kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
 	tmpbuf = malloc(buflen, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	error = vn_fullpath1(td, fdp->fd_cdir, fdp->fd_rdir, tmpbuf,
-	    &bp, buflen);
+	cdir = fdp->fd_cdir;
+	VREF(cdir);
+	rdir = fdp->fd_rdir;
+	VREF(rdir);
 	FILEDESC_SUNLOCK(fdp);
+	error = vn_fullpath1(td, cdir, rdir, tmpbuf, &bp, buflen);
+	vfslocked = VFS_LOCK_GIANT(rdir->v_mount);
+	vrele(rdir);
+	VFS_UNLOCK_GIANT(vfslocked);
+	vfslocked = VFS_LOCK_GIANT(cdir->v_mount);
+	vrele(cdir);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (!error) {
 		if (bufseg == UIO_SYSSPACE)
@@ -771,7 +788,8 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 {
 	char *buf;
 	struct filedesc *fdp;
-	int error;
+	struct vnode *rdir;
+	int error, vfslocked;
 
 	if (disablefullpath)
 		return (ENODEV);
@@ -781,8 +799,13 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	buf = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
-	error = vn_fullpath1(td, vn, fdp->fd_rdir, buf, retbuf, MAXPATHLEN);
+	rdir = fdp->fd_rdir;
+	VREF(rdir);
 	FILEDESC_SUNLOCK(fdp);
+	error = vn_fullpath1(td, vn, rdir, buf, retbuf, MAXPATHLEN);
+	vfslocked = VFS_LOCK_GIANT(rdir->v_mount);
+	vrele(rdir);
+	VFS_UNLOCK_GIANT(vfslocked);
 
 	if (!error)
 		*freebuf = buf;

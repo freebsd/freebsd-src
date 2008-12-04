@@ -31,7 +31,7 @@
 #ifndef _SPARC64_PCI_SCHIZOREG_H_
 #define	_SPARC64_PCI_SCHIZOREG_H_
 
-#define	STX_NINTR			4
+#define	STX_NINTR			5	/* 4 via OFW + 1 CDMA */
 #define	STX_NRANGE			4
 #define	SCZ_NREG			3
 #define	TOM_NREG			4
@@ -276,6 +276,8 @@
 #define	STX_PCIERR_A_INO		0x32	/* PCI bus A error */
 #define	STX_PCIERR_B_INO		0x33	/* PCI bus B error */
 #define	STX_BUS_INO			0x34	/* Safari/JBus error */
+#define	STX_CDMA_A_INO			0x35	/* PCI bus A CDMA */
+#define	STX_CDMA_B_INO			0x36	/* PCI bus B CDMA */
 #define	STX_MAX_INO			0x37
 
 /* Device space defines */

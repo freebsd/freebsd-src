@@ -25,10 +25,19 @@ expect()
 	r=`${fstest} $* 2>/dev/null | tail -1`
 	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
-		echo "not ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
 }
 
@@ -41,26 +50,52 @@ jexpect()
 	r=`jail -s ${s} / fstest 127.0.0.1 /bin/sh -c "cd ${d} && ${fstest} $* 2>/dev/null" | tail -1`
 	echo "${r}" | egrep '^'${e}'$' >/dev/null 2>&1
 	if [ $? -eq 0 ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
-		echo "not ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest} - tried '$*', expected ${e}, got ${r}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
 }
 
 test_check()
 {
 	if [ $* ]; then
-		echo "ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "ok ${ntest}"
+		else
+			echo "ok ${ntest} # TODO ${todomsg}"
+		fi
 	else
-		echo "not ok ${ntest}"
+		if [ -z "${todomsg}" ]; then
+			echo "not ok ${ntest}"
+		else
+			echo "not ok ${ntest} # TODO ${todomsg}"
+		fi
 	fi
+	todomsg=""
 	ntest=`expr $ntest + 1`
+}
+
+todo()
+{
+	echo "${os}" | grep -iq "${1}"
+	if [ $? -eq 0 ]; then
+		todomsg="${2}"
+	fi
 }
 
 namegen()
 {
-	echo "fstest_`dd if=/dev/random bs=1k count=1 2>/dev/null | openssl md5`"
+	echo "fstest_`dd if=/dev/urandom bs=1k count=1 2>/dev/null | openssl md5`"
 }
 
 quick_exit()
@@ -73,13 +108,18 @@ quick_exit()
 supported()
 {
 	case "${1}" in
-	chflags)
-		if [ ${os} != "FreeBSD" -o ${fs} != "UFS" ]; then
+	lchmod)
+		if [ "${os}" != "FreeBSD" ]; then
 			return 1
 		fi
 		;;
-	lchmod)
-		if [ ${os} != "FreeBSD" ]; then
+	chflags)
+		if [ "${os}" != "FreeBSD" ]; then
+			return 1
+		fi
+		;;
+	chflags_SF_SNAPSHOT)
+		if [ "${os}" != "FreeBSD" -o "${fs}" != "UFS" ]; then
 			return 1
 		fi
 		;;

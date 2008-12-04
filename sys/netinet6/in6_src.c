@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sx.h>
 #include <sys/vimage.h>
@@ -98,12 +99,15 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <netinet/vinet.h>
+
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 static struct mtx addrsel_lock;
 #define	ADDRSEL_LOCK_INIT()	mtx_init(&addrsel_lock, "addrsel_lock", NULL, MTX_DEF)
@@ -119,9 +123,11 @@ static struct sx addrsel_sxlock;
 #define	ADDRSEL_XUNLOCK()	sx_xunlock(&addrsel_sxlock)
 
 #define ADDR_LABEL_NOTAPP (-1)
-struct in6_addrpolicy defaultaddrpolicy;
 
-int ip6_prefer_tempaddr = 0;
+#ifdef VIMAGE_GLOBALS
+struct in6_addrpolicy defaultaddrpolicy;
+int ip6_prefer_tempaddr;
+#endif
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
@@ -233,6 +239,11 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			if (*errorp != 0)
 				return (NULL);
 		}
+		if (cred != NULL && prison_local_ip6(cred, &srcsock.sin6_addr,
+		    (inp != NULL && (inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
+			*errorp = EADDRNOTAVAIL;
+			return (NULL);
+		}
 
 		ia6 = (struct in6_ifaddr *)ifa_ifwithaddr((struct sockaddr *)(&srcsock));
 		if (ia6 == NULL ||
@@ -250,6 +261,11 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * Otherwise, if the socket has already bound the source, just use it.
 	 */
 	if (inp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+		if (cred != NULL && prison_local_ip6(cred, &inp->in6p_laddr,
+		    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0) {
+			*errorp = EADDRNOTAVAIL;
+			return (NULL);
+		}
 		return (&inp->in6p_laddr);
 	}
 
@@ -299,6 +315,12 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 				continue;
 		}
 		if (!V_ip6_use_deprecated && IFA6_IS_DEPRECATED(ia))
+			continue;
+
+		if (cred != NULL &&
+		    prison_local_ip6(cred, &ia->ia_addr.sin6_addr,
+			(inp != NULL &&
+			(inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
 			continue;
 
 		/* Rule 1: Prefer same address */
@@ -460,7 +482,6 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ifnet **retifp, struct rtentry **retrt, int clone,
     int norouteok)
 {
-	INIT_VNET_NET(curvnet);
 	INIT_VNET_INET6(curvnet);
 	int error = 0;
 	struct ifnet *ifp = NULL;
@@ -783,6 +804,10 @@ in6_pcbsetport(struct in6_addr *laddr, struct inpcb *inp, struct ucred *cred)
 	INP_INFO_WLOCK_ASSERT(pcbinfo);
 	INP_WLOCK_ASSERT(inp);
 
+	if (prison_local_ip6(cred, laddr,
+	    ((inp->inp_flags & IN6P_IPV6_V6ONLY) != 0)) != 0)
+		return(EINVAL);
+
 	/* XXX: this is redundant when called from in6_pcbbind */
 	if ((so->so_options & (SO_REUSEADDR|SO_REUSEPORT)) == 0)
 		wild = INPLOOKUP_WILDCARD;
@@ -874,6 +899,8 @@ addrsel_policy_init(void)
 	ADDRSEL_LOCK_INIT();
 	ADDRSEL_SXLOCK_INIT();
 	INIT_VNET_INET6(curvnet);
+
+	V_ip6_prefer_tempaddr = 0;
 
 	init_policy_queue();
 
@@ -972,7 +999,9 @@ struct addrsel_policyent {
 
 TAILQ_HEAD(addrsel_policyhead, addrsel_policyent);
 
+#ifdef VIMAGE_GLOBALS
 struct addrsel_policyhead addrsel_policytab;
+#endif
 
 static void
 init_policy_queue(void)
@@ -988,7 +1017,7 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 	INIT_VNET_INET6(curvnet);
 	struct addrsel_policyent *new, *pol;
 
-	MALLOC(new, struct addrsel_policyent *, sizeof(*new), M_IFADDR,
+	new = malloc(sizeof(*new), M_IFADDR,
 	       M_WAITOK);
 	ADDRSEL_XLOCK();
 	ADDRSEL_LOCK();
@@ -1001,7 +1030,7 @@ add_addrsel_policyent(struct in6_addrpolicy *newpolicy)
 				       &pol->ape_policy.addrmask.sin6_addr)) {
 			ADDRSEL_UNLOCK();
 			ADDRSEL_XUNLOCK();
-			FREE(new, M_IFADDR);
+			free(new, M_IFADDR);
 			return (EEXIST);	/* or override it? */
 		}
 	}

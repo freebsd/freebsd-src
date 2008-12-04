@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <netinet/vinet.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -94,6 +95,10 @@ __FBSDID("$FreeBSD$");
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
+
+#ifdef VIMAGE_GLOBALS
+int	udp_blackhole;
+#endif
 
 /*
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp checksums
@@ -109,8 +114,8 @@ int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
-int	udp_blackhole = 0;
-SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW, &udp_blackhole, 0,
+SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_udp, OID_AUTO, blackhole,
+    CTLFLAG_RW, udp_blackhole, 0,
     "Do not send port unreachables for refused connects");
 
 u_long	udp_sendspace = 9216;		/* really max datagram size */
@@ -129,14 +134,16 @@ u_long	udp_recvspace = 40 * (1024 +
 SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
     &udp_recvspace, 0, "Maximum space for incoming UDP datagrams");
 
+#ifdef VIMAGE_GLOBALS
 struct inpcbhead	udb;		/* from udp_var.h */
 struct inpcbinfo	udbinfo;
+struct udpstat		udpstat;	/* from udp_var.h */
+#endif
 
 #ifndef UDBHASHSIZE
 #define	UDBHASHSIZE	128
 #endif
 
-struct udpstat	udpstat;	/* from udp_var.h */
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_udp, UDPCTL_STATS, stats,
     CTLFLAG_RW, udpstat, udpstat,
     "UDP statistics (struct udpstat, netinet/udp_var.h)");
@@ -166,6 +173,8 @@ void
 udp_init(void)
 {
 	INIT_VNET_INET(curvnet);
+
+	V_udp_blackhole = 0;
 
 	INP_INFO_LOCK_INIT(&V_udbinfo, "udp");
 	LIST_INIT(&V_udb);
@@ -932,9 +941,10 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		 * Jail may rewrite the destination address, so let it do
 		 * that before we use it.
 		 */
-		if (jailed(td->td_ucred))
-			prison_remote_ip(td->td_ucred, 0,
-			    &sin->sin_addr.s_addr);
+		if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+			error = EINVAL;
+			goto release;
+		}
 
 		/*
 		 * If a local address or port hasn't yet been selected, or if
@@ -1186,8 +1196,11 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		return (EISCONN);
 	}
 	sin = (struct sockaddr_in *)nam;
-	if (jailed(td->td_ucred))
-		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
+	if (prison_remote_ip4(td->td_ucred, &sin->sin_addr) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&udbinfo);
+		return (EAFNOSUPPORT);
+	}
 	error = in_pcbconnect(inp, nam, td->td_ucred);
 	if (error == 0)
 		soisconnected(so);

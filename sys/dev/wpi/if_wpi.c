@@ -2522,11 +2522,6 @@ wpi_run(struct wpi_softc *sc, struct ieee80211vap *vap)
 		return error;
 	}
 
-	if (vap->iv_opmode == IEEE80211_M_STA) {
-		/* fake a join to init the tx rate */
-		wpi_newassoc(ni, 1);
-	}
-
 	/* link LED always on while associated */
 	wpi_set_led(sc, WPI_LED_LINK, 0, 1);
 

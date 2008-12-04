@@ -913,6 +913,7 @@ run_rc_script()
 			else
 				( trap "echo Script $_file interrupted; kill -QUIT $$" 3
 				  trap "echo Script $_file interrupted; exit 1" 2
+				  trap "echo Script $_file running" 29
 				  set $_arg; . $_file )
 			fi
 		fi

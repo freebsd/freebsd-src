@@ -83,7 +83,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20081013_0113"
+#define HDA_DRV_TEST_REV	"20081123_0118"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -148,6 +148,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
 #define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
 #define HDA_INTEL_82801I	HDA_MODEL_CONSTRUCT(INTEL, 0x293e)
+#define HDA_INTEL_82801J	HDA_MODEL_CONSTRUCT(INTEL, 0x3a3e)
+#define HDA_INTEL_SCH		HDA_MODEL_CONSTRUCT(INTEL, 0x811b)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
 /* Nvidia */
@@ -202,6 +204,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define DELL_VENDORID		0x1028
 #define DELL_D630_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01f9)
 #define DELL_D820_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01cc)
+#define DELL_V1400_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x0227)
 #define DELL_V1500_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x0228)
 #define DELL_I1300_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01c9)
 #define DELL_XPSM1210_SUBVENDOR	HDA_MODEL_CONSTRUCT(DELL, 0x01d7)
@@ -450,6 +453,8 @@ static const struct {
 	{ HDA_INTEL_82801G,  "Intel 82801G" },
 	{ HDA_INTEL_82801H,  "Intel 82801H" },
 	{ HDA_INTEL_82801I,  "Intel 82801I" },
+	{ HDA_INTEL_82801J,  "Intel 82801J" },
+	{ HDA_INTEL_SCH,     "Intel SCH" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
 	{ HDA_NVIDIA_MCP61_1, "NVidia MCP61" },
@@ -3544,8 +3549,8 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		}
 	}
 
-	/* Declare soft PCM and master volume if needed. */
-	if (pdevinfo->play >= 0) {
+	/* Declare soft PCM volume if needed. */
+	if (pdevinfo->play >= 0 && !pdevinfo->digital) {
 		ctl = NULL;
 		if ((mask & SOUND_MASK_PCM) == 0 ||
 		    (devinfo->function.audio.quirks & HDA_QUIRK_SOFTPCMVOL)) {
@@ -3575,8 +3580,12 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 				    (softpcmvol == 1) ? "Forcing" : "Enabling");
 			);
 		}
+	}
 
-		if ((mask & SOUND_MASK_VOLUME) == 0) {
+	/* Declare master volume if needed. */
+	if (pdevinfo->play >= 0) {
+		if ((mask & (SOUND_MASK_VOLUME | SOUND_MASK_PCM)) ==
+		    SOUND_MASK_PCM) {
 			mask |= SOUND_MASK_VOLUME;
 			mix_setparentchild(m, SOUND_MIXER_VOLUME,
 			    SOUND_MASK_PCM);
@@ -4250,9 +4259,9 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	struct hdac_widget *w;
 	int i, j, cnt, max, type, dir, assoc, seq, first, hpredir;
 
-	/* XXX This is redundant */
+	/* Count present associations */
 	max = 0;
-	for (j = 0; j < 16; j++) {
+	for (j = 1; j < 16; j++) {
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 			w = hdac_widget_get(devinfo, i);
 			if (w == NULL || w->enable == 0)
@@ -4286,6 +4295,7 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 	for (i = 0; i < max; i++) {
 		as[i].hpredir = -1;
 		as[i].chan = -1;
+		as[i].digital = 1;
 	}
 
 	/* Scan associations skipping as=0. */
@@ -4340,6 +4350,8 @@ hdac_audio_as_parse(struct hdac_devinfo *devinfo)
 				    __func__, w->nid, j);
 				as[cnt].enable = 0;
 			}
+			if (!HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap))
+				as[cnt].digital = 0;
 			/* Headphones with seq=15 may mean redirection. */
 			if (type == HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT &&
 			    seq == 15)
@@ -4423,6 +4435,8 @@ static const struct {
 	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
 	{ DELL_D630_SUBVENDOR, HDA_CODEC_STAC9205X,
 	    HDA_QUIRK_GPIO0, 0 },
+	{ DELL_V1400_SUBVENDOR, HDA_CODEC_STAC9228X,
+	    HDA_QUIRK_GPIO2, 0 },
 	{ DELL_V1500_SUBVENDOR, HDA_CODEC_STAC9205X,
 	    HDA_QUIRK_GPIO0, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_AD1988,
@@ -4505,6 +4519,24 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				devinfo->function.audio.quirks &=
 				    ~HDA_QUIRK_EAPDINV;
 		}
+		break;
+	case HDA_CODEC_AD1981HD:
+		/*
+		 * This codec has very unusual design with several
+		 * points inappropriate for the present parser.
+		 */
+		/* Disable recording from mono playback mix. */
+		w = hdac_widget_get(devinfo, 21);
+		if (w != NULL)
+			w->connsenable[3] = 0;
+		/* Disable rear to front mic mixer, use separately. */
+		w = hdac_widget_get(devinfo, 31);
+		if (w != NULL)
+			w->enable = 0;
+		/* Disable playback mixer, use direct bypass. */
+		w = hdac_widget_get(devinfo, 14);
+		if (w != NULL)
+			w->enable = 0;
 		break;
 	}
 }
@@ -4737,7 +4769,7 @@ hdac_audio_trace_as_out(struct hdac_devinfo *devinfo, int as, int seq)
 	nid_t min, res;
 
 	/* Find next pin */
-	for (i = seq; ases[as].pins[i] == 0 && i < 16; i++)
+	for (i = seq; i < 16 && ases[as].pins[i] == 0; i++)
 		;
 	/* Check if there is no any left. If so - we succeded. */
 	if (i == 16)
@@ -5050,13 +5082,8 @@ hdac_audio_bind_as(struct hdac_devinfo *devinfo)
 		
 		as[j].chan = free;
 		devinfo->codec->sc->chans[free].as = j;
-		if (as[j].dir == HDA_CTL_IN) {
-			devinfo->codec->sc->chans[free].dir = PCMDIR_REC;
-			devinfo->function.audio.reccnt++;
-		} else {
-			devinfo->codec->sc->chans[free].dir = PCMDIR_PLAY;
-			devinfo->function.audio.playcnt++;
-		}
+		devinfo->codec->sc->chans[free].dir =
+		    (as[j].dir == HDA_CTL_IN) ? PCMDIR_REC : PCMDIR_PLAY;
 		hdac_pcmchannel_setup(&devinfo->codec->sc->chans[free]);
 		free++;
 	}
@@ -5098,17 +5125,27 @@ hdac_audio_disable_useless(struct hdac_devinfo *devinfo)
 		w = hdac_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
-		    (w->wclass.pin.config &
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
-		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE) {
-			w->enable = 0;
-			HDA_BOOTHVERBOSE(
-				device_printf(devinfo->codec->sc->dev, 
-				    " Disabling pin nid %d due"
-				    " to None connectivity.\n",
-				    w->nid);
-			);
+		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
+			if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE) {
+				w->enable = 0;
+				HDA_BOOTHVERBOSE(
+					device_printf(devinfo->codec->sc->dev, 
+					    " Disabling pin nid %d due"
+					    " to None connectivity.\n",
+					    w->nid);
+				);
+			} else if ((w->wclass.pin.config &
+			    HDA_CONFIG_DEFAULTCONF_ASSOCIATION_MASK) == 0) {
+				w->enable = 0;
+				HDA_BOOTHVERBOSE(
+					device_printf(devinfo->codec->sc->dev, 
+					    " Disabling unassociated"
+					    " pin nid %d.\n",
+					    w->nid);
+				);
+			}
 		}
 	}
 	do {
@@ -5998,7 +6035,6 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 			    val), cad);
 
 		}
-		DELAY(1000);
 	}
 }
 
@@ -6176,6 +6212,82 @@ hdac_pcmchannel_setup(struct hdac_chan *ch)
 	}
 
 	return (ret);
+}
+
+static void
+hdac_create_pcms(struct hdac_devinfo *devinfo)
+{
+	struct hdac_softc *sc = devinfo->codec->sc;
+	struct hdac_audio_as *as = devinfo->function.audio.as;
+	int i, j, apdev = 0, ardev = 0, dpdev = 0, drdev = 0;
+
+	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
+		if (as[i].enable == 0)
+			continue;
+		if (as[i].dir == HDA_CTL_IN) {
+			if (as[i].digital)
+				drdev++;
+			else
+				ardev++;
+		} else {
+			if (as[i].digital)
+				dpdev++;
+			else
+				apdev++;
+		}
+	}
+	devinfo->function.audio.num_devs =
+	    max(ardev, apdev) + max(drdev, dpdev);
+	devinfo->function.audio.devs =
+	    (struct hdac_pcm_devinfo *)malloc(
+	    devinfo->function.audio.num_devs * sizeof(struct hdac_pcm_devinfo),
+	    M_HDAC, M_ZERO | M_NOWAIT);
+	if (devinfo->function.audio.devs == NULL) {
+		device_printf(sc->dev,
+		    "Unable to allocate memory for devices\n");
+		return;
+	}
+	for (i = 0; i < devinfo->function.audio.num_devs; i++) {
+		devinfo->function.audio.devs[i].index = i;
+		devinfo->function.audio.devs[i].devinfo = devinfo;
+		devinfo->function.audio.devs[i].play = -1;
+		devinfo->function.audio.devs[i].rec = -1;
+		devinfo->function.audio.devs[i].digital = 2;
+	}
+	for (i = 0; i < devinfo->function.audio.ascnt; i++) {
+		if (as[i].enable == 0)
+			continue;
+		for (j = 0; j < devinfo->function.audio.num_devs; j++) {
+			if (devinfo->function.audio.devs[j].digital != 2 &&
+			    devinfo->function.audio.devs[j].digital !=
+			    as[i].digital)
+				continue;
+			if (as[i].dir == HDA_CTL_IN) {
+				if (devinfo->function.audio.devs[j].rec >= 0)
+					continue;
+				devinfo->function.audio.devs[j].rec
+				    = as[i].chan;
+			} else {
+				if (devinfo->function.audio.devs[j].play >= 0)
+					continue;
+				devinfo->function.audio.devs[j].play
+				    = as[i].chan;
+			}
+			sc->chans[as[i].chan].pdevinfo =
+			    &devinfo->function.audio.devs[j];
+			devinfo->function.audio.devs[j].digital =
+			    as[i].digital;
+			break;
+		}
+	}
+	for (i = 0; i < devinfo->function.audio.num_devs; i++) {
+		struct hdac_pcm_devinfo *pdevinfo = 
+		    &devinfo->function.audio.devs[i];
+		pdevinfo->dev =
+		    device_add_child(sc->dev, "pcm", -1);
+		device_set_ivars(pdevinfo->dev,
+		     (void *)pdevinfo);
+	}
 }
 
 static void
@@ -7028,7 +7140,7 @@ hdac_attach2(void *arg)
 	struct hdac_audio_ctl *ctl;
 	uint32_t quirks_on, quirks_off;
 	int codec_index, fg_index;
-	int i, pdev, rdev, dmaalloc = 0;
+	int i, dmaalloc = 0;
 	struct hdac_devinfo *devinfo;
 
 	sc = (struct hdac_softc *)arg;
@@ -7210,53 +7322,10 @@ hdac_attach2(void *arg)
 					dmaalloc = 1;
 			}
 			
-			i = devinfo->function.audio.playcnt;
-			if (devinfo->function.audio.reccnt > i)
-				i = devinfo->function.audio.reccnt;
-			devinfo->function.audio.devs =
-			    (struct hdac_pcm_devinfo *)malloc(
-			    sizeof(struct hdac_pcm_devinfo) * i,
-			    M_HDAC, M_ZERO | M_NOWAIT);
-			if (devinfo->function.audio.devs == NULL) {
-				device_printf(sc->dev,
-				    "Unable to allocate memory for devices\n");
-				continue;
-			}
-			devinfo->function.audio.num_devs = i;
-			for (i = 0; i < devinfo->function.audio.num_devs; i++) {
-				devinfo->function.audio.devs[i].index = i;
-				devinfo->function.audio.devs[i].devinfo = devinfo;
-				devinfo->function.audio.devs[i].play = -1;
-				devinfo->function.audio.devs[i].rec = -1;
-			}
-			pdev = 0;
-			rdev = 0;
-			for (i = 0; i < devinfo->function.audio.ascnt; i++) {
-				if (devinfo->function.audio.as[i].enable == 0)
-					continue;
-				if (devinfo->function.audio.as[i].dir ==
-				    HDA_CTL_IN) {
-					devinfo->function.audio.devs[rdev].rec
-					    = devinfo->function.audio.as[i].chan;
-					sc->chans[devinfo->function.audio.as[i].chan].pdevinfo = 
-					    &devinfo->function.audio.devs[rdev];
-					rdev++;
-				} else {
-					devinfo->function.audio.devs[pdev].play
-					    = devinfo->function.audio.as[i].chan;
-					sc->chans[devinfo->function.audio.as[i].chan].pdevinfo = 
-					    &devinfo->function.audio.devs[pdev];
-					pdev++;
-				}
-			}
-			for (i = 0; i < devinfo->function.audio.num_devs; i++) {
-				struct hdac_pcm_devinfo *pdevinfo = 
-				    &devinfo->function.audio.devs[i];
-				pdevinfo->dev =
-				    device_add_child(sc->dev, "pcm", -1);
-				device_set_ivars(pdevinfo->dev,
-				     (void *)pdevinfo);
-			}
+		    	HDA_BOOTHVERBOSE(
+				device_printf(sc->dev, "Creating PCM devices...\n");
+			);
+			hdac_create_pcms(devinfo);
 
 			HDA_BOOTVERBOSE(
 				if (devinfo->function.audio.quirks != 0) {
@@ -7536,17 +7605,20 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc;
-	device_t *devlist = NULL;
-	int i, devcount;
+	device_t *devlist;
+	int i, devcount, error;
+
+	if ((error = device_get_children(dev, &devlist, &devcount)) != 0)
+		return (error);
+	for (i = 0; i < devcount; i++) {
+		if ((error = device_delete_child(dev, devlist[i])) != 0) {
+			free(devlist, M_TEMP);
+			return (error);
+		}
+	}
+	free(devlist, M_TEMP);
 
 	sc = device_get_softc(dev);
-
-	device_get_children(dev, &devlist, &devcount);
-	for (i = 0; devlist != NULL && i < devcount; i++)
-		device_delete_child(dev, devlist[i]);
-	if (devlist != NULL)
-		free(devlist, M_TEMP);
-
 	hdac_release_resources(sc);
 
 	return (0);
@@ -7598,9 +7670,10 @@ hdac_pcm_probe(device_t dev)
 	    (struct hdac_pcm_devinfo *)device_get_ivars(dev);
 	char buf[128];
 
-	snprintf(buf, sizeof(buf), "HDA %s PCM #%d",
+	snprintf(buf, sizeof(buf), "HDA %s PCM #%d %s",
 	    hdac_codec_name(pdevinfo->devinfo->codec),
-	    pdevinfo->index);
+	    pdevinfo->index,
+	    pdevinfo->digital?"Digital":"Analog");
 	device_set_desc_copy(dev, buf);
 	return (0);
 }

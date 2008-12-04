@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,15 +18,14 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 1990-2002 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
 #ifndef _SYS_DKLABEL_H
 #define	_SYS_DKLABEL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/isa_defs.h>
 #include <sys/types32.h>
@@ -76,13 +74,24 @@ extern "C" {
  * at the beginning of the sector.
  */
 
+#if !defined(BLKADDR_TYPE)
+#define	BLKADDR_TYPE
+#if defined(_EXTVTOC)
+typedef	unsigned long	blkaddr_t;
+typedef	unsigned int	blkaddr32_t;
+#else
+typedef	daddr_t		blkaddr_t;
+typedef	daddr32_t	blkaddr32_t;
+#endif
+#endif
+
 /*
  * partition headers:  section 1
  * Returned in struct dk_allmap by ioctl DKIOC[SG]APART (dkio(7I))
  */
 struct dk_map {
-	daddr_t	dkl_cylno;		/* starting cylinder */
-	daddr_t	dkl_nblk;		/* number of blocks;  if == 0, */
+	blkaddr_t	dkl_cylno;	/* starting cylinder */
+	blkaddr_t	dkl_nblk;	/* number of blocks;  if == 0, */
 					/* partition is undefined */
 };
 
@@ -91,8 +100,8 @@ struct dk_map {
  * Fixed size for on-disk dk_label
  */
 struct dk_map32 {
-	daddr32_t	dkl_cylno;	/* starting cylinder */
-	daddr32_t	dkl_nblk;	/* number of blocks;  if == 0, */
+	blkaddr32_t	dkl_cylno;	/* starting cylinder */
+	blkaddr32_t	dkl_nblk;	/* number of blocks;  if == 0, */
 					/* partition is undefined */
 };
 
@@ -108,8 +117,8 @@ struct dk_map2 {
 struct dkl_partition    {
 	uint16_t	p_tag;		/* ID tag of partition */
 	uint16_t	p_flag;		/* permision flags */
-	daddr32_t	p_start;	/* start sector no of partition */
-	int32_t		p_size;		/* # of blocks in partition */
+	blkaddr32_t	p_start;	/* start sector no of partition */
+	blkaddr32_t	p_size;		/* # of blocks in partition */
 };
 
 

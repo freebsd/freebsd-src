@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_def.c,v 1.22 2007/10/13 19:31:17 tom Exp $")
+MODULE_ID("$Id: frm_def.c,v 1.23 2008/08/04 00:07:55 tom Exp $")
 
 /* this can't be readonly */
 static FORM default_form =
@@ -234,8 +234,16 @@ Connect_Fields(FORM *form, FIELD **fields)
 	  fields[j]->page = page_nr;
 	  fld = Insert_Field_By_Position(fields[j], fld);
 	}
-      form->page[page_nr].smin = fld->index;
-      form->page[page_nr].smax = fld->sprev->index;
+      if (fld)
+	{
+	  form->page[page_nr].smin = fld->index;
+	  form->page[page_nr].smax = fld->sprev->index;
+	}
+      else
+	{
+	  form->page[page_nr].smin = 0;
+	  form->page[page_nr].smax = 0;
+	}
     }
   RETURN(E_OK);
 }

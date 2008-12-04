@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 #
-# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.in#5 $
+# $P4: //depot/projects/trustedbsd/openbsm/libbsm/Makefile.in#9 $
 #
 
 VPATH = @srcdir@
@@ -129,6 +129,7 @@ LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
+MIG = @MIG@
 MKDIR_P = @MKDIR_P@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
@@ -195,7 +196,8 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-INCLUDES = -I$(top_srcdir)
+@USE_NATIVE_INCLUDES_FALSE@INCLUDES = -I$(top_builddir) -I$(top_srcdir) -I$(top_srcdir)/sys
+@USE_NATIVE_INCLUDES_TRUE@INCLUDES = -I$(top_builddir) -I$(top_srcdir)
 lib_LTLIBRARIES = libbsm.la
 libbsm_la_SOURCES = bsm_audit.c bsm_class.c bsm_control.c bsm_event.c \
 	bsm_flags.c bsm_io.c bsm_mask.c bsm_token.c bsm_user.c \

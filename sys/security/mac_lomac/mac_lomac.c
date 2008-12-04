@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * All rights reserved.
@@ -993,6 +993,29 @@ lomac_cred_check_visible(struct ucred *cr1, struct ucred *cr2)
 
 	return (0);
 }
+
+static void
+lomac_cred_create_init(struct ucred *cred)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
+}
+
+static void
+lomac_cred_create_swapper(struct ucred *cred)
+{
+	struct mac_lomac *dest;
+
+	dest = SLOT(cred->cr_label);
+
+	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
+	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
+}
+
 static void
 lomac_cred_relabel(struct ucred *cred, struct label *newlabel)
 {
@@ -1296,6 +1319,51 @@ lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 	dest = SLOT(inplabel);
 
 	lomac_copy_single(source, dest);
+}
+
+static void
+lomac_ip6q_create(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(mlabel);
+	dest = SLOT(q6label);
+
+	lomac_copy_single(source, dest);
+}
+
+static int
+lomac_ip6q_match(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+	struct mac_lomac *a, *b;
+
+	a = SLOT(q6label);
+	b = SLOT(mlabel);
+
+	return (lomac_equal_single(a, b));
+}
+
+static void
+lomac_ip6q_reassemble(struct ip6q *q6, struct label *q6label, struct mbuf *m,
+    struct label *mlabel)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(q6label);
+	dest = SLOT(mlabel);
+
+	/* Just use the head, since we require them all to match. */
+	lomac_copy_single(source, dest);
+}
+
+static void
+lomac_ip6q_update(struct mbuf *m, struct label *mlabel, struct ip6q *q6,
+    struct label *q6label)
+{
+
+	/* NOOP: we only accept matching labels, so no need to update */
 }
 
 static void
@@ -1840,33 +1908,11 @@ lomac_proc_check_signal(struct ucred *cred, struct proc *p, int signum)
 }
 
 static void
-lomac_proc_create_init(struct ucred *cred)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_HIGH, 0);
-	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
-}
-
-static void
-lomac_proc_create_swapper(struct ucred *cred)
-{
-	struct mac_lomac *dest;
-
-	dest = SLOT(cred->cr_label);
-
-	lomac_set_single(dest, MAC_LOMAC_TYPE_EQUAL, 0);
-	lomac_set_range(dest, MAC_LOMAC_TYPE_LOW, 0, MAC_LOMAC_TYPE_HIGH, 0);
-}
-
-static void
 lomac_proc_destroy_label(struct label *label)
 {
 
 	mtx_destroy(&PSLOT(label)->mtx);
-	FREE(PSLOT(label), M_LOMAC);
+	free(PSLOT(label), M_LOMAC);
 	PSLOT_SET(label, NULL);
 }
 
@@ -2179,9 +2225,9 @@ lomac_thread_userret(struct thread *td)
 		mtx_unlock(&subj->mtx);
 		newcred = crget();
 		/*
-		 * Prevent a lock order reversal in
-		 * mac_cred_mmapped_drop_perms; ideally, the other user of
-		 * subj->mtx wouldn't be holding Giant.
+		 * Prevent a lock order reversal in mac_proc_vm_revoke;
+		 * ideally, the other user of subj->mtx wouldn't be holding
+		 * Giant.
 		 */
 		mtx_lock(&Giant);
 		PROC_LOCK(p);
@@ -2204,7 +2250,7 @@ lomac_thread_userret(struct thread *td)
 		mtx_unlock(&subj->mtx);
 		PROC_UNLOCK(p);
 		if (dodrop)
-			mac_cred_mmapped_drop_perms(curthread, newcred);
+			mac_proc_vm_revoke(curthread);
 		mtx_unlock(&Giant);
 	} else {
 		mtx_unlock(&subj->mtx);
@@ -2384,7 +2430,7 @@ lomac_vnode_check_mmap_downgrade(struct ucred *cred, struct vnode *vp,
 
 static int
 lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
+    struct label *vplabel, accmode_t accmode)
 {
 	struct mac_lomac *subj, *obj;
 
@@ -2395,7 +2441,7 @@ lomac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 	obj = SLOT(vplabel);
 
 	/* XXX privilege override for admin? */
-	if (acc_mode & (VWRITE | VAPPEND | VADMIN)) {
+	if (accmode & (VWRITE | VAPPEND | VADMIN)) {
 		if (!lomac_subject_dominate(subj, obj))
 			return (EACCES);
 	}
@@ -2849,6 +2895,8 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_cred_check_relabel = lomac_cred_check_relabel,
 	.mpo_cred_check_visible = lomac_cred_check_visible,
 	.mpo_cred_copy_label = lomac_copy_label,
+	.mpo_cred_create_swapper = lomac_cred_create_swapper,
+	.mpo_cred_create_init = lomac_cred_create_init,
 	.mpo_cred_destroy_label = lomac_destroy_label,
 	.mpo_cred_externalize_label = lomac_externalize_label,
 	.mpo_cred_init_label = lomac_init_label,
@@ -2885,6 +2933,13 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_inpcb_destroy_label = lomac_destroy_label,
 	.mpo_inpcb_init_label = lomac_init_label_waitcheck,
 	.mpo_inpcb_sosetlabel = lomac_inpcb_sosetlabel,
+
+	.mpo_ip6q_create = lomac_ip6q_create,
+	.mpo_ip6q_destroy_label = lomac_destroy_label,
+	.mpo_ip6q_init_label = lomac_init_label_waitcheck,
+	.mpo_ip6q_match = lomac_ip6q_match,
+	.mpo_ip6q_reassemble = lomac_ip6q_reassemble,
+	.mpo_ip6q_update = lomac_ip6q_update,
 
 	.mpo_ipq_create = lomac_ipq_create,
 	.mpo_ipq_destroy_label = lomac_destroy_label,
@@ -2931,8 +2986,6 @@ static struct mac_policy_ops lomac_ops =
 	.mpo_proc_check_debug = lomac_proc_check_debug,
 	.mpo_proc_check_sched = lomac_proc_check_sched,
 	.mpo_proc_check_signal = lomac_proc_check_signal,
-	.mpo_proc_create_swapper = lomac_proc_create_swapper,
-	.mpo_proc_create_init = lomac_proc_create_init,
 	.mpo_proc_destroy_label = lomac_proc_destroy_label,
 	.mpo_proc_init_label = lomac_proc_init_label,
 

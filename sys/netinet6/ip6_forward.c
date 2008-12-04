@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 #include <netinet/in_pcb.h>
 
@@ -76,7 +77,9 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 
+#ifdef VIMAGE_GLOBALS
 struct	route_in6 ip6_forward_rt;
+#endif
 
 /*
  * Forward a packet.  If some error occurs return the sender

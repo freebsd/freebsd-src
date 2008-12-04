@@ -561,6 +561,10 @@ printf(const char *fmt, ...)
 	va_list ap;
 	int ret;
 
+	/* Don't annoy the user as we probe for partitions */
+	if (strcmp(fmt,"Not ufs\n") == 0)
+		return 0;
+
 	va_start(ap, fmt);
 	ret = vprintf(fmt, ap);
 	va_end(ap);

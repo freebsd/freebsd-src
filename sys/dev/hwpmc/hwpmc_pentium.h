@@ -33,7 +33,7 @@
 
 /* Intel Pentium PMCs */
 
-#define	PENTIUM_NPMCS	3		/* 1 TSC + 2 PMCs */
+#define	PENTIUM_NPMCS	2
 #define	PENTIUM_CESR_PC1		(1 << 25)
 #define	PENTIUM_CESR_CC1_MASK		0x01C00000
 #define	PENTIUM_CESR_TO_CC1(C)		(((C) & 0x07) << 22)
@@ -66,7 +66,8 @@ struct pmc_md_pentium_pmc {
  * Prototypes
  */
 
-int	pmc_initialize_p5(struct pmc_mdep *);		/* Pentium PMCs */
+int	pmc_p5_initialize(struct pmc_mdep *_md, int _ncpus);
+void	pmc_p5_finalize(struct pmc_mdep *_md);
 
 #endif /* _KERNEL */
 #endif /* _DEV_HWPMC_PENTIUM_H_ */

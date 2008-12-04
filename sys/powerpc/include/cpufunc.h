@@ -50,6 +50,13 @@ struct thread;
 
 #ifdef KDB
 void breakpoint(void);
+#else
+static __inline void
+breakpoint(void)
+{
+
+	return;
+}
 #endif
 
 /* CPU register mangling inlines */

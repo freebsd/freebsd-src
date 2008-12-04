@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsrvcache.h>
 
+#ifdef NFS_LEGACYRPC
+
 static long numnfsrvcache;
 static long desirednfsrvcache;
 
@@ -265,7 +267,7 @@ loop:
 		if (rp->rc_flag & RC_REPMBUF)
 			m_freem(rp->rc_reply);
 		if (rp->rc_flag & RC_NAM)
-			FREE(rp->rc_nam, M_SONAME);
+			free(rp->rc_nam, M_SONAME);
 		rp->rc_flag &= (RC_LOCKED | RC_WANTED);
 	}
 	TAILQ_INSERT_TAIL(&nfsrvlruhead, rp, rc_lru);
@@ -385,3 +387,5 @@ nfsrv_cleancache(void)
 	}
 	numnfsrvcache = 0;
 }
+
+#endif /* NFS_LEGACYRPC */

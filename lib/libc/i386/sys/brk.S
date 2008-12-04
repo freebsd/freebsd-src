@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 	.globl	HIDENAME(minbrk)
 ENTRY(_brk)
 	jmp	ok
+END(_brk)
 
 ENTRY(brk)
 #ifdef PIC
@@ -84,3 +85,4 @@ ok:
 err:
 	jmp	HIDENAME(cerror)
 #endif
+END(brk)

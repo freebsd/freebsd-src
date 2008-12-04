@@ -46,11 +46,13 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
 #include <netinet/in_pcb.h>
+#include <netinet/vinet.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -60,19 +62,14 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
-unsigned long in6_maxmtu = 0;
-
-#ifdef IP6_AUTO_LINKLOCAL
-int ip6_auto_linklocal = IP6_AUTO_LINKLOCAL;
-#else
-int ip6_auto_linklocal = 1;	/* enable by default */
-#endif
-
+#ifdef VIMAGE_GLOBALS
+unsigned long in6_maxmtu;
+int ip6_auto_linklocal;
 struct callout in6_tmpaddrtimer_ch;
-
-extern struct inpcbinfo udbinfo;
 extern struct inpcbinfo ripcbinfo;
+#endif
 
 static int get_rand_ifid(struct ifnet *, struct in6_addr *);
 static int generate_tmp_ifid(u_int8_t *, const u_int8_t *, u_int8_t *);

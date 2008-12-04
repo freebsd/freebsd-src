@@ -364,7 +364,7 @@ ng_l2tp_constructor(node_p node)
 	int	i;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 	NG_NODE_SET_PRIVATE(node, priv);
@@ -428,8 +428,8 @@ ng_l2tp_newhook(node_p node, hook_p hook, const char *name)
 			return (EINVAL);
 
 		/* Create hook private structure */
-		MALLOC(hpriv, hookpriv_p,
-		    sizeof(*hpriv), M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
+		hpriv = malloc(sizeof(*hpriv),
+		    M_NETGRAPH_L2TP, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL)
 			return (ENOMEM);
 		hpriv->conf.session_id = session_id;
@@ -667,7 +667,7 @@ ng_l2tp_shutdown(node_p node)
 
 	mtx_destroy(&seq->mtx);
 
-	FREE(priv, M_NETGRAPH_L2TP);
+	free(priv, M_NETGRAPH_L2TP);
 
 	/* Unref node */
 	NG_NODE_UNREF(node);
@@ -691,7 +691,7 @@ ng_l2tp_disconnect(hook_p hook)
 	else {
 		const hookpriv_p hpriv = NG_HOOK_PRIVATE(hook);
 		LIST_REMOVE(hpriv, sessions);
-		FREE(hpriv, M_NETGRAPH_L2TP);
+		free(hpriv, M_NETGRAPH_L2TP);
 		NG_HOOK_SET_PRIVATE(hook, NULL);
 	}
 
@@ -733,7 +733,7 @@ ng_l2tp_reset_session(hook_p hook, void *arg)
 	if (hpriv != NULL) {
 		hpriv->conf.control_dseq = 0;
 		hpriv->conf.enable_dseq = 0;
-		bzero(&hpriv->conf, sizeof(struct ng_l2tp_session_stats));
+		bzero(&hpriv->stats, sizeof(struct ng_l2tp_session_stats));
 		hpriv->nr = 0;
 		hpriv->ns = 0;
 	}

@@ -99,7 +99,7 @@ typedef struct dt_proc_hash {
 } dt_proc_hash_t;
 
 extern struct ps_prochandle *dt_proc_create(dtrace_hdl_t *,
-    const char *, char *const *);
+    const char *, char *const *, proc_child_func *, void *);
 
 extern struct ps_prochandle *dt_proc_grab(dtrace_hdl_t *, pid_t, int, int);
 extern void dt_proc_release(dtrace_hdl_t *, struct ps_prochandle *);

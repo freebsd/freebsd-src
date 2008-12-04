@@ -1576,7 +1576,7 @@ main(int argc, char *argv[])
 				if ((v = make_argv(optarg)) == NULL)
 					fatal("failed to allocate memory");
 
-				P = dtrace_proc_create(g_dtp, v[0], v);
+				P = dtrace_proc_create(g_dtp, v[0], v, NULL, NULL);
 				if (P == NULL)
 					dfatal(NULL); /* dtrace_errmsg() only */
 

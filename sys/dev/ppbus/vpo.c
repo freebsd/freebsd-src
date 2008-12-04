@@ -63,8 +63,7 @@ struct vpo_sense {
 };
 
 struct vpo_data {
-	unsigned short vpo_unit;
-
+	device_t vpo_dev;
 	int vpo_stat;
 	int vpo_count;
 	int vpo_error;
@@ -94,7 +93,7 @@ vpo_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, "vpo", 0);
+	dev = device_find_child(parent, "vpo", -1);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "vpo", -1);
 }
@@ -109,12 +108,7 @@ vpo_probe(device_t dev)
 	int error;
 
 	vpo = DEVTOSOFTC(dev);
-
-	/* vpo dependent initialisation */
-	vpo->vpo_unit = device_get_unit(dev);
-
-	/* low level probe */
-	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
+	vpo->vpo_dev = dev;
 
 	/* check ZIP before ZIP+ or imm_probe() will send controls to
 	 * the printer or whatelse connected to the port */
@@ -184,29 +178,30 @@ vpo_attach(device_t dev)
 static void
 vpo_cam_rescan_callback(struct cam_periph *periph, union ccb *ccb)
 {
-        free(ccb, M_TEMP);
+
+	free(ccb, M_TEMP);
 }
 
 static void
 vpo_cam_rescan(struct vpo_data *vpo)
 {
-        struct cam_path *path;
-        union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
+	struct cam_path *path;
+	union ccb *ccb = malloc(sizeof(union ccb), M_TEMP, M_WAITOK | M_ZERO);
 
-        if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
-            != CAM_REQ_CMP) {
+	if (xpt_create_path(&path, xpt_periph, cam_sim_path(vpo->sim), 0, 0)
+	    != CAM_REQ_CMP) {
 		/* A failure is benign as the user can do a manual rescan */
 		free(ccb, M_TEMP);
-                return;
+		return;
 	}
 
-        xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
-        ccb->ccb_h.func_code = XPT_SCAN_BUS;
-        ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
-        ccb->crcn.flags = CAM_FLAG_NONE;
-        xpt_action(ccb);
+	xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
+	ccb->ccb_h.func_code = XPT_SCAN_BUS;
+	ccb->ccb_h.cbfcnp = vpo_cam_rescan_callback;
+	ccb->crcn.flags = CAM_FLAG_NONE;
+	xpt_action(ccb);
 
-        /* The scan is in progress now. */
+	/* The scan is in progress now. */
 }
 
 /*
@@ -238,7 +233,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 	}
 
 #ifdef VP0_DEBUG
-	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n",
 		 errno, vpo->vpo_stat, vpo->vpo_count, vpo->vpo_error);
 
 	/* dump of command */
@@ -257,8 +252,8 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 	/* if a timeout occured, no sense */
 	if (vpo->vpo_error) {
 		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
-			printf("vpo%d: VP0 error/timeout (%d)\n",
-				vpo->vpo_unit, vpo->vpo_error);
+			device_printf(vpo->vpo_dev, "VP0 error/timeout (%d)\n",
+				vpo->vpo_error);
 
 		csio->ccb_h.status = CAM_CMD_TIMEOUT;
 		goto error;
@@ -292,10 +287,10 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
 				&vpo->vpo_error);
 		}
-			
+
 
 #ifdef VP0_DEBUG
-		printf("(sense) vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+		printf("(sense) vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n",
 			errno, vpo->vpo_sense.stat, vpo->vpo_sense.count, vpo->vpo_error);
 #endif
 
@@ -319,7 +314,7 @@ vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 		}
 	   } else {
 		/* no sense */
-		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;			
+		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 	   }
 
 	   goto error;
@@ -348,10 +343,10 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		csio = &ccb->csio;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_SCSI_IO (0x%x) request\n",
-			vpo->vpo_unit, csio->cdb_io.cdb_bytes[0]);
+		device_printf(vpo->vpo_dev, "XPT_SCSI_IO (0x%x) request\n",
+			csio->cdb_io.cdb_bytes[0]);
 #endif
-		
+
 		vpo_intr(vpo, csio);
 
 		xpt_done(ccb);
@@ -365,8 +360,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		ccg = &ccb->ccg;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_CALC_GEOMETRY (bs=%d,vs=%jd,c=%d,h=%d,spt=%d) request\n",
-			vpo->vpo_unit,
+		device_printf(vpo->vpo_dev, "XPT_CALC_GEOMETRY (bs=%d,vs=%jd,c=%d,h=%d,spt=%d) request\n",
 			ccg->block_size,
 			(intmax_t)ccg->volume_size,
 			ccg->cylinders,
@@ -387,7 +381,7 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	{
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_RESET_BUS request\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "XPT_RESET_BUS request\n");
 #endif
 
 		if (vpo->vpo_isplus) {
@@ -411,9 +405,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
-		
+
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_PATH_INQ request\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "XPT_PATH_INQ request\n");
 #endif
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = 0;
@@ -445,9 +439,9 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 
 static void
 vpo_poll(struct cam_sim *sim)
-{       
-	/* The ZIP is actually always polled throw vpo_action() */
-	return;
+{
+
+	/* The ZIP is actually always polled throw vpo_action(). */
 }
 
 static devclass_t vpo_devclass;

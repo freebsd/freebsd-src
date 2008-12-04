@@ -432,6 +432,8 @@ FBSDprivate_1.0 {
 	_spinlock;
 	_spinlock_debug;
 	_spinunlock;
+	_rtld_atfork_pre;
+	_rtld_atfork_post;
 	_rtld_error;		/* for private use */
 	_rtld_thread_init;	/* for private use */
 	_err;

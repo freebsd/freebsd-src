@@ -550,7 +550,7 @@ register_cache_entry(struct cache_ *the_cache,
 		the_cache->entries = new_entries;
 	}
 
-	entry_name_size = strlen(params->entry_name);
+	entry_name_size = strlen(params->entry_name) + 1;
 	switch (params->entry_type)
 	{
 	case CET_COMMON:
@@ -564,9 +564,9 @@ register_cache_entry(struct cache_ *the_cache,
 		  (struct cache_entry_params *)&new_common_entry->common_params;
 
 		new_common_entry->common_params.entry_name = (char *)calloc(1,
-			entry_name_size+1);
+			entry_name_size);
 		assert(new_common_entry->common_params.entry_name != NULL);
-		strncpy(new_common_entry->common_params.entry_name,
+		strlcpy(new_common_entry->common_params.entry_name,
 			params->entry_name, entry_name_size);
 		new_common_entry->name =
 			new_common_entry->common_params.entry_name;
@@ -618,9 +618,9 @@ register_cache_entry(struct cache_ *the_cache,
 			(struct cache_entry_params *)&new_mp_entry->mp_params;
 
 		new_mp_entry->mp_params.entry_name = (char *)calloc(1,
-			entry_name_size+1);
+			entry_name_size);
 		assert(new_mp_entry->mp_params.entry_name != NULL);
-		strncpy(new_mp_entry->mp_params.entry_name, params->entry_name,
+		strlcpy(new_mp_entry->mp_params.entry_name, params->entry_name,
 			entry_name_size);
 		new_mp_entry->name = new_mp_entry->mp_params.entry_name;
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2008 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005 Tom Rhodes
  * Copyright (c) 2006 SPARTA, Inc.
@@ -57,6 +57,7 @@
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
@@ -65,6 +66,7 @@
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
+#include <security/mac_bsdextended/ugidfw_internal.h>
 
 static struct mtx ugidfw_mtx;
 
@@ -152,8 +154,8 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_IN(req, &temprule, sizeof(temprule));
 		if (error)
 			return (error);
-		MALLOC(ruleptr, struct mac_bsdextended_rule *,
-		    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK | M_ZERO);
+		ruleptr = malloc(sizeof(*ruleptr), M_MACBSDEXTENDED,
+		    M_WAITOK | M_ZERO);
 	}
 
 	mtx_lock(&ugidfw_mtx);
@@ -194,7 +196,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 out:
 	mtx_unlock(&ugidfw_mtx);
 	if (ruleptr != NULL)
-		FREE(ruleptr, M_MACBSDEXTENDED);
+		free(ruleptr, M_MACBSDEXTENDED);
 	if (req->oldptr && error == 0)
 		error = SYSCTL_OUT(req, &temprule, sizeof(temprule));
 	return (error);
@@ -213,7 +215,12 @@ ugidfw_init(struct mac_policy_conf *mpc)
 static void
 ugidfw_destroy(struct mac_policy_conf *mpc)
 {
+	int i;
 
+	for (i = 0; i < MAC_BSDEXTENDED_MAXRULES; i++) {
+		if (rules[i] != NULL)
+			free(rules[i], M_MACBSDEXTENDED);
+	}
 	mtx_destroy(&ugidfw_mtx);
 }
 
@@ -415,7 +422,7 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 		return (0);
 }
 
-static int
+int
 ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
     int acc_mode)
 {
@@ -445,7 +452,7 @@ ugidfw_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 	return (0);
 }
 
-static int
+int
 ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 {
 	int error;
@@ -459,274 +466,25 @@ ugidfw_check_vp(struct ucred *cred, struct vnode *vp, int acc_mode)
 	return (ugidfw_check(cred, vp, &vap, acc_mode));
 }
 
-/*
- * Object-specific entry point implementations are sorted alphabetically by
- * object type and then by operation.
- */
-static int
-ugidfw_system_check_acct(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
+int
+ugidfw_accmode2mbi(accmode_t accmode)
 {
+	int mbi;
 
-	if (vp != NULL)
-		return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-	else
-		return (0);
-}
-
-static int
-ugidfw_system_check_auditctl(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
-{
-
-	if (vp != NULL)
-		return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-	else
-		return (0);
-}
-
-static int
-ugidfw_system_check_swapon(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
-ugidfw_vnode_check_access(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
-{
-
-	return (ugidfw_check_vp(cred, vp, acc_mode));
-}
-
-static int
-ugidfw_vnode_check_chdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
-}
-
-static int
-ugidfw_vnode_check_chroot(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
-}
-
-static int
-ugidfw_check_create_vnode(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct componentname *cnp, struct vattr *vap)
-{
-
-	return (ugidfw_check_vp(cred, dvp, MBI_WRITE));
-}
-
-static int
-ugidfw_vnode_check_deleteacl(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, acl_type_t type)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_deleteextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
-ugidfw_vnode_check_exec(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, struct image_params *imgp,
-    struct label *execlabel)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_READ|MBI_EXEC));
-}
-
-static int
-ugidfw_vnode_check_getacl(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, acl_type_t type)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_STAT));
-}
-
-static int
-ugidfw_vnode_check_getextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_READ));
-}
-
-static int
-ugidfw_vnode_check_link(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *label,
-    struct componentname *cnp)
-{
-	int error;
-
-	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
-	if (error)
-		return (error);
-	error = ugidfw_check_vp(cred, vp, MBI_WRITE);
-	if (error)
-		return (error);
-	return (0);
-}
-
-static int
-ugidfw_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_READ));
-}
-
-static int
-ugidfw_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct componentname *cnp)
-{
-
-	return (ugidfw_check_vp(cred, dvp, MBI_EXEC));
-}
-
-static int
-ugidfw_vnode_check_open(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int acc_mode)
-{
-
-	return (ugidfw_check_vp(cred, vp, acc_mode));
-}
-
-static int
-ugidfw_vnode_check_readdir(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel)
-{
-
-	return (ugidfw_check_vp(cred, dvp, MBI_READ));
-}
-
-static int
-ugidfw_vnode_check_readdlink(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_READ));
-}
-
-static int
-ugidfw_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-	int error;
-
-	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
-	if (error)
-		return (error);
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
-ugidfw_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    int samedir, struct componentname *cnp)
-{
-	int error;
-
-	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
-	if (error)
-		return (error);
-	if (vp != NULL)
-		error = ugidfw_check_vp(cred, vp, MBI_WRITE);
-	return (error);
-}
-
-static int
-ugidfw_vnode_check_revoke(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_check_setacl_vnode(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, acl_type_t type, struct acl *acl)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_setextattr(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, int attrnamespace, const char *name,
-    struct uio *uio)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
-}
-
-static int
-ugidfw_vnode_check_setflags(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, u_long flags)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_setmode(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, mode_t mode)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_setowner(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, uid_t uid, gid_t gid)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_setutimes(struct ucred *cred, struct vnode *vp,
-    struct label *vplabel, struct timespec atime, struct timespec utime)
-{
-
-	return (ugidfw_check_vp(cred, vp, MBI_ADMIN));
-}
-
-static int
-ugidfw_vnode_check_stat(struct ucred *active_cred,
-    struct ucred *file_cred, struct vnode *vp, struct label *vplabel)
-{
-
-	return (ugidfw_check_vp(active_cred, vp, MBI_STAT));
-}
-
-static int
-ugidfw_vnode_check_unlink(struct ucred *cred, struct vnode *dvp,
-    struct label *dvplabel, struct vnode *vp, struct label *vplabel,
-    struct componentname *cnp)
-{
-	int error;
-
-	error = ugidfw_check_vp(cred, dvp, MBI_WRITE);
-	if (error)
-		return (error);
-	return (ugidfw_check_vp(cred, vp, MBI_WRITE));
+	mbi = 0;
+	if (accmode & VEXEC)
+		mbi |= MBI_EXEC;
+	if (accmode & VWRITE)
+		mbi |= MBI_WRITE;
+	if (accmode & VREAD)
+		mbi |= MBI_READ;
+	if (accmode & VADMIN)
+		mbi |= MBI_ADMIN;
+	if (accmode & VSTAT)
+		mbi |= MBI_STAT;
+	if (accmode & VAPPEND)
+		mbi |= MBI_APPEND;
+	return (mbi);
 }
 
 static struct mac_policy_ops ugidfw_ops =

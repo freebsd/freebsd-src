@@ -62,7 +62,7 @@ lpbb_identify(driver_t *driver, device_t parent)
 
 	device_t dev;
 
-	dev = device_find_child(parent, "lpbb", 0);
+	dev = device_find_child(parent, "lpbb", -1);
 	if (!dev)
 		BUS_ADD_CHILD(parent, 0, "lpbb", -1);
 }
@@ -84,7 +84,7 @@ static int
 lpbb_attach(device_t dev)
 {
 	device_t bitbang;
-	
+
 	/* add generic bit-banging code */
 	bitbang = device_add_child(dev, "iicbb", -1);
 	device_probe_and_attach(bitbang);
@@ -159,7 +159,7 @@ lpbb_setsda(device_t dev, char val)
 	mtx_lock(&Giant);
 	if (val == 0)
 		ppb_wdtr(ppbus, (u_char)SDA_out);
-	else                            
+	else
 		ppb_wdtr(ppbus, (u_char)~SDA_out);
 	mtx_unlock(&Giant);
 }
@@ -172,8 +172,8 @@ lpbb_setscl(device_t dev, unsigned char val)
 	mtx_lock(&Giant);
 	if (val == 0)
 		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) & ~SCL_out));
-	else                                               
-		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) | SCL_out)); 
+	else
+		ppb_wctr(ppbus, (u_char)(ppb_rctr(ppbus) | SCL_out));
 	mtx_unlock(&Giant);
 }
 

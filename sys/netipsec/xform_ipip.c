@@ -56,6 +56,7 @@
 #include <net/pfil.h>
 #include <net/route.h>
 #include <net/netisr.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -64,15 +65,15 @@
 #include <netinet/ip_ecn.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_encap.h>
+#ifdef MROUTING
+#include <netinet/ip_mroute.h>
+#endif
+#include <netinet/vinet.h>
 
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
 #include <netipsec/ipip_var.h>
-
-#ifdef MROUTING
-#include <netinet/ip_mroute.h>
-#endif
 
 #ifdef INET6
 #include <netinet/ip6.h>
@@ -91,8 +92,10 @@
  * We can control the acceptance of IP4 packets by altering the sysctl
  * net.inet.ipip.allow value.  Zero means drop them, all else is acceptance.
  */
-int	ipip_allow = 0;
+#ifdef VIMAGE_GLOBALS
+int	ipip_allow;
 struct	ipipstat ipipstat;
+#endif
 
 SYSCTL_DECL(_net_inet_ipip);
 SYSCTL_V_INT(V_NET, vnet_ipsec, _net_inet_ipip, OID_AUTO,
@@ -694,6 +697,9 @@ ipe4_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
 static void
 ipe4_attach(void)
 {
+
+	V_ipip_allow = 0;
+
 	xform_register(&ipe4_xformsw);
 	/* attach to encapsulation framework */
 	/* XXX save return cookie for detach on module remove */

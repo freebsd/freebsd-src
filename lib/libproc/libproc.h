@@ -33,6 +33,8 @@
 
 struct proc_handle;
 
+typedef void (*proc_child_func)(void *);
+
 /* Values returned by proc_state(). */
 #define PS_IDLE		1
 #define PS_STOP		2
@@ -55,7 +57,8 @@ int	proc_addr2sym(struct proc_handle *, uintptr_t, char *, size_t, GElf_Sym *);
 int	proc_attach(pid_t pid, int flags, struct proc_handle **pphdl);
 int	proc_continue(struct proc_handle *);
 int	proc_clearflags(struct proc_handle *, int);
-int	proc_create(const char *, char * const *, struct proc_handle **);
+int	proc_create(const char *, char * const *, proc_child_func *, void *,
+	    struct proc_handle **);
 int	proc_detach(struct proc_handle *);
 int	proc_getflags(struct proc_handle *);
 int	proc_name2sym(struct proc_handle *, const char *, const char *, GElf_Sym *);

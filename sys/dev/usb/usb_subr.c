@@ -322,16 +322,10 @@ usbd_delay_ms(usbd_device_handle dev, u_int ms)
 usbd_status
 usbd_reset_port(usbd_device_handle dev, int port, usb_port_status_t *ps)
 {
-	usb_device_request_t req;
 	usbd_status err;
 	int n;
 
-	req.bmRequestType = UT_WRITE_CLASS_OTHER;
-	req.bRequest = UR_SET_FEATURE;
-	USETW(req.wValue, UHF_PORT_RESET);
-	USETW(req.wIndex, port);
-	USETW(req.wLength, 0);
-	err = usbd_do_request(dev, &req, 0);
+	err = usbd_set_port_feature(dev, port, UHF_PORT_RESET);
 	DPRINTFN(1,("usbd_reset_port: port %d reset done, error=%s\n",
 		    port, usbd_errstr(err)));
 	if (err)
@@ -685,11 +679,11 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 		DPRINTF(("power exceeded %d %d\n", power,dev->powersrc->power));
 		/* XXX print nicer message. */
 		if (msg)
-			printf("%s: device addr %d (config %d) exceeds power "
-				 "budget, %d mA > %d mA\n",
-			       device_get_nameunit(dev->bus->bdev), dev->address,
-			       cdp->bConfigurationValue,
-			       power, dev->powersrc->power);
+			device_printf(dev->bus->bdev,
+				      "device addr %d (config %d) exceeds "
+				      "power budget, %d mA > %d mA\n",
+				      dev->address, cdp->bConfigurationValue,
+				      power, dev->powersrc->power);
 		err = USBD_NO_POWER;
 		goto bad;
 	}
@@ -930,7 +924,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 			usbd_devinfo(dev, 1, devinfo);
 			device_set_desc_copy(bdev, devinfo);
 			if (device_probe_and_attach(bdev) == 0) {
-				ifaces[i] = 0; /* consumed */
+				ifaces[i] = NULL; /* consumed */
 				found++;
 				/* create another child for the next iface */
 				bdev = device_add_child(parent, NULL, -1);
@@ -1023,8 +1017,7 @@ usbd_new_device(device_t parent, usbd_bus_handle bus, int depth,
 		 bus, port, depth, speed));
 	addr = usbd_getnewaddr(bus);
 	if (addr < 0) {
-		printf("%s: No free USB addresses, new device ignored.\n",
-		       device_get_nameunit(bus->bdev));
+		device_printf(bus->bdev, "No free USB addresses\n");
 		return (USBD_NO_ADDR);
 	}
 
@@ -1370,11 +1363,14 @@ usb_disconnect_port(struct usbd_port *up, device_t parent)
 	if (dev->subdevs != NULL) {
 		DPRINTFN(3,("usb_disconnect_port: disconnect subdevs\n"));
 		for (i = 0; dev->subdevs[i]; i++) {
-			printf("%s: at %s", device_get_nameunit(dev->subdevs[i]),
-			       hubname);
-			if (up->portno != 0)
-				printf(" port %d", up->portno);
-			printf(" (addr %d) disconnected\n", dev->address);
+			if (!device_is_quiet(dev->subdevs[i])) {
+				device_printf(dev->subdevs[i],
+						  "at %s", hubname);
+				if (up->portno != 0)
+					printf(" port %d", up->portno);
+				printf(" (addr %d) disconnected\n", dev->address);
+			}
+
 			struct usb_attach_arg *uaap =
 			    device_get_ivars(dev->subdevs[i]);
 			device_detach(dev->subdevs[i]);

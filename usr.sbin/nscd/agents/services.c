@@ -145,9 +145,8 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 	switch (lookup_type) {
 	case nss_lt_name:
 		size = key_size - sizeof(enum nss_lookup_type);
-		name = (char *)malloc(size + 1);
+		name = (char *)calloc(1, size + 1);
 		assert(name != NULL);
-		memset(name, 0, size + 1);
 		memcpy(name, key + sizeof(enum nss_lookup_type), size);
 
 		size2 = strlen(name) + 1;
@@ -169,9 +168,8 @@ services_lookup_func(const char *key, size_t key_size, char **buffer,
 
 		size = key_size - sizeof(enum nss_lookup_type) - sizeof(int);
 		if (size > 0) {
-			proto = (char *)malloc(size + 1);
+			proto = (char *)calloc(1, size + 1);
 			assert(proto != NULL);
-			memset(proto, size + 1, 0);
 			memcpy(proto, key + sizeof(enum nss_lookup_type) +
 				sizeof(int), size);
 		}
@@ -247,9 +245,8 @@ init_services_agent()
 	struct common_agent	*retval;
 	TRACE_IN(init_services_agent);
 
-	retval = (struct common_agent *)malloc(sizeof(struct common_agent));
+	retval = (struct common_agent *)calloc(1, sizeof(struct common_agent));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct common_agent));
 
 	retval->parent.name = strdup("services");
 	assert(retval->parent.name != NULL);
@@ -267,10 +264,9 @@ init_services_mp_agent()
 	struct multipart_agent	*retval;
 
 	TRACE_IN(init_services_mp_agent);
-	retval = (struct multipart_agent *)malloc(
+	retval = (struct multipart_agent *)calloc(1,
 		sizeof(struct multipart_agent));
 	assert(retval != NULL);
-	memset(retval, 0, sizeof(struct multipart_agent));
 
 	retval->parent.name = strdup("services");
 	retval->parent.type = MULTIPART_AGENT;

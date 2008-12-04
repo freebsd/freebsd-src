@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
@@ -94,6 +95,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 #include <netinet/tcp_var.h>
+#include <netinet/vinet.h>
+
 #include <netinet6/in6_ifattach.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/ip6protosw.h>
@@ -101,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -109,14 +113,16 @@ __FBSDID("$FreeBSD$");
 
 extern struct domain inet6domain;
 
-struct icmp6stat icmp6stat;
-
+#ifdef VIMAGE_GLOBALS
 extern struct inpcbinfo ripcbinfo;
 extern struct inpcbhead ripcb;
 extern int icmp6errppslim;
-static int icmp6errpps_count = 0;
-static struct timeval icmp6errppslim_last;
 extern int icmp6_nodeinfo;
+
+struct icmp6stat icmp6stat;
+static int icmp6errpps_count;
+static struct timeval icmp6errppslim_last;
+#endif
 
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
@@ -137,6 +143,8 @@ void
 icmp6_init(void)
 {
 	INIT_VNET_INET6(curvnet);
+
+	V_icmp6errpps_count = 0;
 
 	mld6_init();
 }

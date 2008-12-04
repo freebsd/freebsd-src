@@ -242,9 +242,9 @@ options 	SX_NOINLINE
 
 # SMP Debugging Options:
 #
-# PREEMPTION allows the threads that are in the kernel to be preempted
-#	  by higher priority threads.  It helps with interactivity and
-#	  allows interrupt threads to run sooner rather than waiting.
+# PREEMPTION allows the threads that are in the kernel to be preempted by
+#	  higher priority [interrupt] threads.  It helps with interactivity
+#	  and allows interrupt threads to run sooner rather than waiting.
 #	  WARNING! Only tested on amd64 and i386.
 # FULL_PREEMPTION instructs the kernel to preempt non-realtime kernel
 #	  threads.  Its sole use is to expose race conditions and other
@@ -1278,6 +1278,7 @@ options 	SES_ENABLE_PASSTHROUGH
 device		pty		#BSD-style compatibility pseudo ttys
 device		nmdm		#back-to-back tty devices
 device		md		#Memory/malloc disk
+device		snp		#Snoop device - to look at pty/vty/etc..
 device		ccd		#Concatenated disk driver
 device		firmware	#firmware(9) support
 
@@ -1579,6 +1580,7 @@ device		mly
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
+device 		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
@@ -1716,6 +1718,7 @@ device		miibus
 #       L2 PCI-Express FastEthernet controllers.
 # age:  Support for gigabit ethernet adapters based on the Attansic/Atheros
 #       L1 PCI express gigabit ethernet controllers.
+# ale:  Support for Atheros AR8121/AR8113/AR8114 PCIe ethernet controllers.
 # bce:	Broadcom NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet
 #       adapters.
 # bfe:	Broadcom BCM4401 Ethernet adapter.
@@ -1857,6 +1860,7 @@ device		xe
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		ae		# Attansic/Atheros L2 FastEthernet
 device		age		# Attansic/Atheros L1 Gigabit Ethernet
+device		ale		# Atheros AR8121/AR8113/AR8114 Ethernet
 device		bce		# Broadcom BCM5706/BCM5708 Gigabit Ethernet
 device		bfe		# Broadcom BCM440x 10/100 Ethernet
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
@@ -2216,10 +2220,13 @@ device		cardbus
 #
 # MMC/SD
 #
-# mmc: mmc bus
-# mmcsd: mmc memory and sd cards.
-#device		mmc
-#device		mmcsd
+# mmc 		MMC/SD bus
+# mmcsd		MMC/SD memory card
+# sdhci		Generic PCI SD Host Controller
+#
+device		mmc
+device		mmcsd
+device		sdhci
 
 #
 # SMB bus
@@ -2416,7 +2423,7 @@ device		uscanner
 #
 # USB serial support
 device		ucom
-# USB support for 3G modem cards by Option, Huawei and Sierra
+# USB support for 3G modem cards by Option, Novatel, Huawei and Sierra
 device		u3g
 # USB support for Technologies ARK3116 based serial adapters
 device		uark
@@ -2483,6 +2490,7 @@ device		rum
 # debugging options for the USB subsystem
 #
 options 	USB_DEBUG
+options		U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap

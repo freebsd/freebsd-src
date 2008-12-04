@@ -39,7 +39,7 @@
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
 
-/* User visable parameters */
+/* User visible parameters */
 #define UMA_SMALLEST_UNIT       (PAGE_SIZE / 256) /* Smallest item allocated */
 
 /* Types and type defs */
@@ -101,7 +101,8 @@ typedef void (*uma_dtor)(void *mem, int size, void *arg);
  *
  * Discussion:
  *	The initializer is called when the memory is cached in the uma zone. 
- *	this should be the same state that the destructor leaves the object in.
+ *	The initializer and the destructor should leave the object in the same
+ *	state.
  */
 typedef int (*uma_init)(void *mem, int size, int flags);
 
@@ -118,7 +119,7 @@ typedef int (*uma_init)(void *mem, int size, int flags);
  *
  * Discussion:
  *	This routine is called when memory leaves a zone and is returned to the
- *	system for other uses.  It is the counter part to the init function.
+ *	system for other uses.  It is the counter-part to the init function.
  */
 typedef void (*uma_fini)(void *mem, int size);
 
@@ -131,7 +132,7 @@ typedef void (*uma_fini)(void *mem, int size);
  * utilizing a known, stable state.  This differs from the constructor which
  * will be called on EVERY allocation.
  *
- * For example, in the initializer you may want to initialize embeded locks,
+ * For example, in the initializer you may want to initialize embedded locks,
  * NULL list pointers, set up initial states, magic numbers, etc.  This way if
  * the object is held in the allocator and re-used it won't be necessary to
  * re-initialize it.
@@ -148,17 +149,17 @@ typedef void (*uma_fini)(void *mem, int size);
  * Create a new uma zone
  *
  * Arguments:
- *	name  The text name of the zone for debugging and stats, this memory
+ *	name  The text name of the zone for debugging and stats. This memory
  *		should not be freed until the zone has been deallocated.
  *	size  The size of the object that is being created.
- *	ctor  The constructor that is called when the object is allocated
+ *	ctor  The constructor that is called when the object is allocated.
  *	dtor  The destructor that is called when the object is freed.
  *	init  An initializer that sets up the initial state of the memory.
  *	fini  A discard function that undoes initialization done by init.
  *		ctor/dtor/init/fini may all be null, see notes above.
- *	align A bitmask that corisponds to the requested alignment
+ *	align A bitmask that corresponds to the requested alignment
  *		eg 4 would be 0x3
- *	flags A set of parameters that control the behavior of the zone
+ *	flags A set of parameters that control the behavior of the zone.
  *
  * Returns:
  *	A pointer to a structure which is intended to be opaque to users of
@@ -172,9 +173,9 @@ uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
  * Create a secondary uma zone
  *
  * Arguments:
- *	name  The text name of the zone for debugging and stats, this memory
+ *	name  The text name of the zone for debugging and stats. This memory
  *		should not be freed until the zone has been deallocated.
- *	ctor  The constructor that is called when the object is allocated
+ *	ctor  The constructor that is called when the object is allocated.
  *	dtor  The destructor that is called when the object is freed.
  *	zinit  An initializer that sets up the initial state of the memory
  *		as the object passes from the Keg's slab to the Zone's cache.
@@ -212,7 +213,7 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 #define UMA_ZONE_PAGEABLE	0x0001	/* Return items not fully backed by
 					   physical memory XXX Not yet */
 #define UMA_ZONE_ZINIT		0x0002	/* Initialize with zeros */
-#define UMA_ZONE_STATIC		0x0004	/* Staticly sized zone */
+#define UMA_ZONE_STATIC		0x0004	/* Statically sized zone */
 #define UMA_ZONE_OFFPAGE	0x0008	/* Force the slab structure allocation
 					   off of the real memory */
 #define UMA_ZONE_MALLOC		0x0010	/* For use by malloc(9) only! */
@@ -256,9 +257,9 @@ void uma_zdestroy(uma_zone_t zone);
  *	flags See sys/malloc.h for available flags.
  *
  * Returns:
- *	A non null pointer to an initialized element from the zone is
- *	garanteed if the wait flag is M_WAITOK, otherwise a null pointer may be
- *	returned if the zone is empty or the ctor failed.
+ *	A non-null pointer to an initialized element from the zone is
+ *	guaranteed if the wait flag is M_WAITOK.  Otherwise a null pointer
+ *	may be returned if the zone is empty or the ctor failed.
  */
 
 void *uma_zalloc_arg(uma_zone_t zone, void *arg, int flags);
@@ -314,13 +315,13 @@ uma_zfree(uma_zone_t zone, void *item)
  * Backend page supplier routines
  *
  * Arguments:
- *	zone  The zone that is requesting pages
- *	size  The number of bytes being requested
+ *	zone  The zone that is requesting pages.
+ *	size  The number of bytes being requested.
  *	pflag Flags for these memory pages, see below.
  *	wait  Indicates our willingness to block.
  *
  * Returns:
- *	A pointer to the alloced memory or NULL on failure.
+ *	A pointer to the allocated memory or NULL on failure.
  */
 
 typedef void *(*uma_alloc)(uma_zone_t zone, int size, u_int8_t *pflag, int wait);
@@ -329,9 +330,9 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, u_int8_t *pflag, int wait)
  * Backend page free routines
  *
  * Arguments:
- *	item  A pointer to the previously allocated pages
- *	size  The original size of the allocation
- *	pflag The flags for the slab.  See UMA_SLAB_* below
+ *	item  A pointer to the previously allocated pages.
+ *	size  The original size of the allocation.
+ *	pflag The flags for the slab.  See UMA_SLAB_* below.
  *
  * Returns:
  *	None
@@ -403,9 +404,9 @@ void uma_set_align(int align);
  * Switches the backing object of a zone
  *
  * Arguments:
- *	zone  The zone to update
- *	obj   The obj to use for future allocations
- *	size  The size of the object to allocate
+ *	zone  The zone to update.
+ *	obj   The VM object to use for future allocations.
+ *	size  The size of the object to allocate.
  *
  * Returns:
  *	0  if kva space can not be allocated
@@ -435,7 +436,7 @@ void uma_zone_set_max(uma_zone_t zone, int nitems);
  * are used to set the backend init/fini pair which acts on an
  * object as it becomes allocated and is placed in a slab within
  * the specified zone's backing keg.  These should probably not
- * be changed once allocations have already begun and only
+ * be changed once allocations have already begun, but only be set
  * immediately upon zone creation.
  */
 void uma_zone_set_init(uma_zone_t zone, uma_init uminit);
@@ -446,8 +447,8 @@ void uma_zone_set_fini(uma_zone_t zone, uma_fini fini);
  * used to set the zinit/zfini pair which acts on an object as
  * it passes from the backing Keg's slab cache to the
  * specified Zone's bucket cache.  These should probably not
- * be changed once allocations have already begun and
- * only immediately upon zone creation.
+ * be changed once allocations have already begun, but only be set
+ * immediately upon zone creation.
  */
 void uma_zone_set_zinit(uma_zone_t zone, uma_init zinit);
 void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
@@ -456,7 +457,7 @@ void uma_zone_set_zfini(uma_zone_t zone, uma_fini zfini);
  * Replaces the standard page_alloc or obj_alloc functions for this zone
  *
  * Arguments:
- *	zone   The zone whos back end allocator is being changed.
+ *	zone   The zone whose backend allocator is being changed.
  *	allocf A pointer to the allocation function
  *
  * Returns:
@@ -484,7 +485,7 @@ void uma_zone_set_allocf(uma_zone_t zone, uma_alloc allocf);
 void uma_zone_set_freef(uma_zone_t zone, uma_free freef);
 
 /*
- * These flags are setable in the allocf and visable in the freef.
+ * These flags are setable in the allocf and visible in the freef.
  */
 #define UMA_SLAB_BOOT	0x01		/* Slab alloced from boot pages */
 #define UMA_SLAB_KMEM	0x02		/* Slab alloced from kmem_map */
@@ -537,9 +538,8 @@ int uma_zone_exhausted_nolock(uma_zone_t zone);
 
 /*
  * Exported statistics structures to be used by user space monitoring tools.
- * Statistics stream consusts of a uma_stream_header, followed by a series of
- * alternative uma_type_header and uma_type_stat structures.  Statistics
- * structures
+ * Statistics stream consists of a uma_stream_header, followed by a series of
+ * alternative uma_type_header and uma_type_stat structures.
  */
 #define	UMA_STREAM_VERSION	0x00000001
 struct uma_stream_header {
@@ -577,7 +577,7 @@ struct uma_type_header {
 };
 
 struct uma_percpu_stat {
-	u_int64_t	ups_allocs;	/* Cache: number of alloctions. */
+	u_int64_t	ups_allocs;	/* Cache: number of allocations. */
 	u_int64_t	ups_frees;	/* Cache: number of frees. */
 	u_int64_t	ups_cache_free;	/* Cache: free items in cache. */
 	u_int64_t	_ups_reserved[5];	/* Reserved. */

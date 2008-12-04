@@ -89,6 +89,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
+
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
@@ -98,6 +100,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/icmp6.h>
 #include <netinet6/nd6.h>
+#include <netinet6/vinet6.h>
 
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
@@ -219,20 +222,20 @@ in6_matroute(void *v_arg, struct radix_node_head *head)
 
 SYSCTL_DECL(_net_inet6_ip6);
 
-static int rtq_reallyold6 = 60*60;
-	/* one hour is ``really old'' */
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire,
-	CTLFLAG_RW, &rtq_reallyold6 , 0, "");
+#ifdef VIMAGE_GLOBALS
+static int rtq_reallyold6;
+static int rtq_minreallyold6;
+static int rtq_toomany6;
+#endif
 
-static int rtq_minreallyold6 = 10;
-	/* never automatically crank down to less */
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire,
-	CTLFLAG_RW, &rtq_minreallyold6 , 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTEXPIRE,
+    rtexpire, CTLFLAG_RW, rtq_reallyold6 , 0, "");
 
-static int rtq_toomany6 = 128;
-	/* 128 cached routes is ``too many'' */
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache,
-	CTLFLAG_RW, &rtq_toomany6 , 0, "");
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMINEXPIRE,
+    rtminexpire, CTLFLAG_RW, rtq_minreallyold6 , 0, "");
+
+SYSCTL_V_INT(V_NET, vnet_inet6, _net_inet6_ip6, IPV6CTL_RTMAXCACHE,
+    rtmaxcache, CTLFLAG_RW, rtq_toomany6 , 0, "");
 
 
 /*
@@ -324,8 +327,10 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static int rtq_timeout6 = RTQ_TIMEOUT;
+#ifdef VIMAGE_GLOBALS
+static int rtq_timeout6;
 static struct callout rtq_timer6;
+#endif
 
 static void
 in6_rtqtimo(void *rock)
@@ -387,7 +392,9 @@ struct mtuex_arg {
 	struct radix_node_head *rnh;
 	time_t nextstop;
 };
+#ifdef VIMAGE_GLOBALS
 static struct callout rtq_mtutimer;
+#endif
 
 static int
 in6_mtuexpire(struct radix_node *rn, void *rock)
@@ -477,6 +484,11 @@ in6_inithead(void **head, int off)
 
 	if (off == 0)		/* See above */
 		return 1;	/* only do the rest for the real thing */
+
+	V_rtq_reallyold6 = 60*60; /* one hour is ``really old'' */
+	V_rtq_minreallyold6 = 10; /* never automatically crank down to less */
+	V_rtq_toomany6 = 128;	  /* 128 cached routes is ``too many'' */
+	V_rtq_timeout6 = RTQ_TIMEOUT;
 
 	rnh = *head;
 	rnh->rnh_addaddr = in6_addroute;

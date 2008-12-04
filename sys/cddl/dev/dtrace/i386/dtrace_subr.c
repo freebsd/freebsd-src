@@ -403,7 +403,6 @@ dtrace_gethrtime_init(void *arg)
 {
 	cpumask_t map;
 	int i;
-	struct pcpu *cp;
 
 	/* The current CPU is the reference one. */
 	tsc_skew[curcpu] = 0;
@@ -412,7 +411,7 @@ dtrace_gethrtime_init(void *arg)
 		if (i == curcpu)
 			continue;
 
-		if ((cp = pcpu_find(i)) == NULL)
+		if (pcpu_find(i) == NULL)
 			continue;
 
 		map = 0;

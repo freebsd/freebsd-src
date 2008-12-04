@@ -165,7 +165,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	va = 0;
 	pgs = mdp->md_size / PAGE_SIZE;
 	pa = mdp->md_start;
-	maxdumppgs = di->maxiosize / PAGE_SIZE;
+	maxdumppgs = min(di->maxiosize / PAGE_SIZE, MAXDUMPPGS);
 	if (maxdumppgs == 0)	/* seatbelt */
 		maxdumppgs = 1;
 

@@ -267,6 +267,10 @@ make: .PHONY
 		${MMAKE} all && \
 		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
 
+tinderbox:
+	cd ${.CURDIR} && \
+		DOING_TINDERBOX=YES ${MAKE} ${JFLAG} universe
+
 #
 # universe
 #
@@ -274,14 +278,24 @@ make: .PHONY
 # with a reasonable chance of success, regardless of how old your
 # existing system is.
 #
-.if make(universe)
+.if make(universe) || make(tinderbox)
 TARGETS?=amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
+
+.if defined(DOING_TINDERBOX)
+FAILFILE=tinderbox.failed
+MAKEFAIL=tee -a ${FAILFILE}
+.else
+MAKEFAIL=cat
+.endif
 
 universe: universe_prologue
 universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
+.if defined(DOING_TINDERBOX)
+	rm -f ${FAILFILE}
+.endif
 .for target in ${TARGETS}
 KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 \
@@ -292,22 +306,28 @@ universe: universe_${target}
 universe_${target}:
 .if !defined(MAKE_JUST_KERNELS)
 	@echo ">> ${target} started on `LC_ALL=C date`"
-	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
+	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
+	    ${MAKE} ${JFLAG} buildworld \
 	    TARGET=${target} \
-	    __MAKE_CONF=/dev/null \
-	    > _.${target}.buildworld 2>&1
+	    > _.${target}.buildworld 2>&1 || \
+	    (echo "${target} world failed," \
+	    "check _.${target}.buildworld for details" | ${MAKEFAIL}))
 	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
 .endif
 .if exists(${.CURDIR}/sys/${target}/conf/NOTES)
-	-cd ${.CURDIR}/sys/${target}/conf && ${MAKE} LINT \
-	    > ${.CURDIR}/_.${target}.makeLINT 2>&1
+	@(cd ${.CURDIR}/sys/${target}/conf && env __MAKE_CONF=/dev/null \
+	    ${MAKE} LINT > ${.CURDIR}/_.${target}.makeLINT 2>&1 || \
+	    (echo "${target} 'make LINT' failed," \
+	    "check _.${target}.makeLINT for details"| ${MAKEFAIL}))
 .endif
 .for kernel in ${KERNCONFS}
-	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
+	@(cd ${.CURDIR} && env __MAKE_CONF=/dev/null \
+	    ${MAKE} ${JFLAG} buildkernel \
 	    TARGET=${target} \
 	    KERNCONF=${kernel} \
-	    __MAKE_CONF=/dev/null \
-	    > _.${target}.${kernel} 2>&1
+	    > _.${target}.${kernel} 2>&1 || \
+	    (echo "${target} ${kernel} kernel failed," \
+	    "check _.${target}.${kernel} for details"| ${MAKEFAIL}))
 .endfor
 	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
@@ -317,4 +337,11 @@ universe_epilogue:
 	@echo ">>> make universe completed on `LC_ALL=C date`"
 	@echo "                      (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
+.if defined(DOING_TINDERBOX)
+	@if [ -e ${FAILFILE} ] ; then \
+		echo "Tinderbox failed:" ;\
+		cat ${FAILFILE} ;\
+		exit 1 ;\
+	fi
+.endif
 .endif
