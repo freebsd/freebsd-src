@@ -121,7 +121,7 @@ static int
 nwfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *td;
 	} */ *ap;
@@ -131,7 +131,7 @@ nwfs_access(ap)
 	struct nwmount *nmp = VTONWFS(vp);
 
 	NCPVNDEBUG("\n");
-	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((ap->a_accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		    case VREG: case VDIR: case VLNK:
 			return (EROFS);
@@ -142,7 +142,7 @@ nwfs_access(ap)
 	mpmode = vp->v_type == VREG ? nmp->m.file_mode :
 	    nmp->m.dir_mode;
         return (vaccess(vp->v_type, mpmode, nmp->m.uid,
-            nmp->m.gid, ap->a_mode, ap->a_cred, NULL));
+            nmp->m.gid, ap->a_accmode, ap->a_cred, NULL));
 }
 /*
  * nwfs_open vnode op

@@ -240,7 +240,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	struct msdosfsmount *pmp = NULL;
 	struct nameidata ndp;
 	int error, flags;
-	mode_t accessmode;
+	accmode_t accmode;
 	char *from;
 
 	if (vfs_filteropt(mp->mnt_optnew, msdosfs_opts))
@@ -363,10 +363,10 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	accessmode = VREAD;
+	accmode = VREAD;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accessmode |= VWRITE;
-	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+		accmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
 	if (error)
 		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {

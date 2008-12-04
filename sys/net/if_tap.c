@@ -412,7 +412,7 @@ tapcreate(struct cdev *dev)
 	dev->si_flags &= ~SI_CHEAPCLONE;
 
 	/* allocate driver storage and create device */
-	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
+	tp = malloc(sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
 	mtx_init(&tp->tap_mtx, "tap_mtx", NULL, MTX_DEF);
 	mtx_lock(&tapmtx);
 	SLIST_INSERT_HEAD(&taphead, tp, tap_next);

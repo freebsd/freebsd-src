@@ -142,13 +142,11 @@ struct vfsopt;
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
- *	l - mnt_lock
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
  */
 struct mount {
-	struct lock	mnt_lock;		/* mount structure lock */
 	struct mtx	mnt_mtx;		/* mount structure interlock */
 	int		mnt_gen;		/* struct mount generation */
 #define	mnt_startzero	mnt_list
@@ -175,9 +173,7 @@ struct mount {
 	struct netexport *mnt_export;		/* export list */
 	struct label	*mnt_label;		/* MAC label for the fs */
 	u_int		mnt_hashseed;		/* Random seed for vfs_hash */
-	int		mnt_markercnt;		/* marker vnodes in use */
-	int		mnt_holdcnt;		/* hold count */
-	int		mnt_holdcntwaiters;	/* waits on hold count */
+	int		mnt_lockref;		/* (i) Lock reference count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 	struct thread	*mnt_susp_owner;	/* (i) thread owning suspension */
@@ -319,6 +315,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define MNTK_ASYNC	0x00000002	/* filtered async flag */
 #define MNTK_SOFTDEP	0x00000004	/* async disabled by softdep */
 #define MNTK_NOINSMNTQ	0x00000008	/* insmntque is not allowed */
+#define	MNTK_DRAINING	0x00000010	/* lock draining is happening */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
@@ -366,8 +363,23 @@ struct fhandle {
 typedef struct fhandle	fhandle_t;
 
 /*
+ * Old export arguments without security flavor list
+ */
+struct oexport_args {
+	int	ex_flags;		/* export related flags */
+	uid_t	ex_root;		/* mapping for root uid */
+	struct	xucred ex_anon;		/* mapping for anonymous user */
+	struct	sockaddr *ex_addr;	/* net address to which exported */
+	u_char	ex_addrlen;		/* and the net address length */
+	struct	sockaddr *ex_mask;	/* mask of valid bits in saddr */
+	u_char	ex_masklen;		/* and the smask length */
+	char	*ex_indexfile;		/* index file for WebNFS URLs */
+};
+
+/*
  * Export arguments for local filesystem mount calls.
  */
+#define	MAXSECFLAVORS	5
 struct export_args {
 	int	ex_flags;		/* export related flags */
 	uid_t	ex_root;		/* mapping for root uid */
@@ -377,6 +389,8 @@ struct export_args {
 	struct	sockaddr *ex_mask;	/* mask of valid bits in saddr */
 	u_char	ex_masklen;		/* and the smask length */
 	char	*ex_indexfile;		/* index file for WebNFS URLs */
+	int	ex_numsecflavors;	/* security flavor count */
+	int	ex_secflavors[MAXSECFLAVORS]; /* list of security flavors */
 };
 
 /*
@@ -439,6 +453,7 @@ struct ovfsconf {
 #define	VFCF_LOOPBACK	0x00100000	/* aliases some other mounted FS */
 #define	VFCF_UNICODE	0x00200000	/* stores file names as Unicode */
 #define	VFCF_JAIL	0x00400000	/* can be mounted from within a jail */
+#define	VFCF_DELEGADMIN	0x00800000	/* supports delegated administration */
 
 typedef uint32_t fsctlop_t;
 
@@ -506,6 +521,13 @@ struct uio;
 
 #ifdef _KERNEL
 
+/*
+ * vfs_busy specific flags and mask.
+ */
+#define	MBF_NOWAIT	0x01
+#define	MBF_MNTLSTLOCK	0x02
+#define	MBF_MASK	(MBF_NOWAIT | MBF_MNTLSTLOCK)
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MOUNT);
 #endif
@@ -536,7 +558,8 @@ typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 		    struct vnode **vpp);
 typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
 typedef	int vfs_checkexp_t(struct mount *mp, struct sockaddr *nam,
-		    int *extflagsp, struct ucred **credanonp);
+		    int *extflagsp, struct ucred **credanonp,
+		    int *numsecflavors, int **secflavors);
 typedef	int vfs_init_t(struct vfsconf *);
 typedef	int vfs_uninit_t(struct vfsconf *);
 typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
@@ -578,8 +601,8 @@ vfs_statfs_t	__vfs_statfs;
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
 #define VFS_FHTOVP(MP, FIDP, VPP) \
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
-#define VFS_CHECKEXP(MP, NAM, EXFLG, CRED) \
-	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
+#define VFS_CHECKEXP(MP, NAM, EXFLG, CRED, NUMSEC, SEC)	\
+	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED, NUMSEC, SEC)
 #define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
 #define VFS_SYSCTL(MP, OP, REQ) \
@@ -686,7 +709,7 @@ int	vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 void	vfs_msync(struct mount *, int);
-int	vfs_busy(struct mount *, int, struct mtx *);
+int	vfs_busy(struct mount *, int);
 int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
 int	vfs_allocate_syncvnode(struct mount *);
@@ -694,6 +717,7 @@ int	vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
+struct	mount *vfs_busyfs(fsid_t *);
 int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */

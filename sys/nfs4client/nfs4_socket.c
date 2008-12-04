@@ -180,7 +180,7 @@ nfs4_connect(struct nfsmount *nmp)
 	struct thread * td = curthread;
 #endif
 
-	MALLOC(auth, struct rpc_auth *, sizeof(struct rpc_auth), M_TEMP, M_WAITOK);
+	auth = malloc(sizeof(struct rpc_auth), M_TEMP, M_WAITOK);
 	auth->auth_type  = RPCAUTH_UNIX;
 
 	/* translate nfs flags -> rpcclnt flags */

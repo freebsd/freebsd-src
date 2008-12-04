@@ -88,3 +88,4 @@ back:
 err:
 	jmp	HIDENAME(cerror)
 #endif /* PIC */
+END(sbrk)

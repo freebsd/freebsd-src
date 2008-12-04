@@ -342,7 +342,7 @@ to register an error code and message and return
 .Fo archive_write_callback
 .Fa "struct archive *"
 .Fa "void *client_data"
-.Fa "void *buffer"
+.Fa "const void *buffer"
 .Fa "size_t length"
 .Fc
 .El
@@ -410,7 +410,7 @@ myopen(struct archive *a, void *client_data)
 }
 
 ssize_t
-mywrite(struct archive *a, void *client_data, void *buff, size_t n)
+mywrite(struct archive *a, void *client_data, const void *buff, size_t n)
 {
   struct mydata *mydata = client_data;
 

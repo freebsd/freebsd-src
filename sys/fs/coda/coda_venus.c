@@ -347,7 +347,7 @@ venus_setattr(void *mdp, CodaFid *fid, struct vattr *vap, struct ucred *cred)
 }
 
 int
-venus_access(void *mdp, CodaFid *fid, int mode, struct ucred *cred,
+venus_access(void *mdp, CodaFid *fid, accmode_t accmode, struct ucred *cred,
     struct proc *p)
 {
 	DECL_NO_OUT(coda_access);		/* sets Isize & Osize */
@@ -362,8 +362,10 @@ venus_access(void *mdp, CodaFid *fid, int mode, struct ucred *cred,
 	/*
 	 * NOTE: FreeBSD and Venus internals use the "data" in the low 3
 	 * bits.  Hence, the conversion.
+	 *
+	 * XXX: We cast accmode_t variable into an int.
 	 */
-	inp->flags = mode>>6;
+	inp->flags = (int)accmode>>6;
 
 	error = coda_call(mdp, Isize, &Osize, (char *)inp);
 

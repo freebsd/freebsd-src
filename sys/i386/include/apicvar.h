@@ -114,14 +114,14 @@
 
 #define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 2)
 #ifdef XEN
-#define	IPI_RENDEZVOUS		(0)	/* Inter-CPU rendezvous. */
-#define	IPI_INVLTLB		(1)	/* TLB Shootdown IPIs */
-#define	IPI_INVLPG		(2)
-#define	IPI_INVLRNG		(3)
-#define	IPI_INVLCACHE		(4)
-#define	IPI_LAZYPMAP		(5)	/* Lazy pmap release. */
+#define	IPI_RENDEZVOUS		(2)	/* Inter-CPU rendezvous. */
+#define	IPI_INVLTLB		(3)	/* TLB Shootdown IPIs */
+#define	IPI_INVLPG		(4)
+#define	IPI_INVLRNG		(5)
+#define	IPI_INVLCACHE		(6)
+#define	IPI_LAZYPMAP		(7)	/* Lazy pmap release. */
 /* Vector to handle bitmap based IPIs */
-#define	IPI_BITMAP_VECTOR	(6)
+#define	IPI_BITMAP_VECTOR	(8)
 
 #else
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */

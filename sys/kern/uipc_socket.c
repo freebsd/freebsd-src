@@ -98,6 +98,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_mac.h"
 #include "opt_zero.h"
 #include "opt_compat.h"
@@ -136,9 +137,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_IA32
 #include <sys/mount.h>
+#include <sys/sysent.h>
 #include <compat/freebsd32/freebsd32.h>
-
-extern struct sysentvec ia32_freebsd_sysvec;
 #endif
 
 static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
@@ -347,6 +347,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	if (jailed(cred) && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
+#ifdef INET6
+	    prp->pr_domain->dom_family != PF_INET6 &&
+#endif
 	    prp->pr_domain->dom_family != PF_ROUTE) {
 		return (EPROTONOSUPPORT);
 	}
@@ -2218,6 +2221,9 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			if ((so->so_proto->pr_domain->dom_family == PF_INET) ||
 			    (so->so_proto->pr_domain->dom_family == PF_ROUTE)) {
 				so->so_fibnum = optval;
+				/* Note: ignore error */
+				if (so->so_proto && so->so_proto->pr_ctloutput)
+					(*so->so_proto->pr_ctloutput)(so, sopt);
 			} else {
 				so->so_fibnum = 0;
 			}
@@ -2277,7 +2283,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
 #ifdef COMPAT_IA32
-			if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
 				error = sooptcopyin(sopt, &tv32, sizeof tv32,
@@ -2458,7 +2464,7 @@ integer:
 			tv.tv_sec = optval / hz;
 			tv.tv_usec = (optval % hz) * tick;
 #ifdef COMPAT_IA32
-			if (curthread->td_proc->p_sysent == &ia32_freebsd_sysvec) {
+			if (SV_CURPROC_FLAG(SV_ILP32)) {
 				struct timeval32 tv32;
 
 				CP(tv, tv32, tv_sec);

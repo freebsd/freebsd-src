@@ -32,7 +32,7 @@
 
 struct RioCommand
 {
-  u_int16_t  length;
+  uint16_t  length;
   int   request;
   int   requesttype;
   int   value;

@@ -173,8 +173,7 @@ static void
 cfe_cninit(struct consdev *cp)
 {
 
-	sprintf(cp->cn_name, "cfecons");
-	cp->cn_tp = cfe_tp;
+	strcpy(cp->cn_name, "cfecons");
 }
 
 static void

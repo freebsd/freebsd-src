@@ -7,8 +7,7 @@ MDASM=	vfork.S brk.S cerror.S exect.S getcontext.S pipe.S ptrace.S \
 	reboot.S sbrk.S setlogin.S sigreturn.S
 
 # Don't generate default code for these syscalls:
-NOASM=	break.o exit.o getdomainname.o getlogin.o openbsd_poll.o \
-	setdomainname.o sstk.o uname.o vfork.o yield.o
+NOASM=	break.o exit.o getlogin.o openbsd_poll.o sstk.o vfork.o yield.o
 
 PSEUDO=	_getlogin.o _exit.o
 .if !defined(WITHOUT_SYSCALL_COMPAT)

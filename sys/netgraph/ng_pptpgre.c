@@ -280,7 +280,7 @@ ng_pptpgre_constructor(node_p node)
 	int i;
 
 	/* Allocate private structure */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
@@ -519,7 +519,7 @@ ng_pptpgre_shutdown(node_p node)
 	LIST_REMOVE(&priv->uppersess, sessions);
 	mtx_destroy(&priv->uppersess.mtx);
 
-	FREE(priv, M_NETGRAPH);
+	free(priv, M_NETGRAPH);
 
 	/* Decrement ref count */
 	NG_NODE_UNREF(node);

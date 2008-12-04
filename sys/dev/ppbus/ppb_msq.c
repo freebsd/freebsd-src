@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 static struct ppb_xfer *
 mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 {
-	int index, epp;
+	int index, epp, mode;
 	struct ppb_xfer *table;
 
 	switch (opcode) {
@@ -72,7 +72,8 @@ mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 	}
 
 	/* retrieve the device operating mode */
-	switch (ppb_get_mode(bus)) {
+	mode = ppb_get_mode(bus);
+	switch (mode) {
 	case PPB_COMPATIBLE:
 		index = COMPAT_MSQ;
 		break;
@@ -99,7 +100,7 @@ mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 		index = ECP_MSQ;
 		break;
 	default:
-		panic("%s: unknown mode (%d)", __func__, ppbdev->mode);
+		panic("%s: unknown mode (%d)", __func__, mode);
 	}
 
 	return (&table[index]);
@@ -209,7 +210,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 				__func__, param);
 
 #if 0
-		printf("%s: param = %d, ins = %d, arg = %d, type = %d\n", 
+		printf("%s: param = %d, ins = %d, arg = %d, type = %d\n",
 			__func__, param, ins, arg, type);
 #endif
 
@@ -271,7 +272,7 @@ ppb_MS_microseq(device_t bus, device_t dev, struct ppb_microseq *msq, int *ret)
 
 	mi = msq;
 	for (;;) {
-		switch (mi->opcode) {                                           
+		switch (mi->opcode) {
 		case MS_OP_PUT:
 		case MS_OP_GET:
 
@@ -314,11 +315,10 @@ ppb_MS_microseq(device_t bus, device_t dev, struct ppb_microseq *msq, int *ret)
 			INCR_PC;
 			break;
 
-                case MS_OP_RET:
+		case MS_OP_RET:
 			if (ret)
 				*ret = mi->arg[0].i;	/* return code */
 			return (0);
-                        break;
 
 		default:
 			/* executing microinstructions at ppc level is

@@ -87,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
 #endif /* TCPDEBUG */
+#include <netinet/vinet.h>
+
+#ifdef INET6
+#include <netinet6/vinet6.h>
+#endif
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -99,7 +104,21 @@ __FBSDID("$FreeBSD$");
 
 static const int tcprexmtthresh = 3;
 
+#ifdef VIMAGE_GLOBALS
 struct	tcpstat tcpstat;
+int	blackhole;
+int	tcp_delack_enabled;
+int	drop_synfin;
+int	tcp_do_rfc3042;
+int	tcp_do_rfc3390;
+int	tcp_do_ecn;
+int	tcp_ecn_maxretries;
+int	tcp_insecure_rst;
+int	tcp_do_autorcvbuf;
+int	tcp_autorcvbuf_inc;
+int	tcp_autorcvbuf_max;
+#endif
+
 SYSCTL_V_STRUCT(V_NET, vnet_inet, _net_inet_tcp, TCPCTL_STATS, stats,
     CTLFLAG_RW, tcpstat , tcpstat,
     "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
@@ -108,59 +127,50 @@ int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &tcp_log_in_vain, 0, "Log all incoming TCP segments to closed ports");
 
-static int blackhole = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
     blackhole, 0, "Do not send RST on segments to closed ports");
 
-int tcp_delack_enabled = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, delayed_ack,
     CTLFLAG_RW, tcp_delack_enabled, 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
-static int drop_synfin = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, drop_synfin,
     CTLFLAG_RW, drop_synfin, 0, "Drop TCP packets with SYN+FIN set");
 
-static int tcp_do_rfc3042 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
     tcp_do_rfc3042, 0, "Enable RFC 3042 (Limited Transmit)");
 
-static int tcp_do_rfc3390 = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
-int	tcp_do_ecn = 0;
-int	tcp_ecn_maxretries = 1;
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, enable,
     CTLFLAG_RW, tcp_do_ecn, 0, "TCP ECN support");
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp_ecn, OID_AUTO, maxretries,
     CTLFLAG_RW, tcp_ecn_maxretries, 0, "Max retries before giving up on ECN");
 
-static int tcp_insecure_rst = 0;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, insecure_rst,
     CTLFLAG_RW, tcp_insecure_rst, 0,
     "Follow the old (insecure) criteria for accepting RST packets");
 
-int	tcp_do_autorcvbuf = 1;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_auto,
     CTLFLAG_RW, tcp_do_autorcvbuf, 0,
     "Enable automatic receive buffer sizing");
 
-int	tcp_autorcvbuf_inc = 16*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_inc,
     CTLFLAG_RW, tcp_autorcvbuf_inc, 0,
     "Incrementor step size of automatic receive buffer");
 
-int	tcp_autorcvbuf_max = 256*1024;
 SYSCTL_V_INT(V_NET, vnet_inet, _net_inet_tcp, OID_AUTO, recvbuf_max,
     CTLFLAG_RW, tcp_autorcvbuf_max, 0,
     "Max size of automatic receive buffer");
 
+#ifdef VIMAGE_GLOBALS
 struct inpcbhead tcb;
-#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
+#endif
+#define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 
 static void	 tcp_dooptions(struct tcpopt *, u_char *, int, int);
 static void	 tcp_do_segment(struct mbuf *, struct tcphdr *,
@@ -896,19 +906,12 @@ findpcb:
 
 dropwithreset:
 	INP_INFO_WLOCK_ASSERT(&V_tcbinfo);
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 
-	/*
-	 * If inp is non-NULL, we call tcp_dropwithreset() holding both inpcb
-	 * and global locks.  However, if NULL, we must hold neither as
-	 * firewalls may acquire the global lock in order to look for a
-	 * matching inpcb.
-	 */
 	if (inp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
 		INP_WUNLOCK(inp);
-	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
-	if (inp == NULL)
+	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 	m = NULL;	/* mbuf chain got consumed. */
 	goto drop;
@@ -925,7 +928,6 @@ drop:
 		free(s, M_TCPLOG);
 	if (m != NULL)
 		m_freem(m);
-	return;
 }
 
 static void
@@ -1509,7 +1511,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 *   only accepting RSTs where the sequence number is equal to
 	 *   last_ack_sent.  In all other states (the states in which a
 	 *   RST is more likely), the more permissive check is used.
-	 * If we have multiple segments in flight, the intial reset
+	 * If we have multiple segments in flight, the initial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
 	 * In any case, it never made sense to trim reset segments to
@@ -2499,19 +2501,12 @@ dropafterack:
 
 dropwithreset:
 	KASSERT(headlocked, ("%s: dropwithreset: head not locked", __func__));
+	INP_INFO_WUNLOCK(&V_tcbinfo);
 
-	/*
-	 * If tp is non-NULL, we call tcp_dropwithreset() holding both inpcb
-	 * and global locks.  However, if NULL, we must hold neither as
-	 * firewalls may acquire the global lock in order to look for a
-	 * matching inpcb.
-	 */
 	if (tp != NULL) {
 		tcp_dropwithreset(m, th, tp, tlen, rstreason);
 		INP_WUNLOCK(tp->t_inpcb);
-	}
-	INP_INFO_WUNLOCK(&V_tcbinfo);
-	if (tp == NULL)
+	} else
 		tcp_dropwithreset(m, th, NULL, tlen, rstreason);
 	return;
 
@@ -2529,7 +2524,6 @@ drop:
 	if (headlocked)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 	m_freem(m);
-	return;
 }
 
 /*
@@ -2588,7 +2582,6 @@ tcp_dropwithreset(struct mbuf *m, struct tcphdr *th, struct tcpcb *tp,
 	return;
 drop:
 	m_freem(m);
-	return;
 }
 
 /*
@@ -2829,7 +2822,8 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  * segment. Outgoing SYN/ACK MSS settings are handled in tcp_mssopt().
  */
 void
-tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
+tcp_mss_update(struct tcpcb *tp, int offer,
+    struct hc_metrics_lite *metricptr, int *mtuflags)
 {
 	INIT_VNET_INET(tp->t_inpcb->inp_vnet);
 	int mss;
@@ -2837,7 +2831,6 @@ tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
 	struct inpcb *inp = tp->t_inpcb;
 	struct hc_metrics_lite metrics;
 	int origoffer = offer;
-	int mtuflags = 0;
 #ifdef INET6
 	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
 	size_t min_protoh = isipv6 ?
@@ -2852,24 +2845,28 @@ tcp_mss_update(struct tcpcb *tp, int offer, struct hc_metrics_lite *metricptr)
 	/* Initialize. */
 #ifdef INET6
 	if (isipv6) {
-		maxmtu = tcp_maxmtu6(&inp->inp_inc, &mtuflags);
+		maxmtu = tcp_maxmtu6(&inp->inp_inc, mtuflags);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_v6mssdflt;
 	} else
 #endif
 	{
-		maxmtu = tcp_maxmtu(&inp->inp_inc, &mtuflags);
+		maxmtu = tcp_maxmtu(&inp->inp_inc, mtuflags);
 		tp->t_maxopd = tp->t_maxseg = V_tcp_mssdflt;
 	}
 
 	/*
 	 * No route to sender, stay with default mss and return.
 	 */
-	if (maxmtu == 0)
+	if (maxmtu == 0) {
+		/*
+		 * In case we return early we need to initialize metrics
+		 * to a defined state as tcp_hc_get() would do for us
+		 * if there was no cache hit.
+		 */
+		if (metricptr != NULL)
+			bzero(metricptr, sizeof(struct hc_metrics_lite));
 		return;
-
-	/* Check the interface for TSO capabilities. */
-	if (mtuflags & CSUM_TSO)
-		tp->t_flags |= TF_TSO;
+	}
 
 	/* What have we got? */
 	switch (offer) {
@@ -2989,12 +2986,14 @@ tcp_mss(struct tcpcb *tp, int offer)
 	struct inpcb *inp;
 	struct socket *so;
 	struct hc_metrics_lite metrics;
+	int mtuflags = 0;
 #ifdef INET6
 	int isipv6;
 #endif
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
+	INIT_VNET_INET(tp->t_vnet);
 	
-	tcp_mss_update(tp, offer, &metrics);
+	tcp_mss_update(tp, offer, &metrics, &mtuflags);
 
 	mss = tp->t_maxseg;
 	inp = tp->t_inpcb;
@@ -3107,6 +3106,10 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->snd_cwnd = mss * V_ss_fltsz_local;
 	else
 		tp->snd_cwnd = mss * V_ss_fltsz;
+
+	/* Check the interface for TSO capabilities. */
+	if (mtuflags & CSUM_TSO)
+		tp->t_flags |= TF_TSO;
 }
 
 /*

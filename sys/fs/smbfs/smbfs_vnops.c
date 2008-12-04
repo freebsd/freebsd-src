@@ -123,18 +123,18 @@ static int
 smbfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	mode_t mode = ap->a_mode;
+	accmode_t accmode = ap->a_accmode;
 	mode_t mpmode;
 	struct smbmount *smp = VTOSMBFS(vp);
 
 	SMBVDEBUG("\n");
-	if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		    case VREG: case VDIR: case VLNK:
 			return EROFS;
@@ -144,7 +144,7 @@ smbfs_access(ap)
 	}
 	mpmode = vp->v_type == VREG ? smp->sm_file_mode : smp->sm_dir_mode;
 	return (vaccess(vp->v_type, mpmode, smp->sm_uid,
-	    smp->sm_gid, ap->a_mode, ap->a_cred, NULL));
+	    smp->sm_gid, ap->a_accmode, ap->a_cred, NULL));
 }
 
 /* ARGSUSED */

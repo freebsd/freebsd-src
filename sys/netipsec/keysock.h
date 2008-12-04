@@ -58,6 +58,11 @@ struct pfkeystat {
 	u_quad_t sockerr;		/* # of socket related errors */
 };
 
+struct key_cb {
+	int key_count;
+	int any_count;
+};
+
 #define KEY_SENDUP_ONE		0
 #define KEY_SENDUP_ALL		1
 #define KEY_SENDUP_REGISTERED	2

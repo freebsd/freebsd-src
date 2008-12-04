@@ -295,11 +295,9 @@
 160	AUE_LGETFH	UNIMPL	lgetfh
 161	AUE_NFS_GETFH	NOPROTO	{ int getfh(char *fname, \
 				    struct fhandle *fhp); }
-162	AUE_SYSCTL	NOPROTO	{ int getdomainname(char *domainname, \
-				    int len); }
-163	AUE_SYSCTL	NOPROTO	{ int setdomainname(char *domainname, \
-				    int len); }
-164	AUE_NULL	NOPROTO	{ int uname(struct utsname *name); }
+162	AUE_NULL	OBSOL	getdomainname
+163	AUE_NULL	OBSOL	setdomainname
+164	AUE_NULL	OBSOL	uname
 165	AUE_SYSARCH	NOPROTO	{ int sysarch(int op, char *parms); }
 166	AUE_RTPRIO	NOPROTO	{ int rtprio(int function, pid_t pid, \
 				    struct rtprio *rtp); }
@@ -350,8 +348,8 @@
 195	AUE_SETRLIMIT	NOPROTO	{ int setrlimit(u_int which, \
 				    struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
-196	AUE_GETDIRENTRIES	NOPROTO	{ int getdirentries(int fd, char *buf, \
-				    u_int count, long *basep); }
+196	AUE_GETDIRENTRIES	STD	{ int freebsd32_getdirentries(int fd, \
+				    char *buf, u_int count, int32_t *basep); }
 197	AUE_MMAP	COMPAT6	{ caddr_t freebsd32_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, u_int32_t poslo, \
@@ -574,7 +572,7 @@
 				    off_t *sbytes, int flags); }
 337	AUE_NULL	NOPROTO	{ int kldsym(int fileid, int cmd, \
 				    void *data); }
-338	AUE_JAIL	NOPROTO	{ int jail(struct jail *jail); }
+338	AUE_JAIL	STD	{ int freebsd32_jail(struct jail32 *jail); }
 339	AUE_NULL	UNIMPL	pioctl
 340	AUE_SIGPROCMASK	NOPROTO	{ int sigprocmask(int how, \
 				    const sigset_t *set, sigset_t *oset); }
@@ -854,3 +852,5 @@
 503	AUE_UNLINKAT	NOPROTO	{ int unlinkat(int fd, char *path, \
 				    int flag); }
 504	AUE_POSIX_OPENPT	NOPROTO	{ int posix_openpt(int flags); }
+; 505 is initialised by the kgssapi code, if present.
+505	AUE_NULL	UNIMPL	gssd_syscall

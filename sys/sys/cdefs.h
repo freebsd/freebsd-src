@@ -103,9 +103,6 @@
 
 #define __CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
 
-/* XXX: sys/dev/mpt/mpilib/mpi_type.h uses it, someone should review it */
-#define __CC_INT_IS_32BIT 1
-
 #endif /* __GNUC__ || __INTEL_COMPILER */
 
 /*

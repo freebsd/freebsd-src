@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 #include <rpc/rpcclnt.h>
+#include <rpc/rpc.h>
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -92,18 +93,22 @@ SYSCTL_STRUCT(_vfs_nfs, NFS_NFSSTATS, nfsstats, CTLFLAG_RW,
 	&nfsstats, nfsstats, "S,nfsstats");
 static int nfs_ip_paranoia = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_ip_paranoia, CTLFLAG_RW,
-    &nfs_ip_paranoia, 0, "");
+    &nfs_ip_paranoia, 0,
+    "Disallow accepting replies from IPs which differ from those sent");
 #ifdef NFS_DEBUG
 int nfs_debug;
-SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0,
+    "Toggle debug flag");
 #endif
 static int nfs_tprintf_initial_delay = NFS_TPRINTF_INITIAL_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
-        downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0, "");
+    downdelayinitial, CTLFLAG_RW, &nfs_tprintf_initial_delay, 0,
+    "Delay before printing \"nfs server not responding\" messages");
 /* how long between console messages "nfs server foo not responding" */
 static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
-        downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
+    downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0,
+    "Delay between printing \"nfs server not responding\" messages");
 
 static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 		    struct nfs_args *argp, const char *hostname);
@@ -138,6 +143,12 @@ VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 
 /* So that loader and kldload(2) can find us, wherever we are.. */
 MODULE_VERSION(nfs, 1);
+#ifndef NFS_LEGACYRPC
+MODULE_DEPEND(nfs, krpc, 1, 1, 1);
+#endif
+#ifdef KGSSAPI
+MODULE_DEPEND(nfs, kgssapi, 1, 1, 1);
+#endif
 
 static struct nfs_rpcops nfs_rpcops = {
 	nfs_readrpc,
@@ -158,14 +169,15 @@ struct nfsv3_diskless nfsv3_diskless = { { { 0 } } };
 int nfs_diskless_valid = 0;
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, diskless_valid, CTLFLAG_RD,
-	&nfs_diskless_valid, 0, "");
+    &nfs_diskless_valid, 0,
+    "Has the diskless struct been filled correctly");
 
 SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
-	nfsv3_diskless.root_hostnam, 0, "");
+    nfsv3_diskless.root_hostnam, 0, "Path to nfs root");
 
 SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
-	&nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
-	"%Ssockaddr_in", "");
+    &nfsv3_diskless.root_saddr, sizeof nfsv3_diskless.root_saddr,
+    "%Ssockaddr_in", "Diskless root nfs address");
 
 
 void		nfsargs_ntoh(struct nfs_args *);
@@ -258,7 +270,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 #ifndef nolint
 	sfp = NULL;
 #endif
-	error = vfs_busy(mp, LK_NOWAIT, NULL);
+	error = vfs_busy(mp, MBF_NOWAIT);
 	if (error)
 		return (error);
 	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np, LK_EXCLUSIVE);
@@ -541,6 +553,26 @@ nfs_mountdiskless(char *path,
 	return (0);
 }
 
+#ifndef NFS_LEGACYRPC
+static int
+nfs_sec_name_to_num(char *sec)
+{
+	if (!strcmp(sec, "krb5"))
+		return (RPCSEC_GSS_KRB5);
+	if (!strcmp(sec, "krb5i"))
+		return (RPCSEC_GSS_KRB5I);
+	if (!strcmp(sec, "krb5p"))
+		return (RPCSEC_GSS_KRB5P);
+	if (!strcmp(sec, "sys"))
+		return (AUTH_SYS);
+	/*
+	 * Userland should validate the string but we will try and
+	 * cope with unexpected values.
+	 */
+	return (AUTH_SYS);
+}
+#endif
+
 static void
 nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	const char *hostname)
@@ -549,6 +581,10 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	int adjsock;
 	int maxio;
 	char *p;
+#ifndef NFS_LEGACYRPC
+	char *secname;
+	char *principal;
+#endif
 
 	s = splnet();
 
@@ -700,7 +736,13 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 	nmp->nm_sotype = argp->sotype;
 	nmp->nm_soproto = argp->proto;
 
-	if (nmp->nm_so && adjsock) {
+	if (
+#ifdef NFS_LEGACYRPC
+		nmp->nm_so
+#else
+		nmp->nm_client
+#endif
+	    && adjsock) {
 		nfs_safedisconnect(nmp);
 		if (nmp->nm_sotype == SOCK_DGRAM)
 			while (nfs_connect(nmp, NULL)) {
@@ -716,6 +758,24 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 		if (p)
 			*p = '\0';
 	}
+
+#ifndef NFS_LEGACYRPC
+	if (vfs_getopt(mp->mnt_optnew, "sec",
+		(void **) &secname, NULL) == 0) {
+		nmp->nm_secflavor = nfs_sec_name_to_num(secname);
+	} else {
+		nmp->nm_secflavor = AUTH_SYS;
+	}
+
+	if (vfs_getopt(mp->mnt_optnew, "principal",
+		(void **) &principal, NULL) == 0) {
+		strlcpy(nmp->nm_principal, principal,
+		    sizeof(nmp->nm_principal));
+	} else {
+		snprintf(nmp->nm_principal, sizeof(nmp->nm_principal),
+		    "nfs@%s", nmp->nm_hostname);
+	}
+#endif
 }
 
 static const char *nfs_opts[] = { "from", "nfs_args",
@@ -724,8 +784,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "async", "dumbtimer", "noconn", "nolockd", "intr", "rdirplus", "resvport",
     "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", 
-    "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3",
-    "maxgroups",
+    "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
+    "maxgroups", "principal",
     NULL };
 
 /*
@@ -987,7 +1047,7 @@ nfs_mount(struct mount *mp, struct thread *td)
 			error = ENAMETOOLONG;
 			goto out;
 		}
-		MALLOC(nam, struct sockaddr *, args.addrlen, M_SONAME,
+		nam = malloc(args.addrlen, M_SONAME,
 		    M_WAITOK);
 		bcopy(args.addr, nam, args.addrlen);
 		nam->sa_len = args.addrlen;
@@ -1119,7 +1179,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
-		FREE(nam, M_SONAME);
+		free(nam, M_SONAME);
 		return (0);
 	} else {
 		nmp = uma_zalloc(nfsmount_zone, M_WAITOK);
@@ -1226,7 +1286,7 @@ bad:
 	nfs_disconnect(nmp);
 	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);
-	FREE(nam, M_SONAME);
+	free(nam, M_SONAME);
 	return (error);
 }
 
@@ -1263,7 +1323,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 	 * We are now committed to the unmount.
 	 */
 	nfs_disconnect(nmp);
-	FREE(nmp->nm_nam, M_SONAME);
+	free(nmp->nm_nam, M_SONAME);
 
 	mtx_destroy(&nmp->nm_mtx);
 	uma_zfree(nfsmount_zone, nmp);

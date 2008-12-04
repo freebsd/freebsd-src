@@ -596,6 +596,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	 * I/O Flex PCI I/O Card Model-223 with 4 serial and 1 parallel ports.
 	 */
 
+	{   0x1415, 0x9501, 0x131f, 0x2050,
+	    "SIIG Cyber 4 PCI 16550",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
 	{   0x1415, 0x9501, 0x131f, 0x2051,
 	    "SIIG Cyber 4S PCI 16C650 (20x family)",
 	    DEFAULT_RCLK * 10,

@@ -387,6 +387,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		case CPU_IMPL_ULTRASPARCII:
 		case CPU_IMPL_ULTRASPARCIIi:
 		case CPU_IMPL_ULTRASPARCIIe:
+		case CPU_IMPL_ULTRASPARCIII:	/* NB: we've disabled P$. */
+		case CPU_IMPL_ULTRASPARCIIIp:
+		case CPU_IMPL_ULTRASPARCIIIi:
+		case CPU_IMPL_ULTRASPARCIV:
+		case CPU_IMPL_ULTRASPARCIVp:
+		case CPU_IMPL_ULTRASPARCIIIip:
 			cpu_block_copy = spitfire_block_copy;
 			cpu_block_zero = spitfire_block_zero;
 			break;
@@ -772,7 +778,7 @@ sparc64_shutdown_final(void *dummy, int howto)
 	/* Turn the power off? */
 	if ((howto & RB_POWEROFF) != 0)
 		cpu_shutdown(&args);
-	/* In case of halt, return to the firmware */
+	/* In case of halt, return to the firmware. */
 	if ((howto & RB_HALT) != 0)
 		cpu_halt();
 }

@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
@@ -86,8 +87,10 @@ static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
 
-static int dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
-static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
+#ifdef VIMAGE_GLOBALS
+int dad_ignore_ns;
+int dad_maxtry;
+#endif
 
 /*
  * Input a Neighbor Solicitation Message.
@@ -151,7 +154,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			    "(wrong ip6 dst)\n"));
 			goto bad;
 		}
-	} else if (!nd6_onlink_ns_rfc4861) {
+	} else if (!V_nd6_onlink_ns_rfc4861) {
 		struct sockaddr_in6 src_sa6;
 
 		/*
@@ -1096,8 +1099,10 @@ struct dadq {
 	struct callout dad_timer_ch;
 };
 
+#ifdef VIMAGE_GLOBALS
 static struct dadq_head dadq;
-static int dad_init = 0;
+int dad_init;
+#endif
 
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)

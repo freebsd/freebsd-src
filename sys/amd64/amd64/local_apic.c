@@ -323,7 +323,7 @@ lapic_setup(int boot)
 
 	/* XXX: Error and thermal LVTs */
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		/*
 		 * Detect the presence of C1E capability mostly on latest
 		 * dual-cores (or future) k8 family.  This feature renders
@@ -401,7 +401,10 @@ lapic_setup_clock(void)
 		lapic_timer_hz = hz * 2;
 	else
 		lapic_timer_hz = hz * 4;
-	stathz = lapic_timer_hz / (lapic_timer_hz / 128);
+	if (lapic_timer_hz < 128)
+		stathz = lapic_timer_hz;
+	else
+		stathz = lapic_timer_hz / (lapic_timer_hz / 128);
 	profhz = lapic_timer_hz;
 	lapic_timer_period = value / lapic_timer_hz;
 

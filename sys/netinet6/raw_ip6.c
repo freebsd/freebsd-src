@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/errno.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -83,12 +84,15 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_systm.h>
-#include <netinet/icmp6.h>
 #include <netinet/in_pcb.h>
+#include <netinet/vinet.h>
+
+#include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_mroute.h>
@@ -97,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -112,12 +117,14 @@ __FBSDID("$FreeBSD$");
  * Raw interface to IP6 protocol.
  */
 
+#ifdef VIMAGE_GLOBALS
 extern struct	inpcbhead ripcb;
 extern struct	inpcbinfo ripcbinfo;
+struct rip6stat rip6stat;
+#endif
+
 extern u_long	rip_sendspace;
 extern u_long	rip_recvspace;
-
-struct rip6stat rip6stat;
 
 /*
  * Hooks for multicast forwarding.
@@ -160,6 +167,7 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	INP_INFO_RLOCK(&V_ripcbinfo);
 	LIST_FOREACH(in6p, &V_ripcb, inp_list) {
+		/* XXX inp locking */
 		if ((in6p->in6p_vflag & INP_IPV6) == 0)
 			continue;
 		if (in6p->in6p_ip6_nxt &&
@@ -171,6 +179,10 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_faddr) &&
 		    !IN6_ARE_ADDR_EQUAL(&in6p->in6p_faddr, &ip6->ip6_src))
 			continue;
+		if (jailed(in6p->inp_cred)) {
+			if (!prison_check_ip6(in6p->inp_cred, &ip6->ip6_dst))
+				continue;
+		}
 		INP_RLOCK(in6p);
 		if (in6p->in6p_cksum != -1) {
 			V_rip6stat.rip6s_isum++;
@@ -399,6 +411,11 @@ rip6_output(m, va_alist)
 			error = EADDRNOTAVAIL;
 		goto bad;
 	}
+	if (jailed(in6p->inp_cred))
+		if (prison_getip6(in6p->inp_cred, in6a) != 0) {
+			error = EPERM;
+			goto bad;
+		}
 	ip6->ip6_src = *in6a;
 
 	if (oifp && scope_ambiguous) {
@@ -565,15 +582,14 @@ rip6_attach(struct socket *so, int proto, struct thread *td)
 	error = soreserve(so, rip_sendspace, rip_recvspace);
 	if (error)
 		return (error);
-	MALLOC(filter, struct icmp6_filter *,
-	       sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
+	filter = malloc(sizeof(struct icmp6_filter), M_PCB, M_NOWAIT);
 	if (filter == NULL)
 		return (ENOMEM);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	error = in_pcballoc(so, &V_ripcbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&V_ripcbinfo);
-		FREE(filter, M_PCB);
+		free(filter, M_PCB);
 		return (error);
 	}
 	inp = (struct inpcb *)so->so_pcb;
@@ -602,9 +618,9 @@ rip6_detach(struct socket *so)
 	/* xxx: RSVP */
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
-	FREE(inp->in6p_icmp6filt, M_PCB);
-	in6_pcbdetach(inp);
-	in6_pcbfree(inp);
+	free(inp->in6p_icmp6filt, M_PCB);
+	in_pcbdetach(inp);
+	in_pcbfree(inp);
 	INP_INFO_WUNLOCK(&V_ripcbinfo);
 }
 
@@ -662,6 +678,8 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	if (nam->sa_len != sizeof(*addr))
 		return (EINVAL);
+	if (!prison_check_ip6(td->td_ucred, &addr->sin6_addr))
+		return (EADDRNOTAVAIL);
 	if (TAILQ_EMPTY(&V_ifnet) || addr->sin6_family != AF_INET6)
 		return (EADDRNOTAVAIL);
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
@@ -764,7 +782,6 @@ static int
 rip6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
     struct mbuf *control, struct thread *td)
 {
-	INIT_VNET_INET(so->so_vnet);
 	struct inpcb *inp;
 	struct sockaddr_in6 tmp;
 	struct sockaddr_in6 *dst;

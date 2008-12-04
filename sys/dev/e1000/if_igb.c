@@ -34,6 +34,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
+#include "opt_inet.h"
 #endif
 
 #include <sys/param.h>
@@ -94,7 +95,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 1.4.0";
+char igb_driver_version[] = "version - 1.4.1";
 
 
 /*********************************************************************
@@ -802,7 +803,9 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
 	struct ifreq *ifr = (struct ifreq *)data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	int error = 0;
 
 	if (adapter->in_detach)
@@ -810,6 +813,7 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFADDR:
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			/*
 			 * XXX
@@ -826,6 +830,7 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 			arp_ifinit(ifp, ifa);
 		} else
+#endif
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
@@ -2437,9 +2442,9 @@ igb_hardware_init(struct adapter *adapter)
 
 	/* Set Flow control, use the tunable location if sane */
 	if ((igb_fc_setting >= 0) || (igb_fc_setting < 4))
-		adapter->hw.fc.type = igb_fc_setting;
+		adapter->hw.fc.requested_mode = igb_fc_setting;
 	else
-		adapter->hw.fc.type = e1000_fc_none;
+		adapter->hw.fc.requested_mode = e1000_fc_none;
 
 	if (e1000_init_hw(&adapter->hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
@@ -3478,19 +3483,18 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			device_printf(dev,"LRO Initialization failed!\n");
 			goto fail;
 		}
-		device_printf(dev,"RX LRO Initialized\n");
+		INIT_DEBUGOUT("RX LRO Initialized\n");
 		lro->ifp = adapter->ifp;
 	}
 
 	return (0);
 fail:
 	/*
-	 * We need to clean up any buffers allocated so far
-	 * 'j' is the failing index, decrement it to get the
-	 * last success.
+	 * We need to clean up any buffers allocated
+	 * so far, 'j' is the failing index.
 	 */
-	for (--j; j < 0; j--) {
-		rxbuf = &rxr->rx_buffers[j];
+	for (int i = 0; i < j; i++) {
+		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->m_head != NULL) {
 			bus_dmamap_sync(rxr->rxtag, rxbuf->map,
 			    BUS_DMASYNC_POSTREAD);
@@ -3511,9 +3515,9 @@ static int
 igb_setup_receive_structures(struct adapter *adapter)
 {
 	struct rx_ring *rxr = adapter->rx_rings;
-	int i, j;
+	int j;
 
-	for (i = 0; i < adapter->num_rx_queues; i++, rxr++)
+	for (j = 0; j < adapter->num_rx_queues; j++, rxr++)
 		if (igb_setup_receive_ring(rxr))
 			goto fail;
 
@@ -3522,14 +3526,13 @@ fail:
 	/*
 	 * Free RX buffers allocated so far, we will only handle
 	 * the rings that completed, the failing case will have
-	 * cleaned up for itself. The value of 'i' will be the
-	 * failed ring so we must pre-decrement it.
+	 * cleaned up for itself. Clean up til 'j', the failure.
 	 */
-	rxr = adapter->rx_rings;
-	for (--i; i > 0; i--, rxr++) {
-		for (j = 0; j < adapter->num_rx_desc; j++) {
+	for (int i = 0; i < j; i++) {
+		rxr = &adapter->rx_rings[i];
+		for (int n = 0; n < adapter->num_rx_desc; n++) {
 			struct igb_buffer *rxbuf;
-			rxbuf = &rxr->rx_buffers[j];
+			rxbuf = &rxr->rx_buffers[n];
 			if (rxbuf->m_head != NULL) {
 				bus_dmamap_sync(rxr->rxtag, rxbuf->map,
 			  	  BUS_DMASYNC_POSTREAD);

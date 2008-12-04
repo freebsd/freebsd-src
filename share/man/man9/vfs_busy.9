@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2008
+.Dd November 2, 2008
 .Dt VFS_BUSY 9
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn vfs_busy "struct mount *mp" "int flags" "struct mtx *interlkp"
+.Fn vfs_busy "struct mount *mp" "int flags"
 .Sh DESCRIPTION
 The
 .Fn vfs_busy
@@ -56,33 +56,22 @@ flag is
 set.
 .Pp
 Its arguments are:
-.Bl -tag -width ".Fa interlkp"
+.Bl -tag -width ".Fa flags"
 .It Fa mp
 The mount point to busy.
 .It Fa flags
 Flags controlling how
 .Fn vfs_busy
 should act.
-.Bl -tag -width ".Dv LK_NOWAIT"
-.It Dv LK_NOWAIT
+.Bl -tag -width ".Dv MBF_MNTLSTLOCK"
+.It Dv MBF_NOWAIT
 do not sleep if
 .Dv MNTK_UNMOUNT
 is set.
+.It Dv MBF_MNTLSTLOCK
+drop the mountlist_mtx in the critical path.
 .El
-.It Fa interlkp
-The interlock mutex for
-.Fa mp->mount_lock .
-If there is any chance
-the mount point is being unmounted and
-.Dv LK_NOWAIT
-is not set then
-interlock must be valid locked mutex.
 .El
-.Sh LOCKS
-If
-.Fa interlkp
-is a valid pointer it must be locked on entry,
-and it will not be unlocked even in the case of an error.
 .Sh RETURN VALUES
 A 0 value is returned on success.
 If the mount point is being

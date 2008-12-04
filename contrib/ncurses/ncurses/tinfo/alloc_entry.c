@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,7 +48,7 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.47 2006/12/16 19:06:58 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.48 2008/08/16 16:25:31 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
@@ -145,7 +145,8 @@ NCURSES_EXPORT(void)
 _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 /* copy the string parts to allocated storage, preserving pointers to it */
 {
-    int offsets[MAX_ENTRY_SIZE / 2], useoffsets[MAX_USES];
+    int offsets[MAX_ENTRY_SIZE / sizeof(short)];
+    int useoffsets[MAX_USES];
     unsigned i, n;
     unsigned nuses = ep->nuses;
     TERMTYPE *tp = &(ep->tterm);
@@ -171,14 +172,18 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	free(tp->str_table);
     }
 
-    n = tp->term_names - stringbuf;
+    assert(tp->term_names >= stringbuf);
+    n = (unsigned) (tp->term_names - stringbuf);
     for_each_string(i, &(ep->tterm)) {
-	if (tp->Strings[i] == ABSENT_STRING)
-	    offsets[i] = ABSENT_OFFSET;
-	else if (tp->Strings[i] == CANCELLED_STRING)
-	    offsets[i] = CANCELLED_OFFSET;
-	else
-	    offsets[i] = tp->Strings[i] - stringbuf;
+	if (i < SIZEOF(offsets)) {
+	    if (tp->Strings[i] == ABSENT_STRING) {
+		offsets[i] = ABSENT_OFFSET;
+	    } else if (tp->Strings[i] == CANCELLED_STRING) {
+		offsets[i] = CANCELLED_OFFSET;
+	    } else {
+		offsets[i] = tp->Strings[i] - stringbuf;
+	    }
+	}
     }
 
     for (i = 0; i < nuses; i++) {
@@ -194,28 +199,33 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 
     tp->term_names = tp->str_table + n;
     for_each_string(i, &(ep->tterm)) {
-	if (offsets[i] == ABSENT_OFFSET)
-	    tp->Strings[i] = ABSENT_STRING;
-	else if (offsets[i] == CANCELLED_OFFSET)
-	    tp->Strings[i] = CANCELLED_STRING;
-	else
-	    tp->Strings[i] = tp->str_table + offsets[i];
+	if (i < SIZEOF(offsets)) {
+	    if (offsets[i] == ABSENT_OFFSET) {
+		tp->Strings[i] = ABSENT_STRING;
+	    } else if (offsets[i] == CANCELLED_OFFSET) {
+		tp->Strings[i] = CANCELLED_STRING;
+	    } else {
+		tp->Strings[i] = tp->str_table + offsets[i];
+	    }
+	}
     }
 
 #if NCURSES_XNAMES
     if (!copy_strings) {
-	if ((n = NUM_EXT_NAMES(tp)) != 0) {
-	    unsigned length = 0;
-	    for (i = 0; i < n; i++) {
-		length += strlen(tp->ext_Names[i]) + 1;
-		offsets[i] = tp->ext_Names[i] - stringbuf;
-	    }
-	    if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
-		  _nc_err_abort(MSG_NO_MEMORY);
-	    for (i = 0, length = 0; i < n; i++) {
-		tp->ext_Names[i] = tp->ext_str_table + length;
-		strcpy(tp->ext_Names[i], stringbuf + offsets[i]);
-		length += strlen(tp->ext_Names[i]) + 1;
+	if ((n = (unsigned) NUM_EXT_NAMES(tp)) != 0) {
+	    if (n < SIZEOF(offsets)) {
+		unsigned length = 0;
+		for (i = 0; i < n; i++) {
+		    length += strlen(tp->ext_Names[i]) + 1;
+		    offsets[i] = tp->ext_Names[i] - stringbuf;
+		}
+		if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
+		      _nc_err_abort(MSG_NO_MEMORY);
+		for (i = 0, length = 0; i < n; i++) {
+		    tp->ext_Names[i] = tp->ext_str_table + length;
+		    strcpy(tp->ext_Names[i], stringbuf + offsets[i]);
+		    length += strlen(tp->ext_Names[i]) + 1;
+		}
 	    }
 	}
     }
@@ -245,13 +255,13 @@ _nc_merge_entry(TERMTYPE *const to, TERMTYPE *const from)
 	    if (mergebool == CANCELLED_BOOLEAN)
 		to->Booleans[i] = FALSE;
 	    else if (mergebool == TRUE)
-		to->Booleans[i] = mergebool;
+		to->Booleans[i] = (char) mergebool;
 	}
     }
 
     for_each_number(i, from) {
 	if (to->Numbers[i] != CANCELLED_NUMERIC) {
-	    int mergenum = from->Numbers[i];
+	    short mergenum = from->Numbers[i];
 
 	    if (mergenum == CANCELLED_NUMERIC)
 		to->Numbers[i] = ABSENT_NUMERIC;

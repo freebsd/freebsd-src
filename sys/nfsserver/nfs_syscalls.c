@@ -73,6 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
 
+#ifdef NFS_LEGACYRPC
+
 static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
 MALLOC_DEFINE(M_NFSRVDESC, "nfss_srvdesc", "NFS server socket descriptor");
@@ -89,11 +91,14 @@ static int	notstarted = 1;
 
 static int	nfs_privport = 0;
 SYSCTL_INT(_vfs_nfsrv, NFS_NFSPRIVPORT, nfs_privport, CTLFLAG_RW,
-	    &nfs_privport, 0, "");
+    &nfs_privport, 0,
+    "Only allow clients using a privileged port");
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay, CTLFLAG_RW,
-	    &nfsrvw_procrastinate, 0, "");
+    &nfsrvw_procrastinate, 0,
+    "Delay value for write gathering");
 SYSCTL_INT(_vfs_nfsrv, OID_AUTO, gatherdelay_v3, CTLFLAG_RW,
-	    &nfsrvw_procrastinate_v3, 0, "");
+    &nfsrvw_procrastinate_v3, 0,
+    "Delay in seconds for NFSv3 write gathering");
 
 static int	nfssvc_addsock(struct file *, struct sockaddr *);
 static void	nfsrv_zapsock(struct nfssvc_sock *slp);
@@ -127,7 +132,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 {
 	struct file *fp;
 	struct sockaddr *nam;
-	struct nfsd_args nfsdarg;
+	struct nfsd_addsock_args nfsdarg;
 	int error;
 
 	KASSERT(!mtx_owned(&Giant), ("nfssvc(): called with Giant"));
@@ -167,7 +172,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 		}
 		error = nfssvc_addsock(fp, nam);
 		fdrop(fp, td);
-	} else if (uap->flag & NFSSVC_NFSD) {
+	} else if (uap->flag & NFSSVC_OLDNFSD) {
 		error = nfssvc_nfsd();
 	} else {
 		error = ENXIO;
@@ -202,7 +207,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 		tslp = nfs_udpsock;
 		if (tslp->ns_flag & SLP_VALID) {
 			if (mynam != NULL)
-				FREE(mynam, M_SONAME);
+				free(mynam, M_SONAME);
 			return (EPERM);
 		}
 	}
@@ -211,7 +216,7 @@ nfssvc_addsock(struct file *fp, struct sockaddr *mynam)
 	error = soreserve(so, siz, siz);
 	if (error) {
 		if (mynam != NULL)
-			FREE(mynam, M_SONAME);
+			free(mynam, M_SONAME);
 		return (error);
 	}
 
@@ -459,7 +464,7 @@ nfssvc_nfsd()
 				nfsrvstats.srv_errs++;
 				nfsrv_updatecache(nd, FALSE, mreq);
 				if (nd->nd_nam2)
-					FREE(nd->nd_nam2, M_SONAME);
+					free(nd->nd_nam2, M_SONAME);
 				break;
 			}
 			nfsrvstats.srvrpccnt[nd->nd_procnum]++;
@@ -496,7 +501,7 @@ nfssvc_nfsd()
 			    m_freem(m);
 			}
 			if (nd->nd_nam2)
-				FREE(nd->nd_nam2, M_SONAME);
+				free(nd->nd_nam2, M_SONAME);
 			if (nd->nd_mrep)
 				m_freem(nd->nd_mrep);
 			if (error == EPIPE)
@@ -515,13 +520,13 @@ nfssvc_nfsd()
 		    case RC_DROPIT:
 			m_freem(nd->nd_mrep);
 			if (nd->nd_nam2)
-				FREE(nd->nd_nam2, M_SONAME);
+				free(nd->nd_nam2, M_SONAME);
 			break;
 		    };
 		    if (nd) {
 			if (nd->nd_cr != NULL)
 				crfree(nd->nd_cr);
-			FREE((caddr_t)nd, M_NFSRVDESC);
+			free((caddr_t)nd, M_NFSRVDESC);
 			nd = NULL;
 		    }
 
@@ -596,12 +601,12 @@ nfsrv_zapsock(struct nfssvc_sock *slp)
 		closef(fp, NULL);
 		NFSD_LOCK();
 		if (slp->ns_nam)
-			FREE(slp->ns_nam, M_SONAME);
+			free(slp->ns_nam, M_SONAME);
 		m_freem(slp->ns_raw);
 		while ((rec = STAILQ_FIRST(&slp->ns_rec)) != NULL) {
 			STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
 			if (rec->nr_address)
-				FREE(rec->nr_address, M_SONAME);
+				free(rec->nr_address, M_SONAME);
 			m_freem(rec->nr_packet);
 			free(rec, M_NFSRVDESC);
 		}
@@ -724,3 +729,5 @@ nfsrv_init(int terminating)
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);
 #endif
 }
+
+#endif /* NFS_LEGACYRPC */

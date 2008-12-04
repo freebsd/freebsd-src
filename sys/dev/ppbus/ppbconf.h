@@ -178,7 +178,6 @@ struct ppb_context {
  * List of IVARS available to ppb device drivers
  */
 #define PPBUS_IVAR_MODE 0
-#define PPBUS_IVAR_AVM	1
 
 /* other fields are reserved to the ppbus internals */
 
@@ -186,9 +185,6 @@ struct ppb_device {
 
 	const char *name;		/* name of the device */
 
-	u_short mode;			/* current mode of the device */
-	u_short avm;			/* available IEEE1284 modes of 
-					 * the device */
 	u_int flags;			/* flags */
 
 	struct ppb_context ctx;		/* context of the device */
@@ -202,20 +198,18 @@ struct ppb_device {
 					 * IEEE1284 code is used */
 	struct ppb_xfer
 		put_xfer[PPB_MAX_XFER];
-  
+
  	struct resource *intr_resource;
  	void *intr_cookie;
-
-	void *drv1, *drv2;		/* drivers private data */
 };
 
 /* EPP standards */
 #define EPP_1_9		0x0			/* default */
 #define EPP_1_7		0x1
-  
+
 /* Parallel Port Chipset IVARS */		/* elsewhere XXX */
 #define PPC_IVAR_EPP_PROTO	0
- 
+
 /*
  * Maximum size of the PnP info string
  */
@@ -268,7 +262,6 @@ extern int ppb_write(device_t, char *, int, int);
  * These are defined as macros for speedup.
 #define ppb_get_base_addr(dev) ((dev)->ppb->ppb_link->base)
 #define ppb_get_epp_protocol(dev) ((dev)->ppb->ppb_link->epp_protocol)
-#define ppb_get_irq(dev) ((dev)->ppb->ppb_link->id_irq)
  */
 
 #endif

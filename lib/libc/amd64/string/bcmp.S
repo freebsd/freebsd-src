@@ -22,3 +22,4 @@ L1:
 	setne	%al
 	movsbl	%al,%eax
 	ret
+END(bcmp)

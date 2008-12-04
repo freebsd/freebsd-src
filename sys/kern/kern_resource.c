@@ -638,7 +638,8 @@ lim_cb(void *arg)
 			psignal(p, SIGXCPU);
 		}
 	}
-	callout_reset(&p->p_limco, hz, lim_cb, p);
+	if ((p->p_flag & P_WEXIT) == 0)
+		callout_reset(&p->p_limco, hz, lim_cb, p);
 }
 
 int
@@ -1268,7 +1269,7 @@ uifree(uip)
 		if (uip->ui_proccnt != 0)
 			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
 			    uip->ui_uid, uip->ui_proccnt);
-		FREE(uip, M_UIDINFO);
+		free(uip, M_UIDINFO);
 		return;
 	}
 	/*

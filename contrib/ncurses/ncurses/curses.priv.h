@@ -34,7 +34,7 @@
 
 
 /*
- * $Id: curses.priv.h,v 1.373 2008/05/03 23:30:35 tom Exp $
+ * $Id: curses.priv.h,v 1.394 2008/10/04 21:37:45 tom Exp $
  *
  *	curses.priv.h
  *
@@ -147,7 +147,7 @@ extern int errno;
 #define HAVE_SIZECHANGE 0
 #endif
 
-#if HAVE_SIZECHANGE && defined(SIGWINCH)
+#if HAVE_SIZECHANGE && USE_SIGWINCH && defined(SIGWINCH)
 #define USE_SIZECHANGE 1
 #else
 #define USE_SIZECHANGE 0
@@ -286,6 +286,15 @@ color_t;
 #define VIDATTR(attr, pair)	vidattr(attr)
 #endif
 
+#if NCURSES_NO_PADDING
+#define GetNoPadding(sp)	((sp) ? (sp)->_no_padding : _nc_prescreen._no_padding)
+#define SetNoPadding(sp)	_nc_set_no_padding(sp)
+extern NCURSES_EXPORT(void) _nc_set_no_padding(SCREEN *);
+#else
+#define GetNoPadding(sp)	FALSE
+#define SetNoPadding(sp)	/*nothing*/
+#endif
+
 #define WINDOW_ATTRS(w)		((w)->_attrs)
 
 #define SCREEN_ATTRS(s)		(*((s)->_current_attr))
@@ -293,9 +302,15 @@ color_t;
 #define SET_SCREEN_PAIR(s,p)	SetPair(SCREEN_ATTRS(s), p)
 
 #if USE_REENTRANT
-#define SET_LINES(value) SP->_LINES = value
-#define SET_COLS(value)  SP->_COLS = value
+NCURSES_EXPORT(int *) _nc_ptr_Lines (void);
+NCURSES_EXPORT(int *) _nc_ptr_Cols (void);
+#define ptrLines() (SP ? &(SP->_LINES) : &(_nc_prescreen._LINES))
+#define ptrCols()  (SP ? &(SP->_COLS)  : &(_nc_prescreen._COLS))
+#define SET_LINES(value) *_nc_ptr_Lines() = value
+#define SET_COLS(value)  *_nc_ptr_Cols() = value
 #else
+#define ptrLines() &LINES
+#define ptrCols()  &COLS
 #define SET_LINES(value) LINES = value
 #define SET_COLS(value)  COLS = value
 #endif
@@ -315,6 +330,7 @@ color_t;
 
 #if USE_REENTRANT
 #include <pthread.h>
+extern NCURSES_EXPORT(void) _nc_init_pthreads(void);
 extern NCURSES_EXPORT(void) _nc_mutex_init(pthread_mutex_t *);
 extern NCURSES_EXPORT(int) _nc_mutex_lock(pthread_mutex_t *);
 extern NCURSES_EXPORT(int) _nc_mutex_trylock(pthread_mutex_t *);
@@ -323,11 +339,38 @@ extern NCURSES_EXPORT(int) _nc_mutex_unlock(pthread_mutex_t *);
 #define _nc_try_global(name)    _nc_mutex_trylock(&_nc_globals.mutex_##name)
 #define _nc_unlock_global(name)	_nc_mutex_unlock(&_nc_globals.mutex_##name)
 
-extern NCURSES_EXPORT(void) _nc_lock_window(const WINDOW *);
-extern NCURSES_EXPORT(void) _nc_unlock_window(const WINDOW *);
-
 #else
 #error POSIX threads requires --enable-reentrant option
+#endif
+
+#if USE_WEAK_SYMBOLS
+#if defined(__GNUC__)
+#  if defined __USE_ISOC99
+#    define _cat_pragma(exp)	_Pragma(#exp)
+#    define _weak_pragma(exp)	_cat_pragma(weak name)
+#  else
+#    define _weak_pragma(exp)
+#  endif
+#  define _declare(name)	__extension__ extern __typeof__(name) name
+#  define weak_symbol(name)	_weak_pragma(name) _declare(name) __attribute__((weak))
+#endif
+#endif
+
+#ifdef USE_PTHREADS
+#  if USE_WEAK_SYMBOLS
+weak_symbol(pthread_sigmask);
+weak_symbol(pthread_self);
+weak_symbol(pthread_equal);
+weak_symbol(pthread_mutex_init);
+weak_symbol(pthread_mutex_lock);
+weak_symbol(pthread_mutex_unlock);
+weak_symbol(pthread_mutex_trylock);
+weak_symbol(pthread_mutexattr_settype);
+weak_symbol(pthread_mutexattr_init);
+extern NCURSES_EXPORT(int) _nc_sigprocmask(int, const sigset_t *, sigset_t *);
+#    undef  sigprocmask
+#    define sigprocmask _nc_sigprocmask
+#  endif
 #endif
 
 #if HAVE_NANOSLEEP
@@ -337,14 +380,12 @@ extern NCURSES_EXPORT(void) _nc_unlock_window(const WINDOW *);
 
 #else /* !USE_PTHREADS */
 
+#define _nc_init_pthreads()	/* nothing */
 #define _nc_mutex_init(obj)	/* nothing */
 
 #define _nc_lock_global(name)	/* nothing */
 #define _nc_try_global(name)    0
 #define _nc_unlock_global(name)	/* nothing */
-
-#define _nc_lock_window(name)	(void) TRUE
-#define _nc_unlock_window(name)	/* nothing */
 
 #endif /* USE_PTHREADS */
 
@@ -597,8 +638,6 @@ typedef struct {
 	char		*tracedmp_buf;
 	size_t		tracedmp_used;
 
-	char		tracemse_buf[TRACEMSE_MAX];
-
 	unsigned char	*tracetry_buf;
 	size_t		tracetry_used;
 
@@ -609,13 +648,12 @@ typedef struct {
 #endif	/* TRACE */
 
 #ifdef USE_PTHREADS
-       pthread_mutex_t	mutex_set_SP;
-       pthread_mutex_t	mutex_use_screen;
-       pthread_mutex_t	mutex_use_window;
-       pthread_mutex_t	mutex_windowlist;
-       pthread_mutex_t	mutex_tst_tracef;
-       pthread_mutex_t	mutex_tracef;
-       int		nested_tracef;
+	pthread_mutex_t	mutex_curses;
+	pthread_mutex_t	mutex_tst_tracef;
+	pthread_mutex_t	mutex_tracef;
+	int		nested_tracef;
+	int		use_pthreads;
+#define _nc_use_pthreads	_nc_globals.use_pthreads
 #endif
 } NCURSES_GLOBALS;
 
@@ -635,10 +673,14 @@ typedef struct {
 	ripoff_t	*rsp;
 	TPARM_STATE	tparm_state;
 	TTY		*saved_tty;	/* savetty/resetty information	    */
+#if NCURSES_NO_PADDING
+	bool		_no_padding;	/* flag to set if padding disabled  */
+#endif
 #if BROKEN_LINKER || USE_REENTRANT
 	chtype		*real_acs_map;
 	int		_LINES;
 	int		_COLS;
+	TERMINAL	*_cur_term;
 #ifdef TRACE
 	long		_outchars;
 	const char	*_tputs_trace;
@@ -704,7 +746,7 @@ struct screen {
 	int		slk_format;	/* selected format for this screen  */
 	/* cursor movement costs; units are 10ths of milliseconds */
 #if NCURSES_NO_PADDING
-	int		_no_padding;	/* flag to set if padding disabled  */
+	bool		_no_padding;	/* flag to set if padding disabled  */
 #endif
 	int		_char_padding;	/* cost of character put	    */
 	int		_cr_cost;	/* cost of (carriage_return)	    */
@@ -789,7 +831,7 @@ struct screen {
 	int		_maxclick;
 	bool		(*_mouse_event) (SCREEN *);
 	bool		(*_mouse_inline)(SCREEN *);
-	bool		(*_mouse_parse) (int);
+	bool		(*_mouse_parse) (SCREEN *, int);
 	void		(*_mouse_resume)(SCREEN *);
 	void		(*_mouse_wrap)	(SCREEN *);
 	int		_mouse_fd;	/* file-descriptor, if any */
@@ -803,6 +845,7 @@ struct screen {
 	bool		_mouse_gpm_loaded;
 	bool		_mouse_gpm_found;
 #ifdef HAVE_LIBDL
+	void		*_dlopen_gpm;
 	TYPE_gpm_fd	_mouse_gpm_fd;
 	TYPE_Gpm_Open	_mouse_Gpm_Open;
 	TYPE_Gpm_Close	_mouse_Gpm_Close;
@@ -867,6 +910,11 @@ struct screen {
 	const char	*_tputs_trace;
 #endif
 #endif
+
+#ifdef TRACE
+	char		tracechr_buf[40];
+	char		tracemse_buf[TRACEMSE_MAX];
+#endif
 	/*
 	 * ncurses/ncursesw are the same up to this point.
 	 */
@@ -882,16 +930,14 @@ extern NCURSES_EXPORT_VAR(SCREEN *) _nc_screen_chain;
 extern NCURSES_EXPORT_VAR(SIG_ATOMIC_T) _nc_have_sigwinch;
 
 	WINDOWLIST {
-	WINDOW	win;	/* first, so WINDOW_EXT() works */
+	WINDOW	win;		/* first, so WINDOW_EXT() works */
 	WINDOWLIST *next;
+	SCREEN *screen;		/* screen containing the window */
 #ifdef _XOPEN_SOURCE_EXTENDED
 	char addch_work[(MB_LEN_MAX * 9) + 1];
 	unsigned addch_used;	/* number of bytes in addch_work[] */
 	int addch_x;		/* x-position for addch_work[] */
 	int addch_y;		/* y-position for addch_work[] */
-#endif
-#ifdef USE_PTHREADS
-	pthread_mutex_t	mutex_use_window;
 #endif
 };
 
@@ -1296,7 +1342,7 @@ extern NCURSES_EXPORT(const char *) _nc_viscbuf (const NCURSES_CH_T *, int);
 extern NCURSES_EXPORT(const char *) _nc_visbuf2 (int, const char *);
 extern NCURSES_EXPORT(const char *) _nc_visbufn (const char *, int);
 
-#define empty_module(name) \
+#define EMPTY_MODULE(name) \
 extern	NCURSES_EXPORT(void) name (void); \
 	NCURSES_EXPORT(void) name (void) { }
 
@@ -1396,6 +1442,10 @@ extern NCURSES_EXPORT(void) _nc_expanded (void);
 
 #endif
 
+#if !NCURSES_EXT_FUNCS
+#define set_escdelay(value) ESCDELAY = value
+#endif
+
 #if !HAVE_GETCWD
 #define getcwd(buf,len) getwd(buf)
 #endif
@@ -1478,7 +1528,7 @@ extern NCURSES_EXPORT(int) _nc_has_mouse (void);
 /* lib_setup.c */
 extern NCURSES_EXPORT(char *) _nc_get_locale(void);
 extern NCURSES_EXPORT(int) _nc_unicode_locale(void);
-extern NCURSES_EXPORT(int) _nc_locale_breaks_acs(void);
+extern NCURSES_EXPORT(int) _nc_locale_breaks_acs(TERMINAL *);
 extern NCURSES_EXPORT(int) _nc_setupterm(NCURSES_CONST char *, int, int *, bool);
 extern NCURSES_EXPORT(void) _nc_get_screensize(SCREEN *, int *, int *);
 
@@ -1526,10 +1576,15 @@ extern NCURSES_EXPORT(int) _nc_remove_key (TRIES **, unsigned);
 extern NCURSES_EXPORT(int) _nc_remove_string (TRIES **, const char *);
 
 /* elsewhere ... */
-extern NCURSES_EXPORT(ENTRY *) _nc_delink_entry(ENTRY *, TERMTYPE *);
+extern NCURSES_EXPORT(ENTRY *) _nc_delink_entry (ENTRY *, TERMTYPE *);
+extern NCURSES_EXPORT(NCURSES_CONST char *) _nc_keyname (SCREEN *, int);
+extern NCURSES_EXPORT(NCURSES_CONST char *) _nc_unctrl (SCREEN *, chtype);
+extern NCURSES_EXPORT(SCREEN *) _nc_screen_of (WINDOW *);
 extern NCURSES_EXPORT(WINDOW *) _nc_makenew (int, int, int, int, int);
 extern NCURSES_EXPORT(char *) _nc_trace_buf (int, size_t);
 extern NCURSES_EXPORT(char *) _nc_trace_bufcat (int, const char *);
+extern NCURSES_EXPORT(char *) _nc_tracechar (SCREEN *, int);
+extern NCURSES_EXPORT(char *) _nc_tracemouse (SCREEN *, MEVENT const *);
 extern NCURSES_EXPORT(int) _nc_access (const char *, int);
 extern NCURSES_EXPORT(int) _nc_baudrate (int);
 extern NCURSES_EXPORT(int) _nc_freewin (WINDOW *);
@@ -1539,10 +1594,11 @@ extern NCURSES_EXPORT(int) _nc_ospeed (int);
 extern NCURSES_EXPORT(int) _nc_outch (int);
 extern NCURSES_EXPORT(int) _nc_read_termcap_entry (const char *const, TERMTYPE *const);
 extern NCURSES_EXPORT(int) _nc_setupscreen (int, int, FILE *, bool, int);
-extern NCURSES_EXPORT(int) _nc_timed_wait(SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
+extern NCURSES_EXPORT(int) _nc_timed_wait (SCREEN *, int, int, int * EVENTLIST_2nd(_nc_eventlist *));
 extern NCURSES_EXPORT(void) _nc_do_color (short, short, bool, int (*)(int));
 extern NCURSES_EXPORT(void) _nc_flush (void);
-extern NCURSES_EXPORT(void) _nc_free_entry(ENTRY *, TERMTYPE *);
+extern NCURSES_EXPORT(void) _nc_free_and_exit (int);
+extern NCURSES_EXPORT(void) _nc_free_entry (ENTRY *, TERMTYPE *);
 extern NCURSES_EXPORT(void) _nc_freeall (void);
 extern NCURSES_EXPORT(void) _nc_hash_map (void);
 extern NCURSES_EXPORT(void) _nc_init_keytry (SCREEN *);

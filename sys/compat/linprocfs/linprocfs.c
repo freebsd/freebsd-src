@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2000 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * Copyright (c) 1999 Pierre Beyssac
  * Copyright (c) 1993 Jan-Simon Pendry
  * Copyright (c) 1993
@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vimage.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -318,11 +319,13 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
 	error = namei(&nd);
-	VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
-	if (error != 0 || vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
-		lep = linux_emul_path;
-	else
-		lep = dlep;
+	lep = linux_emul_path;
+	if (error == 0) {
+		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) != 0)
+			lep = dlep;
+		vrele(nd.ni_vp);
+		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
+	}
 	lep_len = strlen(lep);
 
 	mtx_lock(&mountlist_mtx);

@@ -43,7 +43,7 @@
 
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
 
-#include <contrib/dev/ath/ah.h>
+#include <dev/ath/ath_hal/ah.h>
 
 /*
  * WiSoC boards overload the bus tag with information about the
@@ -56,7 +56,7 @@
 #define	BUSTAG(ah) \
 	((bus_space_tag_t) ((struct ar531x_config *)((ah)->ah_st))->tag)
 #else
-#define	BUSTAG(ah)	((bus_space_tag_t) (ah)->ah_st)
+#define	BUSTAG(ah)	((ah)->ah_st)
 #endif
 
 extern	void ath_hal_printf(struct ath_hal *, const char*, ...)
@@ -71,8 +71,12 @@ extern	void ath_hal_assert_failed(const char* filename,
 		int lineno, const char* msg);
 #endif
 #ifdef AH_DEBUG
+#if HAL_ABI_VERSION >= 0x08090101
+extern	void HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
+#else
 extern	void HALDEBUG(struct ath_hal *ah, const char* fmt, ...);
 extern	void HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...);
+#endif
 #endif /* AH_DEBUG */
 
 /* NB: put this here instead of the driver to avoid circular references */
@@ -85,9 +89,6 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 	    0, "Atheros HAL debugging printfs");
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
-
-SYSCTL_STRING(_hw_ath_hal, OID_AUTO, version, CTLFLAG_RD, ath_hal_version, 0,
-	"Atheros HAL version");
 
 /* NB: these are deprecated; they exist for now for compatibility */
 int	ath_hal_dma_beacon_response_time = 2;	/* in TU's */
@@ -139,6 +140,18 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 }
 
 #ifdef AH_DEBUG
+#if HAL_ABI_VERSION >= 0x08090101
+void
+HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
+{
+	if (ath_hal_debug & mask) {
+		__va_list ap;
+		va_start(ap, fmt);
+		ath_hal_vprintf(ah, fmt, ap);
+		va_end(ap);
+	}
+}
+#else
 void
 HALDEBUG(struct ath_hal *ah, const char* fmt, ...)
 {
@@ -160,6 +173,7 @@ HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...)
 		va_end(ap);
 	}
 }
+#endif
 #endif /* AH_DEBUG */
 
 #ifdef AH_DEBUG_ALQ
@@ -178,7 +192,7 @@ HALDEBUGn(struct ath_hal *ah, u_int level, const char* fmt, ...)
  */
 #include <sys/alq.h>
 #include <sys/pcpu.h>
-#include <contrib/dev/ath/ah_decode.h>
+#include <dev/ath/ath_hal/ah_decode.h>
 
 static	struct alq *ath_hal_alq;
 static	int ath_hal_alq_emitdev;	/* need to emit DEVICE record */
@@ -256,7 +270,7 @@ void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = ah->ah_sh;
 
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
@@ -280,7 +294,7 @@ u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
@@ -332,7 +346,7 @@ void
 ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = ah->ah_sh;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (reg >= 0x4000 && reg < 0x5000)
@@ -346,7 +360,7 @@ u_int32_t
 ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 {
 	bus_space_tag_t tag = BUSTAG(ah);
-	bus_space_handle_t h = (bus_space_handle_t) ah->ah_sh;
+	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
 #if _BYTE_ORDER == _BIG_ENDIAN
@@ -398,37 +412,3 @@ ath_hal_memcpy(void *dst, const void *src, size_t n)
 {
 	return memcpy(dst, src, n);
 }
-
-/*
- * Module glue.
- */
-
-static int
-ath_hal_modevent(module_t mod, int type, void *unused)
-{
-	const char *sep;
-	int i;
-
-	switch (type) {
-	case MOD_LOAD:
-		printf("ath_hal: %s (", ath_hal_version);
-		sep = "";
-		for (i = 0; ath_hal_buildopts[i] != NULL; i++) {
-			printf("%s%s", sep, ath_hal_buildopts[i]);
-			sep = ", ";
-		}
-		printf(")\n");
-		return 0;
-	case MOD_UNLOAD:
-		return 0;
-	}
-	return EINVAL;
-}
-
-static moduledata_t ath_hal_mod = {
-	"ath_hal",
-	ath_hal_modevent,
-	0
-};
-DECLARE_MODULE(ath_hal, ath_hal_mod, SI_SUB_DRIVERS, SI_ORDER_ANY);
-MODULE_VERSION(ath_hal, 1);

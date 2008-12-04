@@ -81,8 +81,6 @@ struct mmcsd_softc {
 	int running;
 };
 
-#define	MULTI_BLOCK_BROKEN
-
 /* bus entry points */
 static int mmcsd_probe(device_t dev);
 static int mmcsd_attach(device_t dev);
@@ -137,6 +135,8 @@ mmcsd_attach(device_t dev)
 	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
 	d->d_mediasize = mmc_get_media_size(dev) * d->d_sectorsize;
+	d->d_stripeoffset = 0;
+	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
 	/*
@@ -186,9 +186,10 @@ mmcsd_detach(device_t dev)
 		msleep(sc, &sc->sc_mtx, PRIBIO, "detach", 0);
 	MMCSD_UNLOCK(sc);
 
+	/* Flush the request queue. */
+	bioq_flush(&sc->bio_queue, NULL, ENXIO);
 	/* kill disk */
 	disk_destroy(sc->disk);
-	/* XXX destroy anything in queue */
 
 	MMCSD_LOCK_DESTROY(sc);
 
@@ -214,9 +215,14 @@ mmcsd_strategy(struct bio *bp)
 
 	sc = (struct mmcsd_softc *)bp->bio_disk->d_drv1;
 	MMCSD_LOCK(sc);
-	bioq_disksort(&sc->bio_queue, bp);
-	wakeup(sc);
-	MMCSD_UNLOCK(sc);
+	if (sc->running > 0) {
+		bioq_disksort(&sc->bio_queue, bp);
+		wakeup(sc);
+		MMCSD_UNLOCK(sc);
+	} else {
+		MMCSD_UNLOCK(sc);
+		biofinish(bp, NULL, ENXIO);
+	}
 }
 
 static daddr_t
@@ -235,12 +241,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 	while (block < end) {
 		char *vaddr = bp->bio_data +
 		    (block - bp->bio_pblkno) * sz;
-		int numblocks;
-#ifdef MULTI_BLOCK
-		numblocks = end - block;
-#else
-		numblocks = 1;
-#endif
+		int numblocks = min(end - block, mmc_get_max_data(dev));
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
@@ -387,18 +388,16 @@ mmcsd_task(void *arg)
 	device_t dev;
 
 	dev = sc->dev;
-	while (sc->running) {
+	while (1) {
 		MMCSD_LOCK(sc);
 		do {
-			bp = bioq_first(&sc->bio_queue);
+			if (sc->running == 0)
+				goto out;
+			bp = bioq_takefirst(&sc->bio_queue);
 			if (bp == NULL)
 				msleep(sc, &sc->sc_mtx, PRIBIO, "jobqueue", 0);
-		} while (bp == NULL && sc->running);
-		if (bp)
-			bioq_remove(&sc->bio_queue, bp);
+		} while (bp == NULL);
 		MMCSD_UNLOCK(sc);
-		if (!sc->running)
-			break;
 		if (bp->bio_cmd != BIO_READ && mmc_get_read_only(dev)) {
 			bp->bio_error = EROFS;
 			bp->bio_resid = bp->bio_bcount;
@@ -426,9 +425,8 @@ mmcsd_task(void *arg)
 		}
 		biodone(bp);
 	}
-
+out:
 	/* tell parent we're done */
-	MMCSD_LOCK(sc);
 	sc->running = -1;
 	wakeup(sc);
 	MMCSD_UNLOCK(sc);

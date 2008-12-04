@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		AVILA
 
 options 	PHYSADDR=0x10000000
@@ -31,6 +30,7 @@ options 	STARTUP_PAGETABLE_ADDR=0x10000000
 include		"../xscale/ixp425/std.avila"
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"AVILA.hints"		#Default places to look for devices.
+makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
@@ -80,7 +80,6 @@ options 	BOOTP_COMPAT
 #options 	PREEMPTION
 #options 	VERBOSE_SYSINIT
 
-device		mem			# Memory and kernel memory devices
 #device		saarm
 
 device		pci
@@ -129,6 +128,7 @@ device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# Atheros HAL (Hardware Access Layer)
+options		AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 options 	ATH_DEBUG
 

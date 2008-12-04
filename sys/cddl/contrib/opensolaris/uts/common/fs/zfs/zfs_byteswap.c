@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -33,7 +32,7 @@
 #include <sys/zfs_acl.h>
 
 void
-zfs_ace_byteswap(ace_t *ace, int ace_cnt)
+zfs_oldace_byteswap(ace_t *ace, int ace_cnt)
 {
 	int i;
 
@@ -45,9 +44,78 @@ zfs_ace_byteswap(ace_t *ace, int ace_cnt)
 	}
 }
 
+/*
+ * swap ace_t and ace_oject_t
+ */
+void
+zfs_ace_byteswap(void *buf, size_t size, boolean_t zfs_layout)
+{
+#ifdef TODO
+	caddr_t end;
+	caddr_t ptr;
+	zfs_ace_t *zacep;
+	ace_t *acep;
+	uint16_t entry_type;
+	size_t entry_size;
+	int ace_type;
+
+	end = (caddr_t)buf + size;
+	ptr = buf;
+
+	while (ptr < end) {
+		if (zfs_layout) {
+			zacep = (zfs_ace_t *)ptr;
+			zacep->z_hdr.z_access_mask =
+			    BSWAP_32(zacep->z_hdr.z_access_mask);
+			zacep->z_hdr.z_flags = BSWAP_16(zacep->z_hdr.z_flags);
+			ace_type = zacep->z_hdr.z_type =
+			    BSWAP_16(zacep->z_hdr.z_type);
+			entry_type = zacep->z_hdr.z_flags & ACE_TYPE_FLAGS;
+		} else {
+			acep = (ace_t *)ptr;
+			acep->a_access_mask = BSWAP_32(acep->a_access_mask);
+			acep->a_flags = BSWAP_16(acep->a_flags);
+			ace_type = acep->a_type = BSWAP_16(acep->a_type);
+			acep->a_who = BSWAP_32(acep->a_who);
+			entry_type = acep->a_flags & ACE_TYPE_FLAGS;
+		}
+		switch (entry_type) {
+		case ACE_OWNER:
+		case ACE_EVERYONE:
+		case (ACE_IDENTIFIER_GROUP | ACE_GROUP):
+			entry_size = zfs_layout ?
+			    sizeof (zfs_ace_hdr_t) : sizeof (ace_t);
+			break;
+		case ACE_IDENTIFIER_GROUP:
+		default:
+			if (zfs_layout) {
+				zacep->z_fuid = BSWAP_64(zacep->z_fuid);
+			}
+			switch (ace_type) {
+			case ACE_ACCESS_ALLOWED_OBJECT_ACE_TYPE:
+			case ACE_ACCESS_DENIED_OBJECT_ACE_TYPE:
+			case ACE_SYSTEM_AUDIT_OBJECT_ACE_TYPE:
+			case ACE_SYSTEM_ALARM_OBJECT_ACE_TYPE:
+				entry_size = zfs_layout ?
+				    sizeof (zfs_object_ace_t) :
+				    sizeof (ace_object_t);
+				break;
+			default:
+				entry_size = zfs_layout ? sizeof (zfs_ace_t) :
+				    sizeof (ace_t);
+				break;
+			}
+		}
+		ptr = ptr + entry_size;
+	}
+#else	/* TODO */
+	panic("%s:%u: TODO", __func__, __LINE__);
+#endif	/* TODO */
+}
+
 /* ARGSUSED */
 void
-zfs_acl_byteswap(void *buf, size_t size)
+zfs_oldacl_byteswap(void *buf, size_t size)
 {
 	int cnt;
 
@@ -58,7 +126,14 @@ zfs_acl_byteswap(void *buf, size_t size)
 
 	cnt = size / sizeof (ace_t);
 
-	zfs_ace_byteswap((ace_t *)buf, cnt);
+	zfs_oldace_byteswap((ace_t *)buf, cnt);
+}
+
+/* ARGSUSED */
+void
+zfs_acl_byteswap(void *buf, size_t size)
+{
+	zfs_ace_byteswap(buf, size, B_TRUE);
 }
 
 void
@@ -86,14 +161,19 @@ zfs_znode_byteswap(void *buf, size_t size)
 	zp->zp_flags = BSWAP_64(zp->zp_flags);
 	zp->zp_uid = BSWAP_64(zp->zp_uid);
 	zp->zp_gid = BSWAP_64(zp->zp_gid);
+	zp->zp_zap = BSWAP_64(zp->zp_zap);
 	zp->zp_pad[0] = BSWAP_64(zp->zp_pad[0]);
 	zp->zp_pad[1] = BSWAP_64(zp->zp_pad[1]);
 	zp->zp_pad[2] = BSWAP_64(zp->zp_pad[2]);
-	zp->zp_pad[3] = BSWAP_64(zp->zp_pad[3]);
 
 	zp->zp_acl.z_acl_extern_obj = BSWAP_64(zp->zp_acl.z_acl_extern_obj);
-	zp->zp_acl.z_acl_count = BSWAP_32(zp->zp_acl.z_acl_count);
+	zp->zp_acl.z_acl_size = BSWAP_32(zp->zp_acl.z_acl_size);
 	zp->zp_acl.z_acl_version = BSWAP_16(zp->zp_acl.z_acl_version);
-	zp->zp_acl.z_acl_pad = BSWAP_16(zp->zp_acl.z_acl_pad);
-	zfs_ace_byteswap(&zp->zp_acl.z_ace_data[0], ACE_SLOT_CNT);
+	zp->zp_acl.z_acl_count = BSWAP_16(zp->zp_acl.z_acl_count);
+	if (zp->zp_acl.z_acl_version == ZFS_ACL_VERSION) {
+		zfs_acl_byteswap((void *)&zp->zp_acl.z_ace_data[0],
+		    ZFS_ACE_SPACE);
+	} else
+		zfs_oldace_byteswap((ace_t *)&zp->zp_acl.z_ace_data[0],
+		    ACE_SLOT_CNT);
 }

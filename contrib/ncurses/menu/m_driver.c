@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_driver.c,v 1.25 2005/11/26 20:46:59 tom Exp $")
+MODULE_ID("$Id: m_driver.c,v 1.27 2008/08/03 22:08:22 tom Exp $")
 
 /* Macros */
 
@@ -74,7 +74,7 @@ Is_Sub_String(
     {
       while (*string && *part)
 	{
-	  if (toupper(*string++) != toupper(*part))
+	  if (toupper(UChar(*string++)) != toupper(UChar(*part)))
 	    break;
 	  part++;
 	}
@@ -303,7 +303,7 @@ menu_driver(MENU * menu, int c)
 	  else
 	    {
 	      my_top_row += rdiff;
-	      while (rdiff-- > 0 && item != (ITEM *) 0)
+	      while (rdiff-- > 0 && item != 0 && item->down != 0)
 		item = item->down;
 	    }
 	  break;
@@ -316,7 +316,7 @@ menu_driver(MENU * menu, int c)
 	  else
 	    {
 	      my_top_row -= rdiff;
-	      while (rdiff-- && item != (ITEM *) 0)
+	      while (rdiff-- > 0 && item != 0 && item->up != 0)
 		item = item->up;
 	    }
 	  break;

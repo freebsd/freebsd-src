@@ -367,15 +367,15 @@ shm_drop(struct shmfd *shmfd)
 static int
 shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 {
-	int acc_mode;
+	accmode_t accmode;
 
-	acc_mode = 0;
+	accmode = 0;
 	if (flags & FREAD)
-		acc_mode |= VREAD;
+		accmode |= VREAD;
 	if (flags & FWRITE)
-		acc_mode |= VWRITE;
+		accmode |= VWRITE;
 	return (vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
-	    acc_mode, ucred, NULL));
+	    accmode, ucred, NULL));
 }
 
 /*
@@ -605,7 +605,8 @@ shm_mmap(struct shmfd *shmfd, vm_size_t objsize, vm_ooffset_t foff,
 	 * XXXRW: This validation is probably insufficient, and subject to
 	 * sign errors.  It should be fixed.
 	 */
-	if (foff >= shmfd->shm_size || foff + objsize > shmfd->shm_size)
+	if (foff >= shmfd->shm_size ||
+	    foff + objsize > round_page(shmfd->shm_size))
 		return (EINVAL);
 
 	mtx_lock(&shm_timestamp_lock);

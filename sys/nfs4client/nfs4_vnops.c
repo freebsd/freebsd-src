@@ -301,7 +301,7 @@ nfs4_access(struct vop_access_args *ap)
 	 * unless the file is a socket, fifo, or a block or character
 	 * device resident on the filesystem.
 	 */
-	if ((ap->a_mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
+	if ((ap->a_accmode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY)) {
 		switch (vp->v_type) {
 		case VREG:
 		case VDIR:
@@ -321,20 +321,20 @@ nfs4_access(struct vop_access_args *ap)
 	 */
 	/* XXX Disable this for now; needs fixing of _access_otw() */
 	if (0 && v3) {
-		if (ap->a_mode & VREAD)
+		if (ap->a_accmode & VREAD)
 			mode = NFSV3ACCESS_READ;
 		else
 			mode = 0;
 		if (vp->v_type != VDIR) {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_EXECUTE;
 		} else {
-			if (ap->a_mode & VWRITE)
+			if (ap->a_accmode & VWRITE)
 				mode |= (NFSV3ACCESS_MODIFY | NFSV3ACCESS_EXTEND |
 				    NFSV3ACCESS_DELETE);
-			if (ap->a_mode & VEXEC)
+			if (ap->a_accmode & VEXEC)
 				mode |= NFSV3ACCESS_LOOKUP;
 		}
 		/* XXX safety belt, only make blanket request if caching */
@@ -370,16 +370,16 @@ nfs4_access(struct vop_access_args *ap)
 	}
 
 	/* XXX use generic access code here? */
-	mode = ap->a_mode & VREAD ? NFSV4ACCESS_READ : 0;
+	mode = ap->a_accmode & VREAD ? NFSV4ACCESS_READ : 0;
 	if (vp->v_type == VDIR) {
-		if (ap->a_mode & VWRITE)
+		if (ap->a_accmode & VWRITE)
 			mode |= NFSV4ACCESS_MODIFY | NFSV4ACCESS_EXTEND | NFSV4ACCESS_DELETE;
-		if (ap->a_mode & VEXEC)
+		if (ap->a_accmode & VEXEC)
 			mode |= NFSV4ACCESS_LOOKUP;
 	} else {
-		if (ap->a_mode & VWRITE)
+		if (ap->a_accmode & VWRITE)
 			mode |= NFSV4ACCESS_MODIFY | NFSV4ACCESS_EXTEND;
-		if (ap->a_mode & VEXEC)
+		if (ap->a_accmode & VEXEC)
 			mode |= NFSV4ACCESS_EXECUTE;
 	}
 
@@ -506,8 +506,8 @@ nfs4_openrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		np->n_dvp = dvp;
 		np->n_namelen = cnp->cn_namelen; /* XXX memory leaks on these; track! */
 		if (np->n_name != NULL)
-			FREE(np->n_name, M_NFSREQ);
-		MALLOC(np->n_name, u_char *, np->n_namelen + 1, M_NFSREQ, M_WAITOK);
+			free(np->n_name, M_NFSREQ);
+		np->n_name = malloc(np->n_namelen + 1, M_NFSREQ, M_WAITOK);
 		bcopy(cnp->cn_nameptr, np->n_name, np->n_namelen);
 		np->n_name[np->n_namelen] = '\0';
 		if (flags & FWRITE)
@@ -1071,8 +1071,8 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		np->n_dvp = dvp;
 		np->n_namelen = cnp->cn_namelen;
 		if (np->n_name != NULL)
-			FREE(np->n_name, M_NFSREQ);
-		MALLOC(np->n_name, u_char *, np->n_namelen + 1, M_NFSREQ, M_WAITOK);
+			free(np->n_name, M_NFSREQ);
+		np->n_name = malloc(np->n_namelen + 1, M_NFSREQ, M_WAITOK);
 		bcopy(cnp->cn_nameptr, np->n_name, np->n_namelen);
 		np->n_name[np->n_namelen] = '\0';
 
@@ -1455,7 +1455,7 @@ nfs4_createrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		m_freem(mrep);
 
 	/* XXX */
-	/*FREE(cnp->cn_pnbuf, M_NAMEI);*/
+	/*free(cnp->cn_pnbuf, M_NAMEI);*/
 	if (error != 0 && newvp != NULL)
 		vput(newvp);
 	else if (error == 0)
@@ -2235,8 +2235,7 @@ nfs4_sillyrename(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 	if (vp->v_type == VDIR)
 		panic("nfs: sillyrename dir");
 #endif
-	MALLOC(sp, struct sillyrename *, sizeof (struct sillyrename),
-		M_NFSREQ, M_WAITOK);
+	sp = malloc(sizeof (struct sillyrename), M_NFSREQ, M_WAITOK);
 	sp->s_cred = crhold(cnp->cn_cred);
 	sp->s_dvp = dvp;
 	sp->s_removeit = nfs4_removeit;
@@ -2351,9 +2350,8 @@ nfs4_lookitup(struct vnode *dvp, const char *name, int len, struct ucred *cred,
 			np->n_dvp = dvp;
 			np->n_namelen = len;
 			if (np->n_name != NULL)
-				FREE(np->n_name, M_NFSREQ);
-			MALLOC(np->n_name, u_char *,
-			    np->n_namelen + 1, M_NFSREQ, M_WAITOK);
+				free(np->n_name, M_NFSREQ);
+			np->n_name = malloc(np->n_namelen + 1, M_NFSREQ, M_WAITOK);
 			memcpy(np->n_name, name, len);
 			np->n_name[len] = '\0';
 		}

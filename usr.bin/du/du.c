@@ -73,20 +73,21 @@ struct ignentry {
 
 static int	linkchk(FTSENT *);
 static void	usage(void);
-void		prthumanval(int64_t);
-void		ignoreadd(const char *);
-void		ignoreclean(void);
-int		ignorep(FTSENT *);
+static void	prthumanval(int64_t);
+static void	ignoreadd(const char *);
+static void	ignoreclean(void);
+static int	ignorep(FTSENT *);
 
-int		nodumpflag = 0;
+static int	nodumpflag = 0;
+static int	Aflag;
+static long	blocksize, cblocksize;
 
 int
 main(int argc, char *argv[])
 {
 	FTS		*fts;
 	FTSENT		*p;
-	off_t		savednumber = 0;
-	long		blocksize;
+	off_t		savednumber, curblocks;
 	int		ftsoptions;
 	int		listall;
 	int		depth;
@@ -98,79 +99,91 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag =
-	    lflag = 0;
+	    lflag = Aflag = 0;
 
 	save = argv;
 	ftsoptions = 0;
+	savednumber = 0;
+	cblocksize = DEV_BSIZE;
+	blocksize = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "HI:LPasd:chklmnrx")) != -1)
+	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrx")) != -1)
 		switch (ch) {
-			case 'H':
-				Hflag = 1;
-				break;
-			case 'I':
-				ignoreadd(optarg);
-				break;
-			case 'L':
-				if (Pflag)
-					usage();
-				Lflag = 1;
-				break;
-			case 'P':
-				if (Lflag)
-					usage();
-				Pflag = 1;
-				break;
-			case 'a':
-				aflag = 1;
-				break;
-			case 's':
-				sflag = 1;
-				break;
-			case 'd':
-				dflag = 1;
-				errno = 0;
-				depth = atoi(optarg);
-				if (errno == ERANGE || depth < 0) {
-					warnx("invalid argument to option d: %s", optarg);
-					usage();
-				}
-				break;
-			case 'c':
-				cflag = 1;
-				break;
-			case 'h':
-				if (setenv("BLOCKSIZE", "512", 1) == -1)
-					warn(
-					    "setenv: cannot set BLOCKSIZE=512");
-				hflag = 1;
-				break;
-			case 'k':
-				hflag = 0;
-				if (setenv("BLOCKSIZE", "1024", 1) == -1)
-					warn("setenv: cannot set BLOCKSIZE=1024");
-				break;
-			case 'l':
-				lflag = 1;
-				break;
-			case 'm':
-				hflag = 0;
-				if (setenv("BLOCKSIZE", "1048576", 1) == -1)
-					warn("setenv: cannot set BLOCKSIZE=1048576");
-				break;
-			case 'n':
-				nodumpflag = 1;
-				break;
-			case 'r':		 /* Compatibility. */
-				break;
-			case 'x':
-				ftsoptions |= FTS_XDEV;
-				break;
-			case '?':
-			default:
+		case 'A':
+			Aflag = 1;
+			break;
+		case 'B':
+			errno = 0;
+			cblocksize = atoi(optarg);
+			if (errno == ERANGE || cblocksize <= 0) {
+				warnx("invalid argument to option B: %s",
+				    optarg);
 				usage();
+			}
+			break;
+		case 'H':
+			Hflag = 1;
+			break;
+		case 'I':
+			ignoreadd(optarg);
+			break;
+		case 'L':
+			if (Pflag)
+				usage();
+			Lflag = 1;
+			break;
+		case 'P':
+			if (Lflag)
+				usage();
+			Pflag = 1;
+			break;
+		case 'a':
+			aflag = 1;
+			break;
+		case 's':
+			sflag = 1;
+			break;
+		case 'd':
+			dflag = 1;
+			errno = 0;
+			depth = atoi(optarg);
+			if (errno == ERANGE || depth < 0) {
+				warnx("invalid argument to option d: %s",
+				    optarg);
+				usage();
+			}
+			break;
+		case 'c':
+			cflag = 1;
+			break;
+		case 'h':
+			hflag = 1;
+			break;
+		case 'k':
+			hflag = 0;
+			blocksize = 1024;
+			break;
+		case 'l':
+			lflag = 1;
+			break;
+		case 'm':
+			hflag = 0;
+			blocksize = 1048576;
+			break;
+		case 'n':
+			nodumpflag = 1;
+			break;
+		case 'r':		 /* Compatibility. */
+			break;
+		case 'x':
+			ftsoptions |= FTS_XDEV;
+			break;
+		case '?':
+		default:
+			usage();
+			/* NOTREACHED */
 		}
 
 	argc -= optind;
@@ -204,6 +217,9 @@ main(int argc, char *argv[])
 	if (Pflag)
 		ftsoptions |= FTS_PHYSICAL;
 
+	if (!Aflag && (cblocksize % DEV_BSIZE) != 0)
+		cblocksize = howmany(cblocksize, DEV_BSIZE) * DEV_BSIZE;
+
 	listall = 0;
 
 	if (aflag) {
@@ -222,8 +238,13 @@ main(int argc, char *argv[])
 		argv[1] = NULL;
 	}
 
-	(void) getbsize(&notused, &blocksize);
-	blocksize /= 512;
+	if (blocksize == 0)
+		(void)getbsize(&notused, &blocksize);
+
+	if (!Aflag) {
+		cblocksize /= DEV_BSIZE;
+		blocksize /= DEV_BSIZE;
+	}
 
 	rval = 0;
 
@@ -232,57 +253,65 @@ main(int argc, char *argv[])
 
 	while ((p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
-			case FTS_D:			/* Ignore. */
-				if (ignorep(p))
-					fts_set(fts, p, FTS_SKIP);
+		case FTS_D:			/* Ignore. */
+			if (ignorep(p))
+				fts_set(fts, p, FTS_SKIP);
+			break;
+		case FTS_DP:
+			if (ignorep(p))
 				break;
-			case FTS_DP:
-				if (ignorep(p))
-					break;
 
-				p->fts_parent->fts_bignum +=
-				    p->fts_bignum += p->fts_statp->st_blocks;
+			curblocks = Aflag ?
+			    howmany(p->fts_statp->st_size, cblocksize) :
+			    howmany(p->fts_statp->st_blocks, cblocksize);
+			p->fts_parent->fts_bignum += p->fts_bignum +=
+			    curblocks;
 
-				if (p->fts_level <= depth) {
-					if (hflag) {
-						(void) prthumanval(howmany(p->fts_bignum, blocksize));
-						(void) printf("\t%s\n", p->fts_path);
-					} else {
-					(void) printf("%jd\t%s\n",
-					    (intmax_t)howmany(p->fts_bignum, blocksize),
+			if (p->fts_level <= depth) {
+				if (hflag) {
+					prthumanval(p->fts_bignum);
+					(void)printf("\t%s\n", p->fts_path);
+				} else {
+					(void)printf("%jd\t%s\n",
+					    (intmax_t)howmany(p->fts_bignum *
+					    cblocksize, blocksize),
 					    p->fts_path);
-					}
 				}
+			}
+			break;
+		case FTS_DC:			/* Ignore. */
+			break;
+		case FTS_DNR:			/* Warn, continue. */
+		case FTS_ERR:
+		case FTS_NS:
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			rval = 1;
+			break;
+		default:
+			if (ignorep(p))
 				break;
-			case FTS_DC:			/* Ignore. */
-				break;
-			case FTS_DNR:			/* Warn, continue. */
-			case FTS_ERR:
-			case FTS_NS:
-				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
-				rval = 1;
-				break;
-			default:
-				if (ignorep(p))
-					break;
 
-				if (lflag == 0 &&
-				    p->fts_statp->st_nlink > 1 && linkchk(p))
-					break;
+			if (lflag == 0 && p->fts_statp->st_nlink > 1 &&
+			    linkchk(p))
+				break;
 
-				if (listall || p->fts_level == 0) {
-					if (hflag) {
-						(void) prthumanval(howmany(p->fts_statp->st_blocks,
-							blocksize));
-						(void) printf("\t%s\n", p->fts_path);
-					} else {
-						(void) printf("%jd\t%s\n",
-							(intmax_t)howmany(p->fts_statp->st_blocks, blocksize),
-							p->fts_path);
-					}
+			curblocks = Aflag ?
+			    howmany(p->fts_statp->st_size, cblocksize) :
+			    howmany(p->fts_statp->st_blocks, cblocksize);
+
+			if (listall || p->fts_level == 0) {
+				if (hflag) {
+					prthumanval(curblocks);
+					(void)printf("\t%s\n", p->fts_path);
+				} else {
+					(void)printf("%jd\t%s\n",
+					    (intmax_t)howmany(curblocks *
+					    cblocksize, blocksize),
+					    p->fts_path);
 				}
+			}
 
-				p->fts_parent->fts_bignum += p->fts_statp->st_blocks;
+			p->fts_parent->fts_bignum += curblocks;
 		}
 		savednumber = p->fts_parent->fts_bignum;
 	}
@@ -292,10 +321,11 @@ main(int argc, char *argv[])
 
 	if (cflag) {
 		if (hflag) {
-			(void) prthumanval(howmany(savednumber, blocksize));
-			(void) printf("\ttotal\n");
+			prthumanval(savednumber);
+			(void)printf("\ttotal\n");
 		} else {
-			(void) printf("%jd\ttotal\n", (intmax_t)howmany(savednumber, blocksize));
+			(void)printf("%jd\ttotal\n", (intmax_t)howmany(
+			    savednumber * cblocksize, blocksize));
 		}
 	}
 
@@ -348,7 +378,8 @@ linkchk(FTSENT *p)
 				free_list = le->next;
 				free(le);
 			}
-			new_buckets = malloc(new_size * sizeof(new_buckets[0]));
+			new_buckets = malloc(new_size *
+			    sizeof(new_buckets[0]));
 		}
 
 		if (new_buckets == NULL) {
@@ -436,12 +467,14 @@ linkchk(FTSENT *p)
 	return (0);
 }
 
-void
+static void
 prthumanval(int64_t bytes)
 {
 	char buf[5];
 
-	bytes *= DEV_BSIZE;
+	bytes *= cblocksize;
+	if (!Aflag)
+		bytes *= DEV_BSIZE;
 
 	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
 	    HN_B | HN_NOSPACE | HN_DECIMAL);
@@ -453,12 +486,13 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m] [-n] [-x] [-I mask] [file ...]\n");
+		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
+		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
+		"[file ...]\n");
 	exit(EX_USAGE);
 }
 
-void
+static void
 ignoreadd(const char *mask)
 {
 	struct ignentry *ign;
@@ -472,7 +506,7 @@ ignoreadd(const char *mask)
 	SLIST_INSERT_HEAD(&ignores, ign, next);
 }
 
-void
+static void
 ignoreclean(void)
 {
 	struct ignentry *ign;
@@ -485,7 +519,7 @@ ignoreclean(void)
 	}
 }
 
-int
+static int
 ignorep(FTSENT *ent)
 {
 	struct ignentry *ign;

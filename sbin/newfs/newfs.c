@@ -139,6 +139,9 @@ u_char	*volumelabel = NULL;	/* volume label for filesystem */
 struct uufsd disk;		/* libufs disk structure */
 
 static char	device[MAXPATHLEN];
+static u_char   bootarea[BBSIZE];
+static int	is_file;		/* work on a file, not a device */
+static char	*dkname;
 static char	*disktype;
 static int	unlabeled;
 
@@ -146,6 +149,18 @@ static void getfssize(intmax_t *, const char *p, intmax_t, intmax_t);
 static struct disklabel *getdisklabel(char *s);
 static void rewritelabel(char *s, struct disklabel *lp);
 static void usage(void);
+
+ufs2_daddr_t part_ofs; /* partition offset in blocks, used with files */
+
+/*
+ * need to replace the library's bwrite so that sbwrite uses this one
+ */
+ssize_t
+bwrite(struct uufsd *disk, ufs2_daddr_t blockno, const void *data, size_t size)
+{
+	return pwrite(disk->d_fd, data, size,
+		(off_t)((part_ofs + blockno) * disk->d_bsize));
+}
 
 int
 main(int argc, char *argv[])
@@ -158,7 +173,9 @@ main(int argc, char *argv[])
 	intmax_t reserved;
 	int ch, i;
 	off_t mediasize;
+	char part_name;		/* partition name, default to full disk */
 
+	part_name = 'c';
 	reserved = 0;
 	while ((ch = getopt(argc, argv,
 	    "EJL:NO:RS:T:UXa:b:c:d:e:f:g:h:i:lm:no:r:s:")) != -1)
@@ -276,6 +293,11 @@ main(int argc, char *argv[])
 			    *cp != '\0' || reserved < 0)
 				errx(1, "%s: bad reserved size", optarg);
 			break;
+		case 'p':
+			is_file = 1;
+			part_name = optarg[0];
+			break;
+
 		case 's':
 			errno = 0;
 			fssize = strtoimax(optarg, &cp, 0);
@@ -294,6 +316,8 @@ main(int argc, char *argv[])
 		usage();
 
 	special = argv[0];
+	if (!special[0])
+		err(1, "empty file/special name");
 	cp = strrchr(special, '/');
 	if (cp == 0) {
 		/*
@@ -303,7 +327,16 @@ main(int argc, char *argv[])
 		special = device;
 	}
 
-	if (ufs_disk_fillout_blank(&disk, special) == -1 ||
+	if (is_file) {
+		/* bypass ufs_disk_fillout_blank */
+		bzero( &disk, sizeof(disk));
+		disk.d_bsize = 1;
+		disk.d_name = special;
+		disk.d_fd = open(special, O_RDONLY);
+		if (disk.d_fd < 0 ||
+		    (!Nflag && ufs_disk_write(&disk) == -1))
+			errx(1, "%s: ", special);
+	} else if (ufs_disk_fillout_blank(&disk, special) == -1 ||
 	    (!Nflag && ufs_disk_write(&disk) == -1)) {
 		if (disk.d_error != NULL)
 			errx(1, "%s: %s", special, disk.d_error);
@@ -312,22 +345,30 @@ main(int argc, char *argv[])
 	}
 	if (fstat(disk.d_fd, &st) < 0)
 		err(1, "%s", special);
-	if ((st.st_mode & S_IFMT) != S_IFCHR)
-		errx(1, "%s: not a character-special device", special);
+	if ((st.st_mode & S_IFMT) != S_IFCHR) {
+		warn("%s: not a character-special device", special);
+		is_file = 1;	/* assume it is a file */
+		dkname = special;
+		if (sectorsize == 0)
+			sectorsize = 512;
+		mediasize = st.st_size;
+		/* set fssize from the partition */
+	} else {
+	    part_name = special[strlen(special) - 1];
+	    if ((part_name < 'a' || part_name > 'h') && !isdigit(part_name))
+		errx(1, "%s: can't figure out file system partition",
+				special);
 
-	if (sectorsize == 0)
+	    if (sectorsize == 0)
 		if (ioctl(disk.d_fd, DIOCGSECTORSIZE, &sectorsize) == -1)
-			sectorsize = 0;	/* back out on error for safety */
-	if (sectorsize && ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize) != -1)
+		    sectorsize = 0;	/* back out on error for safety */
+	    if (sectorsize && ioctl(disk.d_fd, DIOCGMEDIASIZE, &mediasize) != -1)
 		getfssize(&fssize, special, mediasize / sectorsize, reserved);
+	}
 	pp = NULL;
 	lp = getdisklabel(special);
 	if (lp != NULL) {
-		cp = strchr(special, '\0');
-		cp--;
-		if ((*cp < 'a' || *cp > 'h') && !isdigit(*cp))
-			errx(1, "%s: can't figure out file system partition",
-			    special);
+		cp = &part_name;
 		if (isdigit(*cp))
 			pp = &lp->d_partitions[RAW_PART];
 		else
@@ -346,6 +387,8 @@ main(int argc, char *argv[])
 			fsize = pp->p_fsize;
 		if (bsize == 0)
 			bsize = pp->p_frag * pp->p_fsize;
+		if (is_file)
+			part_ofs = pp->p_offset;
 	}
 	if (sectorsize <= 0)
 		errx(1, "%s: no default sector size", special);
@@ -414,6 +457,19 @@ getdisklabel(char *s)
 	static struct disklabel lab;
 	struct disklabel *lp;
 
+	if (is_file) {
+		if (read(disk.d_fd, bootarea, BBSIZE) != BBSIZE)
+			err(4, "cannot read bootarea");
+		if (bsd_disklabel_le_dec(
+		    bootarea + (0 /* labeloffset */ +
+				1 /* labelsoffset */ * sectorsize),
+		    &lab, MAXPARTITIONS))
+			errx(1, "no valid label found");
+
+		lp = &lab;
+		return &lab;
+	}
+
 	if (ioctl(disk.d_fd, DIOCGDINFO, (char *)&lab) != -1)
 		return (&lab);
 	unlabeled++;
@@ -432,6 +488,14 @@ rewritelabel(char *s, struct disklabel *lp)
 		return;
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
+	if (is_file) {
+		bsd_disklabel_le_enc(bootarea + 0 /* labeloffset */ +
+			1 /* labelsoffset */ * sectorsize, lp);
+		lseek(disk.d_fd, 0, SEEK_SET);
+		if (write(disk.d_fd, bootarea, BBSIZE) != BBSIZE)
+			errx(1, "cannot write label");
+		return;
+	}
 	if (ioctl(disk.d_fd, DIOCWDINFO, (char *)lp) == -1)
 		warn("ioctl (WDINFO): %s: can't rewrite disk label", s);
 }
@@ -467,6 +531,7 @@ usage()
 	fprintf(stderr, "\t-n do not create .snap directory\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
+	fprintf(stderr, "\t-p partition name (a..h)\n");
 	fprintf(stderr, "\t-r reserved sectors at the end of device\n");
 	fprintf(stderr, "\t-s file system size (sectors)\n");
 	exit(1);

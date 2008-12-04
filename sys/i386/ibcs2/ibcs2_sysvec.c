@@ -85,7 +85,8 @@ struct sysentvec ibcs2_svr3_sysvec = {
 	.sv_copyout_strings = exec_copyout_strings,
 	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
-	.sv_maxssiz	= NULL
+	.sv_maxssiz	= NULL,
+	.sv_flags	= SV_ABI_UNDEF | SV_IA32 | SV_ILP32
 };
 
 static int

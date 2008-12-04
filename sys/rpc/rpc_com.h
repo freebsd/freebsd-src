@@ -115,6 +115,7 @@ extern const char *__rpc_inet_ntop(int af, const void * __restrict src,
     char * __restrict dst, socklen_t size);
 extern int __rpc_inet_pton(int af, const char * __restrict src,
     void * __restrict dst);
+extern int bindresvport(struct socket *so, struct sockaddr *sa);
 
 struct xucred;
 struct __rpc_xdr;

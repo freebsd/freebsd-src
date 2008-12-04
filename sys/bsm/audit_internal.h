@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2005 Apple Inc.
  * Copyright (c) 2005 SPARTA, Inc.
  * All rights reserved.
@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_internal.h#18
+ * P4: //depot/projects/trustedbsd/openbsm/sys/bsm/audit_internal.h#2
  * $FreeBSD$
  */
 
@@ -72,7 +72,9 @@ typedef	struct au_record	au_record_t;
  * token structures may contain pointers of whose contents we do not know the
  * size (e.g text tokens).
  */
+#define	AUDIT_HEADER_EX_SIZE(a)	((a)->ai_termid.at_type+18+sizeof(u_int32_t))
 #define	AUDIT_HEADER_SIZE	18
+#define	MAX_AUDIT_HEADER_SIZE	(5*sizeof(u_int32_t)+18)
 #define	AUDIT_TRAILER_SIZE	7
 
 /*

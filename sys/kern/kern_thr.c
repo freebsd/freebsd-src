@@ -57,14 +57,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef COMPAT_IA32
 
-extern struct sysentvec ia32_freebsd_sysvec;
-
 static inline int
 suword_lwpid(void *addr, lwpid_t lwpid)
 {
 	int error;
 
-	if (curproc->p_sysent != &ia32_freebsd_sysvec)
+	if (SV_CURPROC_FLAG(SV_LP64))
 		error = suword(addr, lwpid);
 	else
 		error = suword32(addr, lwpid);
@@ -76,6 +74,7 @@ suword_lwpid(void *addr, lwpid_t lwpid)
 #endif
 
 extern int max_threads_per_proc;
+extern int max_threads_hits;
 
 static int create_thread(struct thread *td, mcontext_t *ctx,
 			 void (*start_func)(void *), void *arg,
@@ -154,8 +153,10 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	p = td->td_proc;
 
 	/* Have race condition but it is cheap. */
-	if (p->p_numthreads >= max_threads_per_proc)
+	if (p->p_numthreads >= max_threads_per_proc) {
+		++max_threads_hits;
 		return (EPROCLIM);
+	}
 
 	if (rtp != NULL) {
 		switch(rtp->type) {

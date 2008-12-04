@@ -50,3 +50,4 @@ ENTRY(syscall)
 1:
 	PIC_PROLOGUE
 	jmp	PIC_PLT(HIDENAME(cerror))
+END(syscall)

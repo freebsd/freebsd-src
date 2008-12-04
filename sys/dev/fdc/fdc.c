@@ -97,6 +97,8 @@ __FBSDID("$FreeBSD$");
 				 * fd_drivetype; on i386 machines, if
 				 * given as 0, use RTC type for fd0
 				 * and fd1 */
+#define	FD_NO_CHLINE	0x10	/* drive does not support changeline
+				 * aka. unit attention */
 #define FD_NO_PROBE	0x20	/* don't probe drive (seek test), just
 				 * assume it is there */
 
@@ -263,6 +265,7 @@ struct fd_data {
 static driver_intr_t fdc_intr;
 static driver_filter_t fdc_intr_fast;
 static void fdc_reset(struct fdc_data *);
+static int fd_probe_disk(struct fd_data *, int *);
 
 SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
 
@@ -768,9 +771,11 @@ fdc_worker(struct fdc_data *fdc)
 		(fdc->retry >= retries || (fd->options & FDOPT_NORETRY))) {
 		if ((debugflags & 4))
 			printf("Too many retries (EIO)\n");
-		mtx_lock(&fdc->fdc_mtx);
-		fd->flags |= FD_EMPTY;
-		mtx_unlock(&fdc->fdc_mtx);
+		if (fdc->flags & FDC_NEEDS_RESET) {
+			mtx_lock(&fdc->fdc_mtx);
+			fd->flags |= FD_EMPTY;
+			mtx_unlock(&fdc->fdc_mtx);
+		}
 		return (fdc_biodone(fdc, EIO));
 	}
 
@@ -836,65 +841,12 @@ fdc_worker(struct fdc_data *fdc)
 		fdctl_wr(fdc, fd->ft->trans);
 
 	if (bp->bio_cmd & BIO_PROBE) {
-
-		if (!(fdin_rd(fdc) & FDI_DCHG) && !(fd->flags & FD_EMPTY))
+		if ((!(device_get_flags(fd->dev) & FD_NO_CHLINE) &&
+		    !(fdin_rd(fdc) & FDI_DCHG) &&
+		    !(fd->flags & FD_EMPTY)) ||
+		    fd_probe_disk(fd, &need_recal) == 0)
 			return (fdc_biodone(fdc, 0));
-
-		/*
-		 * Try to find out if we have a disk in the drive
-		 *
-		 * First recal, then seek to cyl#1, this clears the
-		 * old condition on the disk change line so we can
-		 * examine it for current status
-		 */
-		if (debugflags & 0x40)
-			printf("New disk in probe\n");
-		mtx_lock(&fdc->fdc_mtx);
-		fd->flags |= FD_NEWDISK;
-		mtx_unlock(&fdc->fdc_mtx);
-		retry_line = __LINE__;
-		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
-			return (1);
-		tsleep(fdc, PRIBIO, "fdrecal", hz);
-		retry_line = __LINE__;
-		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
-			return (1); /* XXX */
-		retry_line = __LINE__;
-		if ((st0 & 0xc0) || cyl != 0)
-			return (1);
-
-		/* Seek to track 1 */
-		retry_line = __LINE__;
-		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, 1, 0))
-			return (1);
-		tsleep(fdc, PRIBIO, "fdseek", hz);
-		retry_line = __LINE__;
-		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
-			return (1); /* XXX */
-		need_recal |= (1 << fd->fdsu);
-		if (fdin_rd(fdc) & FDI_DCHG) {
-			if (debugflags & 0x40)
-				printf("Empty in probe\n");
-			mtx_lock(&fdc->fdc_mtx);
-			fd->flags |= FD_EMPTY;
-			mtx_unlock(&fdc->fdc_mtx);
-		} else {
-			if (debugflags & 0x40)
-				printf("Got disk in probe\n");
-			mtx_lock(&fdc->fdc_mtx);
-			fd->flags &= ~FD_EMPTY;
-			mtx_unlock(&fdc->fdc_mtx);
-			retry_line = __LINE__;
-			if(fdc_sense_drive(fdc, &st3) != 0)
-				return (1);
-			mtx_lock(&fdc->fdc_mtx);
-			if(st3 & NE7_ST3_WP)
-				fd->flags |= FD_WP;
-			else
-				fd->flags &= ~FD_WP;
-			mtx_unlock(&fdc->fdc_mtx);
-		}
-		return (fdc_biodone(fdc, 0));
+		return (1);
 	}
 
 	/*
@@ -1238,6 +1190,71 @@ fd_enqueue(struct fd_data *fd, struct bio *bp)
 	mtx_unlock(&fdc->fdc_mtx);
 }
 
+/*
+ * Try to find out if we have a disk in the drive.
+ */
+static int
+fd_probe_disk(struct fd_data *fd, int *recal)
+{
+	struct fdc_data *fdc;
+	int st0, st3, cyl;
+	int oopts, ret;
+
+	fdc = fd->fdc;
+	oopts = fd->options;
+	fd->options |= FDOPT_NOERRLOG | FDOPT_NORETRY;
+	ret = 1;
+
+	/*
+	 * First recal, then seek to cyl#1, this clears the old condition on
+	 * the disk change line so we can examine it for current status.
+	 */
+	if (debugflags & 0x40)
+		printf("New disk in probe\n");
+	mtx_lock(&fdc->fdc_mtx);
+	fd->flags |= FD_NEWDISK;
+	mtx_unlock(&fdc->fdc_mtx);
+	if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
+		goto done;
+	tsleep(fdc, PRIBIO, "fdrecal", hz);
+	if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+		goto done;	/* XXX */
+	if ((st0 & 0xc0) || cyl != 0)
+		goto done;
+
+	/* Seek to track 1 */
+	if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, 1, 0))
+		goto done;
+	tsleep(fdc, PRIBIO, "fdseek", hz);
+	if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
+		goto done;	/* XXX */
+	*recal |= (1 << fd->fdsu);
+	if (fdin_rd(fdc) & FDI_DCHG) {
+		if (debugflags & 0x40)
+			printf("Empty in probe\n");
+		mtx_lock(&fdc->fdc_mtx);
+		fd->flags |= FD_EMPTY;
+		mtx_unlock(&fdc->fdc_mtx);
+	} else {
+		if (fdc_sense_drive(fdc, &st3) != 0)
+			goto done;
+		if (debugflags & 0x40)
+			printf("Got disk in probe\n");
+		mtx_lock(&fdc->fdc_mtx);
+		fd->flags &= ~FD_EMPTY;
+		if (st3 & NE7_ST3_WP)
+			fd->flags |= FD_WP;
+		else
+			fd->flags &= ~FD_WP;
+		mtx_unlock(&fdc->fdc_mtx);
+	}
+	ret = 0;
+
+done:
+	fd->options = oopts;
+	return (ret);
+}
+
 static int
 fdmisccmd(struct fd_data *fd, u_int cmd, void *data)
 {
@@ -1350,7 +1367,7 @@ fdautoselect(struct fd_data *fd)
 		if (debugflags & 0x40)
 			device_printf(fd->dev, "autoselection failed\n");
 		fdsettype(fd, fd_native_types[fd->type]);
-		return (0);
+		return (-1);
 	} else {
 		if (debugflags & 0x40) {
 			device_printf(fd->dev,
@@ -1411,7 +1428,13 @@ fd_access(struct g_provider *pp, int r, int w, int e)
 		if (fd->flags & FD_EMPTY)
 			return (ENXIO);
 		if (fd->flags & FD_NEWDISK) {
-			fdautoselect(fd);
+			if (fdautoselect(fd) != 0 &&
+			    (device_get_flags(fd->dev) & FD_NO_CHLINE)) {
+				mtx_lock(&fdc->fdc_mtx);
+				fd->flags |= FD_EMPTY;
+				mtx_unlock(&fdc->fdc_mtx);
+				return (ENXIO);
+			}
 			mtx_lock(&fdc->fdc_mtx);
 			fd->flags &= ~FD_NEWDISK;
 			mtx_unlock(&fdc->fdc_mtx);

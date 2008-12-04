@@ -50,42 +50,42 @@ static int	_thr_rtld_set_flag(int);
 static void	_thr_rtld_wlock_acquire(void *);
 
 struct rtld_lock {
-	struct	urwlock		lock;
-	void			*base;
+	struct	urwlock	lock;
+	char		_pad[CACHE_LINE_SIZE - sizeof(struct urwlock)];
 };
+
+static struct rtld_lock lock_place[MAX_RTLD_LOCKS] __aligned(CACHE_LINE_SIZE);
+static int busy_places;
 
 static void *
 _thr_rtld_lock_create(void)
 {
-	void			*base;
-	char			*p;
-	uintptr_t		r;
-	struct rtld_lock	*l;
-	size_t			size;
+	int locki;
+	struct rtld_lock *l;
+	static const char fail[] = "_thr_rtld_lock_create failed\n";
 
-	size = CACHE_LINE_SIZE;
-	while (size < sizeof(struct rtld_lock))
-		size <<= 1;
-	base = calloc(1, size);
-	p = (char *)base;
-	if ((uintptr_t)p % CACHE_LINE_SIZE != 0) {
-		free(base);
-		base = calloc(1, size + CACHE_LINE_SIZE);
-		p = (char *)base;
-		if ((r = (uintptr_t)p % CACHE_LINE_SIZE) != 0)
-			p += CACHE_LINE_SIZE - r;
+	for (locki = 0; locki < MAX_RTLD_LOCKS; locki++) {
+		if ((busy_places & (1 << locki)) == 0)
+			break;
 	}
-	l = (struct rtld_lock *)p;
+	if (locki == MAX_RTLD_LOCKS) {
+		write(2, fail, sizeof(fail) - 1);
+		return (NULL);
+	}
+	busy_places |= (1 << locki);
+
+	l = &lock_place[locki];
 	l->lock.rw_flags = URWLOCK_PREFER_READER;
-	l->base = base;
 	return (l);
 }
 
 static void
 _thr_rtld_lock_destroy(void *lock)
 {
-	struct rtld_lock *l = (struct rtld_lock *)lock;
-	free(l->base);
+	int locki;
+
+	locki = (struct rtld_lock *)lock - &lock_place[0];
+	busy_places &= ~(1 << locki);
 }
 
 #define SAVE_ERRNO()	{			\

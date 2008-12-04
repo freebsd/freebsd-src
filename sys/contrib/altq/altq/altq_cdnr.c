@@ -274,7 +274,7 @@ cdnr_cballoc(top, type, input_func)
 		return (NULL);
 	}
 
-	MALLOC(cb, struct cdnr_block *, size, M_DEVBUF, M_WAITOK);
+	cb = malloc(size, M_DEVBUF, M_WAITOK);
 	if (cb == NULL)
 		return (NULL);
 	bzero(cb, size);
@@ -319,7 +319,7 @@ cdnr_cbdestroy(cblock)
 	if (cb->cb_top != cblock)
 		LIST_REMOVE(cb, cb_next);
 
-	FREE(cb, M_DEVBUF);
+	free(cb, M_DEVBUF);
 }
 
 /*

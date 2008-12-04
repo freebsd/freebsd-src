@@ -132,7 +132,9 @@ MALLOC_DECLARE(M_NFSDIRECTIO);
 
 extern struct uma_zone *nfsmount_zone;
 
+#ifdef NFS_LEGACYRPC
 extern struct callout nfs_callout;
+#endif
 extern struct nfsstats nfsstats;
 extern struct mtx nfs_iod_mtx;
 
@@ -156,6 +158,8 @@ extern int nfsv3_procid[NFS_NPROCS];
 		((e) != EINTR && (e) != EIO && \
 		(e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
+
+#ifdef NFS_LEGACYRPC
 
 /*
  * Nfs outstanding request list element
@@ -195,6 +199,17 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	R_MUSTRESEND	0x40		/* Must resend request */
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
 #define	R_PIN_REQ	0x100		/* Pin request down (rexmit in prog or other) */
+
+#else
+
+/*
+ * This is only needed to keep things working while we support
+ * compiling for both RPC implementations.
+ */
+struct nfsreq;
+struct nfsmount;
+
+#endif
 
 struct buf;
 struct socket;
@@ -291,12 +306,18 @@ vfs_init_t nfs_init;
 vfs_uninit_t nfs_uninit;
 int	nfs_mountroot(struct mount *mp, struct thread *td);
 
+#ifdef NFS_LEGACYRPC
 #ifndef NFS4_USE_RPCCLNT
 int	nfs_send(struct socket *, struct sockaddr *, struct mbuf *,
 	    struct nfsreq *);
 int	nfs_connect_lock(struct nfsreq *);
 void	nfs_connect_unlock(struct nfsreq *);
+void	nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
+	    const char *, int);
+void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
+	    const char *, int, int);
 #endif /* ! NFS4_USE_RPCCLNT */
+#endif
 
 int	nfs_vinvalbuf(struct vnode *, int, struct thread *, int);
 int	nfs_readrpc(struct vnode *, struct uio *, struct ucred *);
@@ -309,10 +330,6 @@ int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
 void	nfs_doio_directwrite (struct buf *);
-void	nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
-	    const char *, int);
-void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
-	    const char *, int, int);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct thread *);
 int	nfs_readdirplusrpc(struct vnode *, struct uio *, struct ucred *);

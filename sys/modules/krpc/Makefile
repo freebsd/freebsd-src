@@ -16,6 +16,7 @@ SRCS=	auth_none.c \
 	rpc_prot.c \
 	rpcb_clnt.c \
 	rpcb_prot.c \
+	replay.c \
 	svc.c \
 	svc_auth.c \
 	svc_auth_unix.c \

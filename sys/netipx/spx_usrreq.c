@@ -1397,12 +1397,12 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 			return (error);
 	}
 
-	MALLOC(cb, struct spxpcb *, sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
+	cb = malloc(sizeof *cb, M_PCB, M_NOWAIT | M_ZERO);
 	if (cb == NULL)
 		return (ENOBUFS);
 	mm = m_getclr(M_DONTWAIT, MT_DATA);
 	if (mm == NULL) {
-		FREE(cb, M_PCB);
+		free(cb, M_PCB);
 		return (ENOBUFS);
 	}
 
@@ -1411,7 +1411,7 @@ spx_attach(struct socket *so, int proto, struct thread *td)
 	if (error) {
 		IPX_LIST_UNLOCK();
 		m_free(mm);
-		FREE(cb, M_PCB);
+		free(cb, M_PCB);
 		return (error);
 	}
 	ipxp = sotoipxpcb(so);
@@ -1463,7 +1463,7 @@ spx_pcbdetach(struct ipxpcb *ipxp)
 		m_freem(m);
 	}
 	m_free(dtom(cb->s_ipx));
-	FREE(cb, M_PCB);
+	free(cb, M_PCB);
 	ipxp->ipxp_pcb = NULL;
 }
 

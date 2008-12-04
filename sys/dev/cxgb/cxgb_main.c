@@ -82,10 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #endif
 
-#ifdef IFNET_MULTIQUEUE
-#include <machine/intr_machdep.h>
-#endif
-
 static int cxgb_setup_msix(adapter_t *, int);
 static void cxgb_teardown_msix(adapter_t *);
 static void cxgb_init(void *);
@@ -206,17 +202,17 @@ SYSCTL_UINT(_hw_cxgb, OID_AUTO, ofld_disable, CTLFLAG_RDTUN, &ofld_disable, 0,
 
 /*
  * The driver uses an auto-queue algorithm by default.
- * To disable it and force a single queue-set per port, use singleq = 1.
+ * To disable it and force a single queue-set per port, use multiq = 0
  */
-static int singleq = 0;
-TUNABLE_INT("hw.cxgb.singleq", &singleq);
-SYSCTL_UINT(_hw_cxgb, OID_AUTO, singleq, CTLFLAG_RDTUN, &singleq, 0,
-    "use a single queue-set per port");
-
+static int multiq = 1;
+TUNABLE_INT("hw.cxgb.multiq", &multiq);
+SYSCTL_UINT(_hw_cxgb, OID_AUTO, multiq, CTLFLAG_RDTUN, &multiq, 0,
+    "use min(ncpus/ports, 8) queue-sets per port");
 
 /*
- * The driver uses an auto-queue algorithm by default.
- * To disable it and force a single queue-set per port, use singleq = 1.
+ * By default the driver will not update the firmware unless
+ * it was compiled against a newer version
+ * 
  */
 static int force_fw_update = 0;
 TUNABLE_INT("hw.cxgb.force_fw_update", &force_fw_update);
@@ -526,7 +522,7 @@ cxgb_controller_attach(device_t dev)
 		sc->cxgb_intr = t3b_intr;
 	}
 
-	if ((sc->flags & USING_MSIX) && !singleq)
+	if ((sc->flags & USING_MSIX) && multiq)
 		port_qsets = min((SGE_QSETS/(sc)->params.nports), mp_ncpus);
 	
 	/* Create a private taskqueue thread for handling driver events */
@@ -827,15 +823,18 @@ cxgb_setup_msix(adapter_t *sc, int msix_count)
 				device_printf(sc->dev, "Cannot set up "
 				    "interrupt for message %d\n", rid);
 				return (EINVAL);
+				
 			}
+#if 0			
 #ifdef IFNET_MULTIQUEUE			
-			if (singleq == 0) {
+			if (multiq) {
 				int vector = rman_get_start(sc->msix_irq_res[k]);
 				if (bootverbose)
 					device_printf(sc->dev, "binding vector=%d to cpu=%d\n", vector, k % mp_ncpus);
 				intr_bind(vector, k % mp_ncpus);
 			}
-#endif			
+#endif
+#endif
 		}
 	}
 
@@ -925,12 +924,7 @@ cxgb_port_attach(device_t dev)
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_start = cxgb_start;
 
-#if 0	
-#ifdef IFNET_MULTIQUEUE
-	ifp->if_flags |= IFF_MULTIQ;
-	ifp->if_mq_start = cxgb_pcpu_start;
-#endif
-#endif	
+
 	ifp->if_timer = 0;	/* Disable ifnet watchdog */
 	ifp->if_watchdog = NULL;
 
@@ -952,6 +946,9 @@ cxgb_port_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, p->hw_addr);
+#ifdef IFNET_MULTIQUEUE
+	ifp->if_transmit = cxgb_pcpu_transmit;
+#endif
 	/*
 	 * Only default to jumbo frames on 10GigE
 	 */
@@ -1931,7 +1928,9 @@ static int
 cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 {
 	struct port_info *p = ifp->if_softc;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr *)data;
+#endif
 	struct ifreq *ifr = (struct ifreq *)data;
 	int flags, error = 0, reinit = 0;
 	uint32_t mask;
@@ -1944,6 +1943,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		error = cxgb_set_mtu(p, ifr->ifr_mtu);
 		break;
 	case SIOCSIFADDR:
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
@@ -1953,6 +1953,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			}
 			arp_ifinit(ifp, ifa);
 		} else
+#endif
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
@@ -2184,7 +2185,7 @@ cxgb_tick(void *arg)
 	if(sc->flags & CXGB_SHUTDOWN)
 		return;
 
-	taskqueue_enqueue(sc->tq, &sc->tick_task);
+	taskqueue_enqueue(sc->tq, &sc->tick_task);	
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
 }
 
@@ -2202,6 +2203,7 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->linkpoll_period)
 		check_link_status(sc);
 
+	
 	sc->check_task_cnt++;
 
 	/*
@@ -2213,17 +2215,59 @@ cxgb_tick_handler(void *arg, int count)
 	if (p->rev == T3_REV_B2 && p->nports < 4 && sc->open_device_map) 
 		check_t3b2_mac(sc);
 
-	/* Update MAC stats if it's time to do so */
-	if (!p->linkpoll_period ||
-	    (sc->check_task_cnt * p->linkpoll_period) / 10 >=
-	    p->stats_update_period) {
-		for_each_port(sc, i) {
-			struct port_info *port = &sc->port[i];
-			PORT_LOCK(port);
-			t3_mac_update_stats(&port->mac);
-			PORT_UNLOCK(port);
-		}
-		sc->check_task_cnt = 0;
+	for (i = 0; i < sc->params.nports; i++) {
+		struct port_info *pi = &sc->port[i];
+		struct ifnet *ifp = pi->ifp;
+		struct mac_stats *mstats = &pi->mac.stats;
+		PORT_LOCK(pi);
+		t3_mac_update_stats(&pi->mac);
+		PORT_UNLOCK(pi);
+
+		
+		ifp->if_opackets =
+		    mstats->tx_frames_64 +
+		    mstats->tx_frames_65_127 +
+		    mstats->tx_frames_128_255 +
+		    mstats->tx_frames_256_511 +
+		    mstats->tx_frames_512_1023 +
+		    mstats->tx_frames_1024_1518 +
+		    mstats->tx_frames_1519_max;
+		
+		ifp->if_ipackets =
+		    mstats->rx_frames_64 +
+		    mstats->rx_frames_65_127 +
+		    mstats->rx_frames_128_255 +
+		    mstats->rx_frames_256_511 +
+		    mstats->rx_frames_512_1023 +
+		    mstats->rx_frames_1024_1518 +
+		    mstats->rx_frames_1519_max;
+
+		ifp->if_obytes = mstats->tx_octets;
+		ifp->if_ibytes = mstats->rx_octets;
+		ifp->if_omcasts = mstats->tx_mcast_frames;
+		ifp->if_imcasts = mstats->rx_mcast_frames;
+		
+		ifp->if_collisions =
+		    mstats->tx_total_collisions;
+
+		ifp->if_iqdrops = mstats->rx_cong_drops;
+		
+		ifp->if_oerrors =
+		    mstats->tx_excess_collisions +
+		    mstats->tx_underrun +
+		    mstats->tx_len_errs +
+		    mstats->tx_mac_internal_errs +
+		    mstats->tx_excess_deferral +
+		    mstats->tx_fcs_errs;
+		ifp->if_ierrors =
+		    mstats->rx_jabber +
+		    mstats->rx_data_errs +
+		    mstats->rx_sequence_errs +
+		    mstats->rx_runt + 
+		    mstats->rx_too_long +
+		    mstats->rx_mac_internal_errs +
+		    mstats->rx_short +
+		    mstats->rx_fcs_errs;
 	}
 }
 

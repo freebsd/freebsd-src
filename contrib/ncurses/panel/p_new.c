@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1997-1999               *
+ *     and: Thomas E. Dickey                        2000-on                 *
  ****************************************************************************/
 
 /* p_new.c
@@ -36,7 +38,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.8 2005/02/19 16:41:03 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.10 2008/08/04 18:25:48 tom Exp $")
 
 #ifdef TRACE
 static char *stdscr_id;
@@ -54,6 +56,9 @@ root_panel(void)
     {
 
       assert(stdscr && !_nc_bottom_panel && !_nc_top_panel);
+#if NO_LEAKS
+      _nc_panelhook()->destroy = del_panel;
+#endif
       _nc_stdscr_pseudo_panel = (PANEL *) malloc(sizeof(PANEL));
       if (_nc_stdscr_pseudo_panel != 0)
 	{

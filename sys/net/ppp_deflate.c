@@ -126,7 +126,7 @@ z_alloc(notused, items, size)
 {
     void *ptr;
 
-    MALLOC(ptr, void *, items * size, M_DEVBUF, M_NOWAIT);
+    ptr = malloc(items * size, M_DEVBUF, M_NOWAIT);
     return ptr;
 }
 
@@ -159,7 +159,7 @@ z_comp_alloc(options, opt_len)
     if (w_size < DEFLATE_MIN_SIZE || w_size > DEFLATE_MAX_SIZE)
 	return NULL;
 
-    MALLOC(state, struct deflate_state *, sizeof(struct deflate_state),
+    state = malloc(sizeof(struct deflate_state),
 	   M_DEVBUF, M_NOWAIT);
     if (state == NULL)
 	return NULL;
@@ -389,7 +389,7 @@ z_decomp_alloc(options, opt_len)
     if (w_size < DEFLATE_MIN_SIZE || w_size > DEFLATE_MAX_SIZE)
 	return NULL;
 
-    MALLOC(state, struct deflate_state *, sizeof(struct deflate_state),
+    state = malloc(sizeof(struct deflate_state),
 	   M_DEVBUF, M_NOWAIT);
     if (state == NULL)
 	return NULL;

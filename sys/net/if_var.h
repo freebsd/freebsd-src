@@ -186,7 +186,11 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	void	*if_pspare[10];		/* multiq/TOE 3; vimage 3; general use 4 */
+	void	*if_pspare[8];		/* multiq/TOE 3; vimage 3; general use 4 */
+	void	(*if_qflush)	/* flush any queues */
+		(struct ifnet *);
+	int	(*if_transmit)	/* initiate output routine */
+		(struct ifnet *, struct mbuf *);
 	int	if_ispare[2];		/* general use 2 */
 };
 
@@ -686,6 +690,9 @@ int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 
+void	ifq_attach(struct ifaltq *, struct ifnet *ifp);
+void	ifq_detach(struct ifaltq *);
+
 struct	ifaddr *ifa_ifwithaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(struct sockaddr *);
 struct	ifaddr *ifa_ifwithdstaddr(struct sockaddr *);
@@ -712,8 +719,6 @@ typedef	void poll_handler_t(struct ifnet *ifp, enum poll_cmd cmd, int count);
 int    ether_poll_register(poll_handler_t *h, struct ifnet *ifp);
 int    ether_poll_deregister(struct ifnet *ifp);
 #endif /* DEVICE_POLLING */
-
-#include <net/vnet.h>
 
 #endif /* _KERNEL */
 

@@ -97,12 +97,6 @@ void	ath_rate_node_cleanup(struct ath_softc *, struct ath_node *);
  */
 void	ath_rate_newassoc(struct ath_softc *, struct ath_node *,
 		int isNewAssociation);
-/*
- * Update/reset rate control state for 802.11 state transitions.
- * Important mostly as the analog to ath_rate_newassoc when operating
- * in station mode.
- */
-void	ath_rate_newstate(struct ieee80211vap *, enum ieee80211_state);
 
 /*
  * Transmit handling.

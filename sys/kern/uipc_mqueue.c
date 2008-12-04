@@ -793,7 +793,8 @@ mqfs_search(struct mqfs_node *pd, const char *name, int len)
 
 	sx_assert(&pd->mn_info->mi_lock, SX_LOCKED);
 	LIST_FOREACH(pn, &pd->mn_children, mn_sibling) {
-		if (strncmp(pn->mn_name, name, len) == 0)
+		if (strncmp(pn->mn_name, name, len) == 0 &&
+		    pn->mn_name[len] == '\0')
 			return (pn);
 	}
 	return (NULL);
@@ -1120,7 +1121,7 @@ mqfs_close(struct vop_close_args *ap)
 struct vop_access_args {
 	struct vop_generic_args a_gen;
 	struct vnode *a_vp;
-	int a_mode;
+	accmode_t a_accmode;
 	struct ucred *a_cred;
 	struct thread *a_td;
 };
@@ -1140,7 +1141,7 @@ mqfs_access(struct vop_access_args *ap)
 	if (error)
 		return (error);
 	error = vaccess(vp->v_type, vattr.va_mode, vattr.va_uid,
-	    vattr.va_gid, ap->a_mode, ap->a_cred, NULL);
+	    vattr.va_gid, ap->a_accmode, ap->a_cred, NULL);
 	return (error);
 }
 
@@ -1545,7 +1546,7 @@ mqueue_free(struct mqueue *mq)
 
 	while ((msg = TAILQ_FIRST(&mq->mq_msgq)) != NULL) {
 		TAILQ_REMOVE(&mq->mq_msgq, msg, msg_link);
-		FREE(msg, M_MQUEUEDATA);
+		free(msg, M_MQUEUEDATA);
 	}
 
 	mtx_destroy(&mq->mq_mutex);
@@ -1566,11 +1567,11 @@ mqueue_loadmsg(const char *msg_ptr, size_t msg_size, int msg_prio)
 	int error;
 
 	len = sizeof(struct mqueue_msg) + msg_size;
-	MALLOC(msg, struct mqueue_msg *, len, M_MQUEUEDATA, M_WAITOK);
+	msg = malloc(len, M_MQUEUEDATA, M_WAITOK);
 	error = copyin(msg_ptr, ((char *)msg) + sizeof(struct mqueue_msg),
 	    msg_size);
 	if (error) {
-		FREE(msg, M_MQUEUEDATA);
+		free(msg, M_MQUEUEDATA);
 		msg = NULL;
 	} else {
 		msg->msg_size = msg_size;
@@ -1600,7 +1601,7 @@ mqueue_savemsg(struct mqueue_msg *msg, char *msg_ptr, int *msg_prio)
 static __inline void
 mqueue_freemsg(struct mqueue_msg *msg)
 {
-	FREE(msg, M_MQUEUEDATA);
+	free(msg, M_MQUEUEDATA);
 }
 
 /*
@@ -2003,14 +2004,14 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
 		if ((flags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL)) {
 			error = EEXIST;
 		} else {
-			int acc_mode = 0;
+			accmode_t accmode = 0;
 
 			if (flags & FREAD)
-				acc_mode |= VREAD;
+				accmode |= VREAD;
 			if (flags & FWRITE)
-				acc_mode |= VWRITE;
+				accmode |= VWRITE;
 			error = vaccess(VREG, pn->mn_mode, pn->mn_uid,
-				    pn->mn_gid, acc_mode, td->td_ucred, NULL);
+				    pn->mn_gid, accmode, td->td_ucred, NULL);
 		}
 	}
 

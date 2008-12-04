@@ -67,43 +67,6 @@ static vfs_extattrctl_t	unionfs_extattrctl;
 static struct vfsops unionfs_vfsops;
 
 /*
- * Exchange from userland file mode to vmode.
- */
-static u_short 
-mode2vmode(mode_t mode)
-{
-	u_short		ret;
-
-	ret = 0;
-
-	/* other */
-	if (mode & S_IXOTH)
-		ret |= VEXEC >> 6;
-	if (mode & S_IWOTH)
-		ret |= VWRITE >> 6;
-	if (mode & S_IROTH)
-		ret |= VREAD >> 6;
-
-	/* group */
-	if (mode & S_IXGRP)
-		ret |= VEXEC >> 3;
-	if (mode & S_IWGRP)
-		ret |= VWRITE >> 3;
-	if (mode & S_IRGRP)
-		ret |= VREAD >> 3;
-
-	/* owner */
-	if (mode & S_IXUSR)
-		ret |= VEXEC;
-	if (mode & S_IWUSR)
-		ret |= VWRITE;
-	if (mode & S_IRUSR)
-		ret |= VREAD;
-
-	return (ret);
-}
-
-/*
  * Mount unionfs layer.
  */
 static int
@@ -174,7 +137,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 			vfs_mount_error(mp, "Invalid udir");
 			return (EINVAL);
 		}
-		udir = mode2vmode(udir);
+		udir &= S_IRWXU | S_IRWXG | S_IRWXO;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "ufile", (void **)&tmp, NULL) == 0) {
 		if (tmp != NULL)
@@ -183,7 +146,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 			vfs_mount_error(mp, "Invalid ufile");
 			return (EINVAL);
 		}
-		ufile = mode2vmode(ufile);
+		ufile &= S_IRWXU | S_IRWXG | S_IRWXO;
 	}
 	/* check umask, uid and gid */
 	if (udir == 0 && ufile != 0)
@@ -268,7 +231,7 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	/*
 	 * Find upper node
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW | WANTPARENT | LOCKLEAF, UIO_SYSSPACE, target, td);
+	NDINIT(ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, target, td);
 	if ((error = namei(ndp)))
 		return (error);
 
@@ -277,9 +240,6 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	/* get root vnodes */
 	lowerrootvp = mp->mnt_vnodecovered;
 	upperrootvp = ndp->ni_vp;
-
-	vrele(ndp->ni_dvp);
-	ndp->ni_dvp = NULLVP;
 
 	/* create unionfs_mount */
 	ump = (struct unionfs_mount *)malloc(sizeof(struct unionfs_mount),
@@ -521,7 +481,7 @@ unionfs_fhtovp(struct mount *mp, struct fid *fidp, struct vnode **vpp)
 
 static int
 unionfs_checkexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
-		 struct ucred **credanonp)
+    struct ucred **credanonp, int *numsecflavors, int **secflavors)
 {
 	return (EOPNOTSUPP);
 }

@@ -2553,7 +2553,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	struct inpcb *ip_inp;
 	int port_reuse_active = 0;
 	int bindall;
-	int prison = 0;
 	uint16_t lport;
 	int error;
 	uint32_t vrf_id;
@@ -2580,9 +2579,6 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 	if (p == NULL)
 		panic("null proc/thread");
 #endif
-	if (p && jailed(p->td_ucred)) {
-		prison = 1;
-	}
 	if (addr != NULL) {
 		switch (addr->sa_family) {
 		case AF_INET:
@@ -2600,18 +2596,13 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				}
 				sin = (struct sockaddr_in *)addr;
 				lport = sin->sin_port;
-				if (prison) {
-					/*
-					 * For INADDR_ANY and  LOOPBACK the
-					 * prison_ip() call will transmute
-					 * the ip address to the proper
-					 * value (i.e. the IP address owned
-					 * by the jail).
-					 */
-					if (prison_ip(p->td_ucred, 0, &sin->sin_addr.s_addr)) {
-						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
-						return (EINVAL);
-					}
+				/*
+				 * For LOOPBACK the prison_local_ip4() call will transmute the ip address
+				 * to the proper value.
+				 */
+				if (p && prison_local_ip4(p->td_ucred, &sin->sin_addr) != 0) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
 				}
 				if (sin->sin_addr.s_addr != INADDR_ANY) {
 					bindall = 0;
@@ -2634,12 +2625,16 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 					return (EINVAL);
 				}
 				lport = sin6->sin6_port;
+
 				/*
-				 * Jail checks for IPv6 should go HERE! i.e.
-				 * add the prison_ip() equivilant in this
-				 * postion to transmute the addresses to the
-				 * proper one jailed.
+				 * For LOOPBACK the prison_local_ip6() call will transmute the ipv6 address
+				 * to the proper value.
 				 */
+				if (p && prison_local_ip6(p->td_ucred, &sin6->sin6_addr,
+				    (SCTP_IPV6_V6ONLY(inp) != 0)) != 0) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
+					return (EINVAL);
+				}
 				if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
 					bindall = 0;
 					/* KAME hack: embed scopeid */
@@ -3408,7 +3403,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	cnt = 0;
 	if (so) {
 #ifdef IPSEC
-		ipsec4_delete_pcbpolicy(ip_pcb);
+		ipsec_delete_pcbpolicy(ip_pcb);
 #endif				/* IPSEC */
 
 		/* Unlocks not needed since the socket is gone now */
@@ -4196,6 +4191,7 @@ sctp_is_in_timewait(uint32_t tag)
 	int found = 0;
 	int i;
 
+	SCTP_INP_INFO_WLOCK();
 	chain = &SCTP_BASE_INFO(vtag_timewait)[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	if (!SCTP_LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
@@ -4209,6 +4205,7 @@ sctp_is_in_timewait(uint32_t tag)
 				break;
 		}
 	}
+	SCTP_INP_INFO_WUNLOCK();
 	return (found);
 }
 
@@ -4241,8 +4238,8 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 					twait_block->vtag_block[i].v_tag = 0;
 					if (set == 0) {
 						/* Reuse it for my new tag */
-						twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
-						twait_block->vtag_block[0].v_tag = tag;
+						twait_block->vtag_block[i].tv_sec_at_expire = now.tv_sec + time;
+						twait_block->vtag_block[i].v_tag = tag;
 						set = 1;
 					}
 				}
@@ -4261,6 +4258,9 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 		SCTP_MALLOC(twait_block, struct sctp_tagblock *,
 		    sizeof(struct sctp_tagblock), SCTP_M_TIMW);
 		if (twait_block == NULL) {
+#ifdef INVARIANTS
+			panic("Can not alloc tagblock");
+#endif
 			return;
 		}
 		memset(twait_block, 0, sizeof(struct sctp_tagblock));
@@ -5397,7 +5397,7 @@ sctp_pcb_init()
 	SCTP_OS_TIMER_INIT(&SCTP_BASE_INFO(addr_wq_timer.timer));
 
 	/* Init the TIMEWAIT list */
-	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE_A; i++) {
+	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		LIST_INIT(&SCTP_BASE_INFO(vtag_timewait[i]));
 	}
 
@@ -5467,7 +5467,7 @@ sctp_pcb_finish(void)
 	 * free the TIMEWAIT list elements malloc'd in the function
 	 * sctp_add_vtag_to_timewait()...
 	 */
-	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE_A; i++) {
+	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		chain = &SCTP_BASE_INFO(vtag_timewait)[i];
 		if (!SCTP_LIST_EMPTY(chain)) {
 			prev_twait_block = NULL;

@@ -17,7 +17,6 @@
 #
 # $FreeBSD$
 
-machine		arm
 ident		NSLU
 
 options 	PHYSADDR=0x10000000
@@ -30,6 +29,7 @@ options 	STARTUP_PAGETABLE_ADDR=0x10000000
 include		"../xscale/ixp425/std.avila"
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"NSLU.hints"		#Default places to look for devices.
+makeoptions	MODULES_OVERRIDE=""
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	CONF_CFLAGS=-mcpu=xscale
@@ -76,7 +76,6 @@ options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=npe0
 options 	BOOTP_COMPAT
 
-device		mem			# Memory and kernel memory devices
 device		pci
 device		uart
 

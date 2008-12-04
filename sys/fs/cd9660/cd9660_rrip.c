@@ -472,8 +472,12 @@ cd9660_rrip_extref(p,ana)
 	ISO_RRIP_EXTREF *p;
 	ISO_RRIP_ANALYZE *ana;
 {
-	if (isonum_711(p->len_id) != 10
-	    || bcmp((char *)p + 8,"RRIP_1991A",10)
+	if ( ! ((isonum_711(p->len_id) == 10
+	      && bcmp((char *)p + 8,"RRIP_1991A",10) == 0)
+	    || (isonum_711(p->len_id) == 10
+	      && bcmp((char *)p + 8,"IEEE_P1282",10) == 0)
+	    || (isonum_711(p->len_id) ==  9
+	      && bcmp((char *)p + 8,"IEEE_1282",  9) == 0))
 	    || isonum_711(p->version) != 1)
 		return 0;
 	ana->fields &= ~ISO_SUSP_EXTREF;

@@ -115,7 +115,8 @@ vn_open_cred(ndp, flagp, cmode, cred, fp)
 	struct thread *td = ndp->ni_cnd.cn_thread;
 	struct vattr vat;
 	struct vattr *vap = &vat;
-	int mode, fmode, error;
+	int fmode, error;
+	accmode_t accmode;
 	int vfslocked, mpsafe;
 
 	mpsafe = ndp->ni_cnd.cn_flags & MPSAFE;
@@ -202,33 +203,33 @@ restart:
 		error = EOPNOTSUPP;
 		goto bad;
 	}
-	mode = 0;
+	accmode = 0;
 	if (fmode & (FWRITE | O_TRUNC)) {
 		if (vp->v_type == VDIR) {
 			error = EISDIR;
 			goto bad;
 		}
-		mode |= VWRITE;
+		accmode |= VWRITE;
 	}
 	if (fmode & FREAD)
-		mode |= VREAD;
+		accmode |= VREAD;
 	if (fmode & FEXEC)
-		mode |= VEXEC;
+		accmode |= VEXEC;
 	if (fmode & O_APPEND)
-		mode |= VAPPEND;
+		accmode |= VAPPEND;
 #ifdef MAC
-	error = mac_vnode_check_open(cred, vp, mode);
+	error = mac_vnode_check_open(cred, vp, accmode);
 	if (error)
 		goto bad;
 #endif
 	if ((fmode & O_CREAT) == 0) {
-		if (mode & VWRITE) {
+		if (accmode & VWRITE) {
 			error = vn_writechk(vp);
 			if (error)
 				goto bad;
 		}
-		if (mode) {
-		        error = VOP_ACCESS(vp, mode, cred, td);
+		if (accmode) {
+		        error = VOP_ACCESS(vp, accmode, cred, td);
 			if (error)
 				goto bad;
 		}
@@ -672,7 +673,7 @@ vn_statfile(fp, sb, active_cred, td)
 	int error;
 
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = vn_stat(vp, sb, active_cred, fp->f_cred, td);
 	VOP_UNLOCK(vp, 0);
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -880,7 +881,8 @@ _vn_lock(struct vnode *vp, int flags, char *file, int line)
 		error = VOP_LOCK1(vp, flags, file, line);
 		flags &= ~LK_INTERLOCK;	/* Interlock is always dropped. */
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
-		    ("LK_RETRY set with incompatible flags %d\n", flags));
+		    ("LK_RETRY set with incompatible flags (0x%x) or an error occured (%d)",
+		    flags, error));
 		/*
 		 * Callers specify LK_RETRY if they wish to get dead vnodes.
 		 * If RETRY is not set, we return ENOENT instead.
@@ -956,9 +958,18 @@ vn_start_write(vp, mpp, flags)
 	}
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	/*
+	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
+	 * a vfs_ref().
+	 * As long as a vnode is not provided we need to acquire a
+	 * refcount for the provided mountpoint too, in order to
+	 * emulate a vfs_ref().
+	 */
 	MNT_ILOCK(mp);
 	if (vp == NULL)
 		MNT_REF(mp);
+
 	/*
 	 * Check on status of suspension.
 	 */
@@ -967,17 +978,12 @@ vn_start_write(vp, mpp, flags)
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
-				if (vp != NULL)
-					*mpp = NULL;
 				goto unlock;
 			}
 			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
 			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
-			if (error) {
-				if (vp != NULL)
-					*mpp = NULL;
+			if (error)
 				goto unlock;
-			}
 		}
 	}
 	if (flags & V_XSLEEP)
@@ -1020,6 +1026,14 @@ vn_start_secondary_write(vp, mpp, flags)
 	 */
 	if ((mp = *mpp) == NULL)
 		return (0);
+
+	/*
+	 * VOP_GETWRITEMOUNT() returns with the mp refcount held through
+	 * a vfs_ref().
+	 * As long as a vnode is not provided we need to acquire a
+	 * refcount for the provided mountpoint too, in order to
+	 * emulate a vfs_ref().
+	 */
 	MNT_ILOCK(mp);
 	if (vp == NULL)
 		MNT_REF(mp);
@@ -1033,8 +1047,6 @@ vn_start_secondary_write(vp, mpp, flags)
 	if (flags & V_NOWAIT) {
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
-		if (vp != NULL)
-			*mpp = NULL;
 		return (EWOULDBLOCK);
 	}
 	/*
@@ -1045,8 +1057,6 @@ vn_start_secondary_write(vp, mpp, flags)
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
-	if (vp != NULL)
-		*mpp = NULL;
 	return (error);
 }
 

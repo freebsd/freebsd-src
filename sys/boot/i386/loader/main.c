@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #define	KARGS_FLAGS_CD		0x1
 #define	KARGS_FLAGS_PXE		0x2
+#define	KARGS_FLAGS_ZFS		0x4
 
 /* Arguments passed in from the boot1/boot2 loader */
 static struct 
@@ -51,8 +52,13 @@ static struct
     u_int32_t	howto;
     u_int32_t	bootdev;
     u_int32_t	bootflags;
-    u_int32_t	pxeinfo;
-    u_int32_t	res2;
+    union {
+	struct {
+	    u_int32_t	pxeinfo;
+	    u_int32_t	res2;
+	};
+	uint64_t	zfspool;
+    };
     u_int32_t	bootinfo;
 } *kargs;
 
@@ -96,7 +102,7 @@ main(void)
      */
     bios_getmem();
 
-#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT)
+#if defined(LOADER_BZIP2_SUPPORT) || defined(LOADER_FIREWIRE_SUPPORT) || defined(LOADER_ZFS_SUPPORT)
     heap_top = PTOV(memtop_copyin);
     memtop_copyin -= 0x300000;
     heap_bottom = PTOV(memtop_copyin);
@@ -145,6 +151,14 @@ main(void)
 	    bc_add(initial_bootdev);
     }
 
+    archsw.arch_autoload = i386_autoload;
+    archsw.arch_getdev = i386_getdev;
+    archsw.arch_copyin = i386_copyin;
+    archsw.arch_copyout = i386_copyout;
+    archsw.arch_readin = i386_readin;
+    archsw.arch_isainb = isa_inb;
+    archsw.arch_isaoutb = isa_outb;
+
     /*
      * March through the device switch probing for things.
      */
@@ -171,14 +185,6 @@ main(void)
     setenv("LINES", "24", 1);			/* optional */
     
     bios_getsmap();
-
-    archsw.arch_autoload = i386_autoload;
-    archsw.arch_getdev = i386_getdev;
-    archsw.arch_copyin = i386_copyin;
-    archsw.arch_copyout = i386_copyout;
-    archsw.arch_readin = i386_readin;
-    archsw.arch_isainb = isa_inb;
-    archsw.arch_isaoutb = isa_outb;
 
     interact();			/* doesn't return */
 
@@ -252,6 +258,29 @@ extract_currdev(void)
 	       i386_setcurrdev, env_nounset);
     env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
 	       env_nounset);
+
+#ifdef LOADER_ZFS_SUPPORT
+    /*
+     * If we were started from a ZFS-aware boot2, we can work out
+     * which ZFS pool we are booting from.
+     */
+    if (kargs->bootflags & KARGS_FLAGS_ZFS) {
+	/*
+	 * Dig out the pool guid and convert it to a 'unit number'
+	 */
+	uint64_t guid;
+	int unit;
+	char devname[32];
+	extern int zfs_guid_to_unit(uint64_t);
+
+	guid = kargs->zfspool;
+	unit = zfs_guid_to_unit(guid);
+	if (unit >= 0) {
+	    sprintf(devname, "zfs%d", unit);
+	    setenv("currdev", devname, 1);
+	}
+    }
+#endif
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);

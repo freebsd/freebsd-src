@@ -2,7 +2,7 @@
 .\" Copyright (c) 2008 AnyWi Technologies
 .\" All rights reserved.
 .\"
-.\" This code is derived from uark.c 
+.\" This code is derived from uark.c
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -43,7 +43,7 @@ u3g_load="YES"
 The
 .Nm
 driver provides support for the multiple USB-to-serial interfaces exposed by
-many 3G usb/pccard modems.
+many 3G USB/PCCard modems.
 .Pp
 The device is accessed through the
 .Xr ucom 4
@@ -76,18 +76,30 @@ Novatal MC950D
 .It
 Sierra cards
 .El
-(See /sys/dev/u3g.c for the complete list of supported cards for each vendor
-mentioned above).
+.Pp
+See
+.Pa /sys/dev/u3g.c
+for the complete list of supported cards for each vendor
+mentioned above.
 .Pp
 The supported 3G cards provide the necessary modem port for ppp,
 pppd, or mpd connections as well as extra ports (depending on the specific
-device) to provide other functions (diagnostic port, SIM toolkit port)
+device) to provide other functions (diagnostic port, SIM toolkit port).
 .Pp
-In some of these devices a mass storage device supported by the 
+In some of these devices a mass storage device supported by the
 .Xr umass 4
-driver is present which contains Windows and Mac OSX drivers. This device is
-hidden, unless the machine was booted in verbose (see
-.Xr boot 8 ).
+driver is present which contains Windows and Mac OS X drivers.
+This device is
+hidden, unless the machine was booted in verbose mode (see
+.Xr boot 8 ) .
+To temporarily unhide the device, set
+.Va debug.bootverbose
+to 1 using
+.Xr sysctl 8
+and replug the device.
+The
+.Xr u3gstub 4
+device will attach temporarily and detach within seconds.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
@@ -95,10 +107,11 @@ hidden, unless the machine was booted in verbose (see
 .Sh HISTORY
 The
 .Nm
-driver
-appeared in
+driver appeared in
 .Fx 8.0 ,
-is based on the uark driver, and written by
+is based on the
+.Xr uark 4
+driver, and written by
 .An Andrea Guzzo Aq aguzzo@anywi.com
 in September 2008.
 .Sh AUTHORS
@@ -108,4 +121,4 @@ driver was written by
 .An Andrea Guzzo Aq aguzzo@anywi.com
 and
 .An Nick Hibma Aq n_hibma@freebsd.org .
-Hardware for testing provided by AnyWi Technologies, Leiden, NL.
+Hardware for testing was provided by AnyWi Technologies, Leiden, NL.

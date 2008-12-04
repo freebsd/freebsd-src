@@ -139,13 +139,14 @@ udf_access(struct vop_access_args *a)
 {
 	struct vnode *vp;
 	struct udf_node *node;
-	mode_t a_mode, mode;
+	accmode_t accmode;
+	mode_t mode;
 
 	vp = a->a_vp;
 	node = VTON(vp);
-	a_mode = a->a_mode;
+	accmode = a->a_accmode;
 
-	if (a_mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch (vp->v_type) {
 		case VDIR:
 		case VLNK:
@@ -160,7 +161,7 @@ udf_access(struct vop_access_args *a)
 	mode = udf_permtomode(node);
 
 	return (vaccess(vp->v_type, mode, node->fentry->uid, node->fentry->gid,
-	    a_mode, a->a_cred, NULL));
+	    accmode, a->a_cred, NULL));
 }
 
 static int
@@ -574,7 +575,7 @@ udf_getfid(struct udf_dirstream *ds)
 	 */
 	if (ds->fid_fragment && ds->buf != NULL) {
 		ds->fid_fragment = 0;
-		FREE(ds->buf, M_UDFFID);
+		free(ds->buf, M_UDFFID);
 	}
 
 	fid = (struct fileid_desc*)&ds->data[ds->off];
@@ -599,7 +600,7 @@ udf_getfid(struct udf_dirstream *ds)
 		 * File ID descriptors can only be at most one
 		 * logical sector in size.
 		 */
-		MALLOC(ds->buf, uint8_t*, ds->udfmp->bsize, M_UDFFID,
+		ds->buf = malloc(ds->udfmp->bsize, M_UDFFID,
 		     M_WAITOK | M_ZERO);
 		bcopy(fid, ds->buf, frag_size);
 
@@ -668,7 +669,7 @@ udf_closedir(struct udf_dirstream *ds)
 		brelse(ds->bp);
 
 	if (ds->fid_fragment && ds->buf != NULL)
-		FREE(ds->buf, M_UDFFID);
+		free(ds->buf, M_UDFFID);
 
 	uma_zfree(udf_zone_ds, ds);
 }
@@ -701,7 +702,7 @@ udf_readdir(struct vop_readdir_args *a)
 		 * it left off.
 		 */
 		ncookies = uio->uio_resid / 8;
-		MALLOC(cookies, u_long *, sizeof(u_long) * ncookies,
+		cookies = malloc(sizeof(u_long) * ncookies,
 		    M_TEMP, M_WAITOK);
 		if (cookies == NULL)
 			return (ENOMEM);
@@ -787,7 +788,7 @@ udf_readdir(struct vop_readdir_args *a)
 
 	if (a->a_ncookies != NULL) {
 		if (error)
-			FREE(cookies, M_TEMP);
+			free(cookies, M_TEMP);
 		else {
 			*a->a_ncookies = uiodir.acookies;
 			*a->a_cookies = cookies;
@@ -1028,7 +1029,7 @@ udf_reclaim(struct vop_reclaim_args *a)
 		vfs_hash_remove(vp);
 
 		if (unode->fentry != NULL)
-			FREE(unode->fentry, M_UDFFENTRY);
+			free(unode->fentry, M_UDFFENTRY);
 		uma_zfree(udf_zone_node, unode);
 		vp->v_data = NULL;
 	}

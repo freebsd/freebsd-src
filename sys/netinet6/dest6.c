@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet/icmp6.h>
+#include <netinet6/vinet6.h>
 
 /*
  * Destination options header processing.

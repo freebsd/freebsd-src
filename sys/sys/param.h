@@ -57,7 +57,7 @@
  *		is created, otherwise 1.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 800050	/* Master, propagated to newvers */
+#define __FreeBSD_version 800057	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -92,8 +92,12 @@
 #include <sys/priority.h>
 #endif
 
+#ifndef FALSE
 #define	FALSE	0
+#endif
+#ifndef TRUE
 #define	TRUE	1
+#endif
 #endif
 
 #ifndef _KERNEL

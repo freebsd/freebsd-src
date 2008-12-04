@@ -371,7 +371,7 @@ hpfs_unmount(
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
 	MNT_IUNLOCK(mp);
-	FREE(hpmp, M_HPFSMNT);
+	free(hpmp, M_HPFSMNT);
 
 	return (0);
 }
@@ -476,13 +476,13 @@ hpfs_vget(
 	 * at that time is little, and anyway - we'll
 	 * check for it).
 	 */
-	MALLOC(hp, struct hpfsnode *, sizeof(struct hpfsnode), 
+	hp = malloc(sizeof(struct hpfsnode), 
 		M_HPFSNO, M_WAITOK);
 
 	error = getnewvnode("hpfs", mp, &hpfs_vnodeops, &vp);
 	if (error) {
 		printf("hpfs_vget: can't get new vnode\n");
-		FREE(hp, M_HPFSNO);
+		free(hp, M_HPFSNO);
 		return (error);
 	}
 

@@ -78,6 +78,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_syncache.h>
 #include <netinet/tcp_timer.h>
+#if __FreeBSD_version >= 800056
+#include <netinet/vinet.h>
+#endif
 #include <net/route.h>
 
 #include <t3cdev.h>
@@ -153,11 +156,6 @@ static unsigned int mbuf_wrs[TX_MAX_SEGS + 1] __read_mostly;
 #define TCP_TIMEWAIT	1
 #define TCP_CLOSE	2
 #define TCP_DROP	3
-
-extern int tcp_do_autorcvbuf;
-extern int tcp_do_autosndbuf;
-extern int tcp_autorcvbuf_max;
-extern int tcp_autosndbuf_max;
 
 static void t3_send_reset(struct toepcb *toep);
 static void send_abort_rpl(struct mbuf *m, struct toedev *tdev, int rst_status);
@@ -3449,9 +3447,7 @@ process_pass_accept_req(struct socket *so, struct mbuf *m, struct toedev *tdev,
 				V_TF_DDP_OFF(1) |
 		    TP_DDP_TIMER_WORKAROUND_VAL, 1);
 	} else
-		printf("not offloading\n");
-	
-	
+		DPRINTF("no DDP\n");
 
 	return;
 reject:

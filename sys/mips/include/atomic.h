@@ -51,6 +51,10 @@ mips_sync(void)
 			: : : "memory");
 }
 
+#define mb()	mips_sync()
+#define wmb()	mips_sync()
+#define rmb()	mips_sync()
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.

@@ -69,6 +69,7 @@ void identify_cpu(void);
 void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 
+static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_AMD_assoc(int i);
 
@@ -93,6 +94,14 @@ static struct {
 } amd64_cpus[] = {
 	{ "Clawhammer",		CPUCLASS_K8 },		/* CPU_CLAWHAMMER */
 	{ "Sledgehammer",	CPUCLASS_K8 },		/* CPU_SLEDGEHAMMER */
+};
+
+static struct {
+	char	*vendor;
+	u_int	vendor_id;
+} cpu_vendors[] = {
+	{ INTEL_VENDOR_ID,	CPU_VENDOR_INTEL },	/* GenuineIntel */
+	{ AMD_VENDOR_ID,	CPU_VENDOR_AMD },	/* AuthenticAMD */
 };
 
 int cpu_cores;
@@ -122,10 +131,10 @@ printcpuinfo(void)
 		}
 	}
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_INTEL) {
 		/* Please make up your mind folks! */
 		strcat(cpu_model, "EM64T");
-	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
 		/*
 		 * Values taken from AMD Processor Recognition
 		 * http://www.amd.com/K6/k6docs/pdf/20734g.pdf
@@ -165,13 +174,13 @@ printcpuinfo(void)
 		printf("Unknown");	/* will panic below... */
 	}
 	printf("-class CPU)\n");
-	if(*cpu_vendor)
-		printf("  Origin = \"%s\"",cpu_vendor);
-	if(cpu_id)
+	if (*cpu_vendor)
+		printf("  Origin = \"%s\"", cpu_vendor);
+	if (cpu_id)
 		printf("  Id = 0x%x", cpu_id);
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD) {
 		printf("  Stepping = %u", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			u_int cmp = 1, htt = 1;
@@ -343,15 +352,32 @@ printcpuinfo(void)
 				);
 			}
 
-			if (cpu_feature & CPUID_HTT && strcmp(cpu_vendor,
-			    "AuthenticAMD") == 0)
+			if ((cpu_feature & CPUID_HTT) &&
+			    cpu_vendor_id == CPU_VENDOR_AMD)
 				cpu_feature &= ~CPUID_HTT;
 
-			if (!tsc_is_invariant &&
-			    (amd_pminfo & AMDPM_TSC_INVARIANT)) {
-				tsc_is_invariant = 1;
-				printf("\n  P-state invariant TSC");
+			/*
+			 * If this CPU supports P-state invariant TSC then
+			 * mention the capability.
+			 */
+			switch (cpu_vendor_id) {
+			case CPU_VENDOR_AMD:
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    AMD64_CPU_FAMILY(cpu_id) >= 0x10 ||
+				    cpu_id == 0x60fb2)
+					tsc_is_invariant = 1;
+				break;
+			case CPU_VENDOR_INTEL:
+				if ((amd_pminfo & AMDPM_TSC_INVARIANT) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0x6 &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0xe) ||
+				    (AMD64_CPU_FAMILY(cpu_id) == 0xf &&
+				    AMD64_CPU_MODEL(cpu_id) >= 0x3))
+					tsc_is_invariant = 1;
+				break;
 			}
+			if (tsc_is_invariant)
+				printf("\n  TSC: P-state invariant");
 
 			/*
 			 * If this CPU supports HTT or CMP then mention the
@@ -359,10 +385,10 @@ printcpuinfo(void)
 			 */
 			if (cpu_feature & CPUID_HTT)
 				htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-			if (strcmp(cpu_vendor, "AuthenticAMD") == 0 &&
+			if (cpu_vendor_id == CPU_VENDOR_AMD &&
 			    (amd_feature2 & AMDID2_CMP))
 				cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-			else if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
+			else if (cpu_vendor_id == CPU_VENDOR_INTEL &&
 			    (cpu_high >= 4)) {
 				cpuid_count(4, 0, regs);
 				if ((regs[0] & 0x1f) != 0)
@@ -384,7 +410,7 @@ printcpuinfo(void)
 	if (!bootverbose)
 		return;
 
-	if (strcmp(cpu_vendor, "AuthenticAMD") == 0)
+	if (cpu_vendor_id == CPU_VENDOR_AMD)
 		print_AMD_info();
 }
 
@@ -443,6 +469,7 @@ identify_cpu(void)
 	((u_int *)&cpu_vendor)[1] = regs[3];
 	((u_int *)&cpu_vendor)[2] = regs[2];
 	cpu_vendor[12] = '\0';
+	cpu_vendor_id = find_cpu_vendor_id();
 
 	do_cpuid(1, regs);
 	cpu_id = regs[0];
@@ -450,8 +477,8 @@ identify_cpu(void)
 	cpu_feature = regs[3];
 	cpu_feature2 = regs[2];
 
-	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	    strcmp(cpu_vendor, "AuthenticAMD") == 0) {
+	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD) {
 		do_cpuid(0x80000000, regs);
 		cpu_exthigh = regs[0];
 	}
@@ -471,6 +498,17 @@ identify_cpu(void)
 
 	/* XXX */
 	cpu = CPU_CLAWHAMMER;
+}
+
+static u_int
+find_cpu_vendor_id(void)
+{
+	int	i;
+
+	for (i = 0; i < sizeof(cpu_vendors) / sizeof(cpu_vendors[0]); i++)
+		if (strcmp(cpu_vendor, cpu_vendors[i].vendor) == 0)
+			return (cpu_vendors[i].vendor_id);
+	return (0);
 }
 
 static void

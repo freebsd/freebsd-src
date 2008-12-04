@@ -52,7 +52,6 @@
 #define	HAVE_FNMATCH_H 1
 #define	HAVE_FNM_LEADING_DIR 1
 #define	HAVE_FTRUNCATE 1
-#define	HAVE_GETOPT_LONG 1
 #undef	HAVE_GETXATTR
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
@@ -102,6 +101,7 @@
 #define	HAVE_UNISTD_H 1
 #define	HAVE_UNSIGNED_LONG_LONG
 #define	HAVE_VPRINTF 1
+#define	HAVE_WCTYPE_H 1
 #define	HAVE_ZLIB_H 1
 #undef	MAJOR_IN_MKDEV
 #define	STDC_HEADERS 1

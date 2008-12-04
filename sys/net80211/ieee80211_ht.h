@@ -38,12 +38,14 @@
 typedef uint16_t ieee80211_seq;
 
 struct ieee80211_tx_ampdu {
+	struct ieee80211_node *txa_ni;	/* back pointer */
 	u_short		txa_flags;
 #define	IEEE80211_AGGR_IMMEDIATE	0x0001	/* BA policy */
 #define	IEEE80211_AGGR_XCHGPEND		0x0002	/* ADDBA response pending */
 #define	IEEE80211_AGGR_RUNNING		0x0004	/* ADDBA response received */
 #define	IEEE80211_AGGR_SETUP		0x0008	/* deferred state setup */
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
+#define	IEEE80211_AGGR_BARPEND		0x0020	/* BAR response pending */
 	uint8_t		txa_ac;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_lastsample;	/* ticks @ last traffic sample */
@@ -54,8 +56,8 @@ struct ieee80211_tx_ampdu {
 	ieee80211_seq	txa_start;	/* BA window left edge */
 	ieee80211_seq	txa_seqpending;	/* new txa_start pending BAR response */
 	uint16_t	txa_wnd;	/* BA window size */
-	uint8_t		txa_attempts;	/* # ADDBA requests w/o a response */
-	int		txa_nextrequest;/* soonest to make next ADDBA request */
+	uint8_t		txa_attempts;	/* # ADDBA/BAR requests w/o a response*/
+	int		txa_nextrequest;/* soonest to make next request */
 	struct callout	txa_timer;
 	void		*txa_private;	/* driver-private storage */
 };
@@ -187,8 +189,8 @@ int	ieee80211_ampdu_request(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *);
 void	ieee80211_ampdu_stop(struct ieee80211_node *,
 		struct ieee80211_tx_ampdu *, int);
-int	ieee80211_send_bar(struct ieee80211_node *,
-		const struct ieee80211_tx_ampdu *);
+int	ieee80211_send_bar(struct ieee80211_node *, struct ieee80211_tx_ampdu *,
+		ieee80211_seq);
 int	ieee80211_send_action(struct ieee80211_node *,
 		int, int, uint16_t [4]);
 uint8_t	*ieee80211_add_htcap(uint8_t *, struct ieee80211_node *);

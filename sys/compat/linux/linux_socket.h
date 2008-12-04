@@ -49,4 +49,35 @@
 #define LINUX_MSG_ERRQUEUE	0x2000
 #define LINUX_MSG_NOSIGNAL	0x4000
 
+/* Socket-level control message types */
+
+#define LINUX_SCM_RIGHTS	0x01
+
+/* Ancilliary data object information macros */
+
+#define LINUX_CMSG_ALIGN(len)	roundup2(len, sizeof(l_ulong))
+#define LINUX_CMSG_DATA(cmsg)	((void *)((char *)(cmsg) + \
+				    LINUX_CMSG_ALIGN(sizeof(struct l_cmsghdr))))
+#define LINUX_CMSG_SPACE(len)	(LINUX_CMSG_ALIGN(sizeof(struct l_cmsghdr)) + \
+				    LINUX_CMSG_ALIGN(len))
+#define LINUX_CMSG_LEN(len)	(LINUX_CMSG_ALIGN(sizeof(struct l_cmsghdr)) + \
+				    (len))
+#define LINUX_CMSG_FIRSTHDR(msg) \
+				((msg)->msg_controllen >= \
+				    sizeof(struct l_cmsghdr) ? \
+				    (struct l_cmsghdr *)((msg)->msg_control) : \
+				    (struct l_cmsghdr *)(NULL))
+#define LINUX_CMSG_NXTHDR(msg, cmsg) \
+				((((char *)(cmsg) + \
+				    LINUX_CMSG_ALIGN((cmsg)->cmsg_len) + \
+				    sizeof(*(cmsg))) > \
+				    (((char *)(msg)->msg_control) + \
+				    (msg)->msg_controllen)) ? \
+				    (struct l_cmsghdr *) NULL : \
+				    (struct l_cmsghdr *)((char *)(cmsg) + \
+				    LINUX_CMSG_ALIGN((cmsg)->cmsg_len)))
+
+#define CMSG_HDRSZ		CMSG_LEN(0)
+#define L_CMSG_HDRSZ		LINUX_CMSG_LEN(0)
+
 #endif /* _LINUX_SOCKET_H_ */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,14 +27,14 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1999                        *
+ *  Author: Thomas E. Dickey                    1999-on                     *
  ****************************************************************************/
 
 #include <curses.priv.h>
 #include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: name_match.c,v 1.16 2007/04/21 21:28:13 tom Exp $")
+MODULE_ID("$Id: name_match.c,v 1.17 2008/08/03 19:49:33 tom Exp $")
 
 /*
  *	_nc_first_name(char *names)
@@ -53,18 +53,21 @@ _nc_first_name(const char *const sp)
     if (sp == 0) {
 	if (FirstName != 0)
 	    FreeAndNull(FirstName);
-	return 0;
-    }
+    } else
 #endif
+    {
+	if (FirstName == 0)
+	    FirstName = typeMalloc(char, MAX_NAME_SIZE + 1);
 
-    if (FirstName == 0)
-	FirstName = typeMalloc(char, MAX_NAME_SIZE + 1);
-    for (n = 0; n < MAX_NAME_SIZE; n++) {
-	if ((FirstName[n] = sp[n]) == '\0'
-	    || (FirstName[n] == '|'))
-	    break;
+	if (FirstName != 0) {
+	    for (n = 0; n < MAX_NAME_SIZE; n++) {
+		if ((FirstName[n] = sp[n]) == '\0'
+		    || (FirstName[n] == '|'))
+		    break;
+	    }
+	    FirstName[n] = '\0';
+	}
     }
-    FirstName[n] = '\0';
     return (FirstName);
 }
 

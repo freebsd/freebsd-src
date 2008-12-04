@@ -386,17 +386,14 @@ int
 ntfs_access(ap)
 	struct vop_access_args /* {
 		struct vnode *a_vp;
-		int  a_mode;
+		accmode_t a_accmode;
 		struct ucred *a_cred;
 		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
 	struct ntnode *ip = VTONT(vp);
-	mode_t mode = ap->a_mode;
-#ifdef QUOTA
-	int error;
-#endif
+	accmode_t accmode = ap->a_accmode;
 
 	dprintf(("ntfs_access: %d\n",ip->i_number));
 
@@ -405,23 +402,19 @@ ntfs_access(ap)
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
-	if (mode & VWRITE) {
+	if (accmode & VWRITE) {
 		switch ((int)vp->v_type) {
 		case VDIR:
 		case VLNK:
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-#ifdef QUOTA
-			if (error = getinoquota(ip))
-				return (error);
-#endif
 			break;
 		}
 	}
 
 	return (vaccess(vp->v_type, ip->i_mp->ntm_mode, ip->i_mp->ntm_uid,
-	    ip->i_mp->ntm_gid, ap->a_mode, ap->a_cred, NULL));
+	    ip->i_mp->ntm_gid, ap->a_accmode, ap->a_cred, NULL));
 } 
 
 /*
@@ -595,7 +588,7 @@ ntfs_readdir(ap)
 		dpStart = (struct dirent *)
 		     ((caddr_t)uio->uio_iov->iov_base -
 			 (uio->uio_offset - off));
-		MALLOC(cookies, u_long *, ncookies * sizeof(u_long),
+		cookies = malloc(ncookies * sizeof(u_long),
 		       M_TEMP, M_WAITOK);
 		for (dp = dpStart, cookiep = cookies, i=0;
 		     i < ncookies;

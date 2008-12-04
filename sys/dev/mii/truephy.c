@@ -57,7 +57,8 @@
 
 #include "miibus_if.h"
 
-#define FRAMELEN(mtu)	(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + (mtu) + ETHER_CRC_LEN)
+#define	TRUEPHY_FRAMELEN(mtu)	\
+    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + (mtu) + ETHER_CRC_LEN)
 
 static int	truephy_service(struct mii_softc *, struct mii_data *, int);
 static int	truephy_attach(device_t);
@@ -298,7 +299,7 @@ truephy_reset(struct mii_softc *sc)
 
 	mii_phy_reset(sc);
 
-	if (FRAMELEN(sc->mii_pdata->mii_ifp->if_mtu) > 2048) {
+	if (TRUEPHY_FRAMELEN(sc->mii_pdata->mii_ifp->if_mtu) > 2048) {
 		int conf;
 
 		conf = PHY_READ(sc, TRUEPHY_CONF);

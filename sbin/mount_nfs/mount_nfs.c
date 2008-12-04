@@ -134,6 +134,7 @@ struct sockaddr *addr;
 int addrlen = 0;
 u_char *fh = NULL;
 int fhsize = 0;
+int secflavor = -1;
 
 enum mountmode {
 	ANY,
@@ -151,6 +152,8 @@ enum tryret {
 };
 
 int	fallback_mount(struct iovec *iov, int iovlen, int mntflags);
+int	sec_name_to_num(char *sec);
+char	*sec_num_to_name(int num);
 int	getnfsargs(char *, struct iovec **iov, int *iovlen);
 int	getnfs4args(char *, struct iovec **iov, int *iovlen);
 /* void	set_rpc_maxgrouplist(int); */
@@ -308,6 +311,21 @@ main(int argc, char *argv[])
 					    atoi(val));
 					if (portspec == NULL)
 						err(1, "asprintf");
+				} else if (strcmp(opt, "sec") == 0) {
+					/*
+					 * Don't add this option to
+					 * the iovec yet - we will
+					 * negotiate which sec flavor
+					 * to use with the remote
+					 * mountd.
+					 */
+					pass_flag_to_nmount=0;
+					secflavor = sec_name_to_num(val);
+					if (secflavor < 0) {
+						errx(1,
+						    "illegal sec value -- %s",
+						    val);
+					}
 				} else if (strcmp(opt, "retrycnt") == 0) {
 					pass_flag_to_nmount=0;
 					num = strtol(val, &p, 10);
@@ -635,6 +653,36 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 }
 
 int
+sec_name_to_num(char *sec)
+{
+	if (!strcmp(sec, "krb5"))
+		return (RPCSEC_GSS_KRB5);
+	if (!strcmp(sec, "krb5i"))
+		return (RPCSEC_GSS_KRB5I);
+	if (!strcmp(sec, "krb5p"))
+		return (RPCSEC_GSS_KRB5P);
+	if (!strcmp(sec, "sys"))
+		return (AUTH_SYS);
+	return (-1);
+}
+
+char *
+sec_num_to_name(int flavor)
+{
+	switch (flavor) {
+	case RPCSEC_GSS_KRB5:
+		return ("krb5");
+	case RPCSEC_GSS_KRB5I:
+		return ("krb5i");
+	case RPCSEC_GSS_KRB5P:
+		return ("krb5p");
+	case AUTH_SYS:
+		return ("sys");
+	}
+	return (NULL);
+}
+
+int
 getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 {
 	struct addrinfo hints, *ai_nfs, *ai;
@@ -904,6 +952,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	CLIENT *clp;
 	struct netconfig *nconf, *nconf_mnt;
 	const char *netid, *netid_mnt;
+	char *secname;
 	int doconnect, nfsvers, mntvers, sotype;
 	enum clnt_stat stat;
 	enum mountmode trymntmode;
@@ -1033,7 +1082,7 @@ tryagain:
 		    &rpc_createerr.cf_error));
 	}
 	clp->cl_auth = authsys_create_default();
-	nfhret.auth = -1;
+	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
 	stat = clnt_call(clp, RPCMNT_MOUNT, (xdrproc_t)xdr_dir, spec, 
 			 (xdrproc_t)xdr_fh, &nfhret,
@@ -1074,6 +1123,9 @@ tryagain:
 
 	build_iovec(iov, iovlen, "addr", addr, addrlen);
 	build_iovec(iov, iovlen, "fh", fh, fhsize);
+	secname = sec_num_to_name(nfhret.auth);
+	if (secname)
+		build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
 	if (nfsvers == 3)
 		build_iovec(iov, iovlen, "nfsv3", NULL, 0);
 

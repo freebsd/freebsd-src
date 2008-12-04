@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2005 Apple Inc.
+ * Copyright (c) 1999-2008 Apple Inc.
  * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/sem.h>
 #include <sys/sbuf.h>
 #include <sys/syscall.h>
@@ -65,8 +66,14 @@ struct evclass_list {
 };
 
 static MALLOC_DEFINE(M_AUDITEVCLASS, "audit_evclass", "Audit event class");
-static struct mtx		evclass_mtx;
+static struct rwlock		evclass_lock;
 static struct evclass_list	evclass_hash[EVCLASSMAP_HASH_TABLE_SIZE];
+
+#define	EVCLASS_LOCK_INIT()	rw_init(&evclass_lock, "evclass_lock")
+#define	EVCLASS_RLOCK()		rw_rlock(&evclass_lock)
+#define	EVCLASS_RUNLOCK()	rw_runlock(&evclass_lock)
+#define	EVCLASS_WLOCK()		rw_wlock(&evclass_lock)
+#define	EVCLASS_WUNLOCK()	rw_wunlock(&evclass_lock)
 
 /*
  * Look up the class for an audit event in the class mapping table.
@@ -78,7 +85,7 @@ au_event_class(au_event_t event)
 	struct evclass_elem *evc;
 	au_class_t class;
 
-	mtx_lock(&evclass_mtx);
+	EVCLASS_RLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
 	class = 0;
 	LIST_FOREACH(evc, &evcl->head, entry) {
@@ -88,7 +95,7 @@ au_event_class(au_event_t event)
 		}
 	}
 out:
-	mtx_unlock(&evclass_mtx);
+	EVCLASS_RUNLOCK();
 	return (class);
 }
 
@@ -111,12 +118,12 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 	 */
 	evc_new = malloc(sizeof(*evc), M_AUDITEVCLASS, M_WAITOK);
 
-	mtx_lock(&evclass_mtx);
+	EVCLASS_WLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
 	LIST_FOREACH(evc, &evcl->head, entry) {
 		if (evc->event == event) {
 			evc->class = class;
-			mtx_unlock(&evclass_mtx);
+			EVCLASS_WUNLOCK();
 			free(evc_new, M_AUDITEVCLASS);
 			return;
 		}
@@ -125,7 +132,7 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 	evc->event = event;
 	evc->class = class;
 	LIST_INSERT_HEAD(&evcl->head, evc, entry);
-	mtx_unlock(&evclass_mtx);
+	EVCLASS_WUNLOCK();
 }
 
 void
@@ -133,7 +140,7 @@ au_evclassmap_init(void)
 {
 	int i;
 
-	mtx_init(&evclass_mtx, "evclass_mtx", NULL, MTX_DEF);
+	EVCLASS_LOCK_INIT();
 	for (i = 0; i < EVCLASSMAP_HASH_TABLE_SIZE; i++)
 		LIST_INIT(&evclass_hash[i].head);
 
@@ -485,7 +492,7 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
-	int error, cwir, locked;
+	int error, cwir;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
@@ -532,17 +539,8 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 	 * in the future.
 	 */
 	if (rvnp != NULL) {
-		/*
-		 * Although unlikely, it is possible for filesystems to define
-		 * their own VOP_LOCK, so strictly speaking, we need to
-		 * conditionally pickup Giant around calls to vn_lock(9)
-		 */
-		locked = VFS_LOCK_GIANT(rvnp->v_mount);
-		vn_lock(rvnp, LK_EXCLUSIVE | LK_RETRY);
-		vdrop(rvnp);
 		error = vn_fullpath_global(td, rvnp, &rbuf, &fbuf);
-		VOP_UNLOCK(rvnp, 0);
-		VFS_UNLOCK_GIANT(locked);
+		vdrop(rvnp);
 		if (error) {
 			cpath[0] = '\0';
 			if (cvnp != NULL)
@@ -553,12 +551,8 @@ audit_canon_path(struct thread *td, char *path, char *cpath)
 		free(fbuf, M_TEMP);
 	}
 	if (cvnp != NULL) {
-		locked = VFS_LOCK_GIANT(cvnp->v_mount);
-		vn_lock(cvnp, LK_EXCLUSIVE | LK_RETRY);
-		vdrop(cvnp);
 		error = vn_fullpath(td, cvnp, &rbuf, &fbuf);
-		VOP_UNLOCK(cvnp, 0);
-		VFS_UNLOCK_GIANT(locked);
+		vdrop(cvnp);
 		if (error) {
 			cpath[0] = '\0';
 			return;

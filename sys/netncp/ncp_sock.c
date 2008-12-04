@@ -124,7 +124,7 @@ ncp_getsockname(struct socket *so, caddr_t asa, int *alen) {
 		*alen=len;
 	}
 	if (sa)
-		FREE(sa, M_SONAME);
+		free(sa, M_SONAME);
 	return (error);
 }
 #endif
@@ -369,7 +369,7 @@ ncp_watchdog(struct ncp_conn *conn) {
 		NCPSDEBUG("send watch dog %d\n",error);
 		break;
 	}
-	if (sa) FREE(sa, M_SONAME);
+	if (sa) free(sa, M_SONAME);
 	return;
 }
 

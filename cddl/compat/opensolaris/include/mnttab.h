@@ -9,6 +9,8 @@
 #define	MNTTAB		_PATH_DEVNULL
 #define	MNT_LINE_MAX	1024
 
+#define	umount2(p, f)	unmount(p, f)
+
 struct mnttab {
 	char	*mnt_special;
 	char	*mnt_mountp;

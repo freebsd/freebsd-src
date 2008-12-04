@@ -64,6 +64,8 @@ struct termios;
 struct winsize;
 struct utmp;
 struct in_addr;
+struct kinfo_file;
+struct kinfo_vmentry;
 
 __BEGIN_DECLS
 void	clean_environment(const char * const *_white,
@@ -100,6 +102,10 @@ int	realhostname_sa(char *host, size_t hsize, struct sockaddr *addr,
 
 int	kld_isloaded(const char *name);
 int	kld_load(const char *name);
+struct kinfo_file *
+	kinfo_getfile(pid_t _pid, int *_cntp);
+struct kinfo_vmentry *
+	kinfo_getvmmap(pid_t _pid, int *_cntp);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);

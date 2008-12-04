@@ -42,6 +42,10 @@
 
 #include <sys/rman.h>
 
+#define	MV_TYPE_PCI		0
+#define	MV_TYPE_PCIE		1
+#define	MV_TYPE_PCIE_AGGR_LANE	2	/* Additional PCIE lane to aggregate */
+
 struct obio_softc {
 	bus_space_tag_t obio_bst;	/* bus space tag */
 	struct rman	obio_mem;
@@ -59,6 +63,29 @@ struct obio_device {
 	struct resource_list od_resources;
 };
 
+typedef int (*obio_get_irq_t)(u_int bus, u_int slot, u_int func, u_int pin);
+
+struct obio_pci {
+	int		op_type;
+
+	bus_addr_t	op_base;
+	u_long		op_size;
+
+	/* Note IO/MEM regions are assumed VA == PA */
+	bus_addr_t	op_io_base;
+	u_long		op_io_size;
+	int		op_io_win_target;
+	int		op_io_win_attr;
+
+	bus_addr_t	op_mem_base;
+	u_long		op_mem_size;
+	int		op_mem_win_target;
+	int		op_mem_win_attr;
+
+	obio_get_irq_t	op_get_irq;	/* IRQ Mapping callback */
+	int		op_irq;		/* used if callback is NULL */
+};
+
 struct decode_win {
 	int		target;		/* Mbus unit ID */
 	int		attr;		/* Attributes of the target interface */
@@ -67,46 +94,49 @@ struct decode_win {
 	int		remap;
 };
 
-extern bus_space_tag_t		obio_tag;
-extern struct obio_device	obio_devices[];
-extern const struct decode_win	*cpu_wins;
-extern const struct decode_win	*idma_wins;
-extern int	cpu_wins_no;
-extern int	idma_wins_no;
+extern const struct obio_pci mv_pci_info[];
+extern bus_space_tag_t obio_tag;
+extern struct obio_device obio_devices[];
+extern const struct decode_win *cpu_wins;
+extern const struct decode_win *idma_wins;
+extern int cpu_wins_no;
+extern int idma_wins_no;
 
 /* Function prototypes */
-int	mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt, 
+int mv_gpio_setup_intrhandler(const char *name, driver_filter_t *filt,
     void (*hand)(void *), void *arg, int pin, int flags, void **cookiep);
-void	mv_gpio_intr_mask(int pin);
-void	mv_gpio_intr_unmask(int pin);
-int	mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask);
-void	mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
-uint8_t	mv_gpio_in(uint32_t pin);
+void mv_gpio_intr_mask(int pin);
+void mv_gpio_intr_unmask(int pin);
+int mv_gpio_configure(uint32_t pin, uint32_t flags, uint32_t mask);
+void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
+uint8_t mv_gpio_in(uint32_t pin);
 
-int	platform_pmap_init(void);
-int	soc_decode_win(void);
-void	soc_id(uint32_t *dev, uint32_t *rev);
-void	soc_identify(void);
-void	soc_dump_decode_win(void);
+int platform_pmap_init(void);
+int soc_decode_win(void);
+void soc_id(uint32_t *dev, uint32_t *rev);
+void soc_identify(void);
+void soc_dump_decode_win(void);
 uint32_t soc_power_ctrl_get(uint32_t mask);
 
+int decode_win_cpu_set(int target, int attr, vm_paddr_t base, uint32_t size,
+    int remap);
 int decode_win_overlap(int, int, const struct decode_win *);
 int win_cpu_can_remap(int);
 
-void	decode_win_idma_dump(void);
-void	decode_win_idma_setup(void);
-int	decode_win_idma_valid(void);
+void decode_win_idma_dump(void);
+void decode_win_idma_setup(void);
+int decode_win_idma_valid(void);
 
-int		ddr_is_active(int i);
-uint32_t	ddr_base(int i);
-uint32_t	ddr_size(int i);
-uint32_t	ddr_attr(int i);
-uint32_t	ddr_target(int i);
+int ddr_is_active(int i);
+uint32_t ddr_base(int i);
+uint32_t ddr_size(int i);
+uint32_t ddr_attr(int i);
+uint32_t ddr_target(int i);
 
-uint32_t	cpu_extra_feat(void);
-uint32_t	get_tclk(void);
-uint32_t	read_cpu_ctrl(uint32_t);
-void		write_cpu_ctrl(uint32_t, uint32_t);
+uint32_t cpu_extra_feat(void);
+uint32_t get_tclk(void);
+uint32_t read_cpu_ctrl(uint32_t);
+void write_cpu_ctrl(uint32_t, uint32_t);
 
 enum mbus_device_ivars {
 	MBUS_IVAR_BASE,

@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -20,7 +19,7 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
@@ -31,8 +30,6 @@
  * Portions of this source code were derived from Berkeley 4.3 BSD
  * under license from the Regents of the University of California.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 /*
  * xdr_array.c, Generic XDR routines impelmentation.
@@ -69,17 +66,11 @@ xdr_array(XDR *xdrs, caddr_t *addrp, uint_t *sizep, const uint_t maxsize,
 
 	/* like strings, arrays are really counted arrays */
 	if (!xdr_u_int(xdrs, sizep)) {
-#ifdef DEBUG
-		printf("xdr_array: size FAILED\n");
-#endif
 		return (FALSE);
 	}
 	c = *sizep;
 	if ((c > maxsize || LASTUNSIGNED / elsize < c) &&
 	    xdrs->x_op != XDR_FREE) {
-#ifdef DEBUG
-		printf("xdr_array: bad size FAILED\n");
-#endif
 		return (FALSE);
 	}
 	nodesize = c * elsize;

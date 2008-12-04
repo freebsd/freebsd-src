@@ -26,7 +26,7 @@ DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ} ${LIBWRAP} ${LIBPAM}
 LDADD=	-lssh -lutil -lz -lwrap ${MINUSLPAM}
 
 .if ${MK_AUDIT} != "no"
-CFLAGS+= -DUSE_BSM_AUDIT
+CFLAGS+= -DUSE_BSM_AUDIT -DHAVE_GETAUDIT_ADDR
 DPADD+=  ${LIBBSM}
 LDADD+=  -lbsm
 .endif

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/radix.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet6/in6_var.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #include <netinet/icmp6.h>
 #include <netinet6/scope6_var.h>
+#include <netinet6/vinet6.h>
 
 #define SDL(s)	((struct sockaddr_dl *)s)
 
@@ -85,22 +87,18 @@ static void in6_init_address_ltimes __P((struct nd_prefix *,
 
 static int rt6_deleteroute(struct radix_node *, void *);
 
+#ifdef VIMAGE_GLOBALS
 extern int nd6_recalc_reachtm_interval;
 
 static struct ifnet *nd6_defifp;
 int nd6_defifindex;
 
-int ip6_use_tempaddr = 0;
-
+int ip6_use_tempaddr;
 int ip6_desync_factor;
-u_int32_t ip6_temp_preferred_lifetime = DEF_TEMP_PREFERRED_LIFETIME;
-u_int32_t ip6_temp_valid_lifetime = DEF_TEMP_VALID_LIFETIME;
-/*
- * shorter lifetimes for debugging purposes.
-int ip6_temp_preferred_lifetime = 800;
-static int ip6_temp_valid_lifetime = 1800;
-*/
-int ip6_temp_regen_advance = TEMPADDR_REGEN_ADVANCE;
+u_int32_t ip6_temp_preferred_lifetime;
+u_int32_t ip6_temp_valid_lifetime;
+int ip6_temp_regen_advance;
+#endif
 
 /* RTPREF_MEDIUM has to be 0! */
 #define RTPREF_HIGH	1

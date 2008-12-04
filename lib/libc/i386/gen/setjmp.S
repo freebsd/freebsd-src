@@ -69,6 +69,7 @@ ENTRY(setjmp)
 	fnstcw	24(%ecx)
 	xorl	%eax,%eax
 	ret
+END(setjmp)
 
 	.weak CNAME(longjmp)
 	.set CNAME(longjmp),CNAME(__longjmp)
@@ -96,3 +97,4 @@ ENTRY(__longjmp)
 	incl	%eax
 1:	movl	%ecx,0(%esp)
 	ret
+END(__longjmp)

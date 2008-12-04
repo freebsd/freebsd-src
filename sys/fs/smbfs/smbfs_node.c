@@ -229,15 +229,15 @@ loop:
 	if (fap == NULL)
 		return ENOENT;
 
-	MALLOC(np, struct smbnode *, sizeof *np, M_SMBNODE, M_WAITOK);
+	np = malloc(sizeof *np, M_SMBNODE, M_WAITOK);
 	error = getnewvnode("smbfs", mp, &smbfs_vnodeops, &vp);
 	if (error) {
-		FREE(np, M_SMBNODE);
+		free(np, M_SMBNODE);
 		return error;
 	}
 	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
 	if (error != 0) {
-		FREE(np, M_SMBNODE);
+		free(np, M_SMBNODE);
 		return (error);
 	}
 	vp->v_type = fap->fa_attr & SMB_FA_DIR ? VDIR : VREG;
@@ -269,7 +269,7 @@ loop:
 			continue;
 		vput(vp);
 /*		smb_name_free(np->n_name);
-		FREE(np, M_SMBNODE);*/
+		free(np, M_SMBNODE);*/
 		goto loop;
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
@@ -335,7 +335,7 @@ smbfs_reclaim(ap)
 	smbfs_hash_unlock(smp);
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
-	FREE(np, M_SMBNODE);
+	free(np, M_SMBNODE);
 	if (dvp != NULL) {
 		vrele(dvp);
 		/*

@@ -47,6 +47,10 @@
 #include <machine/sysarch.h>
 #endif
 
+#define	mb()
+#define	wmb()
+#define	rmb()
+
 #ifndef I32_bit
 #define I32_bit (1 << 7)        /* IRQ disable */
 #endif

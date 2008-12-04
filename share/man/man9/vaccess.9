@@ -40,7 +40,7 @@
 .Fa "mode_t file_mode"
 .Fa "uid_t file_uid"
 .Fa "gid_t file_gid"
-.Fa "mode_t acc_mode"
+.Fa "accmode_t accmode"
 .Fa "struct ucred *cred"
 .Fa "int *privused"
 .Fc
@@ -59,7 +59,7 @@ owning UID
 owning GID
 .Fa file_gid ,
 desired access mode
-.Fa acc_mode ,
+.Fa accmode ,
 requesting credential
 .Fa cred ,
 and an optional call-by-reference

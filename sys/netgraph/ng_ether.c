@@ -63,6 +63,7 @@
 #include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
+#include <net/vnet.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -292,7 +293,7 @@ ng_ether_attach(struct ifnet *ifp)
 	}
 
 	/* Allocate private data */
-	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL) {
 		log(LOG_ERR, "%s: can't %s for %s\n",
 		    __func__, "allocate memory", ifp->if_xname);
@@ -683,7 +684,7 @@ ng_ether_shutdown(node_p node)
 		 * Assume the ifp has already been freed.
 		 */
 		NG_NODE_SET_PRIVATE(node, NULL);
-		FREE(priv, M_NETGRAPH);		
+		free(priv, M_NETGRAPH);		
 		NG_NODE_UNREF(node);	/* free node itself */
 		return (0);
 	}

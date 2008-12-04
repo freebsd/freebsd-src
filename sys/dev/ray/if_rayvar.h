@@ -249,7 +249,7 @@ static int mib_info[RAY_MIB_MAX+1][3] = RAY_MIB_INFO;
 #define RAY_COM_FREE(com, ncom)	do {					\
     int i;								\
     for (i = 0; i < ncom; i++)						\
-	    FREE(com[i], M_RAYCOM);					\
+	    free(com[i], M_RAYCOM);					\
 } while (0)
 
 /*

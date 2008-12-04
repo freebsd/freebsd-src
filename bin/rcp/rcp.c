@@ -789,6 +789,4 @@ run_err(const char *fmt, ...)
 		vwarnx(fmt, ap);
 		va_end(ap);
 	}
-
-	va_end(ap);
 }

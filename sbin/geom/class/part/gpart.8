@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Oct 9, 2008
+.Dd Nov 18, 2008
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -423,9 +423,9 @@ partition that can boot FreeBSD from a
 partition, and install bootstrap code into it.
 This partition must be larger than
 .Pa /boot/gptboot ,
-or the GPT boot you are willing to write,
-a size of 15 blocks (7680 bytes) would be sufficient for
-booting from UFS, but let's use 128 blocks (64 KB) here in
+or the GPT boot you are planning to write.
+A size of 15 blocks (7680 bytes) would be sufficient for
+booting from UFS but lets use 128 blocks (64 KB) here in
 this example, in order to reserve some space for potential
 future need (e.g. from a ZFS partition).
 .Bd -literal -offset indent

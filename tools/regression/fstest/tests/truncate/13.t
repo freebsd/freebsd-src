@@ -11,6 +11,6 @@ echo "1..4"
 n0=`namegen`
 
 expect 0 create ${n0} 0644
-expect EINVAL truncate ${n0} -1
-expect EINVAL truncate ${n0} -999999
+expect EINVAL -- truncate ${n0} -1
+expect EINVAL -- truncate ${n0} -999999
 expect 0 unlink ${n0}

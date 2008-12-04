@@ -148,8 +148,9 @@ oquota(td, uap)
 }
 #endif /* COMPAT_43 */
 
+#ifdef COMPAT_FREEBSD4
 /*
- * This is the FreeBSD-1.1 compatable uname(2) interface.  These days it is
+ * This is the FreeBSD-1.1 compatible uname(2) interface.  These days it is
  * done in libc as a wrapper around a bunch of sysctl's.  This must maintain
  * the old 1.1 binary ABI.
  */
@@ -163,9 +164,7 @@ struct uname_args {
 #endif
 /* ARGSUSED */
 int
-uname(td, uap)
-	struct thread *td;
-	struct uname_args *uap;
+freebsd4_uname(struct thread *td, struct freebsd4_uname_args *uap)
 {
 	int name[2], error;
 	size_t len;
@@ -242,22 +241,20 @@ struct getdomainname_args {
 #endif
 /* ARGSUSED */
 int
-getdomainname(td, uap)
-	struct thread *td;
-	struct getdomainname_args *uap;
+freebsd4_getdomainname(struct thread *td,
+    struct freebsd4_getdomainname_args *uap)
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
-	char tmpdomainname[MAXHOSTNAMELEN];
-	int domainnamelen;
+	int name[2];
+	int error;
+	size_t len = uap->len;
 
-	mtx_lock(&hostname_mtx);
-	bcopy(V_domainname, tmpdomainname, sizeof(tmpdomainname));
-	mtx_unlock(&hostname_mtx);
-
-	domainnamelen = strlen(tmpdomainname) + 1;
-	if ((u_int)uap->len > domainnamelen)
-		uap->len = domainnamelen;
-	return (copyout(tmpdomainname, uap->domainname, uap->len));
+	name[0] = CTL_KERN;
+	name[1] = KERN_NISDOMAINNAME;
+	mtx_lock(&Giant);
+	error = userland_sysctl(td, name, 2, uap->domainname, &len,
+	    1, 0, 0, 0, 0);
+	mtx_unlock(&Giant);
+	return(error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -268,26 +265,18 @@ struct setdomainname_args {
 #endif
 /* ARGSUSED */
 int
-setdomainname(td, uap)
-	struct thread *td;
-	struct setdomainname_args *uap;
+freebsd4_setdomainname(struct thread *td,
+    struct freebsd4_setdomainname_args *uap)
 {
-	INIT_VPROCG(TD_TO_VPROCG(td));
-	char tmpdomainname[MAXHOSTNAMELEN];
-	int error, domainnamelen;
+	int name[2];
+	int error;
 
-	error = priv_check(td, PRIV_SETDOMAINNAME);
-	if (error)
-		return (error);
-	if ((u_int)uap->len > sizeof(tmpdomainname) - 1)
-		return (EINVAL);
-	domainnamelen = uap->len;
-	error = copyin(uap->domainname, tmpdomainname, uap->len);
-	if (error == 0) {
-		tmpdomainname[domainnamelen] = 0;
-		mtx_lock(&hostname_mtx);
-		bcopy(tmpdomainname, V_domainname, sizeof(V_domainname));
-		mtx_unlock(&hostname_mtx);
-	}
+	name[0] = CTL_KERN;
+	name[1] = KERN_NISDOMAINNAME;
+	mtx_lock(&Giant);
+	error = userland_sysctl(td, name, 2, 0, 0, 0, uap->domainname,
+	    uap->len, 0, 0);
+	mtx_unlock(&Giant);
 	return (error);
 }
+#endif /* COMPAT_FREEBSD4 */

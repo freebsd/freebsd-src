@@ -334,7 +334,7 @@ krpc_call(struct sockaddr_in *sa, u_int prog, u_int vers, u_int func,
 		secs = timo;
 		while (secs > 0) {
 			if (from) {
-				FREE(from, M_SONAME);
+				free(from, M_SONAME);
 				from = NULL;
 			}
 			if (m) {

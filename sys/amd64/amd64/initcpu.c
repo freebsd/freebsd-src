@@ -60,6 +60,7 @@ u_int	cpu_id;			/* Stepping ID */
 u_int	cpu_procinfo;		/* HyperThreading Info / Brand Index / CLFUSH */
 u_int	cpu_procinfo2;		/* Multicore info */
 char	cpu_vendor[20];		/* CPU Origin code */
+u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 

@@ -87,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_debug.h>
 #endif
 #include <netinet/tcp_offload.h>
+#include <netinet/vinet.h>
 
 /*
  * TCP protocol interface to socket abstraction.
@@ -156,9 +157,6 @@ static void
 tcp_detach(struct socket *so, struct inpcb *inp)
 {
 	struct tcpcb *tp;
-#ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
-#endif
 #ifdef INVARIANTS
 	INIT_VNET_INET(so->so_vnet);
 #endif
@@ -187,24 +185,10 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		if (inp->inp_vflag & INP_DROPPED) {
 			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
 			    "INP_DROPPED && tp != NULL"));
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
 		} else {
-#ifdef INET6
-			if (isipv6)
-				in6_pcbdetach(inp);
-			else
-#endif
-				in_pcbdetach(inp);
+			in_pcbdetach(inp);
 			INP_WUNLOCK(inp);
 		}
 	} else {
@@ -220,25 +204,10 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		if (inp->inp_vflag & INP_DROPPED ||
 		    tp->t_state < TCPS_SYN_SENT) {
 			tcp_discardcb(tp);
-#ifdef INET6
-			if (isipv6) {
-				in6_pcbdetach(inp);
-				in6_pcbfree(inp);
-			} else {
-#endif
-				in_pcbdetach(inp);
-				in_pcbfree(inp);
-#ifdef INET6
-			}
-#endif
-		} else {
-#ifdef INET6
-			if (isipv6)
-				in6_pcbdetach(inp);
-			else
-#endif
-				in_pcbdetach(inp);
-		}
+			in_pcbdetach(inp);
+			in_pcbfree(inp);
+		} else
+			in_pcbdetach(inp);
 	}
 }
 
@@ -472,8 +441,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
-	if (jailed(td->td_ucred))
-		prison_remote_ip(td->td_ucred, 0, &sinp->sin_addr.s_addr);
+	if (prison_remote_ip4(td->td_ucred, &sinp->sin_addr) != 0)
+		return (EINVAL);
 
 	TCPDEBUG0;
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -539,6 +508,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		in6_sin6_2_sin(&sin, sin6p);
 		inp->inp_vflag |= INP_IPV4;
 		inp->inp_vflag &= ~INP_IPV6;
+		if (prison_remote_ip4(td->td_ucred, &sin.sin_addr) != 0) {
+			error = EINVAL;
+			goto out;
+		}
 		if ((error = tcp_connect(tp, (struct sockaddr *)&sin, td)) != 0)
 			goto out;
 		error = tcp_output_connect(so, nam);
@@ -547,6 +520,10 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	inp->inp_inc.inc_isipv6 = 1;
+	if (prison_remote_ip6(td->td_ucred, &sin6p->sin6_addr) != 0) {
+		error = EINVAL;
+		goto out;
+	}
 	if ((error = tcp6_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output_connect(so, nam);
@@ -1288,7 +1265,7 @@ tcp_ctloutput(struct socket *so, struct sockopt *sopt)
 	INP_WLOCK(inp);
 	if (sopt->sopt_level != IPPROTO_TCP) {
 #ifdef INET6
-		if (INP_CHECK_SOCKAF(so, AF_INET6)) {
+		if (inp->inp_vflag & INP_IPV6PROTO) {
 			INP_WUNLOCK(inp);
 			error = ip6_ctloutput(so, sopt);
 		} else {
@@ -1468,9 +1445,6 @@ tcp_attach(struct socket *so)
 	struct tcpcb *tp;
 	struct inpcb *inp;
 	int error;
-#ifdef INET6
-	int isipv6 = INP_CHECK_SOCKAF(so, AF_INET6) != 0;
-#endif
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
 		error = soreserve(so, tcp_sendspace, tcp_recvspace);
@@ -1487,7 +1461,7 @@ tcp_attach(struct socket *so)
 	}
 	inp = sotoinpcb(so);
 #ifdef INET6
-	if (isipv6) {
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		inp->inp_vflag |= INP_IPV6;
 		inp->in6p_hops = -1;	/* use kernel default */
 	}
@@ -1496,17 +1470,8 @@ tcp_attach(struct socket *so)
 	inp->inp_vflag |= INP_IPV4;
 	tp = tcp_newtcpcb(inp);
 	if (tp == NULL) {
-#ifdef INET6
-		if (isipv6) {
-			in6_pcbdetach(inp);
-			in6_pcbfree(inp);
-		} else {
-#endif
-			in_pcbdetach(inp);
-			in_pcbfree(inp);
-#ifdef INET6
-		}
-#endif
+		in_pcbdetach(inp);
+		in_pcbfree(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		return (ENOBUFS);
 	}

@@ -250,10 +250,10 @@ static struct ppb_microseq spp_outbyte_submicroseq[] = {
 	  MS_CASS(0x4),
 
 /* loop: */
-	  MS_RASSERT_P(1, MS_REG_DTR), 
+	  MS_RASSERT_P(1, MS_REG_DTR),
 	  MS_CASS(0x5),
 	  MS_DBRA(0),				/* decrement counter */
-	  MS_RASSERT_P(1, MS_REG_DTR), 
+	  MS_RASSERT_P(1, MS_REG_DTR),
 	  MS_CASS(0x0),
 	  MS_DBRA(-6 /* loop */),
 
@@ -265,14 +265,14 @@ static struct ppb_microseq spp_outbyte_submicroseq[] = {
 /* EPP 1.7 microsequences, ptr and len set at runtime */
 static struct ppb_microseq epp17_outstr[] = {
 	  MS_CASS(0x4),
-	  MS_RASSERT_P(MS_ACCUM, MS_REG_EPP_D), 
+	  MS_RASSERT_P(MS_ACCUM, MS_REG_EPP_D),
 	  MS_CASS(0xc),
 	  MS_RET(0),
 };
 
 static struct ppb_microseq epp17_instr[] = {
 	  MS_CASS(PCD | 0x4),
-	  MS_RFETCH_P(MS_ACCUM, MS_REG_EPP_D, MS_FETCH_ALL), 
+	  MS_RFETCH_P(MS_ACCUM, MS_REG_EPP_D, MS_FETCH_ALL),
 	  MS_CASS(PCD | 0xc),
 	  MS_RET(0),
 };
@@ -298,8 +298,9 @@ imm_disconnect(struct vpoio_data *vpo, int *connected, int release_bus)
 
 	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x38)) {
 		if (bootverbose)
-			printf("imm%d: (disconnect) s1=0x%x s2=0x%x, s3=0x%x\n",
-				vpo->vpo_unit, s1 & 0xff, s2 & 0xff, s3 & 0xff);
+			device_printf(vpo->vpo_dev,
+			    "(disconnect) s1=0x%x s2=0x%x, s3=0x%x\n",
+			    s1 & 0xff, s2 & 0xff, s3 & 0xff);
 		if (connected)
 			*connected = VP0_ECONNECT;
 	}
@@ -351,8 +352,9 @@ imm_connect(struct vpoio_data *vpo, int how, int *disconnected, int request_bus)
 
 	if ((s1 != (char)0xb8 || s2 != (char)0x18 || s3 != (char)0x30)) {
 		if (bootverbose)
-			printf("imm%d: (connect) s1=0x%x s2=0x%x, s3=0x%x\n",
-				vpo->vpo_unit, s1 & 0xff, s2 & 0xff, s3 & 0xff);
+			device_printf(vpo->vpo_dev,
+			    "(connect) s1=0x%x s2=0x%x, s3=0x%x\n",
+			    s1 & 0xff, s2 & 0xff, s3 & 0xff);
 		if (disconnected)
 			*disconnected = VP0_ECONNECT;
 	}
@@ -397,7 +399,8 @@ imm_detect(struct vpoio_data *vpo)
 					goto error;
 				vpo->vpo_mode_found = VP0_MODE_NIBBLE;
 			} else {
-				printf("imm%d: NIBBLE mode unavailable!\n", vpo->vpo_unit);
+				device_printf(vpo->vpo_dev,
+				    "NIBBLE mode unavailable!\n");
 				goto error;
 			}
 		} else {
@@ -413,13 +416,13 @@ imm_detect(struct vpoio_data *vpo)
 	/* release the bus now */
 	imm_disconnect(vpo, &error, 1);
 
-	/* ensure we are disconnected or daisy chained peripheral 
+	/* ensure we are disconnected or daisy chained peripheral
 	 * may cause serious problem to the disk */
 
 	if (error) {
 		if (bootverbose)
-			printf("imm%d: can't disconnect from the drive\n",
-				vpo->vpo_unit);
+			device_printf(vpo->vpo_dev,
+			    "can't disconnect from the drive\n");
 		goto error;
 	}
 
@@ -476,7 +479,7 @@ imm_select(struct vpoio_data *vpo, int initiator, int target)
 	/* initialize the select microsequence */
 	ppb_MS_init_msq(select_microseq, 1,
 			SELECT_TARGET, 1 << initiator | 1 << target);
-				
+
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, select_microseq, &ret);
 
 	return (ret);
@@ -511,7 +514,7 @@ imm_wait(struct vpoio_data *vpo, int tmo)
 	ppb_MS_microseq(ppbus, vpo->vpo_dev, wait_microseq, &err);
 
 	if (err)
-		return (0);			   /* command timed out */	
+		return (0);			   /* command timed out */
 
 	return(ret);
 }
@@ -537,7 +540,7 @@ imm_negociate(struct vpoio_data *vpo)
 	if (ret)
 		return (VP0_ENEGOCIATE);
 #endif
-	
+
 	ppb_MS_init_msq(negociate_microseq, 1,
 			NEGOCIATED_MODE, negociate_mode);
 
@@ -577,7 +580,7 @@ imm_probe(device_t dev, struct vpoio_data *vpo)
 int
 imm_attach(struct vpoio_data *vpo)
 {
-	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;	
+	DECLARE_NIBBLE_INBYTE_SUBMICROSEQ;
 	device_t ppbus = device_get_parent(vpo->vpo_dev);
 	int error = 0;
 
@@ -598,7 +601,7 @@ imm_attach(struct vpoio_data *vpo)
 		INB_NIBBLE_H, (void *)&(vpo)->vpo_nibble.h,
 		INB_NIBBLE_L, (void *)&(vpo)->vpo_nibble.l,
 		INB_NIBBLE_F, nibble_inbyte_hook,
-		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble); 
+		INB_NIBBLE_P, (void *)&(vpo)->vpo_nibble);
 
 	/*
 	 * Initialize mode dependent in/out microsequences
@@ -611,17 +614,17 @@ imm_attach(struct vpoio_data *vpo)
 	case VP0_MODE_EPP:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, epp17_instr);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, epp17_outstr);
-		printf("imm%d: EPP mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "EPP mode\n");
 		break;
 	case VP0_MODE_PS2:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, ps2_inbyte_submicroseq);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-		printf("imm%d: PS2 mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "PS2 mode\n");
 		break;
 	case VP0_MODE_NIBBLE:
 		ppb_MS_GET_init(ppbus, vpo->vpo_dev, vpo->vpo_nibble_inbyte_msq);
 		ppb_MS_PUT_init(ppbus, vpo->vpo_dev, spp_outbyte_submicroseq);
-		printf("imm%d: NIBBLE mode\n", vpo->vpo_unit);
+		device_printf(vpo->vpo_dev, "NIBBLE mode\n");
 		break;
 	default:
 		panic("imm: unknown mode %d", vpo->vpo_mode_found);
@@ -663,7 +666,7 @@ imm_reset_bus(struct vpoio_data *vpo)
  * Send an SCSI command
  *
  */
-int 
+int
 imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count,
 		int *ret)
@@ -687,7 +690,8 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		return (error);
 
 	if (not_connected) {
-		*ret = VP0_ECONNECT; goto error;
+		*ret = VP0_ECONNECT;
+		goto error;
 	}
 
 	/*
@@ -711,7 +715,8 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	}
 
 	if (!(r = imm_wait(vpo, VP0_LOW_SPINTMO))) {
-		*ret = VP0_ESTATUS_TIMEOUT; goto error;
+		*ret = VP0_ESTATUS_TIMEOUT;
+		goto error;
 	}
 
 	if ((r & 0x30) == 0x10) {
@@ -722,14 +727,15 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 			negociated = 1;
 	}
 
-	/* 
-	 * Complete transfer ... 
+	/*
+	 * Complete transfer ...
 	 */
 	*count = 0;
 	for (;;) {
 
 		if (!(r = imm_wait(vpo, VP0_LOW_SPINTMO))) {
-			*ret = VP0_ESTATUS_TIMEOUT; goto error;
+			*ret = VP0_ESTATUS_TIMEOUT;
+			goto error;
 		}
 
 		/* stop when the ZIP+ wants to send status */
@@ -779,13 +785,15 @@ imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		negociated = 1;
 
 	if (imm_instr(vpo, &l, 1)) {
-		*ret = VP0_EOTHER; goto error;
+		*ret = VP0_EOTHER;
+		goto error;
 	}
 
 	/* check if the ZIP+ wants to send more status */
 	if (imm_wait(vpo, VP0_FAST_SPINTMO) == (char)0xb8)
 		if (imm_instr(vpo, &h, 1)) {
-			*ret = VP0_EOTHER+2; goto error;
+			*ret = VP0_EOTHER + 2;
+			goto error;
 		}
 
 	/* Experience showed that we should discard this */

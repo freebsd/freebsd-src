@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/serial.h>
 #include <sys/tty.h>
-#include <sys/clist.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <sys/sysctl.h>

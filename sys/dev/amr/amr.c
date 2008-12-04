@@ -88,13 +88,6 @@ __FBSDID("$FreeBSD$");
 #define AMR_DEFINE_TABLES
 #include <dev/amr/amr_tables.h>
 
-/*
- * The CAM interface appears to be completely broken.  Disable it.
- */
-#ifndef AMR_ENABLE_CAM
-#define AMR_ENABLE_CAM 1
-#endif
-
 SYSCTL_NODE(_hw, OID_AUTO, amr, CTLFLAG_RD, 0, "AMR driver parameters");
 
 static d_open_t         amr_open;
@@ -202,6 +195,7 @@ MALLOC_DEFINE(M_AMR, "amr", "AMR memory");
 int
 amr_attach(struct amr_softc *sc)
 {
+    device_t child;
 
     debug_called(1);
 
@@ -259,14 +253,16 @@ amr_attach(struct amr_softc *sc)
      */
     amr_init_sysctl(sc);
 
-#if AMR_ENABLE_CAM != 0
     /*
      * Attach our 'real' SCSI channels to CAM.
      */
-    if (amr_cam_attach(sc))
-	return(ENXIO);
-    debug(2, "CAM attach done");
-#endif
+    child = device_add_child(sc->amr_dev, "amrp", -1);
+    sc->amr_pass = child;
+    if (child != NULL) {
+	device_set_softc(child, sc);
+	device_set_desc(child, "SCSI Passthrough Bus");
+	bus_generic_attach(sc->amr_dev);
+    }
 
     /*
      * Create the control device.
@@ -391,10 +387,9 @@ amr_free(struct amr_softc *sc)
 {
     struct amr_command_cluster	*acc;
 
-#if AMR_ENABLE_CAM != 0
     /* detach from CAM */
-    amr_cam_detach(sc); 
-#endif
+    if (sc->amr_pass != NULL)
+	device_delete_child(sc->amr_dev, sc->amr_pass);
 
     /* cancel status timeout */
     untimeout(amr_periodic, sc, sc->amr_timeout);
@@ -1240,11 +1235,9 @@ amr_startio(struct amr_softc *sc)
 	if (ac == NULL)
 	    (void)amr_bio_command(sc, &ac);
 
-#if AMR_ENABLE_CAM != 0
 	/* if that failed, build a command from a ccb */
-	if (ac == NULL)
-	    (void)amr_cam_command(sc, &ac);
-#endif
+	if ((ac == NULL) && (sc->amr_cam_command != NULL))
+	    sc->amr_cam_command(sc, &ac);
 
 	/* if we don't have anything to do, give up */
 	if (ac == NULL)

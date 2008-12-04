@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/systm.h>
 #include <machine/apicreg.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -211,8 +212,8 @@ msi_init(void)
 {
 
 	/* Check if we have a supported CPU. */
-	if (!(strcmp(cpu_vendor, "GenuineIntel") == 0 ||
-	      strcmp(cpu_vendor, "AuthenticAMD") == 0))
+	if (!(cpu_vendor_id == CPU_VENDOR_INTEL ||
+	    cpu_vendor_id == CPU_VENDOR_AMD))
 		return;
 
 	msi_enabled = 1;

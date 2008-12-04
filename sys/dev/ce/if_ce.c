@@ -2366,8 +2366,7 @@ static int ng_ce_rcvmsg (node_p node, struct ng_mesg *msg,
 				break;
 			}
 #else
-			MALLOC (resp, struct ng_mesg *, dl,
-				M_NETGRAPH, M_NOWAIT);
+			resp = malloc (M_NETGRAPH, M_NOWAIT);
 			if (! resp) {
 				error = ENOMEM;
 				break;
@@ -2400,7 +2399,7 @@ static int ng_ce_rcvmsg (node_p node, struct ng_mesg *msg,
 	NG_FREE_MSG (msg);
 #else
 	*rptr = resp;
-	FREE (msg, M_NETGRAPH);
+	free (msg, M_NETGRAPH);
 #endif
 	return error;
 }

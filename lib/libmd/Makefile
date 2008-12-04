@@ -169,27 +169,27 @@ rmd160.ref:
 test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c ./libmd.a
 	./mddriver | cmp md2.ref -
 	@${ECHO} MD2 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=4 -o mddriver ${.CURDIR}/mddriver.c libmd.a
 	./mddriver | cmp md4.ref -
 	@${ECHO} MD4 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DMD=5 -o mddriver ${.CURDIR}/mddriver.c libmd.a
 	./mddriver | cmp md5.ref -
 	@${ECHO} MD5 passed test
 	-rm -f mddriver
-	${CC} ${CFLAGS} ${LDFLAGS} -o rmddriver ${.CURDIR}/rmddriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -o rmddriver ${.CURDIR}/rmddriver.c libmd.a
 	./rmddriver | cmp rmd160.ref -
 	@${ECHO} RIPEMD160 passed test
 	-rm -f rmddriver
-	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=0 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=0 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha0.ref -
 	@${ECHO} SHA-0 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=1 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=1 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha1.ref -
 	@${ECHO} SHA-1 passed test
-	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=256 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
+	${CC} ${CFLAGS} ${LDFLAGS} -DSHA=256 -o shadriver ${.CURDIR}/shadriver.c libmd.a
 	./shadriver | cmp sha256.ref -
 	@${ECHO} SHA-256 passed test
 	-rm -f shadriver

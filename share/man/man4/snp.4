@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2005
+.Dd November 5, 2008
 .Dt SNP 4
 .Os
 .Sh NAME
@@ -77,11 +77,23 @@ The
 .Nm
 device first appeared in
 .Fx 2.1 .
+In
+.Fx 8.0
+the
+.Nm
+driver was rewritten to work with the replaced TTY subsystem.
 .Sh AUTHORS
-.An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il
+The author of the current implementation is
+.An Ed Schouten Aq ed@FreeBSD.org .
+Previous versions of
+.Nm
+were based on code written by
+.An Ugen J.S. Antsilevich Aq ugen@NetVision.net.il .
 .Sh BUGS
-Caveat emptor!
-This manual page is horribly stale and wildly inaccurate in some places.
-.Pp
-While in line mode, user input cannot be seen.
-No signals may be sent to the observed tty.
+This version of
+.Nm
+does not return proper error codes when calling
+.Dv FIONREAD .
+It also does not allow
+.Dv SNPSTTY
+to detach itself from the TTY.
