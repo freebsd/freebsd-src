@@ -150,6 +150,9 @@ static void jme_init_ssb(struct jme_softc *);
 static int jme_newbuf(struct jme_softc *, struct jme_rxdesc *);
 static void jme_set_vlan(struct jme_softc *);
 static void jme_set_filter(struct jme_softc *);
+static void jme_stats_clear(struct jme_softc *);
+static void jme_stats_save(struct jme_softc *);
+static void jme_stats_update(struct jme_softc *);
 static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_jme_tx_coal_to(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_jme_tx_coal_pkt(SYSCTL_HANDLER_ARGS);
@@ -656,6 +659,7 @@ jme_attach(device_t dev)
 		    CHIPMODE_REVFM(sc->jme_chip_rev) == 2)
 			sc->jme_flags |= JME_FLAG_DMA32BIT;
 		sc->jme_flags |= JME_FLAG_TXCLK;
+		sc->jme_flags |= JME_FLAG_HWMIB;
 	}
 
 	/* Reset the ethernet controller. */
@@ -887,35 +891,41 @@ jme_detach(device_t dev)
 	return (0);
 }
 
+#define	JME_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+
 static void
 jme_sysctl_node(struct jme_softc *sc)
 {
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *child, *parent;
+	struct sysctl_oid *tree;
+	struct jme_hw_stats *stats;
 	int error;
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->jme_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev)), OID_AUTO,
-	    "tx_coal_to", CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_to,
-	    0, sysctl_hw_jme_tx_coal_to, "I", "jme tx coalescing timeout");
+	stats = &sc->jme_stats;
+	ctx = device_get_sysctl_ctx(sc->jme_dev);
+	child = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev));
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->jme_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev)), OID_AUTO,
-	    "tx_coal_pkt", CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_pkt,
-	    0, sysctl_hw_jme_tx_coal_pkt, "I", "jme tx coalescing packet");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_to",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_to, 0,
+	    sysctl_hw_jme_tx_coal_to, "I", "jme tx coalescing timeout");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->jme_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev)), OID_AUTO,
-	    "rx_coal_to", CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_to,
-	    0, sysctl_hw_jme_rx_coal_to, "I", "jme rx coalescing timeout");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "tx_coal_pkt",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_tx_coal_pkt, 0,
+	    sysctl_hw_jme_tx_coal_pkt, "I", "jme tx coalescing packet");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->jme_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev)), OID_AUTO,
-	    "rx_coal_pkt", CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_pkt,
-	    0, sysctl_hw_jme_rx_coal_pkt, "I", "jme rx coalescing packet");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_to",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_to, 0,
+	    sysctl_hw_jme_rx_coal_to, "I", "jme rx coalescing timeout");
 
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->jme_dev),
-	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->jme_dev)), OID_AUTO,
-	    "process_limit", CTLTYPE_INT | CTLFLAG_RW, &sc->jme_process_limit,
-	    0, sysctl_hw_jme_proc_limit, "I",
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_coal_pkt",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_rx_coal_pkt, 0,
+	    sysctl_hw_jme_rx_coal_pkt, "I", "jme rx coalescing packet");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "process_limit",
+	    CTLTYPE_INT | CTLFLAG_RW, &sc->jme_process_limit, 0,
+	    sysctl_hw_jme_proc_limit, "I",
 	    "max number of Rx events to process");
 
 	/* Pull in device tunables. */
@@ -984,7 +994,42 @@ jme_sysctl_node(struct jme_softc *sc)
 			sc->jme_rx_coal_pkt = PCCRX_COAL_PKT_DEFAULT;
 		}
 	}
+
+	if ((sc->jme_flags & JME_FLAG_HWMIB) == 0)
+		return;
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "JME statistics");
+	parent = SYSCTL_CHILDREN(tree);
+
+	/* Rx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "Rx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	JME_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->rx_good_frames, "Good frames");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "crc_errs",
+	    &stats->rx_crc_errs, "CRC errors");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "mii_errs",
+	    &stats->rx_mii_errs, "MII errors");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "fifo_oflows",
+	    &stats->rx_fifo_oflows, "FIFO overflows");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "desc_empty",
+	    &stats->rx_desc_empty, "Descriptor empty");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "bad_frames",
+	    &stats->rx_bad_frames, "Bad frames");
+
+	/* Tx statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "Tx MAC statistics");
+	child = SYSCTL_CHILDREN(tree);
+	JME_SYSCTL_STAT_ADD32(ctx, child, "good_frames",
+	    &stats->tx_good_frames, "Good frames");
+	JME_SYSCTL_STAT_ADD32(ctx, child, "bad_frames",
+	    &stats->tx_bad_frames, "Bad frames");
 }
+
+#undef	JME_SYSCTL_STAT_ADD32
 
 struct jme_dmamap_arg {
 	bus_addr_t	jme_busaddr;
@@ -2164,6 +2209,7 @@ jme_link_task(void *arg, int pending)
 	/* Program MAC with resolved speed/duplex/flow-control. */
 	if ((sc->jme_flags & JME_FLAG_LINK) != 0) {
 		jme_mac_config(sc);
+		jme_stats_clear(sc);
 
 		CSR_WRITE_4(sc, JME_RXCSR, sc->jme_rxcsr);
 		CSR_WRITE_4(sc, JME_TXCSR, sc->jme_txcsr);
@@ -2553,6 +2599,7 @@ jme_tick(void *arg)
 	 * faster and limit the maximum delay to a hz.
 	 */
 	jme_txeof(sc);
+	jme_stats_update(sc);
 	jme_watchdog(sc);
 	callout_reset(&sc->jme_tick_ch, hz, jme_tick, sc);
 }
@@ -2862,6 +2909,8 @@ jme_stop(struct jme_softc *sc)
 			txd->tx_ndesc = 0;
 		}
         }
+	jme_stats_update(sc);
+	jme_stats_save(sc);
 }
 
 static void
@@ -3091,6 +3140,76 @@ jme_set_filter(struct jme_softc *sc)
 	CSR_WRITE_4(sc, JME_MAR0, mchash[0]);
 	CSR_WRITE_4(sc, JME_MAR1, mchash[1]);
 	CSR_WRITE_4(sc, JME_RXMAC, rxcfg);
+}
+
+static void
+jme_stats_clear(struct jme_softc *sc)
+{
+
+	JME_LOCK_ASSERT(sc);
+
+	if ((sc->jme_flags & JME_FLAG_HWMIB) == 0)
+		return;
+
+	/* Disable and clear counters. */
+	CSR_WRITE_4(sc, JME_STATCSR, 0xFFFFFFFF);
+	/* Activate hw counters. */
+	CSR_WRITE_4(sc, JME_STATCSR, 0);
+	CSR_READ_4(sc, JME_STATCSR);
+	bzero(&sc->jme_stats, sizeof(struct jme_hw_stats));
+}
+
+static void
+jme_stats_save(struct jme_softc *sc)
+{
+
+	JME_LOCK_ASSERT(sc);
+
+	if ((sc->jme_flags & JME_FLAG_HWMIB) == 0)
+		return;
+	/* Save current counters. */
+	bcopy(&sc->jme_stats, &sc->jme_ostats, sizeof(struct jme_hw_stats));
+	/* Disable and clear counters. */
+	CSR_WRITE_4(sc, JME_STATCSR, 0xFFFFFFFF);
+}
+
+static void
+jme_stats_update(struct jme_softc *sc)
+{
+	struct jme_hw_stats *stat, *ostat;
+	uint32_t reg;
+
+	JME_LOCK_ASSERT(sc);
+
+	if ((sc->jme_flags & JME_FLAG_HWMIB) == 0)
+		return;
+	stat = &sc->jme_stats;
+	ostat = &sc->jme_ostats;
+	stat->tx_good_frames = CSR_READ_4(sc, JME_STAT_TXGOOD);
+	stat->rx_good_frames = CSR_READ_4(sc, JME_STAT_RXGOOD);
+	reg = CSR_READ_4(sc, JME_STAT_CRCMII);
+	stat->rx_crc_errs = (reg & STAT_RX_CRC_ERR_MASK) >>
+	    STAT_RX_CRC_ERR_SHIFT;
+	stat->rx_mii_errs = (reg & STAT_RX_MII_ERR_MASK) >>
+	    STAT_RX_MII_ERR_SHIFT;
+	reg = CSR_READ_4(sc, JME_STAT_RXERR);
+	stat->rx_fifo_oflows = (reg & STAT_RXERR_OFLOW_MASK) >>
+	    STAT_RXERR_OFLOW_SHIFT;
+	stat->rx_desc_empty = (reg & STAT_RXERR_MPTY_MASK) >>
+	    STAT_RXERR_MPTY_SHIFT;
+	reg = CSR_READ_4(sc, JME_STAT_FAIL);
+	stat->rx_bad_frames = (reg & STAT_FAIL_RX_MASK) >> STAT_FAIL_RX_SHIFT;
+	stat->tx_bad_frames = (reg & STAT_FAIL_TX_MASK) >> STAT_FAIL_TX_SHIFT;
+
+	/* Account for previous counters. */
+	stat->rx_good_frames += ostat->rx_good_frames;
+	stat->rx_crc_errs += ostat->rx_crc_errs;
+	stat->rx_mii_errs += ostat->rx_mii_errs;
+	stat->rx_fifo_oflows += ostat->rx_fifo_oflows;
+	stat->rx_desc_empty += ostat->rx_desc_empty;
+	stat->rx_bad_frames += ostat->rx_bad_frames;
+	stat->tx_good_frames += ostat->tx_good_frames;
+	stat->tx_bad_frames += ostat->tx_bad_frames;
 }
 
 static int
