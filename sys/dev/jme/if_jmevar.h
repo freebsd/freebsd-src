@@ -181,6 +181,8 @@ struct jme_softc {
 #define	JME_FLAG_PMCAP		0x0020
 #define	JME_FLAG_FASTETH	0x0040
 #define	JME_FLAG_NOJUMBO	0x0080
+#define	JME_FLAG_TXCLK		0x0100
+#define	JME_FLAG_DMA32BIT	0x0200
 #define	JME_FLAG_DETACH		0x4000
 #define	JME_FLAG_LINK		0x8000
 
