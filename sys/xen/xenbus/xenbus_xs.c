@@ -53,9 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/hypervisor.h>
-#include <machine/xen/xenbus.h>
 #include <machine/stdarg.h>
 
+#include <xen/xenbus/xenbusvar.h>
 #include <xen/xenbus/xenbus_comms.h>
 static int xs_process_msg(enum xsd_sockmsg_type *type);
 
@@ -787,8 +787,6 @@ void xs_resume(void)
 static void xenwatch_thread(void *unused)
 {
 		struct xs_stored_msg *msg;
-
-		xenwatch_running = 1;
 
 		DELAY(100000);
 		while (xenwatch_inline) {
