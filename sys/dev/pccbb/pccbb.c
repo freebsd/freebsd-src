@@ -344,7 +344,7 @@ cbb_detach(device_t brdev)
 	sc->flags |= CBB_KTHREAD_DONE;
 	while (sc->flags & CBB_KTHREAD_RUNNING) {
 		DEVPRINTF((sc->dev, "Waiting for thread to die\n"));
-		cv_broadcast(&sc->cv);
+		wakeup(&sc->intrhand);
 		msleep(sc->event_thread, &sc->mtx, PWAIT, "cbbun", 0);
 	}
 	mtx_unlock(&sc->mtx);
@@ -353,8 +353,6 @@ cbb_detach(device_t brdev)
 	bus_release_resource(brdev, SYS_RES_MEMORY, CBBR_SOCKBASE,
 	    sc->base_res);
 	mtx_destroy(&sc->mtx);
-	cv_destroy(&sc->cv);
-	cv_destroy(&sc->powercv);
 	return (0);
 }
 
@@ -435,11 +433,8 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 	}
 	free(devlist, M_TEMP);
 
-	if (wake > 0) {
-		mtx_lock(&sc->mtx);
-		cv_signal(&sc->cv);
-		mtx_unlock(&sc->mtx);
-	}
+	if (wake > 0)
+		wakeup(&sc->intrhand);
 }
 
 void
@@ -519,12 +514,12 @@ cbb_event_thread(void *arg)
 		 * a chance to run.
 		 */
 		mtx_lock(&sc->mtx);
-		cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-		cv_wait(&sc->cv, &sc->mtx);
+		cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD | CBB_SOCKET_MASK_CSTS);
+		msleep(&sc->intrhand, &sc->mtx, PZERO, "-", 0);
 		err = 0;
 		while (err != EWOULDBLOCK &&
 		    (sc->flags & CBB_KTHREAD_DONE) == 0)
-			err = cv_timedwait(&sc->cv, &sc->mtx, hz / 4);
+			err = msleep(&sc->intrhand, &sc->mtx, PZERO, "-", hz / 5);
 	}
 	DEVPRINTF((sc->dev, "Thread terminating\n"));
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
@@ -800,7 +795,7 @@ cbb_power(device_t brdev, int volts)
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
 		    cnt == sc->powerintr && sane-- > 0)
-			cv_timedwait(&sc->powercv, &sc->mtx, hz / 20);
+			msleep(&sc->powerintr, &sc->mtx, PZERO, "-", hz / 20);
 		mtx_unlock(&sc->mtx);
 		/*
 		 * The TOPIC95B requires a little bit extra time to get
@@ -1575,9 +1570,7 @@ cbb_resume(device_t self)
 	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 
 	/* Signal the thread to wakeup. */
-	mtx_lock(&sc->mtx);
-	cv_signal(&sc->cv);
-	mtx_unlock(&sc->mtx);
+	wakeup(&sc->intrhand);
 
 	error = bus_generic_resume(self);
 
