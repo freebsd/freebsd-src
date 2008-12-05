@@ -609,7 +609,7 @@ interpret:
 	p->p_flag |= P_EXEC;
 	if (p->p_pptr && (p->p_flag & P_PPWAIT)) {
 		p->p_flag &= ~P_PPWAIT;
-		wakeup(p->p_pptr);
+		cv_broadcast(&p->p_pwait);
 	}
 
 	/*
