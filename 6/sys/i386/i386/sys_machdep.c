@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>		/* for kernel_map */
 
 #ifdef XEN 
+#include <machine/xen/xen-os.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xenfunc.h>
 
 void i386_reset_ldt(struct proc_ldt *pldt); 

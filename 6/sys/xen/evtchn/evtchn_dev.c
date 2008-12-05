@@ -23,16 +23,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
 
-#include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
-#include <machine/resource.h>
-#include <machine/xen/synch_bitops.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/evtchn.h>
+#include <xen/hypervisor.h>
+#include <xen/evtchn.h>
 
 
 typedef struct evtchn_sotfc {
@@ -383,11 +376,11 @@ evtchn_dev_init(void *dummy __unused)
 	/* (DEVFS) automatically destroy the symlink with its destination. */
 	devfs_auto_unregister(evtchn_miscdev.devfs_handle, symlink_handle);
 #endif
-	printk("Event-channel device installed.\n");
+	if (bootverbose)
+		printf("Event-channel device installed.\n");
 
 	return 0;
 }
-
 
 SYSINIT(evtchn_dev_init, SI_SUB_DRIVERS, SI_ORDER_FIRST, evtchn_dev_init, NULL);
 

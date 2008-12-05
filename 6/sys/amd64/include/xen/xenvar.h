@@ -37,7 +37,7 @@ extern int xendebug_flags;
 #else
 #define XENPRINTF printf
 #endif
-#include <machine/xen/features.h>
+#include <xen/features.h>
 
 #if 0
 #define TRACE_ENTER XENPRINTF("(file=%s, line=%d) entered %s\n", __FILE__, __LINE__, __FUNCTION__)
@@ -111,17 +111,7 @@ extern xen_pfn_t *xen_machine_phys;
 
 #endif
 
-
 void xpq_init(void);
-
-#define BITS_PER_LONG 32
-#define NR_CPUS      MAX_VIRT_CPUS
-
-#define BITS_TO_LONGS(bits) \
-	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)
-#define DECLARE_BITMAP(name,bits) \
-	unsigned long name[BITS_TO_LONGS(bits)]
-typedef struct { DECLARE_BITMAP(bits, NR_CPUS); } xen_cpumask_t;
 
 int  xen_create_contiguous_region(vm_page_t pages, int npages);
 

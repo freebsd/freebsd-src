@@ -82,9 +82,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/smptests.h>	/** COUNT_XINVLTLB_HITS */
 #include <machine/specialreg.h>
 
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/evtchn.h>
+#include <xen/hypervisor.h>
+
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 #include <xen/interface/vcpu.h>
 
 #define WARMBOOT_TARGET		0
@@ -127,8 +128,8 @@ char *bootSTK;
 static int bootAP;
 static union descriptor *bootAPgdt;
 
-static char resched_name[NR_CPUS][15];
-static char callfunc_name[NR_CPUS][15];
+static char resched_name[MAX_VIRT_CPUS][15];
+static char callfunc_name[MAX_VIRT_CPUS][15];
 
 /* Free these after use */
 void *bootstacks[MAXCPU];
@@ -556,45 +557,39 @@ static int
 xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
+	struct pcpu *pc = pcpu_find(cpu);
 
-	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
+	pc->pc_resched_irq = pc->pc_callfunc_irq = ~0;
 
 	sprintf(resched_name[cpu], "resched%u", cpu);
-	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
-				    cpu,
-				    resched_name[cpu],
-				    smp_reschedule_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR, cpu,
+	    resched_name[cpu], smp_reschedule_interrupt,
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &pc->pc_resched_irq);
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, RESCHEDULE_VECTOR);
 	
-	per_cpu(resched_irq, cpu) = rc;
-
 	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
-	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
-				    cpu,
-				    callfunc_name[cpu],
-				    smp_call_function_interrupt,
-				    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE);
+	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR, cpu,
+	    callfunc_name[cpu],
+	    smp_call_function_interrupt,
+	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &pc->pc_callfunc_irq);
 	if (rc < 0)
 		goto fail;
-	per_cpu(callfunc_irq, cpu) = rc;
 
 	printf("cpu=%d irq=%d vector=%d\n",
 	    cpu, rc, CALL_FUNCTION_VECTOR);
 
-	
 	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
 		goto fail;
 
 	return 0;
 
  fail:
-	if (per_cpu(resched_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
-	if (per_cpu(callfunc_irq, cpu) >= 0)
-		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	if (pc->pc_resched_irq != ~0)
+		unbind_from_irqhandler(pc->pc_resched_irq);
+	if (pc->pc_callfunc_irq != ~0)
+		unbind_from_irqhandler(pc->pc_callfunc_irq);
 	return rc;
 }
 
@@ -905,7 +900,7 @@ cpu_initialize_context(unsigned int cpu)
 	vm_offset_t newPTD;
 	vm_paddr_t ma[NPGPTD];
 	static int color;
-	int i;
+	int i, err;
 
 	/*
 	 * Page 0,[0-3]	PTD
@@ -1015,9 +1010,11 @@ cpu_initialize_context(unsigned int cpu)
 	    ctxt.gdt_frames[0],
 	    ctxt.ctrlreg[3] >> PAGE_SHIFT);
 
-	PANIC_IF(HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, &ctxt));
+	err = HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, &ctxt);
+	KASSERT(err == 0, ("VCPUOP_initialise failed"));
 	DELAY(3000);
-	PANIC_IF(HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL));
+	err = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
+	KASSERT(err == 0, ("VCPUOP_up failed"));
 }
 
 /*

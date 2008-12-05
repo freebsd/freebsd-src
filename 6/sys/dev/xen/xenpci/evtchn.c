@@ -36,20 +36,17 @@ __FBSDID("$FreeBSD: user/dfr/xenhvm/6/sys/xen/evtchn/evtchn.c 184235 2008-10-25 
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
 
-#include <machine/cpufunc.h>
-#include <machine/intr_machdep.h>
-
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/synch_bitops.h>
-#include <machine/xen/evtchn.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 #include <sys/smp.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
@@ -81,10 +78,11 @@ static struct mtx irq_alloc_lock;
 
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
 
-static int alloc_xen_irq(void)
+static unsigned int
+alloc_xen_irq(void)
 {
 	static int warned;
-	int irq;
+	unsigned int irq;
 
 	mtx_lock(&irq_alloc_lock);
 
@@ -107,40 +105,46 @@ static int alloc_xen_irq(void)
 	return -ENOSPC;
 }
 
-static void free_xen_irq(int irq)
+static void
+free_xen_irq(int irq)
 {
+
 	mtx_lock(&irq_alloc_lock);
 	irq_evtchn[irq].inuse = 0;
 	mtx_unlock(&irq_alloc_lock);
 }
 
-int irq_to_evtchn_port(int irq)
+int
+irq_to_evtchn_port(int irq)
 {
+
 	return irq_evtchn[irq].evtchn;
 }
 
-void mask_evtchn(int port)
+void
+mask_evtchn(int port)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
+
 	synch_set_bit(port, &s->evtchn_mask[0]);
 }
 
-void unmask_evtchn(int port)
+void
+unmask_evtchn(int port)
 {
 	evtchn_unmask_t op = { .port = port };
+
 	HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &op);
 }
 
-int bind_listening_port_to_irqhandler(
-	unsigned int remote_domain,
-	const char *devname,
-	driver_intr_t handler,
-	void *arg,
-	unsigned long irqflags,
-	void **cookiep)
+int
+bind_listening_port_to_irqhandler(unsigned int remote_domain,
+    const char *devname, driver_intr_t handler, void *arg,
+    unsigned long irqflags, unsigned int *irqp)
 {
 	struct evtchn_alloc_unbound alloc_unbound;
-	int err, irq;
+	unsigned int irq;
+	int error;
 
 	irq = alloc_xen_irq();
 	if (irq < 0)
@@ -150,12 +154,12 @@ int bind_listening_port_to_irqhandler(
 
 	alloc_unbound.dom        = DOMID_SELF;
 	alloc_unbound.remote_dom = remote_domain;
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
+	error = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
 					  &alloc_unbound);
-	if (err) {
+	if (error) {
 		mtx_unlock(&irq_evtchn[irq].lock);
 		free_xen_irq(irq);
-		return err;
+		return (-error);
 	}
 
 	irq_evtchn[irq].handler = handler;
@@ -169,18 +173,17 @@ int bind_listening_port_to_irqhandler(
 
 	mtx_unlock(&irq_evtchn[irq].lock);
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
-int bind_caller_port_to_irqhandler(
-	unsigned int caller_port,
-	const char *devname,
-	driver_intr_t handler,
-	void *arg,
-	unsigned long irqflags,
-	void **cookiep)
+int
+bind_caller_port_to_irqhandler(unsigned int caller_port,
+    const char *devname, driver_intr_t handler, void *arg,
+    unsigned long irqflags, unsigned int *irqp)
 {
-	int irq;
+	unsigned int irq;
 
 	irq = alloc_xen_irq();
 	if (irq < 0)
@@ -199,10 +202,13 @@ int bind_caller_port_to_irqhandler(
 
 	mtx_unlock(&irq_evtchn[irq].lock);
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
-void unbind_from_irqhandler(unsigned int irq, void *dev_id)
+void
+unbind_from_irqhandler(unsigned int irq)
 {
 	int evtchn;
 
@@ -258,6 +264,7 @@ evtchn_interrupt(void *arg)
 	int irq;
 	shared_info_t *s = HYPERVISOR_shared_info;
 	vcpu_info_t *v = &s->vcpu_info[cpu];
+	struct pcpu *pc = pcpu_find(cpu);
 	unsigned long l1, l2;
 
 	v->evtchn_upcall_pending = 0;
@@ -271,17 +278,17 @@ evtchn_interrupt(void *arg)
 
 	l1 = atomic_readandclear_long(&v->evtchn_pending_sel);
 
-	l1i = per_cpu(last_processed_l1i, cpu);
-	l2i = per_cpu(last_processed_l2i, cpu);
+	l1i = pc->pc_last_processed_l1i;
+	l2i = pc->pc_last_processed_l2i;
 
 	while (l1 != 0) {
 
-		l1i = (l1i + 1) % BITS_PER_LONG;
+		l1i = (l1i + 1) % LONG_BIT;
 		masked_l1 = l1 & ((~0UL) << l1i);
 
 		if (masked_l1 == 0) { /* if we masked out all events, wrap around to the beginning */
-			l1i = BITS_PER_LONG - 1;
-			l2i = BITS_PER_LONG - 1;
+			l1i = LONG_BIT - 1;
+			l2i = LONG_BIT - 1;
 			continue;
 		}
 		l1i = __ffs(masked_l1);
@@ -289,17 +296,17 @@ evtchn_interrupt(void *arg)
 		do {
 			l2 = active_evtchns(cpu, s, l1i);
 
-			l2i = (l2i + 1) % BITS_PER_LONG;
+			l2i = (l2i + 1) % LONG_BIT;
 			masked_l2 = l2 & ((~0UL) << l2i);
 
 			if (masked_l2 == 0) { /* if we masked out all events, move on */
-				l2i = BITS_PER_LONG - 1;
+				l2i = LONG_BIT - 1;
 				break;
 			}
 			l2i = __ffs(masked_l2);
 
 			/* process port */
-			port = (l1i * BITS_PER_LONG) + l2i;
+			port = (l1i * LONG_BIT) + l2i;
 			synch_clear_bit(port, &s->evtchn_pending[0]);
 
 			irq = evtchn_to_irq[port];
@@ -327,10 +334,10 @@ evtchn_interrupt(void *arg)
 			mtx_unlock(&irq_evtchn[irq].lock);
 
 			/* if this is the final port processed, we'll pick up here+1 next time */
-			per_cpu(last_processed_l1i, cpu) = l1i;
-			per_cpu(last_processed_l2i, cpu) = l2i;
+			pc->pc_last_processed_l1i = l1i;
+			pc->pc_last_processed_l2i = l2i;
 
-		} while (l2i != BITS_PER_LONG - 1);
+		} while (l2i != LONG_BIT - 1);
 
 		l2 = active_evtchns(cpu, s, l1i);
 		if (l2 == 0) /* we handled all ports, so we can clear the selector bit */
@@ -363,8 +370,8 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 		mtx_init(&irq_evtchn[irq].lock, "irq-evtchn", NULL, MTX_DEF);
 
 	for (cpu = 0; cpu < mp_ncpus; cpu++) {
-		per_cpu(last_processed_l1i, cpu) = BITS_PER_LONG - 1;
-		per_cpu(last_processed_l2i, cpu) = BITS_PER_LONG - 1;
+		pcpu_find(cpu)->pc_last_processed_l1i = LONG_BIT - 1;
+		pcpu_find(cpu)->pc_last_processed_l2i = LONG_BIT - 1;
 	}
 
 	error = BUS_SETUP_INTR(device_get_parent(device), device,

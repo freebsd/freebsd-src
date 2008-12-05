@@ -6,8 +6,8 @@
  * Copyright (c) 2002, K A Fraser
  */
 
-#ifndef __HYPERVISOR_H__
-#define __HYPERVISOR_H__
+#ifndef __XEN_HYPERVISOR_H__
+#define __XEN_HYPERVISOR_H__
 
 #ifdef XENHVM
 
@@ -25,15 +25,12 @@
 #endif
 #endif
 
-#include <sys/cdefs.h>
-#include <machine/xen/xen-os.h>
-#include <sys/systm.h>
-#include <xen/interface/xen.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/event_channel.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/sched.h>
 #include <xen/interface/callback.h>
+#include <xen/interface/memory.h>
 #include <machine/xen/hypercall.h>
 
 #if defined(__amd64__)
@@ -151,4 +148,4 @@ MULTI_update_va_mapping(
     mcl->args[MULTI_UVMFLAGS_INDEX] = flags;
 }
 
-#endif /* __HYPERVISOR_H__ */
+#endif /* __XEN_HYPERVISOR_H__ */

@@ -59,20 +59,19 @@ __FBSDID("$FreeBSD$");
 
 
 
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenpmap.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/memory.h>
-#include <machine/xen/features.h>
+#include <xen/features.h>
 #ifdef SMP
 #include <machine/privatespace.h>
 #endif
 
 
 #include <vm/vm_page.h>
-
 
 #define	IDTVEC(name)	__CONCAT(X,name)
 
@@ -91,6 +90,8 @@ xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
 int preemptable, init_first;
 extern unsigned int avail_space;
+
+static void printk(const char *fmt, ...);
 
 void ni_cli(void);
 void ni_sti(void);
@@ -172,7 +173,7 @@ xen_boothowto(char *envp)
 }
 
 #define PRINTK_BUFSIZE 1024
-void
+static void
 printk(const char *fmt, ...)
 {
         __va_list ap;
@@ -207,7 +208,7 @@ static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
 
 #define XPQ_QUEUE xpq_queue[vcpu]
 #define XPQ_IDX xpq_idx[vcpu]
-#define SET_VCPU() int vcpu = smp_processor_id()
+#define SET_VCPU() int vcpu = gdtset ? PCPU_GET(cpuid) : 0
 
 #define XPQ_QUEUE_LOG xpq_queue_log[vcpu]
 #else
@@ -327,15 +328,18 @@ void
 xen_invlpg(vm_offset_t va)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_INVLPG_ALL;
 	op.arg1.linear_addr = va & ~PAGE_MASK;
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void
 xen_load_cr3(u_int val)
 {
 	struct mmuext_op op;
+	int err;
 #ifdef INVARIANTS
 	SET_VCPU();
 	
@@ -343,7 +347,8 @@ xen_load_cr3(u_int val)
 #endif
 	op.cmd = MMUEXT_NEW_BASEPTR;
 	op.arg1.mfn = xpmap_ptom(val) >> PAGE_SHIFT;
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void
@@ -430,70 +435,84 @@ void
 xen_pgdpt_pin(vm_paddr_t ma)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_PIN_L3_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void 
 xen_pgd_pin(vm_paddr_t ma)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_PIN_L2_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void 
 xen_pgd_unpin(vm_paddr_t ma)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_UNPIN_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void 
 xen_pt_pin(vm_paddr_t ma)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_PIN_L1_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
 	printk("xen_pt_pin(): mfn=%x\n", op.arg1.mfn);
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void 
 xen_pt_unpin(vm_paddr_t ma)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_UNPIN_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void 
 xen_set_ldt(vm_paddr_t ptr, unsigned long len)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_SET_LDT;
 	op.arg1.linear_addr = ptr;
 	op.arg2.nr_ents = len;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void xen_tlb_flush(void)
 {
 	struct mmuext_op op;
+	int err;
 	op.cmd = MMUEXT_TLB_FLUSH_LOCAL;
 	xen_flush_queue();
-	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	err = HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF);
+	KASSERT(err >= 0, ("mmuext_op failed"));
 }
 
 void
@@ -564,7 +583,7 @@ int
 xen_create_contiguous_region(vm_page_t pages, int npages)
 {
 	unsigned long  mfn, i, flags;
-	int order;
+	int order, err;
 	struct xen_memory_reservation reservation = {
 		.nr_extents   = 1,
 		.extent_order = 0,
@@ -575,7 +594,7 @@ xen_create_contiguous_region(vm_page_t pages, int npages)
 	balloon_lock(flags);
 
 	/* can currently only handle power of two allocation */
-	PANIC_IF(ffs(npages) != fls(npages));
+	KASSERT(ffs(npages) == fls(npages), ("unexpected page count"));
 
 	/* 0. determine order */
 	order = (ffs(npages) == fls(npages)) ? fls(npages) - 1 : fls(npages);
@@ -586,7 +605,8 @@ xen_create_contiguous_region(vm_page_t pages, int npages)
 		pfn = VM_PAGE_TO_PHYS(&pages[i]) >> PAGE_SHIFT;
 		mfn = PFNTOMFN(pfn);
 		PFNTOMFN(pfn) = INVALID_P2M_ENTRY;
-		PANIC_IF(HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation) != 1);
+		err = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
+		KASSERT(err == 1, ("memory_op failed"));
 	}
 
 
@@ -624,8 +644,9 @@ xen_create_contiguous_region(vm_page_t pages, int npages)
 	for (i = 0; i < (1 << order); i++) {
 		int pfn;
 		pfn = VM_PAGE_TO_PHYS(&pages[i]) >> PAGE_SHIFT;
-		PANIC_IF(HYPERVISOR_memory_op(
-			XENMEM_increase_reservation, &reservation) != 1);
+		err = HYPERVISOR_memory_op(
+			XENMEM_increase_reservation, &reservation);
+		KASSERT(err == 1, ("memory_op failed"));
 		xen_machphys_update(mfn, pfn);
 		PFNTOMFN(pfn) = mfn;
 	}
@@ -641,6 +662,7 @@ void
 xen_destroy_contiguous_region(void *addr, int npages)
 {
 	unsigned long  mfn, i, flags, order, pfn0;
+	int err;
 	struct xen_memory_reservation reservation = {
 		.nr_extents   = 1,
 		.extent_order = 0,
@@ -653,7 +675,7 @@ xen_destroy_contiguous_region(void *addr, int npages)
 	scrub_pages(vstart, 1 << order);
 #endif
 	/* can currently only handle power of two allocation */
-	PANIC_IF(ffs(npages) != fls(npages));
+	KASSERT(ffs(npages) == fls(npages), ("non-power of 2 page count"));
 
 	/* 0. determine order */
 	order = (ffs(npages) == fls(npages)) ? fls(npages) - 1 : fls(npages);
@@ -670,10 +692,12 @@ xen_destroy_contiguous_region(void *addr, int npages)
 		uint64_t new_val = 0;
 		pfn = vtomach((char *)addr + i*PAGE_SIZE) >> PAGE_SHIFT;
 
-		PANIC_IF(HYPERVISOR_update_va_mapping((vm_offset_t)((char *)addr + (i * PAGE_SIZE)), new_val, 0));
+		err = HYPERVISOR_update_va_mapping((vm_offset_t)((char *)addr + (i * PAGE_SIZE)), new_val, 0);
+		KASSERT(err == 0, ("update_va_mapping failed")); 
 		PFNTOMFN(pfn) = INVALID_P2M_ENTRY;
-		PANIC_IF(HYPERVISOR_memory_op(
-			XENMEM_decrease_reservation, &reservation) != 1);
+		err = HYPERVISOR_memory_op(
+			XENMEM_decrease_reservation, &reservation);
+		KASSERT(err == 1, ("memory_op failed"));
 	}
 
 	/* 2. Map new pages in place of old pages. */
@@ -681,11 +705,14 @@ xen_destroy_contiguous_region(void *addr, int npages)
 		int pfn;
 		uint64_t new_val;
 		pfn = pfn0 + i;
-		PANIC_IF(HYPERVISOR_memory_op(XENMEM_increase_reservation, &reservation) != 1);
+		err = HYPERVISOR_memory_op(XENMEM_increase_reservation, &reservation);
+		KASSERT(err == 1, ("memory_op failed"));
 		
 		new_val = mfn << PAGE_SHIFT;
-		PANIC_IF(HYPERVISOR_update_va_mapping((vm_offset_t)addr + (i * PAGE_SIZE), 
-						      new_val, PG_KERNEL));
+		err = HYPERVISOR_update_va_mapping(
+			(vm_offset_t)addr + (i * PAGE_SIZE), 
+			new_val, PG_KERNEL);
+		KASSERT(err == 0, ("update_va_mapping failed"));
 		xen_machphys_update(mfn, pfn);
 		PFNTOMFN(pfn) = mfn;
 	}
@@ -714,7 +741,7 @@ bootmem_alloc(unsigned int size)
 	char *retptr;
 	
 	retptr = bootmem_current;
-	PANIC_IF(retptr + size > bootmem_end);
+	KASSERT(retptr + size <= bootmem_end, ("bootmem_alloc failed"));
 	bootmem_current += size;
 
 	return retptr;
@@ -726,8 +753,9 @@ bootmem_free(void *ptr, unsigned int size)
 	char *tptr;
 	
 	tptr = ptr;
-	PANIC_IF(tptr != bootmem_current - size ||
-		bootmem_current - size < bootmem_start);	
+	KASSERT(tptr == bootmem_current - size &&
+	    bootmem_current - size >= bootmem_start,
+	    ("bootmem_free failed"));
 
 	bootmem_current -= size;
 }
@@ -838,7 +866,7 @@ initvalues(start_info_t *startinfo)
 	vm_paddr_t pdir_shadow_ma;
 #endif
 	unsigned long i;
-	int ncpus;
+	int ncpus, err;
 
 	nkpt = min(
 		min(
@@ -1064,7 +1092,8 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = (unsigned long)xen_phys_machine;
 
 	set_iopl.iopl = 1;
-	PANIC_IF(HYPERVISOR_physdev_op(PHYSDEVOP_SET_IOPL, &set_iopl));
+	err = HYPERVISOR_physdev_op(PHYSDEVOP_SET_IOPL, &set_iopl);
+	KASSERT(err == 0, ("physdev_op failed"));
 	printk("#6\n");
 #if 0
 	/* add page table for KERNBASE */

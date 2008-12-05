@@ -78,11 +78,11 @@ __FBSDID("$FreeBSD$");
 #include <i386/isa/isa.h>
 #include <isa/rtc.h>
 
-#include <machine/xen/xen_intr.h>
+#include <xen/xen_intr.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/pmap.h>
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenfunc.h>
 #include <xen/interface/vcpu.h>
@@ -254,8 +254,8 @@ static void __get_time_values_from_xen(void)
 	struct vcpu_time_info   *src;
 	struct shadow_time_info *dst;
 
-	src = &s->vcpu_info[smp_processor_id()].time;
-	dst = &per_cpu(shadow_time, smp_processor_id());
+	src = &s->vcpu_info[PCPU_GET(cpuid)].time;
+	dst = PCPU_PTR(shadow_time);
 
 	do {
 		dst->version = src->version;
@@ -271,13 +271,13 @@ static void __get_time_values_from_xen(void)
 	dst->tsc_to_usec_mul = dst->tsc_to_nsec_mul / 1000;
 }
 
-static inline int time_values_up_to_date(int cpu)
+static inline int time_values_up_to_date(void)
 {
 	struct vcpu_time_info   *src;
 	struct shadow_time_info *dst;
 
-	src = &HYPERVISOR_shared_info->vcpu_info[cpu].time; 
-	dst = &per_cpu(shadow_time, cpu); 
+	src = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)].time; 
+	dst = PCPU_PTR(shadow_time); 
 
 	rmb();
 	return (dst->version == src->version);
@@ -298,8 +298,7 @@ static void
 clkintr(struct clockframe *frame)
 {
 	int64_t delta_cpu, delta;
-	int cpu = smp_processor_id();
-	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
+	struct shadow_time_info *shadow = PCPU_PTR(shadow_time);
 
 	do {
 		__get_time_values_from_xen();
@@ -307,9 +306,9 @@ clkintr(struct clockframe *frame)
 		delta = delta_cpu = 
 			shadow->system_timestamp + get_nsec_offset(shadow);
 		delta     -= processed_system_time;
-		delta_cpu -= per_cpu(processed_system_time, cpu);
+		delta_cpu -= PCPU_GET(processed_system_time);
 
-	} while (!time_values_up_to_date(cpu));
+	} while (!time_values_up_to_date());
 	
 	if (unlikely(delta < (int64_t)0) || unlikely(delta_cpu < (int64_t)0)) {
 		printf("Timer ISR: Time went backwards: %lld\n", delta);
@@ -319,7 +318,7 @@ clkintr(struct clockframe *frame)
 	/* Process elapsed ticks since last call. */
 	if (delta >= NS_PER_TICK) {
 		processed_system_time += (delta / NS_PER_TICK) * NS_PER_TICK;
-		per_cpu(processed_system_time, cpu) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
+		*PCPU_PTR(processed_system_time) += (delta_cpu / NS_PER_TICK) * NS_PER_TICK;
 	}
 	hardclock(frame);
 
@@ -341,7 +340,7 @@ static uint32_t
 getit(void)
 {
 	struct shadow_time_info *shadow;
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	shadow = PCPU_PTR(shadow_time);
 	__get_time_values_from_xen();
 	return shadow->system_timestamp + get_nsec_offset(shadow);
 }
@@ -458,8 +457,8 @@ timer_restore(void)
 	__get_time_values_from_xen();
 
 	/* Reset our own concept of passage of system time. */
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
-	per_cpu(processed_system_time, 0) = processed_system_time;
+	processed_system_time = pcpu_find(0)->pc_shadow_time.system_timestamp;
+	pcpu_find(0)->pc_processed_system_time = processed_system_time;
 }
 
 void
@@ -472,8 +471,8 @@ startrtclock()
 
 	/* initialize xen values */
 	__get_time_values_from_xen();
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
-	per_cpu(processed_system_time, 0) = processed_system_time;
+	processed_system_time = pcpu_find(0)->pc_shadow_time.system_timestamp;
+	pcpu_find(0)->pc_processed_system_time = processed_system_time;
 
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
@@ -593,7 +592,7 @@ domu_resettodr(void)
 	dom0_op_t op;
 	struct shadow_time_info *shadow;
 
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	shadow = PCPU_PTR(shadow_time);
 	if (xen_disable_rtc_set)
 		return;
 	
@@ -848,7 +847,8 @@ cpu_initclocks(void)
 			   &xen_set_periodic_tick);
 
         if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-		    (driver_intr_t *)clkintr, INTR_TYPE_CLK | INTR_FAST)) < 0) {
+		    (driver_intr_t *)clkintr, INTR_TYPE_CLK | INTR_FAST,
+		    NULL)) < 0) {
 		panic("failed to register clock interrupt\n");
 	}
 
@@ -868,7 +868,7 @@ ap_cpu_initclocks(int cpu)
 
         if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, "clk", 
 		    (driver_intr_t *)clkintr, 
-						INTR_TYPE_CLK | INTR_FAST)) < 0) {
+		    INTR_TYPE_CLK | INTR_FAST, NULL)) < 0) {
 		panic("failed to register clock interrupt\n");
 	}
 
@@ -895,8 +895,7 @@ static uint32_t
 xen_get_timecount(struct timecounter *tc)
 {	
 	uint64_t clk;
-	struct shadow_time_info *shadow;
-	shadow = &per_cpu(shadow_time, smp_processor_id());
+	struct shadow_time_info *shadow = PCPU_PTR(shadow_time);
 
 	__get_time_values_from_xen();
 	
@@ -951,8 +950,10 @@ xen_get_offset(void)
 void
 idle_block(void)
 {
+	int err;
 
 	__get_time_values_from_xen();
-	PANIC_IF(HYPERVISOR_set_timer_op(processed_system_time + NS_PER_TICK) != 0);
+	err = HYPERVISOR_set_timer_op(processed_system_time + NS_PER_TICK);
+	KASSERT(err == 0, ("set_timer_op failed"));
 	HYPERVISOR_sched_op(SCHEDOP_block, 0);
 }
