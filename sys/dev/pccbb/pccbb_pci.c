@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
 static void cbb_chipinit(struct cbb_softc *sc);
-static void cbb_pci_intr(void *arg);
+static int cbb_pci_filt(void *arg);
 
 static struct yenta_chipinfo {
 	uint32_t yc_id;
@@ -313,8 +313,6 @@ cbb_pci_attach(device_t brdev)
 
 	parent = device_get_parent(brdev);
 	mtx_init(&sc->mtx, device_get_nameunit(brdev), "cbb", MTX_DEF);
-	cv_init(&sc->cv, "cbb cv");
-	cv_init(&sc->powercv, "cbb cv");
 	sc->chipset = cbb_chipset(pci_get_devid(brdev), NULL);
 	sc->dev = brdev;
 	sc->cbdev = NULL;
@@ -332,7 +330,6 @@ cbb_pci_attach(device_t brdev)
 	if (!sc->base_res) {
 		device_printf(brdev, "Could not map register memory\n");
 		mtx_destroy(&sc->mtx);
-		cv_destroy(&sc->cv);
 		return (ENOMEM);
 	} else {
 		DEVPRINTF((brdev, "Found memory at %08lx\n",
@@ -416,7 +413,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
-	    NULL, cbb_pci_intr, sc, &sc->intrhand)) {
+	    cbb_pci_filt, NULL, sc, &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt\n");
 		goto err;
 	}
@@ -451,7 +448,6 @@ err:
 		    sc->base_res);
 	}
 	mtx_destroy(&sc->mtx);
-	cv_destroy(&sc->cv);
 	return (ENOMEM);
 }
 
@@ -686,11 +682,13 @@ cbb_pci_shutdown(device_t brdev)
 	return (0);
 }
 
-static void
-cbb_pci_intr(void *arg)
+#define DELTA (CBB_SOCKET_MASK_CD)
+static int
+cbb_pci_filt(void *arg)
 {
 	struct cbb_softc *sc = arg;
 	uint32_t sockevent;
+	int retval = FILTER_STRAY;
 
 	/*
 	 * Read the socket event.  Sometimes, the theory goes, the PCI
@@ -705,9 +703,6 @@ cbb_pci_intr(void *arg)
 	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
 	if (sockevent != 0 && (sockevent & ~CBB_SOCKET_EVENT_VALID_MASK) == 0) {
-		/* ack the interrupt */
-		cbb_set(sc, CBB_SOCKET_EVENT, sockevent);
-
 		/*
 		 * If anything has happened to the socket, we assume that
 		 * the card is no longer OK, and we shouldn't call its
@@ -721,24 +716,24 @@ cbb_pci_intr(void *arg)
 		 * of the pccard software used a similar trick and achieved
 		 * excellent results.
 		 */
-		if (sockevent & CBB_SOCKET_EVENT_CD) {
-			mtx_lock(&sc->mtx);
-			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+		if (sockevent & DELTA) {
+			cbb_clrb(sc, CBB_SOCKET_MASK, DELTA);
+			cbb_set(sc, CBB_SOCKET_EVENT, DELTA);
 			sc->cardok = 0;
 			cbb_disable_func_intr(sc);
-			cv_signal(&sc->cv);
-			mtx_unlock(&sc->mtx);
+			wakeup(&sc->intrhand);
 		}
 		/*
 		 * If we get a power interrupt, wakeup anybody that might
 		 * be waiting for one.
 		 */
 		if (sockevent & CBB_SOCKET_EVENT_POWER) {
-			mtx_lock(&sc->mtx);
+			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_EVENT_POWER);
+			cbb_set(sc, CBB_SOCKET_EVENT, CBB_SOCKET_EVENT_POWER);
 			sc->powerintr++;
-			cv_signal(&sc->powercv);
-			mtx_unlock(&sc->mtx);
+			wakeup((void *)&sc->powerintr);
 		}
+		retval = FILTER_HANDLED;
 	}
 	/*
 	 * Some chips also require us to read the old ExCA registe for
@@ -753,6 +748,7 @@ cbb_pci_intr(void *arg)
 	 * the event independent of the CBB_SOCKET_EVENT_CD above.
 	 */
 	exca_getb(&sc->exca[0], EXCA_CSC);
+	return retval;
 }
 
 /************************************************************************/
