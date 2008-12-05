@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/iconv.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
 
 #include "iconv_converter_if.h"
@@ -51,6 +52,8 @@ MALLOC_DEFINE(M_ICONV, "iconv", "ICONV structures");
 MALLOC_DEFINE(M_ICONVDATA, "iconv_data", "ICONV data");
 
 MODULE_VERSION(libiconv, 2);
+
+static struct sx iconv_lock;
 
 #ifdef notnow
 /*
@@ -86,11 +89,16 @@ iconv_mod_unload(void)
 {
 	struct iconv_cspair *csp;
 
+	sx_xlock(&iconv_lock);
 	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL) {
 		if (csp->cp_refcount)
 			return EBUSY;
-		iconv_unregister_cspair(csp);
 	}
+
+	while ((csp = TAILQ_FIRST(&iconv_cslist)) != NULL)
+		iconv_unregister_cspair(csp);
+	sx_xunlock(&iconv_lock);
+	sx_destroy(&iconv_lock);
 	return 0;
 }
 
@@ -102,6 +110,7 @@ iconv_mod_handler(module_t mod, int type, void *data)
 	switch (type) {
 	    case MOD_LOAD:
 		error = 0;
+		sx_init(&iconv_lock, "iconv");
 		break;
 	    case MOD_UNLOAD:
 		error = iconv_mod_unload();
@@ -311,7 +320,7 @@ iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	error = 0;
-
+	sx_slock(&iconv_lock);
 	TAILQ_FOREACH(dcp, &iconv_converters, cc_link) {
 		name = ICONV_CONVERTER_NAME(dcp);
 		if (name == NULL)
@@ -320,6 +329,7 @@ iconv_sysctl_drvlist(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
+	sx_sunlock(&iconv_lock);
 	if (error)
 		return error;
 	spc = 0;
@@ -343,7 +353,7 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	bzero(&csi, sizeof(csi));
 	csi.cs_version = ICONV_CSPAIR_INFO_VER;
-
+	sx_slock(&iconv_lock);
 	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
 		csi.cs_id = csp->cp_id;
 		csi.cs_refcount = csp->cp_refcount;
@@ -354,6 +364,7 @@ iconv_sysctl_cslist(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
+	sx_sunlock(&iconv_lock);
 	return error;
 }
 
@@ -387,9 +398,12 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 		return EINVAL;
 	if (iconv_lookupconv(din.ia_converter, &dcp) != 0)
 		return EINVAL;
+	sx_xlock(&iconv_lock);
 	error = iconv_register_cspair(din.ia_to, din.ia_from, dcp, NULL, &csp);
-	if (error)
+	if (error) {
+		sx_xunlock(&iconv_lock);
 		return error;
+	}
 	if (din.ia_datalen) {
 		csp->cp_data = malloc(din.ia_datalen, M_ICONVDATA, M_WAITOK);
 		error = copyin(din.ia_data, csp->cp_data, din.ia_datalen);
@@ -400,10 +414,12 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &dout, sizeof(dout));
 	if (error)
 		goto bad;
+	sx_xunlock(&iconv_lock);
 	ICDEBUG("%s => %s, %d bytes\n",din.ia_from, din.ia_to, din.ia_datalen);
 	return 0;
 bad:
 	iconv_unregister_cspair(csp);
+	sx_xunlock(&iconv_lock);
 	return error;
 }
 
@@ -433,16 +449,22 @@ iconv_converter_handler(module_t mod, int type, void *data)
 
 	switch (type) {
 	    case MOD_LOAD:
+		sx_xlock(&iconv_lock);
 		error = iconv_register_converter(dcp);
-		if (error)
+		if (error) {
+			sx_xunlock(&iconv_lock);
 			break;
+		}
 		error = ICONV_CONVERTER_INIT(dcp);
 		if (error)
 			iconv_unregister_converter(dcp);
+		sx_xunlock(&iconv_lock);
 		break;
 	    case MOD_UNLOAD:
+		sx_xlock(&iconv_lock);
 		ICONV_CONVERTER_DONE(dcp);
 		error = iconv_unregister_converter(dcp);
+		sx_xunlock(&iconv_lock);
 		break;
 	    default:
 		error = EINVAL;
