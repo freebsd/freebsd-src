@@ -32,20 +32,9 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-
-#if defined(I686_CPU)
-#define mb()	__asm__ __volatile__ ("mfence;": : :"memory")
-#define wmb()	__asm__ __volatile__ ("sfence;": : :"memory")
-#define rmb()	__asm__ __volatile__ ("lfence;": : :"memory")
-#else
-/*
- * do we need a serializing instruction?
- */
-#define mb()
-#define wmb()
-#define rmb()
-#endif
-
+#define	mb()	__asm __volatile("lock;addl	$0,(%esp)")
+#define	wmb()	__asm __volatile("lock;addl	$0,(%esp)")
+#define	rmb()	__asm __volatile("lock;addl	$0,(%esp)")
 
 /*
  * Various simple operations on memory, each of which is atomic in the
