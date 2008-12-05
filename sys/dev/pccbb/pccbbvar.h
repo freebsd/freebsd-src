@@ -67,8 +67,6 @@ struct cbb_softc {
 	unsigned int	secbus;
 	unsigned int	subbus;
 	struct mtx	mtx;
-	struct cv	cv;
-	struct cv	powercv;
 	int		cardok;
 	u_int32_t	flags;
 #define	CBB_16BIT_CARD		0x20000000
@@ -89,7 +87,7 @@ struct cbb_softc {
 	device_t	cbdev;
 	struct proc	*event_thread;
 	void (*chipinit)(struct cbb_softc *);
-	volatile int	powerintr;
+	int	powerintr;
 };
 
 /* result of detect_card */
