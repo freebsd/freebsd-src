@@ -27,12 +27,8 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERCALL_H__
-#define __HYPERCALL_H__
-
-#include <sys/systm.h>
-#include <xen/interface/xen.h>
-#include <xen/interface/sched.h>
+#ifndef __MACHINE_XEN_HYPERCALL_H__
+#define __MACHINE_XEN_HYPERCALL_H__
 
 #define __STR(x) #x
 #define STR(x) __STR(x)
@@ -392,7 +388,8 @@ HYPERVISOR_kexec_op(
 {
         return _hypercall2(int, kexec_op, op, args);
 }
-#endif /* __HYPERCALL_H__ */
+
+#endif /* __MACHINE_XEN_HYPERCALL_H__ */
 
 /*
  * Local variables:

@@ -26,22 +26,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>
 
-#include <machine/xen/hypervisor.h>
+#include <machine/xen/xen-os.h>
 #include <machine/xen/synch_bitops.h>
+
+#include <xen/hypervisor.h>
 #include <xen/gnttab.h>
 
+#include <vm/vm.h>
+#include <vm/vm_kern.h>
+#include <vm/vm_extern.h>
+#include <vm/pmap.h>
+
 #define cmpxchg(a, b, c) atomic_cmpset_int((volatile u_int *)(a),(b),(c))
-
-#if 1
-#define ASSERT(_p) \
-    if ( !(_p) ) { printk("Assertion '%s': line %d, file %s\n", \
-    #_p , __LINE__, __FILE__); *(int*)0=0; }
-#else
-#define ASSERT(_p) ((void)0)
-#endif
-
-#define WPRINTK(fmt, args...) \
-    printk("xen_grant: " fmt, ##args)
 
 /* External tools reserve first few grant table entries. */
 #define NR_RESERVED_ENTRIES 8
@@ -65,16 +61,16 @@ static int gnttab_expand(unsigned int req_entries);
 #define gnttab_entry(entry) (gnttab_list[(entry) / RPP][(entry) % RPP])
 
 static int
-get_free_entries(int count)
+get_free_entries(int count, int *entries)
 {
-	int ref, rc;
+	int ref, error;
 	grant_ref_t head;
 	
 	mtx_lock(&gnttab_list_lock);
 	if ((gnttab_free_count < count) &&
-	    ((rc = gnttab_expand(count - gnttab_free_count)) < 0)) {
+	    ((error = gnttab_expand(count - gnttab_free_count)) != 0)) {
 		mtx_unlock(&gnttab_list_lock);
-		return (rc);
+		return (error);
 	}
 	ref = head = gnttab_free_head;
 	gnttab_free_count -= count;
@@ -83,10 +79,10 @@ get_free_entries(int count)
 	gnttab_free_head = gnttab_entry(head);
 	gnttab_entry(head) = GNTTAB_LIST_END;
 	mtx_unlock(&gnttab_list_lock);	
-	return (ref);
-}
 
-#define get_free_entry() get_free_entries(1)
+	*entries = ref;
+	return (0);
+}
 
 static void
 do_free_callbacks(void)
@@ -133,25 +129,29 @@ put_free_entry(grant_ref_t ref)
  */
 
 int
-gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly)
+gnttab_grant_foreign_access(domid_t domid, unsigned long frame, int readonly,
+	grant_ref_t *result)
 {
-	int ref;
+	int error, ref;
 
-	if (unlikely((ref = get_free_entry()) == -1))
-		return -ENOSPC;
+	error = get_free_entries(1, &ref);
+	if (unlikely(error))
+		return (error);
 
 	shared[ref].frame = frame;
 	shared[ref].domid = domid;
 	wmb();
 	shared[ref].flags = GTF_permit_access | (readonly ? GTF_readonly : 0);
 
-	return ref;
+	*result = ref;
+	return (0);
 }
 
 void
 gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
 				unsigned long frame, int readonly)
 {
+
 	shared[ref].frame = frame;
 	shared[ref].domid = domid;
 	wmb();
@@ -202,16 +202,19 @@ gnttab_end_foreign_access(grant_ref_t ref, void *page)
 }
 
 int
-gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn)
+gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn,
+    grant_ref_t *result)
 {
-	int ref;
+	int error, ref;
 	
-	if (unlikely((ref = get_free_entry()) == -1))
-		return -ENOSPC;
+	error = get_free_entries(1, &ref);
+	if (unlikely(error))
+		return (error);
 
 	gnttab_grant_foreign_transfer_ref(ref, domid, pfn);
 	
-	return (ref);
+	*result = ref;
+	return (0);
 }
 
 void
@@ -249,7 +252,7 @@ gnttab_end_foreign_transfer_ref(grant_ref_t ref)
 	/* Read the frame number /after/ reading completion status. */
 	rmb();
 	frame = shared[ref].frame;
-	PANIC_IF(frame == 0);
+	KASSERT(frame != 0, ("grant table inconsistent"));
 
 	return (frame);
 }
@@ -295,19 +298,20 @@ gnttab_free_grant_references(grant_ref_t head)
 int
 gnttab_alloc_grant_references(uint16_t count, grant_ref_t *head)
 {
-	int h = get_free_entries(count);
+	int error, h;
 
-	if (h == -1)
-		return -ENOSPC;
+	error = get_free_entries(count, &h);
+	if (error)
+		return (error);
 
 	*head = h;
-
-	return 0;
+	return (0);
 }
 
 int
 gnttab_empty_grant_references(const grant_ref_t *private_head)
 {
+
 	return (*private_head == GNTTAB_LIST_END);
 }
 
@@ -317,22 +321,23 @@ gnttab_claim_grant_reference(grant_ref_t *private_head)
 	grant_ref_t g = *private_head;
 
 	if (unlikely(g == GNTTAB_LIST_END))
-		return -ENOSPC;
-	*private_head = gnttab_entry(g);
+		return (ENOSPC);
 
+	*private_head = gnttab_entry(g);
 	return (g);
 }
 
 void
 gnttab_release_grant_reference(grant_ref_t *private_head, grant_ref_t  release)
 {
+
 	gnttab_entry(release) = *private_head;
 	*private_head = release;
 }
 
 void
 gnttab_request_free_callback(struct gnttab_free_callback *callback,
-			     void (*fn)(void *), void *arg, uint16_t count)
+    void (*fn)(void *), void *arg, uint16_t count)
 {
 
 	mtx_lock(&gnttab_list_lock);
@@ -375,7 +380,8 @@ grow_gnttab_list(unsigned int more_frames)
 
 	for (i = nr_grant_frames; i < new_nr_grant_frames; i++)
 	{
-		gnttab_list[i] = (grant_ref_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT);
+		gnttab_list[i] = (grant_ref_t *)
+			malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT);
 
 		if (!gnttab_list[i])
 			goto grow_nomem;
@@ -393,12 +399,12 @@ grow_gnttab_list(unsigned int more_frames)
 
 	check_free_callbacks();
 
-	return 0;
+	return (0);
 	
 grow_nomem:
 	for ( ; i >= nr_grant_frames; i--)
 		free(gnttab_list[i], M_DEVBUF);
-	return (-ENOMEM);
+	return (ENOMEM);
 }
 
 static unsigned int
@@ -465,7 +471,7 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	frames = malloc(nr_gframes * sizeof(unsigned long), M_DEVBUF, M_NOWAIT);
 	if (!frames)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	setup.dom        = DOMID_SELF;
 	setup.nr_frames  = nr_gframes;
@@ -474,19 +480,19 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	rc = HYPERVISOR_grant_table_op(GNTTABOP_setup_table, &setup, 1);
 	if (rc == -ENOSYS) {
 		free(frames, M_DEVBUF);
-		return -ENOSYS;
+		return (ENOSYS);
 	}
-	PANIC_IF(rc || setup.status);
+	KASSERT(!(rc || setup.status),
+	    ("unexpected result from grant_table_op"));
 
 	if (shared == NULL) {
 		vm_offset_t area;
 		
 		area = kmem_alloc_nofault(kernel_map,
 		    PAGE_SIZE * max_nr_grant_frames());
-		PANIC_IF(area == 0);
+		KASSERT(area, ("can't allocate VM space for grant table"));
 		shared = (grant_entry_t *)area;
 	}
-
 
 	for (i = 0; i < nr_gframes; i++)
 		PT_SET_MA(((caddr_t)shared) + i*PAGE_SIZE, 
@@ -494,15 +500,16 @@ gnttab_map(unsigned int start_idx, unsigned int end_idx)
 
 	free(frames, M_DEVBUF);
 	
-	return 0;
+	return (0);
 }
 
 int
 gnttab_resume(void)
 {
+
 	if (max_nr_grant_frames() < nr_grant_frames)
-		return -ENOSYS;
-	return gnttab_map(0, nr_grant_frames - 1);
+		return (ENOSYS);
+	return (gnttab_map(0, nr_grant_frames - 1));
 }
 
 int
@@ -529,7 +536,8 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 	struct xen_add_to_physmap xatp;
 	unsigned int i = end_idx;
 
-	/* Loop backwards, so that the first hypercall has the largest index,
+	/*
+	 * Loop backwards, so that the first hypercall has the largest index,
 	 * ensuring that the table will grow only once.
 	 */
 	do {
@@ -555,7 +563,7 @@ gnttab_resume(void)
 	nr_gframes = nr_grant_frames;
 	max_nr_gframes = max_nr_grant_frames();
 	if (max_nr_gframes < nr_gframes)
-		return -ENOSYS;
+		return (ENOSYS);
 
 	if (!resume_frames) {
 		error = xenpci_alloc_space(PAGE_SIZE * max_nr_gframes,
@@ -574,19 +582,20 @@ gnttab_resume(void)
 static int
 gnttab_expand(unsigned int req_entries)
 {
-	int rc;
+	int error;
 	unsigned int cur, extra;
 
 	cur = nr_grant_frames;
 	extra = ((req_entries + (GREFS_PER_GRANT_FRAME-1)) /
 		 GREFS_PER_GRANT_FRAME);
 	if (cur + extra > max_nr_grant_frames())
-		return -ENOSPC;
+		return (ENOSPC);
 
-	if ((rc = gnttab_map(cur, cur + extra - 1)) == 0)
-		rc = grow_gnttab_list(extra);
+	error = gnttab_map(cur, cur + extra - 1);
+	if (!error)
+		error = grow_gnttab_list(extra);
 
-	return rc;
+	return (error);
 }
 
 int 
@@ -597,7 +606,7 @@ gnttab_init()
 	unsigned int nr_init_grefs;
 
 	if (!is_running_on_xen())
-		return -ENODEV;
+		return (ENODEV);
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
@@ -613,16 +622,17 @@ gnttab_init()
 	    M_DEVBUF, M_NOWAIT);
 
 	if (gnttab_list == NULL)
-		return -ENOMEM;
+		return (ENOMEM);
 
 	for (i = 0; i < nr_grant_frames; i++) {
-		gnttab_list[i] = (grant_ref_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT);
+		gnttab_list[i] = (grant_ref_t *)
+			malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT);
 		if (gnttab_list[i] == NULL)
 			goto ini_nomem;
 	}
 	
 	if (gnttab_resume())
-		return -ENODEV;
+		return (ENODEV);
 	
 	nr_init_grefs = nr_grant_frames * GREFS_PER_GRANT_FRAME;
 
@@ -635,13 +645,14 @@ gnttab_init()
 
 	if (bootverbose)
 		printf("Grant table initialized\n");
-	return 0;
+
+	return (0);
 
 ini_nomem:
 	for (i--; i >= 0; i--)
 		free(gnttab_list[i], M_DEVBUF);
 	free(gnttab_list, M_DEVBUF);
-	return -ENOMEM;
+	return (ENOMEM);
 
 }
 

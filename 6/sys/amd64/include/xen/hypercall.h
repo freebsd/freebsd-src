@@ -34,12 +34,12 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __HYPERCALL_H__
-#define __HYPERCALL_H__
+#ifndef __MACHINE_XEN_HYPERCALL_H__
+#define __MACHINE_XEN_HYPERCALL_H__
 
 #include <sys/systm.h>
 
-#ifndef __HYPERVISOR_H__
+#ifndef __XEN_HYPERVISOR_H__
 # error "please don't include this file directly"
 #endif
 
@@ -412,4 +412,4 @@ HYPERVISOR_kexec_op(
 
 #undef __must_check
 
-#endif /* __HYPERCALL_H__ */
+#endif /* __MACHINE_XEN_HYPERCALL_H__ */

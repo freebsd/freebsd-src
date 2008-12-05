@@ -36,17 +36,8 @@
 
 #ifndef __ASM_GNTTAB_H__
 
-#include <vm/vm.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_page.h>
-#include <vm/vm_kern.h>
-
-#include <machine/xen/hypervisor.h>
 #include <xen/interface/grant_table.h>
-#include <xen/interface/memory.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/features.h>
+
 struct gnttab_free_callback {
 	struct gnttab_free_callback *next;
 	void (*fn)(void *);
@@ -56,8 +47,12 @@ struct gnttab_free_callback {
 
 int gnttab_init(void);
 
+/*
+ * Allocate a grant table reference and return it in *result. Returns
+ * zero on success or errno on error.
+ */
 int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
-				int flags);
+    int flags, grant_ref_t *result);
 
 /*
  * End access through the given grant reference, iff the grant entry is no
@@ -74,7 +69,7 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref);
  */
 void gnttab_end_foreign_access(grant_ref_t ref, void *page);
 
-int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
+int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn, grant_ref_t *result);
 
 unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref);
 unsigned long gnttab_end_foreign_transfer(grant_ref_t ref);
@@ -109,6 +104,10 @@ void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
 
 int gnttab_suspend(void);
 int gnttab_resume(void);
+
+#if 0
+
+#include <xen/features.h>
 
 static inline void
 gnttab_set_map_op(struct gnttab_map_grant_ref *map, vm_paddr_t addr,
@@ -155,5 +154,6 @@ gnttab_set_replace_op(struct gnttab_unmap_and_replace *unmap, vm_paddr_t addr,
 
 	unmap->handle = handle;
 }
+#endif
 
 #endif /* __ASM_GNTTAB_H__ */

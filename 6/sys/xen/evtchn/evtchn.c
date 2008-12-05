@@ -13,58 +13,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/interrupt.h>
 #include <sys/pcpu.h>
+#include <sys/smp.h>
 
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
-#include <machine/xen/xen_intr.h>
 #include <machine/xen/synch_bitops.h>
-#include <machine/xen/evtchn.h>
-#include <machine/xen/hypervisor.h>
-#include <sys/smp.h>
+#include <xen/hypervisor.h>
 
-
-
-/* linux helper functions that got sucked in 
- * rename and move XXX
- */
-
-
-static inline int find_first_bit(const unsigned long *addr, unsigned size)
-{
-	int d0, d1;
-	int res;
-
-	/* This looks at memory. Mark it volatile to tell gcc not to move it around */
-	__asm__ __volatile__(
-		"xorl %%eax,%%eax\n\t"
-		"repe; scasl\n\t"
-		"jz 1f\n\t"
-		"leal -4(%%edi),%%edi\n\t"
-		"bsfl (%%edi),%%eax\n"
-		"1:\tsubl %%ebx,%%edi\n\t"
-		"shll $3,%%edi\n\t"
-		"addl %%edi,%%eax"
-		:"=a" (res), "=&c" (d0), "=&D" (d1)
-		:"1" ((size + 31) >> 5), "2" (addr), "b" (addr) : "memory");
-	return res;
-}
-
-#define min_t(type,x,y) \
-	({ type __x = (x); type __y = (y); __x < __y ? __x: __y; })
-#define first_cpu(src) __first_cpu(&(src), NR_CPUS)
-static inline int __first_cpu(const xen_cpumask_t *srcp, int nbits)
-{
-	return min_t(int, nbits, find_first_bit(srcp->bits, nbits));
-}
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 
 static inline unsigned long __ffs(unsigned long word)
 {
@@ -78,6 +45,7 @@ static struct mtx irq_mapping_update_lock;
 static struct xenpic *xp;
 struct xenpic_intsrc {
 	struct intsrc     xp_intsrc;
+	void		  *xp_cookie;
 	uint8_t           xp_vector;
 	boolean_t	  xp_masked;
 };
@@ -167,7 +135,7 @@ static int irq_bindcount[NR_IRQS];
 #ifdef SMP
 
 static uint8_t cpu_evtchn[NR_EVENT_CHANNELS];
-static unsigned long cpu_evtchn_mask[NR_CPUS][NR_EVENT_CHANNELS/BITS_PER_LONG];
+static unsigned long cpu_evtchn_mask[MAX_VIRT_CPUS][NR_EVENT_CHANNELS/LONG_BIT];
 
 #define active_evtchns(cpu,sh,idx)		\
 	((sh)->evtchn_pending[idx] &		\
@@ -221,7 +189,7 @@ evtchn_do_upcall(struct intrframe *frame)
 	shared_info_t *s;
 	vcpu_info_t   *vcpu_info;
 	
-	cpu = smp_processor_id();
+	cpu = PCPU_GET(cpuid);
 	s = HYPERVISOR_shared_info;
 	vcpu_info = &s->vcpu_info[cpu];
 
@@ -237,7 +205,7 @@ evtchn_do_upcall(struct intrframe *frame)
 		while ((l2 = active_evtchns(cpu, s, l1i)) != 0) {
 			l2i = __ffs(l2);
 
-			port = (l1i * BITS_PER_LONG) + l2i;
+			port = (l1i * LONG_BIT) + l2i;
 			if ((irq = evtchn_to_irq[port]) != -1) {
 				struct intsrc *isrc = intr_lookup_source(irq);
 				/* 
@@ -259,7 +227,7 @@ ipi_pcpu(unsigned int cpu, int vector)
 { 
         int irq;
 
-	irq = per_cpu(ipi_to_irq, cpu)[vector]; 
+	irq = PCPU_GET(ipi_to_irq[vector]);
 	
         notify_remote_via_irq(irq); 
 } 
@@ -310,11 +278,12 @@ bind_local_port_to_irq(unsigned int local_port)
 
         mtx_lock_spin(&irq_mapping_update_lock);
 
-        PANIC_IF(evtchn_to_irq[local_port] != -1);
-
+        KASSERT(evtchn_to_irq[local_port] == -1,
+	    ("evtchn_to_irq inconsistent"));
+	
         if ((irq = find_unbound_irq()) < 0) {
                 struct evtchn_close close = { .port = local_port };
-                PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_close, &close));
+                HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
 		
                 goto out;
         }
@@ -367,21 +336,20 @@ bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 
 	mtx_lock_spin(&irq_mapping_update_lock);
 
-	if ((irq = per_cpu(virq_to_irq, cpu)[virq]) == -1) {
+	if ((irq = pcpu_find(cpu)->pc_virq_to_irq[virq]) == -1) {
 		if ((irq = find_unbound_irq()) < 0)
 			goto out;
 
 		bind_virq.virq = virq;
 		bind_virq.vcpu = cpu;
-		PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
-			&bind_virq) != 0);
+		HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq, &bind_virq);
 
 		evtchn = bind_virq.port;
 
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_irq_info(IRQT_VIRQ, virq, evtchn);
 
-		per_cpu(virq_to_irq, cpu)[virq] = irq;
+		pcpu_find(cpu)->pc_virq_to_irq[virq] = irq;
 
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
@@ -404,18 +372,18 @@ bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	
 	mtx_lock_spin(&irq_mapping_update_lock);
 	
-	if ((irq = per_cpu(ipi_to_irq, cpu)[ipi]) == -1) {
+	if ((irq = pcpu_find(cpu)->pc_ipi_to_irq[ipi]) == -1) {
 		if ((irq = find_unbound_irq()) < 0)
 			goto out;
 
 		bind_ipi.vcpu = cpu;
-		PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi, &bind_ipi) != 0);
+		HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi, &bind_ipi);
 		evtchn = bind_ipi.port;
 
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_irq_info(IRQT_IPI, ipi, evtchn);
 
-		per_cpu(ipi_to_irq, cpu)[ipi] = irq;
+		pcpu_find(cpu)->pc_ipi_to_irq[ipi] = irq;
 
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
@@ -428,24 +396,27 @@ out:
 }
 
 
-void 
+static void 
 unbind_from_irq(int irq)
 {
 	struct evtchn_close close;
 	int evtchn = evtchn_from_irq(irq);
+	int cpu;
 
 	mtx_lock_spin(&irq_mapping_update_lock);
 
 	if ((--irq_bindcount[irq] == 0) && VALID_EVTCHN(evtchn)) {
 		close.port = evtchn;
-		PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0);
+		HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
 
 		switch (type_from_irq(irq)) {
 		case IRQT_VIRQ:
-			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))[index_from_irq(irq)] = -1;
+			cpu = cpu_from_evtchn(evtchn);
+			pcpu_find(cpu)->pc_virq_to_irq[index_from_irq(irq)] = -1;
 			break;
 		case IRQT_IPI:
-			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))[index_from_irq(irq)] = -1;
+			cpu = cpu_from_evtchn(evtchn);
+			pcpu_find(cpu)->pc_ipi_to_irq[index_from_irq(irq)] = -1;
 			break;
 		default:
 			break;
@@ -463,117 +434,118 @@ unbind_from_irq(int irq)
 
 int 
 bind_caller_port_to_irqhandler(unsigned int caller_port,
-			  const char *devname,
-			  driver_intr_t handler,
-			  void *arg,
-			  unsigned long irqflags,
-                          void **cookiep)
+    const char *devname, driver_intr_t handler, void *arg,
+    unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_caller_port_to_irq(caller_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, arg, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
-bind_listening_port_to_irqhandler(
-	                  unsigned int remote_domain,
-			  const char *devname,
-			  driver_intr_t handler,
-			  void *arg,
-			  unsigned long irqflags,
-                          void **cookiep)
+bind_listening_port_to_irqhandler(unsigned int remote_domain,
+    const char *devname, driver_intr_t handler, void *arg,
+    unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_listening_port_to_irq(remote_domain);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, arg, irqflags, cookiep);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, arg, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
-bind_interdomain_evtchn_to_irqhandler(
-	                unsigned int remote_domain,
-	                unsigned int remote_port,
-			const char *devname,
-			driver_intr_t handler,
-			unsigned long irqflags)
+bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
+    unsigned int remote_port, const char *devname, driver_intr_t handler,
+    unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
-bind_virq_to_irqhandler(unsigned int virq,
-			unsigned int cpu,
-			const char *devname,
-			driver_intr_t handler,
-			unsigned long irqflags)
+bind_virq_to_irqhandler(unsigned int virq, unsigned int cpu,
+    const char *devname, driver_intr_t handler,
+    unsigned long irqflags, unsigned int *irqp)
 {
 	unsigned int irq;
-	int retval;
+	int error;
 
 	irq = bind_virq_to_irq(virq, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 int 
-bind_ipi_to_irqhandler(unsigned int ipi,
-		       unsigned int cpu,
-		       const char *devname,
-		       driver_intr_t handler,
-		       unsigned long irqflags)
+bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
+    const char *devname, driver_intr_t handler,
+    unsigned long irqflags, unsigned int *irqp)
 {
-	int irq, retval;
+	unsigned int irq;
+	int  error;
 	
 	irq = bind_ipi_to_irq(ipi, cpu);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	retval = intr_add_handler(devname, irq, handler, NULL, irqflags, NULL);
-	if (retval != 0) {
+	error = intr_add_handler(devname, irq, handler, NULL, irqflags,
+	    &xp->xp_pins[irq].xp_cookie);
+	if (error) {
 		unbind_from_irq(irq);
-		return -retval;
+		return (error);
 	}
 
-	return irq;
+	if (irqp)
+		*irqp = irq;
+	return (0);
 }
 
 void
-unbind_from_irqhandler(unsigned int irq, void *dev_id)
+unbind_from_irqhandler(unsigned int irq)
 {
-	if (dev_id)
-		intr_remove_handler(dev_id); /* XXX */
+	intr_remove_handler(xp->xp_pins[irq].xp_cookie);
 	unbind_from_irq(irq);
 }
 
@@ -609,9 +581,9 @@ rebind_irq_to_cpu(unsigned irq, unsigned tcpu)
 
 }
 
-static void set_affinity_irq(unsigned irq, xen_cpumask_t dest)
+static void set_affinity_irq(unsigned irq, cpumask_t dest)
 {
-	unsigned tcpu = first_cpu(dest);
+	unsigned tcpu = ffs(dest) - 1;
 	rebind_irq_to_cpu(irq, tcpu);
 }
 #endif
@@ -927,7 +899,7 @@ void
 unmask_evtchn(int port)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu = PCPU_GET(cpuid);
 	vcpu_info_t *vcpu_info = &s->vcpu_info[cpu];
 
 	/* Slow path (hypercall) if this is a non-local port. */
@@ -945,7 +917,7 @@ unmask_evtchn(int port)
 	 * masked.
 	 */
 	if (synch_test_bit(port, &s->evtchn_pending) && 
-	    !synch_test_and_set_bit(port / BITS_PER_LONG,
+	    !synch_test_and_set_bit(port / LONG_BIT,
 				    &vcpu_info->evtchn_pending_sel)) {
 		vcpu_info->evtchn_upcall_pending = 1;
 		if (!vcpu_info->evtchn_upcall_mask)
@@ -968,15 +940,21 @@ void irq_resume(void)
 		mask_evtchn(evtchn);
 
 	/* Check that no PIRQs are still bound. */
-	for (pirq = 0; pirq < NR_PIRQS; pirq++)
-		PANIC_IF(irq_info[pirq_to_irq(pirq)] != IRQ_UNBOUND);
+	for (pirq = 0; pirq < NR_PIRQS; pirq++) {
+		KASSERT(irq_info[pirq_to_irq(pirq)] == IRQ_UNBOUND,
+		    ("pirq_to_irq inconsistent"));
+	}
 
 	/* Secondary CPUs must have no VIRQ or IPI bindings. */
-	for (cpu = 1; cpu < NR_CPUS; cpu++) {
-		for (virq = 0; virq < NR_VIRQS; virq++)
-			PANIC_IF(per_cpu(virq_to_irq, cpu)[virq] != -1);
-		for (ipi = 0; ipi < NR_IPIS; ipi++)
-			PANIC_IF(per_cpu(ipi_to_irq, cpu)[ipi] != -1);
+	for (cpu = 1; cpu < MAX_VIRT_CPUS; cpu++) {
+		for (virq = 0; virq < NR_VIRQS; virq++) {
+			KASSERT(pcpu_find(cpu)->pc_virq_to_irq[virq] == -1,
+			    ("virq_to_irq inconsistent"));
+		}
+		for (ipi = 0; ipi < NR_IPIS; ipi++) {
+			KASSERT(pcpu_find(cpu)->pc_ipi_to_irq[ipi] == -1,
+			    ("ipi_to_irq inconsistent"));
+		}
 	}
 
 	/* No IRQ <-> event-channel mappings. */
@@ -987,15 +965,16 @@ void irq_resume(void)
 
 	/* Primary CPU: rebind VIRQs automatically. */
 	for (virq = 0; virq < NR_VIRQS; virq++) {
-		if ((irq = per_cpu(virq_to_irq, 0)[virq]) == -1)
+		if ((irq = pcpu_find(0)->pc_virq_to_irq[virq]) == -1)
 			continue;
 
-		PANIC_IF(irq_info[irq] != mk_irq_info(IRQT_VIRQ, virq, 0));
+		KASSERT(irq_info[irq] == mk_irq_info(IRQT_VIRQ, virq, 0),
+		    ("irq_info inconsistent"));
 
 		/* Get a new binding from Xen. */
 		bind_virq.virq = virq;
 		bind_virq.vcpu = 0;
-		PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq, &bind_virq) != 0);
+		HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq, &bind_virq);
 		evtchn = bind_virq.port;
         
 		/* Record the new mapping. */
@@ -1008,15 +987,16 @@ void irq_resume(void)
 
 	/* Primary CPU: rebind IPIs automatically. */
 	for (ipi = 0; ipi < NR_IPIS; ipi++) {
-		if ((irq = per_cpu(ipi_to_irq, 0)[ipi]) == -1)
+		if ((irq = pcpu_find(0)->pc_ipi_to_irq[ipi]) == -1)
 			continue;
 
-		PANIC_IF(irq_info[irq] != mk_irq_info(IRQT_IPI, ipi, 0));
+		KASSERT(irq_info[irq] == mk_irq_info(IRQT_IPI, ipi, 0),
+		    ("irq_info inconsistent"));
 
 		/* Get a new binding from Xen. */
 		memset(&op, 0, sizeof(op));
 		bind_ipi.vcpu = 0;
-		PANIC_IF(HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi, &bind_ipi) != 0);
+		HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi, &bind_ipi);
 		evtchn = bind_ipi.port;
         
 		/* Record the new mapping. */
@@ -1040,9 +1020,9 @@ evtchn_init(void *dummy __unused)
          /* No VIRQ or IPI bindings. */
 	for (cpu = 0; cpu < mp_ncpus; cpu++) {
 		for (i = 0; i < NR_VIRQS; i++)
-			per_cpu(virq_to_irq, cpu)[i] = -1;
+			pcpu_find(cpu)->pc_virq_to_irq[i] = -1;
 		for (i = 0; i < NR_IPIS; i++)
-			per_cpu(ipi_to_irq, cpu)[i] = -1;
+			pcpu_find(cpu)->pc_ipi_to_irq[i] = -1;
 	}
 
 	/* No event-channel -> IRQ mappings. */

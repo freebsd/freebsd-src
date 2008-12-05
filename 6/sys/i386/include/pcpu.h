@@ -84,14 +84,13 @@ struct shadow_time_info {
         u_int     pc_cpuast;						\
 	uint64_t  pc_processed_system_time;				\
 	struct shadow_time_info pc_shadow_time;				\
-	int	pc_resched_irq;						\
-	int	pc_callfunc_irq;					\
-        int	pc_virq_to_irq[NR_VIRQS];				\
-	int	pc_ipi_to_irq[NR_IPIS]
-	
-
+	u_int	pc_resched_irq;						\
+	u_int	pc_callfunc_irq;					\
+        u_int	pc_virq_to_irq[NR_VIRQS];				\
+	u_int	pc_ipi_to_irq[NR_IPIS]
 	
 #else
+
 #define	PCPU_MD_FIELDS							\
 	struct	pcpu *pc_prvspace;		/* Self-reference */	\
 	struct	pmap *pc_curpmap;					\
@@ -102,7 +101,9 @@ struct shadow_time_info {
 	int	pc_currentldt;						\
 	u_int	pc_acpi_id;						\
 	u_int	pc_apic_id
+
 #endif
+
 #if defined(lint)
  
 extern struct pcpu *pcpup;

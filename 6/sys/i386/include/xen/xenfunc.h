@@ -30,11 +30,6 @@
 #ifndef _XEN_XENFUNC_H_
 #define _XEN_XENFUNC_H_
 
-#include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xenpmap.h>
-#include <machine/segments.h>
-#include <sys/pcpu.h>
 #define BKPT __asm__("int3");
 #define XPQ_CALL_DEPTH 5
 #define XPQ_CALL_COUNT 2

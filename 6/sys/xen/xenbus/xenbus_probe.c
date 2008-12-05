@@ -88,9 +88,7 @@ kasprintf(const char *fmt, ...)
 	len = vsnprintf(dummy, 0, fmt, ap);
 	va_end(ap);
 
-	p = kmalloc(len + 1, GFP_KERNEL);
-	if (!p)
-		return NULL;
+	p = malloc(len + 1, M_DEVBUF, M_WAITOK);
 	va_start(ap, fmt);
 	vsprintf(p, fmt, ap);
 	va_end(ap);
@@ -187,6 +185,7 @@ xenbus_add_device(device_t dev, const char *bus,
 	struct xenbus_device_ivars *ivars;
 	enum xenbus_state state;
 	char *statepath;
+	int error;
 
 	ivars = malloc(sizeof(struct xenbus_device_ivars),
 	    M_DEVBUF, M_ZERO|M_WAITOK);
@@ -217,17 +216,19 @@ xenbus_add_device(device_t dev, const char *bus,
 	/*
 	 * Find the backend details
 	 */
-	xenbus_gather(XBT_NIL, ivars->xd_node,
+	error = xenbus_gather(XBT_NIL, ivars->xd_node,
 	    "backend-id", "%i", &ivars->xd_otherend_id,
 	    "backend", NULL, &ivars->xd_otherend_path,
 	    NULL);
+	if (error)
+		return (error);
 
 	sx_init(&ivars->xd_lock, "xdlock");
 	ivars->xd_type = strdup(type, M_DEVBUF);
 	ivars->xd_state = XenbusStateInitialising;
 
 	statepath = malloc(strlen(ivars->xd_otherend_path)
-	    + strlen("/state") + 1, M_DEVBUF, M_NOWAIT);
+	    + strlen("/state") + 1, M_DEVBUF, M_WAITOK);
 	sprintf(statepath, "%s/state", ivars->xd_otherend_path);
 
 	ivars->xd_otherend_watch.node = statepath;
@@ -245,10 +246,11 @@ xenbus_enumerate_type(device_t dev, const char *bus, const char *type)
 {
 	char **dir;
 	unsigned int i, count;
+	int error;
 
-	dir = xenbus_directory(XBT_NIL, bus, type, &count);
-	if (IS_ERR(dir))
-		return (EINVAL);
+	error = xenbus_directory(XBT_NIL, bus, type, &count, &dir);
+	if (error)
+		return (error);
 	for (i = 0; i < count; i++)
 		xenbus_add_device(dev, bus, type, dir[i]);
 
@@ -262,10 +264,11 @@ xenbus_enumerate_bus(device_t dev, const char *bus)
 {
 	char **dir;
 	unsigned int i, count;
+	int error;
 
-	dir = xenbus_directory(XBT_NIL, bus, "", &count);
-	if (IS_ERR(dir))
-		return (EINVAL);
+	error = xenbus_directory(XBT_NIL, bus, "", &count, &dir);
+	if (error)
+		return (error);
 	for (i = 0; i < count; i++) {
 		xenbus_enumerate_type(dev, bus, dir[i]);
 	}
@@ -470,8 +473,8 @@ xenbus_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 			goto out;
 
 		error = xenbus_scanf(XBT_NIL, ivars->xd_node, "state",
-		    "%d", &currstate);
-		if (error < 0)
+		    NULL, "%d", &currstate);
+		if (error)
 			goto out;
 
 		error = xenbus_printf(XBT_NIL, ivars->xd_node, "state",

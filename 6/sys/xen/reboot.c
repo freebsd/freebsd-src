@@ -47,25 +47,27 @@ shutdown_handler(struct xenbus_watch *watch,
 {
 	char *str;
 	struct xenbus_transaction xbt;
-	int err, howto;
+	int error, howto;
 	
 	howto = 0;
 
  again:
-	err = xenbus_transaction_start(&xbt);
-	if (err)
+	error = xenbus_transaction_start(&xbt);
+	if (error)
 		return;
-	str = (char *)xenbus_read(xbt, "control", "shutdown", NULL);
+
+	error = xenbus_read(xbt, "control", "shutdown", NULL, (void **) &str);
+
 	/* Ignore read errors and empty reads. */
-	if (XENBUS_IS_ERR_READ(str)) {
+	if (error || strlen(str) == 0) {
 		xenbus_transaction_end(xbt, 1);
 		return;
 	}
 
 	xenbus_write(xbt, "control", "shutdown", "");
 
-	err = xenbus_transaction_end(xbt, 0);
-	if (err == EAGAIN) {
+	error = xenbus_transaction_end(xbt, 0);
+	if (error == EAGAIN) {
 		free(str, M_DEVBUF);
 		goto again;
 	}

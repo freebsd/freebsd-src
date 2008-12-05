@@ -15,8 +15,8 @@
 #include <sys/bus.h>
 #include <machine/stdarg.h>
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/hypervisor.h>
+#include <xen/xen_intr.h>
 #include <sys/cons.h>
 #include <sys/proc.h>
 
@@ -234,7 +234,7 @@ static int
 xc_attach(device_t dev) 
 {
 	struct xc_softc *sc = (struct xc_softc *)device_get_softc(dev);
-
+	int error;
 
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
 		xc_consdev.cn_putc = xccnputc_dom0;
@@ -259,15 +259,10 @@ xc_attach(device_t dev)
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, xccons);
     
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
-		PANIC_IF(bind_virq_to_irqhandler(
-				 VIRQ_CONSOLE,
-				 0,
-				 "console",
-				 xencons_priv_interrupt,
-				 INTR_TYPE_TTY) < 0);
-		
+		error = bind_virq_to_irqhandler(VIRQ_CONSOLE, 0, "console",
+			xencons_priv_interrupt, INTR_TYPE_TTY, NULL);
+		KASSERT(error >= 0, ("can't register console interrupt"));
 	}
-
 
 	/* register handler to flush console on shutdown */
 	if ((EVENTHANDLER_REGISTER(shutdown_post_sync, xc_shutdown,

@@ -6,7 +6,7 @@
 
 #ifndef _XEN_OS_H_
 #define _XEN_OS_H_
-#include <machine/param.h>
+
 #ifdef PAE
 #define CONFIG_X86_PAE
 #endif
@@ -24,42 +24,9 @@
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
 
-#ifndef vtophys
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/pmap.h>
-#endif
-
 extern int gdtset;
-#ifdef SMP
-#include <sys/time.h> /* XXX for pcpu.h */
-#include <sys/pcpu.h> /* XXX for PCPU_GET */
-static inline int 
-smp_processor_id(void)  
-{
-    if (__predict_true(gdtset))
-	return PCPU_GET(cpuid);
-    return 0;
-}
-
-#else
-#define smp_processor_id() 0
-#endif
-
-#ifndef NULL
-#define NULL (void *)0
-#endif
-
-#ifndef PANIC_IF
-#define PANIC_IF(exp) if (unlikely(exp)) {printk("panic - %s: %s:%d\n",#exp, __FILE__, __LINE__); panic("%s: %s:%d", #exp, __FILE__, __LINE__);} 
-#endif
 
 extern shared_info_t *HYPERVISOR_shared_info;
-
-/* Somewhere in the middle of the GCC 2.96 development cycle, we implemented
-   a mechanism by which the user can annotate likely branch directions and
-   expect the blocks to be reordered appropriately.  Define __builtin_expect
-   to nothing for earlier compilers.  */
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)
@@ -67,13 +34,6 @@ static inline void rep_nop(void)
     __asm__ __volatile__ ( "rep;nop" : : : "memory" );
 }
 #define cpu_relax() rep_nop()
-
-
-#if __GNUC__ == 2 && __GNUC_MINOR__ < 96
-#define __builtin_expect(x, expected_value) (x)
-#endif
-
-#define per_cpu(var, cpu)           (pcpu_find((cpu))->pc_ ## var)
 
 /* crude memory allocator for memory allocation early in 
  *  boot
@@ -84,9 +44,6 @@ void bootmem_free(void *ptr, unsigned int size);
 
 /* Everything below this point is not included by assembler (.S) files. */
 #ifndef __ASSEMBLY__
-#include <sys/types.h>
-
-void printk(const char *fmt, ...);
 
 /* some function prototypes */
 void trap_init(void);
@@ -105,7 +62,7 @@ void trap_init(void);
 #define __cli()                                                         \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
         _vcpu->evtchn_upcall_mask = 1;                                  \
         barrier();                                                      \
 } while (0)
@@ -114,7 +71,7 @@ do {                                                                    \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
         barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
         _vcpu->evtchn_upcall_mask = 0;                                  \
         barrier(); /* unmask then check (avoid races) */                \
         if ( unlikely(_vcpu->evtchn_upcall_pending) )                   \
@@ -125,7 +82,7 @@ do {                                                                    \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
         barrier();                                                      \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
         if ((_vcpu->evtchn_upcall_mask = (x)) == 0) {                   \
                 barrier(); /* unmask then check (avoid races) */        \
                 if ( unlikely(_vcpu->evtchn_upcall_pending) )           \
@@ -140,7 +97,7 @@ do {                                                                    \
 #define __save_and_cli(x)                                               \
 do {                                                                    \
         vcpu_info_t *_vcpu;                                             \
-        _vcpu = &HYPERVISOR_shared_info->vcpu_info[smp_processor_id()]; \
+        _vcpu = &HYPERVISOR_shared_info->vcpu_info[PCPU_GET(cpuid)];	\
         (x) = _vcpu->evtchn_upcall_mask;                                \
         _vcpu->evtchn_upcall_mask = 1;                                  \
         barrier();                                                      \
@@ -328,33 +285,6 @@ static __inline__ void atomic_inc(atomic_t *v)
 
 #define rdtscll(val) \
      __asm__ __volatile__("rdtsc" : "=A" (val))
-
-
-
-/*
- * Kernel pointers have redundant information, so we can use a
- * scheme where we can return either an error code or a dentry
- * pointer with the same return value.
- *
- * This should be a per-architecture thing, to allow different
- * error and pointer decisions.
- */
-#define IS_ERR_VALUE(x) unlikely((x) > (unsigned long)-1000L)
-
-static inline void *ERR_PTR(long error)
-{
-	return (void *) error;
-}
-
-static inline long PTR_ERR(const void *ptr)
-{
-	return (long) ptr;
-}
-
-static inline long IS_ERR(const void *ptr)
-{
-	return IS_ERR_VALUE((unsigned long)ptr);
-}
 
 #endif /* !__ASSEMBLY__ */
 

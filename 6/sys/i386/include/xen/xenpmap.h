@@ -33,6 +33,9 @@
 
 #ifndef _XEN_XENPMAP_H_
 #define _XEN_XENPMAP_H_
+
+#include <xen/features.h>
+
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
 void xen_set_ldt(vm_paddr_t, unsigned long);
@@ -52,10 +55,6 @@ void pmap_ref(pt_entry_t *pte, vm_paddr_t ma);
 #else
 #define xen_queue_pt_update(a, b) _xen_queue_pt_update((a), (b), NULL, 0)
 #endif	
-
-
-#include <sys/param.h>
-#include <sys/pcpu.h>
 
 #ifdef PMAP_DEBUG
 #define PMAP_REF pmap_ref
@@ -180,11 +179,12 @@ vptetomachpte(vm_paddr_t *pte)
 
 #endif
 
-#define PT_SET_MA(_va, _ma) 					\
-do { 								\
-   PANIC_IF(HYPERVISOR_update_va_mapping(((unsigned long)(_va)),\
-	   (_ma),						\
-	   UVMF_INVLPG| UVMF_ALL) < 0);			\
+#define PT_SET_MA(_va, _ma)						\
+do {									\
+	int err;							\
+	err = HYPERVISOR_update_va_mapping(((unsigned long)(_va)),	\
+	    (_ma), UVMF_INVLPG| UVMF_ALL);				\
+	KASSERT(err >= 0, ("unexpected result from update_va_mapping")); \
 } while (/*CONSTCOND*/0)	  
 
 #define	PT_UPDATES_FLUSH() do {				        \

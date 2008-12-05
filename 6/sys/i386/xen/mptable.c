@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/mptable.h>
 #include <machine/specialreg.h>
 
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
 #include <machine/smp.h>
 #include <xen/interface/vcpu.h>

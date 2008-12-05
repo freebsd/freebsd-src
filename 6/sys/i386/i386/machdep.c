@@ -143,11 +143,11 @@ uint32_t arch_i386_xbox_memsize = 0;
 
 #ifdef XEN
 /* XEN includes */
-#include <machine/xen/hypervisor.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xen-os.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
-#include <machine/xen/xen_intr.h>
+#include <xen/xen_intr.h>
 
 void Xhypervisor_callback(void);
 void failsafe_callback(void);
@@ -2255,13 +2255,16 @@ init386(int first)
 		ssdtosd(&gdt_segs[x], &gdt[x].sd);
 
 
-	printk("gdt=%p\n", gdt);
-	printk("PTmap=%p\n", PTmap);
-	printk("addr=%p\n", *vtopte((unsigned long)gdt) & ~PG_RW);
+	if (bootverbose) {
+		printf("gdt=%p\n", gdt);
+		printf("PTmap=%p\n", PTmap);
+		printf("addr=%#jx\n", (uintmax_t)*vtopte((unsigned long)gdt) & ~PG_RW);
+	}
 
 	gdtmachpfn = vtomach(gdt) >> PAGE_SHIFT;
 	PT_SET_MA(gdt, *vtopte((unsigned long)gdt) & ~(PG_RW|PG_M|PG_A));
-	PANIC_IF(HYPERVISOR_set_gdt(&gdtmachpfn, 512) != 0);	
+	error = HYPERVISOR_set_gdt(&gdtmachpfn, 512);
+	KASSERT(error == 0, ("unexpected result from set_gdt"));
 	lgdt(&r_gdt /* unused */);
 	gdtset = 1;
 

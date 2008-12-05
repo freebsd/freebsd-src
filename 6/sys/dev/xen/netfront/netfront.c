@@ -63,16 +63,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 
 #include <machine/xen/xen-os.h>
-#include <machine/xen/hypervisor.h>
-#include <machine/xen/xen_intr.h>
-#include <machine/xen/evtchn.h>
+#include <xen/hypervisor.h>
 #include <machine/xen/xenvar.h>
+#include <xen/features.h>
+
+#include <xen/xen_intr.h>
+#include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
-#include <dev/xen/netfront/mbufq.h>
-#include <machine/xen/features.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <dev/xen/netfront/mbufq.h>
 
 #include "xenbus_if.h"
 
@@ -368,24 +370,25 @@ makembuf (struct mbuf *buf)
 static int 
 xen_net_read_mac(device_t dev, uint8_t mac[])
 {
-	char *s;
-	int i;
-	char *e;
-	char *macstr = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL);
-	if (IS_ERR(macstr)) {
-		return PTR_ERR(macstr);
-	}
+	int error, i;
+	char *s, *e, *macstr;
+
+	error = xenbus_read(XBT_NIL, xenbus_get_node(dev), "mac", NULL,
+	    (void **) &macstr);
+	if (error)
+		return (error);
+
 	s = macstr;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
 		mac[i] = strtoul(s, &e, 16);
 		if (s == e || (e[0] != ':' && e[0] != 0)) {
 			free(macstr, M_DEVBUF);
-			return ENOENT;
+			return (ENOENT);
 		}
 		s = &e[1];
 	}
 	free(macstr, M_DEVBUF);
-	return 0;
+	return (0);
 }
 
 /**
@@ -537,7 +540,7 @@ setup_device(device_t dev, struct netfront_info *info)
 {
 	netif_tx_sring_t *txs;
 	netif_rx_sring_t *rxs;
-	int err;
+	int error;
 	struct ifnet *ifp;
 	
 	ifp = info->xn_ifp;
@@ -550,51 +553,48 @@ setup_device(device_t dev, struct netfront_info *info)
 
 	txs = (netif_tx_sring_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (!txs) {
-		err = ENOMEM;
-		xenbus_dev_fatal(dev, err, "allocating tx ring page");
+		error = ENOMEM;
+		xenbus_dev_fatal(dev, error, "allocating tx ring page");
 		goto fail;
 	}
 	SHARED_RING_INIT(txs);
 	FRONT_RING_INIT(&info->tx, txs, PAGE_SIZE);
-	err = xenbus_grant_ring(dev, virt_to_mfn(txs));
-	if (err < 0)
+	error = xenbus_grant_ring(dev, virt_to_mfn(txs), &info->tx_ring_ref);
+	if (error)
 		goto fail;
-	info->tx_ring_ref = err;
 
 	rxs = (netif_rx_sring_t *)malloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (!rxs) {
-		err = ENOMEM;
-		xenbus_dev_fatal(dev, err, "allocating rx ring page");
+		error = ENOMEM;
+		xenbus_dev_fatal(dev, error, "allocating rx ring page");
 		goto fail;
 	}
 	SHARED_RING_INIT(rxs);
 	FRONT_RING_INIT(&info->rx, rxs, PAGE_SIZE);
 
-	err = xenbus_grant_ring(dev, virt_to_mfn(rxs));
-	if (err < 0)
+	error = xenbus_grant_ring(dev, virt_to_mfn(rxs), &info->rx_ring_ref);
+	if (error)
 		goto fail;
-	info->rx_ring_ref = err;
 
 #if 0	
 	network_connect(info);
 #endif
-	err = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
-		"xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, NULL);
+	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
+		"xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
-	if (err <= 0) {
-		xenbus_dev_fatal(dev, err,
+	if (error) {
+		xenbus_dev_fatal(dev, error,
 				 "bind_evtchn_to_irqhandler failed");
 		goto fail;
 	}
-	info->irq = err;
 	
 	show_device(info);
 	
-	return 0;
+	return (0);
 	
  fail:
 	netif_free(info);
-	return err;
+	return (error);
 }
 
 /**
@@ -1562,18 +1562,18 @@ xn_stop(struct netfront_info *sc)
 int
 network_connect(struct netfront_info *np)
 {
-	int i, requeue_idx, err;
+	int i, requeue_idx, error;
 	grant_ref_t ref;
 	netif_rx_request_t *req;
 	u_int feature_rx_copy, feature_rx_flip;
 
-	err = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
-			   "feature-rx-copy", "%u", &feature_rx_copy);
-	if (err != 1)
+	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	    "feature-rx-copy", NULL, "%u", &feature_rx_copy);
+	if (error)
 		feature_rx_copy = 0;
-	err = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
-			   "feature-rx-flip", "%u", &feature_rx_flip);
-	if (err != 1)
+	error = xenbus_scanf(XBT_NIL, xenbus_get_otherend_path(np->xbdev),
+	    "feature-rx-flip", NULL, "%u", &feature_rx_flip);
+	if (error)
 		feature_rx_flip = 1;
 
 	/*
@@ -1586,9 +1586,9 @@ network_connect(struct netfront_info *np)
 
 	XN_LOCK(np);
 	/* Recovery procedure: */
-	err = talk_to_backend(np->xbdev, np);
-	if (err) 
-		return (err);
+	error = talk_to_backend(np->xbdev, np);
+	if (error) 
+		return (error);
 	
 	/* Step 1: Reinitialise variables. */
 	netif_release_tx_bufs(np);
@@ -1796,7 +1796,7 @@ static void netif_disconnect_backend(struct netfront_info *info)
 
 #if 0
 	if (info->irq)
-		unbind_from_irqhandler(info->irq, info->netdev);
+		unbind_from_irqhandler(info->irq);
 #else 
 	panic("FIX ME");
 #endif
