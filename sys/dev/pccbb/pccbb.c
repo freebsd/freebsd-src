@@ -837,7 +837,18 @@ cbb_power(device_t brdev, int volts)
 	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
 		device_printf(sc->dev, "Bad Vcc requested\n");	
-		/* XXX Do we want to do something to mitigate things here? */
+		/*
+		 * Turn off the power, and try again.  Retrigger other
+		 * active interrupts via force register.  From NetBSD
+		 * PR 36652, coded by me to description there.
+		 */
+		sock_ctrl &= ~CBB_SOCKET_CTRL_VCCMASK;
+		sock_ctrl &= ~CBB_SOCKET_CTRL_VPPMASK;
+		cbb_set(sc, CBB_SOCKET_CONTROL, sock_ctrl);
+		status &= ~CBB_STATE_BAD_VCC_REQ;
+		status &= ~CBB_STATE_DATA_LOST;
+		status |= CBB_FORCE_CV_TEST;
+		cbb_set(sc, CBB_SOCKET_FORCE, status);
 		goto done;
 	}
 	if (sc->chipset == CB_TOPIC97) {
