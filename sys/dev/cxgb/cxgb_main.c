@@ -402,6 +402,8 @@ cxgb_controller_attach(device_t dev)
 	int msi_needed, reg;
 #endif
 	int must_load = 0;
+	char buf[80];
+
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->msi_count = 0;
@@ -613,6 +615,11 @@ cxgb_controller_attach(device_t dev)
 	snprintf(&sc->fw_version[0], sizeof(sc->fw_version), "%d.%d.%d",
 	    G_FW_VERSION_MAJOR(vers), G_FW_VERSION_MINOR(vers),
 	    G_FW_VERSION_MICRO(vers));
+
+	snprintf(buf, sizeof(buf), "%s\t E/C: %s S/N: %s", 
+		 ai->desc,
+		 sc->params.vpd.ec, sc->params.vpd.sn);
+	device_set_desc_copy(dev, buf);
 
 	device_printf(sc->dev, "Firmware Version %s\n", &sc->fw_version[0]);
 	callout_reset(&sc->cxgb_tick_ch, CXGB_TICKS(sc), cxgb_tick, sc);
