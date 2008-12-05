@@ -180,6 +180,7 @@ MAN=	aac.4 \
 	ncv.4 \
 	netgraph.4 \
 	netintro.4 \
+	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
 	ng_atm.4 \
@@ -469,6 +470,7 @@ MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=netintro.4 net.4 \
 	netintro.4 networking.4
+MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=oldcard.4 card.4
@@ -522,9 +524,11 @@ MLINKS+=watchdog.4 SW_WATCHDOG.4
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _amdsmb.4=	amdsmb.4
 _coretemp.4=	coretemp.4
+_if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
 _ipmi.4=	ipmi.4
 _nfsmb.4=	nfsmb.4
+_nfe.4=		nfe.4
 _nve.4=		nve.4
 _rr232x.4=	rr232x.4
 _spkr.4=	spkr.4

@@ -179,6 +179,7 @@ SUBDIR=	${_3dfx} \
 	${_ncv} \
 	${_ndis} \
 	netgraph \
+	${_nfe} \
 	nfsclient \
 	nfslockd \
 	nfsserver \
@@ -433,6 +434,7 @@ _iwi=		iwi
 _ixgb=  	ixgb
 _mly=		mly
 _mxge=		mxge
+_nfe=		nfe
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
@@ -491,6 +493,7 @@ _ixgb=  	ixgb
 _mly=		mly
 _mxge=		mxge
 _ndis=		ndis
+_nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _ppc=		ppc
