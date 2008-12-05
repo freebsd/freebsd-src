@@ -598,6 +598,10 @@ pcib_mbus_init_bridge(struct pcib_mbus_softc *sc, int bus, int slot, int func)
 	mem_limit = mem_base + sc->sc_info->op_mem_size - 1;
 
 	/* Configure I/O decode registers */
+	pcib_mbus_write_config(sc->sc_dev, bus, slot, func, PCIR_IOBASEL_1,
+	    io_base >> 8, 1);
+	pcib_mbus_write_config(sc->sc_dev, bus, slot, func, PCIR_IOBASEH_1,
+	    io_base >> 16, 2);
 	pcib_mbus_write_config(sc->sc_dev, bus, slot, func, PCIR_IOLIMITL_1,
 	    io_limit >> 8, 1);
 	pcib_mbus_write_config(sc->sc_dev, bus, slot, func, PCIR_IOLIMITH_1,
