@@ -196,9 +196,7 @@ module_release(module_t mod)
 		TAILQ_REMOVE(&modules, mod, link);
 		if (mod->file)
 			TAILQ_REMOVE(&mod->file->modules, mod, flink);
-		MOD_XUNLOCK;
 		free(mod, M_MODULE);
-		MOD_XLOCK;
 	}
 }
 
@@ -232,16 +230,25 @@ module_lookupbyid(int modid)
 }
 
 int
-module_unload(module_t mod, int flags)
+module_quiesce(module_t mod)
 {
 	int error;
 
 	mtx_lock(&Giant);
 	error = MOD_EVENT(mod, MOD_QUIESCE);
+	mtx_unlock(&Giant);
 	if (error == EOPNOTSUPP || error == EINVAL)
 		error = 0;
-	if (error == 0 || flags == LINKER_UNLOAD_FORCE)
-		error = MOD_EVENT(mod, MOD_UNLOAD);
+	return (error);
+}
+
+int
+module_unload(module_t mod)
+{
+	int error;
+
+	mtx_lock(&Giant);
+	error = MOD_EVENT(mod, MOD_UNLOAD);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -260,6 +267,14 @@ module_getfnext(module_t mod)
 
 	MOD_LOCK_ASSERT;
 	return (TAILQ_NEXT(mod, flink));
+}
+
+const char *
+module_getname(module_t mod)
+{
+
+	MOD_LOCK_ASSERT;
+	return (mod->name);
 }
 
 void
