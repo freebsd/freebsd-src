@@ -1045,8 +1045,8 @@ cbb_cardbus_mem_open(device_t brdev, int win, uint32_t start, uint32_t end)
 		return (EINVAL);
 	}
 
-	basereg = win*8 + CBBR_MEMBASE0;
-	limitreg = win*8 + CBBR_MEMLIMIT0;
+	basereg = win * 8 + CBBR_MEMBASE0;
+	limitreg = win * 8 + CBBR_MEMLIMIT0;
 
 	pci_write_config(brdev, basereg, start, 4);
 	pci_write_config(brdev, limitreg, end, 4);
