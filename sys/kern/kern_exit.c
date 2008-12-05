@@ -543,6 +543,7 @@ exit1(struct thread *td, int rv)
 	 * proc lock.
 	 */
 	wakeup(p->p_pptr);
+	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
@@ -774,6 +775,7 @@ loop:
 				PROC_UNLOCK(p);
 				tdsignal(t, NULL, SIGCHLD, p->p_ksi);
 				wakeup(t);
+				cv_broadcast(&p->p_pwait);
 				PROC_UNLOCK(t);
 				sx_xunlock(&proctree_lock);
 				return (0);
