@@ -529,7 +529,7 @@ gnttab_suspend(void)
 
 #include <dev/xen/xenpci/xenpcivar.h>
 
-static unsigned long resume_frames;
+static vm_paddr_t resume_frames;
 
 static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
@@ -549,7 +549,19 @@ static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 			panic("HYPERVISOR_memory_op failed to map gnttab");
 	} while (i-- > start_idx);
 
-	shared = pmap_mapdev(resume_frames, (end_idx + 1) * PAGE_SIZE);
+	if (shared == NULL) {
+		vm_offset_t area;
+		
+		area = kmem_alloc_nofault(kernel_map,
+		    PAGE_SIZE * max_nr_grant_frames());
+		KASSERT(area, ("can't allocate VM space for grant table"));
+		shared = (grant_entry_t *)area;
+	}
+
+	for (i = start_idx; i <= end_idx; i++) {
+		pmap_kenter((vm_offset_t) shared + i * PAGE_SIZE,
+		    resume_frames + i * PAGE_SIZE);
+	}
 
 	return (0);
 }

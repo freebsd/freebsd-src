@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
 #include <dev/xen/xenpci/xenpcivar.h>
@@ -248,7 +250,8 @@ static int
 xenpci_attach(device_t device, struct xenpci_softc * scp)
 {
 	struct xen_add_to_physmap xatp;
-	u_long shared_pa;
+	vm_offset_t shared_va;
+	vm_paddr_t shared_pa;
 
 	if (xenpci_allocate_resources(device))
 		goto errexit;
@@ -269,7 +272,9 @@ xenpci_attach(device_t device, struct xenpci_softc * scp)
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		panic("HYPERVISOR_memory_op failed");
 
-	HYPERVISOR_shared_info = pmap_mapdev(shared_pa, PAGE_SIZE);
+	shared_va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	pmap_kenter(shared_va, shared_pa);
+	HYPERVISOR_shared_info = (void *) shared_va;
 
 	/*
 	 * Hook the irq up to evtchn
@@ -379,7 +384,8 @@ xenpci_deallocate_resources(device_t device)
 }
 
 static int
-xenpci_alloc_space_int(struct xenpci_softc *scp, size_t sz, u_long *pa)
+xenpci_alloc_space_int(struct xenpci_softc *scp, size_t sz,
+    vm_paddr_t *pa)
 {
 
 	if (scp->phys_next + sz > rman_get_end(scp->res_memory)) {
@@ -393,7 +399,7 @@ xenpci_alloc_space_int(struct xenpci_softc *scp, size_t sz, u_long *pa)
 }
 
 int
-xenpci_alloc_space(size_t sz, u_long *pa)
+xenpci_alloc_space(size_t sz, vm_paddr_t *pa)
 {
 	device_t device = devclass_get_device(xenpci_devclass, 0);
 

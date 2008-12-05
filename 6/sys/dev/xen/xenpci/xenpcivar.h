@@ -36,8 +36,8 @@ struct xenpci_softc {
 	struct resource* res_irq;	/* Resource for irq range. */
 	void	*intr_cookie;
 
-	u_long	phys_next;		/* next page from mem range */
+	vm_paddr_t phys_next;		/* next page from mem range */
 };
 
 extern int xenpci_irq_init(device_t device, struct xenpci_softc *scp);
-extern int xenpci_alloc_space(size_t sz, u_long *pa);
+extern int xenpci_alloc_space(size_t sz, vm_paddr_t *pa);
