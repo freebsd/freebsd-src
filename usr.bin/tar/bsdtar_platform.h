@@ -147,4 +147,14 @@
 #endif
 #endif
 
+/* How to mark functions that don't return. */
+/* This facilitates use of some newer static code analysis tools. */
+#undef __LA_DEAD
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define	__LA_DEAD	__attribute__((__noreturn__))
+#else
+#define	__LA_DEAD
+#endif
+
 #endif /* !BSDTAR_PLATFORM_H_INCLUDED */
