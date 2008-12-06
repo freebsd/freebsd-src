@@ -593,6 +593,8 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 {
 	struct file_info *file;
 	size_t name_len;
+	const unsigned char *rr_start, *rr_end;
+	const char *p;
 	int flags;
 
 	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
@@ -610,8 +612,23 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
 	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
+
 	name_len = (size_t)*(const unsigned char *)(isodirrec + DR_name_len_offset);
-	archive_strncpy(&file->name, isodirrec + DR_name_offset, name_len);
+	p = isodirrec + DR_name_offset;
+	/* Rockridge extensions (if any) follow name.  Compute this
+	 * before fidgeting the name_len below. */
+	rr_start = p + name_len + (name_len & 1 ? 0 : 1) + iso9660->suspOffset;
+	rr_end = (const unsigned char *)isodirrec
+	    + *(isodirrec + DR_length_offset);
+
+	/* Chop off trailing ';1' from files. */
+	if (name_len > 2 && p[name_len - 1] == '1' && p[name_len - 2] == ';')
+		name_len -= 2;
+	/* Chop off trailing '.' from filenames. */
+	if (name_len > 1 && p[name_len - 1] == '.')
+		--name_len;
+	archive_strncpy(&file->name, p, name_len);
+
 	flags = *(isodirrec + DR_flags_offset);
 	if (flags & 0x02)
 		file->mode = AE_IFDIR | 0700;
@@ -619,17 +636,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		file->mode = AE_IFREG | 0400;
 
 	/* Rockridge extensions overwrite information from above. */
-	{
-		const unsigned char *rr_start, *rr_end;
-		rr_end = (const unsigned char *)isodirrec
-		    + *(isodirrec + DR_length_offset);
-		rr_start = (const unsigned char *)(isodirrec + DR_name_offset
-		    + name_len);
-		if ((name_len & 1) == 0)
-			rr_start++;
-		rr_start += iso9660->suspOffset;
-		parse_rockridge(iso9660, file, rr_start, rr_end);
-	}
+	parse_rockridge(iso9660, file, rr_start, rr_end);
 
 #if DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
@@ -690,6 +697,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
 	(void)iso9660; /* UNUSED */
+	file->name_continues = 0;
+	file->symlink_continues = 0;
 
 	while (p + 4 < end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
