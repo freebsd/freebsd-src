@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -86,6 +86,10 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_free_a_strmoq(_stcb, _strmoq) { \
+	if ((_strmoq)->holds_key_ref) { \
+		sctp_auth_key_release(stcb, sp->auth_keyid); \
+		(_strmoq)->holds_key_ref = 0; \
+	} \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), (_strmoq)); \
 	SCTP_DECR_STRMOQ_COUNT(); \
 }
@@ -94,11 +98,15 @@ extern struct pr_usrreqs sctp_usrreqs;
 	(_strmoq) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_strmoq), struct sctp_stream_queue_pending); \
 	if ((_strmoq)) { \
 		SCTP_INCR_STRMOQ_COUNT(); \
+		(_strmoq)->holds_key_ref = 0; \
  	} \
 }
 
-
 #define sctp_free_a_chunk(_stcb, _chk) { \
+	if ((_chk)->holds_key_ref) {\
+		sctp_auth_key_release((_stcb), (_chk)->auth_keyid); \
+		(_chk)->holds_key_ref = 0; \
+	} \
         if(_stcb) { \
           SCTP_TCB_LOCK_ASSERT((_stcb)); \
           if ((_chk)->whoTo) { \
@@ -126,21 +134,22 @@ extern struct pr_usrreqs sctp_usrreqs;
 		if ((_chk)) { \
 			SCTP_INCR_CHK_COUNT(); \
                         (_chk)->whoTo = NULL; \
+			(_chk)->holds_key_ref = 0; \
 		} \
 	} else { \
 		(_chk) = TAILQ_FIRST(&(_stcb)->asoc.free_chunks); \
 		TAILQ_REMOVE(&(_stcb)->asoc.free_chunks, (_chk), sctp_next); \
 		atomic_subtract_int(&SCTP_BASE_INFO(ipi_free_chunks), 1); \
+		(_chk)->holds_key_ref = 0; \
                 SCTP_STAT_INCR(sctps_cached_chk); \
 		(_stcb)->asoc.free_chunk_cnt--; \
 	} \
 }
 
 
-
 #define sctp_free_remote_addr(__net) { \
 	if ((__net)) {  \
-		if (atomic_fetchadd_int(&(__net)->ref_count, -1) == 1) { \
+		if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&(__net)->ref_count)) { \
 			(void)SCTP_OS_TIMER_STOP(&(__net)->rxt_timer.timer); \
 			(void)SCTP_OS_TIMER_STOP(&(__net)->pmtu_timer.timer); \
 			(void)SCTP_OS_TIMER_STOP(&(__net)->fr_timer.timer); \
@@ -160,63 +169,17 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 }
 
-#ifdef INVARIANTS
-
-
 #define sctp_sbfree(ctl, stcb, sb, m) { \
-	uint32_t val; \
-	val = atomic_fetchadd_int(&(sb)->sb_cc,-(SCTP_BUF_LEN((m)))); \
-	if (val < SCTP_BUF_LEN((m))) { \
-	   panic("sb_cc goes negative"); \
-	} \
-	val = atomic_fetchadd_int(&(sb)->sb_mbcnt,-(MSIZE)); \
-	if (val < MSIZE) { \
-	    panic("sb_mbcnt goes negative"); \
-	} \
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_cc, SCTP_BUF_LEN((m))); \
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_mbcnt, MSIZE); \
 	if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
-	  val = atomic_fetchadd_int(&(stcb)->asoc.sb_cc,-(SCTP_BUF_LEN((m)))); \
-	  if (val < SCTP_BUF_LEN((m))) {\
-	     panic("stcb->sb_cc goes negative"); \
-	  } \
-	  val = atomic_fetchadd_int(&(stcb)->asoc.my_rwnd_control_len,-(MSIZE)); \
-	  if (val < MSIZE) { \
-	     panic("asoc->mbcnt goes negative"); \
-	  } \
+		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \
+		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.my_rwnd_control_len, MSIZE); \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
 	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
 		atomic_subtract_int(&(sb)->sb_ctl,SCTP_BUF_LEN((m))); \
 }
-
-
-#else
-
-#define sctp_sbfree(ctl, stcb, sb, m) { \
-	uint32_t val; \
-	val = atomic_fetchadd_int(&(sb)->sb_cc,-(SCTP_BUF_LEN((m)))); \
-	if (val < SCTP_BUF_LEN((m))) { \
-	    (sb)->sb_cc = 0;\
-	} \
-	val = atomic_fetchadd_int(&(sb)->sb_mbcnt,-(MSIZE)); \
-	if (val < MSIZE) { \
-	    (sb)->sb_mbcnt = 0; \
-	} \
-	if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
-	  val = atomic_fetchadd_int(&(stcb)->asoc.sb_cc,-(SCTP_BUF_LEN((m)))); \
-	  if (val < SCTP_BUF_LEN((m))) {\
-	      (stcb)->asoc.sb_cc = 0; \
-	  } \
-	  val = atomic_fetchadd_int(&(stcb)->asoc.my_rwnd_control_len,-(MSIZE)); \
-	  if (val < MSIZE) { \
-	     (stcb)->asoc.my_rwnd_control_len = 0; \
-	  } \
-	} \
-	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
-	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
-		atomic_subtract_int(&(sb)->sb_ctl,SCTP_BUF_LEN((m))); \
-}
-
-#endif
 
 #define sctp_sballoc(stcb, sb, m) { \
 	atomic_add_int(&(sb)->sb_cc,SCTP_BUF_LEN((m))); \
