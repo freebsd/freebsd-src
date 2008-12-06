@@ -271,11 +271,12 @@ adb_kbd_attach(device_t dev)
 	}
 #endif
 
-	adb_set_autopoll(dev,1);
-
-	/* Check (asynchronously) if we can read out the LED state from 
+	/* Check if we can read out the LED state from 
 	   this keyboard by reading the key state register */
-	adb_send_packet(dev,ADB_COMMAND_TALK,2,0,NULL);
+	if (adb_read_register(dev, 2, NULL) == 2)
+		sc->have_led_control = 1;
+
+	adb_set_autopoll(dev,1);
 
 	return (0);
 }
@@ -322,11 +323,6 @@ adb_kbd_receive_packet(device_t dev, u_char status,
 
 	if (command != ADB_COMMAND_TALK)
 		return 0;
-
-	if (reg == 2 && len == 2) {
-		sc->have_led_control = 1;
-		return 0;
-	}
 
 	if (reg != 0 || len != 2)
 		return (0);
