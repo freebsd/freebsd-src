@@ -518,7 +518,6 @@ write_data_block(struct archive_write_disk *a,
 {
 	ssize_t bytes_written = 0;
 	ssize_t block_size = 0, bytes_to_write;
-	int r;
 
 	if (a->filesize == 0 || a->fd < 0) {
 		archive_set_error(&a->archive, 0,
@@ -528,6 +527,7 @@ write_data_block(struct archive_write_disk *a,
 
 	if (a->flags & ARCHIVE_EXTRACT_SPARSE) {
 #if HAVE_STRUCT_STAT_ST_BLKSIZE
+		int r;
 		if ((r = _archive_write_disk_lazy_stat(a)) != ARCHIVE_OK)
 			return (r);
 		block_size = a->pst->st_blksize;
@@ -1752,7 +1752,7 @@ set_time(int fd, int mode, const char *name,
 	(void)mtime_nsec; /* UNUSED */
 	times.actime = atime;
 	times.modtime = mtime;
-	if (S_ISLINK(mode))
+	if (S_ISLNK(mode))
 		return (ARCHIVE_OK);
 	return (utime(name, &times));
 }
