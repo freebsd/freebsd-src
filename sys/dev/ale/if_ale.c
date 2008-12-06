@@ -385,6 +385,39 @@ ale_phy_reset(struct ale_softc *sc)
 	    GPHY_CTRL_EXT_RESET | GPHY_CTRL_HIB_EN | GPHY_CTRL_HIB_PULSE |
 	    GPHY_CTRL_SEL_ANA_RESET | GPHY_CTRL_PHY_PLL_ON);
 	DELAY(1000);
+
+#define	ATPHY_DBG_ADDR		0x1D
+#define	ATPHY_DBG_DATA		0x1E
+
+	/* Enable hibernation mode. */
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x0B);
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_DATA, 0xBC00);
+	/* Set Class A/B for all modes. */
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x00);
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_DATA, 0x02EF);
+	/* Enable 10BT power saving. */
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x12);
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_DATA, 0x4C04);
+	/* Adjust 1000T power. */
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x04);
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x8BBB);
+	/* 10BT center tap voltage. */
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x05);
+	ale_miibus_writereg(sc->ale_dev, sc->ale_phyaddr,
+	    ATPHY_DBG_ADDR, 0x2C46);
+
+#undef	ATPHY_DBG_ADDR
+#undef	ATPHY_DBG_DATA
+	DELAY(1000);
 }
 
 static int
@@ -2753,10 +2786,8 @@ ale_init_locked(struct ale_softc *sc)
 		    TX_JUMBO_THRESH_UNIT_SHIFT);
 	}
 	/* Configure TxQ. */
-	reg = 0;
-	if ((sc->ale_flags & ALE_FLAG_JUMBO) != 0)
-		reg = (128 << (sc->ale_dma_rd_burst >> DMA_CFG_RD_BURST_SHIFT))
-		    << TXQ_CFG_TX_FIFO_BURST_SHIFT;
+	reg = (128 << (sc->ale_dma_rd_burst >> DMA_CFG_RD_BURST_SHIFT))
+	    << TXQ_CFG_TX_FIFO_BURST_SHIFT;
 	reg |= (TXQ_CFG_TPD_BURST_DEFAULT << TXQ_CFG_TPD_BURST_SHIFT) &
 	    TXQ_CFG_TPD_BURST_MASK;
 	CSR_WRITE_4(sc, ALE_TXQ_CFG, reg | TXQ_CFG_ENHANCED_MODE | TXQ_CFG_ENB);
