@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=1.0.0
+BSDCPIO_VERSION_STRING=1.1.0
 SRCS=	cpio.c cmdline.c err.c matching.c pathmatch.c
 WARNS?=	6
 DPADD=	${LIBARCHIVE} ${LIBZ} ${LIBBZ2}
