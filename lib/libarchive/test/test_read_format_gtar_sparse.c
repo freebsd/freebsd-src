@@ -201,7 +201,10 @@ verify_archive_file(const char *name, struct archive_contents *ac)
 	while (ac->filename != NULL) {
 		struct contents *cts = ac->contents;
 
-		assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
+		if (!assertEqualIntA(a, 0, archive_read_next_header(a, &ae))) {
+			assert(0 == archive_read_finish(a));
+			return;
+		}
 		failure("Name mismatch in archive %s", name);
 		assertEqualString(ac->filename, archive_entry_pathname(ae));
 
