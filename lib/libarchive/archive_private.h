@@ -31,6 +31,13 @@
 #include "archive.h"
 #include "archive_string.h"
 
+#if defined(__GNUC__) && (__GNUC__ > 2 || \
+			  (__GNUC__ == 2 && __GNUC_MINOR__ >= 5))
+#define	__LA_DEAD	__attribute__((__noreturn__))
+#else
+#define	__LA_DEAD
+#endif
+
 #define	ARCHIVE_WRITE_MAGIC	(0xb0c5c0deU)
 #define	ARCHIVE_READ_MAGIC	(0xdeb0c5U)
 #define ARCHIVE_WRITE_DISK_MAGIC (0xc001b0c5U)
@@ -92,7 +99,7 @@ struct archive {
 void	__archive_check_magic(struct archive *, unsigned int magic,
 	    unsigned int state, const char *func);
 
-void	__archive_errx(int retvalue, const char *msg) __dead2;
+void	__archive_errx(int retvalue, const char *msg) __LA_DEAD;
 
 #define	err_combine(a,b)	((a) < (b) ? (a) : (b))
 
