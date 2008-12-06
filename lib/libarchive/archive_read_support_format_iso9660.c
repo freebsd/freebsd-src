@@ -288,8 +288,8 @@ archive_read_format_iso9660_bid(struct archive_read *a)
 	 * 8 sectors of the volume descriptor table.  Of course,
 	 * if the I/O layer gives us more, we'll take it.
 	 */
-	bytes_read = (a->decompressor->read_ahead)(a, &h, 32768 + 8*2048);
-	if (bytes_read < 32768 + 8*2048)
+	h = __archive_read_ahead(a, 32768 + 8*2048, &bytes_read);
+	if (h == NULL)
 	    return (-1);
 	p = (const unsigned char *)h;
 
@@ -334,7 +334,6 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 {
 	struct iso9660 *iso9660;
 	struct file_info *file;
-	ssize_t bytes_read;
 	int r;
 
 	iso9660 = (struct iso9660 *)(a->format->data);
@@ -407,20 +406,18 @@ archive_read_format_iso9660_read_header(struct archive_read *a,
 			ssize_t step = iso9660->logical_block_size;
 			if (step > iso9660->entry_bytes_remaining)
 				step = iso9660->entry_bytes_remaining;
-			bytes_read = (a->decompressor->read_ahead)(a, &block, step);
-			if (bytes_read < step) {
+			block = __archive_read_ahead(a, step, NULL);
+			if (block == NULL) {
 				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Failed to read full block when scanning ISO9660 directory list");
 				release_file(iso9660, file);
 				return (ARCHIVE_FATAL);
 			}
-			if (bytes_read > step)
-				bytes_read = step;
-			(a->decompressor->consume)(a, bytes_read);
-			iso9660->current_position += bytes_read;
-			iso9660->entry_bytes_remaining -= bytes_read;
+			__archive_read_consume(a, step);
+			iso9660->current_position += step;
+			iso9660->entry_bytes_remaining -= step;
 			for (p = (const unsigned char *)block;
-			     *p != 0 && p < (const unsigned char *)block + bytes_read;
+			     *p != 0 && p < (const unsigned char *)block + step;
 			     p += *p) {
 				struct file_info *child;
 
@@ -472,11 +469,11 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 		return (ARCHIVE_EOF);
 	}
 
-	bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
+	*buff = __archive_read_ahead(a, 1, &bytes_read);
 	if (bytes_read == 0)
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Truncated input file");
-	if (bytes_read <= 0)
+	if (buff == NULL)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
 		bytes_read = iso9660->entry_bytes_remaining;
@@ -485,7 +482,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	iso9660->entry_sparse_offset += bytes_read;
 	iso9660->entry_bytes_remaining -= bytes_read;
 	iso9660->current_position += bytes_read;
-	(a->decompressor->consume)(a, bytes_read);
+	__archive_read_consume(a, bytes_read);
 	return (ARCHIVE_OK);
 }
 
@@ -926,7 +923,7 @@ fprintf(stderr, " *** Discarding CE data.\n");
 		if (iso9660->current_position < offset) {
 			off_t step = offset - iso9660->current_position;
 			off_t bytes_read;
-			bytes_read = (a->decompressor->skip)(a, step);
+			bytes_read = __archive_read_skip(a, step);
 			if (bytes_read < 0)
 				return (bytes_read);
 			iso9660->current_position = offset;
@@ -940,19 +937,18 @@ fprintf(stderr, " *** Discarding CE data.\n");
 		if (offset == file->ce_offset) {
 			const void *p;
 			ssize_t size = file->ce_size;
-			ssize_t bytes_read;
 			const unsigned char *rr_start;
 
 			file->ce_offset = 0;
 			file->ce_size = 0;
-			bytes_read = (a->decompressor->read_ahead)(a, &p, size);
-			if (bytes_read > size)
-				bytes_read = size;
+			p = __archive_read_ahead(a, size, NULL);
+			if (p == NULL)
+				return (ARCHIVE_FATAL);
 			rr_start = (const unsigned char *)p;
 			parse_rockridge(iso9660, file, rr_start,
-			    rr_start + bytes_read);
-			(a->decompressor->consume)(a, bytes_read);
-			iso9660->current_position += bytes_read;
+			    rr_start + size);
+			__archive_read_consume(a, size);
+			iso9660->current_position += size;
 			add_entry(iso9660, file);
 		}
 	}
