@@ -89,7 +89,7 @@ struct cpio {
 /* Name of this program; used in error reporting, initialized in main(). */
 const char *cpio_progname;
 
-void	cpio_errc(int _eval, int _code, const char *fmt, ...) __dead2;
+void	cpio_errc(int _eval, int _code, const char *fmt, ...) __LA_DEAD;
 void	cpio_warnc(int _code, const char *fmt, ...);
 
 int	owner_parse(const char *, int *, int *);
