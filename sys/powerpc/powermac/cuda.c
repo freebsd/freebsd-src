@@ -65,10 +65,12 @@ static int	cuda_probe(device_t);
 static int	cuda_attach(device_t);
 static int	cuda_detach(device_t);
 
-static u_int cuda_adb_send(device_t dev, u_char command_byte, int len, 
+static u_int	cuda_adb_send(device_t dev, u_char command_byte, int len, 
     u_char *data, u_char poll);
-static u_int cuda_adb_autopoll(device_t dev, uint16_t mask);
-static void cuda_poll(device_t dev);
+static u_int	cuda_adb_autopoll(device_t dev, uint16_t mask);
+static void	cuda_poll(device_t dev);
+static void	cuda_send_inbound(struct cuda_softc *sc);
+static void	cuda_send_outbound(struct cuda_softc *sc);
 
 static device_method_t  cuda_methods[] = {
 	/* Device interface */
@@ -101,6 +103,8 @@ static devclass_t cuda_devclass;
 
 DRIVER_MODULE(cuda, macio, cuda_driver, cuda_devclass, 0, 0);
 DRIVER_MODULE(adb, cuda, adb_driver, adb_devclass, 0, 0);
+
+MALLOC_DEFINE(M_CUDA, "cuda", "CUDA packet queue");
 
 static void cuda_intr(void *arg);
 static uint8_t cuda_read_reg(struct cuda_softc *sc, u_int offset);
@@ -170,8 +174,10 @@ cuda_attach(device_t dev)
 	sc->sc_waiting = 0;
 	sc->sc_polling = 0;
 	sc->sc_state = CUDA_NOTREADY;
-	sc->sc_error = 0;
 	sc->sc_autopoll = 0;
+
+	STAILQ_INIT(&sc->sc_inq);
+	STAILQ_INIT(&sc->sc_outq);
 
 	/* Init CUDA */
 
@@ -335,42 +341,126 @@ cuda_send(void *cookie, int poll, int length, uint8_t *msg)
 {
 	struct cuda_softc *sc = cookie;
 	device_t dev = sc->sc_dev;
+	struct cuda_packet *pkt;
 
 	if (sc->sc_state == CUDA_NOTREADY)
-		return -1;
+		return (-1);
 
 	mtx_lock(&sc->sc_mutex);
 
-	if (sc->sc_state != CUDA_IDLE) {
-		if (sc->sc_waiting == 0) {
-			sc->sc_waiting = 1;
-		} else {
-			mtx_unlock(&sc->sc_mutex);
-			return -1;
-		}
+	pkt = malloc(sizeof(struct cuda_packet), M_CUDA, M_WAITOK);
+	pkt->len = length - 1;
+	pkt->type = msg[0];
+	memcpy(pkt->data, &msg[1], pkt->len);
+
+	STAILQ_INSERT_TAIL(&sc->sc_outq, pkt, pkt_q);
+
+	/*
+	 * If we already are sending a packet, we should bail now that this
+	 * one has been added to the queue.
+	 */
+
+	if (sc->sc_waiting) {
+		mtx_unlock(&sc->sc_mutex);
+		return (0);
 	}
 
-	sc->sc_error = 0;
-	memcpy(sc->sc_out, msg, length);
-	sc->sc_out_length = length;
+	cuda_send_outbound(sc);
+	mtx_unlock(&sc->sc_mutex);
+
+	if (sc->sc_polling || poll || cold)
+		cuda_poll(dev);
+
+	return (0);
+}
+
+static void
+cuda_send_outbound(struct cuda_softc *sc)
+{
+	struct cuda_packet *pkt;
+
+	mtx_assert(&sc->sc_mutex, MA_OWNED);
+
+	pkt = STAILQ_FIRST(&sc->sc_outq);
+	if (pkt == NULL)
+		return;
+
+	sc->sc_out_length = pkt->len + 1;
+	memcpy(sc->sc_out, &pkt->type, pkt->len + 1);
 	sc->sc_sent = 0;
 
-	if (sc->sc_waiting != 1) {
-		DELAY(150);
+	free(pkt, M_CUDA);
+	STAILQ_REMOVE_HEAD(&sc->sc_outq, pkt_q);
+
+	sc->sc_waiting = 1;
+
+	cuda_poll(sc->sc_dev);
+
+	DELAY(150);
+
+	if (sc->sc_state == CUDA_IDLE && !cuda_intr_state(sc)) {
 		sc->sc_state = CUDA_OUT;
 		cuda_out(sc);
 		cuda_write_reg(sc, vSR, sc->sc_out[0]);
 		cuda_ack_off(sc);
 		cuda_tip(sc);
 	}
-	sc->sc_waiting = 1;
-	mtx_unlock(&sc->sc_mutex);
+}
 
-	if (sc->sc_polling || poll || cold) {
-		cuda_poll(dev);
+static void
+cuda_send_inbound(struct cuda_softc *sc)
+{
+	device_t dev;
+	struct cuda_packet *pkt;
+
+	dev = sc->sc_dev;
+	
+	mtx_lock(&sc->sc_mutex);
+
+	while ((pkt = STAILQ_FIRST(&sc->sc_inq)) != NULL) {
+		STAILQ_REMOVE_HEAD(&sc->sc_inq, pkt_q);
+
+		mtx_unlock(&sc->sc_mutex);
+
+		/* check if we have a handler for this message */
+		switch (pkt->type) {
+		   case CUDA_ADB:
+			if (pkt->len > 2) {
+				adb_receive_raw_packet(sc->adb_bus,
+				    pkt->data[0],pkt->data[1],
+				    pkt->len - 2,&pkt->data[2]);
+			} else {
+				adb_receive_raw_packet(sc->adb_bus,
+				    pkt->data[0],pkt->data[1],0,NULL);
+			}
+			break;
+		   case CUDA_PSEUDO:
+			mtx_lock(&sc->sc_mutex);
+			if (pkt->data[0] == CMD_AUTOPOLL)
+				sc->sc_autopoll = 1;
+			mtx_unlock(&sc->sc_mutex);
+			break;
+		   case CUDA_ERROR:
+			/*
+			 * CUDA will throw errors if we miss a race between
+			 * sending and receiving packets. This is already
+			 * handled when we abort packet output to handle
+			 * this packet in cuda_intr(). Thus, we ignore
+			 * these messages.
+			 */
+			break;
+		   default:
+			device_printf(dev,"unknown CUDA command %d\n",
+			    pkt->type);
+			break;
+		}
+
+		free(pkt,M_CUDA);
+
+		mtx_lock(&sc->sc_mutex);
 	}
 
-	return 0;
+	mtx_unlock(&sc->sc_mutex);
 }
 
 static void
@@ -382,8 +472,7 @@ cuda_poll(device_t dev)
 	    !sc->sc_waiting)
 		return;
 
-	if ((cuda_read_reg(sc, vIFR) & vSR_INT) == vSR_INT)
-		cuda_intr(dev);
+	cuda_intr(dev);
 }
 
 static void
@@ -392,7 +481,7 @@ cuda_intr(void *arg)
 	device_t        dev;
 	struct cuda_softc *sc;
 
-	int i, ending, type, restart_send;
+	int i, ending, restart_send, process_inbound;
 	uint8_t reg;
 
         dev = (device_t)arg;
@@ -401,7 +490,13 @@ cuda_intr(void *arg)
 	mtx_lock(&sc->sc_mutex);
 
 	restart_send = 0;
+	process_inbound = 0;
 	reg = cuda_read_reg(sc, vIFR);
+	if ((reg & vSR_INT) != vSR_INT) {
+		mtx_unlock(&sc->sc_mutex);
+		return;
+	}
+
 	cuda_write_reg(sc, vIFR, 0x7f);	/* Clear interrupt */
 
 switch_start:
@@ -450,13 +545,6 @@ switch_start:
 		} else
 			sc->sc_received++;
 
-		if (sc->sc_received > 3) {
-			if ((sc->sc_in[3] == CMD_IIC) && 
-			    (sc->sc_received > (sc->sc_i2c_read_len + 4))) {
-				ending = 1;
-			}
-		}
-
 		/* intr off means this is the last byte (end of frame) */
 		if (cuda_intr_state(sc) == 0) {
 			ending = 1;
@@ -465,42 +553,24 @@ switch_start:
 		}
 		
 		if (ending == 1) {	/* end of message? */
-			sc->sc_in[0] = sc->sc_received - 1;
+			struct cuda_packet *pkt;
 
 			/* reset vars and signal the end of this frame */
 			cuda_idle(sc);
 
-			/* check if we have a handler for this message */
-			type = sc->sc_in[1];
+			/* Queue up the packet */
+			pkt = malloc(sizeof(struct cuda_packet), M_CUDA, 
+			    M_WAITOK);
 
-			switch (type) {
-			   case CUDA_ADB:
-				if (sc->sc_received > 4) {
-					adb_receive_raw_packet(sc->adb_bus,
-					    sc->sc_in[2],sc->sc_in[3],
-					    sc->sc_received - 4,&sc->sc_in[4]);
-				} else {
-					adb_receive_raw_packet(sc->adb_bus,
-					    sc->sc_in[2],sc->sc_in[3],0,NULL);
-				}
-				break;
-			   case CUDA_PSEUDO:
-				if (sc->sc_in[3] == CMD_AUTOPOLL)
-					sc->sc_autopoll = 1;
-				break;
-			   case CUDA_ERROR:
-				device_printf(dev,"CUDA Error\n");
-				sc->sc_error = 1;
-				break;
-			   default:
-				device_printf(dev,"unknown CUDA command %d\n",
-				    type);
-				break;
-			}
+			pkt->len = sc->sc_received - 2;
+			pkt->type = sc->sc_in[1];
+			memcpy(pkt->data, &sc->sc_in[2], pkt->len);
+
+			STAILQ_INSERT_TAIL(&sc->sc_inq, pkt, pkt_q);
 
 			sc->sc_state = CUDA_IDLE;
-			
 			sc->sc_received = 0;
+			process_inbound = 1;
 
 			/*
 			 * If there is something waiting to be sent out,
@@ -526,6 +596,7 @@ switch_start:
 					DELAY(150);
 					goto switch_start;
 				}
+
 				/*
 				 * If we got here, it's ok to start sending
 				 * so load the first byte and tell the chip
@@ -558,7 +629,6 @@ switch_start:
 			break;
 		}
 		if (sc->sc_out_length == sc->sc_sent) {	/* check for done */
-
 			sc->sc_waiting = 0;	/* done writing */
 			sc->sc_state = CUDA_IDLE;	/* signal bus is idle */
 			cuda_in(sc);
@@ -579,14 +649,26 @@ switch_start:
 	}
 
 	mtx_unlock(&sc->sc_mutex);
+
+	if (process_inbound)
+		cuda_send_inbound(sc);
+
+	mtx_lock(&sc->sc_mutex);
+	/* If we have another packet waiting, set it up */
+	if (!sc->sc_waiting && sc->sc_state == CUDA_IDLE)
+		cuda_send_outbound(sc);
+
+	mtx_unlock(&sc->sc_mutex);
+
 }
 
 static u_int
-cuda_adb_send(device_t dev, u_char command_byte, int len, u_char *data, u_char poll)
+cuda_adb_send(device_t dev, u_char command_byte, int len, u_char *data, 
+    u_char poll)
 {
 	struct cuda_softc *sc = device_get_softc(dev);
-	int i;
 	uint8_t packet[16];
+	int i;
 
 	/* construct an ADB command packet and send it */
 	packet[0] = CUDA_ADB;
@@ -594,15 +676,9 @@ cuda_adb_send(device_t dev, u_char command_byte, int len, u_char *data, u_char p
 	for (i = 0; i < len; i++)
 		packet[i + 2] = data[i];
 
-	if (poll)
-		cuda_poll(dev);
-
 	cuda_send(sc, poll, len + 2, packet);
 
-	if (poll)
-		cuda_poll(dev);
-
-	return 0;
+	return (0);
 }
 
 static u_int 
@@ -615,17 +691,14 @@ cuda_adb_autopoll(device_t dev, uint16_t mask) {
 
 	if (cmd[2] == sc->sc_autopoll) {
 		mtx_unlock(&sc->sc_mutex);
-		return 0;
+		return (0);
 	}
 
-	while (sc->sc_state != CUDA_IDLE)
-		mtx_sleep(dev,&sc->sc_mutex,0,"cuda",1);
-
 	sc->sc_autopoll = -1;
-	cuda_send(sc, 0, 3, cmd);
+	cuda_send(sc, 1, 3, cmd);
 
 	mtx_unlock(&sc->sc_mutex);
-	
-	return 0;
+
+	return (0);
 }
 
