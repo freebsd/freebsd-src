@@ -224,7 +224,9 @@ static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
 static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
+#ifdef DEBUG
 static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
+#endif
 static time_t	time_from_tm(struct tm *);
 static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
@@ -558,6 +560,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		parse_rockridge(iso9660, file, rr_start, rr_end);
 	}
 
+#ifdef DEBUG
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
 	if ((flags & ~0x02) != 0) {
 		fprintf(stderr, "\n ** Unrecognized flag: ");
@@ -580,6 +583,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
 	}
+#endif
 
 	return (file);
 }
@@ -854,6 +858,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 		default:
 			/* The FALLTHROUGHs above leave us here for
 			 * any unsupported extension. */
+#ifdef DEBUG
 			{
 				const unsigned char *t;
 				fprintf(stderr, "\nUnsupported RRIP extension for %s\n", file->name);
@@ -862,6 +867,8 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 					fprintf(stderr, " %02x", *t);
 				fprintf(stderr, "\n");
 			}
+#endif
+			break;
 		}
 
 
@@ -903,7 +910,7 @@ next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 
 		/* CE area precedes actual file data? Ignore it. */
 		if (file->ce_offset > file->offset) {
-fprintf(stderr, " *** Discarding CE data.\n");
+			/* fprintf(stderr, " *** Discarding CE data.\n"); */
 			file->ce_offset = 0;
 			file->ce_size = 0;
 		}
@@ -1078,6 +1085,7 @@ build_pathname(struct archive_string *as, struct file_info *file)
 	return (as->s);
 }
 
+#ifdef DEBUG
 static void
 dump_isodirrec(FILE *out, const unsigned char *isodirrec)
 {
@@ -1102,3 +1110,4 @@ dump_isodirrec(FILE *out, const unsigned char *isodirrec)
 	fprintf(out, " `%.*s'",
 	    toi(isodirrec + DR_name_len_offset, DR_name_len_size), isodirrec + DR_name_offset);
 }
+#endif
