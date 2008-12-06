@@ -500,3 +500,24 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 #define MD5_Final	MD5Final
 
 #endif
+
+#define SCTP_DECREMENT_AND_CHECK_REFCOUNT(addr) (atomic_fetchadd_int(addr, -1) == 1)
+#if defined(INVARIANTS)
+#define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
+{ \
+	int32_t oldval; \
+	oldval = atomic_fetchadd_int(addr, -val); \
+	if (oldval < val) { \
+		panic("Counter goes negative"); \
+	} \
+}
+#else
+#define SCTP_SAVE_ATOMIC_DECREMENT(addr, val) \
+{ \
+	int32_t oldval; \
+	oldval = atomic_fetchadd_int(addr, -val); \
+	if (oldval < val) { \
+		*addr = 0; \
+	} \
+}
+#endif

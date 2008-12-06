@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1858,6 +1858,1812 @@ struct sack_track sack_array[256] = {
 	}
 };
 
+/* EY  below are nr_sacks version of the preceeding two data structures, identical except their names */
+#define SCTP_MAX_NR_GAPS_INARRAY 4
+struct nr_sack_track {
+	uint8_t right_edge;	/* mergable on the right edge */
+	uint8_t left_edge;	/* mergable on the left edge */
+	uint8_t num_entries;
+	uint8_t spare;
+	struct sctp_nr_gap_ack_block nr_gaps[SCTP_MAX_NR_GAPS_INARRAY];
+};
+
+struct nr_sack_track nr_sack_array[256] = {
+	{0, 0, 0, 0,		/* 0x00 */
+		{{0, 0},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x01 */
+		{{0, 0},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x02 */
+		{{1, 1},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x03 */
+		{{0, 1},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x04 */
+		{{2, 2},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x05 */
+		{{0, 0},
+		{2, 2},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x06 */
+		{{1, 2},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x07 */
+		{{0, 2},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x08 */
+		{{3, 3},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x09 */
+		{{0, 0},
+		{3, 3},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x0a */
+		{{1, 1},
+		{3, 3},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x0b */
+		{{0, 1},
+		{3, 3},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x0c */
+		{{2, 3},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x0d */
+		{{0, 0},
+		{2, 3},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x0e */
+		{{1, 3},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x0f */
+		{{0, 3},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x10 */
+		{{4, 4},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x11 */
+		{{0, 0},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x12 */
+		{{1, 1},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x13 */
+		{{0, 1},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x14 */
+		{{2, 2},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x15 */
+		{{0, 0},
+		{2, 2},
+		{4, 4},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x16 */
+		{{1, 2},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x17 */
+		{{0, 2},
+		{4, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x18 */
+		{{3, 4},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x19 */
+		{{0, 0},
+		{3, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x1a */
+		{{1, 1},
+		{3, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x1b */
+		{{0, 1},
+		{3, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x1c */
+		{{2, 4},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x1d */
+		{{0, 0},
+		{2, 4},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x1e */
+		{{1, 4},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x1f */
+		{{0, 4},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x20 */
+		{{5, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x21 */
+		{{0, 0},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x22 */
+		{{1, 1},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x23 */
+		{{0, 1},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x24 */
+		{{2, 2},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x25 */
+		{{0, 0},
+		{2, 2},
+		{5, 5},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x26 */
+		{{1, 2},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x27 */
+		{{0, 2},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x28 */
+		{{3, 3},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x29 */
+		{{0, 0},
+		{3, 3},
+		{5, 5},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x2a */
+		{{1, 1},
+		{3, 3},
+		{5, 5},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x2b */
+		{{0, 1},
+		{3, 3},
+		{5, 5},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x2c */
+		{{2, 3},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x2d */
+		{{0, 0},
+		{2, 3},
+		{5, 5},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x2e */
+		{{1, 3},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x2f */
+		{{0, 3},
+		{5, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x30 */
+		{{4, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x31 */
+		{{0, 0},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x32 */
+		{{1, 1},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x33 */
+		{{0, 1},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x34 */
+		{{2, 2},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x35 */
+		{{0, 0},
+		{2, 2},
+		{4, 5},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x36 */
+		{{1, 2},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x37 */
+		{{0, 2},
+		{4, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x38 */
+		{{3, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x39 */
+		{{0, 0},
+		{3, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x3a */
+		{{1, 1},
+		{3, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x3b */
+		{{0, 1},
+		{3, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x3c */
+		{{2, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x3d */
+		{{0, 0},
+		{2, 5},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x3e */
+		{{1, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x3f */
+		{{0, 5},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x40 */
+		{{6, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x41 */
+		{{0, 0},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x42 */
+		{{1, 1},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x43 */
+		{{0, 1},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x44 */
+		{{2, 2},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x45 */
+		{{0, 0},
+		{2, 2},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x46 */
+		{{1, 2},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x47 */
+		{{0, 2},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x48 */
+		{{3, 3},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x49 */
+		{{0, 0},
+		{3, 3},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x4a */
+		{{1, 1},
+		{3, 3},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x4b */
+		{{0, 1},
+		{3, 3},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x4c */
+		{{2, 3},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x4d */
+		{{0, 0},
+		{2, 3},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x4e */
+		{{1, 3},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x4f */
+		{{0, 3},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x50 */
+		{{4, 4},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x51 */
+		{{0, 0},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x52 */
+		{{1, 1},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x53 */
+		{{0, 1},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x54 */
+		{{2, 2},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 4, 0,		/* 0x55 */
+		{{0, 0},
+		{2, 2},
+		{4, 4},
+		{6, 6}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x56 */
+		{{1, 2},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x57 */
+		{{0, 2},
+		{4, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x58 */
+		{{3, 4},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x59 */
+		{{0, 0},
+		{3, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x5a */
+		{{1, 1},
+		{3, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x5b */
+		{{0, 1},
+		{3, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x5c */
+		{{2, 4},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x5d */
+		{{0, 0},
+		{2, 4},
+		{6, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x5e */
+		{{1, 4},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x5f */
+		{{0, 4},
+		{6, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x60 */
+		{{5, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x61 */
+		{{0, 0},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x62 */
+		{{1, 1},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x63 */
+		{{0, 1},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x64 */
+		{{2, 2},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x65 */
+		{{0, 0},
+		{2, 2},
+		{5, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x66 */
+		{{1, 2},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x67 */
+		{{0, 2},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x68 */
+		{{3, 3},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x69 */
+		{{0, 0},
+		{3, 3},
+		{5, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 3, 0,		/* 0x6a */
+		{{1, 1},
+		{3, 3},
+		{5, 6},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x6b */
+		{{0, 1},
+		{3, 3},
+		{5, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x6c */
+		{{2, 3},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x6d */
+		{{0, 0},
+		{2, 3},
+		{5, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x6e */
+		{{1, 3},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x6f */
+		{{0, 3},
+		{5, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x70 */
+		{{4, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x71 */
+		{{0, 0},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x72 */
+		{{1, 1},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x73 */
+		{{0, 1},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x74 */
+		{{2, 2},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 3, 0,		/* 0x75 */
+		{{0, 0},
+		{2, 2},
+		{4, 6},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x76 */
+		{{1, 2},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x77 */
+		{{0, 2},
+		{4, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x78 */
+		{{3, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x79 */
+		{{0, 0},
+		{3, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 2, 0,		/* 0x7a */
+		{{1, 1},
+		{3, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x7b */
+		{{0, 1},
+		{3, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x7c */
+		{{2, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 2, 0,		/* 0x7d */
+		{{0, 0},
+		{2, 6},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 0, 1, 0,		/* 0x7e */
+		{{1, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 0, 1, 0,		/* 0x7f */
+		{{0, 6},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0x80 */
+		{{7, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0x81 */
+		{{0, 0},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x82 */
+		{{1, 1},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0x83 */
+		{{0, 1},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x84 */
+		{{2, 2},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x85 */
+		{{0, 0},
+		{2, 2},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x86 */
+		{{1, 2},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0x87 */
+		{{0, 2},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x88 */
+		{{3, 3},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x89 */
+		{{0, 0},
+		{3, 3},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0x8a */
+		{{1, 1},
+		{3, 3},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x8b */
+		{{0, 1},
+		{3, 3},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x8c */
+		{{2, 3},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x8d */
+		{{0, 0},
+		{2, 3},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x8e */
+		{{1, 3},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0x8f */
+		{{0, 3},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x90 */
+		{{4, 4},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x91 */
+		{{0, 0},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0x92 */
+		{{1, 1},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x93 */
+		{{0, 1},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0x94 */
+		{{2, 2},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0x95 */
+		{{0, 0},
+		{2, 2},
+		{4, 4},
+		{7, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0x96 */
+		{{1, 2},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x97 */
+		{{0, 2},
+		{4, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x98 */
+		{{3, 4},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x99 */
+		{{0, 0},
+		{3, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0x9a */
+		{{1, 1},
+		{3, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x9b */
+		{{0, 1},
+		{3, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x9c */
+		{{2, 4},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0x9d */
+		{{0, 0},
+		{2, 4},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0x9e */
+		{{1, 4},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0x9f */
+		{{0, 4},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xa0 */
+		{{5, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xa1 */
+		{{0, 0},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xa2 */
+		{{1, 1},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xa3 */
+		{{0, 1},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xa4 */
+		{{2, 2},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xa5 */
+		{{0, 0},
+		{2, 2},
+		{5, 5},
+		{7, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xa6 */
+		{{1, 2},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xa7 */
+		{{0, 2},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xa8 */
+		{{3, 3},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xa9 */
+		{{0, 0},
+		{3, 3},
+		{5, 5},
+		{7, 7}
+		}
+	},
+	{0, 1, 4, 0,		/* 0xaa */
+		{{1, 1},
+		{3, 3},
+		{5, 5},
+		{7, 7}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xab */
+		{{0, 1},
+		{3, 3},
+		{5, 5},
+		{7, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xac */
+		{{2, 3},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xad */
+		{{0, 0},
+		{2, 3},
+		{5, 5},
+		{7, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xae */
+		{{1, 3},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xaf */
+		{{0, 3},
+		{5, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xb0 */
+		{{4, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xb1 */
+		{{0, 0},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xb2 */
+		{{1, 1},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xb3 */
+		{{0, 1},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xb4 */
+		{{2, 2},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xb5 */
+		{{0, 0},
+		{2, 2},
+		{4, 5},
+		{7, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xb6 */
+		{{1, 2},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xb7 */
+		{{0, 2},
+		{4, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xb8 */
+		{{3, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xb9 */
+		{{0, 0},
+		{3, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xba */
+		{{1, 1},
+		{3, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xbb */
+		{{0, 1},
+		{3, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xbc */
+		{{2, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xbd */
+		{{0, 0},
+		{2, 5},
+		{7, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xbe */
+		{{1, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xbf */
+		{{0, 5},
+		{7, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xc0 */
+		{{6, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xc1 */
+		{{0, 0},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xc2 */
+		{{1, 1},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xc3 */
+		{{0, 1},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xc4 */
+		{{2, 2},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xc5 */
+		{{0, 0},
+		{2, 2},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xc6 */
+		{{1, 2},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xc7 */
+		{{0, 2},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xc8 */
+		{{3, 3},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xc9 */
+		{{0, 0},
+		{3, 3},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xca */
+		{{1, 1},
+		{3, 3},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xcb */
+		{{0, 1},
+		{3, 3},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xcc */
+		{{2, 3},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xcd */
+		{{0, 0},
+		{2, 3},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xce */
+		{{1, 3},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xcf */
+		{{0, 3},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xd0 */
+		{{4, 4},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xd1 */
+		{{0, 0},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xd2 */
+		{{1, 1},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xd3 */
+		{{0, 1},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xd4 */
+		{{2, 2},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 4, 0,		/* 0xd5 */
+		{{0, 0},
+		{2, 2},
+		{4, 4},
+		{6, 7}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xd6 */
+		{{1, 2},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xd7 */
+		{{0, 2},
+		{4, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xd8 */
+		{{3, 4},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xd9 */
+		{{0, 0},
+		{3, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xda */
+		{{1, 1},
+		{3, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xdb */
+		{{0, 1},
+		{3, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xdc */
+		{{2, 4},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xdd */
+		{{0, 0},
+		{2, 4},
+		{6, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xde */
+		{{1, 4},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xdf */
+		{{0, 4},
+		{6, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xe0 */
+		{{5, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xe1 */
+		{{0, 0},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xe2 */
+		{{1, 1},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xe3 */
+		{{0, 1},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xe4 */
+		{{2, 2},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xe5 */
+		{{0, 0},
+		{2, 2},
+		{5, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xe6 */
+		{{1, 2},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xe7 */
+		{{0, 2},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xe8 */
+		{{3, 3},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xe9 */
+		{{0, 0},
+		{3, 3},
+		{5, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 3, 0,		/* 0xea */
+		{{1, 1},
+		{3, 3},
+		{5, 7},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xeb */
+		{{0, 1},
+		{3, 3},
+		{5, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xec */
+		{{2, 3},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xed */
+		{{0, 0},
+		{2, 3},
+		{5, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xee */
+		{{1, 3},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xef */
+		{{0, 3},
+		{5, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xf0 */
+		{{4, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xf1 */
+		{{0, 0},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xf2 */
+		{{1, 1},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xf3 */
+		{{0, 1},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xf4 */
+		{{2, 2},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 3, 0,		/* 0xf5 */
+		{{0, 0},
+		{2, 2},
+		{4, 7},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xf6 */
+		{{1, 2},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xf7 */
+		{{0, 2},
+		{4, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xf8 */
+		{{3, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xf9 */
+		{{0, 0},
+		{3, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 2, 0,		/* 0xfa */
+		{{1, 1},
+		{3, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xfb */
+		{{0, 1},
+		{3, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xfc */
+		{{2, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 2, 0,		/* 0xfd */
+		{{0, 0},
+		{2, 7},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{0, 1, 1, 0,		/* 0xfe */
+		{{1, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	},
+	{1, 1, 1, 0,		/* 0xff */
+		{{0, 7},
+		{0, 0},
+		{0, 0},
+		{0, 0}
+		}
+	}
+};
+
+
 
 int
 sctp_is_address_in_scope(struct sctp_ifa *ifa,
@@ -3402,6 +5208,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
     struct mbuf *m,
     uint32_t auth_offset,
     struct sctp_auth_chunk *auth,
+    uint16_t auth_keyid,
     int nofragment_flag,
     int ecn_ok,
     struct sctp_tmit_chunk *chk,
@@ -3454,7 +5261,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 	/* fill in the HMAC digest for any AUTH chunk in the packet */
 	if ((auth != NULL) && (stcb != NULL)) {
-		sctp_fill_hmac_digest_m(m, auth_offset, auth, stcb);
+		sctp_fill_hmac_digest_m(m, auth_offset, auth, stcb, auth_keyid);
 	}
 	/* Calculate the csum and fill in the length of the packet */
 	sctphdr = mtod(m, struct sctphdr *);
@@ -3748,11 +5555,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				uint32_t mtu;
 
 				mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
-				if (mtu &&
-				    (stcb->asoc.smallest_mtu > mtu)) {
+				if (net->port) {
+					mtu -= sizeof(struct udphdr);
+				}
+				if (mtu && (stcb->asoc.smallest_mtu > mtu)) {
 #ifdef SCTP_PRINT_FOR_B_AND_M
-					SCTP_PRINTF("sctp_mtu_size_reset called after ip_output mtu-change:%d\n",
-					    mtu);
+					SCTP_PRINTF("sctp_mtu_size_reset called after ip_output mtu-change:%d\n", mtu);
 #endif
 					sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
 					net->mtu = mtu;
@@ -4058,6 +5866,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #endif
 					sctp_mtu_size_reset(inp, &stcb->asoc, mtu);
 					net->mtu = mtu;
+					if (net->port) {
+						net->mtu -= sizeof(struct udphdr);
+					}
 				}
 			} else if (ifp) {
 				if (ND_IFINFO(ifp)->linkmtu &&
@@ -4243,6 +6054,12 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable))
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
+	/*
+	 * EY  if the initiator supports nr_sacks, need to report that to
+	 * responder in INIT chunk
+	 */
+	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
+		pr_supported->chunk_types[num_ext++] = SCTP_NR_SELECTIVE_ACK;
 	p_len = sizeof(*pr_supported) + num_ext;
 	pr_supported->ph.param_length = htons(p_len);
 	bzero((caddr_t)pr_supported + p_len, SCTP_SIZE32(p_len) - p_len);
@@ -4255,6 +6072,15 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		ecn_nonce->ph.param_type = htons(SCTP_ECN_NONCE_SUPPORTED);
 		ecn_nonce->ph.param_length = htons(sizeof(*ecn_nonce));
 		SCTP_BUF_LEN(m) += sizeof(*ecn_nonce);
+	}
+	if (SCTP_BASE_SYSCTL(sctp_inits_include_nat_friendly)) {
+		/* Add NAT friendly parameter */
+		struct sctp_paramhdr *ph;
+
+		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
+		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
+		ph->param_length = htons(sizeof(struct sctp_paramhdr));
+		SCTP_BUF_LEN(m) += sizeof(sizeof(struct sctp_paramhdr));
 	}
 	/* add authentication parameters */
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable)) {
@@ -4359,7 +6185,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "Sending INIT - calls lowlevel_output\n");
 	ret = sctp_lowlevel_chunk_output(inp, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
-	    m, 0, NULL, 0, 0, NULL, 0, net->port, so_locked, NULL);
+	    m, 0, NULL, 0, 0, 0, NULL, 0, net->port, so_locked, NULL);
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "lowlevel_output - %d\n", ret);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	sctp_timer_start(SCTP_TIMER_TYPE_INIT, inp, stcb, net);
@@ -4368,7 +6194,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 
 struct mbuf *
 sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
-    int param_offset, int *abort_processing, struct sctp_chunkhdr *cp)
+    int param_offset, int *abort_processing, struct sctp_chunkhdr *cp, int *nat_friendly)
 {
 	/*
 	 * Given a mbuf containing an INIT or INIT-ACK with the param_offset
@@ -4481,10 +6307,14 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			}
 			at += padded_size;
 			break;
+		case SCTP_HAS_NAT_SUPPORT:
+			*nat_friendly = 1;
+			/* fall through */
 		case SCTP_ECN_NONCE_SUPPORTED:
 		case SCTP_PRSCTP_SUPPORTED:
+
 			if (padded_size != sizeof(struct sctp_paramhdr)) {
-				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecnnonce/prsctp %d\n", plen);
+				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error ecnnonce/prsctp/nat support %d\n", plen);
 				goto invalid_size;
 			}
 			at += padded_size;
@@ -4909,6 +6739,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	int abort_flag, padval;
 	int num_ext;
 	int p_len;
+	int nat_friendly = 0;
 	struct socket *so;
 
 	if (stcb)
@@ -4931,7 +6762,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	abort_flag = 0;
 	op_err = sctp_arethere_unrecognized_parameters(init_pkt,
 	    (offset + sizeof(struct sctp_init_chunk)),
-	    &abort_flag, (struct sctp_chunkhdr *)init_chk);
+	    &abort_flag, (struct sctp_chunkhdr *)init_chk, &nat_friendly);
 	if (abort_flag) {
 do_a_abort:
 		sctp_send_abort(init_pkt, iphlen, sh,
@@ -5261,7 +7092,15 @@ do_a_abort:
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
-			vtag = sctp_select_a_tag(inp, 1);
+	new_tag:
+			vtag = sctp_select_a_tag(inp, inp->sctp_lport, sh->src_port, 1);
+			if ((asoc->peer_supports_nat) && (vtag == asoc->my_vtag)) {
+				/*
+				 * Got a duplicate vtag on some guy behind a
+				 * nat make sure we don't use it.
+				 */
+				goto new_tag;
+			}
 			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			itsn = sctp_select_initial_TSN(&inp->sctp_ep);
@@ -5269,7 +7108,7 @@ do_a_abort:
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
-			vtag = sctp_select_a_tag(inp, 1);
+			vtag = sctp_select_a_tag(inp, inp->sctp_lport, sh->src_port, 1);
 			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
@@ -5337,11 +7176,17 @@ do_a_abort:
 	prsctp->ph.param_type = htons(SCTP_PRSCTP_SUPPORTED);
 	prsctp->ph.param_length = htons(sizeof(*prsctp));
 	SCTP_BUF_LEN(m) += sizeof(*prsctp);
+	if (nat_friendly) {
+		/* Add NAT friendly parameter */
+		struct sctp_paramhdr *ph;
 
+		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
+		ph->param_type = htons(SCTP_HAS_NAT_SUPPORT);
+		ph->param_length = htons(sizeof(struct sctp_paramhdr));
+		SCTP_BUF_LEN(m) += sizeof(sizeof(struct sctp_paramhdr));
+	}
 	/* And now tell the peer we do all the extensions */
-	pr_supported = (struct sctp_supported_chunk_types_param *)
-	    ((caddr_t)prsctp + sizeof(*prsctp));
-
+	pr_supported = (struct sctp_supported_chunk_types_param *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
 	pr_supported->ph.param_type = htons(SCTP_SUPPORTED_CHUNK_EXT);
 	num_ext = 0;
 	pr_supported->chunk_types[num_ext++] = SCTP_ASCONF;
@@ -5351,6 +7196,12 @@ do_a_abort:
 	pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
 	if (!SCTP_BASE_SYSCTL(sctp_auth_disable))
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
+	/*
+	 * EY  if the sysctl variable is set, tell the assoc. initiator that
+	 * we do nr_sack
+	 */
+	if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off))
+		pr_supported->chunk_types[num_ext++] = SCTP_NR_SELECTIVE_ACK;
 	p_len = sizeof(*pr_supported) + num_ext;
 	pr_supported->ph.param_length = htons(p_len);
 	bzero((caddr_t)pr_supported + p_len, SCTP_SIZE32(p_len) - p_len);
@@ -5523,7 +7374,7 @@ do_a_abort:
 	}
 
 	(void)sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
-	    NULL, 0, port, SCTP_SO_NOT_LOCKED, over_addr);
+	    0, NULL, 0, port, SCTP_SO_NOT_LOCKED, over_addr);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -6522,6 +8373,7 @@ sctp_clean_up_ctl(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	    chk; chk = nchk) {
 		nchk = TAILQ_NEXT(chk, sctp_next);
 		if ((chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) ||
+		    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK) ||	/* EY */
 		    (chk->rec.chunk_id.id == SCTP_HEARTBEAT_REQUEST) ||
 		    (chk->rec.chunk_id.id == SCTP_HEARTBEAT_ACK) ||
 		    (chk->rec.chunk_id.id == SCTP_SHUTDOWN) ||
@@ -6801,7 +8653,8 @@ re_look:
 	if (sp->sinfo_flags & SCTP_UNORDERED) {
 		rcv_flags |= SCTP_DATA_UNORDERED;
 	}
-	if (SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) && ((sp->sinfo_flags & SCTP_EOF) == SCTP_EOF)) {
+	if ((SCTP_BASE_SYSCTL(sctp_enable_sack_immediately) && ((sp->sinfo_flags & SCTP_EOF) == SCTP_EOF)) ||
+	    ((sp->sinfo_flags & SCTP_SACK_IMMEDIATELY) == SCTP_SACK_IMMEDIATELY)) {
 		rcv_flags |= SCTP_DATA_SACK_IMMEDIATELY;
 	}
 	/* clear out the chunk before setting up */
@@ -6981,6 +8834,11 @@ dont_do_it:
 	chk->whoTo = net;
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 
+	if (sp->holds_key_ref) {
+		chk->auth_keyid = sp->auth_keyid;
+		sctp_auth_key_acquire(stcb, chk->auth_keyid);
+		chk->holds_key_ref = 1;
+	}
 	chk->rec.data.TSN_seq = atomic_fetchadd_int(&asoc->sending_seq, 1);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_AT_SEND_2_OUTQ) {
 		sctp_misc_ints(SCTP_STRMOUT_LOG_SEND,
@@ -7319,6 +9177,8 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	int tsns_sent = 0;
 	uint32_t auth_offset = 0;
 	struct sctp_auth_chunk *auth = NULL;
+	uint16_t auth_keyid = 0;
+	int data_auth_reqd = 0;
 
 	/*
 	 * JRS 5/14/07 - Add flag for whether a heartbeat is sent to the
@@ -7688,7 +9548,7 @@ again_one_more_time:
 					auth_offset += sizeof(struct sctphdr);
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
-					    outchain, auth_offset, auth,
+					    outchain, auth_offset, auth, stcb->asoc.authinfo.active_keyid,
 					    no_fragmentflg, 0, NULL, asconf, net->port, so_locked, NULL))) {
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
@@ -7837,6 +9697,7 @@ again_one_more_time:
 					chk->data = NULL;
 				/* Mark things to be removed, if needed */
 				if ((chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) ||
+				    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK) ||	/* EY */
 				    (chk->rec.chunk_id.id == SCTP_HEARTBEAT_REQUEST) ||
 				    (chk->rec.chunk_id.id == SCTP_HEARTBEAT_ACK) ||
 				    (chk->rec.chunk_id.id == SCTP_SHUTDOWN) ||
@@ -7858,6 +9719,18 @@ again_one_more_time:
 					}
 					/* remove these chunks at the end */
 					if (chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) {
+						/* turn off the timer */
+						if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
+							sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
+							    inp, stcb, net, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_1);
+						}
+					}
+					/*
+					 * EY -Nr-sack version of the above
+					 * if statement
+					 */
+					if ((SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && asoc->peer_supports_nr_sack) &&
+					    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK)) {	/* EY !?! */
 						/* turn off the timer */
 						if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
 							sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
@@ -7915,7 +9788,8 @@ again_one_more_time:
 					auth_offset += sizeof(struct sctphdr);
 					if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 					    (struct sockaddr *)&net->ro._l_addr,
-					    outchain, auth_offset, auth,
+					    outchain,
+					    auth_offset, auth, stcb->asoc.authinfo.active_keyid,
 					    no_fragmentflg, 0, NULL, asconf, net->port, so_locked, NULL))) {
 						if (error == ENOBUFS) {
 							asoc->ifp_had_enobuf = 1;
@@ -7989,9 +9863,9 @@ again_one_more_time:
 		 * bundled, this adjustment won't matter anyways since the
 		 * packet will be going out...
 		 */
-		if ((auth == NULL) &&
-		    sctp_auth_is_required_chunk(SCTP_DATA,
-		    stcb->asoc.peer_auth_chunks)) {
+		data_auth_reqd = sctp_auth_is_required_chunk(SCTP_DATA,
+		    stcb->asoc.peer_auth_chunks);
+		if (data_auth_reqd && (auth == NULL)) {
 			mtu -= sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
 		}
 		/* now lets add any data within the MTU constraints */
@@ -8066,17 +9940,23 @@ again_one_more_time:
 					 * requires it, save the offset into
 					 * the chain for AUTH
 					 */
-					if ((auth == NULL) &&
-					    (sctp_auth_is_required_chunk(SCTP_DATA,
-					    stcb->asoc.peer_auth_chunks))) {
-
-						outchain = sctp_add_auth_chunk(outchain,
-						    &endoutchain,
-						    &auth,
-						    &auth_offset,
-						    stcb,
-						    SCTP_DATA);
-						SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+					if (data_auth_reqd) {
+						if (auth == NULL) {
+							outchain = sctp_add_auth_chunk(outchain,
+							    &endoutchain,
+							    &auth,
+							    &auth_offset,
+							    stcb,
+							    SCTP_DATA);
+							SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+							auth_keyid = chk->auth_keyid;
+						} else if (auth_keyid != chk->auth_keyid) {
+							/*
+							 * different keyid,
+							 * so done bundling
+							 */
+							break;
+						}
 					}
 					outchain = sctp_copy_mbufchain(chk->data, outchain, &endoutchain, 0,
 					    chk->send_size, chk->copy_by_ref);
@@ -8205,6 +10085,12 @@ again_one_more_time:
 			shdr->v_tag = htonl(stcb->asoc.peer_vtag);
 			shdr->checksum = 0;
 			auth_offset += sizeof(struct sctphdr);
+			/*
+			 * if data auth isn't needed, use the assoc active
+			 * key
+			 */
+			if (!data_auth_reqd)
+				auth_keyid = stcb->asoc.authinfo.active_keyid;
 			if ((error = sctp_lowlevel_chunk_output(inp,
 			    stcb,
 			    net,
@@ -8212,6 +10098,7 @@ again_one_more_time:
 			    outchain,
 			    auth_offset,
 			    auth,
+			    auth_keyid,
 			    no_fragmentflg,
 			    bundle_at,
 			    data_list[0],
@@ -8848,6 +10735,8 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	int error, i, one_chunk, fwd_tsn, ctl_cnt, tmr_started;
 	struct sctp_auth_chunk *auth = NULL;
 	uint32_t auth_offset = 0;
+	uint16_t auth_keyid = 0;
+	int data_auth_reqd = 0;
 	uint32_t dmtu = 0;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -8899,6 +10788,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 				    &auth, &auth_offset,
 				    stcb,
 				    chk->rec.chunk_id.id);
+				SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 			}
 			m = sctp_copy_mbufchain(chk->data, m, &endofchain, 0, chk->send_size, chk->copy_by_ref);
 			break;
@@ -8928,8 +10818,9 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		chk->snd_count++;	/* update our count */
 
 		if ((error = sctp_lowlevel_chunk_output(inp, stcb, chk->whoTo,
-		    (struct sockaddr *)&chk->whoTo->ro._l_addr, m, auth_offset,
-		    auth, no_fragmentflg, 0, NULL, 0, chk->whoTo->port, so_locked, NULL))) {
+		    (struct sockaddr *)&chk->whoTo->ro._l_addr, m,
+		    auth_offset, auth, stcb->asoc.authinfo.active_keyid,
+		    no_fragmentflg, 0, NULL, 0, chk->whoTo->port, so_locked, NULL))) {
 			SCTP_STAT_INCR(sctps_lowlevelerr);
 			return (error);
 		}
@@ -8967,6 +10858,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 #ifdef SCTP_AUDITING_ENABLED
 	sctp_auditing(20, inp, stcb, NULL);
 #endif
+	data_auth_reqd = sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks);
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
 		if (chk->sent != SCTP_DATAGRAM_RESEND) {
 			/* No, not sent to this net or not ready for rtx */
@@ -9046,9 +10938,7 @@ one_chunk_around:
 		 * until the AUTH chunk is actually added below in case
 		 * there is no room for this chunk.
 		 */
-		if ((auth == NULL) &&
-		    sctp_auth_is_required_chunk(SCTP_DATA,
-		    stcb->asoc.peer_auth_chunks)) {
+		if (data_auth_reqd && (auth == NULL)) {
 			dmtu = sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
 		} else
 			dmtu = 0;
@@ -9056,12 +10946,20 @@ one_chunk_around:
 		if ((chk->send_size <= (mtu - dmtu)) ||
 		    (chk->flags & CHUNK_FLAGS_FRAGMENT_OK)) {
 			/* ok we will add this one */
-			if ((auth == NULL) &&
-			    (sctp_auth_is_required_chunk(SCTP_DATA,
-			    stcb->asoc.peer_auth_chunks))) {
-				m = sctp_add_auth_chunk(m, &endofchain,
-				    &auth, &auth_offset,
-				    stcb, SCTP_DATA);
+			if (data_auth_reqd) {
+				if (auth == NULL) {
+					m = sctp_add_auth_chunk(m,
+					    &endofchain,
+					    &auth,
+					    &auth_offset,
+					    stcb,
+					    SCTP_DATA);
+					SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+					auth_keyid = chk->auth_keyid;
+				} else if (chk->auth_keyid != auth_keyid) {
+					/* different keyid, so done bundling */
+					break;
+				}
 			}
 			m = sctp_copy_mbufchain(chk->data, m, &endofchain, 0, chk->send_size, chk->copy_by_ref);
 			if (m == NULL) {
@@ -9099,21 +10997,28 @@ one_chunk_around:
 					fwd = TAILQ_NEXT(fwd, sctp_next);
 					continue;
 				}
-				if ((auth == NULL) &&
-				    sctp_auth_is_required_chunk(SCTP_DATA,
-				    stcb->asoc.peer_auth_chunks)) {
+				if (data_auth_reqd && (auth == NULL)) {
 					dmtu = sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
 				} else
 					dmtu = 0;
 				if (fwd->send_size <= (mtu - dmtu)) {
-					if ((auth == NULL) &&
-					    (sctp_auth_is_required_chunk(SCTP_DATA,
-					    stcb->asoc.peer_auth_chunks))) {
-						m = sctp_add_auth_chunk(m,
-						    &endofchain,
-						    &auth, &auth_offset,
-						    stcb,
-						    SCTP_DATA);
+					if (data_auth_reqd) {
+						if (auth == NULL) {
+							m = sctp_add_auth_chunk(m,
+							    &endofchain,
+							    &auth,
+							    &auth_offset,
+							    stcb,
+							    SCTP_DATA);
+							SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+							auth_keyid = fwd->auth_keyid;
+						} else if (fwd->auth_keyid != auth_keyid) {
+							/*
+							 * different keyid,
+							 * so done bundling
+							 */
+							break;
+						}
 					}
 					m = sctp_copy_mbufchain(fwd->data, m, &endofchain, 0, fwd->send_size, fwd->copy_by_ref);
 					if (m == NULL) {
@@ -9165,10 +11070,17 @@ one_chunk_around:
 			shdr->v_tag = htonl(stcb->asoc.peer_vtag);
 			shdr->checksum = 0;
 			auth_offset += sizeof(struct sctphdr);
+			/*
+			 * if doing DATA auth, use the data chunk(s) key id,
+			 * otherwise use the assoc's active key id
+			 */
+			if (!data_auth_reqd)
+				auth_keyid = stcb->asoc.authinfo.active_keyid;
 			/* Now lets send it, if there is anything to send :> */
 			if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
-			    (struct sockaddr *)&net->ro._l_addr, m, auth_offset,
-			    auth, no_fragmentflg, 0, NULL, 0, net->port, so_locked, NULL))) {
+			    (struct sockaddr *)&net->ro._l_addr, m,
+			    auth_offset, auth, auth_keyid,
+			    no_fragmentflg, 0, NULL, 0, net->port, so_locked, NULL))) {
 				/* error, we could not output */
 				SCTP_STAT_INCR(sctps_lowlevelerr);
 				return (error);
@@ -9382,7 +11294,14 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	 * running, if so piggy-back the sack.
 	 */
 	if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-		sctp_send_sack(stcb);
+		/*
+		 * EY if nr_sacks used then send an nr-sack , a sack
+		 * otherwise
+		 */
+		if (SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) && asoc->peer_supports_nr_sack)
+			sctp_send_nr_sack(stcb);
+		else
+			sctp_send_sack(stcb);
 		(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
 	}
 	while (asoc->sent_queue_retran_cnt) {
@@ -10071,6 +11990,403 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	return;
 }
 
+/* EY - This method will replace sctp_send_sack method if nr_sacks negotiated*/
+void
+sctp_send_nr_sack(struct sctp_tcb *stcb)
+{
+	/*-
+	 * Queue up an NR-SACK in the control queue. We must first check to see
+	 * if an NR-SACK is somehow on the control queue. If so, we will take
+	 * and and remove the old one.
+	 */
+	struct sctp_association *asoc;
+	struct sctp_tmit_chunk *chk, *a_chk;
+
+	struct sctp_nr_sack_chunk *nr_sack;
+
+	struct sctp_gap_ack_block *gap_descriptor;
+	struct sctp_nr_gap_ack_block *nr_gap_descriptor;
+
+	struct sack_track *selector;
+	struct nr_sack_track *nr_selector;
+
+	/* EY do we need nr_mergeable, NO */
+	int mergeable = 0;
+	int offset;
+	caddr_t limit;
+	uint32_t *dup;
+	int limit_reached = 0;
+	unsigned int i, jstart, siz, j;
+	unsigned int num_gap_blocks = 0, num_nr_gap_blocks = 0, space;
+	int num_dups = 0;
+	int space_req;
+	unsigned int reserved = 0;
+
+	a_chk = NULL;
+	asoc = &stcb->asoc;
+	SCTP_TCB_LOCK_ASSERT(stcb);
+	if (asoc->last_data_chunk_from == NULL) {
+		/* Hmm we never received anything */
+		return;
+	}
+	sctp_set_rwnd(stcb, asoc);
+	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
+		if (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK) {
+			/* Hmm, found a sack already on queue, remove it */
+			TAILQ_REMOVE(&asoc->control_send_queue, chk, sctp_next);
+			asoc->ctrl_queue_cnt++;
+			a_chk = chk;
+			if (a_chk->data) {
+				sctp_m_freem(a_chk->data);
+				a_chk->data = NULL;
+			}
+			sctp_free_remote_addr(a_chk->whoTo);
+			a_chk->whoTo = NULL;
+			break;
+		}
+	}
+	if (a_chk == NULL) {
+		sctp_alloc_a_chunk(stcb, a_chk);
+		if (a_chk == NULL) {
+			/* No memory so we drop the idea, and set a timer */
+			if (stcb->asoc.delayed_ack) {
+				sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
+				    stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_5);
+				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
+				    stcb->sctp_ep, stcb, NULL);
+			} else {
+				stcb->asoc.send_sack = 1;
+			}
+			return;
+		}
+		a_chk->copy_by_ref = 0;
+		/* a_chk->rec.chunk_id.id = SCTP_SELECTIVE_ACK; */
+		a_chk->rec.chunk_id.id = SCTP_NR_SELECTIVE_ACK;
+		a_chk->rec.chunk_id.can_take_data = 1;
+	}
+	/* Clear our pkt counts */
+	asoc->data_pkts_seen = 0;
+
+	a_chk->asoc = asoc;
+	a_chk->snd_count = 0;
+	a_chk->send_size = 0;	/* fill in later */
+	a_chk->sent = SCTP_DATAGRAM_UNSENT;
+	a_chk->whoTo = NULL;
+
+	if ((asoc->numduptsns) ||
+	    (asoc->last_data_chunk_from->dest_state & SCTP_ADDR_NOT_REACHABLE)
+	    ) {
+		/*-
+		 * Ok, we have some duplicates or the destination for the
+		 * sack is unreachable, lets see if we can select an
+		 * alternate than asoc->last_data_chunk_from
+		 */
+		if ((!(asoc->last_data_chunk_from->dest_state &
+		    SCTP_ADDR_NOT_REACHABLE)) &&
+		    (asoc->used_alt_onsack > asoc->numnets)) {
+			/* We used an alt last time, don't this time */
+			a_chk->whoTo = NULL;
+		} else {
+			asoc->used_alt_onsack++;
+			a_chk->whoTo = sctp_find_alternate_net(stcb, asoc->last_data_chunk_from, 0);
+		}
+		if (a_chk->whoTo == NULL) {
+			/* Nope, no alternate */
+			a_chk->whoTo = asoc->last_data_chunk_from;
+			asoc->used_alt_onsack = 0;
+		}
+	} else {
+		/*
+		 * No duplicates so we use the last place we received data
+		 * from.
+		 */
+		asoc->used_alt_onsack = 0;
+		a_chk->whoTo = asoc->last_data_chunk_from;
+	}
+	if (a_chk->whoTo) {
+		atomic_add_int(&a_chk->whoTo->ref_count, 1);
+	}
+	if (asoc->highest_tsn_inside_map == asoc->cumulative_tsn) {
+		/* no gaps */
+		space_req = sizeof(struct sctp_nr_sack_chunk);
+	} else {
+		/* EY - what is this about? */
+		/* gaps get a cluster */
+		space_req = MCLBYTES;
+	}
+	/* Ok now lets formulate a MBUF with our sack */
+	a_chk->data = sctp_get_mbuf_for_msg(space_req, 0, M_DONTWAIT, 1, MT_DATA);
+	if ((a_chk->data == NULL) ||
+	    (a_chk->whoTo == NULL)) {
+		/* rats, no mbuf memory */
+		if (a_chk->data) {
+			/* was a problem with the destination */
+			sctp_m_freem(a_chk->data);
+			a_chk->data = NULL;
+		}
+		sctp_free_a_chunk(stcb, a_chk);
+		/* sa_ignore NO_NULL_CHK */
+		if (stcb->asoc.delayed_ack) {
+			sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
+			    stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_6);
+			sctp_timer_start(SCTP_TIMER_TYPE_RECV,
+			    stcb->sctp_ep, stcb, NULL);
+		} else {
+			stcb->asoc.send_sack = 1;
+		}
+		return;
+	}
+	/* ok, lets go through and fill it in */
+	SCTP_BUF_RESV_UF(a_chk->data, SCTP_MIN_OVERHEAD);
+	space = M_TRAILINGSPACE(a_chk->data);
+	if (space > (a_chk->whoTo->mtu - SCTP_MIN_OVERHEAD)) {
+		space = (a_chk->whoTo->mtu - SCTP_MIN_OVERHEAD);
+	}
+	limit = mtod(a_chk->data, caddr_t);
+	limit += space;
+
+	nr_sack = mtod(a_chk->data, struct sctp_nr_sack_chunk *);
+	nr_sack->ch.chunk_type = SCTP_NR_SELECTIVE_ACK;
+	/* EYJ */
+	/* 0x01 is used by nonce for ecn */
+	if ((SCTP_BASE_SYSCTL(sctp_ecn_enable)) &&
+	    (SCTP_BASE_SYSCTL(sctp_ecn_nonce)) &&
+	    (asoc->peer_supports_ecn_nonce))
+		nr_sack->ch.chunk_flags = (asoc->receiver_nonce_sum & SCTP_SACK_NONCE_SUM);
+	else
+		nr_sack->ch.chunk_flags = 0;
+
+	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) {
+		/*-
+		 * CMT DAC algorithm: If 2 (i.e., 0x10) packets have been
+		 * received, then set high bit to 1, else 0. Reset
+		 * pkts_rcvd.
+		 */
+		/* EY - TODO: which chunk flag is used in here? -The LSB */
+		nr_sack->ch.chunk_flags |= (asoc->cmt_dac_pkts_rcvd << 6);
+		asoc->cmt_dac_pkts_rcvd = 0;
+	}
+	/*
+	 * EY - this is a never reneging receiver, that makes all gaps are
+	 * nr-gaps, set the All bit
+	 */
+	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+		nr_sack->ch.chunk_flags |= SCTP_NR_SACK_ALL_BIT;
+	}
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	stcb->asoc.cumack_logsnt[stcb->asoc.cumack_log_atsnt] = asoc->cumulative_tsn;
+	stcb->asoc.cumack_log_atsnt++;
+	if (stcb->asoc.cumack_log_atsnt >= SCTP_TSN_LOG_SIZE) {
+		stcb->asoc.cumack_log_atsnt = 0;
+	}
+#endif
+	nr_sack->nr_sack.cum_tsn_ack = htonl(asoc->cumulative_tsn);
+	nr_sack->nr_sack.a_rwnd = htonl(asoc->my_rwnd);
+	asoc->my_last_reported_rwnd = asoc->my_rwnd;
+
+	/* reset the readers interpretation */
+	stcb->freed_by_sorcv_sincelast = 0;
+
+	gap_descriptor = (struct sctp_gap_ack_block *)((caddr_t)nr_sack + sizeof(struct sctp_nr_sack_chunk));
+	nr_gap_descriptor = (struct sctp_nr_gap_ack_block *)((caddr_t)nr_sack + sizeof(struct sctp_nr_sack_chunk));
+
+	siz = (((asoc->highest_tsn_inside_map - asoc->mapping_array_base_tsn) + 1) + 7) / 8;
+	if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
+		offset = 1;
+		/*-
+		 * cum-ack behind the mapping array, so we start and use all
+		 * entries.
+		 */
+		jstart = 0;
+	} else {
+		offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
+		/*-
+		 * we skip the first one when the cum-ack is at or above the
+		 * mapping array base. Note this only works if
+		 */
+		jstart = 1;
+	}
+	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->cumulative_tsn, MAX_TSN)) {
+		/* we have a gap .. maybe */
+		for (i = 0; i < siz; i++) {
+			selector = &sack_array[asoc->mapping_array[i]];
+			if (mergeable && selector->right_edge) {
+				/*
+				 * Backup, left and right edges were ok to
+				 * merge.
+				 */
+				num_gap_blocks--;
+				gap_descriptor--;
+			}
+			if (selector->num_entries == 0)
+				mergeable = 0;
+			else {
+				for (j = jstart; j < selector->num_entries; j++) {
+					if (mergeable && selector->right_edge) {
+						/*
+						 * do a merge by NOT setting
+						 * the left side
+						 */
+						mergeable = 0;
+					} else {
+						/*
+						 * no merge, set the left
+						 * side
+						 */
+						mergeable = 0;
+						gap_descriptor->start = htons((selector->gaps[j].start + offset));
+					}
+					gap_descriptor->end = htons((selector->gaps[j].end + offset));
+					num_gap_blocks++;
+					gap_descriptor++;
+					if (((caddr_t)gap_descriptor + sizeof(struct sctp_gap_ack_block)) > limit) {
+						/* no more room */
+						limit_reached = 1;
+						break;
+					}
+				}
+				if (selector->left_edge) {
+					mergeable = 1;
+				}
+			}
+			if (limit_reached) {
+				/* Reached the limit stop */
+				break;
+			}
+			jstart = 0;
+			offset += 8;
+		}
+		if (num_gap_blocks == 0) {
+			/*
+			 * slide not yet happened, and somehow we got called
+			 * to send a sack. Cumack needs to move up.
+			 */
+			int abort_flag = 0;
+
+			asoc->cumulative_tsn = asoc->highest_tsn_inside_map;
+			nr_sack->nr_sack.cum_tsn_ack = htonl(asoc->cumulative_tsn);
+			sctp_sack_check(stcb, 0, 0, &abort_flag);
+		}
+	}
+	/*---------------------------------------------------------filling the nr_gap_ack blocks----------------------------------------------------*/
+
+	nr_gap_descriptor = (struct sctp_nr_gap_ack_block *)gap_descriptor;
+
+	/* EY - there will be gaps + nr_gaps if draining is possible */
+	if (SCTP_BASE_SYSCTL(sctp_do_drain)) {
+
+		mergeable = 0;
+
+		siz = (((asoc->highest_tsn_inside_nr_map - asoc->nr_mapping_array_base_tsn) + 1) + 7) / 8;
+		if (compare_with_wrap(asoc->nr_mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
+			offset = 1;
+			/*-
+			* cum-ack behind the mapping array, so we start and use all
+			* entries.
+			*/
+			jstart = 0;
+		} else {
+			offset = asoc->nr_mapping_array_base_tsn - asoc->cumulative_tsn;
+			/*-
+			* we skip the first one when the cum-ack is at or above the
+			* mapping array base. Note this only works if
+			*/
+			jstart = 1;
+		}
+		if (compare_with_wrap(asoc->highest_tsn_inside_nr_map, asoc->cumulative_tsn, MAX_TSN)) {
+			/* we have a gap .. maybe */
+			for (i = 0; i < siz; i++) {
+				nr_selector = &nr_sack_array[asoc->nr_mapping_array[i]];
+				if (mergeable && nr_selector->right_edge) {
+					/*
+					 * Backup, left and right edges were
+					 * ok to merge.
+					 */
+					num_nr_gap_blocks--;
+					nr_gap_descriptor--;
+				}
+				if (nr_selector->num_entries == 0)
+					mergeable = 0;
+				else {
+					for (j = jstart; j < nr_selector->num_entries; j++) {
+						if (mergeable && nr_selector->right_edge) {
+							/*
+							 * do a merge by NOT
+							 * setting the left
+							 * side
+							 */
+							mergeable = 0;
+						} else {
+							/*
+							 * no merge, set the
+							 * left side
+							 */
+							mergeable = 0;
+							nr_gap_descriptor->start = htons((nr_selector->nr_gaps[j].start + offset));
+						}
+						nr_gap_descriptor->end = htons((nr_selector->nr_gaps[j].end + offset));
+						num_nr_gap_blocks++;
+						nr_gap_descriptor++;
+						if (((caddr_t)nr_gap_descriptor + sizeof(struct sctp_nr_gap_ack_block)) > limit) {
+							/* no more room */
+							limit_reached = 1;
+							break;
+						}
+					}
+					if (nr_selector->left_edge) {
+						mergeable = 1;
+					}
+				}
+				if (limit_reached) {
+					/* Reached the limit stop */
+					break;
+				}
+				jstart = 0;
+				offset += 8;
+			}
+		}
+	}
+	/*---------------------------------------------------End of---filling the nr_gap_ack blocks----------------------------------------------------*/
+
+	/* now we must add any dups we are going to report. */
+	if ((limit_reached == 0) && (asoc->numduptsns)) {
+		dup = (uint32_t *) nr_gap_descriptor;
+		for (i = 0; i < asoc->numduptsns; i++) {
+			*dup = htonl(asoc->dup_tsns[i]);
+			dup++;
+			num_dups++;
+			if (((caddr_t)dup + sizeof(uint32_t)) > limit) {
+				/* no more room */
+				break;
+			}
+		}
+		asoc->numduptsns = 0;
+	}
+	/*
+	 * now that the chunk is prepared queue it to the control chunk
+	 * queue.
+	 */
+	if (SCTP_BASE_SYSCTL(sctp_do_drain) == 0) {
+		num_nr_gap_blocks = num_gap_blocks;
+		num_gap_blocks = 0;
+	}
+	a_chk->send_size = (sizeof(struct sctp_nr_sack_chunk) +
+	    (num_gap_blocks * sizeof(struct sctp_gap_ack_block)) +
+	    (num_nr_gap_blocks * sizeof(struct sctp_nr_gap_ack_block)) +
+	    (num_dups * sizeof(int32_t)));
+
+	SCTP_BUF_LEN(a_chk->data) = a_chk->send_size;
+	nr_sack->nr_sack.num_gap_ack_blks = htons(num_gap_blocks);
+	nr_sack->nr_sack.num_nr_gap_ack_blks = htons(num_nr_gap_blocks);
+	nr_sack->nr_sack.num_dup_tsns = htons(num_dups);
+	nr_sack->nr_sack.reserved = htons(reserved);
+	nr_sack->ch.chunk_length = htons(a_chk->send_size);
+	TAILQ_INSERT_TAIL(&asoc->control_send_queue, a_chk, sctp_next);
+	asoc->ctrl_queue_cnt++;
+	asoc->send_sack = 0;
+	SCTP_STAT_INCR(sctps_sendsacks);
+	return;
+}
 
 void
 sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
@@ -10095,6 +12411,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	    stcb->asoc.peer_auth_chunks)) {
 		m_out = sctp_add_auth_chunk(m_out, &m_end, &auth, &auth_offset,
 		    stcb, SCTP_ABORT_ASSOCIATION);
+		SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	}
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	m_abort = sctp_get_mbuf_for_msg(sizeof(struct sctp_abort_chunk), 0, M_DONTWAIT, 1, MT_HEADER);
@@ -10148,7 +12465,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb,
 	    stcb->asoc.primary_destination,
 	    (struct sockaddr *)&stcb->asoc.primary_destination->ro._l_addr,
-	    m_out, auth_offset, auth, 1, 0, NULL, 0, stcb->asoc.primary_destination->port, so_locked, NULL);
+	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, NULL, 0, stcb->asoc.primary_destination->port, so_locked, NULL);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
 
@@ -10177,7 +12494,7 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	SCTP_BUF_LEN(m_shutdown_comp) = sizeof(struct sctp_shutdown_complete_msg);
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
-	    m_shutdown_comp, 0, NULL, 1, 0, NULL, 0, net->port, SCTP_SO_NOT_LOCKED, NULL);
+	    m_shutdown_comp, 0, NULL, 0, 1, 0, NULL, 0, net->port, SCTP_SO_NOT_LOCKED, NULL);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 	return;
 }
@@ -11686,6 +14003,11 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 		*error = 0;
 		goto skip_copy;
 	}
+	sp->auth_keyid = stcb->asoc.authinfo.active_keyid;
+	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
+		sctp_auth_key_acquire(stcb, stcb->asoc.authinfo.active_keyid);
+		sp->holds_key_ref = 1;
+	}
 	*error = sctp_copy_one(sp, uio, resv_in_first);
 skip_copy:
 	if (*error) {
@@ -11830,9 +14152,9 @@ sctp_lower_sosend(struct socket *so,
 	    addr,
 	    sndlen);
 	/*-
-         * Pre-screen address, if one is given the sin-len
-         * must be set correctly!
-         */
+	 * Pre-screen address, if one is given the sin-len
+	 * must be set correctly!
+	 */
 	if (addr) {
 		if ((addr->sa_family == AF_INET) &&
 		    (addr->sa_len != sizeof(struct sockaddr_in))) {
@@ -12092,6 +14414,9 @@ sctp_lower_sosend(struct socket *so,
 					if (initm.sinit_max_init_timeo)
 						asoc->initial_init_rto_max = initm.sinit_max_init_timeo;
 					if (asoc->streamoutcnt < asoc->pre_open_streams) {
+						struct sctp_stream_out *tmp_str;
+						int had_lock = 0;
+
 						/* Default is NOT correct */
 						SCTPDBG(SCTP_DEBUG_OUTPUT1, "Ok, defout:%d pre_open:%d\n",
 						    asoc->streamoutcnt, asoc->pre_open_streams);
@@ -12099,46 +14424,42 @@ sctp_lower_sosend(struct socket *so,
 						 * What happens if this
 						 * fails? we panic ...
 						 */
-						{
-							struct sctp_stream_out *tmp_str;
-							int had_lock = 0;
 
-							if (hold_tcblock) {
-								had_lock = 1;
-								SCTP_TCB_UNLOCK(stcb);
-							}
-							SCTP_MALLOC(tmp_str,
-							    struct sctp_stream_out *,
-							    (asoc->pre_open_streams *
-							    sizeof(struct sctp_stream_out)),
-							    SCTP_M_STRMO);
-							if (had_lock) {
-								SCTP_TCB_LOCK(stcb);
-							}
-							if (tmp_str != NULL) {
-								SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
-								asoc->strmout = tmp_str;
-								asoc->streamoutcnt = asoc->pre_open_streams;
-							} else {
-								asoc->pre_open_streams = asoc->streamoutcnt;
-							}
+						if (hold_tcblock) {
+							had_lock = 1;
+							SCTP_TCB_UNLOCK(stcb);
+						}
+						SCTP_MALLOC(tmp_str,
+						    struct sctp_stream_out *,
+						    (asoc->pre_open_streams *
+						    sizeof(struct sctp_stream_out)),
+						    SCTP_M_STRMO);
+						if (had_lock) {
+							SCTP_TCB_LOCK(stcb);
+						}
+						if (tmp_str != NULL) {
+							SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
+							asoc->strmout = tmp_str;
+							asoc->streamoutcnt = asoc->pre_open_streams;
+						} else {
+							asoc->pre_open_streams = asoc->streamoutcnt;
 						}
 						for (i = 0; i < asoc->streamoutcnt; i++) {
 							/*-
-						         * inbound side must be set
-						         * to 0xffff, also NOTE when
-						         * we get the INIT-ACK back
-						         * (for INIT sender) we MUST
-						         * reduce the count
-						         * (streamoutcnt) but first
-						         * check if we sent to any
-						         * of the upper streams that
-						         * were dropped (if some
-						         * were). Those that were
-						         * dropped must be notified
-						         * to the upper layer as
-						         * failed to send.
-						         */
+							 * inbound side must be set
+							 * to 0xffff, also NOTE when
+							 * we get the INIT-ACK back
+							 * (for INIT sender) we MUST
+							 * reduce the count
+							 * (streamoutcnt) but first
+							 * check if we sent to any
+							 * of the upper streams that
+							 * were dropped (if some
+							 * were). Those that were
+							 * dropped must be notified
+							 * to the upper layer as
+							 * failed to send.
+							 */
 							asoc->strmout[i].next_sequence_sent = 0x0;
 							TAILQ_INIT(&asoc->strmout[i].outqueue);
 							asoc->strmout[i].stream_no = i;
@@ -12153,11 +14474,11 @@ sctp_lower_sosend(struct socket *so,
 			/* out with the INIT */
 			queue_only_for_init = 1;
 			/*-
-		         * we may want to dig in after this call and adjust the MTU
-		         * value. It defaulted to 1500 (constant) but the ro
-		         * structure may now have an update and thus we may need to
-		         * change it BEFORE we append the message.
-		         */
+			 * we may want to dig in after this call and adjust the MTU
+			 * value. It defaulted to 1500 (constant) but the ro
+			 * structure may now have an update and thus we may need to
+			 * change it BEFORE we append the message.
+			 */
 			net = stcb->asoc.primary_destination;
 			asoc = &stcb->asoc;
 		}
@@ -12168,6 +14489,7 @@ sctp_lower_sosend(struct socket *so,
 		non_blocking = 1;
 	}
 	asoc = &stcb->asoc;
+	atomic_add_int(&stcb->total_sends, 1);
 
 	if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NO_FRAGMENT)) {
 		if (sndlen > asoc->smallest_mtu) {
@@ -12277,7 +14599,6 @@ sctp_lower_sosend(struct socket *so,
 		 * sctp_chunk_output() can be called below.
 		 */
 		queue_only = 1;
-
 	} else if (asoc->ifp_had_enobuf) {
 		SCTP_STAT_INCR(sctps_ifnomemqueued);
 		if (net->flight_size > (net->mtu * 2))
@@ -12352,10 +14673,10 @@ sctp_lower_sosend(struct socket *so,
 				error = uiomove((caddr_t)ph, (int)tot_out, uio);
 				if (error) {
 					/*-
-				         * Here if we can't get his data we
-				         * still abort we just don't get to
-				         * send the users note :-0
-				         */
+					 * Here if we can't get his data we
+					 * still abort we just don't get to
+					 * send the users note :-0
+					 */
 					sctp_m_freem(mm);
 					mm = NULL;
 				}
@@ -12450,22 +14771,21 @@ sctp_lower_sosend(struct socket *so,
 	if (((max_len <= local_add_more) &&
 	    (SCTP_SB_LIMIT_SND(so) >= local_add_more)) ||
 	    (max_len == 0) ||
-	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue))) {	/* if */
+	    ((stcb->asoc.chunks_on_out_queue + stcb->asoc.stream_queue_cnt) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue))) {
 		/* No room right now ! */
 		SOCKBUF_LOCK(&so->so_snd);
 		inqueue_bytes = stcb->asoc.total_output_queue_size - (stcb->asoc.chunks_on_out_queue * sizeof(struct sctp_data_chunk));
 		while ((SCTP_SB_LIMIT_SND(so) < (inqueue_bytes + local_add_more)) ||
-		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue)) /* while */ ) {
-			SCTPDBG(SCTP_DEBUG_OUTPUT1, "pre_block limit:%d <(inq:%d + %d) || (%d+%d > %d)\n",
-			    SCTP_SB_LIMIT_SND(so),
+		    ((stcb->asoc.stream_queue_cnt + stcb->asoc.chunks_on_out_queue) >= SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue))) {
+			SCTPDBG(SCTP_DEBUG_OUTPUT1, "pre_block limit:%u <(inq:%d + %d) || (%d+%d > %d)\n",
+			    (unsigned int)SCTP_SB_LIMIT_SND(so),
 			    inqueue_bytes,
 			    local_add_more,
 			    stcb->asoc.stream_queue_cnt,
 			    stcb->asoc.chunks_on_out_queue,
 			    SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue));
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
-				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA,
-				    so, asoc, sndlen);
+				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA, so, asoc, sndlen);
 			}
 			be.error = 0;
 			stcb->block_entry = &be;
@@ -12503,7 +14823,6 @@ skip_preblock:
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 		goto out_unlocked;
 	}
-	atomic_add_int(&stcb->total_sends, 1);
 	/*
 	 * sndlen covers for mbuf case uio_resid covers for the non-mbuf
 	 * case NOTE: uio will be null when top/mbuf is passed
@@ -12603,8 +14922,7 @@ skip_preblock:
 
 			if ((max_len > SCTP_BASE_SYSCTL(sctp_add_more_threshold)) ||
 			    (max_len && (SCTP_SB_LIMIT_SND(so) < SCTP_BASE_SYSCTL(sctp_add_more_threshold))) ||
-			    (uio->uio_resid &&
-			    (uio->uio_resid <= (int)max_len))) {
+			    (uio->uio_resid && (uio->uio_resid <= (int)max_len))) {
 				sndout = 0;
 				new_tail = NULL;
 				if (hold_tcblock) {
@@ -12650,8 +14968,7 @@ skip_preblock:
 				if ((uio->uio_resid == 0) &&
 				    ((user_marks_eor == 0) ||
 				    (srcv->sinfo_flags & SCTP_EOF) ||
-				    (user_marks_eor && (srcv->sinfo_flags & SCTP_EOR)))
-				    ) {
+				    (user_marks_eor && (srcv->sinfo_flags & SCTP_EOR)))) {
 					sp->msg_is_complete = 1;
 				} else {
 					sp->msg_is_complete = 0;
@@ -12718,8 +15035,7 @@ skip_preblock:
 			if ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_NODELAY)) &&
 			    (stcb->asoc.total_flight > 0) &&
 			    (stcb->asoc.stream_queue_cnt < SCTP_MAX_DATA_BUNDLING) &&
-			    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
-			    ) {
+			    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))) {
 
 				/*-
 				 * Ok, Nagle is set on and we have data outstanding.
@@ -12764,8 +15080,7 @@ skip_preblock:
 					queue_only = 1;
 				}
 			}
-			if ((queue_only == 0) && (nagle_applies == 0)
-			    ) {
+			if ((queue_only == 0) && (nagle_applies == 0)) {
 				/*-
 				 * need to start chunk output
 				 * before blocking.. note that if
@@ -12792,22 +15107,21 @@ skip_preblock:
 			}
 			SOCKBUF_LOCK(&so->so_snd);
 			/*-
-		         * This is a bit strange, but I think it will
-		         * work. The total_output_queue_size is locked and
-		         * protected by the TCB_LOCK, which we just released.
-		         * There is a race that can occur between releasing it
-		         * above, and me getting the socket lock, where sacks
-		         * come in but we have not put the SB_WAIT on the
-		         * so_snd buffer to get the wakeup. After the LOCK
-		         * is applied the sack_processing will also need to
-		         * LOCK the so->so_snd to do the actual sowwakeup(). So
-		         * once we have the socket buffer lock if we recheck the
-		         * size we KNOW we will get to sleep safely with the
-		         * wakeup flag in place.
-		         */
+			 * This is a bit strange, but I think it will
+			 * work. The total_output_queue_size is locked and
+			 * protected by the TCB_LOCK, which we just released.
+			 * There is a race that can occur between releasing it
+			 * above, and me getting the socket lock, where sacks
+			 * come in but we have not put the SB_WAIT on the
+			 * so_snd buffer to get the wakeup. After the LOCK
+			 * is applied the sack_processing will also need to
+			 * LOCK the so->so_snd to do the actual sowwakeup(). So
+			 * once we have the socket buffer lock if we recheck the
+			 * size we KNOW we will get to sleep safely with the
+			 * wakeup flag in place.
+			 */
 			if (SCTP_SB_LIMIT_SND(so) <= (stcb->asoc.total_output_queue_size +
-			    min(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTP_SB_LIMIT_SND(so)))
-			    ) {
+			    min(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTP_SB_LIMIT_SND(so)))) {
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 					sctp_log_block(SCTP_BLOCK_LOG_INTO_BLK,
 					    so, asoc, uio->uio_resid);
@@ -12879,8 +15193,7 @@ dataless_eof:
 	/* EOF thing ? */
 	if ((srcv->sinfo_flags & SCTP_EOF) &&
 	    (got_all_of_the_send == 1) &&
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE)
-	    ) {
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE)) {
 		int cnt;
 
 		SCTP_STAT_INCR(sctps_sends_with_eof);
@@ -12914,15 +15227,15 @@ dataless_eof:
 			}
 		} else {
 			/*-
-		         * we still got (or just got) data to send, so set
-		         * SHUTDOWN_PENDING
-		         */
+			 * we still got (or just got) data to send, so set
+			 * SHUTDOWN_PENDING
+			 */
 			/*-
-		         * XXX sockets draft says that SCTP_EOF should be
-		         * sent with no data.  currently, we will allow user
-		         * data to be sent first and move to
-		         * SHUTDOWN-PENDING
-		         */
+			 * XXX sockets draft says that SCTP_EOF should be
+			 * sent with no data.  currently, we will allow user
+			 * data to be sent first and move to
+			 * SHUTDOWN-PENDING
+			 */
 			if ((SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
@@ -12999,8 +15312,7 @@ skip_out_eof:
 	if ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_NODELAY)) &&
 	    (stcb->asoc.total_flight > 0) &&
 	    (stcb->asoc.stream_queue_cnt < SCTP_MAX_DATA_BUNDLING) &&
-	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))
-	    ) {
+	    (un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD))) {
 		/*-
 		 * Ok, Nagle is set on and we have data outstanding.
 		 * Don't send anything and let SACKs drive out the

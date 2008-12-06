@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -226,10 +226,7 @@ sctp_find_vrf(uint32_t vrf_id)
 void
 sctp_free_vrf(struct sctp_vrf *vrf)
 {
-	int ret;
-
-	ret = atomic_fetchadd_int(&vrf->refcount, -1);
-	if (ret == 1) {
+	if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&vrf->refcount)) {
 		if (vrf->vrf_addr_hash) {
 			SCTP_HASH_FREE(vrf->vrf_addr_hash, vrf->vrf_addr_hashmark);
 			vrf->vrf_addr_hash = NULL;
@@ -244,10 +241,7 @@ sctp_free_vrf(struct sctp_vrf *vrf)
 void
 sctp_free_ifn(struct sctp_ifn *sctp_ifnp)
 {
-	int ret;
-
-	ret = atomic_fetchadd_int(&sctp_ifnp->refcount, -1);
-	if (ret == 1) {
+	if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&sctp_ifnp->refcount)) {
 		/* We zero'd the count */
 		if (sctp_ifnp->vrf) {
 			sctp_free_vrf(sctp_ifnp->vrf);
@@ -272,10 +266,7 @@ sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu)
 void
 sctp_free_ifa(struct sctp_ifa *sctp_ifap)
 {
-	int ret;
-
-	ret = atomic_fetchadd_int(&sctp_ifap->refcount, -1);
-	if (ret == 1) {
+	if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&sctp_ifap->refcount)) {
 		/* We zero'd the count */
 		if (sctp_ifap->ifn_p) {
 			sctp_free_ifn(sctp_ifap->ifn_p);
@@ -1295,7 +1286,7 @@ null_return:
  */
 
 struct sctp_tcb *
-sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int want_lock)
+sctp_findasoc_ep_asocid_locked(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int want_lock)
 {
 	/*
 	 * Use my the assoc_id to find a endpoint
@@ -1304,33 +1295,29 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 	struct sctp_tcb *stcb;
 	uint32_t id;
 
-	if (asoc_id == 0 || inp == NULL) {
+	if (inp == NULL) {
+		SCTP_PRINTF("TSNH ep_associd\n");
 		return (NULL);
 	}
-	SCTP_INP_INFO_RLOCK();
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+		SCTP_PRINTF("TSNH ep_associd0\n");
+		return (NULL);
+	}
 	id = (uint32_t) asoc_id;
-	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(id,
-	    SCTP_BASE_INFO(hashasocmark))];
+	head = &inp->sctp_asocidhash[SCTP_PCBHASH_ASOC(id, inp->hashasocidmark)];
 	if (head == NULL) {
 		/* invalid id TSNH */
-		SCTP_INP_INFO_RUNLOCK();
+		SCTP_PRINTF("TSNH ep_associd1\n");
 		return (NULL);
 	}
-	LIST_FOREACH(stcb, head, sctp_asocs) {
-		SCTP_INP_RLOCK(stcb->sctp_ep);
-		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
-			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			SCTP_INP_INFO_RUNLOCK();
-			return (NULL);
-		}
+	LIST_FOREACH(stcb, head, sctp_tcbasocidhash) {
 		if (stcb->asoc.assoc_id == id) {
-			/* candidate */
 			if (inp != stcb->sctp_ep) {
 				/*
 				 * some other guy has the same id active (id
 				 * collision ??).
 				 */
-				SCTP_INP_RUNLOCK(stcb->sctp_ep);
+				SCTP_PRINTF("TSNH ep_associd2\n");
 				continue;
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
@@ -1339,55 +1326,22 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 			if (want_lock) {
 				SCTP_TCB_LOCK(stcb);
 			}
-			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			SCTP_INP_INFO_RUNLOCK();
 			return (stcb);
 		}
-		SCTP_INP_RUNLOCK(stcb->sctp_ep);
 	}
-	/* Ok if we missed here, lets try the restart hash */
-	head = &SCTP_BASE_INFO(sctp_restarthash)[SCTP_PCBHASH_ASOC(id, SCTP_BASE_INFO(hashrestartmark))];
-	if (head == NULL) {
-		/* invalid id TSNH */
-		SCTP_INP_INFO_RUNLOCK();
-		return (NULL);
-	}
-	LIST_FOREACH(stcb, head, sctp_tcbrestarhash) {
-		SCTP_INP_RLOCK(stcb->sctp_ep);
-		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
-			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			continue;
-		}
-		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			continue;
-		}
-		if (want_lock) {
-			SCTP_TCB_LOCK(stcb);
-		}
-		if (stcb->asoc.assoc_id == id) {
-			/* candidate */
-			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			if (inp != stcb->sctp_ep) {
-				/*
-				 * some other guy has the same id active (id
-				 * collision ??).
-				 */
-				if (want_lock) {
-					SCTP_TCB_UNLOCK(stcb);
-				}
-				continue;
-			}
-			SCTP_INP_INFO_RUNLOCK();
-			return (stcb);
-		} else {
-			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-		}
-		if (want_lock) {
-			SCTP_TCB_UNLOCK(stcb);
-		}
-	}
-	SCTP_INP_INFO_RUNLOCK();
 	return (NULL);
+}
+
+
+struct sctp_tcb *
+sctp_findassociation_ep_asocid(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int want_lock)
+{
+	struct sctp_tcb *stcb;
+
+	SCTP_INP_RLOCK(inp);
+	stcb = sctp_findasoc_ep_asocid_locked(inp, asoc_id, want_lock);
+	SCTP_INP_RUNLOCK(inp);
+	return (stcb);
 }
 
 
@@ -1434,6 +1388,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 
 	if (head == NULL)
 		return (NULL);
+
 	LIST_FOREACH(inp, head, sctp_hash) {
 		SCTP_INP_RLOCK(inp);
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
@@ -1695,8 +1650,11 @@ sctp_pcb_findep(struct sockaddr *nam, int find_tcp_pool, int have_lock,
 	 * If the TCP model exists it could be that the main listening
 	 * endpoint is gone but there exists a connected socket for this guy
 	 * yet. If so we can return the first one that we find. This may NOT
-	 * be the correct one but the sctp_findassociation_ep_addr has
-	 * further code to look at all TCP models.
+	 * be the correct one so the caller should be wary on the return
+	 * INP. Currently the onlyc caller that sets this flag is in bindx
+	 * where we are verifying that a user CAN bind the address. He
+	 * either has bound it already, or someone else has, or its open to
+	 * bind, so this is good enough.
 	 */
 	if (inp == NULL && find_tcp_pool) {
 		head = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR(lport, SCTP_BASE_INFO(hashtcpmark))];
@@ -1844,11 +1802,67 @@ sctp_findassociation_special_addr(struct mbuf *m, int iphlen, int offset,
 	return (NULL);
 }
 
+static int
+sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
+{
+	struct sctp_nets *net;
+
+	/*
+	 * Simple question, the ports match, does the tcb own the to
+	 * address?
+	 */
+	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL)) {
+		/* of course */
+		return (1);
+	}
+	/* have to look at all bound addresses */
+	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+		if (net->ro._l_addr.sa.sa_family != to->sa_family) {
+			/* not the same family, can't be a match */
+			continue;
+		}
+		switch (to->sa_family) {
+		case AF_INET:
+			{
+				struct sockaddr_in *sin, *rsin;
+
+				sin = (struct sockaddr_in *)&net->ro._l_addr;
+				rsin = (struct sockaddr_in *)to;
+				if (sin->sin_addr.s_addr ==
+				    rsin->sin_addr.s_addr) {
+					/* found it */
+					return (1);
+				}
+				break;
+			}
+#ifdef INET6
+		case AF_INET6:
+			{
+				struct sockaddr_in6 *sin6, *rsin6;
+
+				sin6 = (struct sockaddr_in6 *)&net->ro._l_addr;
+				rsin6 = (struct sockaddr_in6 *)to;
+				if (SCTP6_ARE_ADDR_EQUAL(sin6,
+				    rsin6)) {
+					/* Update the endpoint pointer */
+					return (1);
+				}
+				break;
+			}
+#endif
+		default:
+			/* TSNH */
+			break;
+		}
+	}
+	/* Nope, do not have the address ;-( */
+	return (0);
+}
 
 static struct sctp_tcb *
-sctp_findassoc_by_vtag(struct sockaddr *from, uint32_t vtag,
+sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint16_t rport,
-    uint16_t lport, int skip_src_check)
+    uint16_t lport, int skip_src_check, uint32_t vrf_id, uint32_t remote_tag)
 {
 	/*
 	 * Use my vtag to hash. If we find it we then verify the source addr
@@ -1880,18 +1894,10 @@ sctp_findassoc_by_vtag(struct sockaddr *from, uint32_t vtag,
 		if (stcb->asoc.my_vtag == vtag) {
 			/* candidate */
 			if (stcb->rport != rport) {
-				/*
-				 * we could remove this if vtags are unique
-				 * across the system.
-				 */
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
 			if (stcb->sctp_ep->sctp_lport != lport) {
-				/*
-				 * we could remove this if vtags are unique
-				 * across the system.
-				 */
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
@@ -1899,8 +1905,33 @@ sctp_findassoc_by_vtag(struct sockaddr *from, uint32_t vtag,
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
+			/* RRS:Need toaddr check here */
+			if (sctp_does_stcb_own_this_addr(stcb, to) == 0) {
+				/* Endpoint does not own this address */
+				SCTP_TCB_UNLOCK(stcb);
+				continue;
+			}
+			if (remote_tag) {
+				/*
+				 * If we have both vtags thats all we match
+				 * on
+				 */
+				if (stcb->asoc.peer_vtag == remote_tag) {
+					/*
+					 * If both tags match we consider it
+					 * conclusive and check NO
+					 * source/destination addresses
+					 */
+					goto conclusive;
+				}
+			}
 			if (skip_src_check) {
-				*netp = NULL;	/* unknown */
+		conclusive:
+				if (from) {
+					net = sctp_findnet(stcb, from);
+				} else {
+					*netp = NULL;	/* unknown */
+				}
 				if (inp_p)
 					*inp_p = stcb->sctp_ep;
 				SCTP_INP_INFO_RUNLOCK();
@@ -1985,14 +2016,8 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 		/* Currently not supported. */
 		return (NULL);
 	}
-	if (sh->v_tag) {
-		/* we only go down this path if vtag is non-zero */
-		retval = sctp_findassoc_by_vtag(from, ntohl(sh->v_tag),
-		    inp_p, netp, sh->src_port, sh->dest_port, 0);
-		if (retval) {
-			return (retval);
-		}
-	}
+
+
 	switch (iph->ip_v) {
 	case IPVERSION:
 		{
@@ -2031,6 +2056,14 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 	default:
 		/* TSNH */
 		break;
+	}
+	if (sh->v_tag) {
+		/* we only go down this path if vtag is non-zero */
+		retval = sctp_findassoc_by_vtag(from, to, ntohl(sh->v_tag),
+		    inp_p, netp, sh->src_port, sh->dest_port, 0, vrf_id, 0);
+		if (retval) {
+			return (retval);
+		}
 	}
 	find_tcp_pool = 0;
 	if ((ch->chunk_type != SCTP_INITIATION) &&
@@ -2084,7 +2117,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
  */
 struct sctp_tcb *
 sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
-    struct sctphdr *sh, struct sctp_inpcb **inp_p, struct sctp_nets **netp)
+    struct sctphdr *sh, struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	struct sctp_tcb *stcb;
 	struct sockaddr_in *sin;
@@ -2094,6 +2127,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 
 #endif
 	struct sockaddr_storage local_store, remote_store;
+	struct sockaddr *to;
 	struct ip *iph;
 
 #ifdef INET6
@@ -2107,7 +2141,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 
 	memset(&local_store, 0, sizeof(local_store));
 	memset(&remote_store, 0, sizeof(remote_store));
-
+	to = (struct sockaddr *)&local_store;
 	/* First get the destination address setup too. */
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
@@ -2202,8 +2236,8 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 	}
 
 	if (zero_address) {
-		stcb = sctp_findassoc_by_vtag(NULL, ntohl(sh->v_tag), inp_p,
-		    netp, sh->src_port, sh->dest_port, 1);
+		stcb = sctp_findassoc_by_vtag(NULL, to, ntohl(sh->v_tag), inp_p,
+		    netp, sh->src_port, sh->dest_port, 1, vrf_id, 0);
 		/*
 		 * printf("findassociation_ep_asconf: zero lookup address
 		 * finds stcb 0x%x\n", (uint32_t)stcb);
@@ -2211,7 +2245,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
 		    (struct sockaddr *)&remote_store, netp,
-		    (struct sockaddr *)&local_store, NULL);
+		    to, NULL);
 	}
 	return (stcb);
 }
@@ -2256,10 +2290,16 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	/* setup socket pointers */
 	inp->sctp_socket = so;
 	inp->ip_inp.inp.inp_socket = so;
-
+	inp->sctp_associd_counter = 1;
 	inp->partial_delivery_point = SCTP_SB_LIMIT_RCV(so) >> SCTP_PARTIAL_DELIVERY_SHIFT;
 	inp->sctp_frag_point = SCTP_DEFAULT_MAXSEGMENT;
-
+	/* init the small hash table we use to track asocid <-> tcb */
+	inp->sctp_asocidhash = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE, &inp->hashasocidmark);
+	if (inp->sctp_asocidhash == NULL) {
+		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_ep), inp);
+		SCTP_INP_INFO_WUNLOCK();
+		return error;
+	}
 #ifdef IPSEC
 	{
 		struct inpcbpolicy *pcb_sp = NULL;
@@ -2597,8 +2637,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				sin = (struct sockaddr_in *)addr;
 				lport = sin->sin_port;
 				/*
-				 * For LOOPBACK the prison_local_ip4() call will transmute the ip address
-				 * to the proper value.
+				 * For LOOPBACK the prison_local_ip4() call
+				 * will transmute the ip address to the
+				 * proper value.
 				 */
 				if (p && prison_local_ip4(p->td_ucred, &sin->sin_addr) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
@@ -2627,8 +2668,9 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr,
 				lport = sin6->sin6_port;
 
 				/*
-				 * For LOOPBACK the prison_local_ip6() call will transmute the ipv6 address
-				 * to the proper value.
+				 * For LOOPBACK the prison_local_ip6() call
+				 * will transmute the ipv6 address to the
+				 * proper value.
 				 */
 				if (p && prison_local_ip6(p->td_ucred, &sin6->sin6_addr,
 				    (SCTP_IPV6_V6ONLY(inp) != 0)) != 0) {
@@ -3373,6 +3415,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NONE;
 	/* Clear the read queue */
+	if ((inp->sctp_asocidhash) != NULL) {
+		SCTP_HASH_FREE(inp->sctp_asocidhash, inp->hashasocidmark);
+		inp->sctp_asocidhash = NULL;
+	}
 	/* sa_ignore FREED_MEMORY */
 	while ((sq = TAILQ_FIRST(&inp->read_queue)) != NULL) {
 		/* Its only abandoned if it had data left */
@@ -3864,6 +3910,32 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 }
 
 
+static uint32_t
+sctp_aloc_a_assoc_id(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
+{
+	uint32_t id;
+	struct sctpasochead *head;
+	struct sctp_tcb *lstcb;
+
+try_again:
+	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+		/* TSNH */
+		return (0);
+	}
+	SCTP_INP_WLOCK(inp);
+	id = inp->sctp_associd_counter;
+	inp->sctp_associd_counter++;
+	lstcb = sctp_findasoc_ep_asocid_locked(inp, (sctp_assoc_t) id, 0);
+	if (lstcb) {
+		goto try_again;
+	}
+	head = &inp->sctp_asocidhash[SCTP_PCBHASH_ASOC(id, inp->hashasocidmark)];
+	LIST_INSERT_HEAD(head, stcb, sctp_tcbasocidhash);
+	stcb->asoc.in_asocid_hash = 1;
+	SCTP_INP_WUNLOCK(inp);
+	return id;
+}
+
 /*
  * allocate an association and add it to the endpoint. The caller must be
  * careful to add all additional addresses once they are know right away or
@@ -3983,8 +4055,11 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 
 	bzero(stcb, sizeof(*stcb));
 	asoc = &stcb->asoc;
+
+	asoc->assoc_id = sctp_aloc_a_assoc_id(inp, stcb);
 	SCTP_TCB_LOCK_INIT(stcb);
 	SCTP_TCB_SEND_LOCK_INIT(stcb);
+	stcb->rport = rport;
 	/* setup back pointer's */
 	stcb->sctp_ep = inp;
 	stcb->sctp_socket = inp->sctp_socket;
@@ -3992,19 +4067,20 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		/* failed */
 		SCTP_TCB_LOCK_DESTROY(stcb);
 		SCTP_TCB_SEND_LOCK_DESTROY(stcb);
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asoc), stcb);
 		SCTP_DECR_ASOC_COUNT();
 		*error = err;
 		return (NULL);
 	}
 	/* and the port */
-	stcb->rport = rport;
 	SCTP_INP_INFO_WLOCK();
 	SCTP_INP_WLOCK(inp);
 	if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		/* inpcb freed while alloc going on */
 		SCTP_TCB_LOCK_DESTROY(stcb);
 		SCTP_TCB_SEND_LOCK_DESTROY(stcb);
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asoc), stcb);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
@@ -4016,12 +4092,12 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	SCTP_TCB_LOCK(stcb);
 
 	/* now that my_vtag is set, add it to the hash */
-	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag,
-	    SCTP_BASE_INFO(hashasocmark))];
+	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
 	/* put it in the bucket in the vtag hash of assoc's for the system */
 	LIST_INSERT_HEAD(head, stcb, sctp_asocs);
-	sctp_delete_from_timewait(stcb->asoc.my_vtag);
-
+#ifdef MICHAELS_EXPERIMENT
+	sctp_delete_from_timewait(stcb->asoc.my_vtag, inp->sctp_lport, stcb->rport);
+#endif
 	SCTP_INP_INFO_WUNLOCK();
 
 	if ((err = sctp_add_remote_addr(stcb, firstaddr, SCTP_DO_SETSCOPE, SCTP_ALLOC_ASOC))) {
@@ -4037,6 +4113,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		SCTP_DECR_ASOC_COUNT();
 		SCTP_TCB_LOCK_DESTROY(stcb);
 		SCTP_TCB_SEND_LOCK_DESTROY(stcb);
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_asoc), stcb);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOBUFS);
@@ -4159,7 +4236,7 @@ sctp_del_remote_addr(struct sctp_tcb *stcb, struct sockaddr *remaddr)
 }
 
 void
-sctp_delete_from_timewait(uint32_t tag)
+sctp_delete_from_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -4170,9 +4247,13 @@ sctp_delete_from_timewait(uint32_t tag)
 	if (!SCTP_LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-				if (twait_block->vtag_block[i].v_tag == tag) {
+				if ((twait_block->vtag_block[i].v_tag == tag) &&
+				    (twait_block->vtag_block[i].lport == lport) &&
+				    (twait_block->vtag_block[i].rport == rport)) {
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
 					twait_block->vtag_block[i].v_tag = 0;
+					twait_block->vtag_block[i].lport = 0;
+					twait_block->vtag_block[i].rport = 0;
 					found = 1;
 					break;
 				}
@@ -4184,7 +4265,7 @@ sctp_delete_from_timewait(uint32_t tag)
 }
 
 int
-sctp_is_in_timewait(uint32_t tag)
+sctp_is_in_timewait(uint32_t tag, uint16_t lport, uint16_t rport)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -4196,7 +4277,9 @@ sctp_is_in_timewait(uint32_t tag)
 	if (!SCTP_LIST_EMPTY(chain)) {
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
-				if (twait_block->vtag_block[i].v_tag == tag) {
+				if ((twait_block->vtag_block[i].v_tag == tag) &&
+				    (twait_block->vtag_block[i].lport == lport) &&
+				    (twait_block->vtag_block[i].rport == rport)) {
 					found = 1;
 					break;
 				}
@@ -4211,7 +4294,7 @@ sctp_is_in_timewait(uint32_t tag)
 
 
 void
-sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
+sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t rport)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -4230,16 +4313,22 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 					twait_block->vtag_block[i].tv_sec_at_expire =
 					    now.tv_sec + time;
 					twait_block->vtag_block[i].v_tag = tag;
+					twait_block->vtag_block[i].lport = lport;
+					twait_block->vtag_block[i].rport = rport;
 					set = 1;
 				} else if ((twait_block->vtag_block[i].v_tag) &&
 				    ((long)twait_block->vtag_block[i].tv_sec_at_expire < now.tv_sec)) {
 					/* Audit expires this guy */
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
 					twait_block->vtag_block[i].v_tag = 0;
+					twait_block->vtag_block[i].lport = 0;
+					twait_block->vtag_block[i].rport = 0;
 					if (set == 0) {
 						/* Reuse it for my new tag */
 						twait_block->vtag_block[i].tv_sec_at_expire = now.tv_sec + time;
 						twait_block->vtag_block[i].v_tag = tag;
+						twait_block->vtag_block[i].lport = lport;
+						twait_block->vtag_block[i].rport = rport;
 						set = 1;
 					}
 				}
@@ -4267,6 +4356,8 @@ sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time)
 		LIST_INSERT_HEAD(chain, twait_block, sctp_nxt_tagblock);
 		twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec + time;
 		twait_block->vtag_block[0].v_tag = tag;
+		twait_block->vtag_block[0].lport = lport;
+		twait_block->vtag_block[0].rport = rport;
 	}
 }
 
@@ -4549,8 +4640,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	if (inp->sctp_tcbhash) {
 		LIST_REMOVE(stcb, sctp_tcbhash);
 	}
-	if (stcb->asoc.in_restart_hash) {
-		LIST_REMOVE(stcb, sctp_tcbrestarhash);
+	if (stcb->asoc.in_asocid_hash) {
+		LIST_REMOVE(stcb, sctp_tcbasocidhash);
 	}
 	/* Now lets remove it from the list of ALL associations in the EP */
 	LIST_REMOVE(stcb, sctp_tcblist);
@@ -4561,7 +4652,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(asoc->my_vtag, SCTP_TIME_WAIT);
+	sctp_add_vtag_to_timewait(asoc->my_vtag, inp->sctp_lport, stcb->rport, SCTP_TIME_WAIT);
 
 	/*
 	 * Now restop the timers to be sure - this is paranoia at is finest!
@@ -4602,6 +4693,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			}
 			sctp_free_remote_addr(sp->net);
 			sctp_free_spbufspace(stcb, asoc, sp);
+			if (sp->holds_key_ref)
+				sctp_auth_key_release(stcb, sp->auth_keyid);
 			/* Free the zone stuff  */
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), sp);
 			SCTP_DECR_STRMOQ_COUNT();
@@ -4640,6 +4733,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_m_freem(chk->data);
 			chk->data = NULL;
 		}
+		if (chk->holds_key_ref)
+			sctp_auth_key_release(stcb, chk->auth_keyid);
 		ccnt++;
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
 		SCTP_DECR_CHK_COUNT();
@@ -4657,6 +4752,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
@@ -4680,6 +4777,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
@@ -4703,6 +4802,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
@@ -4727,6 +4828,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid);
 			ccnt++;
 			sctp_free_remote_addr(chk->whoTo);
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
@@ -4749,6 +4852,8 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 				sctp_m_freem(chk->data);
 				chk->data = NULL;
 			}
+			if (chk->holds_key_ref)
+				sctp_auth_key_release(stcb, chk->auth_keyid);
 			sctp_free_remote_addr(chk->whoTo);
 			ccnt++;
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_chunk), chk);
@@ -5310,17 +5415,12 @@ sctp_pcb_init()
 	    &SCTP_BASE_INFO(hashtcpmark));
 	SCTP_BASE_INFO(hashtblsize) = SCTP_BASE_SYSCTL(sctp_hashtblsize);
 
-	/* init the small hash table we use to track restarted asoc's */
-	SCTP_BASE_INFO(sctp_restarthash) = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE,
-	    &SCTP_BASE_INFO(hashrestartmark));
-
 
 	SCTP_BASE_INFO(sctp_vrfhash) = SCTP_HASH_INIT(SCTP_SIZE_OF_VRF_HASH,
 	    &SCTP_BASE_INFO(hashvrfmark));
 
 	SCTP_BASE_INFO(vrf_ifn_hash) = SCTP_HASH_INIT(SCTP_VRF_IFN_HASH_SIZE,
 	    &SCTP_BASE_INFO(vrf_ifn_hashmark));
-
 	/* init the zones */
 	/*
 	 * FIX ME: Should check for NULL returns, but if it does fail we are
@@ -5508,8 +5608,6 @@ sctp_pcb_finish(void)
 		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_ephash), SCTP_BASE_INFO(hashmark));
 	if (SCTP_BASE_INFO(sctp_tcpephash) != NULL)
 		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_tcpephash), SCTP_BASE_INFO(hashtcpmark));
-	if (SCTP_BASE_INFO(sctp_restarthash) != NULL)
-		SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_restarthash), SCTP_BASE_INFO(hashrestartmark));
 
 }
 
@@ -5900,6 +5998,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			if (lsa) {
 				(void)sctp_set_primary_addr(stcb, sa, NULL);
 			}
+		} else if (ptype == SCTP_HAS_NAT_SUPPORT) {
+			stcb->asoc.peer_supports_nat = 1;
 		} else if (ptype == SCTP_PRSCTP_SUPPORTED) {
 			/* Peer supports pr-sctp */
 			stcb->asoc.peer_supports_prsctp = 1;
@@ -6180,7 +6280,7 @@ sctp_set_primary_addr(struct sctp_tcb *stcb, struct sockaddr *sa,
 }
 
 int
-sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, struct timeval *now, int save_in_twait)
+sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *now, int save_in_twait)
 {
 	/*
 	 * This function serves two purposes. It will see if a TAG can be
@@ -6188,54 +6288,45 @@ sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, struct timeval *now, int
 	 * tag. A secondary function it will do is purge out old tags that
 	 * can be removed.
 	 */
-	struct sctpasochead *head;
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
+	struct sctpasochead *head;
 	struct sctp_tcb *stcb;
 	int i;
 
-	SCTP_INP_INFO_WLOCK();
-	chain = &SCTP_BASE_INFO(vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE))];
-	/* First is the vtag in use ? */
-
+	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(tag,
 	    SCTP_BASE_INFO(hashasocmark))];
 	if (head == NULL) {
-		goto check_restart;
+		/* invalid vtag */
+		goto skip_vtag_check;
 	}
 	LIST_FOREACH(stcb, head, sctp_asocs) {
-
+		/*
+		 * We choose not to lock anything here. TCB's can't be
+		 * removed since we have the read lock, so they can't be
+		 * freed on us, same thing for the INP. I may be wrong with
+		 * this assumption, but we will go with it for now :-)
+		 */
+		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
+			continue;
+		}
 		if (stcb->asoc.my_vtag == tag) {
-			/*
-			 * We should remove this if and return 0 always if
-			 * we want vtags unique across all endpoints. For
-			 * now within a endpoint is ok.
-			 */
-			if (inp == stcb->sctp_ep) {
-				/* bad tag, in use */
-				SCTP_INP_INFO_WUNLOCK();
-				return (0);
-			}
-		}
-	}
-check_restart:
-	/* Now lets check the restart hash */
-	head = &SCTP_BASE_INFO(sctp_restarthash)[SCTP_PCBHASH_ASOC(tag,
-	    SCTP_BASE_INFO(hashrestartmark))];
-	if (head == NULL) {
-		goto check_time_wait;
-	}
-	LIST_FOREACH(stcb, head, sctp_tcbrestarhash) {
-		if (stcb->asoc.assoc_id == tag) {
 			/* candidate */
-			if (inp == stcb->sctp_ep) {
-				/* bad tag, in use */
-				SCTP_INP_INFO_WUNLOCK();
-				return (0);
+			if (stcb->rport != rport) {
+				continue;
 			}
+			if (stcb->sctp_ep->sctp_lport != lport) {
+				continue;
+			}
+			/* Its a used tag set */
+			SCTP_INP_INFO_WUNLOCK();
+			return (0);
 		}
 	}
-check_time_wait:
+skip_vtag_check:
+
+	chain = &SCTP_BASE_INFO(vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE))];
 	/* Now what about timed wait ? */
 	if (!SCTP_LIST_EMPTY(chain)) {
 		/*
@@ -6252,8 +6343,9 @@ check_time_wait:
 					/* Audit expires this guy */
 					twait_block->vtag_block[i].tv_sec_at_expire = 0;
 					twait_block->vtag_block[i].v_tag = 0;
-				} else if (twait_block->vtag_block[i].v_tag ==
-				    tag) {
+				} else if ((twait_block->vtag_block[i].v_tag == tag) &&
+					    (twait_block->vtag_block[i].lport == lport) &&
+				    (twait_block->vtag_block[i].rport == rport)) {
 					/* Bad tag, sorry :< */
 					SCTP_INP_INFO_WUNLOCK();
 					return (0);
@@ -6261,6 +6353,8 @@ check_time_wait:
 			}
 		}
 	}
+	SCTP_INP_INFO_RUNLOCK();
+#ifdef MICHAELS_EXPERIMENT
 	/*-
 	 * Not found, ok to use the tag, add it to the time wait hash
 	 * as well this will prevent two sucessive cookies from getting
@@ -6269,9 +6363,12 @@ check_time_wait:
 	 * add this tag to the assoc hash we need to purge it from
 	 * the t-wait hash.
 	 */
+	SCTP_INP_INFO_WLOCK();
 	if (save_in_twait)
-		sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life));
+		sctp_add_vtag_to_timewait(tag, TICKS_TO_SEC(inp->sctp_ep.def_cookie_life, lport, rport));
 	SCTP_INP_INFO_WUNLOCK();
+#endif
+
 	return (1);
 }
 

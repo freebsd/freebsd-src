@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -111,6 +111,7 @@ struct sctp_paramhdr {
 /* explict EOR signalling */
 #define SCTP_EXPLICIT_EOR               0x0000001b
 #define SCTP_REUSE_PORT                 0x0000001c	/* rw */
+#define SCTP_AUTH_DEACTIVATE_KEY	0x0000001d
 
 /*
  * read-only options
@@ -154,6 +155,8 @@ struct sctp_paramhdr {
 /* CMT ON/OFF socket option */
 #define SCTP_CMT_ON_OFF                 0x00001200
 #define SCTP_CMT_USE_DAC                0x00001201
+/* EY - NR_SACK on/off socket option */
+#define SCTP_NR_SACK_ON_OFF                 0x00001300
 /* JRS - Pluggable Congestion Control Socket option */
 #define SCTP_PLUGGABLE_CC				0x00001202
 
@@ -293,11 +296,15 @@ struct sctp_paramhdr {
 #define SCTP_CAUSE_PROTOCOL_VIOLATION	0x000d
 
 /* Error causes from RFC5061 */
-#define SCTP_CAUSE_DELETING_LAST_ADDR	0xa0
-#define SCTP_CAUSE_RESOURCE_SHORTAGE	0xa1
-#define SCTP_CAUSE_DELETING_SRC_ADDR	0xa2
-#define SCTP_CAUSE_ILLEGAL_ASCONF_ACK	0xa3
-#define SCTP_CAUSE_REQUEST_REFUSED	0xa4
+#define SCTP_CAUSE_DELETING_LAST_ADDR	0x00a0
+#define SCTP_CAUSE_RESOURCE_SHORTAGE	0x00a1
+#define SCTP_CAUSE_DELETING_SRC_ADDR	0x00a2
+#define SCTP_CAUSE_ILLEGAL_ASCONF_ACK	0x00a3
+#define SCTP_CAUSE_REQUEST_REFUSED	0x00a4
+
+/* Error causes from nat-draft */
+#define SCTP_CAUSE_NAT_COLLIDING_STATE  0x00b0
+#define SCTP_CAUSE_NAT_MISSING_STATE    0x00b1
 
 /* Error causes from RFC4895 */
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
@@ -364,6 +371,8 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_SHUTDOWN_COMPLETE	0x0e
 /* RFC4895 */
 #define SCTP_AUTHENTICATION     0x0f
+/* EY nr_sack chunk id*/
+#define SCTP_NR_SELECTIVE_ACK 0x10
 /************0x40 series ***********/
 /************0x80 series ***********/
 /* RFC5061 */
@@ -406,6 +415,9 @@ struct sctp_error_unrecognized_chunk {
 /* ECN Nonce: SACK Chunk Specific Flags */
 #define SCTP_SACK_NONCE_SUM        0x01
 
+/* EY nr_sack all bit - All bit is the 2nd LSB of nr_sack chunk flags*/
+/* if All bit is set in an nr-sack chunk, then all nr gap acks gap acks*/
+#define SCTP_NR_SACK_ALL_BIT	0x02
 /* CMT DAC algorithm SACK flag */
 #define SCTP_SACK_CMT_DAC          0x80
 
@@ -467,6 +479,7 @@ struct sctp_error_unrecognized_chunk {
 #define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4	0x00800000
 #define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS	0x01000000
 #define SCTP_PCB_FLAGS_PORTREUSE        0x02000000
+#define SCTP_PCB_FLAGS_DRYEVNT          0x04000000
 /*-
  * mobility_features parameters (by micchie).Note
  * these features are applied against the
