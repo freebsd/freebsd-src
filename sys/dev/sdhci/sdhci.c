@@ -301,8 +301,10 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 
 	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
 
-	if (mask & SDHCI_RESET_ALL)
+	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
+		slot->power = 0;
+	}
 
 	/* Wait max 100 ms */
 	timeout = 100;
@@ -904,8 +906,11 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 
 	/* Read controller present state. */
 	state = RD4(slot, SDHCI_PRESENT_STATE);
-	/* Do not issue command if there is no card. */
-	if ((state & SDHCI_CARD_PRESENT) == 0) {
+	/* Do not issue command if there is no card, clock or power.
+	 * Controller will not detect timeout without clock active. */
+	if ((state & SDHCI_CARD_PRESENT) == 0 ||
+	    slot->power == 0 ||
+	    slot->clock == 0) {
 		cmd->error = MMC_ERR_FAILED;
 		slot->req = NULL;
 		slot->curcmd = NULL;
