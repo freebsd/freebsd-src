@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd November 15, 2005
+.Dd January 16, 2008
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -238,6 +238,16 @@ contains the instructions to automatically process
 .Xr boot 8 ,
 .Xr loader 8 ,
 .Xr loader.4th 8
+.Sh BUGS
+The
+.Xr loader 8
+stops reading
+.Nm
+when it encounters a syntax error, so any options which are vital for
+booting a particular system (i.e.\& 
+.Dq Va hw.ata.ata_dma Ns "=0" )
+should precede any experimental additions to
+.Nm .
 .Sh HISTORY
 The file
 .Nm
