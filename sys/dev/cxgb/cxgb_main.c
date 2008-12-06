@@ -281,6 +281,7 @@ struct cxgb_ident {
 	{PCI_VENDOR_ID_CHELSIO, 0x0031, 3, "T3B20"},
 	{PCI_VENDOR_ID_CHELSIO, 0x0032, 1, "T3B02"},
 	{PCI_VENDOR_ID_CHELSIO, 0x0033, 4, "T3B04"},
+	{PCI_VENDOR_ID_CHELSIO, 0x0035, 6, "N310E"},
 	{0, 0, 0, NULL}
 };
 
@@ -444,12 +445,14 @@ cxgb_controller_attach(device_t dev)
 		return (ENXIO);
 	}
 	sc->udbs_rid = PCIR_BAR(2);
-	if ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-           &sc->udbs_rid, RF_ACTIVE)) == NULL) {
+	sc->udbs_res = NULL;
+	if (is_offload(sc) &&
+	    ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		   &sc->udbs_rid, RF_ACTIVE)) == NULL)) {
 		device_printf(dev, "Cannot allocate BAR region 1\n");
 		error = ENXIO;
 		goto out;
-       }
+	}
 
 	snprintf(sc->lockbuf, ADAPTER_LOCK_NAME_LEN, "cxgb controller lock %d",
 	    device_get_unit(dev));
