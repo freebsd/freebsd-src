@@ -57,11 +57,10 @@ archive_read_support_format_empty(struct archive *_a)
 static int
 archive_read_format_empty_bid(struct archive_read *a)
 {
-	int bytes_read;
 	const void *h;
 
-	bytes_read = (a->decompressor->read_ahead)(a, &h, 1);
-	if (bytes_read > 0)
+	h = __archive_read_ahead(a, 1, NULL);
+	if (h != NULL)
 		return (-1);
 	return (1);
 }
