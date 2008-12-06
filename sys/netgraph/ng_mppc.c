@@ -492,17 +492,18 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 		/* Work with contiguous regions of memory. */
 		inlen = m->m_pkthdr.len;
 		inbuf = malloc(inlen, M_NETGRAPH_MPPC, M_NOWAIT);
-		if (inbuf == NULL) {
-			m_freem(m);
-			return (ENOMEM);
-		}
+		if (inbuf == NULL)
+			goto err1;
 		m_copydata(m, 0, inlen, (caddr_t)inbuf);
 
 		outlen = MPPC_MAX_BLOWUP(inlen);
 		outbuf = malloc(outlen, M_NETGRAPH_MPPC, M_NOWAIT);
 		if (outbuf == NULL) {
-			m_freem(m);
 			free(inbuf, M_NETGRAPH_MPPC);
+err1:
+			m_freem(m);
+			MPPC_InitCompressionHistory(d->history);
+			d->flushed = 1;
 			return (ENOMEM);
 		}
 
@@ -538,8 +539,13 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 		free(outbuf, M_NETGRAPH_MPPC);
 
 		/* Check m_devget() result. */
-		if (m == NULL)
+		if (m == NULL) {
+			if (!d->flushed) {
+				MPPC_InitCompressionHistory(d->history);
+				d->flushed = 1;
+			}
 			return (ENOMEM);
+		}
 	}
 #endif
 
@@ -551,6 +557,18 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 		/* Set header bits */
 		header |= MPPC_FLAG_ENCRYPTED;
 
+		/* We must own the mbuf chain exclusively to modify it. */
+		m = m_unshare(m, M_DONTWAIT);
+		if (m == NULL) {
+			if (!d->flushed) {
+#ifdef NETGRAPH_MPPC_COMPRESSION
+				MPPC_InitCompressionHistory(d->history);
+#endif
+				d->flushed = 1;
+			}
+			return (ENOMEM);
+		}
+
 		/* Update key if it's time */
 		if ((d->cfg.bits & MPPE_STATELESS) != 0
 		    || (d->cc & MPPE_UPDATE_MASK) == MPPE_UPDATE_FLAG) {
@@ -561,11 +579,6 @@ ng_mppc_compress(node_p node, struct mbuf **datap)
 			   and ng_mppc_updatekey wasn't called to do it also. */
 			rc4_init(&d->rc4, d->key, KEYLEN(d->cfg.bits));
 		}
-
-		/* We must own the mbuf chain exclusively to modify it. */
-		m = m_unshare(m, M_DONTWAIT);
-		if (m == NULL)
-			return (ENOMEM);
 
 		/* Encrypt packet */
 		m1 = m;
