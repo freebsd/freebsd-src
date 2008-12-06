@@ -39,10 +39,7 @@
 /* archive.h and archive_entry.h require this. */
 #define	__LIBARCHIVE_BUILD 1
 
-#ifdef _WIN32
-#include "config_windows.h"
-#include "archive_windows.h"
-#elif defined(PLATFORM_CONFIG_H)
+#if defined(PLATFORM_CONFIG_H)
 /* Use hand-built config.h in environments that need it. */
 #include PLATFORM_CONFIG_H
 #elif defined(HAVE_CONFIG_H)
