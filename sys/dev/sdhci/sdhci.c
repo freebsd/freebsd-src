@@ -1207,7 +1207,7 @@ sdhci_acquire_host(device_t brdev, device_t reqdev)
 
 	SDHCI_LOCK(slot);
 	while (slot->bus_busy)
-		msleep(slot, &slot->mtx, PZERO, "sdhciah", hz / 5);
+		msleep(slot, &slot->mtx, 0, "sdhciah", 0);
 	slot->bus_busy++;
 	/* Activate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl |= SDHCI_CTRL_LED);
@@ -1224,8 +1224,8 @@ sdhci_release_host(device_t brdev, device_t reqdev)
 	/* Deactivate led. */
 	WR1(slot, SDHCI_HOST_CONTROL, slot->hostctrl &= ~SDHCI_CTRL_LED);
 	slot->bus_busy--;
-	wakeup(slot);
 	SDHCI_UNLOCK(slot);
+	wakeup(slot);
 	return (0);
 }
 
