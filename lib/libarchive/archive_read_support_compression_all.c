@@ -39,5 +39,11 @@ archive_read_support_compression_all(struct archive *a)
 #if HAVE_ZLIB_H
 	archive_read_support_compression_gzip(a);
 #endif
+#if HAVE_LZMADEC_H
+	/* LZMA bidding is subject to false positives because
+	 * the LZMA file format has a very weak signature.  It
+	 * may not be feasible to include LZMA detection here. */
+	/* archive_read_support_compression_lzma(a); */
+#endif
 	return (ARCHIVE_OK);
 }

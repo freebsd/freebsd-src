@@ -51,32 +51,54 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ZLIB_H
 struct private_data {
 	z_stream	 stream;
-	unsigned char	*uncompressed_buffer;
-	size_t		 uncompressed_buffer_size;
-	unsigned char	*read_next;
+	unsigned char	*out_block;
+	size_t		 out_block_size;
 	int64_t		 total_out;
 	unsigned long	 crc;
+	int		 header_count;
 	char		 header_done;
+	char		 header_state;
+	char		 header_flags;
 	char		 eof; /* True = found end of compressed data. */
 };
 
-static int	finish(struct archive_read *);
-static ssize_t	read_ahead(struct archive_read *, const void **, size_t);
-static ssize_t	read_consume(struct archive_read *, size_t);
-static int	drive_decompressor(struct archive_read *a, struct private_data *);
+/* Gzip Source. */
+static ssize_t	gzip_source_read(struct archive_read_source *, const void **);
+static int	gzip_source_close(struct archive_read_source *);
 #endif
 
-/* These two functions are defined even if we lack the library.  See below. */
-static int	bid(const void *, size_t);
-static int	init(struct archive_read *, const void *, size_t);
+/*
+ * Note that we can detect gzip archives even if we can't decompress
+ * them.  (In fact, we like detecting them because we can give better
+ * error messages.)  So the bid framework here gets compiled even
+ * if zlib is unavailable.
+ */
+static int	gzip_reader_bid(struct archive_reader *, const void *, size_t);
+static struct archive_read_source *gzip_reader_init(struct archive_read *,
+    struct archive_reader *, struct archive_read_source *,
+    const void *, size_t);
+static int	gzip_reader_free(struct archive_reader *);
 
 int
 archive_read_support_compression_gzip(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	if (__archive_read_register_compression(a, bid, init) != NULL)
-		return (ARCHIVE_OK);
-	return (ARCHIVE_FATAL);
+	struct archive_reader *reader = __archive_read_get_reader(a);
+
+	if (reader == NULL)
+		return (ARCHIVE_FATAL);
+
+	reader->data = NULL;
+	reader->bid = gzip_reader_bid;
+	reader->init = gzip_reader_init;
+	reader->free = gzip_reader_free;
+	return (ARCHIVE_OK);
+}
+
+static int
+gzip_reader_free(struct archive_reader *self){
+	(void)self; /* UNUSED */
+	return (ARCHIVE_OK);
 }
 
 /*
@@ -87,10 +109,12 @@ archive_read_support_compression_gzip(struct archive *_a)
  * from verifying as much as we would like.
  */
 static int
-bid(const void *buff, size_t len)
+gzip_reader_bid(struct archive_reader *self, const void *buff, size_t len)
 {
 	const unsigned char *buffer;
 	int bits_checked;
+
+	(void)self; /* UNUSED */
 
 	if (len < 1)
 		return (0);
@@ -139,8 +163,9 @@ bid(const void *buff, size_t len)
  * decompression.  We can, however, still detect compressed archives
  * and emit a useful message.
  */
-static int
-init(struct archive_read *a, const void *buff, size_t n)
+static struct archive_read_source *
+gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
+    struct archive_read_source *upstream, const void *buff, size_t n)
 {
 	(void)a;	/* UNUSED */
 	(void)buff;	/* UNUSED */
@@ -148,49 +173,52 @@ init(struct archive_read *a, const void *buff, size_t n)
 
 	archive_set_error(&a->archive, -1,
 	    "This version of libarchive was compiled without gzip support");
-	return (ARCHIVE_FATAL);
+	return (NULL);
 }
-
 
 #else
 
 /*
- * Setup the callbacks.
+ * Initialize the source object.
  */
-static int
-init(struct archive_read *a, const void *buff, size_t n)
+static struct archive_read_source *
+gzip_reader_init(struct archive_read *a, struct archive_reader *reader,
+    struct archive_read_source *upstream, const void *buff, size_t n)
 {
+	static const size_t out_block_size = 64 * 1024;
+	void *out_block;
+	struct archive_read_source *self;
 	struct private_data *state;
-	int ret;
+
+	(void)reader; /* UNUSED */
 
 	a->archive.compression_code = ARCHIVE_COMPRESSION_GZIP;
 	a->archive.compression_name = "gzip";
 
-	state = (struct private_data *)malloc(sizeof(*state));
-	if (state == NULL) {
+	self = calloc(sizeof(*self), 1);
+	state = (struct private_data *)calloc(sizeof(*state), 1);
+	out_block = (unsigned char *)malloc(out_block_size);
+	if (self == NULL || state == NULL || out_block == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for %s decompression",
 		    a->archive.compression_name);
-		return (ARCHIVE_FATAL);
+		free(out_block);
+		free(state);
+		free(self);
+		return (NULL);
 	}
-	memset(state, 0, sizeof(*state));
+
+	self->archive = a;
+	self->data = state;
+	state->out_block_size = out_block_size;
+	state->out_block = out_block;
+	self->upstream = upstream;
+	self->read = gzip_source_read;
+	self->skip = NULL; /* not supported */
+	self->close = gzip_source_close;
 
 	state->crc = crc32(0L, NULL, 0);
 	state->header_done = 0; /* We've not yet begun to parse header... */
-
-	state->uncompressed_buffer_size = 64 * 1024;
-	state->uncompressed_buffer = (unsigned char *)malloc(state->uncompressed_buffer_size);
-	state->stream.next_out = state->uncompressed_buffer;
-	state->read_next = state->uncompressed_buffer;
-	state->stream.avail_out = state->uncompressed_buffer_size;
-
-	if (state->uncompressed_buffer == NULL) {
-		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate %s decompression buffers",
-		    a->archive.compression_name);
-		free(state);
-		return (ARCHIVE_FATAL);
-	}
 
 	/*
 	 * A bug in zlib.h: stream.next_in should be marked 'const'
@@ -201,349 +229,262 @@ init(struct archive_read *a, const void *buff, size_t n)
 	state->stream.next_in = (Bytef *)(uintptr_t)(const void *)buff;
 	state->stream.avail_in = n;
 
-	a->decompressor->read_ahead = read_ahead;
-	a->decompressor->consume = read_consume;
-	a->decompressor->skip = NULL; /* not supported */
-	a->decompressor->finish = finish;
-
-	/*
-	 * TODO: Do I need to parse the gzip header before calling
-	 * inflateInit2()?  In particular, one of the header bytes
-	 * marks "best compression" or "fastest", which may be
-	 * appropriate for setting the second parameter here.
-	 * However, I think the only penalty for not setting it
-	 * correctly is wasted memory.  If this is necessary, it
-	 * should probably go into drive_decompressor() below.
-	 */
-
-	/* Initialize compression library. */
-	ret = inflateInit2(&(state->stream),
-	    -15 /* Don't check for zlib header */);
-	if (ret == Z_OK) {
-		a->decompressor->data = state;
-		return (ARCHIVE_OK);
-	}
-
-	/* Library setup failed: Clean up. */
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "Internal error initializing %s library",
-	    a->archive.compression_name);
-	free(state->uncompressed_buffer);
-	free(state);
-
-	/* Override the error message if we know what really went wrong. */
-	switch (ret) {
-	case Z_STREAM_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "invalid setup parameter");
-		break;
-	case Z_MEM_ERROR:
-		archive_set_error(&a->archive, ENOMEM,
-		    "Internal error initializing compression library: "
-		    "out of memory");
-		break;
-	case Z_VERSION_ERROR:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Internal error initializing compression library: "
-		    "invalid library version");
-		break;
-	}
-
-	return (ARCHIVE_FATAL);
+	return (self);
 }
 
-/*
- * Return a block of data from the decompression buffer.  Decompress more
- * as necessary.
- */
-static ssize_t
-read_ahead(struct archive_read *a, const void **p, size_t min)
+static int
+header(struct archive_read_source *self)
 {
 	struct private_data *state;
-	size_t read_avail, was_avail;
-	int ret;
+	int ret, b;
 
-	state = (struct private_data *)a->decompressor->data;
-	if (!a->client_reader) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
-		    "No read callback is registered?  "
-		    "This is probably an internal programming error.");
+	state = (struct private_data *)self->data;
+
+	/*
+	 * If still parsing the header, interpret the
+	 * next byte.
+	 */
+	b = *(state->stream.next_in++);
+	state->stream.avail_in--;
+
+	/*
+	 * Simple state machine to parse the GZip header one byte at
+	 * a time.  If you see a way to make this easier to understand,
+	 * please let me know. ;-)
+	 */
+	switch (state->header_state) {
+	case 0: /* First byte of signature. */
+		/* We only return EOF for a failure here. */
+		if (b != 037)
+			return (ARCHIVE_EOF);
+		state->header_state = 1;
+		break;
+	case 1: /* Second byte of signature. */
+	case 2: /* Compression type must be 8 == deflate. */
+		if (b != (0xff & "\037\213\010"[(int)state->header_state])) {
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Invalid GZip header (saw %d at offset %d)",
+			    b, state->header_state);
+			return (ARCHIVE_FATAL);
+		}
+		++state->header_state;
+		break;
+	case 3: /* GZip flags. */
+		state->header_flags = b;
+		state->header_state = 4;
+		break;
+	case 4: case 5: case 6: case 7: /* Mod time. */
+	case 8: /* Deflate flags. */
+	case 9: /* OS. */
+		++state->header_state;
+		break;
+	case 10: /* Optional Extra: First byte of Length. */
+		if ((state->header_flags & 4)) {
+			state->header_count = 255 & (int)b;
+			state->header_state = 11;
+			break;
+		}
+		/* Fall through if no Optional Extra field. */
+	case 11: /* Optional Extra: Second byte of Length. */
+		if ((state->header_flags & 4)) {
+			state->header_count
+			    = (0xff00 & ((int)b << 8)) | state->header_count;
+			state->header_state = 12;
+			break;
+		}
+		/* Fall through if no Optional Extra field. */
+	case 12: /* Optional Extra Field: counted length. */
+		if ((state->header_flags & 4)) {
+			--state->header_count;
+			if (state->header_count == 0) state->header_state = 13;
+			else state->header_state = 12;
+			break;
+		}
+		/* Fall through if no Optional Extra field. */
+	case 13: /* Optional Original Filename. */
+		if ((state->header_flags & 8)) {
+			if (b == 0) state->header_state = 14;
+			else state->header_state = 13;
+			break;
+		}
+		/* Fall through if no Optional Original Filename. */
+	case 14: /* Optional Comment. */
+		if ((state->header_flags & 16)) {
+			if (b == 0) state->header_state = 15;
+			else state->header_state = 14;
+			break;
+		}
+		/* Fall through if no Optional Comment. */
+	case 15: /* Optional Header CRC: First byte. */
+		if ((state->header_flags & 2)) {
+			state->header_state = 16;
+			break;
+		}
+		/* Fall through if no Optional Header CRC. */
+	case 16: /* Optional Header CRC: Second byte. */
+		if ((state->header_flags & 2)) {
+			state->header_state = 17;
+			break;
+		}
+		/* Fall through if no Optional Header CRC. */
+	case 17: /* First byte of compressed data. */
+		state->header_done = 1; /* done with header */
+		state->stream.avail_in++; /* Discard first byte. */
+		state->stream.next_in--;
+
+		/* Initialize compression library. */
+		ret = inflateInit2(&(state->stream),
+		    -15 /* Don't check for zlib header */);
+
+		/* Decipher the error code. */
+		switch (ret) {
+		case Z_OK:
+			return (ARCHIVE_OK);
+		case Z_STREAM_ERROR:
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Internal error initializing compression library: "
+			    "invalid setup parameter");
+			break;
+		case Z_MEM_ERROR:
+			archive_set_error(&self->archive->archive, ENOMEM,
+			    "Internal error initializing compression library: "
+			    "out of memory");
+			break;
+		case Z_VERSION_ERROR:
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Internal error initializing compression library: "
+			    "invalid library version");
+			break;
+		default:
+			archive_set_error(&self->archive->archive,
+			    ARCHIVE_ERRNO_MISC,
+			    "Internal error initializing compression library: "
+			    " Zlib error %d", ret);
+			break;
+		}
 		return (ARCHIVE_FATAL);
 	}
 
-	read_avail = state->stream.next_out - state->read_next;
-
-	if (read_avail + state->stream.avail_out < min) {
-		memmove(state->uncompressed_buffer, state->read_next,
-		    read_avail);
-		state->read_next = state->uncompressed_buffer;
-		state->stream.next_out = state->read_next + read_avail;
-		state->stream.avail_out
-		    = state->uncompressed_buffer_size - read_avail;
-	}
-
-	while (read_avail < min &&		/* Haven't satisfied min. */
-	    read_avail < state->uncompressed_buffer_size) { /* !full */
-		was_avail = read_avail;
-		if ((ret = drive_decompressor(a, state)) < ARCHIVE_OK)
-			return (ret);
-		if (ret == ARCHIVE_EOF)
-			break; /* Break on EOF even if we haven't met min. */
-		read_avail = state->stream.next_out - state->read_next;
-		if (was_avail == read_avail) /* No progress? */
-			break;
-	}
-
-	*p = state->read_next;
-	return (read_avail);
+	return (ARCHIVE_OK);
 }
 
-/*
- * Mark a previously-returned block of data as read.
- */
 static ssize_t
-read_consume(struct archive_read *a, size_t n)
+gzip_source_read(struct archive_read_source *self, const void **p)
 {
 	struct private_data *state;
+	size_t read_avail, decompressed;
+	const void *read_buf;
+	int ret;
 
-	state = (struct private_data *)a->decompressor->data;
-	a->archive.file_position += n;
-	state->read_next += n;
-	if (state->read_next > state->stream.next_out)
-		__archive_errx(1, "Request to consume too many "
-		    "bytes from gzip decompressor");
-	return (n);
+	state = (struct private_data *)self->data;
+	read_avail = 0;
+
+	/* Empty our output buffer. */
+	state->stream.next_out = state->out_block;
+	state->stream.avail_out = state->out_block_size;
+
+	/* Try to fill the output buffer. */
+	while (state->stream.avail_out > 0 && !state->eof) {
+		/* If the last upstream block is done, get another one. */
+		if (state->stream.avail_in == 0) {
+			ret = (self->upstream->read)(self->upstream,
+			    &read_buf);
+			/* stream.next_in is really const, but zlib
+			 * doesn't declare it so. <sigh> */
+			state->stream.next_in
+			    = (unsigned char *)(uintptr_t)read_buf;
+			if (ret < 0)
+				return (ARCHIVE_FATAL);
+			state->stream.avail_in = ret;
+			/* There is no more data, return whatever we have. */
+			if (ret == 0) {
+				state->eof = 1;
+				break;
+			}
+		}
+
+		/* If we're still parsing header bytes, walk through those. */
+		if (!state->header_done) {
+			ret = header(self);
+			if (ret < ARCHIVE_OK)
+				return (ret);
+			if (ret == ARCHIVE_EOF)
+				state->eof = 1;
+		} else {
+			/* Decompress as much as we can in one pass. */
+			/* XXX Skip trailer XXX */
+			ret = inflate(&(state->stream), 0);
+			switch (ret) {
+			case Z_STREAM_END: /* Found end of stream. */
+				switch (inflateEnd(&(state->stream))) {
+				case Z_OK:
+					break;
+				default:
+					archive_set_error(&self->archive->archive,
+						ARCHIVE_ERRNO_MISC,
+						"Failed to clean up gzip decompressor");
+					return (ARCHIVE_FATAL);
+				}
+				/* Restart header parser with the next block. */
+				state->header_state = state->header_done = 0;
+				/* FALL THROUGH */
+			case Z_OK: /* Decompressor made some progress. */
+				/* If we filled our buffer, update stats and return. */
+				break;
+			default:
+				/* Return an error. */
+				archive_set_error(&self->archive->archive,
+						  ARCHIVE_ERRNO_MISC,
+						  "%s decompression failed",
+						  self->archive->archive.compression_name);
+				return (ARCHIVE_FATAL);
+			}
+		}
+	}
+
+	/* We've read as much as we can. */
+	decompressed = state->stream.next_out - state->out_block;
+	state->total_out += decompressed;
+	if (decompressed == 0)
+		*p = NULL;
+	else
+		*p = state->out_block;
+	return (decompressed);
+
 }
 
 /*
  * Clean up the decompressor.
  */
 static int
-finish(struct archive_read *a)
+gzip_source_close(struct archive_read_source *self)
 {
 	struct private_data *state;
 	int ret;
 
-	state = (struct private_data *)a->decompressor->data;
+	state = (struct private_data *)self->data;
 	ret = ARCHIVE_OK;
-	switch (inflateEnd(&(state->stream))) {
-	case Z_OK:
-		break;
-	default:
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "Failed to clean up %s compressor",
-		    a->archive.compression_name);
-		ret = ARCHIVE_FATAL;
+
+	if (state->header_done) {
+		switch (inflateEnd(&(state->stream))) {
+		case Z_OK:
+			break;
+		default:
+			archive_set_error(&(self->archive->archive),
+					  ARCHIVE_ERRNO_MISC,
+					  "Failed to clean up %s compressor",
+					  self->archive->archive.compression_name);
+			ret = ARCHIVE_FATAL;
+		}
 	}
 
-	free(state->uncompressed_buffer);
+	free(state->out_block);
 	free(state);
-
-	a->decompressor->data = NULL;
+	free(self);
 	return (ret);
-}
-
-/*
- * Utility function to pull data through decompressor, reading input
- * blocks as necessary.
- */
-static int
-drive_decompressor(struct archive_read *a, struct private_data *state)
-{
-	ssize_t ret;
-	size_t decompressed, total_decompressed;
-	int count, flags, header_state;
-	unsigned char *output;
-	unsigned char b;
-	const void *read_buf;
-
-	if (state->eof)
-		return (ARCHIVE_EOF);
-	flags = 0;
-	count = 0;
-	header_state = 0;
-	total_decompressed = 0;
-	for (;;) {
-		if (state->stream.avail_in == 0) {
-			read_buf = state->stream.next_in;
-			ret = (a->client_reader)(&a->archive, a->client_data,
-			    &read_buf);
-			state->stream.next_in = (unsigned char *)(uintptr_t)read_buf;
-			if (ret < 0) {
-				/*
-				 * TODO: Find a better way to handle
-				 * this read failure.
-				 */
-				goto fatal;
-			}
-			if (ret == 0  &&  total_decompressed == 0) {
-				archive_set_error(&a->archive, EIO,
-				    "Premature end of %s compressed data",
-				    a->archive.compression_name);
-				return (ARCHIVE_FATAL);
-			}
-			a->archive.raw_position += ret;
-			state->stream.avail_in = ret;
-		}
-
-		if (!state->header_done) {
-			/*
-			 * If still parsing the header, interpret the
-			 * next byte.
-			 */
-			b = *(state->stream.next_in++);
-			state->stream.avail_in--;
-
-			/*
-			 * Yes, this is somewhat crude, but it works,
-			 * GZip format isn't likely to change anytime
-			 * in the near future, and header parsing is
-			 * certainly not a performance issue, so
-			 * there's little point in making this more
-			 * elegant.  Of course, if you see an easy way
-			 * to make this more elegant, please let me
-			 * know.. ;-)
-			 */
-			switch (header_state) {
-			case 0: /* First byte of signature. */
-				if (b != 037)
-					goto fatal;
-				header_state = 1;
-				break;
-			case 1: /* Second byte of signature. */
-				if (b != 0213)
-					goto fatal;
-				header_state = 2;
-				break;
-			case 2: /* Compression type must be 8. */
-				if (b != 8)
-					goto fatal;
-				header_state = 3;
-				break;
-			case 3: /* GZip flags. */
-				flags = b;
-				header_state = 4;
-				break;
-			case 4: case 5: case 6: case 7: /* Mod time. */
-				header_state++;
-				break;
-			case 8: /* Deflate flags. */
-				header_state = 9;
-				break;
-			case 9: /* OS. */
-				header_state = 10;
-				break;
-			case 10: /* Optional Extra: First byte of Length. */
-				if ((flags & 4)) {
-					count = 255 & (int)b;
-					header_state = 11;
-					break;
-				}
-				/*
-				 * Fall through if there is no
-				 * Optional Extra field.
-				 */
-			case 11: /* Optional Extra: Second byte of Length. */
-				if ((flags & 4)) {
-					count = (0xff00 & ((int)b << 8)) | count;
-					header_state = 12;
-					break;
-				}
-				/*
-				 * Fall through if there is no
-				 * Optional Extra field.
-				 */
-			case 12: /* Optional Extra Field: counted length. */
-				if ((flags & 4)) {
-					--count;
-					if (count == 0) header_state = 13;
-					else header_state = 12;
-					break;
-				}
-				/*
-				 * Fall through if there is no
-				 * Optional Extra field.
-				 */
-			case 13: /* Optional Original Filename. */
-				if ((flags & 8)) {
-					if (b == 0) header_state = 14;
-					else header_state = 13;
-					break;
-				}
-				/*
-				 * Fall through if no Optional
-				 * Original Filename.
-				 */
-			case 14: /* Optional Comment. */
-				if ((flags & 16)) {
-					if (b == 0) header_state = 15;
-					else header_state = 14;
-					break;
-				}
-				/* Fall through if no Optional Comment. */
-			case 15: /* Optional Header CRC: First byte. */
-				if ((flags & 2)) {
-					header_state = 16;
-					break;
-				}
-				/* Fall through if no Optional Header CRC. */
-			case 16: /* Optional Header CRC: Second byte. */
-				if ((flags & 2)) {
-					header_state = 17;
-					break;
-				}
-				/* Fall through if no Optional Header CRC. */
-			case 17: /* First byte of compressed data. */
-				state->header_done = 1; /* done with header */
-				state->stream.avail_in++;
-				state->stream.next_in--;
-			}
-
-			/*
-			 * TODO: Consider moving the inflateInit2 call
-			 * here so it can include the compression type
-			 * from the header?
-			 */
-		} else {
-			output = state->stream.next_out;
-
-			/* Decompress some data. */
-			ret = inflate(&(state->stream), 0);
-			decompressed = state->stream.next_out - output;
-
-			/* Accumulate the CRC of the uncompressed data. */
-			state->crc = crc32(state->crc, output, decompressed);
-
-			/* Accumulate the total bytes of output. */
-			state->total_out += decompressed;
-			total_decompressed += decompressed;
-
-			switch (ret) {
-			case Z_OK: /* Decompressor made some progress. */
-				if (decompressed > 0)
-					return (ARCHIVE_OK);
-				break;
-			case Z_STREAM_END: /* Found end of stream. */
-				/*
-				 * TODO: Verify gzip trailer
-				 * (uncompressed length and CRC).
-				 */
-				state->eof = 1;
-				return (ARCHIVE_OK);
-			default:
-				/* Any other return value is an error. */
-				goto fatal;
-			}
-		}
-	}
-	return (ARCHIVE_OK);
-
-	/* Return a fatal error. */
-fatal:
-	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-	    "%s decompression failed", a->archive.compression_name);
-	return (ARCHIVE_FATAL);
 }
 
 #endif /* HAVE_ZLIB_H */

@@ -165,7 +165,6 @@ archive_read_support_format_cpio(struct archive *_a)
 static int
 archive_read_format_cpio_bid(struct archive_read *a)
 {
-	int bytes_read;
 	const void *h;
 	const unsigned char *p;
 	struct cpio *cpio;
@@ -173,11 +172,7 @@ archive_read_format_cpio_bid(struct archive_read *a)
 
 	cpio = (struct cpio *)(a->format->data);
 
-	bytes_read = (a->decompressor->read_ahead)(a, &h, 6);
-	/* Convert error code into error return. */
-	if (bytes_read < 0)
-		return ((int)bytes_read);
-	if (bytes_read < 6)
+	if ((h = __archive_read_ahead(a, 6, NULL)) == NULL)
 		return (-1);
 
 	p = (const unsigned char *)h;
@@ -228,7 +223,6 @@ archive_read_format_cpio_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 	struct cpio *cpio;
-	size_t bytes;
 	const void *h;
 	size_t namelength;
 	size_t name_pad;
@@ -241,21 +235,20 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		return (r);
 
 	/* Read name from buffer. */
-	bytes = (a->decompressor->read_ahead)(a, &h, namelength + name_pad);
-	if (bytes < namelength + name_pad)
+	h = __archive_read_ahead(a, namelength + name_pad, NULL);
+	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	(a->decompressor->consume)(a, namelength + name_pad);
+	__archive_read_consume(a, namelength + name_pad);
 	archive_strncpy(&cpio->entry_name, (const char *)h, namelength);
 	archive_entry_set_pathname(entry, cpio->entry_name.s);
 	cpio->entry_offset = 0;
 
 	/* If this is a symlink, read the link contents. */
 	if (archive_entry_filetype(entry) == AE_IFLNK) {
-		bytes = (a->decompressor->read_ahead)(a, &h,
-		    cpio->entry_bytes_remaining);
-		if ((off_t)bytes < cpio->entry_bytes_remaining)
+		h = __archive_read_ahead(a, cpio->entry_bytes_remaining, NULL);
+		if (h == NULL)
 			return (ARCHIVE_FATAL);
-		(a->decompressor->consume)(a, cpio->entry_bytes_remaining);
+		__archive_read_consume(a, cpio->entry_bytes_remaining);
 		archive_strncpy(&cpio->entry_linkname, (const char *)h,
 		    cpio->entry_bytes_remaining);
 		archive_entry_set_symlink(entry, cpio->entry_linkname.s);
@@ -284,7 +277,7 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 
 	cpio = (struct cpio *)(a->format->data);
 	if (cpio->entry_bytes_remaining > 0) {
-		bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
+		*buff = __archive_read_ahead(a, 1, &bytes_read);
 		if (bytes_read <= 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > cpio->entry_bytes_remaining)
@@ -293,16 +286,16 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 		*offset = cpio->entry_offset;
 		cpio->entry_offset += bytes_read;
 		cpio->entry_bytes_remaining -= bytes_read;
-		(a->decompressor->consume)(a, bytes_read);
+		__archive_read_consume(a, bytes_read);
 		return (ARCHIVE_OK);
 	} else {
 		while (cpio->entry_padding > 0) {
-			bytes_read = (a->decompressor->read_ahead)(a, buff, 1);
+			*buff = __archive_read_ahead(a, 1, &bytes_read);
 			if (bytes_read <= 0)
 				return (ARCHIVE_FATAL);
 			if (bytes_read > cpio->entry_padding)
 				bytes_read = cpio->entry_padding;
-			(a->decompressor->consume)(a, bytes_read);
+			__archive_read_consume(a, bytes_read);
 			cpio->entry_padding -= bytes_read;
 		}
 		*buff = NULL;
@@ -339,8 +332,8 @@ find_newc_header(struct archive_read *a)
 	size_t skip, bytes, skipped = 0;
 
 	for (;;) {
-		bytes = (a->decompressor->read_ahead)(a, &h, 2048);
-		if (bytes < sizeof(struct cpio_newc_header))
+		h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), &bytes);
+		if (h == NULL)
 			return (ARCHIVE_FATAL);
 		p = h;
 		q = p + bytes;
@@ -362,7 +355,7 @@ find_newc_header(struct archive_read *a)
 				if (memcmp("07070", p, 5) == 0
 					&& is_hex(p, sizeof(struct cpio_newc_header))) {
 					skip = p - (const char *)h;
-					(a->decompressor->consume)(a, skip);
+					__archive_read_consume(a, skip);
 					skipped += skip;
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
@@ -385,7 +378,7 @@ find_newc_header(struct archive_read *a)
 			}
 		}
 		skip = p - (const char *)h;
-		(a->decompressor->consume)(a, skip);
+		__archive_read_consume(a, skip);
 		skipped += skip;
 	}
 }
@@ -396,7 +389,6 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 {
 	const void *h;
 	const struct cpio_newc_header *header;
-	size_t bytes;
 	int r;
 
 	r = find_newc_header(a);
@@ -404,10 +396,10 @@ header_newc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_newc_header));
-	if (bytes < sizeof(struct cpio_newc_header))
+	h = __archive_read_ahead(a, sizeof(struct cpio_newc_header), NULL);
+	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	(a->decompressor->consume)(a, sizeof(struct cpio_newc_header));
+	__archive_read_consume(a, sizeof(struct cpio_newc_header));
 
 	/* Parse out hex fields. */
 	header = (const struct cpio_newc_header *)h;
@@ -474,8 +466,8 @@ find_odc_header(struct archive_read *a)
 	size_t skip, bytes, skipped = 0;
 
 	for (;;) {
-		bytes = (a->decompressor->read_ahead)(a, &h, 512);
-		if (bytes < sizeof(struct cpio_odc_header))
+		h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), &bytes);
+		if (h == NULL)
 			return (ARCHIVE_FATAL);
 		p = h;
 		q = p + bytes;
@@ -495,7 +487,7 @@ find_odc_header(struct archive_read *a)
 				if (memcmp("070707", p, 6) == 0
 					&& is_octal(p, sizeof(struct cpio_odc_header))) {
 					skip = p - (const char *)h;
-					(a->decompressor->consume)(a, skip);
+					__archive_read_consume(a, skip);
 					skipped += skip;
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
@@ -518,7 +510,7 @@ find_odc_header(struct archive_read *a)
 			}
 		}
 		skip = p - (const char *)h;
-		(a->decompressor->consume)(a, skip);
+		__archive_read_consume(a, skip);
 		skipped += skip;
 	}
 }
@@ -530,7 +522,6 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 	const void *h;
 	int r;
 	const struct cpio_odc_header *header;
-	size_t bytes;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX octet-oriented cpio";
@@ -541,10 +532,10 @@ header_odc(struct archive_read *a, struct cpio *cpio,
 		return (r);
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_odc_header));
-	if (bytes < sizeof(struct cpio_odc_header))
+	h = __archive_read_ahead(a, sizeof(struct cpio_odc_header), NULL);
+	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	(a->decompressor->consume)(a, sizeof(struct cpio_odc_header));
+	__archive_read_consume(a, sizeof(struct cpio_odc_header));
 
 	/* Parse out octal fields. */
 	header = (const struct cpio_odc_header *)h;
@@ -578,16 +569,15 @@ header_bin_le(struct archive_read *a, struct cpio *cpio,
 {
 	const void *h;
 	const struct cpio_bin_header *header;
-	size_t bytes;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
 	a->archive.archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h, sizeof(struct cpio_bin_header));
-	if (bytes < sizeof(struct cpio_bin_header))
+	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
+	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	(a->decompressor->consume)(a, sizeof(struct cpio_bin_header));
+	__archive_read_consume(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
@@ -615,17 +605,15 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 {
 	const void *h;
 	const struct cpio_bin_header *header;
-	size_t bytes;
 
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
 	a->archive.archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
-	bytes = (a->decompressor->read_ahead)(a, &h,
-	    sizeof(struct cpio_bin_header));
-	if (bytes < sizeof(struct cpio_bin_header))
+	h = __archive_read_ahead(a, sizeof(struct cpio_bin_header), NULL);
+	if (h == NULL)
 	    return (ARCHIVE_FATAL);
-	(a->decompressor->consume)(a, sizeof(struct cpio_bin_header));
+	__archive_read_consume(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields. */
 	header = (const struct cpio_bin_header *)h;
