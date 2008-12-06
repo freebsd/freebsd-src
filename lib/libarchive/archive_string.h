@@ -92,6 +92,12 @@ __archive_string_copy(struct archive_string *dest, struct archive_string *src);
 #define archive_string_copy(dest, src) \
 	__archive_string_copy(dest, src)
 
+/* Concatenate one archive_string to another */
+void
+__archive_string_concat(struct archive_string *dest, struct archive_string *src);
+#define archive_string_concat(dest, src) \
+	__archive_string_concat(dest, src)
+
 /* Ensure that the underlying buffer is at least as large as the request. */
 struct archive_string *
 __archive_string_ensure(struct archive_string *, size_t);
