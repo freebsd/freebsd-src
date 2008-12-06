@@ -11,7 +11,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c ffsl.c ffsll.c fls.c flsl.c flsll.c \
 	memcpy.c memmem.c memmove.c memset.c rindex.c stpcpy.c strcasecmp.c \
 	strcat.c strcasestr.c strchr.c strcmp.c strcoll.c strcpy.c strcspn.c \
 	strdup.c strerror.c strlcat.c strlcpy.c strlen.c strmode.c strncat.c \
-	strncmp.c strncpy.c strnstr.c \
+	strncmp.c strncpy.c strndup.c strnstr.c \
 	strpbrk.c strrchr.c strsep.c strsignal.c strspn.c strstr.c strtok.c \
 	strxfrm.c swab.c wcscat.c wcschr.c wcscmp.c wcscoll.c wcscpy.c \
 	wcscspn.c wcsdup.c \
@@ -47,6 +47,7 @@ MLINKS+=strcat.3 strncat.3
 MLINKS+=strchr.3 strrchr.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 stpcpy.3
+MLINKS+=strdup.3 strndup.3
 MLINKS+=strcpy.3 strncpy.3
 MLINKS+=strerror.3 perror.3 strerror.3 sys_errlist.3 strerror.3 sys_nerr.3
 MLINKS+=strerror.3 strerror_r.3
