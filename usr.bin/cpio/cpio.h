@@ -42,8 +42,11 @@
  * functions.
  */
 struct cpio {
+	/* Option parsing */
+	const char	 *optarg;
+
 	/* Options */
-	char		 *filename;
+	const char	 *filename;
 	char		  mode; /* -i -o -p */
 	char		  compress; /* -j, -y, or -z */
 	const char	 *format; /* -H format */
