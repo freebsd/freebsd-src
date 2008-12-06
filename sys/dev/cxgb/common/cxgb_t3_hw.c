@@ -509,6 +509,12 @@ static struct adapter_info t3_adap_info[] = {
 	  F_GPIO6_OUT_VAL | F_GPIO7_OUT_VAL,
 	  { S_GPIO1, S_GPIO2, S_GPIO3, S_GPIO4 }, SUPPORTED_AUI,
 	  &mi1_mdio_ops, "Chelsio T304" },
+	{ 0 },
+	{ 1, 0, 0, 0, 0,
+	  F_GPIO1_OEN | F_GPIO2_OEN | F_GPIO4_OEN | F_GPIO6_OEN | F_GPIO7_OEN |
+	  F_GPIO10_OEN | F_GPIO1_OUT_VAL | F_GPIO6_OUT_VAL | F_GPIO10_OUT_VAL,
+	  { S_GPIO9 }, SUPPORTED_10000baseT_Full | SUPPORTED_AUI,
+	  &mi1_mdio_ext_ops, "Chelsio N310" }
 };
 
 /*
