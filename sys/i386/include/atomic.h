@@ -32,9 +32,9 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#define	mb()	__asm __volatile("lock;addl	$0,(%esp)")
-#define	wmb()	__asm __volatile("lock;addl	$0,(%esp)")
-#define	rmb()	__asm __volatile("lock;addl	$0,(%esp)")
+#define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
+#define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
+#define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
 
 /*
  * Various simple operations on memory, each of which is atomic in the
