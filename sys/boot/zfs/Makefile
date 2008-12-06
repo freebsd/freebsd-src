@@ -29,7 +29,7 @@ CFLAGS+=	-Wformat -Wall
 .if ${MACHINE_ARCH} == "amd64"
 CLEANFILES+=    machine
 machine:
-	ln -sf ${.CURDIR}/../../../i386/include machine
+	ln -sf ${.CURDIR}/../../i386/include machine
 .endif
 
 .include <bsd.lib.mk>
