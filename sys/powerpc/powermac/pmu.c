@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -65,10 +66,11 @@ static int	pmu_probe(device_t);
 static int	pmu_attach(device_t);
 static int	pmu_detach(device_t);
 
-static u_int pmu_adb_send(device_t dev, u_char command_byte, int len, 
+static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len, 
     u_char *data, u_char poll);
-static u_int pmu_adb_autopoll(device_t dev, uint16_t mask);
-static void pmu_poll(device_t dev);
+static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
+static void	pmu_poll(device_t dev);
+static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
 
 static device_method_t  pmu_methods[] = {
 	/* Device interface */
@@ -282,6 +284,8 @@ pmu_attach(device_t dev)
 	uint8_t cmd[2] = {2, 0};
 	uint8_t resp[16];
 	phandle_t node,child;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -340,6 +344,17 @@ pmu_attach(device_t dev)
 			sc->adb_bus = device_add_child(dev,"adb",-1);
 		}
 	}
+
+	/*
+	 * Set up sysctls
+	 */
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"server_mode", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		pmu_server_mode, "I", "Enable reboot after power failure");
 
 	return (bus_generic_attach(dev));
 }
@@ -613,3 +628,46 @@ pmu_adb_autopoll(device_t dev, uint16_t mask)
 	
 	return 0;
 }
+
+static int
+pmu_server_mode(SYSCTL_HANDLER_ARGS)
+{
+	struct pmu_softc *sc = arg1;
+	
+	u_int server_mode = 0;
+	uint8_t getcmd[] = {PMU_PWR_GET_POWERUP_EVENTS};
+	uint8_t setcmd[] = {0, 0, PMU_PWR_WAKEUP_AC_INSERT};
+	uint8_t resp[3];
+	int error, len;
+
+	mtx_lock(&sc->sc_mutex);
+	len = pmu_send(sc, PMU_POWER_EVENTS, 1, getcmd, 3, resp);
+	mtx_unlock(&sc->sc_mutex);
+
+	if (len == 3)
+		server_mode = (resp[2] & PMU_PWR_WAKEUP_AC_INSERT) ? 1 : 0;
+
+	error = sysctl_handle_int(oidp, &server_mode, 0, req);
+
+	if (len != 3)
+		return (EINVAL);
+
+	if (error || !req->newptr)
+		return (error);
+
+	if (server_mode == 1)
+		setcmd[0] = PMU_PWR_SET_POWERUP_EVENTS;
+	else if (server_mode == 0)
+		setcmd[0] = PMU_PWR_CLR_POWERUP_EVENTS;
+	else
+		return (EINVAL);
+
+	setcmd[1] = resp[1];
+
+	mtx_lock(&sc->sc_mutex);
+	pmu_send(sc, PMU_POWER_EVENTS, 3, setcmd, 2, resp);
+	mtx_unlock(&sc->sc_mutex);
+
+	return (0);
+}
+
