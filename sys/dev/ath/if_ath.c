@@ -6912,7 +6912,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	int error, ismcast, ismrr;
-	int hdrlen, pktlen, try0, txantenna;
+	int keyix, hdrlen, pktlen, try0, txantenna;
 	u_int8_t rix, cix, txrate, ctsrate, rate1, rate2, rate3;
 	struct ieee80211_frame *wh;
 	u_int flags, ctsduration;
@@ -6930,6 +6930,54 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	/* XXX honor IEEE80211_BPF_DATAPAD */
 	pktlen = m0->m_pkthdr.len - (hdrlen & 3) + IEEE80211_CRC_LEN;
+
+	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
+		const struct ieee80211_cipher *cip;
+		struct ieee80211_key *k;
+
+		/*
+		 * Construct the 802.11 header+trailer for an encrypted
+		 * frame. The only reason this can fail is because of an
+		 * unknown or unsupported cipher/key type.
+		 */
+		k = ieee80211_crypto_encap(ni, m0);
+		if (k == NULL) {
+			/*
+			 * This can happen when the key is yanked after the
+			 * frame was queued.  Just discard the frame; the
+			 * 802.11 layer counts failures and provides
+			 * debugging/diagnostics.
+			 */
+			ath_freetx(m0);
+			return EIO;
+		}
+		/*
+		 * Adjust the packet + header lengths for the crypto
+		 * additions and calculate the h/w key index.  When
+		 * a s/w mic is done the frame will have had any mic
+		 * added to it prior to entry so m0->m_pkthdr.len will
+		 * account for it. Otherwise we need to add it to the
+		 * packet length.
+		 */
+		cip = k->wk_cipher;
+		hdrlen += cip->ic_header;
+		pktlen += cip->ic_header + cip->ic_trailer;
+		/* NB: frags always have any TKIP MIC done in s/w */
+		if ((k->wk_flags & IEEE80211_KEY_SWMIC) == 0)
+			pktlen += cip->ic_miclen;
+		keyix = k->wk_keyix;
+
+		/* packet header may have moved, reset our local pointer */
+		wh = mtod(m0, struct ieee80211_frame *);
+	} else if (ni->ni_ucastkey.wk_cipher == &ieee80211_cipher_none) {
+		/*
+		 * Use station key cache slot, if assigned.
+		 */
+		keyix = ni->ni_ucastkey.wk_keyix;
+		if (keyix == IEEE80211_KEYIX_NONE)
+			keyix = HAL_TXKEYIX_INVALID;
+	} else
+		keyix = HAL_TXKEYIX_INVALID;
 
 	error = ath_tx_dmasetup(sc, bf, m0);
 	if (error != 0)
@@ -7019,7 +7067,7 @@ ath_tx_raw_start(struct ath_softc *sc, struct ieee80211_node *ni,
 		, atype			/* Atheros packet type */
 		, params->ibp_power	/* txpower */
 		, txrate, try0		/* series 0 rate/tries */
-		, HAL_TXKEYIX_INVALID	/* key cache index */
+		, keyix			/* key cache index */
 		, txantenna		/* antenna mode */
 		, flags			/* flags */
 		, ctsrate		/* rts/cts rate */
