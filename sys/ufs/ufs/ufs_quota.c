@@ -1151,7 +1151,7 @@ hfound:		DQI_LOCK(dq);
 			return (EUSERS);
 		}
 		if (dq->dq_cnt || (dq->dq_flags & DQ_MOD))
-			panic("dqget: free dquot isn't");
+			panic("dqget: free dquot isn't %p", dq);
 		TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
 		if (dq->dq_ump != NULL)
 			LIST_REMOVE(dq, dq_hash);
