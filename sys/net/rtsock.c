@@ -43,6 +43,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -554,11 +555,11 @@ route_output(struct mbuf *m, struct socket *so)
 		rnh = V_rt_tables[so->so_fibnum][info.rti_info[RTAX_DST]->sa_family];
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
-		RADIX_NODE_HEAD_LOCK(rnh);
+		RADIX_NODE_HEAD_RLOCK(rnh);
 		rt = (struct rtentry *) rnh->rnh_lookup(info.rti_info[RTAX_DST],
 			info.rti_info[RTAX_NETMASK], rnh);
 		if (rt == NULL) {	/* XXX looks bogus */
-			RADIX_NODE_HEAD_UNLOCK(rnh);
+			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
 #ifdef RADIX_MPATH
@@ -574,14 +575,14 @@ route_output(struct mbuf *m, struct socket *so)
 		    (rtm->rtm_type != RTM_GET || info.rti_info[RTAX_GATEWAY])) {
 			rt = rt_mpath_matchgate(rt, info.rti_info[RTAX_GATEWAY]);
 			if (!rt) {
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				senderr(ESRCH);
 			}
 		}
 #endif
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
+		RADIX_NODE_HEAD_RUNLOCK(rnh);
 
 		/* 
 		 * Fix for PR: 82974
