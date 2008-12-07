@@ -515,11 +515,11 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&sc->mtx);
 		cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD | CBB_SOCKET_MASK_CSTS);
-		msleep(&sc->intrhand, &sc->mtx, PZERO, "-", 0);
+		msleep(&sc->intrhand, &sc->mtx, 0, "-", 0);
 		err = 0;
 		while (err != EWOULDBLOCK &&
 		    (sc->flags & CBB_KTHREAD_DONE) == 0)
-			err = msleep(&sc->intrhand, &sc->mtx, PZERO, "-", hz / 5);
+			err = msleep(&sc->intrhand, &sc->mtx, 0, "-", hz / 5);
 	}
 	DEVPRINTF((sc->dev, "Thread terminating\n"));
 	sc->flags &= ~CBB_KTHREAD_RUNNING;
@@ -795,7 +795,7 @@ cbb_power(device_t brdev, int volts)
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
 		    cnt == sc->powerintr && sane-- > 0)
-			msleep(&sc->powerintr, &sc->mtx, PZERO, "-", hz / 20);
+			msleep(&sc->powerintr, &sc->mtx, 0, "-", hz / 20);
 		mtx_unlock(&sc->mtx);
 		/*
 		 * The TOPIC95B requires a little bit extra time to get
