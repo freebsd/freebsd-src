@@ -30,7 +30,8 @@ MAN+=	kld.3 login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
 	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
 	realhostname_sa.3 trimdomain.3 fparseln.3 humanize_number.3 \
-	pidfile.3 flopen.3 expand_number.3
+	pidfile.3 flopen.3 expand_number.3 hexdump.3 \
+	kinfo_getfile.3 kinfo_getvmmap.3
 MAN+=	login.conf.5 auth.conf.5
 MLINKS+= kld.3 kld_isloaded.3 kld.3 kld_load.3
 MLINKS+= property.3 properties_read.3  property.3 properties_free.3
