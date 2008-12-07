@@ -288,6 +288,17 @@ only forth also support-functions definitions
 
 : free-memory free if free_error throw then ;
 
+: strget { var -- addr len } var .addr @ var .len @ ;
+
+\ assign addr len to variable.
+: strset  { addr len var -- } addr var .addr ! len var .len ! ;
+
+\ free memory and reset fields
+: strfree { var -- } var .addr @ ?dup if free-memory 0 0 var strset then ;
+
+\ free old content, make a copy of the string and assign to variable
+: string= { addr len var -- } var strfree addr len strdup var strset ;
+
 \ Assignment data temporary storage
 
 string name_buffer
@@ -712,19 +723,6 @@ only forth also support-functions also file-processing definitions also
   module_loaderror_suffix suffix_type?
 ;
 
-: set_conf_files
-  conf_files .addr @ ?dup if
-    free-memory
-  then
-  value_buffer .addr @ c@ [char] " = if
-    value_buffer .addr @ char+ value_buffer .len @ 2 chars -
-  else
-    value_buffer .addr @ value_buffer .len @
-  then
-  strdup
-  conf_files .len ! conf_files .addr !
-;
-
 : set_nextboot_conf
   nextboot_conf_file .addr @ ?dup if
     free-memory
@@ -888,6 +886,11 @@ only forth also support-functions also file-processing definitions also
   then
 ;
 
+: set_conf_files
+  set_environment_variable
+  s" loader_conf_files" getenv conf_files string=
+;
+
 : set_nextboot_flag
   yes_value? to nextboot?
 ;
@@ -1045,7 +1048,6 @@ only forth also support-functions definitions
 \ Variables used for processing multiple conf files
 
 string current_file_name
-variable current_conf_files
 
 \ Indicates if any conf file was succesfully read
 
@@ -1053,16 +1055,8 @@ variable current_conf_files
 
 \ loader_conf_files processing support functions
 
-: set_current_conf_files
-  conf_files .addr @ current_conf_files !
-;
-
-: get_conf_files
-  conf_files .addr @ conf_files .len @ strdup
-;
-
-: recurse_on_conf_files?
-  current_conf_files @ conf_files .addr @ <>
+: get_conf_files ( -- addr len )  \ put addr/len on stack, reset var
+  conf_files strget 0 0 conf_files strset
 ;
 
 : skip_leading_spaces  { addr len pos -- addr len pos' }
@@ -1133,7 +1127,6 @@ variable current_conf_files
 \ Interface to loader_conf_files processing
 
 : include_conf_files
-  set_current_conf_files
   get_conf_files 0
   begin
     get_next_file ?dup
@@ -1141,7 +1134,7 @@ variable current_conf_files
     set_current_file_name
     ['] load_conf catch
     process_conf_errors
-    recurse_on_conf_files? if recurse then
+    conf_files .addr @ if recurse then
   repeat
 ;
 
