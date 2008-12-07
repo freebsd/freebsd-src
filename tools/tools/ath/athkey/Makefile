@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=	athdebug
+PROG=	athkey
 
 .include <../Makefile.inc>
 

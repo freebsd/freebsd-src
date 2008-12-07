@@ -1,5 +1,5 @@
 #	$FreeBSD$
 
-SUBDIR=	athstats athdebug
+SUBDIR=	athdebug athkey athprom athregs athstats
 
 .include <bsd.subdir.mk>
