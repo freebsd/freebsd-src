@@ -219,9 +219,15 @@ static void	ath_announce(struct ath_softc *);
 SYSCTL_DECL(_hw_ath);
 
 /* XXX validate sysctl values */
-static	int ath_calinterval = 30;		/* calibrate every 30 secs */
-SYSCTL_INT(_hw_ath, OID_AUTO, calibrate, CTLFLAG_RW, &ath_calinterval,
-	    0, "chip calibration interval (secs)");
+static	int ath_longcalinterval = 30;		/* long cals every 30 secs */
+SYSCTL_INT(_hw_ath, OID_AUTO, longcal, CTLFLAG_RW, &ath_longcalinterval,
+	    0, "long chip calibration interval (secs)");
+static	int ath_shortcalinterval = 100;		/* short cals every 100 ms */
+SYSCTL_INT(_hw_ath, OID_AUTO, shortcal, CTLFLAG_RW, &ath_shortcalinterval,
+	    0, "short chip calibration interval (msecs)");
+static	int ath_resetcalinterval = 20*60;	/* reset cal state 20 mins */
+SYSCTL_INT(_hw_ath, OID_AUTO, resetcal, CTLFLAG_RW, &ath_resetcalinterval,
+	    0, "reset chip calibration results (secs)");
 
 static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
 SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
@@ -1433,8 +1439,9 @@ ath_init(void *arg)
 	 * state cached in the driver.
 	 */
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_calinterval = 1;
-	sc->sc_caltries = 0;
+	sc->sc_lastlongcal = 0;
+	sc->sc_resetcal = 1;
+	sc->sc_lastcalreset = 0;
 
 	/*
 	 * Setup the hardware after reset: the key cache
@@ -1566,8 +1573,6 @@ ath_reset(struct ifnet *ifp)
 		if_printf(ifp, "%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
 	sc->sc_diversity = ath_hal_getdiversity(ah);
-	sc->sc_calinterval = 1;
-	sc->sc_caltries = 0;
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	/*
@@ -5493,8 +5498,6 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		}
 		sc->sc_curchan = hchan;
 		sc->sc_diversity = ath_hal_getdiversity(ah);
-		sc->sc_calinterval = 1;
-		sc->sc_caltries = 0;
 
 		/*
 		 * Re-enable rx framework.
@@ -5528,54 +5531,76 @@ ath_calibrate(void *arg)
 {
 	struct ath_softc *sc = arg;
 	struct ath_hal *ah = sc->sc_ah;
-	HAL_BOOL iqCalDone;
+	struct ifnet *ifp = sc->sc_ifp;
+	HAL_BOOL longCal, isCalDone;
+	int nextcal;
 
-	sc->sc_stats.ast_per_cal++;
-
-	if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
+	longCal = (ticks - sc->sc_lastlongcal >= ath_longcalinterval*hz);
+	if (longCal) {
+		sc->sc_stats.ast_per_cal++;
+		if (ath_hal_getrfgain(ah) == HAL_RFGAIN_NEED_CHANGE) {
+			/*
+			 * Rfgain is out of bounds, reset the chip
+			 * to load new gain values.
+			 */
+			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+				"%s: rfgain change\n", __func__);
+			sc->sc_stats.ast_per_rfgain++;
+			ath_reset(ifp);
+		}
 		/*
-		 * Rfgain is out of bounds, reset the chip
-		 * to load new gain values.
+		 * If this long cal is after an idle period, then
+		 * reset the data collection state so we start fresh.
 		 */
-		DPRINTF(sc, ATH_DEBUG_CALIBRATE,
-			"%s: rfgain change\n", __func__);
-		sc->sc_stats.ast_per_rfgain++;
-		ath_reset(sc->sc_ifp);
+		if (sc->sc_resetcal) {
+			(void) ath_hal_calreset(ah, &sc->sc_curchan);
+			sc->sc_lastcalreset = ticks;
+			sc->sc_resetcal = 0;
+		}
 	}
-	if (!ath_hal_calibrate(ah, &sc->sc_curchan, &iqCalDone)) {
+	if (ath_hal_calibrateN(ah, &sc->sc_curchan, longCal, &isCalDone)) {
+		if (longCal) {
+			/*
+			 * Calibrate noise floor data again in case of change.
+			 */
+			ath_hal_process_noisefloor(ah);
+		}
+	} else {
 		DPRINTF(sc, ATH_DEBUG_ANY,
 			"%s: calibration of channel %u failed\n",
 			__func__, sc->sc_curchan.channel);
 		sc->sc_stats.ast_per_calfail++;
 	}
-	/*
-	 * Calibrate noise floor data again in case of change.
-	 */
-	ath_hal_process_noisefloor(ah);
-	/*
-	 * Poll more frequently when the IQ calibration is in
-	 * progress to speedup loading the final settings.
-	 * We temper this aggressive polling with an exponential
-	 * back off after 4 tries up to ath_calinterval.
-	 */
-	if (iqCalDone || sc->sc_calinterval >= ath_calinterval) {
-		sc->sc_caltries = 0;
-		sc->sc_calinterval = ath_calinterval;
-	} else if (sc->sc_caltries > 4) {
-		sc->sc_caltries = 0;
-		sc->sc_calinterval <<= 1;
-		if (sc->sc_calinterval > ath_calinterval)
-			sc->sc_calinterval = ath_calinterval;
+	if (!isCalDone) {
+		/*
+		 * Use a shorter interval to potentially collect multiple
+		 * data samples required to complete calibration.  Once
+		 * we're told the work is done we drop back to a longer
+		 * interval between requests.  We're more aggressive doing
+		 * work when operating as an AP to improve operation right
+		 * after startup.
+		 */
+		nextcal = (1000*ath_shortcalinterval)/hz;
+		if (sc->sc_opmode != HAL_M_HOSTAP)
+			nextcal *= 10;
+	} else {
+		nextcal = ath_longcalinterval*hz;
+		sc->sc_lastlongcal = ticks;
+		if (sc->sc_lastcalreset == 0)
+			sc->sc_lastcalreset = sc->sc_lastlongcal;
+		else if (ticks - sc->sc_lastcalreset >= ath_resetcalinterval*hz)
+			sc->sc_resetcal = 1;	/* setup reset next trip */
 	}
-	KASSERT(0 < sc->sc_calinterval && sc->sc_calinterval <= ath_calinterval,
-		("bad calibration interval %u", sc->sc_calinterval));
 
-	DPRINTF(sc, ATH_DEBUG_CALIBRATE,
-		"%s: next +%u (%siqCalDone tries %u)\n", __func__,
-		sc->sc_calinterval, iqCalDone ? "" : "!", sc->sc_caltries);
-	sc->sc_caltries++;
-	callout_reset(&sc->sc_cal_ch, sc->sc_calinterval * hz,
-		ath_calibrate, sc);
+	if (nextcal != 0) {
+		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: next +%u (%sisCalDone)\n",
+		    __func__, nextcal, isCalDone ? "" : "!");
+		callout_reset(&sc->sc_cal_ch, nextcal, ath_calibrate, sc);
+	} else {
+		DPRINTF(sc, ATH_DEBUG_CALIBRATE, "%s: calibration disabled\n",
+		    __func__);
+		/* NB: don't rearm timer */
+	}
 }
 
 static void
@@ -5803,10 +5828,12 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		 * Finally, start any timers and the task q thread
 		 * (in case we didn't go through SCAN state).
 		 */
-		if (sc->sc_calinterval != 0) {
+		if (ath_longcalinterval != 0) {
 			/* start periodic recalibration timer */
-			callout_reset(&sc->sc_cal_ch, sc->sc_calinterval * hz,
-				ath_calibrate, sc);
+			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
+		} else {
+			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
+			    "%s: calibration disabled\n", __func__);
 		}
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
