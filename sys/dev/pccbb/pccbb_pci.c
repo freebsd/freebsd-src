@@ -730,7 +730,7 @@ cbb_pci_filt(void *arg)
 		if (sockevent & CBB_SOCKET_EVENT_POWER) {
 			cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_EVENT_POWER);
 			cbb_set(sc, CBB_SOCKET_EVENT, CBB_SOCKET_EVENT_POWER);
-			sc->powerintr++;
+			atomic_add_int(&sc->powerintr, 1);
 			wakeup((void *)&sc->powerintr);
 		}
 		retval = FILTER_HANDLED;
