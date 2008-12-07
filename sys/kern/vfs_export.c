@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
@@ -425,10 +426,10 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 			saddr = nam;
 			rnh = nep->ne_rtable[saddr->sa_family];
 			if (rnh != NULL) {
-				RADIX_NODE_HEAD_LOCK(rnh);
+				RADIX_NODE_HEAD_RLOCK(rnh);
 				np = (struct netcred *)
 				    (*rnh->rnh_matchaddr)(saddr, rnh);
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 				if (np && np->netc_rnodes->rn_flags & RNF_ROOT)
 					np = NULL;
 			}
