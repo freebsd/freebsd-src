@@ -180,7 +180,7 @@ _thr_rtld_init(void)
 {
 	struct RtldLockInfo	li;
 	struct pthread		*curthread;
-	long dummy;
+	long dummy = -1;
 
 	curthread = _get_curthread();
 
