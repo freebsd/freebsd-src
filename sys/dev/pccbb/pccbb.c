@@ -765,15 +765,17 @@ cbb_power(device_t brdev, int volts)
 		reg = cbb_o2micro_power_hack(sc);
 
 	/*
-	 * We have to mask the card change detect interrupt while
-	 * we're messing with the power.  It is allowed to bounce
-	 * while we're messing with power as things settle down.  In
-	 * addition, we mask off the card's function interrupt by
-	 * routing it via the ISA bus.  This bit generally only
-	 * affects 16-bit cards.  Some bridges allow one to set
-	 * another bit to have it also affect 32-bit cards.  Since
-	 * 32-bit cards are required to be better behaved, we don't
-	 * bother to get into those bridge specific features.
+	 * We have to mask the card change detect interrupt while we're
+	 * messing with the power.  It is allowed to bounce while we're
+	 * messing with power as things settle down.  In addition, we mask off
+	 * the card's function interrupt by routing it via the ISA bus.  This
+	 * bit generally only affects 16-bit cards.  Some bridges allow one to
+	 * set another bit to have it also affect 32-bit cards.  Since 32-bit
+	 * cards are required to be better behaved, we don't bother to get
+	 * into those bridge specific features.
+	 *
+	 * XXX I wonder if we need to enable the READY bit interrupt in the
+	 * EXCA CSC register for 16-bit cards, and disable the CD bit?
 	 */
 	mask = cbb_get(sc, CBB_SOCKET_MASK);
 	mask |= CBB_SOCKET_MASK_POWER;
@@ -786,11 +788,10 @@ cbb_power(device_t brdev, int volts)
 		mtx_lock(&sc->mtx);
 		cnt = sc->powerintr;
 		/*
-		 * We have a shortish timeout of 500ms here.  Some
-		 * bridges do not generate a POWER_CYCLE event for
-		 * 16-bit cards.  In those cases, we have to cope the
-		 * best we can, and having only a short delay is
-		 * better than the alternatives.
+		 * We have a shortish timeout of 500ms here.  Some bridges do
+		 * not generate a POWER_CYCLE event for 16-bit cards.  In
+		 * those cases, we have to cope the best we can, and having
+		 * only a short delay is better than the alternatives.
 		 */
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
@@ -798,9 +799,9 @@ cbb_power(device_t brdev, int volts)
 			msleep(&sc->powerintr, &sc->mtx, 0, "-", hz / 20);
 		mtx_unlock(&sc->mtx);
 		/*
-		 * The TOPIC95B requires a little bit extra time to get
-		 * its act together, so delay for an additional 100ms.  Also
-		 * as documented below, it doesn't seem to set the POWER_CYCLE
+		 * The TOPIC95B requires a little bit extra time to get its
+		 * act together, so delay for an additional 100ms.  Also as
+		 * documented below, it doesn't seem to set the POWER_CYCLE
 		 * bit, so don't whine if it never came on.
 		 */
 		if (sc->chipset == CB_TOPIC95) {
