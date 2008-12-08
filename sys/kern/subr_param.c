@@ -118,6 +118,13 @@ SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
  */
 struct	buf *swbuf;
 
+static const char *const vm_bnames[] = {
+	"QEMU",				/* QEMU */
+	"Plex86",			/* Plex86 */
+	"Bochs",			/* Bochs */
+	NULL
+};
+
 static const char *const vm_pnames[] = {
 	"VMware Virtual Platform",	/* VMWare VM */
 	"Virtual Machine",		/* Microsoft VirtualPC */
@@ -132,14 +139,25 @@ detect_virtual(void)
 	char *sysenv;
 	int i;
 
+	sysenv = getenv("smbios.bios.vendor");
+	if (sysenv != NULL) {
+		for (i = 0; vm_bnames[i] != NULL; i++)
+			if (strcmp(sysenv, vm_bnames[i]) == 0) {
+				freeenv(sysenv);
+				return (1);
+			}
+		freeenv(sysenv);
+	}
 	sysenv = getenv("smbios.system.product");
 	if (sysenv != NULL) {
-		for (i = 0; vm_pnames[i] != NULL; i++) {
-			if (strcmp(sysenv, vm_pnames[i]) == 0)
-				return 1;
-		}
+		for (i = 0; vm_pnames[i] != NULL; i++)
+			if (strcmp(sysenv, vm_pnames[i]) == 0) {
+				freeenv(sysenv);
+				return (1);
+			}
+		freeenv(sysenv);
 	}
-	return 0;
+	return (0);
 }
 
 /*
@@ -151,13 +169,8 @@ init_param1(void)
 
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
-	if (hz == -1) {
-		if (detect_virtual()) {
-			hz = HZ_VM;
-		} else {
-			hz = HZ;
-		}
-	}
+	if (hz == -1)
+		hz = detect_virtual() ? HZ_VM : HZ;
 	tick = 1000000 / hz;
 
 #ifdef VM_SWZONE_SIZE_MAX
