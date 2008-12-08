@@ -82,11 +82,11 @@ extern struct sysentvec ia32_freebsd_sysvec;
 int
 procfs_doprocmap(PFS_FILL_ARGS)
 {
-	int error, vfslocked;
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
+	int error, vfslocked;
 	unsigned int last_timestamp;
 #ifdef COMPAT_IA32
 	int wrap32 = 0;
