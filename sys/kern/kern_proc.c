@@ -1412,13 +1412,32 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_start = (void*)entry->start;
+		kve->kve_end = (void*)entry->end;
+		kve->kve_offset = (off_t)entry->offset;
+
+		if (entry->protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_PROT_READ;
+		if (entry->protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_PROT_WRITE;
+		if (entry->protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_PROT_EXEC;
+
+		if (entry->eflags & MAP_ENTRY_COW)
+			kve->kve_flags |= KVME_FLAG_COW;
+		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
+			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+
 		kve->kve_fileid = 0;
 		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
 			vp = NULL;
-			switch(lobj->type) {
+			switch (lobj->type) {
 			case OBJT_DEFAULT:
 				kve->kve_type = KVME_TYPE_DEFAULT;
 				break;
@@ -1468,28 +1487,10 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = 0;
 		}
 
-		kve->kve_start = (void*)entry->start;
-		kve->kve_end = (void*)entry->end;
-		kve->kve_offset = (off_t)entry->offset;
-
-		if (entry->protection & VM_PROT_READ)
-			kve->kve_protection |= KVME_PROT_READ;
-		if (entry->protection & VM_PROT_WRITE)
-			kve->kve_protection |= KVME_PROT_WRITE;
-		if (entry->protection & VM_PROT_EXECUTE)
-			kve->kve_protection |= KVME_PROT_EXEC;
-
-		if (entry->eflags & MAP_ENTRY_COW)
-			kve->kve_flags |= KVME_FLAG_COW;
-		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
-			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
-
 		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
 		error = SYSCTL_OUT(req, kve, sizeof(*kve));
 		vm_map_lock_read(map);
 		if (error)
@@ -1577,13 +1578,32 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			lobj = tobj;
 		}
 
+		kve->kve_start = entry->start;
+		kve->kve_end = entry->end;
+		kve->kve_offset = entry->offset;
+
+		if (entry->protection & VM_PROT_READ)
+			kve->kve_protection |= KVME_PROT_READ;
+		if (entry->protection & VM_PROT_WRITE)
+			kve->kve_protection |= KVME_PROT_WRITE;
+		if (entry->protection & VM_PROT_EXECUTE)
+			kve->kve_protection |= KVME_PROT_EXEC;
+
+		if (entry->eflags & MAP_ENTRY_COW)
+			kve->kve_flags |= KVME_FLAG_COW;
+		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
+			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
+
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
+
 		kve->kve_fileid = 0;
 		kve->kve_fsid = 0;
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
 			vp = NULL;
-			switch(lobj->type) {
+			switch (lobj->type) {
 			case OBJT_DEFAULT:
 				kve->kve_type = KVME_TYPE_DEFAULT;
 				break;
@@ -1633,28 +1653,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = 0;
 		}
 
-		kve->kve_start = entry->start;
-		kve->kve_end = entry->end;
-		kve->kve_offset = entry->offset;
-
-		if (entry->protection & VM_PROT_READ)
-			kve->kve_protection |= KVME_PROT_READ;
-		if (entry->protection & VM_PROT_WRITE)
-			kve->kve_protection |= KVME_PROT_WRITE;
-		if (entry->protection & VM_PROT_EXECUTE)
-			kve->kve_protection |= KVME_PROT_EXEC;
-
-		if (entry->eflags & MAP_ENTRY_COW)
-			kve->kve_flags |= KVME_FLAG_COW;
-		if (entry->eflags & MAP_ENTRY_NEEDS_COPY)
-			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
-
 		strlcpy(kve->kve_path, fullpath, sizeof(kve->kve_path));
 		if (freepath != NULL)
 			free(freepath, M_TEMP);
 
-		last_timestamp = map->timestamp;
-		vm_map_unlock_read(map);
 		/* Pack record size down */
 		kve->kve_structsize = offsetof(struct kinfo_vmentry, kve_path) +
 		    strlen(kve->kve_path) + 1;
