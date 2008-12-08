@@ -132,6 +132,7 @@
 void	rw_init_flags(struct rwlock *rw, const char *name, int opts);
 void	rw_destroy(struct rwlock *rw);
 void	rw_sysinit(void *arg);
+void	rw_sysinit_flags(void *arg);
 int	rw_wowned(struct rwlock *rw);
 void	_rw_wlock(struct rwlock *rw, const char *file, int line);
 int	_rw_try_wlock(struct rwlock *rw, const char *file, int line);
@@ -187,6 +188,12 @@ struct rw_args {
 	const char 	*ra_desc;
 };
 
+struct rw_args_flags {
+	struct rwlock	*ra_rw;
+	const char 	*ra_desc;
+	int		ra_flags;
+};
+
 #define	RW_SYSINIT(name, rw, desc)					\
 	static struct rw_args name##_args = {				\
 		(rw),							\
@@ -194,6 +201,18 @@ struct rw_args {
 	};								\
 	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_sysinit, &name##_args);					\
+	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    rw_destroy, (rw))
+
+
+#define	RW_SYSINIT_FLAGS(name, rw, desc, flags)				\
+	static struct rw_args_flags name##_args = {			\
+		(rw),							\
+		(desc),							\
+		(flags),						\
+	};								\
+	SYSINIT(name##_rw_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
+	    rw_sysinit_flags, &name##_args);				\
 	SYSUNINIT(name##_rw_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    rw_destroy, (rw))
 
