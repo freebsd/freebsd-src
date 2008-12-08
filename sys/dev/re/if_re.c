@@ -2652,14 +2652,15 @@ re_ifmedia_upd(struct ifnet *ifp)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
+	int			error;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->rl_miibus);
 	RL_LOCK(sc);
-	mii_mediachg(mii);
+	error = mii_mediachg(mii);
 	RL_UNLOCK(sc);
 
-	return (0);
+	return (error);
 }
 
 /*
