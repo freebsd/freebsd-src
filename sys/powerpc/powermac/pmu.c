@@ -67,10 +67,29 @@ static int	pmu_attach(device_t);
 static int	pmu_detach(device_t);
 
 static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len, 
-    u_char *data, u_char poll);
+		    u_char *data, u_char poll);
 static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
 static void	pmu_poll(device_t dev);
+
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
+static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
+		    struct pmu_battstate *info);
+static int	pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS);
+
+/*
+ * List of battery-related sysctls we might ask for
+ */
+
+enum {
+	PMU_BATSYSCTL_PRESENT	= 1 << 8,
+	PMU_BATSYSCTL_CHARGING	= 2 << 8,
+	PMU_BATSYSCTL_CHARGE	= 3 << 8,
+	PMU_BATSYSCTL_MAXCHARGE = 4 << 8,
+	PMU_BATSYSCTL_CURRENT	= 5 << 8,
+	PMU_BATSYSCTL_VOLTAGE	= 6 << 8,
+	PMU_BATSYSCTL_TIME	= 7 << 8,
+	PMU_BATSYSCTL_LIFE	= 8 << 8
+};
 
 static device_method_t  pmu_methods[] = {
 	/* Device interface */
@@ -280,6 +299,7 @@ pmu_attach(device_t dev)
 {
 	struct pmu_softc *sc;
 
+	int i;
 	uint8_t reg;
 	uint8_t cmd[2] = {2, 0};
 	uint8_t resp[16];
@@ -312,8 +332,6 @@ pmu_attach(device_t dev)
 			return (ENXIO);
 	}
 
-	sc->sc_error = 0;
-	sc->sc_polling = 0;
 	sc->sc_autopoll = 0;
 
 	/* Init PMU */
@@ -343,6 +361,18 @@ pmu_attach(device_t dev)
 		if (strncmp(name, "adb", 4) == 0) {
 			sc->adb_bus = device_add_child(dev,"adb",-1);
 		}
+
+		if (strncmp(name, "power-mgt", 9) == 0) {
+			uint32_t prim_info[9];
+
+			if (OF_getprop(child, "prim-info", prim_info, 
+			    sizeof(prim_info)) >= 7) 
+				sc->sc_batteries = (prim_info[6] >> 16) & 0xff;
+
+			if (bootverbose && sc->sc_batteries > 0)
+				device_printf(dev, "%d batteries detected\n",
+				    sc->sc_batteries);
+		}
 	}
 
 	/*
@@ -353,8 +383,61 @@ pmu_attach(device_t dev)
 	tree = device_get_sysctl_tree(dev);
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"server_mode", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		pmu_server_mode, "I", "Enable reboot after power failure");
+	    "server_mode", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+	    pmu_server_mode, "I", "Enable reboot after power failure");
+
+	if (sc->sc_batteries > 0) {
+		struct sysctl_oid *oid, *battroot;
+		char battnum[2];
+
+		battroot = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		    "batteries", CTLFLAG_RD, 0, "Battery Information");
+
+		for (i = 0; i < sc->sc_batteries; i++) {
+			battnum[0] = i + '0';
+			battnum[1] = '\0';
+
+			oid = SYSCTL_ADD_NODE(ctx, SYSCTL_CHILDREN(battroot),
+			    OID_AUTO, battnum, CTLFLAG_RD, 0, 
+			    "Battery Information");
+		
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "present", CTLTYPE_INT | CTLFLAG_RD, sc, 
+			    PMU_BATSYSCTL_PRESENT | i, pmu_battquery_sysctl, 
+			    "I", "Battery present");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "charging", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_CHARGING | i, pmu_battquery_sysctl, 
+			    "I", "Battery charging");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "charge", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_CHARGE | i, pmu_battquery_sysctl, 
+			    "I", "Battery charge (mAh)");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "maxcharge", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_MAXCHARGE | i, pmu_battquery_sysctl, 
+			    "I", "Maximum battery capacity (mAh)");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "rate", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_CURRENT | i, pmu_battquery_sysctl, 
+			    "I", "Battery discharge rate (mA)");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "voltage", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_VOLTAGE | i, pmu_battquery_sysctl, 
+			    "I", "Battery voltage (mV)");
+
+			/* Knobs for mental compatibility with ACPI */
+
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "time", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_TIME | i, pmu_battquery_sysctl, 
+			    "I", "Time Remaining (minutes)");
+			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+			    "life", CTLTYPE_INT | CTLFLAG_RD, sc,
+			    PMU_BATSYSCTL_LIFE | i, pmu_battquery_sysctl, 
+			    "I", "Capacity remaining (percent)");
+		}
+	}
 
 	return (bus_generic_attach(dev));
 }
@@ -437,7 +520,6 @@ pmu_send(void *cookie, int cmd, int length, uint8_t *in_msg, int rlen,
 
 	/* wait idle */
 	do {} while (pmu_intr_state(sc));
-	sc->sc_error = 0;
 
 	/* send command */
 	pmu_send_byte(sc, cmd);
@@ -669,5 +751,126 @@ pmu_server_mode(SYSCTL_HANDLER_ARGS)
 	mtx_unlock(&sc->sc_mutex);
 
 	return (0);
+}
+
+static int
+pmu_query_battery(struct pmu_softc *sc, int batt, struct pmu_battstate *info)
+{
+	uint8_t reg;
+	uint8_t resp[16];
+	int len;
+
+	reg = batt + 1;
+
+	mtx_lock(&sc->sc_mutex);
+	len = pmu_send(sc, PMU_SMART_BATTERY_STATE, 1, &reg, 16, resp);
+	mtx_unlock(&sc->sc_mutex);
+
+	if (len < 3)
+		return (-1);
+
+	/* All PMU battery info replies share a common header:
+	 * Byte 1	Payload Format
+	 * Byte 2	Battery Flags
+	 */
+
+	info->state = resp[2];
+
+	switch (resp[1]) {
+	case 3:
+	case 4:	
+		/*
+		 * Formats 3 and 4 appear to be the same:
+		 * Byte 3	Charge
+		 * Byte 4	Max Charge
+		 * Byte 5	Current
+		 * Byte 6	Voltage
+		 */
+
+		info->charge = resp[3];
+		info->maxcharge = resp[4];
+		/* Current can be positive or negative */
+		info->current = (int8_t)resp[5];
+		info->voltage = resp[6];
+		break;
+	case 5:
+		/*
+		 * Formats 5 is a wider version of formats 3 and 4
+		 * Byte 3-4	Charge
+		 * Byte 5-6	Max Charge
+		 * Byte 7-8	Current
+		 * Byte 9-10	Voltage
+		 */
+
+		info->charge = (resp[3] << 8) | resp[4];
+		info->maxcharge = (resp[5] << 8) | resp[6];
+		/* Current can be positive or negative */
+		info->current = (int16_t)((resp[7] << 8) | resp[8]);
+		info->voltage = (resp[9] << 8) | resp[10];
+		break;
+	default:
+		device_printf(sc->sc_dev, "Unknown battery info format (%d)!\n",
+		    resp[1]);
+		return (-1);
+	}
+
+	return (0);
+}
+
+static int
+pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct pmu_softc *sc;
+	struct pmu_battstate batt;
+	int error, result;
+
+	sc = arg1;
+
+	error = pmu_query_battery(sc, arg2 & 0x00ff, &batt);
+
+	if (error != 0)
+		return (error);
+
+	switch (arg2 & 0xff00) {
+	case PMU_BATSYSCTL_PRESENT:
+		result = (batt.state & PMU_PWR_BATT_PRESENT) ? 1 : 0;
+		break;
+	case PMU_BATSYSCTL_CHARGING:
+		result = (batt.state & PMU_PWR_BATT_CHARGING) ? 1 : 0;
+		break;
+	case PMU_BATSYSCTL_CHARGE:
+		result = batt.charge;
+		break;
+	case PMU_BATSYSCTL_MAXCHARGE:
+		result = batt.maxcharge;
+		break;
+	case PMU_BATSYSCTL_CURRENT:
+		result = batt.current;
+		break;
+	case PMU_BATSYSCTL_VOLTAGE:
+		result = batt.voltage;
+		break;
+	case PMU_BATSYSCTL_TIME:
+		/* Time remaining until full charge/discharge, in minutes */
+
+		if (batt.current >= 0)
+			result = (batt.maxcharge - batt.charge) /* mAh */ * 60 
+			    / batt.current /* mA */;
+		else
+			result = (batt.charge /* mAh */ * 60) 
+			    / (-batt.current /* mA */);
+		break;
+	case PMU_BATSYSCTL_LIFE:
+		/* Battery charge fraction, in percent */
+		result = (batt.charge * 100) / batt.maxcharge;
+		break;
+	default:
+		/* This should never happen */
+		result = -1;
+	};
+
+	error = sysctl_handle_int(oidp, &result, 0, req);
+
+	return (error);
 }
 
