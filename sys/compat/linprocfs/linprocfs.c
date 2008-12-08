@@ -273,8 +273,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		/* XXX per-cpu vendor / class / model / id? */
 	}
 
-	sbuf_cat(sb,
-	    "flags\t\t:");
+	sbuf_cat(sb, "flags\t\t:");
 
 	if (!strcmp(cpu_vendor, "AuthenticAMD") && (class < 6)) {
 		flags[16] = "fcmov";
