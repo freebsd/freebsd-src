@@ -38,11 +38,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	and thereby the code size); consult ath_hal(4) for details.
 
 20081121:
-	__FreeBSD_version 800054 adds memory barriers to 
-	<machine/atomic.h>, new interfaces to ifnet to facilitate 
+	__FreeBSD_version 800054 adds memory barriers to
+	<machine/atomic.h>, new interfaces to ifnet to facilitate
 	multiple hardware transmit queues for cards that support
 	them, and a lock-less ring-buffer implementation to
-	enable drivers to more efficiently manage queueing of 
+	enable drivers to more efficiently manage queueing of
 	packets.
 
 20081117:
@@ -287,11 +287,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	be recompiled; this includes the hal and xorg-server ports.
 
 20070928:
-        The caching daemon (cached) was renamed to nscd. nscd.conf
-        configuration file should be used instead of cached.conf and
-        nscd_enable, nscd_pidfile and nscd_flags options should be used
-        instead of cached_enable, cached_pidfile and cached_flags in
-        rc.conf.
+	The caching daemon (cached) was renamed to nscd. nscd.conf
+	configuration file should be used instead of cached.conf and
+	nscd_enable, nscd_pidfile and nscd_flags options should be used
+	instead of cached_enable, cached_pidfile and cached_flags in
+	rc.conf.
 
 20070921:
 	The getfacl(1) utility now prints owning user and group name
@@ -299,7 +299,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	This is the same behavior as getfacl(1) on Solaris and Linux.
 
 20070704:
-        The new IPsec code is now compiled in using the IPSEC option.  The
+	The new IPsec code is now compiled in using the IPSEC option.  The
 	IPSEC option now requires "device crypto" be defined in your kernel
 	configuration.  The FAST_IPSEC kernel option is now deprecated.
 
@@ -602,10 +602,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW:
 	If you have such a file, you need old utility to decrypt it.
 
 20060709:
- 	The interface version of the i4b kernel part has changed. So
- 	after updating the kernel sources and compiling a new kernel,
- 	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
- 	be rebuilt, and vice versa.
+	The interface version of the i4b kernel part has changed. So
+	after updating the kernel sources and compiling a new kernel,
+	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
+	be rebuilt, and vice versa.
 
 20060627:
 	The XBOX kernel now defaults to the nfe(4) driver instead of
@@ -1071,7 +1071,7 @@ COMMON ITEMS:
 	<reboot into current>
 	<do a "native" rebuild/install as described in the previous section>
 	<maybe install compatibility libraries from ports/misc/compat*>
- 	<reboot>
+	<reboot>
 
 
 	To upgrade in-place from 5.x-stable to current
