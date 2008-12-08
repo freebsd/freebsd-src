@@ -158,14 +158,18 @@ struct pmu_softc {
         void    	*sc_ih;
 
 	struct mtx	sc_mutex;
-
 	device_t	adb_bus;
+	volatile int	sc_autopoll;
+	int		sc_batteries;
+};
 
-	int sc_node;
-	volatile int sc_state;
-	int sc_polling;
-	int sc_error;
-	volatile int sc_autopoll;
+struct pmu_battstate {
+	int state;
+
+	int charge;
+	int maxcharge;
+	int current;
+	int voltage;
 };
 
 #endif /* PMUVAR_H */
