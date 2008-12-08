@@ -93,7 +93,7 @@
  *	%si	pointer to the partition table from which we were loaded.
  *		Some boot code (e.g. syslinux) use this info to relocate
  *		themselves, so we want to pass a valid one to the next stage.
- *		NOTE: the use of %is is not a standard.
+ *		NOTE: the use of %si is not a standard.
  *
  * This boot block first relocates itself at a different address (0:0x600),
  * to free the space at 0:0x7c00 for the next stage boot block.
