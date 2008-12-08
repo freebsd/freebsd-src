@@ -67,11 +67,8 @@
  * BTX program loader for ELF clients.
  */
 start:		cld				# String ops inc
-		leal 0x4(%esp,1),%ebx		# First argument
-		testl $OPT_SET(RBX_MUTE),(%ebx)	#  check for RBX_MUTE
-		jz nomute
-		movb $1,muted
-nomute:
+		testl $OPT_SET(RBX_MUTE), 4(%esp) # Check first argument
+		setnz muted			#  for RBX_MUTE, set flag
 		movl $m_logo,%esi		# Identify
 		call putstr			#  ourselves
 		movzwl BDA_MEM,%eax		# Get base memory
@@ -296,9 +293,8 @@ putstr: 	lodsb				# Load char
 /*
  * Output character AL to the console.
  */
-putchr:		testb $1,muted
-		jz putchr_nm
-		ret
+putchr:		testb $1,muted			# Check muted
+		jnz putchr.5			#  do a nop
 putchr_nm: 	pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
@@ -336,7 +332,7 @@ putchr.3:	cmpb $SCR_ROW,%dh		# Beyond screen?
 		movb $SCR_ROW-1,%dh		# Bottom line
 putchr.4:	movw %dx,(%ebx) 		# Update position
 		popa				# Restore
-		ret				# To caller
+putchr.5:	ret				# To caller
 /*
  * Convert EAX, AX, or AL to hex, saving the result to [EDI].
  */
