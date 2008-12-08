@@ -170,6 +170,7 @@ struct inpcb {
 	u_char	inp_ip_p;		/* (c) protocol proto */
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
 	uint32_t inp_ispare1;		/* (x) connection id / queue id */
+	u_int	inp_refcount;		/* (i) refcount */
 	void	*inp_pspare[2];		/* (x) rtentry / general use */
 
 	/* Local and foreign ports, local and foreign addr. */
@@ -478,7 +479,9 @@ struct inpcb *
 	    struct in_addr, u_int, int, struct ifnet *);
 void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, struct inpcb *(*)(struct inpcb *, int));
+void	in_pcbref(struct inpcb *);
 void	in_pcbrehash(struct inpcb *);
+int	in_pcbrele(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_getpeeraddr(struct socket *so, struct sockaddr **nam);
 int	in_getsockaddr(struct socket *so, struct sockaddr **nam);

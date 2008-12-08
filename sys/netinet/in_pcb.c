@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
  *	The Regents of the University of California.
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007-2008 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,6 +238,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 #endif
 	INP_WLOCK(inp);
 	inp->inp_gencnt = ++pcbinfo->ipi_gencnt;
+	inp->inp_refcount = 1;	/* Reference from the inpcbinfo */
 
 #if defined(IPSEC) || defined(MAC)
 out:
@@ -872,14 +873,10 @@ in_pcbdisconnect(struct inpcb *inp)
 }
 
 /*
- * Historically, in_pcbdetach() included the functionality now found in
- * in_pcbfree() and in_pcbdrop().  They are now broken out to reflect the
- * more complex life cycle of TCP.
- *
- * in_pcbdetach() is responsibe for disconnecting the socket from an inpcb.
+ * in_pcbdetach() is responsibe for disassociating a socket from an inpcb.
  * For most protocols, this will be invoked immediately prior to calling
- * in_pcbfree().  However, for TCP the inpcb may significantly outlive the
- * socket, in which case in_pcbfree() may be deferred.
+ * in_pcbfree().  However, with TCP the inpcb may significantly outlive the
+ * socket, in which case in_pcbfree() is deferred.
  */
 void
 in_pcbdetach(struct inpcb *inp)
@@ -892,15 +889,17 @@ in_pcbdetach(struct inpcb *inp)
 }
 
 /*
- * in_pcbfree() is responsible for freeing an already-detached inpcb, as well
- * as removing it from any global inpcb lists it might be on.
+ * in_pcbfree_internal() frees an inpcb that has been detached from its
+ * socket, and whose reference count has reached 0.  It will also remove the
+ * inpcb from any global lists it might remain on.
  */
-void
-in_pcbfree(struct inpcb *inp)
+static void
+in_pcbfree_internal(struct inpcb *inp)
 {
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
+	KASSERT(inp->inp_refcount == 0, ("%s: refcount !0", __func__));
 
 	INP_INFO_WLOCK_ASSERT(ipi);
 	INP_WLOCK_ASSERT(inp);
@@ -929,6 +928,77 @@ in_pcbfree(struct inpcb *inp)
 #endif
 	INP_WUNLOCK(inp);
 	uma_zfree(ipi->ipi_zone, inp);
+}
+
+/*
+ * in_pcbref() bumps the reference count on an inpcb in order to maintain
+ * stability of an inpcb pointer despite the inpcb lock being released.  This
+ * is used in TCP when the inpcbinfo lock needs to be acquired or upgraded,
+ * but where the inpcb lock is already held.
+ *
+ * While the inpcb will not be freed, releasing the inpcb lock means that the
+ * connection's state may change, so the caller should be careful to
+ * revalidate any cached state on reacquiring the lock.  Drop the reference
+ * using in_pcbrele().
+ */
+void
+in_pcbref(struct inpcb *inp)
+{
+
+	INP_WLOCK_ASSERT(inp);
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	inp->inp_refcount++;
+}
+
+/*
+ * Drop a refcount on an inpcb elevated using in_pcbref(); because a call to
+ * in_pcbfree() may have been made between in_pcbref() and in_pcbrele(), we
+ * return a flag indicating whether or not the inpcb remains valid.  If it is
+ * valid, we return with the inpcb lock held.
+ */
+int
+in_pcbrele(struct inpcb *inp)
+{
+#ifdef INVARIANTS
+	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+#endif
+
+	KASSERT(inp->inp_refcount > 0, ("%s: refcount 0", __func__));
+
+	INP_INFO_WLOCK_ASSERT(ipi);
+	INP_WLOCK_ASSERT(inp);
+
+	inp->inp_refcount--;
+	if (inp->inp_refcount > 0)
+		return (0);
+	in_pcbfree_internal(inp);
+	return (1);
+}
+
+/*
+ * Unconditionally schedule an inpcb to be freed by decrementing its
+ * reference count, which should occur only after the inpcb has been detached
+ * from its socket.  If another thread holds a temporary reference (acquired
+ * using in_pcbref()) then the free is deferred until that reference is
+ * released using in_pcbrele(), but the inpcb is still unlocked.
+ */
+void
+in_pcbfree(struct inpcb *inp)
+{
+#ifdef INVARIANTS
+	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+#endif
+
+	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL",
+	    __func__));
+
+	INP_INFO_WLOCK_ASSERT(ipi);
+	INP_WLOCK_ASSERT(inp);
+
+	if (!in_pcbrele(inp))
+		INP_WUNLOCK(inp);
 }
 
 /*
