@@ -882,6 +882,7 @@ struct rl_softc {
 #define	RL_FLAG_PAR		0x0020
 #define	RL_FLAG_DESCV2		0x0040
 #define	RL_FLAG_MACSTAT		0x0080
+#define	RL_FLAG_FASTETHER	0x0100
 #define	RL_FLAG_LINK		0x8000
 };
 

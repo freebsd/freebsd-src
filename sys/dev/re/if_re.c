@@ -573,7 +573,39 @@ re_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 re_miibus_statchg(device_t dev)
 {
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	struct mii_data		*mii;
 
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->rl_miibus);
+	ifp = sc->rl_ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->rl_flags &= ~RL_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->rl_flags |= RL_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->rl_flags & RL_FLAG_FASTETHER) != 0)
+				break;
+			sc->rl_flags |= RL_FLAG_LINK;
+			break;
+		default:
+			break;
+		}
+	}
+	/*
+	 * RealTek controllers does not provide any interface to
+	 * Tx/Rx MACs for resolved speed, duplex and flow-control
+	 * parameters.
+	 */
 }
 
 /*
@@ -1204,18 +1236,18 @@ re_attach(device_t dev)
 
 	switch (hw_rev->rl_rev) {
 	case RL_HWREV_8139CPLUS:
-		sc->rl_flags |= RL_FLAG_NOJUMBO;
+		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8100E:
 	case RL_HWREV_8101E:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
-		    RL_FLAG_PHYWAKE;
+		    RL_FLAG_PHYWAKE | RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8102E:
 	case RL_HWREV_8102EL:
 		sc->rl_flags |= RL_FLAG_NOJUMBO | RL_FLAG_INVMAR |
 		    RL_FLAG_PHYWAKE | RL_FLAG_PAR | RL_FLAG_DESCV2 |
-		    RL_FLAG_MACSTAT;
+		    RL_FLAG_MACSTAT | RL_FLAG_FASTETHER;
 		break;
 	case RL_HWREV_8168_SPIN1:
 	case RL_HWREV_8168_SPIN2:
@@ -2011,30 +2043,14 @@ re_tick(void *xsc)
 {
 	struct rl_softc		*sc;
 	struct mii_data		*mii;
-	struct ifnet		*ifp;
 
 	sc = xsc;
-	ifp = sc->rl_ifp;
 
 	RL_LOCK_ASSERT(sc);
 
-	re_watchdog(sc);
-
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
-	if ((sc->rl_flags & RL_FLAG_LINK) != 0) {
-		if (!(mii->mii_media_status & IFM_ACTIVE))
-			sc->rl_flags &= ~RL_FLAG_LINK;
-	} else {
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->rl_flags |= RL_FLAG_LINK;
-			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-				taskqueue_enqueue_fast(taskqueue_fast,
-				    &sc->rl_txtask);
-		}
-	}
-
+	re_watchdog(sc);
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
 
@@ -2147,11 +2163,6 @@ re_int_task(void *arg, int npending)
 	if (status & RL_ISR_SYSTEM_ERR) {
 		re_reset(sc);
 		re_init_locked(sc);
-	}
-
-	if (status & RL_ISR_LINKCHG) {
-		callout_stop(&sc->rl_stat_callout);
-		re_tick(sc);
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2815,18 +2826,30 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static void
 re_watchdog(struct rl_softc *sc)
 {
+	struct ifnet		*ifp;
 
 	RL_LOCK_ASSERT(sc);
 
 	if (sc->rl_watchdog_timer == 0 || --sc->rl_watchdog_timer != 0)
 		return;
 
-	device_printf(sc->rl_dev, "watchdog timeout\n");
-	sc->rl_ifp->if_oerrors++;
-
+	ifp = sc->rl_ifp;
 	re_txeof(sc);
+	if (sc->rl_ldata.rl_tx_free == sc->rl_ldata.rl_tx_desc_cnt) {
+		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
+		    "-- recovering\n");
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
+		return;
+	}
+
+	if_printf(ifp, "watchdog timeout\n");
+	ifp->if_oerrors++;
+
 	re_rxeof(sc);
 	re_init_locked(sc);
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_txtask);
 }
 
 /*
