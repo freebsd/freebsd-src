@@ -876,10 +876,12 @@ static int
 linprocfs_doprocmaps(PFS_FILL_ARGS)
 {
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, tmp_entry;
 	vm_object_t obj, tobj, lobj;
-	vm_offset_t saved_end;
+	vm_offset_t e_start, e_end;
 	vm_ooffset_t off = 0;
+	vm_prot_t e_prot;
+	unsigned int last_timestamp;
 	char *name = "", *freename = NULL;
 	ino_t ino;
 	int ref_count, shadow_count, flags;
@@ -905,7 +907,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		freename = NULL;
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
-		saved_end = entry->end;
+		e_prot = entry->protection;
+		e_start = entry->start;
+		e_end = entry->end;
 		obj = entry->object.vm_object;
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			VM_OBJECT_LOCK(tobj);
@@ -913,6 +917,8 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 				VM_OBJECT_UNLOCK(lobj);
 			lobj = tobj;
 		}
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 		ino = 0;
 		if (lobj) {
 			off = IDX_TO_OFF(lobj->size);
@@ -950,10 +956,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		 */
 		error = sbuf_printf(sb,
 		    "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n",
-		    (u_long)entry->start, (u_long)entry->end,
-		    (entry->protection & VM_PROT_READ)?"r":"-",
-		    (entry->protection & VM_PROT_WRITE)?"w":"-",
-		    (entry->protection & VM_PROT_EXECUTE)?"x":"-",
+		    (u_long)e_start, (u_long)e_end,
+		    (e_prot & VM_PROT_READ)?"r":"-",
+		    (e_prot & VM_PROT_WRITE)?"w":"-",
+		    (e_prot & VM_PROT_EXECUTE)?"x":"-",
 		    "p",
 		    (u_long)off,
 		    0,
@@ -967,6 +973,16 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		if (error == -1) {
 			error = 0;
 			break;
+		}
+		vm_map_lock_read(map);
+		if (last_timestamp + 1 != map->timestamp) {
+			/*
+			 * Look again for the entry because the map was
+			 * modified while it was unlocked.  Specifically,
+			 * the entry may have been clipped, merged, or deleted.
+			 */
+			vm_map_lookup_entry(map, e_end - 1, &tmp_entry);
+			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
