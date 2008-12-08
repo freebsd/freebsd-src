@@ -1,5 +1,5 @@
 /*-
- * Copyright 2002 by Peter Grehan. All rights reserved.
+ * Copyright 2008 by Nathan Whitehorn. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -9,8 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -51,6 +49,8 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
+#include <powerpc/powermac/macgpiovar.h>
+
 /*
  * Macgpio softc
  */
@@ -62,20 +62,17 @@ struct macgpio_softc {
 
 static MALLOC_DEFINE(M_MACGPIO, "macgpio", "macgpio device information");
 
-static int  macgpio_probe(device_t);
-static int  macgpio_attach(device_t);
-static int  macgpio_print_child(device_t dev, device_t child);
-static void macgpio_probe_nomatch(device_t, device_t);
-static struct   resource *macgpio_alloc_resource(device_t, device_t, int, int *,
-					       u_long, u_long, u_long, u_int);
-static int  macgpio_activate_resource(device_t, device_t, int, int,
-				    struct resource *);
-static int  macgpio_deactivate_resource(device_t, device_t, int, int,
-				      struct resource *);
+static int	macgpio_probe(device_t);
+static int	macgpio_attach(device_t);
+static int	macgpio_print_child(device_t dev, device_t child);
+static void	macgpio_probe_nomatch(device_t, device_t);
+static struct resource *macgpio_alloc_resource(device_t, device_t, int, int *,
+		    u_long, u_long, u_long, u_int);
+static int	macgpio_activate_resource(device_t, device_t, int, int,
+		    struct resource *);
+static int	macgpio_deactivate_resource(device_t, device_t, int, int,
+		    struct resource *);
 static ofw_bus_get_devinfo_t macgpio_get_devinfo;
-
-uint8_t	macgpio_read(device_t dev);
-void	macgpio_write(device_t dev,uint8_t);
 
 /*
  * Bus interface definition
@@ -125,7 +122,7 @@ struct macgpio_devinfo {
 	struct ofw_bus_devinfo mdi_obdinfo;
 	struct resource_list mdi_resources;
 
-	int        gpio_num;
+	int gpio_num;
 };
 
 static int
@@ -215,8 +212,14 @@ macgpio_print_child(device_t dev, device_t child)
         dinfo = device_get_ivars(child);
 
         retval += bus_print_child_header(dev, child);
+	
+	if (dinfo->gpio_num >= GPIO_BASE)
+		printf(" gpio %d", dinfo->gpio_num - GPIO_BASE);
+	else if (dinfo->gpio_num >= GPIO_EXTINT_BASE)
+		printf(" extint-gpio %d", dinfo->gpio_num - GPIO_EXTINT_BASE);
+	else
+		printf(" addr 0x%02x", dinfo->gpio_num); /* should not happen */
 
-	printf(" gpio %d",dinfo->gpio_num);
 	resource_list_print_type(&dinfo->mdi_resources, "irq", SYS_RES_IRQ, 
 	    "%ld");
         retval += bus_print_child_footer(dev, child);
