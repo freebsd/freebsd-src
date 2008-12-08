@@ -866,7 +866,7 @@ rtexpunge(struct rtentry *rt)
 	 * Now search what's left of the subtree for any cloned
 	 * routes which might have been formed from this node.
 	 */
-	if ((rt->rt_flags & RTF_CLONING) && rt_mask(rt))
+	if ((rt->rt_flags & RTF_CLONING) && rt_mask(rt)) 
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
 				       rt_fixdelete, rt);
 
@@ -935,6 +935,8 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	flags &= ~RTF_RNH_LOCKED;
 	if (needlock)
 		RADIX_NODE_HEAD_LOCK(rnh);
+	else
+		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 	/*
 	 * If we are adding a host route then we don't want to put
 	 * a netmask in the tree, nor do we want to clone it.
@@ -1277,7 +1279,7 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 	if (rt->rt_parent == rt0 &&
 	    !(rt->rt_flags & (RTF_PINNED | RTF_CLONING))) {
 		return rtrequest_fib(RTM_DELETE, rt_key(rt), NULL, rt_mask(rt),
-				 rt->rt_flags, NULL, rt->rt_fibnum);
+				 rt->rt_flags|RTF_RNH_LOCKED, NULL, rt->rt_fibnum);
 	}
 	return 0;
 }
