@@ -15,6 +15,9 @@
  * $FreeBSD$
  */
 
+#define	RBX_MUTE	0x10	/* -m */
+#define	OPT_SET(opt)	(1 << (opt))
+
 /*
  * Prototype BTX loader program, written in a couple of hours.  The
  * real thing should probably be more flexible, and in C.
@@ -64,6 +67,11 @@
  * BTX program loader for ELF clients.
  */
 start:		cld				# String ops inc
+		leal 0x4(%esp,1),%ebx		# First argument
+		testl $OPT_SET(RBX_MUTE),(%ebx)	#  check for RBX_MUTE
+		jz nomute
+		movb $1,muted
+nomute:
 		movl $m_logo,%esi		# Identify
 		call putstr			#  ourselves
 		movzwl BDA_MEM,%eax		# Get base memory
@@ -288,7 +296,10 @@ putstr: 	lodsb				# Load char
 /*
  * Output character AL to the console.
  */
-putchr: 	pusha				# Save
+putchr:		testb $1,muted
+		jz putchr_nm
+		ret
+putchr_nm: 	pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
@@ -390,6 +401,12 @@ m_segs: 	.asciz "text segment: offset="
 		.asciz " memsz=\0\n"
 m_done: 	.asciz "Loading complete\n"
 #endif
+
+/*
+ * Flags
+ */
+muted:		.byte 0x0
+
 /*
  * Uninitialized data area.
  */
