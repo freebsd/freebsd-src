@@ -84,9 +84,10 @@ procfs_doprocmap(PFS_FILL_ARGS)
 {
 	int error, vfslocked;
 	vm_map_t map = &p->p_vmspace->vm_map;
-	vm_map_entry_t entry;
+	vm_map_entry_t entry, tmp_entry;
 	struct vnode *vp;
 	char *fullpath, *freepath;
+	unsigned int last_timestamp;
 #ifdef COMPAT_IA32
 	int wrap32 = 0;
 #endif
@@ -113,13 +114,19 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	     entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		int ref_count, shadow_count, flags;
-		vm_offset_t addr;
+		vm_offset_t e_start, e_end, addr;
 		int resident, privateresident;
 		char *type;
+		vm_eflags_t e_eflags;
+		vm_prot_t e_prot;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		e_eflags = entry->eflags;
+		e_prot = entry->protection;
+		e_start = entry->start;
+		e_end = entry->end;
 		privateresident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
@@ -143,11 +150,13 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				VM_OBJECT_UNLOCK(lobj);
 			lobj = tobj;
 		}
+		last_timestamp = map->timestamp;
+		vm_map_unlock_read(map);
 
 		freepath = NULL;
 		fullpath = "-";
 		if (lobj) {
-			switch(lobj->type) {
+			switch (lobj->type) {
 			default:
 			case OBJT_DEFAULT:
 				type = "default";
@@ -193,19 +202,19 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		 */
 		error = sbuf_printf(sb,
 		    "0x%lx 0x%lx %d %d %p %s%s%s %d %d 0x%x %s %s %s %s\n",
-			(u_long)entry->start, (u_long)entry->end,
+			(u_long)e_start, (u_long)e_end,
 			resident, privateresident,
 #ifdef COMPAT_IA32
 			wrap32 ? NULL : obj,	/* Hide 64 bit value */
 #else
 			obj,
 #endif
-			(entry->protection & VM_PROT_READ)?"r":"-",
-			(entry->protection & VM_PROT_WRITE)?"w":"-",
-			(entry->protection & VM_PROT_EXECUTE)?"x":"-",
+			(e_prot & VM_PROT_READ)?"r":"-",
+			(e_prot & VM_PROT_WRITE)?"w":"-",
+			(e_prot & VM_PROT_EXECUTE)?"x":"-",
 			ref_count, shadow_count, flags,
-			(entry->eflags & MAP_ENTRY_COW)?"COW":"NCOW",
-			(entry->eflags & MAP_ENTRY_NEEDS_COPY)?"NC":"NNC",
+			(e_eflags & MAP_ENTRY_COW)?"COW":"NCOW",
+			(e_eflags & MAP_ENTRY_NEEDS_COPY)?"NC":"NNC",
 			type, fullpath);
 
 		if (freepath != NULL)
@@ -214,6 +223,16 @@ procfs_doprocmap(PFS_FILL_ARGS)
 		if (error == -1) {
 			error = 0;
 			break;
+		}
+		vm_map_lock_read(map);
+		if (last_timestamp + 1 != map->timestamp) {
+			/*
+			 * Look again for the entry because the map was
+			 * modified while it was unlocked.  Specifically,
+			 * the entry may have been clipped, merged, or deleted.
+			 */
+			vm_map_lookup_entry(map, e_end - 1, &tmp_entry);
+			entry = tmp_entry;
 		}
 	}
 	vm_map_unlock_read(map);
