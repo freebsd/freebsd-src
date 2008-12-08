@@ -1262,7 +1262,7 @@ dqrele(struct vnode *vp, struct dquot *dq)
 		return;
 	}
 	DQH_UNLOCK();
-
+sync:
 	(void) dqsync(vp, dq);
 
 	DQH_LOCK();
@@ -1270,6 +1270,18 @@ dqrele(struct vnode *vp, struct dquot *dq)
 	{
 		DQH_UNLOCK();
 		return;
+	}
+
+	/*
+	 * The dq may become dirty after it is synced but before it is
+	 * put to the free list. Checking the DQ_MOD there without
+	 * locking dq should be safe since no other references to the
+	 * dq exist.
+	 */
+	if ((dq->dq_flags & DQ_MOD) != 0) {
+		dq->dq_cnt++;
+		DQH_UNLOCK();
+		goto sync;
 	}
 	TAILQ_INSERT_TAIL(&dqfreelist, dq, dq_freelist);
 	DQH_UNLOCK();
