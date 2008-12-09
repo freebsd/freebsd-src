@@ -513,7 +513,7 @@ rtredirect_fib(struct sockaddr *dst,
 	struct rt_addrinfo info;
 	struct ifaddr *ifa;
 	struct radix_node_head *rnh =
-	    V_rt_tables[rt->rt_fibnum][dst->sa_family];
+	    V_rt_tables[fibnum][dst->sa_family];
 
 	/* verify the gateway is directly reachable */
 	if ((ifa = ifa_ifwithnet(gateway)) == NULL) {
