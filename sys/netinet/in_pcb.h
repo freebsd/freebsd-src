@@ -385,7 +385,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_IPV4	0x1
 #define	INP_IPV6	0x2
 #define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-#define	INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
+#define	INP_TIMEWAIT	0x8		/* inpcb in TIMEWAIT, ppcb is tcptw */
 #define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
 #define	INP_DROPPED	0x20		/* protocol drop flag */
 #define	INP_SOCKREF	0x40		/* strong socket reference */
