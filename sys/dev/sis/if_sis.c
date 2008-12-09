@@ -1432,7 +1432,11 @@ sis_rxeof(struct sis_softc *sc)
 		 * it should simply get re-used next time this descriptor
 	 	 * comes up in the ring.
 		 */
-		if (!(rxstat & SIS_CMDSTS_PKT_OK)) {
+		if ((ifp->if_capenable & IFCAP_VLAN_MTU) != 0 &&
+		    total_len <= (ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN -
+		    ETHER_CRC_LEN))
+			rxstat &= ~SIS_RXSTAT_GIANT;
+		if (SIS_RXSTAT_ERROR(rxstat) != 0) {
 			ifp->if_ierrors++;
 			if (rxstat & SIS_RXSTAT_COLL)
 				ifp->if_collisions++;
