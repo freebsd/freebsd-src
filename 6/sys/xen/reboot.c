@@ -34,12 +34,33 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/sched.h>
+#include <sys/smp.h>
+#include <sys/systm.h>
 
+#include <machine/xen/xen-os.h>
+#include <xen/hypervisor.h>
+#include <xen/gnttab.h>
+#include <xen/xen_intr.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#ifdef XENHVM
+
+#include <dev/xen/xenpci/xenpcivar.h>
+
+#else
+
+static void xen_suspend(void);
+
+#endif
 
 static void 
 shutdown_handler(struct xenbus_watch *watch,
@@ -91,21 +112,34 @@ shutdown_handler(struct xenbus_watch *watch,
 		printf("Ignoring shutdown request: %s\n", str);
 		goto done;
 	}
-#ifdef notyet
+
 	if (howto == -1) {
-		do_suspend(NULL);
+		xen_suspend();
 		goto done;
 	}
-#else 
-	if (howto == -1) {
-		printf("suspend not currently supported\n");
-		goto done;
-	}
-#endif
+
 	shutdown_nice(howto);
  done:
 	free(str, M_DEVBUF);
 }
+
+#ifndef XENHVM
+
+/*
+ * In HV mode, we let acpi take care of halts and reboots.
+ */
+
+static void
+xen_shutdown_final(void *arg, int howto)
+{
+
+	if (howto & (RB_HALT | RB_POWEROFF))
+		HYPERVISOR_shutdown(SHUTDOWN_poweroff);
+	else
+		HYPERVISOR_shutdown(SHUTDOWN_reboot);
+}
+
+#endif
 
 static struct xenbus_watch shutdown_watch = {
 	.node = "control/shutdown",
@@ -118,80 +152,61 @@ setup_shutdown_watcher(void *unused)
 
 	if (register_xenbus_watch(&shutdown_watch))
 		printf("Failed to set shutdown watcher\n");
+#ifndef XENHVM
+	EVENTHANDLER_REGISTER(shutdown_final, xen_shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
+#endif
 }
 
 SYSINIT(shutdown, SI_SUB_PSEUDO, SI_ORDER_ANY, setup_shutdown_watcher, NULL);
 
-#ifdef notyet
+#ifndef XENHVM
+
+extern void xencons_suspend(void);
+extern void xencons_resume(void);
 
 static void 
-xen_suspend(void *ignore)
+xen_suspend()
 {
 	int i, j, k, fpp;
+	unsigned long max_pfn;
 
-	extern void time_resume(void);
-	extern unsigned long max_pfn;
-	extern unsigned long *pfn_to_mfn_frame_list_list;
-	extern unsigned long *pfn_to_mfn_frame_list[];
-
-#ifdef CONFIG_SMP
-#error "do_suspend must be run cpu 0 - need to create separate thread"
-	cpumask_t prev_online_cpus;
-	int vcpu_prepare(int vcpu);
-#endif
-
-	int err = 0;
-
-	PANIC_IF(smp_processor_id() != 0);
-
-#if defined(CONFIG_SMP) && !defined(CONFIG_HOTPLUG_CPU)
-	if (num_online_cpus() > 1) {
-		printk(KERN_WARNING "Can't suspend SMP guests "
-		       "without CONFIG_HOTPLUG_CPU\n");
-		return -EOPNOTSUPP;
-	}
-#endif
-
-	xenbus_suspend();
-
-#ifdef CONFIG_SMP
-	lock_cpu_hotplug();
-	/*
-	 * Take all other CPUs offline. We hold the hotplug semaphore to
-	 * avoid other processes bringing up CPUs under our feet.
-	 */
-	cpus_clear(prev_online_cpus);
-	while (num_online_cpus() > 1) {
-		for_each_online_cpu(i) {
-			if (i == 0)
-				continue;
-			unlock_cpu_hotplug();
-			err = cpu_down(i);
-			lock_cpu_hotplug();
-			if (err != 0) {
-				printk(KERN_CRIT "Failed to take all CPUs "
-				       "down: %d.\n", err);
-				goto out_reenable_cpus;
-			}
-			cpu_set(i, prev_online_cpus);
-		}
-	}
-#endif /* CONFIG_SMP */
-
-	preempt_disable();
-
-
-	__cli();
-	preempt_enable();
 #ifdef SMP
-	unlock_cpu_hotplug();
+	cpumask_t map;
+	/*
+	 * Bind us to CPU 0 and stop any other VCPUs.
+	 */
+	mtx_lock_spin(&sched_lock);
+	sched_bind(curthread, 0);
+	mtx_unlock_spin(&sched_lock);
+	KASSERT(PCPU_GET(cpuid) == 0, ("xen_suspend: not running on cpu 0"));
+
+	map = PCPU_GET(other_cpus) & ~stopped_cpus;
+	if (map)
+		stop_cpus(map);
 #endif
+
+	if (DEVICE_SUSPEND(root_bus) != 0) {
+		printf("xen_suspend: device_suspend failed\n");
+		if (map)
+			restart_cpus(map);
+		return;
+	}
+
+	local_irq_disable();
+
+	xencons_suspend();
 	gnttab_suspend();
 
-	pmap_kremove(HYPERVISOR_shared_info);
+	max_pfn = HYPERVISOR_shared_info->arch.max_pfn;
 
-	xen_start_info->store_mfn = mfn_to_pfn(xen_start_info->store_mfn);
-	xen_start_info->console.domU.mfn = mfn_to_pfn(xen_start_info->console.domU.mfn);
+	void *shared_info = HYPERVISOR_shared_info;
+	HYPERVISOR_shared_info = NULL;
+	pmap_kremove((vm_offset_t) shared_info);
+	PT_UPDATES_FLUSH();
+
+	xen_start_info->store_mfn = MFNTOPFN(xen_start_info->store_mfn);
+	xen_start_info->console.domU.mfn = MFNTOPFN(xen_start_info->console.domU.mfn);
 
 	/*
 	 * We'll stop somewhere inside this hypercall. When it returns,
@@ -199,37 +214,32 @@ xen_suspend(void *ignore)
 	 */
 	HYPERVISOR_suspend(VTOMFN(xen_start_info));
 
-	pmap_kenter_ma(HYPERVISOR_shared_info, xen_start_info->shared_info);
-	set_fixmap(FIX_SHARED_INFO, xen_start_info->shared_info);
+	pmap_kenter_ma((vm_offset_t) shared_info, xen_start_info->shared_info);
+	HYPERVISOR_shared_info = shared_info;
 
-#if 0
-	memset(empty_zero_page, 0, PAGE_SIZE);
-#endif     
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
-		VTOMFN(pfn_to_mfn_frame_list_list);
+		VTOMFN(xen_pfn_to_mfn_frame_list_list);
   
 	fpp = PAGE_SIZE/sizeof(unsigned long);
 	for (i = 0, j = 0, k = -1; i < max_pfn; i += fpp, j++) {
 		if ((j % fpp) == 0) {
 			k++;
-			pfn_to_mfn_frame_list_list[k] = 
-				VTOMFN(pfn_to_mfn_frame_list[k]);
+			xen_pfn_to_mfn_frame_list_list[k] = 
+				VTOMFN(xen_pfn_to_mfn_frame_list[k]);
 			j = 0;
 		}
-		pfn_to_mfn_frame_list[k][j] = 
-			VTOMFN(&phys_to_machine_mapping[i]);
+		xen_pfn_to_mfn_frame_list[k][j] = 
+			VTOMFN(&xen_phys_machine[i]);
 	}
 	HYPERVISOR_shared_info->arch.max_pfn = max_pfn;
 
 	gnttab_resume();
-
 	irq_resume();
-
-	time_resume();
-
-	__sti();
-
+	cpu_initclocks();
+	local_irq_enable();
 	xencons_resume();
+
+	printf("UP\n");
 
 #ifdef CONFIG_SMP
 	for_each_cpu(i)
@@ -240,21 +250,13 @@ xen_suspend(void *ignore)
 	 * Only resume xenbus /after/ we've prepared our VCPUs; otherwise
 	 * the VCPU hotplug callback can race with our vcpu_prepare
 	 */
-	xenbus_resume();
+	DEVICE_RESUME(root_bus);
 
-#ifdef CONFIG_SMP
- out_reenable_cpus:
-	for_each_cpu_mask(i, prev_online_cpus) {
-		j = cpu_up(i);
-		if ((j != 0) && !cpu_online(i)) {
-			printk(KERN_CRIT "Failed to bring cpu "
-			       "%d back up (%d).\n",
-			       i, j);
-			err = j;
-		}
-	}
+#ifdef SMP
+	sched_unbind(curthread);
+	if (map)
+		restart_cpus(map);
 #endif
-	return err;
 }
 
-#endif /* notyet */
+#endif

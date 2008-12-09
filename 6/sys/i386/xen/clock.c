@@ -131,7 +131,7 @@ static u_char timer2_state = RELEASED;
 static struct timespec shadow_tv;
 static uint32_t shadow_tv_version;	/* XXX: lazy locking */
 static uint64_t processed_system_time;	/* stime (ns) at last processing. */
-
+static unsigned int time_irq;
 
 #ifdef XEN_PRIVILEGED_GUEST
 static struct mtx clock_lock;
@@ -839,22 +839,24 @@ static struct vcpu_set_periodic_timer xen_set_periodic_tick;
 void
 cpu_initclocks(void)
 {
-	int time_irq;
 
 	xen_set_periodic_tick.period_ns = NS_PER_TICK;
 
 	HYPERVISOR_vcpu_op(VCPUOP_set_periodic_timer, 0,
 			   &xen_set_periodic_tick);
 
-        if ((time_irq = bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
-		    (driver_intr_t *)clkintr, INTR_TYPE_CLK | INTR_FAST,
-		    NULL)) < 0) {
+	if (time_irq)
+		unbind_from_irqhandler(time_irq);
+	time_irq = 0;
+
+        if (bind_virq_to_irqhandler(VIRQ_TIMER, 0, "clk", 
+		(driver_intr_t *)clkintr, INTR_TYPE_CLK | INTR_FAST,
+		&time_irq)) {
 		panic("failed to register clock interrupt\n");
 	}
 
 	/* should fast clock be enabled ? */
 }
-
 
 int
 ap_cpu_initclocks(int cpu)

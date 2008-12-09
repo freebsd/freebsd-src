@@ -430,13 +430,11 @@ netfront_attach(device_t dev)
  * leave the device-layer structures intact so that this is transparent to the
  * rest of the kernel.
  */
-static int 
+static int
 netfront_resume(device_t dev)
 {
 	struct netfront_info *info = device_get_softc(dev);
-	
-	DPRINTK("%s\n", xenbus_get_node(dev));
-	
+
 	netif_disconnect_backend(info);
 	return (0);
 }
@@ -576,9 +574,6 @@ setup_device(device_t dev, struct netfront_info *info)
 	if (error)
 		goto fail;
 
-#if 0	
-	network_connect(info);
-#endif
 	error = bind_listening_port_to_irqhandler(xenbus_get_otherend_id(dev),
 		"xn", xn_intr, info, INTR_TYPE_NET | INTR_MPSAFE, &info->irq);
 
@@ -1596,6 +1591,7 @@ network_connect(struct netfront_info *np)
 	/* Step 2: Rebuild the RX buffer freelist and the RX ring itself. */
 	for (requeue_idx = 0, i = 0; i < NET_RX_RING_SIZE; i++) {
 		struct mbuf *m;
+		u_long pfn;
 
 		if (np->rx_mbufs[i] == NULL)
 			continue;
@@ -1603,15 +1599,16 @@ network_connect(struct netfront_info *np)
 		m = np->rx_mbufs[requeue_idx] = xennet_get_rx_mbuf(np, i);
 		ref = np->grant_rx_ref[requeue_idx] = xennet_get_rx_ref(np, i);
 		req = RING_GET_REQUEST(&np->rx, requeue_idx);
+		pfn = vtophys(mtod(m, vm_offset_t)) >> PAGE_SHIFT;
 
 		if (!np->copying_receiver) {
 			gnttab_grant_foreign_transfer_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    vtophys(mtod(m, vm_offset_t)));
+			    pfn);
 		} else {
 			gnttab_grant_foreign_access_ref(ref,
 			    xenbus_get_otherend_id(np->xbdev),
-			    vtophys(mtod(m, vm_offset_t)), 0);
+			    PFNTOMFN(pfn), 0);
 		}
 		req->gref = ref;
 		req->id   = requeue_idx;
@@ -1786,7 +1783,12 @@ static void netif_free(struct netfront_info *info)
 
 static void netif_disconnect_backend(struct netfront_info *info)
 {
-	xn_stop(info);
+	XN_RX_LOCK(info);
+	XN_TX_LOCK(info);
+	netfront_carrier_off(info);
+	XN_TX_UNLOCK(info);
+	XN_RX_UNLOCK(info);
+
 	end_access(info->tx_ring_ref, info->tx.sring);
 	end_access(info->rx_ring_ref, info->rx.sring);
 	info->tx_ring_ref = GRANT_INVALID_REF;
@@ -1794,12 +1796,8 @@ static void netif_disconnect_backend(struct netfront_info *info)
 	info->tx.sring = NULL;
 	info->rx.sring = NULL;
 
-#if 0
 	if (info->irq)
 		unbind_from_irqhandler(info->irq);
-#else 
-	panic("FIX ME");
-#endif
 	info->irq = 0;
 }
 

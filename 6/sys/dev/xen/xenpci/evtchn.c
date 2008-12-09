@@ -75,6 +75,7 @@ static int evtchn_to_irq[NR_EVENT_CHANNELS] = {
 	[0 ...  NR_EVENT_CHANNELS-1] = -1 };
 
 static struct mtx irq_alloc_lock;
+static device_t xenpci_device;
 
 #define ARRAY_SIZE(a)	(sizeof(a) / sizeof(a[0]))
 
@@ -317,7 +318,7 @@ evtchn_interrupt(void *arg)
 			handler = irq_evtchn[irq].handler;
 			handler_arg = irq_evtchn[irq].arg;
 			if (unlikely(handler == NULL)) {
-				printk("Xen IRQ%d (port %d) has no handler!\n",
+				printf("Xen IRQ%d (port %d) has no handler!\n",
 				       irq, port);
 				mtx_unlock(&irq_evtchn[irq].lock);
 				continue;
@@ -345,8 +346,27 @@ evtchn_interrupt(void *arg)
 	}
 }
 
-void irq_resume(void)
+void
+irq_suspend(void)
 {
+	struct xenpci_softc *scp = device_get_softc(xenpci_device);
+
+	/*
+	 * Take our interrupt handler out of the list of handlers
+	 * that can handle this irq.
+	 */
+	if (scp->intr_cookie != NULL) {
+		if (BUS_TEARDOWN_INTR(device_get_parent(xenpci_device),
+			xenpci_device, scp->res_irq, scp->intr_cookie) != 0)
+			printf("intr teardown failed.. continuing\n");
+		scp->intr_cookie = NULL;
+	}
+}
+
+void
+irq_resume(void)
+{
+	struct xenpci_softc *scp = device_get_softc(xenpci_device);
 	int evtchn, irq;
 
 	for (evtchn = 0; evtchn < NR_EVENT_CHANNELS; evtchn++) {
@@ -356,6 +376,10 @@ void irq_resume(void)
 
 	for (irq = 0; irq < ARRAY_SIZE(irq_evtchn); irq++)
 		irq_evtchn[irq].evtchn = 0;
+
+	BUS_SETUP_INTR(device_get_parent(xenpci_device),
+	    xenpci_device, scp->res_irq, INTR_TYPE_MISC,
+	    evtchn_interrupt, NULL, &scp->intr_cookie);
 }
 
 int
@@ -379,6 +403,8 @@ xenpci_irq_init(device_t device, struct xenpci_softc *scp)
 	    &scp->intr_cookie);
 	if (error)
 		return (error);
+
+	xenpci_device = device;
 
 	return (0);
 }

@@ -377,13 +377,12 @@ blkfront_resume(device_t dev)
 
 	DPRINTK("blkfront_resume: %s\n", xenbus_get_node(dev));
 
-	blkif_free(info, 1);
-
+	blkif_free(info, info->connected == BLKIF_STATE_CONNECTED);
 	err = talk_to_backend(dev, info);
-	if (!err)
+	if (info->connected == BLKIF_STATE_SUSPENDED && !err)
 		blkif_recover(info);
 
-	return err;
+	return (err);
 }
 
 /* Common code used when first setting up, and when resuming. */
@@ -427,7 +426,7 @@ talk_to_backend(device_t dev, struct blkfront_info *info)
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err) {
-		if (err == -EAGAIN)
+		if (err == EAGAIN)
 			goto again;
 		xenbus_dev_fatal(dev, err, "completing transaction");
 		goto destroy_blkring;

@@ -389,28 +389,90 @@ xenbus_attach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 xenbus_suspend(device_t dev)
 {
+	int error;
+
 	DPRINTK("");
-	panic("implement me");
-#if 0
-	bus_for_each_dev(&xenbus_frontend.bus, NULL, NULL, suspend_dev);
-	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, suspend_dev);
-#endif
+
+	error = bus_generic_suspend(dev);
+	if (error)
+		return (error);
+
 	xs_suspend();
+
+	return (0);
 }
 
-static void
+static int
 xenbus_resume(device_t dev)
 {
+	device_t *kids;
+	struct xenbus_device_ivars *ivars;
+	int i, count, error;
+	char *statepath;
+
 	xb_init_comms();
 	xs_resume();
-	panic("implement me");
+
+	/*
+	 * We must re-examine each device and find the new path for
+	 * its backend.
+	 */
+	if (device_get_children(dev, &kids, &count) == 0) {
+		for (i = 0; i < count; i++) {
+			if (device_get_state(kids[i]) == DS_NOTPRESENT)
+				continue;
+
+			ivars = device_get_ivars(kids[i]);
+
+			unregister_xenbus_watch(
+				&ivars->xd_otherend_watch);
+			ivars->xd_state = XenbusStateInitialising;
+
+			/*
+			 * Find the new backend details and
+			 * re-register our watch.
+			 */
+			free(ivars->xd_otherend_path, M_DEVBUF);
+			error = xenbus_gather(XBT_NIL, ivars->xd_node,
+			    "backend-id", "%i", &ivars->xd_otherend_id,
+			    "backend", NULL, &ivars->xd_otherend_path,
+			    NULL);
+			if (error)
+				return (error);
+
+			DEVICE_RESUME(kids[i]);
+
+			statepath = malloc(strlen(ivars->xd_otherend_path)
+			    + strlen("/state") + 1, M_DEVBUF, M_WAITOK);
+			sprintf(statepath, "%s/state", ivars->xd_otherend_path);
+
+			free(ivars->xd_otherend_watch.node, M_DEVBUF);
+			ivars->xd_otherend_watch.node = statepath;
+			register_xenbus_watch(
+				&ivars->xd_otherend_watch);
+
 #if 0
-	bus_for_each_dev(&xenbus_frontend.bus, NULL, NULL, resume_dev);
-	bus_for_each_dev(&xenbus_backend.bus, NULL, NULL, resume_dev);
-#endif 
+			/*
+			 * Can't do this yet since we are running in
+			 * the xenwatch thread and if we sleep here,
+			 * we will stop delivering watch notifications
+			 * and the device will never come back online.
+			 */
+			sx_xlock(&ivars->xd_lock);
+			while (ivars->xd_state != XenbusStateClosed
+			    && ivars->xd_state != XenbusStateConnected)
+				sx_sleep(&ivars->xd_state, &ivars->xd_lock,
+				    0, "xdresume", 0);
+			sx_xunlock(&ivars->xd_lock);
+#endif
+		}
+		free(kids, M_TEMP);
+	}
+
+	return (0);
 }
 
 static int

@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xen-os.h>
 #include <xen/features.h>
 #include <xen/hypervisor.h>
+#include <xen/gnttab.h>
+#include <xen/xen_intr.h>
 #include <xen/interface/memory.h>
 #include <xen/interface/hvm/params.h>
 
@@ -63,6 +65,7 @@ __FBSDID("$FreeBSD$");
  */
 char *hypercall_stubs;
 shared_info_t *HYPERVISOR_shared_info;
+static vm_paddr_t shared_info_pa;
 
 /*
  * The softc is automatically allocated by the parent bus using the
@@ -75,7 +78,6 @@ static int xenpci_deallocate_resources(device_t device);
 static int xenpci_allocate_resources(device_t device);
 static int xenpci_attach(device_t device, struct xenpci_softc *scp);
 static int xenpci_detach(device_t device, struct xenpci_softc *scp);
-static int xenpci_resume(device_t device, struct xenpci_softc *scp);
 
 static int xenpci_alloc_space_int(struct xenpci_softc *scp, size_t sz,
     u_long *pa);
@@ -155,9 +157,8 @@ xenpci_pci_detach (device_t device)
 static int
 xenpci_pci_resume(device_t device)
 {
-	struct xenpci_softc *scp = DEVICE2SOFTC(device);
 
-        return (xenpci_resume(device, scp));
+	return (bus_generic_resume(device));
 }
 
 /*
@@ -251,7 +252,6 @@ xenpci_attach(device_t device, struct xenpci_softc * scp)
 {
 	struct xen_add_to_physmap xatp;
 	vm_offset_t shared_va;
-	vm_paddr_t shared_pa;
 
 	if (xenpci_allocate_resources(device))
 		goto errexit;
@@ -263,17 +263,17 @@ xenpci_attach(device_t device, struct xenpci_softc * scp)
 
 	setup_xen_features();
 
-	xenpci_alloc_space_int(scp, PAGE_SIZE, &shared_pa); 
+	xenpci_alloc_space_int(scp, PAGE_SIZE, &shared_info_pa); 
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = shared_pa >> PAGE_SHIFT;
+	xatp.gpfn = shared_info_pa >> PAGE_SHIFT;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		panic("HYPERVISOR_memory_op failed");
 
 	shared_va = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
-	pmap_kenter(shared_va, shared_pa);
+	pmap_kenter(shared_va, shared_info_pa);
 	HYPERVISOR_shared_info = (void *) shared_va;
 
 	/*
@@ -313,13 +313,6 @@ xenpci_detach(device_t device, struct xenpci_softc *scp)
 	 * allocated on behalf of this driver.
 	 */
 	return xenpci_deallocate_resources(device);
-}
-
-static int
-xenpci_resume(device_t device, struct xenpci_softc *scp)
-{
-
-	xenpci_resume_hypercall_stubs(device, scp);
 }
 
 static int
@@ -412,11 +405,26 @@ xenpci_alloc_space(size_t sz, vm_paddr_t *pa)
 }
 
 void
-printk(const char *fmt, ...)
+xenpci_resume()
 {
-        __va_list ap;
+	device_t device = devclass_get_device(xenpci_devclass, 0);
+	struct xenpci_softc *scp = DEVICE2SOFTC(device);
+	struct xen_add_to_physmap xatp;
 
-        va_start(ap, fmt);
-        vprintf(fmt, ap);
-        va_end(ap);
+	xenpci_resume_hypercall_stubs(device, scp);
+
+	xatp.domid = DOMID_SELF;
+	xatp.idx = 0;
+	xatp.space = XENMAPSPACE_shared_info;
+	xatp.gpfn = shared_info_pa >> PAGE_SHIFT;
+	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
+		panic("HYPERVISOR_memory_op failed");
+
+	pmap_kenter((vm_offset_t) HYPERVISOR_shared_info, shared_info_pa);
+
+	xenpci_set_callback(device);
+
+	gnttab_resume();
+	irq_resume();
 }
+

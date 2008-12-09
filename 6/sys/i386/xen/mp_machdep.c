@@ -567,7 +567,7 @@ xen_smp_intr_init(unsigned int cpu)
 	    INTR_FAST|INTR_TYPE_TTY|INTR_MPSAFE, &pc->pc_resched_irq);
 
 	printf("cpu=%d irq=%d vector=%d\n",
-	    cpu, rc, RESCHEDULE_VECTOR);
+	    cpu, pc->pc_resched_irq, RESCHEDULE_VECTOR);
 	
 	sprintf(callfunc_name[cpu], "callfunc%u", cpu);
 	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR, cpu,
@@ -578,7 +578,7 @@ xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 
 	printf("cpu=%d irq=%d vector=%d\n",
-	    cpu, rc, CALL_FUNCTION_VECTOR);
+	    cpu, pc->pc_callfunc_irq, CALL_FUNCTION_VECTOR);
 
 	if ((cpu != 0) && ((rc = ap_cpu_initclocks(cpu)) != 0))
 		goto fail;
