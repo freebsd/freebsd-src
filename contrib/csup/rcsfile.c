@@ -232,6 +232,7 @@ rcsfile_send_details(struct rcsfile *rf, struct stream *wr)
 {
 	struct delta *d;
 	struct tag *t;
+	const char *keyword;
 	int error;
 
 	assert(rf != NULL);
@@ -264,10 +265,13 @@ rcsfile_send_details(struct rcsfile *rf, struct stream *wr)
 		return(error);
 	/* Write expand. */
 	if (rf->expand != EXPAND_DEFAULT) {
-		error = proto_printf(wr, "E %s\n",
-		    keyword_encode_expand(rf->expand));
-		if (error)
-			return(error);
+		keyword = keyword_encode_expand(rf->expand);
+		if (keyword != NULL) {
+			error = proto_printf(wr, "E %s\n",
+			    keyword_encode_expand(rf->expand));
+			if (error)
+				return(error);
+		}
 	}
 
 	/* Write tags to server. */
