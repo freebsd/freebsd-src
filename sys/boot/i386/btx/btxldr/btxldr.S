@@ -295,7 +295,7 @@ putstr: 	lodsb				# Load char
  */
 putchr:		testb $1,muted			# Check muted
 		jnz putchr.5			#  do a nop
-putchr_nm: 	pusha				# Save
+		pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
 		movl $BDA_POS,%ebx		# BDA pointer
