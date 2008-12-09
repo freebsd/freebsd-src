@@ -460,7 +460,7 @@ cache_enter(dvp, vp, cnp)
 	struct vnode *vp;
 	struct componentname *cnp;
 {
-	struct namecache *ncp;
+	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
 	u_int32_t hash;
 	int hold;
@@ -516,8 +516,6 @@ cache_enter(dvp, vp, cnp)
 	 * name.
 	 */
 	if (vp) {
-		struct namecache *n2;
-
 		TAILQ_FOREACH(n2, &vp->v_cache_dst, nc_dst) {
 			if (n2->nc_dvp == dvp &&
 			    n2->nc_nlen == cnp->cn_namelen &&
@@ -527,7 +525,16 @@ cache_enter(dvp, vp, cnp)
 				return;
 			}
 		}
-	}	
+	} else {
+		TAILQ_FOREACH(n2, &ncneg, nc_dst) {
+			if (n2->nc_nlen == cnp->cn_namelen &&
+			    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+				CACHE_UNLOCK();
+				cache_free(ncp);
+				return;
+			}
+		}
+	}
 
 	numcache++;
 	if (!vp) {
