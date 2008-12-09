@@ -67,7 +67,7 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	cue \
-	cxgb \
+	${_cxgb} \
 	${_cx} \
 	${_cyclic} \
 	dc \
@@ -328,11 +328,12 @@ SUBDIR=	${_3dfx} \
 	${_wpi} \
 	${_wpifw} \
 	${_xe} \
-	xfs \
 	xl \
 	${_zfs} \
 	zlib \
 	zyd
+
+#XEN!=grep XEN  ${.CURDIR}/opt_xen.h 
 
 .if ${MACHINE_ARCH} != "powerpc"
 _syscons=	syscons
@@ -394,7 +395,7 @@ _cyclic=	cyclic
 .endif
 _digi=		digi
 _dpms=		dpms
-_drm=		drm
+#_drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -465,6 +466,7 @@ _bios=		bios
 _ciss=		ciss
 _cm=		cm
 _cmx=		cmx
+#_cxgb=		cxgb
 _coretemp=	coretemp
 _ctau=		ctau
 _cx=		cx
@@ -523,11 +525,12 @@ _cmx=		cmx
 _ciss=		ciss
 _coretemp=	coretemp
 _cpufreq=	cpufreq
+#_cxgb		cxgb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _cyclic=	cyclic
 .endif
 _digi=		digi
-_drm=		drm
+#_drm=		drm
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
