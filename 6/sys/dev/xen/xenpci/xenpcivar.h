@@ -41,3 +41,5 @@ struct xenpci_softc {
 
 extern int xenpci_irq_init(device_t device, struct xenpci_softc *scp);
 extern int xenpci_alloc_space(size_t sz, vm_paddr_t *pa);
+extern void xenpci_resume(void);
+extern void xen_suspend(void);

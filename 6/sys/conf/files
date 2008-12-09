@@ -2069,6 +2069,7 @@ dev/xen/netfront/netfront.c    optional xenhvm
 xen/gnttab.c                    optional xenhvm
 xen/features.c                  optional xenhvm
 dev/xen/xenpci/evtchn.c         optional xenhvm
+dev/xen/xenpci/machine_reboot.c optional xenhvm
 xen/evtchn/evtchn_dev.c         optional xenhvm
 xen/reboot.c			optional xenhvm
 xen/xenbus/xenbus_client.c      optional xenhvm

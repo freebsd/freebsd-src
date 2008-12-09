@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/xen/console/xencons_ring.h>
 
 #define console_evtchn	console.domU.evtchn
+static unsigned int console_irq;
 extern char *console_page;
  
 static inline struct xencons_interface *
@@ -118,14 +119,17 @@ xencons_ring_init(void)
 
 	err = bind_caller_port_to_irqhandler(xen_start_info->console_evtchn,
 		"xencons", xencons_handle_input, NULL,
-		INTR_TYPE_MISC | INTR_MPSAFE, NULL);
+		INTR_TYPE_MISC | INTR_MPSAFE, &console_irq);
 	if (err) {
 		return err;
 	}
 
 	return 0;
 }
-#ifdef notyet
+
+extern void xencons_suspend(void);
+extern void xencons_resume(void);
+
 void 
 xencons_suspend(void)
 {
@@ -133,7 +137,7 @@ xencons_suspend(void)
 	if (!xen_start_info->console_evtchn)
 		return;
 
-	unbind_evtchn_from_irqhandler(xen_start_info->console_evtchn, NULL);
+	unbind_from_irqhandler(console_irq);
 }
 
 void 
@@ -142,7 +146,7 @@ xencons_resume(void)
 
 	(void)xencons_ring_init();
 }
-#endif
+
 /*
  * Local variables:
  * mode: C
