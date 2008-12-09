@@ -11,9 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -76,6 +73,7 @@
 #define PMU_I2C_CMD		0x9a	/* i2c commands */
 #define PMU_GET_LID_STATE	0xdc	/* Report lid state */
 #define PMU_GET_VERSION		0xea	/* Identify thyself */
+#define	PMU_SET_SLEEPLED	0xee	/* Set sleep LED on/off */
 
 /* Bits in PMU interrupt and interrupt mask bytes */
 #define PMU_INT_ADB_AUTO	0x04	/* ADB autopoll, when PMU_INT_ADB */
@@ -161,6 +159,7 @@ struct pmu_softc {
 	device_t	adb_bus;
 	volatile int	sc_autopoll;
 	int		sc_batteries;
+	struct cdev	*sc_leddev;
 };
 
 struct pmu_battstate {

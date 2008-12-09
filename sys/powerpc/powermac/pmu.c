@@ -11,8 +11,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -41,6 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
+#include <dev/led/led.h>
 
 #include <machine/bus.h>
 #include <machine/intr.h>
@@ -71,6 +70,7 @@ static u_int	pmu_adb_send(device_t dev, u_char command_byte, int len,
 static u_int	pmu_adb_autopoll(device_t dev, uint16_t mask);
 static void	pmu_poll(device_t dev);
 
+static void	pmu_set_sleepled(void *xsc, int onoff);
 static int	pmu_server_mode(SYSCTL_HANDLER_ARGS);
 static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
 		    struct pmu_battstate *info);
@@ -333,6 +333,9 @@ pmu_attach(device_t dev)
 	}
 
 	sc->sc_autopoll = 0;
+	sc->sc_batteries = 0;
+	sc->adb_bus = NULL;
+	sc->sc_leddev = NULL;
 
 	/* Init PMU */
 
@@ -439,6 +442,12 @@ pmu_attach(device_t dev)
 		}
 	}
 
+	/*
+	 * Set up LED interface
+	 */
+
+	sc->sc_leddev = led_create(pmu_set_sleepled, sc, "sleepled");
+
 	return (bus_generic_attach(dev));
 }
 
@@ -448,6 +457,9 @@ pmu_detach(device_t dev)
 	struct pmu_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	if (sc->sc_leddev != NULL)
+		led_destroy(sc->sc_leddev);
 
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irqrid, sc->sc_irq);
@@ -709,6 +721,19 @@ pmu_adb_autopoll(device_t dev, uint16_t mask)
 	mtx_unlock(&sc->sc_mutex);
 	
 	return 0;
+}
+
+static void
+pmu_set_sleepled(void *xsc, int onoff)
+{
+	struct pmu_softc *sc = xsc;
+	uint8_t cmd[] = {4, 0, 0};
+
+	cmd[2] = onoff;
+	
+	mtx_lock(&sc->sc_mutex);
+	pmu_send(sc, PMU_SET_SLEEPLED, 3, cmd, 0, NULL);
+	mtx_unlock(&sc->sc_mutex);
 }
 
 static int
