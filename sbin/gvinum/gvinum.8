@@ -40,6 +40,13 @@
 .Op Fl options
 .Sh COMMANDS
 .Bl -tag -width indent
+.It Ic attach Ar plex volume Op Cm rename
+.It Ic attach Ar subdisk plex Oo Ar offset Oc Op Cm rename
+Attach a plex to a volume, or a subdisk to a plex. 
+If offset is specified, the subdisk will be attached to the given offset within
+the plex.
+If rename is specified, the subdisk or plex will change name according to the
+object it attaches to.
 .It Ic checkparity Oo Fl f Oc Ar plex
 Check the parity blocks of a RAID-5 plex.
 The parity check will start at the
@@ -49,7 +56,10 @@ flag is specified, or otherwise at the location of the parity check pointer,
 the first location at which plex's parity is incorrect.
 All subdisks in the
 plex must be up for a parity check.
-.It Ic create Op Ar description-file
+.It Ic concat Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
+Create a concatenated volume from the specified drives.
+If no name is specified, a unique name will be set by gvinum.
+.It Ic create Oo Fl f Oc Op Ar description-file
 Create a volume as described in
 .Ar description-file .
 If no
@@ -57,6 +67,18 @@ If no
 provided, opens an editor and provides the current
 .Nm
 configuration for editing.
+The
+.Fl f
+flag will make gvinum ignore any errors regarding creating objects that already
+exists.
+However, in contrast to vinum, objects that are not properly named in the
+.Ar description-file
+will not be created when the
+.Fl f
+flag is given.
+.It Ic detach Oo Fl f Oc Op Ar plex | subdisk
+Detach a plex or subdisk from the volume or plex to which it is
+attached.
 .It Ic help
 Provides a synopsis of
 .Nm
@@ -76,6 +98,14 @@ The
 and
 .Fl V
 flags provide progressively more detailed output.
+.It Ic mirror Oo Fl fsv Oc Oo Fl n Ar name Oc Ar drives
+Create a mirrored volume from the specified drives. 
+It requires at least a multiple of 2 drives.
+If no name is specified, a unique name will be set by gvinum.
+If the 
+.Fl s
+flag is specified, a striped mirror will be created, and thus requires a
+multiple of 4 drives.
 .It Ic move | mv Fl f Ar drive subdisk Op Ar ...
 Move the subdisk(s) to the specified drive.
 The
@@ -85,12 +115,19 @@ part of the move.
 This can currently only be done when the subdisk is
 not being accessed.
 .Pp
-If the subdisk(s) form part of a RAID-5 plex, the disk(s) will need to be set
-to the
+If a single subdisk is moved, and it forms a part of a RAID-5 plex, the moved
+subdisks will need to be set to the
+.Dq stale
+state, and the plex will require a
+.Ic start
+command.
+If multiple subdisk(s) is moved, and form part of a RAID-5 plex, the
+moved disk(s) will need to be set to the
 .Dq up
 state and the plex will require a
 .Ic rebuildparity
-command; if the subdisk(s) form part of a plex that is mirrored with other
+command.
+If the subdisk(s) form part of a plex that is mirrored with other
 plexes, the plex will require restarting and will sync once restarted.
 Moving
 more than one subdisk in a RAID-5 plex or subdisks from both sides of a
@@ -105,6 +142,11 @@ Exit
 when running in interactive mode.
 Normally this would be done by entering the
 EOF character.
+.It Ic raid5 Oo Fl fv Oc Oo Fl s Ar stripesize Oc Oo Fl n Ar name Oc Ar drives
+Create a RAID-5 volume from the specified drives.
+If no name is specified,a unique name will be set by
+.Ic gvinum. 
+This organization requires at least three drives.
 .It Ic rename Oo Fl r Oc Ar drive | subdisk | plex | volume newname
 Change the name of the specified object.
 The
@@ -143,9 +185,21 @@ flag forces state changes regardless of whether they are legal.
 Read configuration from all vinum drives.
 .It Ic start Oo Fl S Ar size Oc Ar volume | plex | subdisk
 Allow the system to access the objects.
+If necessary, plexes will be synced and rebuilt.
+If a subdisk was added to a running RAID-5 or striped plex, gvinum will
+expand into this subdisk and grow the whole RAID-5 array.
+This can be done without unmounting your filesystem.
 The
 .Fl S
 flag is currently ignored.
+.It Ic stop Oo Fl f Oc Op Ar volume | plex | subdisk
+Terminate access to the objects, or stop
+.Nm
+if no parameters are specified.
+.It Ic stripe Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
+Create a striped volume from the specified drives. If no name is specified,
+a unique name will be set by Ic gvinum. This organization requires at least two
+drives.
 .El
 .Sh DESCRIPTION
 The
@@ -217,15 +271,90 @@ is invoked.
 directory with device nodes for
 .Nm
 objects
-.It Pa /dev/gvinum/plex
-directory containing device nodes for
-.Nm
-plexes
-.It Pa /dev/gvinum/sd
-directory containing device nodes for
-.Nm
-subdisks
 .El
+.Sh EXAMPLES
+To create a mirror on disks /dev/ad1 and /dev/ad2, create a filesystem, mount,
+unmount and then stop Ic gvinum:
+.Pp
+.Dl "gvinum mirror /dev/ad1 /dev/ad2"
+.Dl "newfs /dev/gvinum/gvinumvolume0"
+.Dl "mount /dev/gvinum/gvinumvolume0 /mnt" 
+.Dl "..."
+.Dl "unmount /mnt"
+.Dl "gvinum stop"
+.Pp
+To create a striped mirror on disks /dev/ad1 /dev/ad2 /dev/ad3 and /dev/ad4
+named "data" and create a filesystem:
+.Pp
+.Dl "gvinum mirror -s -n data /dev/ad1 /dev/ad2 /dev/ad3 /dev/ad4"
+.Dl "newfs /dev/gvinum/data"
+.Pp
+To create a raid5 array on disks /dev/ad1 /dev/ad2 and /dev/ad3, with stripesize
+493k you can use the raid5 command:
+.Pp
+.Dl "gvinum raid5 -s 493k /dev/ad1 /dev/ad2 /dev/ad3"
+.Pp
+Then the volume will be created automatically.
+Afterwards, you have to initialize the volume:
+.Pp
+.Dl "gvinum start myraid5vol"
+.Pp
+The initialization will start, and the states will be updated when it's
+finished.
+The list command will give you information about its progress.
+.Pp
+Imagine that one of the drives fails, and the output of 'printconfig' looks
+something like this:
+.Pp
+.Dl "drive gvinumdrive1 device /dev/ad2"
+.Dl "drive gvinumdrive2 device /dev/???"
+.Dl "drive gvinumdrive0 device /dev/ad1"
+.Dl "volume myraid5vol"
+.Dl "plex name myraid5vol.p0 org raid5 986s vol myraid5vol"
+.Dl "sd name myraid5vol.p0.s2 drive gvinumdrive2 len 32538s driveoffset 265s"
+.Dl "plex myraid5vol.p0 plexoffset 1972s"
+.Dl "sd name myraid5vol.p0.s1 drive gvinumdrive1 len 32538s driveoffset 265s"
+.Dl "plex myraid5vol.p0 plexoffset 986s"
+.Dl "sd name myraid5vol.p0.s0 drive gvinumdrive0 len 32538s driveoffset 265s"
+.Dl "plex myraid5vol.p0 plexoffset 0s"
+.Pp
+Create a new drive with this configuration:
+.Pp
+.Dl "drive gdrive4 device /dev/ad4"
+.Pp
+Then move the stale subdisk to the new drive:
+.Pp
+.Dl "gvinum move gdrive4 myraid5vol.p0.s2"
+.Pp
+Then, initiate the rebuild:
+.Pp
+.Dl "gvinum start myraid5vol.p0"
+.Pp
+The plex will go up form degraded mode after the rebuild is finished.
+The plex can still be used while the rebuild is in progress, although requests
+might be delayed.
+For a more advanced usage and detailed explanation of gvinum, the
+handbook is recommended.
+.Pp
+Given the configuration as in the previous example, growing a RAID-5 or STRIPED
+array is accomplished by adding a new subdisk to the plex with a
+.Ar description-file
+similar to this:
+.Pp
+.Dl "drive newdrive device /dev/ad4"
+.Dl "sd drive newdrive plex myraid5vol.p0"
+.Pp
+If everything went ok, the plex state should now be set to growable.
+You can then start the growing with the
+.Ic start
+command:
+.Pp
+.Dl "gvinum start myraid5vol.p0"
+.Pp
+As with rebuilding, you can watch the progress using the
+.Ic list
+command.
+.Pp
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8
@@ -255,9 +384,13 @@ documentation were added by
 .An "Chris Jones"
 through the 2005 Google Summer
 of Code program.
+.Ic a partial rewrite of gvinum was done by "Lukas Ertl" and "Ulf Lilleengen"
+through the 2007 Google Summer of Code program.
+The documentation have been updated to reflect the new functionality.
 .Sh AUTHORS
 .An Lukas Ertl Aq le@FreeBSD.org
 .An Chris Jones Aq soc-cjones@FreeBSD.org
+.An Ulf Lilleengen Aq lulf@FreeBSD.org
 .Sh BUGS
 Currently,
 .Nm
@@ -270,10 +403,6 @@ The
 initsize flag to
 .Ic start
 is ignored.
-.Pp
-The
-.Ic stop
-command does not work.
 .Pp
 Moving subdisks that are not part of a mirrored or RAID-5 volume will
 destroy data.
@@ -291,18 +420,10 @@ Specifically, the following commands from
 .Xr vinum 4
 are not supported:
 .Bl -tag -width indent
-.It Ic attach Ar plex volume Op Cm rename
-.It Ic attach Ar subdisk plex Oo Ar offset Oc Op Cm rename
-Attach a plex to a volume, or a subdisk to a plex.
-.It Ic concat Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
-Create a concatenated volume from the specified drives.
 .It Ic debug
 Cause the volume manager to enter the kernel debugger.
 .It Ic debug Ar flags
 Set debugging flags.
-.It Ic detach Oo Fl f Oc Op Ar plex | subdisk
-Detach a plex or subdisk from the volume or plex to which it is
-attached.
 .It Ic dumpconfig Op Ar drive ...
 List the configuration information stored on the specified drives, or all
 drives in the system if no drive names are specified.
@@ -310,17 +431,9 @@ drives in the system if no drive names are specified.
 List information about volume manager state.
 .It Ic label Ar volume
 Create a volume label.
-.It Ic mirror Oo Fl fsv Oc Oo Fl n Ar name Oc Ar drives
-Create a mirrored volume from the specified drives.
 .It Ic resetstats Oo Fl r Oc Op Ar volume | plex | subdisk
 Reset statistics counters for the specified objects, or for all objects if none
 are specified.
 .It Ic setdaemon Op Ar value
 Set daemon configuration.
-.It Ic stop Oo Fl f Oc Op Ar volume | plex | subdisk
-Terminate access to the objects, or stop
-.Nm
-if no parameters are specified.
-.It Ic stripe Oo Fl fv Oc Oo Fl n Ar name Oc Ar drives
-Create a striped volume from the specified drives.
 .El
