@@ -1,6 +1,0 @@
-$ $tcsh: set25,v 1.2 2006/03/02 18:46:48 christos Exp $
-$ tc.sig.c
-$set 25 
-1 nuestro wait %d\n
-2 error: bsd_signal(%d) señal fuera de rango\n
-3 error: bsd_signal(%d) - sigaction ha fallado, errno %d\n

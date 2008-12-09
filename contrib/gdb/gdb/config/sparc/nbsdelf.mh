@@ -1,4 +1,0 @@
-# Host: NetBSD/sparc ELF
-NATDEPFILES= sparc-nat.o sparcnbsd-nat.o \
-	fork-child.o infptrace.o inftarg.o
-NAT_FILE= nm-nbsd.h
