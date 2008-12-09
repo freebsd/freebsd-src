@@ -1343,8 +1343,6 @@ done:
 	return (ifa);
 }
 
-#include <net/route.h>
-
 /*
  * Default action when installing a route with a Link Level gateway.
  * Lookup an appropriate real ifa to point to.
