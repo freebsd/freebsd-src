@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -88,11 +89,11 @@ struct in_endpoints {
 		struct	in_addr_4in6 ie46_local;
 		struct	in6_addr ie6_local;
 	} ie_dependladdr;
+};
 #define	ie_faddr	ie_dependfaddr.ie46_foreign.ia46_addr4
 #define	ie_laddr	ie_dependladdr.ie46_local.ia46_addr4
 #define	ie6_faddr	ie_dependfaddr.ie6_foreign
 #define	ie6_laddr	ie_dependladdr.ie6_local
-};
 
 /*
  * XXX The defines for inc_* are hacks and should be changed to direct
@@ -152,20 +153,11 @@ struct inpcb {
 	LIST_ENTRY(inpcb) inp_list;	/* (i/p) list for all PCBs for proto */
 	void	*inp_ppcb;		/* (i) pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* (c) PCB list info */
-	struct	socket *inp_socket;	/* (i)  back pointer to socket */
+	struct	socket *inp_socket;	/* (i) back pointer to socket */
 	struct	ucred	*inp_cred;	/* (c) cache of socket cred */
-
-	u_int32_t	inp_flow;	/* (i) IPv6 flow information */
+	u_int32_t inp_flow;		/* (i) IPv6 flow information */
 	int	inp_flags;		/* (i) generic IP/datagram flags */
-
 	u_char	inp_vflag;		/* (i) IP version flag (v4/v6) */
-#define	INP_IPV4	0x1
-#define	INP_IPV6	0x2
-#define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
-#define	INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
-#define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
-#define	INP_DROPPED	0x20		/* protocol drop flag */
-#define	INP_SOCKREF	0x40		/* strong socket reference */
 	u_char	inp_ip_ttl;		/* (i) time to live proto */
 	u_char	inp_ip_p;		/* (c) protocol proto */
 	u_char	inp_ip_minttl;		/* (i) minimum TTL or drop */
@@ -174,9 +166,9 @@ struct inpcb {
 	void	*inp_pspare[2];		/* (x) rtentry / general use */
 
 	/* Local and foreign ports, local and foreign addr. */
-	struct	in_conninfo inp_inc;
+	struct	in_conninfo inp_inc;	/* (i/p) list for PCB's local port */
 
-					/* (i/p) list for PCB's local port */
+	/* MAC and IPSEC policy information. */
 	struct	label *inp_label;	/* (i) MAC label */
 	struct	inpcbpolicy *inp_sp;    /* (s) for IPSEC */
 
@@ -184,15 +176,8 @@ struct inpcb {
 	struct {
 		u_char	inp4_ip_tos;		/* (i) type of service proto */
 		struct	mbuf *inp4_options;	/* (i) IP options */
-		struct	ip_moptions *inp4_moptions; /* (i) IP multicast options */
+		struct	ip_moptions *inp4_moptions; /* (i) IP mcast options */
 	} inp_depend4;
-#define	inp_fport	inp_inc.inc_fport
-#define	inp_lport	inp_inc.inc_lport
-#define	inp_faddr	inp_inc.inc_faddr
-#define	inp_laddr	inp_inc.inc_laddr
-#define	inp_ip_tos	inp_depend4.inp4_ip_tos
-#define	inp_options	inp_depend4.inp4_options
-#define	inp_moptions	inp_depend4.inp4_moptions
 	struct {
 		/* (i) IP options */
 		struct	mbuf *inp6_options;
@@ -209,8 +194,16 @@ struct inpcb {
 	LIST_ENTRY(inpcb) inp_portlist;	/* (i/p) */
 	struct	inpcbport *inp_phd;	/* (i/p) head of this list */
 #define inp_zero_size offsetof(struct inpcb, inp_gencnt)
-	inp_gen_t	inp_gencnt;	/* (c) generation count of this instance */
+	inp_gen_t	inp_gencnt;	/* (c) generation count */
 	struct rwlock	inp_lock;
+};
+#define	inp_fport	inp_inc.inc_fport
+#define	inp_lport	inp_inc.inc_lport
+#define	inp_faddr	inp_inc.inc_faddr
+#define	inp_laddr	inp_inc.inc_laddr
+#define	inp_ip_tos	inp_depend4.inp4_ip_tos
+#define	inp_options	inp_depend4.inp4_options
+#define	inp_moptions	inp_depend4.inp4_moptions
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
@@ -228,7 +221,7 @@ struct inpcb {
 #define	in6p_lport	inp_lport  /* for KAME src sync over BSD*'s */
 #define	in6p_fport	inp_fport  /* for KAME src sync over BSD*'s */
 #define	in6p_ppcb	inp_ppcb  /* for KAME src sync over BSD*'s */
-};
+
 /*
  * The range of the generation count, as used in this implementation, is 9e19.
  * We would have to create 300 billion connections per second for this number
@@ -384,7 +377,22 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define INP_PCBPORTHASH(lport, mask) \
 	(ntohs((lport)) & (mask))
 
-/* flags in inp_flags: */
+/*
+ * Flags for inp_vflags -- historically version flags only, but now quite a
+ * bit more due to an overflow of inp_flag, leading to some locking ambiguity
+ * as some bits are stable from initial allocation, and others may change.
+ */
+#define	INP_IPV4	0x1
+#define	INP_IPV6	0x2
+#define	INP_IPV6PROTO	0x4		/* opened under IPv6 protocol */
+#define	INP_TIMEWAIT	0x8		/* .. probably doesn't go here */
+#define	INP_ONESBCAST	0x10		/* send all-ones broadcast */
+#define	INP_DROPPED	0x20		/* protocol drop flag */
+#define	INP_SOCKREF	0x40		/* strong socket reference */
+
+/*
+ * Flags for inp_flag.
+ */
 #define	INP_RECVOPTS		0x01	/* receive incoming IP options */
 #define	INP_RECVRETOPTS		0x02	/* receive IP options for reply */
 #define	INP_RECVDSTADDR		0x04	/* receive IP dst address */
