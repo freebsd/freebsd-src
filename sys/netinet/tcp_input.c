@@ -480,11 +480,11 @@ tcp_input(struct mbuf *m, int off0)
 
 	/*
 	 * Locate pcb for segment, which requires a lock on tcbinfo.
-	 * Optimisticaly acquire a global read lock unless header flags
-	 * necessarily imply a state change.  There are two cases where we
-	 * might discover later we need a write lock despite the flags: ACKs
-	 * moving a connection out of the syncache, and ACK relating to a
-	 * connection in TIMEWAIT.
+	 * Optimisticaly acquire a global read lock rather than a write lock
+	 * unless header flags necessarily imply a state change.  There are
+	 * two cases where we might discover later we need a write lock
+	 * despite the flags: ACKs moving a connection out of the syncache,
+	 * and ACKs for a connection in TIMEWAIT.
 	 */
 	if ((thflags & (TH_SYN | TH_FIN | TH_RST)) != 0 ||
 	    tcp_read_locking == 0) {
@@ -1087,7 +1087,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * allow either a read lock or a write lock, as we may have acquired
 	 * a write lock due to a race.
 	 *
-	 * Require a global write lock for SYN/SIN/RST segments or
+	 * Require a global write lock for SYN/FIN/RST segments or
 	 * non-established connections; otherwise accept either a read or
 	 * write lock, as we may have conservatively acquired a write lock in
 	 * certain cases in tcp_input() (is this still true?).  Currently we
