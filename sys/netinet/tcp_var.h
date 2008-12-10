@@ -101,32 +101,6 @@ struct tcpcb {
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
 	u_int	t_flags;
-#define	TF_ACKNOW	0x000001	/* ack peer immediately */
-#define	TF_DELACK	0x000002	/* ack, but try to delay it */
-#define	TF_NODELAY	0x000004	/* don't delay packets to coalesce */
-#define	TF_NOOPT	0x000008	/* don't use tcp options */
-#define	TF_SENTFIN	0x000010	/* have sent FIN */
-#define	TF_REQ_SCALE	0x000020	/* have/will request window scaling */
-#define	TF_RCVD_SCALE	0x000040	/* other side has requested scaling */
-#define	TF_REQ_TSTMP	0x000080	/* have/will request timestamps */
-#define	TF_RCVD_TSTMP	0x000100	/* a timestamp was received in SYN */
-#define	TF_SACK_PERMIT	0x000200	/* other side said I could SACK */
-#define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
-#define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
-#define	TF_NOPUSH	0x001000	/* don't push */
-#define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
-#define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
-#define	TF_LASTIDLE	0x040000	/* connection was previously idle */
-#define	TF_RXWIN0SENT	0x080000	/* sent a receiver win 0 in response */
-#define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
-#define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
-#define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
-#define	TF_FORCEDATA	0x800000	/* force out a byte */
-#define	TF_TSO		0x1000000	/* TSO enabled on this connection */
-#define	TF_TOE		0x2000000	/* this connection is offloaded */
-#define	TF_ECN_PERMIT	0x4000000	/* connection ECN-ready */
-#define	TF_ECN_SND_CWR	0x8000000	/* ECN CWR in queue */
-#define	TF_ECN_SND_ECE	0x10000000	/* ECN ECE in queue */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
 	tcp_seq	snd_max;		/* highest sequence number sent;
@@ -180,8 +154,6 @@ struct tcpcb {
 /* out-of-band data */
 	char	t_oobflags;		/* have some */
 	char	t_iobc;			/* input character */
-#define	TCPOOB_HAVEDATA	0x01
-#define	TCPOOB_HADDATA	0x02
 /* RFC 1323 variables */
 	u_char	snd_scale;		/* window scaling for send window */
 	u_char	rcv_scale;		/* window scaling for recv window */
@@ -215,9 +187,45 @@ struct tcpcb {
 	void	*t_toe;			/* TOE pcb pointer */
 };
 
+/*
+ * Flags and utility macros for the t_flags field.
+ */
+#define	TF_ACKNOW	0x000001	/* ack peer immediately */
+#define	TF_DELACK	0x000002	/* ack, but try to delay it */
+#define	TF_NODELAY	0x000004	/* don't delay packets to coalesce */
+#define	TF_NOOPT	0x000008	/* don't use tcp options */
+#define	TF_SENTFIN	0x000010	/* have sent FIN */
+#define	TF_REQ_SCALE	0x000020	/* have/will request window scaling */
+#define	TF_RCVD_SCALE	0x000040	/* other side has requested scaling */
+#define	TF_REQ_TSTMP	0x000080	/* have/will request timestamps */
+#define	TF_RCVD_TSTMP	0x000100	/* a timestamp was received in SYN */
+#define	TF_SACK_PERMIT	0x000200	/* other side said I could SACK */
+#define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
+#define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
+#define	TF_NOPUSH	0x001000	/* don't push */
+#define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
+#define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
+#define	TF_LASTIDLE	0x040000	/* connection was previously idle */
+#define	TF_RXWIN0SENT	0x080000	/* sent a receiver win 0 in response */
+#define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
+#define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
+#define	TF_SIGNATURE	0x400000	/* require MD5 digests (RFC2385) */
+#define	TF_FORCEDATA	0x800000	/* force out a byte */
+#define	TF_TSO		0x1000000	/* TSO enabled on this connection */
+#define	TF_TOE		0x2000000	/* this connection is offloaded */
+#define	TF_ECN_PERMIT	0x4000000	/* connection ECN-ready */
+#define	TF_ECN_SND_CWR	0x8000000	/* ECN CWR in queue */
+#define	TF_ECN_SND_ECE	0x10000000	/* ECN ECE in queue */
+
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
 #define ENTER_FASTRECOVERY(tp)	tp->t_flags |= TF_FASTRECOVERY
 #define EXIT_FASTRECOVERY(tp)	tp->t_flags &= ~TF_FASTRECOVERY
+
+/*
+ * Flags for the t_oobflags field.
+ */
+#define	TCPOOB_HAVEDATA	0x01
+#define	TCPOOB_HADDATA	0x02
 
 #ifdef TCP_SIGNATURE
 /*
