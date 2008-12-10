@@ -887,6 +887,17 @@ gv_worker(void *arg)
 					    "%s: error code %d", v->name,
 					    newname, err);
 				g_free(newname);
+				/* Destroy and recreate the provider if we can. */
+				if (gv_provider_is_open(v->provider)) {
+					G_VINUM_DEBUG(0, "unable to rename "
+					    "provider to %s: provider in use",
+					    v->name);
+					break;
+				}
+				g_wither_provider(v->provider, ENOENT);
+				v->provider = NULL;
+				gv_post_event(sc, GV_EVENT_SETUP_OBJECTS, sc,
+				    NULL, 0, 0);
 				break;
 
 			case GV_EVENT_RENAME_PLEX:
