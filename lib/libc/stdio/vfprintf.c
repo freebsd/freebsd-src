@@ -396,12 +396,6 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 	char sign;		/* sign prefix (' ', '+', '-', or \0) */
 	char thousands_sep;	/* locale specific thousands separator */
 	const char *grouping;	/* locale specific numeric grouping rules */
-
-	if (__use_xprintf == 0 && getenv("USE_XPRINTF"))
-		__use_xprintf = 1;
-	if (__use_xprintf > 0)
-		return (__xvprintf(fp, fmt0, ap));
-
 #ifndef NO_FLOATING_POINT
 	/*
 	 * We can decompose the printed representation of floating
@@ -568,6 +562,10 @@ __vfprintf(FILE *fp, const char *fmt0, va_list ap)
 		val = GETARG (int); \
 	}
 
+	if (__use_xprintf == 0 && getenv("USE_XPRINTF"))
+		__use_xprintf = 1;
+	if (__use_xprintf > 0)
+		return (__xvprintf(fp, fmt0, ap));
 
 	thousands_sep = '\0';
 	grouping = NULL;
